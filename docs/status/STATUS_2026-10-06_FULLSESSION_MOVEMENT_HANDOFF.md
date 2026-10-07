@@ -27,6 +27,18 @@ pre-stroke session (PS93 0814) tracked with the ROUND-3 cam4 model -- pipeline t
    views); only 105 / 526 moments qualify today, the rest get no geometric augmentation in (b) -> (b) understates
    calibration until more paired labels exist. Patch masking on (LP multi-view default; trains cross-view inference).
 
+**MUST REVISIT (Priya, 2026-10-07: "this would be very important to clarify"):** the executed-angle readout
+test -- does post-stroke cortex follow the EXECUTED lick angle within a cued position, or the TARGET? Current
+answer (10-05, `scripts/lick_template_match.py`, calibrated within-position readout): no evidence, pooled r -0.05
+acute, -0.10 chronic. That rests on 60-trial windows, the round-3 cam4 model, the pre-10-06 tongue cleaning and a
+DLC-only movement model. Rerun it, pre-registered settings unchanged (baseline pre_cue), when ALL of these exist:
+(1) the next cam4 model (round 4 labels; DLC and/or LP, multi-view if the pilot wins) and cam1 for angle checks;
+(2) WHOLE sessions from O2 for several pre sessions AND the post sessions (acute / subacute / chronic per animal),
+`:full` specs; (3) the retuned cleaning (Rule 4 swap, contact windows, grooming excluded); (4) the movement-removed
+version with the full movement model (DLC + running + video), alongside the raw one; (5) angle = at peak
+protrusion, straddled-spout licks flagged and reported with / without. Report per animal and pooled, all
+variants run.
+
 **Next, in order:**
 1. Read the comparison: unique variance of video beyond DLC (+ running); then rerun the residual position test
    (`movement_position_angle`, 200 perms) with the richest movement model (needs a `--video/--running` option like

@@ -19536,3 +19536,15 @@ movement the cameras see (face, posture, paws differ by spout position). Caveats
 conservative (video can absorb genuine target-related postural set); decoders remain the more sensitive test; the
 pre-registered post-stroke comparison needs whole post-stroke sessions. Outputs `*_video1234_run.*` in
 `session_poses/PS93_20260814_full/` and `session_poses/movement_position_angle_summary_video1234_run.csv`.
+
+**Addendum (2026-10-07) -- MUST REVISIT (Priya, 2026-10-07: "this would be very important to clarify"):** the executed-angle readout
+test -- does post-stroke cortex follow the EXECUTED lick angle within a cued position, or the TARGET? Current
+answer (10-05, `scripts/lick_template_match.py`, calibrated within-position readout): no evidence, pooled r -0.05
+acute, -0.10 chronic. That rests on 60-trial windows, the round-3 cam4 model, the pre-10-06 tongue cleaning and a
+DLC-only movement model. Rerun it, pre-registered settings unchanged (baseline pre_cue), when ALL of these exist:
+(1) the next cam4 model (round 4 labels; DLC and/or LP, multi-view if the pilot wins) and cam1 for angle checks;
+(2) WHOLE sessions from O2 for several pre sessions AND the post sessions (acute / subacute / chronic per animal),
+`:full` specs; (3) the retuned cleaning (Rule 4 swap, contact windows, grooming excluded); (4) the movement-removed
+version with the full movement model (DLC + running + video), alongside the raw one; (5) angle = at peak
+protrusion, straddled-spout licks flagged and reported with / without. Report per animal and pooled, all
+variants run.
