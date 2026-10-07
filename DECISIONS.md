@@ -19525,3 +19525,14 @@ split licks, retuned cleaning. Full-model CV R^2: DLC-only (B) MOp_L 0.10, MOs 0
 running unique shrink (they overlap with video). TARGET (cue per position) unique falls to ~0 (-0.0001..+0.0032;
 0.002-0.010 with DLC only): with Musall-style video regressors almost no position-specific variance is left in the
 ENCODING model. The residual position test with the full movement model (200 perms) is running.
+
+**Addendum (2026-10-07) — residual position test with the FULL movement model (DLC + running + video, 200 perms;
+PS93 0814 whole session, round-3 cam4).** Position-specific (residual, shared vs per-position cue kernel) falls
+10-40x from the DLC-only model: MOp_L -0.0004 (p 1.00), MOs_L -0.0003 (p 0.96) -- nothing left ipsilesionally;
+MOp_R +0.0002 (p 0.03), MOs_R +0.0002 (p 0.05), SSp-m_L +0.0004 (p 0.02), SSp-m_R +0.0004 (p < 0.005), SSp-n_L
++0.0001 (p 0.18), SSp-n_R +0.0002 (p 0.01). Angle beyond position now detectable but tiny (+0.0004..+0.0012,
+p < 0.005 MOs / SSp-m / SSp-n_L). Reading: pre-stroke, nearly all apparently position-specific activity is
+movement the cameras see (face, posture, paws differ by spout position). Caveats: one session; movement-first is
+conservative (video can absorb genuine target-related postural set); decoders remain the more sensitive test; the
+pre-registered post-stroke comparison needs whole post-stroke sessions. Outputs `*_video1234_run.*` in
+`session_poses/PS93_20260814_full/` and `session_poses/movement_position_angle_summary_video1234_run.csv`.
