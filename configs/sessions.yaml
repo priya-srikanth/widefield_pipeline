@@ -534,6 +534,11 @@ sessions:
       h5: "20260928/PS94_20260928_102906.h5"
       regime: B
       fmdir: null
+    "1001":
+      mc: "20261001/PS94_20261001_094021/motion_corrected"
+      h5: "20261001/PS94_20261001_100855.h5"
+      regime: B
+      fmdir: null
 
   PS95:
     "0601":
@@ -705,5 +710,10 @@ sessions:
     "0928":
       mc: "20260928/PS95_20260928_121112/motion_corrected"
       h5: "20260928/PS95_20260928_123913.h5"
+      regime: B
+      fmdir: null
+    "1001":
+      mc: "20261001/PS95_20261001_115205/motion_corrected"
+      h5: "20261001/PS95_20261001_122155.h5"
       regime: B
       fmdir: null
