@@ -54,26 +54,47 @@ def _stroke_date(animal: str) -> dt.date | None:
     return dt.datetime.strptime(v, "%Y%m%d").date() if len(v) == 8 else None
 
 
+def _pre_labels(animal: str):
+    """(day_since_stroke, MMDD) for the included CURATED pre-stroke imaging sessions."""
+    out = []
+    for l in config.pooled_labels(animal):
+        d = days_since_stroke(l)
+        if d is not None and d <= 0:
+            out.append((d, l.split("_")[-1]))
+    return out
+
+
 def first_session_day(animal: str) -> int | None:
     """Day-since-stroke of the animal's earliest CURATED pre-stroke recording session."""
-    days = [d for d in (days_since_stroke(l) for l in config.pooled_labels(animal)) if d is not None]
-    return min(days) if days else None
+    pre = _pre_labels(animal)
+    return min(d for d, _ in pre) if pre else None
 
 
-def _epoch_for(animal: str, day, first_session: int | None) -> str | None:
-    """pre/acute/subacute/chronic within the RECORDING window; None for pre-recording acclimation."""
+def _epoch_for(animal, day, *, is_pre_session, fsd, pre_source) -> str | None:
+    """pre/acute/subacute/chronic; None for weigh-ins outside the chosen pre-stroke source."""
     if pd.isna(day):
         return None
     day = int(day)
-    if first_session is not None and day < first_session:
+    if day > 0:
+        return epoch_of_day(animal, day)
+    # pre-stroke (day <= 0): what counts as "pre" depends on the source
+    if pre_source == "imaging_sessions":
+        return "pre" if is_pre_session else None
+    if fsd is not None and day < fsd:
         return None                        # acclimation / free-feeding, before the experiment
-    if day <= 0:
-        return "pre"                       # stroke day is baseline; epoch_of_day leaves day 0 as None
-    return epoch_of_day(animal, day)
+    return "pre"
 
 
-def load(animal: str | None = None) -> pd.DataFrame:
-    """Tidy weights with day_since_stroke, epoch, and % of each animal's pre-stroke baseline."""
+def load(animal: str | None = None, pre_source: str = "imaging_sessions") -> pd.DataFrame:
+    """Tidy weights with day_since_stroke, epoch, and % of each animal's pre-stroke baseline.
+
+    `pre_source`:
+      "imaging_sessions" (default) -- the pre-stroke baseline is the mean weight on the INCLUDED
+            pre-stroke imaging session days only (config.pooled_labels), and only those pre-stroke
+            weigh-ins are shown/grouped; post-stroke keeps every weigh-in.
+      "recording_window" -- the pre-stroke baseline is the mean over EVERY weigh-in from the first
+            pre-stroke session day to the stroke day (denser, includes non-imaging days).
+    """
     df = pd.read_csv(CSV, dtype={"animal": str, "date": str})
     df["pre_weight_g"] = pd.to_numeric(df["pre_weight_g"], errors="coerce")
     df = df.dropna(subset=["pre_weight_g"])
@@ -81,15 +102,29 @@ def load(animal: str | None = None) -> pd.DataFrame:
     for an, sub in df.groupby("animal"):
         sd = _stroke_date(an)
         fsd = first_session_day(an)
+        pre_mmdd = {m for _, m in _pre_labels(an)}
         sub = sub.copy()
         sub["day_since_stroke"] = [
             (dt.datetime.strptime(d, "%Y%m%d").date() - sd).days if sd else np.nan for d in sub["date"]]
-        sub["epoch"] = [_epoch_for(an, d, fsd) for d in sub["day_since_stroke"]]
-        # baseline = mean pre weight over the pre-stroke RECORDING window [first_session .. 0]
-        base_mask = sub["day_since_stroke"].between(fsd if fsd is not None else -10**9, 0)
+        # a weigh-in sits on an included pre-stroke imaging session when its MMDD matches and it is pre
+        sub["is_pre_session"] = [
+            (pd.notna(day) and int(day) <= 0 and d[4:] in pre_mmdd)
+            for d, day in zip(sub["date"], sub["day_since_stroke"])]
+        sub["epoch"] = [
+            _epoch_for(an, day, is_pre_session=ips, fsd=fsd, pre_source=pre_source)
+            for day, ips in zip(sub["day_since_stroke"], sub["is_pre_session"])]
+        # baseline
+        if pre_source == "imaging_sessions":
+            base_mask = sub["is_pre_session"]
+        else:
+            base_mask = sub["day_since_stroke"].between(fsd if fsd is not None else -10**9, 0)
         baseline = sub.loc[base_mask, "pre_weight_g"].mean()
         sub["baseline_g"] = baseline
+        sub["n_baseline"] = int(base_mask.sum())
         sub["pct_pre"] = sub["pre_weight_g"] / baseline * 100.0
+        # what to DISPLAY in the timecourse: all post weigh-ins + the chosen pre-stroke weigh-ins
+        sub["show"] = [(pd.notna(day) and int(day) > 0) or ep == "pre"
+                       for day, ep in zip(sub["day_since_stroke"], sub["epoch"])]
         recs.append(sub)
     out = pd.concat(recs, ignore_index=True).sort_values(["animal", "date"]).reset_index(drop=True)
     if animal:
@@ -117,7 +152,7 @@ def _timecourse(df, col, ylabel, title, out_png, x0, hline=None):
     colors = _colors()
     fig, ax = plt.subplots(figsize=(10, 5))
     for an in ANIMALS:
-        d = df[(df["animal"] == an) & (df["day_since_stroke"] >= x0)]
+        d = df[(df["animal"] == an) & (df["day_since_stroke"] >= x0) & df["show"]]
         if d.empty:
             continue
         c = colors.get(an)
@@ -164,24 +199,29 @@ def _by_epoch(df, out_png):
     plt.close(fig)
 
 
-def render(out_dir, start="first_session", log=print):
-    df = load()
+def render(out_dir, start="first_session", pre_source="imaging_sessions", log=print):
+    df = load(pre_source=pre_source)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     x0 = _x0(df, start)
+    base_tag = ("pre = included imaging sessions" if pre_source == "imaging_sessions"
+                else "pre = all weigh-ins to stroke")
     _timecourse(df, "pre_weight_g", "pre-session body weight (g)",
                 "Body weight over the experiment, per animal",
                 out_dir / "animal_weights.png", x0)
     _timecourse(df, "pct_pre", "body weight (% of pre-stroke mean)",
-                "Body weight (normalized to pre-stroke mean), per animal",
+                f"Body weight (% of pre-stroke mean; {base_tag}), per animal",
                 out_dir / "animal_weights_pct_pre.png", x0, hline=100)
     _by_epoch(df, out_dir / "animal_weights_by_epoch.png")
     df.to_csv(out_dir / "animal_weights_rel_stroke.csv", index=False)
-    # per-animal baseline, for the record
     for an in ANIMALS:
-        b = df.loc[df["animal"] == an, "baseline_g"].iloc[0] if (df["animal"] == an).any() else float("nan")
-        log(f"  {an}: pre-stroke baseline {b:.2f} g")
-    log(f"[weights] wrote 3 figures + animal_weights_rel_stroke.csv to {out_dir}  (x from day {x0})")
+        d = df[df["animal"] == an]
+        if d.empty:
+            continue
+        log(f"  {an}: pre-stroke baseline {d['baseline_g'].iloc[0]:.2f} g "
+            f"(n={int(d['n_baseline'].iloc[0])} {'sessions' if pre_source=='imaging_sessions' else 'weigh-ins'})")
+    log(f"[weights] wrote 3 figures + animal_weights_rel_stroke.csv to {out_dir}  "
+        f"(pre_source={pre_source}, x from day {x0})")
     return out_dir
 
 
@@ -190,13 +230,17 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=None, help="output dir (default: behavior_summary/weights on the share)")
     ap.add_argument("--start", default="first_session", help="first_session | all | <int day>")
+    ap.add_argument("--pre-source", default="imaging_sessions",
+                    choices=["imaging_sessions", "recording_window"],
+                    help="baseline from the included pre-stroke imaging sessions (default) or every "
+                         "weigh-in up to stroke")
     a = ap.parse_args(argv)
     if a.out:
         out_dir = Path(a.out)
     else:
         from wfield_local.paths import PathResolver
         out_dir = Path(PathResolver().root("behavior_out")) / "weights"
-    render(out_dir, start=a.start)
+    render(out_dir, start=a.start, pre_source=a.pre_source)
     return 0
 
 
