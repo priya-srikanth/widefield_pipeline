@@ -19575,3 +19575,35 @@ the regression-based residual / top-k removal because it needs no clean video re
 cannot leak position into the subspace definition) and is label-free. Running stage 1 on PS93 0814; thresholds to
 be checked by Priya before the cohort run. Also queued: FaceRhythm (bioRxiv 10.1101/2025.09.10.675423) as an
 alternative video representation. Handoff: `docs/status/STATUS_2026-10-07_MOVEMENT_SUBSPACES_HANDOFF.md`.
+---
+
+# 2026-10-07 — Chronic neural stability settled; cohort imaging COMPLETE (F18)
+
+**DECISION (Priya, 2026-10-07): imaging with this cohort (PS92/PS93/PS94/PS95) is complete.** Last sessions
+are day ~50 post-stroke (PS92/PS93 on 10-06, PS94/PS95 on 10-05). Full record + per-animal numbers:
+`docs/status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md`.
+
+**F18. The neural data are as stable as the behaviour; the one still-rising readout is DRIFT, not
+reorganization.** `chronic_stability` (day-50 refresh) has behaviour AND every performance/decode readout
+FLAT in all four animals (far-contra hit, encoder ceiling/frozen/gain, best-match accuracy, decoder
+frozen+refit). The only still-rising signal is the representational geometry — crossnobis distance from own
+pre-template (`crossnobis mean(6 pos)` PS92/PS93/PS95; PS94 flat). A fixed pre-template cannot separate
+ongoing stroke reorganization from ordinary representational DRIFT (both grow distance-from-pre over time),
+so `scripts/chronic_drift_vs_reorg.py` (committed c3889bc) compares the per-day RATE of session-to-session
+crossnobis change in two windows, in the 8-series' pre-between-position units (cue/working): pre-stroke pairs
+(the drift floor `m_pre`) vs chronic pairs (`m_chr`). In ALL FOUR animals `m_chr` is NOT detectably above
+`m_pre` (Δ=m_chr−m_pre 95% CI spans 0: PS92 [−0.017,+0.016], PS93 [−0.013,+0.008], PS94 [−0.013,+0.007],
+PS95 [−0.011,+0.016]) — the chronic representation drifts at roughly its own pre-stroke baseline rate, so the
+rising distance-from-pre is drift and does not argue for continued recording. **Caveat:** underpowered (8–12
+chronic + 11 pre sessions, sparse pre with a June/August gap); this is "no evidence chronic exceeds baseline
+drift", not proof of zero reorganization — PS92/PS95 carry the only hint (point-Δ ~2× baseline, CI includes
+0). Artifacts: `labcams/chronic_stability/chronic_stability.{csv,png}` + `chronic_drift_vs_reorg.{csv,png}`.
+
+**Bug found while checking this (fixed upstream in 660bcbe, not blocking the decision):**
+`chronic_stability`'s DECODER readouts silently dropped each animal's two October chronic sessions this run
+(n 10/10/6/9 instead of 12/12/8/11). `recovery_trajectory` tags days with `grant_kit._day` (month×31, +1 for
+October) while `chronic_stability.build_series` (~line 178) joins decode values by calendar
+`days_since_stroke`, so the October rows (47/51) missed the day map (46/50) via `if int(r.day) in d2l[a]`.
+`660bcbe` (`_day` → calendar difference) fixes it; the next `chronic_stability` run on that code restores
+full decoder coverage. Pooled readouts (crossnobis/encoder/map/behaviour) are list-order keyed and were
+unaffected.

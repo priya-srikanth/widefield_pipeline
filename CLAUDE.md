@@ -350,6 +350,14 @@ movement removal as a lower bound), the Hasnain et al. 2025 movement-null/potent
 the multi-view LP pilot (arm a done, arm b training), cohort registration through 10/6, and all lines of
 investigation with what is running, pending and to-do.
 
+**[`docs/status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md`](docs/status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md)**
+— **COHORT IMAGING COMPLETE (Priya, 2026-10-07).** Behaviour + every neural performance/decode readout
+plateaued in all four animals; the one still-rising readout (crossnobis distance-from-pre) is shown by the
+new `chronic_drift_vs_reorg` analysis to be representational DRIFT, not stroke reorganization (within-chronic
+change rate not above each animal's pre-stroke drift floor). Last sessions day ~50. Durable record:
+`DECISIONS.md` 2026-10-07 (F18). Known defect re-run: decoder readouts dropped the October sessions via the
+`_day` join (fixed 660bcbe).
+
 **[`docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md`](docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md)**
 — **START HERE for the imaging x movement analyses and orofacial cleaning, newest.** First whole-session (O2)
 analyses on PS93 0814, windows cut at the next trial, smooth kernels / split licks, retuned Rule 4 (tip swaps
