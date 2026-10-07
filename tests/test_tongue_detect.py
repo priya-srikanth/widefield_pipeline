@@ -171,8 +171,21 @@ def source_fixture():
     if not (SRC / "dlc_kinematics" / "tongue_pertrial.py").exists():
         pytest.skip(f"stroke_orofacial source not found at {SRC}")
     mods, restore = load_source()
+    # A STALE sibling checkout must skip, not fail (2026-10-07: the behaviour box's stroke_orofacial was ~90
+    # commits behind, pre-dating `_v7_cleaned_bundle_arrays`, and the parity test's AttributeError blocked an
+    # unrelated widefield push). Parity is only meaningful against the reference version the port follows.
+    missing = [f"{m}.{a}" for m, attrs in _REQUIRED_SYMBOLS.items() for a in attrs
+               if m in mods and not hasattr(mods[m], a)]
+    if missing:
+        restore()
+        pytest.skip(f"stale stroke_orofacial reference at {SRC} (missing {', '.join(missing)}) -- "
+                    "update that checkout to its main to run the parity tests")
     yield mods
     restore()
+
+
+#: Symbols the parity tests call that only recent stroke_orofacial versions have.
+_REQUIRED_SYMBOLS = {"tongue_pertrial": ["_v7_cleaned_bundle_arrays"]}
 
 
 def their_params(p):
