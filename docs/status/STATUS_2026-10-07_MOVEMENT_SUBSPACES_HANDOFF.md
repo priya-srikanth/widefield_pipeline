@@ -76,7 +76,16 @@ test after its render) -- not run here.
   (student, CAM1_GUIDE Part 1) -> retrain -> production O2 run over all sessions (videos for cam1 + cam4 already on
   scratch; never touch scratch file dates).
 * cam1 DLC best-40 (own project) + single-view LP (not better than DLC); cam1 round 2 labels pending (Part 3).
-* Multi-view LP pilot (cam1 + cam4, 526 moments, split-rule `visible`): arm (a) done, arm (b) running. Evaluate;
+* **Multi-view LP pilot EVALUATED 2026-10-08** (`lp_stage/mv_eval/`: per-split pixel error, `trace_metrics.py` on the
+  16 synced clip pairs, `cam1_jaw_disagreements.png`). Arm (b) (calibration + 3-D aug) = arm (a): no gain from
+  calibration with 105 / 526 triangulable moments. Versus single-view LP: nose / spout / cam4 jaw the same (2-3 px);
+  tongue no better (visible 8-9 % of frames, 20-31 % of visible frames jump > 15 px, all models). ONE difference:
+  cam1 jaw through spout-rod occlusion -- multi-view confident on 99 % of frames vs single-view 87 % (single-view
+  correctly says not visible). Priya: the multi-view occluded jaw is "definitely closer to the right position than
+  the single-view, but not perfect (often a little too far down and maybe off to the side) -- plausible but
+  probably not perfect". => not adopted for production yet; its likelihood cannot flag occluded points (keep the
+  split-rule `visible` ourselves); revisit after round-4 labels add paired tongue / jaw moments. Original note:
+  Multi-view LP pilot (cam1 + cam4, 526 moments, split-rule `visible`): arm (a) done, arm (b) running. Evaluate;
   arm (b) understates calibration until more PAIRED labels exist (3-D augmentation needs >= 3 keypoints
   triangulated per moment: 105 / 526 today). Patch masking on (LP multi-view default).
 * FaceRhythm (Priya 10-07: "we will probably eventually also want to try"): bioRxiv 10.1101/2025.09.10.675423 --

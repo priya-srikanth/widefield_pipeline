@@ -42,6 +42,11 @@ def _out(rv, label=None) -> Path:
     return d
 
 
+def _sfx(basis: str) -> str:
+    """Output-name suffix: none for the LocaNMF basis (the original files), ``_svd`` otherwise."""
+    return "" if basis == "locanmf" else f"_{basis}"
+
+
 def _session(label):
     from wfield_local import config
     return next(s for s in config.load_sessions() if s["label"] == label)
@@ -125,7 +130,51 @@ def stage_me(label, rv, workers=6, ds=4, win=3, log=print) -> dict:
     return {"me": me, "thr": thr, "ft": ft, "still": still, "still_src": still_src}
 
 
-def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
+def _svd_activity(s, n_frames: int, base: np.ndarray, k_area: int = 40):
+    """``(X, groups, info)`` in the SVD basis (Priya, 2026-10-08: compare with LocaNMF). The session's SVD
+    (`config.svtcorr_path` -- the same hemodynamic-corrected variant LocaNMF is fitted to; 100 components) and its
+    Allen-aligned spatial components ``U_atlas`` (540 x 640 x 100, the atlas native grid).
+
+    * "all": GLOBAL SVD -- brain pixels' activity in an orthonormal pixel basis (QR of U over the brain mask, so the
+      covariance is the true pixel covariance even though the atlas warp makes U non-orthonormal). 100 dims, so
+      d = 20 is a fifth of the space, nearer Hasnain's regime than LocaNMF's per-area 8-16 components.
+    * "SSp", "MO": PER-AREA PIXEL PCA -- the same reconstruction restricted to the area's pixels (both
+      hemispheres, atlas names as for the LocaNMF groups), then the area's own top ``k_area`` PCs (fit on all
+      frames). Free of LocaNMF's non-negativity / locality constraints, and with room for selective subspaces.
+    PIXEL UNITS, centred on the docked-baseline mean, NOT z-scored (z-scoring 100 SVD components would inflate
+    the noise components to unit variance); the decoder standardises its features anyway."""
+    import json
+
+    from wfield_local import config
+    svt = np.load(config.svtcorr_path(s["mc"]), mmap_mode="r")[:, :n_frames].astype(np.float64)    # (k, T)
+    r = Path(s["mc"]) / "wfield_local_results" / "allen_aligned_affine8v1"
+    U = np.load(r / "U_atlas.npy", mmap_mode="r")
+    atlas = np.load(r / "allen_area_atlas_native_grid.npy").astype(int)
+    brain = np.load(r / "allen_brain_mask_native_grid.npy").astype(bool)
+    names = {int(k): v for k, v in json.load(open(r / "allen_area_names.json"))}
+
+    def coords(mask):
+        Ua = np.nan_to_num(np.asarray(U[mask], np.float64))                 # (P, k)
+        _, R = np.linalg.qr(Ua)                                              # Ua = Q R, Q orthonormal
+        X = (R @ svt).T                                                      # (T, k): pixel activity, orthonormal
+        return X - X[base].mean(0)
+
+    blocks, groups, info, c0 = [], {}, {}, 0
+    Xall = coords(brain)
+    blocks.append(Xall); groups["all"] = np.arange(c0, c0 + Xall.shape[1]); c0 += Xall.shape[1]
+    for g, prefs in (("SSp", ("SSp",)), ("MO", ("MOp", "MOs"))):
+        ids = [k for k, v in names.items() if v.startswith(prefs)]
+        Xa = coords(np.isin(atlas, ids) & brain)
+        ev, V = np.linalg.eigh(np.cov(Xa, rowvar=False))
+        ev, V = ev[::-1], V[:, ::-1]
+        k = min(k_area, Xa.shape[1])
+        info[g] = {"n_pixels": int((np.isin(atlas, ids) & brain).sum()), "k": k,
+                   "var_captured": float(ev[:k].sum() / ev.sum())}
+        blocks.append(Xa @ V[:, :k]); groups[g] = np.arange(c0, c0 + k); c0 += k
+    return np.hstack(blocks), groups, info
+
+
+def stage_analyze(label, rv, n_perm=1000, n_rand=5, basis="locanmf", log=print) -> list[dict]:
     import glob
 
     from sklearn.linear_model import LogisticRegression
@@ -180,7 +229,12 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
     groups = {"all": np.arange(Z.shape[1]),
               "SSp": np.flatnonzero([names.get(int(r), "").startswith("SSp") for r in reg]),
               "MO": np.flatnonzero([names.get(int(r), "").startswith(("MOp", "MOs")) for r in reg])}
-    sub_out, rows, align = {}, [], []
+    if basis == "svd":
+        Z, groups, sv_info = _svd_activity(s, len(ft), base)
+        reg = np.arange(Z.shape[1])
+        log(f"  {label} SVD basis: " + "; ".join(f"{g} {v['k']} PCs of {v['n_pixels']} px "
+                                                  f"({v['var_captured']:.4%} var)" for g, v in sv_info.items()))
+    sub_out, rows, align_rows = {}, [], []
     rng = np.random.default_rng(0)
     for gname, idx in groups.items():
         Zg = Z[:, idx]
@@ -226,13 +280,13 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
                     F = X.reshape(len(X), -1, len(idx)).mean(1)
                     Bp = NP.between_position_cov(F, y)
                     for k, fk in fits_k.items():
-                        align.append({"label": label, "animal": animal, "epoch": epochs.epoch_of(label),
+                        align_rows.append({"basis": basis, "label": label, "animal": animal, "epoch": epochs.epoch_of(label),
                                       "day": epochs.days_since_stroke(label), "window": win, "areas": gname,
                                       "n_comp": len(idx), "method": "joint", "k": k, "expected": k / len(idx),
                                       "frac_null": NP.subspace_fraction(fk["Q_null"], Bp),
                                       "frac_potent": NP.subspace_fraction(fk["Q_pot"], Bp),
                                       **{f"normVE_{a}": v for a, v in fk["normVE"].items()}})
-                    align.append({"label": label, "animal": animal, "epoch": epochs.epoch_of(label),
+                    align_rows.append({"basis": basis, "label": label, "animal": animal, "epoch": epochs.epoch_of(label),
                                   "day": epochs.days_since_stroke(label), "window": win, "areas": gname,
                                   "n_comp": len(idx), "method": "2stage", "k": d2, "expected": d2 / len(idx),
                                   "frac_null": NP.subspace_fraction(ts_["Q_null"], Bp),
@@ -245,15 +299,15 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
                              "day": epochs.days_since_stroke(label), "window": win, "arm": nm, "areas": gname,
                              "n_comp": len(idx), "n_trials": len(y), "acc": float((pred == y).mean()),
                              "null_mean": nu["raw_null_mean"], "p": nu["raw_p"], "d": dn, "d_2stage": d2,
-                             "parallel_dims": pa, "spout_mask": r1["still_src"], "zscore_base": base_src,
+                             "parallel_dims": pa, "basis": basis, "spout_mask": r1["still_src"], "zscore_base": base_src,
                              "frac_stationary": float(np.mean(lab == 0)), "frac_moving": float(np.mean(lab == 1)),
                              **{f"normVE_{k}": v for k, v in ve.items()}})
             log(f"  {label} {gname} {win}: " + "  ".join(
                 f"{r['arm']} {r['acc']:.2f}" for r in rows if r["window"] == win and r["areas"] == gname
                 and not r["arm"].startswith("random")))
-    np.savez_compressed(_out(rv, label) / "subspaces.npz", labels=lab, mu=mu, sd=sd, **sub_out)
-    pd.DataFrame(align).to_csv(_out(rv, label) / "alignment.csv", index=False)
-    for r in align:
+    np.savez_compressed(_out(rv, label) / f"subspaces{_sfx(basis)}.npz", labels=lab, mu=mu, sd=sd, **sub_out)
+    pd.DataFrame(align_rows).to_csv(_out(rv, label) / f"alignment{_sfx(basis)}.csv", index=False)
+    for r in align_rows:
         if r["method"] == "2stage":
             continue
         log(f"  {label} {r['areas']} {r['window']} k={r['k']}: between-position variance in null "
@@ -269,11 +323,13 @@ def main(argv=None) -> int:
     ap.add_argument("labels", nargs="*", help="session labels (default: every regime-B session with an epoch)")
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--n-perm", type=int, default=1000)
+    ap.add_argument("--basis", choices=["locanmf", "svd"], default="locanmf",
+                    help="activity basis: LocaNMF components (default) or SVD (global + per-area pixel PCA)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     labels = a.labels or [s["label"] for s in config.load_sessions()
                           if s["regime"] == "B" and epochs.epoch_of(s["label"]) is not None]
-    summ = _out(rv) / "null_potent_summary.csv"
+    summ = _out(rv) / f"null_potent_summary{_sfx(a.basis)}.csv"
     done = set(pd.read_csv(summ).label) if summ.exists() and a.stage != "me" else set()
     for label in labels:
         try:
@@ -282,7 +338,7 @@ def main(argv=None) -> int:
                 continue
             if label in done:
                 continue
-            rows = stage_analyze(label, rv, n_perm=a.n_perm)
+            rows = stage_analyze(label, rv, n_perm=a.n_perm, basis=a.basis)
             pd.DataFrame(rows).to_csv(summ, mode="a", header=not summ.exists(), index=False)
         except Exception as e:                                           # noqa: BLE001
             print(f"!! {label}: {type(e).__name__}: {e}", flush=True)

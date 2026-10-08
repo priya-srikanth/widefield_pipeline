@@ -19624,3 +19624,22 @@ the movement-null subspace -- all 80: null 0.35 / potent 0.41 vs random-20 0.37 
 vs random-8 0.35; MO null 0.28 / potent 0.26 vs random-4 0.26. Post-cue SSp position sits in the null subspace
 (0.73 vs potent 0.56, random 0.74). Archived first passes: `null_potent_summary_v1_nobaseline.csv`,
 `..._v2_globalfit.csv`.
+
+**Addendum (2026-10-08, evening) — null/potent alignment; LocaNMF vs SVD basis; multi-view LP verdict.**
+(1) Docked interval (dock + 0.2 s .. next trial_start) is the z-score baseline (the old pre-strobe window sat in
+the spout's travel OUT; strobe = logged `position`, median 1 ms). Numbers barely moved. (2) Decoding from d-dim
+reconstructions saturates (null ~ potent ~ random of the same size), so the primary readout is now the SHARE OF
+SPLIT-HALF BETWEEN-POSITION VARIANCE in each subspace (`null_potent.between_position_cov` / `subspace_fraction`;
+Hasnain project coding directions onto the subspaces -- this is all position contrasts at once), at k = 2/4/8/N/2.
+PS93 0814, k = 2, ENL: LocaNMF all null 0.09 / potent 0.61 (random 0.03); SSp 0.18 / 0.75; MO 0.61 / 0.36 (MO has 8
+components). (3) Priya asked for the SVD (Musall's basis) for comparison: `--basis svd` = global SVD (100 comps,
+brain pixels, orthonormalised) + per-area pixel PCA (top 40 PCs of the area's pixels), pixel units, not z-scored.
+PS93 0814, k = 2, ENL: all 0.20 / 0.69 (random 0.02); SSp 0.12 / 0.81; MO 0.18 / 0.62 -- position-related variance
+is mostly movement-POTENT in every area and window; the LocaNMF MO "null" result does NOT replicate (small-basis
+artefact). Decodability is still ~equal in null and potent (all ENL 0.41 / 0.41, random 0.41): the movement
+directions carry large position differences but also the most noise. Pixel bases decode position better than
+LocaNMF (ENL all 0.48 vs 0.40, MO 0.47 vs 0.32; post-cue 0.89 vs 0.77) -- to check against spatial leakage with a
+non-motor control area. Running: 24-session subset (2 per animal x pre / acute / chronic), LocaNMF then SVD.
+(4) Multi-view LP pilot: calibration adds nothing yet; equal to single-view except cam1 jaw through spout-rod
+occlusion, where Priya judged the multi-view jaw "closer to the right position ... plausible but probably not
+perfect" (a little low / to the side). Not adopted for production; revisit after round-4 paired labels.
