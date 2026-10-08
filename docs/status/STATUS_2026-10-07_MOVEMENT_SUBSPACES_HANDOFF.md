@@ -82,6 +82,7 @@ test after its render) -- not run here.
 * FaceRhythm (Priya 10-07: "we will probably eventually also want to try"): bioRxiv 10.1101/2025.09.10.675423 --
   read, compare with motion-energy PCs as video regressors; prior lab runs exist at
   `M:\MICROSCOPE\Priya\FaceRhythm\` (`facerhythm_stroke_biomarker_exp`, `fr_run_20250520_latent_bundle`).
+  **Handed to a separate session 10-07 18:45** (reading + proposal only) -- don't duplicate; look for its write-up.
 **B. Orofacial cleaning / kinematics** (10-06): Rule 4 swap (tip hops across the straddled spout), contact classes
   (lick window peak -60..+120 ms; grooming = long touch without the tongue), angle at peak protrusion, figures in
   image orientation. Pending: cross-session contact survey (`scripts/contact_survey.py`, not built) before fixing

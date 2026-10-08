@@ -19607,3 +19607,20 @@ October) while `chronic_stability.build_series` (~line 178) joins decode values 
 `660bcbe` (`_day` → calendar difference) fixes it; the next `chronic_stability` run on that code restores
 full decoder coverage. Pooled readouts (crossnobis/encoder/map/behaviour) are list-order keyed and were
 unaffected.
+
+**Addendum (2026-10-08) — null/potent: spout-move exclusion, size-matched baselines, per-area fits; PS93 0814.**
+(1) Priya: exclude ONLY the frames in which the motorised spout moves, from the behaviour log -- `dock_start ->
+dock` and `trial_start -> position` (`trial_windows.spout_motion_spans`; pads 0.05 s before / 0.2 s after, set from
+motion energy aligned to the logged moves, `null_potent/PS93_0814/spout_move_eta.png`; + the 0.3 s GCaMP buffer);
+fallback strobe..trial end when the log clock will not align (recorded per session as `spout_mask`). Thresholds
+are fit on spout-still frames. PS93 0814: stationary 17 %, moving 46 %, excluded 37 % (19 % spout + buffer, 19 %
+post-movement buffer); in the lick-free ENL the mouse is moving ~half the time (each camera above threshold
+37-46 % of ENL frames). (2) A d-dim reconstruction keeps much of any linear code, so each subspace is compared with
+random orthonormal subspaces of the same size (5 draws) and with the rest of the space. (3) Subspaces are fit
+WITHIN each area group: fitting on all 80 components and then keeping a group's columns leaked other areas in
+(MO "null" decoded above MO raw). Per-area N is small (SSp 16, MO 8 LocaNMF components), so there d = N/2 and null +
+potent span the whole group space. Result (ONE session, pre-stroke; chance 0.17): ENL position is NOT concentrated in
+the movement-null subspace -- all 80: null 0.35 / potent 0.41 vs random-20 0.37 +- 0.01; SSp null 0.36 / potent 0.33
+vs random-8 0.35; MO null 0.28 / potent 0.26 vs random-4 0.26. Post-cue SSp position sits in the null subspace
+(0.73 vs potent 0.56, random 0.74). Archived first passes: `null_potent_summary_v1_nobaseline.csv`,
+`..._v2_globalfit.csv`.

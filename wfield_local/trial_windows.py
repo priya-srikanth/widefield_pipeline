@@ -141,3 +141,50 @@ def trial_bounds(animal: str, date: str, rv=None) -> pd.DataFrame:
     out_stop[miss] = cue[miss] + rw
     t["stop_s"], t["stop_source"] = out_stop, src
     return t[["trial_id", "pos_name", "strobe_s", "cue_s", "stop_s", "stop_source"]]
+
+
+def spout_motion_spans(animal: str, date: str, rv=None, pad_pre_s: float = 0.05, pad_post_s: float = 0.2):
+    """DAQ-second ``(t0, t1)`` arrays of the spans in which the MOTORISED spout is travelling, from the behaviour
+    log: each trial's ``dock_start -> dock`` (retract to the dock) and ``trial_start -> position`` (out to the next
+    target), padded ``pad_pre_s`` before and ``pad_post_s`` after; or None when the log is missing or its clock will not align to the
+    DAQ (`spout_behavior._sync_affine` refuses).
+
+    Priya, 2026-10-08: exclude ONLY the spout-moving frames from movement analyses, not the whole trial end -> next
+    strobe gap -- the docked interval between them has no apparatus motion and is the most stationary part of the
+    session. Checked against video (PS93 0814, `null_potent/PS93_0814/spout_move_eta.png`): motion energy rises
+    within one imaging frame of the logged start, peaks again at deceleration by the logged end, and is back near
+    baseline ~0.15-0.2 s after it -- hence the asymmetric pads. First event of each name per trial_id (the GUI can repeat a retried move; `docked_periods.dock_events`).
+    """
+    from wfield_local import daq_io
+    from wfield_local.docked_periods import behaviour_session_dir
+    from wfield_local.paths import PathResolver
+    from wfield_local.spout_behavior import _sync_affine
+
+    rv = rv or PathResolver()
+    sd = behaviour_session_dir(f"{animal}_{date[4:]}")
+    if sd is None or not (Path(sd) / "events.csv").exists():
+        return None
+    ev = pd.read_csv(Path(sd) / "events.csv", usecols=["device_t_ms", "event_name", "trial_id"])
+    h5 = sorted((Path(rv.root("daq_recorder_output")) / date).glob(f"{animal}_{date}_*.h5"))[0]
+    with daq_io.open_daq(h5) as f:
+        names, bits = daq_io.digital_bits(f)
+        fs, _ = daq_io.session_attrs(f)
+    sync = daq_io.rising_edges(bits[:, names.index("sync")]) / fs
+    ab = _sync_affine(sync, ev.loc[ev.event_name == "sync", "device_t_ms"].to_numpy(float) / 1000.0)
+    if ab is None:
+        return None
+    a, b = ab
+
+    def first(name):
+        sub = ev[ev.event_name == name].dropna(subset=["device_t_ms", "trial_id"])
+        return (sub.groupby("trial_id")["device_t_ms"].min() / 1000.0 - b) / a
+
+    t0, t1 = [], []
+    for s_name, e_name in (("dock_start", "dock"), ("trial_start", "position")):
+        both = pd.concat([first(s_name), first(e_name)], axis=1, keys=["s", "e"]).dropna()
+        both = both[(both.e > both.s) & (both.e - both.s < 3.0)]       # a real move: ~0.65-1.0 s (Zaber, fixed speed)
+        t0.append(both.s.to_numpy() - pad_pre_s)
+        t1.append(both.e.to_numpy() + pad_post_s)
+    t0, t1 = np.concatenate(t0), np.concatenate(t1)
+    o = np.argsort(t0)
+    return t0[o], t1[o]

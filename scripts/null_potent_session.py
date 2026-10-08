@@ -51,6 +51,29 @@ def _animal_date(s):
     return s["label"].split("_")[0], Path(s["h5"]).parent.name
 
 
+def _spout_still(animal, date, rv, ft, buffer_s=0.3) -> tuple[np.ndarray, str]:
+    """``(mask, source)``: imaging frames in which the MOTORISED spout is NOT moving. Spout travel is apparatus
+    motion, not mouse, so it is left out of the thresholds and labelled excluded, as is ``buffer_s`` after each move
+    (the same GCaMP-decay buffer as after mouse movement: the moving spout can evoke activity). Priya, 2026-10-08:
+    exclude only the spout-moving frames -- the logged ``dock_start -> dock`` and ``trial_start -> position``
+    (`trial_windows.spout_motion_spans`, source 'log'). If the log's clock will not align, fall back to the
+    coarser strobe .. trial end rule of the video regressors (source 'strobe..trial_end')."""
+    from wfield_local import trial_windows as TW
+    sp = TW.spout_motion_spans(animal, date, rv)
+    if sp is not None:
+        m = np.ones(len(ft), bool)
+        for a0, a1 in zip(*sp):
+            m &= ~((ft >= a0) & (ft < a1 + buffer_s))
+        return m, "log"
+    b = TW.trial_bounds(animal, date, rv)
+    start = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 0.5).astype(float)
+    m = np.zeros(len(ft), bool)
+    for a0, a1 in zip(start, b.stop_s.to_numpy(float)):
+        if np.isfinite(a0) and np.isfinite(a1):
+            m |= (ft >= a0) & (ft < a1)
+    return m, "strobe..trial_end"
+
+
 def stage_me(label, rv, workers=6, ds=4, win=3, log=print) -> dict:
     """Per-camera motion energy on the imaging clock (cached) + automatic thresholds + figure."""
     import matplotlib
@@ -82,25 +105,27 @@ def stage_me(label, rv, workers=6, ds=4, win=3, log=print) -> dict:
         me[cam] = MST.to_imaging(v, cam_frames_to_daq_s(tpl, np.arange(len(v))), ft)
         np.savez_compressed(f, me=me[cam], frame_times_s=ft, ds=ds, win=win, video=vids[0].name)
         log(f"  {label} {cam}: motion energy done ({np.isfinite(me[cam]).mean():.1%} of imaging frames)")
+    still, still_src = _spout_still(animal, date, rv, ft)
+    me_in = {c: np.where(still, v, np.nan) for c, v in me.items()}
     over = ((config.defaults().get("motion_state", {}) or {}).get("thresholds", {}) or {}).get(label, {})
-    thr = {c: float(over.get(c, MST.bimodal_threshold(v))) for c, v in me.items()}
-    (out / "me_thresholds.json").write_text(json.dumps({"thresholds": thr, "override": over}, indent=1))
+    thr = {c: float(over.get(c, MST.bimodal_threshold(v))) for c, v in me_in.items()}
+    (out / "me_thresholds.json").write_text(json.dumps({"thresholds": thr, "override": over, "frames": f"spout still ({still_src})", "frac_frames_kept": float(still.mean())}, indent=1))
     fig, axs = plt.subplots(1, len(me), figsize=(4.2 * len(me), 3.2), squeeze=False)
-    for ax, (c, v) in zip(axs[0], me.items()):
+    for ax, (c, v) in zip(axs[0], me_in.items()):
         lv = np.log10(v[np.isfinite(v) & (v > 0)])
         ax.hist(lv, bins=120, color="0.4")
         ax.axvline(np.log10(thr[c]), color="r")
-        ax.set_title(f"{c}: threshold {thr[c]:.2f} ({(v > thr[c]).mean():.0%} of frames moving)"
+        ax.set_title(f"{c}: threshold {thr[c]:.2f} ({(v[np.isfinite(v)] > thr[c]).mean():.0%} of spout-still frames moving)"
                      + (" [override]" if c in over else ""), fontsize=8)
         ax.set_xlabel("log10 motion energy (99th pct pixel)")
-    fig.suptitle(f"{label}: per-frame motion energy and the moving threshold (valley between the modes)", fontsize=9)
+    fig.suptitle(f"{label}: per-frame motion energy and the moving threshold (valley between the modes); spout-moving frames excluded", fontsize=9)
     fig.tight_layout()
     fig.savefig(out / "me_thresholds.png", dpi=110)
     plt.close(fig)
-    return {"me": me, "thr": thr, "ft": ft}
+    return {"me": me, "thr": thr, "ft": ft, "still": still, "still_src": still_src}
 
 
-def stage_analyze(label, rv, n_perm=1000, log=print) -> list[dict]:
+def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
     import glob
 
     from sklearn.linear_model import LogisticRegression
@@ -128,51 +153,76 @@ def stage_analyze(label, rv, n_perm=1000, log=print) -> list[dict]:
     run = np.interp(ft, ts, sp)
     rn = config.defaults()["segmentation"]["running"]
     lab = MST.label_frames(me, thr, ft, lick_s=licks, running=run, run_thresh=float(rn["thresh_speed_mm_s"]))
+    lab[~r1["still"]] = -1                        # motorised spout travelling (+ buffer): apparatus motion
     # z-score on an inter-trial baseline (0.7 .. 0.2 s before each strobe)
     base = np.zeros(len(ft), bool)
     for st in b.strobe_s[np.isfinite(b.strobe_s)]:
         base |= (ft >= st - 0.7) & (ft < st - 0.2)
     mu, sd = Y[base].mean(0), Y[base].std(0)
     Z = (Y - mu) / np.where(sd > 0, sd, 1.0)
-    Xs, Xm = Z[lab == 0], Z[lab == 1]
-    fit = NP.fit_subspaces(Xs, Xm)
-    ts_ = NP.two_stage_pca(Xs, Z[lab >= 0])
-    pa = NP.parallel_analysis(Z[lab >= 0][:: max(1, int((lab >= 0).sum() // 20000))], n_shuffle=100)
-    ve = fit["normVE"]
-    log(f"  {label}: stationary {np.mean(lab == 0):.0%}, moving {np.mean(lab == 1):.0%}, excluded "
-        f"{np.mean(lab == -1):.0%}; d = {fit['Q_null'].shape[1]} each (parallel analysis: {pa}); normVE "
-        f"null|stat {ve['null_stat']:.2f} null|mov {ve['null_mov']:.2f} pot|mov {ve['pot_mov']:.2f} "
-        f"pot|stat {ve['pot_stat']:.2f}")
-    np.savez_compressed(_out(rv, label) / "subspaces.npz", Q_null=fit["Q_null"], Q_pot=fit["Q_pot"],
-                        Q_null_2s=ts_["Q_null"], Q_pot_2s=ts_["Q_pot"], labels=lab, mu=mu, sd=sd)
-    c = Z.mean(0)
-    signals = {"raw": Z, "null": NP.reconstruct(Z, fit["Q_null"], c), "potent": NP.reconstruct(Z, fit["Q_pot"], c),
-               "null_2stage": NP.reconstruct(Z, ts_["Q_null"], c),
-               "potent_2stage": NP.reconstruct(Z, ts_["Q_pot"], c)}
     dp = config.defaults()["decode"]
     names = {int(k): v for k, v in json.load(open(glob.glob(
         f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_area_names.json")[0]))}
-    rows = []
-    for win, align, post in [("ENL", "precue", dp["precue_post_s"]), ("postcue", "cue", dp["cue_post_s"])]:
-        args = argparse.Namespace(align=align, baseline="none", fs=31.23, pre_s=1.0, post_s=post,
-                                  max_rt=dp["max_rt_s"], source="locanmf", bins=None, cv="block")
-        for nm, sig in signals.items():
-            X, y, g, *_r, feat_reg = LPD._trial_features(s, args, signal=sig.T, feat_region=np.asarray(reg))
-            for gname, prefs in {"all": None, "SSp": ("SSp",), "MO": ("MOp", "MOs")}.items():
-                cols = (np.arange(X.shape[1]) if prefs is None else np.array(
-                    [i for i in range(X.shape[1]) if any(names.get(int(feat_reg[i]), "").startswith(q)
-                                                         for q in prefs)]))
+    reg = np.asarray(reg)
+    # SUBSPACES ARE FIT WITHIN EACH AREA GROUP (Hasnain fit per region). Fitting on all components and then keeping
+    # a group's columns of the reconstruction leaks other areas' activity into the group (2026-10-08: "MO" null
+    # decoded above MO raw).
+    groups = {"all": np.arange(Z.shape[1]),
+              "SSp": np.flatnonzero([names.get(int(r), "").startswith("SSp") for r in reg]),
+              "MO": np.flatnonzero([names.get(int(r), "").startswith(("MOp", "MOs")) for r in reg])}
+    sub_out, rows = {}, []
+    rng = np.random.default_rng(0)
+    for gname, idx in groups.items():
+        Zg = Z[:, idx]
+        Xs, Xm = Zg[lab == 0], Zg[lab == 1]
+        fit = NP.fit_subspaces(Xs, Xm)
+        ts_ = NP.two_stage_pca(Xs, Zg[lab >= 0], k_null=min(5, len(idx) // 4), k_pot=min(5, len(idx) // 4))
+        pa = NP.parallel_analysis(Zg[lab >= 0][:: max(1, int((lab >= 0).sum() // 20000))], n_shuffle=100)
+        ve = fit["normVE"]
+        dn, d2 = fit["Q_null"].shape[1], ts_["Q_null"].shape[1]
+        log(f"  {label} {gname} (N {len(idx)}): stationary {np.mean(lab == 0):.0%}, moving {np.mean(lab == 1):.0%}, "
+            f"excluded {np.mean(lab == -1):.0%}; d = {dn} each (parallel analysis: {pa}); normVE "
+            f"null|stat {ve['null_stat']:.2f} null|mov {ve['null_mov']:.2f} pot|mov {ve['pot_mov']:.2f} "
+            f"pot|stat {ve['pot_stat']:.2f}")
+        sub_out.update({f"{gname}_idx": idx, f"{gname}_Q_null": fit["Q_null"], f"{gname}_Q_pot": fit["Q_pot"],
+                        f"{gname}_Q_null_2s": ts_["Q_null"], f"{gname}_Q_pot_2s": ts_["Q_pot"]})
+        c = Zg.mean(0)
+        # Arm names avoid the bare word "null" (pandas reads it back as NaN). SIZE-MATCHED BASELINES: a d-dim
+        # reconstruction keeps much of any linear code, so each subspace is read against random orthonormal
+        # subspaces of the same size (``n_rand`` draws, fewer permutations) and against the REST (the dims
+        # orthogonal to both).
+        Qj = np.hstack([fit["Q_null"], fit["Q_pot"]])
+        U, _, _ = np.linalg.svd(np.eye(len(idx)) - Qj @ Qj.T)
+        signals = {"raw": Zg, "null_joint": NP.reconstruct(Zg, fit["Q_null"], c),
+                   "potent_joint": NP.reconstruct(Zg, fit["Q_pot"], c),
+                   "null_2stage": NP.reconstruct(Zg, ts_["Q_null"], c),
+                   "potent_2stage": NP.reconstruct(Zg, ts_["Q_pot"], c)}
+        if len(idx) > Qj.shape[1]:
+            signals["rest_joint"] = NP.reconstruct(Zg, U[:, : len(idx) - Qj.shape[1]], c)
+        for dd in sorted({dn, d2}):
+            for k in range(n_rand):
+                Qr, _ = np.linalg.qr(rng.standard_normal((len(idx), dd)))
+                signals[f"random{dd}_{k}"] = NP.reconstruct(Zg, Qr, c)
+        for win, align, post in [("ENL", "precue", dp["precue_post_s"]), ("postcue", "cue", dp["cue_post_s"])]:
+            args = argparse.Namespace(align=align, baseline="none", fs=31.23, pre_s=1.0, post_s=post,
+                                      max_rt=dp["max_rt_s"], source="locanmf", bins=None, cv="block")
+            for nm, sig in signals.items():
+                X, y, g, *_r = LPD._trial_features(s, args, signal=sig.T, feat_region=reg[idx])
                 clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
-                pred = cross_val_predict(clf, X[:, cols], y, cv=GroupKFold(min(5, np.unique(g).size)), groups=g)
-                nu = na.permutation_null(y, pred, n_perm=n_perm, labels=LPD.DISPLAY_ORDER)
+                pred = cross_val_predict(clf, X, y, cv=GroupKFold(min(5, np.unique(g).size)), groups=g)
+                nu = na.permutation_null(y, pred, n_perm=n_perm if not nm.startswith("random") else 100,
+                                         labels=LPD.DISPLAY_ORDER)
                 rows.append({"label": label, "animal": animal, "epoch": epochs.epoch_of(label),
                              "day": epochs.days_since_stroke(label), "window": win, "arm": nm, "areas": gname,
-                             "n_trials": len(y), "acc": float((pred == y).mean()), "null_mean": nu["raw_null_mean"],
-                             "p": nu["raw_p"], "d": fit["Q_null"].shape[1], "parallel_dims": pa,
+                             "n_comp": len(idx), "n_trials": len(y), "acc": float((pred == y).mean()),
+                             "null_mean": nu["raw_null_mean"], "p": nu["raw_p"], "d": dn, "d_2stage": d2,
+                             "parallel_dims": pa, "spout_mask": r1["still_src"],
                              "frac_stationary": float(np.mean(lab == 0)), "frac_moving": float(np.mean(lab == 1)),
                              **{f"normVE_{k}": v for k, v in ve.items()}})
-        log(f"  {label} {win}: " + "  ".join(f"{r['arm']} {r['acc']:.2f}" for r in rows
-                                             if r["window"] == win and r["areas"] == "all"))
+            log(f"  {label} {gname} {win}: " + "  ".join(
+                f"{r['arm']} {r['acc']:.2f}" for r in rows if r["window"] == win and r["areas"] == gname
+                and not r["arm"].startswith("random")))
+    np.savez_compressed(_out(rv, label) / "subspaces.npz", labels=lab, mu=mu, sd=sd, **sub_out)
     return rows
 
 
