@@ -10,7 +10,7 @@ M: = MICROSCOPE (the behaviour box calls it N:). Everything movement-related bel
 ## 0. RUNNING (updated 2026-10-08 evening)
 1. **Null/potent 24-session SUBSET, LocaNMF basis** (Priya OK'd a representative subset instead of the cohort: per
    animal 2 pre (Aug) / 2 acute / 2 chronic; PS95 acute = 0817 + 0819). Detached cmd PID 33352, log
-   `C:SERSSABATINILABp_STAGEULL_0814_LOGSMPAREI_NP_SUBSET.LOG`; outputs
+   `C:\Users\SabatiniLab\lp_stage\full_0814_logs\compare\I_np_subset.log`; outputs
    `<labcams>/null_potent/null_potent_summary.csv` + per session `alignment.csv`, `subspaces.npz`, `me_<cam>.npz`.
 2. **QUEUED: same 24 sessions, `--basis svd`** -- `queue_svd_subset.ps1` (PowerShell PID 26548) waits for PID 33352
    to exit; log `K_np_svd_subset.log`, `K_np_svd_queue.txt`; outputs `null_potent_summary_svd.csv`,
