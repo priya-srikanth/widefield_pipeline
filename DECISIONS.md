@@ -19643,3 +19643,23 @@ non-motor control area. Running: 24-session subset (2 per animal x pre / acute /
 (4) Multi-view LP pilot: calibration adds nothing yet; equal to single-view except cam1 jaw through spout-rod
 occlusion, where Priya judged the multi-view jaw "closer to the right position ... plausible but probably not
 perfect" (a little low / to the side). Not adopted for production; revisit after round-4 paired labels.
+
+**Addendum (2026-10-08, night) — null/potent demoted to a control; priorities re-set (Priya).** Stepping back to the
+goal (how VLS stroke alters cortical motor representations acutely and through recovery), the job of the movement
+analyses is to rule out the confound that a post-stroke change in cortical position coding is a change in MOVEMENT
+(licking, posture, fidgeting, contact) that cortex reflects. The null/potent subspaces do not answer that better
+than the movement regression: in widefield the effective dimensionality is low, the "null" subspace still carries
+20-40 % of moving variance, decoding is null ~ potent ~ random, and the one area-specific result (MO pre-cue in the
+null subspace) was a LocaNMF small-basis artefact that vanished in the pixel basis. What it does show cleanly
+(PS93 0814, both bases): position-related VARIANCE is mostly movement-aligned (potent 0.6-0.8 at k = 2 vs random
+0.02-0.05), while position is about equally DECODABLE outside those directions (they are also the noisiest); and
+position decodes above chance from the movement-null subspace in every session so far (LocaNMF 4 sessions,
+p <= 0.004; the conservative two-stage null survives in SSp in all 4). DECISION: let the 24-session subset (LocaNMF,
+then SVD; already running) finish, check ONE thing -- does the potent share of between-position variance change
+pre -> acute -> chronic -- and then stop (no k-sweep, no further variants): a supporting figure if it changes, a
+supplementary control if not. PRIORITIES NOW: (1) ENL movement-removed decoding across sessions and epochs (running
++ video model; `scripts/enl_movement_multisession.py`, written, untested) -- the 0.26-0.30 single-session lower
+bound as a recovery trajectory; (2) the executed-angle vs target readout (MUST REVISIT) once tracking allows;
+(3) tracking groundwork -- cam4 round-4 labels -> retrain -> production O2 poses. Open side question with possibly
+more bearing on the main results: pixel PCA decodes position better than LocaNMF (MO pre-cue 0.47 vs 0.32) --
+check against spatial leakage with a non-motor control area before reading anything into it.

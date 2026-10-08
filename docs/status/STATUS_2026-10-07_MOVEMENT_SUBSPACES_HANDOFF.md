@@ -21,6 +21,20 @@ M: = MICROSCOPE (the behaviour box calls it N:). Everything movement-related bel
 Earlier items: multi-view LP arms (a) and (b) both finished and are EVALUATED (§3A); stage-1 motion energy on PS93
 0814 done (thresholds now fit on spout-still frames).
 
+## 0b. PRIORITIES (Priya, 2026-10-08 night -- see the DECISIONS addendum of that name)
+Null/potent is DEMOTED to a control: finish the running subset, check whether the potent share of between-position
+variance changes across epochs, then stop. Next, in order:
+1. **ENL movement-removed decoding across sessions / epochs** (`scripts/enl_movement_multisession.py`: written, NOT
+   run, NOT tested -- test on PS93 0814 against `enl_movement_removed_decode.py`'s 0.26 first).
+2. **Executed-angle vs target readout** (MUST REVISIT; needs the next cam4 model + whole-session poses).
+3. **Tracking**: cam4 round-4 labels -> retrain -> production O2 run.
+Side check: pixel-PCA vs LocaNMF decoding gap (MO pre-cue 0.47 vs 0.32) against a non-motor control area.
+
+**Labelling status (checked 2026-10-08 from the label files; nothing saved since 10-05 17:03):** Part 1 cam4 round 4
+21 / 131 (PS93 acute 21/22; five folders untouched) -- ON THE CRITICAL PATH for priorities 2-3; Part 2 cam1 round-1
+290 / 376 (4 empty folders: PS93 0606, PS92 0820, PS95 0821, PS94 0903); Part 3 cam1 round 2 0 / 254. Re-check with
+the helpers in `wfield_local/dlc_cam1_guide.py` (`_round4_folders`, `_folders`, `_round2_folders` + `folder_status`).
+
 ## 1. Findings since the 10-06 handoff (PS93 0814 whole session unless noted)
 **Movement model comparison** (CV R^2 of the full model; smooth kernels, split licks, retuned cleaning):
 | model | MOp_L | MOp_R | MOs | SSp |
