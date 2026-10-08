@@ -10,7 +10,7 @@ stationarity from MOTION ENERGY (`wfield_local/motion_state.py`), subspaces by t
 (`wfield_local/null_potent.py`). Differences from theirs, all documented there: 250 fps (3-frame median windows),
 automatic valley thresholds with a figure to check them (override: configs `motion_state.thresholds`), DAQ licks
 and running also count as moving, a 0.3 s post-movement buffer excluded (GCaMP decay), LocaNMF components z-scored
-on an inter-trial baseline (0.7 .. 0.2 s before the spout strobe), d = min(N / 2, 20).
+on the docked interval (dock .. next trial_start), d = min(N / 2, 20).
 
 STAGE 1 (`me`): per camera, per-frame motion energy (99th-percentile pixel |median next 3 - median previous 3|,
 ds 4) over the WHOLE video, parallel frame ranges; cached at <labcams>/null_potent/<label>/me_<cam>.npz; then the
@@ -154,10 +154,20 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
     rn = config.defaults()["segmentation"]["running"]
     lab = MST.label_frames(me, thr, ft, lick_s=licks, running=run, run_thresh=float(rn["thresh_speed_mm_s"]))
     lab[~r1["still"]] = -1                        # motorised spout travelling (+ buffer): apparatus motion
-    # z-score on an inter-trial baseline (0.7 .. 0.2 s before each strobe)
+    # z-score on the DOCKED interval (dock + 0.2 s .. next trial_start): spout parked, no target, no apparatus
+    # motion (Priya, 2026-10-08). The old window, 0.7 .. 0.2 s before each strobe, fell inside the spout's travel
+    # OUT to the target (the strobe = the logged `position` arrival). Fallback when the log will not align: that
+    # old window.
     base = np.zeros(len(ft), bool)
-    for st in b.strobe_s[np.isfinite(b.strobe_s)]:
-        base |= (ft >= st - 0.7) & (ft < st - 0.2)
+    dk = TW.docked_spans(animal, date, rv)
+    if dk is not None:
+        for a0, a1 in zip(*dk):
+            base |= (ft >= a0) & (ft < a1)
+        base_src = "docked"
+    else:
+        for st in b.strobe_s[np.isfinite(b.strobe_s)]:
+            base |= (ft >= st - 0.7) & (ft < st - 0.2)
+        base_src = "pre_strobe"
     mu, sd = Y[base].mean(0), Y[base].std(0)
     Z = (Y - mu) / np.where(sd > 0, sd, 1.0)
     dp = config.defaults()["decode"]
@@ -170,7 +180,7 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
     groups = {"all": np.arange(Z.shape[1]),
               "SSp": np.flatnonzero([names.get(int(r), "").startswith("SSp") for r in reg]),
               "MO": np.flatnonzero([names.get(int(r), "").startswith(("MOp", "MOs")) for r in reg])}
-    sub_out, rows = {}, []
+    sub_out, rows, align = {}, [], []
     rng = np.random.default_rng(0)
     for gname, idx in groups.items():
         Zg = Z[:, idx]
@@ -180,6 +190,8 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
         pa = NP.parallel_analysis(Zg[lab >= 0][:: max(1, int((lab >= 0).sum() // 20000))], n_shuffle=100)
         ve = fit["normVE"]
         dn, d2 = fit["Q_null"].shape[1], ts_["Q_null"].shape[1]
+        # SMALLER subspaces too: at d = N/2 null + potent fill each area's space, so only small d is selective
+        fits_k = {k: (fit if k == dn else NP.fit_subspaces(Xs, Xm, k, k)) for k in sorted({2, 4, 8, dn}) if k <= dn}
         log(f"  {label} {gname} (N {len(idx)}): stationary {np.mean(lab == 0):.0%}, moving {np.mean(lab == 1):.0%}, "
             f"excluded {np.mean(lab == -1):.0%}; d = {dn} each (parallel analysis: {pa}); normVE "
             f"null|stat {ve['null_stat']:.2f} null|mov {ve['null_mov']:.2f} pot|mov {ve['pot_mov']:.2f} "
@@ -208,6 +220,23 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
                                       max_rt=dp["max_rt_s"], source="locanmf", bins=None, cv="block")
             for nm, sig in signals.items():
                 X, y, g, *_r = LPD._trial_features(s, args, signal=sig.T, feat_region=reg[idx])
+                if nm == "raw":
+                    # where the position signal lies: split-half between-position covariance of the window-mean
+                    # features (X is bin-major: [bin1 comps | bin2 comps | ...]) projected on each subspace
+                    F = X.reshape(len(X), -1, len(idx)).mean(1)
+                    Bp = NP.between_position_cov(F, y)
+                    for k, fk in fits_k.items():
+                        align.append({"label": label, "animal": animal, "epoch": epochs.epoch_of(label),
+                                      "day": epochs.days_since_stroke(label), "window": win, "areas": gname,
+                                      "n_comp": len(idx), "method": "joint", "k": k, "expected": k / len(idx),
+                                      "frac_null": NP.subspace_fraction(fk["Q_null"], Bp),
+                                      "frac_potent": NP.subspace_fraction(fk["Q_pot"], Bp),
+                                      **{f"normVE_{a}": v for a, v in fk["normVE"].items()}})
+                    align.append({"label": label, "animal": animal, "epoch": epochs.epoch_of(label),
+                                  "day": epochs.days_since_stroke(label), "window": win, "areas": gname,
+                                  "n_comp": len(idx), "method": "2stage", "k": d2, "expected": d2 / len(idx),
+                                  "frac_null": NP.subspace_fraction(ts_["Q_null"], Bp),
+                                  "frac_potent": NP.subspace_fraction(ts_["Q_pot"], Bp)})
                 clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
                 pred = cross_val_predict(clf, X, y, cv=GroupKFold(min(5, np.unique(g).size)), groups=g)
                 nu = na.permutation_null(y, pred, n_perm=n_perm if not nm.startswith("random") else 100,
@@ -216,13 +245,19 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, log=print) -> list[dict]:
                              "day": epochs.days_since_stroke(label), "window": win, "arm": nm, "areas": gname,
                              "n_comp": len(idx), "n_trials": len(y), "acc": float((pred == y).mean()),
                              "null_mean": nu["raw_null_mean"], "p": nu["raw_p"], "d": dn, "d_2stage": d2,
-                             "parallel_dims": pa, "spout_mask": r1["still_src"],
+                             "parallel_dims": pa, "spout_mask": r1["still_src"], "zscore_base": base_src,
                              "frac_stationary": float(np.mean(lab == 0)), "frac_moving": float(np.mean(lab == 1)),
                              **{f"normVE_{k}": v for k, v in ve.items()}})
             log(f"  {label} {gname} {win}: " + "  ".join(
                 f"{r['arm']} {r['acc']:.2f}" for r in rows if r["window"] == win and r["areas"] == gname
                 and not r["arm"].startswith("random")))
     np.savez_compressed(_out(rv, label) / "subspaces.npz", labels=lab, mu=mu, sd=sd, **sub_out)
+    pd.DataFrame(align).to_csv(_out(rv, label) / "alignment.csv", index=False)
+    for r in align:
+        if r["method"] == "2stage":
+            continue
+        log(f"  {label} {r['areas']} {r['window']} k={r['k']}: between-position variance in null "
+            f"{r['frac_null']:.2f}, potent {r['frac_potent']:.2f} (random {r['expected']:.2f})")
     return rows
 
 

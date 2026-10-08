@@ -112,3 +112,32 @@ def parallel_analysis(X: np.ndarray, n_shuffle: int = 200, q: float = 95.0, seed
         Xs = np.column_stack([rng.permutation(c) for c in X.T])
         null[k] = np.sort(np.linalg.eigvalsh(_cov(Xs)))[::-1]
     return int(np.sum(ev > np.percentile(null, q, axis=0)))
+
+
+def between_position_cov(F: np.ndarray, y: np.ndarray, n_split: int = 50, seed: int = 0) -> np.ndarray:
+    """SPLIT-HALF between-position covariance of trial features ``F`` (trials x N) with labels ``y``: position means
+    from two random halves of each position's trials, centred across positions, B = (M1' M2 + M2' M1) / 2,
+    averaged over ``n_split`` splits. Trial noise is independent between halves, so it does not inflate B (a plain
+    B from all trials carries noise / n_trials in every dimension, which pulls every subspace toward d / N)."""
+    rng = np.random.default_rng(seed)
+    labs = np.unique(y)
+    N = F.shape[1]
+    B = np.zeros((N, N))
+    for _ in range(n_split):
+        M1, M2 = [], []
+        for c in labs:
+            ii = rng.permutation(np.flatnonzero(y == c))
+            h = len(ii) // 2
+            M1.append(F[ii[:h]].mean(0))
+            M2.append(F[ii[h:2 * h]].mean(0))
+        M1 = np.array(M1) - np.mean(M1, 0)
+        M2 = np.array(M2) - np.mean(M2, 0)
+        B += (M1.T @ M2 + M2.T @ M1) / 2
+    return B / n_split
+
+
+def subspace_fraction(Q: np.ndarray, B: np.ndarray) -> float:
+    """Tr(Q' B Q) / Tr(B): the share of the between-position variance ``B`` lying in subspace Q (random
+    expectation d / N). Hasnain et al. project coding directions onto the subspaces; this is the same question for
+    all position contrasts at once (B's column space = the span of the per-position coding directions)."""
+    return float(np.trace(Q.T @ B @ Q) / np.trace(B))

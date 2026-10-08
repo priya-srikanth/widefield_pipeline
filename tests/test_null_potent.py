@@ -72,3 +72,24 @@ def test_frame_scalar_rises_only_when_the_picture_changes(tmp_path):
     wr.release()
     v = MS.frame_scalar_worker(str(vid), 0, 60, ds=4, win=3, pct=99.0)
     assert np.nanmax(v[:24]) < 1 and np.nanmax(v[27:38]) > 50 and np.nanmax(v[42:57]) < 1
+
+
+def test_subspace_fraction_finds_planted_position_axis():
+    rng = np.random.default_rng(1)
+    N, n = 20, 600
+    y = np.repeat(np.arange(6), n // 6)
+    axis = np.zeros(N); axis[3] = 1.0
+    F = rng.standard_normal((n, N)) + np.outer((y - 2.5) * 0.8, axis)
+    B = NP.between_position_cov(F, y)
+    Q_in = np.eye(N)[:, [3, 7]]
+    Q_out = np.eye(N)[:, [5, 7]]
+    assert NP.subspace_fraction(Q_in, B) > 0.8
+    assert NP.subspace_fraction(Q_out, B) < 0.2
+
+
+def test_split_half_cov_is_unbiased_without_signal():
+    rng = np.random.default_rng(2)
+    F = rng.standard_normal((1200, 10))
+    y = np.repeat(np.arange(6), 200)
+    B = NP.between_position_cov(F, y)
+    assert abs(np.trace(B)) < 0.05
