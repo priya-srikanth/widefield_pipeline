@@ -7,19 +7,19 @@ Reasoning and numbers: `DECISIONS.md` addenda 2026-10-06 (night) and 2026-10-07 
 M: = MICROSCOPE (the behaviour box calls it N:). Everything movement-related below is ONE pre-stroke session
 (PS93 0814, whole-session O2 poses from the ROUND-3 cam4 model) unless stated -- pipeline results, not findings.
 
-## 0. RUNNING (as of 2026-10-07 18:15)
-1. **Null/potent stage 1** (motion energy, Hasnain definition) on PS93 0814: detached `cmd`, log
-   `C:\Users\SabatiniLab\lp_stage\full_0814_logs\compare\G_np_me.log`, outputs `<labcams>/null_potent/PS93_0814/`
-   (`me_<cam>.npz`, `me_thresholds.json`, `me_thresholds.png`). ~6 workers per camera, cameras in turn.
-   NEXT: show Priya `me_thresholds.png` (automatic valley thresholds; override per session in configs
-   `motion_state.thresholds`), then `python -m scripts.null_potent_session analyze PS93_0814`, then the cohort
-   (`... all`, overnight; me is cached per session).
-2. **Multi-view LP pilot arm (b)** (calibration + 3-D aug + projection losses): WSL, ~epoch 158/300 at 18:13, done
-   ~01:00 10-08; log `~/lp_stage/lp_train_mv_b_full.log`; model `/root/lp/multiview-pilot-20261006/models/`.
-   Arm (a) (no calibration) FINISHED 07:37 10-07 (exit 0, GPU peak 4.9 GB). NEXT: evaluate both arms (val pixel
-   error per view / keypoint, test frames; predictions on the synced clips; compare to single-view cam1 / cam4).
-3. Behaviour box: epoch render / stage 2 for 10/1-10/6 (its own run). It will rebase onto origin (our pushes
-   include its six registrations, applied from its patches with `git am --keep-cr`).
+## 0. RUNNING (updated 2026-10-08 evening)
+1. **Null/potent 24-session SUBSET, LocaNMF basis** (Priya OK'd a representative subset instead of the cohort: per
+   animal 2 pre (Aug) / 2 acute / 2 chronic; PS95 acute = 0817 + 0819). Detached cmd PID 33352, log
+   `C:SERSSABATINILABp_STAGEULL_0814_LOGSMPAREI_NP_SUBSET.LOG`; outputs
+   `<labcams>/null_potent/null_potent_summary.csv` + per session `alignment.csv`, `subspaces.npz`, `me_<cam>.npz`.
+2. **QUEUED: same 24 sessions, `--basis svd`** -- `queue_svd_subset.ps1` (PowerShell PID 26548) waits for PID 33352
+   to exit; log `K_np_svd_subset.log`, `K_np_svd_queue.txt`; outputs `null_potent_summary_svd.csv`,
+   `alignment_svd.csv`. Motion energy is cached, so ~45 min / session of analysis.
+3. NEXT when both finish: collate `alignment*.csv` (share of between-position variance in null vs potent, k = 2 / 4
+   / 8, vs random k/N) per animal x epoch, LocaNMF vs SVD; decoding vs random baselines; then show Priya. Also: a
+   non-motor control area for the pixel-vs-LocaNMF decoding gap (spatial leakage check).
+Earlier items: multi-view LP arms (a) and (b) both finished and are EVALUATED (§3A); stage-1 motion energy on PS93
+0814 done (thresholds now fit on spout-still frames).
 
 ## 1. Findings since the 10-06 handoff (PS93 0814 whole session unless noted)
 **Movement model comparison** (CV R^2 of the full model; smooth kernels, split licks, retuned cleaning):
