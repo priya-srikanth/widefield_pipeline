@@ -49,28 +49,47 @@ functional channel, so it still contains hemodynamics.
   overdrive (note: 490 LED is the M490L3, rated **350 mA**; see LED-current discussion — a sub-350 mA
   run is still worth doing).
 
-### Regionalization — suggestive YES (real, not noise)
-Spatial correlation length of the ΔF/F fluctuations (uncorrected 490, matched central crop), shorter =
-more spatially discrete:
+### Regionalization — NOT ESTABLISHED (confounded); signal is real & fine, but can't be attributed
 
-| | corr length @0.5 | @1/e |
-|---|---|---|
-| **PS121 RiboL1-GCaMP8s (490)** | **4 px** | 6–8 px |
-| PS94 standard GCaMP (490)      | 22 px    | 33 px |
+This went through several iterations; the honest end state is below. **IMPORTANT STATE NOTE:** PS121 was
+imaged **post-anesthesia and NOT doing the behavioral task**; PS94 was **awake and behaving**. That
+state difference confounds every spatial-scale comparison between them.
 
-RiboL1 activity is **~5× more fine-grained** than standard GCaMP — the direction soma-localization
-predicts (less diffuse neuropil signal → more discrete). **Confirmed real, not pixel noise:** the 4 px
-length is **stable across 1×/4×/16× temporal binning** (noise would be suppressed by averaging and the
-length would grow; it doesn't → the fine structure is temporally coherent). It also survives *despite*
-no hemodynamic correction (hemo adds smooth large-scale structure that would bias toward *longer*
-lengths), so the true neural regionalization may be even finer.
+**Channel integrity first (no DAQ/TTL):** verified all three sessions have no dropped-frame parity flip
+(camlog alternates strictly — 0 consecutive-equal LED ids; frame timestamps perfectly regular, 0 gaps;
+even/odd brightness sign constant throughout). So the 415/490 assignment is reliable and the hemo
+regression can trust the channel labels. func = brighter (odd) stream, isosbestic 415 = even.
 
-**Caveats:** N=1 animal each; the PS121-vs-PS94 magnitude is **not perfectly controlled** (different
-animal / window / focus / FOV; PS121 raw & un-motion-corrected vs PS94 motion-corrected) — so focus/
-window differences could contribute to the 5×, even though the within-PS121 noise check is clean.
-Pixel→mm scale uncalibrated. To nail the indicator attribution: matched same-rig comparison (RiboL1 vs
-standard GCaMP, matched focus), with event-triggered maps / split-half spatial reliability.
+**The analysis arc (and two mistakes corrected along the way):**
+1. *Raw* ΔF/F (no SVD, no hemo): PS121 looked ~5× finer than PS94 (corr len ~4 px vs ~22 px). **This was
+   largely BLOOD FLOW** — caught when the activity maps were noted to "look like blood flow."
+2. After **motion correction + 415-isosbestic hemodynamic regression**: the 415 removed **35–63%** of
+   PS121 variance; PS121 corr length collapsed to **~1 px** while PS94 stayed **~26 px** (only 7%
+   removed, same procedure). I initially called the 1 px "noise" — **also wrong.**
+3. **Temporal autocorrelation** of the corrected signal: PS121 lag-1 = **0.26–0.66**, decaying over
+   ~10 frames, vs a white-noise floor of ~0.03. So the fine corrected signal is **temporally real, not
+   noise** — consistent with genuinely fine (~1 px) regionalized activity, as hypothesised for a
+   soma-localized indicator.
+4. **SVD** of the corrected ΔF/F: PS94 is **extremely low-rank** (90% of variance in **3** components —
+   awake cortex dominated by a few global modes); PS121 is **very high-rank** (90% needs **~700–970**
+   components — variance spread across hundreds of fine, spatially-distributed, temporally-structured
+   modes). High-rank + temporally-real is consistent with fine/sparse regionalized activity.
 
-*Reproduce:* raw `.dat` + camlog on E: (and whatever is archived); metrics computed directly from the
-functional interleaved stream (brighter of the two camlog LED channels). No DAQ, so the standard
-pipeline does not apply to these.
+**Why it's still NOT established:** the anesthetized/no-task state *by itself* produces high rank and
+loss of the global coherent modes that dominate awake cortex — i.e. the **state confound and the
+indicator hypothesis push in the same direction**, so this data cannot separate them. Also: SVD
+denoising is biased toward low-rank/coherent structure (it would *suppress* genuinely fine signal), so
+"denoised corr length" is not a fair regionalization metric here; N=1 each; PS94 is the wrong reference
+(awake). 
+
+**Bottom line:** RiboL1-GCaMP8s gives real, fine-scale, temporally-structured signal after blood-flow
+removal — **consistent with** genuine fine regionalization but **not proof of it**. To actually answer
+it: **state-matched** RiboL1 vs standard GCaMP (awake/task, or matched anesthesia), same rig/focus, with
+proper SVD + pipeline hemo correction and event-based analysis.
+
+*Figures (all on N: `20261009/`):* `PS121_regionalization_vs_PS94_std_GCaMP.png` (raw — SUPERSEDED/
+misleading, mostly blood flow); `PS121_regionalization_CORRECTED_allsessions.png` (motion+hemo
+corrected, uncorrected-vs-corrected); `PS121_SVD_check.png` (SVD spectrum + leading components).
+*Reproduce:* metrics computed directly from the functional interleaved stream
+(brighter of the two camlog LED channels) + 415 even stream; no DAQ, so the standard pipeline does not
+apply — motion correction (rigid, skimage) and hemo (per-pixel 415 regression) were done ad hoc.
