@@ -13,6 +13,16 @@ M: = MICROSCOPE (the behaviour box calls it N:). Everything movement-related bel
   'cue_s'` on 0805 / 0806 / 0812 / 0929; PS93 0805, PS95 0813 index errors) and rerun those (resumable); the 8
   early-June sessions have no camera alignment templates (data gap).
 * Null/potent 24-session subset, LocaNMF + SVD: DONE; CLOSED as a supplementary control (no epoch change).
+* 10-12: failures fixed (`trial_bounds` DAQ-cue fallback, coverage drop; b8dc9e4) and camera templates built for the
+  14 analysed sessions that lacked them (55 / 56 good; PS92 0605 cam4 FAILS quality -- 165k dropped frames; PS93
+  0813 has NO VIDEO, logged in docs/EXPERIMENT_ERRORS.md). Rerun of the 20 failed sessions: log
+  `M2_enl_multisession_fixes.log`. **Summaries use the CURATED set only** (`analysis_kit.curated_labels()`, 120
+  sessions: excludes 6/1-6/5 and 8/5 per animals.yaml `cross_session_exclude`); the 10-12 112-session result was
+  already all-curated. The June / 8-5 rows in the CSV are extra, not for the trajectory.
+* 10-12: cam4 ROUND-4 DLC retrain RUNNING (`wfield_local.dlc_train`, dlc env, GPU; log
+  `C:\Users\SabatiniLab\lp_stage\dlc_train_cam4_round4.log`; 540 frames / 21 sessions, 200 epochs ~1.5 min each).
+  Held-out split changed (6 sessions, 142 frames, incl. round-4 PS94 0921) -- not the same test frames as round 3.
+  NEXT: per-part test RMSE, review clips, then the production O2 run.
 
 ## 0b. PRIORITIES (Priya, 2026-10-08 night -- see the DECISIONS addendum of that name)
 Null/potent is DEMOTED to a control: finish the running subset, check whether the potent share of between-position
