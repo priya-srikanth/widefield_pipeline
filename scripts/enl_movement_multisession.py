@@ -49,7 +49,12 @@ def enl_table(s, rv, win_s, max_rt):
     animal = s["label"].split("_")[0]
     date = Path(s["h5"]).parent.name
     b = TW.trial_bounds(animal, date, rv)
-    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
+    csvs = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))
+    if csvs:
+        sid = csvs[-1].name[:-11]
+    else:                                     # no saved trial table (PS93 0805): the behaviour-log session id
+        from wfield_local.docked_periods import behaviour_session_dir
+        sid = Path(behaviour_session_dir(s["label"])).name
     licks = np.sort(dlc_frames.lick_onsets(animal, date, sid, rv))
     ok = np.isfinite(b.cue_s) & np.isfinite(b.strobe_s) & (b.strobe_s <= b.cue_s - win_s)
     b = b[ok].copy()
@@ -133,9 +138,18 @@ def run_session(s, cams, ds, workers, n_perm, log=print):
     animal, date, tr = enl_table(s, rv, win_s, float(dp["max_rt_s"]))
     y, groups = tr.pos_name.to_numpy(), tr.block.to_numpy()
     Y, reg, ft = MS.imaging(s["label"])
-    enl = [(c - win_s - lead_s, c) for c in tr.cue_s]
     # imaging frames of each trial's ENL (feature) window and of the movement-model window (with lead-in)
     trial_frames = [np.flatnonzero((ft >= c - win_s) & (ft < c)) for c in tr.cue_s]
+    # TRIALS OUTSIDE THE IMAGING COVERAGE are dropped (PS95 0813: 197 of 871 cues fall outside it) -- an ENL window
+    # needs (almost) all of its imaging frames; empty windows crashed the feature step
+    n_exp = int(round(win_s * FPS_IMG))
+    cov = np.array([len(f) >= 0.9 * n_exp for f in trial_frames])
+    if not cov.all():
+        log(f"  {s['label']}: dropped {int((~cov).sum())} trial(s) whose ENL window is outside the imaging coverage")
+        tr = tr[cov].reset_index(drop=True)
+        y, groups = tr.pos_name.to_numpy(), tr.block.to_numpy()
+        trial_frames = [f for f, k in zip(trial_frames, cov) if k]
+    enl = [(c - win_s - lead_s, c) for c in tr.cue_s]
     wmask = np.zeros(len(ft), bool)
     for t0, t1 in enl:
         wmask |= (ft >= t0) & (ft < t1)

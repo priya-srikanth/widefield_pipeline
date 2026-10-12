@@ -82,6 +82,26 @@ def to_frames(t_s, tpl: dict) -> np.ndarray:
     return (np.asarray(t_s, float) * fs - float(tpl["intercept_daqSample"])) / float(tpl["slope_daqSample_per_camFrame"])
 
 
+def _daq_cue_trials(animal: str, date: str) -> pd.DataFrame:
+    """Trials from the DAQ CUE events, positions from `behavior_position.classify_cues_with_backup` -- the same
+    source the position decoder uses, so the two agree. For sessions whose saved behaviour trial table has no DAQ
+    clock (``cue_s``) or does not exist: the behaviour pipeline fell back to the GUI log (dead strobe bit on 08-05 /
+    08-06, the 08-12 recorder crash, 09-29) or the log is empty (PS93 0805, positions from its human-verified
+    recovered-positions CSV). trial_id = DAQ cue index (NOT the GUI trial_id); ``trial_source`` says so."""
+    from wfield_local import config
+    from wfield_local.behavior_position import classify_cues_with_backup
+    from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
+    from wfield_local.plot_spout_trial_averages import _load_daq_events
+
+    s = next(x for x in config.load_sessions() if x["label"] == f"{animal}_{date[4:]}")
+    cue = _load_daq_events(s["h5"])
+    codes = np.asarray(classify_cues_with_backup(s, cue, verbose=False))
+    cue_s = np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
+    ok = codes >= 0
+    return pd.DataFrame({"trial_id": np.flatnonzero(ok), "pos_name": [POSITION_NAMES[int(c)] for c in codes[ok]],
+                         "cue_s": cue_s[ok], "trial_source": "daq_cues"})
+
+
 def trial_bounds(animal: str, date: str, rv=None) -> pd.DataFrame:
     """Per trial (the DAQ trial table's rows): trial_id, pos_name, strobe_s, cue_s, stop_s (DAQ seconds),
     stop_source ('log_trial_stop_ttl' | 'cue+response_window')."""
@@ -93,9 +113,13 @@ def trial_bounds(animal: str, date: str, rv=None) -> pd.DataFrame:
     from wfield_local.spout_behavior import _sync_affine
 
     rv = rv or PathResolver()
-    t = pd.read_csv(sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date)
-                           .glob(f"{animal}_{date}_*_trials.csv"))[-1])
-    t = t[np.isfinite(t["cue_s"].astype(float))].sort_values("cue_s").reset_index(drop=True)
+    csvs = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob(f"{animal}_{date}_*_trials.csv"))
+    t = pd.read_csv(csvs[-1]) if csvs else None
+    if t is not None and "cue_s" in t:
+        t = t[np.isfinite(t["cue_s"].astype(float))].sort_values("cue_s").reset_index(drop=True)
+        t["trial_source"] = "behavior_trials_csv"
+    else:
+        t = _daq_cue_trials(animal, date)
     h5 = sorted((Path(rv.root("daq_recorder_output")) / date).glob(f"{animal}_{date}_*.h5"))[0]
     dec = daq_trials.decode(h5)
     strobe = np.sort(np.asarray(dec["strobe_s"], float))
@@ -140,7 +164,7 @@ def trial_bounds(animal: str, date: str, rv=None) -> pd.DataFrame:
     miss = ~np.isfinite(out_stop)
     out_stop[miss] = cue[miss] + rw
     t["stop_s"], t["stop_source"] = out_stop, src
-    return t[["trial_id", "pos_name", "strobe_s", "cue_s", "stop_s", "stop_source"]]
+    return t[["trial_id", "pos_name", "strobe_s", "cue_s", "stop_s", "stop_source", "trial_source"]]
 
 
 def _log_events_daq(animal: str, date: str, names, rv=None):
