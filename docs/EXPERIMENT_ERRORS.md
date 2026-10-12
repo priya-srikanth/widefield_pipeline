@@ -367,6 +367,27 @@ concomitant neural recording, which by definition excludes the gap.
 
 ---
 
+## 2026-08-13 — PS93: no behaviour-camera video recorded (experiment error)
+
+**What happened.** No behaviour-camera video was recorded for PS93's 8/13 session (Priya, 2026-10-12: an
+experiment error -- the cameras were not recording, not a lost upload). Imaging, the DAQ `.h5`
+(`PS93_20260813_184848.h5`) and the behaviour log (`PS93_20260813_184854`) exist; there is no
+`Behavior_Cameras/Widefield/20260813/PS93/` folder, and the 8/13 dropped-frame QC lists only PS92, PS94, PS95.
+Found 2026-10-12 while building camera<->DAQ alignment templates for every analysed session.
+
+**What it costs.** Every VIDEO-based analysis loses this session: DLC / LP poses (tongue, jaw, kinematics,
+executed angle), video motion energy (movement-encoding video regressors, the ENL running + video removal in
+`scripts/enl_movement_multisession.py`, the null/potent stationarity labels). It is one of PS93's pre-stroke
+sessions (day -4), so PS93 keeps its other August pre sessions. Analyses that use only imaging + DAQ (position
+decoding, maps, encoders, DAQ licks, running) are unaffected.
+
+**What we do.** Nothing to recover. Video analyses skip the session and report it as "no video" (the camera
+template check fails cleanly with no camera folder). Do not substitute another session's video.
+
+**Still open.** None.
+
+---
+
 ## 2026-08-13 — extreme quiet/running imbalance in three of four sessions
 
 **What happened.** Not a fault, but a session property that changes what some panels mean. Quiet-frame
