@@ -19663,3 +19663,27 @@ bound as a recovery trajectory; (2) the executed-angle vs target readout (MUST R
 (3) tracking groundwork -- cam4 round-4 labels -> retrain -> production O2 poses. Open side question with possibly
 more bearing on the main results: pixel PCA decodes position better than LocaNMF (MO pre-cue 0.47 vs 0.32) --
 check against spatial leakage with a non-motor control area before reading anything into it.
+
+**Addendum (2026-10-12) — RESULT: the pre-cue position code's recovery time course survives movement removal;
+null/potent closed as a supplementary control.**
+ENL movement-removed decoding (`scripts/enl_movement_multisession.py`; running + 4-camera ENL motion energy, all
+movement models fit inside each CV fold on training trials; validated on PS93 0814: residual 0.28 vs 0.26 from the
+whole-session model) ran on 132 regime-B sessions; 112 succeeded (20 failed: 8 early-June sessions lack camera
+alignment templates = data gap; 10 `KeyError: 'cue_s'` on 0805 / 0806 / 0812 / 0929 trial tables + PS93 0805 and
+PS95 0813 index errors = to fix). Figure `<labcams>/enl_movement_multisession/enl_movement_trajectory.png`.
+(1) Video + running decode position at 0.84-0.97 in every animal and epoch, i.e. the mouse's pre-cue movement
+differs by spout position throughout. (2) After regressing it out, position stays above chance in most sessions
+(p < 0.05 in 67-100 % of sessions per animal x epoch, lower in some acute / subacute cells: PS93 0.33-0.50, PS95
+0.43). Across-animal means (chance 0.17) raw / residual: pre 0.41 / 0.26, acute 0.45 / 0.31, subacute 0.33 / 0.23,
+chronic 0.46 / 0.28. (3) The residual TRACKS the raw code session by session -- raw ~ residual r = 0.92 / 0.86 /
+0.81 / 0.77 (PS92 / 93 / 94 / 95, all p < 1e-5) -- including the subacute dip (~day 5-10) and the chronic recovery,
+whereas raw ~ video-only decodability is weak or absent (r 0.40, -0.16, 0.42, 0.69). So the epoch changes in the
+pre-cue position code are NOT explained by changes in how decodable position is from movement. The residual keeps
+~40-50 % of the above-chance raw code (median per animal x epoch 0.14-0.74), with no consistent epoch trend; the
+exception to watch is PS95 chronic (0.16: its chronic raw recovery is less movement-independent). Caveats: linear
+removal; video can over-remove (residual = lower bound); one regressor set; acute n small (PS95 1 session).
+(4) Null/potent subset (24 sessions, LocaNMF + SVD): the share of between-position variance in the potent subspace
+(k = 2) is noisy per session and does not change consistently across epochs or agree between bases (e.g. SVD all-
+cortex ENL 0.56 / 0.81 / 0.24 pre / acute / chronic; LocaNMF 0.29 / 0.12 / 0.17); the split-half fraction is ill-
+defined when the between-position signal is weak (one SVD MO chronic mean -3.5). Per the 10-08 decision: CLOSED,
+supplementary control only ("position-related variance is largely movement-aligned"); no further work.

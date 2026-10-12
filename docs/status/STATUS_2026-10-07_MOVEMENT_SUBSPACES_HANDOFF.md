@@ -7,25 +7,23 @@ Reasoning and numbers: `DECISIONS.md` addenda 2026-10-06 (night) and 2026-10-07 
 M: = MICROSCOPE (the behaviour box calls it N:). Everything movement-related below is ONE pre-stroke session
 (PS93 0814, whole-session O2 poses from the ROUND-3 cam4 model) unless stated -- pipeline results, not findings.
 
-## 0. RUNNING (updated 2026-10-08 evening)
-1. **Null/potent 24-session SUBSET, LocaNMF basis** (Priya OK'd a representative subset instead of the cohort: per
-   animal 2 pre (Aug) / 2 acute / 2 chronic; PS95 acute = 0817 + 0819). Detached cmd PID 33352, log
-   `C:\Users\SabatiniLab\lp_stage\full_0814_logs\compare\I_np_subset.log`; outputs
-   `<labcams>/null_potent/null_potent_summary.csv` + per session `alignment.csv`, `subspaces.npz`, `me_<cam>.npz`.
-2. **QUEUED: same 24 sessions, `--basis svd`** -- `queue_svd_subset.ps1` (PowerShell PID 26548) waits for PID 33352
-   to exit; log `K_np_svd_subset.log`, `K_np_svd_queue.txt`; outputs `null_potent_summary_svd.csv`,
-   `alignment_svd.csv`. Motion energy is cached, so ~45 min / session of analysis.
-3. NEXT when both finish: collate `alignment*.csv` (share of between-position variance in null vs potent, k = 2 / 4
-   / 8, vs random k/N) per animal x epoch, LocaNMF vs SVD; decoding vs random baselines; then show Priya. Also: a
-   non-motor control area for the pixel-vs-LocaNMF decoding gap (spatial leakage check).
-Earlier items: multi-view LP arms (a) and (b) both finished and are EVALUATED (§3A); stage-1 motion energy on PS93
-0814 done (thresholds now fit on spout-still frames).
+## 0. STATE (2026-10-12) -- nothing running
+* ENL movement-removed decoding: DONE on 112 / 132 sessions -> RESULT in DECISIONS 2026-10-12 (the residual tracks
+  the raw pre-cue code across recovery, r 0.77-0.92 per animal). To do: fix the 12 code failures (`KeyError
+  'cue_s'` on 0805 / 0806 / 0812 / 0929; PS93 0805, PS95 0813 index errors) and rerun those (resumable); the 8
+  early-June sessions have no camera alignment templates (data gap).
+* Null/potent 24-session subset, LocaNMF + SVD: DONE; CLOSED as a supplementary control (no epoch change).
 
 ## 0b. PRIORITIES (Priya, 2026-10-08 night -- see the DECISIONS addendum of that name)
 Null/potent is DEMOTED to a control: finish the running subset, check whether the potent share of between-position
 variance changes across epochs, then stop. Next, in order:
-1. **ENL movement-removed decoding across sessions / epochs** (`scripts/enl_movement_multisession.py`: written, NOT
-   run, NOT tested -- test on PS93 0814 against `enl_movement_removed_decode.py`'s 0.26 first).
+1. **ENL movement-removed decoding across sessions / epochs** (`scripts/enl_movement_multisession.py`). VALIDATED
+   10-09 on PS93 0814 (n 475): raw 0.43, residual 0.28 (whole-session model gave 0.26), video_only 0.95 (0.96);
+   projecting out the top-3 movement-predicted dims removes 91 % of movement-predicted and 65 % of total ENL
+   variance, decoding 0.38; top-8: 99 % / 89 %, 0.32. RUNNING 10-09 07:45 on all 132 regime-B sessions (the 24
+   subset first; order in `lp_stage/full_0814_logs/compare/enl_order.txt`), cmd PID 23116, log
+   `M_enl_multisession.log`, ~10 min / session, resumable; output
+   `<labcams>/enl_movement_multisession/enl_movement_multisession.csv`.
 2. **Executed-angle vs target readout** (MUST REVISIT; needs the next cam4 model + whole-session poses).
 3. **Tracking**: cam4 round-4 labels -> retrain -> production O2 run.
 Side check: pixel-PCA vs LocaNMF decoding gap (MO pre-cue 0.47 vs 0.32) against a non-motor control area.
