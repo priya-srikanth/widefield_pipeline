@@ -109,6 +109,8 @@ addenda 2026-10-08 (three), 2026-10-12, 2026-10-13 (two). Analysis desktop; M: =
 5. Labelling: cam1 Part 2 (4 empty folders) and Part 3 (round 2) -- worth it only if the model comparison says
    labels, not architecture, are the limit.
 6. Optional: tongue likelihood cutoff for round 4 (it is under-confident on clear protrusions at 0.6).
+7. FaceRhythm (Hakim et al., the paper Priya cited with Musall): reading notes + proposal in `docs/FACERHYTHM_PROPOSAL.md`
+   (moved from `lp_stage/facerhythm/` 10-13) -- FR components as video regressors alongside / instead of ME PCs.
 
 ## 4. Pitfalls (new)
 1. **GNU sed and Python string edits mangle Windows paths** (`\U`, `\L` = case conversion; `\n` becomes a newline
