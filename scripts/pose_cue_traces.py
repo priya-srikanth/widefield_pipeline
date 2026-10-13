@@ -134,7 +134,7 @@ def median5(d: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     return out
 
 
-def cleaned_frame(d: pd.DataFrame, idx: pd.DataFrame) -> pd.DataFrame:
+def cleaned_frame(d: pd.DataFrame, idx: pd.DataFrame, mouth=None) -> pd.DataFrame:
     """Tongue/jaw replaced by `orofacial_clean` output (baseline-subtracted px; baseline-filled frames -> NaN,
     likelihood 1 where a cleaned value exists, 0 where it does not), so `cmd_plot` draws the CLEAN traces."""
     from wfield_local import orofacial_clean as oc
@@ -142,7 +142,10 @@ def cleaned_frame(d: pd.DataFrame, idx: pd.DataFrame) -> pd.DataFrame:
                          for c in ("x", "y", "likelihood")})
     out = d.copy()
     for part in ("tongue", "jaw"):
-        c, pos, _ = oc.clean_windows(flat, idx.iloc[:len(flat)], part)
+        # TONGUE ZERO = the MOUTH (spout-frame origin) when given, as in `pose_kinematics_demo.run` (Priya 2026-10-01);
+        # jaw keeps the data-driven baseline
+        c, pos, _ = oc.clean_windows(flat, idx.iloc[:len(flat)], part,
+                                     x0y0=tuple(mouth) if (part == "tongue" and mouth is not None) else None)
         x, y = c.x_masked[pos], c.y_masked[pos]
         out[(part, "x")], out[(part, "y")] = x, y
         out[(part, "likelihood")] = np.isfinite(y).astype(float)
@@ -334,8 +337,18 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
     for spec in models:
         name, csv = spec.split("=", 1)
         M[name] = _load(csv)
+    mouth = None
     if cleaned:
-        M = {k: cleaned_frame(v, idx) for k, v in M.items()}
+        # ONE mouth for every model (from round-3 DLC's spout, as the kinematics pipeline does), so a model
+        # difference in the cleaned tongue is tracking, not a different zero
+        from wfield_local import orofacial_clean as oc
+        from wfield_local import spout_frame as SF
+        ref = oc.read_pose(poses_dir / "windows_DLC.csv").iloc[:len(idx)]
+        spans = [(int(g.index.min()), int(g.index.max()) + 1, str(g.position.iloc[0]))
+                 for _, g in idx.iloc[:len(ref)].groupby("trial_k")]
+        mouth = SF.from_medians(SF.position_medians(ref[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(),
+                                                    spans)).origin
+        M = {k: cleaned_frame(v, idx, mouth) for k, v in M.items()}
     n = min(len(idx), *(len(m) for m in M.values()))
     keep = (idx.t_ms[:n] >= win_s[0] * 1000) & (idx.t_ms[:n] <= win_s[1] * 1000)
     sub = idx[:n][keep]
@@ -363,7 +376,8 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
             ax.plot(t_ms, np.nanmean(A, 0), lw=1, color="k", alpha=0.8)
             ax.axvline(0, color="k", lw=1)
             if c == 0:
-                ax.set_ylabel(f"{part.capitalize()} {coord.upper()} (px{' rel. baseline' if cleaned else ''})")
+                ref_name = ("mouth" if part == "tongue" else "baseline") if cleaned else ""
+                ax.set_ylabel(f"{part.capitalize()} {coord.upper()} (px{' rel. ' + ref_name if cleaned else ''})")
             if r == 0:
                 ax.set_title(f"{name}\n{K} trials, p > {PCUT}", fontsize=10)
         ax = axs[-1, c]
