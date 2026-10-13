@@ -155,7 +155,12 @@ def run_session(s, cams, ds, workers, n_perm, log=print):
         wmask |= (ft >= t0) & (ft < t1)
     frame_idx = np.flatnonzero(wmask)
     vids = {c: sorted((Path(rv.root("behavior_cameras")) / date / animal).glob(f"{c}_*.avi")) for c in cams}
-    cams = [c for c in cams if vids[c]]
+    # EVERY requested camera is required: a session without video (PS93 0813 -- none recorded, see
+    # docs/EXPERIMENT_ERRORS.md) used to run with running speed as its ONLY regressor, so its "residual" was not the
+    # same quantity as anyone else's (found 2026-10-13: video_only 0.09 = chance, residual 0.48 ~ raw 0.49)
+    missing = [c for c in cams if not vids[c]]
+    if missing:
+        raise FileNotFoundError(f"{s['label']}: no video for {missing} -- movement model would be incomplete")
     tpls = {c: dict(np.load(Path(rv.root("alignment_templates")) / c / animal / f"{date}.npz", allow_pickle=True))
             for c in cams}
     with ProcessPoolExecutor(max_workers=workers) as ex:

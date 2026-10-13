@@ -19687,3 +19687,15 @@ removal; video can over-remove (residual = lower bound); one regressor set; acut
 cortex ENL 0.56 / 0.81 / 0.24 pre / acute / chronic; LocaNMF 0.29 / 0.12 / 0.17); the split-half fraction is ill-
 defined when the between-position signal is weak (one SVD MO chronic mean -3.5). Per the 10-08 decision: CLOSED,
 supplementary control only ("position-related variance is largely movement-aligned"); no further work.
+
+**Addendum (2026-10-13) — CORRECTION to the 10-12 ENL trajectory result.** PS93 0813 has NO video (experiment
+error, docs/EXPERIMENT_ERRORS.md) and `enl_movement_multisession.py` silently ran it with running speed as its only
+regressor (video_only 0.09 = chance; residual 0.48 ~ raw 0.49). It was in the 112. The script now refuses a session
+missing any camera; the row is removed (kept in `enl_movement_multisession_with_PS93_0813_running_only.csv`).
+Summaries now use the CURATED set (`analysis_kit.curated_labels()`) with >= 60 ENL trials (drops PS92 0812, the
+recorder-crash day: 22 trials, degenerate) -> 118 sessions. Unchanged: across-animal raw / residual pre 0.40 / 0.26,
+acute 0.45 / 0.31, subacute 0.33 / 0.23, chronic 0.46 / 0.28; raw ~ residual r = 0.92 / 0.91 / 0.80 / 0.77 (PS92 /
+93 / 94 / 95, all p < 1e-6). CHANGED: raw ~ video-only decodability is r = 0.39 / 0.71 / 0.39 / 0.71 -- NOT "weak or
+absent" (the PS93 -0.16 came from the broken session). So sessions with more position-specific movement also have
+a stronger raw code in PS93 / PS95 (video decoding is near ceiling, 0.86-0.97, so this rests on a narrow range);
+the residual still tracks raw more tightly than video does, and keeps ~40-50 % of the above-chance code.
