@@ -19736,3 +19736,23 @@ ceiling, so side-flips under the ceiling survive cleaning. IMPLICATIONS: jaw x a
 for every model -- treat jaw Y (opening) as the primary jaw measure there; the temporal-context LP model (training)
 may suppress one-frame flips; PROPOSED (not yet done, needs Priya's OK on thresholds): a jaw x side-flip rule like the
 tongue's Rule 4 (x-only bursts <= 3 frames, re-interpolated).
+
+**Addendum (2026-10-13, night) — side cameras (cam2 + cam3): one shared, flipped model for nose / jaw / tongue /
+spout; label each moment in ONE side camera; separate worksheet.** Priya: keep the four parts; side views show the
+jaw opening in profile with no rod across the chin (the cam4 close-position jaw ambiguity) and the tongue's
+forward / downward reach (depth: close vs far). cam3 flipped left-right matches cam2 (same facing and treadmill
+layout; cam3 a little more frontal), so ONE model is trained on both, with cam3 flipped at training / inference
+time; labelling is on the raw images; the four parts are midline / single, so flipping needs no left-right label
+swap. Priya: "can we label fewer frames than doubling" -- yes: each moment is assigned to cam2 OR cam3
+(alternating, one counter across session x position groups so both cameras get every position, animal and epoch),
+every 5th moment to BOTH (same-moment pairs for cam2 / cam3 agreement and later multi-camera use). Result: 301 target
+moments -> 332 frames (166 per camera, 31 moments in both) vs 602 doubled. Carried over from cam4 / cam1: SAME
+MOMENTS as cam4 (the side folders were extracted with `anchor_cam: cam4`; the cam4 round-4 moments added with
+`dlc_hard_frames.matched_frames`, by DAQ time), TARGET vs CONTEXT (+-4 context around contact onset / end, 454 per
+camera, plus cam4's round-4 bursts, 360 per camera -- context stays blank), never partial labels. Worksheet
+`SIDECAM_GUIDE.html` (separate from the student's CAM1_GUIDE.html): Part A pilot = 8 sessions covering every animal
+and epoch (144 frames), Part B = cam4 round-4 moments (62), Part C = the other 7 sessions (126). Session key =
+animal + date (PS94 0820's cam2 / cam3 file stamps differ by 1 s). Code: `wfield_local/dlc_sidecam.py` (pairs,
+assign), `dlc_sidecam_guide.py`, `dlc_context_frames` now takes cam2 / cam3; tests `tests/test_dlc_sidecam.py`.
+Later, at training: crop the side views to the face (~300 x 300 px; ~2-3x faster inference), the crop set from the
+labelled points + margin and checked across sessions.

@@ -218,7 +218,7 @@ def plan(cam: str, rv=None, half: int = HALF_LICK) -> list[dict]:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cam", choices=["cam1"])
+    ap.add_argument("cam", choices=["cam1", "cam2", "cam3"])   # cam2/cam3: the side views (Priya 2026-10-13)
     ap.add_argument("--half", type=int, default=HALF_LICK)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--promote", type=int, default=None, metavar="SPACING",

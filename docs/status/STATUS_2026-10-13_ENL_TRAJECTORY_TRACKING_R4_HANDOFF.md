@@ -98,6 +98,16 @@ and the best cleaned tongue coverage (~0.58); DLC round 3's cleaned jaw x has ma
 side-flips at the close positions -- labels confirmed correct by Priya (DECISIONS 10-13 evening). LP r4 temporal-
 context model retraining (batch-size fix; `lp_stage/lp_r4_fix.log`), round-3 LP on 0821 re-run from its own dir.
 
+**10-13 evening:** the machine CRASHED at 19:01 (bugcheck 0x20001, HYPERVISOR_ERROR, as on 09-30) ~2 min into the
+WSL `heatmap_mhcrnn` training. Measured natively: context models need > 7.8 GB at batch 2 / 640 px once the backbone
+is unfrozen; batch 1 / 640 px = 4.6 GB. Now running WINDOWS-NATIVE: supervised `heatmap_mhcrnn`, batch 1, 640 px
+(`lp_stage/lp_win_r4_mhcrnn.ps1`, log `lp_stage/lp_win_r4_mhcrnn.log` + `.out`; project `lp_stage/lp_cam4_r4_win`),
+then predicts both session clips + the six review clips -> `lp_stage/r3_vs_r4_lp/r4mhcrnn_sup_win/`. Native Windows
+has no DALI -> no unlabelled-video temporal LOSS; the semi-supervised context model needs WSL: do it ATTENDED, batch
+1 + `torch.cuda.set_per_process_memory_fraction`, after a short monitored test. Still to run: the review-clip LP
+predictions (r3, r4 heatmap) and a round-3 context model (`lp_r4_followon.sh` died in the crash).
+**Side cameras:** labelling plan + `SIDECAM_GUIDE.html` built (DECISIONS 10-13 night).
+
 ## 2. Decisions (10-08 .. 10-13)
 * Null/potent closed as a supplementary control (Priya). Priorities: (1) ENL movement-removed trajectory -- done;
   (2) executed-angle vs target (MUST REVISIT) once tracking allows; (3) tracking.
