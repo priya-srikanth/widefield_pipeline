@@ -317,14 +317,92 @@ def cmd_onlyone(spec, rv, lp_csv, per_group: int = 8, seed: int = 1):
     print(f"-> {p}")
 
 
+MODEL_COLORS = ["dodgerblue", "navy", "mediumvioletred", "darkorange", "seagreen", "black"]
+
+
+def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s=(-0.5, 3.5), tag: str = ""):
+    """Cue-aligned tongue / jaw x & y, trials overlaid, for ANY number of models on the SAME clip -- a
+    `session_poses` directory (windows.mp4 + windows_index.csv) and ``name=csv`` pairs (Priya, 2026-10-13: "compare
+    how the tongue and jaw cue-aligned trajectory plots look for all 4 (round 3/4, DLC/LP)"). Same rules as
+    `cmd_plot`: below-cutoff points are gaps, nothing interpolated; ``cleaned`` swaps in `orofacial_clean` output."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    poses_dir = Path(poses_dir)
+    idx = pd.read_csv(poses_dir / "windows_index.csv")
+    M = {}
+    for spec in models:
+        name, csv = spec.split("=", 1)
+        M[name] = _load(csv)
+    if cleaned:
+        M = {k: cleaned_frame(v, idx) for k, v in M.items()}
+    n = min(len(idx), *(len(m) for m in M.values()))
+    keep = (idx.t_ms[:n] >= win_s[0] * 1000) & (idx.t_ms[:n] <= win_s[1] * 1000)
+    sub = idx[:n][keep]
+    t_ms = np.sort(sub.t_ms.unique())
+    K = int(idx.trial_k.max()) + 1
+
+    def stack(m, part, coord):
+        a = m[part][coord].to_numpy()[:n].astype(float)
+        if coord != "likelihood":
+            a = np.where(m[part]["likelihood"].to_numpy()[:n] > PCUT, a, np.nan)
+        A = np.full((K, len(t_ms)), np.nan)
+        A[sub.trial_k, np.searchsorted(t_ms, sub.t_ms)] = a[keep.to_numpy()]
+        return A
+
+    rows = [("tongue", "y"), ("tongue", "x"), ("jaw", "y"), ("jaw", "x")]
+    names = list(M)
+    fig, axs = plt.subplots(len(rows) + 1, len(names), figsize=(4.2 * len(names), 13), sharex=True, squeeze=False)
+    for c, name in enumerate(names):
+        col = MODEL_COLORS[c % len(MODEL_COLORS)]
+        for r, (part, coord) in enumerate(rows):
+            ax = axs[r, c]
+            A = stack(M[name], part, coord)
+            for row in A:
+                ax.plot(t_ms, row, lw=0.5, alpha=0.3, color=col)
+            ax.plot(t_ms, np.nanmean(A, 0), lw=1, color="k", alpha=0.8)
+            ax.axvline(0, color="k", lw=1)
+            if c == 0:
+                ax.set_ylabel(f"{part.capitalize()} {coord.upper()} (px{' rel. baseline' if cleaned else ''})")
+            if r == 0:
+                ax.set_title(f"{name}\n{K} trials, p > {PCUT}", fontsize=10)
+        ax = axs[-1, c]
+        for part, ls in (("tongue", "-"), ("jaw", "--")):
+            L = stack(M[name], part, "likelihood")
+            ax.plot(t_ms, np.nanmean(L > PCUT, 0), ls, color=col, lw=1, label=part)
+        ax.axvline(0, color="k", lw=1)
+        ax.set_ylim(0, 1.02)
+        if c == 0:
+            ax.set_ylabel("fraction of trials\n" + ("with a cleaned value" if cleaned else "confident"))
+        ax.set_xlabel("time from cue (ms)")
+        ax.legend(fontsize=8, loc="upper left")
+    for r in range(len(rows)):
+        lo = min(a.get_ylim()[0] for a in axs[r]); hi = max(a.get_ylim()[1] for a in axs[r])
+        for a in axs[r]:
+            a.set_ylim(lo, hi)
+    fig.suptitle(f"{poses_dir.name} cam4 | cue-aligned, trials overlaid | "
+                 f"{'CLEANED (orofacial_clean)' if cleaned else 'raw, no cleaning'} | image y increases downward"
+                 + (f" | {tag}" if tag else ""), y=1.0, fontsize=12)
+    fig.tight_layout()
+    p = poses_dir / "r4_eval" / f"cue_traces_compare{'_cleaned' if cleaned else ''}.png"
+    p.parent.mkdir(exist_ok=True)
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    print(f"-> {p}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["clip", "dlc", "plot", "zoom", "onlyone"])
-    ap.add_argument("session", metavar="ANIMAL:YYYYMMDD")
+    ap.add_argument("cmd", choices=["clip", "dlc", "plot", "zoom", "onlyone", "compare"])
+    ap.add_argument("session", metavar="ANIMAL:YYYYMMDD", help="for `compare`: a session_poses directory")
     ap.add_argument("--lp", type=Path, help="LP predictions CSV for the clip (plot)")
     ap.add_argument("--filtered", action="store_true", help="apply the median-5 filter to both models first")
     ap.add_argument("--cleaned", action="store_true", help="plot orofacial_clean output (ported stroke_orofacial cleaning)")
+    ap.add_argument("--model", action="append", default=[], metavar="NAME=CSV",
+                    help="compare: one model's predictions on the clip (repeat, in column order)")
     a = ap.parse_args(argv)
+    if a.cmd == "compare":
+        cmd_compare(Path(a.session), a.model, cleaned=a.cleaned)
+        return 0
     rv = PathResolver()
     {"clip": lambda: cmd_clip(a.session, rv), "dlc": lambda: cmd_dlc(a.session, rv),
      "plot": lambda: cmd_plot(a.session, rv, a.lp, a.filtered, a.cleaned), "zoom": lambda: cmd_zoom(a.session, rv, a.lp), "onlyone": lambda: cmd_onlyone(a.session, rv, a.lp)}[a.cmd]()
