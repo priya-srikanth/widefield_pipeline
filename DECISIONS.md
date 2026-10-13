@@ -19699,3 +19699,23 @@ acute 0.45 / 0.31, subacute 0.33 / 0.23, chronic 0.46 / 0.28; raw ~ residual r =
 absent" (the PS93 -0.16 came from the broken session). So sessions with more position-specific movement also have
 a stronger raw code in PS93 / PS95 (video decoding is near ceiling, 0.86-0.97, so this rests on a narrow range);
 the residual still tracks raw more tightly than video does, and keeps ~40-50 % of the above-chance code.
+
+**Addendum (2026-10-13) — cam4 round 4: DLC not measurably better; judge models downstream; LP temporal-context
+model; camera templates.** (1) Round-4 DLC (540 frames / 21 sessions, `trainset74` best-170; round 3 kept as
+`trainset71` best-160). Its per-part test error (spout 1.96, nose 3.49, jaw 3.82, tongue 7.29 px) is NOT comparable
+to round 3's (1.74 / 3.33 / 4.12 / 6.44): the seeded session split changed when the round-4 sessions joined. On
+the 70 labelled frames held out by BOTH rounds (PS93 0606, PS95 0821, PS94 0921; `inference_check_20261012_round4/
+heldout_both.py`), round 3 -> 4: median error nose 3.2 -> 3.1, jaw 3.2 -> 3.3, spout 1.8 -> 1.9, tongue 6.6 -> 6.8 px;
+jaw errors > 10 px 9.8 -> 4.9 %; tongue labelled-and-found 91 -> 85 %; tongue detections on blank frames 8.1 -> 5.4 %
+(n = 33 tongue frames: within noise). Review clips (6 x 20 s, round 4 and round 3 | round 4) show round 4 under-
+confident on about half of the clear protrusions it drops (p 0.43-0.58, same position as round 3), the rest
+ambiguous. Conclusion: more labels of the same kind no longer pay off for a single-frame ResNet-50. DECISION:
+choose the cam4 model on the downstream measure (lick detection vs DAQ contacts, angle at peak protrusion), on one
+pre (PS93 0814) and one acute (PS93 0821) session's existing trial-subset clips, for DLC and LP, rounds 3 and 4.
+(2) "Temporal" in our LP models so far was only the TRAINING loss (`losses_to_use: [temporal]`); inference was
+single-frame (`heatmap`; the multi-view pilot's `heatmap_multiview_transformer` shares across cameras, not time).
+Priya expected temporal inference. Added: round-4 LP `heatmap` (label effect only) AND `heatmap_mhcrnn` (frames
+t-2..t+2 at inference), both in the comparison. LP 2.4.2 has no multi-view + context model; if context helps, the
+2-camera route is per-camera context models + the calibration-free multi-camera EKS. (3) Camera<->DAQ templates
+built for the 14 analysed sessions without one (55 / 56 good; PS92 0605 cam4 fails quality); PS93 0813 has no
+video (experiment error, EXPERIMENT_ERRORS.md). Handoff: `docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md`.

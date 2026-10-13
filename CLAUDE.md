@@ -344,8 +344,13 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md`](docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md)**
+— **START HERE, newest.** The movement-removed ENL position code across recovery (118 sessions: the residual tracks
+the raw code), null/potent closed as a control, cam4 round 4 (DLC not measurably better; DLC vs LP x round 3 vs 4,
+incl. the first temporal-context LP model, on one pre + one acute session), camera templates, pitfalls.
+
 **[`docs/status/STATUS_2026-10-07_MOVEMENT_SUBSPACES_HANDOFF.md`](docs/status/STATUS_2026-10-07_MOVEMENT_SUBSPACES_HANDOFF.md)**
-— **START HERE, newest.** Movement-removed position coding (video + running regressors; ENL decoding survives
+— superseded by the 10-13 handoff; still the reference for the movement models / video regressors. Movement-removed position coding (video + running regressors; ENL decoding survives
 movement removal as a lower bound), the Hasnain et al. 2025 movement-null/potent subspace analysis (in progress),
 the multi-view LP pilot (arm a done, arm b training), cohort registration through 10/6, and all lines of
 investigation with what is running, pending and to-do.
