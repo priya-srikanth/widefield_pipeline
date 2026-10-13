@@ -92,6 +92,12 @@ addenda 2026-10-08 (three), 2026-10-12, 2026-10-13 (two). Analysis desktop; M: =
 ### F. Multi-view LP pilot — evaluated 10-08 (see the 10-07 handoff §3A): arm (b) = arm (a); not adopted.
   Priya: the multi-view cam1 jaw through the spout rod is closer than single-view but not perfect.
 
+**Preliminary (PS93 0814, 4 models; `r4_eval/cue_traces_compare[_cleaned].png`):** jaw shape identical across models;
+DLC round 4 loses tongue coverage (peak ~0.35 vs ~0.45 for DLC round 3); LP round 4 has the fewest wild tongue points
+and the best cleaned tongue coverage (~0.58); DLC round 3's cleaned jaw x has many -30 px spikes. LP round 4 jaw x
+side-flips at the close positions -- labels confirmed correct by Priya (DECISIONS 10-13 evening). LP r4 temporal-
+context model retraining (batch-size fix; `lp_stage/lp_r4_fix.log`), round-3 LP on 0821 re-run from its own dir.
+
 ## 2. Decisions (10-08 .. 10-13)
 * Null/potent closed as a supplementary control (Priya). Priorities: (1) ENL movement-removed trajectory -- done;
   (2) executed-angle vs target (MUST REVISIT) once tracking allows; (3) tracking.

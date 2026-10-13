@@ -19719,3 +19719,20 @@ t-2..t+2 at inference), both in the comparison. LP 2.4.2 has no multi-view + con
 2-camera route is per-camera context models + the calibration-free multi-camera EKS. (3) Camera<->DAQ templates
 built for the 14 analysed sessions without one (55 / 56 good; PS92 0605 cam4 fails quality); PS93 0813 has no
 video (experiment error, EXPERIMENT_ERRORS.md). Handoff: `docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md`.
+
+**Addendum (2026-10-13, evening) — jaw x side-flips at the close positions: labels confirmed correct (Priya); a
+measurement ambiguity, not a label error.** On PS93 0814 the round-4 single-frame LP jaw x shows 1-2-frame jumps
+(22 jumps > 60 px vs LP round 3's 3). The frames (`session_poses/PS93_20260814/r4_eval/lp_r4_jaw_x_jumps.png`): the
+spout rod covers the middle of the chin and LP round 4 confidently places the jaw on ONE side of it, switching
+sides between frames; LP round 3 reported the jaw hidden there (p 0, image-centre parking). Both LP rounds train
+blanks as absent (`uniform_heatmaps_for_nan_keypoints: true`); jaw blanks are ~16-17 % in both label sets, while
+jaw-left-of-rod labels rose 16 -> 24 % in round 4. Priya reviewed all 59 round-4 frames with the jaw labelled beside
+/ at the rod (`inference_check_20261012_round4/round4_jaw_beside_rod_labels_p1-3.png`, CSV): **all correct for jaw**
+-- the visible chin beside the rod is the right label. So with the rod in front of the chin either side is correct
+and a single-frame model can switch. Jaw x jumps > 30 px by position (all four models) are at the CLOSE positions
+only: close_L 21 / 22 / 16 / 13, close_center 16 / 3 / 0 / 13, close_R 2 / 15 / 0 / 0 (DLC r3 / DLC r4 / LP r3 /
+LP r4); far positions <= 3. The jaw cleaning (ported v3.4) has a frame-outlier rule on jaw Y only and a fixed X
+ceiling, so side-flips under the ceiling survive cleaning. IMPLICATIONS: jaw x at close positions is side-ambiguous
+for every model -- treat jaw Y (opening) as the primary jaw measure there; the temporal-context LP model (training)
+may suppress one-frame flips; PROPOSED (not yet done, needs Priya's OK on thresholds): a jaw x side-flip rule like the
+tongue's Rule 4 (x-only bursts <= 3 frames, re-interpolated).
