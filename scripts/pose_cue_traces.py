@@ -134,7 +134,7 @@ def median5(d: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     return out
 
 
-def cleaned_frame(d: pd.DataFrame, idx: pd.DataFrame, mouth=None) -> pd.DataFrame:
+def cleaned_frame(d: pd.DataFrame, idx: pd.DataFrame, mouth=None, fill: bool = False) -> pd.DataFrame:
     """Tongue/jaw replaced by `orofacial_clean` output (baseline-subtracted px; baseline-filled frames -> NaN,
     likelihood 1 where a cleaned value exists, 0 where it does not), so `cmd_plot` draws the CLEAN traces."""
     from wfield_local import orofacial_clean as oc
@@ -146,7 +146,9 @@ def cleaned_frame(d: pd.DataFrame, idx: pd.DataFrame, mouth=None) -> pd.DataFram
         # jaw keeps the data-driven baseline
         c, pos, _ = oc.clean_windows(flat, idx.iloc[:len(flat)], part,
                                      x0y0=tuple(mouth) if (part == "tongue" and mouth is not None) else None)
-        x, y = c.x_masked[pos], c.y_masked[pos]
+        # masked (default): baseline-filled frames -> NaN, only measured / interpolated points drawn. fill=True: the
+        # stroke_orofacial convention -- the baseline fill drawn as the flat line at 0 (tongue in the mouth / jaw at rest)
+        x, y = (c.x_final[pos], c.y_final[pos]) if fill else (c.x_masked[pos], c.y_masked[pos])
         out[(part, "x")], out[(part, "y")] = x, y
         out[(part, "likelihood")] = np.isfinite(y).astype(float)
     return out
@@ -324,7 +326,7 @@ MODEL_COLORS = ["dodgerblue", "navy", "mediumvioletred", "darkorange", "seagreen
 
 
 def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s=(-0.5, 3.5), tag: str = "",
-                suffix: str = ""):
+                suffix: str = "", fill: bool = False):
     """Cue-aligned tongue / jaw x & y, trials overlaid, for ANY number of models on the SAME clip -- a
     `session_poses` directory (windows.mp4 + windows_index.csv) and ``name=csv`` pairs (Priya, 2026-10-13: "compare
     how the tongue and jaw cue-aligned trajectory plots look for all 4 (round 3/4, DLC/LP)"). Same rules as
@@ -349,7 +351,7 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
                  for _, g in idx.iloc[:len(ref)].groupby("trial_k")]
         mouth = SF.from_medians(SF.position_medians(ref[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(),
                                                     spans)).origin
-        M = {k: cleaned_frame(v, idx, mouth) for k, v in M.items()}
+        M = {k: cleaned_frame(v, idx, mouth, fill=fill) for k, v in M.items()}
     n = min(len(idx), *(len(m) for m in M.values()))
     keep = (idx.t_ms[:n] >= win_s[0] * 1000) & (idx.t_ms[:n] <= win_s[1] * 1000)
     sub = idx[:n][keep]
@@ -396,10 +398,10 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
         for a in axs[r]:
             a.set_ylim(lo, hi)
     fig.suptitle(f"{poses_dir.name} cam4 | cue-aligned, trials overlaid | "
-                 f"{'CLEANED (orofacial_clean)' if cleaned else 'raw, no cleaning'} | image y increases downward"
+                 f"{('CLEANED, baseline fill drawn (flat 0)' if fill else 'CLEANED (orofacial_clean), baseline fill hidden') if cleaned else 'raw, no cleaning'} | image y increases downward"
                  + (f" | {tag}" if tag else ""), y=1.0, fontsize=12)
     fig.tight_layout()
-    p = poses_dir / "r4_eval" / f"cue_traces_compare{suffix}{'_cleaned' if cleaned else ''}.png"
+    p = poses_dir / "r4_eval" / f"cue_traces_compare{suffix}{'_cleaned' if cleaned else ''}{'_filled' if fill else ''}.png"
     p.parent.mkdir(exist_ok=True)
     fig.savefig(p, dpi=150, bbox_inches="tight")
     print(f"-> {p}")
@@ -415,9 +417,10 @@ def main(argv=None) -> int:
     ap.add_argument("--model", action="append", default=[], metavar="NAME=CSV",
                     help="compare: one model's predictions on the clip (repeat, in column order)")
     ap.add_argument("--suffix", default="", help="compare: added to the output filename (keep several comparisons)")
+    ap.add_argument("--fill", action="store_true", help="compare --cleaned: draw the baseline fill (flat 0) as well")
     a = ap.parse_args(argv)
     if a.cmd == "compare":
-        cmd_compare(Path(a.session), a.model, cleaned=a.cleaned, suffix=a.suffix)
+        cmd_compare(Path(a.session), a.model, cleaned=a.cleaned, suffix=a.suffix, fill=a.fill)
         return 0
     rv = PathResolver()
     {"clip": lambda: cmd_clip(a.session, rv), "dlc": lambda: cmd_dlc(a.session, rv),
