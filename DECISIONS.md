@@ -19800,3 +19800,12 @@ share of the sample's real licks found: DLC r3 91 / 67 %, DLC r4 85 / 88 %, LP r
 ctx-sup 100 / 69 %, EKS r4+ctx 98 / 76 %. Priya: faint licks are barely visible -- missing some is acceptable, so
 precision weighs more than full coverage. EKS r4+ctx is the leading candidate pending the semi-supervised context
 models (training in WSL). Details: `docs/POSE_MODELS.md`.
+
+**Addendum (2026-10-14, later) — CORRECTION: the EKS ensemble's advantage was an artefact.** Priya's sheets of LP r4
+false positives and EKS false negatives showed EKS tongue points displaced toward the image centre at likelihood
+~0.5: the context member's "not visible" answer (parked at the centre) still pulled the smoothed track, which both
+suppressed false detections and lost faint real licks (and produced the 0 jaw flips). Fixed in
+`scripts/eks_two_model.py` (a sub-cut member takes the confident members' mean); fixed EKS ~ LP r4 (review precision
+88 %, real found 98 %, kinematics intact at smooth_param 100, jaw flips 17 vs 30). The precision / coverage trade-off
+is better set by an EXPLICIT rule for no-contact licks: ">= 2 models detect it" gives 93 % / 91 % on the review;
+"LP r4 AND context" 100 % / 67 %. Superseded: the 10-14 claim that EKS r4+ctx is the leading candidate.

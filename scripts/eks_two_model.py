@@ -29,8 +29,21 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     members = [PE.pose_from_lp_csv(m) for m in a.member]
     n = min(len(m) for m in members)
-    members = [m[:n] for m in members]   # EKS needs a value everywhere: below --cut a member gets the occlusion
-    #                                    variance floor (no pull on the track) instead of being blanked
+    members = [m[:n].copy() for m in members]
+    # A member below --cut is saying "not visible", and LP parks that answer at the IMAGE CENTRE. The occlusion
+    # variance floor alone did NOT stop it pulling the track (2026-10-14, Priya's lick review: EKS tongue points sat
+    # up-right of LP r4's, toward the centre, at confidence ~0.5 = the mean of 1.0 and 0.0, and real licks were
+    # lost). So on such frames its x, y become the mean of the CONFIDENT members (if any) -- it neither pulls nor
+    # vetoes -- and its likelihood is left low for the floor. Frames where no member is confident are untouched.
+    for k in range(members[0].shape[1]):
+        conf = np.stack([m[:, k, 2] >= a.cut for m in members])                       # (M, n)
+        xs = np.stack([m[:, k, 0] for m in members]); ys = np.stack([m[:, k, 1] for m in members])
+        n_conf = conf.sum(0)
+        mx = np.where(n_conf > 0, (xs * conf).sum(0) / np.maximum(n_conf, 1), np.nan)
+        my = np.where(n_conf > 0, (ys * conf).sum(0) / np.maximum(n_conf, 1), np.nan)
+        for j, m in enumerate(members):
+            fill = ~conf[j] & (n_conf > 0)
+            m[fill, k, 0], m[fill, k, 1] = mx[fill], my[fill]
     res, s = PE.smooth_singlecam(members, smooth_param=a.smooth, occluded_cut=a.cut)
     pose = res.pose.copy()
     # EKS returns a position on every frame; keep its own score as the likelihood so downstream cut-offs apply

@@ -102,6 +102,27 @@ faint ones only LP r4 / DLC r4 found. The "share found" is over this disagreemen
 for incomplete licks; LP r4 alone finds nearly all of them at ~15 % false. Scored with `lp_stage/lick_review/
 review_scored.csv` (answers in the review artifact's `lick_review` collection).
 
+**CORRECTION (2026-10-14, from Priya's request for LP r4 false-positive / EKS false-negative sheets,
+`lp_stage/lick_review/lp_r4_false_positives.png`, `eks_false_negatives.png`).** The EKS r4+ctx numbers above were
+largely an ARTEFACT: when the context model said "not visible" its point is parked at the image centre, and the
+occlusion variance floor did not stop that point pulling the smoothed track -- EKS tongue points sat up-right of LP
+r4's (toward the centre) at likelihood ~0.5 (the mean of 1.0 and 0.0), so faint real licks fell below the detector
+and some false ones were suppressed. Its 98 % precision and its 0 jaw flips came from that drag, not from good
+judgement. Fixed (`scripts/eks_two_model.py`: a member below the cut takes the confident members' mean position, so
+it neither pulls nor vetoes): EKS fixed behaves like LP r4 -- contact recall 98.8 / 99.2 %, review precision 88 %,
+share of real 98 %, kinematics intact at smooth_param 100 (peak vy 5988 vs LP r4 6011 px/s), jaw x flips 17 vs LP
+r4's 30 (pre). The jaw fix is only partial: when both models are confident but on opposite sides of the rod, EKS
+splits the difference.
+
+**What the review actually supports -- an explicit agreement rule for licks without contact** (contact licks are
+confirmed by the DAQ anyway), on the 80 reviewed candidates:
+
+| rule | precision | share of real found |
+|---|---|---|
+| LP r4 alone | 85 % | 98 % |
+| detected by >= 2 models | 93 % | 91 % |
+| LP r4 AND context model | 100 % | 67 % |
+
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 
 The model is for the ANALYSES — executed angle, lick timing / counts, kinematics across recovery — so it is judged on
