@@ -19809,3 +19809,10 @@ suppressed false detections and lost faint real licks (and produced the 0 jaw fl
 88 %, real found 98 %, kinematics intact at smooth_param 100, jaw flips 17 vs 30). The precision / coverage trade-off
 is better set by an EXPLICIT rule for no-contact licks: ">= 2 models detect it" gives 93 % / 91 % on the review;
 "LP r4 AND context" 100 % / 67 %. Superseded: the 10-14 claim that EKS r4+ctx is the leading candidate.
+
+**Addendum (2026-10-14, late morning) — teeny licks are ambiguous; detection model and sensitivity rule.** Priya, on
+the LP r4 false-positive sheet: several are "defensible as teeny licks" -- licks at the threshold of visibility, so
+LP r4's true precision is likely ~90 %, not 85 %. Leaning: fixed EKS (or LP r4) for detection and positions (it places
+faint licks on the tongue and finds ~98 % of reviewed real ones); the ">= 2 models agree" count becomes a SENSITIVITY
+analysis -- results resting on lick counts / incomplete licks are reported both ways -- rather than a filter. Final
+choice after the semi-supervised context models and more sessions. Handoff: `docs/status/STATUS_2026-10-14_POSE_MODELS_HANDOFF.md`.

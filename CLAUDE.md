@@ -344,10 +344,14 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-14_POSE_MODELS_HANDOFF.md`](docs/status/STATUS_2026-10-14_POSE_MODELS_HANDOFF.md)**
+— **START HERE, newest.** cam4 pose-model selection (five models, human lick review, the EKS correction), what is
+training in WSL, side-camera labelling plan, WSL GPU safety, pitfalls.
+
 **[`docs/POSE_MODELS.md`](docs/POSE_MODELS.md)** — the cam4 pose-model register: every model, settings + rationale, results, how we choose.
 
 **[`docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md`](docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md)**
-— **START HERE, newest.** The movement-removed ENL position code across recovery (118 sessions: the residual tracks
+— superseded by the 10-14 handoff for tracking; still the reference for the movement-removed ENL position code across recovery (118 sessions: the residual tracks
 the raw code), null/potent closed as a control, cam4 round 4 (DLC not measurably better; DLC vs LP x round 3 vs 4,
 incl. the first temporal-context LP model, on one pre + one acute session), camera templates, pitfalls.
 

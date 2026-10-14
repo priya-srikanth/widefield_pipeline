@@ -17,7 +17,9 @@ import pandas as pd
 L = Path("C:/Users/SabatiniLab/lp_stage/r3_vs_r4_lp")
 OFFS = (-16, -8, 0, 8, 16)
 CROP, TW_ = (300, 260), 190
-MODELS = {"LP r4": ("r4heatmap", (0, 165, 255), "o"), "EKS": ("eks_r4_heat_ctx", (60, 220, 60), "d")}
+MODELS = {"LP r4": ("r4heatmap", (0, 165, 255), "o"),            # orange circle
+          "EKS old": ("eks_r4_heat_ctx", (60, 220, 60), "d"),    # green diamond: the FLAWED first ensemble
+          "EKS fixed": ("eks2_s100", (255, 120, 255), "x")}     # magenta cross: fixed ensemble, smooth_param 100
 
 
 def load(path):
@@ -29,9 +31,11 @@ def load(path):
 def mark(img, x, y, colour, shape):
     if shape == "o":
         cv2.circle(img, (int(x), int(y)), 6, colour, 2, cv2.LINE_AA)
-    else:
+    elif shape == "d":
         pts = np.array([[x, y - 7], [x + 7, y], [x, y + 7], [x - 7, y]], np.int32)
         cv2.polylines(img, [pts], True, colour, 2, cv2.LINE_AA)
+    else:
+        cv2.drawMarker(img, (int(x), int(y)), colour, cv2.MARKER_TILTED_CROSS, 12, 2, cv2.LINE_AA)
 
 
 def row(cap, idx, P, tid, t_ms, mouth, label):
@@ -48,7 +52,7 @@ def row(cap, idx, P, tid, t_ms, mouth, label):
             if p >= 0.4:
                 mark(im, x, y, col, shp)
         t = cv2.resize(im[y0:y0 + CROP[1], x0:x0 + CROP[0]], (TW_, int(TW_ * CROP[1] / CROP[0])))
-        txt = f"{off:+d} ms  LP{P['LP r4'][int(r)][2]:.2f} EKS{P['EKS'][int(r)][2]:.2f}"
+        txt = f"{off:+d}ms LP{P['LP r4'][int(r)][2]:.2f} old{P['EKS old'][int(r)][2]:.2f} fix{P['EKS fixed'][int(r)][2]:.2f}"
         cv2.putText(t, txt, (4, 14), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
         tiles.append(t)
     strip = np.hstack(tiles)
@@ -90,7 +94,13 @@ def main(argv=None) -> int:
                             f"{animal} {date[4:]} trial {r.trial_id} {r.position}  peak {r.t_ms:.0f} ms  |  found by: {found}"))
         if rows:
             out = a.review / f"{name}.png"
-            cv2.imwrite(str(out), np.vstack(rows))
+            w = rows[0].shape[1]
+            leg = np.full((30, w, 3), 30, np.uint8)
+            for k, (txt, col) in enumerate((("LP round 4 (orange circle)", (0, 165, 255)),
+                                            ("EKS original, flawed (green diamond)", (60, 220, 60)),
+                                            ("EKS fixed (magenta cross)", (255, 120, 255)))):
+                cv2.putText(leg, txt, (8 + k * (w // 3), 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, col, 1, cv2.LINE_AA)
+            cv2.imwrite(str(out), np.vstack([leg] + rows))
             print(f"{name}: {len(rows)} rows -> {out}")
     return 0
 
