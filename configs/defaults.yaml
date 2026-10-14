@@ -1063,14 +1063,16 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
     v34:                      # jaw_cleanup_v34 on top of the interpolated jaw (theirs: on for all jaw analyses)
       enabled: true
       y_ceiling_px: 125.0     # px, OLD RIG -- retune
-      x_ceiling_px: 40.0      # px, OLD RIG -- retune
+      x_ceiling_px: 75.0      # px. v35 2026-10-14 (was 40, old rig: cut real wide-open excursions, 9 % on PS93 0814);
+                              # now only a hard bound (= x_range_pm); flips are caught by the two x tests below
       isolated_max_n: 5
       isolated_radius_ms: 30.0
       frame_jump_thr_px: 70.0 # px, OLD RIG -- retune
       frame_outlier_radius_ms: 20.0
-      frame_jump_thr_x_px: null  # OURS, off. PROPOSED 2026-10-14 (v35): 25 px here + x_ceiling_px 75 -- the 40-px
-                                 # ceiling cuts real wide-open excursions (9 % on PS93 0814); the x jump test catches
-                                 # side-flips. Awaiting Priya's QC (session_poses/jaw_lateral/jaw_ceiling_qc.png).
+      frame_jump_thr_x_px: 25.0  # OURS (v35, adopted 2026-10-14 after Priya's QC of jaw_ceiling_qc.png): median-filter
+                                 # outlier test on x (short side-flips); null = off (v3.4)
+      x_flip_step_px: null       # OURS, OFF pending QC (proposed 30): runs entered + left by opposite x steps > 30 px ...
+      x_flip_max_ms: 200.0       # ... within 200 ms are wiped (flips too long for the median test); null step = off
       max_gap_ms_pchip: 120.0
       baseline_win_ms: [-500.0, 0.0]
 

@@ -371,6 +371,20 @@ def jaw_v34(c: Clean, centers, q: dict | None = None) -> Clean:
             win_x = 2 * max(_ms_f(float(q.get("frame_outlier_radius_x_ms", q["frame_outlier_radius_ms"])), fps), 1) + 1
             devx = np.abs(c.x_final[idx] - median_filter(c.x_final[idx], size=win_x, mode="nearest"))
             wfox[idx[devx > float(thr_x)]] = True
+        # ...and a flip LONGER than half that window (Priya's QC 2026-10-14: PS93 0814 f4316-4324, 9 frames at -45 px
+        # between +10 px flanks, slipped through the median test): a run of raw frames entered and left by
+        # opposite-signed one-frame x steps > `x_flip_step_px` within `x_flip_max_ms`. Real jaw x never steps 30 px in
+        # one frame (p99 4-6 px/frame), so such a bracketed run is the wrong side of the rod.
+        step = q.get("x_flip_step_px")
+        if step is not None:
+            max_f = max(_ms_f(float(q.get("x_flip_max_ms", 200.0)), fps), 1)
+            xs = c.x_final[idx]
+            adj = np.diff(idx) <= 2                                    # neighbours in time (<= 1 frame missing)
+            d = np.where(adj, np.diff(xs), 0.0)
+            big = np.flatnonzero(np.abs(d) > float(step))
+            for a, b in zip(big[:-1], big[1:]):
+                if np.sign(d[a]) != np.sign(d[b]) and idx[b] - idx[a] <= max_f:
+                    wfox[idx[a + 1:b + 1]] = True
         wfo |= wfox
     cl = _clusters(raw & ~wy & ~wfo)                     # theirs: R2 clusters after R1-y + R3 (not R1-x)
     wiso = np.zeros(n, bool)

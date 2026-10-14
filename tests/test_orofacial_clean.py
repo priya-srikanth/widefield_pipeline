@@ -98,6 +98,13 @@ def test_jaw_v34_x_frame_outlier_keeps_smooth_excursion():
     wx = c.extra["v34_wiped_frame_outlier_x"]
     assert not wx[400:500].any()
     assert wx[700:703].all()
+    # a 9-frame flip (longer than half the 11-frame median window) needs the bracketed-step rule
+    x2 = x.copy()
+    x2[800:809] -= 55
+    c2 = oc.jaw_v34(oc.clean_bodypart(_df(x2, y, lk, "jaw"), "jaw", centers=[200, 600, 900], p=pj), [200, 600, 900],
+                    {**q, "x_flip_step_px": 30.0, "x_flip_max_ms": 200.0})
+    w2 = c2.extra["v34_wiped_frame_outlier_x"]
+    assert w2[800:809].all() and not w2[400:500].any() and not w2[795:800].any() and not w2[809:815].any()
     q_off = {k: v for k, v in q.items() if k != "frame_jump_thr_x_px"}
     c0 = oc.jaw_v34(oc.clean_bodypart(_df(x, y, lk, "jaw"), "jaw", centers=[200, 600, 900], p=pj), [200, 600, 900],
                     q_off)

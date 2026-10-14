@@ -148,7 +148,14 @@ tongue_frames_all_models.py, render_models_grid.py}` on the DLC share; WSL / Win
    jump test removes 0.03-0.4 % of frames. QC sheet rows: frames v3.4 wiped that v35 keeps; frames the jump test wipes
    (mostly the jaw point jumping to the OTHER edge of the jaw beside a spout rod); frames the **y** ceiling (125 px,
    unchanged) wipes -- these are GROOMING (paws over the face) on PS95, so the y ceiling is doing its job; keep it.
-   If Priya approves: set the two values in defaults.yaml (and note the cleaning version in figures).
+   **ADOPTED 10-14 evening (Priya's QC):** top row 11 / 12 correct (miss: PS93 0814 f4322, too far image-left), jump
+   wipes "mostly inaccurate" (= right to wipe), grooming fine to lose. defaults.yaml now `x_ceiling_px` 75 +
+   `frame_jump_thr_x_px` 25. Her miss is a 9-frame flip (f4316-4324, -45 px between +10 px flanks) -- longer than half
+   the 11-frame median window. A bracketed-step rule (`x_flip_step_px` 30 / `x_flip_max_ms` 200, in `jaw_v34`) catches
+   it but is OFF: its QC sheet (`jaw_lateral/jaw_flip_qc.png`, `scripts/jaw_lateral.py flips`) shows it would also wipe
+   real openings where the jaw point crosses BEHIND the rod in one frame (closed: left of rod -> wide open: right of
+   rod), while the left-of-rod points on a near-closed mouth look like true flips. Needs Priya's call; a fix might
+   restrict it to near-closed mouths (opening < ~20 px).
 10. **Jaw lateral deviation on opening as a readout** (Priya 2026-10-14): when the mouth opens wide (jaw y > rest + 50 px)
     PS93's jaw shifts image-RIGHT by ~20-40 px at nearly every spout position, already pre-stroke (0814: far_L +27,
     close_L +3, close_center +26, far_center +27, close_R +39, far_R +11; 0821 similar) -- not spout-directed (the tongue

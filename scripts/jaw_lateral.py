@@ -39,9 +39,11 @@ LICK_WIN_MS = (70.0, 3000.0)                     # = orofacial_kinematics lick12
 
 
 def rules() -> dict:
-    base = dict(oc.params("jaw")["v34"])
-    return {"v34": base,
-            "v35": {**base, "x_ceiling_px": 75.0, "frame_jump_thr_x_px": 25.0}}
+    """v35 = the configured default (adopted 2026-10-14); v34 = the transcribed stroke_orofacial rule (40-px x ceiling,
+    no x tests), kept for comparison."""
+    v35 = dict(oc.params("jaw")["v34"])
+    v34 = {**v35, "x_ceiling_px": 40.0, "frame_jump_thr_x_px": None, "x_flip_step_px": None}
+    return {"v34": v34, "v35": v35}
 
 
 def poses_root() -> Path:
@@ -283,9 +285,74 @@ def cmd_deviation(sessions, rule: str, open_px: float, out: Path) -> None:
     print(f"-> {out / f'jaw_lateral_{rule}.png'}")
 
 
+# --------------------------------------------------------------------------- flips (QC of the bracketed-step rule)
+
+def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: float = 200.0) -> None:
+    """Side-flip events the proposed `x_flip_step_px` rule would wipe: runs of raw jaw frames entered and left by
+    opposite x steps > `step` px within `max_ms`. One row per event: the frame BEFORE the run, the run's MIDDLE frame,
+    the frame AFTER -- the rule wipes the middle one, so the sheet asks which side is right."""
+    import cv2
+
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    rng = np.random.default_rng(1)
+    events = []
+    for name in sessions:
+        raw, idx, big, pos, cues, fr = load(name)
+        pre, c = clean_jaw(big, cues, rules()["v35"])
+        by, bx = c.extra["v34_bmean"]
+        src = np.full(len(big), -1)
+        src[pos] = idx.src_frame.to_numpy()
+        ii = np.flatnonzero((c.fill_method == oc.FILL_NONE) & (src >= 0))
+        xs = c.x_final[ii]
+        d = np.where(np.diff(ii) <= 2, np.diff(xs), 0.0)
+        bigs = np.flatnonzero(np.abs(d) > step)
+        max_f = max(int(round(max_ms / 1000 * FPS)), 1)
+        for a_, b_ in zip(bigs[:-1], bigs[1:]):
+            if np.sign(d[a_]) != np.sign(d[b_]) and ii[b_] - ii[a_] <= max_f:
+                k0, km, k1 = ii[a_], ii[(a_ + 1 + b_) // 2], ii[b_ + 1]
+                pts = [(int(src[k]), float(pre.x_raw[k]), float(pre.y_raw[k]), float(c.x_final[k] - bx)) for k in
+                       (k0, km, k1)]
+                events.append((name, int(ii[b_] - ii[a_]), bx + pre.X0, by + pre.Y0, pts))
+    print(f"{len(events)} flip events in {', '.join(sessions)}")
+    pick = [events[i] for i in sorted(rng.choice(len(events), min(n, len(events)), replace=False))]
+    caps, rows, crop, tw = {}, [], (300, 260), 210
+    for name, nf, bxi, byi, pts in pick:
+        animal, date = name.split("_")[:2]
+        if name not in caps:
+            vid = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob("cam4_*.avi"))[0]
+            caps[name] = cv2.VideoCapture(str(vid))                         # READ-ONLY
+        tiles = []
+        for lab, (f, x, y, dx) in zip(("before", f"FLIPPED ({nf} fr) - wiped", "after"), pts):
+            caps[name].set(cv2.CAP_PROP_POS_FRAMES, f)
+            ok, im = caps[name].read()
+            cv2.drawMarker(im, (int(bxi), int(byi)), (255, 255, 255), cv2.MARKER_CROSS, 14, 1, cv2.LINE_AA)
+            cv2.circle(im, (int(x), int(y)), 5, (0, 0, 255) if "wiped" in lab else (255, 255, 0), 2, cv2.LINE_AA)
+            x0, y0 = max(int(bxi) - crop[0] // 2, 0), max(int(byi) + 20 - crop[1] // 2, 0)
+            t = cv2.resize(im[y0:y0 + crop[1], x0:x0 + crop[0]], (tw, int(tw * crop[1] / crop[0])))
+            cv2.putText(t, f"{lab} f{f} dx{dx:+.0f}", (4, 14), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1,
+                        cv2.LINE_AA)
+            tiles.append(t)
+        row = np.hstack(tiles)
+        head = np.zeros((20, row.shape[1], 3), np.uint8)
+        cv2.putText(head, f"{animal} {date[4:]}", (6, 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1,
+                    cv2.LINE_AA)
+        rows.append(np.vstack([head, row]))
+    half = (len(rows) + 1) // 2
+    left, right = np.vstack(rows[:half]), np.vstack(rows[half:] or [np.zeros_like(rows[0])])
+    if right.shape[0] < left.shape[0]:
+        right = np.vstack([right, np.zeros((left.shape[0] - right.shape[0], right.shape[1], 3), np.uint8)])
+    sheet = np.hstack([left, np.full((left.shape[0], 8, 3), 60, np.uint8), right])
+    top = np.zeros((28, sheet.shape[1], 3), np.uint8)
+    cv2.putText(top, "Jaw side-flips: cyan = kept, RED = the run the proposed flip rule wipes. Which side is right?",
+                (6, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.imwrite(str(out / "jaw_flip_qc.png"), np.vstack([top, sheet]))
+    print(f"-> {out / 'jaw_flip_qc.png'}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=("ceiling", "deviation"))
+    ap.add_argument("cmd", choices=("ceiling", "deviation", "flips"))
     ap.add_argument("--sessions", nargs="+", default=list(DEFAULT_SESSIONS))
     ap.add_argument("--qc", nargs="*", default=["PS93_20260814", "PS95_20260917_r4", "PS94_20260921_r4"])
     ap.add_argument("--rule", default="v35", choices=("v34", "v35"))
@@ -295,6 +362,8 @@ def main(argv=None) -> int:
     out.mkdir(exist_ok=True)
     if a.cmd == "ceiling":
         cmd_ceiling(a.sessions, set(a.qc), out)
+    elif a.cmd == "flips":
+        cmd_flips(a.sessions, out)
     else:
         cmd_deviation(a.sessions, a.rule, a.open_px, out)
     return 0

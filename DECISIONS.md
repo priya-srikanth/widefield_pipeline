@@ -19835,3 +19835,6 @@ on VIDEO once the semi-supervised temporal-context model is done.
   in the spout frame (tilt-proof), as px at opening > 50 px and as the opening angle. PS93 FAR_BIAS +15 px pre, +8
   acute, +10 chronic; FAR_DIR +9 pre, ~0 after -- 4-10 trials per position, preliminary; PS92/94/95 clips queued.
   `scripts/jaw_lateral.py`.
+* **Adopted (Priya's QC, evening):** jaw cleaning v35 = `x_ceiling_px` 75 + `frame_jump_thr_x_px` 25 is the default.
+  The bracketed-step flip rule (`x_flip_step_px`) is implemented but OFF: it also removes real openings where the jaw
+  point crosses behind the spout rod in one frame (`jaw_lateral/jaw_flip_qc.png`).
