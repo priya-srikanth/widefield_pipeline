@@ -16,7 +16,7 @@ Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage`
    predictions -> `lp_stage\r3_vs_r4_lp\r4mhcrnn_semi_512\`.
 2. **GPU QUEUE (re-ordered 14:20)**: `lp_stage\gpu_chain_jaw_dlc_then_r3.sh` (Git Bash, background; log
    `lp_stage\gpu_chain_jaw_dlc_then_r3.log`) waits for (1)'s `done` and for no `lp_capped.py` in WSL, then runs **DLC
-   round 3 on nine jaw-readout trial clips** (to-do 10: PS92 / PS94 / PS95 x 0814 pre, 0821 acute, 0908 chronic; 10
+   round 3 on nine jaw-readout trial clips** (to-do 10: PS92 / PS94 / PS95 x 0814 pre, 0821 acute, chronic 0908 (PS92) or 0907 (PS94, PS95: not recorded 0908); 10
    trials per position; ~1-1.5 h each at 42 fps) and THEN launches **LP r3 ctx-semi** (`lp_train_semi_ctx_r3_wsl.sh`,
    same recipe as (1), round-3 labels; log `lp_stage\lp_train_semi_ctx_r3_wsl.log`). The r3 script's own waiter was
    stopped (PID) so it cannot overlap the DLC run -- the WSL guard counts TOTAL card memory. **If the chain process
