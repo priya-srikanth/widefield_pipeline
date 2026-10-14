@@ -87,9 +87,16 @@ those, on sessions it never saw, across epochs, in this order:
 1. **No epoch-dependent bias (gate).** A model whose accuracy changes between pre / acute / chronic manufactures or
    hides a deficit. Every metric below is computed per epoch; a model that degrades post-stroke relative to pre is
    out, whatever its average.
-2. **Contact recall (gate):** >= 99 % of DAQ spout contacts found by a kept lick, every session.
-3. **Incomplete-lick accuracy (primary).** Precision and recall of no-contact licks against a HUMAN-REVIEWED sample
-   (~40 candidate licks per session marked real / false by Priya). This is where models differ most and what matters
+2. **Contact recall (gate), over FINDABLE contacts.** A contact is found when a kept lick's window (onset - 60 ms ..
+   max(offset, peak + 120 ms)) contains it, so a few frames hidden behind the spout around contact are tolerated: the
+   lick is detected from the visible part of the way out / back, with tongue gaps <= 56 ms interpolated. Where the
+   tongue is hidden for nearly the WHOLE lick, no cam4 model can find it, so recall is computed over contacts that at
+   least one model finds (a contact missed by every model = unobservable from cam4, excluded). Gate: >= 99 % overall
+   AND no spout position below ~97 %; a tripped position gets an image check of its misses. Measured 2026-10-14
+   (PS93 0814 / 0821): only 1 / 0 contacts missed by every model; 23 / 15 missed by some model and found by another
+   (the tongue WAS trackable there), concentrated in DLC r4 and the ctx-sup model at close_L / close_center.
+3. **Incomplete-lick accuracy (primary; Priya reviews, 2026-10-14).**** Precision and recall of no-contact licks against a HUMAN-REVIEWED sample
+   (~40 candidate licks per session marked real / not / unsure by Priya, blind to model; 4 contact licks per session as hidden positive controls). Candidates: `scripts/lick_review_candidates.py` (key with the detecting models kept apart in `lp_stage/lick_review/key.csv`); review page: claude.ai artifact `UURfzx99WnTxUEAbegZhsy` (answers in its `lick_review` collection). This is where models differ most and what matters
    most post-stroke; no automatic measure substitutes for it.
 4. **Angle and kinematics (primary).** Angle at peak protrusion on contact licks: per-position spread (tighter =
    less noise) with medians agreeing across models; peak velocity and protrusion within ~5 % of the unsmoothed
