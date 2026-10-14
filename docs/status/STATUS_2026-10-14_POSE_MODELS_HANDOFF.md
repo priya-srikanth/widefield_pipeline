@@ -67,6 +67,10 @@ Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage`
 * **CORRECTION — the first EKS ensemble's advantage was an artefact** (see §2). Fixed EKS (LP r4 + ctx-sup) ~ LP r4:
   recall 98.8 / 99.2 %, review precision 88 % / real found 98 %, kinematics intact at smooth_param 100 (peak vy 5988 vs
   6011 px/s), jaw flips 17 vs 30 (partial: when both models are confident on opposite sides of the rod EKS splits it).
+* **Cleaned-trace figures:** the cleaned plots hide the baseline fill by default (`x_masked`: only measured /
+  interpolated points); `pose_cue_traces compare --cleaned --fill` draws it (flat 0, the stroke_orofacial convention).
+  They apply `orofacial_clean` (v5p3 + jaw v3.4) but NOT the tongue v7 pre-clean / Rule 4 / lick gates, which run only
+  inside the kinematics pipeline (`pose_kinematics_demo.run`) for lick tables and angles.
 * **Agreement rules for no-contact licks** (on the review): LP r4 alone 85 / 98; ">= 2 models" 93 / 91; LP r4 AND ctx
   100 / 67 %.
 
@@ -125,6 +129,16 @@ tongue_frames_all_models.py, render_models_grid.py}` on the DLC share; WSL / Win
    context model / EKS handle the jaw.
 7. Pixel-vs-LocaNMF decoding gap (non-motor control area); FaceRhythm proposal.
 8. cam1 labelling Parts 2 / 3 only if a model comparison says labels, not architecture, are the limit.
+9. **Retune the jaw x ceiling** (`orofacial_clean.jaw.v34.x_ceiling_px`, ~45 px, marked "OLD RIG -- retune"): it clips
+   jaw x at ~+45 px (flat tops in the cleaned jaw x panels), probably cutting real excursions. Retune from the measured
+   jaw x distribution per animal before any jaw-deviation analysis.
+10. **Jaw lateral deviation on opening as a readout** (Priya 2026-10-14): when the mouth opens wide (jaw y > rest + 50 px)
+    PS93's jaw shifts image-RIGHT by ~20-40 px at nearly every spout position, already pre-stroke (0814: far_L +27,
+    close_L +3, close_center +26, far_center +27, close_R +39, far_R +11; 0821 similar) -- not spout-directed (the tongue
+    aims). Animal-specific: overall shift PS93 +9, PS92 +7, PS94 ~0, PS95 ~0 px (DLC r3; PS95 -39..+5 by position).
+    One-sided jaw deviation on opening is a classic sign of unilateral jaw-muscle weakness, and PS93 has the right
+    orofacial deficit -> measure per animal, pre vs acute vs chronic. First: confirm image-right = animal's LEFT for cam4
+    (front view, expected) against the rig, and retune the ceiling (item 9).
 
 ## 5. Pitfalls (new — earlier lists still apply)
 1. **WSL GPU = hypervisor crash on overshoot** (bugcheck 0x20001; 09-30 x2, 10-13). Measure peak memory natively first
