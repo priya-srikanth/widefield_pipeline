@@ -19793,3 +19793,10 @@ at 640 px (a capped test OOMed cleanly -- the cap works), 5.5 GB at 512 px; they
 rule (epoch-bias gate, >= 99 % contact recall gate, then human-reviewed incomplete-lick precision / recall, angle
 spread and unbiased kinematics, stability, held-out pixel error as sanity, practicality) are in
 `docs/POSE_MODELS.md`.
+
+**Addendum (2026-10-14) — human review of no-contact licks.** Priya reviewed 88 blind candidates (+ 8 controls, all
+judged real): 58 real, 19 not a lick, 3 unsure; single-model detections were mostly false (15 / 20). Precision /
+share of the sample's real licks found: DLC r3 91 / 67 %, DLC r4 85 / 88 %, LP r3 100 / 59 %, LP r4 85 / 98 %, LP r4
+ctx-sup 100 / 69 %, EKS r4+ctx 98 / 76 %. Priya: faint licks are barely visible -- missing some is acceptable, so
+precision weighs more than full coverage. EKS r4+ctx is the leading candidate pending the semi-supervised context
+models (training in WSL). Details: `docs/POSE_MODELS.md`.

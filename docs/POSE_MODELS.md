@@ -79,6 +79,29 @@ and tightens angles but, trained without the unlabelled-video loss, is under-con
 kinematics — the strongest option so far. (5) LP r4's extra no-contact licks look mostly like incomplete licks with
 some false detections on the spout rod — pending Priya's review.
 
+### Human review of no-contact licks (Priya, 2026-10-14)
+
+88 candidates (40 per session, PS93 0814 / 0821, balanced over spout position and over how many models found each,
+blind to model) + 8 hidden contact-lick controls. Controls: 8 / 8 judged real (reviewer calibrated). No-contact
+candidates: 58 real, 19 not a lick, 3 unsure. Detections found by ONE model only were mostly false (15 / 20); found by
+>= 4 models, all real. Priya: many real ones are "barely visible but there -- not the end of the world if our model
+can't capture absolutely all of these", so PRECISION matters more than catching every faint lick.
+
+| model | detected | real | not a lick | precision | share of the sample's real licks found |
+|---|---|---|---|---|---|
+| DLC r3 | 44 | 39 | 4 | 91 % | 67 % |
+| DLC r4 | 62 | 51 | 9 | 85 % | 88 % |
+| LP r3 | 34 | 34 | 0 | 100 % | 59 % |
+| LP r4 | 69 | 57 | 10 | 85 % | 98 % |
+| LP r4 ctx-sup | 42 | 40 | 0 | 100 % | 69 % |
+| **EKS r4+ctx** (s 10) | 47 | 44 | 1 | **98 %** | 76 % |
+
+The false detections come from LP r4 and DLC r4 (alone or together) and DLC r3; the real licks EKS misses are mostly
+faint ones only LP r4 / DLC r4 found. The "share found" is over this disagreement-weighted sample, not the population
+(the sample over-represents licks few models find). Reading: EKS r4+ctx gives the best precision / coverage balance
+for incomplete licks; LP r4 alone finds nearly all of them at ~15 % false. Scored with `lp_stage/lick_review/
+review_scored.csv` (answers in the review artifact's `lick_review` collection).
+
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 
 The model is for the ANALYSES — executed angle, lick timing / counts, kinematics across recovery — so it is judged on
