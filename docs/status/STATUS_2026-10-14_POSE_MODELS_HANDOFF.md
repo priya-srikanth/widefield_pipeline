@@ -6,7 +6,8 @@ movement-removed ENL trajectory result and the null/potent closure). **The model
 `DECISIONS.md` addenda 2026-10-13 (x4), 2026-10-14 (x5, incl. a CORRECTION). Analysis desktop; M: = MICROSCOPE.
 Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage` (local; she cannot see it).
 
-## 0. RUNNING (2026-10-14 10:55)
+## 0. RUNNING (2026-10-14 10:55; item 1 DONE 18:24 -- scored, see docs/POSE_MODELS.md "LP r4 ctx-semi": zero jaw flips,
+   90 % review precision / 95 % share, but contact recall 97.6 / 97.1 % and acute tongue teleports; DLC jaw clips now running)
 1. **LP r4 ctx-semi** — round-4 SEMI-SUPERVISED temporal-context LP (`heatmap_mhcrnn` + unlabelled-video temporal loss),
    WSL, **512 px**, batch 1 (+5-frame video batch), temporal-loss epsilon **[nose 10, jaw 10, tongue 35, spout 10]**,
    through `/root/lp/lp_capped.py` (PyTorch memory cap 0.75) + a 1-s guard at 6.8 GB. Epoch 116 at 10:54, ~1.9 min /

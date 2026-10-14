@@ -123,6 +123,33 @@ confirmed by the DAQ anyway), on the 80 reviewed candidates:
 | detected by >= 2 models | 93 % | 91 % |
 | LP r4 AND context model | 100 % | 67 % |
 
+### LP r4 ctx-semi (semi-supervised temporal context, finished 2026-10-14 18:24)
+
+`heatmap_mhcrnn` + the unlabelled-video temporal loss (epsilon [10, 10, 35, 10]), round-4 labels, WSL, 512 px, batch 1,
+300 epochs (no early stop), memory-capped. Predictions `lp_stage/r3_vs_r4_lp/r4mhcrnn_semi_512/`; scored with
+`scripts/model_lick_compare.py --review` (all models in one run, `session_poses/PS93_<d>/r4_eval/
+model_lick_compare_semi_1014.csv`); EKS = fixed `eks_two_model.py`, LP r4 + ctx-semi, smooth_param 100
+(`eks2_r4_semi_s100/`). Figures `r4_eval/cue_traces_compare_semi_cleaned.png`. Jump counts here are a NEW definition
+(raw frames, both >= 0.4, contiguous source frames, identical for every model) and are not comparable with the table above.
+
+| pre / acute | LP r4 | ctx-sup | **ctx-semi** | EKS r4+sup | EKS r4+semi |
+|---|---|---|---|---|---|
+| contact recall (%) | 98.5 / 99.6 | 96.6 / 96.3 | **97.6 / 97.1** | 98.8 / 99.2 | 98.5 / 99.6 |
+| licks without contact | 149 / 88 | 59 / 81 | 138 / 95 | 144 / 88 | 160 / 95 |
+| jaw x jumps > 30 px | 38 / 5 | 6 / 0 | **0 / 0** | 21 / 1 | 22 / 0 |
+| tongue x jumps > 60 px | 3 / 1 | 1 / 2 | 4 / **16** | 2 / 0 | 3 / 4 |
+| review: real / not detected (both sessions) | 57 / 10 | 40 / 0 | **55 / 6** | 57 / 8 | 58 / 10 |
+| review precision / share of real | 85 / 98 % | 100 / 69 % | **90 / 95 %** | 88 / 98 % | 85 / 100 % |
+
+**Reading.** The unlabelled-video loss fixed the supervised context model's under-confidence (share of real licks 69 ->
+95 %) and kept its jaw: **zero jaw side-flips** in both sessions (LP r4 38 / 5). It is the most precise detector that
+still finds nearly all reviewed licks (90 % / 95 %). Against it: contact recall 97.6 / 97.1 % (below the 99 % gate; LP
+r4 98.5 / 99.6) and one-frame tongue teleports on the acute session (16 > 60 px; visible as vertical spikes in the
+cleaned tongue-x panel). Angles at peak (contact licks) agree with the other models within ~1-2 deg, spread as tight as
+ctx-sup. EKS r4+semi inherits LP r4's recall but NOT the clean jaw (22 flips pre): where both members are confident on
+opposite sides of the rod, the ensemble splits the difference. **Natural candidate: choose per keypoint -- jaw from
+ctx-semi, tongue from LP r4 or EKS r4+semi** (to decide with Priya; check which contacts ctx-semi misses first).
+
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 
 The model is for the ANALYSES — executed angle, lick timing / counts, kinematics across recovery — so it is judged on
