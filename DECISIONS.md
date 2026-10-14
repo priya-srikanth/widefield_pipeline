@@ -19816,3 +19816,7 @@ LP r4's true precision is likely ~90 %, not 85 %. Leaning: fixed EKS (or LP r4) 
 faint licks on the tongue and finds ~98 % of reviewed real ones); the ">= 2 models agree" count becomes a SENSITIVITY
 analysis -- results resting on lick counts / incomplete licks are reported both ways -- rather than a filter. Final
 choice after the semi-supervised context models and more sessions. Handoff: `docs/status/STATUS_2026-10-14_POSE_MODELS_HANDOFF.md`.
+
+**Addendum (2026-10-14, noon) — Priya: all of LP r4's reviewed "false positives" may count as real licks** (teeny
+licks), i.e. on the reviewed no-contact candidates LP r4 is ~100 % precise and finds ~98 %. Edge cases to be re-checked
+on VIDEO once the semi-supervised temporal-context model is done.
