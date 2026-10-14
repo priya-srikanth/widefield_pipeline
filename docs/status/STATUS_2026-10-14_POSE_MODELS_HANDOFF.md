@@ -19,13 +19,36 @@ Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage`
 3. NEXT when (1) finishes: score it exactly like the others — `scripts/model_lick_compare.py` (contact recall, licks,
    angles), jump counts, `pose_cue_traces compare`, and against Priya's lick review (`lp_stage/lick_review/
    review_scored.csv`; detection = a kept lick within 40 ms of a reviewed candidate). Questions: is it confident on clear
-   tongues (the supervised one was not)? does it keep the jaw fix? Then EKS (fixed) of LP r4 + ctx-semi, and the
+   tongues (the supervised one was not)? does it keep the jaw fix? Then EKS (FIXED script) of LP r4 + ctx-semi (EKS on a
+   single model is only smoothing -- its value is combining models that err differently), and the
    ">= 2 models" agreement count. Add to `docs/POSE_MODELS.md`.
+
+## 0b. THE EKS FIX (2026-10-14) — read before using any EKS output
+* **The bug.** Lightning Pose never leaves a hidden point blank: when it decides a keypoint is not visible it reports
+  a LOW-LIKELIHOOD POINT PARKED AT THE IMAGE CENTRE (~340, 338 px). The first two-model ensemble (LP r4 + temporal
+  context, `lp_stage/r3_vs_r4_lp/eks_r4_heat_ctx*`) passed those parked points to EKS and relied on its occlusion
+  variance floor to ignore them. It did not: the parked point still pulled the smoothed track toward the centre, and the
+  EKS likelihood came out ~0.5 (the mean of 1.0 and 0.0). Faint real licks fell below the lick detector, some false
+  ones were suppressed, and the jaw side-flips vanished — so its 98 % review precision and 0 jaw flips were ARTEFACTS.
+  Found from Priya's sheets (EKS tongue points sat up-right of LP r4's, toward the centre).
+* **The fix** (`scripts/eks_two_model.py`, commit ef79a3f): per keypoint and frame, a member whose likelihood is below
+  the cut (0.4, the cleaning threshold) takes the MEAN POSITION OF THE CONFIDENT MEMBERS before smoothing, so it neither
+  pulls the track nor vetoes it; its likelihood stays low (the occlusion floor still applies); frames where no member is
+  confident are left untouched.
+* **After the fix** (outputs `eks2_s10/`, `eks2_s100/`): EKS behaves like LP r4 — positions on the tongue, recall 98.8 /
+  99.2 %, review real-found 98 %, kinematics intact at smooth_param 100; jaw flips reduced but not removed (17 vs 30:
+  when both models are confident on opposite sides of the rod EKS splits the difference).
+* **Display caveat:** EKS's output likelihood is its averaged score, ~0.5 when one member says hidden. It passes the
+  pipeline's 0.4 cut, but a figure drawn at p > 0.6 (the raw `pose_cue_traces compare`) hides those frames and
+  understates EKS coverage — compare EKS on the `--cleaned` figures (0.4).
+* **Any OLD EKS numbers (pre-ef79a3f) are invalid**; DECISIONS 2026-10-14 (later) records the correction.
 
 ## 1. Findings since the 10-13 handoff
 * **ENL trajectory** (10-12 / 10-13, unchanged): residual tracks raw across recovery, 118 curated sessions, r 0.77-0.92.
 * **DLC round 4 (540 labels) is not better than round 3** on frames held out by both; more conservative on the tongue
   (recall 97.1 % vs 99.3 %). More single-frame labels of the same kind no longer pay off.
+* **Figures:** `session_poses/<session>/r4_eval/cue_traces_compare[_cleaned].png` (five models) and
+  `cue_traces_compare_eks_fixed[_cleaned].png` (DLC r3, LP r4, ctx-sup, fixed EKS).
 * **Five-model comparison** (PS93 0814 pre, 0821 acute; same mouth, stops, DAQ contacts; `model_lick_compare.py`):
   contact recall DLC r3 99.3/99.6, DLC r4 97.1/97.1, LP r3 99.0/99.6, LP r4 98.5/99.6, LP r4 ctx-sup 96.6/96.3 %.
   Angle at peak protrusion on contact licks agrees within ~1-2 deg across all models. Jaw x side-flips (> 30 px, pre):
@@ -78,7 +101,7 @@ Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage`
 | file | what |
 |---|---|
 | `scripts/model_lick_compare.py` | per model: contact recall (unique contacts in a lick window), kept / no-contact licks, angle at peak protrusion by position (contact licks + all) |
-| `scripts/pose_cue_traces.py compare [--cleaned]` | cue-aligned tongue / jaw traces, any number of models; cleaned tongue zero = ONE mouth for all models |
+| `scripts/pose_cue_traces.py compare [--cleaned] [--suffix]` | cue-aligned tongue / jaw traces, any number of models; cleaned tongue zero = ONE mouth for all models |
 | `scripts/eks_two_model.py` | single-camera EKS over two (or more) LP / DLC csvs, fixed sub-cut handling, DLC-format output |
 | `scripts/lick_review_candidates.py` | blind candidate licks (union over models, balanced) + controls -> candidates.json / key.csv |
 | `scripts/lick_review_sheets.py` | LP r4 false-positive / EKS false-negative sheets with legend (LP r4 orange circle, old EKS green diamond, fixed EKS magenta cross) |

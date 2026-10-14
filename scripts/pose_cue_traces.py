@@ -323,7 +323,8 @@ def cmd_onlyone(spec, rv, lp_csv, per_group: int = 8, seed: int = 1):
 MODEL_COLORS = ["dodgerblue", "navy", "mediumvioletred", "darkorange", "seagreen", "black"]
 
 
-def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s=(-0.5, 3.5), tag: str = ""):
+def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s=(-0.5, 3.5), tag: str = "",
+                suffix: str = ""):
     """Cue-aligned tongue / jaw x & y, trials overlaid, for ANY number of models on the SAME clip -- a
     `session_poses` directory (windows.mp4 + windows_index.csv) and ``name=csv`` pairs (Priya, 2026-10-13: "compare
     how the tongue and jaw cue-aligned trajectory plots look for all 4 (round 3/4, DLC/LP)"). Same rules as
@@ -398,7 +399,7 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
                  f"{'CLEANED (orofacial_clean)' if cleaned else 'raw, no cleaning'} | image y increases downward"
                  + (f" | {tag}" if tag else ""), y=1.0, fontsize=12)
     fig.tight_layout()
-    p = poses_dir / "r4_eval" / f"cue_traces_compare{'_cleaned' if cleaned else ''}.png"
+    p = poses_dir / "r4_eval" / f"cue_traces_compare{suffix}{'_cleaned' if cleaned else ''}.png"
     p.parent.mkdir(exist_ok=True)
     fig.savefig(p, dpi=150, bbox_inches="tight")
     print(f"-> {p}")
@@ -413,9 +414,10 @@ def main(argv=None) -> int:
     ap.add_argument("--cleaned", action="store_true", help="plot orofacial_clean output (ported stroke_orofacial cleaning)")
     ap.add_argument("--model", action="append", default=[], metavar="NAME=CSV",
                     help="compare: one model's predictions on the clip (repeat, in column order)")
+    ap.add_argument("--suffix", default="", help="compare: added to the output filename (keep several comparisons)")
     a = ap.parse_args(argv)
     if a.cmd == "compare":
-        cmd_compare(Path(a.session), a.model, cleaned=a.cleaned)
+        cmd_compare(Path(a.session), a.model, cleaned=a.cleaned, suffix=a.suffix)
         return 0
     rv = PathResolver()
     {"clip": lambda: cmd_clip(a.session, rv), "dlc": lambda: cmd_dlc(a.session, rv),
