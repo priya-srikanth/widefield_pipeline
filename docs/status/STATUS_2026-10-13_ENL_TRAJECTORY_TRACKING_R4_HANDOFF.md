@@ -108,6 +108,12 @@ has no DALI -> no unlabelled-video temporal LOSS; the semi-supervised context mo
 predictions (r3, r4 heatmap) and a round-3 context model (`lp_r4_followon.sh` died in the crash).
 **Side cameras:** labelling plan + `SIDECAM_GUIDE.html` built (DECISIONS 10-13 night).
 
+**10-14 early -- comparison DONE (DECISIONS 2026-10-14):** five models on both sessions (`r4_eval/cue_traces_compare*.png`,
+`model_lick_compare.csv`, `model_angle_compare.csv`); LP r4 heatmap best all-rounder; the (supervised, Windows) context
+model removes jaw side-flips but is under-confident on tongue. Windows-native inference copies of the WSL LP models:
+`lp_stage/lp_models_win/` (configs repointed, `losses_to_use: []`). NEXT: semi-supervised context model in WSL,
+attended; Priya to judge `lp_r4_extra_nocontact_licks.png` and `tongue_frames_all_models.png`.
+
 ## 2. Decisions (10-08 .. 10-13)
 * Null/potent closed as a supplementary control (Priya). Priorities: (1) ENL movement-removed trajectory -- done;
   (2) executed-angle vs target (MUST REVISIT) once tracking allows; (3) tracking.

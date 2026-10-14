@@ -19756,3 +19756,26 @@ animal + date (PS94 0820's cam2 / cam3 file stamps differ by 1 s). Code: `wfield
 assign), `dlc_sidecam_guide.py`, `dlc_context_frames` now takes cam2 / cam3; tests `tests/test_dlc_sidecam.py`.
 Later, at training: crop the side views to the face (~300 x 300 px; ~2-3x faster inference), the crop set from the
 labelled points + margin and checked across sessions.
+
+**Addendum (2026-10-14, early) — cam4 model comparison on the downstream measures (PS93 0814 pre, 0821 acute; DLC /
+LP x round 3 / 4 + a round-4 temporal-context LP).** (1) The 10-13 19:01 restart was a crash (bugcheck 0x20001, as
+09-30) ~2 min into the WSL `heatmap_mhcrnn` training; measured natively, the context model needs > 7.8 GB at batch 2 /
+640 px once unfrozen, 4.6 GB at batch 1. The context model was trained WINDOWS-NATIVE, SUPERVISED ONLY (no DALI on
+Windows -> no unlabelled-video temporal loss), batch 1, 640 px, 300 epochs (`lp_stage/lp_cam4_r4_win`), so it is
+NOT like-for-like with the semi-supervised round-4 heatmap model. (2) `scripts/model_lick_compare.py` (same mouth,
+stops, DAQ contacts for every model): contact recall (unique contacts inside a kept lick window) pre / acute: DLC r3
+99.3 / 99.6, LP r3 99.0 / 99.6, LP r4 98.5 / 99.6, DLC r4 97.1 / 97.1, LP r4 context 96.6 / 96.3 %. Angle at peak
+protrusion on CONTACT licks: all models agree within ~1-2 deg per position; the context model has the tightest spread
+(far_center IQR 1.7 vs ~15, close_R 4.3, far_R 2.4 pre). Licks WITHOUT contact (pre): LP r3 79, DLC r3 119, DLC r4
+130, LP r4 149, context 59 -- LP r4's extra no-contact licks (68 not found by DLC r3) look mostly like incomplete
+licks at the lip line, with some false detections on the spout rod (`session_poses/PS93_20260814/r4_eval/
+lp_r4_extra_nocontact_licks.png`; Priya to judge). (3) Jumps (cue windows, confident consecutive frames, pre): jaw x
+> 30 px: DLC r3 40, DLC r4 40, LP r3 17, LP r4 29, context 3 -- the TEMPORAL-CONTEXT MODEL REMOVES THE JAW SIDE-FLIPS;
+tongue x > 30 px: LP r3 133 (outliers), the rest 16-33. (4) Priya's 16 frames where DLC r4 dropped a correct tongue
+(`inference_check_20261012_round4/tongue_frames_all_models.png`): confident on 16 / 0 / 15 / 12 / 9 (DLC r3 / DLC r4
+/ LP r3 / LP r4 / context) -- the LP heatmap models recover them; the supervised context model is UNDER-confident on
+clear tongues (p 0 on three). Reading: no single model wins everything -- LP r4 heatmap is the best all-rounder
+(recall, outliers, tongue confidence) except the close-position jaw side-flips; the context model fixes the jaw and
+tightens angles but loses tongue sensitivity, plausibly because it lacks the semi-supervised temporal loss. NEXT
+(Priya's call): the semi-supervised context model in WSL, attended, batch 1 + a PyTorch memory cap after a short
+monitored test; and/or a two-model ensemble (EKS) of LP r4 heatmap + context.
