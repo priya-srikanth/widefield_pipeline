@@ -1068,6 +1068,9 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
       isolated_radius_ms: 30.0
       frame_jump_thr_px: 70.0 # px, OLD RIG -- retune
       frame_outlier_radius_ms: 20.0
+      frame_jump_thr_x_px: null  # OURS, off. PROPOSED 2026-10-14 (v35): 25 px here + x_ceiling_px 75 -- the 40-px
+                                 # ceiling cuts real wide-open excursions (9 % on PS93 0814); the x jump test catches
+                                 # side-flips. Awaiting Priya's QC (session_poses/jaw_lateral/jaw_ceiling_qc.png).
       max_gap_ms_pchip: 120.0
       baseline_win_ms: [-500.0, 0.0]
 

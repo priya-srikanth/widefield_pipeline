@@ -357,11 +357,21 @@ def jaw_v34(c: Clean, centers, q: dict | None = None) -> Clean:
     wx = raw & np.isfinite(c.x_final) & (np.abs(c.x_final - bx) > float(q["x_ceiling_px"]))
     after1 = raw & ~wy & ~wx
     wfo = np.zeros(n, bool)
+    wfox = np.zeros(n, bool)
     idx = np.flatnonzero(after1)
     if idx.size >= 3:
         win = 2 * max(_ms_f(float(q["frame_outlier_radius_ms"]), fps), 1) + 1
         dev = np.abs(c.y_final[idx] - median_filter(c.y_final[idx], size=win, mode="nearest"))
         wfo[idx[dev > float(q["frame_jump_thr_px"])]] = True
+        # OURS (2026-10-14, not in v3.4): the same median-filter outlier test on x. Real jaw x moves smoothly (median
+        # step ~1 px/frame) even at +/-60 px when the mouth is wide open, while side-flips jump 40-80 px in one frame
+        # -- so a jump test, not the fixed |x| ceiling, separates them. None/absent = off (v3.4 behaviour).
+        thr_x = q.get("frame_jump_thr_x_px")
+        if thr_x is not None:
+            win_x = 2 * max(_ms_f(float(q.get("frame_outlier_radius_x_ms", q["frame_outlier_radius_ms"])), fps), 1) + 1
+            devx = np.abs(c.x_final[idx] - median_filter(c.x_final[idx], size=win_x, mode="nearest"))
+            wfox[idx[devx > float(thr_x)]] = True
+        wfo |= wfox
     cl = _clusters(raw & ~wy & ~wfo)                     # theirs: R2 clusters after R1-y + R3 (not R1-x)
     wiso = np.zeros(n, bool)
     rad = max(_ms_f(float(q["isolated_radius_ms"]), fps), 1)
@@ -386,7 +396,8 @@ def jaw_v34(c: Clean, centers, q: dict | None = None) -> Clean:
     fm = np.full(n, FILL_BASELINE, np.int8)
     fm[fillable] = FILL_PCHIP
     fm[anchors] = FILL_NONE
-    extra = {"v34_wiped_y": wy, "v34_wiped_x": wx, "v34_wiped_frame_outlier": wfo, "v34_wiped_isolated": wiso,
+    extra = {"v34_wiped_y": wy, "v34_wiped_x": wx, "v34_wiped_frame_outlier": wfo, "v34_wiped_frame_outlier_x": wfox,
+             "v34_wiped_isolated": wiso,
              "v34_bmean": (by, bx)}
     return Clean(c.bodypart, c.x_raw, c.y_raw, c.lk, c.x_drop, c.y_drop, c.x_interp, c.y_interp, xc, yc, fm,
                  c.X0, c.Y0, fps, {**c.extra, **extra})

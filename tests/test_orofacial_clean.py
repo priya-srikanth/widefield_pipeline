@@ -81,6 +81,29 @@ def test_jaw_v34_y_ceiling_and_isolated():
     assert c.fill_method[500] != oc.FILL_NONE
 
 
+def test_jaw_v34_x_frame_outlier_keeps_smooth_excursion():
+    """A smooth 60-px lateral excursion survives the x jump test; a 3-frame side-flip of the same size does not."""
+    n = 1000
+    rng = np.random.default_rng(1)
+    y = 420 + rng.normal(0, 0.5, n)
+    x = 350 + rng.normal(0, 0.5, n)
+    x[400:500] += 60 * np.sin(np.linspace(0, np.pi, 100))      # real: ~2 px/frame at most
+    x[700:703] += 60                                            # flip: one-frame jump in and out
+    lk = np.ones(n)
+    q = {"y_ceiling_px": 125.0, "x_ceiling_px": 1e9, "isolated_max_n": 5, "isolated_radius_ms": 30.0,
+         "frame_jump_thr_px": 70.0, "frame_outlier_radius_ms": 20.0, "frame_jump_thr_x_px": 25.0,
+         "max_gap_ms_pchip": 120.0, "baseline_win_ms": [-500.0, 0.0]}
+    pj = {**P, "n_neigh": 0, "max_gap_ms": 4.0, "x_range_pm": 1e9}
+    c = oc.jaw_v34(oc.clean_bodypart(_df(x, y, lk, "jaw"), "jaw", centers=[200, 600, 900], p=pj), [200, 600, 900], q)
+    wx = c.extra["v34_wiped_frame_outlier_x"]
+    assert not wx[400:500].any()
+    assert wx[700:703].all()
+    q_off = {k: v for k, v in q.items() if k != "frame_jump_thr_x_px"}
+    c0 = oc.jaw_v34(oc.clean_bodypart(_df(x, y, lk, "jaw"), "jaw", centers=[200, 600, 900], p=pj), [200, 600, 900],
+                    q_off)
+    assert not c0.extra["v34_wiped_frame_outlier_x"].any()
+
+
 def test_snippet_pads_and_mean_sem():
     a = np.arange(10.0)
     assert np.isnan(oc.snippet(a, 1, 3, 2)[:2]).all() and oc.snippet(a, 1, 3, 2)[2] == 0.0
