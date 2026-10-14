@@ -19820,3 +19820,18 @@ choice after the semi-supervised context models and more sessions. Handoff: `doc
 **Addendum (2026-10-14, noon) — Priya: all of LP r4's reviewed "false positives" may count as real licks** (teeny
 licks), i.e. on the reviewed no-contact candidates LP r4 is ~100 % precise and finds ~98 %. Edge cases to be re-checked
 on VIDEO once the semi-supervised temporal-context model is done.
+
+## 2026-10-14 (afternoon) — jaw x ceiling and jaw lateral deviation: the far-pair readout
+
+* **The v3.4 jaw x ceiling (40 px, old rig) cuts real movement on our rig** (9 % of wide-open frames on PS93 0814,
+  18 % on PS95 0917), while the errors it was meant to catch are side-flips that JUMP 40-80 px in one frame. Proposed
+  v35 = ceiling 75 px + a median-filter jump test on x (`frame_jump_thr_x_px` 25); implemented OFF by default pending
+  Priya's visual QC (`session_poses/jaw_lateral/jaw_ceiling_qc.png`). The y ceiling (125 px) stays: what it wipes on
+  PS95 is grooming.
+* **cam4 image-right = the mouse's LEFT**, from data (3-D stage fit: *_L = mouse's left; *_L spouts image-right).
+* **Jaw lateral deviation must be read from the far_L / far_R trials only.** Close and centre spouts cover part of the
+  chin and the jaw point lands on the visible edge, away from the spout (PS93 0814: close_R +45 px, close_L +7).
+  Readout = `FAR_BIAS` (mean of far_L and far_R, cancels spout-directed movement) and `FAR_DIR` (half the difference),
+  in the spout frame (tilt-proof), as px at opening > 50 px and as the opening angle. PS93 FAR_BIAS +15 px pre, +8
+  acute, +10 chronic; FAR_DIR +9 pre, ~0 after -- 4-10 trials per position, preliminary; PS92/94/95 clips queued.
+  `scripts/jaw_lateral.py`.

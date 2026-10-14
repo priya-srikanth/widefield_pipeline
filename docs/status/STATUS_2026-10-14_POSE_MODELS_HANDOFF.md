@@ -14,8 +14,15 @@ Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage`
    session clips + six review clips. Script `C:\Users\SabatiniLab\lp_train_semi_ctx_wsl.sh`; log
    `lp_stage\lp_train_semi_ctx_wsl.log`; model `/root/lp/cam4-2026-10-13/models/r4_mhcrnn_semi_512_20261014`;
    predictions -> `lp_stage\r3_vs_r4_lp\r4mhcrnn_semi_512\`.
-2. **QUEUED: LP r3 ctx-semi** (same recipe, round-3 labels) waits for (1)'s `done`: `lp_train_semi_ctx_r3_wsl.sh`, log
-   `lp_stage\lp_train_semi_ctx_r3_wsl.log`, model `/root/lp/cam4-2026-09-28/models/r3_mhcrnn_semi_512_20261014`.
+2. **GPU QUEUE (re-ordered 14:20)**: `lp_stage\gpu_chain_jaw_dlc_then_r3.sh` (Git Bash, background; log
+   `lp_stage\gpu_chain_jaw_dlc_then_r3.log`) waits for (1)'s `done` and for no `lp_capped.py` in WSL, then runs **DLC
+   round 3 on nine jaw-readout trial clips** (to-do 10: PS92 / PS94 / PS95 x 0814 pre, 0821 acute, 0908 chronic; 10
+   trials per position; ~1-1.5 h each at 42 fps) and THEN launches **LP r3 ctx-semi** (`lp_train_semi_ctx_r3_wsl.sh`,
+   same recipe as (1), round-3 labels; log `lp_stage\lp_train_semi_ctx_r3_wsl.log`). The r3 script's own waiter was
+   stopped (PID) so it cannot overlap the DLC run -- the WSL guard counts TOTAL card memory. **If the chain process
+   dies (session end / reboot), r3 ctx-semi will NOT start on its own**: re-run the chain script (DLC resumes from its
+   chunks). Clips are being cut on CPU (`session_poses clip`, log `lp_stage\jaw_clips_cut.log`); the chain waits for
+   each `windows.mp4`.
 3. NEXT when (1) finishes: score it exactly like the others — `scripts/model_lick_compare.py` (contact recall, licks,
    angles), jump counts, `pose_cue_traces compare`, and against Priya's lick review (`lp_stage/lick_review/
    review_scored.csv`; detection = a kept lick within 40 ms of a reviewed candidate). Questions: is it confident on clear
@@ -129,9 +136,19 @@ tongue_frames_all_models.py, render_models_grid.py}` on the DLC share; WSL / Win
    context model / EKS handle the jaw.
 7. Pixel-vs-LocaNMF decoding gap (non-motor control area); FaceRhythm proposal.
 8. cam1 labelling Parts 2 / 3 only if a model comparison says labels, not architecture, are the limit.
-9. **Retune the jaw x ceiling** (`orofacial_clean.jaw.v34.x_ceiling_px`, ~45 px, marked "OLD RIG -- retune"): it clips
-   jaw x at ~+45 px (flat tops in the cleaned jaw x panels), probably cutting real excursions. Retune from the measured
-   jaw x distribution per animal before any jaw-deviation analysis.
+9. **Retune the jaw x ceiling** (`orofacial_clean.jaw.v34.x_ceiling_px`, **40** px, "OLD RIG -- retune").
+   **STARTED 10-14 afternoon (b730dfe), awaiting Priya's QC.** `scripts/jaw_lateral.py ceiling` ->
+   `session_poses/jaw_lateral/jaw_ceiling_rules.csv` + `jaw_ceiling_qc.png`. Measured (DLC r3, 9 sessions, 4 animals):
+   the ceiling wipes 9.3 % of wide-open frames (opening > 50 px) on PS93 0814, 8.3 % 0819, 18.5 % PS95 0917; wide-open
+   |jaw x| p99 reaches 55-62 px once unclipped. Most excursions past 40 px are entered SMOOTHLY (median step 4-6
+   px/frame on PS93 0814/0821, PS95) = real; a tail is entered by 40-80 px one-frame jumps = side-flips (dominant on
+   PS93 0908, PS94 0921). So a bigger number is the wrong fix. **Proposed "v35"**: `x_ceiling_px` 75 (= the first-stage
+   `x_range_pm`) + new `frame_jump_thr_x_px` 25 (median-filter outlier test on x, the y test's twin; in `jaw_v34`, OFF by
+   default / `null` in defaults.yaml). Effect: wide-open wiped 9.3 -> 0.9 % (PS93 0814), 18.5 -> 7.9 % (PS95); the
+   jump test removes 0.03-0.4 % of frames. QC sheet rows: frames v3.4 wiped that v35 keeps; frames the jump test wipes
+   (mostly the jaw point jumping to the OTHER edge of the jaw beside a spout rod); frames the **y** ceiling (125 px,
+   unchanged) wipes -- these are GROOMING (paws over the face) on PS95, so the y ceiling is doing its job; keep it.
+   If Priya approves: set the two values in defaults.yaml (and note the cleaning version in figures).
 10. **Jaw lateral deviation on opening as a readout** (Priya 2026-10-14): when the mouth opens wide (jaw y > rest + 50 px)
     PS93's jaw shifts image-RIGHT by ~20-40 px at nearly every spout position, already pre-stroke (0814: far_L +27,
     close_L +3, close_center +26, far_center +27, close_R +39, far_R +11; 0821 similar) -- not spout-directed (the tongue
@@ -139,6 +156,25 @@ tongue_frames_all_models.py, render_models_grid.py}` on the DLC share; WSL / Win
     One-sided jaw deviation on opening is a classic sign of unilateral jaw-muscle weakness, and PS93 has the right
     orofacial deficit -> measure per animal, pre vs acute vs chronic. First: confirm image-right = animal's LEFT for cam4
     (front view, expected) against the rig, and retune the ceiling (item 9).
+    **STARTED 10-14 afternoon** (`scripts/jaw_lateral.py deviation`; -> `session_poses/jaw_lateral/
+    jaw_lateral_{trials,summary}_<rule>.csv`, `jaw_lateral_<rule>.png`):
+    * Orientation CONFIRMED from data: the 10-11 3-D stage fit showed *_L = mouse's left (DECISIONS), and on cam4 the *_L
+      spouts sit image-RIGHT (close_L x 385 vs close_R 300) -> image-right = MOUSE'S LEFT. PS93 deviates to its LEFT.
+    * Measured in the SPOUT frame (lr across the apparatus centre line, so head / camera tilt cannot fake a sideways
+      shift), two forms: `lr_wide` (px, median over frames opening > 50 px, 70-3000 ms post-cue) and `angle` (jaw opening
+      direction, deg; independent of how wide an animal opens).
+    * **OCCLUSION CONFOUND**: close and centre spouts cover part of the chin and the model marks the jaw on the visible
+      edge, AWAY from the spout (PS93 0814 close_R +45 px vs close_L +7; centre positions largest). The far_L / far_R
+      spouts leave the chin clear, so the PRIMARY readout is the far pair: `FAR_BIAS` = mean(far_L, far_R) (side bias,
+      cancels spout-directed movement), `FAR_DIR` = half the difference (jaw steering toward the spout).
+    * PS93 (10 trials / position): FAR_BIAS +14.7 px / 16.6 deg pre (0814) -> +7.8 / 14.3 acute (0821) -> +9.7 / 9.9
+      chronic (0908); FAR_DIR +9.4 px pre -> -5.8 acute -> +0.3 chronic (jaw steering toward the far spout lost after
+      the stroke?). n = 4-10 trials per far position -- PRELIMINARY. Earlier "+9 / +7 / ~0 / ~0" per animal mixed in the
+      occluded positions; the `_r4` folders hold only 2 trials per position (too few).
+    * NEXT: the nine DLC clips (RUNNING item 2) give PS92 / PS94 / PS95 pre / acute / chronic -> rerun `deviation` with
+      `--sessions` = the 12 x 60-trial clips, per-animal table before any pooling (CLAUDE.md rule 8). Then the
+      production run gives whole sessions. A clinical reading (jaw deviates TOWARD a weak lateral pterygoid) predicts a
+      RIGHT deviation for PS93's right deficit; PS93 deviates LEFT and already pre-stroke -- do not over-read.
 
 ## 5. Pitfalls (new — earlier lists still apply)
 1. **WSL GPU = hypervisor crash on overshoot** (bugcheck 0x20001; 09-30 x2, 10-13). Measure peak memory natively first
