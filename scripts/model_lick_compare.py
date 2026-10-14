@@ -58,6 +58,35 @@ def summarise(name, T, contacts, stops) -> tuple[dict, pd.DataFrame]:
     return row, ang
 
 
+def jumps(csv, idx, cut: float = 0.4, thr=(30, 60)) -> dict:
+    """Frame-to-frame |dx| > thr px between CONTIGUOUS source frames where both are confident (>= cut): jaw side-flips
+    and tongue teleports (selection rule 5)."""
+    from wfield_local import orofacial_clean as oc
+    P = oc.read_pose(Path(csv)).iloc[:len(idx)]
+    contig = np.diff(idx.src_frame.to_numpy()[:len(P)]) == 1
+    out = {}
+    for part in ("jaw", "tongue"):
+        x, p = P[f"{part}_x"].to_numpy(float), P[f"{part}_likelihood"].to_numpy(float)
+        ok = contig & (p[1:] >= cut) & (p[:-1] >= cut)
+        dx = np.abs(np.diff(x))
+        for t in thr:
+            out[f"{part}_x_jumps>{t}"] = int((ok & (dx > t)).sum())
+    return out
+
+
+def review_score(name, T, review: pd.DataFrame, win_ms: float = 40.0) -> dict:
+    """Against Priya's lick review (no-contact candidates of this session): a candidate is DETECTED when a kept lick in
+    the same trial peaks within `win_ms`. Precision = real / (real + not) among detected; share = detected real / real."""
+    pl = T.per_lick
+    det = np.array([bool((np.abs(pl.loc[pl.trial_id == r.trial_id, "t_ms"].to_numpy() - r.t_ms) <= win_ms).any())
+                    for r in review.itertuples()])
+    lab = review.label.to_numpy()
+    real, nott = lab == "real", lab == "not"
+    return {"rev_detected": int(det.sum()), "rev_real": int((det & real).sum()), "rev_not": int((det & nott).sum()),
+            "rev_precision_%": round(100 * (det & real).sum() / max((det & (real | nott)).sum(), 1), 1),
+            "rev_share_real_%": round(100 * (det & real).sum() / max(real.sum(), 1), 1)}
+
+
 def main(argv=None) -> int:
     from scripts.session_poses import read_index, session_dir
     import scripts.pose_kinematics_demo as D
@@ -68,6 +97,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("session", metavar="ANIMAL:YYYYMMDD")
     ap.add_argument("--model", action="append", required=True, metavar="NAME=CSV")
+    ap.add_argument("--review", type=Path, help="review_scored.csv: add precision / share vs Priya's lick review")
+    ap.add_argument("--tag", default="", help="suffix for the output csvs (keep several comparisons)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     animal, date, d = session_dir(rv, a.session)
@@ -83,15 +114,20 @@ def main(argv=None) -> int:
         name, csv = spec.split("=", 1)
         T = run_model(csv, idx, frame, stops, contacts)
         r, g = summarise(name, T, contacts, stops)
+        r.update(jumps(csv, idx))
+        if a.review is not None:
+            rv_ = pd.read_csv(a.review)
+            rv_ = rv_[(rv_.kind == "no_contact") & rv_.id.str.startswith(f"{animal}_{date}_")]
+            r.update(review_score(name, T, rv_))
         rows.append(r)
         angs.append(g)
     S = pd.DataFrame(rows)
     A = pd.concat(angs)
     out = d / "r4_eval"
     out.mkdir(exist_ok=True)
-    S.to_csv(out / "model_lick_compare.csv", index=False)
-    A.to_csv(out / "model_angle_compare.csv", index=False)
-    print(f"{animal} {date}\n" + S.to_string(index=False))
+    S.to_csv(out / f"model_lick_compare{a.tag}.csv", index=False)
+    A.to_csv(out / f"model_angle_compare{a.tag}.csv", index=False)
+    print(f"{animal} {date}\n" + S.set_index("model").T.to_string())
     A = A.assign(v=A["median"].astype(str) + " [" + A["iqr"].astype(str) + "] (" + A["n"].astype("Int64").astype(str) + ")")
     for kind in ("contact", "all"):
         print(f"\nangle at peak protrusion (deg), {kind} licks: median [IQR] (n)")
