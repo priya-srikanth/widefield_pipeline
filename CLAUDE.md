@@ -344,6 +344,8 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/POSE_MODELS.md`](docs/POSE_MODELS.md)** — the cam4 pose-model register: every model, settings + rationale, results, how we choose.
+
 **[`docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md`](docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md)**
 — **START HERE, newest.** The movement-removed ENL position code across recovery (118 sessions: the residual tracks
 the raw code), null/potent closed as a control, cam4 round 4 (DLC not measurably better; DLC vs LP x round 3 vs 4,

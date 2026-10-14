@@ -114,6 +114,12 @@ model removes jaw side-flips but is under-confident on tongue. Windows-native in
 `lp_stage/lp_models_win/` (configs repointed, `losses_to_use: []`). NEXT: semi-supervised context model in WSL,
 attended; Priya to judge `lp_r4_extra_nocontact_licks.png` and `tongue_frames_all_models.png`.
 
+**10-14 morning: MODEL REGISTER = `docs/POSE_MODELS.md`** (every cam4 model, settings + rationale, results, the
+proposed selection rule). EKS r4+ctx is the strongest option so far. RUNNING in WSL (attended protocol, capped):
+LP r4 ctx-semi, 512 px, eps [10, 10, 35, 10] (`lp_stage/lp_train_semi_ctx_wsl.log`); QUEUED: LP r3 ctx-semi
+(`lp_stage/lp_train_semi_ctx_r3_wsl.log`). Review videos (2 x 3 grids, six models):
+`inference_check_20261012_round4/labeled_clips_models/`.
+
 ## 2. Decisions (10-08 .. 10-13)
 * Null/potent closed as a supplementary control (Priya). Priorities: (1) ENL movement-removed trajectory -- done;
   (2) executed-angle vs target (MUST REVISIT) once tracking allows; (3) tracking.

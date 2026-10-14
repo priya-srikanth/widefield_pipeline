@@ -19779,3 +19779,17 @@ clear tongues (p 0 on three). Reading: no single model wins everything -- LP r4 
 tightens angles but loses tongue sensitivity, plausibly because it lacks the semi-supervised temporal loss. NEXT
 (Priya's call): the semi-supervised context model in WSL, attended, batch 1 + a PyTorch memory cap after a short
 monitored test; and/or a two-model ensemble (EKS) of LP r4 heatmap + context.
+
+**Addendum (2026-10-14) — EKS ensemble, temporal-loss epsilon per keypoint, WSL GPU protocol; model register.**
+(1) EKS over LP r4 heatmap + LP r4 temporal-context (supervised): contact recall 99.0 / 99.2 % (pre / acute), licks
+without contact 78 (LP r4 149), jaw side-flips 0, tongue jumps ~1; angles as tight as the context model. smooth_param
+10 lowers peak tongue speed 11 / 19 %; 100 keeps it within ~5 % with jaw flips still 0. (2) The LP temporal loss
+penalises frame-to-frame jumps > epsilon on unlabelled video; genuine tongue motion is p99 23-34 px/frame (jaw 4-6,
+nose / spout 1-3), so the old 10 px penalised the fastest quarter of real licks. Now per keypoint [nose 10, jaw 10,
+tongue 35, spout 10] (Priya asked whether to raise it). (3) WSL protocol: semi-supervised context models need > 6 GB
+at 640 px (a capped test OOMed cleanly -- the cap works), 5.5 GB at 512 px; they run through `/root/lp/lp_capped.py`
+(PyTorch memory fraction 0.75) + a 1-s guard at 6.8 GB, started attended. Running: LP r4 ctx-semi (512 px, eps
+[10, 10, 35, 10]); queued: LP r3 ctx-semi. (4) All models, settings, rationale, results and the PROPOSED selection
+rule (epoch-bias gate, >= 99 % contact recall gate, then human-reviewed incomplete-lick precision / recall, angle
+spread and unbiased kinematics, stability, held-out pixel error as sanity, practicality) are in
+`docs/POSE_MODELS.md`.
