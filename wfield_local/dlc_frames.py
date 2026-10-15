@@ -233,12 +233,11 @@ def lick_onsets(animal: str, date: str, sid: str, rv=None) -> np.ndarray:
     if cached is not None:
         _LICKS[(animal, date)] = cached
         return cached
-    root = Path(rv.root("daq_recorder_output")) / date
-    if not root.is_dir():
-        return np.array([], float)
-    # The DAQ filename's timestamp is a second or two off the session id's (separate clocks), so
-    # match on the animal and date and take the one recording that exists for them.
-    cands = sorted(root.glob(f"{animal}_{date}_*.h5"))
+    from wfield_local import daq_io
+    # the session's ONE authoritative DAQ file (registered / _concat) -- not the first name-match, which for a
+    # split session (PS92 0812) is a crash-truncated segment
+    h5 = daq_io.session_h5(animal, date, rv)
+    cands = [h5] if h5 is not None else []
     if not cands:
         print(f"[dlc_frames] {animal} {date}: no DAQ .h5 -> no lick-locked frames", flush=True)
         return np.array([], float)

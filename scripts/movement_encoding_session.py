@@ -27,6 +27,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import daq_io
 from wfield_local import movement_encoding as ME
 from wfield_local import movement_inputs as MI
 
@@ -112,7 +113,7 @@ def running_signal(animal: str, date: str, rv) -> dict:
     """{"running": (t_s, treadmill speed mm/s)} -- `behavior_events.session_speed` (configs segmentation.treadmill),
     the same speed the running bouts use."""
     from wfield_local.behavior_events import session_speed
-    h5 = sorted((Path(rv.root("daq_recorder_output")) / date).glob(f"{animal}_{date}_*.h5"))[0]
+    h5 = daq_io.session_h5(animal, date, rv)
     return {"running": session_speed(h5)}
 
 

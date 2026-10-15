@@ -137,3 +137,31 @@ def open_daq(h5_path: Path):
     import h5py
 
     return h5py.File(h5_path, "r")
+
+
+def session_h5(animal: str, date: str, rv=None) -> Path | None:
+    """THE DAQ ``.h5`` of one session (date YYYYMMDD), or None.
+
+    Order: the ``h5`` registered in `configs/sessions.yaml` (the one the imaging analyses use); else a ``*_concat.h5``
+    (a split session joined by `concat_split_session`); else the single ``<animal>_<date>_*.h5``. 2026-10-15: seven
+    call sites took ``sorted(glob(...))[0]``, which for PS92 0812 is part 1's crash-truncated file (``152628`` sorts
+    before ``161746`` and ``concat``) -- the lick cache, trial strobes and contact durations then covered only the
+    first 10.6 min of the session (22 of its 225 ENL-eligible trials survived the lick-response test)."""
+    from wfield_local.paths import PathResolver
+    label = f"{animal}_{date[4:]}"
+    try:
+        for s in config.load_sessions():
+            if s.get("label") == label and s.get("h5") and Path(s["h5"]).exists():
+                return Path(s["h5"])
+    except Exception:                                              # noqa: BLE001 -- fall back to the folder
+        pass
+    rv = rv or PathResolver()
+    root = Path(rv.root("daq_recorder_output")) / date
+    hits = sorted(root.glob(f"{animal}_{date}_*.h5")) if root.is_dir() else []
+    concat = [h for h in hits if h.stem.endswith("_concat")]
+    if concat:
+        return concat[0]
+    if len(hits) > 1:
+        print(f"[daq_io] {animal} {date}: {len(hits)} DAQ files and no _concat / registered one -- using {hits[0].name}",
+              flush=True)
+    return hits[0] if hits else None

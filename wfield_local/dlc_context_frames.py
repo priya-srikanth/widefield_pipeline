@@ -174,8 +174,8 @@ def contacts(animal: str, date: str, rv=None) -> np.ndarray:
     from wfield_local.lick_detection import detect_licks
 
     rv = rv or PathResolver()
-    root = Path(rv.root("daq_recorder_output")) / date
-    cands = sorted(root.glob(f"{animal}_{date}_*.h5"))
+    h5 = daq_io.session_h5(animal, date, rv)                  # registered / _concat, never a truncated segment
+    cands = [h5] if h5 is not None else []
     if not cands:
         return np.empty((0, 2))
     p = config.defaults()["lick_detection"]

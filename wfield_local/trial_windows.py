@@ -120,7 +120,7 @@ def trial_bounds(animal: str, date: str, rv=None) -> pd.DataFrame:
         t["trial_source"] = "behavior_trials_csv"
     else:
         t = _daq_cue_trials(animal, date)
-    h5 = sorted((Path(rv.root("daq_recorder_output")) / date).glob(f"{animal}_{date}_*.h5"))[0]
+    h5 = daq_io.session_h5(animal, date, rv)
     dec = daq_trials.decode(h5)
     strobe = np.sort(np.asarray(dec["strobe_s"], float))
     j = np.searchsorted(strobe, t["cue_s"].to_numpy(float), side="right") - 1
@@ -181,7 +181,7 @@ def _log_events_daq(animal: str, date: str, names, rv=None):
     if sd is None or not (Path(sd) / "events.csv").exists():
         return None
     ev = pd.read_csv(Path(sd) / "events.csv", usecols=["device_t_ms", "event_name", "trial_id"])
-    h5 = sorted((Path(rv.root("daq_recorder_output")) / date).glob(f"{animal}_{date}_*.h5"))[0]
+    h5 = daq_io.session_h5(animal, date, rv)
     with daq_io.open_daq(h5) as f:
         bnames, bits = daq_io.digital_bits(f)
         fs, _ = daq_io.session_attrs(f)

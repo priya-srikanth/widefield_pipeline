@@ -292,3 +292,21 @@ def test_daq_segments_split_a_concat_session_at_its_silent_gap():
     (a0, a1, na), (b0, b1, nb) = segs
     assert a0 == 10.0 and a1 < 600 and b0 == 3000.0 and na + nb == t.size
     assert cs.daq_segments(np.arange(0.0, 100.0, 0.4)) == [(0.0, float(np.arange(0.0, 100.0, 0.4)[-1]), 250)]
+
+
+def test_session_h5_prefers_registered_then_concat_never_a_truncated_segment(tmp_path, monkeypatch):
+    from wfield_local import daq_io
+    d = tmp_path / "20260812"
+    d.mkdir()
+    for n in ("PS92_20260812_152628.h5", "PS92_20260812_161746.h5", "PS92_20260812_concat.h5", "PS93_20260812_1.h5"):
+        (d / n).write_bytes(b"")
+
+    class RV:
+        def root(self, name):
+            return str(tmp_path)
+    monkeypatch.setattr(daq_io.config, "load_sessions", lambda: [])
+    assert daq_io.session_h5("PS92", "20260812", RV()).name == "PS92_20260812_concat.h5"
+    assert daq_io.session_h5("PS93", "20260812", RV()).name == "PS93_20260812_1.h5"
+    reg = d / "PS92_20260812_161746.h5"
+    monkeypatch.setattr(daq_io.config, "load_sessions", lambda: [{"label": "PS92_0812", "h5": str(reg)}])
+    assert daq_io.session_h5("PS92", "20260812", RV()) == reg

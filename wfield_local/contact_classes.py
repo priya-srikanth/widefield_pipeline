@@ -25,7 +25,6 @@ widened by groom_widen_s. Thresholds are first guesses from one session -- check
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -60,7 +59,7 @@ def session_durations(animal: str, date: str, onsets_s: np.ndarray, rv=None) -> 
     from wfield_local import config, daq_io
     from wfield_local.paths import PathResolver
     rv = rv or PathResolver()
-    h5 = sorted((Path(rv.root("daq_recorder_output")) / date).glob(f"{animal}_{date}_*.h5"))[0]
+    h5 = daq_io.session_h5(animal, date, rv)
     with daq_io.open_daq(h5) as f:
         fs, _ = daq_io.session_attrs(f)
         v = daq_io.analog_channel(f, "lick_analog")
