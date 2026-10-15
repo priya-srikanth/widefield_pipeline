@@ -281,6 +281,35 @@ def clean_bodypart(df: pd.DataFrame, bodypart: str, centers, fps: float = 250.0,
         if not (np.isfinite(X0) and np.isfinite(Y0)):
             raise RuntimeError(f"{bodypart}: data-driven baseline pool is empty (no lk >= {b['y0_lk_thr']} frames "
                                f"within {b.get('pool_win_ms')} ms of a cue)")
+    if p.get("interp_veto_interlick"):
+        # OURS (Priya 2026-10-15, PS93 0814 trial 125 +1420 ms): a gap ENTERED retracting and LEFT protruding is the
+        # pause between two licks -- the tongue was in the mouth -- so it gets the mouth fill, not a bridge (PCHIP
+        # through retract-then-protrude overshoots onto the chin). A tip hidden behind the spout is entered going
+        # out / at the peak and left retracting, so those gaps keep their interpolation.
+        # ...and only when BOTH bracketing measured points are near the mouth (`interlick_near_px`): a tongue sliding
+        # around the spout rod also looks like retract-then-protrude, but its bracketing points sit out at the spout
+        # (QC 2026-10-15: PS93 0814 trials 12 and 87 wrongly vetoed without this).
+        k = int(p.get("interlick_k", 2))
+        thr = float(p.get("interlick_speed_px", 3.0))
+        near = float(p.get("interlick_near_px", 80.0))
+        r = np.hypot(xd - X0, yd - Y0)                       # measured frames only (NaN elsewhere)
+        filled = (fm == FILL_PCHIP) | (fm == FILL_LINEAR)
+        i, n_ = 0, len(fm)
+        while i < n_:
+            if not filled[i]:
+                i += 1
+                continue
+            j = i
+            while j < n_ and filled[j]:
+                j += 1
+            le, re_ = i - 1, j
+            if le - k >= 0 and re_ + k < n_:
+                v_in, v_out = r[le] - r[le - k], r[re_ + k] - r[re_]
+                if (np.isfinite(v_in) and np.isfinite(v_out) and v_in < -thr and v_out > thr
+                        and r[le] <= near and r[re_] <= near):
+                    xi[i:j] = np.nan
+                    yi[i:j] = np.nan
+            i = j
     nan_left = ~(np.isfinite(xi) & np.isfinite(yi))
     fm[nan_left] = FILL_BASELINE
     xfill = np.where(np.isfinite(xi), xi, X0)
@@ -465,6 +494,32 @@ def mean_sem(A) -> tuple[np.ndarray, np.ndarray]:
     return np.nanmean(A, 0), np.nanstd(A, 0) / np.where(d == 0, np.nan, d)
 
 
+def jaw_off_tongue(df: pd.DataFrame, q: dict | None = None) -> pd.DataFrame:
+    """OURS (Priya 2026-10-15, PS93 0814 trial 125 +1616 ms, LP r4): a jaw point sitting ON a far-protruded tongue tip
+    is the jaw riding the tongue (the real jaw is up near the mouth, hidden behind the tongue). Such frames get jaw
+    likelihood 0, i.e. "not visible", before any cleaning: jaw within `tongue_ride_px` of a confident tongue point
+    while that tongue point is more than `tongue_out_px` from the jaw's resting position (median of confident jaw).
+    Off unless `jaw.v34.tongue_ride_px` is set. Needs tongue columns in ``df`` (skipped otherwise)."""
+    q = q or params("jaw")["v34"]
+    ride = q.get("tongue_ride_px")
+    if ride is None or "tongue_x" not in df.columns:
+        return df
+    lk_cut = float(params("jaw")["lk_thr"])
+    jx, jy, jl = (df[f"jaw_{c}"].to_numpy(float) for c in ("x", "y", "likelihood"))
+    tx, ty, tl = (df[f"tongue_{c}"].to_numpy(float) for c in ("x", "y", "likelihood"))
+    okj = jl >= lk_cut
+    if okj.sum() < 10:
+        return df
+    rest = np.array([np.nanmedian(jx[okj]), np.nanmedian(jy[okj])])
+    far = (tl >= lk_cut) & (np.hypot(tx - rest[0], ty - rest[1]) > float(q.get("tongue_out_px", 100.0)))
+    riding = okj & far & (np.hypot(jx - tx, jy - ty) < float(ride))
+    if not riding.any():
+        return df
+    out = df.copy()
+    out.loc[riding, "jaw_likelihood"] = 0.0
+    return out
+
+
 def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: float = 250.0, sep: int = 300,
                   x0y0: tuple[float, float] | None = None):
     """Clean a clip made of concatenated cue windows (`scripts.pose_cue_traces clip` index: trial_k, t_ms).
@@ -483,6 +538,8 @@ def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: flo
         parts.append(pd.DataFrame(np.nan, index=range(sep), columns=df.columns))
         k += sep
     big = pd.concat(parts, ignore_index=True)
+    if bodypart == "jaw":
+        big = jaw_off_tongue(big)
     c = clean_bodypart(big, bodypart, cues, fps, x0y0=x0y0)
     if bodypart == "jaw" and params("jaw")["v34"].get("enabled", True):
         c = jaw_v34(c, cues)

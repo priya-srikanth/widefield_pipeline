@@ -19885,3 +19885,12 @@ on VIDEO once the semi-supervised temporal-context model is done.
   archived on the share (`lightning-pose/cam4-2026-10-13/models/r4_heatmap_20261013/`, checkpoint byte-identical to the
   desktop's). Bundle + runner verified on CPU locally (exact match); not yet run on O2. Pilot bundle
   `o2/lp_r4_pilot_20261015` (PS93 0814 / 0821).
+* **2026-10-15, two cleaning tweaks PROPOSED (off until Priya's QC), from her LP r4 clip review (PS93 0814 trial 125).**
+  (1) `tongue.interp_veto_interlick`: a tongue gap entered retracting and left protruding, both bracketing points
+  within 80 px of the mouth, is the pause between licks -> mouth fill instead of a PCHIP bridge (the bridge overshot
+  onto the chin). A first version without the near-mouth condition also vetoed tongues sliding around the rod (trials
+  12, 87). (2) `jaw.v34.tongue_ride_px` 25 / `tongue_out_px` 60: a jaw point on a confident tongue point > 60 px from
+  the resting jaw is the jaw riding the tongue -> "not visible" (48 / 28 frames per clip). Both on vs off, four models,
+  PS93 0814 / 0821: contact recall same or +0.2-0.4, review precision / share identical, jaw coverage / jumps
+  identical; LP r4 interpolated tongue frames 2568 -> 1511 (pre). QC sheets: `session_poses/jaw_lateral/
+  tweak_qc_tongue_interlick.png`, `tweak_qc_jaw_on_tongue.png`.

@@ -119,6 +119,42 @@ def test_jaw_v34_x_frame_outlier_keeps_smooth_excursion():
     assert not c0.extra["v34_wiped_frame_outlier_x"].any()
 
 
+def test_interlick_gap_gets_mouth_fill_but_rod_gap_keeps_interpolation():
+    """Retract -> gap -> protrude near the mouth = between licks (mouth fill); a gap out at the spout is interpolated."""
+    n = 400
+    x = np.full(n, 300.0)
+    y = np.full(n, np.nan)
+    lk = np.zeros(n)
+    # lick 1 retracting into the mouth (r 60 -> 50), gap 10 frames, lick 2 protruding (50 -> 60): mouth at (300, 300)
+    y[100:110] = 300 + np.linspace(80, 50, 10)
+    y[120:130] = 300 + np.linspace(50, 80, 10)
+    # tongue out at the spout (r ~150) on both sides of a gap, still retract-then-protrude in radius
+    y[200:210] = 300 + np.linspace(160, 150, 10)
+    y[220:230] = 300 + np.linspace(150, 160, 10)
+    lk[np.isfinite(y)] = 1.0
+    y = np.where(np.isfinite(y), y, 300.0)
+    pt = {**P, "n_neigh": 0, "max_gap_ms": 60.0, "interp_veto_interlick": True, "interlick_k": 2,
+          "interlick_speed_px": 3.0, "interlick_near_px": 80.0}
+    c = oc.clean_bodypart(_df(x, y, lk), "tongue", centers=[0], p=pt, x0y0=(300.0, 300.0))
+    assert (c.fill_method[110:120] == oc.FILL_BASELINE).all()
+    assert (c.fill_method[210:220] != oc.FILL_BASELINE).all()
+    c0 = oc.clean_bodypart(_df(x, y, lk), "tongue", centers=[0], p={**pt, "interp_veto_interlick": False},
+                           x0y0=(300.0, 300.0))
+    assert (c0.fill_method[110:120] != oc.FILL_BASELINE).all()
+
+
+def test_jaw_on_far_tongue_tip_is_made_invisible():
+    n = 50
+    df = pd.DataFrame({"jaw_x": np.full(n, 350.0), "jaw_y": np.full(n, 420.0), "jaw_likelihood": np.ones(n),
+                       "tongue_x": np.full(n, 350.0), "tongue_y": np.full(n, 430.0), "tongue_likelihood": np.ones(n)})
+    df.loc[10, ["jaw_x", "jaw_y", "tongue_x", "tongue_y"]] = [360.0, 500.0, 365.0, 505.0]   # riding a far tongue
+    df.loc[20, ["jaw_x", "jaw_y"]] = [352.0, 425.0]                                         # near a near tongue: kept
+    q = {"tongue_ride_px": 25.0, "tongue_out_px": 60.0}
+    out = oc.jaw_off_tongue(df, q)
+    assert out.jaw_likelihood[10] == 0.0 and out.jaw_likelihood[20] == 1.0 and (out.jaw_likelihood != 0).sum() == n - 1
+    assert oc.jaw_off_tongue(df, {"tongue_ride_px": None}) is df
+
+
 def test_snippet_pads_and_mean_sem():
     a = np.arange(10.0)
     assert np.isnan(oc.snippet(a, 1, 3, 2)[:2]).all() and oc.snippet(a, 1, 3, 2)[2] == 0.0

@@ -1050,6 +1050,13 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
     interp_n_side: 6
     interp_min_total_context: 6
     require_bracketed_by_hilk: true
+    interp_veto_interlick: false  # OURS, PROPOSED 2026-10-15 (QC: session_poses/jaw_lateral/tweak_qc_tongue_interlick.png):
+                                  # a gap entered retracting + left protruding, both ends near the mouth, is the pause
+                                  # between licks -> mouth fill, not a bridge (PS93 0814 t125 +1420 ms, LP r4)
+    interlick_k: 2                # frames for the entry / exit radial speed
+    interlick_speed_px: 3.0       # |radial change| over k frames to count as retracting / protruding
+    interlick_near_px: 80.0       # both bracketing points within this of the mouth (a tongue sliding round the rod
+                                  # brackets its gap out at the spout)
   jaw:
     x_range_pm: 75.0          # px, OLD RIG -- retune
     x_range_source: lk
@@ -1077,6 +1084,9 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
       x_flip_flank_rest_px: 25.0   # ... and sit near the resting jaw (<= 25 px), i.e. are the CORRECT jaw point
       hidden_fill: nan             # OURS (Priya 2026-10-15): unmeasured, uninterpolated jaw = HIDDEN -> NaN, not the
                                    # resting baseline (v3.4: "baseline"). The tongue keeps its fill (hidden = in mouth).
+      tongue_ride_px: null         # OURS, PROPOSED 25 (QC: jaw_lateral/tweak_qc_jaw_on_tongue.png): a jaw point within
+      tongue_out_px: 60.0          # 25 px of a confident tongue point > 60 px from the resting jaw = jaw riding the
+                                   # tongue -> "not visible" (PS93 0814 t125 +1616 ms, LP r4; 48 / 28 frames per clip)
       max_gap_ms_pchip: 120.0
       baseline_win_ms: [-500.0, 0.0]
 
