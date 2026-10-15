@@ -19903,3 +19903,20 @@ on VIDEO once the semi-supervised temporal-context model is done.
 * **2026-10-15, O2 production set = registered widefield sessions minus `excluded` phases** (PS92 / PS93 0817, the
   day after the first lesion that did not take): 137 sessions, 138 cam4 videos (PS92 0812 has two -- the crashed and
   restarted acquisitions). PS93 0813 has no video.
+
+## 2026-10-15 — PS92 0812 (crash + concat): three split-session faults fixed; the session is back in every analysis
+
+Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we need to". Audit and fixes in
+`docs/EXPERIMENT_ERRORS.md` (2026-08-12 entry, "Full audit"). In short:
+* **One DAQ file per session, always** (`daq_io.session_h5`: registered -> `_concat` -> single match). Six sites took
+  `sorted(glob(...))[0]` = part 1's truncated file; the lick cache covered 10.6 of ~138 min, which is how 0812 got
+  "22 ENL trials". A RULE for new code: never pick a DAQ file by name sort.
+* **Per-recording camera templates on split days**, each matched to its own segment of the concat DAQ
+  (`camera_sync.build_split_templates` / `templates_for`); 1.1-1.2 ms RMS; cues split 24 / 201 exactly.
+* **Unrecorded samples are not data** (`daq_io.recorded_mask`): a concat's zero-padded gap no longer becomes a
+  41-min running bout; `locomotor_state.EXCLUDE_SESSIONS` is empty.
+* Results: the main LocaNMF analyses always used the concat file and are unchanged. ENL movement-removed decoding
+  re-run for 0812 (210 trials; raw 0.40 / residual 0.28; summaries 119 sessions, pre raw 0.40 -> 0.41, all else
+  unchanged). State decoder (`13s`) re-rendered with 0812. Correction to the 2026-09-13 note above ("PS92_0812 ...
+  already excluded from every other family"): it was excluded only from the state decoder (an artefact, now fixed)
+  and dropped from the ENL summaries (a bug, now fixed); every other family included it.

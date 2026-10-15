@@ -381,6 +381,39 @@ files are kept as `20260812.npz.bad_20261015`. O2 `collect` cuts each trial from
 (`full_to_windows(videos=...)`); `camera_sync.run` now prefers a `_concat` `.h5` and builds per-recording
 templates whenever a camera has more than one file on a date.
 
+*Full audit of the split session's DOWNSTREAM effects -- 2026-10-15 (Priya: "explain all affected 0812 analyses
+and what needs to be redone").* Three separate faults, all from code treating the day as one ordinary recording:
+
+1. **Six lookups took part 1's crash-truncated DAQ file.** They found "the" DAQ file with
+   `sorted(glob("<animal>_<date>_*.h5"))[0]`, and `..._152628.h5` (part 1, 10.6 min) sorts before
+   `..._161746.h5` and `..._concat.h5`. Sites: `dlc_frames.lick_onsets` (the lick cache), `trial_windows`
+   (strobe times, behaviour-log sync), `contact_classes.session_durations`, `dlc_context_frames`,
+   `scripts/movement_encoding_session.running_signal`. FIX: `daq_io.session_h5` (registered `sessions.yaml`
+   file, else `_concat`, else the single match) at every site. The lick cache held 662 licks ending at 636.5 s;
+   rebuilt: 5,840 licks over the whole session (old cache kept as `lick_onsets/PS92_20260812.npz.bad_20261015`).
+2. **The behaviour-camera templates paired part 2's camera with part 1's DAQ** (above). FIX: per-recording
+   templates against the concat DAQ.
+3. **The concat's zero-padded 40.7-min gap read as running.** Its zeros calibrate to a constant treadmill
+   speed, so the canonical events had a 2,441-s running bout (cohort max elsewhere 54 s). FIX:
+   `daq_io.recorded_mask` (from the concat file's `concat_boundaries`) masks unrecorded samples in
+   `behavior_events.compute_events`; the 0812 events were recomputed (longest bout 8.3 s; rest periods and
+   licks unchanged; old file kept as `events/PS92/20260812.npz.bad_20261015`).
+
+What each analysis family saw, and what was done:
+
+| analysis | used | affected? | action |
+|---|---|---|---|
+| LocaNMF decode / encode / frozen decoder / RSA / cross-session / joint basis | registered `_concat.h5` + canonical events | **no** (licks and rest came from the concat file) | none |
+| behaviour summaries (`spout_behavior`, trials, lick metrics) | prefers `_concat` already | **no** | none |
+| docked-rest arm | canonical events, reconstructed dock window | **no** (rest unchanged by fix 3) | none |
+| ENL movement-removed decoding (`enl_movement_multisession`) | lick cache (fault 1) + camera templates (fault 2) | **yes**: 22 of 225 trials survived the lick-response test (part 2 had no licks), dropped from summaries as degenerate | RE-RUN (motion energy per recording): 210 trials, raw 0.40 / residual 0.28 / video-only 0.90 -- in line with PS92's other pre sessions; summaries now 119 sessions, across-animal pre raw 0.40 -> 0.41, every other number unchanged |
+| behavioural-state (locomotor) decoder (`epoch_13*`) | canonical running bouts (fault 3) | **yes**: session excluded by name (`EXCLUDE_SESSIONS`) | exclusion removed; `epoch_grant_figures --only 13s` re-rendered |
+| null / potent subspaces, movement encoding, DLC/LP poses, kinematics, contact classes, video motion energy | faults 1-2 | **no outputs**: 0812 was never run | future runs use the fixed lookups / templates |
+| DLC / LP labelling frames | faults 1-2 | **no**: no labelled frame comes from PS92 0812 | none |
+
+The other concatenated session, PS92 0604, has one camera file per camera, no camera template (early June) and
+is outside the curated set; `session_h5` now returns its `_concat.h5` too.
+
 ---
 
 ## 2026-08-13 — PS93: no behaviour-camera video recorded (experiment error)
