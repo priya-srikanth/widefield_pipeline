@@ -218,8 +218,8 @@ python -m wfield_local.o2_inference collect --name {name}{'''
 #   LP, first run: compare O2 against the desktop's prediction of the same model on a session_poses clip, e.g.
 #   --compare PS93:20260814=C:/Users/SabatiniLab/lp_stage/r3_vs_r4_lp/r4heatmap/PS93_20260814_windows.csv''' if p.get('kind') == 'lp' else ''}
 
-## 7. Clean up THIS run's scratch once collected. Do NOT remove {s}/o2_videos here: the staged videos are SHARED by
-##    every run (pilot, production, re-runs); remove them only when the production run is collected and checked.
+## 7. Clean up THIS run's scratch once collected. NEVER remove the staged videos ({s}/o2_videos) from here:
+##    they are shared by every run, and stay until Priya confirms ALL analysis on the server is finished.
 rm -rf {b}/out/*/*_chunks
 """
 

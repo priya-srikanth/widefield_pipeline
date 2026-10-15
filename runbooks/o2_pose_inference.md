@@ -64,7 +64,7 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
    10-06) or `locanmf`: `python -m wfield_local.o2_inference collect --name <name>` → `session_poses/<a>_<d>_full/`.
    Checks predicted frames == the video's frame count, then splits the whole video into every trial's window
    (strobe - 0.5 s .. stop + 3 s; neighbouring windows overlap a few s) in the `session_poses` format.
-7. Clean scratch videos and `_chunks/` once collected.
+7. Clean `_chunks/` once collected. Staged videos stay until Priya confirms all server analysis is finished.
 
 ## Lightning Pose (the production cam4 model, from 2026-10-15)
 
@@ -92,7 +92,7 @@ same bundle -> scratch -> array -> collect shape, with `--kind lp`:
   The only interactive step is creating the `lp` env once, on the `short` CPU partition.
 * **Video staging = one `rsync --files-from=<bundle>/videos.txt`**: it skips videos already on scratch (all 288
   cam1 + cam4 to 10-06 were staged 2026-10-06) and copies only missing ones. Staged videos are SHARED by every run --
-  do not delete `o2_videos` until the production run is collected and checked.
+  **never delete `o2_videos` until Priya confirms all analysis on the server is finished** (Priya, 2026-10-15).
 * **Partition gpu_quad** (Priya's `gpuquad_qos`; 5-day limit; no per-user cap listed), array throttle %12;
   production = ONE array over every registered widefield session (`bundle --kind lp --all-widefield`, 138 videos).
 * **Scratch purge and file dates (Priya, 2026-10-15):** the 45-day purge counts time ON SCRATCH, not the files'
