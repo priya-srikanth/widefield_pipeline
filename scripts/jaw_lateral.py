@@ -287,10 +287,12 @@ def cmd_deviation(sessions, rule: str, open_px: float, out: Path) -> None:
 
 # --------------------------------------------------------------------------- flips (QC of the bracketed-step rule)
 
-def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: float = 200.0) -> None:
+def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: float = 200.0, overlay=()) -> None:
     """Side-flip events the proposed `x_flip_step_px` rule would wipe: runs of raw jaw frames entered and left by
     opposite x steps > `step` px within `max_ms`. One row per event: the frame BEFORE the run, the run's MIDDLE frame,
-    the frame AFTER -- the rule wipes the middle one, so the sheet asks which side is right."""
+    the frame AFTER -- the rule wipes the middle one, so the sheet asks which side is right. `overlay`: NAME=DIR
+    pairs; DIR/<session>_windows.csv (predictions on the same clip, e.g. lp_stage/r3_vs_r4_lp/<model>) adds that
+    model's jaw point (p >= 0.4) to every tile, to see whether another model picks the same jaw landmark."""
     import cv2
 
     from wfield_local.paths import PathResolver
@@ -317,6 +319,18 @@ def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: floa
     print(f"{len(events)} flip events in {', '.join(sessions)}")
     pick = [events[i] for i in sorted(rng.choice(len(events), min(n, len(events)), replace=False))]
     caps, rows, crop, tw = {}, [], (300, 260), 210
+    cols = [(0, 165, 255), (255, 120, 255), (60, 220, 60)]
+    ov = {}
+    for k, spec in enumerate(overlay):
+        mname, mdir = spec.split("=", 1)
+        for name in {e[0] for e in pick}:
+            f_ = Path(mdir) / f"{name}_windows.csv"
+            if f_.exists():
+                P = oc.read_pose(f_)
+                ov.setdefault(name, []).append((mname, cols[k % 3], P[["jaw_x", "jaw_y", "jaw_likelihood"]]
+                                                .to_numpy(float)))
+    rowof = {name: dict(zip(pd.read_csv(poses_root() / name / "windows_index.csv").src_frame, range(10 ** 9)))
+             for name in ov}
     for name, nf, bxi, byi, pts in pick:
         animal, date = name.split("_")[:2]
         if name not in caps:
@@ -328,6 +342,11 @@ def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: floa
             ok, im = caps[name].read()
             cv2.drawMarker(im, (int(bxi), int(byi)), (255, 255, 255), cv2.MARKER_CROSS, 14, 1, cv2.LINE_AA)
             cv2.circle(im, (int(x), int(y)), 5, (0, 0, 255) if "wiped" in lab else (255, 255, 0), 2, cv2.LINE_AA)
+            for _mname, col, J in ov.get(name, []):
+                r_ = rowof[name].get(f)
+                if r_ is not None and r_ < len(J) and J[r_, 2] >= 0.4:
+                    cv2.drawMarker(im, (int(J[r_, 0]), int(J[r_, 1])), col, cv2.MARKER_TILTED_CROSS, 12, 2,
+                                   cv2.LINE_AA)
             x0, y0 = max(int(bxi) - crop[0] // 2, 0), max(int(byi) + 20 - crop[1] // 2, 0)
             t = cv2.resize(im[y0:y0 + crop[1], x0:x0 + crop[0]], (tw, int(tw * crop[1] / crop[0])))
             cv2.putText(t, f"{lab} f{f} dx{dx:+.0f}", (4, 14), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1,
@@ -344,10 +363,13 @@ def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: floa
         right = np.vstack([right, np.zeros((left.shape[0] - right.shape[0], right.shape[1], 3), np.uint8)])
     sheet = np.hstack([left, np.full((left.shape[0], 8, 3), 60, np.uint8), right])
     top = np.zeros((28, sheet.shape[1], 3), np.uint8)
-    cv2.putText(top, "Jaw side-flips: cyan = kept, RED = the run the proposed flip rule wipes. Which side is right?",
+    leg = "  ".join(f"{s_.split('=')[0]} = x" for s_ in overlay)
+    cv2.putText(top, "DLC r3 jaw: cyan = kept, RED = run the flip rule wipes." + (f"  Crosses: {leg} (orange, magenta, "
+                "green in that order)" if overlay else ""),
                 (6, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    cv2.imwrite(str(out / "jaw_flip_qc.png"), np.vstack([top, sheet]))
-    print(f"-> {out / 'jaw_flip_qc.png'}")
+    fn = out / ("jaw_flip_qc_models.png" if overlay else "jaw_flip_qc.png")
+    cv2.imwrite(str(fn), np.vstack([top, sheet]))
+    print(f"-> {fn}")
 
 
 def main(argv=None) -> int:
@@ -357,13 +379,14 @@ def main(argv=None) -> int:
     ap.add_argument("--qc", nargs="*", default=["PS93_20260814", "PS95_20260917_r4", "PS94_20260921_r4"])
     ap.add_argument("--rule", default="v35", choices=("v34", "v35"))
     ap.add_argument("--open-px", type=float, default=50.0)
+    ap.add_argument("--overlay", action="append", default=[], metavar="NAME=DIR", help="flips: other models' jaw")
     a = ap.parse_args(argv)
     out = poses_root() / "jaw_lateral"
     out.mkdir(exist_ok=True)
     if a.cmd == "ceiling":
         cmd_ceiling(a.sessions, set(a.qc), out)
     elif a.cmd == "flips":
-        cmd_flips(a.sessions, out)
+        cmd_flips(a.sessions, out, overlay=a.overlay)
     else:
         cmd_deviation(a.sessions, a.rule, a.open_px, out)
     return 0

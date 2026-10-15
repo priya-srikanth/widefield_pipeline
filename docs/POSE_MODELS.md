@@ -150,6 +150,24 @@ ctx-sup. EKS r4+semi inherits LP r4's recall but NOT the clean jaw (22 flips pre
 opposite sides of the rod, the ensemble splits the difference. **Natural candidate: choose per keypoint -- jaw from
 ctx-semi, tongue from LP r4 or EKS r4+semi** (to decide with Priya; check which contacts ctx-semi misses first).
 
+**Caveat on "zero jaw flips" (2026-10-15).** Part of it is ABSTENTION: on PS93 0814 the ctx-semi jaw is confident
+(p >= 0.4) on only 55 % / 62 % of post-cue frames at close_L / close_center (LP r4 76 / 81, DLC r3 84 / 80; all
+models >= 92 % at the other positions; acute 81 / 97 vs LP r4 92 / 98). On the DLC flip events (`session_poses/
+jaw_lateral/jaw_flip_qc_models.png`): when the mouth is nearly closed and DLC jumps to the image-LEFT point (~300 px),
+LP r4 mostly stays confident on the correct side (~355 px) or says "not visible"; ctx-semi mostly says "not visible".
+When the mouth is wide open with the jaw beside / behind the rod, LP r4 and ctx-semi BOTH say "not visible" (trained
+blank = occluded) while DLC tracks it (+60 px, judged correct by Priya except one). Jaw coverage per position belongs
+in the selection rule next to flip counts.
+
+**PS93 jaw anatomy (Priya, 2026-10-15).** PS93's jaw has two candidate "lowest points": the pronounced true one,
+deviated toward the MOUSE'S LEFT (image-right) -- what the labels mostly mark -- and a smaller local one on the mouse's
+right (image-left). When the true one is not clearly visible, models pick the other: that is the PS93 jaw side-flip
+(every right-column event in `jaw_flip_qc.png`; one left-column event, f3489). Attributed to PS93's pre-existing right
+orofacial deficit. Consequences: (1) for PS93 an image-left jaw jump is a wrong landmark, an image-right excursion
+usually real -- a symmetric flip rule is wrong (the bracketed rule stays off); (2) PS93's jaw lateral readout (to-do 10)
+mixes jaw shape with movement, and a "change" can be the model choosing differently -- read it from a model that picks
+consistently, and treat PS93's static leftward bias as anatomy.
+
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 
 The model is for the ANALYSES — executed angle, lick timing / counts, kinematics across recovery — so it is judged on
