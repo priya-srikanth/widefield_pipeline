@@ -169,6 +169,14 @@ and sit near rest; x only) -- adopted 2026-10-15; (2) PS93's jaw lateral readout
 mixes jaw shape with movement, and a "change" can be the model choosing differently -- read it from a model that picks
 consistently, and treat PS93's static leftward bias as anatomy.
 
+### LP r3 ctx-semi (round-3 labels, same recipe as r4 ctx-semi; finished 2026-10-15 16:50)
+
+Scored with the cleaning tweaks ON (`model_lick_compare_r3semi_1015.csv`; LP r4 contact recall reads 98.8 % pre here,
+98.5 % before the tweaks). Pre / acute: contact recall 97.3 / 99.6 %; review real / not 10 / 1 and 19 / 0 (finds 29 of
+the 58 reviewed real licks; LP r4 57); raw tongue x jumps > 30 px 310 / 253 (the jumpiest model; LP r4 35 / 45); jaw x
+jumps > 30 px 23 / 4 (LP r3 38 / 8). **Not a contender**: conservative on faint licks and jumpy on the tongue; the
+round-4 labels matter more than temporal context. Closes the r3-vs-r4 context comparison.
+
 ### Jaw source after cleaning v35 (2026-10-15)
 
 PS93 0814, cleaned jaw (v35), post-cue 70-3000 ms: coverage (frames with a measured or interpolated value) / jumps > 30 px:
