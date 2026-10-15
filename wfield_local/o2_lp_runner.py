@@ -132,6 +132,20 @@ def bench(model_dir: Path, video: Path, n: int, readers=("opencv", "dali"), prec
           "non-opencv reader on the AVIs.", flush=True)
 
 
+def env_report(require_gpu: bool = True) -> None:
+    """Print torch / CUDA / GPU / LP / OpenCV versions, and stop if no GPU is visible (a job silently running LP on
+    CPU would take days per video). This IS the GPU check of the O2 commands -- no interactive srun needed."""
+    import importlib.metadata as md
+
+    import cv2
+    import torch
+    gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "NONE"
+    print(f"torch {torch.__version__} | cuda {torch.cuda.is_available()} | gpu {gpu} | "
+          f"lightning-pose {md.version('lightning-pose')} | cv2 {cv2.__version__}", flush=True)
+    if require_gpu and not torch.cuda.is_available():
+        raise SystemExit("no GPU visible to torch -- check --gres and the env's CUDA build")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", type=Path, required=True, help="LP model dir (config.yaml + tb_logs/.../*.ckpt)")
@@ -141,7 +155,9 @@ def main(argv=None) -> int:
     ap.add_argument("--precision", default="fp32", choices=("fp32", "fp16", "bf16"))
     ap.add_argument("--scorer", default=None, help="scorer name in the outputs (default LP_<model dir name>)")
     ap.add_argument("--bench", type=int, default=None, help="time the first N frames per reader; write nothing")
+    ap.add_argument("--allow-cpu", action="store_true", help="tests only: run without a GPU")
     a = ap.parse_args(argv)
+    env_report(require_gpu=not a.allow_cpu)
     if a.bench:
         bench(a.model, a.video, a.bench, precision=a.precision)
         return 0

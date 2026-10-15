@@ -84,7 +84,10 @@ def test_lp_job_text_runs_the_lp_runner_in_its_own_env():
                           "video_o2": ["/n/files/Neurobio/MICROSCOPE/Priya/B/20260814/PS93/cam4_x.avi"]})
     c = oi.commands_text(p, "ab123", "lp1", "/n/files/x/o2/lp1", tasks)
     assert 'pip install "lightning-pose==2.4.2"' in c and "conda create -y -n lp" in c
-    assert "o2_lp_runner.py --model" in c and "--bench 2000" in c and "o2_pose_runner" not in c
+    assert "sbatch --parsable" in c and "--dependency=afterok:$SMOKE" in c and "o2_pose_runner" not in c
+    assert "--files-from=" in c and "srun -p gpu" not in c                    # no interactive GPU wait
+    sm = oi.smoke_sbatch_text(p, "ab123", "lp1", "/n/scratch/v.avi")
+    assert "o2_lp_runner.py --model" in sm and "--bench 2000" in sm and "\nconda activate lp\n" in sm
     # the DLC job is unchanged by the refactor
     sd = oi.sbatch_text({**_P, "kind": "dlc"}, "ab123", "run1", 3)
     assert "#SBATCH -J pose_run1" in sd and "o2_pose_runner.py --bundle" in sd and "--batch 16 --chunk 25000" in sd

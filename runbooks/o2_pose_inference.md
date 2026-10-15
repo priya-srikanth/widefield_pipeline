@@ -87,6 +87,14 @@ same bundle -> scratch -> array -> collect shape, with `--kind lp`:
   predictions exactly. Not yet run on O2.
 * Pilot bundle ready: `o2/lp_r4_pilot_20261015` (PS93 0814 + 0821, both with desktop LP r4 clip predictions for
   `--compare`).
+* **No interactive GPU waits (2026-10-15):** the LP smoke test (GPU check + `--bench 2000`) is a batch job,
+  `smoke.sbatch`, and the array is queued behind it with `--dependency=afterok` -- two `sbatch` lines, then walk away.
+  The only interactive step is creating the `lp` env once, on the `short` CPU partition.
+* **Video staging = one `rsync --files-from=<bundle>/videos.txt`**: it skips videos already on scratch (all 288
+  cam1 + cam4 to 10-06 were staged 2026-10-06) and copies only missing ones. Staged videos are SHARED by every run --
+  do not delete `o2_videos` until the production run is collected and checked.
+* **Partition gpu_quad** (Priya's `gpuquad_qos`; 5-day limit; no per-user cap listed), array throttle %12;
+  production = ONE array over every registered widefield session (`bundle --kind lp --all-widefield`, 138 videos).
 * **Scratch purge and file dates (Priya, 2026-10-15):** the 45-day purge counts time ON SCRATCH, not the files'
   modification dates, so `rsync -ah` (which keeps the original August dates) is right -- keep it, and never alter
   file dates. The 10-06 video copies were staged on 10-06; step 1's rsync re-stages anything already purged.
