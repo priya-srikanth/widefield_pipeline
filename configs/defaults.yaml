@@ -1071,8 +1071,10 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
       frame_outlier_radius_ms: 20.0
       frame_jump_thr_x_px: 25.0  # OURS (v35, adopted 2026-10-14 after Priya's QC of jaw_ceiling_qc.png): median-filter
                                  # outlier test on x (short side-flips); null = off (v3.4)
-      x_flip_step_px: null       # OURS, OFF pending QC (proposed 30): runs entered + left by opposite x steps > 30 px ...
+      x_flip_step_px: 30.0       # OURS (v35, Priya OK 2026-10-15): runs entered + left by opposite x steps > 30 px ...
       x_flip_max_ms: 200.0       # ... within 200 ms are wiped (flips too long for the median test); null step = off
+      x_flip_flank_agree_px: 15.0  # ... and only if the frames around the run agree (<= 15 px) ...
+      x_flip_flank_rest_px: 25.0   # ... and sit near the resting jaw (<= 25 px), i.e. are the CORRECT jaw point
       max_gap_ms_pchip: 120.0
       baseline_win_ms: [-500.0, 0.0]
 

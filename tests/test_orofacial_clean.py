@@ -103,8 +103,16 @@ def test_jaw_v34_x_frame_outlier_keeps_smooth_excursion():
     x2[800:809] -= 55
     c2 = oc.jaw_v34(oc.clean_bodypart(_df(x2, y, lk, "jaw"), "jaw", centers=[200, 600, 900], p=pj), [200, 600, 900],
                     {**q, "x_flip_step_px": 30.0, "x_flip_max_ms": 200.0})
-    w2 = c2.extra["v34_wiped_frame_outlier_x"]
+    w2 = c2.extra["v34_wiped_flip_x"]
+    assert c2.fill_method[804] == oc.FILL_NONE and abs(c2.x_final[804] - c2.x_final[795]) < 5   # y kept, x refilled
     assert w2[800:809].all() and not w2[400:500].any() and not w2[795:800].any() and not w2[809:815].any()
+    # flanks OFF the resting jaw (both on the wrong landmark): the run is spared
+    x3 = x.copy()
+    x3[780:830] -= 50                                           # long wrong-side stretch ...
+    x3[800:809] += 50                                           # ... with a short return to the right point inside
+    c3 = oc.jaw_v34(oc.clean_bodypart(_df(x3, y, lk, "jaw"), "jaw", centers=[200, 600, 900], p=pj), [200, 600, 900],
+                    {**q, "x_flip_step_px": 30.0, "x_flip_max_ms": 200.0})
+    assert not c3.extra["v34_wiped_flip_x"][801:808].any()
     q_off = {k: v for k, v in q.items() if k != "frame_jump_thr_x_px"}
     c0 = oc.jaw_v34(oc.clean_bodypart(_df(x, y, lk, "jaw"), "jaw", centers=[200, 600, 900], p=pj), [200, 600, 900],
                     q_off)

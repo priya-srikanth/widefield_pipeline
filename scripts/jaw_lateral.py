@@ -101,6 +101,7 @@ def cmd_ceiling(sessions, qc_sessions, out: Path) -> None:
                              wiped_pct=100 * float(np.mean(~kept[raw_ok])),
                              wiped_x_ceiling_pct=100 * float(np.mean(c.extra["v34_wiped_x"][raw_ok])),
                              wiped_x_jump_pct=100 * float(np.mean(c.extra["v34_wiped_frame_outlier_x"][raw_ok])),
+                             x_flip_refilled_pct=100 * float(np.mean(c.extra["v34_wiped_flip_x"][raw_ok])),
                              wide_n=int(wide.sum()), wide_wiped_pct=100 * float(np.mean(~kept[wide])),
                              wide_dx_p95=float(np.nanpercentile(np.abs(dxk[wide]), 95)),
                              wide_dx_p99=float(np.nanpercentile(np.abs(dxk[wide]), 99))))
@@ -301,8 +302,10 @@ def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: floa
     events = []
     for name in sessions:
         raw, idx, big, pos, cues, fr = load(name)
-        pre, c = clean_jaw(big, cues, rules()["v35"])
+        q35 = rules()["v35"]
+        pre, c = clean_jaw(big, cues, {**q35, "x_flip_step_px": None})       # events BEFORE the flip rule
         by, bx = c.extra["v34_bmean"]
+        agree, near = float(q35.get("x_flip_flank_agree_px", 15.0)), float(q35.get("x_flip_flank_rest_px", 25.0))
         src = np.full(len(big), -1)
         src[pos] = idx.src_frame.to_numpy()
         ii = np.flatnonzero((c.fill_method == oc.FILL_NONE) & (src >= 0))
@@ -311,12 +314,13 @@ def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: floa
         bigs = np.flatnonzero(np.abs(d) > step)
         max_f = max(int(round(max_ms / 1000 * FPS)), 1)
         for a_, b_ in zip(bigs[:-1], bigs[1:]):
-            if np.sign(d[a_]) != np.sign(d[b_]) and ii[b_] - ii[a_] <= max_f:
+            if np.sign(d[a_]) != np.sign(d[b_]) and ii[b_] - ii[a_] <= max_f and b_ + 1 < len(xs):
+                wipe = abs(xs[a_] - xs[b_ + 1]) <= agree and abs((xs[a_] + xs[b_ + 1]) / 2 - bx) <= near
                 k0, km, k1 = ii[a_], ii[(a_ + 1 + b_) // 2], ii[b_ + 1]
                 pts = [(int(src[k]), float(pre.x_raw[k]), float(pre.y_raw[k]), float(c.x_final[k] - bx)) for k in
                        (k0, km, k1)]
-                events.append((name, int(ii[b_] - ii[a_]), bx + pre.X0, by + pre.Y0, pts))
-    print(f"{len(events)} flip events in {', '.join(sessions)}")
+                events.append((name, int(ii[b_] - ii[a_]), bx + pre.X0, by + pre.Y0, pts, wipe))
+    print(f"{len(events)} flip events in {', '.join(sessions)}; {sum(e[5] for e in events)} wiped")
     pick = [events[i] for i in sorted(rng.choice(len(events), min(n, len(events)), replace=False))]
     caps, rows, crop, tw = {}, [], (300, 260), 210
     cols = [(0, 165, 255), (255, 120, 255), (60, 220, 60)]
@@ -331,17 +335,19 @@ def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: floa
                                                 .to_numpy(float)))
     rowof = {name: dict(zip(pd.read_csv(poses_root() / name / "windows_index.csv").src_frame, range(10 ** 9)))
              for name in ov}
-    for name, nf, bxi, byi, pts in pick:
+    for name, nf, bxi, byi, pts, wipe in pick:
         animal, date = name.split("_")[:2]
         if name not in caps:
             vid = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob("cam4_*.avi"))[0]
             caps[name] = cv2.VideoCapture(str(vid))                         # READ-ONLY
         tiles = []
-        for lab, (f, x, y, dx) in zip(("before", f"FLIPPED ({nf} fr) - wiped", "after"), pts):
+        mid = f"run ({nf} fr) - WIPED" if wipe else f"run ({nf} fr) - spared"
+        for lab, (f, x, y, dx) in zip(("before", mid, "after"), pts):
             caps[name].set(cv2.CAP_PROP_POS_FRAMES, f)
             ok, im = caps[name].read()
             cv2.drawMarker(im, (int(bxi), int(byi)), (255, 255, 255), cv2.MARKER_CROSS, 14, 1, cv2.LINE_AA)
-            cv2.circle(im, (int(x), int(y)), 5, (0, 0, 255) if "wiped" in lab else (255, 255, 0), 2, cv2.LINE_AA)
+            col_ = (0, 0, 255) if "WIPED" in lab else (0, 255, 255) if "spared" in lab else (255, 255, 0)
+            cv2.circle(im, (int(x), int(y)), 5, col_, 2, cv2.LINE_AA)
             for _mname, col, J in ov.get(name, []):
                 r_ = rowof[name].get(f)
                 if r_ is not None and r_ < len(J) and J[r_, 2] >= 0.4:
@@ -364,7 +370,7 @@ def cmd_flips(sessions, out: Path, n: int = 14, step: float = 30.0, max_ms: floa
     sheet = np.hstack([left, np.full((left.shape[0], 8, 3), 60, np.uint8), right])
     top = np.zeros((28, sheet.shape[1], 3), np.uint8)
     leg = "  ".join(f"{s_.split('=')[0]} = x" for s_ in overlay)
-    cv2.putText(top, "DLC r3 jaw: cyan = kept, RED = run the flip rule wipes." + (f"  Crosses: {leg} (orange, magenta, "
+    cv2.putText(top, "DLC r3 jaw: cyan = flanks; middle RED = wiped (flanks agree, near rest), YELLOW = spared." + (f"  Crosses: {leg} (orange, magenta, "
                 "green in that order)" if overlay else ""),
                 (6, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
     fn = out / ("jaw_flip_qc_models.png" if overlay else "jaw_flip_qc.png")

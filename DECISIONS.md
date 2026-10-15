@@ -19838,3 +19838,10 @@ on VIDEO once the semi-supervised temporal-context model is done.
 * **Adopted (Priya's QC, evening):** jaw cleaning v35 = `x_ceiling_px` 75 + `frame_jump_thr_x_px` 25 is the default.
   The bracketed-step flip rule (`x_flip_step_px`) is implemented but OFF: it also removes real openings where the jaw
   point crosses behind the spout rod in one frame (`jaw_lateral/jaw_flip_qc.png`).
+* **2026-10-15, flip rule ADOPTED (Priya: "ok to use, as long as the surrounding points are labelling the correct jaw
+  point").** `x_flip_step_px` 30 / `x_flip_max_ms` 200, now also requiring the two flanks to agree (<= 15 px) and to sit
+  near the resting jaw (<= 25 px) -- otherwise the flanks may be the wrong landmark (PS93 0814 f748516: flanks at -47
+  px, run correct) and the run is spared. The rule REFILLS X ONLY (PCHIP across the run), keeping the measured y: the
+  wrong landmark sits at about the right height, and on wide-open runs the jaw drop is real. Touches <= 0.2 % of
+  frames; PS93 far-pair deviation unchanged. Supersedes the "OFF" line above. Background (Priya): PS93's jaw has two
+  local lowest points (true one mouse-left; see docs/POSE_MODELS.md).

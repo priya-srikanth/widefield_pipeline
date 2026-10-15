@@ -358,6 +358,8 @@ def jaw_v34(c: Clean, centers, q: dict | None = None) -> Clean:
     after1 = raw & ~wy & ~wx
     wfo = np.zeros(n, bool)
     wfox = np.zeros(n, bool)
+    wflip = np.zeros(n, bool)                            # x ONLY (y kept): see the flip rule below
+    flip_f = 0
     idx = np.flatnonzero(after1)
     if idx.size >= 3:
         win = 2 * max(_ms_f(float(q["frame_outlier_radius_ms"]), fps), 1) + 1
@@ -377,14 +379,23 @@ def jaw_v34(c: Clean, centers, q: dict | None = None) -> Clean:
         # one frame (p99 4-6 px/frame), so such a bracketed run is the wrong side of the rod.
         step = q.get("x_flip_step_px")
         if step is not None:
-            max_f = max(_ms_f(float(q.get("x_flip_max_ms", 200.0)), fps), 1)
+            max_f = flip_f = max(_ms_f(float(q.get("x_flip_max_ms", 200.0)), fps), 1)
             xs = c.x_final[idx]
             adj = np.diff(idx) <= 2                                    # neighbours in time (<= 1 frame missing)
             d = np.where(adj, np.diff(xs), 0.0)
             big = np.flatnonzero(np.abs(d) > float(step))
+            # Priya 2026-10-15: wipe the run only when the frames AROUND it are on the correct jaw point -- the two
+            # flanks agree, and sit near the session's resting jaw (rest is dominated by correct labels). Otherwise
+            # the flanks may be the wrong landmark and the run the right one (PS93 0814 f748516).
+            agree = float(q.get("x_flip_flank_agree_px", 15.0))
+            near = float(q.get("x_flip_flank_rest_px", 25.0))
             for a, b in zip(big[:-1], big[1:]):
-                if np.sign(d[a]) != np.sign(d[b]) and idx[b] - idx[a] <= max_f:
-                    wfox[idx[a + 1:b + 1]] = True
+                if np.sign(d[a]) != np.sign(d[b]) and idx[b] - idx[a] <= max_f and b + 1 < len(xs):
+                    fl0, fl1 = xs[a], xs[b + 1]
+                    if abs(fl0 - fl1) <= agree and abs((fl0 + fl1) / 2 - bx) <= near:
+                        # X ONLY: the wrong landmark sits at about the right height, and on wide-open runs the
+                        # y (the jaw drop) is real -- interpolating it from the closed flanks would erase it
+                        wflip[idx[a + 1:b + 1]] = True
         wfo |= wfox
     cl = _clusters(raw & ~wy & ~wfo)                     # theirs: R2 clusters after R1-y + R3 (not R1-x)
     wiso = np.zeros(n, bool)
@@ -406,11 +417,13 @@ def jaw_v34(c: Clean, centers, q: dict | None = None) -> Clean:
     anchors = np.flatnonzero(keep & np.isfinite(c.y_final))
     gap_f = max(_ms_f(float(q["max_gap_ms_pchip"]), fps), 1)
     yc, fillable = _repchip(c.y_final, anchors, n, gap_f)
-    xc, _ = _repchip(c.x_final, anchors, n, gap_f)
+    # x re-PCHIP'd over flips too (runs <= x_flip_max_ms, so the gap limit stretches to cover them)
+    xc, _ = _repchip(c.x_final, anchors[~wflip[anchors]], n, max(gap_f, flip_f + 2))
     fm = np.full(n, FILL_BASELINE, np.int8)
     fm[fillable] = FILL_PCHIP
     fm[anchors] = FILL_NONE
     extra = {"v34_wiped_y": wy, "v34_wiped_x": wx, "v34_wiped_frame_outlier": wfo, "v34_wiped_frame_outlier_x": wfox,
+             "v34_wiped_flip_x": wflip,
              "v34_wiped_isolated": wiso,
              "v34_bmean": (by, bx)}
     return Clean(c.bodypart, c.x_raw, c.y_raw, c.lk, c.x_drop, c.y_drop, c.x_interp, c.y_interp, xc, yc, fm,

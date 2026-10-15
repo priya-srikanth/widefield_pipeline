@@ -160,6 +160,9 @@ tongue_frames_all_models.py, render_models_grid.py}` on the DLC share; WSL / Win
    points; the true one is mouse-left / image-right, a smaller one image-left; models pick the latter when the true one
    is unclear; pre-existing right deficit). Right-column events = this; left-column events are real except f3489.
    See `docs/POSE_MODELS.md` (PS93 jaw anatomy; ctx-semi jaw abstention at close_L / close_center).
+   **Then ADOPTED (Priya 10-15: OK as long as the surrounding points are the correct jaw point):** flip rule ON, with
+   flank checks (agree <= 15 px, near rest <= 25 px) and X-ONLY refill (y kept). QC: `jaw_lateral/jaw_flip_qc.png`
+   (red = refilled, yellow = spared). defaults.yaml jaw v35 is now complete.
 10. **Jaw lateral deviation on opening as a readout** (Priya 2026-10-14): when the mouth opens wide (jaw y > rest + 50 px)
     PS93's jaw shifts image-RIGHT by ~20-40 px at nearly every spout position, already pre-stroke (0814: far_L +27,
     close_L +3, close_center +26, far_center +27, close_R +39, far_R +11; 0821 similar) -- not spout-directed (the tongue

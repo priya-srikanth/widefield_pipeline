@@ -164,7 +164,8 @@ deviated toward the MOUSE'S LEFT (image-right) -- what the labels mostly mark --
 right (image-left). When the true one is not clearly visible, models pick the other: that is the PS93 jaw side-flip
 (every right-column event in `jaw_flip_qc.png`; one left-column event, f3489). Attributed to PS93's pre-existing right
 orofacial deficit. Consequences: (1) for PS93 an image-left jaw jump is a wrong landmark, an image-right excursion
-usually real -- a symmetric flip rule is wrong (the bracketed rule stays off); (2) PS93's jaw lateral readout (to-do 10)
+usually real -- the cleaning's flip rule therefore only refills a run when the frames around it are on the correct point (flanks agree
+and sit near rest; x only) -- adopted 2026-10-15; (2) PS93's jaw lateral readout (to-do 10)
 mixes jaw shape with movement, and a "change" can be the model choosing differently -- read it from a model that picks
 consistently, and treat PS93's static leftward bias as anatomy.
 
