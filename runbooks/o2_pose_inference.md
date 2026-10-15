@@ -18,7 +18,7 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
   `transfer0x`) at `/n/files/Neurobio/MICROSCOPE/Priya/...`. On a login node (`login0x`) the same path does not
   exist — the first 10-05 rsync failed exactly so.
 * **Scratch:** `/n/scratch/users/p/ps150` (create once: `/n/cluster/bin/scratch_create_directory.sh`). 25 TiB,
-  files deleted **45 days after last modification**, no backups. Visible from login, transfer and compute nodes.
+  files deleted **45 days after they were put on scratch** (time on scratch, not the files' dates -- Priya 10-15), no backups. Visible from login, transfer and compute nodes.
   **Never change file dates on scratch** (`touch` etc.): HMS treats artificial modification times as a policy
   violation. Copy with COMMANDS.md's `rsync -ah`.
 * **O2 paths are case-sensitive; the share's Windows view is not.** `configs/paths.yaml` says
@@ -87,9 +87,9 @@ same bundle -> scratch -> array -> collect shape, with `--kind lp`:
   predictions exactly. Not yet run on O2.
 * Pilot bundle ready: `o2/lp_r4_pilot_20261015` (PS93 0814 + 0821, both with desktop LP r4 clip predictions for
   `--compare`).
-* **Scratch purge vs file dates:** the 10-06 video copies kept their August modification times (`rsync -ah`), and
-  scratch deletes files 45 days after last modification -- they may already be gone; step 1's rsync re-stages them.
-  Ask Priya before changing how dates are handled (her rule: never alter file dates on scratch).
+* **Scratch purge and file dates (Priya, 2026-10-15):** the 45-day purge counts time ON SCRATCH, not the files'
+  modification dates, so `rsync -ah` (which keeps the original August dates) is right -- keep it, and never alter
+  file dates. The 10-06 video copies were staged on 10-06; step 1's rsync re-stages anything already purged.
 
 ## Status 2026-10-06
 
