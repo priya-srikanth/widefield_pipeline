@@ -326,11 +326,14 @@ MODEL_COLORS = ["dodgerblue", "navy", "mediumvioletred", "darkorange", "seagreen
 
 
 def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s=(-0.5, 3.5), tag: str = "",
-                suffix: str = "", fill: bool = False):
+                suffix: str = "", fill: bool = False, n_trials: int = 0):
     """Cue-aligned tongue / jaw x & y, trials overlaid, for ANY number of models on the SAME clip -- a
     `session_poses` directory (windows.mp4 + windows_index.csv) and ``name=csv`` pairs (Priya, 2026-10-13: "compare
     how the tongue and jaw cue-aligned trajectory plots look for all 4 (round 3/4, DLC/LP)"). Same rules as
-    `cmd_plot`: below-cutoff points are gaps, nothing interpolated; ``cleaned`` swaps in `orofacial_clean` output."""
+    `cmd_plot`: below-cutoff points are gaps, nothing interpolated; ``cleaned`` swaps in `orofacial_clean` output.
+    ``n_trials`` > 0 (Priya, 2026-10-15: "show a handful of trials for each model, so I can see whether they look
+    plausible"): only that many trials, the SAME ones for every model (one per spout position first, fixed seed), each
+    in its own colour, no mean."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -357,6 +360,14 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
     sub = idx[:n][keep]
     t_ms = np.sort(sub.t_ms.unique())
     K = int(idx.trial_k.max()) + 1
+    show = np.arange(K)
+    if n_trials:
+        rng = np.random.default_rng(3)
+        per = sub.groupby("trial_k").position.first()
+        order = [int(rng.choice(per.index[per == p_])) for p_ in sorted(per.unique())]
+        rest = [k for k in rng.permutation(per.index.to_numpy()) if k not in order]
+        show = np.array((order + rest)[:n_trials])
+        tlab = {k: f"t{int(idx.trial_id[idx.trial_k == k].iloc[0])} {per[k]}" for k in show}
 
     def stack(m, part, coord):
         a = m[part][coord].to_numpy()[:n].astype(float)
@@ -374,15 +385,21 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
         for r, (part, coord) in enumerate(rows):
             ax = axs[r, c]
             A = stack(M[name], part, coord)
-            for row in A:
-                ax.plot(t_ms, row, lw=0.5, alpha=0.3, color=col)
-            ax.plot(t_ms, np.nanmean(A, 0), lw=1, color="k", alpha=0.8)
+            if n_trials:
+                for j, k in enumerate(show):
+                    ax.plot(t_ms, A[k], lw=0.9, color=plt.cm.tab10(j % 10), label=tlab[k])
+                if r == 0 and c == 0:
+                    ax.legend(fontsize=7, loc="upper right")
+            else:
+                for row in A:
+                    ax.plot(t_ms, row, lw=0.5, alpha=0.3, color=col)
+                ax.plot(t_ms, np.nanmean(A, 0), lw=1, color="k", alpha=0.8)
             ax.axvline(0, color="k", lw=1)
             if c == 0:
                 ref_name = ("mouth" if part == "tongue" else "baseline") if cleaned else ""
                 ax.set_ylabel(f"{part.capitalize()} {coord.upper()} (px{' rel. ' + ref_name if cleaned else ''})")
             if r == 0:
-                ax.set_title(f"{name}\n{K} trials, p > {PCUT}", fontsize=10)
+                ax.set_title(f"{name}\n{len(show)} trials, p > {PCUT}", fontsize=10)
         ax = axs[-1, c]
         for part, ls in (("tongue", "-"), ("jaw", "--")):
             L = stack(M[name], part, "likelihood")
@@ -401,7 +418,8 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
                  f"{('CLEANED, baseline fill drawn (flat 0)' if fill else 'CLEANED (orofacial_clean), baseline fill hidden') if cleaned else 'raw, no cleaning'} | image y increases downward"
                  + (f" | {tag}" if tag else ""), y=1.0, fontsize=12)
     fig.tight_layout()
-    p = poses_dir / "r4_eval" / f"cue_traces_compare{suffix}{'_cleaned' if cleaned else ''}{'_filled' if fill else ''}.png"
+    p = poses_dir / "r4_eval" / (f"cue_traces_compare{suffix}{'_cleaned' if cleaned else ''}{'_filled' if fill else ''}"
+                                 f"{f'_{n_trials}trials' if n_trials else ''}.png")
     p.parent.mkdir(exist_ok=True)
     fig.savefig(p, dpi=150, bbox_inches="tight")
     print(f"-> {p}")
@@ -417,10 +435,11 @@ def main(argv=None) -> int:
     ap.add_argument("--model", action="append", default=[], metavar="NAME=CSV",
                     help="compare: one model's predictions on the clip (repeat, in column order)")
     ap.add_argument("--suffix", default="", help="compare: added to the output filename (keep several comparisons)")
+    ap.add_argument("--trials", type=int, default=0, help="compare: show only N trials (same for every model)")
     ap.add_argument("--fill", action="store_true", help="compare --cleaned: draw the baseline fill (flat 0) as well")
     a = ap.parse_args(argv)
     if a.cmd == "compare":
-        cmd_compare(Path(a.session), a.model, cleaned=a.cleaned, suffix=a.suffix, fill=a.fill)
+        cmd_compare(Path(a.session), a.model, cleaned=a.cleaned, suffix=a.suffix, fill=a.fill, n_trials=a.trials)
         return 0
     rv = PathResolver()
     {"clip": lambda: cmd_clip(a.session, rv), "dlc": lambda: cmd_dlc(a.session, rv),
