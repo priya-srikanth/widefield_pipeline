@@ -365,6 +365,22 @@ positions were verified against DAQ codes (0.984-0.996 aligned vs 0.818-0.827 sh
 *Video in the gap:* deferred. Priya's read is that behavior video is most valuable where there is
 concomitant neural recording, which by definition excludes the gap.
 
+*Camera <-> DAQ alignment templates — FIXED 2026-10-15.* The behaviour cameras also restarted, so every
+camera has TWO files that day: `cam*_2026-08-12T15_26_25` (part 1; ~39 min of video, but the DAQ recorded
+only its first 10.6 min before the crash) and `cam*_2026-08-12T16_17_48` (part 2). `camera_sync.run`
+had made ONE template per camera per date by pairing each file with the first matching DAQ `.h5` -- part 1's
+truncated file -- so the saved templates were part 2's camera against part 1's DAQ (residual 7 s RMS,
+`quality_ok` False). No reported result used them (0812 is excluded from the analyses; its ENL row is
+degenerate, 22 trials). Now: one template per RECORDING, each matched to its own segment of the
+CONCATENATED DAQ (`camera_sync.build_split_templates`; segments = the silent zero-padded gap in the sync
+train): part 1 1,526 / part 2 13,443 matched edges, 1.1-1.2 ms RMS, all four cameras. Files
+`<cam>/PS92/20260812__<recording>.npz` (`camera_sync.templates_for` returns both); `20260812.npz` = part 2
+(the longest), for single-template code -- part 1's trials map to negative frames there and must be
+refused. Check: the concat DAQ's 225 cues split exactly 24 (part 1 video) / 201 (part 2 video). The old
+files are kept as `20260812.npz.bad_20261015`. O2 `collect` cuts each trial from the video that covers it
+(`full_to_windows(videos=...)`); `camera_sync.run` now prefers a `_concat` `.h5` and builds per-recording
+templates whenever a camera has more than one file on a date.
+
 ---
 
 ## 2026-08-13 — PS93: no behaviour-camera video recorded (experiment error)

@@ -282,3 +282,13 @@ def test_a_clean_recordings_profile_is_all_zero(tmp_path):
     assert np.asarray(t["drop_bin_pct"]).max() == 0.0
     assert cs.camera_healthy_at(t, np.linspace(float(t["drop_first_cam_sec"]),
                                                float(t["drop_first_cam_sec"]) + 80, 50)).all()
+
+
+def test_daq_segments_split_a_concat_session_at_its_silent_gap():
+    from wfield_local import camera_sync as cs
+    t = np.r_[np.arange(10.0, 600.0, 0.4), np.arange(3000.0, 8000.0, 0.4)]     # 40-min zero-padded gap
+    segs = cs.daq_segments(t)
+    assert len(segs) == 2
+    (a0, a1, na), (b0, b1, nb) = segs
+    assert a0 == 10.0 and a1 < 600 and b0 == 3000.0 and na + nb == t.size
+    assert cs.daq_segments(np.arange(0.0, 100.0, 0.4)) == [(0.0, float(np.arange(0.0, 100.0, 0.4)[-1]), 250)]

@@ -374,8 +374,24 @@ def trial_frame_spans(b: pd.DataFrame, tpl: dict, n_full: int, pre_s: float = 0.
     return [tuple(x) for x in spans]
 
 
+def assign_trials_to_videos(cue_s: np.ndarray, videos: list) -> np.ndarray:
+    """Index into ``videos`` [(pose, template, name), ...] of the video that covers each cue: its frame lies inside
+    that video, and inside the template's DAQ segment when it has one (split days). -1 = no video covers it."""
+    from wfield_local import dlc_frames as DF
+    who = np.full(len(cue_s), -1)
+    for v, (pose, tpl, _name) in enumerate(videos):
+        seg = tpl.get("segment_daq_sec")
+        for i, c in enumerate(cue_s):
+            if who[i] >= 0:
+                continue
+            f = DF.frame_of(tpl, c, 0.0)
+            if 0 <= f < len(pose) and (seg is None or seg[0] <= c <= seg[1]):
+                who[i] = v
+    return who
+
+
 def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str, date: str, out: Path, rv,
-                    pre_s: float = 0.5, post_s: float = 3.0, model: str = "DLC") -> int:
+                    pre_s: float = 0.5, post_s: float = 3.0, model: str = "DLC", videos: list | None = None) -> int:
     """Whole-video predictions ``pose`` (n_frames, n_parts, 3) -> `session_poses`-format windows for EVERY trial
     (`trial_frame_spans`: position strobe - pre_s .. trial stop + post_s, cut at the next trial's start):
     windows_index.csv (trial_k, trial_id, position, src_frame, t_ms, strobe_ms, stop_ms, stop_source) +
@@ -384,23 +400,38 @@ def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str
     pandas' 3-row-header reader as an index-name row -- found 2026-10-02 while testing this with a NaN-padded
     file)."""
     from wfield_local import trial_windows as TW
-    tpl = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
+    # ``videos`` (OURS, 2026-10-15, PS92 0812): [(pose, template, video name), ...] for a SPLIT day -- each trial is
+    # cut from the video that covers its cue (`assign_trials_to_videos`), windows cut at the next trial of the SAME
+    # video, and windows_index gains a `video` column. Default: one video with the date's template.
+    if videos is None:
+        tpl = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
+        videos = [(pose, tpl, None)]
     b = TW.trial_bounds(animal, date, rv)
     b = b[np.isfinite(b.cue_s) & np.isfinite(b.stop_s)].sort_values("cue_s").reset_index(drop=True)
-    idx, rows = [], []
-    for k, (r, (f0, f1, fc)) in enumerate(zip(b.itertuples(), trial_frame_spans(b, tpl, len(pose), pre_s, post_s))):
-        for f in range(f0, f1):
-            idx.append((k, int(r.trial_id), r.pos_name, f, (f - fc) * 4.0, (r.strobe_s - r.cue_s) * 1000.0,
-                        (r.stop_s - r.cue_s) * 1000.0, r.stop_source))
-        rows.append(np.arange(f0, f1))
+    who = assign_trials_to_videos(b.cue_s.to_numpy(float), videos)
+    if (who < 0).any():
+        print(f"   {animal} {date}: {int((who < 0).sum())} trial(s) not covered by any video -- left out")
+    idx, sels = [], []
+    k = 0
+    for v, (pose_v, tpl_v, name_v) in enumerate(videos):
+        bv = b[who == v].reset_index(drop=True)
+        for r, (f0, f1, fc) in zip(bv.itertuples(), trial_frame_spans(bv, tpl_v, len(pose_v), pre_s, post_s)):
+            for f in range(f0, f1):
+                idx.append((k, int(r.trial_id), r.pos_name, f, (f - fc) * 4.0, (r.strobe_s - r.cue_s) * 1000.0,
+                            (r.stop_s - r.cue_s) * 1000.0, r.stop_source, name_v))
+            sels.append(pose_v[np.arange(f0, f1)])
+            k += 1
     out.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(idx, columns=["trial_k", "trial_id", "position", "src_frame", "t_ms", "strobe_ms", "stop_ms",
-                               "stop_source"]).to_csv(out / "windows_index.csv", index=False)
-    sel = pose[np.concatenate(rows)]
+    ix = pd.DataFrame(idx, columns=["trial_k", "trial_id", "position", "src_frame", "t_ms", "strobe_ms", "stop_ms",
+                                    "stop_source", "video"])
+    if len(videos) == 1:
+        ix = ix.drop(columns="video")
+    ix.to_csv(out / "windows_index.csv", index=False)
+    sel = np.concatenate(sels) if sels else np.zeros((0, len(parts), 3), np.float32)
     cols = pd.MultiIndex.from_product([[scorer], list(parts), ["x", "y", "likelihood"]],
                                       names=["scorer", "bodyparts", "coords"])
     pd.DataFrame(sel.reshape(len(sel), -1), columns=cols).to_csv(out / f"windows_{model}.csv")
-    return len(b)
+    return k
 
 
 def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
@@ -413,28 +444,43 @@ def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
     tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
     from wfield_local import dlc_project
     sp = dlc_project.project_dir(rv).parent / "session_poses"
-    for r in tasks.itertuples():
-        od = d / "out" / f"{r.animal}_{r.date}"
-        done = od / f"{Path(r.video).stem}_done.json"
-        if not done.exists():
-            print(f"{r.animal} {r.date} {r.video}: NOT DONE (no {done.name})")
+    from wfield_local import camera_sync as cs
+    for (animal, date), g in tasks.groupby(["animal", "date"], sort=True):
+        od = d / "out" / f"{animal}_{date}"
+        vids, ok_all = [], True
+        for r in g.itertuples():
+            done = od / f"{Path(r.video).stem}_done.json"
+            if not done.exists():
+                print(f"{animal} {date} {r.video}: NOT DONE (no {done.name})")
+                ok_all = False
+                continue
+            info = json.loads(done.read_text(encoding="utf-8"))
+            v = next(x for x in videos_for(rv, animal, date) if x.name == r.video)
+            n_local = int(cv2.VideoCapture(str(v)).get(cv2.CAP_PROP_FRAME_COUNT))
+            npz = od / f"{Path(r.video).stem}_{info['scorer']}.npz"
+            ok = info["n_frames"] == n_local and npz.exists()
+            print(f"{animal} {date} {r.video}: {info['n_frames']} frames predicted, video {n_local} "
+                  f"{'OK' if ok else 'MISMATCH'} ({info['wall_s'] / 3600:.1f} h, batch {info['batch']})")
+            ok_all &= ok
+            if ok:
+                vids.append((r.video, np.load(npz), info))
+        if not ok_all or not vids:
+            continue                                  # a split day is collected only when every part is done
+        # each video with ITS recording's template (split days have one per recording -- camera_sync)
+        tpls = cs.templates_for(rv, date, animal, "cam4")
+        rec = lambda name: Path(name).stem.split("_", 1)[1]           # noqa: E731  cam4_<recording>.avi
+        missing = [n for n, _, _ in vids if rec(n) not in tpls]
+        if missing:
+            print(f"   {animal} {date}: no alignment template for {missing} -- not collected")
             continue
-        info = json.loads(done.read_text(encoding="utf-8"))
-        v = next(x for x in videos_for(rv, r.animal, r.date) if x.name == r.video)
-        n_local = int(cv2.VideoCapture(str(v)).get(cv2.CAP_PROP_FRAME_COUNT))
-        npz = od / f"{Path(r.video).stem}_{info['scorer']}.npz"
-        ok = info["n_frames"] == n_local and npz.exists()
-        print(f"{r.animal} {r.date} {r.video}: {info['n_frames']} frames predicted, video {n_local} "
-              f"{'OK' if ok else 'MISMATCH'} ({info['wall_s'] / 3600:.1f} h, batch {info['batch']})")
-        if ok:
-            z = np.load(npz)
-            parts = [str(x) for x in z["parts"]]
-            n = full_to_windows(z["pose"], parts, info["scorer"], r.animal, r.date,
-                                sp / f"{r.animal}_{r.date}_full", rv, model="LP" if kind == "lp" else "DLC")
-            print(f"   -> {sp / (r.animal + '_' + r.date + '_full')} ({n} trials)")
-            key = f"{r.animal}:{r.date}"
-            if compare and key in compare:
-                print(f"   vs desktop clip: {compare_to_clip(z['pose'], parts, sp / f'{r.animal}_{r.date}', Path(compare[key]))}")
+        parts = [str(x) for x in vids[0][1]["parts"]]
+        videos = [(z["pose"], tpls[rec(n)], n) for n, z, _ in vids]
+        n = full_to_windows(videos[0][0], parts, vids[0][2]["scorer"], animal, date, sp / f"{animal}_{date}_full",
+                            rv, model="LP" if kind == "lp" else "DLC", videos=videos if len(videos) > 1 else None)
+        print(f"   -> {sp / (animal + '_' + date + '_full')} ({n} trials)")
+        key = f"{animal}:{date}"
+        if compare and key in compare and len(videos) == 1:
+            print(f"   vs desktop clip: {compare_to_clip(videos[0][0], parts, sp / f'{animal}_{date}', Path(compare[key]))}")
 
 
 def main(argv=None) -> int:

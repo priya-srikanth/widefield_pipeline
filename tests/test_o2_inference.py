@@ -200,3 +200,25 @@ def test_full_to_windows_writes_every_video_frame_at_most_once(tmp_path, monkeyp
     idx = pd.read_csv(tmp_path / "out" / "windows_index.csv")
     assert idx.src_frame.is_unique
     assert idx.groupby("trial_k").src_frame.max().iloc[0] < idx.groupby("trial_k").src_frame.min().iloc[1]
+
+
+def test_split_day_cuts_each_trial_from_the_video_that_covers_it(tmp_path, monkeypatch):
+    """PS92 0812-style day: video 1 covers DAQ 0-20 s, video 2 starts at DAQ 100 s (its frame 0); trials in each
+    segment come from their own video, with that video's frame numbers, and nothing is cut across the gap."""
+    from wfield_local import trial_windows as TW
+    monkeypatch.setattr(TW, "trial_bounds", lambda *a, **k: _bounds([(2.0, 4.0, 10.0), (102.0, 104.0, 110.0)]))
+    t1 = {**_TPL, "segment_daq_sec": np.array([0.0, 20.0])}
+    t2 = {**_TPL, "intercept_daqSample": 100_000.0, "segment_daq_sec": np.array([100.0, 130.0])}
+    p1 = np.zeros((10_000, 4, 3))
+    p2 = np.ones((10_000, 4, 3))
+    k = oi.full_to_windows(p1, ["nose", "jaw", "tongue", "spout"], "LP_x", "PSX", "20260101", tmp_path / "out",
+                           _RV(tmp_path), model="LP", videos=[(p1, t1, "cam4_a.avi"), (p2, t2, "cam4_b.avi")])
+    assert k == 2
+    idx = pd.read_csv(tmp_path / "out" / "windows_index.csv")
+    assert set(idx.video) == {"cam4_a.avi", "cam4_b.avi"}
+    a, b = idx[idx.video == "cam4_a.avi"], idx[idx.video == "cam4_b.avi"]
+    assert (a.trial_id == 1).all() and (b.trial_id == 2).all()
+    assert b.src_frame.min() >= 0 and b.src_frame.max() < 10_000            # video 2's own frame numbers
+    assert abs(b.loc[b.t_ms.abs().idxmin(), "src_frame"] - 1000) <= 1     # cue at DAQ 104 s = video-2 frame 1000
+    poses = oc.read_pose(tmp_path / "out" / "windows_LP.csv")
+    assert (poses.loc[idx.video == "cam4_a.avi", "jaw_x"] == 0).all() and (poses.loc[idx.video == "cam4_b.avi", "jaw_x"] == 1).all()

@@ -210,16 +210,27 @@ def robust_fit_mask(mct, mdt, seed_mask, outlier_ms=None, max_iter=8,
 
 # --------------------------------------------------------------------------- template
 def build_template(h5_path, csv_path, sync_name: str = "sync", sync_bit: int = 0,
-                   window: int = 20, p: float = 0.1, min_matched: int = 5) -> dict:
-    """Build a compact cam<->DAQ alignment template from a DAQ .h5 + a Bonsai cam CSV."""
+                   window: int = 20, p: float = 0.1, min_matched: int = 5,
+                   daq_sec_range: tuple[float, float] | None = None, cam_edge_slice: slice | None = None) -> dict:
+    """Build a compact cam<->DAQ alignment template from a DAQ .h5 + a Bonsai cam CSV.
+
+    ``daq_sec_range`` / ``cam_edge_slice`` (OURS, 2026-10-15, PS92 0812): restrict the match to one segment of a
+    CONCATENATED session -- the matcher normalises both edge trains to [0, 1] over their spans, so a camera file that
+    covers only part of the DAQ timeline (or a DAQ with a zero-padded gap) must be cut to the overlapping stretch
+    first. The fitted mapping still uses the full DAQ timeline's sample numbers. Default: whole recording."""
     m = CAM_RE.search(Path(csv_path).name)
     cam, recording = (m.group(1).lower(), m.group(2)) if m else ("?", "?")
 
     daq_edge, fs, n_daq = daq_sync_edges(h5_path, sync_name)
+    if daq_sec_range is not None:
+        lo_s, hi_s = daq_sec_range
+        daq_edge = daq_edge[(daq_edge / fs >= lo_s) & (daq_edge / fs <= hi_s)]
     fid, ts_ns, gpio = _read_cam(csv_path)
     n_cam = int(fid.size)
     n_frame_drops = int((fid[-1] - fid[0] + 1) - n_cam)                 # frame_id contiguity (see dropframe_qc)
     cam_edge = np.flatnonzero(np.diff(((gpio >> sync_bit) & 1).astype(np.int8)) > 0) + 1
+    if cam_edge_slice is not None:
+        cam_edge = cam_edge[cam_edge_slice]
     cam_edge_t = ts_ns[cam_edge].astype(np.float64) / 1e9              # absolute camera clock (s)
     daq_edge_t = daq_edge.astype(np.float64) / fs
 
@@ -295,6 +306,59 @@ def save_template(template: dict, path) -> Path:
     return path
 
 
+SEGMENT_GAP_S = 60.0     # a pause in the DAQ sync pulses longer than this separates segments of a concat session
+
+
+def template_path_recording(rv, date: str, animal: str, cam: str, recording: str) -> Path:
+    """One template per RECORDING, for dates with several camera files (a split / concatenated session, e.g.
+    PS92 0812): ``<alignment_templates>/<cam>/<PSxx>/<YYYYMMDD>__<recording>.npz``."""
+    return Path(rv.root("alignment_templates")) / cam / animal / f"{date}__{recording}.npz"
+
+
+def templates_for(rv, date: str, animal: str, cam: str) -> dict:
+    """{recording: template} for every recording of ``cam`` on ``date``: the per-recording files when the date was
+    split, else the single ``<date>.npz``. Consumers that cut trials from video should map each trial with the
+    template of the recording that covers it."""
+    d = Path(rv.root("alignment_templates")) / cam / animal
+    per = sorted(d.glob(f"{date}__*.npz"))
+    files = per or ([d / f"{date}.npz"] if (d / f"{date}.npz").exists() else [])
+    out = {}
+    for f in files:
+        t = dict(np.load(f, allow_pickle=True))
+        out[str(t["recording"])] = t
+    return out
+
+
+def daq_segments(daq_edge_sec: np.ndarray, gap_s: float = SEGMENT_GAP_S) -> list[tuple[float, float, int]]:
+    """[(t0, t1, n_edges), ...] stretches of the DAQ sync train separated by pauses > ``gap_s`` -- the segments of
+    a concatenated session (its gaps are zero-padded, so the sync line is silent there)."""
+    if daq_edge_sec.size == 0:
+        return []
+    cut = np.flatnonzero(np.diff(daq_edge_sec) > gap_s)
+    starts, ends = np.r_[0, cut + 1], np.r_[cut, daq_edge_sec.size - 1]
+    return [(float(daq_edge_sec[a]), float(daq_edge_sec[b]), int(b - a + 1)) for a, b in zip(starts, ends)]
+
+
+def build_split_templates(h5_concat, csvs: list, sync_name: str = "sync", slack_edges: int = 40) -> list[dict]:
+    """Templates for the camera files of ONE camera on a split day, against the CONCATENATED DAQ (OURS, 2026-10-15,
+    PS92 0812). Recordings (sorted by their timestamp) are paired with the DAQ segments in order; each is matched
+    only to its own segment, from the camera file's first sync edge (camera and DAQ restarted together), so a camera
+    file that ran on after its DAQ segment ended (PS92 0812 part 1: ~39 min of video, 10.6 min of DAQ) is matched on
+    the overlap. Frames outside a recording's segment have no DAQ time -- consumers must not cut trials there."""
+    edge, fs, _ = daq_sync_edges(h5_concat, sync_name)
+    segs = daq_segments(edge / fs)
+    csvs = sorted(csvs, key=lambda c: Path(c).name)
+    if len(segs) != len(csvs):
+        raise ValueError(f"{len(csvs)} camera files but {len(segs)} DAQ segments in {Path(h5_concat).name}")
+    out = []
+    for k, (csv, (t0, t1, n)) in enumerate(zip(csvs, segs)):
+        t = build_template(h5_concat, csv, sync_name, daq_sec_range=(t0 - 1.0, t1 + 1.0),
+                           cam_edge_slice=slice(0, n + slack_edges))
+        t.update(segment=k + 1, n_segments=len(segs), segment_daq_sec=np.array([t0, t1]))
+        out.append(t)
+    return out
+
+
 def template_path(rv, date: str, animal: str, cam: str) -> Path:
     """Dedicated tree (keeps the raw camera dirs clean; mirrors stroke_orofacial's convention):
     ``<alignment_templates>/<cam>/<PSxx>/<YYYYMMDD>.npz``. The recording timestamp is kept inside
@@ -306,7 +370,11 @@ def template_path(rv, date: str, animal: str, cam: str) -> Path:
 def _match_daq(daq_root, animal, date) -> str | None:
     hits = sorted(h for h in glob.glob(f"{daq_root}/**/*.h5", recursive=True)
                   if animal in Path(h).name and date in Path(h).name)
-    return hits[0] if hits else None
+    # a CONCATENATED session's joined h5 is the authoritative record (configs/sessions.yaml uses it; a segment's
+    # own h5 can be truncated by the crash) -- 2026-10-15: picking hits[0] paired PS92 0812's part-2 camera with
+    # part 1's DAQ (residual 7 s, quality failed)
+    concat = [h for h in hits if "_concat" in Path(h).name]
+    return (concat or hits or [None])[0]
 
 
 def run(date, rv, animals=None, verbose=True) -> list[dict]:
@@ -321,7 +389,32 @@ def run(date, rv, animals=None, verbose=True) -> list[dict]:
         if not daq:
             print(f"[camera_sync] {animal_dir.name}: no DAQ .h5 for {date} -> skip", flush=True)
             continue
+        by_cam: dict = {}
         for csv in sorted(animal_dir.glob("cam*.csv")):
+            m = CAM_RE.search(csv.name)
+            by_cam.setdefault(m.group(1).lower() if m else csv.name, []).append(csv)
+        for cam, cams in by_cam.items():
+            if len(cams) > 1:              # split day: one template per recording, against the concat DAQ
+                try:
+                    ts = build_split_templates(daq, cams)
+                except Exception as e:                                     # noqa: BLE001 -- report, go on
+                    print(f"[camera_sync] {animal_dir.name} {cam}: split-day templates FAILED {e}", flush=True)
+                    continue
+                for t in ts:
+                    save_template(t, template_path_recording(rv, date, animal_dir.name, cam, t["recording"]))
+                    made.append(t)
+                    print(f"[camera_sync] {animal_dir.name} {cam} {t['recording']} (segment {t['segment']}/"
+                          f"{t['n_segments']}): matched {t['n_matched']}/{t['n_cam_edges']}, resid rms="
+                          f"{t['resid_ms_rms']:.2f}ms{'' if t['quality_ok'] else '  <<< QUALITY CHECK FAILED'}",
+                          flush=True)
+                # <date>.npz = the longest recording, for single-template consumers (their trials outside it
+                # must be refused -- use templates_for() to map every trial)
+                main_t = max(ts, key=lambda t: t["n_cam_frames"])
+                save_template({**main_t, "other_recordings": np.array([t["recording"] for t in ts
+                                                                       if t is not main_t])},
+                              template_path(rv, date, animal_dir.name, cam))
+                continue
+            csv = cams[0]
             try:
                 t = build_template(daq, csv)
                 out = save_template(t, template_path(rv, date, animal_dir.name, t["cam"]))
