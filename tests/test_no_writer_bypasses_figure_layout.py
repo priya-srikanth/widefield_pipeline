@@ -40,7 +40,9 @@ SKIP_PARTS = {"archive"}
 #: dlc_calibration — `out = Path(out_dir or cal_dir)` is the CAMERA CALIBRATION RECORDING
 #:   directory. `charuco_survey_<rec>.csv/.txt` belong beside the recording they describe; there
 #:   is no figure anywhere for them to be a sidecar of.
-EXEMPT_SITES = {"wfield_local/dlc_calibration.py": "writes into the calibration recording dir"}
+EXEMPT_SITES = {"wfield_local/dlc_calibration.py": "writes into the calibration recording dir",
+                "wfield_local/o2_lp_runner.py": "writes pose predictions (<video stem>_<scorer>.csv/.npz, _done.json) "
+                                                "into an O2 run's out/ dir, not a figure dir"}
 
 #: Lines that legitimately name the flat path.
 def _exempt(line: str) -> bool:
