@@ -19845,3 +19845,10 @@ on VIDEO once the semi-supervised temporal-context model is done.
   wrong landmark sits at about the right height, and on wide-open runs the jaw drop is real. Touches <= 0.2 % of
   frames; PS93 far-pair deviation unchanged. Supersedes the "OFF" line above. Background (Priya): PS93's jaw has two
   local lowest points (true one mouse-left; see docs/POSE_MODELS.md).
+* **2026-10-15, jaw hidden = NaN (Priya: "leave jaw hidden stretches empty").** `jaw.v34.hidden_fill: nan`: a jaw
+  frame with no measurement and no interpolation is left NaN instead of the resting baseline (v3.4's fill drew hidden
+  stretches -- mostly the jaw behind the close spout rod, or a model saying "not visible" -- as a closed jaw). Jaw
+  consumers were already NaN-tolerant (jaw_kinematics nan-stats; movement inputs flag non-finite jaw as unknown).
+  The tongue keeps its fill pending Priya's look at labelled clips. Also: after v35 cleaning LP r4's jaw has 0 jumps >
+  30 px on PS93 0814 (DLC r3 26) at 96 % coverage (ctx-semi 0 jumps at 90 %; close_L 81 vs 61 %), and Priya judged LP
+  r4's jaw points correct where ctx-semi abstains (trial 47 close_center) -> LP r4 is the better jaw source.

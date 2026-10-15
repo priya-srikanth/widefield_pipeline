@@ -1075,6 +1075,8 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
       x_flip_max_ms: 200.0       # ... within 200 ms are wiped (flips too long for the median test); null step = off
       x_flip_flank_agree_px: 15.0  # ... and only if the frames around the run agree (<= 15 px) ...
       x_flip_flank_rest_px: 25.0   # ... and sit near the resting jaw (<= 25 px), i.e. are the CORRECT jaw point
+      hidden_fill: nan             # OURS (Priya 2026-10-15): unmeasured, uninterpolated jaw = HIDDEN -> NaN, not the
+                                   # resting baseline (v3.4: "baseline"). The tongue keeps its fill (hidden = in mouth).
       max_gap_ms_pchip: 120.0
       baseline_win_ms: [-500.0, 0.0]
 

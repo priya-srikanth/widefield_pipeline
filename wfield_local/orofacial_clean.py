@@ -422,6 +422,12 @@ def jaw_v34(c: Clean, centers, q: dict | None = None) -> Clean:
     fm = np.full(n, FILL_BASELINE, np.int8)
     fm[fillable] = FILL_PCHIP
     fm[anchors] = FILL_NONE
+    # OURS (Priya 2026-10-15): a jaw with no measurement and no interpolation is HIDDEN (behind the spout rod, or a
+    # model saying "not visible"), not at rest -- leave it NaN. v3.4 filled it with the baseline (0), which drew hidden
+    # stretches as a closed jaw. "baseline" restores that.
+    if str(q.get("hidden_fill", "baseline")) == "nan":
+        hid = fm == FILL_BASELINE
+        yc, xc = np.where(hid, np.nan, yc), np.where(hid, np.nan, xc)
     extra = {"v34_wiped_y": wy, "v34_wiped_x": wx, "v34_wiped_frame_outlier": wfo, "v34_wiped_frame_outlier_x": wfox,
              "v34_wiped_flip_x": wflip,
              "v34_wiped_isolated": wiso,
