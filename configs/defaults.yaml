@@ -1261,9 +1261,13 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
     conda_env: lp               # NEW env on O2 (COMMANDS.md step 0 creates it); never Priya's `deeplabcut` env
     lightning_pose_version: "2.4.2"   # = this desktop's (the model was trained with it)
     opencv_version: "4.12.0.88"  # opencv-python-headless, installed WITH lightning-pose (it does not pull OpenCV in)
-    reader: opencv              # cam4 AVIs are MPEG-4 part 2 (FMP4): DALI's GPU decoder is not known to read them.
-                                # OpenCV = CPU decode, the desktop's Windows-native LP path. Never mix readers in a run.
+    reader: dali                # 2026-10-15 O2 smoke bench (Quadro RTX 8000, 2000 frames, MPEG-4 part 2 clip): dali ~105 fps
+                                # steady vs opencv ~59 -> ~6 h vs ~10-11 h per session. DALI also matches how LP r4 was
+                                # EVALUATED (WSL, DALI). The runner refuses outputs whose row count != the video's frame
+                                # count; the pilot's `collect --compare` checks agreement. Never mix readers in a run.
     precision: fp32
+    gres: "gpu:l40s:1"          # gpu_quad GPU types (sinfo, 2026-10-15): a100, a100.mig, a40, l40s, rtx8000, teslaV100s.
+                                # The smoke job landed on an RTX 8000 (Turing, slowest); L40S is the fastest common card.
     cpus_per_task: 6
     mem: 32G
     time: "24:00:00"            # per video; NOT resumable inside a video (finished videos are skipped on requeue).

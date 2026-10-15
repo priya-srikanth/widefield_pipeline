@@ -290,6 +290,10 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
         write_videos_list(d, tasks)
         tasks = tasks.drop(columns="task")
         shutil.copy2(Path(__file__).with_name(runner), d / runner)
+        if kind == "lp":            # the provenance record follows the job text (reader / precision / GPU type)
+            bj = json.loads((d / "bundle.json").read_text(encoding="utf-8"))
+            bj.update(reader=p["reader"], precision=p["precision"], gres=p["gres"])
+            (d / "bundle.json").write_text(json.dumps(bj, indent=1), encoding="utf-8")
         (d / "run_pose.sbatch").write_text(sbatch_text(p, user, name, len(tasks)), encoding="utf-8", newline="\n")
         if p.get("kind") == "lp":
             (d / "smoke.sbatch").write_text(smoke_sbatch_text(p, user, name, _first_video(user, p, tasks)),
