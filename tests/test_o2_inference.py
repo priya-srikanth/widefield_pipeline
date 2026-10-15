@@ -115,6 +115,12 @@ def test_params_lp_block_overrides_shared_keys(monkeypatch):
     assert dlc["kind"] == "dlc" and dlc["conda_env"] == "dlc3" and "lp" not in dlc
 
 
+def test_widefield_sessions_come_from_the_registry(monkeypatch):
+    monkeypatch.setattr(oi.config, "load_sessions", lambda: [{"label": "PS93_0814"}, {"label": "PS92_0602"},
+                                                             {"label": "PS93_0814"}])
+    assert oi.widefield_sessions() == [("PS92", "20260602"), ("PS93", "20260814")]
+
+
 def _local_setup():
     pytest.importorskip("deeplabcut")
     from wfield_local import dlc_prior, dlc_train

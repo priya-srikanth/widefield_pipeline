@@ -247,7 +247,8 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
     for animal, date in sessions:
         vids = videos_for(rv, animal, date)
         if not vids:
-            raise SystemExit(f"no cam4 video for {animal} {date} under {rv.root('behavior_cameras')}")
+            print(f"   no cam4 video for {animal} {date} -- skipped (see docs/EXPERIMENT_ERRORS.md)")
+            continue
         rows += [{"animal": animal, "date": date, "video": v.name, "video_o2": o2_path(v, rv)} for v in vids]
     tasks = pd.DataFrame(rows)
     if kind == "lp":
@@ -271,6 +272,17 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
     print(f"bundle -> {d}  ({len(tasks)} videos; model {td.parent.parent.name}/{snap.name}; prior on "
           f"{', '.join(box) or 'nothing'})\nnext: follow {d / 'COMMANDS.md'}")
     return d
+
+
+def widefield_sessions() -> list[tuple[str, str]]:
+    """(animal, YYYYMMDD) for every registered widefield session, sorted -- Priya 2026-10-15: pose inference only for
+    dates with widefield data (the camera also ran on pre-widefield days, 0527 / 0529 / 0601, and after imaging ended,
+    PS94 1008). A session with no cam4 video (PS93 0813, docs/EXPERIMENT_ERRORS.md) is reported, not fatal."""
+    out = set()
+    for s in config.load_sessions():
+        animal, mmdd = s["label"].split("_")
+        out.add((animal, "2026" + mmdd))
+    return sorted(out)
 
 
 def lp_model_dir(rv, p: dict | None = None) -> Path:
@@ -428,7 +440,9 @@ def main(argv=None) -> int:
     b = sub.add_parser("bundle")
     b.add_argument("--name", required=True)
     b.add_argument("--user", required=True, help="O2 (HMS) username")
-    b.add_argument("sessions", nargs="+", help="animal:date")
+    b.add_argument("sessions", nargs="*", help="animal:date (or --all-widefield)")
+    b.add_argument("--all-widefield", action="store_true",
+                   help="every REGISTERED widefield session (configs/sessions.yaml) -- the production set")
     b.add_argument("--refresh", action="store_true", help="existing bundle: rewrite only sbatch / COMMANDS / runner")
     b.add_argument("--kind", choices=("dlc", "lp"), default="dlc",
                    help="lp = the production Lightning Pose model (o2_inference.lp.model_rel)")
@@ -439,7 +453,10 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.cmd == "bundle":
-        cmd_bundle(rv, a.name, a.user, [tuple(s.split(":")) for s in a.sessions], refresh=a.refresh, kind=a.kind)
+        sess = widefield_sessions() if a.all_widefield else [tuple(s.split(":")) for s in a.sessions]
+        if not sess and not a.refresh:
+            ap.error("give animal:date sessions or --all-widefield")
+        cmd_bundle(rv, a.name, a.user, sess, refresh=a.refresh, kind=a.kind)
     else:
         cmd_collect(rv, a.name, dict(x.split("=", 1) for x in a.compare))
     return 0
