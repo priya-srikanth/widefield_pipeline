@@ -1260,6 +1260,7 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
     model_rel: "lightning-pose/cam4-2026-10-13/models/r4_heatmap_20261013"   # under DeepLabCut/Widefield on the share
     conda_env: lp               # NEW env on O2 (COMMANDS.md step 0 creates it); never Priya's `deeplabcut` env
     lightning_pose_version: "2.4.2"   # = this desktop's (the model was trained with it)
+    opencv_version: "4.12.0.88"  # opencv-python-headless, installed WITH lightning-pose (it does not pull OpenCV in)
     reader: opencv              # cam4 AVIs are MPEG-4 part 2 (FMP4): DALI's GPU decoder is not known to read them.
                                 # OpenCV = CPU decode, the desktop's Windows-native LP path. Never mix readers in a run.
     precision: fp32

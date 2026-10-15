@@ -73,7 +73,7 @@ _P = {"partition": "gpu", "gres": "gpu:1", "cpus_per_task": 6, "mem": "24G", "ti
 
 
 def test_lp_job_text_runs_the_lp_runner_in_its_own_env():
-    p = {**_P, "kind": "lp", "conda_env": "lp", "reader": "opencv", "precision": "fp32",
+    p = {**_P, "kind": "lp", "conda_env": "lp", "reader": "opencv", "precision": "fp32", "opencv_version": "4.12.0.88",
          "lightning_pose_version": "2.4.2"}
     s = oi.sbatch_text(p, "ab123", "lp1", 2)
     b = "/n/scratch/users/a/ab123/o2/lp1"

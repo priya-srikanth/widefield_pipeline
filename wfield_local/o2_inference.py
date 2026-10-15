@@ -250,7 +250,9 @@ ssh {user}@o2.hms.harvard.edu
 srun -p short -t 1:00:00 -c 4 --mem=16G --pty bash
 module load {p['conda_module']}
 conda create -y -n {p['conda_env']} python=3.10 && conda activate {p['conda_env']}
-pip install "lightning-pose=={p['lightning_pose_version']}"
+pip install "lightning-pose=={p['lightning_pose_version']}" "opencv-python-headless=={p['opencv_version']}"
+#   (lightning-pose does NOT install OpenCV; the runner reads the AVIs with it -- the first O2 smoke job, 2026-10-15,
+#   failed on `import cv2`. If the env already exists: conda activate {p['conda_env']} && pip install the second package.)
 exit
 #   (The GPU check is step 2: the runner prints torch / CUDA / LP versions first and stops if no GPU is visible.
 #   lightning-pose already installs DALI (nvidia-dali-cuda110) -- do NOT add another DALI build. Our cam4 AVIs are
