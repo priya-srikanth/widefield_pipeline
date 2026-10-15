@@ -19864,3 +19864,8 @@ on VIDEO once the semi-supervised temporal-context model is done.
 * **LP r4 is the best jaw source so far**: after v35 cleaning 0 jaw jumps > 30 px at 96 % coverage (DLC r3 26 jumps;
   ctx-semi 0 jumps but 90 % coverage, close_L 61 %), and Priya judged its jaw points correct where ctx-semi abstains.
   A model's "zero flips" must be reported with its coverage.
+* **2026-10-15, tongue KEEPS its mouth-zero fill (Priya, after the labelled clip `cleaned_labels_LP_r4.mp4`).** Unlike
+  the jaw (hidden = unknown -> NaN), a tongue with no confident point is in the mouth, and filling it at the mouth
+  origin (0) builds tongue PRESENCE vs ABSENCE into the position trace -- needed to compare how often / how long the
+  tongue is out post- vs pre-stroke. So the asymmetry is deliberate: tongue fill = 0 at the mouth, jaw fill = NaN.
+  (Plots and averages that should show only measured tongue still use `x_masked` / `y_masked`.)

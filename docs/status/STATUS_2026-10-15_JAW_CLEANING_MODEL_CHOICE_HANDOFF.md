@@ -56,8 +56,8 @@ register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: 
    `session_poses/PS93_<d>/r4_eval/cue_traces_compare_all_v35_cleaned[_filled_6trials].png`.
 
 ## 2. Decisions (10-14 afternoon .. 10-15)
-* Jaw cleaning v35 in `configs/defaults.yaml` (see 1.1); hidden jaw left NaN; tongue keeps its mouth fill PENDING
-  Priya's look at the labelled clip (`cleaned_labels_LP_r4.mp4`, below).
+* Jaw cleaning v35 in `configs/defaults.yaml` (see 1.1); hidden jaw left NaN; tongue KEEPS its mouth-zero fill
+  (presence vs absence of the tongue stays in the position trace).
 * Jaw lateral deviation is read from the far pair only; per-animal tables before pooling.
 * Model choice still open; current leaning **LP r4 alone** (best jaw after cleaning, best tongue recall/coverage),
   ctx-semi as the precision check for no-contact licks.
@@ -74,9 +74,8 @@ register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: 
   hidden) -> `session_poses/<s>/r4_eval/cleaned_labels_<model>.mp4`.
 
 ## 4. Pending / to-do
-1. **Priya: watch `session_poses/PS93_20260814/r4_eval/cleaned_labels_LP_r4.mp4`** -- does the tongue's mouth fill
-   make sense, or leave it blank too? (Tongue consumers read `x_masked` already; the kinematics use the fill only via
-   `x_final`.) Make the same clip for other models / 0821 if asked.
+1. ~~Tongue mouth fill?~~ **DECIDED 10-15: KEEP it** (Priya): the mouth zero builds tongue presence vs absence into
+   the position trace, for pre vs post comparisons. Tongue fill = 0 at the mouth; jaw fill = NaN (DECISIONS).
 2. **Decide the cam4 production model with Priya** (leaning LP r4). Before: check which contacts ctx-semi misses
    (findable?), and add jaw coverage per position to the selection rule (POSE_MODELS §4).
 3. Run the chosen model on the twelve jaw clips + other sessions; redo the jaw readout with it (and a
