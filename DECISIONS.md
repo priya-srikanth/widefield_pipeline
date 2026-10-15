@@ -19917,15 +19917,16 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   41-min running bout; `locomotor_state.EXCLUDE_SESSIONS` is empty.
 * Results: the main LocaNMF analyses always used the concat file and are unchanged. ENL movement-removed decoding
   re-run for 0812 (210 trials; raw 0.40 / residual 0.28; summaries 119 sessions, pre raw 0.40 -> 0.41, all else
-  unchanged). State decoder (`13s`) re-rendered with 0812. Correction to the 2026-09-13 note above ("PS92_0812 ...
+  unchanged). State decoder (`13s`) re-render PENDING (see the next entry). Correction to the 2026-09-13 note above ("PS92_0812 ...
   already excluded from every other family"): it was excluded only from the state decoder (an artefact, now fixed)
   and dropped from the ENL summaries (a bug, now fixed); every other family included it.
 * **2026-10-15, the pre-stroke STATE decoder is now a frozen, stored reference** (`locomotor_decoder.
   frozen_state_models` -> `frozen_models.load_or_fit`, kind `state`, full + LOSO models in one payload). Priya: make
   frozen, cached, reused pre-stroke decoders the rule for future cohorts -- written into `docs/FROZEN_MODELS.md` §7
-  and CLAUDE.md rule 10. The `13s` re-render running at the time used the old in-memory fit (with 0812); the next
-  render freezes the state models (first freeze on the behaviour box per FROZEN_MODELS §5, or publish this box's
-  once, from one box only).
+  and CLAUDE.md rule 10. The `13s` re-render of 10-15 FAILED on this desktop (machine profile: local roots resolved to `C:/Users/sabatini`;
+  exit code 0 -- grep logs for PermissionError) and was not repeated: the next render freezes the state models, and the
+  frozen store waits on Priya's call (memory: do not touch frozen models on this box until paths.yaml / the profile
+  mapping is fixed). So the state-decoder figures do NOT yet include PS92 0812.
 * **2026-10-15, O2:** Priya's account has `gpuquad_qos` (gpu_quad, 140 cards, no per-user cap listed; limit
   5 days); `gpu_qos` caps the `gpu` partition at cpu=34 / mem=420G per user; MaxArraySize 10001. Production = ONE
   array over all ~138 videos on gpu_quad, throttle %12 (o2_inference config) -- no batch YAMLs.
