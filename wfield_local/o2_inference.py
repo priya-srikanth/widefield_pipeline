@@ -281,6 +281,10 @@ def widefield_sessions() -> list[tuple[str, str]]:
     out = set()
     for s in config.load_sessions():
         animal, mmdd = s["label"].split("_")
+        # neither baseline nor post-stroke (`configs/animals.yaml` exclude: PS92 / PS93 0817, the day after the
+        # first, small lesion that did not take) -> not analysed, so not tracked (Priya 2026-10-15)
+        if config.session_phase(animal, mmdd) == "excluded":
+            continue
         out.add((animal, "2026" + mmdd))
     return sorted(out)
 

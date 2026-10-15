@@ -116,7 +116,8 @@ def test_params_lp_block_overrides_shared_keys(monkeypatch):
 
 
 def test_widefield_sessions_come_from_the_registry(monkeypatch):
-    monkeypatch.setattr(oi.config, "load_sessions", lambda: [{"label": "PS93_0814"}, {"label": "PS92_0602"},
+    monkeypatch.setattr(oi.config, "session_phase", lambda a, d: "excluded" if d == "0817" else "pre")
+    monkeypatch.setattr(oi.config, "load_sessions", lambda: [{"label": "PS93_0814"}, {"label": "PS92_0602"}, {"label": "PS92_0817"},
                                                              {"label": "PS93_0814"}])
     assert oi.widefield_sessions() == [("PS92", "20260602"), ("PS93", "20260814")]
 

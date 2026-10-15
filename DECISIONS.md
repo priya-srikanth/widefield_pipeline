@@ -19894,3 +19894,12 @@ on VIDEO once the semi-supervised temporal-context model is done.
   PS93 0814 / 0821: contact recall same or +0.2-0.4, review precision / share identical, jaw coverage / jumps
   identical; LP r4 interpolated tongue frames 2568 -> 1511 (pre). QC sheets: `session_poses/jaw_lateral/
   tweak_qc_tongue_interlick.png`, `tweak_qc_jaw_on_tongue.png`.
+* **2026-10-15, both cleaning tweaks ADOPTED (Priya: "both tweaks sound good"; config on).** The kinematics read the
+  cleaned traces; per Priya ("be wary of quantifying some things from interpolated points, e.g. max protrusion") each
+  lick now also carries `protrusion_max_measured_px` (measured frames only), `interp_frac` (share of the lick's frames
+  interpolated) and `peak_interp` (peak frame interpolated or imputed). PS93 0814 LP r4: 32 / 567 licks (5.6 %) have an
+  interpolated / imputed peak; measured-only max protrusion equals the all-frames value (median 0 px; PCHIP stays
+  inside its bracketing points). Use `peak_interp` to exclude licks from peak-position / angle analyses when needed.
+* **2026-10-15, O2 production set = registered widefield sessions minus `excluded` phases** (PS92 / PS93 0817, the
+  day after the first lesion that did not take): 137 sessions, 138 cam4 videos (PS92 0812 has two -- the crashed and
+  restarted acquisitions). PS93 0813 has no video.

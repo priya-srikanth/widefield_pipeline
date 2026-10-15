@@ -583,8 +583,15 @@ def run_v7_pipeline_per_trial(y_slice, x_slice, is_interp_fill_slice, is_baselin
                 ap, lr = spout_coords(x_clean[on:off + 1] + xo, yg[on:off + 1] + yo, spout_frame)
                 dist = np.hypot(ap, lr)
                 k = pf - on
+                # OURS (Priya 2026-10-15: "be wary of quantifying some things from interpolated points, e.g. max
+                # protrusion"): the same quantities from MEASURED frames only, plus how much of the lick is filled.
+                # The *_px columns above keep their meaning; analyses pick.
+                meas = ~is_interp_fill_slice[on:off + 1] & ~is_base_clean[on:off + 1] & np.isfinite(dist)
                 geo.update({"protrusion_px": float(dist[k]), "ap_px": float(ap[k]), "lr_px": float(lr[k]),
-                            "protrusion_max_px": float(np.nanmax(dist)) if np.isfinite(dist).any() else float("nan")})
+                            "protrusion_max_px": float(np.nanmax(dist)) if np.isfinite(dist).any() else float("nan"),
+                            "protrusion_max_measured_px": float(np.max(dist[meas])) if meas.any() else float("nan"),
+                            "interp_frac": float(np.mean(is_interp_fill_slice[on:off + 1]))})
+        geo["peak_interp"] = bool(is_imputed or (0 <= pf < n_frames and bool(is_interp_fill_slice[pf])))
         if p.get("velocity_window", "v7") == "visible_rise":
             max_velocity_y = _max_dydt(yv[geo["on_frame"]:pf + 1], fps) if pf > geo["on_frame"] else float("nan")
         elif 0 <= rsf <= fef < n_frames:
@@ -1215,7 +1222,8 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
                  "peak_angle_deg", "max_velocity_y_px_per_s", "x_img", "y_img", "vy_peak_px_per_s",
                  "vxy_peak_px_per_s", "bout_idx", "multi_bout_rank", "angle_smoothed_at_peak_deg"]
     extra = ["on_frame", "off_frame", "on_ms", "off_ms", "max_retract_velocity_y_px_per_s", "protrusion_px",
-             "ap_px", "lr_px", "protrusion_max_px", "y_image", "contact", "contact_dist_ms", "spout_angle_deg",
+             "ap_px", "lr_px", "protrusion_max_px", "protrusion_max_measured_px", "interp_frac", "peak_interp",
+             "y_image", "contact", "contact_dist_ms", "spout_angle_deg",
              "spout_dist_px", "delta_angle_deg", "tip_to_spout_px", "reach_frac"]
     lick_cols += [c for c in extra if any(c in r for r in lick_rows)]          # OURS, only when computed
     bout_cols = ["trial_id", "position", "bout_idx", "multi_bout_rank", "n_peaks", "bout_t0_ms", "bout_t1_ms",
