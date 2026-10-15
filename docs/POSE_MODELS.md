@@ -169,6 +169,14 @@ and sit near rest; x only) -- adopted 2026-10-15; (2) PS93's jaw lateral readout
 mixes jaw shape with movement, and a "change" can be the model choosing differently -- read it from a model that picks
 consistently, and treat PS93's static leftward bias as anatomy.
 
+### Jaw source after cleaning v35 (2026-10-15)
+
+PS93 0814, cleaned jaw (v35), post-cue 70-3000 ms: coverage (frames with a measured or interpolated value) / jumps > 30 px:
+DLC r3 98.8 % / 26; DLC r4 95.4 % / 7; LP r4 96.2 % / 0; ctx-sup 89.6 % / 0; ctx-semi 90.0 % / 0; EKS r4+semi 95.6 % / 0
+(close_L coverage: DLC r3 97, LP r4 81, ctx-semi 61 %). PS93 0821: all >= 97 % coverage, <= 6 jumps. Priya judged LP r4's
+jaw points correct on trial 47 close_center (1.4-2.1 s), where ctx-semi abstains and DLC r3 twice took PS93's fake
+mouse-right minimum. **LP r4 = best jaw source so far; current production leaning: LP r4 alone** (to confirm with Priya).
+
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 
 The model is for the ANALYSES — executed angle, lick timing / counts, kinematics across recovery — so it is judged on
@@ -191,7 +199,9 @@ those, on sessions it never saw, across epochs, in this order:
 4. **Angle and kinematics (primary).** Angle at peak protrusion on contact licks: per-position spread (tighter =
    less noise) with medians agreeing across models; peak velocity and protrusion within ~5 % of the unsmoothed
    models (no smoothing bias).
-5. **Stability:** jaw side-flips and tongue teleports (jumps > 30 / 60 px) per 10k frames.
+5. **Stability, WITH coverage:** jaw side-flips and tongue teleports (jumps > 30 / 60 px) per 10k frames, always next to
+   the fraction of frames each model reports (confident raw and cleaned, per spout position) -- a model can reach zero
+   flips by abstaining (ctx-semi at close_L / close_center, 2026-10-15). Count AFTER the production cleaning too.
 6. **Pixel error on frames held out by every model** — a sanity check only.
 7. **Practicality:** inference cost for the full cohort (desktop / O2) and simplicity (one model beats an ensemble
    at equal performance).

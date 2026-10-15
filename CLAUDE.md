@@ -344,8 +344,12 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-15_JAW_CLEANING_MODEL_CHOICE_HANDOFF.md`](docs/status/STATUS_2026-10-15_JAW_CLEANING_MODEL_CHOICE_HANDOFF.md)**
+— **START HERE, newest.** Jaw cleaning v35 (ceiling, flip rules, hidden jaw = NaN), the jaw lateral readout across all four
+animals (jaw steering toward the target drops acutely in all four), LP r4 ctx-semi scored, LP r4 as the jaw source.
+
 **[`docs/status/STATUS_2026-10-14_POSE_MODELS_HANDOFF.md`](docs/status/STATUS_2026-10-14_POSE_MODELS_HANDOFF.md)**
-— **START HERE, newest.** cam4 pose-model selection (five models, human lick review, the EKS correction), what is
+— superseded by 10-15; cam4 pose-model selection (five models, human lick review, the EKS correction), what is
 training in WSL, side-camera labelling plan, WSL GPU safety, pitfalls.
 
 **[`docs/POSE_MODELS.md`](docs/POSE_MODELS.md)** — the cam4 pose-model register: every model, settings + rationale, results, how we choose.

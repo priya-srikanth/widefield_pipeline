@@ -19852,3 +19852,15 @@ on VIDEO once the semi-supervised temporal-context model is done.
   The tongue keeps its fill pending Priya's look at labelled clips. Also: after v35 cleaning LP r4's jaw has 0 jumps >
   30 px on PS93 0814 (DLC r3 26) at 96 % coverage (ctx-semi 0 jumps at 90 %; close_L 81 vs 61 %), and Priya judged LP
   r4's jaw points correct where ctx-semi abstains (trial 47 close_center) -> LP r4 is the better jaw source.
+
+## 2026-10-15 — jaw lateral readout across the cohort; jaw source
+
+* **Jaw steering toward the target drops acutely in all four animals** (to-do 10; `scripts/jaw_lateral.py deviation`,
+  DLC r3 on 60-trial clips, cleaning v35). FAR_DIR (half of far_L - far_R jaw lr at opening > 50 px, spout frame):
+  PS92 +10.0 / +1.4 / +5.2, PS93 +9.4 / -5.8 / +0.3, PS94 +14.6 / -1.6 / +14.6, PS95 +18.1 / +11.6 / +13.8 px (pre
+  0814 / acute 0821 / chronic 0907-0908). Visible in every animal individually (CLAUDE.md rule 8), but 4-10 trials per
+  far position and one model: preliminary. Confound to test: shallower acute licks (control with protrusion). FAR_BIAS
+  is animal-specific (PS93 +10-15 px throughout = its jaw anatomy).
+* **LP r4 is the best jaw source so far**: after v35 cleaning 0 jaw jumps > 30 px at 96 % coverage (DLC r3 26 jumps;
+  ctx-semi 0 jumps but 90 % coverage, close_L 61 %), and Priya judged its jaw points correct where ctx-semi abstains.
+  A model's "zero flips" must be reported with its coverage.
