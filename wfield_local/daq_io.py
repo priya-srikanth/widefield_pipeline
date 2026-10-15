@@ -165,3 +165,22 @@ def session_h5(animal: str, date: str, rv=None) -> Path | None:
         print(f"[daq_io] {animal} {date}: {len(hits)} DAQ files and no _concat / registered one -- using {hits[0].name}",
               flush=True)
     return hits[0] if hits else None
+
+
+def recorded_mask(f, n_samples: int) -> np.ndarray:
+    """True where the DAQ was RECORDING. A file joined by `concat_split_session` zero-pads each gap between its
+    segments (wall-clock preserved for sync alignment) and lists the segments in the ``concat_boundaries`` attribute;
+    those padded samples are not data. Every other file: all True. 2026-10-15: PS92 0812's 40.7-min padded gap
+    calibrated to a constant treadmill speed and was read as a 2,441-s running bout (`locomotor_state` then had to
+    exclude the session)."""
+    import json
+    m = np.ones(int(n_samples), dtype=bool)
+    raw = f.attrs.get("concat_boundaries") if hasattr(f, "attrs") else None
+    if raw is None:
+        return m
+    segs = json.loads(raw if isinstance(raw, str) else raw.decode())
+    m[:] = False
+    for s in segs:
+        a = int(s["sample_start"])
+        m[a:min(a + int(s["n_samples"]), int(n_samples))] = True
+    return m

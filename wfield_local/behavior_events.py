@@ -131,6 +131,8 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
 
         cue_smp, tstart_smp, strobe_smp = (_edges("cue"), _edges("trial_start"),
                                            _edges("spout_strobe"))
+        from wfield_local import daq_io as _dio
+        recorded = _dio.recorded_mask(f, lick_v.size)       # False only in a concat session's zero-padded gaps
     n = int(lick_v.size)
     sync_samples = np.flatnonzero(np.diff(sync_col.astype(np.int8), prepend=0) == 1).astype(np.int64)
 
@@ -145,6 +147,10 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
     speed = treadmill_speed(tread_v, fs, seg)
     rn = seg["running"]
     running = find_running_bouts(speed, fs, rn["thresh_speed_mm_s"], rn["max_gap_s"], rn["min_duration_s"])
+    if not recorded.all():
+        # a concat session's padded gap is NOT running (its zeros calibrate to a constant speed): cut it out, then
+        # re-apply the minimum bout duration to the pieces left at its edges
+        running = set_short_bool_to_low(running & recorded, int(float(rn["min_duration_s"]) * fs))
     run_starts, run_stops = bout_edges(running)
 
     # REST -- ONE IMPLEMENTATION, in `quiet_periods.rest_mask`. This module and that one used to
@@ -196,6 +202,8 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
         groom_starts, groom_stops = bout_edges(groom_bool)
         quiet = set_short_bool_to_low(quiet & ~wid(groom_bool, gr["buffer_s"]),
                                       int(float(q["min_rest_s"]) * fs))
+    if not recorded.all():                                             # no rest inside an unrecorded gap either
+        quiet = set_short_bool_to_low(quiet & recorded, int(float(q["min_rest_s"]) * fs))
     quiet_starts, quiet_stops = bout_edges(quiet)
 
     return {

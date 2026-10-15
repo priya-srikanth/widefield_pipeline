@@ -147,12 +147,27 @@ def test_lick_and_run_together_is_counted_not_absorbed():
 
 # ------------------------------------------------------------------ the exclusion
 
-def test_the_crash_and_concat_session_is_excluded_by_name():
-    """PS92 8/12's longest 'running bout' is 2,441 s -- 41 minutes, 29% of the session -- against a
-    cohort maximum of 54 s everywhere else. That is the `concat_split_session` discontinuity read as
-    sustained locomotion (`docs/EXPERIMENT_ERRORS.md`), and uncapped it would supply ~7% of the
-    entire running class from one artefact."""
-    assert "PS92_0812" in ls.EXCLUDE_SESSIONS
+def test_the_crash_and_concat_session_is_no_longer_excluded_because_its_gap_is_masked():
+    """PS92 8/12's 2,441-s 'running bout' was the concat's zero-padded gap calibrated to a constant speed. Since
+    2026-10-15 `behavior_events` masks unrecorded samples (`daq_io.recorded_mask`; longest bout now 8.3 s), so the
+    session contributes like any other (Priya: add PS92 0812 back into all widefield analyses)."""
+    assert "PS92_0812" not in ls.EXCLUDE_SESSIONS
+
+
+def test_recorded_mask_marks_a_concat_gap_and_nothing_else():
+    import json
+
+    from wfield_local import daq_io
+
+    class F:
+        attrs = {"concat_boundaries": json.dumps([{"sample_start": 0, "n_samples": 10},
+                                                  {"sample_start": 30, "n_samples": 20}])}
+    m = daq_io.recorded_mask(F(), 50)
+    assert m[:10].all() and not m[10:30].any() and m[30:].all()
+
+    class G:
+        attrs = {}
+    assert daq_io.recorded_mask(G(), 7).all()
 
 
 @pytest.mark.parametrize("name", list(ls.THREE_WAY))

@@ -161,11 +161,28 @@ def run_session(s, cams, ds, workers, n_perm, log=print):
     missing = [c for c in cams if not vids[c]]
     if missing:
         raise FileNotFoundError(f"{s['label']}: no video for {missing} -- movement model would be incomplete")
-    tpls = {c: dict(np.load(Path(rv.root("alignment_templates")) / c / animal / f"{date}.npz", allow_pickle=True))
-            for c in cams}
+    # One job per (camera, RECORDING): a split day (PS92 0812 -- crash, restart, concat) has two files per camera,
+    # each with its own template against the concat DAQ (`camera_sync.templates_for`); a window is measured from
+    # the recording whose DAQ segment holds it. Ordinary days: one recording, all windows (unchanged).
+    from wfield_local import camera_sync
+    jobs = []
+    for c in cams:
+        tpls_c = camera_sync.templates_for(rv, date, animal, c)
+        by_rec = {v.stem.split("_", 1)[1]: v for v in vids[c]}
+        for rec, tpl in tpls_c.items():
+            if rec not in by_rec:
+                continue
+            seg = tpl.get("segment_daq_sec")
+            w = enl if seg is None else [(t0, t1) for t0, t1 in enl if seg[0] <= t0 and t1 <= seg[1]]
+            if w:
+                jobs.append((c, str(by_rec[rec]), tpl, w))
     with ProcessPoolExecutor(max_workers=workers) as ex:
-        futs = {c: ex.submit(_me_worker, str(vids[c][0]), tpls[c], enl, ft, ds) for c in cams}
-        me = {c: f.result() for c, f in futs.items()}
+        futs = [(c, ex.submit(_me_worker, v, tpl, w, ft, ds)) for c, v, tpl, w in jobs]
+        parts = {}
+        for c, f in futs:
+            parts.setdefault(c, []).append(f.result())
+    me = {c: (np.concatenate([i for i, _ in parts[c]]), np.concatenate([m for _, m in parts[c]], axis=0))
+          for c in cams}
     pcs = []
     for c in cams:
         idx, M = me[c]

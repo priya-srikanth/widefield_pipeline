@@ -149,12 +149,12 @@ MAX_SEGMENTS_PER_PERIOD = 8
 
 #: Sessions whose treadmill trace cannot be segmented and must not contribute.
 #:
-#: PS92 8/12 is the crash+concat session (`docs/EXPERIMENT_ERRORS.md`): acquisition died after
-#: ~9.6 min and the remainder was joined with `concat_split_session`. Its longest "running bout" is
-#: 2,441 s -- 41 minutes, 29% of the session -- against a cohort maximum of 54 s everywhere else.
-#: That is the concatenation discontinuity read as sustained locomotion. Uncapped it would supply
-#: 2,441 segments, ~7% of the entire running class, from one artefact.
-EXCLUDE_SESSIONS = ("PS92_0812",)
+#: EMPTY since 2026-10-15. PS92 8/12 (the crash+concat session, `docs/EXPERIMENT_ERRORS.md`) was excluded
+#: here because its longest "running bout" was 2,441 s -- the concat's zero-padded 40.7-min gap calibrated to a
+#: constant treadmill speed. `behavior_events.compute_events` now masks unrecorded samples
+#: (`daq_io.recorded_mask`): its longest bout is 8.3 s (cohort max elsewhere 54 s), so it contributes normally
+#: (Priya 2026-10-15: "add back in PS92 0812 in all widefield analyses").
+EXCLUDE_SESSIONS: tuple[str, ...] = ()
 
 
 def segments(starts, stops, fs, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD,
