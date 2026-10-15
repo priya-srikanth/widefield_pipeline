@@ -75,7 +75,8 @@ same bundle -> scratch -> array -> collect shape, with `--kind lp`:
   model from the share (`DeepLabCut/Widefield/lightning-pose/cam4-2026-10-13/models/r4_heatmap_20261013/`, set by
   `o2_inference.lp.model_rel`), points its config's data paths at the scratch copy, and writes the runner
   `o2_lp_runner.py`, `run_pose.sbatch` and `COMMANDS.md`.
-* **New env on O2** (`lp`, lightning-pose 2.4.2): COMMANDS.md step 0. Never Priya's `deeplabcut` env.
+* **New env on O2** (`lp`, lightning-pose 2.4.2): COMMANDS.md step 0. Never Priya's `deeplabcut` env. LP already
+  installs DALI (`nvidia-dali-cuda110`); do not add a second DALI build.
 * **Reader = OpenCV** (CPU decode). Our cam4 AVIs are MPEG-4 part 2 (FMP4), which DALI's GPU decoder is not known
   to read. LP's readers preprocess slightly differently, so one run uses one reader, and the first run is checked
   against the desktop: `collect --compare PS93:20260814=<desktop LP csv for session_poses/PS93_20260814>`.

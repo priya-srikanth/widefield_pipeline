@@ -253,8 +253,9 @@ conda create -y -n {p['conda_env']} python=3.10 && conda activate {p['conda_env'
 pip install "lightning-pose=={p['lightning_pose_version']}"
 exit
 #   (The GPU check is step 2: the runner prints torch / CUDA / LP versions first and stops if no GPU is visible.
-#   DALI is optional: our cam4 AVIs are MPEG-4 part 2, which DALI is not known to decode, so the runner defaults to
-#   reader {p['reader']}. To try DALI: pip install nvidia-dali-cuda120, then step 2's bench.)"""
+#   lightning-pose already installs DALI (nvidia-dali-cuda110) -- do NOT add another DALI build. Our cam4 AVIs are
+#   MPEG-4 part 2, which DALI is not known to decode, so the runner uses reader {p['reader']}; the smoke job's bench
+#   also tries dali and just reports if it fails.)"""
     step2 = f"""python {b}/o2_lp_runner.py --model {b}/model --video {v0} --bench 2000
 #   -> fps per reader on the first 2000 frames (re-encoded clip). Keep reader {p['reader']} unless another is clearly
 #      faster AND a real video run with it matches the desktop (`collect --compare`); readers preprocess differently,
