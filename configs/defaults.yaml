@@ -1234,12 +1234,15 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
                                # dlc_inference_o2 (their: gpu, gpu:1, 10 CPUs, 30G, 9:30:00 per job looping over every
                                # video, conda/miniforge3/24.11.3-0, env deeplabcut [TF]). Re-check partition limits
                                # (`sinfo`) and the module name on O2 before a big run.
-  partition: gpu
+  partition: gpu_quad            # 2026-10-15: Priya's account has gpuquad_qos (140 cards, no per-user cap listed); the `gpu`
+                                # partition's gpu_qos caps a user at cpu=34 / mem=420G (~5 jobs at 6 CPUs)
   gres: "gpu:1"
   cpus_per_task: 6              # decode + preprocessing run on CPU (decode ~840 fps on one core here)
   mem: 24G
-  time: "24:00:00"              # per VIDEO (array task); resumable, so a kill costs at most one chunk
-  max_concurrent: 4             # array throttle (%N): be a good citizen on the shared GPU partition
+  time: "24:00:00"              # per VIDEO (array task); resumable, so a kill costs at most one chunk. gpu_quad limit
+                                # is 5-00:00:00 (sinfo, 2026-10-15)
+  max_concurrent: 12            # array throttle (%N). MaxArraySize 10001, no submit cap on `normal` (sacctmgr 10-15):
+                                # all ~138 videos go in ONE array; raise %N if the queue is idle
   exclude_nodes: "compute-g-16-[254-255]"   # theirs: known-problematic nodes (2025); drop if O2 retired them
   conda_module: "conda/miniforge3/24.11.3-0"
   conda_env: deeplabcut           # Priya's existing O2 env (2025-11 stroke_orofacial O2 runs; PyTorch DLC 3)

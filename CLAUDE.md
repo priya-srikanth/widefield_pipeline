@@ -104,6 +104,9 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
      `n_iter_` 589 vs 620, and no change to any prediction on real trials). So **publish from ONE
      box** — a second box's upload reports MISMATCH and is right to — and **delete neither local
      store**; publishing copies, it does not move.
+   - **EVERY PRE-STROKE DECODER IS FROZEN, for this and future cohorts** (Priya, 2026-10-15): position AND the
+     behavioural-state decoder (`locomotor_decoder.frozen_state_models`, kind `state`) go through
+     `frozen_models.load_or_fit`; never refit a pre-stroke reference in memory per render. `docs/FROZEN_MODELS.md` §7.
 
 ## The three commands (end of day)
 

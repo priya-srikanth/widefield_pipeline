@@ -338,3 +338,29 @@ def test_the_two_modes_select_genuinely_different_windows():
     assert len(post_s) == 1 and post_s[0] / FS == 10.4
     assert 8.0 in (bout_s / FS).tolist(), "bout mode anchors on the earlier free-running bout"
     assert 8.0 not in (post_s / FS).tolist()
+
+
+def test_state_decoder_is_a_frozen_reference_with_loso_models(monkeypatch):
+    """Priya 2026-10-15: the pre-stroke state decoder is FROZEN and STORED (frozen_models), not refitted per render.
+    The spec carries the sorted PRE labels only (post-stroke sessions never enter the identity) and the payload holds
+    the full model plus one LOSO model per pre session."""
+    from wfield_local import frozen_models as fm
+    from wfield_local import locomotor_decoder as ld
+    rng = np.random.default_rng(0)
+
+    def sess(n):
+        y = np.array(list(ls.THREE_WAY) * n)
+        return rng.normal(size=(len(y), 4)) + np.array([list(ls.THREE_WAY).index(v) for v in y])[:, None], y
+    got = {lab: (*sess(30), None, d) for lab, d in (("PSX_0801", -3), ("PSX_0805", -1), ("PSX_0820", 3))}
+    seen = {}
+
+    def fake_load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
+        seen["spec"] = spec
+        return fit(), fm.STATUS_NEW
+    monkeypatch.setattr(fm, "load_or_fit", fake_load_or_fit)
+    monkeypatch.setattr(fm, "_session_sig", lambda lab: "sig")
+    monkeypatch.setattr(fm.config, "animal_of", lambda lab: lab.split("_")[0])
+    models, status = ld.frozen_state_models("PSX", "abc123", got)
+    assert status == fm.STATUS_NEW and seen["spec"]["kind"] == "state" and seen["spec"]["basis_id"] == "abc123"
+    assert seen["spec"]["train_labels"] == ["PSX_0801", "PSX_0805"]               # post-stroke 0820 is not in it
+    assert set(models["loso"]) == {"PSX_0801", "PSX_0805"} and models["full"] is not None

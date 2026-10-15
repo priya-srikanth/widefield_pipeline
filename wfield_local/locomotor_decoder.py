@@ -61,6 +61,38 @@ def fit_frozen(Xs, ys, classes=ls.THREE_WAY):
     return _pipe().fit(np.asarray(Xs), np.array([list(classes).index(v) for v in y]))
 
 
+def frozen_state_models(animal: str, basis_id: str, got: dict):
+    """``({"full": model, "loso": {pre_label: model}}, status)`` -- the PRE-STROKE state decoder as a FROZEN,
+    STORED REFERENCE (`frozen_models.load_or_fit`), never refitted once stored.
+
+    Priya, 2026-10-15: "establish in the code for future cohorts that we will make a frozen pre-stroke decoder
+    that is cached/stored and reused" -- the same discipline as the position decoders (docs/FROZEN_MODELS.md, CLAUDE.md
+    rule 10). Until now this decoder was refitted in memory on every render, so adding a pre-stroke session (PS92
+    0812, 2026-10-15) silently moved the reference every post-stroke score was computed against. Now: the identity
+    is animal + kind ``state`` + the joint-basis id + the feature count + the SORTED pre-stroke labels with each
+    session's data signature; a changed pre-stroke set is reported as SPEC-CHANGED and frozen under a new id, the
+    old one untouched. ``got`` = {label: (X, y, groups, day)}; pre-stroke = day <= 0. The LOSO models (each pre
+    session scored by a model that never saw it) are part of the same frozen payload."""
+    import numpy as np
+
+    from wfield_local import frozen_models as fm
+    pre = {lab: v for lab, v in got.items() if v[3] <= 0}
+    n_feat = int(next(iter(pre.values()))[0].shape[1])
+    spec = fm.make_spec(animal, "state", align="segments", source=f"joint_{basis_id}", train_labels=list(pre),
+                        basis_id=basis_id, n_features=n_feat, post_s=ls.SEGMENT_S, zscore=True)
+
+    def fit():
+        full = fit_frozen(np.vstack([v[0] for v in pre.values()]), np.concatenate([v[1] for v in pre.values()]))
+        loso = {}
+        for lab in sorted(pre):
+            keep = [v for l2, v in pre.items() if l2 != lab]
+            if keep:
+                loso[lab] = fit_frozen(np.vstack([v[0] for v in keep]), np.concatenate([v[1] for v in keep]))
+        return {"full": full, "loso": loso}
+
+    return fm.load_or_fit(spec, fit, meta={"classes": list(ls.THREE_WAY), "n_pre_sessions": len(pre)})
+
+
 def score(model, X, y, classes=ls.THREE_WAY):
     """``{"balacc":…, "auroc":…, "n":…, "per_class":{…}}`` or None when a class is absent.
 
@@ -172,16 +204,15 @@ def by_animal_day(fs_img=FS_IMG):
         pre = [(X, y) for X, y, _g, d in got.values() if d <= 0]
         if not pre:
             continue
-        frozen = fit_frozen(np.vstack([a for a, _b in pre]),
-                            np.concatenate([b for _a, b in pre]))
+        models, status = frozen_state_models(an, basis.basis_id, got)
+        print(f"  state {an}: {status} ({len(models['loso'])} pre-stroke sessions)", flush=True)
+        frozen = models["full"]
         rec = {"PRE": []}
         for lab, (X, y, _g, d) in sorted(got.items()):
             if d <= 0:
-                keep = [(a, b) for l2, (a, b, _c, dq) in got.items() if l2 != lab and dq <= 0]
-                if not keep:
+                m = models["loso"].get(lab)
+                if m is None:
                     continue
-                m = fit_frozen(np.vstack([a for a, _b in keep]),
-                               np.concatenate([b for _a, b in keep]))
             else:
                 m = frozen
             r = score(m, X, y)

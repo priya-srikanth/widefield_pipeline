@@ -204,3 +204,27 @@ them. Nothing has been deleted; check the path and check for a non-null id.
    before letting a nightly refit over the top.
 3. Prefer resolving through the published server set over re-fitting locally: one store is the
    entire point.
+
+---
+
+## 7. EVERY PRE-STROKE DECODER IS FROZEN — the rule for this and future cohorts (Priya, 2026-10-15)
+
+*"Establish in the code for future cohorts that we will make a frozen pre-stroke decoder that is cached / stored
+and reused."* Any decoder that scores post-stroke data against a pre-stroke reference goes through
+`frozen_models.load_or_fit` -- never an in-memory refit per render:
+
+| decoder | where | spec `kind` | since |
+|---|---|---|---|
+| position (cue / lick / precue; roi and joint bases) | `locanmf_position_decoder`, `pooled_frozen_*` | `decoder` / `encoder` | 2026-08/09 |
+| behavioural STATE (quiet / running / licking) | `locomotor_decoder.frozen_state_models` | `state` | **2026-10-15** |
+
+The state decoder was refitted in memory on every render until 2026-10-15, so when PS92 0812 re-entered its
+pre-stroke set (after the split-session fixes, `docs/EXPERIMENT_ERRORS.md`) every post-stroke state score moved
+with it and nothing said so. Now its identity is animal + `state` + joint-basis id + feature count + the sorted
+pre-stroke labels and their data signatures; the payload is the full model plus one leave-one-session-out model
+per pre-stroke session (the PRE column). A grown pre-stroke set reports `SPEC-CHANGED` and freezes a new id.
+
+**For a new decoder:** build the spec with `make_spec` (one animal, sorted PRE labels only -- post-stroke sessions
+never enter an identity), put every model the analysis needs (full + LOSO) in one payload, and read
+`load_or_fit`'s status in the log. **First freezes follow §5:** fit and publish from ONE box (the behaviour box
+holds the canonical set); a second box's fit is a different reference to the optimiser's tolerance.
