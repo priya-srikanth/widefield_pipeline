@@ -66,6 +66,55 @@ def test_csv_reads_back_through_read_pose(tmp_path):
     np.testing.assert_allclose(d["spout_likelihood"], P[:, 3, 2], atol=1e-4)
 
 
+_P = {"partition": "gpu", "gres": "gpu:1", "cpus_per_task": 6, "mem": "24G", "time": "24:00:00",
+      "max_concurrent": 4, "exclude_nodes": "", "conda_module": "conda/x", "conda_env": "dlc3", "batch": 16,
+      "chunk": 25000, "scratch_root": "/n/scratch/users/{u0}/{user}", "transfer_host": "transfer.rc.hms.harvard.edu",
+      "deeplabcut_version": "3.0.1"}
+
+
+def test_lp_job_text_runs_the_lp_runner_in_its_own_env():
+    p = {**_P, "kind": "lp", "conda_env": "lp", "reader": "opencv", "precision": "fp32",
+         "lightning_pose_version": "2.4.2"}
+    s = oi.sbatch_text(p, "ab123", "lp1", 2)
+    b = "/n/scratch/users/a/ab123/o2/lp1"
+    assert "#SBATCH -J lp_lp1" in s and "#SBATCH --array=1-2%4" in s and "\nconda activate lp\n" in s
+    assert f"python {b}/o2_lp_runner.py --model {b}/model --video " in s and "--reader opencv --precision fp32" in s
+    assert "o2_pose_runner" not in s and "--chunk" not in s
+    tasks = pd.DataFrame({"animal": ["PS93"], "date": ["20260814"], "video": ["cam4_x.avi"],
+                          "video_o2": ["/n/files/Neurobio/MICROSCOPE/Priya/B/20260814/PS93/cam4_x.avi"]})
+    c = oi.commands_text(p, "ab123", "lp1", "/n/files/x/o2/lp1", tasks)
+    assert 'pip install "lightning-pose==2.4.2"' in c and "conda create -y -n lp" in c
+    assert "o2_lp_runner.py --model" in c and "--bench 2000" in c and "o2_pose_runner" not in c
+    # the DLC job is unchanged by the refactor
+    sd = oi.sbatch_text({**_P, "kind": "dlc"}, "ab123", "run1", 3)
+    assert "#SBATCH -J pose_run1" in sd and "o2_pose_runner.py --bundle" in sd and "--batch 16 --chunk 25000" in sd
+
+
+def test_lp_runner_csv_to_pose_and_outputs_follow_the_shared_contract(tmp_path):
+    from wfield_local import o2_lp_runner as lpr
+    parts = ["nose", "jaw", "tongue", "spout"]
+    P = np.random.default_rng(1).random((9, 4, 3)).astype(np.float32)
+    cols = pd.MultiIndex.from_product([["heatmap_tracker"], parts, ["x", "y", "likelihood"]])
+    pd.DataFrame(P.reshape(9, -1), columns=cols).to_csv(tmp_path / "lp.csv")          # LP's own CSV layout
+    pose, got_parts, scorer = lpr.lp_csv_to_pose(tmp_path / "lp.csv")
+    assert got_parts == parts and scorer == "heatmap_tracker"
+    np.testing.assert_allclose(pose, P, atol=1e-6)
+    lpr.write_outputs(tmp_path / "out", "cam4_x", pose, parts, "LP_r4", {"fps": 250.0, "wall_s": 1.0, "batch": None})
+    info = json.loads((tmp_path / "out" / "cam4_x_done.json").read_text())
+    assert info["n_frames"] == 9 and info["scorer"] == "LP_r4"
+    z = np.load(tmp_path / "out" / "cam4_x_LP_r4.npz")
+    assert list(z["parts"]) == parts and z["pose"].shape == (9, 4, 3)
+    d = oc.read_pose(tmp_path / "out" / "cam4_x_LP_r4.csv")
+    np.testing.assert_allclose(d["tongue_x"], P[:, 2, 0], atol=1e-4)
+
+
+def test_params_lp_block_overrides_shared_keys(monkeypatch):
+    monkeypatch.setattr(oi.config, "defaults", lambda: {"o2_inference": {**_P, "lp": {"conda_env": "lp", "mem": "32G"}}})
+    lp, dlc = oi.params("lp"), oi.params("dlc")
+    assert lp["kind"] == "lp" and lp["conda_env"] == "lp" and lp["mem"] == "32G" and lp["partition"] == "gpu"
+    assert dlc["kind"] == "dlc" and dlc["conda_env"] == "dlc3" and "lp" not in dlc
+
+
 def _local_setup():
     pytest.importorskip("deeplabcut")
     from wfield_local import dlc_prior, dlc_train

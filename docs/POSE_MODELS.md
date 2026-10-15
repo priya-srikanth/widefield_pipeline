@@ -175,7 +175,9 @@ PS93 0814, cleaned jaw (v35), post-cue 70-3000 ms: coverage (frames with a measu
 DLC r3 98.8 % / 26; DLC r4 95.4 % / 7; LP r4 96.2 % / 0; ctx-sup 89.6 % / 0; ctx-semi 90.0 % / 0; EKS r4+semi 95.6 % / 0
 (close_L coverage: DLC r3 97, LP r4 81, ctx-semi 61 %). PS93 0821: all >= 97 % coverage, <= 6 jumps. Priya judged LP r4's
 jaw points correct on trial 47 close_center (1.4-2.1 s), where ctx-semi abstains and DLC r3 twice took PS93's fake
-mouse-right minimum. **LP r4 = best jaw source so far; current production leaning: LP r4 alone** (to confirm with Priya).
+mouse-right minimum. **LP r4 = best jaw source. PRODUCTION MODEL = LP r4 alone (Priya, 2026-10-15)**; after cleaning, EKS's raw tongue-jitter
+advantage is gone (one-frame spikes 2 vs 0-1 per 10k frames). Model archived at `DeepLabCut/Widefield/lightning-pose/
+cam4-2026-10-13/models/r4_heatmap_20261013/`; O2 inference: runbooks/o2_pose_inference.md (Lightning Pose).
 
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 

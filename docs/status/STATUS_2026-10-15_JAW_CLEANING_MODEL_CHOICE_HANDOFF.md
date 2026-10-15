@@ -59,8 +59,7 @@ register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: 
 * Jaw cleaning v35 in `configs/defaults.yaml` (see 1.1); hidden jaw left NaN; tongue KEEPS its mouth-zero fill
   (presence vs absence of the tongue stays in the position trace).
 * Jaw lateral deviation is read from the far pair only; per-animal tables before pooling.
-* Model choice still open; current leaning **LP r4 alone** (best jaw after cleaning, best tongue recall/coverage),
-  ctx-semi as the precision check for no-contact licks.
+* **cam4 production model = LP r4 alone** (Priya 10-15).
 
 ## 3. Code (all pushed)
 * `wfield_local/orofacial_clean.py` `jaw_v34`: `frame_jump_thr_x_px`, `x_flip_step_px` / `x_flip_max_ms` /
@@ -76,8 +75,11 @@ register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: 
 ## 4. Pending / to-do
 1. ~~Tongue mouth fill?~~ **DECIDED 10-15: KEEP it** (Priya): the mouth zero builds tongue presence vs absence into
    the position trace, for pre vs post comparisons. Tongue fill = 0 at the mouth; jaw fill = NaN (DECISIONS).
-2. **Decide the cam4 production model with Priya** (leaning LP r4). Before: check which contacts ctx-semi misses
-   (findable?), and add jaw coverage per position to the selection rule (POSE_MODELS §4).
+2. ~~Decide the production model~~ **DECIDED 10-15: LP r4 alone** (Priya). After-cleaning jitter check: EKS's raw
+   advantage does not survive cleaning (DECISIONS 2026-10-15). **O2 LP inference is prepared**: `o2_lp_runner.py`,
+   `o2_inference bundle --kind lp`, pilot bundle `o2/lp_r4_pilot_20261015` (PS93 0814 / 0821) with COMMANDS.md -- Priya
+   pastes the O2 steps (DUO). First: create the `lp` env (step 0), `--bench`, run the pilot, `collect --compare` against
+   the desktop clip predictions. Then a production bundle over all curated sessions (decide the session list).
 3. Run the chosen model on the twelve jaw clips + other sessions; redo the jaw readout with it (and a
    tongue-protrusion control for the acute FAR_DIR drop); then the production run -> executed-angle readout (MUST
    REVISIT).

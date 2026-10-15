@@ -66,6 +66,31 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
    (strobe - 0.5 s .. stop + 3 s; neighbouring windows overlap a few s) in the `session_poses` format.
 7. Clean scratch videos and `_chunks/` once collected.
 
+## Lightning Pose (the production cam4 model, from 2026-10-15)
+
+Priya chose **LP r4** (single-frame heatmap, round-4 labels; `docs/POSE_MODELS.md`) as the cam4 production model. The
+same bundle -> scratch -> array -> collect shape, with `--kind lp`:
+
+* `python -m wfield_local.o2_inference bundle --kind lp --name <name> --user ps150 <ANIMAL:YYYYMMDD> ...` copies the
+  model from the share (`DeepLabCut/Widefield/lightning-pose/cam4-2026-10-13/models/r4_heatmap_20261013/`, set by
+  `o2_inference.lp.model_rel`), points its config's data paths at the scratch copy, and writes the runner
+  `o2_lp_runner.py`, `run_pose.sbatch` and `COMMANDS.md`.
+* **New env on O2** (`lp`, lightning-pose 2.4.2): COMMANDS.md step 0. Never Priya's `deeplabcut` env.
+* **Reader = OpenCV** (CPU decode). Our cam4 AVIs are MPEG-4 part 2 (FMP4), which DALI's GPU decoder is not known
+  to read. LP's readers preprocess slightly differently, so one run uses one reader, and the first run is checked
+  against the desktop: `collect --compare PS93:20260814=<desktop LP csv for session_poses/PS93_20260814>`.
+* **Not resumable inside a video** (LP predicts a file in one pass); a requeue skips finished videos. Speed on O2 is
+  unmeasured: `--bench 2000` in step 2. If CPU decode limits as it did for DLC (~90-100 fps), ~6-8 h per session.
+* Output contract = the DLC runner's (`<stem>_<scorer>.npz/.csv`, `_done.json`), so `collect` is shared; it writes
+  `windows_LP.csv` next to `windows_index.csv` in `session_poses/<a>_<d>_full/`.
+* Tested 2026-10-15 on this desktop (CPU, 300 frames): the bundled model + runner reproduce the share model's
+  predictions exactly. Not yet run on O2.
+* Pilot bundle ready: `o2/lp_r4_pilot_20261015` (PS93 0814 + 0821, both with desktop LP r4 clip predictions for
+  `--compare`).
+* **Scratch purge vs file dates:** the 10-06 video copies kept their August modification times (`rsync -ah`), and
+  scratch deletes files 45 days after last modification -- they may already be gone; step 1's rsync re-stages them.
+  Ask Priya before changing how dates are handled (her rule: never alter file dates on scratch).
+
 ## Status 2026-10-06
 
 Task 1 (PS93 0814) finished: 2,209,351 frames in 7.0 h, collected (575 trials). Against the local round-3 run on

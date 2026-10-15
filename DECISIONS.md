@@ -19869,3 +19869,19 @@ on VIDEO once the semi-supervised temporal-context model is done.
   origin (0) builds tongue PRESENCE vs ABSENCE into the position trace -- needed to compare how often / how long the
   tongue is out post- vs pre-stroke. So the asymmetry is deliberate: tongue fill = 0 at the mouth, jaw fill = NaN.
   (Plots and averages that should show only measured tongue still use `x_masked` / `y_masked`.)
+
+## 2026-10-15 — LP r4 is the cam4 production model; O2 LP inference prepared
+
+* **Priya: "LP r4 alone sounds good."** Basis (docs/POSE_MODELS.md): finds 98 % of her reviewed real licks (DLC r3
+  67 %, LP r3 59 %), contact recall 98.5 / 99.6 %, misses on clearly visible tongues only where the tip is behind the
+  spout rod (2 of her 16 frames, 32-36 ms gaps, interpolated by the cleaning), and after cleaning v35 a stable jaw (0
+  jumps > 30 px at 96 % coverage). Ensembles were not worth a second model: the fixed EKS r4+sup halves RAW tongue
+  jitter, but AFTER CLEANING one-frame tongue spikes are 2 / 10k frames for LP r4 vs 0-1 for EKS, steps > 60 px 2 / 0
+  vs 1 / 1 (pre / acute); steps > 30 px (487 vs 432 pre) are mostly genuine fast tongue motion. ctx-semi is the
+  jumpiest after cleaning (28 steps > 60 px pre).
+* **O2 LP path** (`wfield_local/o2_lp_runner.py`, `o2_inference bundle --kind lp`, config `o2_inference.lp`): LP's
+  `predict_on_video_file` with compute_metrics off; reader OpenCV because the cam4 AVIs are MPEG-4 part 2 (FMP4); same
+  output contract as the DLC runner so `collect` is shared (`--compare` checks O2 against a desktop clip). Model
+  archived on the share (`lightning-pose/cam4-2026-10-13/models/r4_heatmap_20261013/`, checkpoint byte-identical to the
+  desktop's). Bundle + runner verified on CPU locally (exact match); not yet run on O2. Pilot bundle
+  `o2/lp_r4_pilot_20261015` (PS93 0814 / 0821).
