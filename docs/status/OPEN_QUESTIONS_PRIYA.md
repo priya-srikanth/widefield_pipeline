@@ -29,7 +29,6 @@ ound4_scan", "$W\cam1_round2_scan", "$W\_guide_archive", "$W\_frame_staging"
 
 - Family 8.2 equivalent (cue-aligned lateral tongue position minus pre) — building (Priya: yes).
 - Machine profile for this desktop in `paths.yaml` — fixing, with the frozen-model store check (Priya: yes).
-- ViT-S DINOv2 512 px training locally (WSL, guarded); scored against LP r4 when done.
 
 ## FYI
 
@@ -38,6 +37,9 @@ ound4_scan", "$W\cam1_round2_scan", "$W\_guide_archive", "$W\_frame_staging"
 - PS92 0908: cam4 stopped ~14 min before the DAQ — its last 68 trials have no pose data (EXPERIMENT_ERRORS).
 
 ## Resolved
+
+- 2026-10-16 — ViT-S DINOv2 (local, 512 px): not better than LP r4 (precise but misses faint licks; jumpy on the pre
+  clip). Baseline for the O2 ViT-B 640 px run. `docs/POSE_MODELS.md`.
 
 - 2026-10-16 — tiny (< 20 px) incomplete licks: not needed (Priya). LP never tracks them (no labels that close);
   jaw-without-tongue covers attempts. Floor stays 20 px (moot).

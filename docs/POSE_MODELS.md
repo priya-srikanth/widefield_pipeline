@@ -187,6 +187,26 @@ mouse-right minimum. **LP r4 = best jaw source. PRODUCTION MODEL = LP r4 alone (
 advantage is gone (one-frame spikes 2 vs 0-1 per 10k frames). Model archived at `DeepLabCut/Widefield/lightning-pose/
 cam4-2026-10-13/models/r4_heatmap_20261013/`; O2 inference: runbooks/o2_pose_inference.md (Lightning Pose).
 
+### LP r4 ViT-S DINOv2 (vision-transformer backbone, local, 2026-10-16)
+
+`vits_dinov2`, otherwise the LP r4 recipe (round-4 labels, temporal loss), **512 px** (LP needs multiples of 128; the
+8-GB card), batch 4, WSL guarded; training cut at epoch 270 / 300 by a machine restart -> best checkpoint epoch 254
+(LP r4's best: 159). `lp_train_vit_r4_wsl.sh` / `lp_predict_vit_r4_wsl.sh`; predictions `lp_stage/r3_vs_r4_lp/
+r4_vits_dinov2_512/`; scored `session_poses/PS93_<d>/r4_eval/model_lick_comparevits_1016.csv`.
+
+| pre / acute | LP r4 | ctx-semi | ViT-S 512 |
+|---|---|---|---|
+| contact recall (%) | 98.8 / 99.6 | 98.0 / 97.1 | 98.0 / 98.3 |
+| review: share of real licks found (%) | 100 / 97 | 89 / 100 | 67 / 90 |
+| review precision (%) | 82 / 88 | 89 / 91 | 95 / 93 |
+| tongue x jumps > 30 px (raw) | 35 / 45 | 31 / 58 | 294 / 57 |
+| jaw x jumps > 30 px (raw) | 38 / 5 | 0 / 0 | 140 / 12 |
+
+**Reading.** Not better than LP r4: the most precise detector so far but misses faint licks (like temporal context),
+and very jumpy on the pre clip only. Angles at peak agree with LP r4 within ~1-2 deg. Not a final verdict on ViTs:
+512 px vs 640, the SMALL ViT, training cut at 254 epochs. The O2 run (job 56522565: ViT-B DINOv2 640 px b8, ResNet-50
+640 px b8, ctx-semi 640 px b4; `scripts/o2_lp_train_bundle.py`) is the real test, scored with the same protocol.
+
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 
 The model is for the ANALYSES — executed angle, lick timing / counts, kinematics across recovery — so it is judged on
