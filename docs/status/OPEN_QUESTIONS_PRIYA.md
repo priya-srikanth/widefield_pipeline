@@ -13,6 +13,10 @@ resolved items move to the bottom with the answer and date.
    do tiny (< ~20 px) incomplete licks matter for the deficit? If yes, the fix is a labelling round of tongue-at-the-lips
    frames (+ retrain); if no, nothing to change (the floor itself is moot). Jaw movement without a tongue lick
    (`mismatch.png`) already catches attempts the tongue tracking misses.
+   *Labels check (10-16):* the closest labelled tongue point in the LP r4 training set is 26.8 px from the mouth (93
+   placeable labels; none < 25 px, median 107 px; 329 of 540 frames have the tongue blank) -- the model's ~20 px
+   visibility edge matches the labels. Option: a sheet of the blank-tongue labelled frames to check for tongue tips just
+   past the lips that were left unlabelled.
 2. **Stroke_orofacial Family 8.2 equivalent** (added 2026-10-16): cue-aligned continuous LATERAL tongue position,
    minus each animal's pre-stroke baseline, by position and epoch (their likely paper figure). Build it? (Family 8.1 —
    lick 1 / lick 2 angle minus pre — is done: `lick1_lick2_minus_pre.png`.)
