@@ -211,7 +211,7 @@ ls {b}/out/*/*_done.json | wc -l          # finished videos (of {len(tasks)})
 
 ## 5. Transfer node: results -> the share (into the bundle folder)
 ssh {user}@{p['transfer_host']}
-rsync -ah --partial --exclude '*_chunks' {b}/out/  {share_b}/out/
+rsync -ah --partial --exclude {"'tmp*'" if p.get('kind') == 'lp' else "'*_chunks'"} {b}/out/  {share_b}/out/
 
 ## 6. This desktop: check + convert to the session-analysis format
 python -m wfield_local.o2_inference collect --name {name}{'''
