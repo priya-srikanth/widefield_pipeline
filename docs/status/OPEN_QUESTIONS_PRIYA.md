@@ -33,7 +33,8 @@ ound4_scan", "$W\cam1_round2_scan", "$W\_guide_archive", "$W\_frame_staging"
 
 ## FYI
 
-- PS94 0601 and PS95 0601 cannot be camera-aligned / have no template (early June; outside the curated set).
+- PS94 0601 and PS95 0601 cannot be camera-aligned (~280k dropped cam4 frames each, same day -> rig camera problem on
+  06-01); outside the curated set.
 - PS92 0908: cam4 stopped ~14 min before the DAQ — its last 68 trials have no pose data (EXPERIMENT_ERRORS).
 
 ## Resolved

@@ -740,8 +740,10 @@ hand and the glob fixed in `defaults.yaml`). The backup of the pre-fix outputs s
 * **PS92 0908** (curated, chronic): the cam4 video covers DAQ -6 .. 6,437 s but trials run to 7,268 s -- the camera
   stopped ~14 min before the DAQ; the last **68 trials have no orofacial video**. Imaging and DAQ behaviour unaffected.
 * **PS94 0603** (pre, outside the curated set): camera stopped ~90 s early; last 10 trials without video.
-* **PS94 0601** (first baseline day, outside the curated set): cam4 dropped 274,857 of ~965k frames; the
-  camera <-> DAQ fit fails (RMS 3.2 s), so no alignment template and no pose analysis for that day.
+* **PS94 0601 and PS95 0601** (first baseline day, both outside the curated set): cam4 dropped 274,857 / 280,213
+  frames; the camera <-> DAQ fit fails (RMS ~3.2 s), so no alignment template and no pose analysis for that day. Both
+  animals on the same day -> a rig-wide camera problem on 2026-06-01. (PS94 0604 / PS95 0604 only lacked templates that
+  had never been built; built 10-16, 1.16-1.17 ms RMS, no drops.)
 * Seven videos are one frame shorter than their camera CSV (Bonsai logged a last timestamp whose frame never reached
   the .avi): harmless, video frame k = CSV row k (runbooks/o2_pose_inference.md).
 `orofacial_outputs` logs "N trial(s) not covered by any video -- left out" for the first two; per-session pose metrics
