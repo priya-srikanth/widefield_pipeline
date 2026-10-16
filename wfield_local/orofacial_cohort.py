@@ -309,8 +309,17 @@ def _lickset_rows(sets: dict, spout_angle: dict, lat: str, base: dict) -> list[d
     return out
 
 
+def _repo_on_path() -> None:
+    """Workers import `scripts.pose_kinematics_demo`; make that independent of the launch directory."""
+    import sys
+    root = str(Path(__file__).resolve().parents[1])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+
 def session_metrics(job):
     """(session row, position rows, lick-phase rows) for one session folder; module-level for `fan_sessions`."""
+    _repo_on_path()
     sd, animal, date, epoch, day, lat = job
     rd = lambda n: pd.read_csv(sd / n) if (sd / n).exists() else pd.DataFrame()   # noqa: E731
     L, P, Q, T, M = rd("licks.csv"), rd("licks_precue.csv"), rd("licks_iti.csv"), rd("trials.csv"), \
