@@ -298,9 +298,6 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
         if p.get("kind") == "lp":
             (d / "smoke.sbatch").write_text(smoke_sbatch_text(p, user, name, _first_video(user, p, tasks)),
                                             encoding="utf-8", newline="\n")
-    if p.get("kind") == "lp":
-        (d / "smoke.sbatch").write_text(smoke_sbatch_text(p, user, name, _first_video(user, p, tasks)),
-                                        encoding="utf-8", newline="\n")
         (d / "COMMANDS.md").write_text(commands_text(p, user, name, o2_path(d, rv), tasks), encoding="utf-8",
                                        newline="\n")
         print(f"refreshed text in {d}")
