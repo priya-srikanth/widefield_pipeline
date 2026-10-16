@@ -41,7 +41,8 @@ def run(pose_csv: Path, idx: pd.DataFrame, frame: SF.SpoutFrame | None, stop_aft
         contacts_ms: dict | None = None, params_override: dict | None = None):
     """Tongue zero = the MOUTH (spout-frame origin); jaw keeps the data-driven baseline. With
     ``stop_after_cue_s`` ({trial_id: stop - cue, s}), every post-cue window ends at that trial's own stop."""
-    df = oc.read_pose(pose_csv).iloc[:len(idx)]
+    # ``pose_csv``: a DLC-format CSV path, or the flat pose DataFrame itself (`orofacial_outputs` passes the window rows)
+    df = (pose_csv if isinstance(pose_csv, pd.DataFrame) else oc.read_pose(pose_csv)).iloc[:len(idx)]
     clean = {"tongue": oc.clean_windows(df, idx, "tongue", sep=SEP, x0y0=tuple(frame.origin) if frame else None),
              "jaw": oc.clean_windows(df, idx, "jaw", sep=SEP)}
     cues = clean["tongue"][2]

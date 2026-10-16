@@ -466,6 +466,21 @@ def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str
     not its CSV: exact, and no 2-million-row parse (and a CSV whose first data row is empty would be misread by
     pandas' 3-row-header reader as an index-name row -- found 2026-10-02 while testing this with a NaN-padded
     file)."""
+    ix, sel = build_windows(pose, animal, date, rv, pre_s=pre_s, post_s=post_s, videos=videos)
+    out.mkdir(parents=True, exist_ok=True)
+    ix.to_csv(out / "windows_index.csv", index=False)
+    if not len(sel):
+        sel = np.zeros((0, len(parts), 3), np.float32)
+    cols = pd.MultiIndex.from_product([[scorer], list(parts), ["x", "y", "likelihood"]],
+                                      names=["scorer", "bodyparts", "coords"])
+    pd.DataFrame(sel.reshape(len(sel), -1), columns=cols).to_csv(out / f"windows_{model}.csv")
+    return int(ix.trial_k.nunique()) if len(ix) else 0
+
+
+def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: float = 3.0,
+                  videos: list | None = None) -> tuple[pd.DataFrame, np.ndarray]:
+    """``(windows_index, pose rows)`` for EVERY trial -- the arrays `full_to_windows` writes, without writing them
+    (`orofacial_outputs` stores them in its own layout). See `full_to_windows` for the window and split-day rules."""
     from wfield_local import trial_windows as TW
     # ``videos`` (OURS, 2026-10-15, PS92 0812): [(pose, template, video name), ...] for a SPLIT day -- each trial is
     # cut from the video that covers its cue (`assign_trials_to_videos`), windows cut at the next trial of the SAME
@@ -488,17 +503,12 @@ def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str
                             (r.stop_s - r.cue_s) * 1000.0, r.stop_source, name_v))
             sels.append(pose_v[np.arange(f0, f1)])
             k += 1
-    out.mkdir(parents=True, exist_ok=True)
     ix = pd.DataFrame(idx, columns=["trial_k", "trial_id", "position", "src_frame", "t_ms", "strobe_ms", "stop_ms",
                                     "stop_source", "video"])
     if len(videos) == 1:
         ix = ix.drop(columns="video")
-    ix.to_csv(out / "windows_index.csv", index=False)
-    sel = np.concatenate(sels) if sels else np.zeros((0, len(parts), 3), np.float32)
-    cols = pd.MultiIndex.from_product([[scorer], list(parts), ["x", "y", "likelihood"]],
-                                      names=["scorer", "bodyparts", "coords"])
-    pd.DataFrame(sel.reshape(len(sel), -1), columns=cols).to_csv(out / f"windows_{model}.csv")
-    return k
+    sel = np.concatenate(sels) if sels else np.zeros((0, 0, 3), np.float32)
+    return ix, sel
 
 
 def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
