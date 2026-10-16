@@ -20025,3 +20025,13 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   is NaN within 20 px of the mouth here; theirs used the interpolated tip everywhere. Per-lick metrics in three lick sets
   (first post-cue / all post-cue / all incl. pre-cue + ITI), and lick 1 vs lick 2 (timing, peak protrusion, peak angle).
   Acute far contra, all three animals: lick 2 - lick 1 ~150 -> 240-630 ms. Reference lines drawn under the data.
+* **Why our lick-phase angle was not stroke_orofacial's parabola**: theirs keeps in-mouth frames in the mean at ~0 deg
+  (tip at the mouth fill point), so its curve is (fraction of licks out at that phase) x (angle while out) -- a hump
+  by construction. Ours excluded frames within 20 px of the mouth. Both are now plotted (`phase_norm_angle_deg_*` =
+  direction while out; `phase_norm_angle_mouth0_deg_*` = their convention, for cross-cohort comparison). Imputed peaks
+  (apex hidden behind the spout; the cleaned trace there is the dipped value) put a notch at phase 0.5, so intervals
+  touching an imputed / interpolated peak are excluded from the phase-normalised curves. Phase portrait cut to +-72 ms
+  (one cycle). Added: x-y lick trajectories in camera orientation (first / second / all post-cue licks), lick-by-lick
+  "walk" (angle, angle error, protrusion by lick number; PS92 acute far contra returns toward the pre angle from lick 4,
+  PS94 stays ~+35 deg; lick-number curves carry survivorship -- late licks exist only in trials that kept licking),
+  minus-pre versions of the lick-phase protrusion / angle plots.
