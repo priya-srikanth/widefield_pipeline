@@ -100,7 +100,7 @@ Scratch: `{scratch}`. Share copy: `{share_o2}/{name}`. Models: {", ".join(MODELS
 
 1. **Transfer node** (`ssh {user}@transfer.rc.hms.harvard.edu`): copy the bundle to scratch (~4.7 GB)
    ```
-   rsync -ah --info=progress2 {share_o2}/{name}/ {scratch}/
+   rsync -ah --info=progress2 --exclude hf_cache {share_o2}/{name}/ {scratch}/
    mkdir -p {scratch}/logs
    ```
 2. **Login node**: submit (one array task per model; any non-V100 GPU, 2-day limit)
