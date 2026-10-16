@@ -10,10 +10,11 @@ Reasoning: `DECISIONS.md` 2026-10-15 entries (incl. "(night)"); split sessions: 
 1. **O2 LP r4 production — array job `56464442`** (`DeepLabCut/Widefield/o2/lp_r4_prod_20261015`, 137 videos = every
    registered widefield session with video; gpu_quad, `--gres=gpu:l40s:1`, reader DALI, throttle %12, time limit
    lowered to 6 h by Priya). ~210 fps on L40S -> wall time = frames / 210 (June ~1.2-1.5 h, August ~2.4-2.9 h).
-   On 10-16 only ~3 tasks were running (`(Priority)`: waiting for L40S behind other users). If it stays slow:
-   `scontrol update JobId=56464442 Gres=gpu:1` (any GPU type; RTX 8000 ~2x slower per video but starts sooner) --
-   if O2 refuses on a pending job, regenerate the bundle with `o2_inference.lp.gres: "gpu:1"` and submit only the
-   unfinished tasks. Never submit a duplicate array over the same videos.
+   On 10-16 only ~3 tasks were running (`(Priority)`: waiting for L40S), so Priya UPDATED THE PENDING TASKS to any GPU
+   type (`scontrol update JobId=56464442 Gres=gpu:1`) and TimeLimit 6 h -- later tasks may run on RTX 8000 / A40 /
+   V100 (~2x slower per video on RTX 8000; results identical). sprio then: priority 772,575 (fair share 426,126,
+   partition 342,857, age 3,576). Never submit a duplicate array over the same videos. The bundle on the share still
+   says `gpu:l40s:1` / 24 h in run_pose.sbatch (the live job was edited, not the file).
 2. **Processing as results arrive.** Priya copies back (COMMANDS step 5, transfer node,
    `rsync -ah --partial --exclude 'tmp*' <scratch>/out/ <share bundle>/out/`); then here:
    `python -m wfield_local.orofacial_outputs process --bundle lp_r4_prod_20261015 --jobs 4` (dlc env, with
