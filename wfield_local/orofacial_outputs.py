@@ -147,9 +147,11 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
             log(f"{animal} {date}: no alignment template for {rec} -- skipped")
             return None
         z = np.load(od / f"{stem}_{info['scorer']}.npz")
-        vids.append((z["pose"], tpls[rec], r.video))
+        for t in tpls[rec]:                  # one per DAQ segment on a split day (camera_sync.templates_for)
+            vids.append((z["pose"], t, r.video))
         srcs.append({"video": r.video, "n_frames": int(info["n_frames"]), "wall_h": round(info["wall_s"] / 3600, 2),
-                     "reader": info.get("reader"), "template_quality_ok": bool(tpls[rec].get("quality_ok", True))})
+                     "reader": info.get("reader"), "n_templates": len(tpls[rec]),
+                     "template_quality_ok": bool(all(t.get("quality_ok", True) for t in tpls[rec]))})
         parts = [str(x) for x in z["parts"]]
     ix, sel = oi.build_windows(vids[0][0], animal, date, rv, videos=vids if len(vids) > 1 else None)
     if not len(ix):

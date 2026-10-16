@@ -551,7 +551,7 @@ def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
             print(f"   {animal} {date}: no alignment template for {missing} -- not collected")
             continue
         parts = [str(x) for x in vids[0][1]["parts"]]
-        videos = [(z["pose"], tpls[rec(n)], n) for n, z, _ in vids]
+        videos = [(z["pose"], t, n) for n, z, _ in vids for t in tpls[rec(n)]]   # one entry per template / segment
         n = full_to_windows(videos[0][0], parts, vids[0][2]["scorer"], animal, date, sp / f"{animal}_{date}_full",
                             rv, model="LP" if kind == "lp" else "DLC", videos=videos if len(videos) > 1 else None)
         print(f"   -> {sp / (animal + '_' + date + '_full')} ({n} trials)")

@@ -169,13 +169,14 @@ def run_session(s, cams, ds, workers, n_perm, log=print):
     for c in cams:
         tpls_c = camera_sync.templates_for(rv, date, animal, c)
         by_rec = {v.stem.split("_", 1)[1]: v for v in vids[c]}
-        for rec, tpl in tpls_c.items():
+        for rec, tlist in tpls_c.items():
             if rec not in by_rec:
                 continue
-            seg = tpl.get("segment_daq_sec")
-            w = enl if seg is None else [(t0, t1) for t0, t1 in enl if seg[0] <= t0 and t1 <= seg[1]]
-            if w:
-                jobs.append((c, str(by_rec[rec]), tpl, w))
+            for tpl in tlist:
+                seg = tpl.get("segment_daq_sec")
+                w = enl if seg is None else [(t0, t1) for t0, t1 in enl if seg[0] <= t0 and t1 <= seg[1]]
+                if w:
+                    jobs.append((c, str(by_rec[rec]), tpl, w))
     with ProcessPoolExecutor(max_workers=workers) as ex:
         futs = [(c, ex.submit(_me_worker, v, tpl, w, ft, ds)) for c, v, tpl, w in jobs]
         parts = {}

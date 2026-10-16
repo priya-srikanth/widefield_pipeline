@@ -316,17 +316,34 @@ def template_path_recording(rv, date: str, animal: str, cam: str, recording: str
 
 
 def templates_for(rv, date: str, animal: str, cam: str) -> dict:
-    """{recording: template} for every recording of ``cam`` on ``date``: the per-recording files when the date was
-    split, else the single ``<date>.npz``. Consumers that cut trials from video should map each trial with the
-    template of the recording that covers it."""
+    """{recording: [template, ...]} for every recording of ``cam`` on ``date``. Ordinary day: one recording, one
+    template (``<date>.npz``). Split day (`build_split_templates`): the per-recording / per-segment files
+    ``<date>__<recording>[__seg<k>].npz``, each valid inside its ``segment_daq_sec`` -- a camera file that ran through
+    a DAQ restart (PS92 0604) has one template PER DAQ SEGMENT. Map each trial with the template whose segment holds
+    it (`o2_inference.assign_trials_to_videos`)."""
     d = Path(rv.root("alignment_templates")) / cam / animal
     per = sorted(d.glob(f"{date}__*.npz"))
     files = per or ([d / f"{date}.npz"] if (d / f"{date}.npz").exists() else [])
-    out = {}
+    out: dict = {}
     for f in files:
         t = dict(np.load(f, allow_pickle=True))
-        out[str(t["recording"])] = t
+        out.setdefault(str(t["recording"]), []).append(t)
     return out
+
+
+def concat_segments(h5_path, fs: float | None = None) -> list[tuple[float, float]] | None:
+    """[(t0_s, t1_s), ...] of the RECORDED segments of a `concat_split_session` file, from its exact
+    ``concat_boundaries`` attribute; None for an ordinary file."""
+    import json
+
+    import h5py
+    with h5py.File(h5_path, "r") as f:
+        raw = f.attrs.get("concat_boundaries")
+        fs = fs or float(f.attrs["sample_rate_hz"])
+    if raw is None:
+        return None
+    segs = json.loads(raw if isinstance(raw, str) else raw.decode())
+    return [(int(x["sample_start"]) / fs, (int(x["sample_start"]) + int(x["n_samples"])) / fs) for x in segs]
 
 
 def daq_segments(daq_edge_sec: np.ndarray, gap_s: float = SEGMENT_GAP_S) -> list[tuple[float, float, int]]:
@@ -340,23 +357,56 @@ def daq_segments(daq_edge_sec: np.ndarray, gap_s: float = SEGMENT_GAP_S) -> list
 
 
 def build_split_templates(h5_concat, csvs: list, sync_name: str = "sync", slack_edges: int = 40) -> list[dict]:
-    """Templates for the camera files of ONE camera on a split day, against the CONCATENATED DAQ (OURS, 2026-10-15,
-    PS92 0812). Recordings (sorted by their timestamp) are paired with the DAQ segments in order; each is matched
-    only to its own segment, from the camera file's first sync edge (camera and DAQ restarted together), so a camera
-    file that ran on after its DAQ segment ended (PS92 0812 part 1: ~39 min of video, 10.6 min of DAQ) is matched on
-    the overlap. Frames outside a recording's segment have no DAQ time -- consumers must not cut trials there."""
+    """Templates for ONE camera on a split day, against the CONCATENATED DAQ (OURS, 2026-10-15). Segments come from
+    the concat file's exact ``concat_boundaries`` (gap-detection fallback). Two shapes:
+
+    * one camera FILE PER SEGMENT (PS92 0812: crash, camera restarted too) -- files sorted by timestamp pair with
+      segments in order; each is matched from its first sync edge, so a file that ran on after its segment ended
+      (0812 part 1: ~39 min of video, 10.6 min of DAQ) is matched on the overlap;
+    * ONE camera file through a DAQ restart (PS92 0604: camera kept running, DAQ gap 27 s) -- each segment is matched
+      to the camera edges AFTER those that fell in the earlier gaps (their count = the camera's extra edges, split
+      over the gaps by duration). Measured 2026-10-15: the two 0604 fits share a slope but differ by 1.62 s -- the
+      concat padded the gap from file timestamps, 1.6 s off -- so a single affine over the whole file would be wrong
+      after the gap; per-segment templates each sit on their own sync pulses (1.16 ms RMS).
+
+    Each template carries ``segment`` / ``n_segments`` / ``segment_daq_sec``; frames outside a template's segment have
+    no DAQ time under it -- consumers must not cut trials there."""
     edge, fs, _ = daq_sync_edges(h5_concat, sync_name)
-    segs = daq_segments(edge / fs)
+    et = edge / fs
+    bounds = concat_segments(h5_concat, fs)
+    if bounds:
+        segs = []
+        for t0, t1 in bounds:
+            m = (et >= t0) & (et < t1)
+            if m.any():
+                segs.append((float(et[m][0]), float(et[m][-1]), int(m.sum())))
+    else:
+        segs = daq_segments(et)
     csvs = sorted(csvs, key=lambda c: Path(c).name)
-    if len(segs) != len(csvs):
-        raise ValueError(f"{len(csvs)} camera files but {len(segs)} DAQ segments in {Path(h5_concat).name}")
     out = []
-    for k, (csv, (t0, t1, n)) in enumerate(zip(csvs, segs)):
-        t = build_template(h5_concat, csv, sync_name, daq_sec_range=(t0 - 1.0, t1 + 1.0),
-                           cam_edge_slice=slice(0, n + slack_edges))
-        t.update(segment=k + 1, n_segments=len(segs), segment_daq_sec=np.array([t0, t1]))
-        out.append(t)
-    return out
+    if len(csvs) == len(segs):
+        for k, (csv, (t0, t1, n)) in enumerate(zip(csvs, segs)):
+            t = build_template(h5_concat, csv, sync_name, daq_sec_range=(t0 - 1.0, t1 + 1.0),
+                               cam_edge_slice=slice(0, n + slack_edges))
+            t.update(segment=k + 1, n_segments=len(segs), segment_daq_sec=np.array([t0, t1]))
+            out.append(t)
+        return out
+    if len(csvs) == 1 and len(segs) > 1:
+        _fid, _ts, gpio = _read_cam(csvs[0])
+        n_cam = int((np.diff((gpio & 1).astype(np.int8)) > 0).sum())
+        extra = n_cam - sum(n for _a, _b, n in segs)
+        gaps = np.array([segs[k + 1][0] - segs[k][1] for k in range(len(segs) - 1)])
+        gap_edges = np.round(extra * gaps / gaps.sum()).astype(int) if gaps.sum() > 0 else np.zeros(len(gaps), int)
+        start = 0
+        for k, (t0, t1, n) in enumerate(segs):
+            lo = max(start - slack_edges // 2, 0)
+            t = build_template(h5_concat, csvs[0], sync_name, daq_sec_range=(t0 - 1.0, t1 + 1.0),
+                               cam_edge_slice=slice(lo, start + n + slack_edges // 2))
+            t.update(segment=k + 1, n_segments=len(segs), segment_daq_sec=np.array([t0, t1]))
+            out.append(t)
+            start += n + (int(gap_edges[k]) if k < len(gap_edges) else 0)
+        return out
+    raise ValueError(f"{len(csvs)} camera files but {len(segs)} DAQ segments in {Path(h5_concat).name}")
 
 
 def template_path(rv, date: str, animal: str, cam: str) -> Path:
@@ -393,26 +443,25 @@ def run(date, rv, animals=None, verbose=True) -> list[dict]:
         for csv in sorted(animal_dir.glob("cam*.csv")):
             m = CAM_RE.search(csv.name)
             by_cam.setdefault(m.group(1).lower() if m else csv.name, []).append(csv)
+        n_seg = len(concat_segments(daq) or [None])
         for cam, cams in by_cam.items():
-            if len(cams) > 1:              # split day: one template per recording, against the concat DAQ
+            if len(cams) > 1 or n_seg > 1:  # split day: one template per recording / DAQ segment, vs the concat DAQ
                 try:
                     ts = build_split_templates(daq, cams)
                 except Exception as e:                                     # noqa: BLE001 -- report, go on
                     print(f"[camera_sync] {animal_dir.name} {cam}: split-day templates FAILED {e}", flush=True)
                     continue
                 for t in ts:
-                    save_template(t, template_path_recording(rv, date, animal_dir.name, cam, t["recording"]))
+                    rec = t["recording"] + (f"__seg{t['segment']}" if len(cams) == 1 else "")
+                    save_template(t, template_path_recording(rv, date, animal_dir.name, cam, rec))
                     made.append(t)
                     print(f"[camera_sync] {animal_dir.name} {cam} {t['recording']} (segment {t['segment']}/"
                           f"{t['n_segments']}): matched {t['n_matched']}/{t['n_cam_edges']}, resid rms="
                           f"{t['resid_ms_rms']:.2f}ms{'' if t['quality_ok'] else '  <<< QUALITY CHECK FAILED'}",
                           flush=True)
-                # <date>.npz = the longest recording, for single-template consumers (their trials outside it
-                # must be refused -- use templates_for() to map every trial)
-                main_t = max(ts, key=lambda t: t["n_cam_frames"])
-                save_template({**main_t, "other_recordings": np.array([t["recording"] for t in ts
-                                                                       if t is not main_t])},
-                              template_path(rv, date, animal_dir.name, cam))
+                # NO single <date>.npz on a split day (2026-10-15): a single-template consumer would map trials of
+                # another segment with the wrong affine -- silently 1.6 s off on PS92 0604 (same video), negative
+                # frames on 0812. Without the file such code fails loudly; split-aware code uses templates_for().
                 continue
             csv = cams[0]
             try:
