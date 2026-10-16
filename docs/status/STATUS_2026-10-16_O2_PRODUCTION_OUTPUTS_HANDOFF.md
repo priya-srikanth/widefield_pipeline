@@ -11,6 +11,10 @@ Cohort pre- vs post-stroke kinematics: `python -m wfield_local.orofacial_cohort`
 (DECISIONS 2026-10-16 entries). Lick-floor QC: `python -m scripts.lick_floor_qc`.
 
 ## 0. RUNNING / IN PROGRESS
+0. **O2 pose-model TRAINING job 56522565** (`DeepLabCut/Widefield/o2/lp_train_20261016`, built by
+   `scripts/o2_lp_train_bundle.py`): ViT-B DINOv2 / ResNet-50 b8 / ctx-semi b4, all 640 px, round-4 labels, then
+   predicts the eval clips; score with `scripts/model_lick_compare.py` like the 10-14 models. Local ViT-S DINOv2 512 px
+   training in WSL (`lp_train_vit_r4_wsl.sh`, log `lp_stage/lp_train_vit_r4_wsl.log`).
 1. **O2 LP r4 production — array job `56464442`** (`DeepLabCut/Widefield/o2/lp_r4_prod_20261015`, 137 videos = every
    registered widefield session with video; gpu_quad, `--gres=gpu:l40s:1`, reader DALI, throttle %12, time limit
    lowered to 6 h by Priya). ~210 fps on L40S -> wall time = frames / 210 (June ~1.2-1.5 h, August ~2.4-2.9 h).
