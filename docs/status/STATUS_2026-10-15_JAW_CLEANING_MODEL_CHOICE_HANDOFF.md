@@ -5,7 +5,17 @@ human lick review, the EKS fix, the side-camera plan and WSL GPU safety -- its p
 register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: `DECISIONS.md` addenda 2026-10-14
 (afternoon) and 2026-10-15. Analysis desktop; M: = MICROSCOPE. Material for Priya goes on the server.
 
-## 0. RUNNING (2026-10-15 ~08:00)
+## 0. RUNNING (updated 2026-10-15 evening)
+0. **O2 LP r4 PRODUCTION** -- array job **56464442** (`o2/lp_r4_prod_20261015`, 137 videos, gpu_quad L40S, DALI, %12;
+   ~31 h). Pilot validated O2 vs desktop (median <= 0.45 px). When done: Priya runs COMMANDS step 5 (results ->
+   share), then `python -m wfield_local.o2_inference collect --name lp_r4_prod_20261015` here (dlc env, with the
+   WIDEFIELD_FIGURES_WORKING / WIDEFIELD_SESSION_CACHE overrides on this box). PS92 0812 collects from both videos.
+   Then: production kinematics -> executed-angle readout (MUST REVISIT); jaw readout with LP r4 + protrusion control.
+0b. State-decoder (`13s`) re-render with PS92 0812, run here with explicit overrides (Priya OK'd freezing this box's
+   STATE models and publishing them to the server: `python -m wfield_local.publish_basis --what frozen --dry-run`
+   first; publish ONLY the new `state` models).
+
+## 0-old. RUNNING (2026-10-15 ~08:00)
 1. **LP r3 ctx-semi** (round-3 labels, same recipe as r4 ctx-semi: `heatmap_mhcrnn` + unlabelled-video temporal loss,
    WSL, 512 px, batch 1, `lp_capped.py` cap 0.75 + 6.8 GB guard), launched 07:57 by hand after the GPU chain's launch
    failed (Git Bash rewrote `/mnt/c/...`; chain script fixed with `MSYS_NO_PATHCONV=1`). ~10 h, then predicts the two

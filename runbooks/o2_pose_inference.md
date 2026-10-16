@@ -100,6 +100,19 @@ same bundle -> scratch -> array -> collect shape, with `--kind lp`:
   modification dates, so `rsync -ah` (which keeps the original August dates) is right -- keep it, and never alter
   file dates. The 10-06 video copies were staged on 10-06; step 1's rsync re-stages anything already purged.
 
+## Status 2026-10-15 — LP r4 production RUNNING
+
+* **Pilot `lp_r4_pilot_20261015`** (PS93 0814 / 0821, gpu_quad L40S, reader dali): 2,209,351 and 1,794,061 frames in
+  2.9 / 2.4 h (~210 fps); frame counts match the videos. `collect --compare` vs the desktop's LP r4 clip predictions:
+  median 0.15-0.45 px, p95 0.4-1.7 px (tongue largest), confident-or-not agreement >= 99.7 % on every keypoint ->
+  O2 reproduces the desktop. Collected into `session_poses/PS93_<d>_full/windows_LP.csv` (575 / 540 trials).
+  Smoke bench (Quadro RTX 8000): opencv ~59 / dali ~105 fps -> DALI + L40S chosen.
+* **Production `lp_r4_prod_20261015`**: 137 videos (every registered widefield session; PS93 0813 has none; PS92
+  0812 contributes both files), submitted 2026-10-15 as array job **56464442** (`%12`, L40S, dali). Expect ~370
+  GPU-h, ~31 h of running time at 12 at once. All 137 videos verified on scratch (only the two 10-06 videos
+  needed copying; PS92 1006's 10-06 copy was incomplete). Pilot outputs copied into its `out/` (skipped).
+* First O2 smoke job failed on `import cv2` (lightning-pose does not install OpenCV) -- fixed in COMMANDS step 0.
+
 ## Status 2026-10-06
 
 Task 1 (PS93 0814) finished: 2,209,351 frames in 7.0 h, collected (575 trials). Against the local round-3 run on
