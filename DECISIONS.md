@@ -20054,3 +20054,10 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   is out, is the trajectory different; INCLUDED = trajectory AND how much of the time the tongue is out (lick rate /
   duration enter). Preliminary: acute far contra, angle while out shifted ~+40 deg toward ipsi for the whole response
   window in PS92 and PS94 (PS93 ~+15-25, one session), recovering by chronic in PS92, ~+15 deg chronic in PS94.
+* **This desktop's machine profile fixed (10-16, Priya)**: `paths.py` recognises `analysis_desktop` by
+  `C:/Users/SabatiniLab` (checked before the drive-letter signatures) and its share roots list BOTH `M:` and `N:` (first
+  existing wins), because its letters move on reboot. Before, with M: = MICROSCOPE it matched `analysis` and resolved local
+  roots to the behaviour box's `C:/Users/sabatini` (every run needed `WIDEFIELD_FIGURES_WORKING` /
+  `WIDEFIELD_SESSION_CACHE`; a run without them failed every session and exited 0). Rule-10 check done: with no overrides
+  `frozen_models.local_dir()` = `C:\Users\SabatiniLab\frozen_models` (exists, the same 8 files as with the overrides);
+  session cache = `C:\Users\SabatiniLab\.widefield_session_cache`. The overrides are no longer needed here (still honoured).

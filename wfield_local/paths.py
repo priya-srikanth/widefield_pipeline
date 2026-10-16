@@ -52,8 +52,11 @@ MACHINES = ("analysis", "imaging", "mac", "analysis_desktop")
 # catching a machine that reaches the share over N: with neither of the above. That also makes
 # the failure mode safe: should the RIG ever lose its E:, it now lands on `analysis_desktop` and
 # still resolves the share correctly over N:, rather than on `analysis` and a drive it lacks.
-_SIGNATURE = (("imaging", "E:/labcams_data"), ("analysis", "M:/MICROSCOPE/Priya"),
-              ("analysis_desktop", "N:/MICROSCOPE/Priya"), ("mac", "/Volumes/Priya"))
+#: First match wins. analysis_desktop is recognised by its user folder, NOT a drive letter: its letters move on reboot
+#: (2026-09-30 M:/N: swapped), and with M: = MICROSCOPE it matched 'analysis' and resolved every local root to the
+#: behaviour box's C:/Users/sabatini (2026-10-16 fix; runs before it needed WIDEFIELD_* overrides).
+_SIGNATURE = (("imaging", "E:/labcams_data"), ("analysis_desktop", "C:/Users/SabatiniLab"),
+              ("analysis", "M:/MICROSCOPE/Priya"), ("mac", "/Volumes/Priya"))
 
 
 def detect_machine() -> str:

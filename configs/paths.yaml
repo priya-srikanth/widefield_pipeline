@@ -10,6 +10,11 @@
 # auto-detect by signature mount, else 'analysis'). A mount may be a string, a list
 # (first existing wins), or null (root unavailable on that machine).
 #
+# analysis_desktop (this SabatiniLab box, 2026-10-16): its drive letters MOVE on reboot (09-30: M: = MICROSCOPE,
+# N: = standby, the reverse of before), so its share roots list BOTH letters (first existing wins) and the machine is
+# detected by C:/Users/SabatiniLab (wfield_local/paths.py _SIGNATURE), not by a drive letter. Before this it was
+# detected as 'analysis' and resolved local roots to the behaviour box's C:/Users/sabatini.
+#
 # Canonical UNC form of MICROSCOPE is \\research.files.med.harvard.edu\Neurobio\MICROSCOPE\Priya;
 # the mapped-drive strings below are what both boxes actually use.
 
@@ -20,7 +25,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya"
       mac:      "/Volumes/Priya"
       imaging:  "N:/MICROSCOPE/Priya"
-      analysis_desktop: "N:/MICROSCOPE/Priya"
+      analysis_desktop: ["M:/MICROSCOPE/Priya", "N:/MICROSCOPE/Priya"]
 
   labcams:
     description: "Widefield imaging sessions (motion_corrected/, wfield_local_results/, LocaNMF outputs)"
@@ -28,7 +33,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams"
       mac:      "/Volumes/Priya/Widefield/labcams"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Widefield/labcams"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/labcams", "N:/MICROSCOPE/Priya/Widefield/labcams"]
 
   daq_recorder_output:
     description: "DAQ recorder .h5 output (per YYYYMMDD)"
@@ -36,7 +41,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"
       mac:      "/Volumes/Priya/Widefield/DAQ_recorder_output"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output", "N:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output"]
 
   behavior_logs:
     description: "Behavior task-controller logs (trials.csv etc.) — Widefield SUBDIR (as of 2026-08-06)"
@@ -44,7 +49,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Behavior_logs/Widefield"
       mac:      "/Volumes/Priya/Behavior_logs/Widefield"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Behavior_logs/Widefield"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Behavior_logs/Widefield", "N:/MICROSCOPE/Priya/Behavior_logs/Widefield"]
 
   dlc:
     description: "DeepLabCut orofacial labelling set + project for the WIDEFIELD rig"
@@ -62,7 +67,7 @@ logical_roots:
         - "/Volumes/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield"
         - "/Volumes/Priya/DeepLabCut/Widefield"
       imaging:  "N:/MICROSCOPE/Priya/DeepLabCut/Widefield"
-      analysis_desktop: "N:/MICROSCOPE/Priya/DeepLabCut/Widefield"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/DeepLabCut/Widefield", "N:/MICROSCOPE/Priya/DeepLabCut/Widefield"]
 
   behavior_cameras:
     description: "Behavior camera recordings (Blackfly/Bonsai) — Widefield SUBDIR (as of 2026-08-06)"
@@ -70,7 +75,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"
       mac:      "/Volumes/Priya/Behavior_Cameras/Widefield"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield", "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield"]
 
   camera_calibration:
     description: "PARENT of the Widefield subdir — holds the ChArUco camera-calibration recordings
@@ -81,7 +86,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Behavior_Cameras"
       mac:      "/Volumes/Priya/Behavior_Cameras"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Behavior_Cameras"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Behavior_Cameras", "N:/MICROSCOPE/Priya/Behavior_Cameras"]
 
   alignment_templates:
     description: "Camera<->DAQ sync alignment templates (.npz): <cam>/<PSxx>/<YYYYMMDD>.npz"
@@ -89,7 +94,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates"
       mac:      "/Volumes/Priya/Behavior_Cameras/Widefield/alignment_templates"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates", "N:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/alignment_templates"]
 
   orofacial:
     description: "Orofacial (pose) ANALYSIS outputs, run-versioned and session-first (wfield_local.orofacial_outputs):
@@ -98,7 +103,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Widefield/LP_analysis"
       mac:      "/Volumes/Priya/Widefield/LP_analysis"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/LP_analysis"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Widefield/LP_analysis"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/LP_analysis", "N:/MICROSCOPE/Priya/Widefield/LP_analysis"]
 
   behavior_out:
     description: "Spout-behavior session/cohort figures + metrics (wfield_local.spout_behavior)"
@@ -106,7 +111,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
       mac:      "/Volumes/Priya/Behavior_logs/Widefield/behavior_summary"
       imaging:  "N:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary", "N:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary"]
 
   cue_analysis_out:
     description: "Analysis component-figure store on MICROSCOPE: nightly_figs._publish_figs mirrors the
@@ -120,7 +125,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
       mac:      "/Volumes/Priya/Widefield/labcams/analysis_figures"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures", "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"]
 
   xday_qc:
     description: "Cross-day registration/QC dir on MICROSCOPE (NOT under a per-date folder)"
@@ -128,7 +133,7 @@ logical_roots:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/xday"
       mac:      "/Volumes/Priya/Widefield/labcams/xday"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/xday"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Widefield/labcams/xday"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/labcams/xday", "N:/MICROSCOPE/Priya/Widefield/labcams/xday"]
 
   standby_labcams:
     description: "STANDBY server, labcams tree — the cold archive for raw .dat and motion-corrected
@@ -140,7 +145,7 @@ logical_roots:
       analysis: "M:/collaborations/Priya/Widefield/labcams"
       mac:      null
       imaging:  ["M:/Widefield/labcams", "M:/collaborations/Priya/Widefield/labcams"]
-      analysis_desktop: "M:/Widefield/labcams"
+      analysis_desktop: ["N:/Widefield/labcams", "M:/Widefield/labcams"]
 
   standby_daq:
     description: "STANDBY server, DAQ recorder tree (same depth caveat as standby_labcams)."
@@ -148,7 +153,7 @@ logical_roots:
       analysis: "M:/collaborations/Priya/Widefield/DAQ_recorder_output"
       mac:      null
       imaging:  ["M:/Widefield/DAQ_recorder_output", "M:/collaborations/Priya/Widefield/DAQ_recorder_output"]
-      analysis_desktop: "M:/Widefield/DAQ_recorder_output"
+      analysis_desktop: "N:/Widefield/DAQ_recorder_output"   # standby holds only labcams on this box; unused here
 
   raw_labcams:
     description: "IMAGING-box local raw widefield acquisition (pco .dat), before MICROSCOPE upload"
