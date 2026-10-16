@@ -20019,3 +20019,9 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
 * **Detector floor**: a lick must reach 20 px (`min_peak_y_abs`, an OLD-RIG value marked retune); smallest detected
   20.0 px, 1st percentile 33 px. Licks shorter than that are not counted, so protrusion is slightly overestimated where
   incomplete licks are common and attempts are undercounted. Retuning it is a new cleaning run -- QC sheet first.
+* **Lick-phase normalisation (stroke_orofacial method)**: `orofacial_cohort` now also plots angle / angle error /
+  protrusion against the peak-to-peak normalised lick phase (72 bins, bouts of >= 2 licks, first multi-lick bout or all;
+  their `_assign_phase_peak_to_peak_shifted`) beside the time-aligned version. Remaining difference from theirs: angle
+  is NaN within 20 px of the mouth here; theirs used the interpolated tip everywhere. Per-lick metrics in three lick sets
+  (first post-cue / all post-cue / all incl. pre-cue + ITI), and lick 1 vs lick 2 (timing, peak protrusion, peak angle).
+  Acute far contra, all three animals: lick 2 - lick 1 ~150 -> 240-630 ms. Reference lines drawn under the data.
