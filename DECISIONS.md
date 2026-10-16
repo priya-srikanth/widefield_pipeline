@@ -20048,3 +20048,9 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   centres (`densify_phase_rows_via_interp` equivalent; `orofacial_cohort.U_CENTERS`); curves are now smooth through the
   peak. Also: SEM crosses on the x-y trajectories and phase portraits, every kinematics caption states whether in-mouth
   frames are included, y labels on every panel.
+* **Family 8.2 equivalent built (10-16)**: cue-aligned continuous lateral tongue position and tongue angle (+ = toward the
+  ipsilesional side), raw and minus each animal's pre-stroke curve at the same position, in three versions (lateral,
+  in-mouth at 0; angle, in-mouth excluded; angle, in-mouth = 0). Reading (Priya): in-mouth EXCLUDED = given the tongue
+  is out, is the trajectory different; INCLUDED = trajectory AND how much of the time the tongue is out (lick rate /
+  duration enter). Preliminary: acute far contra, angle while out shifted ~+40 deg toward ipsi for the whole response
+  window in PS92 and PS94 (PS93 ~+15-25, one session), recovering by chronic in PS92, ~+15 deg chronic in PS94.

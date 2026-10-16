@@ -316,6 +316,49 @@ def _lickset_rows(sets: dict, spout_angle: dict, lat: str, base: dict) -> list[d
     return out
 
 
+#: Family 8.2 (stroke_orofacial `figures/ipsi_shift.py`): cue-aligned continuous tongue traces, binned
+CUE_BIN_MS = 20.0
+CUE_WIN_MS = (-500.0, 3000.0)
+CUE_MIN_FRAMES = 25                   # frames per bin per session (sparse pre-cue bins drew spikes at 5)
+
+
+def _cue_traces(sd: Path, lat_side: str) -> list[dict]:
+    """Per position: cue-aligned mean LATERAL tongue position (mouth frame, + = toward the IPSILESIONAL side; in-mouth
+    frames INCLUDED at 0), mean tongue ANGLE (+ = ipsi; in-mouth frames EXCLUDED, < ANGLE_MIN_PX) and the same angle with
+    in-mouth frames counted as 0 deg (Priya 10-16; stroke_orofacial's convention), in CUE_BIN_MS bins
+    pooled over every frame of every trial at that position (stroke_orofacial Family 8.2 used the per-frame x)."""
+    from wfield_local import tongue_kinematics as tk
+    c = np.load(sd / "clean.npz")
+    w = np.load(sd / "windows.npz")
+    tx, ty = c["tongue_x"].astype(float), c["tongue_y"].astype(float)
+    dist = np.hypot(tx, ty)
+    o = c["tongue_origin"]
+    ang = tk.compute_signed_tongue_angle_deg(tx + o[0], ty + o[1],
+                                             tk.SpoutFrame(tuple(c["spout_origin"]), tuple(c["spout_ap_axis"])))
+    sgn = 1.0 if lat_side == "L" else -1.0                # angles are + toward the L positions (image right)
+    lat_xy = sgn * dist * np.sin(np.deg2rad(np.nan_to_num(ang, nan=0.0)))
+    lat_xy[~np.isfinite(dist)] = np.nan
+    ang_out = np.where(dist >= ANGLE_MIN_PX, sgn * ang, np.nan)
+    ang_m0 = np.where(np.isfinite(dist), np.where(dist >= ANGLE_MIN_PX, sgn * ang, 0.0), np.nan)   # in-mouth = 0 deg
+    t = w["ix_t_ms"].astype(float)
+    pos = w["ix_position"].astype(str)
+    edges = np.arange(CUE_WIN_MS[0], CUE_WIN_MS[1] + CUE_BIN_MS, CUE_BIN_MS)
+    b = np.digitize(t, edges) - 1
+    inwin = (b >= 0) & (b < len(edges) - 1)
+    out = []
+    for p in np.unique(pos):
+        m = inwin & (pos == p)
+        for col, v in (("lat_px", lat_xy), ("angle_deg", ang_out), ("angle_mouth0_deg", ang_m0)):
+            ok = m & np.isfinite(v)
+            ssum = np.bincount(b[ok], weights=v[ok], minlength=len(edges) - 1)
+            n = np.bincount(b[ok], minlength=len(edges) - 1)
+            with np.errstate(all="ignore"):
+                mu = np.where(n >= CUE_MIN_FRAMES, ssum / n, np.nan)
+            for k in range(len(edges) - 1):
+                out.append({"position": p, "var": col, "t_ms": edges[k] + CUE_BIN_MS / 2, "value": mu[k]})
+    return out
+
+
 def _repo_on_path() -> None:
     """Workers import `scripts.pose_kinematics_demo`; make that independent of the launch directory."""
     import sys
@@ -436,7 +479,8 @@ def session_metrics(job):
                 wk.append({**base, "position": pos, "pos": pos_key(pos, lat), "lick_n": k + 1, "peak_angle_deg": pa,
                            "delta_angle_deg": pa - sp.get(pos, np.nan), "spout_angle_deg": sp.get(pos, np.nan),
                            "protrusion_px": float(gk.protrusion_max_measured_px.median()), "n_licks": int(len(gk))})
-    return row, prow, ph, phn, ls, wk
+    ct = [{**base, "pos": pos_key(x["position"], lat), **x} for x in _cue_traces(sd, lat)]
+    return row, prow, ph, phn, ls, wk, ct
 
 
 def collect(rv, run: str = RUN, jobs: int | None = None):
@@ -457,7 +501,8 @@ def collect(rv, run: str = RUN, jobs: int | None = None):
     rows = [v for _, v in res if v is not None]
     return (pd.DataFrame([v[0] for v in rows]), pd.DataFrame([p for v in rows for p in v[1]]),
             pd.DataFrame([x for v in rows for x in v[2]]), pd.DataFrame([x for v in rows for x in v[3]]),
-            pd.DataFrame([x for v in rows for x in v[4]]), pd.DataFrame([x for v in rows for x in v[5]]), lat)
+            pd.DataFrame([x for v in rows for x in v[4]]), pd.DataFrame([x for v in rows for x in v[5]]),
+            pd.DataFrame([x for v in rows for x in v[6]]), lat)
 
 
 def _sem(x) -> float:
@@ -757,7 +802,8 @@ def fig_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, tit
 
 
 def fig_lick_phase_value(PH: pd.DataFrame, lat: dict, col: str, ylabel: str, path: Path, title: str,
-                         note: str, zero_line: bool = True, delta_pre: bool = False) -> None:
+                         note: str, zero_line: bool = True, delta_pre: bool = False,
+                         xlabel: str = "ms from lick peak") -> None:
     """Rows = animals, columns = the six positions: ``col`` around the lick peak, epoch mean +- SEM over sessions."""
     ecol = EPOCH_LINE
     animals = sorted(PH.animal.unique())
@@ -792,7 +838,7 @@ def fig_lick_phase_value(PH: pd.DataFrame, lat: dict, col: str, ylabel: str, pat
                 ax.set_ylabel(f"{a}\n{ylabel}", fontsize=8)
         axs[i][0].legend(fontsize=6, frameon=False)
     for ax in axs[-1]:
-        ax.set_xlabel("ms from lick peak", fontsize=7.5)
+        ax.set_xlabel(xlabel, fontsize=7.5)
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
@@ -1012,7 +1058,7 @@ def main(argv=None) -> int:
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
     figs.mkdir(parents=True, exist_ok=True)
-    S, Pm, PH, PHN, LS, WK, lat = collect(rv, a.run, a.jobs)
+    S, Pm, PH, PHN, LS, WK, CT, lat = collect(rv, a.run, a.jobs)
     PHa = PH[PH.set == "postcue"]
     A, D = epoch_tables(S)
     pd.set_option("display.width", 250)
@@ -1028,6 +1074,7 @@ def main(argv=None) -> int:
     PHN.to_csv(tables / "lick_phase_normalised.csv", index=False)
     LS.to_csv(tables / "lickset_metrics.csv", index=False)
     WK.to_csv(tables / "lick_walk.csv", index=False)
+    CT.to_csv(tables / "cue_aligned_traces.csv", index=False)
     A.to_csv(tables / "epoch_by_animal.csv", index=False)
     D.to_csv(tables / "epoch_deltas.csv", index=False)
     animals = ", ".join(f"{x} {int((S.animal == x).sum())}" for x in sorted(S.animal.unique()))
@@ -1045,9 +1092,9 @@ def main(argv=None) -> int:
     for mode in PHASE_MODES:
         which = "first multi-lick bout per trial" if mode == "first_multi" else "every multi-lick bout"
         for col, ylab, what in (("angle_deg", "tongue angle (deg)",
-                                 "tongue angle (+ = image right = L); IN-MOUTH FRAMES EXCLUDED (< 20 px)"),
+                                 "tongue angle (+ = image right = L); IN-MOUTH FRAMES EXCLUDED (< 20 px) -- reads: given the tongue is out, is its trajectory different"),
                                 ("angle_mouth0_deg", "tongue angle (deg)",
-                                 "tongue angle; IN-MOUTH FRAMES INCLUDED as 0 deg (stroke_orofacial convention)"),
+                                 "tongue angle; IN-MOUTH FRAMES INCLUDED as 0 deg (stroke_orofacial convention) -- reads: trajectory AND how much of the time the tongue is out (lick rate / duration also enter)"),
                                 ("delta_angle_deg", "angle - spout angle (deg)",
                                  "angle ERROR vs the spout; IN-MOUTH FRAMES EXCLUDED (< 20 px)"),
                                 ("protrusion_px", "protrusion (px)", "protrusion; IN-MOUTH FRAMES INCLUDED (0 px)")):
@@ -1062,6 +1109,20 @@ def main(argv=None) -> int:
         _per_animal_figure(LS[LS.set == name], LICKSET_METRICS, lat, figs / f"by_position_licks_{name}.png", t,
                            f"per-lick metrics -- {desc}; measured peaks; epoch mean +- SEM over sessions")
     fig_lick12(Pm, lat, figs / "lick1_vs_lick2.png", t)
+    # Family 8.2 (stroke_orofacial ipsi_shift): cue-aligned continuous lateral position / angle, raw and minus pre
+    for var, ylab, inm in (("lat_px", "lateral tongue position (px; + = ipsi)", "IN-MOUTH FRAMES INCLUDED (at 0) -- reads: trajectory AND how much of the time the tongue is out (lick rate / duration also enter)"),
+                           ("angle_deg", "tongue angle (deg; + = ipsi)", "IN-MOUTH FRAMES EXCLUDED (< 20 px) -- reads: given the tongue is out, is its trajectory different"),
+                           ("angle_mouth0_deg", "tongue angle (deg; + = ipsi)", "IN-MOUTH FRAMES INCLUDED as 0 deg -- reads: trajectory AND how much of the time the tongue is out (lick rate / duration also enter)")):
+        Cv = CT[CT["var"] == var].rename(columns={"value": var})
+        what = {"lat_px": "lateral tongue position", "angle_deg": "tongue angle",
+                "angle_mouth0_deg": "tongue angle (in-mouth = 0)"}[var]
+        fig_lick_phase_value(Cv, lat, var, ylab, figs / f"cue_{var}.png", t,
+                             f"cue-aligned {what} (all trials at each position, {CUE_BIN_MS:.0f}-ms bins; + = toward the "
+                             f"IPSILESIONAL side); epoch mean +- SEM over sessions; {inm}", xlabel="ms from cue")
+        fig_lick_phase_value(Cv, lat, var, "change vs pre", figs / f"cue_{var}_minus_pre.png", t,
+                             f"stroke_orofacial Family 8.2: cue-aligned {what} MINUS this animal's mean pre-stroke curve "
+                             f"at the same position; pre = 0 +- its session spread; epoch mean +- SEM; {inm}",
+                             delta_pre=True, xlabel="ms from cue")
     cols12 = ("l1_angle_deg", "l2_angle_deg", "l1_prot_px", "l2_prot_px")
     _per_animal_figure(delta_from_pre(Pm, cols12), tuple(f"{c}_dpre" for c in cols12), lat,
                        figs / "lick1_lick2_minus_pre.png", t,
