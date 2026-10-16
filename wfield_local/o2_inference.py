@@ -493,18 +493,23 @@ def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: 
     who = assign_trials_to_videos(b.cue_s.to_numpy(float), videos)
     if (who < 0).any():
         print(f"   {animal} {date}: {int((who < 0).sum())} trial(s) not covered by any video -- left out")
+    from wfield_local import camera_sync as cs
     idx, sels = [], []
     k = 0
     for v, (pose_v, tpl_v, name_v) in enumerate(videos):
         bv = b[who == v].reset_index(drop=True)
+        # ``daq_s`` (OURS, 2026-10-16): each frame's DAQ time from its camera TIMESTAMP (`camera_sync.frame_daq_seconds`),
+        # so imaging-aligned analyses need no template. ``t_ms`` stays the nominal 4-ms-per-frame offset from the cue
+        # frame (what every kinematics function expects); the two agree to < 0.01 ms on drop-free recordings.
+        daq_v = cs.frame_daq_seconds(rv, animal, date, tpl_v)
         for r, (f0, f1, fc) in zip(bv.itertuples(), trial_frame_spans(bv, tpl_v, len(pose_v), pre_s, post_s)):
             for f in range(f0, f1):
                 idx.append((k, int(r.trial_id), r.pos_name, f, (f - fc) * 4.0, (r.strobe_s - r.cue_s) * 1000.0,
-                            (r.stop_s - r.cue_s) * 1000.0, r.stop_source, name_v))
+                            (r.stop_s - r.cue_s) * 1000.0, r.stop_source, float(daq_v[f]), name_v))
             sels.append(pose_v[np.arange(f0, f1)])
             k += 1
     ix = pd.DataFrame(idx, columns=["trial_k", "trial_id", "position", "src_frame", "t_ms", "strobe_ms", "stop_ms",
-                                    "stop_source", "video"])
+                                    "stop_source", "daq_s", "video"])
     if len(videos) == 1:
         ix = ix.drop(columns="video")
     sel = np.concatenate(sels) if sels else np.zeros((0, 0, 3), np.float32)

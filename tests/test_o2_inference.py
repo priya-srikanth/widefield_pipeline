@@ -179,6 +179,17 @@ def _bounds(spans_s):
 _TPL = {"fs_daq": 1000.0, "fps_cam": 250.0, "slope_daqSample_per_camFrame": 4.0, "intercept_daqSample": 0.0}
 
 
+@pytest.fixture(autouse=True)
+def _no_camera_csv(monkeypatch, request):
+    """`build_windows` reads each video's Bonsai CSV for per-frame DAQ time; these synthetic videos have none, so map
+    by the template's frame-index affine (identical on a drop-free recording)."""
+    from wfield_local import camera_sync as cs
+    if "frame_daq_seconds" in request.node.name:
+        return
+    monkeypatch.setattr(cs, "frame_daq_seconds", lambda rv, a, d, t, n=200_000: (
+        t["slope_daqSample_per_camFrame"] * np.arange(n) + t["intercept_daqSample"]) / t["fs_daq"])
+
+
 def test_trial_windows_are_cut_at_the_next_trials_start_so_no_frame_is_in_two_trials():
     # stop + 3 s of trial 1 (13 s) runs past trial 2's strobe - 0.5 s window start (11.5 s)
     b = _bounds([(2.0, 4.0, 10.0), (12.0, 14.0, 20.0), (30.0, 32.0, 38.0)])
@@ -223,5 +234,28 @@ def test_split_day_cuts_each_trial_from_the_video_that_covers_it(tmp_path, monke
     assert (a.trial_id == 1).all() and (b.trial_id == 2).all()
     assert b.src_frame.min() >= 0 and b.src_frame.max() < 10_000            # video 2's own frame numbers
     assert abs(b.loc[b.t_ms.abs().idxmin(), "src_frame"] - 1000) <= 1     # cue at DAQ 104 s = video-2 frame 1000
+    assert abs(b.loc[b.t_ms.abs().idxmin(), "daq_s"] - 104.0) < 0.005     # per-frame DAQ time on video 2's template
     poses = oc.read_pose(tmp_path / "out" / "windows_LP.csv")
     assert (poses.loc[idx.video == "cam4_a.avi", "jaw_x"] == 0).all() and (poses.loc[idx.video == "cam4_b.avi", "jaw_x"] == 1).all()
+
+
+def test_frame_daq_seconds_follows_camera_timestamps_across_a_dropped_frame(tmp_path):
+    """Camera frame 3 was dropped (frame_id 2 -> 4): video frame 3 is camera frame 4, 16 ms in. The timestamp map says
+    so; a frame-index map would put it at 12 ms and stay 4 ms late for the rest of the recording."""
+    from wfield_local import camera_sync as cs
+    d = tmp_path / "20260101" / "PSX"
+    d.mkdir(parents=True)
+    fid = np.array([0, 1, 2, 4, 5])
+    ts = (1_000_000_000 + fid * 4_000_000).astype(np.int64)            # 4 ms per camera frame, ns
+    pd.DataFrame({"f": fid, "t": ts, "g": 0}).to_csv(d / "cam4_rec.csv", header=False, index=False)
+    tpl = {"cam": "cam4", "recording": "rec", "n_cam_frames": 5, "slope_daqSec_per_camSec": 1.0,
+           "intercept_daqSec": -1.0}
+
+    class RV:
+        def root(self, name):
+            assert name == "behavior_cameras"
+            return str(tmp_path)
+    t = cs.frame_daq_seconds(RV(), "PSX", "20260101", tpl)
+    assert np.allclose(t * 1000, [0, 4, 8, 16, 20])
+    with pytest.raises(ValueError):
+        cs.frame_daq_seconds(RV(), "PSX", "20260101", {**tpl, "n_cam_frames": 6})

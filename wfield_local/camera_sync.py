@@ -297,6 +297,18 @@ def cam_seconds_to_daq_seconds(template: dict, cam_seconds) -> np.ndarray:
             + template["intercept_daqSec"])
 
 
+def frame_daq_seconds(rv, animal: str, date: str, template: dict) -> np.ndarray:
+    """DAQ time (s) of EVERY frame of the template's video: the Bonsai CSV's per-frame camera timestamps through
+    `cam_seconds_to_daq_seconds` (OURS, 2026-10-16). Video frame k = CSV row k (both skip a dropped frame), so this
+    stays right across drops where the frame-index affine would drift. Raises if the CSV and template disagree on the
+    frame count."""
+    csv = Path(rv.root("behavior_cameras")) / date / animal / f"{template['cam']}_{template['recording']}.csv"
+    _fid, ts_ns, _gpio = _read_cam(csv)
+    if len(ts_ns) != int(template["n_cam_frames"]):
+        raise ValueError(f"{csv.name}: {len(ts_ns)} rows vs template n_cam_frames {int(template['n_cam_frames'])}")
+    return cam_seconds_to_daq_seconds(template, ts_ns.astype(np.float64) / 1e9)
+
+
 def save_template(template: dict, path) -> Path:
     """Save a template as ``.npz`` (writeguard-checked)."""
     path = Path(path)

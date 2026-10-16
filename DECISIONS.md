@@ -19953,3 +19953,31 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   56464442).
 * **Split days get one camera template per DAQ segment** (PS92 0604: one camera file through a DAQ restart; the
   concat's padded gap was 1.62 s off). No single `<date>.npz` on a split day. Details: EXPERIMENT_ERRORS 2026-08-12.
+
+## 2026-10-16 — O2: LP never runs on the V100 nodes; lick tables cover the whole trial window; per-frame DAQ time
+
+* **V100S nodes excluded from every LP job** (`compute-g-17-[147-152]`, gpu_quad's only Tesla V100S nodes). With L40S
+  scarce, Priya opened array 56464442's pending tasks to any GPU type (`Gres=gpu:1`). 43 tasks then failed in ~30 s
+  each with `CUDA error: no kernel image is available for execution on the device`: the `lp` env's torch (2.14.1+cu130)
+  is built for `sm_75, sm_80, sm_86, sm_90, sm_100, sm_120` -- no Volta (`sm_70`). A failed task frees its node at
+  once, so the queue drained onto those nodes. RTX 8000 (sm_75), A40, A100 (incl. MIG) and L40S (sm_89) all run.
+  Fix as run: hold, `ExcNodeList=compute-g-16-[254-255],compute-g-17-[147-152]`, release, resubmit only the failed ids
+  as array **56481998** (a duplicate resubmit, 56481741, was cancelled before any task started). Coverage is checked
+  against the outputs, not sacct: every `tasks.tsv` row has a `done.json` or is queued (runbook). `o2_inference`
+  `exclude_nodes` now carries these nodes for every new bundle; "any GPU type" is safe only with them excluded.
+  If the `lp` env is ever rebuilt, re-check `torch.cuda.get_arch_list()` against the partition's GPU types.
+* **Licks outside the response window** (Priya: "detect spontaneous licks, at the very least after spout arrival but
+  before cue"; then "also ... in the ITI"). The post-cue pass is unchanged (cue + 70 ms .. DAQ trial stop; it already
+  ended at the DAQ stop, not at the ported 3 s). The SAME v7 detector + per-lick features now also run, on the same
+  cleaned trace, over the rest of each trial window (`scripts/pose_kinematics_demo.epoch_licks`):
+  `licks_precue.csv` = position strobe (the spout HAS arrived -- Priya) .. cue + 70 ms; `licks_iti.csv` = trial stop ..
+  window end ('tail') and window start .. strobe ('lead'). Every lick peak lands in exactly one table. Reach fields are
+  blank in the ITI table (spout moving / retracted). No new O2 inference: the windows already held these frames.
+  PS92 0809: post 5,139 (94 % DAQ-contact), pre-cue 6,014 (89 %; strobe -> cue is median 7 s, up to 80 s, because a lick
+  resets the no-lick timer), ITI 1,544 (lead 59 %, tail 8 %: the spout is retracting), 0 peaks shared between tables.
+  Not covered: before the first trial and after the last (in the raw O2 output only); a lick straddling two windows.
+* **Per-frame DAQ time** in `windows.npz` (`ix_daq_s`): each frame's camera timestamp through the template's affine
+  (`camera_sync.frame_daq_seconds`), correct across dropped frames where a frame-index map would drift (identical to
+  < 0.01 ms on the drop-free sessions checked). Imaging-aligned analyses need no template.
+* All processed sessions are re-processed once (`--force`) to add these; the cleaning digest is unchanged, so the run
+  folder is the same.

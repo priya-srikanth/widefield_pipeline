@@ -13,13 +13,18 @@ Reasoning: `DECISIONS.md` 2026-10-15 entries (incl. "(night)"); split sessions: 
    On 10-16 only ~3 tasks were running (`(Priority)`: waiting for L40S), so Priya UPDATED THE PENDING TASKS to any GPU
    type (`scontrol update JobId=56464442 Gres=gpu:1`) and TimeLimit 6 h -- later tasks may run on RTX 8000 / A40 /
    V100 (~2x slower per video on RTX 8000; results identical). sprio then: priority 772,575 (fair share 426,126,
-   partition 342,857, age 3,576). Never submit a duplicate array over the same videos. The bundle on the share still
+   partition 342,857, age 3,576). Never submit a duplicate array over the same videos.
+   **10-16: the V100S nodes (`compute-g-17-[147-152]`) failed 43 tasks** (torch in `lp` has no sm_70 kernels) -> job
+   given `ExcNodeList=compute-g-16-[254-255],compute-g-17-[147-152]`; the failed ids resubmitted as array **56481998**
+   (duplicate 56481741 cancelled); throttle raised to 24. Check coverage with the runbook's done.json / squeue check. The bundle on the share still
    says `gpu:l40s:1` / 24 h in run_pose.sbatch (the live job was edited, not the file).
 2. **Processing as results arrive.** Priya copies back (COMMANDS step 5, transfer node,
    `rsync -ah --partial --exclude 'tmp*' <scratch>/out/ <share bundle>/out/`); then here:
    `python -m wfield_local.orofacial_outputs process --bundle lp_r4_prod_20261015 --jobs 4` (dlc env, with
    `WIDEFIELD_FIGURES_WORKING=C:/Users/SabatiniLab/cue_lick` and `WIDEFIELD_SESSION_CACHE=C:\Users\SabatiniLab\.widefield_session_cache`).
-   Idempotent (skips sessions with a manifest), ~30 s per session, rebuilds `index.csv`. **12 sessions done**
+   Idempotent (skips sessions with a manifest), ~100 s per session since 10-16 (pre-cue + ITI passes), rebuilds
+   `index.csv`. 10-16 additions: `ix_daq_s` (per-frame DAQ time), `licks_precue.csv`, `licks_iti.csv` (DECISIONS
+   2026-10-16); the sessions processed before them are re-run once with `--force`. **12 sessions done**
    (PS92 0602-0608, 0805-0807; PS93 0814, 0821).
 
 ## 1. What happened since the 10-15 handoff (and why)

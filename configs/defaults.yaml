@@ -1243,7 +1243,11 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
                                 # is 5-00:00:00 (sinfo, 2026-10-15)
   max_concurrent: 12            # array throttle (%N). MaxArraySize 10001, no submit cap on `normal` (sacctmgr 10-15):
                                 # all ~138 videos go in ONE array; raise %N if the queue is idle
-  exclude_nodes: "compute-g-16-[254-255]"   # theirs: known-problematic nodes (2025); drop if O2 retired them
+  # compute-g-16-[254-255]: theirs, known-problematic nodes (2025). compute-g-17-[147-152] (OURS, 2026-10-16): the gpu_quad
+  # Tesla V100S nodes -- the `lp` env's torch has no Volta (sm_70) kernels ("CUDA error: no kernel image is available"),
+  # so a task there dies in ~30 s and the node takes the next one: 43 tasks of array 56464442 failed that way once
+  # Gres was opened to any GPU type. RTX 8000 / A40 / A100 (incl. MIG) / L40S all work.
+  exclude_nodes: "compute-g-16-[254-255],compute-g-17-[147-152]"
   conda_module: "conda/miniforge3/24.11.3-0"
   conda_env: deeplabcut           # Priya's existing O2 env (2025-11 stroke_orofacial O2 runs; PyTorch DLC 3)
   deeplabcut_version: "3.0.1"   # = this desktop's; the runner's numbers are tested against it
