@@ -56,6 +56,7 @@ At n=4, the per-animal table is printed before any bootstrap (CLAUDE.md rule 8).
 from __future__ import annotations
 
 import argparse
+import textwrap
 import json
 from pathlib import Path
 
@@ -577,7 +578,7 @@ def _per_animal_figure(P: pd.DataFrame, rows: tuple, lat: dict, path: Path, titl
             if j == 0:
                 axs[i][j].set_ylabel(LABEL[m], fontsize=7.5)
         axs[0][j].legend(fontsize=6, frameon=False)
-    fig.suptitle(title + "\n" + note, fontsize=9)
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
@@ -765,7 +766,7 @@ def fig_lick_phase_value(PH: pd.DataFrame, lat: dict, col: str, ylabel: str, pat
         axs[i][0].legend(fontsize=6, frameon=False)
     for ax in axs[-1]:
         ax.set_xlabel("ms from lick peak", fontsize=7.5)
-    fig.suptitle(title + "\n" + note, fontsize=9)
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
@@ -830,7 +831,7 @@ def fig_phase_norm(PHN: pd.DataFrame, lat: dict, col: str, mode: str, ylabel: st
         axs[i][0].legend(fontsize=6, frameon=False)
     for ax in axs[-1]:
         ax.set_xlabel("lick phase (0 = between peaks, 0.5 = peak)", fontsize=7.5)
-    fig.suptitle(title + "\n" + note, fontsize=9)
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
@@ -918,7 +919,7 @@ def fig_walk(WK: pd.DataFrame, lat: dict, col: str, ylabel: str, path: Path, tit
         axs[i][0].legend(fontsize=6, frameon=False)
     for ax in axs[-1]:
         ax.set_xlabel("lick number in trial", fontsize=7.5)
-    fig.suptitle(title + "\n" + note, fontsize=9)
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 

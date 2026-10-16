@@ -20035,3 +20035,9 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   "walk" (angle, angle error, protrusion by lick number; PS92 acute far contra returns toward the pre angle from lick 4,
   PS94 stays ~+35 deg; lick-number curves carry survivorship -- late licks exist only in trials that kept licking),
   minus-pre versions of the lick-phase protrusion / angle plots.
+* **Lick-floor QC (10-16)**: with `min_peak_y_abs` 20 -> 2 px the detector adds 0-2 licks per session (PS92 / 93 / 94,
+  pre + acute), none at 2-10 px. The limit is LP's visibility near the mouth: confident tongue points are almost never
+  < 20 px from the mouth (1st percentile 17-29 px; median likelihood within 25 px = 0.0), so they are filled to the mouth
+  before detection. The floor stays (moot); capturing tongue-at-the-lips licks would need labels of such frames.
+  `scripts/lick_floor_qc.py`, sheets in `LP_analysis/<run>/qc/lick_floor/`. Paired lick 1 vs lick 3 (same trial): no
+  consistent within-trial walk toward the target at acute far contra (PS94 error +10 deg, PS92 ~0, PS93 -5, n small).

@@ -5,13 +5,14 @@ resolved items move to the bottom with the answer and date.
 
 ## Decisions / reviews
 
-1. **Lick-detector amplitude floor** (added 2026-10-16). The detector ignores lick peaks under 20 px
-   (`orofacial_kinematics.tongue.detector.min_peak_y_abs`, an old-rig value). QC sheets with the floor at 2 px:
-   `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v35\qc\lick_floor\` —
-   `peak_protrusion_histogram.png` (is there a dip between noise and licks?), `new_licks_2_10px_*.png`,
-   `new_licks_10_20px_*.png` (frames around each extra lick), `control_licks_20_30px_*.png` (licks already counted).
-   **Question:** are the 2–10 / 10–20 px detections real (incomplete) licks? Your answer sets the floor; changing it is a
-   new run (all sessions reprocessed, ~4 h here, no O2).
+1. **Small incomplete licks** (added 2026-10-16, QC done). Lowering the detector floor from 20 to 2 px adds 0-2 licks
+   per session (none at 2-10 px): `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v35\qc\lick_floor\`
+   (`peak_protrusion_histogram.png`, `new_licks_10_20px_*.png`, `control_licks_20_30px_*.png`). The real limit is LP:
+   it almost never reports a confident tongue within ~20 px of the mouth (1st percentile of confident distance 17-29 px;
+   median likelihood within 25 px = 0.0), so a tongue at the lips is "not visible" and filled to the mouth. **Question:**
+   do tiny (< ~20 px) incomplete licks matter for the deficit? If yes, the fix is a labelling round of tongue-at-the-lips
+   frames (+ retrain); if no, nothing to change (the floor itself is moot). Jaw movement without a tongue lick
+   (`mismatch.png`) already catches attempts the tongue tracking misses.
 2. **Stroke_orofacial Family 8.2 equivalent** (added 2026-10-16): cue-aligned continuous LATERAL tongue position,
    minus each animal's pre-stroke baseline, by position and epoch (their likely paper figure). Build it? (Family 8.1 —
    lick 1 / lick 2 angle minus pre — is done: `lick1_lick2_minus_pre.png`.)
