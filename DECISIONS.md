@@ -19938,3 +19938,18 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   `publish_basis --what frozen` copied exactly the four (`state_segments_joint*`), SHA-256 verified. This desktop is
   therefore the publishing box for STATE models; the behaviour box remains the one for position models (FROZEN_MODELS
   §5: one box per reference). Figures: `labcams/grant_figures/epoch/epoch_13*_cue.png`.
+
+## 2026-10-15 (night) — orofacial outputs on the share: run-versioned and session-first; split days per DAQ segment
+
+* **Layout** (`wfield_local/orofacial_outputs.py`, paths.yaml root `orofacial` = `Priya/Orofacial/Widefield`):
+  `<run>/sessions/<animal>/<date>/` holds everything for a session (manifest, windows.npz, clean.npz, licks / trials /
+  jaw_trials / tongue_jaw_mismatch CSVs, qc.png); `<run>/cohort/{tables,figures}/<analysis>/` for cross-session work;
+  `index.csv` + `README.md` at the top. A RUN = pose model x cleaning version (`lp_r4_heatmap_20261013__clean_v35`);
+  `run.json` holds a digest of every cleaning / kinematics parameter and `ensure_run` refuses to add sessions made under
+  different params (bump `CLEANING_VERSION` -> a new run). Chosen over stroke_orofacial's type-first tree (one session
+  spread over ~8 folders, re-runs overwrite in place). Per-frame data as compressed .npz (no parquet library in these
+  envs). Raw O2 predictions stay in `DeepLabCut/Widefield/o2/<bundle>/out/`. Manifests record the code commit, with
+  `+dirty` if the code had uncommitted changes. ~30 s per session; 10 processed so far (the finished part of array
+  56464442).
+* **Split days get one camera template per DAQ segment** (PS92 0604: one camera file through a DAQ restart; the
+  concat's padded gap was 1.62 s off). No single `<date>.npz` on a split day. Details: EXPERIMENT_ERRORS 2026-08-12.

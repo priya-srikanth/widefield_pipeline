@@ -11,6 +11,9 @@ register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: 
    share), then `python -m wfield_local.o2_inference collect --name lp_r4_prod_20261015` here (dlc env, with the
    WIDEFIELD_FIGURES_WORKING / WIDEFIELD_SESSION_CACHE overrides on this box). PS92 0812 collects from both videos.
    Then: production kinematics -> executed-angle readout (MUST REVISIT); jaw readout with LP r4 + protrusion control.
+0a. **Processing O2 results as they arrive** -> `M:/MICROSCOPE/Priya/Orofacial/Widefield/` (layout: DECISIONS 10-15 night,
+   README.md there). After each copy-back: `python -m wfield_local.orofacial_outputs process --bundle lp_r4_prod_20261015`
+   (dlc env + this box's root overrides); idempotent, skips done sessions; rebuilds index.csv. 10 sessions done.
 0b. DONE (night 10-15): state-decoder (`13s`) re-render with PS92 0812, run here with explicit overrides (Priya OK'd freezing this box's
    STATE models and publishing them to the server: `python -m wfield_local.publish_basis --what frozen --dry-run`
    first; publish ONLY the new `state` models).

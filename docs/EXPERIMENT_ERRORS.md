@@ -411,8 +411,18 @@ What each analysis family saw, and what was done:
 | null / potent subspaces, movement encoding, DLC/LP poses, kinematics, contact classes, video motion energy | faults 1-2 | **no outputs**: 0812 was never run | future runs use the fixed lookups / templates |
 | DLC / LP labelling frames | faults 1-2 | **no**: no labelled frame comes from PS92 0812 | none |
 
-The other concatenated session, PS92 0604, has one camera file per camera, no camera template (early June) and
-is outside the curated set; `session_h5` now returns its `_concat.h5` too.
+**PS92 0604 (the other concatenated session) -- camera templates BUILT 2026-10-15.** The DAQ crashed and restarted
+(gap 27 s; `PS92_20260604_concat.h5`) while the behaviour cameras kept recording ONE file each, and the day had no
+camera template at all (early June). Matching each DAQ segment to its own stretch of camera sync edges (the camera's
+65 extra edges = the gap) fits both at 1.16 ms RMS with an identical slope, but the two fits differ by a constant
+**1.62 s**: `concat_split_session` padded the gap from the files' creation timestamps, which were 1.6 s off. A single
+camera template for the whole file would therefore be 1.6 s wrong after the gap. Now one template PER DAQ SEGMENT
+(`<cam>/PS92/20260604__<recording>__seg<k>.npz`); 341 cues split 121 / 220 between the segments, all inside the video.
+Imaging and behaviour are unaffected: everything on the DAQ (pco pulses, cues, licks, treadmill) shifts together, and
+the behaviour log maps to the DAQ through sync pulses, not the padded gap. 0604 stays outside the curated set; it now
+has camera data like every other session. **Rule (both split days):** no single `<date>.npz` -- the copies written
+earlier on 10-15 are kept as `<date>.npz.split_day_ambiguous_20261015`, so single-template code fails loudly instead of
+misaligning; split-aware code uses `camera_sync.templates_for`.
 
 ---
 
