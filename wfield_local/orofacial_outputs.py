@@ -7,7 +7,7 @@ Priya, 2026-10-15: "outputs should be organized rationally on the server, with s
 types ... we can improve on [stroke_orofacial's] structure to minimize redundancy and ensure organization as will be
 most useful for finding figures and analyses in the future". Layout (root = paths.yaml `orofacial`):
 
-    Orofacial/Widefield/
+    Widefield/LP_analysis/                     (paths.yaml root `orofacial`; Priya/Orofacial/Widefield until 10-16)
       README.md, index.csv                       generated: layout + one row per run x session
       <run>/                                     RUN = pose model x cleaning version, e.g. lp_r4_heatmap_20261013__clean_v35
         run.json                                 model, cleaning version, digest of the cleaning + kinematics params

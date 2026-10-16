@@ -19981,3 +19981,24 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   < 0.01 ms on the drop-free sessions checked). Imaging-aligned analyses need no template.
 * All processed sessions are re-processed once (`--force`) to add these; the cleaning digest is unchanged, so the run
   folder is the same.
+
+## 2026-10-16 (afternoon) — orofacial outputs moved to `Priya/Widefield/LP_analysis`; first pre- vs post-stroke cohort pass
+
+* **Location** (Priya): the run-versioned pose outputs moved from `Priya/Orofacial/Widefield` to
+  `Priya/Widefield/LP_analysis` (a same-share rename: 482 files, 4.02 GB, byte totals equal; the empty `Orofacial`
+  folder removed with Priya's OK). paths.yaml root `orofacial` points there; nothing in the session folders stores an
+  absolute path. Raw O2 predictions stay in `DeepLabCut/Widefield/o2/<bundle>/out/`.
+* **`wfield_local/orofacial_cohort.py`** -- per-session metrics for every CURATED session with pose outputs
+  (`analysis_kit.curated_sessions`, so early June and 8/5 are out, as in the imaging analyses), per-animal epoch means
+  printed first (rule 8), paired animal-weighted change vs pre (`boot_delta`), four figures under
+  `<run>/cohort/figures/prepost/`. Re-run as sessions arrive.
+* **First pass, PRELIMINARY** (38 sessions: PS92 20, PS93 4, PS94 14; PS95 none yet; subacute PS92 only; chronic PS92 +
+  PS93): acute changes seen in all three animals with acute data -- responded trials -0.35, licks / responded trial
+  -2.8, within-bout ILI +19 ms (matches the DAQ-lick acute ILI deficit, +12.5 ms, 2026-09-20), max protrusion on measured
+  peaks -22 px, first-lick latency +108 ms, far-position angle gain -0.25, fewer pre-cue and ITI licks. PS94 acute: the
+  executed tongue angle is ~+30 deg (toward the L / ipsilesional positions) at EVERY position -- a target-independent
+  ipsiversive bias; PS92 acute shifts the same way, less. Not yet visible in PS93 (one acute session). Re-read when
+  PS93 and PS95 complete.
+* **Two recording gaps found while processing** (EXPERIMENT_ERRORS): PS92 0908 cam4 stops ~14 min before the DAQ (68
+  of its trials have no video); PS94 0603 ~90 s early (10 trials). PS94 0601's cam4 dropped 274,857 frames and cannot be
+  aligned (outside the curated set). PS94 0604's missing camera templates were built (1.17 ms RMS).

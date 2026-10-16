@@ -63,7 +63,7 @@ Reasoning: `DECISIONS.md` 2026-10-15 entries (incl. "(night)"); split sessions: 
    `labcams/frozen_models` (SHA-verified). This desktop is the publishing box for STATE models; the behaviour box for
    position models. `docs/FROZEN_MODELS.md` §7, CLAUDE.md rule 10.
 7. **Organised orofacial outputs on the share** (`wfield_local/orofacial_outputs.py`, root `orofacial` =
-   `M:/MICROSCOPE/Priya/Orofacial/Widefield/`): RUN-versioned (`lp_r4_heatmap_20261013__clean_v35`; `run.json` holds
+   `M:/MICROSCOPE/Priya/Widefield/LP_analysis/`; moved from `Priya/Orofacial/Widefield` on 10-16, Priya): RUN-versioned (`lp_r4_heatmap_20261013__clean_v35`; `run.json` holds
    a params digest and refuses mixing) and SESSION-first (`sessions/<animal>/<date>/`: manifest.json, windows.npz,
    clean.npz, licks / trials / jaw_trials / tongue_jaw_mismatch CSVs, qc.png); `cohort/{tables,figures}/<analysis>/`
    for cross-session work; `index.csv` + `README.md` at the top. `load_session(rv, run, animal, date)` reads one back.

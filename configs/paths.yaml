@@ -95,10 +95,10 @@ logical_roots:
     description: "Orofacial (pose) ANALYSIS outputs, run-versioned and session-first (wfield_local.orofacial_outputs):
       <run>/sessions/<PSxx>/<YYYYMMDD>/..., <run>/cohort/{tables,figures}/<analysis>/; README.md + index.csv at the top"
     mounts:
-      analysis: "M:/MICROSCOPE/Priya/Orofacial/Widefield"
-      mac:      "/Volumes/Priya/Orofacial/Widefield"
-      imaging:  "N:/MICROSCOPE/Priya/Orofacial/Widefield"
-      analysis_desktop: "N:/MICROSCOPE/Priya/Orofacial/Widefield"
+      analysis: "M:/MICROSCOPE/Priya/Widefield/LP_analysis"
+      mac:      "/Volumes/Priya/Widefield/LP_analysis"
+      imaging:  "N:/MICROSCOPE/Priya/Widefield/LP_analysis"
+      analysis_desktop: "N:/MICROSCOPE/Priya/Widefield/LP_analysis"
 
   behavior_out:
     description: "Spout-behavior session/cohort figures + metrics (wfield_local.spout_behavior)"

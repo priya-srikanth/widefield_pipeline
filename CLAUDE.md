@@ -349,7 +349,7 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 **[`docs/status/STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md`](docs/status/STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md)**
 — **START HERE, newest.** LP r4 production running on O2 (array 56464442), organised orofacial outputs on the share
-(`Orofacial/Widefield`, `wfield_local/orofacial_outputs.py`), PS92 0812 / 0604 split-session fixes, frozen state
+(`Priya/Widefield/LP_analysis`, `wfield_local/orofacial_outputs.py`), PS92 0812 / 0604 split-session fixes, frozen state
 decoder, pitfalls of this desktop's machine profile.
 
 **[`docs/status/STATUS_2026-10-15_JAW_CLEANING_MODEL_CHOICE_HANDOFF.md`](docs/status/STATUS_2026-10-15_JAW_CLEANING_MODEL_CHOICE_HANDOFF.md)**
