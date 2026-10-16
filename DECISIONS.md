@@ -20002,3 +20002,20 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
 * **Two recording gaps found while processing** (EXPERIMENT_ERRORS): PS92 0908 cam4 stops ~14 min before the DAQ (68
   of its trials have no video); PS94 0603 ~90 s early (10 trials). PS94 0601's cam4 dropped 274,857 frames and cannot be
   aligned (outside the curated set). PS94 0604's missing camera templates were built (1.17 ms RMS).
+* **10-16 (later) -- cohort figures reworked with Priya.** Positions named and ordered close ipsi / mid / contra, far ipsi
+  / mid / contra; position colours from `spout_behavior.position_style`; animal colours `config.animal_color`; epoch
+  LINE colours in this module = black / magenta / goldenrod / dark teal (`orofacial_cohort.EPOCH_LINE`) because the grey
+  ramp's light "pre" vanished on line plots and a red/orange/blue set collided with the animal colours. SEM over
+  sessions throughout. Added: per-position epoch and timecourse figures, first DAQ contact latency (beside the first LP
+  lick PEAK, Priya: peak is the right comparison), reach (protrusion / spout distance), protrusion / retraction speed,
+  lick duration, lick-phase protrusion + angle (raw and minus the spout angle) + phase portraits, mismatch (no-contact
+  licks, jaw movement without a lick), neighbour-lick fraction.
+* **Far-mid protrusion is lower because of geometry**: its spout sits closer to the mouth in the image (PS92 109 px vs
+  ~132 px for the far sides); protrusion / spout distance is equal (1.29-1.36). Compare protrusion within a position.
+* **Acute far contra** (all three animals with acute data, preliminary): licks / trial 6.5-9.1 -> 0.8-1.8, DAQ contact
+  61-83 % -> 1-22 %, median protrusion -30 to -48 px, licks with a neighbour < 250 ms 0.94-0.98 -> 0.38-0.56 (isolated
+  licks; this is why the lick-phase flanks collapse), angle error toward the ipsilesional side (+40-80 deg PS92 / PS94).
+  Jaw movement without a lick rises acutely at every position (+0.22 of trials).
+* **Detector floor**: a lick must reach 20 px (`min_peak_y_abs`, an OLD-RIG value marked retune); smallest detected
+  20.0 px, 1st percentile 33 px. Licks shorter than that are not counted, so protrusion is slightly overestimated where
+  incomplete licks are common and attempts are undercounted. Retuning it is a new cleaning run -- QC sheet first.
