@@ -20061,3 +20061,12 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   `WIDEFIELD_SESSION_CACHE`; a run without them failed every session and exited 0). Rule-10 check done: with no overrides
   `frozen_models.local_dir()` = `C:\Users\SabatiniLab\frozen_models` (exists, the same 8 files as with the overrides);
   session cache = `C:\Users\SabatiniLab\.widefield_session_cache`. The overrides are no longer needed here (still honoured).
+* **Figure clarity pass (10-16, Priya)**: dashed spout-angle reference on every raw-angle plot (traces: the animal's
+  mean spout angle at that position; position axes: spout markers); every title states which licks / frames enter
+  (all post-cue LP-detected licks, first / second lick, multi-lick bouts, or NOT lick-selected for Family 8.2); every
+  y label names the quantity + unit, incl. "-- change vs pre" plots; 2-D SEM drawn as a ribbon perpendicular to the path
+  (trajectories, phase portraits). "Lick n" is always the n-th LP-DETECTED post-cue lick (contact matters only in the
+  contact metrics). Lick-walk angle = angle AT PEAK PROTRUSION; added MAX signed angle DURING the lick (licks 1-5,
+  tongue >= 50 % of its peak distance, within the lick -- near-mouth frames excluded): `lick_walk_max_angle*.png`.
+  Pre-stroke within-trial pattern (paired lick 1 vs 3, all four animals): later licks drift toward the MIDDLE at the
+  close spouts (close ipsi |error| -5..-7 deg, close contra -4..-14 deg); no consistent post-stroke homing at far contra.
