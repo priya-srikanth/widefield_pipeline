@@ -152,6 +152,14 @@ helps the job backfill sooner.
   ```
   Resubmit with `sbatch --array=<ids>%12 --exclude=<exclude_nodes> --gres=gpu:1 -t 6:00:00 run_pose.sbatch` (flags
   override the file's #SBATCH lines). Submit it ONCE -- a second identical sbatch queues every id twice (56481741, 10-16).
+* **Time limit vs GPU type (10-16).** LP is ~210 fps on L40S but ~105 fps on RTX 8000, and NOT resumable inside a video.
+  At 6 h, the 8 longest videos (> 2.27 M frames: tasks 12, 13, 16, 17, 44-47) time out on an RTX 8000 and lose
+  everything. Users cannot RAISE a time limit with scontrol (only lower it), so: scancel the at-risk pending ids and
+  resubmit them with `-t 10:00:00` (done for 44-47 and 117, which needs ~5.5-6 h). `o2_inference.lp.time` is now 10 h.
+  Per-video RTX 8000 estimate = frames / 105 / 3600 h (frames = the camera CSV's row count).
+* **Video one frame shorter than its camera CSV** (7 of the first 49: PS92 0607, 0805, 0810, 0812 part 2, 0911, PS93
+  0606, PS94 0820): Bonsai logged a timestamp for a last frame that never reached the .avi. Harmless -- O2 predicts
+  every frame in the video, video frame k = CSV row k. Compare `done.json` n_frames with the VIDEO's frame count.
 
 ## Status 2026-10-06
 

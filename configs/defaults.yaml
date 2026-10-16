@@ -1274,10 +1274,12 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
                                 # The smoke job landed on an RTX 8000 (Turing, slowest); L40S is the fastest common card.
     cpus_per_task: 6
     mem: 32G
-    time: "6:00:00"             # per video. MEASURED 2026-10-15 (L40S + dali, ~210 fps): 2.4-2.9 h for 1.8-2.2 M frames;
-                                # 6 h = ~2x the slowest. Shorter requests backfill sooner (was 24 h). NOT resumable inside
-                                # a video (finished videos are skipped on requeue).
-                                # Expect ~6-8 h if CPU decode limits as for DLC (~90-100 fps) -- measure with --bench.
+    time: "10:00:00"            # per video. NOT resumable inside a video: a TIMEOUT loses the whole video (finished
+                                # videos are skipped on requeue). MEASURED (array 56464442, 10-15/16): L40S ~210 fps, RTX
+                                # 8000 ~105 fps (A40 / A100 between). The longest videos are 2.31-2.35 M frames = ~3.1 h
+                                # on L40S but ~6.1-6.2 h on an RTX 8000 -- 8 of 137 exceed 6 h there, which bit once the
+                                # job was opened to any GPU type (10-16; 6 h had been set for L40S only). 10 h covers the
+                                # slowest allowed card with margin; fair share charges elapsed, not requested, time.
 
 movement_encoding:             # MOVEMENT-REGRESSOR encoding models for widefield activity (wfield_local/movement_encoding.py,
                                # movement_inputs.py; design docs/DLC_IN_WIDEFIELD_ANALYSES.md §3E). Framework built
