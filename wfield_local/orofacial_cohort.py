@@ -114,7 +114,8 @@ ILI_MAX_MS = 300.0
 FRAME_MS = 4.0
 PHASE_HALF = 38                       # frames each side of the lick peak (+-152 ms)
 FPS = 250.0
-PORTRAIT_HALF_MS = 72.0               # phase portrait: about one lick cycle (median ILI ~150 ms)
+PORTRAIT_HALF_MS = 72.0
+ERR_T_MS = (-48.0, -24.0, 0.0, 24.0, 48.0)   # where 2-D SEM crosses are drawn on trajectories / phase portraits               # phase portrait: about one lick cycle (median ILI ~150 ms)
 
 
 def pos_key(position: str, laterality: str) -> str:
@@ -216,7 +217,9 @@ NEIGHBOR_MS = 250.0
 #: bout of >= 2 licks, each peak-to-peak interval maps to phase 0.5 (peak) -> 1 == 0 (midway) -> 0.5 (next peak);
 #: N_PHASE_BINS bins, a bin needs MIN_PHASE_POINTS samples, light circular smoothing (1 bin) when plotted.
 N_PHASE_BINS = 72
-MIN_PHASE_POINTS = 5
+MIN_PHASE_POINTS = 5                   # INTERVALS contributing to a bin (each interval is interpolated onto every bin)
+#: interval fraction u (0 = first peak, 1 = next peak) of each phase-bin centre: phase = (u - 0.5) mod 1
+U_CENTERS = np.mod((np.arange(N_PHASE_BINS) + 0.5) / N_PHASE_BINS + 0.5, 1.0)
 PHASE_MODES = ("first_multi", "all_multi")      # first multi-lick bout of each trial (their default) / every one
 #: lick sets for the per-lick metrics (Priya 10-16: "first lick vs all post-cue licks in trial period vs all licks")
 LICK_SETS = {"first": "first post-cue lick of each trial", "postcue": "all post-cue licks (cue + 70 ms .. stop)",
@@ -272,13 +275,17 @@ def _phase_norm(sd: Path, L: pd.DataFrame, rows: pd.DataFrame, spout_angle: dict
                     # the cleaned trace there is the occluded, flattened value -> a dip at phase 0.5 (Priya 10-16)
                     if i1 <= i0 or imp[k_] or imp[k_ + 1]:
                         continue
+                    # Each interval is INTERPOLATED onto the bin centres (stroke_orofacial's
+                    # `densify_phase_rows_via_interp`), not binned frame by frame: a ~40-frame interval steps 1/40 of a
+                    # cycle per frame, coarser than 72 bins, so the bin just before the peak was filled only by rare
+                    # long (missed-lick / slow) intervals sitting in a trough -> a spurious dip at phase ~0.49 (10-16).
                     idx = np.arange(i0, i1 + 1)
-                    ph = np.mod((idx - i0) / float(i1 - i0) - 0.5, 1.0)
-                    b = np.clip((ph * N_PHASE_BINS).astype(int), 0, N_PHASE_BINS - 1)
+                    u = (idx - i0) / float(i1 - i0)
                     for k, v in (("angle", ang[idx]), ("prot", dist[idx]), ("angle0", ang_mouth0[idx])):
-                        ok = np.isfinite(v)
-                        np.add.at(sums[k], b[ok], v[ok])
-                        np.add.at(cnt[k], b[ok], 1)
+                        vi = np.interp(U_CENTERS, u, v)                    # NaN wherever a neighbour is NaN
+                        ok = np.isfinite(vi)
+                        sums[k][ok] += vi[ok]
+                        cnt[k][ok] += 1
             with np.errstate(all="ignore"):
                 ma = np.where(cnt["angle"] >= MIN_PHASE_POINTS, sums["angle"] / cnt["angle"], np.nan)
                 mp = np.where(cnt["prot"] >= MIN_PHASE_POINTS, sums["prot"] / cnt["prot"], np.nan)
@@ -534,6 +541,7 @@ def fig_epochs(A: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
                 lab.append(f"{e[:3]} {r.delta.iloc[0]:+.3g}{star}")
         ax.set_xticks(range(len(EPOCH_ORDER)), EPOCH_ORDER, fontsize=7)
         ax.set_title(LABEL[m] + ("\n" + "; ".join(lab) if lab else "\n"), fontsize=7.5)
+        ax.set_ylabel(LABEL[m], fontsize=6.5)
         ax.tick_params(labelsize=7)
     axs.flat[0].legend(fontsize=7, frameon=False)
     fig.suptitle(title + "\nper-animal epoch mean +- SEM over sessions; title: paired change vs pre (animal-weighted "
@@ -549,6 +557,7 @@ def fig_timecourse(S: pd.DataFrame, path: Path, title: str) -> None:
             ax.plot(g.day, g[m], "o-", ms=2.5, lw=0.9, color=col.get(a, "k"), label=a)
         ax.axvline(0.5, color="0.4", ls="--", lw=0.8, zorder=0)
         ax.set_title(LABEL[m], fontsize=8)
+        ax.set_ylabel(LABEL[m], fontsize=6.5)
         ax.tick_params(labelsize=7)
     axs.flat[0].legend(fontsize=7, frameon=False)
     for ax in axs[-1]:
@@ -584,8 +593,7 @@ def _per_animal_figure(P: pd.DataFrame, rows: tuple, lat: dict, path: Path, titl
             _by_pos_panel(axs[i][j], P[P.animal == a], m, ecol, lat[a])
             if i == 0:
                 axs[i][j].set_title(a, fontsize=9)
-            if j == 0:
-                axs[i][j].set_ylabel(LABEL[m], fontsize=7.5)
+            axs[i][j].set_ylabel(LABEL[m], fontsize=7 if j == 0 else 6)
         axs[0][j].legend(fontsize=6, frameon=False)
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
@@ -660,6 +668,14 @@ def _phase_fig(PH: pd.DataFrame, lat: dict, path: Path, title: str, portrait: bo
                     # one lick cycle only: +-152 ms also holds the previous lick's retraction and the next lick's
                     # protrusion, which drew as inner arcs (Priya 10-16)
                     w = np.abs(t) <= PORTRAIT_HALF_MS
+                    if len(piv_d) > 1:
+                        sd_d = (piv_d.std(ddof=1) / np.sqrt(len(piv_d))).to_numpy()
+                        sd_v = (piv_v.std(ddof=1) / np.sqrt(len(piv_v))).to_numpy()
+                        for tt in ERR_T_MS:
+                            k = np.flatnonzero(t == tt)
+                            if len(k):
+                                ax.errorbar(md[k], mv[k] / 1000, xerr=sd_d[k], yerr=sd_v[k] / 1000, fmt="none",
+                                            ecolor=ecol[e], elinewidth=0.8, capsize=1.5, zorder=3)
                     t, md, mv = t[w], md[w], mv[w]
                     ax.plot(md, mv / 1000, color=ecol[e], lw=1.3, label=f"{e} ({len(piv_d)})")
                     ax.plot(md[t == 0], mv[t == 0] / 1000, "o", color=ecol[e], ms=3)
@@ -681,8 +697,10 @@ def _phase_fig(PH: pd.DataFrame, lat: dict, path: Path, title: str, portrait: bo
     for ax in axs[-1]:
         ax.set_xlabel("protrusion (px)" if portrait else "ms from lick peak", fontsize=7.5)
     fig.suptitle(title + ("\nlick phase portrait: protrusion speed vs protrusion, mean lick (measured peaks) per epoch, "
-                          f"+-{PORTRAIT_HALF_MS:.0f} ms around the peak (one cycle); dot = peak" if portrait else
-                          "\nlick-peak-aligned protrusion, mean lick (measured peaks), epoch mean +- SEM over sessions"),
+                          f"+-{PORTRAIT_HALF_MS:.0f} ms around the peak (one cycle); dot = peak; crosses = SEM over "
+                          "sessions; IN-MOUTH FRAMES INCLUDED (0 px)" if portrait else
+                          "\nlick-peak-aligned protrusion, mean lick (measured peaks), epoch mean +- SEM over sessions; IN-MOUTH FRAMES "
+                          "INCLUDED (0 px)"),
                  fontsize=9)
     _save(plt, fig, path)
 
@@ -869,6 +887,12 @@ def fig_xy_trajectory(PH: pd.DataFrame, Pm: pd.DataFrame, lat: dict, path: Path,
                 c = _pos_color(p, lat[a])
                 mu = gp.groupby("t_ms")[["lat_px", "out_px"]].mean()
                 ax.plot(mu.lat_px, -mu.out_px, color=c, lw=1.5, zorder=3, label=pos_disp(p))
+                if gp.date.nunique() > 1:              # SEM over sessions, both axes, at a few points of the lick
+                    se = gp.groupby("t_ms")[["lat_px", "out_px"]].agg(_sem)
+                    for tt in ERR_T_MS:
+                        if tt in mu.index:
+                            ax.errorbar(mu.lat_px[tt], -mu.out_px[tt], xerr=se.lat_px[tt], yerr=se.out_px[tt],
+                                        fmt="none", ecolor=c, elinewidth=0.8, capsize=1.5, zorder=3)
                 if 0.0 in mu.index:
                     ax.plot(mu.lat_px[0.0], -mu.out_px[0.0], "o", color=c, ms=3.5, zorder=4)
                 sp = Pm[(Pm.animal == a) & (Pm.epoch == e) & (Pm.pos == p)]
@@ -891,7 +915,8 @@ def fig_xy_trajectory(PH: pd.DataFrame, Pm: pd.DataFrame, lat: dict, path: Path,
         fig.legend(h, lb, loc="upper right", fontsize=7, frameon=False, ncol=2)
     lab = {"postcue": "all post-cue licks", "first": "FIRST post-cue lick", "second": "SECOND post-cue lick"}[which]
     fig.suptitle(title + f"\nmean tongue-tip path over one lick ({lab}; +-{PORTRAIT_HALF_MS:.0f} ms around the peak, "
-                 "measured peaks), as the camera sees it (mouth at top); + = mouth, dot = peak, x = spout", fontsize=9)
+                 "measured peaks), as the camera sees it (mouth at top); + = mouth, dot = peak, x = spout; crosses = SEM over "
+                 "sessions; IN-MOUTH FRAMES INCLUDED (at the mouth)", fontsize=9)
     _save(plt, fig, path)
 
 
@@ -966,8 +991,7 @@ def fig_lick12(Pm: pd.DataFrame, lat: dict, path: Path, title: str) -> None:
             ax.tick_params(labelsize=7)
             if i == 0:
                 ax.set_title(a, fontsize=9)
-            if j == 0:
-                ax.set_ylabel(lab, fontsize=7.5)
+            ax.set_ylabel(lab, fontsize=7 if j == 0 else 6)
         axs[0][j].legend(fontsize=6, frameon=False)
     fig.suptitle(title + "\nlick 1 (solid, o) vs lick 2 (dashed, s), LP-detected post-cue licks; per-position median per "
                  "session, epoch mean +- SEM over sessions", fontsize=9)
@@ -1020,14 +1044,16 @@ def main(argv=None) -> int:
     _phase_fig(PHa, lat, figs / "phase_portrait.png", t, portrait=True)
     for mode in PHASE_MODES:
         which = "first multi-lick bout per trial" if mode == "first_multi" else "every multi-lick bout"
-        for col, ylab, what in (("angle_deg", "tongue angle (deg)", "tongue angle (+ = image right = L)"),
+        for col, ylab, what in (("angle_deg", "tongue angle (deg)",
+                                 "tongue angle (+ = image right = L); IN-MOUTH FRAMES EXCLUDED (< 20 px)"),
                                 ("angle_mouth0_deg", "tongue angle (deg)",
-                                 "tongue angle with IN-MOUTH frames counted as 0 deg (stroke_orofacial convention)"),
-                                ("delta_angle_deg", "angle - spout angle (deg)", "angle ERROR vs the spout"),
-                                ("protrusion_px", "protrusion (px)", "protrusion")):
+                                 "tongue angle; IN-MOUTH FRAMES INCLUDED as 0 deg (stroke_orofacial convention)"),
+                                ("delta_angle_deg", "angle - spout angle (deg)",
+                                 "angle ERROR vs the spout; IN-MOUTH FRAMES EXCLUDED (< 20 px)"),
+                                ("protrusion_px", "protrusion (px)", "protrusion; IN-MOUTH FRAMES INCLUDED (0 px)")):
             fig_phase_norm(PHN, lat, col, mode, ylab, figs / f"phase_norm_{col}_{mode}.png", t,
                            f"{what} vs NORMALISED lick phase (stroke_orofacial method), {which}; epoch mean +- SEM "
-                           f"over sessions")
+                           f"over sessions; each peak-to-peak interval interpolated onto the phase grid")
             if col in ("protrusion_px", "angle_deg"):
                 fig_phase_norm(PHN, lat, col, mode, "change vs pre", figs / f"phase_norm_{col}_{mode}_minus_pre.png",
                                t, f"{what} MINUS this animal's mean pre-stroke curve, normalised lick phase, {which}; "
@@ -1057,13 +1083,14 @@ def main(argv=None) -> int:
     for col, ylab in (("protrusion_px", "protrusion change vs pre (px)"), ("angle_deg", "angle change vs pre (deg)")):
         fig_lick_phase_value(PHa, lat, col, ylab, figs / f"lick_phase_{col}_minus_pre.png", t,
                              f"lick-peak-aligned {col.split('_')[0]} MINUS this animal's mean pre-stroke curve; epoch "
-                             "mean +- SEM over sessions (pre = 0 +- its session spread)", delta_pre=True)
+                             "mean +- SEM over sessions (pre = 0 +- its session spread); IN-MOUTH FRAMES "
+                             + ("INCLUDED (0 px)" if col == "protrusion_px" else "EXCLUDED (< 20 px)"), delta_pre=True)
     fig_lick_phase_value(PHa, lat, "angle_deg", "tongue angle (deg)", figs / "lick_phase_angle.png", t,
-                         "lick-peak-aligned tongue angle (+ = image right = L / ipsi positions; undefined within "
-                         f"{ANGLE_MIN_PX:.0f} px of the mouth), mean lick (measured peaks), epoch mean +- SEM over sessions")
+                         "lick-peak-aligned tongue angle (+ = image right = L / ipsi positions), mean lick (measured "
+                         f"peaks), epoch mean +- SEM over sessions; IN-MOUTH FRAMES EXCLUDED (< {ANGLE_MIN_PX:.0f} px)")
     fig_lick_phase_value(PHa, lat, "delta_angle_deg", "angle - spout angle (deg)", figs / "lick_phase_angle_delta.png",
                          t, "lick-peak-aligned angle ERROR: tongue angle minus that position's spout angle (0 = on "
-                         "target; + = toward image right / L), epoch mean +- SEM over sessions")
+                         "target; + = toward image right / L), epoch mean +- SEM over sessions; IN-MOUTH FRAMES EXCLUDED (< 20 px)")
     (tables / "provenance.json").write_text(json.dumps({"run": a.run, "n_sessions": int(len(S)),
                                                         "code_commit": oo.code_commit(),
                                                         "sessions": S.label.tolist()}, indent=1), encoding="utf-8")

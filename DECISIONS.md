@@ -20041,3 +20041,10 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   before detection. The floor stays (moot); capturing tongue-at-the-lips licks would need labels of such frames.
   `scripts/lick_floor_qc.py`, sheets in `LP_analysis/<run>/qc/lick_floor/`. Paired lick 1 vs lick 3 (same trial): no
   consistent within-trial walk toward the target at acute far contra (PS94 error +10 deg, PS92 ~0, PS93 -5, n small).
+* **The phase-plot "downward spikes" were a BINNING artefact (10-16)**, not tracking: a ~40-frame peak-to-peak interval
+  steps 1/40 of a cycle per frame, coarser than the 72 phase bins, so the bin just before the peak was empty for normal
+  licks and filled only by rare long intervals (a missed or slow lick) whose frame there sits in a trough. Raw-trace
+  pre-peak notches are rare (0.1-0.3 % of licks). Fix = stroke_orofacial's own: interpolate each interval onto the bin
+  centres (`densify_phase_rows_via_interp` equivalent; `orofacial_cohort.U_CENTERS`); curves are now smooth through the
+  peak. Also: SEM crosses on the x-y trajectories and phase portraits, every kinematics caption states whether in-mouth
+  frames are included, y labels on every panel.
