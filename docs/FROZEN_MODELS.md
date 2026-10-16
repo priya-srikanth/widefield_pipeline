@@ -228,3 +228,10 @@ per pre-stroke session (the PRE column). A grown pre-stroke set reports `SPEC-CH
 never enter an identity), put every model the analysis needs (full + LOSO) in one payload, and read
 `load_or_fit`'s status in the log. **First freezes follow §5:** fit and publish from ONE box (the behaviour box
 holds the canonical set); a second box's fit is a different reference to the optimiser's tolerance.
+
+**State: the first freeze (2026-10-15).** Fitted on the analysis desktop (local store `C:/Users/SabatiniLab/frozen_models`,
+created by this run) and published to `labcams/frozen_models` (4 models, `PS9x/state_segments_joint<basis>_<id>`, 11
+pre-stroke sessions each). By Priya's decision **the analysis desktop is the one box that publishes STATE models**; the
+behaviour box keeps publishing position models. On this desktop always set `WIDEFIELD_FIGURES_WORKING=C:/Users/
+SabatiniLab/cue_lick` (its profile otherwise resolves local roots to `C:/Users/sabatini`, and `local_dir()` derives
+from that root). It also has 48 orphaned position models in `C:/wf_local/frozen_models` (§4) -- untouched, not published.

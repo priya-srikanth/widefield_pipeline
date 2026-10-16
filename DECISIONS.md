@@ -19917,7 +19917,7 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   41-min running bout; `locomotor_state.EXCLUDE_SESSIONS` is empty.
 * Results: the main LocaNMF analyses always used the concat file and are unchanged. ENL movement-removed decoding
   re-run for 0812 (210 trials; raw 0.40 / residual 0.28; summaries 119 sessions, pre raw 0.40 -> 0.41, all else
-  unchanged). State decoder (`13s`) re-render PENDING (see the next entry). Correction to the 2026-09-13 note above ("PS92_0812 ...
+  unchanged). State decoder (`13s`) re-rendered with 0812 (next entry). Correction to the 2026-09-13 note above ("PS92_0812 ...
   already excluded from every other family"): it was excluded only from the state decoder (an artefact, now fixed)
   and dropped from the ENL summaries (a bug, now fixed); every other family included it.
 * **2026-10-15, the pre-stroke STATE decoder is now a frozen, stored reference** (`locomotor_decoder.
@@ -19930,3 +19930,11 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
 * **2026-10-15, O2:** Priya's account has `gpuquad_qos` (gpu_quad, 140 cards, no per-user cap listed; limit
   5 days); `gpu_qos` caps the `gpu` partition at cpu=34 / mem=420G per user; MaxArraySize 10001. Production = ONE
   array over all ~138 videos on gpu_quad, throttle %12 (o2_inference config) -- no batch YAMLs.
+* **2026-10-15 (night), state decoder re-rendered and FROZEN; models published.** Run on the analysis desktop with
+  `WIDEFIELD_FIGURES_WORKING=C:/Users/SabatiniLab/cue_lick` + `WIDEFIELD_SESSION_CACHE` (its machine profile resolves
+  local roots to the behaviour box's `C:/Users/sabatini`; the first attempt failed every session and still exited 0).
+  `frozen_state_models` froze one `state` model per animal on 11 pre-stroke sessions each (PS92's includes 0812); the
+  position decoders were served from the server set, nothing else refitted. Priya: publish this box's STATE models --
+  `publish_basis --what frozen` copied exactly the four (`state_segments_joint*`), SHA-256 verified. This desktop is
+  therefore the publishing box for STATE models; the behaviour box remains the one for position models (FROZEN_MODELS
+  §5: one box per reference). Figures: `labcams/grant_figures/epoch/epoch_13*_cue.png`.
