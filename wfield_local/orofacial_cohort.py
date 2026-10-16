@@ -82,6 +82,23 @@ LABEL = {"resp_rate": "responded trials (frac)", "licks_per_resp": "licks / resp
          "ipsi_bias_deg": "tongue angle bias, + = ipsi (deg)", "peak_interp_frac": "interpolated peaks (frac)"}
 LABEL["peak_angle_deg"] = "executed peak angle (deg; + = L / image right)"
 LABEL["delta_angle_deg"] = "peak angle - spout angle (deg)"
+LABEL["walk_d_angle"] = "lick 3 - lick 1 angle (deg; + = toward L)"
+LABEL["walk_err_reduction"] = "|error| lick 1 - |error| lick 3 (deg; + = closer)"
+LABEL["walk_n_trials"] = "trials with licks 1 & 3 measured"
+for _c, _l in (("l1_angle_deg", "lick 1 angle"), ("l2_angle_deg", "lick 2 angle"), ("l1_prot_px", "lick 1 protrusion"),
+               ("l2_prot_px", "lick 2 protrusion")):
+    LABEL[f"{_c}_dpre"] = f"{_l}, change vs pre" + (" (deg; + = L)" if "angle" in _c else " (px)")
+
+
+def delta_from_pre(Pm: pd.DataFrame, cols: tuple) -> pd.DataFrame:
+    """Adds ``<col>_dpre`` = session value minus that animal's mean PRE-stroke value at the same position
+    (stroke_orofacial Family 8.1's per-animal, side-matched baseline subtraction). Pre sessions keep their spread
+    around 0 -- the noise floor every post epoch is read against."""
+    out = Pm.copy()
+    for c in cols:
+        base = out[out.epoch == "pre"].groupby(["animal", "pos"])[c].mean()
+        out[f"{c}_dpre"] = out[c] - base.reindex(pd.MultiIndex.from_frame(out[["animal", "pos"]])).to_numpy()
+    return out
 #: per-position figures, one file per group (rows = metric, columns = the six positions)
 POS_GROUPS = {"engagement": ("resp_rate", "licks_per_resp", "precue_rate_hz", "ili_ms", "neighbor_frac",
                              "latency_ms", "latency_contact_ms"),
@@ -361,6 +378,18 @@ def session_metrics(job):
              "spout_angle_deg": float(meas[meas.position == pos].spout_angle_deg.median()),
              "spout_dist_px": float(g.spout_dist_px.median())}
         r["nocontact_frac"] = 1.0 - r["contact_frac"]
+        gm_ = g[~g.peak_interp.astype(bool)]
+        a1 = gm_[gm_.lick_idx == 0].drop_duplicates("trial_id").set_index("trial_id").peak_angle_deg
+        a3 = gm_[gm_.lick_idx == 2].drop_duplicates("trial_id").set_index("trial_id").peak_angle_deg
+        both = a1.index.intersection(a3.index)
+        spa = r["spout_angle_deg"]
+        if len(both) >= WALK_MIN_LICKS and np.isfinite(spa):
+            d13 = a3[both] - a1[both]
+            red = (a1[both] - spa).abs() - (a3[both] - spa).abs()
+            r.update({"walk_d_angle": float(d13.median()), "walk_err_reduction": float(red.median()),
+                      "walk_n_trials": int(len(both))})
+        else:
+            r.update({"walk_d_angle": np.nan, "walk_err_reduction": np.nan, "walk_n_trials": int(len(both))})
         tp = T[T.position == pos]
         r.update({"l1_t_ms": float(tp.lick1_t_peak_ms.median()), "l2_t_ms": float(tp.lick2_t_peak_ms.median()),
                   "l12_dt_ms": float((tp.lick2_t_peak_ms - tp.lick1_t_peak_ms).median()),
@@ -997,8 +1026,17 @@ def main(argv=None) -> int:
         _per_animal_figure(LS[LS.set == name], LICKSET_METRICS, lat, figs / f"by_position_licks_{name}.png", t,
                            f"per-lick metrics -- {desc}; measured peaks; epoch mean +- SEM over sessions")
     fig_lick12(Pm, lat, figs / "lick1_vs_lick2.png", t)
+    cols12 = ("l1_angle_deg", "l2_angle_deg", "l1_prot_px", "l2_prot_px")
+    _per_animal_figure(delta_from_pre(Pm, cols12), tuple(f"{c}_dpre" for c in cols12), lat,
+                       figs / "lick1_lick2_minus_pre.png", t,
+                       "lick 1 and lick 2 peak angle / protrusion as CHANGE from this animal's pre-stroke mean at the "
+                       "same position (stroke_orofacial Family 8.1); pre = 0 +- its session spread; epoch mean +- SEM")
     for which in ("postcue", "first", "second"):
         fig_xy_trajectory(PH, Pm, lat, figs / f"lick_xy_trajectory_{which}.png", t, which=which)
+    _per_animal_figure(Pm, ("walk_err_reduction", "walk_d_angle", "walk_n_trials"), lat, figs / "lick_walk_paired.png",
+                       t, "does the tongue walk toward the target WITHIN a trial? lick 1 vs lick 3 of the SAME trial "
+                       "(measured peaks): + error reduction = lick 3 closer to the spout angle; per-session median, "
+                       "epoch mean +- SEM over sessions")
     fig_walk(WK, lat, "peak_angle_deg", "peak angle (deg; + = L)", figs / "lick_walk_angle.png", t,
              "lick-by-lick peak tongue angle within the trial (does the tongue walk toward the target?); dashed = spout "
              "angle; per-lick-number median per session, epoch mean +- SEM over sessions; measured peaks")

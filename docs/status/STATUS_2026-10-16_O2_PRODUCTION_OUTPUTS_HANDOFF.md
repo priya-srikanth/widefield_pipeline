@@ -6,6 +6,10 @@ Model register: `docs/POSE_MODELS.md`. O2 procedure: `runbooks/o2_pose_inference
 Reasoning: `DECISIONS.md` 2026-10-15 entries (incl. "(night)"); split sessions: `docs/EXPERIMENT_ERRORS.md`
 2026-08-12 entry ("Full audit", "PS92 0604"). Analysis desktop; M: = MICROSCOPE.
 
+**Open items waiting on Priya: [`OPEN_QUESTIONS_PRIYA.md`](OPEN_QUESTIONS_PRIYA.md)** (keep it current).
+Cohort pre- vs post-stroke kinematics: `python -m wfield_local.orofacial_cohort` -> `LP_analysis/<run>/cohort/`
+(DECISIONS 2026-10-16 entries). Lick-floor QC: `python -m scripts.lick_floor_qc`.
+
 ## 0. RUNNING / IN PROGRESS
 1. **O2 LP r4 production — array job `56464442`** (`DeepLabCut/Widefield/o2/lp_r4_prod_20261015`, 137 videos = every
    registered widefield session with video; gpu_quad, `--gres=gpu:l40s:1`, reader DALI, throttle %12, time limit
