@@ -1270,7 +1270,9 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
                                 # The smoke job landed on an RTX 8000 (Turing, slowest); L40S is the fastest common card.
     cpus_per_task: 6
     mem: 32G
-    time: "24:00:00"            # per video; NOT resumable inside a video (finished videos are skipped on requeue).
+    time: "6:00:00"             # per video. MEASURED 2026-10-15 (L40S + dali, ~210 fps): 2.4-2.9 h for 1.8-2.2 M frames;
+                                # 6 h = ~2x the slowest. Shorter requests backfill sooner (was 24 h). NOT resumable inside
+                                # a video (finished videos are skipped on requeue).
                                 # Expect ~6-8 h if CPU decode limits as for DLC (~90-100 fps) -- measure with --bench.
 
 movement_encoding:             # MOVEMENT-REGRESSOR encoding models for widefield activity (wfield_local/movement_encoding.py,
