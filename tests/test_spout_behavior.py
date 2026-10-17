@@ -166,7 +166,8 @@ def test_a_terminal_run_of_far_misses_is_NOT_disengagement(tmp_path):
     """
     trials = [dict(tid=i + 1, pos_idx=1, hit=True) for i in range(12)]
     trials += [dict(tid=13 + i, pos_idx=4, hit=False) for i in range(12)]   # far_L, all missed
-    d = _write_session(tmp_path, "PS92_20260806_120000", trials)
+    # a v47-era date: the synthetic log carries TRUE positions, so it must not get the pre-v47 shift
+    d = _write_session(tmp_path, "PS92_20260815_120000", trials)
     m = sb.session_metrics(sb.load_trials(d), None, config.defaults()["behavior"])
     assert m["n_disengaged"] == 0, "far-position misses were written off as disengagement"
     per = m["per_position"].set_index("pos_name")
@@ -983,3 +984,27 @@ def test_session_metrics_reports_which_arm_stopped_the_animal():
     src = inspect.getsource(sb.session_metrics)
     for key in ("n_collapse", "n_tail", "gate"):
         assert f'"{key}"' in src, f"session_metrics no longer reports {key}"
+    src = inspect.getsource(sb.session_metrics)
+    for key in ("n_collapse", "n_tail", "gate"):
+        assert f'"{key}"' in src, f"session_metrics no longer reports {key}"
+
+
+# --------------------------------------------------------------------------- pre-v47 log position shift (2026-10-17)
+
+def test_pre_v47_log_without_daq_gets_positions_moved_back_one_row(tmp_path):
+    """Before GUI v47 a log row's position belongs to the NEXT trial (docs/GUI_TRIALS_LOGGING.md). With no DAQ to
+    measure against, logs dated before GUI_V47_FIRST_DATE get the documented shift: row r takes row r-1's position."""
+    trials = [dict(tid=i + 1, pos_idx=p, hit=True) for i, p in enumerate([1, 1, 4, 4, 4, 2, 2])]
+    d = _write_session(tmp_path, "PS92_20260806_120000", trials)
+    df = sb.load_trials(d)
+    assert df["pos_idx"].tolist() == [1, 1, 1, 4, 4, 4, 2]
+    assert df["hit"].tolist() == [1] * 7                      # outcomes stay on their rows
+    assert (df["pos_shift_corrected"] == 1).all()
+
+
+def test_v47_log_without_daq_is_left_alone(tmp_path):
+    trials = [dict(tid=i + 1, pos_idx=p, hit=True) for i, p in enumerate([1, 1, 4, 4, 4, 2, 2])]
+    d = _write_session(tmp_path, "PS92_20260815_120000", trials)
+    df = sb.load_trials(d)
+    assert df["pos_idx"].tolist() == [1, 1, 4, 4, 4, 2, 2]
+    assert (df["pos_shift_corrected"] == 0).all()
