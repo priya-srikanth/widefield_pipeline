@@ -187,7 +187,10 @@ def _lick_phase(sd: Path, meas: pd.DataFrame, rows: pd.DataFrame) -> dict:
                                              tk.SpoutFrame(tuple(c["spout_origin"]), tuple(c["spout_ap_axis"])))
     rad = np.deg2rad(ang)
     lat_xy, out_xy = dist * np.sin(rad), dist * np.cos(rad)       # tip in the mouth frame, every tracked frame
-    ang = np.where(dist >= ANGLE_MIN_PX, ang, np.nan)
+    out_m = dist >= ANGLE_MIN_PX                                   # tongue OUT (in-mouth frames excluded)
+    ang_m0 = np.where(np.isfinite(dist), np.where(out_m, ang, 0.0), np.nan)     # in-mouth frames counted as 0 deg
+    ang = np.where(out_m, ang, np.nan)
+    prot_out, lat_out = np.where(out_m, dist, np.nan), np.where(out_m, lat_xy, np.nan)
     n = len(dist)
     r = (rows.row0.reindex(meas.trial_id).to_numpy() +
          np.round((meas.t_ms.to_numpy() - rows.t0.reindex(meas.trial_id).to_numpy()) / FRAME_MS)).astype(int)
@@ -207,8 +210,11 @@ def _lick_phase(sd: Path, meas: pd.DataFrame, rows: pd.DataFrame) -> dict:
             import warnings
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
-                out[(st, pos)] = (np.nanmean(seg, 0), np.nanmean(vel, 0), np.nanmean(ang[idx], 0),
-                            np.nanmean(lat_xy[idx], 0), np.nanmean(out_xy[idx], 0), int(m.sum()))
+                out[(st, pos)] = ({"protrusion_px": np.nanmean(seg, 0), "velocity_px_s": np.nanmean(vel, 0),
+                                   "speed_abs_px_s": np.nanmean(np.abs(vel), 0), "angle_deg": np.nanmean(ang[idx], 0),
+                                   "angle_mouth0_deg": np.nanmean(ang_m0[idx], 0), "lat_px": np.nanmean(lat_xy[idx], 0),
+                                   "out_px": np.nanmean(out_xy[idx], 0), "protrusion_out_px": np.nanmean(prot_out[idx], 0),
+                                   "lat_out_px": np.nanmean(lat_out[idx], 0)}, int(m.sum()))
     return out
 
 
@@ -263,8 +269,8 @@ def _phase_norm(sd: Path, L: pd.DataFrame, rows: pd.DataFrame, spout_angle: dict
     for mode in PHASE_MODES:
         Bm = B if mode == "all_multi" else B[B.multi_bout_rank == 0]
         for pos, gp in Bm.groupby("position"):
-            sums = {k: np.zeros(N_PHASE_BINS) for k in ("angle", "prot", "angle0")}
-            cnt = {k: np.zeros(N_PHASE_BINS) for k in ("angle", "prot", "angle0")}
+            sums = {k: np.zeros(N_PHASE_BINS) for k in ("angle", "prot", "angle0", "protout")}
+            cnt = {k: np.zeros(N_PHASE_BINS) for k in ("angle", "prot", "angle0", "protout")}
             n_pk = 0
             for _, gb in gp.groupby(["trial_id", "bout_idx"]):
                 gb = gb.sort_values("r")
@@ -281,7 +287,8 @@ def _phase_norm(sd: Path, L: pd.DataFrame, rows: pd.DataFrame, spout_angle: dict
                     # long (missed-lick / slow) intervals sitting in a trough -> a spurious dip at phase ~0.49 (10-16).
                     idx = np.arange(i0, i1 + 1)
                     u = (idx - i0) / float(i1 - i0)
-                    for k, v in (("angle", ang[idx]), ("prot", dist[idx]), ("angle0", ang_mouth0[idx])):
+                    for k, v in (("angle", ang[idx]), ("prot", dist[idx]), ("angle0", ang_mouth0[idx]),
+                                 ("protout", np.where(dist[idx] >= ANGLE_MIN_PX, dist[idx], np.nan))):
                         vi = np.interp(U_CENTERS, u, v)                    # NaN wherever a neighbour is NaN
                         ok = np.isfinite(vi)
                         sums[k][ok] += vi[ok]
@@ -290,11 +297,12 @@ def _phase_norm(sd: Path, L: pd.DataFrame, rows: pd.DataFrame, spout_angle: dict
                 ma = np.where(cnt["angle"] >= MIN_PHASE_POINTS, sums["angle"] / cnt["angle"], np.nan)
                 mp = np.where(cnt["prot"] >= MIN_PHASE_POINTS, sums["prot"] / cnt["prot"], np.nan)
                 m0 = np.where(cnt["angle0"] >= MIN_PHASE_POINTS, sums["angle0"] / cnt["angle0"], np.nan)
+                mpo = np.where(cnt["protout"] >= MIN_PHASE_POINTS, sums["protout"] / cnt["protout"], np.nan)
             centers = (np.arange(N_PHASE_BINS) + 0.5) / N_PHASE_BINS
             for k in range(N_PHASE_BINS):
                 out.append({"position": pos, "mode": mode, "phase": centers[k], "angle_deg": ma[k],
                             "delta_angle_deg": ma[k] - spout_angle.get(pos, np.nan), "protrusion_px": mp[k],
-                            "angle_mouth0_deg": m0[k],
+                            "angle_mouth0_deg": m0[k], "protrusion_out_px": mpo[k],
                             "n_peaks": n_pk})
     return out
 
@@ -348,7 +356,9 @@ def _cue_traces(sd: Path, lat_side: str) -> list[dict]:
     out = []
     for p in np.unique(pos):
         m = inwin & (pos == p)
-        for col, v in (("lat_px", lat_xy), ("angle_deg", ang_out), ("angle_mouth0_deg", ang_m0)):
+        for col, v in (("lat_px", lat_xy), ("angle_deg", ang_out), ("angle_mouth0_deg", ang_m0), ("protrusion_px", dist),
+                       ("protrusion_out_px", np.where(dist >= ANGLE_MIN_PX, dist, np.nan)),
+                       ("lat_out_px", np.where(dist >= ANGLE_MIN_PX, lat_xy, np.nan))):
             ok = m & np.isfinite(v)
             ssum = np.bincount(b[ok], weights=v[ok], minlength=len(edges) - 1)
             n = np.bincount(b[ok], minlength=len(edges) - 1)
@@ -460,11 +470,9 @@ def session_metrics(job):
     t = np.arange(-PHASE_HALF, PHASE_HALF + 1) * FRAME_MS
     sp = {r["position"]: r["spout_angle_deg"] for r in prow}
     ph = [{"animal": animal, "date": date, "epoch": epoch, "set": st, "position": pos, "pos": pos_key(pos, lat),
-           "t_ms": tt,
-           "protrusion_px": d, "velocity_px_s": v, "angle_deg": an, "delta_angle_deg": an - sp.get(pos, np.nan),
-           "lat_px": la, "out_px": ou, "n_licks": n}
-          for (st, pos), (dd, vv, aa, ll, oo_, n) in _lick_phase(sd, meas, rows).items()
-          for tt, d, v, an, la, ou in zip(t, dd, vv, aa, ll, oo_)]
+           "t_ms": tt, **{k: float(v[i]) for k, v in dd.items()},
+           "delta_angle_deg": float(dd["angle_deg"][i]) - sp.get(pos, np.nan), "n_licks": n}
+          for (st, pos), (dd, n) in _lick_phase(sd, meas, rows).items() for i, tt in enumerate(t)]
     base = {"animal": animal, "date": date, "epoch": epoch}
     phn = [{**base, "pos": pos_key(x["position"], lat), **x} for x in _phase_norm(sd, L, rows, sp)]
     first = L.sort_values("t_ms").groupby("trial_id", as_index=False).head(1)
@@ -573,7 +581,72 @@ def _grid(n: int, nc: int, w: float, h: float):
     return plt, fig, axs
 
 
+def _mark_rows(ax, n: int) -> None:
+    """Tag an axes that carries n rows of significance marks / bars along its top: `_tidy` reserves headroom for them."""
+    ax._wf_mark_rows = max(getattr(ax, "_wf_mark_rows", 0), n)
+
+
+def _tidy(fig) -> None:
+    """Layout rules for every figure (Priya 10-17: legends must not obscure data or significance marks; marks must not
+    overlap data). (1) Axes tagged by `_mark_rows` get headroom above the data: the y range grows so the data fill the
+    bottom part and the marks sit in the empty band. (2) Every axes legend moves OUTSIDE the data: into an unused
+    (axis-off) panel when the figure has one, else to the right of the last panel of its row."""
+    axes = fig.get_axes()
+    done = set()
+    for ax in axes:
+        n = getattr(ax, "_wf_mark_rows", 0)
+        if n and ax.get_visible():
+            key = id(ax.get_shared_y_axes().get_siblings(ax)[0]) if ax.get_shared_y_axes().get_siblings(ax) else id(ax)
+            if key in done:
+                continue
+            done.add(key)
+            lo, hi = ax.get_ylim()
+            frac = 0.075 * n + 0.04                     # fraction of the new range kept free at the top
+            ax.set_ylim(lo, hi + (hi - lo) * frac / (1 - frac))
+    for ax in axes:                                     # readable sizes for grants / papers (Priya 10-17)
+        if not ax.axison:
+            continue
+        from matplotlib.ticker import AutoLocator, MaxNLocator
+        for axis in (ax.xaxis, ax.yaxis):               # fewer ticks so the larger labels do not collide
+            if type(axis.get_major_locator()) is AutoLocator:
+                axis.set_major_locator(MaxNLocator(nbins=5, steps=[1, 2, 2.5, 5, 10]))
+        for t_ in ax.get_xticklabels() + ax.get_yticklabels():
+            t_.set_fontsize(max(t_.get_fontsize(), 9))
+        for lab in (ax.xaxis.label, ax.yaxis.label):
+            lab.set_fontsize(max(lab.get_fontsize(), 10))
+        ax.title.set_fontsize(max(ax.title.get_fontsize(), 10.5))
+        # wrap long labels / titles to the panel so larger fonts do not run into the neighbouring panel
+        import textwrap as _tw
+        bb = ax.get_position()
+        w_in, h_in = bb.width * fig.get_figwidth(), bb.height * fig.get_figheight()
+        for lab, span in ((ax.title, w_in), (ax.yaxis.label, h_in), (ax.xaxis.label, w_in)):
+            txt = lab.get_text()
+            if txt and "\n" not in txt:
+                nch = max(int(span * 72 / (lab.get_fontsize() * 0.55)), 12)
+                if len(txt) > nch:
+                    lab.set_text("\n".join(_tw.wrap(txt, nch)))
+    spare = [a for a in axes if not a.axison and not a.has_data() and a.get_legend() is None]
+    for ax in axes:
+        leg = ax.get_legend()
+        if leg is None or not ax.axison:
+            continue
+        h, lbl = ax.get_legend_handles_labels()
+        fs = max(leg.get_texts()[0].get_fontsize() if leg.get_texts() else 9, 9)
+        leg.remove()
+        if not h:
+            continue
+        if spare:
+            tgt = spare.pop(0)
+            tgt.legend(h, lbl, loc="center left", fontsize=fs + 1, frameon=False)
+            continue
+        y0 = ax.get_position().y0
+        row = [a for a in axes if a.axison and abs(a.get_position().y0 - y0) < 1e-3]
+        last = max(row, key=lambda a: a.get_position().x0)
+        last.legend(h, lbl, loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0, fontsize=fs, frameon=False)
+
+
 def _save(plt, fig, path: Path) -> None:
+    _tidy(fig)
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)
@@ -784,6 +857,7 @@ def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Pa
                 ok = mu.notna().to_numpy()
                 ax.errorbar(x[ok], mu[ok], yerr=se[ok], fmt="o-", color=col.get(a, "k"), ms=3.5, lw=1.1, capsize=2,
                             elinewidth=0.7, label=a)
+                _mark_rows(ax, 4)
                 sig = W[(W.metric == m) & (W.pos == p) & (W.animal == a) & W.sig]
                 for e in sig.epoch:                      # * in the animal's colour above its significant epochs
                     xe = EPOCH_ORDER.index(e) + (k - 1.5) * 0.07
@@ -1169,6 +1243,7 @@ def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str,
                 ax.axvline(0.5, color="0.85", ls="--", lw=0.8, zorder=0)
             cur = _animal_delta_curves(D, xcol, col, p, weight)
             if weight == "session" and "pre" in cur:            # cluster permutation vs the pre sessions
+                _mark_rows(ax, 3)
                 Mp, _, anp = cur["pre"]
                 for k, e in enumerate(EPOCH_ORDER[1:]):
                     if e not in cur:
@@ -1230,6 +1305,7 @@ STAR = {"both": "*", "MWU only": "(*)", "bootstrap only": "b"}
 def _stars(ax, st: pd.DataFrame, x: np.ndarray) -> None:
     """Significance marks above each position, one row per post epoch: * = session MWU (BH-FDR q < 0.05) AND the
     animal-weighted bootstrap CI excludes 0; (*) = MWU only; b = bootstrap only."""
+    _mark_rows(ax, 3)
     for k, e in enumerate(EPOCH_ORDER[1:]):
         for _, r in st[st.epoch == e].iterrows():
             mk = STAR.get(r.agree)
@@ -1294,6 +1370,7 @@ def fig_cohort_scalars(Pm: pd.DataFrame, path: Path, title: str, jaw: pd.DataFra
                         color=ecol[e], ms=6, capsize=3)
         ax.axhline(0, color="0.8", lw=0.8, zorder=0)
         if stats is not None:                           # cohort marks for the jaw readout (far pair)
+            _mark_rows(ax, 1)
             for k, e in enumerate(EPOCH_ORDER):
                 r = stats[(stats.metric == c) & (stats.pos == "far_pair") & (stats.epoch == e)]
                 if len(r) and STAR.get(r.agree.iloc[0]):
@@ -1459,13 +1536,14 @@ def main(argv=None) -> int:
     return 0
 
 
-def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str, portrait: bool = False) -> None:
+def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str, portrait: bool = False,
+                     within: bool = False) -> None:
     """COHORT lick trajectory per position, pre vs each post epoch overlaid: x-y path of the tongue tip (camera view) or
     the phase portrait (protrusion speed vs protrusion); mean over SESSIONS (all animals), band = SEM over sessions
     perpendicular to the path; licks: ALL POST-CUE licks, measured peaks, +-PORTRAIT_HALF_MS around the peak."""
     W = PH[PH.t_ms.abs() <= PORTRAIT_HALF_MS]
     plt = _plt()
-    fig, axs = plt.subplots(1, len(POS_ORDER), figsize=(3.0 * len(POS_ORDER), 3.6), squeeze=False,
+    fig, axs = plt.subplots(1, len(POS_ORDER), figsize=(3.0 * len(POS_ORDER), 4.6), squeeze=False,
                             sharex=not portrait, sharey=True)
     xc, yc = ("protrusion_px", "velocity_px_s") if portrait else ("lat_px", "out_px")
     for j, p in enumerate(POS_ORDER):
@@ -1476,6 +1554,15 @@ def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str,
                 continue
             px = g.pivot_table(index=["animal", "date"], columns="t_ms", values=xc)
             py = g.pivot_table(index=["animal", "date"], columns="t_ms", values=yc)
+            if within:
+                # WITHIN-ANIMAL (Priya 10-17): every session minus ITS animal's mean pre path, added to the cohort pre path,
+                # so a difference between epochs is within-animal (PS93's pre-existing deficit cannot shift it)
+                gp = W[(W.pos == p) & (W.epoch == "pre")]
+                prex = gp.pivot_table(index=["animal", "date"], columns="t_ms", values=xc)
+                prey = gp.pivot_table(index=["animal", "date"], columns="t_ms", values=yc)
+                ax_, ay_ = prex.groupby(level=0).mean(), prey.groupby(level=0).mean()
+                px = (px - ax_.reindex(px.index.get_level_values(0)).set_axis(px.index)) + prex.mean()
+                py = (py - ay_.reindex(py.index.get_level_values(0)).set_axis(py.index)) + prey.mean()
             mx, my = px.mean(), py.mean()
             sx, sy = px.std(ddof=1) / np.sqrt(len(px)), py.std(ddof=1) / np.sqrt(len(py))
             X, Y = (mx, my / 1000) if portrait else (mx, -my)
@@ -1502,8 +1589,10 @@ def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str,
     what = ("phase portrait (protrusion speed vs protrusion)" if portrait else "x-y tongue-tip path, as the camera sees "
             "it (+ = mouth, x = spout)")
     note = (f"COHORT lick trajectory, pre vs post epochs: {what}; licks: ALL POST-CUE licks (measured peaks), "
-            f"+-{PORTRAIT_HALF_MS:.0f} ms around the peak; mean over SESSIONS (all animals), band = SEM over sessions; "
-            "dot = peak; IN-MOUTH FRAMES INCLUDED")
+            f"+-{PORTRAIT_HALF_MS:.0f} ms around the peak; mean over SESSIONS, band = SEM over sessions; dot = peak; "
+            "IN-MOUTH FRAMES INCLUDED" + ("; WITHIN-ANIMAL: each post-epoch path = the cohort pre path + the mean of each "
+                                          "session's change from ITS animal's own pre path" if within else
+                                          "; raw paths pooled over animals"))
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
@@ -1565,52 +1654,66 @@ def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
     return ST
 
 
+#: matched in-mouth conventions (Priya 10-17: never mix excluded / included within one figure)
+INMOUTH = {"excl": ("in-mouth EXCLUDED (tongue out, >= 20 px): given the tongue is out, is its trajectory different",
+                    {"protrusion": "protrusion_out_px", "lateral": "lat_out_px", "angle": "angle_deg"}),
+           "incl": ("in-mouth INCLUDED (in-mouth = 0): trajectory AND how much of the time the tongue is out",
+                    {"protrusion": "protrusion_px", "lateral": "lat_px", "angle": "angle_mouth0_deg"})}
+
+
 def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, suf: str, PH=None,
                  stats: pd.DataFrame | None = None) -> None:
-    """The COHORT minus-pre figures for one weighting (session / animal)."""
-    if PH is not None:
-        PHf1 = PH[PH.set == "first"]
-        fig_cohort_delta([(PHf1, "t_ms", "protrusion_px", "protrusion (px), FIRST lick, in-mouth at 0", False),
-                          (PHf1, "t_ms", "angle_deg", "tongue angle (deg; + = L), FIRST lick, in-mouth EXCLUDED", False),
-                          (PHa, "t_ms", "protrusion_px", "protrusion (px), ALL post-cue licks, in-mouth at 0", False),
-                          (PHa, "t_ms", "angle_deg", "tongue angle (deg; + = L), ALL post-cue licks, in-mouth EXCLUDED",
-                           False)],
-                         figs / f"cohort_lick_phase_first_vs_all_minus_pre{suf}.png", t,
-                         "COHORT, change vs pre: lick-peak-aligned protrusion / angle -- licks: rows 1-2 the FIRST post-cue "
-                         "lick of each trial, rows 3-4 ALL post-cue licks (measured peaks)", "ms from lick peak", wgt)
-        fig_cohort_delta([(PHa, "t_ms", "lat_px", "lateral tip position (px; + = L), in-mouth at 0", False),
-                          (PHa, "t_ms", "out_px", "tip distance out of the mouth axis (px), in-mouth at 0", False),
-                          (PHa, "t_ms", "velocity_px_s", "protrusion speed (px/s)", False)],
-                         figs / f"cohort_trajectory_delta_minus_pre{suf}.png", t,
-                         "COHORT, change vs pre of the lick TRAJECTORY: lateral and out-of-mouth tip position and "
-                         "protrusion speed through the lick (the x-y path and phase portrait as curves over time), licks: "
-                         "ALL POST-CUE licks (measured peaks)", "ms from lick peak", wgt)
-        if wgt == "session":
-            fig_cohort_paths(PHa, Pm, figs / "cohort_trajectory_xy.png", t)
-            fig_cohort_paths(PHa, Pm, figs / "cohort_phase_portrait.png", t, portrait=True)
-    fig_cohort_delta([(CTw, "t_ms", "lat_px", "lateral tongue position (px; + = ipsi), in-mouth at 0", False),
-                      (CTw, "t_ms", "angle_deg", "tongue angle (deg; + = ipsi), in-mouth EXCLUDED", False),
-                      (CTw, "t_ms", "angle_mouth0_deg", "tongue angle (deg; + = ipsi), in-mouth = 0", False)],
-                     figs / f"cohort_cue_minus_pre{suf}.png", t,
-                     "COHORT, change vs pre: cue-aligned tongue position / angle (Family 8.2), NOT lick-selected (every "
-                     "frame of every trial)", "ms from cue", wgt)
-    fig_cohort_delta([(PHa, "t_ms", "protrusion_px", "protrusion (px), in-mouth at 0", False),
-                      (PHa, "t_ms", "angle_deg", "tongue angle (deg; + = L), in-mouth EXCLUDED", False)],
-                     figs / f"cohort_lick_phase_minus_pre{suf}.png", t,
-                     "COHORT, change vs pre: lick-peak-aligned protrusion / angle, licks: ALL POST-CUE licks (measured "
-                     "peaks)", "ms from lick peak", wgt)
+    """The COHORT minus-pre figures for one weighting (session / animal), each multi-row figure in ONE in-mouth convention
+    (two files: _inmouth_excl / _inmouth_incl)."""
     PHf = PHN[PHN["mode"] == "first_multi"]
-    fig_cohort_delta([(PHf, "phase", "protrusion_px", "protrusion (px), in-mouth at 0", True),
-                      (PHf, "phase", "angle_deg", "tongue angle (deg; + = L), in-mouth EXCLUDED", True)],
-                     figs / f"cohort_phase_norm_minus_pre{suf}.png", t,
-                     "COHORT, change vs pre: protrusion / angle vs NORMALISED lick phase, licks: POST-CUE licks in the "
-                     "FIRST multi-lick bout per trial", "lick phase (0 = between peaks, 0.5 = peak)", wgt)
+    for tag, (desc, c) in INMOUTH.items():
+        fz = f"_inmouth_{tag}{suf}"
+        fig_cohort_delta([(CTw, "t_ms", c["protrusion"], "protrusion (px)", False),
+                          (CTw, "t_ms", c["lateral"], "lateral tongue position (px; + = ipsi)", False),
+                          (CTw, "t_ms", c["angle"], "tongue angle (deg; + = ipsi)", False)],
+                         figs / f"cohort_cue_minus_pre{fz}.png", t,
+                         f"COHORT, change vs pre: cue-aligned protrusion / lateral position / angle (Family 8.2), NOT "
+                         f"lick-selected (every frame of every trial); {desc}", "ms from cue", wgt)
+        if PH is not None:
+            PHf1 = PH[PH.set == "first"]
+            fig_cohort_delta([(PHa, "t_ms", c["protrusion"], "protrusion (px)", False),
+                              (PHa, "t_ms", c["lateral"], "lateral tip position (px; + = L)", False),
+                              (PHa, "t_ms", c["angle"], "tongue angle (deg; + = L)", False)],
+                             figs / f"cohort_lick_phase_minus_pre{fz}.png", t,
+                             f"COHORT, change vs pre: lick-peak-aligned protrusion / lateral position / angle, licks: ALL "
+                             f"POST-CUE licks (measured peaks); {desc}", "ms from lick peak", wgt)
+            fig_cohort_delta([(PHf1, "t_ms", c["protrusion"], "protrusion (px), FIRST lick", False),
+                              (PHf1, "t_ms", c["angle"], "tongue angle (deg; + = L), FIRST lick", False),
+                              (PHa, "t_ms", c["protrusion"], "protrusion (px), ALL post-cue licks", False),
+                              (PHa, "t_ms", c["angle"], "tongue angle (deg; + = L), ALL post-cue licks", False)],
+                             figs / f"cohort_lick_phase_first_vs_all_minus_pre{fz}.png", t,
+                             f"COHORT, change vs pre: lick-peak-aligned protrusion / angle -- licks: rows 1-2 the FIRST "
+                             f"post-cue lick of each trial, rows 3-4 ALL post-cue licks (measured peaks); {desc}",
+                             "ms from lick peak", wgt)
+        fig_cohort_delta([(PHf, "phase", c["protrusion"], "protrusion (px)", True),
+                          (PHf, "phase", c["angle"], "tongue angle (deg; + = L)", True)],
+                         figs / f"cohort_phase_norm_minus_pre{fz}.png", t,
+                         f"COHORT, change vs pre: protrusion / angle vs NORMALISED lick phase, licks: POST-CUE licks in the "
+                         f"FIRST multi-lick bout per trial; {desc}", "lick phase (0 = between peaks, 0.5 = peak)", wgt)
+    if PH is not None:
+        fig_cohort_delta([(PHa, "t_ms", "lat_px", "lateral tip position (px; + = L)", False),
+                          (PHa, "t_ms", "out_px", "tip distance out along the mouth axis (px)", False),
+                          (PHa, "t_ms", "velocity_px_s", "protrusion velocity (px/s; + = out, - = back)", False),
+                          (PHa, "t_ms", "speed_abs_px_s", "protrusion SPEED |velocity| (px/s)", False)],
+                         figs / f"cohort_trajectory_delta_minus_pre{suf}.png", t,
+                         "COHORT, change vs pre of the lick TRAJECTORY: lateral and out-of-mouth tip position, signed "
+                         "velocity (slower out AND back shows as a dip then a bump) and speed magnitude (slower = negative "
+                         "throughout) through the lick, licks: ALL POST-CUE licks (measured peaks); IN-MOUTH INCLUDED "
+                         "(tip at the mouth = 0)", "ms from lick peak", wgt)
+        if wgt == "session":
+            for within, wz in ((True, "_within"), (False, "")):
+                fig_cohort_paths(PHa, Pm, figs / f"cohort_trajectory_xy{wz}.png", t, within=within)
+                fig_cohort_paths(PHa, Pm, figs / f"cohort_phase_portrait{wz}.png", t, portrait=True, within=within)
     jaw_csv = base / "tables" / "jaw_lateral" / "sessions.csv"
     jaw = pd.read_csv(jaw_csv, dtype={"date": str}) if jaw_csv.exists() else None
     fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",
                        t + "\nCOHORT, change vs pre: per-position lick metrics", jaw, wgt,
                        stats if wgt == "session" else None)
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

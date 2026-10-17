@@ -20119,3 +20119,15 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   orofacial_prepost_<date>.pptx`: title, methods, key-results table, significance grids per epoch, sections (cohort
   summaries, jaw, per-animal, appendix), one figure per slide with caption + method in the speaker notes. 57 slides.
   Pipeline order: orofacial_outputs process -> orofacial_jaw_lateral -> orofacial_cohort -> orofacial_deck.
+* **Matched in-mouth conventions, within-animal paths, figure legibility (10-17, Priya)**: no cohort figure mixes in-mouth
+  conventions any more. Cue-aligned (Family 8.2), lick-phase, first-vs-all and phase-normalised cohort figures each come
+  as `*_inmouth_excl` (tongue out >= 20 px only: protrusion_out_px / lat_out_px / angle_deg -- "given the tongue is out,
+  is its trajectory different") and `*_inmouth_incl` (in-mouth = 0: protrusion_px / lat_px / angle_mouth0_deg -- also
+  folds in how much of the time the tongue is out, i.e. lick rate; this is why far-ipsi acute angle can flip sign
+  between the two). The old mixed `cohort_{cue,lick_phase,first_vs_all,phase_norm}_minus_pre.png` are superseded
+  (left on the share, not regenerated). Trajectory-change figure gains a protrusion SPEED |velocity| row (signed velocity
+  cancels slower-out against slower-back; speed does not). Cohort x-y paths / phase portraits now also come
+  `*_within`: each post epoch = cohort pre path + mean per-session change from ITS animal's own pre path, so PS93's
+  pre-existing deficit cannot shift an epoch difference (raw pooled versions kept, labelled). `_tidy` (every figure,
+  incl. jaw module): legends moved outside data, headroom reserved for significance-mark rows, minimum font sizes
+  (ticks 9, axis labels 10, titles 10.5, legends 9), fewer auto ticks, labels/titles wrapped to the panel. Deck 63 slides.

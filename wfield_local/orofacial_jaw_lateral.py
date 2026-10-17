@@ -195,6 +195,8 @@ def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
             "target side; per-animal epoch mean +- SEM over sessions; title: paired change vs pre (animal-weighted "
             "bootstrap, * = 95% CI excludes 0; >= 2 animals)")
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
+    from wfield_local.orofacial_cohort import _tidy
+    _tidy(fig)
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)
@@ -220,6 +222,8 @@ def fig_timecourse(S: pd.DataFrame, path: Path, title: str) -> None:
     axs[0][0].legend(fontsize=7, frameon=False)
     fig.suptitle(title + "\none point per session (band = trial-bootstrap 95% CI where available); dashed = lesion",
                  fontsize=9)
+    from wfield_local.orofacial_cohort import _tidy
+    _tidy(fig)
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)
@@ -256,6 +260,8 @@ def fig_by_position(T: pd.DataFrame, path: Path, title: str) -> None:
             "+- SEM over sessions. Close / mid spouts partly hide the chin (the model then marks its visible edge) -- "
             "read the FAR positions; the readout (FAR_DIR) uses far ipsi vs far contra only")
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 140)), fontsize=9)
+    from wfield_local.orofacial_cohort import _tidy
+    _tidy(fig)
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)
