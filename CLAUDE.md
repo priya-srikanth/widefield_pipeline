@@ -360,6 +360,8 @@ animals (jaw steering toward the target drops acutely in all four), LP r4 ctx-se
 — superseded by 10-15; cam4 pose-model selection (five models, human lick review, the EKS correction), what is
 training in WSL, side-camera labelling plan, WSL GPU safety, pitfalls.
 
+**[`docs/OROFACIAL_FINDINGS.md`](docs/OROFACIAL_FINDINGS.md)** — the cam4 pre- vs post-stroke licking findings so far (preliminary; numbers re-checked against `cohort/tables/prepost/stats/RESULTS.md`).
+
 **[`docs/POSE_MODELS.md`](docs/POSE_MODELS.md)** — the cam4 pose-model register: every model, settings + rationale, results, how we choose.
 
 **[`docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md`](docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md)**

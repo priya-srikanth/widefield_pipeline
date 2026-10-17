@@ -986,6 +986,115 @@ def fig_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, tit
     _save(plt, fig, path)
 
 
+def _within_change(Pm: pd.DataFrame, m: str) -> pd.DataFrame:
+    """Per session x position: metric m minus that animal's own pre-stroke mean at the position."""
+    base = Pm[Pm.epoch == "pre"].groupby(["animal", "pos"])[m].mean()
+    d = Pm[["animal", "date", "epoch", "day", "pos", m]].copy()
+    d["chg"] = d[m] - base.reindex(pd.MultiIndex.from_frame(d[["animal", "pos"]])).to_numpy()
+    return d
+
+
+def fig_cohort_epochs_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, title: str,
+                                  stats: pd.DataFrame | None = None) -> None:
+    """COHORT version of `fig_epochs_by_position` (Priya 10-17): rows = metric, columns = position, x = epoch; bold =
+    mean +- SEM over SESSIONS of each session's change from its animal's own pre mean; faint = each animal's epoch
+    mean; marks = the cohort tests (`cohort_stats`)."""
+    col, _ = _palettes()
+    plt = _plt()
+    fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.5 * len(POS_ORDER), 2.2 * len(metrics)),
+                            squeeze=False, sharey="row")
+    x = np.arange(len(EPOCH_ORDER))
+    for i, m in enumerate(metrics):
+        if m not in Pm:
+            continue
+        d = _within_change(Pm, m)
+        for j, p in enumerate(POS_ORDER):
+            ax = axs[i][j]
+            g = d[d.pos == p]
+            ax.axhline(0, color="0.8", lw=0.8, zorder=0)
+            for k, (a, ga) in enumerate(g.groupby("animal")):
+                am = ga.groupby("epoch").chg.mean().reindex(EPOCH_ORDER)
+                ax.plot(x + (k - 1.5) * 0.06, am.to_numpy(float), "o", ms=3, color=col.get(a, "k"), alpha=0.45,
+                        zorder=1, label=a if (i == 0 and j == 0) else None)
+            mu = g.groupby("epoch").chg.mean().reindex(EPOCH_ORDER)
+            se = g.groupby("epoch").chg.agg(_sem).reindex(EPOCH_ORDER)
+            ax.plot(x, mu.to_numpy(float), "-", color="0.35", lw=1.0, zorder=2)
+            for e_i, e in enumerate(EPOCH_ORDER):
+                if np.isfinite(mu[e]):
+                    ax.errorbar(e_i, mu[e], yerr=se[e] if np.isfinite(se[e]) else None, fmt="o", ms=5,
+                                color=EPOCH_LINE[e], capsize=2.5, elinewidth=1.0, zorder=3)
+            if stats is not None:
+                _mark_rows(ax, 1)
+                st = stats[(stats.metric == m) & (stats.pos == p)]
+                for _, r in st.iterrows():
+                    mk = STAR.get(r.agree)
+                    if mk and r.epoch in EPOCH_ORDER:
+                        ax.text(EPOCH_ORDER.index(r.epoch), 0.985, mk, color=EPOCH_LINE[r.epoch], ha="center",
+                                va="top", fontsize=11, fontweight="bold", transform=ax.get_xaxis_transform())
+            ax.set_xticks(x, [e[:3] for e in EPOCH_ORDER], fontsize=6.5)
+            if i == 0:
+                ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
+            if j == 0:
+                ax.set_ylabel(f"{LABEL[m]}, change vs pre", fontsize=7)
+    axs[0][0].legend(fontsize=6, frameon=False)
+    note = ("COHORT, by spout position: each session's change from its animal's OWN pre-stroke mean; bold = mean +- SEM "
+            "over SESSIONS (epoch colours), faint = each animal's epoch mean; licks: ALL POST-CUE licks, measured peaks "
+            "for kinematics. Marks: * = session Mann-Whitney (BH-FDR within metric) AND animal-weighted bootstrap "
+            "agree, (*) = Mann-Whitney only, b = bootstrap only")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
+    _save(plt, fig, path)
+
+
+#: day bins for the cohort timecourse (days since stroke); pre-stroke sessions are one bin
+DAY_BINS = ((1, 3), (4, 7), (8, 14), (15, 28), (29, 60))
+
+
+def fig_cohort_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, title: str) -> None:
+    """COHORT version of `fig_timecourse_by_position` (Priya 10-17): within-animal change vs pre, mean +- SEM over
+    sessions per day bin (pre-stroke sessions = one bin), faint = each animal's bin means."""
+    col, _ = _palettes()
+    plt = _plt()
+    fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.6 * len(POS_ORDER), 2.1 * len(metrics)),
+                            squeeze=False, sharey="row", sharex=True)
+    xs = [-6.0] + [float(np.mean(b)) for b in DAY_BINS]
+    labs = ["pre"] + [f"{a}-{b}" for a, b in DAY_BINS]
+    for i, m in enumerate(metrics):
+        if m not in Pm:
+            continue
+        d = _within_change(Pm, m)
+        d["bin"] = np.nan
+        d.loc[d.epoch == "pre", "bin"] = 0
+        for k, (a, b) in enumerate(DAY_BINS, start=1):
+            d.loc[(d.epoch != "pre") & d.day.between(a, b), "bin"] = k
+        d = d.dropna(subset=["bin"])
+        for j, p in enumerate(POS_ORDER):
+            ax = axs[i][j]
+            g = d[d.pos == p]
+            ax.axhline(0, color="0.8", lw=0.8, zorder=0)
+            ax.axvline(0.0, color="0.6", ls="--", lw=0.7, zorder=0)
+            for a, ga in g.groupby("animal"):
+                am = ga.groupby("bin").chg.mean().reindex(range(len(xs)))
+                ax.plot(xs, am.to_numpy(float), "o-", ms=2.2, lw=0.7, color=col.get(a, "k"), alpha=0.4, zorder=1,
+                        label=a if (i == 0 and j == 0) else None)
+            mu = g.groupby("bin").chg.mean().reindex(range(len(xs)))
+            se = g.groupby("bin").chg.agg(_sem).reindex(range(len(xs)))
+            ax.errorbar(xs, mu.to_numpy(float), yerr=se.to_numpy(float), fmt="o-", ms=4, color="k", lw=1.4,
+                        capsize=2.5, elinewidth=0.9, zorder=3)
+            ax.set_xticks(xs, labs, fontsize=6, rotation=45)
+            if i == 0:
+                ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
+            if j == 0:
+                ax.set_ylabel(f"{LABEL[m]}, change vs pre", fontsize=7)
+    for ax in axs[-1]:
+        ax.set_xlabel("days since stroke (bins)", fontsize=7)
+    axs[0][0].legend(fontsize=6, frameon=False)
+    note = ("COHORT timecourse by spout position: each session's change from its animal's OWN pre-stroke mean; black = "
+            "mean +- SEM over SESSIONS per day bin (all pre-stroke sessions = 'pre'), faint = each animal's bin mean; "
+            "licks: ALL POST-CUE licks; dashed = lesion. Significance by epoch: see cohort_epochs_by_position_*")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
+    _save(plt, fig, path)
+
+
 def fig_lick_phase_value(PH: pd.DataFrame, lat: dict, col: str, ylabel: str, path: Path, title: str,
                          note: str, zero_line: bool = True, delta_pre: bool = False,
                          xlabel: str = "ms from lick peak", spout: dict | None = None, spout_ipsi: bool = False) -> None:
@@ -1819,6 +1928,9 @@ def main(argv=None) -> int:
     # all the animals"), under figures/prepost/cohort_*.png
     CTw = CT.pivot_table(index=["animal", "date", "epoch", "pos", "t_ms"], columns="var", values="value").reset_index()
     ST = cohort_stats(Pm, base, tables)
+    for name, ms in POS_GROUPS.items():                 # cohort versions of the per-animal by-position figures
+        fig_cohort_epochs_by_position(Pm, ms, figs / f"cohort_epochs_by_position_{name}.png", t, ST)
+        fig_cohort_timecourse_by_position(Pm, ms, figs / f"cohort_timecourse_by_position_{name}.png", t)
     for wgt, suf in (("session", ""), ("animal", "_animalw")):
         _cohort_figs(CTw, PHa, PHN, Pm, base, figs, t, wgt, suf, PH=PH, stats=ST)
     (tables / "provenance.json").write_text(json.dumps({"run": a.run, "n_sessions": int(len(S)),
@@ -1964,7 +2076,8 @@ sessions are in.
 def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
     """Session MWU + animal-weighted bootstrap for every cohort scalar (and jaw FAR_DIR); writes stats.csv and a
     plain-language RESULTS.md of the significant cells."""
-    ST = session_change_tests(Pm, COHORT_SCALARS)
+    ms_ = list(dict.fromkeys([*COHORT_SCALARS, *(m for g in POS_GROUPS.values() for m in g)]))
+    ST = session_change_tests(Pm, ms_)          # every metric drawn in a cohort figure gets its own test
     jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
     if jaw_csv.exists():
         J = pd.read_csv(jaw_csv, dtype={"date": str}).assign(pos="far_pair")
