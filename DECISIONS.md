@@ -20150,3 +20150,11 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
 * **Lick speed shown as |velocity| only (10-17, Priya)**: the trajectory figure drops signed velocity (slower-out and
   slower-back cancel in it) for two rows: RAW |velocity| per epoch and its within-animal change vs pre; both carry the
   same change-test bars. Path significance circles thinned to one per 12 ms.
+* **Coverage rule set to 0.25 of an epoch's sessions (min 3), from a sensitivity check (10-17, Priya)**:
+  `scripts/orofacial_cover_sensitivity.py` (outputs `cohort/qc/cover_sensitivity/`) re-ran the change curves and the
+  cluster test at no rule / 0.25 / 0.5 / 0.75. Only the cue-aligned tongue-OUT family depends on it (lick-peak-aligned
+  and every in-mouth-included trace: identical at all thresholds; phase-normalised tongue-out: small change at 0.75).
+  Cells with a significant cluster: 50 / 51 / 51 / 48 of 54. But 0.5 drew only 42 of 174 bins of acute far contra
+  (0.25: 124; 0.75: none) -- acute far-contra sessions rarely have the tongue out, so a fraction rule blanks exactly the
+  deficit. 0.25 keeps it; min n 3 alone already removes the one-session far-ipsi spike; no rule lets bins carried by
+  1-2 sessions add noise (two acute protrusion cells lose significance). `min_cover_frac: 0.25` in defaults.yaml.

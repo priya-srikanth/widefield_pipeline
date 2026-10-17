@@ -1258,7 +1258,7 @@ def _animal_delta_curves(D: pd.DataFrame, xcol: str, col: str, pos: str, weight:
 #: MIN_COVER_FRAC of the epoch's rows (sessions, or animals when animal-weighted) and at least MIN_COVER_N of them have
 #: data there. Tongue-OUT traces before ~+100 ms from the cue exist in only a few sessions (the tongue is rarely out),
 #: so without this one acute session of one animal drew the whole pre-cue segment.
-MIN_COVER_FRAC = 0.5
+MIN_COVER_FRAC = 0.25
 MIN_COVER_N = 3
 MIN_LICKS_SESSION_POS = 20
 
