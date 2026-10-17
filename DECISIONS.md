@@ -20083,3 +20083,8 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   ipsi acutely (+11.7 px, PS92 / PS94 ~+15 / +23) and returns to ~0 by day ~10; PS93's static ipsi bias (~+18-26 px) is
   its jaw anatomy (10-15). Replicates the 10-15 DLC r3 clip readout (pre +9..+18 -> acute ~0) with the production model
   on every trial. PS95 post-stroke sessions still to come.
+  **Update 10-17 (PS95 post sessions arrived): 4 / 4 animals.** PS95 pre 11-18 px -> day 1 (acute) 1.4 px -> back to
+  12-14 px from day 2 (its acute epoch is one day; days 2-5 = subacute by the epoch rule). Cohort acute change, 4 animals:
+  FAR_DIR -12.2 px [-13.8, -10.7]; tongue-reached-the-spout trials -12.3 px [-14.2, -10.5]; opening angle -8.7 deg
+  [-11.1, -7.0]. Recovery timing differs by animal: PS95 day 2, PS94 ~day 40 (overshoot), PS92 half by chronic, PS93 one
+  chronic session (partial).

@@ -111,8 +111,9 @@ Tests: `test_orofacial_outputs.py` (new), `test_o2_inference.py`, `test_camera_s
 3. **Executed-angle vs target readout (MUST REVISIT)**: the kinematic side now exists in `orofacial_cohort`
    (angle_tuning, angle_gain_far, ipsi_bias_deg, Family 8.2 cue_angle*); the imaging-side readout test
    (`lick_template_match`) on whole sessions is still to do.
-4. **Jaw lateral readout with LP r4 on whole sessions** (to-do 10 of 10-14): far-pair FAR_DIR / FAR_BIAS table, plus a
-   tongue-protrusion control.
+4. ~~Jaw lateral readout with LP r4 on whole sessions~~ DONE 10-16/17 (`wfield_local/orofacial_jaw_lateral.py`): jaw
+   steering toward the target abolished acutely in 4 / 4 animals (-12.2 px [-13.8, -10.7]), not a shorter-reach effect;
+   recovery timing differs by animal (DECISIONS 2026-10-16 jaw entry + 10-17 update). Re-run as sessions arrive.
 5. Other cohort analyses onto `orofacial_outputs`: contact classes, licking dynamics / bout structure by epoch.
 6. Side cameras, pixel-vs-LocaNMF decoding gap, FaceRhythm -- unchanged.
 Open items waiting on Priya: `OPEN_QUESTIONS_PRIYA.md` (clean-up PowerShell, O2 copy-backs).
