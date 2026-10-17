@@ -266,7 +266,8 @@ def qc_figure(ix, flat, tongue_y, tongue_x, jaw_y, out: Path, title: str) -> Non
     ax[1, 0].legend(fontsize=6)
     fig.suptitle(f"{title}: {ix.trial_k.nunique()} trials", fontsize=11)
     fig.tight_layout()
-    fig.savefig(out, dpi=100)
+    from wfield_local.orofacial_cohort import save_png_svg
+    save_png_svg(fig, out, dpi=100)
     plt.close(fig)
 
 

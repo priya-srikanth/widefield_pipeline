@@ -20131,3 +20131,22 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   pre-existing deficit cannot shift an epoch difference (raw pooled versions kept, labelled). `_tidy` (every figure,
   incl. jaw module): legends moved outside data, headroom reserved for significance-mark rows, minimum font sizes
   (ticks 9, axis labels 10, titles 10.5, legends 9), fewer auto ticks, labels/titles wrapped to the panel. Deck 63 slides.
+* **Coverage rule, config thresholds, significance everywhere, SVG (10-17, Priya)**: (1) far-ipsi acute "lateral spike at
+  the cue" was ONE session of one animal: tongue-out traces before ~+100 ms exist in 1-4 sessions. Change curves now
+  draw a bin only when >= `min_cover_frac` (0.5) of the epoch's sessions and >= `min_cover_n` (3) carry it; per animal a
+  bin needs >= 3 of its sessions. (2) Inclusion thresholds moved to `configs/defaults.yaml orofacial_cohort:` (as in
+  stroke_orofacial: min_trials_per_bin / min_sessions_per_bin / min_trials_with_detected_lick), incl. a new
+  `min_licks_per_session_position: 20` (min observed 24 -> drops nothing today). (3) Cluster bars on animal-weighted
+  figures too: the test is always on SESSIONS (labels permuted within animal); bars 50 % opacity, thinner; row y range
+  set by bold mean +- SEM. (4) Within-animal x-y paths / phase portraits: open circles where the epoch's path differs from
+  pre (cluster permutation on each coordinate's change, alpha 0.025 each); tongue-out (`_inmouth_excl`) versions of
+  paths / portraits added; all path files now carry `_inmouth_incl|excl`. (5) Animal-weighted legend n counted unique
+  dates (shared across animals) -> now animal x date. (6) Every orofacial figure also writes `svg/<stem>.svg` (text kept
+  as text); per-session qc.svg backfilled for 104 sessions (`scripts/orofacial_svg_backfill.py`).
+* **Why raw and within-animal cohort paths look alike (10-17)**: with session weighting the two differ only when an
+  epoch's animal mix differs from pre's; PS92/94/95 have ~30 sessions each and PS93 4, so PS93's pre-existing deficit
+  barely moves the pooled mean. The epoch differences are therefore not a composition artefact, and dropping PS93 would
+  change these figures little.
+* **Lick speed shown as |velocity| only (10-17, Priya)**: the trajectory figure drops signed velocity (slower-out and
+  slower-back cancel in it) for two rows: RAW |velocity| per epoch and its within-animal change vs pre; both carry the
+  same change-test bars. Path significance circles thinned to one per 12 ms.

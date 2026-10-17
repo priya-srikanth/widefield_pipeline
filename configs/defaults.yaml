@@ -1333,3 +1333,15 @@ lick_template_match:           # wfield_local/lick_templates.py + scripts/lick_t
   n_boot: 5000
   n_perm: 1000                 # within-position angle permutations for the readout test
   n_angle_bins: 8              # pre-stroke executed-angle templates for the cortical angle readout
+
+orofacial_cohort:             # inclusion thresholds for the cam4 pre- vs post-stroke cohort figures
+                              # (wfield_local/orofacial_cohort.py; Priya 2026-10-17, after stroke_orofacial's
+                              # min_trials_per_bin / min_sessions_per_bin / min_trials_with_detected_lick)
+  min_licks_per_session_position: 20   # a session x position enters every figure / test only with >= this many
+                                       #   post-cue LP licks (10-17: min observed 24, so nothing is dropped yet)
+  min_cover_frac: 0.5         # a trace bin is drawn only when >= this fraction of the epoch's sessions (animals
+  min_cover_n: 3              #   when animal-weighted) AND >= min_cover_n of them have data there; per animal, a bin
+                              #   needs >= min_cover_frac of its sessions before it enters that animal's pre mean
+  cue_min_frames_per_bin: 25  # frames per 20 ms cue bin per session (sparse pre-cue bins drew spikes at 5)
+  min_phase_intervals_per_bin: 5   # peak-to-peak intervals per normalised-phase bin per session
+  walk_min_licks: 3           # licks per trial for the within-trial "walk" (homing) readout

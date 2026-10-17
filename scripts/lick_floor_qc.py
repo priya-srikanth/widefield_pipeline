@@ -90,7 +90,8 @@ def draw_sheet(items: list[dict], path: Path, title: str) -> None:
         cap.release()
     fig.suptitle(title, fontsize=8)
     fig.tight_layout()
-    fig.savefig(path, dpi=110)
+    from wfield_local.orofacial_cohort import save_png_svg
+    save_png_svg(fig, path, dpi=110)
     plt.close(fig)
 
 
@@ -123,7 +124,8 @@ def _histogram(A: pd.DataFrame, floor: float, path: Path) -> None:
     fig.suptitle(f"lick peak protrusion with the floor at {floor:.0f} px (production: 20 px, red dashed); "
                  "blue = fraction with DAQ spout contact; 0-80 px shown", fontsize=8.5)
     fig.tight_layout()
-    fig.savefig(path, dpi=120)
+    from wfield_local.orofacial_cohort import save_png_svg
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 

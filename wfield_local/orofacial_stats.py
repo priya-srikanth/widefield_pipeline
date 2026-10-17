@@ -120,7 +120,7 @@ def _clusters(t: np.ndarray, thr: float) -> list[tuple[int, int, float]]:
 
 
 def cluster_permutation(curves: np.ndarray, is_post: np.ndarray, animal: np.ndarray, n_perm: int = 1000,
-                        seed: int = 0) -> np.ndarray:
+                        seed: int = 0, alpha: float = ALPHA) -> np.ndarray:
     """Boolean mask over bins: clusters where post-epoch session curves differ from pre-session curves (permutation
     p < ALPHA). ``curves`` = sessions x bins (each already a change from its animal's own pre mean); labels are permuted
     within animal."""
@@ -130,7 +130,7 @@ def cluster_permutation(curves: np.ndarray, is_post: np.ndarray, animal: np.ndar
     mask = np.zeros(curves.shape[1], bool)
     if is_post.sum() < 2 or (~is_post).sum() < 2:
         return mask
-    thr = float(tdist.ppf(1 - ALPHA / 2, max(int(is_post.sum() + (~is_post).sum() - 2), 1)))
+    thr = float(tdist.ppf(1 - alpha / 2, max(int(is_post.sum() + (~is_post).sum() - 2), 1)))
     obs = _clusters(_welch_t(curves[is_post], curves[~is_post]), thr)
     if not obs:
         return mask
@@ -144,7 +144,7 @@ def cluster_permutation(curves: np.ndarray, is_post: np.ndarray, animal: np.ndar
         cl = _clusters(_welch_t(curves[lab], curves[~lab]), thr)
         null[k] = max((c[2] for c in cl), default=0.0)
     for s, e, mass in obs:
-        if (np.sum(null >= mass) + 1) / (n_perm + 1) < ALPHA:
+        if (np.sum(null >= mass) + 1) / (n_perm + 1) < alpha:
             mask[s:e] = True
     return mask
 
