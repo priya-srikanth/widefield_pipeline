@@ -1309,35 +1309,31 @@ def _cue_table(sd: Path) -> pd.DataFrame:
 
 
 def _align_by_order(cue: pd.DataFrame, bt: pd.DataFrame) -> np.ndarray | None:
-    """Row of the behaviour table for every orofacial trial, by aligning the two TRIAL ORDERS within each DAQ recording
-    segment (a > 300 s gap between cues = a restart, e.g. PS92_0812's crash): the integer row offset whose positions
-    agree best. Accepted only with >= 98 % position agreement over >= 80 % of the segment AND a consistent clock
-    (SD of DAQ cue minus the log's device trial end < 2 s -- chance alignments do not keep time). None if any
-    segment fails."""
-    lp = bt.pos_name.to_numpy(str)
+    """Row of the behaviour table for every orofacial trial when the two trial ids are not comparable (behaviour table
+    built from the GUI log). Uses THE repo's log <-> DAQ aligner, `behavior_position.best_trial_offset` (the integer
+    trial offset of the dead-strobe position repair), once per DAQ RECORDING SEGMENT -- a > 300 s gap between cues is a
+    restart (PS92_0812's crash), and the log keeps counting trials through it, so one offset cannot fit both sides.
+    Accepted per segment at >= 98 % position agreement over >= 80 % of its trials AND a consistent clock (SD of DAQ cue
+    minus the log's device trial end < 2 s; a chance alignment does not keep time). None if any segment fails."""
+    from wfield_local.behavior_position import best_trial_offset
+    codes = {p_: k for k, p_ in enumerate(sorted(set(bt.pos_name.astype(str)) | set(cue.position.astype(str))))}
+    lp = np.array([codes[x] for x in bt.pos_name.astype(str)], dtype=np.int16)
     t_end = bt.device_trial_end_ms.to_numpy(float) / 1000.0 if "device_trial_end_ms" in bt else None
     seg = np.r_[0, np.cumsum(np.diff(cue.cue_daq.to_numpy()) > 300.0)]
     out = np.full(len(cue), -1)
     for sg in np.unique(seg):
         idx = np.flatnonzero(seg == sg)
-        pos = cue.position.to_numpy(str)[idx]
-        n, best = len(idx), None
-        for k in range(-len(bt), len(bt)):
-            jj = np.arange(n) + k
-            ok = (jj >= 0) & (jj < len(bt))
-            if ok.sum() < 0.8 * n:
-                continue
-            ag = float((lp[jj[ok]] == pos[ok]).mean())
-            if best is None or ag > best[1]:
-                best = (k, ag)
-        if best is None or best[1] < 0.98:
+        dq = np.array([codes[x] for x in cue.position.astype(str).to_numpy()[idx]], dtype=np.int16)
+        # behaviour row r -> segment cue r + off; scan every offset that leaves >= 80 % of the segment matched
+        sc, off, _ = best_trial_offset(dq, lp, rng=len(lp), min_n=int(np.ceil(0.8 * len(idx))))
+        if sc < 0.98:
             return None
-        jj = np.arange(n) + best[0]
-        ok = (jj >= 0) & (jj < len(bt))
+        rows = np.arange(len(idx)) - off
+        ok = (rows >= 0) & (rows < len(lp))
         if t_end is not None and ok.sum() > 2:
-            if np.std(cue.cue_daq.to_numpy()[idx][ok] - t_end[jj[ok]]) > 2.0:
+            if np.std(cue.cue_daq.to_numpy()[idx][ok] - t_end[rows[ok]]) > 2.0:
                 return None
-        out[idx[ok]] = jj[ok]
+        out[idx[ok]] = rows[ok]
     return out
 
 

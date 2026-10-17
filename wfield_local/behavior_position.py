@@ -106,6 +106,37 @@ def _behavior_positions(session):
         return None
 
 
+def best_trial_offset(daq, beh, rng: int, valid_pos=None, min_n: int = 20):
+    """THE log <-> DAQ trial aligner (one definition; used by `classify_cues_with_backup` and by
+    `orofacial_cohort.engagement_keep`). Integer offset ``off`` maps behaviour-log trial j to DAQ cue j + off;
+    returns ``(score, off, out)`` for the offset in [-rng, rng] with the highest position agreement, where
+    ``out[i]`` = the log's position for DAQ cue i (-1 where no log trial maps) and agreement is scored over
+    cues whose DAQ and log positions are both in ``valid_pos`` (all positions when None), needing >= ``min_n``
+    such cues. Ties keep the FIRST (most negative) offset. ``(-1.0, 0, None)`` if no offset qualifies.
+
+    Index-based, so drift-free over a long session (a wall-clock offset would slip). Extracted 2026-10-17
+    verbatim from `classify_cues_with_backup`'s loop -- `tests/test_behavior_position_offset.py` pins it against
+    a frozen copy of that loop."""
+    daq = np.asarray(daq)
+    beh = np.asarray(beh)
+    N = len(daq)
+    best = (-1.0, 0, None)
+    for off in range(-rng, rng + 1):                  # behavior[j] -> daq[j+off]
+        out = np.full(N, -1, dtype=np.int16)
+        k = np.arange(len(beh)) + off
+        ok = (k >= 0) & (k < N)
+        out[k[ok]] = beh[ok]
+        val = out >= 0
+        if valid_pos is not None:
+            val &= np.isin(daq, valid_pos) & np.isin(out, valid_pos)
+        if val.sum() < min_n:
+            continue
+        sc = float((daq[val] == out[val]).mean())
+        if sc > best[0]:
+            best = (sc, off, out)
+    return best
+
+
 def classify_cues_with_backup(session, cue, verbose=True):
     daq = _classify_cues(cue["cue_samples"], cue["strobe_samples"], cue["strobe_codes"])
     # Explicit human-verified recovered-position CSV (e.g. PS93 8/5 cam1 recovery, when the DAQ strobe
@@ -137,18 +168,7 @@ def classify_cues_with_backup(session, cue, verbose=True):
                   f"and configs/paths.yaml behavior_logs.", flush=True)
         return daq
     N = len(daq); rng = max(20, abs(len(b) - N) + 10)
-    best = (-1.0, 0, None)
-    for off in range(-rng, rng + 1):                  # behavior[j] -> daq[j+off]
-        out = np.full(N, -1, dtype=np.int16)
-        k = np.arange(len(b)) + off; ok = (k >= 0) & (k < N)
-        out[k[ok]] = b[ok]
-        val = (out >= 0) & np.isin(daq, good) & np.isin(out, good)
-        if val.sum() < 20:
-            continue
-        sc = float((daq[val] == out[val]).mean())
-        if sc > best[0]:
-            best = (sc, off, out)
-    sc, off, out = best
+    sc, off, out = best_trial_offset(daq, b, rng, valid_pos=good, min_n=20)
     if out is not None and sc >= 0.9:
         res = out.copy(); miss = res < 0; res[miss] = daq[miss]
         if verbose:

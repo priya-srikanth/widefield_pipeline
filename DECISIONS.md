@@ -20183,4 +20183,11 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   -5.4 are unchanged. What the gate changes is the RESPONDED FRACTION (acute 0.64 -> 0.82, subacute 0.77 -> 0.93: most
   of the apparent acute drop in responding was quitting) and the post-cue lick rate (acute 1.32 -> 1.71 Hz). In-mouth-
   included cue traces shift modestly (far contra 0.1-1.5 s protrusion, acute 8.9 -> 11.8 px vs pre 57.7 -> 60.0).
+* **One log <-> DAQ trial aligner (10-17, Priya: "did you reinvent the wheel")**: yes -- the orofacial gate's first
+  `_align_by_order` re-implemented the integer trial-offset search that `behavior_position.classify_cues_with_backup`
+  already used for the dead-strobe position repair. Extracted that loop verbatim into
+  `behavior_position.best_trial_offset` (pinned by `tests/test_behavior_position_offset.py` against a frozen copy, exact
+  equality over 40 synthetic sessions incl. dead-bit cases); `classify_cues_with_backup` and `orofacial_cohort` now both
+  call it. The orofacial side adds only what the repair never needed: one offset per DAQ recording segment (PS92_0812's
+  log counts trials through the crash gap) and a clock-consistency check. Same gated trial sets as before.
 
