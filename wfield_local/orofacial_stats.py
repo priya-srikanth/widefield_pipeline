@@ -147,3 +147,29 @@ def cluster_permutation(curves: np.ndarray, is_post: np.ndarray, animal: np.ndar
         if (np.sum(null >= mass) + 1) / (n_perm + 1) < ALPHA:
             mask[s:e] = True
     return mask
+
+
+def within_animal_tests(P: pd.DataFrame, metrics) -> pd.DataFrame:
+    """Per animal x metric x position x post epoch: two-sided Mann-Whitney of that animal's post-epoch sessions vs its own
+    pre sessions; BH-FDR within each metric (all animals x positions x epochs). Columns: animal, metric, pos, epoch, p,
+    q_fdr, sig (q < ALPHA)."""
+    from scipy.stats import mannwhitneyu
+    rows = []
+    for m in metrics:
+        if m not in P:
+            continue
+        block = []
+        for (a, pos), g in P.groupby(["animal", "pos"], sort=True):
+            pre = g.loc[g.epoch == "pre", m].dropna().to_numpy()
+            for e in ("acute", "subacute", "chronic"):
+                post = g.loc[g.epoch == e, m].dropna().to_numpy()
+                p = (float(mannwhitneyu(post, pre, alternative="two-sided").pvalue)
+                     if len(post) >= 2 and len(pre) >= 2 else np.nan)
+                block.append({"animal": a, "metric": m, "pos": pos, "epoch": e, "n_post": len(post), "n_pre": len(pre),
+                              "p": p})
+        q = bh_fdr([b["p"] for b in block])
+        for b, qq in zip(block, q):
+            b["q_fdr"] = float(qq)
+            b["sig"] = bool(np.isfinite(qq) and qq < ALPHA)
+        rows += block
+    return pd.DataFrame(rows, columns=["animal", "metric", "pos", "epoch", "n_post", "n_pre", "p", "q_fdr", "sig"])

@@ -772,6 +772,8 @@ def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Pa
     plt = _plt()
     fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.5 * len(POS_ORDER), 2.2 * len(metrics)),
                             squeeze=False, sharey="row")
+    from wfield_local.orofacial_stats import within_animal_tests
+    W = within_animal_tests(Pm, metrics)                  # per animal: post-epoch sessions vs its own pre sessions
     for j, p in enumerate(POS_ORDER):
         for i, m in enumerate(metrics):
             ax = axs[i][j]
@@ -782,6 +784,11 @@ def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Pa
                 ok = mu.notna().to_numpy()
                 ax.errorbar(x[ok], mu[ok], yerr=se[ok], fmt="o-", color=col.get(a, "k"), ms=3.5, lw=1.1, capsize=2,
                             elinewidth=0.7, label=a)
+                sig = W[(W.metric == m) & (W.pos == p) & (W.animal == a) & W.sig]
+                for e in sig.epoch:                      # * in the animal's colour above its significant epochs
+                    xe = EPOCH_ORDER.index(e) + (k - 1.5) * 0.07
+                    ax.text(xe, 0.985 - 0.065 * k, "*", color=col.get(a, "k"), ha="center", va="top", fontsize=10,
+                            fontweight="bold", transform=ax.get_xaxis_transform())
             if m == "peak_angle_deg":
                 ax.axhline(Pm[Pm.pos == p].spout_angle_deg.mean(), color="0.55", ls="--", lw=1.0, zorder=0)
             ax.set_xticks(range(len(EPOCH_ORDER)), [e[:3] for e in EPOCH_ORDER], fontsize=6.5)
@@ -791,8 +798,11 @@ def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Pa
             if j == 0:
                 ax.set_ylabel(LABEL[m], fontsize=7)
     axs[0][0].legend(fontsize=6, frameon=False)
-    fig.suptitle(title + "\nby spout position: per-animal epoch mean +- SEM over sessions; licks: ALL POST-CUE licks "
-                 "(cue + 70 ms .. trial stop), measured peaks for kinematics; dashed = spout angle", fontsize=9)
+    note = ("by spout position: per-animal epoch mean +- SEM over sessions; licks: ALL POST-CUE licks (cue + 70 ms .. "
+            "trial stop), measured peaks for kinematics; dashed = spout angle. * (animal colour, one row per animal) = "
+            "that animal's sessions in the epoch differ from ITS OWN pre-stroke sessions: two-sided Mann-Whitney on "
+            "sessions, BH-FDR within each metric (all animals x positions x epochs), q < 0.05")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
@@ -1168,12 +1178,14 @@ def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str,
                     mask = cluster_permutation(np.vstack([Mp[cols_].to_numpy(float), Me[cols_].to_numpy(float)]),
                                                np.r_[np.zeros(len(Mp), bool), np.ones(len(Me), bool)],
                                                np.r_[anp, ane], n_perm=CLUSTER_PERM)
-                    if mask.any():
+                    if mask.any():                       # one solid bar per significant run of bins
                         xs = cols_.to_numpy(float)
                         dx = np.median(np.diff(xs)) if len(xs) > 1 else 1.0
-                        for xi in xs[mask]:
-                            ax.plot([xi - dx / 2, xi + dx / 2], [0.97 - 0.035 * k] * 2, color=EPOCH_LINE[e], lw=2.5,
-                                    transform=ax.get_xaxis_transform(), solid_capstyle="butt", zorder=4)
+                        edges = np.flatnonzero(np.diff(np.r_[0, mask.astype(int), 0]))
+                        for s0, s1 in zip(edges[::2], edges[1::2]):
+                            ax.plot([xs[s0] - dx / 2, xs[s1 - 1] + dx / 2], [0.97 - 0.045 * k] * 2,
+                                    color=EPOCH_LINE[e], lw=3.0, transform=ax.get_xaxis_transform(),
+                                    solid_capstyle="butt", zorder=4)
             for e in EPOCH_ORDER:
                 if e not in cur or e == "pre" and len(cur) == 1:
                     continue
@@ -1222,8 +1234,8 @@ def _stars(ax, st: pd.DataFrame, x: np.ndarray) -> None:
         for _, r in st[st.epoch == e].iterrows():
             mk = STAR.get(r.agree)
             if mk and r.pos in POS_ORDER:
-                ax.text(x[POS_ORDER.index(r.pos)] + (k - 1) * 0.12, 0.985 - 0.06 * k, mk, color=EPOCH_LINE[e],
-                        ha="center", va="top", fontsize=8, fontweight="bold", transform=ax.get_xaxis_transform())
+                ax.text(x[POS_ORDER.index(r.pos)] + (k - 1) * 0.12, 0.99 - 0.075 * k, mk, color=EPOCH_LINE[e],
+                        ha="center", va="top", fontsize=11, fontweight="bold", transform=ax.get_xaxis_transform())
 
 
 def fig_cohort_scalars(Pm: pd.DataFrame, path: Path, title: str, jaw: pd.DataFrame | None = None,
@@ -1490,6 +1502,34 @@ def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str,
     _save(plt, fig, path)
 
 
+STATS_METHODS = """# How the statistics were run (orofacial pre- vs post-stroke figures)
+
+Generated by `wfield_local/orofacial_cohort.py` / `wfield_local/orofacial_stats.py`; design follows
+stroke_orofacial's `docs/STATS_PIPELINE.md`, chosen by Priya 2026-10-17. All numbers PRELIMINARY until every animal's
+sessions are in.
+
+* **Unit = the session.** Each session's value (per spout position) is first expressed as its CHANGE from that animal's
+  own pre-stroke mean at the same position, so animal-to-animal differences in level do not enter.
+* **Headline (cohort scalar figures, `*` / `(*)`):** two-sided Mann-Whitney U, post-epoch sessions vs pre-stroke
+  sessions (all animals pooled), Benjamini-Hochberg FDR within each metric across positions x epochs, q < 0.05.
+  Trial-level tests are NOT used (stroke_orofacial measured 39-46 % false positives for them under the null).
+* **Robustness (`*` vs `(*)` / `b`):** the animal-weighted bootstrap of this repo (`analysis_kit.boot_delta`: animals
+  resampled, then sessions within animals; each animal weighted equally), 95 % CI. `*` = both agree; `(*)` = Mann-Whitney
+  only (often carried by the animals with many sessions); `b` = bootstrap only (consistent across animals, but too few /
+  too spread sessions for the Mann-Whitney).
+* **Per-animal figures (`epochs_by_position_*`, `*` in an animal's colour):** that animal's post-epoch sessions vs its
+  own pre-stroke sessions, two-sided Mann-Whitney on sessions, BH-FDR within each metric across animals x positions x
+  epochs.
+* **Trajectories (bars along the top of cohort trajectory figures, session-weighted versions):** cluster permutation.
+  Per time / phase bin, Welch t of post-epoch session change curves vs pre-session change curves; clusters = contiguous
+  bins with |t| above the two-sided p < 0.05 threshold and one sign; cluster mass = sum |t|; null = the largest cluster
+  mass after permuting epoch / pre labels WITHIN each animal (500 permutations); clusters with p < 0.05 are drawn.
+* **Caveats.** Sessions are not independent within an animal, which the within-animal permutation and the bootstrap
+  partly address. Small chronic shifts can reflect slow drift (head position / camera framing over months) rather than
+  the stroke: compare against the pre-stroke drift between early (June) and late (August) baseline sessions.
+"""
+
+
 def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
     """Session MWU + animal-weighted bootstrap for every cohort scalar (and jaw FAR_DIR); writes stats.csv and a
     plain-language RESULTS.md of the significant cells."""
@@ -1512,6 +1552,7 @@ def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
         lines.append(f"| {LABEL.get(r.metric, r.metric)} | {r.pos.replace('_', ' ')} | {r.epoch} | {r.mean_change:+.3g} | "
                      f"{r.n_sessions} ({r.n_animals}) | {r.q_fdr:.3g} | [{r.boot_lo:+.3g}, {r.boot_hi:+.3g}] | {r.agree} |")
     (out / "RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (out / "STATS_METHODS.md").write_text(STATS_METHODS, encoding="utf-8")
     print(f"stats: {int((ST.agree == 'both').sum())} cells significant by both tests, "
           f"{int((ST.agree == 'MWU only').sum())} MWU only, {int((ST.agree == 'bootstrap only').sum())} bootstrap only "
           f"-> {out}")

@@ -118,6 +118,12 @@ Tests: `test_orofacial_outputs.py` (new), `test_o2_inference.py`, `test_camera_s
 6. Side cameras, pixel-vs-LocaNMF decoding gap, FaceRhythm -- unchanged.
 Open items waiting on Priya: `OPEN_QUESTIONS_PRIYA.md` (clean-up PowerShell, O2 copy-backs).
 
+**Refresh order (10-17):** `orofacial_outputs process` -> `orofacial_jaw_lateral` -> `orofacial_cohort` -> `orofacial_deck`
+(the last in the locanmf env: python-pptx). Stats: `orofacial_stats` (session MWU + FDR headline, animal bootstrap,
+within-animal cluster permutation); results `cohort/tables/prepost/stats/{RESULTS,STATS_METHODS}.md`; deck
+`cohort/deck/orofacial_prepost_<date>.pptx`. Next science check: pre-stroke drift (early June vs late August pre) as the
+reference for small chronic shifts.
+
 ## 4b. 10-16 afternoon / evening (all in DECISIONS 2026-10-16)
 
 - Outputs moved to `Priya/Widefield/LP_analysis`; `wfield_local/orofacial_cohort.py` = the pre- vs post-stroke cohort

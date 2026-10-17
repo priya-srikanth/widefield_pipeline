@@ -20110,3 +20110,12 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   significant by both tests, 23 MWU only, 14 bootstrap only. Added cohort figures: first-lick vs all-post-cue lick phase
   (minus pre), trajectory change curves (lateral / out-of-mouth tip position, protrusion speed), and pre-vs-epoch overlaid
   cohort x-y paths and phase portraits.
+* **Significance on every figure that has a test + a methods note + a deck (10-17, Priya)**: per-animal
+  `epochs_by_position_*` figures mark each animal's epoch where ITS sessions differ from its own pre sessions (MWU on
+  sessions, BH-FDR within metric; `orofacial_stats.within_animal_tests`); cohort marks enlarged; the cluster bars drawn as
+  solid runs; `tables/prepost/stats/STATS_METHODS.md` (how the stats were run, incl. caveats: within-animal
+  non-independence, slow chronic drift -- check against early-vs-late pre). Deck: `wfield_local/orofacial_deck.py`
+  (stroke_orofacial `build_stats_figure_deck.py` pattern; locanmf env for python-pptx) -> `LP_analysis/<run>/cohort/deck/
+  orofacial_prepost_<date>.pptx`: title, methods, key-results table, significance grids per epoch, sections (cohort
+  summaries, jaw, per-animal, appendix), one figure per slide with caption + method in the speaker notes. 57 slides.
+  Pipeline order: orofacial_outputs process -> orofacial_jaw_lateral -> orofacial_cohort -> orofacial_deck.
