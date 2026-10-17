@@ -99,21 +99,41 @@ segment), `scripts/cleaned_label_clips.py` (new), `scripts/jaw_lateral.py`, `scr
 Tests: `test_orofacial_outputs.py` (new), `test_o2_inference.py`, `test_camera_sync.py`, `test_orofacial_clean.py`,
 `test_locomotor_state.py`.
 
-## 4. Pending / to-do (in order)
-1. Keep processing O2 results as they are copied back (§0.2) until all 137 videos / 136 sessions are in `index.csv`;
-   watch for `skipped` (missing template, frame mismatch) or `FAILED` in the processor's summary.
-2. **Executed-angle vs target readout (MUST REVISIT)** on the production kinematics (whole sessions, LP r4, cleaning
-   v35) -> `cohort/tables|figures/executed_angle/`. Use `peak_interp` to exclude interpolated / imputed peaks from
-   peak-angle measures.
-3. **Jaw lateral readout with LP r4** (to-do 10 of 10-14): redo the far-pair FAR_DIR / FAR_BIAS table on whole
-   sessions, plus a tongue-protrusion control for the acute drop (jaw following a shorter reach?). PS93's static
-   leftward bias is jaw anatomy (two lowest points).
-4. Other cohort analyses to port onto `orofacial_outputs` (lick microstructure / ILI, contact classes, licking dynamics,
-   tongue-jaw mismatch rates by epoch), each into `cohort/tables|figures/<analysis>/`.
-5. Optional: fix this desktop's machine profile in `configs/paths.yaml` (it is detected as `analysis` because M: =
-   MICROSCOPE since 09-30; local roots then point at `C:/Users/sabatini`) -- Priya's call; until then always set the
-   two overrides.
-6. Side cameras (student labelling SIDECAM Part A), pixel-vs-LocaNMF decoding gap, FaceRhythm -- unchanged.
+## 4. Pending / to-do (in order) -- updated 10-16 evening
+
+1. Keep processing O2 results as they are copied back: `python -m wfield_local.orofacial_outputs process --bundle
+   lp_r4_prod_20261015 --jobs 4` then `python -m wfield_local.orofacial_cohort --jobs 6` (NO overrides needed any more).
+   88 / 136 sessions done (PS92 complete, PS94 30, PS95 10 pre only, PS93 4 -- PS93 / PS95 post are mostly the V100
+   re-runs queued on O2). Re-read every cohort figure when PS93 + PS95 are in: all results so far are PRELIMINARY.
+2. Score the O2-trained models (job 56522565: ViT-B DINOv2 / ResNet-50 b8 / ctx-semi, all 640 px) when copied back:
+   `scripts/model_lick_compare.py PS93:<d> --model ... --review lp_stage/lick_review/review_scored.csv` on 0814 + 0821
+   (predictions land in `models/<name>/video_preds/`), against LP r4 and the local ViT-S baseline (POSE_MODELS.md).
+3. **Executed-angle vs target readout (MUST REVISIT)**: the kinematic side now exists in `orofacial_cohort`
+   (angle_tuning, angle_gain_far, ipsi_bias_deg, Family 8.2 cue_angle*); the imaging-side readout test
+   (`lick_template_match`) on whole sessions is still to do.
+4. **Jaw lateral readout with LP r4 on whole sessions** (to-do 10 of 10-14): far-pair FAR_DIR / FAR_BIAS table, plus a
+   tongue-protrusion control.
+5. Other cohort analyses onto `orofacial_outputs`: contact classes, licking dynamics / bout structure by epoch.
+6. Side cameras, pixel-vs-LocaNMF decoding gap, FaceRhythm -- unchanged.
+Open items waiting on Priya: `OPEN_QUESTIONS_PRIYA.md` (clean-up PowerShell, O2 copy-backs).
+
+## 4b. 10-16 afternoon / evening (all in DECISIONS 2026-10-16)
+
+- Outputs moved to `Priya/Widefield/LP_analysis`; `wfield_local/orofacial_cohort.py` = the pre- vs post-stroke cohort
+  pass (session / position / lick-set metrics, lick phase time-aligned + phase-normalised (interpolated, stroke_orofacial
+  method), phase portraits, x-y trajectories (camera view, SEM ribbons), lick 1 vs 2, lick walk (angle at peak +
+  max angle in lick, paired lick 1 vs 3), mismatch, Family 8.1 / 8.2, minus-pre versions; spout-angle reference,
+  lick selection in titles, in-mouth included / excluded stated).
+- Pre-cue + ITI lick tables and per-frame DAQ time added to every session (`licks_precue.csv`, `licks_iti.csv`,
+  `ix_daq_s`). Lick floor QC: the 20 px floor is moot -- LP never tracks a tongue within ~20 px of the mouth.
+- O2: V100S nodes excluded (no sm_70), 10 h limit, stuck-throttle fix, fair share collapsed to 0.022 then 0.068.
+- Pose models: ViT-S DINOv2 512 px (local) not better than LP r4; O2 training bundle `scripts/o2_lp_train_bundle.py`.
+- This desktop's machine profile fixed (rule-10 check passed). Camera templates built for PS94 / PS95 0604; PS94 /
+  PS95 0601 unalignable (rig camera problem).
+- Preliminary findings (3 animals with acute data): acute far contra -- licks / trial ~1, contact 1-22 %, protrusion
+  -30..-48 px, isolated licks (neighbour fraction 0.94 -> 0.38-0.56), lick 2 delayed (+240-630 ms), tongue angle while
+  out ~+40 deg toward ipsi across the response window (PS92, PS94), recovering by chronic in PS92. Pre-stroke: later
+  licks drift toward the middle at the close spouts in all four animals.
 
 ## 5. Pitfalls (new; older lists still apply)
 1. **This desktop resolves local roots to the behaviour box** (`C:/Users/sabatini`): set `WIDEFIELD_FIGURES_WORKING`
