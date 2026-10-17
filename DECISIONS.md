@@ -20088,3 +20088,18 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   FAR_DIR -12.2 px [-13.8, -10.7]; tongue-reached-the-spout trials -12.3 px [-14.2, -10.5]; opening angle -8.7 deg
   [-11.1, -7.0]. Recovery timing differs by animal: PS95 day 2, PS94 ~day 40 (overshoot), PS92 half by chronic, PS93 one
   chronic session (partial).
+
+## 2026-10-17 — cohort minus-pre summaries and statistics for the orofacial figures (Priya)
+
+* **Cohort minus-pre figures** (`orofacial_cohort` -> `figures/prepost/cohort_*.png`): cue-aligned (Family 8.2),
+  lick-peak-aligned, phase-normalised and per-position scalar metrics (+ jaw FAR_DIR), each as the change from each
+  animal's OWN pre-stroke mean / curve. **SESSION-WEIGHTED is the main version (Priya: "weight each session equally rather
+  than animal")**; the animal-weighted version (CLAUDE.md rule 9's convention for changes) is kept beside it
+  (`*_animalw.png`) because session counts are very unequal (acute: PS93 1 session vs PS94 6). Legends give n = sessions.
+* **Statistics (Priya chose: "Both, MWU headline"; trajectories: cluster permutation)** -- `wfield_local/orofacial_stats.py`,
+  following stroke_orofacial's STATS_PIPELINE.md hierarchy: headline = two-sided Mann-Whitney U on per-session changes
+  (post-epoch sessions vs pre sessions), BH-FDR within each metric across positions x epochs; trial-grain tests excluded
+  (stroke_orofacial: 39-46 % type-I error); robustness = `analysis_kit.boot_delta` animal-weighted change + 95% CI, with an
+  `agree` column (both / MWU only / bootstrap only / neither). Trajectories: cluster permutation on per-session change
+  curves, cluster threshold two-sided p < 0.05 (t), mass = sum |t|, epoch / pre labels permuted WITHIN animal, cluster
+  p < 0.05 drawn as a bar above the curve. Tests: `tests/test_orofacial_stats.py`.

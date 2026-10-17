@@ -1112,6 +1112,148 @@ def fig_lick12(Pm: pd.DataFrame, lat: dict, path: Path, title: str) -> None:
     _save(plt, fig, path)
 
 
+# --------------------------------------------------------------------------- COHORT minus-pre summaries (Priya 10-17)
+
+def _animal_delta_curves(D: pd.DataFrame, xcol: str, col: str, pos: str, weight: str = "session") -> dict:
+    """{epoch: (rows DataFrame, {animal: animal-mean curve})}. Every session's curve minus ITS ANIMAL's mean pre-stroke
+    curve at this position. weight='session': rows = the sessions (each session counts once; animals with more sessions
+    weigh more -- Priya 10-17); weight='animal': rows = each animal's mean over its sessions (CLAUDE.md rule 9: the
+    convention for CHANGES, which keeps a many-session animal from deciding the result)."""
+    out: dict = {}
+    for a, ga in D[D.pos == pos].groupby("animal"):
+        piv_all = ga.pivot_table(index=["epoch", "date"], columns=xcol, values=col)
+        if "pre" not in piv_all.index.get_level_values(0):
+            continue
+        pre = piv_all.loc["pre"].mean()
+        for e in EPOCH_ORDER:
+            if e in piv_all.index.get_level_values(0):
+                dd = piv_all.loc[e] - pre
+                rows, am = out.setdefault(e, ([], {}))
+                am[a] = dd.mean()
+                if weight == "session":
+                    rows.extend(r for _, r in dd.iterrows())
+                else:
+                    rows.append(dd.mean())
+    return {e: (pd.DataFrame(r), am) for e, (r, am) in out.items()}
+
+
+def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str, weight: str = "session") -> None:
+    """Rows = (DataFrame, x column, value column, y label, smooth?); columns = the six positions. Per epoch: bold = mean
+    over ANIMALS of each animal's change from its own pre-stroke curve, band = SEM over animals, faint = each animal."""
+    ecol = EPOCH_LINE
+    plt = _plt()
+    fig, axs = plt.subplots(len(rows), len(POS_ORDER), figsize=(2.7 * len(POS_ORDER), 2.5 * len(rows)),
+                            squeeze=False, sharex=True, sharey="row")
+    for i, (D, xcol, col, ylab, smooth) in enumerate(rows):
+        for j, p in enumerate(POS_ORDER):
+            ax = axs[i][j]
+            ax.axhline(0, color="0.8", lw=0.8, zorder=0)
+            if xcol in ("t_ms",):
+                ax.axvline(0, color="0.85", lw=0.8, zorder=0)
+            elif xcol == "phase":
+                ax.axvline(0.5, color="0.85", ls="--", lw=0.8, zorder=0)
+            cur = _animal_delta_curves(D, xcol, col, p, weight)
+            for e in EPOCH_ORDER:
+                if e not in cur or e == "pre" and len(cur) == 1:
+                    continue
+                M, am = cur[e]                                  # rows (sessions or animals) x x
+                x = M.columns.to_numpy(float)
+                f = (lambda v: _circ_smooth(v)) if smooth else (lambda v: v)
+                for c_ in am.values():                          # faint = each animal's mean
+                    ax.plot(x, f(c_.reindex(M.columns).to_numpy(float)), color=ecol[e], lw=0.6, alpha=0.3, zorder=1)
+                mu = f(M.mean().to_numpy(float))
+                n_sess = int(sum(1 for _ in D[(D.pos == p) & (D.epoch == e)].date.unique()))
+                lab = f"{e} (n={len(M) if weight == 'session' else n_sess} sessions)"
+                ax.plot(x, mu, color=ecol[e], lw=1.6, zorder=3, label=lab)
+                if len(M) > 1:
+                    se = f((M.std(ddof=1) / np.sqrt(M.notna().sum())).to_numpy(float))
+                    ax.fill_between(x, mu - se, mu + se, color=ecol[e], alpha=0.2, lw=0, zorder=2)
+            ax.tick_params(labelsize=6.5)
+            if i == 0:
+                ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
+            if j == 0:
+                ax.set_ylabel("\n".join(textwrap.wrap(ylab, 26)), fontsize=7.5)
+        axs[i][0].legend(fontsize=6, frameon=False)
+    for ax in axs[-1]:
+        ax.set_xlabel(xlabel, fontsize=7.5)
+    full = (note + ("; SESSION-WEIGHTED: bold = mean over SESSIONS (each = its change from its animal's own pre-stroke "
+                    "curve), band = SEM over sessions (animals with more sessions weigh more)" if weight == "session" else
+                    "; ANIMAL-WEIGHTED: bold = mean over animals (each = its sessions' mean change from its own pre-stroke "
+                    "curve), band = SEM over animals") + "; faint = individual animals")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(full, 150)), fontsize=9)
+    _save(plt, fig, path)
+
+
+COHORT_SCALARS = ("contact_frac", "reach_frac", "protrusion_px", "peak_angle_deg", "delta_angle_deg", "latency_ms",
+                  "licks_per_resp", "neighbor_frac", "vel_protrude")
+
+
+def fig_cohort_scalars(Pm: pd.DataFrame, path: Path, title: str, jaw: pd.DataFrame | None = None,
+                       weight: str = "session") -> None:
+    """Per-position metrics as change from each animal's own pre-stroke mean: x = position, line = epoch; bold = mean
+    over animals, error = SEM over animals, faint markers = each animal. Optional last panel: jaw steering FAR_DIR."""
+    ecol = EPOCH_LINE
+    ms = [m for m in COHORT_SCALARS if m in Pm]
+    n = len(ms) + (1 if jaw is not None else 0)
+    plt = _plt()
+    nc = 3
+    fig, axs = plt.subplots(int(np.ceil(n / nc)), nc, figsize=(4.6 * nc, 3.0 * np.ceil(n / nc)), squeeze=False)
+    for ax in axs.flat[n:]:
+        ax.axis("off")
+    x = np.arange(len(POS_ORDER))
+    for ax, m in zip(axs.flat, ms):
+        base = Pm[Pm.epoch == "pre"].groupby(["animal", "pos"])[m].mean()
+        d = Pm.assign(_d=Pm[m] - base.reindex(pd.MultiIndex.from_frame(Pm[["animal", "pos"]])).to_numpy())
+        A = d.groupby(["epoch", "animal", "pos"])._d.mean()            # one value per animal x epoch x position
+        Ssn = d.groupby(["epoch", "animal", "date", "pos"])._d.mean()     # one value per session x position
+        for k, e in enumerate(EPOCH_ORDER[1:]):
+            if e not in A.index.get_level_values(0):
+                continue
+            Ma = A.loc[e].unstack("pos").reindex(columns=list(POS_ORDER))                  # animals
+            M = Ssn.loc[e].unstack("pos").reindex(columns=list(POS_ORDER)) if weight == "session" else Ma
+            xo = x + (k - 1) * 0.12
+            for _, r in Ma.iterrows():                                   # faint = each animal
+                ax.plot(xo, r.to_numpy(float), "o", color=ecol[e], ms=2.5, alpha=0.35, zorder=1)
+            se = M.std(ddof=1) / np.sqrt(M.notna().sum()) if len(M) > 1 else M.mean() * np.nan
+            lab = f"{e} (n={int(Ssn.loc[e].index.droplevel('pos').unique().size)} sessions)"
+            ax.errorbar(xo, M.mean().to_numpy(float), yerr=se.to_numpy(float), fmt="o-", color=ecol[e], ms=4,
+                        lw=1.4, capsize=2, elinewidth=0.8, zorder=3, label=lab)
+        ax.axhline(0, color="0.8", lw=0.8, zorder=0)
+        ax.axvline(2.5, color="0.85", lw=0.8, zorder=0)
+        ax.set_xticks(x, [pos_disp(q).replace(" ", "\n") for q in POS_ORDER], fontsize=6.5)
+        for t_, q in zip(ax.get_xticklabels(), POS_ORDER):
+            t_.set_color(_pos_color(q, "L"))
+        ax.set_title(LABEL[m] + " -- change vs pre", fontsize=8)
+        ax.set_ylabel(f"change vs pre: {LABEL[m]}", fontsize=6.5)
+        ax.tick_params(labelsize=7)
+    if jaw is not None and len(jaw):
+        ax = axs.flat[len(ms)]
+        c = "lr_wide_far_dir"
+        base = jaw[jaw.epoch == "pre"].groupby("animal")[c].mean()
+        d = jaw.assign(_d=jaw[c] - jaw.animal.map(base))
+        A = d.groupby(["epoch", "animal"])._d.mean()
+        for k, e in enumerate(EPOCH_ORDER):
+            if e not in A.index.get_level_values(0):
+                continue
+            v = A.loc[e] if weight == "animal" else d[d.epoch == e]._d
+            ax.plot(np.full(len(v), k) + np.linspace(-0.08, 0.08, len(v)), v.to_numpy(float), "o", color=ecol[e],
+                    ms=3, alpha=0.4)
+            ax.errorbar(k, v.mean(), yerr=v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0, fmt="s",
+                        color=ecol[e], ms=6, capsize=3)
+        ax.axhline(0, color="0.8", lw=0.8, zorder=0)
+        ax.set_xticks(range(len(EPOCH_ORDER)), EPOCH_ORDER, fontsize=7)
+        ax.set_title("jaw steering FAR_DIR -- change vs pre", fontsize=8)
+        ax.set_ylabel("change vs pre: jaw FAR_DIR (px)", fontsize=6.5)
+        ax.tick_params(labelsize=7)
+    axs.flat[0].legend(fontsize=6.5, frameon=False)
+    note = ("licks: ALL POST-CUE licks (measured peaks for kinematics); change from each animal's OWN pre-stroke mean at "
+            "that position; " + ("SESSION-WEIGHTED: bold = mean +- SEM over sessions (animals with more sessions weigh "
+            "more)" if weight == "session" else "ANIMAL-WEIGHTED: bold = mean +- SEM over animals") +
+            "; faint = individual animals. Jaw panel: every far-spout trial (orofacial_jaw_lateral)")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
+    _save(plt, fig, path)
+
+
 def main(argv=None) -> int:
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
@@ -1244,11 +1386,41 @@ def main(argv=None) -> int:
                          t, "licks: ALL POST-CUE licks (measured peaks); lick-peak-aligned angle ERROR: tongue angle "
                          "minus that position's spout angle (0 = on "
                          "target; + = toward image right / L), epoch mean +- SEM over sessions; IN-MOUTH FRAMES EXCLUDED (< 20 px)")
+    # ---- COHORT minus-pre summaries (Priya 10-17: "a combined figure of the delta minus pre-stroke analyses ...
+    # all the animals"), under figures/prepost/cohort_*.png
+    CTw = CT.pivot_table(index=["animal", "date", "epoch", "pos", "t_ms"], columns="var", values="value").reset_index()
+    for wgt, suf in (("session", ""), ("animal", "_animalw")):
+        _cohort_figs(CTw, PHa, PHN, Pm, base, figs, t, wgt, suf)
     (tables / "provenance.json").write_text(json.dumps({"run": a.run, "n_sessions": int(len(S)),
                                                         "code_commit": oo.code_commit(),
                                                         "sessions": S.label.tolist()}, indent=1), encoding="utf-8")
     print(f"\ntables -> {tables}\nfigures -> {figs}")
     return 0
+
+
+def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, suf: str) -> None:
+    """The four COHORT minus-pre figures for one weighting (session / animal)."""
+    fig_cohort_delta([(CTw, "t_ms", "lat_px", "lateral tongue position (px; + = ipsi), in-mouth at 0", False),
+                      (CTw, "t_ms", "angle_deg", "tongue angle (deg; + = ipsi), in-mouth EXCLUDED", False),
+                      (CTw, "t_ms", "angle_mouth0_deg", "tongue angle (deg; + = ipsi), in-mouth = 0", False)],
+                     figs / f"cohort_cue_minus_pre{suf}.png", t,
+                     "COHORT, change vs pre: cue-aligned tongue position / angle (Family 8.2), NOT lick-selected (every "
+                     "frame of every trial)", "ms from cue", wgt)
+    fig_cohort_delta([(PHa, "t_ms", "protrusion_px", "protrusion (px), in-mouth at 0", False),
+                      (PHa, "t_ms", "angle_deg", "tongue angle (deg; + = L), in-mouth EXCLUDED", False)],
+                     figs / f"cohort_lick_phase_minus_pre{suf}.png", t,
+                     "COHORT, change vs pre: lick-peak-aligned protrusion / angle, licks: ALL POST-CUE licks (measured "
+                     "peaks)", "ms from lick peak", wgt)
+    PHf = PHN[PHN["mode"] == "first_multi"]
+    fig_cohort_delta([(PHf, "phase", "protrusion_px", "protrusion (px), in-mouth at 0", True),
+                      (PHf, "phase", "angle_deg", "tongue angle (deg; + = L), in-mouth EXCLUDED", True)],
+                     figs / f"cohort_phase_norm_minus_pre{suf}.png", t,
+                     "COHORT, change vs pre: protrusion / angle vs NORMALISED lick phase, licks: POST-CUE licks in the "
+                     "FIRST multi-lick bout per trial", "lick phase (0 = between peaks, 0.5 = peak)", wgt)
+    jaw_csv = base / "tables" / "jaw_lateral" / "sessions.csv"
+    jaw = pd.read_csv(jaw_csv, dtype={"date": str}) if jaw_csv.exists() else None
+    fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",
+                       t + "\nCOHORT, change vs pre: per-position lick metrics", jaw, wgt)
 
 
 if __name__ == "__main__":
