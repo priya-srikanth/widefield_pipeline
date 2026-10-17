@@ -20070,3 +20070,16 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   tongue >= 50 % of its peak distance, within the lick -- near-mouth frames excluded): `lick_walk_max_angle*.png`.
   Pre-stroke within-trial pattern (paired lick 1 vs 3, all four animals): later licks drift toward the MIDDLE at the
   close spouts (close ipsi |error| -5..-7 deg, close contra -4..-14 deg); no consistent post-stroke homing at far contra.
+* **Jaw lateral readout on WHOLE sessions with LP r4 (10-16, handoff to-do 4)** -- `wfield_local/orofacial_jaw_lateral.py`
+  (same quantities as `scripts/jaw_lateral.py deviation`; 73 curated sessions, 36,698 trials; outputs
+  `LP_analysis/<run>/cohort/{tables,figures}/jaw_lateral/`). FAR_DIR = jaw movement toward the target side (half of
+  far ipsi - far contra jaw lateral displacement at opening > 50 px, spout frame). Per animal (rule 8): pre 12.3 / 10.2 /
+  11.8 / 15.9 px (PS92 / 93 / 94 / 95) -> acute 0.7 / -0.2 / -0.8 px, i.e. jaw steering ABOLISHED acutely in all three
+  animals with acute data (paired change -11.5 px, 95% CI [-12.9, -10.3]); the opening-angle version agrees (-9.4 deg).
+  Recovery differs: PS94 back to (above) baseline by day ~40 (chronic 11.5 px; angle 12 vs 8.7 pre), PS92 plateaus at
+  ~half (5.5 px), PS93 4.0 (one chronic session). **Not a shorter-reach artefact:** recomputed on trials where the tongue
+  reached the spout (reach >= 1) FAR_DIR is unchanged (-11.45 px acute), although only 34-59 % of acute far trials reach
+  it; the angle measure does not depend on how wide the jaw opens (acute widest opening -52 px). FAR_BIAS jumps toward
+  ipsi acutely (+11.7 px, PS92 / PS94 ~+15 / +23) and returns to ~0 by day ~10; PS93's static ipsi bias (~+18-26 px) is
+  its jaw anatomy (10-15). Replicates the 10-15 DLC r3 clip readout (pre +9..+18 -> acute ~0) with the production model
+  on every trial. PS95 post-stroke sessions still to come.
