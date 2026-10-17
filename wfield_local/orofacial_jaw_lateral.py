@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import textwrap
 from pathlib import Path
 
@@ -66,6 +67,8 @@ def session_trials(job) -> list[dict]:
     reach = L.groupby("trial_id").reach_frac.max() if len(L) else pd.Series(dtype=float)
     prot = (L[~L.peak_interp.astype(bool)].groupby("trial_id").protrusion_max_measured_px.max()
             if len(L) else pd.Series(dtype=float))
+    from wfield_local import orofacial_cohort as oc
+    keep, _gate = oc.engagement_keep(animal, date, sd)
     out = []
     starts = np.flatnonzero(np.r_[True, tid[1:] != tid[:-1]])
     ends = np.r_[starts[1:], len(tid)]
@@ -76,6 +79,8 @@ def session_trials(job) -> list[dict]:
         wide, op = o > OPEN_PX, o > OPEN_FIT_PX
         ang = (float(np.degrees(np.arctan2(np.sum(lv[op] * o[op]), np.sum(o[op] ** 2)))) if op.sum() >= 10 else np.nan)
         t_id = int(tid[a])
+        if keep is not None and t_id not in keep:
+            continue
         out.append({"animal": animal, "date": date, "epoch": epoch, "day": day, "trial_id": t_id,
                     "position": pos[a], "pos": pos_key(pos[a], lat),
                     "lr_wide": float(np.median(lv[wide])) if wide.sum() >= 3 else np.nan, "n_wide": int(wide.sum()),
@@ -277,10 +282,16 @@ def main(argv=None) -> int:
     ap_ = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap_.add_argument("--run", default=RUN)
     ap_.add_argument("--jobs", type=int, default=None)
+    ap_.add_argument("--all-trials", action="store_true", help="control: no engagement gate (*_alltrials folders)")
     a = ap_.parse_args(argv)
+    if a.all_trials:
+        os.environ["OROFACIAL_ALL_TRIALS"] = "1"
+    from wfield_local import orofacial_cohort as oc
+    oc._apply_config()
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
-    tables, figs = base / "tables" / "jaw_lateral", base / "figures" / "jaw_lateral"
+    sfx = "" if oc.ENGAGED_ONLY else "_alltrials"
+    tables, figs = base / "tables" / f"jaw_lateral{sfx}", base / "figures" / f"jaw_lateral{sfx}"
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
     figs.mkdir(parents=True, exist_ok=True)

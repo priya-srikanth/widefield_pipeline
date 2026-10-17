@@ -199,7 +199,8 @@ def main(argv=None) -> int:
     # methods
     s = _blank(prs)
     _text(s, "Data and statistics", 0.3, 0.1, 12.5, 0.6, 22, bold=True)
-    methods = ("* Every curated session (early June 6/1-6/5 and 8/5 excluded), all trials; LP r4 pose, cleaning v35; "
+    methods = ("* Every curated session (early June 6/1-6/5 and 8/5 excluded); ENGAGED trials only (the behaviour "
+               "pipeline's reference-position gate; ungated control in figures/prepost_alltrials); LP r4 pose, cleaning v35; "
                "LP-detected licks ('lick n' = the n-th detected post-cue lick, contact or not).\n"
                "* Post-cue licks = cue + 70 ms .. DAQ trial stop; pre-cue = position strobe (spout arrived) .. cue + 70 ms; "
                "ITI = the rest of each trial window. Kinematics use measured (not interpolated / imputed) peaks.\n"

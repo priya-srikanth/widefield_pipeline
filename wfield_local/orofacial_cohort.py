@@ -56,6 +56,7 @@ At n=4, the per-animal table is printed before any bootstrap (CLAUDE.md rule 8).
 from __future__ import annotations
 
 import argparse
+import os
 import textwrap
 import json
 from pathlib import Path
@@ -334,7 +335,7 @@ CUE_WIN_MS = (-500.0, 3000.0)
 CUE_MIN_FRAMES = 25                   # frames per bin per session (sparse pre-cue bins drew spikes at 5)
 
 
-def _cue_traces(sd: Path, lat_side: str) -> list[dict]:
+def _cue_traces(sd: Path, lat_side: str, keep: set | None = None) -> list[dict]:
     """Per position: cue-aligned mean LATERAL tongue position (mouth frame, + = toward the IPSILESIONAL side; in-mouth
     frames INCLUDED at 0), mean tongue ANGLE (+ = ipsi; in-mouth frames EXCLUDED, < ANGLE_MIN_PX) and the same angle with
     in-mouth frames counted as 0 deg (Priya 10-16; stroke_orofacial's convention), in CUE_BIN_MS bins
@@ -357,6 +358,8 @@ def _cue_traces(sd: Path, lat_side: str) -> list[dict]:
     edges = np.arange(CUE_WIN_MS[0], CUE_WIN_MS[1] + CUE_BIN_MS, CUE_BIN_MS)
     b = np.digitize(t, edges) - 1
     inwin = (b >= 0) & (b < len(edges) - 1)
+    if keep is not None:                                  # engaged trials only
+        inwin &= np.isin(w["ix_trial_id"].astype(int), np.fromiter(keep, int))
     out = []
     for p in np.unique(pos):
         m = inwin & (pos == p)
@@ -391,6 +394,16 @@ def session_metrics(job):
     if not len(T) or "t_ms" not in L:
         return None
     dur, rows = _windows(sd)
+    # ENGAGEMENT GATE (Priya 10-17): every table below, the per-trial window durations (rate denominators) and the
+    # cue-aligned frames keep ENGAGED trials only; `--all-trials` is the control
+    n_tr_all = len(T)
+    keep, gate = engagement_keep(animal, date, sd)
+    if keep is not None:
+        L, P, Q, T, M = (d[d.trial_id.astype(int).isin(keep)] if len(d) and "trial_id" in d else d
+                         for d in (L, P, Q, T, M))
+        dur = dur[dur.index.astype(int).isin(keep)]
+        if not len(T) or not len(L):
+            return None
     contact1 = _first_contacts(animal, date)
     meas = L[~L.peak_interp.astype(bool)]
     by_trial = L.groupby("trial_id")
@@ -417,6 +430,7 @@ def session_metrics(job):
                 "latency_ms": float(g.groupby("trial_id").t_ms.min().median()) if len(g) else np.nan}
 
     row = {"animal": animal, "date": date, "label": f"{animal}_{date[4:]}", "epoch": epoch, "day": day,
+           "n_trials_all": n_tr_all, "n_trials_used": len(T), "engagement_gate": gate,
            "n_trials": n_tr, "n_licks": int(len(L)), "n_precue_licks": int(len(P)), "n_iti_licks": int(len(Q)),
            "resp_rate": len(resp_trials) / n_tr,
            "licks_per_resp": float(resp_trials.mean()) if len(resp_trials) else np.nan,
@@ -501,7 +515,7 @@ def session_metrics(job):
                 hit = [r for r in wk if r["position"] == pos and r["lick_n"] == k]
                 if hit:
                     hit[0].update(max_angle_deg=mx, max_delta_angle_deg=mx - sp.get(pos, np.nan))
-    ct = [{**base, "pos": pos_key(x["position"], lat), **x} for x in _cue_traces(sd, lat)]
+    ct = [{**base, "pos": pos_key(x["position"], lat), **x} for x in _cue_traces(sd, lat, keep)]
     return row, prow, ph, phn, ls, wk, ct
 
 
@@ -1217,7 +1231,7 @@ from wfield_local.orofacial_stats import cluster_permutation, session_change_tes
 
 
 def _animal_delta_curves(D: pd.DataFrame, xcol: str, col: str, pos: str, weight: str = "session",
-                         raw: bool = False) -> dict:
+                         raw: bool = False, cover: bool = True) -> dict:
     """{epoch: (rows DataFrame, {animal: animal-mean curve})}. Every session's curve minus ITS ANIMAL's mean pre-stroke
     curve at this position. weight='session': rows = the sessions (each session counts once; animals with more sessions
     weigh more -- Priya 10-17); weight='animal': rows = each animal's mean over its sessions (CLAUDE.md rule 9: the
@@ -1227,13 +1241,13 @@ def _animal_delta_curves(D: pd.DataFrame, xcol: str, col: str, pos: str, weight:
         piv_all = ga.pivot_table(index=["epoch", "date"], columns=xcol, values=col)
         if "pre" not in piv_all.index.get_level_values(0):
             continue
-        pre = _covered(piv_all.loc["pre"]).mean()
+        pre = (_covered(piv_all.loc["pre"]) if cover else piv_all.loc["pre"]).mean()
         if raw:                                         # RAW level (no subtraction), same rows / coverage rules
             pre = pd.Series(0.0, index=piv_all.columns)
         for e in EPOCH_ORDER:
             if e in piv_all.index.get_level_values(0):
                 dd = piv_all.loc[e] - pre
-                if weight == "animal":
+                if weight == "animal" and cover:
                     dd = _covered(dd)
                 rows, am, an = out.setdefault(e, ([], {}, []))
                 am[a] = dd.mean()
@@ -1246,7 +1260,7 @@ def _animal_delta_curves(D: pd.DataFrame, xcol: str, col: str, pos: str, weight:
     res = {}
     for e, (r, am, an) in out.items():
         R = pd.DataFrame(r).reset_index(drop=True)
-        need = max(MIN_COVER_N, int(np.ceil(MIN_COVER_FRAC * len(R))))
+        need = max(MIN_COVER_N, int(np.ceil(MIN_COVER_FRAC * len(R)))) if cover else 1
         bad = R.notna().sum() < need                    # too few sessions (animals) carry this bin
         R.loc[:, bad] = np.nan
         am = {a: c.where(~bad.reindex(c.index, fill_value=True)) for a, c in am.items()}
@@ -1261,12 +1275,14 @@ def _animal_delta_curves(D: pd.DataFrame, xcol: str, col: str, pos: str, weight:
 MIN_COVER_FRAC = 0.25
 MIN_COVER_N = 3
 MIN_LICKS_SESSION_POS = 20
+ENGAGED_ONLY = True
 
 
 def _apply_config() -> None:
     """Inclusion thresholds live in configs/defaults.yaml `orofacial_cohort:` (Priya 10-17, as in stroke_orofacial's
     min_trials_per_bin / min_sessions_per_bin / min_trials_with_detected_lick); the module constants are the fallback."""
     global MIN_COVER_FRAC, MIN_COVER_N, MIN_LICKS_SESSION_POS, CUE_MIN_FRAMES, MIN_PHASE_POINTS, WALK_MIN_LICKS
+    global ENGAGED_ONLY
     try:
         from wfield_local import config
         c = (config.defaults() or {}).get("orofacial_cohort") or {}
@@ -1278,6 +1294,101 @@ def _apply_config() -> None:
     CUE_MIN_FRAMES = int(c.get("cue_min_frames_per_bin", CUE_MIN_FRAMES))
     MIN_PHASE_POINTS = int(c.get("min_phase_intervals_per_bin", MIN_PHASE_POINTS))
     WALK_MIN_LICKS = int(c.get("walk_min_licks", WALK_MIN_LICKS))
+    # env var so spawned workers follow `--all-trials` (the CLI flag cannot reach a fresh interpreter otherwise)
+    ENGAGED_ONLY = bool(c.get("engaged_only", ENGAGED_ONLY)) and not os.environ.get("OROFACIAL_ALL_TRIALS")
+
+
+def _cue_table(sd: Path) -> pd.DataFrame:
+    """Per orofacial trial: trial_id, position, cue time on the DAQ clock (s), from windows.npz."""
+    w = np.load(sd / "windows.npz")
+    ix = pd.DataFrame({"trial_id": w["ix_trial_id"].astype(int), "position": w["ix_position"].astype(str),
+                       "t_ms": w["ix_t_ms"].astype(float), "daq_s": w["ix_daq_s"].astype(float)})
+    ix["cue_daq"] = ix.daq_s - ix.t_ms / 1000.0
+    return ix.groupby("trial_id", sort=True).agg(position=("position", "first"), cue_daq=("cue_daq", "median")
+                                                  ).reset_index()
+
+
+def _align_by_order(cue: pd.DataFrame, bt: pd.DataFrame) -> np.ndarray | None:
+    """Row of the behaviour table for every orofacial trial, by aligning the two TRIAL ORDERS within each DAQ recording
+    segment (a > 300 s gap between cues = a restart, e.g. PS92_0812's crash): the integer row offset whose positions
+    agree best. Accepted only with >= 98 % position agreement over >= 80 % of the segment AND a consistent clock
+    (SD of DAQ cue minus the log's device trial end < 2 s -- chance alignments do not keep time). None if any
+    segment fails."""
+    lp = bt.pos_name.to_numpy(str)
+    t_end = bt.device_trial_end_ms.to_numpy(float) / 1000.0 if "device_trial_end_ms" in bt else None
+    seg = np.r_[0, np.cumsum(np.diff(cue.cue_daq.to_numpy()) > 300.0)]
+    out = np.full(len(cue), -1)
+    for sg in np.unique(seg):
+        idx = np.flatnonzero(seg == sg)
+        pos = cue.position.to_numpy(str)[idx]
+        n, best = len(idx), None
+        for k in range(-len(bt), len(bt)):
+            jj = np.arange(n) + k
+            ok = (jj >= 0) & (jj < len(bt))
+            if ok.sum() < 0.8 * n:
+                continue
+            ag = float((lp[jj[ok]] == pos[ok]).mean())
+            if best is None or ag > best[1]:
+                best = (k, ag)
+        if best is None or best[1] < 0.98:
+            return None
+        jj = np.arange(n) + best[0]
+        ok = (jj >= 0) & (jj < len(bt))
+        if t_end is not None and ok.sum() > 2:
+            if np.std(cue.cue_daq.to_numpy()[idx][ok] - t_end[jj[ok]]) > 2.0:
+                return None
+        out[idx[ok]] = jj[ok]
+    return out
+
+
+def engagement_keep(animal: str, date: str, sd: Path) -> tuple[set | None, str]:
+    """(engaged orofacial trial_ids or None, gate label) for one session folder.
+
+    The gate is the behaviour pipeline's per-trial `engaged` column. Its trial_ids equal ours (DAQ cue order) when it was
+    built from the DAQ; when the DAQ quality gate sent it to the GUI LOG instead (source = GUI: 1-based ids, the log's
+    own trial set) they do not -- measured 10-17: PS92_0812 (log 280 trials incl. the 41-min imaging gap vs 225 DAQ cues)
+    and PS92_0929. Then the trials are matched by ORDER within each recording segment (`_align_by_order`; both
+    sessions: 100 % position agreement, clock consistent) and the engaged flags carried across. A session that matches
+    neither way stays ungated and says so."""
+    if not ENGAGED_ONLY:
+        return None, "off (all trials)"
+    from wfield_local.paths import PathResolver
+    d = Path(PathResolver().root("behavior_out")) / "sessions" / animal / date
+    c = sorted(d.glob(f"{animal}_{date}_*_trials.csv"))
+    if not c:
+        return None, "none (no behaviour table)"
+    bt = pd.read_csv(c[-1])
+    if "engaged" not in bt or "trial_id" not in bt:
+        return None, "none (no engaged column)"
+    cue = _cue_table(sd)
+    m = cue.merge(bt[["trial_id", "pos_name", "engaged"]].astype({"trial_id": int}), on="trial_id", how="left")
+    bad = int(m.pos_name.isna().sum() + (m.dropna(subset=["pos_name"]).position
+                                         != m.dropna(subset=["pos_name"]).pos_name).sum())
+    if bad <= 0.01 * max(len(m), 1):
+        return set(m.loc[m.engaged.fillna(False).astype(bool), "trial_id"].astype(int)), "reference"
+    rows = _align_by_order(cue, bt.reset_index(drop=True))
+    if rows is None:
+        return None, f"none (trial ids disagree on {bad} trials and order alignment failed)"
+    eng = bt["engaged"].astype(bool).to_numpy()
+    keep = {int(t) for t, r in zip(cue.trial_id, rows) if r >= 0 and eng[r]}
+    return keep, f"reference (matched by trial order: ids disagreed on {bad} trials)"
+
+
+def engaged_trial_ids(animal: str, date: str) -> set | None:
+    """trial_ids the BEHAVIOUR pipeline flagged engaged (`spout_behavior.session_metrics` -> `reference_engagement`:
+    judged at the reference positions only, terminal non-recovering collapse -- the post-stroke-valid gate; the older
+    `flag_engagement` counts far-position motor failure as disengagement). Read from that pipeline's persisted
+    `<behavior_out>/sessions/<animal>/<date>/<sid>_trials.csv`, the same table `trial_windows.trial_bounds` takes its
+    trial_ids from. None when the session has no such table (then nothing can be gated)."""
+    from wfield_local.paths import PathResolver
+    d = Path(PathResolver().root("behavior_out")) / "sessions" / animal / date
+    c = sorted(d.glob(f"{animal}_{date}_*_trials.csv"))
+    if not c:
+        return None
+    t = pd.read_csv(c[-1])
+    if "engaged" not in t or "trial_id" not in t:
+        return None
+    return set(t.loc[t["engaged"].astype(bool), "trial_id"].astype(int))
 
 
 _apply_config()
@@ -1318,17 +1429,25 @@ def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str,
                         continue
                     Me, _, ane = cur_s[e]
                     cols_ = Mp.columns.intersection(Me.columns)
+                    # bins where BOTH displayed curves (this epoch and pre, in the figure's own weighting) pass the
+                    # coverage rule; significant bins outside them are drawn LIGHTER, over a faint dashed curve
+                    # (Priya 10-17: "if it's significant even with fewer sessions, plot it, in a different shade")
+                    shown = np.ones(len(cols_), bool)
+                    if e in cur and "pre" in cur:
+                        shown = (cur[e][0].mean().reindex(cols_).notna()
+                                 & cur["pre"][0].mean().reindex(cols_).notna()).to_numpy()
                     mask = cluster_permutation(np.vstack([Mp[cols_].to_numpy(float), Me[cols_].to_numpy(float)]),
                                                np.r_[np.zeros(len(Mp), bool), np.ones(len(Me), bool)],
                                                np.r_[anp, ane], n_perm=CLUSTER_PERM)
                     if mask.any():                       # one solid bar per significant run of bins
                         xs = cols_.to_numpy(float)
                         dx = np.median(np.diff(xs)) if len(xs) > 1 else 1.0
-                        edges = np.flatnonzero(np.diff(np.r_[0, mask.astype(int), 0]))
-                        for s0, s1 in zip(edges[::2], edges[1::2]):
-                            ax.plot([xs[s0] - dx / 2, xs[s1 - 1] + dx / 2], [0.975 - 0.04 * k] * 2,
-                                    color=EPOCH_LINE[e], lw=2.6, alpha=0.5, transform=ax.get_xaxis_transform(),
-                                    solid_capstyle="butt", zorder=4)
+                        for part, al in ((mask & shown, 0.5), (mask & ~shown, 0.18)):
+                            edges = np.flatnonzero(np.diff(np.r_[0, part.astype(int), 0]))
+                            for s0, s1 in zip(edges[::2], edges[1::2]):
+                                ax.plot([xs[s0] - dx / 2, xs[s1 - 1] + dx / 2], [0.975 - 0.04 * k] * 2,
+                                        color=EPOCH_LINE[e], lw=2.6, alpha=al, transform=ax.get_xaxis_transform(),
+                                        solid_capstyle="butt", zorder=4)
             for e in EPOCH_ORDER:
                 if e not in cur or e == "pre" and len(cur) == 1:
                     continue
@@ -1338,6 +1457,14 @@ def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str,
                 for c_ in am.values():                          # faint = each animal's mean
                     ax.plot(x, f(c_.reindex(M.columns).to_numpy(float)), color=ecol[e], lw=0.6, alpha=0.3, zorder=1)
                 mu = f(M.mean().to_numpy(float))
+                lo_cov = _animal_delta_curves(D, xcol, col, p, weight, raw=raw, cover=False).get(e)
+                if lo_cov is not None:                          # low-coverage bins: faint dashed, outside the rule
+                    mlo = f(lo_cov[0].mean().reindex(M.columns).to_numpy(float))
+                    show = np.isnan(mu) & np.isfinite(mlo)
+                    if show.any():
+                        grow = show | np.r_[show[1:], False] | np.r_[False, show[:-1]]   # join onto the solid line
+                        ax.plot(x, np.where(grow, np.where(np.isnan(mu), mlo, mu), np.nan), color=ecol[e], lw=1.0,
+                                ls=(0, (2, 1.5)), alpha=0.5, zorder=2.5)
                 n_sess = int(D[(D.pos == p) & (D.epoch == e)][["animal", "date"]].drop_duplicates().shape[0])
                 lab = f"{e} (n={len(M) if weight == 'session' else n_sess} sessions)"
                 ax.plot(x, mu, color=ecol[e], lw=1.6, zorder=3, label=lab)
@@ -1366,7 +1493,9 @@ def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str,
                     "curve), band = SEM over animals") + "; faint = individual animals (y range set by the bold means, so faint lines "
                     "can run off the panel)" + (
                     "; bars at top = cluster-permutation p < 0.05 vs pre (test on SESSIONS whatever the weighting; labels "
-                    "permuted within animal; one bar row per epoch: acute / subacute / chronic)"))
+                    "permuted within animal; one bar row per epoch: acute / subacute / chronic); LOW COVERAGE (fewer "
+                    f"than {MIN_COVER_FRAC:.0%} / {MIN_COVER_N} of the rows carry the bin in this weighting): faint "
+                    "dashed curve and lighter bar"))
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(full, 150)), fontsize=9)
     _save(plt, fig, path)
 
@@ -1475,10 +1604,17 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=RUN)
     ap.add_argument("--jobs", type=int, default=None)
+    ap.add_argument("--all-trials", action="store_true",
+                    help="control: no engagement gate; writes tables/prepost_alltrials, figures/prepost_alltrials")
     a = ap.parse_args(argv)
+    global ENGAGED_ONLY
+    if a.all_trials:
+        os.environ["OROFACIAL_ALL_TRIALS"] = "1"
+        ENGAGED_ONLY = False
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
-    tables, figs = base / "tables" / "prepost", base / "figures" / "prepost"
+    sfx = "" if ENGAGED_ONLY else "_alltrials"
+    tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
     figs.mkdir(parents=True, exist_ok=True)
@@ -1510,7 +1646,13 @@ def main(argv=None) -> int:
     A.to_csv(tables / "epoch_by_animal.csv", index=False)
     D.to_csv(tables / "epoch_deltas.csv", index=False)
     animals = ", ".join(f"{x} {int((S.animal == x).sum())}" for x in sorted(S.animal.unique()))
-    t = f"Orofacial kinematics, pre vs post stroke -- {a.run} -- sessions: {animals}"
+    gate_txt = ("ENGAGED trials only (behaviour pipeline's reference-position gate)" if ENGAGED_ONLY else
+                "ALL trials (no engagement gate -- control)")
+    if ENGAGED_ONLY and "engagement_gate" in S:
+        print(f"engagement gate: {int(S.n_trials_used.sum())} of {int(S.n_trials_all.sum())} trials kept")
+        for _, r_ in S[S.engagement_gate != "reference"].iterrows():
+            print(f"  {r_.label}: {r_.engagement_gate}")
+    t = f"Orofacial kinematics, pre vs post stroke -- {a.run} -- {gate_txt} -- sessions: {animals}"
     fig_epochs(A, D, figs / "epochs.png", t)
     fig_timecourse(S, figs / "timecourse.png", t)
     fig_by_position(Pm, lat, figs / "by_position.png", t)
@@ -1720,6 +1862,10 @@ Generated by `wfield_local/orofacial_cohort.py` / `wfield_local/orofacial_stats.
 stroke_orofacial's `docs/STATS_PIPELINE.md`, chosen by Priya 2026-10-17. All numbers PRELIMINARY until every animal's
 sessions are in.
 
+* **Trials = ENGAGED only** (Priya 10-17): the behaviour pipeline's reference-position gate
+  (`spout_behavior.reference_engagement`: judged at close ipsi / close mid only, terminal non-recovering collapse, so a
+  far-position motor deficit is not deleted as "disengagement"). Sessions whose trial ids disagree with the behaviour
+  table stay ungated and are listed in the run log. Ungated control: `figures/prepost_alltrials`.
 * **Unit = the session.** Each session's value (per spout position) is first expressed as its CHANGE from that animal's
   own pre-stroke mean at the same position, so animal-to-animal differences in level do not enter.
 * **Headline (cohort scalar figures, `*` / `(*)`):** two-sided Mann-Whitney U, post-epoch sessions vs pre-stroke
@@ -1746,7 +1892,7 @@ def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
     """Session MWU + animal-weighted bootstrap for every cohort scalar (and jaw FAR_DIR); writes stats.csv and a
     plain-language RESULTS.md of the significant cells."""
     ST = session_change_tests(Pm, COHORT_SCALARS)
-    jaw_csv = base / "tables" / "jaw_lateral" / "sessions.csv"
+    jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
     if jaw_csv.exists():
         J = pd.read_csv(jaw_csv, dtype={"date": str}).assign(pos="far_pair")
         ST = pd.concat([ST, session_change_tests(J, ["lr_wide_far_dir", "angle_far_dir"])], ignore_index=True)
@@ -1830,7 +1976,7 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
                                      inmouth=im)
                     fig_cohort_paths(PHa, Pm, figs / f"cohort_phase_portrait{wz}_inmouth_{im}.png", t, portrait=True,
                                      within=within, inmouth=im)
-    jaw_csv = base / "tables" / "jaw_lateral" / "sessions.csv"
+    jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
     jaw = pd.read_csv(jaw_csv, dtype={"date": str}) if jaw_csv.exists() else None
     fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",
                        t + "\nCOHORT, change vs pre: per-position lick metrics", jaw, wgt,

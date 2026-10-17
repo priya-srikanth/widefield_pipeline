@@ -20158,3 +20158,29 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   (0.25: 124; 0.75: none) -- acute far-contra sessions rarely have the tongue out, so a fraction rule blanks exactly the
   deficit. 0.25 keeps it; min n 3 alone already removes the one-session far-ipsi spike; no rule lets bins carried by
   1-2 sessions add noise (two acute protrusion cells lose significance). `min_cover_frac: 0.25` in defaults.yaml.
+* **Orofacial cohort + jaw analyses are ENGAGEMENT-GATED by default (10-17, Priya)**: until now every trial of every
+  curated session entered. Gate = the behaviour pipeline's own per-trial `engaged` column (persisted
+  `<behavior_out>/sessions/*/*_trials.csv`, written by `spout_behavior.session_metrics` with `reference_engagement` --
+  judged at close ipsi / close mid only, terminal non-recovering collapse; NOT `flag_engagement`, which deletes far-
+  position motor failure post-stroke). Applied at the top of the per-session worker to licks, pre-cue / ITI licks,
+  trials, mismatch, rate denominators (per-trial window durations) and the cue-aligned frames; jaw readout per trial.
+  Kept: pre 95 %, acute 78 %, subacute 79 %, chronic 94 % of trials (lowest PS94_0819 225/600). Safety check: the
+  behaviour table's trial_ids are used directly when positions agree (<= 1 % disagreement). Where the behaviour
+  pipeline fell back to the GUI LOG (source = GUI: 1-based ids, its own trial set) they do not -- PS92_0812 (log 280
+  trials incl. the 41-min imaging gap vs 225 DAQ cues) and PS92_0929. CORRECTED, not flagged: trials are matched by
+  ORDER within each DAQ recording segment (`_align_by_order`; accepted at >= 98 % position agreement and a consistent
+  clock): 0812 part 1 -> log rows 0-23, part 2 -> rows 79+ (rows 24-78 = the trials the log saw during the gap);
+  0929 row-for-row; both 100 % position agreement. A session matching neither way would stay ungated and be logged. Config `orofacial_cohort.engaged_only: true`;
+  `--all-trials` renders the ungated control into `*_alltrials` folders. Matters most for responded fraction and the
+  in-mouth-INCLUDED cue traces (quit-tail trials enter as tongue-in-mouth); per-lick kinematics barely change.
+* **Low-coverage bins drawn, not hidden (10-17, Priya)**: the cluster test runs on sessions whatever the weighting;
+  where the figure's own coverage rule blanks a bin, the curve is drawn faint dashed (no rule) and significant bars there
+  are lighter (alpha 0.18 vs 0.5). Replaces the brief "test only displayed bins" restriction, which hid significant
+  low-coverage results in the animal-weighted figures.
+* **Effect of the engagement gate, measured 10-17 (105 sessions, 49,243 of 55,258 trials kept)**: per-position
+  scalar stats barely move -- 2 of ~100 cells change class (close-ipsi acute contact: bootstrap-only -> both; far-ipsi
+  acute neighbour fraction: bootstrap-only -> neither); far-contra acute contact -0.60, first lick +531 ms, licks/trial
+  -5.4 are unchanged. What the gate changes is the RESPONDED FRACTION (acute 0.64 -> 0.82, subacute 0.77 -> 0.93: most
+  of the apparent acute drop in responding was quitting) and the post-cue lick rate (acute 1.32 -> 1.71 Hz). In-mouth-
+  included cue traces shift modestly (far contra 0.1-1.5 s protrusion, acute 8.9 -> 11.8 px vs pre 57.7 -> 60.0).
+
