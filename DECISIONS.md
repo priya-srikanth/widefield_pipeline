@@ -20103,3 +20103,10 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   `agree` column (both / MWU only / bootstrap only / neither). Trajectories: cluster permutation on per-session change
   curves, cluster threshold two-sided p < 0.05 (t), mass = sum |t|, epoch / pre labels permuted WITHIN animal, cluster
   p < 0.05 drawn as a bar above the curve. Tests: `tests/test_orofacial_stats.py`.
+* **Stats wired into the cohort figures (10-17)**: scalar figure marks per epoch row (* = session MWU BH-FDR q < 0.05 AND
+  animal bootstrap CI excludes 0; (*) MWU only; b bootstrap only); session-weighted trajectory figures carry cluster-
+  permutation bars (500 within-animal permutations); `tables/prepost/stats/change_vs_pre_stats.csv` + an auto-written
+  `RESULTS.md` of every significant cell (jaw FAR_DIR included). First pass (91 sessions; PS93 thin): 57 cells
+  significant by both tests, 23 MWU only, 14 bootstrap only. Added cohort figures: first-lick vs all-post-cue lick phase
+  (minus pre), trajectory change curves (lateral / out-of-mouth tip position, protrusion speed), and pre-vs-epoch overlaid
+  cohort x-y paths and phase portraits.
