@@ -1293,6 +1293,12 @@ def fig_cohort_scalars(Pm: pd.DataFrame, path: Path, title: str, jaw: pd.DataFra
             ax.errorbar(k, v.mean(), yerr=v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0, fmt="s",
                         color=ecol[e], ms=6, capsize=3)
         ax.axhline(0, color="0.8", lw=0.8, zorder=0)
+        if stats is not None:                           # cohort marks for the jaw readout (far pair)
+            for k, e in enumerate(EPOCH_ORDER):
+                r = stats[(stats.metric == c) & (stats.pos == "far_pair") & (stats.epoch == e)]
+                if len(r) and STAR.get(r.agree.iloc[0]):
+                    ax.text(k, 0.98, STAR[r.agree.iloc[0]], color=ecol[e], ha="center", va="top", fontsize=11,
+                            fontweight="bold", transform=ax.get_xaxis_transform())
         ax.set_xticks(range(len(EPOCH_ORDER)), EPOCH_ORDER, fontsize=7)
         ax.set_title("jaw steering FAR_DIR -- change vs pre", fontsize=8)
         ax.set_ylabel("change vs pre: jaw FAR_DIR (px)", fontsize=6.5)
