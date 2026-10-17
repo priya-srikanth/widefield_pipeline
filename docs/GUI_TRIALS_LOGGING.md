@@ -7,6 +7,12 @@ running**, because sessions recorded before it keep the corrupted column, which 
 date. The DAQ-primary path stays necessary regardless: it covers the old sessions, and it is what
 makes behavior and imaging agree on trial identity.
 
+**First v47 session: 2026-08-10** (all four animals; the v47 stub rows first appear that day). **Log fallback now
+inverts the shift (2026-10-17):** `spout_behavior._gui_shift_corrected` measures, per session, the offset between log
+positions and log outcomes against the DAQ and moves the positions back; logs with no DAQ dated before 08-10 get the
+documented shift of 1. Before this fix the behaviour pipeline's log-sourced pre-v47 sessions (May, 06-01, 08-05, 08-06)
+carried the shift -- see DECISIONS 2026-10-17.
+
 Once `v47` is running, `trials.csv pos_idx` should agree with the DAQ strobe codes trial-for-trial.
 That is worth confirming on the first session (the same comparison used to find this: decode the
 strobe codes, pair each cue with the last strobe at or before it, and check agreement is 1.000).

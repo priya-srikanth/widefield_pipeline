@@ -116,6 +116,25 @@ Tests: `test_orofacial_outputs.py` (new), `test_o2_inference.py`, `test_camera_s
    recovery timing differs by animal (DECISIONS 2026-10-16 jaw entry + 10-17 update). Re-run as sessions arrive.
 5. Other cohort analyses onto `orofacial_outputs`: contact classes, licking dynamics / bout structure by epoch.
 6. Side cameras, pixel-vs-LocaNMF decoding gap, FaceRhythm -- unchanged.
+7. **(Priya 10-17) Cue-response EXAMPLES: jaw-only / minimal-tongue reactions**, as stroke_orofacial had
+   (`tongue_jaw_mismatch`: `candidate_no_lick_with_jaw_move`, per-trial example plots; its PS55 d+2 rate 61.9 % vs 0 %
+   baseline was the dissociation evidence). Ours already writes `tongue_jaw_mismatch.csv` per session. Improve on it:
+   (a) classify EVERY engaged trial's cue response into no movement / jaw-only / tongue below the 20 px tracking floor
+   (jaw opens, no LP lick) / short lick (reach < 1) / full lick, with the thresholds in `defaults.yaml`; (b) rate of each
+   class by position x epoch x animal (within-animal change, same stats as the cohort figures); (c) an example gallery:
+   per class x epoch, a few trials as cam4 frame strips + tongue / jaw traces aligned to the cue (MP4 clip per example
+   via `behavior_clips`), picked by a fixed seed, not by eye; (d) QC sheet so Priya can veto mis-classified examples.
+8. **Pre-stroke drift control (needed before quoting any small chronic shift)**: e.g. chronic far ipsi forward
+   protrusion -16 px (t -5.9, all 4 animals) is the size head / camera drift could make. Compare early (June) vs late
+   (August) pre-stroke sessions with the same within-animal machinery; a chronic shift counts only if it exceeds that.
+9. Suggested kinematic analyses (Priya asked 10-17; not started): lick-to-lick variability (CV of peak angle /
+   protrusion within a bout -- precision, not just mean); correction after a miss (does lick n+1's angle move toward
+   the spout after a no-contact lick n -- feedback use); lick rhythm (ILI and its regularity per epoch; jaw-tongue
+   phase coupling); time-to-first-contact decomposed into latency + number of misses; jaw opening amplitude / speed by
+   position (is the jaw slower, not just mis-steered); fatigue within session (kinematics in session thirds, engaged
+   trials only).
+10. **Curation inconsistency (Priya's call)**: `grant_kit._sessions()` is not curated -- 06-01..06-05 and 08-05 enter the
+    pre pools of grant 1 / 1b and epoch 1b, unlike the curated timecourse rows (DECISIONS 2026-10-17).
 Open items waiting on Priya: `OPEN_QUESTIONS_PRIYA.md` (clean-up PowerShell, O2 copy-backs).
 
 **Refresh order (10-17):** `orofacial_outputs process` -> `orofacial_jaw_lateral` -> `orofacial_cohort` -> `orofacial_deck`

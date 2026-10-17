@@ -170,7 +170,7 @@ def load_trials(session_dir: Path, rv=None, params: dict | None = None,
     if source not in ("auto", "daq", "log"):
         raise ValueError(f"source must be auto/daq/log, got {source!r}")
     if source == "log":
-        return load_gui_trials(session_dir)
+        return _gui_shift_corrected(load_gui_trials(session_dir), session_dir, rv)
     if rv is not None:
         daq = _daq_trials_for(session_dir, rv, params)
         if daq is not None:
@@ -186,12 +186,77 @@ def load_trials(session_dir: Path, rv=None, params: dict | None = None,
                     print(f"[spout_behavior] {session_dir.name}: DAQ covers {len(daq)} of {len(gui)} "
                           f"logged trials (crashed recorder) -> BEHAVIOUR figures use the full-session "
                           f"LOG", flush=True)
-                    return gui
+                    return _gui_shift_corrected(gui, session_dir, rv)
             _warn_if_daq_covers_less_than_log(session_dir, daq)
             return daq
     if source == "daq":
         raise ValueError(f"{session_dir.name}: --trial-source daq requested but no usable DAQ trials")
-    return load_gui_trials(session_dir)
+    return _gui_shift_corrected(load_gui_trials(session_dir), session_dir, rv)
+
+
+#: first session date on GUI v47 (the stub rows it introduced first appear on 2026-08-10, all four animals; 08-05 ..
+#: 08-09 logs have none). Used ONLY when a session has no decodable DAQ to measure the shift against.
+GUI_V47_FIRST_DATE = "20260810"
+_POS_COLS = ("pos_idx", "pos_name", "pos_dist_mm_after_trial")
+
+
+def _gui_shift_corrected(gui: pd.DataFrame, session_dir: Path, rv=None) -> pd.DataFrame:
+    """Undo the pre-v47 one-trial POSITION shift in a behaviour-log trial table (Priya 2026-10-17).
+
+    Before GUI v47 a row's OUTCOME columns belong to trial N but its POSITION columns (pos_idx, pos_name,
+    pos_dist_mm_after_trial) to trial N+1 (docs/GUI_TRIALS_LOGGING.md: "invert the shift" when falling back to the
+    log). This fallback used the log as-is, so per-position hit rates and lick metrics of log-sourced pre-v47
+    sessions (the dead-strobe 08-05 / 08-06, and the May-June log-only sessions) were mis-assigned on every
+    position-change trial (~15-17 %). Measured on all four animals' 08-06: log positions match DAQ cue r+1 (1.000),
+    log outcomes match DAQ cue r (0.995-1.000).
+
+    MEASURED per session, not assumed: with a decodable DAQ (even a degraded strobe), the integer offset that best
+    aligns log POSITIONS to the DAQ codes (`behavior_position.best_trial_offset`, scored on the positions the strobe
+    still resolves) is compared with the offset that best aligns log OUTCOMES (responded) to DAQ licks; the positions
+    are moved by the difference. v47+ logs (and PS92 08-12's crash log) measure 0 and are left untouched. With no DAQ
+    at all, logs dated before GUI_V47_FIRST_DATE get the documented shift of 1. Row 0 keeps its own position (the
+    first trial's true position is not in the log; blocks run 3-8 trials, so it is almost always the same).
+    ``gui.attrs['pos_shift']`` / column ``pos_shift_corrected`` record what was done."""
+    gui = gui.copy()
+    shift, how = 0, "no DAQ, v47+ date: none"
+    try:
+        from wfield_local import config as _cfg
+        from wfield_local import daq_trials
+        from wfield_local.behavior_position import best_trial_offset
+        animal, date = _animal_date(session_dir.name)
+        h5 = _daq_h5_for(rv, animal, date) if rv is not None else None
+        if h5 is not None:
+            dec = daq_trials.decode(h5, _cfg.defaults()["lick_detection"])
+            win, _ = daq_trials.response_window_s(session_dir, 3.5)
+            dq = daq_trials.build_trials(dec, win)
+            good = sorted(set(int(x) for x in dq.pos_idx if x >= 0))
+            rng = max(20, abs(len(gui) - len(dq)) + 10)
+            sp, op, _ = best_trial_offset(dq.pos_idx.to_numpy(np.int16), gui.pos_idx.to_numpy(np.int16), rng,
+                                          valid_pos=good)
+            so, oo, _ = best_trial_offset(dq.responded.to_numpy(np.int16), gui.responded.to_numpy(np.int16), rng)
+            if sp >= 0.9 and so >= 0.9:
+                shift, how = op - oo, f"measured vs DAQ (positions {sp:.3f} @ {op:+d}, outcomes {so:.3f} @ {oo:+d})"
+            else:
+                how = f"DAQ alignment not validated (positions {sp:.2f}, outcomes {so:.2f}): none"
+        elif date < GUI_V47_FIRST_DATE:
+            shift, how = 1, f"no DAQ; pre-v47 date (< {GUI_V47_FIRST_DATE}): documented shift"
+    except Exception as e:                                     # never fail a behaviour figure over the check
+        how = f"check failed ({type(e).__name__}: {e}): none"
+    # offset convention: log row j -> DAQ cue j + off. Positions sitting one row EARLIER than outcomes (row r holds
+    # cue r+1's position) give shift = +1: the true position of row r is in row r-1.
+    if shift in (1, -1):
+        for c in _POS_COLS:
+            if c in gui:
+                v = gui[c].to_numpy(copy=True)
+                gui[c] = np.r_[v[:1], v[:-1]] if shift == 1 else np.r_[v[1:], v[-1:]]
+        print(f"[spout_behavior] {session_dir.name}: GUI log POSITION shift {shift:+d} corrected -- {how}", flush=True)
+    elif shift:
+        print(f"[spout_behavior] WARNING {session_dir.name}: unexpected log position shift {shift:+d} ({how}); "
+              f"left as-is", flush=True)
+        shift = 0
+    gui["pos_shift_corrected"] = shift
+    gui.attrs["pos_shift"] = (shift, how)
+    return gui
 
 
 DAQ_LOG_COVER_TOL = 0.9   # DAQ trials below this fraction of the log = a crashed recorder (use the log)
@@ -497,7 +562,7 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
     eng_ids = None if engaged_ids is None else set(np.asarray(list(engaged_ids)).tolist())
     per_trial = []          # (pos_idx, n_post, n_pre, rate_hz, engaged)
     raster = []             # (delays_within_window, pos_idx, trial_order)
-    for order, (i, row) in enumerate(trials.iterrows()):
+    for order, (_i, row) in enumerate(trials.iterrows()):
         tid, pos = row["trial_id"], int(row["pos_idx"])
         if tid not in cue_t.index or not np.isfinite(cue_t.loc[tid]):
             continue

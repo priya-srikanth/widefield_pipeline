@@ -20190,4 +20190,28 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   equality over 40 synthetic sessions incl. dead-bit cases); `classify_cues_with_backup` and `orofacial_cohort` now both
   call it. The orofacial side adds only what the repair never needed: one offset per DAQ recording segment (PS92_0812's
   log counts trials through the crash gap) and a clock-consistency check. Same gated trial sets as before.
+* **Pre-v47 GUI-log POSITION shift now corrected in the behaviour pipeline's log fallback (10-17, Priya: "fix and
+  re-render the affected behavior sessions")**: `spout_behavior` fell back to the task-controller log as-is, but before
+  GUI v47 (first session 2026-08-10) a log row's OUTCOME belongs to trial N and its POSITION columns (pos_idx, pos_name,
+  pos_dist_mm_after_trial) to trial N+1 (docs/GUI_TRIALS_LOGGING.md said to invert it; nobody had). Measured on all
+  four 08-06 tables against DAQ licks: positions match DAQ cue r+1 at 1.000, outcomes cue r at 0.995-1.000. Fix
+  `spout_behavior._gui_shift_corrected`, MEASURED per session: with a decodable DAQ (even the dead-strobe one) the
+  offset aligning log positions to DAQ codes vs the offset aligning log outcomes to DAQ licks (both via
+  `behavior_position.best_trial_offset`); positions moved by the difference. v47 logs measure 0 (PS92 08-12 crash log:
+  untouched). No DAQ (May, 06-01): logs before `GUI_V47_FIRST_DATE` get the documented shift of 1. Recorded per row
+  (`pos_shift_corrected`) and printed. The v47 marker is NOT the log's duplicate rows (June logs have them too, as open
+  rows; 08-05..08-09 none; 08-10+ v47 stubs) -- hence the measurement.
+  AUDIT (subagent, read-only, 10-17) of who consumed log positions: affected = the behaviour pipeline's per-session
+  outputs for GUI-sourced pre-v47 days (May 05-29, 06-01, 08-05, 08-06 -- 08-06 is curated pre-stroke) -> per-position
+  hit rate / lick metrics, the persisted `_trials.csv` (pos / block / engaged), `cohort_session_metrics.csv`, behaviour
+  cohort + by-animal figures + behaviour deck, and the behaviour-based pre-stroke baselines (grant 1 / 1b, epoch 1b /
+  1c, timecourse, epoch boundaries). Size: 16-17 % of those sessions' trials move; per-position engaged hit rate moves
+  <= 0.016-0.047 in single sessions, <= 0.002 on the pooled curated pre-stroke baseline (near-ceiling accuracy).
+  NOT affected (verified): every imaging / decoder / map analysis (`classify_cues_with_backup` and
+  `framemap_event_maps._behavior_cue_codes` search an integer offset and absorb the shift; `trial_windows`,
+  `analysis_kit.session_behavior` never read log positions). Re-run 10-17: those 18 behaviour dates, the curated
+  behaviour cohort, epoch audit, behaviour deck, grant 1 / 1b, epoch 1b / 1c, orofacial cohort.
+  Separate finding, NOT changed (Priya's call): `grant_kit._sessions()` is not curated, so 06-01..06-05 and 08-05 enter
+  the "pre" pools of grant 1 / 1b and epoch 1b, while the timecourse / licks-per-trial rows use the curated set
+  (epoch_behaviour.py:119 already notes the 61-vs-44 mismatch).
 
