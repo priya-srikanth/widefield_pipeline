@@ -157,6 +157,13 @@ helps the job backfill sooner.
   everything. Users cannot RAISE a time limit with scontrol (only lower it), so: scancel the at-risk pending ids and
   resubmit them with `-t 10:00:00` (done for 44-47 and 117, which needs ~5.5-6 h). `o2_inference.lp.time` is now 10 h.
   Per-video RTX 8000 estimate = frames / 105 / 3600 h (frames = the camera CSV's row count).
+* **Stuck `(JobArrayTaskLimit)` (10-16).** After several `scontrol update` edits (Gres, TimeLimit, throttle) array
+  56464442's pending tasks sat at `JobArrayTaskLimit` with ZERO of its tasks running, although `ArrayTaskThrottle` read
+  24 -- a corrupted throttle state, not the throttle working. Fix: `scontrol update JobId=<id> ArrayTaskThrottle=0`
+  (0 = no limit); the reason cleared to `(None)` and then the normal queue. Fallback if that fails: `scancel <id>` (only
+  pending tasks remain) and resubmit those ids with the usual flags (finished videos are skipped).
+* **Fair share** collapses after a day of ~24 GPUs (0.43 -> 0.022 on 10-16, recovering to 0.068 by evening): expect
+  long `(Priority)` waits afterwards. Check with `sshare -U -l` / `sprio -u <user>`.
 * **Video one frame shorter than its camera CSV** (7 of the first 49: PS92 0607, 0805, 0810, 0812 part 2, 0911, PS93
   0606, PS94 0820): Bonsai logged a timestamp for a last frame that never reached the .avi. Harmless -- O2 predicts
   every frame in the video, video frame k = CSV row k. Compare `done.json` n_frames with the VIDEO's frame count.
