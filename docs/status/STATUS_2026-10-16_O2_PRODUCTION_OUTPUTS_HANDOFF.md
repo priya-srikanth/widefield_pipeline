@@ -103,8 +103,10 @@ Tests: `test_orofacial_outputs.py` (new), `test_o2_inference.py`, `test_camera_s
 
 1. Keep processing O2 results as they are copied back: `python -m wfield_local.orofacial_outputs process --bundle
    lp_r4_prod_20261015 --jobs 4` then `python -m wfield_local.orofacial_cohort --jobs 6` (NO overrides needed any more).
-   88 / 136 sessions done (PS92 complete, PS94 30, PS95 10 pre only, PS93 4 -- PS93 / PS95 post are mostly the V100
-   re-runs queued on O2). Re-read every cohort figure when PS93 + PS95 are in: all results so far are PRELIMINARY.
+   **DONE 10-18: all 136 processed** (133 ok; PS94 / PS95 0601 skipped = dropped frames; PS93 0805 fails = the
+   excluded "wonky 8/5", empty GUI log). 119 curated sessions in the cohort. Findings: docs/OROFACIAL_FINDINGS.md.
+   Analysis deck rebuilt 10-18 (`locanmf_analysis_deck --src <labcams>/analysis_figures` -- this box's
+   figures_working lags the share) + `deck_split`.
 2. Score the O2-trained models (job 56522565: ViT-B DINOv2 / ResNet-50 b8 / ctx-semi, all 640 px) when copied back:
    `scripts/model_lick_compare.py PS93:<d> --model ... --review lp_stage/lick_review/review_scored.csv` on 0814 + 0821
    (predictions land in `models/<name>/video_preds/`), against LP r4 and the local ViT-S baseline (POSE_MODELS.md).
@@ -133,6 +135,10 @@ Tests: `test_orofacial_outputs.py` (new), `test_o2_inference.py`, `test_camera_s
    phase coupling); time-to-first-contact decomposed into latency + number of misses; jaw opening amplitude / speed by
    position (is the jaw slower, not just mis-steered); fatigue within session (kinematics in session thirds, engaged
    trials only).
+11. **W2 (Wasserstein-2) spatial-distribution analysis (Priya 10-18, as stroke_orofacial)**: per session x position, each
+    keypoint's 2-D positions (nose, jaw, tongue, spout) on engaged trials vs the animal's pooled pre cloud; pre
+    leave-one-out = noise floor; within-animal cohort stats. Spout + nose = negative / drift controls (doubles as the
+    drift control of item 8).
 10. **Curation inconsistency (Priya's call)**: `grant_kit._sessions()` is not curated -- 06-01..06-05 and 08-05 enter the
     pre pools of grant 1 / 1b and epoch 1b, unlike the curated timecourse rows (DECISIONS 2026-10-17).
 Open items waiting on Priya: `OPEN_QUESTIONS_PRIYA.md` (clean-up PowerShell, O2 copy-backs).

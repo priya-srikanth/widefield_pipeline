@@ -207,6 +207,28 @@ and very jumpy on the pre clip only. Angles at peak agree with LP r4 within ~1-2
 512 px vs 640, the SMALL ViT, training cut at 254 epochs. The O2 run (job 56522565: ViT-B DINOv2 640 px b8, ResNet-50
 640 px b8, ctx-semi 640 px b4; `scripts/o2_lp_train_bundle.py`) is the real test, scored with the same protocol.
 
+### O2-trained 640 px models (job 56522565, scored 2026-10-18)
+
+Trained on O2 from `scripts/o2_lp_train_bundle.py` (`DeepLabCut/Widefield/o2/lp_train_20261016/models/`), predictions
+on the bundle's eval clips; scored with the same protocol (`scripts.model_lick_compare ... --tag o2_1018`;
+`session_poses/PS93_<d>/r4_eval/model_lick_compareo2_1018.csv`).
+
+| pre / acute | LP r4 | ctx-semi 512 (local) | ViT-S 512 (local) | ResNet-50 640 (O2) | ctx-semi 640 (O2) |
+|---|---|---|---|---|---|
+| contact recall (%) | 98.8 / 99.6 | 98.0 / 97.1 | 98.0 / 98.3 | 99.0 / 99.2 | 98.5 / 97.9 |
+| review: share of real licks found (%) | 100 / 97 | 89 / 100 | 67 / 90 | 85 / 87 | 100 / 97 |
+| review precision (%) | 82 / 88 | 89 / 91 | 95 / 93 | 96 / 96 | 87 / 91 |
+| jaw x jumps > 30 px (raw) | 38 / 5 | 0 / 0 | 140 / 12 | 114 / 23 | 7 / 3 |
+| tongue x jumps > 30 px (raw) | 35 / 45 | 31 / 58 | 294 / 57 | 48 / 33 | 52 / 57 |
+
+**Reading.** ctx-semi at 640 px is the first model at least as good as LP r4 on everything that matters: same share of
+real licks, higher precision, far steadier jaw (raw tongue jumps slightly higher; cleaning removes one-frame jumps);
+angles at peak within ~1-2 deg of LP r4. ResNet-50 640: most precise, misses faint licks, jumpy jaw on the pre clip.
+Small review (~27-31 real licks per session). NOT switched: a production change means re-running all O2 inference,
+cleaning and every downstream analysis for a modest gain -- revisit with the ViT-B result. ViT-B DINOv2 640 FAILED at
+the first validation batch: the O2 `lp` env's transformers is incompatible with LP 2.4.2's ViT backbone
+(`patch_embeddings.patch_size` int; local transformers 5.17.0 works) -- pin and resubmit array task 1.
+
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 
 The model is for the ANALYSES — executed angle, lick timing / counts, kinematics across recovery — so it is judged on

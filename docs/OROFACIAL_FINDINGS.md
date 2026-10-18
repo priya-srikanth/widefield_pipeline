@@ -1,23 +1,23 @@
 # Orofacial (cam4) findings: pre- vs post-stroke licking kinematics
 
-Status: **preliminary**, written 2026-10-17. The numbers come from the cohort run on that date. Re-check every number
+Status: **preliminary**, written 2026-10-17; numbers refreshed 2026-10-18 from the run with all 136 sessions processed. Re-check every number
 against `cohort/tables/prepost/stats/RESULTS.md` after each re-run; that file is re-written on every run, and this one
 is not.
 
 ## What the data are
 
 - **Pose model:** LP r4 with cleaning v35 (`LP_analysis/lp_r4_heatmap_20261013__clean_v35`).
-- **Sessions:** 107 curated sessions (PS92 29, PS93 19, PS94 30, PS95 29). Lesions are all on the LEFT ventrolateral
+- **Sessions:** 119 curated sessions (PS92 30, PS93 29, PS94 30, PS95 30). Lesions are all on the LEFT ventrolateral
   striatum, so "ipsi" = the mouse's left = image right.
 
 | animal | pre | acute | subacute | chronic |
 |---|---|---|---|---|
-| PS92 | 10 | 5 | 2 | 12 |
-| PS93 | 6 | 4 | 3 | 6 |
+| PS92 | 11 | 5 | 2 | 12 |
+| PS93 | 10 | 4 | 3 | 12 |
 | PS94 | 11 | 6 | 5 | 8 |
-| PS95 | 10 | **1** | 7 | 11 |
+| PS95 | 11 | **1** | 7 | 11 |
 
-- **Trials:** engaged trials only, using the behaviour pipeline's reference-position gate. That keeps 50,246 of 56,388
+- **Trials:** engaged trials only, using the behaviour pipeline's reference-position gate. That keeps 56,629 of 62,771
   trials. An ungated control is in `figures/prepost_alltrials`.
 - **Licks:** LP-detected post-cue licks (cue + 70 ms to the DAQ trial stop). "Lick n" is the n-th detected lick,
   whether or not it touched the spout.
@@ -35,31 +35,31 @@ All of the following are acute changes at far contra, significant by both tests,
 
 | measure (far contra, acute) | change |
 |---|---|
-| fraction of licks touching the spout | −0.60 [−0.79, −0.42] (no-contact licks rise by the same amount) |
-| first lick | +531 ms later [111, 856] |
-| first spout contact | +953 ms later [246, 1379] |
-| licks per responded trial | −5.4 [−6.5, −4.4] |
-| measured peak protrusion | −31 px [−59, −22] |
-| reach (protrusion / spout distance) | −0.15 |
-| peak protrusion speed | −2,400 px/s |
-| peak retraction speed | −1,560 px/s |
+| fraction of licks touching the spout | −0.61 [−0.78, −0.44] (no-contact licks rise by the same amount) |
+| first lick | +521 ms later [113, 848] |
+| first spout contact | +940 ms later [227, 1378] |
+| licks per responded trial | −5.5 [−6.6, −4.3] |
+| measured peak protrusion | −30 px [−59, −21] |
+| reach (protrusion / spout distance) | −0.16 |
+| peak protrusion speed | −2,310 px/s |
+| peak retraction speed | −1,460 px/s |
 | lick duration | +20 ms |
-| inter-lick interval | +25 ms [12, 42] |
+| inter-lick interval | +24 ms [12, 42] |
 | licks with a neighbour within 250 ms | −0.44 (isolated licks) |
 
 - The same measures change at far mid and far ipsi, but less.
 - Close positions barely change. Contact at close positions even rises slightly.
 
 **2. Acute licks aim toward the ipsilesional side.**
-- Executed peak angle shifts toward ipsi: far contra +29° [16, 39], far mid +11°, far ipsi +7°. Smaller shifts appear
+- Executed peak angle shifts toward ipsi: far contra +29° [16, 40], far mid +11°, far ipsi +7°. Smaller shifts appear
   at all close positions.
 - In the lick-aligned traces the lateral tip offset is present through the whole lick, both with and without
   in-mouth frames. At far contra it is about +70 px acutely.
 - Subacute, the shift is about +8°; chronic, it is small but still significant at far mid (+3°).
 
 **3. The jaw stops steering toward the target, in all 4 animals.**
-- Jaw FAR_DIR, the sideways jaw displacement toward the target side, changes by −11.6 px acutely [−13.9, −10.1].
-  It stays below baseline subacute (−5.0) and chronic (−4.4).
+- Jaw FAR_DIR, the sideways jaw displacement toward the target side, changes by −11.5 px acutely [−14.0, −9.6].
+  It stays below baseline subacute (−4.9) and chronic (−4.7).
 - This is not a shorter-reach effect: the trials where the tongue reached the spout show the same drop.
 - Recovery timing differs by animal (DECISIONS 2026-10-16).
 
@@ -76,21 +76,21 @@ All of the following are acute changes at far contra, significant by both tests,
   −0.8 px/ms around the peak, all 4 animals).
 
 **6. Most of the acute drop in responding was quitting.**
-- Responded fraction, all trials: 0.93 pre, 0.64 acute.
-- Responded fraction, engaged trials: 0.97 pre, 0.82 acute.
+- Responded fraction, all trials: 0.94 pre, 0.64 acute.
+- Responded fraction, engaged trials: 0.98 pre, 0.82 acute.
 - The engaged-trial acute deficit is still real and position-graded: −0.28 at far contra, −0.21 at far ipsi.
 - Per-lick kinematics barely change with the engagement gate.
 
 **7. Recovery.**
-- Most measures return to baseline by subacute. Contact (−0.18), angle (+8°) and protrusion (−15 px) at far contra
-  still differ subacute.
-- Chronic, licks per responded trial are *above* baseline (+1.6 to +2.2 at far positions), and licks are shorter
+- Most measures return to baseline by subacute. Contact (−0.18) and angle (+8°) at far contra still differ subacute;
+  protrusion (−14 px) is significant by the Mann-Whitney test only.
+- Chronic, licks per responded trial are *above* baseline (+1.6 to +2.1 at far positions), and licks are shorter
   (−8 to −11 ms).
 
 ## Not yet established (do not quote)
 
-- **Small chronic shifts** have no drift control yet: chronic protrusion −18 px at far ipsi and far contra, lick
-  duration −8 to −11 ms, the far-mid angle +3°, and the chronic jaw FAR_DIR −4.4. Head position and camera framing
+- **Small chronic shifts** have no drift control yet: chronic protrusion −16 px at far ipsi (−14 px at far contra,
+  Mann-Whitney only), lick duration −8 to −10 ms, the far-mid angle +3°, and the chronic jaw FAR_DIR −4.7. Head position and camera framing
   can drift over months by this much. Wait for the pre-stroke early-vs-late drift control (to-do 8).
 - **PS95 has one acute session**, so its acute values rest on a single day.
 - **No within-trial homing:** the angle does not move toward the spout over licks 1 to 5. This was preliminary at the
