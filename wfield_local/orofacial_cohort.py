@@ -228,6 +228,9 @@ def _lick_phase(sd: Path, meas: pd.DataFrame, rows: pd.DataFrame) -> dict:
 #: u = 1), interpolated onto U_NORM -- needs no neighbouring licks, so a FIRST lick has a phase version too. Measures
 #: the lick itself (the inter-lick in-mouth time is outside the window), unlike the peak-to-peak normalisation.
 U_NORM = np.linspace(0.0, 1.0, 41)
+#: per-lick phase shown / tested only inside this range (Priya 10-18): the onset / offset frames carry edge artefacts
+#: (speed differenced across the boundary; in fast trains the offset frame touches the next lick's rise)
+U_SHOW = (0.1, 0.9)
 MIN_LICK_FRAMES = 3
 
 
@@ -1437,6 +1440,19 @@ MIN_COVER_FRAC = 0.25
 MIN_COVER_N = 3
 MIN_LICKS_SESSION_POS = 20
 ENGAGED_ONLY = True
+#: BASELINE (Priya 10-18, "both, side by side"): "all" = every curated pre session (June 0606-0608 + August); "late" =
+#: only pre sessions dated >= LATE_PRE_FROM (MMDD), i.e. August, the sessions immediately before the stroke. Measured
+#: 10-18: June -> August pre drift is as large as many stroke effects (close-spout contact +0.40-0.47, protrusion -14
+#: to -36 px, peak speed -550 to -1,140 px/s, all 4 animals) -- learning / framing, not stroke.
+BASELINE = "all"
+LATE_PRE_FROM = "0801"
+
+
+def baseline_filter(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop the early (June) pre sessions when BASELINE == 'late'; no-op otherwise."""
+    if BASELINE != "late" or df is None or not len(df) or "epoch" not in df or "date" not in df:
+        return df
+    return df[~((df.epoch == "pre") & (df.date.astype(str).str[4:8] < LATE_PRE_FROM))]
 
 
 def _apply_config() -> None:
@@ -1455,6 +1471,10 @@ def _apply_config() -> None:
     CUE_MIN_FRAMES = int(c.get("cue_min_frames_per_bin", CUE_MIN_FRAMES))
     MIN_PHASE_POINTS = int(c.get("min_phase_intervals_per_bin", MIN_PHASE_POINTS))
     WALK_MIN_LICKS = int(c.get("walk_min_licks", WALK_MIN_LICKS))
+    global LATE_PRE_FROM
+    LATE_PRE_FROM = str(c.get("late_pre_from", LATE_PRE_FROM))
+    global U_SHOW
+    U_SHOW = tuple(float(x) for x in c.get("lick_phase_show", U_SHOW))
     # env var so spawned workers follow `--all-trials` (the CLI flag cannot reach a fresh interpreter otherwise)
     ENGAGED_ONLY = bool(c.get("engaged_only", ENGAGED_ONLY)) and not os.environ.get("OROFACIAL_ALL_TRIALS")
 
@@ -1572,7 +1592,8 @@ def _covered(piv: pd.DataFrame) -> pd.DataFrame:
     return piv.loc[:, piv.notna().sum() >= min(MIN_COVER_N, len(piv))].reindex(columns=piv.columns)
 
 
-def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str, weight: str = "session") -> None:
+def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str, weight: str = "session",
+                     spout: dict | None = None) -> None:
     """Rows = (DataFrame, x column, value column, y label, smooth?); columns = the six positions. Per epoch: bold = mean
     over ANIMALS of each animal's change from its own pre-stroke curve, band = SEM over animals, faint = each animal."""
     ecol = EPOCH_LINE
@@ -1647,6 +1668,11 @@ def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str,
                 if np.isfinite(mu - se).any():
                     rlo[i] = min(rlo.get(i, np.inf), np.nanmin(mu - se))
                     rhi[i] = max(rhi.get(i, -np.inf), np.nanmax(mu + se))
+            if raw and spout and "angle" in col and np.isfinite(spout.get(p, np.nan)):
+                # raw angle: dashed = the spout's angle (Priya 10-16: on every raw-angle plot)
+                ax.axhline(spout[p], color="0.55", ls="--", lw=1.0, zorder=0)
+                rlo[i] = min(rlo.get(i, np.inf), spout[p])
+                rhi[i] = max(rhi.get(i, -np.inf), spout[p])
             ax.tick_params(labelsize=6.5)
             if i == 0:
                 ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
@@ -1778,19 +1804,26 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--all-trials", action="store_true",
                     help="control: no engagement gate; writes tables/prepost_alltrials, figures/prepost_alltrials")
+    ap.add_argument("--baseline", choices=("all", "late"), default="all",
+                    help="pre-stroke baseline: all curated pre sessions, or only those >= late_pre_from (August); "
+                         "'late' writes *_latepre folders")
     a = ap.parse_args(argv)
-    global ENGAGED_ONLY
+    global ENGAGED_ONLY, BASELINE
+    BASELINE = a.baseline
     if a.all_trials:
         os.environ["OROFACIAL_ALL_TRIALS"] = "1"
         ENGAGED_ONLY = False
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
-    sfx = "" if ENGAGED_ONLY else "_alltrials"
+    sfx = ("" if ENGAGED_ONLY else "_alltrials") + ("_latepre" if BASELINE == "late" else "")
     tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
     figs.mkdir(parents=True, exist_ok=True)
     S, Pm, PH, PHN, LS, WK, CT, lat = collect(rv, a.run, a.jobs)
+    S, Pm, PH, PHN, LS, WK, CT = (baseline_filter(d) for d in (S, Pm, PH, PHN, LS, WK, CT))
+    if BASELINE == "late":
+        print(f"baseline = LATE pre only (>= {LATE_PRE_FROM}): {int((S.epoch == 'pre').sum())} pre sessions kept")
     few = Pm[Pm.n_licks < MIN_LICKS_SESSION_POS][["animal", "date", "pos"]]
     print(f"min licks per session x position = {MIN_LICKS_SESSION_POS}: {len(few)} of {len(Pm)} session-positions dropped")
     if len(few):
@@ -1821,8 +1854,10 @@ def main(argv=None) -> int:
     if any(v != "L" for v in lat.values()):
         print("WARNING: an animal has a non-left lesion -- lick-aligned angle / lateral traces are in image coordinates "
               "(+ = image right = L) and their '+ = ipsi' labels are wrong for it; sign-flip them before using")
-    gate_txt = ("ENGAGED trials only (behaviour pipeline's reference-position gate)" if ENGAGED_ONLY else
-                "ALL trials (no engagement gate -- control)")
+    gate_txt = (("ENGAGED trials only (behaviour pipeline's reference-position gate)" if ENGAGED_ONLY else
+                 "ALL trials (no engagement gate -- control)")
+                + (f" -- baseline: LATE pre only (>= {LATE_PRE_FROM})" if BASELINE == "late" else
+                   " -- baseline: all curated pre"))
     if ENGAGED_ONLY and "engagement_gate" in S:
         print(f"engagement gate: {int(S.n_trials_used.sum())} of {int(S.n_trials_all.sum())} trials kept")
         for _, r_ in S[S.engagement_gate != "reference"].iterrows():
@@ -2080,7 +2115,7 @@ def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
     ST = session_change_tests(Pm, ms_)          # every metric drawn in a cohort figure gets its own test
     jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
     if jaw_csv.exists():
-        J = pd.read_csv(jaw_csv, dtype={"date": str}).assign(pos="far_pair")
+        J = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})).assign(pos="far_pair")
         ST = pd.concat([ST, session_change_tests(J, ["lr_wide_far_dir", "angle_far_dir"])], ignore_index=True)
     out = tables / "stats"
     out.mkdir(parents=True, exist_ok=True)
@@ -2124,6 +2159,16 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
                          figs / f"cohort_cue_minus_pre{fz}.png", t,
                          f"COHORT, change vs pre: cue-aligned protrusion / lateral position / angle (Family 8.2), NOT "
                          f"lick-selected (every frame of every trial); {desc}", "ms from cue", wgt)
+        if wgt == "session":                          # RAW companion (Priya 10-18): shapes of the pre vs post curves
+            fig_cohort_delta([(CTw, "t_ms", c["protrusion"], "protrusion (px), RAW", False, True),
+                              (CTw, "t_ms", c["lateral"], "lateral tongue position (px; + = ipsi), RAW", False, True),
+                              (CTw, "t_ms", c["angle"], "tongue angle (deg; + = ipsi), RAW", False, True)],
+                             figs / f"cohort_cue_raw{fz}.png", t,
+                             f"COHORT cue-aligned protrusion / lateral position / angle (Family 8.2), RAW levels per epoch "
+                             f"(pre drawn as its own curve), NOT lick-selected (every frame of every trial); {desc}. Curves "
+                             "pooled over sessions (animal level differences enter; see _minus_pre for within-animal "
+                             "changes); dashed = mean spout angle; bars = the same within-animal change test",
+                             "ms from cue", wgt, spout=Pm.groupby("pos").spout_angle_deg.mean().to_dict())
     if PH is not None:
         # Priya 10-17: one figure per {alignment} x {lick set}, each with the SAME five rows; replaces the earlier
         # lick-phase / first-vs-all / first-bout phase / trajectory-change figures (redundant rows, mixed lick sets)
@@ -2131,9 +2176,9 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
                                     "lick-PEAK-aligned time; licks: the FIRST post-cue lick of each trial"),
                 ("time", "all"): (PHa, "t_ms", "ms from lick peak",
                                   "lick-PEAK-aligned time; licks: ALL post-cue licks (measured peaks)"),
-                ("phase", "first"): (PH[PH.set == "first_norm"], "u", "lick phase (0 = tongue leaves the mouth, 1 = back in)",
+                ("phase", "first"): (PH[(PH.set == "first_norm") & PH.u.between(*U_SHOW)], "u", "lick phase (0 = tongue leaves the mouth, 1 = back in; shown 0.1-0.9)",
                                      "per-lick normalised time (onset -> offset); licks: the FIRST post-cue lick of each trial"),
-                ("phase", "all"): (PH[PH.set == "postcue_norm"], "u", "lick phase (0 = tongue leaves the mouth, 1 = back in)",
+                ("phase", "all"): (PH[(PH.set == "postcue_norm") & PH.u.between(*U_SHOW)], "u", "lick phase (0 = tongue leaves the mouth, 1 = back in; shown 0.1-0.9)",
                                    "per-lick normalised time (onset -> offset); licks: ALL post-cue licks")}
         for tag, (desc, c) in INMOUTH.items():
             for (al, ls), (D_, xc_, xl_, what) in sets.items():
@@ -2149,6 +2194,17 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
                                  "the mouth), lateral tip position, angle (changes vs each animal's own pre), protrusion "
                                  "speed |velocity| RAW per epoch and its change (signed velocity omitted: slower-out and "
                                  "slower-back cancel in it)", xl_, wgt)
+                if wgt == "session":                  # RAW companion: the shapes of the pre vs post curves (Priya 10-18)
+                    sp_ = Pm.groupby("pos").spout_angle_deg.mean().to_dict()
+                    fig_cohort_delta([(D_, xc_, c["protrusion"], "protrusion (px), RAW", False, True),
+                                      (D_, xc_, c["lateral"], "lateral tip position (px; + = ipsi), RAW", False, True),
+                                      (D_, xc_, c["angle"], "tongue angle (deg; + = ipsi), RAW", False, True),
+                                      (D_, xc_, c["speed"], "protrusion speed |velocity| (px/s), RAW", False, True)],
+                                     figs / f"cohort_lick_{al}_{ls}_raw_inmouth_{tag}.png", t,
+                                     f"COHORT lick kinematics, RAW levels per epoch (pre drawn as its own curve): {what}; "
+                                     f"{desc}. Curves pooled over sessions (animal level differences enter; see the "
+                                     "_minus_pre version for within-animal changes); dashed = mean spout angle; bars = "
+                                     "the same within-animal change test as the _minus_pre figure", xl_, wgt, spout=sp_)
         if wgt == "session":
             for within, wz in ((True, "_within"), (False, "")):
                 for im in ("incl", "excl"):
@@ -2157,7 +2213,7 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
                     fig_cohort_paths(PHa, Pm, figs / f"cohort_phase_portrait{wz}_inmouth_{im}.png", t, portrait=True,
                                      within=within, inmouth=im)
     jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
-    jaw = pd.read_csv(jaw_csv, dtype={"date": str}) if jaw_csv.exists() else None
+    jaw = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})) if jaw_csv.exists() else None
     fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",
                        t + "\nCOHORT, change vs pre: per-position lick metrics", jaw, wgt,
                        stats if wgt == "session" else None)

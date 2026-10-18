@@ -20215,3 +20215,17 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   the "pre" pools of grant 1 / 1b and epoch 1b, while the timecourse / licks-per-trial rows use the curated set
   (epoch_behaviour.py:119 already notes the 61-vs-44 mismatch).
 
+* **Orofacial: two pre-stroke baselines side by side; W2 spatial readout (10-18, Priya)**: June -> August pre drift is as
+  large as many stroke effects (close contact +0.40-0.47, protrusion -14 to -36 px, peak speed -550 to -1,140 px/s, all
+  4 animals) -- learning / framing. Every orofacial cohort output now also renders with `--baseline late` (pre sessions
+  >= `late_pre_from` 0801, i.e. August only; 8 / 7 / 8 / 8 pre sessions) into `*_latepre` folders + a second deck;
+  findings (docs/OROFACIAL_FINDINGS.md, rewritten) report only effects significant by both tests under BOTH baselines.
+  Acute: 52 such cells (+5 only-all, +5 only-late); subacute 20; chronic 18 (12 all-pre-only cells dropped, e.g. chronic
+  close contact +0.13 -> +0.01 under August-only). W2 (`wfield_local/orofacial_w2.py`, exact optimal transport via
+  scipy `linear_sum_assignment`, 800 points x 3 seeded draws, pre = leave-one-out): tongue +61 px far contra acute,
+  chronic +6-11 px at far ipsi / contra under both baselines. Controls: nose / spout in the MOUTH frame flat under the
+  all-pre baseline, but with the tight August reference the nose shifts +3-4 px acute and chronic -> ~3-4 px is the
+  mouth-frame drift floor for chronic positional claims; raw IMAGE framing drifts ~30-45 px by chronic (all 4 animals),
+  so image-pixel positions are unusable across months. Jaw FAR_DIR (ipsi - contra difference) cancels common-mode drift:
+  its chronic -4.5 px is kept. Per-lick phase shown / tested 0.1-0.9 (edge artefacts). Imaging August-only sensitivity:
+  being scoped, nothing re-run.

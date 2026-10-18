@@ -47,26 +47,52 @@ SECTIONS = [
          "Cohort phase portraits, tongue OUT only (within-animal)", ""),
         ("prepost/cohort_lick_time_first_minus_pre_inmouth_excl.png", "FIRST lick, lick-peak-aligned time -- tongue OUT only",
          "Rows: protrusion, lateral, angle (change vs pre), speed |v| raw and change."),
+        ("prepost/cohort_lick_time_first_raw_inmouth_excl.png", "FIRST lick, lick-peak-aligned time -- tongue OUT only, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_lick_time_first_minus_pre_inmouth_incl.png", "FIRST lick, lick-peak-aligned time -- in-mouth INCLUDED",
          "Rows: protrusion, lateral, angle (change vs pre), speed |v| raw and change."),
+        ("prepost/cohort_lick_time_first_raw_inmouth_incl.png", "FIRST lick, lick-peak-aligned time -- in-mouth INCLUDED, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_lick_time_all_minus_pre_inmouth_excl.png", "ALL post-cue licks, lick-peak-aligned time -- tongue OUT only",
          "Rows: protrusion, lateral, angle (change vs pre), speed |v| raw and change."),
+        ("prepost/cohort_lick_time_all_raw_inmouth_excl.png", "ALL post-cue licks, lick-peak-aligned time -- tongue OUT only, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_lick_time_all_minus_pre_inmouth_incl.png", "ALL post-cue licks, lick-peak-aligned time -- in-mouth INCLUDED",
          "Rows: protrusion, lateral, angle (change vs pre), speed |v| raw and change."),
+        ("prepost/cohort_lick_time_all_raw_inmouth_incl.png", "ALL post-cue licks, lick-peak-aligned time -- in-mouth INCLUDED, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_lick_phase_first_minus_pre_inmouth_excl.png", "FIRST lick, per-lick phase (onset to offset) -- tongue OUT only",
          "0 = tongue leaves the mouth, 1 = back in."),
+        ("prepost/cohort_lick_phase_first_raw_inmouth_excl.png", "FIRST lick, per-lick phase (onset to offset) -- tongue OUT only, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_lick_phase_first_minus_pre_inmouth_incl.png", "FIRST lick, per-lick phase (onset to offset) -- in-mouth INCLUDED",
          "0 = tongue leaves the mouth, 1 = back in."),
+        ("prepost/cohort_lick_phase_first_raw_inmouth_incl.png", "FIRST lick, per-lick phase (onset to offset) -- in-mouth INCLUDED, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_lick_phase_all_minus_pre_inmouth_excl.png", "ALL post-cue licks, per-lick phase (onset to offset) -- tongue OUT only",
          "0 = tongue leaves the mouth, 1 = back in."),
+        ("prepost/cohort_lick_phase_all_raw_inmouth_excl.png", "ALL post-cue licks, per-lick phase (onset to offset) -- tongue OUT only, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_lick_phase_all_minus_pre_inmouth_incl.png", "ALL post-cue licks, per-lick phase (onset to offset) -- in-mouth INCLUDED",
          "0 = tongue leaves the mouth, 1 = back in."),
+        ("prepost/cohort_lick_phase_all_raw_inmouth_incl.png", "ALL post-cue licks, per-lick phase (onset to offset) -- in-mouth INCLUDED, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_cue_minus_pre_inmouth_excl.png", "Cue-aligned (Family 8.2) -- tongue OUT only",
          "Every frame of every trial; bars: cluster permutation p < 0.05 vs pre."),
+        ("prepost/cohort_cue_raw_inmouth_excl.png", "Cue-aligned (Family 8.2) -- tongue OUT only, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_cue_minus_pre_inmouth_incl.png", "Cue-aligned (Family 8.2) -- in-mouth INCLUDED", ""),
+        ("prepost/cohort_cue_raw_inmouth_incl.png", "Cue-aligned (Family 8.2) -- in-mouth INCLUDED, RAW",
+         "Raw levels per epoch, pre as its own curve; dashed = spout angle."),
         ("prepost/cohort_trajectory_xy_inmouth_incl.png", "Cohort tongue-tip paths, raw (pooled over animals)",
          "Not within-animal: PS93's pre-existing deficit enters; see the within-animal version."),
         ("prepost/cohort_phase_portrait_inmouth_incl.png", "Cohort lick phase portraits, raw (pooled over animals)", ""),
+    ]),
+    ("Spatial distributions -- Wasserstein-2 vs own pre-stroke cloud", [
+        ("w2/epochs_by_position.png", "W2 distance from the animal's own pre-stroke keypoint cloud, by epoch",
+         "Tongue / jaw in the mouth frame; nose / spout in the mouth frame = controls (should not move); *_img = raw "
+         "image pixels (framing drift only). Pre = leave-one-out noise floor."),
+        ("w2/timecourse_by_position.png", "W2 distance from own pre, day bins", ""),
     ]),
     ("Jaw lateral readout (whole sessions)", [
         ("jaw_lateral/timecourse.png", "Jaw steering toward the target, day by day",
@@ -189,15 +215,18 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=RUN)
+    ap.add_argument("--baseline", choices=("all", "late"), default="all",
+                    help="'late' builds the deck from the *_latepre folders (August-only pre baseline)")
     a = ap.parse_args(argv)
+    sfx = "_latepre" if a.baseline == "late" else ""
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
     figs, tables = base / "figures", base / "tables"
     out = base / "deck"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    S = pd.read_csv(tables / "prepost" / "session_metrics.csv")
-    ST = pd.read_csv(tables / "prepost" / "stats" / "change_vs_pre_stats.csv")
+    S = pd.read_csv(tables / f"prepost{sfx}" / "session_metrics.csv")
+    ST = pd.read_csv(tables / f"prepost{sfx}" / "stats" / "change_vs_pre_stats.csv")
 
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(W_IN), Inches(H_IN)
@@ -206,7 +235,8 @@ def main(argv=None) -> int:
     counts = S.groupby(["animal", "epoch"]).size().unstack(fill_value=0)
     cnt = "; ".join(f"{an}: " + ", ".join(f"{e} {int(counts.loc[an].get(e, 0))}" for e in
                                           ("pre", "acute", "subacute", "chronic")) for an in counts.index)
-    _text(s, "Orofacial kinematics, pre vs post VLS stroke -- widefield cohort", 0.6, 2.2, 12, 1.0, 32, bold=True)
+    _text(s, "Orofacial kinematics, pre vs post VLS stroke -- widefield cohort"
+          + (" (baseline: LATE pre only)" if sfx else ""), 0.6, 2.2, 12, 1.0, 32, bold=True)
     _text(s, f"Pose model LP r4 (cleaning v35) -- run {a.run}\nCurated sessions: {len(S)} ({cnt})\n"
              f"Built {time.strftime('%Y-%m-%d %H:%M')} by wfield_local.orofacial_deck -- PRELIMINARY until every animal's "
              "sessions are in", 0.6, 3.4, 12, 2.0, 16, color=(60, 60, 60))
@@ -259,12 +289,12 @@ def main(argv=None) -> int:
         s = _blank(prs)
         _text(s, sec, 0.6, 3.0, 12, 1.2, 28, bold=True)
         for rel, title, cap in items:
-            png = figs / rel
+            png = figs / (rel.replace("prepost/", f"prepost{sfx}/").replace("w2/", f"w2{sfx}/"))
             if not png.exists():
                 missing.append(rel)
                 continue
             _figure_slide(prs, png, title, cap, f"{title}\n\n{cap}\n\nFigure file: {png}\n\n{STATS_METHODS}")
-    path = out / f"orofacial_prepost_{time.strftime('%Y%m%d')}.pptx"
+    path = out / f"orofacial_prepost{sfx}_{time.strftime('%Y%m%d')}.pptx"
     prs.save(path)
     print(f"{len(prs.slides)} slides -> {path}")
     if missing:

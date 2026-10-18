@@ -1350,3 +1350,7 @@ orofacial_cohort:             # inclusion thresholds for the cam4 pre- vs post-s
   cue_min_frames_per_bin: 25  # frames per 20 ms cue bin per session (sparse pre-cue bins drew spikes at 5)
   min_phase_intervals_per_bin: 5   # peak-to-peak intervals per normalised-phase bin per session
   walk_min_licks: 3           # licks per trial for the within-trial "walk" (homing) readout
+  late_pre_from: "0801"       # `--baseline late`: pre sessions dated >= this MMDD only (August, immediately before the
+                              #   stroke) -- June -> August pre drift is large (Priya 10-18: render both baselines)
+  lick_phase_show: [0.1, 0.9] # per-lick (onset -> offset) phase plotted AND tested only here: the edge frames carry
+                              #   artefacts (Priya 10-18)

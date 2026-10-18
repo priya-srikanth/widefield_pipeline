@@ -187,3 +187,12 @@ waits for the next cam4 model (labelling round 4).
   (lightning-pose 2.4.2 + NVIDIA DALI, which runs on O2's Linux nodes), and a training bundle analogous to the
   pose bundle. Test with one short training run before the real ensemble.
 * Try `gpu_quad` access; if granted, set `o2_inference.partition: gpu_quad`.
+
+## ViT (DINOv2) backbones need transformers 5.17.0 (2026-10-18)
+
+Training `vitb_dinov2` with the O2 `lp` env's newer transformers died at the first validation batch (37 s) with
+`TypeError: cannot unpack non-iterable int object` in `modeling_dinov2.interpolate_pos_encoding` -- Lightning Pose
+2.4.2 sets `patch_embeddings.patch_size` to an int. Fix (interactive node, not the login node):
+`conda activate lp && pip install "transformers==5.17.0"`, then resubmit only that array task
+(`sbatch --array=1 train.sbatch` after removing the failed model dir). ResNet / temporal-context models are unaffected.
+A batch job's `.err` shows no epoch progress bar; read `models/<name>/train_status.json` (completed / total epochs).

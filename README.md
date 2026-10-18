@@ -83,6 +83,13 @@ and the reason is measured rather than cautious — see below.
 | numpy | 2.2.6 | 2.2.6 |
 | torch | **2.11.0+cu128** | **2.11.0+cu128** |
 | also | aniposelib (calibration) | lightning 2.5.6, transformers, jax, kornia, aniposelib |
+| orofacial analysis | `orofacial_outputs`, `orofacial_jaw_lateral`, `orofacial_cohort`, `orofacial_w2` (scipy 1.15 -- the W2 readout's exact optimal transport is `scipy.optimize.linear_sum_assignment`; no POT needed) | -- |
+
+**Orofacial analysis runs in `dlc`** (numpy / scipy / pandas / matplotlib are all it needs); only `orofacial_deck` runs
+in `locanmf`, for python-pptx. **ViT backbones in `lp` need `transformers==5.17.0`** with Lightning Pose 2.4.2: a newer
+transformers fails at the first validation batch with `TypeError: cannot unpack non-iterable int object` in DINOv2's
+`interpolate_pos_encoding` (LP sets `patch_size` to an int). Found 2026-10-18 on O2; the local `lp` env already had
+5.17.0.
 
 **`torch` must be cu128 on this box and that is not optional.** The GPU is an RTX 5060 (Blackwell,
 `sm_120`, 8 GiB). A cu124 build does not have kernels for it. Install torch FIRST, from the cu128
