@@ -344,7 +344,7 @@ Jaw better; tongue not, on too few frames to say -- consistent with the tip-defi
 
 ---
 
-# Part C -- Evaluation plan and status, both cameras (proposed 2026-10-18; Priya decides)
+# Part C -- Evaluation plan and status, both cameras (2026-10-18; cam1 metrics agreed by Priya 10-18; she picks the winner)
 
 Every candidate is scored by the SAME scripts on the SAME clips, never by its own training metrics (LP holds out frames, not
 sessions, so its training numbers are not comparable with DLC's).
@@ -377,3 +377,64 @@ two): PS94 0814 / 0821 / 0908 (no PS94 cam1 labels on those dates). Metrics, in 
 | scored | LP r4 / ctx-semi 640 / ResNet-50 640 (10-18) | not yet -- cam1 scoring script (metrics 2-4) to write |
 | Priya's review | lick review done for the earlier models | not yet |
 | decision | production = LP r4 (10-15); revisit after ViT-B + eps35 | not yet |
+
+---
+
+# Part D -- 3-D output and cam1 clean traces (Priya 2026-10-18: 3-D IS an analysis output)
+
+## D1. The 3-D route (order)
+
+1. **Single-view models chosen per camera** (Parts C / B, in progress).
+2. **cam1 clean traces** (D2): gaps filled consistently and one-frame tip-end switches removed BEFORE triangulation -- the
+   10-05 calibrated EKS failed because occluded / wrong cam1 points set the 3-D depth (likelihood-blind initialisation).
+3. **Multi-view LP candidate** (cam1 round 2 + cam4 round 4, split-rule `visible`, no calibration -- the 10-06 pilot found
+   calibration added nothing). Why retry: the pilot's one win was the cam1 jaw behind the spout rod (99 vs 87 % confident),
+   exactly the centre-position jaw gap measured on DLC c1r2 (jaw confident 69 % close_center, 54 % far_center vs >= 96 %
+   elsewhere); the pilot used older labels on both cameras. LP 2.4.2 has no multi-view + context model, so if a context model
+   wins single-view, the multi-camera route is per-camera context models + the calibration-free multi-camera EKS
+   (`pose_eks`, smooth_param explicit). Scored like the single-view candidates.
+4. **anipose triangulation** (`wfield_local/dlc_anipose.py`, cam1-cam4 calibration: 22 board poses, 6-9 px reprojection on
+   labels) on the chosen cleaned traces, likelihood-filtered first; compared with the calibration-free multi-camera EKS.
+   Checks: reprojection error per keypoint, the spout tip's 3-D position against the commanded stage positions
+   (`spout_world`, within-session spout distances matched the command to 1-2 %), 3-D lick extent / angle per epoch.
+
+## D2. cam1 clean traces
+
+`orofacial_clean` now takes a camera (`params(bodypart, cam)`, `clean_windows(..., cam=)`, CLI `--cam`): cam4 = the
+top-level `orofacial_clean` values, untouched (pinned by tests); another camera = those values overlaid with
+`orofacial_clean.cameras.<cam>` in `configs/defaults.yaml`. **No cam1 overlay is set yet** -- the values must come from cam1
+data with Priya's QC, as cam4's v35 did.
+
+**Baseline diagnostic (cam4 values on DLC c1r2, PS93 0814, 60 trials, 10-18).** cam1 looks UP at the underside of the
+snout: nose at the top, mouth / jaw low in the image (jaw median y 456), the spout rod running down the middle of the face
+to the mouth (hence the nose blanks and the centre-position jaw occlusion). The tongue protrudes mostly UP the image
+(toward the nose) and sideways.
+
+* **Mouth origin:** the cam1 spout-line intersection (as on cam4) lands at (315, 389) -- plausible, to confirm on frames.
+* **Tongue:** confident on 9 % of clip frames; cleaning keeps 9 % raw, interpolates 2 %, fills 89 % with the baseline
+  (tongue in the mouth). Steps > 40 px rise from 160 raw to 806 after cleaning -- mostly the jump between the baseline fill and
+  a protruded tongue at every lick onset / offset, so on cam1 the metric must exclude fill transitions.
+* **Jaw:** confident 95 %; the data-driven baseline ("lowest y") lands at y 372 while the jaw's median is y 456 -- the cam4
+  assumption about which image direction is "closed" does not hold from below. v34 halves jaw steps > 20 px (629 -> 284).
+
+**To tune, each with a QC figure for Priya:** (1) tongue origin = cam1 mouth (spout-line intersection, checked on frames);
+(2) jaw baseline direction / resting jaw on cam1; (3) the px thresholds marked "OLD RIG" (x-range, jaw ceilings, frame-jump
+thresholds) rescaled from cam1 motion (B3: tongue p99 40, jaw p99 11 px/frame); (4) the PS93 jaw-flip rules (cam4 anatomy,
+v35) OFF on cam1 until shown to apply; (5) jaw cutoff 0.6 (cam1 analysis cutoff). Tune on DLC c1r2 now; re-check on the
+chosen cam1 model.
+
+## D3. June camera scale -- cam1 vs cam4 (10-18)
+
+cam4 June 0602-0608 is on a 12.9 % larger scale (v36, DECISIONS 2026-10-18 evening: x 0.8853 before cleaning). **cam1 is
+not**: the same ruler idea (pairwise distances between the six spout positions, per session, relative to the Aug+ median for
+that pair) on the LABELLED cam1 spout tips gives June 0606 = 0.988 / 0.994 / 0.996 / 1.009 (PS93 / PS92 / PS94 / PS95; median
+0.995) vs Aug+ median 1.000 (IQR 0.999-1.008, 17 sessions). So cam1 gets NO June factor (`px_scale` 1.0); only cam4's
+configuration changed. To confirm with the v36 method (no-lick ENL frames, `spout_frame.ruler_*`) on DLC predictions of the
+June cam1 sessions -- labelled spouts sit on lick frames (pushed 2-5 px), though a ratio of pairwise distances is robust to that.
+
+**Consequence for 3-D.** v36 multiplies June cam4 x, y about the image origin: right for 2-D px measures (protrusion, speed,
+relative to the mouth), WRONG as triangulation input (absolute positions move; the 09-11 calibration describes Aug+ cam4).
+With cam1 unchanged, June 3-D needs a June cam4 calibration: refit cam4 intrinsics / extrinsics from the six spout positions
+(known 3-D points, commanded and read back to 0.001 mm) with cam1 as the fixed reference -- the 10-05 proposal, now with a
+cause (and the likely source of that day's "June ~5 % too large" in the 3-D spout fit). Aug+ sessions use the 09-11
+calibration as is. Feed triangulation UN-rescaled pose (divide by `px_scale`).

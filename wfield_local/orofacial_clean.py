@@ -60,11 +60,23 @@ from wfield_local import config
 FILL_NONE, FILL_PCHIP, FILL_LINEAR, FILL_BASELINE = 0, 1, 2, 3
 
 
-def params(bodypart: str) -> dict:
-    """`orofacial_clean.<bodypart>` merged with the shared keys (method, fallback, baseline)."""
+def _merge(base: dict, over: dict) -> dict:
+    out = dict(base)
+    for k, v in (over or {}).items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def params(bodypart: str, cam: str = "cam4") -> dict:
+    """`orofacial_clean.<bodypart>` merged with the shared keys (method, fallback, baseline), then -- for a camera other
+    than cam4 -- the overlay `orofacial_clean.cameras.<cam>` (2026-10-18, cam1 cleaning). The top-level values ARE cam4's:
+    every threshold below was tuned on cam4, so cam4 takes no overlay and its output is unchanged by this layer."""
     c = config.defaults()["orofacial_clean"]
-    return {**c[bodypart], "interpolation_method": c["interpolation_method"],
+    base = {**c[bodypart], "interpolation_method": c["interpolation_method"],
             "interpolation_fallback": c["interpolation_fallback"], "baseline": c["baseline"]}
+    over = ((c.get("cameras") or {}).get(cam) or {}) if cam != "cam4" else {}
+    shared = {k: v for k, v in over.items() if k in ("interpolation_method", "interpolation_fallback", "baseline")}
+    return _merge(_merge(base, shared), over.get(bodypart) or {})
 
 
 # --------------------------------------------------------------------------- input
@@ -254,9 +266,9 @@ class Clean:
 
 
 def clean_bodypart(df: pd.DataFrame, bodypart: str, centers, fps: float = 250.0, p: dict | None = None,
-                   x0y0: tuple[float, float] | None = None) -> Clean:
+                   x0y0: tuple[float, float] | None = None, cam: str = "cam4") -> Clean:
     """v5p3 on one session (or one concatenation of windows -- see `clean_windows`)."""
-    p = p or params(bodypart)
+    p = p or params(bodypart, cam)
     x, y, lk = (df[f"{bodypart}_{c}"].to_numpy(float) for c in ("x", "y", "likelihood"))
     xr, yr = _stage_xrange(x, y, lk, x_range_pm=float(p["x_range_pm"]), x_range_source=str(p["x_range_source"]),
                            lk_thr=float(p["lk_thr"]))
@@ -373,9 +385,9 @@ def jaw_session_baselines(x_final, y_final, centers, fps, win_ms=(-500.0, 0.0)):
     return float(np.median(by)), float(np.median(bx)) if bx else 0.0
 
 
-def jaw_v34(c: Clean, centers, q: dict | None = None) -> Clean:
+def jaw_v34(c: Clean, centers, q: dict | None = None, cam: str = "cam4") -> Clean:
     """Apply the v3.4 cleanup to an interpolated jaw `Clean`; returns a new `Clean` (x/y_final re-PCHIP'd)."""
-    q = q or params("jaw")["v34"]
+    q = q or params("jaw", cam)["v34"]
     fps, n = c.fps, len(c.y_final)
     bl = jaw_session_baselines(c.x_final, c.y_final, centers, fps, tuple(q["baseline_win_ms"]))
     if bl is None:
@@ -494,17 +506,17 @@ def mean_sem(A) -> tuple[np.ndarray, np.ndarray]:
     return np.nanmean(A, 0), np.nanstd(A, 0) / np.where(d == 0, np.nan, d)
 
 
-def jaw_off_tongue(df: pd.DataFrame, q: dict | None = None) -> pd.DataFrame:
+def jaw_off_tongue(df: pd.DataFrame, q: dict | None = None, cam: str = "cam4") -> pd.DataFrame:
     """OURS (Priya 2026-10-15, PS93 0814 trial 125 +1616 ms, LP r4): a jaw point sitting ON a far-protruded tongue tip
     is the jaw riding the tongue (the real jaw is up near the mouth, hidden behind the tongue). Such frames get jaw
     likelihood 0, i.e. "not visible", before any cleaning: jaw within `tongue_ride_px` of a confident tongue point
     while that tongue point is more than `tongue_out_px` from the jaw's resting position (median of confident jaw).
     Off unless `jaw.v34.tongue_ride_px` is set. Needs tongue columns in ``df`` (skipped otherwise)."""
-    q = q or params("jaw")["v34"]
+    q = q or params("jaw", cam)["v34"]
     ride = q.get("tongue_ride_px")
     if ride is None or "tongue_x" not in df.columns:
         return df
-    lk_cut = float(params("jaw")["lk_thr"])
+    lk_cut = float(params("jaw", cam)["lk_thr"])
     jx, jy, jl = (df[f"jaw_{c}"].to_numpy(float) for c in ("x", "y", "likelihood"))
     tx, ty, tl = (df[f"tongue_{c}"].to_numpy(float) for c in ("x", "y", "likelihood"))
     okj = jl >= lk_cut
@@ -521,7 +533,7 @@ def jaw_off_tongue(df: pd.DataFrame, q: dict | None = None) -> pd.DataFrame:
 
 
 def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: float = 250.0, sep: int = 300,
-                  x0y0: tuple[float, float] | None = None):
+                  x0y0: tuple[float, float] | None = None, cam: str = "cam4"):
     """Clean a clip made of concatenated cue windows (`scripts.pose_cue_traces clip` index: trial_k, t_ms).
 
     Windows are joined with ``sep`` NaN frames (longer than any max gap, so nothing is filled across a window
@@ -539,10 +551,10 @@ def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: flo
         k += sep
     big = pd.concat(parts, ignore_index=True)
     if bodypart == "jaw":
-        big = jaw_off_tongue(big)
-    c = clean_bodypart(big, bodypart, cues, fps, x0y0=x0y0)
-    if bodypart == "jaw" and params("jaw")["v34"].get("enabled", True):
-        c = jaw_v34(c, cues)
+        big = jaw_off_tongue(big, cam=cam)
+    c = clean_bodypart(big, bodypart, cues, fps, x0y0=x0y0, cam=cam)
+    if bodypart == "jaw" and params("jaw", cam)["v34"].get("enabled", True):
+        c = jaw_v34(c, cues, cam=cam)
     return c, np.concatenate(pos), np.array(cues)
 
 
@@ -564,16 +576,16 @@ def main(argv=None) -> int:
     if a.windows is not None:
         idx = pd.read_csv(a.windows).iloc[:len(df)]
         for bp in ("tongue", "jaw"):
-            c, pos, _ = clean_windows(df, idx, bp)
+            c, pos, _ = clean_windows(df, idx, bp, cam=a.cam)
             res[bp] = (c, pos)
     else:
         tpl = dict(np.load(Path(rv.root("alignment_templates")) / a.cam / animal / f"{date}.npz", allow_pickle=True))
         tr = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob(f"{animal}_{date}_*_trials.csv"))[-1]
         centers = cue_frames(tpl, pd.read_csv(tr)["cue_s"].dropna())
         for bp in ("tongue", "jaw"):
-            c = clean_bodypart(df, bp, centers, float(tpl.get("fps_cam", 250.0)))
-            if bp == "jaw" and params("jaw")["v34"].get("enabled", True):
-                c = jaw_v34(c, centers)
+            c = clean_bodypart(df, bp, centers, float(tpl.get("fps_cam", 250.0)), cam=a.cam)
+            if bp == "jaw" and params("jaw", a.cam)["v34"].get("enabled", True):
+                c = jaw_v34(c, centers, cam=a.cam)
             res[bp] = (c, np.arange(len(df)))
     out = a.out or a.pose.with_name(a.pose.stem + "_clean.npz")
     arrs = {}

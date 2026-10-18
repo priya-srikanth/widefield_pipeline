@@ -160,3 +160,33 @@ def test_snippet_pads_and_mean_sem():
     assert np.isnan(oc.snippet(a, 1, 3, 2)[:2]).all() and oc.snippet(a, 1, 3, 2)[2] == 0.0
     m, s = oc.mean_sem(np.array([[1.0, np.nan], [3.0, np.nan]]))
     assert m[0] == 2.0 and np.isnan(m[1]) and np.isclose(s[0], 1.0 / np.sqrt(2))
+
+
+# --------------------------------------------------------------------------- per-camera overlay (2026-10-18, cam1 cleaning)
+
+def _with_overlay(monkeypatch, overlay):
+    import copy
+    from wfield_local import config
+    real = config.defaults()
+    d = copy.deepcopy(real)
+    d["orofacial_clean"]["cameras"] = overlay
+    monkeypatch.setattr(oc.config, "defaults", lambda: d)
+    return real["orofacial_clean"]
+
+
+def test_cam4_params_ignore_any_camera_overlay(monkeypatch):
+    """cam4 IS the top level: a cam1 overlay must never leak into cam4 cleaning."""
+    before = {bp: oc.params(bp) for bp in ("tongue", "jaw")}
+    _with_overlay(monkeypatch, {"cam1": {"tongue": {"lk_thr": 0.9}, "jaw": {"v34": {"enabled": False}}},
+                                "cam4": {"tongue": {"lk_thr": 0.1}}})
+    for bp in ("tongue", "jaw"):
+        assert oc.params(bp) == before[bp] == oc.params(bp, "cam4")
+
+
+def test_camera_overlay_merges_nested_keys_and_keeps_the_rest(monkeypatch):
+    top = _with_overlay(monkeypatch, {"cam1": {"jaw": {"lk_thr": 0.6, "v34": {"x_flip_step_px": None}}}})
+    j = oc.params("jaw", "cam1")
+    assert j["lk_thr"] == 0.6 and j["v34"]["x_flip_step_px"] is None
+    assert j["v34"]["y_ceiling_px"] == top["jaw"]["v34"]["y_ceiling_px"]      # untouched nested key survives
+    assert j["max_gap_ms"] == top["jaw"]["max_gap_ms"]
+    assert oc.params("tongue", "cam1") == oc.params("tongue")                  # no tongue overlay -> cam4 values
