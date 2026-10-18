@@ -557,3 +557,13 @@ that direction). Consequences:
   days. Read day-to-day changes in small-lick extent with this in mind; compare within a session where possible.
 * Not yet quantified across the cohort: triangulating the nose into each session's mouth-centred frame (as in D5) gives the
   set-point jitter per session for every session with cam1 + cam4 spout positions.
+
+## D7. The other tongue / jaw cleaning stages on cam1 (10-18; PS93 0814 / 0821, cam1 mouth = D6, cam4 LP r4 as reference)
+
+Kept as cam4: the x-range filter (drops <= 0.02 % of confident cam1 points), the isolated-point rule (cam1 DLC drops 1.4-2.2 %,
+LP 0.4-1.4 %, cam4 0.5-0.8 % -- single-frame flicker, the rule working), gap filling (tongue 1.9-4.8 % of post-cue frames
+filled, cam4 2.5-3.4 %; jaw similar), the jaw rest ("lowest y" = closed: the cam1 jaw also opens down). CHANGED (proposed): the
+between-lick veto's `interlick_near_px` 80 -> 45 and `interlick_speed_px` 3 -> 1.7 -- cam1 sees the tongue's reach foreshortened
+(distance from the mouth median 36-50 vs 73-98 px, p95 71-106 vs 156-186), so 80 px covered 81-98 % of cam1 tongue frames and
+the veto would also fire on slides round the spout rod. Same foreshortening for ANALYSIS thresholds measured from the mouth:
+cam4's 20 px in-mouth cutoff corresponds to ~10-11 px on cam1 -- set cam1 thresholds from cam1 distributions, not cam4's px.
