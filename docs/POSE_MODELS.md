@@ -499,3 +499,13 @@ check: spout drift and pre-cue false tongue detections against TRIAL NUMBER (dro
 LP finds more contacts and is steadier pre, but its tongue teleports triple on the acute session -- an EPOCH-dependent
 difference (gate 1); not called on one animal: needs PS93 0908 and PS94, and the ctx-semi / eps40 models. The > 40 px count
 was first proposed as the tip-jump metric; at the cam1 p99 it counts ~1 % of real steps, so > 60 px (p99.9) is the teleport count.
+
+**Water makes false TONGUE detections (Priya's frames 10-18: PS93 0814 trial 540, a large drop under the tip late in the
+session; DLC c1r2 puts a confident tongue point at the bottom of the drop, spout correctly on the rod end).** Post-cue, trials
+with no DAQ contact vs with contacts (PS93 0814): tongue confident 1.9-2.6 % vs 21-24 % of frames; DLC c1r2's no-contact
+detections are slow and STATIC (median step 2.2 px, 23 % of frames < 1 px; contact trials 7.1 px, 4 %), LP c1r2's mostly not
+(8 % static). 0821 (acute) is mixed -- many of its 31 no-contact trials carry real incomplete licks. Small in frames, but it
+lands on licks without contact, the measure that matters most. Fixes, strongest first: (1) drop frames (drop under the tip,
+tongue blank) as hard negatives in the next labelling round (late, sated trials); (2) a cleaning guard against static tongue
+runs at the spout tip -- measure what it costs real licks first; (3) include late, sated trials in the cam1 lick review.
+Check the cam4 LP r4 "false detections on the spout rod" (lick review 10-14) for drops too.
