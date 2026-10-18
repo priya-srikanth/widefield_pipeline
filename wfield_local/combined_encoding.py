@@ -65,6 +65,16 @@ import numpy as np
 import pandas as pd
 
 SMOKE_ENV = "COMBINED_ENCODING_SMOKE"   # =1: fit only the models the post-fit code needs (a fast end-to-end check)
+#: VIDEO (Priya 10-18, O2 motion-energy pilot `me_pilot_20261018`): comma-separated cameras, e.g. "cam1,cam4". When set
+#: AND the session has `video_motion_<cam>.npz`, the top VIDEO_K motion-energy components per camera enter as an extra
+#: uninstructed-movement variable, BLANKED outside position strobe .. trial stop (the spout repositions between trials;
+#: DECISIONS 2026-10-06 -- no pixel mask, treadmill kept as locomotion). Two readouts, the primary model untouched:
+#:   video:full                      Musall placement: video ORTHOGONALISED against every other variable, added last ->
+#:                                   video:full - full = what video explains that nothing else does;
+#:   video:raw:full / video:drop:*   order-free with raw video IN -> does position / task / target / executed survive
+#:                                   video (compare with raw:full - drop:* without video)?
+VIDEO_ENV = "COMBINED_ENCODING_VIDEO"
+VIDEO_K = 50
 RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned workers see it (tests/test_parallel_results...)
 
 
@@ -532,6 +542,21 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             orth[v] = Xo[:, c:c + raw[v].shape[1]]
             c += raw[v].shape[1]
         earlier = Xg if earlier is None else np.hstack([earlier, Xg])
+    # VIDEO (optional, see VIDEO_ENV)
+    vid_raw = vid_orth = None
+    cams = [c for c in (os.environ.get(VIDEO_ENV) or "").split(",") if c]
+    if cams:
+        from scripts.movement_encoding_session import video_signals
+        try:
+            sig = video_signals(animal, date, rv, ft, cams, k=VIDEO_K)
+        except FileNotFoundError:
+            sig = {}
+        if sig:
+            Xv = np.column_stack([sig[k_][1] for k_ in sorted(sig)])
+            vid_raw = _z(Xv, ridx)[ridx]                        # blanked (NaN) frames -> 0
+            blank = ~np.isfinite(Xv[ridx]).any(1)
+            vid_orth = _residualise(vid_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
+            vid_orth[blank] = 0.0                               # residualising must not put signal back into blanked frames
     # shuffled orthogonalised blocks
     shift_min = int(SHIFT_MIN_S / np.median(np.diff(ft)))
     shuf = {}
@@ -565,12 +590,15 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     for v in EXTRA_GROUP:
         if v in raw:
             add(("raw", v), raw[v])
+    if vid_raw is not None:
+        add(("raw", "video"), vid_raw)
+        add(("orth", "video"), vid_orth)
     A = np.hstack(blocks)
     Y = V[ridx]
     eng = Engine(A, Y, fold, win)
     grp_of_col = np.empty(A.shape[1], object)
     for (_kind, v), ix in layout.items():
-        grp_of_col[ix] = {**GROUP_OF, **EXTRA_GROUP}[v]
+        grp_of_col[ix] = {**GROUP_OF, **EXTRA_GROUP, "video": "video"}[v]
 
     def cols(spec):
         """spec: list of (kind, var) -> universe column indices."""
@@ -588,6 +616,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         for g in GROUPS:
             best = max(ALPHA_GRID, key=lambda a: score(full_spec, {**alphas, g: a}))
             alphas[g] = best
+    alphas["video"] = 100.0                                   # start value; every video model searches its own
 
     # 2x2-pixel blocks for the stored maps (sums of SSE / SST per block -> exact block R^2)
     rr, cc = np.unravel_index(flat, shape)
@@ -653,9 +682,21 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     # coordinate pass over ALPHA_GRID from the full model's values, same held-out criterion). Borrowing the full
     # model's penalties made single-variable models over- / under-fit (the full model's instructed penalty ranged 10 ..
     # 1000 by session), so "alone" went NEGATIVE for jaw / instructed and was not the upper bound it is meant to be.
+    if vid_raw is not None:
+        rawfull = [("raw", w) for w in GROUP_OF]
+        models["video:full"] = full_spec + [("orth", "video")]
+        models["video:alone"] = [("raw", "video")]
+        models["video:raw:full"] = rawfull + [("raw", "video")]
+        for g in (*GROUPS, "position"):
+            drop = POS_VARS if g == "position" else [w for w in GROUP_OF if GROUP_OF[w] == g]
+            models[f"video:drop:{g}"] = [x for x in rawfull if x[1] not in drop] + [("raw", "video")]
+        for name in ("angle:position", "lickangle:position"):
+            if name in models:
+                models[f"video:{name}"] = models[name] + [("raw", "video")]
     if os.environ.get(SMOKE_ENV):                   # end-to-end check of the post-fit code without the full model set
         keep = {"full", *TR_MODELS, "raw:full", "angle:position", "lickangle:position", "notxy:full",
-                "notxy:drop:position", "notxy:angle:position", "notxy:lickangle:position"}
+                "notxy:drop:position", "notxy:angle:position", "notxy:lickangle:position",
+                *(k for k in models if k.startswith("video:"))}
         models = {k: v for k, v in models.items() if k in keep}
     model_alphas = {"full": dict(alphas)}
     for name, spec in models.items():
@@ -667,7 +708,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             model_alphas[name] = dict(alphas)
             continue
         al = dict(alphas)
-        present = sorted({grp_of_col[i] for i in cols(spec)}, key=GROUPS.index)
+        present = sorted({grp_of_col[i] for i in cols(spec)}, key=(*GROUPS, "video").index)
         for g in present:
             al[g] = max(ALPHA_GRID, key=lambda a: score(spec, {**al, g: a}))
         model_alphas[name] = al
@@ -675,7 +716,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
     res = {"label": label, "animal": animal, "date": date, "epoch": epochs.epoch_of(label),
            "day": epochs.days_since_stroke(label), "order": order, "alphas": alphas, "gate": B.gate,
-           "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft)))}
+           "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft))),
+           "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K}
     maps, region = {}, []
     tot_pix = {}
     amask = {a: (parea == a) & pstat for a in areas}          # region values on the eroded stat mask
@@ -700,7 +742,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     ixf = cols(full_spec) + 1
     Gn = eng.Gt[np.ix_(ixf, ixf)]
     dsc = np.sqrt(np.clip(np.diag(Gn), 1e-12, None))
-    Gc = Gn / np.outer(dsc, dsc) + 1e-10 * np.eye(len(ixf))
+    Gc = Gn / np.outer(dsc, dsc) + 1e-6 * np.eye(len(ixf))     # 1e-10 failed on exactly collinear columns (all NaN)
     try:
         Lc = np.linalg.cholesky(Gc)
         csa = np.abs(np.diag(Lc))
@@ -786,7 +828,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
 
 def out_dir(rv, order: str) -> Path:
     from wfield_local import orofacial_outputs as oo
-    return oo.root(rv) / _run() / "imaging_encoding" / order
+    cams = [c for c in (os.environ.get(VIDEO_ENV) or "").split(",") if c]
+    # a VIDEO run never writes into the primary folder: <order>_video-<cams>
+    return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else ""))
 
 
 def save(out: dict, d: Path) -> None:
@@ -841,12 +885,26 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=3, help="sessions in parallel (each ~3-4 GB)")
     ap.add_argument("--run", default=None, help="LP run (default: orofacial_cohort.RUN); outputs go under it")
     ap.add_argument("--skip-done", action="store_true")
+    ap.add_argument("--video", default=None, help="cameras for the video variable, e.g. cam1,cam4 (sets "
+                    f"{VIDEO_ENV}; outputs -> <order>_video-<cams>/; sessions without motion energy are skipped)")
     a = ap.parse_args(argv)
     if a.run:
-        import os
         os.environ[RUN_ENV] = a.run
+    if a.video:
+        os.environ[VIDEO_ENV] = a.video
     from wfield_local.paths import PathResolver
     labels = sessions_available() if a.all else a.labels
+    if a.video:                                             # only sessions with every camera's motion energy
+        from scripts.session_poses import session_dir
+        from wfield_local import config as _cfg
+        rv_ = PathResolver()
+
+        def _has(x):
+            an = _cfg.animal_of(x)
+            d = session_dir(rv_, f"{an}:2026{x.split('_')[-1]}:full")[2]
+            return all((d / f"video_motion_{c}.npz").exists() for c in a.video.split(","))
+        labels = [x for x in labels if _has(x)]
+        print(f"video run ({a.video}): {len(labels)} sessions with motion energy")
     if a.skip_done:
         d = out_dir(PathResolver(), a.order) / "sessions"
         labels = [x for x in labels if not (d / f"{x}.json").exists()]
