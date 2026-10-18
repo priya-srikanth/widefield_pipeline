@@ -621,11 +621,16 @@ Runs that never get below the mouth (a pale bump at the lips, LP confident, mout
 
 Median lateral error, contact licks (px; pre / acute / chronic): close_L -6 / -29 / -26; close_center (+ = left) +18 / +1 / -7;
 close_R -41 / -14 / -16; far_L -39 / -49 / -60; far_R -32 / - / -50; far_center +1 / 0 / -3.
-Lesions are LEFT (ipsi = mouse left = cam1 IMAGE RIGHT). PS93's licks move toward the mouse's RIGHT (contra) after the stroke.
-**That agrees with PS93's own cam4 angles** (production LP r4 v36 `licks.csv`, contact licks, same trials; + = ipsi): close_center
-+9.5 -> -9.7 / -11.8 deg, close_R -0.7 -> -7.5 / -8.0, close_L 8.5 -> 5.7 / 1.8, far_L 18.5 -> 16.5 / 9.2. The cohort's "acute
-licks aim ipsi" (OROFACIAL_FINDINGS 2) is pooled; PS93 is the known exception (right deviation already pre-stroke). Not the spout
-set point either (nose lateral in the cam1 mouth frame moved +6.5 px, the other way).
+Lesions are LEFT (ipsi = mouse left = cam1 IMAGE RIGHT). On these three clips PS93's licks look shifted to the mouse's RIGHT
+after the stroke, and PS93's cam4 angles on the same trials agree -- **but that is a BASELINE ARTEFACT, corrected 10-18 (Priya:
+"I thought PS93 also shifted LEFT")**. Over all curated sessions (median of session medians, cam4 contact licks, + = ipsi)
+PS93 shifts LEFT acutely like the cohort: close_center +10.0, far_center +9.5, far_R +5.9 deg (acute - all pre). 0814 is an odd
+pre day: PS93's close_center angle is BIMODAL across sessions -- about -10 deg on most days, +5 .. +10 on 0814, 0818, 0820, 0915,
+0918, 1002 -- while close_L / close_R do not jump on those days (so not a reference-frame flip): PS93 seems to lick the OTHER
+SIDE of the centre spout on some days, and cam1 shows the same (close_center lateral +18 px on 0814, ~+1 on 0821). A cam1
+epoch comparison needs several sessions per epoch, not one clip day each. (Nose lateral in the cam1 mouth frame moved +6.5 px
+between these days: not the spout set point.) NB cam4 is a FRONTAL view (face from the front, tongue down toward the spouts),
+not a side view as written in places above.
 **But the PEAK definition is not trustworthy on cam1 (Priya 10-18: "peak protrusion may not be the furthest distance on cam1
 since it's at a funny angle"):** the clouds lie along diagonals and pre-stroke licks reach deeper, so the most-ventral frame's
 lateral position covaries with reach; at close_R the pre-stroke "peaks" sit on the opposite side of the mouth from the spout
@@ -637,11 +642,12 @@ lateral position covaries with reach; at close_R the pre-stroke "peaks" sit on t
 clock on one 4 ms grid: 99.99 % of cam1 frames have a cam4 frame at EXACTLY the same t_ms (worst case one frame; the template is
 finer still). (The "~12 ms" in B4 is cross-camera agreement of two models' onset estimates -- tracking, not clock.) cam1 sees the
 tongue at cam4's peak for 79-100 % of licks. Per lick, cam1 lateral vs cam4 peak angle: Spearman 0.77 pooled; within position
-0.74-0.88 (far_L, close_L, both centres), **close_R 0.45, far_R -0.02** -- the cameras disagree on the right-hand positions (to
-look at: which camera is wrong there). Contact licks, lateral error px (pre / acute / chronic): close_L -17 / -34 / -35;
-close_center (+ = left) +20 / +1 / -8; close_R -40 / -21 / -16; far_center -13 / -3 / -8; far_L -42 / -49 / -62. So the
-contra (mouse-right) shift of PS93 at the close positions survives a cam4-defined peak, matching its cam4 angles. Still one
-animal and an unchosen cam1 model.
+0.74-0.88 (far_L, close_L, both centres), close_R 0.45, far_R -0.02. **The right-hand disagreement is near-mouth events**
+(frames: tongue at the lips late in the trial, cam4 angle -65 / -73 deg -- the angle of a point at the mouth is unstable):
+restricted to cam1 tongue > 30 px below the mouth, rho = far_R 0.80, close_R 0.83, close_L 0.75, close_center 0.81, far_L 0.92,
+far_center 0.66. So the two cameras measure the same lateral aim once the tongue is really out -- use a protrusion floor for any
+angle / lateral measure. Contact licks, lateral error px on the three clip days (pre / acute / chronic): close_L -17 / -34 / -35;
+close_center (+ = left) +20 / +1 / -8; close_R -40 / -21 / -16 -- the apparent rightward shift is the 0814 baseline (above).
 
 ### cam4 LP r4 eps35 (O2, scored 2026-10-18)
 
