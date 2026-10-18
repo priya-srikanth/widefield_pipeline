@@ -2101,6 +2101,144 @@ def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str,
     _save(plt, fig, path)
 
 
+def _path_cols(part: str, portrait: bool, inmouth: str) -> tuple[str, str]:
+    if part == "jaw":
+        return ("jaw_open_px", "jaw_vel_px_s") if portrait else ("jaw_lat_px", "jaw_fwd_px")
+    if inmouth == "incl":
+        return ("protrusion_px", "velocity_px_s") if portrait else ("lat_px", "out_px")
+    return ("protrusion_out_px", "velocity_out_px_s") if portrait else ("lat_out_px", "out_out_px")
+
+
+def fig_cohort_delta_paths(PH: pd.DataFrame, path: Path, title: str, portrait: bool = False, inmouth: str = "incl",
+                           part: str = "tongue") -> None:
+    """DELTA trajectory (Priya 10-18): per session, the path minus ITS animal's mean pre path at that position; mean over
+    sessions. Origin = each animal's own pre path, so no cohort-pooled pre path is implied (the `_within` figure draws the
+    same deltas on the pooled pre path, which no animal makes -- e.g. PS93's rightward far-ipsi baseline). x-y: delta
+    lateral vs delta forward (forward drawn DOWN, camera orientation); portrait: delta protrusion / opening vs delta
+    speed. Markers = the same per-coordinate cluster test as the `_within` figure."""
+    W = PH[PH.t_ms.abs() <= PORTRAIT_HALF_MS]
+    xc, yc = _path_cols(part, portrait, inmouth)
+    if xc not in W:
+        return
+    jaw = part == "jaw"
+    plt = _plt()
+    fig, axs = plt.subplots(1, len(POS_ORDER), figsize=(3.9 * len(POS_ORDER), 4.4), squeeze=False,
+                            sharex=True, sharey=True)
+    fig.subplots_adjust(left=0.05, right=0.88, wspace=0.08, top=0.72)
+    for j, p in enumerate(POS_ORDER):
+        ax = axs[0][j]
+        ax.axhline(0, color="0.8", lw=0.8, zorder=0)
+        ax.axvline(0, color="0.8", lw=0.8, zorder=0)
+        gp = W[(W.pos == p) & (W.epoch == "pre")]
+        if not len(gp):
+            continue
+        bx = gp.pivot_table(index=["animal", "date"], columns="t_ms", values=xc).groupby(level=0).mean()
+        by = gp.pivot_table(index=["animal", "date"], columns="t_ms", values=yc).groupby(level=0).mean()
+        ax.plot(0, 0, "k+", ms=9, mew=1.5, zorder=4, label="own pre (origin)")
+        for e in EPOCH_ORDER[1:]:
+            g = W[(W.pos == p) & (W.epoch == e)]
+            if not len(g):
+                continue
+            px = g.pivot_table(index=["animal", "date"], columns="t_ms", values=xc)
+            py = g.pivot_table(index=["animal", "date"], columns="t_ms", values=yc)
+            an = px.index.get_level_values(0)
+            dx = px - bx.reindex(an).set_axis(px.index)
+            dy = py - by.reindex(py.index.get_level_values(0)).set_axis(py.index)
+            mx, my = dx.mean(), dy.mean()
+            sx, sy = dx.std(ddof=1) / np.sqrt(len(dx)), dy.std(ddof=1) / np.sqrt(len(dy))
+            X, Y = (mx, my / 1000) if portrait else (mx, -my)
+            SX, SY = (sx, sy / 1000) if portrait else (sx, sy)
+            ax.plot(X.to_numpy(), Y.to_numpy(), color=EPOCH_LINE[e], lw=1.6, zorder=3,
+                    label=f"{e} (n={len(dx)} sessions, {an.nunique()} animals)")
+            ax.plot(X.iloc[0], Y.iloc[0], "s", mfc="white", mec=EPOCH_LINE[e], ms=4, zorder=4)     # start (-72 ms)
+            if 0.0 in X.index:
+                ax.plot(X[0.0], Y[0.0], "o", color=EPOCH_LINE[e], ms=3.5, zorder=4)                  # lick peak
+            sig = _path_sig(W, p, e, xc, yc)
+            if sig is not None:
+                sig = sig[np.isclose(np.mod(sig.index.to_numpy(float), 12.0), 0.0)]
+                for sel, mk, fill in ((sig.x & ~sig.y, "o", "white"), (sig.y & ~sig.x, "^", "white"),
+                                      (sig.x & sig.y, "o", EPOCH_LINE[e])):
+                    ts = sig.index[sel.to_numpy()]
+                    if len(ts):
+                        ax.plot(X.reindex(ts).to_numpy(), Y.reindex(ts).to_numpy(), mk, ms=4.8, mfc=fill,
+                                mec=EPOCH_LINE[e], mew=1.2, zorder=5)
+            if len(dx) > 1:
+                _sem_ribbon(ax, X.to_numpy(), Y.to_numpy(), SX.to_numpy(), SY.to_numpy(), EPOCH_LINE[e], alpha=0.18)
+        if not portrait:
+            ax.set_aspect("equal", adjustable="box")
+        ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
+        ax.set_xlabel(("delta opening (px)" if jaw else "delta protrusion (px)") if portrait else
+                      "delta lateral (px; + = ipsi)", fontsize=7.5)
+        ax.tick_params(labelsize=6.5)
+    axs[0][0].set_ylabel(("delta opening speed (px/ms)" if jaw else "delta protrusion speed (px/ms)") if portrait else
+                         ("delta forward (px; + = further out, drawn down)"), fontsize=8)
+    axs[0][-1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1.0))
+    what = (f"{'JAW' if jaw else 'tongue-tip'} {'phase-portrait' if portrait else 'x-y path'} CHANGE from each animal's "
+            f"OWN pre-stroke path at the position (origin +); square = -{PORTRAIT_HALF_MS:.0f} ms, dot = lick peak")
+    note = (f"COHORT DELTA lick trajectory: {what}; licks: ALL POST-CUE licks (measured peaks), +-{PORTRAIT_HALF_MS:.0f} ms; "
+            "mean over SESSIONS of (session - its animal's mean pre path), band = SEM over sessions; "
+            + ("cleaned jaw relative to its session rest" if jaw else
+               "IN-MOUTH FRAMES INCLUDED" if inmouth == "incl" else f"IN-MOUTH FRAMES EXCLUDED (>= {ANGLE_MIN_PX:.0f} px)")
+            + f"; markers = epoch differs from pre (cluster permutation per coordinate, labels permuted within animal, "
+              f"p < 0.025 each): open circle = {('opening' if jaw else 'protrusion') if portrait else 'lateral'} only, "
+              f"open triangle = {'speed' if portrait else 'forward'} only, filled = both")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
+    _save(plt, fig, path)
+
+
+def fig_animal_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str, inmouth: str = "incl",
+                     part: str = "tongue") -> None:
+    """PER-ANIMAL x-y lick paths (Priya 10-18): rows = animals, each with ITS OWN pre and post-epoch paths and its own
+    spout position -- the spatial context without a cohort-pooled pre path; also the rule-8 check (visible in >= 3)."""
+    W = PH[PH.t_ms.abs() <= PORTRAIT_HALF_MS]
+    xc, yc = _path_cols(part, False, inmouth)
+    if xc not in W:
+        return
+    jaw = part == "jaw"
+    animals = sorted(W.animal.unique())
+    plt = _plt()
+    fig, axs = plt.subplots(len(animals), len(POS_ORDER), figsize=(2.7 * len(POS_ORDER), 2.9 * len(animals) + 1.2),
+                            squeeze=False, sharex=True, sharey=True)
+    for i, a in enumerate(animals):
+        for j, p in enumerate(POS_ORDER):
+            ax = axs[i][j]
+            ax.plot(0, 0, "k+", ms=7)
+            for e in EPOCH_ORDER:
+                g = W[(W.animal == a) & (W.pos == p) & (W.epoch == e)]
+                if not len(g):
+                    continue
+                px = g.pivot_table(index="date", columns="t_ms", values=xc)
+                py = g.pivot_table(index="date", columns="t_ms", values=yc)
+                X, Y = px.mean(), -py.mean()
+                ax.plot(X.to_numpy(), Y.to_numpy(), color=EPOCH_LINE[e], lw=1.4, zorder=3,
+                        label=f"{e} ({len(px)})" if j == 0 else None)
+                if len(px) > 1:
+                    _sem_ribbon(ax, X.to_numpy(), Y.to_numpy(), (px.std(ddof=1) / np.sqrt(len(px))).to_numpy(),
+                                (py.std(ddof=1) / np.sqrt(len(py))).to_numpy(), EPOCH_LINE[e], alpha=0.15)
+                if 0.0 in X.index:
+                    ax.plot(X[0.0], Y[0.0], "o", color=EPOCH_LINE[e], ms=3, zorder=4)
+            sp = Pm[(Pm.animal == a) & (Pm.pos == p)] if not jaw else Pm.iloc[0:0]
+            if len(sp):
+                d, an_ = sp.spout_dist_px.mean(), np.deg2rad(sp.spout_angle_deg.mean())
+                ax.plot(d * np.sin(an_), -d * np.cos(an_), "x", color="0.4", ms=7, mew=2)
+            ax.set_aspect("equal", adjustable="box")
+            ax.tick_params(labelsize=6.5)
+            if i == 0:
+                ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
+            if j == 0:
+                ax.set_ylabel(f"{a}\n{'jaw forward' if jaw else 'from mouth'} (px)", fontsize=8)
+                ax.legend(fontsize=6, frameon=False, loc="lower left", title="epoch (sessions)", title_fontsize=6)
+            if i == len(animals) - 1:
+                ax.set_xlabel(("jaw lateral" if jaw else "lateral") + " (px; + = ipsi)", fontsize=7.5)
+    note = (f"PER-ANIMAL {'JAW' if jaw else 'tongue-tip'} x-y lick paths, camera view, each animal's OWN pre and post "
+            f"paths (mean over its sessions, band = SEM over sessions); +-{PORTRAIT_HALF_MS:.0f} ms around each post-cue "
+            f"lick peak; dot = peak; " + ("jaw relative to its session rest" if jaw else
+                                         ("+ = mouth, x = that animal's spout; " + ("IN-MOUTH FRAMES INCLUDED"
+                                          if inmouth == "incl" else f"IN-MOUTH FRAMES EXCLUDED (>= {ANGLE_MIN_PX:.0f} px)"))))
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
+    _save(plt, fig, path)
+
+
 STATS_METHODS = """# How the statistics were run (orofacial pre- vs post-stroke figures)
 
 Generated by `wfield_local/orofacial_cohort.py` / `wfield_local/orofacial_stats.py`; design follows
@@ -2242,6 +2380,15 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
                 fig_cohort_paths(PHa, Pm, figs / f"cohort_jaw_trajectory_xy{wz}.png", t, within=within, part="jaw")
                 fig_cohort_paths(PHa, Pm, figs / f"cohort_jaw_phase_portrait{wz}.png", t, portrait=True, within=within,
                                  part="jaw")
+            # Priya 10-18: deltas from each animal's OWN pre path (no pooled base), and per-animal paths
+            for im in ("incl", "excl"):
+                fig_cohort_delta_paths(PHa, figs / f"cohort_trajectory_xy_delta_inmouth_{im}.png", t, inmouth=im)
+                fig_cohort_delta_paths(PHa, figs / f"cohort_phase_portrait_delta_inmouth_{im}.png", t, portrait=True,
+                                       inmouth=im)
+                fig_animal_paths(PHa, Pm, figs / f"cohort_trajectory_xy_by_animal_inmouth_{im}.png", t, inmouth=im)
+            fig_cohort_delta_paths(PHa, figs / "cohort_jaw_trajectory_xy_delta.png", t, part="jaw")
+            fig_cohort_delta_paths(PHa, figs / "cohort_jaw_phase_portrait_delta.png", t, portrait=True, part="jaw")
+            fig_animal_paths(PHa, Pm, figs / "cohort_jaw_trajectory_xy_by_animal.png", t, part="jaw")
     jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
     jaw = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})) if jaw_csv.exists() else None
     fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",
