@@ -18,6 +18,8 @@ Analysis desktop; M: = MICROSCOPE.
 | local GPU -- DLC c1r1 on the PS93 cam1 clips (0814 / 0821 / 0908) | log `C:\Users\SabatiniLab\lp_stage\cam1_dlc_eval_20261018.log` -> `session_poses/PS93_<d>_cam1/dlc_r1/` | `grep "^==\|ALL DONE"` the log | automatically followed by the next row |
 | local GPU, queued -- DLC c1r2 on June 0606 cam1 clips (4 animals) + PS94 0814 / 0821 / 0907 (r2 then r1) | log `lp_stage\cam1_dlc_eval_june_ps94_20261018.log` (starts when the row above prints ALL DONE) | same | June: `python -m scripts.apparatus_mouth clips PS9x:20260606 ...` (dlc env) for the June cam4 variants; PS94: rescore |
 
+| local GPU -- cam4 **LP r4 and LP r4 eps35** (Windows-native) on PS92 / PS94 / PS95 x 0814 / 0821 cam4 clips, for the eps35 BLIND REVIEW | clips copied to `C:\Users\SabatiniLab\lp_stage\review_clips_1018\<s>_windows.mp4`; predictions -> `lp_stage\lp_models_win\{r4_eps35_o2,r4_heatmap_20261013}\video_preds\<s>_windows.csv` (eps35 first, then LP r4) | `ls` those video_preds folders (12 csvs when done) | build the review (§5 item 0) |
+
 The local runner is `C:\Users\SABATI~1\AppData\Local\Temp\claude\...\scratchpad\cam1_dlc_eval.py` (session scratchpad, not the
 repo): `python cam1_dlc_eval.py <scratch dir> r2/PS94_20260814 r1/...` runs DLC round 1 / 2 on `session_poses/<s>_cam1/windows.mp4`
 through `config_eval_r{1,2}.yaml` in the cam1 training project. If the scratchpad is gone, the loop is ~20 lines: DLC
@@ -122,6 +124,18 @@ python -m scripts.apparatus_mouth clips PS93:20260814 PS92:20260606 ...
 
 ## 5. To-do
 
+0. **eps35 blind review (Priya agreed 10-18).** When the 12 csvs above exist:
+   `python -m scripts.lick_review_candidates PS92:20260814 PS92:20260821 PS94:20260814 PS94:20260821 PS95:20260814 PS95:20260821
+   --model "LP r4=C:/Users/SabatiniLab/lp_stage/lp_models_win/r4_heatmap_20261013/video_preds/{s}_windows.csv"
+   --model "LP r4 eps35=C:/Users/SabatiniLab/lp_stage/lp_models_win/r4_eps35_o2/video_preds/{s}_windows.csv"
+   --out C:/Users/SabatiniLab/lp_stage/lick_review_eps35` (tiers = exact model sets: LP r4 only / eps35 only / both, by
+   position; hidden contact-lick controls; key.csv kept off the page). Page: rebuild from `lp_stage/lick_review/lick_review.html`
+   (the 10-14 review; answers in its `lick_review` collection) with the new candidates and a NEW collection name, publish
+   (load the artifact-design / artifact-capabilities skills first), give Priya the link; score precision / share of real per
+   model as in the 10-14 review (POSE_MODELS section 3). Decision rule to discuss: switch only if eps35 keeps its precision
+   gain across animals without losing real faint licks; if it wins, re-infer cam4 together with the cam1 production run on O2.
+   Priya 10-18 on the four-model cam4 clips: "they don't seem meaningfully different" -- consistent with the numbers (the
+   difference is confined to faint no-contact licks).
 1. Score cam1 ctx-semi + eps40 (O2), DLC c1r1, LP c1r1 on PS93 + PS94; per-epoch tables; cleaned multi-model clip; blind cam1
    review sheet for Priya (include late sated trials -- water). Then Priya picks the cam1 model.
 2. cam1 cleaning: Priya's QC of the cleaned clip; a centre-position bridging fix if it is common; measure a static-tongue water
@@ -134,6 +148,12 @@ python -m scripts.apparatus_mouth clips PS93:20260814 PS92:20260606 ...
 7. Production cam1 inference on O2 once a model is chosen: generalise `o2_inference` bundles to `--cam cam1` (window builder reads
    cam4 templates). O2 scratch purges files untouched ~45 days -- the videos copied 10-06 may go around 11-20.
 8. 3-D: multi-view LP candidate (round-2 cam1 + round-4 cam4), anipose vs calibration-free EKS, the 3-D mouth as the shared origin.
+
+**Clips made today (for Priya):** cam1 cleaned DLC c1r2 vs LP c1r2, 16 trials -- `session_poses/PS93_20260814_cam1/eval/
+cleaned_labels_cam1_dlc2_lp2.mp4`; cam1 raw DLC c1r2 -- `.../eval/labeled_dlc_c1r2.mp4`; cam4 cleaned LP r4 / eps35 / ctx-semi /
+ResNet-50 -- `session_poses/PS93_2026081{4,21}/r4_eval/cleaned_labels_cam4_r4_eps35_ctx_rn50.mp4`. QC sheets: `.../eval/qc_*.png`.
+**eps35 on Windows**: `lp_stage/lp_models_win/r4_eps35_o2` (O2 checkpoint; data_dir -> `lp_cam4_r4_win`, `losses_to_use: []`);
+validated against O2's own predictions (median 0.04-0.11 px, confidence agreement 99.8-100 %).
 
 ## 6. Pitfalls (new today)
 
@@ -156,3 +176,4 @@ python -m scripts.apparatus_mouth clips PS93:20260814 PS92:20260606 ...
 10. **`squeue` truncates job names** (`lp_train_cam1` shows as `lp_train`); use `sacct --format=JobID,JobName%30,...`.
 11. **cam1 labels mark the spout tip's BOTTOM edge, cam4 the top**: constant offset in 3-D (absorbed by the fit), ~15-20 px toward
     the jaw for the cam1 mouth.
+12. **Python strings holding Windows paths**: `"C:\Users..."` in a non-raw string is a \U escape (SyntaxError) -- use raw strings or the Edit tool.
