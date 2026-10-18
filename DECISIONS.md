@@ -20229,3 +20229,9 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   so image-pixel positions are unusable across months. Jaw FAR_DIR (ipsi - contra difference) cancels common-mode drift:
   its chronic -4.5 px is kept. Per-lick phase shown / tested 0.1-0.9 (edge artefacts). Imaging August-only sensitivity:
   being scoped, nothing re-run.
+* **PS93 kept; leave-PS93-out reported (10-18, Priya)**: PS93's pre-existing right orofacial deficit does not degrade
+  pose tracking (all model validation was on PS93 clips). `scripts/orofacial_robustness_table.py` (all-pre /
+  August-only x with / without PS93; `cohort/tables/robustness/`): 70 of 85 cells robust to both baselines also hold
+  without PS93; all acute far-contra headline effects hold; the PS93-sensitive cells are mostly chronic (far-ipsi
+  protrusion, far licks/trial, far-ipsi lick duration). PS93's acute changes are the same sign but smaller (less room
+  to get worse), so it dilutes rather than drives the effects. Kept for n = 4 (rule 8); never pooled for levels.

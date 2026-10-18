@@ -125,8 +125,41 @@ about 7-13 px pre, about 30-45 px chronic, in all four animals. In the mouth fra
 - Licks are shorter at far ipsi and far mid (−7 to −10 ms).
 - The first lick comes earlier at close mid (−78 / −103 ms).
 - The first contact comes earlier at far mid (−90 / −171 ms).
-- Protrusion is shorter at close contra and far ipsi (−9 to −16 px). That is near the positional drift floor, so
-  interpret it cautiously.
+- Protrusion is shorter at close contra and far ipsi (−9 to −16 px). That is near the positional drift floor AND
+  PS93-sensitive (see below), so do not quote it.
+
+## Robustness to PS93 (leave-PS93-out)
+
+PS93 had a right orofacial deficit before the stroke: rightward tongue deviation and low far-ipsi contact. Pose
+tracking on PS93 is not worse. All model validation (human lick review, contact recall 98.8 / 99.6 %) was done on PS93
+clips.
+
+`scripts/orofacial_robustness_table.py` re-runs every cohort cell under four variants: {all-pre, August-only} x
+{with, without PS93}. It writes `cohort/tables/robustness/robustness.csv` and `robust_cells.md`, the full per-cell
+list with a "without PS93" column.
+
+**Of 85 cells significant by both tests under both baselines, 70 still hold without PS93.** The other 15 keep almost
+the same effect size but drop to one test, which is expected with 3 animals.
+
+- **Hold without PS93:**
+  - every acute far-contra effect in findings 1-2 and 4;
+  - the global acute slowing.
+- **PS93-sensitive** (drop to a single test, or none, without PS93):
+  - chronic protrusion at far ipsi (−16 px, "neither" under August-only without PS93) and acute / subacute protrusion
+    at close contra;
+  - chronic licks per responded trial at far ipsi / far contra;
+  - chronic lick duration at far ipsi;
+  - chronic first contact at far mid;
+  - acute licks per trial and reach at far ipsi;
+  - subacute far-contra jaw-without-lick.
+- **Stronger without PS93:** chronic far-contra protrusion (−23 vs −14 px) and contact (−0.08 vs −0.04). PS93 dilutes
+  these rather than drives them. Its acute far-contra changes run the same way, but smaller: contact −0.35 vs −0.67 to
+  −0.82, angle +10 vs +27 to +42°. That fits an animal that already deviated at baseline.
+- **Decision (Priya 10-18): keep PS93.** It is needed for n = 4 (CLAUDE.md rule 8: visible in at least 3 animals). It
+  is the conservative member. Within-animal changes remove its baseline offset. Do not pool it for LEVELS, such as raw
+  curves or absolute accuracy.
+- Jaw FAR_DIR and W2 are not in the table: they come from their own modules. Their per-animal tables show PS93 in line
+  with the others.
 
 ## Not established (do not quote)
 
