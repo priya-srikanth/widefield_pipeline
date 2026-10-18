@@ -713,6 +713,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     if ("raw", "lick_angle_tgt") in layout:
         models["notxy:licktarget:position"] = ([x for x in notxy if x[1] not in POS_VARS and x[1] != "exec_angle"]
                                                + [("raw", "lick_angle_tgt")])
+    # BOTH on the lick kernel (Priya 10-18): unique target = both - lickangle, unique executed = both - licktarget
+    # (target and executed angles correlate ~0.8, so their separate gains over no-position overlap)
+    if ("raw", "lick_angle_tgt") in layout and ("raw", "lick_angle_abs") in layout:
+        both = [("raw", "lick_angle_tgt"), ("raw", "lick_angle_abs")]
+        models["lickboth:position"] = [("raw", w) for w in GROUP_OF if w not in POS_VARS and w != "exec_angle"] + both
+        models["notxy:lickboth:position"] = [x for x in notxy if x[1] not in POS_VARS and x[1] != "exec_angle"] + both
 
     # PER-MODEL PENALTIES (2026-10-18 fix): every reduced model gets its own ridge penalty per group present (one
     # coordinate pass over ALPHA_GRID from the full model's values, same held-out criterion). Borrowing the full
@@ -726,13 +732,13 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         for g in (*GROUPS, "position"):
             drop = POS_VARS if g == "position" else [w for w in GROUP_OF if GROUP_OF[w] == g]
             models[f"video:drop:{g}"] = [x for x in rawfull if x[1] not in drop] + [("raw", "video")]
-        for name in ("angle:position", "lickangle:position", "licktarget:position"):
+        for name in ("angle:position", "lickangle:position", "licktarget:position", "lickboth:position"):
             if name in models:
                 models[f"video:{name}"] = models[name] + [("raw", "video")]
     if os.environ.get(SMOKE_ENV):                   # end-to-end check of the post-fit code without the full model set
         keep = {"full", *TR_MODELS, "raw:full", "angle:position", "lickangle:position", "notxy:full",
                 "notxy:drop:position", "notxy:angle:position", "notxy:lickangle:position", "licktarget:position",
-                "notxy:licktarget:position",
+                "notxy:licktarget:position", "lickboth:position", "notxy:lickboth:position",
                 *(k for k in models if k.startswith("video:"))}
         models = {k: v for k, v in models.items() if k in keep}
     model_alphas = {"full": dict(alphas)}
