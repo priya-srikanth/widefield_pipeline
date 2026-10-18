@@ -5,12 +5,14 @@
         --model "DLC c1r1={d}/dlc_r1/*.h5" --model "DLC c1r2={d}/dlc_r2/*.h5" --model "LP c1r2=<path with {d}>" \\
         [--cam4 "LP r4={c4}/<csv>"] [--tag _1018]
 
-``{d}`` = the session's cam1 clip folder, ``{c4}`` = its cam4 clip folder; a glob must match exactly one file.
+``{d}`` = the session's cam1 clip folder, ``{c4}`` = its cam4 clip folder, ``{s}`` = ``<animal>_<date>`` (for O2 LP
+predictions named by clip, e.g. ``.../video_preds/{s}_cam1.csv``); a glob must match exactly one file.
 Every model gets the same trials, DAQ contacts and frames, so differences are tracking. Per session (= one epoch) x model:
 
 * **contacts** (metric 2): share of DAQ spout contacts (cue + 70 ms .. trial stop) with a confident tongue (>= 0.4) within
   +-20 ms of the contact, overall and per spout position. From below, a tongue at the spout should be visible.
-* **tip jumps** (metric 3): tongue steps > 40 px (the cam1 p99 of genuine motion, B3) between CONTIGUOUS source frames, both
+* **tip jumps** (metric 3): tongue steps > 40 px (the cam1 p99 of genuine motion, B3 -- ~1 % of real steps) and > 60 px
+  (p99.9: the teleport / tip-end-switch count) between CONTIGUOUS source frames, both
   confident, per 10k confident tongue frames -- one-frame tip-end switches -- beside tongue coverage.
 * **cam1 vs cam4 timing** (metric 3, with ``--cam4``): per contact seen by both, the onset of the confident tongue run that
   contains it, cam1 minus cam4 (ms on the shared cue clock); median |difference| and share within 12 ms (3 frames).
@@ -31,12 +33,13 @@ import pandas as pd
 
 POS_ORDER = ["far_L", "close_L", "close_center", "far_center", "close_R", "far_R"]
 CUT = {"tongue": 0.4, "jaw": 0.6}            # cam1 analysis cutoffs (DECISIONS 2026-10-05)
-TIP_JUMP_PX, JAW_JUMP_PX = 40.0, 20.0
+TIP_JUMP_PX, JAW_JUMP_PX = (40.0, 60.0), 20.0
 CONTACT_TOL_MS, SYNC_TOL_MS = 20.0, 12.0
 
 
 def resolve(pattern: str, d: Path, c4: Path) -> Path:
-    hits = glob.glob(pattern.replace("{d}", str(d)).replace("{c4}", str(c4)))
+    s = d.name[:-len("_cam1")] if d.name.endswith("_cam1") else d.name          # {s} = <animal>_<date>
+    hits = glob.glob(pattern.replace("{d}", str(d)).replace("{c4}", str(c4)).replace("{s}", s))
     if len(hits) != 1:
         raise SystemExit(f"{pattern!r} in {d.name}: {len(hits)} matches, need exactly one")
     return Path(hits[0])
@@ -80,13 +83,16 @@ def score(name: str, P: pd.DataFrame, idx: pd.DataFrame, contacts: dict, stops: 
     t_ms = idx.t_ms.to_numpy(float)
     stop_ms = idx.trial_id.map(lambda t: 1000 * stops.get(t, np.inf)).to_numpy(float)
     post = (t_ms >= 70) & (t_ms <= stop_ms)
-    for part, thr in (("tongue", TIP_JUMP_PX), ("jaw", JAW_JUMP_PX)):
+    # tongue: 40 px = the cam1 p99 of GENUINE motion (B3), so ~100 / 10k real fast steps exceed it by construction;
+    # 60 px = p99.9 is the teleport (tip-end switch) count (corrected 2026-10-18, after the first run)
+    for part, thrs in (("tongue", TIP_JUMP_PX), ("jaw", (JAW_JUMP_PX,))):
         x, y = P[f"{part}_x"].to_numpy(float), P[f"{part}_y"].to_numpy(float)
         ok = P[f"{part}_likelihood"].to_numpy(float) >= CUT[part]
         both = contig & ok[1:] & ok[:-1]
-        big = both & (np.hypot(np.diff(x), np.diff(y)) > thr)
         r[f"{part}_conf_%_postcue"] = round(100 * ok[post].mean(), 1)
-        r[f"{part}_jumps>{thr:.0f}_per10k"] = round(1e4 * big.sum() / max(ok.sum(), 1), 1)
+        for thr in thrs:
+            big = both & (np.hypot(np.diff(x), np.diff(y)) > thr)
+            r[f"{part}_jumps>{thr:.0f}_per10k"] = round(1e4 * big.sum() / max(ok.sum(), 1), 1)
     jok = P["jaw_likelihood"].to_numpy(float) >= CUT["jaw"]
     for p in POS_ORDER:
         m = post & (idx.position.to_numpy() == p)

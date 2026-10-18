@@ -468,3 +468,34 @@ NOT June's: no help for the June geometry; at most a second Aug+ calibration (bo
 against 09-11. **v36 leaves PS94 / PS95 0805 unscaled** (`scale_before` 20260801) although they are 0.80 / 0.77 -- outside the
 curated set (8/5 excluded) and every orofacial cohort analysis reads `analysis_kit.curated_sessions`, so NO result is
 affected (checked 10-18); only those two LP_analysis session folders carry px measures inflated 25-30 %.
+
+## D4. cam1 mouth = where the tongue paths meet (option 1, Priya 10-18) -- and results so far
+
+**Mouth (option 1 now, option 2 for 3-D).** Priya (10-18): the spout-line intersection is not the cam1 mouth -- cam1 labels
+the spout tip's BOTTOM edge (cam4 the top front edge), so the lines meet toward the jaw, and the tongue comes out "above" it.
+`spout_frame.tongue_path_origin`: per spout position, the line from the median lick-onset tongue point (first confident frame
+after >= 3 hidden ones, > 70 ms after the cue) toward that position's median spout tip; their least-squares meeting point.
+DLC c1r2, PS93: **(310, 369) pre, (310, 367) acute** (paths meet to 8-10 px rms) -- 2 px apart, while the spout-label
+intersection moved 20 px (389 -> 409) and the mouth relative to the centre spout tip moved 25 px: the spouts move between
+sessions, the head under a fixed camera does not. cam1 axis = `from_medians_lr_bisector` (L / R far->close bisector).
+Centre-spout angles are ill-defined on cam1 (the spouts sit almost on the mouth, end-on); read cam1 angles in 3-D.
+Option 2 (3-D): cam4's apparatus mouth (lines meet to 0.34 px) triangulated / projected into cam1.
+
+**Water (Priya 10-18).** Spout tip, late in the trial (>= 1500 ms, tongue not out) minus pre-cue ENL, per position: < 2 px on
+cam1 and cam4, both PS93 sessions -- DLC c1r2 stays on the rod end inside a hanging drop (Priya's frame, trial 540). Still to
+check: spout drift and pre-cue false tongue detections against TRIAL NUMBER (drops grow in late, sated trials).
+
+**First scores, LP c1r2 heatmap vs DLC c1r2** (`cam1_model_compare_1018_dlc2_lp.csv`; PS93 pre / acute):
+
+| | DLC c1r2 | LP c1r2 heatmap |
+|---|---|---|
+| tongue seen at DAQ contacts | 99.8 / 97.1 % | 100 / 99.2 % |
+| tongue teleports > 60 px / 10k confident | 9.5 / 4.0 | 5.1 / **17.4** |
+| tongue steps > 40 px / 10k (mostly genuine fast motion: 40 = p99) | 72.5 / 25.5 | 108.7 / 66.2 |
+| jaw confident close_center / far_center | 69 / 54 ; 70 / 70 % | 90 / 82 ; 63 / 60 % |
+| jaw jumps > 20 px / 10k | 12.3 / 3.3 | 3.3 / 3.2 |
+| tongue onset vs cam4 (median abs) | 12 / 12 ms | 8 / 12 ms |
+
+LP finds more contacts and is steadier pre, but its tongue teleports triple on the acute session -- an EPOCH-dependent
+difference (gate 1); not called on one animal: needs PS93 0908 and PS94, and the ctx-semi / eps40 models. The > 40 px count
+was first proposed as the tip-jump metric; at the cam1 p99 it counts ~1 % of real steps, so > 60 px (p99.9) is the teleport count.
