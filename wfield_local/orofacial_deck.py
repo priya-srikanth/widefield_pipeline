@@ -90,9 +90,22 @@ SECTIONS = [
     ]),
     ("Spatial distributions -- Wasserstein-2 vs own pre-stroke cloud", [
         ("w2/epochs_by_position.png", "W2 distance from the animal's own pre-stroke keypoint cloud, by epoch",
-         "Tongue / jaw in the mouth frame; nose / spout in the mouth frame = controls (should not move); *_img = raw "
-         "image pixels (framing drift only). Pre = leave-one-out noise floor."),
+         "All keypoints in the mouth frame. Spout = the drift control (fixed apparatus; licking pushes it 2-5 px); nose = "
+         "head / snout posture (behaviour). Pre = leave-one-out noise floor. Spout-moved trials excluded."),
         ("w2/timecourse_by_position.png", "W2 distance from own pre, day bins", ""),
+    ]),
+    ("Trial-aligned spatial heatmaps (stroke_orofacial proportion / proportion-diff)", [
+        ("heatmaps/nose_by_epoch.png", "Nose position by epoch (all positions pooled): raw and change vs own pre",
+         "Cue - 500 ms .. trial stop, engaged trials, mouth / spout frame, camera orientation. Delta pre column = later "
+         "minus earlier half of pre sessions (floor). Contour = every animal agrees in sign."),
+        ("heatmaps/tongue_by_position_raw.png", "Tongue tip occupancy by position, raw", "Cleaned tip, OUT frames."),
+        ("heatmaps/tongue_by_position_delta.png", "Tongue tip occupancy by position, change vs own pre", ""),
+        ("heatmaps/jaw_by_position_raw.png", "Jaw occupancy by position, raw", "Cleaned jaw, rest-relative."),
+        ("heatmaps/jaw_by_position_delta.png", "Jaw occupancy by position, change vs own pre", ""),
+        ("heatmaps/nose_by_position_raw.png", "Nose occupancy by position, raw", ""),
+        ("heatmaps/nose_by_position_delta.png", "Nose occupancy by position, change vs own pre", ""),
+        ("heatmaps/spout_by_position_raw.png", "Spout tip by position, raw (control)", ""),
+        ("heatmaps/spout_by_position_delta.png", "Spout tip by position, change vs own pre (control)", ""),
     ]),
     ("Jaw lateral readout (whole sessions)", [
         ("jaw_lateral/timecourse.png", "Jaw steering toward the target, day by day",
@@ -289,7 +302,7 @@ def main(argv=None) -> int:
         s = _blank(prs)
         _text(s, sec, 0.6, 3.0, 12, 1.2, 28, bold=True)
         for rel, title, cap in items:
-            png = figs / (rel.replace("prepost/", f"prepost{sfx}/").replace("w2/", f"w2{sfx}/"))
+            png = figs / (rel.replace("prepost/", f"prepost{sfx}/").replace("w2/", f"w2{sfx}/").replace("heatmaps/", f"heatmaps{sfx}/"))
             if not png.exists():
                 missing.append(rel)
                 continue
