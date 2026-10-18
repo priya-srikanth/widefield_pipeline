@@ -627,6 +627,14 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     if ("raw", "lick_angle_abs") in layout:               # position replaced by WHERE EACH LICK WENT (executed)
         models["lickangle:position"] = ([("raw", w) for w in GROUP_OF if w not in POS_VARS and w != "exec_angle"]
                                         + [("raw", "lick_angle_abs")])
+    # TARGET vs EXECUTED inside the tongue-without-x/y model (Priya 10-18: "most invested in the target vs executed angle
+    # question"): tongue x/y is itself a direction signal and would absorb directional variance from both competitors
+    if ("raw", "angle_cue") in layout:
+        models["notxy:angle:position"] = ([x for x in notxy if x[1] not in POS_VARS]
+                                          + [("raw", "angle_cue"), ("raw", "angle_enl")])
+    if ("raw", "lick_angle_abs") in layout:
+        models["notxy:lickangle:position"] = ([x for x in notxy if x[1] not in POS_VARS and x[1] != "exec_angle"]
+                                              + [("raw", "lick_angle_abs")])
 
     # PER-MODEL PENALTIES (2026-10-18 fix): every reduced model gets its own ridge penalty per group present (one
     # coordinate pass over ALPHA_GRID from the full model's values, same held-out criterion). Borrowing the full
