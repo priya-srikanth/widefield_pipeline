@@ -23,7 +23,7 @@ Port of stroke_orofacial's tone-aligned proportion / proportion-diff heatmaps (`
            occupancy than pre, red = more (their cmap). White = no data in either.
   stats    none per pixel; the distributional test is W2 (`orofacial_w2`), which uses the same frames and gate.
 
-Figures -> <LP_analysis>/<run>/cohort/figures/heatmaps{,_latepre}/ (+ svg/); histograms -> cohort/tables/heatmaps*/.
+Figures -> <LP_analysis>/<run>/cohort/figures/heatmaps{,_allpre}/ (+ svg/); histograms -> cohort/tables/heatmaps*/.
   nose_by_epoch.png                         nose, all positions pooled: row 1 raw, row 2 delta; columns = epochs
   <kp>_by_position_{raw,delta}.png          kp in tongue / jaw / nose / spout; rows = positions, columns = epochs
   {nose,spout}_enl_by_position_*, nose_enl_by_epoch.png   the same from NO-LICK ENL frames (cue - 2 s .. cue, tongue not
@@ -421,12 +421,12 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=None)
-    ap.add_argument("--baseline", choices=("all", "late"), default="all",
-                    help="pre pool: all curated pre sessions, or only those >= late_pre_from ('late' -> *_latepre)")
+    ap.add_argument("--baseline", choices=("all", "late"), default="late",
+                    help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre")
     a = ap.parse_args(argv)
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
-    sfx = "_latepre" if a.baseline == "late" else ""
+    sfx = "_allpre" if a.baseline == "all" else ""
     figs = base / "figures" / f"heatmaps{sfx}"
     writeguard.assert_writable(base)
     figs.mkdir(parents=True, exist_ok=True)

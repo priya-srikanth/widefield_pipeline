@@ -26,7 +26,10 @@ def main() -> None:
     ap.add_argument("--n-boot", type=int, default=2000)
     a = ap.parse_args()
     base = oo.root(PathResolver()) / a.run / "cohort"
-    P = pd.read_csv(base / "tables" / "prepost" / "position_metrics.csv", dtype={"date": str})
+    # needs the June pre rows too (it builds both baselines itself): the all-pre table (prepost_allpre since the
+    # August-only baseline became primary, 10-18), falling back to prepost for runs made before the switch
+    src = base / "tables" / "prepost_allpre" / "position_metrics.csv"
+    P = pd.read_csv(src if src.exists() else base / "tables" / "prepost" / "position_metrics.csv", dtype={"date": str})
     out = base / "tables" / "robustness"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)

@@ -1453,7 +1453,7 @@ ENGAGED_ONLY = True
 #: only pre sessions dated >= LATE_PRE_FROM (MMDD), i.e. August, the sessions immediately before the stroke. Measured
 #: 10-18: June -> August pre drift is as large as many stroke effects (close-spout contact +0.40-0.47, protrusion -14
 #: to -36 px, peak speed -550 to -1,140 px/s, all 4 animals) -- learning / framing, not stroke.
-BASELINE = "all"
+BASELINE = "late"                     # AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre
 LATE_PRE_FROM = "0801"
 
 
@@ -1816,9 +1816,10 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--all-trials", action="store_true",
                     help="control: no engagement gate; writes tables/prepost_alltrials, figures/prepost_alltrials")
-    ap.add_argument("--baseline", choices=("all", "late"), default="all",
+    ap.add_argument("--baseline", choices=("all", "late"), default="late",
                     help="pre-stroke baseline: all curated pre sessions, or only those >= late_pre_from (August); "
-                         "'late' writes *_latepre folders")
+                         "default 'late' (August-only, PRIMARY) writes the plain folders; 'all' (June-including "
+                         "sensitivity) writes *_allpre")
     a = ap.parse_args(argv)
     global ENGAGED_ONLY
     os.environ["OROFACIAL_BASELINE"] = a.baseline
@@ -1828,7 +1829,7 @@ def main(argv=None) -> int:
         ENGAGED_ONLY = False
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
-    sfx = ("" if ENGAGED_ONLY else "_alltrials") + ("_latepre" if BASELINE == "late" else "")
+    sfx = ("" if ENGAGED_ONLY else "_alltrials") + ("_allpre" if BASELINE == "all" else "")
     tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
@@ -2276,7 +2277,8 @@ def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
     plain-language RESULTS.md of the significant cells."""
     ms_ = list(dict.fromkeys([*COHORT_SCALARS, *(m for g in POS_GROUPS.values() for m in g)]))
     ST = session_change_tests(Pm, ms_)          # every metric drawn in a cohort figure gets its own test
-    jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
+    jaw_csv = base / "tables" / (("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials")
+                                 + ("_allpre" if BASELINE == "all" else "")) / "sessions.csv"
     if jaw_csv.exists():
         J = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})).assign(pos="far_pair")
         ST = pd.concat([ST, session_change_tests(J, ["lr_wide_far_dir", "angle_far_dir"])], ignore_index=True)
@@ -2389,7 +2391,8 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
             fig_cohort_delta_paths(PHa, figs / "cohort_jaw_trajectory_xy_delta.png", t, part="jaw")
             fig_cohort_delta_paths(PHa, figs / "cohort_jaw_phase_portrait_delta.png", t, portrait=True, part="jaw")
             fig_animal_paths(PHa, Pm, figs / "cohort_jaw_trajectory_xy_by_animal.png", t, part="jaw")
-    jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
+    jaw_csv = base / "tables" / (("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials")
+                                 + ("_allpre" if BASELINE == "all" else "")) / "sessions.csv"
     jaw = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})) if jaw_csv.exists() else None
     fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",
                        t + "\nCOHORT, change vs pre: per-position lick metrics", jaw, wgt,

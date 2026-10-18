@@ -224,12 +224,12 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--n", type=int, default=800, help="points per subsample")
     ap.add_argument("--draws", type=int, default=3, help="subsample draws averaged per W2")
-    ap.add_argument("--baseline", choices=("all", "late"), default="all",
-                    help="pre pool: all curated pre sessions, or only those >= late_pre_from ('late' -> *_latepre)")
+    ap.add_argument("--baseline", choices=("all", "late"), default="late",
+                    help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre")
     a = ap.parse_args(argv)
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
-    sfx = "_latepre" if a.baseline == "late" else ""
+    sfx = "_allpre" if a.baseline == "all" else ""
     tables, figs = base / "tables" / f"w2{sfx}", base / "figures" / f"w2{sfx}"
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)

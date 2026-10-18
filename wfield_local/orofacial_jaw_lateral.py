@@ -283,6 +283,8 @@ def main(argv=None) -> int:
     ap_.add_argument("--run", default=RUN)
     ap_.add_argument("--jobs", type=int, default=None)
     ap_.add_argument("--all-trials", action="store_true", help="control: no engagement gate (*_alltrials folders)")
+    ap_.add_argument("--baseline", choices=("all", "late"), default="late",
+                     help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including -> *_allpre")
     a = ap_.parse_args(argv)
     if a.all_trials:
         os.environ["OROFACIAL_ALL_TRIALS"] = "1"
@@ -290,7 +292,7 @@ def main(argv=None) -> int:
     oc._apply_config()
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
-    sfx = "" if oc.ENGAGED_ONLY else "_alltrials"
+    sfx = ("" if oc.ENGAGED_ONLY else "_alltrials") + ("_allpre" if a.baseline == "all" else "")
     tables, figs = base / "tables" / f"jaw_lateral{sfx}", base / "figures" / f"jaw_lateral{sfx}"
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
@@ -301,8 +303,11 @@ def main(argv=None) -> int:
         an = config.animal_of(s["label"])
         date = "2026" + s["label"].split("_")[-1]
         sd = oo.session_dir(rv, a.run, an, date)
+        ep = epochs.epoch_of(s["label"])
+        if a.baseline == "late" and ep == "pre" and date[4:8] < oc.LATE_PRE_FROM:
+            continue                                   # August-only baseline: June pre sessions out
         if (sd / "manifest.json").exists():
-            items.append((sd, an, date, epochs.epoch_of(s["label"]), epochs.days_since_stroke(s["label"]), lat[an]))
+            items.append((sd, an, date, ep, epochs.days_since_stroke(s["label"]), lat[an]))
     res, fail = ak.fan_sessions(items, session_trials, jobs=a.jobs, key=lambda it: (it[1], it[2]), label="session")
     if fail:
         raise RuntimeError(f"{len(fail)} session(s) failed -- refusing to write a partial table: {fail}")

@@ -15,7 +15,7 @@ variable shuffled in the full orthogonalised model (movement_first: shared varia
 dR2 is conservative; position shuffle = label permutation, so only position SPECIFICITY is removed). Fig. 5:
 task-independent = cvR^2(task + v) - cvR^2(task); task-aligned = alone(v) - task-independent.
 
-Outputs: <LP_analysis>/<run>/imaging_encoding/<order>/figures{,_latepre}/ (+ svg/) and tables{,_latepre}/.
+Outputs: <LP_analysis>/<run>/imaging_encoding/<order>/figures{,_allpre}/ (+ svg/) and tables{,_allpre}/; AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre.
 """
 from __future__ import annotations
 
@@ -531,10 +531,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--order", default="movement_first")
-    ap.add_argument("--baseline", choices=("all", "late"), default="all")
+    ap.add_argument("--baseline", choices=("all", "late"), default="late", help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre")
     a = ap.parse_args(argv)
     base = oo.root(PathResolver()) / a.run / "imaging_encoding" / a.order
-    sfx = "_latepre" if a.baseline == "late" else ""
+    sfx = "_allpre" if a.baseline == "all" else ""
     figs, tabs = base / f"figures{sfx}", base / f"tables{sfx}"
     writeguard.assert_writable(base)
     figs.mkdir(parents=True, exist_ok=True)

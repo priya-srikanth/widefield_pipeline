@@ -20272,3 +20272,42 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   .. trial stop, engaged trials, mouth / spout frame (rotated onto the spout axis), camera orientation (tongue down).
   P = frames in bin / all window frames (their Q17). The delta pre column is the later minus the earlier half of pre
   sessions (a leave-one-out pre delta averages to exactly zero). Contour = every animal agrees in sign.
+
+## 2026-10-18 (late) — the AUGUST-ONLY pre baseline is PRIMARY (orofacial + encoding); June-including = sensitivity only
+
+**Decision (Priya):** "let's do august only as primary ... archive or clearly mark as superseded the analyses that use the
+june baseline, so we're not at risk of accidentally looking at these in the future"; "encoding should use august only".
+
+**Why June cannot simply be rescaled (measured after v36's 12.9 % scale correction):** the June camera configuration
+differs in PERSPECTIVE, not only scale. A ruler entirely on the head (nose to the session's jaw rest, no-lick ENL frames)
+is 1.17-1.24x larger in June (PS92 1.17, PS93 1.23, PS94 1.24, PS95 1.22), while the spout plane is 1.13x and the
+nose-to-mouth distance 1.24-1.33x. Head features (nearer the lens) magnified more than the spouts, so no single 2-D
+transform fits; the spout positions already fit a similarity transform to ~1-2 px, so an affine would not help, and the
+tongue spans both depths. Consequences seen in v36: the jaw-from-mouth pre floor at far contra was 0.41 with June halves
+vs 0.25 August-only; June pre sessions sit 10.4 px from the pooled pre jaw-from-mouth cloud vs 8.7 for August. June was
+also a different behavioural state (spout contact +0.4 by August).
+
+**What it changes (v36, all-pre vs August-only):**
+- angles: essentially nothing (far contra acute +29.0 vs +29.8 deg; close ipsi acute +12.9 vs +13.1; two small
+  subacute / chronic cells drop from both tests to MWU only);
+- protrusion px: same size after v36 (median |change| 7.4 vs 7.5 px; 6 / 6 significant cells);
+- contact fraction: all-pre inflates it (median |change| 0.11 vs 0.02; 6 -> 3 cells) -- real June -> August learning;
+- spout control: v36 already fixed (spout floor 0.36 all-pre ~ 0.41 August-only);
+- imaging epoch families (today's comparison, `scripts/imaging_baseline_compare.py`): 703 cells significant under both,
+  36 lost and 122 gained with August-only -- the August reference is tighter.
+
+**Implementation:**
+- `--baseline` defaults to `late` in `orofacial_cohort`, `orofacial_jaw_lateral` (new option), `orofacial_w2`,
+  `orofacial_heatmaps`, `orofacial_deck` and `scripts/combined_encoding_figures.py`. Primary outputs keep the PLAIN folder
+  names (`prepost/`, `w2/`, `heatmaps/`, `jaw_lateral/`, `imaging_encoding/<order>/figures/`); `--baseline all` writes
+  `*_allpre`. The all-pre deck is named `orofacial_prepost_allpre_SENSITIVITY_<date>.pptx`.
+- Share (renames only, nothing deleted): v36 `X` -> `X_allpre`, `X_latepre` -> `X`; every `*_allpre` folder carries
+  `SUPERSEDED.md`; the v35 run root carries `SUPERSEDED.md` and its decks are renamed `SUPERSEDED_v35_*`.
+- `scripts/orofacial_robustness_table.py` reads `prepost_allpre/` (it needs the June rows to build both baselines).
+- All-pre results may be quoted ONLY for scale-free measures (timing, counts, angles, contact, engagement), labelled as
+  the sensitivity check. Anything measured relative to the mouth origin (jaw-from-mouth, nose, spout) is August-only.
+
+**Imaging (not switched yet):** the June baseline is wired into the nightly pipeline, the analysis deck and the frozen
+pre-stroke decoders (FROZEN_MODELS: the August-only training sets already exist as NEW frozen ids from today's
+sensitivity run; switching means making them canonical with an explicit `refreeze` reason, a config default for
+`WIDEFIELD_PRE_FROM`, and a full epoch + deck re-render). Pending Priya's go-ahead on that execution.

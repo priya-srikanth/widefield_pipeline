@@ -247,10 +247,10 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=RUN)
-    ap.add_argument("--baseline", choices=("all", "late"), default="all",
-                    help="'late' builds the deck from the *_latepre folders (August-only pre baseline)")
+    ap.add_argument("--baseline", choices=("all", "late"), default="late",
+                    help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre")
     a = ap.parse_args(argv)
-    sfx = "_latepre" if a.baseline == "late" else ""
+    sfx = "_allpre" if a.baseline == "all" else ""
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
     figs, tables = base / "figures", base / "tables"
@@ -326,7 +326,8 @@ def main(argv=None) -> int:
                 missing.append(rel)
                 continue
             _figure_slide(prs, png, title, cap, f"{title}\n\n{cap}\n\nFigure file: {png}\n\n{STATS_METHODS}")
-    path = out / f"orofacial_prepost{sfx}_{time.strftime('%Y%m%d')}.pptx"
+    # the June-including deck says what it is in its NAME (Priya 10-18: not at risk of being read as the primary result)
+    path = out / f"orofacial_prepost{'_allpre_SENSITIVITY' if sfx else ''}_{time.strftime('%Y%m%d')}.pptx"
     prs.save(path)
     print(f"{len(prs.slides)} slides -> {path}")
     if missing:
