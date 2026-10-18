@@ -2,6 +2,12 @@
 
 Status: **preliminary**. Rewritten 2026-10-18 after a full review of the data with all 136 sessions processed.
 
+> **BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY.** Results below that were selected as
+> "significant under both baselines" predate this rule and are being re-checked on run v36 (June camera scale and
+> perspective; DECISIONS 2026-10-18 late). Primary tables / figures: `cohort/{tables,figures}/{prepost,w2,heatmaps,jaw_lateral}/`
+> of `lp_r4_heatmap_20261013__clean_v36`; the June-including versions (`*_allpre`, marked SUPERSEDED) may be quoted only
+> for scale-free measures, as a sensitivity check. Run v35 is SUPERSEDED in full.
+
 **What counts as a finding here.** An effect is reported only if it is significant by **both** tests (session
 Mann-Whitney with BH-FDR, and the animal-weighted bootstrap) under **both** pre-stroke baselines (Priya 10-18: "both, side
 by side"):

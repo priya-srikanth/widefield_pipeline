@@ -347,6 +347,9 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
+outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
+
 **[`docs/status/STATUS_2026-10-18_OROFACIAL_W2_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-18_OROFACIAL_W2_ENCODING_HANDOFF.md)**
 — **START HERE, newest.** cam4 orofacial cohort complete (136 sessions; engagement gate; all-pre + August-only
 baselines; leave-PS93-out), W2 spatial readout, pre-v47 log-shift fix, imaging August-only sensitivity

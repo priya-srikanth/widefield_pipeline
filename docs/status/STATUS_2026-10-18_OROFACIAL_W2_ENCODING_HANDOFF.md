@@ -4,6 +4,22 @@
 for O2 production and for the to-do list items 1-11 it carries. Reasoning and numbers are in `DECISIONS.md`
 (entries from 2026-10-17 and 10-18). Orofacial results are in **`docs/OROFACIAL_FINDINGS.md`**.
 
+## 00. UPDATE 2026-10-18 evening (read first)
+
+- **Run v36 replaces v35** (June camera-scale correction from the no-lick ENL spout ruler; Aug+ bit-identical). v35 is
+  marked SUPERSEDED on the share.
+- **The AUGUST-ONLY pre baseline is PRIMARY** for every orofacial analysis and the encoding model (default
+  `--baseline late`; primary = plain folder names; June-including = `*_allpre` + `SUPERSEDED.md`, sensitivity only, and
+  only for scale-free measures). June cannot be rescaled further: head features magnify 1.17-1.24x vs the spout plane
+  1.13x (perspective). Imaging has NOT been switched yet (needs the frozen-model / nightly / deck step; DECISIONS).
+- **Encoding model redesigned** (`combined_encoding.py`): own ridge penalty per reduced model, order-free drop dR2,
+  imaging-map masks, shared cue + arrival kernels with deviation-coded position (one variable; per-position one-vs-rest
+  and side / distance permutations; absolute + deviation response maps), lick kernel -0.5..+2 s, no reward, variants
+  for target vs executed angle (with and without tongue x/y). Old v35 encoding outputs are invalid (borrowed penalties).
+- **New figures:** heatmaps (incl. no-lick ENL spout / nose, jaw from the mouth), jaw paths + phase portraits, delta
+  and per-animal trajectories; W2 spout control on no-lick ENL frames; retraction cut at trial end.
+- **O2:** video motion-energy pilot (`scripts/o2_video_me.py`, bundle `me_pilot_20261018`, 46 tasks) submitted by Priya.
+
 ## 0. RUNNING when this was written (check these first)
 
 All runs are on the analysis desktop. Logs are in the session scratchpad
