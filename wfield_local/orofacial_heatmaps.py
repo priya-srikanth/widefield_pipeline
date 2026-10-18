@@ -6,8 +6,9 @@ stroke-orofacial", raw and delta).
 Port of stroke_orofacial's tone-aligned proportion / proportion-diff heatmaps (`dlc_spatial.render_on_demand`,
 `stats.spatial_proportion_diff`, Q-lock 12), on our rig:
 
-  frames   every frame of every ENGAGED trial (the cohort's reference-position gate) from cue - 500 ms to the DAQ trial
-           stop (their window: tone -500 .. +5000 ms).
+  frames   every frame of every ENGAGED trial (the cohort's reference-position gate) from the cue to the DAQ trial stop
+           (Priya 10-18; theirs was tone -500 .. +5000 ms), cut at spout-retraction onset (`retraction_cut`; only bites
+           on PS92 / PS93 0606, where the spout starts retracting up to 300 ms before the DAQ stop).
   frame    the MOUTH / SPOUT frame: offset from the session's mouth (`tongue_origin`), rotated onto the session's spout
            axis (`tongue_kinematics.spout_coords`): x = lateral, + = IPSI (all lesions are LEFT = image right);
            y = forward, out of the mouth toward the spouts. The rotation also removes camera-angle drift. tongue = CLEANED
@@ -37,18 +38,21 @@ import pandas as pd
 KEYPOINTS = ("tongue", "jaw", "nose", "spout")
 LIK_MIN = 0.6
 TONGUE_OUT_PX = 20.0
-WIN_MS = (-500.0, 3500.0)          # cue-relative; the end is the DAQ trial stop when it is known
+WIN_MS = (0.0, 3500.0)             # cue .. DAQ trial stop (Priya 10-18: "just use cue through trial stop")
 NBINS = 80
 #: (x = lateral, y = forward) extents in px, fixed across sessions / epochs / positions (from the pilot, 10-18)
 EXTENT = {"tongue": ((-175.0, 175.0), (-25.0, 320.0)),
           "jaw": ((-70.0, 70.0), (-25.0, 140.0)),
           "nose": ((-65.0, 50.0), (-135.0, -30.0)),
           "spout": ((-125.0, 125.0), (20.0, 140.0))}
-#: spout-in-place trial gate (Priya 10-18: "we are not including any frames where the spout is moving, right"): a trial
-#: is dropped when > SPOUT_MOVE_FRAC of its in-window spout frames are > SPOUT_MOVE_PX from that trial's no-lick ENL
-#: spout position (the spout was moved / knocked during the window). Licking pushes it ~2-5 px; that stays in.
-SPOUT_MOVE_PX = 15.0
-SPOUT_MOVE_FRAC = 0.02
+#: RETRACTION CUT (10-18): a trial's window ends at the first frame where the spout sits > RETRACT_PX from its own median
+#: over cue .. stop for >= RETRACT_RUN consecutive frames AND stays there (median of the rest > RETRACT_PX; brief label
+#: jumps come back). Only on PS92 / PS93 0606 (first ~15 / last ~30 trials) does the
+#: spout start retracting before the DAQ stop (up to 300 ms); elsewhere it moves only after the stop. Lick pushes (16-25
+#: px), single-frame label jumps and water on an untouched spout are NOT cut (an earlier 15 px whole-trial gate removed
+#: those and was retired: it preferentially dropped licking trials). Reference = the trial's own window, no ENL ruler.
+RETRACT_PX = 30.0
+RETRACT_RUN = 3
 LOG_VMIN = 1e-5
 SMOOTH_BINS = 1.0                  # Gaussian sigma (bins) for DELTA maps and the agreement mask only
 
@@ -70,9 +74,9 @@ def frame_coords(sd: Path, animal: str, date: str, run: str) -> dict:
     fr = tk.SpoutFrame(tuple(o), tuple(c["spout_ap_axis"]))
     sgn = 1.0                                      # spout_coords lr is + = image right = the mouse's LEFT = ipsi (left lesions)
     out = {"t": ix.t_ms.to_numpy(float), "stop": ix.stop_ms.to_numpy(float), "pos": ix.position.to_numpy(str),
-           "tid": ix.trial_id.to_numpy(int), "strobe": ix.strobe_ms.to_numpy(float),
+           "tid": ix.trial_id.to_numpy(int),
            "spout_raw": (pose.spout_x.to_numpy(float), pose.spout_y.to_numpy(float)),
-           "spout_lk": pose.spout_likelihood.to_numpy(float), "tongue_lk": pose.tongue_likelihood.to_numpy(float)}
+           "spout_lk": pose.spout_likelihood.to_numpy(float)}
     tx, ty = cl.tongue_x.to_numpy(float), cl.tongue_y.to_numpy(float)
     src = {"tongue": (tx + o[0], ty + o[1], np.hypot(tx, ty) >= TONGUE_OUT_PX),
            "jaw": (cl.jaw_x.to_numpy(float) + o[0], cl.jaw_y.to_numpy(float) + o[1], np.ones(len(tx), bool))}
@@ -85,19 +89,28 @@ def frame_coords(sd: Path, animal: str, date: str, run: str) -> dict:
     return out
 
 
-def spout_moving_trials(F: dict, win: np.ndarray, pose_xy: tuple, lk: np.ndarray, tongue_lk: np.ndarray) -> set:
-    """Trial ids whose spout moved during the window (see SPOUT_MOVE_*). Reference = the trial's median spout over
-    no-lick ENL frames (strobe + 300 ms .. cue, raw tongue not detected), as the camera-scale ruler."""
-    from wfield_local import spout_frame as SF
-    x, y = pose_xy
-    t, sb, tid = F["t"], F["strobe"], F["tid"]
-    ref_m = (t >= sb + SF.ENL_SETTLE_MS) & (t < 0) & (tongue_lk < SF.RULER_TONGUE_MAX_LK) & (lk >= SF.RULER_SPOUT_MIN_LK)
-    d = pd.DataFrame({"tid": tid, "x": x, "y": y})
-    ref = d[ref_m].groupby("tid")[["x", "y"]].median()
-    w = d[win & (lk >= LIK_MIN)].join(ref, on="tid", rsuffix="_r")
-    far = np.hypot(w.x - w.x_r, w.y - w.y_r) > SPOUT_MOVE_PX
-    frac = far.groupby(w.tid).mean()
-    return set(frac.index[frac > SPOUT_MOVE_FRAC].astype(int))
+def retraction_cut(win: np.ndarray, tid: np.ndarray, spout_xy: tuple, lk: np.ndarray) -> np.ndarray:
+    """`win` with each trial's frames from spout-retraction onset on removed (see RETRACT_*). Frames are in time
+    order within a trial (windows.npz rows)."""
+    x, y = spout_xy
+    out = win.copy()
+    ok = win & (lk >= LIK_MIN) & np.isfinite(x) & np.isfinite(y)
+    for k in np.unique(tid[win]):
+        idx = np.flatnonzero(win & (tid == k))
+        good = idx[ok[idx]]
+        if len(good) < RETRACT_RUN:
+            continue
+        mx, my = np.median(x[good]), np.median(y[good])
+        far = np.zeros(len(idx), bool)
+        far[ok[idx]] = np.hypot(x[good] - mx, y[good] - my) > RETRACT_PX
+        dev = np.full(len(idx), np.nan)
+        dev[ok[idx]] = np.hypot(x[good] - mx, y[good] - my)
+        run = np.convolve(far.astype(int), np.ones(RETRACT_RUN, int), "valid") == RETRACT_RUN
+        for j in np.flatnonzero(run):          # a retraction does not come back: the rest of the window stays far
+            if np.nanmedian(dev[j:]) > RETRACT_PX:
+                out[idx[j:]] = False
+                break
+    return out
 
 
 def session_hist(sd: Path, animal: str, date: str, run: str, keep: set | None) -> dict:
@@ -107,12 +120,11 @@ def session_hist(sd: Path, animal: str, date: str, run: str, keep: set | None) -
     win = (t >= WIN_MS[0]) & (t <= np.where(np.isfinite(stop), stop, WIN_MS[1]))
     if keep is not None:
         win &= np.isin(F["tid"], np.fromiter(keep, int))
-    moved = spout_moving_trials(F, win, F["spout_raw"], F["spout_lk"], F["tongue_lk"])
-    if moved:
-        win &= ~np.isin(F["tid"], np.fromiter(moved, int))
+    n0 = int(win.sum())
+    win = retraction_cut(win, F["tid"], F["spout_raw"], F["spout_lk"])
     pos = F["pos"]
-    out = {("_gate", "moved"): (np.zeros((1, 1), np.float32), len(moved)),
-           ("_gate", "trials"): (np.zeros((1, 1), np.float32), int(len(np.unique(F["tid"][win]))))}
+    out = {("_gate", "moved"): (np.zeros((1, 1), np.float32), n0 - int(win.sum())),
+           ("_gate", "trials"): (np.zeros((1, 1), np.float32), n0)}
     for kp in KEYPOINTS:
         x, y, ok = F[kp]
         ex, ey = _edges(kp)
@@ -278,8 +290,9 @@ KP_DESC = {"tongue": "tongue tip (cleaned, OUT frames >= 20 px)", "jaw": "jaw (c
 def _note(kp: str, title: str, kind: str) -> str:
     import textwrap
     what = (f"{KP_DESC[kp]}; x = lateral (+ = IPSI), y = forward (out of the mouth toward the spouts), plotted DOWN as the camera sees it, px, in the mouth / "
-            f"spout frame{'' if kp != 'jaw' else ' (jaw: offset from its rest position)'}; frames: ENGAGED trials, cue "
-            f"{WIN_MS[0]:.0f} ms .. DAQ trial stop; P = frames in bin / ALL window frames (stroke_orofacial Q17). ")
+            f"spout frame{'' if kp != 'jaw' else ' (jaw: offset from its rest position)'}; frames: ENGAGED trials, cue .. "
+            f"DAQ trial stop, cut at spout-retraction onset; P = frames in bin / ALL window frames (stroke_orofacial "
+            f"Q17). ")
     what += ("RAW: within animal (mean over sessions), then mean over animals; log colour. " if kind in ("raw", "both")
              else "")
     what += (f"DELTA: each animal's epoch mean minus ITS OWN pre pool at the position, then the mean over animals; PRE "
@@ -416,7 +429,8 @@ def main(argv=None) -> int:
             for k in z.files:
                 if k.endswith("|n") and k.split("|")[1] in ("outside", "valid", "moved", "trials"):
                     tot[k[:-2]] = tot.get(k[:-2], 0) + int(z[k])
-    print(f"spout-moved trials dropped: {tot.get('_gate|moved', 0)} (of {tot.get('_gate|moved', 0) + tot.get('_gate|trials', 0)})")
+    print(f"retraction cut: {tot.get('_gate|moved', 0)} of {tot.get('_gate|trials', 0)} window frames "
+          f"({tot.get('_gate|moved', 0) / max(tot.get('_gate|trials', 1), 1):.4%})")
     for kp in KEYPOINTS:
         print(f"  {kp}: {tot.get(kp + '|outside', 0) / max(tot.get(kp + '|valid', 1), 1):.4%} of valid frames outside the axes")
     summary = []
