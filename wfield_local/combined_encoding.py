@@ -60,6 +60,17 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned workers see it (tests/test_parallel_results...)
+
+
+def _run() -> str:
+    """The LP run whose pose / clean / licks feed the movement regressors (MIN_REACH_PX is in px, so the run matters)."""
+    import os
+
+    from wfield_local import orofacial_cohort as oc
+    return os.environ.get(RUN_ENV) or oc.RUN
+
+
 FOLDS = 10
 BASIS_S = 0.1
 LAGS = {"strobe": (0.0, 2.0), "cue": (0.0, 2.0), "reward": (-0.2, 1.5), "lick": (-0.3, 0.8)}
@@ -130,7 +141,7 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
     oc._repo_on_path()
     import scripts.pose_kinematics_demo as D
     lat = "L"
-    sd = oo.session_dir(rv, oc.RUN, animal, date)
+    sd = oo.session_dir(rv, _run(), animal, date)
     keep, gate = oc.engagement_keep(animal, date, sd)
     b = TW.trial_bounds(animal, date, rv)
     cue_t = oc._cue_table(sd).set_index("trial_id")
@@ -159,7 +170,7 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
     h5 = daq_io.session_h5(animal, date, rv)
     reward_s = np.asarray(daq_trials.decode(h5)["reward_s"], float)
     # analog pose on the pose rows (DAQ s): tongue / jaw cleaned (mouth- / rest-relative), nose relative to the mouth
-    S = oo.load_session(rv, oc.RUN, animal, date)
+    S = oo.load_session(rv, _run(), animal, date)
     t_pose = S["index"].daq_s.to_numpy(float)
     cl, pose = S["clean"], S["pose"]
     o = np.load(sd / "clean.npz")["tongue_origin"].astype(float)
@@ -553,9 +564,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
 
 
 def out_dir(rv, order: str) -> Path:
-    from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
-    return oo.root(rv) / oc.RUN / "imaging_encoding" / order
+    return oo.root(rv) / _run() / "imaging_encoding" / order
 
 
 def save(out: dict, d: Path) -> None:
@@ -589,7 +599,6 @@ def _worker(job):
 def sessions_available() -> list[str]:
     from wfield_local import analysis_kit as ak
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     rv = PathResolver()
@@ -597,7 +606,7 @@ def sessions_available() -> list[str]:
     for s in ak.curated_sessions(order="sorted"):
         a = config.animal_of(s["label"])
         date = "2026" + s["label"].split("_")[-1]
-        if (oo.session_dir(rv, oc.RUN, a, date) / "manifest.json").exists() and s.get("regime") == "B":
+        if (oo.session_dir(rv, _run(), a, date) / "manifest.json").exists() and s.get("regime") == "B":
             out.append(s["label"])
     return out
 
@@ -609,8 +618,12 @@ def main(argv=None) -> int:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--order", choices=tuple(ORDERS), default="movement_first")
     ap.add_argument("--jobs", type=int, default=3, help="sessions in parallel (each ~3-4 GB)")
+    ap.add_argument("--run", default=None, help="LP run (default: orofacial_cohort.RUN); outputs go under it")
     ap.add_argument("--skip-done", action="store_true")
     a = ap.parse_args(argv)
+    if a.run:
+        import os
+        os.environ[RUN_ENV] = a.run
     from wfield_local.paths import PathResolver
     labels = sessions_available() if a.all else a.labels
     if a.skip_done:
