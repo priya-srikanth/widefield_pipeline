@@ -193,6 +193,12 @@ def _lick_phase(sd: Path, meas: pd.DataFrame, rows: pd.DataFrame) -> dict:
     ang = np.where(out_m, ang, np.nan)
     prot_out, lat_out = np.where(out_m, dist, np.nan), np.where(out_m, lat_xy, np.nan)
     outxy_out = np.where(out_m, out_xy, np.nan)
+    # JAW (Priya 10-18: "a jaw xy trajectory plot ... and speed vs protrusion"): the cleaned jaw relative to its session
+    # rest, rotated onto the spout axis like the tongue (lateral + = image right = ipsi for left lesions; forward = toward
+    # the spouts = opening); opening = distance from rest, its signed velocity for the phase portrait. Hidden jaw = NaN.
+    jx, jy = c["jaw_x"].astype(float), c["jaw_y"].astype(float)
+    jap, jlr = tk.spout_coords(jx + o[0], jy + o[1], tk.SpoutFrame(tuple(o), tuple(c["spout_ap_axis"])))
+    jopen = np.hypot(jx, jy)
     n = len(dist)
     r = (rows.row0.reindex(meas.trial_id).to_numpy() +
          np.round((meas.t_ms.to_numpy() - rows.t0.reindex(meas.trial_id).to_numpy()) / FRAME_MS)).astype(int)
@@ -219,7 +225,10 @@ def _lick_phase(sd: Path, meas: pd.DataFrame, rows: pd.DataFrame) -> dict:
                                    "lat_out_px": np.nanmean(lat_out[idx], 0),
                                    "out_out_px": np.nanmean(outxy_out[idx], 0),
                                    "velocity_out_px_s": np.nanmean(np.where(out_m[idx], vel, np.nan), 0),
-                                   "speed_abs_out_px_s": np.nanmean(np.where(out_m[idx], np.abs(vel), np.nan), 0)},
+                                   "speed_abs_out_px_s": np.nanmean(np.where(out_m[idx], np.abs(vel), np.nan), 0),
+                                   "jaw_lat_px": np.nanmean(jlr[idx], 0), "jaw_fwd_px": np.nanmean(jap[idx], 0),
+                                   "jaw_open_px": np.nanmean(jopen[idx], 0),
+                                   "jaw_vel_px_s": np.nanmean(np.gradient(jopen[idx], axis=1) * FPS, 0)},
                                   int(m.sum()))
     return out
 
@@ -1999,7 +2008,7 @@ def _path_sig(W: pd.DataFrame, p: str, e: str, xc: str, yc: str) -> pd.Series | 
 
 
 def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str, portrait: bool = False,
-                     within: bool = False, inmouth: str = "incl") -> None:
+                     within: bool = False, inmouth: str = "incl", part: str = "tongue") -> None:
     """COHORT lick trajectory per position, pre vs each post epoch overlaid: x-y path of the tongue tip (camera view) or
     the phase portrait (protrusion speed vs protrusion); mean over SESSIONS (all animals), band = SEM over sessions
     perpendicular to the path; licks: ALL POST-CUE licks, measured peaks, +-PORTRAIT_HALF_MS around the peak."""
@@ -2007,7 +2016,11 @@ def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str,
     plt = _plt()
     fig, axs = plt.subplots(1, len(POS_ORDER), figsize=(3.0 * len(POS_ORDER), 4.6), squeeze=False,
                             sharex=not portrait, sharey=True)
-    if inmouth == "incl":
+    jaw = part == "jaw"
+    if jaw:                                              # jaw relative to its rest, spout-axis frame
+        xc, yc = ("jaw_open_px", "jaw_vel_px_s") if portrait else ("jaw_lat_px", "jaw_fwd_px")
+        W = W[W[xc].notna() | W[yc].notna()] if xc in W else W.iloc[0:0]
+    elif inmouth == "incl":
         xc, yc = ("protrusion_px", "velocity_px_s") if portrait else ("lat_px", "out_px")
     else:                                                # tongue OUT frames only (>= ANGLE_MIN_PX from the mouth)
         xc, yc = ("protrusion_out_px", "velocity_out_px_s") if portrait else ("lat_out_px", "out_out_px")
@@ -2051,7 +2064,7 @@ def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str,
                 _sem_ribbon(ax, X.to_numpy(), Y.to_numpy(), SX.to_numpy(), SY.to_numpy(), EPOCH_LINE[e], alpha=0.18)
         if not portrait:
             ax.plot(0, 0, "k+", ms=8)
-            sp = Pm[Pm.pos == p]
+            sp = Pm[Pm.pos == p] if not jaw else Pm.iloc[0:0]
             if len(sp):
                 d, an = sp.spout_dist_px.mean(), np.deg2rad(sp.spout_angle_deg.mean())
                 ax.plot(d * np.sin(an), -d * np.cos(an), "x", color="0.4", ms=8, mew=2)
@@ -2059,19 +2072,27 @@ def fig_cohort_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str,
         else:
             ax.axhline(0, color="0.85", lw=0.8, zorder=0)
         ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
-        ax.set_xlabel("protrusion (px)" if portrait else "lateral (px; + = ipsi)", fontsize=7.5)
+        ax.set_xlabel(("jaw opening (px from rest)" if jaw else "protrusion (px)") if portrait else
+                      ("jaw lateral (px; + = ipsi)" if jaw else "lateral (px; + = ipsi)"), fontsize=7.5)
         ax.tick_params(labelsize=6.5)
-    axs[0][0].set_ylabel("protrusion speed (px/ms)" if portrait else "from mouth (px; camera view)", fontsize=8)
+    axs[0][0].set_ylabel(("jaw opening speed (px/ms)" if jaw else "protrusion speed (px/ms)") if portrait else
+                         ("jaw forward / opening (px from rest; camera view)" if jaw else "from mouth (px; camera view)"),
+                         fontsize=8)
     axs[0][0].legend(fontsize=6, frameon=False)
-    what = ("phase portrait (protrusion speed vs protrusion)" if portrait else "x-y tongue-tip path, as the camera sees "
-            "it (+ = mouth, x = spout)")
+    if jaw:
+        what = ("JAW phase portrait (opening speed vs opening, px from the session's jaw rest)" if portrait else
+                "x-y JAW path from its session rest (+), spout-axis frame, as the camera sees it")
+    else:
+        what = ("phase portrait (protrusion speed vs protrusion)" if portrait else "x-y tongue-tip path, as the camera "
+                "sees it (+ = mouth, x = spout)")
     note = (f"COHORT lick trajectory, pre vs post epochs: {what}; licks: ALL POST-CUE licks (measured peaks), "
             f"+-{PORTRAIT_HALF_MS:.0f} ms around the peak; mean over SESSIONS, band = SEM over sessions; dot = peak; "
-            + ("IN-MOUTH FRAMES INCLUDED" if inmouth == "incl" else f"IN-MOUTH FRAMES EXCLUDED (tongue out >= "
-                                                                   f"{ANGLE_MIN_PX:.0f} px only)")
+            + ("cleaned jaw, hidden = NaN" if jaw else "IN-MOUTH FRAMES INCLUDED" if inmouth == "incl" else
+               f"IN-MOUTH FRAMES EXCLUDED (tongue out >= {ANGLE_MIN_PX:.0f} px only)")
             + (f"; markers = where that epoch differs from pre (cluster permutation on each coordinate's change, sessions, "
-               f"labels permuted within animal, p < 0.025 each): open circle = {'protrusion' if portrait else 'lateral'} "
-               f"only, open triangle = {'speed' if portrait else 'forward position'} only, filled circle = both"
+               f"labels permuted within animal, p < 0.025 each): open circle = "
+               f"{('opening' if jaw else 'protrusion') if portrait else 'lateral'} only, open triangle = "
+               f"{'speed' if portrait else 'forward position'} only, filled circle = both"
                if within else "")
             + ("; WITHIN-ANIMAL: each post-epoch path = the cohort pre path + the mean of each "
                                           "session's change from ITS animal's own pre path" if within else
@@ -2218,6 +2239,9 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
                                      inmouth=im)
                     fig_cohort_paths(PHa, Pm, figs / f"cohort_phase_portrait{wz}_inmouth_{im}.png", t, portrait=True,
                                      within=within, inmouth=im)
+                fig_cohort_paths(PHa, Pm, figs / f"cohort_jaw_trajectory_xy{wz}.png", t, within=within, part="jaw")
+                fig_cohort_paths(PHa, Pm, figs / f"cohort_jaw_phase_portrait{wz}.png", t, portrait=True, within=within,
+                                 part="jaw")
     jaw_csv = base / "tables" / ("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials") / "sessions.csv"
     jaw = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})) if jaw_csv.exists() else None
     fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",

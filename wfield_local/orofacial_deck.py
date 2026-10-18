@@ -45,6 +45,13 @@ SECTIONS = [
          "Same as above, frames with the tongue in the mouth (< 20 px) left out."),
         ("prepost/cohort_phase_portrait_within_inmouth_excl.png",
          "Cohort phase portraits, tongue OUT only (within-animal)", ""),
+        ("prepost/cohort_jaw_trajectory_xy_within.png", "Cohort JAW paths, pre vs post (within-animal)",
+         "Jaw relative to its session rest, spout-axis frame, +-72 ms around each lick peak. Markers: o = lateral only, "
+         "^ = forward only, filled = both."),
+        ("prepost/cohort_jaw_phase_portrait_within.png", "Cohort JAW phase portraits (opening speed vs opening), within-animal",
+         ""),
+        ("prepost/cohort_jaw_trajectory_xy.png", "Cohort JAW paths, raw (pooled over animals)", ""),
+        ("prepost/cohort_jaw_phase_portrait.png", "Cohort JAW phase portraits, raw (pooled over animals)", ""),
         ("prepost/cohort_lick_time_first_minus_pre_inmouth_excl.png", "FIRST lick, lick-peak-aligned time -- tongue OUT only",
          "Rows: protrusion, lateral, angle (change vs pre), speed |v| raw and change."),
         ("prepost/cohort_lick_time_first_raw_inmouth_excl.png", "FIRST lick, lick-peak-aligned time -- tongue OUT only, RAW",
