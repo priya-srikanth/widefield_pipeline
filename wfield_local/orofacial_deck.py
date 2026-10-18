@@ -385,6 +385,7 @@ def main(argv=None) -> int:
     _text(s, f"Pose model LP r4 (cleaning {oo.CLEANING_VERSION}) -- run {a.run}\n{base_txt}\nCurated sessions: {len(S)} ({cnt})\n"
              f"Built {time.strftime('%Y-%m-%d %H:%M')} by wfield_local.orofacial_deck -- PRELIMINARY until every animal's "
              "sessions are in", 0.6, 3.4, 12, 2.0, 16, color=(60, 60, 60))
+    s.notes_slide.notes_text_frame.text = prov
     # methods
     s = _blank(prs)
     _text(s, "Data and statistics", 0.3, 0.1, 12.5, 0.6, 22, bold=True)
