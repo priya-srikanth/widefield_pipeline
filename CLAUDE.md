@@ -350,8 +350,13 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
+**[`docs/status/STATUS_2026-10-18_EVENING_V36_BASELINE_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-18_EVENING_V36_BASELINE_ENCODING_HANDOFF.md)**
+— **START HERE, newest.** LP run v36 (June rescaled; v35 superseded), AUGUST-ONLY baseline primary for orofacial + encoding
+(imaging keeps its default; August-only imaging run confirms), encoding-model redesign (first all-session run invalid),
+imaging map families + O2 video motion-energy pilot in flight, to-dos and pitfalls.
+
 **[`docs/status/STATUS_2026-10-18_OROFACIAL_W2_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-18_OROFACIAL_W2_ENCODING_HANDOFF.md)**
-— **START HERE, newest.** cam4 orofacial cohort complete (136 sessions; engagement gate; all-pre + August-only
+— superseded by the 10-18 evening handoff; cam4 orofacial cohort complete (136 sessions; engagement gate; all-pre + August-only
 baselines; leave-PS93-out), W2 spatial readout, pre-v47 log-shift fix, imaging August-only sensitivity
 (`WIDEFIELD_PRE_FROM`), Musall-style combined encoding model (`combined_encoding.py`), CURBD / ARHMM discussion,
 what is running, pitfalls.
