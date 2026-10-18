@@ -7,6 +7,8 @@ stroke_orofacial compared each session's spatial distribution of a body part wit
 by the Wasserstein-2 (earth mover's, squared-distance) metric, with the spout / eye as references that should not
 change. Here, per session x spout position x keypoint:
 
+  spout    NO-LICK ENL frames only (Priya 10-18): cue - 2 s .. cue (>= strobe + 300 ms), raw tongue not detected, engaged
+           trials -- keeps water-on-the-spout label error, removes licking push / tongue occlusion.
   points   every tracked frame of every ENGAGED trial (the cohort's reference-position gate), cue + 70 ms .. DAQ trial
            stop, cut at spout-retraction onset (`orofacial_heatmaps.retraction_cut`; only PS92 / PS93 0606 retract before
            the DAQ stop -- checked 10-18). tongue = CLEANED tip in the mouth frame, tongue OUT only (>= 20 px; in-mouth frames would put a
@@ -39,6 +41,9 @@ LIK_MIN = 0.6
 TONGUE_OUT_PX = 20.0
 MIN_POINTS = 100
 WIN0_MS = 70.0
+#: SPOUT control frames (Priya 10-18): no-lick ENL only -- the last SPOUT_ENL_MS before the cue (and >= strobe + settle),
+#: raw tongue NOT detected. Keeps any water-on-the-spout label error, removes the licking push / tongue occlusion.
+SPOUT_ENL_MS = 2000.0
 
 
 def _points(sd: Path, animal: str, date: str, keep: set | None) -> dict:
@@ -65,9 +70,14 @@ def _points(sd: Path, animal: str, date: str, keep: set | None) -> dict:
         x, y = pose[f"{kp}_x"].to_numpy(float), pose[f"{kp}_y"].to_numpy(float)
         ok = pose[f"{kp}_likelihood"].to_numpy(float) >= LIK_MIN
         xy[kp] = (x - o[0], y - o[1], ok)                                   # mouth frame
+    from wfield_local import spout_frame as SF
+    enl = ((t >= -SPOUT_ENL_MS) & (t < 0) & (t >= ix.strobe_ms.to_numpy(float) + SF.ENL_SETTLE_MS)
+           & (pose.tongue_likelihood.to_numpy(float) < SF.RULER_TONGUE_MAX_LK))
+    if keep is not None:
+        enl &= ix.trial_id.astype(int).isin(keep).to_numpy()
     out = {}
     for kp, (x, y, ok) in xy.items():
-        m = win & ok & np.isfinite(x) & np.isfinite(y)
+        m = (enl if kp == "spout" else win) & ok & np.isfinite(x) & np.isfinite(y)
         for p in np.unique(pos[m]):
             mm = m & (pos == p)
             if mm.sum() >= MIN_POINTS:
@@ -185,7 +195,8 @@ def figures(W: pd.DataFrame, figs: Path, title: str) -> pd.DataFrame:
     ms = tuple(f"w2_{k}" for k in KEYPOINTS if f"w2_{k}" in wide)
     for k in KEYPOINTS:
         oc.LABEL[f"w2_{k}"] = (f"W2 {k.replace('_img', '')} (IMAGE px, framing) vs own pre" if k.endswith("_img")
-                               else f"W2 {k} (mouth frame) vs own pre (px)")
+                               else (f"W2 {k} (mouth frame) vs own pre (px)" if k != "spout" else
+                                "W2 spout, no-lick ENL (mouth frame) vs own pre (px)"))
     ST = session_change_tests(wide, ms)
     oc.fig_cohort_epochs_by_position(wide, ms, figs / "epochs_by_position.png",
                                      title + "\nWasserstein-2 distance of each session's keypoint cloud from the "
