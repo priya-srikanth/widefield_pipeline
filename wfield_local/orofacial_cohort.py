@@ -1661,7 +1661,8 @@ def fig_cohort_delta(rows: list, path: Path, title: str, note: str, xlabel: str,
                         ax.plot(x, np.where(grow, np.where(np.isnan(mu), mlo, mu), np.nan), color=ecol[e], lw=1.0,
                                 ls=(0, (2, 1.5)), alpha=0.5, zorder=2.5)
                 n_sess = int(D[(D.pos == p) & (D.epoch == e)][["animal", "date"]].drop_duplicates().shape[0])
-                lab = f"{e} (n={len(M) if weight == 'session' else n_sess} sessions)"
+                lab = (f"{e} (n={len(M)} sessions)" if weight == "session"
+                       else f"{e} (n={len(M)} animals, {n_sess} sessions)")
                 ax.plot(x, mu, color=ecol[e], lw=1.6, zorder=3, label=lab)
                 se = np.zeros_like(mu)
                 if len(M) > 1:
@@ -2185,7 +2186,9 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
                                    "per-lick normalised time (onset -> offset); licks: ALL post-cue licks")}
         for tag, (desc, c) in INMOUTH.items():
             for (al, ls), (D_, xc_, xl_, what) in sets.items():
-                if not len(D_):
+                if not len(D_) or (al == "phase" and tag == "incl"):
+                    # per-lick phase runs onset (tongue visible) -> offset (gone): 0.1-0.9 is tongue OUT by
+                    # construction (0.04 % in-mouth samples), so "included" duplicated "excluded" (Priya 10-18)
                     continue
                 fig_cohort_delta([(D_, xc_, c["protrusion"], "protrusion (px), change vs pre", False),
                                   (D_, xc_, c["lateral"], "lateral tip position (px; + = ipsi), change vs pre", False),
