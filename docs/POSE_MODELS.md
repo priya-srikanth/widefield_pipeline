@@ -567,3 +567,24 @@ between-lick veto's `interlick_near_px` 80 -> **40** (percentile-matched: cam4's
 (distance from the mouth median 36-50 vs 73-98 px, p95 71-106 vs 156-186), so 80 px covered 81-98 % of cam1 tongue frames and
 the veto would also fire on slides round the spout rod. Same foreshortening for ANALYSIS thresholds measured from the mouth:
 cam4's 20 px in-mouth cutoff corresponds to ~10-11 px on cam1 -- set cam1 thresholds from cam1 distributions, not cam4's px.
+
+### cam4 LP r4 eps35 (O2, scored 2026-10-18)
+
+LP r4 recipe (heatmap, ResNet-50, 640 px, batch 4, round 4) with temporal epsilon [nose 10, jaw 10, tongue 35, spout 10] -- the
+only difference from LP r4 (which used 10 px for every keypoint). `o2/lp_train_20261016/models/heatmap_640_b4_eps35`; scored
+`session_poses/PS93_<d>/r4_eval/model_lick_compare_eps35_1018.csv`.
+
+| pre / acute | LP r4 | **LP r4 eps35** | ctx-semi 640 | ResNet-50 640 b8 |
+|---|---|---|---|---|
+| contact recall (%) | 98.8 / 99.6 | **99.5 / 99.2** | 98.5 / 97.9 | 99.0 / 99.2 |
+| review precision (%) | 82 / 88 | **96 / 94** | 87 / 91 | 96 / 96 |
+| review share of real licks (%) | 100 / 97 | 89 / 97 | 100 / 97 | 85 / 87 |
+| no-contact licks | 149 / 88 | 127 / 94 | 138 / 86 | 119 / 84 |
+| jaw x jumps > 30 px | 38 / 5 | 52 / 5 | 7 / 3 | 114 / 23 |
+| tongue x jumps > 60 px | 3 / 1 | 1 / 1 | 1 / 0 | 4 / 2 |
+
+**Reading.** The 35 px tongue epsilon makes the production recipe more PRECISE (pre: 1 false lick in the review vs 6) at
+nearly the same coverage (misses 3 of 27 real faint licks pre), with tighter all-lick angle spreads (e.g. far_center pre IQR
+3.3 vs 15.6 deg, far_R 6.8 vs 17.7) and slightly more jaw jumps pre. A candidate to replace LP r4 -- Priya's call (switching =
+re-running O2 inference, cleaning and every downstream analysis); weigh against ctx-semi 640 (steadiest jaw, finds every real
+lick, lower precision). ViT-B 640 still training.

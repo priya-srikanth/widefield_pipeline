@@ -350,6 +350,12 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
+**[`docs/status/STATUS_2026-10-18_CAM1_ROUND2_3D_HANDOFF.md`](docs/status/STATUS_2026-10-18_CAM1_ROUND2_3D_HANDOFF.md)**
+— **START HERE for POSE TRACKING (cam1 round 2, cam1 clean traces, 3-D, model selection), newest.** cam1 DLC + LP round-2
+retrain (O2 jobs running), cam1 scoring / cleaned clips, the cam1 mouth = L/R spout-line intersection (apparatus), the 3-D
+apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + copy-back commands, pitfalls. Register:
+`docs/POSE_MODELS.md` (Parts B-D).
+
 **[`docs/status/STATUS_2026-10-18_EVENING_V36_BASELINE_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-18_EVENING_V36_BASELINE_ENCODING_HANDOFF.md)**
 — **START HERE, newest.** LP run v36 (June rescaled; v35 superseded), AUGUST-ONLY baseline primary for orofacial + encoding
 (imaging keeps its default; August-only imaging run confirms), encoding-model redesign (first all-session run invalid),

@@ -27,13 +27,23 @@ Kept by Claude; answer any item whenever convenient (a line in chat is enough); 
    coverage check when `squeue -u ps150` is empty (runbook: done.json / squeue check -> `not done: 0`).
    Status 10-16 evening: 88 / 136 sessions done; gpu_quad full; fair share 0.068 (recovering).
 
-4. **O2 cam1 round-2 LP training** (2026-10-18) — bundle `o2/lp_train_cam1_r2_20261018` (heatmap 640 b4 = LP r4
+4. **(10-18 evening) copy back as models finish** -- `docs/status/STATUS_2026-10-18_CAM1_ROUND2_3D_HANDOFF.md` §0 has the rsync
+   lines. Running: `56709413_2` cam1 ctx-semi, `56718665_1` cam1 eps40, `56700781_1` cam4 ViT-B. Done + scored: cam1 heatmap,
+   cam4 eps35.
+5. **O2 cam1 round-2 LP training** (2026-10-18) — bundle `o2/lp_train_cam1_r2_20261018` (heatmap 640 b4 = LP r4
    recipe, ctx-semi 640 b4; 634 cam1 labels). Steps in its `COMMANDS.md`; when `models/*/DONE` appear, copy back and
    tell me. DLC cam1 round 2 trains locally (iteration 1). Running as job 56709413.
    Add-ons (10-18): cam1 `heatmap_640_b4_eps40` (epsilon measured on cam1: [10, 15, 40, 10]) and cam4
    `heatmap_640_b4_eps35` (LP r4 recipe with the 10-14 per-keypoint epsilon) -- `train_<model>.sbatch` in each bundle.
 
-## Decisions (none pending right now)
+## Decisions
+
+- **cam4 production: keep LP r4 or switch to LP r4 eps35?** eps35 = LP r4 with the 35 px tongue temporal limit: review precision
+  96 / 94 % vs 82 / 88, recall 99.5 / 99.2 %, finds 89 / 97 % of real faint licks vs 100 / 97, tighter angle spreads, slightly more
+  jaw jumps pre (POSE_MODELS "cam4 LP r4 eps35"). Switching = re-running O2 inference + cleaning + downstream. ViT-B still training.
+- **cam1 cleaned-trace QC** -- `session_poses\PS93_20260814_cam1\eval\cleaned_labels_cam1_dlc2_lp2.mp4`: (1) centre positions --
+  does the cleaning bridge between-lick gaps (trial 251)? (2) the last two (sated) trials -- water; (3) jaw hidden stretches.
+  Approve / adjust `orofacial_clean_cam1` (proposed values, POSE_MODELS D7).
 
 ## FYI
 
