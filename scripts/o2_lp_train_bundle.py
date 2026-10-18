@@ -41,6 +41,17 @@ CAM1_MODELS = {
     "heatmap_640_b4": {"model.backbone": "resnet50", "batch": 4},
     "mhcrnn_semi_640_b4": MODELS["mhcrnn_semi_640_b4"],
 }
+#: ADD-ON models (2026-10-18, Priya): the single-frame LP r4 recipe with the per-keypoint temporal epsilon the context
+#: models got on 10-14 -- LP r4 itself predates that and penalises tongue steps > 10 px. Added to an EXISTING bundle
+#: with `--only <name> --configs-only` (a config + its own sbatch; the data already on scratch is reused).
+ADDONS = {
+    "cam4": {"heatmap_640_b4_eps35": {"model.backbone": "resnet50", "batch": 4, "temporal_epsilon": [10.0, 10.0, 35.0, 10.0]}},
+    # cam1 epsilon = ~p99 of genuine frame-to-frame motion measured ON CAM1 (2026-10-18; DLC r2, PS93 0814, confident
+    # consecutive frames, + DLC r1 on the six round-1 clips): tongue p99 37-40 px, jaw p99 11 (p99.9 21; cam1 sees
+    # the jaw open toward it), nose / spout p99 <= 4. So [nose 10, jaw 15, tongue 40, spout 10].
+    "cam1": {"heatmap_640_b4_eps40": {"model.backbone": "resnet50", "batch": 4,
+                                      "temporal_epsilon": [10.0, 15.0, 40.0, 10.0]}},
+}
 #: per camera: WSL LP project, base config, eval clips (WSL paths, or Windows paths copied from the share), models
 PROFILES = {
     "cam4": {"project": WSL_PROJECT, "eval_wsl": WSL_EVAL, "eval_win": [], "models": MODELS, "orig": 680,
@@ -136,15 +147,36 @@ Scratch: `{scratch}`. Share copy: `{share_o2}/{name}`. Models: {", ".join(models
 """
 
 
+def add_configs(a, prof: dict, models: dict, share: Path, scratch: str) -> int:
+    """Write configs + a separate sbatch for ``models`` into an existing bundle on the share (its data is on scratch)."""
+    from wfield_local import writeguard
+    if not (share / "project").is_dir():
+        raise SystemExit(f"{share} has no project/ -- build the bundle first (without --configs-only)")
+    base = yaml.safe_load(wsl(f"cat {WSL_R4_CONFIG}"))
+    tag = "_".join(models)
+    writeguard.assert_writable(share)
+    for n, ch in models.items():
+        with open(share / "configs" / f"config_{n}.yaml", "w", newline="\n") as fh:
+            yaml.safe_dump(model_config(base, ch, scratch, prof), fh, sort_keys=False)
+    (share / f"train_{tag}.sbatch").write_text(sbatch_text(scratch, list(models), f"lp_train_{a.cam}"),
+                                               encoding="utf-8", newline="\n")
+    print(f"added {', '.join(models)} to {share}: configs/ + train_{tag}.sbatch")
+    return 0
+
+
 def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", default="lp_train_20261016")
     ap.add_argument("--user", default="ps150")
     ap.add_argument("--cam", default="cam4", choices=sorted(PROFILES))
+    ap.add_argument("--only", nargs="+", default=None, help="model names (incl. ADDONS) to write; default: the profile's set")
+    ap.add_argument("--configs-only", action="store_true",
+                    help="add to an EXISTING bundle: write only the configs + train_<names>.sbatch, no data staging")
     a = ap.parse_args(argv)
     prof = PROFILES[a.cam]
-    models = prof["models"]
+    known = {**prof["models"], **ADDONS[a.cam]}
+    models = {n: known[n] for n in a.only} if a.only else prof["models"]
     vit = any("vit" in str(ch.get("model.backbone", "")) for ch in models.values())
     rv = PathResolver()
     from wfield_local import o2_inference as oi
@@ -152,6 +184,8 @@ def main(argv=None) -> int:
     scratch = f"/n/scratch/users/{a.user[0]}/{a.user}/o2/{a.name}"
     share_o2 = "/n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2"
     stage_w = f"{STAGE}/{a.name}"
+    if a.configs_only:
+        return add_configs(a, prof, models, share, scratch)
     print("staging project data + eval clips out of WSL ...")
     wsl(f"set -e; mkdir -p {stage_w}/project {stage_w}/eval_clips; cd {prof['project']}; "
         f"cp -rL CollectedData.csv labeled-data videos {stage_w}/project/; cp -L {' '.join(prof['eval_wsl'])} {stage_w}/eval_clips/")
