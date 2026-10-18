@@ -1,6 +1,6 @@
 """Pre- vs post-stroke orofacial kinematics across the cohort, from the organised pose outputs (`orofacial_outputs`).
 
-    python -m wfield_local.orofacial_cohort [--run lp_r4_heatmap_20261013__clean_v35] [--jobs 4]
+    python -m wfield_local.orofacial_cohort [--run lp_r4_heatmap_20261013__clean_v36] [--jobs 4]
 
 Reads every CURATED session (`analysis_kit.curated_sessions`, the same pre + post set the imaging analyses use -- early
 June 6/1-6/5 and 8/5 excluded) that has a processed session folder, reduces each to per-session numbers, and writes
@@ -64,7 +64,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-RUN = "lp_r4_heatmap_20261013__clean_v35"
+RUN = "lp_r4_heatmap_20261013__clean_v36"
 EPOCH_ORDER = ("pre", "acute", "subacute", "chronic")
 POS_ORDER = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")
 METRICS = ("resp_rate", "licks_per_resp", "post_rate_hz", "precue_rate_hz", "precue_trial_frac", "iti_rate_hz",

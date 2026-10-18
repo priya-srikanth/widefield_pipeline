@@ -2,7 +2,7 @@
 as we did in stroke_orofacial" -- after `stroke_orofacial_pipeline/scripts/chore_dlc_pooled_phenotype/
 build_stats_figure_deck.py`: title, sections, one figure per slide with title + caption, significance grids).
 
-    python -m wfield_local.orofacial_deck [--run lp_r4_heatmap_20261013__clean_v35]      (needs python-pptx: locanmf env)
+    python -m wfield_local.orofacial_deck [--run lp_r4_heatmap_20261013__clean_v36]      (needs python-pptx: locanmf env)
 
 Reads the figures `orofacial_cohort` and `orofacial_jaw_lateral` wrote and the stats table
 (`cohort/tables/prepost/stats/change_vs_pre_stats.csv`); writes `<LP_analysis>/<run>/cohort/deck/
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
-RUN = "lp_r4_heatmap_20261013__clean_v35"
+RUN = "lp_r4_heatmap_20261013__clean_v36"
 W_IN, H_IN = 13.333, 7.5
 
 #: (section, [(file relative to cohort/figures, slide title, caption)]); the caption says what is plotted and from which

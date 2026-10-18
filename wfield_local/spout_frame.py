@@ -130,3 +130,32 @@ def angle_deg(x, y, frame: SpoutFrame) -> np.ndarray:
     """Angle of the point from the origin, relative to the centre line: 0 straight out, + toward image-right."""
     ap, lr = to_frame(x, y, frame)
     return np.degrees(np.arctan2(lr, ap))
+
+
+#: no-lick ENL ruler (Priya 2026-10-18): the spout tip is measured only while it is parked and untouched --
+#: strobe + ENL_SETTLE_MS .. cue, raw tongue not detected, confident spout.
+ENL_SETTLE_MS = 300.0
+RULER_TONGUE_MAX_LK = 0.4
+RULER_SPOUT_MIN_LK = 0.9
+
+
+def ruler_medians(flat: pd.DataFrame, ix: pd.DataFrame) -> dict:
+    """{position: (x, y, n)} median spout tip over NO-LICK ENL frames (spout parked, tongue not detected), image px."""
+    t, sb = ix.t_ms.to_numpy(float), ix.strobe_ms.to_numpy(float)
+    m = ((t >= sb + ENL_SETTLE_MS) & (t < 0) & (flat.tongue_likelihood.to_numpy(float) < RULER_TONGUE_MAX_LK)
+         & (flat.spout_likelihood.to_numpy(float) >= RULER_SPOUT_MIN_LK))
+    out = {}
+    for p, g in pd.DataFrame({"x": flat.spout_x.to_numpy(float), "y": flat.spout_y.to_numpy(float),
+                              "pos": ix.position.astype(str).to_numpy()})[m].groupby("pos"):
+        out[p] = (float(g.x.median()), float(g.y.median()), int(len(g)))
+    return out
+
+
+def ruler_spacing(med: dict) -> float:
+    """Mean pairwise distance (px) between the six spout positions' medians -- the session's physical ruler. Origin-
+    and rotation-free; NaN unless all six positions are present."""
+    import itertools
+    if len(med) < 6:
+        return float("nan")
+    pts = [np.array(med[p][:2]) for p in sorted(med)]
+    return float(np.mean([np.linalg.norm(a - b) for a, b in itertools.combinations(pts, 2)]))

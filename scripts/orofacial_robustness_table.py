@@ -1,6 +1,6 @@
 """Robustness of every orofacial cohort cell to the baseline and to PS93 (Priya 2026-10-18).
 
-    python scripts/orofacial_robustness_table.py [--run lp_r4_heatmap_20261013__clean_v35] [--n-boot 2000]
+    python scripts/orofacial_robustness_table.py [--run lp_r4_heatmap_20261013__clean_v36] [--n-boot 2000]
 
 Re-runs the cohort's tests (`orofacial_stats.session_change_tests`: session Mann-Whitney + BH-FDR, animal-weighted
 bootstrap) on the saved per-position table under four variants -- baseline all curated pre / August-only pre

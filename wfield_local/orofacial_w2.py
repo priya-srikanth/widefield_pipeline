@@ -1,7 +1,7 @@
 """Wasserstein-2 spatial-distribution readout of the cam4 keypoints, pre vs post stroke (Priya 2026-10-18: "as in
 stroke_orofacial").
 
-    python -m wfield_local.orofacial_w2 [--run lp_r4_heatmap_20261013__clean_v35] [--jobs 6] [--n 800] [--draws 3]
+    python -m wfield_local.orofacial_w2 [--run lp_r4_heatmap_20261013__clean_v36] [--jobs 6] [--n 800] [--draws 3]
 
 stroke_orofacial compared each session's spatial distribution of a body part with the animal's pre-stroke distribution
 by the Wasserstein-2 (earth mover's, squared-distance) metric, with the spout / eye as references that should not

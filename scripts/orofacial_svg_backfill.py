@@ -1,7 +1,7 @@
 """Re-draw every session's qc.png from its saved outputs so each also gets svg/qc.svg (Priya 10-17: PNG + SVG for all
 orofacial figures). New sessions get both from `orofacial_outputs process` directly; this is for folders made before.
 
-    python scripts/orofacial_svg_backfill.py [--run lp_r4_heatmap_20261013__clean_v35]
+    python scripts/orofacial_svg_backfill.py [--run lp_r4_heatmap_20261013__clean_v36]
 """
 import argparse
 
@@ -11,7 +11,7 @@ from wfield_local.paths import PathResolver
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--run", default="lp_r4_heatmap_20261013__clean_v35")
+    ap.add_argument("--run", default="lp_r4_heatmap_20261013__clean_v36")
     a = ap.parse_args()
     rv = PathResolver()
     base = oo.root(rv) / a.run / "sessions"

@@ -1334,6 +1334,20 @@ lick_template_match:           # wfield_local/lick_templates.py + scripts/lick_t
   n_perm: 1000                 # within-position angle permutations for the readout test
   n_angle_bins: 8              # pre-stroke executed-angle templates for the cortical angle readout
 
+orofacial_camera:              # cam4 camera-scale correction (2026-10-18, Priya: "rescale the june sessions using the known
+                               # spout position distances"; "only scale the june sessions"). The six spout positions are a
+                               # fixed physical ruler: mean pairwise distance of their medians over NO-LICK ENL frames
+                               # (strobe + 300 ms .. cue, raw tongue not detected, spout lk >= 0.9; spout_frame.ruler_*).
+                               # June 0602-0608 measured 12.9 % LARGER than 0806 onward in all four animals (one camera
+                               # configuration; Aug+ = 87.44 +- 0.69 px over 107 sessions). Only sessions BEFORE
+                               # scale_before are scaled, by ONE factor = median over curated June sessions (0.8853; per
+                               # animal 0.8828-0.8869). Aug+ is the reference and untouched (water on an untouched spout can
+                               # bias a per-session ruler). Raw pose x, y are multiplied about the image origin before cleaning,
+                               # so every px threshold runs in Aug+ units; clean.npz / manifest record px_scale.
+  scale_before: "20260801"
+  scale_factor: 0.8853
+  ref_spacing_px: 87.444
+
 orofacial_cohort:             # inclusion thresholds for the cam4 pre- vs post-stroke cohort figures
                               # (wfield_local/orofacial_cohort.py; Priya 2026-10-17, after stroke_orofacial's
                               # min_trials_per_bin / min_sessions_per_bin / min_trials_with_detected_lick)

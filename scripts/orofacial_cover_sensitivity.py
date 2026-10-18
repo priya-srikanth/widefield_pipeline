@@ -1,7 +1,7 @@
 """Sensitivity of the cohort change curves to the coverage rule (Priya 10-17: "how did you decide ... at least half of an
 epoch's sessions, and at least 3").
 
-    python scripts/orofacial_cover_sensitivity.py [--run lp_r4_heatmap_20261013__clean_v35] [--fracs 0 0.25 0.5 0.75]
+    python scripts/orofacial_cover_sensitivity.py [--run lp_r4_heatmap_20261013__clean_v36] [--fracs 0 0.25 0.5 0.75]
 
 For each epoch-level threshold (`min_cover_frac`; 0 = no epoch rule, min n then 1) this re-runs exactly what the cohort
 figures do -- `_animal_delta_curves` (session-weighted) and the cluster permutation vs pre -- on the saved cohort tables,

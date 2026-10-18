@@ -14,7 +14,7 @@ most useful for finding figures and analyses in the future". Layout (root = path
         sessions/<PSxx>/<YYYYMMDD>/
           manifest.json                          provenance + checks (source videos, frame counts, counts, commit)
           windows.npz                            trial windows: index columns (incl. per-frame DAQ time daq_s) + raw
-                                                 pose (n_rows, parts, x/y/lk)
+                                                 pose (n_rows, parts, x/y/lk), x/y x px_scale (June only; v36+)
           clean.npz                              cleaned tongue / jaw per window row: x, y, fill (0 meas, 1-2 interp, 3 fill)
           licks.csv                              post-cue licks: cue + 70 ms .. DAQ trial stop
           licks_precue.csv                       spontaneous licks: position strobe (spout arrived) .. cue + 70 ms
@@ -49,7 +49,8 @@ from wfield_local import config
 #: Bump when `orofacial_clean` / the kinematics change what they compute -> a NEW run folder (never an overwrite).
 #: v35 = jaw x ceiling 75 + x jump test + bracketed flip rule (x-only) + hidden jaw NaN + inter-lick tongue veto +
 #: jaw-off-tongue (all adopted 2026-10-14 / 15, DECISIONS).
-CLEANING_VERSION = "v35"
+#: v36 = v35 + the June camera-scale correction (`orofacial_camera`, 2026-10-18): June pose x 0.8853 before cleaning.
+CLEANING_VERSION = "v36"
 PARTS_ORDER = ("nose", "jaw", "tongue", "spout")
 
 
@@ -60,8 +61,15 @@ def root(rv) -> Path:
 def params_digest() -> str:
     """sha1 of every config block that shapes the outputs (cleaning, kinematics, lick detection)."""
     d = config.defaults()
-    blob = {k: d.get(k) for k in ("orofacial_clean", "orofacial_kinematics", "lick_detection")}
+    blob = {k: d.get(k) for k in ("orofacial_clean", "orofacial_kinematics", "lick_detection", "orofacial_camera")}
     return hashlib.sha1(json.dumps(blob, sort_keys=True, default=str).encode()).hexdigest()[:12]
+
+
+def camera_scale(date: str) -> float:
+    """Factor applied to this session's raw pose x, y (`orofacial_camera`): the June camera configuration -> Aug+ px;
+    1.0 from `scale_before` on. Divide pose by it to draw on the raw video."""
+    c = config.defaults().get("orofacial_camera") or {}
+    return float(c.get("scale_factor", 1.0)) if str(date) < str(c.get("scale_before", "0")) else 1.0
 
 
 def run_name(scorer: str, cleaning: str = CLEANING_VERSION) -> str:
@@ -162,6 +170,10 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
     if not len(ix):
         log(f"{animal} {date}: no trial windows -- skipped")
         return None
+    px_scale = camera_scale(date)
+    if px_scale != 1.0:                      # June camera configuration -> Aug+ px units, BEFORE cleaning (px thresholds)
+        sel = sel.copy()
+        sel[:, :, :2] *= px_scale
     flat = _flat(len(ix), sel, parts)
     spans = [(int(gg.index.min()), int(gg.index.max()) + 1, str(gg.position.iloc[0])) for _, gg in ix.groupby("trial_k")]
     frame = SF.from_medians(SF.position_medians(flat[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans))
@@ -185,7 +197,7 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
                         jaw_x=cj.x_final[pj].astype(np.float32), jaw_y=cj.y_final[pj].astype(np.float32),
                         jaw_fill=cj.fill_method[pj], tongue_origin=np.array([ct.X0, ct.Y0]),
                         jaw_rest=np.array([cj.X0, cj.Y0]), spout_origin=np.asarray(frame.origin),
-                        spout_ap_axis=np.asarray(frame.ap_axis))
+                        spout_ap_axis=np.asarray(frame.ap_axis), px_scale=np.float64(px_scale))
     T.per_lick.to_csv(sd / "licks.csv", index=False)
     P.to_csv(sd / "licks_precue.csv", index=False)
     Q.to_csv(sd / "licks_iti.csv", index=False)
@@ -200,7 +212,7 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
            "source_bundle": bundle, "videos": srcs, "n_trials": int(ix.trial_k.nunique()), "n_rows": int(len(ix)),
            "n_licks": int(len(T.per_lick)), "n_precue_licks": int(len(P)), "n_iti_licks": int(len(Q)), "n_contact_licks": int(T.per_lick.get("contact", pd.Series(dtype=bool))
                                                                     .fillna(False).astype(bool).sum()),
-           "params_digest": params_digest(), "code_commit": code_commit(),
+           "px_scale": px_scale, "params_digest": params_digest(), "code_commit": code_commit(),
            "created": time.strftime("%Y-%m-%d %H:%M")}
     (sd / "manifest.json").write_text(json.dumps(man, indent=1), encoding="utf-8")
     log(f"{animal} {date}: {man['n_trials']} trials, {man['n_licks']} licks -> {sd}")

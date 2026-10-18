@@ -1,6 +1,6 @@
 """Jaw lateral readout on WHOLE sessions with the production pose model (handoff 10-16 to-do 4; 10-14 to-do 10).
 
-    python -m wfield_local.orofacial_jaw_lateral [--run lp_r4_heatmap_20261013__clean_v35] [--jobs 6]
+    python -m wfield_local.orofacial_jaw_lateral [--run lp_r4_heatmap_20261013__clean_v36] [--jobs 6]
 
 Same quantities as `scripts/jaw_lateral.py deviation` (DLC r3 on 60-trial clips, DECISIONS 2026-10-15), now from the
 organised session folders (`orofacial_outputs`: LP r4, cleaning v35, every trial of every curated session):
@@ -31,7 +31,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-RUN = "lp_r4_heatmap_20261013__clean_v35"
+RUN = "lp_r4_heatmap_20261013__clean_v36"
 OPEN_PX = 50.0
 OPEN_FIT_PX = 15.0
 WIN_MS = (70.0, 3000.0)                    # = orofacial_kinematics lick12_detect_win_ms (the 10-15 readout)
