@@ -11,7 +11,7 @@ for O2 production and for the to-do list items 1-11 it carries. Reasoning and nu
 - **The AUGUST-ONLY pre baseline is PRIMARY** for every orofacial analysis and the encoding model (default
   `--baseline late`; primary = plain folder names; June-including = `*_allpre` + `SUPERSEDED.md`, sensitivity only, and
   only for scale-free measures). June cannot be rescaled further: head features magnify 1.17-1.24x vs the spout plane
-  1.13x (perspective). Imaging has NOT been switched yet (needs the frozen-model / nightly / deck step; DECISIONS).
+  1.13x (perspective). Imaging stays on its default baseline by decision (no geometry issue; the August-only imaging run confirms it: same story, slightly deeper acute deficits).
 - **Encoding model redesigned** (`combined_encoding.py`): own ridge penalty per reduced model, order-free drop dR2,
   imaging-map masks, shared cue + arrival kernels with deviation-coded position (one variable; per-position one-vs-rest
   and side / distance permutations; absolute + deviation response maps), lick kernel -0.5..+2 s, no reward, variants

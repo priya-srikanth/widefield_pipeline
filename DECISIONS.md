@@ -20307,7 +20307,4 @@ also a different behavioural state (spout contact +0.4 by August).
 - All-pre results may be quoted ONLY for scale-free measures (timing, counts, angles, contact, engagement), labelled as
   the sensitivity check. Anything measured relative to the mouth origin (jaw-from-mouth, nose, spout) is August-only.
 
-**Imaging (not switched yet):** the June baseline is wired into the nightly pipeline, the analysis deck and the frozen
-pre-stroke decoders (FROZEN_MODELS: the August-only training sets already exist as NEW frozen ids from today's
-sensitivity run; switching means making them canonical with an explicit `refreeze` reason, a config default for
-`WIDEFIELD_PRE_FROM`, and a full epoch + deck re-render). Pending Priya's go-ahead on that execution.
+**Imaging: NOT switched (Priya 10-18: "imaging doesn't need to switch").** The reasons for dropping June are LP geometry (camera perspective) and behavioural state; imaging is registered to the Allen atlas per session, so neither applies. The August-only run is a CONFIRMING sensitivity check: frozen-decoder per-position accuracy tells the same story (pre 0.83-0.93 both ways; acute far contra 0.32 default vs 0.25 August-only; same recovery pattern) and the epoch families agree (703 cells significant under both, 36 lost, 122 gained). Outputs: `labcams/grant_figures/epoch_latepre/`, `labcams/frozen_decoder_latepre/`, `baseline_compare.csv`. The imaging default stays all curated pre.
