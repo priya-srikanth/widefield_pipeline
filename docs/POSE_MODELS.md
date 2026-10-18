@@ -469,7 +469,7 @@ against 09-11. **v36 leaves PS94 / PS95 0805 unscaled** (`scale_before` 20260801
 curated set (8/5 excluded) and every orofacial cohort analysis reads `analysis_kit.curated_sessions`, so NO result is
 affected (checked 10-18); only those two LP_analysis session folders carry px measures inflated 25-30 %.
 
-## D4. cam1 mouth = where the tongue paths meet (option 1, Priya 10-18) -- and results so far
+## D4. cam1 mouth, first attempt: where the tongue paths meet (superseded by D6) -- and results so far
 
 **Mouth (option 1 now, option 2 for 3-D).** Priya (10-18): the spout-line intersection is not the cam1 mouth -- cam1 labels
 the spout tip's BOTTOM edge (cam4 the top front edge), so the lines meet toward the jaw, and the tongue comes out "above" it.
@@ -533,3 +533,14 @@ behaviour-dependent. Priya's choice (10-18): apparatus. Labelled frames cannot t
 cameras; the fit needs 5): June cam1 0606 clips (4 animals, 4 trials / position) are cut and queued for DLC c1r2; cam4 June from
 the O2 LP r4 output; the June variants (raw / x0.885 about origin, principal point, cam4 mouth) are then compared by
 reprojection error and fit residual.
+
+## D6. DECISION (Priya 10-18): the cam1 mouth = the L / R spout-line intersection, no offset
+
+`spout_frame.from_medians_lr`: origin where the L and R far->close spout lines meet, axis = their bisector (cam1 sees the centre
+line end-on). Why: apparatus-only (the tongue-path point depends on tongue behaviour, which changes after the stroke); it
+tracks the 3-D apparatus mouth within 5-8 px (D5), and DLC / LP and parked / all-frame spout medians give the same point within
+2-3 px. Its day-to-day movement relative to the head is real set-point variation (~0.7 mm, D5), acceptable for a task-defined
+reference. It sits ~15-20 px toward the jaw from where the tongue appears (cam1 labels the spout tip's bottom edge) -- kept,
+no shift; cam1 thresholds measured from the mouth are set relative to this point. Adaptive trials need no filter (Priya: the
+stage moves along the same ray, so a shorter far_L lies on the same line; pinned by a test). Works for June unchanged (cam1 has
+no June scale change, D3). The tongue-path point stays as a QC comparison only.

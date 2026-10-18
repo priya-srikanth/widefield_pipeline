@@ -84,3 +84,20 @@ def test_tongue_path_origin_recovers_the_mouth_from_licks_toward_each_spout():
             k += 1
     X, rms, per = SF.tongue_path_origin(rows_x, rows_y, rows_lk, rows_pos, rows_t, rows_src, rows_k, med)
     assert np.linalg.norm(X - mouth) < 1.0 and rms < 1.0 and len(per) == 5
+
+
+def test_cam1_frame_is_the_LR_spout_intersection_and_ignores_a_degenerate_centre_line():
+    mouth, med = _cam1_like()
+    med = dict(med, far_center=(312, 397, 50))        # an end-on centre line with noise must not move the origin
+    fr = SF.from_medians_lr(med)
+    assert np.linalg.norm(fr.origin - mouth) < 1e-6
+    assert np.allclose(fr.ap_axis, [0, -1], atol=1e-9)
+
+
+def test_cam1_frame_unmoved_by_a_shorter_far_spout_on_the_same_ray():
+    """Adaptive trials move far_L along its ray from the mouth (Priya 10-18), so the line -- and the origin -- stay put."""
+    mouth, med = _cam1_like()
+    far = np.array(med["far_L"][:2], float)
+    shorter = mouth + 0.85 * (far - mouth)
+    fr = SF.from_medians_lr(dict(med, far_L=(shorter[0], shorter[1], 50)))
+    assert np.linalg.norm(fr.origin - mouth) < 1e-6

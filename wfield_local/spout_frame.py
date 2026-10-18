@@ -222,3 +222,24 @@ def from_medians_lr_bisector(med: dict, origin) -> SpoutFrame:
     if lr[0] < 0:
         lr = -lr
     return SpoutFrame(np.asarray(origin, float), ap, lr, dict(med), float("nan"), {})
+
+
+def from_medians_lr(med: dict) -> SpoutFrame:
+    """THE cam1 FRAME (Priya 2026-10-18): origin = where the L and R far->close spout lines meet; axis = their bisector.
+
+    Apparatus-only -- no body part enters, so a post-stroke change in the tongue cannot move it. cam1 sees the centre
+    line end-on (close->far 3.4 px), so only the two side lines are used. Validated against the 3-D apparatus mouth
+    (`spout_world.apparatus_mouth`: the gui_config mouth set point projected into cam1) to within 5-8 px on PS93 0814 /
+    0821. It sits ~15-20 px toward the jaw from where the tongue appears (cam1 labels the spout tip's bottom edge): a
+    constant offset relative to the apparatus, kept on purpose (no shift). Adaptive (shorter far_L) trials stay in: the
+    stage moves along the same ray from the mouth, so they lie on the same line. `tongue_path_origin` remains a QC
+    comparison only (it depends on the tongue)."""
+    lines = []
+    for side in ("L", "R"):
+        c, f = SIDES[side]
+        if c not in med or f not in med:
+            raise ValueError(f"need close+far for L and R; have {sorted(med)}")
+        lines.append((np.array(med[c][:2]), np.array(med[c][:2]) - np.array(med[f][:2])))
+    X, rms, dist = ls_intersection(lines)
+    fr = from_medians_lr_bisector(med, X)
+    return SpoutFrame(fr.origin, fr.ap_axis, fr.lr_axis, dict(med), rms, dict(zip(("L", "R"), dist)))

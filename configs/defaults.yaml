@@ -1095,9 +1095,10 @@ orofacial_clean_cam1:         # cam1 (view from below) OVERLAY on `orofacial_cle
                               # production run hashes `orofacial_clean` (orofacial_outputs.params_digest) and refuses to
                               # continue when it changes. PROPOSED, from cam1 QC on PS93 0814 / 0821 (DLC c1r2, LP c1r2);
                               # docs/POSE_MODELS.md D2-D4. Re-check on the chosen cam1 model. Everything not listed = cam4's.
-                              # Tongue origin on cam1 = where the TONGUE paths meet (spout_frame.tongue_path_origin, passed
-                              # as x0y0 by the caller; Priya 10-18 "option 1") -- not the spout-line intersection, which
-                              # sits ~20 px toward the jaw (cam1 labels the spout tip's bottom edge).
+                              # Tongue origin on cam1 (passed as x0y0 by the caller) = the L / R SPOUT-line intersection,
+                              # `spout_frame.from_medians_lr` (Priya 10-18: apparatus-only, so post-stroke tongue changes
+                              # cannot move it; no offset). Matches the 3-D apparatus mouth within 5-8 px. NOT the
+                              # tongue-path point (behaviour-dependent; QC comparison only).
   jaw:
     lk_thr: 0.6               # cam1 analysis cutoff for jaw (DECISIONS 2026-10-05). DLC c1r2 keeps 86 % of jaw frames
                               # at 0.6 vs 95 % at 0.4 (hidden 11 vs 4 %); LP c1r2 unchanged (near-binary likelihoods).
