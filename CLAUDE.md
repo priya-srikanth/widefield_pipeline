@@ -368,7 +368,8 @@ training in WSL, side-camera labelling plan, WSL GPU safety, pitfalls.
 
 **[`docs/OROFACIAL_FINDINGS.md`](docs/OROFACIAL_FINDINGS.md)** — the cam4 pre- vs post-stroke licking findings so far (preliminary; numbers re-checked against `cohort/tables/prepost/stats/RESULTS.md`).
 
-**[`docs/POSE_MODELS.md`](docs/POSE_MODELS.md)** — the cam4 pose-model register: every model, settings + rationale, results, how we choose.
+**[`docs/POSE_MODELS.md`](docs/POSE_MODELS.md)** — the pose-model register (cam4, and cam1 round 2 in Part B): every model, settings + rationale, results, how we
+choose; **Part C = models in training and the evaluation status for both cameras.**
 
 **[`docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md`](docs/status/STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md)**
 — superseded by the 10-14 handoff for tracking; still the reference for the movement-removed ENL position code across recovery (118 sessions: the residual tracks

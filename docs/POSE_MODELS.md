@@ -1,8 +1,9 @@
-# Orofacial pose models (cam4 front view) — register, settings, results, and how we choose
+# Orofacial pose models (cam4 front view, cam1 from below) — register, settings, results, and how we choose
 
-Living record of every cam4 pose model trained for the widefield cohort: what it is, the settings that matter and
-why, where it lives, how it scored, and the rule for picking the production model. Reasoning in `DECISIONS.md`
-(2026-09-28, 09-30, 10-13 x3, 10-14); evaluation scripts named below. Last updated 2026-10-14.
+Living record of every pose model trained for the widefield cohort -- cam4 in sections 1-4, cam1 in Part B: what it is,
+the settings that matter and why, where it lives, how it scored, and the rule for picking the production model.
+**Part C = the evaluation plan and status for both cameras (models in training, what is scored, what is left).**
+Reasoning in `DECISIONS.md` (2026-09-28, 09-30, 10-05, 10-13 x3, 10-14); evaluation scripts named below. Last updated 2026-10-18.
 
 Keypoints everywhere: **nose, jaw, tongue, spout** (`dlc.cameras.cam4.bodyparts`). Labels follow the
 TARGET vs CONTEXT rule (DECISIONS 2026-09-30): a blank on a labelled frame means *hidden*; context frames stay blank.
@@ -229,6 +230,16 @@ cleaning and every downstream analysis for a modest gain -- revisit with the ViT
 the first validation batch: the O2 `lp` env's transformers is incompatible with LP 2.4.2's ViT backbone
 (`patch_embeddings.patch_size` int; local transformers 5.17.0 works) -- pin and resubmit array task 1.
 
+### cam4 models training now (2026-10-18) -- to score with section 4's protocol
+
+| id | settings | why | where / job |
+|---|---|---|---|
+| **ViT-B DINOv2 640** (rerun) | `vitb_dinov2`, 640 px, batch 8, temporal eps 10, round 4 | the first run died on the O2 `transformers` clash; the real test of a ViT backbone after the inconclusive local ViT-S (512 px, small, cut at 254 epochs) | `o2/lp_train_20261016/models/vitb_dinov2_640_b8`, job 56700781 |
+| **LP r4 eps35** | LP r4 recipe exactly (heatmap, ResNet-50, 640 px, batch 4, round 4) but temporal eps **[nose 10, jaw 10, tongue 35, spout 10]** | LP r4 predates the 10-14 per-keypoint epsilon: its 10 px tongue limit penalises roughly the fastest quarter of real tongue steps (cam4 tongue p99 23-34 px/frame). Only the context models ever got 35, so this isolates the epsilon's effect on the production recipe (Priya, 10-18) | `o2/lp_train_20261016/models/heatmap_640_b4_eps35`, `train_heatmap_640_b4_eps35.sbatch` |
+
+If LP r4 eps35 beats LP r4, switching production means re-running O2 inference, cleaning and every downstream analysis -- Priya's call once
+the numbers are in.
+
 ## 4. How we choose (proposed 2026-10-14; Priya to confirm)
 
 The model is for the ANALYSES — executed angle, lick timing / counts, kinematics across recovery — so it is judged on
@@ -260,3 +271,109 @@ those, on sessions it never saw, across epochs, in this order:
 
 Test set: at least one pre, one acute and one chronic session for two animals, none labelled (the PS93 0814 / 0821
 clips plus e.g. PS93 0908, PS94 0818, PS95 0821, PS94 0921); the review clips for the visual check.
+
+---
+
+# Part B -- cam1 (view from below), round 2 (2026-10-18)
+
+Same keypoints (**nose, jaw, tongue, spout**), same TARGET vs CONTEXT rule. Analysis cutoffs on cam1: **tongue 0.4, jaw / nose
+/ spout 0.6** (DECISIONS 2026-10-05, evening). cam1 is for the executed-angle checks and the cam1 + cam4 3-D / multi-camera EKS
+route; cam4 stays the primary tongue view. Background: `docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md`.
+
+## B1. Labels
+
+| round | frames / sessions | what was added | why |
+|---|---|---|---|
+| 1 (10-05) | 294 / 11 (DLC staging) | lick-phase targets + spout-contact context frames | first cam1 model |
+| **2 (done 10-18)** | **634 / 21** | Part 2: the four empty round-1 folders (PS93 0606, PS92 0820, PS95 0821, PS94 0903). Part 3 (254 targets, 6 new sessions): cam1 frames at cam4 round 4's 61 picks; 106 hard frames from the round-1 DLC / LP scan (incomplete tongue in the 30-70 px opening band, dropouts, unsure tongue, jaw near spout, erratic, tricky spout, rise / peak / fall); 90 tongue "also label" neighbours (Priya: 12 ms matters for the tongue) | round 1 overfit jaw / tongue (7 training sessions) and was ambiguous about the tongue tip from below |
+
+Fill (round 2): nose 427, jaw 593, tongue 310, spout 605 of 634. Three targets left blank (2 in PS92 0821, 1 in PS95 0821) are
+dropped. Frame provenance: `<DeepLabCut/Widefield>/frame_manifest.csv` (moved out of `_frame_staging` 10-18; `dlc_frames.manifest_path`).
+
+## B2. The models
+
+| id | type | labels | settings | why | where |
+|---|---|---|---|---|---|
+| **DLC c1r1** | DLC 3.0.1 ResNet-50, single frame | round 1 | 2pRAM donor init, DLC defaults, session-held-out split | first cam1 model | `training/...-orofacial-cam1`, iteration-0 `trainset71`, best-40 |
+| **DLC c1r2** | same | round 2 | same recipe, `dlc_train --cam cam1 --iteration 1` (round 1 kept) | the DLC arm of the round-2 retrain | iteration-1 `trainset72`, **best-30** |
+| **LP c1r1** | LP `heatmap`, ResNet-50 | round 1 | 640 px, batch 4, temporal eps 10, early stopping OFF | first cam1 LP; not better than DLC on cam1 (10-05) | WSL `/root/lp/cam1-2026-10-05/models/cam1_occl_uniform_20261005` (epoch 144) |
+| **LP c1r2 heatmap** | LP `heatmap`, ResNet-50 | round 2 | **cam4 LP r4 recipe exactly**: 600 -> 640 px, batch 4, temporal eps 10, early-stop patience 20, blanks = uniform heatmap | like-for-like with the cam4 production model | O2 `o2/lp_train_cam1_r2_20261018/models/heatmap_640_b4`, job 56709413_1 |
+| **LP c1r2 ctx-semi** | LP `heatmap_mhcrnn` (frames t-2..t+2 at inference) | round 2 | 640 px, batch 4 + 8-frame context batch, temporal eps [10, 10, 35, 10] (cam4's 10-14 values) | the 640 px context model matched LP r4 on cam4 with the steadiest jaw | `.../models/mhcrnn_semi_640_b4`, job 56709413_2 |
+| **LP c1r2 eps40** | LP `heatmap`, ResNet-50 | round 2 | LP r4 recipe with temporal eps **measured on cam1: [nose 10, jaw 15, tongue 40, spout 10]** | the temporal loss should penalise only implausible jumps; cam1 sees faster tongue / jaw motion than cam4 (B3) | `.../models/heatmap_640_b4_eps40`, `train_heatmap_640_b4_eps40.sbatch` |
+
+All LP c1r2 models train on all 634 labels (LP holds out frames, not sessions) with round 1's 15 unlabelled clips (one per animal
+x epoch) for the temporal loss. Project `/root/lp/cam1-2026-10-18` (`litpose convert` of the DLC training copy, then
+`lp_labels clean`); bundle `scripts/o2_lp_train_bundle.py --cam cam1` (add-ons: `--only <model> --configs-only`). No ViT for cam1
+unless the cam4 ViT-B 640 rerun beats LP r4.
+
+## B3. Temporal-loss epsilon measured on cam1 (10-18)
+
+Genuine frame-to-frame motion in px/frame, from DLC predictions (no temporal loss), both frames confident (cam1 cutoffs),
+consecutive SOURCE frames only. DLC c1r2 on PS93 0814 (60 trials; ~2 x 10^5 steps per part, 19k for the tongue), pooled with DLC
+c1r1 on the six round-1 clips (PS92 / PS93 / PS95):
+
+| part | p50 | p95 | p99 | p99.9 | cam4 p99 (10-14) |
+|---|---|---|---|---|---|
+| nose | 0.2 | 1.5 | 2.6 | 4.3 | 1-3 |
+| jaw | 0.5 | 5.6 | 10.9 (pooled 11.3) | 21.4 | 4-6 |
+| tongue | 5.4 | 20.7 | 37.2 (pooled 40.2) | 60.3 | 23-34 |
+| spout | 0.1 | 2.3 | 3.5 | 5.3 | 1-3 |
+
+Same rule as cam4: epsilon ~ p99 for the moving parts, 10 px floor otherwise -> **[10, 15, 40, 10]** (jaw 15 sits between p99 and
+p99.9, so large jaw jumps are still penalised). cam1 looks up at a tongue and jaw moving toward it, hence the faster image motion.
+Caveat: the tongue p99 includes some tip-end switches (the cam1 tip ambiguity), so 40 may be slightly generous; it is still below
+p99.9 (60). To re-check on PS93 0821 (acute).
+
+## B4. Results so far
+
+**DLC c1r2, held-out sessions** (7 sessions, 176 frames, every epoch; DLC's mean error): nose 2.6, jaw 9.9, tongue 12.3, spout
+1.9 px. Per-epoch test RMSE, tongue: acute 14.6 / chronic 12.0 / pre 21.5 / subacute 18.0; jaw: 14.2 / 10.0 / 13.1 / 10.0. No
+post-stroke penalty (pre is worst, driven by PS93 0606 frames, one tongue 70 px off); subacute spout 6.2 px (one session) to check.
+Not comparable with round 1's test numbers (different held-out sessions).
+
+**Frames held out by BOTH DLC rounds** (40 frames: PS95 0606 pre, PS95 0817 acute):
+
+| part | c1r1 median px / > 10 px / found | c1r2 median px / > 10 px / found |
+|---|---|---|
+| nose | 1.8 / 0 % / 100 % | 3.4 / 0 % / 100 % |
+| jaw | 10.2 / 53 % / 78 % | **6.5 / 33 % / 83 %** |
+| tongue (13 labelled) | 8.3 / 38 % / 92 % | 12.0 / 54 % / 92 % |
+| spout | 1.8 / 0 % / 97 % | 1.3 / 0 % / 97 % |
+
+Jaw better; tongue not, on too few frames to say -- consistent with the tip-definition ambiguity rather than missing labels.
+
+---
+
+# Part C -- Evaluation plan and status, both cameras (proposed 2026-10-18; Priya decides)
+
+Every candidate is scored by the SAME scripts on the SAME clips, never by its own training metrics (LP holds out frames, not
+sessions, so its training numbers are not comparable with DLC's).
+
+**cam4.** Candidates: LP r4 (production), ctx-semi 640, ResNet-50 640 b8, ViT-B 640 (rerun), LP r4 eps35. Protocol = section 4
+(epoch gate, contact recall >= 99 %, Priya's blind lick review, angles / kinematics, stability with coverage, practicality) on the
+PS93 0814 / 0821 trial clips + review clips (`scripts.model_lick_compare ... --review`).
+
+**cam1.** Candidates: DLC c1r1, DLC c1r2, LP c1r1, LP c1r2 heatmap, ctx-semi, eps40. Test clips:
+`session_poses/PS93_{20260814,20260821,20260908}_cam1/windows.mp4` (pre / acute / chronic; the SAME 60 trials as the cam4 clips,
+cut with `scripts.session_poses clip --cam cam1`; no cam1 labels in these sessions). Second animal still to add (gate 1 asks for
+two): PS94 0814 / 0821 / 0908 (no PS94 cam1 labels on those dates). Metrics, in order:
+
+1. **Epoch gate.** Every metric per epoch; a model that degrades post-stroke is out.
+2. **Tongue at DAQ contacts.** Share of spout contacts with a confident (>= 0.4) cam1 tongue in the contact window, per position
+   (the cam1 analogue of contact recall; far_L, sideways from below, was round 1's worst).
+3. **Tip consistency.** One-frame tongue jumps > 40 px per 10k confident frames, next to coverage; plus agreement of cam1 vs cam4
+   lick timing (onset / peak on the DAQ clock) for the same licks.
+4. **Jaw.** Coverage per position next to jaw jumps > 20 px per 10k frames (abstaining must not pass for stability).
+5. **Visual check.** Priya reviews a blind sheet of the frames where the candidates disagree most.
+6. **Pixel error** on frames held out by every DLC round (sanity only; the LP models trained on all labels have none).
+7. **Practicality.** Inference cost for the cohort; one model beats an ensemble at equal performance.
+
+**Status**
+
+| step | cam4 | cam1 |
+|---|---|---|
+| trained | LP r4, ctx-semi 640, ResNet-50 640 done; ViT-B rerun running (56700781); LP r4 eps35 to submit | DLC c1r1, c1r2 done; LP c1r2 heatmap + ctx-semi running (56709413); eps40 to submit |
+| predictions on the test clips | each O2 task predicts the bundle's eval clips | DLC c1r1 / c1r2 running locally (`session_poses/PS93_<d>_cam1/dlc_r{1,2}/`); LP c1r2 models predict them on O2; LP c1r1 to run |
+| scored | LP r4 / ctx-semi 640 / ResNet-50 640 (10-18) | not yet -- cam1 scoring script (metrics 2-4) to write |
+| Priya's review | lick review done for the earlier models | not yet |
+| decision | production = LP r4 (10-15); revisit after ViT-B + eps35 | not yet |
