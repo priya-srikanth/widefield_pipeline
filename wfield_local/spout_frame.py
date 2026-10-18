@@ -20,9 +20,12 @@ DEFINITIONS (image coordinates, y grows downward):
   Which image side is the mouse's left: cam4 is frontal, so the mouse's LEFT is image-RIGHT (the `close_L` /
   `far_L` spouts sit on the image right). Report angles with that in mind; `mouse_left_sign` says which sign it is.
 
-LIMITS. cam4 is 2-D and frontal: AP (toward/away from the mouth) is mostly along the optical axis and
-foreshortened, so cam4 angles are dominated by the LR component; horizontal-plane angles need cam1 (ventral)
-or 3-D. The same construction applies to any camera that sees the spout.
+LIMITS. Each camera sees the spout lines foreshortened differently. Measured 2026-10-18 (PS93 0814, close->far
+length per line): cam4 L 66 / centre 56 / R 68 px; **cam1 L 48 / centre 3.4 / R 48 px -- cam1 looks almost straight down
+the centre line**, so it sees LR and DV, hardly AP (this docstring used to say the opposite: "horizontal-plane angles
+need cam1 (ventral)"). On cam1 the ORIGIN is still the mouth (projection keeps incidence: L and R meet within 0.3 px, both
+centre spouts 4-7 px from it), but ``ap_axis`` -- taken from the centre line -- is noise there; a cam1 axis must come from
+the L / R lines (their bisector). True AP-plane angles need 3-D.
 """
 from __future__ import annotations
 

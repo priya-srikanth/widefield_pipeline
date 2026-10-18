@@ -410,7 +410,12 @@ snout: nose at the top, mouth / jaw low in the image (jaw median y 456), the spo
 to the mouth (hence the nose blanks and the centre-position jaw occlusion). The tongue protrudes mostly UP the image
 (toward the nose) and sideways.
 
-* **Mouth origin:** the cam1 spout-line intersection (as on cam4) lands at (315, 389) -- plausible, to confirm on frames.
+* **Mouth origin (QC 10-18, `scripts.cam1_clean_qc mouth`, `session_poses/PS93_20260814_cam1/eval/qc_mouth_origin.png`):**
+  cam1 looks almost straight down the CENTRE spout line (close->far 3.4 px vs L / R 48 px; cam4 56 / 66 / 68). The L and R
+  lines meet within 0.3 px at (315, 389), on the lower lip just under the centre spout tip; both centre spouts lie 4-7 px
+  from it. Projection keeps incidence, so this IS the mouth's image (Priya to confirm by eye). BUT `spout_frame.ap_axis`
+  comes from the centre line, which is noise on cam1 -> a cam1 axis must be the L / R bisector; cam1 angles are LR / DV, not
+  AP. Good for 3-D: the two cameras see AP very differently (cam4 56 px, cam1 ~3 px).
 * **Tongue:** confident on 9 % of clip frames; cleaning keeps 9 % raw, interpolates 2 %, fills 89 % with the baseline
   (tongue in the mouth). Steps > 40 px rise from 160 raw to 806 after cleaning -- mostly the jump between the baseline fill and
   a protruded tongue at every lick onset / offset, so on cam1 the metric must exclude fill transitions.
