@@ -82,6 +82,7 @@ BASIS_S = 0.1
 #: Musall's 6f, whose motor kernels were -0.5 .. +1 s). No reward variable: reward comes with the cue on engaged trials
 #: (absorbed by the cue kernels) and its consumption is licking.
 LAGS = {"strobe": (0.0, 2.0), "cue": (0.0, 7.0), "lick": (-0.5, 2.0)}
+CUE_FINE_S, CUE_COARSE_SPACING = 2.0, 0.4
 CLAGS = (0.0, 0.1, 0.2)
 MIN_REACH_PX = 60.0
 SHIFT_MIN_S = 60.0
@@ -228,9 +229,9 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
 # =============================================================================== design
 
 
-def _event_cols(times, ft, lags, amp=None) -> np.ndarray:
+def _event_cols(times, ft, lags, amp=None, spacing=None) -> np.ndarray:
     from wfield_local import movement_encoding as ME
-    r = ME.EventRegressor("e", np.asarray(times, float), lags, "g", amplitude=amp, basis_spacing_s=BASIS_S)
+    r = ME.EventRegressor("e", np.asarray(times, float), lags, "g", amplitude=amp, basis_spacing_s=spacing or BASIS_S)
     return ME.build_design(ME.MovementInputs(ft, [r])).X.astype(np.float32)
 
 
@@ -277,7 +278,12 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
                           _state_cols(T.strobe_s[mask], T.cue_s[mask], ft)])
 
     def cue_block(mask):                            # cue .. this trial's stop (no overlap with the ENL state)
-        return _truncate_after(_event_cols(T.cue_s[mask], ft, LAGS["cue"]), T.cue_s[mask], T.stop_s[mask], ft)
+        # basis every 0.1 s for the first CUE_FINE_S (the fast cue / lick-onset dynamics), every CUE_COARSE_SPACING
+        # after (GCaMP6s, slow) -- ~30 instead of 70 columns per kernel (2026-10-18 speed-up, same span)
+        t_ = T.cue_s[mask]
+        X = np.hstack([_event_cols(t_, ft, (LAGS["cue"][0], CUE_FINE_S)),
+                       _event_cols(t_, ft, (CUE_FINE_S, LAGS["cue"][1]), spacing=CUE_COARSE_SPACING)])
+        return _truncate_after(X, t_, T.stop_s[mask], ft)
     allm = np.ones(len(T), bool)
     shared = {"pos_enl": enl_block(allm), "pos_cue": cue_block(allm)}
     out["arrival"], out["cue"] = shared["pos_enl"], shared["pos_cue"]
@@ -643,6 +649,11 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     model_alphas = {"full": dict(alphas)}
     for name, spec in models.items():
         if name == "full":
+            continue
+        if name.split(":")[0].startswith("shuf"):
+            # a SHUFFLE keeps the full model's structure and penalties (the comparison is "same model, the variable's
+            # information destroyed"); searching here only cost time (2026-10-18 speed-up)
+            model_alphas[name] = dict(alphas)
             continue
         al = dict(alphas)
         present = sorted({grp_of_col[i] for i in cols(spec)}, key=GROUPS.index)
