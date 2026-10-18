@@ -1103,10 +1103,15 @@ orofacial_clean_cam1:         # cam1 (view from below) OVERLAY on `orofacial_cle
                               # cam1 mouth median 36-50 px, p95 71-106 (cam4 73-98 / 156-186), so cam4's 80 px "near the
                               # mouth" covered 81-98 % of cam1 tongue frames (cam4 41-55 %) and the between-lick veto would
                               # also fire on tongue slides round the spout rod -- the case near_px exists to exclude.
-                              # Scaled by the reach ratio (~0.55). PROPOSED, to QC (PS93 0814 / 0821, DLC + LP c1r2).
+                              # PERCENTILE-MATCHED (Priya 10-18 "is 45 too high?"): cam4's 80 px sits at the 42nd-55th
+                              # percentile of cam4 tongue distance (itself ~cam4's median); the same percentiles on cam1 =
+                              # 44-45 px (DLC c1r2) / 40 px (LP c1r2). 40 also stays below the close side spouts' distance
+                              # from the cam1 mouth (~48 px), so slides round those rods remain excluded. The CENTRE spouts
+                              # sit ~5 px from the cam1 mouth (end-on): no distance can separate mouth from spout there --
+                              # only the speed test does (watch centre positions in the QC). PROPOSED, to QC.
                               # Other tongue stages kept: x-range drops <= 0.02 %, isolated / gap rules are time-based and
                               # remove / fill about what they do on cam4.
-    interlick_near_px: 45.0
+    interlick_near_px: 40.0
     interlick_speed_px: 1.7
   jaw:
     lk_thr: 0.6               # cam1 analysis cutoff for jaw (DECISIONS 2026-10-05). DLC c1r2 keeps 86 % of jaw frames
