@@ -36,7 +36,7 @@ EPOCH_COL = {"pre": "#2b6cb0", "acute": "#d64545", "subacute": "#dd8a2b", "chron
 OUT_MIN_PX, MIN_FRAMES, CONTACT_TOL_MS = 20.0, 3, 20.0
 
 
-def licks_for_session(rv, session: str, epoch: str, model: str, ref_model: str) -> pd.DataFrame:
+def licks_for_session(rv, session: str, epoch: str, model: str, ref_model: str, cam4_licks: str | None = None) -> pd.DataFrame:
     import scripts.pose_kinematics_demo as D
     from scripts.session_poses import read_index, session_dir
     from wfield_local import orofacial_clean as oc
@@ -76,6 +76,9 @@ def licks_for_session(rv, session: str, epoch: str, model: str, ref_model: str) 
     contacts = D.daq_contacts_ms(animal, date, b, rv)
     t, stop = idx.t_ms.to_numpy(float), idx.stop_ms.to_numpy(float)
     src, tid_a, pos_a = idx.src_frame.to_numpy(), idx.trial_id.to_numpy(), idx.position.to_numpy()
+    if cam4_licks:
+        return _cam4_timed(cam4_licks.replace("{animal}", animal).replace("{date}", date), idx, epoch,
+                           f"{animal}_{date}", x, y, fm, out_, lat, spout, spout_img, fr)
     live = (fm != oc.FILL_BASELINE) & (t >= 0) & (t <= stop)
     rows, dorsal, i, n = [], {}, 0, len(t)
     while i < n:
@@ -112,6 +115,43 @@ def licks_for_session(rv, session: str, epoch: str, model: str, ref_model: str) 
     return L
 
 
+def _cam4_timed(path, idx, epoch, sess, x, y, fm, out_, lat, spout, spout_img, fr) -> pd.DataFrame:
+    """cam4-TIMED peaks (Priya 10-18: the most ventral cam1 frame is not peak protrusion -- cam1 sees the tongue at an
+    oblique angle). Each cam4 lick (production `licks.csv`: ``t_ms`` = cam4's protrusion peak, ms from the cue) in the clip's
+    trials -> the cam1 frame of the same trial at the same cue-relative time (both clips are cut on the template-aligned DAQ
+    clock, one 4 ms frame grid: exact match for 99.99 % of frames; nearest within 2 ms otherwise). The cam1 cleaned tongue
+    there gives the lateral landing; ``cam1_seen`` = False when cam1's cleaned tongue is mouth fill at that frame."""
+    from wfield_local import orofacial_clean as oc
+    C4 = pd.read_csv(path)
+    C4 = C4[C4.trial_id.isin(set(idx.trial_id))]
+    key = pd.DataFrame({"trial_id": idx.trial_id.to_numpy(), "t_ms": idx.t_ms.to_numpy(float), "row": np.arange(len(idx))})
+    rows = []
+    for tid, g in C4.groupby("trial_id"):
+        h = key[key.trial_id == tid].sort_values("t_ms")
+        m = pd.merge_asof(g.sort_values("t_ms")[["t_ms", "position", "contact", "peak_angle_deg"]], h[["t_ms", "row"]],
+                          on="t_ms", direction="nearest", tolerance=2.0)
+        for r in m.itertuples():
+            p = r.position
+            if p not in spout or not np.isfinite(r.row):
+                continue
+            k = int(r.row)
+            so, sl = spout[p]
+            seen = bool(fm[k] != oc.FILL_BASELINE)
+            sgn_err = np.sign(sl) if "center" not in p else 1.0
+            rows.append({"session": sess, "epoch": epoch, "trial_id": int(tid), "position": p, "t_peak_ms": r.t_ms,
+                         "contact": bool(r.contact) if pd.notna(r.contact) else False, "cam4_angle_deg": r.peak_angle_deg,
+                         "cam1_seen": seen, "cam1_fill": int(fm[k]),
+                         "peak_out_px": out_[k] if seen else np.nan, "peak_lat_px": lat[k] if seen else np.nan,
+                         "peak_dx_img": x[k] - fr.origin[0] if seen else np.nan,
+                         "peak_dy_img": y[k] - fr.origin[1] if seen else np.nan,
+                         "reach_px": out_[k] if seen else np.nan,
+                         "lat_err_px": (lat[k] - sl) * sgn_err if seen else np.nan})
+    L = pd.DataFrame(rows)
+    L.attrs["spout"] = spout_img
+    L.attrs["dorsal"] = {}
+    return L
+
+
 def summarise(L: pd.DataFrame) -> pd.DataFrame:
     out = []
     for (ep, p), g in L.groupby(["epoch", "position"], sort=False):
@@ -122,7 +162,9 @@ def summarise(L: pd.DataFrame) -> pd.DataFrame:
                     "contact_%": round(100 * g.contact.mean(), 1),
                     "lat_err_median": round(g[m].median(), 1), "lat_err_iqr": round(g[m].quantile(.75) - g[m].quantile(.25), 1),
                     "lat_err_contact": round(gc[m].median(), 1), "lat_err_no_contact": round(g[~g.contact][m].median(), 1),
-                    "reach_px_median": round(g.reach_px.median(), 1)})
+                    "reach_px_median": round(g.reach_px.median(), 1),
+                    **({"cam1_seen_%": round(100 * g.cam1_seen.mean(), 1),
+                        "cam4_angle_contact_median": round(gc.cam4_angle_deg.median(), 1)} if "cam1_seen" in g else {})})
     S = pd.DataFrame(out)
     S["position"] = pd.Categorical(S.position, POS_ORDER)
     return S.sort_values(["position", "epoch"], key=lambda s: s if s.name == "position" else
@@ -174,12 +216,14 @@ def main(argv=None) -> int:
     ap.add_argument("--model", required=True)
     ap.add_argument("--ref-model", default="{d}/dlc_r2/*.csv")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--cam4-licks", default=None, metavar="PATH with {animal} {date}",
+                    help="cam4-timed peaks: production licks.csv per session (see `_cam4_timed`)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     Ls, spouts, dors = [], {}, []
     for spec in a.sessions:
         s, ep = spec.split("=", 1)
-        L = licks_for_session(rv, s, ep, a.model, a.ref_model)
+        L = licks_for_session(rv, s, ep, a.model, a.ref_model, a.cam4_licks)
         spouts[ep] = L.attrs["spout"]
         dors += [{"epoch": ep, "position": p, "n_dorsal_runs": n} for p, n in L.attrs["dorsal"].items()]
         Ls.append(L)

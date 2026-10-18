@@ -630,8 +630,18 @@ set point either (nose lateral in the cam1 mouth frame moved +6.5 px, the other 
 since it's at a funny angle"):** the clouds lie along diagonals and pre-stroke licks reach deeper, so the most-ventral frame's
 lateral position covaries with reach; at close_R the pre-stroke "peaks" sit on the opposite side of the mouth from the spout
 (the tongue drooping / curling, not aiming). At the DAQ CONTACT frame the shifts are smaller (close_L -18 / -16, close_center
-+1 / -10, close_R -2 / -8 px). Next: sample cam1's lateral position at cam4's peak-protrusion time per lick (cam4 sees protrusion
-side-on; clocks agree to ~12 ms, B4), and show lateral-vs-time paths rather than one point. Not a result until then.
++1 / -10, close_R -2 / -8 px).
+
+**cam4-TIMED peaks (10-18, `--cam4-licks <production licks.csv>`, tag `_lp_c1r2_cam4timed`).** Each cam4 lick's protrusion peak
+(production LP r4 v36, `t_ms`) -> the cam1 frame at the same cue-relative time. Both clips are cut on the template-aligned DAQ
+clock on one 4 ms grid: 99.99 % of cam1 frames have a cam4 frame at EXACTLY the same t_ms (worst case one frame; the template is
+finer still). (The "~12 ms" in B4 is cross-camera agreement of two models' onset estimates -- tracking, not clock.) cam1 sees the
+tongue at cam4's peak for 79-100 % of licks. Per lick, cam1 lateral vs cam4 peak angle: Spearman 0.77 pooled; within position
+0.74-0.88 (far_L, close_L, both centres), **close_R 0.45, far_R -0.02** -- the cameras disagree on the right-hand positions (to
+look at: which camera is wrong there). Contact licks, lateral error px (pre / acute / chronic): close_L -17 / -34 / -35;
+close_center (+ = left) +20 / +1 / -8; close_R -40 / -21 / -16; far_center -13 / -3 / -8; far_L -42 / -49 / -62. So the
+contra (mouse-right) shift of PS93 at the close positions survives a cam4-defined peak, matching its cam4 angles. Still one
+animal and an unchosen cam1 model.
 
 ### cam4 LP r4 eps35 (O2, scored 2026-10-18)
 
