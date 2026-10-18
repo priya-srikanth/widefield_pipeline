@@ -177,7 +177,7 @@ def all_occluded_list() -> set[str]:
 
 def load_view(cam: str, rv) -> tuple[pd.DataFrame, list[str]]:
     """Training-copy labels for ``cam`` joined to the frame manifest, + the all_occluded frames."""
-    from wfield_local.dlc_frames import staging_root
+    from wfield_local.dlc_frames import manifest_path
     from wfield_local.dlc_project import project_dir
     from wfield_local.dlc_train import train_project
 
@@ -201,7 +201,7 @@ def load_view(cam: str, rv) -> tuple[pd.DataFrame, list[str]]:
         else:
             rows.loc[len(rows)] = {"video_stem": stem, "image": img, "all_occluded": True,
                                    **{f"{kp}_{c}": np.nan for kp in keypoints for c in "xy"}}
-    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype={"date": str})
+    man = pd.read_csv(manifest_path(rv), dtype={"date": str})
     man = man[man.cam == cam][["video_stem", "image", "animal", "date", "frame", "category", "phase",
                                "trial_id", "position"]].drop_duplicates(["video_stem", "image"])
     rows = rows.merge(man, on=["video_stem", "image"], how="left")
@@ -345,7 +345,7 @@ def _write_clip(video: Path, frames: np.ndarray, dst: Path) -> None:
 
 def clips(out: Path, rv=None, dur_s: float = 10.0, pre_s: float = 3.0, seed: int = 92) -> list[str]:
     """One frame-synced cam1/cam4 clip pair per labelled (animal, epoch), cut around a random cue."""
-    from wfield_local.dlc_frames import frame_of, staging_root
+    from wfield_local.dlc_frames import frame_of, manifest_path
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
 
@@ -353,7 +353,7 @@ def clips(out: Path, rv=None, dur_s: float = 10.0, pre_s: float = 3.0, seed: int
     vd = Path(out) / "videos"
     assert_writable(vd)
     vd.mkdir(parents=True, exist_ok=True)
-    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = pd.read_csv(manifest_path(rv), dtype=str)
     both = set(man[man.cam == "cam1"].date + man[man.cam == "cam1"].animal) & set(
         man[man.cam == "cam4"].date + man[man.cam == "cam4"].animal)
     mm = man[(man.cam == ANCHOR) & (man.date + man.animal).isin(both)]

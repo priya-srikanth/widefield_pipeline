@@ -27,6 +27,10 @@ Kept by Claude; answer any item whenever convenient (a line in chat is enough); 
    coverage check when `squeue -u ps150` is empty (runbook: done.json / squeue check -> `not done: 0`).
    Status 10-16 evening: 88 / 136 sessions done; gpu_quad full; fair share 0.068 (recovering).
 
+4. **O2 cam1 round-2 LP training** (2026-10-18) — bundle `o2/lp_train_cam1_r2_20261018` (heatmap 640 b4 = LP r4
+   recipe, ctx-semi 640 b4; 634 cam1 labels). Steps in its `COMMANDS.md`; when `models/*/DONE` appear, copy back and
+   tell me. DLC cam1 round 2 trains locally (iteration 1).
+
 ## Decisions (none pending right now)
 
 ## FYI

@@ -92,7 +92,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import config, dlc_project
-from wfield_local.dlc_frames import staging_root
+from wfield_local.dlc_frames import manifest_path
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
 
@@ -433,10 +433,16 @@ def print_audit(proj: Path, which: str | None = None) -> pd.DataFrame:
 # -------------------------------------------------------------------------------------- split
 
 def session_epochs(rv=None) -> dict[str, str]:
-    """``video_stem -> epoch`` from `dlc_frames`' own ``frame_manifest.csv``."""
-    man = staging_root(rv) / "frame_manifest.csv"
+    """``video_stem -> epoch`` from `dlc_frames`' own ``frame_manifest.csv``.
+
+    A MISSING MANIFEST IS A REFUSAL, not ``{}``. It used to return ``{}``, and `split` then held out
+    sessions without regard to epoch while every table still printed -- which is what happened when the
+    10-16 clean-up removed `_frame_staging` with the manifest inside it (2026-10-18).
+    """
+    man = manifest_path(rv)
     if not man.is_file():
-        return {}
+        raise SystemExit(f"no frame manifest at {man}: without it the session split cannot spread "
+                         f"across epochs and the per-epoch table is meaningless. Restore it first.")
     m = pd.read_csv(man, usecols=["video_stem", "epoch"], dtype=str)
     return dict(zip(m["video_stem"], m["epoch"]))
 
@@ -779,7 +785,7 @@ def classify(proj: Path, which=None, rv=None, bodyparts=None, tol: float = 8.0,
     idx = truth.index.intersection(pred.index)
     truth, pred = truth.loc[idx], pred.loc[idx]
 
-    man_path = staging_root(rv) / "frame_manifest.csv"
+    man_path = manifest_path(rv)
     man = pd.read_csv(man_path, dtype=str) if man_path.is_file() else pd.DataFrame()
     # The manifest is metadata, not data: without it every frame still classifies, it just loses
     # epoch/animal/lick. Missing columns must therefore degrade rather than raise.

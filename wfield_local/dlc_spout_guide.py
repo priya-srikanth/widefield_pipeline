@@ -45,7 +45,7 @@ from pathlib import Path
 import pandas as pd
 
 from wfield_local import dlc_project, dlc_train
-from wfield_local.dlc_frames import staging_root
+from wfield_local.dlc_frames import manifest_path
 from wfield_local.dlc_review_guide import CSS, MAC_ROOT
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
@@ -82,7 +82,7 @@ def _thumb_b64(path: Path, width: int = 460) -> str | None:
 
 def iti_rows(rv=None) -> pd.DataFrame:
     """The between-trial frames, from `dlc_frames`' own manifest — not a hand-kept list."""
-    man = staging_root(rv) / "frame_manifest.csv"
+    man = manifest_path(rv)
     if not man.is_file():
         raise SystemExit(f"no frame manifest at {man}")
     m = pd.read_csv(man, dtype=str)

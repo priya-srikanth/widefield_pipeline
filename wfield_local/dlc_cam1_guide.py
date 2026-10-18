@@ -50,7 +50,7 @@ from pathlib import Path
 import pandas as pd
 
 from wfield_local import config, dlc_frames, dlc_project
-from wfield_local.dlc_frames import staging_root
+from wfield_local.dlc_frames import manifest_path
 from wfield_local.dlc_review_guide import CSS, MAC_ROOT
 from wfield_local.paths import PathResolver
 from wfield_local.writeguard import assert_writable
@@ -130,7 +130,7 @@ ROUND2 = "cam1_round2"
 
 def _folders(rv, live: Path, parts: list[str]) -> pd.DataFrame:
     """Round-1 cam1 folders (round-2 folders have their own section, `round2_section`)."""
-    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = pd.read_csv(manifest_path(rv), dtype=str)
     man = man[man.cam == CAM]
     round2 = set(man.loc[man.category == ROUND2, "video_stem"])
     meta = man[man.category != "context"].drop_duplicates("video_stem").set_index("video_stem")
@@ -238,7 +238,7 @@ ROUND4_WHY = {
 
 def _round4_folders(rv, live: Path) -> pd.DataFrame:
     """cam4 folders holding round-4 picks, with per-image category and phase from the manifest."""
-    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = pd.read_csv(manifest_path(rv), dtype=str)
     man = man[man.cam == "cam4"]
     stems = sorted(set(man.loc[man.category == "round4", "video_stem"]))
     parts = dlc_frames.bodyparts("cam4")
@@ -309,7 +309,7 @@ PAIR_WHY = {
 
 def _round2_folders(rv, live: Path) -> pd.DataFrame:
     """cam1 folders holding round-2 targets, with per-image category and phase from the manifest."""
-    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = pd.read_csv(manifest_path(rv), dtype=str)
     man = man[man.cam == CAM]
     stems = sorted(set(man.loc[man.category == ROUND2, "video_stem"]))
     parts = dlc_frames.bodyparts(CAM)

@@ -200,7 +200,7 @@ def untouched_folders(cam: str, rv=None) -> list[str]:
 
 def plan(cam: str, rv=None, half: int = HALF_LICK) -> list[dict]:
     rv = rv or PathResolver()
-    man = pd.read_csv(DF.staging_root(rv) / "frame_manifest.csv", dtype={"date": str})
+    man = pd.read_csv(DF.manifest_path(rv), dtype={"date": str})
     rows: list[dict] = []
     for stem in untouched_folders(cam, rv):
         t = man[(man.video_stem == stem) & (man.category != CONTEXT)]
@@ -227,7 +227,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.promote:
-        got = promote_in_manifest(DF.staging_root(rv) / "frame_manifest.csv", untouched_folders(a.cam, rv),
+        got = promote_in_manifest(DF.manifest_path(rv), untouched_folders(a.cam, rv),
                                   a.promote, dry=a.dry_run)
         print(got.groupby("video_stem").size().to_string() if len(got) else "nothing to promote")
         print(f"\n{len(got)} context frames {'would be' if a.dry_run else ''} promoted to targets")

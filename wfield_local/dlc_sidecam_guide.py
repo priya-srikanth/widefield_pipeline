@@ -28,7 +28,7 @@ import pandas as pd
 
 from wfield_local import dlc_frames, dlc_project
 from wfield_local.dlc_cam1_guide import EPOCH_ORDER, balanced_order, folder_status
-from wfield_local.dlc_frames import staging_root
+from wfield_local.dlc_frames import manifest_path, out_root
 from wfield_local.dlc_review_guide import CSS, MAC_ROOT
 from wfield_local.dlc_sidecam import ASSIGN_NAME, ROUND, SIDE
 from wfield_local.paths import PathResolver
@@ -54,8 +54,8 @@ def _session_key(animal: str, date: str) -> str:
 
 def sessions(rv, live: Path) -> pd.DataFrame:
     """One row per (session, side camera) folder: assigned targets, status, round-1 vs round-4 membership."""
-    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
-    a = pd.read_csv(staging_root(rv) / ASSIGN_NAME, dtype=str)
+    man = pd.read_csv(manifest_path(rv), dtype=str)
+    a = pd.read_csv(out_root(rv) / ASSIGN_NAME, dtype=str)
     a["label"] = a.label.astype(str).str.lower() == "true"
     a["both"] = a.both.astype(str).str.lower() == "true"
     parts = dlc_frames.bodyparts("cam2")

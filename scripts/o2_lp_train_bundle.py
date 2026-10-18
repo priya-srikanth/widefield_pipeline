@@ -2,6 +2,7 @@
 "if more ram would be meaningfully better for higher resolution training ... we can train on o2").
 
     python -m scripts.o2_lp_train_bundle [--name lp_train_20261016] [--user ps150]
+    python -m scripts.o2_lp_train_bundle --cam cam1 --name lp_train_cam1_r2_20261018     # cam1 round 2 (10-18)
 
 Writes `<DeepLabCut/Widefield>/o2/<name>/` on the share:
     project/        CollectedData.csv + labeled-data/ (round-4 labels) + videos/ (unlabelled clips for the temporal loss)
@@ -34,6 +35,21 @@ MODELS = {
     "mhcrnn_semi_640_b4": {"model.model_type": "heatmap_mhcrnn", "batch": 4, "context_batch": 8,
                            "temporal_epsilon": [10.0, 10.0, 35.0, 10.0]},       # nose, jaw, TONGUE, spout (10-14)
 }
+#: cam1 round 2 (2026-10-18): the LP r4 RECIPE (its config, so early stopping etc. match the cam4 production model),
+#: cam1 labels / dims. Batch 4 = LP r4's own batch, plus the context model that matched LP r4 on cam4 at 640 px.
+CAM1_MODELS = {
+    "heatmap_640_b4": {"model.backbone": "resnet50", "batch": 4},
+    "mhcrnn_semi_640_b4": MODELS["mhcrnn_semi_640_b4"],
+}
+#: per camera: WSL LP project, base config, eval clips (WSL paths, or Windows paths copied from the share), models
+PROFILES = {
+    "cam4": {"project": WSL_PROJECT, "eval_wsl": WSL_EVAL, "eval_win": [], "models": MODELS, "orig": 680,
+             "model_name": "cam4-orofacial"},
+    "cam1": {"project": "/root/lp/cam1-2026-10-18", "eval_wsl": ["/root/lp/cam1_eval/*.mp4"],
+             # same 60 trials as the cam4 PS93 clips (`scripts.session_poses clip --cam cam1`); cam1 unlabelled there
+             "eval_win": [f"session_poses/PS93_{d}_cam1/windows.mp4" for d in ("20260814", "20260821", "20260908")],
+             "models": CAM1_MODELS, "orig": 600, "model_name": "cam1-orofacial"},
+}
 EXCLUDE = "compute-g-16-[254-255],compute-g-17-[147-152]"                     # V100S: no sm_70 in the lp env's torch
 
 
@@ -41,8 +57,11 @@ def wsl(cmd: str) -> str:
     return subprocess.run(["wsl", "-e", "bash", "-c", cmd], capture_output=True, text=True, check=True).stdout
 
 
-def model_config(base: dict, change: dict, scratch: str) -> dict:
+def model_config(base: dict, change: dict, scratch: str, prof: dict | None = None) -> dict:
     c = yaml.safe_load(yaml.safe_dump(base))
+    if prof:
+        c["data"]["image_orig_dims"] = {"height": prof["orig"], "width": prof["orig"]}
+        c["model"]["model_name"] = prof["model_name"]
     for k, v in change.items():
         if k.startswith("model."):
             c["model"][k.split(".", 1)[1]] = v
@@ -59,10 +78,10 @@ def model_config(base: dict, change: dict, scratch: str) -> dict:
     return c
 
 
-def sbatch_text(scratch: str, names: list[str]) -> str:
+def sbatch_text(scratch: str, names: list[str], job: str = "lp_train") -> str:
     arr = " ".join(names)
     return f"""#!/bin/bash -l
-#SBATCH -J lp_train
+#SBATCH -J {job}
 #SBATCH -p gpu_quad
 #SBATCH --gres=gpu:1
 #SBATCH --exclude={EXCLUDE}
@@ -93,10 +112,10 @@ echo "done $N"
 """
 
 
-def commands_text(name: str, user: str, scratch: str, share_o2: str) -> str:
+def commands_text(name: str, user: str, scratch: str, share_o2: str, models=MODELS) -> str:
     return f"""# O2 training bundle `{name}` -- what to run, where
 
-Scratch: `{scratch}`. Share copy: `{share_o2}/{name}`. Models: {", ".join(MODELS)}.
+Scratch: `{scratch}`. Share copy: `{share_o2}/{name}`. Models: {", ".join(models)}.
 
 1. **Transfer node** (`ssh {user}@transfer.rc.hms.harvard.edu`): copy the bundle to scratch (~4.7 GB)
    ```
@@ -113,7 +132,7 @@ Scratch: `{scratch}`. Share copy: `{share_o2}/{name}`. Models: {", ".join(MODELS
    ```
    rsync -ah {scratch}/models/ {share_o2}/{name}/models/
    ```
-   Then tell Claude; it scores them against LP r4 with the same lick review / contact recall protocol.
+   Then tell Claude; it scores them against the current models with the same protocol.
 """
 
 
@@ -122,7 +141,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", default="lp_train_20261016")
     ap.add_argument("--user", default="ps150")
+    ap.add_argument("--cam", default="cam4", choices=sorted(PROFILES))
     a = ap.parse_args(argv)
+    prof = PROFILES[a.cam]
+    models = prof["models"]
+    vit = any("vit" in str(ch.get("model.backbone", "")) for ch in models.values())
     rv = PathResolver()
     from wfield_local import o2_inference as oi
     share = oi.bundle_dir(rv, a.name)                      # <DeepLabCut/Widefield>/o2/<name>, like the inference bundles
@@ -130,23 +153,29 @@ def main(argv=None) -> int:
     share_o2 = "/n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2"
     stage_w = f"{STAGE}/{a.name}"
     print("staging project data + eval clips out of WSL ...")
-    wsl(f"set -e; mkdir -p {stage_w}/project {stage_w}/eval_clips; cd {WSL_PROJECT}; "
-        f"cp -rL CollectedData.csv labeled-data videos {stage_w}/project/; cp -L {' '.join(WSL_EVAL)} {stage_w}/eval_clips/")
-    wsl(f"set -e; source /root/miniforge3/etc/profile.d/conda.sh; conda activate lp; mkdir -p {stage_w}/hf_cache "
-        f"{stage_w}/torch_cache/hub/checkpoints; HF_HOME={stage_w}/hf_cache python -c \"from transformers import "
-        f"AutoModel; AutoModel.from_pretrained('facebook/dinov2-base')\"; "
-        f"cp ~/.cache/torch/hub/checkpoints/resnet50-11ad3fa6.pth {stage_w}/torch_cache/hub/checkpoints/; "
-        # the share cannot store symlinks (HF's snapshot -> blob links): ship refs + DEREFERENCED snapshots only
-        f"M=hub/models--facebook--dinov2-base; mkdir -p {stage_w}/hf_home/$M; "
-        f"cp -rL {stage_w}/hf_cache/$M/refs {stage_w}/hf_cache/$M/snapshots {stage_w}/hf_home/$M/")
+    wsl(f"set -e; mkdir -p {stage_w}/project {stage_w}/eval_clips; cd {prof['project']}; "
+        f"cp -rL CollectedData.csv labeled-data videos {stage_w}/project/; cp -L {' '.join(prof['eval_wsl'])} {stage_w}/eval_clips/")
+    for rel in prof["eval_win"]:                           # share clips: <session>_<cam>.mp4 in eval_clips/
+        src = oi.bundle_dir(rv, a.name).parent.parent / rel
+        shutil.copy2(src, Path("C:/Users/SabatiniLab/lp_stage") / a.name / "eval_clips" / f"{Path(rel).parent.name}.mp4")
+    wsl(f"set -e; mkdir -p {stage_w}/torch_cache/hub/checkpoints; "
+        f"cp ~/.cache/torch/hub/checkpoints/resnet50-11ad3fa6.pth {stage_w}/torch_cache/hub/checkpoints/")
+    if vit:
+        wsl(f"set -e; source /root/miniforge3/etc/profile.d/conda.sh; conda activate lp; mkdir -p {stage_w}/hf_cache "
+            f"{stage_w}/torch_cache/hub/checkpoints; HF_HOME={stage_w}/hf_cache python -c \"from transformers import "
+            f"AutoModel; AutoModel.from_pretrained('facebook/dinov2-base')\"; "
+            f"cp ~/.cache/torch/hub/checkpoints/resnet50-11ad3fa6.pth {stage_w}/torch_cache/hub/checkpoints/; "
+            # the share cannot store symlinks (HF's snapshot -> blob links): ship refs + DEREFERENCED snapshots only
+            f"M=hub/models--facebook--dinov2-base; mkdir -p {stage_w}/hf_home/$M; "
+            f"cp -rL {stage_w}/hf_cache/$M/refs {stage_w}/hf_cache/$M/snapshots {stage_w}/hf_home/$M/")
     base = yaml.safe_load(wsl(f"cat {WSL_R4_CONFIG}"))
     stage = Path("C:/Users/SabatiniLab/lp_stage") / a.name
     (stage / "configs").mkdir(exist_ok=True)
-    for n, ch in MODELS.items():
-        yaml.safe_dump(model_config(base, ch, scratch), open(stage / "configs" / f"config_{n}.yaml", "w",
+    for n, ch in models.items():
+        yaml.safe_dump(model_config(base, ch, scratch, prof), open(stage / "configs" / f"config_{n}.yaml", "w",
                                                              newline="\n"), sort_keys=False)
-    (stage / "train.sbatch").write_text(sbatch_text(scratch, list(MODELS)), encoding="utf-8", newline="\n")
-    (stage / "COMMANDS.md").write_text(commands_text(a.name, a.user, scratch, share_o2), encoding="utf-8")
+    (stage / "train.sbatch").write_text(sbatch_text(scratch, list(models), f"lp_train_{a.cam}"), encoding="utf-8", newline="\n")
+    (stage / "COMMANDS.md").write_text(commands_text(a.name, a.user, scratch, share_o2, models), encoding="utf-8")
     print(f"copying to the share: {share}")
     from wfield_local import writeguard
     writeguard.assert_writable(share)

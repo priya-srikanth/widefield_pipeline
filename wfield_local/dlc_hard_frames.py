@@ -415,7 +415,7 @@ def choose_sessions(rv=None, per_epoch: int = PER_EPOCH, epochs_=POST_EPOCHS) ->
 
     rv = rv or PathResolver()
     labelled = {p.name for p in (dlc_project.project_dir(rv) / "labeled-data").glob("cam4_*")}
-    man = pd.read_csv(DF.staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = pd.read_csv(DF.manifest_path(rv), dtype=str)
     labelled_dates = set(zip(man[man.video_stem.isin(labelled)].animal, man[man.video_stem.isin(labelled)].date))
     base = Path(rv.root("behavior_out")) / "sessions"
     by: dict[tuple[str, str], list[tuple[str, str]]] = {}

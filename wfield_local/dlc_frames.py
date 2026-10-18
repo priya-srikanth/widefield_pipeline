@@ -353,6 +353,18 @@ def staging_root(rv=None) -> Path:
     return out_root(rv) / "_frame_staging"
 
 
+def manifest_path(rv=None) -> Path:
+    """``frame_manifest.csv``: the provenance of every extracted frame. ONE path, read by every module.
+
+    MOVED 2026-10-18 out of `staging_root`. Staging is scratch -- its frames are copies of the labelling
+    project's -- so the 10-16 clean-up of `_frame_staging` took the manifest with it, and
+    `dlc_train.session_epochs` then returned ``{}`` without a word: the session split stopped spreading
+    across epochs, which is the per-epoch test the split exists for. The manifest is a RECORD, not
+    scratch, so it lives at the top of the DLC tree beside the guides.
+    """
+    return out_root(rv) / "frame_manifest.csv"
+
+
 def _rng(animal: str, date: str, cam: str) -> np.random.Generator:
     """A generator whose stream depends only on the session, so cameras and dates are independent.
 
@@ -699,7 +711,7 @@ def write_manifest(rows: list[dict], rv=None, dest=None) -> Path:
     a camera at a time -- and a manifest rewritten from one run's rows would drop the provenance of
     every frame extracted before it while the images stayed on disk.
     """
-    dest = Path(dest) if dest else staging_root(rv) / "frame_manifest.csv"
+    dest = Path(dest) if dest else manifest_path(rv)
     assert_writable(dest.parent)
     dest.parent.mkdir(parents=True, exist_ok=True)
     existing = []
@@ -858,7 +870,7 @@ def labelled_sessions(rv=None) -> set:
     """
     import csv
 
-    man = staging_root(rv) / "frame_manifest.csv"
+    man = manifest_path(rv)
     if not man.is_file():
         raise SystemExit(f"No manifest at {man} -- nothing has been extracted yet, so there is no "
                          f"labelling set to grow. Run without --only-labelled.")

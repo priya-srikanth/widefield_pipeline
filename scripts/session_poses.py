@@ -43,9 +43,10 @@ def _ffmpeg() -> str:
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
-def out_dir(rv, animal, date) -> Path:
+def out_dir(rv, animal, date, cam: str = "cam4") -> Path:
+    """cam4 keeps the bare ``<animal>_<date>``; any other camera gets ``_<cam>`` (2026-10-18, cam1 eval clips)."""
     from wfield_local import dlc_project
-    d = dlc_project.project_dir(rv).parent / "session_poses" / f"{animal}_{date}"
+    d = dlc_project.project_dir(rv).parent / "session_poses" / (f"{animal}_{date}" + ("" if cam == "cam4" else f"_{cam}"))
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -94,18 +95,20 @@ def choose(b: pd.DataFrame, per_position: int) -> pd.DataFrame:
     return pd.concat(out).sort_values("cue_s").reset_index(drop=True)
 
 
-def cmd_clip(rv, sessions, per_position: int) -> None:
+def cmd_clip(rv, sessions, per_position: int, cam: str = "cam4") -> None:
+    """``cam`` != cam4 cuts the SAME trials (`choose` is deterministic) from that camera via its own template, so a
+    cam1 clip lines up trial for trial with the cam4 one."""
     import cv2
 
     from wfield_local import dlc_frames as DF
     from wfield_local import trial_windows as TW
     for animal, date in sessions:
-        d = out_dir(rv, animal, date)
+        d = out_dir(rv, animal, date, cam)
         if (d / "windows.mp4").exists():
             print(f"{animal} {date}: clip exists", flush=True)
             continue
-        tpl = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
-        vid = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob("cam4_*.avi"))[0]
+        tpl = dict(np.load(Path(rv.root("alignment_templates")) / cam / animal / f"{date}.npz", allow_pickle=True))
+        vid = sorted((Path(rv.root("behavior_cameras")) / date / animal).glob(f"{cam}_*.avi"))[0]
         tr = choose(TW.trial_bounds(animal, date, rv), per_position)
         cap = cv2.VideoCapture(str(vid))                         # READ-ONLY
         w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -236,10 +239,11 @@ def main(argv=None) -> int:
     ap.add_argument("cmd", choices=["clip", "dlc", "merge", "from-scan"])
     ap.add_argument("sessions", nargs="+", help="animal:date")
     ap.add_argument("--per-position", type=int, default=10)
+    ap.add_argument("--cam", default="cam4", help="clip only: camera to cut (non-cam4 -> <animal>_<date>_<cam>/)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     sess = [tuple(s.split(":")) for s in a.sessions]
-    {"clip": lambda: cmd_clip(rv, sess, a.per_position), "dlc": lambda: cmd_dlc(rv, sess),
+    {"clip": lambda: cmd_clip(rv, sess, a.per_position, a.cam), "dlc": lambda: cmd_dlc(rv, sess),
      "merge": lambda: cmd_merge(rv, sess), "from-scan": lambda: cmd_from_scan(rv, sess)}[a.cmd]()
     return 0
 

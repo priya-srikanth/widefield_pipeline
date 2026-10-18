@@ -38,7 +38,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import config
-from wfield_local.dlc_frames import bodyparts, cameras, out_root, staging_root
+from wfield_local.dlc_frames import bodyparts, cameras, manifest_path, staging_root
 from wfield_local.paths import PathResolver
 
 SCORER = "Priya"
@@ -80,7 +80,7 @@ def camera_group(rv=None, machine=None):
 
 
 def manifest(rv=None) -> pd.DataFrame:
-    return pd.read_csv(staging_root(rv) / "frame_manifest.csv")
+    return pd.read_csv(manifest_path(rv))
 
 
 def moment_key(df: pd.DataFrame) -> pd.Series:

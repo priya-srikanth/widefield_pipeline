@@ -23,7 +23,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from wfield_local.dlc_frames import staging_root
+from wfield_local.dlc_frames import manifest_path
 from wfield_local.paths import PathResolver
 
 DUR_S, PRE_S, SEED = 30.0, 3.0, 92
@@ -49,7 +49,7 @@ def main(argv=None) -> int:
     rv = PathResolver()
     out = Path(rv.root("dlc")) / "lightning-pose" / a.project / "videos"
     out.mkdir(parents=True, exist_ok=True)
-    man = pd.read_csv(staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = pd.read_csv(manifest_path(rv), dtype=str)
     picked = pick_sessions(man, a.cam)
     rng = np.random.default_rng(SEED)
     print(f"{len(picked)} sessions: " + ", ".join(f"{r.animal}/{r.epoch}" for r in picked.itertuples()))

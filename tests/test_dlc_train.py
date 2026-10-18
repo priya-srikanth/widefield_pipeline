@@ -68,7 +68,7 @@ def projects(tmp_path, monkeypatch):
     pd.DataFrame(man).to_csv(staging / "frame_manifest.csv", index=False)
 
     monkeypatch.setattr(dt.dlc_project, "project_dir", lambda rv=None: src)
-    monkeypatch.setattr(dt, "staging_root", lambda rv=None: staging)
+    monkeypatch.setattr(dt, "manifest_path", lambda rv=None: staging / "frame_manifest.csv")
     monkeypatch.setattr(dt, "train_cfg", lambda: {"bodyparts": PARTS, "cam": "cam4",
                                                  "tag": "orofacial", "training_fraction": 0.5,
                                                  "seed": 42})
@@ -196,6 +196,14 @@ def test_the_hold_out_spans_epochs(projects):
     epochs = dt.session_epochs()
     held = {epochs[ix[1]] for ix in dt.labels(proj).index[test_idx]}
     assert held == {"pre", "acute"}
+
+
+def test_a_missing_manifest_is_a_refusal_not_an_epoch_blind_split(projects, monkeypatch, tmp_path):
+    """2026-10-18: the manifest vanished with `_frame_staging` and `session_epochs` returned {} silently."""
+    monkeypatch.setattr(dt, "manifest_path", lambda rv=None: tmp_path / "gone" / "frame_manifest.csv")
+    proj = dt.stage()
+    with pytest.raises(SystemExit, match="no frame manifest"):
+        dt.split(proj)
 
 
 def test_the_split_is_deterministic_under_the_seed(projects):

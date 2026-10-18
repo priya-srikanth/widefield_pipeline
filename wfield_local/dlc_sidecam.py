@@ -83,7 +83,7 @@ def pair_rows_side(rv=None) -> list[dict]:
     worksheet: round-4 picks -> ``side_round4`` (phase ``pair:<kind>``), everything else -> plain context."""
     from wfield_local import dlc_hard_frames as HF
     rv = rv or PathResolver()
-    man = pd.read_csv(DF.staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = pd.read_csv(DF.manifest_path(rv), dtype=str)
     c4 = man[man.cam == "cam4"]
     stems = set(c4.loc[c4.category == "round4", "video_stem"])
     src = c4[c4.video_stem.isin(stems) & c4.category.isin({"round4", CONTEXT, "context_label"})]
@@ -117,9 +117,9 @@ def cmd_pairs(rv, dry: bool) -> int:
 
 
 def cmd_assign(rv) -> Path:
-    man = pd.read_csv(DF.staging_root(rv) / "frame_manifest.csv", dtype=str)
+    man = pd.read_csv(DF.manifest_path(rv), dtype=str)
     a = assign(man)
-    out = DF.staging_root(rv) / ASSIGN_NAME
+    out = DF.out_root(rv) / ASSIGN_NAME
     assert_writable(out.parent)
     a.to_csv(out, index=False)
     lab = a[a.label]
