@@ -35,15 +35,23 @@ def main(argv=None) -> int:
     ap.add_argument("--win", type=float, nargs=2, default=(-0.5, 3.5), help="s around the cue")
     ap.add_argument("--fps", type=float, default=50.0)
     ap.add_argument("--tag", default="")
+    ap.add_argument("--cam", default="cam4", choices=["cam4", "cam1"],
+                    help="cam1 (2026-10-18): cam1 cleaning values (`orofacial_clean_cam1`), mouth = the L/R spout-line "
+                         "intersection (`spout_frame.from_medians_lr`) from the FIRST model's spout, raw dots at the cam1 "
+                         "cutoffs (tongue 0.4, jaw 0.6), output in <dir>/eval/")
     a = ap.parse_args(argv)
     d = a.poses_dir
     idx = pd.read_csv(d / "windows_index.csv")
-    # mouth = the spout-frame origin from round-3 DLC's spout, as every cleaned trace figure / the kinematics use
-    ref = oc.read_pose(d / "windows_DLC.csv").iloc[:len(idx)]
+    if a.cam == "cam4":
+        # mouth = the spout-frame origin from round-3 DLC's spout, as every cleaned trace figure / the kinematics use
+        ref = oc.read_pose(d / "windows_DLC.csv").iloc[:len(idx)]
+    else:
+        ref = oc.read_pose(Path(a.model[0].split("=", 1)[1])).iloc[:len(idx)]
     spans = [(int(g.index.min()), int(g.index.max()) + 1, str(g.position.iloc[0]))
              for _, g in idx.iloc[:len(ref)].groupby("trial_k")]
-    mouth = SF.from_medians(SF.position_medians(ref[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(),
-                                                spans)).origin
+    med = SF.position_medians(ref[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans)
+    mouth = (SF.from_medians(med) if a.cam == "cam4" else SF.from_medians_lr(med)).origin
+    raw_cut = {"tongue": 0.4, "jaw": 0.4 if a.cam == "cam4" else 0.6}
     models = []
     n = len(idx)
     for spec in a.model:
@@ -59,7 +67,7 @@ def main(argv=None) -> int:
                              for c in ("x", "y", "likelihood")})
         C = {}
         for part in ("tongue", "jaw"):
-            c, pos, _ = oc.clean_windows(flat, idx, part, x0y0=tuple(mouth) if part == "tongue" else None)
+            c, pos, _ = oc.clean_windows(flat, idx, part, x0y0=tuple(mouth) if part == "tongue" else None, cam=a.cam)
             C[part] = (c.x_final[pos] + c.X0, c.y_final[pos] + c.Y0, c.fill_method[pos])
         M.append((name, P, C))
     rows = np.flatnonzero(idx.trial_id.isin(a.trials).to_numpy() & (idx.t_ms >= a.win[0] * 1000).to_numpy()
@@ -68,7 +76,7 @@ def main(argv=None) -> int:
     rows = sorted(rows, key=lambda r: (order[int(idx.trial_id.iloc[r])], r))
     cap = cv2.VideoCapture(str(d / "windows.mp4"))                       # READ-ONLY
     tag = a.tag or M[0][0].replace(" ", "_")
-    out = d / "r4_eval" / f"cleaned_labels_{tag}.mp4"
+    out = d / ("r4_eval" if a.cam == "cam4" else "eval") / f"cleaned_labels_{tag}.mp4"
     out.parent.mkdir(exist_ok=True)
     one = len(M) == 1
     W, H = (420, 360) if one else (300, 270)
@@ -83,7 +91,7 @@ def main(argv=None) -> int:
     ff = subprocess.Popen([_ffmpeg(), "-nostdin", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "bgr24",
                            "-s", f"{FW}x{FH}", "-r", str(a.fps), "-i", "-", "-c:v", "libx264", "-crf", "18",
                            "-preset", "veryfast", "-pix_fmt", "yuv420p", str(out)], stdin=subprocess.PIPE)
-    cx, cy = int(mouth[0]), int(mouth[1]) + 60
+    cx, cy = int(mouth[0]), int(mouth[1]) + (60 if a.cam == "cam4" else 20)
     x0, y0 = max(cx - W // 2, 0), max(cy - H // 2, 0)
     last = -2
     for r in rows:
@@ -97,7 +105,7 @@ def main(argv=None) -> int:
         for k, (name, P, C) in enumerate(M):
             im = base.copy()
             for part in ("tongue", "jaw"):
-                if P[f"{part}_likelihood"].iloc[r] >= 0.4:
+                if P[f"{part}_likelihood"].iloc[r] >= raw_cut[part]:
                     cv2.circle(im, (int(P[f"{part}_x"].iloc[r]), int(P[f"{part}_y"].iloc[r])), 2, (255, 255, 255),
                                -1, cv2.LINE_AA)
             for part, col in (("tongue", (0, 165, 255)), ("jaw", (255, 255, 0))):
@@ -125,7 +133,7 @@ def main(argv=None) -> int:
                     f"({a.fps / 250:.1f}x speed)", (8, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1,
                     cv2.LINE_AA)
         cv2.putText(frame, "CLEANED: tongue orange (dot measured, ring interpolated, grey X = mouth fill) | jaw cyan "
-                    "(dot measured, ring interpolated, none = hidden) | white = raw p>=0.4", (8, 37),
+                    f"(dot measured, ring interpolated, none = hidden) | white = raw p>={raw_cut['tongue']}/{raw_cut['jaw']}", (8, 37),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.42, (200, 200, 200), 1, cv2.LINE_AA)
         ff.stdin.write(frame.tobytes())
     ff.stdin.close()
