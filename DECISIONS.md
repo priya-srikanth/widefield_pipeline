@@ -20308,3 +20308,42 @@ also a different behavioural state (spout contact +0.4 by August).
   the sensitivity check. Anything measured relative to the mouth origin (jaw-from-mouth, nose, spout) is August-only.
 
 **Imaging: NOT switched (Priya 10-18: "imaging doesn't need to switch").** The reasons for dropping June are LP geometry (camera perspective) and behavioural state; imaging is registered to the Allen atlas per session, so neither applies. The August-only run is a CONFIRMING sensitivity check: frozen-decoder per-position accuracy tells the same story (pre 0.83-0.93 both ways; acute far contra 0.32 default vs 0.25 August-only; same recovery pattern) and the epoch families agree (703 cells significant under both, 36 lost, 122 gained). Outputs: `labcams/grant_figures/epoch_latepre/`, `labcams/frozen_decoder_latepre/`, `baseline_compare.csv`. The imaging default stays all curated pre.
+## 2026-10-18 (late) — combined encoding model redesigned; the first all-session run was invalid
+
+**Bugs found in the first run (v35, 119 sessions; all outputs invalid, rerun on v36):**
+- Reduced models BORROWED the full model's ridge penalties (chosen per session; instructed ranged 10..1000), so single-
+  variable fits over- / under-fit: "alone" went NEGATIVE for jaw / instructed and was not an upper bound, while the
+  instructed shuffle dR2 reached 0.25-0.28 in the cue / lick windows. Fix: every reduced model gets its own penalty per
+  group present (one coordinate pass); SHUFFLE models keep the full model's penalties (same structure, information
+  destroyed).
+- Running is strongly collinear with the instructed regressors (min cumulative subspace angle 0.10-0.13), so under
+  movement-first a large share of running's variance is credited to instructed / jaw. Added the order-free DROP dR2
+  (full minus a refit without the variable, unorthogonalised) beside the shuffle dR2.
+- The model used the raw Allen brain mask (olfactory bulb, fibre glue, rim in). Now fit / maps on
+  `beta_maps.brain_mask()` and region / cortex values on the eroded `beta_maps.stat_mask()`, as the imaging map analyses.
+- The 2-s cue kernel forced position dR2 to exactly 0 from +2 s while the signal was still high (the step in the
+  time-resolved figure). Musall's stimulus kernels ran to the end of the trial.
+
+**Design (Priya 10-18):**
+- Task group: `cue` = ONE shared kernel, cue .. that trial's stop (the auditory cue / reward anticipation is the same on
+  every trial); `arrival` = ONE shared spout-arrival kernel + spout-present state (strobe .. cue); `pos_enl` / `pos_cue` =
+  per-position DEVIATIONS (each position's kernel minus its share of the shared one), orthogonal to the shared kernels.
+  No ENL / cue overlap. No reward variable (reward comes with the cue; consumption = licking). Lick kernel -0.5 .. +2 s
+  (GCaMP6s; Musall's 6f motor kernels were -0.5 .. +1). Cue kernel basis 0.1 s to +2 s, 0.4 s to +7 s (speed).
+- POSITION IS ONE VARIABLE: one relabelling for both periods (`shuf:position`, `drop:position`); the ENL / cue split is
+  the temporal breakdown.
+- Per-position readouts: one-vs-rest dR2 per position; side-only and distance-only constrained permutations; per-
+  position response maps, ABSOLUTE and deviation-only (never minus the mean over positions -- "the reference is the
+  claim", 09-12).
+- TARGET vs EXECUTED (Priya: "most invested in"): position replaced by the spout's target angle (+ angle^2) or by each
+  lick's absolute executed angle (+ angle^2; subsumes exec_angle), as shares of position dR2 -- with and without tongue
+  x / y (a direction / position proxy that would absorb both). Within-position exec_angle unique dR2 kept.
+- Video motion energy (O2 pilot) will enter LAST, orthogonalised against every other regressor (Musall: "can only
+  reduce" video's explanatory power) -- the static-spout occlusion leak (ENL ME decodes position 0.92-0.96) cannot take
+  position variance.
+- Encoding figures default to the August-only baseline; style: wrapped titles, larger fonts, row colourbars, group
+  colours distinct from epoch / animal colours.
+
+**Interpretation note (for the figures):** small unique maps next to large single-variable maps are expected (Musall);
+licks / tongue / jaw / exec_angle share variance, so read the instructed GROUP and the drop dR2 for "licking as a whole";
+position's unique dR2 is a lower bound (movement-first, tongue x / y).
