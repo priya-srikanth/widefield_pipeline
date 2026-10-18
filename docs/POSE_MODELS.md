@@ -342,6 +342,21 @@ Not comparable with round 1's test numbers (different held-out sessions).
 
 Jaw better; tongue not, on too few frames to say -- consistent with the tip-definition ambiguity rather than missing labels.
 
+**Round 1 vs round 2 vs LP on the PS93 cam1 clips** (`scripts.cam1_model_compare`, tag `_r1r2lp_1018`; 0908 r1 pending):
+
+| pre / acute | DLC c1r1 | DLC c1r2 | LP c1r2 heatmap |
+|---|---|---|---|
+| contacts seen (%) | 98.8 / 95.9 | 99.8 / 97.1 | **100 / 99.2** |
+| tongue > 60 px per 10k | 30 / 39 | 9.5 / **4.0** | **5.1** / 17.4 |
+| jaw coverage post-cue (%) | 74 / 80 | 86 / 85 | **95 / 87** |
+| jaw > 20 px per 10k | 39 / 33 | 12 / 3.3 | **3.3 / 3.2** |
+| jaw coverage, centre positions pre (%) | 35-36 | 54-69 | **82-90** |
+
+Round 2's labels cut teleports and jaw jumps 3-10x and fixed most of the centre-position jaw. Priya (labelled clip): LP is
+mostly good but sometimes sits to one side of the tongue as it emerges. NB the plain LP c1r2 uses the LP r4 recipe's temporal
+epsilon of 10 px for EVERY keypoint (tongue too) -- below cam1's genuine fast tongue motion (p99 40 px, B3), so it may hold the
+emerging tip back; eps40 (same model, tongue 40) and ctx-semi (temporal context, tongue 35) test that.
+
 ---
 
 # Part C -- Evaluation plan and status, both cameras (2026-10-18; cam1 metrics agreed by Priya 10-18; she picks the winner)
@@ -567,6 +582,56 @@ between-lick veto's `interlick_near_px` 80 -> **40** (percentile-matched: cam4's
 (distance from the mouth median 36-50 vs 73-98 px, p95 71-106 vs 156-186), so 80 px covered 81-98 % of cam1 tongue frames and
 the veto would also fire on slides round the spout rod. Same foreshortening for ANALYSIS thresholds measured from the mouth:
 cam4's 20 px in-mouth cutoff corresponds to ~10-11 px on cam1 -- set cam1 thresholds from cam1 distributions, not cam4's px.
+**Superseded for gap filling by D8** (max gap 24 ms, veto off).
+
+## D8. cam1 gap length: cam4's 56 ms bridges licks on cam1 (10-18, Priya's QC of the cleaned clip, trial 251)
+
+`python -m scripts.cam1_clean_qc gaps PS93:20260814 PS93:20260821 PS93:20260908 --model <csv> --tag _<model>` lists every
+tongue gap the cam1 cleaning would interpolate (cam4's 56 ms, veto off; post-cue, within a trial) and asks cam4 (side view,
+DLC r3, same trial and cue-relative time) whether the tongue was out: a gap where cam4's tongue is not confident for >= half
+of it was the tongue back in the mouth -> interpolating it BRIDGES two licks. Outputs `session_poses/cam1_gap_check_<model>.csv`.
+
+* By gap length (LP c1r2; DLC c1r2 the same shape): <= 12 ms -> cam4 says in-mouth 24-38 % (mostly real dropouts, tongue out);
+  24-40 ms -> 93-97 %; 40-56 ms -> 98-100 %. **Side and centre positions alike** -- not a centre-only problem. On cam4 the
+  same-length gaps are the tip hidden behind the rod (hence 56 ms there); from below the rod hides little.
+* The between-lick veto caught only ~10 % of the bridges (it needs a retract-then-protrude in distance from the mouth, which
+  cam1's foreshortened reach rarely shows) and at max gaps <= 32 ms it blanks more real tongue than it saves.
+* Bridged + lost frames per session (0814 / 0821 / 0908): LP c1r2 56 ms + veto 1713 / 675 / 2431 -> **24 ms, no veto 83 /
+  260 / 227**; DLC c1r2 1643 / 1088 / 2656 -> 291 / 548 / 419. 16-24 ms tie; 24 keeps more measured-tongue continuity.
+* Acute has the most cam1 gaps > 24 ms that cam4 sees as tongue OUT (16-23 % vs 1-3 % pre / chronic) -- the residual cost of
+  24 ms falls on acute (LP 79 lost frames vs 0-7); still far below the bridging it removes (607 -> 181).
+* **Proposed and written to `orofacial_clean_cam1.tongue`: `max_gap_ms: 24`, `interp_veto_interlick: false`** (cam4 digest
+  unchanged). Re-rendered clip for QC: `session_poses/PS93_20260814_cam1/eval/cleaned_labels_cam1_dlc2_lp2_gap24.mp4`.
+
+**Water (Priya 10-18):** the jaw and sometimes the tongue get dragged onto a hanging drop when the drop hides where the point
+would be (reflections pull the keypoint; e.g. PS93 0814 trial 22 far_center +84 / +180 ms, jaw on the drop's lower edge). A
+"jaw above its trial rest" rule is NOT a clean water signature: confident post-cue jaw > 20 px above the trial's pre-cue rest is
+2-7 % of frames, but only 2-24 % of those are in the last quarter of trials (where drops build up) -- something else dominates.
+No water guard proposed yet; next labelling round: water-drop frames with the hidden point left blank (hard negatives).
+
+## D9. First cam1 behavioural readout -- lateral landing of licks (10-18, PRELIMINARY: one animal, model not chosen)
+
+`python -m scripts.cam1_lick_aim PS93:20260814=pre PS93:20260821=acute PS93:20260908=chronic --model <LP c1r2 csv> --tag _lp_c1r2`
+-> `session_poses/cam1_lick_aim_lp_c1r2{.csv,_summary.csv,.png}`. cam1 GEOMETRY (checked on frames): image up / down =
+dorsal / ventral; the spouts sit almost level with the mouth and differ only laterally; the tongue reaches DOWN under the spout
+tip, 50-100 px below the mouth. An angle of tongue vs spout direction is therefore meaningless on cam1 (first version: -50 ..
+-220 deg); only LATERAL comparisons are valid. Lick = cleaned tongue run (D8 values) reaching > 20 px below the mouth; peak =
+its most ventral frame; `lat_err_px` = peak lateral - spout lateral (+ = outward of the spout; centre: + = mouse's left).
+Runs that never get below the mouth (a pale bump at the lips, LP confident, mouth nearly closed) are counted, not licks.
+
+Median lateral error, contact licks (px; pre / acute / chronic): close_L -6 / -29 / -26; close_center (+ = left) +18 / +1 / -7;
+close_R -41 / -14 / -16; far_L -39 / -49 / -60; far_R -32 / - / -50; far_center +1 / 0 / -3.
+Lesions are LEFT (ipsi = mouse left = cam1 IMAGE RIGHT). PS93's licks move toward the mouse's RIGHT (contra) after the stroke.
+**That agrees with PS93's own cam4 angles** (production LP r4 v36 `licks.csv`, contact licks, same trials; + = ipsi): close_center
++9.5 -> -9.7 / -11.8 deg, close_R -0.7 -> -7.5 / -8.0, close_L 8.5 -> 5.7 / 1.8, far_L 18.5 -> 16.5 / 9.2. The cohort's "acute
+licks aim ipsi" (OROFACIAL_FINDINGS 2) is pooled; PS93 is the known exception (right deviation already pre-stroke). Not the spout
+set point either (nose lateral in the cam1 mouth frame moved +6.5 px, the other way).
+**But the PEAK definition is not trustworthy on cam1 (Priya 10-18: "peak protrusion may not be the furthest distance on cam1
+since it's at a funny angle"):** the clouds lie along diagonals and pre-stroke licks reach deeper, so the most-ventral frame's
+lateral position covaries with reach; at close_R the pre-stroke "peaks" sit on the opposite side of the mouth from the spout
+(the tongue drooping / curling, not aiming). At the DAQ CONTACT frame the shifts are smaller (close_L -18 / -16, close_center
++1 / -10, close_R -2 / -8 px). Next: sample cam1's lateral position at cam4's peak-protrusion time per lick (cam4 sees protrusion
+side-on; clocks agree to ~12 ms, B4), and show lateral-vs-time paths rather than one point. Not a result until then.
 
 ### cam4 LP r4 eps35 (O2, scored 2026-10-18)
 

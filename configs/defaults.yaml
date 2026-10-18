@@ -1111,7 +1111,18 @@ orofacial_clean_cam1:         # cam1 (view from below) OVERLAY on `orofacial_cle
                               # only the speed test does (watch centre positions in the QC). PROPOSED, to QC.
                               # Other tongue stages kept: x-range drops <= 0.02 %, isolated / gap rules are time-based and
                               # remove / fill about what they do on cam4.
-    interlick_near_px: 40.0
+                              # GAP LENGTH (10-18, after Priya's QC of the cleaned clip, trial 251: tongue bridged between
+                              # two licks): cam4's 56 ms max gap BRIDGES LICKS on cam1. Judged by cam4 (side view) on PS93
+                              # 0814 / 0821 / 0908, `scripts.cam1_clean_qc gaps`: interpolated cam1 gaps > 24 ms are the
+                              # tongue back in the mouth 90-100 % of the time, at side AND centre positions (on cam4 the same
+                              # gaps are the tip hidden behind the rod, hence 56 there); <= 12 ms are mostly real dropouts
+                              # with the tongue out. Bridged + lost frames per session, LP c1r2 / DLC c1r2: 56 ms + veto
+                              # 1713-2431 / 1088-2656; 24 ms, no veto 83-260 / 291-548 (16-24 ms tie). The between-lick
+                              # veto only ever caught ~10 % of the bridges and, at <= 32 ms, blanks more real tongue than
+                              # it saves -> OFF on cam1. PROPOSED, to QC on the re-rendered clip.
+    max_gap_ms: 24.0
+    interp_veto_interlick: false
+    interlick_near_px: 40.0   # unused while the veto is off (kept: the measured cam1 value if it is turned back on)
     interlick_speed_px: 1.7
   jaw:
     lk_thr: 0.6               # cam1 analysis cutoff for jaw (DECISIONS 2026-10-05). DLC c1r2 keeps 86 % of jaw frames

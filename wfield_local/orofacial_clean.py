@@ -538,11 +538,12 @@ def jaw_off_tongue(df: pd.DataFrame, q: dict | None = None, cam: str = "cam4") -
 
 
 def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: float = 250.0, sep: int = 300,
-                  x0y0: tuple[float, float] | None = None, cam: str = "cam4"):
+                  x0y0: tuple[float, float] | None = None, cam: str = "cam4", p: dict | None = None):
     """Clean a clip made of concatenated cue windows (`scripts.pose_cue_traces clip` index: trial_k, t_ms).
 
     Windows are joined with ``sep`` NaN frames (longer than any max gap, so nothing is filled across a window
     boundary) so session-level statistics (x-range median, baseline) pool over all trials, as on a full session.
+    ``p`` overrides the tongue / jaw params (QC of alternative values; None = the config's).
     Returns (Clean on the padded array, row positions of the original frames, cue frame of each window).
     """
     parts, pos, cues, k = [], [], [], 0
@@ -557,7 +558,7 @@ def clean_windows(df: pd.DataFrame, index: pd.DataFrame, bodypart: str, fps: flo
     big = pd.concat(parts, ignore_index=True)
     if bodypart == "jaw":
         big = jaw_off_tongue(big, cam=cam)
-    c = clean_bodypart(big, bodypart, cues, fps, x0y0=x0y0, cam=cam)
+    c = clean_bodypart(big, bodypart, cues, fps, p=p, x0y0=x0y0, cam=cam)
     if bodypart == "jaw" and params("jaw", cam)["v34"].get("enabled", True):
         c = jaw_v34(c, cues, cam=cam)
     return c, np.concatenate(pos), np.array(cues)
