@@ -509,3 +509,27 @@ lands on licks without contact, the measure that matters most. Fixes, strongest 
 tongue blank) as hard negatives in the next labelling round (late, sated trials); (2) a cleaning guard against static tongue
 runs at the spout tip -- measure what it costs real licks first; (3) include late, sated trials in the cam1 lick review.
 Check the cam4 LP r4 "false detections on the spout rod" (lick review 10-14) for drops too.
+
+## D5. Option 2 built: the commanded (apparatus) mouth in each camera, from 3-D (10-18)
+
+Priya 10-18: the cam1 mouth must not depend on the tongue paths (they change after the stroke) -- use the apparatus.
+`spout_world.apparatus_mouth`: triangulate the six parked spout medians (cam1 + cam4, 09-11 calibration), fit the similarity
+frame to the COMMANDED layout (`spout_world.fit`, mouth-centred stage mm from gui_config), and project the frame's origin --
+the stage's mouth set point -- into each camera. `scripts/apparatus_mouth.py` (clips: cam1 DLC c1r2 + cam4 DLC r3 trial clips,
+or the O2 LP r4 whole-session output for cam4 where there is no clip -- June).
+
+| PS93 | cam1 mouth | - cam1 nose | cam4 mouth - cam4 nose | fit residual | distance ratios | nose in mouth frame (ml, ap, dv) mm | stage set point y |
+|---|---|---|---|---|---|---|---|
+| 0814 | (323, 388) | (+8, +250) | (-3, +82) | 0.05 mm | 0.97-1.00 | (+0.10, +6.47, +2.87) | 24.934 |
+| 0821 | (313, 408) | (0, +274) | (-4, +85) | 0.05 mm | 0.95-1.00 | (-0.02, +7.25, +3.02) | 25.634 |
+
+**Reading.** The triangulation is good (spouts within 0.05 mm of the command; reprojection 6-8 px), and the apparatus mouth
+moves 24 px in cam1 between the two days -- the SAME shift as the cam1 2-D spout-line intersection, which therefore tracks the
+apparatus mouth (within ~8 px) and was never noise. The cause is in gui_config: the mouth set point entered for 0821 differs by
+0.70 mm in stage y, and the nose moved 0.78 mm relative to it -- the head stayed, the set point moved. cam4 hardly sees that
+direction (its view runs along it), hence its stable +82 / +85. So the apparatus mouth = the task's reference by design, with
+the day-to-day precision of the set point (~0.7 mm here); the tongue-path mouth is anatomical and stable (2 px) but
+behaviour-dependent. Priya's choice (10-18): apparatus. Labelled frames cannot test June (2-4 positions per session in both
+cameras; the fit needs 5): June cam1 0606 clips (4 animals, 4 trials / position) are cut and queued for DLC c1r2; cam4 June from
+the O2 LP r4 output; the June variants (raw / x0.885 about origin, principal point, cam4 mouth) are then compared by
+reprojection error and fit residual.

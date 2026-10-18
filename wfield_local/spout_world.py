@@ -226,3 +226,37 @@ def step_check(world: SpoutWorld, points: pd.DataFrame, geometry: dict) -> pd.Da
         d = float(world.to_world(np.asarray(r.X, float)) @ u)
         rows.append({"pos": r.pos, "dist_mm": float(r.dist_mm), "fitted_mm": d, "error_mm": d - float(r.dist_mm)})
     return pd.DataFrame(rows, columns=["pos", "dist_mm", "fitted_mm", "error_mm"])
+
+
+# --------------------------------------------------------------------- the apparatus mouth in each camera, 2026-10-18
+def apparatus_mouth(med_by_cam: dict, geometry: dict, cgroup) -> dict:
+    """The per-session commanded MOUTH (the stage's mouth set point = this frame's origin) in every camera's image.
+
+    ``med_by_cam`` = {camera name: {position: (x, y, ...)}} per-position spout medians in each camera's RAW image px (cam4
+    June: see `scale_about`); ``cgroup`` an aniposelib ``CameraGroup`` (e.g. the 09-11 rig toml). Triangulates the
+    positions seen by every camera, fits the similarity frame to the commanded layout (`fit`), maps the frame's origin
+    back to calibration space and projects it. Apparatus-only: no body part enters (Priya 2026-10-18 -- the cam1 mouth
+    must not depend on tongue paths, which change after the stroke; "option 2"). The labelled spout point (cam1 bottom /
+    cam4 top edge) differs from the commanded tip by a constant vector, which the fit puts into the translation -- a
+    constant offset by design.
+
+    Returns {"world", "mouth_px" {cam: (2,)}, "reproj_px" {cam: mean px}, "positions"}.
+    """
+    cams = list(med_by_cam)
+    pos = [p for p in POSITIONS if all(p in med_by_cam[c] for c in cams)]
+    pts = np.stack([[np.asarray(med_by_cam[c][p][:2], float) for p in pos] for c in cams])     # (n_cams, n, 2)
+    cg = cgroup.subset_cameras_names(cams)
+    X = cg.triangulate(pts, undistort=True)
+    rep = cg.project(X)
+    world = fit(pd.DataFrame({"pos": pos, "X": list(X)}), geometry)
+    X0 = (world.R.T @ (-world.t)) / world.scale                     # world origin (the mouth) in calibration space
+    m = cg.project(X0[None])
+    return {"world": world, "positions": pos,
+            "mouth_px": {c: m[i, 0] for i, c in enumerate(cams)},
+            "reproj_px": {c: float(np.mean(np.linalg.norm(rep[i] - pts[i], axis=1))) for i, c in enumerate(cams)}}
+
+
+def scale_about(med: dict, factor: float, centre) -> dict:
+    """Scale per-position medians by ``factor`` about ``centre`` (image px) -- the June cam4 correction under test."""
+    c = np.asarray(centre, float)
+    return {p: tuple(c + factor * (np.asarray(v[:2], float) - c)) + tuple(v[2:]) for p, v in med.items()}
