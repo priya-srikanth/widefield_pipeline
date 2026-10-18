@@ -12,7 +12,8 @@ change. Here, per session x spout position x keypoint:
   points   every tracked frame of every ENGAGED trial (the cohort's reference-position gate), cue + 70 ms .. DAQ trial
            stop, cut at spout-retraction onset (`orofacial_heatmaps.retraction_cut`; only PS92 / PS93 0606 retract before
            the DAQ stop -- checked 10-18). tongue = CLEANED tip in the mouth frame, tongue OUT only (>= 20 px; in-mouth frames would put a
-           lick-rate-dependent mass at the origin); jaw = CLEANED jaw (rest-relative); nose, spout = pose (likelihood
+           lick-rate-dependent mass at the origin); jaw = CLEANED jaw (rest-relative); jaw_mouth = the same jaw from the
+           mouth origin (a resting-posture shift is not subtracted out); nose, spout = pose (likelihood
            >= 0.6) in the SAME MOUTH FRAME (minus the session's `tongue_origin`). Everything is in the mouth frame
            (Priya 10-18). The SPOUT is the noise / drift CONTROL (a fixed apparatus point per position: it should not
            move relative to the mouth). The NOSE is BEHAVIOUR, not a control -- head / snout posture can change after
@@ -36,7 +37,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-KEYPOINTS = ("tongue", "jaw", "nose", "spout")      # ALL in the mouth frame (Priya 10-18)
+#: ALL in the mouth frame (Priya 10-18). jaw = rest-relative (movement / opening; its own session rest subtracted);
+#: jaw_mouth = the same cleaned jaw from the spout-geometry mouth origin, so a RESTING jaw shift shows too.
+KEYPOINTS = ("tongue", "jaw", "jaw_mouth", "nose", "spout")
 LIK_MIN = 0.6
 TONGUE_OUT_PX = 20.0
 MIN_POINTS = 100
@@ -63,9 +66,13 @@ def _points(sd: Path, animal: str, date: str, keep: set | None) -> dict:
                          pose.spout_likelihood.to_numpy(float))
     pos = ix.position.to_numpy(str)
     tx, ty = cl.tongue_x.to_numpy(float), cl.tongue_y.to_numpy(float)
-    o = np.load(sd / "clean.npz")["tongue_origin"].astype(float)          # the mouth, image pixels
+    cz = np.load(sd / "clean.npz")
+    o = cz["tongue_origin"].astype(float)                                  # the mouth (spout-line intersection), image px
+    rest = cz["jaw_rest"].astype(float)                                    # the session's jaw rest, image px
     xy = {"tongue": (tx, ty, np.hypot(tx, ty) >= TONGUE_OUT_PX),
-          "jaw": (cl.jaw_x.to_numpy(float), cl.jaw_y.to_numpy(float), np.ones(len(t), bool))}
+          "jaw": (cl.jaw_x.to_numpy(float), cl.jaw_y.to_numpy(float), np.ones(len(t), bool)),
+          "jaw_mouth": (cl.jaw_x.to_numpy(float) + rest[0] - o[0], cl.jaw_y.to_numpy(float) + rest[1] - o[1],
+                        np.ones(len(t), bool))}
     for kp in ("nose", "spout"):
         x, y = pose[f"{kp}_x"].to_numpy(float), pose[f"{kp}_y"].to_numpy(float)
         ok = pose[f"{kp}_likelihood"].to_numpy(float) >= LIK_MIN

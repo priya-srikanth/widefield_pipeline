@@ -37,7 +37,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-KEYPOINTS = ("tongue", "jaw", "nose", "spout")
+KEYPOINTS = ("tongue", "jaw", "jaw_mouth", "nose", "spout")      # jaw_mouth: jaw from the mouth origin, not its rest
 #: no-lick ENL versions (Priya 10-18): cue - ENL_MS .. cue (>= strobe + settle), raw tongue NOT detected, engaged trials.
 #: spout_enl = the W2 spout control (water-on-tip label error kept, licking push / occlusion removed); nose_enl = resting
 #: head posture without licking. Denominator = the no-lick ENL frames.
@@ -51,6 +51,7 @@ NBINS = 80
 #: (x = lateral, y = forward) extents in px, fixed across sessions / epochs / positions (from the pilot, 10-18)
 EXTENT = {"tongue": ((-175.0, 175.0), (-25.0, 320.0)),
           "jaw": ((-70.0, 70.0), (-25.0, 140.0)),
+          "jaw_mouth": ((-70.0, 70.0), (-10.0, 185.0)),
           "nose": ((-65.0, 50.0), (-135.0, -30.0)),
           "spout": ((-125.0, 125.0), (20.0, 140.0))}
 EXTENT.update({k: EXTENT[k[:-4]] for k in ENL_KPS})
@@ -88,8 +89,10 @@ def frame_coords(sd: Path, animal: str, date: str, run: str) -> dict:
            "spout_lk": pose.spout_likelihood.to_numpy(float), "strobe": ix.strobe_ms.to_numpy(float),
            "tongue_lk": pose.tongue_likelihood.to_numpy(float)}
     tx, ty = cl.tongue_x.to_numpy(float), cl.tongue_y.to_numpy(float)
+    rest = c["jaw_rest"].astype(float)
     src = {"tongue": (tx + o[0], ty + o[1], np.hypot(tx, ty) >= TONGUE_OUT_PX),
-           "jaw": (cl.jaw_x.to_numpy(float) + o[0], cl.jaw_y.to_numpy(float) + o[1], np.ones(len(tx), bool))}
+           "jaw": (cl.jaw_x.to_numpy(float) + o[0], cl.jaw_y.to_numpy(float) + o[1], np.ones(len(tx), bool)),
+           "jaw_mouth": (cl.jaw_x.to_numpy(float) + rest[0], cl.jaw_y.to_numpy(float) + rest[1], np.ones(len(tx), bool))}
     for kp in ("nose", "spout"):
         src[kp] = (pose[f"{kp}_x"].to_numpy(float), pose[f"{kp}_y"].to_numpy(float),
                    pose[f"{kp}_likelihood"].to_numpy(float) >= LIK_MIN)
@@ -301,6 +304,7 @@ def _vmax(maps, kind):
 
 
 KP_DESC = {"tongue": "tongue tip (cleaned, OUT frames >= 20 px)", "jaw": "jaw (cleaned, rest-relative)",
+           "jaw_mouth": "jaw (cleaned) from the MOUTH origin -- resting-jaw shifts included",
            "nose": "nose (pose; head / snout posture = behaviour)",
            "spout": "spout tip (pose; fixed apparatus = the drift CONTROL)",
            "nose_enl": "nose, NO-LICK ENL (resting head / snout posture)",
