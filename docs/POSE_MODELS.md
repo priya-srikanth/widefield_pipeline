@@ -544,3 +544,16 @@ reference. It sits ~15-20 px toward the jaw from where the tongue appears (cam1 
 no shift; cam1 thresholds measured from the mouth are set relative to this point. Adaptive trials need no filter (Priya: the
 stage moves along the same ray, so a shorter far_L lies on the same line; pinned by a test). Works for June unchanged (cam1 has
 no June scale change, D3). The tongue-path point stays as a QC comparison only.
+
+**NOTE -- spout position jitter across days (Priya 10-18).** The spout layout is placed relative to a mouth set point entered
+each session, and that placement jitters across days relative to the head: PS93 0814 vs 0821, the set point differs by 0.70 mm
+(stage y) and the triangulated nose moved 0.78 mm relative to it (D5); cam1 sees this as ~24 px, cam4 hardly (it views along
+that direction). Consequences:
+* Measures relative to the SPOUT TIP -- where the tongue is aiming (angle to the target, executed vs target, contact) -- are
+  unaffected by construction: the reference moves with the target.
+* Measures relative to the MOUTH origin (protrusion distance, the in-mouth / tongue-out threshold, mouth-zero fills) inherit
+  the jitter, because the origin follows the apparatus, not the anatomy. Most exposed: the SMALLEST licks -- where an
+  incomplete lick near the lips falls relative to the origin (and to a fixed px threshold) can shift by up to ~0.7 mm between
+  days. Read day-to-day changes in small-lick extent with this in mind; compare within a session where possible.
+* Not yet quantified across the cohort: triangulating the nose into each session's mouth-centred frame (as in D5) gives the
+  set-point jitter per session for every session with cam1 + cam4 spout positions.
