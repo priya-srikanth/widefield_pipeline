@@ -169,7 +169,8 @@ def _with_overlay(monkeypatch, overlay):
     from wfield_local import config
     real = config.defaults()
     d = copy.deepcopy(real)
-    d["orofacial_clean"]["cameras"] = overlay
+    for cam, block in overlay.items():
+        d[f"orofacial_clean_{cam}"] = block
     monkeypatch.setattr(oc.config, "defaults", lambda: d)
     return real["orofacial_clean"]
 
@@ -181,6 +182,17 @@ def test_cam4_params_ignore_any_camera_overlay(monkeypatch):
                                 "cam4": {"tongue": {"lk_thr": 0.1}}})
     for bp in ("tongue", "jaw"):
         assert oc.params(bp) == before[bp] == oc.params(bp, "cam4")
+
+
+def test_the_cam1_overlay_cannot_change_the_cam4_params_digest(monkeypatch):
+    """The overlay lives OUTSIDE `orofacial_clean`, which `orofacial_outputs.params_digest` hashes; the cam4 production run
+    refuses to continue when that digest changes (2026-10-18)."""
+    from wfield_local import orofacial_outputs as oo
+    before = oo.params_digest()
+    _with_overlay(monkeypatch, {"cam1": {"jaw": {"lk_thr": 0.6, "v34": {"y_ceiling_px": 160.0}}}})
+    monkeypatch.setattr(oo.config, "defaults", oc.config.defaults)
+    assert oo.params_digest() == before
+    assert oc.params("jaw", "cam1")["v34"]["y_ceiling_px"] == 160.0                  # and the overlay is live
 
 
 def test_camera_overlay_merges_nested_keys_and_keeps_the_rest(monkeypatch):

@@ -402,7 +402,7 @@ two): PS94 0814 / 0821 / 0908 (no PS94 cam1 labels on those dates). Metrics, in 
 
 `orofacial_clean` now takes a camera (`params(bodypart, cam)`, `clean_windows(..., cam=)`, CLI `--cam`): cam4 = the
 top-level `orofacial_clean` values, untouched (pinned by tests); another camera = those values overlaid with
-`orofacial_clean.cameras.<cam>` in `configs/defaults.yaml`. **No cam1 overlay is set yet** -- the values must come from cam1
+`orofacial_clean_<cam>` in `configs/defaults.yaml` (a separate block: `orofacial_outputs.params_digest` hashes `orofacial_clean`). **No cam1 overlay is set yet** -- the values must come from cam1
 data with Priya's QC, as cam4's v35 did.
 
 **Baseline diagnostic (cam4 values on DLC c1r2, PS93 0814, 60 trials, 10-18).** cam1 looks UP at the underside of the

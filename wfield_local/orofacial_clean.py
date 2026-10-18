@@ -69,12 +69,17 @@ def _merge(base: dict, over: dict) -> dict:
 
 def params(bodypart: str, cam: str = "cam4") -> dict:
     """`orofacial_clean.<bodypart>` merged with the shared keys (method, fallback, baseline), then -- for a camera other
-    than cam4 -- the overlay `orofacial_clean.cameras.<cam>` (2026-10-18, cam1 cleaning). The top-level values ARE cam4's:
-    every threshold below was tuned on cam4, so cam4 takes no overlay and its output is unchanged by this layer."""
-    c = config.defaults()["orofacial_clean"]
+    than cam4 -- the overlay `orofacial_clean_<cam>` (2026-10-18, cam1 cleaning). The `orofacial_clean` values ARE cam4's:
+    every threshold there was tuned on cam4, so cam4 takes no overlay and its output is unchanged by this layer.
+
+    The overlay is a SEPARATE top-level block on purpose: `orofacial_outputs.params_digest` hashes the whole
+    `orofacial_clean` block, and the cam4 production run refuses to continue when that digest changes -- a cam1 value
+    nested inside it would have stopped cam4 processing."""
+    d = config.defaults()
+    c = d["orofacial_clean"]
     base = {**c[bodypart], "interpolation_method": c["interpolation_method"],
             "interpolation_fallback": c["interpolation_fallback"], "baseline": c["baseline"]}
-    over = ((c.get("cameras") or {}).get(cam) or {}) if cam != "cam4" else {}
+    over = (d.get(f"orofacial_clean_{cam}") or {}) if cam != "cam4" else {}
     shared = {k: v for k, v in over.items() if k in ("interpolation_method", "interpolation_fallback", "baseline")}
     return _merge(_merge(base, shared), over.get(bodypart) or {})
 

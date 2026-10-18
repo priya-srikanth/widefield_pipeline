@@ -1090,6 +1090,27 @@ orofacial_clean:              # CLEAN TRACES from DLC / Lightning Pose output (w
       max_gap_ms_pchip: 120.0
       baseline_win_ms: [-500.0, 0.0]
 
+orofacial_clean_cam1:         # cam1 (view from below) OVERLAY on `orofacial_clean` (whose values are cam4's), 2026-10-18;
+                              # `orofacial_clean.params(bodypart, "cam1")`. A SEPARATE block on purpose: the cam4
+                              # production run hashes `orofacial_clean` (orofacial_outputs.params_digest) and refuses to
+                              # continue when it changes. PROPOSED, from cam1 QC on PS93 0814 / 0821 (DLC c1r2, LP c1r2);
+                              # docs/POSE_MODELS.md D2-D4. Re-check on the chosen cam1 model. Everything not listed = cam4's.
+                              # Tongue origin on cam1 = where the TONGUE paths meet (spout_frame.tongue_path_origin, passed
+                              # as x0y0 by the caller; Priya 10-18 "option 1") -- not the spout-line intersection, which
+                              # sits ~20 px toward the jaw (cam1 labels the spout tip's bottom edge).
+  jaw:
+    lk_thr: 0.6               # cam1 analysis cutoff for jaw (DECISIONS 2026-10-05). DLC c1r2 keeps 86 % of jaw frames
+                              # at 0.6 vs 95 % at 0.4 (hidden 11 vs 4 %); LP c1r2 unchanged (near-binary likelihoods).
+    v34:
+      y_ceiling_px: 160.0     # cam1 jaw opens DOWN the image like cam4 but further: dy from the trial's rest, tongue out,
+                              # p99 139 px (cam4's 125 wiped 0.12-0.17 % of real opening on cam1; 160 wipes none).
+      x_flip_step_px: null    # OFF: the v35 flip rule encodes PS93's jaw anatomy as seen by cam4; on cam1 it fired only
+                              # on DLC (0.4 % of frames) with no evidence of real flips.
+      tongue_ride_px: null    # OFF: Priya's QC of the cam1 'jaw within 25 px of the tongue' frames (10-18): "pretty
+                              # close to jaw" -- mostly real jaw; revisit on the chosen model.
+                              # Kept from cam4 (each wipes <= 0.2 % of cam1 jaw frames, same order as cam4): x_ceiling 75
+                              # (cam1 |dx| p99 60), frame_jump_thr 70 / x 25, isolated rule, gaps, hidden_fill nan.
+
 orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kinematics (tongue v7 path, jaw per-trial,
                                # tongue-jaw mismatch). wfield_local/tongue_detect.py, tongue_kinematics.py,
                                # jaw_kinematics.py, tongue_jaw_mismatch.py deep-merge these over their DEFAULTS.

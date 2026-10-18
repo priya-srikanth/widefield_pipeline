@@ -1,6 +1,6 @@
 """QC figures for tuning cam1 clean traces (`docs/POSE_MODELS.md` D2; Priya 2026-10-18: "build tongue/jaw clean traces for
 cam1"). Model-INDEPENDENT geometry first, settled on any decent model (DLC c1r2 for now); model-specific rules wait for the
-chosen cam1 model. Each figure is for Priya's approval before a value goes into `orofacial_clean.cameras.cam1`.
+chosen cam1 model. Each figure is for Priya's approval before a value goes into `orofacial_clean_cam1`.
 
     python -m scripts.cam1_clean_qc mouth PS93:20260814 --model "{d}/dlc_r2/*.csv"
 
@@ -163,13 +163,81 @@ def cmd_jaw(session: str, model: str) -> None:
     print(f"-> {out}")
 
 
+def cmd_tongue_mouth(session: str, model: str, tag: str = "") -> None:
+    """The cam1 MOUTH as where the tongue paths meet (`spout_frame.tongue_path_origin`, Priya 10-18 option 1), drawn on real
+    lick-onset frames: per spout position, the onset frame nearest that position's median onset point (row 1) and the same
+    lick 16 ms later (row 2). Red X = tongue-path mouth; white x = spout-line intersection (for contrast); orange dot + line =
+    the position's median onset point and its path toward the spout tip; red circle = this frame's tongue point.
+    Writes ``<cam1 clip folder>/eval/qc_tongue_mouth<tag>.png``."""
+    import cv2
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from scripts.session_poses import read_index, session_dir
+    from wfield_local import orofacial_clean as oc
+    from wfield_local import spout_frame as SF
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    animal, date, d = session_dir(rv, f"{session}:cam1")
+    idx = read_index(d)
+    pat = model.replace("{d}", str(d)).replace("{s}", f"{animal}_{date}")
+    hits = glob.glob(pat)
+    if len(hits) != 1:
+        raise SystemExit(f"{pat!r}: {len(hits)} matches")
+    P = oc.read_pose(Path(hits[0])).iloc[:len(idx)]
+    spans = [(int(g.index.min()), int(g.index.max()) + 1, str(g.position.iloc[0])) for _, g in idx.groupby("trial_k")]
+    med = SF.position_medians(P[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans)
+    sl = SF.from_medians(med).origin
+    tx, ty, tl = (P[f"tongue_{c}"].to_numpy(float) for c in ("x", "y", "likelihood"))
+    X, rms, per = SF.tongue_path_origin(tx, ty, tl, idx.position, idx.t_ms, idx.src_frame, idx.trial_k, med)
+    on = SF.tongue_onsets(tl, idx.t_ms, idx.src_frame, idx.trial_k)
+    pos_on = idx.position.to_numpy()[on]
+    cap = cv2.VideoCapture(str(d / "windows.mp4"))                    # READ-ONLY
+    fig, axs = plt.subplots(2, 6, figsize=(24, 9.5))
+    for c, pos in enumerate(POS_ORDER):
+        if pos not in per:
+            for r in range(2):
+                axs[r, c].axis("off")
+            continue
+        e, n = per[pos]
+        cand = on[pos_on == pos]
+        k = cand[np.argmin(np.hypot(tx[cand] - e[0], ty[cand] - e[1]))]
+        for r, row in enumerate((k, k + 4)):
+            ax = axs[r, c]
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(row))
+            ok, im = cap.read()
+            ax.imshow(im[260:500, 200:430, ::-1], extent=(200, 430, 500, 260))
+            sp = np.array(med[pos][:2])
+            ax.plot([e[0], sp[0]], [e[1], sp[1]], "-", color="orange", lw=1.3)
+            ax.plot(*e, "o", color="orange", ms=5)
+            ax.plot(*sl, "x", color="white", ms=9, mew=1.5)
+            ax.plot(*X, "x", color="red", ms=13, mew=2.5)
+            if tl[row] >= 0.4:
+                ax.plot(tx[row], ty[row], "o", mfc="none", mec="red", ms=10, mew=1.5)
+            ax.set_title(f"{pos} {'onset' if r == 0 else '+16 ms'} ({idx.t_ms[row]:+.0f} ms, n onsets {n})", fontsize=9)
+            ax.axis("off")
+    cap.release()
+    fig.suptitle(f"{animal} {date} cam1, {Path(hits[0]).parent.parent.name if 'video_preds' in hits[0] else Path(hits[0]).parent.name}: "
+                 f"red X = MOUTH where the tongue paths meet ({X[0]:.0f}, {X[1]:.0f}; paths meet to {rms:.1f} px rms); white x = "
+                 f"spout-line intersection ({sl[0]:.0f}, {sl[1]:.0f}); orange = each position's median onset point + path to its "
+                 "spout; red o = this frame's tongue", fontsize=11)
+    fig.tight_layout()
+    out = d / "eval" / f"qc_tongue_mouth{tag}.png"
+    out.parent.mkdir(exist_ok=True)
+    fig.savefig(out, dpi=100)
+    print(f"-> {out}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["mouth", "jaw"])
+    ap.add_argument("cmd", choices=["mouth", "jaw", "tongue_mouth"])
     ap.add_argument("session", metavar="ANIMAL:YYYYMMDD")
-    ap.add_argument("--model", required=True, metavar="PATH (with {d})")
+    ap.add_argument("--model", required=True, metavar="PATH (with {d} / {s})")
+    ap.add_argument("--tag", default="")
     a = ap.parse_args(argv)
-    {"mouth": lambda: cmd_mouth(a.session, a.model), "jaw": lambda: cmd_jaw(a.session, a.model)}[a.cmd]()
+    {"mouth": lambda: cmd_mouth(a.session, a.model), "jaw": lambda: cmd_jaw(a.session, a.model),
+     "tongue_mouth": lambda: cmd_tongue_mouth(a.session, a.model, a.tag)}[a.cmd]()
     return 0
 
 
