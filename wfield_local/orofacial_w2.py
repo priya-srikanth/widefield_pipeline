@@ -8,7 +8,8 @@ by the Wasserstein-2 (earth mover's, squared-distance) metric, with the spout / 
 change. Here, per session x spout position x keypoint:
 
   points   every tracked frame of every ENGAGED trial (the cohort's reference-position gate), cue + 70 ms .. DAQ trial
-           stop. tongue = CLEANED tip in the mouth frame, tongue OUT only (>= 20 px; in-mouth frames would put a
+           stop, minus trials where the spout moved during the window (`orofacial_heatmaps.spout_moving_trials`; the
+           spout only moves after the DAQ stop otherwise -- checked 10-18). tongue = CLEANED tip in the mouth frame, tongue OUT only (>= 20 px; in-mouth frames would put a
            lick-rate-dependent mass at the origin); jaw = CLEANED jaw (rest-relative); nose, spout = pose (likelihood
            >= 0.6) in the SAME MOUTH FRAME (minus the session's `tongue_origin`). Everything is in the mouth frame
            (Priya 10-18). The SPOUT is the noise / drift CONTROL (a fixed apparatus point per position: it should not
@@ -52,6 +53,12 @@ def _points(sd: Path, animal: str, date: str, keep: set | None) -> dict:
     win = (t >= WIN0_MS) & (t <= np.where(np.isfinite(stop), stop, 3500.0))
     if keep is not None:
         win &= ix.trial_id.astype(int).isin(keep).to_numpy()
+    from wfield_local.orofacial_heatmaps import spout_moving_trials
+    F = {"t": t, "strobe": ix.strobe_ms.to_numpy(float), "tid": ix.trial_id.to_numpy(int)}
+    moved = spout_moving_trials(F, win, (pose.spout_x.to_numpy(float), pose.spout_y.to_numpy(float)),
+                                pose.spout_likelihood.to_numpy(float), pose.tongue_likelihood.to_numpy(float))
+    if moved:                                  # spout moved / knocked during the window (orofacial_heatmaps gate)
+        win &= ~ix.trial_id.astype(int).isin(moved).to_numpy()
     pos = ix.position.to_numpy(str)
     tx, ty = cl.tongue_x.to_numpy(float), cl.tongue_y.to_numpy(float)
     o = np.load(sd / "clean.npz")["tongue_origin"].astype(float)          # the mouth, image pixels

@@ -40,10 +40,15 @@ TONGUE_OUT_PX = 20.0
 WIN_MS = (-500.0, 3500.0)          # cue-relative; the end is the DAQ trial stop when it is known
 NBINS = 80
 #: (x = lateral, y = forward) extents in px, fixed across sessions / epochs / positions (from the pilot, 10-18)
-EXTENT = {"tongue": ((-120.0, 120.0), (0.0, 230.0)),
-          "jaw": ((-50.0, 50.0), (-10.0, 110.0)),
-          "nose": ((-55.0, 35.0), (-125.0, -40.0)),
-          "spout": ((-105.0, 105.0), (35.0, 120.0))}
+EXTENT = {"tongue": ((-175.0, 175.0), (-25.0, 320.0)),
+          "jaw": ((-70.0, 70.0), (-25.0, 140.0)),
+          "nose": ((-65.0, 50.0), (-135.0, -30.0)),
+          "spout": ((-125.0, 125.0), (20.0, 140.0))}
+#: spout-in-place trial gate (Priya 10-18: "we are not including any frames where the spout is moving, right"): a trial
+#: is dropped when > SPOUT_MOVE_FRAC of its in-window spout frames are > SPOUT_MOVE_PX from that trial's no-lick ENL
+#: spout position (the spout was moved / knocked during the window). Licking pushes it ~2-5 px; that stays in.
+SPOUT_MOVE_PX = 15.0
+SPOUT_MOVE_FRAC = 0.02
 LOG_VMIN = 1e-5
 SMOOTH_BINS = 1.0                  # Gaussian sigma (bins) for DELTA maps and the agreement mask only
 
@@ -65,7 +70,9 @@ def frame_coords(sd: Path, animal: str, date: str, run: str) -> dict:
     fr = tk.SpoutFrame(tuple(o), tuple(c["spout_ap_axis"]))
     sgn = 1.0                                      # spout_coords lr is + = image right = the mouse's LEFT = ipsi (left lesions)
     out = {"t": ix.t_ms.to_numpy(float), "stop": ix.stop_ms.to_numpy(float), "pos": ix.position.to_numpy(str),
-           "tid": ix.trial_id.to_numpy(int)}
+           "tid": ix.trial_id.to_numpy(int), "strobe": ix.strobe_ms.to_numpy(float),
+           "spout_raw": (pose.spout_x.to_numpy(float), pose.spout_y.to_numpy(float)),
+           "spout_lk": pose.spout_likelihood.to_numpy(float), "tongue_lk": pose.tongue_likelihood.to_numpy(float)}
     tx, ty = cl.tongue_x.to_numpy(float), cl.tongue_y.to_numpy(float)
     src = {"tongue": (tx + o[0], ty + o[1], np.hypot(tx, ty) >= TONGUE_OUT_PX),
            "jaw": (cl.jaw_x.to_numpy(float) + o[0], cl.jaw_y.to_numpy(float) + o[1], np.ones(len(tx), bool))}
@@ -78,6 +85,21 @@ def frame_coords(sd: Path, animal: str, date: str, run: str) -> dict:
     return out
 
 
+def spout_moving_trials(F: dict, win: np.ndarray, pose_xy: tuple, lk: np.ndarray, tongue_lk: np.ndarray) -> set:
+    """Trial ids whose spout moved during the window (see SPOUT_MOVE_*). Reference = the trial's median spout over
+    no-lick ENL frames (strobe + 300 ms .. cue, raw tongue not detected), as the camera-scale ruler."""
+    from wfield_local import spout_frame as SF
+    x, y = pose_xy
+    t, sb, tid = F["t"], F["strobe"], F["tid"]
+    ref_m = (t >= sb + SF.ENL_SETTLE_MS) & (t < 0) & (tongue_lk < SF.RULER_TONGUE_MAX_LK) & (lk >= SF.RULER_SPOUT_MIN_LK)
+    d = pd.DataFrame({"tid": tid, "x": x, "y": y})
+    ref = d[ref_m].groupby("tid")[["x", "y"]].median()
+    w = d[win & (lk >= LIK_MIN)].join(ref, on="tid", rsuffix="_r")
+    far = np.hypot(w.x - w.x_r, w.y - w.y_r) > SPOUT_MOVE_PX
+    frac = far.groupby(w.tid).mean()
+    return set(frac.index[frac > SPOUT_MOVE_FRAC].astype(int))
+
+
 def session_hist(sd: Path, animal: str, date: str, run: str, keep: set | None) -> dict:
     """{(kp, position): (counts (NBINS, NBINS) [x, y], n_window_frames)}; position "all" pools the six."""
     F = frame_coords(sd, animal, date, run)
@@ -85,8 +107,12 @@ def session_hist(sd: Path, animal: str, date: str, run: str, keep: set | None) -
     win = (t >= WIN_MS[0]) & (t <= np.where(np.isfinite(stop), stop, WIN_MS[1]))
     if keep is not None:
         win &= np.isin(F["tid"], np.fromiter(keep, int))
+    moved = spout_moving_trials(F, win, F["spout_raw"], F["spout_lk"], F["tongue_lk"])
+    if moved:
+        win &= ~np.isin(F["tid"], np.fromiter(moved, int))
     pos = F["pos"]
-    out = {}
+    out = {("_gate", "moved"): (np.zeros((1, 1), np.float32), len(moved)),
+           ("_gate", "trials"): (np.zeros((1, 1), np.float32), int(len(np.unique(F["tid"][win]))))}
     for kp in KEYPOINTS:
         x, y, ok = F[kp]
         ex, ey = _edges(kp)
@@ -97,6 +123,9 @@ def session_hist(sd: Path, animal: str, date: str, run: str, keep: set | None) -
             mm = m & ok
             H, _, _ = np.histogram2d(x[mm], y[mm], bins=(ex, ey))
             out[(kp, p)] = (H.astype(np.float32), int(m.sum()))
+            if p == "all":
+                out[(kp, "outside")] = (np.zeros((1, 1), np.float32), int(mm.sum() - H.sum()))
+                out[(kp, "valid")] = (np.zeros((1, 1), np.float32), int(mm.sum()))
     return out
 
 
@@ -289,6 +318,9 @@ def fig_by_position(maps: dict, kp: str, kind: str, path: Path, title: str, spou
             if m is not None:
                 ax.text(0.02, 0.98, f"n={m['n_sess']} s / {m['n_anim']} a", transform=ax.transAxes, fontsize=7,
                         va="top", color="0.25")
+                if kind == "delta" and e == "pre":
+                    ax.text(0.02, 0.02, "FLOOR: later - earlier\nhalf of pre sessions", transform=ax.transAxes,
+                            fontsize=7, va="bottom", color="0.1")
             if j == 0:
                 ax.set_ylabel(f"{oc.pos_disp(p)}\nforward (px; down)", fontsize=9, color=oc._pos_color(p, "L"))
             if i == len(oc.POS_ORDER) - 1:
@@ -322,6 +354,8 @@ def fig_nose_by_epoch(maps: dict, path: Path, title: str) -> None:
             if i == 0:
                 ax.set_title(f"{e}\nn={m['n_sess']} sessions / {m['n_anim']} animals", fontsize=10,
                              color=oc.EPOCH_LINE[e])
+            if i == 1 and e == "pre":
+                ax.set_title("noise / drift FLOOR:\nlater - earlier half of pre sessions", fontsize=9)
             if j == 0:
                 ax.set_ylabel(("RAW" if kind == "raw" else "DELTA vs own pre") + "\nforward (px; down)", fontsize=9)
             if i == 1:
@@ -364,9 +398,9 @@ def main(argv=None) -> int:
     spout_ref = {}
     ex, ey = _edges("spout")
     cx, cy = (ex[:-1] + ex[1:]) / 2, (ey[:-1] + ey[1:]) / 2
-    for p in {k.split("|")[1] for _m, f in sess for k in np.load(f).files}:
+    for p in {k.split("|")[1] for _m, f in sess for k in np.load(f).files if k.startswith("spout|")}:
         D = proportions(sess, "spout", p)
-        if len(D) and p != "all":
+        if len(D) and p not in ("all", "outside", "valid"):
             H = np.mean(list(D[D.epoch == "pre"].P if (D.epoch == "pre").any() else D.P), axis=0)
             if H.sum() > 0:
                 spout_ref[oc.pos_key(p, "L")] = (float((H.sum(1) * cx).sum() / H.sum()),
@@ -374,7 +408,17 @@ def main(argv=None) -> int:
     t = (f"Orofacial heatmaps, pre vs post stroke -- {a.run} -- ENGAGED trials -- baseline: "
          f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
          f"{pd.Series([m['animal'] for m, _ in sess]).value_counts().sort_index().to_dict()}")
-    raw_pos = sorted({k.split("|")[1] for _m, f in sess for k in np.load(f).files} - {"all"})
+    raw_pos = sorted({k.split("|")[1] for _m, f in sess for k in np.load(f).files}
+                     - {"all", "outside", "valid", "moved", "trials"})
+    tot = {}
+    for _m, f in sess:
+        with np.load(f) as z:
+            for k in z.files:
+                if k.endswith("|n") and k.split("|")[1] in ("outside", "valid", "moved", "trials"):
+                    tot[k[:-2]] = tot.get(k[:-2], 0) + int(z[k])
+    print(f"spout-moved trials dropped: {tot.get('_gate|moved', 0)} (of {tot.get('_gate|moved', 0) + tot.get('_gate|trials', 0)})")
+    for kp in KEYPOINTS:
+        print(f"  {kp}: {tot.get(kp + '|outside', 0) / max(tot.get(kp + '|valid', 1), 1):.4%} of valid frames outside the axes")
     summary = []
     for kp in KEYPOINTS:
         maps = {}
