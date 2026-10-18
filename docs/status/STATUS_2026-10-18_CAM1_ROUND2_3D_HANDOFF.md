@@ -8,6 +8,27 @@ Analysis desktop; M: = MICROSCOPE.
 
 ## 0. RESUME CHECKLIST
 
+**UPDATE 2026-10-18 evening (supersedes the table below where they differ):**
+* O2 `56718665_1` cam1 eps40: trained 300 / 300, then CRASHED in LP's post-training labelled-frame eval (DataLoader workers
+  died together, core dumps; MaxRSS 17 GB of 64 -- node / shared memory, not the model). Recovered WITHOUT retraining by a
+  predict-only job `predict_eps40.sbatch` in the bundle (`litpose predict ... --skip_viz` + `touch DONE`, excludes
+  compute-g-17-161); submitted by Priya ~19:00. No labelled-frame pixel error for eps40 (not needed).
+* O2 `56700781_1` cam4 ViT-B: trained 300 / 300 (val loss still falling, 0.19 vs eps35 best 0.11), predicting the 8 eval videos
+  (2 done at 17:11), its sbatch predates `--skip_viz` so labelled videos are rendered after -> DONE late.
+* O2 `56709413_2` cam1 ctx-semi: epoch 173 / 300 at ~18:45, 2.9 min / epoch -> training ends ~01:00, DONE ~02:00.
+* Local GPU: the LP review inference was STOPPED at 18:35 after clip 1 (eps35 PS92 0821 done, 2 h 17 min per clip) so cam1 DLC
+  r2 could run on June 0606 x 4 + PS94 0814 / 0821 / 0907, then r1 PS93 0908 (log `lp_stage\cam1_dlc_eval_june_ps94_20261018.log`;
+  r1 on PS94 dropped -- r2 clearly better). The LP review restarts automatically after DLC prints ALL DONE, 0821 sessions first
+  (both models), so a 3-session review is possible early. Full 12 clips ~ 16-25 h.
+* Auto-scoring watcher (session scratchpad `score_when_ready.sh`): when Priya's rsync brings `PS93_2026{0814,0821,0908}_cam1.csv`
+  for eps40 -> `cam1_model_compare ... --tag _eps40_1018`; `PS93_2026{0814,0821}_windows.csv` for ViT-B -> `model_lick_compare
+  ... --tag _vitb_1018` (with LP r4, eps35, ctx-semi, Priya's review). If the session is gone, run those by hand (§4).
+* Copy-back now with `--exclude 'core.*'` too (the crashed job's 4 x 3.7 GB dumps were copied once; deleted on both sides).
+* New this evening: cam1 max gap 24 ms + veto off (POSE_MODELS D8, re-rendered clip `..._gap24.mp4` for Priya's QC); cam1
+  lateral-landing readout incl. cam4-timed peaks (D9; PS93's apparent rightward shift = 0814 baseline artefact, PS93 shifts
+  ipsi acutely over all sessions; cameras agree once the tongue is > 30 px out; cam1 also sees tiny licks cam4 does not
+  count -- 31-41 % of at-the-lips cam1 events have no cam4 lick: put them in the cam1 blind review).
+
 **Running at hand-off (check these first):**
 
 | what | where | how to check | then |
@@ -29,8 +50,8 @@ through `config_eval_r{1,2}.yaml` in the cam1 training project. If the scratchpa
 ```
 S=/n/scratch/users/p/ps150/o2
 F=/n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2
-rsync -ah --partial --exclude labeled_videos $S/lp_train_cam1_r2_20261018/models/ $F/lp_train_cam1_r2_20261018/models/
-rsync -ah --partial --exclude labeled_videos $S/lp_train_20261016/models/ $F/lp_train_20261016/models/
+rsync -ah --partial --exclude labeled_videos --exclude 'core.*' $S/lp_train_cam1_r2_20261018/models/ $F/lp_train_cam1_r2_20261018/models/
+rsync -ah --partial --exclude labeled_videos --exclude 'core.*' $S/lp_train_20261016/models/ $F/lp_train_20261016/models/
 rsync -ah --partial --exclude 'tmp*' $S/lp_r4_prod_20261015/out/ $F/lp_r4_prod_20261015/out/      # production inference, if more finished
 ```
 A model is finished when `models/<name>/DONE` exists; its eval predictions are `models/<name>/video_preds/*.csv` (they can be
@@ -177,3 +198,14 @@ validated against O2's own predictions (median 0.04-0.11 px, confidence agreemen
 11. **cam1 labels mark the spout tip's BOTTOM edge, cam4 the top**: constant offset in 3-D (absorbed by the fit), ~15-20 px toward
     the jaw for the cam1 mouth.
 12. **Python strings holding Windows paths**: `"C:\Users..."` in a non-raw string is a \U escape (SyntaxError) -- use raw strings or the Edit tool.
+13. **A bundle job that dies after training must NOT be resubmitted as is**: `train.sbatch` skips training only when
+    `train_status.json` says COMPLETED; a crash in the post-training eval leaves EVALUATING -> a resubmit RETRAINS from scratch.
+    Use a predict-only sbatch (`predict_eps40.sbatch` pattern).
+14. **Local GPU is 8 GB**: LP Windows predict (~7 GB) + DLC analyze_videos together -> DLC CUDA OOM (crashed r1 PS93 0908).
+    Run them one after the other. "Pausing" LP = stop + restart: suspended processes keep their GPU memory; the predict loop
+    skips finished clips, the clip in progress is lost.
+15. **cam1 geometry for any lick measure**: image up / down = dorsal / ventral, spouts nearly level with the mouth, the tongue
+    reaches DOWN 50-100 px; tongue-vs-spout angles are meaningless on cam1, and the most ventral frame is not peak
+    protrusion -- time peaks from cam4 (same 4 ms DAQ grid, exact frame match). cam4 is a FRONTAL view, not a side view.
+16. **Single-day baselines mislead**: PS93's close_center lick side is bimodal across sessions (0814 is an odd pre day). Compare
+    epochs over all curated sessions, never one clip day each.
