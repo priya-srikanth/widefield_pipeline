@@ -347,8 +347,14 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/status/STATUS_2026-10-18_OROFACIAL_W2_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-18_OROFACIAL_W2_ENCODING_HANDOFF.md)**
+— **START HERE, newest.** cam4 orofacial cohort complete (136 sessions; engagement gate; all-pre + August-only
+baselines; leave-PS93-out), W2 spatial readout, pre-v47 log-shift fix, imaging August-only sensitivity
+(`WIDEFIELD_PRE_FROM`), Musall-style combined encoding model (`combined_encoding.py`), CURBD / ARHMM discussion,
+what is running, pitfalls.
+
 **[`docs/status/STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md`](docs/status/STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md)**
-— **START HERE, newest.** LP r4 production running on O2 (array 56464442), organised orofacial outputs on the share
+— superseded by 10-18 (to-do list still there). LP r4 production running on O2 (array 56464442), organised orofacial outputs on the share
 (`Priya/Widefield/LP_analysis`, `wfield_local/orofacial_outputs.py`), PS92 0812 / 0604 split-session fixes, frozen state
 decoder, pitfalls of this desktop's machine profile.
 
