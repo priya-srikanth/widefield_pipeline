@@ -162,3 +162,63 @@ def ruler_spacing(med: dict) -> float:
         return float("nan")
     pts = [np.array(med[p][:2]) for p in sorted(med)]
     return float(np.mean([np.linalg.norm(a - b) for a, b in itertools.combinations(pts, 2)]))
+
+
+# --------------------------------------------------------------------------- cam1 (view from below), 2026-10-18
+#: cam1 looks almost straight down the CENTRE spout line (close->far 3.4 px vs L / R 48 px), so the centre line gives no
+#: direction there, and the spout-label lines meet ~20-40 px toward the jaw, unstably across sessions: cam1 labels the
+#: spout tip's BOTTOM edge, cam4 its top front edge (Priya 2026-10-18). Interim cam1 mouth = where the TONGUE paths meet
+#: (Priya: "option 1 then option 2" -- option 2, for 3-D, is cam4's apparatus mouth projected into cam1).
+TONGUE_LK, ONSET_GAP_F, ONSET_AFTER_MS = 0.4, 3, 70.0
+
+
+def tongue_onsets(tongue_lk, t_ms, src_frame, trial_k, lk: float = TONGUE_LK, gap_f: int = ONSET_GAP_F,
+                  after_ms: float = ONSET_AFTER_MS) -> np.ndarray:
+    """Rows where the tongue BECOMES confident after >= ``gap_f`` non-confident contiguous frames of the same trial,
+    later than ``after_ms`` after the cue -- each lick's first visible frame."""
+    ok = np.asarray(tongue_lk, float) >= lk
+    t, src, tk = (np.asarray(a) for a in (t_ms, src_frame, trial_k))
+    k = np.arange(gap_f, len(ok))
+    prev_none = np.ones(len(k), bool)
+    for j in range(1, gap_f + 1):
+        prev_none &= ~ok[k - j]
+    same = (tk[k - gap_f] == tk[k]) & (src[k] - src[k - gap_f] == gap_f)
+    return k[ok[k] & prev_none & same & (t[k] > after_ms)]
+
+
+def tongue_path_origin(tongue_x, tongue_y, tongue_lk, positions, t_ms, src_frame, trial_k, spout_med: dict,
+                       min_onsets: int = 20) -> tuple[np.ndarray, float, dict]:
+    """The MOUTH as the point where the tongue's paths meet: per spout position, the line from the median lick-onset
+    tongue point toward that position's median spout tip; least-squares intersection over positions with
+    >= ``min_onsets`` onsets. Returns (origin, rms px, {position: (onset point, n)})."""
+    on = tongue_onsets(tongue_lk, t_ms, src_frame, trial_k)
+    pos = np.asarray(positions)[on]
+    tx, ty = np.asarray(tongue_x, float)[on], np.asarray(tongue_y, float)[on]
+    lines, per = [], {}
+    for p, sp in spout_med.items():
+        m = pos == p
+        if m.sum() < min_onsets:
+            continue
+        e = np.array([np.median(tx[m]), np.median(ty[m])])
+        per[p] = (e, int(m.sum()))
+        lines.append((e, np.array(sp[:2]) - e))
+    if len(lines) < 3:
+        raise ValueError(f"tongue paths for {len(lines)} positions; need >= 3")
+    X, rms, _ = ls_intersection(lines)
+    return X, rms, per
+
+
+def from_medians_lr_bisector(med: dict, origin) -> SpoutFrame:
+    """A frame for a camera that sees the centre line END-ON (cam1): given ``origin``, ``ap_axis`` = the bisector of the
+    L and R far->close directions (into the animal, symmetric by construction), +lr toward image-right."""
+    dirs = []
+    for side in ("L", "R"):
+        c, f = SIDES[side]
+        v = np.array(med[c][:2]) - np.array(med[f][:2])
+        dirs.append(v / np.linalg.norm(v))
+    ap = dirs[0] + dirs[1]
+    ap = ap / np.linalg.norm(ap)
+    lr = np.array([-ap[1], ap[0]])
+    if lr[0] < 0:
+        lr = -lr
+    return SpoutFrame(np.asarray(origin, float), ap, lr, dict(med), float("nan"), {})

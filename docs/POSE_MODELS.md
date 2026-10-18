@@ -407,8 +407,9 @@ data with Priya's QC, as cam4's v35 did.
 
 **Baseline diagnostic (cam4 values on DLC c1r2, PS93 0814, 60 trials, 10-18).** cam1 looks UP at the underside of the
 snout: nose at the top, mouth / jaw low in the image (jaw median y 456), the spout rod running down the middle of the face
-to the mouth (hence the nose blanks and the centre-position jaw occlusion). The tongue protrudes mostly UP the image
-(toward the nose) and sideways.
+to the mouth (hence the nose blanks and the centre-position jaw occlusion). The tongue comes out of the mouth DOWN the
+image, over the chin (labelled tongue median y 431 vs mouth y 389; QC frames 10-18) -- an earlier note here said "up the
+image", which was wrong.
 
 * **Mouth origin (QC 10-18, `scripts.cam1_clean_qc mouth`, `session_poses/PS93_20260814_cam1/eval/qc_mouth_origin.png`):**
   cam1 looks almost straight down the CENTRE spout line (close->far 3.4 px vs L / R 48 px; cam4 56 / 66 / 68). The L and R
@@ -419,8 +420,14 @@ to the mouth (hence the nose blanks and the centre-position jaw occlusion). The 
 * **Tongue:** confident on 9 % of clip frames; cleaning keeps 9 % raw, interpolates 2 %, fills 89 % with the baseline
   (tongue in the mouth). Steps > 40 px rise from 160 raw to 806 after cleaning -- mostly the jump between the baseline fill and
   a protruded tongue at every lick onset / offset, so on cam1 the metric must exclude fill transitions.
-* **Jaw:** confident 95 %; the data-driven baseline ("lowest y") lands at y 372 while the jaw's median is y 456 -- the cam4
-  assumption about which image direction is "closed" does not hold from below. v34 halves jaw steps > 20 px (629 -> 284).
+* **Jaw:** confident 95 %; v34 halves jaw steps > 20 px (629 -> 284). (The cleaning's "lowest-y" X0/Y0 lands at y 372 vs a
+  median of 456; v34 itself uses per-trial rests from cue -500 .. 0 ms, which are direction-free.)
+* **Jaw QC (10-18, `scripts.cam1_clean_qc jaw`, `.../PS93_20260814_cam1/eval/qc_jaw.png`):** the cam1 jaw opens DOWN the image,
+  like cam4 (only 3 % of tongue-out frames move up). Displacement from the trial's rest, tongue out: dy median 77, p95 123,
+  **p99 139 px**; |dx| p99 60 px (tongue not out: dy p99 84). So cam4's `y_ceiling_px` 125 would wipe ~2 % of real opening on
+  cam1 -> propose **160**; `x_ceiling_px` 75 clears |dx| p99. Jaw within 25 px of a confident out tongue: 1.3 % of tongue-out
+  frames; the examples look like the jaw point sliding onto the tongue tip where the protruded tongue covers the chin (Priya's
+  clip, 10-18: "sometimes jaw ends up tracking tongue") -- Priya to confirm before cam4's `jaw_off_tongue` rule is carried over.
 
 **To tune, each with a QC figure for Priya:** (1) tongue origin = cam1 mouth (spout-line intersection, checked on frames);
 (2) jaw baseline direction / resting jaw on cam1; (3) the px thresholds marked "OLD RIG" (x-range, jaw ceilings, frame-jump
