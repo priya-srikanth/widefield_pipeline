@@ -140,7 +140,8 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]], cams: list
     b = f"{s}/o2/{name}"
     share_b = oi.o2_path(d, rv)
     cam_root = oi.o2_path(Path(rv.root("behavior_cameras")), rv)
-    sb = f"""#!/bin/bash
+    sb = f"""#!/bin/bash -l
+#SBATCH -J me_{name}
 #SBATCH -p short
 #SBATCH -c 8
 #SBATCH --mem=24G
@@ -148,8 +149,12 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]], cams: list
 #SBATCH --array=1-{len(T)}%24
 #SBATCH -o {b}/logs/%A_%a.out
 #SBATCH -e {b}/logs/%A_%a.err
+# Login shell (-l) + `conda activate`, as the working LP / DLC O2 scripts (o2_inference.sbatch_text); a plain shell with
+# `source activate` exited within seconds on the first submit (10-18).
+set -eo pipefail
 module load conda/miniforge3/24.11.3-0
-source activate lp
+conda activate lp
+echo "task $SLURM_ARRAY_TASK_ID on $(hostname), $(python --version)"
 python {b}/me_runner.py
 """
     (d / "run_me.sbatch").write_text(sb, encoding="utf-8", newline="\n")
