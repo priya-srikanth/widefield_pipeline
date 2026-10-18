@@ -432,9 +432,27 @@ that pair) on the LABELLED cam1 spout tips gives June 0606 = 0.988 / 0.994 / 0.9
 configuration changed. To confirm with the v36 method (no-lick ENL frames, `spout_frame.ruler_*`) on DLC predictions of the
 June cam1 sessions -- labelled spouts sit on lick frames (pushed 2-5 px), though a ratio of pairwise distances is robust to that.
 
-**Consequence for 3-D.** v36 multiplies June cam4 x, y about the image origin: right for 2-D px measures (protrusion, speed,
-relative to the mouth), WRONG as triangulation input (absolute positions move; the 09-11 calibration describes Aug+ cam4).
-With cam1 unchanged, June 3-D needs a June cam4 calibration: refit cam4 intrinsics / extrinsics from the six spout positions
-(known 3-D points, commanded and read back to 0.001 mm) with cam1 as the fixed reference -- the 10-05 proposal, now with a
-cause (and the likely source of that day's "June ~5 % too large" in the 3-D spout fit). Aug+ sessions use the 09-11
-calibration as is. Feed triangulation UN-rescaled pose (divide by `px_scale`).
+**Consequence for 3-D.** Triangulation uses ABSOLUTE image positions (the 09-11 calibration describes Aug+ cam4). v36
+multiplies June cam4 x, y about the image ORIGIN (pixel 0, 0): right for 2-D px measures relative to the mouth, but every
+point also moves (an image-centre point by ~39 px), so v36 pose is not triangulation input as is. Candidate June corrections,
+cheapest first (Priya 10-18: "can we use the scaled image mouth-centered?"):
+1. **Mouth-centred scaling** (x 0.8853 about the session's mouth, mouth kept in place). If the June -> Aug change was a zoom
+   about centre c, the residual error is (1 - 0.885) x |mouth - c| -- ~3-6 px if the mouth is 30-50 px from the optical
+   centre, within the calibration's 6-9 px reprojection error.
+2. **Spout-fitted similarity** (scale + rotation + shift, 4 parameters from the six spout medians onto the Aug+ reference
+   positions) -- contains 1 as a special case; needed if the shift matters.
+3. **June cam4 recalibration** (intrinsics / extrinsics from the spout positions with cam1 fixed), only if 1-2 fail (camera
+   moved rather than zoomed).
+Tests: spout residuals in the cam4 image after 1 vs 2; triangulated June spout distances vs the commanded stage distances
+(Aug+ match 1-2 %). The 2026-08-05 calibration video (board geometry unrecorded; cam4 4 poses, cam1-cam4 22 joint poses)
+may show what changed (zoom vs move, zoom centre) IF it was taken in the June configuration -- check its date against the
+cam4 ruler first. cam1 needs no correction. Likely source of the 10-05 "June ~5 % too large" 3-D spout fit.
+
+**2026-08-05 = the day cam4 was re-set (measured 10-18, v36 ruler on the O2 LP r4 output).** cam4 scale vs Aug+ by session:
+PS94 13:10 **0.80**, PS95 16:04 **0.77**, PS92 18:21 1.00, PS93 20:20 1.00 (June 0606 PS92 0.88; 0806 PS92 / PS94 1.00). The
+camera was being adjusted that afternoon and reached the Aug+ setting by 18:21. The 08-05 calibration video was recorded at
+**17:58** -- after the zoomed sessions, before the first Aug+-scale one -- so it almost certainly shows the Aug+ configuration,
+NOT June's: no help for the June geometry; at most a second Aug+ calibration (board layout to resolve) for a rig-unmoved check
+against 09-11. **v36 leaves PS94 / PS95 0805 unscaled** (`scale_before` 20260801) although they are 0.80 / 0.77 -- outside the
+curated set (8/5 excluded) and every orofacial cohort analysis reads `analysis_kit.curated_sessions`, so NO result is
+affected (checked 10-18); only those two LP_analysis session folders carry px measures inflated 25-30 %.

@@ -37,6 +37,10 @@ Kept by Claude; answer any item whenever convenient (a line in chat is enough); 
 
 ## FYI
 
+- cam4 was re-set during 2026-08-05 (PS94 13:10 scale 0.80, PS95 16:04 0.77, PS92 / PS93 from 18:21 at 1.00); v36 leaves
+  PS94 / PS95 0805 unscaled. 8/5 is outside the curated set and every orofacial cohort analysis reads `curated_sessions`,
+  so no result is affected; only those two `LP_analysis` session folders have px measures inflated 25-30 % (checked 10-18;
+  `docs/POSE_MODELS.md` D3).
 - PS94 0601 and PS95 0601 cannot be camera-aligned (~280k dropped cam4 frames each, same day -> rig camera problem on
   06-01); outside the curated set.
 - PS92 0908: cam4 stopped ~14 min before the DAQ — its last 68 trials have no pose data (EXPERIMENT_ERRORS).
