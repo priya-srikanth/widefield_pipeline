@@ -16,9 +16,9 @@ position gate), position strobe - 0.5 s .. trial stop + 1 s. CV = 10 folds of co
 VARIABLES (group: variable = regressors; event kernels on a 0.1-s raised-cosine basis):
   task         pos_enl   per-position spout-ARRIVAL kernel (strobe, 0..2 s) + per-position SPOUT-PRESENT state
                          (strobe .. cue; the ENL period is 2.5-49 s long because licks reset it)
-               pos_cue   per-position CUE kernel (0 .. 2 s)
-               reward    reward kernel (-0.2 .. 1.5 s), shared
-  instructed   licks     LP lick-onset + DAQ spout-contact kernels (-0.3 .. 0.8 s), shared across positions
+               pos_cue   per-position CUE kernel, cue .. the trial's stop (no overlap with the ENL state)
+               (no reward variable since 10-18: reward comes with the cue on engaged trials)
+  instructed   licks     LP lick-onset + DAQ spout-contact kernels (-0.5 .. 2 s, GCaMP6s), shared across positions
                exec_angle lick-onset kernel MODULATED by the lick's executed peak angle minus its position's mean (the
                          within-position deviation; measured peaks, reach >= 60 px) -- "where the tongue went, beyond
                          where the spout was"
@@ -37,8 +37,11 @@ movement residualised on task (sensitivity). The full model's predictions are th
 MEASURES (per variable and per group; windows all / enl (pre-cue 2 s) / cue (0..1 s) / lick (+-0.2 s of a lick peak);
 inside a window the held-out residual's window MEAN is removed -- each model gets a free window offset):
   alone      cvR^2 of a model with only that variable (UNORTHOGONALISED) -- upper bound of its linear information
-  dR2        full cvR^2 minus cvR^2 with the variable SHUFFLED in the full (orthogonalised) model -- lower bound of
-             its unique information. Shuffle = circular shift (>= 60 s) of its columns; for pos_enl / pos_cue the
+  dR2        full cvR^2 minus cvR^2 with the variable SHUFFLED in the full (orthogonalised) model -- its unique
+             information, with variance SHARED with later groups credited to it (orthogonalisation order).
+  dR2_drop   full cvR^2 minus a refit WITHOUT the variable, unorthogonalised -- shared variance credited to nobody (the
+             conservative, order-free unique contribution). Every reduced model has its OWN ridge penalties (fix
+             2026-10-18; borrowing the full model's made "alone" negative for jaw / instructed). Shuffle = circular shift (>= 60 s) of its columns; for pos_enl / pos_cue the
              position LABELS are permuted across trials (only position SPECIFICITY is removed; the shared
              arrival / cue response stays) -- stated in every figure.
   Fig. 5     task-independent = cvR^2(task + variable) - cvR^2(task alone); task-aligned = alone - task-independent.
@@ -73,14 +76,21 @@ def _run() -> str:
 
 FOLDS = 10
 BASIS_S = 0.1
-LAGS = {"strobe": (0.0, 2.0), "cue": (0.0, 2.0), "reward": (-0.2, 1.5), "lick": (-0.3, 0.8)}
+#: Kernels (Priya 10-18). cue: per-position, cue .. that trial's STOP (lags to 7 s = the longest trial, zeroed after
+#: each trial's own stop -- Musall: "stimulus onset until the end of the trial"); a 2-s kernel had forced the position
+#: dR2 to exactly 0 from 2 s while the signal was still high. lick: -0.5 .. +2 s (GCaMP6s decays far slower than
+#: Musall's 6f, whose motor kernels were -0.5 .. +1 s). No reward variable: reward comes with the cue on engaged trials
+#: (absorbed by the cue kernels) and its consumption is licking.
+LAGS = {"strobe": (0.0, 2.0), "cue": (0.0, 7.0), "lick": (-0.5, 2.0)}
 CLAGS = (0.0, 0.1, 0.2)
 MIN_REACH_PX = 60.0
 SHIFT_MIN_S = 60.0
 ALPHA_GRID = (1.0, 10.0, 100.0, 1e3, 1e4, 1e5, 1e6)
 WINDOWS = ("all", "enl", "cue", "lick")
 PETH_S = (-3.0, 3.0)
-GROUP_OF = {"pos_enl": "task", "pos_cue": "task", "reward": "task", "licks": "instructed", "exec_angle": "instructed",
+RESP_BINS = {"c0-0.5": (0.0, 0.5), "c0.5-1.5": (0.5, 1.5), "c1.5-3": (1.5, 3.0)}     # s after the cue
+GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
+            "licks": "instructed", "exec_angle": "instructed",
             "tongue": "instructed", "jaw": "instructed", "nose": "uninstructed", "running": "uninstructed"}
 GROUPS = ("task", "instructed", "uninstructed")
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
@@ -108,7 +118,16 @@ def load_imaging(label: str):
     mask = np.load(at / "allen_brain_mask_native_grid.npy").astype(bool)
     area = np.load(at / "allen_area_atlas_native_grid.npy")
     names = {int(c): n for c, n in json.load(open(at / "allen_area_names.json"))}
+    # THE IMAGING-MAP MASKS (Priya 10-18: "is encoder analysis using the masked maps we used for the imaging map
+    # analyses"): fit / maps on `beta_maps.brain_mask()` (MOB + the hand-painted fibre glue removed); region / cortex
+    # values on the ERODED `beta_maps.stat_mask()` (16-px rim out: partial volume + warp jitter, consistent across
+    # animals -- see its docstring). Both on the shared 540 x 640 grid.
+    from wfield_local import beta_maps
+    bm, sm = beta_maps.brain_mask(), beta_maps.stat_mask()
+    if bm is not None and bm.shape == mask.shape:
+        mask = mask & bm
     flat = np.flatnonzero(mask.ravel())
+    pstat = (sm.ravel()[flat] if sm is not None and sm.shape == mask.shape else np.ones(len(flat), bool))
     Ub = np.asarray(U.reshape(-1, U.shape[-1])[flat], np.float32)
     cue = _load_daq_events(s["h5"])
     fmdir = s["fmdir"] or s["mc"]
@@ -116,7 +135,7 @@ def load_imaging(label: str):
     off = json.loads(Path(glob.glob(f"{fmdir}/*cleanpairs_summary.json")[0]).read_text())["chosen_exposure_offset"]
     ft = np.asarray(_corrected_frame_samples(fm, cue["pco_samples"], int(off)), float) / float(cue["sample_rate_hz"])
     n = min(len(ft), len(V))
-    return V[:n], ft[:n], Ub, flat, area.ravel()[flat], names, mask.shape
+    return V[:n], ft[:n], Ub, flat, area.ravel()[flat], names, mask.shape, pstat
 
 
 @dataclass
@@ -200,6 +219,18 @@ def _event_cols(times, ft, lags, amp=None) -> np.ndarray:
     return ME.build_design(ME.MovementInputs(ft, [r])).X.astype(np.float32)
 
 
+def _truncate_after(X: np.ndarray, starts, stops, ft) -> np.ndarray:
+    """Zero kernel rows after each event's own end (frames past the stop of the most recent event)."""
+    starts, stops = np.asarray(starts, float), np.asarray(stops, float)
+    o = np.argsort(starts)
+    starts, stops = starts[o], stops[o]
+    k = np.searchsorted(starts, ft, side="right") - 1
+    past = (k >= 0) & (ft > np.where(k >= 0, stops[np.clip(k, 0, None)], np.inf))
+    X = X.copy()
+    X[past] = 0.0
+    return X
+
+
 def _state_cols(starts, stops, ft) -> np.ndarray:
     col = np.zeros(len(ft), np.float32)
     for a, b in zip(starts, stops):
@@ -220,18 +251,29 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
     T = B.trials
     pos_order = sorted(T.pos.unique())
     out = {}
+    # CUE vs POSITION (Priya 10-18: "cue and position are different. the cue is an audio cue that signals reward"):
+    #   cue      ONE shared kernel, every trial, cue .. that trial's stop (auditory cue / reward anticipation)
+    #   arrival  ONE shared spout-arrival kernel (strobe, 0 .. 2 s: the move itself, its sound / vibration) + ONE shared
+    #            spout-present state (strobe .. cue)
+    #   pos_*    per-position DEVIATIONS: position p's kernel minus p's share of the all-trial kernel (deviation coding),
+    #            orthogonal to the shared kernels by construction -> "position" = only what differs between spouts.
+    def enl_block(mask):
+        return np.hstack([_event_cols(T.strobe_s[mask], ft, LAGS["strobe"]),
+                          _state_cols(T.strobe_s[mask], T.cue_s[mask], ft)])
+
+    def cue_block(mask):                            # cue .. this trial's stop (no overlap with the ENL state)
+        return _truncate_after(_event_cols(T.cue_s[mask], ft, LAGS["cue"]), T.cue_s[mask], T.stop_s[mask], ft)
+    allm = np.ones(len(T), bool)
+    shared = {"pos_enl": enl_block(allm), "pos_cue": cue_block(allm)}
+    out["arrival"], out["cue"] = shared["pos_enl"], shared["pos_cue"]
     for var in POS_VARS:
         lab = T.pos.to_numpy() if not pos_perm or var not in pos_perm else pos_perm[var]
         cols = []
         for p in pos_order:
             m = lab == p
-            if var == "pos_enl":
-                cols.append(_event_cols(T.strobe_s[m], ft, LAGS["strobe"]))
-                cols.append(_state_cols(T.strobe_s[m], T.cue_s[m], ft))
-            else:
-                cols.append(_event_cols(T.cue_s[m], ft, LAGS["cue"]))
+            Xp = enl_block(m) if var == "pos_enl" else cue_block(m)
+            cols.append(Xp - (m.mean() if len(m) else 0.0) * shared[var])
         out[var] = np.hstack(cols)
-    out["reward"] = _event_cols(B.reward_s, ft, LAGS["reward"])
     out["licks"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"]), _event_cols(B.contact_s, ft, LAGS["lick"])])
     out["exec_angle"] = _event_cols(B.lick_on_s, ft, LAGS["lick"], amp=B.lick_angle_within)
     out["tongue"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_x", "tongue_y", "tongue_prot",
@@ -354,7 +396,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     animal = config.animal_of(label)
     date = "2026" + label.split("_")[-1]
     rng = np.random.default_rng(seed)
-    V, ft, Ub, flat, parea, names, shape = load_imaging(label)
+    V, ft, Ub, flat, parea, names, shape, pstat = load_imaging(label)
     B = load_behaviour(animal, date, rv)
     T = B.trials
     E = T[T.engaged & np.isfinite(T.cue_s)].reset_index(drop=True)
@@ -387,12 +429,45 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     raw = {v: _z(X, ridx)[ridx] for v, X in raw_blocks(B, ft).items()}
     perm = {v: rng.permutation(E.pos.to_numpy()) for v in POS_VARS}
     full_perm = T.pos.to_numpy().copy()
+    eng_idx = np.flatnonzero(T.engaged.to_numpy() & np.isfinite(T.cue_s.to_numpy()))
     rawp = {}
     for v in POS_VARS:                                      # label-permuted position blocks (engaged trials permuted)
         lab = full_perm.copy()
-        eng_idx = np.flatnonzero(T.engaged.to_numpy() & np.isfinite(T.cue_s.to_numpy()))
         lab[eng_idx] = perm[v]
         rawp[v] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]
+
+    # CONSTRAINED permutations (Priya 10-18, "how would we isolate position-specific information"): labels permuted
+    # only among trials at the same DISTANCE (removes SIDE, keeps distance) or on the same SIDE (removes DISTANCE) ->
+    # dR2 maps of where side vs distance is coded, from the same fitted model, no new regressors.
+    def _perm_within(labels, key):
+        out = labels.copy()
+        grp = np.array([key(x) for x in labels])
+        for gv in np.unique(grp):
+            ii = np.flatnonzero(grp == gv)
+            out[ii] = labels[ii][rng.permutation(len(ii))]
+        return out
+    rawc = {}
+    # ONE-VS-REST per position (Priya 10-18: "a position signal for EACH position"): position p's label is reassigned
+    # to a random set of engaged trials of the same size (the rest keep their labels in proportion) -> what is specific
+    # to p is removed; variance-based, so positions are not forced to trade off against each other.
+    for pp in sorted(set(full_perm[eng_idx])):
+        for v in POS_VARS:
+            lab = full_perm.copy()
+            sub = full_perm[eng_idx].copy()
+            isp = sub == pp
+            others = sub[~isp]
+            new = np.empty_like(sub)
+            pick = rng.permutation(len(sub))[: int(isp.sum())]
+            new[pick] = pp
+            rest = np.setdiff1d(np.arange(len(sub)), pick)
+            new[rest] = others[rng.permutation(len(others))]
+            lab[eng_idx] = new
+            rawc[(f"shufpos-{pp}", v)] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]
+    for kind, key in (("shufside", lambda x: x.split("_")[0]), ("shufdist", lambda x: x.split("_", 1)[1])):
+        for v in POS_VARS:
+            lab = full_perm.copy()
+            lab[eng_idx] = _perm_within(full_perm[eng_idx], key)
+            rawc[(kind, v)] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]
     seq = ORDERS[order]
     orth, earlier = {}, None
     for g in seq:
@@ -422,6 +497,11 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     def add(key, X):
         layout[key] = np.arange(sum(b.shape[1] for b in blocks), sum(b.shape[1] for b in blocks) + X.shape[1])
         blocks.append(X)
+    for (kind, v), Xc in rawc.items():                    # constrained-permutation blocks, orthogonalised like shuf
+        gi = seq.index("task")
+        prior = [w for w in GROUP_OF if seq.index(GROUP_OF[w]) < gi]
+        Epr = np.hstack([raw[w] for w in prior]) if prior else None
+        add((kind, v), _residualise(Xc, Epr, slice(None)) if Epr is not None else Xc)
     for v in GROUP_OF:
         add(("orth", v), orth[v])
         add(("shuf", v), shuf[v])
@@ -465,6 +545,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     for v in GROUP_OF:
         models[f"alone:{v}"] = [("raw", v)]
         models[f"shuf:{v}"] = [("shuf", v) if w == v else ("orth", w) for w in GROUP_OF]
+    for kind, v in rawc:
+        models[f"{kind}:{v}"] = [(kind, v) if w == v else ("orth", w) for w in GROUP_OF]
     for g in GROUPS:
         vs = [v for v in GROUP_OF if GROUP_OF[v] == g]
         models[f"alone:{g}"] = [("raw", v) for v in vs]
@@ -475,17 +557,38 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             models[f"task+:{v}"] = task_raw + [("raw", v)]
     for g in ("instructed", "uninstructed"):
         models[f"task+:{g}"] = task_raw + [("raw", v) for v in GROUP_OF if GROUP_OF[v] == g]
+    # DROP (2026-10-18): the full model refit WITHOUT a variable / group, UNORTHOGONALISED (all other columns raw) --
+    # dR2_drop = full - drop credits shared variance to NOBODY (the conservative unique contribution, order-free);
+    # the shuffle dR2 credits it to the earlier group of the orthogonalisation order.
+    for v in GROUP_OF:
+        models[f"drop:{v}"] = [("raw", w) for w in GROUP_OF if w != v]
+    for g in GROUPS:
+        models[f"drop:{g}"] = [("raw", w) for w in GROUP_OF if GROUP_OF[w] != g]
+
+    # PER-MODEL PENALTIES (2026-10-18 fix): every reduced model gets its own ridge penalty per group present (one
+    # coordinate pass over ALPHA_GRID from the full model's values, same held-out criterion). Borrowing the full
+    # model's penalties made single-variable models over- / under-fit (the full model's instructed penalty ranged 10 ..
+    # 1000 by session), so "alone" went NEGATIVE for jaw / instructed and was not the upper bound it is meant to be.
+    model_alphas = {"full": dict(alphas)}
+    for name, spec in models.items():
+        if name == "full":
+            continue
+        al = dict(alphas)
+        present = sorted({grp_of_col[i] for i in cols(spec)}, key=GROUPS.index)
+        for g in present:
+            al[g] = max(ALPHA_GRID, key=lambda a: score(spec, {**al, g: a}))
+        model_alphas[name] = al
     # evaluate: per model x window -> pixel SSE (as e), shared total t per window
-    areas = sorted({int(a) for a in np.unique(parea) if a != 0})
+    areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
     res = {"label": label, "animal": animal, "date": date, "epoch": epochs.epoch_of(label),
            "day": epochs.days_since_stroke(label), "order": order, "alphas": alphas, "gate": B.gate,
            "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft)))}
     maps, region = {}, []
     tot_pix = {}
-    amask = {a: parea == a for a in areas}
+    amask = {a: (parea == a) & pstat for a in areas}          # region values on the eroded stat mask
     for name, spec in models.items():
         ix = cols(spec)
-        pen = np.array([alphas[grp_of_col[i]] for i in ix])
+        pen = np.array([model_alphas[name][grp_of_col[i]] for i in ix])
         fitted = eng.betas(ix, pen)
         for w in WINDOWS:
             Ecov, Tc = eng.err_cov(ix, pen, w, fitted)
@@ -496,7 +599,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
                 tot_pix[w] = t
             t = tot_pix[w]
             maps[(name, w)] = bsum(e)
-            region.append({"model": name, "window": w, "area": "cortex", "r2": 1 - e.sum() / t.sum()})
+            region.append({"model": name, "window": w, "area": "cortex", "r2": 1 - e[pstat].sum() / t[pstat].sum()})
             for a, m in amask.items():
                 region.append({"model": name, "window": w, "area": names.get(a, str(a)),
                                "r2": 1 - e[m].sum() / t[m].sum()})
@@ -517,13 +620,39 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     ii, beta = eng.full_beta(ix, pen)
     Afull = A[:, ii[1:] - 1]
     gcol = grp_of_col[ix]
-    Ra = np.stack([Ub[parea == a].mean(0) for a in areas] + [Ub.mean(0)], 1)       # (K, n_areas + cortex)
+    Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)   # stat mask
     comp = {"data": Y.astype(np.float64), "full": Afull @ beta[1:] + beta[0]}
     for g in GROUPS:
         comp[g] = Afull[:, gcol == g] @ beta[1:][gcol == g]
+    vcol = np.empty(len(ix), object)                      # variable of each full-model column
+    for (kind_, v_), ixs in layout.items():
+        if kind_ == "orth":
+            vcol[np.isin(ix, ixs)] = v_
+    pm = np.isin(vcol, list(POS_VARS))
+    comp_pos = Afull[:, pm] @ beta[1:][pm]                 # position-specific deviations only (not in the PETH parts)
     off = np.arange(int(PETH_S[0] * res["fs"]), int(PETH_S[1] * res["fs"]) + 1)
     cue_f = np.searchsorted(ftr, E.cue_s.to_numpy(float))
     pos_order = sorted(E.pos.unique())
+    # PER-POSITION RESPONSE MAPS (Priya 10-18): the full model's TASK-component prediction per position, ABSOLUTE (not
+    # minus the mean over positions: a mean reference couples the six -- "the reference is the claim", 09-12), averaged
+    # over cue-aligned bins and over the no-lick-agnostic ENL state (strobe + 0.3 s .. cue); block maps on the grid.
+    comp["pos"] = comp_pos
+    st_f = np.searchsorted(ftr, np.where(np.isfinite(E.strobe_s), E.strobe_s, E.cue_s - 3.0).to_numpy(float) + 0.3)
+    for p in pos_order:
+        sel = np.flatnonzero((E.pos == p).to_numpy())
+        for lab, (a0, a1) in RESP_BINS.items():
+            idx = np.concatenate([np.arange(cue_f[i] + int(a0 * res["fs"]), cue_f[i] + int(a1 * res["fs"]))
+                                  for i in sel]) if len(sel) else np.array([], int)
+            idx = idx[(idx >= 0) & (idx < len(Y))]
+            if len(idx):
+                maps[(f"resp:{p}", lab)] = bsum(Ub @ comp["task"][idx].mean(0)) / np.maximum(bsum(np.ones(len(Ub))), 1)
+                maps[(f"respdev:{p}", lab)] = bsum(Ub @ comp["pos"][idx].mean(0)) / np.maximum(bsum(np.ones(len(Ub))), 1)
+        idx = np.concatenate([np.arange(st_f[i], cue_f[i]) for i in sel if cue_f[i] > st_f[i]]) if len(sel) else []
+        idx = np.asarray(idx, int)
+        idx = idx[(idx >= 0) & (idx < len(Y))]
+        if len(idx):
+            maps[(f"resp:{p}", "enl")] = bsum(Ub @ comp["task"][idx].mean(0)) / np.maximum(bsum(np.ones(len(Ub))), 1)
+            maps[(f"respdev:{p}", "enl")] = bsum(Ub @ comp["pos"][idx].mean(0)) / np.maximum(bsum(np.ones(len(Ub))), 1)
     peth = np.full((len(comp), len(pos_order), Ra.shape[1], len(off)), np.nan, np.float32)
     for ci, Cm in enumerate(comp.values()):
         R = (Cm @ Ra).astype(np.float32)
@@ -535,7 +664,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     # time-resolved held-out SSE (cue-aligned, all trials) per group model, cortex + areas
     tr_models = ["full", "alone:task", "alone:instructed", "alone:uninstructed",
                  "shuf:task", "shuf:instructed", "shuf:uninstructed", "shuf:pos_enl", "shuf:pos_cue",
-                 "shuf:exec_angle"]
+                 "shuf:exec_angle", "drop:task", "drop:instructed", "drop:uninstructed", "drop:pos_cue",
+                 "drop:exec_angle", "shufside:pos_cue", "shufdist:pos_cue", "shufside:pos_enl", "shufdist:pos_enl"]
     Rd = Y.astype(np.float64) @ Ra
     sse = np.zeros((len(tr_models), Ra.shape[1], len(off)))
     sst = np.zeros((Ra.shape[1], len(off)))
@@ -547,7 +677,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     for mi, mname in enumerate(tr_models):
         spec = models[mname]
         ixm = cols(spec)
-        penm = np.array([alphas[grp_of_col[i]] for i in ixm])
+        penm = np.array([model_alphas[mname][grp_of_col[i]] for i in ixm])
         iim, Bk = eng.betas(ixm, penm)
         pred = np.zeros_like(Rd)
         Am = A[:, iim[1:] - 1]
@@ -555,7 +685,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             m = fold == k
             pred[m] = (Am[m] @ bk[1:] + bk[0]) @ Ra
         sse[mi] = np.nansum(np.where(okm[..., None], (Rd[idc] - pred[idc]) ** 2, np.nan), 0).T
-    res.update({"tr_models": tr_models, "pos_order": pos_order, "peth_parts": list(comp),
+    res.update({"tr_models": tr_models, "pos_order": pos_order, "peth_parts": list(comp), "model_alphas": model_alphas,
                 "areas": [names.get(a, str(a)) for a in areas] + ["cortex"]})
     del mu_t
     return {"res": res, "maps": maps, "flat": ublk, "shape": ((shape[0] + 1) // 2, (shape[1] + 1) // 2),
