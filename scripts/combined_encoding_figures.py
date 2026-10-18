@@ -42,13 +42,17 @@ EPOCHS = ("pre", "acute", "subacute", "chronic")
 #:   category = 6 spout categories (pos_enl + pos_cue)        -> {base}full                  - {base}drop:position
 #:   target   = the spout's angle + angle^2 (cue + ENL blocks) -> {base}angle:position        - {base}drop:position
 #:   executed = each lick's absolute angle + angle^2           -> {base}lickangle:position    - {base}drop:position
+#:   target_lick = the SAME lick kernel / licks scaled by the spout angle -> {base}licktarget:position - {base}drop:position
+#:              (the clean comparison: executed vs target_lick differ only in which angle scales the kernel)
 #: base "" = raw:full / drop:position (tongue x / y in; x / y is itself a direction signal), "notxy:" = tongue
 #: protrusion + speed only. The executed model replaces exec_angle (within-position deviation) by the absolute angle,
 #: which subsumes it, so its gain is what WHERE THE TONGUE WENT adds beyond the within-position deviation.
-TVX = {"xy": {"category": "raw:full", "target": "angle:position", "executed": "lickangle:position", "none": "drop:position"},
-       "notxy": {"category": "notxy:full", "target": "notxy:angle:position", "executed": "notxy:lickangle:position",
-                 "none": "notxy:drop:position"}}
-TVX_COL = {"category": "#1b9e77", "target": "#6a3d9a", "executed": "#d95f02"}
+TVX = {"xy": {"category": "raw:full", "target": "angle:position", "target_lick": "licktarget:position",
+              "executed": "lickangle:position", "none": "drop:position"},
+       "notxy": {"category": "notxy:full", "target": "notxy:angle:position", "target_lick": "notxy:licktarget:position",
+                 "executed": "notxy:lickangle:position", "none": "notxy:drop:position"}}
+TVX_KEYS = ("category", "target", "target_lick", "executed")
+TVX_COL = {"category": "#1b9e77", "target": "#6a3d9a", "target_lick": "#b2abd2", "executed": "#d95f02"}
 FOCUS = ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul", "SSp-bfd", "SSp-n", "ACAd", "VISp")
 
 
@@ -119,7 +123,7 @@ def region_wide(R: pd.DataFrame) -> pd.DataFrame:
         for st, mods in TVX.items():
             if (mods["none"], w) not in W:
                 continue
-            for k in ("category", "target", "executed"):
+            for k in TVX_KEYS:
                 if (mods[k], w) in W:
                     out[f"tvx:{st}:{k}|{w}"] = W[(mods[k], w)] - W[(mods["none"], w)]
     return out.reset_index().rename(columns={"area_b": "pos"})            # `pos` = area, for session_change_tests
@@ -552,13 +556,13 @@ def fig_target_vs_executed(Wd: pd.DataFrame, path: Path, title: str, area: str =
     for r, (st, lab) in enumerate((("xy", "tongue x / y IN"), ("notxy", "tongue x / y OUT (protrusion + speed only)"))):
         for c, w in enumerate(wins):
             ax = axs[r][c]
-            for k, key in enumerate(("category", "target", "executed")):
+            for k, key in enumerate(TVX_KEYS):
                 col = f"tvx:{st}:{key}|{w}"
                 if col not in D:
                     continue
                 s = _animal_stats(D, col)
-                x = np.arange(len(s)) + (k - 1) * 0.18
-                ax.errorbar(x, s["mean"], yerr=s["sem"], marker="osD"[k], ms=5, lw=1.4, capsize=2,
+                x = np.arange(len(s)) + (k - 1.5) * 0.16
+                ax.errorbar(x, s["mean"], yerr=s["sem"], marker="os^D"[k], ms=5, lw=1.4, capsize=2,
                             color=TVX_COL[key], label=key)
                 for xi, vals in zip(x, s["vals"]):
                     ax.plot(np.full(len(vals), xi), vals, ".", color="0.55", ms=3)
@@ -571,7 +575,7 @@ def fig_target_vs_executed(Wd: pd.DataFrame, path: Path, title: str, area: str =
                 ax.legend(frameon=False)
         ax = axs[r][-1]
         for k, w in enumerate(wins):
-            a, b = f"tvx:{st}:executed|{w}", f"tvx:{st}:target|{w}"
+            a, b = f"tvx:{st}:executed|{w}", f"tvx:{st}:target_lick|{w}"         # same kernel, same licks
             if a not in D or b not in D:
                 continue
             s = _animal_stats(D.assign(_d=D[a] - D[b]), "_d")
@@ -583,11 +587,12 @@ def fig_target_vs_executed(Wd: pd.DataFrame, path: Path, title: str, area: str =
         ax.axhline(0, color="0.7", lw=0.7)
         ax.set_xticks(range(len(s)))
         ax.set_xticklabels(list(s.index))
-        ax.set_title(f"{lab}\nexecuted - target (> 0: tracks the tongue)", fontsize=10.5)
+        ax.set_title(f"{lab}\nexecuted - target, same lick kernel (> 0: tracks the tongue)", fontsize=10.5)
         ax.legend(frameon=False, title="window")
     _title(fig, title, f"TARGET vs EXECUTED angle, {area}: order-free R$^2$ gain over the model without position, for "
-                 "the 6 spout categories, the target (spout) angle + angle$^2$ on the cue / ENL blocks, and each lick's "
-                 "absolute executed angle + angle$^2$ on the lick kernel. Mean +- SEM over animals, dots = animals.")
+                 "the 6 spout categories, the target (spout) angle + angle$^2$ on the cue / ENL blocks ('target') or on the lick "
+                 "kernel ('target_lick', the same licks as 'executed'), and each lick's absolute executed angle + "
+                 "angle$^2$ on the lick kernel. Mean +- SEM over animals, dots = animals.")
     fig.tight_layout(h_pad=2.0)
     _save(fig, path)
 

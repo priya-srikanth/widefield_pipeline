@@ -106,13 +106,19 @@ GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "tas
             "licks": "instructed", "exec_angle": "instructed",
             "tongue": "instructed", "jaw": "instructed", "nose": "uninstructed", "running": "uninstructed"}
 GROUPS = ("task", "instructed", "uninstructed")
+#: DISTANCE (Priya 10-18): every angle variant also carries distance -- target = the spout's distance from the mouth,
+#: executed = the lick's reach (peak protrusion) -- so target and executed each have angle, angle^2 and distance.
 #: VARIANT variables (Priya 10-18), never in the full model: angle_cue / angle_enl = the cue / ENL blocks modulated by
 #: each trial's TARGET (spout) angle and angle^2 (smooth angular tuning instead of 6 categories); tongue_ps = tongue
 #: protrusion + speed only (the tongue model WITHOUT x / y, which is a position proxy: the tongue goes to the spout).
 #: lick_angle_abs = lick kernel x each lick's ABSOLUTE executed angle (and angle^2): the EXECUTED competitor to the
 #: target angle -- does cortex track where the tongue went or where the spout was (they separate post-stroke, when
 #: licks aim ipsi)? Subsumes exec_angle (absolute = position mean + within-position deviation).
-EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructed", "lick_angle_abs": "instructed"}
+#: lick_angle_tgt = the SAME lick kernel on the SAME licks as lick_angle_abs, scaled by the TARGET (spout) angle of the
+#: lick's trial instead of the tongue's angle (Priya 10-18): target vs executed then differ ONLY in which angle scales the
+#: kernel (angle_cue / angle_enl are cue- / ENL-locked and can explain any time in the trial; the lick-locked pair cannot).
+EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructed", "lick_angle_abs": "instructed",
+               "lick_angle_tgt": "instructed"}
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed")}
 POS_VARS = ("pos_enl", "pos_cue")
@@ -176,6 +182,8 @@ class Behaviour:
     gate: str
     target_angle: dict = None      # position -> the session's spout angle (deg, + = ipsi / image right), LP geometry
     lick_angle: np.ndarray = None  # each lick's absolute executed peak angle (deg); NaN = not usable
+    target_dist: dict = None       # position -> the session's spout distance from the mouth (px), LP geometry
+    lick_reach: np.ndarray = None  # each lick's executed peak protrusion (px); NaN where lick_angle is NaN
 
 
 def load_behaviour(animal: str, date: str, rv) -> Behaviour:
@@ -234,13 +242,16 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
               "jaw_speed": (t_pose, np.hypot(np.gradient(jx), np.gradient(jy)) * fps),
               "nose_x": (t_pose, nx), "nose_y": (t_pose, ny), "running": (np.asarray(run_t, float),
                                                                           np.asarray(run_v, float))}
-    tgt = {}
-    if "spout_angle_deg" in L:
-        for p_, g_ in L.assign(pk=pos).groupby("pk"):
-            a_ = g_.spout_angle_deg.to_numpy(float)
-            if np.isfinite(a_).any():
-                tgt[p_] = float(np.nanmedian(a_))
-    return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang)
+    tgt, tdist = {}, {}
+    for col, dst in (("spout_angle_deg", tgt), ("spout_dist_px", tdist)):
+        if col in L:
+            for p_, g_ in L.assign(pk=pos).groupby("pk"):
+                a_ = g_[col].to_numpy(float)
+                if np.isfinite(a_).any():
+                    dst[p_] = float(np.nanmedian(a_))
+    reach = np.where(np.isfinite(ang), L.protrusion_px.to_numpy(float), np.nan)
+    return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
+                     tdist, reach)
 
 
 # =============================================================================== design
@@ -323,16 +334,35 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
     if B.lick_angle is not None and np.isfinite(B.lick_angle).any():
         la = B.lick_angle - np.nanmean(B.lick_angle)
         la2 = la ** 2 - np.nanmean(la ** 2)
-        out["lick_angle_abs"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"], amp=la),
-                                           _event_cols(B.lick_on_s, ft, LAGS["lick"], amp=la2)])
-    if B.target_angle:                              # trial-wise target angle (centred) and its square
+        amps = [la, la2]
+        if B.lick_reach is not None and np.isfinite(B.lick_reach).any():
+            amps.append(B.lick_reach - np.nanmean(B.lick_reach))      # DISTANCE (Priya 10-18): executed reach
+        out["lick_angle_abs"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"], amp=x) for x in amps])
+        if B.target_angle:
+            ta = np.array([B.target_angle.get(p, np.nan) for p in B.lick_pos], float)
+            ta = np.where(np.isfinite(B.lick_angle), ta, np.nan)          # exactly the licks lick_angle_abs uses
+            if np.isfinite(ta).any():
+                tc = ta - np.nanmean(ta)
+                tamps = [tc, tc ** 2 - np.nanmean(tc ** 2)]
+                if B.target_dist:                                      # target DISTANCE: the spout's
+                    td = np.array([B.target_dist.get(p, np.nan) for p in B.lick_pos], float)
+                    td = np.where(np.isfinite(ta), td, np.nan)
+                    if np.isfinite(td).any():
+                        tamps.append(td - np.nanmean(td))
+                out["lick_angle_tgt"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"], amp=x) for x in tamps])
+    if B.target_angle:                              # trial-wise target angle (centred), its square, target distance
         a = np.array([B.target_angle.get(p, np.nan) for p in T.pos], float)
         ok = np.isfinite(a)
         a = np.where(ok, a - np.nanmean(a), 0.0)
         a2 = np.where(ok, a ** 2 - np.mean(a[ok] ** 2), 0.0)
+        tamps = [a, a2]
+        if B.target_dist:                           # DISTANCE (Priya 10-18: angle AND distance both shape behaviour)
+            dd = np.array([B.target_dist.get(p, np.nan) for p in T.pos], float)
+            if np.isfinite(dd[ok]).all():
+                tamps.append(np.where(ok, dd - np.mean(dd[ok]), 0.0))
         for name, blk in (("angle_cue", cue_block), ("angle_enl", enl_block)):
             cols = []
-            for amp in (a, a2):
+            for amp in tamps:
                 X = np.zeros_like(shared["pos_cue" if name == "angle_cue" else "pos_enl"])
                 for p in pos_order:
                     m = (T.pos.to_numpy() == p) & ok
@@ -669,6 +699,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     if ("raw", "lick_angle_abs") in layout:               # position replaced by WHERE EACH LICK WENT (executed)
         models["lickangle:position"] = ([("raw", w) for w in GROUP_OF if w not in POS_VARS and w != "exec_angle"]
                                         + [("raw", "lick_angle_abs")])
+    if ("raw", "lick_angle_tgt") in layout:               # ... or by WHERE THAT LICK'S SPOUT WAS (target), same kernel
+        models["licktarget:position"] = ([("raw", w) for w in GROUP_OF if w not in POS_VARS and w != "exec_angle"]
+                                         + [("raw", "lick_angle_tgt")])
     # TARGET vs EXECUTED inside the tongue-without-x/y model (Priya 10-18: "most invested in the target vs executed angle
     # question"): tongue x/y is itself a direction signal and would absorb directional variance from both competitors
     if ("raw", "angle_cue") in layout:
@@ -677,6 +710,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     if ("raw", "lick_angle_abs") in layout:
         models["notxy:lickangle:position"] = ([x for x in notxy if x[1] not in POS_VARS and x[1] != "exec_angle"]
                                               + [("raw", "lick_angle_abs")])
+    if ("raw", "lick_angle_tgt") in layout:
+        models["notxy:licktarget:position"] = ([x for x in notxy if x[1] not in POS_VARS and x[1] != "exec_angle"]
+                                               + [("raw", "lick_angle_tgt")])
 
     # PER-MODEL PENALTIES (2026-10-18 fix): every reduced model gets its own ridge penalty per group present (one
     # coordinate pass over ALPHA_GRID from the full model's values, same held-out criterion). Borrowing the full
@@ -690,12 +726,13 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         for g in (*GROUPS, "position"):
             drop = POS_VARS if g == "position" else [w for w in GROUP_OF if GROUP_OF[w] == g]
             models[f"video:drop:{g}"] = [x for x in rawfull if x[1] not in drop] + [("raw", "video")]
-        for name in ("angle:position", "lickangle:position"):
+        for name in ("angle:position", "lickangle:position", "licktarget:position"):
             if name in models:
                 models[f"video:{name}"] = models[name] + [("raw", "video")]
     if os.environ.get(SMOKE_ENV):                   # end-to-end check of the post-fit code without the full model set
         keep = {"full", *TR_MODELS, "raw:full", "angle:position", "lickangle:position", "notxy:full",
-                "notxy:drop:position", "notxy:angle:position", "notxy:lickangle:position",
+                "notxy:drop:position", "notxy:angle:position", "notxy:lickangle:position", "licktarget:position",
+                "notxy:licktarget:position",
                 *(k for k in models if k.startswith("video:"))}
         models = {k: v for k, v in models.items() if k in keep}
     model_alphas = {"full": dict(alphas)}
@@ -742,12 +779,15 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     ixf = cols(full_spec) + 1
     Gn = eng.Gt[np.ix_(ixf, ixf)]
     dsc = np.sqrt(np.clip(np.diag(Gn), 1e-12, None))
-    Gc = Gn / np.outer(dsc, dsc) + 1e-6 * np.eye(len(ixf))     # 1e-10 failed on exactly collinear columns (all NaN)
-    try:
-        Lc = np.linalg.cholesky(Gc)
-        csa = np.abs(np.diag(Lc))
-    except np.linalg.LinAlgError:
-        csa = np.full(len(ixf), np.nan)
+    Gc = Gn / np.outer(dsc, dsc)
+    csa = np.full(len(ixf), np.nan)
+    for jit in (1e-6, 1e-4, 1e-2):                  # exactly collinear columns need more jitter (1e-10 / 1e-6 gave NaN)
+        try:
+            csa = np.abs(np.diag(np.linalg.cholesky(Gc + jit * np.eye(len(ixf)))))
+            res["collinearity_jitter"] = jit
+            break
+        except np.linalg.LinAlgError:
+            continue
     res["collinearity_min"] = {v: float(np.nanmin(csa[np.isin(ixf - 1, layout[("orth", v)])])) for v in GROUP_OF}
     # Fig. 5: full model fitted ONCE, prediction split by group; cue-aligned per position, per area (+ cortex)
     ix = cols(full_spec)
