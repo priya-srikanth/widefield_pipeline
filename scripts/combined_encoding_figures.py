@@ -37,6 +37,18 @@ GCOL = {"task": "#6a3d9a", "instructed": "#8c510a", "uninstructed": "#5e7ea0"}
 WINDOWS = ("all", "enl", "cue", "lick")
 WIN_DESC = {"all": "all frames", "enl": "pre-cue 2 s (ENL)", "cue": "cue 0-1 s", "lick": "+-0.2 s of a lick peak"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
+#: TARGET vs EXECUTED (Priya 10-18: "most invested in the target vs executed angle question"). Order-free (raw columns)
+#: R2 gains over the model with NO position information, in the model with and without tongue x / y:
+#:   category = 6 spout categories (pos_enl + pos_cue)        -> {base}full                  - {base}drop:position
+#:   target   = the spout's angle + angle^2 (cue + ENL blocks) -> {base}angle:position        - {base}drop:position
+#:   executed = each lick's absolute angle + angle^2           -> {base}lickangle:position    - {base}drop:position
+#: base "" = raw:full / drop:position (tongue x / y in; x / y is itself a direction signal), "notxy:" = tongue
+#: protrusion + speed only. The executed model replaces exec_angle (within-position deviation) by the absolute angle,
+#: which subsumes it, so its gain is what WHERE THE TONGUE WENT adds beyond the within-position deviation.
+TVX = {"xy": {"category": "raw:full", "target": "angle:position", "executed": "lickangle:position", "none": "drop:position"},
+       "notxy": {"category": "notxy:full", "target": "notxy:angle:position", "executed": "notxy:lickangle:position",
+                 "none": "notxy:drop:position"}}
+TVX_COL = {"category": "#1b9e77", "target": "#6a3d9a", "executed": "#d95f02"}
 FOCUS = ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul", "SSp-bfd", "SSp-n", "ACAd", "VISp")
 
 
@@ -92,7 +104,7 @@ def region_wide(R: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame(index=W.index)
     for w in WINDOWS:
         out[f"full|{w}"] = W[("full", w)]
-        for v in (*VARS, *GROUPS):
+        for v in (*VARS, *GROUPS, "position"):
             if ("alone:" + v, w) in W:
                 out[f"alone:{v}|{w}"] = W[("alone:" + v, w)]
             if ("shuf:" + v, w) in W:
@@ -104,6 +116,12 @@ def region_wide(R: pd.DataFrame) -> pd.DataFrame:
                 ind = W[("task+:" + v, w)] - W[("alone:task", w)]
                 out[f"tind:{v}|{w}"] = ind
                 out[f"talign:{v}|{w}"] = W[("alone:" + v, w)] - ind
+        for st, mods in TVX.items():
+            if (mods["none"], w) not in W:
+                continue
+            for k in ("category", "target", "executed"):
+                if (mods[k], w) in W:
+                    out[f"tvx:{st}:{k}|{w}"] = W[(mods[k], w)] - W[(mods["none"], w)]
     return out.reset_index().rename(columns={"area_b": "pos"})            # `pos` = area, for session_change_tests
 
 
@@ -521,6 +539,59 @@ def fig_exec_vs_intended(Wd: pd.DataFrame, ST: pd.DataFrame, path: Path, title: 
     _save(fig, path)
 
 
+def fig_target_vs_executed(Wd: pd.DataFrame, path: Path, title: str, area: str = "cortex") -> None:
+    """Rows: tongue x / y in, out. Columns: cue / lick / all windows. Per epoch, the R2 gained over the no-position model
+    by the 6 categories, the TARGET angle, the EXECUTED (absolute lick) angle; last column: executed - target per animal."""
+    plt = _plt()
+    D = Wd[Wd.pos == area]
+    wins = [w for w in ("cue", "lick", "all") if f"tvx:xy:target|{w}" in D]
+    if not wins:
+        print("  target-vs-executed: variant models missing (old-model outputs?) -- skipped")
+        return
+    fig, axs = plt.subplots(2, len(wins) + 1, figsize=(4.3 * (len(wins) + 1), 8.2), squeeze=False)
+    for r, (st, lab) in enumerate((("xy", "tongue x / y IN"), ("notxy", "tongue x / y OUT (protrusion + speed only)"))):
+        for c, w in enumerate(wins):
+            ax = axs[r][c]
+            for k, key in enumerate(("category", "target", "executed")):
+                col = f"tvx:{st}:{key}|{w}"
+                if col not in D:
+                    continue
+                s = _animal_stats(D, col)
+                x = np.arange(len(s)) + (k - 1) * 0.18
+                ax.errorbar(x, s["mean"], yerr=s["sem"], marker="osD"[k], ms=5, lw=1.4, capsize=2,
+                            color=TVX_COL[key], label=key)
+                for xi, vals in zip(x, s["vals"]):
+                    ax.plot(np.full(len(vals), xi), vals, ".", color="0.55", ms=3)
+            ax.axhline(0, color="0.7", lw=0.7)
+            ax.set_xticks(range(len(s)))
+            ax.set_xticklabels(list(s.index))
+            ax.set_title(f"{lab}\n{w} window ({WIN_DESC[w]})", fontsize=10.5)
+            ax.set_ylabel("R$^2$ gain over no-position model")
+            if r == 0 and c == 0:
+                ax.legend(frameon=False)
+        ax = axs[r][-1]
+        for k, w in enumerate(wins):
+            a, b = f"tvx:{st}:executed|{w}", f"tvx:{st}:target|{w}"
+            if a not in D or b not in D:
+                continue
+            s = _animal_stats(D.assign(_d=D[a] - D[b]), "_d")
+            x = np.arange(len(s)) + (k - (len(wins) - 1) / 2) * 0.2
+            ax.errorbar(x, s["mean"], yerr=s["sem"], marker="o", ms=5, lw=1.4, capsize=2,
+                        color=("0.15", "#8c510a", "#5e7ea0")[k], label=w)
+            for xi, vals in zip(x, s["vals"]):
+                ax.plot(np.full(len(vals), xi), vals, ".", color="0.6", ms=3)
+        ax.axhline(0, color="0.7", lw=0.7)
+        ax.set_xticks(range(len(s)))
+        ax.set_xticklabels(list(s.index))
+        ax.set_title(f"{lab}\nexecuted - target (> 0: tracks the tongue)", fontsize=10.5)
+        ax.legend(frameon=False, title="window")
+    _title(fig, title, f"TARGET vs EXECUTED angle, {area}: order-free R$^2$ gain over the model without position, for "
+                 "the 6 spout categories, the target (spout) angle + angle$^2$ on the cue / ENL blocks, and each lick's "
+                 "absolute executed angle + angle$^2$ on the lick kernel. Mean +- SEM over animals, dots = animals.")
+    fig.tight_layout(h_pad=2.0)
+    _save(fig, path)
+
+
 def main(argv=None) -> int:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -548,11 +619,14 @@ def main(argv=None) -> int:
     print(title)
     pd.set_option("display.width", 220)
     print("per-animal cortex dR2 by epoch (rule 8: animals before the pooled test):")
-    for key in ("dR2:pos_enl|enl", "dR2:pos_cue|cue", "dR2:pos_cue|lick", "dR2:exec_angle|lick", "dR2:instructed|all",
+    for key in ("dR2:position|all", "dR2drop:position|all", "tvx:notxy:target|lick", "tvx:notxy:executed|lick",
+                "dR2:pos_enl|enl", "dR2:pos_cue|cue", "dR2:pos_cue|lick", "dR2:exec_angle|lick", "dR2:instructed|all",
                 "dR2:uninstructed|all", "full|all"):
+        if key not in Wd:
+            continue
         t_ = Wd[Wd.pos == "cortex"].groupby(["animal", "epoch"])[key].mean().unstack("epoch")
         print(f"  {key}\n" + t_.reindex(columns=list(EPOCHS)).round(4).to_string())
-    metrics = [c for c in Wd.columns if c.split(":")[0] in ("dR2", "alone", "full", "tind", "talign")]
+    metrics = [c for c in Wd.columns if c.split(":")[0] in ("dR2", "dR2drop", "alone", "full", "tind", "talign", "tvx")]
     ST = session_change_tests(Wd[Wd.pos.isin(FOCUS)], metrics)
     ST.to_csv(tabs / "stats_vs_pre.csv", index=False, float_format="%.4g")
     outline = _outline(meta)
@@ -569,6 +643,8 @@ def main(argv=None) -> int:
     for e in EPOCHS:
         fig_peth_partition(meta, sess, figs / f"peth_partition_{e}.png", title, e)
     fig_exec_vs_intended(Wd, ST, figs / "executed_vs_intended.png", title)
+    for ar in ("cortex", "MOs", "SSp-m"):
+        fig_target_vs_executed(Wd, figs / f"target_vs_executed_{ar}.png", title, area=ar)
     sig = ST[(ST.agree == "both") & (ST.pos == "cortex")]
     print(f"cortex changes vs pre significant by both tests: {len(sig)}")
     print(sig[["metric", "epoch", "mean_change", "n_animals"]].to_string(index=False))

@@ -57,12 +57,14 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+SMOKE_ENV = "COMBINED_ENCODING_SMOKE"   # =1: fit only the models the post-fit code needs (a fast end-to-end check)
 RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned workers see it (tests/test_parallel_results...)
 
 
@@ -104,6 +106,11 @@ EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructe
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed")}
 POS_VARS = ("pos_enl", "pos_cue")
+#: time-resolved held-out SSE (cue-aligned) is computed for these models
+TR_MODELS = ("full", "alone:task", "alone:instructed", "alone:uninstructed",
+             "shuf:task", "shuf:instructed", "shuf:uninstructed", "shuf:pos_enl", "shuf:pos_cue",
+             "shuf:exec_angle", "drop:task", "drop:instructed", "drop:uninstructed", "drop:pos_cue",
+             "drop:exec_angle", "shuf:position", "drop:position", "shufside:position", "shufdist:position")
 
 
 # =============================================================================== inputs
@@ -646,6 +653,10 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     # coordinate pass over ALPHA_GRID from the full model's values, same held-out criterion). Borrowing the full
     # model's penalties made single-variable models over- / under-fit (the full model's instructed penalty ranged 10 ..
     # 1000 by session), so "alone" went NEGATIVE for jaw / instructed and was not the upper bound it is meant to be.
+    if os.environ.get(SMOKE_ENV):                   # end-to-end check of the post-fit code without the full model set
+        keep = {"full", *TR_MODELS, "raw:full", "angle:position", "lickangle:position", "notxy:full",
+                "notxy:drop:position", "notxy:angle:position", "notxy:lickangle:position"}
+        models = {k: v for k, v in models.items() if k in keep}
     model_alphas = {"full": dict(alphas)}
     for name, spec in models.items():
         if name == "full":
@@ -719,7 +730,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     # minus the mean over positions: a mean reference couples the six -- "the reference is the claim", 09-12), averaged
     # over cue-aligned bins and over the no-lick-agnostic ENL state (strobe + 0.3 s .. cue); block maps on the grid.
     comp["pos"] = comp_pos
-    st_f = np.searchsorted(ftr, np.where(np.isfinite(E.strobe_s), E.strobe_s, E.cue_s - 3.0).to_numpy(float) + 0.3)
+    st_f = np.searchsorted(ftr, np.where(np.isfinite(E.strobe_s), E.strobe_s, E.cue_s - 3.0).astype(float) + 0.3)
     for p in pos_order:
         sel = np.flatnonzero((E.pos == p).to_numpy())
         for lab, (a0, a1) in RESP_BINS.items():
@@ -744,10 +755,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             seg = np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
             peth[ci, pi] = np.nanmean(seg, 0).T
     # time-resolved held-out SSE (cue-aligned, all trials) per group model, cortex + areas
-    tr_models = ["full", "alone:task", "alone:instructed", "alone:uninstructed",
-                 "shuf:task", "shuf:instructed", "shuf:uninstructed", "shuf:pos_enl", "shuf:pos_cue",
-                 "shuf:exec_angle", "drop:task", "drop:instructed", "drop:uninstructed", "drop:pos_cue",
-                 "drop:exec_angle", "shuf:position", "drop:position", "shufside:position", "shufdist:position"]
+    tr_models = list(TR_MODELS)
     Rd = Y.astype(np.float64) @ Ra
     sse = np.zeros((len(tr_models), Ra.shape[1], len(off)))
     sst = np.zeros((Ra.shape[1], len(off)))
