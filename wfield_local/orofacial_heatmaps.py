@@ -26,6 +26,8 @@ Port of stroke_orofacial's tone-aligned proportion / proportion-diff heatmaps (`
 Figures -> <LP_analysis>/<run>/cohort/figures/heatmaps{,_latepre}/ (+ svg/); histograms -> cohort/tables/heatmaps*/.
   nose_by_epoch.png                         nose, all positions pooled: row 1 raw, row 2 delta; columns = epochs
   <kp>_by_position_{raw,delta}.png          kp in tongue / jaw / nose / spout; rows = positions, columns = epochs
+  {nose,spout}_enl_by_position_*, nose_enl_by_epoch.png   the same from NO-LICK ENL frames (cue - 2 s .. cue, tongue not
+                                            detected): spout_enl = the W2 spout control; nose_enl = resting posture
 """
 from __future__ import annotations
 
@@ -36,6 +38,12 @@ import numpy as np
 import pandas as pd
 
 KEYPOINTS = ("tongue", "jaw", "nose", "spout")
+#: no-lick ENL versions (Priya 10-18): cue - ENL_MS .. cue (>= strobe + settle), raw tongue NOT detected, engaged trials.
+#: spout_enl = the W2 spout control (water-on-tip label error kept, licking push / occlusion removed); nose_enl = resting
+#: head posture without licking. Denominator = the no-lick ENL frames.
+ENL_KPS = ("nose_enl", "spout_enl")
+ENL_MS = 2000.0
+ALL_KPS = KEYPOINTS + ENL_KPS
 LIK_MIN = 0.6
 TONGUE_OUT_PX = 20.0
 WIN_MS = (0.0, 3500.0)             # cue .. DAQ trial stop (Priya 10-18: "just use cue through trial stop")
@@ -45,6 +53,7 @@ EXTENT = {"tongue": ((-175.0, 175.0), (-25.0, 320.0)),
           "jaw": ((-70.0, 70.0), (-25.0, 140.0)),
           "nose": ((-65.0, 50.0), (-135.0, -30.0)),
           "spout": ((-125.0, 125.0), (20.0, 140.0))}
+EXTENT.update({k: EXTENT[k[:-4]] for k in ENL_KPS})
 #: RETRACTION CUT (10-18): a trial's window ends at the first frame where the spout sits > RETRACT_PX from its own median
 #: over cue .. stop for >= RETRACT_RUN consecutive frames AND stays there (median of the rest > RETRACT_PX; brief label
 #: jumps come back). Only on PS92 / PS93 0606 (first ~15 / last ~30 trials) does the
@@ -76,7 +85,8 @@ def frame_coords(sd: Path, animal: str, date: str, run: str) -> dict:
     out = {"t": ix.t_ms.to_numpy(float), "stop": ix.stop_ms.to_numpy(float), "pos": ix.position.to_numpy(str),
            "tid": ix.trial_id.to_numpy(int),
            "spout_raw": (pose.spout_x.to_numpy(float), pose.spout_y.to_numpy(float)),
-           "spout_lk": pose.spout_likelihood.to_numpy(float)}
+           "spout_lk": pose.spout_likelihood.to_numpy(float), "strobe": ix.strobe_ms.to_numpy(float),
+           "tongue_lk": pose.tongue_likelihood.to_numpy(float)}
     tx, ty = cl.tongue_x.to_numpy(float), cl.tongue_y.to_numpy(float)
     src = {"tongue": (tx + o[0], ty + o[1], np.hypot(tx, ty) >= TONGUE_OUT_PX),
            "jaw": (cl.jaw_x.to_numpy(float) + o[0], cl.jaw_y.to_numpy(float) + o[1], np.ones(len(tx), bool))}
@@ -86,6 +96,8 @@ def frame_coords(sd: Path, animal: str, date: str, run: str) -> dict:
     for kp, (x, y, ok) in src.items():
         ap, lr = tk.spout_coords(x, y, fr)
         out[kp] = (sgn * lr, ap, ok & np.isfinite(ap) & np.isfinite(lr))
+    for k in ENL_KPS:
+        out[k] = out[k[:-4]]
     return out
 
 
@@ -122,14 +134,20 @@ def session_hist(sd: Path, animal: str, date: str, run: str, keep: set | None) -
         win &= np.isin(F["tid"], np.fromiter(keep, int))
     n0 = int(win.sum())
     win = retraction_cut(win, F["tid"], F["spout_raw"], F["spout_lk"])
+    from wfield_local import spout_frame as SF
+    enl = ((t >= -ENL_MS) & (t < 0) & (t >= F["strobe"] + SF.ENL_SETTLE_MS)
+           & (F["tongue_lk"] < SF.RULER_TONGUE_MAX_LK))
+    if keep is not None:
+        enl &= np.isin(F["tid"], np.fromiter(keep, int))
     pos = F["pos"]
     out = {("_gate", "moved"): (np.zeros((1, 1), np.float32), n0 - int(win.sum())),
            ("_gate", "trials"): (np.zeros((1, 1), np.float32), n0)}
-    for kp in KEYPOINTS:
+    for kp in ALL_KPS:
         x, y, ok = F[kp]
         ex, ey = _edges(kp)
-        for p in [*np.unique(pos[win]), "all"]:
-            m = win if p == "all" else win & (pos == p)
+        W = enl if kp in ENL_KPS else win
+        for p in [*np.unique(pos[W]), "all"]:
+            m = W if p == "all" else W & (pos == p)
             if not m.any():
                 continue
             mm = m & ok
@@ -284,15 +302,19 @@ def _vmax(maps, kind):
 
 KP_DESC = {"tongue": "tongue tip (cleaned, OUT frames >= 20 px)", "jaw": "jaw (cleaned, rest-relative)",
            "nose": "nose (pose; head / snout posture = behaviour)",
-           "spout": "spout tip (pose; fixed apparatus = the drift CONTROL)"}
+           "spout": "spout tip (pose; fixed apparatus = the drift CONTROL)",
+           "nose_enl": "nose, NO-LICK ENL (resting head / snout posture)",
+           "spout_enl": "spout tip, NO-LICK ENL (the W2 spout control: water-on-tip error kept, licking removed)"}
 
 
 def _note(kp: str, title: str, kind: str) -> str:
     import textwrap
     what = (f"{KP_DESC[kp]}; x = lateral (+ = IPSI), y = forward (out of the mouth toward the spouts), plotted DOWN as the camera sees it, px, in the mouth / "
-            f"spout frame{'' if kp != 'jaw' else ' (jaw: offset from its rest position)'}; frames: ENGAGED trials, cue .. "
-            f"DAQ trial stop, cut at spout-retraction onset; P = frames in bin / ALL window frames (stroke_orofacial "
-            f"Q17). ")
+            f"spout frame{'' if kp != 'jaw' else ' (jaw: offset from its rest position)'}; "
+            + (f"frames: ENGAGED trials, NO-LICK ENL = cue - {ENL_MS / 1000:g} s .. cue (>= strobe + 300 ms), raw tongue "
+               f"not detected; P = frames in bin / no-lick ENL frames. " if kp in ENL_KPS else
+               "frames: ENGAGED trials, cue .. DAQ trial stop, cut at spout-retraction onset; P = frames in bin / ALL "
+               "window frames (stroke_orofacial Q17). "))
     what += ("RAW: within animal (mean over sessions), then mean over animals; log colour. " if kind in ("raw", "both")
              else "")
     what += (f"DELTA: each animal's epoch mean minus ITS OWN pre pool at the position, then the mean over animals; PRE "
@@ -323,7 +345,7 @@ def fig_by_position(maps: dict, kp: str, kind: str, path: Path, title: str, spou
             ax = axs[i][j]
             m = maps.get(p, {}).get(e)
             r = _panel(ax, None if m is None else m[kind], kp, kind, vmax,
-                       spout_ref.get(p) if kp in ("tongue", "spout") else None,
+                       spout_ref.get(p) if kp in ("tongue", "spout", "spout_enl") else None,
                        None if m is None else m.get("agree"))
             im = r or im
             if i == 0:
@@ -349,7 +371,7 @@ def fig_by_position(maps: dict, kp: str, kind: str, path: Path, title: str, spou
     plt.close(fig)
 
 
-def fig_nose_by_epoch(maps: dict, path: Path, title: str) -> None:
+def fig_nose_by_epoch(maps: dict, path: Path, title: str, kp: str = "nose") -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -363,7 +385,7 @@ def fig_nose_by_epoch(maps: dict, path: Path, title: str) -> None:
         for j, e in enumerate(eps):
             ax = axs[i][j]
             m = maps[e]
-            im = _panel(ax, m[kind], "nose", kind, vmax, agree=m.get("agree")) or im
+            im = _panel(ax, m[kind], kp, kind, vmax, agree=m.get("agree")) or im
             if i == 0:
                 ax.set_title(f"{e}\nn={m['n_sess']} sessions / {m['n_anim']} animals", fontsize=10,
                              color=oc.EPOCH_LINE[e])
@@ -377,7 +399,7 @@ def fig_nose_by_epoch(maps: dict, path: Path, title: str) -> None:
             cb = fig.colorbar(im, ax=list(axs[i]), shrink=0.85, pad=0.02)
             cb.set_label("P" if kind == "raw" else "P - own pre P", fontsize=9)
     axs[0][0].invert_yaxis()                     # CAMERA orientation (shared y)
-    _t, _n = _note("nose", title + " -- nose by epoch, all positions pooled", "both")
+    _t, _n = _note(kp, title + f" -- {kp} by epoch, all positions pooled", "both")
     fig.suptitle(_t, fontsize=10, y=0.995)
     fig.text(0.5, 0.005, _n, ha="center", va="bottom", fontsize=8)
     oc.save_png_svg(fig, path, dpi=130)
@@ -431,10 +453,10 @@ def main(argv=None) -> int:
                     tot[k[:-2]] = tot.get(k[:-2], 0) + int(z[k])
     print(f"retraction cut: {tot.get('_gate|moved', 0)} of {tot.get('_gate|trials', 0)} window frames "
           f"({tot.get('_gate|moved', 0) / max(tot.get('_gate|trials', 1), 1):.4%})")
-    for kp in KEYPOINTS:
+    for kp in ALL_KPS:
         print(f"  {kp}: {tot.get(kp + '|outside', 0) / max(tot.get(kp + '|valid', 1), 1):.4%} of valid frames outside the axes")
     summary = []
-    for kp in KEYPOINTS:
+    for kp in ALL_KPS:
         maps = {}
         for p in raw_pos:
             maps[oc.pos_key(p, "L")] = cohort_maps(proportions(sess, kp, p))
@@ -447,6 +469,7 @@ def main(argv=None) -> int:
                                 "abs_delta_sum": float(np.nansum(np.abs(v["delta"]))) if v["delta"] is not None
                                 else np.nan})
     fig_nose_by_epoch(cohort_maps(proportions(sess, "nose", "all")), figs / "nose_by_epoch.png", t)
+    fig_nose_by_epoch(cohort_maps(proportions(sess, "nose_enl", "all")), figs / "nose_enl_by_epoch.png", t, "nose_enl")
     S = pd.DataFrame(summary)
     S.to_csv(figs / "summary.csv", index=False, float_format="%.4g")
     pd.set_option("display.width", 200)

@@ -106,6 +106,13 @@ SECTIONS = [
         ("heatmaps/nose_by_position_delta.png", "Nose occupancy by position, change vs own pre", ""),
         ("heatmaps/spout_by_position_raw.png", "Spout tip by position, raw (control)", ""),
         ("heatmaps/spout_by_position_delta.png", "Spout tip by position, change vs own pre (control)", ""),
+        ("heatmaps/nose_enl_by_epoch.png", "Nose at rest (no-lick ENL) by epoch: raw and change vs own pre",
+         "Cue - 2 s .. cue, tongue not detected, engaged trials: head posture without licking."),
+        ("heatmaps/nose_enl_by_position_raw.png", "Nose at rest (no-lick ENL) by position, raw", ""),
+        ("heatmaps/nose_enl_by_position_delta.png", "Nose at rest (no-lick ENL) by position, change vs own pre", ""),
+        ("heatmaps/spout_enl_by_position_raw.png", "Spout tip, no-lick ENL, raw (the W2 spout control frames)",
+         "Water-on-tip label error kept; licking push / tongue occlusion removed."),
+        ("heatmaps/spout_enl_by_position_delta.png", "Spout tip, no-lick ENL, change vs own pre (control)", ""),
     ]),
     ("Jaw lateral readout (whole sessions)", [
         ("jaw_lateral/timecourse.png", "Jaw steering toward the target, day by day",
