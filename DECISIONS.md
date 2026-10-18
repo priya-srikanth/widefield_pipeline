@@ -20241,3 +20241,34 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   is behaviour, not a control (head / snout posture can change after a stroke): +3-5 px acute and +3-4 px chronic under
   the August baseline is a candidate postural change. This corrects the earlier text that called the nose shift the
   drift floor.
+
+## 2026-10-18 (evening) — cam4: June sessions are on a 12.9 % larger camera scale; rescaled from the spout ruler (run v36)
+
+- **Found** while explaining the spout's W2 (Priya: "spouts should by definition be in the same positions"). The six
+  spout positions are a fixed physical ruler. Their mean pairwise spacing, measured over NO-LICK ENL frames (strobe +
+  300 ms .. cue, raw tongue not detected, spout likelihood >= 0.9; `spout_frame.ruler_medians` / `ruler_spacing`), is:
+  - June 0602-0608: 12.9 % larger, identically in all four animals (scale 0.877-0.900);
+  - 0806 onward: 87.44 +- 0.69 px over 107 sessions (scale 0.98-1.03).
+  So one camera configuration changed between June and August. Nose-to-mouth (1.19-1.32x) and jaw opening are also
+  larger in June. It affects LP pixel measures only; widefield imaging is untouched.
+- **Consequence:** the June -> August "pre drift" in pixel measures (protrusion -14 to -36 px, peak speed -550 to -1,140
+  px/s) is largely this scale (13 % of 150-250 px = 20-30 px), not learning. Angles, timing, contact and lick counts
+  are scale-free and stand. Under the all-pre baseline, px effects mixed June scale into the "change"; the August-only
+  baseline was never affected.
+- **Fix (Priya: "only scale the june sessions"):** raw pose x, y of sessions before 2026-08-01 are multiplied by ONE
+  factor, 0.8853 (the median over curated June sessions; per animal 0.8828-0.8869), before cleaning, so every px
+  threshold runs in Aug+ units. Aug+ is the reference and untouched. A per-session ruler there could be biased by water
+  accumulating on an untouched spout. `orofacial_camera` in defaults.yaml (in the params digest) -> CLEANING_VERSION
+  v36, a new run `lp_r4_heatmap_20261013__clean_v36`. v35 is kept. `clean.npz` and the manifest record `px_scale`
+  (divide the pose by it to draw on the raw video).
+- **Spout motion inside the analysis windows was checked:** the spout moves only after the DAQ trial stop (within 100 ms
+  of the stop it is ~4.6 px off; by 200 ms it is 40+ px away). Licking pushes it 2-5 px (1-6 % of frames >5 px; not
+  label swaps). In a few sessions it was moved / knocked mid-trial (PS92_0606 14 % of trials, PS94_0818 9 %,
+  PS92_1002 7 %; most sessions 0-1 %). W2 and the heatmaps now drop those trials (`orofacial_heatmaps.spout_moving_trials`:
+  > 2 % of window frames > 15 px from the trial's no-lick ENL spout position).
+- **Spout W2 is therefore:** finite-sample floor + licking push + small real placement differences (e.g. PS92 chronic
+  ~4 px residual after rotation / scale) + (all-pre only) the June scale.
+- **Heatmaps (new, `orofacial_heatmaps`):** stroke_orofacial's tone-aligned proportion / proportion-diff maps, cue -500 ms
+  .. trial stop, engaged trials, mouth / spout frame (rotated onto the spout axis), camera orientation (tongue down).
+  P = frames in bin / all window frames (their Q17). The delta pre column is the later minus the earlier half of pre
+  sessions (a leave-one-out pre delta averages to exactly zero). Contour = every animal agrees in sign.

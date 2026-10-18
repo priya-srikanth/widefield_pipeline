@@ -36,6 +36,11 @@ re-run; this file is not regenerated.
 
 ## Why two baselines: the pre period itself drifts
 
+> **2026-10-18 evening: June camera scale.** June sessions are on a 12.9 % larger camera scale (spout ruler; DECISIONS).
+> The pixel rows of the table below (protrusion, speed) are mostly that scale, not learning. Run v36 rescales June
+> (x 0.8853); this file will be re-checked against v36. Until then, px results under the all-pre baseline are
+> superseded; angles, timing, contact, counts and every August-only result stand.
+
 Between June and August, before the stroke, all four animals changed a lot:
 
 | June → August pre | change |
