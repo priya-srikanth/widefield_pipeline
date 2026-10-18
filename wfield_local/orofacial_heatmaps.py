@@ -64,6 +64,10 @@ EXTENT.update({k: EXTENT[k[:-4]] for k in ENL_KPS})
 RETRACT_PX = 30.0
 RETRACT_RUN = 3
 LOG_VMIN = 1e-5
+#: agreement contour (DESCRIPTIVE, not a test): every animal's smoothed delta has the cohort sign AND
+#: |cohort delta| >= AGREE_FRAC x its 99th percentile; drawn only with >= AGREE_MIN_ANIMALS animals
+AGREE_FRAC = 0.1
+AGREE_MIN_ANIMALS = 3
 SMOOTH_BINS = 1.0                  # Gaussian sigma (bins) for DELTA maps and the agreement mask only
 
 
@@ -245,8 +249,8 @@ def cohort_maps(D: pd.DataFrame) -> dict:
         if per_animal:
             S = np.array([sm(x) for x in per_animal])
             delta = S.mean(0)
-            big = np.abs(delta) >= 0.1 * np.nanpercentile(np.abs(delta), 99)    # ignore near-zero bins
-            agree = (np.sign(S) == np.sign(delta)).all(0) & big if len(S) >= 3 else None
+            big = np.abs(delta) >= AGREE_FRAC * np.nanpercentile(np.abs(delta), 99)    # ignore near-zero bins
+            agree = (np.sign(S) == np.sign(delta)).all(0) & big if len(S) >= AGREE_MIN_ANIMALS else None
         out[e] = {"raw": raw, "delta": delta, "agree": agree, "n_sess": len(g), "n_anim": g.animal.nunique(),
                   "n_delta_anim": len(per_animal)}
     if "pre" in out:                                   # no-data mask: nothing in either the epoch or the pre map
