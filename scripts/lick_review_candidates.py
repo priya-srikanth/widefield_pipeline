@@ -9,6 +9,10 @@ Why: the models differ most on no-contact licks (incomplete licks matter most po
 says whether a no-contact detection is a real incomplete lick or a false one. Candidates = the union over models
 (detections within 40 ms in a trial are one candidate), sampled per session balanced over spout positions and over
 how many models found them (1 / 2-3 / 4+), so disagreements are well represented.
+
+``--model NAME=PATH`` (2026-10-18, LP r4 vs LP r4 eps35 review on PS92 / PS94 / PS95): any models and sessions; PATH may use
+``{d}`` (the session_poses folder) and ``{s}`` (``<animal>_<date>``). With <= 3 models the sampling tiers are the exact MODEL
+SETS ("LP r4 only", "eps35 only", "both"), balanced over spout positions.
 """
 from __future__ import annotations
 
@@ -85,6 +89,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--per-session", type=int, default=40)
     ap.add_argument("--controls", type=int, default=4)
+    ap.add_argument("--model", action="append", default=None, metavar="NAME=PATH")
     a = ap.parse_args(argv)
     rv = PathResolver()
     rng = np.random.default_rng(14)
@@ -97,13 +102,21 @@ def main(argv=None) -> int:
         fr = SF.from_medians(SF.position_medians(raw[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans))
         b = TW.trial_bounds(animal, date, rv)
         st, ct = dict(zip(b.trial_id, b.stop_s - b.cue_s)), D.daq_contacts_ms(animal, date, b, rv)
-        per = {m: D.run(f, idx, fr, st, ct)[0].per_lick for m, f in models_for(d, date).items() if Path(f).exists()}
+        spec_models = ({n: Path(p.replace("{d}", str(d)).replace("{s}", f"{animal}_{date}"))
+                        for n, p in (m.split("=", 1) for m in a.model)} if a.model else models_for(d, date))
+        missing = [n for n, f in spec_models.items() if not Path(f).exists()]
+        if missing:
+            print(f"{animal} {date}: missing predictions for {missing}")
+        per = {m: D.run(f, idx, fr, st, ct)[0].per_lick for m, f in spec_models.items() if Path(f).exists()}
         C = cluster(per)
         C["n_models"] = C.models.map(len)
         nc = C[~C.any_contact].copy()
-        nc["tier"] = pd.cut(nc.n_models, [0, 1, 3, 99], labels=["1", "2-3", "4+"])
+        if len(per) <= 3:                                # the exact model set: "A only", "B only", "both"
+            nc["tier"] = nc.models.map("|".join)
+        else:
+            nc["tier"] = pd.cut(nc.n_models, [0, 1, 3, 99], labels=["1", "2-3", "4+"])
         picks = []
-        per_cell = max(1, a.per_session // (3 * 6))
+        per_cell = max(1, a.per_session // (max(nc.tier.nunique(), 1) * 6))
         for (_t, _p), g in nc.groupby(["tier", "position"], observed=True):
             picks += list(g.sample(min(len(g), per_cell), random_state=int(rng.integers(1e9))).index)
         rest = nc.drop(picks)
