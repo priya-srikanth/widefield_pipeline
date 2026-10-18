@@ -10,12 +10,10 @@ change. Here, per session x spout position x keypoint:
   points   every tracked frame of every ENGAGED trial (the cohort's reference-position gate), cue + 70 ms .. DAQ trial
            stop. tongue = CLEANED tip in the mouth frame, tongue OUT only (>= 20 px; in-mouth frames would put a
            lick-rate-dependent mass at the origin); jaw = CLEANED jaw (rest-relative); nose, spout = pose (likelihood
-           >= 0.6) in the SAME MOUTH FRAME (minus the session's `tongue_origin`) -- the CONTROLS: the spout is a fixed
-           apparatus point per position and the nose sits on the head, so either moving in the mouth frame says the
-           frame the tongue is measured in drifted, not the tongue. nose_img / spout_img = the same in raw IMAGE pixels:
-           a FRAMING-drift readout only. Measured 10-18: in image pixels pre sessions differ from each other by 35-60 px
-           (June vs August framing / head position), more than post sessions differ from pre -- raw image positions are
-           unusable for this, which is why everything else is in the mouth frame.
+           >= 0.6) in the SAME MOUTH FRAME (minus the session's `tongue_origin`). Everything is in the mouth frame
+           (Priya 10-18). The SPOUT is the noise / drift CONTROL (a fixed apparatus point per position: it should not
+           move relative to the mouth). The NOSE is BEHAVIOUR, not a control -- head / snout posture can change after
+           the stroke. (Raw image-pixel positions were tried and dropped: camera framing drifts 25-60 px across months.)
   W2       exact W2 between equal-size subsamples (N points each, `linear_sum_assignment` on squared distances),
            averaged over `draws` seeded draws; the reference is the animal's pooled PRE-stroke points at the position
            (a pre session is compared with the OTHER pre sessions: leave-one-out = the noise floor, same N).
@@ -35,7 +33,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-KEYPOINTS = ("tongue", "jaw", "nose", "spout", "nose_img", "spout_img")
+KEYPOINTS = ("tongue", "jaw", "nose", "spout")      # ALL in the mouth frame (Priya 10-18)
 LIK_MIN = 0.6
 TONGUE_OUT_PX = 20.0
 MIN_POINTS = 100
@@ -62,8 +60,7 @@ def _points(sd: Path, animal: str, date: str, keep: set | None) -> dict:
     for kp in ("nose", "spout"):
         x, y = pose[f"{kp}_x"].to_numpy(float), pose[f"{kp}_y"].to_numpy(float)
         ok = pose[f"{kp}_likelihood"].to_numpy(float) >= LIK_MIN
-        xy[kp] = (x - o[0], y - o[1], ok)                                   # mouth frame (the control)
-        xy[f"{kp}_img"] = (x, y, ok)                                          # image pixels (framing drift)
+        xy[kp] = (x - o[0], y - o[1], ok)                                   # mouth frame
     out = {}
     for kp, (x, y, ok) in xy.items():
         m = win & ok & np.isfinite(x) & np.isfinite(y)

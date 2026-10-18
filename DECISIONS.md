@@ -20235,3 +20235,9 @@ Priya: "add back in PS92 0812 in all widefield analyses -- re-do whatever we nee
   without PS93; all acute far-contra headline effects hold; the PS93-sensitive cells are mostly chronic (far-ipsi
   protrusion, far licks/trial, far-ipsi lick duration). PS93's acute changes are the same sign but smaller (less room
   to get worse), so it dilutes rather than drives the effects. Kept for n = 4 (rule 8); never pooled for levels.
+* **W2: mouth frame only; spout = the control, nose = behaviour (10-18, Priya)**: the image-pixel nose / spout rows are
+  dropped from W2 (they measured camera framing, drifting 25-60 px over months). Every keypoint is in the mouth frame.
+  The SPOUT is the noise / drift control (fixed apparatus; chronic +1-3 px, bootstrap-only -> ~2-3 px floor). The NOSE
+  is behaviour, not a control (head / snout posture can change after a stroke): +3-5 px acute and +3-4 px chronic under
+  the August baseline is a candidate postural change. This corrects the earlier text that called the nose shift the
+  drift floor.

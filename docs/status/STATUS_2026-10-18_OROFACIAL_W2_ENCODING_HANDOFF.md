@@ -68,12 +68,13 @@ Expected `[frozen] !! ... SPEC-CHANGED` lines in the imaging log are correct. Th
 - Wasserstein-2 between each session's keypoint cloud and the animal's pooled pre cloud.
   - Exact optimal transport via scipy `linear_sum_assignment`; 800 points × 3 seeded draws.
   - Pre sessions are scored leave-one-out, which gives the noise floor.
-- Keypoints: tongue (out frames) and jaw in the mouth frame. Controls: nose and spout in the mouth frame, and in raw
-  image pixels (framing).
+- Keypoints, ALL in the mouth frame (Priya 10-18): tongue (out frames), jaw, nose (behaviour: head / snout posture),
+  spout (the noise / drift control: fixed apparatus).
 - **Results:**
   - Tongue: +61 px at far contra acute; chronic +6-11 px under both baselines.
-  - Nose control: +3-4 px in the mouth frame, which is the drift floor.
-  - Image framing drifts about 30-45 px by chronic, so raw image positions are unusable across months.
+  - Spout control: chronic +1-3 px (bootstrap-only) -> ~2-3 px drift floor.
+  - Nose: +3-5 px acute, +3-4 px chronic (August baseline) -> candidate postural change, not drift.
+  - Raw image framing drifts 25-60 px over months; image-pixel rows were dropped.
 - Outputs: `cohort/{tables,figures}/w2{,_latepre}/`.
 
 ### C. Behaviour-pipeline fix: pre-v47 GUI-log position shift (10-17)
@@ -212,7 +213,8 @@ PYTHONPATH=. python -m scripts.model_lick_compare PS93:<d> --model "NAME=<csv>" 
   that `fan_out` results are sorted.
 - **Window-restricted R² needs a free window offset** (combined_encoding). Otherwise "alone" R² goes very negative
   and ΔR² can exceed the full R².
-- **W2 in image pixels measures framing drift** (35-60 px between pre sessions), not behaviour. Use the mouth frame.
+- **W2 must be in the mouth frame.** Image pixels measure camera framing drift (25-60 px), not behaviour. The spout is
+  the control; the nose is behaviour.
 - **Do not reuse Python's `hash()` for seeds** (it changes with PYTHONHASHSEED); use `zlib.crc32`.
 - **The ViT backbone needs `transformers==5.17.0`** with Lightning Pose 2.4.2 (README, O2 runbook).
 - **Heredocs with nested quotes broke repeatedly.** Write edit scripts with the Write tool, then run them.

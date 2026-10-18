@@ -49,9 +49,10 @@ This is learning and/or framing, not stroke. With the all-pre baseline it leaks 
 chronic results existed only because of it: close-spout contact +0.13, chronic close-ipsi protrusion −11 px, and the
 subacute speed losses. Those are dropped.
 
-**Camera framing also drifts after the stroke.** Measured by W2 in raw image pixels against the tight August reference:
-about 7-13 px pre, about 30-45 px chronic, in all four animals. In the mouth frame, the nose (a control) is displaced by
-**+3-4 px** acutely and chronically. That ~3-4 px is the floor for any chronic positional change in the mouth frame.
+**Positional drift floor.** All positions here are in the mouth frame. Its control is the spout, a fixed apparatus
+point that should not move relative to the mouth. Against the August reference, the spout's W2 is +1-3 px chronically
+(bootstrap-only), so about **2-3 px** is the floor for chronic positional claims. Raw camera framing drifts 25-60 px over
+months, which is why raw image positions are never used.
 
 ## Findings that hold under both baselines
 
@@ -110,10 +111,12 @@ about 7-13 px pre, about 30-45 px chronic, in all four animals. In the mouth fra
 - The tongue point cloud in the mouth frame moves away from the animal's own pre cloud at every position acutely: +14
   to +17 px at close spouts, +61 px at far contra.
 - Subacute: +5 to +18 px.
-- Chronic, under both baselines: +6 to +11 px at far ipsi and far contra. That is above the ~3-4 px mouth-frame drift
-  floor.
-- The jaw cloud moves acutely (up to +17 px at far contra). Its chronic shift of +3.5 to +5 px is at the drift floor, so
-  it is not counted as a chronic effect.
+- Chronic, under both baselines: +6 to +11 px at far ipsi and far contra, above the ~2-3 px spout drift floor.
+- The jaw cloud moves acutely (up to +17 px at far contra). Chronically it stays +3.5 to +5 px, slightly above the
+  floor; treat it cautiously.
+- **The nose (snout / head posture) also moves:** +3-5 px acutely at every position and +3-4 px chronically, against
+  the August baseline. The spout control does not move, so this is a candidate postural change after the stroke, not
+  drift. It is small, and only clear against the August baseline.
 
 **6. Most of the acute drop in responding was quitting.**
 - Responded fraction, all trials: 0.94 pre, 0.64 acute.
@@ -168,7 +171,7 @@ the same effect size but drop to one test, which is expected with 3 animals.
   - chronic close-ipsi protrusion;
   - subacute protrusion speeds;
   - the faster chronic retraction and earlier far-contra first lick seen only with the August baseline.
-- **Chronic jaw W2 and chronic positional shifts under about 5 px** in the mouth frame (the drift floor).
+- **Chronic positional shifts under about 3-5 px** in the mouth frame (near the spout drift floor).
 - **PS95's acute values**, which rest on a single session.
 - **Within-trial homing.** The angle did not move toward the spout over licks 1-5 in the preliminary data; not
   re-checked.
