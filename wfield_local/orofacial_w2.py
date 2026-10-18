@@ -166,6 +166,7 @@ def compute(rv, run: str, jobs: int | None, n: int, draws: int, baseline: str = 
     out, fail = parallel.fan_out(groups, _w2_group, jobs=jobs or parallel.default_jobs(), label="w2 group")
     if fail:
         raise RuntimeError(f"{len(fail)} W2 group(s) failed")
+    out = sorted(out, key=lambda r: (r[0][0][0][0]["animal"], r[0][1], r[0][2]))    # completion order -> fixed
     W = pd.DataFrame([r for _, rs in out for r in rs])
     return W.sort_values(["animal", "date", "keypoint", "position"]).reset_index(drop=True)
 

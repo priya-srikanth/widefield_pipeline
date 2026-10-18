@@ -1471,8 +1471,10 @@ def _apply_config() -> None:
     CUE_MIN_FRAMES = int(c.get("cue_min_frames_per_bin", CUE_MIN_FRAMES))
     MIN_PHASE_POINTS = int(c.get("min_phase_intervals_per_bin", MIN_PHASE_POINTS))
     WALK_MIN_LICKS = int(c.get("walk_min_licks", WALK_MIN_LICKS))
-    global LATE_PRE_FROM
+    global LATE_PRE_FROM, BASELINE
     LATE_PRE_FROM = str(c.get("late_pre_from", LATE_PRE_FROM))
+    # env var so spawned workers follow `--baseline` (options travel to workers; CLAUDE.md rule 6)
+    BASELINE = os.environ.get("OROFACIAL_BASELINE", BASELINE)
     global U_SHOW
     U_SHOW = tuple(float(x) for x in c.get("lick_phase_show", U_SHOW))
     # env var so spawned workers follow `--all-trials` (the CLI flag cannot reach a fresh interpreter otherwise)
@@ -1808,8 +1810,9 @@ def main(argv=None) -> int:
                     help="pre-stroke baseline: all curated pre sessions, or only those >= late_pre_from (August); "
                          "'late' writes *_latepre folders")
     a = ap.parse_args(argv)
-    global ENGAGED_ONLY, BASELINE
-    BASELINE = a.baseline
+    global ENGAGED_ONLY
+    os.environ["OROFACIAL_BASELINE"] = a.baseline
+    _apply_config()
     if a.all_trials:
         os.environ["OROFACIAL_ALL_TRIALS"] = "1"
         ENGAGED_ONLY = False
