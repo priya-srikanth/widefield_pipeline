@@ -93,6 +93,13 @@ GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "tas
             "licks": "instructed", "exec_angle": "instructed",
             "tongue": "instructed", "jaw": "instructed", "nose": "uninstructed", "running": "uninstructed"}
 GROUPS = ("task", "instructed", "uninstructed")
+#: VARIANT variables (Priya 10-18), never in the full model: angle_cue / angle_enl = the cue / ENL blocks modulated by
+#: each trial's TARGET (spout) angle and angle^2 (smooth angular tuning instead of 6 categories); tongue_ps = tongue
+#: protrusion + speed only (the tongue model WITHOUT x / y, which is a position proxy: the tongue goes to the spout).
+#: lick_angle_abs = lick kernel x each lick's ABSOLUTE executed angle (and angle^2): the EXECUTED competitor to the
+#: target angle -- does cortex track where the tongue went or where the spout was (they separate post-stroke, when
+#: licks aim ipsi)? Subsumes exec_angle (absolute = position mean + within-position deviation).
+EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructed", "lick_angle_abs": "instructed"}
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed")}
 POS_VARS = ("pos_enl", "pos_cue")
@@ -149,6 +156,8 @@ class Behaviour:
     reward_s: np.ndarray
     analog: dict                   # name -> (t_s, values)
     gate: str
+    target_angle: dict = None      # position -> the session's spout angle (deg, + = ipsi / image right), LP geometry
+    lick_angle: np.ndarray = None  # each lick's absolute executed peak angle (deg); NaN = not usable
 
 
 def load_behaviour(animal: str, date: str, rv) -> Behaviour:
@@ -207,7 +216,13 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
               "jaw_speed": (t_pose, np.hypot(np.gradient(jx), np.gradient(jy)) * fps),
               "nose_x": (t_pose, nx), "nose_y": (t_pose, ny), "running": (np.asarray(run_t, float),
                                                                           np.asarray(run_v, float))}
-    return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate)
+    tgt = {}
+    if "spout_angle_deg" in L:
+        for p_, g_ in L.assign(pk=pos).groupby("pk"):
+            a_ = g_.spout_angle_deg.to_numpy(float)
+            if np.isfinite(a_).any():
+                tgt[p_] = float(np.nanmedian(a_))
+    return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang)
 
 
 # =============================================================================== design
@@ -281,6 +296,27 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
     out["jaw"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("jaw_x", "jaw_y", "jaw_speed")])
     out["nose"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("nose_x", "nose_y")])
     out["running"] = _analog_cols(*B.analog["running"], ft)
+    out["tongue_ps"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_prot", "tongue_speed")])
+    if B.lick_angle is not None and np.isfinite(B.lick_angle).any():
+        la = B.lick_angle - np.nanmean(B.lick_angle)
+        la2 = la ** 2 - np.nanmean(la ** 2)
+        out["lick_angle_abs"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"], amp=la),
+                                           _event_cols(B.lick_on_s, ft, LAGS["lick"], amp=la2)])
+    if B.target_angle:                              # trial-wise target angle (centred) and its square
+        a = np.array([B.target_angle.get(p, np.nan) for p in T.pos], float)
+        ok = np.isfinite(a)
+        a = np.where(ok, a - np.nanmean(a), 0.0)
+        a2 = np.where(ok, a ** 2 - np.mean(a[ok] ** 2), 0.0)
+        for name, blk in (("angle_cue", cue_block), ("angle_enl", enl_block)):
+            cols = []
+            for amp in (a, a2):
+                X = np.zeros_like(shared["pos_cue" if name == "angle_cue" else "pos_enl"])
+                for p in pos_order:
+                    m = (T.pos.to_numpy() == p) & ok
+                    if m.any():
+                        X += float(amp[m][0]) * blk(m)
+                cols.append(X)
+            out[name] = np.hstack(cols)
     return out
 
 
@@ -427,7 +463,11 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     win["lick"] = d <= 0.2
     # raw blocks -> z -> orthogonalised (order) -> universe
     raw = {v: _z(X, ridx)[ridx] for v, X in raw_blocks(B, ft).items()}
-    perm = {v: rng.permutation(E.pos.to_numpy()) for v in POS_VARS}
+    # POSITION IS ONE VARIABLE (Priya 10-18): the spout sits in one place strobe .. stop, so ONE relabelling is applied
+    # to both periods (pos_enl / pos_cue are its pre- and post-cue regressors; `shuf:position` / `drop:position` test
+    # it whole, the per-period models are the temporal breakdown).
+    _p = rng.permutation(E.pos.to_numpy())
+    perm = {v: _p for v in POS_VARS}
     full_perm = T.pos.to_numpy().copy()
     eng_idx = np.flatnonzero(T.engaged.to_numpy() & np.isfinite(T.cue_s.to_numpy()))
     rawp = {}
@@ -451,22 +491,22 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     # to a random set of engaged trials of the same size (the rest keep their labels in proportion) -> what is specific
     # to p is removed; variance-based, so positions are not forced to trade off against each other.
     for pp in sorted(set(full_perm[eng_idx])):
+        lab = full_perm.copy()                          # ONE relabelling for both periods
+        sub = full_perm[eng_idx].copy()
+        isp = sub == pp
+        others = sub[~isp]
+        new = np.empty_like(sub)
+        pick = rng.permutation(len(sub))[: int(isp.sum())]
+        new[pick] = pp
+        rest = np.setdiff1d(np.arange(len(sub)), pick)
+        new[rest] = others[rng.permutation(len(others))]
+        lab[eng_idx] = new
         for v in POS_VARS:
-            lab = full_perm.copy()
-            sub = full_perm[eng_idx].copy()
-            isp = sub == pp
-            others = sub[~isp]
-            new = np.empty_like(sub)
-            pick = rng.permutation(len(sub))[: int(isp.sum())]
-            new[pick] = pp
-            rest = np.setdiff1d(np.arange(len(sub)), pick)
-            new[rest] = others[rng.permutation(len(others))]
-            lab[eng_idx] = new
             rawc[(f"shufpos-{pp}", v)] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]
     for kind, key in (("shufside", lambda x: x.split("_")[0]), ("shufdist", lambda x: x.split("_", 1)[1])):
+        lab = full_perm.copy()                          # ONE relabelling for both periods
+        lab[eng_idx] = _perm_within(full_perm[eng_idx], key)
         for v in POS_VARS:
-            lab = full_perm.copy()
-            lab[eng_idx] = _perm_within(full_perm[eng_idx], key)
             rawc[(kind, v)] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]
     seq = ORDERS[order]
     orth, earlier = {}, None
@@ -509,12 +549,15 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             add(("raw", v), raw[v])
         else:
             layout[("raw", v)] = layout[("orth", v)]
+    for v in EXTRA_GROUP:
+        if v in raw:
+            add(("raw", v), raw[v])
     A = np.hstack(blocks)
     Y = V[ridx]
     eng = Engine(A, Y, fold, win)
     grp_of_col = np.empty(A.shape[1], object)
     for (_kind, v), ix in layout.items():
-        grp_of_col[ix] = GROUP_OF[v]
+        grp_of_col[ix] = {**GROUP_OF, **EXTRA_GROUP}[v]
 
     def cols(spec):
         """spec: list of (kind, var) -> universe column indices."""
@@ -547,6 +590,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         models[f"shuf:{v}"] = [("shuf", v) if w == v else ("orth", w) for w in GROUP_OF]
     for kind, v in rawc:
         models[f"{kind}:{v}"] = [(kind, v) if w == v else ("orth", w) for w in GROUP_OF]
+    for kind in sorted({k for k, _v in rawc}):          # both periods relabelled together = position as one variable
+        models[f"{kind}:position"] = [(kind, w) if w in POS_VARS else ("orth", w) for w in GROUP_OF]
+    models["shuf:position"] = [("shuf", w) if w in POS_VARS else ("orth", w) for w in GROUP_OF]
     for g in GROUPS:
         vs = [v for v in GROUP_OF if GROUP_OF[v] == g]
         models[f"alone:{g}"] = [("raw", v) for v in vs]
@@ -564,6 +610,23 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         models[f"drop:{v}"] = [("raw", w) for w in GROUP_OF if w != v]
     for g in GROUPS:
         models[f"drop:{g}"] = [("raw", w) for w in GROUP_OF if GROUP_OF[w] != g]
+    models["drop:position"] = [("raw", w) for w in GROUP_OF if w not in POS_VARS]
+    # VARIANTS (order-free, raw columns like the drop models)
+    models["raw:full"] = [("raw", w) for w in GROUP_OF]
+    if ("raw", "angle_cue") in layout:
+        for pv, av in (("pos_cue", "angle_cue"), ("pos_enl", "angle_enl")):
+            models[f"angle:{pv}"] = [("raw", w) for w in GROUP_OF if w != pv] + [("raw", av)]
+    notxy = [("raw", w) for w in GROUP_OF if w != "tongue"] + [("raw", "tongue_ps")]
+    models["notxy:full"] = notxy
+    for pv in POS_VARS:
+        models[f"notxy:drop:{pv}"] = [x for x in notxy if x != ("raw", pv)]
+    models["notxy:drop:position"] = [x for x in notxy if x[1] not in POS_VARS]
+    if ("raw", "angle_cue") in layout:
+        models["angle:position"] = ([("raw", w) for w in GROUP_OF if w not in POS_VARS]
+                                    + [("raw", "angle_cue"), ("raw", "angle_enl")])
+    if ("raw", "lick_angle_abs") in layout:               # position replaced by WHERE EACH LICK WENT (executed)
+        models["lickangle:position"] = ([("raw", w) for w in GROUP_OF if w not in POS_VARS and w != "exec_angle"]
+                                        + [("raw", "lick_angle_abs")])
 
     # PER-MODEL PENALTIES (2026-10-18 fix): every reduced model gets its own ridge penalty per group present (one
     # coordinate pass over ALPHA_GRID from the full model's values, same held-out criterion). Borrowing the full
@@ -665,7 +728,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     tr_models = ["full", "alone:task", "alone:instructed", "alone:uninstructed",
                  "shuf:task", "shuf:instructed", "shuf:uninstructed", "shuf:pos_enl", "shuf:pos_cue",
                  "shuf:exec_angle", "drop:task", "drop:instructed", "drop:uninstructed", "drop:pos_cue",
-                 "drop:exec_angle", "shufside:pos_cue", "shufdist:pos_cue", "shufside:pos_enl", "shufdist:pos_enl"]
+                 "drop:exec_angle", "shuf:position", "drop:position", "shufside:position", "shufdist:position"]
     Rd = Y.astype(np.float64) @ Ra
     sse = np.zeros((len(tr_models), Ra.shape[1], len(off)))
     sst = np.zeros((Ra.shape[1], len(off)))
@@ -685,6 +748,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             m = fold == k
             pred[m] = (Am[m] @ bk[1:] + bk[0]) @ Ra
         sse[mi] = np.nansum(np.where(okm[..., None], (Rd[idc] - pred[idc]) ** 2, np.nan), 0).T
+    res["target_angle"] = B.target_angle
     res.update({"tr_models": tr_models, "pos_order": pos_order, "peth_parts": list(comp), "model_alphas": model_alphas,
                 "areas": [names.get(a, str(a)) for a in areas] + ["cortex"]})
     del mu_t
