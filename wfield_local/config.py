@@ -213,7 +213,10 @@ def curated_dates(machine: str | None = None, phase: str = "pre") -> list[str]:
     exclude = set(date_policy().get("cross_session_exclude", []))
     registered = sorted({s["label"].split("_")[1] for s in load_sessions(machine)})
     dates = [d for d in registered if d not in exclude]
+    pf = pre_from()
     cut = stroke_cutoff()
+    if pf:                                    # opt-in late-baseline mode: drop the early pre dates everywhere
+        dates = [d for d in dates if d >= pf or (cut is not None and d > cut)]
     if cut is None:                       # whole cohort still pre-stroke: unchanged behaviour
         return dates
     if phase == "all":
@@ -306,6 +309,20 @@ def animal_excluded_dates(animal: str) -> set[str]:
     return {str(d)[4:] if len(str(d)) == 8 else str(d) for d in v}
 
 
+def pre_from() -> str | None:
+    """MMDD from ``WIDEFIELD_PRE_FROM``: an OPT-IN late-baseline sensitivity mode (Priya 2026-10-18).
+
+    Unset (the default) changes nothing. Set (e.g. ``0801``), every pre-stroke session dated before it is
+    ``'excluded'`` -- out of every pooled set, frozen-model training set and epoch pool, and not scored as post
+    either. Why: behaviour shows the animals were still learning in June (close-spout contact 0.5 -> 0.97 June ->
+    August; lick kinematics changed as much as many stroke effects), so a June + August baseline can mix learning
+    / drift into post-stroke changes. A new training set gets a new frozen-model spec_id (rule 10: the canonical
+    models are untouched). `epoch_audit.full_cohort` SUSPENDS it: epoch boundaries are derived from the full pre
+    set and must never move. Always write the outputs of such a run to separate (``*_latepre``) directories."""
+    v = os.environ.get("WIDEFIELD_PRE_FROM", "").strip()
+    return v or None
+
+
 def session_phase(animal: str, date: str) -> str:
     """'pre' | 'post' | 'excluded' for one animal on one date (MMDD).
 
@@ -317,9 +334,11 @@ def session_phase(animal: str, date: str) -> str:
     if date in animal_excluded_dates(animal):
         return "excluded"
     sd = stroke_date(animal)
-    if sd is None:
-        return "pre"
-    return "pre" if date <= sd else "post"
+    ph = "pre" if sd is None or date <= sd else "post"
+    pf = pre_from()
+    if ph == "pre" and pf and date < pf:       # opt-in late-baseline mode (WIDEFIELD_PRE_FROM)
+        return "excluded"
+    return ph
 
 
 def phase_labels(phase: str = "pre", machine: str | None = None) -> list[str]:

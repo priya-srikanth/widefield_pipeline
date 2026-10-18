@@ -98,7 +98,9 @@ def load_far_position_tables(rv=None, position=None):
 
 #: The analysis-scoping env vars `nightly_figs --only` exports for its subprocesses
 #: (`config._filter_set`). The epoch derivation must never see them -- see `full_cohort`.
-SUBSET_ENV = ("WIDEFIELD_ONLY_ANIMALS", "WIDEFIELD_ONLY_DATES")
+SUBSET_ENV = ("WIDEFIELD_ONLY_ANIMALS", "WIDEFIELD_ONLY_DATES",
+              # the late-baseline sensitivity mode (config.pre_from): boundaries come from the FULL pre set
+              "WIDEFIELD_PRE_FROM")
 
 
 @contextlib.contextmanager
