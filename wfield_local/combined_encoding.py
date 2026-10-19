@@ -527,15 +527,48 @@ def _diag_quad(U, C, chunk=50000):
 # =============================================================================== one session
 
 
-def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dict:
+def session_inputs(label: str, cams=None) -> dict:
+    """Everything `run_session` reads from the share, for one session (O2 bundles, `scripts/o2_encoding.py`):
+    imaging (load_imaging tuple), behaviour (Behaviour), epoch / day, and -- if `cams` -- the video motion-energy
+    matrix (blanked outside strobe .. stop, as `video_signals`) with its column names, or None if absent."""
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
     rv = PathResolver()
+    animal, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    imaging = load_imaging(label)
+    out = {"label": label, "imaging": imaging, "behaviour": load_behaviour(animal, date, rv),
+           "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label), "video": None}
+    if cams:
+        from scripts.movement_encoding_session import video_signals
+        try:
+            sig = video_signals(animal, date, rv, imaging[1], list(cams), k=VIDEO_K)
+        except FileNotFoundError:
+            sig = {}
+        if sig:
+            names_ = sorted(sig)
+            out["video"] = {"cams": list(cams), "names": names_,
+                            "X": np.column_stack([sig[k_][1] for k_ in names_]).astype(np.float32)}
+    return out
+
+
+def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs: dict | None = None) -> dict:
+    """``inputs`` (from `session_inputs`) = run without touching the share (O2); None = load everything here."""
+    from wfield_local import config
     animal = config.animal_of(label)
     date = "2026" + label.split("_")[-1]
     rng = np.random.default_rng(seed)
-    V, ft, Ub, flat, parea, names, shape, pstat = load_imaging(label)
-    B = load_behaviour(animal, date, rv)
+    if inputs is None:
+        from wfield_local import epochs
+        from wfield_local.paths import PathResolver
+        rv = PathResolver()
+        V, ft, Ub, flat, parea, names, shape, pstat = load_imaging(label)
+        B = load_behaviour(animal, date, rv)
+        epoch_, day_ = epochs.epoch_of(label), epochs.days_since_stroke(label)
+    else:
+        rv = None
+        V, ft, Ub, flat, parea, names, shape, pstat = inputs["imaging"]
+        B = inputs["behaviour"]
+        epoch_, day_ = inputs["epoch"], inputs["day"]
     T = B.trials
     E = T[T.engaged & np.isfinite(T.cue_s)].reset_index(drop=True)
     st = np.where(np.isfinite(E.strobe_s), E.strobe_s, E.cue_s - 3.0)
@@ -625,18 +658,24 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     # VIDEO (optional, see VIDEO_ENV)
     vid_raw = vid_orth = None
     cams = [c for c in (os.environ.get(VIDEO_ENV) or "").split(",") if c]
-    if cams:
+    if cams and inputs is not None:
+        vi = inputs.get("video")
+        sig = ({n_: None for n_ in vi["names"]} if vi and set(cams) <= set(vi["cams"]) else {})
+    elif cams:
         from scripts.movement_encoding_session import video_signals
         try:
             sig = video_signals(animal, date, rv, ft, cams, k=VIDEO_K)
         except FileNotFoundError:
             sig = {}
-        if sig:
-            Xv = np.column_stack([sig[k_][1] for k_ in sorted(sig)])
-            vid_raw = _z(Xv, ridx)[ridx]                        # blanked (NaN) frames -> 0
-            blank = ~np.isfinite(Xv[ridx]).any(1)
-            vid_orth = _residualise(vid_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
-            vid_orth[blank] = 0.0                               # residualising must not put signal back into blanked frames
+    else:
+        sig = {}
+    if sig:
+        Xv = (inputs["video"]["X"].astype(np.float64) if inputs is not None
+              else np.column_stack([sig[k_][1] for k_ in sorted(sig)]))
+        vid_raw = _z(Xv, ridx)[ridx]                            # blanked (NaN) frames -> 0
+        blank = ~np.isfinite(Xv[ridx]).any(1)
+        vid_orth = _residualise(vid_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
+        vid_orth[blank] = 0.0                                   # residualising must not put signal back into blanked frames
     # shuffled orthogonalised blocks
     shift_min = int(SHIFT_MIN_S / np.median(np.diff(ft)))
     shuf = {}
@@ -852,8 +891,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         model_alphas[name] = al
     # evaluate: per model x window -> pixel SSE (as e), shared total t per window
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
-    res = {"label": label, "animal": animal, "date": date, "epoch": epochs.epoch_of(label),
-           "day": epochs.days_since_stroke(label), "order": order, "alphas": alphas, "gate": B.gate,
+    res = {"label": label, "animal": animal, "date": date, "epoch": epoch_,
+           "day": day_, "order": order, "alphas": alphas, "gate": B.gate,
            "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft))),
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
