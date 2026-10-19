@@ -1,6 +1,6 @@
 """Held-out JAW fill error vs gap length (Priya 10-19: is 24 ms -- set for the fast tongue -- right for the slow jaw?).
 
-    python -m scripts.pose3d_jaw_gap_test      # dlc env
+    python -m scripts.pose3d_jaw_gap_check      # dlc env
 
 PS92 0807 + 0818: hide one camera on both-camera jaw frames in blocks of 24 / 48 / 100 / 200 ms, fill with no gap limit
 (Akima, 3 mm ray gate), compare to the truth; plus how many real one-camera jaw frames each limit would cover.

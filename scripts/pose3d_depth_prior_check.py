@@ -1,6 +1,6 @@
 """Held-out test of DEPTH PRIORS for cam1-ONLY tongue points (PS92; Priya 10-19: small licks cam4 never sees).
 
-    python -m scripts.pose3d_depth_prior_test      # dlc env (aniposelib), ~20 min
+    python -m scripts.pose3d_depth_prior_check      # dlc env (aniposelib), ~20 min
 
 Truth = both-camera 3-D (PnP, edge offsets, QC); cam4 hidden. q = X . U = depth along cam1's ray measured from the mouth
 zero's foot point on that ray. (a) q = 0: the point on cam1's ray closest to the mouth zero (no data); (b) q learned from

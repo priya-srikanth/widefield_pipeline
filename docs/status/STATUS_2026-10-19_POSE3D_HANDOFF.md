@@ -13,7 +13,7 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 2. **Background jobs that were running locally at hand-off** (§3): read their outputs; if the session is gone, re-run them
    with the commands given there.
 3. **Not yet run**: the jaw cross-check (`scripts/pose3d_jaw_crosscheck.py`, after the chain), the depth-prior test
-   (`scripts/pose3d_depth_prior_test.py`), and — whatever the jaw gap test says — set the jaw's fill limit (§7).
+   (`scripts/pose3d_depth_prior_check.py`), and — whatever the jaw gap test says — set the jaw's fill limit (§7).
 4. When all four animals are in: cohort tables (per-animal first, then `analysis_kit.boot_delta`), §7 item 6.
 
 ## 1. What was done (10-19)
@@ -57,7 +57,7 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 |---|---|---|---|
 | O2 array **56830841** (cam1 production) | Priya, 10-19 ~07:40; pending tasks opened to any GPU, 16 h (`scontrol update ... Gres=gpu:1 TimeLimit=16:00:00`); V100 nodes excluded | scratch `o2/lp_cam1_ctx_prod_20261019/out/` | §5 |
 | LOCAL chain (3-D for all copied sessions with the 3 mm fill gate → kinematics (both lick sets) → spout error → summary fig → phase / speed figs → `pose3d_vs_cam4`) | background task `b4npluehh` | `session_poses/pose3d/` | §6 (all of it) |
-| LOCAL jaw gap test, then the jaw + tongue paired videos (0807, 0818) | background `bvrlb6zlo` | stdout; `pose3d/figures/lick_paired_*_cam4view.mp4` | `python -m scripts.pose3d_jaw_gap_test` (dlc env); `python -m scripts.pose3d_figures video PS92:20260807 PS92:20260818 --view cam4` |
+| LOCAL jaw gap test, then the jaw + tongue paired videos (0807, 0818) | background `bvrlb6zlo` | stdout; `pose3d/figures/lick_paired_*_cam4view.mp4` | `python -m scripts.pose3d_jaw_gap_check` (dlc env); `python -m scripts.pose3d_figures video PS92:20260807 PS92:20260818 --view cam4` |
 
 ## 4. Results so far (preliminary: PS92 = 9 August pre + 3 acute; PS93 = trial clips only, ~10 % of licks pair)
 
@@ -115,7 +115,7 @@ Outputs under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/` (
 1. **Jaw fill limit**: read the gap test; if the error stays near the floor at 48-100 ms, give the jaw its own limit
    (`session_3d(fill_gap_ms=...)` is shared today -- add a per-part limit) and re-run.
 2. **Jaw cross-check** vs cam4 (script ready); then document in POSE_MODELS D10-D12.
-3. **Depth prior** for cam1-only small licks: run `scripts.pose3d_depth_prior_test` (dlc env, ~20 min); adopt (a) closest
+3. **Depth prior** for cam1-only small licks: run `scripts.pose3d_depth_prior_check` (dlc env, ~20 min); adopt (a) closest
    point to the mouth zero or (b) the learned prior only if the held-out error is small AND (b) does not bias acute licks
    toward pre; flag prior-based points with their own source code.
 4. **2-D vs 3-D** (`pose3d_vs_cam4`): read decoding + effect sizes; decide what is headline 3-D vs supporting.
@@ -147,3 +147,5 @@ Outputs under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/` (
 12. **Push race with the other Claude window**: a push can fail silently between rebase and push; check `git status -sb`
     shows `## main...origin/main` with nothing ahead, re-fetch / rebase / push if not. Docs-only pushes skip tests.
 13. `scripts/apparatus_mouth.py` still uses the 09-11 EXTRINSICS (method "calib"); the 3-D pipeline does not.
+14. **Never name a script `*_test.py` / `test_*.py` outside `tests/`**: pytest collects it, imports it, and a script that does
+    work at import breaks collection -- the pre-push hook then blocks the push (10-19: the depth-prior / jaw-gap scripts).
