@@ -125,7 +125,7 @@ def test_pnp_poses_each_camera_from_the_commanded_spouts_and_triangulates_in_mm(
     obj = np.array([SW.commanded_world(GEOM, p) for p in SW.POSITIONS])
     med = {c.get_name(): {p: tuple(c.project(obj)[k]) for k, p in enumerate(SW.POSITIONS)} for c in true.cameras}
     start = _Group([_Cam("cam1", [0, 0, 0], [0, 0, 100.0]), _Cam("cam4", [0, 0, 0], [0, 0, 100.0])])
-    g, err = P3.pnp_group(start, med, GEOM)
+    g, err = P3.pnp_group(start, med, GEOM, edge_offset=None)
     assert max(max(e.values()) for e in err.values()) < 1e-3
     body = np.array([[0.4, 1.9, -2.7]])                     # a tongue tip, mm
     X = g.triangulate(true.project(body), undistort=True)
@@ -148,3 +148,17 @@ def test_single_view_frames_are_filled_on_the_seen_ray_with_depth_from_neighbour
     assert np.allclose(F, truth, atol=1e-3)
     _, src2 = P3.fill_single_view(X, a, b, g, np.ones(7, int), t, max_gap_ms=2.0)   # no neighbour close enough
     assert list(src2) == [1, 1, 0, 0, 0, 1, 1]
+
+
+def test_pnp_edge_offset_puts_each_camera_on_its_own_labelled_edge():
+    true = _Group([_Cam("cam1", [-0.8, 0.02, 0.0], [0.3, 1.0, 150.0]), _Cam("cam4", [1.5, 0.0, 0.0], [-0.2, 2.0, 160.0])])
+    off = {"cam4": (0.0, 0.0, 0.0), "cam1": (0.0, 0.0, -1.24)}
+    obj = np.array([SW.commanded_world(GEOM, p) for p in SW.POSITIONS])
+    med = {c.get_name(): {p: tuple(c.project(obj + off[c.get_name()])[k]) for k, p in enumerate(SW.POSITIONS)}
+           for c in true.cameras}                                  # each camera sees ITS edge of the rod
+    start = _Group([_Cam("cam1", [0, 0, 0], [0, 0, 100.0]), _Cam("cam4", [0, 0, 0], [0, 0, 100.0])])
+    g, _ = P3.pnp_group(start, med, GEOM, edge_offset=off)
+    body = np.array([[0.4, 1.9, -2.7]])
+    assert np.allclose(g.triangulate(true.project(body), undistort=True), body, atol=1e-3)
+    g0, _ = P3.pnp_group(start, med, GEOM, edge_offset=None)      # ignoring the edges: a constant shift appears
+    assert np.linalg.norm(g0.triangulate(true.project(body), undistort=True) - body) > 0.05

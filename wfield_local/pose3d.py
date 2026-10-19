@@ -91,7 +91,18 @@ def shift_x(flat: pd.DataFrame, dx: float) -> pd.DataFrame:
     return out
 
 
-def pnp_group(cg, med_by_cam: dict, geometry: dict):
+#: The spout ROD's diameter, measured 10-19 on parked frames (horizontal profile just behind the rounded end, edges = the
+#: strongest opposite-sign gradients, px -> mm from each camera's PnP pose): cam1 1.23-1.24 mm (IQR +-0.03), cam4 1.27-1.31
+#: (low contrast), PS92 0806 / 0807 / 0818. cam1's value is used.
+ROD_DIAMETER_MM = 1.24
+#: Where each camera's spout KEYPOINT sits relative to the commanded point (world ml, ap, dv mm). The mouth zero was set with
+#: the UPPER spout tip at the mouth (Priya 10-19: "mouth zero is relative to the upper spout tip, i.e. cam4"), and the
+#: commanded positions move that point; cam4 labels the SUPERIOR edge (= the commanded point) and cam1 the INFERIOR edge,
+#: one rod diameter below (Priya: "place cam1 and cam4 that much apart in vertical space").
+EDGE_OFFSET_MM = {"cam4": (0.0, 0.0, 0.0), "cam1": (0.0, 0.0, -ROD_DIAMETER_MM)}
+
+
+def pnp_group(cg, med_by_cam: dict, geometry: dict, edge_offset: dict | None = EDGE_OFFSET_MM):
     """A copy of ``cg`` whose cameras are POSED PER SESSION from the commanded spout positions (Priya 10-19: "use the
     ground-truth spout positions"): for each camera, cv2 SQPnP + Levenberg-Marquardt on the six parked spout medians
     (image px) against `spout_world.commanded_world` (mm, mouth set point = origin). Intrinsics + distortion stay the
@@ -100,9 +111,12 @@ def pnp_group(cg, med_by_cam: dict, geometry: dict):
     Measured 10-19 (PS92 0807 / 0818): spout reprojection 0.2-1.8 px per camera (09-11 extrinsics: 6-10), nose 0.7-3.0 px
     and jaw 1.0 px between cameras (8-10), tongue 3.5 (~10). Camera centres: cam4 ~160 mm in front, slightly above; cam1
     ~110 mm below and ~105 mm forward.
-    THE EDGE LABELS: cam1 labels the rod's INFERIOR edge, cam4 its SUPERIOR edge -- each camera's constant offset from
-    the commanded point goes into that camera's pose (the spout only translates). Their difference (~ the rod's width,
-    mostly along depth, the epipolar direction) remains as a small constant shift of every body point.
+    THE EDGE LABELS (10-19): cam1 labels the rod's INFERIOR edge, cam4 its SUPERIOR edge, and the commanded point (the
+    mouth zero) is the UPPER tip. ``edge_offset`` (default `EDGE_OFFSET_MM`) puts each camera's keypoint where it really
+    is: cam4 at the commanded point, cam1 one rod diameter below. Without it (None) each camera absorbs its own offset
+    into its pose and every body point carries a constant shift of up to ~one rod radius (mostly depth; reprojection
+    cannot see it, the cameras being below and in front) -- harmless for changes and comparisons, wrong for absolute
+    distances to the spout.
     Returns (group, {cam: per-position reprojection px})."""
     import copy
 
@@ -117,22 +131,40 @@ def pnp_group(cg, med_by_cam: dict, geometry: dict):
     err = {}
     for cam in g.cameras:
         img = np.array([med_by_cam[cam.get_name()][p][:2] for p in pos], float)
+        o = obj + np.asarray((edge_offset or {}).get(cam.get_name(), (0.0, 0.0, 0.0)), float)
         K, D = cam.get_camera_matrix(), np.asarray(cam.get_distortions(), float)
-        _, rvec, tvec = cv2.solvePnP(obj, img, K, D, flags=cv2.SOLVEPNP_SQPNP)
-        rvec, tvec = cv2.solvePnPRefineLM(obj, img, K, D, rvec, tvec)
+        _, rvec, tvec = cv2.solvePnP(o, img, K, D, flags=cv2.SOLVEPNP_SQPNP)
+        rvec, tvec = cv2.solvePnPRefineLM(o, img, K, D, rvec, tvec)
         cam.set_rotation(rvec.ravel())
         cam.set_translation(tvec.ravel())
-        pr, _ = cv2.projectPoints(obj, rvec, tvec, K, D)
+        pr, _ = cv2.projectPoints(o, rvec, tvec, K, D)
         err[cam.get_name()] = dict(zip(pos, np.linalg.norm(pr[:, 0] - img, axis=1)))
     return g, err
 
 
-def _identity_world(g, med_by_cam: dict, geometry: dict):
-    """`spout_world.SpoutWorld` for a PnP group (scale 1, identity): residuals / distance check of the triangulated spouts."""
+def _identity_world(g, med_by_cam: dict, geometry: dict, edge_offset: dict | None = EDGE_OFFSET_MM):
+    """`spout_world.SpoutWorld` for a PnP group (scale 1, identity): residuals / distance check of the triangulated spouts.
+
+    With ``edge_offset`` the two keypoints are DIFFERENT physical points (cam1 the inferior edge, one rod diameter below
+    cam4's superior edge = the commanded point), so they are triangulated with each camera's pose shifted by its offset
+    (projection of X + o == projection of X with t' = t + R o): the result is the commanded point the keypoints imply.
+    Without the shift the triangulated 'spout' is a blend of the two edges and the check fails (10-19: every session read
+    > 0.2 mm and was skipped downstream)."""
+    import copy
+
+    import cv2
+
     from wfield_local import spout_world as SW
     pos = [p for p in SW.POSITIONS if all(p in med_by_cam[c] for c in med_by_cam)]
     pts = np.stack([[np.asarray(med_by_cam[c.get_name()][p][:2], float) for p in pos] for c in g.cameras])
-    X = g.triangulate(pts, undistort=True)
+    gs = copy.deepcopy(g)
+    for cam in gs.cameras:
+        o = np.asarray((edge_offset or {}).get(cam.get_name(), (0.0, 0.0, 0.0)), float)
+        if o.any():
+            M = cam.get_extrinsics_mat()
+            cam.set_translation(M[:3, 3] + M[:3, :3] @ o)
+            cam.set_rotation(cv2.Rodrigues(M[:3, :3])[0].ravel())
+    X = gs.triangulate(pts, undistort=True)
     med = dict(zip(pos, X))
     res = {p: float(np.linalg.norm(med[p] - SW.commanded_world(geometry, p))) for p in pos}
     return SW.SpoutWorld(1.0, np.eye(3), np.zeros(3), res, SW.distance_check(med, geometry), {}, {})

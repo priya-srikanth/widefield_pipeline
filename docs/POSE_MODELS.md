@@ -910,3 +910,16 @@ position -- Priya's point; peak vs own endpoint 0.7-1.4 mm (lick-to-lick spread)
 animals (PS92 / PS93): +2.1 / +1.5, +1.7 / +0.5, +2.2 / +1.3 mm, laterally medial (-2.6 / -1.3 mm at the endpoint); acute
 endpoints sit higher than habitual (dv +0.5 to +1.8 mm; PS93 most positions, PS92 far L / R); close spouts: closest approach
 ~unchanged (still reached), endpoints shift by tenths of a mm. One animal per epoch so far (PS93 on the clip subset).
+
+**Spout edge labels built into the camera posing (10-19, Priya).** The mouth zero was set with the UPPER spout tip at the
+mouth, so the commanded point is the rod's superior edge (cam4's keypoint) and cam1's keypoint (inferior edge) sits one rod
+diameter below. Rod diameter measured on parked frames (horizontal profile behind the rounded end, PnP px -> mm): cam1
+1.23-1.24 mm (IQR +-0.03), cam4 1.27-1.31 (low contrast), PS92 0806 / 0807 / 0818 -> `pose3d.ROD_DIAMETER_MM` 1.24;
+`pose3d.EDGE_OFFSET_MM` cam4 (0, 0, 0), cam1 (0, 0, -1.24). Effect (PS92): spout fit unchanged (0.03-0.07 mm); body points move
+~0.5-0.9 mm back (toward the mouth) and 0.1-0.2 mm down relative to the spouts; errors vs the animal's own endpoint change
+<= 0.05 mm (changes / comparisons unaffected, as predicted); reprojection cannot arbitrate (the offset lies along depth: nose
+slightly better, jaw slightly worse) -- the correction rests on the rig setup + the measured rod. New pre absolute values
+(0807): closest approach to the upper tip 0.65-1.1 mm, the tip then ~0.25-1.0 mm short of it on the mouth side; peak 1.4-2.6
+mm below it. Acute far_R unchanged (miss 3.15 vs 0.97; lateral -2.98 vs -0.79). The fit check (`_identity_world`) shifts
+cam1 by its offset before triangulating the spouts (without it every session read > 0.2 mm and was skipped downstream).
+Pre-correction tables kept in `session_poses/pose3d/noedge_20261019/`.
