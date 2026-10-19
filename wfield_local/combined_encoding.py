@@ -667,12 +667,15 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         lab = full_perm.copy()                          # ONE relabelling for both periods
         sub = full_perm[eng_idx].copy()
         isp = sub == pp
-        others = sub[~isp]
-        new = np.empty_like(sub)
-        pick = rng.permutation(len(sub))[: int(isp.sum())]
-        new[pick] = pp
-        rest = np.setdiff1d(np.arange(len(sub)), pick)
-        new[rest] = others[rng.permutation(len(others))]
+        # MINIMAL SWAP (fix 2026-10-19): a random same-size set of trials gets label p; only the p-trials that lost p
+        # take the displaced labels. The earlier version re-permuted EVERY other trial's label too, so each
+        # "one-vs-rest" model destroyed nearly all position information and the six per-spout maps were identical.
+        pick = np.zeros(len(sub), bool)
+        pick[rng.permutation(len(sub))[: int(isp.sum())]] = True
+        gain, lose = pick & ~isp, isp & ~pick                 # non-p trials that become p / p trials that lose p
+        new = sub.copy()
+        new[gain] = pp
+        new[lose] = sub[gain][rng.permutation(int(gain.sum()))]
         lab[eng_idx] = new
         for v in POS_VARS:
             rawc[(f"shufpos-{pp}", v)] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]

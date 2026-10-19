@@ -20636,3 +20636,13 @@ Detail, numbers and history: `docs/POSE_MODELS.md` D10-D12; handoff `docs/status
   where the mean path crosses the midline); far_R closest approach 3.2 vs ~1 mm pre, lateral -3.0 mm; slower protrusion (far_R
   ~100 vs ~160 mm/s radial); jaw opens less and stops steering (FAR_DIR 0.26 -> 0.02 mm).
 - Combined-track licks add 3-7 % real small licks cam4 missed (47 % touched the spout).
+
+## 2026-10-19 (evening) — BUG: per-spout ("one-vs-rest", shufpos) shuffle re-permuted every trial; fixed
+
+The `shufpos-<p>` relabelling (added 10-18 for "a position signal for EACH position") gave spout p to a random same-size
+set of trials but then RANDOMLY RE-PERMUTED the labels of all remaining trials, so each "per-spout" model destroyed
+nearly all position information. Found when the first per-spout maps (`position_each_maps_*`) showed six identical rows.
+Fixed (minimal swap: only the trials that gain p and the p-trials that lose it change; label counts kept). Invalid until
+rerun: every shufpos-derived per-position number since 10-18 and the per-spout maps (renamed INVALID_shufpos_bug_*).
+Not affected: shuf:position / drop:position (all-position), shufside / shufdist (separate permutation code), nokin /
+nodir / matched / trial-to-trial results. Rerun = subset `--only shufpos-` (O2 TAG shufpos or the local chain).
