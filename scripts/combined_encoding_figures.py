@@ -304,13 +304,23 @@ def fig4_maps(meta, sess, path: Path, title: str, window: str, outline, epoch: s
     _save(fig, path)
 
 
-def fig_position_maps(meta, sess, path: Path, title: str, outline) -> None:
+def fig_position_maps(meta, sess, path: Path, title: str, outline, kind: str = "shuf") -> None:
     """Position-specific dR2 maps across recovery: pos_enl (ENL window), pos_cue (cue window), exec_angle (lick
-    window); row pairs = level and change vs pre."""
+    window); row pairs = level and change vs pre. kind 'drop' (Priya 10-19: "a Musall-style position map that gets rid
+    of all the shared code and leaves only the unique position code") = full minus a refit WITHOUT both position
+    blocks (pos_enl + pos_cue), unorthogonalised: every share position has with task timing / movement is credited to
+    nobody, so the map is position's UNIQUE code (order-free)."""
     plt = _plt()
-    rows = [("dR2:pos_enl|enl", "spout position\nENL (pre-cue 2 s)"), ("dR2:pos_cue|cue", "spout position\ncue 0-1 s"),
-            ("dR2:pos_cue|lick", "spout position\naround licks"),
-            ("dR2:exec_angle|lick", "EXECUTED angle\n(within position), licks")]
+    if kind == "drop":
+        rows = [("dR2drop:position|enl", "spout position\nENL (pre-cue 2 s)"),
+                ("dR2drop:position|cue", "spout position\ncue 0-1 s"),
+                ("dR2drop:position|lick", "spout position\naround licks"),
+                ("dR2drop:exec_angle|lick", "EXECUTED angle\n(within position), licks")]
+    else:
+        rows = [("dR2:pos_enl|enl", "spout position\nENL (pre-cue 2 s)"),
+                ("dR2:pos_cue|cue", "spout position\ncue 0-1 s"),
+                ("dR2:pos_cue|lick", "spout position\naround licks"),
+                ("dR2:exec_angle|lick", "EXECUTED angle\n(within position), licks")]
     keys = [k for k, _ in rows]
     C = cohort_maps(meta, sess, keys)
     eps = [e for e in EPOCHS if e in C]
@@ -330,10 +340,17 @@ def fig_position_maps(meta, sess, path: Path, title: str, outline) -> None:
             fig.colorbar(im2, ax=list(axs[i][len(eps):]), shrink=0.85, pad=0.01)
         axs[i][0].text(-0.08, 0.5, lab, transform=axs[i][0].transAxes, rotation=90, va="center", ha="right",
                        ma="center", fontsize=10.5)
-    _title(fig, title, "Position-specific unique $\\Delta$R$^2$ maps across recovery (left: level; right: change vs "
-                 "pre). Position = label permutation (only position SPECIFICITY removed; shared arrival / cue response "
-                 "kept); movement-first -> what movement cannot explain. Executed angle = lick kernel x the lick's "
-                 "within-position angle deviation")
+    if kind == "drop":
+        note = ("UNIQUE (drop) $\\Delta$R$^2$: full minus a refit without the variable (both position blocks for "
+                "position), unorthogonalised -> every share with task timing (cue / arrival kernels) or movement is "
+                "credited to NOBODY. Left: level; right: change vs pre. Left hemisphere = image left = IPSILESIONAL. "
+                "Executed angle = lick kernel x the lick's within-position angle deviation")
+    else:
+        note = ("Position-specific unique $\\Delta$R$^2$ maps across recovery (left: level; right: change vs "
+                "pre). Position = label permutation (only position SPECIFICITY removed; shared arrival / cue response "
+                "kept); movement-first -> what movement cannot explain. Executed angle = lick kernel x the lick's "
+                "within-position angle deviation")
+    _title(fig, title, note)
     _save(fig, path)
 
 
@@ -818,6 +835,7 @@ def main(argv=None) -> int:
     for w in ("all", "enl", "cue", "lick"):
         fig4_maps(meta, sess, figs / f"fig4_maps_pre_{w}.png", title, w, outline)
     fig_position_maps(meta, sess, figs / "position_dR2_maps_by_epoch.png", title, outline)
+    fig_position_maps(meta, sess, figs / "position_dR2drop_maps_by_epoch.png", title, outline, kind="drop")
     fig_dR2_by_epoch(Wd, ST, figs / "dR2_by_epoch_cortex.png", title)
     for ar in ("MOs", "SSp-m"):
         fig_dR2_by_epoch(Wd, ST, figs / f"dR2_by_epoch_{ar}.png", title, area=ar)
