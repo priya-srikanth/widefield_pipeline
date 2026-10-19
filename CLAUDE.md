@@ -356,8 +356,14 @@ retrain (O2 jobs running), cam1 scoring / cleaned clips, the cam1 mouth = L/R sp
 apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + copy-back commands, pitfalls. Register:
 `docs/POSE_MODELS.md` (Parts B-D).
 
+**[`docs/status/STATUS_2026-10-19_ENCODING_O2_HANDOFF.md`](docs/status/STATUS_2026-10-19_ENCODING_O2_HANDOFF.md)**
+— **START HERE for the encoding model, newest.** Target vs executed (fair redesign: nodir / nokin bases), slow-drift
+removal inside the model, credit rules vs Musall (lead with drop dR2; `--order musall`), two-band correction NOT adopted,
+the slow band carries part of the pre-cue decode, misdirected-lick feasibility, the O2 path (`scripts/o2_encoding.py`),
+running jobs, to-dos, pitfalls.
+
 **[`docs/status/STATUS_2026-10-18_EVENING_V36_BASELINE_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-18_EVENING_V36_BASELINE_ENCODING_HANDOFF.md)**
-— **START HERE, newest.** LP run v36 (June rescaled; v35 superseded), AUGUST-ONLY baseline primary for orofacial + encoding
+— superseded for the encoding model by 10-19; still the reference for LP run v36 (June rescaled; v35 superseded), AUGUST-ONLY baseline primary for orofacial + encoding
 (imaging keeps its default; August-only imaging run confirms), encoding-model redesign (first all-session run invalid),
 imaging map families + O2 video motion-energy pilot in flight, to-dos and pitfalls.
 
