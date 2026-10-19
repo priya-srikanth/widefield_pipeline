@@ -8,7 +8,26 @@ Analysis desktop; M: = MICROSCOPE.
 
 ## 0. RESUME CHECKLIST
 
-**UPDATE 2026-10-18 evening (supersedes the table below where they differ):**
+**UPDATE 2026-10-19 (supersedes everything below where they differ):**
+* DECIDED: cam4 production stays LP r4 (DECISIONS 2026-10-19; eps35 and ViT-B not adopted). cam1 production model = **LP
+  ctx-semi** (`mhcrnn_semi_640_b4`; POSE_MODELS Part B: most faint licks after cleaning, no emergence lag; plain LP c1r2 lags
+  the emerging tip, eps40 loses acute faint licks). No new cam1 labelling round now (targeted round kept as a known fix:
+  water drops, part-out tongue, faint licks cam1 misses). cam1 cleaning: max gap 24 ms, veto off (D8). Nose: blank at the
+  centre positions by design (rod occludes it).
+* RUNNING on O2: cam1 production `o2/lp_cam1_ctx_prod_20261019` (137 cam1 videos, `o2_inference bundle --kind lp --cam cam1`),
+  smoke job + array (afterok), submitted ~07:40 10-19; all videos were already on scratch. Next: smoke log fps -> run time;
+  copy back with COMMANDS.md step 5; `python -m wfield_local.o2_inference collect --name lp_cam1_ctx_prod_20261019 --compare
+  PS93:20260814=M:/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/lp_train_cam1_r2_20261018/models/mhcrnn_semi_640_b4/video_preds/PS93_20260814_cam1.csv`
+  -> `session_poses/<a>_<d>_cam1_full/`. Then: per-session 3-D spouts + apparatus mouth from both cameras (D5; June cam4
+  scaled about the principal point; check cam1's principal point (200, 200) in a 600 x 600 image first), cam1 per-session
+  outputs (cleaned traces + cam4-timed lateral landing).
+* Local GPU free (LP review inference stopped 10-19; an orphaned queue loop from the previous session had kept running --
+  pitfall 17).
+* 17. **Background loops survive a session restart even when reported "stopped"**: after a restart, find leftover queue
+  loops by command line (e.g. `Get-CimInstance Win32_Process` filtered on the script / clip path) and stop the loop
+  BEFORE its child, or it starts the next item.
+
+**UPDATE 2026-10-18 evening (superseded by 10-19 above where they differ):**
 * O2 `56718665_1` cam1 eps40: trained 300 / 300, then CRASHED in LP's post-training labelled-frame eval (DataLoader workers
   died together, core dumps; MaxRSS 17 GB of 64 -- node / shared memory, not the model). Recovered WITHOUT retraining by a
   predict-only job `predict_eps40.sbatch` in the bundle (`litpose predict ... --skip_viz` + `touch DONE`, excludes
