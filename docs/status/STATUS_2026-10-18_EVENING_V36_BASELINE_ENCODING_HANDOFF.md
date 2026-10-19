@@ -5,6 +5,45 @@ pipeline, the W2 design, the pre-v47 log fix and CURBD / ARHMM discussion). Reas
 five 2026-10-18 entries (evening + late). Orofacial results: `docs/OROFACIAL_FINDINGS.md` (banner: being re-checked on
 v36 against the August-only baseline).
 
+## 0. NIGHT UPDATE (10-18 ~21:00) -- read first; details in DECISIONS "2026-10-18 (night)"
+
+**Running (detached; scratchpad `C:\Users\SABATI~1\AppData\Local\Temp\claude\C--Users-SabatiniLab\cdd1e016-6bb3-4346-8600-f08116ccf61d\scratchpad\`):**
+| job | log | then |
+|---|---|---|
+| FULL v36 encoding run, final model (c0b2c45: drift removal + target-on-lick + distance), 119 sessions, `--jobs 6`, PID 24016, started 20:49, ~4.5 min / session -> ~06:00-07:00 | `encoding_v36_full.log` | `python scripts/combined_encoding_figures.py` (August-only default); per-animal readout `enc_peek2.py`; maps `ps92_maps.py <ANIMAL>` |
+| VIDEO pilot (23 sessions, cam1 + cam4) -- queued: `queue_video_pilot.ps1` waits for PID 24016 | `video_pilot_queue.log`, `encoding_video_pilot.log` | outputs `imaging_encoding/movement_first_video-cam1-cam4/`; compare position / task / target / executed unique WITH vs WITHOUT video, ENL vs lick window |
+
+Stop command (Priya runs it; matches by command line):
+`$p=@(Get-CimInstance Win32_Process -Filter "name='python.exe'" | ? { $_.CommandLine -match 'wfield_local.combined_encoding --all' }); $k=@(Get-CimInstance Win32_Process -Filter "name='python.exe'" | ? { $p.ProcessId -contains $_.ParentProcessId }); $w=@(Get-CimInstance Win32_Process -Filter "name='powershell.exe'" | ? { $_.CommandLine -match 'queue_video_pilot' }); ($w+$p+$k) | % { Stop-Process -Id $_.ProcessId -Force }`
+
+**Done since the evening handoff:** August-primary regeneration + both orofacial decks (110 slides; speaker notes on
+every slide BUILT AT DECK TIME from run.json / defaults.yaml / module docstrings + constants / stats tables;
+`oc.stats_methods()`); O2 ME pilot collected (46 / 46, QC clean, unmasked by the 10-06 design); encoding: post-fit crash
+fixed, smoke mode (`COMBINED_ENCODING_SMOKE=1`), video variable (`--video`), target-vs-executed panel, `lickboth`,
+collinearity fixed, slow-drift removal; `scripts/encoding_drift_check.py` (figures in `imaging_encoding/qc/`); resting-
+jaw per-animal check (chronic shift NOT consistent: +7 / +9 / +2.6 / -3 px).
+
+**New to-dos (priority):**
+1. When the run finishes: cohort target-vs-executed (`target_lick` vs `executed`, unique from `lickboth`), per-animal
+   first (rule 8), maps; then the figures script and an encoding deck.
+2. Video pilot readout (03:00+ start): with vs without video; line the ENL result up against the ENL movement-removed decode.
+3. Decide (Priya): adopt the TWO-BAND hemodynamic correction? (prototype: PS92 0824 slow share 87 -> 21 %, fast band
+   identical). Would need the variant built for all sessions + decode numbers checked unchanged.
+4. Check PS92's subacute imaging dip without / with PS92_0824 (its early-session correction residual).
+5. Earlier list (§4 below) still stands from item 2 on.
+
+**New pitfalls:**
+- **The adopted preprocessing keeps slow drift (> ~20 min) by design** -- fine for trial contrasts, fatal for any
+  continuous-time model with contiguous-block CV (negative R2). Remove slow drift INSIDE such a model (FWL projection),
+  never by re-adding a 0.1 Hz filter.
+- **The early-session hemodynamic-correction residual** (within-session bleaching, one coefficient per pixel fitted on the
+  0.1 Hz band) can be several SD in the corrected signal while the raw channels look normal.
+- **Variance explained cannot answer "is there position information beyond movement"** -- video absorbs the shared
+  variance; use the residual DECODE.
+- **Long single-session tests: use the smoke mode first** (a post-fit bug cost a 40-min run).
+- Bash heredocs on this box mangle `\n` / `\\` in Python string literals: write patch scripts with the Write tool.
+- Stopping processes is denied to Claude here: hand Priya the command-line-matched stop command (wrap in `@()`).
+
 ## 1. Rules now in force (do not undo)
 
 1. **LP run `lp_r4_heatmap_20261013__clean_v36` replaces v35.** June 0602-0608 cam4 pose x 0.8853 before cleaning (no-lick
