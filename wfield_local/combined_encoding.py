@@ -98,6 +98,14 @@ CUE_FINE_S, CUE_COARSE_SPACING = 2.0, 0.4
 CLAGS = (0.0, 0.1, 0.2)
 MIN_REACH_PX = 60.0
 SHIFT_MIN_S = 60.0
+#: SLOW-DRIFT REMOVAL (Priya 10-18; scripts/encoding_drift_check.py). The adopted preprocessing keeps everything faster
+#: than ~43 min by design (trial-contrast analyses are blind to it), but this model explains every frame and
+#: cross-validates on contiguous blocks, so slow drift gave PS92_0824 R2 -0.22 (an early-session hemodynamic-correction
+#: residual of within-session bleaching; raw channels normal). Cosine regressors with period >= DRIFT_MIN_PERIOD_S over
+#: the session are projected out of Y AND of every design column before fitting (Frisch-Waugh-Lovell: identical to
+#: including them in every model as nuisance, and the slow variance also leaves the R2 denominator). 600 s: 5x the
+#: slowest position block (121 s); a 300 s basis visibly followed engagement-scale activity bursts (PS94_0917).
+DRIFT_MIN_PERIOD_S = 600.0
 ALPHA_GRID = (1.0, 10.0, 100.0, 1e3, 1e4, 1e5, 1e6)
 WINDOWS = ("all", "enl", "cue", "lick")
 PETH_S = (-3.0, 3.0)
@@ -384,6 +392,15 @@ def _z(X, rows):
     return np.where(np.isfinite(Z), Z, 0.0).astype(np.float32)
 
 
+def _slow_basis(t: np.ndarray, min_period_s: float) -> np.ndarray:
+    """Cosine (DCT-II style) regressors over [t0, t1] with period >= min_period_s, incl. the constant."""
+    t = np.asarray(t, float)
+    T = max(t[-1] - t[0], 1e-9)
+    n = int(np.floor(2 * T / min_period_s))
+    u = (t - t[0]) / T
+    return np.column_stack([np.cos(np.pi * k * u) for k in range(n + 1)])
+
+
 def _residualise(X, E, rows):
     """X minus its least-squares projection on E (fit rows), re-z-scored (Musall's QR orthogonalisation)."""
     if E is None or E.shape[1] == 0:
@@ -625,6 +642,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         add(("orth", "video"), vid_orth)
     A = np.hstack(blocks)
     Y = V[ridx]
+    Q = np.linalg.qr(_slow_basis(ft[ridx], DRIFT_MIN_PERIOD_S))[0]
+    Q = Q.astype(np.float32)
+    Y = (Y - Q @ (Q.T @ Y)).astype(np.float32)
+    for c0 in range(0, A.shape[1], 256):           # in place, in column chunks (A is GBs; no full-size temporary)
+        sl = slice(c0, min(c0 + 256, A.shape[1]))
+        A[:, sl] -= Q @ (Q.T @ A[:, sl])
     eng = Engine(A, Y, fold, win)
     grp_of_col = np.empty(A.shape[1], object)
     for (_kind, v), ix in layout.items():
@@ -760,7 +783,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     res = {"label": label, "animal": animal, "date": date, "epoch": epochs.epoch_of(label),
            "day": epochs.days_since_stroke(label), "order": order, "alphas": alphas, "gate": B.gate,
            "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft))),
-           "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K}
+           "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
+           "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
     maps, region = {}, []
     tot_pix = {}
     amask = {a: (parea == a) & pstat for a in areas}          # region values on the eroded stat mask
