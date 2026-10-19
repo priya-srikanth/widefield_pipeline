@@ -128,7 +128,7 @@ GROUPS = ("task", "instructed", "uninstructed")
 #: kernel (angle_cue / angle_enl are cue- / ENL-locked and can explain any time in the trial; the lick-locked pair cannot).
 EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructed", "lick_angle_abs": "instructed",
                "lick_angle_tgt": "instructed", "jaw_nd": "instructed", "nose_nd": "uninstructed",
-               "dir_kin": "instructed"}
+               "dir_kin": "instructed", "kinall": "instructed"}
 #: DIRECTIONLESS comparison (Priya 10-19: "wouldn't we expect executed to explain more than target ... is it an
 #: appropriate comparison?"). The base of the target / executed models kept jaw x / y and nose x / y, so lateral jaw
 #: (which steers with the tongue) carried EXECUTED direction frame by frame and made the lick-locked executed angle
@@ -137,6 +137,13 @@ EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructe
 #: angle / angle^2 / distance), executed (lick kernel x lick angle / angle^2 / reach), dir_kin = executed direction as
 #: CONTINUOUS kinematics (tongue x / y, jaw x, nose x), their pairs, and the 6-category ceiling.
 NODIR_BASE = ("cue", "arrival", "licks", "tongue_ps", "jaw_nd", "nose_nd", "running")
+#: NO-KINEMATICS comparison (Priya 10-19: "doesn't jaw and tongue protrusion also have some close vs far information"):
+#: protrusion IS executed distance and jaw opening scales with reach, so the nodir base still made the executed REACH
+#: redundant. `nokin:*` = task timing + lick TIMING kernels + running only (no tongue / jaw / nose traces): target
+#: (spout angle / angle^2 / distance) vs executed (lick angle / angle^2 / reach) on the same lick kernel and licks is then
+#: the symmetric spatial contest; `kinall` (every tongue / jaw / nose trace) is executed movement as continuous
+#: kinematics, the upper bound of what tracked movement explains.
+NOKIN_BASE = ("cue", "arrival", "licks", "running")
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed")}
 POS_VARS = ("pos_enl", "pos_cue")
@@ -352,6 +359,7 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
     out["jaw_nd"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("jaw_y", "jaw_speed")])
     out["nose_nd"] = _analog_cols(*B.analog["nose_y"], ft)
     out["dir_kin"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_x", "tongue_y", "jaw_x", "nose_x")])
+    out["kinall"] = np.hstack([out["tongue"], out["jaw"], out["nose"]])
     if B.lick_angle is not None and np.isfinite(B.lick_angle).any():
         la = B.lick_angle - np.nanmean(B.lick_angle)
         la2 = la ** 2 - np.nanmean(la ** 2)
@@ -785,6 +793,21 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             models["nodir:kin+exec"] = nb + kin + ex
             models["nodir:kin+target+exec"] = nb + kin + tg + ex
         models["nodir:kin"] = nb + kin
+    if ("raw", "kinall") in layout:
+        kb = [("raw", v) for v in NOKIN_BASE]
+        ka, cat = [("raw", "kinall")], [("raw", v) for v in POS_VARS]
+        models["nokin:none"] = kb
+        models["nokin:category"] = kb + cat
+        models["nokin:kin"] = kb + ka
+        models["nokin:kin+category"] = kb + ka + cat
+        if ("raw", "lick_angle_tgt") in layout and ("raw", "lick_angle_abs") in layout:
+            tg, ex = [("raw", "lick_angle_tgt")], [("raw", "lick_angle_abs")]
+            models["nokin:target"] = kb + tg
+            models["nokin:exec"] = kb + ex
+            models["nokin:target+exec"] = kb + tg + ex
+            models["nokin:kin+target"] = kb + ka + tg
+            models["nokin:kin+exec"] = kb + ka + ex
+            models["nokin:kin+target+exec"] = kb + ka + tg + ex
     only = [x for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
     if only:                                        # fit a named SUBSET only (own output folder, see out_dir)
         models = {k: v for k, v in models.items() if k == "full" or any(k.startswith(x) for x in only)}
