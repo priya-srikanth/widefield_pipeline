@@ -147,7 +147,16 @@ NODIR_BASE = ("cue", "arrival", "licks", "tongue_ps", "jaw_nd", "nose_nd", "runn
 #: has many more columns than the 3-amplitude per-lick variables: read it by UNIQUE shares, not raw gains.
 NOKIN_BASE = ("cue", "arrival", "licks", "running")
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
-          "task_first": ("task", "instructed", "uninstructed")}
+          "task_first": ("task", "instructed", "uninstructed"),
+          "musall": ("instructed", "uninstructed", "task")}
+#: groups left UNORTHOGONALISED under an order. "musall" = Musall et al. 2019 as in their code (churchlandlab/ridgeModel
+#: delayDec_RegressModel.m: "orthogonalize spontaneous from operant movement regressors"; task regressors raw; video
+#: orthogonalised against everything, last): instructed-uninstructed shared variance goes to INSTRUCTED, task-movement
+#: shared variance to NOBODY (the shuffle refit lets raw task / movement absorb each other). Our movement_first also
+#: residualises task against movement, crediting instructed with the task-shared (cue / lick-locked evoked) variance.
+#: Only the SHUFFLE dR2 depends on the order (drop / alone / variant models use raw columns), so a musall run needs only
+#: `--only shuf:` (Priya 10-19).
+ORTH_RAW = {"musall": ("task",)}
 POS_VARS = ("pos_enl", "pos_cue")
 #: time-resolved held-out SSE (cue-aligned) is computed for these models
 TR_MODELS = ("full", "alone:task", "alone:instructed", "alone:uninstructed",
@@ -606,7 +615,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     for g in seq:
         vs = [v for v in GROUP_OF if GROUP_OF[v] == g]
         Xg = np.hstack([raw[v] for v in vs])
-        Xo = _residualise(Xg, earlier, slice(None)) if earlier is not None else Xg
+        Xo = (Xg if (earlier is None or g in ORTH_RAW.get(order, ()))
+              else _residualise(Xg, earlier, slice(None)))
         c = 0
         for v in vs:
             orth[v] = Xo[:, c:c + raw[v].shape[1]]
@@ -633,7 +643,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     for v in GROUP_OF:
         if v in POS_VARS:
             gi = seq.index("task")
-            prior = [w for w in GROUP_OF if seq.index(GROUP_OF[w]) < gi]
+            prior = ([] if "task" in ORTH_RAW.get(order, ())
+                     else [w for w in GROUP_OF if seq.index(GROUP_OF[w]) < gi])
             Epr = np.hstack([raw[w] for w in prior]) if prior else None
             shuf[v] = _residualise(rawp[v], Epr, slice(None)) if Epr is not None else rawp[v]
         else:
@@ -647,7 +658,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         blocks.append(X)
     for (kind, v), Xc in rawc.items():                    # constrained-permutation blocks, orthogonalised like shuf
         gi = seq.index("task")
-        prior = [w for w in GROUP_OF if seq.index(GROUP_OF[w]) < gi]
+        prior = ([] if "task" in ORTH_RAW.get(order, ())
+                 else [w for w in GROUP_OF if seq.index(GROUP_OF[w]) < gi])
         Epr = np.hstack([raw[w] for w in prior]) if prior else None
         add((kind, v), _residualise(Xc, Epr, slice(None)) if Epr is not None else Xc)
     for v in GROUP_OF:
@@ -814,7 +826,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             models["nokin:kin+nose"] = kb + ka + nz
             models["nokin:kin+nose+target"] = kb + ka + nz + tg
     only = [x for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
-    if only:                                        # fit a named SUBSET only (own output folder, see out_dir)
+    if only == ["trmodels"]:                         # exactly the time-resolved model set
+        models = {k: v for k, v in models.items() if k in TR_MODELS}
+    elif only:                                       # fit a named SUBSET only (own output folder, see out_dir)
         models = {k: v for k, v in models.items() if k == "full" or any(k.startswith(x) for x in only)}
     if os.environ.get(SMOKE_ENV):                   # end-to-end check of the post-fit code without the full model set
         keep = {"full", *TR_MODELS, "raw:full", "angle:position", "lickangle:position", "notxy:full",
@@ -934,6 +948,19 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
     idc = np.clip(idx, 0, len(Rd) - 1)
     mu_t = np.nanmean(np.where(okm[..., None], Rd[idc], np.nan), 0)              # (off, areas)
     sst = np.nansum(np.where(okm[..., None], (Rd[idc] - Rd.mean(0)) ** 2, np.nan), 0).T
+    pos_of_trial = E.pos.to_numpy()
+
+    def _dev(X):
+        """(trials, off, areas) minus each position's mean over its trials (frames outside the record excluded)."""
+        Xm = np.where(okm[..., None], X, np.nan)
+        out = np.empty_like(Xm)
+        for p_ in np.unique(pos_of_trial):
+            m_ = pos_of_trial == p_
+            out[m_] = Xm[m_] - np.nanmean(Xm[m_], 0, keepdims=True)
+        return out
+    ddev = _dev(Rd[idc])
+    sst_tr = np.nansum(np.where(okm[..., None], ddev ** 2, np.nan), 0).T
+    sse_tr = np.zeros_like(sse)
     for mi, mname in enumerate(tr_models):
         spec = models[mname]
         ixm = cols(spec)
@@ -945,13 +972,19 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             m = fold == k
             pred[m] = (Am[m] @ bk[1:] + bk[0]) @ Ra
         sse[mi] = np.nansum(np.where(okm[..., None], (Rd[idc] - pred[idc]) ** 2, np.nan), 0).T
+        # SINGLE-TRIAL (trial-to-trial) error (Priya 10-19, Musall): each position's trial-averaged response is removed
+        # from data AND prediction first, so what is scored is the variability AROUND the condition mean (fixed task
+        # kernels cannot explain it beyond the position means; lick timing / uninstructed movement can)
+        pdv = _dev(pred[idc])
+        sse_tr[mi] = np.nansum(np.where(okm[..., None], (ddev - pdv) ** 2, np.nan), 0).T
     res["target_angle"] = B.target_angle
     res.update({"tr_models": tr_models, "pos_order": pos_order, "peth_parts": list(comp), "model_alphas": model_alphas,
                 "areas": [names.get(a, str(a)) for a in areas] + ["cortex"]})
     del mu_t
     return {"res": res, "maps": maps, "flat": ublk, "shape": ((shape[0] + 1) // 2, (shape[1] + 1) // 2),
             "region": pd.DataFrame(region),
-            "peth": peth, "peth_off_s": off / res["fs"], "sse": sse, "sst": sst}
+            "peth": peth, "peth_off_s": off / res["fs"], "sse": sse, "sst": sst,
+            "sse_trial": sse_tr, "sst_trial": sst_tr}
 
 
 def out_dir(rv, order: str) -> Path:
@@ -973,7 +1006,8 @@ def save(out: dict, d: Path) -> None:
                         map_keys=np.array([f"{a}|{b}" for a, b in keys]),
                         maps=np.stack([out["maps"][k] for k in keys]).astype(np.float32),
                         flat=out["flat"], shape=np.array(out["shape"]), peth=out["peth"],
-                        peth_off_s=out["peth_off_s"], sse=out["sse"], sst=out["sst"])
+                        peth_off_s=out["peth_off_s"], sse=out["sse"], sst=out["sst"],
+                        sse_trial=out["sse_trial"], sst_trial=out["sst_trial"])
     out["region"].assign(label=lab).to_csv(d / "sessions" / f"{lab}_regions.csv", index=False, float_format="%.5f")
     (d / "sessions" / f"{lab}.json").write_text(json.dumps(out["res"], indent=1, default=str), encoding="utf-8")
 
