@@ -118,6 +118,21 @@ def test_params_lp_block_overrides_shared_keys(monkeypatch):
     assert dlc["kind"] == "dlc" and dlc["conda_env"] == "dlc3" and "lp" not in dlc
 
 
+def test_cam1_lp_takes_its_own_model_and_never_falls_back_to_cam4s(monkeypatch, tmp_path):
+    lp = {"model_rel": "cam4/model", "model_rel_cam1": "cam1/model"}
+    monkeypatch.setattr(oi.config, "defaults", lambda: {"o2_inference": {**_P, "lp": lp}})
+    assert oi.params("lp")["model_rel"] == "cam4/model" and oi.params("lp", "cam1")["model_rel"] == "cam1/model"
+    monkeypatch.setattr(oi.config, "defaults", lambda: {"o2_inference": {**_P, "lp": {"model_rel": "cam4/model"}}})
+    with pytest.raises(SystemExit, match="model_rel_cam1"):
+        oi.params("lp", "cam1")
+    d = tmp_path / "20260814" / "PS93"
+    d.mkdir(parents=True)
+    for n in ("cam1_a.avi", "cam4_a.avi"):
+        (d / n).touch()
+    assert [v.name for v in oi.videos_for(_RV(tmp_path), "PS93", "20260814", "cam1")] == ["cam1_a.avi"]
+    assert [v.name for v in oi.videos_for(_RV(tmp_path), "PS93", "20260814")] == ["cam4_a.avi"]
+
+
 def test_widefield_sessions_come_from_the_registry(monkeypatch):
     monkeypatch.setattr(oi.config, "session_phase", lambda a, d: "excluded" if d == "0817" else "pre")
     monkeypatch.setattr(oi.config, "load_sessions", lambda: [{"label": "PS93_0814"}, {"label": "PS92_0602"}, {"label": "PS92_0817"},

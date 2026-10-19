@@ -1,8 +1,9 @@
-"""Whole-session cam4 pose inference on HMS O2: build a self-contained BUNDLE on the share, print the commands to
+"""Whole-session pose inference on HMS O2 (cam4; cam1 with ``--cam cam1``, 2026-10-19): build a self-contained BUNDLE on the share, print the commands to
 run it, and collect the results back into the session-analysis format.
 
     python -m wfield_local.o2_inference bundle  --name r3_ps93 --user ab123 PS93:20260814 PS93:20260821 ...
     python -m wfield_local.o2_inference collect --name r3_ps93               # after the outputs are copied back
+    python -m wfield_local.o2_inference bundle --kind lp --cam cam1 --name lp_cam1_ctx_prod --user ab123 --all-widefield
 
 PORTED FROM stroke_orofacial_pipeline `dlc_inference_o2/` (batch.py, o2_job.py, runner.py, transfer.py; Priya
 2026-10-02: "it will need refining and editing but was a way to run dlc on the server. lets port and modify").
@@ -38,11 +39,19 @@ from wfield_local import config
 SHARE_PREFIX_O2 = "/n/files/Neurobio/MICROSCOPE/Priya"   # research.files path of the `microscope` root on O2
 
 
-def params(kind: str = "dlc") -> dict:
-    """`o2_inference` settings; for ``kind="lp"`` the `lp:` block overrides the shared (partition, scratch, ...) keys."""
+def params(kind: str = "dlc", cam: str = "cam4") -> dict:
+    """`o2_inference` settings; for ``kind="lp"`` the `lp:` block overrides the shared (partition, scratch, ...) keys.
+    ``cam`` != cam4 takes that camera's production model from `lp.model_rel_<cam>` (cam4 keeps `lp.model_rel`)."""
     base = dict(config.defaults().get("o2_inference") or {})
     lp = base.pop("lp", None) or {}
-    return {**base, **lp, "kind": kind} if kind == "lp" else {**base, "kind": "dlc"}
+    if kind != "lp":
+        return {**base, "kind": "dlc", "cam": cam}
+    p = {**base, **lp, "kind": kind, "cam": cam}
+    if cam != "cam4":
+        if f"model_rel_{cam}" not in lp:
+            raise SystemExit(f"no o2_inference.lp.model_rel_{cam} in configs/defaults.yaml")
+        p["model_rel"] = lp[f"model_rel_{cam}"]
+    return p
 
 
 def true_case(path: Path) -> Path:
@@ -83,8 +92,8 @@ def bundle_dir(rv, name: str) -> Path:
     return dlc_project.project_dir(rv).parent / "o2" / name
 
 
-def videos_for(rv, animal: str, date: str) -> list[Path]:
-    return sorted((Path(rv.root("behavior_cameras")) / date / animal).glob("cam4_*.avi"))
+def videos_for(rv, animal: str, date: str, cam: str = "cam4") -> list[Path]:
+    return sorted((Path(rv.root("behavior_cameras")) / date / animal).glob(f"{cam}_*.avi"))
 
 
 def _first_video(user: str, p: dict, tasks: pd.DataFrame) -> str:
@@ -266,13 +275,16 @@ exit
 
 
 def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refresh: bool = False,
-               kind: str = "dlc") -> Path:
+               kind: str = "dlc", cam: str = "cam4") -> Path:
     from wfield_local import dlc_prior, dlc_train
     from wfield_local.dlc_iti_frames import current_snapshot
     d = bundle_dir(rv, name)
     if (d / "bundle.json").exists():
-        kind = json.loads((d / "bundle.json").read_text(encoding="utf-8")).get("kind", "dlc")   # as bundled
-    p = params(kind)
+        bj0 = json.loads((d / "bundle.json").read_text(encoding="utf-8"))
+        kind, cam = bj0.get("kind", "dlc"), bj0.get("cam", "cam4")                    # as bundled
+    if kind == "dlc" and cam != "cam4":
+        raise SystemExit("DLC bundles are cam4 only (the prior and the project are cam4's)")
+    p = params(kind, cam)
     runner = "o2_lp_runner.py" if kind == "lp" else "o2_pose_runner.py"
     if (d / "bundle.json").exists():
         if not refresh:
@@ -282,7 +294,7 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
         tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str).drop(columns="task")
         # Same videos, re-SPELT in the on-disk case (`true_case`; bundles made before 2026-10-05 carry
         # paths.yaml's Behavior_Cameras/Widefield, which a case-sensitive O2 path lookup would not find).
-        local = {(a, dt): {v.name: v for v in videos_for(rv, a, dt)} for a, dt in zip(tasks.animal, tasks.date)}
+        local = {(a, dt): {v.name: v for v in videos_for(rv, a, dt, cam)} for a, dt in zip(tasks.animal, tasks.date)}
         tasks["video_o2"] = [o2_path(local[(a, dt)][v], rv) if v in local[(a, dt)] else o2
                              for a, dt, v, o2 in zip(tasks.animal, tasks.date, tasks.video, tasks.video_o2)]
         tasks.insert(0, "task", np.arange(1, len(tasks) + 1))
@@ -304,9 +316,9 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
         return d
     rows = []
     for animal, date in sessions:
-        vids = videos_for(rv, animal, date)
+        vids = videos_for(rv, animal, date, cam)
         if not vids:
-            print(f"   no cam4 video for {animal} {date} -- skipped (see docs/EXPERIMENT_ERRORS.md)")
+            print(f"   no {cam} video for {animal} {date} -- skipped (see docs/EXPERIMENT_ERRORS.md)")
             continue
         rows += [{"animal": animal, "date": date, "video": v.name, "video_o2": o2_path(v, rv)} for v in vids]
     tasks = pd.DataFrame(rows)
@@ -368,6 +380,13 @@ def _bundle_lp(rv, d: Path, p: dict, name: str, user: str, tasks: pd.DataFrame) 
     ckpts = sorted(src.glob("tb_logs/**/checkpoints/*.ckpt"))
     if not (src / "config.yaml").exists() or not ckpts:
         raise SystemExit(f"{src}: needs config.yaml and tb_logs/**/checkpoints/*.ckpt")
+    # O2 scratch can leave STALE '-best' files (cam1 ctx-semi, 10-19: epochs 39 / 49 / 99 / 159 / 199 all '-best'); LP's
+    # `ckpt_path_from_base_path` then loads the highest step. Bundle only that one, so what runs is unambiguous.
+    best = [c for c in ckpts if c.name.endswith("-best.ckpt")]
+    if len(best) > 1:
+        import re
+        ckpts = [max(best, key=lambda c: int(re.search(r"step=(\d+)", c.name).group(1)))]
+        print(f"   {len(best)} '-best' checkpoints in {src.name}; bundling the highest step: {ckpts[0].name}")
     (d / "model").mkdir(parents=True)
     for c in ckpts:
         dst = d / "model" / c.relative_to(src)
@@ -382,7 +401,8 @@ def _bundle_lp(rv, d: Path, p: dict, name: str, user: str, tasks: pd.DataFrame) 
     shutil.copy2(Path(__file__).with_name("o2_lp_runner.py"), d / "o2_lp_runner.py")
     scorer = f"LP_{src.name}"
     (d / "bundle.json").write_text(json.dumps({
-        "kind": "lp", "parts": list(cfg["data"]["keypoint_names"]), "scorer": scorer, "model": "model",
+        "kind": "lp", "cam": p.get("cam", "cam4"), "model_type": cfg["model"].get("model_type"),
+        "parts": list(cfg["data"]["keypoint_names"]), "scorer": scorer, "model": "model",
         "checkpoints": [str(c.relative_to(src)) for c in ckpts], "reader": p["reader"], "precision": p["precision"],
         "source_model_dir": str(src), "created_for": user}, indent=1), encoding="utf-8")
     tasks.insert(0, "task", np.arange(1, len(tasks) + 1))
@@ -395,7 +415,7 @@ def _bundle_lp(rv, d: Path, p: dict, name: str, user: str, tasks: pd.DataFrame) 
                                         encoding="utf-8", newline="\n")
     (d / "COMMANDS.md").write_text(commands_text(p, user, name, o2_path(d, rv), tasks), encoding="utf-8",
                                    newline="\n")
-    print(f"LP bundle -> {d}  ({len(tasks)} videos; model {src.name}, reader {p['reader']})\n"
+    print(f"LP bundle -> {d}  ({len(tasks)} {p.get('cam', 'cam4')} videos; model {src.name}, reader {p['reader']})\n"
           f"next: follow {d / 'COMMANDS.md'}")
     return d
 
@@ -458,7 +478,8 @@ def assign_trials_to_videos(cue_s: np.ndarray, videos: list) -> np.ndarray:
 
 
 def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str, date: str, out: Path, rv,
-                    pre_s: float = 0.5, post_s: float = 3.0, model: str = "DLC", videos: list | None = None) -> int:
+                    pre_s: float = 0.5, post_s: float = 3.0, model: str = "DLC", videos: list | None = None,
+                    cam: str = "cam4") -> int:
     """Whole-video predictions ``pose`` (n_frames, n_parts, 3) -> `session_poses`-format windows for EVERY trial
     (`trial_frame_spans`: position strobe - pre_s .. trial stop + post_s, cut at the next trial's start):
     windows_index.csv (trial_k, trial_id, position, src_frame, t_ms, strobe_ms, stop_ms, stop_source) +
@@ -466,7 +487,7 @@ def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str
     not its CSV: exact, and no 2-million-row parse (and a CSV whose first data row is empty would be misread by
     pandas' 3-row-header reader as an index-name row -- found 2026-10-02 while testing this with a NaN-padded
     file)."""
-    ix, sel = build_windows(pose, animal, date, rv, pre_s=pre_s, post_s=post_s, videos=videos)
+    ix, sel = build_windows(pose, animal, date, rv, pre_s=pre_s, post_s=post_s, videos=videos, cam=cam)
     out.mkdir(parents=True, exist_ok=True)
     ix.to_csv(out / "windows_index.csv", index=False)
     if not len(sel):
@@ -478,7 +499,7 @@ def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str
 
 
 def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: float = 3.0,
-                  videos: list | None = None) -> tuple[pd.DataFrame, np.ndarray]:
+                  videos: list | None = None, cam: str = "cam4") -> tuple[pd.DataFrame, np.ndarray]:
     """``(windows_index, pose rows)`` for EVERY trial -- the arrays `full_to_windows` writes, without writing them
     (`orofacial_outputs` stores them in its own layout). See `full_to_windows` for the window and split-day rules."""
     from wfield_local import trial_windows as TW
@@ -486,7 +507,7 @@ def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: 
     # cut from the video that covers its cue (`assign_trials_to_videos`), windows cut at the next trial of the SAME
     # video, and windows_index gains a `video` column. Default: one video with the date's template.
     if videos is None:
-        tpl = dict(np.load(Path(rv.root("alignment_templates")) / "cam4" / animal / f"{date}.npz", allow_pickle=True))
+        tpl = dict(np.load(Path(rv.root("alignment_templates")) / cam / animal / f"{date}.npz", allow_pickle=True))
         videos = [(pose, tpl, None)]
     b = TW.trial_bounds(animal, date, rv)
     b = b[np.isfinite(b.cue_s) & np.isfinite(b.stop_s)].sort_values("cue_s").reset_index(drop=True)
@@ -522,7 +543,9 @@ def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
     -> `compare_to_clip` against a desktop prediction on that session's `session_poses/<a>_<d>/` clip."""
     import cv2
     d = bundle_dir(rv, name)
-    kind = json.loads((d / "bundle.json").read_text(encoding="utf-8")).get("kind", "dlc")
+    bj = json.loads((d / "bundle.json").read_text(encoding="utf-8"))
+    kind, cam = bj.get("kind", "dlc"), bj.get("cam", "cam4")
+    sfx = "" if cam == "cam4" else f"_{cam}"            # session_poses/<a>_<d>[_cam1]_full, like the clips' folders
     tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
     from wfield_local import dlc_project
     sp = dlc_project.project_dir(rv).parent / "session_poses"
@@ -537,7 +560,7 @@ def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
                 ok_all = False
                 continue
             info = json.loads(done.read_text(encoding="utf-8"))
-            v = next(x for x in videos_for(rv, animal, date) if x.name == r.video)
+            v = next(x for x in videos_for(rv, animal, date, cam) if x.name == r.video)
             n_local = int(cv2.VideoCapture(str(v)).get(cv2.CAP_PROP_FRAME_COUNT))
             npz = od / f"{Path(r.video).stem}_{info['scorer']}.npz"
             ok = info["n_frames"] == n_local and npz.exists()
@@ -549,20 +572,21 @@ def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
         if not ok_all or not vids:
             continue                                  # a split day is collected only when every part is done
         # each video with ITS recording's template (split days have one per recording -- camera_sync)
-        tpls = cs.templates_for(rv, date, animal, "cam4")
-        rec = lambda name: Path(name).stem.split("_", 1)[1]           # noqa: E731  cam4_<recording>.avi
+        tpls = cs.templates_for(rv, date, animal, cam)
+        rec = lambda name: Path(name).stem.split("_", 1)[1]           # noqa: E731  <cam>_<recording>.avi
         missing = [n for n, _, _ in vids if rec(n) not in tpls]
         if missing:
             print(f"   {animal} {date}: no alignment template for {missing} -- not collected")
             continue
         parts = [str(x) for x in vids[0][1]["parts"]]
         videos = [(z["pose"], t, n) for n, z, _ in vids for t in tpls[rec(n)]]   # one entry per template / segment
-        n = full_to_windows(videos[0][0], parts, vids[0][2]["scorer"], animal, date, sp / f"{animal}_{date}_full",
-                            rv, model="LP" if kind == "lp" else "DLC", videos=videos if len(videos) > 1 else None)
-        print(f"   -> {sp / (animal + '_' + date + '_full')} ({n} trials)")
+        n = full_to_windows(videos[0][0], parts, vids[0][2]["scorer"], animal, date,
+                            sp / f"{animal}_{date}{sfx}_full", rv, model="LP" if kind == "lp" else "DLC",
+                            videos=videos if len(videos) > 1 else None, cam=cam)
+        print(f"   -> {sp / (animal + '_' + date + sfx + '_full')} ({n} trials)")
         key = f"{animal}:{date}"
         if compare and key in compare and len(videos) == 1:
-            print(f"   vs desktop clip: {compare_to_clip(videos[0][0], parts, sp / f'{animal}_{date}', Path(compare[key]))}")
+            print(f"   vs desktop clip: {compare_to_clip(videos[0][0], parts, sp / f'{animal}_{date}{sfx}', Path(compare[key]))}")
 
 
 def main(argv=None) -> int:
@@ -577,7 +601,9 @@ def main(argv=None) -> int:
                    help="every REGISTERED widefield session (configs/sessions.yaml) -- the production set")
     b.add_argument("--refresh", action="store_true", help="existing bundle: rewrite only sbatch / COMMANDS / runner")
     b.add_argument("--kind", choices=("dlc", "lp"), default="dlc",
-                   help="lp = the production Lightning Pose model (o2_inference.lp.model_rel)")
+                   help="lp = the production Lightning Pose model (o2_inference.lp.model_rel[_<cam>])")
+    b.add_argument("--cam", default="cam4", choices=("cam4", "cam1"),
+                   help="camera: its videos, alignment templates and LP production model (cam1: lp.model_rel_cam1)")
     c = sub.add_parser("collect")
     c.add_argument("--name", required=True)
     c.add_argument("--compare", action="append", default=[], metavar="ANIMAL:DATE=CSV",
@@ -588,7 +614,7 @@ def main(argv=None) -> int:
         sess = widefield_sessions() if a.all_widefield else [tuple(s.split(":")) for s in a.sessions]
         if not sess and not a.refresh:
             ap.error("give animal:date sessions or --all-widefield")
-        cmd_bundle(rv, a.name, a.user, sess, refresh=a.refresh, kind=a.kind)
+        cmd_bundle(rv, a.name, a.user, sess, refresh=a.refresh, kind=a.kind, cam=a.cam)
     else:
         cmd_collect(rv, a.name, dict(x.split("=", 1) for x in a.compare))
     return 0
