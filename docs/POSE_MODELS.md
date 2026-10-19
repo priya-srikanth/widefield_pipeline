@@ -947,3 +947,11 @@ radial speed vs distance, midline angle and distance vs normalised phase, mean p
 normalised phase where >= half the licks have a 3-D point). PS92 (9 Aug pre, 3 acute): acute licks are shifted ipsi from
 ONSET through the whole lick at every position (+5..+13 deg at close / centre, ~+30 deg at far_R, where the mean path crosses
 to the mouse's left of the midline); far_R protrusion peak radial speed ~100 vs ~160 mm/s; centre licks reach further acutely.
+
+**Combined-track licks (`pose3d.lick_events`, `pose3d_kinematics --licks combined`; Priya 10-19).** Lick events from the 3-D
+track (both cameras or one camera + neighbours, after QC), cue .. trial stop, gaps <= 12 ms bridged, >= 3 frames; flagged
+``cam4_matched`` (overlaps a cam4 lick window) and DAQ ``contact``. Adds 3-7 % licks per session (pre 3.1-6.6 %, acute
+2.4-3.3 %). The added licks (PS92 August): reach 3.4 vs 4.3 mm, 8 vs 18 3-D frames, peak speed 119 vs 184 mm/s, and 47 %
+touched the spout (DAQ) vs 86 % -- real small licks cam4's detection missed. The earlier 31-41 % of cam1 at-the-lips events
+without a cam4 lick (D9) are mostly cam1-ONLY (no both-camera frame within 24 ms) and still have no 3-D point: they need the
+depth prior (held-out test next). Output `session_poses/pose3d/kinematics_combined/`.

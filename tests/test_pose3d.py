@@ -178,3 +178,16 @@ def test_qc_drops_far_points_and_single_frame_spikes():
     Y = np.c_[np.full(4, 0.5), np.array([0.5, -0.8, -2.5, 0.4]), np.full(4, -2.0)]   # 2.5 mm behind the mouth: dropped
     Q2, n2 = P3.qc_3d(Y, "tongue", np.ones(4, int), np.arange(4) * 4.0)
     assert np.isnan(Q2[2]).all() and np.isfinite(Q2[[0, 1, 3]]).all() and n2["tongue_qc_behind"] == 1
+
+
+def test_lick_events_bridge_short_gaps_and_split_long_ones():
+    t = np.arange(20) * 4.0
+    P = np.full((20, 3), np.nan)
+    P[1:5] = [[0.1 * k, 1.0, -1.0 - 0.2 * k] for k in range(4)]   # lick 1, frames 1-4
+    P[7:9] = [[0.0, 1.2, -2.5], [0.0, 1.1, -2.0]]                   # 8 ms gap (frames 5-6) -> same lick
+    P[15:18] = [[0.0, 0.5, -0.8]] * 3                               # 24 ms later -> a second lick
+    S = pd.DataFrame({"trial_id": 1, "position": "far_L", "t_ms": t, "stop_ms": 1e4,
+                      "tongue_ml": P[:, 0], "tongue_ap": P[:, 1], "tongue_dv": P[:, 2]})
+    E = P3.lick_events(S, max_gap_ms=12.0)
+    assert len(E) == 2 and list(E.lick_idx) == [0, 1]
+    assert E.on_ms.iloc[0] == 4.0 and E.off_ms.iloc[0] == 32.0 and E.t_ms.iloc[0] == 28.0   # peak = farthest frame

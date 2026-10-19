@@ -355,6 +355,35 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
     return out, info
 
 
+def lick_events(S: pd.DataFrame, max_gap_ms: float = 12.0, min_frames: int = 3) -> pd.DataFrame:
+    """Lick EVENTS from the combined 3-D track (Priya 10-19: "define licks by the combined track to add in cam1's small
+    licks"): runs of 3-D tongue frames (both cameras or one camera + neighbours, after QC) inside the response window
+    (cue .. trial stop), gaps up to ``max_gap_ms`` bridged, >= ``min_frames`` frames with a point. Per event: on / off
+    (first / last frame with a point), the 3-D peak (frame farthest from the mouth zero), ``lick_idx`` (order in the
+    trial), ``n_3d``. Licks seen by ONE camera with no both-camera frame within 24 ms have no 3-D point and are not here
+    (depth prior: to do)."""
+    t, tid = S.t_ms.to_numpy(float), S.trial_id.to_numpy()
+    P = S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
+    have = np.isfinite(P).all(1) & (t >= 0) & (t <= S.stop_ms.to_numpy(float))
+    k = np.flatnonzero(have)
+    rows = []
+    if not len(k):
+        return pd.DataFrame(columns=["trial_id", "position", "on_ms", "off_ms", "t_ms", "lick_idx", "n_3d"])
+    brk = np.r_[True, (tid[k[1:]] != tid[k[:-1]]) | (t[k[1:]] - t[k[:-1]] > max_gap_ms + 0.5)]
+    starts = np.flatnonzero(brk)
+    ends = np.r_[starts[1:], len(k)]
+    for a, b in zip(starts, ends):
+        kk = k[a:b]
+        if len(kk) < min_frames:
+            continue
+        pk = kk[int(np.argmax(np.linalg.norm(P[kk], axis=1)))]
+        rows.append({"trial_id": int(tid[kk[0]]), "position": str(S.position.iloc[kk[0]]), "on_ms": t[kk[0]],
+                     "off_ms": t[kk[-1]], "t_ms": t[pk], "n_3d": len(kk)})
+    E = pd.DataFrame(rows)
+    E["lick_idx"] = E.groupby("trial_id").cumcount()
+    return E
+
+
 def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: float | None = None) -> pd.DataFrame:
     """One row per 3-D lick: a run of >= ``min_frames`` consecutive frames (4 ms apart, one trial, cue .. trial stop)
     with a 3-D tongue (both cameras, or one camera + neighbours: `fill_single_view`; ``share_single_view`` per lick).

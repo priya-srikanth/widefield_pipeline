@@ -91,7 +91,7 @@ def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) ->
         sg, sg_t = np.degrees(np.arctan2(R[k, 1], -R[k, 2])), np.degrees(np.arctan2(Tt[1], -Tt[2]))      # forward tilt
         out_sign = np.sign(T[0]) if abs(T[0]) > 1e-6 else -1.0
         rows.append({"trial_id": r.trial_id, "lick_idx": r.lick_idx, "position": r.position,
-                     "contact": bool(getattr(r, "contact", False)), "t_peak_cam4": r.t_ms, "t_peak_3d": t[k],
+                     "contact": bool(getattr(r, "contact", False)), "cam4_matched": bool(getattr(r, "cam4_matched", True)), "t_peak_cam4": r.t_ms, "t_peak_3d": t[k],
                      "dt_peak_ms": t[k] - r.t_ms, "n_3d": int(ok.sum()), "share_single_view": float(np.mean(src > 1)),
                      "reach_mm": float(d[k]), "side_ml": R[k, 0], "out_ap": R[k, 1], "down_dv": -R[k, 2],
                      "ang3d_err": float(np.degrees(np.arccos(np.clip(cosang, -1, 1)))),
@@ -102,6 +102,22 @@ def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) ->
                      "ap_err_mm": float(P[m, 1] - T[1]), "dv_err_mm": float(P[m, 2] - T[2]),
                      "speed_peak": float(np.nanmax(sp[:k + 1])) if np.isfinite(sp[:k + 1]).any() else np.nan})
     return pd.DataFrame(rows)
+
+
+def combined_events(rv, S: pd.DataFrame, C4: pd.DataFrame, animal: str, date: str) -> pd.DataFrame:
+    """`pose3d.lick_events` on the session's 3-D track, each flagged ``cam4_matched`` (overlaps a cam4 lick window of the
+    same trial) and ``contact`` (a DAQ spout-contact onset within the event +- 20 ms)."""
+    import scripts.pose_kinematics_demo as D
+    from wfield_local import pose3d as P3
+    from wfield_local import trial_windows as TW
+    E = P3.lick_events(S)
+    win = {k: g[["on_ms", "off_ms"]].to_numpy(float) for k, g in C4.groupby("trial_id")}
+    E["cam4_matched"] = [bool(((w := win.get(r.trial_id, np.empty((0, 2))))[:, 0] <= r.off_ms).any()
+                              and ((w[:, 0] <= r.off_ms) & (w[:, 1] >= r.on_ms)).any()) for r in E.itertuples()]
+    cont = D.daq_contacts_ms(animal, date, TW.trial_bounds(animal, date, rv), rv)
+    E["contact"] = [bool(((c := np.asarray(cont.get(r.trial_id, []), float)) >= r.on_ms - 20).any()
+                         and ((c >= r.on_ms - 20) & (c <= r.off_ms + 20)).any()) for r in E.itertuples()]
+    return E
 
 
 def session_jaw(S: pd.DataFrame) -> pd.DataFrame:
@@ -130,11 +146,14 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("sessions", nargs="*", metavar="ANIMAL:YYYYMMDD")
+    ap.add_argument("--licks", choices=["cam4", "combined"], default="cam4",
+                    help="cam4 = the cam4 production lick events (default); combined = events from the 3-D track "
+                         "(`pose3d.lick_events`), flagged cam4_matched, DAQ contact; output kinematics_combined/")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
     sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz"))
-    out = d3 / "kinematics"
+    out = d3 / ("kinematics" if a.licks == "cam4" else "kinematics_combined")
     out.mkdir(exist_ok=True)
     fits = pd.concat([pd.read_csv(f) for f in d3.glob("summary_*.csv")], ignore_index=True)
     bad = set(fits.loc[fits.fit_resid_mm_max > MAX_FIT_RESID_MM, "session"])
@@ -154,6 +173,8 @@ def main(argv=None) -> int:
     for s, S in frames.items():
         animal, date = s.split(":")
         C = pd.read_csv(Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv")
+        if a.licks == "combined":
+            C = combined_events(rv, S, C, animal, date)
         geo = _rig(rv, animal, date)["geometry"]
         ep = epochs.epoch_of(f"{animal}_{date[4:]}")
         L, J = session_licks(S, C, geo, E), session_jaw(S)
@@ -163,6 +184,7 @@ def main(argv=None) -> int:
         JJ.append(J)
         row = {"session": f"{animal}_{date}", "animal": animal, "date": date, "epoch": ep,
                "cam4_licks": len(C), "licks_3d": len(L),
+               "not_in_cam4": int((~L.cam4_matched).sum()) if len(L) else 0,
                **{f"{part}_{ax}": v for part in ("nose", "jaw") for ax, v in zip(("ml", "ap", "dv"), rest[s][part])}}
         jm = J.groupby("position").lr_wide_mm.median()
         if {"far_L", "far_R"} <= set(jm.index):
