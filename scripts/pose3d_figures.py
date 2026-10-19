@@ -200,18 +200,29 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
         med = g.miss_mm.median()
         for r in g.iloc[np.argsort(np.abs(g.miss_mm.to_numpy() - med))[:per_position]].itertuples():
             F = S[(S.trial_id == r.trial_id) & (S.t_ms >= r.t_onset_ms - 40) & (S.t_ms <= r.t_onset_ms + 4 * r.n_frames + 40)]
-            path = []
+            path, jpath = [], []
             for fr in F.itertuples():
                 X = np.array([fr.tongue_ml, fr.tongue_ap, fr.tongue_dv])
                 src_now = int(getattr(fr, "tongue_src", 1))
                 if np.isfinite(X).all():
                     path.append(X)
+                J = np.array([fr.jaw_ml, fr.jaw_ap, fr.jaw_dv])          # the JAW too (Priya 10-19)
+                jsrc = int(getattr(fr, "jaw_src", 1))
+                if np.isfinite(J).all():
+                    jpath.append(J)
                 panels = []
                 for cam, src, mouth in (("cam1", fr.src1, m1), ("cam4", fr.src4, m4)):
                     im = _frame(caps[cam], src)
                     row = raw[cam].iloc[int(ridx[cam][src])] if src in ridx[cam].index else None
                     if row is not None and row.tongue_likelihood >= 0.4:
                         cv2.circle(im, (int(row.tongue_x), int(row.tongue_y)), 7, (0, 220, 0), 2, cv2.LINE_AA)
+                    if row is not None and row.jaw_likelihood >= 0.4:
+                        cv2.circle(im, (int(row.jaw_x), int(row.jaw_y)), 6, (255, 255, 255), 1, cv2.LINE_AA)
+                    if np.isfinite(J).all():
+                        pa, pb = proj(J)
+                        q = pa[0] if cam == "cam1" else pb[0]
+                        jc = (255, 80, 0) if jsrc == 1 else (255, 230, 0)          # blue: both cameras; cyan: one + neighbours
+                        cv2.drawMarker(im, (int(q[0]), int(q[1])), jc, cv2.MARKER_TILTED_CROSS, 12, 2, cv2.LINE_AA)
                     pa, pb = proj(tgt[p])
                     q = pa[0] if cam == "cam1" else pb[0]
                     cv2.circle(im, (int(q[0]), int(q[1])), 11, (0, 220, 255), 2, cv2.LINE_AA)
@@ -235,6 +246,11 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
                         ax3.plot(A[:, 0], A[:, 1], A[:, 2], color=COL[p], lw=2)
                         if np.isfinite(X).all():                       # current point only when this frame has one
                             ax3.scatter(*A[-1], s=30, color="r" if src_now == 1 else "darkorange")
+                    if jpath:
+                        B = np.array(jpath)
+                        ax3.plot(B[:, 0], B[:, 1], B[:, 2], color="#1f3fbf", lw=1.5)
+                        if np.isfinite(J).all():
+                            ax3.scatter(*B[-1], s=25, color="#1f3fbf" if jsrc == 1 else "deepskyblue", marker="s")
                     ax3.set_xlim(-3.5, 3.5)
                     ax3.set_ylim(-1, 6)
                     ax3.set_zlim(-5, 1)
@@ -251,7 +267,7 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
                 bar = np.zeros((44, frame.shape[1], 3), np.uint8)
                 cv2.putText(bar, f"{animal} {date}  trial {r.trial_id}  {p}  t = {fr.t_ms - r.t_onset_ms:+.0f} ms  miss {r.miss_mm:.2f} mm"
                             f"  lat_err {r.lat_err_mm:+.2f} mm", (8, 17), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(bar, "green = 2-D tongue | x = 3-D reprojected: red both cams, orange one cam + neighbours | yellow = target",
+                cv2.putText(bar, "tongue: green 2-D, x red both cams / orange one cam | jaw: white 2-D, x blue both / cyan one | yellow = target",
                             (8, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
                 frame = np.vstack([bar, frame])
                 if vw is None:

@@ -350,8 +350,13 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
+**[`docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md`](docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md)**
+— **START HERE for POSE TRACKING and 3-D, newest.** cam1 production on O2 (array 56830841), the 3-D tongue / jaw pipeline
+(PnP on the commanded spouts, spout mouth zero, one-camera fill, gates), first 3-D readouts, O2 check / copy commands,
+the local chain, to-dos, pitfalls. Register: `docs/POSE_MODELS.md` D10-D12.
+
 **[`docs/status/STATUS_2026-10-18_CAM1_ROUND2_3D_HANDOFF.md`](docs/status/STATUS_2026-10-18_CAM1_ROUND2_3D_HANDOFF.md)**
-— **START HERE for POSE TRACKING (cam1 round 2, cam1 clean traces, 3-D, model selection), newest.** cam1 DLC + LP round-2
+— superseded by the 10-19 POSE3D handoff for 3-D; still the reference for cam1 round 2, cleaning, model selection. cam1 DLC + LP round-2
 retrain (O2 jobs running), cam1 scoring / cleaned clips, the cam1 mouth = L/R spout-line intersection (apparatus), the 3-D
 apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + copy-back commands, pitfalls. Register:
 `docs/POSE_MODELS.md` (Parts B-D).

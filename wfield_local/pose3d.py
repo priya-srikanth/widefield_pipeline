@@ -184,7 +184,7 @@ def camera_rays(cam, xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.ndarray, t: np.ndarray,
                      max_gap_ms: float = 24.0, interp: str = "linear",
-                     max_ray_miss_mm: float = 1.0) -> tuple[np.ndarray, np.ndarray]:
+                     max_ray_miss_mm: float = 3.0) -> tuple[np.ndarray, np.ndarray]:
     """Fill frames that ONE camera measured (Priya 10-19: "use the known geometry to resolve occlusions in one view").
 
     About 40 % of tongue frames are seen by one camera only (PS92 0807: 18 % cam1-only, 25 % cam4-only). That camera
@@ -196,8 +196,11 @@ def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.
     ``interp``: how the neighbours' 3-D points are interpolated when BOTH sides are within reach -- "linear" (the two
     nearest), "pchip" / "akima" (a shape-preserving spline through every both-camera frame of the trial, evaluated only
     inside two-sided gaps). One-sided gaps always hold the nearest point (no extrapolation). A filled point is DROPPED
-    when the seen camera's ray passes more than ``max_ray_miss_mm`` (1 mm) from the neighbours' estimate: that camera's
-    2-D point then disagrees with the 3-D track (10-19: PS92 0607 had fills 20 mm out).
+    when the seen camera's ray passes more than ``max_ray_miss_mm`` (3 mm) from the neighbours' estimate: that camera's
+    2-D point then disagrees with the 3-D track (paw-in-face frames, 10-20 mm out). NOT 1 mm (first try, 10-19): the
+    interpolated estimate is routinely > 1 mm off the ray during a fast lick (~1 mm per frame) IN THE COORDINATES THE SEEN
+    CAMERA MEASURES -- exactly what snapping onto the ray corrects -- and 1 mm dropped 41-51 % of cam4-only fills
+    (PS92 0807 / 0607); 3 mm keeps 97.6-99.8 %.
     Returns (X filled, source code per frame: 0 none, 1 both cameras, 2 cam1 + neighbours, 3 cam4 + neighbours)."""
     X = np.array(X, float)
     both = np.isfinite(X).all(1)

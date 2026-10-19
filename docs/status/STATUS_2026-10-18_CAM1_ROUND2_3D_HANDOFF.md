@@ -1,5 +1,7 @@
 # Handoff — 2026-10-18: cam1 round-2 retrain, cam1 clean traces, the 3-D apparatus mouth, cam4 eps35
 
+> **SUPERSEDED for 3-D and the cam1 production run by `STATUS_2026-10-19_POSE3D_HANDOFF.md` (10-19 evening).**
+
 **START HERE for cam1 tracking / cleaning / 3-D.** Continues `STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md` (cam4
 production, LP_analysis) and the cam1 background in `STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md`. The model register with
 every setting, reason and score is **`docs/POSE_MODELS.md`** (cam4 sections 1-4, **cam1 Part B**, **evaluation plan + status

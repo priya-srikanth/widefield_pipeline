@@ -29,12 +29,20 @@ EP_COL = {"pre": "0.2", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#
 HALF_MS, PORTRAIT_MS = 152.0, 76.0
 T_REL = np.arange(-HALF_MS, HALF_MS + 0.1, 4.0)
 U_NORM = np.linspace(0.0, 1.0, 41)
-MEAS = ("dist", "vrad", "out", "down", "side", "mid")
+MEAS = ("dist", "vrad", "out", "down", "side", "mid", "speed", "v_side", "v_out", "v_down")
 
 
 def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
     S = pd.read_csv(d3 / f"{s}_frames.csv.gz", usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
     S = S.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).sort_index()
+    # 3-D tip VELOCITY per frame (central difference over consecutive 4 ms frames of the same trial, mm/s); undefined in the
+    # mouth or across a gap (Priya 10-19: "will we add speed trajectory from 3-D?")
+    X = S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
+    tr, tt = S.index.get_level_values(0).to_numpy(), S.index.get_level_values(1).to_numpy(float)
+    V = np.full_like(X, np.nan)
+    c = (tr[2:] == tr[:-2]) & (np.abs(tt[2:] - tt[:-2] - 8.0) < 0.5)
+    V[1:-1][c] = (X[2:][c] - X[:-2][c]) / 0.008
+    S["v_ml"], S["v_ap"], S["v_dv"] = V[:, 0], V[:, 1], V[:, 2]
     rows = []
     for p, g in L.groupby("position"):
         acc = {("peak", m): [] for m in MEAS} | {("norm", m): [] for m in MEAS}
@@ -42,7 +50,9 @@ def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
             for kind, tt in (("peak", r.t_peak_3d + T_REL), ("norm", r.on_ms + U_NORM * (r.off_ms - r.on_ms))):
                 tq = np.round(tt / 4.0) * 4.0 if kind == "norm" else tt
                 idx = pd.MultiIndex.from_arrays([np.full(len(tq), r.trial_id), np.round(tq, 1)])
-                P = S.reindex(idx).to_numpy(float)
+                R_ = S.reindex(idx)
+                P = R_[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
+                Vv = R_[["v_ml", "v_ap", "v_dv"]].to_numpy(float)
                 known = np.isin(np.round(tq, 1), S.loc[r.trial_id].index.to_numpy()) if r.trial_id in S.index else \
                     np.zeros(len(tq), bool)
                 dist = np.linalg.norm(P, axis=1)
@@ -50,7 +60,8 @@ def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
                 with np.errstate(all="ignore"):
                     mid = np.degrees(np.arcsin(np.clip(-P[:, 0] / np.linalg.norm(P, axis=1), -1, 1)))
                 vals = {"dist": dist, "vrad": np.gradient(dist) * 250.0, "out": P[:, 1], "down": -P[:, 2],
-                        "side": -P[:, 0], "mid": mid}
+                        "side": -P[:, 0], "mid": mid, "speed": np.linalg.norm(Vv, axis=1), "v_side": -Vv[:, 0],
+                        "v_out": Vv[:, 1], "v_down": -Vv[:, 2]}
                 for m in MEAS:
                     acc[(kind, m)].append(vals[m])
         for (kind, m), arrs in acc.items():
@@ -213,6 +224,13 @@ def main(argv=None) -> int:
         fig_lines(P, animal, "norm", "dist", "3-D distance from mouth zero (mm)", "normalised lick phase",
                   out / f"phase_dist_{animal}.png", f"{animal}: 3-D distance vs normalised lick phase", a.pre_from)
         fig_trajectories(P, animal, geo, out / f"trajectories_{animal}.png", a.pre_from)
+        for kind, xl in (("peak", "ms from 3-D lick peak"), ("norm", "normalised lick phase (0 = onset, 1 = offset)")):
+            fig_lines(P, animal, kind, "speed", "3-D tip speed (mm/s)", xl, out / f"speed_{kind}_{animal}.png",
+                      f"{animal}: 3-D tongue-tip speed through the lick (undefined in the mouth)", a.pre_from)
+            for m, lab in (("v_side", "sideways (+ = toward ipsi)"), ("v_out", "forward (+ = out)"),
+                           ("v_down", "downward (+ = down)")):
+                fig_lines(P, animal, kind, m, f"{lab} velocity (mm/s)", xl, out / f"{m}_{kind}_{animal}.png",
+                          f"{animal}: {lab} velocity of the tongue tip", a.pre_from)
         print(f"-> {out} ({animal})")
     return 0
 

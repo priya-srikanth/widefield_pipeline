@@ -20599,3 +20599,40 @@ Whole engaged trials dropped at random until each session has the animal's targe
 August-pre / post session: PS92 1872, PS93 1469, PS94 1364, PS95 2250); tests whether the chronic rise of BOTH unique
 target and executed is just more data (chronic sessions have ~5000-6100 usable licks vs ~3900-4200 pre). Relative shares
 (unique / 6-category ceiling, unique / full R2; ratios of animal means) -> `tables/relative_shares.csv`.
+
+## 2026-10-19 (evening) — 3-D tongue / jaw from cam1 + cam4: method decisions and first results (Priya)
+
+Detail, numbers and history: `docs/POSE_MODELS.md` D10-D12; handoff `docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md`.
+
+**Decisions (each with the reason):**
+1. **cam1 production = LP ctx-semi** (`mhcrnn_semi_640_b4`): most faint licks after cleaning, no emergence lag. Running on O2
+   (array 56830841). No new cam1 labelling round now.
+2. **Cameras posed PER SESSION by PnP on the six commanded spout positions** (`pose3d.pnp_group`); only the 09-11 calibration's
+   INTRINSICS are used. Why: the 09-11 extrinsics put every part 6-10 px apart between the cameras (a sideways error +
+   day-to-day drift); PnP gives ~1 px for rigid parts and stage mm directly, and absorbs the moved June cam4 (0602-0604).
+3. **Spout edge labels built in**: cam4 keypoint = the rod's superior edge = the commanded point (the mouth zero was set with
+   the UPPER spout tip at the mouth); cam1 keypoint (inferior edge) one measured rod diameter (1.24 mm) below. Changes and
+   comparisons are unaffected; absolute distances to the spout become meaningful.
+4. **The mouth = the spout "mouth zero" (the stage set point), nothing else.** Not the resting jaw (the chin, ~1.4 mm off, and
+   it changes post-stroke) and not the resting nose (can change post-stroke). Post-stroke the set point was placed ~0.5 mm
+   closer (slack jaw; EXPERIMENT_ERRORS): set-point-relative numbers describe the task as placed that day.
+5. **June cam4 x 0.8853 about the PRINCIPAL POINT for 3-D only.** v36 is NOT re-run: the scaling centre only adds a constant
+   shift that cancels in every 2-D measure. The calibration's principal points are pinned from the sensor ROI (correct).
+6. **Single-camera frames filled** on the seen camera's ray, depth from both-camera neighbours <= 24 ms (Akima; held-out error
+   0.13-0.23 mm); a fill is dropped if the ray misses the neighbours' estimate by > 3 mm (1 mm dropped half the real fills).
+   Only MEASURED 2-D points enter 3-D (no 2-D interpolation).
+7. **Plausibility gates**: tongue > 8 mm from the mouth zero or > 2 mm behind it, jaw > 5 mm from its median, single-frame
+   spikes > 1.5 mm. Source of the outliers: paw-in-face frames that both models call 'tongue' with high confidence.
+8. **Readouts**: distance offsets primary (closest approach to the spout, lateral error, endpoint vs the animal's own pre
+   endpoint), all 3-D in mm; direction = 3-D angle error vs the spout direction (consistent across the set-point move: the
+   spouts are commanded from it) + the angle out of the midline plane (mouth zero + centre spouts) + forward tilt within it.
+   Lick peak = the 3-D frame farthest from the mouth zero. Licks: the cam4 events (comparable with the cam4 tables) and
+   events from the combined 3-D track (adds cam1's small licks).
+
+**Findings so far (PS92: 9 August pre, 3 acute; PS93 on trial clips only -- preliminary):**
+- cam4 2-D lateral is faithful (r 0.95-0.97 with 3-D ml), so the cam4 ipsi-aim and jaw-steering findings stand; cam4's
+  'protrusion' is 99 % the DOWN axis (blind to forward), so its acute 'shorter protrusion' is less downward extension.
+- Acute: aim shifted ipsi from lick ONSET through the whole lick at every position (+5..+13 deg close / centre, ~+30 deg far_R,
+  where the mean path crosses the midline); far_R closest approach 3.2 vs ~1 mm pre, lateral -3.0 mm; slower protrusion (far_R
+  ~100 vs ~160 mm/s radial); jaw opens less and stops steering (FAR_DIR 0.26 -> 0.02 mm).
+- Combined-track licks add 3-7 % real small licks cam4 missed (47 % touched the spout).
