@@ -137,17 +137,21 @@ def session_licks(rv, run: str, lab: str, bdir, dev: float) -> pd.DataFrame | No
         eng |= (ft >= t.strobe_s) & (ft <= t.stop_s)
     X = (X - X[eng].mean(0)) / X[eng].std(0)
     L = lick_table(rv, run, lab[:4], "2026" + lab[5:], B)
-    F = lick_features(X, ft, L.on_s.to_numpy())["evoked"]
+    FF = lick_features(X, ft, L.on_s.to_numpy())
+    F, Fq = FF["evoked"], FF["pre"]
     tgt = B.target_angle or {}
     keep = (L.engaged & L.ok & np.isfinite(F).all(1)).to_numpy()
-    L, F = L[keep].reset_index(drop=True), F[keep]
+    L, F, Fq = L[keep].reset_index(drop=True), F[keep], Fq[keep]
     far_t = {p: tgt[p] for p in FAR if p in tgt}
     near = L.angle.apply(lambda a: min(far_t, key=lambda p: abs(a - far_t[p])) if far_t else None)
     d = L.angle - tgt.get("far_contra", np.nan)
+    own = L.angle - L.pos.map(tgt).astype(float)
     mis = ~L.contact & (L.pos == "far_contra") & (d > dev) & (near != "far_contra")
-    kind = np.where(L.contact, "contacted", np.where(mis, "misdirected", "other"))
+    nc_on = ~L.contact & (own.abs() <= dev)                 # no contact, but aimed at its own spout (short / glancing)
+    kind = np.where(L.contact, "contacted", np.where(mis, "misdirected", np.where(nc_on, "nocontact", "other")))
     R = pd.DataFrame(F, columns=[f"r_{n}" for n in names])
-    return pd.concat([L[["trial_id", "pos", "angle"]].assign(kind=kind, exec_pos=near.to_numpy()), R], axis=1)
+    Q = pd.DataFrame(Fq, columns=[f"q_{n}" for n in names])
+    return pd.concat([L[["trial_id", "pos", "angle"]].assign(kind=kind, exec_pos=near.to_numpy()), R, Q], axis=1)
 
 
 def _pc(a: np.ndarray, b: np.ndarray) -> float:
@@ -155,7 +159,7 @@ def _pc(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.corrcoef(a[ok], b[ok])[0, 1]) if ok.sum() > 3 else np.nan
 
 
-def template_analysis(Ls: dict, meta: dict, min_n: int = 10) -> pd.DataFrame:
+def template_analysis(Ls: dict, meta: dict, min_n: int = 10, prefix: str = "r_") -> pd.DataFrame:
     """Per animal, PRE-stroke contacted-lick templates per far spout (mean lick-evoked region pattern), centred on the
     mean over the far spouts so only the position-SPECIFIC part is compared. Per test set (a session's misdirected
     licks, split by their exec-matched spout; and controls), r(pattern, T_far_contra) vs r(pattern, T_exec). Pre
@@ -166,7 +170,7 @@ def template_analysis(Ls: dict, meta: dict, min_n: int = 10) -> pd.DataFrame:
         pre = [lb for lb in labs if meta[lb]["epoch"] == "pre"]
         if len(pre) < 2:
             continue
-        rc = [c for c in Ls[labs[0]].columns if c.startswith("r_")]
+        rc = [c for c in Ls[labs[0]].columns if c.startswith(prefix)]
 
         def templates(excl, pre=pre, rc=rc):
             T = {}
@@ -189,6 +193,7 @@ def template_analysis(Ls: dict, meta: dict, min_n: int = 10) -> pd.DataFrame:
             for ex in ("far_mid", "far_ipsi"):
                 sets.append((f"misdirected->{ex}", (L.kind == "misdirected") & (L.exec_pos == ex), ex))
                 sets.append((f"contacted {ex}", (L.kind == "contacted") & (L.pos == ex), ex))
+                sets.append((f"nocontact {ex}", (L.kind == "nocontact") & (L.pos == ex), ex))
             sets.append(("contacted far_contra", (L.kind == "contacted") & (L.pos == "far_contra"), "far_mid"))
             for name, msk, ex in sets:
                 if msk.sum() < min_n or ex not in T:
@@ -307,7 +312,7 @@ def main_templates(a, rv, out, bdir) -> int:
         ep = epochs.epoch_of(lab)
         if ep not in EPOCHS or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM) or (a.labels and lab not in a.labels):
             continue
-        cf = cache / f"{lab}_dev{a.dev:g}.pkl"
+        cf = cache / f"{lab}_dev{a.dev:g}_v2.pkl"
         if cf.exists():
             L = pd.read_pickle(cf)
         else:
@@ -319,15 +324,38 @@ def main_templates(a, rv, out, bdir) -> int:
         Ls[lab], meta[lab] = L, {"animal": lab[:4], "epoch": ep}
         print(f"{lab} {ep}: contacted {int((L.kind == 'contacted').sum())}, misdirected "
               f"{int((L.kind == 'misdirected').sum())}", flush=True)
-    D = template_analysis(Ls, meta)
+    # window 'evoked' = lick-evoked (post - pre, primary); 'pre' = the 100 ms BEFORE onset (trial context control)
+    D = pd.concat([template_analysis(Ls, meta, prefix=p).assign(window=w) for w, p in (("evoked", "r_"), ("pre", "q_"))],
+                  ignore_index=True)
     D.to_csv(out / "template_match.csv", index=False, float_format="%.4g")
     pd.set_option("display.width", 220)
-    T = D.groupby(["set", "animal", "epoch"])[["n", "r_target", "r_exec", "exec_minus_target"]].mean()
-    print("\nper set x animal x epoch (mean over sessions): r with the far_contra template (plan / target) vs with the "
-          "exec-matched spout's template (execution)\n" + T.round(3).to_string())
-    _figure_templates(D, out / "template_match.png", a.run, a.dev)
+    T = D.groupby(["window", "set", "animal", "epoch"])[["n", "r_target", "r_exec", "exec_minus_target"]].mean()
+    print("\nper window x set x animal x epoch (mean over sessions): r with the far_contra template (plan / target) vs "
+          "with the exec-matched spout's template (execution)\n" + T.round(3).to_string())
+    S = shift_table(D)
+    S.to_csv(out / "template_shift.csv", index=False, float_format="%.4g")
+    print("\nSHIFT = score(misdirected) - score(comparison licks at the exec-matched spot); score = r(exec) - r(far_contra)"
+          "; < 0 = misdirected look more like far_contra than the comparison does. comparison 'contacted' (touch "
+          "asymmetry) or 'nocontact' (no touch on either side)\n" + S.round(3).to_string(index=False))
+    _figure_templates(D[D.window == "evoked"], out / "template_match.png", a.run, a.dev)
     print(f"-> {out / 'template_match.csv'}")
     return 0
+
+
+def shift_table(D: pd.DataFrame) -> pd.DataFrame:
+    """Per window x landing spot x comparison x animal x epoch: misdirected score minus the comparison set's score."""
+    A = D.groupby(["window", "set", "animal", "epoch"]).exec_minus_target.mean()
+    rows = []
+    for (w, s, an, ep), v in A.items():
+        if not s.startswith("misdirected->"):
+            continue
+        ex = s.split("->")[1]
+        for comp in ("contacted", "nocontact"):
+            k = (w, f"{comp} {ex}", an, ep)
+            if k in A.index:
+                rows.append({"window": w, "landed": ex, "vs": comp, "animal": an, "epoch": ep, "mis": v,
+                             "comp": A[k], "shift": v - A[k]})
+    return pd.DataFrame(rows).sort_values(["window", "landed", "vs", "epoch", "animal"])
 
 
 def _figure_templates(D: pd.DataFrame, path, run: str, dev: float) -> None:
