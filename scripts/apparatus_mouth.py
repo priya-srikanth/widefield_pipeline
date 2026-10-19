@@ -89,34 +89,13 @@ def _cam4_from_o2(rv, animal: str, date: str, bundle: str = PROD["cam4"]):
 
 def _from_o2(rv, animal: str, date: str, bundle: str, cam: str):
     """Parked spout medians + nose from an O2 whole-session output (RAW px: the June cam4 scaling is applied later, in the
-    `evaluate` variants, never v36's). Split days: every video must be done; each is cut with its own recording's
-    template, as `o2_inference.cmd_collect` does. None when the session is missing or incomplete."""
-    import json
-    from wfield_local import camera_sync as cs
+    `evaluate` variants, never v36's). Split days handled by `o2_inference.session_windows`. None when missing."""
     from wfield_local import o2_inference as oi
     from wfield_local import spout_frame as SF
-    od = Path(rv.root("dlc")) / "o2" / bundle / "out" / f"{animal}_{date}"
-    names = [v.name for v in oi.videos_for(rv, animal, date, cam)]
-    vids = []
-    for n in names:
-        done = od / f"{Path(n).stem}_done.json"
-        if not done.exists():
-            return None
-        npz = od / f"{Path(n).stem}_{json.loads(done.read_text(encoding='utf-8'))['scorer']}.npz"
-        if not npz.exists():
-            return None
-        vids.append((n, np.load(npz)))
-    if not vids:
+    r = oi.session_windows(rv, bundle, animal, date, cam)
+    if r is None:
         return None
-    tpls = cs.templates_for(rv, date, animal, cam)
-    rec = lambda name: Path(name).stem.split("_", 1)[1]           # noqa: E731  <cam>_<recording>.avi
-    if any(rec(n) not in tpls for n, _ in vids):
-        return None
-    z = vids[0][1]
-    videos = [(zz["pose"], t, n) for n, zz in vids for t in tpls[rec(n)]]
-    parts = [str(x) for x in z["parts"]]
-    ix, sel = oi.build_windows(videos[0][0], animal, date, rv, videos=videos if len(videos) > 1 else None, cam=cam)
-    flat = pd.DataFrame({f"{p}_{c}": sel[:, k, j] for k, p in enumerate(parts) for j, c in enumerate(("x", "y", "likelihood"))})
+    ix, flat = r
     t = ix.t_ms.to_numpy(float)
     ok = (flat.nose_likelihood >= 0.9).to_numpy() & (t < 0)
     return SF.ruler_medians(flat, ix), np.array([np.median(flat.nose_x[ok]), np.median(flat.nose_y[ok])])

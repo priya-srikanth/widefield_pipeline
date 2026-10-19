@@ -537,6 +537,38 @@ def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: 
     return ix, sel
 
 
+def session_windows(rv, bundle: str, animal: str, date: str, cam: str = "cam4", pre_s: float = 0.5,
+                    post_s: float = 3.0) -> tuple[pd.DataFrame, pd.DataFrame] | None:
+    """``(windows_index, flat pose)`` for one session straight from a bundle's copied-back ``out/`` (no
+    `session_poses` folder needed): RAW image px, ``{part}_x/_y/_likelihood`` columns, rows aligned with the index.
+    Split days as `cmd_collect` (every video must be done; each cut with its own recording's template). None when
+    the session is missing or incomplete."""
+    from wfield_local import camera_sync as cs
+    od = Path(rv.root("dlc")) / "o2" / bundle / "out" / f"{animal}_{date}"
+    vids = []
+    for v in videos_for(rv, animal, date, cam):
+        done = od / f"{v.stem}_done.json"
+        if not done.exists():
+            return None
+        npz = od / f"{v.stem}_{json.loads(done.read_text(encoding='utf-8'))['scorer']}.npz"
+        if not npz.exists():
+            return None
+        vids.append((v.name, np.load(npz)))
+    if not vids:
+        return None
+    tpls = cs.templates_for(rv, date, animal, cam)
+    rec = lambda name: Path(name).stem.split("_", 1)[1]           # noqa: E731  <cam>_<recording>.avi
+    if any(rec(n) not in tpls for n, _ in vids):
+        return None
+    videos = [(z["pose"], t, n) for n, z in vids for t in tpls[rec(n)]]
+    parts = [str(x) for x in vids[0][1]["parts"]]
+    ix, sel = build_windows(videos[0][0], animal, date, rv, pre_s=pre_s, post_s=post_s,
+                            videos=videos if len(videos) > 1 else None, cam=cam)
+    flat = pd.DataFrame({f"{p}_{c}": sel[:, k, j].astype(float) for k, p in enumerate(parts)
+                         for j, c in enumerate(("x", "y", "likelihood"))})
+    return ix, flat
+
+
 def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
     """Check each finished video's frame count and write `session_poses/<a>_<d>_full/` windows (windows_DLC.csv or,
     for an LP bundle, windows_LP.csv -- the same windows_index either way). ``compare``: {"ANIMAL:DATE": clip csv}

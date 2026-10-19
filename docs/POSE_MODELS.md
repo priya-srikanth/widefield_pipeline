@@ -755,3 +755,32 @@ recall 96.8 / 97.9 % (LP r4 98.8 / 99.6); review precision 100 / 90.6 % but **fi
 > 30 px 267 / 137 (LP r4 35 / 45), > 60 px 12 / 8 (3 / 1); jaw x jumps > 30 px 137 pre (38). Validation loss was still falling
 at 300 epochs (0.19 vs ResNet-50 eps35's 0.11). Worse than LP r4 on every axis that matters; no reason to train it longer
 for production.
+
+## D10. Per-frame 3-D tongue / jaw and per-lick 3-D aim (10-19, PRELIMINARY: PS93 trial clips)
+
+`wfield_local/pose3d.py` + `python -m scripts.pose3d {clips | production}` (dlc env; output `session_poses/pose3d/`:
+`<a>_<d>_frames.csv.gz`, `<a>_<d>_licks.csv`, `summary_<source>.csv`). aniposelib `CameraGroup.triangulate` (undistort +
+DLT) with the 09-11 calibration -- the spout fit's own call, not anipose's filter / optimisation pipeline (two cameras, no
+rigid limbs; multi-camera EKS is the next step if tips prove noisy). Frames pair EXACTLY on (trial_id, t_ms) (same 4 ms
+DAQ grid); each camera is cleaned with its own rules first and tongue / jaw are triangulated only where BOTH cameras
+MEASURED the point (no interpolated point enters); nose / spout raw at likelihood >= 0.9. The per-session spout fit
+(`spout_world`) gives (ml, ap, dv) mm, origin = the stage's mouth set point. June cam4: x 0.885 about the principal point
+before cleaning. `production` reads both O2 outputs (`o2_inference.session_windows`, split days handled).
+
+**PS93 clips (cam1 ctx-semi eval clip + cam4 LP r4 O2; 0814 pre / 0821 acute / 0908 chronic).** 97 % of cam1 frames pair;
+spout fit 0.05-0.07 mm, scale 0.986-0.992; reprojection 6-9 px for EVERY part, the tongue included (= the spout's, so the
+cam1 "tip from below" and cam4 "tip from the front" triangulate as one point); 841 / 448 / 1091 3-D licks.
+
+**The aim must be measured against the target spout, not from the origin.** The set point is not where the tongue
+leaves the mouth (resting jaw at (ml, ap, dv) = (-0.2, 1.2, -1.4) mm, i.e. at the close_center spout), so angles from it were
+11-48 deg off target with no sensible structure. At its extension peak the tongue is 1.5-3 mm BELOW the spout tip (the hanging
+drop; Priya's "the tongue reaches down" on cam1) and medial to it. Per lick now: ``miss_mm`` = closest 3-D approach of the tip
+to the commanded spout tip; ``lat_err_mm`` at that frame (+ = outward, centre + = mouse left, the cam1 2-D sign);
+``reach_mm`` at the peak.
+
+**Validation: contact licks come closer** (median miss, pre): far_L 1.53 vs 3.07 mm without contact, far_R 0.93 vs 1.63,
+close_L 1.32 vs 1.71, close_R 0.88 vs 1.17 -- the measure tracks real accuracy. Contact licks still keep the tip ~1 mm
+MEDIAL of the spout on BOTH sides (lat_err -1.0 close_L, -0.8 far_R): a constant calibration / label offset would have
+opposite signs on L and R, so this is physical -- the side of the tongue, not the tip, touches the spout.
+**PS93 acute:** NO far_R contact licks on 0821; far_R no-contact miss 1.63 -> 2.53 mm, lat_err -1.11 -> -1.98 (medial =
+toward mouse left = ipsi), partial recovery at 0908 (2.14 / -1.44). One animal, trial clips: wait for production.

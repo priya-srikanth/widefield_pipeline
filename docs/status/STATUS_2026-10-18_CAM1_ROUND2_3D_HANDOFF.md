@@ -23,6 +23,8 @@ Analysis desktop; M: = MICROSCOPE.
   June cam4 x0.885 about the principal point -> `session_poses/apparatus_mouth_production{,_chosen}.csv`). cam1's principal
   point (200, 200) CHECKED 10-19: pinned from the sensor ROI, correct (POSE_MODELS D5); v36 June sessions need NO re-run
   (the scaling centre cancels in every 2-D measure). Then cam1 per-session outputs (cleaned traces + cam4-timed lateral landing).
+  Per-frame 3-D, READY (POSE_MODELS D10): `python -m scripts.pose3d production --jobs 4` (dlc env) -> `session_poses/pose3d/`
+  frames + per-lick reach / miss / lateral error against the target spout; tested on the PS93 clips (`pose3d clips`).
 * Local GPU free (LP review inference stopped 10-19; an orphaned queue loop from the previous session had kept running --
   pitfall 17).
 * 17. **Background loops survive a session restart even when reported "stopped"**: after a restart, find leftover queue
