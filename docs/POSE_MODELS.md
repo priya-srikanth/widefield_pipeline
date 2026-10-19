@@ -828,3 +828,20 @@ shift of every body point. The old route (09-11 extrinsics + per-session `dispar
 ``method="calib"``. Single-camera frames (~40 % of tongue frames; cam1 alone fixes ml / ap, cam4 alone ml / dv) are the next
 step: ray + depth from neighbouring 3-D frames, or multi-camera EKS. Video: `pose3d_figures video --view cam4` (3-D panel
 seen from cam4's PnP position; also cam1 / hybrid).
+
+**Single-camera frames filled (`pose3d.fill_single_view`, default since 10-19; Priya: "use the known geometry to resolve
+occlusions in one view").** ~40 % of tongue frames are seen by ONE camera (PS92 0807: 18 % cam1-only, 25 % cam4-only; jaw
+29-34 %). That camera fixes the point to its ray (cam4 alone: ml + dv; cam1 alone: ml + ap -- ml, the aim coordinate, is
+known either way); the depth along the ray comes from the nearest both-camera frames of the same trial within 24 ms
+(interpolated in time), moved to the closest point on the ray; ``{part}_src`` 1 both / 2 cam1 / 3 cam4 / 0 none.
+**Held-out check (PS92 0807, one camera hidden on both-camera frames):** median 3-D error 0.14-0.15 mm at 4 ms gaps, 0.22-0.25
+mm at 24 ms (p90 0.4 -> 0.65); ml 0.08-0.09 mm at every gap (= the cameras' tongue disagreement, 3-4 px); the error grows
+along the axis the seen camera cannot measure. Coverage of tongue frames seen by either camera: 61 % -> 88 %.
+**It changes the aim readout -- CORRECTION to the "tip ~1 mm medial at contact" reading above.** The closest approach to
+the spout is often a ONE-camera frame (the spout itself hides the tip from one view at contact), so both-camera-only misses
+were biased high: PS92 0807 far_L 1.34 -> 0.90 mm, far_center 0.57 -> 0.36, close ~1.1 -> 0.7-0.8; lat_err far_L -0.87 ->
+-0.62, close -0.5 -> -0.3 / -0.4; reach at the far positions +0.3-0.5 mm (peaks were one-camera frames too). Licks per session
+change little (runs that were split by a one-camera gap now merge). The tip still passes medial of the lateral spouts, by
+less (0.3-0.9 mm). **The acute deficit stands:** PS92 0818 far_R miss 3.19 mm / lat_err -2.93 (pre 1.1-1.2 / -0.7 to -0.9);
+PS93 far_R 0.97 / 2.48 / 1.40 mm pre / acute / chronic. Unfilled summaries kept in `session_poses/pose3d/nofill_20261019/`.
+Videos mark filled points orange (red = both cameras).

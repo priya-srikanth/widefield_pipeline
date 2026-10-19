@@ -99,6 +99,12 @@ class _Cam:
         import cv2
         return cv2.projectPoints(np.asarray(X, float), self.r, self.t, self.K, np.zeros(5))[0][:, 0]
 
+    def get_extrinsics_mat(self):
+        import cv2
+        M = np.eye(4)
+        M[:3, :3], M[:3, 3] = cv2.Rodrigues(self.r)[0], self.t
+        return M
+
 
 class _Group:
     def __init__(self, cams):
@@ -125,3 +131,20 @@ def test_pnp_poses_each_camera_from_the_commanded_spouts_and_triangulates_in_mm(
     X = g.triangulate(true.project(body), undistort=True)
     assert np.allclose(X, body, atol=1e-3)
     assert start.cameras[0].t[2] == 100.0                     # the input group is not modified
+
+
+def test_single_view_frames_are_filled_on_the_seen_ray_with_depth_from_neighbours():
+    g = _Group([_Cam("cam1", [-0.8, 0.02, 0.0], [0.3, 1.0, 150.0]), _Cam("cam4", [1.5, 0.0, 0.0], [-0.2, 2.0, 160.0])])
+    t = np.arange(7) * 4.0
+    truth = np.c_[0.1 * t, 1.0 + 0.05 * t, -2.0 - 0.02 * t]          # straight-line motion: interpolation is exact
+    px = g.project(truth)
+    a, b = px[0].copy(), px[1].copy()
+    a[2:4] = np.nan                                                  # frames 2, 3: cam4 only
+    b[4] = np.nan                                                    # frame 4: cam1 only
+    X = g.triangulate(np.stack([a, b]), undistort=True)
+    X[~(np.isfinite(a).all(1) & np.isfinite(b).all(1))] = np.nan
+    F, src = P3.fill_single_view(X, a, b, g, np.ones(7, int), t, max_gap_ms=24.0)
+    assert list(src) == [1, 1, 3, 3, 2, 1, 1]
+    assert np.allclose(F, truth, atol=1e-3)
+    _, src2 = P3.fill_single_view(X, a, b, g, np.ones(7, int), t, max_gap_ms=2.0)   # no neighbour close enough
+    assert list(src2) == [1, 1, 0, 0, 0, 1, 1]

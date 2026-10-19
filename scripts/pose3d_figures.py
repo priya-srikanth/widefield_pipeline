@@ -9,7 +9,8 @@ position, >= 5 frames, onset -> end), thick = their time-normalised mean; filled
 fitted frame), + = the mouth set point (origin), grey = nose and resting jaw medians.
 ``video``: per position the most typical lick (miss distance nearest that position's median, 15-45 frames); panels = cam1
 and cam4 crops around the apparatus mouth (raw video; green circle = that camera's 2-D tongue, red x = the TRIANGULATED
-point projected back, yellow ring = the target spout projected) and the 3-D path so far, seen from cam4's real position (``--view cam4 | cam1 | hybrid``,
+point projected back -- red from both cameras, orange from one camera + neighbouring 3-D frames; yellow ring = the
+target spout projected) and the 3-D path so far, seen from cam4's real position (``--view cam4 | cam1 | hybrid``,
 from the calibration). 250 fps shown at 10 fps (25x slow).
 dlc env (aniposelib). Output: `session_poses/pose3d/figures/`.
 """
@@ -198,6 +199,7 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
             path = []
             for fr in F.itertuples():
                 X = np.array([fr.tongue_ml, fr.tongue_ap, fr.tongue_dv])
+                src_now = int(getattr(fr, "tongue_src", 1))
                 if np.isfinite(X).all():
                     path.append(X)
                 panels = []
@@ -212,7 +214,8 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
                     if np.isfinite(X).all():
                         pa, pb = proj(X)
                         q = pa[0] if cam == "cam1" else pb[0]
-                        cv2.drawMarker(im, (int(q[0]), int(q[1])), (0, 0, 255), cv2.MARKER_TILTED_CROSS, 14, 2, cv2.LINE_AA)
+                        col = (0, 0, 255) if src_now == 1 else (0, 140, 255)       # red: both cameras; orange: one + neighbours
+                        cv2.drawMarker(im, (int(q[0]), int(q[1])), col, cv2.MARKER_TILTED_CROSS, 14, 2, cv2.LINE_AA)
                     x0, y0 = int(mouth[0]) - 170, int(mouth[1]) - 170
                     x0, y0 = max(0, min(x0, im.shape[1] - 340)), max(0, min(y0, im.shape[0] - 340))
                     crop = cv2.resize(im[y0:y0 + 340, x0:x0 + 340], (H, H))
@@ -225,7 +228,7 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
                 if path:
                     A = np.array(path)
                     ax3.plot(A[:, 0], A[:, 1], A[:, 2], color=COL[p], lw=2)
-                    ax3.scatter(*A[-1], s=30, color="r")
+                    ax3.scatter(*A[-1], s=30, color="r" if src_now == 1 else "darkorange")
                 ax3.set_xlim(-3.5, 3.5)
                 ax3.set_ylim(-1, 6)
                 ax3.set_zlim(-5, 1)
@@ -241,7 +244,7 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
                 frame = np.hstack(panels)
                 bar = np.zeros((28, frame.shape[1], 3), np.uint8)
                 cv2.putText(bar, f"{animal} {date}  trial {r.trial_id}  {p}  miss {r.miss_mm:.2f} mm  lat_err {r.lat_err_mm:+.2f} mm"
-                            "   green = 2-D tongue, red x = 3-D point reprojected, yellow = target spout",
+                            "  green = 2-D tongue | x = 3-D point reprojected: red both cams, orange one cam + neighbours | yellow = target",
                             (8, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
                 frame = np.vstack([bar, frame])
                 if vw is None:

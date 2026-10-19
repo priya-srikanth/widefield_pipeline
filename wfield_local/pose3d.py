@@ -138,6 +138,52 @@ def _identity_world(g, med_by_cam: dict, geometry: dict):
     return SW.SpoutWorld(1.0, np.eye(3), np.zeros(3), res, SW.distance_check(med, geometry), {}, {})
 
 
+def camera_rays(cam, xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(centre (3,), unit directions (n, 3)) of the rays through image points ``xy`` (n, 2), in ``cam``'s world
+    (calibration space; stage mm for a `pnp_group` camera). Undistorted with the camera's own model."""
+    import cv2
+    K, D = cam.get_camera_matrix(), np.asarray(cam.get_distortions(), float)
+    nrm = cv2.undistortPoints(np.asarray(xy, float).reshape(-1, 1, 2), K, D).reshape(-1, 2)
+    M = cam.get_extrinsics_mat()
+    R, t = M[:3, :3], M[:3, 3]
+    U = (R.T @ np.c_[nrm, np.ones(len(nrm))].T).T
+    return -R.T @ t, U / np.linalg.norm(U, axis=1, keepdims=True)
+
+
+def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.ndarray, t: np.ndarray,
+                     max_gap_ms: float = 24.0) -> tuple[np.ndarray, np.ndarray]:
+    """Fill frames that ONE camera measured (Priya 10-19: "use the known geometry to resolve occlusions in one view").
+
+    About 40 % of tongue frames are seen by one camera only (PS92 0807: 18 % cam1-only, 25 % cam4-only). That camera
+    fixes the point to its RAY exactly (cam4 alone: ml and dv; cam1 alone: ml and ap -- so ml, the aim coordinate, is
+    known either way); the depth along the ray comes from the nearest BOTH-camera frames of the same trial within
+    ``max_gap_ms`` (default 24 ms, the cam1 gap rule, D8): their 3-D points interpolated in time (or the one side
+    within reach), then moved to the closest point on the ray. ``X`` (n, 3) triangulated (NaN where not both),
+    ``a`` / ``b`` the cam1 / cam4 measured 2-D (NaN = not measured), rows in time order within each trial.
+    Returns (X filled, source code per frame: 0 none, 1 both cameras, 2 cam1 + neighbours, 3 cam4 + neighbours)."""
+    X = np.array(X, float)
+    both = np.isfinite(X).all(1)
+    has1, has4 = np.isfinite(a).all(1), np.isfinite(b).all(1)
+    src = np.where(both, 1, np.where(has1 & ~has4, 2, np.where(has4 & ~has1, 3, 0)))
+    tt = pd.Series(np.where(both, t, np.nan))
+    tp, tn = tt.groupby(trial).ffill().to_numpy(), tt.groupby(trial).bfill().to_numpy()
+    Xb = pd.DataFrame(np.where(both[:, None], X, np.nan))
+    Xp, Xn = Xb.groupby(trial).ffill().to_numpy(), Xb.groupby(trial).bfill().to_numpy()
+    dp, dn = t - tp, tn - t
+    okp, okn = dp <= max_gap_ms, dn <= max_gap_ms                     # NaN compares False
+    with np.errstate(invalid="ignore", divide="ignore"):
+        w = (dp / (dp + dn))[:, None]
+    est = np.where((okp & okn)[:, None], Xp + w * (Xn - Xp),
+                   np.where(okp[:, None], Xp, np.where(okn[:, None], Xn, np.nan)))
+    for code, xy, cam in ((2, a, cg.cameras[0]), (3, b, cg.cameras[1])):
+        k = (src == code) & np.isfinite(est).all(1)
+        if k.any():
+            C, U = camera_rays(cam, xy[k])
+            X[k] = C + ((est[k] - C) * U).sum(1)[:, None] * U
+    src[(src > 1) & ~np.isfinite(X).all(1)] = 0
+    return X, src
+
+
 def _raw_xy(flat: pd.DataFrame, part: str, rows: np.ndarray) -> np.ndarray:
     """Raw (x, y) at ``rows``, NaN below ``STATIC_LK`` (nose / spout)."""
     xy = flat[[f"{part}_x", f"{part}_y"]].to_numpy(float)[rows]
@@ -158,13 +204,16 @@ def triangulate(cg,xy1: np.ndarray, xy4: np.ndarray) -> tuple[np.ndarray, np.nda
 
 
 def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.DataFrame, flat4: pd.DataFrame,
-               june_factor: float | None = None, method: str = "pnp") -> tuple[pd.DataFrame, dict]:
+               june_factor: float | None = None, method: str = "pnp",
+               fill_gap_ms: float | None = 24.0) -> tuple[pd.DataFrame, dict]:
     """Per paired frame: trial_id, position, t_ms, stop_ms and per part ``{part}_ml/_ap/_dv`` mm + ``{part}_rep1/_rep4``
     px. ``flat1`` / ``flat4`` RAW image px (``{part}_x/_y/_likelihood``), rows aligned with ``ix1`` / ``ix4``.
     ``june_factor``: scale cam4 about its principal point first (cleaning thresholds are in Aug+ px).
     ``method``: "pnp" (default, 10-19) = cameras posed per session from the commanded spouts (`pnp_group`); "calib" =
     the 09-11 extrinsics + the per-session x shifts of `disparity_shift` (info ``shift_px``; 2-D points drawn on the raw
-    video must subtract them) + the similarity fit -- kept for comparison. Returns (frames, info) -- info carries the world fit,
+    video must subtract them) + the similarity fit -- kept for comparison. ``fill_gap_ms``: fill single-camera
+    tongue / jaw frames (`fill_single_view`; ``{part}_src`` 1 both, 2 cam1, 3 cam4, 0 none; their rep columns stay NaN);
+    None = both cameras only. Returns (frames, info) -- info carries the world fit,
     the apparatus mouth in each camera and the spout medians used."""
     from wfield_local import spout_frame as SF
     from wfield_local import spout_world as SW
@@ -202,6 +251,9 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
         else:
             a, b = _raw_xy(flat1, part, i1), _raw_xy(flat4, part, i4)
         X, rep = triangulate(cg, a, b)
+        if part in CLEANED and fill_gap_ms:
+            X, src = fill_single_view(X, a, b, cg, out.trial_id.to_numpy(), out.t_ms.to_numpy(float), fill_gap_ms)
+            out[f"{part}_src"] = src
         W = world.to_world(X)
         for k, ax in enumerate(("ml", "ap", "dv")):
             out[f"{part}_{ax}"] = W[:, k]
@@ -213,7 +265,8 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
 
 def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: float | None = None) -> pd.DataFrame:
     """One row per 3-D lick: a run of >= ``min_frames`` consecutive frames (4 ms apart, one trial, cue .. trial stop)
-    with a triangulated tongue. ``max_rep_px`` drops frames whose tongue reprojection exceeds it in either camera.
+    with a 3-D tongue (both cameras, or one camera + neighbours: `fill_single_view`; ``share_single_view`` per lick).
+    ``max_rep_px`` drops BOTH-camera frames whose tongue reprojection exceeds it in either camera.
 
     AIM IS MEASURED AGAINST THE TARGET SPOUT, NOT FROM THE ORIGIN (10-19, PS93 0814). The origin is the stage's mouth SET
     POINT, not where the tongue leaves the mouth (the resting jaw sits ~2 mm forward and down, at the close_center
@@ -228,8 +281,9 @@ def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: floa
     t, tid = S.t_ms.to_numpy(float), S.trial_id.to_numpy()
     P = S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
     have = np.isfinite(P).all(1) & (t >= 0) & (t <= S.stop_ms.to_numpy(float))
-    if max_rep_px is not None:
-        have &= (S.tongue_rep1.to_numpy(float) <= max_rep_px) & (S.tongue_rep4.to_numpy(float) <= max_rep_px)
+    src = S.tongue_src.to_numpy() if "tongue_src" in S else np.where(have, 1, 0)
+    if max_rep_px is not None:                                  # single-camera frames have no reprojection error
+        have &= (src != 1) | ((S.tongue_rep1.to_numpy(float) <= max_rep_px) & (S.tongue_rep4.to_numpy(float) <= max_rep_px))
     tgt = {p: SW.commanded_world(rig["geometry"], p) for p in SW.POSITIONS}
     rows, i, n = [], 0, len(S)
     while i < n:
@@ -248,7 +302,8 @@ def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: floa
             m = i + int(np.argmin(dm))
             out_sign = np.sign(g[0]) if abs(g[0]) > 1e-6 else -1.0        # centre: + = mouse left
             rows.append({"trial_id": int(tid[i]), "position": pos, "t_onset_ms": t[i], "t_peak_ms": t[k],
-                         "n_frames": j - i, "reach_mm": float(r[k - i]),
+                         "n_frames": j - i, "share_single_view": float(np.mean(src[i:j] > 1)),
+                         "reach_mm": float(r[k - i]),
                          "ml": P[k, 0], "ap": P[k, 1], "dv": P[k, 2],
                          "miss_mm": float(dm[m - i]), "t_closest_ms": t[m],
                          "lat_err_mm": float(out_sign * (P[m, 0] - g[0])),
