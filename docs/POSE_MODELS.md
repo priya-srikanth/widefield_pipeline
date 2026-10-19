@@ -357,6 +357,14 @@ mostly good but sometimes sits to one side of the tongue as it emerges. NB the p
 epsilon of 10 px for EVERY keypoint (tongue too) -- below cam1's genuine fast tongue motion (p99 40 px, B3), so it may hold the
 emerging tip back; eps40 (same model, tongue 40) and ctx-semi (temporal context, tongue 35) test that.
 
+**LP c1r2 eps40 scored (10-18, tag `_eps40_1018`; O2 job crashed in the post-training labelled-frame eval, predictions from a
+predict-only job, so no pixel-error table).** Pre / acute / chronic, eps40 vs plain LP c1r2: contacts seen 99.5 / 98.8 / 99.0
+vs 100 / 99.2 / 99.2; tongue > 60 px per 10k 5.6 / 20.6 / 15.6 vs 5.1 / 17.4 / 12.9; tongue coverage 20.7 / 10.5 / 25.9 vs
+21.0 / 12.2 / 28.9 %; jaw jumps 3.2 / 2.4 / 6.1 vs 3.3 / 3.2 / 5.3; onset within 12 ms of cam4 69.6 / 56.3 / 68.3 vs 66.6 /
+54.8 / 65.2 %. **Essentially the same model**: the cam1-measured tongue epsilon buys slightly better cam1-cam4 timing at
+slightly more teleports and a little less coverage. Whether it fixes the "beside the emerging tongue" offset is a visual
+question: `session_poses/PS93_20260814_cam1/eval/cleaned_labels_cam1_dlc2_lp2_eps40_gap24.mp4` (same 16 trials, incl. 507).
+
 ---
 
 # Part C -- Evaluation plan and status, both cameras (2026-10-18; cam1 metrics agreed by Priya 10-18; she picks the winner)
