@@ -378,6 +378,12 @@ on average (> 10 px misses 0-3 % of frames for every model) but systematic -- th
 back. -> plain LP c1r2 dropped; cam1 choice between LP eps40 and ctx-semi (tied on the scores; eps40 cheaper on O2, fewer
 pre teleports). Frames where ALL models miss the tip (e.g. trial 507 +904 ms, tongue part-out / retracting) -> next cam1
 labelling round, with the water-drop frames.
+**cam1 nose (10-19).** Steady when tracked (median step 0.2 px, p99 ~2 px, no jumps) but "confident" in only 40-68 % of
+frames -- BY DESIGN: at the two CENTRE positions the spout rod covers the nose from below, and the labels leave it blank there
+(nose labelled in 1 % of centre frames vs 91-100 % at the sides), so the models correctly say "not visible" (ctx-semi nose
+lk >= 0.5 at centre 2-4 %, sides 80-94 %). Acute PS93 0821 side positions are lower (58-69 % at close_L / far_L / far_R).
+DLC's nose likelihoods are also less decisive (median 0.91 pre, 0.27 acute) -- use lk >= 0.5, not 0.9, for the nose. Fine
+as a session-level head reference (median of side-position frames); not a per-frame signal at the centre.
 **Faint licks (10-19, Priya: "but eps40 misses faint licks?"):** share of cam4 LP r4 licks (PS93 clip trials; LP r4 found
 99-100 % of real faint licks in both blind reviews) with a confident cam1 tongue within +-20 ms of cam4's peak, pre / acute /
 chronic. No-contact (n = 151 / 88 / 165): **ctx-semi 90.7 / 89.8 / 95.8**, LP c1r2 88.7 / 87.5 / 94.5, eps40 86.8 / **79.5** /
