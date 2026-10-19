@@ -972,6 +972,15 @@ def main(argv=None) -> int:
     tabs.mkdir(parents=True, exist_ok=True)
     if a.order.endswith("_subset-trmodels") or a.order.startswith("musall"):
         return tr_main(a, figs, tabs)
+    if a.order.endswith("_subset-shufpos"):                  # per-spout maps from the FIXED one-vs-rest rerun (10-19)
+        _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+        title = (f"Combined encoding model, {a.order} (fixed one-vs-rest) -- {a.run} -- baseline: "
+                 f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
+                 f"{meta.groupby('animal').label.nunique().to_dict()}")
+        for w in ("enl", "cue", "lick"):
+            fig_position_each_maps(meta, sess, figs / f"position_each_maps_{w}.png", title, _outline(meta), w)
+        print(f"figures -> {figs}")
+        return 0
     if "_subset-" in a.order:
         return contest_main(a, base, figs, tabs)
     R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
