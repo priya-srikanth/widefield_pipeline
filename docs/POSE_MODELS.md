@@ -895,3 +895,18 @@ frontal tilt error toward ipsi +34 / +15 deg; 3-D angle error +29 / +22 deg; rea
 +0.73) and less downward (-0.76 / -1.84); peak speed -83 / -57 mm/s. Jaw FAR_DIR -0.25 / -0.22 mm acute (PS93 chronic -0.17);
 widest opening -1.0 to -2.3 mm at the far spouts. Same direction in both animals: acute licks reach less DOWN and more
 FORWARD, aimed ipsi, slower; the jaw opens less and stops steering.
+
+## D12. Error distance from the spout (10-19; Priya: "a separate analysis") -- `scripts/pose3d_spout_error.py`
+
+Referenced to the spout itself, so the post-stroke set-point change does not enter. Three errors per cam4 lick event (Priya
+10-19: closest approach or peak? -- "for close spouts, normal peak lick is well below the spout"), kept side by side:
+(1) CLOSEST APPROACH to the spout tip (water access); (2) PEAK ENDPOINT (3-D extension peak) vs the spout tip; (3) peak
+endpoint vs the animal's OWN August-pre median endpoint for that position (error in the motor-control sense, no assumption
+about where on / under the spout the target is). Inputs: each camera's cleaned tongue (measured points only) + the
+single-camera fill. Splits: DAQ contact (cam4 ``contact``), first lick of the trial vs later. Figures: spout-centred scatter
+of closest-approach points (front and side), distance-to-spout traces from lick onset.
+Pre (August) medians: closest approach 0.4-1.3 mm; peak 1.5-3.2 mm from the spout and BELOW it (dv -1.3 to -3.0) at every
+position -- Priya's point; peak vs own endpoint 0.7-1.4 mm (lick-to-lick spread). Acute far_R, all three grow in both
+animals (PS92 / PS93): +2.1 / +1.5, +1.7 / +0.5, +2.2 / +1.3 mm, laterally medial (-2.6 / -1.3 mm at the endpoint); acute
+endpoints sit higher than habitual (dv +0.5 to +1.8 mm; PS93 most positions, PS92 far L / R); close spouts: closest approach
+~unchanged (still reached), endpoints shift by tenths of a mm. One animal per epoch so far (PS93 on the clip subset).
