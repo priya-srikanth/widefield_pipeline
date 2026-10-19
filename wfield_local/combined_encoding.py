@@ -82,6 +82,7 @@ RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned work
 #: ENGAGED trials are dropped at random (seeded) until the session's usable-lick count reaches the target (kept trials
 #: stay in time order, so the contiguous-block folds are unchanged in kind). Outputs -> <order>..._matched/.
 MATCH_ENV = "COMBINED_ENCODING_MATCH"
+SUFFIX_ENV = "COMBINED_ENCODING_SUFFIX"   # appended to the output folder (a rerun that must not overwrite, e.g. "_tr")
 
 
 def _match_trials(T: pd.DataFrame, B, label: str, path: str, seed: int) -> pd.DataFrame:
@@ -180,6 +181,7 @@ NODIR_BASE = ("cue", "arrival", "licks", "tongue_ps", "jaw_nd", "nose_nd", "runn
 #: the spout, i.e. target-correlated) -- Priya 10-19 -- so it enters only as a separate check (`nokin:kin+nose*`). kinall
 #: has many more columns than the 3-amplitude per-lick variables: read it by UNIQUE shares, not raw gains.
 NOKIN_BASE = ("cue", "arrival", "licks", "running")
+NOKIN_TR = ("nokin:none", "nokin:category", "nokin:target", "nokin:exec", "nokin:target+exec")
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed"),
           "musall": ("instructed", "uninstructed", "task")}
@@ -1016,7 +1018,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             seg = np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
             peth[ci, pi] = np.nanmean(seg, 0).T
     # time-resolved held-out SSE (cue-aligned, all trials) per group model, cortex + areas
-    tr_models = [m for m in TR_MODELS if m in models]
+    # + the fair target-vs-executed models when fitted (Priya 10-19: the FULL executed set -- angle, angle^2, reach -- on
+    # TRIAL-TO-TRIAL variance: within a position the target is constant, so only an executed code can explain it)
+    tr_models = [m for m in (*TR_MODELS, *NOKIN_TR) if m in models]
     Rd = Y.astype(np.float64) @ Ra
     sse = np.zeros((len(tr_models), Ra.shape[1], len(off)))
     sst = np.zeros((Ra.shape[1], len(off)))
@@ -1071,7 +1075,8 @@ def out_dir(rv, order: str) -> Path:
     only = [x.rstrip(":") for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
     return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else "")
                                                          + (f"_subset-{'-'.join(only)}" if only else "")
-                                                         + ("_matched" if os.environ.get(MATCH_ENV) else ""))
+                                                         + ("_matched" if os.environ.get(MATCH_ENV) else "")
+                                                         + os.environ.get(SUFFIX_ENV, ""))
 
 
 def save(out: dict, d: Path) -> None:

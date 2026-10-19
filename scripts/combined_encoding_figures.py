@@ -213,6 +213,8 @@ def _grid_from(npz: Path, keys: list[str]) -> dict:
         full_r2 = np.where(ok, 1 - M[idx[f"full|{w}"]] / den, np.nan)
         if name.startswith("dR2drop:"):
             v = full_r2 - np.where(ok, 1 - M[idx[f"drop:{name[8:]}|{w}"]] / den, np.nan)
+        elif name.startswith("dR2m:"):                    # full minus a NAMED model (e.g. shufpos-far_contra:position)
+            v = full_r2 - np.where(ok, 1 - M[idx[f"{name[5:]}|{w}"]] / den, np.nan)
         elif name.startswith("dR2:"):
             v = full_r2 - np.where(ok, 1 - M[idx[f"shuf:{name[4:]}|{w}"]] / den, np.nan)
         else:
@@ -351,6 +353,45 @@ def fig_position_maps(meta, sess, path: Path, title: str, outline, kind: str = "
                 "kept); movement-first -> what movement cannot explain. Executed angle = lick kernel x the lick's "
                 "within-position angle deviation")
     _title(fig, title, note)
+    _save(fig, path)
+
+
+POS6 = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
+
+
+def fig_position_each_maps(meta, sess, path: Path, title: str, outline, window: str) -> None:
+    """PER-POSITION unique maps (Priya 10-18 / 10-19: "position-unique cortex maps ... across the 6 positions"): for each
+    spout, full minus the ONE-VS-REST relabelling of that spout (`shufpos-<p>:position`: its trials' label reassigned to
+    a random same-size set of engaged trials) = what is specific to that spout; rows = spouts, columns = epochs (level)
+    and change vs pre. Movement-first model (position credited only what movement cannot explain)."""
+    plt = _plt()
+    keys = [f"dR2m:shufpos-{p}:position|{window}" for p in POS6]
+    try:
+        C = cohort_maps(meta, sess, keys)
+    except KeyError:
+        print(f"  per-position maps ({window}): shufpos models missing -- skipped")
+        return
+    eps = [e for e in EPOCHS if e in C]
+    v = max(np.nanpercentile(C[e][k], 99) for e in eps for k in keys)
+    dv = max(np.nanpercentile(np.abs(C[e][k] - C["pre"][k]), 99) for e in eps[1:] for k in keys) if len(eps) > 1 else v
+    nc = 2 * len(eps) - 1
+    fig, axs = plt.subplots(len(POS6), nc, figsize=(2.0 * nc + 1.5, 2.0 * len(POS6) + 1.4), squeeze=False)
+    for i, (p, k) in enumerate(zip(POS6, keys)):
+        for j, e in enumerate(eps):
+            im = _map_ax(axs[i][j], C[e][k], 0, v, "viridis", outline,
+                         f"{e} ({sum(C[e]['_n'].values())} s)" if i == 0 else "")
+        for j, e in enumerate(eps[1:]):
+            im2 = _map_ax(axs[i][len(eps) + j], C[e][k] - C["pre"][k], -dv, dv, "RdBu_r", outline,
+                          f"{e} - pre" if i == 0 else "")
+        axs[i][0].text(-0.08, 0.5, p.replace("_", " "), transform=axs[i][0].transAxes, rotation=90, va="center",
+                       ha="right", fontsize=10.5)
+    fig.colorbar(im, ax=[axs[i][j] for i in range(len(POS6)) for j in range(len(eps))], shrink=0.5, pad=0.01)
+    if len(eps) > 1:
+        fig.colorbar(im2, ax=[axs[i][j] for i in range(len(POS6)) for j in range(len(eps), nc)], shrink=0.5, pad=0.01)
+    _title(fig, title, f"PER-SPOUT unique $\\Delta$R$^2$, {window} window ({WIN_DESC[window]}): full minus the model with "
+                 "that spout's trials relabelled at random (one-vs-rest) = what is specific to that spout; movement-first. "
+                 "Left: level; right: change vs pre. Left hemisphere = image left = IPSILESIONAL; spouts named from the "
+                 "lesion (contra = right).")
     _save(fig, path)
 
 
@@ -815,14 +856,55 @@ def tr_main(a, figs: Path, tabs: Path) -> int:
     return 0
 
 
+def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
+               areas=("cortex", "MOs", "MOp", "SSp-m", "SSp-ul")) -> None:
+    """Fair target-vs-executed on TRIAL-TO-TRIAL variance (Priya 10-19): within a position the target is constant, so
+    only an executed code (angle, angle^2, reach) can explain variance around each position's mean response. Unique =
+    (SSE without it - SSE with both) / SST over t0..t1 s from the cue; also on ALL variance for comparison. Needs the
+    nokin models in the session's tr_models (runs from 10-19 on)."""
+    first = next(iter(sess.values()))
+    js = json.loads(Path(str(first).replace(".npz", ".json")).read_text())
+    trm, A = js["tr_models"], js["areas"]
+    need = ("nokin:none", "nokin:category", "nokin:target", "nokin:exec", "nokin:target+exec")
+    if not all(m in trm for m in need):
+        print("  trial-to-trial contest: nokin models not in tr_models (older run) -- skipped")
+        return
+    rows = []
+    for _, m in meta.iterrows():
+        z = np.load(sess[m.label])
+        t = z["peth_off_s"]
+        tw = (t >= t0) & (t <= t1)
+        trm_s = json.loads(Path(str(sess[m.label]).replace(".npz", ".json")).read_text())["tr_models"]
+        for var, (sse, sst) in (("trial", (z["sse_trial"], z["sst_trial"])), ("all", (z["sse"], z["sst"]))):
+            for ar in areas:
+                ai = [i for i, a_ in enumerate(A) if a_ == ar or a_.rsplit("_", 1)[0] == ar]
+                if not ai:
+                    continue
+                den = sst[ai][:, tw].sum()
+                e = {mm: sse[trm_s.index(mm)][ai][:, tw].sum() for mm in need}
+                rows.append({"label": m.label, "animal": m.animal, "epoch": m.epoch, "variance": var, "area": ar,
+                             "u_target": (e["nokin:exec"] - e["nokin:target+exec"]) / den,
+                             "u_exec": (e["nokin:target"] - e["nokin:target+exec"]) / den,
+                             "ceiling": (e["nokin:none"] - e["nokin:category"]) / den})
+    D = pd.DataFrame(rows)
+    D.to_csv(tabs / "tr_contest_0-1.5s.csv", index=False, float_format="%.5g")
+    for var in ("trial", "all"):
+        for ar in ("cortex", "SSp-m"):
+            G = D[(D.variance == var) & (D.area == ar)]
+            for c in ("u_target", "u_exec", "ceiling"):
+                t_ = G.groupby(["animal", "epoch"])[c].mean().unstack("epoch").reindex(columns=list(EPOCHS))
+                print(f"\n  {var.upper()} variance, {ar}, 0-1.5 s after cue: {c}\n" + t_.round(4).to_string())
+
+
 def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
     """Subset run (`--order <order>_subset-nokin` etc.): the spatial contest readout only."""
     from wfield_local import orofacial_cohort as oc
     from wfield_local.orofacial_stats import session_change_tests
-    R, meta, _ = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
     Wd = region_wide(R)
     Wd.to_csv(tabs / "region_measures.csv", index=False, float_format="%.5g")
     bases = [b for b in ("nokin", "nodir") if any(c.startswith(f"{b}:") for c in Wd.columns)]
+    tr_contest(meta, sess, tabs)
     title = (f"Combined encoding model, subset {a.order} -- {a.run} -- baseline: "
              f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
              f"{meta.groupby('animal').label.nunique().to_dict()}")
@@ -917,6 +999,8 @@ def main(argv=None) -> int:
         fig4_maps(meta, sess, figs / f"fig4_maps_pre_{w}.png", title, w, outline)
     fig_position_maps(meta, sess, figs / "position_dR2_maps_by_epoch.png", title, outline)
     fig_position_maps(meta, sess, figs / "position_dR2drop_maps_by_epoch.png", title, outline, kind="drop")
+    for w in ("enl", "cue", "lick"):
+        fig_position_each_maps(meta, sess, figs / f"position_each_maps_{w}.png", title, outline, w)
     fig_dR2_by_epoch(Wd, ST, figs / "dR2_by_epoch_cortex.png", title)
     for ar in ("MOs", "SSp-m"):
         fig_dR2_by_epoch(Wd, ST, figs / f"dR2_by_epoch_{ar}.png", title, area=ar)
