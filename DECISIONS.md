@@ -20347,3 +20347,52 @@ also a different behavioural state (spout contact +0.4 by August).
 **Interpretation note (for the figures):** small unique maps next to large single-variable maps are expected (Musall);
 licks / tongue / jaw / exec_angle share variance, so read the instructed GROUP and the drop dR2 for "licking as a whole";
 position's unique dR2 is a lower bound (movement-first, tongue x / y).
+
+## 2026-10-18 (night) — encoding model: target vs executed made symmetric, distance added, slow drift removed; video pilot first look
+
+**Target vs executed (Priya 10-18).** The cue-locked target-angle model could explain any time in the trial, the
+lick-locked executed model only around licks -- an asymmetric contest. Added `lick_angle_tgt`: the SAME lick kernel on
+the SAME licks as `lick_angle_abs`, scaled by the lick's TARGET (spout) angle; `licktarget:position` vs
+`lickangle:position` then differ only in which angle scales the kernel. Added `lickboth:position` (both together) for
+each one's UNIQUE share (target and executed angles correlate ~0.8). DISTANCE in every variant (Priya: angle and distance
+both shape behaviour): target = the spout's distance from the mouth, executed = the lick's reach (peak protrusion). Close
+and far spouts on the same side share the SAME angle (+-41 deg, mid ~0, PS92 0820), so angle alone cannot separate them.
+angle + angle^2 does NOT assume +40 = -40 (the linear term carries the sign; with three angles per ring it fits any three
+values).
+
+**First PS92 readout (pre / acute, lick window, tongue x/y out, R2 gain over the no-position model):** target on the lick
+kernel 0.079 / 0.083, executed 0.027 / 0.043 (August pre 8 sessions, acute 5): cortex tracks the TARGET pre-stroke (target
+> executed in all 11 pre sessions incl. June); acutely the target signal holds and executed grows. One animal, no stats.
+The lick-kernel target often equals or exceeds the 6 cue-locked categories -- the categories are a ceiling only for cue-
+locked structure.
+
+**Slow drift (`scripts/encoding_drift_check.py`, 119 sessions).** PS92_0824 gave full R2 -0.22 with every penalty at max:
+the cortex-mean signal moved > 3 SD across the session (85 % of variance slower than 5 min); PS92_0826 58 %; median 6 %,
+90th pct 17 %; PS94 post-stroke a moderate within-session trend (block range ~1.1 SD vs 0.45 pre -- epoch-dependent, so it
+would bias PS94's pre / post comparison). Why the imaging analyses never showed it: the adopted preprocessing keeps
+everything faster than ~43 min BY DESIGN (08-13: the 1-2 min position-block band must survive), and trial-contrast
+analyses (decoders, maps) are blind to an offset shared by all positions; this model explains every frame and
+cross-validates on CONTIGUOUS blocks. Churchland lab / wfield / Musall 2019 never see it -- they high-pass SVT at 0.1 Hz
+(zero-phase, 2nd-order Butterworth), the filter retired 08-13 for its pre-cue inflation.
+- **Cause:** NOT the recording. The raw 470 / 415 channels are normal (both decay early -- within-session bleaching);
+  the artefact is created by the hemodynamic correction: `meegkit_hpfit` fits ONE 415 -> 470 coefficient per pixel on
+  0.1 Hz high-passed traces (hemodynamic band) and applies it to the detrended traces, so the slow bleaching band (a
+  different ratio, the wavelengths bleach at different rates) leaves a residual ramp the order-10 polynomial cannot follow
+  at the session start. Not photobleaching across days (PS92 470 brightness varies 11-17.7 k session to session with no
+  trend; 0824 typical -- an earlier "0824's 470 is 22 % dimmer" compared it with two unusually bright neighbours, WITHDRAWN).
+- **Encoding fix (adopted):** cosine regressors with period >= 600 s projected out of Y and every design column before
+  fitting (Frisch-Waugh-Lovell = nuisance in every model; slow variance also leaves the R2 denominator; a global projection
+  cannot smear sub-second responses). 600 s = 5x the slowest position block; a 300 s basis visibly followed engagement-
+  scale bursts (PS94_0917). PS92_0824: R2 -0.22 -> 0.465. The full v36 run restarted 10-18 20:49 with it.
+- **Preprocessing fix (prototype only, NOT adopted -- Priya to decide):** two-band correction, c = a - T_hp (b - b_slow) -
+  T_slow b_slow (slow band = global cosine projection >= 300 s, T_slow refit on it). PS92 0824 slow share 87 -> 21 %, 0826
+  69 -> 26 %, 0822 10 -> 7 %, fast band identical (r = 1.0000). Adoption would need the variant built for every session and
+  the decode numbers checked unchanged.
+- **Caveat for the imaging readouts:** PS92's subacute dip includes PS92_0824 (ENL decode 0.24; top 3-5 movement dims carry
+  92-99.7 % of its variance vs ~50 % elsewhere) -- check before reading the dip biologically.
+
+**Video pilot first look (PS92_0814, smoke):** video alone R2 0.48; orthogonalised-last unique 0.15; with raw video IN,
+position unique 0.013 -> 0.001 (all), 0.078 -> 0.010 (cue), 0.106 -> 0.026 (lick); task 0.028 -> 0.018. Video sees where the
+tongue goes (lick window ~ the motion-null reading of position) and position-specific posture before the cue. Variance
+explained cannot settle a pre-cue movement-null readout: the ENL movement-removed DECODE (10-12/13: residual keeps 40-50 %
+of the above-chance code and tracks recovery) is that readout. The 23-session video pilot runs after the main run.
