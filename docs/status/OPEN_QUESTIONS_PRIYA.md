@@ -41,6 +41,9 @@ Kept by Claude; answer any item whenever convenient (a line in chat is enough); 
 - **cam4 production: keep LP r4 or switch to LP r4 eps35?** eps35 = LP r4 with the 35 px tongue temporal limit: review precision
   96 / 94 % vs 82 / 88, recall 99.5 / 99.2 %, finds 89 / 97 % of real faint licks vs 100 / 97, tighter angle spreads, slightly more
   jaw jumps pre (POSE_MODELS "cam4 LP r4 eps35"). Switching = re-running O2 inference + cleaning + downstream. ViT-B still training.
+  **10-19 review on PS92 / PS94 / PS95 acute:** precision eps35 100 % vs LP r4 95.6 %, but eps35 finds 93.6 % of real faint
+  licks vs 99.1 % (misses 7, removes 5 false). Recommendation: KEEP LP r4 for production unless the false faint licks matter
+  more than the missed ones.
 - **cam1 cleaned-trace QC** -- `session_poses\PS93_20260814_cam1\eval\cleaned_labels_cam1_dlc2_lp2.mp4`: (1) centre positions --
   does the cleaning bridge between-lick gaps (trial 251)? (2) the last two (sated) trials -- water; (3) jaw hidden stretches.
   Approve / adjust `orofacial_clean_cam1` (proposed values, POSE_MODELS D7).

@@ -697,3 +697,13 @@ nearly the same coverage (misses 3 of 27 real faint licks pre), with tighter all
 3.3 vs 15.6 deg, far_R 6.8 vs 17.7) and slightly more jaw jumps pre. A candidate to replace LP r4 -- Priya's call (switching =
 re-running O2 inference, cleaning and every downstream analysis); weigh against ctx-semi 640 (steadiest jaw, finds every real
 lick, lower precision). ViT-B 640 still training.
+
+**Blind review on three more animals (Priya 10-19; PS92 / PS94 / PS95, 21 Aug acute; both models run Windows-native on the
+cam4 clips; `lp_stage/lick_review_eps35/`, page https://claude.ai/artifact/FyZaEb6Laub48h87YAgUqP, collection
+`lick_review_eps35`; 120 no-contact candidates + 12 hidden contact controls, all 12 judged real).** The models agree on 104
+candidates (102 real, 2 unsure); LP r4 alone found 14 (7 real, 5 not a lick -- all 5 in PS94 -- 2 unsure); eps35 alone 2 (1
+real, 1 unsure). Precision LP r4 95.6 % (PS92 / PS94 / PS95 100 / 87.5 / 100) vs eps35 **100 %**; share of real no-contact
+licks found LP r4 **99.1 %** vs eps35 93.6 % (92.1 / 88.6 / 100). **eps35 trades misses for false positives**: on these
+sessions it drops 5 false licks and loses 7 real faint ones (of 110). Across both reviews (PS93 pre / acute + these three) eps35
+is consistently more precise and consistently misses some real faint licks -- not a clear enough win to re-run production;
+the faint / incomplete licks it misses are the post-stroke ones that matter.
