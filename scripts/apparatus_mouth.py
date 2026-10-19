@@ -156,7 +156,8 @@ def evaluate(rv, cg, animal: str, date: str, cams: dict, source: str) -> list[di
             continue
         w = r["world"]
         a1, a4 = r["mouth_px"]["cam1"], r["mouth_px"]["cam4"]
-        rows.append({"session": f"{animal}_{date}", "source": source, "cam4": name, "n_pos": len(r["positions"]),
+        rows.append({"session": f"{animal}_{date}", "source": source, "cam4": name,
+                     "chosen": name == (CHOSEN[1] if june else CHOSEN[0]), "n_pos": len(r["positions"]),
                      "cam1_mouth": f"({a1[0]:.0f},{a1[1]:.0f})", "cam1_mouth-nose": f"({a1[0] - n1[0]:+.0f},{a1[1] - n1[1]:+.0f})",
                      "cam4_mouth": f"({a4[0]:.0f},{a4[1]:.0f})", "cam4_mouth-nose": f"({a4[0] - n4[0]:+.0f},{a4[1] - n4[1]:+.0f})",
                      "cam4_spoutline-nose": "({:+.0f},{:+.0f})".format(*(SF.from_medians(m4).origin - n4)),
@@ -229,8 +230,8 @@ def main(argv=None) -> int:
     out = a.out or Path(rv.root("dlc")) / "session_poses" / f"apparatus_mouth_{a.source}.csv"
     T.to_csv(out, index=False)
     print(f"-> {out}")
-    if a.source == "production" and "cam4" in T:                 # one row per session: the variant used downstream
-        C = T[T.cam4.isin(CHOSEN)]
+    if a.source == "production" and "chosen" in T:               # one row per session: the variant used downstream
+        C = T[T.chosen.fillna(False).astype(bool)]
         C.to_csv(out.with_name(out.stem + "_chosen.csv"), index=False)
         print(f"-> {out.with_name(out.stem + '_chosen.csv')} ({len(C)} sessions)")
     return 0

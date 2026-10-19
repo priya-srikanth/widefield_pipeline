@@ -784,3 +784,21 @@ MEDIAL of the spout on BOTH sides (lat_err -1.0 close_L, -0.8 far_R): a constant
 opposite signs on L and R, so this is physical -- the side of the tongue, not the tip, touches the spout.
 **PS93 acute:** NO far_R contact licks on 0821; far_R no-contact miss 1.63 -> 2.53 mm, lat_err -1.11 -> -1.98 (medial =
 toward mouse left = ipsi), partial recovery at 0908 (2.14 / -1.44). One animal, trial clips: wait for production.
+
+**First PRODUCTION run (10-19, PS92: 7 June + 4 August sessions, the first 12 cam1 O2 videos; 0812 is a split day still
+running).** `collect`: every frame count matches the video. Whole sessions pair 99.99 % (both cameras cut by
+`build_windows`) and give 3,300-7,700 3-D licks per session (vs 450-1,100 on the trial clips). August pre (0805-0807):
+spout fit 0.05-0.07 mm, reprojection 5-11 px for every part, tongue included. Pre-stroke aim matches PS93's pattern: the
+tip's closest approach stays medial of the lateral spouts on both sides (lat_err -0.5 close, -0.8 to -0.9 far), miss
+0.5-1.4 mm. **PS92 acute day 1 (0818, stroke after the 0817 session):** far_R miss 1.2 -> 3.23 mm, lat_err -0.9 -> -3.03
+mm (medial = toward mouse left = ipsi) -- the same contra-far deficit as PS93 0821; every other position within the pre range.
+
+**June cam4 is NOT one configuration (`apparatus_mouth production`, 10-19).** Curated June (0606-0608): scaling about the
+principal point is best, as in the 0606 test (reprojection 7-10 px, cam1 mouth - nose x +4 / +2 / 0 like August), and
+`pose3d` uses it. But 0602-0604 fit better scaled about the image ORIGIN (v36): reprojection 4-5 vs 15-17 px; there the
+principal-point variant puts the cam1 mouth - nose x at +18 / +22. So cam4 was moved or re-zoomed between 0604 and 0606.
+0601-0605 are outside the curated set (`cross_session_exclude`), so no analysis is affected; 3-D for them would need a
+per-session cam4 correction (D3 option 2, spout-fitted similarity). **PS92 0605 fails** (fit residual 1.5 mm, distance
+ratios to 8; cam4 cuts 15 % fewer frames) -- its cam4 template is the known quality failure. June reach is ~5-10 % longer
+than August at far positions (scale after correction 1.015-1.023): residual June geometry or early-training behaviour;
+compare June only within June.
