@@ -440,8 +440,11 @@ def fig_time_resolved(meta, sess, path: Path, title: str, areas=("cortex", "MOs"
             ax.tick_params(labelsize=9.5)
     axs[0][-1].legend(fontsize=10, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
     _title(fig, title, "Time-resolved unique $\\Delta$R$^2$ around the cue (held-out SSE per frame, all engaged trials): "
-                 "(SSE with the variable / group shuffled - SSE full) / SST; within animal, then mean +- SEM over "
-                 "animals")
+                 + ("(SSE of the refit WITHOUT the variable / group - SSE full) / SST: ORDER-FREE, shared variance "
+                    "credited to nobody" if kind == "drop" else
+                    "(SSE with the variable / group shuffled - SSE full) / SST: under movement-first the FIRST group "
+                    "(instructed) is credited with everything it shares with the later ones")
+                 + "; SST per frame includes the trial-averaged response; within animal, then mean +- SEM over animals")
     fig.tight_layout(rect=(0, 0, 0.93, 0.92))
     _save(fig, path)
 
@@ -698,6 +701,9 @@ def main(argv=None) -> int:
     for w in ("all", "cue"):
         fig5_task_aligned(Wd, figs / f"fig5_task_aligned_{w}.png", title, window=w)
     fig_time_resolved(meta, sess, figs / "time_resolved_dR2.png", title)
+    # ORDER-FREE version (Priya 10-19: "ssp-m explained variance for instructed movements seems high"): under
+    # movement-first the instructed SHUFFLE credits it with everything it shares with task / uninstructed
+    fig_time_resolved(meta, sess, figs / "time_resolved_dR2_drop.png", title, kind="drop")
     for e in EPOCHS:
         fig_peth_partition(meta, sess, figs / f"peth_partition_{e}.png", title, e)
     fig_exec_vs_intended(Wd, ST, figs / "executed_vs_intended.png", title)
