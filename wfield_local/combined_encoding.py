@@ -64,7 +64,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-SMOKE_ENV = "COMBINED_ENCODING_SMOKE"   # =1: fit only the models the post-fit code needs (a fast end-to-end check)
+SMOKE_ENV = "COMBINED_ENCODING_SMOKE"
+ONLY_ENV = "COMBINED_ENCODING_ONLY"      # comma-separated model-name prefixes: fit only those (+ full); own folder   # =1: fit only the models the post-fit code needs (a fast end-to-end check)
 #: VIDEO (Priya 10-18, O2 motion-energy pilot `me_pilot_20261018`): comma-separated cameras, e.g. "cam1,cam4". When set
 #: AND the session has `video_motion_<cam>.npz`, the top VIDEO_K motion-energy components per camera enter as an extra
 #: uninstructed-movement variable, BLANKED outside position strobe .. trial stop (the spout repositions between trials;
@@ -126,7 +127,16 @@ GROUPS = ("task", "instructed", "uninstructed")
 #: lick's trial instead of the tongue's angle (Priya 10-18): target vs executed then differ ONLY in which angle scales the
 #: kernel (angle_cue / angle_enl are cue- / ENL-locked and can explain any time in the trial; the lick-locked pair cannot).
 EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructed", "lick_angle_abs": "instructed",
-               "lick_angle_tgt": "instructed"}
+               "lick_angle_tgt": "instructed", "jaw_nd": "instructed", "nose_nd": "uninstructed",
+               "dir_kin": "instructed"}
+#: DIRECTIONLESS comparison (Priya 10-19: "wouldn't we expect executed to explain more than target ... is it an
+#: appropriate comparison?"). The base of the target / executed models kept jaw x / y and nose x / y, so lateral jaw
+#: (which steers with the tongue) carried EXECUTED direction frame by frame and made the lick-locked executed angle
+#: redundant while target stayed novel. `nodir:*` models use a base WITHOUT any directional kinematic -- jaw_nd = jaw
+#: opening (y) + speed, nose_nd = nose y, tongue_ps = protrusion + speed -- and compare: target (lick kernel x spout
+#: angle / angle^2 / distance), executed (lick kernel x lick angle / angle^2 / reach), dir_kin = executed direction as
+#: CONTINUOUS kinematics (tongue x / y, jaw x, nose x), their pairs, and the 6-category ceiling.
+NODIR_BASE = ("cue", "arrival", "licks", "tongue_ps", "jaw_nd", "nose_nd", "running")
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed")}
 POS_VARS = ("pos_enl", "pos_cue")
@@ -339,6 +349,9 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
     out["nose"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("nose_x", "nose_y")])
     out["running"] = _analog_cols(*B.analog["running"], ft)
     out["tongue_ps"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_prot", "tongue_speed")])
+    out["jaw_nd"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("jaw_y", "jaw_speed")])
+    out["nose_nd"] = _analog_cols(*B.analog["nose_y"], ft)
+    out["dir_kin"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_x", "tongue_y", "jaw_x", "nose_x")])
     if B.lick_angle is not None and np.isfinite(B.lick_angle).any():
         la = B.lick_angle - np.nanmean(B.lick_angle)
         la2 = la ** 2 - np.nanmean(la ** 2)
@@ -758,6 +771,23 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
         for name in ("angle:position", "lickangle:position", "licktarget:position", "lickboth:position"):
             if name in models:
                 models[f"video:{name}"] = models[name] + [("raw", "video")]
+    if all(("raw", v) in layout for v in ("jaw_nd", "nose_nd", "dir_kin")):
+        nb = [("raw", v) for v in NODIR_BASE]
+        tg, ex, kin = [("raw", "lick_angle_tgt")], [("raw", "lick_angle_abs")], [("raw", "dir_kin")]
+        cat = [("raw", v) for v in POS_VARS]
+        models["nodir:none"] = nb
+        models["nodir:category"] = nb + cat
+        if ("raw", "lick_angle_tgt") in layout and ("raw", "lick_angle_abs") in layout:
+            models["nodir:target"] = nb + tg
+            models["nodir:exec"] = nb + ex
+            models["nodir:target+exec"] = nb + tg + ex
+            models["nodir:kin+target"] = nb + kin + tg
+            models["nodir:kin+exec"] = nb + kin + ex
+            models["nodir:kin+target+exec"] = nb + kin + tg + ex
+        models["nodir:kin"] = nb + kin
+    only = [x for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
+    if only:                                        # fit a named SUBSET only (own output folder, see out_dir)
+        models = {k: v for k, v in models.items() if k == "full" or any(k.startswith(x) for x in only)}
     if os.environ.get(SMOKE_ENV):                   # end-to-end check of the post-fit code without the full model set
         keep = {"full", *TR_MODELS, "raw:full", "angle:position", "lickangle:position", "notxy:full",
                 "notxy:drop:position", "notxy:angle:position", "notxy:lickangle:position", "licktarget:position",
@@ -867,7 +897,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             seg = np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
             peth[ci, pi] = np.nanmean(seg, 0).T
     # time-resolved held-out SSE (cue-aligned, all trials) per group model, cortex + areas
-    tr_models = list(TR_MODELS)
+    tr_models = [m for m in TR_MODELS if m in models]
     Rd = Y.astype(np.float64) @ Ra
     sse = np.zeros((len(tr_models), Ra.shape[1], len(off)))
     sst = np.zeros((Ra.shape[1], len(off)))
@@ -900,7 +930,9 @@ def out_dir(rv, order: str) -> Path:
     from wfield_local import orofacial_outputs as oo
     cams = [c for c in (os.environ.get(VIDEO_ENV) or "").split(",") if c]
     # a VIDEO run never writes into the primary folder: <order>_video-<cams>
-    return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else ""))
+    only = [x.rstrip(":") for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
+    return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else "")
+                                                         + (f"_subset-{'-'.join(only)}" if only else ""))
 
 
 def save(out: dict, d: Path) -> None:
@@ -955,6 +987,8 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=3, help="sessions in parallel (each ~3-4 GB)")
     ap.add_argument("--run", default=None, help="LP run (default: orofacial_cohort.RUN); outputs go under it")
     ap.add_argument("--skip-done", action="store_true")
+    ap.add_argument("--only", default=None, help="comma-separated model-name prefixes to fit (+ full), e.g. "
+                    f"'nodir:' (sets {ONLY_ENV}; outputs -> <order>_subset-<prefixes>/)")
     ap.add_argument("--video", default=None, help="cameras for the video variable, e.g. cam1,cam4 (sets "
                     f"{VIDEO_ENV}; outputs -> <order>_video-<cams>/; sessions without motion energy are skipped)")
     a = ap.parse_args(argv)
@@ -962,6 +996,8 @@ def main(argv=None) -> int:
         os.environ[RUN_ENV] = a.run
     if a.video:
         os.environ[VIDEO_ENV] = a.video
+    if a.only:
+        os.environ[ONLY_ENV] = a.only
     from wfield_local.paths import PathResolver
     labels = sessions_available() if a.all else a.labels
     if a.video:                                             # only sessions with every camera's motion energy
