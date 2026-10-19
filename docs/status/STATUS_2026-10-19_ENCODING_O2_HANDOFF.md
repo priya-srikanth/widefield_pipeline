@@ -5,6 +5,26 @@
 rule, the orofacial deck and the 10-18 pitfalls). Reasoning and numbers: `DECISIONS.md` 2026-10-18 (night) and 2026-10-19.
 Scratchpad (logs, quick scripts): `C:\Users\SABATI~1\AppData\Local\Temp\claude\C--Users-SabatiniLab\cdd1e016-6bb3-4346-8600-f08116ccf61d\scratchpad\`.
 
+## 0. Late-morning update (10-19) -- read first; details in DECISIONS 2026-10-19 (late morning)
+
+- **O2 runs done and collected**: nokin 116, nodir 114, trmodels 118, musall_shuf 118 of 119. 7 tasks were cancelled by
+  the scheduler 2 s after start and RESUBMITTED (nokin PS95_0817 / 0819 / 0928, nodir PS95_0818 / 0819 / 0917, trmodels
+  PS95_0917) -> when they finish: Priya rsyncs `out/` back, then `o2_encoding.py collect --tag <t>` and rerun the
+  readouts (`combined_encoding_figures.py --order movement_first_subset-nokin` / `-nodir` / `-trmodels`,
+  `--order musall_subset-shuf`). PS95_0817 is PS95's ONLY acute session.
+- **Results**: fair contest (nokin, no kinematics) -- target > executed pre in 4/4; executed rises after the stroke
+  (subacute / chronic, 4/4, both tests); target rises above pre chronically. Executed-angle map rise NOT robust (drop ~0).
+  Misdirected licks: no planned-lick signature once touch / reach / lick number are matched. Trial-to-trial variance is
+  movement (cortex uninstructed, SSp-m licking).
+- **BLOCKER found: shared group penalty** (DECISIONS): continuous instructed traces force a weak penalty on the lick-event
+  terms -> lick-window R2 drops. Affects the main model's lick-window numbers, nodir, nokin "given kinall". Proposed fix =
+  separate penalty for continuous traces vs event kernels (or per variable) + rerun main and subsets on O2 (new bundle:
+  code only, inputs reusable). Awaiting Priya's go.
+- Local post-nokin chain and local nokin were STOPPED (moved to O2). Nothing of ours is running on the box.
+- Pitfalls: overlapping arrays write a session twice (collect repairs the JSON); "pre-lick" = before VISIBLE protrusion
+  (includes initiation and the previous lick); no-contact licks at a spout are SHORT (not a touch-free control); brain
+  maps ipsi = image LEFT (cam1 video: image right).
+
 ## 1. What we are doing and why
 
 Priya's question: **does cortex track the TARGET (where the spout is) or the EXECUTED movement (where the tongue went),
