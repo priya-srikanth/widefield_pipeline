@@ -5,7 +5,7 @@
 # OTHER machine's rebase — that is what this gate is for, and it is why it runs the WHOLE
 # suite rather than a fast subset.
 #
-# IT TAKES ~2.5 MINUTES (2,400 tests, measured 2026-09-22). This comment said "~2 s" until
+# IT TAKES ~11 MINUTES (3,235 tests, measured 2026-10-19; ~2.5 min at 2,400 tests on 2026-09-22). This comment said "~2 s" until
 # then, which was true when the hook was written in August and had not been rechecked since.
 # The number is stated here because a gate whose cost is understated is a gate people learn
 # to pass with --no-verify. Roughly 60% of it is five cluster-permutation tests and one deck
@@ -16,6 +16,24 @@
 # Bypass once (emergency): git push --no-verify
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
+
+# DOCS-ONLY PUSHES SKIP THE SUITE (Priya, 2026-10-19). If every file changed by the commits being pushed is a
+# `.md`, nothing a test can see has changed (no test reads a Markdown file -- checked 2026-10-19; if one ever
+# does, drop this block). ANY other file, a new branch, or a range git cannot resolve runs the full suite.
+# The suite now takes ~11 min (3,235 tests, 2026-10-19), and about half of the pushes are handoff / doc updates.
+docs_only=1
+zero=0000000000000000000000000000000000000000
+while read -r _lref lsha _rref rsha; do
+  [ "$lsha" = "$zero" ] && continue                               # a branch delete changes nothing
+  if [ "$rsha" = "$zero" ]; then docs_only=0; break; fi           # new remote branch: no base to diff
+  files=$(git diff --name-only "$rsha" "$lsha" 2>/dev/null) || { docs_only=0; break; }
+  if [ -n "$(printf '%s\n' "$files" | grep -v '\.md$' | grep -v '^$' || true)" ]; then docs_only=0; break; fi
+done
+if [ "$docs_only" = 1 ]; then
+  echo "pre-push: only .md files changed -- tests skipped" >&2
+  exit 0
+fi
+
 . .githooks/_find_python.sh
 
 # Interpreter search is shared with pre-commit; see `.githooks/_find_python.sh` for why a bare
@@ -30,5 +48,5 @@ EOF
   exit 1
 fi
 
-echo "pre-push: pytest -q [$PY] — about 2.5 minutes…" >&2
+echo "pre-push: pytest -q [$PY] — about 11 minutes…" >&2
 "$PY" -m pytest -q
