@@ -291,9 +291,9 @@ def fig_position_maps(meta, sess, path: Path, title: str, outline) -> None:
     """Position-specific dR2 maps across recovery: pos_enl (ENL window), pos_cue (cue window), exec_angle (lick
     window); row pairs = level and change vs pre."""
     plt = _plt()
-    rows = [("dR2:pos_enl|enl", "spout position, ENL (pre-cue 2 s)"), ("dR2:pos_cue|cue", "spout position, cue 0-1 s"),
-            ("dR2:pos_cue|lick", "spout position, around licks"), ("dR2:exec_angle|lick", "EXECUTED angle (within "
-                                                                                          "position), licks")]
+    rows = [("dR2:pos_enl|enl", "spout position\nENL (pre-cue 2 s)"), ("dR2:pos_cue|cue", "spout position\ncue 0-1 s"),
+            ("dR2:pos_cue|lick", "spout position\naround licks"),
+            ("dR2:exec_angle|lick", "EXECUTED angle\n(within position), licks")]
     keys = [k for k, _ in rows]
     C = cohort_maps(meta, sess, keys)
     eps = [e for e in EPOCHS if e in C]
@@ -311,7 +311,8 @@ def fig_position_maps(meta, sess, path: Path, title: str, outline) -> None:
                           f"{e} - pre" if i == 0 else "")
         if len(eps) > 1:
             fig.colorbar(im2, ax=list(axs[i][len(eps):]), shrink=0.85, pad=0.01)
-        axs[i][0].text(-0.1, 0.5, lab, transform=axs[i][0].transAxes, rotation=90, va="center", ha="right", fontsize=10.5)
+        axs[i][0].text(-0.08, 0.5, lab, transform=axs[i][0].transAxes, rotation=90, va="center", ha="right",
+                       ma="center", fontsize=10.5)
     _title(fig, title, "Position-specific unique $\\Delta$R$^2$ maps across recovery (left: level; right: change vs "
                  "pre). Position = label permutation (only position SPECIFICITY removed; shared arrival / cue response "
                  "kept); movement-first -> what movement cannot explain. Executed angle = lick kernel x the lick's "
