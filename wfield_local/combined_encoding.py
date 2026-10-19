@@ -77,6 +77,28 @@ ONLY_ENV = "COMBINED_ENCODING_ONLY"      # comma-separated model-name prefixes: 
 VIDEO_ENV = "COMBINED_ENCODING_VIDEO"
 VIDEO_K = 50
 RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned workers see it (tests/test_parallel_results...)
+#: LICK-MATCHED subsampling (Priya 10-19: "both executed and target increase chronically" -- chronic sessions have more
+#: usable licks, and every held-out gain improves with more data). Path to a JSON {label: target usable licks}; whole
+#: ENGAGED trials are dropped at random (seeded) until the session's usable-lick count reaches the target (kept trials
+#: stay in time order, so the contiguous-block folds are unchanged in kind). Outputs -> <order>..._matched/.
+MATCH_ENV = "COMBINED_ENCODING_MATCH"
+
+
+def _match_trials(T: pd.DataFrame, B, label: str, path: str, seed: int) -> pd.DataFrame:
+    """Engaged trials subsampled to the session's lick target (usable licks = finite executed angle)."""
+    target = json.loads(Path(path).read_text(encoding="utf-8")).get(label)
+    T = T.copy()
+    eng = np.flatnonzero(T.engaged.to_numpy() & np.isfinite(T.cue_s.to_numpy()))
+    if target is None or not len(eng):
+        return T
+    ok = np.isfinite(B.lick_angle) if B.lick_angle is not None else np.ones(len(B.lick_on_s), bool)
+    on = np.asarray(B.lick_on_s, float)[ok]
+    n_l = np.array([((on >= T.cue_s.iat[i]) & (on <= T.stop_s.iat[i] + 1.0)).sum() for i in eng])
+    order = np.random.default_rng(seed + 7).permutation(len(eng))
+    keep = order[: int(np.searchsorted(np.cumsum(n_l[order]), target)) + 1]
+    drop = np.setdiff1d(np.arange(len(eng)), keep)
+    T.loc[T.index[eng[drop]], "engaged"] = False
+    return T
 
 
 def _run() -> str:
@@ -129,6 +151,18 @@ GROUPS = ("task", "instructed", "uninstructed")
 EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructed", "lick_angle_abs": "instructed",
                "lick_angle_tgt": "instructed", "jaw_nd": "instructed", "nose_nd": "uninstructed",
                "dir_kin": "instructed", "kinall": "instructed"}
+#: PENALTY groups (2026-10-19, Priya: fix the shared penalty), separate from the CREDIT groups above. One ridge penalty per
+#: credit group let the continuous tongue / jaw traces (well constrained, best at a weak penalty) set the penalty of the
+#: lick-EVENT terms that share the "instructed" group (lick kernels + per-lick target / executed scalings: many weights
+#: from a limited number of licks), which then overfit -- lick-window R2 FELL when traces were added (PS92_0811:
+#: target + exec 0.440 -> + traces 0.395; full model 0.378). Event kernels and continuous traces now get their own penalty.
+PEN_GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task", "angle_cue": "task",
+                "angle_enl": "task",
+                "licks": "lick", "exec_angle": "lick", "lick_angle_abs": "lick", "lick_angle_tgt": "lick",
+                "tongue": "orofacial", "jaw": "orofacial", "tongue_ps": "orofacial", "jaw_nd": "orofacial",
+                "dir_kin": "orofacial", "kinall": "orofacial",
+                "nose": "uninstructed", "nose_nd": "uninstructed", "running": "uninstructed", "video": "video"}
+PEN_GROUPS = ("task", "lick", "orofacial", "uninstructed")
 #: DIRECTIONLESS comparison (Priya 10-19: "wouldn't we expect executed to explain more than target ... is it an
 #: appropriate comparison?"). The base of the target / executed models kept jaw x / y and nose x / y, so lateral jaw
 #: (which steers with the tongue) carried EXECUTED direction frame by frame and made the lick-locked executed angle
@@ -570,6 +604,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         B = inputs["behaviour"]
         epoch_, day_ = inputs["epoch"], inputs["day"]
     T = B.trials
+    if os.environ.get(MATCH_ENV):
+        T = _match_trials(T, B, label, os.environ[MATCH_ENV], seed)
     E = T[T.engaged & np.isfinite(T.cue_s)].reset_index(drop=True)
     st = np.where(np.isfinite(E.strobe_s), E.strobe_s, E.cue_s - 3.0)
     rows = np.zeros(len(ft), bool)
@@ -723,24 +759,26 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         sl = slice(c0, min(c0 + 256, A.shape[1]))
         A[:, sl] -= Q @ (Q.T @ A[:, sl])
     eng = Engine(A, Y, fold, win)
-    grp_of_col = np.empty(A.shape[1], object)
+    grp_of_col = np.empty(A.shape[1], object)                  # CREDIT group (task / instructed / uninstructed)
+    pen_of_col = np.empty(A.shape[1], object)                  # PENALTY group (PEN_GROUP_OF)
     for (_kind, v), ix in layout.items():
         grp_of_col[ix] = {**GROUP_OF, **EXTRA_GROUP, "video": "video"}[v]
+        pen_of_col[ix] = PEN_GROUP_OF[v]
 
     def cols(spec):
         """spec: list of (kind, var) -> universe column indices."""
         return np.concatenate([layout[s] for s in spec])
     # penalties: per group, coordinate search on the full model's held-out R^2 (all window, summed components)
     full_spec = [("orth", v) for v in GROUP_OF]
-    alphas = {g: 100.0 for g in GROUPS}
+    alphas = {g: 100.0 for g in PEN_GROUPS}
 
     def score(spec, al, w="all"):
         ix = cols(spec)
-        pen = np.array([al[grp_of_col[i]] for i in ix])
+        pen = np.array([al[pen_of_col[i]] for i in ix])
         Ecov, Tc = eng.err_cov(ix, pen, w)
         return 1.0 - np.trace(Ecov) / np.trace(Tc)
     for _ in range(2):
-        for g in GROUPS:
+        for g in PEN_GROUPS:
             best = max(ALPHA_GRID, key=lambda a: score(full_spec, {**alphas, g: a}))
             alphas[g] = best
     alphas["video"] = 100.0                                   # start value; every video model searches its own
@@ -885,14 +923,14 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             model_alphas[name] = dict(alphas)
             continue
         al = dict(alphas)
-        present = sorted({grp_of_col[i] for i in cols(spec)}, key=(*GROUPS, "video").index)
+        present = sorted({pen_of_col[i] for i in cols(spec)}, key=(*PEN_GROUPS, "video").index)
         for g in present:
             al[g] = max(ALPHA_GRID, key=lambda a: score(spec, {**al, g: a}))
         model_alphas[name] = al
     # evaluate: per model x window -> pixel SSE (as e), shared total t per window
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
     res = {"label": label, "animal": animal, "date": date, "epoch": epoch_,
-           "day": day_, "order": order, "alphas": alphas, "gate": B.gate,
+           "day": day_, "order": order, "alphas": alphas, "penalty_groups": list(PEN_GROUPS), "gate": B.gate,
            "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft))),
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
@@ -901,7 +939,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     amask = {a: (parea == a) & pstat for a in areas}          # region values on the eroded stat mask
     for name, spec in models.items():
         ix = cols(spec)
-        pen = np.array([model_alphas[name][grp_of_col[i]] for i in ix])
+        pen = np.array([model_alphas[name][pen_of_col[i]] for i in ix])
         fitted = eng.betas(ix, pen)
         for w in WINDOWS:
             Ecov, Tc = eng.err_cov(ix, pen, w, fitted)
@@ -932,7 +970,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     res["collinearity_min"] = {v: float(np.nanmin(csa[np.isin(ixf - 1, layout[("orth", v)])])) for v in GROUP_OF}
     # Fig. 5: full model fitted ONCE, prediction split by group; cue-aligned per position, per area (+ cortex)
     ix = cols(full_spec)
-    pen = np.array([alphas[grp_of_col[i]] for i in ix])
+    pen = np.array([alphas[pen_of_col[i]] for i in ix])
     ii, beta = eng.full_beta(ix, pen)
     Afull = A[:, ii[1:] - 1]
     gcol = grp_of_col[ix]
@@ -1003,7 +1041,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     for mi, mname in enumerate(tr_models):
         spec = models[mname]
         ixm = cols(spec)
-        penm = np.array([model_alphas[mname][grp_of_col[i]] for i in ixm])
+        penm = np.array([model_alphas[mname][pen_of_col[i]] for i in ixm])
         iim, Bk = eng.betas(ixm, penm)
         pred = np.zeros_like(Rd)
         Am = A[:, iim[1:] - 1]
@@ -1032,7 +1070,8 @@ def out_dir(rv, order: str) -> Path:
     # a VIDEO run never writes into the primary folder: <order>_video-<cams>
     only = [x.rstrip(":") for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
     return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else "")
-                                                         + (f"_subset-{'-'.join(only)}" if only else ""))
+                                                         + (f"_subset-{'-'.join(only)}" if only else "")
+                                                         + ("_matched" if os.environ.get(MATCH_ENV) else ""))
 
 
 def save(out: dict, d: Path) -> None:

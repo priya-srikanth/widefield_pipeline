@@ -42,10 +42,13 @@ if os.environ.get("ONLY"):
     os.environ["COMBINED_ENCODING_ONLY"] = os.environ["ONLY"]
 if os.environ.get("VIDEO"):
     os.environ["COMBINED_ENCODING_VIDEO"] = os.environ["VIDEO"]
+if os.environ.get("MATCH"):                      # lick-matched subsampling: MATCH = a JSON in the bundle (match.json)
+    os.environ["COMBINED_ENCODING_MATCH"] = str(b / os.environ["MATCH"])
 out = b / "out" / tag
 (out / "sessions").mkdir(parents=True, exist_ok=True)
 (out / "run.json").write_text(json.dumps({"order": order, "only": os.environ.get("ONLY", ""),
-                                          "video": os.environ.get("VIDEO", ""), "tag": tag}))
+                                          "video": os.environ.get("VIDEO", ""), "match": os.environ.get("MATCH", ""),
+                                          "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
     print("done already", label); sys.exit(0)
 from wfield_local import combined_encoding as ce
@@ -174,7 +177,7 @@ rsync -ah {b}/out/ {share_b}/out/
 
 def _set_env(order_only_video: dict) -> None:
     from wfield_local import combined_encoding as ce
-    for k, env in (("only", ce.ONLY_ENV), ("video", ce.VIDEO_ENV)):
+    for k, env in (("only", ce.ONLY_ENV), ("video", ce.VIDEO_ENV), ("match", ce.MATCH_ENV)):
         if order_only_video.get(k):
             os.environ[env] = order_only_video[k]
         else:
@@ -233,6 +236,45 @@ def cmd_collect(a) -> int:
     return 0
 
 
+def cmd_match(a) -> int:
+    """Per animal, target usable licks = frac x the smallest session (August pre + post epochs) -> bundle/match.json.
+    Counts from licks.csv with the model's lick filter (engaged trials, measured peak, reach >= MIN_REACH_PX)."""
+    import numpy as np
+    import pandas as pd
+
+    from wfield_local import combined_encoding as ce
+    from wfield_local import epochs
+    from wfield_local import o2_inference as oi
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    oc._repo_on_path()
+    rv = PathResolver()
+    run = a.run or oc.RUN
+    d = oi.bundle_dir(rv, a.name)
+    labels = [x.strip() for x in (d / "labels.txt").read_text().splitlines() if x.strip()]
+    n = {}
+    for lab in labels:
+        ep = epochs.epoch_of(lab)
+        if ep not in ("pre", "acute", "subacute", "chronic") or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM):
+            continue
+        sd = oo.session_dir(rv, run, lab[:4], "2026" + lab[5:])
+        keep, _ = oc.engagement_keep(lab[:4], "2026" + lab[5:], sd)
+        L = pd.read_csv(sd / "licks.csv")
+        if keep is not None:
+            L = L[L.trial_id.isin(keep)]
+        ok = (~L.peak_interp.astype(bool)) & (L.protrusion_px >= ce.MIN_REACH_PX) & np.isfinite(L.peak_angle_deg)
+        n[lab] = int(ok.sum())
+    S = pd.Series(n)
+    tgt = {lab: int(a.frac * S[S.index.str[:4] == lab[:4]].min()) for lab in S.index}
+    (d / "match.json").write_text(json.dumps(tgt, indent=1), encoding="utf-8")
+    for an in sorted({x[:4] for x in S.index}):
+        s = S[S.index.str[:4] == an]
+        print(f"{an}: {len(s)} sessions, usable licks {s.min()}..{s.max()} -> target {tgt[s.idxmin()]}")
+    print(f"-> {d / 'match.json'} ({len(tgt)} sessions; June pre sessions not matched = left out of the matched run)")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -254,10 +296,16 @@ def main(argv=None) -> int:
     k.add_argument("--name", required=True)
     k.add_argument("--run", default=None)
     k.add_argument("--tag", required=True)
+    m = sub.add_parser("match", help="write match.json (per-session lick targets) into the bundle")
+    m.add_argument("--name", required=True)
+    m.add_argument("--run", default=None)
+    m.add_argument("--frac", type=float, default=0.95, help="target = frac x the animal's smallest session")
     a = ap.parse_args(argv)
     if a.cmd == "bundle":
         cmd_bundle(a)
         return 0
+    if a.cmd == "match":
+        return cmd_match(a)
     return cmd_check(a) if a.cmd == "check" else cmd_collect(a)
 
 
