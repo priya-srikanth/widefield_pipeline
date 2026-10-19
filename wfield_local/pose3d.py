@@ -103,6 +103,10 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
     mouth1, mouth4 = SF.from_medians_lr(m1).origin, SF.from_medians(m4).origin
     i1, i4 = pair(ix1, ix4)
     out = ix1.iloc[i1][["trial_id", "position", "t_ms", "stop_ms"]].reset_index(drop=True)
+    out["src1"], out["src4"] = ix1.src_frame.to_numpy()[i1], ix4.src_frame.to_numpy()[i4]     # video frame per camera
+    for name, ix, ii in (("video1", ix1, i1), ("video4", ix4, i4)):                             # split days only
+        if "video" in ix:
+            out[name] = ix.video.to_numpy()[ii]
     for part in CLEANED + STATIC:
         if part in CLEANED:
             a, _ = cleaned_xy(flat1, ix1, part, "cam1", mouth1)
