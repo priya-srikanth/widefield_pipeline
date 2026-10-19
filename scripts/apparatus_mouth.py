@@ -4,6 +4,11 @@ June cam4 correction ("we should be able to use june scaling to project into jun
 
     python -m scripts.apparatus_mouth clips  PS93:20260814 PS93:20260821 PS93:20260908      # trial clips, model predictions
     python -m scripts.apparatus_mouth labels [--animals PS92 PS93 PS94 PS95]                # labelled frames, both cameras
+    python -m scripts.apparatus_mouth production [ANIMAL:YYYYMMDD ...] [--jobs 4]           # O2 production, every session
+
+(dlc env: aniposelib.) ``production`` (10-19) = cam1 LP ctx-semi + cam4 LP r4 whole-session O2 outputs (`PROD`), every session
+in both bundles; writes `apparatus_mouth_production.csv` (all variants) and `..._chosen.csv` (one row per session: Aug+ raw,
+June cam4 x0.885 about the principal point -- `CHOSEN`).
 
 Spout per position: ``clips`` = parked, no-lick ENL medians (`spout_frame.ruler_medians`; cam1 = DLC c1r2, cam4 = DLC r3 on the trial clip,
 or the O2 whole-session LP r4 output where there is no cam4 clip -- June);
@@ -74,17 +79,43 @@ def _col(d: pd.DataFrame, part: str, c: str) -> np.ndarray:
     return s.iloc[:, 0].to_numpy(float) if s.shape[1] else np.full(len(d), np.nan)
 
 
-def _cam4_from_o2(rv, animal: str, date: str, bundle: str = "lp_r4_prod_20261015"):
-    """cam4 parked spout medians + nose from the O2 whole-session LP r4 output (raw px; v36 scaling is applied later, in the
-    June variants). For sessions without a cam4 trial clip (June)."""
+#: production bundles (configs: o2_inference.lp.model_rel / model_rel_cam1): cam4 LP r4, cam1 LP ctx-semi
+PROD = {"cam4": "lp_r4_prod_20261015", "cam1": "lp_cam1_ctx_prod_20261019"}
+
+
+def _cam4_from_o2(rv, animal: str, date: str, bundle: str = PROD["cam4"]):
+    return _from_o2(rv, animal, date, bundle, "cam4")
+
+
+def _from_o2(rv, animal: str, date: str, bundle: str, cam: str):
+    """Parked spout medians + nose from an O2 whole-session output (RAW px: the June cam4 scaling is applied later, in the
+    `evaluate` variants, never v36's). Split days: every video must be done; each is cut with its own recording's
+    template, as `o2_inference.cmd_collect` does. None when the session is missing or incomplete."""
+    import json
+    from wfield_local import camera_sync as cs
     from wfield_local import o2_inference as oi
     from wfield_local import spout_frame as SF
-    f = sorted(glob.glob(f"{rv.root('dlc')}/o2/{bundle}/out/{animal}_{date}/*.npz"))
-    if len(f) != 1:
+    od = Path(rv.root("dlc")) / "o2" / bundle / "out" / f"{animal}_{date}"
+    names = [v.name for v in oi.videos_for(rv, animal, date, cam)]
+    vids = []
+    for n in names:
+        done = od / f"{Path(n).stem}_done.json"
+        if not done.exists():
+            return None
+        npz = od / f"{Path(n).stem}_{json.loads(done.read_text(encoding='utf-8'))['scorer']}.npz"
+        if not npz.exists():
+            return None
+        vids.append((n, np.load(npz)))
+    if not vids:
         return None
-    z = np.load(f[0])
+    tpls = cs.templates_for(rv, date, animal, cam)
+    rec = lambda name: Path(name).stem.split("_", 1)[1]           # noqa: E731  <cam>_<recording>.avi
+    if any(rec(n) not in tpls for n, _ in vids):
+        return None
+    z = vids[0][1]
+    videos = [(zz["pose"], t, n) for n, zz in vids for t in tpls[rec(n)]]
     parts = [str(x) for x in z["parts"]]
-    ix, sel = oi.build_windows(z["pose"], animal, date, rv)
+    ix, sel = oi.build_windows(videos[0][0], animal, date, rv, videos=videos if len(videos) > 1 else None, cam=cam)
     flat = pd.DataFrame({f"{p}_{c}": sel[:, k, j] for k, p in enumerate(parts) for j, c in enumerate(("x", "y", "likelihood"))})
     t = ix.t_ms.to_numpy(float)
     ok = (flat.nose_likelihood >= 0.9).to_numpy() & (t < 0)
@@ -156,10 +187,34 @@ def evaluate(rv, cg, animal: str, date: str, cams: dict, source: str) -> list[di
     return rows
 
 
+#: the cam4 variant used downstream (10-19): Aug+ raw; June scaled about the cam4 PRINCIPAL POINT (D5 June test -- v36's
+#: origin centre moves the cam1 mouth ~20 px; the scaling centre does not matter for 2-D measures, only here)
+CHOSEN = ("raw", "x0.885 @principal pt")
+
+
+def _production_one(s: str) -> list[dict]:
+    """fan_sessions worker (module level: spawn pickles by name)."""
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    animal, date = s.split(":")
+    cams = {c: _from_o2(rv, animal, date, PROD[c], c) for c in ("cam1", "cam4")}
+    miss = [c for c, v in cams.items() if v is None]
+    if miss:
+        return [{"session": f"{animal}_{date}", "source": "production", "error": f"no / incomplete O2 output: {miss}"}]
+    return evaluate(rv, _cgroup(rv), animal, date, cams, "production")
+
+
+def _production_sessions(rv) -> list[str]:
+    """Sessions with an output folder in BOTH production bundles (completeness is checked per session)."""
+    have = [{p.name for p in (Path(rv.root("dlc")) / "o2" / b / "out").glob("PS*_2026*") if p.is_dir()} for b in PROD.values()]
+    return [s.replace("_", ":", 1) for s in sorted(set.intersection(*have))]
+
+
 def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("source", choices=["clips", "labels"])
+    ap.add_argument("source", choices=["clips", "labels", "production"])
+    ap.add_argument("--jobs", type=int, default=4, help="production: sessions in parallel (I/O-bound: whole-session npz)")
     ap.add_argument("sessions", nargs="*", metavar="ANIMAL:YYYYMMDD")
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--out", type=Path, default=None)
@@ -175,6 +230,15 @@ def main(argv=None) -> int:
                 print(f"{animal} {date}: predictions missing / incomplete -- skipped")
                 continue
             rows += evaluate(rv, cg, animal, date, cams, "clips")
+    elif a.source == "production":
+        from wfield_local import analysis_kit as ak
+        sess = a.sessions or _production_sessions(rv)
+        if a.animals:
+            sess = [s for s in sess if s.split(":")[0] in a.animals]
+        res, fails = ak.fan_sessions(sess, _production_one, jobs=a.jobs)
+        for s, err in fails:
+            rows.append({"session": s.replace(":", "_"), "source": "production", "error": str(err)})
+        rows += [r for _, rr in res for r in rr]
     else:
         for (animal, date), cams in sorted(_labels_by_session(rv).items(), key=lambda kv: (kv[0][1], kv[0][0])):
             if a.animals and animal not in a.animals:
@@ -186,6 +250,10 @@ def main(argv=None) -> int:
     out = a.out or Path(rv.root("dlc")) / "session_poses" / f"apparatus_mouth_{a.source}.csv"
     T.to_csv(out, index=False)
     print(f"-> {out}")
+    if a.source == "production" and "cam4" in T:                 # one row per session: the variant used downstream
+        C = T[T.cam4.isin(CHOSEN)]
+        C.to_csv(out.with_name(out.stem + "_chosen.csv"), index=False)
+        print(f"-> {out.with_name(out.stem + '_chosen.csv')} ({len(C)} sessions)")
     return 0
 
 

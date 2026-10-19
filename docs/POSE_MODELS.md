@@ -597,6 +597,16 @@ reprojection error and fit residual.
 head-fixed mouse. Scaling about the cam4 PRINCIPAL POINT or the cam4 MOUTH keeps the cam1 mouth where it is (+3 / +2 px).
 **For 3-D: scale June cam4 about the principal point (or the cam4 mouth -- indistinguishable here), not the image origin.**
 v36's origin-centred scaling stays right for 2-D px measures. Reprojection error June 9-10 px in every variant (Aug 8).
+**No v36 re-run (10-19):** the scaling centre only adds a constant shift (1 - f) x c to every point; every 2-D measure is a
+difference (tongue / jaw relative to the mouth or spout frame, reach, lateral error, speed, angles; the jaw x / y ceilings are
+measured from a baseline, `orofacial_clean.py` jaw rules), so it cancels. Only triangulation sees absolute positions, and the 3-D
+step reads RAW June cam4 from the O2 output and scales it about the principal point itself.
+
+**The calibration's principal points are not suspicious (checked 10-19).** They were PINNED (`fix_principal_point: true`), not
+fitted: `dlc_anipose.measured_principal_point` = sensor centre minus the recorded ROI offset (`defaults.yaml dlc.sensor`,
+Blackfly 1280 x 1024). cam1: ROI at (440, 312) -> (640 - 440, 512 - 312) = (200, 200); cam4: (640 - 308, 512 - 132) = (332, 380).
+A free fit put them outside the frame (the 09-10 recording), hence the pin. With f ~ 5500 px a 100 px error equals a ~1 deg
+rotation, which the extrinsics absorb; the August spout fits (0.05 mm, ratios 0.97-1.00) confirm the geometry.
 
 ## D6. DECISION (Priya 10-18): the cam1 mouth = the L / R spout-line intersection, no offset
 

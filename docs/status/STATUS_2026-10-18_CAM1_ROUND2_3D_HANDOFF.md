@@ -18,9 +18,11 @@ Analysis desktop; M: = MICROSCOPE.
   smoke job + array (afterok), submitted ~07:40 10-19; all videos were already on scratch. Next: smoke log fps -> run time;
   copy back with COMMANDS.md step 5; `python -m wfield_local.o2_inference collect --name lp_cam1_ctx_prod_20261019 --compare
   PS93:20260814=M:/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/lp_train_cam1_r2_20261018/models/mhcrnn_semi_640_b4/video_preds/PS93_20260814_cam1.csv`
-  -> `session_poses/<a>_<d>_cam1_full/`. Then: per-session 3-D spouts + apparatus mouth from both cameras (D5; June cam4
-  scaled about the principal point; check cam1's principal point (200, 200) in a 600 x 600 image first), cam1 per-session
-  outputs (cleaned traces + cam4-timed lateral landing).
+  -> `session_poses/<a>_<d>_cam1_full/`. Then: per-session 3-D spouts + apparatus mouth from both cameras, READY:
+  `python -m scripts.apparatus_mouth production --jobs 4` (dlc env; reads both O2 bundles directly, split days handled,
+  June cam4 x0.885 about the principal point -> `session_poses/apparatus_mouth_production{,_chosen}.csv`). cam1's principal
+  point (200, 200) CHECKED 10-19: pinned from the sensor ROI, correct (POSE_MODELS D5); v36 June sessions need NO re-run
+  (the scaling centre cancels in every 2-D measure). Then cam1 per-session outputs (cleaned traces + cam4-timed lateral landing).
 * Local GPU free (LP review inference stopped 10-19; an orphaned queue loop from the previous session had kept running --
   pitfall 17).
 * 17. **Background loops survive a session restart even when reported "stopped"**: after a restart, find leftover queue
