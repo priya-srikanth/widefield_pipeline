@@ -31,7 +31,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-EVOKED_S, BASE_S = 0.2, 0.1
+EVOKED_S, BASE_S, EARLY_S = 0.2, 0.1, 0.1
 POSITIONS = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
 FAR = ("far_contra", "far_mid", "far_ipsi")
 EPOCHS = ("pre", "acute", "subacute", "chronic")
@@ -62,7 +62,15 @@ def lick_table(rv, run: str, animal: str, date: str, B) -> pd.DataFrame:
     return pd.DataFrame({"on_s": B.lick_on_s, "trial_id": L.trial_id.to_numpy(int), "pos": B.lick_pos,
                          "angle": np.where(ok, L.peak_angle_deg.to_numpy(float), np.nan),
                          "contact": L.contact.astype(bool).to_numpy(), "ok": ok.to_numpy(),
-                         "engaged": L.trial_id.isin(eng).to_numpy()})
+                         "engaged": L.trial_id.isin(eng).to_numpy(),
+                         "reach": L.protrusion_px.to_numpy(float),
+                         "lick_no": L.assign(_t=on_s_order(L)).groupby("trial_id")._t.rank(method="first")
+                         .to_numpy(int) - 1})
+
+
+def on_s_order(L: pd.DataFrame) -> np.ndarray:
+    """Lick onset within the trial (ms) for ordering licks; peak time where onset is missing."""
+    return np.where(np.isfinite(L.on_ms.to_numpy(float)), L.on_ms.to_numpy(float), L.t_ms.to_numpy(float))
 
 
 def lick_features(X: np.ndarray, ft: np.ndarray, on_s: np.ndarray) -> dict:
@@ -76,7 +84,12 @@ def lick_features(X: np.ndarray, ft: np.ndarray, on_s: np.ndarray) -> dict:
     ii = i0[good]
     post[good] = (cs[ii + ne] - cs[ii]) / ne
     pre[good] = (cs[ii] - cs[ii - nb]) / nb
-    return {"evoked": post - pre, "post": post, "pre": pre}
+    # EARLY = the first EARLY_S after visible onset minus the same baseline: contact comes ~50-70 ms after onset and
+    # GCaMP lags, so this window is largely pre-TOUCH (Priya 10-19: the touch asymmetry of contacted templates)
+    nl = max(1, int(round(EARLY_S * fs)))
+    early = post.copy()
+    early[good] = (cs[ii + nl] - cs[ii]) / nl - pre[good]
+    return {"evoked": post - pre, "post": post, "pre": pre, "early": early}
 
 
 def decode_session(L: pd.DataFrame, F: dict, tgt: dict, dev: float, seed: int = 0) -> pd.DataFrame:
@@ -138,10 +151,10 @@ def session_licks(rv, run: str, lab: str, bdir, dev: float) -> pd.DataFrame | No
     X = (X - X[eng].mean(0)) / X[eng].std(0)
     L = lick_table(rv, run, lab[:4], "2026" + lab[5:], B)
     FF = lick_features(X, ft, L.on_s.to_numpy())
-    F, Fq = FF["evoked"], FF["pre"]
+    F, Fq, Fe = FF["evoked"], FF["pre"], FF["early"]
     tgt = B.target_angle or {}
     keep = (L.engaged & L.ok & np.isfinite(F).all(1)).to_numpy()
-    L, F, Fq = L[keep].reset_index(drop=True), F[keep], Fq[keep]
+    L, F, Fq, Fe = L[keep].reset_index(drop=True), F[keep], Fq[keep], Fe[keep]
     far_t = {p: tgt[p] for p in FAR if p in tgt}
     near = L.angle.apply(lambda a: min(far_t, key=lambda p: abs(a - far_t[p])) if far_t else None)
     d = L.angle - tgt.get("far_contra", np.nan)
@@ -151,7 +164,24 @@ def session_licks(rv, run: str, lab: str, bdir, dev: float) -> pd.DataFrame | No
     kind = np.where(L.contact, "contacted", np.where(mis, "misdirected", np.where(nc_on, "nocontact", "other")))
     R = pd.DataFrame(F, columns=[f"r_{n}" for n in names])
     Q = pd.DataFrame(Fq, columns=[f"q_{n}" for n in names])
-    return pd.concat([L[["trial_id", "pos", "angle"]].assign(kind=kind, exec_pos=near.to_numpy()), R, Q], axis=1)
+    E = pd.DataFrame(Fe, columns=[f"e_{n}" for n in names])
+    return pd.concat([L[["trial_id", "pos", "angle", "reach", "lick_no"]].assign(kind=kind, exec_pos=near.to_numpy()),
+                      R, Q, E], axis=1)
+
+
+def matched(L: pd.DataFrame, probe: pd.Series, pool: pd.Series, tol_px: float = 15.0) -> pd.Series:
+    """Comparison licks matched to the probe licks: for each probe lick, the pool lick with the same lick number
+    (0 / 1) and the nearest reach (within tol_px), with replacement. Returns a count per pool lick (weights)."""
+    w = pd.Series(0, index=L.index)
+    P = L[pool]
+    for i in np.flatnonzero(probe.to_numpy()):
+        c = P[P.lick_no == L.lick_no[i]]
+        if c.empty:
+            continue
+        j = (c.reach - L.reach[i]).abs().idxmin()
+        if abs(c.reach[j] - L.reach[i]) <= tol_px:
+            w[j] += 1
+    return w
 
 
 def _pc(a: np.ndarray, b: np.ndarray) -> float:
@@ -191,16 +221,26 @@ def template_analysis(Ls: dict, meta: dict, min_n: int = 10, prefix: str = "r_")
             L = Ls[lb]
             sets = []
             for ex in ("far_mid", "far_ipsi"):
-                sets.append((f"misdirected->{ex}", (L.kind == "misdirected") & (L.exec_pos == ex), ex))
-                sets.append((f"contacted {ex}", (L.kind == "contacted") & (L.pos == ex), ex))
+                mis = (L.kind == "misdirected") & (L.exec_pos == ex)
+                cont = (L.kind == "contacted") & (L.pos == ex)
+                sets.append((f"misdirected->{ex}", mis, ex))
+                sets.append((f"contacted {ex}", cont, ex))
                 sets.append((f"nocontact {ex}", (L.kind == "nocontact") & (L.pos == ex), ex))
+                # FIRST ATTEMPTS + MATCHED (Priya 10-19: no-contact comparisons are short; misdirected licks are mostly
+                # the 1st / 2nd lick): misdirected licks 0 / 1 vs contacted licks at the landing spot matched on lick
+                # number and reach
+                mis01 = mis & (L.lick_no <= 1)
+                sets.append((f"misdirected01->{ex}", mis01, ex))
+                sets.append((f"matched {ex}", matched(L, mis01, cont & (L.lick_no <= 1)), ex))
             sets.append(("contacted far_contra", (L.kind == "contacted") & (L.pos == "far_contra"), "far_mid"))
             for name, msk, ex in sets:
-                if msk.sum() < min_n or ex not in T:
+                w = msk.astype(float)
+                if (w > 0).sum() < min_n or ex not in T:
                     continue
-                pat = L.loc[msk, rc].mean().to_numpy() - c
-                rows.append({"label": lb, "animal": an, "epoch": meta[lb]["epoch"], "set": name, "n": int(msk.sum()),
-                             "exec_pos": ex, "r_target": _pc(pat, T["far_contra"]), "r_exec": _pc(pat, T[ex])})
+                pat = (L[rc].to_numpy() * w.to_numpy()[:, None]).sum(0) / w.sum() - c
+                rows.append({"label": lb, "animal": an, "epoch": meta[lb]["epoch"], "set": name,
+                             "n": int((w > 0).sum()), "exec_pos": ex, "r_target": _pc(pat, T["far_contra"]),
+                             "r_exec": _pc(pat, T[ex])})
     D = pd.DataFrame(rows)
     if not D.empty:
         D["exec_minus_target"] = D.r_exec - D.r_target
@@ -312,7 +352,7 @@ def main_templates(a, rv, out, bdir) -> int:
         ep = epochs.epoch_of(lab)
         if ep not in EPOCHS or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM) or (a.labels and lab not in a.labels):
             continue
-        cf = cache / f"{lab}_dev{a.dev:g}_v2.pkl"
+        cf = cache / f"{lab}_dev{a.dev:g}_v3.pkl"
         if cf.exists():
             L = pd.read_pickle(cf)
         else:
@@ -325,7 +365,7 @@ def main_templates(a, rv, out, bdir) -> int:
         print(f"{lab} {ep}: contacted {int((L.kind == 'contacted').sum())}, misdirected "
               f"{int((L.kind == 'misdirected').sum())}", flush=True)
     # window 'evoked' = lick-evoked (post - pre, primary); 'pre' = the 100 ms BEFORE onset (trial context control)
-    D = pd.concat([template_analysis(Ls, meta, prefix=p).assign(window=w) for w, p in (("evoked", "r_"), ("pre", "q_"))],
+    D = pd.concat([template_analysis(Ls, meta, prefix=p).assign(window=w) for w, p in (("evoked", "r_"), ("early", "e_"), ("pre", "q_"))],
                   ignore_index=True)
     D.to_csv(out / "template_match.csv", index=False, float_format="%.4g")
     pd.set_option("display.width", 220)
@@ -344,18 +384,24 @@ def main_templates(a, rv, out, bdir) -> int:
 
 def shift_table(D: pd.DataFrame) -> pd.DataFrame:
     """Per window x landing spot x comparison x animal x epoch: misdirected score minus the comparison set's score."""
-    A = D.groupby(["window", "set", "animal", "epoch"]).exec_minus_target.mean()
+    # per SESSION (both sets present), then mean over the animal's sessions
+    A = D.set_index(["window", "set", "label"]).exec_minus_target
+    meta = D.drop_duplicates("label").set_index("label")[["animal", "epoch"]]
     rows = []
-    for (w, s, an, ep), v in A.items():
-        if not s.startswith("misdirected->"):
+    for (w, s, lb), v in A.items():
+        if not s.startswith("misdirected"):
             continue
-        ex = s.split("->")[1]
-        for comp in ("contacted", "nocontact"):
-            k = (w, f"{comp} {ex}", an, ep)
+        probe, ex = s.split("->")
+        for comp in (("matched",) if probe == "misdirected01" else ("contacted", "nocontact")):
+            k = (w, f"{comp} {ex}", lb)
             if k in A.index:
-                rows.append({"window": w, "landed": ex, "vs": comp, "animal": an, "epoch": ep, "mis": v,
-                             "comp": A[k], "shift": v - A[k]})
-    return pd.DataFrame(rows).sort_values(["window", "landed", "vs", "epoch", "animal"])
+                rows.append({"window": w, "landed": ex, "probe": probe, "vs": comp, "label": lb,
+                             "animal": meta.animal[lb], "epoch": meta.epoch[lb], "mis": v, "comp": A[k],
+                             "shift": v - A[k]})
+    S = pd.DataFrame(rows)
+    return (S.groupby(["window", "landed", "probe", "vs", "epoch", "animal"])
+            .agg(sessions=("label", "size"), mis=("mis", "mean"), comp=("comp", "mean"), shift=("shift", "mean"))
+            .reset_index())
 
 
 def _figure_templates(D: pd.DataFrame, path, run: str, dev: float) -> None:
