@@ -20428,6 +20428,6 @@ judged the four-model cleaned clips "not meaningfully different".
 4. **Consistency.** All current cam4 results, QC and the reviews' reference were built on LP r4.
 
 **Revisit if:** a downstream measure turns out to be driven by false faint licks (e.g. a no-contact-lick rate change carried
-by PS94), or a future model wins on BOTH precision and recall of faint licks (ViT-B 640 still to score; ctx-semi 640 found every
+by PS94), or a future model wins on BOTH precision and recall of faint licks (ViT-B 640 scored 10-19: NOT a candidate -- finds 48 % of real faint licks pre, 7x LP r4's tongue jumps; ctx-semi 640 found every
 real lick at lower precision). Records: `lp_stage/lick_review_eps35/` (key.csv, answers, `review_scored_eps35.csv`), page
 https://claude.ai/artifact/FyZaEb6Laub48h87YAgUqP (collection `lick_review_eps35`); 10-14 review `lp_stage/lick_review/`.

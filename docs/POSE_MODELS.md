@@ -708,3 +708,12 @@ sessions it drops 5 false licks and loses 7 real faint ones (of 110). Across bot
 is consistently more precise and consistently misses some real faint licks -- not a clear enough win to re-run production;
 the faint / incomplete licks it misses are the post-stroke ones that matter.
 **DECISION (Priya 10-19): production stays on LP r4; eps35 not adopted** -- reasons and revisit conditions in DECISIONS.md 2026-10-19.
+
+### cam4 ViT-B DINOv2 640 b8 (O2 rerun, scored 2026-10-19 -- NOT a candidate)
+
+`o2/lp_train_20261016/models/vitb_dinov2_640_b8`, tag `_vitb_1019` (PS93 0814 pre / 0821 acute, Priya's 10-14 review). Contact
+recall 96.8 / 97.9 % (LP r4 98.8 / 99.6); review precision 100 / 90.6 % but **finds only 48 % of the real faint licks pre**
+(LP r4 100 %) -- 71 no-contact licks pre vs LP r4's 149, then 133 vs 88 acute (inconsistent across sessions); tongue x jumps
+> 30 px 267 / 137 (LP r4 35 / 45), > 60 px 12 / 8 (3 / 1); jaw x jumps > 30 px 137 pre (38). Validation loss was still falling
+at 300 epochs (0.19 vs ResNet-50 eps35's 0.11). Worse than LP r4 on every axis that matters; no reason to train it longer
+for production.
