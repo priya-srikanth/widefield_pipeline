@@ -20503,3 +20503,70 @@ applied to misdirected licks (plan = far contra vs execution = the position the 
 the share; one bundle (input pickles + code snapshot + parametrised sbatch: TAG / ORDER / ONLY / VIDEO per submit) serves
 every run; `check` must show bundle == share on one session before an O2 run is trusted; `collect` writes the usual
 folder. Full reruns go to O2 from now on.
+
+## 2026-10-19 (late morning) — O2 runs in; fair target-vs-executed result; executed-angle rise NOT robust; misdirected licks show no plan signature; trial-to-trial variance is movement; SHARED GROUP PENALTY problem found
+
+**O2.** Bundle `enc_v36_20261019` (119 sessions) checked twice: desktop bundle-vs-share max |dR2| 4.6e-7; O2 vs desktop
+main run (PS94_0806) 1e-5 (CSV rounding). ~10 min / session on O2 (4 cores) vs ~19 on the box. Runs nokin / nodir /
+trmodels / musall_shuf collected (116 / 114 / 118 / 118; 7 tasks cancelled by the scheduler 2 s after start, resubmitted).
+Pitfalls: (1) a session submitted in two overlapping arrays was written twice at once (trmodels PS92_1002: one stray
+trailing byte) -- `collect` now repairs it; (2) the share link (1 GbE) is the bottleneck for the bundle build, not CPU.
+
+**Fair target vs executed (`nokin:*`, base = task timing + lick timing + running, NO kinematics; unique = order-free
+loss when removed from the model with both; lick window, cortex; `movement_first_subset-nokin/figures/
+spatial_contest_nokin_<area>.png`).** Unique target pre / acute / subacute / chronic, PS92 / 93 / 94 / 95:
+.032/.031/.010/.019, .020/.011/.007/-, .038/.014/.010/.011, .054/.043/.021/.025; unique executed .009/.007/.001/-.002,
+.022/.006/.008/-, .028/.008/.023/.007, .014/.016/.021/.006 (PS95 acute missing: its only acute session was cancelled on
+O2, resubmitted). Target > executed pre in 4/4; executed's unique share RISES after the stroke (subacute +0.013, chronic
++0.010 vs pre, 4/4 animals, both tests); the gap closes acutely / subacutely (PS92 tie acute, PS94 executed > target
+subacute); target's unique share rises above pre chronically (+0.013, both tests; cue window more strongly). Reading:
+cortex tracks the target more than the executed lick throughout; after the stroke the executed lick gains its own
+representation; chronically target coding strengthens beyond baseline. (The "given kinall" columns are NOT usable --
+see the penalty problem below; nodir also affected.)
+
+**Executed-angle rise in `position_dR2_maps_by_epoch.png` is NOT robust (`scripts/exec_angle_spread_check.py`,
+`qc/exec_angle_spread.csv`).** Lick-angle spread does not grow post-stroke (SD of the within-position deviation 7-11 deg
+in every animal / epoch; only PS94 acute 6.9 -> 8.9), so spread was not the explanation -- but the ORDER-FREE (drop)
+exec_angle dR2 is ~0 everywhere (SSp-m -0.01..+0.007, both hemispheres, every animal / epoch). The map's rise came from the
+SHUFFLE measure in 2/4 animals (PS94 ipsilesional SSp-m .006 -> .019 -> .027 -> .052; PS95 acute .039); the exec_angle
+shuffle is a circular time shift that misplaces lick-kernel events, removing more than angle information.
+Hemisphere convention (Priya 10-19): brain / encoding maps image LEFT = left hemisphere = IPSILESIONAL; only the cam1
+face video has ipsi = image right.
+
+**Unique (Musall-style) position maps (`position_dR2drop_maps_by_epoch.png`; full minus a refit without both position
+blocks, unorthogonalised).** Nearly identical to the label-permutation maps: acute drop, chronic rise above pre strongest
+contralesionally (right, image right) after the cue and around licks. Musall's unique dR2 also had video; the pilot says
+video absorbs ~80 % of position's unique share around licks (a full video version needs a bundle with --cams).
+
+**Misdirected far-contra licks: no planned-lick signature (`scripts/misdirected_lick_decode.py`, cohort/tables/
+misdirected_licks/template_{match,shift}.csv).** Within-session decoder FAILS acutely (17 contacted far_contra licks in
+PS94_0823 -> the class cannot be learned; pre-lick context alone decodes position 86 %). Template method: per animal,
+PRE-stroke contacted-lick templates per far spout (lick-evoked region pattern, position-specific part, leave-one-pre-
+session-out); score = r(exec template) - r(far_contra template). Controls pass pre-stroke (contacted licks match their
+own spout, r .46-.84). Each apparent "plan-like" lean traced to a confound: vs contacted licks at the landing spot (-0.2..
+-0.5 acutely) = touch asymmetry and/or reach / lick number; the no-contact comparison licks are SHORT (reach 100-120 px
+vs 165-210 contacted) and later in the trial -- not a fair control (Priya); misdirected licks are mostly the trial's 1st /
+2nd lick. FIRST ATTEMPTS matched on lick number and reach (+-15 px), within session: early (0-100 ms, ~pre-touch) and
+evoked windows give mixed signs centred near 0 acutely (the one large value, PS94, is 1 session), the same as pre-stroke
+misses; the pre-onset lean largely disappears for first licks (it was the previous lick in the bout). Conclusion: within
+widefield resolution, misdirected licks look like ordinary licks to where the tongue went, in a far-contra context.
+"Pre-lick" = before VISIBLE protrusion: includes initiation and (in bouts) the previous lick -- not a context control.
+
+**Trial-to-trial variance (`movement_first_subset-trmodels`, `time_resolved_dR2_drop_TRIAL.png`; each position's trial
+mean removed from data and prediction; order-free, 0-1.5 s after cue).** Full model explains 0.31 / 0.42 / 0.30 / 0.27
+(cortex, pre / acute / subacute / chronic); task / position ~0 (as constructed). Cortex: uninstructed dominates (0.32 pre);
+SSp-m: instructed (licking) dominates (0.136 pre, 0.172 acute, 0.095 chronic; uninstructed 0.056 -> 0.086 chronic).
+Acute = more explainable trial-to-trial variance, from licking (instructed 0.028 -> 0.076 cortex).
+
+**Musall-order shuffle (`musall_subset-shuf`, 0-1.5 s, cortex):** instructed 0.10 -> 0.19 acute -> 0.08 chronic;
+position 0.036 -> 0.027 -> 0.037 -> 0.062; uninstructed 0.23 -> 0.16 (upper bound: the time-shift shuffle inflates slow
+variables such as running -- lick-window shuffle-running 0.54 > full R2 0.38 in the main run; drop 0.22).
+
+**SHARED GROUP PENALTY (found 10-19, NOT yet fixed).** The ridge penalty is chosen per GROUP (task / instructed /
+uninstructed) on whole-trial fit. Continuous tongue / jaw traces, the lick kernels and the per-lick target / executed
+terms are all "instructed": with the traces in, the instructed penalty falls from 1e3-1e4 to 1-100 and the lick-event terms
+overfit -> lick-window R2 DROPS (PS92_0811: target+exec 0.440 -> +traces 0.395; full model 0.378). Affected: every
+model with continuous instructed traces -- the main model's lick-window numbers (per-lick terms: exec_angle, target /
+executed angle, possibly position around licks), the nodir base (directionless traces), the nokin "given kinall" columns.
+Not affected: the nokin no-kinematics contest. Fix proposed: a separate penalty for continuous traces vs event kernels
+(or one per variable), then rerun main + subsets on O2.
