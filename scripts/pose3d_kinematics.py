@@ -6,14 +6,17 @@ jaw opening), on the SAME lick events as the cam4 cohort.
 Licks = the cam4 production licks (LP_analysis v36 ``licks.csv``: on_ms .. off_ms windows), so every 3-D number belongs to a
 lick the cam4 tables already count. Within each window, on the 3-D tongue (both cameras + single-camera fill):
   * PEAK IN 3-D (Priya 10-19: "peak time may need to be revisited based on 3-D position"): the frame where the tip is
-    FARTHEST FROM THE MOUTH EXIT. The cam4 peak is the max of cam4's 'out' axis, which is 99 % the DOWN axis
+    FARTHEST FROM THE MOUTH (E, below). The cam4 peak is the max of cam4's 'out' axis, which is 99 % the DOWN axis
     (`scripts.pose3d_crosscheck`: r 0.99 with -dv, ~0 with ap). ``dt_peak_ms`` = 3-D peak - cam4 peak.
-  * MOUTH EXIT E, anchored to the HEAD (Priya 10-19): the session's resting NOSE (pre-cue median) + a per-animal offset =
-    the median of (resting jaw - resting nose) over its AUGUST pre sessions, fixed for every session. Not the jaw itself
-    (it changes after the stroke) and not the stage set point (re-entered daily: 0.7 mm apart on two PS93 days).
-    ``ownjaw_minus_exit_*`` = how far the session's own resting jaw sits from it (diagnostic).
-  * 1. DIRECTION vs TARGET, from E at the 3-D peak. NOT a horizontal azimuth (10-19): E sits AT the close_center spout
-    and the far spouts lie beside / below it, while licks go mostly DOWN (elevation -50 to -75 deg), so atan2(ml, ap) is
+  * MOUTH E = the spout "mouth zero": the stage's mouth SET POINT (Priya 10-19), i.e. the origin of the 3-D frame. It is
+    set at the rig by bringing the spout as close as possible to the front of the mouth, so the targets sit 2 / 4 mm from
+    it (`geometry` dist_close / dist_far). NOT a body landmark: the resting JAW label (the chin, ~1.4 mm in front of and
+    1.3 mm below it) made the close spouts look like they sat on the mouth, and the jaw and the resting NOSE can both move
+    after the stroke (Priya 10-19: "don't use resting nose"). It is re-entered daily, so it carries that day's placement
+    (August pre: within 0.12-0.18 mm of a nose-anchored version; both acute days 0.66 mm, mostly ~0.5 mm further back --
+    question to Priya 10-19). ``nose_*`` / ``jaw_*`` = the session's resting nose / jaw relative to it (diagnostics only).
+  * 1. DIRECTION vs TARGET, from E at the 3-D peak. NOT a horizontal azimuth (10-19): with the jaw as E it sat AT the close_center spout
+    and the far spouts lay beside / below it, while licks go mostly DOWN (elevation -50 to -75 deg), so atan2(ml, ap) is
     set by tiny ap differences (close_L target came out at -119 deg, 'behind' the mouth). Instead: ``ang3d_err`` = the
     3-D angle between E->tip and E->target; ``frontal`` = atan2(ml, down), the side tilt of a downward lick (what cam4's
     angle approximates, now in mm; + = mouse RIGHT), ``frontal_err_ipsi`` = -(frontal - target's) (+ = toward mouse
@@ -140,36 +143,21 @@ def main(argv=None) -> int:
             continue
         frames[s] = pd.read_csv(d3 / f"{animal}_{date}_frames.csv.gz").drop_duplicates(["trial_id", "t_ms"])
         rest[s] = rest_points(frames[s])
-    # THE MOUTH EXIT, anchored to the HEAD (Priya 10-19: not the jaw, which changes after the stroke): per animal, the
-    # median over its AUGUST pre sessions of (resting jaw - resting nose); every session's exit = its own resting nose +
-    # that fixed offset. Head-fixed, so the nose is a rigid skull landmark; nothing post-stroke in the jaw or tongue moves it.
-    offset = {}
-    for animal in sorted({s.split(":")[0] for s in frames}):
-        pre = [rest[s]["jaw"] - rest[s]["nose"] for s in frames if s.startswith(animal + ":")
-               and s.split(":")[1] >= "20260801" and epochs.epoch_of(f"{animal}_{s.split(':')[1][4:]}") == "pre"]
-        pre = [v for v in pre if np.isfinite(v).all()]
-        if pre:
-            offset[animal] = np.median(pre, axis=0)
-            print(f"{animal}: mouth exit = nose + {np.round(offset[animal], 2)} mm (ml, ap, dv; median of {len(pre)} "
-                  "August pre sessions)")
+    E = np.zeros(3)                                   # the spout mouth zero = the frame's origin (Priya 10-19)
     LL, JJ, SS = [], [], []
     for s, S in frames.items():
         animal, date = s.split(":")
-        if animal not in offset:
-            print(f"{s}: no August pre session for {animal} -- no mouth exit, skipped")
-            continue
         C = pd.read_csv(Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv")
         geo = _rig(rv, animal, date)["geometry"]
         ep = epochs.epoch_of(f"{animal}_{date[4:]}")
-        E = rest[s]["nose"] + offset[animal]
         L, J = session_licks(S, C, geo, E), session_jaw(S)
         for X in (L, J):
             X["animal"], X["date"], X["session"], X["epoch"] = animal, date, f"{animal}_{date}", ep
         LL.append(L)
         JJ.append(J)
         row = {"session": f"{animal}_{date}", "animal": animal, "date": date, "epoch": ep,
-               "cam4_licks": len(C), "licks_3d": len(L), "exit_ml": E[0], "exit_ap": E[1], "exit_dv": E[2],
-               **{f"ownjaw_minus_exit_{a}": v for a, v in zip(("ml", "ap", "dv"), rest[s]["jaw"] - E)}}
+               "cam4_licks": len(C), "licks_3d": len(L),
+               **{f"{part}_{ax}": v for part in ("nose", "jaw") for ax, v in zip(("ml", "ap", "dv"), rest[s][part])}}
         jm = J.groupby("position").lr_wide_mm.median()
         if {"far_L", "far_R"} <= set(jm.index):
             row["jaw_far_dir_mm"] = (jm["far_L"] - jm["far_R"]) / 2       # + = toward the target side
@@ -186,7 +174,7 @@ def main(argv=None) -> int:
     J.to_csv(out / "jaw_trials.csv.gz", index=False, float_format="%.4g")
     S.to_csv(out / "sessions.csv", index=False)
     # rule 8: each animal's post sessions minus its AUGUST pre median, per position, before any pooling
-    num = [c for c in S.columns if "|" in c or c.startswith(("jaw_far", "ownjaw_minus_exit"))]
+    num = [c for c in S.columns if "|" in c or c.startswith(("jaw_far", "nose_", "jaw_ml", "jaw_ap", "jaw_dv"))]
     base = S[(S.epoch == "pre") & (S.date >= "20260801")].groupby("animal")[num].median()
     rows = []
     for r in S[S.epoch.isin(["acute", "subacute", "chronic"])].itertuples(index=False):
@@ -198,7 +186,7 @@ def main(argv=None) -> int:
     B = pd.DataFrame(rows)
     B.to_csv(out / "by_animal.csv", index=False)
     if len(B):
-        show = ["jaw_far_dir_mm", "ownjaw_minus_exit_ml", "ownjaw_minus_exit_dv"] + [f"{m}|{p}" for m in ("miss_mm", "lat_err_mm", "ang3d_err", "frontal_err_ipsi", "sagittal_err", "reach_mm", "out_ap",
+        show = ["jaw_far_dir_mm", "nose_ap", "nose_dv"] + [f"{m}|{p}" for m in ("miss_mm", "lat_err_mm", "ang3d_err", "frontal_err_ipsi", "sagittal_err", "reach_mm", "out_ap",
                                                           "down_dv", "speed_peak", "open_max_mm")
                                      for p in ("far_L", "far_R", "far_center")]
         show = [c for c in show if c in B]

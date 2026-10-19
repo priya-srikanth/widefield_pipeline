@@ -749,6 +749,22 @@ hand and the glob fixed in `defaults.yaml`). The backup of the pre-fix outputs s
 `orofacial_outputs` logs "N trial(s) not covered by any video -- left out" for the first two; per-session pose metrics
 for those sessions cover the trials WITH video only.
 
+## Post-stroke — mouth set point placed closer (slack jaw): the spouts sat ~0.5 mm nearer the face (found 2026-10-19)
+
+* **What.** Post-stroke the jaw was slack, so the mouth set point was placed with the spout closer to the face to
+  accommodate it (Priya, 10-19). The six commanded positions are measured from that set point, so on those days every
+  spout sat ~0.5 mm nearer the head than before the stroke.
+* **How it was found.** 3-D (cam1 + cam4, cameras posed per session on the commanded spouts, POSE_MODELS D10 / D11):
+  relative to the day's set point the resting NOSE sits +0.49 / +0.50 mm further forward (ap) on the acute days
+  (PS92 0818, PS93 0821) and +0.55 mm on PS93 0908 (chronic), vs a 0.12-0.18 mm day-to-day spread in PS92's August
+  pre sessions.
+* **Cost.** Anything measured relative to the set point (3-D reach / angles from the "mouth zero") describes the task
+  as it was set that day, with the targets ~0.5 mm closer post-stroke. Measures against the spout itself (miss
+  distance, lateral error, cam4 tip-to-spout) are unaffected. A reach expressed as a fraction of the spout distance
+  (cam4 `reach_frac`) had the spouts closer acutely, so its acute deficit is, if anything, understated.
+* **Not done.** Re-referencing to a body landmark (resting jaw or nose): both can change after the stroke (Priya 10-19).
+  The spout "mouth zero" stays the reference.
+
 ## Conventions for this log
 
 * Add the entry when the incident is found, not when it is resolved — a known-but-unfixed problem that

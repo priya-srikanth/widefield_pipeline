@@ -882,3 +882,16 @@ largest at far contra, holds in mm; the shorter acute reach is LESS DOWNWARD ext
 peak tongue speed drops at every far spout; the jaw opens less and stops steering (cam4 finding 3: -11.5 px ~ -0.33 mm at
 34 px / mm; here -0.25 mm). Pre-stroke, licks at the lateral spouts are ~35 deg steeper (more downward) than the line to the
 spout. The cohort run (curated sessions, per-animal tables, `analysis_kit.boot_delta`) waits for the cam1 production output.
+
+**REVISED 10-19 (later): the mouth is the spout "mouth zero" -- the table above is SUPERSEDED.** The mouth set point is placed at
+the rig by bringing the spout as close as possible to the front of the mouth, so it IS the mouth and the targets sit 2 / 4 mm
+from it (Priya). The table above used the resting JAW label (the chin, ~1.4 mm in front of and 1.3 mm below it) as the exit,
+which made the close spouts look like they sat on the mouth; a nose-anchored variant was rejected too (the nose and jaw can
+both move post-stroke; Priya: "don't use resting nose"). `pose3d_kinematics` now uses the origin (= the set point) only;
+angles are defined at every position (targets 2 / 4 mm away). Post-stroke the set point was placed ~0.5 mm closer
+(slack jaw, EXPERIMENT_ERRORS) -- every set-point-relative number describes the task as placed that day.
+Change vs August pre (PS92 production / PS93 clip subset), far_R: miss +2.1 / +1.5 mm; lateral error -2.1 / -1.1 mm (medial);
+frontal tilt error toward ipsi +34 / +15 deg; 3-D angle error +29 / +22 deg; reach -0.2 / -1.3 mm = more forward (+0.95 /
++0.73) and less downward (-0.76 / -1.84); peak speed -83 / -57 mm/s. Jaw FAR_DIR -0.25 / -0.22 mm acute (PS93 chronic -0.17);
+widest opening -1.0 to -2.3 mm at the far spouts. Same direction in both animals: acute licks reach less DOWN and more
+FORWARD, aimed ipsi, slower; the jaw opens less and stops steering.
