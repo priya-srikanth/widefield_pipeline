@@ -44,18 +44,22 @@ Musall-order shuffle, and a three-round misdirected-lick analysis.
 | shared group penalty | split penalties (task / lick / orofacial / uninstructed / video) give IDENTICAL R2 -> NOT the cause; lick-window drop with traces = property of the traces | split kept in code; NO rerun needed |
 | video in the lick window | NOT used (Priya 10-19: video re-describes the licks); video only for the pre-cue movement-null readout | the earlier "80 % posture" reading withdrawn |
 
-## 3. RUNNING at handoff
+## 3. RUNNING at handoff (updated ~18:45)
 
 | job | where / log | then |
 |---|---|---|
-| local lick-matched nokin, last PS95 chronic sessions (7) | box, `matched_local.log`; out `movement_first_subset-nokin_matched/` | `python scripts/combined_encoding_figures.py --order movement_first_subset-nokin_matched`; compare with unmatched (relative_shares.csv in both); DECISIONS line with PS95 chronic |
-| O2 `nokin_matched` array (56867176, short,medium) | O2; Priya rsyncs `out/` back | `o2_encoding.py collect --name enc_v36_20261019 --tag nokin_matched` (overwrites identical local sessions) |
-| overnight trial-to-trial nokin (`run_nokin_tr.ps1`, chained after the matched run) | box, `nokin_tr_queue.log` / `nokin_tr.log`; out `movement_first_subset-nokin_tr/` (SUFFIX `_tr`) | `combined_encoding_figures.py --order movement_first_subset-nokin_tr` -> `tables/tr_contest_0-1.5s.csv` = full executed set (angle, angle^2, reach) on TRIAL-TO-TRIAL vs all variance |
-| per-spout rerun, FIXED shufpos (`run_shufpos.ps1`, chained after nokin_tr) | box, `shufpos_queue.log` / `shufpos.log`; out `movement_first_subset-shufpos/` | per-spout maps from that folder (`fig_position_each_maps` on the subset sessions; needs a small readout hook for the subset folder); O2 alternative: bundle code refreshed (b67e027) -> `TAG=shufpos ONLY=shufpos-` |
+| local lick-matched nokin (started 14:01), last 2 sessions PS95_0928 / 1001; 105/107 done (O2 + local combined) | box, `matched_local.log`; out `movement_first_subset-nokin_matched/` | rerun `combined_encoding_figures.py --order movement_first_subset-nokin_matched` at 107/107; compare with unmatched (`tables/relative_shares.csv` in both); DECISIONS line incl. PS95 chronic |
+| O2 `nokin_matched` array (56867176, `-p short,medium`), trickling (fair-share ~0.07) | O2; Priya rsyncs `out/` back | `o2_encoding.py collect --name enc_v36_20261019 --tag nokin_matched` (identical to local; overwrites) -- can be cancelled once local hits 107 |
+| FIXED per-spout rerun (`run_shufpos_now.ps1`, started 18:33, 4 workers, PID 26308) | box, `shufpos_now.log`; out `movement_first_subset-shufpos/` | `combined_encoding_figures.py --order movement_first_subset-shufpos` -> `figures/position_each_maps_{enl,cue,lick}.png` (readout hook committed 50fcb84); rough ETA ~3 h |
+| overnight trial-to-trial nokin (`run_nokin_tr.ps1`), waits for the matched run, then runs ALONGSIDE the per-spout rerun (RAM ok: 4 + 4 workers) | box, `nokin_tr_queue.log` / `nokin_tr.log`; out `movement_first_subset-nokin_tr/` (SUFFIX `_tr`) | `combined_encoding_figures.py --order movement_first_subset-nokin_tr` -> `tables/tr_contest_0-1.5s.csv` = full executed set (angle, angle^2, reach) on TRIAL-TO-TRIAL vs all variance; ~4-5 h |
+| chained per-spout launcher (`run_shufpos.ps1`, waits for nokin_tr) | box, `shufpos_queue.log` | redundant now: `--skip-done` will find every session done and exit |
 | (other session) cam1 LP on O2 gpu_quad, tasks 21-137 est. start 10-20 19:40 | not ours | -- |
 
-Stop commands (Priya, PowerShell): matched / nokin_tr python = command line matching `combined_encoding` AND `only nokin:`
--> `taskkill /PID <pid> /T /F`; the chain launcher = command line matching `run_nokin_tr`.
+Bundle code on the share is b67e027 (split penalties, MATCH, NOKIN_TR, fixed shufpos); O2 alternative for the per-spout
+rerun: rsync the bundle, `TAG=shufpos ONLY=shufpos-` (not needed if the local run finishes).
+Stop commands (Priya, PowerShell; Claude cannot stop processes): nokin runs = python whose command line matches
+`combined_encoding` AND `only nokin:`; per-spout = `combined_encoding` AND `shufpos-`; launchers = powershell matching
+`run_nokin_tr` / `run_shufpos` -> `taskkill /PID <pid> /T /F`.
 
 ## 4. To-dos (priority)
 
@@ -67,7 +71,7 @@ Stop commands (Priya, PowerShell): matched / nokin_tr python = command line matc
    rerun the contest with the cleaner angle.
 4. **Toward "intended"**: (a) pre-cue -> lick-window carry-over decode (does the pre-movement spout code persist into
    the lick window?); (b) touch-free contest (no-contact licks / early pre-touch window).
-5. Per-spout maps from the FIXED shufpos rerun (readout hook for `movement_first_subset-shufpos`); review with Priya;
+5. Per-spout maps from the FIXED shufpos rerun (`--order movement_first_subset-shufpos`); review with Priya;
    check which earlier per-position readouts used shufpos (DECISIONS 10-18 "per-position readouts") and redo them.
 6. Pre-cue slow-band caveat presentation (10-19 morning handoff to-do 6); orofacial findings rewrite on v36 (10-18).
 
