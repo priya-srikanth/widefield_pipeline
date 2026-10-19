@@ -183,7 +183,8 @@ def camera_rays(cam, xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.ndarray, t: np.ndarray,
-                     max_gap_ms: float = 24.0, interp: str = "linear") -> tuple[np.ndarray, np.ndarray]:
+                     max_gap_ms: float = 24.0, interp: str = "linear",
+                     max_ray_miss_mm: float = 1.0) -> tuple[np.ndarray, np.ndarray]:
     """Fill frames that ONE camera measured (Priya 10-19: "use the known geometry to resolve occlusions in one view").
 
     About 40 % of tongue frames are seen by one camera only (PS92 0807: 18 % cam1-only, 25 % cam4-only). That camera
@@ -194,7 +195,9 @@ def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.
     ``a`` / ``b`` the cam1 / cam4 measured 2-D (NaN = not measured), rows in time order within each trial.
     ``interp``: how the neighbours' 3-D points are interpolated when BOTH sides are within reach -- "linear" (the two
     nearest), "pchip" / "akima" (a shape-preserving spline through every both-camera frame of the trial, evaluated only
-    inside two-sided gaps). One-sided gaps always hold the nearest point (no extrapolation).
+    inside two-sided gaps). One-sided gaps always hold the nearest point (no extrapolation). A filled point is DROPPED
+    when the seen camera's ray passes more than ``max_ray_miss_mm`` (1 mm) from the neighbours' estimate: that camera's
+    2-D point then disagrees with the 3-D track (10-19: PS92 0607 had fills 20 mm out).
     Returns (X filled, source code per frame: 0 none, 1 both cameras, 2 cam1 + neighbours, 3 cam4 + neighbours)."""
     X = np.array(X, float)
     both = np.isfinite(X).all(1)
@@ -224,9 +227,44 @@ def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.
         k = (src == code) & np.isfinite(est).all(1)
         if k.any():
             C, U = camera_rays(cam, xy[k])
-            X[k] = C + ((est[k] - C) * U).sum(1)[:, None] * U
+            Pk = C + ((est[k] - C) * U).sum(1)[:, None] * U
+            far = np.linalg.norm(Pk - est[k], axis=1) > max_ray_miss_mm          # the camera disagrees with its neighbours
+            Pk[far] = np.nan
+            X[k] = Pk
     src[(src > 1) & ~np.isfinite(X).all(1)] = 0
     return X, src
+
+
+#: Plausibility gates on the 3-D tongue / jaw (10-19, after a lick path 8-36 mm out on PS92 0607). Implausible points are
+#: rare (0.16-0.26 % of both-camera tongue points) and reprojection does NOT reliably flag them (0607: 22 % above 15 px,
+#: median 4.4 px): an error along the depth direction (the cameras sit below and in front) still triangulates cleanly.
+#: Real 3-D steps between 4 ms frames: median 0.32 mm, p99 1.6, p99.9 2.3 (PS92 0806).
+QC_MAX_MM = {"tongue": 8.0, "jaw": 5.0}      # tongue: from the mouth zero (normal p99 6.6 mm); jaw: from its session median
+QC_SPIKE_MM = 1.5                            # a single frame > 1.5 mm out AND back, its neighbours within 0.75 mm
+#: Tongue BEHIND the mouth zero (Priya 10-19: "impossible (negative from mouth)"). ap < 0 is common and smooth to ~-1 mm
+#: (13-20 % of points; p1 -0.9..-1.1: a tip emerging under the upper lip, which the mouth zero's spout touched); beyond
+#: -2 mm is a tail (0.04-0.09 % on 0806 / 0807 / 0818, 0.21 % on 0607 whose p0.1 is -4.4 mm) -> dropped.
+QC_TONGUE_AP_MIN_MM = -2.0
+
+
+def qc_3d(X: np.ndarray, part: str, trial: np.ndarray, t: np.ndarray) -> tuple[np.ndarray, dict]:
+    """Drop implausible 3-D points (NaN): beyond `QC_MAX_MM` and single-frame out-and-back spikes. Returns (X, counts)."""
+    X = np.array(X, float)
+    ok = np.isfinite(X).all(1)
+    ref = np.zeros(3) if part == "tongue" else np.nanmedian(X[ok], axis=0) if ok.any() else np.zeros(3)
+    far = ok & (np.linalg.norm(X - ref, axis=1) > QC_MAX_MM.get(part, np.inf))
+    behind = ok & (X[:, 1] < QC_TONGUE_AP_MIN_MM) & ~far if part == "tongue" else np.zeros(len(X), bool)
+    X[behind] = np.nan
+    X[far] = np.nan
+    ok = np.isfinite(X).all(1)
+    i = np.flatnonzero(ok[1:-1] & ok[:-2] & ok[2:] & (trial[2:] == trial[:-2])
+                       & (np.abs(t[2:] - t[:-2] - 8.0) < 0.5)) + 1
+    out_ = np.linalg.norm(X[i] - X[i - 1], axis=1)
+    back = np.linalg.norm(X[i + 1] - X[i], axis=1)
+    span = np.linalg.norm(X[i + 1] - X[i - 1], axis=1)
+    spike = i[(out_ > QC_SPIKE_MM) & (back > QC_SPIKE_MM) & (span < QC_SPIKE_MM / 2)]
+    X[spike] = np.nan
+    return X, {f"{part}_qc_far": int(far.sum()), f"{part}_qc_behind": int(behind.sum()), f"{part}_qc_spike": int(len(spike))}
 
 
 def _raw_xy(flat: pd.DataFrame, part: str, rows: np.ndarray) -> np.ndarray:
@@ -290,6 +328,7 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
     for name, ix, ii in (("video1", ix1, i1), ("video4", ix4, i4)):                             # split days only
         if "video" in ix:
             out[name] = ix.video.to_numpy()[ii]
+    qc = {}
     for part in CLEANED + STATIC:
         if part in CLEANED:
             a, _ = cleaned_xy(flat1, ix1, part, "cam1", mouth1)
@@ -303,10 +342,15 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
                                       fill_interp)
             out[f"{part}_src"] = src
         W = world.to_world(X)
+        if part in CLEANED:
+            W, cnt = qc_3d(W, part, out.trial_id.to_numpy(), out.t_ms.to_numpy(float))
+            qc.update(cnt)
+            if f"{part}_src" in out:
+                out.loc[~np.isfinite(W).all(1), f"{part}_src"] = 0
         for k, ax in enumerate(("ml", "ap", "dv")):
             out[f"{part}_{ax}"] = W[:, k]
         out[f"{part}_rep1"], out[f"{part}_rep4"] = rep[:, 0], rep[:, 1]
-    info = {"method": method, "cg": cg, "shift_px": (dx1, dx4), "world": world, "mouth_px": am["mouth_px"], "reproj_spout_px": am["reproj_px"], "med1": m1, "med4": m4,
+    info = {"qc": qc, "method": method, "cg": cg, "shift_px": (dx1, dx4), "world": world, "mouth_px": am["mouth_px"], "reproj_spout_px": am["reproj_px"], "med1": m1, "med4": m4,
             "n_cam1": len(ix1), "n_cam4": len(ix4), "n_paired": len(i1)}
     return out, info
 

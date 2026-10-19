@@ -165,3 +165,16 @@ def test_pnp_edge_offset_puts_each_camera_on_its_own_labelled_edge():
     assert np.allclose(g.triangulate(true.project(body), undistort=True), body, atol=1e-3)
     g0, _ = P3.pnp_group(start, med, GEOM, edge_offset=None)      # ignoring the edges: a constant shift appears
     assert np.linalg.norm(g0.triangulate(true.project(body), undistort=True) - body) > 0.05
+
+
+def test_qc_drops_far_points_and_single_frame_spikes():
+    t = np.arange(8) * 4.0
+    X = np.c_[np.linspace(0.5, 3.0, 8), np.full(8, 1.0), np.full(8, -2.0)]
+    X[3] = [6.0, 1.0, -2.0]                                         # one frame out and back by ~4 mm
+    X[6] = [20.0, 0.0, 0.0]                                         # impossible reach
+    Q, n = P3.qc_3d(X, "tongue", np.ones(8, int), t)
+    assert np.isnan(Q[3]).all() and np.isnan(Q[6]).all() and np.isfinite(Q[[0, 1, 2, 4, 5, 7]]).all()
+    assert n == {"tongue_qc_far": 1, "tongue_qc_behind": 0, "tongue_qc_spike": 1}
+    Y = np.c_[np.full(4, 0.5), np.array([0.5, -0.8, -2.5, 0.4]), np.full(4, -2.0)]   # 2.5 mm behind the mouth: dropped
+    Q2, n2 = P3.qc_3d(Y, "tongue", np.ones(4, int), np.arange(4) * 4.0)
+    assert np.isnan(Q2[2]).all() and np.isfinite(Q2[[0, 1, 3]]).all() and n2["tongue_qc_behind"] == 1

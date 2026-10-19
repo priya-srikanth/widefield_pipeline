@@ -932,3 +932,18 @@ flattens the extension peak inside a gap). Used only for two-sided gaps (both-ca
 same trial, >= 3 knots); one-sided gaps hold the nearest point; the estimate is then moved onto the seen camera's ray.
 `session_3d(fill_interp="akima")`. Results after the rerun: PS92 acute far_R miss +2.3 / lateral -2.25 mm; PS93 acute far_R
 +1.0 / -1.0 (~20 licks on the clip subset, so it moves with method details; PS92 stable).
+
+**3-D QC, angles and figures (10-19 evening).** (1) Plausibility gates (`pose3d.qc_3d`): tongue > 8 mm from the mouth zero,
+> 2 mm BEHIND it (ap < -2: Priya, "impossible (negative from mouth)"; ap < 0 is common to ~-1 mm = a tip emerging under the
+upper lip), jaw > 5 mm from its session median, single-frame out-and-back spikes > 1.5 mm; filled points dropped when the
+seen camera's ray misses the neighbours' estimate by > 1 mm. Source of the PS92 0607 outliers: PAW-in-face frames -- cam1
+puts 'tongue' on the digits (likelihood 0.91-0.92), cam4 on the incisors in the open mouth (0.97-0.99); reprojection does not
+flag them (error along depth). Hard negatives for a future labelling round: paw-in-face frames, tongue blank, both cameras.
+(2) Direction: 3-D angle error vs the spout direction (consistent across the set-point move: the spouts are commanded from
+it, Priya) + the angle OUT OF THE MIDLINE PLANE through the mouth zero and the centre spouts (= ml 0; asin(ml / |r|), + =
+ipsi) + forward tilt within it. (3) Figures: `scripts/pose3d_summary_fig.py` (per session over days from the stroke, August
+pre band, June as open markers in its own segment), `scripts/pose3d_phase.py` (peak-aligned 3-D distance, phase portrait
+radial speed vs distance, midline angle and distance vs normalised phase, mean paths in front / side / top planes on
+normalised phase where >= half the licks have a 3-D point). PS92 (9 Aug pre, 3 acute): acute licks are shifted ipsi from
+ONSET through the whole lick at every position (+5..+13 deg at close / centre, ~+30 deg at far_R, where the mean path crosses
+to the mouse's left of the midline); far_R protrusion peak radial speed ~100 vs ~160 mm/s; centre licks reach further acutely.

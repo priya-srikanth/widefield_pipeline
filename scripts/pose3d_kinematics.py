@@ -44,7 +44,8 @@ V36 = "lp_r4_heatmap_20261013__clean_v36"
 OPEN_MM = 1.5
 JAW_WIN_MS = (70.0, 3500.0)   # cue + 70 ms .. the TRIAL'S stop (end of its response window, usually 3500 ms; Priya 10-19);
                               # the second value is only the fallback when stop is missing (cam4 jaw_lateral used 3000)
-LICK_MEASURES = ["miss_mm", "lat_err_mm", "ap_err_mm", "dv_err_mm", "ang3d_err", "frontal", "frontal_err_ipsi", "sagittal",
+LICK_MEASURES = ["miss_mm", "lat_err_mm", "ap_err_mm", "dv_err_mm", "ang3d_err", "midline", "midline_err_ipsi", "frontal",
+                 "frontal_err_ipsi", "sagittal",
                  "sagittal_err", "reach_mm", "out_ap", "down_dv", "side_ml", "speed_peak", "dt_peak_ms", "share_single_view"]
 MAX_FIT_RESID_MM = 0.2      # sessions whose spout fit fails (pose3d summary fit_resid_mm_max) are left out: PS92 0605 1.4 mm
 
@@ -83,6 +84,10 @@ def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) ->
         Tt = T - E
         cosang = float(R[k] @ Tt / (np.linalg.norm(R[k]) * np.linalg.norm(Tt)))
         fr, fr_t = np.degrees(np.arctan2(R[k, 0], -R[k, 2])), np.degrees(np.arctan2(Tt[0], -Tt[2]))      # side tilt
+        # angle OUT OF THE MIDLINE (sagittal) PLANE through the mouth zero and the close / far centre spouts (Priya 10-19);
+        # that plane is ml = 0 here (centre azimuth 0, head roll 0), so the angle is asin(ml / |r|)
+        md = float(np.degrees(np.arcsin(np.clip(R[k, 0] / np.linalg.norm(R[k]), -1, 1))))
+        md_t = float(np.degrees(np.arcsin(np.clip(Tt[0] / np.linalg.norm(Tt), -1, 1))))
         sg, sg_t = np.degrees(np.arctan2(R[k, 1], -R[k, 2])), np.degrees(np.arctan2(Tt[1], -Tt[2]))      # forward tilt
         out_sign = np.sign(T[0]) if abs(T[0]) > 1e-6 else -1.0
         rows.append({"trial_id": r.trial_id, "lick_idx": r.lick_idx, "position": r.position,
@@ -90,6 +95,7 @@ def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) ->
                      "dt_peak_ms": t[k] - r.t_ms, "n_3d": int(ok.sum()), "share_single_view": float(np.mean(src > 1)),
                      "reach_mm": float(d[k]), "side_ml": R[k, 0], "out_ap": R[k, 1], "down_dv": -R[k, 2],
                      "ang3d_err": float(np.degrees(np.arccos(np.clip(cosang, -1, 1)))),
+                     "midline": md, "midline_target": md_t, "midline_err_ipsi": -(md - md_t),
                      "frontal": fr, "frontal_target": fr_t, "frontal_err_ipsi": -(fr - fr_t),
                      "sagittal": sg, "sagittal_target": sg_t, "sagittal_err": sg - sg_t,
                      "miss_mm": float(dm[m]), "lat_err_mm": float(out_sign * (P[m, 0] - T[0])),
