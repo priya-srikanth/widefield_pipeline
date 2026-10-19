@@ -630,6 +630,13 @@ of it was the tongue back in the mouth -> interpolating it BRIDGES two licks. Ou
   24 ms falls on acute (LP 79 lost frames vs 0-7); still far below the bridging it removes (607 -> 181).
 * **Proposed and written to `orofacial_clean_cam1.tongue`: `max_gap_ms: 24`, `interp_veto_interlick: false`** (cam4 digest
   unchanged). Re-rendered clip for QC: `session_poses/PS93_20260814_cam1/eval/cleaned_labels_cam1_dlc2_lp2_gap24.mp4`.
+* **Why it matters for lick counts (10-19, Priya: "can't the xy shape separate two bridged licks?").** Not reliably: the
+  return to the mouth is what the gap is missing, and PCHIP between two near-spout points never dips back. Counted on PS93
+  (LP c1r2, cam4 production lick peaks as truth): continuous cleaned cam1 tongue runs that contain >= 2 cam4 licks hide
+  **25.0 / 6.2 / 23.1 %** of cam4 licks (pre / acute / chronic) under 56 ms + veto vs **1.4 / 1.5 / 0.6 %** under 24 ms. The old
+  rule's merging was also EPOCH-DEPENDENT (acute licking has longer pauses), so it would have manufactured an epoch effect in
+  any cam1 lick count, duration or rhythm measure. (A shape-based detector could split a few of the merged runs; these are
+  continuous runs, not detector output.)
 
 **Water (Priya 10-18):** the jaw and sometimes the tongue get dragged onto a hanging drop when the drop hides where the point
 would be (reflections pull the keypoint; e.g. PS93 0814 trial 22 far_center +84 / +180 ms, jaw on the drop's lower edge). A
