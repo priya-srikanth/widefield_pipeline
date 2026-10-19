@@ -20431,3 +20431,75 @@ judged the four-model cleaned clips "not meaningfully different".
 by PS94), or a future model wins on BOTH precision and recall of faint licks (ViT-B 640 scored 10-19: NOT a candidate -- finds 48 % of real faint licks pre, 7x LP r4's tongue jumps; ctx-semi 640 found every
 real lick at lower precision). Records: `lp_stage/lick_review_eps35/` (key.csv, answers, `review_scored_eps35.csv`), page
 https://claude.ai/artifact/FyZaEb6Laub48h87YAgUqP (collection `lick_review_eps35`); 10-14 review `lp_stage/lick_review/`.
+
+## 2026-10-19 — encoding model: first cohort results, fair target-vs-executed redesign, Musall ordering, O2 path; the two-band correction NOT adopted; the slow band carries part of the pre-cue decode
+
+**Main v36 run (119 sessions, drift-removed, final model; August-only pre; figures
+`<v36>/imaging_encoding/movement_first/figures/`).** Every cohort figure = within animal (mean over sessions) then
+mean +- SEM over the 4 animals (dots = animals); the stats (`tables/stats_vs_pre.csv`, 198 cortex cells significant by
+both tests) use SESSIONS (stroke_orofacial design). New `target_vs_executed_sessions_<area>.png` shows every session.
+- Target vs executed, ORIGINAL base (tongue x / y out; lick window; mean of animals pre / acute / subacute / chronic):
+  unique target 0.045 / 0.035 / 0.037 / 0.049, unique executed 0.007 / 0.003 / 0.012 / 0.011; each ALONE 0.056 / 0.059 /
+  0.043 / 0.056 vs 0.018 / 0.027 / 0.019 / 0.017. Executed - target < 0 in nearly every session. PROVISIONAL: this base
+  keeps jaw x / y, nose x / y and tongue protrusion / speed, which carry EXECUTED direction and distance frame by frame
+  (Priya: is it an appropriate comparison?) -> redesign below.
+- Video pilot (23 sessions): with raw video in, position unique 0.057-0.066 -> 0.013-0.018 (lick window), unique target
+  ~0.045 -> ~0.010, unique executed ~0; ENL position 0.008 -> 0.002; video unique when orthogonalised last 0.11-0.17.
+- PETH partitions: instructed dominates because the post-cue response is lick-locked; uninstructed looks small because it
+  is not cue-locked (it explains trial-to-trial variance -- Musall's point). Far-spout amplitude is lower because licking
+  is: subacute far spouts 8.7-10.6 licks / responded trial vs 12.8-13.5 close, contact 0.58-0.82 vs 0.88-0.94, latency
+  330-430 vs 150-160 ms; reproduced by the instructed group. Amplitudes are SVD units (not per-session normalised).
+- Trials: ENGAGED only (success + engaged misses; the sated / stopped tail excluded; reference-position gate); frames
+  strobe - 0.5 s .. stop + 1 s of those trials only.
+
+**Credit rules (Priya: is crediting shared variance to the first ordered group what Musall did?).** Musall's code
+(churchlandlab/ridgeModel delayDec_RegressModel.m 815-830 and 734-747; delayDec_compareRegressors.m 536-542): uninstructed
+("spontaneous") orthogonalised against instructed ("operant"); task regressors RAW; video against everything, last;
+unique dR2 = full minus a refit with the variable shuffled. So instructed-uninstructed shared -> instructed,
+task-movement shared -> NOBODY. Our movement_first also residualises TASK against movement -> instructed gets the
+task-shared cue / lick-locked evoked variance (the shuffle-instructed SSp-m time course reached ~0.8; the order-free drop
+version is ~0-0.1 just after the cue). Decisions: lead with the DROP (order-free) measure; added `--order musall`
+(`ORTH_RAW`), which only changes the shuffle dR2 (run `--only shuf:`); every time-resolved figure states its credit rule
+(`time_resolved_dR2.png` shuffle, `time_resolved_dR2_drop.png` order-free).
+
+**Fair target vs executed (Priya 10-19).** `nodir:*` = base without directional kinematics (tongue x / y, jaw x, nose x)
+-- fair for ANGLE only: tongue protrusion / speed and jaw opening / speed still carry executed DISTANCE (Priya: jaw and
+tongue protrusion, and speed, carry close vs far information). `nokin:*` = base of task timing + lick timing + running
+only: target (spout angle / angle^2 / distance) vs executed (lick angle / angle^2 / reach) on the same lick kernel and
+licks = the symmetric contest; `kinall` = tongue + jaw traces (executed as continuous kinematics; read by UNIQUE shares --
+many more columns). Nose is NOT executed (posture; its lateral part includes pre-cue orienting, target-correlated) -- Priya:
+not what we want to study now; only a side check. Remaining caveat: the licks variable includes spout-CONTACT events,
+whose rate depends on position (a lick-onset-only base would remove it; not run).
+
+**Single-trial (trial-to-trial) variance (Priya: would a single-trial model help?).** The time-resolved step also saves
+errors after removing each position's trial mean from data AND prediction (`sse_trial` / `sst_trial`): fixed task kernels
+cannot explain that variance beyond the position means; lick timing and uninstructed movement can. Run `--only trmodels`.
+
+**Two-band hemodynamic correction (`hemo_variants` meegkit_2band): NOT adopted.** 46 sessions vs the adopted
+meegkit_hpfit: blood-flow residuals identical in every band (6 sessions); post-cue decode unchanged (-0.001, p=0.49, 32
+pre sessions); PRE-CUE decode LOWER (-0.016, lower in 26/32, p=0.0004; post-stroke -0.024). It removes only the >= 300 s
+component 470 shares with 415, so part of the pre-cue decode rides on the slow band:
+
+**The slow band carries part of the pre-cue decode (`scripts/slowband_decode_check.py`, 45 sessions,
+`imaging_encoding/qc/slowband_decode.csv`).** Adopted SVTcorr split by a global cosine projection: pre-cue decode adopted
+0.41, with the >= 300 s component removed 0.35 (post-cue 0.78 -> 0.75); the >= 300 s component ALONE decodes 0.29-0.32 in
+PS92 / PS93 pre (up to 0.47, PS92_0811) but 0.09-0.11 in PS94 / PS95, identical pre and post cue (no cue timing ->
+block-level structure). The >= 600 s component alone decodes BELOW chance (0.03-0.10): consecutive position blocks always
+differ, so a smooth signal predicts a held-out block as its NEIGHBOURS' position under block CV -- smooth components are
+not neutral for this decoder. PS92 blocks last ~1.5x longer (median 1.2-2.2 min, tail to 10.5 min, 2-8 % > 5 min;
+`scripts/position_block_durations.py`), PS93 ~1.2 min, PS94 / PS95 ~0.9 min (never > 3 min). Reading: the headline
+pre-cue code survives at ~85 % without the slow band, but its magnitude includes a slow, block-level component (sustained
+position signal over long blocks, or slow structure aligned with the block sequence) -- quote pre-cue numbers with that
+caveat. The encoding model's 600 s drift cutoff stays (no block exceeds 10.5 min).
+
+**Misdirected far-contra licks (Priya: does that activity look like a planned far-contra lick or the lick executed?).**
+Feasible (`scripts/misdirected_lick_counts.py`, `cohort/tables/misdirected_licks/`): no-contact licks deviated > 15 deg
+toward ipsi at far contra, acute PS92 500 / PS93 431 / PS94 807 / PS95 88 (1 session); pre-stroke the same kind of miss
+300-600 per animal (a matched control); pre-stroke contacted templates in the thousands per animal (-30..+30 deg). Close
+spouts have few pre-stroke misses (19-67). Planned: lick-aligned decoder / template match trained on contacted licks,
+applied to misdirected licks (plan = far contra vs execution = the position the tongue reached), with no-contact controls.
+
+**O2 path (`scripts/o2_encoding.py`).** `combined_encoding.session_inputs` + `run_session(inputs=)` run the model without
+the share; one bundle (input pickles + code snapshot + parametrised sbatch: TAG / ORDER / ONLY / VIDEO per submit) serves
+every run; `check` must show bundle == share on one session before an O2 run is trusted; `collect` writes the usual
+folder. Full reruns go to O2 from now on.
