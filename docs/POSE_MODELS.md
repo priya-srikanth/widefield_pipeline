@@ -707,3 +707,4 @@ licks found LP r4 **99.1 %** vs eps35 93.6 % (92.1 / 88.6 / 100). **eps35 trades
 sessions it drops 5 false licks and loses 7 real faint ones (of 110). Across both reviews (PS93 pre / acute + these three) eps35
 is consistently more precise and consistently misses some real faint licks -- not a clear enough win to re-run production;
 the faint / incomplete licks it misses are the post-stroke ones that matter.
+**DECISION (Priya 10-19): production stays on LP r4; eps35 not adopted** -- reasons and revisit conditions in DECISIONS.md 2026-10-19.

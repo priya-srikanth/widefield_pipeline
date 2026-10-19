@@ -20396,3 +20396,38 @@ position unique 0.013 -> 0.001 (all), 0.078 -> 0.010 (cue), 0.106 -> 0.026 (lick
 tongue goes (lick window ~ the motion-null reading of position) and position-specific posture before the cue. Variance
 explained cannot settle a pre-cue movement-null readout: the ENL movement-removed DECODE (10-12/13: residual keeps 40-50 %
 of the above-chance code and tracks recovery) is that readout. The 23-session video pilot runs after the main run.
+
+## 2026-10-19 — cam4 production stays on LP r4; LP r4 eps35 not adopted (Priya)
+
+**Decision.** The cam4 production model remains **LP r4** (`lp_r4_heatmap_20261013`; heatmap, ResNet-50, 640 px, temporal
+epsilon 10 px for every keypoint), i.e. the existing O2 production run and LP_analysis run v36 stand. **LP r4 eps35** (the same
+recipe with a 35 px tongue temporal limit, `o2/lp_train_20261016/models/heatmap_640_b4_eps35`) is NOT adopted for now.
+
+**Evidence -- two blind human lick reviews** (candidate licks WITHOUT spout contact, model names hidden, hidden contact-lick
+controls; Priya scored each strip as real / not / unsure; `scripts.lick_review_candidates`, POSE_MODELS "cam4 LP r4 eps35"):
+
+| review | precision LP r4 / eps35 | share of real faint licks found LP r4 / eps35 |
+|---|---|---|
+| 10-14 / 10-18: PS93 0814 pre, 0821 acute (O2 predictions) | 82 / 96 %, 88 / 94 % | 100 / 89 %, 97 / 97 % |
+| 10-19: PS92 / PS94 / PS95 0821 acute (Windows-native predictions, 120 candidates + 12 controls, all controls judged real) | 95.6 / 100 % | 99.1 / 93.6 % |
+
+In the 10-19 review the models agree on 104 of 120 candidates (102 real); LP r4 alone found 14 (7 real, 5 not a lick -- all 5
+in PS94 -- 2 unsure), eps35 alone 2 (1 real). Contact recall is the same (99.5 / 99.2 % vs 98.8 / 99.6 % on PS93), and Priya
+judged the four-model cleaned clips "not meaningfully different".
+
+**Justification.**
+1. **eps35 trades misses for false positives; it is not better overall.** In every review it is more precise and in every
+   review it misses real faint licks that LP r4 finds (10-19: drops 5 false licks, loses 7 real ones of 110; PS93 pre: misses
+   3 of 27). The difference is confined to faint no-contact licks; contact licks and lick timing are unaffected.
+2. **The licks eps35 misses are the ones the post-stroke analysis is about.** Faint / incomplete no-contact licks are the
+   acute deficit readouts (incomplete licks, reach, no-contact rate); a model that under-detects them biases exactly those
+   measures toward "less licking" post-stroke, whereas LP r4's false faint licks are few (0-5 per session-sample) and
+   concentrated (PS94 0821).
+3. **Cost.** Switching means re-running O2 inference on every session, the cleaning (v36), and every downstream orofacial and
+   encoding analysis -- not justified by a trade-off rather than a win.
+4. **Consistency.** All current cam4 results, QC and the reviews' reference were built on LP r4.
+
+**Revisit if:** a downstream measure turns out to be driven by false faint licks (e.g. a no-contact-lick rate change carried
+by PS94), or a future model wins on BOTH precision and recall of faint licks (ViT-B 640 still to score; ctx-semi 640 found every
+real lick at lower precision). Records: `lp_stage/lick_review_eps35/` (key.csv, answers, `review_scored_eps35.csv`), page
+https://claude.ai/artifact/FyZaEb6Laub48h87YAgUqP (collection `lick_review_eps35`); 10-14 review `lp_stage/lick_review/`.

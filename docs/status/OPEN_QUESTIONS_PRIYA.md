@@ -38,7 +38,7 @@ Kept by Claude; answer any item whenever convenient (a line in chat is enough); 
 
 ## Decisions
 
-- **cam4 production: keep LP r4 or switch to LP r4 eps35?** eps35 = LP r4 with the 35 px tongue temporal limit: review precision
+- **DECIDED 2026-10-19 (Priya): keep LP r4** -- DECISIONS.md 2026-10-19. Was: **cam4 production: keep LP r4 or switch to LP r4 eps35?** eps35 = LP r4 with the 35 px tongue temporal limit: review precision
   96 / 94 % vs 82 / 88, recall 99.5 / 99.2 %, finds 89 / 97 % of real faint licks vs 100 / 97, tighter angle spreads, slightly more
   jaw jumps pre (POSE_MODELS "cam4 LP r4 eps35"). Switching = re-running O2 inference + cleaning + downstream. ViT-B still training.
   **10-19 review on PS92 / PS94 / PS95 acute:** precision eps35 100 % vs LP r4 95.6 %, but eps35 finds 93.6 % of real faint
