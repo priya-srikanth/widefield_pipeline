@@ -83,6 +83,17 @@ RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned work
 #: stay in time order, so the contiguous-block folds are unchanged in kind). Outputs -> <order>..._matched/.
 MATCH_ENV = "COMBINED_ENCODING_MATCH"
 SUFFIX_ENV = "COMBINED_ENCODING_SUFFIX"   # appended to the output folder (a rerun that must not overwrite, e.g. "_tr")
+#: 3-D EXECUTED SET (Priya 10-19, pilot). cam4's "reach" (protrusion_px) is 99 % the DOWN axis and blind to FORWARD
+#: (pose3d crosscheck), while the target set carries spout distance -- so a forward-reach signal could only be credited to
+#: target. Modes, all restricted to the SAME licks (cam4-usable AND in the 3-D lick table), so target and executed are
+#: fitted on identical licks in every arm:  cam4m  = the cam4 executed set (angle, angle^2, reach) on those licks;
+#: 3d = 3-D angle out of the midline plane atan2(ml, hypot(ap, dv)), its square, 3-D reach (mm); 3dxyz = the 3-D peak
+#: ml / ap / dv (forward = ap is what cam4 cannot see: far vs close centre differ mainly there, 1.7 vs 0.6 mm on PS92).
+#: The table is pose3d `kinematics/licks.csv.gz` (cam4 lick events; joined on trial_id + lick_idx); EXEC3D_TABLE_ENV
+#: overrides its path (a snapshot, so a rerunning pose3d chain is never read mid-write). Outputs -> ..._exec-<mode>/.
+EXEC_ENV = "COMBINED_ENCODING_EXEC"
+EXEC3D_TABLE_ENV = "COMBINED_ENCODING_EXEC3D_TABLE"
+EXEC_MODES = ("cam4m", "3d", "3dxyz")
 
 
 def _match_trials(T: pd.DataFrame, B, label: str, path: str, seed: int) -> pd.DataFrame:
@@ -256,6 +267,7 @@ class Behaviour:
     lick_angle: np.ndarray = None  # each lick's absolute executed peak angle (deg); NaN = not usable
     target_dist: dict = None       # position -> the session's spout distance from the mouth (px), LP geometry
     lick_reach: np.ndarray = None  # each lick's executed peak protrusion (px); NaN where lick_angle is NaN
+    exec_amps: list = None         # EXEC_ENV: the executed set's per-lick amplitudes (replace angle / angle^2 / reach)
 
 
 def load_behaviour(animal: str, date: str, rv) -> Behaviour:
@@ -322,8 +334,38 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
                 if np.isfinite(a_).any():
                     dst[p_] = float(np.nanmedian(a_))
     reach = np.where(np.isfinite(ang), L.protrusion_px.to_numpy(float), np.nan)
+    exec_amps = None
+    mode = os.environ.get(EXEC_ENV, "")
+    if mode:
+        ang, reach, exec_amps = _exec_3d(L, ang, reach, mode, f"{animal}_{date}")
     return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
-                     tdist, reach)
+                     tdist, reach, exec_amps)
+
+
+def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, session: str):
+    """EXEC_ENV: restrict the usable licks to those with a 3-D peak and return (angle, reach, executed amplitudes)."""
+    if mode not in EXEC_MODES:
+        raise ValueError(f"{EXEC_ENV}={mode!r}; expected one of {EXEC_MODES}")
+    path = os.environ.get(EXEC3D_TABLE_ENV) or (
+        "M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz")
+    K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "reach_mm", "side_ml", "out_ap", "down_dv"])
+    K = K[K.session == session].drop_duplicates(["trial_id", "lick_idx"])
+    if K.empty:
+        raise FileNotFoundError(f"no 3-D licks for {session} in {path}")
+    J = L[["trial_id", "lick_idx"]].merge(K, on=["trial_id", "lick_idx"], how="left")
+    ml, ap, dv, r3 = (J[c].to_numpy(float) for c in ("side_ml", "out_ap", "down_dv", "reach_mm"))
+    ok = np.isfinite(ang) & np.isfinite(ml) & np.isfinite(ap) & np.isfinite(dv) & np.isfinite(r3)
+    ang = np.where(ok, ang, np.nan)
+    reach = np.where(ok, reach, np.nan)
+    if mode == "cam4m":
+        return ang, reach, None
+    if mode == "3d":
+        # angle out of the midline plane = pose3d `midline` (r = 1.0000). NOT atan2(ml, ap): licks run mostly DOWN, ap ~ 0,
+        # so the horizontal angle wraps (SD 77 deg on PS92 0807 vs 12 deg for this one)
+        a3 = np.where(ok, np.degrees(np.arctan2(ml, np.hypot(ap, dv))), np.nan)
+        a3 = a3 - np.nanmean(a3)                                     # centred before squaring, as the cam4 angle
+        return ang, reach, [a3, a3 ** 2, np.where(ok, r3, np.nan)]
+    return ang, reach, [np.where(ok, x, np.nan) for x in (ml, ap, dv)]
 
 
 # =============================================================================== design
@@ -413,6 +455,8 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
         amps = [la, la2]
         if B.lick_reach is not None and np.isfinite(B.lick_reach).any():
             amps.append(B.lick_reach - np.nanmean(B.lick_reach))      # DISTANCE (Priya 10-18): executed reach
+        if getattr(B, "exec_amps", None) is not None:                  # EXEC_ENV 3-D set (same licks, centred)
+            amps = [x - np.nanmean(x) for x in B.exec_amps]
         out["lick_angle_abs"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"], amp=x) for x in amps])
         if B.target_angle:
             ta = np.array([B.target_angle.get(p, np.nan) for p in B.lick_pos], float)
@@ -936,6 +980,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
     res = {"label": label, "animal": animal, "date": date, "epoch": epoch_,
            "day": day_, "order": order, "alphas": alphas, "penalty_groups": list(PEN_GROUPS), "gate": B.gate,
+           "exec_set": os.environ.get(EXEC_ENV) or "cam4",
            "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft))),
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
@@ -1079,6 +1124,8 @@ def out_dir(rv, order: str) -> Path:
     return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else "")
                                                          + (f"_subset-{'-'.join(only)}" if only else "")
                                                          + ("_matched" if os.environ.get(MATCH_ENV) else "")
+                                                         + (f"_exec-{os.environ[EXEC_ENV]}" if os.environ.get(EXEC_ENV)
+                                                            else "")
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 

@@ -20599,7 +20599,8 @@ Whole engaged trials dropped at random until each session has the animal's targe
 August-pre / post session: PS92 1872, PS93 1469, PS94 1364, PS95 2250); tests whether the chronic rise of BOTH unique
 target and executed is just more data (chronic sessions have ~5000-6100 usable licks vs ~3900-4200 pre). Relative shares
 (unique / 6-category ceiling, unique / full R2; ratios of animal means) -> `tables/relative_shares.csv`.
-**Result (105/107; PS95_0928 / 1001 still running, readout rerun at 107):** lick window, matched vs unmatched,
+**Result (final, 107/107; PS95 chronic at 107: ceiling .070, target .024, exec .004, shares .35 / .05 -- the 105-session
+numbers below moved by <= .002):** lick window, matched vs unmatched,
 pre -> chronic. Ceiling: PS92 .034 -> .107 (unmatched .045 -> .109), PS93 .042 -> .096, PS95 .041 -> .071 (.042 -> .080),
 PS94 .031 -> .025 (.039 -> .039). So the chronic rise in position coding is REAL in 3/4 (PS92, PS93, PS95); PS94's was
 more data. Unique target chronic: PS92 .054, PS93 .041, PS95 .022 (≈ pre .017), PS94 .011. Unique executed pre ≈ 0
@@ -20654,3 +20655,20 @@ Fixed (minimal swap: only the trials that gain p and the p-trials that lose it c
 rerun: every shufpos-derived per-position number since 10-18 and the per-spout maps (renamed INVALID_shufpos_bug_*).
 Not affected: shuf:position / drop:position (all-position), shufside / shufdist (separate permutation code), nokin /
 nodir / matched / trial-to-trial results. Rerun = subset `--only shufpos-` (O2 TAG shufpos or the local chain).
+
+## 2026-10-19 (night) — 3-D executed set for the target-vs-executed contest (pilot, PS92)
+
+**Why (Priya: "can/should we use these [3-D tongue / jaw]?").** The executed set's REACH is cam4 `protrusion_px`, which is
+99 % the DOWN axis and blind to FORWARD (pose3d crosscheck); the target set carries spout DISTANCE, and close vs far differ
+mainly in forward (PS92 0807 median ap: centre close 0.6 vs far 1.7 mm). So a forward-reach cortical signal could only
+be credited to target, and the 60-87 % "independence" is partly cam4's blind spot. 3-D decodes the spout from the lick far
+better than cam4 (PS92, 6 positions 0.79 vs 0.53; centre close vs far 0.87 vs 0.59; `pose3d/vs_cam4/decoding.csv`).
+**Design.** `COMBINED_ENCODING_EXEC` = cam4m / 3d / 3dxyz (`combined_encoding._exec_3d`), joined to pose3d
+`kinematics/licks.csv.gz` (cam4 lick events) on trial_id + lick_idx; every arm uses the SAME licks (cam4-usable AND 3-D:
+PS92 3942 of 4188 on 0807), and target is fitted on those licks too. 3d = angle out of the midline plane
+atan2(ml, hypot(ap, dv)) (= pose3d `midline`; atan2(ml, ap) wraps because ap ~ 0, SD 77 deg), its square, 3-D reach (mm),
+same parameter count as cam4; 3dxyz = peak ml / ap / dv. Reach is centred per session, so the ~0.5 mm closer post-stroke
+set point does not read as an executed change. Snapshot of the table (the pose3d chain was rerunning) in the scratchpad.
+**Scope.** PS92 only (8 August pre + 3 acute; 94 % of licks have a 3-D peak); PS93 is on trial clips (413 / 4135 licks)
+-> excluded. Cohort contest when cam1 production (O2 56830841) lands. Readout: unique executed pre-stroke with 3-D vs
+cam4m on identical licks -- if it stays ~0, the pre-stroke target advantage is not cam4's forward blind spot.

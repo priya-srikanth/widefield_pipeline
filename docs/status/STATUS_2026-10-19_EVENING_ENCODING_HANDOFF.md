@@ -34,7 +34,7 @@ Musall-order shuffle, and a three-round misdirected-lick analysis.
 | O2 bundle `enc_v36_20261019` | bundle == share (4.6e-7); O2 == desktop (1e-5, CSV rounding); ~10 min / session | adopted; full reruns on O2 |
 | fair contest `nokin:*` (no kinematics) | target > executed pre 4/4; executed up subacute (+0.012) / chronic (+0.010), 4/4, both tests; target up chronic (+0.013) | `movement_first_subset-nokin/` |
 | relative shares (unique / 6-category ceiling) | acute / subacute shift toward executed (3/4, 4/4); chronic back toward target in 3/4; PS94 stays executed-weighted | `tables/relative_shares.csv` |
-| lick-matched nokin (`_matched`) | chronic ceiling + target rise REAL in PS92 / PS93; PS94's was more data; executed rise survives in all | 105/107; PS95 chronic ceiling rise also real (3/4); final readout at 107 |
+| lick-matched nokin (`_matched`) | chronic ceiling + target rise REAL in PS92 / PS93; PS94's was more data; executed rise survives in all | DONE 107/107 (O2 array 56867176 cancelled: local finished first); PS95 chronic ceiling rise also real (3/4) |
 | target / executed divergence | 60-87 % independent; pre-stroke angle COMPRESSION at lateral spouts (geometry); acute far-contra ipsi shift, recovers chronically | DECISIONS afternoon |
 | executed-angle (within-position) rise in the shuffle maps | NOT robust: drop ~0 everywhere; spread not increased; came from shuffle in 2/4 animals | `qc/exec_angle_spread.csv` |
 | unique (drop) position maps | ~= label-permutation maps; acute drop, chronic rise contralesional | `position_dR2drop_maps_by_epoch.png` |
