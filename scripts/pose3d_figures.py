@@ -7,10 +7,10 @@
 side) and FRONT (ml x dv, as seen from the spouts: mouse RIGHT on image LEFT). Thin lines = individual licks (up to 30 per
 position, >= 5 frames, onset -> end), thick = their time-normalised mean; filled circles = commanded spout tips (= the
 fitted frame), + = the mouth set point (origin), grey = nose and resting jaw medians.
-``video``: per position the most typical lick (miss distance nearest that position's median, 15-45 frames); panels = cam1
+``video`` (2 x 2): per position the most typical lick (miss distance nearest that position's median, 15-45 frames); panels = cam1
 and cam4 crops around the apparatus mouth (raw video; green circle = that camera's 2-D tongue, red x = the TRIANGULATED
 point projected back -- red from both cameras, orange from one camera + neighbouring 3-D frames; yellow ring = the
-target spout projected) and the 3-D path so far, seen from cam4's real position (``--view cam4 | cam1 | hybrid``,
+target spout projected) and, below, the 3-D path so far from an OBLIQUE viewpoint (front-right, above: shows depth) and from cam4's real position (``--view cam4 | cam1 | hybrid``,
 from the calibration). 250 fps shown at 10 fps (25x slow).
 dlc env (aniposelib). Output: `session_poses/pose3d/figures/`.
 """
@@ -24,6 +24,7 @@ import pandas as pd
 
 COL = {"far_L": "#1f77b4", "close_L": "#6baed6", "close_center": "#999999", "far_center": "#333333",
        "close_R": "#fc9272", "far_R": "#d62728"}
+OBLIQUE = (20.0, 45.0)      # matplotlib (elev, azim): viewer in front of the mouse, to its right (+ml, +ap), 20 deg above
 VIEWS = (("top", "ml", "ap", "ml (mm)  mouse left <-> mouse right", "ap (mm)  out of the mouth ->"),
          ("side", "ap", "dv", "ap (mm)  out of the mouth ->", "dv (mm)  up"),
          ("front", "ml", "dv", "ml (mm)  mouse right <-> mouse left (seen from the spouts)", "dv (mm)  up"))
@@ -187,8 +188,11 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
     f_out = _out(rv) / f"lick_paired_{animal}_{date}_{view}view.mp4"
     vw = None
     tgt = {p: SW.commanded_world(rig["geometry"], p) for p in SW.POSITIONS}
-    fig = plt.figure(figsize=(4.4, 3.6), dpi=110)
-    ax3 = fig.add_subplot(projection="3d")
+    # 2 x 2 (Priya 10-19): top = cam1 | cam4 video; bottom = 3-D OBLIQUE (in front of the mouse, to its right, above: shows
+    # the out-of-the-mouth depth that cam4 looks along) | 3-D seen from ``view`` (cam4 by default, under the cam4 video)
+    fig = plt.figure(figsize=(2 * H / 100, H / 100), dpi=100)
+    axes3 = [fig.add_subplot(1, 2, k + 1, projection="3d") for k in range(2)]
+    angles = [(OBLIQUE[0], OBLIQUE[1], "oblique (front-right, above)"), (elev, azim, f"seen from {view}")]
     for p in SW.POSITIONS:
         g = L[(L.position == p) & L.n_frames.between(15, 45)]
         if g.empty:
@@ -221,31 +225,34 @@ def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Pa
                     crop = cv2.resize(im[y0:y0 + 340, x0:x0 + 340], (H, H))
                     cv2.putText(crop, f"{cam} (raw view)", (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
                     panels.append(crop)
-                ax3.cla()
-                for q, c in tgt.items():
-                    ax3.scatter(*c, s=60, color=COL[q], edgecolor="k", alpha=1.0 if q == p else 0.35)
-                ax3.scatter(0, 0, 0, marker="+", s=80, color="k")
-                if path:
-                    A = np.array(path)
-                    ax3.plot(A[:, 0], A[:, 1], A[:, 2], color=COL[p], lw=2)
-                    ax3.scatter(*A[-1], s=30, color="r" if src_now == 1 else "darkorange")
-                ax3.set_xlim(-3.5, 3.5)
-                ax3.set_ylim(-1, 6)
-                ax3.set_zlim(-5, 1)
-                ax3.set_xlabel("ml (+R)", fontsize=7)
-                ax3.set_ylabel("ap (out)", fontsize=7)
-                ax3.set_zlabel("dv (up)", fontsize=7)
-                ax3.tick_params(labelsize=6)
-                ax3.view_init(elev=elev, azim=azim)
-                ax3.set_title(f"3-D, seen from {view}  |  {p}  t = {fr.t_ms - r.t_onset_ms:+.0f} ms", fontsize=8)
+                for ax3, (el, az, name) in zip(axes3, angles):
+                    ax3.cla()
+                    for q, c in tgt.items():
+                        ax3.scatter(*c, s=50, color=COL[q], edgecolor="k", alpha=1.0 if q == p else 0.35)
+                    ax3.scatter(0, 0, 0, marker="+", s=70, color="k")
+                    if path:
+                        A = np.array(path)
+                        ax3.plot(A[:, 0], A[:, 1], A[:, 2], color=COL[p], lw=2)
+                        if np.isfinite(X).all():                       # current point only when this frame has one
+                            ax3.scatter(*A[-1], s=30, color="r" if src_now == 1 else "darkorange")
+                    ax3.set_xlim(-3.5, 3.5)
+                    ax3.set_ylim(-1, 6)
+                    ax3.set_zlim(-5, 1)
+                    ax3.set_xlabel("ml (+R)", fontsize=7)
+                    ax3.set_ylabel("ap (out)", fontsize=7)
+                    ax3.set_zlabel("dv (up)", fontsize=7)
+                    ax3.tick_params(labelsize=6)
+                    ax3.view_init(elev=el, azim=az)
+                    ax3.set_title(f"3-D, {name}", fontsize=8)
+                fig.subplots_adjust(left=0.0, right=1.0, bottom=0.04, top=0.92, wspace=0.05)
                 fig.canvas.draw()
                 im3 = cv2.cvtColor(np.asarray(fig.canvas.buffer_rgba())[:, :, :3], cv2.COLOR_RGB2BGR)
-                panels.append(cv2.resize(im3, (int(im3.shape[1] * H / im3.shape[0]), H)))
-                frame = np.hstack(panels)
-                bar = np.zeros((28, frame.shape[1], 3), np.uint8)
-                cv2.putText(bar, f"{animal} {date}  trial {r.trial_id}  {p}  miss {r.miss_mm:.2f} mm  lat_err {r.lat_err_mm:+.2f} mm"
-                            "  green = 2-D tongue | x = 3-D point reprojected: red both cams, orange one cam + neighbours | yellow = target",
-                            (8, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+                frame = np.vstack([np.hstack(panels), cv2.resize(im3, (2 * H, H))])
+                bar = np.zeros((44, frame.shape[1], 3), np.uint8)
+                cv2.putText(bar, f"{animal} {date}  trial {r.trial_id}  {p}  t = {fr.t_ms - r.t_onset_ms:+.0f} ms  miss {r.miss_mm:.2f} mm"
+                            f"  lat_err {r.lat_err_mm:+.2f} mm", (8, 17), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(bar, "green = 2-D tongue | x = 3-D reprojected: red both cams, orange one cam + neighbours | yellow = target",
+                            (8, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
                 frame = np.vstack([bar, frame])
                 if vw is None:
                     vw = cv2.VideoWriter(str(f_out), cv2.VideoWriter_fourcc(*"mp4v"), 10, (frame.shape[1], frame.shape[0]))

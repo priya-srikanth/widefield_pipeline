@@ -845,3 +845,40 @@ change little (runs that were split by a one-camera gap now merge). The tip stil
 less (0.3-0.9 mm). **The acute deficit stands:** PS92 0818 far_R miss 3.19 mm / lat_err -2.93 (pre 1.1-1.2 / -0.7 to -0.9);
 PS93 far_R 0.97 / 2.48 / 1.40 mm pre / acute / chronic. Unfilled summaries kept in `session_poses/pose3d/nofill_20261019/`.
 Videos mark filled points orange (red = both cameras).
+
+## D11. cam4 readouts redone in 3-D (10-19, PRELIMINARY: PS92 production pre x 9 + acute 0818; PS93 clips)
+
+**Cross-check, lick by lick (`scripts/pose3d_crosscheck.py`; each cam4 v36 lick matched to the 3-D frame at its peak, 93-97 %
+matched on production sessions).** cam4 LATERAL is faithful: `lr_px` vs -ml r 0.95-0.97, slope 34-37 px / mm (= cam4's own
+scale); peak angle vs -ml r 0.77-0.90; tip-to-spout r 0.93-0.97. cam4's 'out' axis (`ap_px`, `protrusion_px`) is the DOWN
+axis: r 0.99 with -dv and -0.4..+0.1 with the true out-of-the-mouth ap. So the cam4 lateral / angle / jaw-steering findings
+stand; anything about how far the tongue comes OUT is invisible to cam4.
+
+**3-D readouts on the cam4 lick events (`scripts/pose3d_kinematics.py`).** Same licks (cam4 on .. off windows); the peak is
+redefined in 3-D as the frame farthest from the mouth exit (differs from the cam4 peak frame on 54 % of licks, |dt| p90 16
+ms). MOUTH EXIT anchored to the head (Priya 10-19: not the jaw, which changes post-stroke): the session's resting nose + a
+fixed per-animal offset = median (resting jaw - resting nose) over its August pre sessions (PS92: (-0.05, -5.19, -4.32) mm).
+Angles: the exit sits AT the close spouts (~1 mm), so angles are defined for the FAR spouts only (close: miss / lat_err);
+a horizontal azimuth is ill-conditioned (licks go 50-75 deg down) -- use the frontal side tilt atan2(ml, down) vs the target's
+(error + = ipsi), the sagittal forward tilt, and the 3-D angle. Jaw: as `orofacial_jaw_lateral` but in mm, cue + 70 ms .. the
+trial's stop (Priya 10-19), opening = 3-D distance from the trial's pre-cue rest, wide > 1.5 mm.
+
+PS92, acute 0818 vs its August pre sessions (range of 3; June range in brackets where it matters):
+
+| measure | Aug pre | acute |
+|---|---|---|
+| far_R miss (mm) | 1.09-1.21 | **3.20** |
+| far_R lateral error (mm; - = medial) | -0.84..-0.89 | **-2.96** |
+| frontal error toward ipsi (deg): far_R / far_L / far_center | +35 / -35 / +4 | **+94 / -21 / +10** (all shift ipsi; far_R most) |
+| reach far_L / far_R (mm) | 3.7-4.1 / 3.8-4.0 | **3.2 / 3.0** |
+| of which down (dv) far_L / far_R | 3.4-3.8 / 3.5-3.6 | **2.5 / 2.3** |
+| of which out (ap) far_R | 0.48-0.60 [June -0.01..2.76] | 0.95 |
+| peak 3-D speed far_L / far_R / far_center (mm/s) | 230-255 | **206 / 157 / 192** |
+| widest jaw opening far_R / far_center (mm) | 3.6-4.2 / 3.0 | **2.2 / 1.7** |
+| jaw FAR_DIR (mm; + = toward target) | 0.26-0.27 [June 0.04-0.27] | **0.02** |
+
+Readings (one animal acute; PS93 only on the clip subset, ~10 % of its licks pair): the acute ipsi shift (cam4 finding 2),
+largest at far contra, holds in mm; the shorter acute reach is LESS DOWNWARD extension with no loss in forward extension;
+peak tongue speed drops at every far spout; the jaw opens less and stops steering (cam4 finding 3: -11.5 px ~ -0.33 mm at
+34 px / mm; here -0.25 mm). Pre-stroke, licks at the lateral spouts are ~35 deg steeper (more downward) than the line to the
+spout. The cohort run (curated sessions, per-animal tables, `analysis_kit.boot_delta`) waits for the cam1 production output.
