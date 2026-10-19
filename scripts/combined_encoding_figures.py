@@ -597,6 +597,59 @@ def fig_target_vs_executed(Wd: pd.DataFrame, path: Path, title: str, area: str =
     _save(fig, path)
 
 
+def fig_target_vs_executed_sessions(Wd: pd.DataFrame, path: Path, title: str, area: str = "cortex",
+                                    st: str = "notxy") -> None:
+    """Every SESSION as a dot (animal colour), animal means as large markers, cohort mean of animal means as the black
+    line (Priya 10-19: "are these figures showing all sessions or only each animal mean" -> show both).
+    Rows: lick / cue window; columns: category, target (lick kernel), executed (lick kernel), executed - target."""
+    from wfield_local import config
+    plt = _plt()
+    D = Wd[Wd.pos == area].copy()
+    wins = [w for w in ("lick", "cue") if f"tvx:{st}:target_lick|{w}" in D]
+    if not wins:
+        print("  target-vs-executed (sessions): variant models missing -- skipped")
+        return
+    acol = config.animal_color()
+    animals = sorted(D.animal.unique())
+    keys = [("category", "6 spout categories"), ("target_lick", "TARGET (lick kernel)"),
+            ("executed", "EXECUTED (lick kernel)"), ("diff", "executed - target (lick kernel)")]
+    fig, axs = plt.subplots(len(wins), len(keys), figsize=(4.4 * len(keys), 3.9 * len(wins) + 1.2), squeeze=False)
+    eps = [e for e in EPOCHS if e in set(D.epoch)]
+    for r, w in enumerate(wins):
+        D["diff"] = D[f"tvx:{st}:executed|{w}"] - D[f"tvx:{st}:target_lick|{w}"]
+        for c, (k, lab) in enumerate(keys):
+            col = "diff" if k == "diff" else f"tvx:{st}:{k}|{w}"
+            ax = axs[r][c]
+            means = []
+            for ei, e in enumerate(eps):
+                for ai, an in enumerate(animals):
+                    v = D[(D.epoch == e) & (D.animal == an)][col].dropna().to_numpy()
+                    if not len(v):
+                        continue
+                    xo = ei + (ai - (len(animals) - 1) / 2) * 0.16
+                    ax.plot(xo + np.random.default_rng(ei * 10 + ai).uniform(-0.04, 0.04, len(v)), v, "o", ms=3,
+                            color=acol.get(an, "0.5"), alpha=0.45, mec="none")
+                    ax.plot(xo, v.mean(), "D", ms=7, color=acol.get(an, "0.5"), mec="k", mew=0.6,
+                            label=an if (r == 0 and c == 0 and ei == 0) else None)
+                am = D[D.epoch == e].groupby("animal")[col].mean()
+                means.append(am.mean())
+            ax.plot(range(len(eps)), means, "-", color="k", lw=2, zorder=5, label="mean of animals" if (r == 0 and c == 0) else None)
+            ax.axhline(0, color="0.7", lw=0.7)
+            ax.set_xticks(range(len(eps)))
+            ax.set_xticklabels(eps)
+            ax.set_title(f"{lab}\n{w} window ({WIN_DESC[w]})", fontsize=10.5)
+            if c == 0:
+                ax.set_ylabel("R$^2$ gain over no-position model")
+    axs[0][0].legend(frameon=False, fontsize=9, loc="upper left")
+    n = D.groupby(["animal", "epoch"]).date.nunique().unstack("epoch").reindex(columns=eps).fillna(0).astype(int)
+    _title(fig, title, f"{area}, tongue x/y {'OUT' if st == 'notxy' else 'IN'}: small dots = sessions, diamonds = animal "
+                 "means, black line = mean of animal means. Sessions per animal x epoch: "
+                 + "; ".join(f"{a} " + "/".join(str(x) for x in n.loc[a]) for a in n.index) + f" ({'/'.join(eps)}).",
+           width=120)
+    fig.tight_layout()
+    _save(fig, path)
+
+
 def main(argv=None) -> int:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -650,6 +703,7 @@ def main(argv=None) -> int:
     fig_exec_vs_intended(Wd, ST, figs / "executed_vs_intended.png", title)
     for ar in ("cortex", "MOs", "SSp-m"):
         fig_target_vs_executed(Wd, figs / f"target_vs_executed_{ar}.png", title, area=ar)
+        fig_target_vs_executed_sessions(Wd, figs / f"target_vs_executed_sessions_{ar}.png", title, area=ar)
     sig = ST[(ST.agree == "both") & (ST.pos == "cortex")]
     print(f"cortex changes vs pre significant by both tests: {len(sig)}")
     print(sig[["metric", "epoch", "mean_change", "n_animals"]].to_string(index=False))
