@@ -102,6 +102,13 @@ ROD_DIAMETER_MM = 1.24
 EDGE_OFFSET_MM = {"cam4": (0.0, 0.0, 0.0), "cam1": (0.0, 0.0, -ROD_DIAMETER_MM)}
 
 
+#: One-camera fill limit per part (ms): the nearest both-camera frame must be this close (10-19). Tongue 24 ms (the cam1 gap
+#: rule; held-out error 0.13-0.23 mm). JAW 200 ms (Priya 10-19 "gap test"): the jaw moves slowly -- held-out error at 200 ms
+#: gaps median 0.04-0.07 mm, p90 0.20-0.34 (24 ms: 0.03-0.05 / 0.10), PS92 0807 + 0818; 24 ms filled only 1-3 % of the
+#: one-camera jaw frames, 200 ms 13-23 % (the rest are long stretches -- e.g. the rod over the chin in cam4 -- not filled).
+FILL_GAP_MS = {"tongue": 24.0, "jaw": 200.0}
+
+
 def pnp_group(cg, med_by_cam: dict, geometry: dict, edge_offset: dict | None = EDGE_OFFSET_MM):
     """A copy of ``cg`` whose cameras are POSED PER SESSION from the commanded spout positions (Priya 10-19: "use the
     ground-truth spout positions"): for each camera, cv2 SQPnP + Levenberg-Marquardt on the six parked spout medians
@@ -291,13 +298,13 @@ def triangulate(cg,xy1: np.ndarray, xy4: np.ndarray) -> tuple[np.ndarray, np.nda
 
 def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.DataFrame, flat4: pd.DataFrame,
                june_factor: float | None = None, method: str = "pnp",
-               fill_gap_ms: float | None = 24.0, fill_interp: str = "akima") -> tuple[pd.DataFrame, dict]:
+               fill_gap_ms: dict | float | None = None, fill_interp: str = "akima") -> tuple[pd.DataFrame, dict]:
     """Per paired frame: trial_id, position, t_ms, stop_ms and per part ``{part}_ml/_ap/_dv`` mm + ``{part}_rep1/_rep4``
     px. ``flat1`` / ``flat4`` RAW image px (``{part}_x/_y/_likelihood``), rows aligned with ``ix1`` / ``ix4``.
     ``june_factor``: scale cam4 about its principal point first (cleaning thresholds are in Aug+ px).
     ``method``: "pnp" (default, 10-19) = cameras posed per session from the commanded spouts (`pnp_group`); "calib" =
     the 09-11 extrinsics + the per-session x shifts of `disparity_shift` (info ``shift_px``; 2-D points drawn on the raw
-    video must subtract them) + the similarity fit -- kept for comparison. ``fill_gap_ms``: fill single-camera
+    video must subtract them) + the similarity fit -- kept for comparison. ``fill_gap_ms`` (None = `FILL_GAP_MS`, per part; a number = both parts): fill single-camera
     tongue / jaw frames (`fill_single_view`; ``{part}_src`` 1 both, 2 cam1, 3 cam4, 0 none; their rep columns stay NaN);
     None = both cameras only. ``fill_interp`` (default "akima", 10-19): held-out 3-D error, PS92 0807 / 0818, linear ->
     Akima: 8 ms gaps 0.136-0.144 -> 0.127-0.137 mm, 16 ms 0.164-0.176 -> 0.145-0.162, 24 ms 0.220-0.272 -> 0.203-0.231
@@ -340,8 +347,10 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
         else:
             a, b = _raw_xy(flat1, part, i1), _raw_xy(flat4, part, i4)
         X, rep = triangulate(cg, a, b)
-        if part in CLEANED and fill_gap_ms:
-            X, src = fill_single_view(X, a, b, cg, out.trial_id.to_numpy(), out.t_ms.to_numpy(float), fill_gap_ms,
+        gap = (FILL_GAP_MS if fill_gap_ms is None else fill_gap_ms if isinstance(fill_gap_ms, dict)
+               else {p_: fill_gap_ms for p_ in CLEANED}).get(part)
+        if part in CLEANED and gap:
+            X, src = fill_single_view(X, a, b, cg, out.trial_id.to_numpy(), out.t_ms.to_numpy(float), gap,
                                       fill_interp)
             out[f"{part}_src"] = src
         W = world.to_world(X)

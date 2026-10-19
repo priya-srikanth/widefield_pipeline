@@ -13,7 +13,7 @@ Per lick, from the 3-D frames (`session_poses/pose3d/<s>_frames.csv.gz`):
 Session means per position, then epoch mean +- SEM over sessions (August pre = baseline). Figures in
 `session_poses/pose3d/phase/`, per animal: ``traces_<a>.png`` (dist vs ms from peak), ``portrait_<a>.png`` (radial speed vs
 dist over one cycle, +-76 ms, dot = peak), ``phase_<a>.png`` (midline angle and dist vs normalised phase), and
-``trajectories_<a>.png`` (mean peak-aligned path per position in the FRONT (side x down), SIDE (out x down) and TOP (side x
+``trajectories3d_<a>.png`` (oblique 3-D, tongue + jaw), ``trajectories_<a>.png`` (mean path per position in the FRONT (side x down), SIDE (out x down) and TOP (side x
 out) planes, spouts marked).
 """
 from __future__ import annotations
@@ -29,11 +29,13 @@ EP_COL = {"pre": "0.2", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#
 HALF_MS, PORTRAIT_MS = 152.0, 76.0
 T_REL = np.arange(-HALF_MS, HALF_MS + 0.1, 4.0)
 U_NORM = np.linspace(0.0, 1.0, 41)
-MEAS = ("dist", "vrad", "out", "down", "side", "mid", "speed", "v_side", "v_out", "v_down")
+MEAS = ("dist", "vrad", "out", "down", "side", "mid", "speed", "v_side", "v_out", "v_down", "j_side", "j_out", "j_down")
+OBLIQUE = (20.0, 45.0)      # matplotlib (elev, azim), as the paired video: in front of the mouse, to its right, 20 deg above
 
 
 def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
-    S = pd.read_csv(d3 / f"{s}_frames.csv.gz", usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
+    S = pd.read_csv(d3 / f"{s}_frames.csv.gz", usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv",
+                                                         "jaw_ml", "jaw_ap", "jaw_dv"])
     S = S.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).sort_index()
     # 3-D tip VELOCITY per frame (central difference over consecutive 4 ms frames of the same trial, mm/s); undefined in the
     # mouth or across a gap (Priya 10-19: "will we add speed trajectory from 3-D?")
@@ -53,6 +55,7 @@ def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
                 R_ = S.reindex(idx)
                 P = R_[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
                 Vv = R_[["v_ml", "v_ap", "v_dv"]].to_numpy(float)
+                Jj = R_[["jaw_ml", "jaw_ap", "jaw_dv"]].to_numpy(float)
                 known = np.isin(np.round(tq, 1), S.loc[r.trial_id].index.to_numpy()) if r.trial_id in S.index else \
                     np.zeros(len(tq), bool)
                 dist = np.linalg.norm(P, axis=1)
@@ -61,7 +64,8 @@ def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
                     mid = np.degrees(np.arcsin(np.clip(-P[:, 0] / np.linalg.norm(P, axis=1), -1, 1)))
                 vals = {"dist": dist, "vrad": np.gradient(dist) * 250.0, "out": P[:, 1], "down": -P[:, 2],
                         "side": -P[:, 0], "mid": mid, "speed": np.linalg.norm(Vv, axis=1), "v_side": -Vv[:, 0],
-                        "v_out": Vv[:, 1], "v_down": -Vv[:, 2]}
+                        "v_out": Vv[:, 1], "v_down": -Vv[:, 2], "j_side": -Jj[:, 0], "j_out": Jj[:, 1],
+                        "j_down": -Jj[:, 2]}
                 for m in MEAS:
                     acc[(kind, m)].append(vals[m])
         for (kind, m), arrs in acc.items():
@@ -146,6 +150,54 @@ def fig_portrait(P, animal, path, pre_from):
     plt.close(fig)
 
 
+def fig_traj3d(P, animal, geo, path, pre_from):
+    """Oblique 3-D view per spout position (Priya 10-19): mean TONGUE path (solid) and mean JAW path (dashed) through the
+    lick, per epoch, on normalised phase where >= half the licks have a point; dot = mid-lick; spouts (target
+    outlined in black), + = mouth zero. Axes: ml (+ = mouse right), ap (+ = out of the mouth), dv (+ = up)."""
+    from wfield_local import spout_world as SW
+    plt = _plt()
+    comp = {m: _epoch_curves(P, animal, "norm", m, pre_from) for m in ("side", "out", "down", "j_side", "j_out", "j_down")}
+    tgt = {p: SW.commanded_world(geo, p) for p in POS}
+    COLS = {"far_L": "#1f77b4", "close_L": "#6baed6", "close_center": "#999999", "far_center": "#333333",
+            "close_R": "#fc9272", "far_R": "#d62728"}
+    fig = plt.figure(figsize=(4.2 * 3, 3.8 * 2))
+    for j, p in enumerate(POS):
+        ax = fig.add_subplot(2, 3, j + 1, projection="3d")
+        for q, c in tgt.items():
+            ax.scatter(*c, s=70 if q == p else 35, color=COLS[q], edgecolor="k" if q == p else "none",
+                       linewidth=1.5, alpha=1.0 if q == p else 0.35)
+        ax.scatter(0, 0, 0, marker="+", s=70, color="k")
+        for ep in EP_COL:
+            for part, ls, lw in (("", "-", 2.0), ("j_", "--", 1.4)):
+                keys = [f"{part}side", f"{part}out", f"{part}down"]
+                if not all((ep, p) in comp[k] for k in keys):
+                    continue
+                x, side, _, n, cov = comp[keys[0]][(ep, p)]
+                out_, down = comp[keys[1]][(ep, p)][1], comp[keys[2]][(ep, p)][1]
+                w = cov >= 0.5
+                ml, ap, dv = -side[w], out_[w], -down[w]
+                ax.plot(ml, ap, dv, ls=ls, lw=lw, color=EP_COL[ep],
+                        label=f"{ep} {'jaw' if part else 'tongue'} ({n})" if j == 0 else None)
+                k = int(np.argmin(np.abs(x[w] - 0.5))) if w.any() else None
+                if k is not None and not part:
+                    ax.scatter(ml[k], ap[k], dv[k], s=18, color=EP_COL[ep])
+        ax.set_xlim(-3, 3)
+        ax.set_ylim(-1, 4)
+        ax.set_zlim(-5, 0.5)
+        ax.set_xlabel("ml (+R)", fontsize=7)
+        ax.set_ylabel("ap (out)", fontsize=7)
+        ax.set_zlabel("dv (up)", fontsize=7)
+        ax.tick_params(labelsize=6)
+        ax.view_init(elev=OBLIQUE[0], azim=OBLIQUE[1])
+        ax.set_title(p, fontsize=9)
+    fig.legend(loc="lower center", ncol=4, fontsize=7, frameon=False)
+    fig.suptitle(f"{animal}: mean 3-D tongue (solid) and jaw (dashed) path through the lick, oblique view (front-right, "
+                 "above); normalised phase, shown where >= half the licks have a point; dot = mid-lick", fontsize=9)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.95))
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+
+
 def fig_trajectories(P, animal, geo, path, pre_from):
     from wfield_local import spout_world as SW
     plt = _plt()
@@ -224,6 +276,7 @@ def main(argv=None) -> int:
         fig_lines(P, animal, "norm", "dist", "3-D distance from mouth zero (mm)", "normalised lick phase",
                   out / f"phase_dist_{animal}.png", f"{animal}: 3-D distance vs normalised lick phase", a.pre_from)
         fig_trajectories(P, animal, geo, out / f"trajectories_{animal}.png", a.pre_from)
+        fig_traj3d(P, animal, geo, out / f"trajectories3d_{animal}.png", a.pre_from)
         for kind, xl in (("peak", "ms from 3-D lick peak"), ("norm", "normalised lick phase (0 = onset, 1 = offset)")):
             fig_lines(P, animal, kind, "speed", "3-D tip speed (mm/s)", xl, out / f"speed_{kind}_{animal}.png",
                       f"{animal}: 3-D tongue-tip speed through the lick (undefined in the mouth)", a.pre_from)

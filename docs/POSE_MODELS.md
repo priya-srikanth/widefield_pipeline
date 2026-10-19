@@ -955,3 +955,8 @@ track (both cameras or one camera + neighbours, after QC), cue .. trial stop, ga
 touched the spout (DAQ) vs 86 % -- real small licks cam4's detection missed. The earlier 31-41 % of cam1 at-the-lips events
 without a cam4 lick (D9) are mostly cam1-ONLY (no both-camera frame within 24 ms) and still have no 3-D point: they need the
 depth prior (held-out test next). Output `session_poses/pose3d/kinematics_combined/`.
+
+**Jaw one-camera fill limit = 200 ms (10-19 late; `pose3d.FILL_GAP_MS`, `scripts/pose3d_jaw_gap_check.py`).** Held-out (PS92
+0807 / 0818, one camera hidden on both-camera jaw frames): median 0.03-0.05 mm at 24 ms gaps, 0.04-0.07 mm at 200 ms (p90 0.10
+-> 0.20-0.34). One-camera jaw frames are mostly long stretches: 1-3 % lie in gaps <= 24 ms, 13-23 % in gaps <= 200 ms (the rest
+-- e.g. the rod over the chin in cam4 for whole centre-spout trials -- stay single-camera). Tongue stays at 24 ms.

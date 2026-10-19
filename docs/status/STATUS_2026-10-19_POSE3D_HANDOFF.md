@@ -12,8 +12,9 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
    back (all PS92: 0602-0608, 0805-0814 incl. split day 0812, acute 0818-0820). O2 fairshare is depleted, so it is slow.
 2. **Background jobs that were running locally at hand-off** (§3): read their outputs; if the session is gone, re-run them
    with the commands given there.
-3. **Not yet run**: the jaw cross-check (`scripts/pose3d_jaw_crosscheck.py`, after the chain), the depth-prior test
-   (`scripts/pose3d_depth_prior_check.py`), and — whatever the jaw gap test says — set the jaw's fill limit (§7).
+3. **Jaw fill limit SET to 200 ms** (late 10-19, `pose3d.FILL_GAP_MS = {"tongue": 24, "jaw": 200}`, from the jaw gap test,
+   §4) but the 3-D outputs on disk were made with 24 ms: **re-run §6 from `pose3d production`**, then run the jaw cross-check
+   (`scripts/pose3d_jaw_crosscheck.py`) and the depth-prior check (`scripts/pose3d_depth_prior_check.py`, dlc env, ~20 min).
 4. When all four animals are in: cohort tables (per-animal first, then `analysis_kit.boot_delta`), §7 item 6.
 
 ## 1. What was done (10-19)
@@ -24,7 +25,7 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   windows on the DAQ clock (`o2_inference.session_windows`) → June cam4 x0.8853 about the principal point → spout medians per
   position → **PnP camera poses on the commanded spouts** (09-11 intrinsics only; spout edge offsets) → clean each camera with
   its own rules (MEASURED points only) → pair frames exactly on (trial, t) → triangulate (aniposelib, undistort + DLT) →
-  **fill one-camera frames** on the seen camera's ray (depth from both-camera neighbours <= 24 ms, Akima) → **plausibility
+  **fill one-camera frames** on the seen camera's ray (depth from both-camera neighbours <= 24 ms tongue / 200 ms jaw, Akima) → **plausibility
   gates** → `session_poses/pose3d/<a>_<d>_frames.csv.gz` (per frame: tongue / jaw / nose / spout ml, ap, dv mm; reprojection;
   source 1 both / 2 cam1 / 3 cam4).
 * **Readouts** on top: `pose3d_kinematics` (cam4 lick events or `--licks combined`: 3-D peak, direction vs target, reach,
@@ -32,7 +33,8 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   `pose3d_crosscheck` (cam4 2-D vs 3-D, lick by lick), `pose3d_jaw_crosscheck` (written, not run), `pose3d_vs_cam4` (does
   3-D add information: decoding + effect sizes; running), figures: `pose3d_figures` (maps; 2 x 2 paired video with tongue +
   jaw), `pose3d_summary_fig` (per session over days), `pose3d_phase` (peak-aligned distance, phase portrait, aim vs phase,
-  trajectories, speed / velocity traces).
+  trajectories in 3 planes, **oblique 3-D tongue + jaw trajectories per spout** `trajectories3d_<a>.png`, speed / velocity
+  traces). Checks: `pose3d_jaw_gap_check` (run), `pose3d_depth_prior_check` (not yet run).
 * **Repo tooling**: pre-push hook skips the test suite when only `.md` files change (Priya); suite ~7 min otherwise.
 
 ## 2. Decisions and why (full list: DECISIONS.md 2026-10-19 evening)
@@ -45,7 +47,8 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 | spout edge offsets: cam4 = superior edge = mouth zero, cam1 = 1.24 mm below | the mouth zero was set with the UPPER spout tip (Priya); rod diameter measured 1.23-1.31 mm |
 | mouth = the spout mouth zero only | jaw and nose can change post-stroke (Priya); the set point marks the mouth that day |
 | no v36 re-run for the June scaling centre | the centre adds a constant that cancels in every 2-D measure; only 3-D needs the principal point |
-| one-camera fill: Akima, <= 24 ms, ray-miss gate 3 mm | held-out error 0.13-0.23 mm; Akima beats linear / PCHIP on long gaps; a 1 mm gate dropped half the real fills |
+| one-camera fill: Akima, tongue <= 24 ms, ray-miss gate 3 mm | held-out error 0.13-0.23 mm; Akima beats linear / PCHIP on long gaps; a 1 mm gate dropped half the real fills |
+| jaw fill limit 200 ms | jaw moves slowly: held-out error at 200 ms median 0.04-0.07 mm (p90 0.20-0.34); 24 ms covered only 1-3 % of one-camera jaw frames, 200 ms 13-23 % |
 | gates: > 8 mm out, > 2 mm behind the mouth, spikes > 1.5 mm; jaw > 5 mm | paw-in-face frames (both models call them tongue at 0.9+) triangulate 7-36 mm out; reprojection does not catch them |
 | readouts: distances primary (3-D mm) + 3-D angle error + midline-plane angle | distances are origin-free; angles vs the spout direction are consistent across the set-point move (spouts commanded from it) |
 | peak = 3-D frame farthest from the mouth zero | cam4's peak is the max of its DOWN axis |
@@ -57,7 +60,8 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 |---|---|---|---|
 | O2 array **56830841** (cam1 production) | Priya, 10-19 ~07:40; pending tasks opened to any GPU, 16 h (`scontrol update ... Gres=gpu:1 TimeLimit=16:00:00`); V100 nodes excluded | scratch `o2/lp_cam1_ctx_prod_20261019/out/` | §5 |
 | LOCAL chain (3-D for all copied sessions with the 3 mm fill gate → kinematics (both lick sets) → spout error → summary fig → phase / speed figs → `pose3d_vs_cam4`) | background task `b4npluehh` | `session_poses/pose3d/` | §6 (all of it) |
-| LOCAL jaw gap test, then the jaw + tongue paired videos (0807, 0818) | background `bvrlb6zlo` | stdout; `pose3d/figures/lick_paired_*_cam4view.mp4` | `python -m scripts.pose3d_jaw_gap_check` (dlc env); `python -m scripts.pose3d_figures video PS92:20260807 PS92:20260818 --view cam4` |
+| ~~LOCAL jaw gap test + jaw / tongue videos~~ DONE: result in §4; videos `pose3d/figures/lick_paired_PS92_2026{0807,0818}_cam4view.mp4` (tongue: green 2-D, red / orange 3-D; jaw: white 2-D, blue / cyan 3-D) | — | — | `python -m scripts.pose3d_jaw_gap_check`; `python -m scripts.pose3d_figures video ... --view cam4` (dlc env) |
+| NEXT after the chain: re-run 3-D with the jaw 200 ms limit (§6 from `pose3d production`), jaw cross-check, depth-prior check | not started | | §6 |
 
 ## 4. Results so far (preliminary: PS92 = 9 August pre + 3 acute; PS93 = trial clips only, ~10 % of licks pair)
 
@@ -71,6 +75,14 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 * **Pre-stroke geometry**: licks end 1.4-2.6 mm BELOW the upper spout tip (the drop); closest approach 0.65-1.1 mm; licks run
   steeper than the line to the spout (3-D angle error 25-40 deg pre) → read angles as change from pre.
 * **June** sits off the August band on several measures (residual geometry or early training) → August-only baseline.
+* **Jaw one-camera fill (gap check, PS92 0807 / 0818)**: held-out error median 0.03-0.05 mm at 24 ms, 0.04-0.07 mm at 200 ms
+  (p90 0.10 -> 0.20-0.34); one-camera jaw frames are mostly LONG stretches (only 13-23 % in gaps <= 200 ms; e.g. the rod
+  over the chin in cam4 for whole centre-spout trials) -> 200 ms adopted; the long stretches stay single-camera (an anchor to
+  the trial's resting jaw would be the next idea, untested).
+* **Coverage vs cam4 alone (0807 / 0818, response window)**: 3-D has 8-9 % more MEASURED tongue frames than cam4 (12-16 % of
+  3-D frames are ones cam4 did not measure); cam4's own 2-D gap fill counts more frames (it interpolates up to 56 ms).
+* **cam1 vs cam4 axes**: cam4 alone = ml + dv (no forward); cam1 alone (looking up ~45 deg) = ml + a mix of forward and down
+  that it cannot separate; only both cameras separate all three.
 
 ## 5. O2: check jobs and copy outputs (Priya runs these)
 
@@ -112,8 +124,8 @@ Outputs under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/` (
 
 ## 7. To-do
 
-1. **Jaw fill limit**: read the gap test; if the error stays near the floor at 48-100 ms, give the jaw its own limit
-   (`session_3d(fill_gap_ms=...)` is shared today -- add a per-part limit) and re-run.
+1. **Jaw fill limit**: DONE in code (200 ms, `FILL_GAP_MS`); RE-RUN §6 so the outputs use it. Optional: test anchoring
+   long single-camera jaw stretches to the trial's resting jaw.
 2. **Jaw cross-check** vs cam4 (script ready); then document in POSE_MODELS D10-D12.
 3. **Depth prior** for cam1-only small licks: run `scripts.pose3d_depth_prior_check` (dlc env, ~20 min); adopt (a) closest
    point to the mouth zero or (b) the learned prior only if the held-out error is small AND (b) does not bias acute licks
