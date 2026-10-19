@@ -377,7 +377,13 @@ offset down the image toward the tip vs the median of the other three): LP c1r2 
 on average (> 10 px misses 0-3 % of frames for every model) but systematic -- the 10 px tongue epsilon holding the emerging tip
 back. -> plain LP c1r2 dropped; cam1 choice between LP eps40 and ctx-semi (tied on the scores; eps40 cheaper on O2, fewer
 pre teleports). Frames where ALL models miss the tip (e.g. trial 507 +904 ms, tongue part-out / retracting) -> next cam1
-labelling round, with the water-drop frames. Clip re-rendered with an outlined mouth X (the grey X vanished on the pale
+labelling round, with the water-drop frames.
+**Faint licks (10-19, Priya: "but eps40 misses faint licks?"):** share of cam4 LP r4 licks (PS93 clip trials; LP r4 found
+99-100 % of real faint licks in both blind reviews) with a confident cam1 tongue within +-20 ms of cam4's peak, pre / acute /
+chronic. No-contact (n = 151 / 88 / 165): **ctx-semi 90.7 / 89.8 / 95.8**, LP c1r2 88.7 / 87.5 / 94.5, eps40 86.8 / **79.5** /
+92.1, DLC c1r2 81.5 / 80.7 / 96.4. Contact licks: all 96-100 %. eps40 repeats eps35's cam4 pattern (loses faint licks, most
+acutely); **ctx-semi sees the most faint licks in every epoch AND fixes the emergence lag -> the recommended cam1 model**
+(cost: temporal-context inference is slower on O2). Clip re-rendered with an outlined mouth X (the grey X vanished on the pale
 tongue / water under the spout): `.../eval/cleaned_labels_cam1_4models_gap24_v2.mp4`.
 
 **Cross-camera agreement on a second animal (10-19, PS94 0814 / 0821 / 0907, cam1 DLC c1r2, cam4-timed peaks).** cam1 lateral
