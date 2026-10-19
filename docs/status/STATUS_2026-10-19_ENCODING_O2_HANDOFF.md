@@ -16,10 +16,10 @@ Scratchpad (logs, quick scripts): `C:\Users\SABATI~1\AppData\Local\Temp\claude\C
   (subacute / chronic, 4/4, both tests); target rises above pre chronically. Executed-angle map rise NOT robust (drop ~0).
   Misdirected licks: no planned-lick signature once touch / reach / lick number are matched. Trial-to-trial variance is
   movement (cortex uninstructed, SSp-m licking).
-- **BLOCKER found: shared group penalty** (DECISIONS): continuous instructed traces force a weak penalty on the lick-event
-  terms -> lick-window R2 drops. Affects the main model's lick-window numbers, nodir, nokin "given kinall". Proposed fix =
-  separate penalty for continuous traces vs event kernels (or per variable) + rerun main and subsets on O2 (new bundle:
-  code only, inputs reusable). Awaiting Priya's go.
+- **Shared group penalty: NOT the cause** (DECISIONS 10-19 afternoon). Split penalties gave identical R2; the lick-window
+  drop with tongue / jaw traces is a property of the traces. No rerun needed. Running instead: lick-matched nokin on O2
+  (TAG nokin_matched) -> collect, `--order movement_first_subset-nokin_matched`, compare with the unmatched run and
+  `tables/relative_shares.csv`.
 - Local post-nokin chain and local nokin were STOPPED (moved to O2). Nothing of ours is running on the box.
 - Pitfalls: overlapping arrays write a session twice (collect repairs the JSON); "pre-lick" = before VISIBLE protrusion
   (includes initiation and the previous lick); no-contact licks at a spout are SHORT (not a touch-free control); brain

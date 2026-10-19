@@ -837,6 +837,26 @@ def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
                 if col in Wd:
                     t_ = Wd[Wd.pos == "cortex"].groupby(["animal", "epoch"])[col].mean().unstack("epoch")
                     print(f"  {col}\n" + t_.reindex(columns=list(EPOCHS)).round(4).to_string())
+    # RELATIVE SHARES (Priya 10-19: "both executed and target increase chronically"): unique target / executed as a
+    # fraction of the 6-category ceiling (any position-specific lick-locked pattern) and of the full model's R2. Ratios
+    # of ANIMAL MEANS (session ratios explode when the ceiling is ~0).
+    rel = []
+    for b in bases:
+        for w in ("lick", "cue"):
+            need = [f"{b}:u:target|{w}", f"{b}:u:exec|{w}", f"{b}:gain:category|{w}", f"full|{w}"]
+            if not all(c in Wd for c in need):
+                continue
+            A = Wd[Wd.pos == "cortex"].groupby(["animal", "epoch"])[need].mean()
+            A.columns = ["u_target", "u_exec", "ceiling", "full"]
+            A = A.assign(target_of_ceiling=A.u_target / A.ceiling, exec_of_ceiling=A.u_exec / A.ceiling,
+                         target_of_full=A.u_target / A.full, exec_of_full=A.u_exec / A.full,
+                         exec_minus_target_of_ceiling=(A.u_exec - A.u_target) / A.ceiling)
+            rel.append(A.reset_index().assign(base=b, window=w))
+            for c in ("target_of_ceiling", "exec_of_ceiling", "ceiling"):
+                t_ = A[c].unstack("epoch").reindex(columns=list(EPOCHS))
+                print(f"\n  RELATIVE {b} {w}: {c}\n" + t_.round(3).to_string())
+    if rel:
+        pd.concat(rel).to_csv(tabs / "relative_shares.csv", index=False, float_format="%.4g")
     metrics = [c for c in Wd.columns if c.split(":")[0] in bases]
     ST = session_change_tests(Wd[Wd.pos.isin(FOCUS)], metrics)
     ST.to_csv(tabs / "stats_vs_pre.csv", index=False, float_format="%.4g")

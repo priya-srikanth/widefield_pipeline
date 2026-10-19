@@ -20570,3 +20570,32 @@ model with continuous instructed traces -- the main model's lick-window numbers 
 executed angle, possibly position around licks), the nodir base (directionless traces), the nokin "given kinall" columns.
 Not affected: the nokin no-kinematics contest. Fix proposed: a separate penalty for continuous traces vs event kernels
 (or one per variable), then rerun main + subsets on O2.
+
+## 2026-10-19 (afternoon) — CORRECTION: the shared group penalty is NOT the cause; lick-matched rerun; target / executed divergence by spout
+
+**Correction to "SHARED GROUP PENALTY" (late morning).** Separate penalty groups were implemented (`PEN_GROUP_OF`: task /
+lick events / orofacial traces / uninstructed / video; credit groups unchanged) and tested on PS92_0811: the penalties
+separate as intended (lick 1e4, orofacial 1-10) but EVERY R2 is unchanged to <= 0.004 (full lick window 0.378 -> 0.378;
+nokin:kin+target+exec lick 0.395 -> 0.396). So the lick-window drop when tongue / jaw traces are added is a property of the
+TRACES (their weights, chosen on whole-trial fit where they help 0.445 -> 0.518, generalise worse around lick peaks,
+where the tongue moves fastest), not of over-fitted lick-event terms. Consequences: NO rerun is needed -- the main /
+nokin / nodir / trmodels / musall results stand; the "given kinall" panels and the nodir base carry a TRACE caveat in the
+lick window (traces lower held-out lick-window fit), not a penalty artefact. The split penalties stay in the code
+(identical results, more defensible); sessions record `penalty_groups`.
+
+**Target vs executed divergence is spout-specific (licks.csv, engaged, measured peaks).** Executed [angle, angle^2,
+reach] is 60-87 % NOT predictable from target [angle, angle^2, distance] in every animal / epoch (PS92 .66/.65/.67/.66,
+PS93 .80/.85/.87/.80, PS94 .65/.71/.63/.60, PS95 .76/.57/.71/.72) -- collinearity does not explain the pre-stroke target
+advantage or the chronic rise. Per spout (lick angle - spout angle, + = ipsi): pre-stroke COMPRESSION toward the midline at
+lateral spouts in all animals (close contra +31, close ipsi -30..-35, far lateral +-20..36 deg; mid ~0) -- a measurement /
+geometry property (tongue angle at peak from its origin vs spout angle from camera geometry), monotonic, so it barely
+lowers correlation. ACUTE IPSI SHIFT: far contra +21..29 pre -> +35..70 acute (PS94: ~30 deg on the ipsi side of
+midline), SD 6-9 -> 10-13; subacute +27..45, chronic +24..39; mid spouts +8..20 acutely; ipsi spouts more lateral
+acutely. Divergence = mainly the acute far-contra licks (where unique executed caught up, PS92 / PS94); it has largely
+recovered chronically.
+
+**Lick-matched nokin (O2, TAG nokin_matched; `o2_encoding.py match` -> bundle/match.json; COMBINED_ENCODING_MATCH).**
+Whole engaged trials dropped at random until each session has the animal's target usable licks (0.95 x its smallest
+August-pre / post session: PS92 1872, PS93 1469, PS94 1364, PS95 2250); tests whether the chronic rise of BOTH unique
+target and executed is just more data (chronic sessions have ~5000-6100 usable licks vs ~3900-4200 pre). Relative shares
+(unique / 6-category ceiling, unique / full R2; ratios of animal means) -> `tables/relative_shares.csv`.
