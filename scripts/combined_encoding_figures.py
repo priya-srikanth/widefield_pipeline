@@ -587,7 +587,7 @@ def fig_target_vs_executed(Wd: pd.DataFrame, path: Path, title: str, area: str =
         ax.axhline(0, color="0.7", lw=0.7)
         ax.set_xticks(range(len(s)))
         ax.set_xticklabels(list(s.index))
-        ax.set_title(f"{lab}\nexecuted - target, same lick kernel (> 0: tracks the tongue)", fontsize=10.5)
+        ax.set_title(f"{lab}\nexecuted - target, lick kernel (> 0 = tongue)", fontsize=10.5)
         ax.legend(frameon=False, title="window")
     _title(fig, title, f"TARGET vs EXECUTED angle, {area}: order-free R$^2$ gain over the model without position, for "
                  "the 6 spout categories, the target (spout) angle + angle$^2$ on the cue / ENL blocks ('target') or on the lick "
