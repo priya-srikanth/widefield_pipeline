@@ -35,7 +35,6 @@ properly.
 from __future__ import annotations
 
 import argparse
-import glob
 import json
 import os
 import time
@@ -100,7 +99,24 @@ VARIANTS = {
     "meegkit_hpfit": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt",
                           note="HYBRID: rcoeffs fitted on 0.1 Hz high-passed traces, correction "
                                "applied to meegkit robust-polynomial-detrended traces"),
+    # CANDIDATE (2026-10-18 night, NOT adopted): meegkit_hpfit + a SECOND coefficient for the slow band. One coefficient
+    # per pixel tuned on the hemodynamic band leaves a residual of within-session BLEACHING (415 and 470 bleach at
+    # different rates -> a different ratio in the slow band): an early-session ramp of several SD in the corrected signal
+    # with normal raw channels (PS92 0824 / 0826; DECISIONS 10-18 night). The slow band is a GLOBAL cosine projection
+    # (period >= slow_band_s), not a filter, so 415's task-locked responses are not smeared; the fast band is unchanged.
+    "meegkit_2band": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", slow_band_s=300.0,
+                          note="CANDIDATE: meegkit_hpfit + its own 415->470 coefficient for the slow band "
+                               "(>= 300 s cosine projection; removes the early-session bleaching residual)"),
 }
+
+
+def _slow_projection(x, fs, min_period_s):
+    """Rows of ``x`` (components x time) projected on cosines with period >= min_period_s over the record."""
+    t = np.arange(x.shape[1]) / fs
+    T = max(t[-1], 1e-9)
+    n = int(np.floor(2 * T / min_period_s))
+    Q = np.linalg.qr(np.column_stack([np.cos(np.pi * k * t / T) for k in range(n + 1)]))[0]
+    return (x @ Q) @ Q.T
 
 # The masked-median window. 60 s was the ORIGINAL default and is the single worst value available:
 # measured, its 50% cutoff is ~110 s, sitting inside the 57-121 s position-block range, so it removed
@@ -289,7 +305,15 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     else:
         T, rc = np.load(res / "T.npy").astype(np.float64), np.load(res / "rcoeffs.npy")
 
-    c = a - T @ b
+    slow_s = spec.get("slow_band_s")
+    if slow_s:
+        a_s, b_s = _slow_projection(a, FS, slow_s), _slow_projection(b, FS, slow_s)
+        U = np.load(res / "U.npy")
+        T_slow, _rc_slow = refit_T(U, a_s, b_s)
+        del U
+        c = a - T @ (b - b_s) - T_slow @ b_s
+    else:
+        c = a - T @ b
     c = (c.T - np.nanmean(c, 1)).T.astype(np.float32)
     meta = {"variant": variant, "refit_t": bool(refit_t), "label": session["label"],
             "drift": spec["drift"], "fit_drift": spec.get("fit_drift"),
@@ -298,6 +322,7 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
             "meegkit_order": (MEEGKIT_ORDER if order is None else int(order))
                              if spec["drift"] == "meegkit" else None,
             "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": func,
+            "slow_band_s": slow_s,
             "meegkit_fallback": ("per_component" if _MEEGKIT_FELL_BACK else None),
             "note": spec["note"], "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if verbose:
