@@ -116,7 +116,10 @@ def main(argv=None) -> int:
                 if fm == oc.FILL_NONE:
                     cv2.circle(im, pt, 5, col, -1, cv2.LINE_AA)
                 elif fm == oc.FILL_BASELINE:
-                    cv2.drawMarker(im, pt, (170, 170, 170), cv2.MARKER_TILTED_CROSS, 12, 2, cv2.LINE_AA)
+                    # dark outline first: on cam1 the mouth point sits under the spout tip, usually on the pale tongue
+                    # or a water drop, where a plain grey X vanished (Priya 10-19)
+                    cv2.drawMarker(im, pt, (0, 0, 0), cv2.MARKER_TILTED_CROSS, 14, 5, cv2.LINE_AA)
+                    cv2.drawMarker(im, pt, (190, 190, 190), cv2.MARKER_TILTED_CROSS, 12, 2, cv2.LINE_AA)
                 else:
                     cv2.circle(im, pt, 6, col, 2, cv2.LINE_AA)
             crop = cv2.resize(im[y0:y0 + H, x0:x0 + W], (pw, int(H * S)), interpolation=cv2.INTER_CUBIC)

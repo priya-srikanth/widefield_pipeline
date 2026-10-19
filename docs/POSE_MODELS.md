@@ -370,6 +370,15 @@ chronic, tongue > 60 px per 10k: DLC c1r1 30 / 39 / 36, DLC c1r2 9.5 / 4.0 / 17.
 15.6, **ctx-semi 10.8 / 18.0 / 12.5**; contacts seen ctx-semi 99.8 / 99.2 / 99.8; jaw coverage 95 / 84 / 99; jaw jumps 4.2 /
 2.3 / 3.6. The three LP variants are statistically indistinguishable on these measures; the choice between them is the
 visual one (emergence offset): `.../eval/cleaned_labels_cam1_4models_gap24.mp4` (DLC c1r2, LP, eps40, ctx-semi).
+**Priya's QC of that clip (10-19):** all four good on clear licks; plain LP c1r2 sits MEDIAL / up in the tongue body as the
+tongue emerges and corrects to the tip more slowly than the others. Measured (PS93 0814 / 0821 / 0908, 197 emergences,
+offset down the image toward the tip vs the median of the other three): LP c1r2 -1.7 / -1.7 / -1.8 px at 12-20 / 24-44 /
+48-96 ms, the only model consistently above the tip; eps40 -0.4 .. -0.1, ctx-semi +0.1 .. +0.7, DLC c1r2 +1.2 .. +2.4. Small
+on average (> 10 px misses 0-3 % of frames for every model) but systematic -- the 10 px tongue epsilon holding the emerging tip
+back. -> plain LP c1r2 dropped; cam1 choice between LP eps40 and ctx-semi (tied on the scores; eps40 cheaper on O2, fewer
+pre teleports). Frames where ALL models miss the tip (e.g. trial 507 +904 ms, tongue part-out / retracting) -> next cam1
+labelling round, with the water-drop frames. Clip re-rendered with an outlined mouth X (the grey X vanished on the pale
+tongue / water under the spout): `.../eval/cleaned_labels_cam1_4models_gap24_v2.mp4`.
 
 **Cross-camera agreement on a second animal (10-19, PS94 0814 / 0821 / 0907, cam1 DLC c1r2, cam4-timed peaks).** cam1 lateral
 vs cam4 peak angle, Spearman, all licks: far_L 0.61, close_L 0.79, close_center 0.64, far_center 0.90, close_R 0.73, **far_R
