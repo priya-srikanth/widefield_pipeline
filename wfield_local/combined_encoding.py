@@ -141,8 +141,10 @@ NODIR_BASE = ("cue", "arrival", "licks", "tongue_ps", "jaw_nd", "nose_nd", "runn
 #: protrusion IS executed distance and jaw opening scales with reach, so the nodir base still made the executed REACH
 #: redundant. `nokin:*` = task timing + lick TIMING kernels + running only (no tongue / jaw / nose traces): target
 #: (spout angle / angle^2 / distance) vs executed (lick angle / angle^2 / reach) on the same lick kernel and licks is then
-#: the symmetric spatial contest; `kinall` (every tongue / jaw / nose trace) is executed movement as continuous
-#: kinematics, the upper bound of what tracked movement explains.
+#: the symmetric spatial contest; `kinall` = the LICK EXECUTION as continuous kinematics (every tongue + jaw trace).
+#: NOSE is NOT executed movement (head / snout posture, uninstructed; its lateral part includes pre-cue ORIENTING toward
+#: the spout, i.e. target-correlated) -- Priya 10-19 -- so it enters only as a separate check (`nokin:kin+nose*`). kinall
+#: has many more columns than the 3-amplitude per-lick variables: read it by UNIQUE shares, not raw gains.
 NOKIN_BASE = ("cue", "arrival", "licks", "running")
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed")}
@@ -359,7 +361,7 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
     out["jaw_nd"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("jaw_y", "jaw_speed")])
     out["nose_nd"] = _analog_cols(*B.analog["nose_y"], ft)
     out["dir_kin"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_x", "tongue_y", "jaw_x", "nose_x")])
-    out["kinall"] = np.hstack([out["tongue"], out["jaw"], out["nose"]])
+    out["kinall"] = np.hstack([out["tongue"], out["jaw"]])                 # lick execution only -- no nose
     if B.lick_angle is not None and np.isfinite(B.lick_angle).any():
         la = B.lick_angle - np.nanmean(B.lick_angle)
         la2 = la ** 2 - np.nanmean(la ** 2)
@@ -808,6 +810,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0) -> dic
             models["nokin:kin+target"] = kb + ka + tg
             models["nokin:kin+exec"] = kb + ka + ex
             models["nokin:kin+target+exec"] = kb + ka + tg + ex
+            nz = [("raw", "nose")]
+            models["nokin:kin+nose"] = kb + ka + nz
+            models["nokin:kin+nose+target"] = kb + ka + nz + tg
     only = [x for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
     if only:                                        # fit a named SUBSET only (own output folder, see out_dir)
         models = {k: v for k, v in models.items() if k == "full" or any(k.startswith(x) for x in only)}
