@@ -427,8 +427,11 @@ def fig5_task_aligned(Wd: pd.DataFrame, path: Path, title: str, window: str = "a
     _save(fig, path)
 
 
-def fig_time_resolved(meta, sess, path: Path, title: str, areas=("cortex", "MOs", "SSp-m"), kind: str = "shuf") -> None:
-    """Cue-aligned time-resolved unique dR2 = (SSE_shuf - SSE_full) / SST per frame, per epoch; rows = areas."""
+def fig_time_resolved(meta, sess, path: Path, title: str, areas=("cortex", "MOs", "SSp-m"), kind: str = "shuf",
+                      trial: bool = False) -> None:
+    """Cue-aligned time-resolved unique dR2 = (SSE_shuf - SSE_full) / SST per frame, per epoch; rows = areas.
+    trial=True (Priya 10-19 single-trial question): SSE / SST after removing each POSITION's trial mean from data and
+    prediction (`sse_trial` / `sst_trial`) -> how much of the TRIAL-TO-TRIAL variability each variable explains."""
     plt = _plt()
     first = np.load(next(iter(sess.values())))
     t = first["peth_off_s"]
@@ -438,7 +441,7 @@ def fig_time_resolved(meta, sess, path: Path, title: str, areas=("cortex", "MOs"
     acc: dict = {}
     for _, m in meta.iterrows():
         z = np.load(sess[m.label])
-        sse, sst = z["sse"], z["sst"]
+        sse, sst = (z["sse_trial"], z["sst_trial"]) if trial else (z["sse"], z["sst"])
         for ar in areas:
             ai = [i for i, a in enumerate(A) if a == ar or a.rsplit("_", 1)[0] == ar]
             if not ai:
@@ -479,7 +482,10 @@ def fig_time_resolved(meta, sess, path: Path, title: str, areas=("cortex", "MOs"
                     "credited to nobody" if kind == "drop" else
                     "(SSE with the variable / group shuffled - SSE full) / SST: under movement-first the FIRST group "
                     "(instructed) is credited with everything it shares with the later ones")
-                 + "; SST per frame includes the trial-averaged response; within animal, then mean +- SEM over animals")
+                 + ("; TRIAL-TO-TRIAL: each position's trial mean removed from data AND prediction, so only variance "
+                    "around the position-mean response counts" if trial else
+                    "; SST per frame includes the trial-averaged response")
+                 + "; within animal, then mean +- SEM over animals")
     fig.tight_layout(rect=(0, 0, 0.93, 0.92))
     _save(fig, path)
 
@@ -756,6 +762,59 @@ def fig_spatial_contest(Wd: pd.DataFrame, path: Path, title: str, base: str, are
     _save(fig, path)
 
 
+def tr_window_table(meta, sess, kind: str, trial: bool, t0: float = 0.0, t1: float = 1.5,
+                    areas=("cortex", "MOs", "MOp", "SSp-m", "SSp-ul")) -> pd.DataFrame:
+    """Per session x area x model: unique dR2 pooled over the frames t0..t1 s from the cue (sum SSE / sum SST)."""
+    first = next(iter(sess.values()))
+    js = json.loads(Path(str(first).replace(".npz", ".json")).read_text())
+    trm, A = js["tr_models"], js["areas"]
+    rows = []
+    for _, m in meta.iterrows():
+        z = np.load(sess[m.label])
+        sse, sst = (z["sse_trial"], z["sst_trial"]) if trial else (z["sse"], z["sst"])
+        t = z["peth_off_s"]
+        tw = (t >= t0) & (t <= t1)
+        for ar in areas:
+            ai = [i for i, a_ in enumerate(A) if a_ == ar or a_.rsplit("_", 1)[0] == ar]
+            if not ai:
+                continue
+            den = sst[ai][:, tw].sum()
+            full = sse[trm.index("full")][ai][:, tw].sum()
+            row = {"label": m.label, "animal": m.animal, "epoch": m.epoch, "area": ar, "full": 1 - full / den}
+            for mod in trm:
+                if mod.startswith(kind + ":"):
+                    row[mod.split(":", 1)[1]] = (sse[trm.index(mod)][ai][:, tw].sum() - full) / den
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def tr_main(a, figs: Path, tabs: Path) -> int:
+    """Subset runs with the time-resolved model set: `<order>_subset-trmodels` (trial-to-trial + all-variance drop
+    dR2) and `musall_subset-shuf` (Musall-order shuffle dR2)."""
+    from wfield_local import orofacial_cohort as oc
+    _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    title = (f"Combined encoding model, {a.order} -- {a.run} -- baseline: "
+             f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
+             f"{meta.groupby('animal').label.nunique().to_dict()}")
+    print(title)
+    pd.set_option("display.width", 220)
+    variants = ([("shuf", False, "time_resolved_dR2_musall")] if a.order.startswith("musall") else
+                [("drop", False, "time_resolved_dR2_drop"), ("drop", True, "time_resolved_dR2_drop_TRIAL"),
+                 ("shuf", True, "time_resolved_dR2_shuf_TRIAL")])
+    for kind, trial, name in variants:
+        fig_time_resolved(meta, sess, figs / f"{name}.png", title, kind=kind, trial=trial)
+        T = tr_window_table(meta, sess, kind, trial)
+        T.to_csv(tabs / f"{name}_0-1.5s.csv", index=False, float_format="%.5g")
+        cols = [c for c in ("full", "task", "instructed", "uninstructed", "position", "pos_cue", "exec_angle")
+                if c in T]
+        for ar in ("cortex", "SSp-m", "MOs"):
+            t_ = T[T.area == ar].groupby(["epoch", "animal"])[cols].mean().groupby("epoch").mean()
+            print(f"\n{name}, {ar}, 0-1.5 s after cue (mean of animal means)\n"
+                  + t_.reindex([e for e in EPOCHS if e in t_.index]).round(4).to_string())
+    print(f"figures -> {figs}\ntables -> {tabs}")
+    return 0
+
+
 def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
     """Subset run (`--order <order>_subset-nokin` etc.): the spatial contest readout only."""
     from wfield_local import orofacial_cohort as oc
@@ -809,6 +868,8 @@ def main(argv=None) -> int:
     writeguard.assert_writable(base)
     figs.mkdir(parents=True, exist_ok=True)
     tabs.mkdir(parents=True, exist_ok=True)
+    if a.order.endswith("_subset-trmodels") or a.order.startswith("musall"):
+        return tr_main(a, figs, tabs)
     if "_subset-" in a.order:
         return contest_main(a, base, figs, tabs)
     R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)

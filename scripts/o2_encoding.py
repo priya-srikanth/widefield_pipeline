@@ -221,6 +221,14 @@ def cmd_collect(a) -> int:
     for f in sorted((src / "sessions").iterdir()):
         shutil.copy2(f, dst / f.name)
         n += 1
+        if f.suffix == ".json":
+            # two array tasks writing the same session at once (a resubmitted array overlapping an earlier one) left
+            # a stray trailing byte after an otherwise complete JSON (trmodels PS92_1002, 10-19): keep the first object
+            s = (dst / f.name).read_text(encoding="utf-8")
+            obj, end = json.JSONDecoder().raw_decode(s)
+            if s[end:].strip():
+                (dst / f.name).write_text(json.dumps(obj, indent=1), encoding="utf-8")
+                print(f"  repaired {f.name}: dropped {len(s) - end} trailing byte(s)")
     print(f"collected {n} files ({len(list((src / 'sessions').glob('*.json')))} sessions) -> {dst}")
     return 0
 
