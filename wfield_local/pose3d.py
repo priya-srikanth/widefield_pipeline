@@ -18,7 +18,11 @@ mouth set point.
    Nose and spout (slow) use the raw point at likelihood >= ``STATIC_LK`` in both.
 3. JUNE cam4 is scaled by `orofacial_camera.scale_factor` about cam4's PRINCIPAL POINT before cleaning (POSE_MODELS D5:
    the origin centre v36 uses moves the cam1 mouth ~20 px; the centre does not matter for 2-D measures, only here).
-4. REPROJECTION ERROR per camera is kept on every point (``rep1`` / ``rep4`` px). It is the test of whether the two
+4. CAMERA POSES PER SESSION FROM THE COMMANDED SPOUTS (`pnp_group`, the default since 10-19): the 09-11 extrinsics put
+   every part 6-10 px apart between cameras (a sideways error + day-to-day drift); PnP on the six known spout positions
+   brings that to ~1 px and gives stage mm directly. The old route (09-11 extrinsics + `disparity_shift` + the
+   `spout_world` similarity fit) stays as ``method="calib"``.
+   REPROJECTION ERROR per camera is kept on every point (``rep1`` / ``rep4`` px). It is the test of whether the two
    cameras' "tongue tip" is the same physical point: cam1 sees the tip from below, cam4 from the front.
 5. KNOWN CONSTANT OFFSET. The frame is fitted to the LABELLED spout point (cam1 bottom edge, cam4 top front edge), a
    fixed vector from the commanded tip; the fit puts it into the translation, so every body point carries the same
@@ -65,6 +69,75 @@ def cleaned_xy(flat: pd.DataFrame, ix: pd.DataFrame, part: str, cam: str, mouth)
     return xy, ok
 
 
+def disparity_shift(cg, m1: dict, m4: dict) -> tuple[float, float]:
+    """Per-session horizontal (x) correction per camera, px, from the parked spout medians: the median of (reprojected -
+    observed) x over positions. Measured 10-19: EVERY part (spout, nose, jaw, tongue) shows the same cam1 +6..+10 / cam4
+    -6..-10 px, horizontal only, varying by session -- a small ml error in the 09-11 extrinsics plus day-to-day camera
+    drift. NOT the spout's edge labels (cam1 inferior, cam4 superior edge): they differ in dv / ap, which lies along the
+    epipolar direction (cameras below and in front) and is absorbed into depth with no residual. Adding these shifts to
+    each camera's x before triangulating puts both views on the same ray pair; the 3-D point stays (to first order) where
+    it was. Rigid with no tongue involved: apparatus only."""
+    from wfield_local import spout_world as SW
+    pos = [p for p in SW.POSITIONS if p in m1 and p in m4]
+    pts = np.stack([[np.asarray(m1[p][:2], float) for p in pos], [np.asarray(m4[p][:2], float) for p in pos]])
+    r = cg.project(cg.triangulate(pts, undistort=True)) - pts
+    return float(np.median(r[0, :, 0])), float(np.median(r[1, :, 0]))
+
+
+def shift_x(flat: pd.DataFrame, dx: float) -> pd.DataFrame:
+    out = flat.copy()
+    for c in [c for c in flat.columns if c.endswith("_x")]:
+        out[c] = flat[c].to_numpy(float) + dx
+    return out
+
+
+def pnp_group(cg, med_by_cam: dict, geometry: dict):
+    """A copy of ``cg`` whose cameras are POSED PER SESSION from the commanded spout positions (Priya 10-19: "use the
+    ground-truth spout positions"): for each camera, cv2 SQPnP + Levenberg-Marquardt on the six parked spout medians
+    (image px) against `spout_world.commanded_world` (mm, mouth set point = origin). Intrinsics + distortion stay the
+    09-11 solve's. Triangulating with it gives (ml, ap, dv) mm directly -- no similarity fit, no 09-11 extrinsics, so the
+    09-11 sideways error and day-to-day camera drift (`disparity_shift`) are gone by construction.
+    Measured 10-19 (PS92 0807 / 0818): spout reprojection 0.2-1.8 px per camera (09-11 extrinsics: 6-10), nose 0.7-3.0 px
+    and jaw 1.0 px between cameras (8-10), tongue 3.5 (~10). Camera centres: cam4 ~160 mm in front, slightly above; cam1
+    ~110 mm below and ~105 mm forward.
+    THE EDGE LABELS: cam1 labels the rod's INFERIOR edge, cam4 its SUPERIOR edge -- each camera's constant offset from
+    the commanded point goes into that camera's pose (the spout only translates). Their difference (~ the rod's width,
+    mostly along depth, the epipolar direction) remains as a small constant shift of every body point.
+    Returns (group, {cam: per-position reprojection px})."""
+    import copy
+
+    import cv2
+
+    from wfield_local import spout_world as SW
+    pos = [p for p in SW.POSITIONS if all(p in med_by_cam[c] for c in med_by_cam)]
+    if len(pos) < 5:
+        raise ValueError(f"only {len(pos)} spout positions in both cameras ({pos}); PnP needs 5")
+    obj = np.array([SW.commanded_world(geometry, p) for p in pos], float)
+    g = copy.deepcopy(cg)
+    err = {}
+    for cam in g.cameras:
+        img = np.array([med_by_cam[cam.get_name()][p][:2] for p in pos], float)
+        K, D = cam.get_camera_matrix(), np.asarray(cam.get_distortions(), float)
+        _, rvec, tvec = cv2.solvePnP(obj, img, K, D, flags=cv2.SOLVEPNP_SQPNP)
+        rvec, tvec = cv2.solvePnPRefineLM(obj, img, K, D, rvec, tvec)
+        cam.set_rotation(rvec.ravel())
+        cam.set_translation(tvec.ravel())
+        pr, _ = cv2.projectPoints(obj, rvec, tvec, K, D)
+        err[cam.get_name()] = dict(zip(pos, np.linalg.norm(pr[:, 0] - img, axis=1)))
+    return g, err
+
+
+def _identity_world(g, med_by_cam: dict, geometry: dict):
+    """`spout_world.SpoutWorld` for a PnP group (scale 1, identity): residuals / distance check of the triangulated spouts."""
+    from wfield_local import spout_world as SW
+    pos = [p for p in SW.POSITIONS if all(p in med_by_cam[c] for c in med_by_cam)]
+    pts = np.stack([[np.asarray(med_by_cam[c.get_name()][p][:2], float) for p in pos] for c in g.cameras])
+    X = g.triangulate(pts, undistort=True)
+    med = dict(zip(pos, X))
+    res = {p: float(np.linalg.norm(med[p] - SW.commanded_world(geometry, p))) for p in pos}
+    return SW.SpoutWorld(1.0, np.eye(3), np.zeros(3), res, SW.distance_check(med, geometry), {}, {})
+
+
 def _raw_xy(flat: pd.DataFrame, part: str, rows: np.ndarray) -> np.ndarray:
     """Raw (x, y) at ``rows``, NaN below ``STATIC_LK`` (nose / spout)."""
     xy = flat[[f"{part}_x", f"{part}_y"]].to_numpy(float)[rows]
@@ -85,10 +158,13 @@ def triangulate(cg,xy1: np.ndarray, xy4: np.ndarray) -> tuple[np.ndarray, np.nda
 
 
 def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.DataFrame, flat4: pd.DataFrame,
-               june_factor: float | None = None) -> tuple[pd.DataFrame, dict]:
+               june_factor: float | None = None, method: str = "pnp") -> tuple[pd.DataFrame, dict]:
     """Per paired frame: trial_id, position, t_ms, stop_ms and per part ``{part}_ml/_ap/_dv`` mm + ``{part}_rep1/_rep4``
     px. ``flat1`` / ``flat4`` RAW image px (``{part}_x/_y/_likelihood``), rows aligned with ``ix1`` / ``ix4``.
-    ``june_factor``: scale cam4 about its principal point first. Returns (frames, info) -- info carries the world fit,
+    ``june_factor``: scale cam4 about its principal point first (cleaning thresholds are in Aug+ px).
+    ``method``: "pnp" (default, 10-19) = cameras posed per session from the commanded spouts (`pnp_group`); "calib" =
+    the 09-11 extrinsics + the per-session x shifts of `disparity_shift` (info ``shift_px``; 2-D points drawn on the raw
+    video must subtract them) + the similarity fit -- kept for comparison. Returns (frames, info) -- info carries the world fit,
     the apparatus mouth in each camera and the spout medians used."""
     from wfield_local import spout_frame as SF
     from wfield_local import spout_world as SW
@@ -97,8 +173,19 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
         K = cg.cameras[1].get_camera_matrix()
         flat4 = scale_june_cam4(flat4, june_factor, (K[0, 2], K[1, 2]))
     m1, m4 = SF.ruler_medians(flat1, ix1), SF.ruler_medians(flat4, ix4)
-    am = SW.apparatus_mouth({"cam1": m1, "cam4": m4}, rig["geometry"], cg)
-    world = am["world"]
+    dx1 = dx4 = 0.0
+    if method == "pnp":
+        cg, err = pnp_group(cg, {"cam1": m1, "cam4": m4}, rig["geometry"])
+        world = _identity_world(cg, {"cam1": m1, "cam4": m4}, rig["geometry"])
+        mpx = cg.project(np.zeros((1, 3)))
+        am = {"mouth_px": {"cam1": mpx[0, 0], "cam4": mpx[1, 0]},
+              "reproj_px": {c: float(np.mean(list(e.values()))) for c, e in err.items()}}
+    else:
+        dx1, dx4 = disparity_shift(cg, m1, m4)
+        flat1, flat4 = shift_x(flat1, dx1), shift_x(flat4, dx4)
+        m1, m4 = SF.ruler_medians(flat1, ix1), SF.ruler_medians(flat4, ix4)
+        am = SW.apparatus_mouth({"cam1": m1, "cam4": m4}, rig["geometry"], cg)
+        world = am["world"]
     # each camera cleans around its own decided mouth: cam1 = L/R spout-line intersection (D6), cam4 = spout-line origin
     mouth1, mouth4 = SF.from_medians_lr(m1).origin, SF.from_medians(m4).origin
     i1, i4 = pair(ix1, ix4)
@@ -119,7 +206,7 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
         for k, ax in enumerate(("ml", "ap", "dv")):
             out[f"{part}_{ax}"] = W[:, k]
         out[f"{part}_rep1"], out[f"{part}_rep4"] = rep[:, 0], rep[:, 1]
-    info = {"world": world, "mouth_px": am["mouth_px"], "reproj_spout_px": am["reproj_px"], "med1": m1, "med4": m4,
+    info = {"method": method, "cg": cg, "shift_px": (dx1, dx4), "world": world, "mouth_px": am["mouth_px"], "reproj_spout_px": am["reproj_px"], "med1": m1, "med4": m4,
             "n_cam1": len(ix1), "n_cam4": len(ix4), "n_paired": len(i1)}
     return out, info
 

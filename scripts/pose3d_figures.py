@@ -9,7 +9,8 @@ position, >= 5 frames, onset -> end), thick = their time-normalised mean; filled
 fitted frame), + = the mouth set point (origin), grey = nose and resting jaw medians.
 ``video``: per position the most typical lick (miss distance nearest that position's median, 15-45 frames); panels = cam1
 and cam4 crops around the apparatus mouth (raw video; green circle = that camera's 2-D tongue, red x = the TRIANGULATED
-point projected back, yellow ring = the target spout projected) and the 3-D path so far. 250 fps shown at 10 fps (25x slow).
+point projected back, yellow ring = the target spout projected) and the 3-D path so far, seen from cam4's real position (``--view cam4 | cam1 | hybrid``,
+from the calibration). 250 fps shown at 10 fps (25x slow).
 dlc env (aniposelib). Output: `session_poses/pose3d/figures/`.
 """
 from __future__ import annotations
@@ -113,7 +114,23 @@ def _frame(cap, i: int) -> np.ndarray:
     return im
 
 
-def cmd_video(rv, session: str, per_position: int = 1) -> Path:
+def view_angles(cg, world, which: str = "cam4") -> tuple[float, float]:
+    """matplotlib (elev, azim) that puts the 3-D panel's viewer where a REAL camera sits (calibration extrinsics mapped
+    into the session's world frame), so the panel matches that camera's image: ``cam4`` (front), ``cam1`` (below) or
+    ``hybrid`` (the normalised mean of the two directions). Priya 10-19: a generic angle was confusing."""
+    X0 = (world.R.T @ (-world.t)) / world.scale                              # the mouth (origin) in calibration space
+    dirs = {}
+    for c in cg.cameras:
+        M = c.get_extrinsics_mat()
+        C = -M[:3, :3].T @ M[:3, 3]                                           # camera centre, calibration space
+        d = world.R @ (C - X0)
+        dirs[c.get_name()] = d / np.linalg.norm(d)
+    d = dirs["cam4"] if which == "cam4" else dirs["cam1"] if which == "cam1" else dirs["cam4"] + dirs["cam1"]
+    d = d / np.linalg.norm(d)
+    return float(np.degrees(np.arcsin(d[2]))), float(np.degrees(np.arctan2(d[1], d[0])))
+
+
+def cmd_video(rv, session: str, per_position: int = 1, view: str = "cam4") -> Path:
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -135,8 +152,11 @@ def cmd_video(rv, session: str, per_position: int = 1) -> Path:
     cg = _cgroup(rv).subset_cameras_names(["cam1", "cam4"])
     jf = _june_factor(date)
     S, info = P3.session_3d(cg, rig, c1[0], c1[1], c4[0], c4[1], june_factor=jf)
+    cg = info["cg"]                                         # the session's cameras (PnP-posed by default)
     L = P3.lick_peaks(S, rig)
     w = info["world"]
+    elev, azim = view_angles(cg, w, view)
+    sh1, sh4 = info["shift_px"]
     K4 = cg.cameras[1].get_camera_matrix()
     pp4 = np.array([K4[0, 2], K4[1, 2]])
 
@@ -145,10 +165,15 @@ def cmd_video(rv, session: str, per_position: int = 1) -> Path:
 
     def proj(W):                                            # -> (cam1 px, cam4 RAW px)
         p = cg.project(to_calib(np.atleast_2d(W)))
-        p4 = p[1] if not jf else pp4 + (p[1] - pp4) / jf    # undo the June scaling to draw on the raw video
-        return p[0], p4
+        p1, p4 = p[0].copy(), p[1].copy()
+        p1[:, 0] -= sh1                                     # undo the disparity shift (raw video coordinates)
+        p4[:, 0] -= sh4
+        p4 = p4 if not jf else pp4 + (p4 - pp4) / jf        # then the June scaling
+        return p1, p4
 
     m1, m4 = np.asarray(info["mouth_px"]["cam1"], float), np.asarray(info["mouth_px"]["cam4"], float)
+    m1[0] -= sh1
+    m4[0] -= sh4
     if jf:
         m4 = pp4 + (m4 - pp4) / jf
     caps = {c: cv2.VideoCapture(str(oi.videos_for(rv, animal, date, c)[0])) for c in ("cam1", "cam4")}
@@ -158,10 +183,10 @@ def cmd_video(rv, session: str, per_position: int = 1) -> Path:
         r_ = pd.Series(np.arange(len(ix)), index=ix.src_frame.to_numpy())
         ridx[cam] = r_[~r_.index.duplicated()]
     H = 360
-    f_out = _out(rv) / f"lick_paired_{animal}_{date}.mp4"
+    f_out = _out(rv) / f"lick_paired_{animal}_{date}_{view}view.mp4"
     vw = None
     tgt = {p: SW.commanded_world(rig["geometry"], p) for p in SW.POSITIONS}
-    fig = plt.figure(figsize=(4.0, 3.6), dpi=100)
+    fig = plt.figure(figsize=(4.4, 3.6), dpi=110)
     ax3 = fig.add_subplot(projection="3d")
     for p in SW.POSITIONS:
         g = L[(L.position == p) & L.n_frames.between(15, 45)]
@@ -208,8 +233,8 @@ def cmd_video(rv, session: str, per_position: int = 1) -> Path:
                 ax3.set_ylabel("ap (out)", fontsize=7)
                 ax3.set_zlabel("dv (up)", fontsize=7)
                 ax3.tick_params(labelsize=6)
-                ax3.view_init(elev=22, azim=-62)
-                ax3.set_title(f"{p}  t = {fr.t_ms - r.t_onset_ms:+.0f} ms from onset", fontsize=8)
+                ax3.view_init(elev=elev, azim=azim)
+                ax3.set_title(f"3-D, seen from {view}  |  {p}  t = {fr.t_ms - r.t_onset_ms:+.0f} ms", fontsize=8)
                 fig.canvas.draw()
                 im3 = cv2.cvtColor(np.asarray(fig.canvas.buffer_rgba())[:, :, :3], cv2.COLOR_RGB2BGR)
                 panels.append(cv2.resize(im3, (int(im3.shape[1] * H / im3.shape[0]), H)))
@@ -236,13 +261,14 @@ def main(argv=None) -> int:
     ap.add_argument("what", choices=["maps", "video"])
     ap.add_argument("sessions", nargs="+", metavar="ANIMAL:YYYYMMDD")
     ap.add_argument("--per-position", type=int, default=1)
+    ap.add_argument("--view", default="cam4", choices=["cam4", "cam1", "hybrid"], help="video: the 3-D panel's viewpoint")
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.what == "maps":
         print(f"-> {cmd_maps(rv, a.sessions)}")
     else:
         for s in a.sessions:
-            print(f"-> {cmd_video(rv, s, a.per_position)}")
+            print(f"-> {cmd_video(rv, s, a.per_position, a.view)}")
     return 0
 
 

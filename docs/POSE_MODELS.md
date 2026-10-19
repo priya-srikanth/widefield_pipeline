@@ -802,3 +802,29 @@ per-session cam4 correction (D3 option 2, spout-fitted similarity). **PS92 0605 
 ratios to 8; cam4 cuts 15 % fewer frames) -- its cam4 template is the known quality failure. June reach is ~5-10 % longer
 than August at far positions (scale after correction 1.015-1.023): residual June geometry or early-training behaviour;
 compare June only within June.
+
+**Cameras posed per session from the commanded spouts (PnP) -- the 3-D default since 10-19.** Priya's video QC (10-19, PS92
+0807 far_center): the reprojected 3-D point sat ~10 px from the 2-D tongue, to the RIGHT in cam1 and the LEFT in cam4.
+Measured over whole sessions it is the same for EVERY part (cam1 / cam4 red - green x: tongue +9.9 / -9.4, spout +8.9 /
+-8.5, jaw +8.1 / -7.7, nose +9.5 / -9.4 px), horizontal only, and varies by session (5.5-10.5 px; PS92 June, August and
+acute, PS93 clips): a sideways error in the 09-11 extrinsics plus day-to-day camera drift. **Not the spout edge labels**
+(cam1 inferior, cam4 superior edge, Priya asked): they differ in dv / ap, which lies along the epipolar direction (cameras
+below and in front), so triangulation absorbs them into depth with no residual -- and nose / jaw carry no edge label.
+Fix (Priya: "use the ground-truth spout positions"): `pose3d.pnp_group` poses EACH camera per session by PnP (cv2 SQPnP +
+LM) on the six parked spout medians against the commanded positions (mm); intrinsics / distortion stay 09-11. Points come
+out directly in stage mm. Result (`pose3d production`, 11 PS92 sessions; PS93 clips):
+
+| | 09-11 extrinsics | per-session PnP |
+|---|---|---|
+| spout reprojection px (cam1 / cam4) | 6-10 / 6-10 | 0.5-1.1 / 0.6-1.2 |
+| nose, jaw px | 8-10 | 0.5-3.0, 0.8-1.8 |
+| tongue px | 8-11 | 3.3-4.3 (PS93 2.8-4.0); 0606: 7 |
+| June 0602-0604 tongue px (cam4 moved, D10 above) | 13-18 | 3.8-4.2 -- PnP absorbs the moved camera |
+| PS92 0605 | broken | still broken (cam4 spouts 19 px: its cam4 template is the known failure) |
+
+Lick measures barely move (miss / lat_err within ~0.05 mm; PS92 0818 far_R miss 3.24 mm, lat_err -2.99), so the earlier
+readouts stand. The edge labels go into each camera's pose; their difference (~ rod width, mostly depth) is a small constant
+shift of every body point. The old route (09-11 extrinsics + per-session `disparity_shift` + similarity fit) stays as
+``method="calib"``. Single-camera frames (~40 % of tongue frames; cam1 alone fixes ml / ap, cam4 alone ml / dv) are the next
+step: ray + depth from neighbouring 3-D frames, or multi-camera EKS. Video: `pose3d_figures video --view cam4` (3-D panel
+seen from cam4's PnP position; also cam1 / hybrid).

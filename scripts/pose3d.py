@@ -74,7 +74,8 @@ def run_session(s: str, source: str) -> dict:
     S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
     L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
     w = info["world"]
-    row.update({"june_cam4_scaled": bool(jf), "n_cam1": info["n_cam1"], "n_cam4": info["n_cam4"],
+    row.update({"method": info["method"], "june_cam4_scaled": bool(jf), "shift_cam1_px": round(info["shift_px"][0], 1),
+                "shift_cam4_px": round(info["shift_px"][1], 1), "n_cam1": info["n_cam1"], "n_cam4": info["n_cam4"],
                 "n_paired": info["n_paired"], "world_scale": round(w.scale, 3),
                 "fit_resid_mm_max": round(max(w.residual_mm.values()), 3),
                 "spout_reproj_cam1_px": round(info["reproj_spout_px"]["cam1"], 1),

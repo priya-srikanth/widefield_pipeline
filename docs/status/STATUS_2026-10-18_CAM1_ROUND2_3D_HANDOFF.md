@@ -30,6 +30,10 @@ Analysis desktop; M: = MICROSCOPE.
   (the scaling centre cancels in every 2-D measure). Then cam1 per-session outputs (cleaned traces + cam4-timed lateral landing).
   Per-frame 3-D, READY (POSE_MODELS D10): `python -m scripts.pose3d production --jobs 4` (dlc env) -> `session_poses/pose3d/`
   frames + per-lick reach / miss / lateral error against the target spout; tested on the PS93 clips (`pose3d clips`).
+  10-19 evening: cameras now POSED PER SESSION by PnP on the commanded spouts (`pose3d.pnp_group`, default; reprojection
+  ~1 px for rigid parts vs 6-10 with the 09-11 extrinsics, which carry a sideways error); first production 3-D on 11 PS92
+  sessions (PS92 0818 far_R miss 3.2 mm, medial); figures `scripts.pose3d_figures maps / video --view cam4`. NEXT: fill
+  single-camera tongue frames (~40 %), then every session as the cam1 run lands.
 * Local GPU free (LP review inference stopped 10-19; an orphaned queue loop from the previous session had kept running --
   pitfall 17).
 * 17. **Background loops survive a session restart even when reported "stopped"**: after a restart, find leftover queue

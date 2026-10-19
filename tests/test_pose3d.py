@@ -62,3 +62,66 @@ def test_june_scaling_keeps_the_centre_fixed():
     s = P3.scale_june_cam4(f, 0.885, (332.0, 380.0))
     assert np.allclose(s.tongue_x, [332.0, 332.0 + 88.5]) and np.allclose(s.tongue_y, 380.0)
     assert (s.tongue_likelihood == 1.0).all()
+
+
+def test_disparity_shift_recovers_an_opposite_horizontal_offset():
+    m1 = {p: (10.0 * k, 5.0 * k) for k, p in enumerate(SW.POSITIONS)}
+    m4 = {p: (10.0 * k + 6.0, 2.0 * k) for k, p in enumerate(SW.POSITIONS)}   # cam4 sees x 6 px to the right
+    d1, d4 = P3.disparity_shift(_FakeGroup(), m1, m4)
+    assert np.isclose(d1, 0.0) and np.isclose(d4, -6.0)         # the fake triangulation takes x from cam1
+    s = P3.shift_x(pd.DataFrame({"tongue_x": [1.0], "tongue_y": [2.0]}), 3.0)
+    assert s.tongue_x.iloc[0] == 4.0 and s.tongue_y.iloc[0] == 2.0
+
+
+class _Cam:
+    """Just enough of aniposelib.Camera for `pnp_group`: pinhole K, no distortion, pose via Rodrigues."""
+
+    def __init__(self, name, rvec, tvec):
+        self.name, self.r, self.t = name, np.asarray(rvec, float), np.asarray(tvec, float)
+        self.K = np.array([[5500.0, 0, 300], [0, 5500.0, 300], [0, 0, 1]])
+
+    def get_name(self):
+        return self.name
+
+    def get_camera_matrix(self):
+        return self.K
+
+    def get_distortions(self):
+        return np.zeros(5)
+
+    def set_rotation(self, r):
+        self.r = np.asarray(r, float)
+
+    def set_translation(self, t):
+        self.t = np.asarray(t, float)
+
+    def project(self, X):
+        import cv2
+        return cv2.projectPoints(np.asarray(X, float), self.r, self.t, self.K, np.zeros(5))[0][:, 0]
+
+
+class _Group:
+    def __init__(self, cams):
+        self.cameras = cams
+
+    def project(self, X):
+        return np.stack([c.project(X) for c in self.cameras])
+
+    def triangulate(self, pts, undistort=True):
+        import cv2
+        P = [c.K @ np.c_[cv2.Rodrigues(c.r)[0], c.t] for c in self.cameras]
+        H = cv2.triangulatePoints(P[0], P[1], pts[0].T.astype(float), pts[1].T.astype(float))
+        return (H[:3] / H[3]).T
+
+
+def test_pnp_poses_each_camera_from_the_commanded_spouts_and_triangulates_in_mm():
+    true = _Group([_Cam("cam1", [-0.8, 0.02, 0.0], [0.3, 1.0, 150.0]), _Cam("cam4", [1.5, 0.0, 0.0], [-0.2, 2.0, 160.0])])
+    obj = np.array([SW.commanded_world(GEOM, p) for p in SW.POSITIONS])
+    med = {c.get_name(): {p: tuple(c.project(obj)[k]) for k, p in enumerate(SW.POSITIONS)} for c in true.cameras}
+    start = _Group([_Cam("cam1", [0, 0, 0], [0, 0, 100.0]), _Cam("cam4", [0, 0, 0], [0, 0, 100.0])])
+    g, err = P3.pnp_group(start, med, GEOM)
+    assert max(max(e.values()) for e in err.values()) < 1e-3
+    body = np.array([[0.4, 1.9, -2.7]])                     # a tongue tip, mm
+    X = g.triangulate(true.project(body), undistort=True)
+    assert np.allclose(X, body, atol=1e-3)
+    assert start.cameras[0].t[2] == 100.0                     # the input group is not modified
