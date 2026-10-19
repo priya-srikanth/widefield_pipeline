@@ -15,7 +15,11 @@ Analysis desktop; M: = MICROSCOPE.
   water drops, part-out tongue, faint licks cam1 misses). cam1 cleaning: max gap 24 ms, veto off (D8). Nose: blank at the
   centre positions by design (rod occludes it).
 * RUNNING on O2: cam1 production `o2/lp_cam1_ctx_prod_20261019` (137 cam1 videos, `o2_inference bundle --kind lp --cam cam1`),
-  smoke job + array (afterok), submitted ~07:40 10-19; all videos were already on scratch. Next: smoke log fps -> run time;
+  smoke job + array (afterok), submitted ~07:40 10-19; all videos were already on scratch. Array **56830841**: smoke 145 fps on L40S
+  (median video ~3 h, longest ~4.5 h); only ~16 L40S exist in gpu_quad (we held 10), so Priya opened the LIVE job to any
+  GPU (`scontrol update JobId=56830841 Gres=gpu:1 TimeLimit=16:00:00`, 10-19; V100 exclude list kept; throttle 24). The
+  bundle's run_pose.sbatch still says l40s / 10 h (the live job was edited, not the file). If tasks fail on a new node
+  type, add it to ExcNodeList. Next: smoke log fps -> run time;
   copy back with COMMANDS.md step 5; `python -m wfield_local.o2_inference collect --name lp_cam1_ctx_prod_20261019 --compare
   PS93:20260814=M:/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/lp_train_cam1_r2_20261018/models/mhcrnn_semi_640_b4/video_preds/PS93_20260814_cam1.csv`
   -> `session_poses/<a>_<d>_cam1_full/`. Then: per-session 3-D spouts + apparatus mouth from both cameras, READY:
