@@ -20599,6 +20599,14 @@ Whole engaged trials dropped at random until each session has the animal's targe
 August-pre / post session: PS92 1872, PS93 1469, PS94 1364, PS95 2250); tests whether the chronic rise of BOTH unique
 target and executed is just more data (chronic sessions have ~5000-6100 usable licks vs ~3900-4200 pre). Relative shares
 (unique / 6-category ceiling, unique / full R2; ratios of animal means) -> `tables/relative_shares.csv`.
+**Result (105/107; PS95_0928 / 1001 still running, readout rerun at 107):** lick window, matched vs unmatched,
+pre -> chronic. Ceiling: PS92 .034 -> .107 (unmatched .045 -> .109), PS93 .042 -> .096, PS95 .041 -> .071 (.042 -> .080),
+PS94 .031 -> .025 (.039 -> .039). So the chronic rise in position coding is REAL in 3/4 (PS92, PS93, PS95); PS94's was
+more data. Unique target chronic: PS92 .054, PS93 .041, PS95 .022 (≈ pre .017), PS94 .011. Unique executed pre ≈ 0
+in all four matched (.004 / .003 / -.003 / -.004) and rises post (peak acute / subacute: PS92 .023-.026, PS94 .025
+subacute; PS95 only .009 subacute). Chronic balance (of ceiling, target / executed): PS92 .51 / .15, PS93 .43 / .12,
+PS95 .31 / .05 (back toward target), PS94 .45 / .60 (stays executed-weighted). PS95's chronic gain is mostly SHARED
+(neither target nor executed unique), i.e. more categorical than a smooth angle / distance code, as in PS92 / PS93.
 
 ## 2026-10-19 (evening) — 3-D tongue / jaw from cam1 + cam4: method decisions and first results (Priya)
 
