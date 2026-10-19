@@ -37,7 +37,7 @@ Musall-order shuffle, and a three-round misdirected-lick analysis.
 | target / executed divergence | 60-87 % independent; pre-stroke angle COMPRESSION at lateral spouts (geometry); acute far-contra ipsi shift, recovers chronically | DECISIONS afternoon |
 | executed-angle (within-position) rise in the shuffle maps | NOT robust: drop ~0 everywhere; spread not increased; came from shuffle in 2/4 animals | `qc/exec_angle_spread.csv` |
 | unique (drop) position maps | ~= label-permutation maps; acute drop, chronic rise contralesional | `position_dR2drop_maps_by_epoch.png` |
-| per-spout unique maps (one-vs-rest `shufpos`) | figures made today (were never drawn) | `position_each_maps_{enl,cue,lick}.png` |
+| per-spout unique maps (one-vs-rest `shufpos`) | **BUG found**: the relabelling re-permuted EVERY trial -> six identical maps; FIXED (minimal swap, b67e027); every shufpos-derived per-position number since 10-18 invalid until rerun | old maps renamed `INVALID_shufpos_bug_*`; rerun queued |
 | misdirected licks | decoder fails acutely (17 contacted far-contra licks); templates: every "plan-like" lean traced to touch / reach / lick number / previous lick; matched first attempts ~0, same as pre-stroke misses -> NO plan signature | `cohort/tables/misdirected_licks/template_*.csv` |
 | trial-to-trial variance (`_subset-trmodels`) | 27-42 % explained, all movement; cortex = uninstructed, SSp-m = licking; acute more (licking) | `time_resolved_dR2_drop_TRIAL.png` |
 | Musall-order shuffle (`musall_subset-shuf`) | instructed .10 -> .19 acute -> .08 chronic; position .036 -> .062 chronic; uninstructed inflated (slow-variable shuffle) | tables there |
@@ -51,7 +51,7 @@ Musall-order shuffle, and a three-round misdirected-lick analysis.
 | local lick-matched nokin, last PS95 chronic sessions (7) | box, `matched_local.log`; out `movement_first_subset-nokin_matched/` | `python scripts/combined_encoding_figures.py --order movement_first_subset-nokin_matched`; compare with unmatched (relative_shares.csv in both); DECISIONS line with PS95 chronic |
 | O2 `nokin_matched` array (56867176, short,medium) | O2; Priya rsyncs `out/` back | `o2_encoding.py collect --name enc_v36_20261019 --tag nokin_matched` (overwrites identical local sessions) |
 | overnight trial-to-trial nokin (`run_nokin_tr.ps1`, chained after the matched run) | box, `nokin_tr_queue.log` / `nokin_tr.log`; out `movement_first_subset-nokin_tr/` (SUFFIX `_tr`) | `combined_encoding_figures.py --order movement_first_subset-nokin_tr` -> `tables/tr_contest_0-1.5s.csv` = full executed set (angle, angle^2, reach) on TRIAL-TO-TRIAL vs all variance |
-| per-spout map render (`posmaps6.py`) | box (task) | look at the three figures |
+| per-spout rerun, FIXED shufpos (`run_shufpos.ps1`, chained after nokin_tr) | box, `shufpos_queue.log` / `shufpos.log`; out `movement_first_subset-shufpos/` | per-spout maps from that folder (`fig_position_each_maps` on the subset sessions; needs a small readout hook for the subset folder); O2 alternative: bundle code refreshed (b67e027) -> `TAG=shufpos ONLY=shufpos-` |
 | (other session) cam1 LP on O2 gpu_quad, tasks 21-137 est. start 10-20 19:40 | not ours | -- |
 
 Stop commands (Priya, PowerShell): matched / nokin_tr python = command line matching `combined_encoding` AND `only nokin:`
@@ -67,7 +67,8 @@ Stop commands (Priya, PowerShell): matched / nokin_tr python = command line matc
    rerun the contest with the cleaner angle.
 4. **Toward "intended"**: (a) pre-cue -> lick-window carry-over decode (does the pre-movement spout code persist into
    the lick window?); (b) touch-free contest (no-contact licks / early pre-touch window).
-5. Per-spout maps: review with Priya; stats per spout if wanted.
+5. Per-spout maps from the FIXED shufpos rerun (readout hook for `movement_first_subset-shufpos`); review with Priya;
+   check which earlier per-position readouts used shufpos (DECISIONS 10-18 "per-position readouts") and redo them.
 6. Pre-cue slow-band caveat presentation (10-19 morning handoff to-do 6); orofacial findings rewrite on v36 (10-18).
 
 ## 5. Pitfalls (new today)
