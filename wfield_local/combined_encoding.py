@@ -346,8 +346,10 @@ def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, ses
     """EXEC_ENV: restrict the usable licks to those with a 3-D peak and return (angle, reach, executed amplitudes)."""
     if mode not in EXEC_MODES:
         raise ValueError(f"{EXEC_ENV}={mode!r}; expected one of {EXEC_MODES}")
-    path = os.environ.get(EXEC3D_TABLE_ENV) or (
-        "M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz")
+    path = os.environ.get(EXEC3D_TABLE_ENV)
+    if not path:
+        from wfield_local.paths import PathResolver
+        path = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "licks.csv.gz"
     K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "reach_mm", "side_ml", "out_ap", "down_dv"])
     K = K[K.session == session].drop_duplicates(["trial_id", "lick_idx"])
     if K.empty:
