@@ -183,7 +183,7 @@ def camera_rays(cam, xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.ndarray, t: np.ndarray,
-                     max_gap_ms: float = 24.0) -> tuple[np.ndarray, np.ndarray]:
+                     max_gap_ms: float = 24.0, interp: str = "linear") -> tuple[np.ndarray, np.ndarray]:
     """Fill frames that ONE camera measured (Priya 10-19: "use the known geometry to resolve occlusions in one view").
 
     About 40 % of tongue frames are seen by one camera only (PS92 0807: 18 % cam1-only, 25 % cam4-only). That camera
@@ -192,6 +192,9 @@ def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.
     ``max_gap_ms`` (default 24 ms, the cam1 gap rule, D8): their 3-D points interpolated in time (or the one side
     within reach), then moved to the closest point on the ray. ``X`` (n, 3) triangulated (NaN where not both),
     ``a`` / ``b`` the cam1 / cam4 measured 2-D (NaN = not measured), rows in time order within each trial.
+    ``interp``: how the neighbours' 3-D points are interpolated when BOTH sides are within reach -- "linear" (the two
+    nearest), "pchip" / "akima" (a shape-preserving spline through every both-camera frame of the trial, evaluated only
+    inside two-sided gaps). One-sided gaps always hold the nearest point (no extrapolation).
     Returns (X filled, source code per frame: 0 none, 1 both cameras, 2 cam1 + neighbours, 3 cam4 + neighbours)."""
     X = np.array(X, float)
     both = np.isfinite(X).all(1)
@@ -207,6 +210,16 @@ def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.
         w = (dp / (dp + dn))[:, None]
     est = np.where((okp & okn)[:, None], Xp + w * (Xn - Xp),
                    np.where(okp[:, None], Xp, np.where(okn[:, None], Xn, np.nan)))
+    if interp != "linear":
+        from scipy.interpolate import Akima1DInterpolator, PchipInterpolator
+        kind = {"pchip": PchipInterpolator, "akima": Akima1DInterpolator}[interp]
+        two = okp & okn & ~both
+        for tr in np.unique(trial[two]):
+            kb = both & (trial == tr)
+            if kb.sum() < 3:
+                continue                                             # too few knots: keep the linear estimate
+            kt = two & (trial == tr)
+            est[kt] = kind(t[kb], X[kb], axis=0)(t[kt])
     for code, xy, cam in ((2, a, cg.cameras[0]), (3, b, cg.cameras[1])):
         k = (src == code) & np.isfinite(est).all(1)
         if k.any():
@@ -237,7 +250,7 @@ def triangulate(cg,xy1: np.ndarray, xy4: np.ndarray) -> tuple[np.ndarray, np.nda
 
 def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.DataFrame, flat4: pd.DataFrame,
                june_factor: float | None = None, method: str = "pnp",
-               fill_gap_ms: float | None = 24.0) -> tuple[pd.DataFrame, dict]:
+               fill_gap_ms: float | None = 24.0, fill_interp: str = "akima") -> tuple[pd.DataFrame, dict]:
     """Per paired frame: trial_id, position, t_ms, stop_ms and per part ``{part}_ml/_ap/_dv`` mm + ``{part}_rep1/_rep4``
     px. ``flat1`` / ``flat4`` RAW image px (``{part}_x/_y/_likelihood``), rows aligned with ``ix1`` / ``ix4``.
     ``june_factor``: scale cam4 about its principal point first (cleaning thresholds are in Aug+ px).
@@ -245,7 +258,9 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
     the 09-11 extrinsics + the per-session x shifts of `disparity_shift` (info ``shift_px``; 2-D points drawn on the raw
     video must subtract them) + the similarity fit -- kept for comparison. ``fill_gap_ms``: fill single-camera
     tongue / jaw frames (`fill_single_view`; ``{part}_src`` 1 both, 2 cam1, 3 cam4, 0 none; their rep columns stay NaN);
-    None = both cameras only. Returns (frames, info) -- info carries the world fit,
+    None = both cameras only. ``fill_interp`` (default "akima", 10-19): held-out 3-D error, PS92 0807 / 0818, linear ->
+    Akima: 8 ms gaps 0.136-0.144 -> 0.127-0.137 mm, 16 ms 0.164-0.176 -> 0.145-0.162, 24 ms 0.220-0.272 -> 0.203-0.231
+    (PCHIP in between); largest gain on long cam1-only gaps. Returns (frames, info) -- info carries the world fit,
     the apparatus mouth in each camera and the spout medians used."""
     from wfield_local import spout_frame as SF
     from wfield_local import spout_world as SW
@@ -284,7 +299,8 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
             a, b = _raw_xy(flat1, part, i1), _raw_xy(flat4, part, i4)
         X, rep = triangulate(cg, a, b)
         if part in CLEANED and fill_gap_ms:
-            X, src = fill_single_view(X, a, b, cg, out.trial_id.to_numpy(), out.t_ms.to_numpy(float), fill_gap_ms)
+            X, src = fill_single_view(X, a, b, cg, out.trial_id.to_numpy(), out.t_ms.to_numpy(float), fill_gap_ms,
+                                      fill_interp)
             out[f"{part}_src"] = src
         W = world.to_world(X)
         for k, ax in enumerate(("ml", "ap", "dv")):

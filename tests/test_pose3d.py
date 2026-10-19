@@ -146,6 +146,9 @@ def test_single_view_frames_are_filled_on_the_seen_ray_with_depth_from_neighbour
     F, src = P3.fill_single_view(X, a, b, g, np.ones(7, int), t, max_gap_ms=24.0)
     assert list(src) == [1, 1, 3, 3, 2, 1, 1]
     assert np.allclose(F, truth, atol=1e-3)
+    for interp in ("pchip", "akima"):                                 # splines are exact on a straight line too
+        Fs, _ = P3.fill_single_view(X, a, b, g, np.ones(7, int), t, max_gap_ms=24.0, interp=interp)
+        assert np.allclose(Fs, truth, atol=1e-3), interp
     _, src2 = P3.fill_single_view(X, a, b, g, np.ones(7, int), t, max_gap_ms=2.0)   # no neighbour close enough
     assert list(src2) == [1, 1, 0, 0, 0, 1, 1]
 

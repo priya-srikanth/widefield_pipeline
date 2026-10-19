@@ -923,3 +923,12 @@ slightly better, jaw slightly worse) -- the correction rests on the rig setup + 
 mm below it. Acute far_R unchanged (miss 3.15 vs 0.97; lateral -2.98 vs -0.79). The fit check (`_identity_world`) shifts
 cam1 by its offset before triangulating the spouts (without it every session read > 0.2 mm and was skipped downstream).
 Pre-correction tables kept in `session_poses/pose3d/noedge_20261019/`.
+
+**Single-camera fill: Akima, not linear (10-19, Priya asked about spline interpolation).** Held-out 3-D error (PS92 0807 /
+0818, one camera hidden on both-camera frames), linear -> PCHIP -> Akima: 8 ms gaps 0.136-0.144 -> 0.126-0.138 ->
+0.127-0.137 mm; 16 ms 0.164-0.176 -> 0.151-0.165 -> 0.145-0.162; 24 ms 0.220-0.272 -> 0.213-0.245 -> 0.203-0.231 (largest
+gain on long cam1-only gaps). Akima's knot slopes follow the straighter side of a bend and are not zeroed at a turn (PCHIP
+flattens the extension peak inside a gap). Used only for two-sided gaps (both-camera frames within 24 ms on both sides,
+same trial, >= 3 knots); one-sided gaps hold the nearest point; the estimate is then moved onto the seen camera's ray.
+`session_3d(fill_interp="akima")`. Results after the rerun: PS92 acute far_R miss +2.3 / lateral -2.25 mm; PS93 acute far_R
++1.0 / -1.0 (~20 licks on the clip subset, so it moves with method details; PS92 stable).
