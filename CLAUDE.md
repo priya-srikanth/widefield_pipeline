@@ -361,8 +361,13 @@ retrain (O2 jobs running), cam1 scoring / cleaned clips, the cam1 mouth = L/R sp
 apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + copy-back commands, pitfalls. Register:
 `docs/POSE_MODELS.md` (Parts B-D).
 
+**[`docs/status/STATUS_2026-10-19_EVENING_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-19_EVENING_ENCODING_HANDOFF.md)**
+— **START HERE for the encoding model, newest.** Fair target vs executed on all 119 sessions (O2), lick-matched control,
+relative shares, trial-to-trial variance, Musall-order shuffle, misdirected licks (no plan signature), per-spout maps,
+shared penalty NOT the cause; running jobs (overnight trial-to-trial contest), to-dos, pitfalls (O2 fair-share).
+
 **[`docs/status/STATUS_2026-10-19_ENCODING_O2_HANDOFF.md`](docs/status/STATUS_2026-10-19_ENCODING_O2_HANDOFF.md)**
-— **START HERE for the encoding model, newest.** Target vs executed (fair redesign: nodir / nokin bases), slow-drift
+— superseded by the 10-19 evening handoff; still the reference for the O2 path. Target vs executed (fair redesign: nodir / nokin bases), slow-drift
 removal inside the model, credit rules vs Musall (lead with drop dR2; `--order musall`), two-band correction NOT adopted,
 the slow band carries part of the pre-cue decode, misdirected-lick feasibility, the O2 path (`scripts/o2_encoding.py`),
 running jobs, to-dos, pitfalls.
