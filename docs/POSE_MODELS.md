@@ -960,3 +960,13 @@ depth prior (held-out test next). Output `session_poses/pose3d/kinematics_combin
 0807 / 0818, one camera hidden on both-camera jaw frames): median 0.03-0.05 mm at 24 ms gaps, 0.04-0.07 mm at 200 ms (p90 0.10
 -> 0.20-0.34). One-camera jaw frames are mostly long stretches: 1-3 % lie in gaps <= 24 ms, 13-23 % in gaps <= 200 ms (the rest
 -- e.g. the rod over the chin in cam4 for whole centre-spout trials -- stay single-camera). Tongue stays at 24 ms.
+
+**Late 10-19 results (details: `docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md` §4).** (1) *2-D vs 3-D*
+(`pose3d_vs_cam4`, PS92 August pre, LOSO): target spout from the lick endpoint 0.53 (cam4) vs 0.80 (3-D) balanced accuracy;
+centre close vs far 0.59 vs 0.87. (2) *Jaw cross-check* vs cam4 v36 `jaw_lateral`: per-trial lateral r 0.66-0.88, opening
+0.63-0.92; session FAR_DIR r 0.99 (acute collapse identical). (3) *Depth prior* for one-camera tongue points: closest point to
+the mouth zero 0.6 mm error on licks < 1 mm, KNN on cam1 2-D 1.5-1.7 mm -> NOT adopted; one-camera tongue frames get 3-D only
+from the neighbour fill. (4) *cam1 2-D lick detector* (`wfield_local/cam1_licks.py`): events = runs of cleaned cam1 tongue
+frames; ``lips`` = peak <= 20 px below the cam1 mouth (PROPOSED, blind review pending). PS92: cam1-only 8.1 % pre / 4.5 %
+acute; cam4 jaw-only trials with a cam1 tongue 28 % pre vs 5 % acute. (5) The combined-track licks are NOT small (reach
+3.7-4.1 mm vs 4.5): mostly licks cam4 lost to occlusion / merging; the earlier "small licks" wording is superseded.

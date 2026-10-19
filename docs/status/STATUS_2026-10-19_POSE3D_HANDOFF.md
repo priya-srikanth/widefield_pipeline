@@ -12,10 +12,11 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
    back (all PS92: 0602-0608, 0805-0814 incl. split day 0812, acute 0818-0820). O2 fairshare is depleted, so it is slow.
 2. **Background jobs that were running locally at hand-off** (§3): read their outputs; if the session is gone, re-run them
    with the commands given there.
-3. **Jaw fill limit SET to 200 ms** (late 10-19, `pose3d.FILL_GAP_MS = {"tongue": 24, "jaw": 200}`, from the jaw gap test,
-   §4) but the 3-D outputs on disk were made with 24 ms: **re-run §6 from `pose3d production`**, then run the jaw cross-check
-   (`scripts/pose3d_jaw_crosscheck.py`) and the depth-prior check (`scripts/pose3d_depth_prior_check.py`, dlc env, ~20 min).
-4. When all four animals are in: cohort tables (per-animal first, then `analysis_kit.boot_delta`), §7 item 6.
+3. ~~Jaw 200 ms re-run, jaw cross-check, depth-prior check~~ DONE late 10-19 (results §4).
+4. **cam1 lick review** (Priya): blind page https://claude.ai/artifact/EnDtPi95nsfyyT4eGQDbCV (66 candidates; answers in its
+   `cam1_lick_review` db collection; key = `session_poses/cam1_licks/review/key.csv`). Score it against the key (precision of
+   cam1-only events per stratum; whether the 20 px ``lips`` cutoff matches "at the lips only") before using any cam1-only count.
+5. When all four animals are in: cohort tables (per-animal first, then `analysis_kit.boot_delta`), §7 item 6.
 
 ## 1. What was done (10-19)
 
@@ -34,7 +35,13 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   3-D add information: decoding + effect sizes; running), figures: `pose3d_figures` (maps; 2 x 2 paired video with tongue +
   jaw), `pose3d_summary_fig` (per session over days), `pose3d_phase` (peak-aligned distance, phase portrait, aim vs phase,
   trajectories in 3 planes, **oblique 3-D tongue + jaw trajectories per spout** `trajectories3d_<a>.png`, speed / velocity
-  traces). Checks: `pose3d_jaw_gap_check` (run), `pose3d_depth_prior_check` (not yet run).
+  traces). Checks: `pose3d_jaw_gap_check`, `pose3d_depth_prior_check`, `pose3d_jaw_crosscheck` (all run, §4).
+* **cam1 2-D lick detector** (late 10-19, Priya: count the incomplete licks cam4 / 3-D miss): `wfield_local/cam1_licks.py`,
+  `scripts/cam1_licks.py run|review`. Events = runs of cleaned cam1 tongue frames (cue .. stop, >= 3 frames); size in cam1 px
+  / mm (scale from the far_L / far_R spout spacing; a size scale only -- reach toward the camera is foreshortened);
+  ``size_class`` lips (peak never > 20 px below the cam1 mouth) / out; flags ``cam4_matched``, ``in_3d``, ``contact`` (DAQ),
+  ``jaw_only_trial`` (inside a cam4 "jaw movement without a lick" trial's 70 ms .. quiet-window span). Output
+  `session_poses/cam1_licks/` (`<s>_events.csv`, `sessions.csv`, `run_summary.csv`, `review/`).
 * **Repo tooling**: pre-push hook skips the test suite when only `.md` files change (Priya); suite ~7 min otherwise.
 
 ## 2. Decisions and why (full list: DECISIONS.md 2026-10-19 evening)
@@ -52,16 +59,20 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 | gates: > 8 mm out, > 2 mm behind the mouth, spikes > 1.5 mm; jaw > 5 mm | paw-in-face frames (both models call them tongue at 0.9+) triangulate 7-36 mm out; reprojection does not catch them |
 | readouts: distances primary (3-D mm) + 3-D angle error + midline-plane angle | distances are origin-free; angles vs the spout direction are consistent across the set-point move (spouts commanded from it) |
 | peak = 3-D frame farthest from the mouth zero | cam4's peak is the max of its DOWN axis |
-| lick events: cam4's (comparable) + combined 3-D track | combined adds 3-7 % real small licks (47 % touched the spout) |
+| lick events: cam4's (comparable) + combined 3-D track | combined adds 3-7 % licks -- NOT small ones (median reach 3.7-4.1 vs 4.5 mm, 45-50 % touched the spout): mostly licks cam4 lost to occlusion / merging |
+| no depth prior for one-camera tongue points | held-out: (a) closest point to the mouth zero 0.6 mm error on licks < 1 mm, 1.3-3.8 mm beyond; (b) learned from cam1 2-D 1.5-1.7 mm on licks < 1 mm (0.5 mm on long ones, already covered by the neighbour fill) |
+| incomplete licks counted from cam1 2-D (`cam1_licks`), not 3-D | counting / sizing needs no depth; tongue tips seen only by cam1 cannot be placed in 3-D (row above) |
+| lick phase: onset -> offset per lick (primary), peak-to-peak secondary | same as cam4's per-lick normalised time (`orofacial_cohort.U_NORM`); keeps isolated licks (acute far contra: 38-56 % have a neighbour < 250 ms); peak-to-peak only for stroke_orofacial comparison |
 
 ## 3. Running / pending at hand-off
 
 | what | how it was started | output | if lost, re-run |
 |---|---|---|---|
 | O2 array **56830841** (cam1 production) | Priya, 10-19 ~07:40; pending tasks opened to any GPU, 16 h (`scontrol update ... Gres=gpu:1 TimeLimit=16:00:00`); V100 nodes excluded | scratch `o2/lp_cam1_ctx_prod_20261019/out/` | §5 |
-| LOCAL chain (3-D for all copied sessions with the 3 mm fill gate → kinematics (both lick sets) → spout error → summary fig → phase / speed figs → `pose3d_vs_cam4`) | background task `b4npluehh` | `session_poses/pose3d/` | §6 (all of it) |
+| ~~LOCAL chain incl. jaw 200 ms re-run, jaw cross-check, `pose3d_vs_cam4`, depth-prior check~~ DONE (§4) | — | `session_poses/pose3d/` | §6 |
+| ~~cam1 lick detector on all 19 PS92 sessions + review sample~~ DONE | — | `session_poses/cam1_licks/` | `python -m scripts.cam1_licks run` then `review` (locanmf) |
+| Priya's blind review of cam1 lick candidates | page in §0 item 4 | db collection `cam1_lick_review` | — |
 | ~~LOCAL jaw gap test + jaw / tongue videos~~ DONE: result in §4; videos `pose3d/figures/lick_paired_PS92_2026{0807,0818}_cam4view.mp4` (tongue: green 2-D, red / orange 3-D; jaw: white 2-D, blue / cyan 3-D) | — | — | `python -m scripts.pose3d_jaw_gap_check`; `python -m scripts.pose3d_figures video ... --view cam4` (dlc env) |
-| NEXT after the chain: re-run 3-D with the jaw 200 ms limit (§6 from `pose3d production`), jaw cross-check, depth-prior check | not started | | §6 |
 
 ## 4. Results so far (preliminary: PS92 = 9 August pre + 3 acute; PS93 = trial clips only, ~10 % of licks pair)
 
@@ -83,6 +94,22 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   3-D frames are ones cam4 did not measure); cam4's own 2-D gap fill counts more frames (it interpolates up to 56 ms).
 * **cam1 vs cam4 axes**: cam4 alone = ml + dv (no forward); cam1 alone (looking up ~45 deg) = ml + a mix of forward and down
   that it cannot separate; only both cameras separate all three.
+* **Does 3-D add information? (`pose3d_vs_cam4`, PS92, 9 August pre, leave-one-session-out balanced accuracy)**: target spout
+  from the lick endpoint, 6 positions 0.53 cam4 (0.52 + angle) vs **0.80 3-D**; close vs far L 0.83 vs 0.94, centre 0.59 vs
+  **0.87**, R 0.89 vs 0.96 (depth is what cam4 lacks). Acute effect sizes (|z| vs pre day-to-day spread): lateral / angle agree
+  in pattern (far_R, close_L), 3-D larger at far_R (~30 vs ~21); 3-D-only miss and forward reach also move (far_R 30.8 / 12.6).
+* **Jaw cross-check (cam4 v36 `jaw_lateral` vs 3-D, 14 sessions, per trial)**: lateral r 0.66-0.88, opening r 0.63-0.92
+  (cam4 opening tracks 3-D DOWN r 0.58-0.90 more than BACK 0.22-0.74); **session FAR_DIR r = 0.99** (pre 9-15 px / 0.16-0.29
+  mm -> acute -0.7..0.9 px / -0.06..0.02 mm; PS93 0.20 -> -0.03 -> 0.02 mm). ~33-38 px/mm lateral. June / 0805 are not in the
+  v36 jaw table (none matched).
+* **Depth prior (held-out, cam4 hidden; PS92 8 pre LOSO + 3 acute)**: error by distance from the mouth zero, (a) closest point
+  on the ray / (b) KNN on cam1 2-D: 0-1 mm 0.60-0.69 / 1.49-1.74; 1-2 mm 1.33-1.38 / 0.83-0.99; 2-3 mm 2.1-2.2 / 0.55; > 4 mm
+  3.8 / 0.6-0.7. Neither usable for small licks (the neighbour fill is 0.13-0.23 mm) -> not adopted.
+* **cam1 2-D licks (PS92, 16 pre incl. June / 3 acute; UNREVIEWED)**: events 63.5k / 9.1k; cam4-matched 88 / 93 %; cam1-only
+  8.1 / 4.5 % (at the lips 3.5 / 3.6 %); cam1-only without contact 5.2 / 4.1 %. **cam4 jaw-only trials with a cam1 tongue
+  event: pre 68 / 241 (28 %), acute 12 / 259 (5 %)** -> pre "jaw without lick" was often a tongue cam4 missed; acute ones are
+  truly tongue-absent, so the acute jaw-tongue dissociation is STRONGER after correction (241 -> 173 vs 259 -> 247 trials).
+* **No-contact licks from the combined track**: +12 % in both epochs (pre 12954 -> 14510, acute 1036 -> 1157).
 
 ## 5. O2: check jobs and copy outputs (Priya runs these)
 
@@ -117,6 +144,7 @@ python -m scripts.pose3d_jaw_crosscheck                 ;  python -m scripts.pos
 python -m scripts.pose3d_summary_fig                    ;  python -m scripts.pose3d_phase
 python -m scripts.pose3d_figures maps PS92:20260807 PS92:20260818 PS92:20260607                   # dlc
 python -m scripts.pose3d_figures video PS92:20260807 PS92:20260818 --view cam4                    # dlc
+python -m scripts.cam1_licks run --jobs 3                                                        # locanmf; after pose3d (in_3d flag)
 ```
 Outputs under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/` (frames, `summary_*.csv`, `kinematics/`,
 `kinematics_combined/`, `spout_error/`, `crosscheck/`, `vs_cam4/`, `phase/`, `figures/`). Comparison snapshots kept:
@@ -124,14 +152,13 @@ Outputs under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/` (
 
 ## 7. To-do
 
-1. **Jaw fill limit**: DONE in code (200 ms, `FILL_GAP_MS`); RE-RUN §6 so the outputs use it. Optional: test anchoring
-   long single-camera jaw stretches to the trial's resting jaw.
-2. **Jaw cross-check** vs cam4 (script ready); then document in POSE_MODELS D10-D12.
-3. **Depth prior** for cam1-only small licks: run `scripts.pose3d_depth_prior_check` (dlc env, ~20 min); adopt (a) closest
-   point to the mouth zero or (b) the learned prior only if the held-out error is small AND (b) does not bias acute licks
-   toward pre; flag prior-based points with their own source code.
-4. **2-D vs 3-D** (`pose3d_vs_cam4`): read decoding + effect sizes; decide what is headline 3-D vs supporting.
-5. Combined-track licks: re-run kinematics / figures on them once the depth prior is settled; consider making them default.
+1. ~~Jaw fill limit re-run~~ done. Optional: anchor long single-camera jaw stretches to the trial's resting jaw.
+2. ~~Jaw cross-check~~ done (§4).
+3. ~~Depth prior~~ done: not adopted (§2).
+4. **cam1 lick review**: score Priya's answers vs `review/key.csv`; set the ``lips`` cutoff; then report the incomplete-lick
+   rate (cam4 no-contact + reviewed cam1-only) and the corrected jaw-without-lick rate per position / epoch.
+5. **3-D phase plots to match cam4**: show onset->offset phase 0.1-0.9 (`orofacial_cohort.U_SHOW`) and add a FIRST post-cue
+   lick set beside "all licks". 2-D vs 3-D: 3-D is headline for depth / reach / miss and close-vs-far; cam4 lateral stands.
 6. **Cohort**: when PS93 / PS94 / PS95 production lands, curated sessions only, August pre baseline, per-animal tables first
    (CLAUDE.md rule 8), then `analysis_kit.boot_delta`; same epochs as the cam4 tables.
 7. Labelling (only if needed): paw-in-face frames as hard negatives (tongue blank) for both cameras.

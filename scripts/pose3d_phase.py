@@ -182,7 +182,7 @@ def fig_traj3d(P, animal, geo, path, pre_from):
                 if k is not None and not part:
                     ax.scatter(ml[k], ap[k], dv[k], s=18, color=EP_COL[ep])
         ax.set_xlim(-3, 3)
-        ax.set_ylim(-1, 4)
+        ax.set_ylim(-2, 4)          # the jaw point sits ~1 mm behind the mouth zero
         ax.set_zlim(-5, 0.5)
         ax.set_xlabel("ml (+R)", fontsize=7)
         ax.set_ylabel("ap (out)", fontsize=7)
