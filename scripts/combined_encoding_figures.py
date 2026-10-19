@@ -53,6 +53,19 @@ TVX = {"xy": {"category": "raw:full", "target": "angle:position", "target_lick":
                  "executed": "notxy:lickangle:position", "none": "notxy:drop:position"}}
 TVX_KEYS = ("category", "target", "target_lick", "executed")
 TVX_COL = {"category": "#1b9e77", "target": "#6a3d9a", "target_lick": "#b2abd2", "executed": "#d95f02"}
+#: FAIR SPATIAL CONTEST (Priya 10-19) in the subset runs (`--order movement_first_subset-nokin` / `-nodir`): R2 gains
+#: over `<base>:none` and UNIQUE shares. target / exec = the same lick kernel and licks scaled by the spout's angle /
+#: angle^2 / distance vs the lick's angle / angle^2 / reach; kin = kinall (tongue + jaw traces, nokin) or dir_kin
+#: (directional traces, nodir). u_* = unique: the gain lost when that variable is removed from the model holding all of
+#: target + exec (+ kin for the |kin versions).
+CONTEST = {"gain:category": ("category", "none"), "gain:target": ("target", "none"), "gain:exec": ("exec", "none"),
+           "gain:kin": ("kin", "none"), "gain:target+exec": ("target+exec", "none"),
+           "u:target": ("target+exec", "exec"), "u:exec": ("target+exec", "target"),
+           "u:target|kin": ("kin+target+exec", "kin+exec"), "u:exec|kin": ("kin+target+exec", "kin+target"),
+           "u:kin": ("kin+target+exec", "target+exec"),
+           "u:target|kin+nose": ("kin+nose+target", "kin+nose"), "u:target|kin_nonose": ("kin+target", "kin")}
+CONTEST_COL = {"target": "#6a3d9a", "exec": "#d95f02", "kin": "#8c510a", "category": "#1b9e77",
+               "target+exec": "0.35"}
 FOCUS = ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul", "SSp-bfd", "SSp-n", "ACAd", "VISp")
 
 
@@ -126,6 +139,10 @@ def region_wide(R: pd.DataFrame) -> pd.DataFrame:
             for k in TVX_KEYS:
                 if (mods[k], w) in W:
                     out[f"tvx:{st}:{k}|{w}"] = W[(mods[k], w)] - W[(mods["none"], w)]
+        for b in ("nodir", "nokin"):
+            for key, (hi, lo) in CONTEST.items():
+                if (f"{b}:{hi}", w) in W and (f"{b}:{lo}", w) in W:
+                    out[f"{b}:{key}|{w}"] = W[(f"{b}:{hi}", w)] - W[(f"{b}:{lo}", w)]
     return out.reset_index().rename(columns={"area_b": "pos"})            # `pos` = area, for session_change_tests
 
 
@@ -654,6 +671,109 @@ def fig_target_vs_executed_sessions(Wd: pd.DataFrame, path: Path, title: str, ar
     _save(fig, path)
 
 
+def fig_spatial_contest(Wd: pd.DataFrame, path: Path, title: str, base: str, area: str = "cortex") -> None:
+    """The fair target-vs-executed contest of one subset run. Rows: lick / cue / ENL window. Columns: gains over the
+    base alone (category ceiling, target, executed, kinematics); unique target vs unique executed (no kinematics);
+    the same given the kinematics (+ unique kinematics); per-session executed - target unique (no kinematics).
+    Mean +- SEM over animals, dots = animals; last column dots = sessions (animal colour)."""
+    from wfield_local import config
+    plt = _plt()
+    D = Wd[Wd.pos == area].copy()
+    wins = [w for w in ("lick", "cue", "enl") if f"{base}:u:target|{w}" in D]
+    if not wins:
+        print(f"  spatial contest ({base}): models missing -- skipped")
+        return
+    kin = "kinall (tongue + jaw)" if base == "nokin" else "directional traces"
+    panels = [("gains over base", [("gain:category", "category"), ("gain:target", "target"),
+                                   ("gain:exec", "exec"), ("gain:kin", "kin")]),
+              ("UNIQUE, no kinematics", [("u:target", "target"), ("u:exec", "exec")]),
+              (f"UNIQUE given {kin}", [("u:target|kin", "target"), ("u:exec|kin", "exec"), ("u:kin", "kin")])]
+    acol = config.animal_color()
+    eps = [e for e in EPOCHS if e in set(D.epoch)]
+    fig, axs = plt.subplots(len(wins), len(panels) + 1, figsize=(4.6 * (len(panels) + 1), 3.7 * len(wins) + 1.6),
+                            squeeze=False)
+    for r, w in enumerate(wins):
+        for c, (ptitle, series) in enumerate(panels):
+            ax = axs[r][c]
+            ser = [(k, lab) for k, lab in series if f"{base}:{k}|{w}" in D]
+            for j, (k, lab) in enumerate(ser):
+                s = _animal_stats(D, f"{base}:{k}|{w}")
+                x = np.array([eps.index(e) for e in s.index]) + (j - (len(ser) - 1) / 2) * 0.16
+                ax.errorbar(x, s["mean"], yerr=s["sem"], marker="os^D"[j], ms=5, lw=1.4, capsize=2,
+                            color=CONTEST_COL[lab], label=lab)
+                for xi, vals in zip(x, s["vals"]):
+                    ax.plot(np.full(len(vals), xi), vals, ".", color="0.55", ms=3)
+            ax.axhline(0, color="0.7", lw=0.7)
+            ax.set_xticks(range(len(eps)))
+            ax.set_xticklabels(eps)
+            ax.set_title(f"{ptitle}\n{w} window ({WIN_DESC[w]})", fontsize=10.5)
+            if c == 0:
+                ax.set_ylabel("R$^2$ gain")
+            if r == 0:
+                ax.legend(frameon=False, fontsize=9)
+        ax = axs[r][-1]
+        D["_d"] = D[f"{base}:u:exec|{w}"] - D[f"{base}:u:target|{w}"]
+        for ei, e in enumerate(eps):
+            for ai, an in enumerate(sorted(D.animal.unique())):
+                v = D[(D.epoch == e) & (D.animal == an)]["_d"].dropna().to_numpy()
+                if len(v):
+                    xo = ei + (ai - 1.5) * 0.16
+                    ax.plot(np.full(len(v), xo), v, "o", ms=3, color=acol.get(an, "0.5"), alpha=0.5, mec="none")
+                    ax.plot(xo, v.mean(), "D", ms=6, color=acol.get(an, "0.5"), mec="k", mew=0.6,
+                            label=an if (r == 0 and ei == 0) else None)
+        ax.axhline(0, color="0.7", lw=0.7)
+        ax.set_xticks(range(len(eps)))
+        ax.set_xticklabels(eps)
+        ax.set_title(f"unique executed - unique target (> 0 = tongue)\n{w} window, sessions", fontsize=10.5)
+        if r == 0:
+            ax.legend(frameon=False, fontsize=9)
+    n = D.groupby(["animal", "epoch"]).date.nunique().unstack("epoch").reindex(columns=eps).fillna(0).astype(int)
+    _title(fig, title, f"FAIR TARGET vs EXECUTED ({base}: base = "
+                 + ("task timing + lick timing + running, NO kinematics" if base == "nokin" else
+                    "task + lick timing + directionless kinematics (protrusion / speed, jaw opening, nose y) + running")
+                 + f"), {area}. target = the lick kernel x spout angle / angle$^2$ / distance; executed = the same licks x "
+                 "lick angle / angle$^2$ / reach. Order-free refits; unique = loss when removed from the model with both. "
+                 "Sessions per animal: " + "; ".join(f"{a} " + "/".join(str(x) for x in n.loc[a]) for a in n.index)
+                 + f" ({'/'.join(eps)}).", width=150)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    _save(fig, path)
+
+
+def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
+    """Subset run (`--order <order>_subset-nokin` etc.): the spatial contest readout only."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local.orofacial_stats import session_change_tests
+    R, meta, _ = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    Wd = region_wide(R)
+    Wd.to_csv(tabs / "region_measures.csv", index=False, float_format="%.5g")
+    bases = [b for b in ("nokin", "nodir") if any(c.startswith(f"{b}:") for c in Wd.columns)]
+    title = (f"Combined encoding model, subset {a.order} -- {a.run} -- baseline: "
+             f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
+             f"{meta.groupby('animal').label.nunique().to_dict()}")
+    print(title)
+    pd.set_option("display.width", 220)
+    print("per-animal cortex values by epoch (rule 8: animals before the pooled test):")
+    for b in bases:
+        for key in ("u:target", "u:exec", "u:target|kin", "u:exec|kin", "u:kin", "gain:target", "gain:exec",
+                    "gain:category", "u:target|kin+nose", "u:target|kin_nonose"):
+            for w in ("lick", "cue"):
+                col = f"{b}:{key}|{w}"
+                if col in Wd:
+                    t_ = Wd[Wd.pos == "cortex"].groupby(["animal", "epoch"])[col].mean().unstack("epoch")
+                    print(f"  {col}\n" + t_.reindex(columns=list(EPOCHS)).round(4).to_string())
+    metrics = [c for c in Wd.columns if c.split(":")[0] in bases]
+    ST = session_change_tests(Wd[Wd.pos.isin(FOCUS)], metrics)
+    ST.to_csv(tabs / "stats_vs_pre.csv", index=False, float_format="%.4g")
+    for b in bases:
+        for ar in ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul"):
+            fig_spatial_contest(Wd, figs / f"spatial_contest_{b}_{ar}.png", title, b, area=ar)
+    sig = ST[(ST.agree == "both") & (ST.pos == "cortex")]
+    print(f"cortex changes vs pre significant by both tests: {len(sig)}")
+    print(sig[["metric", "epoch", "mean_change", "n_animals"]].to_string(index=False))
+    print(f"figures -> {figs}\ntables -> {tabs}")
+    return 0
+
+
 def main(argv=None) -> int:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -672,6 +792,8 @@ def main(argv=None) -> int:
     writeguard.assert_writable(base)
     figs.mkdir(parents=True, exist_ok=True)
     tabs.mkdir(parents=True, exist_ok=True)
+    if "_subset-" in a.order:
+        return contest_main(a, base, figs, tabs)
     R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
     Wd = region_wide(R)
     Wd.to_csv(tabs / "region_measures.csv", index=False, float_format="%.5g")
