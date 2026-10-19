@@ -365,6 +365,17 @@ vs 100 / 99.2 / 99.2; tongue > 60 px per 10k 5.6 / 20.6 / 15.6 vs 5.1 / 17.4 / 1
 slightly more teleports and a little less coverage. Whether it fixes the "beside the emerging tongue" offset is a visual
 question: `session_poses/PS93_20260814_cam1/eval/cleaned_labels_cam1_dlc2_lp2_eps40_gap24.mp4` (same 16 trials, incl. 507).
 
+**All five cam1 candidates on PS93 (10-19, tag `_all5_1019`; ctx-semi = `heatmap_mhcrnn`, tongue eps 35).** Pre / acute /
+chronic, tongue > 60 px per 10k: DLC c1r1 30 / 39 / 36, DLC c1r2 9.5 / 4.0 / 17.4, LP 5.1 / 17.4 / 12.9, eps40 5.6 / 20.6 /
+15.6, **ctx-semi 10.8 / 18.0 / 12.5**; contacts seen ctx-semi 99.8 / 99.2 / 99.8; jaw coverage 95 / 84 / 99; jaw jumps 4.2 /
+2.3 / 3.6. The three LP variants are statistically indistinguishable on these measures; the choice between them is the
+visual one (emergence offset): `.../eval/cleaned_labels_cam1_4models_gap24.mp4` (DLC c1r2, LP, eps40, ctx-semi).
+
+**Cross-camera agreement on a second animal (10-19, PS94 0814 / 0821 / 0907, cam1 DLC c1r2, cam4-timed peaks).** cam1 lateral
+vs cam4 peak angle, Spearman, all licks: far_L 0.61, close_L 0.79, close_center 0.64, far_center 0.90, close_R 0.73, **far_R
+0.93** (PS93 DLC c1r2: close_R 0.35, far_R 0.23). The right-side disagreement is PS93-specific (its near-mouth events); with
+the tongue > 30 px out PS93 reaches 0.75-0.78 there too.
+
 ---
 
 # Part C -- Evaluation plan and status, both cameras (2026-10-18; cam1 metrics agreed by Priya 10-18; she picks the winner)
@@ -556,6 +567,15 @@ behaviour-dependent. Priya's choice (10-18): apparatus. Labelled frames cannot t
 cameras; the fit needs 5): June cam1 0606 clips (4 animals, 4 trials / position) are cut and queued for DLC c1r2; cam4 June from
 the O2 LP r4 output; the June variants (raw / x0.885 about origin, principal point, cam4 mouth) are then compared by
 reprojection error and fit residual.
+
+**June 3-D test (10-19, `apparatus_mouth clips` on the four 0606 sessions, cam1 DLC c1r2 + cam4 from the O2 LP r4 output;
+`session_poses/apparatus_mouth_clips_june_1019.csv`).** Raw June cam4: triangulated spout distances 0.90-0.96 of commanded
+(fit scale 0.950-0.957), residual 0.07-0.12 mm (Aug: 0.98-0.99, 0.03-0.05 mm). Scaling June cam4 by 0.885 brings the scale to
+1.01-1.03 and the residual to 0.05-0.07 mm whichever centre is used -- BUT v36's centre (the image ORIGIN) moves the cam1 mouth
+~20 px sideways relative to the nose (mouth - nose x -17 .. -18 vs +2 .. +15 raw and +8 / +11 in August), impossible for a
+head-fixed mouse. Scaling about the cam4 PRINCIPAL POINT or the cam4 MOUTH keeps the cam1 mouth where it is (+3 / +2 px).
+**For 3-D: scale June cam4 about the principal point (or the cam4 mouth -- indistinguishable here), not the image origin.**
+v36's origin-centred scaling stays right for 2-D px measures. Reprojection error June 9-10 px in every variant (Aug 8).
 
 ## D6. DECISION (Priya 10-18): the cam1 mouth = the L / R spout-line intersection, no offset
 
