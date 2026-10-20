@@ -87,6 +87,29 @@ curated: PS92 0602-0605 / 0805, PS93 0605 / 0805, PS94 and PS95 0601-0605 / 0805
 on all 57 available sessions (7 non-curated) -- its later steps use the curated default; non-curated frame files on disk are
 simply ignored downstream.
 
+## 4a. 10-20 afternoon: both branches DONE (A 12:02, B 12:17), template time + jaw anchor everywhere
+
+* **Branch A check** (no pre-re-run v36 copy survives -- compared with v35 `prepost_latepre`, which differs only in June):
+  107 sessions, every animal x epoch cell identical except PS92 chronic (0908, the late-drop session: latency 223 -> 189
+  ms, contact 0.858 -> 0.894) and ITI lick rate +-0.04 Hz (249.81 fps time base). Encoding window told via Priya.
+* **Per-animal acute far-contra protrusion** (to-do 3, v36 `position_metrics`, August pre): -12 / -27 / -30 / -65 px
+  (PS92-95), but far ipsi also -9 to -19 in all four; contra-minus-ipsi -4 / -8 / -16 / -46. PS95 = ONE acute session (96
+  licks); PS94's first two acute days have 24 / 63 licks. Don't quote "-30 to -48 px"; contact loss (-0.37 to -0.83) holds.
+* **Jaw anchor coverage** (6 sessions, cue + 70 ms on): centre spouts 0.84 -> 1.00 (anchored 13-16 % of frames); side
+  spouts already ~1.00. FAR_DIR cam4 vs 3-D r = 0.96 over 45 sessions.
+* **Jaw per epoch** (median of sessions, mm, + = ipsi / toward target): FAR_DIR PS92 0.27 -> 0.01 -> 0.12 (pre / acute /
+  chronic), PS93 0.22 -> -0.01 -> 0.04. **CLOSE_DIR PS92 -0.13 -> -0.22 -> -0.25, PS93 -0.03 -> -0.14 -> -0.20 (same
+  direction in both)**; CLOSE_BIAS PS92 -0.28 -> +0.02 -> -0.37 but PS93 +0.56 -> +0.27 -> +0.29 (opposite signs -- not a
+  shared effect). Video sheet `pose3d/close_dir_sheet/` (`scripts/pose3d_close_dir_sheet.py`): the jaw opens beside the
+  rod, away from it; cam4 often loses the chin at close_R peak opening. (A 3-session reading of the sheet suggested
+  "bias, not dir" -- the cohort medians contradict it.)
+* **PS93 cam1 production now covers acute / chronic** (cam1_licks: 23 PS93 sessions). Incomplete share far_R PS93 0.39
+  pre -> 0.73 acute -> 0.33 chronic (PS92 0.17 -> 0.86 -> 0.35: replicates). PS93 far_L incomplete ~0.6 in EVERY epoch and
+  at-the-lips events sit on the LEFT spouts in PS93 (right in PS92) -- check side conventions / PS93 geometry before use.
+  Jaw-without-lick acute 0.14-0.32 in both, ~0 chronic; cam1 correction small.
+* `apparatus_mouth.py` now per-session PnP (reprojection 0.3-0.7 px); cam1 cleaning origin = PnP mouth + constant 30-32 px
+  (rod edge). Phase speed figures renamed `v_speed_norm_*` / `v_speed_peak_*` (old `speed_*` PNGs remain on M:).
+
 ## 4. Results (PS92 = June + August pre, acute .. chronic d+50; PS93 = June / August pre production + 3 clip sessions)
 
 * **2-D vs 3-D**: target spout from the lick endpoint (LOSO, August pre), 6 positions: PS92 0.53 cam4 vs 0.80 3-D, PS93
