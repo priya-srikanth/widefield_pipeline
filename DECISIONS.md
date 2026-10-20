@@ -20829,3 +20829,15 @@ executed counterpart. Two additions:
    variants; region table + slope maps + tercile curves per epoch.
 **Run.** (2) cam4 cohort on the box now (curated, from 08-06; v36 per-session licks are final). (1) after PS92_0908 /
 polar: PS92 pilot with `COMBINED_ENCODING_EXEC=polar` + `BINS=1`, then the cohort 3-D contest when cam1 production lands.
+**Within-spout result, cam4 (10-20, 107 curated sessions from 08-06; `qc/within_spout_deviation/`).** The across-spout
+lateral tuning is CROSSED (left - right hemisphere), strongest in SSp-m: pre -8.4 .. -9.1 (x1e-3 dF per 10 deg executed
+lateral) in 4/4 animals. Within a fixed spout, the same crossed slope is small but real pre-stroke: SSp-m -0.34 / -1.41 /
+-0.88 / -0.54 (PS92-95; 30 pre sessions t = -3.6), i.e. within / between 0.04-0.16; MOs ~0 (t = -1.3). Subacute the
+within-spout crossed slope grows in 4/4 (SSp-m -1.9 / -3.8 / -1.4 / -3.0; ratio .11 / .18 / .14 / .25); chronic PS92
+.34, PS93 / PS94 .12-.13, PS95 back to 0. The bilateral (L + R) within component is noisy and sign-unstable (vigour /
+global, not direction) -- read only the crossed part. First-lick-only variant: same direction, weaker (one noisy lick).
+Reading: pre-stroke the crossed sensorimotor signal is mostly spout-specific (target or anything else fixed per spout),
+with a small executed component; post-stroke the executed share rises (consistent with the cam4 unique-executed rise).
+Caveat: cam4 angle noise dilutes the within slope (within-spout lateral SD only ~4.5 deg vs 13 deg between spouts), so
+the ratios are lower bounds; next: estimate the dilution from within-trial split-half lick-angle reliability, and the
+3-D version when the cohort 3-D tables land.

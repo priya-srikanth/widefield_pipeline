@@ -155,6 +155,19 @@ def report(D: pd.DataFrame) -> None:
                 t = A.groupby(["animal", "area", "epoch"])[c].mean().unstack("epoch")
                 print(f"\n  [{var} deviation] {ar}: {c} (dF per 10 deg executed lateral; rule 8: animals first)\n"
                       + t.reindex(columns=list(EPOCHS)).round(5).to_string())
+            # CROSSED part (left - right hemisphere): the across-spout lateral tuning is lateralised, a global /
+            # bilateral shift is not executed direction; this is the comparison that matters
+            if {f"{ar}_left", f"{ar}_right"} <= set(A.area):
+                W = A.pivot_table(index=["label", "animal", "epoch"], columns="area", values=["b10_within", "b10_between"])
+                X = pd.DataFrame({k: W[k][f"{ar}_left"] - W[k][f"{ar}_right"] for k in ("b10_within", "b10_between")})
+                g = X.groupby(["animal", "epoch"]).mean()
+                print(f"  [{var}] {ar} LEFT - RIGHT (crossed): within, between, within / between\n"
+                      + pd.concat({"within": g.b10_within.unstack(), "between": g.b10_between.unstack(),
+                                   "ratio": (g.b10_within / g.b10_between).unstack()}, axis=1)
+                      .reindex(columns=list(EPOCHS), level=1).round(5).to_string())
+                pre = X.xs("pre", level="epoch").b10_within
+                print(f"  pre sessions: crossed within mean {pre.mean():.5f}, t = "
+                      f"{pre.mean() / (pre.std() / np.sqrt(len(pre))):.2f}, n = {len(pre)}")
             # ratio of animal means (a ratio of noisy per-session values is unstable)
             m = A.groupby(["animal", "area", "epoch"])[["b_within", "b_between"]].mean()
             r = (m.b_within / m.b_between).unstack("epoch").reindex(columns=list(EPOCHS))
@@ -169,7 +182,7 @@ def figures(out: Path, D: pd.DataFrame, Tt: pd.DataFrame, maps: dict) -> None:
     figs = out / "figures"
     figs.mkdir(exist_ok=True)
     # 1) tercile curves: within-spout response deviation vs lateral deviation, per epoch, cohort (animal means)
-    areas = [a for a in ("cortex", "MOs_L", "MOs_R", "SSp-m_L", "SSp-m_R") if a in set(Tt.area)]
+    areas = [a for a in ("cortex", "MOs_left", "MOs_right", "SSp-m_left", "SSp-m_right") if a in set(Tt.area)]
     fig, ax = plt.subplots(len(areas), 2, figsize=(8, 2.4 * len(areas)), squeeze=False, sharex="col")
     col = dict(zip(EPOCHS, ("0.2", "#d7301f", "#fc8d59", "#4575b4")))
     for i, ar in enumerate(areas):

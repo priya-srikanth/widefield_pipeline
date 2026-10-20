@@ -89,6 +89,11 @@ Template analysis of acute far-contra misses (`cohort/tables/misdirected_licks/`
 reach, lick number or the previous lick; first attempts matched on lick number and reach ~0, same as pre-stroke misses.
 No per-lick plan signature. "Target" here = spout location / touch / posture / context; it does not isolate intention.
 
+- **Within-spout deviation check, cam4 (PROVISIONAL, 10-20).** With the spout fixed, the crossed (left - right) SSp-m
+  response follows the trial's executed lateral deviation weakly pre-stroke (within / between 0.04-0.16, 4/4 same sign,
+  t = -3.6 over 30 sessions; MOs ~0) and more after (subacute 0.11-0.25 in 4/4; chronic PS92 .34, PS93 / PS94 ~.12,
+  PS95 0). Lower bounds (cam4 angle noise). `qc/within_spout_deviation/`, DECISIONS 2026-10-20.
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92 chronic pending the 0908 rerun)
