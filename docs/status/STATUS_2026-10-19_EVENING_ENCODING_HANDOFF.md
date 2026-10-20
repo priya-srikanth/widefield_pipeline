@@ -94,6 +94,9 @@ Stop commands (Priya, PowerShell; Claude cannot stop processes): nokin runs = py
 - **O2 fair-share** is ~0.07 after today (470 encoding tasks + cam1 GPU training): new arrays sit in `(None)` /
   `(Priority)`. Request what is used (`--time=1:00:00 --mem=24G` for encoding), use `-p short` (O2 REJECTS `medium` for jobs < 12 h: "Invalid partition name"), use the box for
   small runs. `sshare -U -l`, `sprio -u ps150`, `squeue -u ps150 --start`.
+- **O2 memory per TAG**: nokin / matched / trmodels 24 GB; shufpos 32 GB; **droppos 64 GB** (10-20: 44 / 119 tasks
+  OUT_OF_MEMORY at 32 GB -- the larger sessions; resubmitted as array 56976651). Resubmit failures with
+  `IDS=$(sacct -j <job> -X -n -o JobID%20,State | awk '$2 !~ /COMPLETED|RUNNING|PENDING/ {split($1,a,"_"); print a[2]}' | paste -sd, -)`.
 - **Box RAM**: a combined_encoding worker peaks ~20 GB private while fitting (not the ~4 GB seen most of the time); 4 + 4 + 2
   workers exhausted 64 GB + page file on 10-19. Keep <= ~8 encoding workers on the box in total; check `\Memory\Pages/sec`.
 - **Overlapping arrays write a session twice** (a session in two concurrent submits) -> trailing junk in the JSON;
