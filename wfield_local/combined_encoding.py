@@ -97,7 +97,11 @@ EXEC3D_TABLE_ENV = "COMBINED_ENCODING_EXEC3D_TABLE"
 #: (session median per position, from the pose3d frames; table via TARGET3D_TABLE_ENV). Needed because 3dxyz pits a
 #: LINEAR 3-D executed set against target angle / angle^2 / distance: with six positions both are 3-D subspaces of the
 #: 5-D between-position space, so a win can come from the coordinate system alone, not from tracking the tongue.
-EXEC_MODES = ("cam4m", "3d", "3dxyz", "xyz2")
+#: polar = COORDINATE-MATCHED in angles (Priya 10-20: "a 3d version that has 3d angle and reach"): executed AND target
+#: each = [lateral angle out of the sagittal plane, its square, forward tilt within the sagittal plane, 3-D distance from
+#: the mouth zero], the tongue peak vs the spout (same 3-D frame; the spout table's dv is + up, the tongue's down_dv
+#: + down). 3dxyz is RETIRED (coordinate mismatch: linear 3-D executed vs angular target); kept for the record only.
+EXEC_MODES = ("cam4m", "3d", "3dxyz", "xyz2", "polar")
 TARGET3D_TABLE_ENV = "COMBINED_ENCODING_TARGET3D_TABLE"
 #: LICK EVENT SET for the lick TIMING kernel (Priya 10-20: "use combined cam1/4 lick events and consider +- lips-only
 #: kernel"). cam4 misses small licks (cam1 adds 3-7 % real ones; incomplete licks rise post-stroke, PS92 far_R share
@@ -360,6 +364,9 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
         ang, reach, exec_amps = _exec_3d(L, ang, reach, mode, f"{animal}_{date}")
         if mode == "xyz2":
             target_amps = _target_3d(L, f"{animal}_{date}")
+        elif mode == "polar":
+            sml, sap, sdv = _target_3d(L, f"{animal}_{date}")
+            target_amps = _polar(sml, sap, -sdv)                # spout dv is + up -> down = -dv
     extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
     return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
                      tdist, reach, exec_amps, target_amps, extra, lips)
@@ -382,6 +389,16 @@ def _cam1_lick_events(rv, animal: str, date: str, cue_t: pd.DataFrame, mode: str
     if mode == "combined":
         return np.sort(t[np.isfinite(t)]), None
     return np.sort(t[np.isfinite(t) & ~is_lips]), np.sort(t[np.isfinite(t) & is_lips])
+
+
+def _polar(ml, ap, down) -> list:
+    """[lateral angle, its square, forward tilt, 3-D distance] from mouth-zero-relative ml / ap / down (mm). Lateral =
+    out of the sagittal plane atan2(ml, hypot(ap, down)); tilt = forward of straight down atan2(ap, down); both stable
+    because licks run mostly down (unlike atan2(ml, ap), which wraps). Lateral is centred before squaring."""
+    ml, ap, down = (np.asarray(x, float) for x in (ml, ap, down))
+    lat = np.degrees(np.arctan2(ml, np.hypot(ap, down)))
+    lat_c = lat - np.nanmean(lat)
+    return [lat_c, lat_c ** 2, np.degrees(np.arctan2(ap, down)), np.sqrt(ml ** 2 + ap ** 2 + down ** 2)]
 
 
 def _target_3d(L: pd.DataFrame, session: str) -> list:
@@ -417,6 +434,8 @@ def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, ses
         return ang, reach, None
     if mode in ("3dxyz", "xyz2"):
         return ang, reach, [np.where(ok, x, np.nan) for x in (ml, ap, dv)]
+    if mode == "polar":                                  # kinematics table: down_dv is + down
+        return ang, reach, [np.where(ok, x, np.nan) for x in _polar(ml, ap, dv)]
     if mode == "3d":
         # angle out of the midline plane = pose3d `midline` (r = 1.0000). NOT atan2(ml, ap): licks run mostly DOWN, ap ~ 0,
         # so the horizontal angle wraps (SD 77 deg on PS92 0807 vs 12 deg for this one)
