@@ -53,6 +53,17 @@ def outcomes(D: pd.DataFrame) -> pd.DataFrame:
     return L.dropna(subset=["y"])
 
 
+def outcomes_dirmid(DM: pd.DataFrame) -> pd.DataFrame:
+    """Same long table from dirmid.csv: kind 'dir' (toward the mouse's left) / 'mid' (toward the midline)."""
+    rows = []
+    for kind in ("dir", "mid"):
+        D = DM.assign(variant="mean", spouts="all", **{f"b_{k}": DM[f"b_{kind}"] for k in ("within", "between")})
+        L = outcomes(D)
+        L = L[L.kind == "within"].assign(kind=kind)
+        rows.append(L)
+    return pd.concat(rows, ignore_index=True)
+
+
 def fit_one(G: pd.DataFrame, formula: str) -> tuple[pd.DataFrame, str, dict]:
     import statsmodels.formula.api as smf
     for re in ("~post", "~1"):
@@ -103,7 +114,7 @@ def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from wfield_local import epochs
-    for kind in ("within_mean", "between_mean"):
+    for kind in ("within_mean", "between_mean", "dir_mean", "mid_mean"):
         Y, meta, flat, sh = [], [], None, None
         for lab in labels:
             f = folder / "sessions" / f"{lab}.npz"
@@ -165,10 +176,12 @@ def main(argv=None) -> int:
     folder = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / a.folder
     D = pd.read_csv(folder / "within_spout_deviation.csv")
     L = outcomes(D)
+    if (folder / "dirmid.csv").exists():                     # direction / toward-midline coefficients
+        L = pd.concat([L, outcomes_dirmid(pd.read_csv(folder / "dirmid.csv"))], ignore_index=True)
     T = area_table(L)
     T.to_csv(folder / "mixed_model.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)
-    for kind in ("within", "between"):
+    for kind in [k for k in ("within", "between", "dir", "mid") if k in set(T.kind)]:
         print(f"\n=== {kind}-spout slope (x1e-3 dF / 10 deg executed lateral), time model; q = FDR over measures")
         S = T[(T.kind == kind) & (T.model == "time") & T.measure.str.startswith(FOCUS)]
         print(S.pivot_table(index="measure", columns="term", values=["coef", "z", "q"]).round(3).to_string())
