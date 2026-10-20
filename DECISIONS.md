@@ -20685,3 +20685,21 @@ O2 TAG shufpos (fixed minimal swap), 117/119 (PS92_0915 / 0918 scheduler-cancell
   others fall in 2-3/4 and less. In whole cortex the acute change is animal-wide rather than spout-specific (PS93 loses
   every spout, PS94 GAINS every spout 15->22..36). Read as a per-region, per-spout cell among many (6 spouts x areas, n=4):
   suggestive, matches the behavioural far-contra deficit; not yet tested against the other spouts formally.
+
+## 2026-10-19 (night) — chronic position-coding gain: NOT a practice trend; it FOLLOWS behavioural recovery
+
+`scripts/position_coding_trend_recovery.py` -> `imaging_encoding/qc/position_coding_*`. Cortex, lick window: ceiling
+(nokin:category - none), spread (RMS over spouts of the signed respdev, cue 0.5-1.5 s); behaviour = contact rate of
+licks at far contra (far_R, engaged, 0-3.5 s).
+**Test 1 (practice trend).** The August-only pre spans 8 days: its slope extrapolated to day ~30 is meaningless
+(prediction intervals 0.06-0.4) -> uninformative. With June added (6/6-6/8, 69-day pre span; June used ONLY to lengthen
+the time axis) the pre-stroke slope is ~0 in every animal (ceiling -0.0007..+0.0004 / day; spread ~0): two months of
+pre-stroke training did not raise position coding. Chronic exceeds that trend: ceiling in PS92 / PS93 / PS95 (+.047 /
++.080 / +.058, beyond the 95 % interval), not PS94 (+.0003); spread in PS92 / PS93. Within chronic the ceiling still
+creeps up (+0.0007..0.0015 / day, all four; spread flat).
+**Test 4 (lead / lag), day of 50 % of the acute -> chronic change (2-session running mean):** far-contra contact recovers
+FIRST -- PS92 day 9 vs neural 15, PS93 7 vs 15, PS95 3 vs 4 (PS95's neural course is noisy: dip days 7-9, peak 29-39);
+PS94: contact partly recovers (0 -> ~.57) with NO cortical gain (spread unchanged; ceiling barely). So the cortical gain
+lags behaviour by ~1 week where it occurs and is absent where recovery is weakest; partial recovery happened without it.
+**Reading.** Stroke-related, not practice; but more consistent with cortex consolidating / reflecting a recovered
+behaviour than with cortex driving the recovery. Resolution: sessions every 2-4 days (PS92 has 2 subacute sessions).
