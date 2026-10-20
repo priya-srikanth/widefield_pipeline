@@ -230,7 +230,9 @@ def from_medians_lr(med: dict) -> SpoutFrame:
     Apparatus-only -- no body part enters, so a post-stroke change in the tongue cannot move it. cam1 sees the centre
     line end-on (close->far 3.4 px), so only the two side lines are used. Validated against the 3-D apparatus mouth
     (`spout_world.apparatus_mouth`: the gui_config mouth set point projected into cam1) to within 5-8 px on PS93 0814 /
-    0821. It sits ~15-20 px toward the jaw from where the tongue appears (cam1 labels the spout tip's bottom edge): a
+    0821 -- with the 09-11 extrinsics + similarity fit, which absorbs the rod-edge offset. Against the per-session PnP
+    pose (`pose3d.pnp_group`, the commanded TIP; 10-20) it is 2 px sideways and a CONSTANT 30-32 px below (0814 / 0821):
+    one rod diameter, cam1 labelling the rod's inferior edge. It sits ~15-20 px toward the jaw from where the tongue appears (cam1 labels the spout tip's bottom edge): a
     constant offset relative to the apparatus, kept on purpose (no shift). Adaptive (shorter far_L) trials stay in: the
     stage moves along the same ray from the mouth, so they lie on the same line. `tongue_path_origin` remains a QC
     comparison only (it depends on the tongue)."""
