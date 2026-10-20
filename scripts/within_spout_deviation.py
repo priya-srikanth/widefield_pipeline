@@ -379,6 +379,60 @@ def figures_stats(out: Path, maps: dict, q: float = 0.05) -> None:
     pd.DataFrame(rows).to_csv(out / "map_significance.csv", index=False, float_format="%.4g")
 
 
+def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
+    """Cohort maps (mean over animals of animal epoch means) with the REPO's map tests (beta_maps; Priya 10-20: "for our
+    maps we used cluster based permutation right?"): pre panel = `vs_zero_contour` (where the map is there at all),
+    post panels = `significance_contour` vs pre (animal = unit; 'nested' animals -> sessions bootstrap on the 8x grid,
+    Bonferroni over bins = the repo default; 'cluster' = within-animal relabelling cluster mass, the second line).
+    Replaces the per-pixel FDR as the reading of these maps."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local import beta_maps as bm
+    figs = out / "figures"
+    figs.mkdir(exist_ok=True)
+    sh = bm.MAP_SHAPE
+    rows = []
+    for kind in ("within_mean", "between_mean"):
+        by = {}                                                    # epoch -> animal -> [full-grid maps]
+        for lab, v in maps.items():
+            if kind in v["maps"] and tuple(v["shape"]) == sh:
+                img = np.full(sh[0] * sh[1], np.nan, np.float32)
+                img[v["flat"]] = v["maps"][kind] * 10 * 1e3          # x1e-3 dF per 10 deg
+                by.setdefault(v["epoch"], {}).setdefault(lab[:4], []).append(np.nan_to_num(img.reshape(sh)))
+        eps = [e for e in EPOCHS if e in by]
+        fig, ax = plt.subplots(1, len(eps), figsize=(3.2 * len(eps), 3.4), squeeze=False)
+        means = {e: np.mean([np.mean(x, 0) for x in by[e].values()], 0) for e in eps}
+        lim = np.nanpercentile(np.abs(np.concatenate([m.ravel() for m in means.values()])), 98) or 1e-6
+        mask = bm.brain_mask()
+        for j, ep in enumerate(eps):
+            try:
+                if ep == "pre":
+                    sig, lab_ = bm.vs_zero_contour(by["pre"], method=method)
+                else:
+                    common = sorted(set(by["pre"]) & set(by[ep]))
+                    sig, lab_ = bm.significance_contour({a: by["pre"][a] for a in common},
+                                                        {a: by[ep][a] for a in common}, method=method)
+            except Exception as e:                                 # noqa: BLE001 -- report, draw no contour
+                sig, lab_ = None, f"test failed: {e}"
+            img = np.where(mask, means[ep], np.nan) if mask is not None else means[ep]
+            ax[0, j].imshow(img, cmap="RdBu_r", vmin=-lim, vmax=lim)
+            if sig is not None and np.any(sig):
+                ax[0, j].contour(np.asarray(sig, float), levels=[0.5], colors="k", linewidths=0.7)
+            frac = float(np.mean(np.asarray(sig, bool)[mask])) if sig is not None and mask is not None else 0.0
+            ax[0, j].set_title(f"{ep} (animals {len(by[ep])})\n{'vs 0' if ep == 'pre' else 'vs pre'}: "
+                               f"{100 * frac:.0f} % of brain", fontsize=7)
+            ax[0, j].axis("off")
+            rows.append({"kind": kind, "method": method, "epoch": ep, "frac_sig": frac, "label": lab_})
+        fig.suptitle(f"{kind.split('_')[0]}-spout lateral slope (x1e-3 dF / 10 deg; red = more activity for licks toward "
+                     f"the mouse's LEFT / ipsilesional; ipsi hemisphere = image left); |lim| {lim:.2g}; "
+                     f"outline: beta_maps '{method}' (animal = unit)", fontsize=7)
+        fig.tight_layout()
+        fig.savefig(figs / f"within_spout_maps_{method}_{kind.split('_')[0]}.png", dpi=150)
+        plt.close(fig)
+    pd.DataFrame(rows).to_csv(out / f"map_significance_{method}.csv", index=False)
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
@@ -440,7 +494,9 @@ def main(argv=None) -> int:
                    "maps": dict(zip(z["keys"], z["maps"]))}
     report(D)
     figures(out, D[D.spouts == "all"] if "spouts" in D else D, Tt, maps)
-    figures_stats(out, maps)
+    figures_stats(out, maps)                                   # per-animal, per-pixel FDR (supplementary)
+    for method in ("nested", "cluster"):                       # the repo's map tests (primary reading)
+        figures_repo_sig(out, maps, method)
     print(f"\n-> {out}")
     return 0
 

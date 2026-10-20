@@ -20896,3 +20896,19 @@ global offsets contribute); PS93 little (0-13 %). WITHIN maps: nothing survives 
 cortex, negative, 100 %) and PS94 chronic (positive, 84 %). The pooled crossed within effect (SSp-m L - R, t = -6.5
 over 31 pre sessions) is too small for per-animal pixelwise FDR (7-8 sessions); n = 2 (PS92 subacute) and n = 1 (PS95
 acute) panels are weak tests.
+**Mixed model + the repo's map tests (10-20, Priya: "let's try a mixed model - allowing time post stroke"; "for our maps
+we used cluster based permutation right?").** `scripts/within_spout_mixed.py` (lick-aligned session table): y ~ post +
+post:log(day), random intercept + random post per animal (falls back to intercept-only if not converged), plus an
+epoch-category version; `qc/within_spout_deviation_lick/mixed_model.csv`, `figures/mixed_time_maps_*.png`.
+WITHIN-spout (x1e-3 dF / 10 deg): the PRE level of the crossed component is significant with animal as a random effect
+-- SSp-m -1.68 (z -2.9, q .03), MOp -0.80 (z -3.7, q .003), MOs -0.30 (z -2.8, q .04). No post-stroke term survives
+FDR: bilateral step at day 1 ~ -1.3 .. -1.6 (z ~ -1.4) with recovery +0.65 .. +0.82 per e-fold of days (z 2.2-2.4,
+q .08-.11) -- the acute-negative -> later-positive course, carried mainly by PS94; crossed SSp-m more negative
+subacute / chronic in the epoch model (z -2.5 / -2.2, uncorrected). BETWEEN-spout: crossed pre level huge (SSp-m
+-10.4, z -17; MOp z -10; MOs z -8.6); SSp-m crossed step at day 1 -7.3 (z -2.5, q .16) decaying +0.67 per e-fold.
+Repo map tests (beta_maps; the primary is the NESTED animals -> sessions bootstrap on the 8x grid with Bonferroni, not
+cluster permutation -- cluster is its documented second line): between pre vs 0 = 28 % of brain (interior, crossed
+spots); NO post-vs-pre change survives in either map under nested or cluster; within pre vs 0 = 35 bins but suppressed
+by the edge-enrichment rule (2.2x). The per-pixel FDR figures are supplementary only. Reading: with animal as the unit,
+the crossed spout map and a small crossed executed component are established pre-stroke; post-stroke changes are
+animal-specific and do not reach significance at n = 4.
