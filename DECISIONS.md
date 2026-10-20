@@ -20743,3 +20743,18 @@ until the 3-D contest runs on all four animals (needs the cam1 O2 production, ar
 post-stroke executed rise (cam4 and 3-D), the chronic position-coding gain (lick-matched, beyond the pre trend, lags
 behaviour). One animal; 3-D spout positions are per-session medians (pose3d frames), tongue peaks from the pose3d
 kinematics table (cam4 lick events).
+
+## 2026-10-20 — per-spout hemispheric laterality: CLOSE spouts crossed, FAR spouts UNcrossed (Priya: "are you sure about position ordering?")
+
+Checked, not a labelling error: `*_L` = mouse's left (spout_world / spout_frame; 3-D far_R ml +2.45 = mouse right);
+pos_key (lesion L) makes L = ipsi, R = contra; map rows are keyed by name; the atlas `_left` = animal's left was verified
+in 2026-09 (right-side spouts drive `_left` areas harder, six area pairs); and the RIG naming is consistent across rings
+(cam4: close_L and far_L both at +38..41 deg, close_R / far_R at -37..-41 deg, far = 2x the distance, all four animals).
+Drop-p, PRE, SSp-m, left - right hemisphere per animal (x1000): far contra RIGHT-biased 4/4 in the lick window (-5.7 /
+-5.6 / -2.5 / -12.3), far ipsi LEFT-biased 4/4 (+10.0 / +2.1 / +7.6 / +12.6); close contra left-biased (pre-cue 3/4,
+up to +47.9), close ipsi right-biased (pre-cue 4/4, up to -42.5). So the close spouts follow the crossed (sensory)
+expectation; the far lateral spouts are coded more in the hemisphere on the SAME side. Drop-p is unsigned (a region can
+be spout-distinct by responding LESS). Candidate readings, untested: close spouts are within whisker / face touch range
+(crossed somatosensation); far lateral licks need large lateral tongue protrusion (unilateral genioglossus pushes the
+tongue to the OPPOSITE side, and its cortical drive is largely crossed -> a rightward lick is driven from the RIGHT
+cortex) or a head / body turn. Check with the signed per-spout maps (sign of the far-spout deviation per hemisphere).

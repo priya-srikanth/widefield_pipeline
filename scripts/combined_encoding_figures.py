@@ -471,19 +471,25 @@ def fig_position_share_maps(meta, sess, path: Path, title: str, outline, window:
         return
     eps = [e for e in EPOCHS if e in C]
     fig, axs = plt.subplots(len(POS6), len(eps), figsize=(2.6 * len(eps) + 3.5, 2.0 * len(POS6) + 1.8), squeeze=False)
-    for j, e in enumerate(eps):
+    shares = {}
+    for e in eps:
         S = np.stack([np.clip(C[e][k], 0, None) for k in keys])
         tot = S.sum(0)
         ok = tot > np.nanpercentile(tot, 50)
+        shares[e] = np.where(ok, S / np.where(tot > 0, tot, np.nan), np.nan) - 1 / 6
+    # colour limit from the data (drop-p shares are far more selective than one-vs-rest's ~+-0.06)
+    lim = float(np.nanpercentile(np.abs(np.concatenate([s.ravel() for s in shares.values()])), 98))
+    lim = max(0.02, round(lim, 2))
+    for j, e in enumerate(eps):
         for i, p in enumerate(POS6):
-            sh = np.where(ok, S[i] / np.where(tot > 0, tot, np.nan), np.nan)
-            im = _map_ax(axs[i][j], sh - 1 / 6, -0.08, 0.08, "RdBu_r", outline,
+            im = _map_ax(axs[i][j], shares[e][i], -lim, lim, "RdBu_r", outline,
                          f"{e} ({sum(C[e]['_n'].values())} s)" if i == 0 else "")
             if j == 0:
                 axs[i][0].text(-0.08, 0.5, p.replace("_", " "), transform=axs[i][0].transAxes, rotation=90,
                                va="center", ha="right", fontsize=10.5)
     fig.colorbar(im, ax=axs.ravel().tolist(), shrink=0.5, pad=0.01, label="share - 1/6")
-    _title(fig, title, f"Per-spout SHARE of the position signal, {window} window ({WIN_DESC[window]}): one-vs-rest "
+    meas = "drop-p" if kind == "droppos" else "one-vs-rest"
+    _title(fig, title, f"Per-spout SHARE of the position signal, {window} window ({WIN_DESC[window]}): {meas} "
                  "dR2 of that spout / sum over the six spouts, minus 1/6 (0 = no selectivity); pixels with the top 50 % "
                  "of summed position signal only."
                  + (" CAVEAT: the one-vs-rest relabelling also mislabels donor trials of other spouts, which pulls "
