@@ -20758,3 +20758,12 @@ be spout-distinct by responding LESS). Candidate readings, untested: close spout
 (crossed somatosensation); far lateral licks need large lateral tongue protrusion (unilateral genioglossus pushes the
 tongue to the OPPOSITE side, and its cortical drive is largely crossed -> a rightward lick is driven from the RIGHT
 cortex) or a head / body turn. Check with the signed per-spout maps (sign of the far-spout deviation per hemisphere).
+**Reconciled with the activity maps (same day).** In the DATA (model PETH parts, pre, cue 0.5-1.5 s, SSp-m left - right)
+every lateral spout is CROSSED, 4/4 animals: far contra +15.6 / +10.8 / +13.6 / +13.2, far ipsi -9.1 / -1.1 / -13.2 /
+-12.7 (x1000), as in the activity maps. The split: for FAR spouts the crossed part is in the INSTRUCTED (licks + tongue /
+jaw) component (+14.7 / +7.0 / +15.5 / +9.2) and the position-only part is ~0 (-0.4..+2.7); for CLOSE spouts about half
+is position beyond movement (pos +7.0 / +5.4 / +10.3 / +8.1 vs instructed +7.3 / +4.5 / +9.3 / +2.6). So the far-spout
+lateralisation is SHARED with tongue / jaw direction, and the movement-first model credits it to movement; drop-p then
+sees only a small uncrossed residual. That residual should not be read as biology yet. Close spouts keep a crossed
+signal beyond kinematics (touch / whisker range). Order matters: movement-first gives shared variance to movement, so
+"explained by movement" here means "not separable from the lick direction", not "caused by it".
