@@ -206,14 +206,17 @@ def _grid_from(npz: Path, keys: list[str]) -> dict:
     out = {}
     for key in keys:
         name, w = key.split("|")
+        if name.startswith(("resp:", "respdev:")):        # signal maps (model prediction): no R2 normaliser needed
+            g = np.full(H * Wd_, np.nan)
+            g[flat] = M[idx[key]]
+            out[key] = g.reshape(H, Wd_)
+            continue
         tot = M[idx[f"TOTAL|{w}"]]
         ok = tot > 0
 
         den = np.where(ok, tot, 1.0)
         full_r2 = np.where(ok, 1 - M[idx[f"full|{w}"]] / den, np.nan)
-        if name.startswith(("resp:", "respdev:")):        # signal maps (model prediction), not SSE
-            v = M[idx[key]]
-        elif name.startswith("dR2drop:"):
+        if name.startswith("dR2drop:"):
             v = full_r2 - np.where(ok, 1 - M[idx[f"drop:{name[8:]}|{w}"]] / den, np.nan)
         elif name.startswith("dR2m:"):                    # full minus a NAMED model (e.g. shufpos-far_contra:position)
             v = full_r2 - np.where(ok, 1 - M[idx[f"{name[5:]}|{w}"]] / den, np.nan)
@@ -467,7 +470,7 @@ def fig_position_share_maps(meta, sess, path: Path, title: str, outline, window:
         print(f"  share maps ({window}): {kind} models missing -- skipped")
         return
     eps = [e for e in EPOCHS if e in C]
-    fig, axs = plt.subplots(len(POS6), len(eps), figsize=(2.0 * len(eps) + 1.5, 2.0 * len(POS6) + 1.4), squeeze=False)
+    fig, axs = plt.subplots(len(POS6), len(eps), figsize=(2.6 * len(eps) + 3.5, 2.0 * len(POS6) + 1.8), squeeze=False)
     for j, e in enumerate(eps):
         S = np.stack([np.clip(C[e][k], 0, None) for k in keys])
         tot = S.sum(0)
