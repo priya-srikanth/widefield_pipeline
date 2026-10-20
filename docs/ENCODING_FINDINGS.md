@@ -93,6 +93,9 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   response follows the trial's executed lateral deviation weakly pre-stroke (within / between 0.04-0.16, 4/4 same sign,
   t = -3.6 over 30 sessions; MOs ~0) and more after (subacute 0.11-0.25 in 4/4; chronic PS92 .34, PS93 / PS94 ~.12,
   PS95 0). Lower bounds (cam4 angle noise). `qc/within_spout_deviation/`, DECISIONS 2026-10-20.
+  A BILATERAL component is the larger post-stroke effect (acute: more contra-directed licks -> larger response in
+  both hemispheres), concentrated in PS94 and PS95 0817; read alongside the crossed part, cause under test
+  (contact / reward / latency, spout side).
 
 ## 3. Where and how spouts are coded
 

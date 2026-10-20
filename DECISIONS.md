@@ -20841,3 +20841,30 @@ with a small executed component; post-stroke the executed share rises (consisten
 Caveat: cam4 angle noise dilutes the within slope (within-spout lateral SD only ~4.5 deg vs 13 deg between spouts), so
 the ratios are lower bounds; next: estimate the dilution from within-trial split-half lick-angle reliability, and the
 3-D version when the cohort 3-D tables land.
+**Correction (10-20, Priya: "i would not dismiss bilateral changes").** The bilateral (both-hemisphere) within-spout
+component is NOT set aside as vigour / noise. It is the larger post-stroke effect in the tercile curves and the acute
+within map (blue across cortex): within a spout, trials whose licks went further toward the CONTRALESIONAL side (mouse's
+right) carry a larger bilateral response. Per session it is concentrated in PS94 (5 / 6 acute sessions, cortex z -2.8 ..
+-4.9) and PS95's single acute session (0817, z -4.0); PS92 / PS93 acute ~0 (|z| < 1.8) -- the cohort-mean map is two
+animals. Under test: whether it is carried by contact / reward / latency (contra-directed licks may be the ones that
+reach the spout acutely), and whether it is specific to contra spouts. Both components (crossed and bilateral) are read.
+**Bilateral component, first check (10-20; 47 pre + acute curated sessions; `qc/within_spout_deviation/
+bilateral_check_pre_acute.csv`, script scratchpad `bilateral_check.py`).** Cortex-wide within-spout slope (x1e-3 dF
+per 10 deg; + = toward the mouse's LEFT / ipsilesional), inverse-variance pooled per animal:
+(1) NOT contact / reward / latency: adding contacts in the window, rewarded and first-lick latency leaves PS94 acute
+-3.9 (z -7.2) and PS95 0817 -4.8 (z -3.9) unchanged; lick count was already a covariate. (Behaviourally, acute
+contra-directed trials DO have more contacts and licks -- 0.5-0.9 more per 10 deg in PS92 / PS94 / PS95 -- but that
+does not carry the neural slope; rewarded ~0, nearly every trial is rewarded.)
+(2) It depends on spout side, and the pooled linear slope hid a pre-stroke pattern. PRE, PS94 / PS95: contra spouts
++2.4 / +5.6 (z +2.8 / +5.8), ipsi spouts -3.5 / -5.1 (z -4.2 / -7.7) -> at both lateral spouts the response is larger
+when the tongue lands nearer the MIDLINE (an eccentricity effect that cancels in the pooled slope). PS92 / PS93 pre:
+contra -2.4 / -1.9 (z -2.8 / -2.9), ipsi ~ -1 -> larger when further contra. ACUTE, PS94 / PS95: contra spouts flip to
+-2.1 / -8.5 (z -2.4 / -2.2), ipsi stay -2.9 / -8.8, PS94 mid -5.2 (z -5.1) -> a larger bilateral response whenever the
+tongue goes further toward the CONTRALESIONAL side, at every spout (directional, not eccentricity). PS92 / PS93 acute:
+~0 overall; PS93 mid -2.8 (z -2.9).
+Reading (provisional): in PS94 / PS95 the stroke turns a pre-stroke "medial licks evoke more" pattern into "rightward
+(impaired-side) licks evoke more, bilaterally", not explained by licking vigour, contacts, reward or reaction time --
+a candidate compensatory / effort recruitment signal. PS94 / PS95 are also the animals whose behaviour recovered without
+(PS94) or ahead of (PS95) the chronic position-coding gain. Next: (a) per-animal maps of this component; (b) model the
+eccentricity explicitly (|deviation toward midline| and signed deviation together); (c) subacute / chronic course;
+(d) 3-D angles.
