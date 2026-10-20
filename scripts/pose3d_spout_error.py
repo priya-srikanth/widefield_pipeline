@@ -120,13 +120,14 @@ def fig_scatter(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    A = L[L.animal == animal]
+    A = L[L.animal == animal].copy()
+    A["lat_ipsi"] = _ipsi(A)
     pre = A[(A.epoch == "pre") & (A.date.astype(str) >= pre_from)]
     post = A[A.epoch.isin(list(EP_COL))]
     fig, axes = plt.subplots(2, len(POS), figsize=(3.0 * len(POS), 6.4), squeeze=False)
     rng = np.random.default_rng(0)
     for j, p in enumerate(POS):
-        for i, (xc, xl) in enumerate((("lat_err_mm", "lateral (mm; + = outward)"), ("ap_err_mm", "beyond spout (mm; + = away)"))):
+        for i, (xc, xl) in enumerate((("lat_ipsi", LAT_LABEL), ("ap_err_mm", "beyond spout (mm; + = away)"))):
             ax = axes[i, j]
             g = pre[pre.position == p]
             if len(g):
@@ -142,7 +143,7 @@ def fig_scatter(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None
             ax.scatter(0, 0, marker="o", s=160, facecolor="none", edgecolor="k", lw=1.5, zorder=7)
             ax.axhline(0, color="k", lw=0.4)
             ax.axvline(0, color="k", lw=0.4)
-            ax.set_xlim(-4, 3)
+            ax.set_xlim(-4, 4)
             ax.set_ylim(-4, 2)
             ax.set_aspect("equal")
             ax.set_xlabel(xl, fontsize=7)
@@ -152,6 +153,87 @@ def fig_scatter(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None
             if i == 0 and j == 0:
                 ax.legend(fontsize=6, loc="lower left")
     fig.suptitle(f"{animal}: closest approach of the tongue tip to the target spout (spout = open circle at 0, 0)", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+
+
+def _ipsi(g: pd.DataFrame) -> pd.Series:
+    """Lateral closest-approach error with ONE sign for every spout: + = toward IPSI (mouse left), drawn to the RIGHT as
+    in cam4's front view (facing the mouse). ``lat_err_mm`` is + = OUTWARD (centre: + = mouse left), which flips between
+    the L and R spouts (Priya 10-20: acute far_R looked 'flipped' -- it was 3 mm inward = toward ipsi)."""
+    return g.lat_err_mm * np.where(g.position.astype(str).str.endswith("_R"), -1.0, 1.0)
+
+
+LAT_LABEL = "lateral (mm; + = ipsi / mouse left, right as cam4)"
+
+
+def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None:
+    """Epoch version (Priya 10-20): each SESSION's median closest approach as a faded dot, the epoch mean of the session
+    medians as a large marker (pre = August); no per-lick cloud."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    A = L[L.animal == animal].copy()
+    A = A[(A.epoch != "pre") | (A.date.astype(str) >= pre_from)]
+    A["lat_ipsi"] = _ipsi(A)
+    M = A.groupby(["session", "epoch", "position"])[["lat_ipsi", "ap_err_mm", "dv_err_mm"]].median().reset_index()
+    cols = {"pre": "0.3", **EP_COL}
+    fig, axes = plt.subplots(2, len(POS), figsize=(3.0 * len(POS), 6.4), squeeze=False)
+    for j, p in enumerate(POS):
+        for i, (xc, xl) in enumerate((("lat_ipsi", LAT_LABEL), ("ap_err_mm", "beyond spout (mm; + = away)"))):
+            ax = axes[i, j]
+            for ep, c in cols.items():
+                g = M[(M.position == p) & (M.epoch == ep)]
+                if g.empty:
+                    continue
+                ax.scatter(g[xc], g.dv_err_mm, s=22, color=c, alpha=0.35, lw=0)
+                ax.scatter(g[xc].mean(), g.dv_err_mm.mean(), s=110, color=c, edgecolor="k", zorder=6,
+                           label=f"{ep} (n={len(g)})")
+            ax.scatter(0, 0, marker="o", s=160, facecolor="none", edgecolor="k", lw=1.5, zorder=7)
+            ax.axhline(0, color="k", lw=0.4)
+            ax.axvline(0, color="k", lw=0.4)
+            ax.set_xlim(-4, 4)
+            ax.set_ylim(-2.5, 1.5)
+            ax.set_aspect("equal")
+            ax.set_xlabel(xl, fontsize=7)
+            ax.set_ylabel("dv (mm; + = above)", fontsize=7)
+            ax.tick_params(labelsize=6)
+            ax.set_title(f"{p} -- {'front' if i == 0 else 'side'}", fontsize=8)
+    axes[0, -1].legend(fontsize=6, loc="lower left")
+    fig.suptitle(f"{animal}: closest approach of the tongue tip to the target spout, by epoch (spout = open circle at 0, "
+                 "0)\nfaded = one session's median over its licks; large = epoch mean of the session medians; pre = "
+                 "August", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+
+
+def fig_traces_epoch(Tr: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None:
+    """Epoch version: each session's median trace faded, the epoch mean of the session traces bold (pre = August)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    A = Tr[Tr.animal == animal]
+    A = A[(A.epoch != "pre") | (A.date.astype(str) >= pre_from)]
+    cols = {"pre": "0.3", **EP_COL}
+    fig, axes = plt.subplots(1, len(POS), figsize=(3.0 * len(POS), 3.2), sharey=True)
+    for ax, p in zip(axes, POS):
+        for ep, c in cols.items():
+            g = A[(A.position == p) & (A.epoch == ep)]
+            if g.empty:
+                continue
+            for _s, gs in g.groupby("session"):
+                ax.plot(gs.t_ms, gs.dist_med, color=c, lw=0.7, alpha=0.25)
+            m = g.groupby("t_ms").dist_med.mean()
+            ax.plot(m.index, m.values, color=c, lw=2.0, alpha=0.85, label=f"{ep} (n={g.session.nunique()})")
+        ax.set_title(p, fontsize=8)
+        ax.set_xlabel("ms from lick onset (cam4)", fontsize=7)
+        ax.tick_params(labelsize=6)
+    axes[0].set_ylabel("tip - target spout (mm, median)", fontsize=7)
+    axes[-1].legend(fontsize=6, frameon=False)
+    fig.suptitle(f"{animal}: distance from the target spout through the lick, by epoch (faded = one session's median "
+                 "over its licks; bold = epoch mean of the sessions; pre = August)", fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=120)
     plt.close(fig)
@@ -224,6 +306,8 @@ def main(argv=None) -> int:
     for animal in sorted(L.animal.unique()):
         fig_scatter(L, animal, out / f"scatter_{animal}.png", a.pre_from)
         fig_traces(Tr, animal, out / f"traces_{animal}.png", a.pre_from)
+        fig_scatter_epoch(L, animal, out / f"scatter_epoch_{animal}.png", a.pre_from)
+        fig_traces_epoch(Tr, animal, out / f"traces_epoch_{animal}.png", a.pre_from)
     print(f"-> {out}")
     return 0
 

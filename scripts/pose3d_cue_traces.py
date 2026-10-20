@@ -42,7 +42,13 @@ ALIGN = {"cue": {"win": WIN_MS, "resp": RESP_MS, "dir": "cue_traces", "x": "ms f
                         "x": "ms from the first post-cue lick onset"}}
 MEAS = {"dist": "3-D tongue distance (mm), in-mouth = 0", "dist_out": "3-D tongue distance (mm), tongue out only",
         "out_frac": "share of frames with the tongue out", "down": "downward (mm), in-mouth = 0",
-        "side": "sideways (mm, + = ipsi), in-mouth = 0", "jaw_open": "jaw opening from rest (mm)"}
+        "side": "sideways (mm, + = ipsi), in-mouth = 0", "jaw_open": "jaw opening from rest (mm)",
+        "mid": "aim sideways (deg out of the midline, + = ipsi), tongue out", "elev": "aim vertical (deg below the "
+        "horizontal plane), tongue out"}
+#: measures defined only on tongue-out frames (a mean over the frames WITH a point): masked where < OUT_MIN are out
+CONDITIONAL = ("dist_out", "mid", "elev")
+#: below this distance from the mouth zero the tongue's direction is undefined (cam4: ANGLE_MIN_PX 20 px ~ 0.6 mm)
+ANGLE_MIN_MM = 0.5
 SETS = ("engaged", "licked")
 
 
@@ -72,6 +78,11 @@ def session_traces(job) -> list[dict]:
     R = rest.reindex(S.trial_id).to_numpy(float)
     V = {"dist": np.linalg.norm(Pz, axis=1), "dist_out": np.where(has, np.linalg.norm(Pz, axis=1), np.nan),
          "out_frac": has.astype(float), "down": -Pz[:, 2], "side": -Pz[:, 0], "jaw_open": np.linalg.norm(J - R, axis=1)}
+    rr = np.linalg.norm(P, axis=1)                      # angles as `pose3d_phase` (mid / elev), tongue-out frames only
+    with np.errstate(all="ignore"):
+        far = has & (rr >= ANGLE_MIN_MM)
+        V["mid"] = np.where(far, np.degrees(np.arcsin(np.clip(-P[:, 0] / rr, -1, 1))), np.nan)
+        V["elev"] = np.where(far, np.degrees(np.arcsin(np.clip(-P[:, 2] / rr, -1, 1))), np.nan)
     t1 = first.reindex(S.trial_id).to_numpy(float)
     ta = t - t1 if align == "first_lick" else t     # no lick -> NaN -> outside every bin
     win = ALIGN[align]["win"]
@@ -120,7 +131,7 @@ def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, alig
                              sharey="row", squeeze=False)
     for i, mm in enumerate(rows):
         g = A[A.measure == mm].copy()
-        if mm == "dist_out":
+        if mm in CONDITIONAL:
             share = of.reindex(pd.MultiIndex.from_frame(g[["session", "position", "t_ms"]])).to_numpy()
             g.loc[~(share >= OUT_MIN), "v"] = np.nan
         for j, p in enumerate(POS):
@@ -136,14 +147,15 @@ def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, alig
                 lab = f"{ep} (n={len(piv)})"
                 if align == "first_lick":
                     lab += f", 1st lick {ge.groupby('session').first_lick_ms.first().median():.0f} ms"
-                ax.plot(mu.index, mu, color=col, lw=1.1, label=lab)
-                ax.fill_between(mu.index, mu - se, mu + se, color=col, alpha=0.2, lw=0)
+                # Priya 10-20: more transparent so overlapping epochs stay visible
+                ax.plot(mu.index, mu, color=col, lw=1.1, alpha=0.65, label=lab)
+                ax.fill_between(mu.index, mu - se, mu + se, color=col, alpha=0.1, lw=0)
             ax.axvline(0, color="0.5", lw=0.6, ls=":")
             ax.tick_params(labelsize=7)
             if i == 0:
                 ax.set_title(p, fontsize=9)
             if j == 0:
-                ax.set_ylabel(_wrap(MEAS[mm] + (f" (shown where >= {OUT_MIN:g} of frames are out)" if mm == "dist_out"
+                ax.set_ylabel(_wrap(MEAS[mm] + (f" (shown where >= {OUT_MIN:g} of frames are out)" if mm in CONDITIONAL
                                                  else ""), 30), fontsize=7)
             if i == len(rows) - 1:
                 ax.set_xlabel(ALIGN[align]["x"], fontsize=7)

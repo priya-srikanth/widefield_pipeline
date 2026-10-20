@@ -134,6 +134,17 @@ simply ignored downstream.
 * Pre-cue 3-D tongue = real sparse licks: 3-D tongue-out share in -500 .. 0 ms (close 0.6-1.7 %, far 3-8 %) matches
   cam4's licks in the LAST 500 ms (0.12-0.21 / 0.34-0.75 Hz; cam4 `precue_rate_hz` counts from spout arrival, ~1 Hz).
   Figures: one trial set + a tongue-out-share row, pre-cue shaded, tongue-out-only distance hidden where < 5 % out.
+* **3-D aim angles in the cue / lick traces** (`mid` = deg out of the midline, + = ipsi; `elev` = deg below horizontal;
+  tongue-out frames >= 0.5 mm from the mouth zero, hidden where < 5 % out). Displacement (in-mouth = 0) mixes aim with
+  time out; the angle is aim alone. Acute shift toward ipsi at EVERY spout: far_R PS92 -23 -> +11 deg (past the midline),
+  PS93 -28 -> -11; other spouts +2 to +12; chronic mostly back. Lines more transparent (alpha 0.65, SEM 0.1; Priya).
+* **Spout-error figures** (`pose3d_spout_error.py`): lateral axis now + = IPSI (mouse left) at every spout, drawn to
+  the right as cam4's front view -- the old "+ = outward" flipped between L and R spouts, so acute far_R (3 mm inward =
+  toward ipsi) looked flipped to Priya. New epoch versions `scatter_epoch_<a>.png` / `traces_epoch_<a>.png` (session
+  medians faded, epoch mean bold).
+* **far_center side-view diagonal (PS92 chronic)**: closest-approach points on a line parallel to the rod's slope, in
+  EVERY chronic session (28-53 % of far_center licks), 96 % DAQ contact, single-view share 0.59 vs 0.50 -- real contacts,
+  probably the tongue sliding along the rod rather than tapping its tip. Unconfirmed: video sheet of those licks to-do.
 * `apparatus_mouth.py` now per-session PnP (reprojection 0.3-0.7 px); cam1 cleaning origin = PnP mouth + constant 30-32 px
   (rod edge). Phase speed figures renamed `v_speed_norm_*` / `v_speed_peak_*` (old `speed_*` PNGs remain on M:).
 
