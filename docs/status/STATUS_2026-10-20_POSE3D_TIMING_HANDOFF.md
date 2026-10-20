@@ -160,6 +160,15 @@ simply ignored downstream.
      sight -> placed too close to cam1 -> too high in cam4 = opening UNDERESTIMATED (held-out cam1-only dv 0.07-0.15 mm
      vs cam4 0.02-0.04). Proposed fix: per-session depth model from the 2-D jaw position (fit on both-camera frames),
      held-out tested. Affects centre-spout jaw opening only (FAR_DIR / CLOSE_DIR = side spouts).
+     **TESTED** (`scripts/pose3d_jaw_depth_model_check.py`, dlc env; 4 sessions, ~1.1 M held-out side-spout frames):
+     depth model = OLS per session x seen camera, depth change from rest ~ the seen camera's 2-D jaw displacement from
+     the trial's resting 2-D jaw (dx, dy, squares, product) + tongue out (either camera) + the seen camera's 2-D tongue
+     distance; fitted on both-camera frames of other trials (5-fold by trial). OPEN-jaw 3-D error anchor -> model:
+     cam1-only 0.54 -> 0.25 mm, cam4-only 1.39 -> 0.31; opening bias cam4-only -0.55 -> -0.10 (cam1 -0.04 -> 0.00);
+     closed frames 0.11-0.16 -> 0.11-0.13; per-session consistent; lr_wide r and FAR_DIR unchanged (0.95-0.99, within
+     0.03 mm). The anchor's earlier "ap 0.15-0.39" averaged open with closed frames and hid this. Tongue features not
+     yet ablated. RECOMMENDED: replace the rest-depth anchor in `pose3d.anchor_single_view` with this model, then re-run
+     3-D production (curated) + kinematics + figures (awaiting Priya; the box was busy).
 * **Practice vs stroke (chronic close-spout licking)**, cam4 v36 all four animals, early vs late August pre vs chronic:
   first-lick latency was still FALLING through pre in PS92 / PS93 (-8 to -35 ms / day) and PS94 / PS95 were already
   fast and do not change chronic (close 149 -> 158, 144 -> 145 ms) -> the chronic speed-up looks like continued
@@ -170,6 +179,13 @@ simply ignored downstream.
   per animal (far_R PS92 -3 % vs cam4 -7 %; PS93 -15 % vs -16 %) -- PS92 has little loss; distance to the spout is not
   monotonic in reach (licks overshoot) and is tongue-out-only. `OROFACIAL_FINDINGS.md` far-contra protrusion row now
   carries the per-animal caveat.
+* **O2 cam1 array 56830841 (10-20 evening)**: 61 / 137 done (PS92 all, PS93 25). Pending tasks already ask
+  `gres/gpu:1` (any type); they wait on Priority (fairshare). Cancelled the 10 non-curated tasks
+  (`56830841_[68-71,75,103-106,110]` = PS94 / PS95 0601-0605 + 0805) -> 65 curated pending. `gpu_requeue` accepts 10 h
+  jobs (`--test-only` OK; the multi-partition `scontrol update` on the queued array is what failed), but its estimated
+  start was ~27 h out, so not resubmitted. O2 wall per video: median 3.5 h, p90 6.4, max 7.5. LOCAL cam1 LP run
+  (reverse order: PS95 1005 = task 137, 1001, 0928, ...; WSL, sequence_length 16, ~10-12 h / video) DEFERRED by Priya
+  -- the other window is using the box. If started: `scancel 56830841_<idx>` for each video done locally.
 * `apparatus_mouth.py` now per-session PnP (reprojection 0.3-0.7 px); cam1 cleaning origin = PnP mouth + constant 30-32 px
   (rod edge). Phase speed figures renamed `v_speed_norm_*` / `v_speed_peak_*` (old `speed_*` PNGs remain on M:).
 
