@@ -13,9 +13,9 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 2. **Background jobs that were running locally at hand-off** (§3): read their outputs; if the session is gone, re-run them
    with the commands given there.
 3. ~~Jaw 200 ms re-run, jaw cross-check, depth-prior check~~ DONE late 10-19 (results §4).
-4. **cam1 lick review** (Priya): blind page https://claude.ai/artifact/EnDtPi95nsfyyT4eGQDbCV (66 candidates; answers in its
-   `cam1_lick_review` db collection; key = `session_poses/cam1_licks/review/key.csv`). Score it against the key (precision of
-   cam1-only events per stratum; whether the 20 px ``lips`` cutoff matches "at the lips only") before using any cam1-only count.
+4. ~~cam1 lick review~~ DONE, 2 rounds (pages https://claude.ai/artifact/EnDtPi95nsfyyT4eGQDbCV and
+   https://claude.ai/artifact/8ayHFgP9hshafCna2d2Aq5; scored: `session_poses/cam1_licks/review{,2}/scored.csv`). Every false
+   cam1-only event was a WATER DROPLET -> droplet flag adopted (§2, §4). New O2 sessions: re-run `cam1_licks run` after 3-D.
 5. When all four animals are in: cohort tables (per-animal first, then `analysis_kit.boot_delta`), §7 item 6.
 
 ## 1. What was done (10-19)
@@ -62,6 +62,8 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 | lick events: cam4's (comparable) + combined 3-D track | combined adds 3-7 % licks -- NOT small ones (median reach 3.7-4.1 vs 4.5 mm, 45-50 % touched the spout): mostly licks cam4 lost to occlusion / merging |
 | no depth prior for one-camera tongue points | held-out: (a) closest point to the mouth zero 0.6 mm error on licks < 1 mm, 1.3-3.8 mm beyond; (b) learned from cam1 2-D 1.5-1.7 mm on licks < 1 mm (0.5 mm on long ones, already covered by the neighbour fill) |
 | incomplete licks counted from cam1 2-D (`cam1_licks`), not 3-D | counting / sizing needs no depth; tongue tips seen only by cam1 cannot be placed in 3-D (row above) |
+| cam1-only events flagged as WATER DROPLETS and dropped: spread < 3 px, range < 12 px, median point away from the mouth opening (out > -35 px) | Priya's 2-round blind review: all false events were droplets; the rule catches 16 / 17, loses 0 / 70 real. Static points at the mouth opening are real tongue tips at the lips; static points cam4 also calls a lick are the tongue held on the spout, so only cam1-ONLY events are flagged |
+| recent misses kept as a covariate (`miss_prev3`), not a gate | droplets follow uncollected water (Priya): pre 3 % of trials after a hit, 12 % after a miss, 15 % after 3; acute flat ~1 %; the shape rule alone already works |
 | lick phase: onset -> offset per lick (primary), peak-to-peak secondary | same as cam4's per-lick normalised time (`orofacial_cohort.U_NORM`); keeps isolated licks (acute far contra: 38-56 % have a neighbour < 250 ms); peak-to-peak only for stroke_orofacial comparison |
 
 ## 3. Running / pending at hand-off
@@ -105,10 +107,15 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 * **Depth prior (held-out, cam4 hidden; PS92 8 pre LOSO + 3 acute)**: error by distance from the mouth zero, (a) closest point
   on the ray / (b) KNN on cam1 2-D: 0-1 mm 0.60-0.69 / 1.49-1.74; 1-2 mm 1.33-1.38 / 0.83-0.99; 2-3 mm 2.1-2.2 / 0.55; > 4 mm
   3.8 / 0.6-0.7. Neither usable for small licks (the neighbour fill is 0.13-0.23 mm) -> not adopted.
-* **cam1 2-D licks (PS92, 16 pre incl. June / 3 acute; UNREVIEWED)**: events 63.5k / 9.1k; cam4-matched 88 / 93 %; cam1-only
-  8.1 / 4.5 % (at the lips 3.5 / 3.6 %); cam1-only without contact 5.2 / 4.1 %. **cam4 jaw-only trials with a cam1 tongue
-  event: pre 68 / 241 (28 %), acute 12 / 259 (5 %)** -> pre "jaw without lick" was often a tongue cam4 missed; acute ones are
-  truly tongue-absent, so the acute jaw-tongue dissociation is STRONGER after correction (241 -> 173 vs 259 -> 247 trials).
+* **cam1 2-D licks (PS92, 16 pre incl. June / 3 acute; REVIEWED, droplets removed)**: blind review 2 rounds (87 events):
+  pre cam1-only 23 / 24 real; acute cam1-only away from jaw-only trials 10 / 10 real (8 at the lips); cam1 events on acute
+  jaw-only trials 0 / 5 real, pre 5 / 10; controls 10 / 10 contact real, 9 / 9 null none; every false one a water droplet.
+  After the droplet flag: events 63.1k / 9.0k; cam1-only 7.5 / 3.9 % (at the lips 3.3 / 3.3 %); cam1-only without contact
+  4.6 / 3.4 %. **cam4 jaw-only trials with a cam1 tongue: pre 45 / 241 (19 %), acute 9 / 259 (<= 3.5 %, round-2 acute
+  0 / 5 real -> an upper bound)** -> pre "jaw without lick" was partly a tongue cam4 missed; acute ones are tongue-absent, so
+  the acute jaw-tongue dissociation is slightly STRONGER after correction. Droplets: 1.7 % of all cam1 events, most at
+  close_center (pre 14 % of trials), after misses (pre 3 % after a hit -> 15 % after 3 misses). Bigger review crops mattered:
+  4 / 12 round-1 'none / unsure' were real at 1.6x size with the detected point shown.
 * **No-contact licks from the combined track**: +12 % in both epochs (pre 12954 -> 14510, acute 1036 -> 1157).
 
 ## 5. O2: check jobs and copy outputs (Priya runs these)
@@ -155,8 +162,9 @@ Outputs under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/` (
 1. ~~Jaw fill limit re-run~~ done. Optional: anchor long single-camera jaw stretches to the trial's resting jaw.
 2. ~~Jaw cross-check~~ done (§4).
 3. ~~Depth prior~~ done: not adopted (§2).
-4. **cam1 lick review**: score Priya's answers vs `review/key.csv`; set the ``lips`` cutoff; then report the incomplete-lick
-   rate (cam4 no-contact + reviewed cam1-only) and the corrected jaw-without-lick rate per position / epoch.
+4. **Incomplete-lick and jaw-without-lick readouts with cam1**: per position x epoch, cam4 no-contact + cam1-only (droplets
+   removed) and the corrected jaw-only rate; add to the cohort tables when the other animals land. ``lips`` size class means
+   "at the lips" only for cam1-ONLY events (cam4-matched "lips" events were all full sideways licks).
 5. **3-D phase plots to match cam4**: show onset->offset phase 0.1-0.9 (`orofacial_cohort.U_SHOW`) and add a FIRST post-cue
    lick set beside "all licks". 2-D vs 3-D: 3-D is headline for depth / reach / miss and close-vs-far; cam4 lateral stands.
 6. **Cohort**: when PS93 / PS94 / PS95 production lands, curated sessions only, August pre baseline, per-animal tables first

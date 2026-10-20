@@ -95,7 +95,13 @@ def run_session(s: str) -> dict:
         E["in_3d"] = C1.overlaps(E, P3.lick_events(S.drop_duplicates(["trial_id", "t_ms"])))
     else:
         E["in_3d"] = np.nan
-    E["contact"] = C1.contact_flags(E, D.daq_contacts_ms(animal, date, TW.trial_bounds(animal, date, rv), rv))
+    cont = D.daq_contacts_ms(animal, date, TW.trial_bounds(animal, date, rv), rv)
+    E["contact"] = C1.contact_flags(E, cont)
+    # misses (no DAQ contact) in the 3 trials before (Priya 10-19: uncollected water -> droplets, less chance of a tongue)
+    tr = np.array(sorted(ix.trial_id.unique()))
+    miss = pd.Series([len(cont.get(t, [])) == 0 for t in tr], index=tr).astype(int)
+    E["miss_prev3"] = E.trial_id.map(miss.rolling(3).sum().shift(1))
+    E["droplet"] = C1.droplet_flags(E, ~E.cam4_matched.fillna(False).astype(bool) & ~E.in_3d.fillna(False).astype(bool))         if len(E) else []
     E["jaw_only_trial"] = False
     if (sd / "tongue_jaw_mismatch.csv").exists():
         M = pd.read_csv(sd / "tongue_jaw_mismatch.csv")
@@ -103,10 +109,15 @@ def run_session(s: str) -> dict:
         E["jaw_only_trial"] = [bool(r.trial_id in M.index and r.off_ms >= 70 and r.on_ms <= M[r.trial_id])
                                for r in E.itertuples()]
         row["jaw_only_trials"] = int(len(M))
-        row["jaw_only_trials_with_cam1_tongue"] = int(E.loc[E.jaw_only_trial, "trial_id"].nunique())
+        row["jaw_only_trials_with_cam1_tongue"] = int(E.loc[E.jaw_only_trial & ~E.droplet, "trial_id"].nunique())
     E["animal"], E["date"], E["session"] = animal, date, f"{animal}_{date}"
     E["epoch"] = epochs.epoch_of(f"{animal}_{date[4:]}")
     E["mm_per_px"] = k
+    # distance of the event's MEDIAN point from the nearest parked spout tip (cam1 frame px): a label parked on a rod
+    sp = np.array([to_frame(*med[p][:2]) for p in med], float)                       # (n_pos, 2): out, lat
+    if len(E):
+        mid = E[["med_out_px", "med_lat_px"]].to_numpy(float)
+        E["spout_dist_px"] = np.min(np.hypot(mid[:, None, 0] - sp[None, :, 0], mid[:, None, 1] - sp[None, :, 1]), axis=1)
     E.to_csv(_out(rv) / f"{animal}_{date}_events.csv", index=False, float_format="%.4g")
     row.update({"epoch": E.epoch.iloc[0] if len(E) else None, "n_trials": int(ix.trial_id.nunique()), "events": len(E),
                 "mm_per_px": round(k, 4)})
@@ -118,10 +129,13 @@ def _worker(s):
 
 
 def summarise(d: Path) -> pd.DataFrame:
+    from wfield_local import cam1_licks as C1
     E = pd.concat([pd.read_csv(f, dtype={"date": str}) for f in sorted(d.glob("PS*_events.csv"))], ignore_index=True)
     for c in ("cam4_matched", "in_3d", "contact", "jaw_only_trial"):
         E[c] = E[c].astype("boolean")
     E["cam1_only"] = ~E.cam4_matched.fillna(False) & ~E.in_3d.fillna(False)
+    E["droplet"] = C1.droplet_flags(E, E.cam1_only)          # water droplets (blind review): dropped from every count
+    E = E[~E.droplet].copy()
     E["incomplete"] = ~E.contact
     g = E.groupby(["animal", "epoch", "session", "position"])
     T = pd.DataFrame({"events": g.size(), "lips": g.size_class.apply(lambda v: (v == "lips").sum()),
@@ -133,15 +147,7 @@ def summarise(d: Path) -> pd.DataFrame:
     return E, T.reset_index()
 
 
-def review(rv, per: int, seed: int) -> Path:
-    import cv2
-
-    from wfield_local import o2_inference as oi
-    from wfield_local import spout_frame as SF
-    d = _out(rv)
-    E, _ = summarise(d)
-    rng = np.random.default_rng(seed)
-    E = E[E.epoch.isin(["pre", "acute"])]
+def _picks_round1(E, per, rng):
     picks = []
 
     def take(m, n, stratum):
@@ -153,34 +159,80 @@ def review(rv, per: int, seed: int) -> Path:
         take(e & E.cam1_only & (E.size_class == "lips"), per, f"cam1_only_lips_{ep}")
         take(e & E.cam1_only & (E.size_class == "out"), per, f"cam1_only_out_{ep}")
     take(E.cam4_matched.fillna(False) & (E.size_class == "lips"), max(per // 2, 4), "cam4_matched_lips")
-    take(E.cam4_matched.fillna(False) & E.contact, max(per // 2, 4), "control_contact")
+    return picks, take
+
+
+def _picks_round2(E, d, per, rng):
+    """Round 2 (Priya 10-19: round-1 crops were small and off; re-show any that may be real): round-1 cam1-only events
+    judged 'none' / 'unsure' again, events on cam4 jaw-only trials (pre / acute; round 1 had one), more acute cam1-only
+    events off those trials."""
+    picks = []
+    S = pd.read_csv(d / "review" / "scored.csv")
+    S = S[S.stratum.str.startswith("cam1_only") & S.answer.isin(["none", "unsure"])]
+    key = E.assign(t_ms=E.t_peak_ms.round(1)).merge(S[["session", "trial_id", "t_ms"]], on=["session", "trial_id", "t_ms"])
+    picks.append(key.drop(columns="t_ms").assign(stratum="reshow_round1"))
+    seen = set(zip(key.session, key.trial_id, key.on_ms))
+    fresh = E[[(s, t, o) not in seen for s, t, o in zip(E.session, E.trial_id, E.on_ms)]]
+
+    def take(m, n, stratum):
+        g = fresh[m]
+        if len(g):
+            picks.append(g.sample(min(n, len(g)), random_state=int(rng.integers(1 << 30))).assign(stratum=stratum))
+    jo = fresh.jaw_only_trial.fillna(False).astype(bool)
+    take((fresh.epoch == "pre") & fresh.cam1_only & jo, per, "jaw_only_trial_pre")
+    take((fresh.epoch == "acute") & fresh.cam1_only & jo, per // 2, "jaw_only_trial_acute")
+    take((fresh.epoch == "acute") & fresh.cam1_only & ~jo, per, "cam1_only_acute_off_jaw_only")
+    return picks, take
+
+
+def review(rv, per: int, seed: int, rnd: int = 1) -> Path:
+    import cv2
+
+    from wfield_local import o2_inference as oi
+    from wfield_local import spout_frame as SF
+    d = _out(rv)
+    E, _ = summarise(d)
+    rng = np.random.default_rng(seed + 100 * (rnd - 1))
+    E = E[E.epoch.isin(["pre", "acute"])]
+    picks, take = _picks_round1(E, per, rng) if rnd == 1 else _picks_round2(E, d, per, rng)
+    nc = max(per // 2, 4) if rnd == 1 else 4
+    g = E[E.cam4_matched.fillna(False) & E.contact]
+    picks.append(g.sample(nc, random_state=int(rng.integers(1 << 30))).assign(stratum="control_contact"))
     P = pd.concat(picks, ignore_index=True)
     nulls = []                                       # random post-cue times with no event of any kind within 150 ms
     for _s, g in E.groupby("session"):
         nulls.append(g.sample(min(2, len(g)), random_state=int(rng.integers(1 << 30))).assign(stratum="control_null"))
-    N = pd.concat(nulls, ignore_index=True).sample(max(per // 2, 4), random_state=seed)
+    N = pd.concat(nulls, ignore_index=True).sample(nc, random_state=seed)
+    # round 1: 150 px tiles, cam1 crop centred 40 px below its mouth origin (mouth near the top edge -- Priya: "a bit off and
+    # small"); round 2: 230 px tiles, cam1 centred 10 px below the origin, plus a cam1 row with the detector's point circled
+    tile_w = TILE_W if rnd == 1 else 230
+    crop1, shift1 = (CROP, 40.0) if rnd == 1 else ((260, 220), 10.0)
     cands, keys = [], []
     for s, g in pd.concat([P, N], ignore_index=True).groupby("session"):
         animal, date = s.split("_")
         c1 = oi.session_windows(rv, PROD["cam1"], animal, date, "cam1")
         c4 = oi.session_windows(rv, PROD["cam4"], animal, date, "cam4")
-        fr1, _, _ = _cam1_frame(c1[1].reset_index(drop=True), c1[0].reset_index(drop=True))
+        ix1, fl1 = c1[0].reset_index(drop=True), c1[1].reset_index(drop=True)
+        fr1, _, _ = _cam1_frame(fl1, ix1)
         o4 = SF.from_medians(SF.ruler_medians(c4[1], c4[0])).origin
         ev_all = E[E.session == s]
         for r in g.itertuples():
             t0 = r.t_peak_ms
             if r.stratum == "control_null":                       # move to a quiet time in the same trial
                 busy = ev_all[ev_all.trial_id == r.trial_id][["on_ms", "off_ms"]].to_numpy(float)
-                stop = float(c1[0][c1[0].trial_id == r.trial_id].stop_ms.iloc[0])
+                stop = float(ix1[ix1.trial_id == r.trial_id].stop_ms.iloc[0])
                 for _ in range(200):
                     t0 = float(rng.uniform(100, max(stop - 50, 150)))
                     if not ((busy[:, 0] <= t0 + 150) & (busy[:, 1] >= t0 - 150)).any():
                         break
                 else:
                     continue
+            rows_ = [("cam1", ix1, fl1, fr1.origin, -shift1 * np.asarray(fr1.ap_axis), crop1, False)]
+            if rnd > 1:
+                rows_.append(("cam1", ix1, fl1, fr1.origin, -shift1 * np.asarray(fr1.ap_axis), crop1, True))
+            rows_.append(("cam4", c4[0], None, o4, np.array([0.0, 40.0]), CROP, False))
             strips = []
-            for cam, (ix, _), origin, shift in (("cam1", c1, fr1.origin, -40 * np.asarray(fr1.ap_axis)),
-                                                ("cam4", c4, o4, np.array([0.0, 40.0]))):
+            for cam, ix, fl, origin, shift, crop, marked in rows_:
                 cap = cv2.VideoCapture(str(_video(rv, animal, date, cam, ix, r.trial_id)))
                 h = ix[ix.trial_id == r.trial_id]
                 tiles = []
@@ -190,20 +242,26 @@ def review(rv, per: int, seed: int) -> Path:
                     ok, im = cap.read()
                     if not ok:
                         im = np.zeros((1024, 1280, 3), np.uint8)
+                    if marked:
+                        q = fl.iloc[h.index[i]]
+                        if q.tongue_likelihood >= 0.4:
+                            cv2.circle(im, (int(q.tongue_x), int(q.tongue_y)), 9, (255, 0, 255), 1, cv2.LINE_AA)
                     cx, cy = (np.asarray(origin, float) + shift).astype(int)
-                    x0, y0 = max(cx - CROP[0] // 2, 0), max(cy - CROP[1] // 2, 0)
-                    t = cv2.resize(im[y0:y0 + CROP[1], x0:x0 + CROP[0]], (TILE_W, int(TILE_W * CROP[1] / CROP[0])))
-                    cv2.putText(t, f"{off:+d}", (4, 14), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+                    x0, y0 = max(cx - crop[0] // 2, 0), max(cy - crop[1] // 2, 0)
+                    t = cv2.resize(im[y0:y0 + crop[1], x0:x0 + crop[0]], (tile_w, int(tile_w * crop[1] / crop[0])))
+                    cv2.putText(t, f"{off:+d}", (4, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
                     tiles.append(t)
                 cap.release()
                 strips.append(np.hstack(tiles))
-            ok, buf = cv2.imencode(".jpg", np.vstack(strips), [cv2.IMWRITE_JPEG_QUALITY, 82])
-            cid = f"c{len(cands):03d}"
+            ok, buf = cv2.imencode(".jpg", np.vstack(strips), [cv2.IMWRITE_JPEG_QUALITY, 85])
+            cid = f"r{rnd}c{len(cands):03d}"
             cands.append({"id": cid, "position": r.position, "img": base64.b64encode(buf.tobytes()).decode("ascii")})
             keys.append({"id": cid, "stratum": r.stratum, "session": s, "trial_id": r.trial_id, "t_ms": round(t0, 1),
-                         "size_class": r.size_class, "peak_dist_mm": r.peak_dist_mm, "contact": r.contact})
+                         "size_class": r.size_class, "peak_dist_mm": r.peak_dist_mm, "contact": r.contact,
+                         "jaw_only_trial": r.jaw_only_trial, "spread_px": getattr(r, "spread_px", np.nan),
+                         "spout_dist_px": getattr(r, "spout_dist_px", np.nan)})
     order = rng.permutation(len(cands))
-    rd = d / "review"
+    rd = d / ("review" if rnd == 1 else f"review{rnd}")
     rd.mkdir(exist_ok=True)
     (rd / "candidates.json").write_text(json.dumps([cands[i] for i in order]))
     pd.DataFrame([keys[i] for i in order]).to_csv(rd / "key.csv", index=False)
@@ -230,11 +288,12 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--per", type=int, default=12)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--round", type=int, default=1, help="2 = re-show round-1 'none' / 'unsure' cam1-only + jaw-only-trial sample")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d = _out(rv)
     if a.mode == "review":
-        print("->", review(rv, a.per, a.seed))
+        print("->", review(rv, a.per, a.seed, a.round))
         return 0
     sess = a.sessions
     if not sess:

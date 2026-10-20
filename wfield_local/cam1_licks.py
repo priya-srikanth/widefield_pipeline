@@ -23,6 +23,13 @@ import pandas as pd
 MIN_FRAMES = 3
 LIPS_PX = 20.0
 CONTACT_TOL_MS = 20.0
+#: WATER DROPLETS (Priya's blind review, 2 rounds, 10-19: every false cam1-only event was a droplet): a near-static point
+#: (median distance from the event's median point < 3 px and total distance range < 12 px) whose median sits AWAY from
+#: the mouth opening (``med_out_px`` > -35; real tongue tips at the lips sit at <= -44). 16 / 17 false caught, 0 / 70 real
+#: lost. Applied to cam1-ONLY events: a static point that cam4 also calls a lick is the tongue held on the spout.
+#: Droplets follow uncollected water (pre: 3 % of trials after a hit, 12 % after a miss, 15 % after 3 misses; most at
+#: close_center) -- ``miss_prev3`` is kept per event as a covariate.
+DROPLET_SPREAD_PX, DROPLET_RANGE_PX, DROPLET_MOUTH_OUT_PX = 3.0, 12.0, -35.0
 
 
 def detect(out_px, lat_px, present, trial_id, t_ms, src_frame, stop_ms, position, *, min_frames: int = MIN_FRAMES,
@@ -33,7 +40,7 @@ def detect(out_px, lat_px, present, trial_id, t_ms, src_frame, stop_ms, position
     live = np.asarray(present, bool) & np.isfinite(out_px) & np.isfinite(lat_px) & (t >= 0) & (t <= stop)
     k = np.flatnonzero(live)
     cols = ["trial_id", "position", "on_ms", "off_ms", "t_peak_ms", "n_frames", "peak_dist_px", "peak_out_px",
-            "peak_lat_px", "max_out_px", "size_class", "lick_idx"]
+            "peak_lat_px", "max_out_px", "range_px", "spread_px", "med_out_px", "med_lat_px", "size_class", "lick_idx"]
     if not len(k):
         return pd.DataFrame(columns=cols)
     brk = np.r_[True, (tid[k[1:]] != tid[k[:-1]]) | (src[k[1:]] - src[k[:-1]] != 1)]
@@ -47,13 +54,24 @@ def detect(out_px, lat_px, present, trial_id, t_ms, src_frame, stop_ms, position
         d = np.hypot(out_px[kk], lat_px[kk])
         pk = kk[int(np.argmax(d))]
         mo = float(np.max(out_px[kk]))
+        # movement within the event (review 10-19: acute false events = the label parked on a static spot for seconds)
+        xy = np.c_[out_px[kk], lat_px[kk]]
+        mxy = np.median(xy, 0)
         rows.append({"trial_id": int(tid[kk[0]]), "position": str(pos[kk[0]]), "on_ms": t[kk[0]], "off_ms": t[kk[-1]],
                      "t_peak_ms": t[pk], "n_frames": len(kk), "peak_dist_px": float(d.max()),
                      "peak_out_px": out_px[pk], "peak_lat_px": lat_px[pk], "max_out_px": mo,
+                     "range_px": float(np.ptp(d)), "spread_px": float(np.median(np.hypot(*(xy - mxy).T))),
+                     "med_out_px": float(mxy[0]), "med_lat_px": float(mxy[1]),
                      "size_class": "lips" if mo <= lips_px else "out"})
     E = pd.DataFrame(rows, columns=cols[:-1])
     E["lick_idx"] = E.groupby("trial_id").cumcount() if len(E) else []
     return E
+
+
+def droplet_flags(E: pd.DataFrame, cam1_only) -> np.ndarray:
+    """True for cam1-only events that look like a water droplet (see ``DROPLET_*``)."""
+    return (np.asarray(cam1_only, bool) & (E.spread_px.to_numpy(float) < DROPLET_SPREAD_PX)
+            & (E.range_px.to_numpy(float) < DROPLET_RANGE_PX) & (E.med_out_px.to_numpy(float) > DROPLET_MOUTH_OUT_PX))
 
 
 def overlaps(E: pd.DataFrame, W: pd.DataFrame, on: str = "on_ms", off: str = "off_ms", tol_ms: float = 0.0) -> np.ndarray:

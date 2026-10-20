@@ -39,3 +39,12 @@ def test_overlap_contact_and_scale():
     assert C1.overlaps(E, W).tolist() == [True, False, False]
     assert C1.contact_flags(E, {1: [430.0], 2: [50.0]}).tolist() == [False, True, False]
     assert np.isclose(C1.mm_per_px({"far_L": 90.0, "far_R": -90.0}, {"far_L": -2.0, "far_R": 2.0}), 4 / 180)
+
+
+def test_droplet_flag_static_point_away_from_the_mouth_only():
+    E = pd.DataFrame({"spread_px": [1.0, 1.0, 1.0, 6.0, 1.0], "range_px": [3.0, 3.0, 3.0, 40.0, 3.0],
+                      "med_out_px": [40.0, -60.0, 40.0, 40.0, -20.0]})
+    cam1_only = np.array([True, True, False, True, True])
+    # static + away from the mouth = droplet; static AT the mouth opening = tongue at the lips; seen by cam4 = tongue held
+    # on the spout; moving = a lick
+    assert C1.droplet_flags(E, cam1_only).tolist() == [True, False, False, False, True]

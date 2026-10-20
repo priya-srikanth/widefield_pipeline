@@ -970,3 +970,11 @@ from the neighbour fill. (4) *cam1 2-D lick detector* (`wfield_local/cam1_licks.
 frames; ``lips`` = peak <= 20 px below the cam1 mouth (PROPOSED, blind review pending). PS92: cam1-only 8.1 % pre / 4.5 %
 acute; cam4 jaw-only trials with a cam1 tongue 28 % pre vs 5 % acute. (5) The combined-track licks are NOT small (reach
 3.7-4.1 mm vs 4.5): mostly licks cam4 lost to occlusion / merging; the earlier "small licks" wording is superseded.
+
+**cam1 lick review + water droplets (10-19 night; `wfield_local/cam1_licks.py` ``DROPLET_*``).** Priya reviewed 87 cam1
+events blind in 2 rounds (round 2: 1.6x crops, detected point shown). Every false cam1-only event was a WATER DROPLET: a
+near-static point (spread < 3 px, range < 12 px) away from the mouth opening (median out > -35 px). Flag catches 16 / 17,
+loses 0 / 70 real; applied to cam1-only events only (static + cam4-matched = tongue held on the spout). After it (PS92):
+cam1-only 7.5 % pre / 3.9 % acute of events, cam4 jaw-only trials with a cam1 tongue 19 % pre / <= 3.5 % acute. Droplets
+follow uncollected water (pre 3 % of trials after a hit, 15 % after 3 misses; most at close_center): ``miss_prev3`` per
+event. ``lips`` = "at the lips" only among cam1-only events.
