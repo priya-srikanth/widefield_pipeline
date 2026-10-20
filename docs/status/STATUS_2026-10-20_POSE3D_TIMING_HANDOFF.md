@@ -149,11 +149,17 @@ simply ignored downstream.
   with the session's PnP cameras + each camera's 2-D point):
   A. far_center diagonal CONFIRMED as contact geometry: the tongue wraps the rod's SIDE; the tracked tip lands at a
      different height along the shaft each lick, so closest approach traces the rod's slope. 3-D and 2-D agree.
-  B. acute far_R PRE-CUE tongue = mostly FALSE POINTS on the closed lips (7 / 8 frames; 1-2 mm from the mouth zero;
-     several one-camera); 3817 frames in 56 / 90 trials (PS92 0818). Don't quote the 0.25 mm offset. Lip detections
-     probably inflate post-cue tongue-out share a little too (more acutely). TO-DO: a mouth-open / beyond-lips gate,
-     tested before use.
-  C. anchored jaw lands behind the rod end exactly where the chin is hidden, in both cameras; 2-D agrees where seen.
+  (Priya's review 10-20.) A: one point (trial 25, cam4 2-D none = cam1 + neighbour depth) projects onto the spout end,
+     not the tongue tip -- either the tip is hidden behind the rod in cam4 or the fill depth is off. TO-DO: share of
+     far_center closest-approach frames that are one-camera before reading the diagonal.
+  B. acute far_R PRE-CUE tongue: Priya reads them as REAL (tongue at the lips; my first reading "false points on closed
+     lips" was wrong). So acute far_R has the tongue at the lips before the cue more often (6.6 % vs 3.1 % of frames),
+     consistent with cam1's rise in at-the-lips events. 3817 frames in 56 / 90 trials (PS92 0818).
+  C. anchored jaw mostly right, BUT cam1 + anchor frames (cam4 missed) sit TOO HIGH when the jaw is OPEN (3 / 4 shown):
+     the anchor keeps the resting camera depth, and an opening jaw moves down + back, partly along cam1's ~45 deg line of
+     sight -> placed too close to cam1 -> too high in cam4 = opening UNDERESTIMATED (held-out cam1-only dv 0.07-0.15 mm
+     vs cam4 0.02-0.04). Proposed fix: per-session depth model from the 2-D jaw position (fit on both-camera frames),
+     held-out tested. Affects centre-spout jaw opening only (FAR_DIR / CLOSE_DIR = side spouts).
 * **Practice vs stroke (chronic close-spout licking)**, cam4 v36 all four animals, early vs late August pre vs chronic:
   first-lick latency was still FALLING through pre in PS92 / PS93 (-8 to -35 ms / day) and PS94 / PS95 were already
   fast and do not change chronic (close 149 -> 158, 144 -> 145 ms) -> the chronic speed-up looks like continued
