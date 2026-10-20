@@ -38,13 +38,21 @@ import pandas as pd
 
 WIN_S = (0.0, 1.5)
 BASE_S = (-0.5, 0.0)
+#: LICK alignment (Priya 10-20: "there is a variable BIG delay in far contra licking after stroke"): a fixed cue window
+#: then catches different licking phases -- or no licks -- on exactly the post-stroke far-contra trials. --align lick:
+#: response = the 1 s after the trial's FIRST lick (any lick, cue .. stop), same pre-cue baseline; deviation from the
+#: usable licks in that second. Latency (first lick - cue) is a covariate in both alignments.
+ALIGN_ENV = "WITHIN_SPOUT_ALIGN"     # set by --align (the session workers read it)
+LICK_WIN_S = (0.0, 1.0)
+SIDES = ("contra", "mid", "ipsi")
 MIN_TRIALS = 9                      # per spout (3 per tercile)
 SHOW = ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul", "SSp-bfd")
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 
-def trial_table(B, E: pd.DataFrame, mode: str) -> pd.DataFrame:
-    """One row per trial: pos, lateral / reach of its usable licks in the window ('mean' and 'first'), n_licks."""
+def trial_table(B, E: pd.DataFrame, mode: str, align: str = "cue") -> pd.DataFrame:
+    """One row per trial: pos, lateral / reach of its usable licks in the window ('mean' and 'first'), n_licks,
+    alignment time t0 (cue or first lick) and latency (first lick - cue)."""
     if mode and B.exec_xyz is not None:
         ml, ap, dn = (np.asarray(x, float) for x in B.exec_xyz)
         lat, reach = np.degrees(np.arctan2(ml, np.hypot(ap, dn))), np.sqrt(ml ** 2 + ap ** 2 + dn ** 2)
@@ -54,13 +62,20 @@ def trial_table(B, E: pd.DataFrame, mode: str) -> pd.DataFrame:
     on = np.asarray(B.lick_on_s, float)
     rows = []
     for k, r in enumerate(E.itertuples()):
-        inw = (on >= r.cue_s + WIN_S[0]) & (on < r.cue_s + WIN_S[1])
+        stop = r.stop_s if np.isfinite(r.stop_s) else r.cue_s + 7.0
+        after = on[(on >= r.cue_s) & (on < stop)]
+        if not len(after):
+            continue
+        l1 = after.min()
+        t0, w = (r.cue_s, WIN_S) if align == "cue" else (l1, LICK_WIN_S)
+        inw = (on >= t0 + w[0]) & (on < t0 + w[1])
         u = np.flatnonzero(inw & use)
         if not len(u):
             continue
         f = u[np.argmin(on[u])]
         rows.append({"k": k, "pos": r.pos, "lat_mean": lat[u].mean(), "reach_mean": reach[u].mean(),
-                     "lat_first": lat[f], "reach_first": reach[f], "n_licks": int(inw.sum())})
+                     "lat_first": lat[f], "reach_first": reach[f], "n_licks": int(inw.sum()),
+                     "t0": t0, "latency": l1 - r.cue_s})
     return pd.DataFrame(rows)
 
 
@@ -68,12 +83,13 @@ def slopes(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
     """R (trials, d) responses. Returns within / between coefficient arrays (d,) for lateral (+ within SE, terciles)."""
     lat, rch = T[f"lat_{var}"].to_numpy(float), T[f"reach_{var}"].to_numpy(float)
     nl, pos = T.n_licks.to_numpy(float), T.pos.to_numpy()
+    lt = T.latency.to_numpy(float) if "latency" in T else np.zeros(len(T))
     keep = np.isin(pos, [p for p in np.unique(pos) if np.sum(pos == p) >= MIN_TRIALS])
-    R, lat, rch, nl, pos = R[keep], lat[keep], rch[keep], nl[keep], pos[keep]
+    R, lat, rch, nl, lt, pos = R[keep], lat[keep], rch[keep], nl[keep], lt[keep], pos[keep]
     P = np.unique(pos)
-    if len(P) < 4:
+    if len(P) < 2:                                             # within needs >= 2 spouts, between >= 4 (below)
         return {}
-    Rd, X = R.copy(), np.column_stack([lat, rch, nl])
+    Rd, X = R.copy(), np.column_stack([lat, rch, nl, lt])
     Xd = X.copy()
     mR = np.stack([R[pos == p].mean(0) for p in P])
     mX = np.stack([X[pos == p].mean(0) for p in P])
@@ -84,13 +100,16 @@ def slopes(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
         Xd[m] -= mX[i]
         terc[m] = np.searchsorted(np.quantile(Xd[m, 0], [1 / 3, 2 / 3]), Xd[m, 0], side="right")
     Xd = np.where(np.isfinite(Xd), Xd, 0.0)
-    G = np.linalg.pinv(Xd)                                     # (3, n)
-    bw = G @ Rd                                                # (3, d)
+    G = np.linalg.pinv(Xd)                                     # (4, n)
+    bw = G @ Rd                                                # (4, d): lateral, reach, n_licks, latency
     res = Rd - Xd @ bw
-    dof = max(len(R) - len(P) - 3, 1)
+    dof = max(len(R) - len(P) - X.shape[1], 1)
     se = np.sqrt(np.outer(np.diag(np.linalg.pinv(Xd.T @ Xd)), (res ** 2).sum(0) / dof))
-    Xb = np.column_stack([np.ones(len(P)), mX[:, :2]])
-    bb = np.linalg.pinv(Xb) @ mR                               # (3, d): intercept, lateral, reach
+    if len(P) >= 4:
+        Xb = np.column_stack([np.ones(len(P)), mX[:, :2]])
+        bb = np.linalg.pinv(Xb) @ mR                           # (3, d): intercept, lateral, reach
+    else:
+        bb = np.full((3, R.shape[1]), np.nan)
     return {"b_within": bw[0], "se_within": se[0], "b_between": bb[1], "n_trials": len(R), "n_spouts": len(P),
             "lat_sd_within": float(Xd[:, 0].std()), "lat_sd_between": float(mX[:, 0].std()),
             "terc_R": np.stack([Rd[terc == j].mean(0) for j in range(3)]),
@@ -107,13 +126,17 @@ def session_check(label: str) -> dict:
     Q = np.linalg.qr(ce._slow_basis(ft, ce.DRIFT_MIN_PERIOD_S))[0].astype(np.float32)
     V = V - Q @ (Q.T @ V)                                      # the encoding fit's drift filter
     E = B.trials[B.trials.engaged & np.isfinite(B.trials.cue_s)].reset_index(drop=True)
-    T = trial_table(B, E, mode)
+    align = os.environ.get(ALIGN_ENV, "cue")
+    T = trial_table(B, E, mode, align)
     cue = E.cue_s.to_numpy(float)[T.k.to_numpy()]
+    t0 = T.t0.to_numpy(float)
 
-    def _mean(a, b):
-        i0, i1 = np.searchsorted(ft, cue + a), np.searchsorted(ft, cue + b)
-        return np.stack([V[x:y].mean(0) for x, y in zip(i0, i1)])
-    Rk = _mean(*WIN_S) - _mean(*BASE_S)                        # (trials, K)
+    def _mean(ref, a, b):
+        i0, i1 = np.searchsorted(ft, ref + a), np.searchsorted(ft, ref + b)
+        return np.stack([V[x:y].mean(0) if y > x else np.full(V.shape[1], np.nan, V.dtype) for x, y in zip(i0, i1)])
+    Rk = _mean(t0, *(WIN_S if align == "cue" else LICK_WIN_S)) - _mean(cue, *BASE_S)   # (trials, K)
+    ok = np.isfinite(Rk).all(1)                                # windows past the end of the recording
+    T, Rk = T[ok].reset_index(drop=True), Rk[ok]
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
     Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
     anames = [names.get(a, str(a)) for a in areas] + ["cortex"]
@@ -126,13 +149,27 @@ def session_check(label: str) -> dict:
         maps[f"within_{var}"] = (Ub @ sK["b_within"]).astype(np.float32)
         maps[f"between_{var}"] = (Ub @ sK["b_between"]).astype(np.float32)
         for i, an in enumerate(anames):
-            rows.append({"label": label, "variant": var, "area": an, "b_within": sA["b_within"][i],
+            rows.append({"label": label, "variant": var, "spouts": "all", "area": an, "b_within": sA["b_within"][i],
                          "se_within": sA["se_within"][i], "b_between": sA["b_between"][i],
                          "n_trials": sA["n_trials"], "n_spouts": sA["n_spouts"],
-                         "lat_sd_within": sA["lat_sd_within"], "lat_sd_between": sA["lat_sd_between"]})
+                         "lat_sd_within": sA["lat_sd_within"], "lat_sd_between": sA["lat_sd_between"],
+                         "latency_med": float(T.latency.median())})
             for j in range(3):
                 terc.append({"label": label, "variant": var, "area": an, "tercile": j,
                              "lat_dev": sA["terc_lat"][j], "resp_dev": sA["terc_R"][j, i]})
+        # BY SPOUT SIDE (10-20: the bilateral component has opposite signs at contra / ipsi spouts pre-stroke, an
+        # eccentricity pattern that cancels in the pooled slope) -- within slope only
+        for side in SIDES:
+            m = T.pos.str.endswith(side).to_numpy()
+            sS = slopes((Rk @ Ra)[m], T[m], var) if m.any() else {}
+            if not sS:
+                continue
+            for i, an in enumerate(anames):
+                rows.append({"label": label, "variant": var, "spouts": side, "area": an,
+                             "b_within": sS["b_within"][i], "se_within": sS["se_within"][i], "b_between": np.nan,
+                             "n_trials": sS["n_trials"], "n_spouts": sS["n_spouts"],
+                             "lat_sd_within": sS["lat_sd_within"], "lat_sd_between": np.nan,
+                             "latency_med": float(T.latency[m].median())})
     return {"rows": rows, "terc": terc, "maps": maps, "flat": flat, "shape": shape,
             "epoch": epochs.epoch_of(label), "coords": "3d" if mode else "cam4"}
 
@@ -144,7 +181,27 @@ def _area_mean(D: pd.DataFrame, area: str) -> pd.DataFrame:
 
 def report(D: pd.DataFrame) -> None:
     pd.set_option("display.width", 220)
-    D = D.assign(b10_within=D.b_within * 10, b10_between=D.b_between * 10)
+    D = D.assign(b10_within=D.b_within * 10, b10_between=D.b_between * 10,
+                 spouts=D.spouts if "spouts" in D else "all")
+    S, D = D[D.spouts != "all"], D[D.spouts == "all"]
+    if "latency_med" in D:
+        lt = D[(D.area == "cortex") & (D.variant == "mean")].groupby(["animal", "epoch"]).latency_med.mean()
+        print("  median first-lick latency (s)\n" + lt.unstack().reindex(columns=list(EPOCHS)).round(2).to_string())
+    for ar, kind in (("cortex", "bilateral"), ("SSp-m", "crossed")):   # by spout side, inverse-variance pooled z
+        A = S[S.variant == "mean"]
+        if ar == "cortex":
+            A = A[A.area == "cortex"].assign(b=lambda x: x.b10_within, se=lambda x: x.se_within * 10)
+        else:
+            L, R_ = (A[A.area == f"{ar}_{h}"].set_index(["label", "spouts"]) for h in ("left", "right"))
+            A = (L[["animal", "epoch"]].assign(b=L.b10_within - R_.b10_within,
+                                               se=np.hypot(L.se_within, R_.se_within) * 10).reset_index())
+        if A.empty:
+            continue
+        A = A.assign(w=1 / A.se ** 2)
+        g = A.groupby(["animal", "spouts", "epoch"]).apply(
+            lambda x: (x.b * x.w).sum() / np.sqrt(x.w.sum()), include_groups=False)
+        print(f"\n  {ar} {kind} within slope by SPOUT SIDE, pooled z (mean deviation)\n"
+              + g.unstack("epoch").reindex(columns=list(EPOCHS)).round(1).to_string())
     for var in ("mean", "first"):
         G = D[D.variant == var]
         for ar in ("cortex", "MOs", "SSp-m"):
@@ -250,15 +307,22 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--from-date", default="0806", help="first MMDD (default: the August-only baseline)")
     ap.add_argument("--figures-only", action="store_true")
+    ap.add_argument("--align", choices=("cue", "lick"), default="cue",
+                    help="cue: cue + 0-1.5 s; lick: first lick + 0-1 s (see ALIGN_ENV)")
+    ap.add_argument("--epochs", default="", help="comma list to restrict sessions, e.g. pre,acute")
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
+    os.environ[ALIGN_ENV] = a.align                          # inherited by the session workers
     mode = os.environ.get(ce.EXEC_ENV, "")
     out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / ("within_spout_deviation"
-                                                                          + (f"_{mode}" if mode else ""))
+                                                                          + (f"_{mode}" if mode else "")
+                                                                          + ("_lick" if a.align == "lick" else ""))
     writeguard.assert_writable(out.parent)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     cur = set(ak.curated_labels())               # CURATED only (Priya 10-20)
     labels = a.labels or [x for x in ce.sessions_available() if x in cur and x[-4:] >= a.from_date]
+    if a.epochs:
+        labels = [x for x in labels if epochs.epoch_of(x) in a.epochs.split(",")]
     bad = [x for x in labels if x not in cur]
     if bad:
         raise SystemExit(f"not curated: {bad}")
@@ -290,7 +354,7 @@ def main(argv=None) -> int:
         maps[x] = {"epoch": epochs.epoch_of(x), "flat": z["flat"], "shape": tuple(z["shape"]),
                    "maps": dict(zip(z["keys"], z["maps"]))}
     report(D)
-    figures(out, D, Tt, maps)
+    figures(out, D[D.spouts == "all"] if "spouts" in D else D, Tt, maps)
     print(f"\n-> {out}")
     return 0
 
