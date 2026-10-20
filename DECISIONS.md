@@ -20703,3 +20703,20 @@ PS94: contact partly recovers (0 -> ~.57) with NO cortical gain (spread unchange
 lags behaviour by ~1 week where it occurs and is absent where recovery is weakest; partial recovery happened without it.
 **Reading.** Stroke-related, not practice; but more consistent with cortex consolidating / reflecting a recovered
 behaviour than with cortex driving the recovery. Resolution: sessions every 2-4 days (PS92 has 2 subacute sessions).
+
+## 2026-10-19 (night) — 3-D executed set, PS92 pilot: first results and a coordinate caveat
+
+Same licks in every arm (cam4m / 3d / 3dxyz), PS92, cortex, lick window, x1000:
+- **3d (angle out of the midline plane, angle^2, 3-D reach) vs cam4m, 8 pre sessions:** u_target 26.8 vs 31.7, u_exec
+  12.7 vs 10.8 -- adding forward reach shifts ~5 of target's unique to nobody / executed, target still ~2x executed.
+  Acute (3 sessions): identical (u_exec 38 vs 39 > u_target 14). So cam4's forward blind spot explains only a small part.
+- **3dxyz (peak ml / ap / dv), first 3 pre sessions (0806 / 0807 / 0809):** unique target COLLAPSES in cortex (1.2-4.3
+  vs 8.1-14.5 with cam4m) and in MOs (0.0-4.8 vs 2.9-20.9); executed gain exceeds target gain; SSp-m keeps unique target
+  (19-43). NOT yet interpretable: with six positions both sets are 3-D subspaces of the 5-D between-position space, and
+  this one pits LINEAR 3-D executed coordinates against target angle / angle^2 / distance -- a win can come from the
+  coordinate system (how the six spouts are described), not from tracking the tongue.
+- **Fix running (`xyz2`):** target = the spout's 3-D ml / ap / dv (session median per position, pose3d frames) vs
+  executed = the tongue peak's ml / ap / dv -- same coordinates, same parameter count. Spout positions per session in
+  the scratchpad (`pose3d_spout_positions_PS92_20261019.csv`; 6 positions at clean grid values, e.g. far_center ap 1.8,
+  dv -3.0 mm). If executed still wins there, the pre-stroke "target, not executed" reading is a cam4 measurement
+  artefact for frontal / motor cortex; if target wins back, it was the coordinate system.

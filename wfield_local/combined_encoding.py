@@ -93,7 +93,12 @@ SUFFIX_ENV = "COMBINED_ENCODING_SUFFIX"   # appended to the output folder (a rer
 #: overrides its path (a snapshot, so a rerunning pose3d chain is never read mid-write). Outputs -> ..._exec-<mode>/.
 EXEC_ENV = "COMBINED_ENCODING_EXEC"
 EXEC3D_TABLE_ENV = "COMBINED_ENCODING_EXEC3D_TABLE"
-EXEC_MODES = ("cam4m", "3d", "3dxyz")
+#: xyz2 = COORDINATE-MATCHED contest: executed = the 3-D peak ml / ap / dv AND target = the spout's 3-D ml / ap / dv
+#: (session median per position, from the pose3d frames; table via TARGET3D_TABLE_ENV). Needed because 3dxyz pits a
+#: LINEAR 3-D executed set against target angle / angle^2 / distance: with six positions both are 3-D subspaces of the
+#: 5-D between-position space, so a win can come from the coordinate system alone, not from tracking the tongue.
+EXEC_MODES = ("cam4m", "3d", "3dxyz", "xyz2")
+TARGET3D_TABLE_ENV = "COMBINED_ENCODING_TARGET3D_TABLE"
 
 
 def _match_trials(T: pd.DataFrame, B, label: str, path: str, seed: int) -> pd.DataFrame:
@@ -268,6 +273,7 @@ class Behaviour:
     target_dist: dict = None       # position -> the session's spout distance from the mouth (px), LP geometry
     lick_reach: np.ndarray = None  # each lick's executed peak protrusion (px); NaN where lick_angle is NaN
     exec_amps: list = None         # EXEC_ENV: the executed set's per-lick amplitudes (replace angle / angle^2 / reach)
+    target_amps: list = None       # EXEC_ENV xyz2: the target set's per-lick amplitudes (spout 3-D ml / ap / dv)
 
 
 def load_behaviour(animal: str, date: str, rv) -> Behaviour:
@@ -334,12 +340,26 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
                 if np.isfinite(a_).any():
                     dst[p_] = float(np.nanmedian(a_))
     reach = np.where(np.isfinite(ang), L.protrusion_px.to_numpy(float), np.nan)
-    exec_amps = None
+    exec_amps = target_amps = None
     mode = os.environ.get(EXEC_ENV, "")
     if mode:
         ang, reach, exec_amps = _exec_3d(L, ang, reach, mode, f"{animal}_{date}")
+        if mode == "xyz2":
+            target_amps = _target_3d(L, f"{animal}_{date}")
     return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
-                     tdist, reach, exec_amps)
+                     tdist, reach, exec_amps, target_amps)
+
+
+def _target_3d(L: pd.DataFrame, session: str) -> list:
+    """xyz2: each lick's spout 3-D position (session median per position) -> [ml, ap, dv] per lick."""
+    path = os.environ.get(TARGET3D_TABLE_ENV)
+    if not path:
+        raise FileNotFoundError(f"{EXEC_ENV}=xyz2 needs {TARGET3D_TABLE_ENV} (per-session spout 3-D positions)")
+    S = pd.read_csv(path)
+    S = S[S.session == session].set_index("position")
+    if S.empty:
+        raise FileNotFoundError(f"no spout 3-D positions for {session} in {path}")
+    return [L.position.map(S[c]).to_numpy(float) for c in ("spout_ml", "spout_ap", "spout_dv")]
 
 
 def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, session: str):
@@ -361,6 +381,8 @@ def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, ses
     reach = np.where(ok, reach, np.nan)
     if mode == "cam4m":
         return ang, reach, None
+    if mode in ("3dxyz", "xyz2"):
+        return ang, reach, [np.where(ok, x, np.nan) for x in (ml, ap, dv)]
     if mode == "3d":
         # angle out of the midline plane = pose3d `midline` (r = 1.0000). NOT atan2(ml, ap): licks run mostly DOWN, ap ~ 0,
         # so the horizontal angle wraps (SD 77 deg on PS92 0807 vs 12 deg for this one)
@@ -490,6 +512,9 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
                     td = np.where(np.isfinite(ta), td, np.nan)
                     if np.isfinite(td).any():
                         tamps.append(td - np.nanmean(td))
+                if getattr(B, "target_amps", None) is not None:        # EXEC_ENV xyz2: spout 3-D ml / ap / dv
+                    tx = [np.where(np.isfinite(ta), x, np.nan) for x in B.target_amps]
+                    tamps = [x - np.nanmean(x) for x in tx]
                 out["lick_angle_tgt"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"], amp=x) for x in tamps])
     if B.target_angle:                              # trial-wise target angle (centred), its square, target distance
         a = np.array([B.target_angle.get(p, np.nan) for p in T.pos], float)
