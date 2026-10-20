@@ -240,11 +240,14 @@ def fig_trajectories(P, animal, geo, path, pre_from, lset="all"):
     # NORMALISED PHASE (onset -> offset, 41 points), drawn only where >= half the licks have a 3-D point: a peak-aligned
     # time mean changes which licks it averages along the path (10-19: jagged mean paths)
     comp = {m: _epoch_curves(P, animal, "norm", m, pre_from) for m in ("side", "out", "down")}
-    # viewpoints (Priya 10-20): + = mouse LEFT drawn to the right is the view FACING the mouse (row 1, as cam4) and
-    # FROM BELOW (row 3, as cam1) -- not from above; row 2 has the snout to the right = seen from the mouse's LEFT
+    # viewpoints (Priya 10-20): + = mouse LEFT drawn to the right is the view FACING the mouse (row 1, as cam4); row 2 has
+    # the snout to the right = seen from the mouse's LEFT; row 3 has "out of the mouth" pointing DOWN the page (y
+    # inverted) = seen from ABOVE a mouse facing down the page (its left on the viewer's right), so rows 1 and 3 both
+    # read mouth at the top, tongue reaching down the page
     planes = (("front\n(facing the mouse,\nas cam4)", "side", "down", "side (mm; + = mouse left)", "down (mm)"),
               ("side\n(from the\nmouse's left)", "out", "down", "out of the mouth (mm)", "down (mm)"),
-              ("below\n(from underneath,\nas cam1)", "side", "out", "side (mm; + = mouse left)", "out of the mouth (mm)"))
+              ("above\n(mouse facing\ndown the page)", "side", "out", "side (mm; + = mouse left)",
+               "out of the mouth (mm)"))
     covmin = []
     fig, axes = plt.subplots(len(planes), len(POS), figsize=(2.6 * len(POS), 2.6 * len(planes)), squeeze=False)
     tgt = {p: SW.commanded_world(geo, p) for p in POS}
@@ -265,7 +268,7 @@ def fig_trajectories(P, animal, geo, path, pre_from, lset="all"):
                         ax.plot(xv[k], yv[k], "o", color=EP_COL[ep], ms=3)
             ax.scatter(tv[p][xa], tv[p][ya], s=90, facecolor="none", edgecolor="k", lw=1.2, zorder=5)
             ax.scatter(0, 0, marker="+", s=60, color="k", zorder=5)
-            if ya == "down":
+            if ya in ("down", "out"):                     # down / out of the mouth point DOWN the page
                 ax.invert_yaxis()
             ax.set_aspect("equal", adjustable="datalim")
             ax.tick_params(labelsize=6)
