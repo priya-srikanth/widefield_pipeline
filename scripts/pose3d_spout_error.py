@@ -179,22 +179,32 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -
     A["lat_ipsi"] = _ipsi(A)
     M = A.groupby(["session", "epoch", "position"])[["lat_ipsi", "ap_err_mm", "dv_err_mm"]].median().reset_index()
     cols = {"pre": "0.3", **EP_COL}
-    fig, axes = plt.subplots(2, len(POS), figsize=(3.0 * len(POS), 6.4), squeeze=False)
+    # Priya 10-20: zoomed per panel (data + the spout, >= 1.2 mm span, equal mm scale), smaller markers, +- SEM bars
+    fig, axes = plt.subplots(2, len(POS), figsize=(2.9 * len(POS), 5.6), squeeze=False)
     for j, p in enumerate(POS):
         for i, (xc, xl) in enumerate((("lat_ipsi", LAT_LABEL), ("ap_err_mm", "beyond spout (mm; + = away)"))):
             ax = axes[i, j]
+            gp = M[M.position == p]
             for ep, c in cols.items():
-                g = M[(M.position == p) & (M.epoch == ep)]
+                g = gp[gp.epoch == ep]
                 if g.empty:
                     continue
-                ax.scatter(g[xc], g.dv_err_mm, s=22, color=c, alpha=0.35, lw=0)
-                ax.scatter(g[xc].mean(), g.dv_err_mm.mean(), s=110, color=c, edgecolor="k", zorder=6,
-                           label=f"{ep} (n={len(g)})")
-            ax.scatter(0, 0, marker="o", s=160, facecolor="none", edgecolor="k", lw=1.5, zorder=7)
-            ax.axhline(0, color="k", lw=0.4)
-            ax.axvline(0, color="k", lw=0.4)
-            ax.set_xlim(-4, 4)
-            ax.set_ylim(-2.5, 1.5)
+                ax.scatter(g[xc], g.dv_err_mm, s=10, color=c, alpha=0.45, lw=0)
+                n = len(g)
+                ex = g[xc].std(ddof=1) / np.sqrt(n) if n > 1 else 0.0
+                ey = g.dv_err_mm.std(ddof=1) / np.sqrt(n) if n > 1 else 0.0
+                ax.errorbar(g[xc].mean(), g.dv_err_mm.mean(), xerr=ex, yerr=ey, fmt="o", ms=6, color=c, mec="k",
+                            mew=0.6, elinewidth=0.8, capsize=0, zorder=6, label=f"{ep} (n={n})")
+            ax.scatter(0, 0, marker="o", s=60, facecolor="none", edgecolor="k", lw=1.0, zorder=7)
+            ax.axhline(0, color="k", lw=0.3)
+            ax.axvline(0, color="k", lw=0.3)
+            xs = np.r_[gp[xc].to_numpy(float), 0.0]
+            ys = np.r_[gp.dv_err_mm.to_numpy(float), 0.0]
+            xs, ys = xs[np.isfinite(xs)], ys[np.isfinite(ys)]
+            cx, cy = (xs.min() + xs.max()) / 2, (ys.min() + ys.max()) / 2
+            half = max(xs.max() - xs.min(), ys.max() - ys.min(), 1.2) / 2 + 0.25
+            ax.set_xlim(cx - half, cx + half)
+            ax.set_ylim(cy - half, cy + half)
             ax.set_aspect("equal")
             ax.set_xlabel(xl, fontsize=7)
             ax.set_ylabel("dv (mm; + = above)", fontsize=7)
@@ -202,7 +212,7 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -
             ax.set_title(f"{p} -- {'front' if i == 0 else 'side'}", fontsize=8)
     axes[0, -1].legend(fontsize=6, loc="lower left")
     fig.suptitle(f"{animal}: closest approach of the tongue tip to the target spout, by epoch (spout = open circle at 0, "
-                 "0)\nfaded = one session's median over its licks; large = epoch mean of the session medians; pre = "
+                 "0)\nfaded = one session's median over its licks; large = epoch mean of the session medians +- SEM; each panel zoomed to its data; pre = "
                  "August", fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=120)
