@@ -972,7 +972,8 @@ def main(argv=None) -> int:
     tabs.mkdir(parents=True, exist_ok=True)
     if a.order.endswith("_subset-trmodels") or a.order.startswith("musall"):
         return tr_main(a, figs, tabs)
-    if a.order.endswith("_subset-shufpos"):                  # per-spout maps from the FIXED one-vs-rest rerun (10-19)
+    # per-spout maps from the FIXED one-vs-rest rerun (10-19); O2 `collect` names it `_subset-shufpos-` (ONLY=shufpos-)
+    if a.order.rstrip("-").endswith("_subset-shufpos"):
         _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
         title = (f"Combined encoding model, {a.order} (fixed one-vs-rest) -- {a.run} -- baseline: "
                  f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
