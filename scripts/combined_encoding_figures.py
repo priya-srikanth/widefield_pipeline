@@ -211,7 +211,9 @@ def _grid_from(npz: Path, keys: list[str]) -> dict:
 
         den = np.where(ok, tot, 1.0)
         full_r2 = np.where(ok, 1 - M[idx[f"full|{w}"]] / den, np.nan)
-        if name.startswith("dR2drop:"):
+        if name.startswith(("resp:", "respdev:")):        # signal maps (model prediction), not SSE
+            v = M[idx[key]]
+        elif name.startswith("dR2drop:"):
             v = full_r2 - np.where(ok, 1 - M[idx[f"drop:{name[8:]}|{w}"]] / den, np.nan)
         elif name.startswith("dR2m:"):                    # full minus a NAMED model (e.g. shufpos-far_contra:position)
             v = full_r2 - np.where(ok, 1 - M[idx[f"{name[5:]}|{w}"]] / den, np.nan)
@@ -225,11 +227,19 @@ def _grid_from(npz: Path, keys: list[str]) -> dict:
     return out
 
 
-def cohort_maps(meta: pd.DataFrame, sess: dict, keys: list[str]) -> dict:
-    """{epoch: {key: map}} within animal first, then over animals; also 'n' = sessions per animal."""
+def cohort_maps(meta: pd.DataFrame, sess: dict, keys: list[str], strict: bool = True) -> dict:
+    """{epoch: {key: map}} within animal first, then over animals; also 'n' = sessions per animal. strict=False skips
+    (and lists) sessions that lack a key instead of failing."""
     acc: dict = {}
+    skipped = []
     for _, m in meta.iterrows():
-        G = _grid_from(sess[m.label], keys)
+        try:
+            G = _grid_from(sess[m.label], keys)
+        except KeyError:
+            if strict:
+                raise
+            skipped.append(m.label)
+            continue
         for k, g in G.items():
             acc.setdefault((m.epoch, m.animal, k), []).append(g)
     out = {}
@@ -239,6 +249,8 @@ def cohort_maps(meta: pd.DataFrame, sess: dict, keys: list[str]) -> dict:
             continue
         out[e] = {k: np.nanmean([np.nanmean(acc[(e, a, k)], 0) for a in an if (e, a, k) in acc], 0) for k in keys}
         out[e]["_n"] = {a: len(acc[(e, a, keys[0])]) for a in an}
+    if skipped:
+        print(f"  {len(skipped)} session(s) lack {keys[0].split('|')[-1]} keys, skipped: {' '.join(skipped)}")
     return out
 
 
@@ -359,17 +371,17 @@ def fig_position_maps(meta, sess, path: Path, title: str, outline, kind: str = "
 POS6 = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
 
 
-def fig_position_each_maps(meta, sess, path: Path, title: str, outline, window: str) -> None:
+def fig_position_each_maps(meta, sess, path: Path, title: str, outline, window: str, kind: str = "shufpos") -> None:
     """PER-POSITION unique maps (Priya 10-18 / 10-19: "position-unique cortex maps ... across the 6 positions"): for each
     spout, full minus the ONE-VS-REST relabelling of that spout (`shufpos-<p>:position`: its trials' label reassigned to
     a random same-size set of engaged trials) = what is specific to that spout; rows = spouts, columns = epochs (level)
     and change vs pre. Movement-first model (position credited only what movement cannot explain)."""
     plt = _plt()
-    keys = [f"dR2m:shufpos-{p}:position|{window}" for p in POS6]
+    keys = [f"dR2m:{kind}-{p}:position|{window}" for p in POS6]
     try:
         C = cohort_maps(meta, sess, keys)
     except KeyError:
-        print(f"  per-position maps ({window}): shufpos models missing -- skipped")
+        print(f"  per-position maps ({window}): {kind} models missing -- skipped")
         return
     eps = [e for e in EPOCHS if e in C]
     v = max(np.nanpercentile(C[e][k], 99) for e in eps for k in keys)
@@ -388,10 +400,92 @@ def fig_position_each_maps(meta, sess, path: Path, title: str, outline, window: 
     fig.colorbar(im, ax=[axs[i][j] for i in range(len(POS6)) for j in range(len(eps))], shrink=0.5, pad=0.01)
     if len(eps) > 1:
         fig.colorbar(im2, ax=[axs[i][j] for i in range(len(POS6)) for j in range(len(eps), nc)], shrink=0.5, pad=0.01)
+    how = ("that spout's own response removed (DROP-p: p constrained to the trial-weighted mean of the other spouts; no "
+           "trial mislabelled)" if kind == "droppos" else "that spout's trials relabelled at random (one-vs-rest)")
     _title(fig, title, f"PER-SPOUT unique $\\Delta$R$^2$, {window} window ({WIN_DESC[window]}): full minus the model with "
-                 "that spout's trials relabelled at random (one-vs-rest) = what is specific to that spout; movement-first. "
+                 f"{how} = what is specific to that spout; movement-first. "
                  "Left: level; right: change vs pre. Left hemisphere = image left = IPSILESIONAL; spouts named from the "
                  "lesion (contra = right).")
+    _save(fig, path)
+
+
+SIGNED_WIN = {"enl": "ENL (spout arrival +0.3 s .. cue)", "c0-0.5": "cue 0-0.5 s", "c0.5-1.5": "cue 0.5-1.5 s (licking)",
+              "c1.5-3": "cue 1.5-3 s"}
+
+
+def fig_position_signed_maps(meta, sess, path: Path, title: str, outline, window: str, kind: str = "respdev") -> None:
+    """SIGNED per-spout maps (Priya 10-19: "if we're looking at position-specific signal, why is it similar across all
+    positions?"). The variance maps (shufpos) say WHERE / HOW STRONGLY each spout is distinguished; these show the
+    PATTERN. kind 'respdev' = the fitted position-DEVIATION component (pos_enl / pos_cue: that spout's response minus
+    the shared arrival / cue response) averaged over the window, on the pixel grid; 'resp' = the full TASK component per
+    spout (absolute). CAVEAT respdev: the deviations are built so their trial-weighted mean over the six spouts is ~0, so
+    a change shared by all spouts splits into opposite signs (the 09-24 CD artefact) -> read respdev as RELATIVE pattern,
+    'resp' for absolute levels."""
+    plt = _plt()
+    keys = [f"{kind}:{p}|{window}" for p in POS6]
+    C = cohort_maps(meta, sess, keys, strict=False)
+    if "pre" not in C:
+        print(f"  signed maps ({kind}, {window}): no sessions with these keys -- skipped")
+        return
+    eps = [e for e in EPOCHS if e in C]
+    v = max(np.nanpercentile(np.abs(C[e][k]), 99) for e in eps for k in keys)
+    dv = max(np.nanpercentile(np.abs(C[e][k] - C["pre"][k]), 99) for e in eps[1:] for k in keys) if len(eps) > 1 else v
+    nc = 2 * len(eps) - 1
+    fig, axs = plt.subplots(len(POS6), nc, figsize=(2.0 * nc + 1.5, 2.0 * len(POS6) + 1.4), squeeze=False)
+    lo = -v if kind == "respdev" else np.nanmin([np.nanpercentile(C[e][k], 1) for e in eps for k in keys])
+    for i, (p, k) in enumerate(zip(POS6, keys)):
+        for j, e in enumerate(eps):
+            im = _map_ax(axs[i][j], C[e][k], lo, v, "PuOr_r" if kind == "respdev" else "magma", outline,
+                         f"{e} ({sum(C[e]['_n'].values())} s)" if i == 0 else "")
+        for j, e in enumerate(eps[1:]):
+            im2 = _map_ax(axs[i][len(eps) + j], C[e][k] - C["pre"][k], -dv, dv, "RdBu_r", outline,
+                          f"{e} - pre" if i == 0 else "")
+        axs[i][0].text(-0.08, 0.5, p.replace("_", " "), transform=axs[i][0].transAxes, rotation=90, va="center",
+                       ha="right", fontsize=10.5)
+    fig.colorbar(im, ax=[axs[i][j] for i in range(len(POS6)) for j in range(len(eps))], shrink=0.5, pad=0.01)
+    if len(eps) > 1:
+        fig.colorbar(im2, ax=[axs[i][j] for i in range(len(POS6)) for j in range(len(eps), nc)], shrink=0.5, pad=0.01)
+    what = ("SIGNED position-DEVIATION component per spout (fitted pos_enl / pos_cue: that spout's response minus the "
+            "shared response; trial-weighted mean over spouts ~0 by construction -> RELATIVE pattern: a change shared by "
+            "all spouts splits into opposite signs)" if kind == "respdev" else
+            "TASK component per spout (absolute: shared arrival / cue + that spout's deviation)")
+    _title(fig, title, f"{what}; {SIGNED_WIN[window]}; model units (fitted imaging signal), within animal then over "
+                 "animals. Left: level; right: change vs pre. Left hemisphere = image left = IPSILESIONAL; spouts named "
+                 "from the lesion (contra = right).")
+    _save(fig, path)
+
+
+def fig_position_share_maps(meta, sess, path: Path, title: str, outline, window: str, kind: str = "shufpos") -> None:
+    """Per-spout SHARE of the position signal: each spout's one-vs-rest dR2 divided by the sum over the six (pixels where
+    the sum is in its top 50 % only). Equal shares = 1/6 everywhere = no spout selectivity; a region where the shares
+    differ is genuinely spout-selective. Shares of cohort-mean maps (session ratios explode where the sum is ~0)."""
+    plt = _plt()
+    keys = [f"dR2m:{kind}-{p}:position|{window}" for p in POS6]
+    try:
+        C = cohort_maps(meta, sess, keys)
+    except KeyError:
+        print(f"  share maps ({window}): {kind} models missing -- skipped")
+        return
+    eps = [e for e in EPOCHS if e in C]
+    fig, axs = plt.subplots(len(POS6), len(eps), figsize=(2.0 * len(eps) + 1.5, 2.0 * len(POS6) + 1.4), squeeze=False)
+    for j, e in enumerate(eps):
+        S = np.stack([np.clip(C[e][k], 0, None) for k in keys])
+        tot = S.sum(0)
+        ok = tot > np.nanpercentile(tot, 50)
+        for i, p in enumerate(POS6):
+            sh = np.where(ok, S[i] / np.where(tot > 0, tot, np.nan), np.nan)
+            im = _map_ax(axs[i][j], sh - 1 / 6, -0.08, 0.08, "RdBu_r", outline,
+                         f"{e} ({sum(C[e]['_n'].values())} s)" if i == 0 else "")
+            if j == 0:
+                axs[i][0].text(-0.08, 0.5, p.replace("_", " "), transform=axs[i][0].transAxes, rotation=90,
+                               va="center", ha="right", fontsize=10.5)
+    fig.colorbar(im, ax=axs.ravel().tolist(), shrink=0.5, pad=0.01, label="share - 1/6")
+    _title(fig, title, f"Per-spout SHARE of the position signal, {window} window ({WIN_DESC[window]}): one-vs-rest "
+                 "dR2 of that spout / sum over the six spouts, minus 1/6 (0 = no selectivity); pixels with the top 50 % "
+                 "of summed position signal only."
+                 + (" CAVEAT: the one-vs-rest relabelling also mislabels donor trials of other spouts, which pulls "
+                    "shares toward 1/6." if kind == "shufpos" else "")
+                 + " Left hemisphere = image left = IPSILESIONAL.")
     _save(fig, path)
 
 
@@ -963,6 +1057,8 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--order", default="movement_first")
     ap.add_argument("--baseline", choices=("all", "late"), default="late", help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre")
+    ap.add_argument("--signed-only", action="store_true",
+                    help="only the signed per-spout maps (resp / respdev) of a full run (Priya 10-19)")
     a = ap.parse_args(argv)
     base = oo.root(PathResolver()) / a.run / "imaging_encoding" / a.order
     sfx = "_allpre" if a.baseline == "all" else ""
@@ -973,13 +1069,27 @@ def main(argv=None) -> int:
     if a.order.endswith("_subset-trmodels") or a.order.startswith("musall"):
         return tr_main(a, figs, tabs)
     # per-spout maps from the FIXED one-vs-rest rerun (10-19); O2 `collect` names it `_subset-shufpos-` (ONLY=shufpos-)
-    if a.order.rstrip("-").endswith("_subset-shufpos"):
+    kindp = next((k for k in ("shufpos", "droppos") if a.order.rstrip("-").endswith(f"_subset-{k}")), None)
+    if kindp:
         _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
-        title = (f"Combined encoding model, {a.order} (fixed one-vs-rest) -- {a.run} -- baseline: "
+        title = (f"Combined encoding model, {a.order} ({kindp}) -- {a.run} -- baseline: "
                  f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
                  f"{meta.groupby('animal').label.nunique().to_dict()}")
+        ol = _outline(meta)
         for w in ("enl", "cue", "lick"):
-            fig_position_each_maps(meta, sess, figs / f"position_each_maps_{w}.png", title, _outline(meta), w)
+            fig_position_each_maps(meta, sess, figs / f"position_each_maps_{w}.png", title, ol, w, kindp)
+            fig_position_share_maps(meta, sess, figs / f"position_share_maps_{w}.png", title, ol, w, kindp)
+        print(f"figures -> {figs}")
+        return 0
+    if a.signed_only:                                       # signed per-spout maps from the main run's resp / respdev
+        _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+        title = (f"Combined encoding model ({a.order}) -- {a.run} -- baseline: "
+                 f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
+                 f"{meta.groupby('animal').label.nunique().to_dict()}")
+        ol = _outline(meta)
+        for w in SIGNED_WIN:
+            for kind in ("respdev", "resp"):
+                fig_position_signed_maps(meta, sess, figs / f"position_signed_{kind}_{w}.png", title, ol, w, kind)
         print(f"figures -> {figs}")
         return 0
     if "_subset-" in a.order:

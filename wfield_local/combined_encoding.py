@@ -406,8 +406,9 @@ def _analog_cols(t, v, ft) -> np.ndarray:
     return np.column_stack([ME._shift(base, int(round(lag * fs))) for lag in CLAGS]).astype(np.float32)
 
 
-def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
-    """{variable: (T, p) raw columns}. ``pos_perm`` {variable: permuted position per trial} for the label shuffle."""
+def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | None = None) -> dict:
+    """{variable: (T, p) raw columns}. ``pos_perm`` {variable: permuted position per trial} for the label shuffle.
+    ``drop_pos`` = p: the position blocks with spout p's OWN response removed (p constrained to the mean of the others)."""
     T = B.trials
     pos_order = sorted(T.pos.unique())
     out = {}
@@ -434,6 +435,24 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None) -> dict:
     for var in POS_VARS:
         lab = T.pos.to_numpy() if not pos_perm or var not in pos_perm else pos_perm[var]
         cols = []
+        if drop_pos is not None:
+            # DROP-p (Priya 10-19, per-spout maps): the six deviation blocks sum to ZERO, so removing p's block alone loses
+            # nothing (the other five rebuild it). Instead deviation-code the OTHER spouts among themselves --
+            # D_q = X_q - m_q / (1 - m_p) * (shared - X_p), zero on p's trials -- so p's trials get only the shared
+            # response = the trial-weighted mean of the others: exactly what is specific to p is removed, and no other
+            # spout's trials are mislabelled (unlike the one-vs-rest relabelling).
+            mp_ = lab == drop_pos
+            Xex = enl_block(mp_) if var == "pos_enl" else cue_block(mp_)
+            rest = shared[var] - Xex
+            frac_rest = max(1.0 - mp_.mean(), 1e-9)
+            for p in pos_order:
+                if p == drop_pos:
+                    continue
+                m = lab == p
+                Xp = enl_block(m) if var == "pos_enl" else cue_block(m)
+                cols.append(Xp - (m.mean() / frac_rest) * rest)
+            out[var] = np.hstack(cols)
+            continue
         for p in pos_order:
             m = lab == p
             Xp = enl_block(m) if var == "pos_enl" else cue_block(m)
@@ -725,6 +744,11 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         lab[eng_idx] = new
         for v in POS_VARS:
             rawc[(f"shufpos-{pp}", v)] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]
+    if any(o.startswith("droppos") for o in (os.environ.get(ONLY_ENV) or "").split(",")):   # built only when asked
+        for pp in sorted(set(full_perm[eng_idx])):   # DROP-p: spout p's own response removed (raw_blocks drop_pos)
+            Rb = raw_blocks(B, ft, drop_pos=pp)
+            for v in POS_VARS:
+                rawc[(f"droppos-{pp}", v)] = _z(Rb[v], ridx)[ridx]
     for kind, key in (("shufside", lambda x: x.split("_")[0]), ("shufdist", lambda x: x.split("_", 1)[1])):
         lab = full_perm.copy()                          # ONE relabelling for both periods
         lab[eng_idx] = _perm_within(full_perm[eng_idx], key)
