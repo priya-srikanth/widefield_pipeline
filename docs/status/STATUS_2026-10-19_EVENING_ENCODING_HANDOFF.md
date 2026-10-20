@@ -45,13 +45,18 @@ Musall-order shuffle, and a three-round misdirected-lick analysis.
 | shared group penalty | split penalties (task / lick / orofacial / uninstructed / video) give IDENTICAL R2 -> NOT the cause; lick-window drop with traces = property of the traces | split kept in code; NO rerun needed |
 | video in the lick window | NOT used (Priya 10-19: video re-describes the licks); video only for the pre-cue movement-null readout | the earlier "80 % posture" reading withdrawn |
 
-## 3. RUNNING at handoff (updated ~18:45)
+## 3. RUNNING at handoff (updated ~20:20)
+
+3-D executed-set PILOT (PS92, `run_exec3d_pilot.ps1`, 2 workers, started 19:06; cam4m -> 3d -> 3dxyz; log
+`exec3d_pilot.log`; out `movement_first_subset-nokin_exec-<mode>/`; DECISIONS 2026-10-19 night): readout
+`combined_encoding_figures.py --order movement_first_subset-nokin_exec-<mode>` for each mode, compare u_exec pre (3d vs cam4m).
+
 
 | job | where / log | then |
 |---|---|---|
-| local lick-matched nokin (started 14:01), last 2 sessions PS95_0928 / 1001; 105/107 done (O2 + local combined) | box, `matched_local.log`; out `movement_first_subset-nokin_matched/` | rerun `combined_encoding_figures.py --order movement_first_subset-nokin_matched` at 107/107; compare with unmatched (`tables/relative_shares.csv` in both); DECISIONS line incl. PS95 chronic |
+| DONE: lick-matched nokin 107/107 (local finished first; O2 56867176 last task cancelled) | box, `matched_local.log`; out `movement_first_subset-nokin_matched/` | rerun `combined_encoding_figures.py --order movement_first_subset-nokin_matched` at 107/107; compare with unmatched (`tables/relative_shares.csv` in both); DECISIONS line incl. PS95 chronic |
 | O2 `nokin_matched` array (56867176, `-p short,medium`), trickling (fair-share ~0.07) | O2; Priya rsyncs `out/` back | `o2_encoding.py collect --name enc_v36_20261019 --tag nokin_matched` (identical to local; overwrites) -- can be cancelled once local hits 107 |
-| FIXED per-spout rerun (`run_shufpos_now.ps1`, started 18:33, 4 workers, PID 26308) | box, `shufpos_now.log`; out `movement_first_subset-shufpos/` | `combined_encoding_figures.py --order movement_first_subset-shufpos` -> `figures/position_each_maps_{enl,cue,lick}.png` (readout hook committed 50fcb84); rough ETA ~3 h |
+| FIXED per-spout rerun MOVED TO O2 (~19:15: TAG shufpos, `-p short --mem=32G --time=2:00:00`; the local run was stopped: its workers peaked ~20 GB each, the box ran out of RAM and paged, 0 sessions in 1.5 h) | O2; Priya rsyncs `out/` back, then `o2_encoding.py collect --name enc_v36_20261019 --tag shufpos` -> `movement_first_subset-shufpos/` | `combined_encoding_figures.py --order movement_first_subset-shufpos` -> `figures/position_each_maps_{enl,cue,lick}.png` (readout hook committed 50fcb84); rough ETA ~3 h |
 | overnight trial-to-trial nokin (`run_nokin_tr.ps1`), waits for the matched run, then runs ALONGSIDE the per-spout rerun (RAM ok: 4 + 4 workers) | box, `nokin_tr_queue.log` / `nokin_tr.log`; out `movement_first_subset-nokin_tr/` (SUFFIX `_tr`) | `combined_encoding_figures.py --order movement_first_subset-nokin_tr` -> `tables/tr_contest_0-1.5s.csv` = full executed set (angle, angle^2, reach) on TRIAL-TO-TRIAL vs all variance; ~4-5 h |
 | chained per-spout launcher (`run_shufpos.ps1`, waits for nokin_tr) | box, `shufpos_queue.log` | redundant now: `--skip-done` will find every session done and exit |
 | (other session) cam1 LP on O2 gpu_quad, tasks 21-137 est. start 10-20 19:40 | not ours | -- |
@@ -79,8 +84,10 @@ Stop commands (Priya, PowerShell; Claude cannot stop processes): nokin runs = py
 ## 5. Pitfalls (new today)
 
 - **O2 fair-share** is ~0.07 after today (470 encoding tasks + cam1 GPU training): new arrays sit in `(None)` /
-  `(Priority)`. Request what is used (`--time=1:00:00 --mem=24G` for encoding), allow `-p short,medium`, use the box for
+  `(Priority)`. Request what is used (`--time=1:00:00 --mem=24G` for encoding), use `-p short` (O2 REJECTS `medium` for jobs < 12 h: "Invalid partition name"), use the box for
   small runs. `sshare -U -l`, `sprio -u ps150`, `squeue -u ps150 --start`.
+- **Box RAM**: a combined_encoding worker peaks ~20 GB private while fitting (not the ~4 GB seen most of the time); 4 + 4 + 2
+  workers exhausted 64 GB + page file on 10-19. Keep <= ~8 encoding workers on the box in total; check `\Memory\Pages/sec`.
 - **Overlapping arrays write a session twice** (a session in two concurrent submits) -> trailing junk in the JSON;
   `collect` repairs it. Do not resubmit the full range while an earlier array still runs.
 - **Scheduler-cancelled tasks** (CANCELLED+ after 2 s, no log): find with `sacct ... | grep -v COMPLETED`, resubmit
@@ -112,6 +119,6 @@ python scripts/exec_angle_spread_check.py ; python scripts/misdirected_lick_deco
 # local subset run into its own folder
 COMBINED_ENCODING_SUFFIX=_tr python -m wfield_local.combined_encoding --jobs 4 --only nokin: --skip-done <labels>
 ```
-O2 submit pattern (login node): `sbatch -p short,medium --array=1-119%60 --time=1:00:00 --mem=24G
+O2 submit pattern (login node): `sbatch -p short --array=1-119%60 --time=1:00:00 --mem=24G
 --export=ALL,TAG=<tag>,ORDER=movement_first,ONLY=<prefixes>,VIDEO=,MATCH=<match.json|empty> $B/run_enc.sbatch`;
 transfer node: `rsync -ah <share bundle>/ <scratch bundle>/` before, `rsync -ah <scratch>/out/ <share>/out/` after.
