@@ -79,7 +79,10 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 5. Within-spout check in 3-D: `COMBINED_ENCODING_EXEC=polar` + tables (+ CALIB) -> `within_spout_deviation.py --align
    lick` (folder `within_spout_deviation_polar_lick`).
 6. First-lick latency cam4 vs cam4 + cam1 vs DAQ contact (cam1 events now final for PS92 / PS93).
-7. LocaNMF cross-check of the within-spout slopes. Later: pre-cue -> lick-window carry-over decode; tongue traces to
+7. 3-D JAW: ON HOLD (Priya 10-20: 3-D jaw is unreliable at the close-centre spout -- cam4 occlusion). When revived:
+   3-D jaw / tongue traces in the main + kin models, a per-lick 3-D jaw-lateral executed term, jaw deviation in the
+   within-spout check.
+8. LocaNMF cross-check of the within-spout slopes. Later: pre-cue -> lick-window carry-over decode; tongue traces to
    3-D; non-linear ceiling (deferred).
 
 ## 5. Pitfalls (new this afternoon)
