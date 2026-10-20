@@ -150,7 +150,30 @@ def _windows(sd: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     pre = (70.0 - g.strobe).where(np.isfinite(g.strobe), np.nan).clip(lower=0)
     resp = (g.stop.clip(upper=t1) - 70.0).clip(lower=0)
     iti = (g.strobe - g.t0).clip(lower=0).fillna(0) + (t1 - g.stop).clip(lower=0).fillna(0)
-    return pd.DataFrame({"pre_s": pre / 1000, "resp_s": resp / 1000, "iti_s": iti / 1000}), g[["row0", "t0"]]
+    rows = g[["row0", "t0"]].copy()
+    # (trial, t_ms) -> row by LOOKUP, not row0 + (t - t0) / 4 ms (10-20): windows are cut on the alignment templates'
+    # per-frame camera times now, so a DROPPED frame leaves a gap in t_ms and the arithmetic would run past it
+    # (PS92 0908: IndexError). Identical to the arithmetic on drop-free sessions.
+    rank = pd.Series(np.arange(len(g)), index=g.index)
+    key = rank.reindex(ix.trial_id).to_numpy() * 1e7 + ix.t_ms.to_numpy(float)
+    o = np.argsort(key, kind="stable")
+    rows.attrs["lut"] = (rank, key[o], ix.row.to_numpy()[o])
+    return pd.DataFrame({"pre_s": pre / 1000, "resp_s": resp / 1000, "iti_s": iti / 1000}), rows
+
+
+def _row_of(rows: pd.DataFrame, trial_id, t_ms) -> np.ndarray:
+    """Window row of each (trial_id, t_ms): the nearest frame of that trial in time (NaN for an unknown trial)."""
+    rank, key, row = rows.attrs["lut"]
+    rk = rank.reindex(np.asarray(trial_id)).to_numpy(float)
+    q = rk * 1e7 + np.asarray(t_ms, float)
+    out = np.full(len(q), np.nan)
+    ok = np.isfinite(q)
+    if not ok.any():
+        return out
+    j = np.clip(np.searchsorted(key, q[ok]), 1, len(key) - 1)
+    near = np.where(np.abs(key[j - 1] - q[ok]) <= np.abs(key[j] - q[ok]), j - 1, j)
+    out[ok] = row[near]
+    return out
 
 
 def _first_contacts(animal: str, date: str) -> pd.Series:
@@ -200,8 +223,7 @@ def _lick_phase(sd: Path, meas: pd.DataFrame, rows: pd.DataFrame) -> dict:
     jap, jlr = tk.spout_coords(jx + o[0], jy + o[1], tk.SpoutFrame(tuple(o), tuple(c["spout_ap_axis"])))
     jopen = np.hypot(jx, jy)
     n = len(dist)
-    r = (rows.row0.reindex(meas.trial_id).to_numpy() +
-         np.round((meas.t_ms.to_numpy() - rows.t0.reindex(meas.trial_id).to_numpy()) / FRAME_MS)).astype(int)
+    r = _row_of(rows, meas.trial_id, meas.t_ms).astype(int)
     off = np.arange(-PHASE_HALF, PHASE_HALF + 1)
     ok = (r - PHASE_HALF >= 0) & (r + PHASE_HALF < n)
     out = {}
@@ -261,10 +283,8 @@ def _lick_norm(sd: Path, meas: pd.DataFrame, rows: pd.DataFrame) -> dict:
          "angle_mouth0_deg": np.where(np.isfinite(dist), np.where(out_m, ang, 0.0), np.nan),
          "speed_abs_px_s": spd, "speed_abs_out_px_s": np.where(out_m, spd, np.nan)}
     n = len(dist)
-    r0 = rows.row0.reindex(meas.trial_id).to_numpy(float)
-    t0 = rows.t0.reindex(meas.trial_id).to_numpy(float)
-    ron = np.round(r0 + (meas.on_ms.to_numpy(float) - t0) / FRAME_MS)
-    roff = np.round(r0 + (meas.off_ms.to_numpy(float) - t0) / FRAME_MS)
+    ron = _row_of(rows, meas.trial_id, meas.on_ms)
+    roff = _row_of(rows, meas.trial_id, meas.off_ms)
     ok = np.isfinite(ron) & np.isfinite(roff) & (roff - ron >= MIN_LICK_FRAMES) & (ron >= 0) & (roff < n - 1)
     li = meas.lick_idx.to_numpy()
     out = {}
@@ -329,8 +349,7 @@ def _phase_norm(sd: Path, L: pd.DataFrame, rows: pd.DataFrame, spout_angle: dict
     B = L[L.multi_bout_rank.notna()].copy()
     if not len(B):
         return []
-    B["r"] = (rows.row0.reindex(B.trial_id).to_numpy() +
-              np.round((B.t_ms.to_numpy() - rows.t0.reindex(B.trial_id).to_numpy()) / FRAME_MS)).astype(int)
+    B["r"] = _row_of(rows, B.trial_id, B.t_ms).astype(int)
     out = []
     for mode in PHASE_MODES:
         Bm = B if mode == "all_multi" else B[B.multi_bout_rank == 0]

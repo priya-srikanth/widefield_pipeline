@@ -570,6 +570,12 @@ def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: 
     if len(videos) == 1:
         ix = ix.drop(columns="video")
     sel = np.concatenate(sels) if sels else np.zeros((0, 0, 3), np.float32)
+    # template-time t_ms can repeat where camera timestamps are irregular (PS92 0605, a camera file through a DAQ
+    # restart): keep the first frame of each (trial, t_ms) so every trial's times are strictly increasing
+    dup = ix.duplicated(["trial_k", "t_ms"]).to_numpy()
+    if dup.any():
+        print(f"   {animal} {date}: {int(dup.sum())} frame(s) share a trial time with the previous one -- dropped")
+        ix, sel = ix[~dup].reset_index(drop=True), sel[~dup]
     return ix, sel
 
 
