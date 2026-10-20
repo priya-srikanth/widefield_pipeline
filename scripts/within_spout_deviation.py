@@ -294,6 +294,91 @@ def figures(out: Path, D: pd.DataFrame, Tt: pd.DataFrame, maps: dict) -> None:
     plt.close(fig)
 
 
+def _bh(p: np.ndarray, q: float = 0.05) -> np.ndarray:
+    """Benjamini-Hochberg over the finite entries of p -> boolean mask."""
+    out = np.zeros(p.shape, bool)
+    f = np.flatnonzero(np.isfinite(p))
+    if not len(f):
+        return out
+    o = f[np.argsort(p[f])]
+    thr = q * np.arange(1, len(o) + 1) / len(o)
+    k = np.flatnonzero(p[o] <= thr)
+    if len(k):
+        out[o[: k[-1] + 1]] = True
+    return out
+
+
+def epoch_tests(S: dict) -> dict:
+    """S {epoch: (n, P) session maps} for ONE animal -> {epoch: (mean, p)}. Sessions are the unit. pre vs 0 (one-sample
+    t); each post epoch vs that animal's pre sessions (Welch t; a single session -> prediction test against the pre
+    distribution, t = (x - mean_pre) / (sd_pre * sqrt(1 + 1 / n_pre)), df n_pre - 1)."""
+    from scipy import stats
+    out = {}
+    pre = S.get("pre")
+    for ep, X in S.items():
+        m = np.nanmean(X, 0)
+        if ep == "pre":
+            p = stats.ttest_1samp(X, 0.0, axis=0, nan_policy="omit").pvalue if len(X) >= 2 else np.full(m.shape, np.nan)
+        elif pre is None or len(pre) < 2:
+            p = np.full(m.shape, np.nan)
+        elif len(X) >= 2:
+            p = stats.ttest_ind(X, pre, axis=0, equal_var=False, nan_policy="omit").pvalue
+        else:
+            n0 = len(pre)
+            t = (X[0] - np.nanmean(pre, 0)) / (np.nanstd(pre, 0, ddof=1) * np.sqrt(1 + 1 / n0))
+            p = 2 * stats.t.sf(np.abs(t), n0 - 1)
+        out[ep] = (m, np.asarray(p, float))
+    return out
+
+
+def figures_stats(out: Path, maps: dict, q: float = 0.05) -> None:
+    """Per animal x epoch maps (within / between, mean deviation) with FDR-significant regions outlined: pre vs 0, each
+    post epoch vs the SAME animal's pre sessions (Priya 10-20: "outline significance ... within-animal vs pre-stroke").
+    Post panels show the epoch mean; the outline marks where it differs from pre (black) -- the pre panel's outline
+    marks where pre differs from 0."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    figs = out / "figures"
+    figs.mkdir(exist_ok=True)
+    sh = next(iter(maps.values()))["shape"]
+    animals = sorted({lab[:4] for lab in maps})
+    rows = []
+    for kind in ("within_mean", "between_mean"):
+        fig, ax = plt.subplots(len(animals), len(EPOCHS), figsize=(2.6 * len(EPOCHS), 2.5 * len(animals)), squeeze=False)
+        for i, an in enumerate(animals):
+            S, flat = {}, None
+            for lab, v in maps.items():
+                if lab[:4] == an and kind in v["maps"]:
+                    S.setdefault(v["epoch"], []).append(v["maps"][kind])
+                    flat = v["flat"]
+            S = {e: np.stack(x) * 10 for e, x in S.items()}        # dF per 10 deg
+            R = epoch_tests(S)
+            lim = np.nanpercentile(np.abs(np.concatenate([m for m, _ in R.values()])), 98) or 1e-6
+            for j, ep in enumerate(EPOCHS):
+                a_ = ax[i, j]
+                a_.axis("off")
+                if ep not in R:
+                    continue
+                m, p = R[ep]
+                sig = _bh(p, q)
+                img, msk = np.full(sh[0] * sh[1], np.nan), np.zeros(sh[0] * sh[1])
+                img[flat], msk[flat] = m, sig
+                a_.imshow(img.reshape(sh), cmap="RdBu_r", vmin=-lim, vmax=lim)
+                if sig.any():
+                    a_.contour(msk.reshape(sh), levels=[0.5], colors="k", linewidths=0.6)
+                a_.set_title(f"{an} {ep} (n={len(S[ep])})\n{'vs 0' if ep == 'pre' else 'vs pre'}: "
+                             f"{100 * sig.mean():.0f} % px q<{q}", fontsize=7)
+                rows.append({"kind": kind, "animal": an, "epoch": ep, "n": len(S[ep]),
+                             "frac_sig": float(sig.mean()), "lim": float(lim)})
+        fig.suptitle(f"{kind.split('_')[0]}-spout lateral slope (dF / 10 deg), outlined: FDR q < {q} -- pre vs 0, "
+                     "post epochs vs the same animal's pre sessions (sessions = units); ipsi = image left", fontsize=8)
+        fig.tight_layout()
+        fig.savefig(figs / f"within_spout_maps_stats_{kind.split('_')[0]}.png", dpi=150)
+        plt.close(fig)
+    pd.DataFrame(rows).to_csv(out / "map_significance.csv", index=False, float_format="%.4g")
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
@@ -355,6 +440,7 @@ def main(argv=None) -> int:
                    "maps": dict(zip(z["keys"], z["maps"]))}
     report(D)
     figures(out, D[D.spouts == "all"] if "spouts" in D else D, Tt, maps)
+    figures_stats(out, maps)
     print(f"\n-> {out}")
     return 0
 

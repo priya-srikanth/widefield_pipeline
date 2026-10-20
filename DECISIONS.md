@@ -20885,3 +20885,14 @@ ipsi +3.3); PS93 chronic negative at all sides (mid -6.1). PS92 / PS93 acute sti
 Reading: pre-stroke there is a reliable, small executed component in the crossed sensorimotor signal (~10-20 % of the
 across-spout slope, lower bound); the bilateral component is animal-specific and changes sign over recovery in PS94.
 Lick alignment is the default for this check from now on.
+**Map significance per animal (10-20, Priya: "outline significance ... within-animal vs pre-stroke").**
+`within_spout_deviation.py` now writes `figures/within_spout_maps_stats_{within,between}.png` + `map_significance.csv`
+(lick-aligned folder): per animal x epoch, sessions as units, pixelwise; pre vs 0 (one-sample t), post epochs vs the
+SAME animal's pre sessions (Welch; a single session -> prediction test vs the pre distribution); BH-FDR q < .05 per
+panel, outlined. Result: BETWEEN maps differ from 0 pre in 52-74 % of pixels (crossed topography, 4 / 4). Post vs pre:
+PS92 acute / subacute a broad contralesional (right-hemisphere) increase (69 / 35 %), PS95 subacute / chronic 80 / 87 %
+and PS94 chronic 36 % -- mostly broad shifts of the whole map rather than new foci (per-degree normalisation and
+global offsets contribute); PS93 little (0-13 %). WITHIN maps: nothing survives per animal except PS94 acute (whole
+cortex, negative, 100 %) and PS94 chronic (positive, 84 %). The pooled crossed within effect (SSp-m L - R, t = -6.5
+over 31 pre sessions) is too small for per-animal pixelwise FDR (7-8 sessions); n = 2 (PS92 subacute) and n = 1 (PS95
+acute) panels are weak tests.
