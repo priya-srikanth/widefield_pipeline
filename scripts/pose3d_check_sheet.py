@@ -45,13 +45,53 @@ def _session(rv, s: str):
     return {"cg": cg, "S": S, "cams": {"cam1": (ix1, f1), "cam4": (ix4, f4)}, "a": a, "d": d}
 
 
-def _tiles(rv, ses, row, part: str, label: str) -> np.ndarray:
+def _jaw_model(ses) -> dict:
+    """{(trial_id, t_ms): 3-D jaw} from the held-out DEPTH MODEL (`pose3d_jaw_depth_model_check`) for every one-camera
+    jaw frame of the session: fitted per seen camera on this session's both-camera response-window frames."""
+    from scripts.pose3d_jaw_depth_model_check import _features, _trial_rest, anchored, depth
+    from wfield_local import pose3d as P3
+    from wfield_local import spout_frame as SF
+    (ix1, f1), (ix4, f4) = ses["cams"]["cam1"], ses["cams"]["cam4"]
+    m1, m4 = SF.ruler_medians(f1, ix1), SF.ruler_medians(f4, ix4)
+    o1, o4 = SF.from_medians_lr(m1).origin, SF.from_medians(m4).origin
+    i1, i4 = P3.pair(ix1, ix4)
+    A = P3.cleaned_xy(f1, ix1, "jaw", "cam1", o1)[0][i1]
+    B = P3.cleaned_xy(f4, ix4, "jaw", "cam4", o4)[0][i4]
+    TA = P3.cleaned_xy(f1, ix1, "tongue", "cam1", o1)[0][i1]
+    TB = P3.cleaned_xy(f4, ix4, "tongue", "cam4", o4)[0][i4]
+    cg = ses["cg"]
+    X, rep = P3.triangulate(cg, A, B)
+    tid, t = ix4.trial_id.to_numpy()[i4], ix4.t_ms.to_numpy(float)[i4]
+    X, _ = P3.qc_3d(X, "jaw", tid, t)
+    stop = ix4.stop_ms.to_numpy(float)[i4]
+    with np.errstate(invalid="ignore"):
+        both = np.isfinite(X).all(1) & (np.nanmax(rep, axis=1) < 15)
+    pre = both & (t < 0)
+    Xr = _trial_rest(X, tid, pre)
+    T_any = np.where(np.isfinite(TA).all(1, keepdims=True), TA, TB)
+    fit = both & (t >= 70) & (t <= stop)
+    out = {}
+    for ci, xy, other, tg in ((0, A, B, TA), (1, B, A, TB)):
+        cam = cg.cameras[ci]
+        F = _features(xy, _trial_rest(xy, tid, pre), tg, T_any)
+        zr = depth(cam, Xr)
+        ok = fit & np.isfinite(F).all(1)
+        coef, *_ = np.linalg.lstsq(F[ok], (depth(cam, X) - zr)[ok], rcond=None)
+        one = np.isfinite(xy).all(1) & ~np.isfinite(other).all(1) & np.isfinite(F).all(1)
+        P = anchored(cam, xy[one], zr[one] + F[one] @ coef)
+        out.update(zip(zip(tid[one], t[one]), P))
+    return out
+
+
+def _tiles(rv, ses, row, part: str, label: str, extra: np.ndarray | None = None) -> np.ndarray:
     """cam4 | cam1 tiles for one frames-file row: ``part``'s 3-D point projected (cyan ring) + the 2-D point (magenta)."""
     import cv2
 
     from scripts.cam1_licks import _video
     X = np.array([[row[f"{part}_ml"], row[f"{part}_ap"], row[f"{part}_dv"]]], float)
     proj = ses["cg"].project(X)[:, 0] if np.isfinite(X).all() else np.full((2, 2), np.nan)     # (cams, 2)
+    projx = (ses["cg"].project(np.asarray(extra, float)[None])[:, 0] if extra is not None and np.isfinite(extra).all()
+             else None)                                                                          # yellow ring
     out = []
     for ci, cam in ((1, "cam4"), (0, "cam1")):
         ix, fl = ses["cams"][cam]
@@ -69,6 +109,8 @@ def _tiles(rv, ses, row, part: str, label: str) -> np.ndarray:
         pp = proj[ci]
         if np.isfinite(pp).all():
             cv2.circle(im, tuple(pp.astype(int)), 9, (255, 255, 0), 1, cv2.LINE_AA)
+        if projx is not None and np.isfinite(projx[ci]).all():
+            cv2.circle(im, tuple(projx[ci].astype(int)), 6, (0, 255, 255), 1, cv2.LINE_AA)
         if p2 is not None:
             cv2.circle(im, tuple(p2.astype(int)), 3, (255, 0, 255), -1, cv2.LINE_AA)
         c = pp if np.isfinite(pp).all() else (p2 if p2 is not None else np.array([640.0, 512.0]))
@@ -145,15 +187,17 @@ def section_c(rv, out: Path, per: int, rng) -> None:
     s = "PS92_20260811"
     ses = _session(rv, s)
     S = ses["S"]
+    model = _jaw_model(ses)                       # 10-20: depth model (yellow) beside the rest-depth anchor (cyan)
     tiles = []
     for code, lab in ((5, "cam4 + anchor (cam1 missed)"), (4, "cam1 + anchor (cam4 missed)")):
         g = S[S.position.isin(["far_center", "close_center"]) & (S.jaw_src == code) & (S.t_ms > 70)]
         print(f"{s}: centre-spout anchored jaw frames src {code}: {len(g)}")
         g = g.groupby("trial_id").head(1)
         for _, row in g.sample(min(per, len(g)), random_state=int(rng.integers(1 << 30))).iterrows():
-            tiles.append(_tiles(rv, ses, row, "jaw", f"{lab}: {row.position} trial {row.trial_id} t {row.t_ms:+.0f} ms"))
-    _grid(tiles, 2, f"C. {s} (pre) centre spouts: ANCHORED 3-D jaw projected into both cameras (cyan); 2-D LP jaw "
-                    "(magenta) where the camera had one", out / f"C_anchored_jaw_{s}.png")
+            tiles.append(_tiles(rv, ses, row, "jaw", f"{lab}: {row.position} trial {row.trial_id} t {row.t_ms:+.0f} ms",
+                                extra=model.get((row.trial_id, row.t_ms))))
+    _grid(tiles, 2, f"C. {s} (pre) centre spouts: one-camera 3-D jaw, REST-DEPTH ANCHOR (cyan) vs DEPTH MODEL "
+                    "(yellow), projected into both cameras; 2-D LP jaw (magenta)", out / f"C_anchored_jaw_{s}.png")
 
 
 def main(argv=None) -> int:
@@ -161,14 +205,19 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--per", type=int, default=4)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--only", default=None, help="sections to draw, e.g. C (default ABC)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     out = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "check_sheet"
     out.mkdir(exist_ok=True)
     rng = np.random.default_rng(a.seed)
-    section_a(rv, out, a.per, rng)
-    section_b(rv, out, a.per, rng)
-    section_c(rv, out, a.per, rng)
+    ap_only = a.only or "ABC"
+    if "A" in ap_only:
+        section_a(rv, out, a.per, rng)
+    if "B" in ap_only:
+        section_b(rv, out, a.per, rng)
+    if "C" in ap_only:
+        section_c(rv, out, a.per, rng)
     return 0
 
 
