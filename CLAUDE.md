@@ -364,8 +364,14 @@ retrain (O2 jobs running), cam1 scoring / cleaned clips, the cam1 mouth = L/R sp
 apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + copy-back commands, pitfalls. Register:
 `docs/POSE_MODELS.md` (Parts B-D).
 
+**[`docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md)**
+— **START HERE for the encoding model, newest.** Results summary: **[`docs/ENCODING_FINDINGS.md`](docs/ENCODING_FINDINGS.md)**
+(living, status-tagged). 3-D executed sets (pre-stroke target advantage SUSPENDED after the coordinate-matched PS92 contest),
+drop-p per-spout maps, chronic gain beyond the practice trend and lagging behaviour, slow-band by-epoch check, curated
+sessions only; running jobs, to-dos, pitfalls.
+
 **[`docs/status/STATUS_2026-10-19_EVENING_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-19_EVENING_ENCODING_HANDOFF.md)**
-— **START HERE for the encoding model, newest.** Fair target vs executed on all 119 sessions (O2), lick-matched control,
+— superseded by 10-20; reference for the 10-19 runs and the O2 path. Fair target vs executed on all 119 sessions (O2), lick-matched control,
 relative shares, trial-to-trial variance, Musall-order shuffle, misdirected licks (no plan signature), per-spout maps,
 shared penalty NOT the cause; running jobs (overnight trial-to-trial contest), to-dos, pitfalls (O2 fair-share).
 
