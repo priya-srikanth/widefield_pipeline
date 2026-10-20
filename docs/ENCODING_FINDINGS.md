@@ -184,6 +184,8 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 
 ## Change log
 
+- **2026-10-20 (evening)** — within-spout lick-aligned / bilateral / mixed model / map tests; 3-D landing zones
+  calibrated (soft bins); lick-template test built; 3-D contest queued (handoff STATUS_2026-10-20_EVENING_ENCODING_HANDOFF).
 - **2026-10-20** — slow band checked by epoch (size caveat; PS93 acute pre-cue drop withdrawn); binned contest and
   within-spout deviation check added (DECISIONS 2026-10-20).
 - **2026-10-20** — created from DECISIONS 2026-10-19 ... 2026-10-20 (encoding window).

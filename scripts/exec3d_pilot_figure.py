@@ -12,8 +12,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-MODES = [("cam4m", "cam4\nangle/reach"), ("3d", "3-D\nangle/reach"),
-         ("3dxyz", "3-D xyz vs\nspout angle"), ("xyz2", "3-D xyz vs\nspout xyz")]
+#: (output-folder suffix after `movement_first_subset-nokin_`, label). 3dxyz RETIRED (coordinate mismatch, 10-20);
+#: polar = the coordinate-matched angular contest, run with combined licks + binned contest (10-20 queue)
+MODES = [("exec-cam4m", "cam4\nangle/reach"), ("exec-3d", "3-D\nangle/reach"),
+         ("exec-xyz2", "3-D xyz vs\nspout xyz"), ("exec-polar_licks-combined_bins", "3-D polar vs\nspout polar")]
 AREAS = [("cortex", "cortex"), ("MOs", "MOs"), ("SSp-m", "SSp-m")]
 NEED = ["nokin:none", "nokin:target", "nokin:exec", "nokin:target+exec"]
 
@@ -22,7 +24,7 @@ def _lick_table(E: Path) -> pd.DataFrame:
     from wfield_local import epochs
     rows = []
     for m, _ in MODES:
-        for f in glob.glob(str(E / f"movement_first_subset-nokin_exec-{m}" / "sessions" / "*_regions.csv")):
+        for f in glob.glob(str(E / f"movement_first_subset-nokin_{m}" / "sessions" / "*_regions.csv")):
             R = pd.read_csv(f)
             lab = Path(f).stem[:-8]
             for area, _ in AREAS:
@@ -40,7 +42,7 @@ def _lick_table(E: Path) -> pd.DataFrame:
 def _trial_table(E: Path) -> pd.DataFrame:
     out = []
     for m, _ in MODES:
-        f = E / f"movement_first_subset-nokin_exec-{m}" / "tables" / "tr_contest_0-1.5s.csv"
+        f = E / f"movement_first_subset-nokin_{m}" / "tables" / "tr_contest_0-1.5s.csv"
         if f.exists():
             T = pd.read_csv(f)
             T = T[T.variance == "trial"]

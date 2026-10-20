@@ -20912,3 +20912,29 @@ spots); NO post-vs-pre change survives in either map under nested or cluster; wi
 by the edge-enrichment rule (2.2x). The per-pixel FDR figures are supplementary only. Reading: with animal as the unit,
 the crossed spout map and a small crossed executed component are established pre-stroke; post-stroke changes are
 animal-specific and do not reach significance at n = 4.
+
+## 2026-10-20 (evening) — soft calibrated executed bins, pre-stroke lick-template test, 3-D contest queued, PS92_0908 rerun
+
+**Executed bins (binned contest).** Measured on the 3-D tables: the tongue peak lands ~2 mm deeper than the spout
+table position (the table marks the rod's lower edge) and laterally compressed (~0.4x at close, ~0.6x at far spouts),
+so raw nearest-spout bins put most close-spout licks in far bins (PS92 pre agreement 0.46). Decision: per-animal
+landing zones calibrated on PRE-stroke licks (median 3-D peak per spout over the curated August pre sessions,
+leave-one-session-out for pre sessions; `scripts/exec_bins_calibration.py`, `COMBINED_ENCODING_BINS_CALIB`), and SOFT
+executed bins (Priya: "licks may not land nearest their own spout" -> "i like the soft bin idea"): each lick's weight
+on every zone = Gaussian of its distance in pooled within-spout SD units, rows sum to 1 -- no hard misassignment
+between overlapping zones (zones 0.5-1 mm apart vs lick-to-lick SD ~0.5 mm lateral / 0.9 mm depth); still six free
+kernels per side. Calibrated hard agreement (descriptive): pre PS92 0.77 / PS93 0.70, acute 0.50 / 0.56 (contra-aimed
+licks land in the ipsi-neighbouring zone: PS92 0819 far contra -> far mid 106 / far ipsi 40 / own 21), chronic PS92 0.84.
+Note `_event_cols(amp=)` centres the modulator, so the soft blocks are deviation-coded by construction.
+**Pre-stroke lick-template test** (`scripts/lick_template_test.py`; Priya: "should we have kernels that match pre-stroke
+per-spout average licks?" -> yes): spout-specific lick kernels learned on pre sessions (animal mean, leave-one-out for
+pre), held FIXED; each session's lick-window activity predicted by the aimed-spout (target) vs landing-zone (executed,
+soft) templates, one gain each, 5-fold CV, area level. No free shape after the stroke, so neither model can bend.
+**3-D contest queued**: polar target + polar executed (coordinate-matched), soft calibrated bins, COMBINED (cam4 +
+cam1-only) lick timing, nokin set; PS92 + PS93 sessions with full 3-D (94-99 % of cam4 usable licks joined). PS93
+0814 / 0821 / 0908 were clip-only 3-D (production had not landed when the chain ran) and 0911 had none -- the other
+window is re-running them; the queue waits and rebuilds all 3-D inputs (`S/prep_3d.py`) before running, and smoke-fits
+one session first.
+**PS92_0908 rerun** (template-timing fix changed its inputs; June PS92 / PS93 0606 too): all 9 encoding folders
+(+ 0606 in movement_first / subset-nokin); old outputs copied to `sessions/_superseded_pre_template_timing/`.
+Measured fit time on this box ~10-13 min per session per folder.

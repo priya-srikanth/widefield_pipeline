@@ -364,8 +364,8 @@ retrain (O2 jobs running), cam1 scoring / cleaned clips, the cam1 mouth = L/R sp
 apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + copy-back commands, pitfalls. Register:
 `docs/POSE_MODELS.md` (Parts B-D).
 
-**[`docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md)**
-— **START HERE for the encoding model, newest.** Results summary: **[`docs/ENCODING_FINDINGS.md`](docs/ENCODING_FINDINGS.md)**
+**[`docs/status/STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md)**
+— **START HERE for the encoding model, newest** (within-spout check, mixed model, soft calibrated bins, lick-template test, 3-D contest queued, PS92_0908 rerun). Morning: [`STATUS_2026-10-20_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md). Results summary: **[`docs/ENCODING_FINDINGS.md`](docs/ENCODING_FINDINGS.md)**
 (living, status-tagged). 3-D executed sets (pre-stroke target advantage SUSPENDED after the coordinate-matched PS92 contest),
 drop-p per-spout maps, chronic gain beyond the practice trend and lagging behaviour, slow-band by-epoch check, curated
 sessions only; running jobs, to-dos, pitfalls.
