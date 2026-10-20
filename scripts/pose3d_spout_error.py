@@ -193,8 +193,13 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -
                 n = len(g)
                 ex = g[xc].std(ddof=1) / np.sqrt(n) if n > 1 else 0.0
                 ey = g.dv_err_mm.std(ddof=1) / np.sqrt(n) if n > 1 else 0.0
-                ax.errorbar(g[xc].mean(), g.dv_err_mm.mean(), xerr=ex, yerr=ey, fmt="o", ms=6, color=c, mec="k",
-                            mew=0.6, elinewidth=0.8, capsize=0, zorder=6, label=f"{ep} (n={n})")
+                mx, my = g[xc].mean(), g.dv_err_mm.mean()
+                ax.scatter(mx, my, s=22, color=c, edgecolor="k", lw=0.5, zorder=6, label=f"{ep} (n={n})")
+                # SEM bars ON TOP of the dot, with caps (Priya 10-20: always visible, even when smaller than the dot)
+                ax.errorbar(mx, my, xerr=ex, yerr=ey, fmt="none", ecolor=c, elinewidth=1.3, capsize=2.5,
+                            capthick=1.0, zorder=8)
+                ax.errorbar(mx, my, xerr=ex, yerr=ey, fmt="none", ecolor="k", elinewidth=0.4, capsize=2.5,
+                            capthick=0.4, zorder=9)
             ax.scatter(0, 0, marker="o", s=60, facecolor="none", edgecolor="k", lw=1.0, zorder=7)
             ax.axhline(0, color="k", lw=0.3)
             ax.axvline(0, color="k", lw=0.3)
@@ -212,7 +217,7 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -
             ax.set_title(f"{p} -- {'front' if i == 0 else 'side'}", fontsize=8)
     axes[0, -1].legend(fontsize=6, loc="lower left")
     fig.suptitle(f"{animal}: closest approach of the tongue tip to the target spout, by epoch (spout = open circle at 0, "
-                 "0)\nfaded = one session's median over its licks; large = epoch mean of the session medians +- SEM; each panel zoomed to its data; pre = "
+                 "0)\nfaded = one session's median over its licks; outlined dot + bars = epoch mean of the session medians +- SEM; each panel zoomed to its data; pre = "
                  "August", fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=120)
