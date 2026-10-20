@@ -342,13 +342,13 @@ def main(argv=None) -> int:
                      "aim, vertical (in-mouth = 0)"),
                     ("dist", "zero", "3-D distance from mouth zero (mm)", "phase_dist", "3-D distance (in-mouth = 0)"),
                     ("dist_out", "out", "3-D distance from mouth zero (mm)", "phase_dist_out", "3-D distance, tongue out"),
-                    ("speed", "out", "3-D tip speed (mm/s)", "speed_norm", "3-D tip speed")):
+                    ("speed", "out", "3-D tip speed (mm/s)", "v_speed_norm", "3-D tip speed")):
                 fig_lines(PX, animal, "norm", m, yl, xl, out / f"{nm}{sfx}_{animal}.png",
                           f"{animal}: {who}{what} through the lick\n" + _how("norm", lset, mouth), a.pre_from)
             fig_trajectories(PX, animal, geo, out / f"trajectories{sfx}_{animal}.png", a.pre_from, lset)
             fig_traj3d(PX, animal, geo, out / f"trajectories3d{sfx}_{animal}.png", a.pre_from, lset)
         fig_lines(P, animal, "peak", "speed", "3-D tip speed (mm/s)", "ms from 3-D lick peak",
-                  out / f"speed_peak_{animal}.png", f"{animal}: 3-D tongue-tip speed\n" + _how("peak", "all", "out"),
+                  out / f"v_speed_peak_{animal}.png", f"{animal}: 3-D tongue-tip speed\n" + _how("peak", "all", "out"),
                   a.pre_from)
         for kind, xlab in (("peak", "ms from 3-D lick peak"), ("norm", xl)):
             for m, lab in (("v_side", "sideways (+ = toward ipsi)"), ("v_out", "forward (+ = out)"),

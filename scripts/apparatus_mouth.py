@@ -18,6 +18,12 @@ may be pushed 2-5 px). June cam4 (dates < `orofacial_camera.scale_before`) is tr
 spout-line intersection. Best = lowest reprojection error and fit residual. Reports, per session: the mouth in each camera,
 its offset from that camera's nose (head-fixed: should be constant across days), reprojection px, fit residual mm and the
 commanded / triangulated distance ratios. Calibration: `configs/paths.yaml` camera_calibration, the 09-11 rig toml.
+
+``--method pnp`` (DEFAULT since 10-20, as `pose3d`): each camera POSED PER SESSION from the six commanded spout positions
+(`pose3d.pnp_group`, 09-11 intrinsics only); the mouth = the projected stage origin; reprojection = PnP spout error; fit
+residual = triangulated vs commanded spout (`pose3d._identity_world`, rod-edge offsets). ``--method similarity`` = the
+old path (09-11 extrinsics + `spout_world.apparatus_mouth` similarity fit; reprojection 6-10 px from the 09-11 sideways
+error) -- kept for comparison.
 """
 from __future__ import annotations
 
@@ -131,7 +137,17 @@ def _labels_by_session(rv):
     return {k: v for k, v in acc.items() if set(v) == {"cam1", "cam4"}}
 
 
-def evaluate(rv, cg, animal: str, date: str, cams: dict, source: str) -> list[dict]:
+def _pnp_mouth(meds: dict, geometry: dict, cg) -> dict:
+    """`spout_world.apparatus_mouth`'s return shape from a per-session PnP pose (`pose3d.pnp_group`)."""
+    from wfield_local import pose3d as P3
+    g, err = P3.pnp_group(cg.subset_cameras_names(list(meds)), meds, geometry)
+    m = g.project(np.zeros((1, 3)))                            # PnP world origin = the commanded mouth
+    return {"world": P3._identity_world(g, meds, geometry), "positions": list(next(iter(err.values()))),
+            "mouth_px": {c.get_name(): m[i, 0] for i, c in enumerate(g.cameras)},
+            "reproj_px": {c: float(np.mean(list(e.values()))) for c, e in err.items()}}
+
+
+def evaluate(rv, cg, animal: str, date: str, cams: dict, source: str, method: str = "pnp") -> list[dict]:
     from wfield_local import config
     from wfield_local import spout_frame as SF
     from wfield_local import spout_world as SW
@@ -150,13 +166,13 @@ def evaluate(rv, cg, animal: str, date: str, cams: dict, source: str) -> list[di
     rows = []
     for name, mv in variants.items():
         try:
-            r = SW.apparatus_mouth({"cam1": m1, "cam4": mv}, rig["geometry"], cg)
+            r = (_pnp_mouth if method == "pnp" else SW.apparatus_mouth)({"cam1": m1, "cam4": mv}, rig["geometry"], cg)
         except ValueError as e:
             rows.append({"session": f"{animal}_{date}", "source": source, "cam4": name, "error": str(e)})
             continue
         w = r["world"]
         a1, a4 = r["mouth_px"]["cam1"], r["mouth_px"]["cam4"]
-        rows.append({"session": f"{animal}_{date}", "source": source, "cam4": name,
+        rows.append({"session": f"{animal}_{date}", "source": source, "method": method, "cam4": name,
                      "chosen": name == (CHOSEN[1] if june else CHOSEN[0]), "n_pos": len(r["positions"]),
                      "cam1_mouth": f"({a1[0]:.0f},{a1[1]:.0f})", "cam1_mouth-nose": f"({a1[0] - n1[0]:+.0f},{a1[1] - n1[1]:+.0f})",
                      "cam4_mouth": f"({a4[0]:.0f},{a4[1]:.0f})", "cam4_mouth-nose": f"({a4[0] - n4[0]:+.0f},{a4[1] - n4[1]:+.0f})",
@@ -172,7 +188,7 @@ def evaluate(rv, cg, animal: str, date: str, cams: dict, source: str) -> list[di
 CHOSEN = ("raw", "x0.885 @principal pt")
 
 
-def _production_one(s: str) -> list[dict]:
+def _production_one(s: str, method: str = "pnp") -> list[dict]:
     """fan_sessions worker (module level: spawn pickles by name)."""
     from wfield_local.paths import PathResolver
     rv = PathResolver()
@@ -181,7 +197,7 @@ def _production_one(s: str) -> list[dict]:
     miss = [c for c, v in cams.items() if v is None]
     if miss:
         return [{"session": f"{animal}_{date}", "source": "production", "error": f"no / incomplete O2 output: {miss}"}]
-    return evaluate(rv, _cgroup(rv), animal, date, cams, "production")
+    return evaluate(rv, _cgroup(rv), animal, date, cams, "production", method)
 
 
 def _production_sessions(rv) -> list[str]:
@@ -198,6 +214,8 @@ def main(argv=None) -> int:
     ap.add_argument("sessions", nargs="*", metavar="ANIMAL:YYYYMMDD")
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--method", choices=["pnp", "similarity"], default="pnp",
+                    help="pnp = per-session camera pose from the spouts (as pose3d; default); similarity = 09-11 extrinsics")
     a = ap.parse_args(argv)
     rv = PathResolver()
     cg = _cgroup(rv)
@@ -209,13 +227,14 @@ def main(argv=None) -> int:
             if cams is None:
                 print(f"{animal} {date}: predictions missing / incomplete -- skipped")
                 continue
-            rows += evaluate(rv, cg, animal, date, cams, "clips")
+            rows += evaluate(rv, cg, animal, date, cams, "clips", a.method)
     elif a.source == "production":
         from wfield_local import analysis_kit as ak
         sess = a.sessions or _production_sessions(rv)
         if a.animals:
             sess = [s for s in sess if s.split(":")[0] in a.animals]
-        res, fails = ak.fan_sessions(sess, _production_one, jobs=a.jobs)
+        from functools import partial
+        res, fails = ak.fan_sessions(sess, partial(_production_one, method=a.method), jobs=a.jobs)
         for s, err in fails:
             rows.append({"session": s.replace(":", "_"), "source": "production", "error": str(err)})
         rows += [r for _, rr in res for r in rr]
@@ -223,11 +242,12 @@ def main(argv=None) -> int:
         for (animal, date), cams in sorted(_labels_by_session(rv).items(), key=lambda kv: (kv[0][1], kv[0][0])):
             if a.animals and animal not in a.animals:
                 continue
-            rows += evaluate(rv, cg, animal, date, cams, "labels")
+            rows += evaluate(rv, cg, animal, date, cams, "labels", a.method)
     T = pd.DataFrame(rows)
     pd.set_option("display.width", 250)
     print(T.to_string(index=False))
-    out = a.out or Path(rv.root("dlc")) / "session_poses" / f"apparatus_mouth_{a.source}.csv"
+    sfx = "" if a.method == "pnp" else f"_{a.method}"
+    out = a.out or Path(rv.root("dlc")) / "session_poses" / f"apparatus_mouth_{a.source}{sfx}.csv"
     T.to_csv(out, index=False)
     print(f"-> {out}")
     if a.source == "production" and "chosen" in T:               # one row per session: the variant used downstream
