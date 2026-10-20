@@ -7,6 +7,9 @@ MICROSCOPE. Write only inside `MICROSCOPE/Priya/...`; never delete original data
 
 ## 0. Resume checklist (in order)
 
+**Status 10-20 ~13:00: items 1-3 below are DONE (both branches finished, results in §4a, encoding window told). Nothing
+local is running. Open: item 4 (O2 cam1 copy-backs for PS94 / PS95) and §7.**
+
 1. **Two local background branches were running at hand-off (§3).** Read their logs; if the session is gone, check the
    outputs' timestamps and re-run what is missing with the §6 commands (both are safe to re-run).
 2. When Branch B is done: look at `pose3d/figures/summary_PS92.png` / `_PS93.png`, `pose3d/phase/*`, the jaw cross-check
@@ -112,6 +115,14 @@ simply ignored downstream.
   spouts -15 / -21 px (PS92 -1 / -3) with L > centre > R ordering intact. PS93's left-side incomplete licks are its
   pre-stroke behaviour (the "right orofacial deficit"); use within-animal changes only.
   Jaw-without-lick acute 0.14-0.32 in both, ~0 chronic; cam1 correction small.
+* **Cue-aligned 3-D traces** (to-do 1b, `scripts/pose3d_cue_traces.py` -> `pose3d/cue_traces/`; engaged trials incl.
+  no-lick trials, in-mouth = 0, mean over cue + 70 .. 1500 ms). far_R acute, pre -> acute: trial-averaged distance PS92
+  1.72 -> 0.20 mm, PS93 1.46 -> 0.29; tongue-out share 0.44 -> 0.06 / 0.42 -> 0.10; tongue-out-only distance 3.84 ->
+  3.08 / 3.41 -> 3.01 (-20 / -12 %); jaw opening 1.64 -> 0.50 / 1.25 -> 0.43. Trials WITH a lick are just as low (0.26 /
+  0.35 mm). So the acute "lower amplitude" is mostly LESS TIME WITH THE TONGUE OUT (fewer, later, isolated licks) plus
+  less time near full extension -- not shorter peak reach (per-lick 3-D peak 5.10 vs 5.14 mm). Also smaller at far_L /
+  far_center acute (PS92 1.58 -> 0.94, 1.05 -> 0.69). Chronic back to pre. Note: acute far_R sits ~0.25 mm above 0 even
+  BEFORE the cue (pre ~0.05) -- tongue at the lips between trials? check before quoting.
 * `apparatus_mouth.py` now per-session PnP (reprojection 0.3-0.7 px); cam1 cleaning origin = PnP mouth + constant 30-32 px
   (rod edge). Phase speed figures renamed `v_speed_norm_*` / `v_speed_peak_*` (old `speed_*` PNGs remain on M:).
 
@@ -166,6 +177,8 @@ python -m scripts.pose3d_kinematics  &  python -m scripts.pose3d_kinematics --li
 python -m scripts.pose3d_spout_error / pose3d_crosscheck / pose3d_summary_fig / pose3d_phase / pose3d_jaw_crosscheck / pose3d_vs_cam4   # parallel ok
 python -m scripts.cam1_licks run --jobs 6            # after pose3d (in_3d flag)
 python -m scripts.cam1_incomplete_licks
+python -m scripts.pose3d_cue_traces --jobs 6           # cue-aligned 3-D traces incl. no-lick trials
+python -m scripts.pose3d_close_dir_sheet [--animal PS92]   # CLOSE_DIR video sheet
 # --- v36 (only when windows / cleaning code changes) ---
 python -m wfield_local.orofacial_outputs process --bundle lp_r4_prod_20261015 --force --jobs 4 [--sessions A:D ...]
 # --- v36 cohort (Branch A; the 4 variants of each can run in parallel, --jobs 3 each) ---
@@ -182,12 +195,15 @@ The box has 24 cores / 63 GB; ~30 % used by others at 11:20. 8 pose3d workers + 
 
 ## 7. To-do
 
-1. **Priya to decide**: (a) CLOSE_DIR -- video sheet of close_L vs close_R trials before interpreting; (b) a 3-D
-   cue-aligned trial-averaged distance plot (includes no-lick trials, where acute "lower amplitude" shows); (c) rename
-   `speed_*` -> `v_speed_*`? (d) PS94 / PS95 cam1 when O2 reaches them.
+1. **Priya to decide**: (a) CLOSE_DIR -- sheet DONE 10-20 (§4a; jaw opens beside the rod, CLOSE_DIR same direction in
+   PS92 / PS93) -- Priya to look; (b) cue-aligned 3-D distance plot DONE 10-20 (§4a); (c) `v_speed_*` rename DONE;
+   (d) PS94 / PS95 cam1 when O2 reaches them -> re-run §6 chain, then CLOSE_DIR / incomplete per animal (rule 8).
+   (e) NEW: acute far_R pre-cue tongue ~0.25 mm out (cue_traces) -- check video before quoting.
 2. After Branch B: re-check the jaw anchor's coverage gain at far_center / close_center on all sessions; confirm FAR_DIR
    r and CLOSE_DIR values with the anchor in.
-3. Per-animal check of the cohort "acute far contra protrusion -30 to -48 px": PS92 is only ~-11 px.
+3. DONE 10-20 (§4a): per-animal far-contra protrusion -- mostly global at far spouts; PS95 = one session. Update
+   `docs/OROFACIAL_FINDINGS.md` far-contra protrusion row (-30 / -26 px) with this caveat (encoding window owns that file?
+   ask Priya).
 4. Cohort tables for 3-D / cam1 when PS93-95 production lands (per-animal first, `analysis_kit.boot_delta`, August pre).
 5. Labelling (if needed): paw-in-face frames as hard negatives.
 6. Open: `scripts/apparatus_mouth.py` still uses the 09-11 extrinsics.

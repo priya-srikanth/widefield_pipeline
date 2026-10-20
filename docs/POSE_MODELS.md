@@ -983,3 +983,12 @@ event. ``lips`` = "at the lips" only among cam1-only events.
 the ``lips`` / ``out`` class matched Priya's 'at the lips' / 'out' call 24 / 24; controls 8 / 8. (Round 3's first build
 showed cam1 and cam4 rows from different moments on PS93 0605 / 0606 -- frame-drop sessions whose frame-index time was
 off by up to 0.6 s; fixed by cutting windows on the alignment templates' per-frame camera times.)
+
+**2026-10-20 afternoon (pose3d / cam1, all on template time + jaw anchor).** Jaw anchor raises centre-spout 3-D jaw
+coverage 0.84 -> 1.00 (13-16 % of frames anchored). CLOSE_DIR (close side spouts) PS92 -0.13 -> -0.22 / -0.25, PS93 -0.03
+-> -0.14 / -0.20 mm (pre / acute / chronic); CLOSE_BIAS opposite in the two animals; video sheet: the jaw opens beside the
+rod, away from it (`scripts/pose3d_close_dir_sheet.py`). Cue-aligned 3-D traces (`scripts/pose3d_cue_traces.py`): acute
+far_R trial-averaged distance falls ~85 % (time with the tongue out), tongue-out distance only -12 to -20 %. PS93's
+left-side incomplete licks are pre-stroke behaviour (DAQ contact far_L 0.39), not a cam1 side flip. `apparatus_mouth`
+uses the per-session PnP pose (cam1 cleaning origin = PnP mouth + constant 30-32 px, the rod edge). Details:
+`docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md` §4a.
