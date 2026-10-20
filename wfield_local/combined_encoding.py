@@ -123,6 +123,14 @@ LICK_MODES = ("cam4", "combined", "lips")
 #: Both blocks deviation-coded like the position blocks (rank 5 x kernel). Matched in dof, model class and licks;
 #: `nokin:category+exbin` is the binned STRICT executed. Built only when set (adds ~12 kernels); outputs -> ..._bins/.
 BINS_ENV = "COMBINED_ENCODING_BINS"
+#: CALIBRATED executed bins (10-20, measured on the 3-D tables): the tongue peak does not land ON the spout table's
+#: position -- it lands ~2 mm deeper (the table marks the rod's lower edge) and laterally compressed (~0.4x at close,
+#: ~0.6x at far spouts), so raw nearest-spout put most close-spout licks in FAR bins (PS92 pre agreement 0.46). The
+#: calibration table (`scripts/exec_bins_calibration.py`) gives, per animal x spout, where that animal's tongue lands
+#: PRE-STROKE (median 3-D peak over its August pre sessions; for a pre session, excluding that session) and the pooled
+#: within-spout SD per axis; executed bin = nearest calibrated landing point in SD units. Pre-stroke-only, so
+#: post-stroke departures stay visible. Used when given and the executed set is 3-D.
+BINS_CALIB_ENV = "COMBINED_ENCODING_BINS_CALIB"
 
 
 def _match_trials(T: pd.DataFrame, B, label: str, path: str, seed: int) -> pd.DataFrame:
@@ -305,6 +313,7 @@ class Behaviour:
     lips_on_s: np.ndarray = None         # LICKS_ENV=lips: cam1-only lips-class onsets (their own kernel)
     exec_xyz: list = None          # 3-D EXEC_ENV: each lick's tongue peak [ml, ap, down] (mm, mouth zero); NaN = unusable
     target_xyz: list = None        # ... and its spout [ml, ap, down] (mm), when TARGET3D_TABLE_ENV is given
+    session: str = None            # "<animal>_<yyyymmdd>" (the 3-D tables' key)
 
 
 def load_behaviour(animal: str, date: str, rv) -> Behaviour:
@@ -384,7 +393,7 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
                 target_amps = _polar(*target_xyz)
     extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
     return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
-                     tdist, reach, exec_amps, target_amps, extra, lips, exec_xyz, target_xyz)
+                     tdist, reach, exec_amps, target_amps, extra, lips, exec_xyz, target_xyz, f"{animal}_{date}")
 
 
 def _cam1_lick_events(rv, animal: str, date: str, cue_t: pd.DataFrame, mode: str):
@@ -460,32 +469,51 @@ def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, ses
     return ang, reach, [a3, a3 ** 2, np.where(ok, r3, np.nan)], xyz
 
 
-def exec_bins(B: Behaviour) -> tuple[np.ndarray, np.ndarray, str]:
+def exec_bins(B: Behaviour, weights: bool = False):
     """BINS_ENV: (target label, executed label, frame) per lick; '' = lick not usable. Executed label = the spout NEAREST
     the tongue peak, from spout geometry only (see BINS_ENV). Usable = exactly the licks of the continuous contest."""
     n = len(B.lick_on_s)
     empty = np.full(n, "", object)
     if B.lick_angle is None:
-        return empty, empty.copy(), "none"
+        return (empty, empty.copy(), "none") + ((np.zeros((n, 0)), []) if weights else ())
     usable = np.isfinite(B.lick_angle)
-    if B.exec_xyz is not None and B.target_xyz is not None:
+    scale = None
+    calib = os.environ.get(BINS_CALIB_ENV)
+    if B.exec_xyz is not None and calib and B.session:
+        C = pd.read_csv(calib)
+        C = C[C.animal == B.session[:4]]
+        C = C[C.calib_for == (B.session if (C.calib_for == B.session).any() else "default")]
+        if C.empty:
+            raise FileNotFoundError(f"{BINS_CALIB_ENV}: no calibration for {B.session} in {calib}")
+        Ex, frame = np.column_stack(B.exec_xyz), "3d_calibrated"
+        geo = {r.position: np.array([r.ml, r.ap, r.down]) for r in C.itertuples()}
+        scale = C[["sd_ml", "sd_ap", "sd_down"]].iloc[0].to_numpy(float)
+    elif B.exec_xyz is not None and B.target_xyz is not None:
         Ex, Sx, frame = np.column_stack(B.exec_xyz), np.column_stack(B.target_xyz), "3d_mm"
         geo = {p: np.nanmedian(Sx[B.lick_pos == p], 0) for p in np.unique(B.lick_pos)}
     elif B.target_angle and B.target_dist and B.lick_reach is not None:
         Ex, frame = np.column_stack([B.lick_angle, B.lick_reach]), "cam4_angle_reach"
         geo = {p: np.array([B.target_angle[p], B.target_dist[p]]) for p in B.target_angle if p in B.target_dist}
     else:
-        return empty, empty.copy(), "none"
+        return (empty, empty.copy(), "none") + ((np.zeros((n, 0)), []) if weights else ())
     P = sorted(p for p, g in geo.items() if np.isfinite(g).all())
     if len(P) < 2:
-        return empty, empty.copy(), "none"
+        return (empty, empty.copy(), "none") + ((np.zeros((n, 0)), []) if weights else ())
     G = np.array([geo[p] for p in P])
-    scale = np.ones(G.shape[1]) if frame == "3d_mm" else np.maximum(G.std(0), 1e-9)
+    if scale is None:
+        scale = np.ones(G.shape[1]) if frame == "3d_mm" else np.maximum(G.std(0), 1e-9)
     ok = usable & np.isfinite(Ex).all(1) & np.isin(B.lick_pos, P)
     d = (((Ex[ok] / scale)[:, None, :] - (G / scale)[None]) ** 2).sum(2)
     tgt, ex = empty.copy(), empty.copy()
     tgt[ok] = B.lick_pos[ok]
     ex[ok] = np.array(P, object)[d.argmin(1)]
+    if weights:
+        # SOFT bins (Priya 10-20: "licks may not land nearest their own spout"): each lick's weight on every landing
+        # zone = Gaussian of its distance in SD units, rows sum to 1 -- no hard misassignment between overlapping zones
+        Wt = np.zeros((n, len(P)))
+        e = np.exp(-0.5 * (d - d.min(1, keepdims=True)))
+        Wt[ok] = e / e.sum(1, keepdims=True)
+        return tgt, ex, frame, Wt, P
     return tgt, ex, frame
 
 
@@ -622,11 +650,19 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
                     tamps = [x - np.nanmean(x) for x in tx]
                 out["lick_angle_tgt"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"], amp=x) for x in tamps])
     if os.environ.get(BINS_ENV):                     # binned contest: six free lick kernels per side (see BINS_ENV)
-        tl, el, _frame = exec_bins(B)
+        tl, el, frame_, Wt, P_ = exec_bins(B, weights=True)
         use = tl != ""
         if use.any():
             allk = _event_cols(B.lick_on_s[use], ft, LAGS["lick"])
             for name, lab in (("lick_bin_tgt", tl), ("lick_bin_exec", el)):
+                if name == "lick_bin_exec" and frame_ == "3d_calibrated":
+                    # SOFT executed bins: lick kernel x each lick's weight on landing zone p. The event builder CENTRES
+                    # the modulator, so each column is already (weighted - mean-weight x all-lick) = deviation-coded;
+                    # weights sum to 1 over p, so the six blocks sum to zero
+                    out[name] = np.hstack([_event_cols(B.lick_on_s[use], ft, LAGS["lick"],
+                                                       amp=Wt[use, P_.index(p)] if p in P_ else np.zeros(use.sum()))
+                                           for p in pos_order])
+                    continue
                 out[name] = np.hstack([_event_cols(B.lick_on_s[lab == p], ft, LAGS["lick"])
                                        - (np.sum(lab == p) / use.sum()) * allk for p in pos_order])
     if B.target_angle:                              # trial-wise target angle (centred), its square, target distance
@@ -1158,11 +1194,14 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
     if os.environ.get(BINS_ENV):                     # how often the tongue went to its own spout, per spout
-        tl_, el_, fr_ = exec_bins(B)
+        tl_, el_, fr_, Wt_, P_ = exec_bins(B, weights=True)
         u_ = tl_ != ""
         res["bins"] = {"frame": fr_, "agree": float(np.mean(tl_[u_] == el_[u_])) if u_.any() else float("nan"),
                        "confusion": pd.crosstab(pd.Series(tl_[u_], name="target"),
-                                                pd.Series(el_[u_], name="exec")).to_dict()}
+                                                pd.Series(el_[u_], name="exec")).to_dict(),
+                       # descriptive: mean soft weight on each landing zone, per target spout (where licks went)
+                       "soft_weight": ({t: dict(zip(P_, Wt_[u_ & (tl_ == t)].mean(0).round(3).tolist()))
+                                        for t in sorted(set(tl_[u_]))} if len(P_) else {})}
     maps, region = {}, []
     tot_pix = {}
     amask = {a: (parea == a) & pstat for a in areas}          # region values on the eroded stat mask

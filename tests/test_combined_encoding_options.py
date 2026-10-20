@@ -195,3 +195,24 @@ def test_out_dir_names(monkeypatch, env, suffix):
     monkeypatch.setattr(oo, "root", lambda rv: Path("ROOT"))
     monkeypatch.setattr(ce, "_run", lambda: "RUN")
     assert ce.out_dir(None, "movement_first") == Path("ROOT") / "RUN" / "imaging_encoding" / f"movement_first{suffix}"
+
+
+def test_soft_exec_bins_sum_to_zero_and_weights(monkeypatch, tmp_path):
+    """Calibrated 3-D bins: soft weights sum to 1 per lick; the soft executed blocks still sum to zero."""
+    B, ft = _behaviour()
+    rng = np.random.default_rng(1)
+    land = {p: np.array([x, y, z]) for p, x, y, z in zip(POS, (0.5, -0.5, 0, 1.5, -1.5, 0), (0, 0, .5, .8, .5, 1.6),
+                                                         (3.9, 3.7, 3.8, 5.0, 4.7, 4.2))}
+    xyz = np.array([land[p] for p in B.lick_pos]) + rng.normal(0, 0.3, (len(B.lick_pos), 3))
+    B.exec_xyz, B.session = [xyz[:, 0], xyz[:, 1], xyz[:, 2]], "PS92_20260809"
+    B.lick_angle = np.zeros(len(B.lick_pos))
+    cal = pd.DataFrame([{"animal": "PS92", "calib_for": "default", "position": p, "n": 100, "ml": v[0], "ap": v[1],
+                         "down": v[2], "sd_ml": .5, "sd_ap": .5, "sd_down": .9} for p, v in land.items()])
+    cal.to_csv(tmp_path / "cal.csv", index=False)
+    monkeypatch.setenv(ce.BINS_CALIB_ENV, str(tmp_path / "cal.csv"))
+    monkeypatch.setenv(ce.BINS_ENV, "1")
+    tl, el, frame, W, P = ce.exec_bins(B, weights=True)
+    assert frame == "3d_calibrated" and np.allclose(W.sum(1), 1) and np.mean(tl == el) > 0.6
+    X = ce.raw_blocks(B, ft)["lick_bin_exec"]
+    k = X.shape[1] // 6
+    assert np.abs(sum(X[:, i * k:(i + 1) * k] for i in range(6))).max() < 1e-4
