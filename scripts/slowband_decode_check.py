@@ -68,17 +68,34 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=3)
+    ap.add_argument("--all", action="store_true",
+                    help="every curated session from 08-06 (the epoch comparison, Priya 10-20); output "
+                         "slowband_decode_all.csv, reusing the rows already in slowband_decode.csv")
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
+    from wfield_local import epochs
+    from wfield_local import filter_acausality_test as F
     out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
     writeguard.assert_writable(out)
-    got, fail = ak.fan_sessions(a.labels or list(DEFAULT), session_check, jobs=a.jobs)
+    name = "slowband_decode_all.csv" if a.all else "slowband_decode.csv"
+    labels = a.labels or ([s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806"] if a.all else list(DEFAULT))
+    prev = pd.DataFrame()
+    if a.all and (Path(out) / "slowband_decode.csv").exists():
+        prev = pd.read_csv(Path(out) / "slowband_decode.csv")
+        prev = prev[prev.label.isin(labels)].drop(columns=["animal", "set"], errors="ignore")
+    todo = [x for x in labels if prev.empty or x not in set(prev.label)]
+    got, fail = ak.fan_sessions(todo, session_check, jobs=a.jobs)
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
-    D = pd.DataFrame([r for _lab, r in got])
+    D = pd.concat([prev, pd.DataFrame([r for _lab, r in got])], ignore_index=True).sort_values("label")
     D["animal"] = D.label.str[:4]
     D["set"] = ["pre" if x[5:] <= "0814" else "post" for x in D.label]
-    D.to_csv(Path(out) / "slowband_decode.csv", index=False, float_format="%.4g")
+    D["epoch"] = D.label.map(epochs.epoch_of)
+    D.to_csv(Path(out) / name, index=False, float_format="%.4g")
+    if a.all:                                          # rule 8: per animal x epoch, adopted vs slow band removed
+        cols = ["adopted_pre", "fast300_pre", "slow300_pre", "adopted_post", "fast300_post"]
+        t = D.groupby(["animal", "epoch"])[cols].mean().unstack("epoch")
+        print(t.reindex(columns=["pre", "acute", "subacute", "chronic"], level=1).round(3).to_string())
     pd.set_option("display.width", 200)
     cols = [c for c in D.columns if c.endswith(("_pre", "_post"))]
     print("chance 0.167; per set x animal:")

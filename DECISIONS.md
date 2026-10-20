@@ -20767,3 +20767,21 @@ lateralisation is SHARED with tongue / jaw direction, and the movement-first mod
 sees only a small uncrossed residual. That residual should not be read as biology yet. Close spouts keep a crossed
 signal beyond kinematics (touch / whisker range). Order matters: movement-first gives shared variance to movement, so
 "explained by movement" here means "not separable from the lick direction", not "caused by it".
+
+## 2026-10-20 — slow-band caveat: why the pre-cue decode is re-split on ALL sessions (by epoch)
+
+**Why.** The >= 300 s component of the adopted SVTcorr decodes spout position on its own (PS92 / PS93 ~0.3, PS94 / PS95
+~0.1; chance 1/6; `qc/slowband_caveat.png`, `scripts/slowband_caveat_figure.py`), it scales with position-block length
+(r = 0.75), and BLOCK LENGTH CHANGES WITH EPOCH in exactly those two animals (median min, pre / acute / subacute /
+chronic: PS92 2.13 / 1.14 / 2.22 / 1.60, PS93 1.39 / 1.00 / 1.20 / 1.25; PS94 / PS95 flat ~0.9-1.0). So a post-stroke
+change in PRE-CUE decoding could partly be the block schedule (shorter acute blocks -> less slow-band contribution).
+The lick-free ENL window does not protect against this: a > 300 s component is flat within a 2 s window, i.e. a
+per-trial level that drifts with the block sequence across trials; and a pre-trial baseline would remove real position
+signal (blocks run ~6 trials). Not shown to be an artefact: under block CV the 300-600 s band decodes held-out blocks
+ABOVE chance (the >= 600 s band falls below chance), consistent with a slow, sustained position response as much as with
+drift. Size: removing it lowers pre-stroke pre-cue decode PS92 0.361 -> 0.323, PS93 0.405 -> 0.331 (~15-30 % of the
+above-chance decode). Cue / lick windows unaffected (post-cue 0.78 -> 0.75).
+**Run.** `scripts/slowband_decode_check.py --all` (every curated session from 08-06; reuses the 46 earlier rows) ->
+`qc/slowband_decode_all.csv`, adopted vs slow-band-removed decode per animal x epoch. Reading rule: if the acute pre-cue
+drop survives without the slow band in PS92 / PS93 the finding stands (size caveat only); if it shrinks there but not
+in PS94 / PS95, part of it was the block schedule. Results appended below when in.
