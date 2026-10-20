@@ -978,3 +978,8 @@ loses 0 / 70 real; applied to cam1-only events only (static + cam4-matched = ton
 cam1-only 7.5 % pre / 3.9 % acute of events, cam4 jaw-only trials with a cam1 tongue 19 % pre / <= 3.5 % acute. Droplets
 follow uncollected water (pre 3 % of trials after a hit, 15 % after 3 misses; most at close_center): ``miss_prev3`` per
 event. ``lips`` = "at the lips" only among cam1-only events.
+
+**cam1 licks on a second animal (10-20, PS93 pre, round 3 after the template-time fix).** cam1-only events 24 / 24 real;
+the ``lips`` / ``out`` class matched Priya's 'at the lips' / 'out' call 24 / 24; controls 8 / 8. (Round 3's first build
+showed cam1 and cam4 rows from different moments on PS93 0605 / 0606 -- frame-drop sessions whose frame-index time was
+off by up to 0.6 s; fixed by cutting windows on the alignment templates' per-frame camera times.)

@@ -135,7 +135,7 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   tables rebuilt 10-20 09:07 / 09:14 (cohort rows now looked up by time -- gaps at drops). 3-D re-run for PS92 0606 / 0908,
   PS93 0605 / 0606 (3.1-3.7 px); PS92 0605 still fails (spout fit; 10.6 px). cam1-only share after the timing fix: PS93
   pre 9.3 -> 5.4 %, PS92 chronic 11.7 -> 7.5 % (drop-session licks had been mislabelled). PS93 review rebuilt (rows now
-  frame-aligned; db collection `cam1_lick_review3b`) -- AWAITING Priya. `scripts/cam1_incomplete_licks.py`
+  frame-aligned; db collection `cam1_lick_review3b`) -- SCORED 10-20 (`review3/scored.csv`): cam1-only 24 / 24 real (lips 12 / 12 'at the lips', out 12 / 12 'out'), controls 8 / 8 -> the droplet rule and the size class transfer to a second animal; 2 notes: tongue out but partly hidden by water. `scripts/cam1_incomplete_licks.py`
   (`session_poses/cam1_licks/incomplete/`): PS92 far_R incomplete share 0.17 pre -> 0.86 acute -> 0.35 chronic; cam1
   at-the-lips events / trial rise 3-4x chronic on the right (far_R 0.51 -> 2.16, close_R 0.42 -> 1.42); jaw-without-lick
   1-3 % pre -> 12-30 % acute at every position -> ~0 chronic; cam1 correction small. 3-D jaw CLOSE_DIR (close side
