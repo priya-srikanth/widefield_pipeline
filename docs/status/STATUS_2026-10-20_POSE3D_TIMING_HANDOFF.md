@@ -169,6 +169,15 @@ simply ignored downstream.
      0.03 mm). The anchor's earlier "ap 0.15-0.39" averaged open with closed frames and hid this. Tongue features not
      yet ablated. RECOMMENDED: replace the rest-depth anchor in `pose3d.anchor_single_view` with this model, then re-run
      3-D production (curated) + kinematics + figures (awaiting Priya; the box was busy).
+     **SUPERSEDED -- ANCHOR TURNED OFF (10-20 evening, Priya: "should we just give up on filling in occluded jaw like
+     this?" -- yes).** Sheet C with both placements: the depth model is still too high on OPEN close_center jaws seen by
+     cam1 only (3 / 4 such tiles) -- both cameras almost never see an open jaw there, so the model extrapolates.
+     `pose3d.ANCHOR_PARTS = ()`; one-camera jaw beyond the 200 ms fill stays NaN (centre spouts ~84 % coverage, the
+     missing frames mostly OPEN close_center jaws -> close_center jaw OPENING biased low: leave it out of opening
+     comparisons, as cam4 does). FAR_DIR / CLOSE_DIR unaffected (side spouts, ~0 % anchored). Re-run (task bjj6xs7sf,
+     3 workers, serial kinematics -- the other window was using ~25 GB): 3-D production (curated) -> kinematics cam4 ->
+     combined -> summary_fig, jaw_crosscheck, phase -> cue / first-lick traces. NOT re-run (no 3-D jaw input): v36,
+     cam1 licks, incomplete readout, spout_error. Superseded by this: the 10-20 "anchor coverage 0.84 -> 1.00" result.
 * **Practice vs stroke (chronic close-spout licking)**, cam4 v36 all four animals, early vs late August pre vs chronic:
   first-lick latency was still FALLING through pre in PS92 / PS93 (-8 to -35 ms / day) and PS94 / PS95 were already
   fast and do not change chronic (close 149 -> 158, 144 -> 145 ms) -> the chronic speed-up looks like continued

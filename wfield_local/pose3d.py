@@ -207,8 +207,15 @@ def camera_rays(cam, xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return -R.T @ t, U / np.linalg.norm(U, axis=1, keepdims=True)
 
 
-#: parts whose LONG one-camera stretches (beyond the fill limit) are placed with the rest-depth anchor (10-20)
-ANCHOR_PARTS = ("jaw",)
+#: parts whose LONG one-camera stretches (beyond the fill limit) are placed with the rest-depth anchor. EMPTY since
+#: 10-20 evening (Priya: "should we just give up on filling in occluded jaw like this?" -- yes): the anchor put OPEN
+#: one-camera jaws 0.5-1.4 mm off (opening underestimated, cam4-only -0.55 mm; check sheet C, cam1 + anchor too high),
+#: and a depth model fitted on both-camera frames (`scripts/pose3d_jaw_depth_model_check.py`: open-jaw error 0.25-0.31
+#: mm held out) still missed at close_center, where both cameras almost never see an open jaw (extrapolation).
+#: One-camera jaw frames beyond the 200 ms fill stay NaN: centre-spout 3-D jaw ~84 % coverage, missing mostly OPEN
+#: close_center jaws -> close_center jaw OPENING is biased low (leave it out of opening comparisons, as cam4 does).
+#: FAR_DIR / CLOSE_DIR (side spouts, ~0 % anchored) unaffected. `anchor_single_view` kept for the record / tests.
+ANCHOR_PARTS: tuple = ()
 
 
 def _cam_depth(cam, X: np.ndarray) -> np.ndarray:
