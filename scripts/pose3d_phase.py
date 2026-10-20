@@ -246,13 +246,13 @@ def fig_trajectories(P, animal, geo, path, pre_from, lset="all"):
     # read mouth at the top, tongue reaching down the page
     planes = (("front\n(facing the mouse,\nas cam4)", "side", "down", "side (mm; + = mouse left)", "down (mm)"),
               ("side\n(from the\nmouse's left)", "out", "down", "out of the mouth (mm)", "down (mm)"),
-              ("above\n(mouse facing\ndown the page)", "side", "out", "side (mm; + = mouse left)",
-               "out of the mouth (mm)"))
+              ("above\n(mouse faces\ndown the page)", "side", "out", "side (mm; + = mouse left)", "out (mm)"))
     covmin = []
     fig, axes = plt.subplots(len(planes), len(POS), figsize=(2.6 * len(POS), 2.6 * len(planes)), squeeze=False)
     tgt = {p: SW.commanded_world(geo, p) for p in POS}
     tv = {p: {"side": -tgt[p][0], "out": tgt[p][1], "down": -tgt[p][2]} for p in POS}
     for i, (name, xa, ya, xl, yl) in enumerate(planes):
+        ext = [[0.0], [0.0]]                              # this row's x / y extent: paths, spouts, mouth zero
         for j, p in enumerate(POS):
             ax = axes[i, j]
             for ep in EP_COL:
@@ -262,21 +262,30 @@ def fig_trajectories(P, animal, geo, path, pre_from, lset="all"):
                     w = cov >= 0.5
                     if w.any():
                         covmin.append(float(cov[w].min()))
+                        ext[0] += list(xv[w][np.isfinite(xv[w])])
+                        ext[1] += list(yv[w][np.isfinite(yv[w])])
                     ax.plot(xv[w], yv[w], color=EP_COL[ep], lw=1.4, label=f"{ep} ({n})")
                     k = int(np.argmin(np.abs(x - 0.5)))
                     if w[k]:
                         ax.plot(xv[k], yv[k], "o", color=EP_COL[ep], ms=3)
             ax.scatter(tv[p][xa], tv[p][ya], s=90, facecolor="none", edgecolor="k", lw=1.2, zorder=5)
             ax.scatter(0, 0, marker="+", s=60, color="k", zorder=5)
-            if ya in ("down", "out"):                     # down / out of the mouth point DOWN the page
-                ax.invert_yaxis()
-            ax.set_aspect("equal", adjustable="datalim")
+            ext[0].append(tv[p][xa])
+            ext[1].append(tv[p][ya])
             ax.tick_params(labelsize=6)
             if i == 0:
                 ax.set_title(p, fontsize=8)
             if j == 0:
                 ax.set_ylabel(f"{name}\n{yl}", fontsize=7)
             ax.set_xlabel(xl, fontsize=6.5)
+        # SAME axes across the row (Priya 10-20), equal mm scaling; down / out of the mouth point DOWN the page
+        pad = 0.3
+        x0, x1 = min(ext[0]) - pad, max(ext[0]) + pad
+        y0, y1 = min(ext[1]) - pad, max(ext[1]) + pad
+        for ax in axes[i]:
+            ax.set_xlim(x0, x1)
+            ax.set_ylim((y1, y0) if ya in ("down", "out") else (y0, y1))
+            ax.set_aspect("equal", adjustable="box")
     axes[0, 0].legend(fontsize=6, frameon=False)
     cm = min(covmin) if covmin else float("nan")
     t = _wrap(f"{animal}: mean 3-D tongue path per position (dot = mid-lick; open circle = target spout, + = mouth zero; "
