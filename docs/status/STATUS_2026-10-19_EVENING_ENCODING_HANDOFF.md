@@ -88,6 +88,12 @@ Stop commands (Priya, PowerShell; Claude cannot stop processes): nokin runs = py
 5. Per-spout maps from the FIXED shufpos rerun (`--order movement_first_subset-shufpos`); review with Priya;
    check which earlier per-position readouts used shufpos (DECISIONS 10-18 "per-position readouts") and redo them.
 6. Pre-cue slow-band caveat presentation (10-19 morning handoff to-do 6); orofacial findings rewrite on v36 (10-18).
+7. (10-20) After the v36 rerun: rerun PS92_0908 everywhere; smoke-test `COMBINED_ENCODING_LICKS=combined|lips`
+   (cam1-only lick events in the timing kernel, optional lips kernel) and the STRICT executed model
+   `nokin:category+exec` (executed beyond all six spout kernels); then the 3-D COHORT contest (xyz2 + combined licks +
+   strict) when cam1 O2 production lands -- the deciding analysis for target vs executed.
+8. DEFERRED (Priya 10-20): a non-linear ceiling check (flexible model on the same inputs vs the linear held-out R2).
+   Not a replacement -- unique-variance attribution needs comparable model classes.
 
 ## 5. Pitfalls (new today)
 
