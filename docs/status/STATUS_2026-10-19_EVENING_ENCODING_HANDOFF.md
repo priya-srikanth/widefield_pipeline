@@ -12,7 +12,15 @@ Priya's question: does cortex track the TARGET (spout) or the EXECUTED lick, and
 Today the fair contest ran on O2 for all 119 sessions, plus a lick-matched control, trial-to-trial variance, the
 Musall-order shuffle, and a three-round misdirected-lick analysis.
 
-**Current reading (provisional until the trial-to-trial contest is in):**
+**UPDATE 10-20 morning (DECISIONS 2026-10-20):** the trial-to-trial contest shows NO general post-stroke executed shift
+(PS94 chronic is the exception), and the COORDINATE-MATCHED 3-D contest on PS92 (`_exec-xyz2`) removes most of the
+pre-stroke target advantage (cortex u_target 8.0 vs u_exec 11.7; cam4 on the same licks 31.7 vs 10.8; MOs leans
+executed) -> the PRE bullet below is SUSPENDED until the 3-D contest runs on all four animals (cam1 O2 production). The
+chronic position-coding gain is beyond the pre-stroke trend (June+August slope ~0) and LAGS behavioural recovery by ~1
+week (`qc/position_coding_*`). Per-spout: fixed one-vs-rest maps (119/119), share maps, signed maps; DROP-p model ready
+for O2 (TAG droppos, not yet run).
+
+**Reading as of 10-19 evening (PRE bullet suspended, see above):**
 - PRE: cortex's lick-locked spatial signal follows the spout, not the tongue -- unique target .017-.030 vs unique executed
   ~0 (lick-matched), although 60-87 % of the executed predictors are independent of the target ones (not collinearity).
 - POST: the executed lick gains its own representation (survives lick-matching), largest acutely / subacutely, when the
