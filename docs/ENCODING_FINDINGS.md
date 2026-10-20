@@ -96,6 +96,10 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   A BILATERAL component is the larger post-stroke effect (acute: more contra-directed licks -> larger response in
   both hemispheres), concentrated in PS94 and PS95 0817; read alongside the crossed part, cause under test
   (contact / reward / latency, spout side).
+  LICK-ALIGNED (10-20, default now; acute far-contra licking starts >1.5 s after the cue on 35-38 % of PS92 / PS93
+  trials): between maps unchanged; crossed within slope stronger (SSp-m pre t = -6.5, ratio .10-.20, MOs t = -3.2),
+  roughly flat post-stroke except PS92 chronic .38; bilateral PS94 / PS95 acute directional effect survives, PS94
+  flips positive subacute / chronic. `qc/within_spout_deviation_lick/`.
 
 ## 3. Where and how spouts are coded
 

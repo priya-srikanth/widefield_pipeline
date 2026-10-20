@@ -20868,3 +20868,20 @@ a candidate compensatory / effort recruitment signal. PS94 / PS95 are also the a
 (PS94) or ahead of (PS95) the chronic position-coding gain. Next: (a) per-animal maps of this component; (b) model the
 eccentricity explicitly (|deviation toward midline| and signed deviation together); (c) subacute / chronic course;
 (d) 3-D angles.
+**Lick-aligned re-run (10-20, Priya: "there is a variable BIG delay in far contra licking after stroke"; 106 curated
+sessions; `qc/within_spout_deviation_lick/`; first lick + 0-1 s, pre-cue baseline, latency covariate).**
+The delay is real and was hurting the cue-aligned version: acute far-contra first-lick median PS92 1.20 s / PS93 1.01 s
+(pre 0.31 / 0.39), 38 % / 35 % of trials first licking after 1.5 s -- those trials had NO lick in the cue window and were
+dropped there; PS94 / PS95 acute far contra 0.28 / 0.23 s (16-18 % late). Results lick-aligned:
+(1) Between-spout maps: same crossed topography and size as cue-aligned in every epoch -> not a delay artefact.
+(2) Crossed (L - R) within slope STRONGER and cleaner: SSp-m pre -1.15 / -2.18 / -1.73 / -1.59 (x1e-3 / 10 deg; 31 pre
+sessions t = -6.5, was -3.6), within / between .10-.20; MOs now significant too (t = -3.2). Post-stroke the ratio is
+roughly flat (.10-.20) except PS92 chronic .38 and PS95 chronic ~0. The subacute within map is now crossed (blue left
+spot, red right SSp spot) like the between map. Mostly carried by CONTRA spouts (pre z -1.5 .. -3.0).
+(3) Bilateral component survives: PS94 / PS95 acute -> larger response for contralesional-directed licks at every side
+(z contra -2.6 / -1.9, ipsi -3.4 / -3.5, PS94 mid -3.0); pre eccentricity pattern unchanged (contra +3.2 / +6.0, ipsi
+-2.0 / -7.3). New lick-aligned: PS94 subacute / chronic flips POSITIVE at all sides (chronic contra +9.5, mid +4.7,
+ipsi +3.3); PS93 chronic negative at all sides (mid -6.1). PS92 / PS93 acute still ~0 (PS93 mid -4.0).
+Reading: pre-stroke there is a reliable, small executed component in the crossed sensorimotor signal (~10-20 % of the
+across-spout slope, lower bound); the bilateral component is animal-specific and changes sign over recovery in PS94.
+Lick alignment is the default for this check from now on.
