@@ -282,16 +282,17 @@ def fig_trajectories(P, animal, geo, path, pre_from, lset="all"):
         pad = 0.3
         x0, x1 = min(ext[0]) - pad, max(ext[0]) + pad
         y0, y1 = min(ext[1]) - pad, max(ext[1]) + pad
-        for ax in axes[i]:
+        for j, ax in enumerate(axes[i]):
             ax.set_xlim(x0, x1)
             ax.set_ylim((y1, y0) if ya in ("down", "out") else (y0, y1))
             ax.set_aspect("equal", adjustable="box")
+            ax.tick_params(labelleft=j == 0)              # shared range: y tick labels on the first panel only
     axes[0, 0].legend(fontsize=6, frameon=False)
     cm = min(covmin) if covmin else float("nan")
     t = _wrap(f"{animal}: mean 3-D tongue path per position (dot = mid-lick; open circle = target spout, + = mouth zero; "
               f"drawn where >= half the licks have a 3-D point -- lowest share drawn {cm:.2f})\n" + _how("norm", lset), 150)
     fig.suptitle(t, fontsize=8.5)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0.02, 0, 1, 1))                                # left strip: the row labels
     fig.savefig(path, dpi=120)
     plt.close(fig)
 
