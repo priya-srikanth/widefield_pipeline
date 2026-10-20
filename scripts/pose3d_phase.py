@@ -29,6 +29,9 @@ EP_COL = {"pre": "0.2", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#
 HALF_MS, PORTRAIT_MS = 152.0, 76.0
 T_REL = np.arange(-HALF_MS, HALF_MS + 0.1, 4.0)
 U_NORM = np.linspace(0.0, 1.0, 41)
+#: normalised phase SHOWN only inside this range, as cam4 (`orofacial_cohort.U_SHOW`, Priya 10-18): the onset / offset
+#: frames carry edge artefacts (speed differenced across the boundary; in fast trains the offset touches the next lick)
+U_SHOW = (0.1, 0.9)
 MEAS = ("dist", "vrad", "out", "down", "side", "mid", "speed", "v_side", "v_out", "v_down", "j_side", "j_out", "j_down")
 OBLIQUE = (20.0, 45.0)      # matplotlib (elev, azim), as the paired video: in front of the mouse, to its right, 20 deg above
 
@@ -86,6 +89,8 @@ def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
 def _epoch_curves(P: pd.DataFrame, animal: str, kind: str, m: str, pre_from: str) -> dict:
     g = P[(P.animal == animal) & (P.kind == kind) & (P.measure == m)]
     g = g[(g.epoch != "pre") | (g.date >= pre_from)]
+    if kind == "norm":
+        g = g[(g.x >= U_SHOW[0] - 1e-9) & (g.x <= U_SHOW[1] + 1e-9)]
     out = {}
     for (ep, pos), ge in g.groupby(["epoch", "position"]):
         piv = ge.pivot_table(index="session", columns="x", values="v")
@@ -256,13 +261,17 @@ def main(argv=None) -> int:
         animal, date = s.split("_")
         C = pd.read_csv(V36 / animal / date / "licks.csv", usecols=["trial_id", "lick_idx", "on_ms", "off_ms"])
         g = g.merge(C, on=["trial_id", "lick_idx"], how="left").dropna(subset=["on_ms", "off_ms", "t_peak_3d"])
-        for r in _session(d3, s, g):
-            rows.append({**r, "animal": animal, "date": date, "epoch": g.epoch.iloc[0]})
+        # lick sets as cam4 (Priya 10-16 / 10-20): ALL post-cue licks and the FIRST post-cue lick of each trial
+        for lset, gg in (("all", g), ("first", g[g.lick_idx == 0])):
+            for r in _session(d3, s, gg):
+                rows.append({**r, "animal": animal, "date": date, "epoch": g.epoch.iloc[0], "lickset": lset})
         print(f"{s}: {len(g)} licks")
-    P = pd.DataFrame(rows)
+    PP = pd.DataFrame(rows)
+    P = PP[PP.lickset == "all"]
+    PF = PP[PP.lickset == "first"]
     out = d3 / "phase"
     out.mkdir(exist_ok=True)
-    P.to_csv(out / "curves.csv.gz", index=False, float_format="%.4g")
+    PP.to_csv(out / "curves.csv.gz", index=False, float_format="%.4g")
     for animal in sorted(P.animal.unique()):
         last = sorted(L[L.animal == animal].date.astype(str).unique())[-1]
         geo = _rig(rv, animal, last)["geometry"]
@@ -277,6 +286,15 @@ def main(argv=None) -> int:
                   out / f"phase_dist_{animal}.png", f"{animal}: 3-D distance vs normalised lick phase", a.pre_from)
         fig_trajectories(P, animal, geo, out / f"trajectories_{animal}.png", a.pre_from)
         fig_traj3d(P, animal, geo, out / f"trajectories3d_{animal}.png", a.pre_from)
+        # FIRST post-cue lick of each trial (cam4's lick-1 set): aim, distance, speed and the 3-D path
+        fig_lines(PF, animal, "norm", "mid", "angle out of the midline plane (deg; + = ipsi)",
+                  "normalised lick phase (0 = onset, 1 = offset)", out / f"phase_angle_first_{animal}.png",
+                  f"{animal}: FIRST post-cue lick -- angle out of the midline plane vs normalised phase", a.pre_from)
+        fig_lines(PF, animal, "norm", "dist", "3-D distance from mouth zero (mm)", "normalised lick phase",
+                  out / f"phase_dist_first_{animal}.png", f"{animal}: FIRST post-cue lick -- 3-D distance", a.pre_from)
+        fig_lines(PF, animal, "norm", "speed", "3-D tip speed (mm/s)", "normalised lick phase",
+                  out / f"speed_norm_first_{animal}.png", f"{animal}: FIRST post-cue lick -- 3-D tip speed", a.pre_from)
+        fig_traj3d(PF, animal, geo, out / f"trajectories3d_first_{animal}.png", a.pre_from)
         for kind, xl in (("peak", "ms from 3-D lick peak"), ("norm", "normalised lick phase (0 = onset, 1 = offset)")):
             fig_lines(P, animal, kind, "speed", "3-D tip speed (mm/s)", xl, out / f"speed_{kind}_{animal}.png",
                       f"{animal}: 3-D tongue-tip speed through the lick (undefined in the mouth)", a.pre_from)

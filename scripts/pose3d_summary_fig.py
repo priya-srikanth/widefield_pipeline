@@ -102,29 +102,35 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
                 ax.set_ylabel(label, fontsize=7)
             if i == len(ROWS) - 1:
                 ax.set_xlabel("days from stroke", fontsize=7)
-    # jaw FAR_DIR strip
+    # jaw steering strip: FAR_DIR (cam4's readout) + CLOSE_DIR (close side spouts, 3-D only, 10-20) and the side biases
     for j in range(len(POS)):
         axes[-1, j].set_visible(False)
-    ax = axes[-1, 0]
-    ax.set_visible(True)
-    if "jaw_far_dir_mm" in k:
-        d = k[["date", "epoch", "jaw_far_dir_mm"]].dropna().assign(day=lambda x: [_x(animal, y) for y in x.date],
-                                                                  june=lambda x: [str(y) < "20260801" for y in x.date])
+    STRIP = (("jaw_far_dir_mm", "jaw FAR_DIR (mm;\n+ toward target)"), ("jaw_close_dir_mm", "jaw CLOSE_DIR (mm;\n+ toward target)"),
+             ("jaw_far_bias_mm", "jaw FAR_BIAS (mm;\n+ ipsi)"), ("jaw_close_bias_mm", "jaw CLOSE_BIAS (mm;\n+ ipsi)"))
+    for j, (col, lab) in enumerate(STRIP):
+        if col not in k:
+            continue
+        ax = axes[-1, j]
+        ax.set_visible(True)
+        d = k[["date", "epoch", col]].dropna().assign(day=lambda x: [_x(animal, y) for y in x.date],
+                                                      june=lambda x: [str(y) < "20260801" for y in x.date])
         pre = d[(d.epoch == "pre") & (d.date.astype(str) >= pre_from)]
         if len(pre):
-            ax.axhspan(pre.jaw_far_dir_mm.min(), pre.jaw_far_dir_mm.max(), color="0.85", zorder=0)
+            ax.axhspan(pre[col].min(), pre[col].max(), color="0.85", zorder=0)
         for ep, g in d.groupby("epoch"):
             gj, ga = g[g.june], g[~g.june]
-            ax.scatter(ga.day, ga.jaw_far_dir_mm, s=18, color=EP_COL.get(ep, "C0"), zorder=3, label=ep)
+            ax.scatter(ga.day, ga[col], s=18, color=EP_COL.get(ep, "C0"), zorder=3, label=ep)
             if len(gj):
-                ax.scatter(gj.day, gj.jaw_far_dir_mm, s=18, facecolor="none", edgecolor=EP_COL.get(ep, "C0"), zorder=3,
+                ax.scatter(gj.day, gj[col], s=18, facecolor="none", edgecolor=EP_COL.get(ep, "C0"), zorder=3,
                            label="pre (June, reference only)")
         ax.axvline(0.5, color="k", lw=0.5, ls=":")
+        ax.axhline(0, color="0.6", lw=0.5)
         _xaxis(ax)
-        ax.set_ylabel("jaw FAR_DIR (mm;\n+ toward target)", fontsize=7)
+        ax.set_ylabel(lab, fontsize=7)
         ax.set_xlabel("days from stroke", fontsize=7)
         ax.tick_params(labelsize=6)
-        ax.legend(fontsize=6, loc="best")
+        if j == 0:
+            ax.legend(fontsize=6, loc="best")
     fig.suptitle(f"{animal}: 3-D tongue / jaw per session (cam1 + cam4; grey = August pre range, dashed = its median)",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.985))

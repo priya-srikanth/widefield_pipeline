@@ -189,6 +189,11 @@ def main(argv=None) -> int:
         if {"far_L", "far_R"} <= set(jm.index):
             row["jaw_far_dir_mm"] = (jm["far_L"] - jm["far_R"]) / 2       # + = toward the target side
             row["jaw_far_bias_mm"] = (jm["far_L"] + jm["far_R"]) / 2      # + = ipsi (mouse left)
+        # CLOSE side spouts too (10-20): cam4's jaw readout leaves them out (the rod hides part of the chin in cam4),
+        # but 3-D sees the jaw there 81-98 % of frames at ~1 px (both cameras)
+        if {"close_L", "close_R"} <= set(jm.index):
+            row["jaw_close_dir_mm"] = (jm["close_L"] - jm["close_R"]) / 2
+            row["jaw_close_bias_mm"] = (jm["close_L"] + jm["close_R"]) / 2
         for p, g in L.groupby("position"):
             for m in LICK_MEASURES:
                 row[f"{m}|{p}"] = float(g[m].median())
