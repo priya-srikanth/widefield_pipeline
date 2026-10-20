@@ -131,6 +131,17 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   QUANTIFIED + FIXED 10-20 (decision row "ALL video timing from the alignment templates"). Chronic jaw lateral RESOLVED:
   on far_L / far_R (the trials FAR_DIR uses) cam4 vs 3-D per-trial r is 0.80 chronic vs 0.90 pre; the drop is the
   close / centre spouts cam4's jaw readout already excludes. PS93 low contact (62-69 % Aug) is real (cam4 v36 70 %).
+* **10-20 later.** v36 re-run (`--force`) for the 9 timing sessions with template-time windows; cohort + jaw-lateral
+  tables rebuilt 10-20 09:07 / 09:14 (cohort rows now looked up by time -- gaps at drops). 3-D re-run for PS92 0606 / 0908,
+  PS93 0605 / 0606 (3.1-3.7 px); PS92 0605 still fails (spout fit; 10.6 px). cam1-only share after the timing fix: PS93
+  pre 9.3 -> 5.4 %, PS92 chronic 11.7 -> 7.5 % (drop-session licks had been mislabelled). PS93 review rebuilt (rows now
+  frame-aligned; db collection `cam1_lick_review3b`) -- AWAITING Priya. `scripts/cam1_incomplete_licks.py`
+  (`session_poses/cam1_licks/incomplete/`): PS92 far_R incomplete share 0.17 pre -> 0.86 acute -> 0.35 chronic; cam1
+  at-the-lips events / trial rise 3-4x chronic on the right (far_R 0.51 -> 2.16, close_R 0.42 -> 1.42); jaw-without-lick
+  1-3 % pre -> 12-30 % acute at every position -> ~0 chronic; cam1 correction small. 3-D jaw CLOSE_DIR (close side
+  spouts, new): PS92 -0.14 pre -> -0.27 acute / chronic mm (jaw AWAY from the target at close spouts; FAR_DIR 0.26 -> 0.00
+  -> 0.12); PS93 -0.05 -> -0.13 / -0.18 (clips) -- new, unvalidated: check close_L vs close_R videos before reading it.
+  Jaw rest-depth anchor is in code but only the 5 re-run sessions have it: a full 3-D re-run (all sessions) is due.
 
 ## 5. O2: check jobs and copy outputs (Priya runs these)
 
