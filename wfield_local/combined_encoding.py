@@ -99,6 +99,17 @@ EXEC3D_TABLE_ENV = "COMBINED_ENCODING_EXEC3D_TABLE"
 #: 5-D between-position space, so a win can come from the coordinate system alone, not from tracking the tongue.
 EXEC_MODES = ("cam4m", "3d", "3dxyz", "xyz2")
 TARGET3D_TABLE_ENV = "COMBINED_ENCODING_TARGET3D_TABLE"
+#: LICK EVENT SET for the lick TIMING kernel (Priya 10-20: "use combined cam1/4 lick events and consider +- lips-only
+#: kernel"). cam4 misses small licks (cam1 adds 3-7 % real ones; incomplete licks rise post-stroke, PS92 far_R share
+#: .17 -> .86 acute), so their cortical activity was left to position / executed / traces -- a post-stroke bias.
+#:   cam4      (default) LP cam4 lick onsets + DAQ contacts (as before)
+#:   combined  + cam1-ONLY events (session_poses/cam1_licks/<a>_<d>_events.csv: not cam4-matched, not droplets) in the
+#:             same lick kernel
+#:   lips      as combined, but cam1-only events with size_class == 'lips' get their OWN kernel (inside `licks`)
+#: TIMING ONLY: cam1-only events have no angle / reach (no cam4 trace; no usable 3-D depth below ~1 mm), so they never
+#: enter the executed / target sets. Outputs -> ..._licks-<mode>/.
+LICKS_ENV = "COMBINED_ENCODING_LICKS"
+LICK_MODES = ("cam4", "combined", "lips")
 
 
 def _match_trials(T: pd.DataFrame, B, label: str, path: str, seed: int) -> pd.DataFrame:
@@ -197,7 +208,8 @@ NODIR_BASE = ("cue", "arrival", "licks", "tongue_ps", "jaw_nd", "nose_nd", "runn
 #: the spout, i.e. target-correlated) -- Priya 10-19 -- so it enters only as a separate check (`nokin:kin+nose*`). kinall
 #: has many more columns than the 3-amplitude per-lick variables: read it by UNIQUE shares, not raw gains.
 NOKIN_BASE = ("cue", "arrival", "licks", "running")
-NOKIN_TR = ("nokin:none", "nokin:category", "nokin:target", "nokin:exec", "nokin:target+exec")
+NOKIN_TR = ("nokin:none", "nokin:category", "nokin:target", "nokin:exec", "nokin:target+exec",
+            "nokin:category+exec")
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed"),
           "musall": ("instructed", "uninstructed", "task")}
@@ -274,6 +286,8 @@ class Behaviour:
     lick_reach: np.ndarray = None  # each lick's executed peak protrusion (px); NaN where lick_angle is NaN
     exec_amps: list = None         # EXEC_ENV: the executed set's per-lick amplitudes (replace angle / angle^2 / reach)
     target_amps: list = None       # EXEC_ENV xyz2: the target set's per-lick amplitudes (spout 3-D ml / ap / dv)
+    extra_lick_on_s: np.ndarray = None   # LICKS_ENV: cam1-only lick onsets added to the lick timing kernel
+    lips_on_s: np.ndarray = None         # LICKS_ENV=lips: cam1-only lips-class onsets (their own kernel)
 
 
 def load_behaviour(animal: str, date: str, rv) -> Behaviour:
@@ -346,8 +360,28 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
         ang, reach, exec_amps = _exec_3d(L, ang, reach, mode, f"{animal}_{date}")
         if mode == "xyz2":
             target_amps = _target_3d(L, f"{animal}_{date}")
+    extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
     return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
-                     tdist, reach, exec_amps, target_amps)
+                     tdist, reach, exec_amps, target_amps, extra, lips)
+
+
+def _cam1_lick_events(rv, animal: str, date: str, cue_t: pd.DataFrame, mode: str):
+    """LICKS_ENV: (extra lick onsets, lips onsets) in DAQ s from the cam1 2-D detector; (None, None) for cam4."""
+    if mode not in LICK_MODES:
+        raise ValueError(f"{LICKS_ENV}={mode!r}; expected one of {LICK_MODES}")
+    if mode == "cam4":
+        return None, None
+    f = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{animal}_{date}_events.csv"
+    if not f.exists():                                  # never mix event sets silently
+        raise FileNotFoundError(f"{LICKS_ENV}={mode} needs {f}")
+    E = pd.read_csv(f)
+    only = ~E.cam4_matched.fillna(False).astype(bool) & ~E.droplet.fillna(False).astype(bool)
+    E = E[only & E.trial_id.isin(cue_t.index)]
+    t = E.trial_id.map(cue_t.cue_daq).to_numpy(float) + E.on_ms.to_numpy(float) / 1000.0
+    is_lips = (E.size_class == "lips").to_numpy()
+    if mode == "combined":
+        return np.sort(t[np.isfinite(t)]), None
+    return np.sort(t[np.isfinite(t) & ~is_lips]), np.sort(t[np.isfinite(t) & is_lips])
 
 
 def _target_3d(L: pd.DataFrame, session: str) -> list:
@@ -480,7 +514,15 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
             Xp = enl_block(m) if var == "pos_enl" else cue_block(m)
             cols.append(Xp - (m.mean() if len(m) else 0.0) * shared[var])
         out[var] = np.hstack(cols)
-    out["licks"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"]), _event_cols(B.contact_s, ft, LAGS["lick"])])
+    lick_t = B.lick_on_s
+    extra = getattr(B, "extra_lick_on_s", None)
+    if extra is not None and len(extra):                 # LICKS_ENV: cam1-only events join the lick timing kernel
+        lick_t = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), extra]))
+    lk = [_event_cols(lick_t, ft, LAGS["lick"]), _event_cols(B.contact_s, ft, LAGS["lick"])]
+    lips = getattr(B, "lips_on_s", None)
+    if lips is not None and len(lips):                   # LICKS_ENV=lips: lips-only licks get their own kernel
+        lk.append(_event_cols(lips, ft, LAGS["lick"]))
+    out["licks"] = np.hstack(lk)
     out["exec_angle"] = _event_cols(B.lick_on_s, ft, LAGS["lick"], amp=B.lick_angle_within)
     out["tongue"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_x", "tongue_y", "tongue_prot",
                                                                          "tongue_speed")])
@@ -996,6 +1038,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             models["nokin:target"] = kb + tg
             models["nokin:exec"] = kb + ex
             models["nokin:target+exec"] = kb + tg + ex
+            # STRICT executed (Priya 10-20: "execution coding once we account for the spout position"): executed beyond
+            # ANY spout-specific pattern (all six position kernels) = lick-to-lick execution within a spout
+            models["nokin:category+exec"] = kb + cat + ex
             models["nokin:kin+target"] = kb + ka + tg
             models["nokin:kin+exec"] = kb + ka + ex
             models["nokin:kin+target+exec"] = kb + ka + tg + ex
@@ -1031,7 +1076,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
     res = {"label": label, "animal": animal, "date": date, "epoch": epoch_,
            "day": day_, "order": order, "alphas": alphas, "penalty_groups": list(PEN_GROUPS), "gate": B.gate,
-           "exec_set": os.environ.get(EXEC_ENV) or "cam4",
+           "exec_set": os.environ.get(EXEC_ENV) or "cam4", "lick_set": os.environ.get(LICKS_ENV) or "cam4",
            "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft))),
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
@@ -1177,6 +1222,8 @@ def out_dir(rv, order: str) -> Path:
                                                          + ("_matched" if os.environ.get(MATCH_ENV) else "")
                                                          + (f"_exec-{os.environ[EXEC_ENV]}" if os.environ.get(EXEC_ENV)
                                                             else "")
+                                                         + (f"_licks-{os.environ[LICKS_ENV]}"
+                                                            if os.environ.get(LICKS_ENV, "cam4") != "cam4" else "")
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 

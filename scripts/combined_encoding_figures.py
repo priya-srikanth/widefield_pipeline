@@ -61,6 +61,7 @@ TVX_COL = {"category": "#1b9e77", "target": "#6a3d9a", "target_lick": "#b2abd2",
 CONTEST = {"gain:category": ("category", "none"), "gain:target": ("target", "none"), "gain:exec": ("exec", "none"),
            "gain:kin": ("kin", "none"), "gain:target+exec": ("target+exec", "none"),
            "u:target": ("target+exec", "exec"), "u:exec": ("target+exec", "target"),
+           "u:exec|category": ("category+exec", "category"),
            "u:target|kin": ("kin+target+exec", "kin+exec"), "u:exec|kin": ("kin+target+exec", "kin+target"),
            "u:kin": ("kin+target+exec", "target+exec"),
            "u:target|kin+nose": ("kin+nose+target", "kin+nose"), "u:target|kin_nonose": ("kin+target", "kin")}
@@ -985,9 +986,12 @@ def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
                     continue
                 den = sst[ai][:, tw].sum()
                 e = {mm: sse[trm_s.index(mm)][ai][:, tw].sum() for mm in need}
+                strict = ((e["nokin:category"] - sse[trm_s.index("nokin:category+exec")][ai][:, tw].sum()) / den
+                          if "nokin:category+exec" in trm_s else np.nan)      # executed beyond ALL six spouts
                 rows.append({"label": m.label, "animal": m.animal, "epoch": m.epoch, "variance": var, "area": ar,
                              "u_target": (e["nokin:exec"] - e["nokin:target+exec"]) / den,
                              "u_exec": (e["nokin:target"] - e["nokin:target+exec"]) / den,
+                             "u_exec_strict": strict,
                              "ceiling": (e["nokin:none"] - e["nokin:category"]) / den})
     D = pd.DataFrame(rows)
     D.to_csv(tabs / "tr_contest_0-1.5s.csv", index=False, float_format="%.5g")
