@@ -20720,3 +20720,26 @@ Same licks in every arm (cam4m / 3d / 3dxyz), PS92, cortex, lick window, x1000:
   the scratchpad (`pose3d_spout_positions_PS92_20261019.csv`; 6 positions at clean grid values, e.g. far_center ap 1.8,
   dv -3.0 mm). If executed still wins there, the pre-stroke "target, not executed" reading is a cam4 measurement
   artefact for frontal / motor cortex; if target wins back, it was the coordinate system.
+
+## 2026-10-20 (morning) — trial-to-trial contest (cohort) and the coordinate-matched 3-D contest (PS92): the pre-stroke "target, not executed" reading is NOT robust
+
+**Trial-to-trial contest (`movement_first_subset-nokin_tr`, 107 sessions, cam4 executed set; cue 0-1.5 s, variance
+around each position's mean).** Cortex, x1000, per animal: PRE neither target nor executed explains lick-to-lick
+variance in 3/4 (u_exec -5.9..0.2; PS92 2.9, and PS92 MOs 10.2 / SSp-m 13.3). ACUTE both rise a little (u_exec 3.9 /
+5.6 / 3.9 / -8.7; u_target 4.2 / 2.6 / 1.9 / 7.2) -> not executed-specific. CHRONIC only PS94 (least recovered) codes
+the executed lick trial-to-trial (u_exec 30.1, SSp-m 65.3; target also 15.6 / 83.3). So Priya's test ("higher
+single-trial = executed tracking") does not show a general post-stroke shift; PS94 chronic is the exception.
+**Coordinate-matched 3-D contest (`_exec-xyz2`, PS92, 11 sessions, identical licks; target = spout 3-D ml / ap / dv,
+executed = tongue-peak 3-D ml / ap / dv).** Lick window, x1000, pre (8 sessions): cortex u_target 8.0 vs u_exec 11.7
+(cam4m on the same licks: 31.7 vs 10.8); gains 53 vs 57 -> the lick-locked spatial signal is mostly SHARED between
+where the spout is and where the tongue goes once the tongue is measured in 3-D. MOs 7.3 vs 17.6 (executed-leaning);
+SSp-m left 29.7 vs 21.4, right 21.0 vs 20.9 (target ~ executed). Acute (3): cortex 10.6 vs 23.4. Trial-to-trial, pre:
+MOs u_exec 12.6 vs u_target -1.7, MOp 11.2 vs -1.3, SSp-m 15.9 vs 10.0. Independence of the 3-D sets per lick: tongue
+ml / ap / dv predicted from the spout xyz R2 .76 / .47 / .14 pre (54 % independent).
+**Consequence.** In PS92 the pre-stroke target advantage was produced mostly by cam4's description of the tongue
+(blind to forward, angle on a compressed scale); in 3-D, motor cortex carries the executed lick at least as much as the
+target, and SSp-m carries both. The cohort reading "pre-stroke cortex tracks the target, not the tongue" is SUSPENDED
+until the 3-D contest runs on all four animals (needs the cam1 O2 production, array 56830841). What survives: the
+post-stroke executed rise (cam4 and 3-D), the chronic position-coding gain (lick-matched, beyond the pre trend, lags
+behaviour). One animal; 3-D spout positions are per-session medians (pose3d frames), tongue peaks from the pose3d
+kinematics table (cam4 lick events).
