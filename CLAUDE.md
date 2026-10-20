@@ -350,8 +350,11 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
+**[`docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md`](docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md)**
+— **START HERE for POSE TRACKING, 3-D and cam1 licks, newest.** Video timing from the alignment templates (v36 re-run for all sessions), cameras paired on true time, jaw rest-depth anchor, cam1 2-D lick detector + water-droplet flag (3 blind reviews), incomplete-lick / jaw-without-lick readout, CLOSE_DIR, phase-figure conventions, running branches, to-dos, pitfalls.
+
 **[`docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md`](docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md)**
-— **START HERE for POSE TRACKING and 3-D, newest.** cam1 production on O2 (array 56830841), the 3-D tongue / jaw pipeline
+— superseded by the 10-20 handoff; still the reference for how the 3-D pipeline is built. cam1 production on O2 (array 56830841), the 3-D tongue / jaw pipeline
 (PnP on the commanded spouts, spout mouth zero, one-camera fill, gates), first 3-D readouts, O2 check / copy commands,
 the local chain, to-dos, pitfalls. Register: `docs/POSE_MODELS.md` D10-D12.
 
