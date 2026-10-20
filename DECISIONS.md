@@ -20938,3 +20938,13 @@ one session first.
 **PS92_0908 rerun** (template-timing fix changed its inputs; June PS92 / PS93 0606 too): all 9 encoding folders
 (+ 0606 in movement_first / subset-nokin); old outputs copied to `sessions/_superseded_pre_template_timing/`.
 Measured fit time on this box ~10-13 min per session per folder.
+**First-lick latency three ways (10-20 night; `scripts/first_lick_latency.py`, `qc/first_lick_latency*.csv`; licked
+trials = >= 1 cam4 lick).** Acute FAR CONTRA, fraction of licked trials whose first lick comes > 1.5 s after the cue:
+cam4 keypoint PS92 .38 / PS93 .35 / PS94 .17 / PS95 .18; cam4 + cam1-only events PS92 .31 / PS93 .30 (cam1 not yet
+available for PS94 / PS95); NO spout contact at all on 94 / 85 / 95 / 97 % of those trials. Medians: PS92 cam4 1.18 s,
+combined 1.00 s, contact 2.10 s; PS94 cam4 0.20 s but contact 1.13 s. Reading: (1) the delay is mostly REAL -- cam1's
+small / incomplete licks pull it in only modestly (38 -> 31 %, 35 -> 30 %), so the tongue mostly does not move, not
+"moves undetected"; (2) PS92 / PS93 are slow to START far-contra licking, PS94 / PS95 start promptly but almost never
+reach the spout -- two different acute deficits; (3) recovered by subacute / chronic (contact-late .52 / .40 subacute in
+PS92 / PS93, <= .15 elsewhere). Supports lick alignment (cam4 or combined onsets), never contact alignment, for
+post-stroke far-contra trials.

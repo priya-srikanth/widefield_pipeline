@@ -105,6 +105,10 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   Repo map tests with animal as unit (nested bootstrap, cluster): between pre vs 0 = 28 % of brain; no post-vs-pre
   change in either map. `mixed_model.csv`, `figures/within_spout_maps_{nested,cluster}_*.png`.
 
+- **Acute far-contra licking (behaviour, 10-20).** First lick > 1.5 s after the cue on 35-38 % (PS92 / PS93) vs
+  17-18 % (PS94 / PS95) of licked trials; cam1's small licks barely change it (-> real delay); no spout contact on
+  85-97 % of those trials in all four. PS92 / PS93 = slow to start, PS94 / PS95 = prompt but miss. `qc/first_lick_latency*`.
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92 chronic pending the 0908 rerun)
