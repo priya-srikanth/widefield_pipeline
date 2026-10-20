@@ -105,7 +105,12 @@ simply ignored downstream.
   "bias, not dir" -- the cohort medians contradict it.)
 * **PS93 cam1 production now covers acute / chronic** (cam1_licks: 23 PS93 sessions). Incomplete share far_R PS93 0.39
   pre -> 0.73 acute -> 0.33 chronic (PS92 0.17 -> 0.86 -> 0.35: replicates). PS93 far_L incomplete ~0.6 in EVERY epoch and
-  at-the-lips events sit on the LEFT spouts in PS93 (right in PS92) -- check side conventions / PS93 geometry before use.
+  at-the-lips events sit on the LEFT spouts in PS93 (right in PS92). CHECKED 10-20, NOT a side flip: PS93's August-pre
+  licks aim to the mouse's RIGHT and barely reach far_L in every independent measure -- DAQ contact far_L 0.39 / far_center
+  0.52 / far_R 0.69 (others 0.77-0.94); cam4 peak angle centre -13 / -12 deg (others +4 to +10), far_L +1 (others
+  +17-18); 3-D sideways at far_L 0.20 mm (PS92 1.47), far_center 0.74 mm to the right; cam1 tongue offset at the centre
+  spouts -15 / -21 px (PS92 -1 / -3) with L > centre > R ordering intact. PS93's left-side incomplete licks are its
+  pre-stroke behaviour (the "right orofacial deficit"); use within-animal changes only.
   Jaw-without-lick acute 0.14-0.32 in both, ~0 chronic; cam1 correction small.
 * `apparatus_mouth.py` now per-session PnP (reprojection 0.3-0.7 px); cam1 cleaning origin = PnP mouth + constant 30-32 px
   (rod edge). Phase speed figures renamed `v_speed_norm_*` / `v_speed_peak_*` (old `speed_*` PNGs remain on M:).
