@@ -20672,3 +20672,16 @@ set point does not read as an executed change. Snapshot of the table (the pose3d
 **Scope.** PS92 only (8 August pre + 3 acute; 94 % of licks have a 3-D peak); PS93 is on trial clips (413 / 4135 licks)
 -> excluded. Cohort contest when cam1 production (O2 56830841) lands. Readout: unique executed pre-stroke with 3-D vs
 cam4m on identical licks -- if it stays ~0, the pre-stroke target advantage is not cam4's forward blind spot.
+
+## 2026-10-19 (night) — per-spout (fixed one-vs-rest) maps: first per-animal reading
+
+O2 TAG shufpos (fixed minimal swap), 117/119 (PS92_0915 / 0918 scheduler-cancelled at 3 s, resubmitted); collected to
+`movement_first_subset-shufpos-/` (O2 folder keeps the trailing dash of ONLY=shufpos-; figures route it), maps
+`figures/position_each_maps_{enl,cue,lick}.png`. Lick window, unique dR2 = full - shufpos-<p>:position, x1000, per animal:
+- the six spouts are coded in the SAME places (lateral SSp-m / SSs hotspots, both hemispheres) and differ in amplitude.
+- CHRONIC: every spout rises in PS92 / PS93 / PS95 (cortex +15..+36), PS94 flat -- not spout-specific; = the matched
+  ceiling rise (3/4), largest at far mid in PS92 / PS93.
+- ACUTE, contralesional SSp-m: far contra is the ONLY spout that falls in all four (52->33, 45->14, 62->44, 61->37); the
+  others fall in 2-3/4 and less. In whole cortex the acute change is animal-wide rather than spout-specific (PS93 loses
+  every spout, PS94 GAINS every spout 15->22..36). Read as a per-region, per-spout cell among many (6 spouts x areas, n=4):
+  suggestive, matches the behavioural far-contra deficit; not yet tested against the other spouts formally.
