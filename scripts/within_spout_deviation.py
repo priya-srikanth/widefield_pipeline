@@ -73,9 +73,12 @@ def trial_table(B, E: pd.DataFrame, mode: str, align: str = "cue") -> pd.DataFra
         if not len(u):
             continue
         f = u[np.argmin(on[u])]
+        us = u[np.argsort(on[u])]                              # split halves (odd / even licks) for reliability
         rows.append({"k": k, "pos": r.pos, "lat_mean": lat[u].mean(), "reach_mean": reach[u].mean(),
                      "lat_first": lat[f], "reach_first": reach[f], "n_licks": int(inw.sum()),
-                     "t0": t0, "latency": l1 - r.cue_s})
+                     "t0": t0, "latency": l1 - r.cue_s,
+                     "lat_odd": lat[us[0::2]].mean() if len(us) >= 2 else np.nan,
+                     "lat_even": lat[us[1::2]].mean() if len(us) >= 2 else np.nan})
     return pd.DataFrame(rows)
 
 
@@ -114,6 +117,49 @@ def slopes(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
             "lat_sd_within": float(Xd[:, 0].std()), "lat_sd_between": float(mX[:, 0].std()),
             "terc_R": np.stack([Rd[terc == j].mean(0) for j in range(3)]),
             "terc_lat": np.array([Xd[terc == j, 0].mean() for j in range(3)])}
+
+
+def side_sign(pos) -> np.ndarray:
+    """+1 contra spouts (mouse's right), -1 ipsi, 0 mid: deviation x side_sign = movement TOWARD THE MIDLINE (lateral
+    angle + = toward the mouse's left)."""
+    p = pd.Series(np.asarray(pos, str))
+    return np.where(p.str.endswith("contra"), 1.0, np.where(p.str.endswith("ipsi"), -1.0, 0.0))
+
+
+def dirmid(R: np.ndarray, T: pd.DataFrame, var: str = "mean") -> dict:
+    """DIRECTION + TOWARD-MIDLINE model (Priya 10-20; the bilateral component had opposite signs at contra / ipsi spouts
+    pre-stroke): within spout, response ~ dev + dev x side_sign + reach + n_licks + latency. b_dir = response per 10 deg
+    toward the mouse's LEFT whatever the spout; b_mid = response per 10 deg toward the MIDLINE (lateral spouts only).
+    Equivalent to the mean / half-difference of the contra- and ipsi-spout slopes, fitted jointly with proper SEs."""
+    lat, rch = T[f"lat_{var}"].to_numpy(float), T[f"reach_{var}"].to_numpy(float)
+    pos = T.pos.to_numpy()
+    keep = np.isin(pos, [p for p in np.unique(pos) if np.sum(pos == p) >= MIN_TRIALS])
+    if len(np.unique(pos[keep])) < 3:
+        return {}
+    X = np.column_stack([lat, lat * side_sign(pos), rch, T.n_licks.to_numpy(float), T.latency.to_numpy(float)])[keep]
+    R, pos = R[keep].copy(), pos[keep]
+    for p in np.unique(pos):
+        m = pos == p
+        R[m] -= R[m].mean(0)
+        X[m] -= X[m].mean(0)
+    X = np.where(np.isfinite(X), X, 0.0)
+    b = np.linalg.pinv(X) @ R
+    res = R - X @ b
+    s2 = (res ** 2).sum(0) / max(len(R) - len(np.unique(pos)) - X.shape[1], 1)
+    v = np.diag(np.linalg.pinv(X.T @ X))
+    return {"b_dir": b[0], "se_dir": np.sqrt(v[0] * s2), "b_mid": b[1], "se_mid": np.sqrt(v[1] * s2)}
+
+
+def split_half(T: pd.DataFrame) -> tuple[float, float, int]:
+    """(r odd-even, Spearman-Brown reliability of the all-lick mean, n trials) of the WITHIN-SPOUT lateral deviation.
+    Counts real lick-to-lick variation as noise, so slope / reliability is an UPPER bound on the disattenuated slope."""
+    G = T.dropna(subset=["lat_odd", "lat_even"])
+    if len(G) < 20:
+        return np.nan, np.nan, len(G)
+    o = G.lat_odd - G.groupby("pos").lat_odd.transform("mean")
+    e = G.lat_even - G.groupby("pos").lat_even.transform("mean")
+    r = float(np.corrcoef(o, e)[0, 1])
+    return r, (2 * r / (1 + r) if r > -1 else np.nan), len(G)
 
 
 def session_check(label: str) -> dict:
@@ -170,7 +216,18 @@ def session_check(label: str) -> dict:
                              "n_trials": sS["n_trials"], "n_spouts": sS["n_spouts"],
                              "lat_sd_within": sS["lat_sd_within"], "lat_sd_between": np.nan,
                              "latency_med": float(T.latency[m].median())})
-    return {"rows": rows, "terc": terc, "maps": maps, "flat": flat, "shape": shape,
+    dm = []
+    dK, dA = dirmid(Rk, T), dirmid(Rk @ Ra, T)
+    r_h, rel, n_h = split_half(T)
+    if dK:
+        maps["dir_mean"] = (Ub @ dK["b_dir"]).astype(np.float32)
+        maps["mid_mean"] = (Ub @ dK["b_mid"]).astype(np.float32)
+        for i, an in enumerate(anames):
+            dm.append({"label": label, "area": an, "b_dir": dA["b_dir"][i], "se_dir": dA["se_dir"][i],
+                       "b_mid": dA["b_mid"][i], "se_mid": dA["se_mid"][i]})
+    for r_ in rows:
+        r_.update({"r_half": r_h, "rel_half": rel, "n_half": n_h})
+    return {"rows": rows, "terc": terc, "maps": maps, "flat": flat, "shape": shape, "dirmid": dm,
             "epoch": epochs.epoch_of(label), "coords": "3d" if mode else "cam4"}
 
 
@@ -294,6 +351,31 @@ def figures(out: Path, D: pd.DataFrame, Tt: pd.DataFrame, maps: dict) -> None:
     plt.close(fig)
 
 
+def report_dirmid(DM: pd.DataFrame, D: pd.DataFrame) -> None:
+    """Direction / toward-midline coefficients (bilateral cortex, crossed SSp-m) and split-half reliability."""
+    pd.set_option("display.width", 220)
+    for meas, f in (("cortex bilateral", lambda X, c: X[X.area == "cortex"].set_index("label")[c]),
+                    ("SSp-m crossed", lambda X, c: (X[X.area == "SSp-m_left"].set_index("label")[c]
+                                                    - X[X.area == "SSp-m_right"].set_index("label")[c]))):
+        for c in ("dir", "mid"):
+            b = f(DM, f"b_{c}") * 10 * 1e3
+            se = (np.hypot(*(DM[DM.area == f"SSp-m_{h}"].set_index("label")[f"se_{c}"] for h in ("left", "right")))
+                  if meas.startswith("SSp") else DM[DM.area == "cortex"].set_index("label")[f"se_{c}"]) * 10 * 1e3
+            X = pd.DataFrame({"b": b, "w": 1 / se ** 2})
+            X["animal"], X["epoch"] = X.index.str[:4], X.index.map(lambda s: DM.set_index("label").epoch.get(s))
+            X = X[~X.index.duplicated()]
+            g = X.groupby(["animal", "epoch"]).apply(lambda x: pd.Series(
+                {"b": (x.b * x.w).sum() / x.w.sum(), "z": (x.b * x.w).sum() / np.sqrt(x.w.sum())}), include_groups=False)
+            print(f"\n  {meas}: {'DIRECTION (+ = more for licks toward the mouse LEFT)' if c == 'dir' else 'TOWARD MIDLINE (+ = more for medial licks)'}"
+                  f" x1e-3 dF / 10 deg, pooled b and z\n"
+                  + g.unstack("epoch").reindex(columns=list(EPOCHS), level=1).round(2).to_string())
+    if "rel_half" in D:
+        R = D[(D.area == "cortex") & (D.variant == "mean") & (D.get("spouts", "all") == "all")]
+        print("\n  split-half reliability of the within-spout lateral deviation (Spearman-Brown; median per animal x epoch)\n"
+              + R.groupby(["animal", "epoch"]).rel_half.median().unstack().reindex(columns=list(EPOCHS)).round(2)
+              .to_string())
+
+
 def _bh(p: np.ndarray, q: float = 0.05) -> np.ndarray:
     """Benjamini-Hochberg over the finite entries of p -> boolean mask."""
     out = np.zeros(p.shape, bool)
@@ -344,7 +426,7 @@ def figures_stats(out: Path, maps: dict, q: float = 0.05) -> None:
     sh = next(iter(maps.values()))["shape"]
     animals = sorted({lab[:4] for lab in maps})
     rows = []
-    for kind in ("within_mean", "between_mean"):
+    for kind in ("within_mean", "between_mean", "dir_mean", "mid_mean"):
         fig, ax = plt.subplots(len(animals), len(EPOCHS), figsize=(2.6 * len(EPOCHS), 2.5 * len(animals)), squeeze=False)
         for i, an in enumerate(animals):
             S, flat = {}, None
@@ -354,6 +436,8 @@ def figures_stats(out: Path, maps: dict, q: float = 0.05) -> None:
                     flat = v["flat"]
             S = {e: np.stack(x) * 10 for e, x in S.items()}        # dF per 10 deg
             R = epoch_tests(S)
+            if not R:
+                continue
             lim = np.nanpercentile(np.abs(np.concatenate([m for m, _ in R.values()])), 98) or 1e-6
             for j, ep in enumerate(EPOCHS):
                 a_ = ax[i, j]
@@ -393,7 +477,7 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
     figs.mkdir(exist_ok=True)
     sh = bm.MAP_SHAPE
     rows = []
-    for kind in ("within_mean", "between_mean"):
+    for kind in ("within_mean", "between_mean", "dir_mean", "mid_mean"):
         by = {}                                                    # epoch -> animal -> [full-grid maps]
         for lab, v in maps.items():
             if kind in v["maps"] and tuple(v["shape"]) == sh:
@@ -401,6 +485,8 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
                 img[v["flat"]] = v["maps"][kind] * 10 * 1e3          # x1e-3 dF per 10 deg
                 by.setdefault(v["epoch"], {}).setdefault(lab[:4], []).append(np.nan_to_num(img.reshape(sh)))
         eps = [e for e in EPOCHS if e in by]
+        if "pre" not in eps:
+            continue
         fig, ax = plt.subplots(1, len(eps), figsize=(3.2 * len(eps), 3.4), squeeze=False)
         means = {e: np.mean([np.mean(x, 0) for x in by[e].values()], 0) for e in eps}
         lim = np.nanpercentile(np.abs(np.concatenate([m.ravel() for m in means.values()])), 98) or 1e-6
@@ -449,6 +535,7 @@ def main(argv=None) -> int:
     ap.add_argument("--align", choices=("cue", "lick"), default="cue",
                     help="cue: cue + 0-1.5 s; lick: first lick + 0-1 s (see ALIGN_ENV)")
     ap.add_argument("--epochs", default="", help="comma list to restrict sessions, e.g. pre,acute")
+    ap.add_argument("--redo", action="store_true", help="recompute sessions that already have outputs")
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     os.environ[ALIGN_ENV] = a.align                          # inherited by the session workers
@@ -466,13 +553,15 @@ def main(argv=None) -> int:
     if bad:
         raise SystemExit(f"not curated: {bad}")
     if not a.figures_only:
-        todo = [x for x in labels if not (out / "sessions" / f"{x}.npz").exists()]
+        todo = [x for x in labels if a.redo or not (out / "sessions" / f"{x}.npz").exists()]
         got, fail = ak.fan_sessions(todo, session_check, jobs=a.jobs)
         for it, err in fail:
             print(f"  FAILED {it}: {err}")
         for lab, r in got:
             pd.DataFrame(r["rows"]).to_csv(out / "sessions" / f"{lab}.csv", index=False, float_format="%.6g")
             pd.DataFrame(r["terc"]).to_csv(out / "sessions" / f"{lab}_terc.csv", index=False, float_format="%.6g")
+            pd.DataFrame(r.get("dirmid", [])).to_csv(out / "sessions" / f"{lab}_dirmid.csv", index=False,
+                                                     float_format="%.6g")
             np.savez_compressed(out / "sessions" / f"{lab}.npz", flat=r["flat"], shape=np.array(r["shape"]),
                                 keys=np.array(list(r["maps"])), maps=np.stack(list(r["maps"].values())),
                                 coords=r["coords"])
@@ -493,6 +582,13 @@ def main(argv=None) -> int:
         maps[x] = {"epoch": epochs.epoch_of(x), "flat": z["flat"], "shape": tuple(z["shape"]),
                    "maps": dict(zip(z["keys"], z["maps"]))}
     report(D)
+    dmf = [out / "sessions" / f"{x}_dirmid.csv" for x in have]
+    dmf = [f for f in dmf if f.exists() and f.stat().st_size > 5]
+    if dmf:
+        DM = pd.concat([pd.read_csv(f) for f in dmf], ignore_index=True)
+        DM["animal"], DM["epoch"] = DM.label.str[:4], DM.label.map(epochs.epoch_of)
+        DM.to_csv(out / "dirmid.csv", index=False, float_format="%.6g")
+        report_dirmid(DM, D)
     figures(out, D[D.spouts == "all"] if "spouts" in D else D, Tt, maps)
     figures_stats(out, maps)                                   # per-animal, per-pixel FDR (supplementary)
     for method in ("nested", "cluster"):                       # the repo's map tests (primary reading)
