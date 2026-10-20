@@ -39,12 +39,30 @@ STATIC = ("nose", "spout")
 KEY = ["trial_id", "t_ms"]
 
 
+PAIR_TOL_MS = 2.0      # half a frame
+
+
 def pair(ix1: pd.DataFrame, ix4: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Row numbers (i1, i4) of frames present in both cameras, matched exactly on (trial_id, t_ms)."""
-    a = ix1[KEY].reset_index().rename(columns={"index": "i1"})
-    b = ix4[KEY].reset_index().rename(columns={"index": "i4"})
-    m = a.merge(b, on=KEY, how="inner", validate="one_to_one")
-    return m.i1.to_numpy(), m.i4.to_numpy()
+    """Row numbers (i1, i4) of frames present in both cameras.
+
+    With ``t_daq_ms`` in both indexes (each frame's camera-timestamp time from the cue, `o2_inference.build_windows`,
+    10-20): nearest frame within ``PAIR_TOL_MS``, one-to-one, per trial -- so DROPPED frames (PS92 0908) leave gaps
+    instead of sliding every later frame of the trial onto the wrong partner (Priya: align on the sync pulse, the session
+    is good for its first ~104 min). Otherwise (trial clips): exact match on (trial_id, t_ms). On drop-free recordings
+    both give the same pairs."""
+    if "t_daq_ms" not in ix1 or "t_daq_ms" not in ix4:
+        a = ix1[KEY].reset_index().rename(columns={"index": "i1"})
+        b = ix4[KEY].reset_index().rename(columns={"index": "i4"})
+        m = a.merge(b, on=KEY, how="inner", validate="one_to_one")
+        return m.i1.to_numpy(), m.i4.to_numpy()
+    a = pd.DataFrame({"trial_id": ix1.trial_id.to_numpy(), "t": ix1.t_daq_ms.to_numpy(float), "i1": np.arange(len(ix1))})
+    b = pd.DataFrame({"trial_id": ix4.trial_id.to_numpy(), "t": ix4.t_daq_ms.to_numpy(float), "i4": np.arange(len(ix4)),
+                      "t4": ix4.t_daq_ms.to_numpy(float)})
+    m = pd.merge_asof(a.sort_values("t"), b.sort_values("t"), on="t", by="trial_id", tolerance=PAIR_TOL_MS,
+                      direction="nearest").dropna(subset=["i4"])
+    m["d"] = (m.t - m.t4).abs()
+    m = m.sort_values("d").drop_duplicates("i4").sort_values("i1")          # one-to-one: the closest cam1 frame wins
+    return m.i1.to_numpy(int), m.i4.to_numpy(int)
 
 
 def scale_june_cam4(flat: pd.DataFrame, factor: float, centre) -> pd.DataFrame:
@@ -255,6 +273,26 @@ QC_SPIKE_MM = 1.5                            # a single frame > 1.5 mm out AND b
 #: (13-20 % of points; p1 -0.9..-1.1: a tip emerging under the upper lip, which the mouth zero's spout touched); beyond
 #: -2 mm is a tail (0.04-0.09 % on 0806 / 0807 / 0818, 0.21 % on 0607 whose p0.1 is -4.4 mm) -> dropped.
 QC_TONGUE_AP_MIN_MM = -2.0
+#: SESSION gates (from `scripts/pose3d.py`'s summary_*.csv): the spout fit (PS92 0605: 1.4 mm, cam4 template failure) and
+#: the median TONGUE reprojection -- 3.1-4.0 px on every good session; a camera-timing failure pairs frames from different
+#: moments, so rigid parts still fit but moving ones do not (PS92 0908, the frame-drop cliff in EXPERIMENT_ERRORS:
+#: 8.5 px, 35k 3-D tongue frames vs ~200k).
+SESSION_MAX_FIT_RESID_MM = 0.2
+SESSION_MAX_TONGUE_REPROJ_PX = 6.0
+
+
+def failed_sessions(d3) -> dict:
+    """{"<animal>_<date>": reason} for sessions whose 3-D fails a session gate (read from ``d3 / summary_*.csv``)."""
+    from pathlib import Path
+    S = pd.concat([pd.read_csv(f) for f in Path(d3).glob("summary_*.csv")], ignore_index=True)
+    out = {}
+    for r in S.itertuples():
+        fit, rep = getattr(r, "fit_resid_mm_max", np.nan), getattr(r, "tongue_rep1_med_px", np.nan)
+        if np.isfinite(fit) and fit > SESSION_MAX_FIT_RESID_MM:
+            out[r.session] = f"spout fit residual {fit:.2f} mm > {SESSION_MAX_FIT_RESID_MM}"
+        elif np.isfinite(rep) and rep > SESSION_MAX_TONGUE_REPROJ_PX:
+            out[r.session] = f"tongue reprojection {rep:.1f} px > {SESSION_MAX_TONGUE_REPROJ_PX} (camera timing)"
+    return out
 
 
 def qc_3d(X: np.ndarray, part: str, trial: np.ndarray, t: np.ndarray) -> tuple[np.ndarray, dict]:
@@ -333,7 +371,11 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
     # each camera cleans around its own decided mouth: cam1 = L/R spout-line intersection (D6), cam4 = spout-line origin
     mouth1, mouth4 = SF.from_medians_lr(m1).origin, SF.from_medians(m4).origin
     i1, i4 = pair(ix1, ix4)
-    out = ix1.iloc[i1][["trial_id", "position", "t_ms", "stop_ms"]].reset_index(drop=True)
+    # frame time = cam4's ``t_ms`` (the frame-index time the v36 cam4 lick windows use; identical to cam1's when nothing
+    # dropped) + ``t_daq_ms`` (true time from the cue, camera timestamp) where the index carries it
+    out = ix4.iloc[i4][["trial_id", "position", "t_ms", "stop_ms"]].reset_index(drop=True)
+    if "t_daq_ms" in ix4:
+        out["t_daq_ms"] = ix4.t_daq_ms.to_numpy(float)[i4]
     out["src1"], out["src4"] = ix1.src_frame.to_numpy()[i1], ix4.src_frame.to_numpy()[i4]     # video frame per camera
     for name, ix, ii in (("video1", ix1, i1), ("video4", ix4, i4)):                             # split days only
         if "video" in ix:

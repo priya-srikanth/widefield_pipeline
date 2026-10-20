@@ -526,11 +526,15 @@ def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: 
         for r, (f0, f1, fc) in zip(bv.itertuples(), trial_frame_spans(bv, tpl_v, len(pose_v), pre_s, post_s)):
             for f in range(f0, f1):
                 idx.append((k, int(r.trial_id), r.pos_name, f, (f - fc) * 4.0, (r.strobe_s - r.cue_s) * 1000.0,
-                            (r.stop_s - r.cue_s) * 1000.0, r.stop_source, float(daq_v[f]), name_v))
+                            (r.stop_s - r.cue_s) * 1000.0, r.stop_source, float(daq_v[f]), name_v,
+                            (float(daq_v[f]) - r.cue_s) * 1000.0))
             sels.append(pose_v[np.arange(f0, f1)])
             k += 1
+    # ``t_daq_ms`` (10-20): the frame's TRUE time from the cue, from its camera timestamp (``daq_s`` - cue). ``t_ms`` is
+    # the frame-index time and slides with every dropped frame (PS92 0908: frame-drop cliff, EXPERIMENT_ERRORS); the
+    # 3-D step pairs the two cameras on t_daq_ms. Equal to t_ms within ~0.01 ms on drop-free recordings.
     ix = pd.DataFrame(idx, columns=["trial_k", "trial_id", "position", "src_frame", "t_ms", "strobe_ms", "stop_ms",
-                                    "stop_source", "daq_s", "video"])
+                                    "stop_source", "daq_s", "video", "t_daq_ms"])
     if len(videos) == 1:
         ix = ix.drop(columns="video")
     sel = np.concatenate(sels) if sels else np.zeros((0, 0, 3), np.float32)

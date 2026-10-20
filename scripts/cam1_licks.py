@@ -66,6 +66,8 @@ def run_session(s: str) -> dict:
     rv = PathResolver()
     animal, date = s.split(":")
     row = {"session": f"{animal}_{date}"}
+    if not list((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv")):
+        return {**row, "error": "no behavior session (no _trials.csv; DAQ contacts unavailable)"}   # e.g. PS93 0805
     c1 = oi.session_windows(rv, PROD["cam1"], animal, date, "cam1")
     if c1 is None:
         return {**row, "error": "no cam1 output"}
@@ -136,6 +138,9 @@ def summarise(d: Path) -> pd.DataFrame:
     E["cam1_only"] = ~E.cam4_matched.fillna(False) & ~E.in_3d.fillna(False)
     E["droplet"] = C1.droplet_flags(E, E.cam1_only)          # water droplets (blind review): dropped from every count
     E = E[~E.droplet].copy()
+    from wfield_local import pose3d as P3                    # sessions whose camera timing fails (pose3d gate): out
+    bad = P3.failed_sessions(d.parent / "pose3d")
+    E = E[~E.session.isin(bad)].copy()
     E["incomplete"] = ~E.contact
     g = E.groupby(["animal", "epoch", "session", "position"])
     T = pd.DataFrame({"events": g.size(), "lips": g.size_class.apply(lambda v: (v == "lips").sum()),

@@ -64,6 +64,8 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 | incomplete licks counted from cam1 2-D (`cam1_licks`), not 3-D | counting / sizing needs no depth; tongue tips seen only by cam1 cannot be placed in 3-D (row above) |
 | cam1-only events flagged as WATER DROPLETS and dropped: spread < 3 px, range < 12 px, median point away from the mouth opening (out > -35 px) | Priya's 2-round blind review: all false events were droplets; the rule catches 16 / 17, loses 0 / 70 real. Static points at the mouth opening are real tongue tips at the lips; static points cam4 also calls a lick are the tongue held on the spout, so only cam1-ONLY events are flagged |
 | recent misses kept as a covariate (`miss_prev3`), not a gate | droplets follow uncollected water (Priya): pre 3 % of trials after a hit, 12 % after a miss, 15 % after 3; acute flat ~1 %; the shape rule alone already works |
+| cameras PAIRED ON CAMERA-TIMESTAMP TIME (`t_daq_ms`, nearest within 2 ms), not frame-index `t_ms` (10-20) | Priya: "align using the sync pulse"; frame-index time slides with every dropped frame -- PS92 0908 (frame-drop cliff at min ~104) paired wrong partners (tongue reprojection 8.5 px, 36k frames); now 3.5 px, 153k frames, all 4 session quarters normal. Also fixed PS92 0606, PS93 0605 / 0606 (6.4-9.0 -> 3.1-3.7 px) -- the "June outliers" were drops. Drop-free sessions unchanged (0807: 231615 -> 231601 frames). Output `t_ms` stays cam4's (v36 lick windows) + `t_daq_ms` |
+| session gates `pose3d.failed_sessions`: spout fit > 0.2 mm, median tongue reprojection > 6 px | catches timing / pose failures automatically (normal 2.7-4.0 px); now only PS92 0605 (spout fit) fails |
 | lick phase: onset -> offset per lick (primary), peak-to-peak secondary | same as cam4's per-lick normalised time (`orofacial_cohort.U_NORM`); keeps isolated licks (acute far contra: 38-56 % have a neighbour < 250 ms); peak-to-peak only for stroke_orofacial comparison |
 
 ## 3. Running / pending at hand-off
@@ -117,6 +119,13 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   close_center (pre 14 % of trials), after misses (pre 3 % after a hit -> 15 % after 3 misses). Bigger review crops mattered:
   4 / 12 round-1 'none / unsure' were real at 1.6x size with the detected point shown.
 * **No-contact licks from the combined track**: +12 % in both epochs (pre 12954 -> 14510, acute 1036 -> 1157).
+* **10-20: 44 sessions (PS92 all 35 to 10-06; PS93 June + August pre).** PS93 repeats PS92 on 2-D vs 3-D (target spout 0.42
+  cam4 vs 0.68 3-D; acute far_R lateral |z| 27 vs 12). Jaw cross-check CHRONIC (PS92 from 0828): opening r drops because
+  every trial opens fully (3-D SD 0.3-0.4 mm vs 0.5-1.5) -- range restriction; LATERAL per-trial r drops to 0.1-0.6 with
+  unchanged variance in both measures (FAR_DIR still agrees, r 0.95 / 34 sessions) -> chronic trial-level jaw lateral is
+  UNCONFIRMED; suspect head posture in cam4's image-px measure (untested). cam1 licks: PS92 chronic cam1-only 11.7 % (lips
+  7 %) vs pre 5.7 %; PS93 pre 44 % no-contact / 27 % lips (check videos). Frame-index vs camera time on a NORMAL session
+  (0807): median 1.6 ms, p99 28, max 46 ms -> cue-relative v36 timings carry per-session drop error (to quantify).
 
 ## 5. O2: check jobs and copy outputs (Priya runs these)
 

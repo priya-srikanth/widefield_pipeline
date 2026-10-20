@@ -191,3 +191,16 @@ def test_lick_events_bridge_short_gaps_and_split_long_ones():
     E = P3.lick_events(S, max_gap_ms=12.0)
     assert len(E) == 2 and list(E.lick_idx) == [0, 1]
     assert E.on_ms.iloc[0] == 4.0 and E.off_ms.iloc[0] == 32.0 and E.t_ms.iloc[0] == 28.0   # peak = farthest frame
+
+
+def test_pair_on_daq_time_survives_dropped_frames():
+    """PS92 0908 (10-20): cam4 dropped frames, so its frame-index t_ms slides; pairing on the camera-timestamp time
+    (t_daq_ms) keeps every surviving frame on its true partner and leaves the dropped ones unpaired."""
+    t = 4.0 * np.arange(10)
+    ix1 = pd.DataFrame({"trial_id": 1, "t_ms": t, "t_daq_ms": t + 0.3})
+    keep = np.r_[0:3, 5:10]                                     # cam4 lost frames 3 and 4
+    ix4 = pd.DataFrame({"trial_id": 1, "t_ms": 4.0 * np.arange(len(keep)), "t_daq_ms": t[keep] - 0.2})
+    i1, i4 = P3.pair(ix1, ix4)
+    assert i1.tolist() == keep.tolist() and i4.tolist() == list(range(len(keep)))
+    i1, i4 = P3.pair(ix1.drop(columns="t_daq_ms"), ix4.drop(columns="t_daq_ms"))     # old exact join: slides
+    assert i1.tolist() == list(range(len(keep)))

@@ -122,6 +122,9 @@ def main(argv=None) -> int:
     print(T.T.to_string(header=False))
     out = Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"summary_{a.source}.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
+    if out.exists():           # a SUBSET run replaces only its own sessions' rows (it used to overwrite the whole table)
+        T = pd.concat([pd.read_csv(out), T], ignore_index=True).drop_duplicates("session", keep="last")
+        T = T.sort_values("session").reset_index(drop=True)
     T.to_csv(out, index=False)
     print(f"-> {out}")
     return 0

@@ -47,7 +47,6 @@ JAW_WIN_MS = (70.0, 3500.0)   # cue + 70 ms .. the TRIAL'S stop (end of its resp
 LICK_MEASURES = ["miss_mm", "lat_err_mm", "ap_err_mm", "dv_err_mm", "ang3d_err", "midline", "midline_err_ipsi", "frontal",
                  "frontal_err_ipsi", "sagittal",
                  "sagittal_err", "reach_mm", "out_ap", "down_dv", "side_ml", "speed_peak", "dt_peak_ms", "share_single_view"]
-MAX_FIT_RESID_MM = 0.2      # sessions whose spout fit fails (pose3d summary fit_resid_mm_max) are left out: PS92 0605 1.4 mm
 
 
 def rest_points(S: pd.DataFrame) -> dict:
@@ -143,6 +142,7 @@ def session_jaw(S: pd.DataFrame) -> pd.DataFrame:
 def main(argv=None) -> int:
     from scripts.apparatus_mouth import _rig
     from wfield_local import epochs
+    from wfield_local import pose3d as P3
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("sessions", nargs="*", metavar="ANIMAL:YYYYMMDD")
@@ -155,13 +155,12 @@ def main(argv=None) -> int:
     sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz"))
     out = d3 / ("kinematics" if a.licks == "cam4" else "kinematics_combined")
     out.mkdir(exist_ok=True)
-    fits = pd.concat([pd.read_csv(f) for f in d3.glob("summary_*.csv")], ignore_index=True)
-    bad = set(fits.loc[fits.fit_resid_mm_max > MAX_FIT_RESID_MM, "session"])
+    bad = P3.failed_sessions(d3)                      # spout fit / camera-timing gates (`pose3d.failed_sessions`)
     frames, rest = {}, {}
     for s in sess:                                    # pass 1: frames + resting nose / jaw per session
         animal, date = s.split(":")
         if f"{animal}_{date}" in bad:
-            print(f"{s}: spout fit failed (residual > {MAX_FIT_RESID_MM} mm) -- skipped")
+            print(f"{s}: {bad[f'{animal}_{date}']} -- skipped")
             continue
         if not (Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv").exists():
             print(f"{s}: no v36 licks -- skipped")
