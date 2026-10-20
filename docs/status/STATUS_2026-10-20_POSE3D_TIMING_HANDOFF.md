@@ -123,6 +123,17 @@ simply ignored downstream.
   less time near full extension -- not shorter peak reach (per-lick 3-D peak 5.10 vs 5.14 mm). Also smaller at far_L /
   far_center acute (PS92 1.58 -> 0.94, 1.05 -> 0.69). Chronic back to pre. Note: acute far_R sits ~0.25 mm above 0 even
   BEFORE the cue (pre ~0.05) -- tongue at the lips between trials? check before quoting.
+* **First-lick-aligned 3-D traces** (`pose3d_cue_traces --align first_lick` -> `pose3d/lick_traces/`; Priya liked these).
+  acute far_R: the first lick is LATE (PS92 1184 vs 265 ms, PS93 979 vs 375) but FULL SIZE (peak 0-200 ms 4.30 vs 4.18
+  mm PS92; 3.80 vs 4.29 PS93), then the train stops (tongue-out share ~5-10 % after it). So acute far_R "lower amplitude"
+  = late single lick + no train, not shorter licks. (A first look misread a 1.2 mm second attempt as the first lick.)
+* **Chronic "increase" in the in-mouth = 0 distance** (both animals, close spouts; PS93 also far_L / far_center): ~all
+  TIME OUT (x1.2-1.8), reach x1.00-1.10; driven by earlier, cue-locked first licks (PS93 close_center 154 vs 350 ms,
+  far_L 273 vs 762) -- first-lick aligned the difference mostly vanishes. Chronic sessions are later in training:
+  possibly practice, not stroke -- TO-DO: early vs late August pre trend.
+* Pre-cue 3-D tongue = real sparse licks: 3-D tongue-out share in -500 .. 0 ms (close 0.6-1.7 %, far 3-8 %) matches
+  cam4's licks in the LAST 500 ms (0.12-0.21 / 0.34-0.75 Hz; cam4 `precue_rate_hz` counts from spout arrival, ~1 Hz).
+  Figures: one trial set + a tongue-out-share row, pre-cue shaded, tongue-out-only distance hidden where < 5 % out.
 * `apparatus_mouth.py` now per-session PnP (reprojection 0.3-0.7 px); cam1 cleaning origin = PnP mouth + constant 30-32 px
   (rod edge). Phase speed figures renamed `v_speed_norm_*` / `v_speed_peak_*` (old `speed_*` PNGs remain on M:).
 
@@ -198,7 +209,8 @@ The box has 24 cores / 63 GB; ~30 % used by others at 11:20. 8 pose3d workers + 
 1. **Priya to decide**: (a) CLOSE_DIR -- sheet DONE 10-20 (§4a; jaw opens beside the rod, CLOSE_DIR same direction in
    PS92 / PS93) -- Priya to look; (b) cue-aligned 3-D distance plot DONE 10-20 (§4a); (c) `v_speed_*` rename DONE;
    (d) PS94 / PS95 cam1 when O2 reaches them -> re-run §6 chain, then CLOSE_DIR / incomplete per animal (rule 8).
-   (e) NEW: acute far_R pre-cue tongue ~0.25 mm out (cue_traces) -- check video before quoting.
+   (e) acute far_R pre-cue tongue ~0.25 mm (cue_traces) -- check video before quoting. (f) chronic close-spout
+   "increase" = earlier cue-locked licking: test practice vs stroke with an early vs late August pre comparison.
 2. After Branch B: re-check the jaw anchor's coverage gain at far_center / close_center on all sessions; confirm FAR_DIR
    r and CLOSE_DIR values with the anchor in.
 3. DONE 10-20 (§4a): per-animal far-contra protrusion -- mostly global at far spouts; PS95 = one session. Update
