@@ -67,7 +67,7 @@ def session_design(label: str) -> dict:
     shared = np.hstack([R["cue"], R["arrival"], R["licks"]])
     blocks = {"tgt": R["lick_bin_tgt"], "exec": R["lick_bin_exec"]}
     return {"label": label, "animal": label[:4], "epoch": epochs.epoch_of(label), "Y": Y[rows], "areas": anames,
-            "shared": shared[rows], "tgt": blocks["tgt"][rows], "exec": blocks["exec"][rows],
+            "shared": shared[rows], "cat": np.hstack([R["pos_enl"], R["pos_cue"]])[rows], "tgt": blocks["tgt"][rows], "exec": blocks["exec"][rows],
             "lickwin": (d <= 0.2)[rows], "agree": float(np.mean(tl[tl != ""] == el[tl != ""]))}
 
 
@@ -106,13 +106,17 @@ def evaluate(S: dict, tmpl: np.ndarray, tmpl_areas: list) -> list:
     one = np.ones((n, 1))
     rows = []
     for i, a in enumerate(keep):
-        base = np.column_stack([one, S["shared"]])
-        r = {m: cv_r2(Ys[:, i], np.column_stack([base] + c), folds, S["lickwin"])
-             for m, c in (("base", []), ("tgt", [pt[:, i]]), ("exec", [pe[:, i]]), ("both", [pt[:, i], pe[:, i]]))}
-        rows.append({"label": S["label"], "animal": S["animal"], "epoch": S["epoch"], "area": a, "agree": S["agree"],
-                     **{f"r2_{m}": v for m, v in r.items()},
-                     "gain_tgt": r["tgt"] - r["base"], "gain_exec": r["exec"] - r["base"],
-                     "u_tgt": r["both"] - r["exec"], "u_exec": r["both"] - r["tgt"]})
+        row = {"label": S["label"], "animal": S["animal"], "epoch": S["epoch"], "area": a, "agree": S["agree"]}
+        # '' = base of shared kernels; '_cat' = STRICT: + the six free spout-position kernels (pos_enl / pos_cue), so
+        # the templates compete only for LICK-LOCKED spout-specific variance beyond the sustained position code
+        for sfx, base in (("", np.column_stack([one, S["shared"]])),
+                          ("_cat", np.column_stack([one, S["shared"], S["cat"]]))):
+            r = {m: cv_r2(Ys[:, i], np.column_stack([base] + c), folds, S["lickwin"])
+                 for m, c in (("base", []), ("tgt", [pt[:, i]]), ("exec", [pe[:, i]]), ("both", [pt[:, i], pe[:, i]]))}
+            row.update({**{f"r2_{m}{sfx}": v for m, v in r.items()},
+                        f"gain_tgt{sfx}": r["tgt"] - r["base"], f"gain_exec{sfx}": r["exec"] - r["base"],
+                        f"u_tgt{sfx}": r["both"] - r["exec"], f"u_exec{sfx}": r["both"] - r["tgt"]})
+        rows.append(row)
     return rows
 
 
@@ -185,7 +189,7 @@ def main(argv=None) -> int:
     D.to_csv(out / "lick_templates.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 220)
     F = D[D.area.isin(FOCUS)]
-    for c in ("gain_tgt", "gain_exec", "u_tgt", "u_exec"):
+    for c in ("gain_tgt", "gain_exec", "u_tgt", "u_exec", "u_tgt_cat", "u_exec_cat"):
         t = F.groupby(["area", "animal", "epoch"])[c].mean().unstack("epoch").reindex(columns=list(EPOCHS)) * 100
         print(f"\n  {c} (x100 = % of lick-window variance; templates fixed from pre-stroke)\n" + t.round(2).to_string())
     print("\n  fraction of licks landing in their own zone (agree)\n"
