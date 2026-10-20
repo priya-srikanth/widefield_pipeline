@@ -345,7 +345,8 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("process")
     p.add_argument("--bundle", required=True)
-    p.add_argument("--sessions", nargs="*", default=None, help="animal:date (default: every finished session)")
+    p.add_argument("--sessions", nargs="*", default=None, help="animal:date (default: every finished CURATED session)")
+    p.add_argument("--all", action="store_true", help="every finished session, not just the curated cohort")
     p.add_argument("--force", action="store_true")
     p.add_argument("--jobs", type=int, default=4, help="parallel sessions (each holds ~1-2 GB)")
     sub.add_parser("index")
@@ -358,6 +359,10 @@ def main(argv=None) -> int:
         if a.sessions:
             want = {tuple(s.split(":")) for s in a.sessions}
             sess = [s for s in sess if s in want]
+        elif not a.all:                                   # curated cohort only (Priya 10-20); --all for every session
+            from wfield_local import analysis_kit as ak
+            cur = ak.curated_ids()
+            sess = [s for s in sess if f"{s[0]}_{s[1]}" in cur]
         done = [s for s in sess if all((bd / "out" / f"{s[0]}_{s[1]}" / f"{Path(v).stem}_done.json").exists()
                                        for v in tasks[(tasks.animal == s[0]) & (tasks.date == s[1])].video)]
         print(f"{len(done)} of {len(sess)} sessions have every video finished")

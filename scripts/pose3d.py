@@ -104,6 +104,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("source", choices=["clips", "production"])
     ap.add_argument("sessions", nargs="*", metavar="ANIMAL:YYYYMMDD")
+    ap.add_argument("--all", action="store_true",
+                    help="every session with outputs, not just the curated cohort (`analysis_kit.curated_ids`)")
     ap.add_argument("--jobs", type=int, default=4, help="sessions in parallel (whole-session npz: I/O and ~1 GB RSS each)")
     a = ap.parse_args(argv)
     rv = PathResolver()
@@ -111,7 +113,8 @@ def main(argv=None) -> int:
     if not sess and a.source == "production":
         have = [{p.name for p in (Path(rv.root("dlc")) / "o2" / b / "out").glob("PS*_2026*") if p.is_dir()}
                 for b in PROD.values()]
-        sess = [x.replace("_", ":", 1) for x in sorted(set.intersection(*have))]
+        cur = set.intersection(*have) if a.all else set.intersection(*have) & ak.curated_ids()
+        sess = [x.replace("_", ":", 1) for x in sorted(cur)]
     if not sess:
         raise SystemExit("no sessions")
     res, fails = ak.fan_sessions([(s, a.source) for s in sess], _worker, jobs=min(a.jobs, len(sess)))

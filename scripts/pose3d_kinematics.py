@@ -149,10 +149,14 @@ def main(argv=None) -> int:
     ap.add_argument("--licks", choices=["cam4", "combined"], default="cam4",
                     help="cam4 = the cam4 production lick events (default); combined = events from the 3-D track "
                          "(`pose3d.lick_events`), flagged cam4_matched, DAQ contact; output kinematics_combined/")
+    ap.add_argument("--all", action="store_true", help="every session with 3-D frames, not just the curated cohort")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
-    sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz"))
+    from wfield_local import analysis_kit as ak
+    cur = None if a.all else ak.curated_ids()
+    sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz")
+                                if cur is None or f.name.replace("_frames.csv.gz", "") in cur)
     out = d3 / ("kinematics" if a.licks == "cam4" else "kinematics_combined")
     out.mkdir(exist_ok=True)
     bad = P3.failed_sessions(d3)                      # spout fit / camera-timing gates (`pose3d.failed_sessions`)

@@ -75,8 +75,17 @@ MICROSCOPE. Write only inside `MICROSCOPE/Priya/...`; never delete original data
 | **Branch B**: 3-D all sessions (8 workers) -> kinematics x2 -> spout error, crosscheck, summary fig, phase, jaw crosscheck, vs_cam4 -> cam1 licks (6 workers) -> incomplete readout | `bw6he0d24` | `DeepLabCut/Widefield/session_poses/{pose3d,cam1_licks}/` | §6 "3-D + cam1" block |
 | O2 cam1 production array **56830841** | Priya | scratch `o2/lp_cam1_ctx_prod_20261019/out/` | §5 |
 
-v36 itself is DONE (all 133; 3 sessions have no behaviour session and are skipped: PS93 0805, PS94 0601, PS95 0601 -- that
-is why 136 cam4 session folders / 137 cam4 videos (PS92 0812 is a split day) give 133 v36 sessions).
+v36 itself is DONE (133 of 136 cam4 sessions; 137 cam4 videos because PS92 0812 is a split day). Not processed, none in the
+curated cohort: PS93 0805 (the behaviour log is a failed start -- GUI v46 logging race, 0 trials; see
+`Behavior_logs/Widefield/PS93_20260805_202013/..._reconstruction.md`), PS94 0601 and PS95 0601 (behaviour fine, NO cam4
+alignment template for those recordings).
+
+**Curated cohort only (Priya 10-20: "we can stop processing sessions that will not be part of analysis").** `pose3d
+production`, `pose3d_kinematics`, `cam1_licks run`, `cam1_incomplete_licks` and `orofacial_outputs process` now default to
+`analysis_kit.curated_ids()` (120 sessions: per animal 3 June + 16-17 Aug + 8-9 Sep + 2 Oct); `--all` overrides. Not
+curated: PS92 0602-0605 / 0805, PS93 0605 / 0805, PS94 and PS95 0601-0605 / 0805. Branch B's 3-D step had already started
+on all 57 available sessions (7 non-curated) -- its later steps use the curated default; non-curated frame files on disk are
+simply ignored downstream.
 
 ## 4. Results (PS92 = June + August pre, acute .. chronic d+50; PS93 = June / August pre production + 3 clip sessions)
 

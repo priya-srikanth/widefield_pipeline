@@ -111,7 +111,8 @@ def main(argv=None) -> int:
     E["jaw_only_trial"] &= ~E.droplet
     bad = P3.failed_sessions(Path(rv.root("dlc")) / "session_poses" / "pose3d")
     rows = []
-    for s in sorted(set(E.session) - set(bad)):
+    from wfield_local import analysis_kit as ak
+    for s in sorted((set(E.session) - set(bad)) & ak.curated_ids()):            # curated cohort only (Priya 10-20)
         rows += session_rows(rv, s, E)
     S = pd.DataFrame(rows)
     S["epoch"] = [epochs.epoch_of(f"{a}_{dt[4:]}") for a, dt in zip(S.animal, S.date)]
