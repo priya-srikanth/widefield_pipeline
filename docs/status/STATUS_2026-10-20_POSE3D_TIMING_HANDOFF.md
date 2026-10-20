@@ -145,6 +145,25 @@ simply ignored downstream.
 * **far_center side-view diagonal (PS92 chronic)**: closest-approach points on a line parallel to the rod's slope, in
   EVERY chronic session (28-53 % of far_center licks), 96 % DAQ contact, single-view share 0.59 vs 0.50 -- real contacts,
   probably the tongue sliding along the rod rather than tapping its tip. Unconfirmed: video sheet of those licks to-do.
+* **Check sheet** (`scripts/pose3d_check_sheet.py`, dlc env -> `pose3d/check_sheet/{A,B,C}_*.png`; 3-D point projected
+  with the session's PnP cameras + each camera's 2-D point):
+  A. far_center diagonal CONFIRMED as contact geometry: the tongue wraps the rod's SIDE; the tracked tip lands at a
+     different height along the shaft each lick, so closest approach traces the rod's slope. 3-D and 2-D agree.
+  B. acute far_R PRE-CUE tongue = mostly FALSE POINTS on the closed lips (7 / 8 frames; 1-2 mm from the mouth zero;
+     several one-camera); 3817 frames in 56 / 90 trials (PS92 0818). Don't quote the 0.25 mm offset. Lip detections
+     probably inflate post-cue tongue-out share a little too (more acutely). TO-DO: a mouth-open / beyond-lips gate,
+     tested before use.
+  C. anchored jaw lands behind the rod end exactly where the chin is hidden, in both cameras; 2-D agrees where seen.
+* **Practice vs stroke (chronic close-spout licking)**, cam4 v36 all four animals, early vs late August pre vs chronic:
+  first-lick latency was still FALLING through pre in PS92 / PS93 (-8 to -35 ms / day) and PS94 / PS95 were already
+  fast and do not change chronic (close 149 -> 158, 144 -> 145 ms) -> the chronic speed-up looks like continued
+  learning. Licks per responded trial at close spouts is higher chronic in ALL FOUR (12 -> 14, 11 -> 16, 10 -> 14,
+  7 -> 11) with no upward pre trend -> candidate real chronic change (or long-term practice; no unlesioned control).
+* **Reach epoch figure** `spout_error/reach_epoch_<a>.png` (|tip - mouth zero| through the lick, beside the
+  distance-to-spout one). Why the spout-distance plot does not show protrusion loss: per-lick 3-D reach DOES match cam4
+  per animal (far_R PS92 -3 % vs cam4 -7 %; PS93 -15 % vs -16 %) -- PS92 has little loss; distance to the spout is not
+  monotonic in reach (licks overshoot) and is tongue-out-only. `OROFACIAL_FINDINGS.md` far-contra protrusion row now
+  carries the per-animal caveat.
 * `apparatus_mouth.py` now per-session PnP (reprojection 0.3-0.7 px); cam1 cleaning origin = PnP mouth + constant 30-32 px
   (rod edge). Phase speed figures renamed `v_speed_norm_*` / `v_speed_peak_*` (old `speed_*` PNGs remain on M:).
 

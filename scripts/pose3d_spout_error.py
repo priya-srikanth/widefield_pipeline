@@ -103,16 +103,20 @@ def traces(rv, L: pd.DataFrame) -> pd.DataFrame:
         for p, gp in g.groupby("position"):
             T = SW.commanded_world(geo, p)
             M = np.full((len(gp), len(TRACE_MS)), np.nan)
+            R = np.full((len(gp), len(TRACE_MS)), np.nan)        # REACH: |tip - mouth zero| (Priya 10-20)
             for i, r in enumerate(gp.itertuples()):
                 if not np.isfinite(r.on_ms):
                     continue
                 idx = pd.MultiIndex.from_arrays([np.full(len(TRACE_MS), r.trial_id), np.round(r.on_ms + TRACE_MS, 1)])
                 P = S.reindex(idx).to_numpy(float)
                 M[i] = np.linalg.norm(P - T, axis=1)
+                R[i] = np.linalg.norm(P, axis=1)
             with np.errstate(all="ignore"):
                 med = np.nanmedian(M, axis=0)
+                rmed = np.nanmedian(R, axis=0)
             out += [{"session": s, "animal": animal, "date": date, "epoch": gp.epoch.iloc[0], "position": p,
-                     "t_ms": t, "dist_med": v, "n": int(np.isfinite(M[:, k]).sum())} for k, (t, v) in enumerate(zip(TRACE_MS, med))]
+                     "t_ms": t, "dist_med": v, "reach_med": rmed[k], "n": int(np.isfinite(M[:, k]).sum())}
+                    for k, (t, v) in enumerate(zip(TRACE_MS, med))]
     return pd.DataFrame(out)
 
 
@@ -224,7 +228,7 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -
     plt.close(fig)
 
 
-def fig_traces_epoch(Tr: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None:
+def fig_traces_epoch(Tr: pd.DataFrame, animal: str, path: Path, pre_from: str, col: str = "dist_med") -> None:
     """Epoch version: each session's median trace faded, the epoch mean of the session traces bold (pre = August)."""
     import matplotlib
     matplotlib.use("Agg")
@@ -239,15 +243,19 @@ def fig_traces_epoch(Tr: pd.DataFrame, animal: str, path: Path, pre_from: str) -
             if g.empty:
                 continue
             for _s, gs in g.groupby("session"):
-                ax.plot(gs.t_ms, gs.dist_med, color=c, lw=0.7, alpha=0.25)
-            m = g.groupby("t_ms").dist_med.mean()
+                ax.plot(gs.t_ms, gs[col], color=c, lw=0.7, alpha=0.25)
+            m = g.groupby("t_ms")[col].mean()
             ax.plot(m.index, m.values, color=c, lw=2.0, alpha=0.85, label=f"{ep} (n={g.session.nunique()})")
         ax.set_title(p, fontsize=8)
         ax.set_xlabel("ms from lick onset (cam4)", fontsize=7)
         ax.tick_params(labelsize=6)
-    axes[0].set_ylabel("tip - target spout (mm, median)", fontsize=7)
+    reach = col == "reach_med"
+    axes[0].set_ylabel("tip - mouth zero = REACH (mm, median)" if reach else "tip - target spout (mm, median)",
+                       fontsize=7)
     axes[-1].legend(fontsize=6, frameon=False)
-    fig.suptitle(f"{animal}: distance from the target spout through the lick, by epoch (faded = one session's median "
+    what = ("REACH (distance of the tongue tip from the mouth zero; tongue-out frames)" if reach
+            else "distance from the target spout")
+    fig.suptitle(f"{animal}: {what} through the lick, by epoch (faded = one session's median "
                  "over its licks; bold = epoch mean of the sessions; pre = August)", fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=120)
@@ -323,6 +331,7 @@ def main(argv=None) -> int:
         fig_traces(Tr, animal, out / f"traces_{animal}.png", a.pre_from)
         fig_scatter_epoch(L, animal, out / f"scatter_epoch_{animal}.png", a.pre_from)
         fig_traces_epoch(Tr, animal, out / f"traces_epoch_{animal}.png", a.pre_from)
+        fig_traces_epoch(Tr, animal, out / f"reach_epoch_{animal}.png", a.pre_from, col="reach_med")
     print(f"-> {out}")
     return 0
 

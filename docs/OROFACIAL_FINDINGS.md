@@ -85,11 +85,19 @@ months, which is why raw image positions are never used.
 | fraction of licks touching the spout | −0.61 / −0.67 |
 | first lick | +521 / +488 ms |
 | first spout contact | +940 / +898 ms |
-| measured peak protrusion | −30 / −26 px |
+| measured peak protrusion | −30 / −26 px (**caveat below**) |
 | reach | −0.16 / −0.18 |
 | lick duration | +20 ms |
 | licks with a neighbour within 250 ms | −0.44 (isolated licks) |
 | pre-cue licking | −0.38 Hz |
+
+> **Protrusion caveat (2026-10-20, per-animal check, v36 August pre):** far-contra protrusion acute is −12 / −27 / −30 /
+> −65 px (PS92 / 93 / 94 / 95), but **far ipsi also drops −9 to −19 px in all four**, so most of it is a far-spout effect.
+> The far-contra-specific part (contra minus ipsi) is −4 / −8 / −16 / −46 px; PS95's −46 rests on its ONE acute session
+> (96 far-contra licks), and PS94's first two acute days have 24 and 63. Contact loss (−0.37 to −0.83) holds in all four.
+> 3-D (PS92, PS93) agrees per animal: per-lick reach far_R −3 % / −15 % (cam4 −7 % / −16 %). In PS92 the acute far-contra
+> licks are full length but aimed ~3 mm toward ipsi; the trial-averaged "amplitude" loss is mostly fewer, later licks
+> (one late full-size first lick, then no train). Details: `docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md` §4a.
 
 **2. Acute licks aim toward the ipsilesional side.**
 - Executed peak angle shifts toward ipsi at every position. Far contra is the largest shift (about +29°); the close
