@@ -94,6 +94,12 @@ Stop commands (Priya, PowerShell; Claude cannot stop processes): nokin runs = py
 - **O2 fair-share** is ~0.07 after today (470 encoding tasks + cam1 GPU training): new arrays sit in `(None)` /
   `(Priority)`. Request what is used (`--time=1:00:00 --mem=24G` for encoding), use `-p short` (O2 REJECTS `medium` for jobs < 12 h: "Invalid partition name"), use the box for
   small runs. `sshare -U -l`, `sprio -u ps150`, `squeue -u ps150 --start`.
+- **v36 TIMING FIX (other window, 10-20)**: video timing now from the template's per-frame camera times; 9 sessions had
+  drifted (PS92 0605 / 0606 / 0908, PS93 0605 / 0606, PS94 0603 / 0605 / 0805, PS95 0605; cue off by 26 ms - 1.3 s).
+  In the encoding sets only **PS92_0908** (chronic, every folder) and the June PS92_0606 / PS93_0606 (trend test only)
+  are affected; drop-free sessions keep the same frames. A full v36 + cohort rerun was running 10-20 (~4-6 h): WAIT for
+  it, then rerun PS92_0908 in every `imaging_encoding` folder (and the two June sessions in `movement_first` /
+  `subset-nokin`) and re-render. O2 fair-share 0.013 on 10-20 -> run these on the box (droppos / shufpos: 1 worker).
 - **O2 memory per TAG**: nokin / matched / trmodels 24 GB; shufpos 32 GB; **droppos 64 GB** (10-20: 44 / 119 tasks
   OUT_OF_MEMORY at 32 GB -- the larger sessions; resubmitted as array 56976651). Resubmit failures with
   `IDS=$(sacct -j <job> -X -n -o JobID%20,State | awk '$2 !~ /COMPLETED|RUNNING|PENDING/ {split($1,a,"_"); print a[2]}' | paste -sd, -)`.
