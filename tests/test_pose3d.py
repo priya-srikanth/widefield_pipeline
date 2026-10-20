@@ -204,3 +204,27 @@ def test_pair_on_daq_time_survives_dropped_frames():
     assert i1.tolist() == keep.tolist() and i4.tolist() == list(range(len(keep)))
     i1, i4 = P3.pair(ix1.drop(columns="t_daq_ms"), ix4.drop(columns="t_daq_ms"))     # old exact join: slides
     assert i1.tolist() == list(range(len(keep)))
+
+
+def test_anchor_places_one_camera_jaw_at_the_resting_depth():
+    """Long one-camera jaw stretches (10-20): on the seen camera's ray at the camera-frame depth of the trial's rest
+    point -- exact when the jaw moves at constant depth for that camera; codes 4 (cam1) / 5 (cam4)."""
+    g = _Group([_Cam("cam1", [-0.8, 0.02, 0.0], [0.3, 1.0, 150.0]), _Cam("cam4", [1.5, 0.0, 0.0], [-0.2, 2.0, 160.0])])
+    t = np.array([-8.0, -4.0, 100.0, 104.0, 108.0])
+    rest = np.array([0.0, -0.5, -1.5])
+    cam4 = g.cameras[1]
+    C, U = P3.camera_rays(cam4, cam4.project(rest[None] + np.array([[0.3, 0.0, -0.8]])))
+    z = P3._cam_depth(cam4, rest[None])[0]
+    R = cam4.get_extrinsics_mat()[:3, :3]
+    moved = C + (z / (U @ R.T)[:, 2])[:, None] * U                  # a point at the rest point's cam4 depth
+    truth = np.vstack([rest, rest, moved, moved, rest])
+    px = g.project(truth)
+    a, b = px[0].copy(), px[1].copy()
+    a[2:4] = np.nan                                                  # frames 2, 3: cam4 only, far from any neighbour
+    b[4] = np.nan                                                    # frame 4: cam1 only
+    X = g.triangulate(np.stack([a, b]), undistort=True)
+    X[~(np.isfinite(a).all(1) & np.isfinite(b).all(1))] = np.nan
+    src = np.where(np.isfinite(X).all(1), 1, 0)
+    F, s2 = P3.anchor_single_view(X, a, b, g, np.ones(5, int), t, src)
+    assert list(s2) == [1, 1, 5, 5, 4]
+    assert np.allclose(F[2:4], moved, atol=1e-3) and np.allclose(F[4], rest, atol=1e-3)

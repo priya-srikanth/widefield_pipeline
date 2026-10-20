@@ -461,6 +461,25 @@ def trial_frame_spans(b: pd.DataFrame, tpl: dict, n_full: int, pre_s: float = 0.
     return [tuple(x) for x in spans]
 
 
+def trial_frame_spans_ts(b: pd.DataFrame, daq_v: np.ndarray, n_full: int, pre_s: float = 0.5,
+                         post_s: float = 3.0) -> list:
+    """`trial_frame_spans` from PER-FRAME DAQ times (``daq_v``, `camera_sync.frame_daq_seconds`: camera timestamps
+    through the alignment template) instead of the frame-index affine: the cue frame = the frame nearest the cue in
+    time, window edges by time; same cut at the next trial's start. Right across dropped frames."""
+    d = np.asarray(daq_v[:n_full], float)
+    spans = []
+    for r in b.itertuples():
+        t0 = min(r.strobe_s, r.cue_s - pre_s) if np.isfinite(r.strobe_s) else r.cue_s - pre_s
+        f0 = int(np.searchsorted(d, t0 - pre_s))
+        f1 = int(np.searchsorted(d, r.stop_s + post_s))
+        j = int(np.clip(np.searchsorted(d, r.cue_s), 1, len(d) - 1))
+        fc = j - 1 if abs(d[j - 1] - r.cue_s) <= abs(d[j] - r.cue_s) else j
+        spans.append([max(0, f0), min(n_full, f1), fc])
+    for k in range(len(spans) - 1):
+        spans[k][1] = min(spans[k][1], spans[k + 1][0])
+    return [tuple(x) for x in spans]
+
+
 def assign_trials_to_videos(cue_s: np.ndarray, videos: list) -> np.ndarray:
     """Index into ``videos`` [(pose, template, name), ...] of the video that covers each cue: its frame lies inside
     that video, and inside the template's DAQ segment when it has one (split days). -1 = no video covers it."""
@@ -519,15 +538,28 @@ def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: 
     k = 0
     for v, (pose_v, tpl_v, name_v) in enumerate(videos):
         bv = b[who == v].reset_index(drop=True)
-        # ``daq_s`` (OURS, 2026-10-16): each frame's DAQ time from its camera TIMESTAMP (`camera_sync.frame_daq_seconds`),
-        # so imaging-aligned analyses need no template. ``t_ms`` stays the nominal 4-ms-per-frame offset from the cue
-        # frame (what every kinematics function expects); the two agree to < 0.01 ms on drop-free recordings.
-        daq_v = cs.frame_daq_seconds(rv, animal, date, tpl_v)
-        for r, (f0, f1, fc) in zip(bv.itertuples(), trial_frame_spans(bv, tpl_v, len(pose_v), pre_s, post_s)):
+        # ``daq_s`` (OURS, 2026-10-16): each frame's DAQ time from its camera TIMESTAMP through the date's ALIGNMENT
+        # TEMPLATE (`camera_sync.frame_daq_seconds`). 10-20 (Priya: "all timings should use the alignment templates"):
+        # the windows, the cue frame and ``t_ms`` now come from these per-frame times (`trial_frame_spans_ts`), so a
+        # dropped frame leaves a 4-ms GAP in t_ms instead of sliding every later frame (the template's frame-index
+        # affine, `trial_frame_spans`, drifted by 4 ms per drop: PS92 0605 / 0908, PS94 0603, PS95 0605 by 0.1-1.3 s at the
+        # cue; PS92 / PS93 0605-0606 by tens of ms; `scripts/cam4_timing_check.py`). Drop-free sessions: same frames, same
+        # t_ms. Falls back to the affine when a session has no usable camera CSV.
+        try:
+            daq_v = cs.frame_daq_seconds(rv, animal, date, tpl_v)
+            spans = trial_frame_spans_ts(bv, daq_v, min(len(pose_v), len(daq_v)), pre_s, post_s)
+        except (ValueError, FileNotFoundError, OSError) as e:
+            print(f"   {animal} {date}: per-frame camera times unavailable ({e}) -- frame-index affine windows")
+            daq_v, spans = None, trial_frame_spans(bv, tpl_v, len(pose_v), pre_s, post_s)
+        for r, (f0, f1, fc) in zip(bv.itertuples(), spans):
             for f in range(f0, f1):
-                idx.append((k, int(r.trial_id), r.pos_name, f, (f - fc) * 4.0, (r.strobe_s - r.cue_s) * 1000.0,
-                            (r.stop_s - r.cue_s) * 1000.0, r.stop_source, float(daq_v[f]), name_v,
-                            (float(daq_v[f]) - r.cue_s) * 1000.0))
+                if daq_v is None:
+                    tm, dq, tdq = (f - fc) * 4.0, np.nan, np.nan
+                else:
+                    dq = float(daq_v[f])
+                    tm, tdq = 4.0 * round((dq - float(daq_v[fc])) * 250.0), (dq - r.cue_s) * 1000.0
+                idx.append((k, int(r.trial_id), r.pos_name, f, tm, (r.strobe_s - r.cue_s) * 1000.0,
+                            (r.stop_s - r.cue_s) * 1000.0, r.stop_source, dq, name_v, tdq))
             sels.append(pose_v[np.arange(f0, f1)])
             k += 1
     # ``t_daq_ms`` (10-20): the frame's TRUE time from the cue, from its camera timestamp (``daq_s`` - cue). ``t_ms`` is

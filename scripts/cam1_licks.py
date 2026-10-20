@@ -190,6 +190,22 @@ def _picks_round2(E, d, per, rng):
     return picks, take
 
 
+def _picks_round3(E, per, rng, animal="PS93"):
+    """Round 3 (10-20): a second animal -- ``animal``'s cam1-only events (droplets already removed) by size class, so the
+    droplet rule and the precision found on PS92 are checked on an animal that licks with less contact (PS93: 62-69 %
+    contact in August vs PS92 85-93 %, in cam4 v36 too)."""
+    picks = []
+    A = E[E.animal == animal]
+
+    def take(m, n, stratum):
+        g = A[m]
+        if len(g):
+            picks.append(g.sample(min(n, len(g)), random_state=int(rng.integers(1 << 30))).assign(stratum=stratum))
+    take(A.cam1_only & (A.size_class == "lips"), per, f"cam1_only_lips_{animal}")
+    take(A.cam1_only & (A.size_class == "out"), per, f"cam1_only_out_{animal}")
+    return picks, take
+
+
 def review(rv, per: int, seed: int, rnd: int = 1) -> Path:
     import cv2
 
@@ -199,8 +215,11 @@ def review(rv, per: int, seed: int, rnd: int = 1) -> Path:
     E, _ = summarise(d)
     rng = np.random.default_rng(seed + 100 * (rnd - 1))
     E = E[E.epoch.isin(["pre", "acute"])]
-    picks, take = _picks_round1(E, per, rng) if rnd == 1 else _picks_round2(E, d, per, rng)
+    picks, take = (_picks_round1(E, per, rng) if rnd == 1 else _picks_round2(E, d, per, rng) if rnd == 2
+                   else _picks_round3(E, per, rng))
     nc = max(per // 2, 4) if rnd == 1 else 4
+    if rnd == 3:
+        E = E[E.animal == "PS93"]
     g = E[E.cam4_matched.fillna(False) & E.contact]
     picks.append(g.sample(nc, random_state=int(rng.integers(1 << 30))).assign(stratum="control_contact"))
     P = pd.concat(picks, ignore_index=True)

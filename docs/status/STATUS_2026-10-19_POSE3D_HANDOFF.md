@@ -66,6 +66,8 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 | recent misses kept as a covariate (`miss_prev3`), not a gate | droplets follow uncollected water (Priya): pre 3 % of trials after a hit, 12 % after a miss, 15 % after 3; acute flat ~1 %; the shape rule alone already works |
 | cameras PAIRED ON CAMERA-TIMESTAMP TIME (`t_daq_ms`, nearest within 2 ms), not frame-index `t_ms` (10-20) | Priya: "align using the sync pulse"; frame-index time slides with every dropped frame -- PS92 0908 (frame-drop cliff at min ~104) paired wrong partners (tongue reprojection 8.5 px, 36k frames); now 3.5 px, 153k frames, all 4 session quarters normal. Also fixed PS92 0606, PS93 0605 / 0606 (6.4-9.0 -> 3.1-3.7 px) -- the "June outliers" were drops. Drop-free sessions unchanged (0807: 231615 -> 231601 frames). Output `t_ms` stays cam4's (v36 lick windows) + `t_daq_ms` |
 | session gates `pose3d.failed_sessions`: spout fit > 0.2 mm, median tongue reprojection > 6 px | catches timing / pose failures automatically (normal 2.7-4.0 px); now only PS92 0605 (spout fit) fails |
+| ALL video timing from the alignment templates' per-frame camera times (10-20, Priya: "all timings should use the alignment templates") -- `o2_inference.build_windows` -> `trial_frame_spans_ts`: cue frame = frame nearest the cue in template time, windows by time, `t_ms` = template time from the cue frame snapped to 4 ms (drops leave gaps) | the template's frame-index affine drifted 4 ms per dropped frame: `scripts/cam4_timing_check.py` over 134 cam4 sessions -- 125 within one frame; 9 off: PS92 0605 / 0606 / 0908, PS93 0605 / 0606, PS94 0603 / 0605 / 0805, PS95 0605 (cue 26 ms - 1.3 s; PS94 0805 = no drops but frames ~1.7 % slow). Clean session (PS92 0807): 100 % same cue frames; PS93 0605: cam1 vs cam4 now within 4 ms (was up to 0.6 s -- Priya saw it in the round-3 review). v36 re-run (`--force`) for the 9 |
+| jaw: long one-camera stretches placed with a REST-DEPTH ANCHOR (`pose3d.anchor_single_view`, src 4 cam1 / 5 cam4) | centre spouts: the rod is end-on in cam1's view (cam1 keeps ~46-49 % of jaw frames there), close_center also hides the chin in cam4; held-out on side spouts: ml error 0.03-0.05 mm, per-trial lr_wide r 0.95-0.99, FAR_DIR within 0.02 mm; ap from cam4 alone is 0.15-0.39 mm off -> do not use anchored frames for the 3-D opening's backward part. far_center jaw coverage 62 -> ~100 % |
 | lick phase: onset -> offset per lick (primary), peak-to-peak secondary | same as cam4's per-lick normalised time (`orofacial_cohort.U_NORM`); keeps isolated licks (acute far contra: 38-56 % have a neighbour < 250 ms); peak-to-peak only for stroke_orofacial comparison |
 
 ## 3. Running / pending at hand-off
@@ -126,6 +128,9 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   UNCONFIRMED; suspect head posture in cam4's image-px measure (untested). cam1 licks: PS92 chronic cam1-only 11.7 % (lips
   7 %) vs pre 5.7 %; PS93 pre 44 % no-contact / 27 % lips (check videos). Frame-index vs camera time on a NORMAL session
   (0807): median 1.6 ms, p99 28, max 46 ms -> cue-relative v36 timings carry per-session drop error (to quantify).
+  QUANTIFIED + FIXED 10-20 (decision row "ALL video timing from the alignment templates"). Chronic jaw lateral RESOLVED:
+  on far_L / far_R (the trials FAR_DIR uses) cam4 vs 3-D per-trial r is 0.80 chronic vs 0.90 pre; the drop is the
+  close / centre spouts cam4's jaw readout already excludes. PS93 low contact (62-69 % Aug) is real (cam4 v36 70 %).
 
 ## 5. O2: check jobs and copy outputs (Priya runs these)
 

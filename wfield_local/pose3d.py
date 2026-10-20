@@ -207,6 +207,45 @@ def camera_rays(cam, xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return -R.T @ t, U / np.linalg.norm(U, axis=1, keepdims=True)
 
 
+#: parts whose LONG one-camera stretches (beyond the fill limit) are placed with the rest-depth anchor (10-20)
+ANCHOR_PARTS = ("jaw",)
+
+
+def _cam_depth(cam, X: np.ndarray) -> np.ndarray:
+    M = cam.get_extrinsics_mat()
+    return (X @ M[:3, :3].T + M[:3, 3])[:, 2]
+
+
+def anchor_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.ndarray, t: np.ndarray,
+                       src: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """One-camera frames still without 3-D after `fill_single_view` -> the seen camera's ray at the CAMERA-FRAME DEPTH
+    of the trial's resting point (median both-camera point before the cue; the session's if the trial has none).
+    ``src`` 4 = cam1 + anchor, 5 = cam4 + anchor. For the JAW (Priya 10-20: recover the centre-spout jaw -- the rod is
+    end-on in cam1's view at both centre positions, and at close_center it also covers the chin in cam4). Held-out
+    (`scripts/pose3d_jaw_anchor_check.py`, PS92 0807 / 0818 / 0915, PS93 0807; truth = both-camera jaw on side-spout
+    trials, one camera hidden): ml error median 0.03-0.05 mm either camera; dv 0.02-0.04 (cam4) / 0.07-0.15 (cam1); ap
+    0.15-0.39 (cam4 alone cannot see it) / 0.06-0.14 (cam1); per-trial lr_wide r 0.95-0.99, FAR_DIR within 0.02 mm."""
+    X, src = X.copy(), src.copy()
+    pre = (src == 1) & (t < 0)
+    if not pre.any():
+        return X, src
+    Xr = np.tile(np.nanmedian(X[pre], axis=0), (len(X), 1))
+    for k in np.unique(trial[pre]):
+        Xr[trial == k] = np.median(X[pre & (trial == k)], axis=0)
+    fa, fb = np.isfinite(a).all(1), np.isfinite(b).all(1)
+    left = ~np.isfinite(X).all(1)
+    for ci, xy, m, code in ((0, a, left & fa & ~fb, 4), (1, b, left & fb & ~fa, 5)):
+        if not m.any():
+            continue
+        cam = cg.cameras[ci]
+        C, U = camera_rays(cam, xy[m])
+        R = cam.get_extrinsics_mat()[:3, :3]
+        sc = _cam_depth(cam, Xr[m]) / (U @ R.T)[:, 2]
+        X[m] = C + sc[:, None] * U
+        src[m] = code
+    return X, src
+
+
 def fill_single_view(X: np.ndarray, a: np.ndarray, b: np.ndarray, cg, trial: np.ndarray, t: np.ndarray,
                      max_gap_ms: float = 24.0, interp: str = "linear",
                      max_ray_miss_mm: float = 3.0) -> tuple[np.ndarray, np.ndarray]:
@@ -343,7 +382,8 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
     ``method``: "pnp" (default, 10-19) = cameras posed per session from the commanded spouts (`pnp_group`); "calib" =
     the 09-11 extrinsics + the per-session x shifts of `disparity_shift` (info ``shift_px``; 2-D points drawn on the raw
     video must subtract them) + the similarity fit -- kept for comparison. ``fill_gap_ms`` (None = `FILL_GAP_MS`, per part; a number = both parts): fill single-camera
-    tongue / jaw frames (`fill_single_view`; ``{part}_src`` 1 both, 2 cam1, 3 cam4, 0 none; their rep columns stay NaN);
+    tongue / jaw frames (`fill_single_view`; ``{part}_src`` 1 both, 2 cam1, 3 cam4, 0 none; their rep columns stay NaN;
+    jaw also 4 / 5 = cam1 / cam4 + rest-depth anchor, `anchor_single_view`);
     None = both cameras only. ``fill_interp`` (default "akima", 10-19): held-out 3-D error, PS92 0807 / 0818, linear ->
     Akima: 8 ms gaps 0.136-0.144 -> 0.127-0.137 mm, 16 ms 0.164-0.176 -> 0.145-0.162, 24 ms 0.220-0.272 -> 0.203-0.231
     (PCHIP in between); largest gain on long cam1-only gaps. Returns (frames, info) -- info carries the world fit,
@@ -394,6 +434,8 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
         if part in CLEANED and gap:
             X, src = fill_single_view(X, a, b, cg, out.trial_id.to_numpy(), out.t_ms.to_numpy(float), gap,
                                       fill_interp)
+            if part in ANCHOR_PARTS:                       # long one-camera stretches: rest-depth anchor (src 4 / 5)
+                X, src = anchor_single_view(X, a, b, cg, out.trial_id.to_numpy(), out.t_ms.to_numpy(float), src)
             out[f"{part}_src"] = src
         W = world.to_world(X)
         if part in CLEANED:
