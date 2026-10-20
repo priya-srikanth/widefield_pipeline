@@ -78,11 +78,18 @@ def main(argv=None) -> int:
     out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
     writeguard.assert_writable(out)
     name = "slowband_decode_all.csv" if a.all else "slowband_decode.csv"
-    labels = a.labels or ([s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806"] if a.all else list(DEFAULT))
+    # CURATED sessions only (Priya 10-20: "only sessions from our curated analysis list" -- no early June / 0805, no
+    # stroke-day 0817); from 08-06 = the August-only baseline + post-stroke
+    cur = set(ak.curated_labels())
+    labels = a.labels or ([s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806" and s["label"] in cur]
+                          if a.all else list(DEFAULT))
     prev = pd.DataFrame()
-    if a.all and (Path(out) / "slowband_decode.csv").exists():
-        prev = pd.read_csv(Path(out) / "slowband_decode.csv")
-        prev = prev[prev.label.isin(labels)].drop(columns=["animal", "set"], errors="ignore")
+    if a.all:                                          # reuse rows already computed (both files)
+        old = [pd.read_csv(Path(out) / f) for f in ("slowband_decode.csv", "slowband_decode_all.csv")
+               if (Path(out) / f).exists()]
+        if old:
+            prev = pd.concat(old).drop_duplicates("label")
+            prev = prev[prev.label.isin(labels)].drop(columns=["animal", "set", "epoch"], errors="ignore")
     todo = [x for x in labels if prev.empty or x not in set(prev.label)]
     got, fail = ak.fan_sessions(todo, session_check, jobs=a.jobs)
     for it, err in fail:
