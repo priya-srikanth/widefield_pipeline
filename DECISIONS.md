@@ -20785,3 +20785,47 @@ above-chance decode). Cue / lick windows unaffected (post-cue 0.78 -> 0.75).
 `qc/slowband_decode_all.csv`, adopted vs slow-band-removed decode per animal x epoch. Reading rule: if the acute pre-cue
 drop survives without the slow band in PS92 / PS93 the finding stands (size caveat only); if it shrinks there but not
 in PS94 / PS95, part of it was the block schedule. Results appended below when in.
+**Result (10-20, 108 curated sessions from 08-06; PS92 / PS93 0817 excluded, PS94 / PS95 0817 are curated acute days).**
+Pre-cue decode, change from the August pre mean (adopted -> slow band (>= 300 s) removed; chance 1/6; sessions
+pre / acute / subacute / chronic PS92 8/5/2/12, PS93 8/4/3/12, PS94 8/6/5/8, PS95 8/1/7/11):
+
+| animal | acute | subacute | chronic |
+|---|---|---|---|
+| PS92 | +.028 -> +.018 | -.020 -> -.049 | +.041 -> +.019 |
+| PS93 | **-.057 -> +.006** | -.124 -> -.063 | .000 -> +.022 |
+| PS94 | -.119 -> -.077 | -.080 -> -.038 | -.018 -> +.022 |
+| PS95 | +.148 -> +.173 (1 session) | -.022 -> -.019 | +.037 -> +.033 |
+
+Reading: (1) removing the slow band lowers pre-cue decode by a similar ~.03-.09 in every epoch, so it rescales the
+pre-cue code but does not create the epoch pattern; (2) there is NO consistent post-stroke pre-cue LOSS to explain: acute
+goes up in PS92 / PS95 and down in PS93 / PS94; (3) PS93's acute pre-cue drop IS the slow band (block schedule:
+-.057 -> +.006) and its subacute drop halves; (4) PS94's acute / subacute drop survives at ~2/3 (its blocks did not
+change, so not schedule); (5) chronic is at or above pre in all four either way. Decision: report pre-cue decode with the
+slow band removed as a sensitivity column; do not claim an acute pre-cue loss for PS93; the lick-window results are
+unaffected (post-cue .78 -> .75). Table `qc/slowband_decode_all.csv`.
+
+## 2026-10-20 — target vs executed: a BINNED contest and a within-spout deviation check (Priya: "agree with 2 and 1")
+
+**Why.** The continuous contest scales one lick kernel by 3-4 smooth terms per side (angle, angle^2, distance / reach),
+which is right as the headline (target is constant within a spout, so only the continuous executed set can use the
+lick-to-lick scatter) but assumes a quadratic shape, and `category` (six free spout kernels) is a binned TARGET with no
+executed counterpart. Two additions:
+1. **Binned contest** (`COMBINED_ENCODING_BINS=1`, outputs `..._bins/`): `lick_bin_tgt` = six free lick kernels, one per
+   spout of the lick's trial; `lick_bin_exec` = six free lick kernels, one per EXECUTED bin = the spout nearest the
+   tongue peak. Bins come from spout GEOMETRY only (3-D mm when a 3-D executed set + spout table are given; else the cam4
+   (angle, reach) plane scaled by the six spouts' spread), never from centroids of the licks' own spout labels -- that
+   would re-import the target exactly when the two separate post-stroke. Both deviation-coded like the position blocks
+   (rank 5 x kernel), same licks as the continuous contest. Models `nokin:tgtbin`, `nokin:exbin`, `nokin:tgtbin+exbin`,
+   `nokin:category+exbin` (binned strict executed); readouts `u:tgtbin`, `u:exbin`, `u:exbin|category` (region table) and
+   `u_tgtbin` / `u_exbin` / `u_exbin_strict` (trial-to-trial). Each session records `bins.agree` (fraction of licks
+   whose nearest spout is their own) and the target x executed confusion. Caveats: the two blocks overlap heavily
+   pre-stroke (agree near 1 -> nearly collinear, so unique shares will be small and noisy there); tracking noise
+   misassigns licks near bin edges; cam4 reach is the down axis only, so close / far bins are weak in cam4.
+2. **Within-spout deviation check** (`scripts/within_spout_deviation.py`, model-light): trial response (cue + 0-1.5 s
+   minus own pre-cue 0.5 s; trial level because GCaMP6s integrates over ~7 Hz licks) regressed, within spout, on the
+   trial's executed lateral deviation + reach deviation + lick count; compared with the across-spout lateral slope of
+   spout means (executed means). Target coding -> within ~0; executed coding -> within ~ between. Ratio diluted by angle
+   noise, so < 1 is not by itself evidence for target. 'mean' (all usable licks in the window) and 'first' (first lick)
+   variants; region table + slope maps + tercile curves per epoch.
+**Run.** (2) cam4 cohort on the box now (curated, from 08-06; v36 per-session licks are final). (1) after PS92_0908 /
+polar: PS92 pilot with `COMBINED_ENCODING_EXEC=polar` + `BINS=1`, then the cohort 3-D contest when cam1 production lands.

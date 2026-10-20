@@ -129,11 +129,13 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 
 ## 5. Caveats that apply across sections
 
-- **Pre-cue slow band (PENDING full check).** The >= 300 s component of the corrected signal decodes position on its
-  own (PS92 / PS93 ~0.3, PS94 / PS95 ~0.1), scales with block length, and block length changes with epoch in PS92 /
-  PS93 (acute blocks ~half as long). 70-80 % of the pre-cue code survives without it; cue and lick windows unaffected.
-  The by-epoch re-split (`qc/slowband_decode_all.csv`) decides whether post-stroke pre-cue changes need correcting.
-  Figure `qc/slowband_caveat.png`.
+- **Pre-cue slow band (STANDS as a size caveat; checked 10-20).** The >= 300 s component decodes position on its own
+  (PS92 / PS93 ~0.3, PS94 / PS95 ~0.1) and scales with block length, which changes with epoch in PS92 / PS93. By-epoch
+  re-split (108 curated sessions): removing it lowers pre-cue decode by a similar ~.03-.09 in every epoch, so the epoch
+  pattern is not created by it; there is no consistent acute pre-cue LOSS (up in PS92 / PS95, down in PS93 / PS94);
+  PS93's acute drop is the slow band (-.057 -> +.006) and its subacute drop halves; PS94's drop survives at ~2/3;
+  chronic >= pre in all four. Report slow-band-removed pre-cue decode as a sensitivity column; lick windows unaffected.
+  `qc/slowband_decode_all.csv`, `qc/slowband_caveat.png`.
 - **cam4 kinematics:** lateral angle faithful (r 0.95-0.97 with 3-D); "protrusion / reach" is 99 % the down axis, blind
   to forward. Every cam4 executed test is biased against executed by tracking noise and the missing axis.
 - **Lick events:** cam4-only so far; cam1 adds 3-7 % small licks and incomplete licks rise post-stroke (PS92 far_R
@@ -153,15 +155,19 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 | signed per-spout maps | `movement_first/` | `figures/position_signed_respdev_*.png` |
 | recovery timing | `qc/` | `position_coding_half_recovery.csv` |
 | slow band | `qc/` | `slowband_caveat.png`, `slowband_decode_all.csv` |
+| within-spout deviation | `qc/within_spout_deviation/` | `within_spout_deviation.csv`, `figures/within_spout_*.png` |
 
 ## 7. Next (in order)
 
 1. After the v36 rerun: PS92_0908 everywhere; polar on PS92; smoke-test combined licks + strict executed.
 2. Cohort 3-D contest (xyz2 / polar, strict executed, combined licks) when cam1 production lands.
-3. Slow-band by-epoch result into section 5 (and DECISIONS).
+3. Binned contest (`COMBINED_ENCODING_BINS`) on PS92 polar, then in the cohort 3-D contest; within-spout deviation
+   check (`scripts/within_spout_deviation.py`) cam4 cohort running 10-20, 3-D version with the cohort 3-D tables.
 4. Pre-cue -> lick-window carry-over decode (cross-window, from the CD code).
 5. Deferred: non-linear ceiling check.
 
 ## Change log
 
+- **2026-10-20** — slow band checked by epoch (size caveat; PS93 acute pre-cue drop withdrawn); binned contest and
+  within-spout deviation check added (DECISIONS 2026-10-20).
 - **2026-10-20** — created from DECISIONS 2026-10-19 ... 2026-10-20 (encoding window).

@@ -64,7 +64,11 @@ CONTEST = {"gain:category": ("category", "none"), "gain:target": ("target", "non
            "u:exec|category": ("category+exec", "category"),
            "u:target|kin": ("kin+target+exec", "kin+exec"), "u:exec|kin": ("kin+target+exec", "kin+target"),
            "u:kin": ("kin+target+exec", "target+exec"),
-           "u:target|kin+nose": ("kin+nose+target", "kin+nose"), "u:target|kin_nonose": ("kin+target", "kin")}
+           "u:target|kin+nose": ("kin+nose+target", "kin+nose"), "u:target|kin_nonose": ("kin+target", "kin"),
+           # BINNED contest (COMBINED_ENCODING_BINS, Priya 10-20): six free lick kernels per side, matched in dof
+           "gain:tgtbin": ("tgtbin", "none"), "gain:exbin": ("exbin", "none"),
+           "u:tgtbin": ("tgtbin+exbin", "exbin"), "u:exbin": ("tgtbin+exbin", "tgtbin"),
+           "u:exbin|category": ("category+exbin", "category")}
 CONTEST_COL = {"target": "#6a3d9a", "exec": "#d95f02", "kin": "#8c510a", "category": "#1b9e77",
                "target+exec": "0.35"}
 FOCUS = ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul", "SSp-bfd", "SSp-n", "ACAd", "VISp")
@@ -988,7 +992,12 @@ def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
                 e = {mm: sse[trm_s.index(mm)][ai][:, tw].sum() for mm in need}
                 strict = ((e["nokin:category"] - sse[trm_s.index("nokin:category+exec")][ai][:, tw].sum()) / den
                           if "nokin:category+exec" in trm_s else np.nan)      # executed beyond ALL six spouts
+                eb = {mm: sse[trm_s.index(mm)][ai][:, tw].sum() if mm in trm_s else np.nan   # binned (BINS)
+                      for mm in ("nokin:tgtbin", "nokin:exbin", "nokin:tgtbin+exbin", "nokin:category+exbin")}
                 rows.append({"label": m.label, "animal": m.animal, "epoch": m.epoch, "variance": var, "area": ar,
+                             "u_tgtbin": (eb["nokin:exbin"] - eb["nokin:tgtbin+exbin"]) / den,
+                             "u_exbin": (eb["nokin:tgtbin"] - eb["nokin:tgtbin+exbin"]) / den,
+                             "u_exbin_strict": (e["nokin:category"] - eb["nokin:category+exbin"]) / den,
                              "u_target": (e["nokin:exec"] - e["nokin:target+exec"]) / den,
                              "u_exec": (e["nokin:target"] - e["nokin:target+exec"]) / den,
                              "u_exec_strict": strict,
@@ -998,7 +1007,9 @@ def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
     for var in ("trial", "all"):
         for ar in ("cortex", "SSp-m"):
             G = D[(D.variance == var) & (D.area == ar)]
-            for c in ("u_target", "u_exec", "ceiling"):
+            for c in ("u_target", "u_exec", "ceiling", "u_tgtbin", "u_exbin"):
+                if G[c].isna().all():
+                    continue
                 t_ = G.groupby(["animal", "epoch"])[c].mean().unstack("epoch").reindex(columns=list(EPOCHS))
                 print(f"\n  {var.upper()} variance, {ar}, 0-1.5 s after cue: {c}\n" + t_.round(4).to_string())
 
@@ -1019,7 +1030,7 @@ def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
     pd.set_option("display.width", 220)
     print("per-animal cortex values by epoch (rule 8: animals before the pooled test):")
     for b in bases:
-        for key in ("u:target", "u:exec", "u:target|kin", "u:exec|kin", "u:kin", "gain:target", "gain:exec",
+        for key in ("u:target", "u:exec", "u:tgtbin", "u:exbin", "u:exbin|category", "u:target|kin", "u:exec|kin", "u:kin", "gain:target", "gain:exec",
                     "gain:category", "u:target|kin+nose", "u:target|kin_nonose"):
             for w in ("lick", "cue"):
                 col = f"{b}:{key}|{w}"

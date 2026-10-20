@@ -114,6 +114,15 @@ TARGET3D_TABLE_ENV = "COMBINED_ENCODING_TARGET3D_TABLE"
 #: enter the executed / target sets. Outputs -> ..._licks-<mode>/.
 LICKS_ENV = "COMBINED_ENCODING_LICKS"
 LICK_MODES = ("cam4", "combined", "lips")
+#: BINNED target-vs-executed contest (Priya 10-20, agreed): the continuous contest scales ONE lick kernel by 3-4 smooth
+#: terms, so a win could come from the assumed (quadratic) shape. Here both sides are six FREE lick kernels on the same
+#: licks: lick_bin_tgt = one kernel per spout of the lick's trial; lick_bin_exec = one kernel per EXECUTED bin = the
+#: spout nearest the tongue peak (from spout GEOMETRY, never from the licks' own spout labels -- calibrating bins on
+#: target-labelled lick centroids would re-import the target post-stroke). Nearest in 3-D mm when EXEC_ENV has a 3-D
+#: set and TARGET3D_TABLE_ENV is given; else in the cam4 (angle, reach) plane, each axis scaled by the six spouts' spread.
+#: Both blocks deviation-coded like the position blocks (rank 5 x kernel). Matched in dof, model class and licks;
+#: `nokin:category+exbin` is the binned STRICT executed. Built only when set (adds ~12 kernels); outputs -> ..._bins/.
+BINS_ENV = "COMBINED_ENCODING_BINS"
 
 
 def _match_trials(T: pd.DataFrame, B, label: str, path: str, seed: int) -> pd.DataFrame:
@@ -182,7 +191,8 @@ GROUPS = ("task", "instructed", "uninstructed")
 #: kernel (angle_cue / angle_enl are cue- / ENL-locked and can explain any time in the trial; the lick-locked pair cannot).
 EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructed", "lick_angle_abs": "instructed",
                "lick_angle_tgt": "instructed", "jaw_nd": "instructed", "nose_nd": "uninstructed",
-               "dir_kin": "instructed", "kinall": "instructed"}
+               "dir_kin": "instructed", "kinall": "instructed", "lick_bin_tgt": "instructed",
+               "lick_bin_exec": "instructed"}
 #: PENALTY groups (2026-10-19, Priya: fix the shared penalty), separate from the CREDIT groups above. One ridge penalty per
 #: credit group let the continuous tongue / jaw traces (well constrained, best at a weak penalty) set the penalty of the
 #: lick-EVENT terms that share the "instructed" group (lick kernels + per-lick target / executed scalings: many weights
@@ -191,6 +201,7 @@ EXTRA_GROUP = {"angle_cue": "task", "angle_enl": "task", "tongue_ps": "instructe
 PEN_GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task", "angle_cue": "task",
                 "angle_enl": "task",
                 "licks": "lick", "exec_angle": "lick", "lick_angle_abs": "lick", "lick_angle_tgt": "lick",
+                "lick_bin_tgt": "lick", "lick_bin_exec": "lick",
                 "tongue": "orofacial", "jaw": "orofacial", "tongue_ps": "orofacial", "jaw_nd": "orofacial",
                 "dir_kin": "orofacial", "kinall": "orofacial",
                 "nose": "uninstructed", "nose_nd": "uninstructed", "running": "uninstructed", "video": "video"}
@@ -213,7 +224,7 @@ NODIR_BASE = ("cue", "arrival", "licks", "tongue_ps", "jaw_nd", "nose_nd", "runn
 #: has many more columns than the 3-amplitude per-lick variables: read it by UNIQUE shares, not raw gains.
 NOKIN_BASE = ("cue", "arrival", "licks", "running")
 NOKIN_TR = ("nokin:none", "nokin:category", "nokin:target", "nokin:exec", "nokin:target+exec",
-            "nokin:category+exec")
+            "nokin:category+exec", "nokin:tgtbin", "nokin:exbin", "nokin:tgtbin+exbin", "nokin:category+exbin")
 ORDERS = {"movement_first": ("instructed", "uninstructed", "task"),
           "task_first": ("task", "instructed", "uninstructed"),
           "musall": ("instructed", "uninstructed", "task")}
@@ -292,6 +303,8 @@ class Behaviour:
     target_amps: list = None       # EXEC_ENV xyz2: the target set's per-lick amplitudes (spout 3-D ml / ap / dv)
     extra_lick_on_s: np.ndarray = None   # LICKS_ENV: cam1-only lick onsets added to the lick timing kernel
     lips_on_s: np.ndarray = None         # LICKS_ENV=lips: cam1-only lips-class onsets (their own kernel)
+    exec_xyz: list = None          # 3-D EXEC_ENV: each lick's tongue peak [ml, ap, down] (mm, mouth zero); NaN = unusable
+    target_xyz: list = None        # ... and its spout [ml, ap, down] (mm), when TARGET3D_TABLE_ENV is given
 
 
 def load_behaviour(animal: str, date: str, rv) -> Behaviour:
@@ -358,18 +371,20 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
                 if np.isfinite(a_).any():
                     dst[p_] = float(np.nanmedian(a_))
     reach = np.where(np.isfinite(ang), L.protrusion_px.to_numpy(float), np.nan)
-    exec_amps = target_amps = None
+    exec_amps = target_amps = exec_xyz = target_xyz = None
     mode = os.environ.get(EXEC_ENV, "")
     if mode:
-        ang, reach, exec_amps = _exec_3d(L, ang, reach, mode, f"{animal}_{date}")
-        if mode == "xyz2":
-            target_amps = _target_3d(L, f"{animal}_{date}")
-        elif mode == "polar":
+        ang, reach, exec_amps, exec_xyz = _exec_3d(L, ang, reach, mode, f"{animal}_{date}")
+        if mode in ("xyz2", "polar") or os.environ.get(TARGET3D_TABLE_ENV):
             sml, sap, sdv = _target_3d(L, f"{animal}_{date}")
-            target_amps = _polar(sml, sap, -sdv)                # spout dv is + up -> down = -dv
+            target_xyz = [sml, sap, -sdv]                       # spout dv is + up -> down = -dv
+            if mode == "xyz2":
+                target_amps = [sml, sap, sdv]
+            elif mode == "polar":
+                target_amps = _polar(*target_xyz)
     extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
     return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
-                     tdist, reach, exec_amps, target_amps, extra, lips)
+                     tdist, reach, exec_amps, target_amps, extra, lips, exec_xyz, target_xyz)
 
 
 def _cam1_lick_events(rv, animal: str, date: str, cue_t: pd.DataFrame, mode: str):
@@ -414,7 +429,8 @@ def _target_3d(L: pd.DataFrame, session: str) -> list:
 
 
 def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, session: str):
-    """EXEC_ENV: restrict the usable licks to those with a 3-D peak and return (angle, reach, executed amplitudes)."""
+    """EXEC_ENV: restrict the usable licks to those with a 3-D peak and return (angle, reach, executed amplitudes,
+    tongue peak [ml, ap, down] mm)."""
     if mode not in EXEC_MODES:
         raise ValueError(f"{EXEC_ENV}={mode!r}; expected one of {EXEC_MODES}")
     path = os.environ.get(EXEC3D_TABLE_ENV)
@@ -430,19 +446,47 @@ def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, ses
     ok = np.isfinite(ang) & np.isfinite(ml) & np.isfinite(ap) & np.isfinite(dv) & np.isfinite(r3)
     ang = np.where(ok, ang, np.nan)
     reach = np.where(ok, reach, np.nan)
+    xyz = [np.where(ok, x, np.nan) for x in (ml, ap, dv)]           # kinematics table: down_dv is + down
     if mode == "cam4m":
-        return ang, reach, None
+        return ang, reach, None, xyz
     if mode in ("3dxyz", "xyz2"):
-        return ang, reach, [np.where(ok, x, np.nan) for x in (ml, ap, dv)]
-    if mode == "polar":                                  # kinematics table: down_dv is + down
-        return ang, reach, [np.where(ok, x, np.nan) for x in _polar(ml, ap, dv)]
-    if mode == "3d":
-        # angle out of the midline plane = pose3d `midline` (r = 1.0000). NOT atan2(ml, ap): licks run mostly DOWN, ap ~ 0,
-        # so the horizontal angle wraps (SD 77 deg on PS92 0807 vs 12 deg for this one)
-        a3 = np.where(ok, np.degrees(np.arctan2(ml, np.hypot(ap, dv))), np.nan)
-        a3 = a3 - np.nanmean(a3)                                     # centred before squaring, as the cam4 angle
-        return ang, reach, [a3, a3 ** 2, np.where(ok, r3, np.nan)]
-    return ang, reach, [np.where(ok, x, np.nan) for x in (ml, ap, dv)]
+        return ang, reach, xyz, xyz
+    if mode == "polar":
+        return ang, reach, [np.where(ok, x, np.nan) for x in _polar(ml, ap, dv)], xyz
+    # mode == "3d": angle out of the midline plane = pose3d `midline` (r = 1.0000). NOT atan2(ml, ap): licks run mostly
+    # DOWN, ap ~ 0, so the horizontal angle wraps (SD 77 deg on PS92 0807 vs 12 deg for this one)
+    a3 = np.where(ok, np.degrees(np.arctan2(ml, np.hypot(ap, dv))), np.nan)
+    a3 = a3 - np.nanmean(a3)                                         # centred before squaring, as the cam4 angle
+    return ang, reach, [a3, a3 ** 2, np.where(ok, r3, np.nan)], xyz
+
+
+def exec_bins(B: Behaviour) -> tuple[np.ndarray, np.ndarray, str]:
+    """BINS_ENV: (target label, executed label, frame) per lick; '' = lick not usable. Executed label = the spout NEAREST
+    the tongue peak, from spout geometry only (see BINS_ENV). Usable = exactly the licks of the continuous contest."""
+    n = len(B.lick_on_s)
+    empty = np.full(n, "", object)
+    if B.lick_angle is None:
+        return empty, empty.copy(), "none"
+    usable = np.isfinite(B.lick_angle)
+    if B.exec_xyz is not None and B.target_xyz is not None:
+        Ex, Sx, frame = np.column_stack(B.exec_xyz), np.column_stack(B.target_xyz), "3d_mm"
+        geo = {p: np.nanmedian(Sx[B.lick_pos == p], 0) for p in np.unique(B.lick_pos)}
+    elif B.target_angle and B.target_dist and B.lick_reach is not None:
+        Ex, frame = np.column_stack([B.lick_angle, B.lick_reach]), "cam4_angle_reach"
+        geo = {p: np.array([B.target_angle[p], B.target_dist[p]]) for p in B.target_angle if p in B.target_dist}
+    else:
+        return empty, empty.copy(), "none"
+    P = sorted(p for p, g in geo.items() if np.isfinite(g).all())
+    if len(P) < 2:
+        return empty, empty.copy(), "none"
+    G = np.array([geo[p] for p in P])
+    scale = np.ones(G.shape[1]) if frame == "3d_mm" else np.maximum(G.std(0), 1e-9)
+    ok = usable & np.isfinite(Ex).all(1) & np.isin(B.lick_pos, P)
+    d = (((Ex[ok] / scale)[:, None, :] - (G / scale)[None]) ** 2).sum(2)
+    tgt, ex = empty.copy(), empty.copy()
+    tgt[ok] = B.lick_pos[ok]
+    ex[ok] = np.array(P, object)[d.argmin(1)]
+    return tgt, ex, frame
 
 
 # =============================================================================== design
@@ -577,6 +621,14 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
                     tx = [np.where(np.isfinite(ta), x, np.nan) for x in B.target_amps]
                     tamps = [x - np.nanmean(x) for x in tx]
                 out["lick_angle_tgt"] = np.hstack([_event_cols(B.lick_on_s, ft, LAGS["lick"], amp=x) for x in tamps])
+    if os.environ.get(BINS_ENV):                     # binned contest: six free lick kernels per side (see BINS_ENV)
+        tl, el, _frame = exec_bins(B)
+        use = tl != ""
+        if use.any():
+            allk = _event_cols(B.lick_on_s[use], ft, LAGS["lick"])
+            for name, lab in (("lick_bin_tgt", tl), ("lick_bin_exec", el)):
+                out[name] = np.hstack([_event_cols(B.lick_on_s[lab == p], ft, LAGS["lick"])
+                                       - (np.sum(lab == p) / use.sum()) * allk for p in pos_order])
     if B.target_angle:                              # trial-wise target angle (centred), its square, target distance
         a = np.array([B.target_angle.get(p, np.nan) for p in T.pos], float)
         ok = np.isfinite(a)
@@ -1066,6 +1118,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             nz = [("raw", "nose")]
             models["nokin:kin+nose"] = kb + ka + nz
             models["nokin:kin+nose+target"] = kb + ka + nz + tg
+        if ("raw", "lick_bin_tgt") in layout and ("raw", "lick_bin_exec") in layout:      # BINS_ENV
+            tb, eb = [("raw", "lick_bin_tgt")], [("raw", "lick_bin_exec")]
+            models["nokin:tgtbin"] = kb + tb
+            models["nokin:exbin"] = kb + eb
+            models["nokin:tgtbin+exbin"] = kb + tb + eb
+            models["nokin:category+exbin"] = kb + cat + eb
     only = [x for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
     if only == ["trmodels"]:                         # exactly the time-resolved model set
         models = {k: v for k, v in models.items() if k in TR_MODELS}
@@ -1099,6 +1157,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
            "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft))),
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
+    if os.environ.get(BINS_ENV):                     # how often the tongue went to its own spout, per spout
+        tl_, el_, fr_ = exec_bins(B)
+        u_ = tl_ != ""
+        res["bins"] = {"frame": fr_, "agree": float(np.mean(tl_[u_] == el_[u_])) if u_.any() else float("nan"),
+                       "confusion": pd.crosstab(pd.Series(tl_[u_], name="target"),
+                                                pd.Series(el_[u_], name="exec")).to_dict()}
     maps, region = {}, []
     tot_pix = {}
     amask = {a: (parea == a) & pstat for a in areas}          # region values on the eroded stat mask
@@ -1243,6 +1307,7 @@ def out_dir(rv, order: str) -> Path:
                                                             else "")
                                                          + (f"_licks-{os.environ[LICKS_ENV]}"
                                                             if os.environ.get(LICKS_ENV, "cam4") != "cam4" else "")
+                                                         + ("_bins" if os.environ.get(BINS_ENV) else "")
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 

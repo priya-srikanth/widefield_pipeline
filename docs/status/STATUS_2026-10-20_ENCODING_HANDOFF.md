@@ -30,7 +30,8 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
 | drop-p per-spout: acute far contra -> ~0 in 4/4; chronic gain = PS92 / PS93 far mid | STANDS (PS92 chronic pending 0908 rerun) |
 | signed maps: close spouts crossed beyond movement; far-spout crossed activity shared with lick direction (drop-p's uncrossed far residual is NOT biology) | STANDS |
 | misdirected licks: no plan signature | STANDS |
-| pre-cue slow band: modest (70-80 % fast) but block length changes with epoch in PS92 / PS93 | by-epoch check RUNNING |
+| pre-cue slow band: rescales pre-cue decode ~.03-.09 in every epoch; PS93 acute pre-cue drop = slow band | DONE (size caveat) |
+| binned contest (`COMBINED_ENCODING_BINS`) + within-spout deviation check | coded + tested; within-spout cam4 cohort RUNNING (`scratchpad\within_spout.log`) |
 
 ## 2. Decisions this window (all in DECISIONS)
 
@@ -55,7 +56,7 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
 | job | where | then |
 |---|---|---|
 | slow-band re-split, all curated sessions (`slowband_decode_check.py --all`, started under the OLD list -> includes PS92_0817 / PS93_0817, the "stroke too mild" sessions) | box, task log `scratchpad\slowband_all.log` | when done: re-run `--all` once (reuses rows, writes the curated-only CSV), read adopted vs fast300 pre-cue by animal x epoch, append result to DECISIONS 2026-10-20 slow-band entry and ENCODING_FINDINGS section 5 |
-| other window: full v36 rerun (134 sessions, template timing), cohort tables, full 3-D chain, cam1 licks | box | WAIT for it before reading any licks.csv / cohort / 3-D tables |
+| other window: v36 per-session rerun DONE (10-20 pm); cohort products (Branch A) + 3-D chain / kinematics / cam1 licks (Branch B) still running | box | per-session licks.csv OK to read; WAIT for Branch B before refreshing the 3-D snapshot tables (polar pilot now also sets `COMBINED_ENCODING_BINS=1`) and for Branch A before cohort tables |
 | cam1 LP production on O2 (array 56830841; tasks 62-137 pending at last check) | O2 | rsync -> `o2_inference collect` (other window) -> 3-D chain -> cohort 3-D contest |
 | O2 fair-share 0.013 (10-20) | — | submit nothing new to O2; box runs |
 
@@ -70,7 +71,8 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
 2. **Cohort 3-D contest** when cam1 production + 3-D chain land: xyz2 + polar, strict executed, combined licks; needs a
    spout-position table for all sessions (`scratchpad\spout3d_table.py` does PS92; generalise) and a fresh kinematics
    snapshot. The deciding analysis for target vs executed.
-3. Slow-band by-epoch result (above).
+3. Read the within-spout cam4 cohort (`qc/within_spout_deviation/`); binned contest on PS92 polar
+   (`COMBINED_ENCODING_EXEC=polar COMBINED_ENCODING_BINS=1 ... --only nokin:`), then in the cohort 3-D contest.
 4. Pre-cue -> lick-window carry-over decode: cross-window decode (train pre-cue, test lick window vs within-window),
    built on the CD-trajectory code (`STATUS_2026-09-24_CD_TRAJECTORIES.md`; mind its one-vs-rest artefact).
 5. Move the main model's tongue traces to the 3-D track (adds forward; includes cam1 frames).

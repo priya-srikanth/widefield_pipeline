@@ -128,16 +128,67 @@ def test_exec_mode_invalid():
         ce._exec_3d(pd.DataFrame({"trial_id": [1], "lick_idx": [0]}), np.array([0.0]), np.array([1.0]), "4d", "x")
 
 
+# ------------------------------------------------------------------------------------------------ binned contest
+def _binned(monkeypatch, exec_shift: dict, **extra):
+    """Target geometry on the cam4 plane; each lick lands at its spout's (angle, reach) shifted per exec_shift."""
+    geo = {p: (a, r) for p, a, r in zip(POS, (-30, 30, 0, -45, 45, 0), (10, 10, 10, 20, 20, 20))}
+    B, ft = _behaviour(target_angle={p: g[0] for p, g in geo.items()},
+                       target_dist={p: g[1] for p, g in geo.items()}, **extra)
+    land = [exec_shift.get(p, p) for p in B.lick_pos]
+    B.lick_angle = np.array([geo[q][0] for q in land], float)
+    B.lick_reach = np.array([geo[q][1] for q in land], float)
+    monkeypatch.setenv(ce.BINS_ENV, "1")
+    return B, ft
+
+
+def test_exec_bins_from_geometry_not_labels(monkeypatch):
+    B, _ = _binned(monkeypatch, {"far_contra": "close_ipsi"})        # far contra licks all land on close ipsi
+    tl, el, frame = ce.exec_bins(B)
+    assert frame == "cam4_angle_reach"
+    assert (tl == B.lick_pos).all()
+    m = B.lick_pos == "far_contra"
+    assert (el[m] == "close_ipsi").all() and (el[~m] == B.lick_pos[~m]).all()
+    assert not (el == "far_contra").any()                             # bins never calibrated on the labels
+
+
+def test_exec_bins_unusable_licks_blank(monkeypatch):
+    B, _ = _binned(monkeypatch, {})
+    B.lick_angle[:5] = np.nan
+    tl, el, _ = ce.exec_bins(B)
+    assert (tl[:5] == "").all() and (el[:5] == "").all() and (tl[5:] != "").all()
+
+
+def test_binned_blocks_matched_and_deviation_coded(monkeypatch):
+    B, ft = _binned(monkeypatch, {})
+    R = ce.raw_blocks(B, ft)
+    lick_k = ce._event_cols(B.lick_on_s, ft, ce.LAGS["lick"]).shape[1]
+    for name in ("lick_bin_tgt", "lick_bin_exec"):
+        X = R[name]
+        assert X.shape[1] == 6 * lick_k                               # six free kernels on each side
+        assert np.abs(sum(X[:, i * lick_k:(i + 1) * lick_k] for i in range(6))).max() < 1e-4   # sum to zero
+    assert np.allclose(R["lick_bin_tgt"], R["lick_bin_exec"])        # licks on target -> identical blocks
+    B2, _ = _binned(monkeypatch, {"far_contra": "close_ipsi"})
+    R2 = ce.raw_blocks(B2, ft)
+    assert not np.allclose(R2["lick_bin_tgt"], R2["lick_bin_exec"])
+
+
+def test_binned_blocks_off_by_default(monkeypatch):
+    monkeypatch.delenv(ce.BINS_ENV, raising=False)
+    B, ft = _behaviour()
+    assert "lick_bin_tgt" not in ce.raw_blocks(B, ft)
+
+
 # ------------------------------------------------------------------------------------------------ folder naming
 @pytest.mark.parametrize("env, suffix", [
     ({}, ""), ({ce.ONLY_ENV: "nokin:"}, "_subset-nokin"), ({ce.ONLY_ENV: "droppos-"}, "_subset-droppos-"),
     ({ce.ONLY_ENV: "nokin:", ce.EXEC_ENV: "polar"}, "_subset-nokin_exec-polar"),
     ({ce.ONLY_ENV: "nokin:", ce.LICKS_ENV: "lips"}, "_subset-nokin_licks-lips"),
     ({ce.ONLY_ENV: "nokin:", ce.LICKS_ENV: "cam4"}, "_subset-nokin"),
+    ({ce.ONLY_ENV: "nokin:", ce.EXEC_ENV: "polar", ce.BINS_ENV: "1"}, "_subset-nokin_exec-polar_bins"),
 ])
 def test_out_dir_names(monkeypatch, env, suffix):
     from wfield_local import orofacial_outputs as oo
-    for k in (ce.ONLY_ENV, ce.EXEC_ENV, ce.LICKS_ENV, ce.MATCH_ENV, ce.SUFFIX_ENV, ce.VIDEO_ENV):
+    for k in (ce.ONLY_ENV, ce.EXEC_ENV, ce.LICKS_ENV, ce.BINS_ENV, ce.MATCH_ENV, ce.SUFFIX_ENV, ce.VIDEO_ENV):
         monkeypatch.delenv(k, raising=False)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
