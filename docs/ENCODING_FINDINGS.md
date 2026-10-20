@@ -100,6 +100,10 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   trials): between maps unchanged; crossed within slope stronger (SSp-m pre t = -6.5, ratio .10-.20, MOs t = -3.2),
   roughly flat post-stroke except PS92 chronic .38; bilateral PS94 / PS95 acute directional effect survives, PS94
   flips positive subacute / chronic. `qc/within_spout_deviation_lick/`.
+  Mixed model (animal random intercept + post step; post + post:log(day)): crossed within pre level significant
+  (SSp-m -1.68, q .03; MOp q .003; MOs q .04); no post-stroke term survives FDR (bilateral course z ~2.3, q .08-.11).
+  Repo map tests with animal as unit (nested bootstrap, cluster): between pre vs 0 = 28 % of brain; no post-vs-pre
+  change in either map. `mixed_model.csv`, `figures/within_spout_maps_{nested,cluster}_*.png`.
 
 ## 3. Where and how spouts are coded
 

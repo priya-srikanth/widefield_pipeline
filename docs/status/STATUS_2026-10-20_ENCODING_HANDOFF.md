@@ -31,7 +31,10 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
 | signed maps: close spouts crossed beyond movement; far-spout crossed activity shared with lick direction (drop-p's uncrossed far residual is NOT biology) | STANDS |
 | misdirected licks: no plan signature | STANDS |
 | pre-cue slow band: rescales pre-cue decode ~.03-.09 in every epoch; PS93 acute pre-cue drop = slow band | DONE (size caveat) |
-| binned contest (`COMBINED_ENCODING_BINS`) + within-spout deviation check | coded + tested; within-spout cam4 cohort RUNNING (`scratchpad\within_spout.log`) |
+| binned contest (`COMBINED_ENCODING_BINS`) | coded + tested; first run with the PS92 polar pilot |
+| within-spout check, LICK-aligned (default; acute far-contra first lick > 1.5 s on 35-38 % of PS92 / PS93 trials): crossed executed component pre-stroke, ~10-20 % of the across-spout slope (SSp-m t = -6.5 over 31 sessions; mixed model pre level q .003-.04 in SSp-m / MOp / MOs) | STANDS (cam4 lower bound; 3-D pending) |
+| within-spout BILATERAL component (do NOT dismiss -- Priya): PS94 / PS95 pre = medial licks evoke more, acute = contralesional-directed licks evoke more at every side (not contact / reward / latency); PS94 flips positive subacute / chronic; PS92 / PS93 acute ~0 | PROVISIONAL (animal-specific; mixed-model time course z ~2.3, q .08-.11) |
+| post-stroke changes in within / between maps with animal as unit (beta_maps nested bootstrap + cluster) | none survive at n = 4; between pre map vs 0 = 28 % of brain |
 
 ## 2. Decisions this window (all in DECISIONS)
 
@@ -55,8 +58,7 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
 
 | job | where | then |
 |---|---|---|
-| slow-band re-split, all curated sessions (`slowband_decode_check.py --all`, started under the OLD list -> includes PS92_0817 / PS93_0817, the "stroke too mild" sessions) | box, task log `scratchpad\slowband_all.log` | when done: re-run `--all` once (reuses rows, writes the curated-only CSV), read adopted vs fast300 pre-cue by animal x epoch, append result to DECISIONS 2026-10-20 slow-band entry and ENCODING_FINDINGS section 5 |
-| other window: v36 per-session rerun DONE (10-20 pm); cohort products (Branch A) + 3-D chain / kinematics / cam1 licks (Branch B) still running | box | per-session licks.csv OK to read; WAIT for Branch B before refreshing the 3-D snapshot tables (polar pilot now also sets `COMBINED_ENCODING_BINS=1`) and for Branch A before cohort tables |
+| other window: v36 per-session rerun DONE (10-20 pm); Branch A (cohort products) DONE 12:02 -> v36 cohort tables OK to read; Branch B (3-D chain / kinematics / cam1 licks) still running | box | WAIT for Branch B before refreshing the 3-D snapshot tables (polar pilot also sets `COMBINED_ENCODING_BINS=1`) and before reading cam1 lick events |
 | cam1 LP production on O2 (array 56830841; tasks 62-137 pending at last check) | O2 | rsync -> `o2_inference collect` (other window) -> 3-D chain -> cohort 3-D contest |
 | O2 fair-share 0.013 (10-20) | — | submit nothing new to O2; box runs |
 
@@ -71,14 +73,23 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
 2. **Cohort 3-D contest** when cam1 production + 3-D chain land: xyz2 + polar, strict executed, combined licks; needs a
    spout-position table for all sessions (`scratchpad\spout3d_table.py` does PS92; generalise) and a fresh kinematics
    snapshot. The deciding analysis for target vs executed.
-3. Read the within-spout cam4 cohort (`qc/within_spout_deviation/`); binned contest on PS92 polar
-   (`COMBINED_ENCODING_EXEC=polar COMBINED_ENCODING_BINS=1 ... --only nokin:`), then in the cohort 3-D contest.
+3. Within-spout follow-ups (`scripts/within_spout_deviation.py --align lick`, `scripts/within_spout_mixed.py`):
+   direction + toward-midline model for the bilateral component; split-half lick-angle reliability (dilution of the
+   executed share); LocaNMF cross-check; 3-D rerun (`COMBINED_ENCODING_EXEC=polar` + tables) after Branch B;
+   first-lick latency cam4 vs cam4+cam1 vs contact once cam1 events land. Binned contest: PS92 polar pilot, then cohort.
 4. Pre-cue -> lick-window carry-over decode: cross-window decode (train pre-cue, test lick window vs within-window),
    built on the CD-trajectory code (`STATUS_2026-09-24_CD_TRAJECTORIES.md`; mind its one-vs-rest artefact).
 5. Move the main model's tongue traces to the 3-D track (adds forward; includes cam1 frames).
 6. Deferred: non-linear ceiling check. Older: orofacial findings rewrite on v36; touch-free contest.
 
 ## 5. Pitfalls (new this window)
+
+- **Cue-aligned windows drop delayed trials**: acute far-contra first licks start > 1.5 s after the cue on ~1/3 of
+  PS92 / PS93 trials -> lick-align any lick-window readout (or at least report the dropped fraction).
+- **Cohort-mean maps hide animal-specific components** (bilateral within-spout: PS94 red, others blue); show
+  per-animal maps and test with animal as the unit (beta_maps `significance_contour` / `vs_zero_contour`; the repo's
+  primary is the nested bootstrap, cluster permutation is the second line). Per-pixel FDR is supplementary only.
+- **Allen area names end in `_left` / `_right`** (not `_L` / `_R`).
 
 - **Heredocs mangle Python string escapes** (`\n` becomes a real newline) — happened twice more today; patch Python
   with the Edit tool, never `sed` / heredoc. Pre-commit ruff catches it; nothing bad was committed.
