@@ -21,9 +21,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local.orofacial_cohort import POS_ORDER as POS   # the pipeline's canonical order (Priya 10-20)
+
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 ANIMAL_COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
-POS = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
 
 
 def _plt():
