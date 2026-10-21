@@ -1,15 +1,13 @@
 """Does a post-stroke spout's ACTIVITY look like the pre-stroke pattern of its TARGET, of WHERE ITS LICKS LANDED, or of
 NEITHER? (Priya 10-21: "we want to know if the brain activity after stroke looks like pre-stroke target vs pre-stroke
-execution vs neither".) All four animals, map / pattern level -- the companion of the lick-template test
+execution vs neither".) PS92 / PS93 (3-D landing zones), map / pattern level -- the companion of the lick-template test
 (scripts/lick_template_test.py, PS92 / PS93 in 3-D).
 
 BRAIN: figure 10b's destination -- for each post-stroke session and aimed spout, the pre-stroke spout whose activity
 pattern it matches best (`grant_figures._matrices_best_match_destination`: argmax of the frozen pattern-correlation row,
 one-hot per session; pre = per-session leave-one-out one-hots). Pure brain activity, labelled by the COMMANDED spout.
-BEHAVIOUR: where that session's licks to that spout LANDED -- cam4 peak angle + protrusion, soft-assigned to the animal's
-PRE-STROKE landing centres (median per spout over the August pre sessions; a pre session uses the centres without
-itself; distance in pooled within-spout SD units; weights as combined_encoding.exec_bins: exp(-d^2 / 2), rows sum to 1).
-Engaged trials (reference gate), licks cue .. 3.5 s.
+BEHAVIOUR: where that session's licks to that spout LANDED -- the 3-D calibrated landing zones (`landing`, CONTEST_3D);
+so PS92 / PS93 until PS94 / PS95 have 3-D.
 ROW CLASS (session x aimed spout): target-like = best match is its own spout; execution-like = best match is another spout
 AND that spout is where most licks landed; neither = best match is another spout that is not the landing mode.
 exec_mass = landing weight at the best-match spout (how much of the licking went where the brain pattern points).
@@ -24,47 +22,26 @@ import argparse
 import numpy as np
 import pandas as pd
 
-RESP_MS = 3500.0
+from wfield_local.orofacial_cohort import POS_ORDER as POS   # canonical spout order (the 3-D weights' keys)
 
 
-def landing(labels: list) -> dict:
-    """{label: {aimed raw position: soft landing weights over grant_kit.POS}} from cam4 licks."""
-    from wfield_local import epochs
-    from wfield_local import grant_kit as gk
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    rv = PathResolver()
-    L = {}
-    for lab in labels:
-        a, d = lab[:4], "2026" + lab[5:]
-        sd = oo.session_dir(rv, oc.RUN, a, d)
-        if not (sd / "licks.csv").exists():
-            continue
-        K = pd.read_csv(sd / "licks.csv", usecols=["trial_id", "position", "t_ms", "peak_angle_deg", "protrusion_px"])
-        keep, _g = oc.engagement_keep(a, d, sd, gate="reference")
-        if keep is not None:
-            K = K[K.trial_id.isin(keep)]
-        L[lab] = K[(K.t_ms >= 0) & (K.t_ms <= RESP_MS)].dropna(subset=["peak_angle_deg", "protrusion_px"])
+#: 3-D landing zones (Priya 10-21: "we should be using 3d for the lick zone based analyses"): the soft weights the 3-D
+#: polar contest stores per session (`bins.soft_weight`, calibrated pre-stroke landing centres, leave-one-session-out for
+#: pre sessions; combined_encoding.exec_bins) -- ONE landing definition with the binned contest and the template test.
+#: cam4 angle + reach zones were tried first and FAILED the pre-stroke check (own-zone weight 0.17-0.63, PS93 ~chance).
+CONTEST_3D = "movement_first_subset-nokin_exec-polar_licks-combined_bins"
+
+
+def landing(E) -> dict:
+    """{label: {aimed canonical position: soft landing weights over POS}} from the 3-D contest session JSONs."""
+    import json
     out = {}
-    for an in sorted({x[:4] for x in L}):
-        pre = [x for x in L if x[:4] == an and epochs.epoch_of(x) == "pre" and x[-4:] >= "0806"]
-        for lab in [x for x in L if x[:4] == an]:
-            ref = pd.concat([L[x] for x in pre if x != lab], ignore_index=True)
-            if ref.empty:
-                continue
-            cen = ref.groupby("position")[["peak_angle_deg", "protrusion_px"]].median().reindex(gk.POS)
-            dev = ref[["peak_angle_deg", "protrusion_px"]] - ref.groupby("position")[
-                ["peak_angle_deg", "protrusion_px"]].transform("median")
-            sc = np.maximum(dev.std().to_numpy(float), 1e-9)
-            G = cen.to_numpy(float) / sc
-            K = L[lab]
-            X = K[["peak_angle_deg", "protrusion_px"]].to_numpy(float) / sc
-            d2 = ((X[:, None, :] - G[None]) ** 2).sum(2)
-            d2 = np.where(np.isfinite(d2), d2, np.inf)
-            w = np.exp(-0.5 * (d2 - d2.min(1, keepdims=True)))
-            w = w / w.sum(1, keepdims=True)
-            out[lab] = {p: w[(K.position == p).to_numpy()].mean(0) for p in gk.POS if (K.position == p).sum() >= 5}
+    for f in sorted((E / CONTEST_3D / "sessions").glob("*.json")):
+        js = json.loads(f.read_text())
+        sw = (js.get("bins") or {}).get("soft_weight") or {}
+        if (js.get("bins") or {}).get("frame") != "3d_calibrated" or not sw:
+            continue
+        out[js["label"]] = {t: np.array([w.get(z, 0.0) for z in POS]) for t, w in sw.items()}
     return out
 
 
@@ -82,11 +59,12 @@ def main(argv=None) -> int:
     ap.add_argument("--arm", default="cue/working", help="align/variant of the 10b matrices (cue/working, lick/lick)")
     a = ap.parse_args(argv)
     align, variant = a.arm.split("/")
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+    E = oo.root(PathResolver()) / a.run / "imaging_encoding"
+    out = E / "qc"
     writeguard.assert_writable(out)
     labels = [x for x in ak.curated_labels() if x[-4:] >= "0806"]
     lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in labels}
-    Lw = landing(labels)
+    Lw = landing(E)
     dest, _days = gf._matrices_best_match_destination(align, variant)
     rows = []
     for an, by in dest.items():
@@ -96,17 +74,18 @@ def main(argv=None) -> int:
             lab = lab_of.get((an, int(day)))
             if lab is None or lab not in Lw:
                 continue
-            for i, p in enumerate(gk.POS):
-                if not np.isfinite(H[i]).any() or p not in Lw[lab]:
+            for i, p in enumerate(gk.POS):                     # grant_kit raw order -> canonical names
+                q = oc.pos_key(p, "L")
+                if not np.isfinite(H[i]).any() or q not in Lw[lab]:
                     continue
                 j = int(np.nanargmax(H[i]))
-                w = Lw[lab][p]
-                mode = int(np.argmax(w))
-                cls = "target" if j == i else ("execution" if j == mode else "neither")
+                qj = oc.pos_key(gk.POS[j], "L")
+                w = Lw[lab][q]
+                mode = POS[int(np.argmax(w))]
+                cls = "target" if qj == q else ("execution" if qj == mode else "neither")
                 rows.append({"label": lab, "animal": an, "epoch": epochs.epoch_of(lab), "day": int(day),
-                             "aimed": oc.pos_key(p, "L"), "best_match": oc.pos_key(gk.POS[j], "L"),
-                             "landing_mode": oc.pos_key(gk.POS[mode], "L"), "own_land": float(w[i]),
-                             "exec_mass": float(w[j]), "cls": cls})
+                             "aimed": q, "best_match": qj, "landing_mode": mode, "own_land": float(w[POS.index(q)]),
+                             "exec_mass": float(w[POS.index(qj)]), "cls": cls})
     D = pd.DataFrame(rows)
     sfx = "" if a.arm == "cue/working" else "_" + a.arm.replace("/", "_")
     D.to_csv(out / f"best_match_destination{sfx}.csv", index=False, float_format="%.4g")

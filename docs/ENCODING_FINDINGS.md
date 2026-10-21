@@ -118,6 +118,17 @@ subacute 1.34 / 0.80, chronic 0.95 / 0.31; PS93 pre 2.22 / 0.47, acute 0.36 / -0
 base (`_cat`) both shrink to <= 1 and executed is ~0 post-stroke: the target-template advantage is spout identity, and
 landing-zone templates add nothing beyond it. Two animals; acute ~tied.
 
+### 2.4c Destination vs landing (10b x 3-D landing zones), PS92 + PS93 — PROVISIONAL (two animals)
+
+`scripts/best_match_destination.py` -> `qc/best_match_destination.csv`. Brain: the pre-stroke spout whose activity
+pattern each post-stroke spout matches best (figure 10b, cue / working, frozen). Behaviour: where its licks landed (3-D
+calibrated zones; cam4 zones FAILED the pre check and are not used). Pre self-match ~1.0 except PS93 far_mid (0.62).
+Far contra: PS92 target-like in every session incl. acute (5/5, own-zone landing 16 %); PS93 acute mixed (1 target, 1
+execution = far mid, 2 neither = close mid), target from subacute on. PS93 far_mid lands correctly (~0.7) but its
+pattern matches pre-stroke FAR CONTRA by chronic (5/6) -- neither. All spouts: target-like 61 / 73 / 90 % (acute /
+subacute / chronic), execution-like 4 % acute only, rest neither. **Reading:** post-stroke spout activity resembles the
+pre-stroke TARGET pattern far more than pre-stroke execution; deviations are "neither" and fade with recovery.
+
 ### 2.5 Misdirected licks — STANDS (negative)
 
 Template analysis of acute far-contra misses (`cohort/tables/misdirected_licks/`): every plan-like lean traced to touch,
