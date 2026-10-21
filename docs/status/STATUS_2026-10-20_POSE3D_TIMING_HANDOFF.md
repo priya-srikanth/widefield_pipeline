@@ -182,6 +182,13 @@ simply ignored downstream.
     generator in the session scratchpad, derived from the lick review): https://claude.ai/artifact/7xvbNi4N9oEz67q76cznJ2
     (db collection `cam1_jaw_review`; 48 = 12 per position x cam1 call; acute PS92 / PS93 no-lick trials). Score with
     key.csv after Priya reviews. Encoding window: re-run trial_attempts.py (cam1 windows now template time).
+  - REVIEW SCORED 10-21 (`jaw_review/scored.csv`; Priya: frame review is weak ground truth for SUBTLE jaw moves vs
+    video): agreement with the cam1 call 58 % (43 decisive, 5 unsure); far_R 67 %, close_center 50 % (chance). By
+    cam1 deflection: far_R > 15-20 px -> "moved" 9 / 11, <= 15 px -> "still" 10 / 10; agreement vs floor 4 px 54 %,
+    10 px 70 %, 15 px 77 %, 20 px 79 %. Recommended to the encoding window: cam1 min_px 15 (cam4's 4 px is too
+    permissive at cam1's larger scale) and NO cam1 jaw call at close_center (point jumps under the rod) -> close_center
+    jaw unknown from both cameras. If adopted, give `scripts/jaw_onsets.py` the same cam1 override (keep onset == call).
+    Optional: a VIDEO check of the 10-20 px band to pin the threshold.
   - Per-session LONG tables for the epoch families (`scripts/epoch_sessions_long.py`, WIDEFIELD_PRE_FROM=0801):
     `<labcams>/grant_figures/epoch/data/<family stem>_<align>_<variant>_sessions_long.csv` for 8g / 10 (acc, rank) /
     10b / 11 / 11amp / 11pos / 11c x 5 arms (40 files, 108 sessions each); pre sessions each scored LOO against the other
