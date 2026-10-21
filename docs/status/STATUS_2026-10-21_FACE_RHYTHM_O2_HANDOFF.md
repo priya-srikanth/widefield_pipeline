@@ -180,3 +180,18 @@ Expect ~3.8 h per task (9-12 segments), ~5.1 h (13-16), ~18-20 h for the array. 
 resubmit failures with the same sbatch line and `--array=<list>`. Then transfer-node rsync of `out/` to the share and
 `python scripts/o2_face_rhythm.py collect --name fr_cam4_20261021`. NOTE: the runner has no lock -- never run two copies of
 one task (check `squeue` before any resubmit).
+
+## Factorization code ready (10-21 night): `scripts/face_rhythm_factors.py` (7755d4b)
+
+Master pre-stroke factor set across animals (DECISIONS 10-21 evening). `plan` DONE for set `master_pre_v1`
+(`<bundle>/factors/master_pre_v1/`: plan.json, fr_factors.py, run_build / run_fit / run_project.sbatch): per animal 60
+engaged pre-stroke trials (10 per position, drawn across its 7-9 August pre sessions, seed 0) + 1125 between-trial 5 Hz
+bins; ~22 500 rows, fit tensor ~8.3 GB float32; 108 tasks to project. Synthetic end-to-end test (planted rank 3, four
+animals at different scales): factors recovered at 0.999, leave-one-animal-out + projection + refreeze guard work.
+WHEN THE ARRAY IS DONE (O2, after rsyncing the factors/ folder from the share):
+`sbatch <b>/factors/master_pre_v1/run_build.sbatch` -> `sbatch --dependency=afterok:<id> .../run_fit.sbatch` (ranks
+6-16, 5 inits + 4 held-out-animal fits each, ~3 h per rank est.) -> copy rank*.json/npz back -> pick rank -> desktop
+`python scripts/face_rhythm_factors.py select --rank R` (freezes master.npz; needs scales.json + the rank files on the
+share) -> O2 `run_project.sbatch` -> proj/<key>.npz (trial + session time courses, per-bin reconstruction error).
+Still to write: `report` (factor gallery, rank sweep, residual by epoch), the loader `wfield_local/face_rhythm_outputs.py`,
+the encoding-model `fr` family (spec for the encoding window).
