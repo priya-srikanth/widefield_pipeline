@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from wfield_local import cam1_licks as C1
 
@@ -48,3 +49,15 @@ def test_droplet_flag_static_point_away_from_the_mouth_only():
     # static + away from the mouth = droplet; static AT the mouth opening = tongue at the lips; seen by cam4 = tongue held
     # on the spout; moving = a lick
     assert C1.droplet_flags(E, cam1_only).tolist() == [True, False, False, False, True]
+
+
+def test_span_all_keeps_events_outside_cue_to_stop():
+    # Priya 10-20 (encoding window): licks before the cue / after the stop are detected with span="all" only
+    d1 = _trial([10, 10, 10, 10], tid=1, t0=-40.0)                      # entirely before the cue
+    d2 = _trial([10, 10, 10, 10], tid=2, stop=4.0)                      # trial stops after 2 frames
+    post = C1.detect(**_cat(d1, d2))
+    whole = C1.detect(**_cat(d1, d2), span="all")
+    assert post.empty
+    assert whole.trial_id.tolist() == [1, 2] and whole.n_frames.tolist() == [4, 4]
+    with pytest.raises(ValueError):
+        C1.detect(**_cat(d1), span="pre")

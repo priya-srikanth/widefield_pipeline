@@ -44,3 +44,12 @@ def test_windows_text_columns_round_trip_without_pickle(tmp_path):
     w = np.load(tmp_path / "w.npz", allow_pickle=False)
     back = pd.DataFrame({k[3:]: w[k] for k in w.files})
     assert list(back.position) == ["far_L", "far_L", "close_R"] and back.trial_k.tolist() == [0, 0, 1]
+
+
+def test_lick_context_by_onset():
+    # pre_cue = strobe <= onset < cue; post_cue = cue <= onset <= stop; iti = before the strobe / after the stop
+    on = [-9000.0, -100.0, 0.0, 3500.0, 3600.0, -100.0, 50.0]
+    strobe = [-7000.0, -7000.0, -7000.0, -7000.0, -7000.0, np.nan, -7000.0]
+    stop = [3500.0, 3500.0, 3500.0, 3500.0, 3500.0, 3500.0, np.nan]
+    assert oo.lick_context(on, strobe, stop).tolist() == ["iti", "pre_cue", "post_cue", "post_cue", "iti", "pre_cue",
+                                                          "post_cue"]

@@ -160,6 +160,24 @@ simply ignored downstream.
 * **far_center side-view diagonal (PS92 chronic)**: closest-approach points on a line parallel to the rod's slope, in
   EVERY chronic session (28-53 % of far_center licks), 96 % DAQ contact, single-view share 0.59 vs 0.50 -- real contacts,
   probably the tongue sliding along the rod rather than tapping its tip. Unconfirmed: video sheet of those licks to-do.
+* **WHOLE-SESSION LICKS (encoding window via Priya, 10-20 night)**: "output every lick with a context label (pre_cue /
+  post_cue / iti) and an absolute DAQ time, keeping today's post-cue licks.csv columns identical".
+  - cam4 needed NO new inference or detection: the O2 LP ran on whole videos, the v36 trial windows (strobe - 0.5 s ..
+    stop + 3 s, cut at the next trial) hold 98.6 % of the video on average, and v36 already detected licks in all of
+    them with ONE detector across three tables (licks / licks_precue / licks_iti). NEW
+    `python -m wfield_local.orofacial_outputs all-licks` -> per session `licks_all.csv` (licks.csv's columns first,
+    post-cue rows value-identical -- checked; + `context` by onset, `table` = source file, `segment`,
+    `t_from_strobe_ms`, `daq_on_s` / `daq_peak_s`) + `licks_all_coverage.json`; cohort
+    `cohort/tables/licks_all_coverage.csv`. 119 curated sessions (PS93 0813 has no video): 276,697 pre_cue / 578,059
+    post_cue / 89,831 iti. PITFALL fixed: licks_precue / licks_iti hold on_ms / off_ms / rise_start_ms / fall_end_ms
+    from their SEGMENT start (only t_ms is from the cue) -- licks_all puts them on the cue clock.
+  - Lowest coverage: PS92 0812 (split day, crash gap) 0.77; others 0.90-0.94 = 7-13 min recorded after the last trial.
+  - Boundaries from the DAQ .h5 (`trial_windows.trial_bounds`): strobe = `spout_strobe` (every curated trial has one);
+    stop = `trial_end` line for 62,761 trials, cue + response window for 10 (one per session, the last trial).
+  - cam1: `cam1_licks.detect(span="all")`; `cam1_licks run` keeps `<s>_events.csv` (post-cue) unchanged and adds
+    `<s>_events_all.csv` (context, daq_on_s / daq_peak_s, cam4_matched vs licks_all, contact = DAQ contact anywhere in
+    the window). 54 sessions: 194,176 pre_cue / 249,185 post_cue / 51,925 iti events (4,321 droplets).
+  - Same-onset duplicates in licks_all (e.g. 20 in PS92 0811) are pre-existing in licks.csv (two peaks share an onset).
 * **Check sheet** (`scripts/pose3d_check_sheet.py`, dlc env -> `pose3d/check_sheet/{A,B,C}_*.png`; 3-D point projected
   with the session's PnP cameras + each camera's 2-D point):
   A. far_center diagonal CONFIRMED as contact geometry: the tongue wraps the rod's SIDE; the tracked tip lands at a

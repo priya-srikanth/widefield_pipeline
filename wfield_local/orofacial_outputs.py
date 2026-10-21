@@ -2,6 +2,7 @@
 
     python -m wfield_local.orofacial_outputs process --bundle lp_r4_prod_20261015 [--sessions PS93:20260814 ...]
     python -m wfield_local.orofacial_outputs index                      # rebuild index.csv + README.md
+    python -m wfield_local.orofacial_outputs all-licks [--sessions A:D ...] [--all]   # licks_all.csv per session
 
 Priya, 2026-10-15: "outputs should be organized rationally on the server, with subdirectories for different analysis
 types ... we can improve on [stroke_orofacial's] structure to minimize redundancy and ensure organization as will be
@@ -20,6 +21,10 @@ most useful for finding figures and analyses in the future". Layout (root = path
           licks_precue.csv                       spontaneous licks: position strobe (spout arrived) .. cue + 70 ms
           licks_iti.csv                          inter-trial licks: trial stop .. window end ('tail'), window start ..
                                                  strobe ('lead'); reach fields blank (spout moving / retracted)
+          licks_all.csv                          (10-20, `all-licks`) EVERY lick of the windows, one table: licks.csv's
+                                                 columns first (post-cue rows unchanged) + context (pre_cue / post_cue /
+                                                 iti by onset), table (source file), daq_on_s / daq_peak_s (absolute DAQ s);
+                                                 licks_all_coverage.json = share of the video in windows (~98-99 %)
           trials.csv, jaw_trials.csv, tongue_jaw_mismatch.csv
           qc.png
         cohort/tables/<analysis>.csv, cohort/figures/<analysis>/...
@@ -283,6 +288,109 @@ def qc_figure(ix, flat, tongue_y, tongue_x, jaw_y, out: Path, title: str) -> Non
     plt.close(fig)
 
 
+# --------------------------------------------------------------------------- every lick of the session (10-20)
+
+#: lick CONTEXT by onset (encoding window via Priya, 10-20: "output every lick with a context label"): ``pre_cue`` = the
+#: spout in place before the cue (position strobe <= onset < cue), ``post_cue`` = cue <= onset <= DAQ trial stop, ``iti``
+#: = the spout away (before the strobe or after the stop). Times are template time from the cue (ms).
+CONTEXTS = ("pre_cue", "post_cue", "iti")
+#: per-lick times that the pre-cue / ITI tables hold relative to their segment start (converted to the cue clock)
+TIMING_MS_COLS = ("on_ms", "off_ms", "rise_start_ms", "fall_end_ms", "t_peak_lick1_ms", "first_peak_t_ms")
+
+
+def lick_context(on_ms, strobe_ms, stop_ms) -> np.ndarray:
+    on, sb, sp = (np.asarray(x, float) for x in (on_ms, strobe_ms, stop_ms))
+    post = (on >= 0) & ~(on > sp)                       # a missing stop (NaN) keeps a post-cue onset post-cue
+    pre = (on < 0) & ~(on < sb)                         # a missing strobe keeps a pre-cue onset pre-cue
+    return np.where(post, "post_cue", np.where(pre, "pre_cue", "iti"))
+
+
+def all_licks_session(rv, run: str, animal: str, date: str) -> tuple[pd.DataFrame, dict]:
+    """``licks_all.csv``: EVERY cam4 lick the v36 windows hold (= `licks.csv` + `licks_precue.csv` + `licks_iti.csv`, the
+    same detector; NO re-detection), one table. Columns: `licks.csv`'s, in its order (post-cue rows unchanged), then
+    ``context`` (`lick_context` on ``on_ms``), ``table`` (source file: ``table == "licks"`` is exactly today's
+    `licks.csv`), ``segment`` / ``t_from_strobe_ms`` (from the pre-cue / ITI tables), ``daq_on_s`` / ``daq_peak_s``
+    (ABSOLUTE DAQ time of the onset / peak frame: the window's per-frame camera time through the alignment template,
+    ``ix_daq_s``). Coverage: the trial windows (strobe - 0.5 s .. stop + 3 s, cut at the next trial) hold ~98-99 % of the
+    video; what is outside (before the first / after the last window, gaps) is reported, not detected."""
+    sd = session_dir(rv, run, animal, date)
+    w = np.load(sd / "windows.npz", allow_pickle=False)
+    ix = pd.DataFrame({k[3:]: w[k] for k in ("ix_trial_id", "ix_t_ms", "ix_daq_s", "ix_strobe_ms", "ix_stop_ms",
+                                             "ix_src_frame")})
+    tr = ix.groupby("trial_id").agg(strobe_ms=("strobe_ms", "first"), stop_ms=("stop_ms", "first"))
+    look = ix.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).daq_s
+    base = pd.read_csv(sd / "licks.csv")
+    cols = list(base.columns)
+    parts = []
+    for name in ("licks", "licks_precue", "licks_iti"):
+        f = sd / f"{name}.csv"
+        if not f.exists():
+            continue
+        L = pd.read_csv(f)
+        if not len(L):
+            continue
+        if name != "licks":
+            # the pre-cue / ITI passes time each lick from ITS SEGMENT's start (`epoch_licks`: strobe, or the lead /
+            # tail start); only ``t_ms`` is from the cue. Put every timing column on the cue clock, like licks.csv.
+            anchor = "t_from_strobe_ms" if "t_from_strobe_ms" in L else "t_from_anchor_ms"
+            shift = L.t_ms.to_numpy(float) - L[anchor].to_numpy(float)
+            for c in TIMING_MS_COLS:
+                if c in L:
+                    L[c] = L[c].to_numpy(float) + shift
+        L["table"] = name
+        parts.append(L)
+    A = pd.concat(parts, ignore_index=True)
+    extra = [c for c in A.columns if c not in cols and c != "table"]
+    A = A[cols + ["table"] + extra]
+    t = tr.reindex(A.trial_id)
+    A["context"] = lick_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
+
+    by_trial = {k: (g.t_ms.to_numpy(float), g.daq_s.to_numpy(float))
+                for k, g in ix.sort_values(["trial_id", "t_ms"]).groupby("trial_id")}
+
+    def daq(tcol):
+        tt = A[tcol].to_numpy(float)
+        k = pd.MultiIndex.from_arrays([A.trial_id.to_numpy(), np.round(tt / 4.0) * 4.0])
+        v = look.reindex(k).to_numpy(float)
+        for i in np.flatnonzero(~np.isfinite(v) & np.isfinite(tt)):      # off the frame grid (a gap / window edge):
+            g = by_trial.get(A.trial_id.iat[i])                          # interpolate on the trial's camera clock
+            if g is not None and len(g[0]) > 1:
+                v[i] = float(np.interp(tt[i], g[0], g[1], left=np.nan, right=np.nan))
+                if not np.isfinite(v[i]):                                # just outside the window: 1 ms = 1 ms
+                    j = 0 if tt[i] < g[0][0] else -1
+                    v[i] = g[1][j] + (tt[i] - g[0][j]) / 1000.0
+        return v
+    A["daq_on_s"], A["daq_peak_s"] = daq("on_ms"), daq("t_ms")
+    A = A.sort_values("daq_on_s", kind="stable").reset_index(drop=True)
+    man = json.loads((sd / "manifest.json").read_text(encoding="utf-8"))
+    n_vid = sum(v["n_frames"] for v in man.get("videos", []))
+    fps = 249.81
+    cov = {"session": f"{animal}_{date}", "video_frames": n_vid, "window_frames": int(len(ix)),
+           "covered_frac": round(len(ix) / n_vid, 4) if n_vid else None,
+           "outside_s": round((n_vid - len(ix)) / fps, 1) if n_vid else None,
+           "n_videos": len(man.get("videos", [])),
+           "n_licks": int(len(A)), **{f"n_{c}": int((A.context == c).sum()) for c in CONTEXTS},
+           "n_post_cue_in_licks_csv": int((A.table == "licks").sum()),
+           "daq_s_missing": int(A.daq_on_s.isna().sum())}
+    if cov["n_videos"] == 1:
+        cov["before_first_window_s"] = round(float(ix.src_frame.min()) / fps, 1)
+        cov["after_last_window_s"] = round((n_vid - 1 - float(ix.src_frame.max())) / fps, 1)
+    return A, cov
+
+
+def _all_licks_worker(job):
+    from wfield_local.paths import PathResolver
+    run, animal, date = job
+    rv = PathResolver()
+    A, cov = all_licks_session(rv, run, animal, date)
+    sd = session_dir(rv, run, animal, date)
+    from wfield_local import writeguard
+    writeguard.assert_writable(sd)
+    A.to_csv(sd / "licks_all.csv", index=False)
+    (sd / "licks_all_coverage.json").write_text(json.dumps(cov, indent=1), encoding="utf-8")
+    return cov
+
+
 # --------------------------------------------------------------------------- index / README
 
 def write_index(rv) -> Path:
@@ -315,7 +423,10 @@ Generated by `widefield_pipeline` (`wfield_local/orofacial_outputs.py`); do not 
   `licks_precue.csv` (spontaneous licks from the position strobe -- spout in place -- to cue + 70 ms, same detector and
   columns, `t_ms` from the cue (negative) + `t_from_strobe_ms`), `licks_iti.csv` (inter-trial licks: `segment` 'tail' =
   trial stop .. the next trial's window, 'lead' = window start .. strobe; spout-reach fields blank), `trials.csv`, `jaw_trials.csv`,
-  `tongue_jaw_mismatch.csv`, `qc.png`.
+  `tongue_jaw_mismatch.csv`, `qc.png`; `licks_all.csv` (every lick of the trial windows in ONE table: `licks.csv`'s
+  columns first, post-cue rows unchanged, + `context` = pre_cue / post_cue / iti by onset, `table` = source file,
+  `daq_on_s` / `daq_peak_s` = absolute DAQ time; the pre-cue / ITI timing columns on the cue clock) and
+  `licks_all_coverage.json` (share of the video inside the windows, time before the first / after the last window).
 * `<run>/cohort/tables/<analysis>.csv`, `<run>/cohort/figures/<analysis>/` -- cross-session analyses, each figure
   with its data next to it.
 * Read a session in Python: `from wfield_local import orofacial_outputs as oo; s = oo.load_session(rv, run, animal,
@@ -350,8 +461,36 @@ def main(argv=None) -> int:
     p.add_argument("--force", action="store_true")
     p.add_argument("--jobs", type=int, default=4, help="parallel sessions (each holds ~1-2 GB)")
     sub.add_parser("index")
+    q = sub.add_parser("all-licks", help="licks_all.csv per session: every cam4 lick + context + absolute DAQ time")
+    q.add_argument("--run", default="lp_r4_heatmap_20261013__clean_v36", help="run folder")
+    q.add_argument("--sessions", nargs="*", default=None, help="animal:date (default: every processed CURATED session)")
+    q.add_argument("--all", action="store_true", help="every processed session, not just the curated cohort")
+    q.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
     rv = PathResolver()
+    if a.cmd == "all-licks":
+        run = a.run
+        sess = sorted((p.parent.name, p.name) for p in (root(rv) / run / "sessions").glob("*/*")
+                      if (p / "licks.csv").exists() and (p / "windows.npz").exists())
+        if a.sessions:
+            want = {tuple(s.split(":")) for s in a.sessions}
+            sess = [s for s in sess if s in want]
+        elif not a.all:
+            from wfield_local import analysis_kit as ak
+            cur = ak.curated_ids()
+            sess = [s for s in sess if f"{s[0]}_{s[1]}" in cur]
+        results, failures = parallel.fan_out([(run, an, d) for an, d in sess], _all_licks_worker, jobs=a.jobs,
+                                             label="session")
+        C = pd.DataFrame(sorted((r for _it, r in results), key=lambda r: r["session"]))
+        for it, err in failures:
+            print(f"  {it[1]} {it[2]}: FAILED -- {err}")
+        out = root(rv) / run / "cohort" / "tables" / "licks_all_coverage.csv"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        C.to_csv(out, index=False)
+        pd.set_option("display.width", 220)
+        print(C.describe().loc[["mean", "min", "max"]].round(3).to_string())
+        print(f"-> {len(C)} sessions; {out}")
+        return 0
     if a.cmd == "process":
         bd = oi.bundle_dir(rv, a.bundle)
         tasks = pd.read_csv(bd / "tasks.tsv", sep="\t", dtype=str)

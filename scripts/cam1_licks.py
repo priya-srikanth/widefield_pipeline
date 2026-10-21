@@ -123,7 +123,72 @@ def run_session(s: str) -> dict:
     E.to_csv(_out(rv) / f"{animal}_{date}_events.csv", index=False, float_format="%.4g")
     row.update({"epoch": E.epoch.iloc[0] if len(E) else None, "n_trials": int(ix.trial_id.nunique()), "events": len(E),
                 "mm_per_px": round(k, 4)})
+    row.update(_whole_windows(rv, animal, date, ix, out_, lat, fm != oc.FILL_BASELINE, src, k, med, to_frame, sd, f3))
     return row
+
+
+def _whole_windows(rv, animal, date, ix, out_, lat, present, src, k, med, to_frame, sd, f3) -> dict:
+    """``<s>_events_all.csv`` (encoding window via Priya 10-20: "run the ... cam1 lick detection over the WHOLE session";
+    the post-cue ``<s>_events.csv`` is unchanged): the same detector over EVERY frame of the trial windows (strobe -
+    0.5 s .. stop + 3 s, cut at the next trial; ~98-99 % of the video), each event with ``context`` (pre_cue / post_cue /
+    iti by onset, `orofacial_outputs.lick_context`), ``daq_on_s`` / ``daq_peak_s`` (absolute DAQ time of the onset /
+    peak frame, the camera timestamp through the alignment template) and the same flags as the post-cue file:
+    cam4_matched against v36 ``licks_all.csv`` (every cam4 lick; ``licks.csv`` if absent), in_3d, contact (a DAQ
+    contact anywhere in the window, not only cue + 70 .. stop), miss_prev3, droplet, jaw_only_trial."""
+    import scripts.pose_kinematics_demo as D
+    from wfield_local import cam1_licks as C1
+    from wfield_local import epochs
+    from wfield_local import orofacial_outputs as OO
+    from wfield_local import pose3d as P3
+    from wfield_local import trial_windows as TW
+    A = C1.detect(out_, lat, present, ix.trial_id, ix.t_ms, src, ix.stop_ms, ix.position, span="all")
+    for cname in ("peak_dist", "peak_out", "max_out"):
+        A[f"{cname}_mm"] = A[f"{cname}_px"] * k
+    tr = ix.groupby("trial_id").agg(strobe_ms=("strobe_ms", "first"), stop_ms=("stop_ms", "first"),
+                                    t0=("t_ms", "min"), t1=("t_ms", "max"))
+    t = tr.reindex(A.trial_id)
+    A["context"] = OO.lick_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
+    look = ix.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).daq_s
+    for col, tc in (("daq_on_s", "on_ms"), ("daq_peak_s", "t_peak_ms")):
+        A[col] = look.reindex(pd.MultiIndex.from_arrays([A.trial_id.to_numpy(), A[tc].to_numpy(float)])).to_numpy(float)
+    f4 = sd / "licks_all.csv" if (sd / "licks_all.csv").exists() else sd / "licks.csv"
+    A["cam4_matched"] = C1.overlaps(A, pd.read_csv(f4, usecols=["trial_id", "on_ms", "off_ms"])) if f4.exists() else np.nan
+    if f3.exists():
+        S = pd.read_csv(f3, usecols=["trial_id", "t_ms", "stop_ms", "position", "tongue_ml", "tongue_ap", "tongue_dv"])
+        A["in_3d"] = C1.overlaps(A, P3.lick_events(S.drop_duplicates(["trial_id", "t_ms"])))
+    else:
+        A["in_3d"] = np.nan
+    b = TW.trial_bounds(animal, date, rv)
+    lk = np.asarray(D.daq_lick_onsets_s(animal, date, rv), float)
+    cue = dict(zip(b.trial_id, b.cue_s))
+    cont = {}
+    for tid_, r in tr.iterrows():
+        c = cue.get(tid_, np.nan)
+        if np.isfinite(c):
+            cont[tid_] = (lk[(lk >= c + r.t0 / 1000.0) & (lk <= c + r.t1 / 1000.0)] - c) * 1000.0
+    A["contact"] = C1.contact_flags(A, cont)
+    post = D.daq_contacts_ms(animal, date, b, rv)                # misses as in the post-cue file (cue + 70 .. stop)
+    trs = np.array(sorted(ix.trial_id.unique()))
+    miss = pd.Series([len(post.get(x, [])) == 0 for x in trs], index=trs).astype(int)
+    A["miss_prev3"] = A.trial_id.map(miss.rolling(3).sum().shift(1))
+    A["droplet"] = (C1.droplet_flags(A, ~A.cam4_matched.fillna(False).astype(bool) & ~A.in_3d.fillna(False).astype(bool))
+                    if len(A) else [])
+    A["jaw_only_trial"] = False
+    if (sd / "tongue_jaw_mismatch.csv").exists():
+        M = pd.read_csv(sd / "tongue_jaw_mismatch.csv")
+        M = M[M.candidate_no_lick_with_jaw_move.astype(bool)].set_index("trial_id").quiet_win_end_ms
+        A["jaw_only_trial"] = [bool(r.trial_id in M.index and r.off_ms >= 70 and r.on_ms <= M[r.trial_id])
+                               for r in A.itertuples()]
+    A["animal"], A["date"], A["session"] = animal, date, f"{animal}_{date}"
+    A["epoch"] = epochs.epoch_of(f"{animal}_{date[4:]}")
+    A["mm_per_px"] = k
+    sp = np.array([to_frame(*med[p][:2]) for p in med], float)
+    if len(A):
+        mid = A[["med_out_px", "med_lat_px"]].to_numpy(float)
+        A["spout_dist_px"] = np.min(np.hypot(mid[:, None, 0] - sp[None, :, 0], mid[:, None, 1] - sp[None, :, 1]), axis=1)
+    A = A.sort_values("daq_on_s", kind="stable").reset_index(drop=True)
+    A.to_csv(_out(rv) / f"{animal}_{date}_events_all.csv", index=False)        # full precision: DAQ s ~ 1e4
+    return {"events_all": len(A), **{f"events_{c}": int((A.context == c).sum()) for c in OO.CONTEXTS}}
 
 
 def _worker(s):

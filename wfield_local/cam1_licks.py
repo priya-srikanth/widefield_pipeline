@@ -33,11 +33,18 @@ DROPLET_SPREAD_PX, DROPLET_RANGE_PX, DROPLET_MOUTH_OUT_PX = 3.0, 12.0, -35.0
 
 
 def detect(out_px, lat_px, present, trial_id, t_ms, src_frame, stop_ms, position, *, min_frames: int = MIN_FRAMES,
-           lips_px: float = LIPS_PX) -> pd.DataFrame:
+           lips_px: float = LIPS_PX, span: str = "post") -> pd.DataFrame:
+    """``span`` "post" = cue .. trial stop (the original post-cue events); "all" = every frame of the trial windows
+    (strobe - 0.5 s .. stop + 3 s, cut at the next trial; encoding window via Priya 10-20: licks outside cue..stop),
+    label with `orofacial_outputs.lick_context`."""
     out_px, lat_px = np.asarray(out_px, float), np.asarray(lat_px, float)
     t, stop = np.asarray(t_ms, float), np.asarray(stop_ms, float)
     tid, src, pos = np.asarray(trial_id), np.asarray(src_frame), np.asarray(position)
-    live = np.asarray(present, bool) & np.isfinite(out_px) & np.isfinite(lat_px) & (t >= 0) & (t <= stop)
+    live = np.asarray(present, bool) & np.isfinite(out_px) & np.isfinite(lat_px)
+    if span == "post":
+        live &= (t >= 0) & (t <= stop)
+    elif span != "all":
+        raise ValueError(f"span must be 'post' or 'all', not {span!r}")
     k = np.flatnonzero(live)
     cols = ["trial_id", "position", "on_ms", "off_ms", "t_peak_ms", "n_frames", "peak_dist_px", "peak_out_px",
             "peak_lat_px", "max_out_px", "range_px", "spread_px", "med_out_px", "med_lat_px", "size_class", "lick_idx"]
