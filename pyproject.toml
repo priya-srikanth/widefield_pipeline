@@ -32,6 +32,7 @@ dependencies = [
   "PyYAML>=6",
   "meegkit>=0.2",   # hemodynamic-correction variants (hemo_variants: meegkit_hpfit)
   "shapely>=2",     # qupath_io: annotation outlines (WKB) -> areas, for histology_area
+  "pymupdf>=1.24",  # histology_map.plates: Paxinos vector plates
   "imageio-ffmpeg>=0.4",  # H.264 encoder for behavior_clip_deck. NOT optional in practice: the
                           # opencv-python build above has no H.264 encoder (avc1/H264/X264 all fail
                           # to open a writer), and its only alternative -- MPEG-4 Part 2 in an AVI --

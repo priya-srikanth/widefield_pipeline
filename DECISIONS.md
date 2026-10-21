@@ -21489,3 +21489,14 @@ PS95 81.9 +/- 0.4 (n=6).
 - EXCLUSION (same night, Priya): PS93's most posterior section (`PS93_DAPI_GFAP_NeuN_01.vsi` #2, 69.1%) is outside the
   central stroke and inflates % area -> excluded via `configs/histology_section_exclusions.csv` (kept in the output CSV,
   included=False). PS93 now 45.0 +/- 3.7 (n=5).
+
+## 2026-10-21 (night) -- Stroke-extent schematic on Paxinos plates (PS92-95), in the repo
+
+`wfield_local/histology_map/` + `configs/histology_map/PS92-95/`; full record in `docs/HISTOLOGY.md` ("Stroke-extent
+schematic"). Priya's corrections, in the order they were made: lesion always left; outline-only plates (no labels /
+leader lines / reference circle); stroke = NeuN-blank + GFAP scar + necrotic core judged against the mirror point,
+GPe not stroke unless necrotic; do NOT rescale the lesioned hemisphere, mark what is absent vs the normal side; the
+absent area is anchored on the intact medial / dorsomedial border and fills laterally then dorsally (a blob, not a
+rim); masks painted by Priya in an artifact (quick pass: a reference, not ground truth); AP levels = her figure
+numbers; midline = interhemispheric fissure (symmetry axis is biased 0.1-0.3 mm by atrophy); scale on the
+contralesional hemisphere only, boundary-distance fit, striatum favoured; no skipped levels (interpolated, dashed).

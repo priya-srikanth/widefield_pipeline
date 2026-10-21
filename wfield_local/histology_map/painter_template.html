@@ -1,0 +1,276 @@
+<title>VLS Stroke Painter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: microscope-bench workspace. Section rail on the left, the slide image as the stage, tools under it. */
+:root{
+  --bg:#f3f4f2; --panel:#ffffff; --fg:#1d2321; --muted:#5d6763; --line:#d6dbd8;
+  --accent:#0f7c6c; --stroke:#e8c21a; --mine:#d6339c; --warn:#b5521b; --ok:#2f7d32;
+  --stage:#0b0d0c;
+  --font-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121514; --panel:#1a1f1d; --fg:#e7ece9; --muted:#9aa6a1; --line:#2c3431;
+  --accent:#3cbfa8; --stroke:#f1d046; --mine:#ff5cc8; --warn:#e98a52; --ok:#6cc070; --stage:#000; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121514; --panel:#1a1f1d; --fg:#e7ece9; --muted:#9aa6a1; --line:#2c3431;
+  --accent:#3cbfa8; --stroke:#f1d046; --mine:#ff5cc8; --warn:#e98a52; --ok:#6cc070; --stage:#000; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 32px}
+h1{font-size:20px;font-weight:600;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:70ch;line-height:1.45}
+.wrap{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
+@media (max-width:760px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.rail{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:2px;max-height:78vh;overflow:auto}
+@media (max-width:760px){.rail{flex-direction:row;flex-wrap:wrap;max-height:none}}
+.animal{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 6px 2px;width:100%}
+.sec{display:flex;justify-content:space-between;align-items:center;gap:6px;border:0;background:none;color:var(--fg);
+  font:inherit;text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer}
+.sec:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.sec[aria-current="true"]{background:color-mix(in srgb,var(--accent) 18%,transparent);font-weight:600}
+.sec:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pill{font-family:var(--font-data);font-size:10px;padding:1px 6px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.pill.edited{border-color:var(--ok);color:var(--ok)}
+.pill.qc{border-color:var(--warn);color:var(--warn)}
+.pill.excl{border-style:dashed}
+.main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.stage{background:var(--stage);border-radius:8px;overflow:hidden;position:relative;touch-action:none}
+.stage canvas{display:block;width:100%;height:auto}
+#paint{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.tools{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg .btn{border:0;border-radius:0}
+.btn{font:inherit;font-size:13px;padding:6px 12px;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;cursor:pointer}
+.btn[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:500}
+.btn:disabled{opacity:.5;cursor:default}
+label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+input[type=range]{width:110px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline}
+.meta .id{font-family:var(--font-data);font-size:16px;font-weight:500}
+.meta .area{font-family:var(--font-data);color:var(--muted);font-variant-numeric:tabular-nums}
+.flags{color:var(--warn);font-size:13px}
+textarea{width:100%;min-height:52px;font:inherit;font-size:13px;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px;box-sizing:border-box}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--muted);font-size:12px}
+.sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.status{font-size:13px;color:var(--muted);min-height:1.2em}
+.layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px}
+.layer{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.layer .name{font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.prog{display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.bar{height:10px;border-radius:5px;background:color-mix(in srgb,var(--muted) 20%,transparent);overflow:hidden;position:relative}
+.bar i{display:block;height:100%;background:var(--mine);width:0;transition:width .15s}
+.bar b{position:absolute;top:-2px;bottom:-2px;left:100%;width:2px;background:var(--fg)}
+.prog .txt{font-family:var(--font-data);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.status.err{color:var(--warn)}
+</style>
+
+<header>
+  <h1>VLS Stroke Painter</h1>
+  <p class="sub">__COHORT__. Every section is shown lesion-left. Yellow is Claude's suggested stroke footprint. Paint your own mask in magenta (from scratch, or start from Claude's version), then save. The bar shows your mask against the striatal area missing on the lesioned side. Claude reads the saved masks back and uses them to tune the rules.</p>
+</header>
+
+<div class="wrap">
+  <nav class="rail" id="rail" aria-label="Sections"></nav>
+  <section class="main">
+    <div class="meta">
+      <span class="id" id="secId">—</span>
+      <span class="area" id="secArea"></span>
+      <span class="flags" id="secFlags"></span>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="bgc" style="filter:brightness(var(--b,1))"></canvas>
+      <canvas id="olc" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
+      <canvas id="claudeLayer" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
+      <canvas id="paint"></canvas>
+    </div>
+    <div class="prog" aria-live="polite">
+      <div class="bar" aria-hidden="true"><i id="progFill"></i><b></b></div>
+      <span class="txt" id="progTxt">Your mask: 0.00 mm² of 0.00 mm² missing striatum (0%)</span>
+    </div>
+    <div class="legend">
+      <span><span class="sw" style="background:#fff"></span>your surviving-striatum outline</span>
+      <span><span class="sw" style="background:#50dcff"></span>mirrored normal striatum (dashed)</span>
+      <span><span class="sw" style="background:var(--stroke)"></span>Claude's footprint</span>
+      <span><span class="sw" style="background:var(--mine)"></span>your mask</span>
+      <span>Red NeuN · Green GFAP · Blue DAPI</span>
+    </div>
+    <div class="layers">
+      <div class="layer"><span class="name">Channels</span>
+        <label for="chNeun"><input type="checkbox" id="chNeun" checked> NeuN</label>
+        <label for="chGfap"><input type="checkbox" id="chGfap" checked> GFAP</label>
+        <label for="chDapi"><input type="checkbox" id="chDapi" checked> DAPI</label>
+        <label for="chOutlines"><input type="checkbox" id="chOutlines" checked> outlines</label>
+        <label for="bright">brightness <input type="range" id="bright" min="50" max="250" value="100"></label></div>
+      <div class="layer"><span class="name"><span class="dot" style="background:var(--stroke)"></span>Claude</span>
+        <label for="showClaude"><input type="checkbox" id="showClaude" checked> show</label>
+        <label for="alphaClaude">opacity <input type="range" id="alphaClaude" min="0" max="100" value="35"></label></div>
+      <div class="layer"><span class="name"><span class="dot" style="background:var(--mine)"></span>Yours</span>
+        <label for="showMine"><input type="checkbox" id="showMine" checked> show</label>
+        <label for="alpha">opacity <input type="range" id="alpha" min="0" max="100" value="55"></label></div>
+    </div>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Brush mode">
+        <button class="btn" id="modePaint" aria-pressed="true">Paint</button>
+        <button class="btn" id="modeErase" aria-pressed="false">Erase</button>
+      </div>
+      <label for="size">Brush <input type="range" id="size" min="3" max="60" value="16"></label>
+      <label for="alpha">Overlay <input type="range" id="alpha" min="0" max="100" value="45"></label>
+      <button class="btn" id="undo">Undo</button>
+      <button class="btn" id="reset">Start from Claude's version</button>
+      <button class="btn" id="clear">Clear my mask</button>
+    </div>
+    <label for="note" style="display:block">Note for Claude (optional)</label>
+    <textarea id="note" placeholder="e.g. core is the scar ball; DLS crescent here is real; GPe spared"></textarea>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button class="btn primary" id="save">Save this section</button>
+      <span class="status" id="status"></span>
+    </div>
+  </section>
+</div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+const SECTIONS = JSON.parse(document.getElementById('data').textContent);
+const byId = Object.fromEntries(SECTIONS.map(s => [s.id, s]));
+const MM2_PER_PX = (5.2 / 0.42 / 1000) ** 2;      // display px -> mm^2 (level-3 crop at 0.65 um x 8, shown at 0.42)
+let db = null, saved = {}, cur = null, mode = 'paint', painting = false, undoStack = [], lastPt = null;
+const $ = id => document.getElementById(id);
+const bgc = $('bgc'), cc = $('claudeLayer'), pc = $('paint'), olc = $('olc');
+const imgCache = {};
+async function img(src){ return imgCache[src] || (imgCache[src] = await loadImg(src)); }
+const octx = olc.getContext('2d'), bctx = bgc.getContext('2d'), cctx = cc.getContext('2d'), pctx = pc.getContext('2d');
+const mask = document.createElement('canvas'), mctx = mask.getContext('2d', {willReadFrequently: true});      // YOUR mask
+const cmask = document.createElement('canvas'), cmctx = cmask.getContext('2d', {willReadFrequently: true});   // Claude's
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const status = (t, err) => { const s = $('status'); s.textContent = t; s.className = 'status' + (err ? ' err' : ''); };
+function loadImg(src){ return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+function hexToRgb(h){ h = h.replace('#',''); if (h.length===3) h=[...h].map(x=>x+x).join(''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+
+function renderRail(){
+  const rail = $('rail'); rail.textContent = ''; let last = null;
+  for (const s of SECTIONS){
+    if (s.animal !== last){ const h = document.createElement('div'); h.className = 'animal'; h.textContent = s.animal; rail.append(h); last = s.animal; }
+    const b = document.createElement('button'); b.className = 'sec'; b.dataset.id = s.id;
+    b.setAttribute('aria-current', cur && cur.id === s.id ? 'true' : 'false');
+    const name = document.createElement('span'); name.textContent = 'section ' + s.section; b.append(name);
+    const p = document.createElement('span'); p.className = 'pill';
+    if (saved[s.id]) { p.classList.add('edited'); p.textContent = 'saved'; }
+    else if (s.excluded) { p.classList.add('excl'); p.textContent = 'excluded'; }
+    else if (s.flags.length) { p.classList.add('qc'); p.textContent = 'check'; }
+    else p.textContent = 'to do';
+    b.append(p); b.addEventListener('click', () => open(s.id)); rail.append(b);
+  }
+}
+
+async function binarise(ctx, src){
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  if (src){ ctx.drawImage(await loadImg(src), 0, 0); }
+  const d = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+  for (let i = 0; i < d.data.length; i += 4){ const on = d.data[i] > 127; d.data[i]=d.data[i+1]=d.data[i+2]=on?255:0; d.data[i+3]=255; }
+  ctx.putImageData(d, 0, 0);
+}
+function paintLayer(fromCtx, toCtx, color){
+  const d = fromCtx.getImageData(0, 0, fromCtx.canvas.width, fromCtx.canvas.height);
+  const out = toCtx.createImageData(d.width, d.height), c = hexToRgb(color); let n = 0;
+  for (let i = 0; i < d.data.length; i += 4) if (d.data[i] > 127){ out.data[i]=c[0]; out.data[i+1]=c[1]; out.data[i+2]=c[2]; out.data[i+3]=255; n++; }
+  toCtx.putImageData(out, 0, 0); return n;
+}
+// channels are separate colour layers added together, so any can be switched off
+async function drawChannels(){
+  if (!cur) return;
+  bctx.globalCompositeOperation = 'source-over'; bctx.fillStyle = '#000'; bctx.fillRect(0, 0, cur.w, cur.h);
+  bctx.globalCompositeOperation = 'lighter';
+  for (const [id, key] of [['chNeun','neun'], ['chGfap','gfap'], ['chDapi','dapi']])
+    if ($(id).checked) bctx.drawImage(await img(cur[key]), 0, 0);
+  bctx.globalCompositeOperation = 'source-over';
+}
+function applyVisibility(){
+  olc.style.opacity = $('chOutlines').checked ? 1 : 0;
+  bgc.style.setProperty('--b', $('bright').value / 100);
+  cc.style.opacity = $('showClaude').checked ? $('alphaClaude').value / 100 : 0;
+  pc.style.opacity = $('showMine').checked ? $('alpha').value / 100 : 0;
+}
+function progress(){
+  const d = mctx.getImageData(0, 0, mask.width, mask.height); let n = 0;
+  for (let i = 0; i < d.data.length; i += 4) if (d.data[i] > 127) n++;
+  const mine = n * MM2_PER_PX, tgt = cur.target_mm2 || 0, f = tgt ? mine / tgt : 0;
+  $('progFill').style.width = Math.min(100, f * 100) + '%';
+  $('progTxt').textContent = `Your mask: ${mine.toFixed(2)} mm² of ${tgt.toFixed(2)} mm² missing striatum (${Math.round(f*100)}%)`;
+  $('secArea').textContent = `Claude: ${(cur.claudeN * MM2_PER_PX).toFixed(2)} mm²`;
+}
+async function open(id){
+  cur = byId[id]; undoStack = [];
+  try { localStorage.setItem('painter.section', id); } catch (e) {}
+  for (const c of [bgc, olc, cc, pc, mask, cmask]){ c.width = cur.w; c.height = cur.h; }
+  await drawChannels();
+  octx.clearRect(0, 0, cur.w, cur.h); octx.drawImage(await img(cur.outlines), 0, 0);
+  await binarise(cmctx, cur.mask); cur.claudeN = paintLayer(cmctx, cctx, tok('--stroke') || '#e8c21a');
+  await binarise(mctx, saved[id] ? saved[id].mask : null); paintLayer(mctx, pctx, tok('--mine') || '#d6339c');
+  $('note').value = saved[id] ? (saved[id].note || '') : '';
+  $('secId').textContent = cur.id.replace('_s', ' · section ');
+  $('secFlags').textContent = cur.excluded ? 'Excluded from the % area plot (most posterior section)' : (cur.flags.length ? 'Check: ' + cur.flags.join('; ') : '');
+  status(saved[id] ? 'Showing your saved mask' : 'No mask saved yet for this section');
+  renderRail(); applyVisibility(); progress();
+}
+
+function pos(e){ const r = pc.getBoundingClientRect(); const t = e.touches ? e.touches[0] : e;
+  return [(t.clientX - r.left) * pc.width / r.width, (t.clientY - r.top) * pc.height / r.height]; }
+// each dab goes straight onto your mask and the visible layer (no full redraw while dragging)
+function dab(x, y){
+  const r = +$('size').value / 2, paint = mode === 'paint', mine = tok('--mine') || '#d6339c';
+  const seg = (ctx, style, comp) => { ctx.save(); ctx.globalCompositeOperation = comp; ctx.fillStyle = style; ctx.strokeStyle = style;
+    ctx.lineWidth = r * 2; ctx.lineCap = 'round'; ctx.beginPath(); if (lastPt) { ctx.moveTo(...lastPt); ctx.lineTo(x, y); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); };
+  seg(mctx, paint ? '#fff' : '#000', 'source-over');
+  seg(pctx, paint ? mine : '#000', paint ? 'source-over' : 'destination-out');
+  lastPt = [x, y];
+}
+function pushUndo(){ undoStack.push(mctx.getImageData(0, 0, mask.width, mask.height)); if (undoStack.length > 30) undoStack.shift(); }
+function begin(e){ if (!cur) return; e.preventDefault(); painting = true; lastPt = null; pushUndo();
+  if (!$('showMine').checked){ $('showMine').checked = true; applyVisibility(); } dab(...pos(e)); }
+function move(e){ if (!painting) return; e.preventDefault(); dab(...pos(e)); }
+function end(){ if (!painting) return; painting = false; lastPt = null; progress(); }
+pc.addEventListener('mousedown', begin); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+pc.addEventListener('touchstart', begin, {passive: false}); pc.addEventListener('touchmove', move, {passive: false});
+pc.addEventListener('touchend', end); pc.addEventListener('touchcancel', end);
+
+function setMode(m){ mode = m; $('modePaint').setAttribute('aria-pressed', m==='paint'); $('modeErase').setAttribute('aria-pressed', m==='erase'); }
+$('modePaint').onclick = () => setMode('paint'); $('modeErase').onclick = () => setMode('erase');
+for (const id of ['showClaude','alphaClaude','showMine','alpha','chOutlines','bright']) $(id).addEventListener('input', applyVisibility);
+for (const id of ['chNeun','chGfap','chDapi']) $(id).addEventListener('input', drawChannels);
+const refreshMine = () => { paintLayer(mctx, pctx, tok('--mine') || '#d6339c'); progress(); };
+$('undo').onclick = () => { const s = undoStack.pop(); if (s){ mctx.putImageData(s, 0, 0); refreshMine(); } };
+$('reset').onclick = () => { pushUndo(); mctx.drawImage(cmask, 0, 0); refreshMine(); status('Copied Claude’s footprint into your mask (not saved yet)'); };
+$('clear').onclick = () => { pushUndo(); mctx.fillStyle = '#000'; mctx.fillRect(0, 0, mask.width, mask.height); refreshMine(); };
+
+$('save').onclick = async () => {
+  if (!db){ status('Saving needs you signed in to Claude; your mask is still on screen.', true); return; }
+  const btn = $('save'); btn.disabled = true; status('Saving…');
+  try {
+    const rec = { section_id: cur.id, animal: cur.animal, section: cur.section, w: cur.w, h: cur.h,
+                  mask: mask.toDataURL('image/png'), note: $('note').value.trim(), saved_at: new Date().toISOString() };
+    await db.doc('masks/' + cur.id).set(rec);
+    saved[cur.id] = rec; status('Saved ' + cur.id.replace('_s', ' section ')); renderRail();
+  } catch (e) { status('Could not save: ' + (e && e.message || e) + '. Try again.', true); }
+  finally { btn.disabled = false; }
+};
+
+(async () => {
+  let start = SECTIONS[0].id;
+  try { const s = localStorage.getItem('painter.section'); if (s && byId[s]) start = s; } catch (e) {}
+  await open(start);
+  db = window.claude ? await claude.use('db') : null;
+  if (!db){ status('Read-only here: sign in to Claude to save masks.', true); $('save').disabled = true; return; }
+  let first = true;
+  db.collection('masks').onSnapshot(snap => {
+    saved = {};
+    for (const d of (snap.docs || [])){ const v = d.data ? d.data() : d; if (v && v.section_id) saved[v.section_id] = v; }
+    renderRail();
+    if (first && cur && saved[cur.id]){ first = false; open(cur.id); } first = false;
+  });
+})();
+</script>

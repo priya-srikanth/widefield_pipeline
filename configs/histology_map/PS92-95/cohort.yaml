@@ -1,0 +1,14 @@
+# Stroke-extent schematic, PS92-95 (widefield cohort). Built with Priya 2026-10-21; method in docs/HISTOLOGY.md.
+# Paths are the Mac's (where the QuPath project and atlas live); override any of them on the command line.
+cohort: PS92-95
+title: "Stroke extent, PS92-95 (lesion left; Paxinos & Franklin outlines)"
+qupath_project: /Users/Priya2/Documents/data/Immuno/PS92-95_widefield_stroke_cohort
+section_table: configs/histology_striatum_area.csv        # ipsi / contra outline pairs (import_histology_areas)
+crops_dir: /Users/Priya2/Documents/data/Immuno/PS92-95_widefield_stroke_cohort/lesion_map_work/crops
+atlas_pdf: "/Users/Priya2/Documents/Sabatini Lab/Atlases/Paxinos Brain Atlas.pdf"
+plates_pdf: /Users/Priya2/Documents/data/Immuno/PS92-95_widefield_stroke_cohort/lesion_map_work/paxinos_p63-98.pdf
+plates_pages: [63, 98]                                     # Fig 13-48, Bregma +2.10 to -2.06
+painter_url: https://claude.ai/artifact/PXf85UBQfzEcMH7KavT54z
+out_subdir: Widefield/histology                            # under the MICROSCOPE Priya root
+out_stem: PS92-95_stroke_schematic_v2
+# animal colours come from configs/animals.yaml (config.animal_color)
