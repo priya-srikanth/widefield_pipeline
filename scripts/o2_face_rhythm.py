@@ -25,7 +25,8 @@ float16 memmaps (``work/<key>/``), the parent records finished segments (``progr
 and writes the npz outputs at the end. Each segment is tracked from ``warmup_frames`` before its start (discarded:
 lets the mesh settle, gives the VQT its left margin) to ``margin_frames`` past its end; its points go through FR's
 ``VQT_Analyzer.transform`` in ``chunk_frames`` chunks with ``padding='same'``, so 25 Hz bin j = frames [10j, 10j+10)
-exactly and no full-length spectrogram is ever held. Outputs (float16, ``out/<a>_<d>_cam4_*.npz``):
+exactly and no full-length spectrogram is ever held. Before the VQT, zero-phase notches at 20.83 / 41.67 Hz remove the cam4 encoder's 12-frame keyframe
+line from the 250 Hz points (``notch_hz``; also applied to the 25 Hz points). Outputs (float16, ``out/<a>_<d>_cam4_*.npz``):
   trials   spec (trial, time, xy, point, freq) on the DAQ grid ``t_ms`` (linear between the two nearest 25 Hz bins,
            NaN where the trial's window or the video does not reach)
   session  spec (bin, xy, point, freq) at 5 Hz (mean of 5 consecutive 25 Hz bins) + ``t_daq_s``
@@ -56,6 +57,12 @@ PARAMS = {
     "margin_frames": 520,                              # >= half the longest VQT filter (1001 frames at 1 Hz) + 1 bin
     "chunk_frames": 10000,                             # VQT chunk (multiple of 50: 5 Hz blocks align)
     "session_ds_bins": 5,                              # 25 Hz -> 5 Hz
+    # cam4 encoder keyframe every 12 frames -> a spurious 20.83 Hz line (+ 41.67 Hz) in tracked points, spread over the
+    # whole 12-frame group (keyframe interpolation / phase templates do not remove it; 10-21 pilot). Zero-phase notches
+    # on the 250 Hz points of each VQT chunk, before the spectrogram AND the 25 Hz points (a 10-frame block mean passes
+    # ~19 % of 20.8 Hz and aliases it to 4.2 Hz). Q 30: ~0.7 Hz wide; settles in ~3 x 115 frames < the 510-frame margin.
+    "notch_hz": [250 / 12, 2 * 250 / 12],
+    "notch_q": 30,
     "reader": {"buffer_size": 250, "prefetch": 1, "posthold": 1, "backend": "decord"},
     "tracking": {
         "params_optical_flow": {"method": "lucas_kanade", "mesh_rigidity": 0.1, "mesh_n_neighbors": 24,
@@ -155,6 +162,12 @@ def setup(task, threads, mode="r+"):
                                                        "chunk_frames", "session_ds_bins"))
     s.m = int(np.ceil((s.vqt.vqt_model.filters.shape[-1] // 2 + 1) / s.DS)) * s.DS   # VQT margin, whole bins
     assert s.W >= s.m and s.M >= s.m + s.DS and s.SEG % (s.DS * s.D5) == 0 and s.CH % (s.DS * s.D5) == 0
+    s.notch = []
+    for fc in P.get("notch_hz", []):
+        from scipy.signal import iirnotch
+        s.notch.append(iirnotch(fc, P["notch_q"], P["fps"]))
+        settle = 3 * P["notch_q"] / (np.pi * fc) * P["fps"]
+        assert s.m >= settle, f"VQT margin {s.m} < notch settling {settle:.0f} frames"
     s.n_bins = s.n // s.DS
     s.n5 = s.n_bins // s.D5
     # trial grid -> fractional source frames (bundle); 25 Hz bin j is centred on frame 10 j + 4.5
@@ -234,6 +247,17 @@ def track(f0, f1):
     return pts, nv
 
 
+def notch(Y):
+    """Zero-phase notches (params notch_hz / notch_q) along time of (frames, NP, 2) points -> float32."""
+    if not S.notch:
+        return Y
+    from scipy.signal import filtfilt
+    Z = Y.astype(np.float64)
+    for b, a in S.notch:
+        Z = filtfilt(b, a, Z, axis=0)
+    return Z.astype(np.float32)
+
+
 def run_segment(si):
     """Track segment si, VQT it chunk by chunk, write the bins it owns. -> (si, stats, filled trial samples)."""
     s0, e = S.segs[si]
@@ -251,7 +275,8 @@ def run_segment(si):
         jbx = min(jb1 + 1, S.n_bins)                                     # + 1 bin for the trial interpolation
         i0, i1 = max(jb0 * DS - m, a), min(jbx * DS + m, z)
         assert i0 % DS == 0, i0
-        X, x, _ = S.vqt.transform(pts[i0 - a:i1 - a], home)             # (2, NP, NF, bins), x in frames from i0
+        Y = notch(pts[i0 - a:i1 - a])                                    # 250 Hz points, keyframe line removed
+        X, x, _ = S.vqt.transform(Y, home)                               # (2, NP, NF, bins), x in frames from i0
         assert abs(float(x[0]) - (DS - 1) / 2) < 1e-3, x[:3]
         X = X[..., jb0 - i0 // DS: jbx - i0 // DS]                        # global bins [jb0, jbx)
         nb = jb1 - jb0
@@ -259,7 +284,7 @@ def run_segment(si):
         if q1 > q0:
             blk = X[..., (q0 * D5 - jb0):(q1 * D5 - jb0)]
             S.S_se[q0:q1] = blk.reshape(2, NP, NF, q1 - q0, D5).mean(-1).transpose(3, 0, 1, 2).astype(np.float16)
-        d = pts[jb0 * DS - a: jb1 * DS - a] - home
+        d = Y[jb0 * DS - i0: jb1 * DS - i0] - home
         S.D_pt[jb0:jb1] = d.reshape(nb, DS, NP, 2).mean(1).astype(np.float16)
         S.V_pt[jb0:jb1] = (nv[jb0 * DS - a: jb1 * DS - a].reshape(nb, DS).mean(1) / NP).astype(np.float16)
         ti, ki = np.nonzero(S.ok_tr & (S.j0_tr >= jb0) & (S.j0_tr < jb1))
