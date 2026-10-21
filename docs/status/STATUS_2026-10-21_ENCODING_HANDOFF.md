@@ -44,7 +44,64 @@ entries. Scratchpad (launchers, logs, 3-D tables): `C:\Users\SABATI~1\AppData\Lo
 - **Contact-adjusted across-spout fit** (a00045b): under `--contact`, spout means moved to the session's mean contact
   count with the within-spout contact coefficient. NOT yet in any output.
 
-## 2. RUNNING at handoff (10-21 ~09:55)
+## 1b. KEY RESULTS + WHERE THE FIGURES ARE (10-21 ~11:15)
+
+Root `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`. Numbers use
+the CURRENT attempt definition (attempted = hit + incomplete; jaw_only = reaction).
+
+1. **Behavioural deficit = execution in all four + initiation in PS94 / PS95.** Acute far contra: completion .03-.15;
+   attempt rate .79 / .80 / .64 / .32 (PS92-PS95). Time to contact pre 344-619 ms -> acute 3114-3419 -> chronic
+   239-631; back by subacute in PS94 / PS95, by chronic in PS92 / PS93.
+   [attempt_classes_far.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/behaviour/attempt_classes_far.png),
+   [lick_deficits.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/behaviour/lick_deficits.png)
+2. **Spout coding tracks behavioural recovery and overshoots pre; the rise is TARGET.** Cortex deficit slopes: 3-D unique
+   target z -6.8, cam4 -6.7 (cue) / -5.1 (first lick), position -2.7; strict executed null (-1.3).
+   [encoding_mixed_behaviour_cortex.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/mixed_models/encoding_mixed_behaviour_cortex.png),
+   [encoding_mixed_time_cortex.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/mixed_models/encoding_mixed_time_cortex.png),
+   [imaging_lmm_trend_behaviour.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/mixed_models/imaging_lmm_trend_behaviour.png)
+3. **3-D contest (PS92 / PS93):** pre-stroke target ~ executed (PS92) or target-led (PS93); post-stroke growth is target;
+   executed beyond the spout category present pre and unchanged.
+   [spatial_contest_nokin_cortex.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/movement_first_subset-nokin_exec-polar_licks-combined_bins/figures/spatial_contest_nokin_cortex.png)
+4. **Lick templates (PS92 / PS93, 3-D):** pre-stroke target templates explain more post-stroke variance than
+   landing-zone (execution) templates from subacute on; PS93 chronic in every session; ~nothing beyond spout category.
+   Ceiling (target / execution / neither shares) still running.
+   [lick_templates.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/target_vs_execution/lick_templates.png)
+5. **Destination vs 3-D landing (PS92 / PS93):** post-stroke spout activity matches its own pre-stroke spout (target) in
+   most sessions; execution-like only acutely and rarely; PS93 far_mid comes to match pre-stroke far_contra (neither).
+   [destination.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/target_vs_execution/destination.png)
+6. **Frozen decoders / epoch families:** frozen EV and best-match accuracy stay below pre at full recovery; far-contra
+   identity back (10-21 night; refreshed with the new deficit 10:23).
+   [imaging_lmm_epoch-11_behaviour.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/mixed_models/imaging_lmm_epoch-11_behaviour.png),
+   [imaging_lmm_epoch-10b_behaviour.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/mixed_models/imaging_lmm_epoch-10b_behaviour.png),
+   [imaging_lmm_decoder_matched_behaviour_post.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/mixed_models/imaging_lmm_decoder_matched_behaviour_post.png)
+7. **Within spout: no robust execution-like signal.** Pooled toward-midline chronic reversal fragile (cluster 28 % ->
+   0 with contact control; spouts disagree in sign) but NOT a contact artifact (deviation-contact coupling same pre and
+   chronic); per spout far_ipsi chronic 2/4, close_contra acute flip 2-3/4; 3-D agrees with cam4; angle terms do not
+   predict held-out activity.
+   [mixed_time_maps_mid.png (base)](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick/mixed_time_maps_mid.png),
+   [within_spout_maps_cluster_mid.png (base)](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick/within_spout_maps_cluster_mid.png),
+   [within_spout_maps_cluster_mid.png (contact)](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick_contact/within_spout_maps_cluster_mid.png),
+   [spout_mid_maps_per_animal.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick_contact/spout_mid_maps_per_animal.png),
+   [mixed_time_maps_mid.png (3-D, contact)](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_polar_lick_contact/mixed_time_maps_mid.png)
+8. **Miss-then-correct trials are common** (far contra pre 25-56 %); PS94 chronic far contra 80 % (first-lick contact
+   15 % vs 71 % pre) -- corrective recovery.
+   [miss_then_correct.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/behaviour/miss_then_correct.png)
+9. **Commanded-axis across-spout slope:** rises with the deficit unadjusted (SSp-m z 9.7) but collapses hits-only;
+   contact-adjusted rerun RUNNING.
+   [mixed_time_maps_betweencmd.png (contact)](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick_contact/mixed_time_maps_betweencmd.png)
+
+Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`, `scripts/spout_tuning_check.py`,
+`scripts/spout_mid_maps.py`, `scripts/summary_figures_1021.py` (argument = the folder holding `spout_tuning_check.csv`).
+
+## 2. RUNNING (updated 10-21 ~11:15)
+
+| what | task / log | then |
+|---|---|---|
+| contact-adjusted across-spout rerun, cam4 + 3-D contact / contact_hits + mixed models | `S/run_ws_contactadj.sh`, logs `S/ws_adj_*.log`; unadjusted copied to `qc/superseded_within_spout_contact_unadj_20261021/` | read `between_cmd` / `between` with contact control vs hits-only |
+| lick-template pass 2 with free-kernel ceiling (since 07:11; ~12:30-14:00) | `S/lick_templates_ceiling.log` | target_like / exec_like / neither shares |
+| jaw_onsets watcher (`S/watch_jaw.sh`, 8 h from 10:13) | waits for the pose window's rewrite (direction / cue contrast / treadmill columns) | reruns attempts + LMMs + six within-spout mixed models |
+
+## 2a. Superseded at ~09:55 (kept for the record)
 
 | what | task / log | then |
 |---|---|---|
@@ -55,17 +112,19 @@ entries. Scratchpad (launchers, logs, 3-D tables): `C:\Users\SABATI~1\AppData\Lo
 
 ## 3. To-do (priority)
 
-1. Read the three running results above; ENCODING_FINDINGS + DECISIONS.
-2. Rerun the CONTACT variants with the contact-adjusted between (cam4 then 3-D; cached, minutes):
-   `--variants contact,contact_hits --redo` (+ 3-D env) then `within_spout_mixed.py --folder ...` for each.
-   Read `between_cmd` vs `between` with contact control and hits-only.
-3. Figures: attempt classes / ttc; destination summary; target / execution / neither summary; per-spout toward-midline
-   maps (contact-controlled); shorten the LMM x-axis label (overlaps panels).
-4. Destination test for PS94 / PS95 when their 3-D exists.
-5. Whole-session-lick refits need an O2 re-bundle (Priya submits).
-6. Old copies Priya may delete: stray empty `qc/figures/imaging_lmm_epoch`, old figure copies under `qc/figures/` and
+1. DONE 10:00-11:15: 3-D per spout, direct contact check, eccentricity / first-lick checks, per-animal maps, jaw_only
+   reclassification + reruns (DECISIONS 10-21 late morning entries).
+2. RUNNING: contact-adjusted across-spout rerun -> read `between_cmd` vs `between` (contact control vs hits-only).
+3. Template ceiling shares when the run ends; add a shares panel to `summary_figures_1021.py`.
+4. Rerun after the pose window's jaw_onsets rewrite (watcher does it); then consider the new columns (jaw direction
+   open vs up, pre-cue contrast, treadmill speed) for the reaction vs attempt split and the walking confound.
+5. Behaviour follow-up: miss-then-correct (corrective recovery, PS94 chronic) as its own readout / class.
+6. Shorten the LMM x-axis label (overlaps panels).
+7. Destination test for PS94 / PS95 when their 3-D exists.
+8. Whole-session-lick refits need an O2 re-bundle (Priya submits).
+9. Old copies Priya may delete: stray empty `qc/figures/imaging_lmm_epoch`, old figure copies under `qc/figures/` and
    `qc/within_spout_deviation*/figures/`.
-7. Carried over (10-20 evening §4): first-lick latency cam4 vs cam4 + cam1 vs DAQ; LocaNMF cross-check of within-spout
+10. Carried over (10-20 evening §4): first-lick latency cam4 vs cam4 + cam1 vs DAQ; LocaNMF cross-check of within-spout
    slopes; pre-cue -> lick-window carry-over decode; 3-D jaw when revived.
 
 ## 4. Pitfalls (new today)
@@ -96,3 +155,6 @@ python scripts/trial_attempts.py && python scripts/encoding_mixed.py && python s
 WIDEFIELD_PRE_FROM=0801 python scripts/best_match_destination.py
 python -m pytest -q tests/test_within_spout_deviation.py tests/test_input_cache.py tests/test_trial_attempts.py
 ```
+- Editing ANY `_CACHE_CODE` module (even a comment) invalidates the whole local input cache (41 GB); keep doc-only
+  changes to those files for a quiet moment.
+- jaw_only trials are reactions (Priya's blind review); `trial_attempts.ATTEMPT_CLASSES` is the one definition.
