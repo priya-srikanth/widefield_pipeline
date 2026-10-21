@@ -9,22 +9,15 @@ Outcomes per session x area x window (dR2 x1e3, cortex + both hemispheres of the
   far-close      mean(far spouts) - mean(close spouts)  of the per-spout values (does distance coding change?)
   contra-ipsi    mean(contra spouts) - mean(ipsi spouts)
 
-Model: y ~ post + post:lday, sessions as observations, post = after the stroke, lday = log(days since stroke) (0 at
-day 1) -> `post` = day-1 step vs pre, `post:lday` = change per e-fold of days. Random effects per animal, tried in this
-order and the first that converges is reported (column `re`):
-  ~post + post:lday   random intercept + random step + random recovery SLOPE
-  ~post               random intercept + random step
-  ~1                  random intercept only
-  fixed               (last resort) OLS with fixed, sum-coded animal intercepts, when every random structure is singular
-With 4 animals the random-slope variance is weakly identified (often singular -> fallback); the per-animal deviations
-(BLUPs) are written out so animal-specific courses stay visible. REML, unweighted. FDR over measures within window x term.
+Models (wfield_local/mixed_models.py -- the shared definition): `time` y ~ post + post:lday and `behaviour`
+y ~ post + post:deficit (far-contra contact deficit), random intercept + step + slope per animal with the module's
+fallback ladder; FDR (orofacial_stats.bh_fdr) within model x term x window; per-animal epoch means printed first.
 Output: <run>/imaging_encoding/qc/encoding_mixed.csv. Curated sessions from 08-06 (August pre baseline).
 """
 from __future__ import annotations
 
 import argparse
 import glob
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -76,53 +69,9 @@ def outcomes(E: Path, labels: set) -> pd.DataFrame:
             if f"nokin:{hi}" in N and f"nokin:{lo}" in N:
                 rows.append(((N[f"nokin:{hi}"] - N[f"nokin:{lo}"]) * 1e3).rename("y").reset_index()
                             .assign(measure=f"{tag}:{name}"))
-    L = pd.concat(rows, ignore_index=True).dropna(subset=["y"])
-    from wfield_local import epochs
-    L["animal"] = L.label.str[:4]
-    L["epoch"] = L.label.map(epochs.epoch_of)
-    L["day"] = L.label.map(epochs.days_since_stroke)
-    L["post"] = (L.day > 0).astype(float)
-    L["lday"] = np.where(L.day > 0, np.log(L.day.clip(lower=1)), 0.0)
-    defi = behaviour_deficit(E)
-    L["deficit"] = np.where(L.post == 0, 0.0, L.label.map(defi))
-    return L
-
-
-def behaviour_deficit(E: Path) -> dict:
-    """BEHAVIOUR-INDEXED time (Priya 10-20: recovery timing differs per animal): per session, far-contra contact
-    deficit = (animal's pre mean - session) / pre mean (0 = pre level, 1 = total loss), from
-    qc/position_coding_trend_recovery_sessions.csv (scripts/position_coding_trend_recovery.py). Pre = August pre."""
-    S = pd.read_csv(E / "qc" / "position_coding_trend_recovery_sessions.csv")
-    pre = S[(S.epoch == "pre") & (S.label.str[-4:] >= "0806")].groupby("animal").contact_far_contra.mean()
-    return dict(zip(S.label, (S.animal.map(pre) - S.contact_far_contra) / S.animal.map(pre)))
-
-
-
-def _re_ok(r) -> bool:
-    """Random effects predictable (a singular RE covariance makes statsmodels raise) -> else fall back."""
-    try:
-        _ = r.random_effects
-        return True
-    except Exception:                                       # noqa: BLE001
-        return False
-
-def fit(G: pd.DataFrame, slope: str = "post:lday"):
-    """y ~ post + <slope>: slope = post:lday (calendar time) or post:deficit (behaviour-indexed)."""
-    import statsmodels.formula.api as smf
-    for re in (f"~post + {slope}", "~post", "~1"):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            try:
-                r = smf.mixedlm(f"y ~ post + {slope}", G, groups=G["animal"], re_formula=re).fit(reml=True)
-            except Exception:                                   # noqa: BLE001 -- singular / non-converged
-                continue
-        if r.converged and np.all(np.isfinite(r.bse[r.fe_params.index])) and _re_ok(r):
-            return r, re
-    # LAST RESORT: fixed animal intercepts (sum-coded, so Intercept = mean of the animal levels) -- used when even the
-    # random intercept is singular (animals with near-identical baselines)
-    r = smf.ols(f"y ~ C(animal, Sum) + post + {slope}", G).fit()
-    r.fe_params = r.params
-    return r, "fixed"
+    from wfield_local import mixed_models as mm
+    L = mm.add_time_covariates(pd.concat(rows, ignore_index=True).dropna(subset=["y"]))
+    return mm.add_deficit(L, mm.behaviour_deficit(E / "qc" / "position_coding_trend_recovery_sessions.csv"))
 
 
 FIG_PANELS = (("cue", "cam4:ceiling"), ("cue", "cam4:u_target"), ("cue", "position"),
@@ -176,7 +125,6 @@ def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex") -
 
 
 def main(argv=None) -> int:
-    from statsmodels.stats.multitest import fdrcorrection
     from wfield_local import analysis_kit as ak
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -187,29 +135,15 @@ def main(argv=None) -> int:
     E = oo.root(PathResolver()) / a.run / "imaging_encoding"
     labels = {x for x in ak.curated_labels() if x[-4:] >= "0806"}
     L = outcomes(E, labels)
-    rows = []
-    for model, slope in (("time", "post:lday"), ("behaviour", "post:deficit")):
-        for (meas, win, area), G in L.groupby(["measure", "window", "area"]):
-            G = G.dropna(subset=["deficit"]) if model == "behaviour" else G
-            if (G.post == 0).sum() < 6 or (G.post == 1).sum() < 10 or G.animal.nunique() < 2:
-                continue                                # too few pre / post sessions (e.g. a run still in progress)
-            r, re = fit(G, slope)
-            rfx = r.random_effects if re != "fixed" else {}
-            blup = {f"step_dev_{an}": float(v.get("post", np.nan)) for an, v in rfx.items()}
-            blup.update({f"slope_dev_{an}": float(v.get(slope, np.nan)) for an, v in rfx.items()})
-            for term in ("Intercept", "post", slope):
-                rows.append({"model": model, "measure": meas, "window": win, "area": area, "re": re, "n": len(G),
-                             "term": "pre_level" if term == "Intercept" else term, "coef": r.fe_params[term],
-                             "se": r.bse[term], "z": r.tvalues[term], "p": r.pvalues[term], **blup})
-    T = pd.DataFrame(rows)
-    T["q"] = np.nan
-    for _, idx in T.dropna(subset=["p"]).groupby(["model", "window", "term"]).groups.items():
-        T.loc[idx, "q"] = fdrcorrection(T.loc[idx, "p"])[1]
+    from wfield_local import mixed_models as mm
+    by = ["measure", "window", "area"]
+    T = mm.lmm_table(L[L.area == "cortex"], by, print_animals=True)           # rule 8 table: cortex only (readable)
+    T = pd.concat([T, mm.lmm_table(L[L.area != "cortex"], by, print_animals=False)], ignore_index=True)
+    from wfield_local.orofacial_stats import bh_fdr                       # FDR over ALL areas within model x term x window
+    for _, idx in T.groupby(["model", "term", "window"]).groups.items():
+        T.loc[idx, "q"] = bh_fdr(T.loc[idx, "p"].to_numpy())
     T.to_csv(E / "qc" / "encoding_mixed.csv", index=False, float_format="%.5g")
-    # readable summary: one row per measure x window x area, coef (z, q) per term
-    W = T.dropna(subset=["term"]).assign(cell=lambda x: [f"{c:.2f} (z {z:.1f}, q {q:.3f})" for c, z, q in
-                                                          zip(x.coef, x.z, x.q.fillna(np.nan))])
-    W.pivot_table(index=["model", "window", "area", "measure"], columns="term", values="cell", aggfunc="first")         .join(T.drop_duplicates(["model", "measure", "window", "area"]).set_index(["model", "window", "area", "measure"])[["re", "n"]])         .to_csv(E / "qc" / "encoding_mixed_summary.csv")
+    mm.summary_table(T, ["window", "area", "measure"]).to_csv(E / "qc" / "encoding_mixed_summary.csv")
     pd.set_option("display.width", 230)
     for model in ("time", "behaviour"):
         for win in WINDOWS:

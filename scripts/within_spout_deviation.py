@@ -63,7 +63,9 @@ def trial_table(B, E: pd.DataFrame, mode: str, align: str = "cue") -> pd.DataFra
     alignment time t0 (cue or first lick) and latency (first lick - cue)."""
     if mode and B.exec_xyz is not None:
         ml, ap, dn = (np.asarray(x, float) for x in B.exec_xyz)
-        lat, reach = np.degrees(np.arctan2(ml, np.hypot(ap, dn))), np.sqrt(ml ** 2 + ap ** 2 + dn ** 2)
+        # SIGN: pose3d side_ml is + toward the mouse's RIGHT (contra; calibration: close_contra +0.44 mm), the cam4 angle
+        # + toward the LEFT (ipsi) -- flip so every lateral slope / direction / toward-midline sign means the same thing
+        lat, reach = -np.degrees(np.arctan2(ml, np.hypot(ap, dn))), np.sqrt(ml ** 2 + ap ** 2 + dn ** 2)
     else:
         lat, reach = np.asarray(B.lick_angle, float), np.asarray(B.lick_reach, float)
     use = np.isfinite(lat) & np.isfinite(reach)

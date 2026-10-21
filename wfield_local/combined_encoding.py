@@ -122,6 +122,15 @@ LICK_MODES = ("cam4", "combined", "lips")
 #: set and TARGET3D_TABLE_ENV is given; else in the cam4 (angle, reach) plane, each axis scaled by the six spouts' spread.
 #: Both blocks deviation-coded like the position blocks (rank 5 x kernel). Matched in dof, model class and licks;
 #: `nokin:category+exbin` is the binned STRICT executed. Built only when set (adds ~12 kernels); outputs -> ..._bins/.
+#: WHOLE-SESSION licks (10-20 night; the other window's licks_all.csv): until now every lick source started at the cue,
+#: but the 2 s pre-cue (ENL) window -- contact-free by design (the ENL restarts on any contact) -- holds no-contact
+#: licks on 5-44 % of trials (PS95 .. PS93, pre-stroke), and contacts end right before it. Modes:
+#:   shared  pre-cue + ITI licks join the post-cue lick TIMING kernel (one lick response wherever the lick happens);
+#:           contacts over the whole trial windows (raw DAQ channel) in the contact kernel
+#:   split   post-cue kernel as before + its OWN pre-cue kernel + its own ITI kernel (all inside `licks`) -- the
+#:           spontaneous-vs-cued contrast is split vs shared (Priya 10-20)
+#: Timing only (no angle). Outputs -> ..._licksall-<mode>/.
+LICKS_ALL_ENV = "COMBINED_ENCODING_LICKS_ALL"
 BINS_ENV = "COMBINED_ENCODING_BINS"
 #: CALIBRATED executed bins (10-20, measured on the 3-D tables): the tongue peak does not land ON the spout table's
 #: position -- it lands ~2 mm deeper (the table marks the rod's lower edge) and laterally compressed (~0.4x at close,
@@ -392,8 +401,32 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
             elif mode == "polar":
                 target_amps = _polar(*target_xyz)
     extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
-    return Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
-                     tdist, reach, exec_amps, target_amps, extra, lips, exec_xyz, target_xyz, f"{animal}_{date}")
+    ctx = None
+    if os.environ.get(LICKS_ALL_ENV):
+        ctx, contact_s = _context_licks(rv, animal, date, sd, b, contact_s)
+    B_ = Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
+                   tdist, reach, exec_amps, target_amps, extra, lips, exec_xyz, target_xyz, f"{animal}_{date}")
+    B_.context_lick_on_s = ctx
+    return B_
+
+
+def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contact_s: np.ndarray):
+    """LICKS_ALL_ENV: ({'pre_cue': onsets, 'iti': onsets} in DAQ s from the cam4 whole-session table licks_all.csv,
+    contacts over the whole trial windows (strobe - 0.5 .. stop + 3 s) from the raw DAQ channel)."""
+    from wfield_local import dlc_frames
+    f = sd / "licks_all.csv"
+    if not f.exists():                                  # never mix event sets silently
+        raise FileNotFoundError(f"{LICKS_ALL_ENV} needs {f} (python -m wfield_local.orofacial_outputs all-licks)")
+    A = pd.read_csv(f, usecols=["context", "daq_on_s"])
+    ctx = {c: np.sort(A.loc[A.context == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
+    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
+    raw = np.sort(np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float))
+    st = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 3.0).astype(float) - 0.5
+    en = b.stop_s.to_numpy(float) + 3.0
+    keep = np.zeros(len(raw), bool)
+    for a_, e_ in zip(st, en):
+        keep |= (raw >= a_) & (raw <= e_)
+    return ctx, raw[keep]
 
 
 def _cam1_lick_events(rv, animal: str, date: str, cue_t: pd.DataFrame, mode: str):
@@ -609,7 +642,15 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
     extra = getattr(B, "extra_lick_on_s", None)
     if extra is not None and len(extra):                 # LICKS_ENV: cam1-only events join the lick timing kernel
         lick_t = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), extra]))
+    ctx = getattr(B, "context_lick_on_s", None)
+    mode_all = os.environ.get(LICKS_ALL_ENV, "")
+    if mode_all and mode_all not in ("shared", "split"):
+        raise ValueError(f"{LICKS_ALL_ENV}={mode_all!r}; expected shared | split")
+    if ctx and mode_all == "shared":                     # one lick kernel wherever the lick happens
+        lick_t = np.sort(np.concatenate([lick_t, ctx["pre_cue"], ctx["iti"]]))
     lk = [_event_cols(lick_t, ft, LAGS["lick"]), _event_cols(B.contact_s, ft, LAGS["lick"])]
+    if ctx and mode_all == "split":                      # spontaneous (pre-cue) and ITI licks: their own kernels
+        lk += [_event_cols(ctx["pre_cue"], ft, LAGS["lick"]), _event_cols(ctx["iti"], ft, LAGS["lick"])]
     lips = getattr(B, "lips_on_s", None)
     if lips is not None and len(lips):                   # LICKS_ENV=lips: lips-only licks get their own kernel
         lk.append(_event_cols(lips, ft, LAGS["lick"]))
@@ -1381,6 +1422,8 @@ def out_dir(rv, order: str) -> Path:
                                                          + (f"_licks-{os.environ[LICKS_ENV]}"
                                                             if os.environ.get(LICKS_ENV, "cam4") != "cam4" else "")
                                                          + ("_bins" if os.environ.get(BINS_ENV) else "")
+                                                         + (f"_licksall-{os.environ[LICKS_ALL_ENV]}"
+                                                            if os.environ.get(LICKS_ALL_ENV) else "")
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 

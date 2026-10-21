@@ -216,3 +216,28 @@ def test_soft_exec_bins_sum_to_zero_and_weights(monkeypatch, tmp_path):
     X = ce.raw_blocks(B, ft)["lick_bin_exec"]
     k = X.shape[1] // 6
     assert np.abs(sum(X[:, i * k:(i + 1) * k] for i in range(6))).max() < 1e-4
+
+
+@pytest.mark.parametrize("mode", ["shared", "split"])
+def test_licks_all_modes(monkeypatch, mode):
+    """Whole-session licks: shared = same kernels, more events; split = + one pre-cue and one ITI kernel."""
+    B0, ft = _behaviour()
+    width = ce.raw_blocks(B0, ft)["licks"].shape[1]
+    B, _ = _behaviour()
+    cue = B.trials.cue_s.to_numpy()
+    B.context_lick_on_s = {"pre_cue": cue[::2] - 1.0, "iti": cue[1::3] + 4.0}
+    monkeypatch.setenv(ce.LICKS_ALL_ENV, mode)
+    X = ce.raw_blocks(B, ft)["licks"]
+    k = width // 2                                                   # lick + contact kernels, same width each
+    if mode == "shared":
+        assert X.shape[1] == width and not np.array_equal(X, ce.raw_blocks(B0, ft)["licks"])
+    else:
+        assert X.shape[1] == width + 2 * k
+
+
+def test_licks_all_invalid_mode(monkeypatch):
+    B, ft = _behaviour()
+    B.context_lick_on_s = {"pre_cue": np.zeros(0), "iti": np.zeros(0)}
+    monkeypatch.setenv(ce.LICKS_ALL_ENV, "everything")
+    with pytest.raises(ValueError):
+        ce.raw_blocks(B, ft)

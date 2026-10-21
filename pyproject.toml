@@ -28,6 +28,7 @@ dependencies = [
   "Pillow>=9",
   "joblib>=1.3",
   "tqdm>=4.64",
+  "statsmodels>=0.14",   # wfield_local/mixed_models.py (session-level LMMs, 10-20)
   "PyYAML>=6",
   "meegkit>=0.2",   # hemodynamic-correction variants (hemo_variants: meegkit_hpfit)
   "imageio-ffmpeg>=0.4",  # H.264 encoder for behavior_clip_deck. NOT optional in practice: the
