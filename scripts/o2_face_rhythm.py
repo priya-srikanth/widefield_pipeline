@@ -839,6 +839,57 @@ def _bandpass(x, lo, hi, fs, min_run=500):
     return out
 
 
+def _mesh_explains(disp, jaw_y, tongue, fs, n_pc=50, k=5) -> dict:
+    """How much licking the WHOLE mesh carries (the mask keeps points off the jaw itself): cross-validated (k
+    contiguous blocks) R2 of the LP jaw y track (2-20 Hz) from the mesh's 2-20 Hz movement, and AUC of LP 'tongue
+    visible' from the movement envelope (0.2 s RMS). Features: the top ``n_pc`` PCs of point velocity (fast motion,
+    not slow offsets), at 25 Hz."""
+    from sklearn.decomposition import PCA
+    from sklearn.linear_model import LogisticRegression, Ridge
+    from sklearn.metrics import roc_auc_score
+    from sklearn.preprocessing import StandardScaler
+    V = np.diff(disp.reshape(len(disp), -1), axis=0, prepend=disp.reshape(len(disp), -1)[:1])
+    pca = PCA(n_pc, svd_solver="randomized", random_state=0).fit(V[::5])
+    sc = _bandpass(disp.reshape(len(disp), -1) @ pca.components_.T, 2, 20, fs)
+    env = pd.DataFrame(sc ** 2).rolling(fs // 5, center=True, min_periods=1).mean().to_numpy() ** 0.5
+    sl = slice(0, None, fs // 25)
+    X, E, y, t = sc[sl], env[sl], jaw_y[sl], tongue[sl]
+    folds = np.array_split(np.arange(len(X)), k)
+    pred_y, pred_t = np.full(len(X), np.nan), np.full(len(X), np.nan)
+    for te in folds:
+        tr = np.setdiff1d(np.arange(len(X)), te)
+        m = tr[np.isfinite(y[tr]) & np.isfinite(X[tr]).all(1)]
+        s1 = StandardScaler().fit(X[m])
+        pred_y[te] = Ridge(alpha=1.0).fit(s1.transform(X[m]), y[m]).predict(s1.transform(np.nan_to_num(X[te])))
+        m = tr[np.isfinite(t[tr]) & np.isfinite(E[tr]).all(1)]
+        s2 = StandardScaler().fit(E[m])
+        if len(np.unique(t[m])) == 2:
+            clf = LogisticRegression(C=1.0, max_iter=500).fit(s2.transform(E[m]), t[m])
+            pred_t[te] = clf.predict_proba(s2.transform(np.nan_to_num(E[te])))[:, 1]
+    ok = np.isfinite(y) & np.isfinite(pred_y)
+    r2 = 1 - np.sum((y[ok] - pred_y[ok]) ** 2) / np.sum((y[ok] - y[ok].mean()) ** 2) if ok.sum() > 100 else np.nan
+    ok = np.isfinite(t) & np.isfinite(pred_t)
+    auc = roc_auc_score(t[ok], pred_t[ok]) if ok.sum() > 100 and len(np.unique(t[ok])) == 2 else np.nan
+    return {"mesh_jaw_y_r2": float(r2), "mesh_tongue_auc": float(auc)}
+
+
+def _mesh_folds(pts, home, chunk=2000) -> dict:
+    """Mesh integrity: Delaunay triangles of the home points (long boundary slivers dropped) whose orientation flips
+    in a frame = the mesh folded there (points crossed). -> fraction of frames with any fold, mean folded triangles
+    per frame."""
+    from scipy.spatial import Delaunay
+    tri = Delaunay(home).simplices
+    edge = np.max([np.hypot(*(home[tri[:, i]] - home[tri[:, (i + 1) % 3]]).T) for i in range(3)], 0)
+    tri = tri[edge < 2.5 * np.median(edge)]
+
+    def area(P):
+        a, b, c = P[:, tri[:, 0]], P[:, tri[:, 1]], P[:, tri[:, 2]]
+        return (b - a)[..., 0] * (c - a)[..., 1] - (b - a)[..., 1] * (c - a)[..., 0]
+    s0 = np.sign(area(home[None].astype(np.float64)))[0]
+    nflip = np.concatenate([((area(pts[i:i + chunk]) * s0) <= 0).sum(1) for i in range(0, len(pts), chunk)])
+    return {"fold_frames": float((nflip > 0).mean()), "fold_tri_per_frame": float(nflip.mean())}
+
+
 def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
     """Score out_test/<key>_<set>.npz against LP (v36 cam4 windows.npz, likelihood > 0.9, gaps <= 10 frames
     interpolated): for nose and jaw, the mean displacement of the FR points within 20 px of the landmark's rest
@@ -876,6 +927,12 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
         row = {"session": key, "set": sname, "n_points": int(z["n_points"]), "fps": float(z["fps_track"]),
                "violation_fraction": float((nv > 0).mean()), "drift_px": float(np.median(np.abs(disp))),
                "jitter_30_60Hz_px": float(np.nanmedian(np.nanstd(_bandpass(disp, 30, 60, fs), 0)))}
+        tongue = np.full(n, np.nan)
+        tongue[fi] = (pose[:, parts.index("tongue"), 2] > 0.9).astype(float)
+        tv = np.nan_to_num(tongue) > 0
+        near_t = np.convolve(tv, np.ones(2 * fs + 1), "same") > 0          # tongue within +-1 s
+        lick = np.convolve(tv, np.ones(fs // 2 + 1), "same") > 0           # tongue within +-0.25 s
+        lp_bp = {}
         for part in ("nose", "jaw"):
             lp = np.full((n, 2), np.nan)
             pp = pose[:, parts.index(part)]
@@ -886,15 +943,22 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
             dd = np.hypot(*(home - rest).T)
             near = np.flatnonzero(dd < 20) if (dd < 20).sum() >= 3 else np.argsort(dd)[:5]
             A, Bp = _bandpass(lp - rest, 2, 20, fs), _bandpass(disp[:, near].mean(1), 2, 20, fs)
+            lp_bp[part] = A
             ok = np.isfinite(A).all(1) & np.isfinite(Bp).all(1)
             for j, ax_ in enumerate("xy"):
                 a_, b_ = A[ok, j], Bp[ok, j]
                 row[f"{part}_{ax_}_r"] = float(np.corrcoef(a_, b_)[0, 1]) if ok.sum() > 100 else np.nan
                 row[f"{part}_{ax_}_gain"] = float(np.dot(a_, b_) / np.dot(a_, a_)) if ok.sum() > 100 else np.nan
+            for nm_, m_ in (("lick", ok & lick), ("rest", ok & ~near_t)):       # small vs large movements
+                a_, b_ = A[m_, 1], Bp[m_, 1]
+                row[f"{part}_y_r_{nm_}"] = float(np.corrcoef(a_, b_)[0, 1]) if m_.sum() > 100 else np.nan
+                row[f"{part}_y_gain_{nm_}"] = float(np.dot(a_, b_) / np.dot(a_, a_)) if m_.sum() > 100 else np.nan
             row[f"{part}_frames"] = int(ok.sum())
             row[f"{part}_points"] = int(len(near))
             row[f"{part}_point_dist_px"] = float(dd[near].mean())
             traces[(key, sname, part)] = (A, Bp)
+        row.update(_mesh_explains(disp, lp_bp["jaw"][:, 1], tongue, fs))
+        row.update(_mesh_folds(pts, home))
         rows.append(row)
     if not rows:
         raise SystemExit(f"no out_test npz in {d}")
@@ -903,8 +967,8 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     R.to_csv(out / f"param_test_{name}.csv", index=False, float_format="%.4g")
-    cols = ["session", "set", "fps", "violation_fraction", "drift_px", "jitter_30_60Hz_px", "nose_x_r", "nose_y_r",
-            "nose_x_gain", "nose_y_gain", "jaw_x_r", "jaw_y_r", "jaw_x_gain", "jaw_y_gain"]
+    cols = ["set", "n_points", "fps", "violation_fraction", "fold_frames", "fold_tri_per_frame", "jitter_30_60Hz_px",
+            "nose_y_r_lick", "nose_y_gain_lick", "nose_y_r_rest", "nose_y_gain_rest", "mesh_jaw_y_r2", "mesh_tongue_auc"]
     print(R[cols].round(3).to_string(index=False))
     keys = sorted({k[0] for k in traces})                      # 4 s of band-passed nose / jaw y: LP vs each set
     fig, axs = plt.subplots(2 * len(keys), 1, figsize=(12, 6.4 * len(keys)), squeeze=False)
