@@ -17,6 +17,10 @@ encoding fit's drift filter, trial frames only (strobe - 0.5 .. stop + 1 s).
           per area, 5-fold (contiguous) CV R2 on LICK-WINDOW frames (<= 0.2 s from a lick peak) of
             base = shared kernels;  base + g * target;  base + g * executed;  base + g1 * target + g2 * executed
           -> gain over base and UNIQUE shares (both - other).
+          CEILING (Priya 10-21, "pre-stroke target vs pre-stroke execution vs neither"): the same spout-specific lick
+          kernels fitted FREELY in this session (aimed-spout layout, landing-zone layout, both; ridge RIDGE, same CV)
+          = what any spout-locked lick response explains here. neither = r2_free - r2_both: lick-locked spout structure
+          that matches NO pre-stroke pattern (r2_free = the best of the free fits).
 Needs the 3-D environment: COMBINED_ENCODING_EXEC (3-D set), _EXEC3D_TABLE, _TARGET3D_TABLE, _BINS_CALIB; uses
 COMBINED_ENCODING_LICKS if set. Output: <run>/imaging_encoding/qc/lick_templates_<exec>/.
 
@@ -83,12 +87,12 @@ def fit_templates(S: dict) -> np.ndarray:
     return b[1 + S["shared"].shape[1]:]
 
 
-def cv_r2(y, X, folds, mask):
-    """Held-out R2 of OLS y ~ X on contiguous folds, scored on `mask` frames."""
+def cv_r2(y, X, folds, mask, lam=1e-6):
+    """Held-out R2 of (near-)OLS y ~ X on contiguous folds, scored on `mask` frames."""
     pred = np.zeros_like(y)
     for k in range(folds.max() + 1):
         tr, te = folds != k, folds == k
-        b = _ridge(X[tr], y[tr], 1e-6)
+        b = _ridge(X[tr], y[tr], lam)
         pred[te] = X[te] @ b
     r = y[mask] - pred[mask]
     return 1 - (r ** 2).sum() / ((y[mask] - y[mask].mean()) ** 2).sum()
@@ -116,6 +120,12 @@ def evaluate(S: dict, tmpl: np.ndarray, tmpl_areas: list) -> list:
             row.update({**{f"r2_{m}{sfx}": v for m, v in r.items()},
                         f"gain_tgt{sfx}": r["tgt"] - r["base"], f"gain_exec{sfx}": r["exec"] - r["base"],
                         f"u_tgt{sfx}": r["both"] - r["exec"], f"u_exec{sfx}": r["both"] - r["tgt"]})
+        base = np.column_stack([one, S["shared"]])
+        fr = {m: cv_r2(Ys[:, i], np.column_stack([base] + c), folds, S["lickwin"], RIDGE)
+              for m, c in (("tgt", [S["tgt"]]), ("exec", [S["exec"]]), ("both", [S["tgt"], S["exec"]]))}
+        free = max(fr.values())
+        row.update({**{f"r2_free_{m}": v for m, v in fr.items()}, "r2_free": free,
+                    "neither": free - row["r2_both"], "ceiling_gain": free - row["r2_base"]})
         rows.append(row)
     return rows
 
@@ -190,11 +200,17 @@ def main(argv=None) -> int:
     D.to_csv(out / "lick_templates.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 220)
     F = D[D.area.isin(FOCUS)]
-    for c in ("gain_tgt", "gain_exec", "u_tgt", "u_exec", "u_tgt_cat", "u_exec_cat"):
+    for c in ("gain_tgt", "gain_exec", "u_tgt", "u_exec", "u_tgt_cat", "u_exec_cat", "ceiling_gain", "neither"):
         t = F.groupby(["area", "animal", "epoch"])[c].mean().unstack("epoch").reindex(columns=list(EPOCHS)) * 100
         print(f"\n  {c} (x100 = % of lick-window variance; templates fixed from pre-stroke)\n" + t.round(2).to_string())
     print("\n  fraction of licks landing in their own zone (agree)\n"
           + D.groupby(["animal", "epoch"]).agree.mean().unstack().reindex(columns=list(EPOCHS)).round(2).to_string())
+    C = F[F.area == "cortex"].groupby(["animal", "epoch"])[["gain_tgt", "gain_exec", "neither", "ceiling_gain"]].mean()
+    C = C.assign(target_like=C.gain_tgt / C.ceiling_gain, exec_like=C.gain_exec / C.ceiling_gain,
+                 neither_share=C.neither / C.ceiling_gain)
+    print("\n  cortex, share of the session's spout-locked lick structure (ceiling = free kernels): target-like /"
+          " execution-like (overlap, each alone) / NEITHER\n"
+          + C[["target_like", "exec_like", "neither_share"]].unstack("animal").reindex(list(EPOCHS)).round(2).to_string())
     print(f"\n-> {out / 'lick_templates.csv'}")
     return 0
 

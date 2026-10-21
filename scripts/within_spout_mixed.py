@@ -34,6 +34,8 @@ def _kinds(D: pd.DataFrame):
     sp = D.spouts if "spouts" in D else pd.Series("all", index=D.index)
     yield "within", D[sp == "all"], "b_within", 1.0
     yield "between", D[sp == "all"], "b_between", 1.0
+    if "b_between_cmd" in D and D.b_between_cmd.notna().any():
+        yield "between_cmd", D[sp == "all"], "b_between_cmd", 1.0      # COMMANDED-axis across-spout slope
     yield "within_equal", D[sp == "equal"], "b_within", 1.0
     for p in sorted(set(sp) - {"all", "equal", "contra", "mid", "ipsi"}):
         yield f"spout:{p}", D[sp == p], "b_within", 1.0
@@ -87,7 +89,7 @@ def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from wfield_local import epochs
-    for kind in ("within_mean", "between_mean", "dir_mean", "mid_mean"):
+    for kind in ("within_mean", "between_mean", "betweencmd_mean", "dir_mean", "mid_mean"):
         Y, meta, flat, sh = [], [], None, None
         for lab in labels:
             f = folder / "sessions" / f"{lab}.npz"
@@ -162,7 +164,7 @@ def main(argv=None) -> int:
     T.to_csv(folder / f"mixed_model{sfx}.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)
     heads = ["mid"] + sorted(k for k in set(T.kind) if k.startswith("mid:"))          # HEADLINE: toward midline
-    for kind in [k for k in ("within", "within_equal", "between", "dir", *heads) if k in set(T.kind)]:
+    for kind in [k for k in ("within", "within_equal", "between", "between_cmd", "dir", *heads) if k in set(T.kind)]:
         for model in ("time", "behaviour"):
             print(f"\n=== {kind}-spout slope (x1e-3 dF / 10 deg executed lateral), {model} model; q = FDR over measures")
             S = T[(T.kind == kind) & (T.model == model) & T.measure.str.startswith(FOCUS)]

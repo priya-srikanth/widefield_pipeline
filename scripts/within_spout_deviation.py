@@ -13,6 +13,9 @@ encoding contest (`wfield_local/combined_encoding.py`, `nokin:*`):
                    vigour and reach are the obvious confounds of a lateral deviation)
   between slope    across the six spouts: spout-mean response ~ 1 + spout-mean lateral + spout-mean reach (EXECUTED
                    means, so both slopes are per degree of executed angle)
+  between (cmd)    the same across-spout fit on the COMMANDED spout directions (Priya 10-21): spout-mean response ~ 1 +
+                   commanded lateral + commanded distance (cam4 LP spout geometry; 3-D: the spout table) -- the x-axis
+                   the stroke cannot move (post-stroke far-contra licks drift ipsi and compress the EXECUTED axis)
   ratio            within / between lateral slope: ~0 target, ~1 executed. Measurement noise in the lick angle ATTENUATES
                    the within slope (regression dilution), so a ratio below 1 is not by itself evidence for target.
 
@@ -50,6 +53,8 @@ ENL_S = (-1.0, 0.0)                  # relative to the cue
 PRE_ARRIVAL_S = (-0.5, 0.0)          # relative to the spout arrival (strobe)
 KIND_TITLE = {"within_mean": "WITHIN-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
               "between_mean": "ACROSS-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
+              "betweencmd_mean": "ACROSS-spout slope on COMMANDED spout direction; red = more activity for spouts toward "
+                                 "the mouse's LEFT",
               "dir_mean": "DIRECTION (within spout); red = more activity for licks toward the mouse's LEFT",
               "mid_mean": "TOWARD MIDLINE (within spout, lateral spouts); red = more activity for MEDIAL licks, "
                           "blue = for more LATERAL licks"}
@@ -153,15 +158,36 @@ def slopes(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
     res = Rd - Xd @ bw
     dof = max(len(R) - len(P) - X.shape[1], 1)
     se = np.sqrt(np.outer(np.diag(np.linalg.pinv(Xd.T @ Xd)), (res ** 2).sum(0) / dof))
+    bc = np.full((3, R.shape[1]), np.nan)
     if len(P) >= 4:
         Xb = np.column_stack([np.ones(len(P)), mX[:, :2]])
         bb = np.linalg.pinv(Xb) @ mR                           # (3, d): intercept, lateral, reach
+        if "cmd_lat" in T:                                     # COMMANDED axis: the spouts' own directions
+            cm = T[keep].groupby("pos")[["cmd_lat", "cmd_dist"]].first().reindex(P).to_numpy(float)
+            if np.isfinite(cm).all():
+                bc = np.linalg.pinv(np.column_stack([np.ones(len(P)), cm])) @ mR
     else:
         bb = np.full((3, R.shape[1]), np.nan)
-    return {"b_within": bw[0], "se_within": se[0], "b_between": bb[1], "n_trials": len(R), "n_spouts": len(P),
+    return {"b_within": bw[0], "se_within": se[0], "b_between": bb[1], "b_between_cmd": bc[1],
+            "n_trials": len(R), "n_spouts": len(P),
             "lat_sd_within": float(Xd[:, 0].std()), "lat_sd_between": float(mX[:, 0].std()),
             "terc_R": np.stack([Rd[terc == j].mean(0) for j in range(3)]),
             "terc_lat": np.array([Xd[terc == j, 0].mean() for j in range(3)])}
+
+
+def commanded(B, mode: str) -> dict:
+    """{pos: (commanded lateral angle deg, + = toward the mouse's LEFT like the executed angle; distance)} -- 3-D: the
+    spout table per lick (median per position, same angle definition as the executed 3-D lateral); cam4: LP geometry."""
+    if mode and B.target_xyz is not None:
+        ml, ap, dn = (np.asarray(x, float) for x in B.target_xyz)
+        lat = -np.degrees(np.arctan2(ml, np.hypot(ap, dn)))
+        dist = np.sqrt(ml ** 2 + ap ** 2 + dn ** 2)
+        pos = np.asarray(B.lick_pos)
+        return {q: (float(np.nanmedian(lat[pos == q])), float(np.nanmedian(dist[pos == q]))) for q in np.unique(pos)
+                if np.isfinite(lat[pos == q]).any()}
+    if B.target_angle and B.target_dist:
+        return {q: (float(B.target_angle[q]), float(B.target_dist[q])) for q in B.target_angle if q in B.target_dist}
+    return {}
 
 
 def side_sign(pos) -> np.ndarray:
@@ -218,6 +244,9 @@ def session_check(label: str) -> dict:
     E = B.trials[B.trials.engaged & np.isfinite(B.trials.cue_s)].reset_index(drop=True)
     align = os.environ.get(ALIGN_ENV, "cue")
     T = trial_table(B, E, mode, align)
+    cmd = commanded(B, mode)
+    T["cmd_lat"], T["cmd_dist"] = T.pos.map(lambda q: cmd.get(q, (np.nan, np.nan))[0]), \
+        T.pos.map(lambda q: cmd.get(q, (np.nan, np.nan))[1])
     if os.environ.get(TRIALS_ENV) == "hits":                   # sensitivity: trials that touched the spout only
         T = T[T.n_contact > 0].reset_index(drop=True)
     cue = E.cue_s.to_numpy(float)[T.k.to_numpy()]
@@ -247,9 +276,12 @@ def session_check(label: str) -> dict:
         sA = slopes(Rk @ Ra, T, var)                            # area SEs need area-space residuals
         maps[f"within_{var}"] = (Ub @ sK["b_within"]).astype(np.float32)
         maps[f"between_{var}"] = (Ub @ sK["b_between"]).astype(np.float32)
+        if np.isfinite(sK["b_between_cmd"]).all():
+            maps[f"betweencmd_{var}"] = (Ub @ sK["b_between_cmd"]).astype(np.float32)
         for i, an in enumerate(anames):
             rows.append({"label": label, "variant": var, "spouts": "all", "area": an, "b_within": sA["b_within"][i],
                          "se_within": sA["se_within"][i], "b_between": sA["b_between"][i],
+                         "b_between_cmd": sA["b_between_cmd"][i],
                          "n_trials": sA["n_trials"], "n_spouts": sA["n_spouts"],
                          "lat_sd_within": sA["lat_sd_within"], "lat_sd_between": sA["lat_sd_between"],
                          "latency_med": float(T.latency.median())})
