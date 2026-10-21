@@ -21186,3 +21186,20 @@ the pooled cluster's disappearance (z -3.4 -> -2.9) is mostly threshold fragilit
 The pre-stroke per-spout activity pattern runs OPPOSITE to contact at both spout types and survives the covariate --
 not a linear contact effect either. Headline = per-spout far_ipsi chronic change, contact-controlled. Acute far-contra
 trials touch on 2-15 % (within-spout numbers there are miss-trial numbers). Memory note updated.
+
+## 2026-10-21 (late morning) -- Per-spout follow-ups: no per-spout toward-midline effect meets rule 8; miss-then-correct common
+
+Priya: "go ahead with items 1-4"; "what about far contra?". (1) 3-D (PS92 / PS93, polar folders `_contact`, `_contact_hits`)
+agrees with cam4 spout by spout in all variants -- not cam4 noise. (2) Eccentricity tuning (`S/spout_tuning_check.py`,
+CV R2 of within-spout responses beyond reach / n_licks / latency / n_contact): neither free per-spout slopes nor one
+|angle| curve predicts held-out within-spout activity (gains within about +-3 % of variance, mostly negative; PS95 pre
++7 % the exception); fitted curves unstable; cam4 angle zero is not the midline. Untestable -- the slopes are small
+in-sample coefficients that do not generalise within a session. (3) First-lick angle + 0/1 first-lick contact: far_ipsi
+pre + in 4/4, chronic down in PS94 / PS92 only (2/4); close_contra pre - in 4/4, acute flip clear in PS92 / PS95 only.
+(4) Per-animal maps (`figures/within_spout/within_spout_deviation_lick_contact/spout_mid_maps_per_animal.png`):
+far_ipsi chronic - pre blue in PS94 (full reversal) and PS92, slight PS95, RED in PS93. Far contra: no consistent pre
+pattern or change (acute = miss trials; hits-only empty in 3/4). Reading: no per-spout toward-midline effect meets rule
+8; no robust within-spout execution-like signal post-stroke. Behaviour: miss-then-correct trials (first lick misses, a
+later lick in the 1 s window touches) are common pre and post (far contra pre 25-56 %); PS94 chronic far contra 80 %
+(first-lick contact 15 % vs 71 % pre) -- its recovery is corrective, not restored first-lick aim. Neither contact
+control removes these trials.

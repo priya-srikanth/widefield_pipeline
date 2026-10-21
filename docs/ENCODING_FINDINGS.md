@@ -181,6 +181,12 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   cluster loss is mostly threshold fragility, NOT a demonstrated contact artifact. Acute far-contra trials touch on
   2-15 % only. **Reading:** no robust within-spout execution-like shift; the headline is the per-spout far_ipsi
   chronic change (contact-controlled); the pooled map is fragile because the spouts disagree in sign.
+  **Follow-ups (10-21; DECISIONS late morning):** 3-D agrees with cam4 per spout; per-animal maps and first-lick
+  angles put far_ipsi chronic at 2/4 (PS94 reversal, PS92 drop; PS93 opposite) and the close_contra acute flip at 2-3/4;
+  far contra inconsistent. Within-spout angle terms do not predict held-out activity (CV gain ~0), so an eccentricity
+  tuning curve cannot be tested. **No per-spout toward-midline effect meets rule 8; no robust within-spout
+  execution-like signal post-stroke.** Behaviour: miss-then-correct trials common (far contra pre 25-56 %); PS94
+  chronic far contra 80 % (first-lick contact 15 % vs 71 % pre) = corrective recovery.
 
 - **Coding tracks behavioural recovery and overshoots (PROVISIONAL, 10-20 night; `scripts/encoding_mixed.py`).**
   Mixed models with animal random effects, sessions as observations. Calendar time: position coding drops at day 1
