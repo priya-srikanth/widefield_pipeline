@@ -21346,3 +21346,13 @@ Read cluster contours on rest / restw as a yes / no, never by area; nested stays
 close_center 15-24 % (raw / mean refs; ~0 on rest / restw), far_R 10-19 % (mean / rest / restw; 1-2 % raw), far_L 10 %
 (raw); normalising moves these by a few points only. Cue and lick
 arms still running.
+CUE and LICK arms (16:00 / 16:30; same CSV pattern, `_cue_working` / `_lick_lick`, references raw / rest / restw /
+precue / mean): NESTED flags nothing on any pure null in either arm, any reference, raw or normalised -> no small-sample
+correction for the primary test, across all three arms. CLUSTER false positives recur with the same signature (one
+position, 14-30 % of the brain: cue far_R all-pre split rest / restw; lick far_R August split raw / rest / restw).
+DRIFT (June vs August): cue mean-ref close_R 9-21 % nested (~50 % cluster), cue rest / restw far_L and far_center
+10-15 %; lick <= 14 % -- supports the August-only baseline. REAL acute: cue far_R (far contra) 58-93 % under every
+reference, both tests, raw and normalised -- unaffected by normalising; lick far_R has too few acute licks to test.
+WHAT NORMALISING REMOVES: precue-referenced (cue-increment) near-spout changes -- cue close_L / close_R 18 % -> 0-2 %,
+lick close / far_L 19-28 % -> 0-9 % -- and far_center 5-9 % -> 0-6 % (mean / raw refs): changes carried by the brighter
+animals. Rest / restw / raw lick-window acute changes at close_L (20-35 %) survive.
