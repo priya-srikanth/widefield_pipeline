@@ -45,6 +45,9 @@ BASE_S = (-0.5, 0.0)
 ALIGN_ENV = "WITHIN_SPOUT_ALIGN"     # set by --align (the session workers read it)
 LICK_WIN_S = (0.0, 1.0)
 SIDES = ("contra", "mid", "ipsi")
+WINDOW_ENV = "WITHIN_SPOUT_WINDOW"   # "enl" = pre-cue response window (set by --window)
+ENL_S = (-1.0, 0.0)                  # relative to the cue
+PRE_ARRIVAL_S = (-0.5, 0.0)          # relative to the spout arrival (strobe)
 KIND_TITLE = {"within_mean": "WITHIN-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
               "between_mean": "ACROSS-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
               "dir_mean": "DIRECTION (within spout); red = more activity for licks toward the mouse's LEFT",
@@ -185,7 +188,14 @@ def session_check(label: str) -> dict:
     def _mean(ref, a, b):
         i0, i1 = np.searchsorted(ft, ref + a), np.searchsorted(ft, ref + b)
         return np.stack([V[x:y].mean(0) if y > x else np.full(V.shape[1], np.nan, V.dtype) for x, y in zip(i0, i1)])
-    Rk = _mean(t0, *(WIN_S if align == "cue" else LICK_WIN_S)) - _mean(cue, *BASE_S)   # (trials, K)
+    if os.environ.get(WINDOW_ENV) == "enl":
+        # PRE-CUE (ENL) response (Priya 10-20, "queue the enl analysis"): the last second before the cue relative to the
+        # 0.5 s before the spout arrived -- does the pre-cue state predict where (within the spout) the tongue will go?
+        strobe = E.strobe_s.to_numpy(float)[T.k.to_numpy()]
+        strobe = np.where(np.isfinite(strobe), strobe, cue - 3.0)
+        Rk = _mean(cue, *ENL_S) - _mean(strobe, *PRE_ARRIVAL_S)
+    else:
+        Rk = _mean(t0, *(WIN_S if align == "cue" else LICK_WIN_S)) - _mean(cue, *BASE_S)   # (trials, K)
     ok = np.isfinite(Rk).all(1)                                # windows past the end of the recording
     T, Rk = T[ok].reset_index(drop=True), Rk[ok]
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
@@ -536,6 +546,8 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--from-date", default="0806", help="first MMDD (default: the August-only baseline)")
     ap.add_argument("--figures-only", action="store_true")
+    ap.add_argument("--window", choices=("post", "enl"), default="post",
+                    help="post: the cue / lick window (--align); enl: the last 1 s before the cue vs pre-arrival")
     ap.add_argument("--align", choices=("cue", "lick"), default="cue",
                     help="cue: cue + 0-1.5 s; lick: first lick + 0-1 s (see ALIGN_ENV)")
     ap.add_argument("--epochs", default="", help="comma list to restrict sessions, e.g. pre,acute")
@@ -543,10 +555,12 @@ def main(argv=None) -> int:
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     os.environ[ALIGN_ENV] = a.align                          # inherited by the session workers
+    os.environ[WINDOW_ENV] = a.window
     mode = os.environ.get(ce.EXEC_ENV, "")
     out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / ("within_spout_deviation"
                                                                           + (f"_{mode}" if mode else "")
-                                                                          + ("_lick" if a.align == "lick" else ""))
+                                                                          + ("_lick" if a.align == "lick" else "")
+                                                                          + ("_enl" if a.window == "enl" else ""))
     writeguard.assert_writable(out.parent)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     cur = set(ak.curated_labels())               # CURATED only (Priya 10-20)

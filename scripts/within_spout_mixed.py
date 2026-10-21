@@ -64,16 +64,25 @@ def outcomes_dirmid(DM: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(rows, ignore_index=True)
 
 
+
+def _re_ok(r) -> bool:
+    """Random effects predictable (a singular RE covariance makes statsmodels raise) -> else fall back."""
+    try:
+        _ = r.random_effects
+        return True
+    except Exception:                                       # noqa: BLE001
+        return False
+
 def fit_one(G: pd.DataFrame, formula: str) -> tuple[pd.DataFrame, str, dict]:
     import statsmodels.formula.api as smf
-    for re in ("~post", "~1"):
+    for re in ("~post + post:lday", "~post", "~1"):          # random slope first (Priya 10-20)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
                 r = smf.mixedlm(formula, G, groups=G["animal"], re_formula=re).fit(reml=True)
             except Exception:                                   # noqa: BLE001 -- singular / non-converged
                 continue
-        if r.converged and np.all(np.isfinite(r.bse)):
+        if r.converged and np.all(np.isfinite(r.bse)) and _re_ok(r):
             tab = pd.DataFrame({"coef": r.fe_params, "se": r.bse[r.fe_params.index],
                                 "z": r.tvalues[r.fe_params.index], "p": r.pvalues[r.fe_params.index]})
             blup = {a: float(v.get("post", np.nan)) for a, v in r.random_effects.items()}
