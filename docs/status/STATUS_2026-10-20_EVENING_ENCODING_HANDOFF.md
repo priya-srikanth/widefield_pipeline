@@ -119,8 +119,8 @@ by design but holds no-contact licks (5-44 % of trials) and GCaMP spillover from
 **Running / pending at hand-off**
 | job | where | then |
 |---|---|---|
-| 3-D contest (47 sessions, polar + soft bins + combined licks), started 20:45, ~7 min / session / 2 workers | box, `S\queue_3d_contest.log` | `combined_encoding_figures.py --order movement_first_subset-nokin_exec-polar_licks-combined_bins`; `encoding_mixed.py` (3d: measures); `encoding_key_figures.py` (landing zones fill in) |
-| O2 `win_nokin` / `win_drop` (extra windows + lick-aligned trial-to-trial); partial results collected (71 / 59 of 119) | O2 -> Priya rsyncs | re-collect when complete: `COMBINED_ENCODING_SUFFIX=_win python scripts/o2_encoding.py collect --name enc_v36_20261019 --tag win_nokin` (and win_drop); readouts `--order movement_first_subset-nokin_win` (tr_contest firstlick), `encoding_mixed.py` (firstlick / cue2lick / cuestop) |
+| 3-D contest (47 sessions, polar + soft bins + combined licks), started 20:45; 13 / 47 at 22:19 (~8 min / session wall) -> ~03:00 | box, `S\queue_3d_contest.log` | `combined_encoding_figures.py --order movement_first_subset-nokin_exec-polar_licks-combined_bins`; `encoding_mixed.py` (3d: measures); `encoding_key_figures.py` (landing zones fill in) |
+| O2 `win_nokin` / `win_drop` (extra windows + lick-aligned trial-to-trial); partial results collected (71 / 59 of 119); 100 / 90 back on the share at 22:19 | O2 -> Priya rsyncs | re-collect when complete: `COMBINED_ENCODING_SUFFIX=_win python scripts/o2_encoding.py collect --name enc_v36_20261019 --tag win_nokin` (and win_drop); readouts `--order movement_first_subset-nokin_win` (tr_contest firstlick), `encoding_mixed.py` (firstlick / cue2lick / cuestop) |
 | lick-template test, first pass (42 sessions, 20261020 tables) | box, `S\lick_templates_full.log` | rerun `--tag 20261021` on all 47 with the 20261021 tables (env in §6) |
 | queued enl within-spout check (starts after the template test) | box, `S\within_spout_enl.log` | read `qc/within_spout_deviation_lick_enl/` |
 | 3-D within-spout --redo with harmonised sign | box, `S\within_spout_3d.log` | `qc/within_spout_deviation_polar_lick/` + `within_spout_mixed.py --folder within_spout_deviation_polar_lick` |
@@ -134,6 +134,9 @@ by design but holds no-contact licks (5-44 % of trials) and GCaMP spillover from
 3. CD trajectories -> per-session window means -> `mixed_models`.
 4. Pixel-map version of the behaviour-indexed model (descriptive OLS + beta_maps tests on the coefficient).
 5. Per-animal within-spout curves; eccentricity summary figure; template-test summary figure.
+
+**Mixed-model rerun under the stricter rule (22:15)**: headline estimates hold (lick distance vs deficit z -5.2 /
++4.5 unchanged; ceiling / unique target z -4.9 / +5.3 and -4.8 / +2.4); random slopes kept in 777 / 2268 fits.
 
 **Pitfalls (new)**: heredoc `
 ` mangling again (use Edit); `encoding_mixed` / `within_spout_mixed` results changed
