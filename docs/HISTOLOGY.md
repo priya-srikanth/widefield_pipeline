@@ -45,16 +45,20 @@ make a silent drop impossible:
 * **Colours** come from `configs/animals.yaml` (the paper's notebook used matplotlib's cycle). The
   jitter is seeded, so a re-render does not move the points.
 
-## Results (2026-10-21)
+## Results (2026-10-21, after exclusions)
 
 | animal | sections | mean % | SEM | range |
 |---|---|---|---|---|
 | PS92 | 7 | 46.7 | 1.4 | 41.9-51.1 |
-| PS93 | 6 | 49.0 | 5.0 | 37.7-69.1 |
+| PS93 | 5 | 45.0 | 3.7 | 37.7-56.6 |
 | PS94 | 5 | 67.7 | 1.1 | 64.9-70.3 |
 | PS95 | 6 | 81.9 | 0.4 | 79.9-82.9 |
 
-PS93 section 2 (69.1%) sits well above that animal's other five, and is the reason for its large SEM.
+**Excluded:** PS93 section 2 (`PS93_DAPI_GFAP_NeuN_01.vsi` #2, 69.1%). Priya: it is the most posterior section and
+lies outside the central stroke (only the lesion edge), so it inflates the % area. Confirmed from her QuPath
+screenshot. Exclusions live in `configs/histology_section_exclusions.csv` (animal, image, slide_section, reason).
+They are dropped from the plot and statistics but kept in the output CSV with `included=False`. With it, PS93 was
+49.0 +/- 5.0 (n=6).
 
 ## Running it
 

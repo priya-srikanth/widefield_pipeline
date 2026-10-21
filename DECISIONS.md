@@ -21486,3 +21486,6 @@ Full write-up: `docs/HISTOLOGY.md`. Decided:
 - OUTPUT: `<microscope>/Widefield/histology/` and a copy of PNG/SVG/CSV in the QuPath project folder (Priya).
 RESULT: PS92 46.7 +/- 1.4 (n=7), PS93 49.0 +/- 5.0 (n=6; one section at 69.1), PS94 67.7 +/- 1.1 (n=5),
 PS95 81.9 +/- 0.4 (n=6).
+- EXCLUSION (same night, Priya): PS93's most posterior section (`PS93_DAPI_GFAP_NeuN_01.vsi` #2, 69.1%) is outside the
+  central stroke and inflates % area -> excluded via `configs/histology_section_exclusions.csv` (kept in the output CSV,
+  included=False). PS93 now 45.0 +/- 3.7 (n=5).
