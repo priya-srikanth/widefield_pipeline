@@ -37,7 +37,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GroupKFold, cross_val_predict
 
-from wfield_local import config, nolick_analysis as na, session_cache
+from wfield_local import config, lp_licks, nolick_analysis as na, session_cache
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
@@ -188,7 +188,16 @@ def categorize(s, args, with_licks=False):
     """
     cue = _load_cue_events(s["h5"])
     lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    # LP_licks: the SAME replacement `_trial_features` makes (one definition, `lp_licks.session_lp`), so categories and
+    # features agree trial for trial. engaged = first LP attempt lick within max_rt; late_rewarded = the first LP lick
+    # after max_rt but inside the response window; trials without an LP verdict are out of coverage.
+    lp = None
+    if lp_licks.is_lp():
+        lp = lp_licks.session_lp(s["label"], cue["cue_samples"], lk["sample_rate_hz"], args.max_rt)
+        lk = dict(lk, lick_samples=lp["lick_samples"])
     cue_f, lick_f, _csmp = _frames(s, cue, lk)
+    if lp is not None:
+        cue_f = np.where(lp["drop"], -1, cue_f)
     codes = classify_cues_with_backup(s, cue)
 
     # BLOCK ID -- the AUDITED rule, shared with `locanmf_position_decoder._trial_features`.

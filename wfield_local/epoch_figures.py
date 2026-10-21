@@ -53,6 +53,8 @@ def _save_png_svg(fig, q, *, dpi=200):
     The SVG warns rather than raises, so a figure that cannot vectorise still yields its PNG."""
     import pathlib
     q = pathlib.Path(q)
+    from wfield_local import lp_licks
+    lp_licks.stamp(fig)                         # LP_licks renders say so on the figure itself
     fig.savefig(q, dpi=dpi)
     try:
         fig.savefig(svg_path(q))

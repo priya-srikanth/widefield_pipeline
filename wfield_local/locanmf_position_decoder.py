@@ -39,6 +39,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix, accuracy_score
 
 from wfield_local import config
+from wfield_local import lp_licks
 from wfield_local import nolick_analysis as na
 from wfield_local import session_cache
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
@@ -331,6 +332,8 @@ def feature_cache_kind(args, *, signal_key, nolick_ref, with_precue_licks, with_
     # this is a new key, not a moved one.
     if with_rt:
         spec["with_rt"] = True
+    # LP_licks: the lick source is NOT in this spec -- `session_cache.cached` tags EVERY kind under the LP source, so
+    # this digest (and every warm DAQ entry) is unchanged.
     digest = hashlib.sha1(repr(sorted(spec.items())).encode()).hexdigest()[:12]
     return f"tf-{spec['align']}-{digest}"
 
@@ -443,7 +446,17 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
         feat_reg = np.arange(sig.shape[0]) if feat_region is None else np.asarray(feat_region)
     nfeat, T = sig.shape
     cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): the DAQ contact train is replaced by the video lick train, edited
+    # so the first lick after each cue is the LP post-cue gate; trials without an LP verdict are marked out of coverage.
+    lp = None
+    if lp_licks.is_lp():
+        lp = lp_licks.session_lp(s["label"], cue["cue_samples"], lk["sample_rate_hz"], args.max_rt)
+        lk = dict(lk, lick_samples=lp["lick_samples"])
     cue_f, lick_f, csmp = _frames(s, cue, lk)
+    if lp is not None:
+        cue_f = np.where(lp["drop"], -1, cue_f)
+        print(f"  [LP licks] {s['label']}: {lp['n_matched']}/{lp['n_cues']} cues with an LP verdict, "
+              f"{lp['n_attempted']} attempted within max_rt", flush=True)
     codes = classify_cues_with_backup(s, cue)
     # BLOCK ID. A new block starts when the position changes OR when the run reaches this session's
     # scheduler block_size_max -- a longer run cannot be one block. The old rule keyed on position

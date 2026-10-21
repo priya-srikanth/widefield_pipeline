@@ -563,6 +563,8 @@ def _save(fig, path, **kw):
     # one place the fix cannot be undone by call order.
     _fit_header(fig)
     _fit_bottom(fig)
+    from wfield_local import lp_licks
+    lp_licks.stamp(fig)                         # LP_licks renders say so on the figure itself
     try:
         bad = _overlaps(fig)
     except Exception as ex:                                          # noqa: BLE001

@@ -13,20 +13,13 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import h5py
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import ndimage
 
 from wfield_local import config, daq_io
-
-try:
-    from .lick_detection import detect_licks
-except ImportError:  # Allow direct script execution.
-    from lick_detection import detect_licks
 
 
 POSITION_NAMES = {
@@ -65,10 +58,23 @@ def _load_daq_events(
     strobe = daq_io.rising_edges(bits[:, idx["spout_strobe"]])
     pco = daq_io.rising_edges(bits[:, idx["pco_exposure"]])
     codes_at_strobe = daq_io.strobe_codes(bits, names, strobe)
+    lp_drop = None
+    if lick_channel == "lick_analog":
+        # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): THE shared DAQ lick loader, so every imaging consumer --
+        # including the ~25 that call this directly rather than through `_trial_features` -- gets the video lick
+        # train under the LP source, never a silent DAQ one. `lp_licks.session_lp` is the one definition.
+        from wfield_local import lp_licks
+        if lp_licks.is_lp():
+            from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
+            lp = lp_licks.session_lp(lp_licks.label_for_h5(h5_path), _load_cue(Path(h5_path))["cue_samples"], sr,
+                                     float(config.defaults()["decode"]["max_rt_s"]))
+            lick_samples, lp_drop = lp["lick_samples"], lp["drop"]
     return {
         "sample_rate_hz": sr,
         "created_at": created_at,
         "lick_samples": lick_samples,
+        "lick_source": "lp" if lp_drop is not None else "daq",
+        "lp_drop": lp_drop,
         "strobe_samples": strobe,
         "strobe_codes": codes_at_strobe,
         "pco_samples": pco,

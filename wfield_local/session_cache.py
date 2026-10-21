@@ -179,6 +179,13 @@ def cached(session, kind, compute, params=None, verbose=True):
     `compute` is a zero-arg callable producing a picklable result."""
     if _disabled():
         return compute()
+    # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): EVERY kind is tagged, here, once -- features, categories, CD arms,
+    # RSA, cross-mouse -- so an LP result can never be served for a DAQ one or evict it (the prune below is by kind).
+    # The tag carries the attempts table's identity, so a rewrite of trial_attempts.csv starts fresh LP entries.
+    # Results that do not depend on licks are recomputed once under the tag; that costs time, never correctness.
+    from wfield_local import lp_licks
+    if lp_licks.is_lp():
+        kind = f"{kind}-{lp_licks.cache_tag()}"
     lab = session["label"]
     sig = session_signature(session, params)
     fp = CACHE_DIR / f"{lab}__{kind}__{sig}.pkl"
