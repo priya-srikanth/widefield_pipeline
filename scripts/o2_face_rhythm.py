@@ -486,6 +486,9 @@ for _nm, _rel in (("midlk12", 0.005), ("midlk12lr", 0.0025)):
     _t["params_optical_flow"]["kwargs_method"] = dict(PARAM_SETS["oldrun"]["params_optical_flow"]["kwargs_method"])
     _t["params_optical_flow"]["relaxation"] = _rel
     PARAM_SETS[_nm] = _t
+_t = json.loads(json.dumps(PARAM_SETS["midlk12"]))                  # up to 3 LK iterations, stop at < 0.03 px
+_t["params_optical_flow"]["kwargs_method"]["criteria"] = [3, 3, 0.03]
+PARAM_SETS["midlk12i3"] = _t
 
 PARAM_TEST = r'''"""O2: one tracking-parameter set on a frame range of one task's video (o2_face_rhythm.py paramtest).
 
