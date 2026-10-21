@@ -17,7 +17,8 @@ factor:
              -> `post` = change still present at FULL behavioural recovery, `post:deficit` = change per unit deficit
              (recovery TIMING differs per animal; indexing by behaviour aligns it -- Priya 10-20)
   epoch      y ~ C(epoch)                pre reference; for comparison with the epoch tables
-RANDOM EFFECTS, tried in order, first that converges with finite fixed-effect SEs and predictable random effects wins
+RANDOM EFFECTS, tried in order, first that converges with ALL standard errors finite (variance components too) and
+predictable random effects wins
 (reported in `re`): intercept + step + slope (Priya 10-20: "are we using random intercept and random slope per
 animal"), intercept + step, intercept; LAST RESORT fixed sum-coded animal intercepts (OLS; `re` = "fixed") when even
 the random intercept is singular (animals with near-identical baselines). With 4 animals the random-slope variance is
@@ -88,11 +89,14 @@ def _re_ok(r) -> bool:
         return False
 
 
-def fit_lmm(G: pd.DataFrame, formula: str, slope: str | None = None, fallback: bool = True):
+def fit_lmm(G: pd.DataFrame, formula: str, slope: str | None = None, fallback: bool = True,
+            ladder: tuple | None = None):
     """One group: `y ~ <rhs>` with the random-effects ladder (see module docstring). Returns (result, re) or
-    (None, "failed") when nothing converges and `fallback` is False. `slope` = the term given a random slope."""
+    (None, "failed") when nothing converges and `fallback` is False. `slope` = the term given a random slope;
+    `ladder` overrides the structures tried (e.g. ("~lday", "~1") for post-stroke-only tables, where `post` is
+    constant)."""
     import statsmodels.formula.api as smf
-    ladder = ([f"~post + {slope}"] if slope else []) + ["~post", "~1"]
+    ladder = ladder or (([f"~post + {slope}"] if slope else []) + ["~post", "~1"])
     for re in ladder:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -100,7 +104,10 @@ def fit_lmm(G: pd.DataFrame, formula: str, slope: str | None = None, fallback: b
                 r = smf.mixedlm(formula, G, groups=G["animal"], re_formula=re).fit(reml=True)
             except Exception:                                   # noqa: BLE001 -- singular / non-converged
                 continue
-        if r.converged and np.all(np.isfinite(r.bse[r.fe_params.index])) and _re_ok(r):
+        # ALL standard errors finite, variance components included: a NaN SE on a variance parameter = the random
+        # slope / step collapsed onto the boundary -> the simpler structure is the right one (10-20; the two scripts had
+        # diverged on this -- encoding checked fixed effects only)
+        if r.converged and np.all(np.isfinite(r.bse)) and _re_ok(r):
             return r, re
     if not fallback:
         return None, "failed"

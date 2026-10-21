@@ -124,6 +124,10 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   cue unique target z -8.0 / +8.7). Mixed models are now the primary readout; epochs (chronic starts day 11-25 by
   animal) descriptive. Cue-window effects partly = delayed licking -> `firstlick` window pending (O2).
 
+- **Decoders recover with behaviour, the code stays reorganised (PROVISIONAL, 10-20 late; `scripts/imaging_lmm.py`).**
+  Frozen-decoder deficit ~0 at full behavioural recovery while refit-over-frozen reorganisation stays positive (z 3.7).
+  All session-level time courses now via `wfield_local/mixed_models.py` (one definition).
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92_0908 rerun done 10-20: PS92 chronic unchanged)

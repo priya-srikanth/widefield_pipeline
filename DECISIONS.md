@@ -21018,3 +21018,32 @@ detectors will show them; the orofacial cohort already counts pre-cue licks: coh
 n_precue_licks / precue_rate_hz / precue_trial_frac); (2) GCaMP6s spillover -- contacts end right at the window start,
 so lick-evoked spout-specific activity can leak into its early part. "Every pre-cue result provisional" is withdrawn;
 the narrower caveat stands until no-contact licks and a spillover check (e.g. ENL split 0-1 s vs 1-2 s) are in.
+
+## 2026-10-20 (late night) — one shared session-level LMM module; where it applies across the imaging analyses
+
+**Why** (Priya: "should we be using the lmm approach for the imaging analyses too (as opposed to epochs)" -> "take a
+close look at the current imaging analyses - decide where lmm approach would make sense and prepare code ... avoiding
+redundancy"). Survey (subagent, file:line in the handoff): no mixed-model code existed outside my two scripts, which
+had DIVERGED (convergence check, fallback, BLUP columns, FDR grouping, minimum-n guard) and neither printed the rule-8
+per-animal table. **Decision:** `wfield_local/mixed_models.py` is the single definition (time / behaviour / epoch models;
+random intercept + step + slope ladder; fixed sum-coded intercepts as the last resort; ALL SEs finite incl. variance
+components -- boundary random effects fall back to the simpler structure; FDR = `orofacial_stats.bh_fdr`; August-pre;
+None epochs dropped BEFORE `post` is set; rule-8 table printed first) + `tests/test_mixed_models.py` (8); statsmodels
+declared in pyproject / requirements. `encoding_mixed.py` and `within_spout_mixed.py` run on it (encoding estimates
+identical under the old check; the shared stricter check changes ~1/3 of within-spout random-effect choices).
+**Where it applies** (`scripts/imaging_lmm.py`): tables that already carry one value per session -- trend ceiling /
+spread; frozen / refit decoder recovery trajectory (post-only rows -> y ~ lday and y ~ deficit); orofacial session
+metrics (time / epoch only; the deficit is itself behaviour). **Not yet:** epoch scalar families 8g / 10 / 10b / 11 /
+11c (their `_sessions.csv` has no label / day and PRE is one leave-one-out value per animal -> collectors must emit
+per-session pre values first); CD trajectories (per-session window means from `session_traces`). **Pixel maps** keep
+the beta_maps tests (per-pixel fixed-intercept OLS only as a descriptive companion).
+**First results:** the frozen decoder's deficit recovers with log-days (z -3.9 / -4.7) and tracks the behavioural
+deficit (z 4.2 / 4.9), ~0 at full behavioural recovery (0.05, n.s.); refit-over-frozen reorganisation STAYS positive at
+full recovery (+0.10, z 3.7 / 3.1) -> reorganised code with normalised behaviour. Position ceiling (trend table) falls
+with the deficit (z -4.9) and sits above pre at full recovery (+0.040, z 5.3).
+**Also tonight:** whole-session licks from the other window (`licks_all.csv`, cam1 `_events_all.csv`; clocks match ours
+to 2 ms): the 2 s pre-cue window holds NO-CONTACT licks on 5-44 % of trials (PS95 .. PS93, pre-stroke; contact fraction
+.06-.35); `COMBINED_ENCODING_LICKS_ALL=shared|split` adds pre-cue / ITI licks to the lick kernels (split = own
+pre-cue and ITI kernels, the spontaneous-vs-cued contrast) -- refits pending. 3-D within-spout lateral sign harmonised
+with cam4 (pose3d side_ml + = right); 3-D confirms the crossed executed component (SSp-m within / between pre .18 / .21
+PS92 / PS93, t = 4.4 over 15 pre sessions).

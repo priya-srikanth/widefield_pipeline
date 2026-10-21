@@ -96,6 +96,51 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 - Pitfall: a singular random-effect covariance makes statsmodels raise on `random_effects` -> treated as non-converged
   (fallback). Fit time ~10-13 min per session per folder (main set), subsets faster.
 
+
+## 3c. LATE-NIGHT STATE (10-20 ~22:15) -- read this first; details in DECISIONS 2026-10-20 (night / late night)
+
+**New shared code**
+- `wfield_local/mixed_models.py` = the ONE session-level LMM (time `post + post:lday`, behaviour `post + post:deficit`,
+  epoch `C(epoch)`; random intercept + step + slope ladder; fixed-intercept fallback; ALL SEs finite; bh_fdr; rule-8 table
+  first; August pre; None epochs dropped). Tests `tests/test_mixed_models.py`. Callers: `scripts/encoding_mixed.py`,
+  `scripts/within_spout_mixed.py`, `scripts/imaging_lmm.py` (trend / decoder trajectory / orofacial session metrics).
+  Mixed models are the PRIMARY readout; epochs descriptive (chronic starts day 11 / 15 / 25 by animal).
+- `scripts/encoding_key_figures.py`: precue_licking, lick_deficits, landing_zones (canonical POS_ORDER).
+- `scripts/encoding_mixed.py` figures: `qc/figures/encoding_mixed_{behaviour,time}_<area>.png`.
+- combined_encoding: extra scoring windows (`cue2lick`, `cuestop`, `firstlick`), lick-aligned trial-to-trial SSE
+  (`sse_trial_lick`), `COMBINED_ENCODING_LICKS_ALL=shared|split` (whole-session licks; folder `_licksall-<mode>`).
+
+**Key results tonight** -- coding tracks behavioural recovery and overshoots pre (lick distance z -5.2 / +4.5); frozen
+decoder recovers with behaviour, reorganisation persists; chronic bilateral anterolateral-frontal ECCENTRICITY change
+(only post-stroke map change surviving the animal-level test); 3-D confirms the crossed executed component (~0.2 of the
+across-spout slope); acute deficits: PS92 / PS93 slow start vs PS94 / PS95 prompt-but-miss; pre-cue window contact-free
+by design but holds no-contact licks (5-44 % of trials) and GCaMP spillover from contacts just before it.
+
+**Running / pending at hand-off**
+| job | where | then |
+|---|---|---|
+| 3-D contest (47 sessions, polar + soft bins + combined licks), started 20:45, ~7 min / session / 2 workers | box, `S\queue_3d_contest.log` | `combined_encoding_figures.py --order movement_first_subset-nokin_exec-polar_licks-combined_bins`; `encoding_mixed.py` (3d: measures); `encoding_key_figures.py` (landing zones fill in) |
+| O2 `win_nokin` / `win_drop` (extra windows + lick-aligned trial-to-trial); partial results collected (71 / 59 of 119) | O2 -> Priya rsyncs | re-collect when complete: `COMBINED_ENCODING_SUFFIX=_win python scripts/o2_encoding.py collect --name enc_v36_20261019 --tag win_nokin` (and win_drop); readouts `--order movement_first_subset-nokin_win` (tr_contest firstlick), `encoding_mixed.py` (firstlick / cue2lick / cuestop) |
+| lick-template test, first pass (42 sessions, 20261020 tables) | box, `S\lick_templates_full.log` | rerun `--tag 20261021` on all 47 with the 20261021 tables (env in §6) |
+| queued enl within-spout check (starts after the template test) | box, `S\within_spout_enl.log` | read `qc/within_spout_deviation_lick_enl/` |
+| 3-D within-spout --redo with harmonised sign | box, `S\within_spout_3d.log` | `qc/within_spout_deviation_polar_lick/` + `within_spout_mixed.py --folder within_spout_deviation_polar_lick` |
+
+**To do (priority)**
+1. Whole-session-lick refits: `COMBINED_ENCODING_LICKS_ALL=shared` and `=split` with `ONLY=drop:` (pre-cue position with
+   pre-cue licks modelled) and `ONLY=nokin:` -- O2 needs a re-bundle WITH the env set (inputs carry the context licks).
+   Then spontaneous-vs-cued = split vs shared; early vs late ENL split for the spillover check.
+2. Epoch scalar families -> LMM: collectors must emit per-session pre (leave-one-out) values with label / day
+   (grant_encoder._enc_tables, grant_geometry._rdm_rows, _matrices_pattern) -- other windows' code; coordinate.
+3. CD trajectories -> per-session window means -> `mixed_models`.
+4. Pixel-map version of the behaviour-indexed model (descriptive OLS + beta_maps tests on the coefficient).
+5. Per-animal within-spout curves; eccentricity summary figure; template-test summary figure.
+
+**Pitfalls (new)**: heredoc `
+` mangling again (use Edit); `encoding_mixed` / `within_spout_mixed` results changed
+slightly when moved onto the shared stricter convergence rule (documented); pose3d `side_ml` + = mouse's RIGHT (flip to
+match cam4 + = left); `licks_all.csv` timing is on the cue clock, `daq_on_s` absolute (matches ours to 2 ms); the chronic
+epoch starts on different days per animal -- never compare epoch means across animals as if they were the same time.
+
 ## 4. To-do (priority)
 
 1. DONE 10-20 20:58 (PS92 chronic per-spout unchanged; PS92_0908 lick-window fits improved, unique executed 0.007 -> 0.026). Was: re-render (`combined_encoding_figures.py --order` each folder; §6) and refresh the per-spout

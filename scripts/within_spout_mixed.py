@@ -4,13 +4,10 @@ stroke to be a variable"). Reads the per-session table of `scripts/within_spout_
 Per outcome (area slope, crossed = left - right, bilateral = (left + right) / 2; within- and between-spout; dF per 10 deg
 executed lateral, x1e3), sessions as observations:
 
-  time model    y ~ post + post:lday,  random intercept + random `post` per animal
-                post = 1 after the stroke; lday = log(days since stroke) (0 at day 1) -> `post` = the day-1 step vs pre,
-                `post:lday` = change per e-fold of days (fast early, slow late recovery)
-  epoch model   y ~ C(epoch) (pre reference), random intercept + random post per animal -- comparable to the epoch tables
-
-statsmodels MixedLM (REML); with 4 animals the random `post` variance is poorly determined -- if it does not converge
-the fit falls back to a random intercept only (column `re`). Unweighted (per-session SEs not used). Pixel maps: the same
+  models (wfield_local/mixed_models.py -- the shared definition): `time` y ~ post + post:lday, `behaviour`
+  y ~ post + post:deficit (far-contra contact deficit), `epoch` y ~ C(epoch); random intercept + step + slope per animal
+  with the module's fallback ladder (incl. fixed animal intercepts); FDR within model x term x kind; per-animal epoch
+  means printed first (rule 8). Unweighted (per-session SEs not used). Pixel maps: the same
 time model with FIXED animal intercepts (OLS per pixel; with 4 animals fixed and random intercepts nearly coincide),
 coefficient maps with |t| > 3 outlined -- descriptive (pixels are correlated; the area table is the test).
 
@@ -19,7 +16,6 @@ Usage: PYTHONPATH=. python scripts/within_spout_mixed.py [--folder within_spout_
 from __future__ import annotations
 
 import argparse
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -32,7 +28,6 @@ FOCUS = ("SSp-m", "MOs", "MOp", "cortex")
 
 def outcomes(D: pd.DataFrame) -> pd.DataFrame:
     """Long table: label, animal, epoch, day, kind (within / between), measure (e.g. 'SSp-m crossed'), y."""
-    from wfield_local import epochs
     D = D[(D.variant == "mean") & ((D.spouts == "all") if "spouts" in D else True)]
     rows = []
     for kind in ("within", "between"):
@@ -44,13 +39,8 @@ def outcomes(D: pd.DataFrame) -> pd.DataFrame:
                 out[f"{a} bilateral"] = (W[f"{a}_left"] + W[f"{a}_right"]) / 2
         for m, s in out.items():
             rows.append(pd.DataFrame({"label": s.index, "kind": kind, "measure": m, "y": s.to_numpy()}))
-    L = pd.concat(rows, ignore_index=True)
-    L["animal"] = L.label.str[:4]
-    L["epoch"] = L.label.map(epochs.epoch_of)
-    L["day"] = L.label.map(epochs.days_since_stroke)
-    L["post"] = (L.day > 0).astype(float)
-    L["lday"] = np.where(L.day > 0, np.log(L.day.clip(lower=1)), 0.0)
-    return L.dropna(subset=["y"])
+    from wfield_local import mixed_models as mm
+    return mm.add_time_covariates(pd.concat(rows, ignore_index=True).dropna(subset=["y"]))
 
 
 def outcomes_dirmid(DM: pd.DataFrame) -> pd.DataFrame:
@@ -65,56 +55,12 @@ def outcomes_dirmid(DM: pd.DataFrame) -> pd.DataFrame:
 
 
 
-def _re_ok(r) -> bool:
-    """Random effects predictable (a singular RE covariance makes statsmodels raise) -> else fall back."""
-    try:
-        _ = r.random_effects
-        return True
-    except Exception:                                       # noqa: BLE001
-        return False
-
-def fit_one(G: pd.DataFrame, formula: str) -> tuple[pd.DataFrame, str, dict]:
-    import statsmodels.formula.api as smf
-    for re in ("~post + post:lday", "~post", "~1"):          # random slope first (Priya 10-20)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            try:
-                r = smf.mixedlm(formula, G, groups=G["animal"], re_formula=re).fit(reml=True)
-            except Exception:                                   # noqa: BLE001 -- singular / non-converged
-                continue
-        if r.converged and np.all(np.isfinite(r.bse)) and _re_ok(r):
-            tab = pd.DataFrame({"coef": r.fe_params, "se": r.bse[r.fe_params.index],
-                                "z": r.tvalues[r.fe_params.index], "p": r.pvalues[r.fe_params.index]})
-            blup = {a: float(v.get("post", np.nan)) for a, v in r.random_effects.items()}
-            return tab, re, blup
-    return pd.DataFrame(), "failed", {}
-
-
-def area_table(L: pd.DataFrame) -> pd.DataFrame:
-    from statsmodels.stats.multitest import fdrcorrection
-    rows = []
-    for (kind, meas), G in L.groupby(["kind", "measure"]):
-        G = G.copy()
-        G["epoch"] = pd.Categorical(G.epoch, ["pre", "acute", "subacute", "chronic"])
-        for model, f in (("time", "y ~ post + post:lday"), ("epoch", "y ~ C(epoch)")):
-            tab, re, blup = fit_one(G, f)
-            for term, r in tab.iterrows():
-                if term == "Intercept":
-                    continue
-                rows.append({"kind": kind, "measure": meas, "model": model, "term": term, "re": re,
-                             "n_sessions": len(G), **r.to_dict(),
-                             **{f"post_dev_{a}": blup.get(a, np.nan) for a in sorted(G.animal.unique())}})
-            if model == "time":                                 # the pre-stroke level itself (intercept vs 0)
-                if "Intercept" in tab.index:
-                    rows.append({"kind": kind, "measure": meas, "model": model, "term": "pre_level", "re": re,
-                                 "n_sessions": len(G), **tab.loc["Intercept"].to_dict()})
-    T = pd.DataFrame(rows)
-    T["q"] = np.nan
-    for _, idx in T.groupby(["kind", "model", "term"]).groups.items():
-        ok = T.loc[idx, "p"].notna()
-        if ok.any():
-            T.loc[np.asarray(idx)[ok.to_numpy()], "q"] = fdrcorrection(T.loc[idx, "p"][ok])[1]
-    return T
+def area_table(L: pd.DataFrame, behaviour_csv: Path) -> pd.DataFrame:
+    """Time / behaviour / epoch models per kind x measure (wfield_local/mixed_models.py)."""
+    from wfield_local import mixed_models as mm
+    L = mm.add_deficit(L, mm.behaviour_deficit(behaviour_csv))
+    return mm.lmm_table(L, ["kind", "measure"], ("time", "behaviour", "epoch"), fdr_by=("kind",),
+                        print_animals=False)              # the rule-8 table is printed by main (focus measures)
 
 
 def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
@@ -190,20 +136,23 @@ def main(argv=None) -> int:
     L = outcomes(D)
     if (folder / "dirmid.csv").exists():                     # direction / toward-midline coefficients
         L = pd.concat([L, outcomes_dirmid(pd.read_csv(folder / "dirmid.csv"))], ignore_index=True)
-    T = area_table(L)
+    from wfield_local import mixed_models as mm
+    print(mm.animal_epoch_table(L[L.measure.str.startswith(FOCUS)], ["kind", "measure"]).round(3).to_string())  # rule 8
+    T = area_table(L, folder.parent / "position_coding_trend_recovery_sessions.csv")
     T.to_csv(folder / "mixed_model.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)
     for kind in [k for k in ("within", "between", "dir", "mid") if k in set(T.kind)]:
-        print(f"\n=== {kind}-spout slope (x1e-3 dF / 10 deg executed lateral), time model; q = FDR over measures")
-        S = T[(T.kind == kind) & (T.model == "time") & T.measure.str.startswith(FOCUS)]
-        print(S.pivot_table(index="measure", columns="term", values=["coef", "z", "q"]).round(3).to_string())
-        print("  random-effect structure:", S.groupby("measure").re.first().value_counts().to_dict())
+        for model in ("time", "behaviour"):
+            print(f"\n=== {kind}-spout slope (x1e-3 dF / 10 deg executed lateral), {model} model; q = FDR over measures")
+            S = T[(T.kind == kind) & (T.model == model) & T.measure.str.startswith(FOCUS)]
+            print(S.pivot_table(index="measure", columns="term", values=["coef", "z", "q"]).round(3).to_string())
+            print("  random-effect structure:", S.groupby("measure").re.first().value_counts().to_dict())
         print(f"--- {kind}, epoch model (vs pre)")
         S = T[(T.kind == kind) & (T.model == "epoch") & T.measure.str.startswith(FOCUS)]
         print(S.pivot_table(index="measure", columns="term", values=["coef", "z"]).round(3).to_string())
     print("\n  per-animal deviation of the post step (BLUP), time model, within:")
     S = T[(T.kind == "within") & (T.model == "time") & (T.term == "post") & T.measure.str.startswith(FOCUS)]
-    print(S.set_index("measure")[[c for c in S.columns if c.startswith("post_dev_")]].round(3).to_string())
+    print(S.set_index("measure")[[c for c in S.columns if c.startswith("step_dev_")]].round(3).to_string())
     (folder / "figures").mkdir(exist_ok=True)
     pixel_maps(folder, sorted(D.label.unique()), folder / "figures")
     print(f"\n-> {folder / 'mixed_model.csv'}, figures/mixed_time_maps_*.png")
