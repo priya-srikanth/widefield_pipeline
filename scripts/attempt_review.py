@@ -32,6 +32,7 @@ import pandas as pd
 from wfield_local import pose_windows
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
+KEYFRAME_EVERY = 12                                         # cam4 FMP4 encoder GOP (10-21)
 CLIP_FROM, TRACE_FROM, AFTER_STOP = -300.0, -500.0, 200.0     # windows run to the trial's stop + AFTER_STOP
 STEP = 8
 TILE = 210
@@ -230,19 +231,25 @@ def build(rv, P: pd.DataFrame, rng):
                 if not ok:
                     break
                 g = im[..., 0]
-                pads[f] = [g[y0:y1, x0:x1].copy() for (x0, y0, x1, y1) in pad_rois]
+                pads[f] = [g[y0:y1, x0:x1].copy() for (x0, y0, x1, y1) in pad_rois] + [g[0:60, 0:60].copy()]
                 if f in want:
                     full4[f] = im
-            pad_me = np.full((int(tr.sum()), 2), np.nan)
+            me3 = np.full((int(tr.sum()), 3), np.nan)
             for j, f in enumerate(sf[tr]):
                 if f in pads and f - 1 in pads:
-                    pad_me[j] = [np.abs(a.astype(np.int16) - b.astype(np.int16)).mean()
-                                 for a, b in zip(pads[f], pads[f - 1])]
+                    me3[j] = [np.abs(a.astype(np.int16) - b.astype(np.int16)).mean()
+                              for a, b in zip(pads[f], pads[f - 1])]
             del pads
-            # one-frame spikes every ~15 frames on BOTH pads (the encoder's keyframe cycle, 10-21) -> 5-frame running
-            # median; a real whisk lasts many frames and survives it
-            from scipy.ndimage import median_filter
-            pad_me = median_filter(pad_me, size=(5, 1), mode="nearest")
+            # ENCODER KEYFRAMES (10-21): the video's frame index % 12 == 0 carries ~+33 % motion energy (measured: phase
+            # profile flat on the other 11; 20.8 Hz power 31-82x the median). Those exact frames are replaced by
+            # interpolation from their neighbours: 20.8 Hz power down 4-8x (PS94 / PS93 0810 / 0922), 62.5 Hz removed.
+            bad = (sf[tr] % KEYFRAME_EVERY) == 0
+            pad_me = me3[:, :2].copy()
+            idx = np.arange(len(pad_me))
+            for k in range(2):
+                ok = ~bad & np.isfinite(pad_me[:, k])
+                if ok.sum() > 1:
+                    pad_me[bad, k] = np.interp(idx[bad], idx[ok], pad_me[ok, k])
             png = _trace_png(t4[tr], {k: v[k4[tr]] for k, v in P4.items()},
                              None if t1 is None else t1[(t1 >= TRACE_FROM) & (t1 <= end)],
                              None if j1 is None else j1[(t1 >= TRACE_FROM) & (t1 <= end)], end, stop,

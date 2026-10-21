@@ -20,6 +20,17 @@ position, cam4_moved / cam1_moved (1 / 0 / NaN = cannot judge), cam4_onset_ms / 
 onset 0 -- not an after-cue movement), cam4_reonset_ms / cam1_reonset_ms / jaw_reonset_ms + jaw_reonset_cam (at-cue
 trials: the first NEW movement after the jaw settled, `jaw_kinematics.jaw_onsets`). 10-21: cam1 floor 15 px (cam4 4 px;
 Priya's blind reviews), BOTH cameras masked (NaN) at close_center.
+
+10-21 later, APPENDED columns (existing ones unchanged; Priya's attempt review: 0 / 24 trials judged attempts, all 11
+jaw_only = jaw responses WITHOUT opening / other movement / still; walking below the running threshold moves the jaw):
+  cam4_open_px / cam1_open_px   largest jaw OPENING from the pre-cue median, cue .. stop (+y in BOTH views: the chin
+                                drops in cam4 and opens downward from below in cam1), px
+  cam4_up_px / cam1_up_px       largest deflection the OTHER way (jaw up / clench), px
+  jaw_dir                       moved trials: "open" / "up" from the onset camera (open_px >= up_px -> open); "" else
+  cam4_contrast / cam1_contrast mean |frame-to-frame jaw speed| cue .. min(stop, 1500 ms) / the same over -1000 .. 0 ms:
+                                ~1 = the jaw only did what it was already doing (e.g. walking jitter), > 1 = a cue response
+  tread_pre_mm_s / tread_post_mm_s  mean DAQ treadmill speed -1000 .. 0 ms and cue .. stop (`behavior_events.session_speed`;
+                                running threshold 3 mm/s, rest floor ~0.2: sub-running steps show as ~0.5-3)
 """
 from __future__ import annotations
 
@@ -71,6 +82,47 @@ def _camera(y: np.ndarray, idx: pd.DataFrame, cam: str) -> pd.DataFrame:
     return O
 
 
+def _extras(y: np.ndarray, ix: pd.DataFrame, cam: str) -> pd.DataFrame:
+    """Per trial: opening / upward deflection (px) and the post / pre jaw-speed contrast (see the module docstring)."""
+    rows = []
+    for tid, g in ix.groupby("trial_id", sort=False):
+        k = g.index.to_numpy()
+        t = g.t_daq_ms.to_numpy(float)
+        v = y[k]
+        st = float(g.stop_ms.iloc[0]) if np.isfinite(g.stop_ms.iloc[0]) else 3500.0
+        pre = (t >= -500) & (t < 0) & np.isfinite(v)
+        win = (t >= 0) & (t <= st) & np.isfinite(v)
+        op = up = ct = np.nan
+        if pre.sum() >= 5 and win.any():
+            dv = v[win] - np.nanmedian(v[pre])
+            op, up = float(max(np.nanmax(dv), 0.0)), float(max(-np.nanmin(dv), 0.0))
+        sp = np.abs(np.diff(v))
+        tm = t[1:]
+        a_ = (tm >= 0) & (tm <= min(st, 1500.0)) & np.isfinite(sp)
+        b_ = (tm >= -1000) & (tm < 0) & np.isfinite(sp)
+        if a_.sum() >= 5 and b_.sum() >= 5:
+            ct = float(np.mean(sp[a_]) / max(np.mean(sp[b_]), 1e-6))
+        rows.append({"trial_id": int(tid), f"{cam}_open_px": op, f"{cam}_up_px": up, f"{cam}_contrast": ct})
+    return pd.DataFrame(rows)
+
+
+def _treadmill(a: str, d: str, ix4: pd.DataFrame) -> pd.DataFrame:
+    """Per trial mean treadmill speed (mm/s) -1000 .. 0 ms and cue .. stop, on the DAQ clock."""
+    from wfield_local import behavior_events, daq_io
+    ts, sp = behavior_events.session_speed(daq_io.session_h5(a, d))
+    rows = []
+    for tid, g in ix4.groupby("trial_id", sort=False):
+        t = g.t_daq_ms.to_numpy(float)
+        cue_s = float(np.median(g.daq_s.to_numpy(float) - t / 1000.0))          # the trial's cue on the DAQ clock
+        st = float(g.stop_ms.iloc[0]) if np.isfinite(g.stop_ms.iloc[0]) else 3500.0
+
+        def mean(lo, hi, cue_s=cue_s):
+            m = (ts >= cue_s + lo / 1000.0) & (ts < cue_s + hi / 1000.0)
+            return float(np.mean(sp[m])) if m.any() else np.nan
+        rows.append({"trial_id": int(tid), "tread_pre_mm_s": mean(-1000, 0), "tread_post_mm_s": mean(0, st)})
+    return pd.DataFrame(rows)
+
+
 def session(job) -> pd.DataFrame:
     """One session's table, CACHED on its input files (`result_cache`; 10-21): a rerun recomputes only new / changed
     sessions."""
@@ -81,7 +133,13 @@ def session(job) -> pd.DataFrame:
     a, d = s.split("_")
     sd = Path(root_o) / V36 / "sessions" / a / d
     d1 = Path(root_d) / "session_poses" / f"{s}_cam1_full"
-    inputs = [sd / "windows.npz", sd / "clean.npz", d1 / "windows_index.csv", d1 / "windows_LP.csv"]
+    from wfield_local import daq_io
+    try:
+        h5 = daq_io.session_h5(a, d)
+    except Exception:
+        h5 = None
+    inputs = [sd / "windows.npz", sd / "clean.npz", d1 / "windows_index.csv", d1 / "windows_LP.csv"] + \
+        ([Path(h5)] if h5 else [])
     ver = result_cache.code_version(jaw_kinematics, sys.modules[__name__])
     return result_cache.cached(Path(root_o) / V36 / "imaging_encoding" / "qc" / "_cache" / "jaw_onsets", s, inputs, ver,
                                lambda: _session(job))
@@ -94,13 +152,15 @@ def _session(job) -> pd.DataFrame:
     a, d = s.split("_")
     sd = Path(root_o) / V36 / "sessions" / a / d
     w = np.load(sd / "windows.npz", allow_pickle=False)
-    ix4 = pd.DataFrame({k: w[f"ix_{k}"] for k in ("trial_id", "position", "t_ms", "t_daq_ms", "stop_ms")})
+    ix4 = pd.DataFrame({k: w[f"ix_{k}"] for k in ("trial_id", "position", "t_ms", "t_daq_ms", "stop_ms", "daq_s")})
     y4 = np.load(sd / "clean.npz")["jaw_y"].astype(float)
     C4 = _camera(y4, ix4, "cam4").rename(columns={"jaw_pass_qc": "cam4_moved", "onset_ms": "cam4_onset_ms",
                                                   "onset_frames": "cam4_onset_frames", "reonset_ms": "cam4_reonset_ms"})
     out = C4[["trial_id", "position", "cam4_moved", "cam4_onset_ms", "cam4_onset_frames", "cam4_reonset_ms"]].copy()
     d1 = Path(root_d) / "session_poses" / f"{s}_cam1_full"
     out["cam1_moved"], out["cam1_onset_ms"], out["cam1_onset_frames"], out["cam1_reonset_ms"] = (np.nan,) * 4
+    X = _extras(y4, ix4, "cam4").set_index("trial_id")
+    X1 = None
     if (d1 / "windows_LP.csv").exists():
         ix1 = pw.index(d1)                           # binary sidecar of windows_index.csv / windows_LP.csv (10-21)
         if "t_daq_ms" in ix1:                       # template-time windows only (pre-10-20 collects lack it)
@@ -112,6 +172,7 @@ def _session(job) -> pd.DataFrame:
             out["cam1_onset_ms"] = out.trial_id.map(C1.onset_ms)
             out["cam1_onset_frames"] = out.trial_id.map(C1.onset_frames)
             out["cam1_reonset_ms"] = out.trial_id.map(C1.reonset_ms)
+            X1 = _extras(y1, ix1, "cam1").set_index("trial_id")
     bad = out.position.isin(JAW_UNRELIABLE)
     for c in ("cam4_moved", "cam4_onset_ms", "cam4_onset_frames", "cam4_reonset_ms", "cam1_moved", "cam1_onset_ms",
               "cam1_onset_frames", "cam1_reonset_ms"):
@@ -138,6 +199,21 @@ def _session(job) -> pd.DataFrame:
     out.insert(1, "animal", a)
     out.insert(2, "date", d)
     out.insert(3, "epoch", epochs.epoch_of(f"{a}_{d[4:]}"))
+    # APPENDED 10-21 (see the docstring): direction, cue contrast, treadmill -- masked where the jaw is unknown
+    for cam, XX in (("cam4", X), ("cam1", X1)):
+        for c in ("open_px", "up_px", "contrast"):
+            out[f"{cam}_{c}"] = out.trial_id.map(XX[f"{cam}_{c}"]) if XX is not None else np.nan
+            out.loc[bad, f"{cam}_{c}"] = np.nan
+    oc = out.jaw_onset_cam.to_numpy(str)
+    op = np.where(oc == "cam4", out.cam4_open_px, out.cam1_open_px)
+    up = np.where(oc == "cam4", out.cam4_up_px, out.cam1_up_px)
+    out["jaw_dir"] = np.where(oc == "", "", np.where(op >= up, "open", "up"))
+    try:
+        T = _treadmill(a, d, ix4).set_index("trial_id")
+        out["tread_pre_mm_s"] = out.trial_id.map(T.tread_pre_mm_s)
+        out["tread_post_mm_s"] = out.trial_id.map(T.tread_post_mm_s)
+    except Exception:
+        out["tread_pre_mm_s"] = out["tread_post_mm_s"] = np.nan
     return out.drop(columns=["cam4_onset_frames", "cam1_onset_frames"])
 
 

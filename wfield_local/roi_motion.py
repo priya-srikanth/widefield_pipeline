@@ -12,10 +12,12 @@ dark background). Each ROI is split into vertical STRIPS of ``STRIP_PX`` so the 
 whisker field at far spouts) can be dropped per trial afterwards by its LP x. Value per frame = mean |frame -
 previous frame| over a strip of the ``ds``-downsampled grey image.
 
-ARTEFACT (10-21): the cam4 videos carry a one-frame motion-energy spike every ~15 frames (~16 Hz), identical in both
-pads -- the encoder's keyframe cycle, not whisking. Per-frame readers should take a ~5-frame running median
-(`scripts/attempt_review.py` does); the 10 ms-binned pilot averages (`scripts/whisker_motion.py traces`) include it as a
-small constant offset.
+ARTEFACT (10-21): the cam4 videos carry an ENCODER KEYFRAME on every frame whose index % 12 == 0 (20.8 Hz): that frame's
+motion energy is ~33 % higher than the other 11 phases (flat), a static background corner peaks at exactly 12.01
+frames, and the pads correlate with it (r 0.48). Fix = interpolate the motion energy over frames with index % 12 == 0
+(`scripts/attempt_review.py`): 20.8 Hz power down 4-8x, 62.5 Hz harmonic removed (a 5-frame median or a background-corner
+detector only shrank it). The 10 ms-binned pilot averages (`scripts/whisker_motion.py traces`) include it as a small
+offset. Any frame-difference / optical-flow measure on these videos (FaceRhythm included) can carry a 20.8 Hz component.
 """
 from __future__ import annotations
 

@@ -7,7 +7,46 @@ MICROSCOPE. Write only inside `MICROSCOPE/Priya/...`; never delete original data
 WSL LP predict with the 96-frame DALI chunk (use 16). Commit only my own files, staged by name (shared clone with the
 ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_models.py`, `scripts/imaging_lmm.py`).
 
-## 00. MIDDAY UPDATE (10-21 ~10:00) -- read first; §0-§6 below are the morning state
+## 000. LATE-MORNING UPDATE (10-21 ~10:35) -- read first, then §00
+
+**RUNNING at hand-off:** background `jaw_onsets` full rebuild (started 10:15, ~40 min) with the APPENDED columns
+below -> writes `$TMP/jaw_onsets_v2.csv`, checks every EXISTING column against the morning snapshot
+(scratchpad `regress/jaw_onsets.csv`) and ONLY THEN copies it over the WATCHED
+`<v36>/imaging_encoding/qc/jaw_onsets.csv` (the encoding window's watcher then re-runs trial_attempts + mixed models).
+If the session died: re-run `python -m scripts.jaw_onsets --jobs 3` (cache invalidated by the code change -> cold) and
+verify the old columns are unchanged before telling the encoding window.
+
+**Attempt review DONE (24 / 24 answers, page TbQ4pud711MBrT6ygAH5FX, db `attempt_review`, key
+`session_poses/attempt_review/key.csv`): 0 / 24 judged attempts.** jaw_only (11) = jaw response without opening 6,
+other movement 4 (2 walking), still 1; no_try just under the floor: 4 / 6 jaw responses; no_try inside the old gate:
+4 / 6 still; tags walking 5, spout_leaving 2. RECOMMENDATION sent to the encoding window (their file): attempted = hit +
+incomplete only; jaw_only -> a separate "reacted (jaw)" class. They started a jaw-only rerun (fine: existing
+jaw_onsets columns unchanged).
+**jaw_onsets APPENDED columns** (code committed with this hand-off): `cam4_open_px` / `cam1_open_px` (largest opening,
++y both views), `cam4_up_px` / `cam1_up_px` (jaw up / clench), `jaw_dir` (open / up, onset camera), `cam4_contrast` /
+`cam1_contrast` (mean |jaw speed| cue .. min(stop, 1.5 s) / -1 .. 0 s; ~1 = no cue response), `tread_pre_mm_s` /
+`tread_post_mm_s` (DAQ treadmill). Reviewed jaw_only trials: contrast 0.90-1.04, opening 5-12 px (lick openings ~60-90
+px); a001 walking at 8 mm/s, a014 2.1 mm/s pre-cue.
+**cam4 ENCODER KEYFRAME artefact:** every video frame with index % 12 == 0 (from the video start) has ~33 % more
+frame-difference energy (20.8 Hz + 41.7 / 62.5 Hz harmonics; a static background corner peaks at 12.01 frames, 190x).
+Fix = interpolate over those frames (20.8 Hz power down 4-8x): `scripts/attempt_review.py` (KEYFRAME_EVERY),
+documented in `wfield_local/roi_motion.py`. Told the FaceRhythm window (interpolate point displacements over those
+frames before the VQT, or expect a 20.8 Hz band). The published review clips predate this fix (5-frame median only).
+
+**FaceRhythm ROIs WRITTEN:** Priya saved the master ROI on PS95_20260812 (10:21; 2,287 points; earlier versions kept as
+ROIs_<time>.h5). `face_rhythm_warp_rois.py to-sessions` -> `face_rhythm/cam4/rois/<a>_<d>/ROIs.h5` for all 107
+non-June sessions (106 + master; PS92_0812's two videos share one), same 2,287-point mesh, none outside the image;
+pre-existing files moved aside (PS94_20260810 pilot, PS93_20260821 draft). NEXT (Priya): rsync rois/ to O2 per the
+FaceRhythm window's COMMANDS.md. Registration QC page: https://claude.ai/artifact/Ffm8u7RseBs5NPvmPa5JRY (cross-animal
+sheet `register/qc_cross_animal.png`: snout / outline aligned, fur texture differs, a green / magenta band at the lower
+lip although the jaw landmark lands within 3-4 px -- check that region; per-animal `qc_overlay_<a>.png`;
+`rois_check.png`). PROPOSED: per-session facial ASYMMETRY index from the fields (PS93: right lower face higher, jaw
+deviates left -- Priya).
+
+**CD:** `scripts/cd_loo_sessions.py` (+ traces, rerun 5 min with caches) and `scripts/cd_loo_figures.py` ->
+`grant_figures/epoch/cd_loo/cd_loo_{window,traj}_{precue,cue,lick}.png`. Encoding window: use `epoch:cd_loo`.
+
+## 00. MIDDAY UPDATE (10-21 ~10:00) -- §000 above supersedes where they differ; §0-§6 below are the morning state
 
 **Pipeline efficiency (Priya: "saved arrays, caches, parallelization ... less redundant"). All verified to reproduce
 the morning outputs EXACTLY** (snapshots in the session scratchpad `regress/`; jaw_onsets 62,771 rows, kinematics
