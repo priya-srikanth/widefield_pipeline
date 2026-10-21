@@ -65,6 +65,13 @@ factors, multi-camera rigs.
 * decomposition: joint fit + projection (recommended) vs per-session + matching (paper)?
 * does the colleague's stroke_orofacial master mesh code exist somewhere we can reuse (Flea3 rig, different animals)?
 
+## Status (10-21 evening)
+
+* **Parameters chosen: `midlk12`** (DECISIONS.md 10-21 evening): rigidity 0.03 / 24, relaxation 0.005, LK 50 px / 5
+  levels, 12 px (1282 points). Master re-seeded at 12 px and re-warped to all 106 sessions; bundle rebuilt (8 workers x
+  2 threads, 56 GB, est. 2.2-4.5 h per session). **Pilot task 87 running on O2**; array may be submitted alongside.
+* Next: step 6 (decomposition) and step 7 (use) -- see the integration plan once written.
+
 ## Status (10-21 late morning)
 
 Handoff for steps 4-5: [`docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md`](status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md).

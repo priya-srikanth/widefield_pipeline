@@ -21289,3 +21289,28 @@ mixed-model pixel maps. Rerender epoch families 15r / 15e / 14m and the within-s
 `labcams/grant_figures/epoch/archive_rawdF_tests_20261021/` (255 files) and `qc/within_spout_deviation*/
 map_significance_*_rawdF_20261021.csv`. Not needed: encoding dR2 maps (fraction of each pixel's variance), by-animal
 panels, scalar families. `beta_maps.py` is in the input-cache key: editing it invalidates the local cache (one share pass).
+
+## 2026-10-21 (evening) -- FaceRhythm (cam4): tracking parameters = `midlk12`, master mesh 12 px, production on O2
+
+Priya: paper's values "seem reasonable but maybe too stiff" (nose rows stay rectangular at rest), FR's defaults "too
+flexible" (the mesh buckles); "let's try that combo of mids12 and oldrun optical flow" -> round 3 -> "let's do it".
+Test: PS95_20260812 (master), 30 000 frames, 13 trials, 11 sets on O2 (`o2_face_rhythm.py paramtest / paramscore`),
+scored against LP v36: mesh folds (Delaunay triangles of the home points flipping orientation), 30-60 Hz jitter, nose y
+vs LP 2-20 Hz (r, gain; lick bout / rest), licking explained by the WHOLE mesh (cross-validated jaw-y R2 from 50
+velocity PCs, tongue-visible AUC; no FR point sits on the jaw). Rule agreed beforehand: no / few folds, jaw R2 and nose
+gain near the best, jitter <= paper, then cheapest. CHOSEN `midlk12`: mesh rigidity 0.03 / 24 neighbours, relaxation
+0.005, LK 50 px / 5 levels / criteria (3, 2, 0.0003), threshold 300, CLAHE 40 / 150, point spacing 12 px (1282 points):
+folds 0.015 / frame (paper 0.089, oldrun 2.34, FR default 9.56), jitter 0.120 px (paper 0.134), nose rest gain 0.97
+(paper 0.90), nose lick r / gain 0.65 / 0.69, jaw R2 0.69 (= oldrun; paper 0.62), tongue AUC 0.938 (best), ~19 fps per
+2-thread worker. The fidelity of the old 2pRAM run came from its OPTICAL FLOW (50 px / 5 levels), not its loose mesh
+(oldrun's mesh on paper's LK folds most and is worst in licks). Rejected: half relaxation (rest gain 1.00 but lick gain
+0.57: the mesh drifts), 3 LK iterations (no gain), 9 px spacing (12 px equal on every measure, ~1.8x fewer points).
+Factors (rank-10 NN-CP, 2 min) the same for EVERY set: 4 Hz nose (sniff), 1-2 Hz slow face, 8.2 Hz pad whisking, 5.8 Hz
+shared licking, two 6.5 Hz lick-direction components (far_L vs far_R selectivity +0.57 / -0.63), 15 Hz mask-rim noise;
+variance explained 71 % (centred), vs 73-84 % for fresh 2-min fits on the 2pRAM cohort's run (PS48; its own settings
+differ: Q 3 -> 10, 30 bins, normalisation 0.6). The choice changes mesh integrity and fidelity, not WHAT is found.
+Also fixed for production: master = PS95_20260812 (PRE-stroke; the first pick was acute post-stroke PS93); keyframe
+notches 20.83 / 41.67 / 62.5 Hz (cam4 FMP4 GOP 12; interpolating keyframe frames does not clean points); 10-min segments
+restarting at home, 8 workers; engaged trials only in `trials` (whole session kept in `session` / `points`); June and
+non-curated sessions out; PS92_0812 as two tasks (one per video). Production `PARAMS["tracking"]` is ASSERTED equal to
+the tested set. Bundle `fr_cam4_20261021` (108 tasks); pilot task 87 running (memory fix under test).
