@@ -11,7 +11,10 @@ out, 10-60 ms before contact).
 DEFINITIONS (Priya's choices, 10-21):
   LP lick        cam4 LP lick onsets (`licks_all.csv`, every context, DAQ s) + cam1-only events (`cam1_licks/<a>_<d>
                  _events.csv`: not cam4-matched, not water droplets) -- "combined", the same set `combined_encoding`
-                 uses under COMBINED_ENCODING_LICKS=combined. cam1 missing (PS95 pre-stroke) -> cam4 alone.
+                 uses under COMBINED_ENCODING_LICKS=combined. cam1 missing -> cam4 alone. CAM1 IS NOT FINISHED
+                 (10-21: events for 74 / 108 curated sessions; PS95 none, PS94 chronic 2 / 8, PS93 pre 7 / 8): those
+                 sessions are cam4-only LP until cam1 lands -- revisit then; the cache tag includes the cam1 folder,
+                 so new cam1 files recompute every LP entry.
   post-cue gate  the trial's attempt class (`scripts/trial_attempts.py`) in ATTEMPT_CLASSES = hit / incomplete, with
                  the first LP lick (trial_attempts `combined`, else `cam4`; ms from the cue) inside max_rt. jaw_only is
                  a reaction, not an attempt (blind review 10-21). The attempt class is the authority: no_try /
@@ -76,12 +79,33 @@ def attempts_path(rv=None) -> Path:
     return _run_dir(rv) / "imaging_encoding" / "qc" / "trial_attempts.csv"
 
 
+_CAM1_SIG: dict = {}
+
+
+def _cam1_signature(rv=None) -> str:
+    """Digest of the cam1 lick-event folder (names, sizes, mtimes). CAM1 IS NOT FINISHED (Priya 10-21: "not all cam1
+    analysis is done so we'll have to revisit"): 74 / 108 curated sessions have events on 10-21 (PS95 none, PS94 chronic
+    2 / 8), and a session without them falls back to cam4. When cam1 lands, every LP entry must recompute -- the
+    per-session sidecar sees its own file, but the session_cache tag would not without this. Memoised per process (one
+    listing of the share per render)."""
+    from wfield_local.paths import PathResolver
+    import hashlib
+    d = Path((rv or PathResolver()).root("dlc")) / "session_poses" / "cam1_licks"
+    if str(d) not in _CAM1_SIG:
+        h = hashlib.sha1()
+        for f in sorted(d.glob("*_events.csv")) if d.exists() else []:
+            st = f.stat()
+            h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns};".encode())
+        _CAM1_SIG[str(d)] = h.hexdigest()[:10]
+    return _CAM1_SIG[str(d)]
+
+
 def spec_token(rv=None) -> str:
     """Cache-key token for the LP source: the definition version + the attempts table's identity (a rewrite of
-    trial_attempts.csv -- the jaw_onsets reruns -- invalidates every LP entry)."""
+    trial_attempts.csv -- the jaw_onsets reruns -- invalidates every LP entry) + the cam1 event folder's identity."""
     p = attempts_path(rv)
     st = p.stat() if p.exists() else None
-    return f"lp{LP_VERSION}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}"
+    return f"lp{LP_VERSION}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}:cam1-{_cam1_signature(rv)}"
 
 
 #: Pre-cue (ENL) lick-free window length, s (Priya 10-21, after `scripts/enl_lp_census.py`: "1.0 s, plus DAQ 1.0 s").
