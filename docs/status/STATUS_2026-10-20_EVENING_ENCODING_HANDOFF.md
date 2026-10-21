@@ -46,6 +46,13 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 - **Extra windows on the LMM** (`encoding_mixed.py` reads the O2 `_win` runs, both 119/119): target tracks the deficit
   in cuestop / firstlick (z -4.8 / -6.2) as in cue; strict executed null; cue2lick noisy (short windows).
 
+- **10-21 morning, RUNNING:** within-spout lick-aligned reruns (`--contact` [old code, no commanded slope], then
+  `--contact --hits-only`, then baseline `--redo`; per-spout / equal / headline `mid:<pos>` toward-midline / commanded
+  across-spout slope; old baseline copied to `qc/superseded_within_spout_lick_pooled_20261021/`); lick-template pass 2
+  with the free-kernel ceiling (target / execution / neither shares); `best_match_destination.py` (10b destination vs
+  landing zone, all animals); jaw_onsets watcher (reruns trial_attempts + LMMs on each rewrite). DECISIONS 10-21
+  morning entries. Memory: toward-midline = headline, keep in mind when interpreting.
+
 ## 0. Rules (Priya; unchanged)
 
 - **Curated sessions only** (`analysis_kit.curated_labels()`): no early June, no 0805, no PS92 / PS93 0817 ("stroke

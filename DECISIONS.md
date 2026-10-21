@@ -21125,3 +21125,19 @@ frontal cortex (pre: more activity for medial deviations; chronic: for outward /
 within-spout map change passing the animal-level cluster test (28 % of brain). Keep it in mind when interpreting other
 results (is a change eccentricity rather than direction?). Runs (lick-aligned): contact, contact + hits, baseline redo
 (old baseline copied to `qc/superseded_within_spout_lick_pooled_20261021/`).
+
+## 2026-10-21 (morning) -- "Pre-stroke target vs pre-stroke execution vs neither": three readouts
+
+Priya's framing of the question: does post-stroke activity look like the pre-stroke TARGET pattern, the pre-stroke
+EXECUTION pattern, or neither? (1) **Lick-template test + ceiling** (`scripts/lick_template_test.py`, PS92 / PS93 3-D):
+pre-stroke per-spout lick templates held fixed (target = aimed spout's, executed = soft landing-zone mix), plus the same
+per-spout kernels fitted FREELY in each session (CV) = the session's ceiling for spout-locked lick structure; shares
+target-like / execution-like / NEITHER = ceiling - both templates. Pass 1 templates cached; pass 2 rerun into
+`qc/lick_templates_polar_20261021/` (previous table copied to `lick_templates_before_ceiling_20261021.csv`).
+(2) **Destination vs landing** (`scripts/best_match_destination.py`, all four animals): figure 10b's best-match
+destination (pure brain activity, commanded-spout labels) per session x spout, classified against where that session's
+cam4 licks landed (soft-assigned to the animal's pre-stroke landing centres, LOSO for pre): target-like (own spout),
+execution-like (the landing mode), neither. (3) **Across-spout slope on both axes** (`within_spout_deviation.py`
+`b_between_cmd`, maps `betweencmd_*`, mixed kind `between_cmd`): the executed axis compresses post-stroke (far-contra
+licks drift ipsi), the commanded axis cannot move; both kept because both halves of the question matter. First check
+(PS94_0806): OLS-pooled within slope +0.00027 vs equal-weight per-spout mean -0.00024 -- the pooling issue is real.
