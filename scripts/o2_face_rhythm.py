@@ -436,6 +436,12 @@ PARAM_SETS = {
                                               "framesHalted_after": 10},
                   "params_clahe": {"clipLimit": 40.0, "tileGridSize": [150, 150]}},
 }
+# 10-21 round 2 (Priya: paper too stiff at the nose; frdefault's mesh buckles): softer meshes on paper's optical flow,
+# and oldrun's mesh on paper's cheaper LK (is oldrun's nose fidelity its mesh, at about paper's speed?)
+for _nm, _rig, _nb, _rel in (("mid", 0.03, 24, 0.005), ("soft", 0.01, 24, 0.003), ("oldmesh", 0.002, 90, 0.002)):
+    _t = json.loads(json.dumps(PARAMS["tracking"]))
+    _t["params_optical_flow"].update(mesh_rigidity=_rig, mesh_n_neighbors=_nb, relaxation=_rel)
+    PARAM_SETS[_nm] = _t
 
 PARAM_TEST = r'''"""O2: one tracking-parameter set on a frame range of one task's video (o2_face_rhythm.py paramtest).
 
@@ -767,7 +773,7 @@ def cmd_collect(name: str) -> None:
     print(f"collected {len(I)} of {len(T)} -> {dst}")
 
 
-def cmd_paramtest(name: str, user: str, key: str, n_frames: int = 30000) -> None:
+def cmd_paramtest(name: str, user: str, key: str, n_frames: int = 30000, only: list[str] | None = None) -> None:
     """Write the parameter test into an existing bundle: param_sets/*.json, fr_param_test.py (+ the current runner),
     run_param_test.sbatch (one array index per set) on the ``n_frames`` window of task ``key`` that covers the most
     trial cues."""
@@ -790,9 +796,9 @@ def cmd_paramtest(name: str, user: str, key: str, n_frames: int = 30000) -> None
     (d / "fr_runner.py").write_text(RUNNER, encoding="utf-8", newline="\n")
     (d / "fr_param_test.py").write_text(PARAM_TEST, encoding="utf-8", newline="\n")
     b = f"{oi.scratch(user)}/o2/{name}"
-    sets = " ".join(PARAM_SETS)
+    sets = " ".join(only or PARAM_SETS)
     sb = (f"#!/bin/bash -l\n#SBATCH -J frpt_{name}\n#SBATCH -p short\n#SBATCH -c 2\n#SBATCH --mem=8G\n"
-          f"#SBATCH -t 0-02:00:00\n#SBATCH --array=1-{len(PARAM_SETS)}\n"
+          f"#SBATCH -t 0-02:00:00\n#SBATCH --array=1-{len(sets.split())}\n"
           f"#SBATCH -o {b}/logs/pt_%A_%a.out\n#SBATCH -e {b}/logs/pt_%A_%a.err\n"
           f"# Tracking-parameter test: task {task} ({key}), frames {start}-{start + n_frames} ({max(count)} trial cues)\n"
           f"set -eo pipefail\nmodule load conda/miniforge3/24.11.3-0\nconda activate fr\n"
@@ -928,6 +934,7 @@ def main(argv=None) -> int:
     t.add_argument("--user", required=True)
     t.add_argument("--key", default="PS95_20260812_cam4", help="task key (default: the master session)")
     t.add_argument("--frames", type=int, default=30000)
+    t.add_argument("--sets", nargs="*", default=None, help="only these parameter sets in the sbatch array")
     s_ = sub.add_parser("paramscore", help="score the parameter test against LP")
     s_.add_argument("--name", required=True)
     s_.add_argument("--src", default=None, help="folder of out_test npz (default: <bundle>/out_test)")
@@ -936,7 +943,7 @@ def main(argv=None) -> int:
         ss = [tuple(x.split(":")[:2]) for x in a.sessions] if a.sessions else None
         cmd_bundle(a.name, a.user, ss, a.seg_min, a.all_trials, a.workers, a.jobs, a.include_june)
     elif a.cmd == "paramtest":
-        cmd_paramtest(a.name, a.user, a.key, a.frames)
+        cmd_paramtest(a.name, a.user, a.key, a.frames, a.sets)
     elif a.cmd == "paramscore":
         cmd_paramscore(a.name, a.src)
     else:
