@@ -155,9 +155,10 @@ def main(argv=None) -> int:
     print("\n  per-animal deviation of the post step (BLUP), time model, within:")
     S = T[(T.kind == "within") & (T.model == "time") & (T.term == "post") & T.measure.str.startswith(FOCUS)]
     print(S.set_index("measure")[[c for c in S.columns if c.startswith("step_dev_")]].round(3).to_string())
-    (folder / "figures").mkdir(exist_ok=True)
-    pixel_maps(folder, sorted(D.label.unique()), folder / "figures")
-    print(f"\n-> {folder / 'mixed_model.csv'}, figures/mixed_time_maps_*.png")
+    figs = folder.parents[1] / "figures" / "within_spout" / folder.name   # results, not qc (Priya 10-21)
+    figs.mkdir(parents=True, exist_ok=True)
+    pixel_maps(folder, sorted(D.label.unique()), figs)
+    print(f"\n-> {folder / 'mixed_model.csv'}, {figs}/mixed_time_maps_*.png")
     return 0
 
 

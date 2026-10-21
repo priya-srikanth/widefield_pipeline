@@ -187,8 +187,8 @@ def main(argv=None) -> int:
         print(f"\n=== {model}\n" + S.pivot_table(index=["source", "measure"], columns="term",
                                                 values=["coef", "z", "q"]).round(3).to_string())
     figures(pd.concat([x for x in (L, D, C) if x is not None and not x.empty], ignore_index=True), T,
-            E / "qc" / "figures", sfx)
-    print(f"\n-> {E / 'qc' / 'imaging_lmm.csv'}, figures/imaging_lmm_*.png")
+            E / "figures" / "mixed_models", sfx)
+    print(f"\n-> {E / 'qc' / 'imaging_lmm.csv'}, {E / 'figures' / 'mixed_models'}/imaging_lmm_*.png")
     return 0
 
 

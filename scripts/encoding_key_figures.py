@@ -9,7 +9,7 @@ illustrate key and important points or findings"). Reads tables other scripts al
                          vs prompt-but-miss (PS94 / PS95)
   landing_zones.png      where licks land: mean soft weight on each pre-stroke-calibrated 3-D landing zone, per target
                          spout, pre vs acute vs chronic (3-D contest sessions' res["bins"]["soft_weight"])
-Output: <run>/imaging_encoding/qc/figures/. Usage: PYTHONPATH=. python scripts/encoding_key_figures.py
+Output: <run>/imaging_encoding/figures/behaviour/. Usage: PYTHONPATH=. python scripts/encoding_key_figures.py
 """
 from __future__ import annotations
 
@@ -135,7 +135,7 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     a = ap.parse_args(argv)
     E = oo.root(PathResolver()) / a.run / "imaging_encoding"
-    figs = E / "qc" / "figures"
+    figs = E / "figures" / "behaviour"
     figs.mkdir(parents=True, exist_ok=True)
     for f in (precue_licking, lick_deficits, landing_zones):
         try:

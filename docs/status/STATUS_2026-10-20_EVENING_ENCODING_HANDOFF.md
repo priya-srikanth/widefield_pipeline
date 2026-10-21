@@ -28,7 +28,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
   |z| < 1.7). Pre-cue activity does not carry the coming lick's within-spout deviation.
 - **Epoch families + CD on the LMM** (`imaging_lmm.py` source `epoch`; DECISIONS 2026-10-21 night): frozen encoder EV
   and best-match accuracy still below pre at full behavioural recovery (z -4.1); far-contra own-position identity back
-  (z -0.7). Figures `qc/figures/imaging_lmm_epoch-*`. Stray empty `qc/figures/imaging_lmm_epoch` can be deleted.
+  (z -0.7). Figures `figures/mixed_models/imaging_lmm_epoch-*`. Stray empty `qc/figures/imaging_lmm_epoch` can be deleted.
 - **Lick-template test** first pass done (ENCODING_FINDINGS 2.4b); rerun `--tag 20261021` on 47 queued after the enl
   within-spout check (running). Log `S/lick_templates_20261021.log`.
 - **O2 window runs:** win_drop 119/119 collected; win_nokin 118 (PS95_0818 pending; Priya copying; watcher
@@ -37,6 +37,14 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
   Other window delivered jaw onsets (`scripts/jaw_onsets.py`), `engagement_keep(gate=attempted)`, and per-session
   epoch-family tables (`epoch_sessions_long.py`) -> TO DO here: jaw onset into attempt latency; epoch families as
   `imaging_lmm.py` sources.
+
+- **FIGURES MOVED (Priya 10-21: results are not qc):** new-analysis figures now write to `E/figures/` --
+  `mixed_models/` (encoding_mixed, imaging_lmm incl. epoch families), `behaviour/` (landing zones, lick deficits,
+  pre-cue licking), `within_spout/<run>/` (all within-spout figures and mixed-model maps). Tables stay in `E/qc/`.
+  Existing figures were COPIED; the old copies in `E/qc/figures/` and `E/qc/within_spout_deviation*/figures/` are
+  still there (no deletes on MICROSCOPE) -- Priya may delete them.
+- **Extra windows on the LMM** (`encoding_mixed.py` reads the O2 `_win` runs, both 119/119): target tracks the deficit
+  in cuestop / firstlick (z -4.8 / -6.2) as in cue; strict executed null; cue2lick noisy (short windows).
 
 ## 0. Rules (Priya; unchanged)
 
@@ -135,8 +143,8 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
   `scripts/within_spout_mixed.py`, `scripts/imaging_lmm.py` (trend / decoder trajectory / orofacial session metrics).
   Mixed models are the PRIMARY readout; epochs descriptive (chronic starts day 11 / 15 / 25 by animal).
 - `scripts/encoding_key_figures.py`: precue_licking, lick_deficits, landing_zones (canonical POS_ORDER).
-- Figures via the shared `mixed_models.plot_fits`: `qc/figures/encoding_mixed_{behaviour,time}_<area>.png` and
-  `qc/figures/imaging_lmm_{trend,behaviour,decoder_unmatched,decoder_matched}_<model>.png` (decoder: F_deficit tracks
+- Figures via the shared `mixed_models.plot_fits`: `figures/mixed_models/encoding_mixed_{behaviour,time}_<area>.png` and
+  `figures/mixed_models/imaging_lmm_{trend,behaviour,decoder_unmatched,decoder_matched}_<model>.png` (decoder: F_deficit tracks
   the behavioural deficit, ~0 at full recovery; G_reorg flat ~ +0.10 at every behavioural level).
 - combined_encoding: extra scoring windows (`cue2lick`, `cuestop`, `firstlick`), lick-aligned trial-to-trial SSE
   (`sse_trial_lick`), `COMBINED_ENCODING_LICKS_ALL=shared|split` (whole-session licks; folder `_licksall-<mode>`).

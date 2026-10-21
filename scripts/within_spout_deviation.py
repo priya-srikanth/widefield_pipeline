@@ -310,8 +310,8 @@ def figures(out: Path, D: pd.DataFrame, Tt: pd.DataFrame, maps: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    figs = out / "figures"
-    figs.mkdir(exist_ok=True)
+    figs = out.parents[1] / "figures" / "within_spout" / out.name      # results, not qc (Priya 10-21)
+    figs.mkdir(parents=True, exist_ok=True)
     # 1) tercile curves: within-spout response deviation vs lateral deviation, per epoch, cohort (animal means)
     areas = [a for a in ("cortex", "MOs_left", "MOs_right", "SSp-m_left", "SSp-m_right") if a in set(Tt.area)]
     fig, ax = plt.subplots(len(areas), 2, figsize=(8, 2.4 * len(areas)), squeeze=False, sharex="col")
@@ -438,8 +438,8 @@ def figures_stats(out: Path, maps: dict, q: float = 0.05) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    figs = out / "figures"
-    figs.mkdir(exist_ok=True)
+    figs = out.parents[1] / "figures" / "within_spout" / out.name      # results, not qc (Priya 10-21)
+    figs.mkdir(parents=True, exist_ok=True)
     sh = next(iter(maps.values()))["shape"]
     animals = sorted({lab[:4] for lab in maps})
     rows = []
@@ -490,8 +490,8 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from wfield_local import beta_maps as bm
-    figs = out / "figures"
-    figs.mkdir(exist_ok=True)
+    figs = out.parents[1] / "figures" / "within_spout" / out.name      # results, not qc (Priya 10-21)
+    figs.mkdir(parents=True, exist_ok=True)
     sh = bm.MAP_SHAPE
     rows = []
     for kind in ("within_mean", "between_mean", "dir_mean", "mid_mean"):
