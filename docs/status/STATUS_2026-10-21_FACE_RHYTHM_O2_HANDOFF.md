@@ -140,3 +140,12 @@ Task index of a session: `awk -F'\t' '$1=="<key>" {print NR-1}' tasks.tsv` (PS95
   `engagement_keep` matches by order. **Split sessions** (`ix_video`): one task per video.
 * **Committing shared files**: a whole-file `git add CLAUDE.md` swept another window's hunk into 6aff451 -- diff first.
 * A JupyterLab server for the notebook may still be running (port 8899, fr env).
+
+## Mesh QC of the warped 12 px master (10-21 evening, after the array was submitted)
+
+`scripts/face_rhythm_mesh_qc.py` -> `<dlc>/face_rhythm/cam4/rois_qc_12px_20261021/` (`mesh_qc.csv`, `mesh_qc_<animal>.png`:
+points on each session's own median face). All 107 ROI files: 1282 points, 0 outside the image; flipped Delaunay
+triangles 0 (PS92 / PS94 / PS95) or 0-2 (PS93, at the mouth); local area vs master 5th-95th pct ~0.5-1.3 (PS93 / PS92
+compressed at the mouth: a smaller face than PS95's). From ~09/10 every animal's mesh sits ~40 px from the master
+(camera / rig shift; registration follows the face, the spout ring is now visible at the image top). Visually: post-
+stroke meshes cover the same face as pre (PS93 + PS95 sheets checked). No session needed re-drawing.
