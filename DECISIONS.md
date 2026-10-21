@@ -21366,3 +21366,34 @@ spatial + spectral factors frozen and every session projected (NNLS temporal fac
 per-session fits + Hungarian matching (kept as a check): per-session fits let a component's definition move with the
 stroke, confounding a movement change with a definition change. Nothing on O2 depends on this (tracking + spectrograms
 only; the master mesh already gives every session the same points). Plan: `docs/FACE_RHYTHM_PLAN.md` A0.
+
+## 2026-10-21 (evening) -- LP_licks: video licks as an imaging lick source (separate family; built on a branch)
+
+Priya: "yes this will be a separate family - LP_licks - let's carefully review the imaging analyses and for lick-window
+analyses, let's make versions gated on LP lick post-cue". WHY: every imaging lick alignment / gate used the DAQ lick
+sensor = spout CONTACT. Acute far contra has 0-12 contact trials per session against 21-78 attempted, so the
+lick-aligned far-contra cell was empty in every animal (MIN_TRIALS_PER_CLASS 20) and the no-lick arm held trials on
+which the animal licked. REVIEW (one subagent inventory + checks): the post-cue lick enters at `_trial_features`, at
+`nolick_decoder.categorize` (CD trajectories, ENL), at the quit gate (inherits), and ~25 modules call the shared DAQ
+lick loader directly; no switch existed.
+CHOICES (Priya, 10-21): LP lick = cam4 + cam1 combined (cam4 alone where cam1 is missing: PS95 pre); post-cue gate =
+attempt class hit / incomplete with the first LP lick inside max_rt (jaw_only stays a reaction); scope = lick-aligned AND
+lick-gated analyses; frozen decoders REUSED from the DAQ set ("i don't think we should have to retrain a frozen set ...
+i guess for PS93 far ipsi it may be important"); alignment = LP ONSET (agreed after "should we align to like 0.15s before
+the first LP lick? or at peak": onset -> peak is 28-56 ms, ~1 imaging frame, longer for non-contact and acute licks, so
+the peak would shift post-stroke windows by kinematics; a -0.15 s start is an optional sensitivity, not the default).
+MEASURED BEFORE BUILDING: pre-stroke LP attempt without contact <= 3 % of trials in every animal x position except PS93
+far_ipsi 27 % (median LP onset 211 ms before contact) and far_mid 14 % -> reuse is safe except there; a PS93 sensitivity
+with LP-trained frozen models is planned. LP `cue_daq` vs DAQ cue sample / rate: every trial within 20 ms, median ~1 ms
+(3 sessions). trial_attempts `unknown` = close_center trials with no tongue lick and the jaw masked (1176 / 1181) ->
+no-lick, not dropped.
+BUILT (branch lick/lp-source, `09f163f`, `a6ac0fe`; not merged): `wfield_local/lp_licks.py` (switch
+WIDEFIELD_LICK_SOURCE=lp; `session_lp` edits the LP train so the first lick after each cue IS the gate; memo + local
+sidecar), wired at the shared loader / `_trial_features` / `categorize`; `session_cache` tags every kind under LP;
+frozen specs unchanged, an LP miss refuses to fit (WIDEFIELD_LP_FROZEN=lp for the sensitivity spec); outputs
+`grant_figures/LP_licks/...` + corner stamp; writeguard refuses LP-run share writes outside LP_licks. PS93_0819 check:
+far contra engaged 12 -> 59. ENL: Priya asked to re-evaluate the "lick-free" pre-cue window with LP licks (maybe a
+shorter window); `scripts/enl_lp_census.py` (same `precue_window_start`, 2.0 / 1.5 / 1.0 / 0.5 s) -- PS93_0809 kept
+DAQ 91 % / LP 67 % at 2 s, LP 90 % at 1.5 s, 99 % at 1 s; cohort census running; the window is Priya's call.
+NOT YET: full suite, merge (after the normalised rerender), per-animal LP-vs-DAQ trial tables, LP null calibration,
+renders.

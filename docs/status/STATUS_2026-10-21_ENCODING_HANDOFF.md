@@ -1,6 +1,6 @@
-# Handoff — 2026-10-21: attempt-based deficit, target vs execution vs neither, within-spout per spout + contact
+# Handoff — 2026-10-21: attempt-based deficit, target vs execution vs neither, within-spout per spout + contact, map statistics, LP_licks
 
-**START HERE for the encoding model / target-vs-executed work (the ENCODING window).** Supersedes
+**START HERE for the encoding model / target-vs-executed work (the ENCODING window).** **Evening state: §1d (results), §2 (running), §2c (LP_licks next steps).** Supersedes
 `STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md` (still the reference for the 3-D contest set-up, §6 commands there).
 The pose / 3-D / cam1 / jaw work is the OTHER window: `STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`.
 **Results: `docs/ENCODING_FINDINGS.md`** (status-tagged, updated 10-21). Reasoning + numbers: `DECISIONS.md` 2026-10-21
@@ -112,14 +112,72 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
     tests) -> no small-n correction; June vs August (drift) flags up to 14 % (nested) / 53 % (cluster, normalised) at
     contra positions; normalising removes acute far_center (23 % -> 0.1 %). 15r position-map calibration RUNNING.
 
-## 2. RUNNING (updated 10-21 ~15:30)
+## 1d. EVENING (10-21 15:30-18:00) -- normalised map tests MERGED, LP_licks family BUILT (branch), ENL census
+
+13. **Map-test calibration, all three 15r windows** (precue/ENL, cue, lick x references raw / rest / restw / precue /
+    mean; CSVs `labcams/grant_figures/epoch/results/map_test_calibration_position_<ref>_<align>_<variant>.csv`):
+    - NESTED (primary) flags NOTHING on any pure null (August split, all-pre split), any window / reference, raw or
+      normalised -> no small-sample correction.
+    - CLUSTER (second line) occasionally fires on a null at ONE position and then covers 14-58 % of the brain (rest /
+      restw close_center precue, far_R cue / lick). 24 random within-animal splits (rest close_center): fired on 2
+      (8 %, consistent with 5 %), nested 0. **Read cluster contours as yes / no, never by area.**
+    - June vs August drift up to ~21 % at a few positions -> supports the August-only baseline.
+    - Acute far contra (cue): 58-93 % under every reference, both tests, raw and normalised. Lick window cannot test
+      far contra (0 acute sessions reach 20 contact-lick trials) -> LP_licks below.
+    - Normalising removes precue-referenced near-spout changes (18-28 % -> 0-9 %) and far_center (5-9 % -> 0-6 %):
+      carried by the brighter animals.
+14. **Normalised map tests MERGED to main** (`dc10705`, `babe04f`; DECISIONS 10-21 late afternoon). `beta_maps.pre_scale`
+    = THE per-animal x position constant (shared with the pooled picture); nested / Musall on pre-scaled maps; cluster
+    recomputes the constant inside every relabelling draw; `vs_zero_contour(scale_by=)`; labels "[pre-normalised]". 14z
+    picture normalised; within-spout vs-zero uses nested (the "cluster" call used to raise); z pixel maps
+    (`mixed_time_maps_*_z.png`); `spout_dir_maps_per_animal*.png` = per-position DIRECTION (+ = mouse's left), old
+    toward-midline PNGs kept. `scripts/compare_map_tests.py` = raw vs normalised sig-bin table per figure cell.
+    [spout_dir_maps_per_animal_z.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick_contact/spout_dir_maps_per_animal_z.png)
+15. **LP_licks family (Priya: "a separate family - LP_licks"; lick-aligned AND lick-gated analyses) -- BUILT on branch
+    `lick/lp-source` (worktree `S/wf_lp`, commits `09f163f`, `a6ac0fe`), NOT merged, full suite not yet run.**
+    - Switch `WIDEFIELD_LICK_SOURCE=lp` (default daq = unchanged). `wfield_local/lp_licks.py`: LP lick = cam4 `licks_all`
+      + cam1-only events (cam4 fallback where cam1 missing: PS95 pre); gate = attempt class hit / incomplete with the
+      first LP lick inside max_rt; lick-aligned = LP ONSET (tongue out; Priya agreed -- peak is 28-56 ms later and
+      kinematics-dependent; a -0.15 s version only as an optional sensitivity); trials matched to DAQ cues by TIME (all
+      within 20 ms, median ~1 ms); `unknown` class = no-lick (1176/1181 are close_center with the jaw masked, no
+      tongue lick); only trials with no attempts row dropped.
+    - Wired at the shared DAQ lick loader (`plot_lick_aligned_averages._load_daq_events`, so the ~25 direct callers
+      get LP too), `_trial_features`, `nolick_decoder.categorize`. `session_cache` tags every kind under LP;
+      local sidecar of the LP tables (`.widefield_session_cache/lp_licks/`).
+    - Frozen decoders: DAQ models REUSED (Priya: no new frozen set); an LP miss REFUSES to fit; PS93 far_ipsi /
+      far_mid sensitivity via `WIDEFIELD_LP_FROZEN=lp` (own spec). Pre-stroke LP vs DAQ: LP attempt without contact
+      <= 3 % everywhere except PS93 far_ipsi 27 % (onset -211 ms vs contact) / far_mid 14 %.
+    - Outputs `labcams/grant_figures/LP_licks/...` + corner stamp; `writeguard` refuses LP-run share writes outside an
+      `LP_licks` directory.
+    - Check PS93_0819 (acute): far contra engaged 12 (DAQ) -> 59 (LP); others ~unchanged.
+16. **ENL lick-free census** (Priya: redefine "lick-free" ENL with LP licks; maybe shorter window):
+    `scripts/enl_lp_census.py` (branch) applies `precue_window_start` to DAQ vs LP trains at 2.0 / 1.5 / 1.0 / 0.5 s.
+    PS93_0809 (pre, worst session): kept DAQ 91 % / LP 67 % at 2 s; LP 90 % at 1.5 s, 99 % at 1 s. Cohort run RUNNING.
+
+## 2. RUNNING (updated 10-21 ~18:05)
 
 | what | task / log | then |
 |---|---|---|
-| 15r position-map calibration, arms precue / cue / lick x references | `S/run_calib_position.sh`, logs `S/calib_position_<align>.log`; maps cached `S/position_store_<align>_<variant>.pkl`; CSVs `labcams/grant_figures/epoch/results/map_test_calibration_position_<ref>_<align>_<variant>.csv` | report pure-null false positives, June-vs-August drift, raw vs normalised acute per position |
-| jaw_onsets watcher (`S/watch_jaw.sh`, 8 h from 10:13) | waits for the pose window's rewrite (direction / cue contrast / treadmill columns) | reruns attempts + LMMs + six within-spout mixed models |
+| Rerender after the normalised tests (main): epoch 15r / 15e / 14m, then within-spout figures (8 folders), mixed models (z maps), `compare_map_tests.py` | `S/run_rerender_norm.sh`; logs `S/rerender_epoch.log`, `S/rerender_ws.log`, `S/rerender_mixed_<folder>.log`, `S/compare_map_tests.log`; started 16:32, first arm still running at 18:05 (CPU shared) | read `labcams/grant_figures/epoch/results/map_tests_raw_vs_normalised.csv`; links to new figures; ENCODING_FINDINGS |
+| ENL LP census (branch code) | `S/enl_lp_census.log`; output `E/qc/enl_lp_census{,_summary}.csv` | Priya picks the LP ENL window |
+| jaw_onsets watcher (`S/watch_jaw.sh`) | expires 18:13; no rewrite seen | restart if the pose window still plans the rewrite |
 
-## 2b. NEXT, in order (Priya 10-21 ~15:30: "sounds good proceed") -- NOT STARTED IN CODE
+## 2c. NEXT for LP_licks, in order
+
+1. ENL census -> Priya chooses the LP lick-free window (2.0 / 1.5 / 1.0 s); wire it (an LP-only `precue_lickfree`
+   window length, recorded in the cache tag).
+2. Full test suite in `S/wf_lp`; merge `lick/lp-source` to main (it touches `_trial_features`'s module, the shared lick
+   loader and `session_cache`: wait until the normalised rerender is done -- spawned render workers import from main).
+3. Per animal x position x epoch table: LP vs DAQ engaged / no-lick trial counts (rule 8) before any figure.
+4. Null calibration of the LP lick maps (`map_test_calibration.py --family position` under the LP env).
+5. First LP render: `WIDEFIELD_LICK_SOURCE=lp python -m wfield_local.epoch_grant_figures --only 14m 15r acc 5c` (lick,
+   cuelick, ENLlick arms) -> `grant_figures/LP_licks/epoch/`; then grant_figures, CD trajectories (route their output
+   with `lp_licks.output_dir` first -- writeguard will refuse otherwise).
+6. PS93 far_ipsi / far_mid frozen sensitivity: `WIDEFIELD_LP_FROZEN=lp` on the lick arm; compare with the DAQ-frozen
+   readout.
+7. Optional `LP_licks_pre150` (window from 0.15 s before LP onset).
+
+## 2b. Normalised map tests (Priya 10-21 ~15:30: "sounds good proceed") -- DONE 1-4 and 7 (merged), 5 RUNNING, 6 open
 
 1. `wfield_local/beta_maps.py`: add `NORMALISE_TESTS_BY_PRE = True` with the justification (DECISIONS 10-21 afternoon,
    map statistics entry); `pre_scale(pre_by_animal, mask)` (THE per-animal constant, brain_mask RMS of the mean pre
@@ -178,6 +236,16 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
   control can mean a modestly weaker map; read the mixed-model z alongside.
 - Two pre-push test runs at once (both windows) take ~1 h on a busy network; a rejected push ("cannot lock ref") can
   still land if the other window's push carried the commits -- check `git branch -r --contains <sha>`.
+- (evening) A script run from outside the repo (e.g. `/tmp/x.py`) imports the INSTALLED package = the MAIN checkout,
+  not a worktree: set `PYTHONPATH=<worktree>`. The first LP check silently ran DAQ code this way.
+- (evening) Bash heredocs in this Git Bash collapse `\\n` too, not only `\n`: patch files containing backslashes must
+  go through the Edit tool (two more patch scripts stopped at their assert, nothing written).
+- (evening) trial_attempts `unknown` is NOT "unclassifiable": it is close_center trials with no tongue lick and the jaw
+  masked. Treat as no-lick for lick gates.
+- (evening) Do not edit code in the main checkout while a render runs from it: process-pool workers spawn and import
+  the CURRENT files. Code work goes in a worktree (`S/wf_normtest` merged; `S/wf_lp` open).
+- (evening) Cluster-permutation false positives on rest / restw maps are large in AREA (session-wide offset): a cluster
+  contour's extent is not evidence of a broad change.
 
 ## 5. Commands
 

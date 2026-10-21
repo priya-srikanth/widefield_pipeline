@@ -277,6 +277,17 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 - **Movement-first ordering** credits shared variance to movement; "after movement" = after licks, tongue, jaw, nose,
   running (cam4 kinematics, no video). Video is not used in the lick window (it re-describes the licks).
 - **Shuffle dR2 of slow / event variables is inflated** (circular shift); lead with drop dR2.
+- **Map significance tests (10-21 evening, STANDS).** Contours are now computed on the same pre-normalised scale as
+  the pooled picture (`beta_maps.NORMALISE_TESTS_BY_PRE`). Calibration on pre-vs-pre splits: the nested bootstrap
+  (primary) flags nothing on any pure null (figure 14 beta maps and all three 15r position windows); the cluster test
+  is roughly calibrated (2 / 24 random splits) but its false clusters are LARGE on rest / restw maps -> read cluster
+  contours as yes / no, not by area. June vs August pre (no stroke) shows up to ~21 % 'change' at a few positions:
+  the August-only baseline is the right one. Acute far contra survives everything (58-93 %); normalising removes
+  changes carried by the brighter animals (acute far_center 23 % -> 0.1 % on figure 14).
+- **Lick-window imaging analyses use spout CONTACT (10-21 evening).** Acute far contra has too few contact licks for
+  any lick-aligned map (0 sessions reach 20 trials). The LP_licks family (video lick attempts, cam4 + cam1) is built
+  on a branch; pre-stroke the two definitions agree except PS93 far_ipsi / far_mid (27 % / 14 % non-contact attempts).
+  ENL 'lick-free' with LP licks: a 2 s window keeps ~67 % of trials in PS93's worst session (91 % by contact).
 
 ## 6. Where to look
 
@@ -308,6 +319,9 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 - **2026-10-21** — trial attempts + time-to-contact deficit; 3-D contest + template rerun (2.4b); destination vs 3-D
   landing (2.4c); jaw-onset rewrite rerun; within-spout per spout + contact control (pooled toward-midline not
   robust); one-load variants + local input cache (handoff STATUS_2026-10-21_ENCODING_HANDOFF).
+
+- **2026-10-21 (evening)** — map tests on the pre-normalised scale + calibration (caveats); LP_licks family
+  built on a branch; ENL LP census running (handoff STATUS_2026-10-21_ENCODING_HANDOFF §1d).
 
 - **2026-10-20 (evening)** — within-spout lick-aligned / bilateral / mixed model / map tests; 3-D landing zones
   calibrated (soft bins); lick-template test built; 3-D contest queued (handoff STATUS_2026-10-20_EVENING_ENCODING_HANDOFF).

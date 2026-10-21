@@ -377,7 +377,9 @@ apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + cop
 **[`docs/status/STATUS_2026-10-21_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-21_ENCODING_HANDOFF.md)**
 — **START HERE for the encoding model, newest (10-21).** Attempt-based deficit (time to contact), target vs execution
 vs neither (3-D contest, templates, destination), within-spout per spout + contact control (pooled toward-midline NOT
-robust), one-load variants + local input cache (`WFIELD_INPUT_CACHE`), running jobs, to-dos, pitfalls.
+robust), one-load variants + local input cache (`WFIELD_INPUT_CACHE`), running jobs, to-dos, pitfalls; evening (§1d): map
+tests on the pre-normalised scale + calibration (merged), LP_licks video-lick family (`WIDEFIELD_LICK_SOURCE=lp`,
+branch `lick/lp-source`), ENL lick-free census.
 
 **[`docs/status/STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md)**
 — superseded by 10-21; still the reference for the 3-D contest set-up (within-spout check, mixed model, soft calibrated bins, lick-template test, 3-D contest queued, PS92_0908 rerun). Morning: [`STATUS_2026-10-20_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md). Results summary: **[`docs/ENCODING_FINDINGS.md`](docs/ENCODING_FINDINGS.md)**
