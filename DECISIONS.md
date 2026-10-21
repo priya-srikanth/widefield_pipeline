@@ -21141,3 +21141,18 @@ execution-like (the landing mode), neither. (3) **Across-spout slope on both axe
 `b_between_cmd`, maps `betweencmd_*`, mixed kind `between_cmd`): the executed axis compresses post-stroke (far-contra
 licks drift ipsi), the commanded axis cannot move; both kept because both halves of the question matter. First check
 (PS94_0806): OLS-pooled within slope +0.00027 vs equal-weight per-spout mean -0.00024 -- the pooling issue is real.
+
+## 2026-10-21 (morning) -- Faster runs: one load per session for within-spout variants; local input cache
+
+Priya ("should we make our jobs more efficient?"): runs were network-bound, not CPU-bound. M: is the HMS share over one
+gigabit link; with the other window's video jobs the link sat at ~113 MB/s and the within-spout workers idled at ~40 %
+of a core (CPU 22 % overall). Two changes: (1) `within_spout_deviation.py --variants contact,contact_hits,hits,base`
+(VARIANTS_ENV) loads each session once and fits every variant, each into the folder its single-variant flags would use
+(the variants differ only in a covariate / trial filter). (2) `combined_encoding.load_imaging` / `load_behaviour` take a
+local disk cache when `WFIELD_INPUT_CACHE` is set (Priya OK'd `C:\Users\SabatiniLab\wfield_cache`; a disposable copy
+of INPUTS, never results). Key = session + every COMBINED_ENCODING_* / OROFACIAL_* switch + the source of the loader
+modules + mtimes / sizes of the session's source files (imaging, orofacial session dir, DAQ h5, env-named tables, the
+gate's trials.csv; trial_attempts.csv when the gate reads it); a change makes a new entry. PS92_0806: 5 s cached vs
+78-152 s from the share, all imaging arrays and 21 behaviour fields identical; ~240 MB per session. The within-spout
+lick-aligned contact / contact_hits / base reruns were relaunched as ONE pass (08:07; the 06:56 contact run predated
+the commanded-axis slope and was stopped).
