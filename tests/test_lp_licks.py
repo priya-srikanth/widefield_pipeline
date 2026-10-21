@@ -110,3 +110,36 @@ def test_lp_outputs_route_to_lp_licks_and_guard_refuses_daq_paths(monkeypatch):
     with pytest.raises(writeguard.WriteGuardError, match="LP_licks"):
         writeguard.assert_writable(g / "epoch" / "x.png")
     writeguard.assert_writable("C:/Users/SabatiniLab/wfield_cache/x.pkl")          # local paths unaffected
+
+
+def test_enl_window_defaults_and_routing(monkeypatch):
+    from argparse import Namespace
+    from pathlib import Path
+    g = Path("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures")
+    for k in (lp_licks.LICK_SOURCE_ENV, lp_licks.ENL_WINDOW_ENV):
+        monkeypatch.delenv(k, raising=False)
+    a = Namespace(align="precue", post_s=2.0)
+    assert lp_licks.enl_window_s() is None and lp_licks.apply_enl_window(a) is a      # default DAQ: untouched
+    monkeypatch.setenv(lp_licks.LICK_SOURCE_ENV, "lp")
+    assert lp_licks.apply_enl_window(a).post_s == 1.0 and a.post_s == 2.0               # LP: 1.0 s, a copy
+    assert lp_licks.apply_enl_window(Namespace(align="lick", post_s=2.0)).post_s == 2.0  # only the precue window
+    assert lp_licks.output_dir(g / "epoch") == g / "LP_licks" / "epoch"
+    monkeypatch.setenv(lp_licks.LICK_SOURCE_ENV, "daq")
+    monkeypatch.setenv(lp_licks.ENL_WINDOW_ENV, "1.0")                                 # the matched DAQ arm
+    assert lp_licks.apply_enl_window(a).post_s == 1.0
+    assert lp_licks.output_dir(g / "epoch") == g / "DAQ_ENL1s" / "epoch"
+
+
+def test_frozen_precue_spec_carries_the_enl_window(monkeypatch):
+    from wfield_local import frozen_models as fm
+    monkeypatch.setattr(fm, "_session_sig", lambda lab: "x")
+    for k in (lp_licks.LICK_SOURCE_ENV, lp_licks.ENL_WINDOW_ENV):
+        monkeypatch.delenv(k, raising=False)
+    two = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0)
+    monkeypatch.setenv(lp_licks.ENL_WINDOW_ENV, "1.0")
+    daq1 = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0)
+    monkeypatch.setenv(lp_licks.LICK_SOURCE_ENV, "lp")
+    monkeypatch.delenv(lp_licks.ENL_WINDOW_ENV)
+    lp1 = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0)
+    assert two["post_s"] == 2.0 and daq1["post_s"] == 1.0
+    assert fm.spec_id(lp1) == fm.spec_id(daq1) != fm.spec_id(two)    # LP reuses the DAQ 1.0 s model

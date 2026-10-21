@@ -363,6 +363,10 @@ def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=N
     features derived from it. Pass ``signal_fn`` and ``signal_key`` together; see
     `joint_locanmf.BasisSource`.
     """
+    # ENL window (WIDEFIELD_ENL_WINDOW_S; 1.0 s under LP_licks): replaced HERE, before the key is built, so the cache
+    # kind sees the window actually used (`post_s` is in `_FEATURE_ARGS`).
+    args = lp_licks.apply_enl_window(args)
+
     def _compute():
         sig, reg = (signal, feat_region)
         if signal_fn is not None:
@@ -439,6 +443,7 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
     downstream (engagement, position blocks, alignment, the no-lick arm) is then identical to the
     per-session path by construction, which is the point: the basis is the only thing that differs.
     """
+    args = lp_licks.apply_enl_window(args)     # idempotent; also covers direct (uncached) callers
     if signal is None:
         sig, feat_reg = _build_signal(s, args.source)
     else:
