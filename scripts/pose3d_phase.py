@@ -41,7 +41,7 @@ MEAS = ("dist", "dist_out", "vrad", "out", "down", "side", "mid", "mid0", "elev"
 OBLIQUE = (20.0, 45.0)      # matplotlib (elev, azim), as the paired video: in front of the mouse, to its right, 20 deg above
 
 
-def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
+def _frames(d3: Path, s: str) -> pd.DataFrame:
     S = pd.read_csv(d3 / f"{s}_frames.csv.gz", usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv",
                                                          "jaw_ml", "jaw_ap", "jaw_dv"])
     S = S.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).sort_index()
@@ -53,46 +53,85 @@ def _session(d3: Path, s: str, L: pd.DataFrame) -> list[dict]:
     c = (tr[2:] == tr[:-2]) & (np.abs(tt[2:] - tt[:-2] - 8.0) < 0.5)
     V[1:-1][c] = (X[2:][c] - X[:-2][c]) / 0.008
     S["v_ml"], S["v_ap"], S["v_dv"] = V[:, 0], V[:, 1], V[:, 2]
+    return S
+
+
+def _session(S: pd.DataFrame, s: str, L: pd.DataFrame) -> list[dict]:
+    """Per position: every lick's samples looked up in ONE `get_indexer` call (10-21; it was a pandas reindex per lick
+    and kind) -- the same exact-match lookup, so the values are unchanged; a missing (trial, t) row = unknown frame."""
+    A = S[["tongue_ml", "tongue_ap", "tongue_dv", "v_ml", "v_ap", "v_dv", "jaw_ml", "jaw_ap", "jaw_dv"]].to_numpy(float)
+    A = np.vstack([A, np.full((1, A.shape[1]), np.nan)])          # row -1 -> all NaN
     rows = []
     for p, g in L.groupby("position"):
-        acc = {("peak", m): [] for m in MEAS} | {("norm", m): [] for m in MEAS}
-        for r in g.itertuples():
-            for kind, tt in (("peak", r.t_peak_3d + T_REL), ("norm", r.on_ms + U_NORM * (r.off_ms - r.on_ms))):
-                tq = np.round(tt / 4.0) * 4.0 if kind == "norm" else tt
-                idx = pd.MultiIndex.from_arrays([np.full(len(tq), r.trial_id), np.round(tq, 1)])
-                R_ = S.reindex(idx)
-                P = R_[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
-                Vv = R_[["v_ml", "v_ap", "v_dv"]].to_numpy(float)
-                Jj = R_[["jaw_ml", "jaw_ap", "jaw_dv"]].to_numpy(float)
-                known = np.isin(np.round(tq, 1), S.loc[r.trial_id].index.to_numpy()) if r.trial_id in S.index else \
-                    np.zeros(len(tq), bool)
-                dist = np.linalg.norm(P, axis=1)
-                dist = np.where(np.isfinite(dist), dist, np.where(known, 0.0, np.nan))     # in the mouth = 0, as cam4
-                with np.errstate(all="ignore"):
-                    rr = np.linalg.norm(P, axis=1)
-                    mid = np.degrees(np.arcsin(np.clip(-P[:, 0] / rr, -1, 1)))
-                    elev = np.degrees(np.arcsin(np.clip(-P[:, 2] / rr, -1, 1)))
-                inm = ~np.isfinite(rr) & known                                             # no point but frame exists
-                vals = {"dist": dist, "dist_out": rr, "vrad": np.gradient(dist) * 250.0, "out": P[:, 1],
-                        "down": -P[:, 2], "side": -P[:, 0], "mid": mid, "mid0": np.where(inm, 0.0, mid), "elev": elev,
-                        "elev0": np.where(inm, 0.0, elev), "speed": np.linalg.norm(Vv, axis=1), "v_side": -Vv[:, 0],
-                        "v_out": Vv[:, 1], "v_down": -Vv[:, 2], "j_side": -Jj[:, 0], "j_out": Jj[:, 1],
-                        "j_down": -Jj[:, 2]}
-                for m in MEAS:
-                    acc[(kind, m)].append(vals[m])
-        for (kind, m), arrs in acc.items():
-            if len(arrs) < 5:
-                continue
+        if len(g) < 5:
+            continue
+        out = {}
+        for kind in ("peak", "norm"):
+            if kind == "peak":
+                TQ = g.t_peak_3d.to_numpy(float)[:, None] + T_REL[None, :]
+            else:
+                on, off = g.on_ms.to_numpy(float), g.off_ms.to_numpy(float)
+                TQ = np.round((on[:, None] + U_NORM[None, :] * (off - on)[:, None]) / 4.0) * 4.0
+            TR = np.repeat(g.trial_id.to_numpy(), TQ.shape[1])
+            k = S.index.get_indexer(pd.MultiIndex.from_arrays([TR, np.round(TQ, 1).ravel()]))
+            known = (k >= 0).reshape(TQ.shape)
+            R_ = A[k].reshape(TQ.shape + (A.shape[1],))
+            P, Vv, Jj = R_[..., 0:3], R_[..., 3:6], R_[..., 6:9]
+            dist = np.linalg.norm(P, axis=2)
+            dist = np.where(np.isfinite(dist), dist, np.where(known, 0.0, np.nan))     # in the mouth = 0, as cam4
             with np.errstate(all="ignore"):
+                rr = np.linalg.norm(P, axis=2)
+                mid = np.degrees(np.arcsin(np.clip(-P[..., 0] / rr, -1, 1)))
+                elev = np.degrees(np.arcsin(np.clip(-P[..., 2] / rr, -1, 1)))
+            inm = ~np.isfinite(rr) & known                                             # no point but frame exists
+            vals = {"dist": dist, "dist_out": rr, "vrad": np.gradient(dist, axis=1) * 250.0, "out": P[..., 1],
+                    "down": -P[..., 2], "side": -P[..., 0], "mid": mid, "mid0": np.where(inm, 0.0, mid), "elev": elev,
+                    "elev0": np.where(inm, 0.0, elev), "speed": np.linalg.norm(Vv, axis=2), "v_side": -Vv[..., 0],
+                    "v_out": Vv[..., 1], "v_down": -Vv[..., 2], "j_side": -Jj[..., 0], "j_out": Jj[..., 1],
+                    "j_down": -Jj[..., 2]}
+            for m in MEAS:
+                out[(kind, m)] = vals[m]
+        for kind in ("peak", "norm"):
+            for m in MEAS:
+                Aa = out[(kind, m)]
                 import warnings
-                with warnings.catch_warnings():
+                with np.errstate(all="ignore"), warnings.catch_warnings():
                     warnings.simplefilter("ignore", RuntimeWarning)
-                    A = np.vstack(arrs)
-                    mean, cov = np.nanmean(A, axis=0), np.isfinite(A).mean(axis=0)
-            x = T_REL if kind == "peak" else U_NORM
-            rows += [{"session": s, "position": p, "kind": kind, "measure": m, "x": float(xi), "v": float(vi),
-                      "cov": float(ci), "n": len(arrs)} for xi, vi, ci in zip(x, mean, cov)]
+                    mean, cov = np.nanmean(Aa, axis=0), np.isfinite(Aa).mean(axis=0)
+                x = T_REL if kind == "peak" else U_NORM
+                rows += [{"session": s, "position": p, "kind": kind, "measure": m, "x": float(xi), "v": float(vi),
+                          "cov": float(ci), "n": len(Aa)} for xi, vi, ci in zip(x, mean, cov)]
     return rows
+
+
+def session_curves(job) -> list[dict]:
+    """Both lick sets for ONE session (frames read once), CACHED on the session's 3-D frames + v36 licks.csv -- the
+    inputs of its kinematics licks (`pose3d_kinematics.session_result`, which supplies them)."""
+    import sys
+
+    import scripts.pose3d_kinematics as K
+    from wfield_local import result_cache
+    from wfield_local.paths import PathResolver
+    s = job
+    rv = PathResolver()
+    animal, date = s.split("_")
+    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    V36 = Path(rv.root("orofacial")) / "lp_r4_heatmap_20261013__clean_v36" / "sessions"
+    fr, lk = d3 / f"{s}_frames.csv.gz", V36 / animal / date / "licks.csv"
+    ver = result_cache.code_version(sys.modules[__name__], K)
+
+    def compute():
+        g, _J, row = K.session_result((f"{animal}:{date}", "cam4"))
+        C = pd.read_csv(lk, usecols=["trial_id", "lick_idx", "on_ms", "off_ms"])
+        g = g.merge(C, on=["trial_id", "lick_idx"], how="left").dropna(subset=["on_ms", "off_ms", "t_peak_3d"])
+        S = _frames(d3, s)
+        out = []
+        # lick sets as cam4 (Priya 10-16 / 10-20): ALL post-cue licks and the FIRST post-cue lick of each trial
+        for lset, gg in (("all", g), ("first", g[g.lick_idx == 0])):
+            out += [{**r, "animal": animal, "date": date, "epoch": row["epoch"], "lickset": lset}
+                    for r in _session(S, s, gg)]
+        return out
+    return result_cache.cached(d3 / "_cache" / "phase", s, [fr, lk], ver, compute)
 
 
 def _epoch_curves(P: pd.DataFrame, animal: str, kind: str, m: str, pre_from: str) -> dict:
@@ -302,26 +341,21 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pre-from", default="20260801")
+    ap.add_argument("--jobs", type=int, default=3)
+    ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
     a = ap.parse_args(argv)
+    from wfield_local import analysis_kit as ak
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
     L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
-    V36 = Path(rv.root("orofacial")) / "lp_r4_heatmap_20261013__clean_v36" / "sessions"
-    rows = []
-    for s, g in L.groupby("session"):
-        animal, date = s.split("_")
-        C = pd.read_csv(V36 / animal / date / "licks.csv", usecols=["trial_id", "lick_idx", "on_ms", "off_ms"])
-        g = g.merge(C, on=["trial_id", "lick_idx"], how="left").dropna(subset=["on_ms", "off_ms", "t_peak_3d"])
-        # lick sets as cam4 (Priya 10-16 / 10-20): ALL post-cue licks and the FIRST post-cue lick of each trial
-        for lset, gg in (("all", g), ("first", g[g.lick_idx == 0])):
-            for r in _session(d3, s, gg):
-                rows.append({**r, "animal": animal, "date": date, "epoch": g.epoch.iloc[0], "lickset": lset})
-        print(f"{s}: {len(g)} licks")
-    PP = pd.DataFrame(rows)
+    res, fails = ak.fan_sessions(sorted(L.session.unique()), session_curves, jobs=a.jobs)
+    for s, e in fails:
+        print(f"{s}: FAILED {e}")
+    PP = pd.DataFrame([r for _, rr in res for r in rr])
     P = PP[PP.lickset == "all"]
     PF = PP[PP.lickset == "first"]
-    out = d3 / "phase"
-    out.mkdir(exist_ok=True)
+    out = a.out or d3 / "phase"
+    out.mkdir(exist_ok=True, parents=True)
     PP.to_csv(out / "curves.csv.gz", index=False, float_format="%.4g")
     for animal in sorted(P.animal.unique()):
         last = sorted(L[L.animal == animal].date.astype(str).unique())[-1]

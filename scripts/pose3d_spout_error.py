@@ -86,38 +86,60 @@ def per_session(L: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def traces(rv, L: pd.DataFrame) -> pd.DataFrame:
-    """Median |tip - target| per session x position at TRACE_MS from the cam4 lick onset."""
-    from scripts.apparatus_mouth import _rig
-    from wfield_local import spout_world as SW
+def _session_traces(s: str) -> list[dict]:
+    """One session's rows of `traces`, CACHED on its 3-D frames + v36 licks.csv (`result_cache`, 10-21). The licks are
+    that session's kinematics licks (`pose3d_kinematics.session_result`, cached on the same files)."""
+    import sys
+
+    import scripts.pose3d_kinematics as K
+    from wfield_local import result_cache
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    animal, date = s.split("_")
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
-    out = []
-    for s, g in L.groupby("session"):
-        animal, date = s.split("_")
-        S = pd.read_csv(d3 / f"{s}_frames.csv.gz", usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
+    fr, lk = d3 / f"{s}_frames.csv.gz", Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv"
+
+    def compute():
+        from scripts.apparatus_mouth import _rig
+        from wfield_local import spout_world as SW
+        g = K.session_result((f"{animal}:{date}", "cam4"))[0][["trial_id", "lick_idx", "position", "epoch"]]
+        S = pd.read_csv(fr, usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
         S = S.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"])
-        C = pd.read_csv(Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv",
-                        usecols=["trial_id", "lick_idx", "on_ms"])
+        A = np.vstack([S.to_numpy(float), np.full((1, 3), np.nan)])          # row -1 -> NaN (= reindex of a miss)
+        C = pd.read_csv(lk, usecols=["trial_id", "lick_idx", "on_ms"])
         g = g.merge(C, on=["trial_id", "lick_idx"], how="left")
         geo = _rig(rv, animal, date)["geometry"]
+        out = []
         for p, gp in g.groupby("position"):
             T = SW.commanded_world(geo, p)
+            on = gp.on_ms.to_numpy(float)
+            ok = np.isfinite(on)
             M = np.full((len(gp), len(TRACE_MS)), np.nan)
             R = np.full((len(gp), len(TRACE_MS)), np.nan)        # REACH: |tip - mouth zero| (Priya 10-20)
-            for i, r in enumerate(gp.itertuples()):
-                if not np.isfinite(r.on_ms):
-                    continue
-                idx = pd.MultiIndex.from_arrays([np.full(len(TRACE_MS), r.trial_id), np.round(r.on_ms + TRACE_MS, 1)])
-                P = S.reindex(idx).to_numpy(float)
-                M[i] = np.linalg.norm(P - T, axis=1)
-                R[i] = np.linalg.norm(P, axis=1)
+            if ok.any():
+                TQ = np.round(on[ok][:, None] + TRACE_MS[None, :], 1)
+                TR = np.repeat(gp.trial_id.to_numpy()[ok], len(TRACE_MS))
+                P = A[S.index.get_indexer(pd.MultiIndex.from_arrays([TR, TQ.ravel()]))].reshape(TQ.shape + (3,))
+                M[ok] = np.linalg.norm(P - T, axis=2)
+                R[ok] = np.linalg.norm(P, axis=2)
             with np.errstate(all="ignore"):
                 med = np.nanmedian(M, axis=0)
                 rmed = np.nanmedian(R, axis=0)
             out += [{"session": s, "animal": animal, "date": date, "epoch": gp.epoch.iloc[0], "position": p,
                      "t_ms": t, "dist_med": v, "reach_med": rmed[k], "n": int(np.isfinite(M[:, k]).sum())}
                     for k, (t, v) in enumerate(zip(TRACE_MS, med))]
-    return pd.DataFrame(out)
+        return out
+    ver = result_cache.code_version(sys.modules[__name__], K)
+    return result_cache.cached(d3 / "_cache" / "spout_error_traces", s, [fr, lk], ver, compute)
+
+
+def traces(rv, L: pd.DataFrame, jobs: int = 3) -> pd.DataFrame:
+    """Median |tip - target| per session x position at TRACE_MS from the cam4 lick onset (sessions in parallel, cached)."""
+    from wfield_local import analysis_kit as ak
+    res, fails = ak.fan_sessions(sorted(L.session.unique()), _session_traces, jobs=jobs)
+    for s, e in fails:
+        print(f"{s}: FAILED {e}")
+    return pd.DataFrame([r for _, rr in res for r in rr])
 
 
 def fig_scatter(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None:
@@ -291,15 +313,17 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pre-from", default="20260801", help="baseline sessions from this date (August-only primary, 10-18)")
+    ap.add_argument("--jobs", type=int, default=3)
+    ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
     L = add_peak_errors(rv, pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}), a.pre_from)
-    out = d3 / "spout_error"
-    out.mkdir(exist_ok=True)
+    out = a.out or d3 / "spout_error"
+    out.mkdir(exist_ok=True, parents=True)
     P = per_session(L)
     P.to_csv(out / "per_session.csv", index=False)
-    Tr = traces(rv, L)
+    Tr = traces(rv, L, a.jobs)
     Tr.to_csv(out / "traces.csv", index=False)
     # rule 8: each animal's post sessions minus its August pre median (per position x subset)
     keys = ["animal", "position", "subset"]

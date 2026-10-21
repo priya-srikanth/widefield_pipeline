@@ -53,7 +53,25 @@ SETS = ("engaged", "licked")
 
 
 def session_traces(job) -> list[dict]:
-    """fan_sessions worker (module level): rows for one session."""
+    """fan_sessions worker (module level): rows for one session, CACHED (`result_cache`, 10-21) on its 3-D frames, v36
+    licks.csv and behaviour trials table (the engagement gate), with the alignment and gate setting in the key."""
+    import glob
+    import sys
+
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import result_cache
+    from wfield_local.paths import PathResolver
+    s, d3, v36, align = job
+    animal, date = s.split("_")
+    beh = sorted(glob.glob(str(Path(PathResolver().root("behavior_out")) / "sessions" / animal / date
+                               / f"{animal}_{date}_*_trials.csv")))
+    inputs = [Path(d3) / f"{s}_frames.csv.gz", Path(v36) / animal / date / "licks.csv"] + [Path(b) for b in beh]
+    ver = result_cache.code_version(sys.modules[__name__], oc, extra=(align, oc.ENGAGEMENT_GATE, oc.ENGAGED_ONLY))
+    return result_cache.cached(Path(d3) / "_cache" / f"cue_traces_{align}", s, inputs, ver,
+                               lambda: _session_traces(job))
+
+
+def _session_traces(job) -> list[dict]:
     s, d3, v36, align = job
     from wfield_local import orofacial_cohort as oc
     animal, date = s.split("_")
@@ -185,6 +203,7 @@ def main(argv=None) -> int:
     ap.add_argument("--align", choices=list(ALIGN), default="cue")
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--all", action="store_true", help="every session with 3-D frames, not just the curated cohort")
+    ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
@@ -199,7 +218,7 @@ def main(argv=None) -> int:
         print(f"{s}: FAILED {e}")
     T = pd.DataFrame([r for _, rr in res for r in rr])
     T["epoch"] = [epochs.epoch_of(f"{x}_{d[4:]}") for x, d in zip(T.animal, T.date)]
-    out = d3 / ALIGN[a.align]["dir"]
+    out = a.out or d3 / ALIGN[a.align]["dir"]
     RESP = ALIGN[a.align]["resp"]
     (out / "figures").mkdir(parents=True, exist_ok=True)
     T.to_csv(out / "traces.csv.gz", index=False, float_format="%.4g")

@@ -11,6 +11,11 @@ PS92-95 frames 10-21: cam4 = the whisker pads beside the snout, clear of the rod
 dark background). Each ROI is split into vertical STRIPS of ``STRIP_PX`` so the spout rod (cam1: it crosses the
 whisker field at far spouts) can be dropped per trial afterwards by its LP x. Value per frame = mean |frame -
 previous frame| over a strip of the ``ds``-downsampled grey image.
+
+ARTEFACT (10-21): the cam4 videos carry a one-frame motion-energy spike every ~15 frames (~16 Hz), identical in both
+pads -- the encoder's keyframe cycle, not whisking. Per-frame readers should take a ~5-frame running median
+(`scripts/attempt_review.py` does); the 10 ms-binned pilot averages (`scripts/whisker_motion.py traces`) include it as a
+small constant offset.
 """
 from __future__ import annotations
 

@@ -514,6 +514,10 @@ def full_to_windows(pose: np.ndarray, parts: list[str], scorer: str, animal: str
     cols = pd.MultiIndex.from_product([[scorer], list(parts), ["x", "y", "likelihood"]],
                                       names=["scorer", "bodyparts", "coords"])
     pd.DataFrame(sel.reshape(len(sel), -1), columns=cols).to_csv(out / f"windows_{model}.csv")
+    if model == "LP":
+        # binary sidecar for the readers (`pose_windows`, 10-21): built from the CSVs just written, so the two agree
+        from wfield_local import pose_windows
+        pose_windows.build(out)
     return int(ix.trial_k.nunique()) if len(ix) else 0
 
 

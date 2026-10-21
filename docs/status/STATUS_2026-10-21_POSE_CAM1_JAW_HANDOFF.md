@@ -7,6 +7,70 @@ MICROSCOPE. Write only inside `MICROSCOPE/Priya/...`; never delete original data
 WSL LP predict with the 96-frame DALI chunk (use 16). Commit only my own files, staged by name (shared clone with the
 ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_models.py`, `scripts/imaging_lmm.py`).
 
+## 00. MIDDAY UPDATE (10-21 ~10:00) -- read first; §0-§6 below are the morning state
+
+**Pipeline efficiency (Priya: "saved arrays, caches, parallelization ... less redundant"). All verified to reproduce
+the morning outputs EXACTLY** (snapshots in the session scratchpad `regress/`; jaw_onsets 62,771 rows, kinematics
+cam4 + combined, phase 1.68 M rows, spout error, cue + first-lick traces: max diff 0, 0 NaN mismatches):
+* `wfield_local/pose_windows.py`: binary `windows.npz` sidecar next to each cam1 `windows_index.csv` / `windows_LP.csv`
+  (built once, rebuilt when a CSV is newer; LP float32 = model precision, < 3e-5 px from the CSV parse; index exact).
+  `o2_inference.full_to_windows` builds it on collect; `python -m wfield_local.pose_windows` builds all (78 done).
+  Readers switched: jaw_onsets, nose_onsets, attempt_review, whisker_motion, cam1_jaw_review (NOT session_poses /
+  jaw_lateral / cleaned_label_clips / pose_cue_traces: they read old DLC folders; a sidecar there is 200 MB for a count).
+* `wfield_local/result_cache.py`: per-session result cache keyed on input files (size + mtime) + a hash of the code
+  (`code_version`), pickles under `<out>/_cache/<step>/`. Used by jaw_onsets, pose3d_kinematics (now a parallel
+  per-session worker, ~1 GB each instead of 12 GB serial), pose3d_phase + pose3d_spout_error (one exact `get_indexer`
+  per position instead of a reindex per lick), pose3d_cue_traces (key includes the behaviour table + engagement gate).
+  Cached reruns: kinematics 16 s (was 6 + 22 min), phase 74 s (was 17 min). `WFIELD_RESULT_CACHE=0` disables reads.
+  OPEN: the cached jaw_onsets rerun still took 13 min on the loaded box -- not yet diagnosed.
+* `scripts/pose_chain.py`: the whole §4 chain in order (collect + sidecars -> pose3d production -> kinematics x2 ->
+  cam1_licks + incomplete -> cue / first-lick traces -> spout_error -> summary_fig + jaw_crosscheck -> phase ->
+  jaw_onsets LAST), one command after an O2 copy-back; logs `session_poses/pose_chain_logs/`; `--from`, `--only`,
+  `--dry-run`. Its dry run found PS93_20260918 (cam1 copied back after the 06:17 production) -> picked up next run.
+* `--out` on jaw_onsets / kinematics / phase / spout_error / cue_traces for checks (jaw_onsets.csv is WATCHED).
+
+**Attempt / reaction review** (`scripts/attempt_review.py`; page https://claude.ai/artifact/TbQ4pud711MBrT6ygAH5FX,
+db collection `attempt_review`, key `session_poses/attempt_review/key.csv`): 24 post-stroke trials, 4 strata (gate
+adds / removes, jaw_only / no_try near the floor), clips -300 ms .. trial stop + 200 ms, cam1 + cam4, traces: jaw x/y
+both cameras, cam4 nose, tongue likelihood, cam4 WHISKER-PAD motion energy (5-frame median: the cam4 videos carry a
+one-frame ME spike every ~15 frames = keyframes), DAQ TREADMILL speed (1 mm/s guide). Answers: attempted / jaw
+response not opening / other movement / no movement / unsure + tags walking, spout_leaving. First pass: only 5 answers
+saved (page did not show failed saves -- fixed: counter reads back from the store, red banner on failure); none of the
+5 was an attempt (2 near-floor jaw_only judged non-attempts). Priya's notes: WALKING (below the running threshold)
+jiggles the jaw without a cue response; some jaw responses when the SPOUT LEAVES (spout departs 60-80 ms after the
+trial stop, measured; detection ends at stop, so these are not counted). PROPOSED (not built): jaw_onsets columns for a
+cue CONTRAST (post vs the trial's own pre-cue movement) and pre / post treadmill speed; jaw deflection DIRECTION
+(jaw-up responses currently count as moved). Decide after Priya's re-review.
+
+**Nose call** (`scripts/nose_onsets.py`, qc/nose_onsets.csv): NOT used for any class (Priya) -- not specific.
+**Whisker-pad ME** (`wfield_local/roi_motion.py`, `scripts/whisker_motion.py`, pilot PS92 0818 / PS93 0922 / PS94
+0810 / PS95 0820): class averages = licking (hits) only, flat on jaw_only / no_try -> not run cohort-wide; FaceRhythm
+is the route to whisking.
+
+**CD leave-one-out** (`cd_trajectories.analyse_animal(exclude_fit=, project_only=)`, `scripts/cd_loo_sessions.py`,
+WIDEFIELD_PRE_FROM=0801): `grant_figures/epoch/data/cd_window_projection_loo_sessions_long.csv` (family `cd_loo` --
+NOT `cd`: imaging_lmm globs *_sessions_long.csv and would merge it with the in-sample file) + `data/cd_loo_traces.npz`
+(per-session diagonal time courses). Figures `grant_figures/epoch/cd_loo/cd_loo_{window,traj}_{precue,cue,lick}.png`
+(`scripts/cd_loo_figures.py`). Held-out pre means 0.66-0.87 (pre-cue), i.e. in-sample inflation removed. Encoding
+window: use `epoch:cd_loo` (full models incl. the pre step); old `epoch:cd` stays post-only.
+
+**FaceRhythm** (plan docs/FACE_RHYTHM_PLAN.md; O2 bundle by the FaceRhythm window: scripts/o2_face_rhythm.py,
+fr_cam4_20261021, 108 tasks, June excluded):
+* `scripts/face_rhythm_prep.py frames` -> `<dlc>/face_rhythm/cam4/frames/<s>.npz` (median rest face + LP landmarks), 119.
+* `scripts/face_rhythm_register.py` (fr env): templates = medoid of each animal's AUGUST PRE sessions
+  (`face_rhythm/cam4/pre_august_sessions.json`), MASTER = PS95_20260812 (PS93 excluded: right orofacial deficit;
+  FaceRhythm window + Priya 10-21). Coarse = landmark similarity (face weighted x3), fine = DeepFlow on the
+  similarity-warped image, CHAINED by us (fr's remappingIdx_init applied the init twice). Face error PS92-PS95 1.5-6 px
+  in every epoch (PS93 post no worse than its pre: the non-rigid step absorbs the lesion asymmetry); June = similarity
+  fallback (camera change) -> excluded. The first run (post-stroke templates, master PS93_20260821) is kept in
+  `register_v1_postmaster_20261021/`.
+* `scripts/face_rhythm_overlay.py` -> `register/master_overlay.npz` (every session's tips / nose / jaw / reach in master
+  px). BLOCKED at hand-off: the FaceRhythm notebook holds the file open (0-byte write) -> restart its kernel, rerun.
+* `scripts/face_rhythm_warp_rois.py`: `carry` (Priya's polygons PS93_20260821 -> PS95_20260812 done: 79 / 46 vertices,
+  2,207 points), `to-sessions` (NOT RUN: after Priya re-checks on PS95_20260812; moves existing ROIs.h5 aside, skips June).
+* Proposed: a per-session facial ASYMMETRY index from the registration field (lower-face L vs R displacement from the
+  animal's own pre template), beside LP rest-jaw `jaw_ml`.
+
 ## 0. Resume checklist
 
 1. **Background chain `bfvyguza2` (started 06:17)** processes the 18 new cam1 sessions (PS93 0922 / 0925 / 0929 / 1002 /

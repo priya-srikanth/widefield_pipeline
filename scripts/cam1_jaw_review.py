@@ -23,6 +23,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import pose_windows
+
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("far_R", "close_center")
 CUT = 0.6
@@ -68,8 +70,8 @@ def build(rv, P: pd.DataFrame, rng) -> tuple[list, list]:
     for s, g in P.groupby("session"):
         a, d = s.split("_")
         d1 = Path(rv.root("dlc")) / "session_poses" / f"{s}_cam1_full"
-        ix1 = pd.read_csv(d1 / "windows_index.csv")
-        W = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0)
+        ix1 = pose_windows.index(d1)
+        W = pose_windows.lp(d1)
         jx, jy = W[("jaw", "x")].to_numpy(float), W[("jaw", "y")].to_numpy(float)
         lk = W[("jaw", "likelihood")].to_numpy(float)
         y = np.where(lk >= CUT, jy, np.nan)
@@ -144,8 +146,8 @@ VTILE, VCROP = 200, (300, 260)
 def _peaks(rv, s: str, trials: set) -> pd.DataFrame:
     """Per trial: cam1 jaw |peak deflection| from the pre-cue median in cue .. stop (px) and its time (as `build`)."""
     d1 = Path(rv.root("dlc")) / "session_poses" / f"{s}_cam1_full"
-    ix1 = pd.read_csv(d1 / "windows_index.csv")
-    W = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0, usecols=None)
+    ix1 = pose_windows.index(d1)
+    W = pose_windows.lp(d1)
     y = np.where(W[("jaw", "likelihood")].to_numpy(float) >= CUT, W[("jaw", "y")].to_numpy(float), np.nan)
     rows = []
     for tid, h in ix1[ix1.trial_id.isin(trials)].groupby("trial_id"):
@@ -190,12 +192,12 @@ def video_round(rv, per: int, rng) -> tuple[list, list]:
     for s, g in P.groupby("session"):
         a, d = s.split("_")
         d1 = Path(rv.root("dlc")) / "session_poses" / f"{s}_cam1_full"
-        ix1 = pd.read_csv(d1 / "windows_index.csv")
+        ix1 = pose_windows.index(d1)
         w4 = np.load(root / "sessions" / a / d / "windows.npz")
         ix4 = pd.DataFrame({k: w4[f"ix_{k}"] for k in ("trial_id", "t_daq_ms", "src_frame")})
         pj = list(map(str, w4["parts"])).index("jaw")
         jaw4 = w4["pose"][:, pj, :2].astype(float)
-        W = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0)
+        W = pose_windows.lp(d1)
         j1 = np.c_[W[("jaw", "x")].to_numpy(float), W[("jaw", "y")].to_numpy(float)]
         cap1 = cv2.VideoCapture(str(_video(rv, a, d, "cam1", pd.DataFrame(), 0)))
         cap4 = cv2.VideoCapture(str(_video(rv, a, d, "cam4", pd.DataFrame(), 0)))

@@ -58,19 +58,21 @@ def rest_points(S: pd.DataFrame) -> dict:
 def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) -> pd.DataFrame:
     from wfield_local import spout_world as SW
     tgt = {p: SW.commanded_world(geo, p) for p in SW.POSITIONS}
-    g = {k: v for k, v in S.groupby("trial_id")}
+    has_src = "tongue_src" in S
+    g = {k: (v.t_ms.to_numpy(float), v[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float),
+             v.tongue_src.to_numpy() if has_src else None) for k, v in S.groupby("trial_id")}
     rows = []
     for r in C.itertuples():
         f = g.get(r.trial_id)
         if f is None or r.position not in tgt:
             continue
-        w = f[(f.t_ms >= r.on_ms - 0.5) & (f.t_ms <= r.off_ms + 0.5)]
-        P = w[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
+        sel = (f[0] >= r.on_ms - 0.5) & (f[0] <= r.off_ms + 0.5)
+        P = f[1][sel]
         ok = np.isfinite(P).all(1)
         if ok.sum() < 3:
             continue
-        t, P = w.t_ms.to_numpy(float)[ok], P[ok]
-        src = w.tongue_src.to_numpy()[ok] if "tongue_src" in w else np.ones(len(P))
+        t, P = f[0][sel][ok], P[ok]
+        src = f[2][sel][ok] if has_src else np.ones(len(P))
         R = P - E
         d = np.linalg.norm(R, axis=1)
         k = int(np.argmax(d))
@@ -139,9 +141,62 @@ def session_jaw(S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def main(argv=None) -> int:
+def session_result(job) -> tuple:
+    """(licks, jaw trials, session row) for ONE session -- the unit the run fans out over (10-21: it held every session's
+    frames at once, ~12 GB, serially). CACHED on the 3-D frames + v36 licks.csv (`result_cache`)."""
+    import sys
+
+    from wfield_local import pose3d, result_cache, spout_world
+    from wfield_local.paths import PathResolver
+    s, mode = job
+    rv = PathResolver()
+    animal, date = s.split(":")
+    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    fr = d3 / f"{animal}_{date}_frames.csv.gz"
+    lk = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv"
+    ver = result_cache.code_version(sys.modules[__name__], pose3d, spout_world, extra=mode)
+    return result_cache.cached(d3 / "_cache" / f"kinematics_{mode}", f"{animal}_{date}", [fr, lk], ver,
+                               lambda: _session_result(rv, s, mode, fr, lk))
+
+
+def _session_result(rv, s, mode, fr, lk) -> tuple:
     from scripts.apparatus_mouth import _rig
     from wfield_local import epochs
+    animal, date = s.split(":")
+    S = pd.read_csv(fr).drop_duplicates(["trial_id", "t_ms"])
+    rest = rest_points(S)
+    E = np.zeros(3)                                   # the spout mouth zero = the frame's origin (Priya 10-19)
+    C = pd.read_csv(lk)
+    if mode == "combined":
+        C = combined_events(rv, S, C, animal, date)
+    geo = _rig(rv, animal, date)["geometry"]
+    ep = epochs.epoch_of(f"{animal}_{date[4:]}")
+    L, J = session_licks(S, C, geo, E), session_jaw(S)
+    for X in (L, J):
+        X["animal"], X["date"], X["session"], X["epoch"] = animal, date, f"{animal}_{date}", ep
+    row = {"session": f"{animal}_{date}", "animal": animal, "date": date, "epoch": ep,
+           "cam4_licks": len(C), "licks_3d": len(L),
+           "not_in_cam4": int((~L.cam4_matched).sum()) if len(L) else 0,
+           **{f"{part}_{ax}": v for part in ("nose", "jaw") for ax, v in zip(("ml", "ap", "dv"), rest[part])}}
+    jm = J.groupby("position").lr_wide_mm.median()
+    if {"far_L", "far_R"} <= set(jm.index):
+        row["jaw_far_dir_mm"] = (jm["far_L"] - jm["far_R"]) / 2       # + = toward the target side
+        row["jaw_far_bias_mm"] = (jm["far_L"] + jm["far_R"]) / 2      # + = ipsi (mouse left)
+    # CLOSE side spouts too (10-20): cam4's jaw readout leaves them out (the rod hides part of the chin in cam4),
+    # but 3-D sees the jaw there 81-98 % of frames at ~1 px (both cameras)
+    if {"close_L", "close_R"} <= set(jm.index):
+        row["jaw_close_dir_mm"] = (jm["close_L"] - jm["close_R"]) / 2
+        row["jaw_close_bias_mm"] = (jm["close_L"] + jm["close_R"]) / 2
+    for p, g in L.groupby("position"):
+        for m in LICK_MEASURES:
+            row[f"{m}|{p}"] = float(g[m].median())
+    for p, g in J.groupby("position"):
+        row[f"open_max_mm|{p}"] = float(g.open_max_mm.median())
+    return L, J, row
+
+
+def main(argv=None) -> int:
+    from wfield_local import analysis_kit as ak
     from wfield_local import pose3d as P3
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -150,18 +205,19 @@ def main(argv=None) -> int:
                     help="cam4 = the cam4 production lick events (default); combined = events from the 3-D track "
                          "(`pose3d.lick_events`), flagged cam4_matched, DAQ contact; output kinematics_combined/")
     ap.add_argument("--all", action="store_true", help="every session with 3-D frames, not just the curated cohort")
+    ap.add_argument("--jobs", type=int, default=3, help="sessions in parallel (~1 GB each)")
+    ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
-    from wfield_local import analysis_kit as ak
     cur = None if a.all else ak.curated_ids()
     sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz")
                                 if cur is None or f.name.replace("_frames.csv.gz", "") in cur)
-    out = d3 / ("kinematics" if a.licks == "cam4" else "kinematics_combined")
-    out.mkdir(exist_ok=True)
+    out = a.out or d3 / ("kinematics" if a.licks == "cam4" else "kinematics_combined")
+    out.mkdir(exist_ok=True, parents=True)
     bad = P3.failed_sessions(d3)                      # spout fit / camera-timing gates (`pose3d.failed_sessions`)
-    frames, rest = {}, {}
-    for s in sess:                                    # pass 1: frames + resting nose / jaw per session
+    keep = []
+    for s in sess:
         animal, date = s.split(":")
         if f"{animal}_{date}" in bad:
             print(f"{s}: {bad[f'{animal}_{date}']} -- skipped")
@@ -169,42 +225,16 @@ def main(argv=None) -> int:
         if not (Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv").exists():
             print(f"{s}: no v36 licks -- skipped")
             continue
-        frames[s] = pd.read_csv(d3 / f"{animal}_{date}_frames.csv.gz").drop_duplicates(["trial_id", "t_ms"])
-        rest[s] = rest_points(frames[s])
-    E = np.zeros(3)                                   # the spout mouth zero = the frame's origin (Priya 10-19)
+        keep.append(s)
+    res, fails = ak.fan_sessions([(s, a.licks) for s in keep], session_result, jobs=a.jobs, key=lambda j: j[0])
+    for j, e in fails:
+        print(f"{j[0]}: FAILED {e}")
     LL, JJ, SS = [], [], []
-    for s, S in frames.items():
-        animal, date = s.split(":")
-        C = pd.read_csv(Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv")
-        if a.licks == "combined":
-            C = combined_events(rv, S, C, animal, date)
-        geo = _rig(rv, animal, date)["geometry"]
-        ep = epochs.epoch_of(f"{animal}_{date[4:]}")
-        L, J = session_licks(S, C, geo, E), session_jaw(S)
-        for X in (L, J):
-            X["animal"], X["date"], X["session"], X["epoch"] = animal, date, f"{animal}_{date}", ep
+    for (s, _m), (L, J, row) in res:
         LL.append(L)
         JJ.append(J)
-        row = {"session": f"{animal}_{date}", "animal": animal, "date": date, "epoch": ep,
-               "cam4_licks": len(C), "licks_3d": len(L),
-               "not_in_cam4": int((~L.cam4_matched).sum()) if len(L) else 0,
-               **{f"{part}_{ax}": v for part in ("nose", "jaw") for ax, v in zip(("ml", "ap", "dv"), rest[s][part])}}
-        jm = J.groupby("position").lr_wide_mm.median()
-        if {"far_L", "far_R"} <= set(jm.index):
-            row["jaw_far_dir_mm"] = (jm["far_L"] - jm["far_R"]) / 2       # + = toward the target side
-            row["jaw_far_bias_mm"] = (jm["far_L"] + jm["far_R"]) / 2      # + = ipsi (mouse left)
-        # CLOSE side spouts too (10-20): cam4's jaw readout leaves them out (the rod hides part of the chin in cam4),
-        # but 3-D sees the jaw there 81-98 % of frames at ~1 px (both cameras)
-        if {"close_L", "close_R"} <= set(jm.index):
-            row["jaw_close_dir_mm"] = (jm["close_L"] - jm["close_R"]) / 2
-            row["jaw_close_bias_mm"] = (jm["close_L"] + jm["close_R"]) / 2
-        for p, g in L.groupby("position"):
-            for m in LICK_MEASURES:
-                row[f"{m}|{p}"] = float(g[m].median())
-        for p, g in J.groupby("position"):
-            row[f"open_max_mm|{p}"] = float(g.open_max_mm.median())
         SS.append(row)
-        print(f"{s} ({ep}): {len(L)} / {len(C)} cam4 licks with >= 3 3-D frames; {len(J)} jaw trials")
+        print(f"{s} ({row['epoch']}): {len(L)} / {row['cam4_licks']} cam4 licks with >= 3 3-D frames; {len(J)} jaw trials")
     L, J, S = pd.concat(LL, ignore_index=True), pd.concat(JJ, ignore_index=True), pd.DataFrame(SS)
     L.to_csv(out / "licks.csv.gz", index=False, float_format="%.4g")
     J.to_csv(out / "jaw_trials.csv.gz", index=False, float_format="%.4g")

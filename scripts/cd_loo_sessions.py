@@ -14,8 +14,11 @@ Value = per session x position the mean projection on its OWN direction (diagona
 `epoch_sessions_long.CD_WINDOWS` (pre-cue [-2, 0) s, cue [0, 1) s, lick [0, 1) s), exactly as ``fam_cd``.
 
 Output `<labcams>/grant_figures/epoch/data/cd_window_projection_loo_sessions_long.csv` (the in-sample file is
-untouched): family, arm, align, variant, label, animal, epoch, day, position, measure, value, n_trials, pre_loo,
-baseline. Cost: features, arms and grand means are session-cached, so a refit is cheap; each run projects only its
+untouched): family (``cd_loo`` -- NOT ``cd``: `scripts/imaging_lmm.py` reads every *_sessions_long.csv and would merge
+the two), arm, align, variant, label, animal, epoch, day, position, measure, value, n_trials, pre_loo, baseline.
+Plus ``data/cd_loo_traces.npz``: every session's diagonal TIME COURSE per alignment (``t_<align>`` s; ``trace_<align>``
+rows = sessions x positions, with ``label_/epoch_/position_/n_/pre_loo_<align>``) for the trajectory figures
+(`scripts/cd_loo_figures.py`). Cost: features, arms and grand means are session-cached, so a refit is cheap; each run projects only its
 own session(s).
 """
 from __future__ import annotations
@@ -42,9 +45,22 @@ def _rows(res, align, loo):
         if cd_p != tr_p:
             continue
         pos = POSITION_NAMES.get(cd_p, str(cd_p)) if isinstance(POSITION_NAMES, dict) else str(cd_p)
-        out.append(("cd", lab, pos, f"CD projection, {meas}", float(np.nanmean(np.asarray(d["mean"], float)[m])),
+        out.append(("cd_loo", lab, pos, f"CD projection, {meas}", float(np.nanmean(np.asarray(d["mean"], float)[m])),
                     int(d.get("n", 0)), loo, align))
     return out
+
+
+def _traces(res, align, loo):
+    """Diagonal per-session time courses of one result: (t s, [(label, epoch, position, n, loo, trace), ...])."""
+    from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
+    t = np.arange(-res["pre_n"], res["post_n"]) / float(res["fs"])
+    out = []
+    for (lab, ep, cd_p, tr_p), d in (res.get("session_traces") or {}).items():
+        if cd_p != tr_p:
+            continue
+        pos = POSITION_NAMES.get(cd_p, str(cd_p)) if isinstance(POSITION_NAMES, dict) else str(cd_p)
+        out.append((lab, ep, pos, int(d.get("n", 0)), loo, np.asarray(d["mean"], np.float32)))
+    return t, out
 
 
 def run_animal(job):
@@ -56,21 +72,25 @@ def run_animal(job):
     labs = [s["label"] for s in ak.curated_sessions() if s["label"].startswith(animal)]
     pre = [x for x in labs if epochs.epoch_of(x) == "pre"]
     post = [x for x in labs if epochs.epoch_of(x) not in ("pre", "excluded")]
-    rows, notes = [], []
+    rows, notes, tr = [], [], {}
     for align in aligns:
         res = cdt.analyse_animal(animal, align, project_only=set(post), verbose=False, **SETTINGS)
         if res.get("skipped"):
             notes.append(f"{animal} {align} post: SKIPPED {res['skipped']}")
         else:
             rows += _rows(res, align, False)
+            t, x = _traces(res, align, False)
+            tr.setdefault(align, [t, []])[1].extend(x)
         for s in pre:
             res = cdt.analyse_animal(animal, align, exclude_fit={s}, project_only={s}, verbose=False, **SETTINGS)
             if res.get("skipped"):
                 notes.append(f"{animal} {align} {s}: SKIPPED {res['skipped']}")
                 continue
             rows += _rows(res, align, True)
+            t, x = _traces(res, align, True)
+            tr.setdefault(align, [t, []])[1].extend(x)
         print(f"  {animal} {align}: {len(pre)} pre LOO + {len(post)} post", flush=True)
-    return rows, notes
+    return rows, notes, tr
 
 
 def main(argv=None) -> int:
@@ -91,8 +111,8 @@ def main(argv=None) -> int:
                                  key=lambda j: j[0], label="animal")
     for j, e in fails:
         print(f"{j[0]}: FAILED {e}")
-    rows = [r for _, (rr, _n) in res for r in rr]
-    for _, (_r, notes) in res:
+    rows = [r for _, (rr, _n, _t) in res for r in rr]
+    for _, (_r, notes, _t) in res:
         for n in notes:
             print("  ", n)
     C = pd.DataFrame(rows, columns=["family", "label", "position", "measure", "value", "n_trials", "pre_loo", "align"])
@@ -106,6 +126,21 @@ def main(argv=None) -> int:
     fig_dir = a.out or Path(cdt.default_out())
     p = FL.sidecar_for(fig_dir, "cd_window_projection_loo", "_sessions_long.csv")
     C.to_csv(p, index=False)
+    cur = set(ak.curated_labels())
+    arrs = {}
+    for align in a.aligns:
+        t, items = None, []
+        for _, (_r, _n, tr) in res:
+            if align in tr:
+                t = tr[align][0]
+                items += [x for x in tr[align][1] if x[0] in cur]
+        if t is None or not items:
+            continue
+        arrs[f"t_{align}"] = t
+        arrs[f"trace_{align}"] = np.vstack([x[5] for x in items])
+        for k, name in enumerate(("label", "epoch", "position", "n", "pre_loo")):
+            arrs[f"{name}_{align}"] = np.array([x[k] for x in items])
+    np.savez_compressed(FL.sidecar_for(fig_dir, "cd_loo_traces", ".npz"), **arrs)
     pd.set_option("display.width", 200)
     print(C.groupby(["animal", "align", "epoch"]).value.agg(["size", "mean"]).round(3).to_string())
     print("->", p)

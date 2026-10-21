@@ -20,6 +20,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import pose_windows
+
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 CAMS = ("cam4", "cam1")
 BIN_MS, T0, T1 = 10, -500, 1500
@@ -31,7 +33,7 @@ def _nose(s: str, cam: str, ro: Path, rd: Path):
         w = np.load(ro / V36 / "sessions" / a / d / "windows.npz")
         P = w["pose"][:, list(w["parts"]).index("nose"), :]
     else:
-        L = pd.read_csv(rd / "session_poses" / f"{s}_cam1_full" / "windows_LP.csv", header=[1, 2], index_col=0)
+        L = pose_windows.lp(rd / "session_poses" / f"{s}_cam1_full")
         P = L[[("nose", "x"), ("nose", "y"), ("nose", "likelihood")]].to_numpy(float)
     ok = P[:, 2] > 0.9
     return float(np.median(P[ok, 0])), float(np.median(P[ok, 1]))
@@ -90,8 +92,8 @@ def _windows(s: str, cam: str, ro: Path, rd: Path) -> pd.DataFrame:
         ix["spout_x"] = w["pose"][:, list(w["parts"]).index("spout"), 0]
     else:
         sp = rd / "session_poses" / f"{s}_cam1_full"
-        ix = pd.read_csv(sp / "windows_index.csv", usecols=["trial_id", "position", "src_frame", "t_daq_ms"])
-        L = pd.read_csv(sp / "windows_LP.csv", header=[1, 2], index_col=0)
+        ix = pose_windows.index(sp, usecols=["trial_id", "position", "src_frame", "t_daq_ms"])
+        L = pose_windows.lp(sp)
         ix["spout_x"] = np.where(L[("spout", "likelihood")].to_numpy(float) > 0.6, L[("spout", "x")].to_numpy(float),
                                  np.nan)
     return ix

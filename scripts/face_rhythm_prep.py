@@ -3,7 +3,7 @@ onto one MASTER face per camera.
 
     python -m scripts.face_rhythm_prep frames [--cam cam4] [--jobs 4] [--sessions PS92:20260818 ...]   # locanmf env
 
-frames  per curated session (v36 cam4 windows): the MEDIAN of up to ``N_FRAMES`` pre-cue frames (-1500 .. -500 ms from
+frames  per curated session (v36 cam4 windows): the MEDIAN of ~300 pre-cue frames (``N_TRIALS`` trials x every ``EVERY``-th frame) (-1500 .. -500 ms from
         the cue; tongue absent, LP tongue likelihood < 0.5 -> mouth closed), sampled evenly over the session, and the LP
         landmarks the registration is checked with and the ROI is drawn against: nose and jaw at rest (same frames),
         per-position spout tip (median over 0 .. 500 ms after the cue, spout in place) and the tongue's reach (95th
@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
-N_FRAMES = 300
+N_TRIALS, EVERY = 30, 25          # 30 trials x ~10 rest frames (every 100 ms) = ~300 frames
 PRE = (-1500.0, -500.0)
 
 
@@ -42,17 +42,27 @@ def session(job) -> dict:
     idx = np.flatnonzero(rest)
     if len(idx) < 50:
         return {"session": s, "error": f"only {len(idx)} rest frames"}
-    pick = idx[np.linspace(0, len(idx) - 1, min(N_FRAMES, len(idx))).astype(int)]
     vids = sorted(glob.glob(str(Path(root_vid) / d / a / f"{cam}_*.avi")))
     if not vids:
         return {"session": s, "error": "no video"}
+    # ONE SEEK PER TRIAL (300 random seeks over the network took ~15 min a session): N_TRIALS trials spread over the
+    # session, each read forward through its rest frames (grab() skips cheaply), keeping every EVERY-th frame
+    tid = w["ix_trial_id"][idx]
+    trials = np.unique(tid)
+    trials = trials[np.linspace(0, len(trials) - 1, min(N_TRIALS, len(trials))).astype(int)]
     cap = cv2.VideoCapture(vids[-1])
     ims = []
-    for f in np.sort(src[pick]):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(f))
-        ok, im = cap.read()
-        if ok:
-            ims.append(im[..., 0])
+    for tr in trials:
+        f = np.sort(src[idx[tid == tr]])
+        want = set(f[::EVERY].tolist())
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(f[0]))
+        for fr in range(int(f[0]), int(f[-1]) + 1):
+            if fr in want:
+                ok, im = cap.read()
+                if ok:
+                    ims.append(im[..., 0])
+            elif not cap.grab():
+                break
     cap.release()
     med = np.median(np.stack(ims), 0).astype(np.uint8)
 

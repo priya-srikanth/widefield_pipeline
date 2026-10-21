@@ -28,6 +28,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import pose_windows
+
 from scripts.jaw_onsets import FPS, V36, _laid_out
 
 NOSE_CUT = 0.6
@@ -77,9 +79,9 @@ def session(job) -> pd.DataFrame:
     out["cam1_nose_moved"], out["cam1_nose_onset_ms"], out["_f1"] = np.nan, np.nan, np.nan
     d1 = Path(root_d) / "session_poses" / f"{s}_cam1_full"
     if (d1 / "windows_LP.csv").exists():
-        ix1 = pd.read_csv(d1 / "windows_index.csv")
+        ix1 = pose_windows.index(d1)
         if "t_daq_ms" in ix1:
-            P = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0)
+            P = pose_windows.lp(d1)
             lo = P[("nose", "likelihood")].to_numpy(float) < NOSE_CUT
             x1, y1 = P[("nose", "x")].to_numpy(float), P[("nose", "y")].to_numpy(float)
             x1[lo], y1[lo] = np.nan, np.nan

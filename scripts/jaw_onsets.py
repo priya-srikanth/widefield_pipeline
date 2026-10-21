@@ -72,8 +72,25 @@ def _camera(y: np.ndarray, idx: pd.DataFrame, cam: str) -> pd.DataFrame:
 
 
 def session(job) -> pd.DataFrame:
+    """One session's table, CACHED on its input files (`result_cache`; 10-21): a rerun recomputes only new / changed
+    sessions."""
+    import sys
+
+    from wfield_local import jaw_kinematics, result_cache
+    s, root_o, root_d = job
+    a, d = s.split("_")
+    sd = Path(root_o) / V36 / "sessions" / a / d
+    d1 = Path(root_d) / "session_poses" / f"{s}_cam1_full"
+    inputs = [sd / "windows.npz", sd / "clean.npz", d1 / "windows_index.csv", d1 / "windows_LP.csv"]
+    ver = result_cache.code_version(jaw_kinematics, sys.modules[__name__])
+    return result_cache.cached(Path(root_o) / V36 / "imaging_encoding" / "qc" / "_cache" / "jaw_onsets", s, inputs, ver,
+                               lambda: _session(job))
+
+
+def _session(job) -> pd.DataFrame:
     s, root_o, root_d = job
     from wfield_local import epochs
+    from wfield_local import pose_windows as pw
     a, d = s.split("_")
     sd = Path(root_o) / V36 / "sessions" / a / d
     w = np.load(sd / "windows.npz", allow_pickle=False)
@@ -85,9 +102,9 @@ def session(job) -> pd.DataFrame:
     d1 = Path(root_d) / "session_poses" / f"{s}_cam1_full"
     out["cam1_moved"], out["cam1_onset_ms"], out["cam1_onset_frames"], out["cam1_reonset_ms"] = (np.nan,) * 4
     if (d1 / "windows_LP.csv").exists():
-        ix1 = pd.read_csv(d1 / "windows_index.csv")
+        ix1 = pw.index(d1)                           # binary sidecar of windows_index.csv / windows_LP.csv (10-21)
         if "t_daq_ms" in ix1:                       # template-time windows only (pre-10-20 collects lack it)
-            P = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0)
+            P = pw.lp(d1)
             y1 = P[("jaw", "y")].to_numpy(float)
             y1[P[("jaw", "likelihood")].to_numpy(float) < CAM1_JAW_CUT] = np.nan
             C1 = _camera(y1, ix1, "cam1").set_index("trial_id")
@@ -131,6 +148,7 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--sessions", nargs="*", default=None, metavar="ANIMAL:YYYYMMDD")
     ap.add_argument("--all", action="store_true", help="every v36 session, not just the curated cohort")
+    ap.add_argument("--out", type=Path, default=None, help="write here instead (checks; the default file is WATCHED)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     ro, rd = Path(rv.root("orofacial")), Path(rv.root("dlc"))
@@ -144,7 +162,7 @@ def main(argv=None) -> int:
     for s, e in fails:
         print(f"{s}: FAILED {e}")
     T = pd.concat([r for _, r in res], ignore_index=True)
-    out = ro / V36 / "imaging_encoding" / "qc" / "jaw_onsets.csv"
+    out = a.out or ro / V36 / "imaging_encoding" / "qc" / "jaw_onsets.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     T.to_csv(out, index=False, float_format="%.2f")
     pd.set_option("display.width", 220)
