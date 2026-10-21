@@ -711,7 +711,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
 #SBATCH --array=1-{len(T)}%24
 #SBATCH -o {b}/logs/%A_%a.out
 #SBATCH -e {b}/logs/%A_%a.err
-# {p['workers']} segment workers x 2 threads. Expected per task at the pilot's rates: {hours.min():.1f}-{hours.max():.1f} h,
+# {p['workers']} segment workers x 2 threads. Expected per task at the O2 param-test rate: {hours.min():.1f}-{hours.max():.1f} h,
 # peak ~{E['ram']:.0f} GB. Resumable per segment: a task that hits the limit continues where it stopped when
 # resubmitted with the same --array index.
 set -eo pipefail
@@ -725,7 +725,7 @@ python {b}/fr_runner.py
     cmds = f"""# O2 FaceRhythm: {name} ({len(T)} tasks = session x {CAM}; ROIs ready for {n_ready})
 
 Per task ({p['workers']} parallel 10-min segments x 2 threads = {cpus} CPUs): {hours.min():.1f}-{hours.max():.1f} h at the
-pilot's rates, peak RAM ~{E['ram']:.0f} GB, outputs ~{gb.median():.0f} GB (float16; {gb.sum() / 1000:.1f} TB for all
+O2 param-test rate, peak RAM ~{E['ram']:.0f} GB, outputs ~{gb.median():.0f} GB (float16; {gb.sum() / 1000:.1f} TB for all
 {len(T)}{"" if n_ready == len(T) else f", {PILOT_POINTS} points assumed where no ROIs yet"}). Scratch per running task:
 up to 2x its outputs (work memmaps, removed once the npz are written).
 
@@ -757,7 +757,7 @@ squeue -u {user}
 tail -n 5 {b}/logs/*_1.out
 ```
 The log prints one line per finished segment (fps per worker, violations, worker peak RAM). Check the fps against
-the pilot's 100 and `sacct -j <jobid> --format=MaxRSS,Elapsed,TotalCPU` against the request; when task 1 has written
+the O2 param test's ~{O2_FPS:.0f} (2 threads, 1282 points) and `sacct -j <jobid> --format=MaxRSS,Elapsed,TotalCPU` against the request; when task 1 has written
 `{b}/out/*_summary.json`:
 ```bash
 sbatch --array=2-{len(T)}%24 {b}/run_fr.sbatch
