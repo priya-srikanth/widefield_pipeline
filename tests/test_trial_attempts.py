@@ -16,7 +16,8 @@ def _trials(label, pos, rows):
         out.append({"label": label, "trial_id": i, "pos": pos, "cls": cls, "attempted": att, "canonical": can,
                     "contact": con, "n_licks": 1 if cls in ("hit", "incomplete") else 0,
                     "n_nocontact": 1 if cls == "incomplete" else 0, "cam4": 100.0 if att else np.nan,
-                    "combined": 90.0 if att else np.nan, "has_cam1": True, "angle_first": ang})
+                    "combined": 90.0 if att else np.nan, "has_cam1": True, "angle_first": ang,
+                    "jaw_onset_ms": 60.0 if att else np.nan})
     return out
 
 
@@ -34,3 +35,4 @@ def test_denominators_and_composite():
     assert r.completion_far_contra == pytest.approx(2 / 3)
     assert r.lateral_bias_far_contra == pytest.approx(12.0 - 1.0)          # vs August-pre mean angle 1.0
     assert W.loc["PS92_0806"].lateral_bias_far_contra == pytest.approx(0.0)
+    assert r.latency_move_ms_far_contra == pytest.approx(60.0)            # jaw onset precedes the first lick

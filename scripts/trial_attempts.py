@@ -6,8 +6,10 @@ canonical 'engaged' period separately"; "will we include latency?"). Plan: docs/
 Per trial, cue .. trial stop (`trial_windows.trial_bounds`; latencies from `scripts/first_lick_latency.session_latency`):
   hit         a DAQ spout contact
   incomplete  an LP lick (cam4 `licks.csv`, or a cam1-only event -- droplets out) and no contact
-  jaw_only    no lick, jaw moved on EITHER camera: cam4 (v36 `tongue_jaw_mismatch.csv` jaw_pass_qc = the "jaw moved"
-              call; NaN = cannot judge; not used at close_center, chin hidden) or cam1 (`cam1_jaw_moved`, same rule)
+  jaw_only    no lick, jaw moved AFTER the cue on EITHER camera (`qc/jaw_onsets.csv`, scripts/jaw_onsets.py: the v36
+              "jaw moved" rule on cam4 and on template-timed cam1, cam1 floor 15 px; onset_at_cue trials excluded);
+              NEITHER camera used at close_center (cam4 chin hidden; cam1 failed the 10-21 blind review there), so
+              close_center no-lick trials are unknown
   no_try      no lick, jaw judged and still
   unknown     no lick, no usable jaw
 attempted = hit | incomplete | jaw_only (the proposed movement engagement label). `canonical` = the behaviour pipeline's
@@ -26,6 +28,7 @@ Usage: PYTHONPATH=. python scripts/trial_attempts.py [--jobs 2]
 from __future__ import annotations
 
 import argparse
+import functools
 from pathlib import Path
 
 import numpy as np
@@ -33,38 +36,22 @@ import pandas as pd
 
 CLASSES = ("hit", "incomplete", "jaw_only", "no_try", "unknown")
 JAW_UNRELIABLE = ("close_mid",)                     # canonical pos keys (close_center); cam4 occludes the jaw
-CAM1_JAW_CUT = 0.6                                  # cam1 jaw likelihood cutoff (scripts/cam1_model_compare.CUT)
-MEASURES = ("attempt_rate", "ttc_ms", "completion", "incomplete_share", "latency_attempt_ms", "latency_contact_ms",
+JAW_ONSETS = "jaw_onsets.csv"                       # <run>/imaging_encoding/qc, scripts/jaw_onsets.py
+MEASURES = ("attempt_rate", "ttc_ms", "completion", "incomplete_share", "latency_attempt_ms", "latency_move_ms",
+            "latency_contact_ms",
             "lateral_bias", "lateral_scatter")
 RESP_MS = 3500.0                                    # the task's response window (gui_config timing.response_window)
 
 
-def cam1_jaw_moved(a: str, d: str, rv, stop: dict) -> pd.Series:
-    """{trial_id: 1 moved / 0 still / NaN cannot judge} from the cam1 LP jaw (session_poses/<a>_<d>_cam1_full
-    windows_LP.csv; likelihood < CAM1_JAW_CUT -> NaN), by the SAME per-trial rule as cam4 (`jaw_kinematics.jaw_pertrial`:
-    |y - pre-cue baseline| > max(4 sd, 4 px), sustained 5 / 8 frames, cue .. trial stop; degenerate baseline = unknown).
-    Trial windows are laid end to end with NaN gaps so no snippet reaches into a neighbour."""
-    from wfield_local import jaw_kinematics as jk
-    d1 = Path(rv.root("dlc")) / "session_poses" / f"{a}_{d}_cam1_full"
-    if not (d1 / "windows_LP.csv").exists():
-        return pd.Series(dtype=float)
-    P = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0)
-    idx = pd.read_csv(d1 / "windows_index.csv", usecols=["trial_id", "t_ms"])
-    y = P[("jaw", "y")].to_numpy(float)
-    y[P[("jaw", "likelihood")].to_numpy(float) < CAM1_JAW_CUT] = np.nan
-    gap = int(np.ceil(6000 / 4))                                  # > the longest snippet, 250 fps
-    parts, rows, off = [], [], 0
-    for tid, g in idx.groupby("trial_id", sort=False):
-        k = g.index.to_numpy()
-        c = int(np.argmin(np.abs(g.t_ms.to_numpy())))
-        parts += [y[k], np.full(gap, np.nan)]
-        rows.append({"trial_id": int(tid), "position": "", "cue_frame": float(off + c),
-                     "stop_frame": float(off + c + stop.get(int(tid), 3500) / 4)})
-        off += len(k) + gap
-    if not rows:
-        return pd.Series(dtype=float)
-    J, _ = jk.jaw_pertrial(np.concatenate(parts), 250.0, pd.DataFrame(rows), {"degenerate_as_unknown": True})
-    return pd.Series(pd.to_numeric(J.jaw_pass_qc, errors="coerce").to_numpy(), index=J.trial_id)
+@functools.lru_cache(maxsize=1)
+def _jaw_table(path: str) -> pd.DataFrame:
+    """`<v36>/imaging_encoding/qc/jaw_onsets.csv` (scripts/jaw_onsets.py, other window 10-21): per trial cam4_moved /
+    cam1_moved (1 / 0 / NaN), jaw_onset_ms (earliest camera that saw a movement, DAQ ms from the cue), onset_at_cue."""
+    J = pd.read_csv(path, low_memory=False, usecols=["session", "trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms",
+                                                      "onset_at_cue"])
+    J["label"] = J.session.str[:5] + J.session.str[-4:]
+    J["onset_at_cue"] = J.onset_at_cue.astype(str).str.lower().eq("true")
+    return J.set_index(["label", "trial_id"])
 
 
 def session_trials(label: str) -> pd.DataFrame:
@@ -90,27 +77,25 @@ def session_trials(label: str) -> pd.DataFrame:
             E[c] = E[c].astype("boolean").fillna(False).astype(bool)
         E = E[~E.cam4_matched & ~E.in_3d & ~E.droplet & (E.on_ms >= 0) & (E.on_ms <= E.trial_id.map(stop))]
         n1, nc1 = E.groupby("trial_id").size(), (~E.contact).groupby(E.trial_id).sum()
-    jaw_ok = jaw_move = pd.Series(dtype=bool)
-    if (sd / "tongue_jaw_mismatch.csv").exists():
-        M = pd.read_csv(sd / "tongue_jaw_mismatch.csv",
-                        usecols=["trial_id", "jaw_pass_qc", "candidate_no_lick_with_jaw_move"]).set_index("trial_id")
-        # jaw_pass_qc IS the "jaw moved" call (wfield_local/jaw_kinematics.py); NaN = cannot judge (degenerate baseline)
-        jq = pd.to_numeric(M.jaw_pass_qc.replace({"True": 1, "False": 0}), errors="coerce")
-        jaw_ok, jaw_move = jq.notna(), jq == 1
-    keep, gate = oc.engagement_keep(a, d, sd)
+    jf = sd.parents[2] / "imaging_encoding" / "qc" / JAW_ONSETS
+    J = _jaw_table(str(jf)).loc[label] if jf.exists() and label in _jaw_table(str(jf)).index.get_level_values(0)         else pd.DataFrame(columns=["cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue"])
+    # canonical = the REFERENCE gate, explicitly: never the OROFACIAL_GATE env setting (other window 10-21)
+    keep, gate = oc.engagement_keep(a, d, sd, gate="reference")
     t = T.trial_id
     T["n_licks"] = t.map(n4).fillna(0) + t.map(n1).fillna(0)
     T["n_nocontact"] = t.map(nc4).fillna(0) + t.map(nc1).fillna(0)
     T["angle_first"] = t.map(ang1)
     # jaw from EITHER camera (Priya 10-20): moved if either says moved; judged if either can judge. cam4 is not used at
-    # close_center (chin hidden); cam1 sees the jaw there
-    j4 = t.map(jaw_ok).fillna(False).astype(bool) & ~T.pos.isin(JAW_UNRELIABLE)
-    m4 = j4 & t.map(jaw_move).fillna(False).astype(bool)
-    J1 = cam1_jaw_moved(a, d, rv, stop)
-    T["jaw_cam1"] = t.map(J1)
-    T["jaw_cam4"] = np.where(j4, m4.astype(float), np.nan)
-    ok = j4 | T.jaw_cam1.notna()
-    mv = m4 | (T.jaw_cam1 == 1)
+    # close_center (chin hidden); cam1 sees the jaw there. A jaw already deflected at the cue is not an after-cue move.
+    T["jaw_cam4"] = pd.to_numeric(t.map(J.cam4_moved), errors="coerce").where(~T.pos.isin(JAW_UNRELIABLE))
+    # cam1 NOT used at close_center either (blind review 10-21, Priya: 58 % agreement on acute no-lick trials) -> the
+    # close_center jaw is unknown from both cameras
+    T["jaw_cam1"] = pd.to_numeric(t.map(J.cam1_moved), errors="coerce").where(~T.pos.isin(JAW_UNRELIABLE))
+    T["jaw_at_cue"] = t.map(J.onset_at_cue).fillna(False).astype(bool)
+    T["jaw_onset_ms"] = pd.to_numeric(t.map(J.jaw_onset_ms), errors="coerce").where(~T.jaw_at_cue
+                                                                                    & ~T.pos.isin(JAW_UNRELIABLE))
+    ok = T.jaw_cam4.notna() | T.jaw_cam1.notna()
+    mv = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)) & ~T.jaw_at_cue
     T["cls"] = np.select([T.contact.notna(), T.n_licks > 0, ok & mv, ok], ["hit", "incomplete", "jaw_only", "no_try"],
                          "unknown")
     T["attempted"] = T.cls.isin(["hit", "incomplete", "jaw_only"])
@@ -125,7 +110,8 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
       attempt_rate        attempted / canonical trials                                   (INITIATION axis)
       ttc_ms              mean time to first contact on attempted trials; no contact by
                           RESP_MS, later contacts capped                       (EXECUTION axis = the deficit)
-      completion, incomplete_share, latency_attempt_ms, latency_contact_ms   attempted trials (components)
+      completion, incomplete_share, latency_attempt_ms (first lick), latency_move_ms (first lick or after-cue jaw onset),
+      latency_contact_ms                                                                attempted trials (components)
       lateral_bias / lateral_scatter   first cam4 lick peak angle on attempted trials vs the animal's August-pre mean /
                           sd at that spout (+ = toward ipsi). DESCRIPTIVE ONLY -- never a behavioural index: the executed
                           angle enters the neural measures' construction (DECISIONS 10-20, no circular index)
@@ -141,6 +127,7 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
                      "incomplete_share": att.n_nocontact.sum() / nl if nl else np.nan,
                      "latency_attempt_ms": att.combined.where(att.has_cam1, att.cam4).median(),
                      "latency_contact_ms": att.contact.median(),
+                     "latency_move_ms": np.fmin(att.combined.where(att.has_cam1, att.cam4), att.jaw_onset_ms).median(),
                      "angle_mean": att.angle_first.mean(), "angle_sd": att.angle_first.std(),
                      **{f"frac_{c}": (can.cls == c).mean() if len(can) else np.nan for c in CLASSES}})
     S = pd.DataFrame(rows)

@@ -21092,3 +21092,19 @@ log days (z 7.2) and is still below pre at full behavioural recovery (z -4.1); b
 recovery (z -0.7); the encoder ceiling (11c) is at / above pre at recovery (z +1.3, n.s.). With the frozen-decoder
 trajectory (G_reorg) this says: identity of far contra returns with behaviour, but the pre-stroke frozen code does not
 fully -- reorganised code.
+
+## 2026-10-21 (night) -- trial_attempts jaw input = jaw_onsets.csv (cam1 timing fix)
+
+The other window found every `session_poses/<a>_<d>_cam1_full/` folder had been cut on the OLD frame-index clock, so my
+`trial_attempts.cam1_jaw_moved` read cam1 trials on the wrong timing (worst on dropped-frame days: PS92 06-05 / 06-06 /
+09-08, PS93 06-05 / 06-06). Removed it: the jaw now comes ONLY from `<run>/imaging_encoding/qc/jaw_onsets.csv`
+(`scripts/jaw_onsets.py`, template-timed cam1 + cam4, the v36 "jaw moved" rule; matches v36 jaw_pass_qc 543 / 543;
+cam1 / cam4 agree 95.7 %, onset difference median -0.7 ms). jaw_only now also requires the movement to start AFTER the cue
+(`onset_at_cue` dropped). New component `latency_move_ms` = first lick or after-cue jaw onset. `canonical` calls
+`engagement_keep(..., gate="reference")` explicitly (never the OROFACIAL_GATE env). cam1 still running on O2 for 65
+curated sessions (PS93 09-22 on, all PS94 / PS95): rerun `jaw_onsets.py` then `trial_attempts.py` when they land; until
+then those sessions' jaw is cam4 only (close_center -> mostly unknown).
+**Addendum (blind review, Priya 10-21; `session_poses/cam1_licks/jaw_review/scored.csv`, 48 acute no-lick trials, 58 %
+agreement with the cam1 call):** cam1 floor -> 15 px (`deflection_threshold_min_px`; cam4 keeps 4 px) -- applied in
+`scripts/jaw_onsets.py` (the single definition; other window), then `trial_attempts.py` rerun; close_center jaw is
+unknown from BOTH cameras (`trial_attempts` masks cam1 there too).
