@@ -157,7 +157,10 @@ def jaw_onsets(jaw_y, fps: float, trials: pd.DataFrame, overrides: dict | None =
     sustained-density test first passes. Returns trial_id, jaw_pass_qc (1 / 0 / NaN as `jaw_pertrial` with these
     overrides), ``onset_idx`` (index INTO ``jaw_y``, -1 = none) and ``onset_frames`` (frames after the cue frame).
     The detect window starts AT the cue frame (inclusive), so onset_frames >= 0; onset_frames == 0 = already deflected
-    at the cue."""
+    at the cue. For those, ``reonset_idx`` / ``reonset_frames`` (encoding window via Priya 10-21: "a deflected jaw at the
+    cue doesn't mean no reaction") = a NEW movement after the jaw SETTLES: the first window that FAILS the density test
+    (the cue-time deflection has subsided), then the next window that passes; its first suprathreshold frame. -1 / NaN
+    when the jaw never settles or never moves again before the stop."""
     p = _resolve(overrides)
     jaw_y = np.asarray(jaw_y, dtype=np.float64)
     n = len(jaw_y)
@@ -171,7 +174,8 @@ def jaw_onsets(jaw_y, fps: float, trials: pd.DataFrame, overrides: dict | None =
         c = cue_frame_index(r.cue_frame)
         yw = np.full(pre_f + post_f + 1, np.nan) if c is None else _snippet(jaw_y, c, pre_f, post_f, n)
         bm, bs = _compute_jaw_baseline(yw, t_ms, baseline_win_ms=p["baseline_win_ms"])
-        out = {"trial_id": r.trial_id, "jaw_pass_qc": np.nan, "onset_idx": -1, "onset_frames": np.nan}
+        out = {"trial_id": r.trial_id, "jaw_pass_qc": np.nan, "onset_idx": -1, "onset_frames": np.nan,
+               "reonset_idx": -1, "reonset_frames": np.nan}
         if not np.isfinite(bm) or not np.isfinite(bs) or bs <= 0:
             out["jaw_pass_qc"] = np.nan if p.get("degenerate_as_unknown") else 0.0
             rows.append(out)
@@ -186,15 +190,23 @@ def jaw_onsets(jaw_y, fps: float, trials: pd.DataFrame, overrides: dict | None =
             W, K = max(1, int(p["window_n"])), max(1, int(np.ceil(p["density_thr"] * p["window_n"])))
             idx_det = np.flatnonzero(tm)
             s = supra[idx_det]
-            if s.size < W:
-                first_win = 0
-            else:
-                first_win = int(np.flatnonzero(np.convolve(s, np.ones(W, int), mode="valid") >= K)[0])
+            passing = (np.convolve(s, np.ones(W, int), mode="valid") >= K) if s.size >= W else np.array([True])
+            first_win = int(np.flatnonzero(passing)[0])
             j = idx_det[first_win + int(np.flatnonzero(s[first_win:first_win + W])[0])]    # first supra frame in it
             out["onset_frames"] = float(j - pre_f)
             out["onset_idx"] = int(c - pre_f + j)
+            if j - pre_f == 0 and passing.size > 1:          # deflected AT the cue: look for a re-onset
+                settle = np.flatnonzero(~passing)
+                if settle.size:
+                    again = np.flatnonzero(passing[settle[0]:])
+                    if again.size:
+                        w0 = settle[0] + int(again[0])
+                        jr = idx_det[w0 + int(np.flatnonzero(s[w0:w0 + W])[0])]
+                        out["reonset_frames"] = float(jr - pre_f)
+                        out["reonset_idx"] = int(c - pre_f + jr)
         rows.append(out)
-    return pd.DataFrame(rows, columns=["trial_id", "jaw_pass_qc", "onset_idx", "onset_frames"])
+    return pd.DataFrame(rows, columns=["trial_id", "jaw_pass_qc", "onset_idx", "onset_frames", "reonset_idx",
+                                       "reonset_frames"])
 
 
 def _resolve(overrides: dict | None) -> dict:

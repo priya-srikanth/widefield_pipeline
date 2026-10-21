@@ -199,3 +199,16 @@ def test_jaw_onsets_matches_the_moved_call_and_finds_the_step():
     assert pd.to_numeric(J.jaw_pass_qc).astype(float).tolist() == O.jaw_pass_qc.tolist()
     assert O.onset_frames.iloc[0] == 60 and O.onset_idx.iloc[0] == 1060
     assert O.onset_idx.iloc[1] == -1 and np.isnan(O.onset_frames.iloc[1])
+
+
+def test_jaw_onsets_reonset_after_a_jaw_deflected_at_the_cue():
+    # encoding window via Priya 10-21: at-cue deflection settles, then a NEW movement -> reonset at its first frame
+    rng = np.random.default_rng(1)
+    fps, n = 250.0, 4000
+    y = rng.normal(0.0, 0.5, n)
+    y[1000 - 5:1000 + 40] += 10.0              # already open at the cue (frame 1000), closes by cue + 40
+    y[1000 + 150:1000 + 200] += 10.0           # opens again at cue + 150 frames
+    trials = pd.DataFrame({"trial_id": [1], "cue_frame": [1000.0], "position": ["far_L"], "stop_frame": [1875.0]})
+    O = jk.jaw_onsets(y, fps, trials, {"degenerate_as_unknown": True})
+    assert O.onset_frames.iloc[0] == 0
+    assert O.reonset_frames.iloc[0] == 150 and O.reonset_idx.iloc[0] == 1150

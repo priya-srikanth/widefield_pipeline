@@ -16,8 +16,10 @@ timestamp through the alignment template, ms from the DAQ cue) is the onset time
 
 Output `<v36 run>/imaging_encoding/qc/jaw_onsets.csv`, one row per trial: session, animal, date, epoch, trial_id,
 position, cam4_moved / cam1_moved (1 / 0 / NaN = cannot judge), cam4_onset_ms / cam1_onset_ms, jaw_onset_ms + jaw_onset_cam
-(the EARLIER of the cameras that saw a movement, cam4 excluded at close_center), onset_at_cue (the jaw was already
-deflected at the cue frame: onset 0 -- not an after-cue movement).
+(the EARLIER of the cameras that saw a movement), onset_at_cue (the jaw was already deflected at the cue frame:
+onset 0 -- not an after-cue movement), cam4_reonset_ms / cam1_reonset_ms / jaw_reonset_ms + jaw_reonset_cam (at-cue
+trials: the first NEW movement after the jaw settled, `jaw_kinematics.jaw_onsets`). 10-21: cam1 floor 15 px (cam4 4 px;
+Priya's blind reviews), BOTH cameras masked (NaN) at close_center.
 """
 from __future__ import annotations
 
@@ -29,8 +31,13 @@ import pandas as pd
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 CAM1_JAW_CUT = 0.6                      # as trial_attempts.CAM1_JAW_CUT
-JAW_UNRELIABLE_CAM4 = ("close_center",)
-OVERRIDES = {"degenerate_as_unknown": True}
+#: close_center: chin hidden in cam4 AND the cam1 jaw point jumps under the rod (blind review 10-21: cam1 call at chance)
+#: -> both cameras masked there (encoding window masks it too)
+JAW_UNRELIABLE = ("close_center",)
+OVERRIDES = {"cam4": {"degenerate_as_unknown": True},
+             # cam1 floor 15 px (Priya's blind reviews 10-21, frames + clips: cam4's 4 px is jitter at cam1's larger
+             # scale; < 12 px mostly still, >= 16 px nearly always moved, 12-16 a coin flip)
+             "cam1": {"degenerate_as_unknown": True, "deflection_threshold_min_px": 15.0}}
 FPS = 250.0
 
 
@@ -52,12 +59,14 @@ def _laid_out(y: np.ndarray, idx: pd.DataFrame) -> tuple[np.ndarray, pd.DataFram
     return np.concatenate(parts), pd.DataFrame(rows), np.concatenate(src)
 
 
-def _camera(y: np.ndarray, idx: pd.DataFrame) -> pd.DataFrame:
+def _camera(y: np.ndarray, idx: pd.DataFrame, cam: str) -> pd.DataFrame:
     from wfield_local import jaw_kinematics as jk
     trace, trials, src = _laid_out(y, idx)
-    O = jk.jaw_onsets(trace, FPS, trials, OVERRIDES)
-    row = np.where(O.onset_idx >= 0, src[np.clip(O.onset_idx, 0, None)], -1)
-    O["onset_ms"] = np.where(row >= 0, idx.t_daq_ms.to_numpy(float)[np.clip(row, 0, None)], np.nan)
+    O = jk.jaw_onsets(trace, FPS, trials, OVERRIDES[cam])
+    td = idx.t_daq_ms.to_numpy(float)
+    for col, ic in (("onset_ms", "onset_idx"), ("reonset_ms", "reonset_idx")):
+        row = np.where(O[ic] >= 0, src[np.clip(O[ic], 0, None)], -1)
+        O[col] = np.where(row >= 0, td[np.clip(row, 0, None)], np.nan)
     O["position"] = trials.position.to_numpy()
     return O
 
@@ -70,23 +79,27 @@ def session(job) -> pd.DataFrame:
     w = np.load(sd / "windows.npz", allow_pickle=False)
     ix4 = pd.DataFrame({k: w[f"ix_{k}"] for k in ("trial_id", "position", "t_ms", "t_daq_ms", "stop_ms")})
     y4 = np.load(sd / "clean.npz")["jaw_y"].astype(float)
-    C4 = _camera(y4, ix4).rename(columns={"jaw_pass_qc": "cam4_moved", "onset_ms": "cam4_onset_ms",
-                                          "onset_frames": "cam4_onset_frames"})
-    out = C4[["trial_id", "position", "cam4_moved", "cam4_onset_ms", "cam4_onset_frames"]].copy()
+    C4 = _camera(y4, ix4, "cam4").rename(columns={"jaw_pass_qc": "cam4_moved", "onset_ms": "cam4_onset_ms",
+                                                  "onset_frames": "cam4_onset_frames", "reonset_ms": "cam4_reonset_ms"})
+    out = C4[["trial_id", "position", "cam4_moved", "cam4_onset_ms", "cam4_onset_frames", "cam4_reonset_ms"]].copy()
     d1 = Path(root_d) / "session_poses" / f"{s}_cam1_full"
-    out["cam1_moved"], out["cam1_onset_ms"], out["cam1_onset_frames"] = np.nan, np.nan, np.nan
+    out["cam1_moved"], out["cam1_onset_ms"], out["cam1_onset_frames"], out["cam1_reonset_ms"] = (np.nan,) * 4
     if (d1 / "windows_LP.csv").exists():
         ix1 = pd.read_csv(d1 / "windows_index.csv")
         if "t_daq_ms" in ix1:                       # template-time windows only (pre-10-20 collects lack it)
             P = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0)
             y1 = P[("jaw", "y")].to_numpy(float)
             y1[P[("jaw", "likelihood")].to_numpy(float) < CAM1_JAW_CUT] = np.nan
-            C1 = _camera(y1, ix1).set_index("trial_id")
+            C1 = _camera(y1, ix1, "cam1").set_index("trial_id")
             out["cam1_moved"] = out.trial_id.map(C1.jaw_pass_qc)
             out["cam1_onset_ms"] = out.trial_id.map(C1.onset_ms)
             out["cam1_onset_frames"] = out.trial_id.map(C1.onset_frames)
-    cam4_ok = ~out.position.isin(JAW_UNRELIABLE_CAM4)
-    o4 = np.where(cam4_ok & (out.cam4_moved == 1), out.cam4_onset_ms, np.nan)
+            out["cam1_reonset_ms"] = out.trial_id.map(C1.reonset_ms)
+    bad = out.position.isin(JAW_UNRELIABLE)
+    for c in ("cam4_moved", "cam4_onset_ms", "cam4_onset_frames", "cam4_reonset_ms", "cam1_moved", "cam1_onset_ms",
+              "cam1_onset_frames", "cam1_reonset_ms"):
+        out.loc[bad, c] = np.nan
+    o4 = np.where(out.cam4_moved == 1, out.cam4_onset_ms, np.nan)
     o1 = np.where(out.cam1_moved == 1, out.cam1_onset_ms, np.nan)
     both = np.c_[o4, o1]
     out["jaw_onset_ms"] = np.nanmin(np.where(np.isfinite(both), both, np.inf), axis=1)
@@ -95,6 +108,15 @@ def session(job) -> pd.DataFrame:
                                     np.where(np.isfinite(o4) & (o4 <= np.where(np.isfinite(o1), o1, np.inf)), "cam4", "cam1"))
     f4 = np.where(out.jaw_onset_cam == "cam4", out.cam4_onset_frames, out.cam1_onset_frames)
     out["onset_at_cue"] = np.where(np.isfinite(out.jaw_onset_ms), f4 == 0, False)
+    # re-onset (encoding window via Priya 10-21): for at-cue trials, the earliest NEW movement after the jaw settled,
+    # on any camera that saw a movement (`jaw_kinematics.jaw_onsets`); NaN otherwise
+    r4 = np.where(out.cam4_moved == 1, out.cam4_reonset_ms, np.nan)
+    r1 = np.where(out.cam1_moved == 1, out.cam1_reonset_ms, np.nan)
+    rr = np.c_[r4, r1]
+    re = np.nanmin(np.where(np.isfinite(rr), rr, np.inf), axis=1)
+    out["jaw_reonset_ms"] = np.where(out.onset_at_cue & np.isfinite(re), re, np.nan)
+    out["jaw_reonset_cam"] = np.where(~np.isfinite(out.jaw_reonset_ms), "",
+                                      np.where(np.isfinite(r4) & (r4 <= np.where(np.isfinite(r1), r1, np.inf)), "cam4", "cam1"))
     out.insert(0, "session", s)
     out.insert(1, "animal", a)
     out.insert(2, "date", d)
