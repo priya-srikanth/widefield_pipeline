@@ -111,16 +111,17 @@ def task_row(task):
     return pd.read_csv(B / "tasks.tsv", sep="\t", dtype=str).iloc[task - 1]
 
 
-def setup(task, threads, mode="r+"):
+def setup(task, threads, mode="r+", P=None, work=True):
     """One process's state: ROIs, video reader, FR tracker + VQT, derived sizes, trial grid, work memmaps
-    (``mode="w+"`` creates them -- the parent, before any worker starts)."""
+    (``mode="w+"`` creates them -- the parent, before any worker starts). ``P`` overrides params.json and
+    ``work=False`` skips the work arrays (fr_param_test.py)."""
     import cv2
     import torch
     import face_rhythm as fr
     torch.set_num_threads(threads)
     cv2.setNumThreads(threads)
     r = task_row(task)
-    P = json.loads((B / "params.json").read_text())
+    P = P or json.loads((B / "params.json").read_text())
     s = SimpleNamespace(r=r, P=P, key=getattr(r, "key", None) or f"{r.animal}_{r.date}_{r.cam}")
     rp = B / "rois" / f"{r.animal}_{r.date}" / "ROIs.h5"
     if not rp.exists():
@@ -180,6 +181,8 @@ def setup(task, threads, mode="r+"):
     s.w_tr = (u - j0).astype(np.float32)
     s.ok_tr = np.isfinite(u) & (j0 >= 0) & (j0 + 1 < s.n_bins)
     s.j0_tr = np.where(s.ok_tr, j0, -1).astype(np.int64)
+    if not work:
+        return s
     s.wd = B / "work" / s.key
     s.wd.mkdir(parents=True, exist_ok=True)
 
@@ -408,6 +411,62 @@ def main():
     print(f"saved {key}: violations {res['violation_fraction']:.3f}, trial samples filled "
           f"{res['trial_samples_filled']:.1%}, {res['hours']:.2f} h (write {res['write_minutes']:.1f} min), "
           f"peak ~{res['peak_rss_gb']:.1f} GB", flush=True)
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+
+# Tracking-parameter sets for `paramtest` (10-21: the plan's "paper" values were never checked on this rig).
+PARAM_SETS = {
+    "paper": PARAMS["tracking"],
+    # the earlier 2pRAM cohort's production run (MICROSCOPE/Priya/FaceRhythm/fr_run_20250520_latent_bundle, params.json)
+    "oldrun": {"params_optical_flow": {"method": "lucas_kanade", "mesh_rigidity": 0.002, "mesh_n_neighbors": 90,
+                                       "relaxation": 0.002, "kwargs_method": {"winSize": [50, 50], "maxLevel": 5,
+                                                                              "criteria": [3, 2, 0.0003]}},
+               "params_outlier_handling": {"threshold_displacement": 120, "framesHalted_before": 20,
+                                           "framesHalted_after": 20},
+               "params_clahe": {"clipLimit": 40.0, "tileGridSize": [120, 120]}},
+    # face-rhythm 0.3.3 scripts/params_pipeline_basic.json (CLAHE: the tracker's default)
+    "frdefault": {"params_optical_flow": {"method": "lucas_kanade", "mesh_rigidity": 0.025, "mesh_n_neighbors": 8,
+                                          "relaxation": 0.0015, "kwargs_method": {"winSize": [20, 20], "maxLevel": 2,
+                                                                                  "criteria": [3, 2, 0.03]}},
+                  "params_outlier_handling": {"threshold_displacement": 150, "framesHalted_before": 10,
+                                              "framesHalted_after": 10},
+                  "params_clahe": {"clipLimit": 40.0, "tileGridSize": [150, 150]}},
+}
+
+PARAM_TEST = r'''"""O2: one tracking-parameter set on a frame range of one task's video (o2_face_rhythm.py paramtest).
+
+    python fr_param_test.py <task> <set> <start> <n_frames>      (run_param_test.sbatch: one array index per set)
+
+Tracks frames [start, start + n) after a warm-up, with param_sets/<set>.json as the tracking block, and saves the
+full-rate (250 Hz) points -> out_test/<key>_<set>.npz for `o2_face_rhythm.py paramscore` on the desktop."""
+import json, os, sys, time
+from pathlib import Path
+import numpy as np
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fr_runner as R
+
+
+def main():
+    task, name, start, n = int(sys.argv[1]), sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+    P = json.loads((R.B / "params.json").read_text())
+    P["tracking"] = json.loads((R.B / "param_sets" / f"{name}.json").read_text())
+    threads = int(os.environ.get("SLURM_CPUS_PER_TASK", "2"))
+    R.S = S = R.setup(task, threads, P=P, work=False)
+    out = R.B / "out_test"
+    out.mkdir(exist_ok=True)
+    a, z = max(start - int(P["warmup_frames"]), 0), min(start + n, S.n)
+    t0 = time.time()
+    pts, nv = R.track(a, z)
+    fps = (z - a) / (time.time() - t0)
+    pts, nv = pts[start - a:], nv[start - a:]
+    np.savez(out / f"{S.key}_{name}.npz", pts=pts, nv=nv, start=start, home=S.home, fps_track=fps,
+             n_points=S.NP, params=json.dumps(P["tracking"]), peak_gb=R.peak_gb())
+    print(f"{S.key} {name}: frames {start}-{start + len(pts)}, {S.NP} points, {fps:.0f} fps, "
+          f"violations {(nv > 0).mean():.4f}, peak {R.peak_gb():.1f} GB", flush=True)
 
 
 if __name__ == "__main__":
@@ -708,6 +767,146 @@ def cmd_collect(name: str) -> None:
     print(f"collected {len(I)} of {len(T)} -> {dst}")
 
 
+def cmd_paramtest(name: str, user: str, key: str, n_frames: int = 30000) -> None:
+    """Write the parameter test into an existing bundle: param_sets/*.json, fr_param_test.py (+ the current runner),
+    run_param_test.sbatch (one array index per set) on the ``n_frames`` window of task ``key`` that covers the most
+    trial cues."""
+    from wfield_local import o2_inference as oi
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    d = oi.bundle_dir(rv, name)
+    T = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
+    keys = (T["key"] if "key" in T else T.animal + "_" + T.date + "_" + T.cam).tolist()
+    task = keys.index(key) + 1
+    cue = np.load(d / "trials" / f"{key}.npz")["src_frame"][:, int(np.argmin(np.abs(T_MS)))]
+    cue = np.sort(cue[np.isfinite(cue)])
+    fs = PARAMS["fps"]
+    starts = np.maximum(cue - 2 * fs, PARAMS["warmup_frames"]).astype(int)
+    count = [int(((cue >= s0 + 2 * fs) & (cue < s0 + n_frames - 4 * fs)).sum()) for s0 in starts]
+    start = int(starts[int(np.argmax(count))])
+    (d / "param_sets").mkdir(exist_ok=True)
+    for k, v in PARAM_SETS.items():
+        (d / "param_sets" / f"{k}.json").write_text(json.dumps(v, indent=1), encoding="utf-8", newline="\n")
+    (d / "fr_runner.py").write_text(RUNNER, encoding="utf-8", newline="\n")
+    (d / "fr_param_test.py").write_text(PARAM_TEST, encoding="utf-8", newline="\n")
+    b = f"{oi.scratch(user)}/o2/{name}"
+    sets = " ".join(PARAM_SETS)
+    sb = (f"#!/bin/bash -l\n#SBATCH -J frpt_{name}\n#SBATCH -p short\n#SBATCH -c 2\n#SBATCH --mem=8G\n"
+          f"#SBATCH -t 0-02:00:00\n#SBATCH --array=1-{len(PARAM_SETS)}\n"
+          f"#SBATCH -o {b}/logs/pt_%A_%a.out\n#SBATCH -e {b}/logs/pt_%A_%a.err\n"
+          f"# Tracking-parameter test: task {task} ({key}), frames {start}-{start + n_frames} ({max(count)} trial cues)\n"
+          f"set -eo pipefail\nmodule load conda/miniforge3/24.11.3-0\nconda activate fr\n"
+          f"SETS=({sets})\n"
+          f"python {b}/fr_param_test.py {task} " + "${SETS[$SLURM_ARRAY_TASK_ID-1]}" + f" {start} {n_frames}\n")
+    (d / "run_param_test.sbatch").write_text(sb, encoding="utf-8", newline="\n")
+    print(f"param test: task {task} {key}, frames {start}-{start + n_frames} ({max(count)} trial cues), "
+          f"sets {sets}\n  -> {d / 'run_param_test.sbatch'}")
+
+
+def _bandpass(x, lo, hi, fs, min_run=500):
+    """Band-pass each finite run (>= ``min_run`` frames) of a (n, ...) series along time; NaN elsewhere."""
+    from scipy.signal import butter, sosfiltfilt
+    sos = butter(4, [lo, hi], btype="band", fs=fs, output="sos")
+    out = np.full(x.shape, np.nan)
+    ok = np.isfinite(x.reshape(len(x), -1)).all(1)
+    edges = np.flatnonzero(np.diff(np.r_[0, ok.astype(int), 0]))
+    for a, z in zip(edges[::2], edges[1::2]):
+        if z - a >= min_run:
+            out[a:z] = sosfiltfilt(sos, x[a:z], axis=0)
+    return out
+
+
+def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
+    """Score out_test/<key>_<set>.npz against LP (v36 cam4 windows.npz, likelihood > 0.9, gaps <= 10 frames
+    interpolated): for nose and jaw, the mean displacement of the FR points within 20 px of the landmark's rest
+    position (else the nearest 5) vs the LP track, both band-passed 2-20 Hz -> correlation (x, y) and gain (slope of FR
+    on LP; 1 = the points move with the skin). Plus violation fraction, high-frequency jitter (30-60 Hz SD per point,
+    median; keyframe lines notched first) and drift (median |displacement| from home).
+    -> <dlc>/face_rhythm/cam4/param_test/param_test_<name>.{csv,png}."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from scipy.signal import filtfilt, iirnotch
+    from wfield_local import o2_inference as oi
+    from wfield_local import writeguard
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    d = Path(src) if src else oi.bundle_dir(rv, name) / "out_test"
+    fs = PARAMS["fps"]
+    rows, traces = [], {}
+    for f in sorted(d.glob("*.npz")):
+        key, sname = f.stem.rsplit("_", 1)
+        z = np.load(f)
+        pts, nv, start, home = z["pts"].astype(np.float64), z["nv"], int(z["start"]), z["home"]
+        n = len(pts)
+        animal, date = key.split("_")[:2]
+        w = np.load(Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "windows.npz")
+        parts = [str(x) for x in w["parts"]]
+        src_f = w["ix_src_frame"].astype(int)
+        sel = (src_f >= start) & (src_f < start + n)
+        fi, first = np.unique(src_f[sel] - start, return_index=True)
+        pose = w["pose"][sel][first]
+        disp = pts - home
+        for fc in PARAMS["notch_hz"]:
+            bn, an = iirnotch(fc, PARAMS["notch_q"], fs)
+            disp = filtfilt(bn, an, disp, axis=0)
+        row = {"session": key, "set": sname, "n_points": int(z["n_points"]), "fps": float(z["fps_track"]),
+               "violation_fraction": float((nv > 0).mean()), "drift_px": float(np.median(np.abs(disp))),
+               "jitter_30_60Hz_px": float(np.nanmedian(np.nanstd(_bandpass(disp, 30, 60, fs), 0)))}
+        for part in ("nose", "jaw"):
+            lp = np.full((n, 2), np.nan)
+            pp = pose[:, parts.index(part)]
+            good = pp[:, 2] > 0.9
+            lp[fi[good]] = pp[good, :2]
+            lp = pd.DataFrame(lp).interpolate(limit=10, limit_area="inside").to_numpy()
+            rest = np.nanmedian(lp, 0)
+            dd = np.hypot(*(home - rest).T)
+            near = np.flatnonzero(dd < 20) if (dd < 20).sum() >= 3 else np.argsort(dd)[:5]
+            A, Bp = _bandpass(lp - rest, 2, 20, fs), _bandpass(disp[:, near].mean(1), 2, 20, fs)
+            ok = np.isfinite(A).all(1) & np.isfinite(Bp).all(1)
+            for j, ax_ in enumerate("xy"):
+                a_, b_ = A[ok, j], Bp[ok, j]
+                row[f"{part}_{ax_}_r"] = float(np.corrcoef(a_, b_)[0, 1]) if ok.sum() > 100 else np.nan
+                row[f"{part}_{ax_}_gain"] = float(np.dot(a_, b_) / np.dot(a_, a_)) if ok.sum() > 100 else np.nan
+            row[f"{part}_frames"] = int(ok.sum())
+            row[f"{part}_points"] = int(len(near))
+            row[f"{part}_point_dist_px"] = float(dd[near].mean())
+            traces[(key, sname, part)] = (A, Bp)
+        rows.append(row)
+    if not rows:
+        raise SystemExit(f"no out_test npz in {d}")
+    R = pd.DataFrame(rows)
+    out = Path(rv.root("dlc")) / "face_rhythm" / CAM / "param_test"
+    writeguard.assert_writable(out)
+    out.mkdir(parents=True, exist_ok=True)
+    R.to_csv(out / f"param_test_{name}.csv", index=False, float_format="%.4g")
+    cols = ["session", "set", "fps", "violation_fraction", "drift_px", "jitter_30_60Hz_px", "nose_x_r", "nose_y_r",
+            "nose_x_gain", "nose_y_gain", "jaw_x_r", "jaw_y_r", "jaw_x_gain", "jaw_y_gain"]
+    print(R[cols].round(3).to_string(index=False))
+    keys = sorted({k[0] for k in traces})                      # 4 s of band-passed nose / jaw y: LP vs each set
+    fig, axs = plt.subplots(2 * len(keys), 1, figsize=(12, 6.4 * len(keys)), squeeze=False)
+    for i, key in enumerate(keys):
+        for j, part in enumerate(("nose", "jaw")):
+            ax = axs[2 * i + j, 0]
+            A = traces[(key, R.set.iloc[0], part)][0]
+            ok = np.flatnonzero(np.isfinite(A[:, 1]))
+            if not len(ok):
+                continue
+            sl = slice(ok[len(ok) // 3], ok[len(ok) // 3] + 4 * fs)
+            tt = np.arange(sl.start, sl.stop) / fs
+            ax.plot(tt, A[sl, 1], "k", lw=1.6, label="LP")
+            for sname in R.set:
+                ax.plot(tt, traces[(key, sname, part)][1][sl, 1], lw=1, label=sname)
+            ax.set_title(f"{key} {part} y, 2-20 Hz")
+            ax.set_ylabel("px")
+            ax.legend(fontsize=7, ncol=4)
+    axs[-1, 0].set_xlabel("s from the test window start")
+    fig.tight_layout()
+    fig.savefig(out / f"param_test_{name}.png", dpi=90)
+    print("->", out)
+    return R
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -724,10 +923,22 @@ def main(argv=None) -> int:
     b.add_argument("sessions", nargs="*", help="animal:YYYYMMDD (default: every curated session with v36 windows)")
     c = sub.add_parser("collect")
     c.add_argument("--name", required=True)
+    t = sub.add_parser("paramtest", help="write the tracking-parameter test into a bundle")
+    t.add_argument("--name", required=True)
+    t.add_argument("--user", required=True)
+    t.add_argument("--key", default="PS95_20260812_cam4", help="task key (default: the master session)")
+    t.add_argument("--frames", type=int, default=30000)
+    s_ = sub.add_parser("paramscore", help="score the parameter test against LP")
+    s_.add_argument("--name", required=True)
+    s_.add_argument("--src", default=None, help="folder of out_test npz (default: <bundle>/out_test)")
     a = ap.parse_args(argv)
     if a.cmd == "bundle":
         ss = [tuple(x.split(":")[:2]) for x in a.sessions] if a.sessions else None
         cmd_bundle(a.name, a.user, ss, a.seg_min, a.all_trials, a.workers, a.jobs, a.include_june)
+    elif a.cmd == "paramtest":
+        cmd_paramtest(a.name, a.user, a.key, a.frames)
+    elif a.cmd == "paramscore":
+        cmd_paramscore(a.name, a.src)
     else:
         cmd_collect(a.name)
     return 0
