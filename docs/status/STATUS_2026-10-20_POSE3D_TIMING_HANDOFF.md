@@ -189,6 +189,13 @@ simply ignored downstream.
     permissive at cam1's larger scale) and NO cam1 jaw call at close_center (point jumps under the rod) -> close_center
     jaw unknown from both cameras. If adopted, give `scripts/jaw_onsets.py` the same cam1 override (keep onset == call).
     Optional: a VIDEO check of the 10-20 px band to pin the threshold.
+    VIDEO CHECK DONE 10-21 (`scripts/cam1_jaw_review.py --video` -> `jaw_review_video/{candidates.json,key.csv,
+    scored.csv}`; page https://claude.ai/artifact/KNW4KLox6omrhyK1ndZZyG, db `cam1_jaw_review_video`; 24 clips, 6 per
+    cam1 deflection band, acute no-lick side-spout trials): moved / still by band 8-12 px 2 / 4, 12-16 2 / 2 (2
+    unsure), 16-20 5 / 1, 20-25 5 / 0. Agreement vs floor: 4-8 px 67 %, 10-12 px 76 %, 16 px 76 %; current cam1 call
+    57 %, cam4 call 71 %. RECOMMENDATION: cam1 floor ~15 px (12-16 px is a coin flip). Priya: nose / whisker movement
+    may show reactions -- proposed as a SEPARATE class ("reacted"), not jaw_only; nose is tracked in both cameras
+    (same rule possible), whiskers would need a motion-energy extraction.
   - Per-session LONG tables for the epoch families (`scripts/epoch_sessions_long.py`, WIDEFIELD_PRE_FROM=0801):
     `<labcams>/grant_figures/epoch/data/<family stem>_<align>_<variant>_sessions_long.csv` for 8g / 10 (acc, rank) /
     10b / 11 / 11amp / 11pos / 11c x 5 arms (40 files, 108 sessions each); pre sessions each scored LOO against the other
