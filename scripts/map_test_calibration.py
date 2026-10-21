@@ -133,6 +133,7 @@ def run(store, tag, a, CONF_LABELS, parallel, PathResolver, assert_writable) -> 
     print(f"{len(jobs)} tests over {a.jobs} workers", flush=True)
     res, fail = parallel.fan_out(jobs, _one, jobs=a.jobs, label="test",
                                  log=lambda m: print(m[:90], flush=True))   # items hold maps: short log
+    res = sorted(res, key=lambda kv: (kv[1]["comparison"], kv[1]["position"], kv[1]["norm"]))  # rule 9: defined order
     for it, err in fail:
         print("FAILED", it[0], it[1], it[4], err)
     D = pd.DataFrame([r for _, r in res]).sort_values(["comparison", "position", "norm"])
