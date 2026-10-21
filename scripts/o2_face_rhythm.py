@@ -154,6 +154,14 @@ def setup(task, threads, mode="r+", P=None, work=True):
                                           contiguous=False, params_optical_flow=of, params_clahe=clahe,
                                           params_outlier_handling=Tk["params_outlier_handling"], verbose=0)
     s.video = s.pt.videos[0]
+    s.mask_u8 = s.pt.mask.numpy().astype(np.uint8)
+    s.fast_fmt = False
+    f0 = s.video.get_frames_from_continuous_index(slice(0, 3))
+    ref = _fmt(s, f0)
+    s.fast_fmt = True
+    if not np.array_equal(ref, _fmt(s, f0)):
+        s.fast_fmt = False
+        print("fast frame formatting differs from FR's on this video -- using FR's", flush=True)
     s.HB = int(Tk["params_outlier_handling"]["framesHalted_before"])
     Vq = P["vqt"]
     s.vqt = fr.spectral_analysis.VQT_Analyzer(params_VQT=Vq["params_VQT"], batch_size=Vq["batch_size"],
@@ -214,7 +222,19 @@ def init_worker(task, threads):
 
 
 def fmt(frames):
-    return S.pt._format_decordTorchVideo_for_opticalFlow(vid=frames, mask=S.pt.mask)
+    return _fmt(S, frames)
+
+
+def _fmt(s, frames):
+    """FR's frame formatting (grayscale = float32 channel mean truncated to uint8, x ROI mask, CLAHE), done in integer
+    numpy: (r + g + b) // 3 equals FR's float32 mean + truncation exactly, ~2x faster for format + CLAHE (15.2 -> 8.4
+    ms/frame, 10-21). `setup` checks it against FR on the first frame and falls back if they ever differ."""
+    if not s.fast_fmt:
+        return s.pt._format_decordTorchVideo_for_opticalFlow(vid=frames, mask=s.pt.mask)
+    f = frames.numpy()
+    g = ((f[..., 0].astype(np.uint16) + f[..., 1] + f[..., 2]) // 3).astype(np.uint8)
+    g *= s.mask_u8
+    return np.stack([s.pt._clahe.apply(x) for x in g]) if s.pt._clahe is not None else g
 
 
 def track(f0, f1):
