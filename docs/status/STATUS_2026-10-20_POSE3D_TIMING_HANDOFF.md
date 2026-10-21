@@ -174,6 +174,14 @@ simply ignored downstream.
     reads trial_attempts.csv; default "reference" unchanged. trial_attempts.py should pass gate="reference" explicitly.
   - (2) blind review of the cam1 jaw-moved call (acute no_try / jaw_only, far contra + close center): after the
     re-collect (template-time cam1 frames).
+  - 10-21 00:14: re-collect DONE (61 / 61 cam1_full on template time). jaw_onsets.csv written (119 sessions).
+    cam1 vs cam4 "moved" agree 95.7 % (18,751 trials both judged, not close_center); onsets when both moved: median
+    -0.7 ms, IQR -8 .. +7, 77 % within 20 ms. close_center: cam1 judges only 27 % of trials (rod end-on) -> most
+    close_center no-lick trials stay "unknown". onset_at_cue 8 % when cam1 sets the onset vs 4 % cam4.
+    Review page (`scripts/cam1_jaw_review.py` -> `session_poses/cam1_licks/jaw_review/{candidates.json,key.csv}`; page
+    generator in the session scratchpad, derived from the lick review): https://claude.ai/artifact/7xvbNi4N9oEz67q76cznJ2
+    (db collection `cam1_jaw_review`; 48 = 12 per position x cam1 call; acute PS92 / PS93 no-lick trials). Score with
+    key.csv after Priya reviews. Encoding window: re-run trial_attempts.py (cam1 windows now template time).
   - Per-session LONG tables for the epoch families (`scripts/epoch_sessions_long.py`, WIDEFIELD_PRE_FROM=0801):
     `<labcams>/grant_figures/epoch/data/<family stem>_<align>_<variant>_sessions_long.csv` for 8g / 10 (acc, rank) /
     10b / 11 / 11amp / 11pos / 11c x 5 arms (40 files, 108 sessions each); pre sessions each scored LOO against the other
