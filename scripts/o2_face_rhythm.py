@@ -49,7 +49,7 @@ CAM = "cam4"
 T_MS = np.arange(-2000.0, 4000.0 + 1, 40.0)          # trial grid on the DAQ clock (ms from cue); 40 ms = 25 Hz bins
 PILOT_POINTS = 1282                                    # master mesh at 12 px -- size estimates where no ROIs yet
 PILOT_VQT_FPS = 3200.0                                 # 10-21 desktop pilot, one process, 1514 points
-O2_FPS = 19.0                                          # 10-21 param test on O2: midlk12, 1282 points, 2 threads / process
+O2_FPS = 34.0                                          # 10-21 production, 4 workers x 4 threads, 1282 points (2 threads: 19)
 PARAMS = {
     "fps": 250,
     "workers": 4,                                      # parallel segments per task (2 threads each)
@@ -406,11 +406,24 @@ def main():
         for si in todo:
             record(run_segment(si))
     else:
+        # ProcessPoolExecutor, not mp.Pool: when the kernel kills a worker (cgroup out of memory), Pool silently
+        # replaces it and waits forever for the lost segment (task 87, 10-21: "terminate called without an active
+        # exception", then a hang). Here the pool breaks: finished segments are recorded, the task exits non-zero
+        # and a resubmit resumes from progress.json.
         import multiprocessing as mp
-        with mp.get_context("spawn").Pool(min(nw, len(todo)), initializer=init_worker,
-                                          initargs=(task, threads)) as pool:
-            for res in pool.imap_unordered(run_segment, todo):
-                record(res)
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        failed = []
+        with ProcessPoolExecutor(min(nw, len(todo)), mp_context=mp.get_context("spawn"), initializer=init_worker,
+                                 initargs=(task, threads)) as ex:
+            futs = {ex.submit(run_segment, si): si for si in todo}
+            for f in as_completed(futs):
+                try:
+                    record(f.result())
+                except Exception as e:                                                  # noqa: BLE001
+                    failed.append((futs[f], repr(e)))
+        if failed:
+            sys.exit(f"{len(failed)} segment(s) lost {sorted(si + 1 for si, _ in failed)}: {failed[0][1]} -- a worker "
+                     f"died (out of memory?); {len(prog['done'])}/{len(S.segs)} done are kept, resubmit to resume")
 
     # unfilled trial samples -> NaN; DAQ times from the bundle's source-frame -> DAQ fit
     ti, ki = np.nonzero(~filled)
@@ -695,8 +708,8 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
     E = estimates(T, p)
     hours, gb = E["hours"], E["gb"]
     t_lim = int(min(12, max(3, np.ceil(1.5 * hours.max()))))            # O2-measured rate: 1.5x room (shared nodes)
-    cpus = 2 * p["workers"]
-    mem = int(min(64, np.ceil(E["ram"] * 1.25 / 4) * 4))
+    cpus = 4 * p["workers"]                                             # 4 threads per worker (10-21: 34 vs 19 fps at 2)
+    mem = int(min(96, max(72, np.ceil(E["ram"] * 1.25 / 4) * 4)))       # 10-21: 56 GB killed workers; final npz write needs room
     n_ready = int(T.rois_ready.sum())
     b = f"{s}/o2/{name}"
     share_b = oi.o2_path(d, rv)
@@ -711,20 +724,20 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
 #SBATCH --array=1-{len(T)}%24
 #SBATCH -o {b}/logs/%A_%a.out
 #SBATCH -e {b}/logs/%A_%a.err
-# {p['workers']} segment workers x 2 threads. Expected per task at the O2 param-test rate: {hours.min():.1f}-{hours.max():.1f} h,
+# {p['workers']} segment workers x 4 threads. Expected per task at the O2 production rate: {hours.min():.1f}-{hours.max():.1f} h,
 # peak ~{E['ram']:.0f} GB. Resumable per segment: a task that hits the limit continues where it stopped when
 # resubmitted with the same --array index.
 set -eo pipefail
 module load conda/miniforge3/24.11.3-0
 conda activate fr
-export OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2
+export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
 echo "task $SLURM_ARRAY_TASK_ID on $(hostname), $(python --version)"
 python {b}/fr_runner.py
 """
     (d / "run_fr.sbatch").write_text(sb, encoding="utf-8", newline="\n")
     cmds = f"""# O2 FaceRhythm: {name} ({len(T)} tasks = session x {CAM}; ROIs ready for {n_ready})
 
-Per task ({p['workers']} parallel 10-min segments x 2 threads = {cpus} CPUs): {hours.min():.1f}-{hours.max():.1f} h at the
+Per task ({p['workers']} parallel 10-min segments x 4 threads = {cpus} CPUs): {hours.min():.1f}-{hours.max():.1f} h at the
 O2 param-test rate, peak RAM ~{E['ram']:.0f} GB, outputs ~{gb.median():.0f} GB (float16; {gb.sum() / 1000:.1f} TB for all
 {len(T)}{"" if n_ready == len(T) else f", {PILOT_POINTS} points assumed where no ROIs yet"}). Scratch per running task:
 up to 2x its outputs (work memmaps, removed once the npz are written).
@@ -1063,7 +1076,7 @@ def main(argv=None) -> int:
     b.add_argument("--name", required=True)
     b.add_argument("--user", required=True)
     b.add_argument("--seg-min", type=float, default=10.0, help="tracking segment (restart at home), minutes")
-    b.add_argument("--workers", type=int, default=4, help="parallel segments per O2 task (2 CPUs each)")
+    b.add_argument("--workers", type=int, default=4, help="parallel segments per O2 task (4 threads each; 10-21: 4 x 4 = 34 fps / worker, 8 x 2 = 19 fps and out of memory at 56 GB)")
     b.add_argument("--jobs", type=int, default=4, help="sessions in parallel on this desktop (shared box: keep low)")
     b.add_argument("--include-june", action="store_true",
                    help="also June sessions (left out by default: no registered ROIs after the camera change)")
