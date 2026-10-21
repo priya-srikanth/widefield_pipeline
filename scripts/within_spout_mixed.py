@@ -136,7 +136,7 @@ def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
             Y.append(z["maps"][keys.index(kind)] * 10 * 1e3)
             flat, sh = z["flat"], tuple(z["shape"])
             d = epochs.days_since_stroke(lab)
-            meta.append((lab[:4], float(d > 0), np.log(max(d, 1)) if d > 0 else 0.0))
+            meta.append((lab[:4], float(d > 0), np.log(max(d, 1)) if d > 0 else 0.0, epochs.epoch_of(lab)))
         if not Y:
             continue
         Y = np.stack(Y)
@@ -151,7 +151,10 @@ def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
         terms = {"pre level (mean of animal intercepts)": (np.full(len(an), 1 / len(an)).tolist() + [0, 0]),
                  "post step at day 1": [0] * len(an) + [1, 0],
                  "post: per e-fold of days": [0] * len(an) + [0, 1],
-                 "chronic (day 36) vs pre": [0] * len(an) + [1, np.log(36)]}
+                 # the model's change AVERAGED OVER THE ACTUAL CHRONIC SESSIONS (each animal's own days; Priya 10-20:
+                 # "chronic is different days for each animal") -- not a single assumed day
+                 "chronic sessions vs pre (model, own days)":
+                     [0] * len(an) + [1, float(np.mean([m[2] for m in meta if m[3] == "chronic"] or [np.log(36)]))]}
         fig, ax = plt.subplots(1, len(terms), figsize=(3.2 * len(terms), 3.4), squeeze=False)
         for j, (name, c) in enumerate(terms.items()):
             c = np.asarray(c, float)
