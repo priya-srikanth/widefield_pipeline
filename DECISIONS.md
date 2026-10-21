@@ -20975,3 +20975,5 @@ the within-spout slopes are attenuated ~2x at most -> crossed within / between p
 Reading: post-stroke cortex comes to encode the ECCENTRICITY of the reach (how far out to the side the tongue went),
 bilaterally in anterolateral frontal cortex, emerging chronically; the crossed direction code is present pre and
 persists. Caveat: cam4 angles; 3-D rerun pending.
+Re-render after the PS92_0908 rerun: all 9 folders + signed maps OK (20:18-20:58); per-spout drop-p table refreshed --
+PS92 chronic far-mid gain unchanged (cortex lick 12 -> 34 x1e-3), so the per-spout result is no longer pending the rerun.

@@ -119,7 +119,7 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
 
 ## 3. Where and how spouts are coded
 
-### 3.1 Per-spout unique maps — STANDS (PS92 chronic pending the 0908 rerun)
+### 3.1 Per-spout unique maps — STANDS (PS92_0908 rerun done 10-20: PS92 chronic unchanged)
 
 Drop-p: `movement_first_subset-droppos-/` (119 sessions; `figures/position_each_maps_*`, `position_share_maps_*`,
 `tables/per_spout_dR2_by_animal.csv`). The one-vs-rest relabelling version (`_subset-shufpos-`) mislabels donor trials

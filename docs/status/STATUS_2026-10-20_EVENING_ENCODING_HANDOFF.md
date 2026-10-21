@@ -66,7 +66,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 
 ## 4. To-do (priority)
 
-1. When the reruns finish: re-render (`combined_encoding_figures.py --order` each folder; §6) and refresh the per-spout
+1. DONE 10-20 20:58 (PS92 chronic per-spout unchanged; PS92_0908 lick-window fits improved, unique executed 0.007 -> 0.026). Was: re-render (`combined_encoding_figures.py --order` each folder; §6) and refresh the per-spout
    table; check whether PS92 chronic per-spout numbers moved; DECISIONS line.
 2. Read the within-spout dirmid / reliability results; mixed model on dir / mid (extend `within_spout_mixed.py` to read
    `dirmid.csv`); repo map tests on dir / mid maps (already wired in `figures_repo_sig`).
