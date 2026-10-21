@@ -200,6 +200,11 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   -> acute 3221-3467 -> chronic 471-692 ms). Target tracks the deficit more strongly: 3-D unique target post:deficit
   z -8.3 (was -5.3), cam4 z -8.2 (cue) / -6.3 (first lick); strict executed still null.
 
+- **jaw_only = reaction, not attempt (10-21, Priya's blind review 0/24) -> attempts + LMMs rerun.** Acute far-contra
+  attempt rate .79 / .80 / .64 / .32 (PS92-PS95): PS94 / PS95 also fail to INITIATE; completion .03-.15 in all four.
+  Target still tracks the deficit (3-D cue z -6.8, cam4 -6.7 / first lick -5.1); position first lick now z -2.0
+  (q .08); strict executed null. Old outputs `qc/superseded_attempts_jaw_20261021/`.
+
 - **Decoders recover with behaviour, the code stays reorganised (PROVISIONAL, 10-20 late; `scripts/imaging_lmm.py`).**
   Frozen-decoder deficit ~0 at full behavioural recovery while refit-over-frozen reorganisation stays positive (z 3.7).
   All session-level time courses now via `wfield_local/mixed_models.py` (one definition).

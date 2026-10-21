@@ -21203,3 +21203,20 @@ pattern or change (acute = miss trials; hits-only empty in 3/4). Reading: no per
 later lick in the 1 s window touches) are common pre and post (far contra pre 25-56 %); PS94 chronic far contra 80 %
 (first-lick contact 15 % vs 71 % pre) -- its recovery is corrective, not restored first-lick aim. Neither contact
 control removes these trials.
+
+## 2026-10-21 (late morning) -- jaw_only is a reaction, not an attempt; attempts + all deficit models rerun
+
+Priya's blind review (pose window, 24 post-stroke trials to the trial stop, cam1 + cam4 + jaw / nose / tongue / whisker /
+treadmill traces): 0 / 24 judged attempts; all 11 jaw_only trials = jaw response without opening (6), other movement
+(4, 2 walking) or still (1); 4 / 6 no_try trials just under the floor also reacted. `trial_attempts.py`: attempted =
+hit + incomplete (`ATTEMPT_CLASSES`); jaw_only kept as its own class (reacted, jaw). Old outputs copied to
+`qc/superseded_attempts_jaw_20261021/`. Far contra, old -> new: acute attempt rate PS92 .92 -> .79, PS93 .93 -> .80,
+PS94 .86 -> .64, PS95 .81 -> .32 (a real INITIATION deficit in PS94 / PS95; the earlier "mostly execution" holds for
+PS92 / PS93 only; acute completion still .03-.15 in all four); pre time to contact 549 / 648 / 570 / 545 -> 507 / 619 /
+444 / 344 ms (jaw-only trials had counted as 3.5 s attempts); subacute recovery faster in PS94 / PS95. LMM deficit
+slopes (cortex): 3-D unique target cue z -8.3 -> -6.8, cam4 -8.2 -> -6.7, first lick -6.3 -> -5.1, position cue
+-3.6 -> -2.7, position first lick -2.5 -> -2.0 (q .08, no longer FDR); strict executed null (-1.3). Conclusions hold.
+Confounds Priya flagged: sub-threshold walking moves the jaw; some jaw responses follow the spout leaving (spout moves
+60-80 ms after stop; detection ends at stop). Pose window adding jaw direction / pre-cue contrast / treadmill columns
+to jaw_onsets.csv; the watcher (`S/watch_jaw.sh`, 8 h from 10:13) reruns attempts + LMMs + six within-spout mixed
+models on that rewrite.
