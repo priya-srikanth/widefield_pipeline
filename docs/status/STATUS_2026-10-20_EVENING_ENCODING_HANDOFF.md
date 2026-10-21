@@ -23,6 +23,12 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
   pre and unchanged. Readouts done (figures, encoding_mixed 3d:*, landing zones).
 - **3-D within-spout mixed model** (`qc/within_spout_deviation_polar_lick/mixed_model.csv`): crossed SSp-m executed
   component pre -2.3 (z -4.2); shrinks with log days (z -3.1).
+- **enl within-spout check DONE** (`qc/within_spout_deviation_lick_enl/`, cue-1 .. cue minus pre-arrival): NULL -- crossed
+  SSp-m within-spout component ~0 pre (t 1.04, n 31; lick window t -6.5); mixed model null in every area / model (all
+  |z| < 1.7). Pre-cue activity does not carry the coming lick's within-spout deviation.
+- **Epoch families + CD on the LMM** (`imaging_lmm.py` source `epoch`; DECISIONS 2026-10-21 night): frozen encoder EV
+  and best-match accuracy still below pre at full behavioural recovery (z -4.1); far-contra own-position identity back
+  (z -0.7). Figures `qc/figures/imaging_lmm_epoch-*`. Stray empty `qc/figures/imaging_lmm_epoch` can be deleted.
 - **Lick-template test** first pass done (ENCODING_FINDINGS 2.4b); rerun `--tag 20261021` on 47 queued after the enl
   within-spout check (running). Log `S/lick_templates_20261021.log`.
 - **O2 window runs:** win_drop 119/119 collected; win_nokin 118 (PS95_0818 pending; Priya copying; watcher
