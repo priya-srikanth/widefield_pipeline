@@ -73,6 +73,31 @@ Implications: (i) replicate their comparison in our model first (FR vs our video
 their uncentred definition when comparing; (iv) their FR->imaging step is interpolation of a continuous spectrogram, so
 our 5 Hz `session` output must be checked against 25 Hz (below).
 
+## What the 2pRAM-cohort manuscript does with FR (10-21 night) -- analyses to mirror
+
+`stroke_orofacial_pipeline_outputs/vls_stroke_paper/VLS_stroke_manuscript_revised_v11.docx` (Fig 4, "in preparation";
+made by a colleague, NO code available -- the text is the spec). Within mouse: (i) DELTA SPATIAL LOADINGS post vs pre
+(reduced facial movement; severe animals: reduced right-jaw movement); (ii) PRE-STROKE COMPONENTS REFIT to post sessions,
+temporal amplitudes over recovery (licking components fall acutely, recover; severity = depth + persistent reduction);
+(iii) VARIANCE EXPLAINED by per-session vs pre-stroke components (mild: post still described by pre structure; severe:
+qualitatively different, persists past the plateau). In progress there: a pre-stroke "reference-mouse" basis refit
+across mice, epoch-matched EV comparisons, spectral / spatial factor-angle "morphing", recovery-null trajectories.
+Abstract claim: "disruption and heterogeneous reorganization of the latent orofacial manifold, with relative
+preservation of non-task orofacial movements".
+
+Our design gives these ACROSS animals by construction (one mesh, one frozen pre basis):
+* (ii) = `project` -> per-component trial / session amplitudes by epoch (August-only pre baseline, per animal first).
+* (iii) = per-session own rank-R fit EVR minus the frozen-basis EVR ("EVR gap"; our reconstruction error is the second
+  half) -> NEW: `fitsession` (per task on O2; also gives each session's own factors).
+* morphing = Hungarian-matched spatial / spectral cosine of each session's own factors to the frozen set, over days.
+* (i) = per-point movement power maps (from `session` / `points`), post minus pre per animal, AVERAGEABLE across animals
+  on the master face; contra- vs ipsilesional face halves (stroke_laterality, animals.yaml; cam1 face: ipsi = image right
+  -- check cam4's convention before any L/R claim).
+* "Non-task movements preserved": between-trial (5 Hz session) amplitudes of sniff / whisk components vs in-trial lick
+  components.
+* Beyond the old cohort: FR in the widefield encoding model (C1) -- cortex-FR coupling pre vs post, which the 2pRAM
+  manuscript does not have.
+
 ## Integration plan (DRAFT 10-21 evening)
 
 What each task delivers (`o2_face_rhythm.py collect` -> `<dlc>/face_rhythm/cam4/o2_<name>_index.csv`, npz in the bundle's
