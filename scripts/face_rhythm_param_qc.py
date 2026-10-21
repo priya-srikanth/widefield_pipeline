@@ -64,7 +64,7 @@ def lp_reference(rv, key: str, start: int, n: int) -> dict:
     return {"tongue": tongue, "nose_speed": sp, "nose_rest": np.nanmedian(nose, 0)}
 
 
-def cmd_clips(bundle: str, seconds: float = 4.0, color: str = "disp") -> None:
+def cmd_clips(bundle: str, seconds: float = 4.0, color: str = "disp", only: list[str] | None = None) -> None:
     import cv2
     import decord
     import pandas as pd
@@ -83,14 +83,14 @@ def cmd_clips(bundle: str, seconds: float = 4.0, color: str = "disp") -> None:
     r = T[T["key"] == key].iloc[0]
     vr = decord.VideoReader(str(Path(rv.root("behavior_cameras")) / r.date / r.animal / r.video))
     (out / "clips").mkdir(parents=True, exist_ok=True)
-    names = list(sets)
+    names = [n for n in (only or list(sets)) if n in sets]
     sc = 0.8
     for label, end in (("lick", lick_end), ("rest", rest_end)):
         i0 = end - L + 1
         frames = vr.get_batch(list(range(start + i0, start + end + 1))).asnumpy()
         H, W = frames.shape[1:3]
         h, w_ = int(H * sc), int(W * sc)
-        dst = out / "clips" / f"{key}_{label}_{start + i0}{'_plain' if color == 'plain' else ''}.mp4"
+        dst = out / "clips" / f"{key}_{label}_{start + i0}{'_plain' if color == 'plain' else ''}{'_' + '-'.join(names) if only else ''}.mp4"
         vw = cv2.VideoWriter(str(dst), cv2.VideoWriter_fourcc(*"mp4v"), 50, (w_ * len(names), h + 30))
         for k, fr in enumerate(frames):
             i = i0 + k
@@ -228,7 +228,7 @@ def main(argv=None) -> int:
                     help="clips: dots coloured by |displacement from home|, or one colour (judge jitter by position)")
     a = ap.parse_args(argv)
     if a.cmd == "clips":
-        cmd_clips(a.bundle, color=a.color)
+        cmd_clips(a.bundle, color=a.color, only=a.sets)
     else:
         cmd_decompose(a.bundle, a.rank, threads=a.threads, only=a.sets)
     return 0
