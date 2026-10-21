@@ -20948,3 +20948,30 @@ small / incomplete licks pull it in only modestly (38 -> 31 %, 35 -> 30 %), so t
 reach the spout -- two different acute deficits; (3) recovered by subacute / chronic (contact-late .52 / .40 subacute in
 PS92 / PS93, <= .15 elsewhere). Supports lick alignment (cam4 or combined onsets), never contact alignment, for
 post-stroke far-contra trials.
+**PS92_0908 rerun result (10-20 night).** All 9 folders + June PS92 / PS93 0606 (movement_first, subset-nokin) refitted
+on the template-timing inputs (fresh outputs 18:53-20:17; old copies in `sessions/_superseded_pre_template_timing/`).
+The fix MATTERED for this session: cortex lick-window R2 full 0.422 -> 0.475; nokin category 0.411 -> 0.501, target
+0.362 -> 0.474, exec 0.306 -> 0.438, target+exec 0.369 -> 0.500 -> unique executed 0.007 -> 0.026, unique target
+0.064 -> 0.062; position drop dR2 (lick) 0.050 -> 0.057; cue window changed little. I.e. the mistimed licks had
+been costing the lick-locked models (executed most). Cohort figures / tables re-rendered for every folder.
+**Direction + toward-midline model and split-half reliability (10-20 night; lick-aligned, 107 sessions;
+`qc/within_spout_deviation_lick/dirmid.csv`, `mixed_model.csv`, `figures/within_spout_maps_{nested,cluster}_{dir,mid}`).**
+x1e-3 dF per 10 deg; pooled z per animal x epoch.
+(1) BILATERAL cortex: the pre-stroke PS94 / PS95 pattern is an ECCENTRICITY effect -- toward-midline +2.2 / +4.2
+(z 4.1 / 7.9), direction ~0 (z 2.2 / 0.0); PS92 / PS93 neither. Acute PS94 / PS95 turn DIRECTIONAL -- direction -3.6 /
+-2.8 (z -6.5 / -2.2: more for contralesional licks) while the midline term weakens; PS94 direction then reverses
+(+3.2 / +4.5 subacute / chronic, z 4.3 / 8.8); PS93 direction negative subacute / chronic (z -2.9 / -4.5). Eccentricity
+persists in PS95 (subacute z 4.9, chronic 4.5).
+(2) CROSSED SSp-m (L - R): direction negative in 4 / 4 pre (z -1.5 .. -2.9; mixed-model pre level -1.52, q .048; MOp
+q .027) = the crossed executed component; strongest PS92 chronic (-4.5, z -4.3) and PS93 subacute (-5.0, z -3.4).
+(3) TOWARD-MIDLINE, mixed model: crossed MOp / MOs / SSp-m step at day 1 -1.4 / -0.8 / -2.2 (z -3.3 / -3.2 / -2.7;
+q .018 / .018 / .053) recovering +0.38 / +0.23 / +0.66 per e-fold of days (z 3.0-3.3, q .016) -- the FIRST post-stroke
+terms surviving FDR with animal as a random effect. Repo map test (nested bootstrap, animal = unit): pre vs 0 = 7 % of
+brain (medial licks evoke more along a midline strip); post vs pre: acute 1 %, subacute 4 %, CHRONIC 20 % -- bilateral
+ANTEROLATERAL frontal cortex flips to responding more to the more LATERAL licks. The first post-stroke map change that
+survives the repo's animal-level test. (Direction maps: nothing survives; pre vs 0 suppressed by the edge rule.)
+(4) Split-half (odd / even licks, Spearman-Brown) reliability of the within-spout lateral deviation ~0.5 (0.34-0.76):
+the within-spout slopes are attenuated ~2x at most -> crossed within / between pre 0.10-0.20 is bracketed 0.10-0.40.
+Reading: post-stroke cortex comes to encode the ECCENTRICITY of the reach (how far out to the side the tongue went),
+bilaterally in anterolateral frontal cortex, emerging chronically; the crossed direction code is present pre and
+persists. Caveat: cam4 angles; 3-D rerun pending.

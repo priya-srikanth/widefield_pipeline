@@ -157,8 +157,8 @@ def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
             ax[0, j].set_title(f"{name}\n|lim| {lim:.2g} (x1e-3 dF / 10 deg); |t|>3: {100 * np.mean(np.abs(t) > 3):.0f} %",
                                fontsize=7)
             ax[0, j].axis("off")
-        fig.suptitle(f"{kind.split('_')[0]}-spout lateral slope: session ~ animal + post + post:log(day), "
-                     f"{len(Y)} sessions; red = more activity for licks toward the mouse's LEFT (ipsilesional); "
+        from scripts.within_spout_deviation import KIND_TITLE
+        fig.suptitle(f"{KIND_TITLE.get(kind, kind)}: session ~ animal + post + post:log(day), {len(Y)} sessions; "
                      "ipsi hemisphere = image left; outlines descriptive", fontsize=7)
         fig.tight_layout()
         fig.savefig(figs / f"mixed_time_maps_{kind.split('_')[0]}.png", dpi=150)

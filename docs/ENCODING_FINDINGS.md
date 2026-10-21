@@ -109,6 +109,14 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   17-18 % (PS94 / PS95) of licked trials; cam1's small licks barely change it (-> real delay); no spout contact on
   85-97 % of those trials in all four. PS92 / PS93 = slow to start, PS94 / PS95 = prompt but miss. `qc/first_lick_latency*`.
 
+- **Direction vs toward-midline (eccentricity), within spout (PROVISIONAL, 10-20 night).** Crossed SSp-m DIRECTION
+  code present pre in 4/4 (mixed-model pre level q .048) and persists. A TOWARD-MIDLINE (eccentricity) term changes
+  after the stroke: crossed MOp / MOs / SSp-m step down at day 1 and recover (q .016-.053), and the map test (nested
+  bootstrap, animal = unit) finds 20 % of brain changed chronically -- bilateral anterolateral frontal cortex comes to
+  respond more to more LATERAL licks (pre: medial licks evoke more along the midline). First post-stroke map change
+  surviving the animal-level test. PS94 / PS95's pre bilateral pattern = eccentricity; acute = contralesional direction.
+  Split-half reliability ~0.5 -> executed shares bracketed x1-x2. `qc/within_spout_deviation_lick/`.
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92 chronic pending the 0908 rerun)

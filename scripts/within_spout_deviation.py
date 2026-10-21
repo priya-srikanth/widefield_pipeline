@@ -45,6 +45,11 @@ BASE_S = (-0.5, 0.0)
 ALIGN_ENV = "WITHIN_SPOUT_ALIGN"     # set by --align (the session workers read it)
 LICK_WIN_S = (0.0, 1.0)
 SIDES = ("contra", "mid", "ipsi")
+KIND_TITLE = {"within_mean": "WITHIN-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
+              "between_mean": "ACROSS-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
+              "dir_mean": "DIRECTION (within spout); red = more activity for licks toward the mouse's LEFT",
+              "mid_mean": "TOWARD MIDLINE (within spout, lateral spouts); red = more activity for MEDIAL licks, "
+                          "blue = for more LATERAL licks"}
 MIN_TRIALS = 9                      # per spout (3 per tercile)
 SHOW = ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul", "SSp-bfd")
 EPOCHS = ("pre", "acute", "subacute", "chronic")
@@ -362,7 +367,7 @@ def report_dirmid(DM: pd.DataFrame, D: pd.DataFrame) -> None:
             se = (np.hypot(*(DM[DM.area == f"SSp-m_{h}"].set_index("label")[f"se_{c}"] for h in ("left", "right")))
                   if meas.startswith("SSp") else DM[DM.area == "cortex"].set_index("label")[f"se_{c}"]) * 10 * 1e3
             X = pd.DataFrame({"b": b, "w": 1 / se ** 2})
-            X["animal"], X["epoch"] = X.index.str[:4], X.index.map(lambda s: DM.set_index("label").epoch.get(s))
+            X["animal"], X["epoch"] = X.index.str[:4], X.index.map(DM.drop_duplicates("label").set_index("label").epoch)
             X = X[~X.index.duplicated()]
             g = X.groupby(["animal", "epoch"]).apply(lambda x: pd.Series(
                 {"b": (x.b * x.w).sum() / x.w.sum(), "z": (x.b * x.w).sum() / np.sqrt(x.w.sum())}), include_groups=False)
@@ -510,8 +515,7 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
                                f"{100 * frac:.0f} % of brain", fontsize=7)
             ax[0, j].axis("off")
             rows.append({"kind": kind, "method": method, "epoch": ep, "frac_sig": frac, "label": lab_})
-        fig.suptitle(f"{kind.split('_')[0]}-spout lateral slope (x1e-3 dF / 10 deg; red = more activity for licks toward "
-                     f"the mouse's LEFT / ipsilesional; ipsi hemisphere = image left); |lim| {lim:.2g}; "
+        fig.suptitle(f"{KIND_TITLE.get(kind, kind)} (x1e-3 dF / 10 deg; ipsi hemisphere = image left); |lim| {lim:.2g}; "
                      f"outline: beta_maps '{method}' (animal = unit)", fontsize=7)
         fig.tight_layout()
         fig.savefig(figs / f"within_spout_maps_{method}_{kind.split('_')[0]}.png", dpi=150)
