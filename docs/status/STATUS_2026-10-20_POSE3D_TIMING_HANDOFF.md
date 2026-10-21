@@ -18,8 +18,11 @@ far_center 0.81 (some PS92 sessions 0.53-0.63). PS92 jaw readouts unchanged to 3
 sessions): FAR_DIR 0.19 -> 0.02 -> 0.05, CLOSE_DIR -0.05 -> -0.12 -> -0.22 (pre / acute / chronic).
 **Morning to-do:** (1) O2 cam1 array 56830841: 65 curated pending (Priority); copy back + `o2_inference collect`, then the
 §6 chain for PS94 / PS95 (first time 3-D / cam1 for them -> per-animal incomplete, CLOSE_DIR, cue / lick traces, aim
-angles). (2) Local cam1 LP run deferred (box shared) -- reverse order from task 137 if Priya OKs. (3) Optional: a
-mouth-open check of the tongue-at-lips frames (Priya judged sheet B real; quantify per epoch). (4) Practice vs stroke for
+angles). (2) Local cam1 LP run deferred (box shared) -- reverse order from task 137 if Priya OKs. (3) DONE 10-20 night --
+pre-cue tongue at the lips (3-D tongue-out share, -500 .. 0 ms, `cue_traces/traces.csv.gz`): PS92 far_R 3.1 -> 6.6 ->
+6.3 -> 7.8 % (pre / acute / subacute / chronic; stays up), every other spout FALLS acutely (as cam4 pre-cue licking);
+matches PS92's chronic rise of cam1 at-the-lips events on the right. PS93 far_R flat (4.8 -> 5.5 -> 5.3 -> 4.4) --
+one animal so far; re-check with PS94 / PS95. (4) Practice vs stroke for
 the chronic licks-per-trial rise needs a non-stroke control (none in this cohort) -- phrase as "candidate".
 
 1. **Two local background branches were running at hand-off (§3).** Read their logs; if the session is gone, check the
