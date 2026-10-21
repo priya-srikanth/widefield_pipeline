@@ -660,8 +660,12 @@ def map_corr(a, b):
 
 def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=None, seed=0,
                         se_floor_pct=SE_FLOOR_PCT, mask=None,
-                        se_smooth_sigma=SE_SMOOTH_SIGMA):
+                        se_smooth_sigma=SE_SMOOTH_SIGMA, normalise=False):
     """Boolean mask: pixels in a cluster larger than 95% of clusters obtainable by relabelling.
+
+    ``normalise`` (`NORMALISE_TESTS_BY_PRE`, 2026-10-21): each animal's difference is divided by the brain-mask RMS of
+    ITS PSEUDO-PRE mean IN THAT DRAW (`pre_scale`'s definition), observed draw included -- so the statistic is the one
+    the pre-normalised picture shows, and the constant is a function of the relabelling, which keeps the null exact.
 
     THE TEST THE DIFFERENCE COLUMN NEEDS. 540 x 640 is 345,600 pixels, so an uncorrected per-pixel
     threshold means nothing -- thousands of pixels pass at p<0.05 by construction. The field
@@ -764,6 +768,10 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
         raise ValueError("cluster_permutation needs the Allen brain mask "
                          "(allen_brain_mask_native_grid.npy); refusing to test off-brain pixels")
     mask = np.asarray(mask, bool)
+    # the normalising constant uses `pre_scale`'s mask (the display brain mask), not the eroded statistics mask
+    pre_mask = brain_mask() if normalise else None
+    if normalise and (pre_mask is None or np.asarray(pre_mask).shape != MAP_SHAPE):
+        pre_mask = mask
     if t_thresh is None:
         # df = n_animals - 1, and with a single animal there is no between-animal df at all: fall
         # back to the same number n=2 would give rather than to an unbounded one.
@@ -782,7 +790,11 @@ def cluster_permutation(pre_by_animal, post_by_animal, *, n_perm=500, t_thresh=N
             idx = assign[an]
             a = np.mean([allm[i] for i in range(len(allm)) if not idx[i]], axis=0)
             b = np.mean([allm[i] for i in range(len(allm)) if idx[i]], axis=0)
-            d.append(b - a)
+            if normalise:
+                r = float(np.sqrt(np.nanmean(np.asarray(a)[pre_mask] ** 2)))
+                d.append((b - a) / (r if r > 0 and np.isfinite(r) else 1.0))
+            else:
+                d.append(b - a)
         d = np.stack(d)
         m = d.mean(0)
         if len(animals) < 2:
@@ -1246,7 +1258,7 @@ def edge_enrichment(flagged, mask=None, rim_px=32):
 
 
 def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, n_boot=2000,
-                         n_perm=500, alpha=0.05, seed=0, mask=None):
+                         n_perm=500, alpha=0.05, seed=0, mask=None, normalise=None):
     """``(full-resolution boolean mask, one-line label)`` for a difference panel, or ``(None, "")``.
 
     ONE PLACE, so a figure cannot quietly disagree with another about what its drawn contour means.
@@ -1263,10 +1275,33 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
     THE CONTOUR IS COARSE UNDER "nested" AND THAT IS HONEST: it is drawn on 8x8 bins, so it steps
     rather than curving. The maps carry no spatial information finer than FWHM ~81 px, so a smooth
     contour at full resolution would be claiming a precision the data does not have.
+
+    ``normalise`` (default `NORMALISE_TESTS_BY_PRE`): both epochs divided by each animal's PRE-stroke constant
+    (`pre_scale`) before testing, so the contour is computed on the scale the pooled picture is drawn on.
     """
+    norm = NORMALISE_TESTS_BY_PRE if normalise is None else normalise
+    if norm and method != "cluster":
+        # nested / Musall: ONE constant per animal from its true pre sessions. The cluster test instead recomputes it
+        # inside every relabelling draw (`cluster_permutation(normalise=True)`): a constant taken from the TRUE pre
+        # labels would depend on the labels being shuffled and break the permutation's exchangeability.
+        sc = pre_scale(pre_by_animal)
+        pre_by_animal, post_by_animal = scale_maps(pre_by_animal, sc), scale_maps(post_by_animal, sc)
+    keep, lab = _significance_contour(pre_by_animal, post_by_animal, method=method, n_boot=n_boot, n_perm=n_perm,
+                                      alpha=alpha, seed=seed, mask=mask, normalise=bool(norm))
+    if norm and lab:
+        lab = f"[pre-normalised] {lab}"
+        last = getattr(significance_contour, "last", None)
+        if isinstance(last, dict) and last.get("label") and not last["label"].startswith("[pre-normalised]"):
+            last["label"] = f"[pre-normalised] {last['label']}"
+    return keep, lab
+
+
+def _significance_contour(pre_by_animal, post_by_animal, *, method, n_boot, n_perm, alpha, seed, mask,
+                          normalise=False):
+    """`significance_contour` on maps already on their final scale (cluster: scaled per draw when ``normalise``)."""
     if method == "cluster":
         keep = cluster_permutation(pre_by_animal, post_by_animal, n_perm=n_perm, seed=seed,
-                                   mask=mask)
+                                   mask=mask, normalise=normalise)
         if keep is None or not keep.any():
             return None, "cluster permutation: nothing survives"
         return keep, (f"cluster permutation, {n_perm} draws within animal: "
@@ -1333,6 +1368,48 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
 #: per-animal constant would re-introduce the imbalance between rows.
 NORMALISE_BY_PRE = True
 
+#: THE TESTS SEE THE SAME SCALE AS THE PICTURE (Priya, 2026-10-21: "for our imaging-only analyses with activity maps --
+#: did we z score?" -> "go ahead and document why we're doing it ... archive the existing results so we can compare").
+#:
+#: WHAT WAS WRONG. Since 2026-09-12 the DRAWN pooled maps divide each animal by its own pre-stroke RMS
+#: (`NORMALISE_BY_PRE`, per position), but the significance tests drawn ON them -- `significance_contour` (nested
+#: bootstrap / cluster permutation / Musall) and `vs_zero_contour` -- were handed the RAW per-animal maps. The
+#: contour therefore came from un-normalised data: a bright animal contributed larger differences and a larger share
+#: of the between-animal spread (pre-stroke amplitude spread up to 3.19x across animals), while the picture under the
+#: contour weighted animals equally. A figure whose outline and image are on different scales is answering two
+#: questions at once.
+#:
+#: WHAT CHANGES. The same constant -- one number per animal x position, from PRE-STROKE sessions only (`pre_scale`) --
+#: is applied to the maps the test sees. No within-animal sign changes and no epoch information enters (the reason the
+#: quiet-SD z-score was rejected on 2026-09-12 still holds: it moves with epoch). What moves is each animal's weight in
+#: the mean and in the between-animal SE, so contours can grow or shrink. Not a z-score per pixel: a per-pixel SD
+#: would make low-variance rim pixels the loudest, the failure `cluster_permutation`'s SE floor exists to prevent.
+#:
+#: COMPARISON. Figures rendered before this (raw-dF tests) were copied to
+#: `labcams/grant_figures/epoch/archive_rawdF_tests_20261021/` (png + data/ + svg/), and the within-spout repo tests'
+#: tables to `map_significance_*_rawdF_20261021.csv`. Contour labels now start "[pre-normalised]".
+NORMALISE_TESTS_BY_PRE = True
+
+
+def pre_scale(pre_by_animal, mask=None) -> dict:
+    """``{animal: pre-stroke RMS}`` -- THE constant of `NORMALISE_BY_PRE` (mean pre map, RMS over the brain mask; 1.0
+    for a degenerate all-zero animal, which has nothing to normalise by)."""
+    if mask is None:
+        mask = brain_mask()
+    out = {}
+    for an, maps in pre_by_animal.items():
+        if not len(maps):
+            continue
+        m = np.asarray(np.mean(maps, axis=0))
+        r = float(np.sqrt(np.nanmean((m[mask] if mask is not None and mask.shape == m.shape else m) ** 2)))
+        out[an] = r if r > 0 and np.isfinite(r) else 1.0
+    return out
+
+
+def scale_maps(by_animal, scale) -> dict:
+    """``{animal: [map / scale[animal]]}`` (animals without a scale are kept unscaled)."""
+    return {a: [np.asarray(m) / scale.get(a, 1.0) for m in v] for a, v in by_animal.items()}
+
 
 def within_animal_pooled(pre_by_animal, post_by_animal=None, *, normalise=NORMALISE_BY_PRE,
                          mask=None):
@@ -1361,17 +1438,9 @@ def within_animal_pooled(pre_by_animal, post_by_animal=None, *, normalise=NORMAL
     if not animals:
         return None, None, None, float("nan"), []
 
-    def _scale(an):
-        if not normalise:
-            return 1.0
-        m = np.mean(pre_by_animal[an], axis=0)
-        r = float(np.sqrt(np.nanmean(np.asarray(m)[mask] ** 2)))
-        # A DEGENERATE ANIMAL IS NOT RESCALED TO INFINITY: an all-zero pre-stroke map means that
-        # animal has nothing to normalise BY, and dividing would make its noise the loudest voice
-        # in the pooled mean.
-        return r if r > 0 else 1.0
-
-    sc = {a: _scale(a) for a in animals}
+    # ONE DEFINITION of the per-animal constant (`pre_scale`), shared with the tests (NORMALISE_TESTS_BY_PRE). A
+    # DEGENERATE ANIMAL IS NOT RESCALED TO INFINITY: an all-zero pre-stroke map has nothing to normalise BY.
+    sc = (pre_scale({a: pre_by_animal[a] for a in animals}, mask) if normalise else {a: 1.0 for a in animals})
     pre_p = np.mean([np.mean(pre_by_animal[a], axis=0) / sc[a] for a in animals], axis=0)
     if post_by_animal is None:
         return pre_p, None, None, float("nan"), animals
@@ -1382,7 +1451,7 @@ def within_animal_pooled(pre_by_animal, post_by_animal=None, *, normalise=NORMAL
 
 
 def vs_zero_contour(by_animal, *, method=PRIMARY_TEST, n_boot=2000, alpha=0.05, seed=0,
-                    mask=None):
+                    mask=None, scale_by=None):
     """``(full-resolution mask, label)`` -- where this ONE epoch's map differs from ZERO.
 
     MUSALL ET AL. 2023, FIG. S6, WHICH IS A DIFFERENT QUESTION FROM EVERY OTHER TEST HERE: "we
@@ -1406,7 +1475,15 @@ def vs_zero_contour(by_animal, *, method=PRIMARY_TEST, n_boot=2000, alpha=0.05, 
     animals then sessions, as everywhere else here; `method="musall"` gives their own procedure with
     SESSIONS as the unit, which is far more powerful and treats two sessions from one animal as
     independent.
+
+    ``scale_by`` = the PRE-stroke ``{animal: [maps]}`` of the same position: with `NORMALISE_TESTS_BY_PRE` every animal
+    is divided by its pre-stroke constant (`pre_scale`) before testing, matching the drawn pooled map. Omitted =
+    raw maps (callers that draw raw pooled maps, e.g. rest_carries_position).
     """
+    if scale_by is not None and NORMALISE_TESTS_BY_PRE:
+        full, lab = vs_zero_contour(scale_maps(by_animal, pre_scale(scale_by, mask)), method=method, n_boot=n_boot,
+                                    alpha=alpha, seed=seed, mask=mask)
+        return full, (f"[pre-normalised] {lab}" if lab else lab)
     animals = sorted(by_animal)
     if len(animals) < 2:
         return None, ""

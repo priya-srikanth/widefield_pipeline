@@ -21314,3 +21314,35 @@ notches 20.83 / 41.67 / 62.5 Hz (cam4 FMP4 GOP 12; interpolating keyframe frames
 restarting at home, 8 workers; engaged trials only in `trials` (whole session kept in `session` / `points`); June and
 non-curated sessions out; PS92_0812 as two tasks (one per video). Production `PARAMS["tracking"]` is ASSERTED equal to
 the tested set. Bundle `fr_cam4_20261021` (108 tasks); pilot task 87 running (memory fix under test).
+
+## 2026-10-21 (late afternoon) -- Normalised map tests IMPLEMENTED; 15r position-map calibration (precue arm)
+
+Implements the afternoon "Map statistics review" plan (branch maps/normalised-tests; Priya: "sounds good proceed"). `beta_maps`: `pre_scale` (THE
+per-animal x position constant: brain-mask RMS of the mean pre map, 1.0 if degenerate; `within_animal_pooled` now calls
+it, so picture and test share one definition), `scale_maps`, `NORMALISE_TESTS_BY_PRE = True` (justification in its
+comment), `significance_contour(normalise=None -> NORMALISE_TESTS_BY_PRE)`: nested / Musall on maps divided by the pre
+constant; CLUSTER via `cluster_permutation(normalise=True)`, which divides each animal's difference by the RMS of ITS
+PSEUDO-PRE mean IN EACH DRAW (observed draw included) -- a constant taken from the true pre labels would depend on the
+labels being shuffled; `vs_zero_contour(scale_by=pre)`; labels (and `significance_contour.last`) start
+"[pre-normalised]". `epoch_maps` 14z: picture divided by the same constant (colour bar + subtitle say so) and tests
+`scale_by`. `within_spout_deviation.figures_repo_sig`: picture pre-normalised; the pre panel's vs-zero uses nested when
+method = cluster (labelled; it raised before). `within_spout_mixed.pixel_maps(zf=)` + `pixel_z_factors`: z versions
+`mixed_time_maps_<kind>_z.png` (each animal x its pre lat_sd / resp_sd, cortex, all spouts). `spout_mid_maps.py` now
+draws per-position DIRECTION (+ = licks toward the mouse's left; no ipsi flip) to `spout_dir_maps_per_animal*.png`
+(old toward-midline PNGs kept); `spout_reliability.py` prints direction (dir_z, dir_z_corr; mid_z kept in the CSV).
+`map_test_calibration` normalised-cluster arm now uses the per-draw constant. Tests: `tests/test_normalised_map_tests.py`
+(shared constant; brightness invariance for nested / cluster / vs-zero, bit-exact with a power-of-two factor; raw path
+unchanged).
+
+15r POSITION-MAP CALIBRATION, precue / working (ENL) arm (`map_test_calibration_position_<ref>_precue_working.csv`):
+NESTED (primary) flags NOTHING on any pure null (August split, all-pre split) for any reference, raw or normalised;
+June vs August drift <= 4 % (rest / restw), 0 (raw / mean). CLUSTER (second line) on rest / restw flags 20-58 % of the
+brain on the close_center pure-null splits (and far_R raw on the all-pre split). Checked (scratch `diag_random.py`, rest,
+close_center, August, 4 v 4 sessions per animal): over 24 RANDOM within-animal splits the cluster test fired on 2 (8 %,
+consistent with a 5 % test at n = 24) and nested on 0; the alternating-date split is one of the chance hits. So the
+cluster test is roughly calibrated for "any change", but WHEN IT FIRES ON A NULL THE FALSE CLUSTER COVERS 31-51 % OF THE
+BRAIN -- rest-referenced maps carry a session-wide offset, so cluster EXTENT is not evidence of a spatially broad change.
+Read cluster contours on rest / restw as a yes / no, never by area; nested stays primary. Real acute (precue), nested:
+close_center 15-24 % (raw / mean refs; ~0 on rest / restw), far_R 10-19 % (mean / rest / restw; 1-2 % raw), far_L 10 %
+(raw); normalising moves these by a few points only. Cue and lick
+arms still running.

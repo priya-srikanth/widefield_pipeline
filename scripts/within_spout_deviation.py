@@ -633,13 +633,20 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
         if "pre" not in eps:
             continue
         fig, ax = plt.subplots(1, len(eps), figsize=(3.2 * len(eps), 3.4), squeeze=False)
-        means = {e: np.mean([np.mean(x, 0) for x in by[e].values()], 0) for e in eps}
+        # PRE-NORMALISED picture, same constant the tests use (bm.pre_scale; NORMALISE_TESTS_BY_PRE, 2026-10-21)
+        norm = bm.NORMALISE_TESTS_BY_PRE
+        sc = bm.pre_scale(by["pre"]) if norm else {}
+        means = {e: np.mean([np.mean(x, 0) / sc.get(a, 1.0) for a, x in by[e].items() if not norm or a in sc], 0)
+                 for e in eps}
         lim = np.nanpercentile(np.abs(np.concatenate([m.ravel() for m in means.values()])), 98) or 1e-6
         mask = bm.brain_mask()
         for j, ep in enumerate(eps):
             try:
                 if ep == "pre":
-                    sig, lab_ = bm.vs_zero_contour(by["pre"], method=method)
+                    # vs-zero has no cluster form (it raised and drew nothing before 10-21): the nested test, labelled
+                    vz = "nested" if method == "cluster" else method
+                    sig, lab_ = bm.vs_zero_contour(by["pre"], method=vz, scale_by=by["pre"] if norm else None)
+                    lab_ = (f"(vs 0: {vz}) " if vz != method else "") + (lab_ or "")
                 else:
                     common = sorted(set(by["pre"]) & set(by[ep]))
                     sig, lab_ = bm.significance_contour({a: by["pre"][a] for a in common},
@@ -651,11 +658,13 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
             if sig is not None and np.any(sig):
                 ax[0, j].contour(np.asarray(sig, float), levels=[0.5], colors="k", linewidths=0.7)
             frac = float(np.mean(np.asarray(sig, bool)[mask])) if sig is not None and mask is not None else 0.0
-            ax[0, j].set_title(f"{ep} (animals {len(by[ep])})\n{'vs 0' if ep == 'pre' else 'vs pre'}: "
+            ax[0, j].set_title(f"{ep} (animals {len(by[ep])})\n{'vs 0' if ep == 'pre' else 'vs pre'}"
+                               f"{' (nested)' if ep == 'pre' and method == 'cluster' else ''}: "
                                f"{100 * frac:.0f} % of brain", fontsize=7)
             ax[0, j].axis("off")
             rows.append({"kind": kind, "method": method, "epoch": ep, "frac_sig": frac, "label": lab_})
-        fig.suptitle(f"{KIND_TITLE.get(kind, kind)} (x1e-3 dF / 10 deg; ipsi hemisphere = image left); |lim| {lim:.2g}; "
+        unit = "/ each animal's pre RMS, pre-normalised" if norm else "x1e-3 dF / 10 deg"
+        fig.suptitle(f"{KIND_TITLE.get(kind, kind)} ({unit}; ipsi hemisphere = image left); |lim| {lim:.2g}; "
                      f"outline: beta_maps '{method}' (animal = unit)", fontsize=7)
         fig.tight_layout()
         fig.savefig(figs / f"within_spout_maps_{method}_{kind.split('_')[0]}.png", dpi=150)

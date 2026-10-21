@@ -68,6 +68,9 @@ def main(argv=None) -> int:
     sg = np.where(D.spouts.str.endswith("contra"), 1.0, -1.0)
     D["mid_z"] = D.b_z * sg
     D["mid_z_corr"] = np.where(D.rel >= RMIN, D.mid_z / D.rel, np.nan)
+    # PER-POSITION DIRECTION (Priya 10-21: per-position, not toward-midline): + = licks toward the mouse's LEFT (ipsi)
+    D["dir_z"] = D.b_z
+    D["dir_z_corr"] = np.where(D.rel >= RMIN, D.dir_z / D.rel, np.nan)
     D["epoch"] = D.label.map(epochs.epoch_of)
     D.to_csv(folder / "spout_reliability_slopes.csv", index=False, float_format="%.4g")
     pd.set_option("display.width", 230)
@@ -77,8 +80,8 @@ def main(argv=None) -> int:
     print(rel.groupby(["spouts", "animal", "epoch"]).rel.median().unstack("epoch").reindex(columns=order).round(2)
           .to_string())
     D["reg"] = D.area.str.split("_").str[0]
-    for col, title in (("mid_z", "z-scored toward-midline slope (as before)"),
-                       ("mid_z_corr", f"DISATTENUATED: / per-spout reliability (rel >= {RMIN})")):
+    for col, title in (("dir_z", "z-scored per-position DIRECTION slope (+ = licks toward the mouse's LEFT)"),
+                       ("dir_z_corr", f"DISATTENUATED direction: / per-spout reliability (rel >= {RMIN})")):
         print(f"\n=== {title}, hemispheres averaged, session means")
         print(D.groupby(["spouts", "reg", "animal", "epoch"])[col].mean().unstack("epoch").reindex(columns=order)
               .round(3).to_string())

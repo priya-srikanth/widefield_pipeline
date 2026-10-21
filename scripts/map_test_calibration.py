@@ -40,26 +40,18 @@ def _split(labels):
     return s[0::2], s[1::2]
 
 
-def _rms_scale(pre_by, mask):
-    out = {}
-    for a, v in pre_by.items():
-        m = np.mean(v, 0)
-        r = float(np.sqrt(np.nanmean(m[mask] ** 2)))
-        out[a] = r if r > 0 else 1.0
-    return out
-
-
 def _one(job):
     from wfield_local import beta_maps as bm
     name, q, pre_by, post_by, norm, n_perm = job
-    mask = bm.brain_mask()
-    if norm:
-        sc = _rms_scale(pre_by, mask)
-        pre_by = {a: [m / sc[a] for m in v] for a, v in pre_by.items()}
-        post_by = {a: [m / sc[a] for m in v] for a, v in post_by.items()}
+    raw_pre, raw_post = pre_by, post_by
+    if norm:                              # nested: one constant per animal from its pre maps (= bm.pre_scale)
+        sc = bm.pre_scale(pre_by)
+        pre_by, post_by = bm.scale_maps(pre_by, sc), bm.scale_maps(post_by, sc)
     got = bm.hierarchical_bootstrap_significance(pre_by, post_by, n_boot=2000)
     nb = (int(got[0].sum()), int(got[4])) if got is not None else (0, 0)
-    keep = bm.cluster_permutation(pre_by, post_by, n_perm=n_perm)
+    # cluster: the constant recomputed inside every relabelling draw, as the figures do (NORMALISE_TESTS_BY_PRE).
+    # Runs before 2026-10-21 ~16:00 used a fixed constant here (and the private _rms_scale, same definition).
+    keep = bm.cluster_permutation(raw_pre, raw_post, n_perm=n_perm, normalise=norm)
     sm = bm.stat_mask()
     nc = int((keep & sm).sum()) if keep is not None else 0
     return {"comparison": name, "position": q, "norm": "pre-normalised" if norm else "raw",

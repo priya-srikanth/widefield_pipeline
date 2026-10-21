@@ -1,7 +1,11 @@
-"""Per-animal toward-midline maps for far_ipsi and close_contra (contact-controlled, cam4 lick-aligned; Priya 10-21 item 4).
-spout_<pos> session maps = within-spout lateral slope (dF per deg); x side sign (contra +1, ipsi -1) x 10 = dF per 10 deg
-TOWARD THE MIDLINE (red = more activity for medial licks). Columns: far_ipsi pre / chronic / chronic-pre, close_contra
-pre / acute / acute-pre; rows = animals; per-column shared colour limit. ipsi = image LEFT.
+"""Per-animal per-position DIRECTION maps for far_ipsi and close_contra (contact-controlled, cam4 lick-aligned; Priya 10-21
+item 4). spout_<pos> session maps = within-spout lateral slope (dF per deg) x 10 = dF per 10 deg of deviation TOWARD THE
+MOUSE'S LEFT (= ipsilesional; red = more activity for licks deviating left, blue = for licks deviating right /
+contralesional). Columns: far_ipsi pre / chronic / chronic-pre, close_contra pre / acute / acute-pre; rows = animals;
+per-column shared colour limit. ipsi = image LEFT.
+PER-POSITION DIRECTION, NOT TOWARD-MIDLINE (Priya 10-21 afternoon: "i don't know that i wanted the toward midline
+analysis, just the per-position analysis"). The 10-21 toward-midline version multiplied ipsi spouts by -1; its figures
+stay as spout_mid_maps_per_animal*.png for comparison, this one writes spout_dir_maps_per_animal*.png.
 --z (Priya 10-21 "show me the new standardized z-scored maps"): each animal x spout map x (its PRE-stroke median
 within-spout lateral SD) / (its PRE-stroke median within-spout cortex response SD) -- the map analogue of
 within_spout_mixed.add_z (pre-stroke SD of activity per pre-stroke SD of deviation) -- plus a POOLED row (animals
@@ -40,12 +44,12 @@ for lab in labels:
         continue
     shape = tuple(z["shape"])
     m = dict(zip(z["keys"], z["maps"]))
-    for pos, sg in (("far_ipsi", -1.0), ("close_contra", 1.0)):
+    for pos, sg in (("far_ipsi", 1.0), ("close_contra", 1.0)):     # direction: no side flip (+ = mouse's left)
         k = f"spout_{pos}"
         if k in m:
             img = np.full(shape[0] * shape[1], np.nan, np.float32)
             img[z["flat"]] = (m[k] * sg * zs[(lab[:4], pos)] if Z     # z: pre-SD activity per pre-SD deviation
-                              else m[k] * sg * 10 * 1e3)                # x1e-3 dF per 10 deg toward the midline
+                              else m[k] * sg * 10 * 1e3)                # x1e-3 dF per 10 deg toward the mouse's left
             acc.setdefault((lab[:4], pos, epochs.epoch_of(lab)), []).append(img.reshape(shape))
 mean = {k: np.nanmean(v, 0) for k, v in acc.items()}
 animals = sorted({k[0] for k in mean})
@@ -78,9 +82,10 @@ for j, (pos, ep, ref) in enumerate(cols):
         n = len(acc.get((an, pos, ep), []))
         a_.set_title(f"{an} {pos} {ep}{' - ' + ref if ref else ''}\nn={n}, |lim| {lim:.2g}", fontsize=7)
 unit = "z: pre-stroke SD of activity per pre-stroke SD of lick deviation" if Z else "x1e-3 dF / 10 deg"
-fig.suptitle(f"Toward-midline slope per spout, {unit}\nred = more activity for MEDIAL licks; {folder}; "
+fig.suptitle(f"Per-position DIRECTION slope, {unit}\nred = more activity for licks deviating toward the mouse's LEFT "
+             f"(ipsilesional), blue = toward its RIGHT (contralesional)\n{folder}; "
              "ipsi = image left" + ("; POOLED = animals weighted equally (n = animals)" if Z else ""), fontsize=9)
 fig.tight_layout()
-out = f"{E}/figures/within_spout/{folder}/spout_mid_maps_per_animal{'_z' if Z else ''}.png"
+out = f"{E}/figures/within_spout/{folder}/spout_dir_maps_per_animal{'_z' if Z else ''}.png"
 fig.savefig(out, dpi=130)
 print(out)

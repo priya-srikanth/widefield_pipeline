@@ -827,29 +827,38 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
     EPO = list(ef.PANELS)
     cells, titles, contours, rows = {}, {}, {}, []
     _stats = []
+    # THE PICTURE IS PRE-NORMALISED, like every pooled map in this deck (bm.NORMALISE_BY_PRE) and like the test drawn
+    # on it (bm.NORMALISE_TESTS_BY_PRE, 2026-10-21): each animal / its own pre-stroke RMS for this position, so a
+    # bright animal does not set the pooled pattern. Before 2026-10-21 this panel drew raw covariance.
+    norm = bm.NORMALISE_BY_PRE and bm.NORMALISE_TESTS_BY_PRE
     for q in CONF_LABELS:
         row = _long_of(q)
         got_any = False
+        pre_an = {an: list(((by.get("pre") or {}).get(q) or {}).values()) for an, by in store.items()}
+        pre_an = {a: v for a, v in pre_an.items() if v}
+        sc = bm.pre_scale(pre_an) if norm else {}
         for e in EPO:
             by_an = {an: list(((by.get(e) or {}).get(q) or {}).values())
                      for an, by in store.items()}
-            by_an = {a: v for a, v in by_an.items() if v}
+            # normalising needs the animal's pre-stroke constant: an animal with no pre sessions is left out
+            by_an = {a: v for a, v in by_an.items() if v and (not norm or a in sc)}
             if len(by_an) < 2:
                 continue
             got_any = True
-            cells[(row, e)] = np.mean([np.mean(v, 0) for v in by_an.values()], axis=0)
+            cells[(row, e)] = np.mean([np.mean(v, 0) / sc.get(a, 1.0) for a, v in by_an.items()], axis=0)
             n_s = sum(len(v) for v in by_an.values())
             n_tr = sum(sum((((ntr.get(an) or {}).get(e) or {}).get(q) or {}).values())
                        for an in by_an)
             try:
-                cm, lab = bm.vs_zero_contour(by_an)
+                # scaled by each animal's PRE-stroke constant, like the drawn map (bm.NORMALISE_TESTS_BY_PRE)
+                cm, lab = bm.vs_zero_contour(by_an, scale_by=pre_an if norm else None)
                 print(f"  .. 14z {q} {e}: {lab}", flush=True)
                 _stats.append(dict(row=row, col=e, n_animals=len(by_an),
                                    animals=";".join(sorted(by_an)), n_sessions=n_s, n_trials=n_tr,
                                    label=lab))
                 # Musall's own unit, logged beside ours so the difference is visible rather than
                 # asserted -- sessions give far more significance and are pseudo-replicated.
-                _cm2, lab2 = bm.vs_zero_contour(by_an, method="musall")
+                _cm2, lab2 = bm.vs_zero_contour(by_an, method="musall", scale_by=pre_an if norm else None)
                 print(f"  .. 14z {q} {e}: [reference] {lab2}", flush=True)
                 if cm is not None and np.any(cm):
                     contours[(row, e)] = cm
@@ -869,12 +878,14 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
         row_labels=rows, col_labels=EPO, panel_titles=titles, edges=bm.atlas_edges(),
         blank=bm.excluded_mask(),
         contours=contours,
-        cbar_label=("cov(pixel, decoder output)\nred = MORE active on this position's\n"
-                    "trials than on the average trial"),
+        cbar_label=(("cov(pixel, decoder output) / animal's pre RMS\n" if norm else "cov(pixel, decoder output)\n")
+                    + "red = MORE active on this position's\ntrials than on the average trial"),
         row_scaled=False,
         stat_rows=_stats,
         subtitle=(
-            "A DIFFERENT QUESTION FROM EVERY OTHER MAP FIGURE HERE: not where the code CHANGED, but "
+            ("PRE-NORMALISED: each animal divided by its own pre-stroke RMS for this position before pooling AND "
+             "before testing (one constant per animal x position, pre-stroke sessions only). " if norm else "")
+            + "A DIFFERENT QUESTION FROM EVERY OTHER MAP FIGURE HERE: not where the code CHANGED, but "
             "where it IS in each epoch. Each panel is tested on its own against zero, so it is "
             "immune to the two confounds the difference figures carry -- elapsed weeks, and a quiet "
             "baseline that drifts by chronic. "

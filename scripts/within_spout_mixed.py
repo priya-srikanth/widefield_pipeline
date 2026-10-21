@@ -112,8 +112,29 @@ def area_table(L: pd.DataFrame, qc_dir: Path, deficit: str | None = None) -> pd.
                         print_animals=False)              # the rule-8 table is printed by main (focus measures)
 
 
-def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
-    """Per-pixel OLS: map ~ animal intercepts + post + post:lday; coefficient maps, |t| > 3 outlined (descriptive)."""
+def pixel_z_factors(D: pd.DataFrame) -> dict:
+    """``{animal: pre-stroke median lat_sd / pre-stroke median resp_sd}`` from the cortex, all-spouts, mean-variant rows --
+    the factor `add_z` applies to the scalar slopes, for the pixel maps (Priya 10-21: "yes add the standardized
+    version"). One constant per animal, pre-stroke sessions only. {} when the folder predates lat_sd / resp_sd."""
+    if "resp_sd" not in D or "lat_sd" not in D:
+        return {}
+    from wfield_local import epochs
+    sp = D.spouts if "spouts" in D else pd.Series("all", index=D.index)
+    var = D.variant if "variant" in D else pd.Series("mean", index=D.index)
+    P = D[(sp == "all") & (var == "mean") & (D.area == "cortex") & (D.label.map(epochs.epoch_of) == "pre")]
+    out = {}
+    for an, g in P.groupby(P.label.str[:4]):
+        r = float(g.lat_sd.median() / g.resp_sd.median())
+        if np.isfinite(r) and r > 0:
+            out[an] = r
+    return out
+
+
+def pixel_maps(folder: Path, labels: list, figs: Path, zf: dict | None = None) -> None:
+    """Per-pixel OLS: map ~ animal intercepts + post + post:lday; coefficient maps, |t| > 3 outlined (descriptive).
+    ``zf`` (`pixel_z_factors`): each animal's maps x its factor (pre-stroke SDs of activity per pre-stroke SD of lick
+    deviation) instead of x1e-3 dF / 10 deg; animals without a factor are left out; files *_z.png."""
+    unit = "z: pre SD act. / pre SD dev." if zf else "x1e-3 dF / 10 deg"
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -126,9 +147,9 @@ def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
                 continue
             z = np.load(f)
             keys = list(z["keys"])
-            if kind not in keys:
+            if kind not in keys or (zf is not None and lab[:4] not in zf):
                 continue
-            Y.append(z["maps"][keys.index(kind)] * 10 * 1e3)
+            Y.append(z["maps"][keys.index(kind)] * (zf[lab[:4]] if zf else 10 * 1e3))
             flat, sh = z["flat"], tuple(z["shape"])
             d = epochs.days_since_stroke(lab)
             meta.append((lab[:4], float(d > 0), np.log(max(d, 1)) if d > 0 else 0.0, epochs.epoch_of(lab)))
@@ -161,14 +182,14 @@ def pixel_maps(folder: Path, labels: list, figs: Path) -> None:
             ax[0, j].imshow(img.reshape(sh), cmap="RdBu_r", vmin=-lim, vmax=lim)
             if (np.abs(t) > 3).any():
                 ax[0, j].contour(tm.reshape(sh), levels=[0.5], colors="k", linewidths=0.6)
-            ax[0, j].set_title(f"{name}\n|lim| {lim:.2g} (x1e-3 dF / 10 deg); |t|>3: {100 * np.mean(np.abs(t) > 3):.0f} %",
+            ax[0, j].set_title(f"{name}\n|lim| {lim:.2g} ({unit}); |t|>3: {100 * np.mean(np.abs(t) > 3):.0f} %",
                                fontsize=7)
             ax[0, j].axis("off")
         from scripts.within_spout_deviation import KIND_TITLE
         fig.suptitle(f"{KIND_TITLE.get(kind, kind)}: session ~ animal + post + post:log(day), {len(Y)} sessions; "
                      "ipsi hemisphere = image left; outlines descriptive", fontsize=7)
         fig.tight_layout()
-        fig.savefig(figs / f"mixed_time_maps_{kind.split('_')[0]}.png", dpi=150)
+        fig.savefig(figs / f"mixed_time_maps_{kind.split('_')[0]}{'_z' if zf else ''}.png", dpi=150)
         plt.close(fig)
 
 
@@ -211,6 +232,9 @@ def main(argv=None) -> int:
     figs = folder.parents[1] / "figures" / "within_spout" / folder.name   # results, not qc (Priya 10-21)
     figs.mkdir(parents=True, exist_ok=True)
     pixel_maps(folder, sorted(D.label.unique()), figs)
+    zf = pixel_z_factors(D)
+    if zf:
+        pixel_maps(folder, sorted(D.label.unique()), figs, zf=zf)       # *_z: each animal in its pre-stroke SD units
     print(f"\n-> {folder / 'mixed_model.csv'}, {figs}/mixed_time_maps_*.png")
     return 0
 
