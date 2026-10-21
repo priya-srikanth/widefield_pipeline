@@ -350,6 +350,11 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
+**[`docs/status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](docs/status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md)**
+— **START HERE for POSE / 3-D / cam1 / jaw calls, newest (10-21).** Jaw anchor off; jaw onsets + re-onset (cam1 floor 15 px,
+close_center masked; watched by the encoding window); whole-session licks (licks_all / events_all); per-session long
+tables for the epoch families; cam1 re-collected on template time; running chain, O2 status, to-dos, pitfalls 22-29.
+
 **[`docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md`](docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md)**
 — **START HERE for POSE TRACKING, 3-D and cam1 licks, newest.** Video timing from the alignment templates (v36 re-run for all sessions), cameras paired on true time, jaw rest-depth anchor, cam1 2-D lick detector + water-droplet flag (3 blind reviews), incomplete-lick / jaw-without-lick readout, CLOSE_DIR, phase-figure conventions, running branches, to-dos, pitfalls.
 
