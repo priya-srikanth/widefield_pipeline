@@ -164,6 +164,7 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument("--labels-file", default=None, help="whitespace-separated labels (e.g. the 3-D labels_3d.txt)")
+    ap.add_argument("--tag", default="", help="suffix for the output folder (e.g. the 3-D table tag)")
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     mode = os.environ.get(ce.EXEC_ENV, "")
@@ -173,7 +174,7 @@ def main(argv=None) -> int:
     cur = set(ak.curated_labels())
     if any(x not in cur for x in labels):
         raise SystemExit(f"not curated: {[x for x in labels if x not in cur]}")
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / f"lick_templates_{mode}"
+    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))
     writeguard.assert_writable(out.parent)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     os.environ[OUT_ENV] = str(out)
