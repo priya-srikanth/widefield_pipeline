@@ -20977,3 +20977,13 @@ bilaterally in anterolateral frontal cortex, emerging chronically; the crossed d
 persists. Caveat: cam4 angles; 3-D rerun pending.
 Re-render after the PS92_0908 rerun: all 9 folders + signed maps OK (20:18-20:58); per-spout drop-p table refreshed --
 PS92 chronic far-mid gain unchanged (cortex lick 12 -> 34 x1e-3), so the per-spout result is no longer pending the rerun.
+**Mixed model for position / distance / angle (10-20 night; `scripts/encoding_mixed.py`, `qc/encoding_mixed*.csv`).**
+y ~ post + post:lday per measure x window x area; random intercept + step + recovery SLOPE per animal tried first
+(Priya), then intercept + step, intercept, and fixed sum-coded animal intercepts as the last resort (column `re`;
+537 / 396 / 192 / 576 fits). Cortex, dR2 x1e3: position (cue) step -37 (z -3.2, q .01), recovery +23 per e-fold
+(z 4.0, q < .001); distance (cue) -27 (z -2.3) / +22 (z 8.6); distance (lick) recovery z 5.7; side (cue) recovery
+z 3.6; far-contra spout (lick) step -8.3 (z -2.6) / recovery z 5.5; cam4 unique target (cue) -15 (z -3.0, q .015)
+recovering z 4.9; unique executed rises with recovery (cue z 4.5). Position coding drops at the stroke and recovers
+over log time, carried mostly by DISTANCE. CAVEAT (Priya): the cue window is 0-1 s and acute far-contra licking often
+starts later -> cue-window changes partly reflect waiting vs licking; extra scoring windows added (cue2lick,
+cuestop, firstlick = first post-cue lick -0.1 .. +1 s), refits queued (`_win` folders).

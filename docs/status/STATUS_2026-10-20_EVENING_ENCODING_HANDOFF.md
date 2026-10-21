@@ -64,6 +64,30 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 | other window: PS93 0814 / 0821 / 0908 / 0911 3-D re-run (were clip-only / missing; full cam1 production has landed), 4 workers | other window | the queue waits for it |
 | cam1 LP production on O2 (56830841) | O2 | PS94 / PS95 3-D -> cohort-wide contest |
 
+
+## 3b. Night update (10-20 ~22:00) -- also in DECISIONS
+
+- DONE: PS92_0908 rerun + re-render (lick-window fits improved; per-spout PS92 chronic unchanged); first-lick latency
+  (acute far-contra delay is real; PS92 / PS93 slow start vs PS94 / PS95 prompt-but-miss); direction / toward-midline
+  (chronic bilateral anterolateral-frontal ECCENTRICITY change survives the animal-level map test); split-half
+  reliability ~0.5; `scripts/encoding_mixed.py` (position / side / distance / per-spout / angle measures; random
+  intercept + step + SLOPE per animal, fallbacks, fixed-intercept last resort; `qc/encoding_mixed_summary.csv`):
+  position drops at day 1 in the cue window and recovers with log(days), recovery carried mostly by DISTANCE.
+- 3-D contest RUNNING since 20:45 (47 sessions incl. the re-run PS93 sessions; tables tag 20261021).
+- Lick-template test: first pass (42 sessions, 20261020 tables) running -> rerun with `--tag 20261021` on all 47
+  (pass-1 templates are cached per output folder, so the tag gives a clean folder).
+- QUEUED (`S\queue_windows.sh`, pid-tracked only, log `S\queue_windows.log`): after the 3-D contest, refits with the new
+  scoring windows -- `cue2lick` (cue .. first lick, capped at stop), `cuestop` (cue .. stop), `firstlick` (first
+  post-cue lick -0.1 .. +1 s) -- for `ONLY=drop:` then `ONLY=nokin:`, `SUFFIX=_win` (folders
+  `movement_first_subset-drop_win`, `movement_first_subset-nokin_win`); ~16 h locally on 2 workers. O2 alternative:
+  rebuild the bundle with the current code, `TAG=win ONLY=drop:` / `ONLY=nokin:` + `SUFFIX=_win`.
+- QUEUED: enl within-spout check (`--window enl`, pre-cue state vs upcoming within-spout landing) after the template
+  test (log `S\within_spout_enl.log`).
+- To-do from this: trial-to-trial contest is cue-window (0-1.5 s) -> redo on `firstlick` / `cuestop` once the `_win`
+  runs land; read position / angle measures in the new windows via `encoding_mixed.py` (it picks them up).
+- Pitfall: a singular random-effect covariance makes statsmodels raise on `random_effects` -> treated as non-converged
+  (fallback). Fit time ~10-13 min per session per folder (main set), subsets faster.
+
 ## 4. To-do (priority)
 
 1. DONE 10-20 20:58 (PS92 chronic per-spout unchanged; PS92_0908 lick-window fits improved, unique executed 0.007 -> 0.026). Was: re-render (`combined_encoding_figures.py --order` each folder; §6) and refresh the per-spout
