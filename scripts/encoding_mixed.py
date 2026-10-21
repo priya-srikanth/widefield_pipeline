@@ -145,6 +145,10 @@ def main(argv=None) -> int:
     for _, idx in T.dropna(subset=["p"]).groupby(["window", "term"]).groups.items():
         T.loc[idx, "q"] = fdrcorrection(T.loc[idx, "p"])[1]
     T.to_csv(E / "qc" / "encoding_mixed.csv", index=False, float_format="%.5g")
+    # readable summary: one row per measure x window x area, coef (z, q) per term
+    W = T.dropna(subset=["term"]).assign(cell=lambda x: [f"{c:.2f} (z {z:.1f}, q {q:.3f})" for c, z, q in
+                                                          zip(x.coef, x.z, x.q.fillna(np.nan))])
+    W.pivot_table(index=["window", "area", "measure"], columns="term", values="cell", aggfunc="first")         .join(T.drop_duplicates(["measure", "window", "area"]).set_index(["window", "area", "measure"])[["re", "n"]])         .to_csv(E / "qc" / "encoding_mixed_summary.csv")
     pd.set_option("display.width", 230)
     for win in WINDOWS:
         S = T[(T.window == win) & (T.area == "cortex") & T.term.notna()]
