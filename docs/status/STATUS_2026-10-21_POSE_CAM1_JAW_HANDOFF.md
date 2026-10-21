@@ -9,7 +9,7 @@ ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_mod
 
 ## 000. LATE-MORNING UPDATE (10-21 ~10:35) -- read first, then §00
 
-**RUNNING at hand-off:** background `jaw_onsets` full rebuild (started 10:15, ~40 min) with the APPENDED columns
+**DONE 10:54:** the watched `jaw_onsets.csv` was rewritten (62,771 rows; every existing column verified identical to the morning file; 9 appended columns, 26 total) -> the encoding window's watcher re-runs. Previously RUNNING: background `jaw_onsets` full rebuild (started 10:15, ~40 min) with the APPENDED columns
 below -> writes `$TMP/jaw_onsets_v2.csv`, checks every EXISTING column against the morning snapshot
 (scratchpad `regress/jaw_onsets.csv`) and ONLY THEN copies it over the WATCHED
 `<v36>/imaging_encoding/qc/jaw_onsets.csv` (the encoding window's watcher then re-runs trial_attempts + mixed models).
