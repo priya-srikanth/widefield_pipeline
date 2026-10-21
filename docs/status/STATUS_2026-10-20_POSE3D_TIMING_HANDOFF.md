@@ -10,6 +10,18 @@ MICROSCOPE. Write only inside `MICROSCOPE/Priya/...`; never delete original data
 **Status 10-20 ~13:00: items 1-3 below are DONE (both branches finished, results in §4a, encoding window told). Nothing
 local is running. Open: item 4 (O2 cam1 copy-backs for PS94 / PS95) and §7.**
 
+**Status 10-20 20:45 (overnight, autonomous): nothing of mine running.** Jaw anchor OFF and the jaw-only re-run DONE
+(20:30): 3-D production (curated; PS93 0814 / 0821 / 0908 / 0911 now from PRODUCTION cam1, not clips -- tell the
+encoding window), kinematics both lick sets, summary fig, jaw crosscheck (FAR_DIR r 0.95, 47 sessions), phase, cue /
+first-lick traces. No src 4 / 5 jaw frames remain; centre-spout jaw coverage (cue + 70 ms on) median close_center 0.86,
+far_center 0.81 (some PS92 sessions 0.53-0.63). PS92 jaw readouts unchanged to 3 decimals; PS93 (more production
+sessions): FAR_DIR 0.19 -> 0.02 -> 0.05, CLOSE_DIR -0.05 -> -0.12 -> -0.22 (pre / acute / chronic).
+**Morning to-do:** (1) O2 cam1 array 56830841: 65 curated pending (Priority); copy back + `o2_inference collect`, then the
+§6 chain for PS94 / PS95 (first time 3-D / cam1 for them -> per-animal incomplete, CLOSE_DIR, cue / lick traces, aim
+angles). (2) Local cam1 LP run deferred (box shared) -- reverse order from task 137 if Priya OKs. (3) Optional: a
+mouth-open check of the tongue-at-lips frames (Priya judged sheet B real; quantify per epoch). (4) Practice vs stroke for
+the chronic licks-per-trial rise needs a non-stroke control (none in this cohort) -- phrase as "candidate".
+
 1. **Two local background branches were running at hand-off (§3).** Read their logs; if the session is gone, check the
    outputs' timestamps and re-run what is missing with the §6 commands (both are safe to re-run).
 2. When Branch B is done: look at `pose3d/figures/summary_PS92.png` / `_PS93.png`, `pose3d/phase/*`, the jaw cross-check
@@ -152,6 +164,11 @@ simply ignored downstream.
   (Priya's review 10-20.) A: one point (trial 25, cam4 2-D none = cam1 + neighbour depth) projects onto the spout end,
      not the tongue tip -- either the tip is hidden behind the rod in cam4 or the fill depth is off. TO-DO: share of
      far_center closest-approach frames that are one-camera before reading the diagonal.
+     RESOLVED (10-20 night): closest-approach frame source, far_center, PS92: on-diagonal licks are ~45-55 % cam1 +
+     neighbour depth (cam4 lost the tip) vs 2 % cam4 + neighbours; off-diagonal the reverse. cam1's line of sight is
+     ~45 deg in the side view, like the diagonal -- BUT with both-camera frames ONLY the diagonal persists (on-line share
+     chronic 0.46, pre 0.40 vs 0.45 / 0.32 with all frames). So it is real rod-contact geometry; cam4 loses the tip
+     because the rod blocks it during side contact (hence the cam1 fills, and trial 25). Present pre too -- not chronic.
   B. acute far_R PRE-CUE tongue: Priya reads them as REAL (tongue at the lips; my first reading "false points on closed
      lips" was wrong). So acute far_R has the tongue at the lips before the cue more often (6.6 % vs 3.1 % of frames),
      consistent with cam1's rise in at-the-lips events. 3817 frames in 56 / 90 trials (PS92 0818).
