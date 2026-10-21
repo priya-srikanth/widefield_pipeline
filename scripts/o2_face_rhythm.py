@@ -479,6 +479,13 @@ for _nm, _rig, _nb, _rel in (("mid", 0.03, 24, 0.005), ("soft", 0.01, 24, 0.003)
     PARAM_SETS[_nm] = _t
 for _nm in ("mid", "soft"):                                  # point spacing 12 px (vs 9): ~1.8x fewer points
     PARAM_SETS[f"{_nm}s12"] = {**json.loads(json.dumps(PARAM_SETS[_nm])), "point_spacing": 12}
+# round 3: mids12's mesh with oldrun's optical flow (its 50 px window / 5 levels gave the best nose + lick fidelity, its
+# loose mesh the folds); relaxation 0.005 and 0.0025
+for _nm, _rel in (("midlk12", 0.005), ("midlk12lr", 0.0025)):
+    _t = json.loads(json.dumps(PARAM_SETS["mids12"]))
+    _t["params_optical_flow"]["kwargs_method"] = dict(PARAM_SETS["oldrun"]["params_optical_flow"]["kwargs_method"])
+    _t["params_optical_flow"]["relaxation"] = _rel
+    PARAM_SETS[_nm] = _t
 
 PARAM_TEST = r'''"""O2: one tracking-parameter set on a frame range of one task's video (o2_face_rhythm.py paramtest).
 
