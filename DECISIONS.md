@@ -21220,3 +21220,16 @@ Confounds Priya flagged: sub-threshold walking moves the jaw; some jaw responses
 60-80 ms after stop; detection ends at stop). Pose window adding jaw direction / pre-cue contrast / treadmill columns
 to jaw_onsets.csv; the watcher (`S/watch_jaw.sh`, 8 h from 10:13) reruns attempts + LMMs + six within-spout mixed
 models on that rewrite.
+
+## 2026-10-21 (midday) -- Commanded-axis across-spout slope survives contact adjustment; hits-only collapse = lost spout
+
+Contact-adjusted spout means (a00045b) rerun for cam4 + 3-D contact / contact_hits (12:12-12:39; unadjusted copied to
+`qc/superseded_within_spout_contact_unadj_20261021/`). `between_cmd`, SSp-m bilateral, behaviour post:deficit z
+(unadjusted -> adjusted): cam4 contact 8.0 -> 8.5, 3-D contact 8.7 -> 8.5, 3-D hits 5.1 -> 4.8, cam4 hits 0.2 -> 0.3;
+time model (adjusted) post z 6.6 / 9.3, post:lday -6.9 / -7.0 (cam4 / 3-D). The cam4 hits-only collapse is MISSING
+DATA: hits-only drops far_contra from almost every acute session (MIN_TRIALS; present in 0/5, 2/4, 0/6, 0/1 acute
+sessions), so the across-spout fit cannot see the spout that changes. Executed-axis `between` null throughout. Reading:
+with a large deficit, bilateral SSp-m responds less to contralesional COMMANDED spouts relative to ipsi ones, recovering
+with days -- the acute far-contra response loss, now shown not to be a contact-count effect (assumes one linear contact
+effect at every spout; acute far contra has ~no contacts, so its adjusted mean is an extrapolation). Target-defined,
+not execution.

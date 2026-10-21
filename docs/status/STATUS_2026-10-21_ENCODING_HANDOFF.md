@@ -86,8 +86,9 @@ the CURRENT attempt definition (attempted = hit + incomplete; jaw_only = reactio
 8. **Miss-then-correct trials are common** (far contra pre 25-56 %); PS94 chronic far contra 80 % (first-lick contact
    15 % vs 71 % pre) -- corrective recovery.
    [miss_then_correct.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/behaviour/miss_then_correct.png)
-9. **Commanded-axis across-spout slope:** rises with the deficit unadjusted (SSp-m z 9.7) but collapses hits-only;
-   contact-adjusted rerun RUNNING.
+9. **Commanded-axis across-spout slope survives contact adjustment** (SSp-m bilateral deficit z 8.5 cam4 / 8.5 3-D;
+   3-D hits-only 4.8); the cam4 hits-only collapse is a lost spout (far contra absent from acute hits-only sessions).
+   Bilateral SSp-m responds less to contralesional commanded spouts while the deficit is large; executed axis null.
    [mixed_time_maps_betweencmd.png (contact)](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick_contact/mixed_time_maps_betweencmd.png)
 
 Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`, `scripts/spout_tuning_check.py`,
@@ -97,7 +98,6 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 
 | what | task / log | then |
 |---|---|---|
-| contact-adjusted across-spout rerun, cam4 + 3-D contact / contact_hits + mixed models | `S/run_ws_contactadj.sh`, logs `S/ws_adj_*.log`; unadjusted copied to `qc/superseded_within_spout_contact_unadj_20261021/` | read `between_cmd` / `between` with contact control vs hits-only |
 | lick-template pass 2 with free-kernel ceiling (since 07:11; ~12:30-14:00) | `S/lick_templates_ceiling.log` | target_like / exec_like / neither shares |
 | jaw_onsets watcher (`S/watch_jaw.sh`, 8 h from 10:13) | waits for the pose window's rewrite (direction / cue contrast / treadmill columns) | reruns attempts + LMMs + six within-spout mixed models |
 
@@ -114,7 +114,7 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 
 1. DONE 10:00-11:15: 3-D per spout, direct contact check, eccentricity / first-lick checks, per-animal maps, jaw_only
    reclassification + reruns (DECISIONS 10-21 late morning entries).
-2. RUNNING: contact-adjusted across-spout rerun -> read `between_cmd` vs `between` (contact control vs hits-only).
+2. DONE 12:39: contact-adjusted across-spout rerun (DECISIONS 10-21 midday).
 3. Template ceiling shares when the run ends; add a shares panel to `summary_figures_1021.py`.
 4. Rerun after the pose window's jaw_onsets rewrite (watcher does it); then consider the new columns (jaw direction
    open vs up, pre-cue contrast, treadmill speed) for the reaction vs attempt split and the walking confound.

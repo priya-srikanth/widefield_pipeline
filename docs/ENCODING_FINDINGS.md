@@ -187,6 +187,9 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   tuning curve cannot be tested. **No per-spout toward-midline effect meets rule 8; no robust within-spout
   execution-like signal post-stroke.** Behaviour: miss-then-correct trials common (far contra pre 25-56 %); PS94
   chronic far contra 80 % (first-lick contact 15 % vs 71 % pre) = corrective recovery.
+  **Commanded-axis across-spout slope (10-21 midday):** survives the contact-adjusted spout means (SSp-m bilateral
+  deficit z 8.5 cam4 / 8.5 3-D; 3-D hits-only 4.8); the cam4 hits-only collapse = far contra missing from acute
+  hits-only sessions. Target-defined (commanded), not execution; executed-axis between null.
 
 - **Coding tracks behavioural recovery and overshoots (PROVISIONAL, 10-20 night; `scripts/encoding_mixed.py`).**
   Mixed models with animal random effects, sessions as observations. Calendar time: position coding drops at day 1
