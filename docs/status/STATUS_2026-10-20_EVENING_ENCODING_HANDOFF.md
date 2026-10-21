@@ -29,7 +29,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 - **Epoch families + CD on the LMM** (`imaging_lmm.py` source `epoch`; DECISIONS 2026-10-21 night): frozen encoder EV
   and best-match accuracy still below pre at full behavioural recovery (z -4.1); far-contra own-position identity back
   (z -0.7). Figures `figures/mixed_models/imaging_lmm_epoch-*`. Stray empty `qc/figures/imaging_lmm_epoch` can be deleted.
-- **Lick-template test** first pass done (ENCODING_FINDINGS 2.4b); rerun `--tag 20261021` on 47 queued after the enl
+- **Lick-template test RERUN DONE** (47 sessions, 20261021 tables; ENCODING_FINDINGS 2.4b): target > executed post-stroke, PS93 chronic in every session; executed adds nothing beyond spout category.
   within-spout check (running). Log `S/lick_templates_20261021.log`.
 - **O2 window runs:** win_drop 119/119 collected; win_nokin 118 (PS95_0818 pending; Priya copying; watcher
   re-collects). Readouts (tr_contest firstlick, encoding_mixed extra windows) still TO DO.

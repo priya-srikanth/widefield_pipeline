@@ -111,7 +111,12 @@ category does not change. **Lick-template test** (pre-stroke per-spout templates
 20261020 tables; `qc/lick_templates_polar/`): target templates explain more unique post-stroke lick-window variance
 than executed (soft-zone) templates from subacute on (cortex PS92 1.34 vs 0.80, chronic 0.95 vs 0.31; PS93 2.67 vs
 -0.15, chronic 6.38 vs 0.10 -- check per session before quoting); acute ~tied; own-zone landing 0.70-0.76 pre vs
-0.46-0.57 acute, so the test has power exactly there. Rerun on all 47 with 20261021 tables queued.
+0.46-0.57 acute, so the test has power exactly there. **Rerun (all 47, 20261021 tables; `qc/lick_templates_polar_20261021/`;
+QUOTE THIS ONE):** cortex u_tgt vs u_exec (% of lick-window variance) PS92 pre -0.03 / 0.28, acute 1.26 / 1.44,
+subacute 1.34 / 0.80, chronic 0.95 / 0.31; PS93 pre 2.22 / 0.47, acute 0.36 / -0.12, subacute 2.72 / -0.15, chronic
+5.44 / 0.09 -- PS93 chronic holds in EVERY session (target 2.4-8.2, executed -0.3-0.6). With the spout category in the
+base (`_cat`) both shrink to <= 1 and executed is ~0 post-stroke: the target-template advantage is spout identity, and
+landing-zone templates add nothing beyond it. Two animals; acute ~tied.
 
 ### 2.5 Misdirected licks — STANDS (negative)
 
