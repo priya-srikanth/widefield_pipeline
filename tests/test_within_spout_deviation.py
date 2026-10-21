@@ -119,3 +119,24 @@ def test_variants_one_load_each_fit_sees_its_env(monkeypatch):
     assert loads == ["PS92_0806"]
     assert r["variants"] == {"base": ("", "all"), "contact": ("contact", "all"), "contact_hits": ("contact", "hits")}
     assert os.environ[ws.CONTROLS_ENV] == "keep"
+
+
+def test_contact_adjusted_between(monkeypatch):
+    """With CONTROLS_ENV=contact the across-spout slope uses contact-adjusted spout means: a response driven only by
+    contact, whose rate falls toward one side, gives a between slope without the adjustment and ~0 with it."""
+    from scripts import within_spout_deviation as ws
+    rng = np.random.default_rng(1)
+    rows = []
+    for p, cl in SPOUT_LAT.items():
+        n = 80
+        lat = cl + rng.normal(0, 5, n)
+        rate = 0.5 + cl / 80.0                                 # contact rate rises toward the + side
+        rows.append(pd.DataFrame({"pos": p, "lat_mean": lat, "reach_mean": rng.normal(10, 1, n), "n_licks": 5.0,
+                                  "latency": 0.2, "n_contact": rng.binomial(4, rate, n).astype(float)}))
+    T = pd.concat(rows, ignore_index=True)
+    R = (2.0 * T.n_contact.to_numpy() + rng.normal(0, 0.2, len(T)))[:, None]
+    monkeypatch.setenv(ws.CONTROLS_ENV, "")
+    raw = ws.slopes(R, T, "mean")["b_between"][0]
+    monkeypatch.setenv(ws.CONTROLS_ENV, "contact")
+    adj = ws.slopes(R, T, "mean")["b_between"][0]
+    assert raw > 0.05 and abs(adj) < 0.2 * raw

@@ -166,6 +166,12 @@ def slopes(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
     res = Rd - Xd @ bw
     dof = max(len(R) - len(P) - X.shape[1], 1)
     se = np.sqrt(np.outer(np.diag(np.linalg.pinv(Xd.T @ Xd)), (res ** 2).sum(0) / dof))
+    if os.environ.get(CONTROLS_ENV) == "contact":
+        # CONTACT-ADJUSTED spout means for the across-spout fits (Priya 10-21): acute far-contra trials are mostly misses,
+        # so a raw spout mean mixes "aimed there" with "never touched". Each spout's mean is moved to the session's mean
+        # contact count with the WITHIN-spout contact coefficient (identified only from trials at the same spout; assumes
+        # one contact effect at every spout -- the hits-only run is the check that does not).
+        mR = mR - np.outer(mX[:, -1] - X[:, -1].mean(), bw[-1])
     bc = np.full((3, R.shape[1]), np.nan)
     if len(P) >= 4:
         Xb = np.column_stack([np.ones(len(P)), mX[:, :2]])
