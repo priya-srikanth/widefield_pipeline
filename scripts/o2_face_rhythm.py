@@ -254,6 +254,17 @@ def track(f0, f1):
     return pts, nv
 
 
+def release():
+    """Write the work memmaps' dirty pages to disk and drop them from RAM. Without this, pages written through the
+    shared memmaps pile up as dirty page cache (slow write-back on /n/scratch) and count against the Slurm memory
+    limit: task 87 (PS95_20260812, 10-21) was killed OUT_OF_MEMORY at 41.9 GB of 36 with 2 of 12 segments done."""
+    import mmap
+    for A in (S.S_tr, S.S_se, S.D_pt, S.V_pt):
+        A.flush()
+        if hasattr(mmap, "MADV_DONTNEED") and getattr(A, "_mmap", None) is not None:
+            A._mmap.madvise(mmap.MADV_DONTNEED)
+
+
 def notch(Y):
     """Zero-phase notches (params notch_hz / notch_q) along time of (frames, NP, 2) points -> float32."""
     if not S.notch:
@@ -303,7 +314,8 @@ def run_segment(si):
             fti.append(ti)
             fki.append(ki)
         del X
-    [A.flush() for A in (S.S_tr, S.S_se, S.D_pt, S.V_pt)]
+        release()
+    release()
     own = nv[s0 - a: e - a]
     st = {"segment": si, "start": s0, "end": e, "tracked_from": a, "tracked_to": z, "track_fps": (z - a) / t_track,
           "violation_fraction": float((own > 0).mean()), "mean_points_violating": float(own.mean() / NP),
