@@ -65,8 +65,10 @@ def _load_daq_events(
         # train under the LP source, never a silent DAQ one. `lp_licks.session_lp` is the one definition.
         from wfield_local import lp_licks
         if lp_licks.is_lp():
-            from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
-            lp = lp_licks.session_lp(lp_licks.label_for_h5(h5_path), _load_cue(Path(h5_path))["cue_samples"], sr,
+            # cue train from the bits already in memory -- the same rising edges `plot_spout_trial_averages` takes,
+            # without a second read of the .h5
+            cue_samples = daq_io.rising_edges(bits[:, names.index("cue")])
+            lp = lp_licks.session_lp(lp_licks.label_for_h5(h5_path), cue_samples, sr,
                                      float(config.defaults()["decode"]["max_rt_s"]))
             lick_samples, lp_drop = lp["lick_samples"], lp["drop"]
     return {
