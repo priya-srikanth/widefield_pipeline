@@ -866,9 +866,27 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     ftr = ft[ridx]
     win = {"all": np.ones(len(ridx), bool), "enl": np.zeros(len(ridx), bool), "cue": np.zeros(len(ridx), bool),
            "lick": np.zeros(len(ridx), bool)}
-    for s_, c in zip(st, E.cue_s.to_numpy(float)):
+    # extra scoring windows (Priya 10-20: acute far-contra licking often starts > 1.5 s after the cue, so a fixed early
+    # cue window mixes waiting and licking): cue2lick = cue .. the trial's FIRST lick (cam4 + cam1-only onsets when
+    # loaded), capped at stop = the waiting / initiation phase (length varies: ~0.15 s prompt .. seconds delayed);
+    # cuestop = cue .. stop (~3.5 s), everything after the cue; firstlick = first lick -0.1 .. +1.0 s. Scoring only --
+    # fits are unchanged.
+    win["cue2lick"] = np.zeros(len(ridx), bool)
+    win["cuestop"] = np.zeros(len(ridx), bool)
+    win["firstlick"] = np.zeros(len(ridx), bool)   # first post-cue lick - 0.1 .. + 1.0 s (Priya 10-20): same movement
+                                                   # phase on prompt and delayed trials; trials with no lick: none
+    ex_ = getattr(B, "extra_lick_on_s", None)
+    lk_all = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)]))
+    for s_, c, stp in zip(st, E.cue_s.to_numpy(float), E.stop_s.to_numpy(float)):
         win["enl"] |= (ftr >= max(s_, c - 2.0)) & (ftr < c)
         win["cue"] |= (ftr >= c) & (ftr < c + 1.0)
+        stp = stp if np.isfinite(stp) else c + 3.5
+        i = np.searchsorted(lk_all, c)
+        first = lk_all[i] if i < len(lk_all) and lk_all[i] < stp else stp
+        win["cue2lick"] |= (ftr >= c) & (ftr < first)
+        win["cuestop"] |= (ftr >= c) & (ftr < stp)
+        if first < stp:
+            win["firstlick"] |= (ftr >= first - 0.1) & (ftr < first + 1.0)
     pk = np.sort(B.lick_peak_s)
     j = np.searchsorted(pk, ftr)
     d = np.minimum(np.abs(ftr - pk[np.clip(j - 1, 0, len(pk) - 1)]), np.abs(ftr - pk[np.clip(j, 0, len(pk) - 1)]))
@@ -1190,7 +1208,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     res = {"label": label, "animal": animal, "date": date, "epoch": epoch_,
            "day": day_, "order": order, "alphas": alphas, "penalty_groups": list(PEN_GROUPS), "gate": B.gate,
            "exec_set": os.environ.get(EXEC_ENV) or "cam4", "lick_set": os.environ.get(LICKS_ENV) or "cam4",
-           "n_trials": int(len(E)), "n_frames": int(len(ridx)), "fs": float(1 / np.median(np.diff(ft))),
+           "n_trials": int(len(E)), "n_frames": int(len(ridx)),
+           "window_frames": {w_: int(m_.sum()) for w_, m_ in win.items()}, "fs": float(1 / np.median(np.diff(ft))),
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
     if os.environ.get(BINS_ENV):                     # how often the tongue went to its own spout, per spout
@@ -1209,7 +1228,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         ix = cols(spec)
         pen = np.array([model_alphas[name][pen_of_col[i]] for i in ix])
         fitted = eng.betas(ix, pen)
-        for w in WINDOWS:
+        for w in win:                                     # WINDOWS + cue2lick / cuestop
             Ecov, Tc = eng.err_cov(ix, pen, w, fitted)
             e = _diag_quad(Ub, Ecov)
             if ("TOTAL", w) not in maps:

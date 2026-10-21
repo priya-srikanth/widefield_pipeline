@@ -35,6 +35,7 @@ GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "tas
 #: and the animal colours (blue / red / orange / green)
 GCOL = {"task": "#6a3d9a", "instructed": "#8c510a", "uninstructed": "#5e7ea0"}
 WINDOWS = ("all", "enl", "cue", "lick")
+EXTRA_WINDOWS = ("cue2lick", "cuestop", "firstlick")
 WIN_DESC = {"all": "all frames", "enl": "pre-cue 2 s (ENL)", "cue": "cue 0-1 s", "lick": "+-0.2 s of a lick peak"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 #: TARGET vs EXECUTED (Priya 10-18: "most invested in the target vs executed angle question"). Order-free (raw columns)
@@ -124,7 +125,8 @@ def region_wide(R: pd.DataFrame) -> pd.DataFrame:
     g = R.groupby(["animal", "date", "epoch", "day", "area_b", "model", "window"], as_index=False).r2.mean()
     W = g.pivot_table(index=["animal", "date", "epoch", "day", "area_b"], columns=["model", "window"], values="r2")
     out = pd.DataFrame(index=W.index)
-    for w in WINDOWS:
+    # + the extra scoring windows when a run has them (cue2lick / cuestop / firstlick, 10-20); figures keep WINDOWS
+    for w in (*WINDOWS, *[x for x in EXTRA_WINDOWS if ("full", x) in W]):
         out[f"full|{w}"] = W[("full", w)]
         for v in (*VARS, *GROUPS, "position"):
             if ("alone:" + v, w) in W:
@@ -1032,7 +1034,7 @@ def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
     for b in bases:
         for key in ("u:target", "u:exec", "u:tgtbin", "u:exbin", "u:exbin|category", "u:target|kin", "u:exec|kin", "u:kin", "gain:target", "gain:exec",
                     "gain:category", "u:target|kin+nose", "u:target|kin_nonose"):
-            for w in ("lick", "cue"):
+            for w in ("lick", "cue", "cue2lick", "cuestop", "firstlick"):
                 col = f"{b}:{key}|{w}"
                 if col in Wd:
                     t_ = Wd[Wd.pos == "cortex"].groupby(["animal", "epoch"])[col].mean().unstack("epoch")
@@ -1042,7 +1044,7 @@ def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
     # of ANIMAL MEANS (session ratios explode when the ceiling is ~0).
     rel = []
     for b in bases:
-        for w in ("lick", "cue"):
+        for w in ("lick", "cue", "cue2lick", "cuestop", "firstlick"):
             need = [f"{b}:u:target|{w}", f"{b}:u:exec|{w}", f"{b}:gain:category|{w}", f"full|{w}"]
             if not all(c in Wd for c in need):
                 continue

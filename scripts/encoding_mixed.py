@@ -32,7 +32,7 @@ import pandas as pd
 
 FOCUS = ("cortex", "SSp-m_left", "SSp-m_right", "MOs_left", "MOs_right", "MOp_left", "MOp_right", "SSp-ul_left",
          "SSp-ul_right")
-WINDOWS = ("enl", "cue", "lick")
+WINDOWS = ("enl", "cue", "lick", "cue2lick", "cuestop", "firstlick")   # extra windows where a run has them
 RES = ("~post + post:lday", "~post", "~1")
 
 
