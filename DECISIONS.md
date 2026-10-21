@@ -21156,3 +21156,18 @@ gate's trials.csv; trial_attempts.csv when the gate reads it); a change makes a 
 78-152 s from the share, all imaging arrays and 21 behaviour fields identical; ~240 MB per session. The within-spout
 lick-aligned contact / contact_hits / base reruns were relaunched as ONE pass (08:07; the 06:56 contact run predated
 the commanded-axis slope and was stopped).
+
+## 2026-10-21 (late morning) -- Within-spout per spout + contact control: pooled toward-midline headline is NOT robust
+
+cam4 lick-aligned, 107 sessions, one pass (`--variants contact,contact_hits,base`), mixed models per folder.
+(1) POOLED toward-midline chronic reversal: animal-level cluster test 28 % in base (reproduced), NOTHING survives in
+`_contact` or `_contact_hits`; LMM epoch chronic z (MOs bilateral) -3.4 base / -2.9 contact / -1.5 hits. A touch /
+contact confound contributes; the pooled map is no longer the headline. (2) PER SPOUT the lateral spouts disagree
+pre-stroke: far spouts + (more activity for medial licks; far_ipsi pre z 2.9-3.8), close spouts - (more for lateral
+licks; close_contra pre z -2.2 to -3.3) -- the pooled coefficient averages opposite signs. Robust to both controls:
+far_ipsi chronic loss (epoch z -2.3 to -3.0, MOp / MOs / SSp-m bilateral) and close_contra acute flip (z +2.9 to
++3.5). Epoch models are descriptive; time-model terms for these spouts are weak (|z| < 2.6). (3) Commanded-axis
+across-spout slope (`between_cmd`): large post-stroke rise tracking the deficit in SSp-m bilateral (behaviour
+post:deficit z 9.7; time post z 9.8, post:lday -8.0) that collapses with hits-only (z 1.4) -- across-spout means of
+mostly-miss acute far-contra trials; treat as a miss / contact confound until a contact-controlled between fit exists.
+Executed-axis between: null. Memory note toward-midline-headline updated.
