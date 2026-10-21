@@ -26,6 +26,26 @@ AREAS = ("MOs", "MOp", "SSp-m", "SSp-ul", "SSp-ll", "SSp-n", "SSp-bfd", "SSp-tr"
 FOCUS = ("SSp-m", "MOs", "MOp", "cortex")
 
 
+def add_z(D: pd.DataFrame) -> pd.DataFrame:
+    """Z-SCORED slopes (Priya 10-21: "are our within-spout analyses normalized within animal" / "can we z score?").
+    b_z  = b x (the animal's PRE-stroke median within-spout lateral SD) / (its PRE-stroke median within-spout response
+           SD), per animal x spouts x area x variant: pre-stroke SDs of activity per pre-stroke SD of lick deviation. A
+           per-animal rescaling -- animals become comparable (cam4 angle compression, expression / window amplitude),
+           and a post-stroke change stays in that animal's pre-stroke units (a change in scatter is not normalised away).
+    b_zs = b x the SESSION's own lateral SD / its response SD (correlation-like; check only).
+    Rows without the SDs (equal-weight, folders computed before 10-21 midday) stay NaN."""
+    if "resp_sd" not in D or "lat_sd" not in D:
+        return D
+    from wfield_local import epochs
+    an = D.label.str[:4]
+    pre = D.label.map(epochs.epoch_of) == "pre"
+    keys = ["spouts", "area", "variant"]
+    ref = D[pre].assign(_an=an[pre]).groupby(["_an", *keys])[["lat_sd", "resp_sd"]].median()
+    ref.columns = ["lat_sd_pre", "resp_sd_pre"]
+    D = D.assign(_an=an).join(ref, on=["_an", *keys]).drop(columns="_an")
+    return D.assign(b_z=D.b_within * D.lat_sd_pre / D.resp_sd_pre, b_zs=D.b_within * D.lat_sd / D.resp_sd)
+
+
 def _kinds(D: pd.DataFrame):
     """(kind, rows, column, sign) per outcome family: OLS-pooled within / between; EQUAL-weight pooled within; each spout's
     own within slope (`spout:<pos>`); and, the HEADLINE per-spout test (Priya 10-21), TOWARD-MIDLINE per lateral spout
@@ -37,21 +57,30 @@ def _kinds(D: pd.DataFrame):
     if "b_between_cmd" in D and D.b_between_cmd.notna().any():
         yield "between_cmd", D[sp == "all"], "b_between_cmd", 1.0      # COMMANDED-axis across-spout slope
     yield "within_equal", D[sp == "equal"], "b_within", 1.0
+    z = "b_z" in D and D.b_z.notna().any()
+    if z:
+        yield "within_z", D[sp == "all"], "b_z", 1.0                    # z-scored within animal (add_z)
     for p in sorted(set(sp) - {"all", "equal", "contra", "mid", "ipsi"}):
         yield f"spout:{p}", D[sp == p], "b_within", 1.0
         sg = float(side_sign([p])[0])
         if sg:
             yield f"mid:{p}", D[sp == p], "b_within", sg
+        if z:
+            yield f"spout:{p}_z", D[sp == p], "b_z", 1.0
+            if sg:
+                yield f"mid:{p}_z", D[sp == p], "b_z", sg
+                yield f"mid:{p}_zs", D[sp == p], "b_zs", sg
 
 
 def outcomes(D: pd.DataFrame) -> pd.DataFrame:
     """Long table: label, animal, epoch, day, kind (see `_kinds`), measure (e.g. 'SSp-m crossed'), y."""
-    D = D[D.variant == "mean"]
+    D = add_z(D[D.variant == "mean"])
     rows = []
     for kind, Dk, col, sg in _kinds(D):
         if Dk.empty:
             continue
-        W = Dk.pivot_table(index="label", columns="area", values=col) * 10 * 1e3 * sg
+        scale = 1.0 if col in ("b_z", "b_zs") else 10 * 1e3       # z kinds: SD of activity per SD of deviation
+        W = Dk.pivot_table(index="label", columns="area", values=col) * scale * sg
         out = {"cortex bilateral": W["cortex"]} if "cortex" in W else {}
         for a in AREAS:
             if f"{a}_left" in W and f"{a}_right" in W:
@@ -164,9 +193,12 @@ def main(argv=None) -> int:
     T.to_csv(folder / f"mixed_model{sfx}.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)
     heads = ["mid"] + sorted(k for k in set(T.kind) if k.startswith("mid:"))          # HEADLINE: toward midline
-    for kind in [k for k in ("within", "within_equal", "between", "between_cmd", "dir", *heads) if k in set(T.kind)]:
+    for kind in [k for k in ("within", "within_z", "within_equal", "between", "between_cmd", "dir", *heads)
+                 if k in set(T.kind)]:
         for model in ("time", "behaviour"):
-            print(f"\n=== {kind}-spout slope (x1e-3 dF / 10 deg executed lateral), {model} model; q = FDR over measures")
+            unit = "SD activity / SD deviation, pre-stroke units" if kind.endswith(("_z", "_zs")) else \
+                "x1e-3 dF / 10 deg executed lateral"
+            print(f"\n=== {kind}-spout slope ({unit}), {model} model; q = FDR over measures")
             S = T[(T.kind == kind) & (T.model == model) & T.measure.str.startswith(FOCUS)]
             print(S.pivot_table(index="measure", columns="term", values=["coef", "z", "q"]).round(3).to_string())
             print("  random-effect structure:", S.groupby("measure").re.first().value_counts().to_dict())

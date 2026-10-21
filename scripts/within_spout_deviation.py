@@ -124,7 +124,8 @@ def covariates(T: pd.DataFrame, var: str) -> np.ndarray:
 
 
 def per_spout(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
-    """{pos: (b (d,), se (d,), n)} -- the within-spout lateral slope fitted in EACH spout on its own (same covariates)."""
+    """{pos: (b (d,), se (d,), n, lat_sd, resp_sd (d,))} -- the within-spout lateral slope fitted in EACH spout on its own
+    (same covariates), plus the spout's within-spout SDs of the lateral angle and of the response (for z-scoring)."""
     lat, C, pos = T[f"lat_{var}"].to_numpy(float), covariates(T, var), T.pos.to_numpy()
     out = {}
     for p in np.unique(pos):
@@ -138,7 +139,7 @@ def per_spout(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
         b = np.linalg.pinv(X) @ Rp
         res = Rp - X @ b
         s2 = (res ** 2).sum(0) / max(m.sum() - 1 - X.shape[1], 1)
-        out[p] = (b[0], np.sqrt(np.linalg.pinv(X.T @ X)[0, 0] * s2), int(m.sum()))
+        out[p] = (b[0], np.sqrt(np.linalg.pinv(X.T @ X)[0, 0] * s2), int(m.sum()), float(X[:, 0].std()), Rp.std(0))
     return out
 
 
@@ -183,7 +184,7 @@ def slopes(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
     else:
         bb = np.full((3, R.shape[1]), np.nan)
     return {"b_within": bw[0], "se_within": se[0], "b_between": bb[1], "b_between_cmd": bc[1],
-            "n_trials": len(R), "n_spouts": len(P),
+            "n_trials": len(R), "n_spouts": len(P), "resp_sd": Rd.std(0),
             "lat_sd_within": float(Xd[:, 0].std()), "lat_sd_between": float(mX[:, 0].std()),
             "terc_R": np.stack([Rd[terc == j].mean(0) for j in range(3)]),
             "terc_lat": np.array([Xd[terc == j, 0].mean() for j in range(3)])}
@@ -320,6 +321,7 @@ def _fit_session(label, mode, align, V, ft, Ub, flat, parea, names, shape, pstat
                          "b_between_cmd": sA["b_between_cmd"][i],
                          "n_trials": sA["n_trials"], "n_spouts": sA["n_spouts"],
                          "lat_sd_within": sA["lat_sd_within"], "lat_sd_between": sA["lat_sd_between"],
+                         "lat_sd": sA["lat_sd_within"], "resp_sd": sA["resp_sd"][i],
                          "latency_med": float(T.latency.median())})
             for j in range(3):
                 terc.append({"label": label, "variant": var, "area": an, "tercile": j,
@@ -336,14 +338,15 @@ def _fit_session(label, mode, align, V, ft, Ub, flat, parea, names, shape, pstat
                              "b_within": sS["b_within"][i], "se_within": sS["se_within"][i], "b_between": np.nan,
                              "n_trials": sS["n_trials"], "n_spouts": sS["n_spouts"],
                              "lat_sd_within": sS["lat_sd_within"], "lat_sd_between": np.nan,
+                             "lat_sd": sS["lat_sd_within"], "resp_sd": sS["resp_sd"][i],
                              "latency_med": float(T.latency[m].median())})
         # PER SPOUT + EQUAL-WEIGHT pooled (Priya 10-21): each spout's own slope, and their plain mean
         pA, pK = per_spout(Rk @ Ra, T, var), per_spout(Rk, T, var)
-        for p_, (b_, se_, n_) in pA.items():
+        for p_, (b_, se_, n_, lsd_, rsd_) in pA.items():
             for i, an in enumerate(anames):
                 rows.append({"label": label, "variant": var, "spouts": p_, "area": an, "b_within": b_[i],
                              "se_within": se_[i], "b_between": np.nan, "n_trials": n_, "n_spouts": 1,
-                             "lat_sd_within": np.nan, "lat_sd_between": np.nan,
+                             "lat_sd_within": np.nan, "lat_sd_between": np.nan, "lat_sd": lsd_, "resp_sd": rsd_[i],
                              "latency_med": float(T.latency[T.pos == p_].median())})
         if len(pA) >= 2:
             bE = np.mean([v[0] for v in pA.values()], 0)
@@ -354,7 +357,7 @@ def _fit_session(label, mode, align, V, ft, Ub, flat, parea, names, shape, pstat
                              "n_spouts": len(pA), "lat_sd_within": np.nan, "lat_sd_between": np.nan,
                              "latency_med": float(T.latency.median())})
         if var == "mean":
-            for p_, (b_, _se, _n) in pK.items():
+            for p_, (b_, *_) in pK.items():
                 maps[f"spout_{p_}"] = (Ub @ b_).astype(np.float32)
             if len(pK) >= 2:
                 maps["within_equal"] = (Ub @ np.mean([v[0] for v in pK.values()], 0)).astype(np.float32)

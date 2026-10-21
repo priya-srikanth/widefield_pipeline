@@ -140,3 +140,16 @@ def test_contact_adjusted_between(monkeypatch):
     monkeypatch.setenv(ws.CONTROLS_ENV, "contact")
     adj = ws.slopes(R, T, "mean")["b_between"][0]
     assert raw > 0.05 and abs(adj) < 0.2 * raw
+
+
+def test_add_z_rescales_within_animal():
+    """b_z = b x the animal's pre lateral SD / pre response SD: two animals with the same effect in SD units but different
+    amplitudes and angle scales get the same b_z; b_zs uses each session's own SDs."""
+    from scripts import within_spout_mixed as wm
+    rows = []
+    for an, amp, ang in (("PS92", 1.0, 1.0), ("PS94", 4.0, 3.0)):
+        for lab in (f"{an}_0806", f"{an}_0807", f"{an}_0920"):              # two pre sessions, one chronic
+            rows.append({"label": lab, "variant": "mean", "spouts": "far_ipsi", "area": "MOs_left",
+                         "b_within": 0.5 * amp / ang, "lat_sd": 2.0 * ang, "resp_sd": 1.0 * amp})
+    D = wm.add_z(pd.DataFrame(rows))
+    assert np.allclose(D.b_z, 1.0) and np.allclose(D.b_zs, 1.0)
