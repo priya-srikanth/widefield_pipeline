@@ -21100,7 +21100,7 @@ The other window found every `session_poses/<a>_<d>_cam1_full/` folder had been 
 09-08, PS93 06-05 / 06-06). Removed it: the jaw now comes ONLY from `<run>/imaging_encoding/qc/jaw_onsets.csv`
 (`scripts/jaw_onsets.py`, template-timed cam1 + cam4, the v36 "jaw moved" rule; matches v36 jaw_pass_qc 543 / 543;
 cam1 / cam4 agree 95.7 %, onset difference median -0.7 ms). jaw_only now also requires the movement to start AFTER the cue
-(`onset_at_cue` trials WITHOUT a lick -> unknown, Priya 10-21: a deflected jaw at the cue does not mean the animal could not react). New component `latency_move_ms` = first lick or after-cue jaw onset. `canonical` calls
+(`onset_at_cue` trials WITHOUT a lick count through their RE-ONSET `jaw_reonset_ms` -- the first new movement after the cue-time deflection settles; no re-onset -> unknown; Priya 10-21: a deflected jaw at the cue does not mean the animal could not react). New component `latency_move_ms` = first lick or after-cue jaw onset. `canonical` calls
 `engagement_keep(..., gate="reference")` explicitly (never the OROFACIAL_GATE env). cam1 still running on O2 for 65
 curated sessions (PS93 09-22 on, all PS94 / PS95): rerun `jaw_onsets.py` then `trial_attempts.py` when they land; until
 then those sessions' jaw is cam4 only (close_center -> mostly unknown).

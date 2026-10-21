@@ -8,7 +8,7 @@ Per trial, cue .. trial stop (`trial_windows.trial_bounds`; latencies from `scri
   incomplete  an LP lick (cam4 `licks.csv`, or a cam1-only event -- droplets out) and no contact
   jaw_only    no lick, jaw moved AFTER the cue on EITHER camera (`qc/jaw_onsets.csv`, scripts/jaw_onsets.py: the v36
               "jaw moved" rule on cam4 and on template-timed cam1, cam1 floor 15 px; a jaw already deflected at the cue
-              with no lick = unknown);
+              counts only through its re-onset `jaw_reonset_ms`, else unknown);
               NEITHER camera used at close_center (cam4 chin hidden; cam1 failed the 10-21 blind review there), so
               close_center no-lick trials are unknown
   no_try      no lick, jaw judged and still
@@ -48,8 +48,10 @@ RESP_MS = 3500.0                                    # the task's response window
 def _jaw_table(path: str) -> pd.DataFrame:
     """`<v36>/imaging_encoding/qc/jaw_onsets.csv` (scripts/jaw_onsets.py, other window 10-21): per trial cam4_moved /
     cam1_moved (1 / 0 / NaN), jaw_onset_ms (earliest camera that saw a movement, DAQ ms from the cue), onset_at_cue."""
-    J = pd.read_csv(path, low_memory=False, usecols=["session", "trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms",
-                                                      "onset_at_cue"])
+    want = ["session", "trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue", "jaw_reonset_ms"]
+    J = pd.read_csv(path, low_memory=False, usecols=lambda c: c in want)
+    if "jaw_reonset_ms" not in J:
+        J["jaw_reonset_ms"] = np.nan
     J["label"] = J.session.str[:5] + J.session.str[-4:]
     J["onset_at_cue"] = J.onset_at_cue.astype(str).str.lower().eq("true")
     return J.set_index(["label", "trial_id"])
@@ -93,12 +95,16 @@ def session_trials(label: str) -> pd.DataFrame:
     # close_center jaw is unknown from both cameras
     T["jaw_cam1"] = pd.to_numeric(t.map(J.cam1_moved), errors="coerce").where(~T.pos.isin(JAW_UNRELIABLE))
     T["jaw_at_cue"] = t.map(J.onset_at_cue).fillna(False).astype(bool)
-    T["jaw_onset_ms"] = pd.to_numeric(t.map(J.jaw_onset_ms), errors="coerce").where(~T.jaw_at_cue
-                                                                                    & ~T.pos.isin(JAW_UNRELIABLE))
+    # jaw deflected at the cue: the RE-ONSET (first new movement after the deflection settled, same rule; other window
+    # 10-21) is the after-cue movement; NaN re-onset = never settled or no new move -> cannot judge (unknown)
+    reon = pd.to_numeric(t.map(J.jaw_reonset_ms), errors="coerce")
+    on = pd.to_numeric(t.map(J.jaw_onset_ms), errors="coerce")
+    T["jaw_reonset"] = T.jaw_at_cue & reon.notna()
+    T["jaw_onset_ms"] = on.where(~T.jaw_at_cue, reon).where(~T.pos.isin(JAW_UNRELIABLE))
     # a jaw ALREADY deflected at the cue (no lick) cannot be judged either way -- the animal may still have reacted
     # (Priya 10-21) -- so it is `unknown`, never no_try and never jaw_only
-    ok = (T.jaw_cam4.notna() | T.jaw_cam1.notna()) & ~T.jaw_at_cue
-    mv = (T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)
+    ok = (T.jaw_cam4.notna() | T.jaw_cam1.notna()) & (~T.jaw_at_cue | T.jaw_reonset)
+    mv = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)) & (~T.jaw_at_cue | T.jaw_reonset)
     T["cls"] = np.select([T.contact.notna(), T.n_licks > 0, ok & mv, ok], ["hit", "incomplete", "jaw_only", "no_try"],
                          "unknown")
     T["attempted"] = T.cls.isin(["hit", "incomplete", "jaw_only"])
