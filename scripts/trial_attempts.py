@@ -7,7 +7,8 @@ Per trial, cue .. trial stop (`trial_windows.trial_bounds`; latencies from `scri
   hit         a DAQ spout contact
   incomplete  an LP lick (cam4 `licks.csv`, or a cam1-only event -- droplets out) and no contact
   jaw_only    no lick, jaw moved AFTER the cue on EITHER camera (`qc/jaw_onsets.csv`, scripts/jaw_onsets.py: the v36
-              "jaw moved" rule on cam4 and on template-timed cam1, cam1 floor 15 px; onset_at_cue trials excluded);
+              "jaw moved" rule on cam4 and on template-timed cam1, cam1 floor 15 px; a jaw already deflected at the cue
+              with no lick = unknown);
               NEITHER camera used at close_center (cam4 chin hidden; cam1 failed the 10-21 blind review there), so
               close_center no-lick trials are unknown
   no_try      no lick, jaw judged and still
@@ -86,7 +87,7 @@ def session_trials(label: str) -> pd.DataFrame:
     T["n_nocontact"] = t.map(nc4).fillna(0) + t.map(nc1).fillna(0)
     T["angle_first"] = t.map(ang1)
     # jaw from EITHER camera (Priya 10-20): moved if either says moved; judged if either can judge. cam4 is not used at
-    # close_center (chin hidden); cam1 sees the jaw there. A jaw already deflected at the cue is not an after-cue move.
+    # close_center (chin hidden); cam1 (template-timed) is masked there too after the 10-21 blind review.
     T["jaw_cam4"] = pd.to_numeric(t.map(J.cam4_moved), errors="coerce").where(~T.pos.isin(JAW_UNRELIABLE))
     # cam1 NOT used at close_center either (blind review 10-21, Priya: 58 % agreement on acute no-lick trials) -> the
     # close_center jaw is unknown from both cameras
@@ -94,8 +95,10 @@ def session_trials(label: str) -> pd.DataFrame:
     T["jaw_at_cue"] = t.map(J.onset_at_cue).fillna(False).astype(bool)
     T["jaw_onset_ms"] = pd.to_numeric(t.map(J.jaw_onset_ms), errors="coerce").where(~T.jaw_at_cue
                                                                                     & ~T.pos.isin(JAW_UNRELIABLE))
-    ok = T.jaw_cam4.notna() | T.jaw_cam1.notna()
-    mv = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)) & ~T.jaw_at_cue
+    # a jaw ALREADY deflected at the cue (no lick) cannot be judged either way -- the animal may still have reacted
+    # (Priya 10-21) -- so it is `unknown`, never no_try and never jaw_only
+    ok = (T.jaw_cam4.notna() | T.jaw_cam1.notna()) & ~T.jaw_at_cue
+    mv = (T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)
     T["cls"] = np.select([T.contact.notna(), T.n_licks > 0, ok & mv, ok], ["hit", "incomplete", "jaw_only", "no_try"],
                          "unknown")
     T["attempted"] = T.cls.isin(["hit", "incomplete", "jaw_only"])
