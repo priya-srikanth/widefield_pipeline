@@ -76,11 +76,19 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 - 3-D contest RUNNING since 20:45 (47 sessions incl. the re-run PS93 sessions; tables tag 20261021).
 - Lick-template test: first pass (42 sessions, 20261020 tables) running -> rerun with `--tag 20261021` on all 47
   (pass-1 templates are cached per output folder, so the tag gives a clean folder).
-- QUEUED (`S\queue_windows.sh`, pid-tracked only, log `S\queue_windows.log`): after the 3-D contest, refits with the new
-  scoring windows -- `cue2lick` (cue .. first lick, capped at stop), `cuestop` (cue .. stop), `firstlick` (first
-  post-cue lick -0.1 .. +1 s) -- for `ONLY=drop:` then `ONLY=nokin:`, `SUFFIX=_win` (folders
-  `movement_first_subset-drop_win`, `movement_first_subset-nokin_win`); ~16 h locally on 2 workers. O2 alternative:
-  rebuild the bundle with the current code, `TAG=win ONLY=drop:` / `ONLY=nokin:` + `SUFFIX=_win`.
+- O2 (submitted 10-20 ~23:00 by Priya; bundle `enc_v36_20261019` refreshed: code e152723, PS92_0908 / June 0606 inputs
+  rebuilt, old ones in `inputs_superseded_pre_template_timing/`): `TAG=win_nokin ONLY=nokin:` and `TAG=win_drop ONLY=drop:`
+  (arrays 1-119). They carry the new scoring windows (`cue2lick`, `cuestop`, `firstlick`) and the LICK-ALIGNED
+  trial-to-trial SSE (`sse_lick`, `sse_trial_lick`; first post-cue lick). The local `queue_windows.sh` was stopped.
+  When done: rsync out/ back, then `COMBINED_ENCODING_SUFFIX=_win python scripts/o2_encoding.py collect --name
+  enc_v36_20261019 --tag win_nokin` (and `--tag win_drop`) -> `movement_first_subset-nokin_win`,
+  `movement_first_subset-drop_win`; readouts: `combined_encoding_figures.py --order <folder>`, `encoding_mixed.py`;
+  `tr_contest` needs a lick-aligned reader (sse_trial_lick, -0.1 .. +1 s) -- TO DO.
+- Requested from the OTHER window (Priya passed it on): whole-session cam4 / cam1 lick detection with a context label
+  (pre_cue / post_cue / iti). Our lick tables are post-cue only by construction (detectors + `daq_contacts_ms` start at
+  the cue), yet the tongue trace shows ~0.4 protrusion onsets / s pre-cue (PS92_0811) -> the "lick-free" ENL window
+  may not be; pre-cue DAQ-contact check running (`qc/precue_contacts.csv`). Then: spontaneous (pre-cue, ITI) vs cued
+  lick analyses (kernel split in the encoding model + lick-triggered responses within spout).
 - QUEUED: enl within-spout check (`--window enl`, pre-cue state vs upcoming within-spout landing) after the template
   test (log `S\within_spout_enl.log`).
 - To-do from this: trial-to-trial contest is cue-window (0-1.5 s) -> redo on `firstlick` / `cuestop` once the `_win`
