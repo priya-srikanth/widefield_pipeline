@@ -64,7 +64,7 @@ def lp_reference(rv, key: str, start: int, n: int) -> dict:
     return {"tongue": tongue, "nose_speed": sp, "nose_rest": np.nanmedian(nose, 0)}
 
 
-def cmd_clips(bundle: str, seconds: float = 4.0) -> None:
+def cmd_clips(bundle: str, seconds: float = 4.0, color: str = "disp") -> None:
     import cv2
     import decord
     import pandas as pd
@@ -90,7 +90,7 @@ def cmd_clips(bundle: str, seconds: float = 4.0) -> None:
         frames = vr.get_batch(list(range(start + i0, start + end + 1))).asnumpy()
         H, W = frames.shape[1:3]
         h, w_ = int(H * sc), int(W * sc)
-        dst = out / "clips" / f"{key}_{label}_{start + i0}.mp4"
+        dst = out / "clips" / f"{key}_{label}_{start + i0}{'_plain' if color == 'plain' else ''}.mp4"
         vw = cv2.VideoWriter(str(dst), cv2.VideoWriter_fourcc(*"mp4v"), 50, (w_ * len(names), h + 30))
         for k, fr in enumerate(frames):
             i = i0 + k
@@ -98,15 +98,19 @@ def cmd_clips(bundle: str, seconds: float = 4.0) -> None:
             for nm in names:
                 im = cv2.resize(fr, (w_, h))
                 P, Hm = sets[nm]["pts"][i], sets[nm]["home"]
-                mag = np.clip(np.hypot(*(P - Hm).T) / 6.0, 0, 1)
-                col = cv2.applyColorMap((mag * 255).astype(np.uint8)[:, None], cv2.COLORMAP_PLASMA)[:, 0, ::-1]   # BGR -> RGB (frames are RGB)
+                if color == "plain":                                  # judge motion by position, not colour
+                    col = np.tile(np.array([0, 255, 255], np.uint8), (len(P), 1))
+                else:
+                    mag = np.clip(np.hypot(*(P - Hm).T) / 6.0, 0, 1)
+                    col = cv2.applyColorMap((mag * 255).astype(np.uint8)[:, None],
+                                            cv2.COLORMAP_PLASMA)[:, 0, ::-1]   # BGR -> RGB (frames are RGB)
                 for (x, y), c in zip(P * sc, col):
                     cv2.circle(im, (int(round(x)), int(round(y))), 1, tuple(int(v) for v in c), -1)
                 cv2.putText(im, nm, (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
                 panels.append(im)
             bar = np.zeros((30, w_ * len(names), 3), np.uint8)
             t_ = f"{key}  frame {start + i}  t={i / FS:6.2f} s  tongue={'yes' if ref['tongue'][i] == 1 else '-'}  " \
-                 f"(dots: |disp| 0-6 px, 5x slow)"
+                 + ("(5x slow)" if color == "plain" else "(dots: |disp| 0-6 px, 5x slow)")
             cv2.putText(bar, t_, (8, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
             vw.write(cv2.cvtColor(np.vstack([bar, np.hstack(panels)]), cv2.COLOR_RGB2BGR))
         vw.release()
@@ -114,7 +118,8 @@ def cmd_clips(bundle: str, seconds: float = 4.0) -> None:
               f"frames) -> {dst}")
 
 
-def cmd_decompose(bundle: str, rank: int = 10, n_iter: int = 150, threads: int = 6) -> None:
+def cmd_decompose(bundle: str, rank: int = 10, n_iter: int = 150, threads: int = 6,
+                  only: list[str] | None = None) -> None:
     import os
     os.environ.setdefault("OMP_NUM_THREADS", str(threads))
     import matplotlib
@@ -148,6 +153,8 @@ def cmd_decompose(bundle: str, rank: int = 10, n_iter: int = 150, threads: int =
         img = mo["image"]
     rows = []
     for name, s in sets.items():
+        if only and name not in only:
+            continue
         pts, home = s["pts"].astype(np.float64), s["home"]
         for fc in PARAMS["notch_hz"]:
             bn, an = iirnotch(fc, PARAMS["notch_q"], FS)
@@ -201,6 +208,9 @@ def cmd_decompose(bundle: str, rank: int = 10, n_iter: int = 150, threads: int =
         out.mkdir(parents=True, exist_ok=True)
         fig.savefig(out / f"decomp_{key}_{name}.png", dpi=80)
         plt.close(fig)
+        np.savez(out / f"decomp_{key}_{name}_factors.npz", spatial=A, spectral=Fq, temporal=Tm, order=order,
+                 weights=np.asarray(cp.weights), freqs=freqs, home=home, t_frame=start + np.arange(nb) * DS * BIN,
+                 var_explained=ve)
         print(f"{name}: variance explained {ve:.1%}")
     R = pd.DataFrame(rows)
     R.to_csv(out / f"decomp_{key}.csv", index=False, float_format="%.3g")
@@ -212,12 +222,15 @@ def main(argv=None) -> int:
     ap.add_argument("cmd", choices=["clips", "decompose"])
     ap.add_argument("--bundle", default="fr_cam4_20261021")
     ap.add_argument("--rank", type=int, default=10)
+    ap.add_argument("--sets", nargs="*", default=None, help="decompose: only these parameter sets")
     ap.add_argument("--threads", type=int, default=6, help="CPU threads (shared box: keep low)")
+    ap.add_argument("--color", choices=["disp", "plain"], default="disp",
+                    help="clips: dots coloured by |displacement from home|, or one colour (judge jitter by position)")
     a = ap.parse_args(argv)
     if a.cmd == "clips":
-        cmd_clips(a.bundle)
+        cmd_clips(a.bundle, color=a.color)
     else:
-        cmd_decompose(a.bundle, a.rank, threads=a.threads)
+        cmd_decompose(a.bundle, a.rank, threads=a.threads, only=a.sets)
     return 0
 
 
