@@ -66,6 +66,14 @@ MIN_TRIALS = 9                      # per spout (3 per tercile)
 #: are always written next to the OLS-pooled slope (spouts = "all"), whose weights follow each spout's lateral spread.
 CONTROLS_ENV = "WITHIN_SPOUT_CONTROLS"
 TRIALS_ENV = "WITHIN_SPOUT_TRIALS"
+#: ONE LOAD, SEVERAL FITS (Priya 10-21, "should we make our jobs more efficient?"): VARIANTS_ENV = comma list of VARIANTS;
+#: each session's imaging + behaviour is loaded once and every variant fitted on it (each written to the folder its
+#: single-variant flags would use). The variants differ only in a covariate / trial filter, so the network read --
+#: the cost of a run -- is paid once instead of once per variant.
+VARIANTS_ENV = "WITHIN_SPOUT_VARIANTS"
+VARIANTS = {"base": ("", "all"), "contact": ("contact", "all"), "hits": ("", "hits"),
+            "contact_hits": ("contact", "hits")}         # name -> (CONTROLS_ENV, TRIALS_ENV)
+VARIANT_SUFFIX = {"base": "", "contact": "_contact", "hits": "_hits", "contact_hits": "_contact_hits"}
 SHOW = ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul", "SSp-bfd")
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
@@ -234,7 +242,7 @@ def split_half(T: pd.DataFrame) -> tuple[float, float, int]:
 
 def session_check(label: str) -> dict:
     from wfield_local import combined_encoding as ce
-    from wfield_local import config, epochs
+    from wfield_local import config
     from wfield_local.paths import PathResolver
     mode = os.environ.get(ce.EXEC_ENV, "")
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -247,6 +255,28 @@ def session_check(label: str) -> dict:
     cmd = commanded(B, mode)
     T["cmd_lat"], T["cmd_dist"] = T.pos.map(lambda q: cmd.get(q, (np.nan, np.nan))[0]), \
         T.pos.map(lambda q: cmd.get(q, (np.nan, np.nan))[1])
+    args = (label, mode, align, V, ft, Ub, flat, parea, names, shape, pstat, E, T)
+    vs = [v for v in os.environ.get(VARIANTS_ENV, "").split(",") if v]
+    if not vs:
+        return _fit_session(*args)
+    keep = {k: os.environ.get(k) for k in (CONTROLS_ENV, TRIALS_ENV)}
+    try:
+        out = {}
+        for v in vs:                                           # worker-local env: covariates() reads it
+            os.environ[CONTROLS_ENV], os.environ[TRIALS_ENV] = VARIANTS[v]
+            out[v] = _fit_session(*args)
+    finally:
+        for k, x in keep.items():
+            if x is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = x
+    return {"variants": out}
+
+
+def _fit_session(label, mode, align, V, ft, Ub, flat, parea, names, shape, pstat, E, T) -> dict:
+    """session_check's fits for the CURRENT CONTROLS_ENV / TRIALS_ENV on already-loaded inputs."""
+    from wfield_local import epochs
     if os.environ.get(TRIALS_ENV) == "hits":                   # sensitivity: trials that touched the spout only
         T = T[T.n_contact > 0].reset_index(drop=True)
     cue = E.cue_s.to_numpy(float)[T.k.to_numpy()]
@@ -645,21 +675,29 @@ def main(argv=None) -> int:
     ap.add_argument("--redo", action="store_true", help="recompute sessions that already have outputs")
     ap.add_argument("--contact", action="store_true", help="add the window's DAQ contact count as a covariate")
     ap.add_argument("--hits-only", action="store_true", help="only trials with >= 1 contact in the window")
+    ap.add_argument("--variants", default="", help=f"comma list of {','.join(VARIANTS)}: load each session ONCE and fit "
+                    "every variant, each into the folder its single-variant flags would use (VARIANTS_ENV)")
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
+    variants = [v for v in a.variants.split(",") if v]
+    if variants and (a.contact or a.hits_only):
+        raise SystemExit("--variants replaces --contact / --hits-only")
+    if any(v not in VARIANTS for v in variants):
+        raise SystemExit(f"unknown variant in {variants}; known {list(VARIANTS)}")
+    os.environ[VARIANTS_ENV] = ",".join(variants)
     os.environ[ALIGN_ENV] = a.align                          # inherited by the session workers
     os.environ[WINDOW_ENV] = a.window
     os.environ[CONTROLS_ENV] = "contact" if a.contact else ""
     os.environ[TRIALS_ENV] = "hits" if a.hits_only else "all"
     mode = os.environ.get(ce.EXEC_ENV, "")
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / ("within_spout_deviation"
-                                                                          + (f"_{mode}" if mode else "")
-                                                                          + ("_lick" if a.align == "lick" else "")
-                                                                          + ("_enl" if a.window == "enl" else "")
-                                                                          + ("_contact" if a.contact else "")
-                                                                          + ("_hits" if a.hits_only else ""))
-    writeguard.assert_writable(out.parent)
-    (out / "sessions").mkdir(parents=True, exist_ok=True)
+    stem = ("within_spout_deviation" + (f"_{mode}" if mode else "") + ("_lick" if a.align == "lick" else "")
+            + ("_enl" if a.window == "enl" else ""))
+    qc = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+    outs = ({v: qc / (stem + VARIANT_SUFFIX[v]) for v in variants} if variants else
+            {None: qc / (stem + ("_contact" if a.contact else "") + ("_hits" if a.hits_only else ""))})
+    writeguard.assert_writable(qc)
+    for out in outs.values():
+        (out / "sessions").mkdir(parents=True, exist_ok=True)
     cur = set(ak.curated_labels())               # CURATED only (Priya 10-20)
     labels = a.labels or [x for x in ce.sessions_available() if x in cur and x[-4:] >= a.from_date]
     if a.epochs:
@@ -668,18 +706,31 @@ def main(argv=None) -> int:
     if bad:
         raise SystemExit(f"not curated: {bad}")
     if not a.figures_only:
-        todo = [x for x in labels if a.redo or not (out / "sessions" / f"{x}.npz").exists()]
+        todo = [x for x in labels if a.redo or any(not (o / "sessions" / f"{x}.npz").exists() for o in outs.values())]
         got, fail = ak.fan_sessions(todo, session_check, jobs=a.jobs)
         for it, err in fail:
             print(f"  FAILED {it}: {err}")
         for lab, r in got:
-            pd.DataFrame(r["rows"]).to_csv(out / "sessions" / f"{lab}.csv", index=False, float_format="%.6g")
-            pd.DataFrame(r["terc"]).to_csv(out / "sessions" / f"{lab}_terc.csv", index=False, float_format="%.6g")
-            pd.DataFrame(r.get("dirmid", [])).to_csv(out / "sessions" / f"{lab}_dirmid.csv", index=False,
-                                                     float_format="%.6g")
-            np.savez_compressed(out / "sessions" / f"{lab}.npz", flat=r["flat"], shape=np.array(r["shape"]),
-                                keys=np.array(list(r["maps"])), maps=np.stack(list(r["maps"].values())),
-                                coords=r["coords"])
+            for v, out in outs.items():
+                write_session(out, lab, r["variants"][v] if v else r)
+    rc = 0
+    for out in outs.values():
+        rc |= finish(out, labels)
+    return rc
+
+
+def write_session(out, lab: str, r: dict) -> None:
+    pd.DataFrame(r["rows"]).to_csv(out / "sessions" / f"{lab}.csv", index=False, float_format="%.6g")
+    pd.DataFrame(r["terc"]).to_csv(out / "sessions" / f"{lab}_terc.csv", index=False, float_format="%.6g")
+    pd.DataFrame(r.get("dirmid", [])).to_csv(out / "sessions" / f"{lab}_dirmid.csv", index=False, float_format="%.6g")
+    np.savez_compressed(out / "sessions" / f"{lab}.npz", flat=r["flat"], shape=np.array(r["shape"]),
+                        keys=np.array(list(r["maps"])), maps=np.stack(list(r["maps"].values())), coords=r["coords"])
+
+
+def finish(out, labels) -> int:
+    """Pool one folder's session files into its tables, reports and figures."""
+    from wfield_local import epochs
+    print(f"\n==== {out.name}")
     have = [x for x in labels if (out / "sessions" / f"{x}.csv").exists()]
     if not have:
         print("no sessions")

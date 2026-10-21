@@ -264,7 +264,72 @@ TR_MODELS = ("full", "alone:task", "alone:instructed", "alone:uninstructed",
 # =============================================================================== inputs
 
 
+#: LOCAL INPUT CACHE (Priya 10-21, "should we make our jobs more efficient?"): CACHE_ENV = a directory on a LOCAL disk;
+#: load_imaging / load_behaviour then keep a pickled copy of each session's inputs there and later runs read it in seconds
+#: instead of over the share (a run's cost is the network read, ~1 GB per session, not the fit). The key covers the
+#: session, every COMBINED_ENCODING_* switch, the source of the modules that build the inputs, and the mtimes of the
+#: session's source files (imaging files, the orofacial session dir, the DAQ h5, any env-named table), so a changed input
+#: or loader makes a new entry. A disposable copy of INPUTS, never results; delete the directory any time. Off when unset.
+CACHE_ENV = "WFIELD_INPUT_CACHE"
+_CACHE_CODE = ("wfield_local/combined_encoding.py", "wfield_local/orofacial_cohort.py",
+               "wfield_local/orofacial_outputs.py", "wfield_local/trial_windows.py", "wfield_local/beta_maps.py",
+               "wfield_local/daq_trials.py", "scripts/pose_kinematics_demo.py")
+
+
+def _cached(kind: str, label: str, sources, build):
+    """build() through the CACHE_ENV disk cache (see CACHE_ENV); plain build() when it is unset."""
+    root = os.environ.get(CACHE_ENV)
+    if not root:
+        return build()
+    import hashlib
+    import pickle
+    repo = Path(__file__).resolve().parents[1]
+    code = hashlib.sha1(b"".join((repo / f).read_bytes() for f in _CACHE_CODE if (repo / f).exists())).hexdigest()
+    env = sorted((k, v) for k, v in os.environ.items() if k.startswith(("COMBINED_ENCODING_", "OROFACIAL_")))
+    mt = []
+    for f in sources:
+        f = Path(f)
+        try:
+            mt.append((str(f), f.stat().st_mtime_ns, f.stat().st_size))
+        except OSError:
+            mt.append((str(f), None, None))
+    key = hashlib.sha1(repr((kind, label, code, env, sorted(mt))).encode()).hexdigest()[:20]
+    f = Path(root) / kind / f"{label}_{key}.pkl"
+    if f.exists():
+        try:
+            with open(f, "rb") as fh:
+                return pickle.load(fh)
+        except Exception:                                       # a torn / stale-format entry: rebuild it
+            pass
+    v = build()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f"{f.name}.tmp{os.getpid()}")
+    with open(tmp, "wb") as fh:
+        pickle.dump(v, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp, f)                                          # atomic: concurrent workers never read a partial file
+    return v
+
+
+def _env_tables() -> list:
+    return [v for k, v in os.environ.items() if k.startswith("COMBINED_ENCODING_") and v and Path(v).is_file()]
+
+
 def load_imaging(label: str):
+    """(V, ft, Ub, flat, area, names, shape, pstat) -- `_load_imaging`, through the CACHE_ENV local cache."""
+    if not os.environ.get(CACHE_ENV):
+        return _load_imaging(label)
+    from wfield_local import config
+    from wfield_local.hemo_variants import ADOPTED
+    s = next(x for x in config.load_sessions() if x["label"] == label)
+    res = Path(s["mc"]) / "wfield_local_results"
+    at = res / "allen_aligned_affine8v1"
+    fmdir = s["fmdir"] or s["mc"]
+    src = [res / f"hemo_{ADOPTED}" / "SVTcorr.npy", at / "U_atlas.npy", at / "allen_brain_mask_native_grid.npy",
+           at / "allen_area_atlas_native_grid.npy", s["h5"], *glob.glob(f"{fmdir}/*cleanpairs_*")]
+    return _cached("imaging", label, src, lambda: _load_imaging(label))
+
+
+def _load_imaging(label: str):
     """(V (T, K) float32 adopted hemo-corrected SVD temporal components, frame DAQ s, U_atlas (P_brain, K) float32,
     brain-mask flat indices, area labels per brain pixel, area names {code: name})."""
     from wfield_local import config
@@ -326,6 +391,22 @@ class Behaviour:
 
 
 def load_behaviour(animal: str, date: str, rv) -> Behaviour:
+    """`_load_behaviour`, through the CACHE_ENV local cache."""
+    if not os.environ.get(CACHE_ENV):
+        return _load_behaviour(animal, date, rv)
+    from wfield_local import daq_io
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    sd = oo.session_dir(rv, _run(), animal, date)
+    src = [p for p in Path(sd).iterdir() if p.is_file()] if Path(sd).is_dir() else [sd]
+    src += [daq_io.session_h5(animal, date, rv) or "", *_env_tables(),       # + the engagement gate's inputs
+            *(Path(rv.root("behavior_out")) / "sessions" / animal / date).glob(f"{animal}_{date}_*_trials.csv")]
+    if oc.ENGAGEMENT_GATE != "reference":
+        src.append(oo.root(rv) / oc.RUN / "imaging_encoding" / "qc" / "trial_attempts.csv")
+    return _cached("behaviour", f"{animal}_{date}", src, lambda: _load_behaviour(animal, date, rv))
+
+
+def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
     from wfield_local import daq_io, daq_trials
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo

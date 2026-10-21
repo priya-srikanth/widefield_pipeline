@@ -2,6 +2,8 @@
 within ~ between; one driven by the TARGET (spout) gives within ~ 0. Synthetic trials, no share access."""
 from __future__ import annotations
 
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -93,3 +95,27 @@ def test_per_spout_and_contact_covariate(monkeypatch):
     assert abs(P["far_contra"][0][0] - 0.2) < 0.03 and abs(P["far_ipsi"][0][0] + 0.2) < 0.03
     monkeypatch.setenv(ws.CONTROLS_ENV, "")
     assert ws.per_spout(R, T, "mean")["far_contra"][0][0] > 0.3      # touch leaks into the slope without it
+
+
+def test_variants_one_load_each_fit_sees_its_env(monkeypatch):
+    """VARIANTS_ENV: one load per session, every variant fitted with its own CONTROLS_ENV / TRIALS_ENV, env restored."""
+    from types import SimpleNamespace
+
+    from scripts import within_spout_deviation as ws
+    from wfield_local import combined_encoding as ce
+    loads = []
+    monkeypatch.setattr(ce, "load_imaging", lambda lab: loads.append(lab) or (np.zeros((10, 2), np.float32),
+                                                                              np.arange(10.0), None, None, None,
+                                                                              {}, (1, 1), None))
+    trials = pd.DataFrame({"engaged": [True], "cue_s": [1.0]})
+    monkeypatch.setattr(ce, "load_behaviour", lambda *a: SimpleNamespace(trials=trials))
+    monkeypatch.setattr(ce, "_slow_basis", lambda ft, p: np.ones((len(ft), 1)))
+    monkeypatch.setattr(ws, "trial_table", lambda *a: pd.DataFrame({"pos": ["far_contra"]}))
+    monkeypatch.setattr(ws, "commanded", lambda *a: {})
+    monkeypatch.setattr(ws, "_fit_session", lambda *a: (os.environ[ws.CONTROLS_ENV], os.environ[ws.TRIALS_ENV]))
+    monkeypatch.setenv(ws.VARIANTS_ENV, "base,contact,contact_hits")
+    monkeypatch.setenv(ws.CONTROLS_ENV, "keep")
+    r = ws.session_check("PS92_0806")
+    assert loads == ["PS92_0806"]
+    assert r["variants"] == {"base": ("", "all"), "contact": ("contact", "all"), "contact_hits": ("contact", "hits")}
+    assert os.environ[ws.CONTROLS_ENV] == "keep"
