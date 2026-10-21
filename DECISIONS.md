@@ -21413,3 +21413,13 @@ reference. Cost: half the frames per trial (noisier decode). Implemented (`4fadd
 1.0 under LP, 2.0 under DAQ) replaces post_s for align=precue where features are keyed and built; outputs
 `grant_figures/LP_licks/...` and `grant_figures/DAQ_ENL1s/...`; frozen precue specs carry the window, so ONE new frozen
 precue set (DAQ 1.0 s run) is needed and LP reuses it -- run the DAQ_ENL1s arm before the LP ENL arms.
+
+## 2026-10-21 (late evening) -- cam1 is not finished: LP_licks is partly cam4-only until it is
+
+Priya: "also note - not all cam1 analysis is done so we'll have to revisit". cam1 lick events
+(`session_poses/cam1_licks/<a>_<d>_events.csv`) exist for 74 / 108 curated sessions (August pre + post): PS92 all;
+PS93 all but one pre session (0813, no video); PS94 all but chronic (2 / 8); PS95 NONE. In those sessions the LP lick =
+cam4 alone (the documented fallback), so the LP gate misses the small licks only cam1 sees (3-7 %; incomplete licks rise
+post-stroke) -- cross-animal LP_licks comparisons (PS95 especially) carry that until cam1 lands. The LP cache tag now
+includes a digest of the cam1 event folder (`306ba22`, branch lick/lp-source) so new cam1 files force a full LP
+recompute; on arrival rerun `scripts/trial_attempts.py` (its `combined` latency feeds the gate) and then the LP renders.

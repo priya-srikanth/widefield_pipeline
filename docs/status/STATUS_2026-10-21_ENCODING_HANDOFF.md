@@ -178,6 +178,13 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 6. PS93 far_ipsi / far_mid frozen sensitivity: `WIDEFIELD_LP_FROZEN=lp` on the lick arm; compare with the DAQ-frozen
    readout.
 7. Optional `LP_licks_pre150` (window from 0.15 s before LP onset).
+8. **REVISIT WHEN CAM1 IS FINISHED** (Priya 10-21: "not all cam1 analysis is done so we'll have to revisit"). cam1
+   lick events exist for 74 / 108 curated sessions (August pre + post): PS92 all; PS93 all but pre 7 / 8 (0813 has no
+   video); PS94 all but chronic 2 / 8; **PS95 none**. Those sessions' LP gate is cam4-only (misses the 3-7 % small
+   licks only cam1 sees; incomplete licks rise post-stroke), so cross-animal LP comparisons carry that until cam1
+   lands. Also cam4-only until then: `trial_attempts` `combined` latencies (PS95), the ENL census pre-cue train (cam1
+   events are post-cue only anyway). The LP cache tag includes the cam1 folder (`306ba22`), so new cam1 files force a
+   full LP recompute; rerun `scripts/trial_attempts.py` first (the gate reads it), then the LP renders.
 
 ## 2b. Normalised map tests (Priya 10-21 ~15:30: "sounds good proceed") -- DONE 1-4 and 7 (merged), 5 RUNNING, 6 open
 
