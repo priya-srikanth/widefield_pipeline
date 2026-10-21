@@ -140,21 +140,49 @@ def _attempts(rv=None) -> pd.DataFrame:
     return _ATTEMPTS[key]
 
 
-def lp_lick_times(label: str, rv=None) -> tuple[np.ndarray, pd.DataFrame]:
-    """(all LP lick onsets in DAQ s, sorted; per-trial cue table [trial_id -> cue_daq]) for one session."""
+def _inputs(label: str, rv):
+    """(session dir, cam4 licks_all, cam1 events) paths for one session."""
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    rv = rv or PathResolver()
     an, d = label.split("_")
     sd = oo.session_dir(rv, oc.RUN, an, "2026" + d)
-    f4 = sd / "licks_all.csv"
+    return sd, sd / "licks_all.csv", Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_2026{d}_events.csv"
+
+
+_TIMES: dict = {}
+
+
+def lp_lick_times(label: str, rv=None) -> tuple[np.ndarray, pd.DataFrame]:
+    """(all LP lick onsets in DAQ s, sorted; per-trial cue table [trial_id -> cue_daq]) for one session.
+
+    EFFICIENCY (Priya 10-21: "are you ... using cache and sidecars"): one session is asked for up to three times per
+    process (shared lick loader, `_trial_features`, `categorize`) and by every worker of every render, and the inputs
+    are CSVs on the share. Memoised in-process, and kept as a LOCAL sidecar (`result_cache`, keyed on the size + mtime
+    of windows.npz / licks_all.csv / the cam1 events and this module's source), so the share is read once per input
+    change."""
+    from wfield_local import result_cache, session_cache
+    from wfield_local.paths import PathResolver
+    rv = rv or PathResolver()
+    sd, f4, f1 = _inputs(label, rv)
     if not (sd / "windows.npz").exists() or not f4.exists():
         raise LPUnavailable(f"{label}: no LP lick tables in {sd}")
+    ins = [sd / "windows.npz", f4, f1]
+    key = (label, tuple(result_cache.signature(ins, "")))
+    if key not in _TIMES:
+        import sys
+        ver = f"lp{LP_VERSION}-" + result_cache.code_version(sys.modules[__name__])
+        if len(_TIMES) > 64:
+            _TIMES.clear()
+        _TIMES[key] = result_cache.cached(session_cache.CACHE_DIR / "lp_licks", f"{label}__times", ins, ver,
+                                          lambda: _read_times(label, sd, f4, f1))
+    return _TIMES[key]
+
+
+def _read_times(label, sd, f4, f1):
+    from wfield_local import orofacial_cohort as oc
     cue_t = oc._cue_table(sd).set_index("trial_id")
     t = pd.read_csv(f4, usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
     parts = [t[np.isfinite(t)]]
-    f1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_2026{d}_events.csv"
     if f1.exists():
         E = pd.read_csv(f1)
         only = ~E.cam4_matched.fillna(False).astype(bool) & ~E.droplet.fillna(False).astype(bool)
@@ -185,7 +213,22 @@ def edit_train(licks, cue_s, drop, attempted, first_s, max_rt) -> np.ndarray:
     return np.sort(np.concatenate([licks[keep], np.asarray(add, float)]))
 
 
+_LP: dict = {}
+
+
 def session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> dict:
+    """Memoised per process on (label, cue train, sr, max_rt, attempts identity) -- see `_session_lp`."""
+    import hashlib
+    cs = np.ascontiguousarray(np.asarray(cue_samples, np.int64))
+    key = (label, hashlib.sha1(cs.tobytes()).hexdigest(), float(sr), float(max_rt), spec_token(rv))
+    if key not in _LP:
+        if len(_LP) > 64:
+            _LP.clear()
+        _LP[key] = _session_lp(label, cs, sr, max_rt, rv)
+    return _LP[key]
+
+
+def _session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> dict:
     """The LP lick train for `_trial_features`, on the DAQ sample clock.
 
     Returns ``lick_samples`` (int, sorted), ``drop`` (bool per DAQ cue: no attempts row / unknown class / unmatched ->
