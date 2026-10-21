@@ -21469,3 +21469,20 @@ activity drop is carried by the movement (instructed) terms in 4/4 (cortex and c
 part / residual small. Read: the drop needs no target term; whether target signal is ALSO lost is 3.1's drop-p test.
 Caveat recorded: task ridge penalty highest, so shared variance is credited to movement by construction.
 New: `scripts/lp_encoder_decompose.py`. All PROVISIONAL until cam1 finishes (PS95 cam4 only).
+## 2026-10-21 (night) -- Histology: ipsi/contra caudoputamen % area for PS92-95, read straight from QuPath
+
+Priya asked for the methods paper's Fig 1F ("Caudoputamen ipsi/contra % area") for the widefield cohort, in this repo.
+Full write-up: `docs/HISTOLOGY.md`. Decided:
+- QUANTITY: per section, 100 x ipsi / contra striatal area; sections faded, animal mean +/- SEM across sections, 0-100
+  axis -- identical to the paper notebook (`Documents/data/Immuno/Stroke area quantification plots.ipynb`, the only
+  copy of that panel's code; ratios there were typed by hand).
+- SOURCE: Priya's QuPath project (`Documents/data/Immuno/PS92-95_widefield_stroke_cohort`), read directly from
+  `data.qpdata` (`wfield_local/qupath_io.py`, no QuPath / Java), not from screenshots or a manual export. Decoded
+  counts are asserted equal to QuPath's `summary.json`; areas match QuPath's stored stats.
+- PAIRING: mutual nearest centroid, asserted same row + hemisphere spacing (fails loudly on a mis-pair).
+- IPSI = SMALLER OUTLINE (Priya: "the one with smaller area will always be ipsi - some sections are mounted in flipped
+  orientation"). Image side is wrong for both PS93 slides and PS92 section 1. Checked against the GFAP scar on all 24
+  sections. Ratio <= 100 by construction: do not use this rule for shams / unlesioned animals.
+- OUTPUT: `<microscope>/Widefield/histology/` and a copy of PNG/SVG/CSV in the QuPath project folder (Priya).
+RESULT: PS92 46.7 +/- 1.4 (n=7), PS93 49.0 +/- 5.0 (n=6; one section at 69.1), PS94 67.7 +/- 1.1 (n=5),
+PS95 81.9 +/- 0.4 (n=6).

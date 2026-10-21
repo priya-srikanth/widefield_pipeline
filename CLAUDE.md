@@ -432,6 +432,8 @@ animals (jaw steering toward the target drops acutely in all four), LP r4 ctx-se
 — superseded by 10-15; cam4 pose-model selection (five models, human lick review, the EKS correction), what is
 training in WSL, side-camera labelling plan, WSL GPU safety, pitfalls.
 
+**[`docs/HISTOLOGY.md`](docs/HISTOLOGY.md)** — post-stroke lesion burden (ipsi/contra caudoputamen % area, PS92-95), read straight from the QuPath project (`wfield_local/qupath_io.py`, `scripts/import_histology_areas.py`, `wfield_local/histology_area.py`). Ipsi = the smaller outline (flipped mounts).
+
 **[`docs/OROFACIAL_FINDINGS.md`](docs/OROFACIAL_FINDINGS.md)** — the cam4 pre- vs post-stroke licking findings so far (preliminary; numbers re-checked against `cohort/tables/prepost/stats/RESULTS.md`).
 
 **[`docs/POSE_MODELS.md`](docs/POSE_MODELS.md)** — the pose-model register (cam4, and cam1 round 2 in Part B): every model, settings + rationale, results, how we

@@ -17,7 +17,9 @@ Data = `configs/histology_striatum_area.csv`, imported from the QuPath project b
 
 CLI::
 
-    python -m wfield_local.histology_area [--out DIR]
+    python -m wfield_local.histology_area [--out DIR]     # default <microscope>/Widefield/histology
+
+Also copy the PNG/SVG/CSV into the QuPath project folder (Priya, 2026-10-21); see docs/HISTOLOGY.md.
 """
 from __future__ import annotations
 
@@ -101,14 +103,14 @@ def render(out_dir, data=DATA, log=print) -> Path:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--out", default=None, help="output dir (default: <labcams>/grant_figures/histology)")
+    ap.add_argument("--out", default=None, help="output dir (default: <microscope>/Widefield/histology)")
     ap.add_argument("--data", type=Path, default=DATA)
     a = ap.parse_args(argv)
     if a.out:
         out = Path(a.out)
     else:
         from wfield_local.paths import PathResolver
-        out = Path(PathResolver().root("labcams")) / "grant_figures" / "histology"
+        out = Path(PathResolver().root("microscope")) / "Widefield" / "histology"
     render(out, data=a.data)
     return 0
 
