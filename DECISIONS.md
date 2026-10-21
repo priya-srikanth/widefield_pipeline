@@ -21076,3 +21076,19 @@ pre) and in PS92 / PS93 at every spout, not specifically far contra. PS92 / PS93
 first attempt far contra 963 / 850 ms vs 273 / 305 pre), not missing ones. The canonical gate drops many attempted trials
 (e.g. 76 / 444 PS92 acute far contra, 84 / 1100 PS95 chronic). Limitation: completion floors acutely, so `ttc` resolves
 subacute recovery well and the first acute days poorly.
+
+## 2026-10-21 (night) -- Epoch scalar families + CD on the mixed models
+
+The other window's `scripts/epoch_sessions_long.py` emits per-session long tables (`grant_figures/epoch/data/
+*_sessions_long.csv`; pre sessions scored leave-one-out, August pre). `scripts/imaging_lmm.py` source `epoch`: families
+8g / 10 / 10b / 11 / 11amp / 11pos / 11c -> time / behaviour / epoch models (source `epoch:<family>`, measure "<measure>
+| <arm> / <variant> [| <position>]"); **CD window projections -> post-only models only** (their pre rows are in-sample:
+directions fitted on them, so a step from pre would be biased). 10b is 0/1 per session -- the linear fit is descriptive.
+Figures `qc/figures/imaging_lmm_epoch-<family>_{time,behaviour}[_contact].png` (':' is illegal in Windows filenames;
+an empty stray `qc/figures/imaging_lmm_epoch` from the first render can be deleted).
+**First reading (index ttc):** frozen pre-stroke encoder EV (11, cue / working) drops at day 1 (z -10.2), recovers with
+log days (z 7.2) and is still below pre at full behavioural recovery (z -4.1); best-match accuracy (10, cue) the same
+(-8.7 / +5.9 / -4.1); far-contra own-position best match (10b) tracks the deficit (z -19.1) and is back at pre at full
+recovery (z -0.7); the encoder ceiling (11c) is at / above pre at recovery (z +1.3, n.s.). With the frozen-decoder
+trajectory (G_reorg) this says: identity of far contra returns with behaviour, but the pre-stroke frozen code does not
+fully -- reorganised code.

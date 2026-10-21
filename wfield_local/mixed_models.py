@@ -13,7 +13,7 @@ factor:
   time       y ~ post + post:lday        post = 1 after the stroke; lday = log(days since stroke), 0 at day 1
              -> `post` = the day-1 step vs pre, `post:lday` = change per e-fold of days (fast early, slow late)
   behaviour  y ~ post + post:deficit     deficit = (animal's August-pre mean - session) / pre mean of a behavioural
-             recovery measure (default far-contra contact), 0 = pre level, 1 = total loss, 0 for pre sessions
+             index (`DEFICITS`; default ttc = far-contra time to contact, (session - pre) / pre), 0 = pre level, 0 for pre sessions
              -> `post` = change still present at FULL behavioural recovery, `post:deficit` = change per unit deficit
              (recovery TIMING differs per animal; indexing by behaviour aligns it -- Priya 10-20)
   epoch      y ~ C(epoch)                pre reference; for comparison with the epoch tables
@@ -209,8 +209,8 @@ def summary_table(T: pd.DataFrame, by: list[str]) -> pd.DataFrame:
 
 ANIMAL_COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
 #: x axis per model: behavioural deficit or days since stroke
-_X = {"behaviour": ("deficit", "behavioural deficit (0 = pre level, 1 = total loss)"),
-      "behaviour_post": ("deficit", "behavioural deficit (0 = pre level, 1 = total loss)"),
+_X = {"behaviour": ("deficit", "behavioural deficit, relative to pre (0 = pre level; larger = worse; mixed_models.DEFICITS)"),
+      "behaviour_post": ("deficit", "behavioural deficit, relative to pre (0 = pre level; larger = worse; mixed_models.DEFICITS)"),
       "time": ("day", "days since stroke (pre sessions at their negative days)"),
       "time_post": ("day", "days since stroke")}
 
