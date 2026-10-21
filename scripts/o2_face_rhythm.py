@@ -113,7 +113,7 @@ def setup(task, threads, mode="r+"):
     cv2.setNumThreads(threads)
     r = task_row(task)
     P = json.loads((B / "params.json").read_text())
-    s = SimpleNamespace(r=r, P=P, key=f"{r.animal}_{r.date}_{r.cam}")
+    s = SimpleNamespace(r=r, P=P, key=getattr(r, "key", None) or f"{r.animal}_{r.date}_{r.cam}")
     rp = B / "rois" / f"{r.animal}_{r.date}" / "ROIs.h5"
     if not rp.exists():
         sys.exit(f"no ROIs.h5 at {rp} -- run the rois rsync in COMMANDS.md step 1 once it exists")
@@ -292,7 +292,7 @@ def main():
     global S
     task = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ["SLURM_ARRAY_TASK_ID"])
     r = task_row(task)
-    key = f"{r.animal}_{r.date}_{r.cam}"
+    key = getattr(r, "key", None) or f"{r.animal}_{r.date}_{r.cam}"
     out = B / "out"
     out.mkdir(exist_ok=True)
     summ = out / f"{key}_summary.json"
@@ -423,6 +423,8 @@ def engaged_only(tr: dict, animal: str, date: str, sd: Path) -> tuple[dict, str]
     has no usable flag; the label says which."""
     from wfield_local import orofacial_cohort as oc
     keep, label = oc.engagement_keep(animal, date, sd)
+    if "matched by" in label:                  # e.g. 08/06 (dead spout_bit1): behaviour table from the GUI log, 1-based
+        label = "reference (behaviour ids differ from ours; matched by " + label.split("(matched by ")[1].split(":")[0] + ")"
     if keep is None:
         return tr, label
     m = np.isin(tr["trial_id"], sorted(keep))
@@ -449,33 +451,41 @@ def _n_points(h5: Path) -> int | None:
         return None
 
 
-def bundle_session(job) -> dict:
-    """One session's trial grid (-> ``trials/``) and tasks.tsv row; raises on anything that makes it unrunnable.
-    Module-level for `fan_sessions` (spawn pickles by name)."""
+def bundle_session(job) -> list[dict]:
+    """One session's trial grids (-> ``trials/``) and tasks.tsv rows, ONE PER VIDEO: a split / concatenated session
+    (PS92_0812: two cam4 videos) has ``ix_video`` in its windows and ``ix_src_frame`` restarting in each video, so each
+    video is its own task (key ``<a>_<d>_cam4_v<k>``) with its own trials and source-frame -> DAQ fit. Raises on
+    anything that makes the session unrunnable. Module-level for `fan_sessions` (spawn pickles by name)."""
     from wfield_local import o2_inference as oi
     from wfield_local.paths import PathResolver
     animal, date, all_trials, d, s = job
     rv = PathResolver()
     sd = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date
     vids = json.loads((sd / "manifest.json").read_text())["videos"]
-    if len(vids) != 1:
-        raise ValueError(f"{len(vids)} videos (one task = one video; windows' src frames index one)")
-    v = vids[0]
-    vp = Path(rv.root("behavior_cameras")) / date / animal / v["video"]
-    if not vp.exists():
-        raise FileNotFoundError(vp)
-    tr = trial_frames(np.load(sd / "windows.npz"))
-    n_all = len(tr["trial_id"])
-    tr, gate = (tr, "off (all trials)") if all_trials else engaged_only(tr, animal, date, sd)
-    np.savez_compressed(Path(d) / "trials" / f"{animal}_{date}_{CAM}.npz", gate=gate, n_trials_all=n_all, **tr)
+    w = np.load(sd / "windows.npz")
+    cols = ("ix_trial_id", "ix_src_frame", "ix_t_daq_ms", "ix_daq_s", "ix_position")
+    if len(vids) > 1 and "ix_video" not in w.files:
+        raise ValueError(f"{len(vids)} videos but no ix_video in windows.npz")
     h5 = rois_dir(rv) / f"{animal}_{date}" / "ROIs.h5"
     n_pts = _n_points(h5) if h5.exists() else None
-    return {"animal": animal, "date": date, "cam": CAM, "video": v["video"], "n_frames": int(v["n_frames"]),
-            "n_trials": len(tr["trial_id"]), "n_trials_all": n_all, "gate": gate, "rois_ready": h5.exists(),
-            "n_points": n_pts or "", "video_share": oi.o2_path(vp, rv),
-            "video_o2": f"{s}/o2_videos/{date}/{animal}/{v['video']}",
-            "grid_covered": float(np.isfinite(tr["src_frame"]).mean()),
-            "daq_fit_resid_ms": tr["daq_fit_max_resid_ms"]}
+    rows = []
+    for k, v in enumerate(vids):
+        vp = Path(rv.root("behavior_cameras")) / date / animal / v["video"]
+        if not vp.exists():
+            raise FileNotFoundError(vp)
+        m = (w["ix_video"].astype(str) == v["video"]) if len(vids) > 1 else slice(None)
+        tr = trial_frames({c: w[c][m] for c in cols})
+        n_all = len(tr["trial_id"])
+        tr, gate = (tr, "off (all trials)") if all_trials else engaged_only(tr, animal, date, sd)
+        key = f"{animal}_{date}_{CAM}" + (f"_v{k + 1}" if len(vids) > 1 else "")
+        np.savez_compressed(Path(d) / "trials" / f"{key}.npz", gate=gate, n_trials_all=n_all, **tr)
+        rows.append({"key": key, "animal": animal, "date": date, "cam": CAM, "video": v["video"],
+                     "n_frames": int(v["n_frames"]), "n_trials": len(tr["trial_id"]), "n_trials_all": n_all,
+                     "gate": gate, "rois_ready": h5.exists(), "n_points": n_pts or "", "video_share": oi.o2_path(vp, rv),
+                     "video_o2": f"{s}/o2_videos/{date}/{animal}/{v['video']}",
+                     "grid_covered": float(np.isfinite(tr["src_frame"]).mean()),
+                     "daq_fit_resid_ms": tr["daq_fit_max_resid_ms"]})
+    return rows
 
 
 def estimates(T: pd.DataFrame, p: dict) -> dict:
@@ -511,9 +521,9 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
                                  key=lambda j: (j[0], j[1]))
     for j, e in fails:
         print(f"  !! {j[0]}_{j[1]}: {e} -- skipped")
-    T = pd.DataFrame([row for _, row in res])
+    T = pd.DataFrame([row for _, rows in res for row in rows])
     for row in T.itertuples():
-        print(f"  {row.animal}_{row.date}: {row.n_frames} frames, {row.n_trials}/{row.n_trials_all} trials "
+        print(f"  {row.key}: {row.n_frames} frames, {row.n_trials}/{row.n_trials_all} trials "
               f"[{row.gate}], grid covered {row.grid_covered:.1%}, DAQ fit resid {row.daq_fit_resid_ms:.1f} ms, "
               f"ROIs {'yes' if row.rois_ready else 'not yet'}")
     T.drop(columns=["grid_covered", "daq_fit_resid_ms"]).to_csv(d / "tasks.tsv", sep="\t", index=False,
@@ -636,7 +646,7 @@ def cmd_collect(name: str) -> None:
     T = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
     rows = []
     for r in T.itertuples():
-        key = f"{r.animal}_{r.date}_{r.cam}"
+        key = getattr(r, "key", None) or f"{r.animal}_{r.date}_{r.cam}"
         sj = d / "out" / f"{key}_summary.json"
         fs = {k: d / "out" / f"{key}_{k}.npz" for k in ("trials", "session", "points")}
         if not sj.exists() or not all(f.exists() for f in fs.values()):
@@ -648,7 +658,7 @@ def cmd_collect(name: str) -> None:
         if tuple(sh["trials"]["spec"][:4]) != exp_tr:
             print(f"  !! {key}: trials spec {sh['trials']['spec']} != {exp_tr}")
             continue
-        rows.append({"animal": r.animal, "date": r.date, "cam": r.cam, "n_points": S["n_points"],
+        rows.append({"key": key, "animal": r.animal, "date": r.date, "cam": r.cam, "n_points": S["n_points"],
                      "n_trials": int(r.n_trials), "gate": getattr(r, "gate", ""),
                      "violation_fraction": S["violation_fraction"],
                      "mean_points_violating": S["mean_points_violating"],
