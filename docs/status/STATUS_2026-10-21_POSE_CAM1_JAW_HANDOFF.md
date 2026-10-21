@@ -33,6 +33,18 @@ Fix = interpolate over those frames (20.8 Hz power down 4-8x): `scripts/attempt_
 documented in `wfield_local/roi_motion.py`. Told the FaceRhythm window (interpolate point displacements over those
 frames before the VQT, or expect a 20.8 Hz band). The published review clips predate this fix (5-frame median only).
 
+**FaceRhythm registration SMOOTHING (10-21 ~11:00, after Priya saw wiggly contours / bunched points):** the DeepFlow
+field now has THREE zones (`face_rhythm_register.register`): MOUTH (within MOUTH_R 80 px of the template's rest jaw,
+ramp SHELL_PX) = raw field (Priya: keep the mouth edge); face INTERIOR (inside Priya's master face polygon, carried into
+each animal template through its template->master field) = INNER_SMOOTH_PX 8 px Gaussian; OUTER SHELL (50 px band inside
+the contour, ramp) and outside = SMOOTH_PX 25 px. Results vs unsmoothed: face landmark error UNCHANGED (jaw 2.8-4.3, nose
+1.6-5.2 px), mouth 0.0 px change, bunched points (< 4 px neighbour of 2,287) median 45 -> 0, worst 305 -> 82 (PS93: its
+template->master field had fold seams along the left pad / under the snout, inherited by every PS93 session), spacing p5
+4.9 -> 6.5 px (`register/qc_spacing.csv`, `register/qc_bunching.png`). Uniform 10-20 px smoothing was rejected (cost PS92
+/ PS93 jaw 3-4 -> 6-7 px); a radius-around-the-nose blend did not follow the face. Earlier field sets kept:
+`register_v1_postmaster_20261021/` (PS93 master), `register_v2_unsmoothed_20261021/`. The per-session ROIs were REWRITTEN
+from the 3-zone fields (each rewrite moves the old file aside as ROIs_<time>.h5) -> rsync to O2 only this version.
+
 **FaceRhythm ROIs WRITTEN:** Priya saved the master ROI on PS95_20260812 (10:21; 2,287 points; earlier versions kept as
 ROIs_<time>.h5). `face_rhythm_warp_rois.py to-sessions` -> `face_rhythm/cam4/rois/<a>_<d>/ROIs.h5` for all 107
 non-June sessions (106 + master; PS92_0812's two videos share one), same 2,287-point mesh, none outside the image;

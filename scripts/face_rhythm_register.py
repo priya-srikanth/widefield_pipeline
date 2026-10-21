@@ -59,6 +59,7 @@ def medoid(ims: dict) -> str:
 
 
 FACE = ("nose", "jaw")
+SMOOTH_PX, SHELL_PX, MOUTH_R, INNER_SMOOTH_PX = 25.0, 50.0, 80.0, 8.0
 FACE_WEIGHT = 3
 
 
@@ -84,7 +85,32 @@ def face_err(F: np.ndarray, lm_t: dict, lm_m: dict) -> float:
     return float(np.max(e)) if e else np.nan
 
 
-def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict) -> tuple[np.ndarray, str]:
+def mouth_weight(shape, mouth) -> np.ndarray:
+    """(H, W) 1 within MOUTH_R of the resting jaw, ramping to 0 over SHELL_PX: the RAW field is kept there."""
+    H, W = shape
+    if mouth is None or not np.isfinite(mouth).all():
+        return np.zeros((H, W), np.float32)
+    gx, gy = np.meshgrid(np.arange(W), np.arange(H))
+    return np.clip((MOUTH_R + SHELL_PX - np.hypot(gx - mouth[0], gy - mouth[1])) / SHELL_PX, 0, 1).astype(np.float32)
+
+
+def shell_weight(poly, shape, mouth=None) -> np.ndarray:
+    """(H, W) weight of the RAW non-rigid field: 1 inside the face polygon deeper than SHELL_PX, ramping to 0 at the
+    contour, 0 outside (the OUTER SHELL gets the smoothed field); EXCEPT within MOUTH_R of the resting jaw (``mouth``),
+    kept raw (Priya: keep the edge about the mouth, bottom centre)."""
+    import cv2
+    H, W = shape
+    m = np.zeros((H, W), np.uint8)
+    cv2.fillPoly(m, [np.round(np.asarray(poly)).astype(np.int32)], 1)
+    d = cv2.distanceTransform(m, cv2.DIST_L2, 5)
+    w = np.clip(d / SHELL_PX, 0, 1)
+    if mouth is not None and np.isfinite(mouth).all():
+        gx, gy = np.meshgrid(np.arange(W), np.arange(H))
+        w = np.maximum(w, np.clip((MOUTH_R + SHELL_PX - np.hypot(gx - mouth[0], gy - mouth[1])) / SHELL_PX, 0, 1))
+    return w.astype(np.float32)
+
+
+def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict, poly_t=None) -> tuple[np.ndarray, str]:
     """((H, W, 2) field template px -> moving px, method): landmark similarity, then DeepFlow on the
     similarity-warped image, CHAINED here; the similarity alone when DeepFlow worsens the face landmarks."""
     import cv2
@@ -95,6 +121,22 @@ def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict) -
     al = fr.rois.Image_Aligner(verbose=False)
     D = np.asarray(al.fit_nonrigid(template=template, ims_moving=[warped], template_method="image",
                                    mode_transform="createOptFlow_DeepFlow"))[0].astype(np.float32)
+    # OUTER-SHELL SMOOTHING (10-21, Priya: warped ROI contours wiggled, PS94_0823 bulged; "the inner alignment is good";
+    # "an outer shell based choice"): DeepFlow is noisy where the face has little texture (outer fur). The raw field is
+    # kept INSIDE the master face ROI (carried into this template), blended across a SHELL_PX band inside its contour to
+    # a SMOOTH_PX Gaussian of it, which is used outside. (A uniform 10-20 px smoothing cost PS92 / PS93 face accuracy:
+    # jaw 3-4 -> 6-7 px; a radius around the nose did not follow the face.) No ROI yet -> raw field everywhere.
+    if poly_t is not None:
+        H, W = template.shape
+        grid = np.stack(np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32)), -1)
+        disp = D - grid
+        # three zones (10-21): MOUTH raw; face INTERIOR lightly smoothed (INNER_SMOOTH_PX: DeepFlow fold seams squeezed
+        # rows of points together, worst in PS93's template); OUTER SHELL / outside SMOOTH_PX
+        wm = mouth_weight((H, W), lm_t.get("jaw"))[..., None]
+        ws = shell_weight(poly_t, (H, W))[..., None]
+        inner = cv2.GaussianBlur(disp, (0, 0), INNER_SMOOTH_PX)
+        outer = cv2.GaussianBlur(disp, (0, 0), SMOOTH_PX)
+        D = grid + wm * disp + (1 - wm) * (ws * inner + (1 - ws) * outer)
     T = cv2.remap(S, D[..., 0], D[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
     es, et = face_err(S, lm_t, lm_m), face_err(T, lm_t, lm_m)
     if np.isfinite(et) and np.isfinite(es) and et > max(es, 8.0):
@@ -103,8 +145,8 @@ def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict) -
 
 
 def _reg_job(args):
-    key, template, moving, lm_t, lm_m = args
-    f, how = register(template, moving, lm_t, lm_m)
+    key, template, moving, lm_t, lm_m, poly_t = args
+    f, how = register(template, moving, lm_t, lm_m, poly_t)
     return key, (f, how)
 
 
@@ -144,6 +186,7 @@ def main(argv=None) -> int:
     tmpl = {an: medoid({s: ims[s] for s in ims if s.startswith(an) and s in pool}) for an in animals}
     print("animal templates:", tmpl, flush=True)
 
+    import face_rhythm as fr
     # master: medoid of the animal templates AFTER a pairwise landmark similarity alignment
     T = {an: ims[tmpl[an]] for an in animals}
     sc = {}
@@ -162,9 +205,22 @@ def main(argv=None) -> int:
     print("master:", master_an, master_s, {k: round(v, 3) for k, v in sc.items()}, flush=True)
 
     # fields: animal template -> master, session -> animal template (parallel)
-    jobs = [(("A", an), M, T[an], LM[master_s], LM[tmpl[an]]) for an in animals if an != master_an]
-    jobs += [(("S", s), ims[tmpl[s[:4]]], ims[s], LM[tmpl[s[:4]]], LM[s]) for s in sorted(ims) if s != tmpl[s[:4]]]
+    # the master FACE polygon (Priya's ROI), if drawn: decides the outer shell (`shell_weight`). Two passes: animal
+    # templates -> master first, so the polygon can be carried into each template for its sessions' registrations.
+    poly_m = None
+    rf = a.root / "rois" / master_s / "ROIs.h5"
+    if rf.exists():
+        poly_m = np.asarray(fr.rois.ROIs(select_mode="file", path_file=str(rf), verbose=0).roi_points["face"], float)
     F, HOW = {}, {}
+    jobs = [(("A", an), M, T[an], LM[master_s], LM[tmpl[an]], poly_m) for an in animals if an != master_an]
+    with ProcessPoolExecutor(max_workers=a.jobs) as ex:
+        for k, (f, how) in ex.map(_reg_job, jobs):
+            F[k], HOW[k] = f, how
+    H0, W0 = M.shape
+    ident0 = np.stack(np.meshgrid(np.arange(W0, dtype=np.float32), np.arange(H0, dtype=np.float32)), -1)
+    poly_t = {an: (None if poly_m is None else sample(F.get(("A", an), ident0), poly_m)) for an in animals}
+    jobs = [(("S", s), ims[tmpl[s[:4]]], ims[s], LM[tmpl[s[:4]]], LM[s], poly_t[s[:4]])
+            for s in sorted(ims) if s != tmpl[s[:4]]]
     with ProcessPoolExecutor(max_workers=a.jobs) as ex:
         for k, (f, how) in ex.map(_reg_job, jobs):
             F[k], HOW[k] = f, how
