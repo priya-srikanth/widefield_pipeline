@@ -129,6 +129,9 @@ def setup(task, threads, mode="r+", P=None, work=True):
     rois = fr.rois.ROIs(select_mode="file", path_file=str(rp), verbose=0)
     if rois.point_positions is None:
         sys.exit(f"{rp} has no point_positions (expected the master mesh warped to this session)")
+    if P["tracking"].get("point_spacing"):                  # parameter test only: reseed inside face AND mask
+        rois.make_points(rois=[rois[0], rois[1]] if len(rois) > 1 else [rois[0]],
+                         point_spacing=int(P["tracking"]["point_spacing"]))
     s.home = np.ascontiguousarray(rois.point_positions, dtype=np.float32)
     s.NP = len(s.home)
     mask = rois[1] if len(rois) > 1 else rois[0]
@@ -442,6 +445,8 @@ for _nm, _rig, _nb, _rel in (("mid", 0.03, 24, 0.005), ("soft", 0.01, 24, 0.003)
     _t = json.loads(json.dumps(PARAMS["tracking"]))
     _t["params_optical_flow"].update(mesh_rigidity=_rig, mesh_n_neighbors=_nb, relaxation=_rel)
     PARAM_SETS[_nm] = _t
+for _nm in ("mid", "soft"):                                  # point spacing 12 px (vs 9): ~1.8x fewer points
+    PARAM_SETS[f"{_nm}s12"] = {**json.loads(json.dumps(PARAM_SETS[_nm])), "point_spacing": 12}
 
 PARAM_TEST = r'''"""O2: one tracking-parameter set on a frame range of one task's video (o2_face_rhythm.py paramtest).
 
