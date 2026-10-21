@@ -17,8 +17,8 @@ collect (this desktop): checks every task's outputs (shapes from the npy headers
 ``<dlc>/face_rhythm/cam4/o2_<name>_index.csv`` (paths + violation fractions). The npz files stay in the bundle's
 ``out/`` (~10-30 GB per session at ~1500 points), not copied again.
 
-Runner (O2, per task): tracking with the paper's values (PARAMS["tracking"]; LK criteria, halting frames and CLAHE as
-the 10-21 pilot) in ``segment_frames`` (10 min) segments that each restart at the home positions. Segments are
+Runner (O2, per task): tracking with the ``midlk12`` values chosen in the 10-21 parameter test (PARAMS["tracking"];
+the master mesh at 12 px) in ``segment_frames`` (10 min) segments that each restart at the home positions. Segments are
 therefore independent and run in ``workers`` parallel processes (FR's tracking loop is one Python thread per frame,
 so one process cannot use more than ~1-2 cores); each worker writes only the bins its segment owns into shared
 float16 memmaps (``work/<key>/``), the parent records finished segments (``progress.json``: a resubmitted task resumes)
@@ -47,8 +47,9 @@ import pandas as pd
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 CAM = "cam4"
 T_MS = np.arange(-2000.0, 4000.0 + 1, 40.0)          # trial grid on the DAQ clock (ms from cue); 40 ms = 25 Hz bins
-PILOT_POINTS = 1514                                    # 10-21 pilot (point_spacing 9) -- size estimates until ROIs exist
-PILOT_FPS, PILOT_VQT_FPS = 100.0, 3200.0               # 10-21 pilot, one process, 1514 points
+PILOT_POINTS = 1282                                    # master mesh at 12 px -- size estimates where no ROIs yet
+PILOT_VQT_FPS = 3200.0                                 # 10-21 desktop pilot, one process, 1514 points
+O2_FPS = 19.0                                          # 10-21 param test on O2: midlk12, 1282 points, 2 threads / process
 PARAMS = {
     "fps": 250,
     "workers": 4,                                      # parallel segments per task (2 threads each)
@@ -65,10 +66,14 @@ PARAMS = {
     "notch_hz": [250 / 12, 2 * 250 / 12, 3 * 250 / 12],   # 20.83 / 41.67 / 62.5 Hz (62.5 leaks into the 60 Hz bin)
     "notch_q": 30,
     "reader": {"buffer_size": 250, "prefetch": 1, "posthold": 1, "backend": "decord"},
+    # = PARAM_SETS["midlk12"] (10-21 parameter test, Priya's choice): a mesh between paper's and oldrun's (rigidity 0.03,
+    # 24 neighbours, relaxation 0.005) with oldrun's optical flow (50 px, 5 levels). Fewest folds of every set, jitter
+    # below paper, nose rest gain 0.97, jaw R2 0.69 (= oldrun). Point spacing 12 px is in the master mesh (ROIs.h5),
+    # not here: a "point_spacing" key would re-seed each session and break the point correspondence across sessions.
     "tracking": {
-        "params_optical_flow": {"method": "lucas_kanade", "mesh_rigidity": 0.1, "mesh_n_neighbors": 24,
-                                "relaxation": 0.01,
-                                "kwargs_method": {"winSize": [40, 40], "maxLevel": 3, "criteria": [3, 3, 0.03]}},
+        "params_optical_flow": {"method": "lucas_kanade", "mesh_rigidity": 0.03, "mesh_n_neighbors": 24,
+                                "relaxation": 0.005,
+                                "kwargs_method": {"winSize": [50, 50], "maxLevel": 5, "criteria": [3, 2, 0.0003]}},
         "params_outlier_handling": {"threshold_displacement": 300, "framesHalted_before": 10,
                                     "framesHalted_after": 10},
         "params_clahe": {"clipLimit": 40.0, "tileGridSize": [150, 150]},
@@ -455,7 +460,12 @@ if __name__ == "__main__":
 
 # Tracking-parameter sets for `paramtest` (10-21: the plan's "paper" values were never checked on this rig).
 PARAM_SETS = {
-    "paper": PARAMS["tracking"],
+    "paper": {"params_optical_flow": {"method": "lucas_kanade", "mesh_rigidity": 0.1, "mesh_n_neighbors": 24,
+                                      "relaxation": 0.01, "kwargs_method": {"winSize": [40, 40], "maxLevel": 3,
+                                                                            "criteria": [3, 3, 0.03]}},
+              "params_outlier_handling": {"threshold_displacement": 300, "framesHalted_before": 10,
+                                          "framesHalted_after": 10},
+              "params_clahe": {"clipLimit": 40.0, "tileGridSize": [150, 150]}},
     # the earlier 2pRAM cohort's production run (MICROSCOPE/Priya/FaceRhythm/fr_run_20250520_latent_bundle, params.json)
     "oldrun": {"params_optical_flow": {"method": "lucas_kanade", "mesh_rigidity": 0.002, "mesh_n_neighbors": 90,
                                        "relaxation": 0.002, "kwargs_method": {"winSize": [50, 50], "maxLevel": 5,
@@ -474,7 +484,7 @@ PARAM_SETS = {
 # 10-21 round 2 (Priya: paper too stiff at the nose; frdefault's mesh buckles): softer meshes on paper's optical flow,
 # and oldrun's mesh on paper's cheaper LK (is oldrun's nose fidelity its mesh, at about paper's speed?)
 for _nm, _rig, _nb, _rel in (("mid", 0.03, 24, 0.005), ("soft", 0.01, 24, 0.003), ("oldmesh", 0.002, 90, 0.002)):
-    _t = json.loads(json.dumps(PARAMS["tracking"]))
+    _t = json.loads(json.dumps(PARAM_SETS["paper"]))
     _t["params_optical_flow"].update(mesh_rigidity=_rig, mesh_n_neighbors=_nb, relaxation=_rel)
     PARAM_SETS[_nm] = _t
 for _nm in ("mid", "soft"):                                  # point spacing 12 px (vs 9): ~1.8x fewer points
@@ -489,6 +499,8 @@ for _nm, _rel in (("midlk12", 0.005), ("midlk12lr", 0.0025)):
 _t = json.loads(json.dumps(PARAM_SETS["midlk12"]))                  # up to 3 LK iterations, stop at < 0.03 px
 _t["params_optical_flow"]["kwargs_method"]["criteria"] = [3, 3, 0.03]
 PARAM_SETS["midlk12i3"] = _t
+assert PARAMS["tracking"] == {k: v for k, v in PARAM_SETS["midlk12"].items() if k != "point_spacing"}, \
+    "production tracking params drifted from the tested midlk12 set"
 
 PARAM_TEST = r'''"""O2: one tracking-parameter set on a frame range of one task's video (o2_face_rhythm.py paramtest).
 
@@ -631,14 +643,16 @@ def bundle_session(job) -> list[dict]:
 
 
 def estimates(T: pd.DataFrame, p: dict) -> dict:
-    """Per-task hours, peak RAM and output GB at the pilot's rates (``PILOT_POINTS`` where no ROIs yet)."""
+    """Per-task hours, peak RAM and output GB (``PILOT_POINTS`` where no ROIs yet). Tracking at the O2 param-test rate
+    per worker, in whole rounds of segments (a session of 12 segments on 8 workers takes 2 rounds, not 1.5)."""
     npt = pd.to_numeric(T.n_points, errors="coerce").fillna(PILOT_POINTS)
     nf, nw = p["vqt"]["params_VQT"]["n_freq_bins"], p["workers"]
     gb = (T.n_trials * len(T_MS) * 2 * npt * nf * 2 + T.n_frames / 50 * 2 * npt * nf * 2
           + T.n_frames / 10 * npt * 2 * 2) / 1e9
-    ovh = 1 + (p["warmup_frames"] + p["margin_frames"]) / p["segment_frames"]
+    seg_f = p["segment_frames"] + p["warmup_frames"] + p["margin_frames"]
+    rounds = np.ceil(np.ceil(T.n_frames / p["segment_frames"]) / nw)
     scale = npt / PILOT_POINTS
-    hours = (T.n_frames * ovh * scale / PILOT_FPS + T.n_frames * scale / PILOT_VQT_FPS) / nw / 3600 \
+    hours = (rounds * seg_f / O2_FPS + T.n_frames * scale / PILOT_VQT_FPS / nw) / 3600 \
         + gb / 0.2 / 3600                                                # final npz write at ~200 MB/s
     seg = p["segment_frames"] * 1.25 + p["warmup_frames"] + p["margin_frames"]
     worker = (seg * npt.max() * 8 + 3 * p["reader"]["buffer_size"] * 680 * 680 * 3
@@ -680,7 +694,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
 
     E = estimates(T, p)
     hours, gb = E["hours"], E["gb"]
-    t_lim = int(min(12, max(3, np.ceil(2.5 * hours.max()))))            # pilot rates are a desktop guess: 2.5x room
+    t_lim = int(min(12, max(3, np.ceil(1.5 * hours.max()))))            # O2-measured rate: 1.5x room (shared nodes)
     cpus = 2 * p["workers"]
     mem = int(min(64, np.ceil(E["ram"] * 1.25 / 4) * 4))
     n_ready = int(T.rois_ready.sum())
