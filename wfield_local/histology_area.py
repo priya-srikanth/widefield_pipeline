@@ -36,15 +36,27 @@ from wfield_local import config
 
 REPO = Path(__file__).resolve().parent.parent
 DATA = REPO / "configs" / "histology_striatum_area.csv"
+# Sections dropped from the plot and statistics, keyed by (animal, image, slide_section), each with a reason.
+# Kept in the output CSV with included=False so the exclusion stays visible.
+EXCLUSIONS = REPO / "configs" / "histology_section_exclusions.csv"
 STEM = "histology_striatum_ipsi_contra_pct_area"
 TITLE = "Caudoputamen ipsi/contra % area"
 YLABEL = "Ipsi/contra % area"
 
 
-def load(path=DATA) -> pd.DataFrame:
+def load(path=DATA, exclusions=EXCLUSIONS, include_excluded: bool = False) -> pd.DataFrame:
+    """One row per section with ``ipsi_contra_pct``; excluded sections dropped unless ``include_excluded``."""
     df = pd.read_csv(path)
     df["ipsi_contra_pct"] = 100 * df.ipsi_area_um2 / df.contra_area_um2
-    return df
+    df["included"], df["exclude_reason"] = True, ""
+    if exclusions is not None and Path(exclusions).exists():
+        ex = pd.read_csv(exclusions)
+        for _, e in ex.iterrows():
+            m = (df.animal == e.animal) & (df.image == e.image) & (df.slide_section == e.slide_section)
+            if m.sum() != 1:
+                raise ValueError(f"exclusion {e.animal} {e.image} #{e.slide_section} matches {m.sum()} sections")
+            df.loc[m, ["included", "exclude_reason"]] = [False, e.reason]
+    return df if include_excluded else df[df.included].reset_index(drop=True)
 
 
 def per_animal(df: pd.DataFrame) -> pd.DataFrame:
@@ -81,16 +93,21 @@ def plot(df: pd.DataFrame, out_stem: Path, seed: int = 0) -> Path:
 
 def render(out_dir, data=DATA, log=print) -> Path:
     out_dir = Path(out_dir)
-    df = load(data)
+    full = load(data, include_excluded=True)
+    for _, r in full[~full.included].iterrows():
+        log(f"[histology] EXCLUDED {r.animal} section {r.section} ({r.image} #{r.slide_section}, "
+            f"{r.ipsi_contra_pct:.1f}%): {r.exclude_reason}")
+    df = full[full.included].reset_index(drop=True)
     summ = per_animal(df)
     log("[histology] per-animal ipsi/contra % area (mean +/- SEM across sections):")
     log(summ.round(1).to_string())
     png = plot(df, out_dir / STEM)
-    df.to_csv(out_dir / f"{STEM}.csv", index=False, float_format="%.4f")
+    full.to_csv(out_dir / f"{STEM}.csv", index=False, float_format="%.4f")
     try:
         from wfield_local import figure_meta
         figure_meta.write_meta(png, source=str(Path(data).resolve().relative_to(REPO)) if Path(data).resolve().is_relative_to(REPO) else str(data), quantity="100 * ipsi / contra caudoputamen area per section",
                                ipsi_rule="smaller outline of each section (flipped mounts)",
+                               excluded=[f"{r.animal} {r.image} #{r.slide_section}" for _, r in full[~full.included].iterrows()],
                                n_sections={a: int(n) for a, n in summ.n_sections.items()},
                                mean_pct={a: round(float(v), 2) for a, v in summ["mean"].items()},
                                sem_pct={a: round(float(v), 2) for a, v in summ["sem"].items()},

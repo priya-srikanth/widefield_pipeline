@@ -31,7 +31,17 @@ def test_pct_and_per_animal(tmp_path):
     p = tmp_path / "h.csv"
     pd.DataFrame(dict(animal=["A", "A", "B"], section=[1, 2, 1],
                       ipsi_area_um2=[1.0, 3.0, 2.0], contra_area_um2=[2.0, 4.0, 2.5])).to_csv(p, index=False)
-    df = histology_area.load(p)
+    df = histology_area.load(p, exclusions=None)
     assert df.ipsi_contra_pct.tolist() == pytest.approx([50.0, 75.0, 80.0])
     s = histology_area.per_animal(df)
     assert s.loc["A", "mean"] == pytest.approx(62.5) and s.loc["A", "n_sections"] == 2
+
+
+def test_exclusions_drop_from_stats_but_stay_flagged(tmp_path):
+    p, x = tmp_path / "h.csv", tmp_path / "x.csv"
+    pd.DataFrame(dict(animal=["A", "A"], section=[1, 2], image=["s.vsi", "s.vsi"], slide_section=[1, 2],
+                      ipsi_area_um2=[1.0, 3.0], contra_area_um2=[2.0, 4.0])).to_csv(p, index=False)
+    pd.DataFrame(dict(animal=["A"], image=["s.vsi"], slide_section=[2], reason=["posterior"])).to_csv(x, index=False)
+    assert histology_area.load(p, x).section.tolist() == [1]
+    full = histology_area.load(p, x, include_excluded=True)
+    assert full.included.tolist() == [True, False] and full.exclude_reason[1] == "posterior"
