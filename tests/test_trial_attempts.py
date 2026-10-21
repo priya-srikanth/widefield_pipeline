@@ -12,7 +12,7 @@ def _trials(label, pos, rows):
     """rows: (cls, canonical, contact_ms, angle)"""
     out = []
     for i, (cls, can, con, ang) in enumerate(rows):
-        att = cls in ("hit", "incomplete", "jaw_only")
+        att = cls in ta.ATTEMPT_CLASSES
         out.append({"label": label, "trial_id": i, "pos": pos, "cls": cls, "attempted": att, "canonical": can,
                     "contact": con, "n_licks": 1 if cls in ("hit", "incomplete") else 0,
                     "n_nocontact": 1 if cls == "incomplete" else 0, "cam4": 100.0 if att else np.nan,

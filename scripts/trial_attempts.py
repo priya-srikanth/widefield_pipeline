@@ -13,7 +13,12 @@ Per trial, cue .. trial stop (`trial_windows.trial_bounds`; latencies from `scri
               close_center no-lick trials are unknown
   no_try      no lick, jaw judged and still
   unknown     no lick, no usable jaw
-attempted = hit | incomplete | jaw_only (the proposed movement engagement label). `canonical` = the behaviour pipeline's
+attempted = hit | incomplete. jaw_only is a REACTION, not an attempt (Priya's 10-21 blind review, 24 post-stroke
+trials, cam1 + cam4 to the trial stop: 0 / 24 judged attempts; all 11 jaw_only trials were jaw responses without opening
+(6), other movement (4, 2 walking) or still (1); 4 / 6 no_try trials just under the floor also showed a jaw response --
+key session_poses/attempt_review/key.csv). Confounds: sub-threshold walking moves the jaw; some jaw responses follow
+the spout leaving (it starts moving 60-80 ms after stop; detection ends at stop). Until 10-21 jaw_only counted as an
+attempt (outputs copied to qc/superseded_attempts_jaw_20261021/). `canonical` = the behaviour pipeline's
 reference-position gate (`orofacial_cohort.engagement_keep`), which stays the DENOMINATOR: no-try trials inside it are
 kept as their own class, never dropped, so failure to initiate stays measurable.
 
@@ -36,6 +41,7 @@ import numpy as np
 import pandas as pd
 
 CLASSES = ("hit", "incomplete", "jaw_only", "no_try", "unknown")
+ATTEMPT_CLASSES = ("hit", "incomplete")             # jaw_only = reacted (jaw), NOT an attempt (10-21 blind review)
 JAW_UNRELIABLE = ("close_mid",)                     # canonical pos keys (close_center); cam4 occludes the jaw
 JAW_ONSETS = "jaw_onsets.csv"                       # <run>/imaging_encoding/qc, scripts/jaw_onsets.py
 MEASURES = ("attempt_rate", "ttc_ms", "completion", "incomplete_share", "latency_attempt_ms", "latency_move_ms",
@@ -107,7 +113,7 @@ def session_trials(label: str) -> pd.DataFrame:
     mv = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)) & (~T.jaw_at_cue | T.jaw_reonset)
     T["cls"] = np.select([T.contact.notna(), T.n_licks > 0, ok & mv, ok], ["hit", "incomplete", "jaw_only", "no_try"],
                          "unknown")
-    T["attempted"] = T.cls.isin(["hit", "incomplete", "jaw_only"])
+    T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)
     T["canonical"] = True if keep is None else t.isin(keep)
     T["gate"] = gate
     return T
