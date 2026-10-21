@@ -213,7 +213,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--arms", nargs="*", default=list(ARMS))
     ap.add_argument("--families", nargs="*", default=list(FAMILIES))
-    ap.add_argument("--out", type=Path, default=None, help="data dir (default <labcams>/grant_figures/epoch/data)")
+    ap.add_argument("--out", type=Path, default=None, help="figure dir (default <labcams>/grant_figures/epoch; files -> data/)")
     ap.add_argument("--check-arm", default=None, help="validate one arm against the current all-pre files, no writing")
     a = ap.parse_args(argv)
     from wfield_local import analysis_kit as ak
@@ -224,7 +224,8 @@ def main(argv=None) -> int:
     baseline = f"pre from {pre_from}" if pre_from else "all pre (June + August)"
     if a.check_arm is None and not pre_from and set(a.families) - {"cd"}:
         raise SystemExit("set WIDEFIELD_PRE_FROM=0801 (August-only baseline, Priya's rule) or pass --check-arm")
-    out_dir = a.out or Path(cdt.default_out()) / "data"
+    from wfield_local import figure_layout as FL
+    fig_dir = a.out or Path(cdt.default_out())          # the families' figure dir; files go to its data/
     cur = set(ak.curated_labels())
     arms = [a.check_arm] if a.check_arm else ([] if set(a.families) <= {"cd"} else a.arms)
     fams = {"11": fam_11, "8g": fam_8g, "10": fam_10, "11c": fam_11c}
@@ -241,18 +242,18 @@ def main(argv=None) -> int:
         D = _frame(rows, arm, align, variant, baseline)
         D = D[D.label.isin(cur)]
         if a.check_arm:
-            _check(D, out_dir, align, variant)
+            _check(D, fig_dir, align, variant)
             continue
         for fam, g in D.groupby("family"):
             stem = STEMS[fam].format(a=align, v=variant)
             if fam == "10":
                 for meas, gm in g.groupby("measure"):
                     key = "acc" if meas.startswith("best") else "rank"
-                    p = out_dir / f"{stem.replace('best_match_', f'best_match_{key}_')}_sessions_long.csv"
+                    p = FL.sidecar_for(fig_dir, stem.replace('best_match_', f'best_match_{key}_'), "_sessions_long.csv")
                     gm.to_csv(p, index=False)
                     print("  ->", p.name, len(gm))
                 continue
-            p = out_dir / f"{stem}_sessions_long.csv"
+            p = FL.sidecar_for(fig_dir, stem, "_sessions_long.csv")
             g.to_csv(p, index=False)
             print("  ->", p.name, len(g))
     if "cd" in a.families and not a.check_arm:
@@ -268,19 +269,20 @@ def main(argv=None) -> int:
         C.insert(6, "epoch", [epochs.epoch_of(x) for x in C.label])
         C.insert(7, "day", [epochs.days_since_stroke(x) for x in C.label])
         C["baseline"] = "directions fitted on ALL pre (June + August); pre rows in-sample; August pre rows only"
-        p = out_dir / "cd_window_projection_sessions_long.csv"
+        p = FL.sidecar_for(fig_dir, "cd_window_projection", "_sessions_long.csv")
         C.to_csv(p, index=False)
         print("  ->", p.name, len(C))
     return 0
 
 
-def _check(D, out_dir, align, variant):
+def _check(D, fig_dir, align, variant):
     """All-pre run: per animal, post rows in day order == the current _sessions.csv post rows, and the mean of the
     pre LOO rows == its PRE row (8g / 11 / 11c; 10 / 10b differ by design)."""
     from wfield_local import epochs
     for fam, meas, stem, key in (("11", "frozen EV", STEMS["11"], "frozen EV"), ("8g", "row correlation", STEMS["8g"], None),
                                  ("11amp", "gain", STEMS["11amp"], "gain")):
-        f = out_dir / f"{stem.format(a=align, v=variant)}_sessions.csv"
+        from wfield_local import figure_layout as FL
+        f = FL.sidecar_for(fig_dir, stem.format(a=align, v=variant), "_sessions.csv", mkdir=False)
         if not f.exists():
             print(f"  {fam}: no {f.name}")
             continue

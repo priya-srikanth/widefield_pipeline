@@ -160,6 +160,27 @@ simply ignored downstream.
 * **far_center side-view diagonal (PS92 chronic)**: closest-approach points on a line parallel to the rod's slope, in
   EVERY chronic session (28-53 % of far_center licks), 96 % DAQ contact, single-view share 0.59 vs 0.50 -- real contacts,
   probably the tongue sliding along the rod rather than tapping its tip. Unconfirmed: video sheet of those licks to-do.
+* **ENCODING-WINDOW REQUESTS (10-20 late; they own trial_attempts.py / mixed_models.py / imaging_lmm.py -- NOT edited)**
+  - (1) cam1_full windows: 83 curated sessions lacked `session_poses/<a>_<d>_cam1_full/windows_LP.csv` (17 PS93 done on
+    O2 + uncollected, 65 pending on O2, PS93 0813 no video). ALL 44 existing cam1_full folders were on the OLD
+    frame-index clock (no t_daq_ms) -> `trial_attempts.cam1_jaw_moved` used old timing. `o2_inference collect --name
+    lp_cam1_ctx_prod_20261019` re-writing all 61 finished sessions on template time (~5 min / session; task bcr4a0i6y).
+    After it: encoding window should re-run trial_attempts.py.
+  - (3) `jaw_kinematics.jaw_onsets` (the "jaw moved" rule -> onset = first suprathreshold frame of the first 5-of-8
+    window; matches v36 jaw_pass_qc 543 / 543 on PS92 0818) + `scripts/jaw_onsets.py` -> `<v36>/imaging_encoding/qc/
+    jaw_onsets.csv` (cam4 / cam1 moved + onset in DAQ ms from the cue, jaw_onset_ms / _cam = earliest reliable camera,
+    cam4 not at close_center, onset_at_cue). Full run after the re-collect.
+  - (4) `orofacial_cohort.engagement_keep(..., gate="attempted" | "canonical_attempted")` (+ env OROFACIAL_GATE),
+    reads trial_attempts.csv; default "reference" unchanged. trial_attempts.py should pass gate="reference" explicitly.
+  - (2) blind review of the cam1 jaw-moved call (acute no_try / jaw_only, far contra + close center): after the
+    re-collect (template-time cam1 frames).
+  - Per-session LONG tables for the epoch families (`scripts/epoch_sessions_long.py`, WIDEFIELD_PRE_FROM=0801):
+    `<labcams>/grant_figures/epoch/data/<family stem>_<align>_<variant>_sessions_long.csv` for 8g / 10 (acc, rank) /
+    10b / 11 / 11amp / 11pos / 11c x 5 arms (40 files, 108 sessions each); pre sessions each scored LOO against the other
+    (August) pre sessions. Validated (all-pre `--check-arm cue`): post rows == current _sessions.csv, mean of pre rows ==
+    current PRE for 8g / 11 / 11amp. 10 / 10b pre DIFFER by design (per-session argmax, not argmax of the averaged
+    matrix). CD: `cd_window_projection_sessions_long.csv` (1,932 rows; pre-cue [-2,0) / cue [0,1) / lick [0,1) s,
+    diagonal cell) from the ALL-PRE dumps (their cohort guard refuses an August load) -- pre rows IN-SAMPLE, flagged.
 * **WHOLE-SESSION LICKS (encoding window via Priya, 10-20 night)**: "output every lick with a context label (pre_cue /
   post_cue / iti) and an absolute DAQ time, keeping today's post-cue licks.csv columns identical".
   - cam4 needed NO new inference or detection: the O2 LP ran on whole videos, the v36 trial windows (strobe - 0.5 s ..
