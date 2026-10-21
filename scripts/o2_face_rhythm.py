@@ -8,7 +8,7 @@ bundle (this desktop; sessions fanned over cores, `analysis_kit.fan_sessions`): 
 ``windows.npz`` (``ix_src_frame``, ``ix_t_daq_ms``), the fractional source-video frame of every trial-grid time (cue
 -2 .. +4 s on the DAQ clock, 40 ms = the spectrogram's 25 Hz) and a linear source-frame -> DAQ-seconds fit for the
 whole-session outputs -> ``trials/<a>_<d>_cam4.npz``; plus params.json, the runner, an sbatch array (CPU, ``short``)
-and COMMANDS.md -> <DeepLabCut/Widefield>/o2/<name>/. Default sessions = every curated session with v36 cam4 windows;
+and COMMANDS.md -> <DeepLabCut/Widefield>/o2/<name>/. Default sessions = every curated session with v36 cam4 windows except June (``--include-june``);
 trial windows for ENGAGED trials only (the cohort tables' gate, `orofacial_cohort.engagement_keep`, keeps ~90 %;
 ``--all-trials`` for every trial). The ROIs come from ``<dlc>/face_rhythm/cam4/rois/<a>_<d>/ROIs.h5`` (the master
 mesh warped to the session; made in another window) -- the bundle only records whether each exists yet; COMMANDS.md
@@ -431,11 +431,15 @@ def engaged_only(tr: dict, animal: str, date: str, sd: Path) -> tuple[dict, str]
     return {k: (v[m] if k in ("src_frame", "trial_id", "cue_daq_s", "position") else v) for k, v in tr.items()}, label
 
 
-def default_sessions(ro: Path) -> list[tuple[str, str]]:
+def default_sessions(ro: Path, include_june: bool = False) -> list[tuple[str, str]]:
+    """Curated sessions with v36 cam4 windows. JUNE IS LEFT OUT by default: the camera changed after June, so June's
+    registration to the master face fell back to a similarity fit and `face_rhythm_warp_rois.py` writes no June ROIs
+    (pose/3-D window, 10-21); the orofacial baseline is August-only anyway (CLAUDE.md, 10-18)."""
     from wfield_local import analysis_kit as ak
     cur = ak.curated_ids()
     return [(p.parent.name, p.name) for p in sorted((ro / V36 / "sessions").glob("*/*"))
-            if (p / "windows.npz").exists() and f"{p.parent.name}_{p.name}" in cur]
+            if (p / "windows.npz").exists() and f"{p.parent.name}_{p.name}" in cur
+            and (include_june or p.name[4:6] != "06")]
 
 
 def rois_dir(rv) -> Path:
@@ -505,7 +509,7 @@ def estimates(T: pd.DataFrame, p: dict) -> dict:
 
 
 def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg_min: float,
-               all_trials: bool = False, workers: int = 4, jobs: int = 4) -> Path:
+               all_trials: bool = False, workers: int = 4, jobs: int = 4, include_june: bool = False) -> Path:
     from wfield_local import analysis_kit as ak
     from wfield_local import o2_inference as oi
     from wfield_local import writeguard
@@ -516,7 +520,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
     (d / "trials").mkdir(parents=True, exist_ok=True)
     (d / "logs").mkdir(exist_ok=True)
     s = oi.scratch(user)
-    ss = sessions or default_sessions(Path(rv.root("orofacial")))
+    ss = sessions or default_sessions(Path(rv.root("orofacial")), include_june)
     res, fails = ak.fan_sessions([(a, dt, all_trials, str(d), s) for a, dt in ss], bundle_session, jobs=jobs,
                                  key=lambda j: (j[0], j[1]))
     for j, e in fails:
@@ -687,6 +691,8 @@ def main(argv=None) -> int:
     b.add_argument("--seg-min", type=float, default=10.0, help="tracking segment (restart at home), minutes")
     b.add_argument("--workers", type=int, default=4, help="parallel segments per O2 task (2 CPUs each)")
     b.add_argument("--jobs", type=int, default=4, help="sessions in parallel on this desktop (shared box: keep low)")
+    b.add_argument("--include-june", action="store_true",
+                   help="also June sessions (left out by default: no registered ROIs after the camera change)")
     b.add_argument("--all-trials", action="store_true",
                    help="trial windows for every trial (default: engaged trials only, the cohort tables' gate)")
     b.add_argument("sessions", nargs="*", help="animal:YYYYMMDD (default: every curated session with v36 windows)")
@@ -695,7 +701,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.cmd == "bundle":
         ss = [tuple(x.split(":")[:2]) for x in a.sessions] if a.sessions else None
-        cmd_bundle(a.name, a.user, ss, a.seg_min, a.all_trials, a.workers, a.jobs)
+        cmd_bundle(a.name, a.user, ss, a.seg_min, a.all_trials, a.workers, a.jobs, a.include_june)
     else:
         cmd_collect(a.name)
     return 0
