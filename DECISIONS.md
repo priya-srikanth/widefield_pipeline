@@ -21047,3 +21047,32 @@ to 2 ms): the 2 s pre-cue window holds NO-CONTACT licks on 5-44 % of trials (PS9
 pre-cue and ITI kernels, the spontaneous-vs-cued contrast) -- refits pending. 3-D within-spout lateral sign harmonised
 with cam4 (pose3d side_ml + = right); 3-D confirms the crossed executed component (SSp-m within / between pre .18 / .21
 PS92 / PS93, t = 4.4 over 15 pre sessions).
+
+## 2026-10-20 (late) -- Movement-based engagement, attempt classes, and the behavioural index for the mixed models
+
+**Asked (Priya):** a better deficit than the per-lick far-contra contact fraction -- lick evidence from LP (cam4 + cam1),
+complete vs incomplete licks at far mid / far contra, latency; a movement-based engagement label ("call a trial engaged if
+there is any evidence of attempted lick ... analyze no-try trials in the canonical engaged period separately"); jaw
+movement from cam1 OR cam4; avoid circular indices.
+**Decision (`scripts/trial_attempts.py`, plan `docs/DLC_IN_WIDEFIELD_ANALYSES.md` 3B):** per trial, cue .. trial stop:
+hit (DAQ contact) / incomplete (LP lick, cam4 or cam1-only non-droplet, no contact) / jaw_only (no lick, jaw moved on
+EITHER camera) / no_try (jaw judged, still) / unknown. **engaged = attempted** (hit | incomplete | jaw_only). The
+canonical reference-position gate is kept ONLY as the attempt-rate denominator (a sated no-try trial is not a far-contra
+deficit); every other measure uses attempted trials. cam1 jaw = the cam4 rule (`jaw_kinematics.jaw_pertrial`) on the
+cam1 LP jaw (likelihood >= 0.6); NB v36 `jaw_pass_qc` IS the "jaw moved" call (NaN = cannot judge), not a tracking-QC
+flag. cam4 jaw not used at close_center (chin hidden). cam1 / cam4 agree on 310 / 315 jointly judged trials (PS92 0806).
+**Behavioural index (`mixed_models.DEFICITS`, default `ttc`):** PRIMARY = mean time to first far-contra contact on
+attempted trials (no contact by 3.5 s = 3.5 s; later contacts capped), vs the animal's August pre, (session - pre) / pre.
+Secondary: attempt rate (initiation axis), completion, attempt latency; `contact` = the old index (continuity). Scripts
+take `--deficit <name>`; non-default writes `*_<name>` outputs.
+**Rule: no circular index.** A behavioural index may not be a variable that enters the neural measure's construction
+(regressors, trial selection, alignment). The executed lateral angle is a regressor / selector in the within-spout
+slopes, executed kernels, soft bins, the contest, the template test and 3-D -- so lateral bias / scatter are computed
+(`lateral_bias_<pos>`, `lateral_scatter_<pos>`) but are DESCRIPTIVE ONLY, never an index, even though they are the
+most robust continuous behavioural measure.
+**First numbers (curated, August pre):** the deficit is mostly EXECUTION: far-contra completion acute .01-.14 in all four
+(pre .96-.97), incomplete share .72-.99; initiation falls only modestly (attempt rate far contra acute .81-.95 vs ~.98
+pre) and in PS92 / PS93 at every spout, not specifically far contra. PS92 / PS93 acute slowness = LATE attempts (median
+first attempt far contra 963 / 850 ms vs 273 / 305 pre), not missing ones. The canonical gate drops many attempted trials
+(e.g. 76 / 444 PS92 acute far contra, 84 / 1100 PS95 chronic). Limitation: completion floors acutely, so `ttc` resolves
+subacute recovery well and the first acute days poorly.

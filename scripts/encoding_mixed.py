@@ -34,7 +34,7 @@ def _regions(folder: Path, labels: set) -> pd.DataFrame:
     return R[R.area.isin(FOCUS) & R.window.isin(WINDOWS)]
 
 
-def outcomes(E: Path, labels: set) -> pd.DataFrame:
+def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
     rows = []
     R = _regions(E / "movement_first", labels)
     P = R.pivot_table(index=["label", "window", "area"], columns="model", values="r2")
@@ -70,17 +70,17 @@ def outcomes(E: Path, labels: set) -> pd.DataFrame:
                             .assign(measure=f"{tag}:{name}"))
     from wfield_local import mixed_models as mm
     L = mm.add_time_covariates(pd.concat(rows, ignore_index=True).dropna(subset=["y"]))
-    return mm.add_deficit(L, mm.behaviour_deficit(E / "qc" / "position_coding_trend_recovery_sessions.csv"))
+    return mm.add_deficit(L, mm.deficit(E / "qc", deficit or mm.DEFICIT))
 
 
 FIG_PANELS = (("cue", "cam4:ceiling"), ("cue", "cam4:u_target"), ("cue", "position"),
               ("lick", "distance"), ("lick", "cam4:u_target"), ("lick", "position"))
-def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex") -> None:
+def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex", sfx: str = "") -> None:
     """Session values vs behavioural deficit and vs days, fitted fixed effects (mixed_models.plot_fits)."""
     from wfield_local import mixed_models as mm
     panels = [(f"{meas} | {win} window", {"window": win, "measure": meas, "area": area}) for win, meas in FIG_PANELS]
     for model in ("behaviour", "time"):
-        mm.plot_fits(L, T, panels, model, out / f"encoding_mixed_{model}_{area}.png",
+        mm.plot_fits(L, T, panels, model, out / f"encoding_mixed_{model}_{area}{sfx}.png",
                      f"Position / angle coding vs {'behavioural recovery' if model == 'behaviour' else 'time'} ({area})",
                      f"{area} dR2 x1e3")
 
@@ -92,19 +92,23 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
+    ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); default = primary, "
+                    "others write *_<name> outputs")
     a = ap.parse_args(argv)
     E = oo.root(PathResolver()) / a.run / "imaging_encoding"
     labels = {x for x in ak.curated_labels() if x[-4:] >= "0806"}
-    L = outcomes(E, labels)
     from wfield_local import mixed_models as mm
+    dname = a.deficit or mm.DEFICIT
+    sfx = "" if dname == mm.DEFICIT else f"_{dname}"
+    L = outcomes(E, labels, dname)
     by = ["measure", "window", "area"]
     T = mm.lmm_table(L[L.area == "cortex"], by, print_animals=True)           # rule 8 table: cortex only (readable)
     T = pd.concat([T, mm.lmm_table(L[L.area != "cortex"], by, print_animals=False)], ignore_index=True)
     from wfield_local.orofacial_stats import bh_fdr                       # FDR over ALL areas within model x term x window
     for _, idx in T.groupby(["model", "term", "window"]).groups.items():
         T.loc[idx, "q"] = bh_fdr(T.loc[idx, "p"].to_numpy())
-    T.to_csv(E / "qc" / "encoding_mixed.csv", index=False, float_format="%.5g")
-    mm.summary_table(T, ["window", "area", "measure"]).to_csv(E / "qc" / "encoding_mixed_summary.csv")
+    T.to_csv(E / "qc" / f"encoding_mixed{sfx}.csv", index=False, float_format="%.5g")
+    mm.summary_table(T, ["window", "area", "measure"]).to_csv(E / "qc" / f"encoding_mixed_summary{sfx}.csv")
     pd.set_option("display.width", 230)
     for model in ("time", "behaviour"):
         for win in WINDOWS:
@@ -115,7 +119,7 @@ def main(argv=None) -> int:
             print(S.pivot_table(index="measure", columns="term", values=["coef", "z", "q"]).round(3).to_string())
     print("\n  random-effect structure used:", T.groupby("re").size().to_dict())
     for area in ("cortex", "SSp-m_left", "SSp-m_right"):
-        figures(L, T, E / "qc" / "figures", area)
+        figures(L, T, E / "qc" / "figures", area, sfx)
     print(f"\n-> {E / 'qc' / 'encoding_mixed.csv'}")
     return 0
 

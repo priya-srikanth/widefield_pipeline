@@ -55,10 +55,10 @@ def outcomes_dirmid(DM: pd.DataFrame) -> pd.DataFrame:
 
 
 
-def area_table(L: pd.DataFrame, behaviour_csv: Path) -> pd.DataFrame:
+def area_table(L: pd.DataFrame, qc_dir: Path, deficit: str | None = None) -> pd.DataFrame:
     """Time / behaviour / epoch models per kind x measure (wfield_local/mixed_models.py)."""
     from wfield_local import mixed_models as mm
-    L = mm.add_deficit(L, mm.behaviour_deficit(behaviour_csv))
+    L = mm.add_deficit(L, mm.deficit(qc_dir, deficit or mm.DEFICIT))
     return mm.lmm_table(L, ["kind", "measure"], ("time", "behaviour", "epoch"), fdr_by=("kind",),
                         print_animals=False)              # the rule-8 table is printed by main (focus measures)
 
@@ -130,6 +130,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--folder", default="within_spout_deviation_lick")
+    ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
     folder = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / a.folder
     D = pd.read_csv(folder / "within_spout_deviation.csv")
@@ -138,8 +139,9 @@ def main(argv=None) -> int:
         L = pd.concat([L, outcomes_dirmid(pd.read_csv(folder / "dirmid.csv"))], ignore_index=True)
     from wfield_local import mixed_models as mm
     print(mm.animal_epoch_table(L[L.measure.str.startswith(FOCUS)], ["kind", "measure"]).round(3).to_string())  # rule 8
-    T = area_table(L, folder.parent / "position_coding_trend_recovery_sessions.csv")
-    T.to_csv(folder / "mixed_model.csv", index=False, float_format="%.5g")
+    T = area_table(L, folder.parent, a.deficit)
+    sfx = "" if (a.deficit or mm.DEFICIT) == mm.DEFICIT else f"_{a.deficit}"
+    T.to_csv(folder / f"mixed_model{sfx}.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)
     for kind in [k for k in ("within", "between", "dir", "mid") if k in set(T.kind)]:
         for model in ("time", "behaviour"):

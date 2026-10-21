@@ -65,12 +65,33 @@ def add_time_covariates(L: pd.DataFrame, label_col: str = "label", august_pre: b
     return L.reset_index(drop=True)
 
 
-def behaviour_deficit(sessions_csv: Path, column: str = "contact_far_contra") -> dict:
+def behaviour_deficit(sessions_csv: Path, column: str = "contact_far_contra", higher_is_better: bool = True) -> dict:
     """{label: deficit} = (animal's August-pre mean - session) / pre mean of `column` (default far-contra contact,
-    from qc/position_coding_trend_recovery_sessions.csv, scripts/position_coding_trend_recovery.py)."""
+    from qc/position_coding_trend_recovery_sessions.csv, scripts/position_coding_trend_recovery.py). For a column where
+    larger is worse (a latency; scripts/trial_attempts.py) pass higher_is_better=False: (session - pre) / pre."""
     S = pd.read_csv(sessions_csv)
     pre = S[(S.epoch == "pre") & (S.label.str[-4:] >= "0806")].groupby("animal")[column].mean()
-    return dict(zip(S.label, (S.animal.map(pre) - S[column]) / S.animal.map(pre)))
+    d = (S.animal.map(pre) - S[column]) / S.animal.map(pre)
+    return dict(zip(S.label, d if higher_is_better else -d))
+
+
+#: Behavioural indices for the `behaviour` model, {name: (qc csv, column, higher_is_better)} (Priya 10-20). PRIMARY =
+#: `ttc`: mean time to first far-contra contact on ATTEMPTED trials (scripts/trial_attempts.py; no contact = 3.5 s), the
+#: execution axis. `attempt` = initiation axis (attempt rate over the canonical engaged period). `contact` = the earlier
+#: per-lick contact fraction, kept for continuity. Never an executed-kinematic variable (lateral angle): it enters the
+#: neural measures' construction, so indexing by it is circular (DECISIONS 10-20).
+DEFICITS = {"ttc": ("trial_attempts_sessions.csv", "ttc_ms_far_contra", False),
+            "attempt": ("trial_attempts_sessions.csv", "attempt_rate_far_contra", True),
+            "completion": ("trial_attempts_sessions.csv", "completion_far_contra", True),
+            "latency": ("trial_attempts_sessions.csv", "latency_attempt_ms_far_contra", False),
+            "contact": ("position_coding_trend_recovery_sessions.csv", "contact_far_contra", True)}
+DEFICIT = "ttc"
+
+
+def deficit(qc_dir: Path, name: str = DEFICIT) -> dict:
+    """{label: deficit} for a `DEFICITS` entry, read from `<run>/imaging_encoding/qc`."""
+    csv, col, hib = DEFICITS[name]
+    return behaviour_deficit(Path(qc_dir) / csv, col, hib)
 
 
 def add_deficit(L: pd.DataFrame, deficit: dict, label_col: str = "label") -> pd.DataFrame:

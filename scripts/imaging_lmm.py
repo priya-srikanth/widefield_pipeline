@@ -92,7 +92,7 @@ def post_only_table(L: pd.DataFrame) -> pd.DataFrame:
     return T
 
 
-def figures(L: pd.DataFrame, T: pd.DataFrame, figs: Path) -> None:
+def figures(L: pd.DataFrame, T: pd.DataFrame, figs: Path, sfx: str = "") -> None:
     """One figure per source x model (mixed_models.plot_fits)."""
     from wfield_local import mixed_models as mm
     sets = [("trend", ("ceiling", "spread", "spread_enl"), ("time", "behaviour"),
@@ -106,7 +106,7 @@ def figures(L: pd.DataFrame, T: pd.DataFrame, figs: Path) -> None:
             if not ((T.source == src) & (T.model == model)).any():
                 continue
             panels = [(m, {"source": src, "measure": m}) for m in meas]
-            mm.plot_fits(L, T, panels, model, figs / f"imaging_lmm_{src}_{model}.png", title, "value")
+            mm.plot_fits(L, T, panels, model, figs / f"imaging_lmm_{src}_{model}{sfx}.png", title, "value")
 
 
 def main(argv=None) -> int:
@@ -117,10 +117,13 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--sources", default="trend,decoder,behaviour")
+    ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
     run_root = oo.root(PathResolver()) / a.run
     E = run_root / "imaging_encoding"
-    deficit = mm.behaviour_deficit(E / "qc" / "position_coding_trend_recovery_sessions.csv")
+    dname = a.deficit or mm.DEFICIT
+    sfx = "" if dname == mm.DEFICIT else f"_{dname}"
+    deficit = mm.deficit(E / "qc", dname)
     src = a.sources.split(",")
     tabs, L, D = [], None, None
     prepost = [f(E if f is trend_table else run_root) for name, f in (("trend", trend_table),
@@ -139,15 +142,15 @@ def main(argv=None) -> int:
                   + mm.animal_epoch_table(D, ["source", "measure"]).round(4).to_string())
             tabs.append(post_only_table(D))
     T = pd.concat([t for t in tabs if not t.empty], ignore_index=True)
-    T.to_csv(E / "qc" / "imaging_lmm.csv", index=False, float_format="%.5g")
-    mm.summary_table(T, ["source", "measure"]).to_csv(E / "qc" / "imaging_lmm_summary.csv")
+    T.to_csv(E / "qc" / f"imaging_lmm{sfx}.csv", index=False, float_format="%.5g")
+    mm.summary_table(T, ["source", "measure"]).to_csv(E / "qc" / f"imaging_lmm_summary{sfx}.csv")
     pd.set_option("display.width", 230)
     for model in T.model.unique():
         S = T[T.model == model]
         print(f"\n=== {model}\n" + S.pivot_table(index=["source", "measure"], columns="term",
                                                 values=["coef", "z", "q"]).round(3).to_string())
     figures(pd.concat([x for x in (L, D) if x is not None and not x.empty], ignore_index=True), T,
-            E / "qc" / "figures")
+            E / "qc" / "figures", sfx)
     print(f"\n-> {E / 'qc' / 'imaging_lmm.csv'}, figures/imaging_lmm_*.png")
     return 0
 
