@@ -26,12 +26,30 @@ AREAS = ("MOs", "MOp", "SSp-m", "SSp-ul", "SSp-ll", "SSp-n", "SSp-bfd", "SSp-tr"
 FOCUS = ("SSp-m", "MOs", "MOp", "cortex")
 
 
+def _kinds(D: pd.DataFrame):
+    """(kind, rows, column, sign) per outcome family: OLS-pooled within / between; EQUAL-weight pooled within; each spout's
+    own within slope (`spout:<pos>`); and, the HEADLINE per-spout test (Priya 10-21), TOWARD-MIDLINE per lateral spout
+    (`mid:<pos>` = the spout's slope x side_sign: + = more activity for licks deviating toward the midline)."""
+    from scripts.within_spout_deviation import side_sign
+    sp = D.spouts if "spouts" in D else pd.Series("all", index=D.index)
+    yield "within", D[sp == "all"], "b_within", 1.0
+    yield "between", D[sp == "all"], "b_between", 1.0
+    yield "within_equal", D[sp == "equal"], "b_within", 1.0
+    for p in sorted(set(sp) - {"all", "equal", "contra", "mid", "ipsi"}):
+        yield f"spout:{p}", D[sp == p], "b_within", 1.0
+        sg = float(side_sign([p])[0])
+        if sg:
+            yield f"mid:{p}", D[sp == p], "b_within", sg
+
+
 def outcomes(D: pd.DataFrame) -> pd.DataFrame:
-    """Long table: label, animal, epoch, day, kind (within / between), measure (e.g. 'SSp-m crossed'), y."""
-    D = D[(D.variant == "mean") & ((D.spouts == "all") if "spouts" in D else True)]
+    """Long table: label, animal, epoch, day, kind (see `_kinds`), measure (e.g. 'SSp-m crossed'), y."""
+    D = D[D.variant == "mean"]
     rows = []
-    for kind in ("within", "between"):
-        W = D.pivot_table(index="label", columns="area", values=f"b_{kind}") * 10 * 1e3
+    for kind, Dk, col, sg in _kinds(D):
+        if Dk.empty:
+            continue
+        W = Dk.pivot_table(index="label", columns="area", values=col) * 10 * 1e3 * sg
         out = {"cortex bilateral": W["cortex"]} if "cortex" in W else {}
         for a in AREAS:
             if f"{a}_left" in W and f"{a}_right" in W:
@@ -143,7 +161,8 @@ def main(argv=None) -> int:
     sfx = "" if (a.deficit or mm.DEFICIT) == mm.DEFICIT else f"_{a.deficit}"
     T.to_csv(folder / f"mixed_model{sfx}.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)
-    for kind in [k for k in ("within", "between", "dir", "mid") if k in set(T.kind)]:
+    heads = ["mid"] + sorted(k for k in set(T.kind) if k.startswith("mid:"))          # HEADLINE: toward midline
+    for kind in [k for k in ("within", "within_equal", "between", "dir", *heads) if k in set(T.kind)]:
         for model in ("time", "behaviour"):
             print(f"\n=== {kind}-spout slope (x1e-3 dF / 10 deg executed lateral), {model} model; q = FDR over measures")
             S = T[(T.kind == kind) & (T.model == model) & T.measure.str.startswith(FOCUS)]

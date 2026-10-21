@@ -21108,3 +21108,20 @@ then those sessions' jaw is cam4 only (close_center -> mostly unknown).
 agreement with the cam1 call):** cam1 floor -> 15 px (`deflection_threshold_min_px`; cam4 keeps 4 px) -- applied in
 `scripts/jaw_onsets.py` (the single definition; other window), then `trial_attempts.py` rerun; close_center jaw is
 unknown from BOTH cameras (`trial_attempts` masks cam1 there too).
+
+## 2026-10-21 (morning) -- Within-spout slopes: per spout, equal weight, contact covariate; toward-midline = headline
+
+**Asked (Priya):** "is the lateral slope pooling error across all 6 spout positions? is that fair?" -- It pooled: one slope
+over all spouts after demeaning within spout. Three problems post-stroke: (1) the slope is assumed equal at every spout
+(already false pre: the bilateral component flips sign contra vs ipsi); (2) OLS weights spouts by their lateral spread,
+which grows at far contra post-stroke, so epochs compare different spout mixtures; (3) a deviation toward the spout is a
+TOUCH once misses are common (acute completion .01-.14), so contact confounds the slope. **Decision**
+(`scripts/within_spout_deviation.py`): per-spout slopes (`spouts = <pos>`) and their EQUAL-weight mean (`equal`) are
+always written beside the OLS-pooled slope (`all`); `--contact` adds the window's DAQ contact count as a covariate
+(folder suffix `_contact`); `--hits-only` keeps trials with >= 1 contact (`_hits`). `within_spout_mixed.py` models every
+family: `within`, `within_equal`, `spout:<pos>`, and **`mid:<pos>` = each lateral spout's slope x side_sign (+ = toward
+the midline) -- the HEADLINE per-spout test (Priya 10-21)**, because the chronic toward-midline reversal in anterior
+frontal cortex (pre: more activity for medial deviations; chronic: for outward / eccentric ones) is the only post-stroke
+within-spout map change passing the animal-level cluster test (28 % of brain). Keep it in mind when interpreting other
+results (is a change eccentricity rather than direction?). Runs (lick-aligned): contact, contact + hits, baseline redo
+(old baseline copied to `qc/superseded_within_spout_lick_pooled_20261021/`).

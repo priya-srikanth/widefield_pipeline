@@ -54,6 +54,13 @@ KIND_TITLE = {"within_mean": "WITHIN-spout lateral slope; red = more activity fo
               "mid_mean": "TOWARD MIDLINE (within spout, lateral spouts); red = more activity for MEDIAL licks, "
                           "blue = for more LATERAL licks"}
 MIN_TRIALS = 9                      # per spout (3 per tercile)
+#: POST-STROKE FAIRNESS (Priya 10-21: "is the lateral slope pooling error across all 6 spout positions? is that fair?"):
+#: CONTROLS_ENV=contact adds the trial's DAQ contact count in the response window as a covariate (a deviation toward the
+#: spout is a touch, with its own sensory response, once misses are common); TRIALS_ENV=hits keeps only trials with >= 1
+#: contact in the window (sensitivity). Per-spout slopes (spouts = <pos>) and their EQUAL-weight mean (spouts = "equal")
+#: are always written next to the OLS-pooled slope (spouts = "all"), whose weights follow each spout's lateral spread.
+CONTROLS_ENV = "WITHIN_SPOUT_CONTROLS"
+TRIALS_ENV = "WITHIN_SPOUT_TRIALS"
 SHOW = ("cortex", "MOs", "MOp", "SSp-m", "SSp-ul", "SSp-bfd")
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
@@ -70,6 +77,7 @@ def trial_table(B, E: pd.DataFrame, mode: str, align: str = "cue") -> pd.DataFra
         lat, reach = np.asarray(B.lick_angle, float), np.asarray(B.lick_reach, float)
     use = np.isfinite(lat) & np.isfinite(reach)
     on = np.asarray(B.lick_on_s, float)
+    con = np.sort(np.asarray(B.contact_s, float))
     rows = []
     for k, r in enumerate(E.itertuples()):
         stop = r.stop_s if np.isfinite(r.stop_s) else r.cue_s + 7.0
@@ -87,22 +95,49 @@ def trial_table(B, E: pd.DataFrame, mode: str, align: str = "cue") -> pd.DataFra
         rows.append({"k": k, "pos": r.pos, "lat_mean": lat[u].mean(), "reach_mean": reach[u].mean(),
                      "lat_first": lat[f], "reach_first": reach[f], "n_licks": int(inw.sum()),
                      "t0": t0, "latency": l1 - r.cue_s,
+                     "n_contact": int(np.searchsorted(con, t0 + w[1]) - np.searchsorted(con, t0 + w[0])),
                      "lat_odd": lat[us[0::2]].mean() if len(us) >= 2 else np.nan,
                      "lat_even": lat[us[1::2]].mean() if len(us) >= 2 else np.nan})
     return pd.DataFrame(rows)
 
 
+def covariates(T: pd.DataFrame, var: str) -> np.ndarray:
+    """Nuisance columns of every within-spout fit: reach, n_licks, latency (+ n_contact with CONTROLS_ENV=contact)."""
+    cols = [T[f"reach_{var}"].to_numpy(float), T.n_licks.to_numpy(float),
+            T.latency.to_numpy(float) if "latency" in T else np.zeros(len(T))]
+    if os.environ.get(CONTROLS_ENV) == "contact":
+        cols.append(T.n_contact.to_numpy(float))
+    return np.column_stack(cols)
+
+
+def per_spout(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
+    """{pos: (b (d,), se (d,), n)} -- the within-spout lateral slope fitted in EACH spout on its own (same covariates)."""
+    lat, C, pos = T[f"lat_{var}"].to_numpy(float), covariates(T, var), T.pos.to_numpy()
+    out = {}
+    for p in np.unique(pos):
+        m = pos == p
+        if m.sum() < MIN_TRIALS:
+            continue
+        X = np.column_stack([lat[m], C[m]])
+        X = X - X.mean(0)
+        X = np.where(np.isfinite(X), X, 0.0)
+        Rp = R[m] - R[m].mean(0)
+        b = np.linalg.pinv(X) @ Rp
+        res = Rp - X @ b
+        s2 = (res ** 2).sum(0) / max(m.sum() - 1 - X.shape[1], 1)
+        out[p] = (b[0], np.sqrt(np.linalg.pinv(X.T @ X)[0, 0] * s2), int(m.sum()))
+    return out
+
+
 def slopes(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
     """R (trials, d) responses. Returns within / between coefficient arrays (d,) for lateral (+ within SE, terciles)."""
-    lat, rch = T[f"lat_{var}"].to_numpy(float), T[f"reach_{var}"].to_numpy(float)
-    nl, pos = T.n_licks.to_numpy(float), T.pos.to_numpy()
-    lt = T.latency.to_numpy(float) if "latency" in T else np.zeros(len(T))
+    lat, C, pos = T[f"lat_{var}"].to_numpy(float), covariates(T, var), T.pos.to_numpy()
     keep = np.isin(pos, [p for p in np.unique(pos) if np.sum(pos == p) >= MIN_TRIALS])
-    R, lat, rch, nl, lt, pos = R[keep], lat[keep], rch[keep], nl[keep], lt[keep], pos[keep]
+    R, lat, C, pos = R[keep], lat[keep], C[keep], pos[keep]
     P = np.unique(pos)
     if len(P) < 2:                                             # within needs >= 2 spouts, between >= 4 (below)
         return {}
-    Rd, X = R.copy(), np.column_stack([lat, rch, nl, lt])
+    Rd, X = R.copy(), np.column_stack([lat, C])                # lateral, reach, n_licks, latency [, n_contact]
     Xd = X.copy()
     mR = np.stack([R[pos == p].mean(0) for p in P])
     mX = np.stack([X[pos == p].mean(0) for p in P])
@@ -113,8 +148,8 @@ def slopes(R: np.ndarray, T: pd.DataFrame, var: str) -> dict:
         Xd[m] -= mX[i]
         terc[m] = np.searchsorted(np.quantile(Xd[m, 0], [1 / 3, 2 / 3]), Xd[m, 0], side="right")
     Xd = np.where(np.isfinite(Xd), Xd, 0.0)
-    G = np.linalg.pinv(Xd)                                     # (4, n)
-    bw = G @ Rd                                                # (4, d): lateral, reach, n_licks, latency
+    G = np.linalg.pinv(Xd)                                     # (k, n)
+    bw = G @ Rd                                                # (k, d): lateral, then the covariates
     res = Rd - Xd @ bw
     dof = max(len(R) - len(P) - X.shape[1], 1)
     se = np.sqrt(np.outer(np.diag(np.linalg.pinv(Xd.T @ Xd)), (res ** 2).sum(0) / dof))
@@ -141,12 +176,11 @@ def dirmid(R: np.ndarray, T: pd.DataFrame, var: str = "mean") -> dict:
     pre-stroke): within spout, response ~ dev + dev x side_sign + reach + n_licks + latency. b_dir = response per 10 deg
     toward the mouse's LEFT whatever the spout; b_mid = response per 10 deg toward the MIDLINE (lateral spouts only).
     Equivalent to the mean / half-difference of the contra- and ipsi-spout slopes, fitted jointly with proper SEs."""
-    lat, rch = T[f"lat_{var}"].to_numpy(float), T[f"reach_{var}"].to_numpy(float)
-    pos = T.pos.to_numpy()
+    lat, pos = T[f"lat_{var}"].to_numpy(float), T.pos.to_numpy()
     keep = np.isin(pos, [p for p in np.unique(pos) if np.sum(pos == p) >= MIN_TRIALS])
     if len(np.unique(pos[keep])) < 3:
         return {}
-    X = np.column_stack([lat, lat * side_sign(pos), rch, T.n_licks.to_numpy(float), T.latency.to_numpy(float)])[keep]
+    X = np.column_stack([lat, lat * side_sign(pos), covariates(T, var)])[keep]
     R, pos = R[keep].copy(), pos[keep]
     for p in np.unique(pos):
         m = pos == p
@@ -184,6 +218,8 @@ def session_check(label: str) -> dict:
     E = B.trials[B.trials.engaged & np.isfinite(B.trials.cue_s)].reset_index(drop=True)
     align = os.environ.get(ALIGN_ENV, "cue")
     T = trial_table(B, E, mode, align)
+    if os.environ.get(TRIALS_ENV) == "hits":                   # sensitivity: trials that touched the spout only
+        T = T[T.n_contact > 0].reset_index(drop=True)
     cue = E.cue_s.to_numpy(float)[T.k.to_numpy()]
     t0 = T.t0.to_numpy(float)
 
@@ -233,6 +269,27 @@ def session_check(label: str) -> dict:
                              "n_trials": sS["n_trials"], "n_spouts": sS["n_spouts"],
                              "lat_sd_within": sS["lat_sd_within"], "lat_sd_between": np.nan,
                              "latency_med": float(T.latency[m].median())})
+        # PER SPOUT + EQUAL-WEIGHT pooled (Priya 10-21): each spout's own slope, and their plain mean
+        pA, pK = per_spout(Rk @ Ra, T, var), per_spout(Rk, T, var)
+        for p_, (b_, se_, n_) in pA.items():
+            for i, an in enumerate(anames):
+                rows.append({"label": label, "variant": var, "spouts": p_, "area": an, "b_within": b_[i],
+                             "se_within": se_[i], "b_between": np.nan, "n_trials": n_, "n_spouts": 1,
+                             "lat_sd_within": np.nan, "lat_sd_between": np.nan,
+                             "latency_med": float(T.latency[T.pos == p_].median())})
+        if len(pA) >= 2:
+            bE = np.mean([v[0] for v in pA.values()], 0)
+            seE = np.sqrt(np.sum([v[1] ** 2 for v in pA.values()], 0)) / len(pA)
+            for i, an in enumerate(anames):
+                rows.append({"label": label, "variant": var, "spouts": "equal", "area": an, "b_within": bE[i],
+                             "se_within": seE[i], "b_between": np.nan, "n_trials": sum(v[2] for v in pA.values()),
+                             "n_spouts": len(pA), "lat_sd_within": np.nan, "lat_sd_between": np.nan,
+                             "latency_med": float(T.latency.median())})
+        if var == "mean":
+            for p_, (b_, _se, _n) in pK.items():
+                maps[f"spout_{p_}"] = (Ub @ b_).astype(np.float32)
+            if len(pK) >= 2:
+                maps["within_equal"] = (Ub @ np.mean([v[0] for v in pK.values()], 0)).astype(np.float32)
     dm = []
     dK, dA = dirmid(Rk, T), dirmid(Rk @ Ra, T)
     r_h, rel, n_h = split_half(T)
@@ -257,7 +314,7 @@ def report(D: pd.DataFrame) -> None:
     pd.set_option("display.width", 220)
     D = D.assign(b10_within=D.b_within * 10, b10_between=D.b_between * 10,
                  spouts=D.spouts if "spouts" in D else "all")
-    S, D = D[D.spouts != "all"], D[D.spouts == "all"]
+    S, D = D[D.spouts.isin(SIDES)], D[D.spouts == "all"]
     if "latency_med" in D:
         lt = D[(D.area == "cortex") & (D.variant == "mean")].groupby(["animal", "epoch"]).latency_med.mean()
         print("  median first-lick latency (s)\n" + lt.unstack().reindex(columns=list(EPOCHS)).round(2).to_string())
@@ -554,15 +611,21 @@ def main(argv=None) -> int:
                     help="cue: cue + 0-1.5 s; lick: first lick + 0-1 s (see ALIGN_ENV)")
     ap.add_argument("--epochs", default="", help="comma list to restrict sessions, e.g. pre,acute")
     ap.add_argument("--redo", action="store_true", help="recompute sessions that already have outputs")
+    ap.add_argument("--contact", action="store_true", help="add the window's DAQ contact count as a covariate")
+    ap.add_argument("--hits-only", action="store_true", help="only trials with >= 1 contact in the window")
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     os.environ[ALIGN_ENV] = a.align                          # inherited by the session workers
     os.environ[WINDOW_ENV] = a.window
+    os.environ[CONTROLS_ENV] = "contact" if a.contact else ""
+    os.environ[TRIALS_ENV] = "hits" if a.hits_only else "all"
     mode = os.environ.get(ce.EXEC_ENV, "")
     out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / ("within_spout_deviation"
                                                                           + (f"_{mode}" if mode else "")
                                                                           + ("_lick" if a.align == "lick" else "")
-                                                                          + ("_enl" if a.window == "enl" else ""))
+                                                                          + ("_enl" if a.window == "enl" else "")
+                                                                          + ("_contact" if a.contact else "")
+                                                                          + ("_hits" if a.hits_only else ""))
     writeguard.assert_writable(out.parent)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     cur = set(ak.curated_labels())               # CURATED only (Priya 10-20)

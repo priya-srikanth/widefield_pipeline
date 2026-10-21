@@ -71,3 +71,25 @@ def test_split_half_reliability():
                       "lat_even": true + rng.normal(0, 4, n)})
     r, rel, m = W.split_half(T)
     assert 0.4 < r < 0.6 and abs(rel - 2 * r / (1 + r)) < 1e-9 and m == n
+
+
+def test_per_spout_and_contact_covariate(monkeypatch):
+    """Per-spout slopes recover each spout's own slope; the contact covariate absorbs a touch response that would
+    otherwise load on the lateral deviation."""
+    import numpy as np
+    import pandas as pd
+    from scripts import within_spout_deviation as ws
+    rng = np.random.default_rng(0)
+    n = 60
+    pos = np.repeat(["far_contra", "far_ipsi"], n)
+    lat = rng.normal(0, 5, 2 * n)
+    touch = (lat > 0).astype(float)                        # deviation toward the spout = a touch
+    slope = np.where(pos == "far_contra", 0.2, -0.2)
+    R = (slope * lat + 3.0 * touch + rng.normal(0, 0.1, 2 * n))[:, None]
+    T = pd.DataFrame({"pos": pos, "lat_mean": lat, "reach_mean": rng.normal(0, 1, 2 * n), "n_licks": 5.0,
+                      "latency": 0.2, "n_contact": touch})
+    monkeypatch.setenv(ws.CONTROLS_ENV, "contact")
+    P = ws.per_spout(R, T, "mean")
+    assert abs(P["far_contra"][0][0] - 0.2) < 0.03 and abs(P["far_ipsi"][0][0] + 0.2) < 0.03
+    monkeypatch.setenv(ws.CONTROLS_ENV, "")
+    assert ws.per_spout(R, T, "mean")["far_contra"][0][0] > 0.3      # touch leaks into the slope without it
