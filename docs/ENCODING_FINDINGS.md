@@ -61,6 +61,10 @@ PS94 .45 / .60.
 variance in 3/4 (PS92 the exception: MOs 10.2, SSp-m 13.3 executed). Acute: both rise a little (not executed-specific).
 Chronic: only PS94 tracks the executed lick trial by trial (cortex 30.1, SSp-m 65.3). So no general post-stroke shift to
 lick-by-lick executed tracking **with cam4 measurement** (its tracking noise biases this test against executed).
+**First-lick-aligned version (10-21, O2 `_win` run, all 119; `movement_first_subset-nokin_win/tables/tr_contest_0-1.5s.csv`,
+align = firstlick, -0.1 .. +1 s):** same picture. No executed tracking in >= 3 animals in any epoch; PS94 chronic stays
+the exception (cortex executed 37.2, strict 34.8 x1e3); PS92 strict executed rises acute / subacute (cortex 22.5 / 35.3)
+but not chronic. Aligning to the delayed far-contra first lick does not reveal a hidden executed code.
 
 ### 2.4 3-D executed sets, PS92 only — PROVISIONAL (one animal); this is why 2.1's pre-stroke reading is suspended
 
