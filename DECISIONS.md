@@ -21397,3 +21397,19 @@ shorter window); `scripts/enl_lp_census.py` (same `precue_window_start`, 2.0 / 1
 DAQ 91 % / LP 67 % at 2 s, LP 90 % at 1.5 s, 99 % at 1 s; cohort census running; the window is Priya's call.
 NOT YET: full suite, merge (after the normalised rerender), per-animal LP-vs-DAQ trial tables, LP null calibration,
 renders.
+
+## 2026-10-21 (late evening) -- ENL lick-free window with LP licks = 1.0 s, plus a matched DAQ 1.0 s arm
+
+Census (`scripts/enl_lp_census.py`, branch; all 120 curated sessions; `qc/enl_lp_census{,_summary}.csv`): share of
+trials with a lick-free pre-cue window under THE SAME `precue_window_start` rule (slide back to the strobe allowed).
+DAQ contact 2 s: 97-100 % in every animal x epoch. LP licks 2 s: PS92 86-90 %, PS93 73 % pre / 82-87 % post, PS94
+85-92 %, PS95 88-97 %; by position PS93 pre-stroke far_L / far_center 48 % and acute far_R 66 % (PS92, PS93). LP 1.5 s
+89-99 %; LP 1.0 s 98-100 % per animal x epoch and >= 95 % in EVERY animal x position x epoch. A 2 s LP window would
+select trials by position and epoch -- most at the far spouts and in PS93 -- a confound in the ENL comparison itself.
+Windows also slide often (window ending at the cue clean: PS93 pre 57 % at 2 s, 72 % at 1 s; 17 % of its trials
+have a non-contact lick in the last 0.5 s). DECISION (Priya: "1.0 s, plus DAQ 1.0 s"): LP_licks ENL = 1.0 s with
+sliding; a DAQ-contact 1.0 s arm so LP vs DAQ differ only in the lick definition; the existing DAQ 2 s ENL stays the
+reference. Cost: half the frames per trial (noisier decode). Implemented (`4fadded`): WIDEFIELD_ENL_WINDOW_S (unset =
+1.0 under LP, 2.0 under DAQ) replaces post_s for align=precue where features are keyed and built; outputs
+`grant_figures/LP_licks/...` and `grant_figures/DAQ_ENL1s/...`; frozen precue specs carry the window, so ONE new frozen
+precue set (DAQ 1.0 s run) is needed and LP reuses it -- run the DAQ_ENL1s arm before the LP ENL arms.

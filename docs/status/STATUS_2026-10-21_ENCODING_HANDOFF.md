@@ -159,13 +159,15 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 | what | task / log | then |
 |---|---|---|
 | Rerender after the normalised tests (main): epoch 15r / 15e / 14m, then within-spout figures (8 folders), mixed models (z maps), `compare_map_tests.py` | `S/run_rerender_norm.sh`; logs `S/rerender_epoch.log`, `S/rerender_ws.log`, `S/rerender_mixed_<folder>.log`, `S/compare_map_tests.log`; started 16:32, first arm still running at 18:05 (CPU shared) | read `labcams/grant_figures/epoch/results/map_tests_raw_vs_normalised.csv`; links to new figures; ENCODING_FINDINGS |
-| ENL LP census (branch code) | `S/enl_lp_census.log`; output `E/qc/enl_lp_census{,_summary}.csv` | Priya picks the LP ENL window |
-| jaw_onsets watcher (`S/watch_jaw.sh`) | expires 18:13; no rewrite seen | restart if the pose window still plans the rewrite |
+| ENL LP census | DONE: `E/qc/enl_lp_census{,_summary}.csv` | window chosen: 1.0 s (DECISIONS late evening) |
+| jaw_onsets watcher (`S/watch_jaw.sh`) | EXPIRED 18:13, no rewrite seen | restart only if the pose window still plans the rewrite |
 
 ## 2c. NEXT for LP_licks, in order
 
-1. ENL census -> Priya chooses the LP lick-free window (2.0 / 1.5 / 1.0 s); wire it (an LP-only `precue_lickfree`
-   window length, recorded in the cache tag).
+1. DONE (`4fadded`): ENL census -> Priya chose **1.0 s for LP, plus a matched DAQ 1.0 s arm** (LP 2 s keeps 48 % of
+   PS93 pre far_L / far_center, 66 % of acute far_R; 1.0 s >= 95 % everywhere). `WIDEFIELD_ENL_WINDOW_S`; outputs
+   `LP_licks/` and `DAQ_ENL1s/`; frozen precue specs carry the window -> run the DAQ_ENL1s arm FIRST (it freezes the
+   1.0 s precue set; LP reuses it).
 2. Full test suite in `S/wf_lp`; merge `lick/lp-source` to main (it touches `_trial_features`'s module, the shared lick
    loader and `session_cache`: wait until the normalised rerender is done -- spawned render workers import from main).
 3. Per animal x position x epoch table: LP vs DAQ engaged / no-lick trial counts (rule 8) before any figure.
