@@ -1,93 +1,125 @@
-# FaceRhythm on O2 — handoff (2026-10-21)
+# FaceRhythm on O2 — handoff (2026-10-21, updated late afternoon)
 
 Plan: [`docs/FACE_RHYTHM_PLAN.md`](../FACE_RHYTHM_PLAN.md) (steps 1-7; status section at its end). This doc covers step 4
-(master ROI, drawing tool) and step 5 (the O2 bundle), as left at the end of 10-21 morning. Registration (step 3) and
-the ROI warp are the pose/3-D window's (`scripts/face_rhythm_register.py`, `scripts/face_rhythm_warp_rois.py`,
-`STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`).
+(master ROI, drawing tool), step 5 (the O2 bundle) and the **tracking-parameter test** that now gates the full run.
+Registration (step 3) and the ROI warp are the pose/3-D window's (`scripts/face_rhythm_register.py`,
+`scripts/face_rhythm_warp_rois.py`, `STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`).
+
+## TL;DR — where it stands
+
+* **Parameters: recommend `mids12`** (mesh rigidity 0.03 / 24 neighbours, relaxation 0.005, paper's LK 40 px / 3 levels /
+  (3,3,0.03), threshold 300, **point spacing 12 px**). Priya has not decided yet: **round 3 is queued on O2** (array
+  57142222_[1-3]: `midlk12`, `midlk12lr`, `midlk12i3` = mids12's mesh with oldrun's optical flow 50 px / 5 levels;
+  relaxation 0.005 / 0.0025; LK criteria (3,2,0.0003) / (3,3,0.03)). Score it, then decide.
+* **Production is NOT running.** The one full-session pilot (task 87, PS95_20260812, paper params) was killed
+  OUT_OF_MEMORY (fixed since, see pitfalls) and is obsolete (paper params). Its partial `work/PS95_20260812_cam4/`
+  (~30 GB) is still on scratch: Priya's call to remove; a new task 87 refuses to start until it is moved aside.
+* After the parameter decision: set PARAMS["tracking"] (+ spacing) in `o2_face_rhythm.py`, **re-seed the master ROI at
+  the chosen spacing** (same polygons, face AND mask) and **re-warp** to sessions (pose window), rebuild the bundle,
+  rsync, **pilot one session** (checks speed + the memory fix), then the array.
 
 ## Where things are
 
 | what | where |
 |---|---|
-| bundle / collect script | `scripts/o2_face_rhythm.py` (commits 66cf985, cf880bb, ab86352, 6a2bfc8) |
-| ROI drawing notebook | `notebooks/face_rhythm_draw_roi.ipynb` (`fr` env; JupyterLab, not VS Code -- see pitfalls) |
-| bundle on the share | `M:\MICROSCOPE\Priya\DeepLabCut\Widefield\o2\fr_cam4_20261021\` (108 tasks) |
-| bundle on O2 | `/n/scratch/users/p/ps150/o2/fr_cam4_20261021/` (an EARLIER build: re-rsync before submitting, see below) |
-| ROIs the runner reads | `<dlc>/face_rhythm/cam4/rois/<animal>_<YYYYMMDD>/ROIs.h5` -> rsynced to `<bundle>/rois/` |
-| outputs | `<bundle>/out/<key>_{trials,session,points}.npz` + `_summary.json`; stay in the bundle's `out/` (not copied again) |
-| O2 env | `fr` in `/home/ps150/.conda/envs/fr`: face-rhythm 0.3.3, torch 2.14.1+cpu (installed 10-21) |
+| bundle / collect / param test | `scripts/o2_face_rhythm.py` (`bundle`, `collect`, `paramtest`, `paramscore`) |
+| QC clips + factor decomposition | `scripts/face_rhythm_param_qc.py` (`clips [--color plain] [--sets ...]`, `decompose [--sets ...]`; fr env) |
+| ROI drawing notebook | `notebooks/face_rhythm_draw_roi.ipynb` (fr env, **JupyterLab** -- VS Code's widget renderer fails) |
+| bundle on the share | `M:\MICROSCOPE\Priya\DeepLabCut\Widefield\o2\fr_cam4_20261021\` (108 tasks; June out; PS92_0812 = 2 tasks) |
+| bundle on O2 | `/n/scratch/users/p/ps150/o2/fr_cam4_20261021/` (rsync from the share before submitting) |
+| master face / ROI | **PS95_20260812** (August pre-stroke; `face_rhythm/cam4/register/templates.json`); `rois/PS95_20260812/ROIs.h5` = Priya's final polygons, 2287 points at 9 px; earlier versions kept as `ROIs_<time>.h5` |
+| param test outputs | `<bundle>/out_test/PS95_20260812_cam4_<set>.npz` (full-rate points, frames 31199-61199, 13 trials) |
+| param test scores / figures / clips | `<dlc>/face_rhythm/cam4/param_test/` (`param_test_fr_cam4_20261021.{csv,png}`, `decomp_*`, `clips/`) |
+| O2 env | `fr` in `/home/ps150/.conda/envs/fr`: face-rhythm 0.3.3, torch 2.14.1+cpu |
 
-## What the runner does (one task = session x cam4 video)
+## The runner (one task = session x cam4 video)
 
-* **Tracking** with FR's own per-frame step (LK + violation freezing/rewind + mesh + relaxation, called on a frame range;
-  `PointTracker` itself allocates the whole video). Values = the plan's "paper" set: mesh_rigidity 0.1, 24 neighbours,
-  relaxation 0.01, winSize 40, maxLevel 3, threshold 300 px; LK criteria (3, 3, 0.03), halting 10/10, CLAHE default,
-  decord -- as the 10-21 pilot (`fr_pilot.py`). **Not validated on this rig** (see open items).
-* **10-min segments**, each restarting at the home positions, tracked from 10 s before (warm-up, discarded) to 520
-  frames after (VQT margin). Independent, so **4 segment workers x 2 threads per task** (spawn pool); each writes only
-  its own bins into shared float16 memmaps in `work/<key>/`; the parent records finished segments in `progress.json`
-  -> a resubmitted task resumes. Parallel output is bit-identical to single-process (6000-frame smoke test).
-* **VQT** (Fs 250, 1-60 Hz, 36 bins, Q 4 -> 20, ds 10, normalisation 0.95, 1/f^0.5) per 10 000-frame chunk with
-  `padding='same'` so 25 Hz bin j = frames [10j, 10j+10) exactly.
-* **Outputs (float16)**: `trials` spec (trial, time, xy, point, freq) on the DAQ grid cue -2 .. +4 s / 40 ms (from the
-  v36 cam4 `windows.npz` `ix_src_frame` / `ix_t_daq_ms`; linear between the two nearest bins, NaN outside the window);
-  `session` spec at 5 Hz (mean of 5 bins) + `t_daq_s`; `points` disp at 25 Hz (minus `home`) + `viol_frac`; summary json
-  with FR's violation fraction. ~24-32 GB per session at ~2000 points; ~2.6-3.4 TB for the cohort.
-* **Trials = engaged only** (`orofacial_cohort.engagement_keep`, the cohort tables' reference gate; keeps 90.2 %;
-  `--all-trials`). **June left out** (`--include-june`): registration fell back to a similarity fit after the camera
-  change and gets no warped ROIs. **PS92_20260812** (two cam4 videos) = two tasks `_v1` / `_v2` (`ix_video`).
-* sbatch (from the bundle's estimates): `short`, `-c 8`, `--mem 36G`, `-t 6 h`, `%24`. Estimates are the desktop
-  pilot's rates (100 fps / process); **calibrate on the first O2 task** (`sacct -j <id> --format=MaxRSS,Elapsed`),
-  then lower `--mem` / `-t` in `run_fr.sbatch` so tasks schedule sooner.
+* FR's own per-frame tracking step on frame ranges, **10-min segments** restarting at home (10 s warm-up, 520-frame VQT
+  margin), **4 segment workers x 2 threads** (spawn pool), shared float16 memmaps in `work/<key>/`, `progress.json`
+  resume. Parallel output bit-identical to single-process.
+* **Integer frame formatting** (87c88bf): `(r+g+b)//3 * mask` -> CLAHE in numpy = FR's float32 mean exactly; identical
+  tracked points, 26.9 -> 33.3 fps (+24 %). Checked against FR's on the first frames at setup (falls back if different).
+* **Keyframe notches** 20.83 / 41.67 / 62.5 Hz (Q 30, zero-phase) on the 250 Hz points before the VQT and the 25 Hz
+  points (see pitfalls).
+* **Memory fix** (5c71000): flush + `MADV_DONTNEED` the work memmaps after every 10 000-frame VQT chunk.
+* VQT Fs 250, 1-60 Hz, 36 bins, Q 4 -> 20, 25 Hz; outputs (float16): `trials` (trial, time, xy, point, freq) on the DAQ
+  grid cue -2 .. +4 s from v36 `windows.npz`, engaged trials only (`orofacial_cohort.engagement_keep`, 90 % kept);
+  `session` 5 Hz; `points` 25 Hz disp + `viol_frac`; summary json. ~24-32 GB / session at 2287 points, about half at 12 px.
+* sbatch in the bundle: `short`, `-c 8`, `--mem 36G`, `-t 6 h`, `%24` -- **re-derive after the pilot** (speeds below).
 
-## State at handoff and next steps (in order)
+## Parameter test (PS95_20260812, 30 000 frames, 13 trials; `paramtest` / `paramscore`)
 
-1. **Master face rebuilt (10:15): PS95_20260812** (August pre-stroke; templates PS92_0811, PS93_0809, PS94_0812,
-   PS95_0812; PS93 excluded from master; Priya's polygons carried to `rois/PS95_20260812/`). Was: the registration had picked post-stroke
-   templates for all four animals and PS93_20260821 (ACUTE, the right-orofacial-deficit animal) as master. Asked:
-   August pre-stroke templates, master among PS92 / PS94 / PS95, Priya's saved polygons (`rois/PS93_20260821/ROIs.h5`,
-   09:45, 2 007 points; the registered draft kept as `ROIs_20261021_093559.h5`) carried onto the new master, existing
-   ROIs moved aside rather than overwritten.
-2. **Priya re-checks the master ROI** in the notebook: `SESSION` = new master, `EDIT = True`; overlay = every
-   session's LP spout tips / nose / jaw in master px (`register/master_overlay.npz`). Face reaches the eyes; mask ~25
-   px outside the face on top and sides, bottom just above the highest close-spout (orange) dots.
-3. **Warp** to sessions (pose window: `face_rhythm_warp_rois.py to-sessions`).
-4. **Re-run the bundle** if anything about sessions changed (`python scripts/o2_face_rhythm.py bundle --name
-   fr_cam4_20261021 --user ps150`), then on the transfer node rsync the bundle, the videos (`--files-from videos.txt`)
-   and `rois/`. **Never rsync a new bundle while tasks run**: spawned workers re-read `tasks.tsv`, so a changed task
-   order would hand a worker the wrong session.
-5. **Open decision -- tracking-parameter test before the full array** (proposed, not yet answered): pilot session,
-   first ~30 000 frames, three sets (the plan's paper values; the old 2pRAM cohort run in
-   `MICROSCOPE\Priya\FaceRhythm\fr_run_20250520_latent_bundle` -- rigidity 0.002 / 90 neighbours / relaxation 0.002 /
-   winSize 50 / maxLevel 5 / threshold 120; FR's `params_pipeline_basic.json`), scored against LP nose / jaw in the
-   trial windows + violation fraction + rest drift. Needs a params override in the runner + a scoring script.
-6. **Pilot one task** (current task numbers: PS93_20260821 = 39, PS94_20260810 = 58 -- re-check after any rebuild:
-   `awk -F'\t' '$1=="<key>" {print NR-1}' tasks.tsv`), read its per-segment log lines (fps per worker, violations,
-   worker peak RAM), then `sbatch --array=<rest>%24`.
-7. **Copy back** `out/` to the share bundle; `python scripts/o2_face_rhythm.py collect --name fr_cam4_20261021` ->
-   `<dlc>/face_rhythm/cam4/o2_fr_cam4_20261021_index.csv`.
+Measures: folds = Delaunay triangles of the home points flipping orientation (mesh crossing over); jitter = 30-60 Hz SD;
+nose vs LP 2-20 Hz (r, gain; split lick bout / rest); **licking explained by the whole mesh** = cross-validated jaw-y R2
+(50 velocity PCs, ridge, 5 blocks) and tongue-visible AUC (no FR point sits on the jaw: the mask stops above it).
+Decision rule agreed: no / few folds, jaw R2 and nose gain near the best, jitter <= paper, then cheapest.
+
+| set | rig / nb, relax, LK | pts | fps | folds/frame (frames) | jitter | nose rest gain | nose lick r / gain | jaw R2 | tongue AUC |
+|---|---|---|---|---|---|---|---|---|---|
+| paper | 0.1/24, 0.01, 40/3 | 2287 | 18 | 0.09 (0.7 %) | 0.134 | 0.90 | 0.63 / 0.76 | 0.62 | 0.92 |
+| mid | 0.03/24, 0.005, 40/3 | 2287 | 18 | 0.59 (3 %) | 0.134 | 0.92 | 0.58 / 0.63 | 0.66 | 0.92 |
+| **mids12** | mid, 12 px | 1282 | 19* | 0.21 (2 %) | 0.134 | 0.94 | 0.59 / 0.66 | 0.66 | 0.92 |
+| soft | 0.01/24, 0.003, 40/3 | 2287 | 18 | 1.83 (15 %) | 0.134 | 0.95 | 0.54 / 0.52 | 0.66 | 0.92 |
+| softs12 | soft, 12 px | 1282 | 25 | 0.83 (12 %) | 0.134 | 0.97 | 0.55 / 0.54 | 0.67 | 0.91 |
+| oldmesh | 0.002/90, 0.002, 40/3 | 2287 | 18 | 5.27 (40 %) | 0.135 | 0.96 | 0.42 / 0.41 | 0.60 | 0.93 |
+| oldrun | 0.002/90, 0.002, 50/5 | 2287 | 13 | 2.34 (18 %) | 0.117 | 1.00 | 0.73 / 0.61 | 0.69 | 0.93 |
+| frdefault | 0.025/8, 0.0015, 20/2 | 2287 | 30 | 9.56 (46 %) | 0.161 | 0.93 | 0.76 / 0.56 | 0.57 | 0.90 |
+
+\*shared a node; ~25 fps alone, ~31 with the integer formatting. fps = O2, 2 CPUs, before the formatting speed-up.
+
+Read-out: frdefault folds (Priya saw it buckle) -> out. Paper is intact but too stiff for small / local motion (Priya:
+nose rows stay rectangular; rest gain 0.90) though its stiffness *helps* large fast licks (neighbours outvote bad LK on
+the low-texture nose). Oldrun's fidelity comes from its **optical flow** (50 px, 5 levels), not its mesh (oldmesh folds
+and is worst in licks) -> round 3 = mids12 mesh + oldrun LK. 12 px costs nothing (mids12 = mid on every measure).
+**Factors are the same for every set** (rank-10 NN-CP, 66-71 % variance): 4 Hz nose (sniff), 1-2 Hz slow nose/face,
+8.2 Hz pad whisking, 5.8 Hz shared licking, **two 6.5 Hz lick-direction components** (far_L vs far_R trials, selectivity
++0.61 / -0.73, identical for paper / mids12 / softs12), 15 Hz mask-rim noise. #4 (8.2 Hz) rises over the window --
+position vs time not separable in 2 min.
+
+**After round 3 lands** (copy back `out_test/`): `python scripts/o2_face_rhythm.py paramscore --name fr_cam4_20261021`
+(locanmf env; ~15 min; new figure = one row per set: nose lick / nose rest / jaw from the whole mesh) ->
+`fr env: python scripts/face_rhythm_param_qc.py clips --color plain --sets paper mids12 midlk12 oldrun` and
+`decompose --sets <winner>`; check L/R lick selectivity as above.
+
+## O2 commands (pattern)
+
+```bash
+# transfer node: share -> scratch, and results back
+rsync -ah /n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/fr_cam4_20261021/ /n/scratch/users/p/ps150/o2/fr_cam4_20261021/
+rsync -ah /n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/rois/ /n/scratch/users/p/ps150/o2/fr_cam4_20261021/rois/
+rsync -ah /n/scratch/users/p/ps150/o2/fr_cam4_20261021/out_test/ /n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/fr_cam4_20261021/out_test/
+# login node
+sbatch /n/scratch/users/p/ps150/o2/fr_cam4_20261021/run_param_test.sbatch        # or run_fr.sbatch --array=<i>
+tail -n 1 /n/scratch/users/p/ps150/o2/fr_cam4_20261021/logs/pt_*.out
+```
+Task index of a session: `awk -F'\t' '$1=="<key>" {print NR-1}' tasks.tsv` (PS95_20260812_cam4 = 87, PS94_20260810_cam4 = 58).
 
 ## Pitfalls met today
 
-* **O2 /home quota**: `pip install face-rhythm` pulled CUDA torch (~4 GB of nvidia wheels) and pip's cache had grown to
-  15 GB -> "No space left on device". Fix (now in COMMANDS.md): CPU torch first from
-  `https://download.pytorch.org/whl/cpu`, `PIP_CACHE_DIR` / `TMPDIR` on scratch, `pip cache purge`. `quota` is retired:
-  `quota-v2`. There is also an older `face-rhythm` env in /home (unknown version) -- the sbatch activates `fr`.
-* **FR's ROI GUI** is a Plotly freehand widget: VS Code's notebook renderer fails ("Cannot read properties of undefined
-  (reading 'ipywidgetsKernel')") and it cannot place vertices by click. The notebook uses matplotlib `PolygonSelector`
-  (`%matplotlib widget`) in JupyterLab instead: click vertices, drag to edit, no vertex insertion (paste a `refine()`
-  resampler if needed). Its first overlay showed the mask in near-white instead of red, and it seeded points from the
-  face polygon alone (points outside the mask) -- both fixed: points = face AND mask.
-* **The 08/06 sessions' trial ids** disagree with the behaviour tables: dead `spout_bit1` -> behaviour from the GUI
-  log, 1-based; `engagement_keep` matches by order (99.8-100 % position agreement). Not an error.
-* **Split sessions** carry `ix_video` in `windows.npz` with `ix_src_frame` per video; `face_rhythm_prep.py` reads
-  `vids[-1]` -- wrong for PS92_20260812's first video (that file is another window's; not changed here).
-* **Templates must be pre-stroke** (see step 1) -- the registration picked by medoid score alone.
-* **cam4 encoder keyframe line**: FMP4 (FFmpeg MPEG-4, GOP 12, ~13 Mbit/s) -> a spurious 250/12 = 20.83 Hz line (+ 41.67)
-  in tracked points, 2.8-3.8x the neighbouring spectrum at rest, as strong far from the mouth. Spread over the 12-frame
-  group, so keyframe interpolation / phase templates fail; the runner notches 20.83 / 41.67 Hz (Q 30, zero-phase) on
-  the 250 Hz points before the VQT and the 25 Hz block mean (b3c6a74). FR's docs/standards.rst and the paper warn about
-  keyframe codecs / heavy compression but not this line. Future recordings: raise the writer's bitrate.
-* The trial-window output is the big one (n_trials x 151 x 2 x points x 36 x 2 B; 720 trials -> ~30 GB). Fewer points
-  (spacing 10-11 -> ~1350-1650) or x+y combined would cut it.
-* A JupyterLab server was left running for the notebook (port 8899, started from the `fr` env).
+* **OUT_OF_MEMORY on the first full session** (task 87, 57115611_87): 41.9 GB of 36 after 2 of 12 segments, worker peaks
+  11.8 / 20.1 GB. Dirty pages written through the shared memmaps (trials array 29 GB) pile up on /n/scratch's slow
+  write-back and count against the cgroup. Fixed (flush + MADV_DONTNEED per chunk); **unverified on O2** -> the pilot.
+* **O2 speed**: paper at 2287 points = 17.5 fps per worker -> 2.5 h per 10-min segment, ~7 h per session (> 6 h limit).
+  CPUs saturated (TotalCPU ~2x elapsed). Desktop profile per frame: LK 54 %, FR's torch formatting 20 %, CLAHE 20 %.
+* **Slurm MaxRSS counts the video file cache** (param tests: 8.4 GB "MaxRSS" vs 2.5 GB Python peak).
+* **Clip colouring by |displacement from home| misleads**: loose meshes sit offset (saturated colour) while a tight one
+  flickers near 0 -> looks like jitter / motion. At rest all sets have the same 2-20 Hz movement (~0.6 px). Use
+  `--color plain` to judge motion by position.
+* **cam4 encoder keyframe line**: FMP4 (FFmpeg MPEG-4, GOP 12, ~13 Mbit/s); keyframe = video frame index % 12 == 0.
+  Points carry it as a sawtooth over the group (positions integrate the keyframe's apparent shift, then relax), so
+  interpolating keyframe frames -- right for motion energy (pose window) -- does NOT clean points (20.83 / 41.67 / 62.5 Hz
+  at 1.59 / 1.52 / 1.48x raw, 1.58 / 1.56 / 1.52x interpolated, 0.30 / 0.05 / 0.02x notched). Future recordings: raise
+  the Bonsai writer's bitrate (recorder repo; not from here).
+* **Master must be pre-stroke**: the first registration picked post-stroke templates (PS93_20260821, acute, the
+  right-orofacial-deficit animal) by medoid score alone; rebuilt from August pre templates (PS92_0811, PS93_0809,
+  PS94_0812, PS95_0812; master PS95_0812).
+* **Eyes are in the ROI** (Priya's earlier PS46 analysis had strong weights there).
+* **O2 /home quota**: CUDA torch + a 15 GB pip cache filled /home; CPU torch first, `PIP_CACHE_DIR` / `TMPDIR` on
+  scratch (COMMANDS.md). `quota-v2`, not `quota`.
+* **FR's ROI GUI** (Plotly freehand) fails in VS Code and can't click vertices -> the notebook uses matplotlib
+  `PolygonSelector` in JupyterLab: click vertices, drag to edit, 60 px border for off-image vertices, `EDIT = True`
+  reopens a saved ROI; points = face AND mask; save moves the old file aside.
+* **The 08/06 sessions' trial ids** differ from the behaviour tables (dead `spout_bit1` -> GUI log, 1-based):
+  `engagement_keep` matches by order. **Split sessions** (`ix_video`): one task per video.
+* **Committing shared files**: a whole-file `git add CLAUDE.md` swept another window's hunk into 6aff451 -- diff first.
+* A JupyterLab server for the notebook may still be running (port 8899, fr env).

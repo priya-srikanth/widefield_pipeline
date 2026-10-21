@@ -76,6 +76,10 @@ Handoff for steps 4-5: [`docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md
   ~25 px outside, bottom above the close-spout tips); to be re-checked on the new master, then warped to sessions
   (`face_rhythm_warp_rois.py`). Decided: one animal's template as master (not a mean); ROI drawn by Priya.
 * **Encoder keyframe line** (20.83 Hz, cam4 FMP4 GOP 12) notched in the runner before the VQT (handoff pitfalls).
+* **Tracking-parameter test** (10-21 afternoon, PS95_0812 30k frames, 8 sets scored + 3 queued): recommendation
+  `mids12` (rigidity 0.03 / 24, relaxation 0.005, LK 40 px / 3, 12 px spacing); round 3 (mids12 mesh + oldrun's LK)
+  pending; factors identical across sets (sniff, whisking, shared + L / R lick-direction components). Production not
+  started; first full-session pilot OOM-killed (fixed). Handoff has the table.
 * **5 O2 bundle** built (`scripts/o2_face_rhythm.py`, `fr_cam4_20261021`, 108 tasks: June out, engaged trials,
   PS92_0812 as two tasks); waiting on the warped ROIs. Open: a tracking-parameter test (paper vs the old 2pRAM run vs
   FR defaults, scored against LP) before the full array.

@@ -900,7 +900,7 @@ def _mesh_explains(disp, jaw_y, tongue, fs, n_pc=50, k=5) -> dict:
     r2 = 1 - np.sum((y[ok] - pred_y[ok]) ** 2) / np.sum((y[ok] - y[ok].mean()) ** 2) if ok.sum() > 100 else np.nan
     ok = np.isfinite(t) & np.isfinite(pred_t)
     auc = roc_auc_score(t[ok], pred_t[ok]) if ok.sum() > 100 and len(np.unique(t[ok])) == 2 else np.nan
-    return {"mesh_jaw_y_r2": float(r2), "mesh_tongue_auc": float(auc)}
+    return {"mesh_jaw_y_r2": float(r2), "mesh_tongue_auc": float(auc), "_jaw_pred": (y, pred_y)}
 
 
 def _mesh_folds(pts, home, chunk=2000) -> dict:
@@ -937,7 +937,7 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
     rv = PathResolver()
     d = Path(src) if src else oi.bundle_dir(rv, name) / "out_test"
     fs = PARAMS["fps"]
-    rows, traces = [], {}
+    rows, traces, windows = [], {}, {}
     for f in sorted(d.glob("*.npz")):
         key, sname = f.stem.rsplit("_", 1)
         z = np.load(f)
@@ -987,7 +987,15 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
             row[f"{part}_points"] = int(len(near))
             row[f"{part}_point_dist_px"] = float(dd[near].mean())
             traces[(key, sname, part)] = (A, Bp)
-        row.update(_mesh_explains(disp, lp_bp["jaw"][:, 1], tongue, fs))
+        mx = _mesh_explains(disp, lp_bp["jaw"][:, 1], tongue, fs)
+        traces[(key, sname, "jawpred")] = mx.pop("_jaw_pred")             # 25 Hz: LP jaw y, CV prediction
+        row.update(mx)
+        if key not in windows:                                  # 4 s lick bout (most tongue) and rest (no tongue, calm)
+            L = 4 * fs
+            tsum = pd.Series(tv.astype(float)).rolling(L).sum().to_numpy()
+            nsp = pd.Series(np.nan_to_num(np.hypot(*lp_bp["nose"].T), nan=99)).rolling(L).mean().to_numpy()
+            calm = np.where(pd.Series(near_t.astype(float)).rolling(L).sum().to_numpy() == 0, nsp, np.inf)
+            windows[key] = (int(np.nanargmax(tsum)) - L + 1, int(np.argmin(calm)) - L + 1)
         row.update(_mesh_folds(pts, home))
         rows.append(row)
     if not rows:
@@ -1000,26 +1008,36 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
     cols = ["set", "n_points", "fps", "violation_fraction", "fold_frames", "fold_tri_per_frame", "jitter_30_60Hz_px",
             "nose_y_r_lick", "nose_y_gain_lick", "nose_y_r_rest", "nose_y_gain_rest", "mesh_jaw_y_r2", "mesh_tongue_auc"]
     print(R[cols].round(3).to_string(index=False))
-    keys = sorted({k[0] for k in traces})                      # 4 s of band-passed nose / jaw y: LP vs each set
-    fig, axs = plt.subplots(2 * len(keys), 1, figsize=(12, 6.4 * len(keys)), squeeze=False)
-    for i, key in enumerate(keys):
-        for j, part in enumerate(("nose", "jaw")):
-            ax = axs[2 * i + j, 0]
-            A = traces[(key, R.set.iloc[0], part)][0]
-            ok = np.flatnonzero(np.isfinite(A[:, 1]))
-            if not len(ok):
-                continue
-            sl = slice(ok[len(ok) // 3], ok[len(ok) // 3] + 4 * fs)
-            tt = np.arange(sl.start, sl.stop) / fs
-            ax.plot(tt, A[sl, 1], "k", lw=1.6, label="LP")
-            for sname in R.set:
-                ax.plot(tt, traces[(key, sname, part)][1][sl, 1], lw=1, label=sname)
-            ax.set_title(f"{key} {part} y, 2-20 Hz")
-            ax.set_ylabel("px")
-            ax.legend(fontsize=7, ncol=4)
-    axs[-1, 0].set_xlabel("s from the test window start")
-    fig.tight_layout()
-    fig.savefig(out / f"param_test_{name}.png", dpi=90)
+    for key in sorted(windows):                 # one row per set: nose y in a lick bout, at rest; jaw y from the mesh
+        lick0, rest0 = windows[key]
+        Rk = R[R.session == key].reset_index(drop=True)
+        fig, axs = plt.subplots(len(Rk), 3, figsize=(16, 1.9 * len(Rk)), squeeze=False, sharex="col")
+        for i, r_ in Rk.iterrows():
+            for j, (i0, part) in enumerate(((lick0, "nose"), (rest0, "nose"))):
+                A, Bp = traces[(key, r_.set, part)]
+                sl = slice(i0, i0 + 4 * fs)
+                tt = np.arange(sl.start, sl.stop) / fs
+                axs[i, j].plot(tt, A[sl, 1], "k", lw=1.3, label="LP")
+                axs[i, j].plot(tt, Bp[sl, 1], "tab:orange", lw=1, label="FR points")
+                ph = "lick" if j == 0 else "rest"
+                axs[i, j].set_title(f"{r_.set}: nose y, {ph}  r {r_[f'nose_y_r_{ph}']:.2f}, "
+                                    f"gain {r_[f'nose_y_gain_{ph}']:.2f}", fontsize=8)
+            y, pr = traces[(key, r_.set, "jawpred")]
+            ds = fs // 25
+            sl = slice(lick0 // ds, (lick0 + 4 * fs) // ds)
+            tt = np.arange(sl.start, sl.stop) * ds / fs
+            axs[i, 2].plot(tt, y[sl], "k", lw=1.3, label="LP jaw y")
+            axs[i, 2].plot(tt, pr[sl], "tab:blue", lw=1, label="whole-mesh prediction (CV)")
+            axs[i, 2].set_title(f"{r_.set}: jaw y from the mesh, lick  (R2 all {r_.mesh_jaw_y_r2:.2f}, "
+                                f"{r_.n_points} pts, {r_.fold_tri_per_frame:.2f} folds/frame)", fontsize=8)
+            axs[i, 0].set_ylabel("px")
+        for j in range(3):
+            axs[0, j].legend(fontsize=7, loc="upper right")
+            axs[-1, j].set_xlabel("s from the test window start")
+        fig.suptitle(f"{key}: 2-20 Hz, LP vs each parameter set", y=1.0)
+        fig.tight_layout()
+        fig.savefig(out / f"param_test_{name}.png", dpi=80)
+        plt.close(fig)
     print("->", out)
     return R
 
