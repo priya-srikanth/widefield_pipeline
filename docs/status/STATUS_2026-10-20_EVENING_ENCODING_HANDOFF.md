@@ -106,7 +106,9 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
   `scripts/within_spout_mixed.py`, `scripts/imaging_lmm.py` (trend / decoder trajectory / orofacial session metrics).
   Mixed models are the PRIMARY readout; epochs descriptive (chronic starts day 11 / 15 / 25 by animal).
 - `scripts/encoding_key_figures.py`: precue_licking, lick_deficits, landing_zones (canonical POS_ORDER).
-- `scripts/encoding_mixed.py` figures: `qc/figures/encoding_mixed_{behaviour,time}_<area>.png`.
+- Figures via the shared `mixed_models.plot_fits`: `qc/figures/encoding_mixed_{behaviour,time}_<area>.png` and
+  `qc/figures/imaging_lmm_{trend,behaviour,decoder_unmatched,decoder_matched}_<model>.png` (decoder: F_deficit tracks
+  the behavioural deficit, ~0 at full recovery; G_reorg flat ~ +0.10 at every behavioural level).
 - combined_encoding: extra scoring windows (`cue2lick`, `cuestop`, `firstlick`), lick-aligned trial-to-trial SSE
   (`sse_trial_lick`), `COMBINED_ENCODING_LICKS_ALL=shared|split` (whole-session licks; folder `_licksall-<mode>`).
 

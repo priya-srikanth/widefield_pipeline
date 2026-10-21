@@ -92,6 +92,23 @@ def post_only_table(L: pd.DataFrame) -> pd.DataFrame:
     return T
 
 
+def figures(L: pd.DataFrame, T: pd.DataFrame, figs: Path) -> None:
+    """One figure per source x model (mixed_models.plot_fits)."""
+    from wfield_local import mixed_models as mm
+    sets = [("trend", ("ceiling", "spread", "spread_enl"), ("time", "behaviour"),
+             "position ceiling / spread (trend table)"),
+            ("behaviour", ("resp_rate", "contact_frac", "latency_ms", "ipsi_bias_deg", "angle_gain_far",
+                           "precue_rate_hz"), ("time",), "behaviour (orofacial session metrics)")]
+    sets += [(f"decoder_{t}", DECODER_METRICS, ("time_post", "behaviour_post"),
+              f"frozen / refit decoder ({t}; post-stroke only)") for t in ("unmatched", "matched")]
+    for src, meas, models, title in sets:
+        for model in models:
+            if not ((T.source == src) & (T.model == model)).any():
+                continue
+            panels = [(m, {"source": src, "measure": m}) for m in meas]
+            mm.plot_fits(L, T, panels, model, figs / f"imaging_lmm_{src}_{model}.png", title, "value")
+
+
 def main(argv=None) -> int:
     from wfield_local import mixed_models as mm
     from wfield_local import orofacial_cohort as oc
@@ -105,7 +122,7 @@ def main(argv=None) -> int:
     E = run_root / "imaging_encoding"
     deficit = mm.behaviour_deficit(E / "qc" / "position_coding_trend_recovery_sessions.csv")
     src = a.sources.split(",")
-    tabs = []
+    tabs, L, D = [], None, None
     prepost = [f(E if f is trend_table else run_root) for name, f in (("trend", trend_table),
                                                                       ("behaviour", behaviour_table)) if name in src]
     if prepost:
@@ -129,7 +146,9 @@ def main(argv=None) -> int:
         S = T[T.model == model]
         print(f"\n=== {model}\n" + S.pivot_table(index=["source", "measure"], columns="term",
                                                 values=["coef", "z", "q"]).round(3).to_string())
-    print(f"\n-> {E / 'qc' / 'imaging_lmm.csv'}")
+    figures(pd.concat([x for x in (L, D) if x is not None and not x.empty], ignore_index=True), T,
+            E / "qc" / "figures")
+    print(f"\n-> {E / 'qc' / 'imaging_lmm.csv'}, figures/imaging_lmm_*.png")
     return 0
 
 

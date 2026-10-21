@@ -184,3 +184,69 @@ def summary_table(T: pd.DataFrame, by: list[str]) -> pd.DataFrame:
     idx = ["model", *by]
     return (W.pivot_table(index=idx, columns="term", values="cell", aggfunc="first")
             .join(T.drop_duplicates(idx).set_index(idx)[["re", "n"]]))
+
+
+ANIMAL_COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
+#: x axis per model: behavioural deficit or days since stroke
+_X = {"behaviour": ("deficit", "behavioural deficit (0 = pre level, 1 = total loss)"),
+      "behaviour_post": ("deficit", "behavioural deficit (0 = pre level, 1 = total loss)"),
+      "time": ("day", "days since stroke (pre sessions at their negative days)"),
+      "time_post": ("day", "days since stroke")}
+
+
+def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, title: str = "",
+              ylabel: str = "y", ncols: int = 3) -> None:
+    """Session values (o pre, ^ post, coloured by animal) vs deficit or days, with the fitted fixed effects.
+    `panels` = [(panel title, {column: value} selecting rows of L and of T)]; `model` = a T.model value (time,
+    behaviour, time_post, behaviour_post). One figure -> `path`."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    xcol, xlab = _X[model]
+    nrows = int(np.ceil(len(panels) / ncols))
+    fig, ax = plt.subplots(nrows, ncols, figsize=(4.4 * ncols, 3.7 * nrows), squeeze=False)
+    for k, (name, sel) in enumerate(panels):
+        a_ = ax.flat[k]
+        G, c = L, T[T.model == model]
+        for col, v in sel.items():
+            G, c = G[G[col] == v], c[c[col] == v]
+        G = G.dropna(subset=[xcol])
+        if G.empty or c.empty:
+            a_.axis("off")
+            continue
+        for an, g in G.groupby("animal"):
+            for post, mk in ((0, "o"), (1, "^")):
+                h = g[g.post == post]
+                a_.scatter(h[xcol], h.y, s=14, marker=mk, color=ANIMAL_COL.get(an, "0.4"), alpha=0.8,
+                           label=f"{an} {'post' if post else 'pre'}" if k == 0 and len(h) else None)
+        c = c.set_index("term")
+        if model in ("time", "behaviour"):
+            sl = SLOPES[model]
+            pre, step, b = c.coef["pre_level"], c.coef["post"], c.coef.get(sl, np.nan)
+            xx = (np.linspace(min(0, G.deficit.min()), max(1, G.deficit.max()), 50) if model == "behaviour"
+                  else np.linspace(1, max(G.day.max(), 2), 80))
+            a_.plot(xx, pre + step + b * (xx if model == "behaviour" else np.log(xx)), "k-", lw=1.5,
+                    label="fit: post" if k == 0 else None)
+            a_.axhline(pre, color="k", ls=":", lw=1, label="fit: pre level" if k == 0 else None)
+            stat = f"post {step:+.3g} (z {c.z['post']:.1f}), {sl} {b:+.3g} (z {c.z.get(sl, np.nan):.1f})"
+        else:
+            term, icpt = (("lday", "post_level_day1") if model == "time_post"
+                          else ("deficit", "post_level_full_recovery"))
+            a0, b = c.coef[icpt], c.coef[term]
+            xx = np.linspace(1, max(G.day.max(), 2), 80) if model == "time_post" else np.linspace(0, 1, 50)
+            a_.plot(xx, a0 + b * (np.log(xx) if model == "time_post" else xx), "k-", lw=1.5,
+                    label="fit" if k == 0 else None)
+            stat = f"{icpt} {a0:+.3g} (z {c.z[icpt]:.1f}), {term} {b:+.3g} (z {c.z[term]:.1f})"
+        a_.set_title(f"{name}\n{stat}; re {c.re.iloc[0]}", fontsize=7)
+        a_.axhline(0, color="0.8", lw=0.5)
+        a_.set_xlabel(xlab, fontsize=7)
+        a_.set_ylabel(ylabel, fontsize=7)
+        a_.tick_params(labelsize=7)
+    for a_ in ax.flat[len(panels):]:
+        a_.axis("off")
+    ax.flat[0].legend(fontsize=6, ncol=2)
+    fig.suptitle(f"{title} -- mixed model, animal random effects ({model})", fontsize=9)
+    fig.tight_layout()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)

@@ -20,7 +20,6 @@ import argparse
 import glob
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 FOCUS = ("cortex", "SSp-m_left", "SSp-m_right", "MOs_left", "MOs_right", "MOp_left", "MOp_right", "SSp-ul_left",
@@ -76,52 +75,14 @@ def outcomes(E: Path, labels: set) -> pd.DataFrame:
 
 FIG_PANELS = (("cue", "cam4:ceiling"), ("cue", "cam4:u_target"), ("cue", "position"),
               ("lick", "distance"), ("lick", "cam4:u_target"), ("lick", "position"))
-ANIMAL_COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
-
-
 def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex") -> None:
-    """Session values vs behavioural deficit (and vs days since stroke) with the fitted fixed effects, per panel."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    out.mkdir(parents=True, exist_ok=True)
-    for model, xcol, xlab in (("behaviour", "deficit", "far-contra contact deficit (0 = pre level, 1 = total loss)"),
-                              ("time", "day", "days since stroke (pre sessions at their negative days)")):
-        fig, ax = plt.subplots(2, 3, figsize=(13, 7.5), squeeze=False)
-        for k, (win, meas) in enumerate(FIG_PANELS):
-            a_ = ax.flat[k]
-            G = L[(L.window == win) & (L.measure == meas) & (L.area == area)]
-            if G.empty:
-                a_.axis("off")
-                continue
-            for an, g in G.groupby("animal"):
-                for post, mk in ((0, "o"), (1, "^")):
-                    h = g[g.post == post]
-                    a_.scatter(h[xcol], h.y, s=14, marker=mk, color=ANIMAL_COL.get(an, "0.4"), alpha=0.8,
-                               label=f"{an} {'post' if post else 'pre'}" if k == 0 else None)
-            c = T[(T.model == model) & (T.window == win) & (T.measure == meas) & (T.area == area)].set_index("term")
-            if {"pre_level", "post"} <= set(c.index):
-                slope = "post:deficit" if model == "behaviour" else "post:lday"
-                pre, step, b = c.coef["pre_level"], c.coef["post"], c.coef.get(slope, np.nan)
-                if model == "behaviour":
-                    xx = np.linspace(min(0, G.deficit.min()), max(1, G.deficit.max()), 50)
-                    a_.plot(xx, pre + step + b * xx, "k-", lw=1.5, label="fit: post" if k == 0 else None)
-                else:
-                    xx = np.linspace(1, max(G.day.max(), 2), 80)
-                    a_.plot(xx, pre + step + b * np.log(xx), "k-", lw=1.5, label="fit: post" if k == 0 else None)
-                a_.axhline(pre, color="k", ls=":", lw=1, label="fit: pre level" if k == 0 else None)
-                a_.set_title(f"{meas} | {win} window\npost {step:+.1f} (z {c.z['post']:.1f}), {slope} {b:+.1f} "
-                             f"(z {c.z.get(slope, np.nan):.1f}); re {c.re.iloc[0]}", fontsize=8)
-            a_.axhline(0, color="0.8", lw=0.5)
-            a_.set_xlabel(xlab, fontsize=7)
-            a_.set_ylabel(f"{area} dR2 x1e3", fontsize=7)
-            a_.tick_params(labelsize=7)
-        ax.flat[0].legend(fontsize=6, ncol=2)
-        fig.suptitle(f"Position / angle coding vs {'behavioural recovery' if model == 'behaviour' else 'time'} "
-                     f"({area}; mixed model, animal random effects; o pre, ^ post sessions)", fontsize=10)
-        fig.tight_layout()
-        fig.savefig(out / f"encoding_mixed_{model}_{area}.png", dpi=150)
-        plt.close(fig)
+    """Session values vs behavioural deficit and vs days, fitted fixed effects (mixed_models.plot_fits)."""
+    from wfield_local import mixed_models as mm
+    panels = [(f"{meas} | {win} window", {"window": win, "measure": meas, "area": area}) for win, meas in FIG_PANELS]
+    for model in ("behaviour", "time"):
+        mm.plot_fits(L, T, panels, model, out / f"encoding_mixed_{model}_{area}.png",
+                     f"Position / angle coding vs {'behavioural recovery' if model == 'behaviour' else 'time'} ({area})",
+                     f"{area} dR2 x1e3")
 
 
 def main(argv=None) -> int:
