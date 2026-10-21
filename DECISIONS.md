@@ -21009,3 +21009,12 @@ assumed a lick-free window; pre-cue licking at the spout (spout-specific movemen
 by the pre-cue position kernels -> part of the pre-cue position code may be licking. PS95 (few pre-cue licks) is the
 cleanest pre-cue animal. To do: add pre-cue contacts (now) / whole-session detector licks (requested from the other
 window) to the lick kernels and refit the pre-cue measures; spontaneous (pre-cue) vs cued lick comparison.
+**CORRECTION to the pre-cue entry above (Priya: "enl is reset for any spout contact, but not for no-contact licks").**
+The task restarts the ENL on any spout contact, so the final 2 s before the cue (= the model's ENL window) is
+contact-free by design: the last pre-cue contact falls a median 2.2-2.5 s before the cue (5th pct 2.0 s; 1-18 trials
+per session inside 2 s = boundary timing). The raw pre-cue contacts are licks BEFORE that window. Remaining caveats:
+(1) NO-CONTACT licks can occur inside the window (not in our post-cue-only lick tables; the requested whole-session
+detectors will show them; the orofacial cohort already counts pre-cue licks: cohort/tables/prepost/session_metrics.csv
+n_precue_licks / precue_rate_hz / precue_trial_frac); (2) GCaMP6s spillover -- contacts end right at the window start,
+so lick-evoked spout-specific activity can leak into its early part. "Every pre-cue result provisional" is withdrawn;
+the narrower caveat stands until no-contact licks and a spillover check (e.g. ENL split 0-1 s vs 1-2 s) are in.
