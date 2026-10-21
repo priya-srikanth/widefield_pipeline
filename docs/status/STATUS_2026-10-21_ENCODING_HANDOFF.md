@@ -95,11 +95,50 @@ the CURRENT attempt definition (attempted = hit + incomplete; jaw_only = reactio
 Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`, `scripts/spout_tuning_check.py`,
 `scripts/spout_mid_maps.py`, `scripts/summary_figures_1021.py` (argument = the folder holding `spout_tuning_check.csv`).
 
-## 2. RUNNING (updated 10-21 ~11:15)
+## 1c. AFTERNOON (10-21 13:00-15:30) -- READ BEFORE CONTINUING (DECISIONS 10-21 afternoon entries)
+
+10. **Template ceiling:** a NEITHER share (lick-locked structure matching no pre-stroke template) appears post-stroke
+    and persists: chronic 0.38 (PS92) / 0.30 (PS93), > 0 in 12/12 and 6/6 chronic sessions, pre ~0. PS93 target-like >
+    execution-like; PS92 templates overlap. [lick_templates.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/target_vs_execution/lick_templates.png) (third panel)
+11. **Within-spout z-scored** (each animal in its pre-stroke SD units; families `*_z`) and REPORTED AS PER-POSITION
+    DIRECTION (Priya: per-position, not toward-midline; + = licks toward the mouse's LEFT). Pre: far_ipsi negative 4/4,
+    close_contra negative 3/4 (PS94 ~0) = more activity for licks deviating toward the contralesional side; close_contra
+    flips acutely 3/4; far_ipsi chronic PS94 reversed, PS92 lost. Reliability-corrected (`scripts/spout_reliability.py`):
+    PS95's chronic weakening was attenuation. [spout_mid_maps_per_animal_z.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick_contact/spout_mid_maps_per_animal_z.png)
+    (NB the figure still labels values "toward midline": flip the sign at ipsi spouts to read direction.)
+12. **Map statistics review** (Priya asked about the 15r POSITION ACTIVITY maps, ENL / cue / lick): pooled pictures are
+    pre-normalised per animal since 09-12 but the significance contours are computed on RAW maps; 14z picture raw;
+    within-spout vs-zero "cluster" call silently fails. Calibration on figure-14 beta maps: pure nulls flag NOTHING (both
+    tests) -> no small-n correction; June vs August (drift) flags up to 14 % (nested) / 53 % (cluster, normalised) at
+    contra positions; normalising removes acute far_center (23 % -> 0.1 %). 15r position-map calibration RUNNING.
+
+## 2. RUNNING (updated 10-21 ~15:30)
 
 | what | task / log | then |
 |---|---|---|
+| 15r position-map calibration, arms precue / cue / lick x references | `S/run_calib_position.sh`, logs `S/calib_position_<align>.log`; maps cached `S/position_store_<align>_<variant>.pkl`; CSVs `labcams/grant_figures/epoch/results/map_test_calibration_position_<ref>_<align>_<variant>.csv` | report pure-null false positives, June-vs-August drift, raw vs normalised acute per position |
 | jaw_onsets watcher (`S/watch_jaw.sh`, 8 h from 10:13) | waits for the pose window's rewrite (direction / cue contrast / treadmill columns) | reruns attempts + LMMs + six within-spout mixed models |
+
+## 2b. NEXT, in order (Priya 10-21 ~15:30: "sounds good proceed") -- NOT STARTED IN CODE
+
+1. `wfield_local/beta_maps.py`: add `NORMALISE_TESTS_BY_PRE = True` with the justification (DECISIONS 10-21 afternoon,
+   map statistics entry); `pre_scale(pre_by_animal, mask)` (THE per-animal constant, brain_mask RMS of the mean pre
+   map, 1.0 if degenerate) and use it inside `within_animal_pooled`; `scale_maps`; `significance_contour(normalise=None)`
+   -> nested / musall on maps divided by `pre_scale(pre)`, CLUSTER via a new `cluster_permutation(normalise=True)` that
+   recomputes each animal's constant inside `_stat(assign)` from that draw's pseudo-pre sessions; labels prefixed
+   "[pre-normalised]"; `vs_zero_contour(scale_by=pre_by)`. A draft (fixed-constant cluster, to be revised) is in
+   `S/patch_normtest.py`. Tests for `pre_scale` / scale invariance. Editing beta_maps invalidates the input cache.
+2. `wfield_local/epoch_maps.py` `_fig_14z_beta_vs_zero`: normalise the PICTURE (each animal / its pre constant) and pass
+   `scale_by` (pre maps of the same position).
+3. `scripts/within_spout_deviation.py` ~line 642: vs-zero with method "cluster" -> use "nested" (label it) + `scale_by`.
+4. `scripts/within_spout_mixed.py` `pixel_maps`: z versions (each animal's maps x its pre lat_sd / resp_sd, cortex,
+   spouts "all"), `mixed_time_maps_<kind>_z.png`.
+5. Rerender: `python -m wfield_local.epoch_grant_figures --only 15r 15e 14m` (~1-2 h; old versions archived in
+   `labcams/grant_figures/epoch/archive_rawdF_tests_20261021/`); within-spout `--figures-only` for each folder +
+   `within_spout_mixed.py --folder ...` (old test tables `map_significance_*_rawdF_20261021.csv`). Compare new vs archived
+   contours per family / position; expect acute far_center to shrink. ENCODING_FINDINGS + DECISIONS + this handoff.
+6. Optional: `scripts/rest_migration/rest_carries_position.py` (raw picture + raw vs-zero test).
+7. Fix the "toward midline" wording in `spout_mid_maps.py` titles -> per-position direction.
 
 ## 2a. Superseded at ~09:55 (kept for the record)
 
@@ -158,3 +197,6 @@ python -m pytest -q tests/test_within_spout_deviation.py tests/test_input_cache.
 - Editing ANY `_CACHE_CODE` module (even a comment) invalidates the whole local input cache (41 GB); keep doc-only
   changes to those files for a quiet moment.
 - jaw_only trials are reactions (Priya's blind review); `trial_attempts.ATTEMPT_CLASSES` is the one definition.
+- Python patch files written through a bash heredoc turn `\n` inside strings into real newlines (broke three edits
+  today) -- use the Edit tool for any string containing `\n`.
+- Report within-spout per-spout results as per-position DIRECTION, not toward-midline (Priya 10-21 afternoon).

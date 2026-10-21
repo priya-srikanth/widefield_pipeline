@@ -21246,3 +21246,46 @@ subacute / chronic). Per session: chronic neither > 0 in 12/12 PS92 and 6/6 PS93
 (its licks land near target, templates overlap); in both, 30-40 % of chronic spout-locked lick activity matches NO
 pre-stroke template -- consistent with frozen decoders staying below pre at recovery and the destination test's
 "neither" matches. Two animals. Figure `figures/target_vs_execution/lick_templates.png` (third panel).
+
+## 2026-10-21 (afternoon) -- Within-spout z-scoring, per-position (direction) reading, reliability correction
+
+Priya: "are our within-spout analyses normalized within animal" -> "can we z score?" -> "yes add the standardized
+version"; "i don't know that i wanted the toward midline analysis, just the per-position analysis". Session rows now
+carry `lat_sd` / `resp_sd` (17f5e8a); `within_spout_mixed.add_z`: b_z = b x animal's PRE median lateral SD / PRE median
+response SD (per animal x spouts x area; pre-stroke SD of activity per pre-stroke SD of deviation), b_zs session-own
+(check); kinds `within_z`, `spout:<pos>_z`, `mid:<pos>_z` / `_zs`. All six within-spout folders rerun (13:58-15:00).
+Per-spout "toward midline" = the per-position slope with the sign flipped at ipsi spouts -- nothing different was
+computed; REPORT PER-POSITION DIRECTION (+ = more activity for licks toward the mouse's LEFT / ipsi) from now on.
+SSp-m z, pre: far_ipsi NEGATIVE in 4/4 (-0.08 to -0.29), close_contra negative in PS92 / PS93 / PS95 (PS94 ~0) --
+pre-stroke, at these two spouts activity is higher when the lick deviates toward the mouse's RIGHT (contralesional);
+close_contra flips + acutely in 3/4; far_ipsi chronic: PS94 reversed (+0.30), PS92 lost (~0), PS93 / PS95 unchanged.
+Per-spout RELIABILITY (`scripts/spout_reliability.py`, odd / even licks, Spearman-Brown; `<folder>/spout_reliability*.csv`):
+PS94 / PS95 far_ipsi scatter halves by chronic, so cam4 noise attenuates their slopes; corrected, PS95's apparent 30 %
+chronic weakening disappears (-0.47 -> -0.56); close spouts / acute reliabilities 0.1-0.4 -> corrected values there are
+noisy upper bounds. PS93 far_ipsi had the LARGEST pre scatter (9.4 deg vs 4.5-5.8) but a weak slope -- "nothing to
+lose" = no pre-stroke relation, not little variation. Z maps: `spout_mid_maps.py --z` ->
+`figures/within_spout/within_spout_deviation_lick_contact/spout_mid_maps_per_animal_z.png` (pooled row = animals equal).
+
+## 2026-10-21 (afternoon) -- Map statistics review + calibration; normalised map tests PLANNED (not yet applied)
+
+Priya: "for our imaging-only analyses with activity maps -- did we z score?" (meaning family 15r position activity maps,
+ENL / precue vs cue vs lick) -> "please carefully review the stats code" -> "proceed". FINDINGS: (1) since 2026-09-12 the
+DRAWN pooled maps divide each animal by its pre-stroke RMS per position (`beta_maps.NORMALISE_BY_PRE`), but
+`significance_contour` / `vs_zero_contour` receive RAW maps -> contour and picture on different scales. (2) 14z draws a
+RAW pooled picture. (3) `within_spout_deviation` calls `vs_zero_contour(method="cluster")`, which does not exist -> every
+pre row of `map_significance_cluster.csv` = "test failed". (4) Nested bootstrap at n = 4 suspected anti-conservative --
+NOT borne out: CALIBRATION (`scripts/map_test_calibration.py`, figure-14 beta maps cue/working; `labcams/grant_figures/
+epoch/results/map_test_calibration_cue_working.csv`): pure-null splits (August split, all-pre split) flag 0 bins / px in
+every position, both tests, raw and normalised -> no small-sample correction. June vs August pre (drift null, ~2 months,
+no stroke): close_R 11-14 % (nested), cluster normalised 53 %; far_R 4-8 % -- a time / training confound of that size
+on contra positions; supports the August-only baseline. Real acute: far_R 53 / 54 % (raw / normalised); FAR_CENTER 23 %
+raw -> 0.1 % normalised (raw result carried by bright animals). Position-map (15r) calibration RUNNING (all references,
+precue / cue / lick arms). PLAN (Priya: "sounds good proceed"): beta_maps -- `NORMALISE_TESTS_BY_PRE`, `pre_scale` (one
+definition, used by within_animal_pooled too), `scale_maps`; `significance_contour(normalise=)` scales nested / musall by
+the pre constant and, for the cluster permutation, RECOMPUTES the constant inside each relabelling draw from that draw's
+pseudo-pre sessions (exact null); `vs_zero_contour(scale_by=pre)`; labels prefixed "[pre-normalised]". epoch_maps: 14z
+picture normalised too + `scale_by`. within_spout: vs-zero uses nested (not "cluster") + `scale_by`; z versions of the
+mixed-model pixel maps. Rerender epoch families 15r / 15e / 14m and the within-spout figure step. Old outputs ARCHIVED:
+`labcams/grant_figures/epoch/archive_rawdF_tests_20261021/` (255 files) and `qc/within_spout_deviation*/
+map_significance_*_rawdF_20261021.csv`. Not needed: encoding dR2 maps (fraction of each pixel's variance), by-animal
+panels, scalar families. `beta_maps.py` is in the input-cache key: editing it invalidates the local cache (one share pass).

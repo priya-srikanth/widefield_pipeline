@@ -193,6 +193,10 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   **Commanded-axis across-spout slope (10-21 midday):** survives the contact-adjusted spout means (SSp-m bilateral
   deficit z 8.5 cam4 / 8.5 3-D; 3-D hits-only 4.8); the cam4 hits-only collapse = far contra missing from acute
   hits-only sessions. Target-defined (commanded), not execution; executed-axis between null.
+  **Z-scored, per-position direction (10-21 afternoon):** each animal in its pre-stroke SD units; pre-stroke, far_ipsi
+  (4/4) and close_contra (3/4) show more activity for licks deviating toward the CONTRALESIONAL side; close_contra flips
+  acutely 3/4; far_ipsi chronic PS94 reversed, PS92 lost; reliability-corrected, PS95's chronic weakening was
+  attenuation (scatter halves). Effect size ~0.2-0.4 SD per SD.
 
 - **Coding tracks behavioural recovery and overshoots (PROVISIONAL, 10-20 night; `scripts/encoding_mixed.py`).**
   Mixed models with animal random effects, sessions as observations. Calendar time: position coding drops at day 1
