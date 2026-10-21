@@ -347,6 +347,8 @@ def session_features_cached(s, args, *, signal=None, feat_region=None, signal_fn
     """
     if lead_s is None:
         lead_s = float(config.defaults()["decode"].get("prewindow_lick_lead_s", 1.0))
+    # ENL window (WIDEFIELD_ENL_WINDOW_S; 1.0 s under LP_licks), before the key: `post_s` is in `_SF_ARGS`
+    args = lp_licks.apply_enl_window(args)
 
     def _compute():
         sig, reg = (signal, feat_region)
@@ -387,6 +389,7 @@ def session_features(s, args, signal=None, feat_region=None, lead_s=None):
     own `_trial_features` does it. Everything downstream is then identical by construction, which is
     the point: the basis is the only thing that differs.
     """
+    args = lp_licks.apply_enl_window(args)     # idempotent; covers direct callers
     if signal is not None:
         sig = np.asarray(signal)
         feat_reg = (np.arange(sig.shape[0]) if feat_region is None else np.asarray(feat_region))

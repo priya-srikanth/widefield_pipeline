@@ -81,15 +81,18 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
         raise WriteGuardError(
             f"refusing to write outside the standby Priya subtree:\n  path: {path}\n"
             f"  a standby-share path must contain a '/{_OWNER}/' segment (CLAUDE.md rule 1).")
-    # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): a run on the video lick source writes ONLY under an LP_licks
-    # directory. Most writers pick their own share path; without this, an LP run of any of them would overwrite the
-    # DAQ outputs of the same name. Renderers that know about LP route themselves (`lp_licks.output_dir`).
-    if os.environ.get("WIDEFIELD_LICK_SOURCE", "").strip().lower() == "lp" and \
-            (_MICROSCOPE_MARK in c or any(m in c for m in _STANDBY_MARKS)) and "/lp_licks/" not in c:
-        raise WriteGuardError(
-            f"refusing an LP_licks-run write outside an LP_licks directory:\n  path: {path}\n"
-            "  under WIDEFIELD_LICK_SOURCE=lp every share output must sit under .../LP_licks/... so it can never "
-            "replace the DAQ (spout-contact) version; route the writer with lp_licks.output_dir().")
+    # LP_licks / matched-ENL runs (2026-10-21): a non-default run (WIDEFIELD_LICK_SOURCE=lp, or a non-default
+    # WIDEFIELD_ENL_WINDOW_S) writes ONLY under its tag directory (LP_licks, DAQ_ENL1s, ...). Most writers pick their own
+    # share path; without this, such a run of any of them would overwrite the default outputs of the same name.
+    # Renderers that know about it route themselves (`lp_licks.output_dir`).
+    if _MICROSCOPE_MARK in c or any(m in c for m in _STANDBY_MARKS):
+        from wfield_local import lp_licks
+        tag = lp_licks.output_tag()
+        if tag is not None and f"/{tag.lower()}/" not in c:
+            raise WriteGuardError(
+                f"refusing a {tag} run's write outside a {tag} directory:\n  path: {path}\n"
+                f"  under this lick source / ENL window every share output must sit under .../{tag}/... so it can "
+                "never replace the default (DAQ contact, 2 s ENL) version; route the writer with lp_licks.output_dir().")
 
 
 def is_writable(path: str | os.PathLike[str]) -> bool:

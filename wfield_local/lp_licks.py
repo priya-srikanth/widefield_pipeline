@@ -84,24 +84,65 @@ def spec_token(rv=None) -> str:
     return f"lp{LP_VERSION}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}"
 
 
+#: Pre-cue (ENL) lick-free window length, s (Priya 10-21, after `scripts/enl_lp_census.py`: "1.0 s, plus DAQ 1.0 s").
+#: With LP licks a 2 s lick-free window keeps only 48 % of PS93's pre-stroke far_L / far_center trials and ~66 % of
+#: acute far_R in PS92 / PS93 -- a position- and epoch-dependent selection; at 1.0 s every animal x position x epoch
+#: keeps >= 95 %. Unset = 1.0 under LP, the existing 2.0 s under DAQ; set under DAQ for the MATCHED DAQ arm
+#: (contact-free 1.0 s), so LP vs DAQ differ only in the lick definition. Applies to align == "precue" only, where
+#: `post_s` IS the window that ends at the cue.
+ENL_WINDOW_ENV = "WIDEFIELD_ENL_WINDOW_S"
+LP_ENL_WINDOW_S = 1.0
+
+
+def enl_window_s() -> float | None:
+    v = os.environ.get(ENL_WINDOW_ENV, "").strip()
+    if v:
+        return float(v)
+    return LP_ENL_WINDOW_S if is_lp() else None
+
+
+def apply_enl_window(args):
+    """``args`` with post_s replaced by the ENL window for the precue alignment (a copy; others returned as is). Called
+    where features are KEYED and where they are built, so the cache key always sees the window actually used."""
+    import copy
+    w = enl_window_s()
+    if w is None or getattr(args, "align", None) != "precue" or getattr(args, "post_s", None) == w:
+        return args
+    a = copy.copy(args)
+    a.post_s = float(w)
+    return a
+
+
+def output_tag() -> str | None:
+    """Output-folder tag of a non-default run: "LP_licks" (LP source, ENL 1.0 s unless overridden -> "LP_licks_ENL<w>s"),
+    "DAQ_ENL<w>s" (DAQ source with a non-default ENL window); None for the default DAQ run."""
+    w = enl_window_s()
+    if is_lp():
+        return "LP_licks" if w == LP_ENL_WINDOW_S else f"LP_licks_ENL{w:g}s"
+    return None if w is None else f"DAQ_ENL{w:g}s"
+
+
 def output_dir(default: Path) -> Path:
-    """Renderer output under the LP source: <parent>/LP_licks/<name> (grant_figures/epoch -> grant_figures/LP_licks/
-    epoch; grant_figures -> grant_figures/LP_licks). Unchanged under DAQ."""
+    """Renderer output for a non-default run: <parent>/<tag>/<name> (grant_figures/epoch -> grant_figures/LP_licks/epoch;
+    grant_figures -> grant_figures/LP_licks). Unchanged for the default DAQ run."""
     default = Path(default)
-    if not is_lp():
+    tag = output_tag()
+    if tag is None:
         return default
     if default.name == "grant_figures":
-        return default / "LP_licks"
-    return default.parent / "LP_licks" / default.name
-
-
-STAMP = "LP licks: video lick (cam4 + cam1) attempts, gate = hit / incomplete within max_rt; lick-aligned = LP onset"
+        return default / tag
+    return default.parent / tag / default.name
 
 
 def stamp(fig) -> None:
-    """Corner label on every figure rendered under the LP source, so a copied PNG still says what it is."""
-    if is_lp():
-        fig.text(0.995, 0.002, STAMP, ha="right", va="bottom", fontsize=6, color="#8a2be2")
+    """Corner label on every figure of a non-default run, so a copied PNG still says what it is."""
+    tag = output_tag()
+    if tag is None:
+        return
+    w = enl_window_s()
+    txt = (("LP licks: video lick (cam4 + cam1) attempts, gate = hit / incomplete within max_rt; lick-aligned = LP "
+            "onset; ") if is_lp() else "DAQ contact licks; ") + f"ENL lick-free window {w:g} s"
+    fig.text(0.995, 0.002, txt, ha="right", va="bottom", fontsize=6, color="#8a2be2")
 
 
 _H5_LABEL: dict = {}

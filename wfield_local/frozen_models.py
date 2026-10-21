@@ -96,6 +96,12 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     if others:
         raise ValueError(f"frozen model for {animal} was given training sessions from "
                          f"{sorted(others)}: {[x for x in labs if config.animal_of(x) != animal]}")
+    # ENL WINDOW (WIDEFIELD_ENL_WINDOW_S, 2026-10-21): a pre-cue model's window IS its post_s, and the features it is
+    # applied to are built with the overridden window (`lp_licks.apply_enl_window`) -- so the spec must carry it, or a
+    # 1.0 s run would load the 2.0 s model. The matched DAQ 1.0 s run freezes these; LP_licks reuses them.
+    from wfield_local import lp_licks
+    if align == "precue" and lp_licks.enl_window_s() is not None:
+        post_s = lp_licks.enl_window_s()
     spec = {
         "freeze_version": FREEZE_VERSION,
         "animal": animal,
