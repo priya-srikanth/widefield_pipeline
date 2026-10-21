@@ -222,11 +222,11 @@ def main(argv=None) -> int:
     from wfield_local import grant_kit as GK
     pre_from = config.pre_from() if hasattr(config, "pre_from") else None
     baseline = f"pre from {pre_from}" if pre_from else "all pre (June + August)"
-    if a.check_arm is None and not pre_from:
+    if a.check_arm is None and not pre_from and set(a.families) - {"cd"}:
         raise SystemExit("set WIDEFIELD_PRE_FROM=0801 (August-only baseline, Priya's rule) or pass --check-arm")
     out_dir = a.out or Path(cdt.default_out()) / "data"
     cur = set(ak.curated_labels())
-    arms = [a.check_arm] if a.check_arm else a.arms
+    arms = [a.check_arm] if a.check_arm else ([] if set(a.families) <= {"cd"} else a.arms)
     fams = {"11": fam_11, "8g": fam_8g, "10": fam_10, "11c": fam_11c}
     for arm in arms:
         align, variant = ARMS[arm]
@@ -261,8 +261,8 @@ def main(argv=None) -> int:
         from wfield_local import epochs
         C["pre_loo"] = False
         C["pre_in_sample"] = C.label.map(lambda x: epochs.epoch_of(x) == "pre")
-        C = C[C.label.isin(cur) & ~((C.pre_in_sample) & (C.label.str[5:9] < "0806"))]
-        C.insert(1, "arm", C.align)
+        C = C[C.label.isin(cur) & ~((C.pre_in_sample) & (C.label.str[5:9] < "0806"))].copy()
+        C.insert(1, "arm", C["align"])          # NOT C.align: that is DataFrame.align (a method)
         C.insert(3, "variant", "gate lick, orth, contrast")
         C.insert(5, "animal", C.label.str[:4])
         C.insert(6, "epoch", [epochs.epoch_of(x) for x in C.label])
