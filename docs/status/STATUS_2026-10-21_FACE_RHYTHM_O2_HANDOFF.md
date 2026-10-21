@@ -42,7 +42,8 @@ the ROI warp are the pose/3-D window's (`scripts/face_rhythm_register.py`, `scri
 
 ## State at handoff and next steps (in order)
 
-1. **Master face is being rebuilt** (pose/3-D window, Priya's go-ahead): the registration had picked post-stroke
+1. **Master face rebuilt (10:15): PS95_20260812** (August pre-stroke; templates PS92_0811, PS93_0809, PS94_0812,
+   PS95_0812; PS93 excluded from master; Priya's polygons carried to `rois/PS95_20260812/`). Was: the registration had picked post-stroke
    templates for all four animals and PS93_20260821 (ACUTE, the right-orofacial-deficit animal) as master. Asked:
    August pre-stroke templates, master among PS92 / PS94 / PS95, Priya's saved polygons (`rois/PS93_20260821/ROIs.h5`,
    09:45, 2 007 points; the registered draft kept as `ROIs_20261021_093559.h5`) carried onto the new master, existing
@@ -82,6 +83,11 @@ the ROI warp are the pose/3-D window's (`scripts/face_rhythm_register.py`, `scri
 * **Split sessions** carry `ix_video` in `windows.npz` with `ix_src_frame` per video; `face_rhythm_prep.py` reads
   `vids[-1]` -- wrong for PS92_20260812's first video (that file is another window's; not changed here).
 * **Templates must be pre-stroke** (see step 1) -- the registration picked by medoid score alone.
+* **cam4 encoder keyframe line**: FMP4 (FFmpeg MPEG-4, GOP 12, ~13 Mbit/s) -> a spurious 250/12 = 20.83 Hz line (+ 41.67)
+  in tracked points, 2.8-3.8x the neighbouring spectrum at rest, as strong far from the mouth. Spread over the 12-frame
+  group, so keyframe interpolation / phase templates fail; the runner notches 20.83 / 41.67 Hz (Q 30, zero-phase) on
+  the 250 Hz points before the VQT and the 25 Hz block mean (b3c6a74). FR's docs/standards.rst and the paper warn about
+  keyframe codecs / heavy compression but not this line. Future recordings: raise the writer's bitrate.
 * The trial-window output is the big one (n_trials x 151 x 2 x points x 36 x 2 B; 720 trials -> ~30 GB). Fewer points
   (spacing 10-11 -> ~1350-1650) or x+y combined would cut it.
 * A JupyterLab server was left running for the notebook (port 8899, started from the `fr` env).
