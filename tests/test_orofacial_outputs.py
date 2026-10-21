@@ -53,3 +53,19 @@ def test_lick_context_by_onset():
     stop = [3500.0, 3500.0, 3500.0, 3500.0, 3500.0, 3500.0, np.nan]
     assert oo.lick_context(on, strobe, stop).tolist() == ["iti", "pre_cue", "post_cue", "post_cue", "iti", "pre_cue",
                                                           "post_cue"]
+
+
+def test_engagement_keep_attempted_gates_read_trial_attempts(monkeypatch):
+    # encoding window via Priya 10-20 late: the attempted gate reads trial_attempts.csv instead of re-deriving it
+    from wfield_local import orofacial_cohort as oc
+    T = pd.DataFrame({"label": ["PS92_0811"] * 4, "trial_id": [1, 2, 3, 4], "attempted": [True, True, False, True],
+                      "canonical": [True, False, True, True]})
+    monkeypatch.setitem(oc._ATTEMPTS, "T", T)
+    monkeypatch.setattr(oc, "ENGAGED_ONLY", True)
+    keep, lab = oc.engagement_keep("PS92", "20260811", None, gate="attempted")
+    assert keep == {1, 2, 4} and lab.startswith("attempted")
+    keep, _ = oc.engagement_keep("PS92", "20260811", None, gate="canonical_attempted")
+    assert keep == {1, 4}
+    assert oc.engagement_keep("PS93", "20260811", None, gate="attempted")[0] is None
+    with pytest.raises(ValueError):
+        oc.engagement_keep("PS92", "20260811", None, gate="nope")

@@ -182,3 +182,20 @@ def test_degenerate_baseline_is_unknown_when_asked():
     t, _ = jk.jaw_pertrial(y, FPS, _trials([4000, 8000]), {"degenerate_as_unknown": True})
     assert np.isnan(t.iloc[0].jaw_pass_qc) and t.iloc[0].jaw_thresh_px_used == "none"
     assert t.iloc[1].jaw_pass_qc is True or t.iloc[1].jaw_pass_qc == 1
+
+
+def test_jaw_onsets_matches_the_moved_call_and_finds_the_step():
+    # encoding window via Priya 10-20: onset = where the sustained-density test first passes (same rule as jaw_pass_qc)
+    rng = np.random.default_rng(0)
+    fps, n = 250.0, 6000
+    y = rng.normal(0.0, 0.5, n)
+    y[1000 + 60:1000 + 120] += 10.0            # trial 1: cue at frame 1000, a 10 px opening from cue + 60 frames
+    trials = pd.DataFrame({"trial_id": [1, 2], "cue_frame": [1000.0, 4000.0], "position": ["far_L", "far_L"],
+                           "stop_frame": [1000.0 + 875, 4000.0 + 875]})
+    ov = {"degenerate_as_unknown": True}
+    O = jk.jaw_onsets(y, fps, trials, ov)
+    J, _ = jk.jaw_pertrial(y, fps, trials, ov)
+    assert O.jaw_pass_qc.tolist() == [1.0, 0.0]
+    assert pd.to_numeric(J.jaw_pass_qc).astype(float).tolist() == O.jaw_pass_qc.tolist()
+    assert O.onset_frames.iloc[0] == 60 and O.onset_idx.iloc[0] == 1060
+    assert O.onset_idx.iloc[1] == -1 and np.isnan(O.onset_frames.iloc[1])

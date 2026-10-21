@@ -149,6 +149,54 @@ def jaw_pertrial(jaw_y, fps: float, trials: pd.DataFrame,
     return table, metadata
 
 
+def jaw_onsets(jaw_y, fps: float, trials: pd.DataFrame, overrides: dict | None = None) -> pd.DataFrame:
+    """Per trial: the "jaw moved" call of `jaw_pertrial` (``jaw_pass_qc``, same parameters, same snippet) and the
+    MOVEMENT ONSET it implies (encoding window via Priya 10-20: jaw-only trials need an attempt latency, and onset must
+    be after the cue): the first suprathreshold frame (|y - pre-cue baseline| > max(sd_mult * sd, min_px)) of the first
+    ``window_n``-frame window in the detect window that holds >= ceil(density_thr * window_n) of them -- i.e. where the
+    sustained-density test first passes. Returns trial_id, jaw_pass_qc (1 / 0 / NaN as `jaw_pertrial` with these
+    overrides), ``onset_idx`` (index INTO ``jaw_y``, -1 = none) and ``onset_frames`` (frames after the cue frame).
+    The detect window starts AT the cue frame (inclusive), so onset_frames >= 0; onset_frames == 0 = already deflected
+    at the cue."""
+    p = _resolve(overrides)
+    jaw_y = np.asarray(jaw_y, dtype=np.float64)
+    n = len(jaw_y)
+    rows = []
+    for r in _iter_trials(trials):
+        stop_ms = TW.stop_ms_of(r.cue_frame, r.stop_frame, fps)
+        det = p["detect_win_ms"] if stop_ms is None else (p["detect_win_ms"][0], max(stop_ms, p["detect_win_ms"][0]))
+        lo, hi = min(p["baseline_win_ms"][0], det[0]), max(p["baseline_win_ms"][1], det[1])
+        pre_f, post_f = abs(_ms_to_frames(lo, fps)), abs(_ms_to_frames(hi, fps))
+        t_ms = np.arange(-pre_f, post_f + 1) * (1000.0 / fps)
+        c = cue_frame_index(r.cue_frame)
+        yw = np.full(pre_f + post_f + 1, np.nan) if c is None else _snippet(jaw_y, c, pre_f, post_f, n)
+        bm, bs = _compute_jaw_baseline(yw, t_ms, baseline_win_ms=p["baseline_win_ms"])
+        out = {"trial_id": r.trial_id, "jaw_pass_qc": np.nan, "onset_idx": -1, "onset_frames": np.nan}
+        if not np.isfinite(bm) or not np.isfinite(bs) or bs <= 0:
+            out["jaw_pass_qc"] = np.nan if p.get("degenerate_as_unknown") else 0.0
+            rows.append(out)
+            continue
+        thr, _ = _compute_jaw_threshold(bs, sd_mult=p["sd_mult"], min_px=p["min_px"])
+        ok, _n = _check_sustained_density(yw, t_ms, bm, thr, detect_win_ms=det, window_n=p["window_n"],
+                                          density_thr=p["density_thr"])
+        out["jaw_pass_qc"] = float(ok)
+        if ok:
+            tm = _window_mask(t_ms, det)
+            supra = (np.isfinite(yw) & tm & (np.abs(yw - bm) > thr)).astype(int)
+            W, K = max(1, int(p["window_n"])), max(1, int(np.ceil(p["density_thr"] * p["window_n"])))
+            idx_det = np.flatnonzero(tm)
+            s = supra[idx_det]
+            if s.size < W:
+                first_win = 0
+            else:
+                first_win = int(np.flatnonzero(np.convolve(s, np.ones(W, int), mode="valid") >= K)[0])
+            j = idx_det[first_win + int(np.flatnonzero(s[first_win:first_win + W])[0])]    # first supra frame in it
+            out["onset_frames"] = float(j - pre_f)
+            out["onset_idx"] = int(c - pre_f + j)
+        rows.append(out)
+    return pd.DataFrame(rows, columns=["trial_id", "jaw_pass_qc", "onset_idx", "onset_frames"])
+
+
 def _resolve(overrides: dict | None) -> dict:
     """`params()` flattened to `_compute_per_trial`'s keyword names (theirs did this in the core function)."""
     q = params(overrides)

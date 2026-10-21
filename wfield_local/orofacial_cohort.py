@@ -1548,8 +1548,52 @@ def _align_by_order(cue: pd.DataFrame, bt: pd.DataFrame) -> np.ndarray | None:
     return out
 
 
-def engagement_keep(animal: str, date: str, sd: Path) -> tuple[set | None, str]:
-    """(engaged orofacial trial_ids or None, gate label) for one session folder.
+#: WHICH engagement gate `engagement_keep` applies (encoding window via Priya 10-20 late: "an attempted gate option ...
+#: that reads trial_attempts.csv rather than re-deriving it"). "reference" (default) = the behaviour pipeline's
+#: reference-position gate below; "attempted" = trials `scripts/trial_attempts.py` classed hit / incomplete / jaw_only
+#: (`<run>/imaging_encoding/qc/trial_attempts.csv`, column ``attempted``); "canonical_attempted" = attempted AND inside
+#: the canonical (reference) period (that file's ``canonical``). Env OROFACIAL_GATE so spawned workers follow it.
+#: trial_attempts.py derives ``canonical`` FROM this function, so it must get "reference" (pass gate="reference").
+GATES = ("reference", "attempted", "canonical_attempted")
+ENGAGEMENT_GATE = os.environ.get("OROFACIAL_GATE", "reference")
+_ATTEMPTS: dict = {}
+
+
+def _attempts_table() -> pd.DataFrame:
+    """trial_attempts.csv once per process (label, trial_id, attempted, canonical)."""
+    if "T" not in _ATTEMPTS:
+        from wfield_local import orofacial_outputs as oo
+        from wfield_local.paths import PathResolver
+        f = oo.root(PathResolver()) / RUN / "imaging_encoding" / "qc" / "trial_attempts.csv"
+        if not f.exists():
+            raise FileNotFoundError(f"{f} -- run `PYTHONPATH=. python scripts/trial_attempts.py` first")
+        T = pd.read_csv(f, usecols=["label", "trial_id", "attempted", "canonical"])
+        for c in ("attempted", "canonical"):
+            T[c] = T[c].astype(str).str.lower().isin(["true", "1", "1.0"])
+        _ATTEMPTS["T"] = T
+    return _ATTEMPTS["T"]
+
+
+def engagement_keep(animal: str, date: str, sd: Path, gate: str | None = None) -> tuple[set | None, str]:
+    """(engaged orofacial trial_ids or None, gate label) for one session folder. ``gate`` (default
+    `ENGAGEMENT_GATE`): "reference" = the behaviour pipeline's gate described below; "attempted" /
+    "canonical_attempted" read `scripts/trial_attempts.py`'s per-trial table (see `GATES`). An ``--all-trials`` run
+    (ENGAGED_ONLY False) stays ungated whatever the gate."""
+    g = gate or ENGAGEMENT_GATE
+    if g not in GATES:
+        raise ValueError(f"gate must be one of {GATES}, not {g!r}")
+    if g != "reference" and ENGAGED_ONLY:
+        T = _attempts_table()
+        s = T[T.label == f"{animal}_{date[4:]}"]
+        if not len(s):
+            return None, f"none (no trial_attempts rows for {animal}_{date[4:]})"
+        k = s.attempted & (s.canonical if g == "canonical_attempted" else True)
+        return set(s.loc[k, "trial_id"].astype(int)), f"{g} (trial_attempts.csv)"
+    return _reference_keep(animal, date, sd)
+
+
+def _reference_keep(animal: str, date: str, sd: Path) -> tuple[set | None, str]:
+    """(engaged orofacial trial_ids or None, gate label) for one session folder -- the REFERENCE gate.
 
     The gate is the behaviour pipeline's per-trial `engaged` column. Its trial_ids equal ours (DAQ cue order) when it was
     built from the DAQ; when the DAQ quality gate sent it to the GUI LOG instead (source = GUI: 1-based ids, the log's
