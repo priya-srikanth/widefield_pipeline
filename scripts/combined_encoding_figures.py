@@ -985,7 +985,13 @@ def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
         t = z["peth_off_s"]
         tw = (t >= t0) & (t <= t1)
         trm_s = json.loads(Path(str(sess[m.label]).replace(".npz", ".json")).read_text())["tr_models"]
-        for var, (sse, sst) in (("trial", (z["sse_trial"], z["sst_trial"])), ("all", (z["sse"], z["sst"]))):
+        tw_lk = (t >= -0.1) & (t <= 1.0)                   # LICK-aligned span (Priya 10-20): first lick -0.1 .. +1 s
+        variants = [("trial", "cue", z["sse_trial"], z["sst_trial"], tw), ("all", "cue", z["sse"], z["sst"], tw)]
+        if "sse_trial_lick" in z.files:
+            variants += [("trial", "firstlick", z["sse_trial_lick"], z["sst_trial_lick"], tw_lk),
+                         ("all", "firstlick", z["sse_lick"], z["sst_lick"], tw_lk)]
+        for var, align, sse, sst, tw_ in variants:
+            tw = tw_                                         # noqa: PLW2901 -- per-alignment span
             for ar in areas:
                 ai = [i for i, a_ in enumerate(A) if a_ == ar or a_.rsplit("_", 1)[0] == ar]
                 if not ai:
@@ -996,7 +1002,8 @@ def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
                           if "nokin:category+exec" in trm_s else np.nan)      # executed beyond ALL six spouts
                 eb = {mm: sse[trm_s.index(mm)][ai][:, tw].sum() if mm in trm_s else np.nan   # binned (BINS)
                       for mm in ("nokin:tgtbin", "nokin:exbin", "nokin:tgtbin+exbin", "nokin:category+exbin")}
-                rows.append({"label": m.label, "animal": m.animal, "epoch": m.epoch, "variance": var, "area": ar,
+                rows.append({"label": m.label, "animal": m.animal, "epoch": m.epoch, "variance": var, "align": align,
+                             "area": ar,
                              "u_tgtbin": (eb["nokin:exbin"] - eb["nokin:tgtbin+exbin"]) / den,
                              "u_exbin": (eb["nokin:tgtbin"] - eb["nokin:tgtbin+exbin"]) / den,
                              "u_exbin_strict": (e["nokin:category"] - eb["nokin:category+exbin"]) / den,
@@ -1006,14 +1013,17 @@ def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
                              "ceiling": (e["nokin:none"] - e["nokin:category"]) / den})
     D = pd.DataFrame(rows)
     D.to_csv(tabs / "tr_contest_0-1.5s.csv", index=False, float_format="%.5g")
-    for var in ("trial", "all"):
+    for var, align in (("trial", "cue"), ("all", "cue"), ("trial", "firstlick"), ("all", "firstlick")):
         for ar in ("cortex", "SSp-m"):
-            G = D[(D.variance == var) & (D.area == ar)]
-            for c in ("u_target", "u_exec", "ceiling", "u_tgtbin", "u_exbin"):
+            G = D[(D.variance == var) & (D.area == ar) & (D.align == align)]
+            if G.empty:
+                continue
+            span = "0-1.5 s after cue" if align == "cue" else "first post-cue lick -0.1 .. +1 s"
+            for c in ("u_target", "u_exec", "u_exec_strict", "ceiling", "u_tgtbin", "u_exbin"):
                 if G[c].isna().all():
                     continue
                 t_ = G.groupby(["animal", "epoch"])[c].mean().unstack("epoch").reindex(columns=list(EPOCHS))
-                print(f"\n  {var.upper()} variance, {ar}, 0-1.5 s after cue: {c}\n" + t_.round(4).to_string())
+                print(f"\n  {var.upper()} variance, {ar}, {span}: {c}\n" + t_.round(4).to_string())
 
 
 def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
