@@ -83,6 +83,32 @@ forward, compressed lateral angle); in 3-D, motor cortex carries the executed li
 cohort 3-D contest (xyz2 / polar + strict executed + combined cam1 / cam4 licks) when cam1 production lands — the
 deciding analysis.
 
+### 2.4b 3-D polar contest, PS92 + PS93 (47 sessions) — PROVISIONAL (two animals); the cohort 3-D answer so far
+
+`movement_first_subset-nokin_exec-polar_licks-combined_bins/` (polar executed set; cam4 + cam1 lick timing; soft
+calibrated landing-zone bins; 20261021 tables; 10-21 01:57). Cortex, dR2 x1e3, rule 8 (animals first):
+
+| | PS92 pre / acute / sub / chronic | PS93 pre / acute / sub / chronic |
+|---|---|---|
+| unique target, lick | 5.2 / 14.4 / 29.6 / 29.6 | 27.5 / 8.3 / 14.2 / 51.4 |
+| unique executed, lick | 6.1 / 8.2 / 20.6 / 8.1 | 6.3 / 4.9 / 9.7 / 20.2 |
+| unique target, cue | 2.7 / 5.7 / 27.3 / 37.3 | 9.2 / 2.5 / 4.7 / 26.9 |
+| unique executed, cue | 0.9 / 3.7 / 19.1 / 11.7 | 3.0 / 5.6 / 12.2 / 14.9 |
+| binned: target bins / executed bins, lick | -0.1 / 8.9 / 10.0 / 10.5 vs -0.1 / -16.3 / 4.0 / 2.7 | 9.8 / -0.6 / 12.4 / 30.3 vs 5.0 / 3.9 / 10.3 / 9.2 |
+
+Mixed models (`qc/encoding_mixed.csv`, 3d:* measures; index = time to contact): unique target recovers with log days
+(cue z 7.4) and falls with the deficit (cue z -5.3; target bins z -7.3); executed weaker (cue time z 2.1, deficit
+z -2.7). STRICT executed (beyond the spout category): present before the stroke in the lick window (12.4, z 5.4) and
+unchanged after (step z ~1).
+**Reading:** pre-stroke, target and executed are comparable (PS92) or target-led (PS93), consistent with 2.4 suspending
+the cam4 pre-stroke target advantage. After the stroke the rise is TARGET: unique target grows over recovery in both
+animals and both windows, beyond pre by chronic; executed rises less and the executed component beyond the spout
+category does not change. **Lick-template test** (pre-stroke per-spout templates held fixed, first pass on 42 sessions,
+20261020 tables; `qc/lick_templates_polar/`): target templates explain more unique post-stroke lick-window variance
+than executed (soft-zone) templates from subacute on (cortex PS92 1.34 vs 0.80, chronic 0.95 vs 0.31; PS93 2.67 vs
+-0.15, chronic 6.38 vs 0.10 -- check per session before quoting); acute ~tied; own-zone landing 0.70-0.76 pre vs
+0.46-0.57 acute, so the test has power exactly there. Rerun on all 47 with 20261021 tables queued.
+
 ### 2.5 Misdirected licks — STANDS (negative)
 
 Template analysis of acute far-contra misses (`cohort/tables/misdirected_licks/`): every plan-like lean traced to touch,

@@ -9,6 +9,29 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 (`S` below). Output root: `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`
 (`E` below).
 
+## OVERNIGHT 10-20 -> 10-21 (read first; details DECISIONS 2026-10-20 late + ENCODING_FINDINGS 2.4b)
+
+- **Behavioural index changed.** `scripts/trial_attempts.py`: per-trial hit / incomplete / jaw_only / no_try / unknown
+  (jaw from cam4 OR cam1; v36 `jaw_pass_qc` IS "jaw moved"); engaged = attempted; canonical gate only as attempt-rate
+  denominator. `mixed_models.DEFICITS`, primary `ttc` (time to first far-contra contact, attempted trials, no contact
+  = 3.5 s); `--deficit <name>` in encoding_mixed / imaging_lmm / within_spout_mixed (non-default -> `*_<name>`). Old
+  contact-index outputs copied to `qc/superseded_contact_index_20261020/` and regenerated as `*_contact`. Lateral error
+  = descriptive only (no circular index). Deficit is mostly execution (completion .01-.14 acute), not initiation.
+- **ttc vs contact index:** conclusions hold (coding falls with deficit, overshoots pre at recovery, G_reorg +0.10);
+  frozen-decoder deficit at full recovery now small but nonzero (+0.08, z 2.2 / 2.7).
+- **3-D contest DONE (47 sessions)** -> ENCODING_FINDINGS 2.4b: post-stroke rise is TARGET; strict executed present
+  pre and unchanged. Readouts done (figures, encoding_mixed 3d:*, landing zones).
+- **3-D within-spout mixed model** (`qc/within_spout_deviation_polar_lick/mixed_model.csv`): crossed SSp-m executed
+  component pre -2.3 (z -4.2); shrinks with log days (z -3.1).
+- **Lick-template test** first pass done (ENCODING_FINDINGS 2.4b); rerun `--tag 20261021` on 47 queued after the enl
+  within-spout check (running). Log `S/lick_templates_20261021.log`.
+- **O2 window runs:** win_drop 119/119 collected; win_nokin 118 (PS95_0818 pending; Priya copying; watcher
+  re-collects). Readouts (tr_contest firstlick, encoding_mixed extra windows) still TO DO.
+- **Push BLOCKED** by the other window's `scripts/epoch_sessions_long.py:255` (figure-layout test); message passed.
+  Other window delivered jaw onsets (`scripts/jaw_onsets.py`), `engagement_keep(gate=attempted)`, and per-session
+  epoch-family tables (`epoch_sessions_long.py`) -> TO DO here: jaw onset into attempt latency; epoch families as
+  `imaging_lmm.py` sources.
+
 ## 0. Rules (Priya; unchanged)
 
 - **Curated sessions only** (`analysis_kit.curated_labels()`): no early June, no 0805, no PS92 / PS93 0817 ("stroke
