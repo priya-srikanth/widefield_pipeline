@@ -6,7 +6,7 @@
     <fr, O2>  python <bundle>/factors/<set>/fr_factors.py fit --rank R         (array over ranks: inits + held-out animal)
     <locanmf> python scripts/face_rhythm_factors.py select --bundle ... --set ... --rank R   (freeze; refuses to refreeze)
     <fr, O2>  python <bundle>/factors/<set>/fr_factors.py project              (array over tasks)
-    (figures -- factor gallery, residual by epoch -- next: `report`, not written yet)
+    <locanmf> python scripts/face_rhythm_factors.py report  --bundle ... --set ... [--face master.png]
 
 Data (`o2_face_rhythm.py` outputs, `<bundle>/out/<key>_{trials,session}.npz`, float16, uncompressed -> memory-mapped
 here): trials spec (trial, 151 bins at 25 Hz cue -2..+4 s, xy, point, freq), session spec (5 Hz bin, xy, point, freq).
@@ -437,10 +437,104 @@ def _outs(sd: Path, pl: dict):
         for k in a["sessions"]:
             yield od / f"{k}_trials.npz"
 
+def cmd_report(sd: Path, face: Path | None = None) -> None:
+    """Desktop figures into ``<set>/report/``: rank sweep (from rank*.json), factor gallery of the frozen set (spatial
+    weight on the master face, spectrum, trial-averaged time course by position over PRE projections), and the
+    reconstruction error per session by epoch (+ CSV). Each part is drawn only if its inputs exist."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    rd = sd / "report"
+    rd.mkdir(exist_ok=True)
+    sw = sorted(sd.glob("rank*.json"))
+    if sw:
+        S = [json.loads(f.read_text()) for f in sw]
+        rk = [x["rank"] for x in S]
+        fig, ax = plt.subplots(1, 3, figsize=(13, 3.6))
+        ax[0].plot(rk, [x["evr_uncentred"] for x in S], "o-")
+        ax[0].set(xlabel="rank", ylabel="EVR (1 - |S - S^|^2 / |S|^2)", title="fit")
+        ax[1].plot(rk, [x["stability_median"] or np.nan for x in S], "o-")
+        ax[1].set(xlabel="rank", ylabel="similarity to best init (median)", title="stability across starts", ylim=(0, 1.02))
+        for a in sorted(S[0]["loao"]):
+            ax[2].plot(rk, [x["loao"][a]["held_out_err"] / x["loao"][a]["in_fit_err"] for x in S], "o-", label=a)
+        ax[2].axhline(1, color="k", lw=0.6)
+        ax[2].set(xlabel="rank", ylabel="held-out / in-fit error", title="leave one animal out")
+        ax[2].legend(fontsize=7)
+        fig.tight_layout()
+        fig.savefig(rd / "rank_sweep.png", dpi=120)
+        plt.close(fig)
+        pd.DataFrame([{k: v for k, v in x.items() if k not in ("loao", "stability", "rel_errs")} for x in S]
+                     ).to_csv(rd / "rank_sweep.csv", index=False, float_format="%.4f")
+    m = sd / "master.npz"
+    if not m.exists():
+        print(f"report: rank sweep only (no master.npz yet) -> {rd}")
+        return
+    M = np.load(m)
+    Wsp, B, freqs, home, R = M["spatial"], M["spectral"], M["freqs"], M["home"], int(M["rank"])
+    mag = np.hypot(Wsp[0], Wsp[1])                                       # (P, R) weight per point
+    proj = sorted((sd / "proj").glob("*.npz")) if (sd / "proj").exists() else []
+    pre = [f for f in proj if str(np.load(f)["epoch"]) == "pre"]
+    tc, t_ms = {}, None
+    for f in pre:
+        z = np.load(f)
+        t_ms = z["t_ms"]
+        for pos in np.unique(z["position"]):
+            tc.setdefault(str(pos), []).append(np.nanmean(z["trials"][z["position"] == pos], 0))
+    img = plt.imread(face) if face and Path(face).exists() else None
+    fig, axs = plt.subplots(R, 3, figsize=(11, 2.3 * R), gridspec_kw={"width_ratios": [1.1, 1, 1.4]})
+    axs = np.atleast_2d(axs)
+    for k in range(R):
+        a0, a1, a2 = axs[k]
+        if img is not None:
+            a0.imshow(img, cmap="gray")
+        a0.scatter(home[:, 0], home[:, 1], c=mag[:, k], s=3, cmap="magma", vmin=0)
+        a0.set_aspect("equal")
+        a0.invert_yaxis() if img is None else None
+        a0.axis("off")
+        a0.set_title(f"factor {k}: where", fontsize=8)
+        a1.plot(freqs, B[:, k])
+        a1.set_xscale("log")
+        a1.set_title(f"peak {freqs[np.argmax(B[:, k])]:.1f} Hz", fontsize=8)
+        for pos, xs in sorted(tc.items()):
+            a2.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k], lw=1, label=pos)
+        a2.axvline(0, color="k", lw=0.5)
+        a2.set_title("pre-stroke trials, by position (cue = 0 s)", fontsize=8)
+        if k == 0 and tc:
+            a2.legend(fontsize=6, ncol=2)
+    fig.suptitle(f"{M['set']} rank {R} (spec {M['spec_hash']}); {len(pre)} pre sessions projected", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(rd / "factor_gallery.png", dpi=110)
+    plt.close(fig)
+    if proj:
+        rows = []
+        for f in proj:
+            z = np.load(f)
+            rows.append({"key": f.stem, "animal": str(z["animal"]), "epoch": str(z["epoch"]),
+                         "trials_err_median": float(np.nanmedian(z["trials_err"])),
+                         "session_err_median": float(np.nanmedian(z["session_err"]))})
+        E = pd.DataFrame(rows)
+        E.to_csv(rd / "reconstruction_error.csv", index=False, float_format="%.4f")
+        order = ["pre", "acute", "subacute", "chronic"]
+        fig, ax = plt.subplots(1, 2, figsize=(10, 3.4), sharey=True)
+        for j, col in enumerate(("trials_err_median", "session_err_median")):
+            for i, (an, g) in enumerate(E.groupby("animal")):
+                x = [order.index(e) + 0.15 * (i - 1.5) for e in g.epoch if e in order]
+                ax[j].plot(x, g[col][g.epoch.isin(order)], "o", ms=4, label=an)
+            ax[j].set_xticks(range(4), order)
+            ax[j].set_title(col.replace("_", " "), fontsize=9)
+        ax[0].set_ylabel("relative reconstruction error (frozen pre factors)")
+        ax[1].legend(fontsize=7)
+        fig.tight_layout()
+        fig.savefig(rd / "reconstruction_error_by_epoch.png", dpi=120)
+        plt.close(fig)
+    print(f"report -> {rd}")
+
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["plan", "build", "fit", "select", "project"])
+    ap.add_argument("cmd", choices=["plan", "build", "fit", "select", "project", "report"])
+    ap.add_argument("--face", type=Path, default=None, help="report: master face image under the spatial maps")
     ap.add_argument("--bundle", default="fr_cam4_20261021")
     ap.add_argument("--set", default="master_pre_v1")
     ap.add_argument("--dir", type=Path, default=None, help="factor-set folder (default: this file's folder on O2, "
@@ -470,6 +564,8 @@ def main(argv=None) -> int:
         cmd_build(sd)
     elif a.cmd == "fit":
         cmd_fit(sd, a.rank)
+    elif a.cmd == "report":
+        cmd_report(sd, a.face)
     elif a.cmd == "select":
         cmd_select(sd, a.rank)
     else:

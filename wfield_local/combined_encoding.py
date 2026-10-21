@@ -76,6 +76,13 @@ ONLY_ENV = "COMBINED_ENCODING_ONLY"      # comma-separated model-name prefixes: 
 #:                                   video (compare with raw:full - drop:* without video)?
 VIDEO_ENV = "COMBINED_ENCODING_VIDEO"
 VIDEO_K = 50
+#: FR (Priya 10-21: FaceRhythm factors in place of a large motion-energy PC set, if ME adds little on top): the FROZEN
+#: factor-set name, e.g. "master_pre_v1" (`scripts/face_rhythm_factors.py`; loader `wfield_local.face_rhythm_outputs`:
+#: 25 Hz trial windows + 5 Hz elsewhere, interpolated onto the frames, blanked outside strobe .. trial end like video).
+#: Placement as VIDEO -- added last, orthogonalised against every other variable for fr:full, raw in the order-free
+#: models: fr:full, fr:alone, fr:raw:full, fr:drop:<group | position>. With VIDEO on as well: frvideo:raw:full (both)
+#: and frvideo:alone -> FR beyond ME = frvideo:raw:full - video:raw:full, ME beyond FR = frvideo:raw:full - fr:raw:full.
+FR_ENV = "COMBINED_ENCODING_FR"
 RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned workers see it (tests/test_parallel_results...)
 #: LICK-MATCHED subsampling (Priya 10-19: "both executed and target increase chronically" -- chronic sessions have more
 #: usable licks, and every held-out gain improves with more data). Path to a JSON {label: target usable licks}; whole
@@ -221,7 +228,7 @@ PEN_GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": 
                 "lick_bin_tgt": "lick", "lick_bin_exec": "lick",
                 "tongue": "orofacial", "jaw": "orofacial", "tongue_ps": "orofacial", "jaw_nd": "orofacial",
                 "dir_kin": "orofacial", "kinall": "orofacial",
-                "nose": "uninstructed", "nose_nd": "uninstructed", "running": "uninstructed", "video": "video"}
+                "nose": "uninstructed", "nose_nd": "uninstructed", "running": "uninstructed", "video": "video", "fr": "fr"}
 PEN_GROUPS = ("task", "lick", "orofacial", "uninstructed")
 #: DIRECTIONLESS comparison (Priya 10-19: "wouldn't we expect executed to explain more than target ... is it an
 #: appropriate comparison?"). The base of the target / executed models kept jaw x / y and nose x / y, so lateral jaw
@@ -924,17 +931,28 @@ def _diag_quad(U, C, chunk=50000):
 # =============================================================================== one session
 
 
-def session_inputs(label: str, cams=None) -> dict:
+def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     """Everything `run_session` reads from the share, for one session (O2 bundles, `scripts/o2_encoding.py`):
     imaging (load_imaging tuple), behaviour (Behaviour), epoch / day, and -- if `cams` -- the video motion-energy
-    matrix (blanked outside strobe .. stop, as `video_signals`) with its column names, or None if absent."""
+    matrix (blanked outside strobe .. stop, as `video_signals`) with its column names, or None if absent; the same for
+    the FaceRhythm factor time courses of set ``fr`` (default: FR_ENV)."""
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     animal, date = config.animal_of(label), "2026" + label.split("_")[-1]
     imaging = load_imaging(label)
     out = {"label": label, "imaging": imaging, "behaviour": load_behaviour(animal, date, rv),
-           "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label), "video": None}
+           "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label), "video": None, "fr": None}
+    fr = fr or os.environ.get(FR_ENV)
+    if fr:
+        from wfield_local import face_rhythm_outputs as fro
+        try:
+            sig = fro.fr_signals(animal, date, rv, imaging[1], fdir=fro.factor_dir(rv, set_name=fr))
+        except FileNotFoundError:
+            sig = {}
+        if sig:
+            out["fr"] = {"set": fr, "names": list(sig),
+                         "X": np.column_stack([sig[k_][1] for k_ in sig]).astype(np.float32)}
     if cams:
         from scripts.movement_encoding_session import video_signals
         try:
@@ -1101,6 +1119,25 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         blank = ~np.isfinite(Xv[ridx]).any(1)
         vid_orth = _residualise(vid_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
         vid_orth[blank] = 0.0                                   # residualising must not put signal back into blanked frames
+    # FR (optional, see FR_ENV): same placement as video
+    fr_raw = fr_orth = None
+    fr_set = os.environ.get(FR_ENV) or ""
+    if fr_set:
+        if inputs is not None:
+            fi = inputs.get("fr")
+            Xf = fi["X"].astype(np.float64) if fi and fi["set"] == fr_set else None
+        else:
+            from wfield_local import face_rhythm_outputs as fro
+            try:
+                sig_fr = fro.fr_signals(animal, date, rv, ft, fdir=fro.factor_dir(rv, set_name=fr_set))
+                Xf = np.column_stack([sig_fr[k_][1] for k_ in sig_fr])
+            except FileNotFoundError:
+                Xf = None
+        if Xf is not None:
+            fr_raw = _z(Xf, ridx)[ridx]                         # blanked (NaN) frames -> 0
+            blank_fr = ~np.isfinite(Xf[ridx]).any(1)
+            fr_orth = _residualise(fr_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
+            fr_orth[blank_fr] = 0.0
     # shuffled orthogonalised blocks
     shift_min = int(SHIFT_MIN_S / np.median(np.diff(ft)))
     shuf = {}
@@ -1139,6 +1176,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     if vid_raw is not None:
         add(("raw", "video"), vid_raw)
         add(("orth", "video"), vid_orth)
+    if fr_raw is not None:
+        add(("raw", "fr"), fr_raw)
+        add(("orth", "fr"), fr_orth)
     A = np.hstack(blocks)
     Y = V[ridx]
     Q = np.linalg.qr(_slow_basis(ft[ridx], DRIFT_MIN_PERIOD_S))[0]
@@ -1151,7 +1191,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     grp_of_col = np.empty(A.shape[1], object)                  # CREDIT group (task / instructed / uninstructed)
     pen_of_col = np.empty(A.shape[1], object)                  # PENALTY group (PEN_GROUP_OF)
     for (_kind, v), ix in layout.items():
-        grp_of_col[ix] = {**GROUP_OF, **EXTRA_GROUP, "video": "video"}[v]
+        grp_of_col[ix] = {**GROUP_OF, **EXTRA_GROUP, "video": "video", "fr": "fr"}[v]
         pen_of_col[ix] = PEN_GROUP_OF[v]
 
     def cols(spec):
@@ -1171,6 +1211,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             best = max(ALPHA_GRID, key=lambda a: score(full_spec, {**alphas, g: a}))
             alphas[g] = best
     alphas["video"] = 100.0                                   # start value; every video model searches its own
+    alphas["fr"] = 100.0                                      # likewise for the FaceRhythm models
 
     # 2x2-pixel blocks for the stored maps (sums of SSE / SST per block -> exact block R^2)
     rr, cc = np.unravel_index(flat, shape)
@@ -1259,6 +1300,17 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         for name in ("angle:position", "lickangle:position", "licktarget:position", "lickboth:position"):
             if name in models:
                 models[f"video:{name}"] = models[name] + [("raw", "video")]
+    if fr_raw is not None:
+        rawfull = [("raw", w) for w in GROUP_OF]
+        models["fr:full"] = full_spec + [("orth", "fr")]
+        models["fr:alone"] = [("raw", "fr")]
+        models["fr:raw:full"] = rawfull + [("raw", "fr")]
+        for g in (*GROUPS, "position"):
+            drop = POS_VARS if g == "position" else [w for w in GROUP_OF if GROUP_OF[w] == g]
+            models[f"fr:drop:{g}"] = [x for x in rawfull if x[1] not in drop] + [("raw", "fr")]
+        if vid_raw is not None:
+            models["frvideo:raw:full"] = rawfull + [("raw", "fr"), ("raw", "video")]
+            models["frvideo:alone"] = [("raw", "fr"), ("raw", "video")]
     if all(("raw", v) in layout for v in ("jaw_nd", "nose_nd", "dir_kin")):
         nb = [("raw", v) for v in NODIR_BASE]
         tg, ex, kin = [("raw", "lick_angle_tgt")], [("raw", "lick_angle_abs")], [("raw", "dir_kin")]
@@ -1309,7 +1361,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         keep = {"full", *TR_MODELS, "raw:full", "angle:position", "lickangle:position", "notxy:full",
                 "notxy:drop:position", "notxy:angle:position", "notxy:lickangle:position", "licktarget:position",
                 "notxy:licktarget:position", "lickboth:position", "notxy:lickboth:position",
-                *(k for k in models if k.startswith("video:"))}
+                *(k for k in models if k.startswith(("video:", "fr:", "frvideo:")))}
         models = {k: v for k, v in models.items() if k in keep}
     model_alphas = {"full": dict(alphas)}
     for name, spec in models.items():
@@ -1321,7 +1373,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             model_alphas[name] = dict(alphas)
             continue
         al = dict(alphas)
-        present = sorted({pen_of_col[i] for i in cols(spec)}, key=(*PEN_GROUPS, "video").index)
+        present = sorted({pen_of_col[i] for i in cols(spec)}, key=(*PEN_GROUPS, "video", "fr").index)
         for g in present:
             al[g] = max(ALPHA_GRID, key=lambda a: score(spec, {**al, g: a}))
         model_alphas[name] = al
@@ -1333,6 +1385,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
            "n_trials": int(len(E)), "n_frames": int(len(ridx)),
            "window_frames": {w_: int(m_.sum()) for w_, m_ in win.items()}, "fs": float(1 / np.median(np.diff(ft))),
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
+           "fr": (fr_set if fr_raw is not None else None),
+           "fr_k": (int(fr_raw.shape[1]) if fr_raw is not None else 0),
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
     if os.environ.get(BINS_ENV):                     # how often the tongue went to its own spout, per spout
         tl_, el_, fr_, Wt_, P_ = exec_bins(B, weights=True)
@@ -1495,7 +1549,9 @@ def out_dir(rv, order: str) -> Path:
     cams = [c for c in (os.environ.get(VIDEO_ENV) or "").split(",") if c]
     # a VIDEO run never writes into the primary folder: <order>_video-<cams>
     only = [x.rstrip(":") for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
+    fr_set = os.environ.get(FR_ENV) or ""
     return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else "")
+                                                         + (f"_fr-{fr_set}" if fr_set else "")
                                                          + (f"_subset-{'-'.join(only)}" if only else "")
                                                          + ("_matched" if os.environ.get(MATCH_ENV) else "")
                                                          + (f"_exec-{os.environ[EXEC_ENV]}" if os.environ.get(EXEC_ENV)
@@ -1566,9 +1622,13 @@ def main(argv=None) -> int:
                     f"'nodir:' (sets {ONLY_ENV}; outputs -> <order>_subset-<prefixes>/)")
     ap.add_argument("--video", default=None, help="cameras for the video variable, e.g. cam1,cam4 (sets "
                     f"{VIDEO_ENV}; outputs -> <order>_video-<cams>/; sessions without motion energy are skipped)")
+    ap.add_argument("--fr", default=None, help="FaceRhythm factor set for the fr variable, e.g. master_pre_v1 (sets "
+                    f"{FR_ENV}; outputs -> <order>[_video-..]_fr-<set>/; sessions without projections are skipped)")
     a = ap.parse_args(argv)
     if a.run:
         os.environ[RUN_ENV] = a.run
+    if a.fr:
+        os.environ[FR_ENV] = a.fr
     if a.video:
         os.environ[VIDEO_ENV] = a.video
     if a.only:
@@ -1586,6 +1646,12 @@ def main(argv=None) -> int:
             return all((d / f"video_motion_{c}.npz").exists() for c in a.video.split(","))
         labels = [x for x in labels if _has(x)]
         print(f"video run ({a.video}): {len(labels)} sessions with motion energy")
+    if a.fr:                                                # only sessions with a FaceRhythm projection
+        from wfield_local import config as _cfg
+        from wfield_local import face_rhythm_outputs as fro
+        fd = fro.factor_dir(PathResolver(), set_name=a.fr)
+        labels = [x for x in labels if fro.session_keys(fd, _cfg.animal_of(x), "2026" + x.split("_")[-1])]
+        print(f"fr run ({a.fr}): {len(labels)} sessions with FaceRhythm projections")
     if a.skip_done:
         d = out_dir(PathResolver(), a.order) / "sessions"
         labels = [x for x in labels if not (d / f"{x}.json").exists()]

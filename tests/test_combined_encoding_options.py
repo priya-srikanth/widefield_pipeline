@@ -185,10 +185,12 @@ def test_binned_blocks_off_by_default(monkeypatch):
     ({ce.ONLY_ENV: "nokin:", ce.LICKS_ENV: "lips"}, "_subset-nokin_licks-lips"),
     ({ce.ONLY_ENV: "nokin:", ce.LICKS_ENV: "cam4"}, "_subset-nokin"),
     ({ce.ONLY_ENV: "nokin:", ce.EXEC_ENV: "polar", ce.BINS_ENV: "1"}, "_subset-nokin_exec-polar_bins"),
+    ({ce.FR_ENV: "master_pre_v1"}, "_fr-master_pre_v1"),
+    ({ce.VIDEO_ENV: "cam1,cam4", ce.FR_ENV: "master_pre_v1"}, "_video-cam1-cam4_fr-master_pre_v1"),
 ])
 def test_out_dir_names(monkeypatch, env, suffix):
     from wfield_local import orofacial_outputs as oo
-    for k in (ce.ONLY_ENV, ce.EXEC_ENV, ce.LICKS_ENV, ce.BINS_ENV, ce.MATCH_ENV, ce.SUFFIX_ENV, ce.VIDEO_ENV):
+    for k in (ce.ONLY_ENV, ce.EXEC_ENV, ce.LICKS_ENV, ce.BINS_ENV, ce.MATCH_ENV, ce.SUFFIX_ENV, ce.VIDEO_ENV, ce.FR_ENV):
         monkeypatch.delenv(k, raising=False)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
