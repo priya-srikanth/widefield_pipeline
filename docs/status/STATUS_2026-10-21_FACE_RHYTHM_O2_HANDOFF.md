@@ -195,3 +195,21 @@ WHEN THE ARRAY IS DONE (O2, after rsyncing the factors/ folder from the share):
 share) -> O2 `run_project.sbatch` -> proj/<key>.npz (trial + session time courses, per-bin reconstruction error).
 Still to write: `report` (factor gallery, rank sweep, residual by epoch), the loader `wfield_local/face_rhythm_outputs.py`,
 the encoding-model `fr` family (spec for the encoding window).
+
+## FR -> encoding model: code ready (10-21 night, 01aff84; Priya: "go ahead with the encoding work")
+
+* Loader `wfield_local/face_rhythm_outputs.py`: proj/<key>.npz (split videos joined) -> one series per factor (25 Hz
+  trial windows, 5 Hz elsewhere) -> imaging frames by linear interpolation (NaN across > 0.5 s gaps), blanked outside
+  strobe .. trial end like video ME; refuses projections from two different frozen sets. Tests
+  `tests/test_face_rhythm_outputs.py`. Component names from `<set>/labels.json` if written ({"0": "sniff", ...}).
+* `combined_encoding.py`: FR family = VIDEO's placement (FR_ENV `COMBINED_ENCODING_FR` / `--fr <set>`): fr:full (orth,
+  added last), fr:alone, fr:raw:full, fr:drop:<task|instructed|uninstructed|position>; with `--video` too:
+  frvideo:raw:full, frvideo:alone -> FR beyond ME = frvideo:raw:full - video:raw:full; ME beyond FR = frvideo:raw:full -
+  fr:raw:full. Own penalty group "fr". Folder `<order>[_video-..]_fr-<set>/`. The target model Priya named (task + behaviour
+  events + LP + treadmill + FR, no ME) = fr:raw:full.
+* `o2_encoding.py`: `bundle --fr <set>` (needs a NEW bundle name: existing inputs are not rebuilt), sbatch export FR=,
+  COMMANDS.md adds the run `fr_<set>` (VIDEO=cam1,cam4 + FR together). `check` takes --fr: run it on one session first --
+  it compares bundled vs share inputs and is the first end-to-end test of the fr path on real data (NOT yet run: no
+  projections exist).
+* `face_rhythm_factors.py report [--face <img>]`: rank sweep, factor gallery (spatial on the face, spectrum, pre-stroke
+  trial averages by position), reconstruction error by epoch (+ CSV); tested on the synthetic set.
