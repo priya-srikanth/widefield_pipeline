@@ -80,6 +80,15 @@ What each task delivers (`o2_face_rhythm.py collect` -> `<dlc>/face_rhythm/cam4/
 freqs), `session` spectrogram at **5 Hz** + `t_daq_s`, `points` displacement at 25 Hz + `viol_frac`. Point i is the same
 face location in every session (master mesh), so the spatial dimension is shared by construction.
 
+**A0. DECIDED (Priya 10-21 evening): a MASTER PRE-STROKE FACTOR SET across animals.** One nnTCA fitted on August pre-stroke
+sessions of all four animals (equal weight per animal; positions balanced; engaged-trial windows PLUS a between-trial
+subsample of the 5 Hz `session` output so non-task movements -- grooming, rest -- are in the repertoire). Spatial +
+spectral factors are then FROZEN (a reference like the frozen pre-stroke decoders, rule 10 / `docs/FROZEN_MODELS.md`:
+spec-hashed, never refitted once post-stroke work uses it); every session, pre and post, gets temporal factors by NNLS.
+Checks: leave-one-animal-out (fit on 3, reconstruction + Hungarian match on the 4th); per-session rank-10 fits (the
+paper's path) matched to the master. Per-session RECONSTRUCTION RESIDUAL against the master is itself a readout:
+post-stroke movement not in the pre-stroke repertoire (the face analogue of the lick-template "neither" share).
+
 **A. Decomposition (step 6) -> `scripts/face_rhythm_decompose.py` (new).** One joint non-negative CP, (2 x 1282) x 36 x
 time, fitted on a balanced subsample of `trials` windows (August pre + every epoch, all four animals, positions balanced);
 rank by held-out-session reconstruction + split-half factor stability (paper used 10-12). Then every session's temporal

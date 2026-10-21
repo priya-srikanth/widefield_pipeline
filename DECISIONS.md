@@ -21356,3 +21356,13 @@ reference, both tests, raw and normalised -- unaffected by normalising; lick far
 WHAT NORMALISING REMOVES: precue-referenced (cue-increment) near-spout changes -- cue close_L / close_R 18 % -> 0-2 %,
 lick close / far_L 19-28 % -> 0-9 % -- and far_center 5-9 % -> 0-6 % (mean / raw refs): changes carried by the brighter
 animals. Rest / restw / raw lick-window acute changes at close_L (20-35 %) survive.
+
+## 2026-10-21 (evening) -- FaceRhythm: one MASTER PRE-STROKE factor set across animals, frozen
+
+Priya: "we should have a 'master pre-stroke' factor set, across animals"; design target "task events, behaviour events,
+LP point tracking, treadmill, FR factors" in the encoding model (FR in place of a large ME PC set, if ME adds little on
+top -- to be tested). Decided: one nnTCA on August pre-stroke sessions of all four animals (equal weight per animal),
+spatial + spectral factors frozen and every session projected (NNLS temporal factors), rather than the paper's
+per-session fits + Hungarian matching (kept as a check): per-session fits let a component's definition move with the
+stroke, confounding a movement change with a definition change. Nothing on O2 depends on this (tracking + spectrograms
+only; the master mesh already gives every session the same points). Plan: `docs/FACE_RHYTHM_PLAN.md` A0.
