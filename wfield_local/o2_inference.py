@@ -611,7 +611,8 @@ def session_windows(rv, bundle: str, animal: str, date: str, cam: str = "cam4", 
     return ix, flat
 
 
-def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
+def cmd_collect(rv, name: str, compare: dict | None = None, sessions: list | None = None,
+                missing_only: bool = False) -> None:
     """Check each finished video's frame count and write `session_poses/<a>_<d>_full/` windows (windows_DLC.csv or,
     for an LP bundle, windows_LP.csv -- the same windows_index either way). ``compare``: {"ANIMAL:DATE": clip csv}
     -> `compare_to_clip` against a desktop prediction on that session's `session_poses/<a>_<d>/` clip."""
@@ -625,6 +626,11 @@ def cmd_collect(rv, name: str, compare: dict | None = None) -> None:
     sp = dlc_project.project_dir(rv).parent / "session_poses"
     from wfield_local import camera_sync as cs
     for (animal, date), g in tasks.groupby(["animal", "date"], sort=True):
+        # 10-21: --sessions / --missing-only (a full collect rewrites every finished session, ~5 min each)
+        if sessions and f"{animal}:{date}" not in sessions:
+            continue
+        if missing_only and (sp / f"{animal}_{date}{sfx}_full" / "windows_index.csv").exists():
+            continue
         od = d / "out" / f"{animal}_{date}"
         vids, ok_all = [], True
         for r in g.itertuples():
@@ -682,6 +688,8 @@ def main(argv=None) -> int:
     c.add_argument("--name", required=True)
     c.add_argument("--compare", action="append", default=[], metavar="ANIMAL:DATE=CSV",
                    help="desktop prediction of the same model on that session's session_poses clip")
+    c.add_argument("--sessions", nargs="*", default=None, metavar="ANIMAL:DATE", help="only these sessions")
+    c.add_argument("--missing-only", action="store_true", help="skip sessions whose _full windows already exist")
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.cmd == "bundle":
@@ -690,7 +698,7 @@ def main(argv=None) -> int:
             ap.error("give animal:date sessions or --all-widefield")
         cmd_bundle(rv, a.name, a.user, sess, refresh=a.refresh, kind=a.kind, cam=a.cam)
     else:
-        cmd_collect(rv, a.name, dict(x.split("=", 1) for x in a.compare))
+        cmd_collect(rv, a.name, dict(x.split("=", 1) for x in a.compare), a.sessions, a.missing_only)
     return 0
 
 

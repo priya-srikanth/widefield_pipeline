@@ -133,14 +133,129 @@ def build(rv, P: pd.DataFrame, rng) -> tuple[list, list]:
     return [cands[i] for i in order], [keys[i] for i in order]
 
 
+#: VIDEO round (Priya 10-21: "jaw movements can be subtle so ... the frame review [is not] good ground truth (vs.
+#: video)"): clips across the cam1 deflection range where the frame review was ambiguous, to pin the cam1 floor.
+SIDE = ("far_R", "far_L", "close_L", "close_R")       # cam1 sees the jaw (not the centre spouts: rod end-on)
+BANDS = ((8, 12), (12, 16), (16, 20), (20, 25))
+CLIP_MS, CLIP_STEP = (-200, 400), 3                   # every 3rd cam1 frame (~12 ms)
+VTILE, VCROP = 200, (300, 260)
+
+
+def _peaks(rv, s: str, trials: set) -> pd.DataFrame:
+    """Per trial: cam1 jaw |peak deflection| from the pre-cue median in cue .. stop (px) and its time (as `build`)."""
+    d1 = Path(rv.root("dlc")) / "session_poses" / f"{s}_cam1_full"
+    ix1 = pd.read_csv(d1 / "windows_index.csv")
+    W = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0, usecols=None)
+    y = np.where(W[("jaw", "likelihood")].to_numpy(float) >= CUT, W[("jaw", "y")].to_numpy(float), np.nan)
+    rows = []
+    for tid, h in ix1[ix1.trial_id.isin(trials)].groupby("trial_id"):
+        t, yy = h.t_daq_ms.to_numpy(float), y[h.index.to_numpy()]
+        pre = (t >= -500) & (t < 0) & np.isfinite(yy)
+        stop = float(h.stop_ms.iloc[0]) if np.isfinite(h.stop_ms.iloc[0]) else 3500.0
+        win = (t >= 0) & (t <= stop) & np.isfinite(yy)
+        if pre.sum() < 2 or not win.any():
+            continue
+        base = np.nanmedian(yy[pre])
+        i = np.flatnonzero(win)[int(np.argmax(np.abs(yy[win] - base)))]
+        rows.append({"session": s, "trial_id": int(tid), "defl_px": float(abs(yy[i] - base)), "peak_t_ms": float(t[i])})
+    return pd.DataFrame(rows)
+
+
+def video_round(rv, per: int, rng) -> tuple[list, list]:
+    import cv2
+
+    from scripts.cam1_licks import _video
+    root = Path(rv.root("orofacial")) / V36
+    J = pd.read_csv(root / "imaging_encoding" / "qc" / "jaw_onsets.csv", dtype={"date": str})
+    J = J[(J.epoch == "acute") & J.position.isin(SIDE) & J.cam1_moved.notna()]
+    pool = []
+    d1c = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    for s, g in J.groupby("session"):
+        a, d = s.split("_")
+        L = pd.read_csv(root / "sessions" / a / d / "licks.csv", usecols=["trial_id"])
+        E = pd.read_csv(d1c / f"{s}_events.csv", usecols=["trial_id", "droplet"])
+        lick = set(L.trial_id) | set(E.loc[~E.droplet.astype(bool), "trial_id"])
+        nl = g[~g.trial_id.isin(lick)]
+        if len(nl):
+            pk = _peaks(rv, s, set(nl.trial_id))
+            pool.append(pk.merge(nl[["trial_id", "position", "cam1_moved", "cam4_moved"]], on="trial_id"))
+    Pool = pd.concat(pool, ignore_index=True)
+    picks = []
+    for lo, hi in BANDS:
+        b = Pool[(Pool.defl_px >= lo) & (Pool.defl_px < hi)]
+        print(f"band {lo}-{hi} px: {len(b)} no-lick trials")
+        picks.append(b.sample(min(per, len(b)), random_state=int(rng.integers(1 << 30))).assign(band=f"{lo}-{hi}"))
+    P = pd.concat(picks, ignore_index=True)
+    cands, keys = [], []
+    for s, g in P.groupby("session"):
+        a, d = s.split("_")
+        d1 = Path(rv.root("dlc")) / "session_poses" / f"{s}_cam1_full"
+        ix1 = pd.read_csv(d1 / "windows_index.csv")
+        w4 = np.load(root / "sessions" / a / d / "windows.npz")
+        ix4 = pd.DataFrame({k: w4[f"ix_{k}"] for k in ("trial_id", "t_daq_ms", "src_frame")})
+        pj = list(map(str, w4["parts"])).index("jaw")
+        jaw4 = w4["pose"][:, pj, :2].astype(float)
+        W = pd.read_csv(d1 / "windows_LP.csv", header=[1, 2], index_col=0)
+        j1 = np.c_[W[("jaw", "x")].to_numpy(float), W[("jaw", "y")].to_numpy(float)]
+        cap1 = cv2.VideoCapture(str(_video(rv, a, d, "cam1", pd.DataFrame(), 0)))
+        cap4 = cv2.VideoCapture(str(_video(rv, a, d, "cam4", pd.DataFrame(), 0)))
+        for r in g.itertuples():
+            h = ix1[ix1.trial_id == r.trial_id]
+            t = h.t_daq_ms.to_numpy(float)
+            h4 = ix4[ix4.trial_id == r.trial_id]
+            t4 = h4.t_daq_ms.to_numpy(float)
+            pre = (t >= -500) & (t < 0)
+            c1 = np.nanmedian(j1[h.index.to_numpy()[pre]], axis=0)
+            pre4 = h4.index[(t4 >= -500) & (t4 < 0)]
+            c4 = np.nanmedian(jaw4[pre4], axis=0) if len(pre4) else np.array([640.0, 512.0])
+            sel = np.flatnonzero((t >= r.peak_t_ms + CLIP_MS[0]) & (t <= r.peak_t_ms + CLIP_MS[1]))[::CLIP_STEP]
+            frames = []
+            for k in sel:
+                tiles = []
+                for cap, src, cc in ((cap1, int(h.src_frame.iloc[k]), c1),
+                                     (cap4, int(h4.src_frame.iloc[int(np.argmin(np.abs(t4 - t[k])))]), c4)):
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, src)
+                    ok, im = cap.read()
+                    if not ok:
+                        im = np.zeros((1024, 1280, 3), np.uint8)
+                    if not np.isfinite(cc).all():
+                        cc = np.array([im.shape[1] / 2, im.shape[0] / 2])
+                    x0, y0 = max(int(cc[0]) - VCROP[0] // 2, 0), max(int(cc[1]) - VCROP[1] // 2, 0)
+                    tiles.append(cv2.resize(im[y0:y0 + VCROP[1], x0:x0 + VCROP[0]],
+                                            (VTILE, int(VTILE * VCROP[1] / VCROP[0]))))
+                fr = np.hstack(tiles)
+                cv2.putText(fr, f"{t[k] - r.peak_t_ms:+.0f} ms", (4, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                            (255, 255, 255), 1, cv2.LINE_AA)
+                ok, buf = cv2.imencode(".jpg", cv2.cvtColor(fr, cv2.COLOR_BGR2GRAY), [cv2.IMWRITE_JPEG_QUALITY, 70])
+                frames.append(base64.b64encode(buf.tobytes()).decode("ascii"))
+            cid = f"v{len(cands):03d}"
+            cands.append({"id": cid, "position": r.position, "frames": frames})
+            keys.append({"id": cid, "session": s, "trial_id": int(r.trial_id), "position": r.position, "band": r.band,
+                         "defl_px": round(r.defl_px, 2), "peak_t_ms": round(r.peak_t_ms, 1),
+                         "cam1_moved": r.cam1_moved, "cam4_moved": r.cam4_moved})
+        cap1.release()
+        cap4.release()
+    order = rng.permutation(len(cands))
+    return [cands[i] for i in order], [keys[i] for i in order]
+
+
 def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--per", type=int, default=12, help="candidates per position x cam1 call")
+    ap.add_argument("--per", type=int, default=12, help="candidates per position x cam1 call (video: per band)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--video", action="store_true", help="clip round across cam1 deflection bands (jaw_review_video/)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     rng = np.random.default_rng(a.seed)
+    if a.video:
+        cands, keys = video_round(rv, a.per, rng)
+        out = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / "jaw_review_video"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "candidates.json").write_text(json.dumps(cands))
+        pd.DataFrame(keys).to_csv(out / "key.csv", index=False)
+        print(f"-> {out} ({len(cands)} clips)")
+        return 0
     P = _cands(rv, a.per, rng)
     cands, keys = build(rv, P, rng)
     out = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / "jaw_review"
