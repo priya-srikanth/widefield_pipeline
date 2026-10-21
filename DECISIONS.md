@@ -21233,3 +21233,16 @@ with a large deficit, bilateral SSp-m responds less to contralesional COMMANDED 
 with days -- the acute far-contra response loss, now shown not to be a contact-count effect (assumes one linear contact
 effect at every spout; acute far contra has ~no contacts, so its adjusted mean is an extrapolation). Target-defined,
 not execution.
+
+## 2026-10-21 (afternoon) -- Lick-template ceiling: a NEITHER component appears post-stroke and persists
+
+`lick_template_test.py` pass 2 with free per-spout kernels (PS92 / PS93, 3-D, 47 sessions, 07:11-14:03;
+`qc/lick_templates_polar_20261021/lick_templates.csv`; pre-ceiling table kept as `lick_templates_before_ceiling_20261021.csv`).
+Cortex, shares of each session's spout-locked lick structure (ratio of means; target / execution each alone, they
+overlap): target-like PS92 1.20 / .87 / .80 / .57, PS93 .92 / .47 / .69 / .71; execution-like PS92 1.29 / .89 / .75 /
+.51, PS93 .78 / .33 / .22 / .31; NEITHER PS92 -.28 / -.02 / .14 / .40, PS93 .04 / .57 / .34 / .28 (pre / acute /
+subacute / chronic). Per session: chronic neither > 0 in 12/12 PS92 and 6/6 PS93 (medians .38 / .30); pre medians
+.02 / .01; PS93 acute .78 (3/4). Reading: PS93 target-like > execution-like post-stroke; PS92 cannot separate them
+(its licks land near target, templates overlap); in both, 30-40 % of chronic spout-locked lick activity matches NO
+pre-stroke template -- consistent with frozen decoders staying below pre at recovery and the destination test's
+"neither" matches. Two animals. Figure `figures/target_vs_execution/lick_templates.png` (third panel).

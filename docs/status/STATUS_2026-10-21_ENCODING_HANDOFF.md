@@ -64,7 +64,8 @@ the CURRENT attempt definition (attempted = hit + incomplete; jaw_only = reactio
    [spatial_contest_nokin_cortex.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/movement_first_subset-nokin_exec-polar_licks-combined_bins/figures/spatial_contest_nokin_cortex.png)
 4. **Lick templates (PS92 / PS93, 3-D):** pre-stroke target templates explain more post-stroke variance than
    landing-zone (execution) templates from subacute on; PS93 chronic in every session; ~nothing beyond spout category.
-   Ceiling (target / execution / neither shares) still running.
+   CEILING (free per-spout kernels): a NEITHER share appears post-stroke and persists -- chronic 0.38 / 0.30 of
+   spout-locked lick structure (12/12, 6/6 sessions > 0; pre ~0); PS93 target-like > execution-like, PS92 overlap.
    [lick_templates.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/target_vs_execution/lick_templates.png)
 5. **Destination vs 3-D landing (PS92 / PS93):** post-stroke spout activity matches its own pre-stroke spout (target) in
    most sessions; execution-like only acutely and rarely; PS93 far_mid comes to match pre-stroke far_contra (neither).
@@ -98,7 +99,6 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 
 | what | task / log | then |
 |---|---|---|
-| lick-template pass 2 with free-kernel ceiling (since 07:11; ~12:30-14:00) | `S/lick_templates_ceiling.log` | target_like / exec_like / neither shares |
 | jaw_onsets watcher (`S/watch_jaw.sh`, 8 h from 10:13) | waits for the pose window's rewrite (direction / cue contrast / treadmill columns) | reruns attempts + LMMs + six within-spout mixed models |
 
 ## 2a. Superseded at ~09:55 (kept for the record)
@@ -115,7 +115,7 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 1. DONE 10:00-11:15: 3-D per spout, direct contact check, eccentricity / first-lick checks, per-animal maps, jaw_only
    reclassification + reruns (DECISIONS 10-21 late morning entries).
 2. DONE 12:39: contact-adjusted across-spout rerun (DECISIONS 10-21 midday).
-3. Template ceiling shares when the run ends; add a shares panel to `summary_figures_1021.py`.
+3. DONE 14:03: template ceiling (NEITHER share persists chronically; DECISIONS 10-21 afternoon).
 4. Rerun after the pose window's jaw_onsets rewrite (watcher does it); then consider the new columns (jaw direction
    open vs up, pre-cue contrast, treadmill speed) for the reaction vs attempt split and the walking confound.
 5. Behaviour follow-up: miss-then-correct (corrective recovery, PS94 chronic) as its own readout / class.

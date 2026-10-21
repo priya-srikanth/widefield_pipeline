@@ -117,6 +117,9 @@ subacute 1.34 / 0.80, chronic 0.95 / 0.31; PS93 pre 2.22 / 0.47, acute 0.36 / -0
 5.44 / 0.09 -- PS93 chronic holds in EVERY session (target 2.4-8.2, executed -0.3-0.6). With the spout category in the
 base (`_cat`) both shrink to <= 1 and executed is ~0 post-stroke: the target-template advantage is spout identity, and
 landing-zone templates add nothing beyond it. Two animals; acute ~tied.
+**Ceiling (10-21, free per-spout kernels):** a NEITHER component -- spout-locked lick structure matching no pre-stroke
+template -- appears post-stroke and persists: chronic 0.38 (PS92) / 0.30 (PS93) of the session's ceiling, > 0 in every
+chronic session (pre ~0; PS93 acute 0.78). Target-like > execution-like in PS93; PS92's templates overlap.
 
 ### 2.4c Destination vs landing (10b x 3-D landing zones), PS92 + PS93 — PROVISIONAL (two animals)
 

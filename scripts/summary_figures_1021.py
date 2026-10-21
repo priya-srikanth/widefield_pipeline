@@ -79,7 +79,7 @@ plt.close(fig)
 # 3. lick templates (cortex)
 L = pd.read_csv(f"{Q}/lick_templates_polar_20261021/lick_templates.csv")
 L = L[L.area == "cortex"]
-fig, ax = plt.subplots(1, 2, figsize=(10, 3.8), sharey=True)
+fig, ax = plt.subplots(1, 3, figsize=(15, 3.8))
 for c, an in enumerate(sorted(L.animal.unique())):
     g = L[L.animal == an]
     x = np.array([EP.index(e) for e in g.epoch]) + np.random.default_rng(0).uniform(-0.15, 0.15, len(g))
@@ -93,6 +93,18 @@ for c, an in enumerate(sorted(L.animal.unique())):
     ax[c].set_title(f"{an}: pre-stroke lick templates, cortex (3-D)", fontsize=9)
 ax[0].set_ylabel("% lick-window variance, held out")
 ax[0].legend(fontsize=7)
+if "neither" in L:                                              # ceiling run (free per-spout kernels)
+    for an, mk in zip(sorted(L.animal.unique()), ("o", "s")):
+        g = L[L.animal == an]
+        sh = (g.neither / g.ceiling_gain).clip(-1, 1.5)
+        x = np.array([EP.index(e) for e in g.epoch]) + np.random.default_rng(1).uniform(-0.15, 0.15, len(g))
+        ax[2].scatter(x, sh, s=14, marker=mk, label=an)
+        ax[2].plot(range(4), sh.groupby(g.epoch).median().reindex(EP).to_numpy(), "-")
+    ax[2].axhline(0, color="k", lw=0.5)
+    ax[2].set_xticks(range(4), EP, fontsize=8)
+    ax[2].set_title("NEITHER share = matches no pre-stroke template\n(free kernels - both templates) / ceiling",
+                    fontsize=8)
+    ax[2].legend(fontsize=7)
 fig.suptitle("Does post-stroke activity look like the pre-stroke TARGET or the pre-stroke EXECUTION template? "
              "(qc/lick_templates_polar_20261021)", fontsize=9)
 fig.tight_layout()
