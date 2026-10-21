@@ -1,6 +1,6 @@
 # Imaging encoding findings: target vs executed, per-spout coding, recovery
 
-Status: **preliminary, living document.** Last updated **2026-10-20** (encoding window). Update this file whenever a
+Status: **preliminary, living document.** Last updated **2026-10-21** (encoding window). Update this file whenever a
 result below changes: edit the section, change its status tag, add the date to the change log at the bottom. The
 reasoning and every number's history are in `DECISIONS.md` (entries 2026-10-19 ... 2026-10-20); the working state
 (running jobs, commands, pitfalls) is in the newest `docs/status/STATUS_*_ENCODING_HANDOFF.md`.
@@ -155,7 +155,8 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   17-18 % (PS94 / PS95) of licked trials; cam1's small licks barely change it (-> real delay); no spout contact on
   85-97 % of those trials in all four. PS92 / PS93 = slow to start, PS94 / PS95 = prompt but miss. `qc/first_lick_latency*`.
 
-- **Direction vs toward-midline (eccentricity), within spout (PROVISIONAL, 10-20 night).** Crossed SSp-m DIRECTION
+- **Direction vs toward-midline (eccentricity), within spout (10-20 night; POOLED VERSION NOT ROBUST, see the 10-21
+  bullet below).** Crossed SSp-m DIRECTION
   code present pre in 4/4 (mixed-model pre level q .048) and persists. A TOWARD-MIDLINE (eccentricity) term changes
   after the stroke: crossed MOp / MOs / SSp-m step down at day 1 and recover (q .016-.053), and the map test (nested
   bootstrap, animal = unit) finds 20 % of brain changed chronically -- bilateral anterolateral frontal cortex comes to
@@ -163,12 +164,30 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   surviving the animal-level test. PS94 / PS95's pre bilateral pattern = eccentricity; acute = contralesional direction.
   Split-half reliability ~0.5 -> executed shares bracketed x1-x2. `qc/within_spout_deviation_lick/`.
 
+- **Within-spout per spout + contact control (PROVISIONAL, 10-21; cam4 lick-aligned, 107 sessions; folders
+  `qc/within_spout_deviation_lick{,_contact,_contact_hits}/`, DECISIONS 2026-10-21 late morning).** (1) The POOLED
+  chronic toward-midline reversal does not survive the contact covariate: animal-level cluster test 28 % of brain in
+  base, nothing in `_contact` or `_contact_hits`; LMM chronic z (MOs bilateral) -3.4 / -2.9 / -1.5. (2) Per spout the
+  lateral spouts disagree pre-stroke -- far spouts + (more activity for MEDIAL licks; far_ipsi pre z 2.9-3.8), close
+  spouts - (more for LATERAL licks; close_contra pre z -2.2 to -3.3) -- so the pooled coefficient averages opposite
+  signs. Robust to both controls (epoch models, descriptive): far_ipsi chronic loss (z -2.3 to -3.0, MOp / MOs / SSp-m
+  bilateral) and close_contra acute flip (z +2.9 to +3.5); time-model terms weak (|z| < 2.6). (3) Commanded-axis
+  across-spout slope rises post-stroke with the deficit (SSp-m bilateral z 9.7) but collapses hits-only (z 1.4): a
+  miss / contact confound until the contact-adjusted between fit (code a00045b) is rerun. Executed-axis between: null.
+  **Reading:** no robust within-spout execution-like shift; the robust effects are spout-specific. Direct check of the
+  contact confound (does contact count rise with outward deviation chronically?) running.
+
 - **Coding tracks behavioural recovery and overshoots (PROVISIONAL, 10-20 night; `scripts/encoding_mixed.py`).**
   Mixed models with animal random effects, sessions as observations. Calendar time: position coding drops at day 1
   (cue) and recovers with log(days), mostly via DISTANCE. Behaviour-indexed (far-contra contact deficit): position /
   angle coding falls with the deficit and sits ABOVE pre once behaviour has recovered (lick distance z -5.2 / +4.5;
   cue unique target z -8.0 / +8.7). Mixed models are now the primary readout; epochs (chronic starts day 11-25 by
   animal) descriptive. Cue-window effects partly = delayed licking -> `firstlick` window pending (O2).
+
+- **Jaw-onset rewrite (10-21 07:57: cam1 for all PS93 + PS94 to 08-17) -> attempts + all LMMs rerun.** Unknown-class
+  trials <= 6 %; far-contra deficit unchanged (acute attempt .81-.93, completion .01-.11; time to contact pre 545-648
+  -> acute 3221-3467 -> chronic 471-692 ms). Target tracks the deficit more strongly: 3-D unique target post:deficit
+  z -8.3 (was -5.3), cam4 z -8.2 (cue) / -6.3 (first lick); strict executed still null.
 
 - **Decoders recover with behaviour, the code stays reorganised (PROVISIONAL, 10-20 late; `scripts/imaging_lmm.py`).**
   Frozen-decoder deficit ~0 at full behavioural recovery while refit-over-frozen reorganisation stays positive (z 3.7).
@@ -245,6 +264,9 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 | recovery timing | `qc/` | `position_coding_half_recovery.csv` |
 | slow band | `qc/` | `slowband_caveat.png`, `slowband_decode_all.csv` |
 | within-spout deviation | `qc/within_spout_deviation/` | `within_spout_deviation.csv`, `figures/within_spout_*.png` |
+| within-spout per spout / contact (10-21) | `qc/within_spout_deviation_lick{,_contact,_contact_hits}/` | `mixed_model.csv`, `map_significance_*.csv`; maps in `figures/within_spout/<folder>/` |
+| attempt classes / deficit | `qc/` | `trial_attempts*.csv` |
+| destination vs landing | `qc/` | `best_match_destination*.csv` |
 
 ## 7. Next (in order)
 
@@ -256,6 +278,10 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 5. Deferred: non-linear ceiling check.
 
 ## Change log
+
+- **2026-10-21** — trial attempts + time-to-contact deficit; 3-D contest + template rerun (2.4b); destination vs 3-D
+  landing (2.4c); jaw-onset rewrite rerun; within-spout per spout + contact control (pooled toward-midline not
+  robust); one-load variants + local input cache (handoff STATUS_2026-10-21_ENCODING_HANDOFF).
 
 - **2026-10-20 (evening)** — within-spout lick-aligned / bilateral / mixed model / map tests; 3-D landing zones
   calibrated (soft bins); lick-template test built; 3-D contest queued (handoff STATUS_2026-10-20_EVENING_ENCODING_HANDOFF).

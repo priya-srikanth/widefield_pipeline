@@ -1,6 +1,6 @@
 # Handoff — 2026-10-20 (evening): within-spout check, mixed model, 3-D contest queued, PS92_0908 rerun
 
-**START HERE for the encoding model / target-vs-executed work (the ENCODING window).** Supersedes
+**SUPERSEDED by `STATUS_2026-10-21_ENCODING_HANDOFF.md` (10-21).** Was: START HERE for the encoding model / target-vs-executed work (the ENCODING window). Supersedes
 `STATUS_2026-10-20_ENCODING_HANDOFF.md` (morning; still the reference for the drop-p / polar / slow-band decisions).
 The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md`.
 **Results live in `docs/ENCODING_FINDINGS.md`** (status-tagged; update it when a result changes). Reasoning + numbers:
