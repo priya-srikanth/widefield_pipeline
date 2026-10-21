@@ -174,8 +174,13 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   bilateral) and close_contra acute flip (z +2.9 to +3.5); time-model terms weak (|z| < 2.6). (3) Commanded-axis
   across-spout slope rises post-stroke with the deficit (SSp-m bilateral z 9.7) but collapses hits-only (z 1.4): a
   miss / contact confound until the contact-adjusted between fit (code a00045b) is rerun. Executed-axis between: null.
-  **Reading:** no robust within-spout execution-like shift; the robust effects are spout-specific. Direct check of the
-  contact confound (does contact count rise with outward deviation chronically?) running.
+  **Direct contact check** (`S/contact_dev_check.py`; per session x lateral spout, contacts per 10 deg toward the
+  midline with reach / n_licks / latency fixed): the coupling is PRESENT PRE-STROKE and about the same chronically
+  (pooled per animal pre -0.14 to -0.53, chronic -0.38 to -0.53; far spouts: outward licks get more contacts in 4/4 pre
+  and chronic; hit fraction ~1 both), so contact cannot readily manufacture the pre -> chronic change -- the pooled
+  cluster loss is mostly threshold fragility, NOT a demonstrated contact artifact. Acute far-contra trials touch on
+  2-15 % only. **Reading:** no robust within-spout execution-like shift; the headline is the per-spout far_ipsi
+  chronic change (contact-controlled); the pooled map is fragile because the spouts disagree in sign.
 
 - **Coding tracks behavioural recovery and overshoots (PROVISIONAL, 10-20 night; `scripts/encoding_mixed.py`).**
   Mixed models with animal random effects, sessions as observations. Calendar time: position coding drops at day 1

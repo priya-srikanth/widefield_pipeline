@@ -21171,3 +21171,18 @@ across-spout slope (`between_cmd`): large post-stroke rise tracking the deficit 
 post:deficit z 9.7; time post z 9.8, post:lday -8.0) that collapses with hits-only (z 1.4) -- across-spout means of
 mostly-miss acute far-contra trials; treat as a miss / contact confound until a contact-controlled between fit exists.
 Executed-axis between: null. Memory note toward-midline-headline updated.
+
+## 2026-10-21 (late morning) -- Direct contact check: the pooled toward-midline loss is NOT a demonstrated contact artifact
+
+Correction to the entry above ("a touch / contact confound contributes"). `S/contact_dev_check.py` (behaviour only,
+107 sessions, the trials the within-spout analysis uses, cam4 lick-aligned): per session x lateral spout, the window's
+DAQ contact count regressed on the lick's deviation toward the midline with reach / n_licks / latency fixed. The
+coupling exists PRE-STROKE and is about the same chronically: pooled per animal pre -0.37 / -0.14 / -0.53 / -0.49,
+chronic -0.53 / -0.42 / -0.42 / -0.38 contacts per 10 deg (PS92-PS95); far spouts: outward licks get more contacts in
+4/4 pre and chronic (far_ipsi pre -0.47 to -1.32, chronic -0.44 to -1.06); close spouts the reverse (close_contra pre
++0.22 to +0.36); hit fraction ~0.95-1.0 pre and chronic, so the count varies, not hit vs miss. A confound constant
+across epochs cannot readily produce the pre -> chronic change (and the contact covariate is fitted per session), so
+the pooled cluster's disappearance (z -3.4 -> -2.9) is mostly threshold fragility; hits-only (-1.5) also loses trials.
+The pre-stroke per-spout activity pattern runs OPPOSITE to contact at both spout types and survives the covariate --
+not a linear contact effect either. Headline = per-spout far_ipsi chronic change, contact-controlled. Acute far-contra
+trials touch on 2-15 % (within-spout numbers there are miss-trial numbers). Memory note updated.
