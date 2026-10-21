@@ -171,6 +171,9 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
   PS93's acute drop is the slow band (-.057 -> +.006) and its subacute drop halves; PS94's drop survives at ~2/3;
   chronic >= pre in all four. Report slow-band-removed pre-cue decode as a sensitivity column; lick windows unaffected.
   `qc/slowband_decode_all.csv`, `qc/slowband_caveat.png`.
+- **Pre-cue window is NOT lick-free (10-20 night).** Raw DAQ contacts before the cue on 91 / 80 / 69 / 10 % of trials
+  (PS92 / 93 / 94 / 95, pre-stroke); our lick tables are post-cue only by construction. Every pre-cue (ENL) result is
+  provisional until pre-cue licks enter the model; PS95 is the clean pre-cue animal. `qc/precue_contacts.csv`.
 - **cam4 kinematics:** lateral angle faithful (r 0.95-0.97 with 3-D); "protrusion / reach" is 99 % the down axis, blind
   to forward. Every cam4 executed test is biased against executed by tracking noise and the missing axis.
 - **Lick events:** cam4-only so far; cam1 adds 3-7 % small licks and incomplete licks rise post-stroke (PS92 far_R

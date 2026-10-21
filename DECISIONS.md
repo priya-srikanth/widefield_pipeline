@@ -21000,3 +21000,12 @@ window partly reflects delayed licking (deficit ~ delay); the lick-window distan
 `firstlick` window (O2 win runs) will confirm. Also: the chronic EPOCH starts at day 11 (PS92 / PS93), 15 (PS95), 25
 (PS94) -- epoch tables compare different post-stroke times; the mixed models (time or behaviour) are the primary
 readout from now on, epochs descriptive. Map panels now use each animal's actual chronic days (not a fixed day 36).
+**The pre-cue (ENL) window is NOT lick-free (10-20 night; raw DAQ contact channel `dlc_frames.lick_onsets`,
+`qc/precue_contacts.csv`).** Our lick tables (cam4 licks.csv, cam1 events, `daq_contacts_ms`) are post-cue only BY
+CONSTRUCTION (they start at the cue / cue + 70 ms). The raw contact channel shows spout contacts between spout arrival
+and the cue on most trials: pre-stroke per session PS92 4659 (91 % of trials, 0.87 / s), PS93 3125 (80 %, 0.66 / s),
+PS94 1425 (69 %, 0.63 / s), PS95 324 (10 %, 0.17 / s). Consequence: every "pre-cue / ENL" encoding or decoding result
+assumed a lick-free window; pre-cue licking at the spout (spout-specific movement) was unmodelled and can be absorbed
+by the pre-cue position kernels -> part of the pre-cue position code may be licking. PS95 (few pre-cue licks) is the
+cleanest pre-cue animal. To do: add pre-cue contacts (now) / whole-session detector licks (requested from the other
+window) to the lick kernels and refit the pre-cue measures; spontaneous (pre-cue) vs cued lick comparison.
