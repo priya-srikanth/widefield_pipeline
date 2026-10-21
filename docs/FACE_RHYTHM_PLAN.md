@@ -57,6 +57,63 @@ factors, multi-camera rigs.
 7. **Use.** Per-trial "reacted" calls and latencies from the whisking / sniffing / nose components (alongside the jaw
    rule), and component time courses as regressors in the encoding window's models.
 
+## What the paper did with widefield (v4, Figure 2 + supplement 1, Methods 5.4)
+
+Musall et al. 2019 data (visual discrimination, GCaMP6s, 7 mice / 9 sessions, ~30 Hz face video). SVD 200 components,
+SVT high-pass 0.1 Hz ZERO-PHASE (cf. our filter-acausality finding, CLAUDE.md), Allen-aligned; ridge with a penalty per
+SVD column (Couto 2021 / Musall 2023); cross-validated EVR (10-fold block CV in the CEBRA sweep). FR = ONE rank-10
+nnTCA PER SESSION, spectrogram linearly interpolated onto the imaging timebase. Cortex-wide EVR: 10 FR components 0.245
+vs 10 ME PCs 0.144 vs 200 ME PCs 0.279; nose / whisker / jaw ME together 0.143; point tracking alone 0.33, + FR 0.38,
++ everything 0.39 (anterior cortex highest). Ablation: the spectrogram step is what matters at low rank (nnTCA on
+spectrograms best; point-domain decompositions worse). Stats: LMM EVR ~ method + (1|mouse), Wilcoxon on sessions.
+TCA "EVR" is UNCENTRED, 1 - ||S - S^||^2 / ||S||^2 (Methods 5.1.5; rank chosen 4-12 from error, init consistency,
+BIC, interpretability; 30 random inits, best kept); cross-animal matching by Hungarian on spatial x spectral factors.
+Implications: (i) replicate their comparison in our model first (FR vs our video ME PCs at matched rank, + points);
+(ii) per-session rank-10 fits are the paper's path -- run them alongside the joint fit; (iii) report TCA variance on
+their uncentred definition when comparing; (iv) their FR->imaging step is interpolation of a continuous spectrogram, so
+our 5 Hz `session` output must be checked against 25 Hz (below).
+
+## Integration plan (DRAFT 10-21 evening)
+
+What each task delivers (`o2_face_rhythm.py collect` -> `<dlc>/face_rhythm/cam4/o2_<name>_index.csv`, npz in the bundle's
+`out/`): `trials` spectrogram (engaged trials x 151 bins at 25 Hz, cue -2 .. +4 s on the DAQ grid x 2 x 1282 points x 36
+freqs), `session` spectrogram at **5 Hz** + `t_daq_s`, `points` displacement at 25 Hz + `viol_frac`. Point i is the same
+face location in every session (master mesh), so the spatial dimension is shared by construction.
+
+**A. Decomposition (step 6) -> `scripts/face_rhythm_decompose.py` (new).** One joint non-negative CP, (2 x 1282) x 36 x
+time, fitted on a balanced subsample of `trials` windows (August pre + every epoch, all four animals, positions balanced);
+rank by held-out-session reconstruction + split-half factor stability (paper used 10-12). Then every session's temporal
+factors by NNLS with spatial + spectral fixed, on `trials` (25 Hz) and `session` (5 Hz). Output per session
+`face_rhythm/cam4/components/<fit>/<a>_<d>.npz` (trial x time x k, session t_daq_s x k, labels: sniff / whisk / lick /
+lick-L / lick-R / slow / rim). Check: the 2-min test's factors reappear; per-session fits + Hungarian matching agree.
+
+**B. Loader -> `wfield_local/face_rhythm_outputs.py` (new).** Reads the index + component files; `to_imaging(ft)` via
+`movement_encoding.bin_to_frames` on `t_daq_s` (imaging clock `combined_encoding._load_imaging`); trial arrays already on
+the DAQ grid. Its npz paths go in the `WFIELD_INPUT_CACHE` key (`combined_encoding._cached` src list).
+
+**C. Uses.**
+1. *Encoding model* (`combined_encoding.py`): an `fr` family mirroring the optional VIDEO path (`VIDEO_ENV` / `--video`:
+   z-scored, residualised against the task / instructed / uninstructed groups, own penalty group, `fr:full / alone /
+   drop:<group>`, folder suffix `_fr`). Questions: does FR explain what video ME does (and more, per area)? Does it absorb
+   the uninstructed group's credit? Paper's split (envelope above ~0.5 Hz, position below) -> optionally a slow
+   POSITION family from `points` (25 Hz displacement PCs, low-passed < 0.5 Hz).
+2. *Movement-removed decoding* (`scripts/enl_movement_removed_decode.py` `residual()` extra signals; `movement_inputs`
+   `ContinuousRegressor`): FR components as movement regressors next to video / running.
+3. *Orofacial cohort* (`orofacial_cohort.session_metrics` row / prow, engaged gate already applied): per-trial component
+   power in pre-cue / cue -> first lick / lick epochs -> per session and per position -> `epoch_tables` (August-only
+   baseline). Candidates: whisking and sniff amplitude and their cue modulation, the L / R lick-direction components'
+   selectivity as an execution readout (far contra acute).
+4. *Reaction calls*: cue-locked whisk / sniff onset per trial (replaces the descriptive `nose_onsets.py`) -> a
+   `reacted` flag beside `jaw_only` in `trial_attempts.py`.
+
+**Open decision (affects the RUNNING array): whole-session time resolution.** The encoding model runs on the whole session
+(strobe -> trial stop; 31 Hz imaging, 0 / 0.1 / 0.2 s lags), but FR's whole-session spectrogram is 5 Hz; the 25 Hz
+`trials` windows start 2 s before the cue, ~1 s AFTER the spout arrives. 5 Hz may be enough for envelopes through a GCaMP
+kernel: VQT envelope bandwidth is ~f/Q (0.25 Hz at 1 Hz, ~3 Hz at 60 Hz), GCaMP smooths below ~1-2 Hz, and the 5 Hz
+bins are block means of the 25 Hz output. TEST on the pilot (task 87) before relying on it: encoding EVR within trial
+windows from 25 Hz vs 5 Hz-resampled spectrograms. If 5 Hz loses EVR: 12.5 Hz `session` (~16 GB vs ~7 GB per session at
+1282 points) needs the array rerun, because tracked points are not kept at 250 Hz.
+
 ## Decisions for Priya
 
 * camera order: cam4 first (whisker pads in view, rod below the face), cam1 second?
