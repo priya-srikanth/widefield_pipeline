@@ -92,7 +92,7 @@ Our design gives these ACROSS animals by construction (one mesh, one frozen pre 
 * morphing = Hungarian-matched spatial / spectral cosine of each session's own factors to the frozen set, over days.
 * (i) = per-point movement power maps (from `session` / `points`), post minus pre per animal, AVERAGEABLE across animals
   on the master face; contra- vs ipsilesional face halves (stroke_laterality, animals.yaml; cam1 face: ipsi = image right
-  -- check cam4's convention before any L/R claim).
+  -- cam4 too: ipsilesional = IMAGE RIGHT, Priya 10-21; all four lesions left).
 * "Non-task movements preserved": between-trial (5 Hz session) amplitudes of sniff / whisk components vs in-trial lick
   components.
 * Beyond the old cohort: FR in the widefield encoding model (C1) -- cortex-FR coupling pre vs post, which the 2pRAM
