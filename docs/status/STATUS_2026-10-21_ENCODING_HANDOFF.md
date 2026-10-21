@@ -230,7 +230,12 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 8. Whole-session-lick refits need an O2 re-bundle (Priya submits).
 9. Old copies Priya may delete: stray empty `qc/figures/imaging_lmm_epoch`, old figure copies under `qc/figures/` and
    `qc/within_spout_deviation*/figures/`.
-10. Carried over (10-20 evening §4): first-lick latency cam4 vs cam4 + cam1 vs DAQ; LocaNMF cross-check of within-spout
+10. PARKED (Priya 10-21 evening: "not right now"): per-animal sidecar for contoured map cells (each animal's change /
+   its pre map, agreement with the other three, single-session flag) + a sensitivity dropping animals with < 2 sessions
+   in an epoch. Why: the big raw-vs-normalised swings (cue: precue-ref Near Ipsi / Near Contra acute 23-24 % -> 1-5 %)
+   are cells where PS92 goes the other way and PS95's acute epoch is ONE session (34-43 % of the raw pooled change);
+   all map statistics are ANIMAL-weighted, so that session counts as a full animal and its uncertainty never enters.
+11. Carried over (10-20 evening §4): first-lick latency cam4 vs cam4 + cam1 vs DAQ; LocaNMF cross-check of within-spout
    slopes; pre-cue -> lick-window carry-over decode; 3-D jaw when revived.
 
 ## 4. Pitfalls (new today)
