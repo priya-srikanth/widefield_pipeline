@@ -5,7 +5,24 @@ Plan: [`docs/FACE_RHYTHM_PLAN.md`](../FACE_RHYTHM_PLAN.md) (steps 1-7; status se
 Registration (step 3) and the ROI warp are the pose/3-D window's (`scripts/face_rhythm_register.py`,
 `scripts/face_rhythm_warp_rois.py`, `STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`).
 
-## TL;DR — where it stands
+## UPDATE 10-21 evening — parameters chosen: `midlk12` (9245e51)
+
+* Round 3 scored (11 sets): **midlk12** = mids12 mesh (0.03 / 24, relax 0.005) + oldrun LK (50 px / 5 levels / (3,2,0.0003)),
+  12 px, 1282 points: folds 0.015 / frame (fewest of all; paper 0.089), jitter 0.120, nose rest gain 0.97, nose lick
+  r / gain 0.65 / 0.69, jaw R2 0.69, tongue AUC 0.938, ~19 fps per 2-thread worker. midlk12lr: rest gain 1.00 but lick
+  gain 0.57; midlk12i3: no gain over 2 iterations. Decomposition unchanged (71 %; L/R 6.5 Hz lick components +0.57 /
+  -0.63). Plain clips `param_test/clips/*_plain_paper-mids12-midlk12-midlk12i3-midlk12lr-oldrun.mp4`.
+* Variance explained vs the 2pRAM cohort's run (`FaceRhythm/fr_run_20250520_latent_bundle`, PS48 0301 / 0309, same
+  centred measure, 2-min slices): fresh rank-10 fit 73-84 % (ours 71 %); its whole-session factors on those slices
+  66-76 %. Uncentred (1 - SSE/SS) theirs 81-90 %. bioRxiv blocked fetches (429): the paper's own number not checked.
+* Done: PARAMS["tracking"] = midlk12 (asserted equal to the tested set); master `rois/PS95_20260812/ROIs.h5` re-seeded
+  at 12 px (old file moved aside), `face_rhythm_warp_rois.py to-sessions` -> 106 sessions, all 108 tasks 1282 points;
+  bundle rebuilt: 8 workers x 2 threads (`-c 16`), `--mem 56G`, `-t 7 h` (est. 2.2-4.5 h; estimates now use the O2
+  rate in whole rounds of segments).
+* **Next: pilot task 87 (PS95_20260812)** after moving the old paper-params `work/PS95_20260812_cam4` aside; check
+  speed, MaxRSS (memory fix) and outputs; then the array.
+
+## TL;DR — where it stood before the parameter choice
 
 * **Parameters: recommend `mids12`** (mesh rigidity 0.03 / 24 neighbours, relaxation 0.005, paper's LK 40 px / 3 levels /
   (3,3,0.03), threshold 300, **point spacing 12 px**). Priya has not decided yet: **round 3 is queued on O2** (array
