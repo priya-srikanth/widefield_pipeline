@@ -20987,3 +20987,16 @@ recovering z 4.9; unique executed rises with recovery (cue z 4.5). Position codi
 over log time, carried mostly by DISTANCE. CAVEAT (Priya): the cue window is 0-1 s and acute far-contra licking often
 starts later -> cue-window changes partly reflect waiting vs licking; extra scoring windows added (cue2lick,
 cuestop, firstlick = first post-cue lick -0.1 .. +1 s), refits queued (`_win` folders).
+**Behaviour-indexed mixed model (10-20 night; Priya: random slopes allow variable recovery RATE but not timing ->
+"yes" to indexing by behaviour; `scripts/encoding_mixed.py` model `behaviour`, `qc/encoding_mixed*.csv`).**
+y ~ post + post:deficit, deficit = (animal's August-pre far-contra contact - session) / pre (0 = pre level, 1 = total
+loss), random intercept + step + deficit slope per animal (fallbacks as before). Cortex, dR2 x1e3: coding falls with
+the behavioural deficit and, at deficit 0 (behaviour back at the pre level), sits ABOVE pre -- cue ceiling -83 per unit
+deficit (z -7.0) / +53 at full recovery (z 4.6); cue unique target -48 (z -8.0) / +33 (z 8.7); cue unique executed
+-16 (z -4.5) / +15 (z 2.6); cue position -78 (z -3.9) / +42 (z 3.0); LICK distance -41 (z -5.2) / +30 (z 4.5); lick
+unique target -29 (z -4.0) / +12 (z 2.2). Reading: position / angle coding tracks each animal's behavioural recovery
+and overshoots pre once behaviour has recovered (the chronic gain = a gain beyond behavioural normalisation). The cue
+window partly reflects delayed licking (deficit ~ delay); the lick-window distance result is the cleanest; the
+`firstlick` window (O2 win runs) will confirm. Also: the chronic EPOCH starts at day 11 (PS92 / PS93), 15 (PS95), 25
+(PS94) -- epoch tables compare different post-stroke times; the mixed models (time or behaviour) are the primary
+readout from now on, epochs descriptive. Map panels now use each animal's actual chronic days (not a fixed day 36).

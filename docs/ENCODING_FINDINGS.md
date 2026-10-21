@@ -117,6 +117,13 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   surviving the animal-level test. PS94 / PS95's pre bilateral pattern = eccentricity; acute = contralesional direction.
   Split-half reliability ~0.5 -> executed shares bracketed x1-x2. `qc/within_spout_deviation_lick/`.
 
+- **Coding tracks behavioural recovery and overshoots (PROVISIONAL, 10-20 night; `scripts/encoding_mixed.py`).**
+  Mixed models with animal random effects, sessions as observations. Calendar time: position coding drops at day 1
+  (cue) and recovers with log(days), mostly via DISTANCE. Behaviour-indexed (far-contra contact deficit): position /
+  angle coding falls with the deficit and sits ABOVE pre once behaviour has recovered (lick distance z -5.2 / +4.5;
+  cue unique target z -8.0 / +8.7). Mixed models are now the primary readout; epochs (chronic starts day 11-25 by
+  animal) descriptive. Cue-window effects partly = delayed licking -> `firstlick` window pending (O2).
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92_0908 rerun done 10-20: PS92 chronic unchanged)

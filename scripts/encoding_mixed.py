@@ -33,7 +33,7 @@ import pandas as pd
 FOCUS = ("cortex", "SSp-m_left", "SSp-m_right", "MOs_left", "MOs_right", "MOp_left", "MOp_right", "SSp-ul_left",
          "SSp-ul_right")
 WINDOWS = ("enl", "cue", "lick", "cue2lick", "cuestop", "firstlick")   # extra windows where a run has them
-RES = ("~post + post:lday", "~post", "~1")
+
 
 
 def _regions(folder: Path, labels: set) -> pd.DataFrame:
@@ -83,7 +83,18 @@ def outcomes(E: Path, labels: set) -> pd.DataFrame:
     L["day"] = L.label.map(epochs.days_since_stroke)
     L["post"] = (L.day > 0).astype(float)
     L["lday"] = np.where(L.day > 0, np.log(L.day.clip(lower=1)), 0.0)
+    defi = behaviour_deficit(E)
+    L["deficit"] = np.where(L.post == 0, 0.0, L.label.map(defi))
     return L
+
+
+def behaviour_deficit(E: Path) -> dict:
+    """BEHAVIOUR-INDEXED time (Priya 10-20: recovery timing differs per animal): per session, far-contra contact
+    deficit = (animal's pre mean - session) / pre mean (0 = pre level, 1 = total loss), from
+    qc/position_coding_trend_recovery_sessions.csv (scripts/position_coding_trend_recovery.py). Pre = August pre."""
+    S = pd.read_csv(E / "qc" / "position_coding_trend_recovery_sessions.csv")
+    pre = S[(S.epoch == "pre") & (S.label.str[-4:] >= "0806")].groupby("animal").contact_far_contra.mean()
+    return dict(zip(S.label, (S.animal.map(pre) - S.contact_far_contra) / S.animal.map(pre)))
 
 
 
@@ -95,20 +106,21 @@ def _re_ok(r) -> bool:
     except Exception:                                       # noqa: BLE001
         return False
 
-def fit(G: pd.DataFrame):
+def fit(G: pd.DataFrame, slope: str = "post:lday"):
+    """y ~ post + <slope>: slope = post:lday (calendar time) or post:deficit (behaviour-indexed)."""
     import statsmodels.formula.api as smf
-    for re in RES:
+    for re in (f"~post + {slope}", "~post", "~1"):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
-                r = smf.mixedlm("y ~ post + post:lday", G, groups=G["animal"], re_formula=re).fit(reml=True)
+                r = smf.mixedlm(f"y ~ post + {slope}", G, groups=G["animal"], re_formula=re).fit(reml=True)
             except Exception:                                   # noqa: BLE001 -- singular / non-converged
                 continue
         if r.converged and np.all(np.isfinite(r.bse[r.fe_params.index])) and _re_ok(r):
             return r, re
     # LAST RESORT: fixed animal intercepts (sum-coded, so Intercept = mean of the animal levels) -- used when even the
     # random intercept is singular (animals with near-identical baselines)
-    r = smf.ols("y ~ C(animal, Sum) + post + post:lday", G).fit()
+    r = smf.ols(f"y ~ C(animal, Sum) + post + {slope}", G).fit()
     r.fe_params = r.params
     return r, "fixed"
 
@@ -126,34 +138,36 @@ def main(argv=None) -> int:
     labels = {x for x in ak.curated_labels() if x[-4:] >= "0806"}
     L = outcomes(E, labels)
     rows = []
-    for (meas, win, area), G in L.groupby(["measure", "window", "area"]):
-        if (G.post == 0).sum() < 6 or (G.post == 1).sum() < 10 or G.animal.nunique() < 2:
-            continue                                    # too few pre / post sessions (e.g. a run still in progress)
-        r, re = fit(G)
-        if r is None:
-            rows.append({"measure": meas, "window": win, "area": area, "re": re, "n": len(G)})
-            continue
-        rfx = r.random_effects if re != "fixed" else {}
-        blup = {f"step_dev_{an}": float(v.get("post", np.nan)) for an, v in rfx.items()}
-        blup.update({f"slope_dev_{an}": float(v.get("post:lday", np.nan)) for an, v in rfx.items()})
-        for term in ("Intercept", "post", "post:lday"):
-            rows.append({"measure": meas, "window": win, "area": area, "re": re, "n": len(G),
-                         "term": "pre_level" if term == "Intercept" else term, "coef": r.fe_params[term],
-                         "se": r.bse[term], "z": r.tvalues[term], "p": r.pvalues[term], **blup})
+    for model, slope in (("time", "post:lday"), ("behaviour", "post:deficit")):
+        for (meas, win, area), G in L.groupby(["measure", "window", "area"]):
+            G = G.dropna(subset=["deficit"]) if model == "behaviour" else G
+            if (G.post == 0).sum() < 6 or (G.post == 1).sum() < 10 or G.animal.nunique() < 2:
+                continue                                # too few pre / post sessions (e.g. a run still in progress)
+            r, re = fit(G, slope)
+            rfx = r.random_effects if re != "fixed" else {}
+            blup = {f"step_dev_{an}": float(v.get("post", np.nan)) for an, v in rfx.items()}
+            blup.update({f"slope_dev_{an}": float(v.get(slope, np.nan)) for an, v in rfx.items()})
+            for term in ("Intercept", "post", slope):
+                rows.append({"model": model, "measure": meas, "window": win, "area": area, "re": re, "n": len(G),
+                             "term": "pre_level" if term == "Intercept" else term, "coef": r.fe_params[term],
+                             "se": r.bse[term], "z": r.tvalues[term], "p": r.pvalues[term], **blup})
     T = pd.DataFrame(rows)
     T["q"] = np.nan
-    for _, idx in T.dropna(subset=["p"]).groupby(["window", "term"]).groups.items():
+    for _, idx in T.dropna(subset=["p"]).groupby(["model", "window", "term"]).groups.items():
         T.loc[idx, "q"] = fdrcorrection(T.loc[idx, "p"])[1]
     T.to_csv(E / "qc" / "encoding_mixed.csv", index=False, float_format="%.5g")
     # readable summary: one row per measure x window x area, coef (z, q) per term
     W = T.dropna(subset=["term"]).assign(cell=lambda x: [f"{c:.2f} (z {z:.1f}, q {q:.3f})" for c, z, q in
                                                           zip(x.coef, x.z, x.q.fillna(np.nan))])
-    W.pivot_table(index=["window", "area", "measure"], columns="term", values="cell", aggfunc="first")         .join(T.drop_duplicates(["measure", "window", "area"]).set_index(["window", "area", "measure"])[["re", "n"]])         .to_csv(E / "qc" / "encoding_mixed_summary.csv")
+    W.pivot_table(index=["model", "window", "area", "measure"], columns="term", values="cell", aggfunc="first")         .join(T.drop_duplicates(["model", "measure", "window", "area"]).set_index(["model", "window", "area", "measure"])[["re", "n"]])         .to_csv(E / "qc" / "encoding_mixed_summary.csv")
     pd.set_option("display.width", 230)
-    for win in WINDOWS:
-        S = T[(T.window == win) & (T.area == "cortex") & T.term.notna()]
-        print(f"\n=== {win} window, cortex: dR2 x1e3; y ~ post + post:lday; q = FDR over measures x areas")
-        print(S.pivot_table(index="measure", columns="term", values=["coef", "z", "q"]).round(3).to_string())
+    for model in ("time", "behaviour"):
+        for win in WINDOWS:
+            S = T[(T.model == model) & (T.window == win) & (T.area == "cortex") & T.term.notna()]
+            if S.empty:
+                continue
+            print(f"\n=== [{model}] {win} window, cortex: dR2 x1e3; q = FDR over measures x areas")
+            print(S.pivot_table(index="measure", columns="term", values=["coef", "z", "q"]).round(3).to_string())
     print("\n  random-effect structure used:", T.groupby("re").size().to_dict())
     print(f"\n-> {E / 'qc' / 'encoding_mixed.csv'}")
     return 0
