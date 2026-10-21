@@ -55,6 +55,8 @@ from wfield_local import config
 #: old artifact, though built from the same sessions, no longer answers the same question. Mtimes
 #: cannot see a code change; this is the lesson `session_cache.CACHE_VERSION` records.
 FREEZE_VERSION = 1
+#: LP_licks only: "lp" freezes LP-TRAINED sensitivity models under their own spec (see `load_or_fit`).
+LP_FROZEN_ENV = "WIDEFIELD_LP_FROZEN"
 
 STATUS_NEW, STATUS_HIT, STATUS_SPEC_CHANGED = "frozen-new", "frozen-hit", "SPEC-CHANGED"
 
@@ -94,7 +96,7 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     if others:
         raise ValueError(f"frozen model for {animal} was given training sessions from "
                          f"{sorted(others)}: {[x for x in labs if config.animal_of(x) != animal]}")
-    return {
+    spec = {
         "freeze_version": FREEZE_VERSION,
         "animal": animal,
         "kind": kind,
@@ -108,6 +110,12 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
         "train_labels": labs,
         "train_sigs": {lab: _session_sig(lab) for lab in labs},
     }
+    # LP-TRAINED sensitivity models only (see `load_or_fit`): ADDED ONLY THEN, so every DAQ spec -- and its id, which
+    # names the stored directory -- is byte-identical to before.
+    from wfield_local import lp_licks
+    if lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() == "lp":
+        spec["lick_source"] = "lp"
+    return spec
 
 
 def spec_id(spec) -> str:
@@ -320,6 +328,15 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
         except Exception as ex:                          # noqa: BLE001
             log(f"[frozen] !! {d.name} unreadable ({type(ex).__name__}); refitting")
 
+    # LP_licks REUSES THE DAQ-FROZEN MODELS (Priya 10-21: no new frozen set; pre-stroke LP and DAQ trials agree except
+    # PS93 far_ipsi / far_mid). Under WIDEFIELD_LICK_SOURCE=lp a MISS must therefore never fit: the fit would see
+    # LP-gated pre-stroke features and file them under a DAQ spec. Only an explicit LP-trained spec (the PS93
+    # sensitivity, WIDEFIELD_LP_FROZEN=lp -> make_spec adds lick_source) may be fitted here.
+    from wfield_local import lp_licks
+    if lp_licks.is_lp() and spec.get("lick_source") != "lp":
+        raise RuntimeError(f"[frozen] LP_licks reuses DAQ-frozen models, but none is stored for {_slug(spec)} "
+                           f"({spec['animal']}); run the DAQ path first, or set {LP_FROZEN_ENV}=lp for an "
+                           "LP-trained sensitivity model")
     prior = [s for s in siblings(spec) if s["dir"].name != _slug(spec)]
     if refreeze:
         for s in prior:

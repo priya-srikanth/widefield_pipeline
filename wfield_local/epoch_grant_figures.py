@@ -374,6 +374,9 @@ def main(argv=None) -> int:
                              "13s", "14m", "15e", "15r", "mat", "scal"))
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks
+    out = lp_licks.output_dir(out)            # LP_licks renders -> grant_figures/LP_licks/...
+    print(f"lick source: {lp_licks.lick_source()} -> {out}", flush=True)
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b", "13s", "14m", "15e",

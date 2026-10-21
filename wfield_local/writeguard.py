@@ -81,6 +81,15 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
         raise WriteGuardError(
             f"refusing to write outside the standby Priya subtree:\n  path: {path}\n"
             f"  a standby-share path must contain a '/{_OWNER}/' segment (CLAUDE.md rule 1).")
+    # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): a run on the video lick source writes ONLY under an LP_licks
+    # directory. Most writers pick their own share path; without this, an LP run of any of them would overwrite the
+    # DAQ outputs of the same name. Renderers that know about LP route themselves (`lp_licks.output_dir`).
+    if os.environ.get("WIDEFIELD_LICK_SOURCE", "").strip().lower() == "lp" and \
+            (_MICROSCOPE_MARK in c or any(m in c for m in _STANDBY_MARKS)) and "/lp_licks/" not in c:
+        raise WriteGuardError(
+            f"refusing an LP_licks-run write outside an LP_licks directory:\n  path: {path}\n"
+            "  under WIDEFIELD_LICK_SOURCE=lp every share output must sit under .../LP_licks/... so it can never "
+            "replace the DAQ (spout-contact) version; route the writer with lp_licks.output_dir().")
 
 
 def is_writable(path: str | os.PathLike[str]) -> bool:

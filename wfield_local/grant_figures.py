@@ -1219,6 +1219,9 @@ def main(argv=None) -> int:
                     help="render only this trial class")
     args = ap.parse_args(argv)
     out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
+    from wfield_local import lp_licks
+    out = lp_licks.output_dir(out)            # LP_licks renders -> grant_figures/LP_licks/...
+    print(f"lick source: {lp_licks.lick_source()} -> {out}", flush=True)
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     want = set(args.only or ALL_KEYS)
