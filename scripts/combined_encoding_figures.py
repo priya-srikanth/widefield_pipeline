@@ -1128,6 +1128,11 @@ def main(argv=None) -> int:
                 fig_position_signed_maps(meta, sess, figs / f"position_signed_{kind}_{w}.png", title, ol, w, kind)
         print(f"figures -> {figs}")
         return 0
+    # a `drop` subset (the O2 ONLY=drop: run, movement_first_subset-drop_win) holds only the main run's drop models --
+    # no alone: / contest models, so neither figure suite applies; scripts/encoding_mixed.py reads it (extra windows)
+    if "_subset-" in a.order and a.order.split("_subset-", 1)[1].startswith("drop"):
+        print(f"{a.order}: drop models only -> read by scripts/encoding_mixed.py (extra windows); no figure suite")
+        return 0
     if "_subset-" in a.order:
         return contest_main(a, base, figs, tabs)
     R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
