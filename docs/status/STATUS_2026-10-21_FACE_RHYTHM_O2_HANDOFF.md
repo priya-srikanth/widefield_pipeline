@@ -149,3 +149,20 @@ triangles 0 (PS92 / PS94 / PS95) or 0-2 (PS93, at the mouth); local area vs mast
 compressed at the mouth: a smaller face than PS95's). From ~09/10 every animal's mesh sits ~40 px from the master
 (camera / rig shift; registration follows the face, the spout ring is now visible at the image top). Visually: post-
 stroke meshes cover the same face as pre (PS93 + PS95 sheets checked). No session needed re-drawing.
+
+## PRODUCTION RUNNING (10-21 night): array 57168778 (`--array=1-108%24`, `--mem 72G`, `-t 9 h`, 4 workers x 4 threads)
+
+What happened first: pilot 57149639_87 + array 57154014 ran 8 workers x 2 threads at 56 GB. Speed exactly as tested (19
+fps / worker, 137.5 min / segment), but at the end of round 1 the job sat at the 56 GB cgroup limit and the kernel killed
+3 of the pilot's 8 workers ("terminate called without an active exception"; 12 torch.jit warnings in the .err = 1 parent +
+8 workers + 3 replacements). `mp.Pool` silently replaces a killed worker and waits forever for its segment -> hang to the
+time limit. Task 6 (PS92_0812 v1, 4 segments -> 4 workers x 4 threads) completed in 1.3 h at **34 fps / worker**,
+MaxRSS 31.9 GB: 4 x 4 gives about the same throughput as 8 x 2 (136 vs 152 fps) at half the memory, and is faster for
+<= 12 segments. Fixed (70d4c3b): ProcessPoolExecutor (a dead worker -> finished segments recorded, exit "segment(s) lost
+... resubmit to resume"), workers 4 x 4 threads, sbatch memory floor 72 GB. Both old jobs cancelled; the new array resumes
+the pilot's saved segment 1; task 6 = done already.
+Expect ~3.8 h per task (9-12 segments), ~5.1 h (13-16), ~18-20 h for the array. Check:
+`sacct -j 57168778 -X --format=JobID%16,State,Elapsed,MaxRSS | grep -v COMPLETED`, `grep -l "segment(s) lost" logs/57168778_*.out`;
+resubmit failures with the same sbatch line and `--array=<list>`. Then transfer-node rsync of `out/` to the share and
+`python scripts/o2_face_rhythm.py collect --name fr_cam4_20261021`. NOTE: the runner has no lock -- never run two copies of
+one task (check `squeue` before any resubmit).
