@@ -25,7 +25,7 @@ float16 memmaps (``work/<key>/``), the parent records finished segments (``progr
 and writes the npz outputs at the end. Each segment is tracked from ``warmup_frames`` before its start (discarded:
 lets the mesh settle, gives the VQT its left margin) to ``margin_frames`` past its end; its points go through FR's
 ``VQT_Analyzer.transform`` in ``chunk_frames`` chunks with ``padding='same'``, so 25 Hz bin j = frames [10j, 10j+10)
-exactly and no full-length spectrogram is ever held. Before the VQT, zero-phase notches at 20.83 / 41.67 Hz remove the cam4 encoder's 12-frame keyframe
+exactly and no full-length spectrogram is ever held. Before the VQT, zero-phase notches at 20.83 / 41.67 / 62.5 Hz remove the cam4 encoder's 12-frame keyframe
 line from the 250 Hz points (``notch_hz``; also applied to the 25 Hz points). Outputs (float16, ``out/<a>_<d>_cam4_*.npz``):
   trials   spec (trial, time, xy, point, freq) on the DAQ grid ``t_ms`` (linear between the two nearest 25 Hz bins,
            NaN where the trial's window or the video does not reach)
@@ -58,10 +58,11 @@ PARAMS = {
     "chunk_frames": 10000,                             # VQT chunk (multiple of 50: 5 Hz blocks align)
     "session_ds_bins": 5,                              # 25 Hz -> 5 Hz
     # cam4 encoder keyframe every 12 frames -> a spurious 20.83 Hz line (+ 41.67 Hz) in tracked points, spread over the
-    # whole 12-frame group (keyframe interpolation / phase templates do not remove it; 10-21 pilot). Zero-phase notches
+    # whole 12-frame group as a sawtooth (positions integrate the keyframe's apparent shift, then relax): interpolating the
+    # index % 12 == 0 frames, which works for motion energy, leaves it in points (1.59 -> 1.58x; notch -> 0.30x). Zero-phase notches
     # on the 250 Hz points of each VQT chunk, before the spectrogram AND the 25 Hz points (a 10-frame block mean passes
     # ~19 % of 20.8 Hz and aliases it to 4.2 Hz). Q 30: ~0.7 Hz wide; settles in ~3 x 115 frames < the 510-frame margin.
-    "notch_hz": [250 / 12, 2 * 250 / 12],
+    "notch_hz": [250 / 12, 2 * 250 / 12, 3 * 250 / 12],   # 20.83 / 41.67 / 62.5 Hz (62.5 leaks into the 60 Hz bin)
     "notch_q": 30,
     "reader": {"buffer_size": 250, "prefetch": 1, "posthold": 1, "backend": "decord"},
     "tracking": {
