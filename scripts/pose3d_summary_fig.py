@@ -67,10 +67,19 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, axes = plt.subplots(len(ROWS) + 1, len(POS), figsize=(2.9 * len(POS), 2.0 * (len(ROWS) + 1)), squeeze=False)
     se = SE[(SE.animal == animal) & (SE.subset == "all")]
     k = K[K.animal == animal]
-    for i, (src, col, label) in enumerate(ROWS):
+
+    def _has(src, col):
+        if src == "se":
+            return col in se and se[col].notna().any()
+        return any(f"{col}|{p}" in k and k[f"{col}|{p}"].notna().any() for p in POS)
+
+    # rows with no data for THIS animal are dropped (PS94 10-21: no 3-D error rows yet left a blank third of the page and
+    # took the spout titles, set on row 0, with them)
+    rows = [r for r in ROWS if _has(r[0], r[1])]
+    fig, axes = plt.subplots(len(rows) + 1, len(POS), figsize=(2.9 * len(POS), 2.0 * (len(rows) + 1)), squeeze=False)
+    for i, (src, col, label) in enumerate(rows):
         for j, p in enumerate(POS):
             ax = axes[i, j]
             if src == "se":
@@ -96,11 +105,10 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
             ax.axvline(0.5, color="k", lw=0.5, ls=":")
             _xaxis(ax)
             ax.tick_params(labelsize=6)
-            if i == 0:
+            if not any(axes[r, j].get_visible() and axes[r, j].has_data() for r in range(i)):
                 ax.set_title(p, fontsize=8)
-            if j == 0:
-                ax.set_ylabel(label, fontsize=7)
-            if i == len(ROWS) - 1:
+            ax.set_ylabel(label, fontsize=7) if j == 0 else None
+            if i == len(rows) - 1:
                 ax.set_xlabel("days from stroke", fontsize=7)
     # jaw steering strip: FAR_DIR (cam4's readout) + CLOSE_DIR (close side spouts, 3-D only, 10-20) and the side biases
     for j in range(len(POS)):

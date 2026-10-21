@@ -1047,8 +1047,14 @@ def cim_rotation(by_epoch, t):
 
 
 def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=False,
-                   gate="lick", reference="contrast", mask_occluded=True, verbose=True):
+                   gate="lick", reference="contrast", mask_occluded=True, verbose=True,
+                   exclude_fit=None, project_only=None):
     """Per-position directions from PRE-STROKE success, and trajectories for every class x epoch.
+
+    ``exclude_fit`` (labels) leaves those sessions out of EVERYTHING fitted on pre -- the directions, the poles, the
+    z-score frame and the condition-independent mode; ``project_only`` (labels) restricts pass 2 to those sessions.
+    Both default to None = unchanged. Together they score a pre session LEAVE-ONE-OUT (`scripts.cd_loo_sessions`,
+    encoding window 10-20: "pre sessions: each needs its own value"), so its value is not in-sample.
 
     TWO PASSES OVER THE SESSIONS, and the projection is deferred in both.
 
@@ -1080,6 +1086,12 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     # Iterating `config.load_sessions()` directly picks up sessions with no SVTcorr on disk, and is
     # a second definition of "which sessions this cohort is" (rule 9). Order is preserved.
     sess = [s for s in ak.curated_sessions() if s["label"].startswith(animal)]
+    excl = set(exclude_fit or ())
+    if project_only is not None:
+        # only what the fit or the projection needs: pre sessions (minus the held-out ones) + the projected ones
+        keep = set(project_only)
+        sess = [s for s in sess if s["label"] in keep
+                or (epochs.epoch_of(s["label"]) == "pre" and s["label"] not in excl)]
 
     book, errs = [], []
     akind = arms_cache_kind(args, align)
@@ -1100,7 +1112,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     use = LICK_ALIGNED_CLASSES if align == "lick" else GATES[gate]
     Xf, yf, Rb = [], [], {}
     for s, ep, arms in book:
-        if ep != "pre" or not any(arms[c]["y"] for c in use):
+        if ep != "pre" or s["label"] in excl or not any(arms[c]["y"] for c in use):
             continue
         get = _OnceSignal(joint_locanmf.BasisSource(basis, s))
         # THE GATE IS IN THE CACHE KEY: it changes which trials the features are built from, and
@@ -1145,7 +1157,8 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     # THE GRAND MEANS, ONCE, FOR EVERY EPOCH. The mode is fitted on PRE alone (rule 10 -- a
     # per-epoch mode would subtract away the change being measured) and the other epochs are what
     # `cim_rotation` and `cim_scale` read. Same trials, same cache entry, one definition.
-    Ge = grand_means(book, use, basis, align, pre_n, post_frames) if orth else {}
+    Ge = grand_means([b for b in book if b[0]["label"] not in excl], use, basis, align, pre_n,
+                     post_frames) if orth else {}
     cim = None
     if Ge.get("pre"):
         Gpre = pooled_mean(Ge["pre"], stats)
@@ -1182,6 +1195,8 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     acc, sess = {}, {}
     for s, ep, arms in book:
         if not any(arms[c]["y"] for c in draw):
+            continue
+        if project_only is not None and s["label"] not in project_only:
             continue
         get = _OnceSignal(joint_locanmf.BasisSource(basis, s))
         courses = session_cache.cached(
