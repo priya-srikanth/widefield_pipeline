@@ -58,8 +58,16 @@ def medoid(ims: dict) -> str:
     return max(score, key=score.get)
 
 
-FACE = ("nose", "jaw")
+FACE = ("nose", "jaw", "eye_l", "eye_r")
+#: eyes: Priya's clicks on the master + the animal templates (``register/eye_landmarks.json``, 10-21) -- every LP landmark
+#: is in the lower face, so nothing else pins the eyes in the template -> master step (the eyes fell outside some ROIs)
+EYE_R = 45.0
+#: eyes are NOT kept raw (10-21: raw eye zones folded -> bunched points around the eyes, median 0 -> 24 per session);
+#: they act through the coarse fit only. Set to ("eye_l", "eye_r") to restore raw eye zones.
+RAW_EYES: tuple = ()
+LOCAL_WIN, LOCAL_MARGIN = 41, 0.05
 SMOOTH_PX, SHELL_PX, MOUTH_R, INNER_SMOOTH_PX = 25.0, 50.0, 80.0, 8.0
+FOLD_DET, FOLD_GROW_PX, FOLD_SMOOTH_PX = 0.6, 25, 20.0
 FACE_WEIGHT = 3
 
 
@@ -72,7 +80,7 @@ def similarity_field(lm_t: dict, lm_m: dict, shape) -> np.ndarray:
     face landmarks repeated FACE_WEIGHT times so the face, not the spout geometry, sets the fit."""
     import cv2
     keys = _shared(lm_t, lm_m)
-    keys = keys + [k for k in keys if k in FACE] * (FACE_WEIGHT - 1)
+    keys = keys + [k for k in keys if k in FACE] * (FACE_WEIGHT - 1)     # eyes weighted like nose / jaw (eyes-once was worse, 10-21)
     A, _ = cv2.estimateAffinePartial2D(np.array([lm_t[k] for k in keys], np.float32),
                                        np.array([lm_m[k] for k in keys], np.float32), method=cv2.LMEDS)
     H, W = shape
@@ -83,6 +91,29 @@ def similarity_field(lm_t: dict, lm_m: dict, shape) -> np.ndarray:
 def face_err(F: np.ndarray, lm_t: dict, lm_m: dict) -> float:
     e = [np.hypot(*(sample(F, lm_t[k])[0] - lm_m[k])) for k in FACE if k in _shared(lm_t, lm_m)]
     return float(np.max(e)) if e else np.nan
+
+
+def raw_zones(shape, lm: dict) -> np.ndarray:
+    """(H, W) weight of the RAW field: the mouth (MOUTH_R around the rest jaw) and, where clicked, each eye (EYE_R)."""
+    w = mouth_weight(shape, lm.get("jaw"))
+    H, W = shape
+    gx, gy = np.meshgrid(np.arange(W), np.arange(H))
+    for k in RAW_EYES:
+        e = lm.get(k)
+        if e is not None and np.isfinite(e).all():
+            w = np.maximum(w, np.clip((EYE_R + SHELL_PX - np.hypot(gx - e[0], gy - e[1])) / SHELL_PX, 0, 1))
+    return w.astype(np.float32)
+
+
+def local_ncc(a: np.ndarray, b: np.ndarray, win: int = LOCAL_WIN) -> np.ndarray:
+    """Windowed normalised cross-correlation map of two images."""
+    import cv2
+    k = (win, win)
+    ma, mb = cv2.boxFilter(a, -1, k), cv2.boxFilter(b, -1, k)
+    va = cv2.boxFilter(a * a, -1, k) - ma * ma
+    vb = cv2.boxFilter(b * b, -1, k) - mb * mb
+    cab = cv2.boxFilter(a * b, -1, k) - ma * mb
+    return cab / np.sqrt(np.clip(va * vb, 1e-8, None))
 
 
 def mouth_weight(shape, mouth) -> np.ndarray:
@@ -132,12 +163,32 @@ def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict, p
         disp = D - grid
         # three zones (10-21): MOUTH raw; face INTERIOR lightly smoothed (INNER_SMOOTH_PX: DeepFlow fold seams squeezed
         # rows of points together, worst in PS93's template); OUTER SHELL / outside SMOOTH_PX
-        wm = mouth_weight((H, W), lm_t.get("jaw"))[..., None]
+        wm = raw_zones((H, W), lm_t)[..., None]
         ws = shell_weight(poly_t, (H, W))[..., None]
         inner = cv2.GaussianBlur(disp, (0, 0), INNER_SMOOTH_PX)
         outer = cv2.GaussianBlur(disp, (0, 0), SMOOTH_PX)
         D = grid + wm * disp + (1 - wm) * (ws * inner + (1 - ws) * outer)
+        # LOCAL FOLD repair (10-21, Priya: PS94_0823 left-cheek compression survived the 8 px interior): where the warp's
+        # area change (Jacobian determinant) < FOLD_DET, grown by FOLD_GROW_PX and feathered, the displacement is
+        # replaced by a FOLD_SMOOTH_PX smoothing of it; never in the mouth zone; nowhere else changes
+        disp2 = D - grid
+        gxx, gxy = np.gradient(D[..., 0], axis=1), np.gradient(D[..., 0], axis=0)
+        gyx, gyy = np.gradient(D[..., 1], axis=1), np.gradient(D[..., 1], axis=0)
+        fold = ((gxx * gyy - gxy * gyx) < FOLD_DET).astype(np.uint8)
+        if fold.any():
+            fold = cv2.dilate(fold, np.ones((2 * FOLD_GROW_PX + 1,) * 2, np.uint8)).astype(np.float32)
+            fm = (cv2.GaussianBlur(fold, (0, 0), FOLD_GROW_PX / 2.0)[..., None]) * (1 - wm)
+            D = grid + (1 - fm) * disp2 + fm * cv2.GaussianBlur(disp2, (0, 0), FOLD_SMOOTH_PX)
     T = cv2.remap(S, D[..., 0], D[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    # LOCAL-QUALITY FALLBACK (10-21, Priya: PS94_0823's image-left jaw / cheek contour was pulled inward): where the
+    # similarity-only warp matches the template better than the full warp (windowed NCC, LOCAL_WIN px, by more than
+    # LOCAL_MARGIN), use the similarity field there (feathered); the raw zones (mouth, eyes) keep the full field
+    q_t = local_ncc(template, cv2.remap(moving, T[..., 0], T[..., 1], cv2.INTER_LINEAR))
+    q_s = local_ncc(template, cv2.remap(moving, S[..., 0], S[..., 1], cv2.INTER_LINEAR))
+    use_s = cv2.GaussianBlur((q_s > q_t + LOCAL_MARGIN).astype(np.float32), (0, 0), 15.0)
+    keep = raw_zones(template.shape, lm_t)
+    ws_ = (use_s * (1 - keep))[..., None]
+    T = (1 - ws_) * T + ws_ * S
     es, et = face_err(S, lm_t, lm_m), face_err(T, lm_t, lm_m)
     if np.isfinite(et) and np.isfinite(es) and et > max(es, 8.0):
         return S, f"similarity (deepflow face err {et:.1f} > {es:.1f})"
@@ -180,6 +231,12 @@ def main(argv=None) -> int:
     raw = {s: z["median"] for s, z in Z.items()}
     ims = {s: prep(im) for s, im in raw.items()}
     LM = {s: landmarks(z) for s, z in Z.items()}
+    ef = a.root / "register_inputs" / "eye_landmarks.json"
+    if ef.exists():
+        for s_, e in json.loads(ef.read_text()).items():
+            if s_ in LM:
+                LM[s_]["eye_l"], LM[s_]["eye_r"] = np.asarray(e["left"], float), np.asarray(e["right"], float)
+        print("eye landmarks:", sorted(json.loads(ef.read_text())), flush=True)
     animals = sorted({s[:4] for s in Z})
     pool_f = a.root / "pre_august_sessions.json"
     pool = set(json.loads(pool_f.read_text())) if pool_f.exists() else set(ims)

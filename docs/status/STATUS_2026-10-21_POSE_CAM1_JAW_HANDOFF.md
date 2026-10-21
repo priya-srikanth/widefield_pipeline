@@ -33,6 +33,23 @@ Fix = interpolate over those frames (20.8 Hz power down 4-8x): `scripts/attempt_
 documented in `wfield_local/roi_motion.py`. Told the FaceRhythm window (interpolate point displacements over those
 frames before the VQT, or expect a 20.8 Hz band). The published review clips predate this fix (5-frame median only).
 
+**FaceRhythm registration FINAL (10-21 ~11:30; supersedes the smoothing paragraph below where they differ):**
+* EYES: Priya clicked eye centres on the master + 3 templates (page https://claude.ai/artifact/Duo8fgvKosCnXvMyFDjqho,
+  db `eye_landmarks`) -> `face_rhythm/cam4/register_inputs/eye_landmarks.json` (outside register/ so a re-run keeps
+  it). They join nose + jaw in the template -> master similarity fit (equal weight; "eyes once" was worse: PS94 eye
+  7 -> 12.5 px). Raw eye zones were tried and DROPPED (`RAW_EYES = ()`): DeepFlow folded around the eyes (bunching median
+  0 -> 24). Fixes: eyes now inside every session's face contour; PS94_0823's image-left cheek contour follows the face.
+* FOLD REPAIR: where the warp's Jacobian determinant < 0.6 (grown 25 px, feathered), the displacement is replaced by a
+  20 px smoothing of it (not in the mouth zone): worst bunching 82 -> 12.
+* LOCAL-QUALITY FALLBACK: where the similarity-only warp beats the full warp by > 0.05 windowed NCC (41 px), the
+  similarity field is used there (feathered; mouth kept full).
+* Result (final run): eye 5-7 px, nose 1.6-4.9 px, jaw 3.3-5.7 px EXCEPT PS92 jaw ~7.6 px (was 2.8 before the eyes;
+  OPEN: probably PS92's template -> master step; ~0.2 mm), bunched points median ~6 / max ~26, mostly in the raw mouth
+  zone. Field sets kept for comparison: register_v1_postmaster / v2_unsmoothed / v3_threezone / v4_foldrepair_20261021.
+* Per-session ROIs REWRITTEN from these fields (b69f1jwnu at hand-off; check `register/rois_check.png` + 107 files) ->
+  Priya rsyncs rois/ to O2 after looking at the sheet. QC page https://claude.ai/artifact/Ffm8u7RseBs5NPvmPa5JRY
+  (republish `scratchpad/face_registration_qc.html` after regenerating if the session is still alive).
+
 **FaceRhythm registration SMOOTHING (10-21 ~11:00, after Priya saw wiggly contours / bunched points):** the DeepFlow
 field now has THREE zones (`face_rhythm_register.register`): MOUTH (within MOUTH_R 80 px of the template's rest jaw,
 ramp SHELL_PX) = raw field (Priya: keep the mouth edge); face INTERIOR (inside Priya's master face polygon, carried into
