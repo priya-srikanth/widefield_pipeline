@@ -64,3 +64,17 @@ factors, multi-camera rigs.
 * ROI: drawn by Priya on the master (recommended) or generated from LP landmarks?
 * decomposition: joint fit + projection (recommended) vs per-session + matching (paper)?
 * does the colleague's stroke_orofacial master mesh code exist somewhere we can reuse (Flea3 rig, different animals)?
+
+## Status (10-21 late morning)
+
+Handoff for steps 4-5: [`docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md`](status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md).
+
+* **1 pilot** done (desktop: 100 fps at 1514 points, VQT ~3200 frames/s).
+* **2 frames / 3 registration**: pose/3-D window (`face_rhythm_prep.py`, `face_rhythm_register.py`). The first master
+  (PS93_20260821) was post-stroke (acute) -- being rebuilt from August PRE templates, master among PS92 / PS94 / PS95.
+* **4 master ROI**: drawn by Priya with `notebooks/face_rhythm_draw_roi.ipynb` (click polygons; face to the eyes, mask
+  ~25 px outside, bottom above the close-spout tips); to be re-checked on the new master, then warped to sessions
+  (`face_rhythm_warp_rois.py`). Decided: one animal's template as master (not a mean); ROI drawn by Priya.
+* **5 O2 bundle** built (`scripts/o2_face_rhythm.py`, `fr_cam4_20261021`, 108 tasks: June out, engaged trials,
+  PS92_0812 as two tasks); waiting on the warped ROIs. Open: a tracking-parameter test (paper vs the old 2pRAM run vs
+  FR defaults, scored against LP) before the full array.

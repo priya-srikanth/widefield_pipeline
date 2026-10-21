@@ -350,6 +350,11 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
+**[`docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md`](docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md)**
+— **START HERE for FaceRhythm (10-21).** O2 bundle `scripts/o2_face_rhythm.py` (108 tasks, parallel segment workers,
+engaged trials, June out), ROI notebook `notebooks/face_rhythm_draw_roi.ipynb`, master face being rebuilt from PRE-stroke
+templates, open tracking-parameter test, O2 env + pitfalls. Plan: `docs/FACE_RHYTHM_PLAN.md`.
+
 **[`docs/status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](docs/status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md)**
 — **START HERE for POSE / 3-D / cam1 / jaw calls, newest (10-21).** Jaw anchor off; jaw onsets + re-onset (cam1 floor 15 px,
 close_center masked; watched by the encoding window); whole-session licks (licks_all / events_all); per-session long
@@ -369,8 +374,13 @@ retrain (O2 jobs running), cam1 scoring / cleaned clips, the cam1 mouth = L/R sp
 apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + copy-back commands, pitfalls. Register:
 `docs/POSE_MODELS.md` (Parts B-D).
 
+**[`docs/status/STATUS_2026-10-21_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-21_ENCODING_HANDOFF.md)**
+— **START HERE for the encoding model, newest (10-21).** Attempt-based deficit (time to contact), target vs execution
+vs neither (3-D contest, templates, destination), within-spout per spout + contact control (pooled toward-midline NOT
+robust), one-load variants + local input cache (`WFIELD_INPUT_CACHE`), running jobs, to-dos, pitfalls.
+
 **[`docs/status/STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md)**
-— **START HERE for the encoding model, newest** (within-spout check, mixed model, soft calibrated bins, lick-template test, 3-D contest queued, PS92_0908 rerun). Morning: [`STATUS_2026-10-20_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md). Results summary: **[`docs/ENCODING_FINDINGS.md`](docs/ENCODING_FINDINGS.md)**
+— superseded by 10-21; still the reference for the 3-D contest set-up (within-spout check, mixed model, soft calibrated bins, lick-template test, 3-D contest queued, PS92_0908 rerun). Morning: [`STATUS_2026-10-20_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md). Results summary: **[`docs/ENCODING_FINDINGS.md`](docs/ENCODING_FINDINGS.md)**
 (living, status-tagged). 3-D executed sets (pre-stroke target advantage SUSPENDED after the coordinate-matched PS92 contest),
 drop-p per-spout maps, chronic gain beyond the practice trend and lagging behaviour, slow-band by-epoch check, curated
 sessions only; running jobs, to-dos, pitfalls.
