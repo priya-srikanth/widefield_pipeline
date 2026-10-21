@@ -351,9 +351,12 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
 **[`docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md`](docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md)**
-— **START HERE for FaceRhythm (10-21).** O2 bundle `scripts/o2_face_rhythm.py` (108 tasks, parallel segment workers,
-engaged trials, June out), ROI notebook `notebooks/face_rhythm_draw_roi.ipynb`, master face being rebuilt from PRE-stroke
-templates, open tracking-parameter test, O2 env + pitfalls. Plan: `docs/FACE_RHYTHM_PLAN.md`.
+— **START HERE for FaceRhythm (10-21).** Production RUNNING on O2 (array 57168778, 108 tasks, 4 workers x 4 threads,
+72 GB); tracking parameters `midlk12` chosen by an 11-set test scored against LP (DECISIONS 10-21 evening); master face
+PS95_20260812 (pre-stroke), 12 px mesh warped to every session (mesh QC passed); ROI notebook
+`notebooks/face_rhythm_draw_roi.ipynb`; O2 env, pitfalls (cgroup OOM kills, Pool hang). Plan + integration (master
+PRE-STROKE factor set across animals, frozen; FR in the encoding model; what the paper did with widefield):
+`docs/FACE_RHYTHM_PLAN.md`.
 
 **[`docs/status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](docs/status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md)**
 — **START HERE for POSE / 3-D / cam1 / jaw calls, newest (10-21).** Jaw anchor off; jaw onsets + re-onset (cam1 floor 15 px,

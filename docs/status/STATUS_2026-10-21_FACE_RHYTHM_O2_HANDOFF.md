@@ -5,6 +5,20 @@ Plan: [`docs/FACE_RHYTHM_PLAN.md`](../FACE_RHYTHM_PLAN.md) (steps 1-7; status se
 Registration (step 3) and the ROI warp are the pose/3-D window's (`scripts/face_rhythm_register.py`,
 `scripts/face_rhythm_warp_rois.py`, `STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`).
 
+## CURRENT STATE (10-21 night) -- read this first
+
+* **Production running: O2 array 57168778** -- see "PRODUCTION RUNNING" at the end (how to check, resubmit, collect).
+* Parameters `midlk12` (below; DECISIONS.md 10-21 evening). Mesh QC of the warped 12 px master: "Mesh QC" near the end.
+* Next after the array: rsync `out/` -> `collect` -> step 6 decomposition = the MASTER PRE-STROKE factor set across
+  animals (`docs/FACE_RHYTHM_PLAN.md` A0 + integration plan; DECISIONS.md 10-21 evening, second entry); first check of
+  the 5 Hz `session` output vs the 25 Hz trial windows on the pilot session; post-stroke tracking QC (violation fraction,
+  mesh folds vs pre).
+* Scripts: `o2_face_rhythm.py` (bundle / collect / paramtest / paramscore), `face_rhythm_param_qc.py` (clips /
+  decompose), `face_rhythm_mesh_qc.py`, `face_rhythm_warp_rois.py` / `_register.py` / `_prep.py` / `_overlay.py`
+  (registration chain, pose window), notebook `face_rhythm_draw_roi.ipynb`.
+* Outputs on the share: `<dlc>/face_rhythm/cam4/` -- `param_test/` (scores, figure, clips, decompositions),
+  `rois/` (+ `ROIs_<time>.h5` older versions), `rois_qc_12px_20261021/`, `register/`; bundle `<dlc>/o2/fr_cam4_20261021/`.
+
 ## UPDATE 10-21 evening — parameters chosen: `midlk12` (9245e51)
 
 * Round 3 scored (11 sets): **midlk12** = mids12 mesh (0.03 / 24, relax 0.005) + oldrun LK (50 px / 5 levels / (3,2,0.0003)),
