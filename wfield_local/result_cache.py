@@ -55,8 +55,18 @@ def cached(cache_dir, key: str, inputs, version: str, compute):
             pass
     value = compute()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_suffix(".pkl.tmp")
+    # CONCURRENT WRITERS (2026-10-21): the first LP_licks render ran 3 arm processes x 2 map workers that reached the
+    # same sessions at the same moment; a shared ".pkl.tmp" name and an unguarded replace raised WinError 32 and DROPPED
+    # four June sessions from some arms. Per-process tmp name, and a failed publish is not an error -- the value is
+    # correct either way and another writer's copy is equivalent (same inputs, same version) -- as in session_cache.
+    tmp = f.with_suffix(f".{os.getpid()}.tmp")
     with open(tmp, "wb") as h:
         pickle.dump({"sig": sig, "value": value}, h, protocol=pickle.HIGHEST_PROTOCOL)
-    tmp.replace(f)
+    try:
+        os.replace(tmp, f)
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
     return value
