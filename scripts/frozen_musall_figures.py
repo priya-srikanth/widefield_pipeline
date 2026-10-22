@@ -4,19 +4,23 @@ style PETH vs trial-by-trial prediction, task-aligned and task-independent, and 
 Reads `<E>/frozen_encoder_<tag>/frozen_musall_r2_by_animal.csv` (`wfield_local.frozen_encoder.summarise_musall`):
 held-out R^2 per variant x animal x epoch x align (cue / first lick) x measure x area, where measure = FRAME (every
 frame, condition-locked + single-trial), TRIAL (each spout's mean removed: single-trial only) and AVG (per-spout mean
-responses only). The frozen variants are separate fits, so Musall's quantities are differences of variants:
+responses only). The frozen variants are separate fits, so Musall's quantities are differences of variants
+(STATS_VERSION 4 groups, `frozen_encoder.FGROUP`: timing / target / exec_locked / exec_within / lick / other / contact;
+task = timing + target, spout = target + exec_*, movement = lick + exec_* + other):
 
-  ALONE        task = no_movement; movement = movement_only; all non-task = no_task
-  UNIQUE       task = joint - no_task; movement = task_movement - no_movement; direction = task_movement_dir -
-               task_movement; contact = joint - task_movement_dir   (sequential for movement / direction / contact:
-               each beyond task and the groups added before it)
-  TASK-INDEP.  non-task = joint - no_movement; movement = task_movement - no_movement
-  TASK-ALIGNED non-task = no_task - task-independent; movement = movement_only - task-independent
+  ALONE        task = task_only; lick = lick_only; spout = spout_only; other = other_only; movement = movement_only;
+               all non-task = no_task
+  UNIQUE       g = joint - no_<g> for every group / super-group (a REFIT without it: order-free, shared variance
+               credited to nobody -- not Musall's shuffle in an ordered model); non-task = joint - task_only
+  TASK-INDEP.  = UNIQUE (Musall: the unique contribution in the full model)
+  TASK-ALIGNED = ALONE - TASK-INDEP.
 
 Figures (per area, one per align): (1) alone vs unique (Musall Fig. 4a), (2) task-aligned vs task-independent
-(Fig. 5), (3) trial-averaged vs single-trial vs frame R^2 of the full model and each alone model (PETH vs
-trial-by-trial). Bars = mean over animals, dots = animals; epochs as columns. Held out throughout (pre sessions
-leave-one-session-out, post sessions the full pre fit).
+(Fig. 5; STACKED: task-independent at the bottom, task-aligned on top, total = alone; a negative task-independent part
+-- possible for a frozen model scored on new data -- is drawn hatched BELOW zero and the panel flagged, since Musall's
+split assumes it is >= 0), (3) trial-averaged vs single-trial vs frame R^2 of the full model and each alone model.
+Bars = mean over animals, dots = animals; epochs as columns. Held out throughout (pre sessions leave-one-session-out,
+post sessions the full pre fit).
 Usage: python scripts/frozen_musall_figures.py [--tag gate-attempted] [--areas cortex SSp-m_left]
 """
 from __future__ import annotations
@@ -29,12 +33,15 @@ import pandas as pd
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 MEASURES = ("avg", "trial", "frame")
 MLABEL = {"avg": "trial-averaged", "trial": "single-trial", "frame": "frame (all)"}
-#: what "unique" means here (Priya 10-22): differences of REFITS (order-free, drop-style), not Musall's shuffle-in-the-
-#: ordered-model; movement / direction are gains when ADDED in sequence, so they are not beyond the later groups
 #: a task-independent part below this is flagged (pre-stroke LOSO noise is ~ +-0.02)
 NEG_TOL = -0.02
-UNIQUE_NOTE = ("unique = gain of a refit with vs without the group (no shuffle, no orthogonalisation): task = joint - "
-               "no_task (beyond all); movement = beyond task; direction = beyond task + movement; contact = beyond all")
+UNIQUE_NOTE = ("unique = joint minus a REFIT without the group (no shuffle, no orthogonalisation; shared variance "
+               "credited to nobody)")
+ALONE = {"task": "task_only", "lick": "lick_only", "spout": "spout_only", "other": "other_only",
+         "movement": "movement_only", "non-task": "no_task"}
+UNIQUE = {"task": "no_task", "lick": "no_lick", "spout": "no_spout", "other": "no_other", "contact": "no_contact",
+          "movement": "no_movement", "target": "no_target", "exec_locked": "no_exec_locked",
+          "exec_within": "no_exec_within", "non-task": "task_only"}
 
 
 def quantities(A: pd.DataFrame) -> pd.DataFrame:
@@ -44,22 +51,18 @@ def quantities(A: pd.DataFrame) -> pd.DataFrame:
 
     def g(v):
         return W[v] if v in W else np.nan
-    q["alone:task"] = g("no_movement")
-    q["alone:movement"] = g("movement_only")
-    q["alone:non-task"] = g("no_task")
-    q["unique:task"] = g("joint") - g("no_task")
-    q["unique:movement"] = g("task_movement") - g("no_movement")
-    q["unique:direction"] = g("task_movement_dir") - g("task_movement")
-    q["unique:contact"] = g("joint") - g("task_movement_dir")
-    q["indep:non-task"] = g("joint") - g("no_movement")
-    q["aligned:non-task"] = q["alone:non-task"] - q["indep:non-task"]
-    q["indep:movement"] = q["unique:movement"]
-    q["aligned:movement"] = q["alone:movement"] - q["indep:movement"]
+    for k, v in ALONE.items():
+        q[f"alone:{k}"] = g(v)
+    for k, v in UNIQUE.items():
+        q[f"unique:{k}"] = g("joint") - g(v)
+    for k in ("lick", "spout", "movement", "non-task"):
+        q[f"indep:{k}"] = q[f"unique:{k}"]
+        q[f"aligned:{k}"] = q[f"alone:{k}"] - q[f"indep:{k}"]
     q["full"] = g("joint")
     return q.reset_index()
 
 
-def _bars(ax, Q, cols, colors, labels=None, stacked=None):
+def _bars(ax, Q, cols, colors, labels=None):
     x = np.arange(len(cols))
     for i, c in enumerate(cols):
         v = Q.groupby("animal")[c].mean()
@@ -94,15 +97,17 @@ def main(argv=None) -> int:
              "gate, cam4 + cam1 licks (cam4 only where cam1 is missing). PROVISIONAL.")
     for area in a.areas:
         for align in ("cue", "lick"):
+            # column indexing: DataFrame.align / .area-style attributes can be pandas methods (Q.align == "cue" was
+            # always False and every figure was skipped silently, 10-22)
             S = Q[(Q["area"] == area) & (Q["align"] == align)]
             if S.empty:
                 continue
             # (1) alone vs unique
-            fig, axs = plt.subplots(len(MEASURES), len(epochs), figsize=(3.0 * len(epochs), 2.6 * len(MEASURES)),
+            fig, axs = plt.subplots(len(MEASURES), len(epochs), figsize=(3.4 * len(epochs), 2.7 * len(MEASURES)),
                                     squeeze=False, sharey="row")
-            cols = ["alone:task", "unique:task", "alone:movement", "unique:movement", "unique:direction",
-                    "unique:contact"]
-            colors = ["#9ecae1", "#3182bd", "#fdae6b", "#e6550d", "#a1d99b", "#756bb1"]
+            cols = ["alone:task", "unique:task", "alone:lick", "unique:lick", "alone:spout", "unique:spout",
+                    "alone:other", "unique:other", "unique:contact"]
+            colors = ["#9ecae1", "#3182bd", "#fdae6b", "#e6550d", "#c7e9c0", "#31a354", "#dadaeb", "#756bb1", "#969696"]
             for i, meas in enumerate(MEASURES):
                 for j, ep in enumerate(epochs):
                     ax = axs[i][j]
@@ -116,50 +121,50 @@ def main(argv=None) -> int:
             fig.tight_layout()
             fig.savefig(fd / f"musall_alone_vs_unique_{area}_{align}.png", dpi=130)
             plt.close(fig)
-            # (2) task-aligned vs task-independent
-            fig, axs = plt.subplots(len(MEASURES), len(epochs), figsize=(2.6 * len(epochs), 2.4 * len(MEASURES)),
+            # (2) task-aligned vs task-independent, STACKED (Priya 10-22: "stacking makes more sense")
+            grps = (("lick", "#e6550d"), ("spout", "#31a354"), ("movement", "#fd8d3c"), ("non-task", "#636363"))
+            fig, axs = plt.subplots(len(MEASURES), len(epochs), figsize=(3.0 * len(epochs), 2.5 * len(MEASURES)),
                                     squeeze=False, sharey="row")
             for i, meas in enumerate(MEASURES):
                 for j, ep in enumerate(epochs):
                     ax = axs[i][j]
                     T = S[(S.measure == meas) & (S.epoch == ep)].groupby("animal").mean(numeric_only=True)
                     broken = []
-                    for k, grp in enumerate(("movement", "non-task")):
+                    for k, (grp, col) in enumerate(grps):
                         alone, ind = T[f"alone:{grp}"], T[f"indep:{grp}"]
-                        col = "#e6550d" if grp == "movement" else "#636363"
-                        # whole bar = ALONE (grey = task-aligned part); task-independent drawn from 0 on top of it, so
-                        # a NEGATIVE task-independent part (frozen model scored on new data: adding the group costs
-                        # R^2) is drawn below zero, hatched, instead of hidden under a grey bar stacked on it
-                        ax.bar(k, alone.mean(), 0.6, color="0.82", label="task-aligned (alone - indep.)" if k == 0 else None)
-                        neg = ind.mean() < 0
-                        ax.bar(k, ind.mean(), 0.42, color="white" if neg else col, edgecolor=col,
-                               hatch="////" if neg else None, lw=0.8,
-                               label="task-independent" if k == 0 else None)
+                        im, am = ind.mean(), alone.mean()
+                        if im >= 0:                       # Musall's stack: independent at the bottom, aligned on top
+                            ax.bar(k, im, 0.6, color=col, label="task-independent" if k == 0 else None)
+                            ax.bar(k, am - im, 0.6, bottom=im, color="0.8", label="task-aligned" if k == 0 else None)
+                        else:                             # split invalid: aligned = whole alone bar, indep below 0
+                            ax.bar(k, am, 0.6, color="0.8", label="task-aligned" if k == 0 else None)
+                            ax.bar(k, im, 0.6, color="white", edgecolor=col, hatch="////", lw=0.8)
                         xs = k + np.linspace(-0.2, 0.2, len(T))
-                        ax.scatter(xs, alone.values, s=10, facecolor="none", edgecolor="k", lw=0.6, zorder=3)
-                        ax.scatter(xs, ind.values, s=10, color=col, edgecolor="k", lw=0.4, zorder=4)
+                        ax.scatter(xs, alone.values, s=9, facecolor="none", edgecolor="k", lw=0.6, zorder=3)
+                        ax.scatter(xs, ind.values, s=9, color=col, edgecolor="k", lw=0.4, zorder=4)
                         if (ind < NEG_TOL).any():
                             broken.append(f"{grp}: {', '.join(ind.index[ind < NEG_TOL])}")
                     ax.axhline(0, color="0.4", lw=0.6)
-                    ax.set_xticks([0, 1])
-                    ax.set_xticklabels(["movement\n(directionless)", "all non-task"], fontsize=7)
-                    if broken:                   # Musall's split assumes task-independent >= 0
-                        ax.text(0.02, 0.98, f"indep. < {NEG_TOL} (split not valid):\n" +"\n".join(broken), transform=ax.transAxes,
-                                va="top", fontsize=5.5, color="#b30000")
+                    ax.set_xticks(range(len(grps)))
+                    ax.set_xticklabels([g for g, _ in grps], fontsize=7)
+                    if broken:                            # Musall's split assumes task-independent >= 0
+                        ax.text(0.02, 0.98, f"indep. < {NEG_TOL} (split not valid):\n" + "\n".join(broken),
+                                transform=ax.transAxes, va="top", fontsize=5.5, color="#b30000")
                     if i == 0:
                         ax.set_title(ep, fontsize=9)
                     if j == 0:
                         ax.set_ylabel(f"{MLABEL[meas]} R$^2$", fontsize=8)
             axs[0][0].legend(fontsize=6, frameon=False, loc="lower right")
-            fig.suptitle(f"Task-aligned vs task-independent, {area}, {align}-aligned -- Musall Fig. 5 style.\nBar = alone "
-                         f"(grey = task-aligned), inner bar = task-independent (hatched if < 0); open dots = alone, filled = "
-                         f"task-independent, per animal\n{stamp}", fontsize=8)
+            fig.suptitle(f"Task-aligned vs task-independent, {area}, {align}-aligned -- Musall Fig. 5 style.\n"
+                         f"Stacked: colour = task-independent (unique), grey = task-aligned (alone - unique), top = "
+                         f"alone; hatched below 0 = negative unique part. Open dots = alone, filled = unique, per "
+                         f"animal\n{stamp}", fontsize=8)
             fig.tight_layout()
             fig.savefig(fd / f"musall_task_aligned_{area}_{align}.png", dpi=130)
             plt.close(fig)
             # (3) trial-averaged vs single-trial vs frame, full + alone models
-            fig, axs = plt.subplots(1, len(epochs), figsize=(3.0 * len(epochs), 2.8), squeeze=False, sharey=True)
-            mods = ["full", "alone:task", "alone:movement", "alone:non-task"]
+            fig, axs = plt.subplots(1, len(epochs), figsize=(3.2 * len(epochs), 2.9), squeeze=False, sharey=True)
+            mods = ["full", "alone:task", "alone:lick", "alone:spout", "alone:non-task"]
             for j, ep in enumerate(epochs):
                 ax = axs[0][j]
                 for mi, meas in enumerate(MEASURES):
@@ -170,7 +175,8 @@ def main(argv=None) -> int:
                     for xi, m in zip(x, mods):                       # animals
                         ax.scatter(np.full(len(T), xi), T[m].values, s=5, color="k", zorder=3)
                 ax.set_xticks(np.arange(len(mods)))
-                ax.set_xticklabels(["full", "task\nalone", "movement\nalone", "non-task\nalone"], fontsize=7)
+                ax.set_xticklabels(["full", "task\nalone", "lick\nalone", "spout\nalone", "non-task\nalone"],
+                                   fontsize=7)
                 ax.axhline(0, color="0.5", lw=0.6)
                 ax.set_title(ep, fontsize=9)
             axs[0][0].set_ylabel("held-out R$^2$", fontsize=8)

@@ -5,7 +5,8 @@ The frozen groups (`wfield_local.frozen_encoder.FGROUP`) are defined by what eac
 Per pre-stroke session: each trial's regressor values averaged over the post-lick window (first post-cue lick -0.1 ..
 +1.0 s; trials without a lick: cue .. +1.1 s), per group and per variable, then a multinomial logistic decoder of the
 spout (six classes, chance 1/6) with block cross-validation (GroupKFold over ~6-trial position blocks, as the
-imaging decoders). "Directionless" movement should sit near chance; direction-specific movement and task near ceiling.
+imaging decoders). STATS_VERSION 4 groups: the LICK group (within-spout deviations of lick timing / vigour) should sit
+near chance; target / exec_locked near ceiling. Templates leave the tested session out (see main).
 Accuracy above chance in a directionless variable = target information it carries indirectly (e.g. wider jaw
 opening for far spouts), which the encoder will credit to that group.
 
@@ -20,14 +21,15 @@ import numpy as np
 import pandas as pd
 
 
-def one(label: str) -> list[dict]:
+def one(item) -> list[dict]:
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import GroupKFold, cross_val_score
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
     from wfield_local import frozen_encoder as fe
-    d = fe.session_design(label)
+    label, templates = item
+    d = fe.session_design(label, templates)
     X, fs = d["X"], d["fs"]
     pos = d["pos"]
     start = np.where(d["first_f"] >= 0, d["first_f"] - int(round(0.1 * fs)), d["cue_f"])
@@ -35,6 +37,7 @@ def one(label: str) -> list[dict]:
     feats = np.stack([np.nanmean(X[max(s, 0):max(s, 0) + span], 0) for s in start])     # (trials, columns)
     blocks = np.cumsum(np.r_[1, pos[1:] != pos[:-1]])                                   # position blocks
     sets = {**{f"group:{g}": [v for v in fe.FGROUP if fe.FGROUP[v] == g] for g in fe.FGROUPS},
+            **{f"super:{g}": [v for v in fe.FGROUP if fe.FGROUP[v] in gs] for g, gs in fe.SUPER.items()},
             **{f"var:{v}": [v] for v in fe.FGROUP}}
     rows = []
     for name, vs in sets.items():
@@ -55,6 +58,7 @@ def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import config, epochs
+    from wfield_local import frozen_encoder as fe
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
@@ -70,9 +74,18 @@ def main(argv=None) -> int:
         for an in sorted({config.animal_of(x) for x in pre}):
             mine = [x for x in pre if config.animal_of(x) == an]
             labels += [mine[0], mine[len(mine) // 2]] if len(mine) > 1 else mine
-    got, fail = ak.fan_sessions(labels, one, jobs=a.jobs)
+    # SPOUT-LOCKED TEMPLATES LEAVING THE TESTED SESSION OUT: with its own trials in the template, the lick deviation
+    # would sit at chance in that session by construction; held out, it is a real test (as post sessions are scored)
+    tpre = sorted(x for x in ce.sessions_available() if x[-4:] >= "0801" and epochs.epoch_of(x) == "pre"
+                  and config.animal_of(x) in {config.animal_of(y) for y in labels})
+    tparts, tfail = ak.fan_sessions(tpre, fe.template_job, jobs=a.jobs, label="template")
+    if tfail:
+        raise RuntimeError(f"template pass failed: {tfail}")
+    tparts = [t for _l, t in tparts]
+    items = [(x, fe.build_templates([t for t in tparts if t["label"] != x])[config.animal_of(x)]) for x in labels]
+    got, fail = ak.fan_sessions(items, one, jobs=a.jobs, key=lambda it: it[0])
     for it, err in fail:
-        print("FAILED", it, err)
+        print("FAILED", it[0], err)
     T = pd.DataFrame([r for _, rr in got for r in rr])
     out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
     assert_writable(out)

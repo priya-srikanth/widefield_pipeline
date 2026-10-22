@@ -71,17 +71,17 @@ def test_ordered_variants_same_span_as_joint():
     rng = np.random.default_rng(3)
     ss = _sessions(rng)
     for _x, _y, s in ss:
-        s["col_var"] = np.array(["cue"] * 3 + ["lick_onset"] * 3)
+        s["col_var"] = np.array(["cue"] * 3 + ["lick_onset:dev"] * 3)
     st = [s for *_, s in ss]
     X0 = ss[0][0] / fe.fit_animal(st, alpha_grid=(1e-6,))["scale"]
     pred = {}
-    for v in fe.VARIANTS:
+    for v in ("joint", "movement_first", "task_first", "target_first", "exec_first", "no_movement", "movement_only"):
         f = fe.fit_animal(st, alpha_grid=(1e-6,), variant=v)
         pred[v] = (X0 @ f["C"]) @ f["beta_all"]
         if v == "no_movement":
             assert list(f["vcol"]) == ["cue"] * 3
         if v == "movement_only":
-            assert list(f["vcol"]) == ["lick_onset"] * 3
+            assert list(f["vcol"]) == ["lick_onset:dev"] * 3
     np.testing.assert_allclose(pred["movement_first"], pred["joint"], rtol=1e-6, atol=1e-8)
     np.testing.assert_allclose(pred["task_first"], pred["joint"], rtol=1e-6, atol=1e-8)
 
@@ -98,7 +98,7 @@ def test_split_blocks_layout():
     raw["jaw"] = np.repeat(np.arange(3.0), nl)[None, :].repeat(T, 0)       # x, y, speed
     raw["nose"] = np.repeat(np.arange(2.0), nl)[None, :].repeat(T, 0)      # x, y
     out = fe.split_blocks(raw)
-    assert set(out) == set(fe.FGROUP)
+    assert set(out) == {v.split(":")[0] for v in fe.FGROUP}                 # base variables (split later into s / d)
     assert (out["lick_onset"] == 0).all() and (out["contact"] == 1).all()
     assert set(out["tongue_dir"][0]) == {0.0, 1.0, 2.0} and set(out["tongue_mag"][0]) == {3.0}   # prot is spatial
     assert set(out["jaw_dir"][0]) == {0.0} and set(out["jaw_mag"][0]) == {1.0, 2.0}
@@ -150,7 +150,7 @@ def test_fit_animal_job_equals_direct_fits(tmp_path):
     rng = np.random.default_rng(5)
     ss = _sessions(rng, n_sess=4)
     for _x, _y, s in ss:
-        s["col_var"] = np.array(["cue"] * 3 + ["lick_onset"] * 3)
+        s["col_var"] = np.array(["cue"] * 3 + ["lick_onset:dev"] * 3)
     st = [s for *_, s in ss]
     other = dict(st[0], label="S9", animal="B")
     sp = tmp_path / "pre_stats.pkl"
@@ -161,3 +161,69 @@ def test_fit_animal_job_equals_direct_fits(tmp_path):
         ref = fe.fit_animal([s for s in st if s["label"] in labs], variant=v)
         np.testing.assert_array_equal(got[v]["beta_all"], ref["beta_all"])
         assert got[v]["alphas"] == ref["alphas"]
+
+
+def test_spout_split_recovers_templates_and_sums_back():
+    """Spout-locked templates = per spout x cue-relative bin mean of the centred columns; s + d = x exactly; in the
+    sessions the template came from, d has zero mean per spout and bin (where the bin has enough trials)."""
+    rng = np.random.default_rng(7)
+    k0, K = fe._template_bins()
+    order = ["a", "b"]
+    prof = {"a": np.sin(np.arange(K) / 9.0), "b": 2.0 * np.cos(np.arange(K) / 7.0)}
+    rows_p, rows_k, rows_x = [], [], []
+    for _tr in range(60):
+        for p in order:
+            kk = np.arange(k0 + 10, k0 + 200)
+            rows_p.append(np.full(len(kk), p, dtype=object))
+            rows_k.append(kk)
+            rows_x.append((prof[p][kk - k0] + 0.3 * rng.normal(size=len(kk)))[:, None] * np.array([[1.0, -2.0]]))
+    pos_of, k_of, X = np.concatenate(rows_p), np.concatenate(rows_k), np.vstack(rows_x)
+    S, N = fe.template_sums(X, pos_of, k_of, order)
+    M = fe.template_means(S, N)
+    for pi, p in enumerate(order):
+        got = M[pi, 10:200, 0]
+        assert np.abs(got - prof[p][10:200]).max() < 0.2          # noise 0.3 / sqrt(60)
+        assert (M[pi, :10] == 0).all()                             # no trials there -> no template
+    s, d = fe.spout_split(X, pos_of, k_of, order, M)
+    np.testing.assert_allclose(s + d, X)
+    S2, N2 = fe.template_sums(d, pos_of, k_of, order)
+    ok = N2 >= fe.TEMPLATE_MIN_N
+    assert np.abs(S2[ok] / N2[ok][:, None]).max() < 1e-9
+
+
+def test_build_templates_pools_sessions_by_trial_count():
+    """Pooled template = sums / counts over sessions (each trial weighs the same), per animal."""
+    k0, K = fe._template_bins()
+    def part(label, val, n):
+        S = np.zeros((1, K, 1))
+        Nn = np.zeros((1, K))
+        S[0, 5] = val * n
+        Nn[0, 5] = n
+        return {"label": label, "animal": "A", "pos_order": ["a"], "sums": {v: (S, Nn) for v in fe.SPLIT_VARS}}
+    t = fe.build_templates([part("A_1", 1.0, 30), part("A_2", 4.0, 10)])["A"]
+    assert abs(t["mean"]["jaw_mag"][0, 5, 0] - (30 * 1.0 + 10 * 4.0) / 40) < 1e-12
+    assert t["n_sessions"] == 2
+
+
+def test_ordered_projection_ignores_null_direction():
+    """The ordered transform must not blow up along an exactly collinear direction of the A block (the position
+    deviation blocks sum to ~0): applied to new data where that direction is no longer null, the task_first
+    prediction stays close to joint's (the v3 near-zero-ridge solve gave R^2 -1.06 on a post session)."""
+    rng = np.random.default_rng(11)
+    n, r = 3000, 2
+    a1, a2 = rng.normal(size=n), rng.normal(size=n)
+    b = 0.5 * a1 + rng.normal(size=n)
+    X = np.column_stack([a1, a2, a1 + a2, b])                       # cue-like A block with an exact null direction
+    Y = X @ rng.normal(size=(4, r)) + 0.1 * rng.normal(size=(n, r))
+    col_var = np.array(["cue"] * 3 + ["lick_onset:dev"])
+    st = [{"label": "S0", "animal": "A", "epoch": "pre", "col_var": col_var, "area_names": ["x", "cortex"], "n": n,
+           "XtX": X.T @ X, "XtY": X.T @ Y, "YtY": (Y ** 2).sum(0), "sxx": (X ** 2).sum(0), "pos_order": ["p"],
+           "pos_counts": {"p": n}}]
+    fj = fe.fit_animal(st, alpha_grid=(1e-3,), variant="joint")
+    ft = fe.fit_animal(st, alpha_grid=(1e-3,), variant="task_first")
+    Xn = X.copy()
+    Xn[:, 2] += 0.3 * rng.normal(size=n)                            # "post": the null direction is no longer null
+    pj = (Xn / fj["scale"]) @ (fj["C"] @ fj["beta_all"])
+    pt = (Xn / ft["scale"]) @ (ft["C"] @ ft["beta_all"])
+    assert np.abs(ft["C"]).max() < 10
+    assert np.linalg.norm(pt - pj) / np.linalg.norm(pj) < 0.2

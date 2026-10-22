@@ -21,9 +21,15 @@ August pre-stroke sessions and applied, unchanged, to every session:
   OUT R^2 summed over areas; pre sessions are then scored with the model fitted WITHOUT them, post sessions with the
   model fitted on all of the animal's August pre sessions.
 
+GROUPS (STATS_VERSION 4, 10-22 afternoon; see FGROUP): timing / target / exec_locked / exec_within / lick / other /
+contact, built by splitting every lick-related movement column into the animal's PRE-STROKE spout-locked template (s)
+and the deviation from it (d) -- a behaviour-only first pass over the pre sessions (`template_job`, saved as
+fit/templates.pkl).
+
 Per session the output matches `combined_encoding`'s session files where the decomposition reads them: `peth` (cue-
-aligned) and `peth_lick` (first post-cue lick), parts data / full / task / instructed / uninstructed / pos, x position
-x area x offset (PETH_S), plus the frozen model's R^2 (all / cue / lick windows, cortex). `data - full` = activity the
+aligned) and `peth_lick` (first post-cue lick), parts data / full / each group / spout / lick_all / pos (joint and the
+ordered variants; data / full only for the reduced models), x position x area x offset (PETH_S), plus the frozen
+model's R^2 (all / cue / lick windows, cortex). `data - full` = activity the
 FROZEN model does not predict: at acute far contra, negative = cortex responds LESS than the pre-stroke mapping
 predicts from the movements actually made.
 
@@ -41,7 +47,7 @@ from pathlib import Path
 
 import numpy as np
 
-STATS_VERSION = 3   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction
+STATS_VERSION = 4   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split
 
 
 def _ce():
@@ -63,17 +69,48 @@ def _ce():
 #:              opening (y) and speed (unsigned), nose y (up / down orienting), running. Residual target information
 #:              in these (e.g. wider opening for far spouts) is MEASURED, not assumed: `scripts/frozen_group_leakage.py`;
 #:   task       cue, arrival, the six position deviation blocks.
-FGROUP = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
-          "lick_onset": "movement", "tongue_mag": "movement", "jaw_mag": "movement", "nose_mag": "movement",
-          "running": "movement",
-          "tongue_dir": "direction", "jaw_dir": "direction", "nose_dir": "direction", "exec_angle": "direction",
-          "contact": "contact"}
-FGROUPS = ("task", "movement", "direction", "contact")
-#: penalty groups as the encoder's PEN_GROUP_OF (task / lick / orofacial / uninstructed)
-FPEN = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
-        "lick_onset": "lick", "contact": "lick", "exec_angle": "lick",
-        "tongue_mag": "orofacial", "tongue_dir": "orofacial", "jaw_mag": "orofacial", "jaw_dir": "orofacial",
-        "nose_mag": "uninstructed", "nose_dir": "uninstructed", "running": "uninstructed"}
+#: v3 layout above was REPLACED 10-22 afternoon (STATS_VERSION 4; Priya: "should we have a 'lick' group and a 'spout
+#: position information' group?" -> "yes you can build the modified model"). Why: the leakage check
+#: (`scripts/frozen_group_leakage.py`) found the "directionless" group decoding the spout at 0.60-0.69 (chance 0.17;
+#: jaw opening 0.40-0.57, lick timing ~0.3), and licks / tongue / jaw are redundant readouts of one act, so their
+#: separate drops split credit arbitrarily. The split is now BY CONSTRUCTION, not by variable name:
+#:   every lick-related movement column x (lick onsets, tongue speed, jaw opening / speed, and the direction traces
+#:   tongue x / y / protrusion, jaw x, nose x) = SPOUT-LOCKED part s + DEVIATION d, where s = the animal's PRE-STROKE
+#:   mean trace for that spout at that time from the cue (`TEMPLATE_S`; pooled over its August pre sessions, each
+#:   session centred) and d = x - s. s is "what the animal's licking looks like at this spout"; d is everything else,
+#:   INCLUDING post-stroke changes in vigour / timing at a spout (s is frozen with the model, so a weaker acute lick
+#:   at far contra lands in d = the LICK group, not in the spout group).
+#: Groups:
+#:   timing       cue, arrival (shared kernels; spout-independent)
+#:   target       pos_enl, pos_cue (the six position blocks: the spout itself)
+#:   exec_locked  spout-locked part s of every lick-related column (executed, but fully predictable from the spout)
+#:   exec_within  deviation d of the DIRECTION traces + the per-lick executed angle (already within-spout): where the
+#:                tongue / jaw / nose go relative to that spout's usual path
+#:   lick         deviation d of lick onsets, tongue speed, jaw opening / speed: vigour and timing that is not
+#:                about which spout (leakage-checked: should decode the spout ~ chance in pre sessions)
+#:   other        nose y, running
+#:   contact      the spout-contact kernel
+#: Super-groups: task = timing + target; spout = target + exec_locked + exec_within; movement = lick + exec_locked +
+#: exec_within + other. target vs exec_locked are perfectly confounded by design (both follow the spout); only
+#: exec_within separates them, so read target / executed only as the ordered bracket (target_first / exec_first).
+SPLIT_VARS = ("lick_onset", "tongue_mag", "jaw_mag", "tongue_dir", "jaw_dir", "nose_dir")
+_LICK_BASE = ("lick_onset", "tongue_mag", "jaw_mag")
+TEMPLATE_S = (-4.0, 8.0)                                 # cue-relative span of the spout-locked templates (s)
+FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
+          **{f"{v}:spl": "exec_locked" for v in SPLIT_VARS},
+          **{f"{v}:dev": ("lick" if v in _LICK_BASE else "exec_within") for v in SPLIT_VARS},
+          "exec_angle": "exec_within", "nose_mag": "other", "running": "other", "contact": "contact"}
+FGROUPS = ("timing", "target", "exec_locked", "exec_within", "lick", "other", "contact")
+SUPER = {"task": ("timing", "target"), "spout": ("target", "exec_locked", "exec_within"),
+         "movement": ("lick", "exec_locked", "exec_within", "other"),
+         "nontask": ("lick", "exec_locked", "exec_within", "other", "contact")}
+#: penalty groups as the encoder's PEN_GROUP_OF (task / lick / orofacial / uninstructed); s and d of a variable share
+#: its penalty group
+_FPEN_BASE = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
+              "lick_onset": "lick", "contact": "lick", "exec_angle": "lick",
+              "tongue_mag": "orofacial", "tongue_dir": "orofacial", "jaw_mag": "orofacial", "jaw_dir": "orofacial",
+              "nose_mag": "uninstructed", "nose_dir": "uninstructed", "running": "uninstructed"}
+FPEN = {v: _FPEN_BASE[v.split(":")[0]] for v in FGROUP}
 
 
 def split_blocks(raw: dict) -> dict:
@@ -100,8 +137,58 @@ def split_blocks(raw: dict) -> dict:
     return out
 
 
-def session_design(label: str) -> dict:
-    """Raw (drift-removed, session-centred) design X, area targets Rd, column variables, trial alignment frames."""
+#: spout-locked templates: cue-relative time in bins of TEMPLATE_BIN_S (one imaging frame at the cohort's 31.25 Hz);
+#: an offset needs >= TEMPLATE_MIN_N pre trials at that spout to get a template value (else s = 0 there: all of x is d)
+TEMPLATE_BIN_S = 0.032
+TEMPLATE_MIN_N = 20
+
+
+def _template_bins() -> tuple[int, int]:
+    k0 = int(np.floor(TEMPLATE_S[0] / TEMPLATE_BIN_S))
+    return k0, int(np.ceil(TEMPLATE_S[1] / TEMPLATE_BIN_S)) - k0 + 1
+
+
+def template_sums(Xc: np.ndarray, pos_of: np.ndarray, k_of: np.ndarray, pos_order: list) -> tuple:
+    """Per spout x cue-relative bin: column sums and frame counts of session-centred raw columns Xc (n, c).
+    pos_of: each frame's trial spout ("" = none); k_of: its cue-relative bin index (absolute, from _template_bins)."""
+    k0, K = _template_bins()
+    S = np.zeros((len(pos_order), K, Xc.shape[1]))
+    N = np.zeros((len(pos_order), K))
+    kk = k_of - k0
+    for pi, p in enumerate(pos_order):
+        m = (pos_of == p) & (kk >= 0) & (kk < K)
+        np.add.at(S[pi], kk[m], Xc[m])
+        np.add.at(N[pi], kk[m], 1.0)
+    return S, N
+
+
+def template_means(S: np.ndarray, N: np.ndarray) -> np.ndarray:
+    ok = N >= TEMPLATE_MIN_N
+    return np.where(ok[..., None], S / np.maximum(N, 1.0)[..., None], 0.0)
+
+
+def spout_split(Xc: np.ndarray, pos_of: np.ndarray, k_of: np.ndarray, pos_order: list, M: np.ndarray) -> tuple:
+    """(s, d): s = the spout's template at each frame's cue-relative bin (0 outside the template / for unknown spouts),
+    d = Xc - s. M: (spouts, K, c) template means in pos_order."""
+    k0, K = _template_bins()
+    s = np.zeros_like(Xc)
+    kk = k_of - k0
+    for pi, p in enumerate(pos_order):
+        m = (pos_of == p) & (kk >= 0) & (kk < K)
+        s[m] = M[pi][kk[m]]
+    return s, Xc - s
+
+
+def _centred(x: np.ndarray) -> np.ndarray:
+    mu = np.nanmean(np.where(np.isfinite(x), x, np.nan), 0)
+    x = x - np.where(np.isfinite(mu), mu, 0.0)[None, :]
+    return np.where(np.isfinite(x), x, 0.0)
+
+
+def session_design(label: str, templates: dict | None = None, template_only: bool = False) -> dict:
+    """Raw (drift-removed, session-centred) design X, area targets Rd, column variables, trial alignment frames.
+    ``templates`` = the animal's spout-locked templates (`build_templates`), required for the STATS_VERSION 4 layout;
+    ``template_only`` = return only this session's template sums (behaviour pass, no imaging targets)."""
     ce = _ce()
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
@@ -125,20 +212,37 @@ def session_design(label: str) -> dict:
     st = np.where(np.isfinite(E.strobe_s), E.strobe_s, E.cue_s - 3.0)
     rows = np.zeros(len(ft), bool)
     fpos = np.full(len(ft), "", dtype=object)                          # each frame's trial position (drop-spout)
-    for a, b_, p_ in zip(st - 0.5, E.stop_s.to_numpy(float) + 1.0, E.pos.to_numpy()):   # as run_session
+    ftri = np.full(len(ft), -1)                                        # ... and its trial (later trial wins, as fpos)
+    for i, (a, b_, p_) in enumerate(zip(st - 0.5, E.stop_s.to_numpy(float) + 1.0, E.pos.to_numpy())):  # as run_session
         m_ = (ft >= a) & (ft <= b_)
         rows |= m_
         fpos[m_] = p_
+        ftri[m_] = i
     ridx = np.flatnonzero(rows)
     ftr = ft[ridx]
+    pos_of = fpos[ridx]
+    k_of = np.round((ftr - E.cue_s.to_numpy(float)[ftri[ridx]]) / TEMPLATE_BIN_S).astype(int)
+    pos_order = sorted(T.pos.unique())
     raw = split_blocks(ce.raw_blocks(B, ft))
+    xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}
+    if template_only:
+        return {"label": label, "animal": animal, "pos_order": pos_order,
+                "sums": {v: template_sums(xc[v], pos_of, k_of, pos_order) for v in SPLIT_VARS}}
+    if templates is None:
+        raise ValueError(f"{label}: the STATS_VERSION {STATS_VERSION} layout needs the animal's spout-locked templates")
+    parts = {}
+    for v in SPLIT_VARS:
+        M = np.stack([templates["mean"][v][templates["pos_order"].index(p)] if p in templates["pos_order"]
+                      else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
+        parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_of, k_of, pos_order, M)
     vars_ = list(FGROUP)
-    X = np.hstack([raw[v][ridx] for v in vars_]).astype(np.float64)
+    blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
+    X = np.hstack(blocks)
     # unknown frames (NaN pose) contribute nothing: the session's column mean, which the centring below removes
     # (the encoder's `_z` maps NaN to 0 AFTER z-scoring = the same thing)
     mu = np.nanmean(np.where(np.isfinite(X), X, np.nan), 0)
     X = np.where(np.isfinite(X), X, np.where(np.isfinite(mu), mu, 0.0)[None, :])
-    col_var = np.concatenate([[v] * raw[v].shape[1] for v in vars_])
+    col_var = np.concatenate([[v] * b.shape[1] for v, b in zip(vars_, blocks)])
     Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
     X -= Q @ (Q.T @ X)
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
@@ -166,13 +270,52 @@ def session_design(label: str) -> dict:
             "X": X, "Rd": Rd, "area_names": area_names, "col_var": col_var, "pos": E.pos.to_numpy(),
             "cue_f": cue_f, "first_f": first_f, "fs": float(1.0 / np.median(np.diff(ft))), "win": win,
             "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E),
-            "frame_pos": fpos[ridx], "pos_order": sorted(T.pos.unique()),
-            "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in sorted(T.pos.unique())}}
+            "frame_pos": pos_of, "pos_order": pos_order,
+            "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order}}
 
 
-def stats_job(label: str):
-    """Sufficient statistics of one session (column layout + per-area Gram terms), for the per-animal fit."""
-    d = session_design(label)
+def template_job(label: str) -> dict:
+    """One pre session's spout-locked template sums (behaviour only)."""
+    return session_design(label, template_only=True)
+
+
+def build_templates(parts: list[dict]) -> dict:
+    """{animal: {"pos_order", "mean": {var: (spouts, K, c)}, "n_sessions", "labels"}} pooled over the animal's pre
+    sessions (sums / counts added, so every pre trial weighs the same)."""
+    by: dict = {}
+    for t in sorted(parts, key=lambda t: t["label"]):
+        by.setdefault(t["animal"], []).append(t)
+    out = {}
+    for an, ts in by.items():
+        order = sorted({p for t in ts for p in t["pos_order"]})
+        mean = {}
+        for v in SPLIT_VARS:
+            S = N = None
+            for t in ts:
+                s_, n_ = t["sums"][v]
+                ix = [order.index(p) for p in t["pos_order"]]
+                if S is None:
+                    S = np.zeros((len(order),) + s_.shape[1:])
+                    N = np.zeros((len(order),) + n_.shape[1:])
+                S[ix] += s_
+                N[ix] += n_
+            mean[v] = template_means(S, N)
+        out[an] = {"pos_order": order, "mean": mean, "n_sessions": len(ts), "labels": [t["label"] for t in ts],
+                   "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N}
+    return out
+
+
+def _templates_of(tpath: str, animal: str) -> dict:
+    import pickle
+    return pickle.loads(Path(tpath).read_bytes())[animal]
+
+
+def stats_job(item):
+    """Sufficient statistics of one session (column layout + per-area Gram terms), for the per-animal fit.
+    item = (label, path of fit/templates.pkl)."""
+    from wfield_local import config
+    label, tpath = item
+    d = session_design(label, _templates_of(tpath, config.animal_of(label)))
     X, Rd = d["X"], d["Rd"]
     return {"label": label, "animal": d["animal"], "epoch": d["epoch"], "col_var": d["col_var"],
             "area_names": d["area_names"], "n": len(X), "XtX": X.T @ X, "XtY": X.T @ Rd, "YtY": (Rd ** 2).sum(0),
@@ -184,36 +327,45 @@ def _subset(s: dict, keep: list[str]) -> tuple:
     return s["XtY"][:, ix], s["YtY"][ix]
 
 
-#: FROZEN VARIANTS (Priya 10-22: "should we also compare encoders with/without movement information?", the ordered
-#: bounds, and contact / direction split out). All from the same pre-stroke Gram terms; each is a column transform C
-#: of the scaled design (Z' = Z @ C). Groups: FGROUP.
-#:   joint              task + movement + direction + contact, jointly (the ridge splits shared variance) -- main
-#:   movement_first     task residualised on movement + direction + contact (pre projection): shared -> non-task
-#:   task_first         movement + direction + contact residualised on task: shared -> task
-#:   no_movement        task only: what the pre-stroke TARGET responses alone predict
-#:   task_movement      task + directionless movement (no direction, no contact)
-#:   task_movement_dir  task + movement + direction (no contact)
-#:   movement_only      directionless movement only
-#:   no_task            movement + direction + contact (no task): Musall's unique task = joint - no_task; task-aligned
-#:                      non-task variance = no_task - (joint - no_movement)
-#: Readouts: residual (data - full) per variant; no_movement -> task_movement = what movement MAGNITUDE / timing adds;
-#: -> task_movement_dir = what direction adds; -> joint = what contact adds. Ordered pair brackets the group split.
-VARIANTS = ("joint", "movement_first", "task_first", "no_movement", "task_movement", "task_movement_dir",
-            "movement_only", "no_task")
-_KEEP = {"no_movement": ("task",), "task_movement": ("task", "movement"),
-         "task_movement_dir": ("task", "movement", "direction"), "movement_only": ("movement",),
-         "no_task": ("movement", "direction", "contact")}
+#: FROZEN VARIANTS (STATS_VERSION 4 groups, see FGROUP). All from the same pre-stroke Gram terms; each is a column
+#: transform C of the scaled design (Z' = Z @ C).
+#:   joint            everything jointly (the ridge splits shared variance) -- main
+#:   no_<g>           joint refit WITHOUT group / super-group g: unique(g) = joint - no_<g> (order-free; shared variance
+#:                    credited to nobody). g in timing, target, exec_locked, exec_within, lick, other, contact, and the
+#:                    super-groups spout (target + exec_locked + exec_within), task (timing + target), movement (lick +
+#:                    exec_* + other: no_movement = the TASK-ONLY model)
+#:   <g>_only         that group / super-group alone: task_only (timing + target), lick_only, spout_only, other_only,
+#:                    movement_only; no_task = all non-task alone (no_movement keeps contact: not "task alone")
+#:   target_first     exec_locked + exec_within residualised on target (pre projection): spout-shared -> target
+#:   exec_first       target residualised on exec_locked + exec_within: spout-shared -> executed. The pair BRACKETS
+#:                    target vs executed (confounded by design; only exec_within separates them)
+#:   task_first       all non-task residualised on task (timing + target): shared -> task
+#:   movement_first   task residualised on all non-task: shared -> non-task. The pair brackets Musall's task vs movement
+#: Musall: alone = <g>_only / no_task (non-task); unique / task-independent = joint - no_<g> (non-task: joint - task_only);
+#: task-aligned = alone - task-independent.
+_GROUPSETS = {**{g: (g,) for g in FGROUPS}, **SUPER}
+_DROP = {f"no_{g}": gs for g, gs in _GROUPSETS.items() if g != "nontask"}
+_ONLY = {"task_only": SUPER["task"], "lick_only": ("lick",), "spout_only": SUPER["spout"], "other_only": ("other",),
+         "movement_only": SUPER["movement"]}
+_ORDERED = {"target_first": (("target",), ("exec_locked", "exec_within")),     # (A, B): residualise B on A
+            "exec_first": (("exec_locked", "exec_within"), ("target",)),
+            "task_first": (SUPER["task"], SUPER["nontask"]),
+            "movement_first": (SUPER["nontask"], SUPER["task"])}
+VARIANTS = ("joint", *_ORDERED, *_DROP, *_ONLY)
+#: variants whose per-group PETH parts are saved (the others save data + full only: their parts are not a split)
+PART_VARIANTS = ("joint", *_ORDERED)
 
 
 #: FROZEN DROP-ONE-SPOUT (Priya 10-22: "should we do a leave-one-spout out but without removing movement first" -> yes):
-#: `<base>|drop:<p>` = base variant (joint / task_first / movement_first) with spout p's position deviation constrained
-#: to the trial-weighted mean of the others, exactly `combined_encoding.raw_blocks(drop_pos=p)`: with deviation blocks
-#: D_q = X_q - m_q * shared, the drop-p columns are D_q + m_q / (1 - m_p) * D_p (q != p) and D_p is removed -- a column
-#: recombination, so it is one more transform of the same Gram terms (m = the animal's POOLED pre trial shares, frozen
-#: like everything else). Scored on every session as the loss of variance vs the base (window offset free, all frames
-#: and spout p's own trials). task_first = position BEFORE movement (upper bound on spout-specific coding),
-#: movement_first = the encoder's order (lower bound), joint = ridge split.
-DROP_BASES = ("joint", "task_first", "movement_first")
+#: `<base>|drop:<p>` = base variant with spout p's TARGET position deviation constrained to the trial-weighted mean of
+#: the others, exactly `combined_encoding.raw_blocks(drop_pos=p)`: with deviation blocks D_q = X_q - m_q * shared, the
+#: drop-p columns are D_q + m_q / (1 - m_p) * D_p (q != p) and D_p is removed -- a column recombination, so it is one
+#: more transform of the same Gram terms (m = the animal's POOLED pre trial shares, frozen like everything else). Scored
+#: on every session as the loss of variance vs the base (window offset free, all frames and spout p's own trials).
+#: target_first = target BEFORE the executed spout-locked part (upper bound on spout-specific target coding),
+#: exec_first = after it (lower bound), joint = ridge split. The executed spout-locked columns are NOT dropped (they
+#: are the animal's behaviour at that spout, not its response to the spout).
+DROP_BASES = ("joint", "target_first", "exec_first")
 
 
 def _drop_transform(col_var: np.ndarray, pos_order: list, frac: dict, drop: str) -> tuple[np.ndarray, np.ndarray]:
@@ -236,6 +388,20 @@ def _drop_transform(col_var: np.ndarray, pos_order: list, frac: dict, drop: str)
     return C[:, keep], keep
 
 
+#: ordered projections: eigenvalues of the A-block Gram below this fraction of the largest are treated as zero (a
+#: pseudo-inverse). The v3 code solved with a ~1e-6 ridge; the position deviation blocks are near-collinear by
+#: construction (their trial-weighted sum is ~0), so the projection had HUGE weights along that null direction which
+#: cancel in pre sessions but not when a post session's spout shares differ -> task_first scored -1.06 on PS95_0818
+#: while joint scored 0.36 (10-22 afternoon).
+PROJ_RCOND = 1e-8
+
+
+def _projection(Gaa: np.ndarray, Gab: np.ndarray) -> np.ndarray:
+    w, U = np.linalg.eigh(Gaa)
+    keep = w > PROJ_RCOND * max(w.max(), 1e-300)
+    return (U[:, keep] / w[keep]) @ (U[:, keep].T @ Gab)
+
+
 def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: dict | None = None
                        ) -> tuple[np.ndarray, np.ndarray]:
     """((p, p') column transform of the scaled design, (p',) source column of each variant column) for ``variant``
@@ -250,16 +416,16 @@ def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: d
     if variant == "joint":
         return eye, np.arange(p)
     grp = np.array([FGROUP[v] for v in col_var])
-    if variant in _KEEP:
-        keep = np.isin(grp, _KEEP[variant])
+    if variant in _DROP or variant in _ONLY:
+        keep = ~np.isin(grp, _DROP[variant]) if variant in _DROP else np.isin(grp, _ONLY[variant])
         return eye[:, keep], np.flatnonzero(keep)
-    if variant in ("movement_first", "task_first"):
-        task = grp == "task"
-        a, b = (~task, task) if variant == "movement_first" else (task, ~task)    # residualise b on a
-        Gaa = Gt[np.ix_(a, a)]
-        P = np.linalg.solve(Gaa + 1e-6 * np.trace(Gaa) / a.sum() * np.eye(a.sum()), Gt[np.ix_(a, b)])
+    if variant in _ORDERED:
+        A, Bg = _ORDERED[variant]
+        a, b = np.isin(grp, A), np.isin(grp, Bg)
+        if not a.any() or not b.any():                   # nothing to residualise: = joint
+            return eye, np.arange(p)
         C = eye.copy()
-        C[np.ix_(a, b)] = -P
+        C[np.ix_(a, b)] = -_projection(Gt[np.ix_(a, a)], Gt[np.ix_(a, b)])     # residualise b on a
         return C, np.arange(p)
     raise ValueError(variant)
 
@@ -372,9 +538,10 @@ def _segments(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
 def predict_job(job):
     """Apply the animal's frozen models (one per variant) to one session; PETHs of data and each part, cue- and
     lick-aligned, written to <out>/<variant>/sessions/<label>.{npz,json}."""
-    label, fits, out_dir = job
+    label, fits, out_dir, tpath = job
     ce = _ce()
-    d = session_design(label)
+    from wfield_local import config
+    d = session_design(label, _templates_of(tpath, config.animal_of(label)))
     f0 = next(iter(fits.values()))
     if len(d["col_var"]) != len(f0["col_var"]) or (d["col_var"] != f0["col_var"]).any():
         raise ValueError(f"{label}: column layout differs from the animal's pre fit")
@@ -408,11 +575,12 @@ def predict_job(job):
             continue
         gcol = np.array([FGROUP[v] for v in fit["vcol"]])
         comp = {"data": Rd, "full": Z @ (Ce @ beta)}
-        for g in FGROUPS:
-            m = gcol == g
-            comp[g] = Z @ (Ce[:, m] @ beta[m]) if m.any() else np.zeros_like(Rd)
-        pm = np.isin(fit["vcol"], list(ce.POS_VARS))
-        comp["pos"] = Z @ (Ce[:, pm] @ beta[pm]) if pm.any() else np.zeros_like(Rd)
+        if variant in PART_VARIANTS:                      # a reduced model's parts are not a split of anything
+            for g, gs in (*((g, (g,)) for g in FGROUPS), ("spout", SUPER["spout"]), ("lick_all", ("lick", "exec_locked"))):
+                m = np.isin(gcol, gs)
+                comp[g] = Z @ (Ce[:, m] @ beta[m]) if m.any() else np.zeros_like(Rd)
+            pm = np.isin(fit["vcol"], list(ce.POS_VARS))
+            comp["pos"] = Z @ (Ce[:, pm] @ beta[pm]) if pm.any() else np.zeros_like(Rd)
         peth = np.full((len(comp), len(pos_order), len(ix), len(off)), np.nan, np.float32)
         peth_lick = np.full_like(peth, np.nan)
         n_lick = {}
@@ -564,12 +732,26 @@ def main(argv=None) -> int:
     print(f"[frozen] {len(labels)} sessions, {len(pre)} August pre -> {out}", flush=True)
     import pickle
     sp = out / "fit" / "pre_stats.pkl"
-    if a.reuse_stats and sp.exists():                    # a re-scoring run: the pre statistics are already saved
-        saved = pickle.loads(sp.read_bytes())
+    tp = out / "fit" / "templates.pkl"
+    (out / "fit").mkdir(parents=True, exist_ok=True)
+    saved = pickle.loads(sp.read_bytes()) if (a.reuse_stats and sp.exists() and tp.exists()) else None
+    if saved is not None and any(s_.get("stats_version") != STATS_VERSION for s_ in saved):
+        print(f"  saved statistics are not STATS_VERSION {STATS_VERSION}: recomputing", flush=True)
+        saved = None
+    if saved is not None:                                # a re-scoring run: the pre statistics are already saved
         got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
         print(f"  reusing {len(got)} pre-session statistics from {sp}", flush=True)
     else:
-        got, fail = ak.fan_sessions(pre, stats_job, jobs=a.jobs)
+        # pass 1 (behaviour only): the animals' SPOUT-LOCKED templates from their pre sessions (FGROUP comment)
+        tparts, tfail = ak.fan_sessions(pre, template_job, jobs=a.jobs, label="template")
+        if tfail:
+            raise RuntimeError(f"template pass failed: {tfail}")
+        tp.write_bytes(pickle.dumps(build_templates([t for _l, t in tparts]), protocol=pickle.HIGHEST_PROTOCOL))
+        print(f"  spout-locked templates -> {tp}", flush=True)
+        got, fail = ak.fan_sessions([(x, str(tp)) for x in pre], stats_job, jobs=a.jobs)
+        got = [(it[0], s_) for it, s_ in got]
+        for s_ in (s_ for _l, s_ in got):
+            s_["stats_version"] = STATS_VERSION
         for it, err in fail:
             print(f"  !! stats {it}: {err}", flush=True)
         (out / "fit").mkdir(parents=True, exist_ok=True)
@@ -596,7 +778,7 @@ def main(argv=None) -> int:
                                 beta_all=f["beta_all"], col_var=f["col_var"], areas=np.array(f["areas"]))
             print(f"  {an} {v}: {len(labs)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
                   f"alphas {f['alphas']}", flush=True)
-    jobs = [(x, fits[config.animal_of(x)], str(out)) for x in labels if config.animal_of(x) in fits]
+    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp)) for x in labels if config.animal_of(x) in fits]
     res, fail = _fan(jobs, a.jobs)
     for it, err in fail:
         print(f"  !! predict {it[0]}: {err}", flush=True)
