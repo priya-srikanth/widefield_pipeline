@@ -2,6 +2,15 @@
 "morph across animals to fit a single 'master' mouse face mesh for each camera"; master = "whichever you recommend").
 
     <fr env python> scripts/face_rhythm_register.py [--root <dlc>/face_rhythm/cam4] [--jobs 4]
+    <fr env python> scripts/face_rhythm_register.py --cam cam2 --stage templates      # then click, then without --stage
+
+OTHER CAMERAS (cam1 / cam2 / cam3, `wfield_local.face_rhythm_cams`; 10-22): no LP landmarks. ``--stage templates``
+picks the animal templates + master (master scored after an image-only ECC alignment) and writes
+``register_inputs/click_<s>.png`` + ``click_sessions.json``; Priya clicks the camera's ``click_landmarks`` on those
+images -> ``register_inputs/landmarks.json`` ({session: {name: [x, y]}}); the full run then starts template -> master
+from the clicked landmarks and session -> template from ECC (`coarse_field`), DeepFlow on top as for cam4, kept only
+where it raises the whole-image correlation. QC: ``qc_ncc.csv`` (correlation with the master before / after; every
+camera) + the overlays; ``qc_landmarks.csv`` only where sessions have landmarks (cam4).
 
 Inputs: ``<root>/frames/<a>_<d>.npz`` from `scripts.face_rhythm_prep frames` (median rest face + LP landmarks).
 1. ANIMAL TEMPLATE = the animal's MEDOID among its AUGUST PRE-STROKE sessions (``<root>/pre_august_sessions.json``,
@@ -58,7 +67,8 @@ def medoid(ims: dict) -> str:
     return max(score, key=score.get)
 
 
-FACE = ("nose", "jaw", "eye_l", "eye_r")
+FACE = ("nose", "jaw", "eye_l", "eye_r", "eye", "mouth", "chin", "ear", "cheek_l", "cheek_r")
+#: the clicked names of the other cameras (`wfield_local.face_rhythm_cams`) count as FACE too; cam4 has none of them
 #: eyes: Priya's clicks on the master + the animal templates (``register/eye_landmarks.json``, 10-21) -- every LP landmark
 #: is in the lower face, so nothing else pins the eyes in the template -> master step (the eyes fell outside some ROIs)
 EYE_R = 45.0
@@ -88,14 +98,41 @@ def similarity_field(lm_t: dict, lm_m: dict, shape) -> np.ndarray:
     return np.stack([A[0, 0] * gx + A[0, 1] * gy + A[0, 2], A[1, 0] * gx + A[1, 1] * gy + A[1, 2]], -1).astype(np.float32)
 
 
+def ecc_field(template: np.ndarray, moving: np.ndarray, ds: int = 2) -> np.ndarray:
+    """(H, W, 2) field template px -> moving px from an IMAGE-ONLY euclidean ECC fit (rotation + shift; identity start,
+    ``ds``-times downsampled CLAHE images). For pairs with < 2 shared landmarks: a session -> its animal template on a
+    camera without LP (same rig and headplate every day, so the start is close). Identity if ECC fails."""
+    import cv2
+    a = cv2.resize(template, None, fx=1 / ds, fy=1 / ds, interpolation=cv2.INTER_AREA)
+    b = cv2.resize(moving, None, fx=1 / ds, fy=1 / ds, interpolation=cv2.INTER_AREA)
+    A = np.eye(2, 3, dtype=np.float32)
+    try:
+        _, A = cv2.findTransformECC(a, b, A, cv2.MOTION_EUCLIDEAN,
+                                    (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 200, 1e-5), None, 5)
+    except cv2.error:
+        A = np.eye(2, 3, dtype=np.float32)
+    A[:, 2] *= ds                                                      # template px -> moving px at full size
+    H, W = template.shape
+    gx, gy = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32))
+    return np.stack([A[0, 0] * gx + A[0, 1] * gy + A[0, 2], A[1, 0] * gx + A[1, 1] * gy + A[1, 2]], -1).astype(np.float32)
+
+
+def coarse_field(template, moving, lm_t: dict, lm_m: dict) -> tuple[np.ndarray, str]:
+    """The coarse start: the landmark similarity when the pair shares >= 2 landmarks, else image-only ECC."""
+    if len(_shared(lm_t, lm_m)) >= 2:
+        return similarity_field(lm_t, lm_m, template.shape), "similarity"
+    return ecc_field(template, moving), "ecc"
+
+
 def face_err(F: np.ndarray, lm_t: dict, lm_m: dict) -> float:
     e = [np.hypot(*(sample(F, lm_t[k])[0] - lm_m[k])) for k in FACE if k in _shared(lm_t, lm_m)]
     return float(np.max(e)) if e else np.nan
 
 
 def raw_zones(shape, lm: dict) -> np.ndarray:
-    """(H, W) weight of the RAW field: the mouth (MOUTH_R around the rest jaw) and, where clicked, each eye (EYE_R)."""
-    w = mouth_weight(shape, lm.get("jaw"))
+    """(H, W) weight of the RAW field: the mouth (MOUTH_R around the rest jaw; the clicked mouth on a camera without
+    LP) and, where clicked, each eye (EYE_R)."""
+    w = mouth_weight(shape, lm.get("jaw", lm.get("mouth")))
     H, W = shape
     gx, gy = np.meshgrid(np.arange(W), np.arange(H))
     for k in RAW_EYES:
@@ -142,12 +179,13 @@ def shell_weight(poly, shape, mouth=None) -> np.ndarray:
 
 
 def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict, poly_t=None) -> tuple[np.ndarray, str]:
-    """((H, W, 2) field template px -> moving px, method): landmark similarity, then DeepFlow on the
-    similarity-warped image, CHAINED here; the similarity alone when DeepFlow worsens the face landmarks."""
+    """((H, W, 2) field template px -> moving px, method): landmark similarity (image-only ECC when the pair shares
+    < 2 landmarks, `coarse_field`), then DeepFlow on the coarse-warped image, CHAINED here; the coarse field alone when
+    DeepFlow worsens the face landmarks or, with no landmarks, the whole-image correlation."""
     import cv2
 
     import face_rhythm as fr
-    S = similarity_field(lm_t, lm_m, template.shape)
+    S, how = coarse_field(template, moving, lm_t, lm_m)
     warped = cv2.remap(moving, S[..., 0], S[..., 1], cv2.INTER_LINEAR)
     al = fr.rois.Image_Aligner(verbose=False)
     D = np.asarray(al.fit_nonrigid(template=template, ims_moving=[warped], template_method="image",
@@ -191,8 +229,13 @@ def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict, p
     T = (1 - ws_) * T + ws_ * S
     es, et = face_err(S, lm_t, lm_m), face_err(T, lm_t, lm_m)
     if np.isfinite(et) and np.isfinite(es) and et > max(es, 8.0):
-        return S, f"similarity (deepflow face err {et:.1f} > {es:.1f})"
-    return T, "similarity+deepflow"
+        return S, f"{how} (deepflow face err {et:.1f} > {es:.1f})"
+    if not np.isfinite(es):                                              # no landmarks: whole-image correlation decides
+        cs = _ncc(template, cv2.remap(moving, S[..., 0], S[..., 1], cv2.INTER_LINEAR))
+        ct = _ncc(template, cv2.remap(moving, T[..., 0], T[..., 1], cv2.INTER_LINEAR))
+        if ct < cs:
+            return S, f"{how} (deepflow ncc {ct:.3f} < {cs:.3f})"
+    return T, f"{how}+deepflow"
 
 
 def _reg_job(args):
@@ -221,10 +264,22 @@ def landmarks(Z) -> dict:
 def main(argv=None) -> int:
     import cv2
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--cam", default=None, help="cam4 | cam1 | cam2 | cam3: root = <dlc>/face_rhythm/<cam> "
+                                                 "(wfield_local.face_rhythm_cams); default --root (cam4)")
     ap.add_argument("--root", type=Path, default=ROOT)
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--master-exclude", nargs="*", default=["PS93"], help="animals not eligible as the master")
+    ap.add_argument("--stage", default="all", choices=("all", "templates"),
+                    help="templates: pick the animal templates + master and write register_inputs/click_<s>.png "
+                         "for the landmark clicks (cameras without LP), then stop")
     a = ap.parse_args(argv)
+    if a.cam:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))       # the repo (fr env: not pip-installed)
+        from wfield_local import face_rhythm_cams as frc
+        a.root, C = frc.default_root(a.cam), frc.cam(a.cam)
+    else:
+        C = {"lp_landmarks": True, "click_landmarks": ("eye_l", "eye_r")}
     out = a.root / "register"
     (out / "fields").mkdir(parents=True, exist_ok=True)
     Z = {f.stem: np.load(f) for f in sorted((a.root / "frames").glob("PS*.npz"))}
@@ -237,14 +292,24 @@ def main(argv=None) -> int:
             if s_ in LM:
                 LM[s_]["eye_l"], LM[s_]["eye_r"] = np.asarray(e["left"], float), np.asarray(e["right"], float)
         print("eye landmarks:", sorted(json.loads(ef.read_text())), flush=True)
+    # CLICKED landmarks, any camera: {session: {name: [x, y]}} on the animal templates + master (Priya; the click page /
+    # notebook writes it). Outside register/ so a re-run keeps them.
+    lf = a.root / "register_inputs" / "landmarks.json"
+    if lf.exists():
+        for s_, e in json.loads(lf.read_text()).items():
+            if s_ in LM:
+                LM[s_].update({k: np.asarray(v, float) for k, v in e.items() if v is not None})
+        print("clicked landmarks:", sorted(json.loads(lf.read_text())), flush=True)
     animals = sorted({s[:4] for s in Z})
     pool_f = a.root / "pre_august_sessions.json"
+    if not pool_f.exists() and (a.root.parent / "cam4" / pool_f.name).exists():
+        pool_f = a.root.parent / "cam4" / pool_f.name                 # same sessions for every camera
     pool = set(json.loads(pool_f.read_text())) if pool_f.exists() else set(ims)
     tmpl = {an: medoid({s: ims[s] for s in ims if s.startswith(an) and s in pool}) for an in animals}
     print("animal templates:", tmpl, flush=True)
 
     import face_rhythm as fr
-    # master: medoid of the animal templates AFTER a pairwise landmark similarity alignment
+    # master: medoid of the animal templates AFTER a pairwise coarse alignment (landmark similarity; ECC without)
     T = {an: ims[tmpl[an]] for an in animals}
     sc = {}
     for i in animals:
@@ -252,7 +317,7 @@ def main(argv=None) -> int:
         for j in animals:
             if i == j:
                 continue
-            f = similarity_field(LM[tmpl[i]], LM[tmpl[j]], T[i].shape)
+            f, _ = coarse_field(T[i], T[j], LM[tmpl[i]], LM[tmpl[j]])
             w = cv2.remap(T[j], f[..., 0], f[..., 1], cv2.INTER_LINEAR)
             vals.append(_ncc(T[i], w))
         sc[i] = float(np.mean(vals))
@@ -260,6 +325,19 @@ def main(argv=None) -> int:
     master_s = tmpl[master_an]
     M = ims[master_s]
     print("master:", master_an, master_s, {k: round(v, 3) for k, v in sc.items()}, flush=True)
+    if a.stage == "templates" or not C["lp_landmarks"]:
+        missing = [s for s in sorted(set(tmpl.values())) if not all(k in LM[s] for k in C["click_landmarks"])]
+        if a.stage == "templates" or missing:
+            ri = a.root / "register_inputs"
+            ri.mkdir(exist_ok=True)
+            for s in sorted(set(tmpl.values())):
+                cv2.imwrite(str(ri / f"click_{s}.png"), raw[s])
+            (ri / "click_sessions.json").write_text(json.dumps(
+                {"master": master_s, "templates": tmpl, "landmarks": list(C["click_landmarks"]),
+                 "missing": missing}, indent=1))
+            print(f"templates stage: click {list(C['click_landmarks'])} on {sorted(set(tmpl.values()))} "
+                  f"(missing: {missing}) -> {ri / 'landmarks.json'}")
+            return 0
 
     # fields: animal template -> master, session -> animal template (parallel)
     # the master FACE polygon (Priya's ROI), if drawn: decides the outer shell (`shell_weight`). Two passes: animal
@@ -284,7 +362,7 @@ def main(argv=None) -> int:
     H, W = M.shape
     ident = np.stack(np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32)), -1)
     A = {an: F.get(("A", an), ident) for an in animals}
-    rows = []
+    rows, ncc_rows = [], []
     mlm = LM[master_s]
     for s in sorted(ims):
         fa = A[s[:4]]
@@ -292,6 +370,12 @@ def main(argv=None) -> int:
         # composed master -> session field: R_s(R_a(p)) on the whole grid
         comp = cv2.remap(fs, fa[..., 0], fa[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
         np.save(out / "fields" / f"{s}.npy", comp.astype(np.float32))
+        # image QC (every camera; the only per-session QC where there are no LP landmarks): correlation with the
+        # master before / after registration
+        ncc_rows.append({"session": s, "animal": s[:4],
+                         "method": HOW.get(("S", s), "template") + " / " + HOW.get(("A", s[:4]), "master"),
+                         "ncc_registered": _ncc(M, cv2.remap(ims[s], comp[..., 0], comp[..., 1], cv2.INTER_LINEAR)),
+                         "ncc_unregistered": _ncc(M, ims[s])})
         for k, p in mlm.items():
             if k not in LM[s] or not np.isfinite(p).all() or not np.isfinite(LM[s][k]).all():
                 continue
@@ -301,10 +385,16 @@ def main(argv=None) -> int:
                          "err_px": float(np.hypot(*(q - LM[s][k]))),
                          "err_unregistered_px": float(np.hypot(*(p - LM[s][k])))})
     import csv
-    with open(out / "qc_landmarks.csv", "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0]))
-        w.writeheader()
-        w.writerows(rows)
+    for fn, rr in (("qc_landmarks.csv", rows), ("qc_ncc.csv", ncc_rows)):
+        if rr:
+            with open(out / fn, "w", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rr[0]))
+                w.writeheader()
+                w.writerows(rr)
+    for an in animals:
+        v = np.array([(r["ncc_registered"], r["ncc_unregistered"]) for r in ncc_rows if r["animal"] == an])
+        print(f"  {an} ncc with the master: registered {np.median(v[:, 0]):.3f} vs unregistered "
+              f"{np.median(v[:, 1]):.3f} (min {v[:, 0].min():.3f})")
     np.savez_compressed(out / "master.npz", image=raw[master_s], clahe=M, session=master_s,
                         **{f"lm_{k}": v for k, v in mlm.items()})
     (out / "templates.json").write_text(json.dumps({"animal_templates": tmpl, "master": master_s,

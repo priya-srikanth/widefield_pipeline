@@ -31,16 +31,33 @@ SET = "master_pre_v1"
 
 
 def factor_dir(rv=None, bundle: str = BUNDLE, set_name: str = SET) -> Path:
+    """``<bundle>/factors/<set>``. ``set_name`` may name its bundle, ``"<bundle>/<set>"`` (another camera's run, e.g.
+    ``fr_cam2_<date>/master_pre_v1``); a bare set name is in the cam4 bundle (``BUNDLE``)."""
     from wfield_local import o2_inference as oi
     from wfield_local.paths import PathResolver
+    if "/" in set_name:
+        bundle, set_name = set_name.split("/", 1)
     return oi.bundle_dir(rv or PathResolver(), bundle) / "factors" / set_name
 
 
+def set_tag(set_name: str) -> str:
+    """Folder-safe name of a set reference: ``master_pre_v1`` unchanged (cam4), ``fr_cam2_x/master_pre_v1`` ->
+    ``cam2-master_pre_v1``."""
+    if "/" not in set_name:
+        return set_name
+    bundle, s = set_name.split("/", 1)
+    cam = next((p for p in bundle.split("_") if p.startswith("cam")), bundle)
+    return f"{cam}-{s}"
+
+
 def session_keys(fdir: Path, animal: str, date: str) -> list[Path]:
-    """The proj files of one session, in video order (``_v1`` before ``_v2``)."""
-    base = f"{animal}_{date}_cam4"
-    fs = [fdir / "proj" / f"{base}.npz"] + sorted((fdir / "proj").glob(f"{base}_v*.npz"))
-    return [f for f in fs if f.exists()]
+    """The proj files of one session, in video order (``_v1`` before ``_v2``). A factor set belongs to ONE bundle, so
+    to one camera (keys ``<a>_<d>_<cam>``, `wfield_local.face_rhythm_cams`)."""
+    fs = sorted((fdir / "proj").glob(f"{animal}_{date}_cam[0-9].npz")) + \
+        sorted((fdir / "proj").glob(f"{animal}_{date}_cam[0-9]_v*.npz"))
+    if len({f.stem.split("_")[2] for f in fs}) > 1:
+        raise ValueError(f"{fdir}: proj files from several cameras for {animal}_{date}")
+    return fs
 
 
 def source_files(fdir: Path, animal: str, date: str) -> list[Path]:

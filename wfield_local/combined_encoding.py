@@ -93,6 +93,12 @@ FR_POINTS_ENV = "COMBINED_ENCODING_FR_POINTS"
 FR_SHARE_ENV = "COMBINED_ENCODING_FR_SHARE"
 
 
+def _fr_tag(fr_set: str) -> str:
+    """Folder-safe FR set name (`face_rhythm_outputs.set_tag`: ``<bundle>/<set>`` of another camera -> ``<cam>-<set>``)."""
+    from wfield_local import face_rhythm_outputs as fro
+    return fro.set_tag(fr_set)
+
+
 def _fr_absolute() -> bool:
     return os.environ.get(FR_SHARE_ENV, "") not in ("1", "true", "yes")
 RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned workers see it (tests/test_parallel_results...)
@@ -1598,7 +1604,7 @@ def out_dir(rv, order: str) -> Path:
     only = [x.rstrip(":") for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
     fr_set = os.environ.get(FR_ENV) or ""
     return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else "")
-                                                         + (f"_fr-{fr_set}" if fr_set else "")
+                                                         + (f"_fr-{_fr_tag(fr_set)}" if fr_set else "")
                                                          + ("share" if fr_set and not _fr_absolute() else "")
                                                          + (f"_pts{os.environ[FR_POINTS_ENV]}"
                                                             if fr_set and os.environ.get(FR_POINTS_ENV) else "")

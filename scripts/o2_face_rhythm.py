@@ -3,6 +3,13 @@
 
     python scripts/o2_face_rhythm.py bundle --name fr_cam4_20261021 --user ps150 [SESSIONS ...]
     python scripts/o2_face_rhythm.py collect --name fr_cam4_20261021
+    python scripts/o2_face_rhythm.py bundle --name fr_cam2_<date> --user ps150 --cam cam2      # any camera (10-22)
+
+OTHER CAMERAS (``--cam cam1|cam2|cam3``, `wfield_local.face_rhythm_cams`; one bundle per camera): the SAME trials and
+DAQ trial grid as cam4 (cam4's windows give trial ids, cues, positions and how far each window reaches), re-expressed in
+that camera's frames through its own alignment template (`other_cam_grid`), so trial rows line up across views; ROIs
+from ``<dlc>/face_rhythm/<cam>/rois``; keys ``<a>_<d>_<cam>``. The runner is unchanged (it checks the ROI mask against
+the video size); every camera has cam4's 12-frame keyframe, so the notches apply as they are.
 
 bundle (this desktop; sessions fanned over cores, `analysis_kit.fan_sessions`): per session, from the v36 cam4
 ``windows.npz`` (``ix_src_frame``, ``ix_t_daq_ms``), the fractional source-video frame of every trial-grid time (cue
@@ -608,8 +615,23 @@ def default_sessions(ro: Path, include_june: bool = False) -> list[tuple[str, st
             and (include_june or p.name[4:6] != "06")]
 
 
-def rois_dir(rv) -> Path:
-    return Path(rv.root("dlc")) / "face_rhythm" / CAM / "rois"
+def rois_dir(rv, cam: str = CAM) -> Path:
+    return Path(rv.root("dlc")) / "face_rhythm" / cam / "rois"
+
+
+def other_cam_grid(tr: dict, fd: np.ndarray) -> dict:
+    """cam4's trial grid (`trial_frames`: trials, cue times, positions, where each window reaches) re-expressed in
+    another camera's frames: the fractional frame at every cue + ``T_MS`` time from that camera's per-frame DAQ times
+    ``fd`` (`face_rhythm_cams.frame_daq_seconds`), NaN where cam4's window does not reach (same coverage in every
+    view); the source-frame -> DAQ fit refitted on ``fd``. Same DAQ grid, so trial rows match across cameras."""
+    from wfield_local import face_rhythm_cams as frc
+    t = tr["cue_daq_s"][:, None] + tr["t_ms"][None, :] / 1000.0
+    F = frc.frames_at(fd, t.ravel()).reshape(t.shape)
+    F[~np.isfinite(tr["src_frame"])] = np.nan
+    f = np.flatnonzero(np.isfinite(fd))
+    fit = np.polyfit(f, fd[f], 1)
+    return {**tr, "src_frame": F, "daq_fit": fit,
+            "daq_fit_max_resid_ms": float(np.abs(np.polyval(fit, f) - fd[f]).max() * 1000)}
 
 
 def _n_points(h5: Path) -> int | None:
@@ -626,9 +648,10 @@ def bundle_session(job) -> list[dict]:
     (PS92_0812: two cam4 videos) has ``ix_video`` in its windows and ``ix_src_frame`` restarting in each video, so each
     video is its own task (key ``<a>_<d>_cam4_v<k>``) with its own trials and source-frame -> DAQ fit. Raises on
     anything that makes the session unrunnable. Module-level for `fan_sessions` (spawn pickles by name)."""
+    from wfield_local import face_rhythm_cams as frc
     from wfield_local import o2_inference as oi
     from wfield_local.paths import PathResolver
-    animal, date, all_trials, d, s = job
+    animal, date, all_trials, d, s, cam = job
     rv = PathResolver()
     sd = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date
     vids = json.loads((sd / "manifest.json").read_text())["videos"]
@@ -636,23 +659,28 @@ def bundle_session(job) -> list[dict]:
     cols = ("ix_trial_id", "ix_src_frame", "ix_t_daq_ms", "ix_daq_s", "ix_position")
     if len(vids) > 1 and "ix_video" not in w.files:
         raise ValueError(f"{len(vids)} videos but no ix_video in windows.npz")
-    h5 = rois_dir(rv) / f"{animal}_{date}" / "ROIs.h5"
+    h5 = rois_dir(rv, cam) / f"{animal}_{date}" / "ROIs.h5"
     n_pts = _n_points(h5) if h5.exists() else None
     rows = []
-    for k, v in enumerate(vids):
-        vp = Path(rv.root("behavior_cameras")) / date / animal / v["video"]
-        if not vp.exists():
-            raise FileNotFoundError(vp)
+    for k, v in enumerate(vids):                                       # v = the cam4 video of each recording
         m = (w["ix_video"].astype(str) == v["video"]) if len(vids) > 1 else slice(None)
         tr = trial_frames({c: w[c][m] for c in cols})
+        video, n_frames = v["video"], int(v["n_frames"])
+        if cam != "cam4":                                              # same recording, this camera's file + clock
+            video = frc.video_for(v["video"], cam)
+            fd = frc.frame_daq_seconds(rv, animal, date, cam, video)
+            tr, n_frames = other_cam_grid(tr, fd), len(fd)
+        vp = Path(rv.root("behavior_cameras")) / date / animal / video
+        if not vp.exists():
+            raise FileNotFoundError(vp)
         n_all = len(tr["trial_id"])
         tr, gate = (tr, "off (all trials)") if all_trials else engaged_only(tr, animal, date, sd)
-        key = f"{animal}_{date}_{CAM}" + (f"_v{k + 1}" if len(vids) > 1 else "")
+        key = f"{animal}_{date}_{cam}" + (f"_v{k + 1}" if len(vids) > 1 else "")
         np.savez_compressed(Path(d) / "trials" / f"{key}.npz", gate=gate, n_trials_all=n_all, **tr)
-        rows.append({"key": key, "animal": animal, "date": date, "cam": CAM, "video": v["video"],
-                     "n_frames": int(v["n_frames"]), "n_trials": len(tr["trial_id"]), "n_trials_all": n_all,
+        rows.append({"key": key, "animal": animal, "date": date, "cam": cam, "video": video,
+                     "n_frames": n_frames, "n_trials": len(tr["trial_id"]), "n_trials_all": n_all,
                      "gate": gate, "rois_ready": h5.exists(), "n_points": n_pts or "", "video_share": oi.o2_path(vp, rv),
-                     "video_o2": f"{s}/o2_videos/{date}/{animal}/{v['video']}",
+                     "video_o2": f"{s}/o2_videos/{date}/{animal}/{video}",
                      "grid_covered": float(np.isfinite(tr["src_frame"]).mean()),
                      "daq_fit_resid_ms": tr["daq_fit_max_resid_ms"]})
     return rows
@@ -678,7 +706,7 @@ def estimates(T: pd.DataFrame, p: dict) -> dict:
 
 def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg_min: float,
                all_trials: bool = False, workers: int = 8, jobs: int = 4, include_june: bool = False,
-               max_running: int = 24) -> Path:
+               max_running: int = 24, cam: str = CAM) -> Path:
     from wfield_local import analysis_kit as ak
     from wfield_local import o2_inference as oi
     from wfield_local import writeguard
@@ -690,7 +718,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
     (d / "logs").mkdir(exist_ok=True)
     s = oi.scratch(user)
     ss = sessions or default_sessions(Path(rv.root("orofacial")), include_june)
-    res, fails = ak.fan_sessions([(a, dt, all_trials, str(d), s) for a, dt in ss], bundle_session, jobs=jobs,
+    res, fails = ak.fan_sessions([(a, dt, all_trials, str(d), s, cam) for a, dt in ss], bundle_session, jobs=jobs,
                                  key=lambda j: (j[0], j[1]))
     for j, e in fails:
         print(f"  !! {j[0]}_{j[1]}: {e} -- skipped")
@@ -718,7 +746,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
     b = f"{s}/o2/{name}"
     share_b = oi.o2_path(d, rv)
     cam_root = oi.o2_path(Path(rv.root("behavior_cameras")), rv)
-    share_rois = oi.o2_path(rois_dir(rv), rv)
+    share_rois = oi.o2_path(rois_dir(rv, cam), rv)
     sb = f"""#!/bin/bash -l
 #SBATCH -J fr_{name}
 #SBATCH -p short
@@ -739,7 +767,7 @@ echo "task $SLURM_ARRAY_TASK_ID on $(hostname), $(python --version)"
 python {b}/fr_runner.py
 """
     (d / "run_fr.sbatch").write_text(sb, encoding="utf-8", newline="\n")
-    cmds = f"""# O2 FaceRhythm: {name} ({len(T)} tasks = session x {CAM}; ROIs ready for {n_ready})
+    cmds = f"""# O2 FaceRhythm: {name} ({len(T)} tasks = session x {cam}; ROIs ready for {n_ready})
 
 Per task ({p['workers']} parallel 10-min segments x 4 threads = {cpus} CPUs): {hours.min():.1f}-{hours.max():.1f} h at the
 O2 param-test rate, peak RAM ~{E['ram']:.0f} GB, outputs ~{gb.median():.0f} GB (float16; {gb.sum() / 1000:.1f} TB for all
@@ -765,7 +793,7 @@ rsync -ah --files-from={b}/videos.txt {cam_root}/ {s}/o2_videos/
 rsync -ah {share_rois}/ {b}/rois/          # <a>_<d>/ROIs.h5; fails until the folder exists; rerun as ROIs arrive
 ls {b}/rois | wc -l; wc -l {b}/videos.txt
 ```
-(cam4 videos already on scratch from the LP runs are skipped by rsync.)
+(videos already on scratch from earlier runs are skipped by rsync.)
 
 ## 2. Login node  (ssh {user}@o2.hms.harvard.edu) -- one task first, then the rest
 ```bash
@@ -795,6 +823,13 @@ rsync -ah {b}/out/ {share_b}/out/
     (d / "COMMANDS.md").write_text(cmds, encoding="utf-8", newline="\n")
     print(f"{len(T)} tasks -> {d}\n{cmds}")
     return d
+
+
+def _bundle_cam(T: pd.DataFrame) -> str:
+    """The bundle's camera (tasks.tsv ``cam``; one camera per bundle)."""
+    cams = sorted(set(T.cam)) if "cam" in T else [CAM]
+    assert len(cams) == 1, f"one camera per bundle, got {cams}"
+    return cams[0]
 
 
 def _npz_shapes(f: Path) -> dict:
@@ -842,7 +877,7 @@ def cmd_collect(name: str) -> None:
         print("nothing collected")
         return
     I = pd.DataFrame(rows)
-    dst = Path(rv.root("dlc")) / "face_rhythm" / CAM / f"o2_{name}_index.csv"
+    dst = Path(rv.root("dlc")) / "face_rhythm" / _bundle_cam(T) / f"o2_{name}_index.csv"
     writeguard.assert_writable(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
     I.to_csv(dst, index=False, float_format="%.4g")
@@ -913,7 +948,7 @@ def cmd_qc(name: str, step: int = 25) -> None:
         print("no points outputs yet")
         return
     Q = pd.DataFrame(rows)
-    out = Path(rv.root("dlc")) / "face_rhythm" / CAM
+    out = Path(rv.root("dlc")) / "face_rhythm" / _bundle_cam(T)
     writeguard.assert_writable(out)
     Q.to_csv(figure_layout.sidecar_for(out, f"o2_{name}_qc", ".csv"), index=False, float_format="%.4g")
     order = ["pre", "acute", "subacute", "chronic"]
@@ -1163,6 +1198,9 @@ def main(argv=None) -> int:
     b = sub.add_parser("bundle")
     b.add_argument("--name", required=True)
     b.add_argument("--user", required=True)
+    b.add_argument("--cam", default=CAM, choices=("cam4", "cam1", "cam2", "cam3"),
+                   help="camera (wfield_local.face_rhythm_cams): ROIs from <dlc>/face_rhythm/<cam>/rois, trial grids = "
+                        "cam4's trials on this camera's clock; one bundle per camera")
     b.add_argument("--seg-min", type=float, default=5.0, help="tracking segment (restart at home), minutes")
     b.add_argument("--workers", type=int, default=8, help="parallel segments per O2 task, 4 threads each (10-21: 4 threads = 32-34 fps / worker, 2 threads = 19 fps)")
     b.add_argument("--max-running", type=int, default=24, help="array throttle (%%N): tasks running at once")
@@ -1189,7 +1227,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.cmd == "bundle":
         ss = [tuple(x.split(":")[:2]) for x in a.sessions] if a.sessions else None
-        cmd_bundle(a.name, a.user, ss, a.seg_min, a.all_trials, a.workers, a.jobs, a.include_june, a.max_running)
+        cmd_bundle(a.name, a.user, ss, a.seg_min, a.all_trials, a.workers, a.jobs, a.include_june, a.max_running,
+                   a.cam)
     elif a.cmd == "paramtest":
         cmd_paramtest(a.name, a.user, a.key, a.frames, a.sets)
     elif a.cmd == "paramscore":

@@ -3,6 +3,7 @@
 
     <fr env python> scripts/face_rhythm_warp_rois.py to-master PS94_20260810      # a session's ROIs.h5 -> master draft
     <fr env python> scripts/face_rhythm_warp_rois.py to-sessions [--spacing 9]     # master ROIs.h5 -> every session
+    <fr env python> scripts/face_rhythm_warp_rois.py to-sessions --cam cam2        # any camera (root <dlc>/face_rhythm/<cam>)
     <fr env python> scripts/face_rhythm_warp_rois.py carry PS93_20260821 PS95_20260810 --fields <old register>/fields
                                                     # a ROI drawn on an OLD master -> a new master session
 
@@ -110,8 +111,13 @@ def main(argv=None) -> int:
     ap.add_argument("dst", nargs="?", default=None, help="carry: the target session")
     ap.add_argument("--fields", type=Path, default=None, help="carry: the fields/ folder of the OLD master's run")
     ap.add_argument("--root", type=Path, default=ROOT)
+    ap.add_argument("--cam", default=None, help="cam4 | cam1 | cam2 | cam3: root = <dlc>/face_rhythm/<cam> (overrides --root)")
     ap.add_argument("--spacing", type=int, default=None)
     a = ap.parse_args(argv)
+    if a.cam:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from wfield_local import face_rhythm_cams as frc
+        a.root = frc.default_root(a.cam)
     if a.cmd == "to-master":
         to_master(a.root, a.session)
     elif a.cmd == "carry":

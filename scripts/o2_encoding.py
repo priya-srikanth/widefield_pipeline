@@ -155,7 +155,7 @@ python {b}/enc_runner.py
     runs = [("nodir", "", "nodir:", "", ""), ("trmodels", "", "trmodels", "", ""),
             ("musall_shuf", "musall", "shuf:", "", ""), ("main", "", "", "", ""), ("video", "", "", "cam1,cam4", "")]
     if a.fr:                  # FR vs motion energy vs both in ONE run (video:*, fr:*, frvideo:* models)
-        runs.append((f"fr_{a.fr}", "", "", "cam1,cam4", a.fr))
+        runs.append((f"fr_{a.fr.replace('/', '-')}", "", "", "cam1,cam4", a.fr))   # another camera: <bundle>/<set>
     pts = f",FR_POINTS={a.fr_points}" if a.fr and a.fr_points else ""
     sub = "\n".join(f"sbatch --array=1-{n}%60 --export=ALL,TAG={t},ORDER={o or 'movement_first'},ONLY={only},"
                     f"VIDEO={v},FR={f}{pts if f else ''} {b}/run_enc.sbatch      # {t}" for t, o, only, v, f in runs)
