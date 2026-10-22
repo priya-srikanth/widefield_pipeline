@@ -12,7 +12,10 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
   matched similarity in rank*.json + `report/stability_per_factor.csv` + dots on the rank_sweep stability panel;
   `--inits` default 5 -> 8 for master_pre_v1. Pilot rank files predate it (no per-factor values).
 * Projection tasks 26 / 28 logged rc 1 (the temp-file collision): outputs verified valid.
-* fitsession still running (main driver); then readouts on the pilot set.
+* ~14:20: fitsession 51 / 51 done; readouts run (`<dlc>/face_rhythm/cam4/readouts/pilot_pre_PS92_PS93/`): EVR gap
+  acute above every pre session in both animals, PS93 back to pre by subacute, PS92 slightly above chronically
+  (FINDINGS 6). Local pilot run COMPLETE; nothing running. Next: Priya's names -> labels.json; per-lick expression by
+  epoch; master_pre_v1 (8 starts, per-factor stability) when PS94 / PS95 are in.
 
 ## UPDATE 10-22 ~13:15
 

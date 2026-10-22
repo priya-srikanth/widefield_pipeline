@@ -93,7 +93,26 @@ CAVEATS: two animals; absolute expression scales with how much the animal licks,
 not a different movement per lick -- next: per-lick expression (lick-triggered, as in section 4) by epoch, and the
 master set's four animals. Figures: `report/factor_epochs_abs.png` (cue-aligned, pre max = 1).
 
+## 6. Does the pre-stroke vocabulary still fit after the stroke? (PILOT, two animals)
+
+EVR GAP = a session's own rank-10 fit (`fitsession`, 1 start) minus the frozen pre-stroke factors on the same session
+rows; larger = the session's movement fits the pre-stroke factors less well. Pre sessions are scored on their
+left-out-day basis, so the pre gaps are the noise floor (`face_rhythm_readouts.py --set pilot_pre_PS92_PS93`,
+`<dlc>/face_rhythm/cam4/readouts/pilot_pre_PS92_PS93/`, `recovery_by_day.png`, `data/session_table.csv`):
+
+| | pre (range) | acute d1-5 | subacute d5-9 | chronic d11-50 |
+|---|---|---|---|---|
+| PS92 | 0.028-0.044 (median 0.030) | 0.046-0.080, **5 / 5 above pre max** | 0.037-0.043, 0 / 2 | 0.036-0.052, **7 / 12 above**, rising late (d36-50 0.042-0.052) |
+| PS93 | 0.026-0.043 (median 0.031) | 0.048-0.070, **4 / 4 above** | 0.033-0.047, 1 / 3 | 0.029-0.039, 0 / 9 (back at pre) |
+
+Reading: acutely BOTH animals move in ways the pre-stroke factors capture less well (gap ~2x pre); PS93 returns to the
+pre range by the subacute epoch, PS92 stays slightly above it chronically. Trial reconstruction error moves the same way
+(acute 0.467 / 0.468 vs pre 0.444 / 0.443). Movement asymmetry ((contra - ipsi) / (contra + ipsi), response window):
+PS93 acute -0.10 vs pre -0.03 (less contralesional-side movement), PS92 no clear change. The readouts' automatic
+`labels_suggested.json` names are heuristics -- ignore them; names are Priya's (section 4).
+
 ## Change log
 
+* 2026-10-22 pm: section 6 (EVR gap vs the pre noise floor, pilot readouts).
 * 2026-10-22 pm: rank sweep complete (14, 16); rank 12 vs 10 structure; per-factor stability added.
 * 2026-10-22: created (tracking QC, rank sweep start, noise floor, pilot factor identities, first epoch changes).
