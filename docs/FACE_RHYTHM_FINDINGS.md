@@ -21,11 +21,23 @@ are near-flat sliver triangles at the mesh edge and do not affect the factors. M
 acute -> subacute -> chronic: PS92 1.33 / 1.11 / 1.16 / 1.18; PS93 1.19 / **0.80** / 1.21 / 1.36; PS94 2.06 / 1.33 /
 2.35 / 2.63 (PS94 moves ~2x more or has a larger face in px; absorbed by the per-animal scale).
 
-## 2. How many factors (PROVISIONAL, pilot tensor, sweep running)
+## 2. How many factors (PROVISIONAL, pilot tensor)
 
 Fit-only sweep on the PS92 + PS93 pre-stroke fit rows (3 starts each): EVR / stability across starts -- rank 6 0.767 /
-0.84; 8 0.792 / 0.96; 10 0.807 / 0.87; 12 0.819 / **0.997**; 14, 16 pending. EVR rises slowly (no sharp elbow);
-stability is not monotonic (rank 12 more reproducible than rank 10 on this tensor). The cohort rank is chosen on
+0.84; 8 0.792 / 0.96; 10 0.807 / 0.87; 12 0.819 / **0.997**; 14 0.827 / 0.89; 16 0.835 / 0.92. EVR rises slowly and
+evenly (~+0.01 per 2 factors past rank 8; no elbow), so "enough" is a judgement, not a knee: ranks 8-12 capture what the
+data offer cheaply, and rank 12 is the most reproducible. Stability is not monotonic (rank 12 more reproducible than
+10 or 14 on this tensor). The pilot stays at rank 10 (Priya 10-22); rank 12 is the candidate to compare on the master.
+"Stability" = similarity of the other random starts' factors to the best start's (matched, spatial x spectral cosine),
+one number per rank from only 3 starts here (two comparisons each), so noisy. At rank 10 the three starts reach the same
+error (0.4394-0.4401) with differently arranged factors; at rank 12 all three find the same solution.
+
+**Rank 12 vs rank 10 (structure on the fit rows, not yet lick-validated).** No extra licking factor: the four
+lick factors (f0, f4, f5, f9) plus f1, f3, f7 recur unchanged (spatial / spectral / timecourse 0.92-1.00). The two extra
+factors go to SLOW movement: f8 (~2.3 Hz) splits by frequency into ~4.6 Hz and ~1.3 Hz components on the same face
+region (not lick-locked; slightly running-linked); f6 sharpens to ~3 Hz; a new ~1.3 Hz component overlaps f6 / f2. Likely
+why rank 12 is reproducible -- to confirm with per-factor stability on the master (from 10-22 `fit` saves every
+start's factors, `stability_per_factor.csv`; default 8 starts). The cohort rank is chosen on
 master_pre_v1 (four animals). Figure: `<bundle>/factors/pilot_pre_PS92_PS93/report/rank_sweep.png`.
 
 ## 3. The pre-stroke noise floor (STANDS for PS92 + PS93)
@@ -83,4 +95,5 @@ master set's four animals. Figures: `report/factor_epochs_abs.png` (cue-aligned,
 
 ## Change log
 
+* 2026-10-22 pm: rank sweep complete (14, 16); rank 12 vs 10 structure; per-factor stability added.
 * 2026-10-22: created (tracking QC, rank sweep start, noise floor, pilot factor identities, first epoch changes).

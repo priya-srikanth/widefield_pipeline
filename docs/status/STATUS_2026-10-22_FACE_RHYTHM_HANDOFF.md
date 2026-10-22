@@ -3,7 +3,18 @@
 **Findings so far: [`docs/FACE_RHYTHM_FINDINGS.md`](../FACE_RHYTHM_FINDINGS.md)** (living, status-tagged). Decisions:
 DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-out, naming per fit, figures + methods".
 
-## UPDATE 10-22 ~13:15 (read first)
+## UPDATE 10-22 ~14:00 (read first)
+
+* **Rank sweep complete**: 14 EVR 0.827 / stability 0.89; 16 0.835 / 0.92 (report re-rendered). No elbow; rank 12 the
+  most reproducible. Rank 12 vs 10 (FINDINGS 2): lick factors unchanged; the extra two split SLOW movement (f8 by
+  frequency, f6 / f2). Pilot stays rank 10.
+* **Per-factor stability** in `fit` (Priya: "ok"): every start's A / B saved (`A_starts`, `B_starts`), per-factor
+  matched similarity in rank*.json + `report/stability_per_factor.csv` + dots on the rank_sweep stability panel;
+  `--inits` default 5 -> 8 for master_pre_v1. Pilot rank files predate it (no per-factor values).
+* Projection tasks 26 / 28 logged rc 1 (the temp-file collision): outputs verified valid.
+* fitsession still running (main driver); then readouts on the pilot set.
+
+## UPDATE 10-22 ~13:15
 
 * **Pilot projections DONE: 51 / 51** verified (pre = `loso` basis, post = `full`); encoding window (d4) told. The early
   and main drivers collided on 4 tasks (shared temp file; results intact) -> `_atomic_savez` now uses a per-process

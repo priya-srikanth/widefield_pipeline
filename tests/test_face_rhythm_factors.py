@@ -51,6 +51,10 @@ def test_pipeline_end_to_end(tmp_path):
     sd, A, B, plan = _bundle(tmp_path)
     f.cmd_build(sd)
     f.cmd_fit(sd, R)
+    fj = json.loads((sd / f"rank{R:02d}.json").read_text())       # per-factor stability, every start's factors kept
+    fz = np.load(sd / f"rank{R:02d}.npz")
+    assert len(fj["stability_per_factor_min"]) == R and min(fj["stability_per_factor_min"]) > 0.9
+    assert fz["A_starts"].shape[0] == len(fj["rel_errs"]) and fz["B_starts"].shape[1:] == fz["B"].shape
     pl = json.loads((sd / "plan.json").read_text())                # leave one pre DAY out (the post-stroke noise floor)
     pl["loso_jobs"], pl["role"] = [[R, f"{a}_20260810"] for a in ("PS92", "PS93", "PS94")], "pilot"
     (sd / "plan.json").write_text(json.dumps(pl))
@@ -61,6 +65,7 @@ def test_pipeline_end_to_end(tmp_path):
     assert lo["evr_held_out"] > lo["evr_in_fit"] - 0.02          # shared planted structure: held out ~ in fit
     f.cmd_report(sd)
     assert (sd / "report" / "loso_by_rank.csv").exists()
+    assert (sd / "report" / "stability_per_factor.csv").exists()
     f.cmd_select(sd, R)
     assert str(np.load(sd / "master.npz")["role"]) == "pilot"
     with pytest.raises(SystemExit, match="already frozen"):

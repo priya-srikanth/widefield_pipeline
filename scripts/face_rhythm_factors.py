@@ -28,7 +28,8 @@ build      the master fit tensor (rows, 2 x points, freqs) float32, trial window
            animals (mesh QC: PS93's face is smaller); one scalar removes that without flattening which points move
            most (a per-point scale would amplify the still forehead) and keeps post-stroke amplitude changes visible.
 fit        non-negative CP (HALS, numpy, chunked) of rank R: ``inits`` random starts (best kept; similarity between
-           starts = stability, Williams et al. 2018) and LEAVE-ONE-ANIMAL-OUT (fit on three animals, project the fourth
+           starts = stability, Williams et al. 2018, also PER FACTOR: each best-start component's matched spatial x
+           spectral cosine in every other start; all starts' A / B saved) and LEAVE-ONE-ANIMAL-OUT (fit on three animals, project the fourth
            with spatial + spectral fixed; held-out vs in-fit error, factor similarity to the full fit).
 loso       LEAVE ONE PRE-STROKE DAY OUT (job = (rank, day) from plan ``loso_jobs``): refit without the day's fit rows,
            project the day's SESSION rows (the rows `fitsession` scores every session on) held out vs with the full
@@ -411,6 +412,10 @@ def cmd_fit(sd: Path, rank: int, loao: bool = True) -> None:
     best = int(np.argmin([f["rel_err"] for f in fits]))
     b = fits[best]
     stab = [similarity([b["A"], b["B"]], [f["A"], f["B"]]) for i, f in enumerate(fits) if i != best]
+    # PER-FACTOR stability (Priya 10-22: which factors move between starts, not one number per rank): for each of the
+    # best start's components, its matched spatial x spectral cosine in every other start
+    per = np.array([np.prod(match([b["A"], b["B"]], [f["A"], f["B"]])[1], axis=0)
+                    for i, f in enumerate(fits) if i != best]).reshape(-1, rank)
     loao_res = {}
     for a in (np.unique(animals) if loao else []):          # --no-loao: a rank sweep ("how many is enough")
         m = animals == a
@@ -424,10 +429,14 @@ def cmd_fit(sd: Path, rank: int, loao: bool = True) -> None:
               f"{loao_res[str(a)]['in_fit_err']:.4f}, factor similarity {loao_res[str(a)]['similarity_to_full']:.3f}",
               flush=True)
     np.savez(sd / f"rank{rank:02d}.npz", A=b["A"], B=b["B"], C=b["C"].astype(np.float32), best_init=best,
-             rel_errs=np.array([f["rel_err"] for f in fits]), trace=b["trace"])
+             rel_errs=np.array([f["rel_err"] for f in fits]), trace=b["trace"],
+             A_starts=np.stack([f["A"] for f in fits]).astype(np.float32),        # every start (small: A, B only)
+             B_starts=np.stack([f["B"] for f in fits]).astype(np.float32), stability_per_factor=per)
     summ = {"rank": rank, "rel_err": float(b["rel_err"]), "evr_uncentred": float(1 - b["rel_err"] ** 2),
             "rel_errs": [float(f["rel_err"]) for f in fits], "best_init": best,
-            "stability_median": float(np.median(stab)) if stab else None, "stability": stab, "loao": loao_res,
+            "stability_median": float(np.median(stab)) if stab else None, "stability": stab,
+            "stability_per_factor_median": np.median(per, axis=0).round(4).tolist() if len(per) else None,
+            "stability_per_factor_min": per.min(axis=0).round(4).tolist() if len(per) else None, "loao": loao_res,
             "minutes": (time.time() - t0) / 60}
     (sd / f"rank{rank:02d}.json").write_text(json.dumps(summ, indent=1))
     print(f"rank {rank}: err {b['rel_err']:.4f}, EVR {summ['evr_uncentred']:.3f}, stability "
@@ -845,7 +854,16 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match
             fig, ax = frf.subplots(1, 4, figsize=(19, 4.6))
             ax[0].plot(rk, [x["evr_uncentred"] for x in S], "o-")
             ax[0].set(xlabel="rank", ylabel="EVR (uncentred)", title="fit")
-            ax[1].plot(rk, [x["stability_median"] or np.nan for x in S], "o-")
+            ax[1].plot(rk, [x["stability_median"] or np.nan for x in S], "o-", label="whole fit (median)")
+            pf = [(x["rank"], v) for x in S for v in (x.get("stability_per_factor_min") or [])]
+            if pf:                                       # one dot per factor: its WORST match over the other starts
+                ax[1].plot(*np.array(pf).T, "k.", ms=4, alpha=0.5, label="per factor (min)")
+                frf.legend_outside(ax[1])
+                pd.DataFrame([{"rank": x["rank"], "factor": k, "stability_median": m, "stability_min": n}
+                              for x in S if x.get("stability_per_factor_min")
+                              for k, (m, n) in enumerate(zip(x["stability_per_factor_median"],
+                                                             x["stability_per_factor_min"]))]
+                             ).to_csv(rd / "stability_per_factor.csv", index=False, float_format="%.4f")
             ax[1].set(xlabel="rank", ylabel="similarity to best start", title="stability across starts",
                       ylim=(0, 1.02))
             for a in sorted(loao[0]["loao"]) if loao else []:
@@ -880,7 +898,9 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match
 Fit of the non-negative CP (HALS) on the set's pre-stroke fit rows (`face_rhythm_factors.py fit`), one point per rank.
 * **fit**: uncentred EVR = 1 - |S - S^|^2 / |S|^2 of the best of the random starts (the paper's definition).
 * **stability**: median similarity of the other starts to the best one (Williams et al. 2018: matched components, product
-  of spatial x spectral cosines). Values well below 1 = the rank splits noise differently on each start.
+  of spatial x spectral cosines). Values well below 1 = the rank splits noise differently on each start. Dots (fits
+  run since 10-22): each factor of the best start, its WORST matched similarity over the other starts -- which factors
+  are reproducible at this rank (table `stability_per_factor.csv`, factor = the best start's index).
 * **leave one animal out** (ranks fitted with it): refit without one animal, project its rows with spatial + spectral
   fixed; held-out / in-fit relative error. With two animals this is "fit one, project the other" (weak).
 * **leave one pre day out** (`loso`): refit without one pre-stroke DAY's fit rows; that day's SESSION rows (the rows
@@ -888,7 +908,8 @@ Fit of the non-negative CP (HALS) on the set's pre-stroke fit rows (`face_rhythm
   held-out pre EVR is the noise floor post-stroke frozen EVRs are read against; tables `loso.csv`, `loso_by_rank.csv`.
 Plan: {json.dumps({k: pl['params'][k] for k in ('trials_per_animal', 'between_frac', 'inits', 'n_iter') if k in pl['params']})};
 animals {', '.join(sorted(pl['fit']))}. Rank sweep fits may skip the animal-out refits (`fit --no-loao`).""")
-        pd.DataFrame([{k: v for k, v in x.items() if k not in ("loao", "stability", "rel_errs")} for x in S]
+        pd.DataFrame([{k: v for k, v in x.items() if k not in ("loao", "stability", "rel_errs", "stability_per_factor_median",
+                                                                   "stability_per_factor_min")} for x in S]
                      ).to_csv(rd / "rank_sweep.csv", index=False, float_format="%.4f")
     if not (sd / "master.npz").exists():
         print(f"report: rank sweep only (not frozen yet) -> {rd}")
@@ -1024,7 +1045,7 @@ def main(argv=None) -> int:
     ap.add_argument("--between-frac", type=float, default=0.25)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--ranks", type=int, nargs="*", default=[6, 8, 10, 12, 14, 16])
-    ap.add_argument("--inits", type=int, default=5)
+    ap.add_argument("--inits", type=int, default=8, help="random starts per rank (8: per-factor stability readable)")
     ap.add_argument("--n-iter", type=int, default=300)
     ap.add_argument("--point-pcs", type=int, default=20, help="plan: PCs of the dense-position basis")
     ap.add_argument("--points-bins", type=int, default=20000, help="plan: 25 Hz bins per animal for its fit")
