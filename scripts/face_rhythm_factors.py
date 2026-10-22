@@ -394,7 +394,7 @@ def build_points_pca(sd: Path, pl: dict, od: Path) -> None:
     print(f"points PCA: {len(X)} bins, top {K} PCs explain {ev[:K].sum():.1%} -> {sd / 'points_pca.npz'}")
 
 
-def cmd_fit(sd: Path, rank: int) -> None:
+def cmd_fit(sd: Path, rank: int, loao: bool = True) -> None:
     pl = load_plan(sd)
     X = np.ascontiguousarray(np.load(sd / "fit_tensor.npy", mmap_mode="r"))
     animals = np.load(sd / "fit_index.npz")["animal"]
@@ -409,22 +409,23 @@ def cmd_fit(sd: Path, rank: int) -> None:
     best = int(np.argmin([f["rel_err"] for f in fits]))
     b = fits[best]
     stab = [similarity([b["A"], b["B"]], [f["A"], f["B"]]) for i, f in enumerate(fits) if i != best]
-    loao = {}
-    for a in np.unique(animals):
+    loao_res = {}
+    for a in (np.unique(animals) if loao else []):          # --no-loao: a rank sweep ("how many is enough")
         m = animals == a
         f = ncp_hals(X[~m], rank, seed=7 + rank, n_iter=n_iter)
         _, e_out, n2 = project_rows(X[m], f["A"], f["B"])
         _, e_in, _ = project_rows(X[m], b["A"], b["B"])
-        loao[str(a)] = {"held_out_err": float(np.sqrt(1 - pooled_evr(e_out, n2))),
+        loao_res[str(a)] = {"held_out_err": float(np.sqrt(1 - pooled_evr(e_out, n2))),
                         "in_fit_err": float(np.sqrt(1 - pooled_evr(e_in, n2))),
                         "similarity_to_full": similarity([b["A"], b["B"]], [f["A"], f["B"]])}
-        print(f"  leave out {a}: held-out err {loao[str(a)]['held_out_err']:.4f} vs in-fit "
-              f"{loao[str(a)]['in_fit_err']:.4f}, factor similarity {loao[str(a)]['similarity_to_full']:.3f}", flush=True)
+        print(f"  leave out {a}: held-out err {loao_res[str(a)]['held_out_err']:.4f} vs in-fit "
+              f"{loao_res[str(a)]['in_fit_err']:.4f}, factor similarity {loao_res[str(a)]['similarity_to_full']:.3f}",
+              flush=True)
     np.savez(sd / f"rank{rank:02d}.npz", A=b["A"], B=b["B"], C=b["C"].astype(np.float32), best_init=best,
              rel_errs=np.array([f["rel_err"] for f in fits]), trace=b["trace"])
     summ = {"rank": rank, "rel_err": float(b["rel_err"]), "evr_uncentred": float(1 - b["rel_err"] ** 2),
             "rel_errs": [float(f["rel_err"]) for f in fits], "best_init": best,
-            "stability_median": float(np.median(stab)) if stab else None, "stability": stab, "loao": loao,
+            "stability_median": float(np.median(stab)) if stab else None, "stability": stab, "loao": loao_res,
             "minutes": (time.time() - t0) / 60}
     (sd / f"rank{rank:02d}.json").write_text(json.dumps(summ, indent=1))
     print(f"rank {rank}: err {b['rel_err']:.4f}, EVR {summ['evr_uncentred']:.3f}, stability "
@@ -898,6 +899,10 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match
         for pos in np.unique(z["position"]):
             tc.setdefault(str(pos), []).append(np.nanmean(tr[z["position"] == pos], 0))
     unit = "ABSOLUTE (x D)" if absolute else "share"
+    # units: weight = the factor's amplitude in the bin (spatial + spectral columns unit-norm) on the spectrogram (VQT
+    # magnitude of point displacement x f^0.5) divided by the animal's ONE scale (RMS of its pre fit rows); x D undoes
+    # FR's per-frame normalisation. Comparable within an animal across sessions; NOT a physical unit.
+    ylab = "a.u. (weight x D; per-animal scale)" if absolute else "a.u. (weight = share of the frame; per-animal scale)"
     img = plt.imread(face) if face and Path(face).exists() else None
     fig, axs = plt.subplots(R, 4, figsize=(17, 3.0 * R), gridspec_kw={"width_ratios": [1, 1, 1, 1.5]})
     for k, (aw, a0, a1, a2) in enumerate(np.atleast_2d(axs)):
@@ -917,11 +922,13 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match
         a0.set_title("HOW: blue = lateral, red = vertical\n(opacity + size = weight)", fontsize=8)
         a1.plot(freqs, B[:, k])
         a1.set_xscale("log")
-        a1.set(xlabel="Hz")
+        a1.set(xlabel="Hz", ylabel="spectral weight (unit norm)")
         a1.set_title(f"spectrum: peak {freqs[np.argmax(B[:, k])]:.1f} Hz", fontsize=8)
         for pos, xs in sorted(tc.items()):
             a2.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k], lw=1, label=f"{pos} (n={len(xs)})", **position_style(pos))
         a2.axvline(0, color="k", lw=0.5)
+        a2.set(xlabel="s from cue", ylabel=ylab)
+        a2.yaxis.label.set_size(7)
         a2.set_title(f"pre-stroke trials by position, {unit} (cue = 0 s)", fontsize=8)
         if k == 0 and tc:
             a2.legend(fontsize=6, ncol=2)
@@ -938,17 +945,23 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match
         for k in range(R):
             for j, an in enumerate(ans):
                 ax = axs[k, j]
+                pre = ep_tc.get((an, "pre"))                    # each animal x factor: pre-stroke mean curve max = 1
+                ref = float(np.nanmax(np.nanmean(pre, 0)[:, k])) if pre else np.nan
                 for e in eps:
                     xs = ep_tc.get((an, e))
                     if xs:
-                        ax.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k], color=col[e], lw=1.1, label=f"{e} ({len(xs)})")
+                        ax.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k] / ref, color=col[e], lw=1.1,
+                                label=f"{e} ({len(xs)})")
                 ax.axvline(0, color="k", lw=0.5)
+                ax.axhline(1, color="0.7", lw=0.5, ls=":")
+                if j == 0:
+                    ax.set_ylabel("rel. to pre max", fontsize=7)
                 ax.set_title(f"{an} factor {k} {names[str(k)].split(' ~ ')[-1][:40]}", fontsize=7)
                 if k == 0:
                     ax.legend(fontsize=6)
-        fig.suptitle(f"{M['set']}: cue-aligned {unit} expression by epoch (mean of session means; all engaged trials)",
-                     fontsize=9)
-        fig.tight_layout()
+        fig.suptitle(f"{M['set']}: cue-aligned {unit} expression by epoch\nnormalised per animal x factor: pre-stroke "
+                     f"mean curve max = 1 (mean of session means; all engaged trials)", fontsize=9)
+        fig.tight_layout(rect=(0, 0, 1, 0.985))
         fig.savefig(rd / f"factor_epochs{'_abs' if absolute else ''}.png", dpi=100)
         plt.close(fig)
     print(f"report -> {rd}")
@@ -983,6 +996,7 @@ def main(argv=None) -> int:
     ap.add_argument("--role", default="master", choices=("master", "pilot"),
                     help="plan: 'pilot' for a restricted set (stamped into plan + master.npz; never the cohort master)")
     ap.add_argument("--no-loso", action="store_true", help="plan: no leave-one-pre-session-out jobs")
+    ap.add_argument("--no-loao", action="store_true", help="fit: skip leave-one-animal-out (a plain rank sweep)")
     ap.add_argument("--own-inits", type=int, default=3, help="fitsession: random starts of the session's own fit")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
@@ -998,7 +1012,7 @@ def main(argv=None) -> int:
             from wfield_local.paths import PathResolver
             sd = oi.bundle_dir(PathResolver(), a.bundle) / "factors" / a.set
     task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "loso") else None)
-    {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank), "select": lambda: cmd_select(sd, a.rank),
+    {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank, not a.no_loao), "select": lambda: cmd_select(sd, a.rank),
      "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits),
      "loso": lambda: cmd_loso(sd, task),
      "report": lambda: cmd_report(sd, a.face, a.absolute, a.match)}[a.cmd]()
