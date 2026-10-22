@@ -89,6 +89,8 @@ def main(argv=None) -> int:
     qc = E / "qc"
     assert_writable(qc)
     tag = "" if a.align == "cue" else "_lick"
+    if a.folder != ap.get_default("folder"):          # another run (e.g. frozen_encoder_<tag>/<variant>): its own files
+        tag = "_" + a.folder.replace("/", "_").replace("\\", "_") + tag
     T.to_csv(qc / f"lp_encoder_decompose{tag}.csv", index=False, float_format="%.5g")
     D.to_csv(qc / f"lp_encoder_decompose{tag}_by_animal.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 220)
