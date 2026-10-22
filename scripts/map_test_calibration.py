@@ -129,7 +129,9 @@ def run(store, tag, a, CONF_LABELS, parallel, PathResolver, assert_writable) -> 
     for it, err in fail:
         print("FAILED", it[0], it[1], it[4], err)
     D = pd.DataFrame([r for _, r in res]).sort_values(["comparison", "position", "norm"])
-    out = Path(PathResolver().root("labcams")) / "grant_figures" / "epoch" / "results"
+    from wfield_local import lp_licks
+    # LP_licks / matched-ENL runs write under their own tag (grant_figures/LP_licks/epoch/results)
+    out = lp_licks.output_dir(Path(PathResolver().root("labcams")) / "grant_figures" / "epoch") / "results"
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     f = out / (f"map_test_calibration_{a.align}_{a.variant}.csv" if a.family == "beta"
