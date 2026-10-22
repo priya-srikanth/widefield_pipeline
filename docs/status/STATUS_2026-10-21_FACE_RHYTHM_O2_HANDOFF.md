@@ -13,7 +13,10 @@ tests). WHY: `docs/FACE_RHYTHM_PLAN.md` + DECISIONS.md 10-21 evening. This secti
 **1. O2 production: array 57168778** (4 workers x 4 threads, 72 GB, 9 h, `%24`). At ~21:00: 3 tasks done (PS92_0806,
 PS92_0812 v1 / v2), 1-24 running at 29-34 fps / worker (~82 min per round of 4 segments: 9-12 segments ~4.1 h, 13-16
 ~5.5 h), violations 0.000 everywhere, worker peaks 6-11.6 GB, finished tasks MaxRSS 30-32 GB (sacct `.batch` line).
-Expect the whole array ~20 h (fair share may slow the tail). Tasks 21-23 resumed segments from the cancelled 8 x 2 array.
+Expect the whole array ~20 h (fair share may slow the tail). **Check at ~22:30: 6 done** (tasks 1, 2, 6, 7, 21, 22; all
+violations 0, trials 100 % filled), no failures / lost segments; the first FULL-length task (2, 13 segments, 2.0 h)
+peaked at **54 GB** MaxRSS of 72 (the logs' "peak ~62-65 GB" is a pessimistic sum). `sacct` needs `JobID%20` for
+tasks >= 10 (the 16-char column truncates them). Tasks 21-23 resumed segments from the cancelled 8 x 2 array.
 Check / resubmit: "PRODUCTION RUNNING" below. Status commands: `sstat` needs the RAW job id
 (`sacct -j 57168778 -X -n -s RUNNING -o JobIDRaw` -> `sstat -j <raw>.batch`); finished: `sacct ... | grep batch`.
 **Faster defaults for FUTURE runs are committed** (8 workers x 4 threads, 5-min segments, 12 GB / worker + 24,
