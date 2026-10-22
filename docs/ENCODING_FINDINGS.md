@@ -242,6 +242,38 @@ uncrossed far-spout signal in the drop-p maps is a residual of the movement-firs
 lick direction; not separable here). Around licking the dominant per-spout pattern is gain on a shared network
 (midline spouts > lateral), not topography.
 
+### 3.3 Epoch change of the position activity maps, LP lick attempts — PROVISIONAL (10-21 night)
+
+Family 15r (trial-average position maps, no model) re-gated on VIDEO lick attempts (LP_licks: cam4 + cam1 licks,
+trial = hit / incomplete attempt within max_rt, lick-aligned = first LP lick onset, ENL lick-free window 1.0 s) instead
+of spout contact. `labcams/grant_figures/LP_licks/epoch/` (corner-stamped); calibration `.../LP_licks/epoch/results/`.
+Numbers: % of 2,022 bins flagged by the nested bootstrap (pre-normalised), rest reference; amplitude = acute / pre.
+- **Acute far contra is now measurable around the lick.** Contact gating left 0 acute sessions above the 20-trial
+  floor; LP gives 4 animals / 15 sessions / 778 trials. Post-lick activity is LOWER than pre (amplitude 0.70; 19.7 % of
+  bins; restw 17.8 %, precue 17.3 %), against a June-vs-August drift of <= 1.4 % at that position. Every other position
+  goes UP acutely (near ipsi 1.50, near contra 1.34, near mid 1.28). Per animal (rest ref, mean change / pre mean,
+  ipsi | contra hemisphere): PS92 -55 | -49 %, PS93 -48 | -48 %, PS94 -38 | -27 %, **PS95 +2 | +36 %** -- 3/4,
+  bilateral; PS95's acute cell is ONE session / 37 trials. The pooled outline looks ipsi-dominant only because PS95's
+  contra increase cancels the others' contra drop: per animal the drop is bilateral.
+- **The cue-window drop is unchanged by the gate** (far contra 60 % of bins, amplitude 0.48 under both; 4/4 animals,
+  -40..-63 %, bilateral). So acutely the far-contra trial is about half as active from the cue on, and stays ~30 %
+  below pre after the attempt.
+- **Contact gating had inflated acute post-lick amplitude at the far spouts** (it kept only the licks that reached the
+  spout): far mid 1.33 -> 1.03, far ipsi 1.40 -> 1.25 (9.5 -> 3.1 % of bins); subacute far contra 12.4 % -> 0.8 %
+  (1.18 -> 1.01). Near spouts and all chronic cells barely move (chronic far contra 15.0 -> 16.4 %, amplitude 1.03).
+- **Chronic:** far contra back to pre amplitude (1.03) in PS92-PS94 (per animal within +-7 %); PS95 +16 % contra.
+  The chronic difference maps share one bilateral frontal increase / posterior-medial decrease at every position.
+- **Not yet read as coding.** These are activity maps: a smaller or incomplete lick (incomplete licks rise post-stroke,
+  2.5) evokes less movement activity, so the far-contra drop may be the executed movement, not the target code. That
+  question is 2.x's (movement-first encoder), which has not yet been rerun on LP gating. ENL window: LP 6.1 % vs
+  contact 16.8 % at far contra, but the windows differ (1.0 vs 2.0 s) -- not comparable until the DAQ 1.0 s arm.
+
+**How to read the outlines (all map families).** Nested-bootstrap outlines (black) are bin-level family-wise
+significant: they localise -- each outlined bin changed. Their EXTENT is a lower bound that depends on power (n = 4
+animals), not a measured area; an unflagged bin is not evidence of no change, and "19 % vs 6 % of bins" is descriptive,
+not a test of a difference. Cluster-permutation outlines support only "a change exists" (cluster-level control; false
+clusters are large in area), not where it stops.
+
 ## 4. Recovery
 
 ### 4.1 Chronic position-coding gain — STANDS
@@ -282,12 +314,17 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
   (primary) flags nothing on any pure null (figure 14 beta maps and all three 15r position windows); the cluster test
   is roughly calibrated (2 / 24 random splits) but its false clusters are LARGE on rest / restw maps -> read cluster
   contours as yes / no, not by area. June vs August pre (no stroke) shows up to ~21 % 'change' at a few positions:
-  the August-only baseline is the right one. Acute far contra survives everything (58-93 %); normalising removes
-  changes carried by the brighter animals (acute far_center 23 % -> 0.1 % on figure 14).
-- **Lick-window imaging analyses use spout CONTACT (10-21 evening).** Acute far contra has too few contact licks for
-  any lick-aligned map (0 sessions reach 20 trials). The LP_licks family (video lick attempts, cam4 + cam1) is built
-  on a branch; pre-stroke the two definitions agree except PS93 far_ipsi / far_mid (27 % / 14 % non-contact attempts).
-  ENL 'lick-free' with LP licks: a 2 s window keeps ~67 % of trials in PS93's worst session (91 % by contact).
+  the August-only baseline is the right one. Acute far contra survives everything (58-93 %). Normalising mostly
+  shrinks acute near-spout changes under the precue reference (lick near contra 36.7 -> 6.5 %; figure 14 far mid,
+  cue, 20.0 -> 1.9 %). (An earlier line here said normalising removes changes "carried by the brighter animals":
+  withdrawn 10-21 -- the per-animal check does not support it.) All map statistics are animal-weighted.
+- **Lick-window imaging analyses use spout CONTACT unless tagged LP_licks (10-21).** Contact gating selects the
+  licks that landed: acute far contra has 0 sessions with 20 contact trials, and acute far-spout post-lick amplitudes
+  are inflated (3.3). The LP_licks family (video attempts, cam4 + cam1; outputs under `grant_figures/LP_licks/`) fixes
+  both; pre-stroke the two definitions agree except PS93 far_ipsi / far_mid (27 % / 14 % non-contact attempts). LP
+  'lick-free' ENL needs a 1.0 s window (>= 95 % of trials kept; 2 s keeps 48-73 % in PS93). LP null calibration
+  (10-21 night, 312 pure-null tests): nested flags >= 1 bin in 1.6 % (mostly 1-7 bins), cluster max 27 % of area.
+  cam1 is not finished (74/108 curated sessions; PS95 none) -- LP licks there are cam4 only; revisit when cam1 lands.
 
 ## 6. Where to look
 
@@ -312,9 +349,16 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 3. Binned contest (`COMBINED_ENCODING_BINS`) on PS92 polar, then in the cohort 3-D contest; within-spout deviation
    check (`scripts/within_spout_deviation.py`) cam4 cohort running 10-20, 3-D version with the cohort 3-D tables.
 4. Pre-cue -> lick-window carry-over decode (cross-window, from the CD code).
+4b. LP_licks (3.3): DAQ 1.0 s ENL arm (makes the ENL window comparable, freezes 1.0 s precue decoders); LP-gated
+    movement-first encoder (is the acute far-contra post-lick drop the executed movement or the target?); PS93
+    far_ipsi / far_mid frozen sensitivity (`WIDEFIELD_LP_FROZEN=lp`); rerun when cam1 finishes (PS95 has none).
 5. Deferred: non-linear ceiling check.
 
 ## Change log
+
+- **2026-10-21 (night)** — 3.3 added: 15r position maps under LP lick attempts (acute far contra measurable: post-lick
+  activity below pre in 3/4, bilateral; contact gating had inflated acute far-spout amplitudes); LP null calibration;
+  how to read nested vs cluster outlines; "brighter animals" normalisation claim withdrawn.
 
 - **2026-10-21** — trial attempts + time-to-contact deficit; 3-D contest + template rerun (2.4b); destination vs 3-D
   landing (2.4c); jaw-onset rewrite rerun; within-spout per spout + contact control (pooled toward-midline not

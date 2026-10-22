@@ -21441,3 +21441,18 @@ CHECKED: cached maps bit-identical to direct (15r PS94_0820 lick; 14 PS93_0819 c
 with 4 workers (share-I/O bound), warm 0.13 s / session (~100x); 14 cold 3.6 s, warm 0.03 s. Suite 3436 passed.
 Expected: cold full render ~1 h with --parallel-arms 3; warm (tests / figures only) ~10-20 min. Cache size ~18-30 GB on
 C: (396 GB free). First render after the merge pays the cold build once.
+
+## 2026-10-21 (night) -- LP_licks first results: acute far-contra post-lick activity measurable, contact gating biased far spouts
+
+Family 15r + 14m rendered under `WIDEFIELD_LICK_SOURCE=lp` (`labcams/grant_figures/LP_licks/epoch/`). First parallel
+render dropped 4 June pre sessions (result_cache race, fixed 882db3f); rerendered from the fix; only PS93_0813 (no video)
+is absent. LP null calibration (`.../LP_licks/epoch/results/`, summary `calibration_LP_vs_DAQ_summary.csv`): pure nulls
+312 tests, nested >= 1 bin flagged in 5 (1.6 %, mostly 1-7 / 2022 bins; worst 28), cluster 4 (max 27 % area). Drift at
+far contra <= 1.4 %. READ: acute far contra (lick window) is measurable under LP (4 an / 15 sess / 778 trials; DAQ 0
+sessions) and post-lick activity is BELOW pre (amplitude 0.70; 19.7 % of bins rest ref) in PS92 / PS93 / PS94, bilateral
+per animal; PS95 opposite on ONE session / 37 trials. Cue window unchanged by the gate (60 %, 0.48). Contact gating had
+INFLATED acute far-spout post-lick amplitude (far mid 1.33 -> 1.03, far ipsi 1.40 -> 1.25; subacute far contra 12.4 % ->
+0.8 % of bins). Status PROVISIONAL: activity maps, not coding -- smaller / incomplete attempts evoke less movement
+activity; the LP-gated movement-first encoder is the test. Outline reading rule recorded in ENCODING_FINDINGS 3.3:
+nested outlines localise (bin-level FWER), extent is a power-dependent lower bound; cluster outlines are yes / no.
+Also withdrawn: the "normalising removes changes carried by the brighter animals" line (per-animal check disagrees).
