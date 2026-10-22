@@ -94,11 +94,12 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 220)
     cols = ["n_post", "pre_data", "d_data", "d_full", "d_task", "d_pos_part", "d_instructed", "d_uninstructed", "d_residual"]
     print(f"{len(sess)} sessions; lick sets: {T.drop_duplicates('label').lick_set.value_counts().to_dict()}")
+    win, base = (LICK_WIN_S, LICK_BASE_S) if a.align == "lick" else (WIN_S, BASE_S)
     for reg in ("cortex", "SSp-m_left", "SSp-m_right"):
-        print(f"\n=== {reg}: evoked ({WIN_S} minus {BASE_S} s post-cue), epoch minus pre, per animal")
+        print(f"\n=== {reg}: evoked ({win} minus {base} s from {a.align}), epoch minus pre, per animal")
         S = D[(D.region == reg) & (D.epoch.isin(["acute", "chronic"]))].set_index(["pos", "epoch", "animal"])[cols]
         print((S.assign(**{c: S[c] * 1e3 for c in cols if c != "n_post"})).round(2).to_string())
-    print(f"\n-> {qc / 'lp_encoder_decompose_by_animal.csv'}  (values x1e3 above)")
+    print(f"\n-> {qc / f'lp_encoder_decompose{tag}_by_animal.csv'}  (values x1e3 above)")
     return 0
 
 
