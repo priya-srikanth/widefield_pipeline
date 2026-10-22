@@ -847,6 +847,84 @@ def cmd_collect(name: str) -> None:
     print(f"collected {len(I)} of {len(T)} -> {dst}")
 
 
+def _fr_helpers():
+    """npz_memmap + the mesh triangle helpers, shared with face_rhythm_factors / face_rhythm_mesh_qc (run as a script
+    from scripts/, or imported as scripts.*)."""
+    try:
+        import face_rhythm_factors as ff
+        import face_rhythm_mesh_qc as mq
+    except ImportError:
+        from scripts import face_rhythm_factors as ff
+        from scripts import face_rhythm_mesh_qc as mq
+    return ff.npz_memmap, mq.mesh_triangles, mq.signed_area
+
+
+def tracking_qc(points_npz: Path, step: int = 25) -> dict:
+    """AFTER-tracking QC of one task from its 25 Hz points output, sampled every ``step`` bins (25 = 1 Hz): mesh folds
+    (fraction of home Delaunay triangles whose orientation flipped, per sampled bin), frozen (violating) points,
+    displacement from home. The before-tracking counterpart is face_rhythm_mesh_qc.py."""
+    npz_memmap, mesh_triangles, signed_area = _fr_helpers()
+    with np.load(points_npz) as z:
+        home = z["home"].astype(float)
+    disp = npz_memmap(points_npz, "disp")
+    viol = np.asarray(npz_memmap(points_npz, "viol_frac"), float)
+    ix = np.arange(0, disp.shape[0], step)
+    D = np.asarray(disp[ix], float)                                      # (n, P, 2)
+    ok = np.isfinite(D).all(axis=(1, 2))
+    tri = mesh_triangles(home)
+    flip = (np.sign(signed_area(home[None] + D[ok], tri)) != np.sign(signed_area(home, tri))[None]).mean(1)
+    mag = np.hypot(D[ok, :, 0], D[ok, :, 1])
+    return {"fold_frac_mean": float(flip.mean()), "fold_bins_frac": float((flip > 0).mean()),
+            "fold_frac_p99": float(np.percentile(flip, 99)), "viol_frac_mean": float(np.nanmean(viol)),
+            "disp_med_px": float(np.median(mag)), "disp_p99_px": float(np.percentile(mag, 99)),
+            "n_sampled": int(ok.sum())}
+
+
+def cmd_qc(name: str, step: int = 25) -> None:
+    """Tracking QC for every finished task, by animal x epoch (is post-stroke tracking as clean as pre?) ->
+    ``<dlc>/face_rhythm/cam4/o2_<name>_qc.png`` + table (figure_layout data/)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local import epochs, figure_layout, writeguard
+    from wfield_local import o2_inference as oi
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    d = oi.bundle_dir(rv, name)
+    T = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
+    rows = []
+    for r in T.itertuples():
+        f = d / "out" / f"{r.key}_points.npz"
+        if not f.exists():
+            continue
+        lab = f"{r.animal}_{r.date[4:]}"
+        rows.append({"key": r.key, "animal": r.animal, "date": r.date, "epoch": epochs.epoch_of(lab),
+                     "day": epochs.days_since_stroke(lab), **tracking_qc(f, step)})
+    if not rows:
+        print("no points outputs yet")
+        return
+    Q = pd.DataFrame(rows)
+    out = Path(rv.root("dlc")) / "face_rhythm" / CAM
+    writeguard.assert_writable(out)
+    Q.to_csv(figure_layout.sidecar_for(out, f"o2_{name}_qc", ".csv"), index=False, float_format="%.4g")
+    order = ["pre", "acute", "subacute", "chronic"]
+    print(Q.groupby(["animal", "epoch"])[["fold_frac_mean", "fold_bins_frac", "viol_frac_mean", "disp_med_px"]]
+          .mean().round(4).to_string())
+    cols = ("fold_frac_mean", "fold_bins_frac", "viol_frac_mean", "disp_med_px", "disp_p99_px")
+    fig, axs = plt.subplots(1, len(cols), figsize=(3.2 * len(cols), 3))
+    for ax, c in zip(axs, cols):
+        for an, g in Q.groupby("animal"):
+            ax.plot(g.day, g[c], "o", ms=3, label=an)
+        ax.axvline(0.5, color="k", lw=0.5)
+        ax.set(xlabel="days since stroke", title=c)
+    axs[0].legend(fontsize=6)
+    fig.suptitle(f"{name}: tracking QC ({len(Q)} tasks; sampled every {step} bins of 25 Hz); epochs {order}", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(out / f"o2_{name}_qc.png", dpi=110)
+    plt.close(fig)
+    print(f"qc: {len(Q)} tasks -> {out / f'o2_{name}_qc.png'}")
+
+
 def cmd_paramtest(name: str, user: str, key: str, n_frames: int = 30000, only: list[str] | None = None) -> None:
     """Write the parameter test into an existing bundle: param_sets/*.json, fr_param_test.py (+ the current runner),
     run_param_test.sbatch (one array index per set) on the ``n_frames`` window of task ``key`` that covers the most
@@ -1085,6 +1163,9 @@ def main(argv=None) -> int:
     b.add_argument("sessions", nargs="*", help="animal:YYYYMMDD (default: every curated session with v36 windows)")
     c = sub.add_parser("collect")
     c.add_argument("--name", required=True)
+    q = sub.add_parser("qc", help="tracking QC (mesh folds, frozen points, displacement) by animal x epoch")
+    q.add_argument("--name", required=True)
+    q.add_argument("--step", type=int, default=25, help="sample every N 25 Hz bins (25 = 1 Hz)")
     t = sub.add_parser("paramtest", help="write the tracking-parameter test into a bundle")
     t.add_argument("--name", required=True)
     t.add_argument("--user", required=True)
@@ -1102,6 +1183,8 @@ def main(argv=None) -> int:
         cmd_paramtest(a.name, a.user, a.key, a.frames, a.sets)
     elif a.cmd == "paramscore":
         cmd_paramscore(a.name, a.src)
+    elif a.cmd == "qc":
+        cmd_qc(a.name, a.step)
     else:
         cmd_collect(a.name)
     return 0

@@ -45,8 +45,8 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--bundle", default=fro.BUNDLE)
     ap.add_argument("--band", default="all", choices=tuple(frr.BANDS))
-    ap.add_argument("--midline-x", type=float, default=None, help="image x of the face midline (default: median "
-                                                                   "of the master mesh)")
+    ap.add_argument("--midline-x", type=float, default=None, help="image x of the face midline (default: "
+                                                                   "frr.MASTER_MIDLINE_X, the master's LP nose)")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--fdir", type=Path, default=None, help="factor-set folder (default: <bundle>/factors/<set>)")
     a = ap.parse_args(argv)

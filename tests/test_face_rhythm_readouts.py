@@ -37,6 +37,6 @@ def test_amplitude_windows_and_split_session_join(tmp_path):
 def test_asymmetry_sign_contra_is_image_left(tmp_path):
     (tmp_path / "proj").mkdir()
     _proj(tmp_path / "proj" / "PS93_20260810_cam4.npz", "20260810", left_power=3.0, right_power=1.0)
-    S, maps = frr.movement(tmp_path, HOME, np.array([1.0, 5.0, 20.0]))
+    S, maps = frr.movement(tmp_path, HOME, np.array([1.0, 5.0, 20.0]), midline_x=50.0)
     assert maps["ipsi_mask"].tolist() == [False, False, True, True]
     assert np.isclose(S["asym_response"].iloc[0], (3 - 1) / (3 + 1))    # more CONTRAlesional movement -> positive

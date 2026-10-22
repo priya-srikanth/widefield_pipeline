@@ -14,7 +14,7 @@ ACROSS animals (one mesh, one frozen pre-stroke basis):
   movement       per-point movement power (scaled spectrogram, summed over xy and a frequency band) per window ->
                  log2 change from the animal's pre-stroke mean per point (maps on the master face, averageable across
                  animals), and a CONTRA - IPSI asymmetry index. cam4: IPSILESIONAL = IMAGE RIGHT (Priya 10-21; all
-                 lesions left), split at the master mesh's midline (median home x unless given).
+                 lesions left), split at the face midline (MASTER_MIDLINE_X, the master's LP nose x, unless given).
 One row per SESSION (a two-video session, PS92_0812, is joined). Epoch statistics: `orofacial_cohort.epoch_tables`
 (per-animal epoch means + paired animal-weighted `boot_delta` vs pre) -- print the per-animal table first (rule 8).
 """
@@ -28,6 +28,9 @@ import pandas as pd
 WINDOWS = {"precue": (-2.0, 0.0), "response": (0.0, 4.0)}
 BUSY_S = (-3.0, 6.0)
 BANDS = {"all": (0.0, 1e9), "slow": (0.0, 3.0), "rhythm": (3.0, 12.0), "fast": (12.0, 1e9)}
+#: face midline on the master (PS95_20260812) image: LP v36 nose x, median over pre-cue frames (likelihood > 0.9;
+#: 10-21: nose 342.0, jaw 357.2, mesh median 350.0 -- the jaw sits off-centre, the nose tip is the midline marker).
+MASTER_MIDLINE_X = 342.0
 
 
 def _label(animal: str, date: str) -> str:
@@ -145,7 +148,7 @@ def movement(fdir: Path, home: np.ndarray, freqs: np.ndarray, midline_x: float |
     """Per session: contra / ipsi power and the asymmetry (contra - ipsi) / (contra + ipsi) per window; and per animal
     x epoch the per-point log2(epoch mean / pre mean) maps. cam4 IPSILESIONAL = IMAGE RIGHT (x > midline)."""
     labels, pw = point_power(fdir, freqs, band)
-    mid = float(np.median(home[:, 0]) if midline_x is None else midline_x)
+    mid = float(MASTER_MIDLINE_X if midline_x is None else midline_x)
     ipsi = home[:, 0] > mid
     rows = []
     for i, lab in enumerate(labels):

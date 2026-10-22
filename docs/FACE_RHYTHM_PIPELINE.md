@@ -11,7 +11,7 @@ the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bi
 | 1 | session frames, registration to the master face (PS95_20260812, pre-stroke) | `scripts/face_rhythm_prep.py`, `face_rhythm_register.py` | desktop | `<dlc>/face_rhythm/cam4/{frames,register}/` |
 | 2 | master ROI (face + mask polygons; Priya) | `notebooks/face_rhythm_draw_roi.ipynb` (JupyterLab, fr env) | desktop | `rois/PS95_20260812/ROIs.h5` |
 | 3 | mesh at 12 px warped to every session | `scripts/face_rhythm_warp_rois.py to-sessions`; QC `face_rhythm_mesh_qc.py` | desktop | `rois/<a>_<d>/ROIs.h5`, `rois_qc_12px_*/` |
-| 4 | tracking + spectrograms (one task = session x video) | `scripts/o2_face_rhythm.py bundle / collect` (runner `fr_runner.py`) | O2 array | `<bundle>/out/<key>_{trials,session,points}.npz` |
+| 4 | tracking + spectrograms (one task = session x video) | `scripts/o2_face_rhythm.py bundle / collect / qc` (runner `fr_runner.py`) | O2 array; collect + qc desktop | `<bundle>/out/<key>_{trials,session,points}.npz`; `qc`: mesh folds / frozen points / displacement by animal x epoch -> `<dlc>/face_rhythm/cam4/o2_<name>_qc.png` |
 | 5 | master PRE-STROKE factor set (frozen) | `scripts/face_rhythm_factors.py plan / build / fit / report / select` | plan, report, select: desktop; build, fit: O2 | `<bundle>/factors/<set>/master.npz` |
 | 6 | every session on the frozen set + its own fit | `face_rhythm_factors.py project / fitsession` | O2 arrays | `<set>/proj/<key>.npz`, `<set>/own/<key>.npz` |
 | 7 | session readouts | `scripts/face_rhythm_readouts.py` (computation: `wfield_local/face_rhythm_readouts.py`) | desktop | `<dlc>/face_rhythm/cam4/readouts/<set>/` (figures; CSVs in `data/`) |
@@ -40,7 +40,7 @@ the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bi
 ## Conventions
 
 * **cam4 ipsilesional = IMAGE RIGHT** (all lesions left; brain maps are the other way). Readouts split the mesh at its
-  midline (median home x unless `--midline-x`).
+  midline: x = 342, the master's LP nose (`face_rhythm_readouts.MASTER_MIDLINE_X`; `--midline-x` overrides).
 * **Scaling:** one scalar per animal (RMS of its pre-stroke fit rows), applied to every session of that animal -- removes
   face size, keeps post-stroke amplitude changes.
 * **EVR** is uncentred, 1 - |S - S^|^2 / |S|^2 (the paper's definition).
@@ -57,6 +57,7 @@ rsync -ah <scratch bundle>/out/ <share bundle>/out/
 rsync -ah <share bundle>/factors/ <scratch bundle>/factors/
 # desktop
 python scripts/o2_face_rhythm.py collect --name fr_cam4_20261021
+python scripts/o2_face_rhythm.py qc --name fr_cam4_20261021        # post-stroke tracking as clean as pre?
 # O2: master fit
 sbatch <scratch bundle>/factors/master_pre_v1/run_build.sbatch
 sbatch --dependency=afterok:<build id> <scratch bundle>/factors/master_pre_v1/run_fit.sbatch     # ranks 6-16
@@ -86,4 +87,4 @@ readouts; names only, no effect on numbers).
 
 `tests/test_face_rhythm_factors.py` (synthetic bundle: planted factors recovered, freeze guard, project / fitsession /
 movement power), `tests/test_face_rhythm_readouts.py` (windows, contra / ipsi sign, split-session join),
-`tests/test_face_rhythm_outputs.py` (loader), `tests/test_combined_encoding_options.py` (`_fr-<set>` folders).
+`tests/test_face_rhythm_outputs.py` (loader), `tests/test_face_rhythm_tracking_qc.py` (fold counting), `tests/test_combined_encoding_options.py` (`_fr-<set>` folders).
