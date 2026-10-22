@@ -384,6 +384,13 @@ retrain (O2 jobs running), cam1 scoring / cleaned clips, the cam1 mouth = L/R sp
 apparatus mouth and spout set-point jitter, cam4 LP r4 eps35, pending jobs + copy-back commands, pitfalls. Register:
 `docs/POSE_MODELS.md` (Parts B-D).
 
+**[`docs/status/STATUS_2026-10-22_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-22_ENCODING_HANDOFF.md)**
+— **START HERE for the encoding model, newest (10-22).** LP_licks results (maps, calibration, frozen decoders, matched
+1.0 s ENL arm), the FROZEN pre-stroke encoder (`wfield_local/frozen_encoder.py`: groups task / directionless movement /
+direction / contact, variants incl. ordered bounds and no-movement, frozen drop-one-spout, Musall frame / single-trial /
+trial-averaged R2), FaceRhythm pilot in the encoder, running chain, next steps, pitfalls. Rules / pitfalls / commands
+of 10-21 still apply.
+
 **[`docs/status/STATUS_2026-10-21_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-21_ENCODING_HANDOFF.md)**
 — **START HERE for the encoding model, newest (10-21).** Attempt-based deficit (time to contact), target vs execution
 vs neither (3-D contest, templates, destination), within-spout per spout + contact control (pooled toward-midline NOT
