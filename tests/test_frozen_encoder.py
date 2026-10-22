@@ -123,3 +123,21 @@ def test_drop_transform_reproduces_encoder_drop_columns():
         want = np.hstack([extra] + [Xq[q] - frac[q] / (1 - frac["b"]) * (shared - Xq["b"]) for q in order if q != "b"])
         np.testing.assert_allclose(got, want, atol=1e-12)
         assert list(col_var[keep]) == ["cue"] + [var] * (w * 2)
+
+
+def test_musall_r2_splits_condition_and_single_trial():
+    """A prediction equal to each spout's mean response: avg R2 = 1, trial R2 = 0 (nothing single-trial)."""
+    rng = np.random.default_rng(5)
+    pos = np.repeat(["a", "b", "c"], 20)
+    mean = {q: rng.normal(size=(8, 2)) for q in "abc"}
+    D = np.stack([mean[q] + 0.3 * rng.normal(size=(8, 2)) for q in pos])
+    P = np.stack([mean[q] for q in pos])
+    D_mean = {q: D[pos == q].mean(0) for q in "abc"}
+    P = np.stack([D_mean[q] for q in pos])                       # the data's own condition means
+    r = fe.musall_r2(D, P, pos)
+    np.testing.assert_allclose(r["avg"], 1.0, atol=1e-12)
+    np.testing.assert_allclose(r["trial"], 0.0, atol=1e-12)
+    assert (r["frame"] > 0).all() and (r["frame"] < 1).all()
+    r2 = fe.musall_r2(D, D.copy(), pos)                          # perfect prediction
+    for k in ("frame", "trial", "avg"):
+        np.testing.assert_allclose(r2[k], 1.0, atol=1e-12)

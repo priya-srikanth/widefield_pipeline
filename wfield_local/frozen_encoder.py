@@ -323,6 +323,45 @@ def _peth(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
     return np.nanmean(seg, 0).T                                   # (areas, off)
 
 
+#: MUSALL-STYLE READOUTS (Priya 10-22: "let's add trial to trial and task averaged r2 readouts a la musall"), per
+#: window aligned on the cue (0 .. 1.5 s) or the first post-cue lick (-0.1 .. +1.0 s), per area, held out like every
+#: frozen score: FRAME = every frame of every trial (condition-locked + single-trial variance; window offset free);
+#: TRIAL = each spout's mean segment removed from data AND prediction (single-trial variance only, Musall's
+#: "single-trial"); AVG = the per-spout mean segments only, offset free per area (Musall's "trial-averaged").
+MUSALL_WINDOWS = {"cue": (0.0, 1.5), "lick": (-0.1, 1.0)}
+
+
+def musall_r2(D: np.ndarray, P: np.ndarray, pos: np.ndarray) -> dict:
+    """D, P: (trials, t, areas) data / prediction segments (NaN = outside the record); pos: (trials,) spout labels.
+    -> {"frame", "trial", "avg": (areas,) R^2}."""
+    ok = np.isfinite(D) & np.isfinite(P)
+    D, P = np.where(ok, D, np.nan), np.where(ok, P, np.nan)
+
+    def r2(y, yh):
+        return 1.0 - np.nansum((y - yh) ** 2, axis=(0, 1)) / np.maximum(np.nansum(y ** 2, axis=(0, 1)), 1e-12)
+    Dc, Pc = D - np.nanmean(D, axis=(0, 1)), P - np.nanmean(P, axis=(0, 1))
+    out = {"frame": r2(Dc, Pc)}
+    Dd, Pd = D.copy(), P.copy()
+    Dm, Pm = [], []
+    for q in np.unique(pos):
+        m = pos == q
+        dm, pm = np.nanmean(D[m], 0, keepdims=True), np.nanmean(P[m], 0, keepdims=True)
+        Dd[m] -= dm
+        Pd[m] -= pm
+        Dm.append(dm[0])
+        Pm.append(pm[0])
+    out["trial"] = r2(Dd, Pd)
+    Dm, Pm = np.stack(Dm), np.stack(Pm)                         # (spouts, t, areas)
+    out["avg"] = r2(Dm - np.nanmean(Dm, axis=(0, 1)), Pm - np.nanmean(Pm, axis=(0, 1)))
+    return out
+
+
+def _segments(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
+    idx = frames[:, None] + off[None, :]
+    ok = (idx >= 0) & (idx < len(R))
+    return np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
+
+
 def predict_job(job):
     """Apply the animal's frozen models (one per variant) to one session; PETHs of data and each part, cue- and
     lick-aligned, written to <out>/<variant>/sessions/<label>.{npz,json}."""
@@ -378,6 +417,15 @@ def predict_job(job):
                 n_lick[p] = int(len(fl))
                 if len(fl):
                     peth_lick[ci, pi] = _peth(R, fl, off)
+        musall = {}
+        for al, (a0, a1) in MUSALL_WINDOWS.items():
+            fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+            keep = fr_ >= 0
+            if keep.sum() < 2:
+                continue
+            offm = np.arange(int(round(a0 * d["fs"])), int(round(a1 * d["fs"])))
+            mr = musall_r2(_segments(Rd, fr_[keep], offm), _segments(comp["full"], fr_[keep], offm), d["pos"][keep])
+            musall[al] = {k: [float(x) for x in v] for k, v in mr.items()}
         r2 = {}
         for w, wm in d["win"].items():
             y, yh = Rd[wm, ci_], comp["full"][wm, ci_]
@@ -390,7 +438,7 @@ def predict_job(job):
                 "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],
                 "gate": os.environ.get("OROFACIAL_GATE", "reference"), "lick_set": d["lick_set"],
                 "n_trials": d["n_trials"], "n_lick_aligned_by_pos": n_lick, "pos_order": pos_order,
-                "peth_parts": list(comp), "areas": fit["areas"], "frozen_r2_cortex": r2,
+                "peth_parts": list(comp), "areas": fit["areas"], "frozen_r2_cortex": r2, "r2_musall": musall,
                 "stats_version": STATS_VERSION}
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2
@@ -451,6 +499,36 @@ def summarise_drop(out: Path) -> None:
     print(f"\n-> {dd / 'frozen_dropspout_by_animal.csv'}")
 
 
+def summarise_musall(out: Path, variants) -> None:
+    """Per variant x animal x epoch x align x measure (frame / trial / avg) x area, mean over sessions (rule 8: animals
+    first) -> <out>/frozen_musall_r2{,_by_animal}.csv; prints cortex + contralesional SSp-m, both windows."""
+    import pandas as pd
+    rows = []
+    for v in variants:
+        for js in sorted((Path(out) / v / "sessions").glob("*.json")):
+            m = json.loads(js.read_text(encoding="utf-8"))
+            for al, d_ in (m.get("r2_musall") or {}).items():
+                for meas, vals in d_.items():
+                    for area, x in zip(m["areas"], vals):
+                        rows.append({"variant": v, "label": m["label"], "animal": m["animal"], "epoch": m["epoch"],
+                                     "align": al, "measure": meas, "area": area, "r2": x})
+    if not rows:
+        print("  (no Musall readouts)")
+        return
+    T = pd.DataFrame(rows)
+    A = T.groupby(["variant", "animal", "epoch", "align", "measure", "area"]).r2.mean().reset_index()
+    T.to_csv(Path(out) / "frozen_musall_r2.csv", index=False, float_format="%.4f")
+    A.to_csv(Path(out) / "frozen_musall_r2_by_animal.csv", index=False, float_format="%.4f")
+    pd.set_option("display.width", 240)
+    order = [e for e in ("pre", "acute", "subacute", "chronic") if e in set(A.epoch)]
+    for area in ("cortex", "SSp-m_left"):
+        S = A[A.area == area].pivot_table(index=["align", "measure", "variant"], columns=["animal", "epoch"], values="r2")
+        S = S.reindex(columns=pd.MultiIndex.from_product([sorted(set(A.animal)), order]))
+        print(f"\n=== frozen Musall-style R2, {area} (held out; pre = leave-one-session-out)")
+        print(S.round(3).to_string())
+    print(f"\n-> {Path(out) / 'frozen_musall_r2_by_animal.csv'}")
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import config, epochs
@@ -465,6 +543,7 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default="gate-attempted")
     ap.add_argument("--variants", nargs="+", default=list(VARIANTS), choices=VARIANTS)
     ap.add_argument("--no-drop-spout", action="store_true", help="skip the frozen drop-one-spout variants")
+    ap.add_argument("--reuse-stats", action="store_true", help="reuse fit/pre_stats.pkl (skip the pre statistics pass)")
     ap.add_argument("--summarise-drop", action="store_true", help="only rebuild the drop-spout table from saved files")
     a = ap.parse_args(argv)
     if a.summarise_drop:
@@ -476,15 +555,21 @@ def main(argv=None) -> int:
     assert_writable(out)
     pre = [x for x in labels if epochs.epoch_of(x) == "pre"]
     print(f"[frozen] {len(labels)} sessions, {len(pre)} August pre -> {out}", flush=True)
-    got, fail = ak.fan_sessions(pre, stats_job, jobs=a.jobs)
-    for it, err in fail:
-        print(f"  !! stats {it}: {err}", flush=True)
     import pickle
-    (out / "fit").mkdir(parents=True, exist_ok=True)
-    # the pre sessions' sufficient statistics are KEPT: the ordered (movement- / task-first) bounds are linear
-    # transforms of the same Gram terms, so they need no second pass over the data
-    (out / "fit" / "pre_stats.pkl").write_bytes(pickle.dumps([s for _l, s in sorted(got, key=lambda kv: kv[0])],
-                                                             protocol=pickle.HIGHEST_PROTOCOL))
+    sp = out / "fit" / "pre_stats.pkl"
+    if a.reuse_stats and sp.exists():                    # a re-scoring run: the pre statistics are already saved
+        saved = pickle.loads(sp.read_bytes())
+        got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
+        print(f"  reusing {len(got)} pre-session statistics from {sp}", flush=True)
+    else:
+        got, fail = ak.fan_sessions(pre, stats_job, jobs=a.jobs)
+        for it, err in fail:
+            print(f"  !! stats {it}: {err}", flush=True)
+        (out / "fit").mkdir(parents=True, exist_ok=True)
+        # the pre sessions' sufficient statistics are KEPT: the ordered (movement- / task-first) bounds are linear
+        # transforms of the same Gram terms, so they need no second pass over the data
+        sp.write_bytes(pickle.dumps([s_ for _l, s_ in sorted(got, key=lambda kv: kv[0])],
+                                    protocol=pickle.HIGHEST_PROTOCOL))
     by_an: dict = {}
     for _lab, s in got:
         by_an.setdefault(s["animal"], []).append(s)
@@ -511,6 +596,7 @@ def main(argv=None) -> int:
         print(f"  !! predict {it[0]}: {err}", flush=True)
     if not a.no_drop_spout:
         summarise_drop(out)
+    summarise_musall(out, a.variants)
     for _it, r in sorted(res, key=lambda kv: kv[1]["label"]):
         print(f"  {r['label']} [{r['frozen_from']}] frozen R^2 cortex (all / cue / lick): "
               + " | ".join(f"{v} " + " ".join(f"{x:.3f}" if x is not None else "-" for x in r[v].values())
