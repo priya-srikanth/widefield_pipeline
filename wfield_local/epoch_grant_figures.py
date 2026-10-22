@@ -342,6 +342,56 @@ SCALAR_FAMILIES = (("8g", _fig_8g), ("9", _fig_9), ("10", _fig_10),
 
 
 
+#: Arm-level family keys (mirrors `ARM_KEYS` inside `main`; the non-arm families are 1b / 1c).
+_NON_ARM_FAMILIES = ("1b", "1c")
+
+
+def _parallel_arms(args, want, out) -> int:
+    """`--parallel-arms N` (2026-10-21, Priya: "plenty of free CPU and RAM - could we make this faster"): each arm in
+    its own child process, at most N at once. Arms share nothing (different alignment / class / collectors, figure
+    names carry `_{align}_{variant}`), which is why this file already offered `--arm` "to run the arms as separate
+    concurrent processes"; this just launches them. Children render ONLY arm families; 1b / 1c run here once (they
+    would otherwise race on the same files). Logs: <tmp>/epoch_arms_<time>/<arm>.log. RAM: ~6 GB per arm child
+    measured on the 15r + 14 collectors, plus its map workers."""
+    import os
+    import subprocess
+    import sys
+    import tempfile
+    import time
+    arm_fams = sorted(f for f in want if f not in _NON_ARM_FAMILIES)
+    logs = Path(tempfile.gettempdir()) / f"epoch_arms_{time.strftime('%Y%m%d_%H%M%S')}"
+    logs.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ)
+    env.setdefault("WIDEFIELD_MAP_JOBS", "2")
+    pending = [a[0] for a in ARMS] if arm_fams else []
+    running, rc = {}, 0
+    print(f"[epoch] --parallel-arms {args.parallel_arms}: {len(pending)} arm(s), map workers per arm "
+          f"{env['WIDEFIELD_MAP_JOBS']}; logs {logs}", flush=True)
+    t0 = time.time()
+    while pending or running:
+        while pending and len(running) < args.parallel_arms:
+            arm = pending.pop(0)
+            cmd = [sys.executable, "-m", "wfield_local.epoch_grant_figures", "--arm", arm, "--only", *arm_fams]
+            if args.output:
+                cmd += ["--output", str(args.output)]
+            fh = open(logs / f"{arm}.log", "w", encoding="utf-8")
+            running[arm] = (subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, env=env), fh)
+            print(f"  [arm {arm}] started", flush=True)
+        for arm, (pr, fh) in list(running.items()):
+            if pr.poll() is not None:
+                fh.close()
+                rc |= pr.returncode
+                print(f"  [arm {arm}] exit {pr.returncode} after {(time.time() - t0) / 60:.0f} min", flush=True)
+                del running[arm]
+        time.sleep(5)
+    if "1b" in want:
+        _report("1b", fig_behaviour(out))
+    if "1c" in want:
+        _report("1c", fig_behaviour_timecourse(out))
+    print(f"[epoch] all arms done in {(time.time() - t0) / 60:.0f} min (rc {rc})", flush=True)
+    return rc
+
+
 def main(argv=None) -> int:
     from wfield_local.console import use_utf8_stdout
     use_utf8_stdout()
@@ -369,6 +419,9 @@ def main(argv=None) -> int:
                     help="render only these alignment arms (default: all). Use to run the arms as "
                          "separate concurrent processes; families within an arm share caches and "
                          "must stay in one process.")
+    ap.add_argument("--parallel-arms", type=int, default=0, metavar="N",
+                    help="run the arms as N concurrent child processes (each `--arm <one>`; the non-arm families "
+                         "1b / 1c run here once); per-session map workers per child = WIDEFIELD_MAP_JOBS (default 2)")
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b",
                              "13s", "14m", "15e", "15r", "mat", "scal"))
@@ -384,6 +437,8 @@ def main(argv=None) -> int:
     # PRINTED, so "I asked for five families and one ran" is visible in the log rather than in a
     # stale figure three hours later.
     print(f"[epoch] rendering families: {' '.join(sorted(want))}", flush=True)
+    if args.parallel_arms and args.parallel_arms > 1 and not args.arm:
+        return _parallel_arms(args, want, out)
 
     if "1b" in want:
         try:
