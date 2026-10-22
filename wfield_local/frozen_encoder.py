@@ -41,7 +41,7 @@ from pathlib import Path
 
 import numpy as np
 
-STATS_VERSION = 2   # 2: FGROUP split (contact / direction / movement)
+STATS_VERSION = 3   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction
 
 
 def _ce():
