@@ -899,18 +899,22 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match
             tc.setdefault(str(pos), []).append(np.nanmean(tr[z["position"] == pos], 0))
     unit = "ABSOLUTE (x D)" if absolute else "share"
     img = plt.imread(face) if face and Path(face).exists() else None
-    fig, axs = plt.subplots(R, 3, figsize=(12, 2.4 * R), gridspec_kw={"width_ratios": [1.1, 1, 1.4]})
-    for k, (a0, a1, a2) in enumerate(np.atleast_2d(axs)):
-        if img is not None:
-            a0.imshow(img, cmap="gray")
-        else:
-            a0.invert_yaxis()
-        a0.scatter(home[:, 0], home[:, 1], c=direction_colours(Wsp[..., k]), s=1 + 30 * mag[:, k] / mag[:, k].max(),
-                   linewidths=0)
-        a0.set_aspect("equal")
-        a0.axis("off")
-        a0.set_title(f"factor {k} {names[str(k)]}\nblue = lateral, red = vertical; size = weight (image right = ipsi)",
-                     fontsize=7)
+    fig, axs = plt.subplots(R, 4, figsize=(17, 3.0 * R), gridspec_kw={"width_ratios": [1, 1, 1, 1.5]})
+    for k, (aw, a0, a1, a2) in enumerate(np.atleast_2d(axs)):
+        w = mag[:, k] / max(mag[:, k].max(), EPS)
+        o = np.argsort(w)                                                # heaviest points drawn last
+        for ax in (aw, a0):
+            if img is not None:
+                ax.imshow(img, cmap="gray")
+            else:
+                ax.invert_yaxis()
+            ax.set_aspect("equal")
+            ax.axis("off")
+        aw.scatter(home[o, 0], home[o, 1], c=w[o], s=4, cmap="magma", vmin=0, vmax=1, linewidths=0)
+        aw.set_title(f"factor {k} {names[str(k)]}\nWHERE: weight per point (image right = ipsi)", fontsize=8)
+        rgba = np.column_stack([direction_colours(Wsp[..., k]), np.clip(w, 0, 1) ** 0.7])
+        a0.scatter(home[o, 0], home[o, 1], c=rgba[o], s=2 + 22 * w[o], linewidths=0)
+        a0.set_title("HOW: blue = lateral, red = vertical\n(opacity + size = weight)", fontsize=8)
         a1.plot(freqs, B[:, k])
         a1.set_xscale("log")
         a1.set(xlabel="Hz")
@@ -922,8 +926,8 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match
         if k == 0 and tc:
             a2.legend(fontsize=6, ncol=2)
     fig.suptitle(f"{M['set']} [{str(M['role']) if 'role' in M else 'master'}] rank {R} (spec {M['spec_hash']}); "
-                 f"pre-stroke sessions on their LEFT-OUT-DAY basis where it exists", fontsize=9)
-    fig.tight_layout()
+                 f"pre-stroke sessions on their LEFT-OUT-DAY basis where it exists", fontsize=10, y=0.999)
+    fig.tight_layout(rect=(0, 0, 1, 0.99))
     fig.savefig(rd / f"factor_gallery{'_abs' if absolute else ''}.png", dpi=110)
     plt.close(fig)
     eps = [e for e in ("pre", "acute", "subacute", "chronic") if any(k[1] == e for k in ep_tc)]
