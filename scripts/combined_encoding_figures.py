@@ -1155,9 +1155,15 @@ def main(argv=None) -> int:
     ST = session_change_tests(Wd[Wd.pos.isin(FOCUS)], metrics)
     ST.to_csv(tabs / "stats_vs_pre.csv", index=False, float_format="%.4g")
     outline = _outline(meta)
-    fig4_bars(Wd, figs / "fig4_bars_pre.png", title)
-    for w in ("all", "enl", "cue", "lick"):
-        fig4_maps(meta, sess, figs / f"fig4_maps_pre_{w}.png", title, w, outline)
+    # EVERY EPOCH (Priya 10-22: "also re-rendered per-session maps - these will answer different questions"): each
+    # epoch's OWN per-session fits (how strongly that epoch's cortex uses each variable), next to the frozen encoder's
+    # fixed pre-stroke mapping. File names keep "_pre_" for pre, so earlier links stay valid.
+    for ep in EPOCHS:
+        if not (meta.epoch == ep).any():
+            continue
+        fig4_bars(Wd, figs / f"fig4_bars_{ep}.png", title, epoch=ep)
+        for w in ("all", "enl", "cue", "lick"):
+            fig4_maps(meta, sess, figs / f"fig4_maps_{ep}_{w}.png", title, w, outline, epoch=ep)
     fig_position_maps(meta, sess, figs / "position_dR2_maps_by_epoch.png", title, outline)
     fig_position_maps(meta, sess, figs / "position_dR2drop_maps_by_epoch.png", title, outline, kind="drop")
     for w in ("enl", "cue", "lick"):
