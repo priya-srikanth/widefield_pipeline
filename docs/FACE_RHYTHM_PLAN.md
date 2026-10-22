@@ -1,5 +1,8 @@
 # FaceRhythm on the widefield sessions — plan (2026-10-21)
 
+> HOW it runs (stages, files, commands, conventions, tests): [`FACE_RHYTHM_PIPELINE.md`](FACE_RHYTHM_PIPELINE.md).
+> This doc = the reasoning and decisions; status: the newest FACE_RHYTHM handoff.
+
 Priya 10-21: "we will probably eventually want to use FaceRhythm as part of this ... matching points across all session
 dates and animals using cross-animal / cross-session alignment (morph across animals to fit a single 'master' mouse face
 mesh for each camera)". Repo: https://github.com/RichieHakim/face-rhythm (v0.3.3, cloned read-only to

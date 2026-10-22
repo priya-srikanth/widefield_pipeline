@@ -1,5 +1,9 @@
 # FaceRhythm as video regressors in the movement models — reading notes + proposal (2026-10-07)
 
+> **HISTORICAL (2026-10-07 reading notes).** The FaceRhythm work that followed is documented in
+> [`FACE_RHYTHM_PIPELINE.md`](FACE_RHYTHM_PIPELINE.md) (how / run order) and [`FACE_RHYTHM_PLAN.md`](FACE_RHYTHM_PLAN.md)
+> (why / decisions); read those first.
+
 Written 2026-10-07 by a separate session outside the repo (to avoid clashing with concurrent commits) and moved
 into `docs/` on 2026-10-13 at Priya's request, unchanged apart from this note. Nothing was run except read-only peeks
 at existing outputs. NOTE (2026-10-13): this is the "Hakim et al." paper Priya referred to on 10-08 alongside

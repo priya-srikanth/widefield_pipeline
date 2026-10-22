@@ -213,3 +213,15 @@ the encoding-model `fr` family (spec for the encoding window).
   projections exist).
 * `face_rhythm_factors.py report [--face <img>]`: rank sweep, factor gallery (spatial on the face, spectrum, pre-stroke
   trial averages by position), reconstruction error by epoch (+ CSV); tested on the synthetic set.
+
+## Readouts + docs (10-21 late night)
+
+* `face_rhythm_factors.py` restructured (shared `draw_rows` / `gather_rows`; `project` now also writes per-point movement
+  power by window; NEW `fitsession` = each session's own rank-R fit vs the frozen basis on the same rows + matched
+  cosines). `plan` for `master_pre_v1` regenerated (adds per-task rows; nothing had been built from the old plan).
+* `wfield_local/face_rhythm_readouts.py` + `scripts/face_rhythm_readouts.py`: the 2pRAM manuscript's Fig 4 analyses
+  across animals -- amplitudes by window / epoch, reconstruction error, EVR gap + morphing, movement maps + contra / ipsi
+  asymmetry (cam4 ipsi = image right) -- statistics via `orofacial_cohort.epoch_tables(metrics=...)` (now takes a
+  metric list; default unchanged).
+* **`docs/FACE_RHYTHM_PIPELINE.md`** = the reference for stages / files / run order / conventions / tests.
+  `FACERHYTHM_PROPOSAL.md` marked historical. Tests: 8 FR tests (synthetic), all pass.

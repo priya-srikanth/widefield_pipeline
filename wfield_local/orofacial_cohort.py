@@ -629,16 +629,18 @@ def _sem(x) -> float:
     return float(x.std(ddof=1) / np.sqrt(len(x))) if len(x) > 1 else np.nan
 
 
-def epoch_tables(S: pd.DataFrame, seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Per-animal epoch means (+ SEM over sessions), and the paired animal-weighted change vs pre (`boot_delta`)."""
+def epoch_tables(S: pd.DataFrame, seed: int = 0, metrics=None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Per-animal epoch means (+ SEM over sessions), and the paired animal-weighted change vs pre (`boot_delta`).
+    ``metrics``: the columns to summarise (default: this module's METRICS; FaceRhythm readouts pass their own)."""
     from wfield_local import analysis_kit as ak
+    metrics = list(METRICS if metrics is None else metrics)
     g = S.groupby(["animal", "epoch"])
-    A = g[list(METRICS)].mean()
-    A = A.join(g[list(METRICS)].agg(_sem).add_suffix("_sem")).reset_index()
+    A = g[metrics].mean()
+    A = A.join(g[metrics].agg(_sem).add_suffix("_sem")).reset_index()
     A.insert(2, "n_sessions", g.size().to_numpy())
     rng = np.random.default_rng(seed)
     out = []
-    for m in METRICS:
+    for m in metrics:
         pre = {a: x[m].dropna().tolist() for a, x in S[S.epoch == "pre"].groupby("animal", sort=True)}
         for ep in EPOCH_ORDER[1:]:
             post = {a: x[m].dropna().tolist() for a, x in S[S.epoch == ep].groupby("animal", sort=True)}

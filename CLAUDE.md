@@ -356,7 +356,7 @@ outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity onl
 PS95_20260812 (pre-stroke), 12 px mesh warped to every session (mesh QC passed); ROI notebook
 `notebooks/face_rhythm_draw_roi.ipynb`; O2 env, pitfalls (cgroup OOM kills, Pool hang). Plan + integration (master
 PRE-STROKE factor set across animals, frozen; FR in the encoding model; what the paper did with widefield):
-`docs/FACE_RHYTHM_PLAN.md`.
+`docs/FACE_RHYTHM_PLAN.md`. Stages, files, run order: `docs/FACE_RHYTHM_PIPELINE.md`.
 
 **[`docs/status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](docs/status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md)**
 — **START HERE for POSE / 3-D / cam1 / jaw calls, newest (10-21).** Jaw anchor off; jaw onsets + re-onset (cam1 floor 15 px,
