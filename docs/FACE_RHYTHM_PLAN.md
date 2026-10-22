@@ -151,6 +151,14 @@ bins are block means of the 25 Hz output. TEST on the pilot (task 87) before rel
 windows from 25 Hz vs 5 Hz-resampled spectrograms. If 5 Hz loses EVR: 12.5 Hz `session` (~16 GB vs ~7 GB per session at
 1282 points) needs the array rerun, because tracked points are not kept at 250 Hz.
 
+## Grooming (10-21 night)
+
+The session-wide strongest moments of several factors are GROOMING (Priya's clip calls). No reliable grooming
+label from FR / LP features (movement size, LP licks, regional speed), no pose model tracks paws. DEFERRED (Priya: paw
+motion not worth it now). Route if needed later: paw-region motion energy on cam4 (paws rest on the bar below the
+mouth) AND large face movement, validated on labelled clips. Meanwhile: engaged-trial windows for clips / trial
+readouts, medians for between-trial amplitudes, `large_movement` reported separately (pipeline doc).
+
 ## Decisions for Priya
 
 * camera order: cam4 first (whisker pads in view, rod below the face), cam1 second?

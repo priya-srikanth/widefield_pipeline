@@ -1,23 +1,65 @@
-# FaceRhythm on O2 — handoff (2026-10-21, updated late afternoon)
+# FaceRhythm on O2 — handoff (2026-10-21, updated ~22:00)
 
 Plan: [`docs/FACE_RHYTHM_PLAN.md`](../FACE_RHYTHM_PLAN.md) (steps 1-7; status section at its end). This doc covers step 4
 (master ROI, drawing tool), step 5 (the O2 bundle) and the **tracking-parameter test** that now gates the full run.
 Registration (step 3) and the ROI warp are the pose/3-D window's (`scripts/face_rhythm_register.py`,
 `scripts/face_rhythm_warp_rois.py`, `STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`).
 
-## CURRENT STATE (10-21 night) -- read this first
+## CURRENT STATE (10-21, ~22:00) -- read this first
 
-* **Production running: O2 array 57168778** -- see "PRODUCTION RUNNING" at the end (how to check, resubmit, collect).
-* Parameters `midlk12` (below; DECISIONS.md 10-21 evening). Mesh QC of the warped 12 px master: "Mesh QC" near the end.
-* Next after the array: rsync `out/` -> `collect` -> step 6 decomposition = the MASTER PRE-STROKE factor set across
-  animals (`docs/FACE_RHYTHM_PLAN.md` A0 + integration plan; DECISIONS.md 10-21 evening, second entry); first check of
-  the 5 Hz `session` output vs the 25 Hz trial windows on the pilot session; post-stroke tracking QC (violation fraction,
-  mesh folds vs pre).
-* Scripts: `o2_face_rhythm.py` (bundle / collect / paramtest / paramscore), `face_rhythm_param_qc.py` (clips /
-  decompose), `face_rhythm_mesh_qc.py`, `face_rhythm_warp_rois.py` / `_register.py` / `_prep.py` / `_overlay.py`
-  (registration chain, pose window), notebook `face_rhythm_draw_roi.ipynb`.
-* Outputs on the share: `<dlc>/face_rhythm/cam4/` -- `param_test/` (scores, figure, clips, decompositions),
-  `rois/` (+ `ROIs_<time>.h5` older versions), `rois_qc_12px_20261021/`, `register/`; bundle `<dlc>/o2/fr_cam4_20261021/`.
+**HOW everything runs: [`docs/FACE_RHYTHM_PIPELINE.md`](../FACE_RHYTHM_PIPELINE.md)** (stages, files, run order, conventions,
+tests). WHY: `docs/FACE_RHYTHM_PLAN.md` + DECISIONS.md 10-21 evening. This section = status + what to do next.
+
+**1. O2 production: array 57168778** (4 workers x 4 threads, 72 GB, 9 h, `%24`). At ~21:00: 3 tasks done (PS92_0806,
+PS92_0812 v1 / v2), 1-24 running at 29-34 fps / worker (~82 min per round of 4 segments: 9-12 segments ~4.1 h, 13-16
+~5.5 h), violations 0.000 everywhere, worker peaks 6-11.6 GB, finished tasks MaxRSS 30-32 GB (sacct `.batch` line).
+Expect the whole array ~20 h (fair share may slow the tail). Tasks 21-23 resumed segments from the cancelled 8 x 2 array.
+Check / resubmit: "PRODUCTION RUNNING" below. Status commands: `sstat` needs the RAW job id
+(`sacct -j 57168778 -X -n -s RUNNING -o JobIDRaw` -> `sstat -j <raw>.batch`); finished: `sacct ... | grep batch`.
+**Faster defaults for FUTURE runs are committed** (8 workers x 4 threads, 5-min segments, 12 GB / worker + 24,
+`--max-running`): ~2 h per session instead of ~4; the running array keeps its own params.json.
+
+**2. Downstream code -- ready, tested on synthetic data AND dry-run on real outputs (PS92_0806 / 0812):**
+`face_rhythm_factors.py` (plan done for `master_pre_v1`, regenerated after every change; build / fit / select /
+project / fitsession / report), `face_rhythm_readouts.py` (+ `wfield_local/face_rhythm_readouts.py`), loader
+`wfield_local/face_rhythm_outputs.py`, encoding `--fr` / `--fr-points`, `o2_face_rhythm.py qc`, factor clips
+`face_rhythm_factor_clips.py`. ~17 FR tests. Things learned from REAL data tonight (all in the code + pipeline doc):
+* **FR normalises every frame** by the whole-face mean power (VQT normalization_factor 0.95) -> factor weights are
+  SHARES. **Absolute expression = weights x D** (per-bin normaliser recovered EXACTLY from the saved float16 spectrogram,
+  0.01 % median error; `trials_D` / `session_D`; readout `abs_*` next to `amp_*`; loader `absolute=True`). Lead with
+  absolute; the share version produced two artefacts in the preview (a "pre-cue" peak, dips during licking).
+* Per-point movement: absolute SPEED from the 25 Hz points (default) and the spectral SHARE.
+* Tracking QC: folds are ~all in ~10 RIM triangles (headplate / mask edge); INTERIOR folds 0.03 % of frames.
+* **Grooming**: the session-wide top of several factors (0, 4, 5) is grooming (Priya's clip calls). The `large_movement`
+  flag (whole-face movement above the licking range, outside response windows) catches big bouts but also vigorous
+  spontaneous licks and misses small grooming; LP licks (LP reports licks during grooming) and regional speed do not
+  separate them; no pose model tracks paws. **Decision: no grooming label for now** (Priya: paw motion not worth it now;
+  paw-region motion energy on cam4 is the route if needed). Handled by: clips and trial readouts in engaged-trial windows
+  (clips default `--window trial` = cue -2..+4 s), between-trial amplitudes = MEDIANS with large movement excluded,
+  large movement reported separately (`large_frac`).
+* Asymmetry midline = the master's LP nose x 342 (cam4 ipsilesional = IMAGE RIGHT).
+
+**3. Rank-10 PREVIEW (scratch, PS92 only, 3 pre sessions; not the master set)** -- EVR 0.83 (uncentred), starts agree
+0.97, leave-one-session-out 0.82-0.84. Components (absolute gallery `preview_r10/report/factor_gallery_abs.png`):
+#0 left lick (image-right lower face, 5.8 Hz; also centre trials -- PS92's centre licks lean LEFT, +7-11 deg, measured
+from LP), #4 right lick (image-left, 6.5 Hz; far_R > close_R > centre > left ~0), #9 early fast lick (7.3 Hz, both
+sides, ~0.7 s), #2 pad lick (5.8 Hz), #7 late slow lick (5.1 Hz, 2-3 s) -- licking splits by RHYTHM: LP lick rate
+7.1 -> 6.6 -> 6.25 -> 6.1 Hz over the trial (so post-stroke slowing would shift expression between components; read
+early vs late windows + LP lick rate, not "lick factor down"); #5 cue-evoked 2.3 Hz nose / centre face; #8 broad
+10-17 Hz on pads + above the pads (NOT the rim), coupled to #5 (r 0.5) -> probably fast whisking (check: f8 clip,
+whisker-pad motion energy); #3 1 Hz whole face, peak 0.7 s after cue; #1, #6 slow lower edge / nose tip; whisking at
+~8 Hz did not separate at rank 10 in one animal. Clips: `preview_r10/clips/PS92_20260806_cam4_f<k>_trial.mp4`
+(all 10, rendering at handoff time), `_response` (0, 4), `_large` (0), older `_f<k>.mp4` = events from anywhere
+(include grooming). Scratch root: C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/
+c1a9581a-546a-45cc-b071-de0ab459161e/scratchpad/ (preview_r10/, dryrun_set/, master_face.png).
+
+**4. Next, in order:** (a) Priya reviews the 10 trial-window clips -> provisional names; (b) when the array is done:
+rsync out/ + factors/, `collect`, `qc` (post-stroke tracking as clean as pre?), then `run_build` -> `run_fit` (ranks
+6-16) on O2 -> `report` + `report --absolute` -> choose rank (Priya) -> `select` -> `run_project` + `run_fitsession`
+-> `face_rhythm_readouts.py` (writes labels_suggested.json; Priya confirms -> labels.json) -> clips per factor on the
+master set; (c) encoding: new bundle `o2_encoding.py bundle --fr master_pre_v1 [--fr-points 10]`, `check` one session
+(first real test of the fr path), then the fr run (FR vs ME vs both; does position survive FR). Open checks: factor 8 =
+whisking?; whether to use absolute or share FR in the encoding model (paper: normalised).
 
 ## UPDATE 10-21 evening — parameters chosen: `midlk12` (9245e51)
 

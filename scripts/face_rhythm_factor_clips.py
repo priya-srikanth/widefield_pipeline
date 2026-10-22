@@ -3,8 +3,8 @@
     python scripts/face_rhythm_factor_clips.py --fdir <factor set> [--key PS92_20260806_cam4] [--comps 0 4]
                                                [--events 4] [--half-s 1.0] [--out DIR]
 
-Per factor, the ``events`` strongest moments (``--window``: response windows by default; between trials; large
-movement; anywhere) of its ABSOLUTE expression in one session (weights x FR normaliser D,
+Per factor, the ``events`` strongest moments (``--window``: engaged-trial windows cue -2..+4 s by default; their
+response part; between trials; large movement; anywhere) of its ABSOLUTE expression in one session (weights x FR normaliser D,
 `face_rhythm_outputs.combined_series(absolute=True)`: 25 Hz in engaged trial windows, 5 Hz elsewhere), at least 10 s
 apart, each +- ``half_s`` around the peak, every 2nd video frame at 50 fps (2.5x slow), one mp4 per factor:
   points  the TRACKED mesh (25 Hz `points` displacement + home), COLOUR = the direction the factor moves the point
@@ -73,8 +73,9 @@ def main(argv=None) -> int:
     ap.add_argument("--comps", type=int, nargs="*", default=None)
     ap.add_argument("--events", type=int, default=4)
     ap.add_argument("--half-s", type=float, default=1.0)
-    ap.add_argument("--window", default="response", choices=("response", "between", "large", "any"),
-                    help="where events may come from: engaged-trial response windows (cue 0..+4 s; default -- the "
+    ap.add_argument("--window", default="trial", choices=("trial", "response", "between", "large", "any"),
+                    help="where events may come from: engaged-trial windows cue -2..+4 s (trial, default -- the "
+                         "trials output window), their response part 0..+4 s (response; for both: the "
                          "session-wide top of several factors is grooming), between trials outside large movement, "
                          "large movement (grooming + vigorous spontaneous licking: for labelling), anywhere")
     ap.add_argument("--out", type=Path, default=None)
@@ -99,10 +100,13 @@ def main(argv=None) -> int:
     from wfield_local import face_rhythm_readouts as frr
     sc = np.sort(cues)
     k_ = np.clip(np.searchsorted(sc, t, side="right") - 1, 0, len(sc) - 1)
+    k2 = np.clip(np.searchsorted(sc, t + 2.0, side="right") - 1, 0, len(sc) - 1)   # latest cue with cue - 2 <= t
+    trial = (t - sc[k2] >= -2.0) & (t - sc[k2] < 4.0)
     resp = (t - sc[k_] >= 0) & (t - sc[k_] < 4.0)
     gm = np.interp(t, z["session_t_daq_s"], frr.large_movement(z["session_t_daq_s"], z["session_D"], cues)
                    .astype(float)) > 0.5
-    allow = {"response": resp, "between": ~resp & ~gm, "large": gm, "any": np.ones(len(t), bool)}[a.window]
+    allow = {"trial": trial, "response": resp, "between": ~trial & ~gm, "large": gm,
+             "any": np.ones(len(t), bool)}[a.window]
     out = a.out or Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "factor_clips" / str(M["set"])
     out.mkdir(parents=True, exist_ok=True)
     H, Wd = vr[0].shape[:2]
