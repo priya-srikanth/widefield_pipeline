@@ -28,15 +28,22 @@ import pandas as pd
 
 WIN_S = (0.5, 1.5)      # post-cue lick window (the encoder's c0.5-1.5 response bin)
 BASE_S = (-0.5, 0.0)    # pre-cue baseline
+#: --align lick (Priya 10-22, "the same analysis but for lick-aligned"): `peth_lick` (aligned on each trial's FIRST
+#: post-cue lick, trials without one left out), post-lick 0-1 s minus the immediate pre-lick level (-0.3 .. -0.1 s:
+#: after the cue response has begun, before the tongue; the lick itself is excluded). Needs a run that saved peth_lick
+#: (combined_encoding >= 10-22).
+LICK_WIN_S = (0.0, 1.0)
+LICK_BASE_S = (-0.3, -0.1)
 REGIONS = ("cortex", "SSp-m_left", "SSp-m_right", "MOs_left", "MOs_right", "MOp_left", "MOp_right")
 
 
-def session_rows(js: Path) -> list[dict]:
+def session_rows(js: Path, align: str = "cue") -> list[dict]:
     meta = json.loads(js.read_text())
     z = np.load(js.with_suffix(".npz"))
-    peth, off = z["peth"], z["peth_off_s"]
-    w = (off >= WIN_S[0]) & (off < WIN_S[1])
-    b = (off >= BASE_S[0]) & (off < BASE_S[1])
+    peth, off = z["peth_lick" if align == "lick" else "peth"], z["peth_off_s"]
+    win, base = (LICK_WIN_S, LICK_BASE_S) if align == "lick" else (WIN_S, BASE_S)
+    w = (off >= win[0]) & (off < win[1])
+    b = (off >= base[0]) & (off < base[1])
     parts, areas = meta["peth_parts"], meta["areas"]
     rows = []
     for pi, pos in enumerate(meta["pos_order"]):
@@ -58,10 +65,11 @@ def main(argv=None) -> int:
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--folder", default="movement_first_subset-drop_licks-combined_gate-attempted")
+    ap.add_argument("--align", choices=("cue", "lick"), default="cue")
     a = ap.parse_args(argv)
     E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
     sess = sorted((E / a.folder / "sessions").glob("*.json"))
-    T = pd.DataFrame([r for js in sess for r in session_rows(js)])
+    T = pd.DataFrame([r for js in sess for r in session_rows(js, a.align)])
     T = T[T.label.str[-4:] >= "0801"]                                  # August-only pre baseline (primary)
     parts = ["data", "full", "task", "pos_part", "instructed", "uninstructed", "residual"]
     A = T.groupby(["animal", "pos", "region", "epoch"])[parts].mean()
@@ -80,8 +88,9 @@ def main(argv=None) -> int:
     D = pd.DataFrame(out)
     qc = E / "qc"
     assert_writable(qc)
-    T.to_csv(qc / "lp_encoder_decompose.csv", index=False, float_format="%.5g")
-    D.to_csv(qc / "lp_encoder_decompose_by_animal.csv", index=False, float_format="%.5g")
+    tag = "" if a.align == "cue" else "_lick"
+    T.to_csv(qc / f"lp_encoder_decompose{tag}.csv", index=False, float_format="%.5g")
+    D.to_csv(qc / f"lp_encoder_decompose{tag}_by_animal.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 220)
     cols = ["n_post", "pre_data", "d_data", "d_full", "d_task", "d_pos_part", "d_instructed", "d_uninstructed", "d_residual"]
     print(f"{len(sess)} sessions; lick sets: {T.drop_duplicates('label').lick_set.value_counts().to_dict()}")

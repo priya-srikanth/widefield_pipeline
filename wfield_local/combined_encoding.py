@@ -1585,13 +1585,30 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             a_["sse_tr"][mi] = np.nansum(np.where(okm_[..., None], (a_["ddev"] - a_["dev"](pred[idc_])) ** 2, np.nan),
                                          0).T
     sse, sst, sse_tr, sst_tr = al["cue"]["sse"], al["cue"]["sst"], al["cue"]["sse_tr"], al["cue"]["sst_tr"]
+    # LICK-ALIGNED PETH (Priya 10-22: "can we do the same analysis but for lick-aligned encoder"): the same full-model
+    # parts as `peth`, aligned on each trial's FIRST post-cue lick (first_f; trials without one left out), so the
+    # decomposition of the post-lick response does not depend on the cue-to-lick latency (which rises post-stroke).
+    peth_lick = np.full_like(peth, np.nan)
+    n_lick_pos = np.zeros(len(pos_order), int)
+    for ci, Cm in enumerate(comp.values()):
+        R = (Cm @ Ra).astype(np.float32)
+        for pi, p in enumerate(pos_order):
+            fl = first_f[((E.pos == p).to_numpy()) & (first_f >= 0)]
+            n_lick_pos[pi] = len(fl)
+            if not len(fl):
+                continue
+            idx = fl[:, None] + off[None, :]
+            ok = (idx >= 0) & (idx < len(R))
+            seg = np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
+            peth_lick[ci, pi] = np.nanmean(seg, 0).T
     res["n_trials_lick_aligned"] = int((first_f >= 0).sum())
+    res["n_lick_aligned_by_pos"] = dict(zip(pos_order, n_lick_pos.tolist()))
     res["target_angle"] = B.target_angle
     res.update({"tr_models": tr_models, "pos_order": pos_order, "peth_parts": list(comp), "model_alphas": model_alphas,
                 "areas": [names.get(a, str(a)) for a in areas] + ["cortex"]})
     return {"res": res, "maps": maps, "flat": ublk, "shape": ((shape[0] + 1) // 2, (shape[1] + 1) // 2),
             "region": pd.DataFrame(region),
-            "peth": peth, "peth_off_s": off / res["fs"], "sse": sse, "sst": sst,
+            "peth": peth, "peth_lick": peth_lick, "peth_off_s": off / res["fs"], "sse": sse, "sst": sst,
             "sse_trial": sse_tr, "sst_trial": sst_tr,
             "sse_lick": al["lick"]["sse"], "sst_lick": al["lick"]["sst"],
             "sse_trial_lick": al["lick"]["sse_tr"], "sst_trial_lick": al["lick"]["sst_tr"]}
@@ -1632,7 +1649,7 @@ def save(out: dict, d: Path) -> None:
                         flat=out["flat"], shape=np.array(out["shape"]), peth=out["peth"],
                         peth_off_s=out["peth_off_s"], sse=out["sse"], sst=out["sst"],
                         sse_trial=out["sse_trial"], sst_trial=out["sst_trial"],
-                        **{k: out[k] for k in ("sse_lick", "sst_lick", "sse_trial_lick", "sst_trial_lick") if k in out})
+                        **{k: out[k] for k in ("sse_lick", "sst_lick", "sse_trial_lick", "sst_trial_lick", "peth_lick") if k in out})
     out["region"].assign(label=lab).to_csv(d / "sessions" / f"{lab}_regions.csv", index=False, float_format="%.5f")
     (d / "sessions" / f"{lab}.json").write_text(json.dumps(out["res"], indent=1, default=str), encoding="utf-8")
 
