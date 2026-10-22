@@ -49,7 +49,7 @@ early vs late windows + LP lick rate, not "lick factor down"); #5 cue-evoked 2.3
 10-17 Hz on pads + above the pads (NOT the rim), coupled to #5 (r 0.5) -> probably fast whisking (check: f8 clip,
 whisker-pad motion energy); #3 1 Hz whole face, peak 0.7 s after cue; #1, #6 slow lower edge / nose tip; whisking at
 ~8 Hz did not separate at rank 10 in one animal. Clips: `preview_r10/clips/PS92_20260806_cam4_f<k>_trial.mp4`
-(all 10, rendering at handoff time), `_response` (0, 4), `_large` (0), older `_f<k>.mp4` = events from anywhere
+(all 10; COPIED to the share: <dlc>/face_rhythm/cam4/preview_r10_PS92/ with labels.json, galleries, README), `_response` (0, 4), `_large` (0), older `_f<k>.mp4` = events from anywhere
 (include grooming). Scratch root: C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/
 c1a9581a-546a-45cc-b071-de0ab459161e/scratchpad/ (preview_r10/, dryrun_set/, master_face.png).
 
