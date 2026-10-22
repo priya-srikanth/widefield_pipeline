@@ -424,8 +424,10 @@ def _drop_transform(col_var: np.ndarray, pos_order: list, frac: dict, drop: str)
 #: pseudo-inverse). The v3 code solved with a ~1e-6 ridge; the position deviation blocks are near-collinear by
 #: construction (their trial-weighted sum is ~0), so the projection had HUGE weights along that null direction which
 #: cancel in pre sessions but not when a post session's spout shares differ -> task_first scored -1.06 on PS95_0818
-#: while joint scored 0.36 (10-22 afternoon).
-PROJ_RCOND = 1e-8
+#: while joint scored 0.36 (10-22 afternoon). 1e-8 was still too permissive: PS95's target block keeps near-null
+#: directions at ~1e-7 / 1e-5 of the largest eigenvalue (every real direction is > 1e-2), so target_first scored
+#: -163 on PS95_0818 in the first v4 run; 1e-3 drops them (they carry no pre-stroke variance).
+PROJ_RCOND = 1e-3
 
 
 def _projection(Gaa: np.ndarray, Gab: np.ndarray) -> np.ndarray:

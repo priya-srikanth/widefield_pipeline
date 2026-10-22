@@ -213,7 +213,7 @@ def test_ordered_projection_ignores_null_direction():
     n, r = 3000, 2
     a1, a2 = rng.normal(size=n), rng.normal(size=n)
     b = 0.5 * a1 + rng.normal(size=n)
-    X = np.column_stack([a1, a2, a1 + a2, b])                       # cue-like A block with an exact null direction
+    X = np.column_stack([a1, a2, a1 + a2 + 3e-4 * rng.normal(size=n), b])   # A block with a NEAR-null direction
     Y = X @ rng.normal(size=(4, r)) + 0.1 * rng.normal(size=(n, r))
     col_var = np.array(["cue"] * 3 + ["lick_onset:dev"])
     st = [{"label": "S0", "animal": "A", "epoch": "pre", "col_var": col_var, "area_names": ["x", "cortex"], "n": n,
