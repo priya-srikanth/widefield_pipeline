@@ -263,10 +263,22 @@ Numbers: % of 2,022 bins flagged by the nested bootstrap (pre-normalised), rest 
   (1.18 -> 1.01). Near spouts and all chronic cells barely move (chronic far contra 15.0 -> 16.4 %, amplitude 1.03).
 - **Chronic:** far contra back to pre amplitude (1.03) in PS92-PS94 (per animal within +-7 %); PS95 +16 % contra.
   The chronic difference maps share one bilateral frontal increase / posterior-medial decrease at every position.
-- **Not yet read as coding.** These are activity maps: a smaller or incomplete lick (incomplete licks rise post-stroke,
-  2.5) evokes less movement activity, so the far-contra drop may be the executed movement, not the target code. That
-  question is 2.x's (movement-first encoder), which has not yet been rerun on LP gating. ENL window: LP 6.1 % vs
-  contact 16.8 % at far contra, but the windows differ (1.0 vs 2.0 s) -- not comparable until the DAQ 1.0 s arm.
+- **The acute far-contra drop is the EXECUTED MOVEMENT (10-22, LP-gated encoder, 4/4).** Movement-first encoder
+  rerun on attempted trials with cam4 + cam1 lick timing (`movement_first_subset-drop_licks-combined_gate-attempted`,
+  119 sessions; cam4 only for PS95 + PS94_1005, no cam1), full-model prediction split by group, evoked = 0.5-1.5 s
+  after the cue minus -0.5-0 s (`scripts/lp_encoder_decompose.py` -> `qc/lp_encoder_decompose_by_animal.csv`).
+  Acute minus pre, far contra, x1e-3 (data / movement = instructed / task / position part / residual):
+  cortex PS92 -25.8 / -22.0 / -2.9 / -0.9 / +1.2; PS93 -13.0 / -12.9 / -1.6 / -2.2 / +2.2; PS94 -4.5 / -4.1 / -3.9 /
+  -3.7 / +2.4; PS95 -2.6 / -7.8 / +4.3 / +4.8 / -0.4 (1 session). Contralesional SSp-m (left): -50 / -29 / -24 / -23
+  in the data, -51 / -26 / -23 / -24 in the movement terms, |task| <= 3, |residual| <= 2.4, 4/4. The video-seen
+  licks / tongue / jaw are smaller or absent, and the model's movement terms account for the whole drop; the
+  position-specific part and the residual are small. Other positions go UP acutely, also mostly via movement terms.
+  Chronic: data and movement return to or above pre together (PS92 / PS93 SSp-m +16, movement +12 / +17).
+  CAVEATS: the partition is the ridge fit's -- task is penalised hardest (alpha 1e5 vs licks 1e4, orofacial 1), so
+  variance shared between target and movement goes to movement (the movement-first convention, 2.x); it says the
+  drop needs no target term, not that no target signal is lost (3.1's drop-p, far contra ~0 acutely, is that test).
+  Cue-aligned over attempted trials, not LP-onset-aligned like the maps (PS95's map increase is not seen here).
+- ENL window: see the matched 1.0 s comparison below.
 
 **Frozen pre-stroke decoders, per-position accuracy (10-22 ~01:10; `acc`, chance 0.167).** LP: `LP_licks/epoch/data/
 epoch_acc_by_position_*`; matched contact 1.0 s ENL arm: `DAQ_ENL1s/epoch/`. Pre = per-animal held-out; post = frozen.

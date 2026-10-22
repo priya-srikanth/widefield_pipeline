@@ -21456,3 +21456,16 @@ INFLATED acute far-spout post-lick amplitude (far mid 1.33 -> 1.03, far ipsi 1.4
 activity; the LP-gated movement-first encoder is the test. Outline reading rule recorded in ENCODING_FINDINGS 3.3:
 nested outlines localise (bin-level FWER), extent is a power-dependent lower bound; cluster outlines are yes / no.
 Also withdrawn: the "normalising removes changes carried by the brighter animals" line (per-animal check disagrees).
+
+## 2026-10-22 (early) -- LP items 1-3 (provisional): decoders, matched 1.0 s ENL arm, LP-gated encoder decomposition
+
+(2) LP frozen decoders: contact gating overstated acute far-spout lick-window decoding (far contra 0.50 -> 0.32, 4/4
+under LP; far ipsi .72 -> .58, far mid .71 -> .51); cue window unchanged. (3) Matched contact 1.0 s ENL arm
+(`grant_figures/DAQ_ENL1s/`, 1.0 s precue decoders frozen): decoding identical to LP 1.0 s within .03 -> the ENL lick
+definition does not matter at 1 s; the 2 s -> 1 s drop at every position is window length. ENL far-contra map change
+shrinks 9.9 % (contact 1 s) -> 4.4 % of bins (LP 1 s): part of the acute pre-cue increase was non-contact licking.
+(1) LP-gated encoder (attempted trials, cam4 + cam1 licks; cam4 where cam1 missing): the acute far-contra post-lick
+activity drop is carried by the movement (instructed) terms in 4/4 (cortex and contralesional SSp-m), task / position
+part / residual small. Read: the drop needs no target term; whether target signal is ALSO lost is 3.1's drop-p test.
+Caveat recorded: task ridge penalty highest, so shared variance is credited to movement by construction.
+New: `scripts/lp_encoder_decompose.py`. All PROVISIONAL until cam1 finishes (PS95 cam4 only).
