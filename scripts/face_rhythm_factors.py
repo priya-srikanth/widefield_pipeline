@@ -686,6 +686,7 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> No
     _, B, _, M = load_master(sd)
     Wsp, freqs, home, R = M["spatial"], M["freqs"], M["home"], int(M["rank"])
     mag = np.hypot(Wsp[0], Wsp[1])                                       # (P, R) weight per point
+    lab = json.loads((sd / "labels.json").read_text()) if (sd / "labels.json").exists() else {}
     tc, t_ms = {}, None
     for f in sorted((sd / "proj").glob("*.npz")) if (sd / "proj").exists() else []:
         z = np.load(f)
@@ -705,7 +706,7 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> No
         a0.scatter(home[:, 0], home[:, 1], c=mag[:, k], s=3, cmap="magma", vmin=0)
         a0.set_aspect("equal")
         a0.axis("off")
-        a0.set_title(f"factor {k}: where (image right = ipsilesional)", fontsize=8)
+        a0.set_title(f"factor {k}{' ' + lab[str(k)] if str(k) in lab else ''}: where (image right = ipsi)", fontsize=8)
         a1.plot(freqs, B[:, k])
         a1.set_xscale("log")
         a1.set_title(f"peak {freqs[np.argmax(B[:, k])]:.1f} Hz", fontsize=8)

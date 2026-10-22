@@ -53,6 +53,10 @@ whisker-pad motion energy); #3 1 Hz whole face, peak 0.7 s after cue; #1, #6 slo
 (include grooming). Scratch root: C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/
 c1a9581a-546a-45cc-b071-de0ab459161e/scratchpad/ (preview_r10/, dryrun_set/, master_face.png).
 
+**Provisional PREVIEW names** (Priya 10-21; `preview_r10/labels.json`): 0 lick_left, 1 slow_lower, 2 lick_pad,
+3 slow_face, 4 lick_right, 5 nose_cue, 6 nose_slow, 7 lick_late, 8 whisk_fast (unconfirmed), 9 lick_early. The master
+set gets its own names after its gallery + clips (components may merge / split with four animals).
+
 **4. Next, in order:** (a) Priya reviews the 10 trial-window clips -> provisional names; (b) when the array is done:
 rsync out/ + factors/, `collect`, `qc` (post-stroke tracking as clean as pre?), then `run_build` -> `run_fit` (ranks
 6-16) on O2 -> `report` + `report --absolute` -> choose rank (Priya) -> `select` -> `run_project` + `run_fitsession`
