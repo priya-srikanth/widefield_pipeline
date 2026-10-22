@@ -14,7 +14,7 @@ the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bi
 | 4 | tracking + spectrograms (one task = session x video) | `scripts/o2_face_rhythm.py bundle / collect` (runner `fr_runner.py`) | O2 array | `<bundle>/out/<key>_{trials,session,points}.npz` |
 | 5 | master PRE-STROKE factor set (frozen) | `scripts/face_rhythm_factors.py plan / build / fit / report / select` | plan, report, select: desktop; build, fit: O2 | `<bundle>/factors/<set>/master.npz` |
 | 6 | every session on the frozen set + its own fit | `face_rhythm_factors.py project / fitsession` | O2 arrays | `<set>/proj/<key>.npz`, `<set>/own/<key>.npz` |
-| 7 | session readouts | `scripts/face_rhythm_readouts.py` (computation: `wfield_local/face_rhythm_readouts.py`) | desktop | `<dlc>/face_rhythm/cam4/readouts/<set>/` |
+| 7 | session readouts | `scripts/face_rhythm_readouts.py` (computation: `wfield_local/face_rhythm_readouts.py`) | desktop | `<dlc>/face_rhythm/cam4/readouts/<set>/` (figures; CSVs in `data/`) |
 | 8 | FR in the widefield encoding model | `wfield_local/face_rhythm_outputs.py` (loader), `combined_encoding.py --fr <set>`, `o2_encoding.py bundle --fr <set>` | O2 / desktop | `LP_analysis/<run>/imaging_encoding/<order>[_video-..]_fr-<set>/` |
 
 `<dlc>` = `M:\MICROSCOPE\Priya\DeepLabCut\Widefield`; `<bundle>` = `<dlc>\o2\fr_cam4_20261021` (share) and

@@ -4,7 +4,7 @@
     python scripts/face_rhythm_readouts.py [--set master_pre_v1] [--bundle fr_cam4_20261021] [--band all] [--out DIR]
 
 Needs ``<set>/master.npz`` + ``proj/`` (and ``own/`` for the EVR gap / morphing). Writes to
-``<dlc>/face_rhythm/cam4/readouts/<set>/`` (default):
+``<dlc>/face_rhythm/cam4/readouts/<set>/`` (default; CSVs in its ``data/`` subfolder, `figure_layout.sidecar_for`):
   session_table.csv        one row per session: amplitudes per component x window, reconstruction error, EVR own /
                            frozen / gap, matched cosines, contra / ipsi movement power + asymmetry; animal / epoch / day
   position_amplitudes.csv  response-window amplitude per session x position x component
@@ -38,6 +38,7 @@ def main(argv=None) -> int:
     import matplotlib.pyplot as plt
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import face_rhythm_readouts as frr
+    from wfield_local import figure_layout
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -58,13 +59,13 @@ def main(argv=None) -> int:
     names, home, freqs = fro.labels(fdir), M["home"], M["freqs"]
 
     S = frr.session_table(fdir, names, home, freqs)
-    S.to_csv(out / "session_table.csv", index=False, float_format="%.5g")
+    S.to_csv(figure_layout.sidecar_for(out, "session_table", ".csv"), index=False, float_format="%.5g")
     _, Pos = frr.amplitudes(fdir, names)
-    Pos.to_csv(out / "position_amplitudes.csv", index=False, float_format="%.5g")
+    Pos.to_csv(figure_layout.sidecar_for(out, "position_amplitudes", ".csv"), index=False, float_format="%.5g")
     metrics = [c for c in S.columns if c.startswith(("amp_", "recon_err", "evr_", "cos_", "asym_"))]
     A, D = frr.epoch_stats(S, metrics)
-    A.to_csv(out / "epoch_means.csv", index=False, float_format="%.5g")
-    D.to_csv(out / "epoch_deltas.csv", index=False, float_format="%.5g")
+    A.to_csv(figure_layout.sidecar_for(out, "epoch_means", ".csv"), index=False, float_format="%.5g")
+    D.to_csv(figure_layout.sidecar_for(out, "epoch_deltas", ".csv"), index=False, float_format="%.5g")
     key = [c for c in metrics if c.startswith(("recon_err_trials", "evr_gap", "asym_response"))]
     print("PER-ANIMAL epoch means (rule 8: read these before the pooled deltas)")
     print(A[["animal", "epoch", "n_sessions", *key]].round(3).to_string(index=False))
