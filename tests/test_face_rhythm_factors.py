@@ -127,3 +127,33 @@ def test_normaliser_inverts_fr_per_bin_normalisation():
     D = nf * raw.sum(-1).mean(-1) + (1 - nf)
     saved = raw / D[:, None, None] * freqs[None, None] ** ex
     assert np.allclose(f.normaliser(saved, freqs, nf, ex), D, rtol=1e-4)
+
+
+def test_streamed_points_and_one_pass_power_match_the_in_memory_path(tmp_path, monkeypatch):
+    """project's streaming (points in blocks, power means riding on the projection pass) = the in-memory helpers."""
+    rng = np.random.default_rng(3)
+    n, Pn = 2600, 7
+    t25 = np.arange(n) / 25.0
+    disp = rng.standard_normal((n, Pn, 2)).astype(np.float16)
+    disp[[5, 1000, 1999]] = np.nan                                       # NaN bins, one at a block edge
+    pf = tmp_path / "x_points.npz"
+    np.savez(pf, disp=disp, t_daq_s=t25)
+    comps = rng.standard_normal((3, 2 * Pn)).astype(np.float32)
+    cues, pos = np.array([20.0, 45.0, 70.0]), np.array(["a", "b", "a"])
+    monkeypatch.setattr(f, "POINTS_CHUNK", 1000)                          # several blocks
+    st = f.points_stream(pf, comps, cues, pos)
+    Xp, _ = f._centred_disp(pf)
+    ref = f.window_speed(Xp, t25, cues, pos)
+    assert np.allclose(st["points_pc"], Xp @ comps.T, equal_nan=True, atol=1e-5)
+    for k in ("speed_between", "speed_precue", "speed_response"):
+        assert np.allclose(st[k], ref[k], equal_nan=True, rtol=1e-5)
+    assert np.array_equal(st["speed_n_bins"], ref["speed_n_bins"])
+    S = rng.random((600, 2, Pn, 4)).astype(np.float16)                   # power means in the projection's pass
+    t5 = np.arange(600) / 5.0
+    lab, ps = f.window_labels(t5, cues, pos, f.EDGE_BINS)
+    acc = f.ClassMeans(lab, 1 + 2 * len(ps), S.shape[1:])
+    X = f._scaled(S, 2.0, on_chunk=lambda c0, x: acc.add(c0, x.reshape(len(x), *S.shape[1:])))
+    f.project_rows(X, rng.random((2 * Pn, 2)), rng.random((4, 2)))
+    one, ref2 = f._power_dict(*acc.result(), ps), f.window_power(S, 2.0, t5, cues, pos)
+    for k in ("power_between", "power_precue", "power_response"):
+        assert np.allclose(one[k], ref2[k], equal_nan=True, rtol=1e-6)

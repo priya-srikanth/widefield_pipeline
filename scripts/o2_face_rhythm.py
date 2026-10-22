@@ -898,18 +898,29 @@ def _fr_helpers():
     return ff.npz_memmap, mq.mesh_triangles, mq.signed_area, mq.rim_triangles
 
 
+QC_VERSION = "qc-v2"            # bump when tracking_qc / output_check change (per-task results are cached on it)
+QC_BLOCK = 25000                # 25 Hz bins per contiguous read (~130 MB float16 at 1282 points)
+
+
 def tracking_qc(points_npz: Path, step: int = 25) -> dict:
-    """AFTER-tracking QC of one task from its 25 Hz points output, sampled every ``step`` bins (25 = 1 Hz): mesh folds
-    (fraction of home Delaunay triangles whose orientation flipped, per sampled bin; INTERIOR vs RIM triangles -- the
-    rim, at the headplate / mask edge, folds in most sessions and says nothing about the face), frozen points,
-    displacement from home. The before-tracking counterpart is face_rhythm_mesh_qc.py."""
+    """AFTER-tracking QC of one task from its 25 Hz points output: mesh folds (fraction of home Delaunay triangles whose
+    orientation flipped, every ``step``-th bin, 25 = 1 Hz; INTERIOR vs RIM triangles -- the rim, at the headplate / mask
+    edge, folds in most sessions and says nothing about the face; 10-22: its most-folding triangles are near-flat
+    slivers that flip with sub-pixel jitter), frozen points, displacement from home, and the fraction of NaN bins (ALL
+    bins). The file is read in CONTIGUOUS blocks of ``QC_BLOCK`` bins and subsampled in memory (10-22: strided memmap
+    reads over the share were the slow part). The before-tracking counterpart is face_rhythm_mesh_qc.py."""
     npz_memmap, mesh_triangles, signed_area, rim_triangles = _fr_helpers()
     with np.load(points_npz) as z:
         home = z["home"].astype(float)
     disp = npz_memmap(points_npz, "disp")
     viol = np.asarray(npz_memmap(points_npz, "viol_frac"), float)
-    ix = np.arange(0, disp.shape[0], step)
-    D = np.asarray(disp[ix], float)                                      # (n, P, 2)
+    n = disp.shape[0]
+    D, n_nan = [], 0
+    for b0 in range(0, n, QC_BLOCK):
+        blk = np.asarray(disp[b0:b0 + QC_BLOCK])                         # one sequential read
+        n_nan += int((~np.isfinite(blk).all(axis=(1, 2))).sum())
+        D.append(blk[(-b0) % step::step].astype(float))                 # global bins 0, step, 2 step, ...
+    D = np.concatenate(D)
     ok = np.isfinite(D).all(axis=(1, 2))
     tri = mesh_triangles(home)
     fl = np.sign(signed_area(home[None] + D[ok], tri)) != np.sign(signed_area(home, tri))[None]
@@ -921,39 +932,93 @@ def tracking_qc(points_npz: Path, step: int = 25) -> dict:
             "fold_bins_frac_rim": float(fl[:, rim].any(1).mean()),
             "fold_frac_p99": float(np.percentile(flip, 99)), "viol_frac_mean": float(np.nanmean(viol)),
             "disp_med_px": float(np.median(mag)), "disp_p99_px": float(np.percentile(mag, 99)),
-            "n_sampled": int(ok.sum())}
+            "n_sampled": int(ok.sum()), "nan_bins_frac": n_nan / max(n, 1)}
 
 
-def cmd_qc(name: str, step: int = 25) -> None:
-    """Tracking QC for every finished task, by animal x epoch (is post-stroke tracking as clean as pre?) ->
-    ``<dlc>/face_rhythm/cam4/o2_<name>_qc.png`` + table (figure_layout data/)."""
+def output_check(out: Path, key: str, n_frames: int, n_trials: int) -> dict:
+    """INTEGRITY of one task's outputs WITHOUT loading the big arrays (shapes from the npy headers, `_npz_shapes`):
+    segments cover the video with no gap (summary.json), 25 Hz bins = frames // 10, 5 Hz bins = 25 Hz // 5, trials
+    spec = (n_trials, len(T_MS), 2, P, F), the DAQ time step (points ``t_daq_s``, small), trial fill. ``problems``
+    lists what failed (empty = ok)."""
+    S = json.loads((out / f"{key}_summary.json").read_text())
+    seg = sorted(S["segments"], key=lambda x: x["start"])
+    cover = bool(seg) and seg[0]["start"] == 0 and seg[-1]["end"] >= n_frames and \
+        all(b["start"] == a["end"] for a, b in zip(seg, seg[1:]))
+    sh = {k: _npz_shapes(out / f"{key}_{k}.npz") for k in ("trials", "session", "points")}
+    npts = int(S["n_points"])
+    with np.load(out / f"{key}_points.npz") as z:
+        dt = np.diff(z["t_daq_s"].astype(float))
+    n25 = sh["points"]["disp"][0]
+    checks = (
+        (not cover, "segments do not cover the video"),
+        (n25 != n_frames // 10, f"25 Hz bins {n25} != frames // 10 = {n_frames // 10}"),
+        (sh["session"]["spec"][0] != n25 // 5, f"5 Hz bins {sh['session']['spec'][0]} != {n25 // 5}"),
+        (tuple(sh["trials"]["spec"][:4]) != (n_trials, len(T_MS), 2, npts),
+         f"trials spec {sh['trials']['spec']} != ({n_trials}, {len(T_MS)}, 2, {npts}, F)"),
+        (np.abs(dt - 0.04).max() > 0.002, f"DAQ step {np.abs(dt - 0.04).max() * 1000:.1f} ms off 40 ms"),
+        (float(S["trial_samples_filled"]) < 0.99, f"trials filled {S['trial_samples_filled']}"),
+    )
+    return {"segments": len(seg), "covered": cover, "bins_25hz": int(n25), "dt_max_ms": float(dt.max() * 1000),
+            "trial_samples_filled": float(S["trial_samples_filled"]),
+            "violation_fraction": float(S["violation_fraction"]), "hours": float(S.get("hours", np.nan)),
+            "problems": "; ".join(m for bad, m in checks if bad)}
+
+
+def qc_task(job) -> dict:
+    """One task's integrity + tracking QC, CACHED (`result_cache`, ``<bundle>/qc_cache/<key>.pkl``, keyed on the four
+    output files' size + mtime and ``QC_VERSION``): a re-run after a new copy reads only the new / changed tasks.
+    Module-level for `fan_sessions` (spawn pickles by name)."""
+    d, key, n_frames, n_trials, step = job
+    from wfield_local import result_cache
+    out = Path(d) / "out"
+    ins = [out / f"{key}_{k}" for k in ("summary.json", "trials.npz", "session.npz", "points.npz")]
+    return result_cache.cached(Path(d) / "qc_cache", key, ins, f"{QC_VERSION}-step{step}",
+                               lambda: {**output_check(out, key, int(n_frames), int(n_trials)),
+                                        **tracking_qc(out / f"{key}_points.npz", step)})
+
+
+def cmd_qc(name: str, step: int = 25, jobs: int = 4) -> None:
+    """Integrity + tracking QC for every task whose outputs are complete (summary + three npz; tasks still being
+    copied are skipped), by animal x epoch (is post-stroke tracking as clean as pre?). Tasks in parallel
+    (`analysis_kit.fan_sessions`, ``jobs``; I/O-bound reads of the share), per-task results cached (`qc_task`) ->
+    ``<dlc>/face_rhythm/<cam>/o2_<name>_qc.png`` + table (figure_layout data/)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from wfield_local import analysis_kit as ak
     from wfield_local import epochs, figure_layout, writeguard
     from wfield_local import o2_inference as oi
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     d = oi.bundle_dir(rv, name)
     T = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
+    files = ("summary.json", "trials.npz", "session.npz", "points.npz")
+    done = [r for r in T.itertuples() if all((d / "out" / f"{r.key}_{k}").exists() for k in files)]
+    if not done:
+        print("no complete outputs yet")
+        return
+    res, fails = ak.fan_sessions([(str(d), r.key, r.n_frames, r.n_trials, step) for r in done], qc_task, jobs=jobs,
+                                 key=lambda j: j[1], label="task")
+    for j, e in fails:
+        print(f"  !! {j[1]}: {e}")
+    meta = {r.key: r for r in done}
     rows = []
-    for r in T.itertuples():
-        f = d / "out" / f"{r.key}_points.npz"
-        if not f.exists():
-            continue
+    for j, v in res:
+        r = meta[j[1]]
         lab = f"{r.animal}_{r.date[4:]}"
         rows.append({"key": r.key, "animal": r.animal, "date": r.date, "epoch": epochs.epoch_of(lab),
-                     "day": epochs.days_since_stroke(lab), **tracking_qc(f, step)})
-    if not rows:
-        print("no points outputs yet")
-        return
+                     "day": epochs.days_since_stroke(lab), **v})
     Q = pd.DataFrame(rows)
     out = Path(rv.root("dlc")) / "face_rhythm" / _bundle_cam(T)
     writeguard.assert_writable(out)
     Q.to_csv(figure_layout.sidecar_for(out, f"o2_{name}_qc", ".csv"), index=False, float_format="%.4g")
     order = ["pre", "acute", "subacute", "chronic"]
+    bad = Q[Q.problems.astype(bool)]
+    print(f"integrity: {len(Q) - len(bad)} / {len(Q)} tasks ok")
+    for r in bad.itertuples():
+        print(f"  !! {r.key}: {r.problems}")
     print(Q.groupby(["animal", "epoch"])[["fold_bins_frac_interior", "fold_bins_frac_rim", "viol_frac_mean",
-                                          "disp_med_px"]]
+                                          "nan_bins_frac", "disp_med_px"]]
           .mean().round(4).to_string())
     cols = ("fold_bins_frac_interior", "fold_bins_frac_rim", "viol_frac_mean", "disp_med_px", "disp_p99_px")
     fig, axs = plt.subplots(1, len(cols), figsize=(3.2 * len(cols), 3))
@@ -1215,6 +1280,7 @@ def main(argv=None) -> int:
     q = sub.add_parser("qc", help="tracking QC (mesh folds, frozen points, displacement) by animal x epoch")
     q.add_argument("--name", required=True)
     q.add_argument("--step", type=int, default=25, help="sample every N 25 Hz bins (25 = 1 Hz)")
+    q.add_argument("--jobs", type=int, default=4, help="tasks in parallel (I/O-bound; shared box)")
     t = sub.add_parser("paramtest", help="write the tracking-parameter test into a bundle")
     t.add_argument("--name", required=True)
     t.add_argument("--user", required=True)
@@ -1234,7 +1300,7 @@ def main(argv=None) -> int:
     elif a.cmd == "paramscore":
         cmd_paramscore(a.name, a.src)
     elif a.cmd == "qc":
-        cmd_qc(a.name, a.step)
+        cmd_qc(a.name, a.step, a.jobs)
     else:
         cmd_collect(a.name)
     return 0

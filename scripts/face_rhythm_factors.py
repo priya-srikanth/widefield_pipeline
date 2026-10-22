@@ -114,17 +114,22 @@ def rows_of(spec: np.ndarray) -> np.ndarray:
 
 
 class _scaled:
-    """Lazy (n, 2P, F) float32 view of a (n, 2, P, F) float16 memmap divided by the animal's scale."""
+    """Lazy (n, 2P, F) float32 view of a (n, 2, P, F) float16 memmap divided by the animal's scale. ``on_chunk(start,
+    rows)`` sees every slice read (rows incl. NaN ones): a second statistic computed in the SAME pass over the file
+    (`cmd_project`: the window power means ride on the projection's read of the session spectrogram)."""
 
-    def __init__(self, S, s):
-        self.S, self.s = S, s
+    def __init__(self, S, s, on_chunk=None):
+        self.S, self.s, self.on_chunk = S, s, on_chunk
         self.shape = (S.shape[0], S.shape[-3] * S.shape[-2], S.shape[-1])
 
     def __len__(self):
         return self.shape[0]
 
     def __getitem__(self, sl):
-        return rows_of(self.S[sl]) / self.s
+        x = rows_of(self.S[sl]) / self.s
+        if self.on_chunk is not None and isinstance(sl, slice):
+            self.on_chunk(sl.start or 0, x)
+        return x
 
 
 # ------------------------------------------------------------------------------------------------- non-negative CP
@@ -513,20 +518,39 @@ def window_labels(t: np.ndarray, cues: np.ndarray, positions: np.ndarray, edge: 
     return lab, pos
 
 
-def _class_means(get, n: int, lab: np.ndarray, n_lab: int, shape: tuple) -> tuple[np.ndarray, np.ndarray]:
-    """Mean of rows ``get(slice)`` per label (chunked; rows with any NaN skipped). -> (means (n_lab, *shape), counts)."""
-    tot, cnt = np.zeros((n_lab, *shape), np.float64), np.zeros(n_lab)
-    for c0 in range(0, n, CHUNK):
-        x = get(slice(c0, c0 + CHUNK))
-        lb = lab[c0:c0 + CHUNK]
+class ClassMeans:
+    """Running mean of rows per label ``lab`` (rows with label < 0 or any NaN skipped), fed in chunks by ``add(start,
+    rows)`` in any order -- so it can ride on another pass over the same file."""
+
+    def __init__(self, lab: np.ndarray, n_lab: int, shape: tuple):
+        self.lab, self.shape = lab, tuple(shape)
+        self.tot, self.cnt = np.zeros((n_lab, *shape), np.float64), np.zeros(n_lab)
+
+    def add(self, c0: int, x: np.ndarray) -> None:
+        lb = self.lab[c0:c0 + len(x)]
         ok = (lb >= 0) & np.isfinite(x.reshape(len(x), -1)).all(1)
         for v in np.unique(lb[ok]):
             mm = ok & (lb == v)
-            tot[v] += x[mm].sum(0)
-            cnt[v] += mm.sum()
-    mean = (tot / np.maximum(cnt, 1).reshape(-1, *([1] * len(shape)))).astype(np.float32)
-    mean[cnt == 0] = np.nan
-    return mean, cnt.astype(int)
+            self.tot[v] += x[mm].sum(0)
+            self.cnt[v] += mm.sum()
+
+    def result(self) -> tuple[np.ndarray, np.ndarray]:
+        mean = (self.tot / np.maximum(self.cnt, 1).reshape(-1, *([1] * len(self.shape)))).astype(np.float32)
+        mean[self.cnt == 0] = np.nan
+        return mean, self.cnt.astype(int)
+
+
+def _class_means(get, n: int, lab: np.ndarray, n_lab: int, shape: tuple) -> tuple[np.ndarray, np.ndarray]:
+    """Mean of rows ``get(slice)`` per label (chunked; rows with any NaN skipped). -> (means (n_lab, *shape), counts)."""
+    acc = ClassMeans(lab, n_lab, shape)
+    for c0 in range(0, n, CHUNK):
+        acc.add(c0, get(slice(c0, c0 + CHUNK)))
+    return acc.result()
+
+
+def _power_dict(mean: np.ndarray, cnt: np.ndarray, pos: np.ndarray) -> dict:
+    return {"power_between": mean[0], "power_precue": mean[1::2], "power_response": mean[2::2],
+            "power_positions": pos, "power_n_bins": cnt}
 
 
 def window_power(S, s: float, t5: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
@@ -535,8 +559,7 @@ def window_power(S, s: float, t5: np.ndarray, cues: np.ndarray, positions: np.nd
     DISTRIBUTED over points and frequencies, not how much the face moves (that is `window_speed`)."""
     lab, pos = window_labels(t5, cues, positions, EDGE_BINS)
     mean, cnt = _class_means(lambda sl: np.asarray(S[sl], np.float32) / s, len(t5), lab, 1 + 2 * len(pos), S.shape[1:])
-    return {"power_between": mean[0], "power_precue": mean[1::2], "power_response": mean[2::2],
-            "power_positions": pos, "power_n_bins": cnt}
+    return _power_dict(mean, cnt, pos)
 
 
 def window_speed(Xp: np.ndarray, t25: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
@@ -549,6 +572,41 @@ def window_speed(Xp: np.ndarray, t25: np.ndarray, cues: np.ndarray, positions: n
     mean, cnt = _class_means(lambda sl: sp2[sl], len(t25), lab, 1 + 2 * len(pos), (P,))
     rms = np.sqrt(mean)
     return {"speed_between": rms[0], "speed_precue": rms[1::2], "speed_response": rms[2::2], "speed_n_bins": cnt}
+
+
+def points_stream(pf: Path, comps: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
+    """`_centred_disp` + PCs + `window_speed` for a whole task WITHOUT holding its points: two sequential passes over
+    ``disp`` in ``POINTS_CHUNK`` blocks (the session mean; then per block the centred rows on the frozen PCs and the
+    speed^2 per bin, the block's first bin differenced against the previous block's last). Same numbers as the
+    in-memory path (test); peak memory one block instead of ~5 GB at 230k bins x 1282 points."""
+    D = npz_memmap(pf, "disp")
+    n, P = D.shape[0], D.shape[1]
+    t25 = npz_small(pf, ("t_daq_s",))["t_daq_s"]
+    tot, cnt = np.zeros(2 * P), 0
+    for c0 in range(0, n, POINTS_CHUNK):
+        x = np.asarray(D[c0:c0 + POINTS_CHUNK], np.float32).reshape(-1, 2 * P)
+        ok = np.isfinite(x).all(1)
+        tot += x[ok].sum(0)
+        cnt += ok.sum()
+    mu = (tot / max(cnt, 1)).astype(np.float32)
+    lab, pos = window_labels(t25, cues, positions, 5 * EDGE_BINS)
+    acc = ClassMeans(lab, 1 + 2 * len(pos), (P,))
+    pcs = np.empty((n, comps.shape[0]), np.float32)
+    inv_dt, prev = 1.0 / np.median(np.diff(t25)), None
+    for c0 in range(0, n, POINTS_CHUNK):
+        x = np.asarray(D[c0:c0 + POINTS_CHUNK], np.float32).reshape(-1, 2 * P) - mu
+        pcs[c0:c0 + len(x)] = x @ comps.T                                     # NaN bins stay NaN
+        xx = x.reshape(len(x), P, 2)
+        full = xx if prev is None else np.concatenate([prev[None], xx])
+        sp2 = ((np.diff(full, axis=0) * inv_dt) ** 2).sum(-1)
+        if prev is None:
+            sp2 = np.vstack([np.full((1, P), np.nan, np.float32), sp2])        # first bin of the session: NaN
+        acc.add(c0, sp2)
+        prev = xx[-1]
+    mean, cnts = acc.result()
+    rms = np.sqrt(mean)
+    return {"points_pc": pcs, "points_t_daq_s": t25, "speed_between": rms[0], "speed_precue": rms[1::2],
+            "speed_response": rms[2::2], "speed_n_bins": cnts}
 
 
 def cmd_project(sd: Path, task: int) -> None:
@@ -570,17 +628,18 @@ def cmd_project(sd: Path, task: int) -> None:
     freqs = M["freqs"].astype(np.float64)
     dfn = lambda x: normaliser(x * s, freqs, fr_norm, fr_ex)                   # rows are scaled by 1 / s
     Wt, Et, _, Dt = project_rows(_scaled(St.reshape(n_tr * n_t, *St.shape[2:]), s), A, B, row_fn=dfn)
-    Ss = npz_memmap(od / f"{key}_session.npz", "spec")
-    Ws, Es, _, Ds = project_rows(_scaled(Ss, s), A, B, row_fn=dfn)
     meta = npz_small(od / f"{key}_trials.npz", ("t_ms", "trial_id", "position", "cue_daq_s"))
     tse = npz_small(od / f"{key}_session.npz", ("t_daq_s", "rate_hz"))
-    pw = window_power(Ss, s, tse["t_daq_s"], meta["cue_daq_s"], meta["position"])
+    Ss = npz_memmap(od / f"{key}_session.npz", "spec")
+    # ONE pass over the session spectrogram (6-9 GB on the share): the window power means (`window_power`) ride on the
+    # projection's chunked read instead of a second read (10-22)
+    lab, pos = window_labels(tse["t_daq_s"], meta["cue_daq_s"], meta["position"], EDGE_BINS)
+    acc = ClassMeans(lab, 1 + 2 * len(pos), Ss.shape[1:])
+    Ws, Es, _, Ds = project_rows(_scaled(Ss, s, on_chunk=lambda c0, x: acc.add(c0, x.reshape(len(x), *Ss.shape[1:]))),
+                                 A, B, row_fn=dfn)
+    pw = _power_dict(*acc.result(), pos)
     if "points_components" in M:
-        pf = od / f"{key}_points.npz"
-        Xp, _ = _centred_disp(pf)
-        pw["points_pc"] = (Xp @ M["points_components"].T).astype(np.float32)          # NaN bins stay NaN
-        pw["points_t_daq_s"] = npz_small(pf, ("t_daq_s",))["t_daq_s"]
-        pw.update(window_speed(Xp, pw["points_t_daq_s"], meta["cue_daq_s"], meta["position"]))
+        pw.update(points_stream(od / f"{key}_points.npz", M["points_components"], meta["cue_daq_s"], meta["position"]))
     _atomic_savez(dst, trials=Wt.reshape(n_tr, n_t, -1), trials_err=Et.reshape(n_tr, n_t), session=Ws, session_err=Es,
                   trials_D=Dt.reshape(n_tr, n_t), session_D=Ds,
                   session_t_daq_s=tse["t_daq_s"], session_rate_hz=tse["rate_hz"], spec_hash=str(M["spec_hash"]),
