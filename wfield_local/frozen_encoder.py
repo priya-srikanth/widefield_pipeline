@@ -190,12 +190,15 @@ def _subset(s: dict, keep: list[str]) -> tuple:
 #:   task_movement      task + directionless movement (no direction, no contact)
 #:   task_movement_dir  task + movement + direction (no contact)
 #:   movement_only      directionless movement only
+#:   no_task            movement + direction + contact (no task): Musall's unique task = joint - no_task; task-aligned
+#:                      non-task variance = no_task - (joint - no_movement)
 #: Readouts: residual (data - full) per variant; no_movement -> task_movement = what movement MAGNITUDE / timing adds;
 #: -> task_movement_dir = what direction adds; -> joint = what contact adds. Ordered pair brackets the group split.
 VARIANTS = ("joint", "movement_first", "task_first", "no_movement", "task_movement", "task_movement_dir",
-            "movement_only")
+            "movement_only", "no_task")
 _KEEP = {"no_movement": ("task",), "task_movement": ("task", "movement"),
-         "task_movement_dir": ("task", "movement", "direction"), "movement_only": ("movement",)}
+         "task_movement_dir": ("task", "movement", "direction"), "movement_only": ("movement",),
+         "no_task": ("movement", "direction", "contact")}
 
 
 #: FROZEN DROP-ONE-SPOUT (Priya 10-22: "should we do a leave-one-spout out but without removing movement first" -> yes):
