@@ -29,6 +29,12 @@ import pandas as pd
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 MEASURES = ("avg", "trial", "frame")
 MLABEL = {"avg": "trial-averaged", "trial": "single-trial", "frame": "frame (all)"}
+#: what "unique" means here (Priya 10-22): differences of REFITS (order-free, drop-style), not Musall's shuffle-in-the-
+#: ordered-model; movement / direction are gains when ADDED in sequence, so they are not beyond the later groups
+#: a task-independent part below this is flagged (pre-stroke LOSO noise is ~ +-0.02)
+NEG_TOL = -0.02
+UNIQUE_NOTE = ("unique = gain of a refit with vs without the group (no shuffle, no orthogonalisation): task = joint - "
+               "no_task (beyond all); movement = beyond task; direction = beyond task + movement; contact = beyond all")
 
 
 def quantities(A: pd.DataFrame) -> pd.DataFrame:
@@ -105,8 +111,8 @@ def main(argv=None) -> int:
                         ax.set_title(ep, fontsize=9)
                     if j == 0:
                         ax.set_ylabel(f"{MLABEL[meas]} R$^2$", fontsize=8)
-            fig.suptitle(f"Alone (light) vs unique (dark), {area}, {align}-aligned -- Musall Fig. 4a style\n{stamp}",
-                         fontsize=8)
+            fig.suptitle(f"Alone (light) vs unique (dark), {area}, {align}-aligned -- Musall Fig. 4a style\n"
+                         f"{UNIQUE_NOTE}\n{stamp}", fontsize=8)
             fig.tight_layout()
             fig.savefig(fd / f"musall_alone_vs_unique_{area}_{align}.png", dpi=130)
             plt.close(fig)
@@ -117,21 +123,37 @@ def main(argv=None) -> int:
                 for j, ep in enumerate(epochs):
                     ax = axs[i][j]
                     T = S[(S.measure == meas) & (S.epoch == ep)].groupby("animal").mean(numeric_only=True)
+                    broken = []
                     for k, grp in enumerate(("movement", "non-task")):
-                        ind, ali = T[f"indep:{grp}"], T[f"aligned:{grp}"]
-                        ax.bar(k, ind.mean(), 0.6, color="#e6550d" if grp == "movement" else "#636363",
+                        alone, ind = T[f"alone:{grp}"], T[f"indep:{grp}"]
+                        col = "#e6550d" if grp == "movement" else "#636363"
+                        # whole bar = ALONE (grey = task-aligned part); task-independent drawn from 0 on top of it, so
+                        # a NEGATIVE task-independent part (frozen model scored on new data: adding the group costs
+                        # R^2) is drawn below zero, hatched, instead of hidden under a grey bar stacked on it
+                        ax.bar(k, alone.mean(), 0.6, color="0.82", label="task-aligned (alone - indep.)" if k == 0 else None)
+                        neg = ind.mean() < 0
+                        ax.bar(k, ind.mean(), 0.42, color="white" if neg else col, edgecolor=col,
+                               hatch="////" if neg else None, lw=0.8,
                                label="task-independent" if k == 0 else None)
-                        ax.bar(k, ali.mean(), 0.6, bottom=ind.mean(), color="0.8",
-                               label="task-aligned" if k == 0 else None)
+                        xs = k + np.linspace(-0.2, 0.2, len(T))
+                        ax.scatter(xs, alone.values, s=10, facecolor="none", edgecolor="k", lw=0.6, zorder=3)
+                        ax.scatter(xs, ind.values, s=10, color=col, edgecolor="k", lw=0.4, zorder=4)
+                        if (ind < NEG_TOL).any():
+                            broken.append(f"{grp}: {', '.join(ind.index[ind < NEG_TOL])}")
+                    ax.axhline(0, color="0.4", lw=0.6)
                     ax.set_xticks([0, 1])
                     ax.set_xticklabels(["movement\n(directionless)", "all non-task"], fontsize=7)
+                    if broken:                   # Musall's split assumes task-independent >= 0
+                        ax.text(0.02, 0.98, f"indep. < {NEG_TOL} (split not valid):\n" +"\n".join(broken), transform=ax.transAxes,
+                                va="top", fontsize=5.5, color="#b30000")
                     if i == 0:
                         ax.set_title(ep, fontsize=9)
                     if j == 0:
                         ax.set_ylabel(f"{MLABEL[meas]} R$^2$", fontsize=8)
-            axs[0][0].legend(fontsize=6, frameon=False)
-            fig.suptitle(f"Task-aligned (grey) vs task-independent (colour), {area}, {align}-aligned -- Musall Fig. 5 "
-                         f"style\n{stamp}", fontsize=8)
+            axs[0][0].legend(fontsize=6, frameon=False, loc="lower right")
+            fig.suptitle(f"Task-aligned vs task-independent, {area}, {align}-aligned -- Musall Fig. 5 style.\nBar = alone "
+                         f"(grey = task-aligned), inner bar = task-independent (hatched if < 0); open dots = alone, filled = "
+                         f"task-independent, per animal\n{stamp}", fontsize=8)
             fig.tight_layout()
             fig.savefig(fd / f"musall_task_aligned_{area}_{align}.png", dpi=130)
             plt.close(fig)
@@ -145,6 +167,8 @@ def main(argv=None) -> int:
                     x = np.arange(len(mods)) + (mi - 1) * 0.26
                     ax.bar(x, [T[m].mean() for m in mods], 0.25, label=MLABEL[meas],
                            color=("#2c7fb8", "#f03b20", "0.6")[mi])
+                    for xi, m in zip(x, mods):                       # animals
+                        ax.scatter(np.full(len(T), xi), T[m].values, s=5, color="k", zorder=3)
                 ax.set_xticks(np.arange(len(mods)))
                 ax.set_xticklabels(["full", "task\nalone", "movement\nalone", "non-task\nalone"], fontsize=7)
                 ax.axhline(0, color="0.5", lw=0.6)
