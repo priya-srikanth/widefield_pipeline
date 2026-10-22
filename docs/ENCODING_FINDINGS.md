@@ -278,6 +278,12 @@ Numbers: % of 2,022 bins flagged by the nested bootstrap (pre-normalised), rest 
   variance shared between target and movement goes to movement (the movement-first convention, 2.x); it says the
   drop needs no target term, not that no target signal is lost (3.1's drop-p, far contra ~0 acutely, is that test).
   Cue-aligned over attempted trials, not LP-onset-aligned like the maps (PS95's map increase is not seen here).
+  **CONTACT IS INSIDE "MOVEMENT" HERE (caught 10-22):** the encoder's `licks` block holds the spout-CONTACT kernel too,
+  and acute far contra has few contacts, so part of this "movement" share may be missing touch / outcome activity,
+  not weaker licking; the movement terms also carry lick DIRECTION (tongue x / y, jaw x, angle), which is target-
+  correlated. Also: penalties are chosen per session by CV (task usually 1e4-1e5, lick 1-1e6), not the fixed values
+  quoted above. Do not read as "movement" until the frozen encoder's contact / direction split
+  (`wfield_local/frozen_encoder.py`, FGROUP) is in.
 - ENL window: see the matched 1.0 s comparison below.
 
 **Frozen pre-stroke decoders, per-position accuracy (10-22 ~01:10; `acc`, chance 0.167).** LP: `LP_licks/epoch/data/
