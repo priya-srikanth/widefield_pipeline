@@ -79,6 +79,11 @@ sbatch .../run_project.sbatch ; sbatch .../run_fitsession.sbatch
 python scripts/face_rhythm_readouts.py
 python scripts/o2_encoding.py bundle --name enc_fr_<date> --user ps150 --fr master_pre_v1     # then COMMANDS.md
 ```
+Factor CLIPS for naming (fr env): `python scripts/face_rhythm_factor_clips.py --fdir <set> [--key K] [--comps ...]` ->
+`<dlc>/face_rhythm/cam4/factor_clips/<set>/<key>_f<k>.mp4`: each factor's strongest moments (absolute expression), the
+tracked mesh coloured by the direction the factor moves each point (blue lateral, red vertical; Rich's convention),
+size = weight x expression, with an expression strip and time from cue.
+
 Name the components: the readouts write `<set>/labels_suggested.json` (rules in `face_rhythm_readouts.describe_components`:
 peak frequency, face region around the master's LP nose, lick-rate correlation, far-L / far-R selectivity, rim share)
 and `components.csv`; after checking them against the gallery, copy to `<set>/labels.json` (used by the loader and the
