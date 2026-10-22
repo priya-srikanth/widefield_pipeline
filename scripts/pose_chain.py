@@ -17,6 +17,7 @@ Steps (each a separate process, the right conda env; per-session steps are CACHE
   figures        pose3d_summary_fig, pose3d_jaw_crosscheck   (AFTER spout_error: the summary reads it)     locanmf
   phase          pose3d_phase                                                                              locanmf
   jaw_onsets     jaw_onsets (WATCHED by the encoding window: written last, once)                          locanmf
+--jobs (default 6) is per step: sessions in parallel, collect included.
 Each step's log goes to <dlc>/session_poses/pose_chain_logs/<stamp>_<step>.log; the run stops at the first failure.
 """
 from __future__ import annotations
@@ -52,7 +53,7 @@ def commands(rv, jobs: int, sessions: list[str] | None, step: str | None = None)
     arg = lambda ss: [s.replace("_", ":", 1) for s in ss]  # noqa: E731
     J = ["--jobs", str(jobs)]
     return {
-        "collect": [("locanmf", ["-m", "wfield_local.o2_inference", "collect", "--name", BUNDLE, "--missing-only"]),
+        "collect": [("locanmf", ["-m", "wfield_local.o2_inference", "collect", "--name", BUNDLE, "--missing-only", *J]),
                     ("locanmf", ["-m", "wfield_local.pose_windows", "--jobs", str(jobs)])],
         "pose3d": [("dlc", ["-m", "scripts.pose3d", "production", *arg(p3), *J])] if p3 else [],
         "kinematics": [("locanmf", ["-m", "scripts.pose3d_kinematics", *J]),
@@ -76,7 +77,9 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="*", choices=STEPS, default=None)
     ap.add_argument("--sessions", nargs="*", default=None, metavar="ANIMAL_YYYYMMDD",
                     help="for pose3d / cam1_licks (default: the sessions still missing their output)")
-    ap.add_argument("--jobs", type=int, default=3)
+    # 10-21 evening: 3 -> 6 (Priya: the box had plenty of free CPU / RAM; collect was serial and the slowest step).
+    # Use --jobs 3 when the other windows need the box.
+    ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     rv = PathResolver()

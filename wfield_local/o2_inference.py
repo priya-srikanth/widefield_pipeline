@@ -615,12 +615,63 @@ def session_windows(rv, bundle: str, animal: str, date: str, cam: str = "cam4", 
     return ix, flat
 
 
+class _CollectJob(tuple):
+    """`_collect_session`'s argument; a tuple that logs as ``ANIMAL DATE`` in the pool's progress lines."""
+    def __repr__(self):
+        return f"{self[5]} {self[6]}"
+
+
+def _collect_session(job) -> str:
+    """One session of `cmd_collect` (module-level for the spawn pool). Returns a one-line status."""
+    import cv2
+    from wfield_local import camera_sync as cs
+    from wfield_local.paths import PathResolver
+    d, kind, cam, sfx, sp, animal, date, videos_tsv, clip = job
+    rv = PathResolver()
+    od = d / "out" / f"{animal}_{date}"
+    vids, ok_all = [], True
+    for video in videos_tsv:
+        done = od / f"{Path(video).stem}_done.json"
+        if not done.exists():
+            print(f"{animal} {date} {video}: NOT DONE (no {done.name})", flush=True)
+            ok_all = False
+            continue
+        info = json.loads(done.read_text(encoding="utf-8"))
+        v = next(x for x in videos_for(rv, animal, date, cam) if x.name == video)
+        n_local = int(cv2.VideoCapture(str(v)).get(cv2.CAP_PROP_FRAME_COUNT))
+        npz = od / f"{Path(video).stem}_{info['scorer']}.npz"
+        ok = info["n_frames"] == n_local and npz.exists()
+        print(f"{animal} {date} {video}: {info['n_frames']} frames predicted, video {n_local} "
+              f"{'OK' if ok else 'MISMATCH'} ({info['wall_s'] / 3600:.1f} h, batch {info['batch']})", flush=True)
+        ok_all &= ok
+        if ok:
+            vids.append((video, np.load(npz), info))
+    if not ok_all or not vids:
+        return f"{animal} {date}: not collected (incomplete)"   # a split day is collected only when every part is done
+    # each video with ITS recording's template (split days have one per recording -- camera_sync)
+    tpls = cs.templates_for(rv, date, animal, cam)
+    rec = lambda name: Path(name).stem.split("_", 1)[1]           # noqa: E731  <cam>_<recording>.avi
+    missing = [n for n, _, _ in vids if rec(n) not in tpls]
+    if missing:
+        return f"   {animal} {date}: no alignment template for {missing} -- not collected"
+    parts = [str(x) for x in vids[0][1]["parts"]]
+    videos = [(z["pose"], t, n) for n, z, _ in vids for t in tpls[rec(n)]]   # one entry per template / segment
+    n = full_to_windows(videos[0][0], parts, vids[0][2]["scorer"], animal, date,
+                        sp / f"{animal}_{date}{sfx}_full", rv, model="LP" if kind == "lp" else "DLC",
+                        videos=videos if len(videos) > 1 else None, cam=cam)
+    msg = f"   -> {sp / (animal + '_' + date + sfx + '_full')} ({n} trials)"
+    if clip is not None and len(videos) == 1:
+        msg += f"\n   vs desktop clip: {compare_to_clip(videos[0][0], parts, sp / f'{animal}_{date}{sfx}', Path(clip))}"
+    return msg
+
+
 def cmd_collect(rv, name: str, compare: dict | None = None, sessions: list | None = None,
-                missing_only: bool = False) -> None:
+                missing_only: bool = False, jobs: int = 1) -> None:
     """Check each finished video's frame count and write `session_poses/<a>_<d>_full/` windows (windows_DLC.csv or,
     for an LP bundle, windows_LP.csv -- the same windows_index either way). ``compare``: {"ANIMAL:DATE": clip csv}
-    -> `compare_to_clip` against a desktop prediction on that session's `session_poses/<a>_<d>/` clip."""
-    import cv2
+    -> `compare_to_clip` against a desktop prediction on that session's `session_poses/<a>_<d>/` clip.
+    ``jobs`` > 1: sessions in parallel (10-21: serial collect was ~2 min / session, the slowest step of pose_chain;
+    sessions write separate folders, so they are independent)."""
     d = bundle_dir(rv, name)
     bj = json.loads((d / "bundle.json").read_text(encoding="utf-8"))
     kind, cam = bj.get("kind", "dlc"), bj.get("cam", "cam4")
@@ -628,49 +679,21 @@ def cmd_collect(rv, name: str, compare: dict | None = None, sessions: list | Non
     tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
     from wfield_local import dlc_project
     sp = dlc_project.project_dir(rv).parent / "session_poses"
-    from wfield_local import camera_sync as cs
+    jobs_ = []
     for (animal, date), g in tasks.groupby(["animal", "date"], sort=True):
         # 10-21: --sessions / --missing-only (a full collect rewrites every finished session, ~5 min each)
         if sessions and f"{animal}:{date}" not in sessions:
             continue
         if missing_only and (sp / f"{animal}_{date}{sfx}_full" / "windows_index.csv").exists():
             continue
-        od = d / "out" / f"{animal}_{date}"
-        vids, ok_all = [], True
-        for r in g.itertuples():
-            done = od / f"{Path(r.video).stem}_done.json"
-            if not done.exists():
-                print(f"{animal} {date} {r.video}: NOT DONE (no {done.name})")
-                ok_all = False
-                continue
-            info = json.loads(done.read_text(encoding="utf-8"))
-            v = next(x for x in videos_for(rv, animal, date, cam) if x.name == r.video)
-            n_local = int(cv2.VideoCapture(str(v)).get(cv2.CAP_PROP_FRAME_COUNT))
-            npz = od / f"{Path(r.video).stem}_{info['scorer']}.npz"
-            ok = info["n_frames"] == n_local and npz.exists()
-            print(f"{animal} {date} {r.video}: {info['n_frames']} frames predicted, video {n_local} "
-                  f"{'OK' if ok else 'MISMATCH'} ({info['wall_s'] / 3600:.1f} h, batch {info['batch']})")
-            ok_all &= ok
-            if ok:
-                vids.append((r.video, np.load(npz), info))
-        if not ok_all or not vids:
-            continue                                  # a split day is collected only when every part is done
-        # each video with ITS recording's template (split days have one per recording -- camera_sync)
-        tpls = cs.templates_for(rv, date, animal, cam)
-        rec = lambda name: Path(name).stem.split("_", 1)[1]           # noqa: E731  <cam>_<recording>.avi
-        missing = [n for n, _, _ in vids if rec(n) not in tpls]
-        if missing:
-            print(f"   {animal} {date}: no alignment template for {missing} -- not collected")
-            continue
-        parts = [str(x) for x in vids[0][1]["parts"]]
-        videos = [(z["pose"], t, n) for n, z, _ in vids for t in tpls[rec(n)]]   # one entry per template / segment
-        n = full_to_windows(videos[0][0], parts, vids[0][2]["scorer"], animal, date,
-                            sp / f"{animal}_{date}{sfx}_full", rv, model="LP" if kind == "lp" else "DLC",
-                            videos=videos if len(videos) > 1 else None, cam=cam)
-        print(f"   -> {sp / (animal + '_' + date + sfx + '_full')} ({n} trials)")
-        key = f"{animal}:{date}"
-        if compare and key in compare and len(videos) == 1:
-            print(f"   vs desktop clip: {compare_to_clip(videos[0][0], parts, sp / f'{animal}_{date}{sfx}', Path(compare[key]))}")
+        clip = (compare or {}).get(f"{animal}:{date}")
+        jobs_.append(_CollectJob((d, kind, cam, sfx, sp, animal, date, list(g["video"]), clip)))
+    from wfield_local import parallel
+    results, failures = parallel.fan_out(jobs_, _collect_session, jobs=jobs, label="session")
+    for _job, msg in sorted(results, key=lambda r: (r[0][5], r[0][6])):
+        print(msg)
+    for job, err in failures:
+        print(f"{job[5]} {job[6]}: FAILED {err}")
 
 
 def main(argv=None) -> int:
@@ -694,6 +717,7 @@ def main(argv=None) -> int:
                    help="desktop prediction of the same model on that session's session_poses clip")
     c.add_argument("--sessions", nargs="*", default=None, metavar="ANIMAL:DATE", help="only these sessions")
     c.add_argument("--missing-only", action="store_true", help="skip sessions whose _full windows already exist")
+    c.add_argument("--jobs", type=int, default=1, help="sessions in parallel")
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.cmd == "bundle":
@@ -702,7 +726,7 @@ def main(argv=None) -> int:
             ap.error("give animal:date sessions or --all-widefield")
         cmd_bundle(rv, a.name, a.user, sess, refresh=a.refresh, kind=a.kind, cam=a.cam)
     else:
-        cmd_collect(rv, a.name, dict(x.split("=", 1) for x in a.compare), a.sessions, a.missing_only)
+        cmd_collect(rv, a.name, dict(x.split("=", 1) for x in a.compare), a.sessions, a.missing_only, a.jobs)
     return 0
 
 
