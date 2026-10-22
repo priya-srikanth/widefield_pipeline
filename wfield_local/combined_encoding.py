@@ -87,6 +87,14 @@ FR_ENV = "COMBINED_ENCODING_FR"
 #: paper's best combination was points + FR). Models frpts:alone, frpts:raw:full (position instead of FR),
 #: frboth:raw:full (both) -> FR beyond position = frboth - frpts:raw:full; position beyond FR = frboth - fr:raw:full.
 FR_POINTS_ENV = "COMBINED_ENCODING_FR_POINTS"
+#: FR_SHARE: "1" = the factors' per-frame SHARE (FR's normalised spectrogram, the paper's regressors). Default (unset) =
+#: ABSOLUTE expression, weights x the bin's FR normaliser D (Priya 10-21: "absolute fr in encoding"): how much of each
+#: movement is happening, not its share of the frame (a share drops whenever any OTHER movement grows).
+FR_SHARE_ENV = "COMBINED_ENCODING_FR_SHARE"
+
+
+def _fr_absolute() -> bool:
+    return os.environ.get(FR_SHARE_ENV, "") not in ("1", "true", "yes")
 RUN_ENV = "COMBINED_ENCODING_RUN"     # set by --run; an env var so spawned workers see it (tests/test_parallel_results...)
 #: LICK-MATCHED subsampling (Priya 10-19: "both executed and target increase chronically" -- chronic sessions have more
 #: usable licks, and every held-out gain improves with more data). Path to a JSON {label: target usable licks}; whole
@@ -951,11 +959,12 @@ def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     if fr:
         from wfield_local import face_rhythm_outputs as fro
         try:
-            sig = fro.fr_signals(animal, date, rv, imaging[1], fdir=fro.factor_dir(rv, set_name=fr))
+            sig = fro.fr_signals(animal, date, rv, imaging[1], fdir=fro.factor_dir(rv, set_name=fr),
+                                 absolute=_fr_absolute())
         except FileNotFoundError:
             sig = {}
         if sig:
-            out["fr"] = {"set": fr, "names": list(sig),
+            out["fr"] = {"set": fr, "absolute": _fr_absolute(), "names": list(sig),
                          "X": np.column_stack([sig[k_][1] for k_ in sig]).astype(np.float32)}
         kp = int(os.environ.get(FR_POINTS_ENV) or 0)
         if kp:
@@ -1138,11 +1147,13 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     if fr_set:
         if inputs is not None:
             fi = inputs.get("fr")
-            Xf = fi["X"].astype(np.float64) if fi and fi["set"] == fr_set else None
+            Xf = (fi["X"].astype(np.float64) if fi and fi["set"] == fr_set
+                  and fi.get("absolute", False) == _fr_absolute() else None)
         else:
             from wfield_local import face_rhythm_outputs as fro
             try:
-                sig_fr = fro.fr_signals(animal, date, rv, ft, fdir=fro.factor_dir(rv, set_name=fr_set))
+                sig_fr = fro.fr_signals(animal, date, rv, ft, fdir=fro.factor_dir(rv, set_name=fr_set),
+                                        absolute=_fr_absolute())
                 Xf = np.column_stack([sig_fr[k_][1] for k_ in sig_fr])
             except FileNotFoundError:
                 Xf = None
@@ -1420,6 +1431,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
            "window_frames": {w_: int(m_.sum()) for w_, m_ in win.items()}, "fs": float(1 / np.median(np.diff(ft))),
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "fr": (fr_set if fr_raw is not None else None),
+           "fr_measure": ("absolute" if _fr_absolute() else "share") if fr_raw is not None else None,
            "fr_k": (int(fr_raw.shape[1]) if fr_raw is not None else 0),
            "frpts_k": (int(frpts_raw.shape[1]) if frpts_raw is not None else 0),
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
@@ -1587,6 +1599,7 @@ def out_dir(rv, order: str) -> Path:
     fr_set = os.environ.get(FR_ENV) or ""
     return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else "")
                                                          + (f"_fr-{fr_set}" if fr_set else "")
+                                                         + ("share" if fr_set and not _fr_absolute() else "")
                                                          + (f"_pts{os.environ[FR_POINTS_ENV]}"
                                                             if fr_set and os.environ.get(FR_POINTS_ENV) else "")
                                                          + (f"_subset-{'-'.join(only)}" if only else "")
@@ -1661,6 +1674,8 @@ def main(argv=None) -> int:
                     f"{VIDEO_ENV}; outputs -> <order>_video-<cams>/; sessions without motion energy are skipped)")
     ap.add_argument("--fr", default=None, help="FaceRhythm factor set for the fr variable, e.g. master_pre_v1 (sets "
                     f"{FR_ENV}; outputs -> <order>[_video-..]_fr-<set>/; sessions without projections are skipped)")
+    ap.add_argument("--fr-share", action="store_true", help="with --fr: the factors' per-frame SHARE (the paper) "
+                    f"instead of absolute expression (sets {FR_SHARE_ENV}; folder ..._fr-<set>share)")
     ap.add_argument("--fr-points", type=int, default=0, help="with --fr: K point-displacement PCs as frpts (sets "
                     f"{FR_POINTS_ENV}; outputs -> ..._fr-<set>_pts<K>/)")
     a = ap.parse_args(argv)
@@ -1670,6 +1685,8 @@ def main(argv=None) -> int:
         os.environ[FR_ENV] = a.fr
     if a.fr_points:
         os.environ[FR_POINTS_ENV] = str(a.fr_points)
+    if a.fr_share:
+        os.environ[FR_SHARE_ENV] = "1"
     if a.video:
         os.environ[VIDEO_ENV] = a.video
     if a.only:

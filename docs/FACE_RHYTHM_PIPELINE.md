@@ -101,6 +101,10 @@ readouts; names only, no effect on numbers).
 | does FR explain cortex beyond / instead of motion energy; does position coding survive FR? | encoding `fr:*`, `frvideo:*` models |
 | does dense face POSITION add to FR (the paper's points + FR)? | encoding `--fr-points K`: `frpts:*`, `frboth:raw:full` |
 
+Encoding uses ABSOLUTE FR expression by default (Priya 10-21; a share drops whenever any other movement grows);
+`--fr-share` = the paper's normalised regressors (folder `..._fr-<set>share`). Check the absolute regressors' tails on
+the first real session (log-transform if a few outliers dominate after z-scoring).
+
 ## Tests
 
 `tests/test_face_rhythm_factors.py` (synthetic bundle: planted factors recovered, freeze guard, project / fitsession /

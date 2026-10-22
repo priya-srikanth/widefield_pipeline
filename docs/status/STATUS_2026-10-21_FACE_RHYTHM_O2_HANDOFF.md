@@ -63,8 +63,9 @@ rsync out/ + factors/, `collect`, `qc` (post-stroke tracking as clean as pre?), 
 6-16) on O2 -> `report` + `report --absolute` -> choose rank (Priya) -> `select` -> `run_project` + `run_fitsession`
 -> `face_rhythm_readouts.py` (writes labels_suggested.json; Priya confirms -> labels.json) -> clips per factor on the
 master set; (c) encoding: new bundle `o2_encoding.py bundle --fr master_pre_v1 [--fr-points 10]`, `check` one session
-(first real test of the fr path), then the fr run (FR vs ME vs both; does position survive FR). Open checks: factor 8 =
-whisking?; whether to use absolute or share FR in the encoding model (paper: normalised).
+(first real test of the fr path), then the fr run (FR vs ME vs both; does position survive FR). Decided 10-21 late: encoding uses ABSOLUTE FR by default
+(`--fr-share` for the paper's version). PLANNED (Priya): sort the lick factors by EXECUTED direction (LP per-lick
+angle, not spout) to confirm their identity -- expression around each lick peak vs lick-angle bins.
 
 ## UPDATE 10-21 evening — parameters chosen: `midlk12` (9245e51)
 

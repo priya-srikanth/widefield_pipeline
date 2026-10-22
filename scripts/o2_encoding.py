@@ -48,6 +48,8 @@ if os.environ.get("FR"):
     os.environ["COMBINED_ENCODING_FR"] = os.environ["FR"]
 if os.environ.get("FR_POINTS"):
     os.environ["COMBINED_ENCODING_FR_POINTS"] = os.environ["FR_POINTS"]
+if os.environ.get("FR_SHARE"):
+    os.environ["COMBINED_ENCODING_FR_SHARE"] = os.environ["FR_SHARE"]
 if os.environ.get("MATCH"):                      # lick-matched subsampling: MATCH = a JSON in the bundle (match.json)
     os.environ["COMBINED_ENCODING_MATCH"] = str(b / os.environ["MATCH"])
 out = b / "out" / tag
@@ -55,6 +57,7 @@ out = b / "out" / tag
 (out / "run.json").write_text(json.dumps({"order": order, "only": os.environ.get("ONLY", ""),
                                           "video": os.environ.get("VIDEO", ""), "fr": os.environ.get("FR", ""),
                                           "fr_points": os.environ.get("FR_POINTS", ""),
+                                          "fr_share": os.environ.get("FR_SHARE", ""),
                                           "match": os.environ.get("MATCH", ""),
                                           "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
@@ -79,7 +82,9 @@ def _inputs_worker(job):
     from wfield_local import combined_encoding as ce
     from wfield_local.orofacial_cohort import _repo_on_path
     _repo_on_path()
-    label, dst, cams, fr, fr_points = job
+    label, dst, cams, fr, fr_points, fr_share = job
+    if fr_share:
+        os.environ[ce.FR_SHARE_ENV] = "1"
     if fr_points:
         os.environ[ce.FR_POINTS_ENV] = str(fr_points)
     x = ce.session_inputs(label, cams=cams.split(",") if cams else None, fr=fr or None)
@@ -104,7 +109,8 @@ def cmd_bundle(a) -> Path:
     for sub in ("inputs", "logs", "out"):
         (d / sub).mkdir(parents=True, exist_ok=True)
     labels = a.labels or ce.sessions_available()
-    todo = [(lab, str(d / "inputs" / f"{lab}.pkl"), a.cams or "", a.fr or "", a.fr_points or 0) for lab in labels
+    todo = [(lab, str(d / "inputs" / f"{lab}.pkl"), a.cams or "", a.fr or "", a.fr_points or 0, a.fr_share)
+            for lab in labels
             if not (d / "inputs" / f"{lab}.pkl").exists()]
     got, fail = ak.fan_sessions(todo, _inputs_worker, jobs=a.jobs, key=lambda j: j[0])
     for it, err in fail:
@@ -193,7 +199,7 @@ rsync -ah {b}/out/ {share_b}/out/
 def _set_env(order_only_video: dict) -> None:
     from wfield_local import combined_encoding as ce
     for k, env in (("only", ce.ONLY_ENV), ("video", ce.VIDEO_ENV), ("fr", ce.FR_ENV),
-                   ("fr_points", ce.FR_POINTS_ENV), ("match", ce.MATCH_ENV)):
+                   ("fr_points", ce.FR_POINTS_ENV), ("fr_share", ce.FR_SHARE_ENV), ("match", ce.MATCH_ENV)):
         if order_only_video.get(k):
             os.environ[env] = order_only_video[k]
         else:
@@ -301,6 +307,8 @@ def main(argv=None) -> int:
     b.add_argument("--cams", default="cam1,cam4", help="video motion energy to bundle where it exists ('' = none)")
     b.add_argument("--fr", default="", help="FaceRhythm factor set to bundle where projected, e.g. master_pre_v1")
     b.add_argument("--fr-points", type=int, default=0, help="with --fr: also K point-displacement PCs (frpts)")
+    b.add_argument("--fr-share", action="store_true", help="with --fr: bundle the per-frame SHARE (the paper) instead "
+                   "of absolute expression (a bundle holds one; make a second bundle for the other)")
     b.add_argument("--jobs", type=int, default=4)
     b.add_argument("labels", nargs="*")
     c = sub.add_parser("check")
