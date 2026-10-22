@@ -152,4 +152,10 @@ def fr_signals(animal: str, date: str, rv, frame_times_s, fdir: Path | None = No
     if blank:
         V[~keep_mask(animal, date, rv, ft)] = np.nan
     names = labels(fdir) if kind == "factors" else [f"frpt_{j}" for j in range(V.shape[1])]
-    return {nm: (ft, V[:, j]) for j, nm in enumerate(names)}
+    sig = {nm: (ft, V[:, j]) for j, nm in enumerate(names)}
+    if kind == "factors":                   # opt-in grouping for the encoder (wfield_local/fr_groups.py; env unset = raw)
+        from wfield_local import fr_groups
+        gs = fr_groups.spec()
+        if gs:
+            sig = fr_groups.group({f"fr_{j}": v for j, v in enumerate(sig.values())}, *gs, set_name=Path(fdir).name)
+    return sig
