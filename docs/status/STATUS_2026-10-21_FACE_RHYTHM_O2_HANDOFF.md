@@ -1,5 +1,9 @@
 # FaceRhythm on O2 — handoff (2026-10-21, updated ~22:00)
 
+> **SUPERSEDED for current state by [`STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md`](STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md)**
+> (outputs arriving + QC, the pilot factor set, other cameras, efficiency, backups). This file stays the record of the
+> parameter choice, the O2 runner, its pitfalls and the PS92 preview.
+
 Plan: [`docs/FACE_RHYTHM_PLAN.md`](../FACE_RHYTHM_PLAN.md) (steps 1-7; status section at its end). This doc covers step 4
 (master ROI, drawing tool), step 5 (the O2 bundle) and the **tracking-parameter test** that now gates the full run.
 Registration (step 3) and the ROI warp are the pose/3-D window's (`scripts/face_rhythm_register.py`,

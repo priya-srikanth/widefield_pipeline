@@ -357,8 +357,13 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
+**[`docs/status/STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md`](docs/status/STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md)**
+— **START HERE for FaceRhythm (10-22).** cam4 outputs arriving (all checked clean; cached parallel `qc`); PILOT factor set
+`pilot_pre_PS92_PS93` (rank 10, PS92 + PS93, running locally; pre-stroke sessions scored on their left-out-day basis,
+leave-one-day-out EVR = the noise floor); cam1 / cam2 / cam3 prepped up to Priya's landmark clicks; efficiency + backups.
+
 **[`docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md`](docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md)**
-— **START HERE for FaceRhythm (10-21).** Production RUNNING on O2 (array 57168778, 108 tasks, 4 workers x 4 threads,
+— superseded by 10-22 for current state; the record of the 10-21 set-up. Production RUNNING on O2 (array 57168778, 108 tasks, 4 workers x 4 threads,
 72 GB); tracking parameters `midlk12` chosen by an 11-set test scored against LP (DECISIONS 10-21 evening); master face
 PS95_20260812 (pre-stroke), 12 px mesh warped to every session (mesh QC passed); ROI notebook
 `notebooks/face_rhythm_draw_roi.ipynb`; O2 env, pitfalls (cgroup OOM kills, Pool hang). Plan + integration (master
