@@ -47,7 +47,14 @@ from pathlib import Path
 
 import numpy as np
 
-STATS_VERSION = 4   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split
+STATS_VERSION = 5   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split;
+#                     5: running capped at the animal's pre-stroke p99 (RUN_CAP_Q)
+
+#: RUNNING CAP (Priya 10-22 evening: "yes add running cap"). A frozen model only interpolates within the pre-stroke
+#: range: PS94 ran far harder after the stroke (running SD 5.6-6.3 vs 1.4-2.9 pre; p99 20-23 vs 7-12), the linear
+#: running kernel extrapolated and drove chronic frozen R2 to -0.4 .. -0.6. Every running column is clipped to
+#: +/- the animal's pooled pre-session RUN_CAP_Q percentile of |speed| (trial frames, lag-0 column) before centring.
+RUN_CAP_Q = 99.0
 
 
 def _ce():
@@ -269,10 +276,13 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     raw = split_blocks(ce.raw_blocks(B, ft))
     xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}
     if template_only:
+        run0 = np.abs(raw["running"][ridx, 0].astype(np.float64))         # lag-0 |speed| on trial frames (RUN_CAP_Q)
         return {"label": label, "animal": animal, "pos_order": pos_order,
-                "sums": {v: template_sums(xc[v], pos_of, k_of, pos_order) for v in SPLIT_VARS}}
+                "sums": {v: template_sums(xc[v], pos_of, k_of, pos_order) for v in SPLIT_VARS},
+                "run_abs": run0[np.isfinite(run0)].astype(np.float32)}
     if templates is None:
         raise ValueError(f"{label}: the STATS_VERSION {STATS_VERSION} layout needs the animal's spout-locked templates")
+    raw["running"] = cap_running(raw["running"], templates.get("running_cap"))
     parts = {}
     for v in SPLIT_VARS:
         M = np.stack([templates["mean"][v][templates["pos_order"].index(p)] if p in templates["pos_order"]
@@ -348,9 +358,19 @@ def build_templates(parts: list[dict]) -> dict:
                 S[ix] += s_
                 N[ix] += n_
             mean[v] = template_means(S, N)
+        ra = [t["run_abs"] for t in ts if t.get("run_abs") is not None and len(t["run_abs"])]
+        cap = float(np.percentile(np.concatenate(ra), RUN_CAP_Q)) if ra else None   # pooled: every pre frame weighs the same
         out[an] = {"pos_order": order, "mean": mean, "n_sessions": len(ts), "labels": [t["label"] for t in ts],
-                   "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N}
+                   "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N,
+                   "running_cap": cap, "running_cap_q": RUN_CAP_Q}
     return out
+
+
+def cap_running(x: np.ndarray, cap: float | None) -> np.ndarray:
+    """Running columns clipped to +/- cap (sign kept; NaN stays NaN); cap None = unchanged (RUN_CAP_Q comment)."""
+    if cap is None:
+        return x
+    return np.clip(x, -cap, cap)
 
 
 #: SPATIAL TARGETS (Priya 10-22: "is predicting allen areas really what we want? not a downsampled map?" -> the

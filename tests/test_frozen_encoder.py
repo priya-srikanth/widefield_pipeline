@@ -203,6 +203,24 @@ def test_build_templates_pools_sessions_by_trial_count():
     t = fe.build_templates([part("A_1", 1.0, 30), part("A_2", 4.0, 10)])["A"]
     assert abs(t["mean"]["jaw_mag"][0, 5, 0] - (30 * 1.0 + 10 * 4.0) / 40) < 1e-12
     assert t["n_sessions"] == 2
+    assert t["running_cap"] is None                     # no running samples -> no cap (old parts stay valid)
+
+
+def test_running_cap_pooled_over_pre_frames_and_clips_both_signs():
+    """Cap = RUN_CAP_Q percentile of |speed| over ALL pre frames pooled (a long session weighs more); clipping keeps
+    sign, leaves values inside the cap and NaN untouched."""
+    k0, K = fe._template_bins()
+    def part(label, run):
+        S, Nn = np.zeros((1, K, 1)), np.zeros((1, K))
+        return {"label": label, "animal": "A", "pos_order": ["a"], "sums": {v: (S, Nn) for v in fe.SPLIT_VARS},
+                "run_abs": np.asarray(run, np.float32)}
+    r1, r2 = np.arange(1000.0), 5000.0 + np.arange(100.0)
+    t = fe.build_templates([part("A_1", r1), part("A_2", r2)])["A"]
+    assert abs(t["running_cap"] - np.percentile(np.concatenate([r1, r2]), fe.RUN_CAP_Q)) < 1e-3
+    x = np.array([[-50.0, 3.0], [np.nan, 50.0], [9.9, -2.0]])
+    y = fe.cap_running(x, 10.0)
+    assert np.array_equal(y[[0, 1, 2], [0, 1, 0]], [-10.0, 10.0, 9.9]) and y[2, 1] == -2.0 and np.isnan(y[1, 0])
+    assert fe.cap_running(x, None) is x
 
 
 def test_ordered_projection_ignores_null_direction():
