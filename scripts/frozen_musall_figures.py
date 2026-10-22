@@ -88,7 +88,7 @@ def main(argv=None) -> int:
              "gate, cam4 + cam1 licks (cam4 only where cam1 is missing). PROVISIONAL.")
     for area in a.areas:
         for align in ("cue", "lick"):
-            S = Q[(Q.area == area) & (Q.align == align)]
+            S = Q[(Q["area"] == area) & (Q["align"] == align)]
             if S.empty:
                 continue
             # (1) alone vs unique

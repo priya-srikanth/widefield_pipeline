@@ -498,7 +498,7 @@ def summarise_drop(out: Path) -> None:
     pd.set_option("display.width", 220)
     order = ["pre", "acute", "subacute", "chronic"]
     for area in ("cortex", "SSp-m_left"):
-        S = A[(A.spout == "far_contra") & (A.window == "lick") & (A.subset == "own") & (A.area == area)]
+        S = A[(A.spout == "far_contra") & (A.window == "lick") & (A.subset == "own") & (A["area"] == area)]
         if len(S):
             P = (S.pivot_table(index=["base", "animal"], columns="epoch", values="dR2") * 1e3)
             print(f"\n=== frozen drop far_contra, {area}, lick window, far-contra trials, dR2 x1e3")
@@ -529,7 +529,7 @@ def summarise_musall(out: Path, variants) -> None:
     pd.set_option("display.width", 240)
     order = [e for e in ("pre", "acute", "subacute", "chronic") if e in set(A.epoch)]
     for area in ("cortex", "SSp-m_left"):
-        S = A[A.area == area].pivot_table(index=["align", "measure", "variant"], columns=["animal", "epoch"], values="r2")
+        S = A[A["area"] == area].pivot_table(index=["align", "measure", "variant"], columns=["animal", "epoch"], values="r2")
         S = S.reindex(columns=pd.MultiIndex.from_product([sorted(set(A.animal)), order]))
         print(f"\n=== frozen Musall-style R2, {area} (held out; pre = leave-one-session-out)")
         print(S.round(3).to_string())
