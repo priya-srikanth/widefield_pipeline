@@ -13,13 +13,15 @@ PS92 + PS93, the pilot factor set -- to be redone on `master_pre_v1`), **PENDING
 > every claim needs the per-animal table (CLAUDE.md rule 8). Expression = ABSOLUTE (weights x FR normaliser D) unless
 > stated; a.u. on each animal's own scale, so compare within an animal across epochs.
 
-## 1. Tracking quality (STANDS, 74 / 108 tasks)
+## 1. Tracking quality (STANDS, 95 / 108 tasks)
 
 Production tracking (`midlk12`, 12 px master mesh) is clean in every animal and epoch: whole videos covered, 0 % NaN
 bins, 0 violations, folds inside the face in 0-0.15 % of sampled frames (`o2_face_rhythm.py qc`). Rim folds (28-65 %)
 are near-flat sliver triangles at the mesh edge and do not affect the factors. Median point displacement (px) pre ->
 acute -> subacute -> chronic: PS92 1.33 / 1.11 / 1.16 / 1.18; PS93 1.19 / **0.80** / 1.21 / 1.36; PS94 2.06 / 1.33 /
-2.35 / 2.63 (PS94 moves ~2x more or has a larger face in px; absorbed by the per-animal scale).
+2.35 / 2.63 (PS94 moves ~2x more or has a larger face in px; absorbed by the per-animal scale). PS95 (pre / acute / subacute,
+chronic still copying): 1.65 / **0.96** / 1.41, interior folds 0.1-0.3 % (highest of the four, still negligible). Acute
+displacement drops below pre in PS93 and PS95 (and mildly PS92) -- the face moves less in the first days.
 
 ## 2. How many factors (PROVISIONAL, pilot tensor)
 
@@ -133,6 +135,7 @@ PS93 acute -0.10 vs pre -0.03 (less contralesional-side movement), PS92 no clear
 
 ## Change log
 
+* 2026-10-22 pm: QC 95 / 108 (PS94 complete, PS95 pre-subacute).
 * 2026-10-22 pm: section 5b (per-lick by epoch: f9 deficit persists per lick, counts recover).
 * 2026-10-22 pm: section 6 (EVR gap vs the pre noise floor, pilot readouts).
 * 2026-10-22 pm: rank sweep complete (14, 16); rank 12 vs 10 structure; per-factor stability added.
