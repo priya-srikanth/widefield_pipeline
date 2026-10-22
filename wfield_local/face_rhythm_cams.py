@@ -96,9 +96,6 @@ def frames_at(fd: np.ndarray, daq_s: np.ndarray, nearest: bool = False) -> np.nd
 
 
 def default_root(name: str) -> Path:
-    """`root` without a PathResolver (argparse defaults in the fr env, where wfield_local may not import)."""
-    try:
-        from wfield_local.paths import PathResolver
-        return root(PathResolver(), name)
-    except Exception:                                                  # noqa: BLE001 -- fr env: no repo deps
-        return Path(r"M:\MICROSCOPE\Priya\DeepLabCut\Widefield\face_rhythm") / name
+    """`root` with its own PathResolver (the fr-env scripts put the repo on sys.path first)."""
+    from wfield_local.paths import PathResolver
+    return root(PathResolver(), name)

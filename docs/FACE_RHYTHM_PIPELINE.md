@@ -1,4 +1,4 @@
-# FaceRhythm pipeline (cam4) — stages, files, run order
+# FaceRhythm pipeline (cam4; cam1 / cam2 / cam3 prepped) — stages, files, run order
 
 The reference for HOW the FaceRhythm (FR) analysis works and how to run it. WHY each choice was made:
 [`FACE_RHYTHM_PLAN.md`](FACE_RHYTHM_PLAN.md) + `DECISIONS.md` (2026-10-21 evening entries). Current status / running jobs:
@@ -20,6 +20,36 @@ the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bi
 `<dlc>` = `M:\MICROSCOPE\Priya\DeepLabCut\Widefield`; `<bundle>` = `<dlc>\o2\fr_cam4_20261021` (share) and
 `/n/scratch/users/p/ps150/o2/fr_cam4_20261021` (O2). Parameter choices (tracking `midlk12`, VQT, notches): stage-4
 `PARAMS` in `o2_face_rhythm.py`, test record in DECISIONS.md.
+
+## Other cameras (cam1 / cam2 / cam3; prepped 10-22, Priya: "prep for all 3 cameras")
+
+Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera. What differs is in ONE place,
+`wfield_local/face_rhythm_cams.py` (view, frame size, landmarks, rest-frame exclusions, which side of the face is seen).
+
+| view | what it adds over cam4 | ROI / mask care |
+|---|---|---|
+| cam2 = animal's LEFT side (IPSILESIONAL; all lesions left), 450 x 600 | eye, ear, side of nose / mouth / chin, whisker pad from the side | face polygon = HEAD only; mask off body, forepaws, treadmill and the spout rod (crosses just below the mouth in the rest face) |
+| cam3 = animal's RIGHT side (CONTRALESIONAL; PS93's deficit side), 450 x 600 | as cam2, other side | as cam2 |
+| cam1 = from below, 600 x 600 | nose tip, lips, chin, whiskers both sides (ipsi = image RIGHT) | the CENTRE spout rod hangs through the middle of the face |
+
+1. **Rest faces**: `python -m scripts.face_rhythm_prep frames --cam <cam>` (locanmf). Rest moments come from cam4's LP
+   (tongue absent, -1.5 .. -0.5 s), mapped to the camera's frames through ITS alignment template
+   (`face_rhythm_cams.frame_daq_seconds` / `frames_at`); cam1 skips centre-spout trials. No LP landmarks on these views.
+2. **Templates, then clicks**: `<fr> scripts/face_rhythm_register.py --cam <cam> --stage templates` picks each animal's
+   template + the master and writes `register_inputs/click_<s>.png`; Priya clicks the camera's landmarks in
+   `notebooks/face_rhythm_click_landmarks.ipynb` -> `register_inputs/landmarks.json`.
+3. **Registration**: `<fr> scripts/face_rhythm_register.py --cam <cam>`: template -> master from the clicked landmarks
+   (similarity), session -> template from an image-only ECC fit (`coarse_field`), DeepFlow on top kept only where it
+   raises the whole-image correlation. QC: `register/qc_ncc.csv` (correlation with the master before / after) + overlays.
+4. **ROI**: `notebooks/face_rhythm_draw_roi.ipynb` with `CAM = "<cam>"`, SESSION = the master; then
+   `<fr> scripts/face_rhythm_warp_rois.py to-sessions --cam <cam>` and mesh QC.
+5. **O2**: `python scripts/o2_face_rhythm.py bundle --name fr_<cam>_<date> --user ps150 --cam <cam>`: cam4's trials and
+   DAQ grid on this camera's clock (`other_cam_grid`; checked on PS92 0818: same 439 trials and coverage, cam2 ~14
+   frames behind cam4), same runner and notches (every camera has the 12-frame keyframe). A one-session pilot first.
+6. **Downstream**: factor sets per camera (`face_rhythm_factors.py --bundle fr_<cam>_<date>`); the loader finds any
+   camera's keys; encoding takes another camera's set as `--fr fr_<cam>_<date>/<set>` (folder tag `<cam>-<set>`).
+   NOT done yet: readouts' midline / regions are cam4's (side views have no midline: compare cam2 vs cam3 instead);
+   combining several cameras' sets in one encoding model.
 
 ## Files
 
