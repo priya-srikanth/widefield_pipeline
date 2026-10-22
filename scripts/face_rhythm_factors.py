@@ -860,6 +860,7 @@ def main(argv=None) -> int:
     ap.add_argument("--role", default="master", choices=("master", "pilot"),
                     help="plan: 'pilot' for a restricted set (stamped into plan + master.npz; never the cohort master)")
     ap.add_argument("--no-loso", action="store_true", help="plan: no leave-one-pre-session-out jobs")
+    ap.add_argument("--own-inits", type=int, default=3, help="fitsession: random starts of the session's own fit")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
@@ -875,7 +876,7 @@ def main(argv=None) -> int:
             sd = oi.bundle_dir(PathResolver(), a.bundle) / "factors" / a.set
     task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "loso") else None)
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank), "select": lambda: cmd_select(sd, a.rank),
-     "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task),
+     "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits),
      "loso": lambda: cmd_loso(sd, task),
      "report": lambda: cmd_report(sd, a.face, a.absolute)}[a.cmd]()
     return 0
