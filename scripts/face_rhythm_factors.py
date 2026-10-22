@@ -31,10 +31,16 @@ fit        non-negative CP (HALS, numpy, chunked) of rank R: ``inits`` random st
 select     freezes rank R as ``master.npz`` (spatial (2, P, R), spectral (F, R), animal scales, spec hash of plan + rank +
            init). A frozen set is a REFERENCE (rule 10, docs/FROZEN_MODELS.md): never refitted once used.
 project    per task, spatial + spectral fixed: non-negative temporal weights per bin for the trial windows (25 Hz) and
-           the whole session (5 Hz), each bin's relative reconstruction error, and per-point MOVEMENT POWER (scaled
-           spectrogram averaged over pre-cue / response / between-trial bins, by position) -> ``proj/<key>.npz``.
+           the whole session (5 Hz), each bin's relative reconstruction error, and per point and window (pre-cue /
+           response by position, between trials) the SPECTRAL SHARE (FR normalises each frame by its whole-face mean
+           power: distribution, not amount) and the absolute movement SPEED from the 25 Hz points -> ``proj/<key>.npz``.
            Window means come from the 5 Hz session spectrogram: a 5 Hz bin is the mean of five 25 Hz bins, so means
            over windows aligned to 0.2 s are exact, and one pass over the session file covers every trial.
+points     (inside build / select / project) a frozen PCA basis of the 25 Hz point DISPLACEMENTS (`points` output,
+           2P dims, each session centred on its own mean), fitted on the same pre-stroke animals (equal bins per
+           animal): the dense POSITION family (the paper's best widefield regressors were points + FR, 0.38; M1
+           follows position below ~0.5 Hz, the spectral envelope above). ``proj/<key>.npz`` gets ``points_pc``
+           (bins, K) + ``points_t_daq_s``.
 fitsession per task, the session's OWN rank-R fit on its plan rows, the frozen set's fit on the same rows, and the own
            factors matched to the frozen ones (Hungarian on spatial x spectral cosine) -> ``own/<key>.npz``: the
            explained-variance gap (own - frozen) and factor "morphing" over recovery (the 2pRAM manuscript's Fig 4
@@ -60,6 +66,7 @@ CHUNK = 256                                         # rows per einsum chunk
 PRECUE_S, RESP_S = (-2.0, 0.0), (0.0, 4.0)          # movement-power windows (s from cue)
 BUSY_S = (-3.0, 6.0)                                # "between trials" = outside this around every engaged cue
 EDGE_BINS = 10                                      # 2 s at 5 Hz kept out of the between-trial pool at each end
+POINTS_CHUNK = 20000                                # 25 Hz bins per chunk when centring / projecting displacements
 
 
 # --------------------------------------------------------------------------------------------- npz access (no copies)
@@ -320,6 +327,39 @@ def cmd_build(sd: Path) -> None:
              kind=idx[:, 2].astype(str), trial=idx[:, 3].astype(int), bin=idx[:, 4].astype(int))
     (sd / "scales.json").write_text(json.dumps(scale, indent=1))
     print(f"fit tensor {X.shape} ({X.nbytes / 1e9:.1f} GB) -> {sd}")
+    if pl.get("points_fit"):
+        build_points_pca(sd, pl, od)
+
+
+def _centred_disp(path: Path, bins=None) -> tuple[np.ndarray, np.ndarray]:
+    """A task's 25 Hz displacements (bins, 2P) float32, point-major (point, xy), centred on the session mean (finite
+    bins), and that mean. ``bins``: only these rows (the mean is still the whole session's)."""
+    D = npz_memmap(path, "disp")
+    n, P = D.shape[0], D.shape[1]
+    tot, cnt = np.zeros(2 * P), 0
+    for c0 in range(0, n, POINTS_CHUNK):
+        x = np.asarray(D[c0:c0 + POINTS_CHUNK], np.float32).reshape(-1, 2 * P)
+        ok = np.isfinite(x).all(1)
+        tot += x[ok].sum(0)
+        cnt += ok.sum()
+    mu = (tot / max(cnt, 1)).astype(np.float32)
+    rows = np.asarray(D[np.sort(np.asarray(bins, int))] if bins is not None else D, np.float32).reshape(-1, 2 * P)
+    return rows - mu, mu
+
+
+def build_points_pca(sd: Path, pl: dict, od: Path) -> None:
+    """Frozen-to-be PCA of centred displacements on the plan's pre-stroke bins (equal per animal)."""
+    rows = []
+    for _a, per_key in pl["points_fit"].items():
+        for key, bins in per_key.items():
+            x, _ = _centred_disp(od / f"{key}_points.npz", bins)
+            rows.append(x[np.isfinite(x).all(1)])
+    X = np.concatenate(rows).astype(np.float64)
+    K = int(pl["params"]["point_pcs"])
+    _, sv, Vt = np.linalg.svd(X - X.mean(0), full_matrices=False)
+    ev = sv ** 2 / np.sum(sv ** 2)
+    np.savez(sd / "points_pca.npz", components=Vt[:K].astype(np.float32), explained=ev[:K], n_rows=len(X))
+    print(f"points PCA: {len(X)} bins, top {K} PCs explain {ev[:K].sum():.1%} -> {sd / 'points_pca.npz'}")
 
 
 def cmd_fit(sd: Path, rank: int) -> None:
@@ -360,42 +400,67 @@ def cmd_fit(sd: Path, rank: int) -> None:
 
 
 # ------------------------------------------------------------------------------------- O2: project / fitsession
-def window_power(S, s: float, t5: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
-    """Per-point movement power (scaled spectrogram means) from the 5 Hz session spectrogram ``S`` (n5, 2, P, F):
-    between trials (outside BUSY_S of every engaged cue), and per position pre-cue (PRECUE_S) and response (RESP_S).
-    One pass; each bin goes to at most one class (the latest cue whose pre-cue window has started)."""
+def window_labels(t: np.ndarray, cues: np.ndarray, positions: np.ndarray, edge: int) -> tuple[np.ndarray, np.ndarray]:
+    """Class of each time bin: -1 none, 0 between trials (outside BUSY_S of every engaged cue), 1 + 2 p + w for position
+    p's pre-cue (w = 0, PRECUE_S) / response (w = 1, RESP_S) window of the latest cue whose pre-cue window has started.
+    ``edge`` bins at each end are never between-trial. -> (labels, sorted unique positions)."""
     o = np.argsort(cues)
     cues, positions = cues[o], positions[o]
     pos = np.unique(positions)
     pidx = np.searchsorted(pos, positions)
-    j = np.searchsorted(cues, t5 - PRECUE_S[0], side="right") - 1         # latest cue with cue + PRECUE_S[0] <= t
-    rel = np.where(j >= 0, t5 - cues[np.clip(j, 0, None)], np.inf)
-    lab = np.full(len(t5), -1)                                           # -1 none, 0 between, 1 + 2 p + w
-    near = np.zeros(len(t5), bool)
-    k = np.searchsorted(cues, t5)
+    j = np.searchsorted(cues, t - PRECUE_S[0], side="right") - 1
+    rel = np.where(j >= 0, t - cues[np.clip(j, 0, None)], np.inf)
+    lab = np.full(len(t), -1)
+    near = np.zeros(len(t), bool)
+    k = np.searchsorted(cues, t)
     for kk in (k - 1, k):
         ok = (kk >= 0) & (kk < len(cues))
-        d = np.where(ok, t5 - cues[np.clip(kk, 0, len(cues) - 1)], np.inf)
+        d = np.where(ok, t - cues[np.clip(kk, 0, len(cues) - 1)], np.inf)
         near |= ok & (d >= BUSY_S[0]) & (d <= BUSY_S[1])
     lab[~near] = 0
-    lab[:EDGE_BINS] = lab[-EDGE_BINS:] = -1
+    lab[:edge] = lab[len(t) - edge:] = -1
     for w, (a, b) in enumerate((PRECUE_S, RESP_S)):
         m = (rel >= a) & (rel < b)
         lab[m] = 1 + 2 * pidx[np.clip(j[m], 0, None)] + w
-    n_lab = 1 + 2 * len(pos)
-    tot, cnt = np.zeros((n_lab, *S.shape[1:]), np.float64), np.zeros(n_lab)
-    for c0 in range(0, len(t5), CHUNK):
-        x = np.asarray(S[c0:c0 + CHUNK], np.float32) / s
+    return lab, pos
+
+
+def _class_means(get, n: int, lab: np.ndarray, n_lab: int, shape: tuple) -> tuple[np.ndarray, np.ndarray]:
+    """Mean of rows ``get(slice)`` per label (chunked; rows with any NaN skipped). -> (means (n_lab, *shape), counts)."""
+    tot, cnt = np.zeros((n_lab, *shape), np.float64), np.zeros(n_lab)
+    for c0 in range(0, n, CHUNK):
+        x = get(slice(c0, c0 + CHUNK))
         lb = lab[c0:c0 + CHUNK]
-        ok = (lb >= 0) & np.isfinite(x).all(axis=(1, 2, 3))
+        ok = (lb >= 0) & np.isfinite(x.reshape(len(x), -1)).all(1)
         for v in np.unique(lb[ok]):
             mm = ok & (lb == v)
             tot[v] += x[mm].sum(0)
             cnt[v] += mm.sum()
-    mean = (tot / np.maximum(cnt, 1)[:, None, None, None]).astype(np.float32)
+    mean = (tot / np.maximum(cnt, 1).reshape(-1, *([1] * len(shape)))).astype(np.float32)
     mean[cnt == 0] = np.nan
+    return mean, cnt.astype(int)
+
+
+def window_power(S, s: float, t5: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
+    """Per-point SPECTRAL SHARE by window from the 5 Hz session spectrogram ``S`` (n5, 2, P, F), scaled. FR normalises
+    every frame by its mean power over the whole face (normalization_factor 0.95), so this is how a frame's movement is
+    DISTRIBUTED over points and frequencies, not how much the face moves (that is `window_speed`)."""
+    lab, pos = window_labels(t5, cues, positions, EDGE_BINS)
+    mean, cnt = _class_means(lambda sl: np.asarray(S[sl], np.float32) / s, len(t5), lab, 1 + 2 * len(pos), S.shape[1:])
     return {"power_between": mean[0], "power_precue": mean[1::2], "power_response": mean[2::2],
-            "power_positions": pos, "power_n_bins": cnt.astype(int)}
+            "power_positions": pos, "power_n_bins": cnt}
+
+
+def window_speed(Xp: np.ndarray, t25: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
+    """Per-point movement SPEED (px / s, |d displacement / dt| of the 25 Hz points, RMS within each window class) --
+    the ABSOLUTE amount of movement the normalised spectrogram cannot show. ``Xp`` (bins, 2P) point-major."""
+    P = Xp.shape[1] // 2
+    v = np.diff(Xp.reshape(len(Xp), P, 2), axis=0) * (1.0 / np.median(np.diff(t25)))
+    sp2 = np.vstack([np.full((1, P), np.nan), (v ** 2).sum(-1)])                # speed^2 per bin, first bin NaN
+    lab, pos = window_labels(t25, cues, positions, 5 * EDGE_BINS)
+    mean, cnt = _class_means(lambda sl: sp2[sl], len(t25), lab, 1 + 2 * len(pos), (P,))
+    rms = np.sqrt(mean)
+    return {"speed_between": rms[0], "speed_precue": rms[1::2], "speed_response": rms[2::2], "speed_n_bins": cnt}
 
 
 def cmd_project(sd: Path, task: int) -> None:
@@ -417,6 +482,12 @@ def cmd_project(sd: Path, task: int) -> None:
     meta = npz_small(od / f"{key}_trials.npz", ("t_ms", "trial_id", "position", "cue_daq_s"))
     tse = npz_small(od / f"{key}_session.npz", ("t_daq_s", "rate_hz"))
     pw = window_power(Ss, s, tse["t_daq_s"], meta["cue_daq_s"], meta["position"])
+    if "points_components" in M:
+        pf = od / f"{key}_points.npz"
+        Xp, _ = _centred_disp(pf)
+        pw["points_pc"] = (Xp @ M["points_components"].T).astype(np.float32)          # NaN bins stay NaN
+        pw["points_t_daq_s"] = npz_small(pf, ("t_daq_s",))["t_daq_s"]
+        pw.update(window_speed(Xp, pw["points_t_daq_s"], meta["cue_daq_s"], meta["position"]))
     _atomic_savez(dst, trials=Wt.reshape(n_tr, n_t, -1), trials_err=Et.reshape(n_tr, n_t), session=Ws, session_err=Es,
                   session_t_daq_s=tse["t_daq_s"], session_rate_hz=tse["rate_hz"], spec_hash=str(M["spec_hash"]),
                   animal=animal, epoch=str(t["epoch"]), date=t["date"], **meta, **pw)
@@ -466,7 +537,8 @@ def _sbatch(b: str, opts: str, cmd: str) -> str:
 
 
 def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int, between_frac: float, seed: int,
-             ranks: list[int], inits: int, n_iter: int, user: str) -> Path:
+             ranks: list[int], inits: int, n_iter: int, user: str, point_pcs: int = 20,
+             points_bins: int = 20000) -> Path:
     import pandas as pd
     from wfield_local import epochs, writeguard
     from wfield_local import o2_inference as oi
@@ -493,14 +565,21 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         fit[a] = {"sessions": keys, **picks}
         n_tr = sum(map(len, picks["trials"].values()))
         print(f"  {a}: {len(keys)} pre sessions, {n_tr} trials, {sum(map(len, picks['between'].values()))} between bins")
+    points_fit = {}
+    for a in fit:                                           # equal 25 Hz bins per animal, spread over its pre sessions
+        keys = fit[a]["sessions"]
+        nb = {k: int(next(r for r in T.itertuples() if r.key == k).n_frames) // 10 for k in keys}
+        per = points_bins // len(keys)
+        points_fit[a] = {k: sorted(int(b) for b in rng.choice(nb[k], min(per, nb[k]), replace=False)) for k in keys}
     session_rows = {t["key"]: draw_rows(*cand[t["key"]], session_trials, between_frac,
                                         np.random.default_rng([seed, zlib.crc32(t["key"].encode())])) for t in tasks}
     pl = {"set": name, "bundle": bundle, "created": time.strftime("%Y-%m-%d %H:%M"),
           "params": {"trials_per_animal": trials_per_animal, "session_trials": session_trials,
                      "between_frac": between_frac, "seed": seed, "trial_ds": TRIAL_DS, "ranks": ranks, "inits": inits,
                      "n_iter": n_iter, "precue_s": PRECUE_S, "resp_s": RESP_S, "busy_s": BUSY_S,
-                     "scale": "per animal: RMS of its fit rows"},
-          "fit": fit, "session_rows": session_rows, "tasks": tasks}
+                     "scale": "per animal: RMS of its fit rows", "point_pcs": point_pcs,
+                     "points_bins_per_animal": points_bins},
+          "fit": fit, "points_fit": points_fit, "session_rows": session_rows, "tasks": tasks}
     (sd / "logs").mkdir(parents=True, exist_ok=True)
     (sd / "plan.json").write_text(json.dumps(pl, indent=1), encoding="utf-8", newline="\n")
     (sd / "fr_factors.py").write_text(Path(__file__).read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
@@ -523,7 +602,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
 
 def spec_hash(sd: Path, rank: int, best_init: int) -> str:
     pl = load_plan(sd)
-    blob = json.dumps({"fit": pl["fit"], "params": {k: v for k, v in pl["params"].items() if k != "session_trials"},
+    blob = json.dumps({"fit": pl["fit"], "points_fit": pl.get("points_fit"), "params": {k: v for k, v in pl["params"].items() if k != "session_trials"},
                        "rank": rank, "best_init": best_init,
                        "scales": json.loads((sd / "scales.json").read_text())}, sort_keys=True)
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
@@ -542,7 +621,9 @@ def cmd_select(sd: Path, rank: int) -> None:
     P = len(R["A"]) // 2
     np.savez(m, spatial=R["A"].reshape(2, P, rank).astype(np.float32), spectral=R["B"].astype(np.float32),
              freqs=meta["freqs"], home=meta["home"], scales_json=(sd / "scales.json").read_text(), rank=rank,
-             spec_hash=h, set=pl["set"], frozen=time.strftime("%Y-%m-%d %H:%M"))
+             spec_hash=h, set=pl["set"], frozen=time.strftime("%Y-%m-%d %H:%M"),
+             **({f"points_{k}": v for k, v in np.load(sd / "points_pca.npz").items()}
+                if (sd / "points_pca.npz").exists() else {}))
     print(f"FROZEN {pl['set']} rank {rank} spec {h} -> {m}")
 
 
@@ -632,11 +713,13 @@ def main(argv=None) -> int:
     ap.add_argument("--ranks", type=int, nargs="*", default=[6, 8, 10, 12, 14, 16])
     ap.add_argument("--inits", type=int, default=5)
     ap.add_argument("--n-iter", type=int, default=300)
+    ap.add_argument("--point-pcs", type=int, default=20, help="plan: PCs of the dense-position basis")
+    ap.add_argument("--points-bins", type=int, default=20000, help="plan: 25 Hz bins per animal for its fit")
     ap.add_argument("--user", default="ps150")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
-                 a.n_iter, a.user)
+                 a.n_iter, a.user, a.point_pcs, a.points_bins)
         return 0
     sd = a.dir
     if sd is None:

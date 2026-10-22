@@ -856,14 +856,15 @@ def _fr_helpers():
     except ImportError:
         from scripts import face_rhythm_factors as ff
         from scripts import face_rhythm_mesh_qc as mq
-    return ff.npz_memmap, mq.mesh_triangles, mq.signed_area
+    return ff.npz_memmap, mq.mesh_triangles, mq.signed_area, mq.rim_triangles
 
 
 def tracking_qc(points_npz: Path, step: int = 25) -> dict:
     """AFTER-tracking QC of one task from its 25 Hz points output, sampled every ``step`` bins (25 = 1 Hz): mesh folds
-    (fraction of home Delaunay triangles whose orientation flipped, per sampled bin), frozen (violating) points,
+    (fraction of home Delaunay triangles whose orientation flipped, per sampled bin; INTERIOR vs RIM triangles -- the
+    rim, at the headplate / mask edge, folds in most sessions and says nothing about the face), frozen points,
     displacement from home. The before-tracking counterpart is face_rhythm_mesh_qc.py."""
-    npz_memmap, mesh_triangles, signed_area = _fr_helpers()
+    npz_memmap, mesh_triangles, signed_area, rim_triangles = _fr_helpers()
     with np.load(points_npz) as z:
         home = z["home"].astype(float)
     disp = npz_memmap(points_npz, "disp")
@@ -872,9 +873,13 @@ def tracking_qc(points_npz: Path, step: int = 25) -> dict:
     D = np.asarray(disp[ix], float)                                      # (n, P, 2)
     ok = np.isfinite(D).all(axis=(1, 2))
     tri = mesh_triangles(home)
-    flip = (np.sign(signed_area(home[None] + D[ok], tri)) != np.sign(signed_area(home, tri))[None]).mean(1)
+    fl = np.sign(signed_area(home[None] + D[ok], tri)) != np.sign(signed_area(home, tri))[None]
+    rim = rim_triangles(tri)
+    flip, inner = fl.mean(1), fl[:, ~rim]
     mag = np.hypot(D[ok, :, 0], D[ok, :, 1])
     return {"fold_frac_mean": float(flip.mean()), "fold_bins_frac": float((flip > 0).mean()),
+            "fold_bins_frac_interior": float(inner.any(1).mean()), "fold_frac_interior": float(inner.mean()),
+            "fold_bins_frac_rim": float(fl[:, rim].any(1).mean()),
             "fold_frac_p99": float(np.percentile(flip, 99)), "viol_frac_mean": float(np.nanmean(viol)),
             "disp_med_px": float(np.median(mag)), "disp_p99_px": float(np.percentile(mag, 99)),
             "n_sampled": int(ok.sum())}
@@ -908,9 +913,10 @@ def cmd_qc(name: str, step: int = 25) -> None:
     writeguard.assert_writable(out)
     Q.to_csv(figure_layout.sidecar_for(out, f"o2_{name}_qc", ".csv"), index=False, float_format="%.4g")
     order = ["pre", "acute", "subacute", "chronic"]
-    print(Q.groupby(["animal", "epoch"])[["fold_frac_mean", "fold_bins_frac", "viol_frac_mean", "disp_med_px"]]
+    print(Q.groupby(["animal", "epoch"])[["fold_bins_frac_interior", "fold_bins_frac_rim", "viol_frac_mean",
+                                          "disp_med_px"]]
           .mean().round(4).to_string())
-    cols = ("fold_frac_mean", "fold_bins_frac", "viol_frac_mean", "disp_med_px", "disp_p99_px")
+    cols = ("fold_bins_frac_interior", "fold_bins_frac_rim", "viol_frac_mean", "disp_med_px", "disp_p99_px")
     fig, axs = plt.subplots(1, len(cols), figsize=(3.2 * len(cols), 3))
     for ax, c in zip(axs, cols):
         for an, g in Q.groupby("animal"):

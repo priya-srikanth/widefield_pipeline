@@ -24,6 +24,15 @@ def mesh_triangles(home: np.ndarray, max_edge: float = MAX_EDGE_PX) -> np.ndarra
     return tri[np.ptp(home[tri], axis=1).max(1) < max_edge]
 
 
+def rim_triangles(tri: np.ndarray) -> np.ndarray:
+    """Boolean per triangle: touches the mesh boundary (has a vertex on an edge used by only one triangle). Real
+    sessions fold almost only there (PS92_0806: 99 % of flips in 10 rim triangles at the headplate / mask edge)."""
+    e = np.sort(np.concatenate([tri[:, [0, 1]], tri[:, [1, 2]], tri[:, [0, 2]]]), 1)
+    u, c = np.unique(e, axis=0, return_counts=True)
+    edge_v = np.unique(u[c == 1])
+    return np.isin(tri, edge_v).any(1)
+
+
 def signed_area(P: np.ndarray, tri: np.ndarray) -> np.ndarray:
     """Signed area of each triangle for points P (..., n_points, 2); a sign flip vs home = the mesh folded there."""
     a, b, c = P[..., tri[:, 0], :], P[..., tri[:, 1], :], P[..., tri[:, 2], :]

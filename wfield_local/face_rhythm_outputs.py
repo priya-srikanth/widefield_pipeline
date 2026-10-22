@@ -10,6 +10,8 @@ joined here.
                      trials), the 5 Hz whole-session bins everywhere else (spout arrival before cue -2 s, after +4 s,
                      between trials). The FR spectrogram envelopes change slowly (bandwidth ~f / Q) and GCaMP smooths
                      further, so the 5 Hz edges cost little; the trial windows keep the full 25 Hz.
+``kind="points"``     the dense-POSITION family instead: the frozen PCA of the 25 Hz point displacements
+                     (``points_pc``, first ``k`` PCs) -- the paper's "points + FR" comparison.
 ``fr_signals``       ``{name: (frame_times_s, values)}`` on the imaging frames: linear interpolation (as the paper did),
                      NaN across gaps longer than ``max_gap_s``, and BLANKED outside position strobe .. trial end like
                      the video motion energy (`scripts.movement_encoding_session.video_signals`), so FR and ME enter
@@ -54,12 +56,19 @@ def labels(fdir: Path) -> list[str]:
     return [f"fr_{lab.get(str(k), k)}" for k in range(R)]
 
 
-def combined_series(files: list[Path]) -> tuple[np.ndarray, np.ndarray]:
-    """(t_daq_s (n,), W (n, R)) sorted by time: trial-window 25 Hz samples + session 5 Hz samples outside them."""
+def combined_series(files: list[Path], kind: str = "factors", k: int | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """(t_daq_s (n,), W (n, R)) sorted by time. factors: trial-window 25 Hz samples + session 5 Hz samples outside
+    them; points: the 25 Hz displacement PCs (first ``k``)."""
     ts, ws, hashes = [], [], set()
     for f in files:
         z = np.load(f, allow_pickle=False)
         hashes.add(str(z["spec_hash"]))
+        if kind == "points":
+            if "points_pc" not in z.files:
+                raise FileNotFoundError(f"{f}: no points_pc (factor set frozen without the points basis)")
+            ts.append(z["points_t_daq_s"].astype(float))
+            ws.append(z["points_pc"][:, :k].astype(float))
+            continue
         tr, cue, tms = z["trials"].astype(float), z["cue_daq_s"].astype(float), z["t_ms"].astype(float) / 1000.0
         t_tr = cue[:, None] + tms[None, :]
         lo, hi = t_tr[:, 0] - 0.02, t_tr[:, -1] + 0.02                     # half a 25 Hz bin
@@ -107,15 +116,17 @@ def keep_mask(animal: str, date: str, rv, frame_times_s) -> np.ndarray:
 
 
 def fr_signals(animal: str, date: str, rv, frame_times_s, fdir: Path | None = None, blank: bool = True,
-               max_gap_s: float = 0.5) -> dict:
-    """{name: (frame_times_s, values)} -- one per factor -- on the imaging frames (see the module docstring)."""
+               max_gap_s: float = 0.5, kind: str = "factors", k: int | None = None) -> dict:
+    """{name: (frame_times_s, values)} -- one per factor (``kind="points"``: per displacement PC) -- on the imaging
+    frames (see the module docstring)."""
     fdir = fdir or factor_dir(rv)
     files = session_keys(fdir, animal, date)
     if not files:
         raise FileNotFoundError(f"no FaceRhythm projection for {animal}_{date} in {fdir / 'proj'}")
     ft = np.asarray(frame_times_s, float)
-    t, W = combined_series(files)
+    t, W = combined_series(files, kind, k)
     V = to_frames(t, W, ft, max_gap_s)
     if blank:
         V[~keep_mask(animal, date, rv, ft)] = np.nan
-    return {nm: (ft, V[:, k]) for k, nm in enumerate(labels(fdir))}
+    names = labels(fdir) if kind == "factors" else [f"frpt_{j}" for j in range(V.shape[1])]
+    return {nm: (ft, V[:, j]) for j, nm in enumerate(names)}

@@ -46,12 +46,15 @@ if os.environ.get("VIDEO"):
     os.environ["COMBINED_ENCODING_VIDEO"] = os.environ["VIDEO"]
 if os.environ.get("FR"):
     os.environ["COMBINED_ENCODING_FR"] = os.environ["FR"]
+if os.environ.get("FR_POINTS"):
+    os.environ["COMBINED_ENCODING_FR_POINTS"] = os.environ["FR_POINTS"]
 if os.environ.get("MATCH"):                      # lick-matched subsampling: MATCH = a JSON in the bundle (match.json)
     os.environ["COMBINED_ENCODING_MATCH"] = str(b / os.environ["MATCH"])
 out = b / "out" / tag
 (out / "sessions").mkdir(parents=True, exist_ok=True)
 (out / "run.json").write_text(json.dumps({"order": order, "only": os.environ.get("ONLY", ""),
                                           "video": os.environ.get("VIDEO", ""), "fr": os.environ.get("FR", ""),
+                                          "fr_points": os.environ.get("FR_POINTS", ""),
                                           "match": os.environ.get("MATCH", ""),
                                           "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
@@ -76,7 +79,9 @@ def _inputs_worker(job):
     from wfield_local import combined_encoding as ce
     from wfield_local.orofacial_cohort import _repo_on_path
     _repo_on_path()
-    label, dst, cams, fr = job
+    label, dst, cams, fr, fr_points = job
+    if fr_points:
+        os.environ[ce.FR_POINTS_ENV] = str(fr_points)
     x = ce.session_inputs(label, cams=cams.split(",") if cams else None, fr=fr or None)
     B = x["behaviour"]
     B.analog = {k: (np.asarray(t, np.float64), np.asarray(v, np.float32)) for k, (t, v) in B.analog.items()}
@@ -99,7 +104,7 @@ def cmd_bundle(a) -> Path:
     for sub in ("inputs", "logs", "out"):
         (d / sub).mkdir(parents=True, exist_ok=True)
     labels = a.labels or ce.sessions_available()
-    todo = [(lab, str(d / "inputs" / f"{lab}.pkl"), a.cams or "", a.fr or "") for lab in labels
+    todo = [(lab, str(d / "inputs" / f"{lab}.pkl"), a.cams or "", a.fr or "", a.fr_points or 0) for lab in labels
             if not (d / "inputs" / f"{lab}.pkl").exists()]
     got, fail = ak.fan_sessions(todo, _inputs_worker, jobs=a.jobs, key=lambda j: j[0])
     for it, err in fail:
@@ -145,8 +150,9 @@ python {b}/enc_runner.py
             ("musall_shuf", "musall", "shuf:", "", ""), ("main", "", "", "", ""), ("video", "", "", "cam1,cam4", "")]
     if a.fr:                  # FR vs motion energy vs both in ONE run (video:*, fr:*, frvideo:* models)
         runs.append((f"fr_{a.fr}", "", "", "cam1,cam4", a.fr))
+    pts = f",FR_POINTS={a.fr_points}" if a.fr and a.fr_points else ""
     sub = "\n".join(f"sbatch --array=1-{n}%60 --export=ALL,TAG={t},ORDER={o or 'movement_first'},ONLY={only},"
-                    f"VIDEO={v},FR={f} {b}/run_enc.sbatch      # {t}" for t, o, only, v, f in runs)
+                    f"VIDEO={v},FR={f}{pts if f else ''} {b}/run_enc.sbatch      # {t}" for t, o, only, v, f in runs)
     cmds = f"""# O2 combined encoding model: {a.name} ({n} sessions; code {commit}; run {os.environ[ce.RUN_ENV]})
 
 One bundle, many runs: each submit sets TAG (output folder out/<TAG>/), ORDER, ONLY, VIDEO, FR.
@@ -186,7 +192,8 @@ rsync -ah {b}/out/ {share_b}/out/
 
 def _set_env(order_only_video: dict) -> None:
     from wfield_local import combined_encoding as ce
-    for k, env in (("only", ce.ONLY_ENV), ("video", ce.VIDEO_ENV), ("fr", ce.FR_ENV), ("match", ce.MATCH_ENV)):
+    for k, env in (("only", ce.ONLY_ENV), ("video", ce.VIDEO_ENV), ("fr", ce.FR_ENV),
+                   ("fr_points", ce.FR_POINTS_ENV), ("match", ce.MATCH_ENV)):
         if order_only_video.get(k):
             os.environ[env] = order_only_video[k]
         else:
@@ -293,6 +300,7 @@ def main(argv=None) -> int:
     b.add_argument("--run", default=None)
     b.add_argument("--cams", default="cam1,cam4", help="video motion energy to bundle where it exists ('' = none)")
     b.add_argument("--fr", default="", help="FaceRhythm factor set to bundle where projected, e.g. master_pre_v1")
+    b.add_argument("--fr-points", type=int, default=0, help="with --fr: also K point-displacement PCs (frpts)")
     b.add_argument("--jobs", type=int, default=4)
     b.add_argument("labels", nargs="*")
     c = sub.add_parser("check")

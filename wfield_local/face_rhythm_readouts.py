@@ -11,9 +11,12 @@ ACROSS animals (one mesh, one frozen pre-stroke basis):
                  repertoire).
   evr_gap        each session's OWN rank-R fit vs the frozen basis on the same rows (EVR own - frozen), and how far its
                  own factors have moved from the frozen ones (matched spatial / spectral cosine: factor "morphing").
-  movement       per-point movement power (scaled spectrogram, summed over xy and a frequency band) per window ->
-                 log2 change from the animal's pre-stroke mean per point (maps on the master face, averageable across
-                 animals), and a CONTRA - IPSI asymmetry index. cam4: IPSILESIONAL = IMAGE RIGHT (Priya 10-21; all
+  movement       per point and window, two measures: SPEED (absolute movement, px / s RMS of the 25 Hz points) and
+                 SHARE (normalised spectral power summed over xy and a band -- FR divides every frame by its mean
+                 power over the whole face, so this is how movement is DISTRIBUTED, not how much). Per animal x epoch
+                 the per-point log2 change from its pre-stroke mean (maps on the master face, averageable across
+                 animals), and a CONTRA - IPSI asymmetry index per measure. Factor AMPLITUDES are on the normalised
+                 spectrogram too: a change is a change in SHARE of the face's movement, not in its size. cam4: IPSILESIONAL = IMAGE RIGHT (Priya 10-21; all
                  lesions left), split at the face midline (MASTER_MIDLINE_X, the master's LP nose x, unless given).
 One row per SESSION (a two-video session, PS92_0812, is joined). Epoch statistics: `orofacial_cohort.epoch_tables`
 (per-animal epoch means + paired animal-weighted `boot_delta` vs pre) -- print the per-animal table first (rule 8).
@@ -121,33 +124,38 @@ def evr_gap(fdir: Path, names: list[str]) -> pd.DataFrame:
     return pd.DataFrame(rows).groupby("label", as_index=False).mean(numeric_only=True) if rows else pd.DataFrame()
 
 
-def point_power(fdir: Path, freqs: np.ndarray, band: str = "all") -> tuple[list[str], dict]:
-    """Per session, per-point movement power summed over xy and the band's frequencies: {window: (n_sessions, P)}
-    for between / precue / response (trial windows averaged over positions, weighted by bins)."""
+def point_measure(fdir: Path, freqs: np.ndarray, measure: str = "speed", band: str = "all") -> tuple[list[str], dict]:
+    """Per session, per point: ``speed`` (RMS px / s) or ``share`` (normalised spectral power summed over xy and the
+    band): {window: (n_sessions, P)} for between / precue / response (trial windows over positions, bin-weighted;
+    speed averages speed^2 then roots)."""
     lo, hi = BANDS[band]
     fm = (freqs >= lo) & (freqs < hi)
     acc = {}
     for t in _tasks(fdir, "proj").itertuples():
         z = np.load(t.file)
-        n = z["power_n_bins"]
+        key = "speed" if measure == "speed" else "power"
+        if f"{key}_n_bins" not in z.files:
+            continue
+        n = z[f"{key}_n_bins"]
         a = acc.setdefault(t.label, {})
-        parts = {"between": (z["power_between"][None], n[:1]),
-                 "precue": (z["power_precue"], n[1::2]), "response": (z["power_response"], n[2::2])}
+        parts = {"between": (z[f"{key}_between"][None], n[:1]),
+                 "precue": (z[f"{key}_precue"], n[1::2]), "response": (z[f"{key}_response"], n[2::2])}
         for w, (pw, nb) in parts.items():
-            v = pw[..., fm].sum(-1).sum(-2)                              # (k, P): xy + band summed
+            v = pw ** 2 if measure == "speed" else pw[..., fm].sum(-1).sum(-2)      # (k, P)
             ok = (nb > 0) & np.isfinite(v).all(1)
             s0, n0 = a.get(w, (0.0, 0))
             a[w] = (s0 + (v[ok] * nb[ok, None]).sum(0), n0 + nb[ok].sum())
     labels = sorted(acc)
-    return labels, {w: np.array([acc[lab][w][0] / max(acc[lab][w][1], 1) for lab in labels])
-                    for w in ("between", "precue", "response")}
+    out = {w: np.array([acc[lab][w][0] / max(acc[lab][w][1], 1) for lab in labels]).reshape(len(labels), -1)
+           for w in ("between", "precue", "response")}
+    return labels, ({w: np.sqrt(v) for w, v in out.items()} if measure == "speed" else out)
 
 
 def movement(fdir: Path, home: np.ndarray, freqs: np.ndarray, midline_x: float | None = None,
-             band: str = "all") -> tuple[pd.DataFrame, dict]:
+             band: str = "all", measure: str = "speed") -> tuple[pd.DataFrame, dict]:
     """Per session: contra / ipsi power and the asymmetry (contra - ipsi) / (contra + ipsi) per window; and per animal
     x epoch the per-point log2(epoch mean / pre mean) maps. cam4 IPSILESIONAL = IMAGE RIGHT (x > midline)."""
-    labels, pw = point_power(fdir, freqs, band)
+    labels, pw = point_measure(fdir, freqs, measure, band)
     mid = float(MASTER_MIDLINE_X if midline_x is None else midline_x)
     ipsi = home[:, 0] > mid
     rows = []
@@ -155,12 +163,12 @@ def movement(fdir: Path, home: np.ndarray, freqs: np.ndarray, midline_x: float |
         r = {"label": lab}
         for w, M in pw.items():
             c, s = float(M[i, ~ipsi].mean()), float(M[i, ipsi].mean())
-            r.update({f"power_{w}_contra": c, f"power_{w}_ipsi": s,
-                      f"asym_{w}": (c - s) / (c + s) if (c + s) > 0 else np.nan})
+            r.update({f"{measure}_{w}_contra": c, f"{measure}_{w}_ipsi": s,
+                      f"asym_{measure}_{w}": (c - s) / (c + s) if (c + s) > 0 else np.nan})
         rows.append(r)
     S = pd.DataFrame(rows)
     epoch_of = {lab: _epoch(lab) for lab in labels}
-    maps = {"midline_x": mid, "ipsi_mask": ipsi, "band": band}
+    maps = {"midline_x": mid, "ipsi_mask": ipsi, "band": band, "measure": measure}
     for a in sorted({lab[:4] for lab in labels}):
         idx = {ep: [i for i, lab in enumerate(labels) if lab[:4] == a and epoch_of[lab] == ep]
                for ep in ("pre", "acute", "subacute", "chronic")}
@@ -182,7 +190,8 @@ def _epoch(label: str):
 def session_table(fdir: Path, names: list[str], home: np.ndarray, freqs: np.ndarray) -> pd.DataFrame:
     """Every readout, one row per session, with animal / epoch / day (curated epochs; June is not in the bundle)."""
     amp, _ = amplitudes(fdir, names)
-    parts = [amp, reconstruction(fdir), evr_gap(fdir, names), movement(fdir, home, freqs)[0]]
+    parts = [amp, reconstruction(fdir), evr_gap(fdir, names), movement(fdir, home, freqs, measure="speed")[0],
+             movement(fdir, home, freqs, measure="share")[0]]
     S = parts[0]
     for p in parts[1:]:
         if len(p):
@@ -197,3 +206,111 @@ def epoch_stats(S: pd.DataFrame, metrics: list[str], seed: int = 0) -> tuple[pd.
     """Per-animal epoch means and paired change vs pre, through the cohort's one definition."""
     from wfield_local import orofacial_cohort as oc
     return oc.epoch_tables(S[S.epoch.isin(oc.EPOCH_ORDER)], seed=seed, metrics=metrics)
+
+
+# ------------------------------------------------------------------------------------------- naming the components
+#: face regions on the master image, relative to its LP nose (MASTER_MIDLINE_X, NOSE_Y) -- coarse, for naming only
+NOSE_Y = 268.0
+REGIONS = ("nose", "mouth_jaw", "whisker_pad", "upper_face", "other")
+
+
+def region_of(home: np.ndarray) -> np.ndarray:
+    """Coarse region per mesh point (master image coordinates)."""
+    dx, dy = home[:, 0] - MASTER_MIDLINE_X, home[:, 1] - NOSE_Y
+    r = np.full(len(home), "other", object)
+    r[dy < -80] = "upper_face"
+    r[(dy > -20) & (dy < 110) & (np.abs(dx) > 45) & (np.abs(dx) < 170)] = "whisker_pad"
+    r[(dy > 60) & (np.abs(dx) < 70)] = "mouth_jaw"
+    r[np.hypot(dx, dy) < 45] = "nose"
+    return r
+
+
+def _lick_rate(animal: str, date: str, t: np.ndarray) -> np.ndarray | None:
+    """LP v36 licks (all tables) per session bin of ``t`` (DAQ s, regular), licks / s."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    f = oo.session_dir(PathResolver(), oc.RUN, animal, date) / "licks_all.csv"
+    if not f.exists() or len(t) < 2:
+        return None
+    lk = pd.read_csv(f, usecols=["daq_peak_s"]).daq_peak_s.dropna().to_numpy()
+    dt = float(np.median(np.diff(t)))
+    edges = np.concatenate([t - dt / 2, [t[-1] + dt / 2]])
+    return np.histogram(lk, edges)[0] / dt
+
+
+def describe_components(fdir: Path, max_sessions: int = 8) -> pd.DataFrame:
+    """Per frozen component: spectral peak, spatial weight share per region (+ contralesional share, rim share),
+    correlation of its whole-session time course with LP lick rate and its response / between amplitude ratio over up
+    to ``max_sessions`` PRE sessions, far-left vs far-right selectivity, and a SUGGESTED name (rules below; a
+    suggestion for Priya, written to labels_suggested.json -- labels.json, which the loader uses, is hers)."""
+    from wfield_local.orofacial_cohort import _repo_on_path
+    _repo_on_path()
+    from scripts.face_rhythm_mesh_qc import mesh_triangles, rim_triangles
+    M = np.load(fdir / "master.npz")
+    W, B, freqs, home = M["spatial"], M["spectral"], M["freqs"], M["home"]
+    R = W.shape[-1]
+    w2 = W[0] ** 2 + W[1] ** 2                                           # (P, R) spatial weight per point
+    w2 = w2 / w2.sum(0, keepdims=True)
+    reg = region_of(home)
+    tri = mesh_triangles(home)
+    rim_pts = np.zeros(len(home), bool)
+    rim_pts[np.unique(tri[rim_triangles(tri)])] = True
+    pre = _tasks(fdir, "proj")
+    pre = pre[pre.epoch == "pre"].head(max_sessions)
+    corr, ratio, farL, farR = [[] for _ in range(R)], [[] for _ in range(R)], np.zeros(R), np.zeros(R)
+    nL = nR = 0
+    for t in pre.itertuples():
+        z = np.load(t.file)
+        lr = _lick_rate(t.animal, t.date, z["session_t_daq_s"])
+        S = z["session"].astype(float)
+        ok = np.isfinite(S).all(1)
+        tms = z["t_ms"] / 1000.0
+        resp = np.nanmean(z["trials"][:, (tms >= 0) & (tms < 4)], (0, 1))
+        for k in range(R):
+            if lr is not None and ok.sum() > 10:
+                corr[k].append(np.corrcoef(S[ok, k], lr[ok])[0, 1])
+            ratio[k].append(resp[k] / max(np.nanmean(S[ok, k]), 1e-12))
+        pos = z["position"]
+        for p_, acc in (("far_L", "L"), ("far_R", "R")):
+            m = pos == p_
+            if m.any():
+                v = np.nanmean(z["trials"][m][:, (tms >= 0) & (tms < 4)], (0, 1))
+                if acc == "L":
+                    farL += v
+                    nL += 1
+                else:
+                    farR += v
+                    nR += 1
+    rows = []
+    for k in range(R):
+        share = {r: float(w2[reg == r, k].sum()) for r in REGIONS}
+        pk = float(freqs[np.argmax(B[:, k])])
+        lc = float(np.nanmedian(corr[k])) if corr[k] else np.nan
+        rt = float(np.nanmedian(ratio[k])) if ratio[k] else np.nan
+        sel = (farL[k] / max(nL, 1) - farR[k] / max(nR, 1)) / max(farL[k] / max(nL, 1) + farR[k] / max(nR, 1), 1e-12)
+        rim = float(w2[rim_pts, k].sum())
+        top = max(share, key=share.get)
+        if rim > 0.5:
+            name = "rim"
+        elif np.isfinite(lc) and lc >= 0.3:
+            name = "lick" + ("_farL" if sel > 0.3 else "_farR" if sel < -0.3 else "")
+        elif pk < 2.0:
+            name = "slow"
+        elif 2.5 <= pk <= 5.5 and top == "nose":
+            name = "sniff"
+        elif 5.5 < pk <= 14 and top == "whisker_pad":
+            name = "whisk"
+        else:
+            name = f"c{k}"
+        rows.append({"comp": k, "suggested": name, "peak_hz": pk, "top_region": top, **{f"w_{r}": v for r, v in
+                     share.items()}, "w_rim": rim, "w_contra": float(w2[home[:, 0] <= MASTER_MIDLINE_X, k].sum()),
+                     "lick_rate_corr": lc, "response_over_session": rt, "farL_vs_farR": float(sel),
+                     "n_pre_sessions": len(pre)})
+    D = pd.DataFrame(rows)
+    names, seen = [], {}
+    for n in D.suggested:                                                # make names unique: whisk, whisk2, ...
+        seen[n] = seen.get(n, 0) + 1
+        names.append(n if seen[n] == 1 else f"{n}{seen[n]}")
+    D["suggested"] = names
+    return D

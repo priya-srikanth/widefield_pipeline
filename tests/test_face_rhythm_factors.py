@@ -19,8 +19,9 @@ def _bundle(tmp_path):
     A = rng.random((2 * P, R)) ** 3
     B = np.full((F, R), 0.05)
     B[[2, 5, 8], range(R)] = 1.0
-    plan = {"set": "test", "params": {"inits": 2, "n_iter": 150, "trial_ds": 2}, "fit": {}, "session_rows": {},
-            "tasks": []}
+    plan = {"set": "test", "params": {"inits": 2, "n_iter": 150, "trial_ds": 2, "point_pcs": 4}, "fit": {},
+            "points_fit": {}, "session_rows": {}, "tasks": []}
+    modes = rng.standard_normal((2, 2 * P))                  # planted 2-D displacement structure
     for a, sc in {"PS92": 1.0, "PS93": 0.6, "PS94": 1.3}.items():
         for d, ep in (("20260810", "pre"), ("20260820", "acute")):
             key, ntr, n5 = f"{a}_{d}_cam4", 6, 300
@@ -33,10 +34,15 @@ def _bundle(tmp_path):
                      freqs=np.geomspace(1, 60, F), home=rng.random((P, 2)) * 100)
             np.savez(out / f"{key}_session.npz", spec=mk(rng.random((n5, R)) ** 2, (n5,)),
                      t_daq_s=np.arange(n5) / 5.0 + 0.1, rate_hz=np.float32(5))
+            n25 = 5 * n5
+            disp = (rng.standard_normal((n25, 2)) @ modes + 3.0).reshape(n25, P, 2).astype(np.float16)
+            np.savez(out / f"{key}_points.npz", disp=disp, viol_frac=np.zeros(n25, np.float16),
+                     t_daq_s=np.arange(n25) / 25.0, home=np.zeros((P, 2)))
             plan["tasks"].append({"key": key, "animal": a, "date": d, "epoch": ep})
             plan["session_rows"][key] = {"trials": {key: [0, 1, 2, 3]}, "between": {key: list(range(150, 300, 3))}}
         k = f"{a}_20260810_cam4"
         plan["fit"][a] = {"sessions": [k], "trials": {k: [0, 1, 2, 3]}, "between": {k: list(range(150, 300, 3))}}
+        plan["points_fit"][a] = {k: list(range(0, 1500, 2))}
     (sd / "plan.json").write_text(json.dumps(plan))
     return sd, A, B, plan
 
@@ -57,6 +63,9 @@ def test_pipeline_end_to_end(tmp_path):
     assert p["trials"].shape == (6, 151, R) and p["session"].shape == (300, R)
     assert np.nanmedian(p["session_err"]) < 0.2
     assert p["power_response"].shape == (2, 2, P, F) and list(p["power_positions"]) == ["far_L", "far_R"]
+    assert p["points_pc"].shape == (1500, 4) and p["points_t_daq_s"].shape == (1500,)
+    assert M["points_explained"][:2].sum() > 0.99                # the planted 2-D structure
+    assert abs(float(np.nanmean(p["points_pc"]))) < 0.1          # sessions are centred on their own mean
     o = np.load(sd / "own" / "PS93_20260820_cam4.npz")
     assert o["evr_own"] >= o["evr_frozen"] - 0.01            # a session's own fit is at least as good
     assert o["cos_spatial"].min() > 0.95                     # same structure -> no morphing

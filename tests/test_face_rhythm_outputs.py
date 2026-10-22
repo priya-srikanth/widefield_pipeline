@@ -48,3 +48,14 @@ def test_split_session_videos_join_and_mixed_sets_refused(tmp_path):
     _proj(b, [60.0], spec="other")
     with pytest.raises(ValueError, match="different frozen factor sets"):
         fro.combined_series([a, b])
+
+
+def test_points_kind_reads_the_displacement_pcs(tmp_path):
+    f = tmp_path / "a.npz"
+    _proj(f, [10.0])
+    z = dict(np.load(f))
+    z["points_pc"] = np.arange(30, dtype=np.float32).reshape(10, 3)
+    z["points_t_daq_s"] = np.arange(10) / 25.0
+    np.savez(f, **z)
+    t, W = fro.combined_series([f], kind="points", k=2)
+    assert W.shape == (10, 2) and np.allclose(t, np.arange(10) / 25.0)

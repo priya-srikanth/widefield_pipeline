@@ -15,3 +15,4 @@ def test_fold_detected_only_in_the_folded_bin(tmp_path):
     assert q["n_sampled"] == 2
     assert q["fold_bins_frac"] == 0.5 and q["fold_frac_mean"] > 0
     assert q["disp_med_px"] == 0.0
+    assert q["fold_bins_frac_interior"] == 0.5               # the centre point is interior
