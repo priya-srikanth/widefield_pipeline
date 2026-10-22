@@ -240,3 +240,22 @@ def test_template_index_switches_from_cue_to_lick_locked():
     assert k[2] == k0 + kc + 2                                               # lick-locked, 64 ms after the lick
     assert k[3] == k0 - 1 and k[4] == k0 - 1                                 # outside both spans
     assert (k[[0, 1, 2]] - k0 < K).all()
+
+
+def test_build_basis_orthonormal_and_captures_variance():
+    """The shared basis: orthonormal columns spanning the pooled sessions' dominant spatial patterns, K chosen by
+    BASIS_VAR; a session's own patterns are captured."""
+    rng = np.random.default_rng(13)
+    npix, k = 500, 10
+    common = np.linalg.qr(rng.normal(size=(npix, 3)))[0]
+    parts = []
+    for s in range(3):
+        Ub = np.hstack([common, 0.05 * rng.normal(size=(npix, k - 3))])
+        w = np.r_[100.0, 50.0, 20.0, np.full(k - 3, 0.1)]
+        parts.append({"label": f"A_{s}", "animal": "A", "n": 1000, "UbL": (Ub * np.sqrt(w)).astype(np.float32)})
+    out = fe.build_basis(parts)["A"]
+    W = out["P"].astype(float)
+    np.testing.assert_allclose(W.T @ W, np.eye(W.shape[1]), atol=1e-4)
+    assert out["evr"][-1] >= fe.BASIS_VAR and W.shape[1] <= fe.BASIS_KMAX
+    resid = common - W @ (W.T @ common)                    # the shared patterns lie in the basis
+    assert np.linalg.norm(resid) / np.linalg.norm(common) < 0.05

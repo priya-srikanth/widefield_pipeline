@@ -205,10 +205,14 @@ def _centred(x: np.ndarray) -> np.ndarray:
     return np.where(np.isfinite(x), x, 0.0)
 
 
-def session_design(label: str, templates: dict | None = None, template_only: bool = False) -> dict:
+def session_design(label: str, templates: dict | None = None, template_only: bool = False, spatial: dict | None = None,
+                   basis_only: bool = False) -> dict:
     """Raw (drift-removed, session-centred) design X, area targets Rd, column variables, trial alignment frames.
     ``templates`` = the animal's spout-locked templates (`build_templates`), required for the STATS_VERSION 4 layout;
-    ``template_only`` = return only this session's template sums (behaviour pass, no imaging targets)."""
+    ``template_only`` = return only this session's template sums (behaviour pass, no imaging targets);
+    ``spatial`` = {"P": (stat pixels x R) projection, "names"} for basis / grid targets instead of Allen areas (Rd stays
+    None above MAX_DENSE_TARGETS: Y and Ra are returned and consumers project on demand); ``basis_only`` = return this
+    session's variance-weighted spatial components (the shared-basis pass)."""
     ce = _ce()
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
@@ -255,6 +259,13 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     tri = ftri[ridx]
     k_of = template_index(ftr - cue_t[tri], ftr - fl_t[tri])
     pos_order = sorted(T.pos.unique())
+    if basis_only:                                       # spatial-basis pass: this session's weighted spatial components
+        Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
+        Y = V[ridx].astype(np.float64)
+        Y -= Q @ (Q.T @ Y)
+        w, Ue = np.linalg.eigh(Y.T @ Y)                  # Y'Y = Ue diag(w) Ue'  ->  pixel covariance = (Ub Ue sqrt w)(...)'
+        return {"label": label, "animal": animal, "n": len(Y),
+                "UbL": (Ub[pstat].astype(np.float64) @ (Ue * np.sqrt(np.clip(w, 0, None)))).astype(np.float32)}
     raw = split_blocks(ce.raw_blocks(B, ft))
     xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}
     if template_only:
@@ -277,12 +288,16 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     col_var = np.concatenate([[v] * b.shape[1] for v, b in zip(vars_, blocks)])
     Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
     X -= Q @ (Q.T @ X)
-    areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
-    Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
+    if spatial is None:                                  # Allen-area targets (the v1-v4 default)
+        areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
+        Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
+        area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
+    else:                                                # SPATIAL targets: projection P (stat pixels x R) + cortex mean
+        Ra = np.column_stack([np.asarray((spatial["P"].T @ Ub[pstat].astype(np.float64))).T, Ub[pstat].mean(0)])
+        area_names = list(spatial["names"]) + ["cortex"]
     Y = V[ridx].astype(np.float64)
     Y -= Q @ (Q.T @ Y)
-    Rd = Y @ Ra
-    area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
+    Rd = Y @ Ra if Ra.shape[1] <= MAX_DENSE_TARGETS else None      # large target sets stay lazy (Y @ Ra on demand)
     ex_ = getattr(B, "extra_lick_on_s", None)
     lk = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)]))
     cue_f = np.searchsorted(ftr, E.cue_s.to_numpy(float))
@@ -303,7 +318,8 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             "cue_f": cue_f, "first_f": first_f, "fs": float(1.0 / np.median(np.diff(ft))), "win": win,
             "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E),
             "frame_pos": pos_of, "pos_order": pos_order,
-            "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order}}
+            "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
+            "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None}
 
 
 def template_job(label: str) -> dict:
@@ -337,6 +353,78 @@ def build_templates(parts: list[dict]) -> dict:
     return out
 
 
+#: SPATIAL TARGETS (Priya 10-22: "is predicting allen areas really what we want? not a downsampled map?" -> the
+#: literature route, Musall et al. 2019, fits in SVD space and reconstructs pixel maps; every session has its OWN SVD
+#: basis, so a frozen model needs a basis common to the animal's sessions; Priya: "ok proceed"):
+#:   basis  per animal, the top components of its pooled PRE-session data on the shared Allen-aligned stat mask (every
+#:          session's U_atlas lives on the same 540 x 640 grid, 129,770 stat pixels): each pre session contributes
+#:          Ub Ue sqrt(w) (its spatial components weighted by its trial-frame variance, drift removed), the stack's
+#:          leading left singular vectors up to BASIS_VAR of the variance (<= BASIS_KMAX) are the targets; a session's
+#:          targets are its data projected on them; maps = basis x (anything in target space)
+#:   grid   GRID_BLOCK x GRID_BLOCK pixel block means on the stat mask (blocks with >= GRID_MIN_PIX pixels): the
+#:          transparent check on the basis
+#: Both add the cortex mean as a last target (scores / Musall readouts are reported on it).
+BASIS_VAR = 0.95
+BASIS_KMAX = 200
+GRID_BLOCK = 8
+GRID_MIN_PIX = 16
+
+
+def basis_job(label: str) -> dict:
+    return session_design(label, basis_only=True)
+
+
+def build_basis(parts: list[dict]) -> dict:
+    """{animal: spatial dict} from the pre sessions' weighted components (basis_job)."""
+    by: dict = {}
+    for t in sorted(parts, key=lambda t: t["label"]):
+        by.setdefault(t["animal"], []).append(t)
+    out = {}
+    for an, ts in by.items():
+        B = np.hstack([t["UbL"] for t in ts])                       # (stat pixels, 100 x sessions), float32
+        G = (B.T.astype(np.float64) @ B.astype(np.float64))
+        w, Qe = np.linalg.eigh(G)
+        o = np.argsort(w)[::-1]
+        w, Qe = np.clip(w[o], 0, None), Qe[:, o]
+        cum = np.cumsum(w) / w.sum()
+        K = int(min(BASIS_KMAX, np.searchsorted(cum, BASIS_VAR) + 1))
+        W = ((B.astype(np.float64) @ Qe[:, :K]) / np.sqrt(w[:K])).astype(np.float32)   # orthonormal columns
+        out[an] = {"kind": "basis", "P": W, "names": [f"b{j:03d}" for j in range(K)], "evr": cum[:K],
+                   "labels": [t["label"] for t in ts]}
+    return out
+
+
+def grid_spatial(label: str) -> dict:
+    """Block-mean projection on the stat mask (same for every session: the Allen-aligned grid is shared)."""
+    from scipy import sparse
+    ce = _ce()
+    _V, _ft, _Ub, flat, _parea, _names, shape, pstat = ce.load_imaging(label)
+    H, Wd = (int(x) for x in shape)
+    pix = flat[pstat]
+    r, c = pix // Wd, pix % Wd
+    nbc = -(-Wd // GRID_BLOCK)
+    blk = (r // GRID_BLOCK) * nbc + c // GRID_BLOCK
+    ub, inv, cnt = np.unique(blk, return_inverse=True, return_counts=True)
+    keep = cnt >= GRID_MIN_PIX
+    col = np.cumsum(keep) - 1
+    m = keep[inv]
+    P = sparse.csr_matrix((1.0 / cnt[inv][m], (np.flatnonzero(m), col[inv][m])), shape=(len(pix), int(keep.sum())))
+    return {"kind": "grid", "P": P, "names": [f"g{b}" for b in ub[keep]], "block": GRID_BLOCK, "blocks": ub[keep],
+            "shape": (H, Wd)}
+
+
+#: targets above this count are never materialised as (frames x targets) arrays (a 2,022-bin grid would be ~2.7 GB per
+#: session in float64): statistics and PETHs are projected from Y (frames x SVD components) instead
+MAX_DENSE_TARGETS = 300
+
+
+def _spatial_of(spath: str | None, animal: str) -> dict | None:
+    if not spath:
+        return None
+    import pickle
+    return pickle.loads((Path(spath) / f"spatial_{animal}.pkl").read_bytes())
+
+
 def _templates_of(tpath: str, animal: str) -> dict:
     import pickle
     return pickle.loads(Path(tpath).read_bytes())[animal]
@@ -346,11 +434,17 @@ def stats_job(item):
     """Sufficient statistics of one session (column layout + per-area Gram terms), for the per-animal fit.
     item = (label, path of fit/templates.pkl)."""
     from wfield_local import config
-    label, tpath = item
-    d = session_design(label, _templates_of(tpath, config.animal_of(label)))
+    label, tpath, spath = (*item, None)[:3]
+    an = config.animal_of(label)
+    d = session_design(label, _templates_of(tpath, an), spatial=_spatial_of(spath, an))
     X, Rd = d["X"], d["Rd"]
+    if Rd is None:                                       # lazy targets: X'Y Ra and diag(Ra' Y'Y Ra)
+        XtY = (X.T @ d["Y"]) @ d["Ra"]
+        YtY = np.einsum("kr,kl,lr->r", d["Ra"], d["Y"].T @ d["Y"], d["Ra"])
+    else:
+        XtY, YtY = X.T @ Rd, (Rd ** 2).sum(0)
     return {"label": label, "animal": d["animal"], "epoch": d["epoch"], "col_var": d["col_var"],
-            "area_names": d["area_names"], "n": len(X), "XtX": X.T @ X, "XtY": X.T @ Rd, "YtY": (Rd ** 2).sum(0),
+            "area_names": d["area_names"], "n": len(X), "XtX": X.T @ X, "XtY": XtY, "YtY": YtY,
             "sxx": (X ** 2).sum(0), "pos_order": d["pos_order"], "pos_counts": d["pos_counts"]}
 
 
@@ -572,11 +666,14 @@ def _segments(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
 def predict_job(job):
     """Apply the animal's frozen models (one per variant) to one session; PETHs of data and each part, cue- and
     lick-aligned, written to <out>/<variant>/sessions/<label>.{npz,json}."""
-    label, fits, out_dir, tpath = job
+    label, fits, out_dir, tpath, spath = (*job, None)[:5]
     ce = _ce()
     from wfield_local import config
-    d = session_design(label, _templates_of(tpath, config.animal_of(label)))
+    an = config.animal_of(label)
+    d = session_design(label, _templates_of(tpath, an), spatial=_spatial_of(spath, an))
     f0 = next(iter(fits.values()))
+    if spath:
+        return _predict_spatial(label, fits, out_dir, d, f0)
     if len(d["col_var"]) != len(f0["col_var"]) or (d["col_var"] != f0["col_var"]).any():
         raise ValueError(f"{label}: column layout differs from the animal's pre fit")
     ix = [d["area_names"].index(a) for a in f0["areas"]]
@@ -659,6 +756,97 @@ def predict_job(job):
             {"label": label, "animal": d["animal"], "epoch": d["epoch"], "areas": f0["areas"], "pos_order": pos_order,
              "sst": sst, "sse": drop_sse, "lick_set": d["lick_set"], "stats_version": STATS_VERSION},
             default=str), encoding="utf-8")
+    return summary
+
+
+#: evoked-response windows for the spatial outputs (as scripts/lp_encoder_decompose.py): (response, baseline), s
+EVOKED_WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5, 0.0))}
+
+
+def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) -> dict:
+    """Spatial targets (basis / grid): per variant, the EVOKED response (response window minus baseline, cue- and
+    lick-aligned) of the data and of each group's part, per spout x target, from PETHs computed in the small spaces --
+    part PETH = PETH(Z) @ weights, data PETH = PETH(Y) @ Ra -- so no (frames x targets) array is built. R^2 and the
+    Musall readouts on the cortex-mean target. No drop-spout (area runs have it)."""
+    ce = _ce()
+    ix = [d["area_names"].index(a) for a in f0["areas"]]
+    lazy = d["Rd"] is None
+    Ra = d["Ra"][:, ix] if lazy else None
+    Rd = None if lazy else d["Rd"][:, ix]
+    ci_ = f0["areas"].index("cortex")
+    y_c = (d["Y"] @ Ra[:, ci_]) if lazy else Rd[:, ci_]
+    Z = d["X"] / f0["scale"]
+    fs = d["fs"]
+    off = np.arange(int(ce.PETH_S[0] * fs), int(ce.PETH_S[1] * fs) + 1)
+    offs = off / fs
+    pos_order = sorted(set(d["pos"]))
+    wins = {al: ((offs >= r0) & (offs < r1), (offs >= b0) & (offs <= b1))
+            for al, ((r0, r1), (b0, b1)) in EVOKED_WINDOWS.items()}
+
+    def evk(P):                                           # (..., off) -> (...,) response minus baseline
+        return {al: np.nanmean(P[..., w], -1) - np.nanmean(P[..., b], -1) for al, (w, b) in wins.items()}
+    # PETHs of the regressors and of the data, per spout and alignment, in the small spaces
+    PZ, PD, n_al = {}, {}, {}
+    for p in pos_order:
+        m = d["pos"] == p
+        for al in ("cue", "lick"):
+            fr_ = d["cue_f"][m] if al == "cue" else d["first_f"][m & (d["first_f"] >= 0)]
+            n_al[(p, al)] = int(len(fr_))
+            if not len(fr_):
+                continue
+            PZ[(p, al)] = _peth(Z, fr_, off)                                  # (p, off)
+            PD[(p, al)] = (Ra.T @ _peth(d["Y"], fr_, off)) if lazy else _peth(Rd, fr_, off)   # (R, off)
+    summary = {"label": label}
+    for variant, fit in fits.items():
+        if "|drop:" in variant:
+            continue
+        beta = fit["beta_loso"].get(label, fit["beta_all"])
+        frozen_from = "loso" if label in fit["beta_loso"] else "all_pre"
+        Ce = fit["C"]
+        gcol = np.array([FGROUP[v] for v in fit["vcol"]])
+        parts = {"full": Ce @ beta}
+        if variant in PART_VARIANTS:
+            for g, gs in (*((g, (g,)) for g in FGROUPS), ("spout", SUPER["spout"]), ("lick_all", ("lick", "exec_locked"))):
+                mm = np.isin(gcol, gs)
+                parts[g] = Ce[:, mm] @ beta[mm] if mm.any() else np.zeros((Z.shape[1], len(ix)))
+        names = ["data", *parts]
+        ev = {al: np.full((len(names), len(pos_order), len(ix)), np.nan, np.float32) for al in ("cue", "lick")}
+        for pi, p in enumerate(pos_order):
+            for al in ("cue", "lick"):
+                if (p, al) not in PZ:
+                    continue
+                e_d = evk(PD[(p, al)])[al]
+                ev[al][0, pi] = e_d
+                for k, Wm in enumerate(parts.values(), start=1):
+                    ev[al][k, pi] = evk(Wm.T @ PZ[(p, al)])[al]
+        pred_c = Z @ parts["full"][:, ci_]
+        r2 = {}
+        for w, wm in d["win"].items():
+            yy, yh = y_c[wm], pred_c[wm]
+            r2[w] = float(1.0 - ((yy - yh) ** 2).sum() / max(((yy - yy.mean()) ** 2).sum(), 1e-12)) if wm.any() else None
+        musall = {}
+        for al, (a0, a1) in MUSALL_WINDOWS.items():
+            fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+            keep = fr_ >= 0
+            if keep.sum() < 2:
+                continue
+            offm = np.arange(int(round(a0 * fs)), int(round(a1 * fs)))
+            mr = musall_r2(_segments(y_c[:, None], fr_[keep], offm), _segments(pred_c[:, None], fr_[keep], offm),
+                           d["pos"][keep])
+            musall[al] = {k: [float(x) for x in v] for k, v in mr.items()}
+        sess = Path(out_dir) / variant / "sessions"
+        sess.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(sess / f"{label}.npz", evoked_cue=ev["cue"], evoked_lick=ev["lick"])
+        meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
+                "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
+                "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],
+                "gate": os.environ.get("OROFACIAL_GATE", "reference"), "lick_set": d["lick_set"],
+                "n_trials": d["n_trials"], "n_aligned": {f"{p}|{al}": n for (p, al), n in n_al.items()},
+                "pos_order": pos_order, "evoked_parts": names, "targets": f0["areas"], "evoked_windows": EVOKED_WINDOWS,
+                "frozen_r2_cortex": r2, "r2_musall": musall, "areas": ["cortex"], "stats_version": STATS_VERSION}
+        (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
+        summary[variant] = r2
+        summary["frozen_from"] = frozen_from
     return summary
 
 
@@ -754,7 +942,13 @@ def main(argv=None) -> int:
     ap.add_argument("--no-drop-spout", action="store_true", help="skip the frozen drop-one-spout variants")
     ap.add_argument("--reuse-stats", action="store_true", help="reuse fit/pre_stats.pkl (skip the pre statistics pass)")
     ap.add_argument("--summarise-drop", action="store_true", help="only rebuild the drop-spout table from saved files")
+    ap.add_argument("--target", default="areas", choices=("areas", "basis", "grid"),
+                    help="Allen areas (default) | per-animal shared SVD basis | 8 x 8 pixel grid (SPATIAL TARGETS)")
     a = ap.parse_args(argv)
+    if a.target != "areas":
+        a.no_drop_spout = True                           # spatial runs: maps of the decomposition, no drop-spout
+        if a.variants == list(VARIANTS):
+            a.variants = list(PART_VARIANTS)             # the variants whose parts are a split
     if a.summarise_drop:
         summarise_drop(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}")
         return 0
@@ -768,7 +962,9 @@ def main(argv=None) -> int:
     sp = out / "fit" / "pre_stats.pkl"
     tp = out / "fit" / "templates.pkl"
     (out / "fit").mkdir(parents=True, exist_ok=True)
-    saved = pickle.loads(sp.read_bytes()) if (a.reuse_stats and sp.exists() and tp.exists()) else None
+    spath = str(out / "fit") if a.target != "areas" else None
+    spat_ok = a.target == "areas" or all((out / "fit" / f"spatial_{config.animal_of(x)}.pkl").exists() for x in pre)
+    saved = pickle.loads(sp.read_bytes()) if (a.reuse_stats and sp.exists() and tp.exists() and spat_ok) else None
     if saved is not None and any(s_.get("stats_version") != STATS_VERSION for s_ in saved):
         print(f"  saved statistics are not STATS_VERSION {STATS_VERSION}: recomputing", flush=True)
         saved = None
@@ -782,7 +978,20 @@ def main(argv=None) -> int:
             raise RuntimeError(f"template pass failed: {tfail}")
         tp.write_bytes(pickle.dumps(build_templates([t for _l, t in tparts]), protocol=pickle.HIGHEST_PROTOCOL))
         print(f"  spout-locked templates -> {tp}", flush=True)
-        got, fail = ak.fan_sessions([(x, str(tp)) for x in pre], stats_job, jobs=a.jobs)
+        if a.target == "basis":                          # pass 2: the per-animal shared spatial basis
+            bparts, bfail = ak.fan_sessions(pre, basis_job, jobs=a.jobs, label="basis")
+            if bfail:
+                raise RuntimeError(f"basis pass failed: {bfail}")
+            for an_, sd_ in build_basis([b for _l, b in bparts]).items():
+                (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(sd_, protocol=pickle.HIGHEST_PROTOCOL))
+                print(f"  {an_} shared basis: K = {len(sd_['names'])} components, {sd_['evr'][-1]:.3f} of pre variance",
+                      flush=True)
+        elif a.target == "grid":
+            g_ = grid_spatial(pre[0])
+            for an_ in sorted({config.animal_of(x) for x in labels}):
+                (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(g_, protocol=pickle.HIGHEST_PROTOCOL))
+            print(f"  grid: {len(g_['names'])} blocks of {GRID_BLOCK} x {GRID_BLOCK} px", flush=True)
+        got, fail = ak.fan_sessions([(x, str(tp), spath) for x in pre], stats_job, jobs=a.jobs)
         got = [(it[0], s_) for it, s_ in got]
         for s_ in (s_ for _l, s_ in got):
             s_["stats_version"] = STATS_VERSION
@@ -812,7 +1021,7 @@ def main(argv=None) -> int:
                                 beta_all=f["beta_all"], col_var=f["col_var"], areas=np.array(f["areas"]))
             print(f"  {an} {v}: {len(labs)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
                   f"alphas {f['alphas']}", flush=True)
-    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp)) for x in labels if config.animal_of(x) in fits]
+    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp), spath) for x in labels if config.animal_of(x) in fits]
     res, fail = _fan(jobs, a.jobs)
     for it, err in fail:
         print(f"  !! predict {it[0]}: {err}", flush=True)

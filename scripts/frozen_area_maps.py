@@ -41,7 +41,8 @@ def session_rows(js: Path, align: str) -> list[dict]:
         ev = np.nanmean(peth[:, pi][:, :, w], -1) - np.nanmean(peth[:, pi][:, :, b], -1)   # (parts, areas)
         for ai, area in enumerate(m["areas"]):
             r = {"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "pos": pos, "area": area}
-            r.update({p: float(ev[ci, ai]) for ci, p in enumerate(parts)})
+            # the model part "pos" (position regressors) must not overwrite the spout label (as lp_encoder_decompose)
+            r.update({("pos_part" if p == "pos" else p): float(ev[ci, ai]) for ci, p in enumerate(parts)})
             if "data" in r and "full" in r:
                 r["residual"] = r["data"] - r["full"]
             rows.append(r)
@@ -112,6 +113,7 @@ def main(argv=None) -> int:
         allrows.append(T)
         T = T[T.pos == a.spout]
         parts = [p for p in SHOW if p in T.columns]
+        T = T.assign(**{p: T[p] * 1e3 for p in parts})          # dF/F x 1e3, as the decomposition tables
         A = T.groupby(["animal", "epoch", "area"])[parts].mean()
         animals = sorted(T.animal.unique())
         for ep in EPOCHS:
