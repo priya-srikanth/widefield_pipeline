@@ -17,6 +17,10 @@ Per projected session (``proj/<key>.npz`` of a factor set; ABSOLUTE expression =
 ``running_triggered`` expression around treadmill RUNNING-BOUT onsets (behavior_events, the canonical bouts) on the
                      whole-session series (25 Hz in trial windows, 5 Hz elsewhere, `face_rhythm_outputs.combined_series`)
                      + the correlation with speed OUTSIDE lick periods (> LICK_FREE_S from any LP lick).
+``lick_epoch_session`` per session and executed DIRECTION: licks per engaged trial in the response window
+                     (0..RESP_S after the cue) and each factor's expression AT the lick (mean over 0..PER_LICK_S after
+                     onset) -- splits a post-stroke change of a factor into FEWER licks vs DIFFERENT licks
+                     (`scripts/face_rhythm_lick_epochs.py`).
 Treadmill speed (`behavior_events.session_speed`, the one definition) is CACHED per session at 25 Hz
 (`result_cache`, keyed on the DAQ .h5): the 5 kHz channel is read once.
 """
@@ -35,6 +39,9 @@ SMOOTH_S = 0.1                           # Gaussian sigma for lick rates on the 
 LICK_FREE_S = 1.0
 RUN_LAGS = np.arange(-3.0, 5.0 + 1e-9, 0.2)
 SPEED_VERSION = "fr-validate-speed-v1"
+RESP_S = 4.0                             # response window: cue .. +4 s (as `face_rhythm_readouts.WINDOWS`)
+PER_LICK_S = 0.2                         # expression AT a lick: mean over 0..+0.2 s after onset
+DIRECTIONS = ("left", "centre", "right")
 
 
 def lick_table(rv, animal: str, date: str, cues: np.ndarray) -> pd.DataFrame:
@@ -176,3 +183,42 @@ def session(job) -> dict:
     run = running_triggered(rv, animal, date, files, L, speed)
     return {"animal": animal, "date": date, "epoch": str(zs[0]["epoch"]), "lta": np.concatenate(lta),
             "licks": pd.concat(used, ignore_index=True), "bins": pd.concat(bins, ignore_index=True), **run}
+
+
+def lick_epoch_summary(zs: list, L: pd.DataFrame, absolute: bool = True) -> dict:
+    """Per direction: licks per engaged trial in the response window, per-lick expression (R,) and the mean
+    lick-triggered curve (len(LAGS), R); plus every factor's mean response-window expression per trial (R,).
+    ``zs``: the session's proj files (loaded), ``L``: its `lick_table`."""
+    n_tr = sum(len(z["cue_daq_s"]) for z in zs)
+    resp = []
+    X, used = [], []
+    for z in zs:
+        _, ts, W = _trial_series(z, absolute)
+        resp.append(np.nanmean(W[:, (ts >= 0) & (ts < RESP_S)], axis=1))          # (n_tr, R)
+        x, u = lick_triggered(z, L, absolute)
+        X.append(x)
+        used.append(u)
+    X = np.concatenate(X)
+    U = pd.concat(used, ignore_index=True)
+    R = X.shape[-1] if len(X) else resp[0].shape[-1]
+    at = (LAGS >= 0) & (LAGS <= PER_LICK_S + 1e-9)
+    inresp = (U.t_rel >= 0) & (U.t_rel < RESP_S) if len(U) else np.zeros(0, bool)
+    out = {"n_trials": n_tr, "resp_expr": np.nanmean(np.concatenate(resp), axis=0)}
+    for d in DIRECTIONS:
+        m = np.asarray(inresp & (U.direction == d)) if len(U) else np.zeros(0, bool)
+        out[f"n_{d}"] = int(m.sum())
+        out[f"licks_per_trial_{d}"] = m.sum() / max(n_tr, 1)
+        out[f"per_lick_{d}"] = X[m][:, at].mean(axis=(0, 1)) if m.sum() else np.full(R, np.nan)
+        out[f"lta_{d}"] = X[m].mean(0) if m.sum() else np.full((len(LAGS), R), np.nan)
+    return out
+
+
+def lick_epoch_session(job) -> dict:
+    """`lick_epoch_summary` for one projected session (module-level for `analysis_kit.fan_sessions`)."""
+    fdir, animal, date = job
+    from wfield_local import face_rhythm_outputs as fro
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    zs = [np.load(f) for f in fro.session_keys(Path(fdir), animal, date)]
+    L = lick_table(rv, animal, date, np.concatenate([z["cue_daq_s"] for z in zs]))
+    return {"animal": animal, "date": date, "epoch": str(zs[0]["epoch"]), **lick_epoch_summary(zs, L)}

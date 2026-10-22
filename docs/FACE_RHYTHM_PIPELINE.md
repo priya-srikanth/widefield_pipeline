@@ -78,6 +78,8 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
   normalisation, caveats) as a section of the output folder's `README.md`. Tables in `data/` (`figure_layout`).
   Factor identity vs behaviour: `scripts/face_rhythm_validate.py` (licks by executed direction x time in trial, by lick
   number in bout, by spout position, vs lick frequency; running onsets; correlations).
+  Fewer licks or different licks by epoch: `scripts/face_rhythm_lick_epochs.py` (licks / trial by direction; each
+  factor's expression AT a lick, relative to pre; total = licks x per lick for the factor's preferred direction).
 
 * **cam4 ipsilesional = IMAGE RIGHT** (all lesions left; brain maps are the other way). Readouts split the mesh at its
   midline: x = 342, the master's LP nose (`face_rhythm_readouts.MASTER_MIDLINE_X`; `--midline-x` overrides).

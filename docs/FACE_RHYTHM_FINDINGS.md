@@ -93,6 +93,26 @@ CAVEATS: two animals; absolute expression scales with how much the animal licks,
 not a different movement per lick -- next: per-lick expression (lick-triggered, as in section 4) by epoch, and the
 master set's four animals. Figures: `report/factor_epochs_abs.png` (cue-aligned, pre max = 1).
 
+### 5b. Fewer licks or different licks? (PILOT, two animals)
+
+`scripts/face_rhythm_lick_epochs.py` (`<dlc>/face_rhythm/cam4/validation/pilot_pre_PS92_PS93/lick_epochs/`): per
+session and executed lick DIRECTION, response-window licks per engaged trial and each factor's expression AT the lick
+(0..+0.2 s after onset); per animal x epoch, relative to that animal's pre. f9 (right / contralesional licking):
+
+| | right licks / trial (acute / sub / chronic) | f9 per right lick | f9 total |
+|---|---|---|---|
+| PS92 | **0.09** / 0.40 / **1.01** | 0.59 / 0.62 / **0.60** | 0.46 / 0.84 / 0.66 |
+| PS93 | **0.36** / 0.80 / **0.97** | 0.36 / 0.49 / **0.40** | 0.33 / 0.48 / 0.46 |
+
+Reading: ACUTELY both -- far fewer contralesional licks (PS92 457 right licks in 2091 trials) and each one expresses f9
+less. CHRONICALLY the number of right licks is back at pre in both animals but f9 per right lick stays at 0.4-0.6:
+the persistent deficit is in HOW contralesional licks are made, not how many. Other per-lick changes: f6 (preparatory)
+per lick UP 1.2-1.8 in every post epoch, both animals and all directions (more preparation per lick); f1 (bout
+initiation) per lick up in PS92 (acute ~3x); f4 per centre lick down acutely, above pre chronically; f0 per left lick
+down chronically (PS92 0.79, PS93 0.58) -- part of the per-lick drop is not side-specific, but contralesional f9 drops
+most. CAVEATS: direction is the executed angle (+-12 deg): smaller post-stroke right licks may be classed centre;
+absolute expression includes the frame's whole-face movement scale.
+
 ## 6. Does the pre-stroke vocabulary still fit after the stroke? (PILOT, two animals)
 
 EVR GAP = a session's own rank-10 fit (`fitsession`, 1 start) minus the frozen pre-stroke factors on the same session
@@ -113,6 +133,7 @@ PS93 acute -0.10 vs pre -0.03 (less contralesional-side movement), PS92 no clear
 
 ## Change log
 
+* 2026-10-22 pm: section 5b (per-lick by epoch: f9 deficit persists per lick, counts recover).
 * 2026-10-22 pm: section 6 (EVR gap vs the pre noise floor, pilot readouts).
 * 2026-10-22 pm: rank sweep complete (14, 16); rank 12 vs 10 structure; per-factor stability added.
 * 2026-10-22: created (tracking QC, rank sweep start, noise floor, pilot factor identities, first epoch changes).

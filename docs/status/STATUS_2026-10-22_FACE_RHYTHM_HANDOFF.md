@@ -14,8 +14,10 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
 * Projection tasks 26 / 28 logged rc 1 (the temp-file collision): outputs verified valid.
 * ~14:20: fitsession 51 / 51 done; readouts run (`<dlc>/face_rhythm/cam4/readouts/pilot_pre_PS92_PS93/`): EVR gap
   acute above every pre session in both animals, PS93 back to pre by subacute, PS92 slightly above chronically
-  (FINDINGS 6). Local pilot run COMPLETE; nothing running. Next: Priya's names -> labels.json; per-lick expression by
-  epoch; master_pre_v1 (8 starts, per-factor stability) when PS94 / PS95 are in.
+  (FINDINGS 6). Local pilot run COMPLETE; nothing running.
+* ~14:45: per-lick by epoch DONE (`scripts/face_rhythm_lick_epochs.py`, FINDINGS 5b): right-lick COUNT recovers to pre
+  chronically in both animals, f9 PER right lick stays 0.4-0.6 -> the contralesional deficit is in how licks are made.
+  Next: Priya's names -> labels.json; master_pre_v1 (8 starts, per-factor stability) when PS94 / PS95 are in.
 
 ## UPDATE 10-22 ~13:15
 
