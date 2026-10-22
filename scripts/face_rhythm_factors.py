@@ -5,6 +5,8 @@ inputs / outputs of every stage and run order: docs/FACE_RHYTHM_PIPELINE.md.
     desktop (locanmf)  python scripts/face_rhythm_factors.py plan   --bundle fr_cam4_20261021 --set master_pre_v1
     O2 (fr)            python <bundle>/factors/<set>/fr_factors.py build                    one job: the fit tensor
     O2 (fr)            python <bundle>/factors/<set>/fr_factors.py fit --rank R             array over ranks
+    O2 (fr)            python <bundle>/factors/<set>/fr_factors.py loso --task j            array over (rank, pre day)
+    PILOT (10-22)      plan --set pilot_pre_PS92_PS93 --animals PS92 PS93 --with-outputs --role pilot
     desktop            python scripts/face_rhythm_factors.py report --set ... [--face img]  rank sweep + factor gallery
     desktop            python scripts/face_rhythm_factors.py select --set ... --rank R      FREEZE (refuses to refreeze)
     O2 (fr)            python <bundle>/factors/<set>/fr_factors.py project --task i         array over tasks
@@ -28,6 +30,14 @@ build      the master fit tensor (rows, 2 x points, freqs) float32, trial window
 fit        non-negative CP (HALS, numpy, chunked) of rank R: ``inits`` random starts (best kept; similarity between
            starts = stability, Williams et al. 2018) and LEAVE-ONE-ANIMAL-OUT (fit on three animals, project the fourth
            with spatial + spectral fixed; held-out vs in-fit error, factor similarity to the full fit).
+loso       LEAVE ONE PRE-STROKE DAY OUT (job = (rank, day) from plan ``loso_jobs``): refit without the day's fit rows,
+           project the day's SESSION rows (the rows `fitsession` scores every session on) held out vs with the full
+           fit. The held-out pre EVR is the noise floor post-stroke frozen EVRs / EVR gaps are read against (report:
+           ``loso.csv``, ``loso_by_rank.csv``, rank_sweep panel 4). With only two animals, leave-one-animal-out fits ONE
+           animal and projects the other: reported, weak.
+pilot      ``plan --animals ... --with-outputs --role pilot``: a set on the animals / tasks available now, stamped
+           ``role = pilot`` in plan.json and master.npz (the file name is the same; the SET is never the cohort master,
+           and plan refuses a restricted set without --role pilot).
 select     freezes rank R as ``master.npz`` (spatial (2, P, R), spectral (F, R), animal scales, spec hash of plan + rank +
            init). A frozen set is a REFERENCE (rule 10, docs/FROZEN_MODELS.md): never refitted once used.
 project    per task, spatial + spectral fixed: non-negative temporal weights per bin for the trial windows (25 Hz) and
@@ -416,6 +426,67 @@ def cmd_fit(sd: Path, rank: int) -> None:
           f"{summ['stability_median']}, {summ['minutes']:.0f} min")
 
 
+def session_group(key: str) -> str:
+    """A task's recording DAY (``PS92_20260812_cam4_v2`` -> ``PS92_20260812``): leave-one-session-out leaves out the
+    whole day, both videos of a split session."""
+    return key.split("_cam")[0]
+
+
+def task_basis(sd: Path, t: dict, A: np.ndarray, B: np.ndarray) -> tuple[np.ndarray, np.ndarray, str, np.ndarray]:
+    """(A, B, basis, matched cosines) a task is SCORED on (Priya 10-22): post-stroke sessions on the full pre-stroke fit;
+    a PRE-STROKE session on the fit that LEFT ITS DAY OUT (``loso/rank<R>_<day>.npz``, components in the full fit's
+    order), so pre-stroke numbers are never in-sample and pre vs post is a fair comparison (as the frozen decoders'
+    held-out pre evaluation). A pre task without its left-out basis is refused when the plan has leave-one-out jobs;
+    a plan without them (``--no-loso``) scores pre in-sample and says so (basis "full_in_sample")."""
+    R = A.shape[1]
+    if t["epoch"] != "pre":
+        return A, B, "full", np.ones((2, R))
+    f = sd / "loso" / f"rank{R:02d}_{session_group(t['key'])}.npz"
+    if f.exists():
+        z = np.load(f)
+        return z["A"].astype(np.float64), z["B"].astype(np.float64), "loso", z["cos"]
+    if load_plan(sd).get("loso_jobs"):
+        sys.exit(f"{t['key']} is pre-stroke and {f.name} is missing: run the loso array for rank {R} first")
+    return A, B, "full_in_sample", np.ones((2, R))
+
+
+def cmd_loso(sd: Path, job: int) -> None:
+    """LEAVE ONE PRE-STROKE SESSION OUT (job = 1-based row of plan ``loso_jobs`` = (rank, day)): refit rank R without the
+    day's fit rows (one random start, the fit's n_iter), then project the day's SESSION rows (the same rows `fitsession`
+    scores every session on) with that fit (HELD OUT) and with the full fit (``rank<R>.npz``, IN FIT). The held-out pre
+    EVR is the NOISE FLOOR the post-stroke frozen EVRs (and EVR gaps) are read against: how well a basis that never saw
+    a pre-stroke day explains it. -> ``loso/rank<R>_<day>.json``."""
+    pl = load_plan(sd)
+    rank, day = pl["loso_jobs"][job - 1]
+    dst = sd / "loso" / f"rank{rank:02d}_{day}.json"
+    if dst.exists():
+        print("done already", dst)
+        return
+    t0 = time.time()
+    X = np.load(sd / "fit_tensor.npy", mmap_mode="r")
+    keys = np.load(sd / "fit_index.npz")["key"]
+    m = np.array([session_group(k) == day for k in keys])
+    f = ncp_hals(np.ascontiguousarray(X[~m]), rank, seed=31 + rank, n_iter=pl["params"]["n_iter"])
+    full = np.load(sd / f"rank{rank:02d}.npz")
+    scales = json.loads((sd / "scales.json").read_text())
+    tasks = [t for t in pl["tasks"] if session_group(t["key"]) == day]
+    animal = tasks[0]["animal"]
+    Xs = np.concatenate([gather_rows(out_dir(sd), pl["session_rows"][t["key"]])[0] for t in tasks]) / scales[animal]
+    _, e_out, n2 = project_rows(Xs, f["A"], f["B"])
+    _, e_in, _ = project_rows(Xs, full["A"], full["B"])
+    res = {"rank": rank, "day": day, "animal": animal, "epoch": "pre", "n_fit_rows_left_out": int(m.sum()),
+           "n_session_rows": int(len(Xs)), "evr_held_out": pooled_evr(e_out, n2), "evr_in_fit": pooled_evr(e_in, n2),
+           "similarity_to_full": similarity([full["A"], full["B"]], [f["A"], f["B"]]),
+           "minutes": (time.time() - t0) / 60}
+    order, cos = match([full["A"], full["B"]], [f["A"], f["B"]])
+    res["cos_spatial"], res["cos_spectral"] = cos[0].tolist(), cos[1].tolist()
+    dst.parent.mkdir(exist_ok=True)
+    _atomic_savez(dst.with_suffix(".npz"), A=f["A"][:, order], B=f["B"][:, order], cos=cos, rank=rank, day=day)
+    dst.write_text(json.dumps(res, indent=1))
+    print(f"rank {rank} leave out {day}: EVR held out {res['evr_held_out']:.4f} vs in fit {res['evr_in_fit']:.4f} "
+          f"({len(Xs)} session rows), similarity {res['similarity_to_full']:.3f}, {res['minutes']:.0f} min")
+
+
 # ------------------------------------------------------------------------------------- O2: project / fitsession
 def window_labels(t: np.ndarray, cues: np.ndarray, positions: np.ndarray, edge: int) -> tuple[np.ndarray, np.ndarray]:
     """Class of each time bin: -1 none, 0 between trials (outside BUSY_S of every engaged cue), 1 + 2 p + w for position
@@ -488,6 +559,7 @@ def cmd_project(sd: Path, task: int) -> None:
         print("done already", dst)
         return
     A, B, scales, M = load_master(sd)
+    A, B, basis, bcos = task_basis(sd, t, A, B)
     s = float(scales[animal])
     od = out_dir(sd)
     t0 = time.time()
@@ -512,8 +584,8 @@ def cmd_project(sd: Path, task: int) -> None:
     _atomic_savez(dst, trials=Wt.reshape(n_tr, n_t, -1), trials_err=Et.reshape(n_tr, n_t), session=Ws, session_err=Es,
                   trials_D=Dt.reshape(n_tr, n_t), session_D=Ds,
                   session_t_daq_s=tse["t_daq_s"], session_rate_hz=tse["rate_hz"], spec_hash=str(M["spec_hash"]),
-                  animal=animal, epoch=str(t["epoch"]), date=t["date"], **meta, **pw)
-    print(f"{key} [{t['epoch']}]: trials err median {np.nanmedian(Et):.3f}, session err median {np.nanmedian(Es):.3f}, "
+                  animal=animal, epoch=str(t["epoch"]), date=t["date"], basis=basis, basis_cos=bcos, **meta, **pw)
+    print(f"{key} [{t['epoch']}, basis {basis}]: trials err median {np.nanmedian(Et):.3f}, session err median {np.nanmedian(Es):.3f}, "
           f"{(time.time() - t0) / 60:.1f} min -> {dst}")
 
 
@@ -526,6 +598,7 @@ def cmd_fitsession(sd: Path, task: int, inits: int = 3) -> None:
         print("done already", dst)
         return
     A, B, scales, M = load_master(sd)
+    A, B, basis, _ = task_basis(sd, t, A, B)
     R = A.shape[1]
     t0 = time.time()
     X, _ = gather_rows(out_dir(sd), pl["session_rows"][key])
@@ -538,8 +611,8 @@ def cmd_fitsession(sd: Path, task: int, inits: int = 3) -> None:
     _atomic_savez(dst, A_own=f["A"][:, order].astype(np.float32), B_own=f["B"][:, order].astype(np.float32),
                   evr_own=1 - f["rel_err"] ** 2, evr_frozen=evr_frozen, cos_spatial=cos[0], cos_spectral=cos[1],
                   rel_errs_own=np.array([x["rel_err"] for x in fits]), n_rows=len(X), spec_hash=str(M["spec_hash"]),
-                  animal=animal, epoch=str(t["epoch"]), date=t["date"])
-    print(f"{key} [{t['epoch']}]: EVR own {1 - f['rel_err'] ** 2:.3f} vs frozen {evr_frozen:.3f}; matched cosine "
+                  animal=animal, epoch=str(t["epoch"]), date=t["date"], basis=basis)
+    print(f"{key} [{t['epoch']}, basis {basis}]: EVR own {1 - f['rel_err'] ** 2:.3f} vs frozen {evr_frozen:.3f}; matched cosine "
           f"spatial {cos[0].mean():.3f} spectral {cos[1].mean():.3f}; {len(X)} rows, {(time.time() - t0) / 60:.1f} min")
 
 
@@ -560,7 +633,8 @@ def _sbatch(b: str, opts: str, cmd: str) -> str:
 
 def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int, between_frac: float, seed: int,
              ranks: list[int], inits: int, n_iter: int, user: str, point_pcs: int = 20,
-             points_bins: int = 20000) -> Path:
+             points_bins: int = 20000, animals: list[str] | None = None, with_outputs: bool = False,
+             role: str = "master", loso: bool = True) -> Path:
     import pandas as pd
     from wfield_local import epochs, writeguard
     from wfield_local import o2_inference as oi
@@ -572,6 +646,12 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
     if (sd / "master.npz").exists():
         sys.exit(f"{sd} is FROZEN (master.npz exists) -- choose a new set name")
     T = pd.read_csv(bd / "tasks.tsv", sep="\t", dtype=str)
+    if animals:                                             # a PILOT on some animals (10-22: PS92 + PS93)
+        T = T[T.animal.isin(animals)]
+    if with_outputs:                                        # only tasks whose outputs are on the share now
+        T = T[[(bd / "out" / f"{k}_summary.json").exists() for k in T.key]]
+    if role == "master" and (animals or with_outputs):
+        sys.exit("a set restricted by --animals / --with-outputs is not the cohort master: pass --role pilot")
     rng = np.random.default_rng(seed)
     tasks, cand = [], {}
     for r in T.itertuples():
@@ -595,7 +675,10 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         points_fit[a] = {k: sorted(int(b) for b in rng.choice(nb[k], min(per, nb[k]), replace=False)) for k in keys}
     session_rows = {t["key"]: draw_rows(*cand[t["key"]], session_trials, between_frac,
                                         np.random.default_rng([seed, zlib.crc32(t["key"].encode())])) for t in tasks}
-    pl = {"set": name, "bundle": bundle, "created": time.strftime("%Y-%m-%d %H:%M"),
+    days = sorted({session_group(k) for a in fit.values() for k in a["sessions"]})
+    loso_jobs = [[r, d] for r in ranks for d in days] if loso else []
+    pl = {"set": name, "bundle": bundle, "created": time.strftime("%Y-%m-%d %H:%M"), "role": role,
+          "animals": sorted(fit), "loso_jobs": loso_jobs,
           "params": {"trials_per_animal": trials_per_animal, "session_trials": session_trials,
                      "between_frac": between_frac, "seed": seed, "trial_ds": TRIAL_DS, "ranks": ranks, "inits": inits,
                      "n_iter": n_iter, "precue_s": PRECUE_S, "resp_s": RESP_S, "busy_s": BUSY_S,
@@ -616,11 +699,15 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
                                    "project --task $SLURM_ARRAY_TASK_ID"),
             "run_fitsession.sbatch": (f"-J frf_own -c 8 --mem=24G -t 0-04:00:00 --array=1-{n}%40",
                                       "fitsession --task $SLURM_ARRAY_TASK_ID")}
+    if loso_jobs:                                           # after the fit (needs rank<R>.npz): --dependency=afterok
+        jobs["run_loso.sbatch"] = (f"-J frf_loso -c 8 --mem=48G -t 0-06:00:00 --array=1-{len(loso_jobs)}%40",
+                                   "loso --task $SLURM_ARRAY_TASK_ID")
     for fn, (opts, cmd) in jobs.items():
         (sd / fn).write_text(_sbatch(b, opts, cmd), encoding="utf-8", newline="\n")
     rows = sum(len(v) for a in fit.values() for v in a["trials"].values()) * (151 // TRIAL_DS) + \
         sum(len(v) for a in fit.values() for v in a["between"].values())
-    print(f"plan -> {sd}  (master fit rows ~{rows}, tensor ~{rows * 2 * 1282 * 36 * 4 / 1e9:.1f} GB float32; {n} tasks)")
+    print(f"plan [{role}] -> {sd}  (fit rows ~{rows}, tensor ~{rows * 2 * 1282 * 36 * 4 / 1e9:.1f} GB float32; {n} tasks; "
+          f"{len(loso_jobs)} leave-one-session-out jobs = {len(ranks)} ranks x {len(days)} pre days)")
     return sd
 
 
@@ -645,10 +732,11 @@ def cmd_select(sd: Path, rank: int) -> None:
     P = len(R["A"]) // 2
     np.savez(m, spatial=R["A"].reshape(2, P, rank).astype(np.float32), spectral=R["B"].astype(np.float32),
              freqs=meta["freqs"], home=meta["home"], scales_json=(sd / "scales.json").read_text(), rank=rank,
-             spec_hash=h, set=pl["set"], frozen=time.strftime("%Y-%m-%d %H:%M"),
+             spec_hash=h, set=pl["set"], frozen=time.strftime("%Y-%m-%d %H:%M"), role=pl.get("role", "master"),
+             animals=np.array(pl.get("animals", sorted(pl["fit"]))),
              **({f"points_{k}": v for k, v in np.load(sd / "points_pca.npz").items()}
                 if (sd / "points_pca.npz").exists() else {}))
-    print(f"FROZEN {pl['set']} rank {rank} spec {h} -> {m}")
+    print(f"FROZEN {pl['set']} [{pl.get('role', 'master')}: {', '.join(sorted(pl['fit']))}] rank {rank} spec {h} -> {m}")
 
 
 def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> None:
@@ -663,9 +751,10 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> No
     rd = sd / "report"
     rd.mkdir(exist_ok=True)
     S = [json.loads(f.read_text()) for f in sorted(sd.glob("rank*.json"))]
+    L = pd.DataFrame([json.loads(f.read_text()) for f in sorted((sd / "loso").glob("rank*.json"))])         if (sd / "loso").exists() else pd.DataFrame()
     if S:
         rk = [x["rank"] for x in S]
-        fig, ax = plt.subplots(1, 3, figsize=(13, 3.6))
+        fig, ax = plt.subplots(1, 4, figsize=(17, 3.6))
         ax[0].plot(rk, [x["evr_uncentred"] for x in S], "o-")
         ax[0].set(xlabel="rank", ylabel="EVR (1 - |S - S^|^2 / |S|^2)", title="fit")
         ax[1].plot(rk, [x["stability_median"] or np.nan for x in S], "o-")
@@ -673,8 +762,30 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> No
         for a in sorted(S[0]["loao"]):
             ax[2].plot(rk, [x["loao"][a]["held_out_err"] / x["loao"][a]["in_fit_err"] for x in S], "o-", label=a)
         ax[2].axhline(1, color="k", lw=0.6)
-        ax[2].set(xlabel="rank", ylabel="held-out / in-fit error", title="leave one animal out")
+        n_an = len(S[0]["loao"])
+        ax[2].set(xlabel="rank", ylabel="held-out / in-fit error",
+                  title="leave one animal out" + (" (2 animals: fit ONE, project the other -- weak)" if n_an == 2 else ""))
         ax[2].legend(fontsize=7)
+        if len(L):                                       # leave one pre-stroke DAY out: the post-stroke noise floor
+            for an, g in L.groupby("animal"):
+                for _d, gd in g.groupby("day"):
+                    gd = gd.sort_values("rank")
+                    ax[3].plot(gd["rank"], gd["evr_held_out"], "-", lw=0.6, alpha=0.6,
+                               color="tab:blue" if an == sorted(L.animal.unique())[0] else "tab:orange")
+            md = L.groupby("rank")[["evr_held_out", "evr_in_fit"]].median()
+            ax[3].plot(md.index, md.evr_in_fit, "k--", lw=1.2, label="in fit (median)")
+            ax[3].plot(md.index, md.evr_held_out, "k-", lw=1.8, label="held out (median)")
+            ax[3].set(xlabel="rank", ylabel="EVR on the day's session rows",
+                      title="leave one pre day out (lines = days; blue / orange = animal)")
+            ax[3].legend(fontsize=7)
+            L.sort_values(["rank", "animal", "day"]).to_csv(rd / "loso.csv", index=False, float_format="%.4f")
+            (L.groupby("rank").agg(n_days=("day", "size"), held_out_median=("evr_held_out", "median"),
+                                   held_out_min=("evr_held_out", "min"), in_fit_median=("evr_in_fit", "median"),
+                                   gap_median=("evr_in_fit", lambda v: float(np.median(v - L.loc[v.index, "evr_held_out"]))),
+                                   similarity_median=("similarity_to_full", "median"))
+             .to_csv(rd / "loso_by_rank.csv", float_format="%.4f"))
+        role = load_plan(sd).get("role", "master")
+        fig.suptitle(f"{sd.name} [{role}]", fontsize=9)
         fig.tight_layout()
         fig.savefig(rd / "rank_sweep.png", dpi=120)
         plt.close(fig)
@@ -725,7 +836,7 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> No
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["plan", "build", "fit", "select", "project", "fitsession", "report"])
+    ap.add_argument("cmd", choices=["plan", "build", "fit", "loso", "select", "project", "fitsession", "report"])
     ap.add_argument("--bundle", default="fr_cam4_20261021")
     ap.add_argument("--set", default="master_pre_v1")
     ap.add_argument("--dir", type=Path, default=None, help="factor-set folder (default: this file's folder on O2, "
@@ -744,10 +855,15 @@ def main(argv=None) -> int:
     ap.add_argument("--point-pcs", type=int, default=20, help="plan: PCs of the dense-position basis")
     ap.add_argument("--points-bins", type=int, default=20000, help="plan: 25 Hz bins per animal for its fit")
     ap.add_argument("--user", default="ps150")
+    ap.add_argument("--animals", nargs="*", default=None, help="plan: only these animals' tasks (a pilot)")
+    ap.add_argument("--with-outputs", action="store_true", help="plan: only tasks whose outputs are on the share")
+    ap.add_argument("--role", default="master", choices=("master", "pilot"),
+                    help="plan: 'pilot' for a restricted set (stamped into plan + master.npz; never the cohort master)")
+    ap.add_argument("--no-loso", action="store_true", help="plan: no leave-one-pre-session-out jobs")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
-                 a.n_iter, a.user, a.point_pcs, a.points_bins)
+                 a.n_iter, a.user, a.point_pcs, a.points_bins, a.animals, a.with_outputs, a.role, not a.no_loso)
         return 0
     sd = a.dir
     if sd is None:
@@ -757,9 +873,10 @@ def main(argv=None) -> int:
             from wfield_local import o2_inference as oi
             from wfield_local.paths import PathResolver
             sd = oi.bundle_dir(PathResolver(), a.bundle) / "factors" / a.set
-    task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession") else None)
+    task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "loso") else None)
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank), "select": lambda: cmd_select(sd, a.rank),
      "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task),
+     "loso": lambda: cmd_loso(sd, task),
      "report": lambda: cmd_report(sd, a.face, a.absolute)}[a.cmd]()
     return 0
 

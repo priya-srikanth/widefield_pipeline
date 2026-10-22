@@ -51,7 +51,18 @@ def test_pipeline_end_to_end(tmp_path):
     sd, A, B, plan = _bundle(tmp_path)
     f.cmd_build(sd)
     f.cmd_fit(sd, R)
+    pl = json.loads((sd / "plan.json").read_text())                # leave one pre DAY out (the post-stroke noise floor)
+    pl["loso_jobs"], pl["role"] = [[R, f"{a}_20260810"] for a in ("PS92", "PS93", "PS94")], "pilot"
+    (sd / "plan.json").write_text(json.dumps(pl))
+    for j in (1, 2, 3):
+        f.cmd_loso(sd, j)
+    lo = json.loads((sd / "loso" / f"rank{R:02d}_PS92_20260810.json").read_text())
+    assert lo["n_session_rows"] > 0 and lo["evr_in_fit"] > 0.95
+    assert lo["evr_held_out"] > lo["evr_in_fit"] - 0.02          # shared planted structure: held out ~ in fit
+    f.cmd_report(sd)
+    assert (sd / "report" / "loso_by_rank.csv").exists()
     f.cmd_select(sd, R)
+    assert str(np.load(sd / "master.npz")["role"]) == "pilot"
     with pytest.raises(SystemExit, match="already frozen"):
         f.cmd_select(sd, R)
     M = np.load(sd / "master.npz")
@@ -59,7 +70,10 @@ def test_pipeline_end_to_end(tmp_path):
     for i in range(1, len(plan["tasks"]) + 1):
         f.cmd_project(sd, i)
         f.cmd_fitsession(sd, i, inits=2)
+    assert str(np.load(sd / "proj" / "PS93_20260810_cam4.npz")["basis"]) == "loso"     # pre: its day left out
+    assert str(np.load(sd / "own" / "PS93_20260810_cam4.npz")["basis"]) == "loso"
     p = np.load(sd / "proj" / "PS93_20260820_cam4.npz")
+    assert str(p["basis"]) == "full"                                                    # post: the full pre fit
     assert p["trials"].shape == (6, 151, R) and p["session"].shape == (300, R)
     assert np.nanmedian(p["session_err"]) < 0.2
     assert p["power_response"].shape == (2, 2, P, F) and list(p["power_positions"]) == ["far_L", "far_R"]
@@ -69,6 +83,19 @@ def test_pipeline_end_to_end(tmp_path):
     o = np.load(sd / "own" / "PS93_20260820_cam4.npz")
     assert o["evr_own"] >= o["evr_frozen"] - 0.01            # a session's own fit is at least as good
     assert o["cos_spatial"].min() > 0.95                     # same structure -> no morphing
+
+
+def test_pre_task_without_its_left_out_basis_is_refused(tmp_path):
+    sd, _, _, plan = _bundle(tmp_path)
+    f.cmd_build(sd)
+    f.cmd_fit(sd, R)
+    pl = json.loads((sd / "plan.json").read_text())
+    pl["loso_jobs"] = [[R, "PS92_20260810"]]
+    (sd / "plan.json").write_text(json.dumps(pl))
+    f.cmd_select(sd, R)
+    pre = next(i for i, t in enumerate(plan["tasks"], 1) if t["epoch"] == "pre")
+    with pytest.raises(SystemExit, match="loso array"):
+        f.cmd_project(sd, pre)
 
 
 def test_window_power_classes():
