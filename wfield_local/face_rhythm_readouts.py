@@ -6,8 +6,9 @@ The 2pRAM-cohort manuscript's FR analyses (FACE_RHYTHM_PLAN.md "What the 2pRAM-c
 ACROSS animals (one mesh, one frozen pre-stroke basis):
   amplitudes     pre-stroke components refit to every session: mean factor amplitude per session -- as a SHARE of
                  the frame's movement (amp_) and as ABSOLUTE expression (abs_ = weights x FR normaliser D) -- in the pre-cue
-                 (cue -2..0 s) and response (0..+4 s) windows of engaged trials (25 Hz) and BETWEEN trials (5 Hz bins
-                 outside cue -3..+6 s) -- "non-task movements preserved?" is between vs response; per position too.
+                 (cue -2..0 s) and response (0..+4 s) windows of engaged trials (25 Hz), BETWEEN trials (5 Hz bins
+                 outside cue -3..+6 s, candidate grooming excluded) and in candidate GROOMING (`large_movement`;
+                 + groom_frac) -- "non-task movements preserved?" is between vs response; per position too.
   reconstruction relative reconstruction error of each session by the frozen basis (movement outside the pre-stroke
                  repertoire).
   evr_gap        each session's OWN rank-R fit vs the frozen basis on the same rows (EVR own - frozen), and how far its
@@ -35,6 +36,35 @@ BANDS = {"all": (0.0, 1e9), "slow": (0.0, 3.0), "rhythm": (3.0, 12.0), "fast": (
 #: face midline on the master (PS95_20260812) image: LP v36 nose x, median over pre-cue frames (likelihood > 0.9;
 #: 10-21: nose 342.0, jaw 357.2, mesh median 350.0 -- the jaw sits off-centre, the nose tip is the midline marker).
 MASTER_MIDLINE_X = 342.0
+
+
+def large_movement(ts: np.ndarray, D: np.ndarray, cues: np.ndarray, pct: float = 99.0, min_s: float = 0.4,
+                   widen_s: float = 1.0) -> np.ndarray:
+    """Boolean per session bin: CANDIDATE GROOMING -- whole-face movement (FR normaliser D) above the session's
+    ``pct`` percentile of response-window bins (cue 0..+4 s: the licking range), outside response windows, in runs of
+    >= ``min_s``, widened by ``widen_s``. 10-21: PS92_0806's top lick-factor event (D 37 vs licking p99 18.7, 27 s after
+    a cue) was grooming. Paw-based grooming is not tracked; check candidates with the factor clips."""
+    resp = np.zeros(len(ts), bool)
+    for c in cues:
+        resp |= (ts >= c + WINDOWS["response"][0]) & (ts < c + WINDOWS["response"][1])
+    if not resp.any() or not np.isfinite(D).any():
+        return np.zeros(len(ts), bool)
+    hi = (D > np.nanpercentile(D[resp], pct)) & ~resp
+    dt = float(np.median(np.diff(ts)))
+    out = np.zeros(len(ts), bool)
+    i = 0
+    while i < len(hi):
+        if hi[i]:
+            j = i
+            while j < len(hi) and hi[j]:
+                j += 1
+            if (j - i) * dt >= min_s:
+                w = int(round(widen_s / dt))
+                out[max(i - w, 0):j + w] = True
+            i = j
+        else:
+            i += 1
+    return out
 
 
 def _label(animal: str, date: str) -> str:
@@ -92,13 +122,19 @@ def amplitudes(fdir: Path, names: list[str], absolute: bool = False) -> tuple[pd
             ok = (kk >= 0) & (kk < len(cues))
             d = ts - cues[np.clip(kk, 0, len(cues) - 1)]
             near |= ok & (d >= BUSY_S[0]) & (d <= BUSY_S[1])
-        x = ws[~near]
-        x = x[np.isfinite(x).all(1)]
-        s0, n0 = acc.get("between", (0.0, 0))
-        acc["between"] = (s0 + x.sum(0), n0 + len(x))
+        gm = large_movement(ts, z["session_D"], cues) if "session_D" in z.files else np.zeros(len(ts), bool)
+        for w_, sel in (("between", ~near & ~gm), ("groom", gm)):           # non-task movement vs candidate grooming
+            x = ws[sel]
+            x = x[np.isfinite(x).all(1)]
+            s0, n0 = acc.get(w_, (0.0, 0))
+            acc[w_] = (s0 + x.sum(0), n0 + len(x))
+        g0 = acc.get("_groom_frac", (0.0, 0))
+        acc["_groom_frac"] = (g0[0] + gm.sum(), g0[1] + len(gm))
     rows = []
     for lab, acc in sums.items():
         r = {"label": lab}
+        gf = acc.pop("_groom_frac", (0.0, 0))
+        r["groom_frac"] = gf[0] / gf[1] if gf[1] else np.nan
         for w, (s, n) in acc.items():
             r.update({f"{pre_}_{names[k]}_{w}": (s[k] / n if n else np.nan) for k in range(len(names))})
         rows.append(r)

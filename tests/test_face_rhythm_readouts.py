@@ -51,3 +51,14 @@ def test_regions_around_the_master_nose():
     x0, y0 = frr.MASTER_MIDLINE_X, frr.NOSE_Y
     pts = np.array([[x0, y0], [x0, y0 + 100], [x0 + 100, y0 + 40], [x0, y0 - 150], [x0 + 250, y0 + 250]])
     assert list(frr.region_of(pts)) == ["nose", "mouth_jaw", "whisker_pad", "upper_face", "other"]
+
+
+def test_large_movement_flags_only_big_runs_outside_response_windows():
+    ts = np.arange(0, 100, 0.2)
+    D = np.ones(len(ts))
+    D[(ts >= 10) & (ts < 14)] = np.linspace(1, 3, 20)        # licking range in the response window of the cue at 10 s
+    D[(ts >= 50) & (ts < 52)] = 10.0                         # 2 s of whole-face movement far above it: candidate grooming
+    D[(ts >= 70) & (ts < 70.2)] = 10.0                       # one bin only: too short
+    g = frr.large_movement(ts, D, np.array([10.0]))
+    assert g[(ts >= 50) & (ts < 52)].all() and g[(ts >= 49.2) & (ts < 49.8)].all()   # widened by 1 s
+    assert not g[(ts >= 69) & (ts < 71)].any() and not g[(ts >= 10) & (ts < 14)].any()

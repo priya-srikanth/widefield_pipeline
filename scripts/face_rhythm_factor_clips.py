@@ -3,7 +3,8 @@
     python scripts/face_rhythm_factor_clips.py --fdir <factor set> [--key PS92_20260806_cam4] [--comps 0 4]
                                                [--events 4] [--half-s 1.0] [--out DIR]
 
-Per factor, the ``events`` strongest moments of its ABSOLUTE expression in one session (weights x FR normaliser D,
+Per factor, the ``events`` strongest moments (``--window``: response windows by default; between trials; candidate
+grooming; anywhere) of its ABSOLUTE expression in one session (weights x FR normaliser D,
 `face_rhythm_outputs.combined_series(absolute=True)`: 25 Hz in engaged trial windows, 5 Hz elsewhere), at least 10 s
 apart, each +- ``half_s`` around the peak, every 2nd video frame at 50 fps (2.5x slow), one mp4 per factor:
   points  the TRACKED mesh (25 Hz `points` displacement + home), COLOUR = the direction the factor moves the point
@@ -72,6 +73,10 @@ def main(argv=None) -> int:
     ap.add_argument("--comps", type=int, nargs="*", default=None)
     ap.add_argument("--events", type=int, default=4)
     ap.add_argument("--half-s", type=float, default=1.0)
+    ap.add_argument("--window", default="response", choices=("response", "between", "groom", "any"),
+                    help="where events may come from: engaged-trial response windows (cue 0..+4 s; default -- the "
+                         "session-wide top of a lick factor is grooming), between trials (no grooming), candidate "
+                         "grooming, anywhere")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
     rv = PathResolver()
@@ -91,14 +96,21 @@ def main(argv=None) -> int:
     z = np.load(a.fdir / "proj" / f"{key}.npz")
     cues, cpos = z["cue_daq_s"], z["position"]
     t, X = fro.combined_series([a.fdir / "proj" / f"{key}.npz"], absolute=True)
+    from wfield_local import face_rhythm_readouts as frr
+    sc = np.sort(cues)
+    k_ = np.clip(np.searchsorted(sc, t, side="right") - 1, 0, len(sc) - 1)
+    resp = (t - sc[k_] >= 0) & (t - sc[k_] < 4.0)
+    gm = np.interp(t, z["session_t_daq_s"], frr.large_movement(z["session_t_daq_s"], z["session_D"], cues)
+                   .astype(float)) > 0.5
+    allow = {"response": resp, "between": ~resp & ~gm, "groom": gm, "any": np.ones(len(t), bool)}[a.window]
     out = a.out or Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "factor_clips" / str(M["set"])
     out.mkdir(parents=True, exist_ok=True)
     H, Wd = vr[0].shape[:2]
     for k in (a.comps if a.comps is not None else range(R)):
         bgr, mag = point_colours(W[..., k])
-        ev = peaks(t, X[:, k], a.events)
+        ev = peaks(t, np.where(allow, X[:, k], np.nan), a.events)
         top = np.nanmax(X[ev, k]) if ev else 1.0
-        dst = out / f"{key}_f{k}.mp4"
+        dst = out / f"{key}_f{k}_{a.window}.mp4"
         vw = cv2.VideoWriter(str(dst), cv2.VideoWriter_fourcc(*"mp4v"), FPS_OUT, (Wd, H + STRIP_H))
         title = f"factor {k} ({names[k]}): peak {freqs[np.argmax(B[:, k])]:.1f} Hz  |  blue = lateral, red = vertical"
         for e_i, i in enumerate(ev):
