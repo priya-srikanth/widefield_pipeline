@@ -138,3 +138,15 @@ with the animals overlaid with transparency in their `animals.yaml` colours.
 crop + scale). Re-running `schematic` from the repo reproduces the published areas exactly. Re-running `fit`
 reproduces the stored transforms to ~0.01 in scale and ~0.06 mm in ty (the plate masks were cleaned after the
 original fit); `schematic` uses the stored values.
+
+### Hand-edited atlas shapes (2026-10-22, supersedes the painted-mask route)
+
+After several rounds of automatic placement Priya edited every stroke directly on its Paxinos plate in a polygon
+editor (`wfield_local/histology_map/atlas_editor_template.html`: move, vertex drag, rotate, scale/stretch,
+paint/erase brush; a progress bar compares the shape with that section's lost striatal area, contra minus surviving
+ipsi from the QuPath outlines, scaled into atlas mm² by the section's contra-hemisphere kx·ky). Plate levels were
+re-checked in a click-through review against the chosen plate ±2 (`level_review_template.html`, Nissl/AChE photos
+under the line art). The saved shapes are `configs/histology_map/<cohort>/atlas_polygons/<section>.json`
+(`poly` in plate mm: x from the midline, negative = left; y from the page top) and `schematic` draws from them
+whenever that folder exists. Placement rules she applied: lateral stroke edge against the striatum's lateral border
+(corpus callosum / external capsule); blob extending dorsolaterally from the core, only a touch ventral.

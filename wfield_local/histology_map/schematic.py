@@ -62,6 +62,21 @@ def footprints(sections: dict, masks_dir: Path):
     return byplate, rows
 
 
+def footprints_from_polygons(poly_dir):
+    """{figure: {animal: [polygon mm]}} + rows from the atlas editor's saved polygons (one JSON per section:
+    section_id, animal, figure, poly [[x_mm, y_mm], ...] in the plate frame, exclude). These are Priya's hand-edited
+    shapes (2026-10-22) and supersede the painted-mask route when present."""
+    byplate, rows = {}, []
+    for f in sorted(Path(poly_dir).glob("*.json")):
+        d = json.loads(f.read_text()); d = d.get("data", d)
+        if d.get("exclude"):
+            continue
+        g = Polygon(d["poly"]).buffer(0)
+        byplate.setdefault(int(d["figure"]), {}).setdefault(d["animal"], []).append(g)
+        rows.append(dict(section=d["section_id"], animal=d["animal"], figure=int(d["figure"]), area_mm2=round(float(g.area), 3)))
+    return byplate, rows
+
+
 def fill_gaps(byplate):
     interp = {}
     animals = sorted({a for v in byplate.values() for a in v})
@@ -77,19 +92,20 @@ def fill_gaps(byplate):
     return interp
 
 
-def render(sections, masks_dir, plates_pdf, colors, out_stem, title, ncol=4, interpolate_gaps=True):
+def render(sections, masks_dir, plates_pdf, colors, out_stem, title, ncol=4, interpolate_gaps=True, per_line=4,
+           polygons_dir=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
     matplotlib.rcParams["svg.fonttype"] = "none"; matplotlib.rcParams["pdf.fonttype"] = 42
-    byplate, rows = footprints(sections, masks_dir)
+    byplate, rows = footprints_from_polygons(polygons_dir) if polygons_dir else footprints(sections, masks_dir)
     interp = fill_gaps(byplate) if interpolate_gaps else {}
     PL = PLT.load_plates(plates_pdf)
     figs = sorted(byplate)
     nrow = int(np.ceil(len(figs) / ncol))
-    fig, axs = plt.subplots(nrow, ncol, figsize=(4.2 * ncol, 3.9 * nrow))
+    fig, axs = plt.subplots(nrow, ncol, figsize=(4.2 * ncol, (3.9 + 0.25 * (len(colors) > per_line)) * nrow))
     for ax in np.ravel(axs)[len(figs):]:
         ax.axis("off")
     for ax, f in zip(np.ravel(axs), figs):
@@ -108,7 +124,10 @@ def render(sections, masks_dir, plates_pdf, colors, out_stem, title, ncol=4, int
         ax.set_xlim(xx.min() / pp - 6.15, xx.max() / pp - 5.85); ax.set_ylim(yy.max() / pp + 0.15, yy.min() / pp - 0.15)
         n = {a: len(v) for a, v in byplate[f].items()}
         lab = lambda a, f=f, n=n: f"{a} interp." if interp.get((f, a)) else f"{a} n={n[a]}"
-        ax.set_title(f"Bregma {P['bregma']:+.2f} mm\n" + "  ".join(lab(a) for a in sorted(n)), fontsize=10, linespacing=1.5)
+        labs = [lab(a) for a in sorted(n)]                     # wrap: 8-animal cohorts overflow one line
+        ax.set_title(f"Bregma {P['bregma']:+.2f} mm\n" + "\n".join("  ".join(labs[i:i + per_line])
+                     for i in range(0, len(labs), per_line)), fontsize=10 if len(labs) <= per_line else 8.5,
+                     linespacing=1.4)
     handles = [Patch(color=colors[a], alpha=0.5, label=a) for a in sorted(colors)]
     if interp:
         handles.append(Line2D([0], [0], color="0.3", ls=(0, (3, 2)), label="interpolated between measured sections"))

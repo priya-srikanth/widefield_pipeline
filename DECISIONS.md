@@ -21500,3 +21500,9 @@ absent area is anchored on the intact medial / dorsomedial border and fills late
 rim); masks painted by Priya in an artifact (quick pass: a reference, not ground truth); AP levels = her figure
 numbers; midline = interhemispheric fissure (symmetry axis is biased 0.1-0.3 mm by atrophy); scale on the
 contralesional hemisphere only, boundary-distance fit, striatum favoured; no skipped levels (interpolated, dashed).
+
+## 2026-10-22 — stroke schematic: hand-edited atlas polygons are the published footprints
+Automatic section-to-plate placement repeatedly put strokes too medial or the wrong shape (crescents). Priya edited
+each footprint on its plate in a polygon editor and re-checked AP levels against ±2 plates. Those polygons
+(`configs/histology_map/PS92-95/atlas_polygons/`) are now what `schematic` draws (v3); the painted masks and fits
+remain as provenance. Same procedure for PS46-55 (stroke_orofacial_pipeline / vls_stroke_paper).

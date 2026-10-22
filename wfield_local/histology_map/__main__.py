@@ -111,8 +111,9 @@ def cmd_schematic(a):
         from wfield_local.paths import PathResolver
         out = Path(PathResolver().root("microscope")) / cfg["out_subdir"]
     colors = config.animal_color()
+    pdir = cohort_dir(a.cohort) / "atlas_polygons"          # hand-edited atlas shapes win when present
     rows, interp = schematic.render(sections, cohort_dir(a.cohort) / "masks", cfg["plates_pdf"], colors,
-                                    out / cfg["out_stem"], cfg["title"])
+                                    out / cfg["out_stem"], cfg["title"], polygons_dir=pdir if pdir.exists() else None)
     for r in rows: print(r)
     print("interpolated:", sorted(interp)); print("->", out / cfg["out_stem"])
 
