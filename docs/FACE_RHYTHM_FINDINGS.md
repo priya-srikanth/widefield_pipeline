@@ -131,7 +131,12 @@ Reading: acutely BOTH animals move in ways the pre-stroke factors capture less w
 pre range by the subacute epoch, PS92 stays slightly above it chronically. Trial reconstruction error moves the same way
 (acute 0.467 / 0.468 vs pre 0.444 / 0.443). Movement asymmetry ((contra - ipsi) / (contra + ipsi), response window):
 PS93 acute -0.10 vs pre -0.03 (less contralesional-side movement), PS92 no clear change. The readouts' automatic
-`labels_suggested.json` names are heuristics -- ignore them; names are Priya's (section 4).
+`labels_suggested.json` names are heuristics -- ignore them; names are Priya's (section 4). Their `lick_rate_corr` is SHARE-based
+(normalised weights, whole 5 Hz session incl. between trials, raw lick counts): slow factors lose share during licking
+and come out negative (f2 -0.24) although their ABSOLUTE expression rises a little (validation + the encoding window's
+check: f2 tonically elevated during licking, not lick-locked, lick-triggered response 0.12-0.20 SD vs f4 0.62-1.39).
+Encoding grouping (Priya-approved, `wfield_local/fr_groups.py`, pilot set only): lick = f0 + f4 + f5 + f9 (left f0 + f5,
+centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation factors).
 
 ## Change log
 
