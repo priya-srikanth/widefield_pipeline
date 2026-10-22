@@ -137,15 +137,35 @@ def split_blocks(raw: dict) -> dict:
     return out
 
 
-#: spout-locked templates: cue-relative time in bins of TEMPLATE_BIN_S (one imaging frame at the cohort's 31.25 Hz);
-#: an offset needs >= TEMPLATE_MIN_N pre trials at that spout to get a template value (else s = 0 there: all of x is d)
+#: spout-locked templates, in bins of TEMPLATE_BIN_S (one imaging frame at the cohort's 31.25 Hz). TWO-PART TIME AXIS
+#: (10-22 afternoon): CUE-locked (TEMPLATE_S) before the trial's first post-cue lick (and on trials without one),
+#: LICK-locked (LICK_TEMPLATE_S, from that first lick) after it. Cue-locked only, the first v4 leakage check left the
+#: lick group decoding the spout at 0.38-0.42 (chance 0.17) and exec_within at ~0.53: first-lick latency differs by
+#: spout, so a cue-locked mean smears each spout's lick-locked profile and the deviation keeps spout structure.
+#: A bin needs >= TEMPLATE_MIN_N pre trials at that spout to get a template value (else s = 0 there: all of x is d).
 TEMPLATE_BIN_S = 0.032
 TEMPLATE_MIN_N = 20
+LICK_TEMPLATE_S = 6.0
 
 
 def _template_bins() -> tuple[int, int]:
+    """(k0, K): absolute bin indices k0 .. k0 + K - 1; the first Kc are cue-locked, the rest lick-locked."""
     k0 = int(np.floor(TEMPLATE_S[0] / TEMPLATE_BIN_S))
-    return k0, int(np.ceil(TEMPLATE_S[1] / TEMPLATE_BIN_S)) - k0 + 1
+    kc = int(np.ceil(TEMPLATE_S[1] / TEMPLATE_BIN_S)) - k0 + 1
+    return k0, kc + int(np.ceil(LICK_TEMPLATE_S / TEMPLATE_BIN_S)) + 1
+
+
+def template_index(t_cue: np.ndarray, t_lick: np.ndarray) -> np.ndarray:
+    """Absolute template bin of each frame from its time since the trial's cue and since its first post-cue lick
+    (NaN = none / not yet): lick-locked once the lick has happened, cue-locked before; k0 - 1 = outside the template."""
+    k0, K = _template_bins()
+    kc = int(np.ceil(TEMPLATE_S[1] / TEMPLATE_BIN_S)) - k0 + 1
+    after = np.isfinite(t_lick) & (t_lick >= 0)
+    kcue = np.round(np.nan_to_num(t_cue, nan=-1e9) / TEMPLATE_BIN_S).astype(np.int64)
+    klk = k0 + kc + np.round(np.where(after, t_lick, 0.0) / TEMPLATE_BIN_S).astype(np.int64)
+    k = np.where(after, klk, kcue)
+    bad = np.where(after, klk >= k0 + K, (kcue < k0) | (kcue >= k0 + kc))
+    return np.where(bad, k0 - 1, k)
 
 
 def template_sums(Xc: np.ndarray, pos_of: np.ndarray, k_of: np.ndarray, pos_order: list) -> tuple:
@@ -221,7 +241,19 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     ridx = np.flatnonzero(rows)
     ftr = ft[ridx]
     pos_of = fpos[ridx]
-    k_of = np.round((ftr - E.cue_s.to_numpy(float)[ftri[ridx]]) / TEMPLATE_BIN_S).astype(int)
+    # template time axis: cue-locked until the trial's first post-cue lick (same rule as first_f below), then
+    # lick-locked (TEMPLATE_BIN_S comment)
+    ex0 = getattr(B, "extra_lick_on_s", None)
+    lk0 = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex0 is None else ex0, float)]))
+    cue_t = E.cue_s.to_numpy(float)
+    fl_t = np.full(len(E), np.nan)
+    for i, (c, stp) in enumerate(zip(cue_t, E.stop_s.to_numpy(float))):
+        stp = stp if np.isfinite(stp) else c + 3.5
+        j = np.searchsorted(lk0, c)
+        if j < len(lk0) and lk0[j] < stp:
+            fl_t[i] = lk0[j]
+    tri = ftri[ridx]
+    k_of = template_index(ftr - cue_t[tri], ftr - fl_t[tri])
     pos_order = sorted(T.pos.unique())
     raw = split_blocks(ce.raw_blocks(B, ft))
     xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}

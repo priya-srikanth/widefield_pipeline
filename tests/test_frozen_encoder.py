@@ -227,3 +227,16 @@ def test_ordered_projection_ignores_null_direction():
     pt = (Xn / ft["scale"]) @ (ft["C"] @ ft["beta_all"])
     assert np.abs(ft["C"]).max() < 10
     assert np.linalg.norm(pt - pj) / np.linalg.norm(pj) < 0.2
+
+
+def test_template_index_switches_from_cue_to_lick_locked():
+    """Cue-locked bins before the first post-cue lick (and without one), lick-locked from it; out of span -> k0 - 1."""
+    k0, K = fe._template_bins()
+    kc = int(np.ceil(fe.TEMPLATE_S[1] / fe.TEMPLATE_BIN_S)) - k0 + 1
+    t_cue = np.array([0.32, 1.0, 1.0, -10.0, 0.5])
+    t_lick = np.array([np.nan, -0.2, 0.064, np.nan, 99.0])
+    k = fe.template_index(t_cue, t_lick)
+    assert k[0] == 10 and k[1] == round(1.0 / fe.TEMPLATE_BIN_S)            # cue-locked (no lick / before it)
+    assert k[2] == k0 + kc + 2                                               # lick-locked, 64 ms after the lick
+    assert k[3] == k0 - 1 and k[4] == k0 - 1                                 # outside both spans
+    assert (k[[0, 1, 2]] - k0 < K).all()
