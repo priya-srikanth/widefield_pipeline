@@ -47,6 +47,39 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 6. Other windows asked to free RAM: 5b had nothing running; e3 stopped its output-check script + 2 watchers (pilot fit,
    pytest and fr JupyterLab kept).
 
+### 000b. UPDATE 10-22 ~12:30
+
+- **Relaunched 09:32** (`S/run_chain_1022b.sh`, task log `S/chain_1022b.log`): frozen done 11:07 (107 sessions, 0
+  failures; slow share stretched it to 1.5 h), decompositions 11:10 (`E/qc/lp_encoder_decompose_frozen_encoder_gate-attempted_<v>[_lick]_by_animal.csv`),
+  steps 2 + 3 running side by side since 11:10. Post-frozen queue `S/run_after_frozen_b.sh` (free-RAM gate lowered to
+  8 GB) running: Musall figures, leakage, per-session maps.
+- **Frozen LOSO R^2 (areas summed), pre:** joint .54 / .56 / .54 / .39 (PS92 / 93 / 94 / 95); no_movement .09 / .09 /
+  .06 / .14; movement_only .50 / .52 / .50 / .34.
+- **BUG TO CHECK before quoting task_first:** task_first should equal joint on all frames (same span) but breaks on some
+  PS95 post sessions (PS95_0818 all-frames -1.06 vs joint .36; 0825 .02 vs .44; 0928 .26 vs .31; 0910 .40 vs .43) --
+  likely the task-on-movement residualisation estimated on pre amplifying out-of-range post movement. Read joint /
+  movement_first first; no task_first number or task_first drop-spout until fixed.
+- **Why PS95's R^2 is lower (Priya asked):** not cam1 (cam4 licks for all: full .39 vs .56-.58); the gap is entirely
+  "uninstructed" (alone .20 vs .39-.47; task alone is HIGHEST in PS95, .14). PS95 RUNS ~4x less (running regressor
+  variance 0.30 of the cohort mean; pose energy normal) and its cortical variance is ~25 % lower. PROVISIONAL until the
+  running-vs-still check (`S/run_vs_still_r2.py` -> `S/run_vs_still_r2.csv`; queued for >= 10 GB free). Consequence:
+  compare animals by their own pre -> post change, not by shares / percentages.
+- **Z-scoring (Priya asked): no.** Regressors are already scaled (pooled pre SD, frozen; per-session z, per-session);
+  per-area R^2 is scale-free; per-session z-scoring of the targets would erase the post-stroke amplitude changes being
+  measured. Only the "areas summed" summary / penalty choice weight areas by variance (optional: also report the
+  equal-weight mean of per-area R^2).
+- **FR pilot: LOCAL, not O2** (Priya: O2 fairshare ~4e-5; 51 sessions, FR / video / FR+video / FR+points models only = a
+  few hours here). (1) one-session check PS92_0812 queued (`S/run_fr_pilot_one.sh`: FR pilot_pre_PS92_PS93, 10 point
+  PCs, video cam1+cam4, ONLY fr,frvideo,frpts,frboth,video; waits for the running-vs-still check + 15 GB) -> REVIEW;
+  (2) the 51-session run at 4 workers once the FR window's last PS93 projections land (42 / 51 at 11:49); if RAM is
+  short ask Priya to pause step 3 (3-D 2x2; resumes with --skip-done); (3) O2 kept for the master_pre_v1 rerun.
+- RAM: the FR window's projection jobs held ~30 GB at 12:00 (3 GB free) -- my queued jobs wait on free-RAM gates.
+- Cache backup STOPPED (Priya: "prioritize the analyses over the cache backup"); it was loading the share (listing 17 s
+  while it ran, 0.8 s after). Rerun after the runs, adding `C:\Users\SabatiniLab\.widefield_session_cache` and
+  `C:\Users\SabatiniLab\frozen_models` (copy only) under `M:\MICROSCOPE\Priya\Widefield\input_cache_backup\`.
+- Code: per-animal parallel fits merged to main (worktree branch `frozen-parallel-fits`; the running chain uses the
+  worktree, which is at the same code).
+
 **New pitfalls (add to §4):**
 - **Stopping a bash wrapper does not stop its `( ... )` subshells** -- they carry on to the next step. Kill the whole
   tree: `taskkill /F /T /PID <wrapper>` (Priya runs kill commands); then list `python.exe` + `bash.exe` command lines to
