@@ -16,7 +16,10 @@ PS92_0812 v1 / v2), 1-24 running at 29-34 fps / worker (~82 min per round of 4 s
 Expect the whole array ~20 h (fair share may slow the tail). **Check at ~22:30: 6 done** (tasks 1, 2, 6, 7, 21, 22; all
 violations 0, trials 100 % filled), no failures / lost segments; the first FULL-length task (2, 13 segments, 2.0 h)
 peaked at **54 GB** MaxRSS of 72 (the logs' "peak ~62-65 GB" is a pessimistic sum). `sacct` needs `JobID%20` for
-tasks >= 10 (the 16-char column truncates them). Tasks 21-23 resumed segments from the cancelled 8 x 2 array.
+tasks >= 10 (the 16-char column truncates them). **First post-stroke QC (~22:35, `o2_face_rhythm.py qc`, 8 tasks on
+the share incl. PS92 chronic 0911 / 0915 / 0918):** interior folds in 0.03-0.07 % of sampled bins (pre 0-0.09 %), rim
+folds LOWER post (26 % vs 57-81 %), violations 0, median displacement 1.15-1.26 px (pre 1.27-1.48) -> post-stroke tracking
+as clean as pre; acute / other animals not yet in. Tasks 21-23 resumed segments from the cancelled 8 x 2 array.
 Check / resubmit: "PRODUCTION RUNNING" below. Status commands: `sstat` needs the RAW job id
 (`sacct -j 57168778 -X -n -s RUNNING -o JobIDRaw` -> `sstat -j <raw>.batch`); finished: `sacct ... | grep batch`.
 **Faster defaults for FUTURE runs are committed** (8 workers x 4 threads, 5-min segments, 12 GB / worker + 24,
