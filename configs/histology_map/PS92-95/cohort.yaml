@@ -10,5 +10,6 @@ plates_pdf: /Users/Priya2/Documents/data/Immuno/PS92-95_widefield_stroke_cohort/
 plates_pages: [63, 98]                                     # Fig 13-48, Bregma +2.10 to -2.06
 painter_url: https://claude.ai/artifact/PXf85UBQfzEcMH7KavT54z
 out_subdir: Widefield/histology                            # under the MICROSCOPE Priya root
-out_stem: PS92-95_stroke_schematic_v3
+out_stem: PS92-95_stroke_schematic_v4
+polygons_dir: atlas_polygons_v4                           # Stroke Outline Editor, multi-region (Priya 2026-10-22); v3 kept in atlas_polygons/
 # animal colours come from configs/animals.yaml (config.animal_color)

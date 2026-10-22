@@ -64,14 +64,17 @@ def footprints(sections: dict, masks_dir: Path):
 
 def footprints_from_polygons(poly_dir):
     """{figure: {animal: [polygon mm]}} + rows from the atlas editor's saved polygons (one JSON per section:
-    section_id, animal, figure, poly [[x_mm, y_mm], ...] in the plate frame, exclude). These are Priya's hand-edited
+    section_id, animal, figure, poly [[x_mm, y_mm], ...] or polys [[[x_mm, y_mm], ...], ...] in the plate frame, exclude). These are Priya's hand-edited
     shapes (2026-10-22) and supersede the painted-mask route when present."""
     byplate, rows = {}, []
     for f in sorted(Path(poly_dir).glob("*.json")):
         d = json.loads(f.read_text()); d = d.get("data", d)
         if d.get("exclude"):
             continue
-        g = Polygon(d["poly"]).buffer(0)
+        polys = d.get("polys") or [d["poly"]]          # v4 (2026-10-22): several separate stroke regions per section
+        if not polys or not polys[0]:
+            continue
+        g = unary_union([Polygon(q).buffer(0) for q in polys if len(q) >= 3])
         byplate.setdefault(int(d["figure"]), {}).setdefault(d["animal"], []).append(g)
         rows.append(dict(section=d["section_id"], animal=d["animal"], figure=int(d["figure"]), area_mm2=round(float(g.area), 3)))
     return byplate, rows

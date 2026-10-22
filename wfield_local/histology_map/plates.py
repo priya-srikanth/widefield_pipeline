@@ -90,6 +90,12 @@ def brain_lines(P):
     mx, ppmm = P["midline_x"], P["pt_per_mm"]
     centred = lambda L: abs((L["rect"].x0 + L["rect"].x1) / 2 - mx) < 25
     cand = [L for L in P["lines"] if not L["dashed"] and L["width"] > 0.8 and centred(L)]
+    if not cand:   # a few plates (Fig 15) draw the outline as two separate halves meeting at the midline: use their union
+        halves = [L for L in P["lines"] if not L["dashed"] and L["width"] > 0.8 and L["rect"].x0 < mx + 8 and L["rect"].x1 > mx - 8
+                  and L["rect"].width > 100]
+        if len(halves) >= 2:
+            cand = [dict(halves[0], rect=fz.Rect(halves[0]["rect"]))]
+            for L in halves[1:]: cand[0]["rect"] |= L["rect"]
     if not cand:   # a few plates draw the outline at a lighter weight
         cand = [L for L in P["lines"] if not L["dashed"] and L["width"] > 0.5 and centred(L) and L["rect"].width < 11 * ppmm]
     outer = max(cand, key=lambda L: L["rect"].width * L["rect"].height)["rect"]

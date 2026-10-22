@@ -154,3 +154,15 @@ whenever that folder exists. Placement rules she applied: lateral stroke edge ag
 ### Figure versions (2026-10-22)
 - All levels, coloured outlines, interpolated levels dashed: `python -m wfield_local.histology_map schematic --cohort PS92-95 --style outline` -> `PS92-95_stroke_schematic_v3_outlines.*` (filled version without `--style`).
 - Selected levels, real sections only (neighbour-level fill-ins listed in `_sources.json`): `scripts/histology_stroke_extent_figure.py <atlas_polygons dir> <out_stem> PS92-95` -> `Widefield_stroke_extent_PS92-95.*`.
+
+## Stroke outlines v4 (2026-10-22)
+- Painted in the PS92-95 Stroke Outline Editor (claude.ai artifact, db `outlines`): every kept section, separate stroke
+  regions allowed (perforating-vessel strokes can sit dorsal to the main lesion), section flips recorded.
+  `configs/histology_map/PS92-95/atlas_polygons_v4/<section>.json` holds `polys` (list of regions, plate mm) and
+  `exclude` (no stroke on that section). `cohort.yaml polygons_dir` selects v4; v3 stays in `atlas_polygons/`.
+  PS95 e36s4 was not re-saved in the editor and carries its v3 outline (PS95_s3).
+- Orientation: all four strokes are left hemisphere; the striatal lesion, thalamic and GPe / cerebral peduncle gliosis
+  and PS93's anterior motor-cortex injury are ipsilesional (Priya), so sections are shown lesion left.
+- Outputs (MICROSCOPE `Priya/Widefield/histology/`): `PS92-95_stroke_schematic_v4{,_outlines}.*`,
+  `Widefield_stroke_extent_PS92-95.*`, and `histology_panels/` (overview grid of all 186 kept sections, plates with v4).
+- `plates.brain_lines`: Fig 15 draws the brain outline as two halves; their union is used.
