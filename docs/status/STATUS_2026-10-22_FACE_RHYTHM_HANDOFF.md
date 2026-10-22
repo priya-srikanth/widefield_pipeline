@@ -17,7 +17,10 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
   (FINDINGS 6). Local pilot run COMPLETE; nothing running.
 * ~14:45: per-lick by epoch DONE (`scripts/face_rhythm_lick_epochs.py`, FINDINGS 5b): right-lick COUNT recovers to pre
   chronically in both animals, f9 PER right lick stays 0.4-0.6 -> the contralesional deficit is in how licks are made.
-  Next: Priya's names -> labels.json; master_pre_v1 (8 starts, per-factor stability) when PS94 / PS95 are in.
+* ~15:20: pilot `labels.json` WRITTEN (Priya; FINDINGS 4; f5 = lick_fast_early_Lbias, kept in the encoder's left
+  group). Encoder columns are now `fr_<name>` (d4 told; fr_groups unaffected). Pilot figures re-rendered with names.
+  Scratchpad test folders deleted (Priya OK; preview_r10 clips backed up to factors/preview_r10_PS92/clips first).
+  QC 95 / 108 clean. Next: last 13 PS95 tasks -> final qc + collect -> master_pre_v1 (8 starts, per-factor stability) when PS94 / PS95 are in.
 
 ## UPDATE 10-22 ~13:15
 

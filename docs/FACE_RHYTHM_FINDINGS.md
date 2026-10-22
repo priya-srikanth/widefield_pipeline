@@ -72,7 +72,13 @@ Rank 10 on PS92 + PS93. Names from the clips (8 examples per factor, PS92_0806) 
 Groups: lick INITIATION / preparation (f6, f3, f1, + f7's transient), ONGOING licking by side and tempo (f0 left slow,
 f4 centre-right slow, f9 right, f5 fast early), MOVEMENT / whisking (f7, f2, f8). Caveat: absolute expression includes
 the frame's overall movement, so every factor correlates positively with speed outside licks (0.05-0.58) -- read
-speed relatively. No labels.json written yet.
+speed relatively.
+
+**Names (Priya 10-22, `pilot_pre_PS92_PS93/labels.json`; this fit only -- never carried to another fit by number):**
+f0 `lick_left_slow`, f1 `bout_init`, f2 `run_onset_jaw`, f3 `nose_prelick`, f4 `lick_centreR_ongoing`, f5
+`lick_fast_early_Lbias` (left-leaning but the least side-specific lick factor: per-lick expression at right licks
+0.47-0.72 of left vs f0 0.24-0.52), f6 `prep_jaw`, f7 `whisk_run`, f8 `nose_steps`, f9 `lick_right`. Loader / encoder
+columns are `fr_<name>`. The encoding direction split keeps f5 in "left" for now (Priya).
 
 ## 5. Changes after the stroke (PILOT, two animals; read per animal)
 
@@ -140,6 +146,7 @@ centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation fa
 
 ## Change log
 
+* 2026-10-22 pm: pilot labels.json written (Priya's names).
 * 2026-10-22 pm: QC 95 / 108 (PS94 complete, PS95 pre-subacute).
 * 2026-10-22 pm: section 5b (per-lick by epoch: f9 deficit persists per lick, counts recover).
 * 2026-10-22 pm: section 6 (EVR gap vs the pre noise floor, pilot readouts).
