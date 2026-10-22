@@ -54,10 +54,14 @@ def _ce():
 #:   contact    the spout-CONTACT kernel (inside the encoder's `licks` block): a touch / outcome event that happens only
 #:              when the lick reaches the target -- acute far contra has few, so its missing contact-evoked activity
 #:              would otherwise be credited to "movement";
-#:   direction  where the tongue / jaw / nose go (tongue x / y, jaw x, nose x, per-lick executed angle): target-
-#:              correlated, since the tongue goes toward the spout (the 10-19 no-kinematics reasoning);
-#:   movement   directionless magnitude and timing: lick onsets (cam4 + cam1-only), tongue protrusion / speed, jaw
-#:              opening (y) / speed, nose y, running;
+#:   direction  WHERE the tongue / jaw / nose go, on either axis of position: tongue x / y, tongue PROTRUSION (reach
+#:              magnitude -- unsigned but it scales with spout DISTANCE, the other position axis; 10-22 audit, Priya
+#:              "ensure our variable groups appropriately include or exclude ... directionless ... vs direction-
+#:              specific"), jaw x, nose x, per-lick executed angle (within-spout deviation, zero mean per spout):
+#:              target-correlated, since the tongue goes toward the spout (the 10-19 no-kinematics reasoning);
+#:   movement   DIRECTIONLESS timing and vigour only: lick onsets (cam4 + cam1-only), tongue speed (unsigned), jaw
+#:              opening (y) and speed (unsigned), nose y (up / down orienting), running. Residual target information
+#:              in these (e.g. wider opening for far spouts) is MEASURED, not assumed: `scripts/frozen_group_leakage.py`;
 #:   task       cue, arrival, the six position deviation blocks.
 FGROUP = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
           "lick_onset": "movement", "tongue_mag": "movement", "jaw_mag": "movement", "nose_mag": "movement",
@@ -86,10 +90,10 @@ def split_blocks(raw: dict) -> dict:
     h = lk.shape[1] // 2
     out = {v: raw[v] for v in ("cue", "arrival", "pos_enl", "pos_cue", "running", "exec_angle")}
     out["lick_onset"], out["contact"] = lk[:, :h], lk[:, h:]
-    out["tongue_dir"], out["tongue_mag"] = raw["tongue"][:, :2 * nl], raw["tongue"][:, 2 * nl:]
+    out["tongue_dir"], out["tongue_mag"] = raw["tongue"][:, :3 * nl], raw["tongue"][:, 3 * nl:]   # x, y, prot | speed
     out["jaw_dir"], out["jaw_mag"] = raw["jaw"][:, :nl], raw["jaw"][:, nl:]
     out["nose_dir"], out["nose_mag"] = raw["nose"][:, :nl], raw["nose"][:, nl:]
-    for k, w in (("tongue_mag", 2), ("jaw_mag", 2), ("nose_mag", 1), ("tongue_dir", 2), ("jaw_dir", 1),
+    for k, w in (("tongue_mag", 1), ("jaw_mag", 2), ("nose_mag", 1), ("tongue_dir", 3), ("jaw_dir", 1),
                  ("nose_dir", 1)):
         if out[k].shape[1] != w * nl:
             raise ValueError(f"{k}: {out[k].shape[1]} columns, expected {w * nl}")

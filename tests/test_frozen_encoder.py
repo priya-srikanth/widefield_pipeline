@@ -100,7 +100,7 @@ def test_split_blocks_layout():
     out = fe.split_blocks(raw)
     assert set(out) == set(fe.FGROUP)
     assert (out["lick_onset"] == 0).all() and (out["contact"] == 1).all()
-    assert set(out["tongue_dir"][0]) == {0.0, 1.0} and set(out["tongue_mag"][0]) == {2.0, 3.0}
+    assert set(out["tongue_dir"][0]) == {0.0, 1.0, 2.0} and set(out["tongue_mag"][0]) == {3.0}   # prot is spatial
     assert set(out["jaw_dir"][0]) == {0.0} and set(out["jaw_mag"][0]) == {1.0, 2.0}
     assert set(out["nose_dir"][0]) == {0.0} and set(out["nose_mag"][0]) == {1.0}
 
