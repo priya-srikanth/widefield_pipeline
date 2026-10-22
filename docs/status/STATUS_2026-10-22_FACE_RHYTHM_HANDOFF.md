@@ -1,6 +1,28 @@
-# FaceRhythm — handoff (2026-10-22, ~09:30; UPDATE ~12:10 first)
+# FaceRhythm — handoff (2026-10-22, ~09:30; UPDATES ~13:15 and ~12:10 first)
 
-## UPDATE 10-22 ~12:10 (read first; sections 1-6 below are the 09:30 state)
+**Findings so far: [`docs/FACE_RHYTHM_FINDINGS.md`](../FACE_RHYTHM_FINDINGS.md)** (living, status-tagged). Decisions:
+DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-out, naming per fit, figures + methods".
+
+## UPDATE 10-22 ~13:15 (read first)
+
+* **Pilot projections DONE: 51 / 51** verified (pre = `loso` basis, post = `full`); encoding window (d4) told. The early
+  and main drivers collided on 4 tasks (shared temp file; results intact) -> `_atomic_savez` now uses a per-process
+  temp file. Still running locally: `fitsession` (main driver, 1 start, 2 at a time) and the rank sweep (6, 8, 10, 12
+  done; 14, 16 running: rank 12 EVR 0.819, stability 0.997 vs rank 10 0.807 / 0.87).
+* **Figures restyled** (Priya: bigger fonts, no overlaps, methods documented): `wfield_local/face_rhythm_figures.py`
+  (style, constrained layout, legends outside, short titles; `save()` writes each figure's METHODS into its folder's
+  README.md). Applied to the factor report (gallery, epochs, rank sweep), validation, readouts and the QC figure.
+* **Validation re-cuts** (Priya: "we can do 1-3"): `factor_vs_licks.png` now has direction x early / late, LICK NUMBER
+  IN BOUT (1st / 2nd-3rd / 4th+), SPOUT POSITION, and lick frequency; running onsets in `factor_vs_running.png`. Read
+  the identities and the first epoch changes in FINDINGS sections 4-5: f1 = bout INITIATION (not "right / central
+  later"); f9 right / contralesional licking DOWN in both animals and still down chronically; f6 preparatory UP in
+  both.
+* **Next**: when fitsession finishes -> `report` (+ `--absolute`) -> `face_rhythm_readouts.py --set pilot_pre_PS92_PS93`
+  (EVR gap vs the loso noise floor, epoch tables, asymmetry, movement maps) -> Priya confirms names -> labels.json;
+  per-lick expression by epoch (does f9 drop because of fewer licks or different licks?); master_pre_v1 when PS94 / PS95
+  are in.
+
+## UPDATE 10-22 ~12:10 (sections 1-6 below are the 09:30 state)
 
 * **Array outputs on the share: 74 tasks (PS92 28, PS93 26, PS94 20), integrity 74 / 74 ok**, 0 NaN bins, 0 violations,
   interior folds 0-0.15 % in every animal x epoch. Median displacement (px, pre -> acute -> subacute -> chronic): PS92

@@ -361,6 +361,7 @@ outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity onl
 — **START HERE for FaceRhythm (10-22).** cam4 outputs arriving (all checked clean; cached parallel `qc`); PILOT factor set
 `pilot_pre_PS92_PS93` (rank 10, PS92 + PS93, running locally; pre-stroke sessions scored on their left-out-day basis,
 leave-one-day-out EVR = the noise floor); cam1 / cam2 / cam3 prepped up to Priya's landmark clicks; efficiency + backups.
+Findings (living): [`docs/FACE_RHYTHM_FINDINGS.md`](docs/FACE_RHYTHM_FINDINGS.md).
 
 **[`docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md`](docs/status/STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md)**
 — superseded by 10-22 for current state; the record of the 10-21 set-up. Production RUNNING on O2 (array 57168778, 108 tasks, 4 workers x 4 threads,

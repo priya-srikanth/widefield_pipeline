@@ -21506,3 +21506,44 @@ Automatic section-to-plate placement repeatedly put strokes too medial or the wr
 each footprint on its plate in a polygon editor and re-checked AP levels against ±2 plates. Those polygons
 (`configs/histology_map/PS92-95/atlas_polygons/`) are now what `schematic` draws (v3); the painted masks and fits
 remain as provenance. Same procedure for PS46-55 (stroke_orofacial_pipeline / vls_stroke_paper).
+
+## 2026-10-22 -- FaceRhythm: pilot factor set, pre-stroke scored held-out, naming per fit, figures + methods
+
+Context: cam4 FR outputs arriving from O2 (array 57168778; 74 / 108 tasks on the share by 11:30, all passing the new
+integrity + tracking QC); no O2 fair share left (0.00004), so factor work ran LOCALLY. Findings: docs/FACE_RHYTHM_FINDINGS.md.
+
+1. **PILOT set `pilot_pre_PS92_PS93`, never the cohort master** (Priya). Rank 10 (= the PS92 preview and the paper),
+   PS92 + PS93 August pre fit rows (30 trials / animal + between-trial bins; 3 starts, 150 it), 51 tasks projected.
+   Stamped `role = pilot` in plan.json + master.npz; `plan` refuses a restricted set (`--animals` / `--with-outputs`)
+   unless `--role pilot`. master_pre_v1 is re-planned on all four animals when the array is done; anything built on the
+   pilot is re-run on it.
+2. **PRE-STROKE SESSIONS ARE SCORED HELD-OUT** (Priya: "a full pre-stroke trained model, but results for the pre-stroke
+   sessions should be based on loso"). The basis is the full pre fit; post-stroke sessions are projected on it; each
+   pre-stroke session on the fit that LEFT ITS DAY OUT (`loso/rank<R>_<day>.npz`, components matched to the full fit's
+   order). `proj/` and `own/` record `basis`; `project` refuses a pre task whose day basis is missing. Same discipline as
+   the frozen decoders: an in-sample pre baseline would bias every pre-vs-post change toward a "deficit". Not held out:
+   the per-animal scale (one scalar) and the dense-position PCA. The held-out pre EVR on the day's session rows is the
+   NOISE FLOOR every post-stroke EVR / EVR gap is read against.
+3. **Rank is chosen on fit + stability, not leave-one-out** (Priya: "a sense in pre-stroke sessions what rank is
+   enough"): `fit --no-loao`, EVR vs rank and similarity across random starts; the COHORT rank is chosen on
+   master_pre_v1 (four animals) -- with two animals the components may merge / split differently.
+4. **Factor names are given PER FIT, never carried by number** (Priya: factor identities shift between fits). Priya names
+   from the gallery (spatial, spectral, temporal extent) + clips; `report --match` exists only as a hint, off by default.
+   Names are then checked against independent behaviour (`face_rhythm_validate.py`: LP licks by executed direction,
+   time in trial, lick number in bout, spout position, lick frequency; treadmill running onsets / speed).
+5. **Units and normalisation of figures.** Temporal amplitudes are a.u. (weight x FR normaliser D on the animal's one
+   scale; comparable within an animal across sessions, compare factors by shape). Epoch figures are normalised per
+   animal x factor so the pre-stroke mean curve's max = 1.
+6. **Figure conventions for all FR figures** (Priya): `wfield_local/face_rhythm_figures.py` -- larger fonts,
+   constrained layout, legends outside, short titles, and each figure's METHODS written into its output folder's
+   README.md by `save()`.
+7. **Efficiency / robustness**: `o2_face_rhythm.py qc` = header-only integrity + contiguous-block tracking QC, parallel,
+   cached per task (`qc_cache/`); `project` makes ONE pass over the session spectrogram and streams the points (peak
+   ~200 MB instead of ~5 GB per task); `loso` is its own array (rank x day); per-process temp files for atomic writes
+   (two local drivers collided). Never check an output by loading its arrays.
+8. **Rim folds do not matter**: the rim's most-folding triangles are near-flat slivers flipping with sub-pixel jitter;
+   factors use points, not triangles; rim points move like interior points and carry their share of factor weight.
+9. **Other cameras (cam1 / cam2 / cam3) prepped** (Priya: "prep for all 3 cameras"): per-camera settings in
+   `wfield_local/face_rhythm_cams.py`; rest faces from cam4-LP rest moments mapped through each camera's alignment
+   template; registration from Priya's clicked landmarks + ECC; cam4's trial grid on each camera's clock. Waiting on the
+   landmark clicks. cam2 = the animal's LEFT side = ipsilesional; cam3 = right = contralesional.
