@@ -335,8 +335,10 @@ def load_master(sd: Path) -> tuple[np.ndarray, np.ndarray, dict, dict]:
 
 
 def _atomic_savez(dst: Path, **arrs) -> None:
+    """Write ``dst`` atomically via a PER-PROCESS temp file (10-22: two local drivers projecting the same task shared
+    one ``.part.npz`` and the slower writer failed; the result was intact, the error noise was not)."""
     dst.parent.mkdir(exist_ok=True)
-    tmp = dst.with_suffix(".part.npz")
+    tmp = dst.with_suffix(f".{os.getpid()}.part.npz")
     np.savez(tmp, **arrs)
     os.replace(tmp, dst)
 
