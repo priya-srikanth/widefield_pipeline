@@ -8,7 +8,7 @@
     # 3. after painting: copy masks from the painter's database into configs/histology_map/<cohort>/masks/
     # 4. AP levels into sections.json (priya_figures), then fit + figures
     python -m wfield_local.histology_map fit --cohort PS92-95
-    python -m wfield_local.histology_map schematic --cohort PS92-95 [--out DIR]
+    python -m wfield_local.histology_map schematic --cohort PS92-95 [--out DIR] [--style outline]
 """
 from __future__ import annotations
 
@@ -113,7 +113,8 @@ def cmd_schematic(a):
     colors = config.animal_color()
     pdir = cohort_dir(a.cohort) / "atlas_polygons"          # hand-edited atlas shapes win when present
     rows, interp = schematic.render(sections, cohort_dir(a.cohort) / "masks", cfg["plates_pdf"], colors,
-                                    out / cfg["out_stem"], cfg["title"], polygons_dir=pdir if pdir.exists() else None)
+                                    out / (cfg["out_stem"] + ("_outlines" if a.style == "outline" else "")), cfg["title"],
+                                    polygons_dir=pdir if pdir.exists() else None, style=a.style)
     for r in rows: print(r)
     print("interpolated:", sorted(interp)); print("->", out / cfg["out_stem"])
 
@@ -126,6 +127,8 @@ def main(argv=None):
         p.add_argument("--cohort", required=True)
         p.add_argument("--crops"); p.add_argument("--qupath"); p.add_argument("--plates")
         p.add_argument("--out"); p.add_argument("--painter-html")
+        p.add_argument("--style", choices=("filled", "outline"), default="filled",
+                       help="schematic: translucent fills, or coloured outlines only (interpolated levels dashed)")
     a = ap.parse_args(argv); a.fn(a)
 
 

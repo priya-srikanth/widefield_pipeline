@@ -150,3 +150,7 @@ under the line art). The saved shapes are `configs/histology_map/<cohort>/atlas_
 (`poly` in plate mm: x from the midline, negative = left; y from the page top) and `schematic` draws from them
 whenever that folder exists. Placement rules she applied: lateral stroke edge against the striatum's lateral border
 (corpus callosum / external capsule); blob extending dorsolaterally from the core, only a touch ventral.
+
+### Figure versions (2026-10-22)
+- All levels, coloured outlines, interpolated levels dashed: `python -m wfield_local.histology_map schematic --cohort PS92-95 --style outline` -> `PS92-95_stroke_schematic_v3_outlines.*` (filled version without `--style`).
+- Selected levels, real sections only (neighbour-level fill-ins listed in `_sources.json`): `scripts/histology_stroke_extent_figure.py <atlas_polygons dir> <out_stem> PS92-95` -> `Widefield_stroke_extent_PS92-95.*`.
