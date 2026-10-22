@@ -34,6 +34,10 @@ project    per task, spatial + spectral fixed: non-negative temporal weights per
            the whole session (5 Hz), each bin's relative reconstruction error, and per point and window (pre-cue /
            response by position, between trials) the SPECTRAL SHARE (FR normalises each frame by its whole-face mean
            power: distribution, not amount) and the absolute movement SPEED from the 25 Hz points -> ``proj/<key>.npz``.
+           Plus each bin's FR NORMALISER D (`normaliser`): weights x D = the component's ABSOLUTE expression (the
+           projection is linear, so un-normalising a bin scales its weights by exactly D). Recovered from the saved
+           float16 spectrogram to 0.01 % median / 0.1 % max per 25 Hz bin (0.14 % / 1.5 % 99th on the 5 Hz
+           block means; 10-21 test on the param-test points, D varying with CV 0.5).
            Window means come from the 5 Hz session spectrogram: a 5 Hz bin is the mean of five 25 Hz bins, so means
            over windows aligned to 0.2 s are exact, and one pass over the session file covers every trial.
 points     (inside build / select / project) a frozen PCA basis of the 25 Hz point DISPLACEMENTS (`points` output,
@@ -172,11 +176,22 @@ def ncp_hals(X: np.ndarray, rank: int, seed: int, n_iter: int = 300, tol: float 
     return {"A": A, "B": B, "C": C, "rel_err": trace[-1], "trace": np.array(trace), "n_iter": it + 1}
 
 
-def project_rows(X, A: np.ndarray, B: np.ndarray, n_iter: int = 60) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def normaliser(rows: np.ndarray, freqs: np.ndarray, f: float, one_over_f: float) -> np.ndarray:
+    """FR's per-bin divisor D = f m + (1 - f) (VQT_Analyzer: m = mean over xy x points of the power summed over
+    frequencies, before the 1/f weighting) recovered from SAVED normalised rows (n, 2P, F), unscaled: their summed
+    power n = m / D, so m = (1 - f) n / (1 - f n)."""
+    n = (np.asarray(rows, np.float64) / freqs[None, None, :] ** one_over_f).sum(-1).mean(-1)
+    m = (1 - f) * n / np.maximum(1 - f * n, 1e-9)
+    return (f * m + (1 - f)).astype(np.float32)
+
+
+def project_rows(X, A: np.ndarray, B: np.ndarray, n_iter: int = 60, row_fn=None):
     """Temporal weights (n, R) >= 0 per row of X (n, P, F) with A, B fixed (exact per-row NNLS by coordinate descent on
-    the R x R system), each row's relative error ||x - x^|| / ||x||, and ||x||^2 (for pooled EVR). NaN rows -> NaN."""
+    the R x R system), each row's relative error ||x - x^|| / ||x||, and ||x||^2 (for pooled EVR). NaN rows -> NaN.
+    ``row_fn(x_chunk) -> (rows,)``: a per-row statistic computed in the same pass (returned 4th; else 3 values)."""
     n, R = X.shape[0], A.shape[1]
     W, E, N2 = np.full((n, R), np.nan, np.float32), np.full(n, np.nan, np.float32), np.full(n, np.nan)
+    RF = np.full(n, np.nan, np.float32) if row_fn is not None else None
     G = (A.T @ A) * (B.T @ B)
     A32, B32 = A.astype(np.float32), B.astype(np.float32)
     for s in range(0, n, CHUNK):
@@ -195,7 +210,9 @@ def project_rows(X, A: np.ndarray, B: np.ndarray, n_iter: int = 60) -> tuple[np.
         idx = np.arange(s, min(s + CHUNK, n))[ok]
         W[idx], N2[idx] = c, nx2
         E[idx] = np.sqrt(np.maximum(e2, 0) / np.maximum(nx2, EPS))
-    return W, E, N2
+        if row_fn is not None:
+            RF[idx] = row_fn(x)
+    return (W, E, N2) if row_fn is None else (W, E, N2, RF)
 
 
 def pooled_evr(E: np.ndarray, N2: np.ndarray) -> float:
@@ -476,9 +493,13 @@ def cmd_project(sd: Path, task: int) -> None:
     t0 = time.time()
     St = npz_memmap(od / f"{key}_trials.npz", "spec")
     n_tr, n_t = St.shape[:2]
-    Wt, Et, _ = project_rows(_scaled(St.reshape(n_tr * n_t, *St.shape[2:]), s), A, B)
+    pr = load_plan(sd)["params"]
+    fr_norm, fr_ex = float(pr.get("vqt_norm", 0.95)), float(pr.get("one_over_f", 0.5))
+    freqs = M["freqs"].astype(np.float64)
+    dfn = lambda x: normaliser(x * s, freqs, fr_norm, fr_ex)                   # rows are scaled by 1 / s
+    Wt, Et, _, Dt = project_rows(_scaled(St.reshape(n_tr * n_t, *St.shape[2:]), s), A, B, row_fn=dfn)
     Ss = npz_memmap(od / f"{key}_session.npz", "spec")
-    Ws, Es, _ = project_rows(_scaled(Ss, s), A, B)
+    Ws, Es, _, Ds = project_rows(_scaled(Ss, s), A, B, row_fn=dfn)
     meta = npz_small(od / f"{key}_trials.npz", ("t_ms", "trial_id", "position", "cue_daq_s"))
     tse = npz_small(od / f"{key}_session.npz", ("t_daq_s", "rate_hz"))
     pw = window_power(Ss, s, tse["t_daq_s"], meta["cue_daq_s"], meta["position"])
@@ -489,6 +510,7 @@ def cmd_project(sd: Path, task: int) -> None:
         pw["points_t_daq_s"] = npz_small(pf, ("t_daq_s",))["t_daq_s"]
         pw.update(window_speed(Xp, pw["points_t_daq_s"], meta["cue_daq_s"], meta["position"]))
     _atomic_savez(dst, trials=Wt.reshape(n_tr, n_t, -1), trials_err=Et.reshape(n_tr, n_t), session=Ws, session_err=Es,
+                  trials_D=Dt.reshape(n_tr, n_t), session_D=Ds,
                   session_t_daq_s=tse["t_daq_s"], session_rate_hz=tse["rate_hz"], spec_hash=str(M["spec_hash"]),
                   animal=animal, epoch=str(t["epoch"]), date=t["date"], **meta, **pw)
     print(f"{key} [{t['epoch']}]: trials err median {np.nanmedian(Et):.3f}, session err median {np.nanmedian(Es):.3f}, "
@@ -578,7 +600,9 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
                      "between_frac": between_frac, "seed": seed, "trial_ds": TRIAL_DS, "ranks": ranks, "inits": inits,
                      "n_iter": n_iter, "precue_s": PRECUE_S, "resp_s": RESP_S, "busy_s": BUSY_S,
                      "scale": "per animal: RMS of its fit rows", "point_pcs": point_pcs,
-                     "points_bins_per_animal": points_bins},
+                     "points_bins_per_animal": points_bins,
+                     "vqt_norm": float(json.loads((bd / "params.json").read_text())["vqt"]["normalization_factor"]),
+                     "one_over_f": float(json.loads((bd / "params.json").read_text())["vqt"]["one_over_f_exponent"])},
           "fit": fit, "points_fit": points_fit, "session_rows": session_rows, "tasks": tasks}
     (sd / "logs").mkdir(parents=True, exist_ok=True)
     (sd / "plan.json").write_text(json.dumps(pl, indent=1), encoding="utf-8", newline="\n")
@@ -627,10 +651,11 @@ def cmd_select(sd: Path, rank: int) -> None:
     print(f"FROZEN {pl['set']} rank {rank} spec {h} -> {m}")
 
 
-def cmd_report(sd: Path, face: Path | None = None) -> None:
+def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> None:
     """Factor-set QC into ``<set>/report/``: the rank sweep (rank*.json) and, once frozen, the factor gallery (spatial
     weight on the master face, spectrum, pre-stroke trial averages by position from proj/). Session readouts (epochs,
-    EVR gap, morphing, movement maps) are `scripts/face_rhythm_readouts.py`."""
+    EVR gap, morphing, movement maps) are `scripts/face_rhythm_readouts.py`. ``absolute``: time courses as absolute
+    expression (weights x FR normaliser D) -> factor_gallery_abs.png."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -668,7 +693,8 @@ def cmd_report(sd: Path, face: Path | None = None) -> None:
             continue
         t_ms = z["t_ms"]
         for pos in np.unique(z["position"]):
-            tc.setdefault(str(pos), []).append(np.nanmean(z["trials"][z["position"] == pos], 0))
+            tr = z["trials"] * (z["trials_D"][..., None] if absolute else 1.0)
+            tc.setdefault(str(pos), []).append(np.nanmean(tr[z["position"] == pos], 0))
     img = plt.imread(face) if face and Path(face).exists() else None
     fig, axs = plt.subplots(R, 3, figsize=(11, 2.3 * R), gridspec_kw={"width_ratios": [1.1, 1, 1.4]})
     for k, (a0, a1, a2) in enumerate(np.atleast_2d(axs)):
@@ -686,12 +712,12 @@ def cmd_report(sd: Path, face: Path | None = None) -> None:
         for pos, xs in sorted(tc.items()):
             a2.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k], lw=1, label=pos)
         a2.axvline(0, color="k", lw=0.5)
-        a2.set_title("pre-stroke trials, by position (cue = 0 s)", fontsize=8)
+        a2.set_title(f"pre-stroke trials by position, {'ABSOLUTE (x D)' if absolute else 'share'} (cue = 0 s)", fontsize=8)
         if k == 0 and tc:
             a2.legend(fontsize=6, ncol=2)
     fig.suptitle(f"{M['set']} rank {R} (spec {M['spec_hash']})", fontsize=9)
     fig.tight_layout()
-    fig.savefig(rd / "factor_gallery.png", dpi=110)
+    fig.savefig(rd / f"factor_gallery{'_abs' if absolute else ''}.png", dpi=110)
     plt.close(fig)
     print(f"report -> {rd}")
 
@@ -706,6 +732,7 @@ def main(argv=None) -> int:
     ap.add_argument("--rank", type=int, default=None)
     ap.add_argument("--task", type=int, default=None)
     ap.add_argument("--face", type=Path, default=None, help="report: master face image under the spatial maps")
+    ap.add_argument("--absolute", action="store_true", help="report: time courses as absolute expression (x D)")
     ap.add_argument("--trials-per-animal", type=int, default=60)
     ap.add_argument("--session-trials", type=int, default=60)
     ap.add_argument("--between-frac", type=float, default=0.25)
@@ -732,7 +759,7 @@ def main(argv=None) -> int:
     task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession") else None)
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank), "select": lambda: cmd_select(sd, a.rank),
      "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task),
-     "report": lambda: cmd_report(sd, a.face)}[a.cmd]()
+     "report": lambda: cmd_report(sd, a.face, a.absolute)}[a.cmd]()
     return 0
 
 

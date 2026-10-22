@@ -75,7 +75,7 @@ def main(argv=None) -> int:
     S.to_csv(figure_layout.sidecar_for(out, "session_table", ".csv"), index=False, float_format="%.5g")
     _, Pos = frr.amplitudes(fdir, names)
     Pos.to_csv(figure_layout.sidecar_for(out, "position_amplitudes", ".csv"), index=False, float_format="%.5g")
-    metrics = [c for c in S.columns if c.startswith(("amp_", "recon_err", "evr_", "cos_", "asym_"))]
+    metrics = [c for c in S.columns if c.startswith(("amp_", "abs_", "recon_err", "evr_", "cos_", "asym_"))]
     A, D = frr.epoch_stats(S, metrics)
     A.to_csv(figure_layout.sidecar_for(out, "epoch_means", ".csv"), index=False, float_format="%.5g")
     D.to_csv(figure_layout.sidecar_for(out, "epoch_deltas", ".csv"), index=False, float_format="%.5g")
@@ -83,13 +83,13 @@ def main(argv=None) -> int:
     print("PER-ANIMAL epoch means (rule 8: read these before the pooled deltas)")
     print(A[["animal", "epoch", "n_sessions", *key]].round(3).to_string(index=False))
 
-    # amplitudes by epoch
-    fig, axs = plt.subplots(len(names), 3, figsize=(10, 1.9 * len(names)), squeeze=False)
+    # amplitudes by epoch: absolute expression (left three) and share of the frame (right three)
+    fig, axs = plt.subplots(len(names), 6, figsize=(18, 1.9 * len(names)), squeeze=False)
     for k, nm in enumerate(names):
-        for j, w in enumerate(("precue", "response", "between")):
-            col = f"amp_{nm}_{w}"
+        for j, (pre_, w) in enumerate([(p_, w_) for p_ in ("abs", "amp") for w_ in ("precue", "response", "between")]):
+            col = f"{pre_}_{nm}_{w}"
             if col in S:
-                _epoch_lines(axs[k, j], S, col, f"{nm} {w}")
+                _epoch_lines(axs[k, j], S, col, f"{nm} {w} ({'absolute' if pre_ == 'abs' else 'share'})")
     axs[0, 0].legend(fontsize=6)
     fig.tight_layout()
     fig.savefig(out / "amplitudes_by_epoch.png", dpi=110)

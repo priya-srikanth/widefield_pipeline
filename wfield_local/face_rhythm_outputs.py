@@ -56,9 +56,11 @@ def labels(fdir: Path) -> list[str]:
     return [f"fr_{lab.get(str(k), k)}" for k in range(R)]
 
 
-def combined_series(files: list[Path], kind: str = "factors", k: int | None = None) -> tuple[np.ndarray, np.ndarray]:
+def combined_series(files: list[Path], kind: str = "factors", k: int | None = None,
+                    absolute: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """(t_daq_s (n,), W (n, R)) sorted by time. factors: trial-window 25 Hz samples + session 5 Hz samples outside
-    them; points: the 25 Hz displacement PCs (first ``k``)."""
+    them; ``absolute``: weights x the bin's FR normaliser D (the component's absolute expression, not its share of
+    the frame); points: the 25 Hz displacement PCs (first ``k``)."""
     ts, ws, hashes = [], [], set()
     for f in files:
         z = np.load(f, allow_pickle=False)
@@ -70,9 +72,13 @@ def combined_series(files: list[Path], kind: str = "factors", k: int | None = No
             ws.append(z["points_pc"][:, :k].astype(float))
             continue
         tr, cue, tms = z["trials"].astype(float), z["cue_daq_s"].astype(float), z["t_ms"].astype(float) / 1000.0
+        if absolute:
+            tr = tr * z["trials_D"][..., None]
         t_tr = cue[:, None] + tms[None, :]
         lo, hi = t_tr[:, 0] - 0.02, t_tr[:, -1] + 0.02                     # half a 25 Hz bin
         ts_s, w_s = z["session_t_daq_s"].astype(float), z["session"].astype(float)
+        if absolute:
+            w_s = w_s * z["session_D"][:, None]
         inside = np.zeros(len(ts_s), bool)
         for a, b in zip(lo, hi):
             inside |= (ts_s >= a) & (ts_s <= b)
@@ -116,7 +122,7 @@ def keep_mask(animal: str, date: str, rv, frame_times_s) -> np.ndarray:
 
 
 def fr_signals(animal: str, date: str, rv, frame_times_s, fdir: Path | None = None, blank: bool = True,
-               max_gap_s: float = 0.5, kind: str = "factors", k: int | None = None) -> dict:
+               max_gap_s: float = 0.5, kind: str = "factors", k: int | None = None, absolute: bool = False) -> dict:
     """{name: (frame_times_s, values)} -- one per factor (``kind="points"``: per displacement PC) -- on the imaging
     frames (see the module docstring)."""
     fdir = fdir or factor_dir(rv)
@@ -124,7 +130,7 @@ def fr_signals(animal: str, date: str, rv, frame_times_s, fdir: Path | None = No
     if not files:
         raise FileNotFoundError(f"no FaceRhythm projection for {animal}_{date} in {fdir / 'proj'}")
     ft = np.asarray(frame_times_s, float)
-    t, W = combined_series(files, kind, k)
+    t, W = combined_series(files, kind, k, absolute)
     V = to_frames(t, W, ft, max_gap_s)
     if blank:
         V[~keep_mask(animal, date, rv, ft)] = np.nan

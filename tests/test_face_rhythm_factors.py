@@ -88,3 +88,15 @@ def test_draw_rows_balanced_and_seeded():
     b = f.draw_rows(trials, between, 10, 0.25, np.random.default_rng(0))
     assert a == b and len(a["trials"]["k"]) == 10
     assert len(a["between"]["k"]) == round(0.25 * 10 * 75)
+
+
+
+def test_normaliser_inverts_fr_per_bin_normalisation():
+    """FR (VQT_Analyzer): s_norm = s / (nf m + 1 - nf), m = mean over rows of the power summed over frequencies, then x
+    freqs^ex. `normaliser` must recover D = nf m + 1 - nf from the saved rows."""
+    rng = np.random.default_rng(3)
+    freqs, nf, ex = np.geomspace(1, 60, F), 0.95, 0.5
+    raw = rng.random((40, 2 * P, F)) * rng.uniform(0.05, 20, (40, 1, 1))      # bins with very different movement
+    D = nf * raw.sum(-1).mean(-1) + (1 - nf)
+    saved = raw / D[:, None, None] * freqs[None, None] ** ex
+    assert np.allclose(f.normaliser(saved, freqs, nf, ex), D, rtol=1e-4)

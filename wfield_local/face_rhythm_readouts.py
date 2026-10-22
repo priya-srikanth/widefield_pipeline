@@ -4,7 +4,8 @@ pipeline overview: docs/FACE_RHYTHM_PIPELINE.md.
 
 The 2pRAM-cohort manuscript's FR analyses (FACE_RHYTHM_PLAN.md "What the 2pRAM-cohort manuscript does with FR"), here
 ACROSS animals (one mesh, one frozen pre-stroke basis):
-  amplitudes     pre-stroke components refit to every session: mean factor amplitude per session in the pre-cue
+  amplitudes     pre-stroke components refit to every session: mean factor amplitude per session -- as a SHARE of
+                 the frame's movement (amp_) and as ABSOLUTE expression (abs_ = weights x FR normaliser D) -- in the pre-cue
                  (cue -2..0 s) and response (0..+4 s) windows of engaged trials (25 Hz) and BETWEEN trials (5 Hz bins
                  outside cue -3..+6 s) -- "non-task movements preserved?" is between vs response; per position too.
   reconstruction relative reconstruction error of each session by the frozen basis (movement outside the pre-stroke
@@ -58,12 +59,17 @@ def _day(label: str):
     return epochs.days_since_stroke(label)
 
 
-def amplitudes(fdir: Path, names: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """(per session: amp_<comp>_<precue|response|between>, per session x position x comp: response amplitude)."""
+def amplitudes(fdir: Path, names: list[str], absolute: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(per session: amp_<comp>_<precue|response|between>, per session x position x comp: response amplitude).
+    ``absolute``: weights x each bin's FR normaliser D -> the component's absolute expression (columns ``abs_``);
+    default = its SHARE of the frame's movement."""
+    pre_ = "abs" if absolute else "amp"
     sums, pos_rows = {}, []
     for t in _tasks(fdir, "proj").itertuples():
         z = np.load(t.file)
         tr, tms = z["trials"].astype(float), z["t_ms"] / 1000.0
+        if absolute:
+            tr = tr * z["trials_D"][..., None]
         acc = sums.setdefault(t.label, {})
         for w, (a, b) in WINDOWS.items():
             m = (tms >= a) & (tms < b)
@@ -75,9 +81,11 @@ def amplitudes(fdir: Path, names: list[str]) -> tuple[pd.DataFrame, pd.DataFrame
                 for p in np.unique(z["position"]):
                     xp = tr[z["position"] == p][:, m].reshape(-1, tr.shape[-1])
                     xp = xp[np.isfinite(xp).all(1)]
-                    pos_rows += [{"label": t.label, "position": str(p), "comp": names[k], "amp": float(xp[:, k].mean()),
+                    pos_rows += [{"label": t.label, "position": str(p), "comp": names[k], pre_: float(xp[:, k].mean()),
                                   "n_bins": len(xp)} for k in range(tr.shape[-1]) if len(xp)]
         ts, ws, cues = z["session_t_daq_s"], z["session"].astype(float), np.sort(z["cue_daq_s"])
+        if absolute:
+            ws = ws * z["session_D"][:, None]
         k = np.searchsorted(cues, ts)
         near = np.zeros(len(ts), bool)
         for kk in (k - 1, k):
@@ -92,7 +100,7 @@ def amplitudes(fdir: Path, names: list[str]) -> tuple[pd.DataFrame, pd.DataFrame
     for lab, acc in sums.items():
         r = {"label": lab}
         for w, (s, n) in acc.items():
-            r.update({f"amp_{names[k]}_{w}": (s[k] / n if n else np.nan) for k in range(len(names))})
+            r.update({f"{pre_}_{names[k]}_{w}": (s[k] / n if n else np.nan) for k in range(len(names))})
         rows.append(r)
     return pd.DataFrame(rows), pd.DataFrame(pos_rows)
 
@@ -190,7 +198,8 @@ def _epoch(label: str):
 def session_table(fdir: Path, names: list[str], home: np.ndarray, freqs: np.ndarray) -> pd.DataFrame:
     """Every readout, one row per session, with animal / epoch / day (curated epochs; June is not in the bundle)."""
     amp, _ = amplitudes(fdir, names)
-    parts = [amp, reconstruction(fdir), evr_gap(fdir, names), movement(fdir, home, freqs, measure="speed")[0],
+    ab, _ = amplitudes(fdir, names, absolute=True)
+    parts = [amp, ab, reconstruction(fdir), evr_gap(fdir, names), movement(fdir, home, freqs, measure="speed")[0],
              movement(fdir, home, freqs, measure="share")[0]]
     S = parts[0]
     for p in parts[1:]:

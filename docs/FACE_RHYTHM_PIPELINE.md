@@ -32,7 +32,8 @@ the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bi
 * **master.npz** (`select`, FROZEN): `spatial` (2, P, R), `spectral` (F, R), `freqs`, `home`, `scales_json` (one scalar
   per animal), `spec_hash`; plus the dense-POSITION basis `points_components` (K, 2P) / `points_explained` (PCA of the
   25 Hz displacements, each session centred on its own mean, equal pre-stroke bins per animal). Never refitted once used (rule 10); `select` refuses a different spec.
-* **proj/<key>.npz**: `trials` (trial, 151, R), `session` (bin, R) + `session_t_daq_s`, per-bin `trials_err` /
+* **proj/<key>.npz**: `trials` (trial, 151, R), `session` (bin, R) + `session_t_daq_s`, per-bin FR normaliser
+  `trials_D` / `session_D` (absolute expression = weights x D), per-bin `trials_err` /
   `session_err` (relative reconstruction error), per-point movement power `power_between` (2, P, F),
   `power_precue` / `power_response` (position, 2, P, F) + `power_positions`, `power_n_bins`; `points_pc` (25 Hz bins, K)
   + `points_t_daq_s` (dense position on the frozen PCA).
@@ -47,10 +48,12 @@ the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bi
   face size, keeps post-stroke amplitude changes.
 * **EVR** is uncentred, 1 - |S - S^|^2 / |S|^2 (the paper's definition).
 * **FR spectrograms are normalised per frame** by the mean power over the whole face (VQT `normalization_factor`
-  0.95): the pattern across points and frequencies is kept, overall amplitude over time is not. Factor amplitudes
-  and the spectral SHARE maps therefore describe how movement is DISTRIBUTED; HOW MUCH the face moves is the
-  absolute SPEED from the 25 Hz points (`speed_*` in proj, `--measure speed`, the default for maps / asymmetry).
-  Found in the 10-21 real-data dry run (spectral power ~ equal in every window and session).
+  0.95): the pattern across points and frequencies is kept, overall amplitude over time is not (found in the 10-21
+  dry run). Factors are FITTED on the normalised data (the paper's choice: shape, not a few huge events). For HOW MUCH
+  a component is expressed, `project` recovers each bin's normaliser D from the saved spectrogram (exact formula;
+  0.01 % median error per 25 Hz bin) and the absolute expression is weights x D (`trials_D` / `session_D`; readout
+  columns `abs_*` next to the share `amp_*`; loader `absolute=True`; `report --absolute`). Per-point movement: SPEED
+  from the 25 Hz points (absolute) and SHARE from the spectrogram (`--measure`).
 * **Epochs** `wfield_local.epochs.epoch_of`; pre = August only (June not in the bundle); statistics through
   `orofacial_cohort.epoch_tables` (per-animal means, paired animal-weighted `boot_delta`); per-animal table first (rule 8).
 * **Engaged trials only** in `trials`; the whole session (incl. disengaged trials, between trials) stays in `session` /
