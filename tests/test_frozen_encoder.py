@@ -70,7 +70,7 @@ def test_ordered_variants_same_span_as_joint():
     rng = np.random.default_rng(3)
     ss = _sessions(rng)
     for _x, _y, s in ss:
-        s["col_var"] = np.array(["cue"] * 3 + ["licks"] * 3)
+        s["col_var"] = np.array(["cue"] * 3 + ["lick_onset"] * 3)
     st = [s for *_, s in ss]
     X0 = ss[0][0] / fe.fit_animal(st, alpha_grid=(1e-6,))["scale"]
     pred = {}
@@ -80,6 +80,25 @@ def test_ordered_variants_same_span_as_joint():
         if v == "no_movement":
             assert list(f["vcol"]) == ["cue"] * 3
         if v == "movement_only":
-            assert list(f["vcol"]) == ["licks"] * 3
+            assert list(f["vcol"]) == ["lick_onset"] * 3
     np.testing.assert_allclose(pred["movement_first"], pred["joint"], rtol=1e-6, atol=1e-8)
     np.testing.assert_allclose(pred["task_first"], pred["joint"], rtol=1e-6, atol=1e-8)
+
+
+def test_split_blocks_layout():
+    """The encoder's licks / tongue / jaw / nose blocks are split by their fixed column order."""
+    from wfield_local import combined_encoding as ce
+    nl, T = len(ce.CLAGS), 7
+    raw = {v: np.full((T, 4), i, float) for i, v in enumerate(("cue", "arrival", "pos_enl", "pos_cue"))}
+    raw["licks"] = np.hstack([np.zeros((T, 5)), np.ones((T, 5))])          # [onset, contact]
+    raw["exec_angle"] = np.zeros((T, 5))
+    raw["running"] = np.zeros((T, nl))
+    raw["tongue"] = np.repeat(np.arange(4.0), nl)[None, :].repeat(T, 0)    # x, y, prot, speed
+    raw["jaw"] = np.repeat(np.arange(3.0), nl)[None, :].repeat(T, 0)       # x, y, speed
+    raw["nose"] = np.repeat(np.arange(2.0), nl)[None, :].repeat(T, 0)      # x, y
+    out = fe.split_blocks(raw)
+    assert set(out) == set(fe.FGROUP)
+    assert (out["lick_onset"] == 0).all() and (out["contact"] == 1).all()
+    assert set(out["tongue_dir"][0]) == {0.0, 1.0} and set(out["tongue_mag"][0]) == {2.0, 3.0}
+    assert set(out["jaw_dir"][0]) == {0.0} and set(out["jaw_mag"][0]) == {1.0, 2.0}
+    assert set(out["nose_dir"][0]) == {0.0} and set(out["nose_mag"][0]) == {1.0}

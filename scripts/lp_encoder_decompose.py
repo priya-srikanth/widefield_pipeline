@@ -71,7 +71,9 @@ def main(argv=None) -> int:
     sess = sorted((E / a.folder / "sessions").glob("*.json"))
     T = pd.DataFrame([r for js in sess for r in session_rows(js, a.align)])
     T = T[T.label.str[-4:] >= "0801"]                                  # August-only pre baseline (primary)
-    parts = ["data", "full", "task", "pos_part", "instructed", "uninstructed", "residual"]
+    ids = {"label", "animal", "epoch", "lick_set", "pos", "region"}
+    parts = [c for c in T.columns if c not in ids]       # whatever the run saved (+ residual); frozen runs add
+                                                          # movement / direction / contact
     A = T.groupby(["animal", "pos", "region", "epoch"])[parts].mean()
     n = T.groupby(["animal", "pos", "region", "epoch"]).label.nunique().rename("n_sess")
     A = A.join(n).reset_index()
@@ -94,7 +96,7 @@ def main(argv=None) -> int:
     T.to_csv(qc / f"lp_encoder_decompose{tag}.csv", index=False, float_format="%.5g")
     D.to_csv(qc / f"lp_encoder_decompose{tag}_by_animal.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 220)
-    cols = ["n_post", "pre_data", "d_data", "d_full", "d_task", "d_pos_part", "d_instructed", "d_uninstructed", "d_residual"]
+    cols = ["n_post", "pre_data", *(f"d_{p}" for p in parts)]
     print(f"{len(sess)} sessions; lick sets: {T.drop_duplicates('label').lick_set.value_counts().to_dict()}")
     win, base = (LICK_WIN_S, LICK_BASE_S) if a.align == "lick" else (WIN_S, BASE_S)
     for reg in ("cortex", "SSp-m_left", "SSp-m_right"):

@@ -41,12 +41,59 @@ from pathlib import Path
 
 import numpy as np
 
-STATS_VERSION = 1
+STATS_VERSION = 2   # 2: FGROUP split (contact / direction / movement)
 
 
 def _ce():
     from wfield_local import combined_encoding as ce
     return ce
+
+
+#: FROZEN-MODEL GROUPS (Priya 10-22, "yes change as you suggest"): finer than the encoder's task / instructed /
+#: uninstructed, because two things the encoder lumps into "instructed" are not movement magnitude:
+#:   contact    the spout-CONTACT kernel (inside the encoder's `licks` block): a touch / outcome event that happens only
+#:              when the lick reaches the target -- acute far contra has few, so its missing contact-evoked activity
+#:              would otherwise be credited to "movement";
+#:   direction  where the tongue / jaw / nose go (tongue x / y, jaw x, nose x, per-lick executed angle): target-
+#:              correlated, since the tongue goes toward the spout (the 10-19 no-kinematics reasoning);
+#:   movement   directionless magnitude and timing: lick onsets (cam4 + cam1-only), tongue protrusion / speed, jaw
+#:              opening (y) / speed, nose y, running;
+#:   task       cue, arrival, the six position deviation blocks.
+FGROUP = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
+          "lick_onset": "movement", "tongue_mag": "movement", "jaw_mag": "movement", "nose_mag": "movement",
+          "running": "movement",
+          "tongue_dir": "direction", "jaw_dir": "direction", "nose_dir": "direction", "exec_angle": "direction",
+          "contact": "contact"}
+FGROUPS = ("task", "movement", "direction", "contact")
+#: penalty groups as the encoder's PEN_GROUP_OF (task / lick / orofacial / uninstructed)
+FPEN = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
+        "lick_onset": "lick", "contact": "lick", "exec_angle": "lick",
+        "tongue_mag": "orofacial", "tongue_dir": "orofacial", "jaw_mag": "orofacial", "jaw_dir": "orofacial",
+        "nose_mag": "uninstructed", "nose_dir": "uninstructed", "running": "uninstructed"}
+
+
+def split_blocks(raw: dict) -> dict:
+    """The encoder's raw blocks split into the FGROUP variables. Column order inside each encoder block is fixed by
+    `combined_encoding.raw_blocks`: licks = [lick-onset kernel, contact kernel] (equal widths, same lags); tongue =
+    x, y, prot, speed; jaw = x, y, speed; nose = x, y; each analog variable len(CLAGS) columns."""
+    ce = _ce()
+    if os.environ.get("COMBINED_ENCODING_LICKS") == "lips" or os.environ.get("COMBINED_ENCODING_LICKS_ALL"):
+        raise ValueError("frozen_encoder: lips / licks-all kernels change the licks block layout; not supported")
+    nl = len(ce.CLAGS)
+    lk = raw["licks"]
+    if lk.shape[1] % 2:
+        raise ValueError(f"licks block has {lk.shape[1]} columns; expected [onset, contact] of equal width")
+    h = lk.shape[1] // 2
+    out = {v: raw[v] for v in ("cue", "arrival", "pos_enl", "pos_cue", "running", "exec_angle")}
+    out["lick_onset"], out["contact"] = lk[:, :h], lk[:, h:]
+    out["tongue_dir"], out["tongue_mag"] = raw["tongue"][:, :2 * nl], raw["tongue"][:, 2 * nl:]
+    out["jaw_dir"], out["jaw_mag"] = raw["jaw"][:, :nl], raw["jaw"][:, nl:]
+    out["nose_dir"], out["nose_mag"] = raw["nose"][:, :nl], raw["nose"][:, nl:]
+    for k, w in (("tongue_mag", 2), ("jaw_mag", 2), ("nose_mag", 1), ("tongue_dir", 2), ("jaw_dir", 1),
+                 ("nose_dir", 1)):
+        if out[k].shape[1] != w * nl:
+            raise ValueError(f"{k}: {out[k].shape[1]} columns, expected {w * nl}")
+    return out
 
 
 def session_design(label: str) -> dict:
@@ -77,8 +124,8 @@ def session_design(label: str) -> dict:
         rows |= (ft >= a) & (ft <= b_)
     ridx = np.flatnonzero(rows)
     ftr = ft[ridx]
-    raw = ce.raw_blocks(B, ft)
-    vars_ = list(ce.GROUP_OF)
+    raw = split_blocks(ce.raw_blocks(B, ft))
+    vars_ = list(FGROUP)
     X = np.hstack([raw[v][ridx] for v in vars_]).astype(np.float64)
     # unknown frames (NaN pose) contribute nothing: the session's column mean, which the centring below removes
     # (the encoder's `_z` maps NaN to 0 AFTER z-scoring = the same thing)
@@ -128,16 +175,22 @@ def _subset(s: dict, keep: list[str]) -> tuple:
     return s["XtY"][:, ix], s["YtY"][ix]
 
 
-#: FROZEN VARIANTS (Priya 10-22: "should we also compare encoders with/without movement information?" and the ordered
-#: bounds). All from the same pre-stroke Gram terms; each is a column transform C of the scaled design (Z' = Z @ C):
-#:   joint           all columns, fitted jointly (the ridge splits shared variance) -- the main model
-#:   movement_first  task columns residualised on the movement columns (pre-stroke projection): shared variance -> movement
-#:   task_first      movement columns residualised on task: shared variance -> task
-#:   no_movement     task columns only (cue, arrival, position): what the pre-stroke TARGET responses alone predict
-#:   movement_only   movement columns only (licks, angle, tongue, jaw, nose, running)
-#: The ordered pair brackets the group split; the full prediction (and so data - full) is the same for joint and both
-#: orders up to the ridge. no_movement vs joint: the difference of their residuals = what movement information explains.
-VARIANTS = ("joint", "movement_first", "task_first", "no_movement", "movement_only")
+#: FROZEN VARIANTS (Priya 10-22: "should we also compare encoders with/without movement information?", the ordered
+#: bounds, and contact / direction split out). All from the same pre-stroke Gram terms; each is a column transform C
+#: of the scaled design (Z' = Z @ C). Groups: FGROUP.
+#:   joint              task + movement + direction + contact, jointly (the ridge splits shared variance) -- main
+#:   movement_first     task residualised on movement + direction + contact (pre projection): shared -> non-task
+#:   task_first         movement + direction + contact residualised on task: shared -> task
+#:   no_movement        task only: what the pre-stroke TARGET responses alone predict
+#:   task_movement      task + directionless movement (no direction, no contact)
+#:   task_movement_dir  task + movement + direction (no contact)
+#:   movement_only      directionless movement only
+#: Readouts: residual (data - full) per variant; no_movement -> task_movement = what movement MAGNITUDE / timing adds;
+#: -> task_movement_dir = what direction adds; -> joint = what contact adds. Ordered pair brackets the group split.
+VARIANTS = ("joint", "movement_first", "task_first", "no_movement", "task_movement", "task_movement_dir",
+            "movement_only")
+_KEEP = {"no_movement": ("task",), "task_movement": ("task", "movement"),
+         "task_movement_dir": ("task", "movement", "direction"), "movement_only": ("movement",)}
 
 
 def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -147,15 +200,13 @@ def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray) -> tup
     eye = np.eye(p)
     if variant == "joint":
         return eye, np.arange(p)
-    ce = _ce()
-    task = np.array([ce.GROUP_OF[v] == "task" for v in col_var])
-    mov = ~task
-    if variant == "no_movement":
-        return eye[:, task], np.flatnonzero(task)
-    if variant == "movement_only":
-        return eye[:, mov], np.flatnonzero(mov)
+    grp = np.array([FGROUP[v] for v in col_var])
+    if variant in _KEEP:
+        keep = np.isin(grp, _KEEP[variant])
+        return eye[:, keep], np.flatnonzero(keep)
     if variant in ("movement_first", "task_first"):
-        a, b = (mov, task) if variant == "movement_first" else (task, mov)     # residualise b on a
+        task = grp == "task"
+        a, b = (~task, task) if variant == "movement_first" else (task, ~task)    # residualise b on a
         Gaa = Gt[np.ix_(a, a)]
         P = np.linalg.solve(Gaa + 1e-6 * np.trace(Gaa) / a.sum() * np.eye(a.sum()), Gt[np.ix_(a, b)])
         C = eye.copy()
@@ -170,7 +221,7 @@ def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "
     beta_loso {label: (p', R)}."""
     ce = _ce()
     alpha_grid = alpha_grid or ce.ALPHA_GRID
-    pen_of = pen_of or ce.PEN_GROUP_OF
+    pen_of = pen_of or FPEN
     col_var = stats[0]["col_var"]
     for s in stats:
         if len(s["col_var"]) != len(col_var) or (s["col_var"] != col_var).any():
@@ -246,9 +297,9 @@ def predict_job(job):
         beta = fit["beta_loso"].get(label, fit["beta_all"])
         frozen_from = "loso" if label in fit["beta_loso"] else "all_pre"
         Zv = Z @ fit["C"]
-        gcol = np.array([ce.GROUP_OF[v] for v in fit["vcol"]])
+        gcol = np.array([FGROUP[v] for v in fit["vcol"]])
         comp = {"data": Rd, "full": Zv @ beta}
-        for g in ce.GROUPS:
+        for g in FGROUPS:
             m = gcol == g
             comp[g] = Zv[:, m] @ beta[m] if m.any() else np.zeros_like(Rd)
         pm = np.isin(fit["vcol"], list(ce.POS_VARS))
@@ -340,7 +391,10 @@ def main(argv=None) -> int:
 
 def _fan(jobs, n):
     from wfield_local import parallel
-    return parallel.fan_out(jobs, predict_job, jobs=n, label="frozen", log=lambda m: print(m[:120], flush=True))
+    res, fail = parallel.fan_out(jobs, predict_job, jobs=n, label="frozen", log=lambda m: print(m[:120], flush=True))
+    res = sorted(res, key=lambda kv: kv[1]["label"])            # rule 9: never completion order
+    fail = sorted(fail, key=lambda kv: kv[0][0])
+    return res, fail
 
 
 if __name__ == "__main__":
