@@ -984,7 +984,6 @@ def cmd_qc(name: str, step: int = 25, jobs: int = 4) -> None:
     ``<dlc>/face_rhythm/<cam>/o2_<name>_qc.png`` + table (figure_layout data/)."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs, figure_layout, writeguard
     from wfield_local import o2_inference as oi
@@ -1020,18 +1019,30 @@ def cmd_qc(name: str, step: int = 25, jobs: int = 4) -> None:
     print(Q.groupby(["animal", "epoch"])[["fold_bins_frac_interior", "fold_bins_frac_rim", "viol_frac_mean",
                                           "nan_bins_frac", "disp_med_px"]]
           .mean().round(4).to_string())
-    cols = ("fold_bins_frac_interior", "fold_bins_frac_rim", "viol_frac_mean", "disp_med_px", "disp_p99_px")
-    fig, axs = plt.subplots(1, len(cols), figsize=(3.2 * len(cols), 3))
-    for ax, c in zip(axs, cols):
-        for an, g in Q.groupby("animal"):
-            ax.plot(g.day, g[c], "o", ms=3, label=an)
-        ax.axvline(0.5, color="k", lw=0.5)
-        ax.set(xlabel="days since stroke", title=c)
-    axs[0].legend(fontsize=6)
-    fig.suptitle(f"{name}: tracking QC ({len(Q)} tasks; sampled every {step} bins of 25 Hz); epochs {order}", fontsize=9)
-    fig.tight_layout()
-    fig.savefig(out / f"o2_{name}_qc.png", dpi=110)
-    plt.close(fig)
+    from wfield_local import face_rhythm_figures as frf
+    cols = {"fold_bins_frac_interior": "folds inside the face", "fold_bins_frac_rim": "folds at the rim",
+            "viol_frac_mean": "frozen points", "disp_med_px": "median displacement (px)",
+            "disp_p99_px": "99th pct displacement (px)"}
+    with frf.style():
+        fig, axs = frf.subplots(1, len(cols), figsize=(4.3 * len(cols) + 1.5, 4.0))
+        for ax, (c, t) in zip(axs, cols.items()):
+            for an, g in Q.groupby("animal"):
+                ax.plot(g.day, g[c], "o", ms=4, label=an)
+            ax.axvline(0.5, color="k", lw=0.5)
+            ax.set(xlabel="days since stroke", title=t)
+        frf.legend_outside(axs[-1])
+        fig.suptitle(f"{name}: tracking QC ({len(Q)} tasks)")
+        frf.save(fig, out / f"o2_{name}_qc.png", f"""
+One point per task (session x video) vs days since the stroke (line = stroke); epochs {order}. From the 25 Hz points
+output (`o2_face_rhythm.py qc`, `tracking_qc`), every {step}th bin (1 Hz) read in contiguous blocks:
+* **folds inside the face / at the rim**: fraction of sampled bins in which at least one Delaunay triangle of the home
+  mesh (edges < 40 px) flipped orientation, for INTERIOR triangles and RIM triangles (a vertex on the mesh boundary).
+  The rim's most-folding triangles are near-flat slivers (area 0-8 px^2) that flip with sub-pixel jitter; the factors do
+  not use triangles, so rim folds do not affect the analysis (10-22).
+* **frozen points**: mean fraction of points held as violating by FR's outlier handling (`viol_frac`).
+* **displacement**: median / 99th percentile distance of the points from their home positions (px).
+Integrity (segments cover the video, bin counts, trial-grid shape, 40 ms DAQ step, trial fill) is in the table's
+`problems` column (data/o2_{name}_qc.csv); per-task results are cached in <bundle>/qc_cache/.""")
     print(f"qc: {len(Q)} tasks -> {out / f'o2_{name}_qc.png'}")
 
 

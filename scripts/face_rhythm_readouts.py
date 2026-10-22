@@ -34,14 +34,14 @@ def _epoch_lines(ax, S, col, title):
     for a, g in S.groupby("animal"):
         m = g.groupby("epoch")[col].mean().reindex(EPOCHS)
         ax.plot(range(4), m.to_numpy(), "o-", ms=3, lw=1, label=a)
-    ax.set_xticks(range(4), [e[:5] for e in EPOCHS], fontsize=7)
-    ax.set_title(title, fontsize=8)
+    ax.set_xticks(range(4), [e[:5] for e in EPOCHS])
+    ax.set_title(title)
 
 
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import face_rhythm_readouts as frr
     from wfield_local import figure_layout
@@ -83,72 +83,102 @@ def main(argv=None) -> int:
     print("PER-ANIMAL epoch means (rule 8: read these before the pooled deltas)")
     print(A[["animal", "epoch", "n_sessions", *key]].round(3).to_string(index=False))
 
+    common = (f"Set `{fdir.name}` ({len(S)} sessions; animals {', '.join(sorted(S.animal.unique()))}); epochs "
+              f"`wfield_local.epochs.epoch_of` ({', '.join(EPOCHS)}); points = per-animal epoch means of the session "
+              f"values (rule 8: read per animal before the pooled deltas in data/epoch_deltas.csv). Computation: "
+              f"`wfield_local/face_rhythm_readouts.py`; pipeline: docs/FACE_RHYTHM_PIPELINE.md.")
     # amplitudes by epoch: absolute expression (left three) and share of the frame (right three)
-    fig, axs = plt.subplots(len(names), 6, figsize=(18, 1.9 * len(names)), squeeze=False)
-    for k, nm in enumerate(names):
-        for j, (pre_, w) in enumerate([(p_, w_) for p_ in ("abs", "amp") for w_ in ("precue", "response", "between")]):
-            col = f"{pre_}_{nm}_{w}"
-            if col in S:
-                _epoch_lines(axs[k, j], S, col, f"{nm} {w} ({'absolute' if pre_ == 'abs' else 'share'})")
-    axs[0, 0].legend(fontsize=6)
-    fig.tight_layout()
-    fig.savefig(out / "amplitudes_by_epoch.png", dpi=110)
-    plt.close(fig)
+    with frf.style():
+        fig, axs = frf.subplots(len(names), 6, figsize=(24, 2.8 * len(names)), squeeze=False)
+        for k, nm in enumerate(names):
+            for j, (pre_, w) in enumerate([(p_, w_) for p_ in ("abs", "amp") for w_ in ("precue", "response",
+                                                                                        "between")]):
+                col = f"{pre_}_{nm}_{w}"
+                if col in S:
+                    _epoch_lines(axs[k, j], S, col, f"{nm} {w} ({'abs' if pre_ == 'abs' else 'share'})")
+        frf.legend_outside(axs[0, -1])
+        fig.suptitle(f"{fdir.name}: component amplitude by epoch")
+        frf.save(fig, out / "amplitudes_by_epoch.png", f"""
+{common}
+Per component (rows) and window (columns): PRE-CUE ({frr.WINDOWS['precue'][0]:g}..{frr.WINDOWS['precue'][1]:g} s), RESPONSE
+({frr.WINDOWS['response'][0]:g}..+{frr.WINDOWS['response'][1]:g} s; engaged trials, `frr.WINDOWS`) and
+BETWEEN trials (outside cue -3..+6 s, large movement excluded, MEDIAN of the 5 Hz bins: grooming tops several
+factors). Left three: ABSOLUTE expression (weight x FR normaliser D; a.u. on the animal's scale); right three: the
+SHARE of the frame (weight only). Pre-stroke sessions are projected on their left-out-day basis where it exists.""")
 
     # recovery by day
     cols = [c for c in ("recon_err_trials", "recon_err_session", "evr_gap", "cos_spatial_mean", "cos_spectral_mean")
             if c in S]
-    fig, axs = plt.subplots(1, len(cols), figsize=(3.2 * len(cols), 3), squeeze=False)
-    for ax, c in zip(axs[0], cols):
-        for an, g in S.groupby("animal"):
-            ax.plot(g.day, g[c], "o-", ms=3, lw=0.8, label=an)
-        ax.axvline(0.5, color="k", lw=0.5)
-        ax.set(xlabel="days since stroke", title=c)
-    axs[0, 0].legend(fontsize=6)
-    fig.tight_layout()
-    fig.savefig(out / "recovery_by_day.png", dpi=110)
-    plt.close(fig)
+    with frf.style():
+        fig, axs = frf.subplots(1, len(cols), figsize=(4.4 * len(cols) + 1.5, 4.0), squeeze=False)
+        for ax, c in zip(axs[0], cols):
+            for an, g in S.groupby("animal"):
+                ax.plot(g.day, g[c], "o-", ms=4, lw=1, label=an)
+            ax.axvline(0.5, color="k", lw=0.5)
+            ax.set(xlabel="days since stroke", title=c)
+        frf.legend_outside(axs[0, -1])
+        fig.suptitle(f"{fdir.name}: reconstruction and morphing vs day")
+        frf.save(fig, out / "recovery_by_day.png", f"""
+{common}
+Per session vs days since the stroke (vertical line = stroke): median relative reconstruction error of the frozen set
+on the trial windows and on the whole session; EVR GAP = the session's own rank-R fit EVR minus the frozen set's EVR on
+the same rows (`fitsession`; how much the session's structure departs from the pre-stroke basis -- read against the
+leave-one-pre-day-out noise floor in the factor set's report); matched spatial / spectral cosines between the
+session's own factors and the frozen ones (morphing; 1 = unchanged).""")
 
     # movement maps + asymmetry
     _, maps = frr.movement(fdir, home, freqs, a.midline_x, a.band, a.measure)
     animals = sorted({k[0] for k in maps if isinstance(k, tuple)})
+    what = "speed" if a.measure == "speed" else f"spectral share, {a.band}"
     for w in ("between", "precue", "response"):
-        fig, axs = plt.subplots(len(animals) + 1, 3, figsize=(8, 2.6 * (len(animals) + 1)), squeeze=False)
-        for j, ep in enumerate(EPOCHS[1:]):
-            mm = []
-            for i, an in enumerate(animals):
-                ax = axs[i, j]
+        with frf.style():
+            fig, axs = frf.subplots(len(animals) + 1, 3, figsize=(11, 3.4 * (len(animals) + 1)), squeeze=False)
+            sc = None
+            for j, ep in enumerate(EPOCHS[1:]):
+                mm = []
+                for i, an in enumerate(animals):
+                    ax = axs[i, j]
+                    ax.axis("off")
+                    v = maps.get((an, ep, w))
+                    if v is None:
+                        continue
+                    mm.append(v)
+                    sc = ax.scatter(home[:, 0], home[:, 1], c=v, s=4, cmap="RdBu_r", vmin=-1, vmax=1)
+                    ax.axvline(maps["midline_x"], color="k", lw=0.4)
+                    ax.set_title(f"{an} {ep}")
+                    ax.invert_yaxis()
+                    ax.set_aspect("equal")
+                ax = axs[-1, j]
                 ax.axis("off")
-                v = maps.get((an, ep, w))
-                if v is None:
-                    continue
-                mm.append(v)
-                ax.scatter(home[:, 0], home[:, 1], c=v, s=3, cmap="RdBu_r", vmin=-1, vmax=1)
-                ax.axvline(maps["midline_x"], color="k", lw=0.4)
-                ax.set_title(f"{an} {ep}", fontsize=8)
-                ax.invert_yaxis()
-                ax.set_aspect("equal")
-            ax = axs[-1, j]
-            ax.axis("off")
-            if mm:
-                sc = ax.scatter(home[:, 0], home[:, 1], c=np.mean(mm, 0), s=3, cmap="RdBu_r", vmin=-1, vmax=1)
-                ax.set_title(f"animal mean {ep} (n={len(mm)})", fontsize=8)
-                ax.invert_yaxis()
-                ax.set_aspect("equal")
-        what = "speed (absolute)" if a.measure == "speed" else f"spectral share ({a.band} band; normalised per frame)"
-        fig.suptitle(f"{w} movement {what}: log2(epoch / pre) per point; image right = ipsilesional", fontsize=9)
-        fig.colorbar(sc, ax=axs, shrink=0.4) if animals else None
-        fig.savefig(out / f"movement_maps_{a.measure}_{w}.png", dpi=110)
-        plt.close(fig)
-    fig, axs = plt.subplots(2, 3, figsize=(10, 5.6))
-    for i, m in enumerate(("speed", "share")):
-        for ax, w in zip(axs[i], ("between", "precue", "response")):
-            _epoch_lines(ax, S, f"asym_{m}_{w}", f"{m}: (contra - ipsi) / sum, {w}")
-            ax.axhline(0, color="k", lw=0.5)
-    axs[0, 0].legend(fontsize=6)
-    fig.tight_layout()
-    fig.savefig(out / "asymmetry_by_epoch.png", dpi=110)
-    plt.close(fig)
+                if mm:
+                    sc = ax.scatter(home[:, 0], home[:, 1], c=np.mean(mm, 0), s=4, cmap="RdBu_r", vmin=-1, vmax=1)
+                    ax.set_title(f"animal mean {ep} (n={len(mm)})")
+                    ax.invert_yaxis()
+                    ax.set_aspect("equal")
+            if sc is not None:
+                fig.colorbar(sc, ax=axs, shrink=0.35, label="log2(epoch / pre)")
+            fig.suptitle(f"{fdir.name}: {w} movement ({what}) vs pre")
+            frf.save(fig, out / f"movement_maps_{a.measure}_{w}.png", f"""
+{common}
+Per mesh point on the master face (image right = IPSILESIONAL on cam4; vertical line = the face midline, x =
+{maps['midline_x']:.0f}, the master's LP nose): log2(epoch mean / pre-stroke mean) of the point's movement in the
+{w.upper()} window. Measure `{a.measure}`: speed = RMS of |d displacement / dt| of the 25 Hz tracked points (ABSOLUTE
+movement); share = the point's share of the normalised spectrogram ({a.band} band). Rows: animals, then the mean of the
+animal maps. Red = more movement than pre, blue = less; colour clipped at +-1 (2x).""")
+    with frf.style():
+        fig, axs = frf.subplots(2, 3, figsize=(14, 7.5))
+        for i, m in enumerate(("speed", "share")):
+            for ax, w in zip(axs[i], ("between", "precue", "response")):
+                _epoch_lines(ax, S, f"asym_{m}_{w}", f"{m}, {w}")
+                ax.axhline(0, color="k", lw=0.5)
+                ax.set_ylabel("(contra - ipsi) / sum" if w == "between" else None)
+        frf.legend_outside(axs[0, -1])
+        fig.suptitle(f"{fdir.name}: contra vs ipsi face movement by epoch")
+        frf.save(fig, out / "asymmetry_by_epoch.png", f"""
+{common}
+(contra - ipsi) / (contra + ipsi) of the movement summed over the mesh points on each side of the face midline (x =
+{maps['midline_x']:.0f}; cam4 ipsilesional = image RIGHT, all lesions left), per window (between / pre-cue / response),
+for absolute SPEED (top) and the normalised spectral SHARE (bottom). 0 = symmetric; > 0 = more contralesional movement.""")
     print(f"{len(S)} sessions -> {out}")
     return 0
 

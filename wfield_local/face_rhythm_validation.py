@@ -5,8 +5,10 @@ Per projected session (``proj/<key>.npz`` of a factor set; ABSOLUTE expression =
 
 ``lick_table``       every LP-detected lick of the session (v36 ``licks_all.csv``: DAQ onset ``daq_on_s``, executed
                      angle ``peak_angle_deg``, + = the animal's LEFT) with its direction class (left > +ANGLE_DEG,
-                     right < -ANGLE_DEG, centre between), time from the cue of the engaged trial it falls in, and the
-                     instantaneous lick FREQUENCY (1 / interval to the next lick of the same trial, if < MAX_ILI_S).
+                     right < -ANGLE_DEG, centre between), the trial's spout ``position``, its NUMBER within its bout
+                     (``n_in_bout``, 1 = first; v36 ``bout_idx``), time from the cue of the engaged trial it falls in,
+                     and the instantaneous lick FREQUENCY (1 / interval to the next lick of the same trial, if
+                     < MAX_ILI_S).
 ``lick_triggered``   each factor's expression around every lick (LAGS, from the 25 Hz trial grid; licks whose window
                      lies inside cue -2..+4 s of a projected engaged trial). -> (n_licks, n_lags, R).
 ``bin_table``        per 40 ms bin of the trial grid: expression of every factor + lick rates by direction (licks / s,
@@ -39,8 +41,13 @@ def lick_table(rv, animal: str, date: str, cues: np.ndarray) -> pd.DataFrame:
     """LP licks of the whole session with direction class, time from the nearest preceding engaged cue (NaN when the
     lick is outside cue -2..+4 s of any of ``cues``) and instantaneous frequency."""
     f = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks_all.csv"
-    L = pd.read_csv(f, usecols=["trial_id", "daq_on_s", "peak_angle_deg"]).dropna(subset=["daq_on_s"])
+    L = pd.read_csv(f, usecols=["trial_id", "position", "bout_idx", "daq_on_s", "peak_angle_deg"]
+                    ).dropna(subset=["daq_on_s"])
     L = L.sort_values("daq_on_s").reset_index(drop=True)
+    # lick NUMBER within its bout (v36 bout_idx within the trial; 1 = the bout's first lick); NaN without a bout
+    g = L.dropna(subset=["bout_idx"]).groupby(["trial_id", "bout_idx"]).cumcount() + 1
+    L["n_in_bout"] = np.nan
+    L.loc[g.index, "n_in_bout"] = g
     a = L.peak_angle_deg.to_numpy(float)
     L["direction"] = np.where(a > ANGLE_DEG, "left", np.where(a < -ANGLE_DEG, "right", "centre"))
     L.loc[~np.isfinite(a), "direction"] = "unknown"

@@ -72,6 +72,13 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
 
 ## Conventions
 
+* **Figures** (10-22, Priya): every FR figure goes through `wfield_local/face_rhythm_figures.py` -- readable fonts
+  (`style()`), constrained layout with legends outside the axes (`subplots`, `legend_outside`: no title / legend
+  overlap), SHORT titles, and `save(fig, path, methods)`, which writes the figure's METHODS (data, selection, units,
+  normalisation, caveats) as a section of the output folder's `README.md`. Tables in `data/` (`figure_layout`).
+  Factor identity vs behaviour: `scripts/face_rhythm_validate.py` (licks by executed direction x time in trial, by lick
+  number in bout, by spout position, vs lick frequency; running onsets; correlations).
+
 * **cam4 ipsilesional = IMAGE RIGHT** (all lesions left; brain maps are the other way). Readouts split the mesh at its
   midline: x = 342, the master's LP nose (`face_rhythm_readouts.MASTER_MIDLINE_X`; `--midline-x` overrides).
 * **Scaling:** one scalar per animal (RMS of its pre-stroke fit rows), applied to every session of that animal -- removes
