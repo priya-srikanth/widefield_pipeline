@@ -364,7 +364,8 @@ def build_templates(parts: list[dict]) -> dict:
 #:   grid   GRID_BLOCK x GRID_BLOCK pixel block means on the stat mask (blocks with >= GRID_MIN_PIX pixels): the
 #:          transparent check on the basis
 #: Both add the cortex mean as a last target (scores / Musall readouts are reported on it).
-BASIS_VAR = 0.95
+BASIS_VAR = 0.9999                 # in practice K = BASIS_KMAX: 95 % needed only ~6 components (global patterns);
+#                                     the spatial detail lives in the low-variance tail (4 PS92 sessions: 99.9 % = 91, 200 = 99.975 %)
 BASIS_KMAX = 200
 GRID_BLOCK = 8
 GRID_MIN_PIX = 16
