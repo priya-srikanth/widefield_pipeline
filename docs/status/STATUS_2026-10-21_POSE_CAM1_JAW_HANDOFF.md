@@ -207,6 +207,12 @@ squeue -u ps150 -j 56830841 -t PD -o "%.20i %.14P %.25b %.20r" | head
 # transfer node:
 rsync -ah --partial --exclude 'tmp*' $B/out/ /n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/lp_cam1_ctx_prod_20261019/out/
 ```
+**10-22 UPDATE:** fairshare tanked by the FR array (`short`, 24 x 8 CPUs) -> no GPU starts since 10-21 afternoon
+(gpu_quad estimate 10-25). Pending tasks 112-137 MOVED: `scancel -t PENDING 56830841`, then
+`sbatch -p gpu_requeue --gres=gpu:1 --array=112-137%12 $B/run_pose.sbatch` = **array 57249401** (estimate ~10-23 06:30;
+preemptible -> a preempted video restarts). `-p gpu` multi-partition gives "Invalid qos"; `-p gpu` alone estimated
+10-24. 100 / 137 videos done on 10-22 (98 curated sessions through pose_chain). Suggested `ArrayTaskThrottle=6` on FR.
+**pose_chain now defaults to --jobs 6 and collects in parallel** (856bcfc; 10-session batch was ~66 min, collect 19 min serial).
 Array 56830841: pending tasks ask `gres/gpu:1`, wait on Priority (fairshare). 10 non-curated tasks cancelled.
 `gpu_requeue` accepts 10 h jobs but its estimated start was ~1 day out. Local cam1 LP run (reverse order from task 137
 = PS95 1005; WSL, sequence_length 16, ~10-12 h / video) DEFERRED (box shared) -- if started, `scancel 56830841_<idx>`.
