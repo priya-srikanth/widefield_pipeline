@@ -268,6 +268,26 @@ Numbers: % of 2,022 bins flagged by the nested bootstrap (pre-normalised), rest 
   question is 2.x's (movement-first encoder), which has not yet been rerun on LP gating. ENL window: LP 6.1 % vs
   contact 16.8 % at far contra, but the windows differ (1.0 vs 2.0 s) -- not comparable until the DAQ 1.0 s arm.
 
+**Frozen pre-stroke decoders, per-position accuracy (10-22 ~01:10; `acc`, chance 0.167).** LP: `LP_licks/epoch/data/
+epoch_acc_by_position_*`; matched contact 1.0 s ENL arm: `DAQ_ENL1s/epoch/`. Pre = per-animal held-out; post = frozen.
+- **Lick window: contact gating OVERSTATED acute far-spout decoding.** Acute far contra 0.50 [0.26, 0.75] (contact; 3
+  animals, 1-3 sessions each) -> **0.32 [0.17, 0.51] (LP; 4/4 animals, 16 sessions)**; per animal pre -> acute
+  PS92 .92 -> .26, PS93 .85 -> .16, PS94 .90 -> .49, PS95 .94 -> .35. Far ipsi .72 -> .58, far mid .71 -> .51 (now
+  significant). Near spouts unchanged (.73-.78 both). Pre far spouts .03-.05 lower under LP (non-contact attempts
+  included). Chronic unchanged (far contra .75 / .76).
+- **Cue window: the gate does not matter** (every cell within .05; acute far contra .32 / .29).
+- **ENL: the lick definition does not matter at 1.0 s; the window length does.** Contact 1.0 s and LP 1.0 s agree within
+  .03 in every cell. Both are lower than the 2 s contact window at EVERY position and epoch (pre near ipsi .75 -> .59,
+  far contra .51 -> .39-.40): half the averaging window, less signal -- not lick contamination of the 2 s window, since
+  removing LP-detected licks changes nothing at matched length. The acute pre-cue loss survives every definition:
+  LP 1.0 s acute far contra .21 [.12, .29], 4/4 animals down (PS92 .29 -> .15, PS93 .33 -> .16, PS94 .54 -> .30,
+  PS95 .40 -> .14; three at chance).
+- **ENL maps (15r, acute - pre, far contra) DO move with the lick definition at matched length:** rest ref 17.2 % of
+  bins, amplitude 1.44 (contact 2 s) -> 9.9 %, 1.67 (contact 1 s) -> **4.4 %, 1.45 (LP 1 s)**; restw 17.4 -> 9.1 ->
+  3.1 %. So part of the acute far-contra pre-cue INCREASE in the contact-defined window is non-contact licking in the
+  last second (LP removes those trials; >= 95 % kept, so power is similar). Other positions <= 8 % under all three.
+  Extent is descriptive (see below), but the direction is consistent across both rest references.
+
 **How to read the outlines (all map families).** Nested-bootstrap outlines (black) are bin-level family-wise
 significant: they localise -- each outlined bin changed. Their EXTENT is a lower bound that depends on power (n = 4
 animals), not a measured area; an unflagged bin is not evidence of no change, and "19 % vs 6 % of bins" is descriptive,
