@@ -26,9 +26,10 @@ Check / resubmit: "PRODUCTION RUNNING" below. Status commands: `sstat` needs the
 `--max-running`): ~2 h per session instead of ~4; the running array keeps its own params.json.
 
 **1b. Other cameras (10-22, Priya: "prep for all 3 cameras").** Code is ready (`wfield_local/face_rhythm_cams.py` + `--cam`
-on prep / register / warp / O2 bundle; click notebook; pipeline doc section "Other cameras"). Rest faces for cam2 ->
-cam3 -> cam1 were generated on the desktop overnight (`<dlc>/face_rhythm/<cam>/frames/`, contact sheets
-`frames_<animal>.png`). NEXT per camera: `face_rhythm_register.py --cam <cam> --stage templates` -> Priya clicks
+on prep / register / warp / O2 bundle; click notebook; pipeline doc section "Other cameras"). DONE 10-22 ~00:40: rest
+faces for all 119 sessions x cam1 / cam2 / cam3 (~8 min per camera; `<dlc>/face_rhythm/<cam>/frames/`, contact sheets
+`frames_<animal>.png`) and `--stage templates` (August pre templates; master PS94 in every view: cam1 PS94_20260811,
+cam2 PS94_20260810, cam3 PS94_20260809; click images `register_inputs/click_<s>.png`). NEXT per camera: Priya clicks
 landmarks (`notebooks/face_rhythm_click_landmarks.ipynb`) -> full registration + `qc_ncc.csv` / overlays -> Priya draws
 the ROI on the master (ROI notebook, `CAM`) -> `warp_rois to-sessions --cam` -> one-session O2 pilot -> array. Side views
 also show the forepaws (a grooming route later, still deferred). Order suggested: cam2 + cam3 (eyes, whisker pads per
