@@ -312,6 +312,41 @@ animals), not a measured area; an unflagged bin is not evidence of no change, an
 not a test of a difference. Cluster-permutation outlines support only "a change exists" (cluster-level control; false
 clusters are large in area), not where it stops.
 
+### 3.4 Frozen pre-stroke encoder v4: the acute far-contra drop is a LICK change, not a target change — PROVISIONAL (10-22 afternoon)
+
+Model (`wfield_local/frozen_encoder.py`, STATS_VERSION 4; DECISIONS 2026-10-22 afternoon): one ridge model per animal
+fitted on its August pre sessions and applied unchanged to every session (Allen-area targets). Every lick-related
+movement trace is split into the animal's PRE-STROKE mean trace for that spout (cue-locked before the trial's first
+post-cue lick, lick-locked after; pooled over its pre sessions) and the deviation from it. Groups: timing, target
+(position blocks), exec_locked (the spout-locked part: executed but fully predictable from the spout), exec_within
+(direction deviation within a spout), LICK (deviation of lick timing / tongue speed / jaw opening: vigour that is not
+"which spout", and any post-stroke change at a spout), other (nose y, running), contact. Output
+`E/frozen_encoder_gate-attempted_v4/`. Leakage (spout decoding, chance .17, templates leave the tested session out):
+target / exec_locked .99-1.00; lick .38-.40 (v3 "directionless" .60-.69); with each session's OWN template lick
+.04-.12 -> the residual .4 is day-to-day departure from the animal's typical licking at a spout, by design part of
+"lick" (Priya chose the pooled template: "let's do pooled").
+
+**Acute far contra, post-lick evoked response (0-1 s vs -0.3 to -0.1 s from the first post-cue lick), cortex, change
+vs pre, dF/F x 1e3, per animal (PS92 5 / PS93 4 / PS94 6 / PS95 1 acute sessions):**
+- data -14.1 / -9.3 / -1.0 / -0.1; frozen prediction -15.5 / -14.4 / -2.5 / -7.5;
+- **LICK -20.0 to -20.9 / -12.1 to -14.0 / -13.5 to -14.0 / -19.9 to -20.4** (range over joint, target_first,
+  exec_first, task_first, movement_first: robust to the credit order);
+- **target** -1.6 to +1.3 / -1.7 to -1.1 / -0.6 to +0.8 / -0.1 to +0.7 (target_first gives it every bit shared with the
+  spout-locked execution: still <= 1.7);
+- contact +1.7 to +10.3 (opposes lick; sign of its kernel not yet checked), other -0.7 to +4.6;
+- data - frozen prediction +1.3 to +7.5 (small, positive).
+
+Reading: the pre-stroke mapping, fed the licking actually made, predicts the drop; the change is carried by licking
+that departs from the animal's typical pre-stroke licking at far contra (fewer / weaker / differently timed licks), not
+by the target (spout) response; cortex responds about as predicted for that licking (no extra per-lick loss).
+Encoding is correlational: it shows the licking-cortex coupling is preserved, not which drives which. Area maps
+(`E/frozen_encoder_gate-attempted_v4/figures/area_maps_<variant>_far_contra_<epoch>_<align>.png`): the drop and the
+lick prediction share a bilateral, lateral-somatosensory / motor pattern; target blank; data - model mildly positive at
+the contralesional lateral edge. Open: no test on data - model yet; PS95 1 acute session; PS94 data barely changes
+(lick -14 offset by contact / other); **PS94 chronic (and partly subacute) sessions are not fit by the frozen model**
+(all-frames R2 -0.4 to -0.6 vs per-session 0.50-0.62) because of the "other" group (without it +0.11 / +0.12) --
+running or nose-y changed after the stroke; PS94 chronic frozen numbers are not to be read until resolved.
+
 ## 4. Recovery
 
 ### 4.1 Chronic position-coding gain — STANDS
@@ -394,6 +429,9 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 
 ## Change log
 
+- **2026-10-22 (afternoon / evening)** — §3.4 added: frozen encoder v4 (lick / spout-position groups by pre-stroke
+  spout-locked templates), acute far-contra drop carried by LICK in all orderings, target <= 1.7; area maps; PS94
+  chronic frozen fit fails via "other" (open). v3 frozen outputs (`frozen_encoder_gate-attempted/`) superseded.
 - **2026-10-21 (night)** — 3.3 added: 15r position maps under LP lick attempts (acute far contra measurable: post-lick
   activity below pre in 3/4, bilateral; contact gating had inflated acute far-spout amplitudes); LP null calibration;
   how to read nested vs cluster outlines; "brighter animals" normalisation claim withdrawn.

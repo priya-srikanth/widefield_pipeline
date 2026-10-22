@@ -21547,3 +21547,58 @@ integrity + tracking QC); no O2 fair share left (0.00004), so factor work ran LO
    `wfield_local/face_rhythm_cams.py`; rest faces from cam4-LP rest moments mapped through each camera's alignment
    template; registration from Priya's clicked landmarks + ECC; cam4's trial grid on each camera's clock. Waiting on the
    landmark clicks. cam2 = the animal's LEFT side = ipsilesional; cam3 = right = contralesional.
+
+## 2026-10-22 (afternoon / evening) -- frozen encoder v4 (lick / spout groups), ordered-projection fix, spatial targets, FR grouping
+
+Context: encoding window (d4). Handoff STATUS_2026-10-22_ENCODING_HANDOFF §000c; results ENCODING_FINDINGS §3.4.
+
+1. **Frozen groups rebuilt BY CONSTRUCTION, not by variable name** (Priya: "should we have a 'lick' group and a
+   'spout position information' group?" -> "yes you can build the modified model"). Trigger: the v3 leakage check --
+   the "directionless" group decoded the spout at .60-.69 (chance .17; jaw opening .40-.57, lick timing ~.3) -- and
+   licks / tongue / jaw being redundant readouts of one act (separate drops split credit arbitrarily). Each lick-related
+   movement column = the animal's PRE-STROKE mean trace for that spout at that time (exec_locked) + the deviation
+   (lick for timing / vigour, exec_within for direction). Groups timing / target / exec_locked / exec_within / lick /
+   other / contact. target and exec_locked are confounded by design (both follow the spout); only exec_within separates
+   them, so target vs executed is reported as the ordered bracket (target_first / exec_first), never as two point
+   estimates.
+2. **Templates: two-part time axis and POOLED pre sessions.** Cue-locked templates left the lick group at .38-.42;
+   cue-locked before the first post-cue lick + lick-locked after it barely changed that (.38-.40). With each session's
+   OWN template the lick group fell to .04-.12, so the residual .4 is day-to-day departure from the animal's typical
+   licking at a spout. Priya chose POOLED templates ("let's do pooled"): the spout-locked part is the frozen pre-stroke
+   expectation, so a post-stroke change in licking at a spout (e.g. weaker acute far-contra licks) lands in LICK, which
+   is what lets the frozen model ask whether the drop is explained by changed licking. Session-specific templates would
+   move that change into the spout group. Consequence: "lick" = deviation from typical pre-stroke licking at that spout,
+   and carries spout information whenever behaviour at a spout departs from usual (stated in every write-up).
+3. **Ordered projections: eigenvalue-thresholded pseudo-inverse, PROJ_RCOND = 1e-3.** The v3 solve (~1e-6 ridge)
+   against the near-collinear position blocks had huge weights along their null direction (task_first -1.06 on
+   PS95_0818); 1e-8 still kept PS95's near-null target directions (~1e-7 / 1e-5 of the largest eigenvalue; every real
+   direction > 1e-2): target_first -163. At 1e-3 every ordered variant matches joint within 0.003 (all frames, every
+   session). The test now uses a near-null (not exact) direction and fails under the old cutoff.
+4. **Result (provisional, §3.4):** the acute far-contra post-lick drop is carried by LICK in all five orderings; target
+   <= 1.7 (dF/F x 1e3) even under target_first; data - prediction small and positive. Read as: the pre-stroke mapping,
+   fed the licking actually made, predicts the drop -- less licking-related activity because licking changed, not less
+   activity per lick. Correlational (coupling preserved, direction not determined). PS94 chronic is NOT fit (open: the
+   "other" group -- running / nose y -- drives R2 to -0.4 .. -0.6; without it +0.11).
+5. **Spatial targets for pixel maps** (Priya: "is predicting allen areas really what we want? not a downsampled map?";
+   asked what the literature uses). Musall et al. 2019 fit in each session's SVD space and reconstruct pixel maps; that
+   is not possible for a FROZEN model because every session has its own SVD basis. All sessions' U_atlas share the
+   Allen-aligned 540 x 640 grid (129,770 stat pixels), so `--target basis` builds a per-animal shared basis from the
+   animal's pre sessions (top components to 95 % of pooled pre variance) and `--target grid` uses 8 x 8 px block means
+   as the transparent check. Per animal, not cohort (Priya asked): the model is per animal and maps are averaged in
+   pixel space; a cohort basis spends components on whichever animals dominate (PS95 hardly runs). Spatial runs never
+   build frames x targets arrays (PETHs projected from the small spaces) and store evoked responses per part x spout x
+   target. Area maps (42 Allen areas) kept as the coarse version.
+6. **FaceRhythm grouped for the encoder** (`wfield_local/fr_groups.py`, opt-in hook in fr_signals). Priya: pool lick
+   factors into one directionless amplitude and side-specific ones for direction; "f6 - if it's locked to licking, group
+   with licking"; "if f1 ... not clearly locked to licking can leave out as other"; f4 is central but a direction, so not
+   its own regressor in a directionless model -- kept INSIDE the summed amplitude because the sum is directionless only
+   if every direction's factor is in it. Lick-locking (pre-lick baseline) settled f2 as tonic-with-licking, not
+   lick-locked (first check with a random-time baseline overstated it; the FR window's share-based negative r is a
+   units difference). pilot_v1: lick f0+f4+f5+f9; left f0+f5, centre f4, right f9; other f1 f2 f3 f6 f7 f8 (incl. lick
+   initiation). The lick sum is spout-free in PS92 but not PS93 (.41 / .26; SD balancing does not help) and the "other"
+   factors together decode the spout .31-.57, so "directionless FR" is not a factor subset: run B dropped; the clean
+   route is FR inside the frozen v4 split (next). Run A (all grouped FR) runs per session for how much FR adds.
+7. **Operations:** FR pilot runs LOCALLY (O2 fairshare ~4e-5); the 3-D 2x2 was paused twice for memory (its workers
+   reach ~27 GB each); duplicate chain copies from the morning (killing a step's python lets its wrapper start the next
+   step; `( )` subshells survive their wrapper) were stopped with `taskkill /T` by Priya -- check for older copies before
+   relaunching any chain.
