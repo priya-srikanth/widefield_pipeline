@@ -798,7 +798,27 @@ def cmd_select(sd: Path, rank: int) -> None:
     print(f"FROZEN {pl['set']} [{pl.get('role', 'master')}: {', '.join(sorted(pl['fit']))}] rank {rank} spec {h} -> {m}")
 
 
-def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> None:
+def direction_colours(Wk: np.ndarray) -> np.ndarray:
+    """(P, 3) RGB per point from a factor's x / y spatial weights ``Wk`` (2, P): hue by the movement direction (Rich's
+    convention, as the factor clips): blue = lateral (x), red = vertical (y)."""
+    from matplotlib.colors import hsv_to_rgb
+    ang = np.arctan2(np.abs(Wk[1]), np.abs(Wk[0])) / (np.pi / 2)              # 0 lateral .. 1 vertical
+    return hsv_to_rgb(np.stack([(2 / 3) * (1 - ang), np.ones_like(ang), np.full_like(ang, 0.95)], -1))
+
+
+def position_style(pos: str) -> dict:
+    """Line style per spout position: left blue / right red / centre grey; close solid, far dashed."""
+    c = "tab:blue" if pos.endswith("_L") else "tab:red" if pos.endswith("_R") else "0.4"
+    return {"color": c, "ls": "-" if pos.startswith("close") else "--"}
+
+
+def match_sets(F1: list, F2: list) -> tuple[np.ndarray, np.ndarray]:
+    """`match` of set 1's components to set 2's (spatial x spectral cosine; same mesh points): for each set-1
+    component the matched set-2 column and the (2, R1) cosines."""
+    return match(F1, F2)
+
+
+def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match: Path | None = None) -> None:
     """Factor-set QC into ``<set>/report/``: the rank sweep (rank*.json) and, once frozen, the factor gallery (spatial
     weight on the master face, spectrum, pre-stroke trial averages by position from proj/). Session readouts (epochs,
     EVR gap, morphing, movement maps) are `scripts/face_rhythm_readouts.py`. ``absolute``: time courses as absolute
@@ -857,39 +877,76 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False) -> No
     Wsp, freqs, home, R = M["spatial"], M["freqs"], M["home"], int(M["rank"])
     mag = np.hypot(Wsp[0], Wsp[1])                                       # (P, R) weight per point
     lab = json.loads((sd / "labels.json").read_text()) if (sd / "labels.json").exists() else {}
-    tc, t_ms = {}, None
+    names = {str(k): lab.get(str(k), "") for k in range(R)}
+    if match and (Path(match) / "master.npz").exists():                  # best match in another (named) set
+        Mo = np.load(Path(match) / "master.npz")
+        lab_o = json.loads((Path(match) / "labels.json").read_text()) if (Path(match) / "labels.json").exists() else {}
+        order, cos = match_sets([Wsp.reshape(-1, R), B], [Mo["spatial"].reshape(-1, Mo["spatial"].shape[-1]),
+                                                            Mo["spectral"]])
+        for k in range(R):
+            nm = lab_o.get(str(order[k]), f"#{order[k]}")
+            names[str(k)] = (names[str(k)] + " " if names[str(k)] else "") + \
+                f"~ {Path(match).name}:{nm} (cos {cos[0, k]:.2f} / {cos[1, k]:.2f})"
+    tc, ep_tc, t_ms = {}, {}, None                     # pre by position; by (animal, epoch): one mean per session
     for f in sorted((sd / "proj").glob("*.npz")) if (sd / "proj").exists() else []:
         z = np.load(f)
+        t_ms = z["t_ms"]
+        tr = z["trials"] * (z["trials_D"][..., None] if absolute else 1.0)
+        ep_tc.setdefault((str(z["animal"]), str(z["epoch"])), []).append(np.nanmean(tr, 0))
         if str(z["epoch"]) != "pre":
             continue
-        t_ms = z["t_ms"]
         for pos in np.unique(z["position"]):
-            tr = z["trials"] * (z["trials_D"][..., None] if absolute else 1.0)
             tc.setdefault(str(pos), []).append(np.nanmean(tr[z["position"] == pos], 0))
+    unit = "ABSOLUTE (x D)" if absolute else "share"
     img = plt.imread(face) if face and Path(face).exists() else None
-    fig, axs = plt.subplots(R, 3, figsize=(11, 2.3 * R), gridspec_kw={"width_ratios": [1.1, 1, 1.4]})
+    fig, axs = plt.subplots(R, 3, figsize=(12, 2.4 * R), gridspec_kw={"width_ratios": [1.1, 1, 1.4]})
     for k, (a0, a1, a2) in enumerate(np.atleast_2d(axs)):
         if img is not None:
             a0.imshow(img, cmap="gray")
         else:
             a0.invert_yaxis()
-        a0.scatter(home[:, 0], home[:, 1], c=mag[:, k], s=3, cmap="magma", vmin=0)
+        a0.scatter(home[:, 0], home[:, 1], c=direction_colours(Wsp[..., k]), s=1 + 30 * mag[:, k] / mag[:, k].max(),
+                   linewidths=0)
         a0.set_aspect("equal")
         a0.axis("off")
-        a0.set_title(f"factor {k}{' ' + lab[str(k)] if str(k) in lab else ''}: where (image right = ipsi)", fontsize=8)
+        a0.set_title(f"factor {k} {names[str(k)]}\nblue = lateral, red = vertical; size = weight (image right = ipsi)",
+                     fontsize=7)
         a1.plot(freqs, B[:, k])
         a1.set_xscale("log")
-        a1.set_title(f"peak {freqs[np.argmax(B[:, k])]:.1f} Hz", fontsize=8)
+        a1.set(xlabel="Hz")
+        a1.set_title(f"spectrum: peak {freqs[np.argmax(B[:, k])]:.1f} Hz", fontsize=8)
         for pos, xs in sorted(tc.items()):
-            a2.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k], lw=1, label=pos)
+            a2.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k], lw=1, label=f"{pos} (n={len(xs)})", **position_style(pos))
         a2.axvline(0, color="k", lw=0.5)
-        a2.set_title(f"pre-stroke trials by position, {'ABSOLUTE (x D)' if absolute else 'share'} (cue = 0 s)", fontsize=8)
+        a2.set_title(f"pre-stroke trials by position, {unit} (cue = 0 s)", fontsize=8)
         if k == 0 and tc:
             a2.legend(fontsize=6, ncol=2)
-    fig.suptitle(f"{M['set']} rank {R} (spec {M['spec_hash']})", fontsize=9)
+    fig.suptitle(f"{M['set']} [{str(M['role']) if 'role' in M else 'master'}] rank {R} (spec {M['spec_hash']}); "
+                 f"pre-stroke sessions on their LEFT-OUT-DAY basis where it exists", fontsize=9)
     fig.tight_layout()
     fig.savefig(rd / f"factor_gallery{'_abs' if absolute else ''}.png", dpi=110)
     plt.close(fig)
+    eps = [e for e in ("pre", "acute", "subacute", "chronic") if any(k[1] == e for k in ep_tc)]
+    if len(eps) > 1:                                    # cue-aligned by epoch, per animal (all engaged trials)
+        ans = sorted({a for a, _ in ep_tc})
+        fig, axs = plt.subplots(R, len(ans), figsize=(4.2 * len(ans), 2.1 * R), squeeze=False, sharex=True)
+        col = {"pre": "k", "acute": "tab:red", "subacute": "tab:orange", "chronic": "tab:blue"}
+        for k in range(R):
+            for j, an in enumerate(ans):
+                ax = axs[k, j]
+                for e in eps:
+                    xs = ep_tc.get((an, e))
+                    if xs:
+                        ax.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k], color=col[e], lw=1.1, label=f"{e} ({len(xs)})")
+                ax.axvline(0, color="k", lw=0.5)
+                ax.set_title(f"{an} factor {k} {names[str(k)].split(' ~ ')[-1][:40]}", fontsize=7)
+                if k == 0:
+                    ax.legend(fontsize=6)
+        fig.suptitle(f"{M['set']}: cue-aligned {unit} expression by epoch (mean of session means; all engaged trials)",
+                     fontsize=9)
+        fig.tight_layout()
+        fig.savefig(rd / f"factor_epochs{'_abs' if absolute else ''}.png", dpi=100)
+        plt.close(fig)
     print(f"report -> {rd}")
 
 
@@ -904,6 +961,9 @@ def main(argv=None) -> int:
     ap.add_argument("--task", type=int, default=None)
     ap.add_argument("--face", type=Path, default=None, help="report: master face image under the spatial maps")
     ap.add_argument("--absolute", action="store_true", help="report: time courses as absolute expression (x D)")
+    ap.add_argument("--match", type=Path, default=None,
+                    help="report: another factor-set folder (master.npz [+ labels.json]): label each factor with its "
+                         "best match there (e.g. the named PS92 preview)")
     ap.add_argument("--trials-per-animal", type=int, default=60)
     ap.add_argument("--session-trials", type=int, default=60)
     ap.add_argument("--between-frac", type=float, default=0.25)
@@ -937,7 +997,7 @@ def main(argv=None) -> int:
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank), "select": lambda: cmd_select(sd, a.rank),
      "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits),
      "loso": lambda: cmd_loso(sd, task),
-     "report": lambda: cmd_report(sd, a.face, a.absolute)}[a.cmd]()
+     "report": lambda: cmd_report(sd, a.face, a.absolute, a.match)}[a.cmd]()
     return 0
 
 
