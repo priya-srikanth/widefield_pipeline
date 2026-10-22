@@ -21423,3 +21423,21 @@ cam4 alone (the documented fallback), so the LP gate misses the small licks only
 post-stroke) -- cross-animal LP_licks comparisons (PS95 especially) carry that until cam1 lands. The LP cache tag now
 includes a digest of the cam1 event folder (`306ba22`, branch lick/lp-source) so new cam1 files force a full LP
 recompute; on arrival rerun `scripts/trial_attempts.py` (its `combined` latency feeds the gate) and then the LP renders.
+
+## 2026-10-21 (night) -- Faster epoch map renders: per-session map cache, parallel collection, --parallel-arms
+
+Priya: "there is plenty of free CPU and RAM - could we make this faster in the future" -> "yes". MEASURED: the 15r / 14
+collectors walked ~120 sessions serially (~13 s per session per arm for the position maps; 30 MB pickled each), kept the
+maps only in an in-process lru_cache, and the arms ran one after another -- the 10-21 `--only 15r 15e 14m` rerender
+took 16:32 -> 20:13 (3 h 41 m) at ~12 % CPU, rebuilding every map although only the SIGNIFICANCE TESTS had changed.
+BUILT (`wfield_local/map_collect.py`, merged 53ad8fd): (1) session_cache entries per session x arm for
+`position_reference_maps.session_raw_maps` and `beta_maps.session_maps`, keyed on a SOURCE DIGEST of the map-building
+functions / modules (so a test or figure edit keeps the cache warm and a map-code edit invalidates it without a manual
+bump; `MAPS_VERSION` for what the digest cannot see), the arguments, defaults.yaml, the ENL window, the LP tag, and the
+U_atlas / quiet-mask file stats; (2) the session loop fanned over cores (WIDEFIELD_MAP_JOBS, default min(4,
+default_jobs)), results keyed by label so downstream order is the old serial order (rule 9); (3)
+`epoch_grant_figures --parallel-arms N` (children per arm; 1b / 1c once in the parent; logs in <tmp>/epoch_arms_*).
+CHECKED: cached maps bit-identical to direct (15r PS94_0820 lick; 14 PS93_0819 cue); 15r cold 6.2 s / session effective
+with 4 workers (share-I/O bound), warm 0.13 s / session (~100x); 14 cold 3.6 s, warm 0.03 s. Suite 3436 passed.
+Expected: cold full render ~1 h with --parallel-arms 3; warm (tests / figures only) ~10-20 min. Cache size ~18-30 GB on
+C: (396 GB free). First render after the merge pays the cold build once.

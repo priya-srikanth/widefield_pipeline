@@ -158,7 +158,7 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 
 | what | task / log | then |
 |---|---|---|
-| Rerender after the normalised tests (main): epoch 15r / 15e / 14m, then within-spout figures (8 folders), mixed models (z maps), `compare_map_tests.py` | `S/run_rerender_norm.sh`; logs `S/rerender_epoch.log`, `S/rerender_ws.log`, `S/rerender_mixed_<folder>.log`, `S/compare_map_tests.log`; started 16:32, first arm still running at 18:05 (CPU shared) | read `labcams/grant_figures/epoch/results/map_tests_raw_vs_normalised.csv`; links to new figures; ENCODING_FINDINGS |
+| Rerender after the normalised tests (main) | DONE 21:09 (all steps exit 0); comparison `labcams/grant_figures/epoch/results/map_tests_raw_vs_normalised.csv` (353 cells, 30 moved >= 5 pts: mostly acute near-spout precue-ref cells; rest ref small; far contra unchanged) | ENCODING_FINDINGS already carries the caveat |
 | ENL LP census | DONE: `E/qc/enl_lp_census{,_summary}.csv` | window chosen: 1.0 s (DECISIONS late evening) |
 | jaw_onsets watcher (`S/watch_jaw.sh`) | EXPIRED 18:13, no rewrite seen | restart only if the pose window still plans the rewrite |
 
@@ -168,8 +168,8 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
    PS93 pre far_L / far_center, 66 % of acute far_R; 1.0 s >= 95 % everywhere). `WIDEFIELD_ENL_WINDOW_S`; outputs
    `LP_licks/` and `DAQ_ENL1s/`; frozen precue specs carry the window -> run the DAQ_ENL1s arm FIRST (it freezes the
    1.0 s precue set; LP reuses it).
-2. Full test suite in `S/wf_lp`; merge `lick/lp-source` to main (it touches `_trial_features`'s module, the shared lick
-   loader and `session_cache`: wait until the normalised rerender is done -- spawned render workers import from main).
+2. DONE 21:30: LP_licks + render speed-ups MERGED to main (`53ad8fd`, suite 3436 passed). LP renders: set
+   `WIDEFIELD_LICK_SOURCE=lp`, use `--parallel-arms 3` (and the map cache warms on the first run).
 3. Per animal x position x epoch table: LP vs DAQ engaged / no-lick trial counts (rule 8) before any figure.
 4. Null calibration of the LP lick maps (`map_test_calibration.py --family position` under the LP env).
 5. First LP render: `WIDEFIELD_LICK_SOURCE=lp python -m wfield_local.epoch_grant_figures --only 14m 15r acc 5c` (lick,

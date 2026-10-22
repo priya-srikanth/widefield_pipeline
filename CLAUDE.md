@@ -147,6 +147,8 @@ took 8–10 h; it takes 1 h 51 m. That estimate was made before the parallel ren
 | non-epoch `grant_figures -j 5` + `10cs` + `recovery_trajectory` | **42 min** | 2026-09-12 |
 | deck build + `deck_split` | **~1.5 min** | 2026-09-12 (the split alone is 14 s) |
 | one per-day date + cross-session + deck rebuild | **1 h 30 m** | 2026-09-09, `nightly_figs 0908 --skip-grant --skip-poststroke --skip-frozen --skip-nolick` |
+| epoch `--only 15r 15e 14m`, serial arms, no map cache | **3 h 41 m** at ~12 % CPU | 2026-10-21 (normalised-test rerender) |
+| per-session pixel maps, 15r collector | **13 s** serial; **6.2 s** effective with 4 workers (cold); **0.13 s** warm | 2026-10-21, `map_collect` |
 
 So a full stage 2 DOES fit in a night, and `--skip-grant` is no longer the routine choice it was —
 the grant render is now ~18% of the run, not half of it. It still exists (and `await_locanmf`
@@ -158,6 +160,11 @@ not-refreshed.
 was not, and the 200-builds-for-40-sessions figure that followed from it, described the render
 BEFORE that change and is the single reason the 8–10 h estimate persisted. Do not re-derive a
 timing from that paragraph; measure it.
+
+**EPOCH MAP RENDERS ARE CACHED + PARALLEL SINCE 2026-10-21** (`wfield_local/map_collect.py`): per-session pixel maps
+(15r, 14) live in the session cache keyed on the map-building SOURCE, so a re-render after a test / figure change is
+warm (~100x on the collection); `WIDEFIELD_MAP_JOBS` fans the session loop; `epoch_grant_figures --parallel-arms 3`
+runs the arms concurrently (~6 GB RAM per arm). Use both for any multi-arm render.
 
 **RE-RENDER ONE FAMILY RATHER THAN THE SET.** `python -m wfield_local.grant_figures --only <key>
 -j <N>` and `python -m wfield_local.epoch_grant_figures --only <key>` both exist, and a unit is one
