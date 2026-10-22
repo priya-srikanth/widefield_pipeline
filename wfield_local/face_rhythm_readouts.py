@@ -7,8 +7,9 @@ ACROSS animals (one mesh, one frozen pre-stroke basis):
   amplitudes     pre-stroke components refit to every session: mean factor amplitude per session -- as a SHARE of
                  the frame's movement (amp_) and as ABSOLUTE expression (abs_ = weights x FR normaliser D) -- in the pre-cue
                  (cue -2..0 s) and response (0..+4 s) windows of engaged trials (25 Hz), BETWEEN trials (5 Hz bins
-                 outside cue -3..+6 s, candidate grooming excluded) and in candidate GROOMING (`large_movement`;
-                 + groom_frac) -- "non-task movements preserved?" is between vs response; per position too.
+                 outside cue -3..+6 s, LARGE MOVEMENT excluded; the MEDIAN, so rare large events cannot drive it) and in
+                 LARGE MOVEMENT (`large_movement`, + large_frac) -- "non-task movements preserved?" is between vs
+                 response; per position too.
   reconstruction relative reconstruction error of each session by the frozen basis (movement outside the pre-stroke
                  repertoire).
   evr_gap        each session's OWN rank-R fit vs the frozen basis on the same rows (EVR own - frozen), and how far its
@@ -40,10 +41,12 @@ MASTER_MIDLINE_X = 342.0
 
 def large_movement(ts: np.ndarray, D: np.ndarray, cues: np.ndarray, pct: float = 99.0, min_s: float = 0.4,
                    widen_s: float = 1.0) -> np.ndarray:
-    """Boolean per session bin: CANDIDATE GROOMING -- whole-face movement (FR normaliser D) above the session's
+    """Boolean per session bin: LARGE non-task MOVEMENT -- whole-face movement (FR normaliser D) above the session's
     ``pct`` percentile of response-window bins (cue 0..+4 s: the licking range), outside response windows, in runs of
-    >= ``min_s``, widened by ``widen_s``. 10-21: PS92_0806's top lick-factor event (D 37 vs licking p99 18.7, 27 s after
-    a cue) was grooming. Paw-based grooming is not tracked; check candidates with the factor clips."""
+    >= ``min_s``, widened by ``widen_s``. NOT a grooming detector (10-21, Priya's calls on PS92_0806 clips): it catches
+    the big grooming bouts but also vigorous spontaneous licking, and misses small grooming; neither LP licks (LP
+    reports licks during grooming) nor regional speed (upper face / nose vs mouth) separated them. A grooming label
+    needs the paws or hand-labelled bouts (factor clips --window large)."""
     resp = np.zeros(len(ts), bool)
     for c in cues:
         resp |= (ts >= c + WINDOWS["response"][0]) & (ts < c + WINDOWS["response"][1])
@@ -123,18 +126,20 @@ def amplitudes(fdir: Path, names: list[str], absolute: bool = False) -> tuple[pd
             d = ts - cues[np.clip(kk, 0, len(cues) - 1)]
             near |= ok & (d >= BUSY_S[0]) & (d <= BUSY_S[1])
         gm = large_movement(ts, z["session_D"], cues) if "session_D" in z.files else np.zeros(len(ts), bool)
-        for w_, sel in (("between", ~near & ~gm), ("groom", gm)):           # non-task movement vs candidate grooming
+        for w_, sel in (("between", ~near & ~gm), ("large", gm)):         # MEDIANS: bins kept, summarised below
             x = ws[sel]
-            x = x[np.isfinite(x).all(1)]
-            s0, n0 = acc.get(w_, (0.0, 0))
-            acc[w_] = (s0 + x.sum(0), n0 + len(x))
-        g0 = acc.get("_groom_frac", (0.0, 0))
-        acc["_groom_frac"] = (g0[0] + gm.sum(), g0[1] + len(gm))
+            acc.setdefault(f"_bins_{w_}", []).append(x[np.isfinite(x).all(1)])
+        g0 = acc.get("_large_frac", (0.0, 0))
+        acc["_large_frac"] = (g0[0] + gm.sum(), g0[1] + len(gm))
     rows = []
     for lab, acc in sums.items():
         r = {"label": lab}
-        gf = acc.pop("_groom_frac", (0.0, 0))
-        r["groom_frac"] = gf[0] / gf[1] if gf[1] else np.nan
+        gf = acc.pop("_large_frac", (0.0, 0))
+        r["large_frac"] = gf[0] / gf[1] if gf[1] else np.nan
+        for w_ in ("between", "large"):
+            xb = np.concatenate(acc.pop(f"_bins_{w_}", [np.empty((0, len(names)))]))
+            r.update({f"{pre_}_{names[k]}_{w_}": (float(np.median(xb[:, k])) if len(xb) else np.nan)
+                      for k in range(len(names))})
         for w, (s, n) in acc.items():
             r.update({f"{pre_}_{names[k]}_{w}": (s[k] / n if n else np.nan) for k in range(len(names))})
         rows.append(r)
