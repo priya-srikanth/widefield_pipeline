@@ -93,7 +93,9 @@ def fill_gaps(byplate):
 
 
 def render(sections, masks_dir, plates_pdf, colors, out_stem, title, ncol=4, interpolate_gaps=True, per_line=4,
-           polygons_dir=None):
+           polygons_dir=None, style="filled"):
+    """style: "filled" (translucent fill + thin outline) or "outline" (coloured outlines only, no fill; Priya
+    2026-10-22: overlapping fills made animals hard to tell apart)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -118,8 +120,12 @@ def render(sections, masks_dir, plates_pdf, colors, out_stem, title, ncol=4, int
                 if g.is_empty or not hasattr(g, "exterior"):
                     continue
                 x, y = g.exterior.xy
-                ax.fill(x, y, color=colors[a], alpha=0.22 if ii else 0.35, lw=0)
-                ax.plot(x, y, color=colors[a], lw=1.0, alpha=0.9, ls=(0, (3, 2)) if ii else "-")
+                if style == "filled":
+                    ax.fill(x, y, color=colors[a], alpha=0.22 if ii else 0.35, lw=0)
+                    ax.plot(x, y, color=colors[a], lw=1.0, alpha=0.9, ls=(0, (3, 2)) if ii else "-")
+                else:
+                    ax.plot(x, y, color=colors[a], lw=1.4 if ii else 1.9, alpha=0.95,
+                            ls=(0, (3, 2)) if ii else "-", solid_joinstyle="round")
         yy, xx = np.nonzero(R["brain"]); pp = R["ppm"]
         ax.set_xlim(xx.min() / pp - 6.15, xx.max() / pp - 5.85); ax.set_ylim(yy.max() / pp + 0.15, yy.min() / pp - 0.15)
         n = {a: len(v) for a, v in byplate[f].items()}
@@ -128,7 +134,8 @@ def render(sections, masks_dir, plates_pdf, colors, out_stem, title, ncol=4, int
         ax.set_title(f"Bregma {P['bregma']:+.2f} mm\n" + "\n".join("  ".join(labs[i:i + per_line])
                      for i in range(0, len(labs), per_line)), fontsize=10 if len(labs) <= per_line else 8.5,
                      linespacing=1.4)
-    handles = [Patch(color=colors[a], alpha=0.5, label=a) for a in sorted(colors)]
+    handles = ([Patch(color=colors[a], alpha=0.5, label=a) for a in sorted(colors)] if style == "filled" else
+               [Line2D([0], [0], color=colors[a], lw=2.2, label=a) for a in sorted(colors)])
     if interp:
         handles.append(Line2D([0], [0], color="0.3", ls=(0, (3, 2)), label="interpolated between measured sections"))
     fig.legend(handles=handles, loc="lower center", ncol=len(handles), frameon=False, fontsize=9)
