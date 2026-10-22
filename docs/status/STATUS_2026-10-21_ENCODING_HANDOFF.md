@@ -154,15 +154,24 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
     `scripts/enl_lp_census.py` (branch) applies `precue_window_start` to DAQ vs LP trains at 2.0 / 1.5 / 1.0 / 0.5 s.
     PS93_0809 (pre, worst session): kept DAQ 91 % / LP 67 % at 2 s; LP 90 % at 1.5 s, 99 % at 1 s. Cohort run RUNNING.
 
-## 2. RUNNING (updated 10-21 ~18:05)
+## 2. RUNNING (updated 10-21 ~22:45)
 
 | what | task / log | then |
 |---|---|---|
 | Rerender after the normalised tests (main) | DONE 21:09 (all steps exit 0); comparison `labcams/grant_figures/epoch/results/map_tests_raw_vs_normalised.csv` (353 cells, 30 moved >= 5 pts: mostly acute near-spout precue-ref cells; rest ref small; far contra unchanged) | ENCODING_FINDINGS already carries the caveat |
 | ENL LP census | DONE: `E/qc/enl_lp_census{,_summary}.csv` | window chosen: 1.0 s (DECISIONS late evening) |
 | jaw_onsets watcher (`S/watch_jaw.sh`) | EXPIRED 18:13, no rewrite seen | restart only if the pose window still plans the rewrite |
+| **LP_licks map render** 15r + 14m, `--parallel-arms 3`, from main | started 21:24; log `S/lp_render_maps.log`, arm logs `<tmp>/epoch_arms_20261021_212417/`; output `labcams/grant_figures/LP_licks/epoch/` | first LP run = cold map cache (~1 h+). 4 June sessions (PS92_0608, PS93_0606/0607, PS94_0608) DROPPED in some arms by a result_cache write race (WinError 32) -- see next row; PS93_0813 absent by design (no video) |
+| LP rerender with the race fix, from worktree `S/wf_render` (branch `fix/cache-race`, `0ca1a39`, NOT merged) | `S/run_lp_rerender_fixed.sh` waits for the first render, log `S/lp_render_maps_fixed.log`; warm cache -> fast | overwrites the LP figures with the full session set; then merge `fix/cache-race` to main |
+| **LP null calibration** (15r position maps, lick / cue / ENL 1.0 s) | `S/run_calib_lp.sh` waits for the first render; logs `S/calib_lp_<align>.log`; CSVs `labcams/grant_figures/LP_licks/epoch/results/map_test_calibration_position_<ref>_<align>_<variant>.csv` | read pure-null false positives, drift, real acute (esp. far contra, now drawable) BEFORE showing LP contours |
 
 ## 2c. NEXT for LP_licks, in order
+
+**LP vs DAQ trial counts DONE** (`scripts/lp_trial_counts.py` -> `E/qc/lp_trial_counts{,_summary}.csv`, August pre + post):
+acute far_R engaged trials DAQ 15 / 35 / 13 / 1 -> LP 272 / 231 / 257 / 37 (PS92-95); sessions with a lick-aligned map
+(>= 20 trials) DAQ 0 / 0 / 0 / 0 -> LP 5/5, 4/4, 5/6, 1/1. Acute far_center PS94 2 -> 6 sessions, PS95 0 -> 1. Near positions
+and chronic change < 2 %. PS93 pre far_L +39 % (its non-contact attempts). Agreement: 46,604 engaged under both, 2,031 LP-only,
+18 DAQ-only. PS95 acute is still ONE session.
 
 1. DONE (`4fadded`): ENL census -> Priya chose **1.0 s for LP, plus a matched DAQ 1.0 s arm** (LP 2 s keeps 48 % of
    PS93 pre far_L / far_center, 66 % of acute far_R; 1.0 s >= 95 % everywhere). `WIDEFIELD_ENL_WINDOW_S`; outputs
@@ -258,6 +267,12 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
   masked. Treat as no-lick for lick gates.
 - (evening) Do not edit code in the main checkout while a render runs from it: process-pool workers spawn and import
   the CURRENT files. Code work goes in a worktree (`S/wf_normtest` merged; `S/wf_lp` open).
+- (night) The other window REBASES the shared main checkout (rule 4): my local commits reach origin under NEW SHAs
+  (53ad8fd / b7a2315 / 6a6034b went up as flattened commits, e.g. c4d4411, faf30f3). Verify by FILE CONTENT on origin/main
+  (`git cat-file -e origin/main:<path>`), not `git branch -r --contains <old sha>`.
+- (night) Parallel renders write shared sidecars concurrently: `result_cache` used a fixed `.pkl.tmp` + unguarded replace
+  -> WinError 32 -> sessions silently DROPPED from a collector (printed as `!! <label>: PermissionError`). Fixed on
+  `fix/cache-race`; grep render logs for `PermissionError` after any parallel run.
 - (evening) Cluster-permutation false positives on rest / restw maps are large in AREA (session-wide offset): a cluster
   contour's extent is not evidence of a broad change.
 
