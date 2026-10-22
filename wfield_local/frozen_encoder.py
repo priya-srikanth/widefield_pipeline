@@ -1,0 +1,347 @@
+"""FROZEN pre-stroke encoder in Allen-area space (Priya 10-22: "yes - and do frozen cue-aligned and lick-aligned also").
+
+`combined_encoding` fits every session on its own (kernels, penalties, z-scoring and the movement-first
+orthogonalisation all per session), so its split of an acute change into task / movement parts cannot tell FEWER /
+SMALLER movements from a CHANGED cortical response to the same movement. Here one model per animal is fitted on its
+August pre-stroke sessions and applied, unchanged, to every session:
+
+- regressors: the encoder's full-model variables (`combined_encoding.GROUP_OF`: cue, arrival, the six position
+  deviation blocks, lick kernels, lick angle, tongue, jaw, nose, running) from `raw_blocks`, in RAW units, slow drift
+  projected out per session exactly as the encoder does (`_slow_basis`, DRIFT_MIN_PERIOD_S; the constant is in the
+  basis, so every column and target is centred per session);
+- SCALING: each column divided by the animal's POOLED pre-stroke SD (not the session's own), so a post-stroke session
+  with smaller / rarer licks keeps smaller regressors -- the point of freezing. Pose traces are in LP pixels on a fixed
+  rig (v36 timing / June rescale), so their units are comparable across sessions;
+- NO ORTHOGONALISATION: all groups are fitted jointly (one ridge, the encoder's penalty groups `PEN_GROUP_OF`), so no
+  group is credited by ordering. The per-session encoder residualises task on movement (movement_first), a second
+  reason it credits movement; this model does not;
+- target: area activity Rd = Y @ Ra (the encoder's area averages on the eroded stat mask, + "cortex"), per area name;
+  areas absent from any of the animal's sessions are dropped for that animal;
+- penalties: per penalty group, coordinate search (2 passes over ALPHA_GRID, as the encoder) on LEAVE-ONE-PRE-SESSION-
+  OUT R^2 summed over areas; pre sessions are then scored with the model fitted WITHOUT them, post sessions with the
+  model fitted on all of the animal's August pre sessions.
+
+Per session the output matches `combined_encoding`'s session files where the decomposition reads them: `peth` (cue-
+aligned) and `peth_lick` (first post-cue lick), parts data / full / task / instructed / uninstructed / pos, x position
+x area x offset (PETH_S), plus the frozen model's R^2 (all / cue / lick windows, cortex). `data - full` = activity the
+FROZEN model does not predict: at acute far contra, negative = cortex responds LESS than the pre-stroke mapping
+predicts from the movements actually made.
+
+Usage (same env as the encoder run whose trials / licks it should use, e.g. OROFACIAL_GATE=attempted
+COMBINED_ENCODING_LICKS=combined): python -m wfield_local.frozen_encoder --all --jobs 6 [--tag gate-attempted]
+Output: <E>/frozen_encoder_<tag>/<variant>/sessions/<label>.{npz,json}, fit/<animal>_<variant>.npz,
+fit/pre_stats.pkl.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+
+import numpy as np
+
+STATS_VERSION = 1
+
+
+def _ce():
+    from wfield_local import combined_encoding as ce
+    return ce
+
+
+def session_design(label: str) -> dict:
+    """Raw (drift-removed, session-centred) design X, area targets Rd, column variables, trial alignment frames."""
+    ce = _ce()
+    from wfield_local import config, epochs
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    animal, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    V, ft, Ub, _flat, parea, names, _shape, pstat = ce.load_imaging(label)
+    try:
+        B = ce.load_behaviour(animal, date, rv)
+    except FileNotFoundError as ex:
+        # NO cam1 LICK EVENTS for this session (PS95 all, PS94_1005; cam1 unfinished): cam4 lick timing, as LP_licks
+        # and the per-session encoder runs do; recorded as lick_set "cam4". Any other missing file is still an error.
+        if "cam1_licks" not in str(ex) or not os.environ.get(ce.LICKS_ENV):
+            raise
+        saved = os.environ.pop(ce.LICKS_ENV)
+        try:
+            B = ce.load_behaviour(animal, date, rv)
+        finally:
+            os.environ[ce.LICKS_ENV] = saved
+    T = B.trials
+    E = T[T.engaged & np.isfinite(T.cue_s)].reset_index(drop=True)
+    st = np.where(np.isfinite(E.strobe_s), E.strobe_s, E.cue_s - 3.0)
+    rows = np.zeros(len(ft), bool)
+    for a, b_ in zip(st - 0.5, E.stop_s.to_numpy(float) + 1.0):        # as run_session
+        rows |= (ft >= a) & (ft <= b_)
+    ridx = np.flatnonzero(rows)
+    ftr = ft[ridx]
+    raw = ce.raw_blocks(B, ft)
+    vars_ = list(ce.GROUP_OF)
+    X = np.hstack([raw[v][ridx] for v in vars_]).astype(np.float64)
+    # unknown frames (NaN pose) contribute nothing: the session's column mean, which the centring below removes
+    # (the encoder's `_z` maps NaN to 0 AFTER z-scoring = the same thing)
+    mu = np.nanmean(np.where(np.isfinite(X), X, np.nan), 0)
+    X = np.where(np.isfinite(X), X, np.where(np.isfinite(mu), mu, 0.0)[None, :])
+    col_var = np.concatenate([[v] * raw[v].shape[1] for v in vars_])
+    Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
+    X -= Q @ (Q.T @ X)
+    areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
+    Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
+    Y = V[ridx].astype(np.float64)
+    Y -= Q @ (Q.T @ Y)
+    Rd = Y @ Ra
+    area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
+    ex_ = getattr(B, "extra_lick_on_s", None)
+    lk = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)]))
+    cue_f = np.searchsorted(ftr, E.cue_s.to_numpy(float))
+    first_f = np.full(len(E), -1)
+    for i, (c, stp) in enumerate(zip(E.cue_s.to_numpy(float), E.stop_s.to_numpy(float))):
+        stp = stp if np.isfinite(stp) else c + 3.5
+        j = np.searchsorted(lk, c)
+        if j < len(lk) and lk[j] < stp:
+            first_f[i] = int(np.searchsorted(ftr, lk[j]))
+    win = {"all": np.ones(len(ridx), bool), "cue": np.zeros(len(ridx), bool), "lick": np.zeros(len(ridx), bool)}
+    for c in E.cue_s.to_numpy(float):
+        win["cue"] |= (ftr >= c) & (ftr < c + 1.0)
+    for f in first_f[first_f >= 0]:
+        t0 = ftr[min(f, len(ftr) - 1)]
+        win["lick"] |= (ftr >= t0 - 0.1) & (ftr < t0 + 1.0)
+    return {"label": label, "animal": animal, "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label),
+            "X": X, "Rd": Rd, "area_names": area_names, "col_var": col_var, "pos": E.pos.to_numpy(),
+            "cue_f": cue_f, "first_f": first_f, "fs": float(1.0 / np.median(np.diff(ft))), "win": win,
+            "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E)}
+
+
+def stats_job(label: str):
+    """Sufficient statistics of one session (column layout + per-area Gram terms), for the per-animal fit."""
+    d = session_design(label)
+    X, Rd = d["X"], d["Rd"]
+    return {"label": label, "animal": d["animal"], "epoch": d["epoch"], "col_var": d["col_var"],
+            "area_names": d["area_names"], "n": len(X), "XtX": X.T @ X, "XtY": X.T @ Rd, "YtY": (Rd ** 2).sum(0),
+            "sxx": (X ** 2).sum(0)}
+
+
+def _subset(s: dict, keep: list[str]) -> tuple:
+    ix = [s["area_names"].index(a) for a in keep]
+    return s["XtY"][:, ix], s["YtY"][ix]
+
+
+#: FROZEN VARIANTS (Priya 10-22: "should we also compare encoders with/without movement information?" and the ordered
+#: bounds). All from the same pre-stroke Gram terms; each is a column transform C of the scaled design (Z' = Z @ C):
+#:   joint           all columns, fitted jointly (the ridge splits shared variance) -- the main model
+#:   movement_first  task columns residualised on the movement columns (pre-stroke projection): shared variance -> movement
+#:   task_first      movement columns residualised on task: shared variance -> task
+#:   no_movement     task columns only (cue, arrival, position): what the pre-stroke TARGET responses alone predict
+#:   movement_only   movement columns only (licks, angle, tongue, jaw, nose, running)
+#: The ordered pair brackets the group split; the full prediction (and so data - full) is the same for joint and both
+#: orders up to the ridge. no_movement vs joint: the difference of their residuals = what movement information explains.
+VARIANTS = ("joint", "movement_first", "task_first", "no_movement", "movement_only")
+
+
+def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """((p, p') column transform of the scaled design, (p',) source column of each variant column) for ``variant``
+    (Gt = pooled scaled pre Gram, for the ordered projections)."""
+    p = len(col_var)
+    eye = np.eye(p)
+    if variant == "joint":
+        return eye, np.arange(p)
+    ce = _ce()
+    task = np.array([ce.GROUP_OF[v] == "task" for v in col_var])
+    mov = ~task
+    if variant == "no_movement":
+        return eye[:, task], np.flatnonzero(task)
+    if variant == "movement_only":
+        return eye[:, mov], np.flatnonzero(mov)
+    if variant in ("movement_first", "task_first"):
+        a, b = (mov, task) if variant == "movement_first" else (task, mov)     # residualise b on a
+        Gaa = Gt[np.ix_(a, a)]
+        P = np.linalg.solve(Gaa + 1e-6 * np.trace(Gaa) / a.sum() * np.eye(a.sum()), Gt[np.ix_(a, b)])
+        C = eye.copy()
+        C[np.ix_(a, b)] = -P
+        return C, np.arange(p)
+    raise ValueError(variant)
+
+
+def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "joint") -> dict:
+    """Ridge on the animal's pre sessions (scaled by pooled pre SD), penalties by leave-one-session-out R^2.
+    Returns scale, C (variant column transform), col_var of the variant columns, areas, alphas, beta_all (p', R) and
+    beta_loso {label: (p', R)}."""
+    ce = _ce()
+    alpha_grid = alpha_grid or ce.ALPHA_GRID
+    pen_of = pen_of or ce.PEN_GROUP_OF
+    col_var = stats[0]["col_var"]
+    for s in stats:
+        if len(s["col_var"]) != len(col_var) or (s["col_var"] != col_var).any():
+            raise ValueError(f"{s['label']}: column layout differs from {stats[0]['label']}")
+    areas = [a for a in stats[0]["area_names"] if all(a in s["area_names"] for s in stats)]
+    n = sum(s["n"] for s in stats)
+    sd = np.sqrt(sum(s["sxx"] for s in stats) / n)
+    ok0 = sd > 1e-9
+    scale = np.where(ok0, sd, np.inf)
+    G0 = [s["XtX"] / np.outer(scale, scale) for s in stats]
+    b0 = []
+    yy = []
+    for s in stats:
+        xy, y2 = _subset(s, areas)
+        b0.append(xy / scale[:, None])
+        yy.append(y2)
+    C, src = _variant_transform(variant, col_var, sum(G0))
+    vcol = col_var[src]
+    ok = ok0[src]
+    G = [C.T @ g @ C for g in G0]
+    b = [C.T @ x for x in b0]
+    Gt, bt = sum(G), sum(b)
+    pen_col = np.array([pen_of[v] for v in vcol])
+    groups = sorted(set(pen_col))
+
+    def solve(Gm, bm, al):
+        lam = np.array([al[g] for g in pen_col]) * ok + (~ok) * 1.0
+        return np.linalg.solve(Gm + np.diag(lam) + 1e-8 * np.eye(len(lam)), bm)
+
+    def loso_r2(al):
+        err = tot = 0.0
+        for k in range(len(stats)):
+            beta = solve(Gt - G[k], bt - b[k], al)
+            err += (yy[k] - 2 * (beta * b[k]).sum(0) + np.einsum("pr,pq,qr->r", beta, G[k], beta)).sum()
+            tot += yy[k].sum()
+        return 1.0 - err / tot
+    alphas = {g: 100.0 for g in groups}
+    if len(stats) >= 2:
+        for _ in range(2):
+            for g in groups:
+                alphas[g] = max(alpha_grid, key=lambda a: loso_r2({**alphas, g: a}))
+    beta_all = solve(Gt, bt, alphas)
+    beta_loso = {s["label"]: solve(Gt - G[k], bt - b[k], alphas) for k, s in enumerate(stats)} if len(stats) >= 2 else {}
+    return {"variant": variant, "scale": scale, "C": C, "vcol": vcol, "areas": areas, "alphas": alphas,
+            "beta_all": beta_all, "beta_loso": beta_loso, "col_var": col_var, "src": src,
+            "loso_r2": loso_r2(alphas) if len(stats) >= 2 else np.nan, "pre_labels": [s["label"] for s in stats]}
+
+
+def _peth(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
+    idx = frames[:, None] + off[None, :]
+    ok = (idx >= 0) & (idx < len(R))
+    seg = np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
+    return np.nanmean(seg, 0).T                                   # (areas, off)
+
+
+def predict_job(job):
+    """Apply the animal's frozen models (one per variant) to one session; PETHs of data and each part, cue- and
+    lick-aligned, written to <out>/<variant>/sessions/<label>.{npz,json}."""
+    label, fits, out_dir = job
+    ce = _ce()
+    d = session_design(label)
+    f0 = next(iter(fits.values()))
+    if len(d["col_var"]) != len(f0["col_var"]) or (d["col_var"] != f0["col_var"]).any():
+        raise ValueError(f"{label}: column layout differs from the animal's pre fit")
+    ix = [d["area_names"].index(a) for a in f0["areas"]]
+    Rd = d["Rd"][:, ix]
+    Z = d["X"] / f0["scale"]
+    off = np.arange(int(ce.PETH_S[0] * d["fs"]), int(ce.PETH_S[1] * d["fs"]) + 1)
+    pos_order = sorted(set(d["pos"]))
+    ci_ = f0["areas"].index("cortex")
+    summary = {"label": label}
+    for variant, fit in fits.items():
+        beta = fit["beta_loso"].get(label, fit["beta_all"])
+        frozen_from = "loso" if label in fit["beta_loso"] else "all_pre"
+        Zv = Z @ fit["C"]
+        gcol = np.array([ce.GROUP_OF[v] for v in fit["vcol"]])
+        comp = {"data": Rd, "full": Zv @ beta}
+        for g in ce.GROUPS:
+            m = gcol == g
+            comp[g] = Zv[:, m] @ beta[m] if m.any() else np.zeros_like(Rd)
+        pm = np.isin(fit["vcol"], list(ce.POS_VARS))
+        comp["pos"] = Zv[:, pm] @ beta[pm] if pm.any() else np.zeros_like(Rd)
+        peth = np.full((len(comp), len(pos_order), len(ix), len(off)), np.nan, np.float32)
+        peth_lick = np.full_like(peth, np.nan)
+        n_lick = {}
+        for ci, R in enumerate(comp.values()):
+            for pi, p in enumerate(pos_order):
+                m = d["pos"] == p
+                peth[ci, pi] = _peth(R, d["cue_f"][m], off)
+                fl = d["first_f"][m & (d["first_f"] >= 0)]
+                n_lick[p] = int(len(fl))
+                if len(fl):
+                    peth_lick[ci, pi] = _peth(R, fl, off)
+        r2 = {}
+        for w, wm in d["win"].items():
+            y, yh = Rd[wm, ci_], comp["full"][wm, ci_]
+            r2[w] = float(1.0 - ((y - yh) ** 2).sum() / max(((y - y.mean()) ** 2).sum(), 1e-12)) if wm.any() else None
+        sess = Path(out_dir) / variant / "sessions"
+        sess.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(sess / f"{label}.npz", peth=peth, peth_lick=peth_lick, peth_off_s=off / d["fs"])
+        meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
+                "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
+                "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],
+                "gate": os.environ.get("OROFACIAL_GATE", "reference"), "lick_set": d["lick_set"],
+                "n_trials": d["n_trials"], "n_lick_aligned_by_pos": n_lick, "pos_order": pos_order,
+                "peth_parts": list(comp), "areas": fit["areas"], "frozen_r2_cortex": r2,
+                "stats_version": STATS_VERSION}
+        (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
+        summary[variant] = r2
+        summary["frozen_from"] = frozen_from
+    return summary
+
+
+def main(argv=None) -> int:
+    from wfield_local import analysis_kit as ak
+    from wfield_local import config, epochs
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    from wfield_local.writeguard import assert_writable
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("labels", nargs="*")
+    ap.add_argument("--all", action="store_true")
+    ap.add_argument("--jobs", type=int, default=6)
+    ap.add_argument("--tag", default="gate-attempted")
+    ap.add_argument("--variants", nargs="+", default=list(VARIANTS), choices=VARIANTS)
+    a = ap.parse_args(argv)
+    labels = sorted(a.labels or (_ce().sessions_available() if a.all else []))
+    labels = [x for x in labels if x[-4:] >= "0801"]                       # August-only pre baseline (primary)
+    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    assert_writable(out)
+    pre = [x for x in labels if epochs.epoch_of(x) == "pre"]
+    print(f"[frozen] {len(labels)} sessions, {len(pre)} August pre -> {out}", flush=True)
+    got, fail = ak.fan_sessions(pre, stats_job, jobs=a.jobs)
+    for it, err in fail:
+        print(f"  !! stats {it}: {err}", flush=True)
+    import pickle
+    (out / "fit").mkdir(parents=True, exist_ok=True)
+    # the pre sessions' sufficient statistics are KEPT: the ordered (movement- / task-first) bounds are linear
+    # transforms of the same Gram terms, so they need no second pass over the data
+    (out / "fit" / "pre_stats.pkl").write_bytes(pickle.dumps([s for _l, s in sorted(got, key=lambda kv: kv[0])],
+                                                             protocol=pickle.HIGHEST_PROTOCOL))
+    by_an: dict = {}
+    for _lab, s in got:
+        by_an.setdefault(s["animal"], []).append(s)
+    fits: dict = {}
+    for an in sorted(by_an):
+        st = sorted(by_an[an], key=lambda s: s["label"])
+        fits[an] = {}
+        for v in a.variants:
+            f = fit_animal(st, variant=v)
+            fits[an][v] = f
+            np.savez_compressed(out / "fit" / f"{an}_{v}.npz", scale=f["scale"], C=f["C"], vcol=f["vcol"],
+                                beta_all=f["beta_all"], col_var=f["col_var"], areas=np.array(f["areas"]))
+            print(f"  {an} {v}: {len(st)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
+                  f"alphas {f['alphas']}", flush=True)
+    jobs = [(x, fits[config.animal_of(x)], str(out)) for x in labels if config.animal_of(x) in fits]
+    res, fail = _fan(jobs, a.jobs)
+    for it, err in fail:
+        print(f"  !! predict {it[0]}: {err}", flush=True)
+    for _it, r in sorted(res, key=lambda kv: kv[1]["label"]):
+        print(f"  {r['label']} [{r['frozen_from']}] frozen R^2 cortex (all / cue / lick): "
+              + " | ".join(f"{v} " + " ".join(f"{x:.3f}" if x is not None else "-" for x in r[v].values())
+                           for v in a.variants), flush=True)
+    return 0 if not fail else 1
+
+
+def _fan(jobs, n):
+    from wfield_local import parallel
+    return parallel.fan_out(jobs, predict_job, jobs=n, label="frozen", log=lambda m: print(m[:120], flush=True))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
