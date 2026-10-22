@@ -560,6 +560,43 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
             "restw_positions": restw_positions}
 
 
+def _raw_maps_code() -> str:
+    """Source digest of everything that builds one session's maps (`map_collect.cache_kind`)."""
+    from wfield_local import beta_maps, map_collect, precue_engagement_states, quiet_periods
+    from wfield_local import rest_by_position, rest_engagement
+    return map_collect.code_digest(session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt,
+                                   session_quiet_svt, beta_maps._quit_mask, quiet_periods, rest_engagement,
+                                   rest_by_position, precue_engagement_states)
+
+
+def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
+    """`session_raw_maps`, memoised to disk per session x arm (`map_collect`, 2026-10-21). Extra file inputs not in
+    `session_signature`: the session's U_atlas (the maps' spatial basis) and its quiet-frame mask."""
+    import glob
+
+    from wfield_local import map_collect, session_cache
+    from wfield_local.quiet_periods import quiet_frame_path
+    kind = map_collect.cache_kind("prm", align, variant,
+                                  {"post_s": float(post_s), "min_trials": MIN_TRIALS_PER_CLASS,
+                                   "rest_bins": REST_BASELINE_BINS, "refs": REFERENCES}, _raw_maps_code())
+    mc = session["mc"]
+    ua = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1/U_atlas.npy")   # = joint_basis._load_session
+    try:
+        qp = quiet_frame_path(mc)
+    except Exception:                                                  # noqa: BLE001
+        qp = None
+    params = {"u_atlas": map_collect.stat_sig(ua[0] if ua else None), "quiet": map_collect.stat_sig(qp)}
+    return session_cache.cached(session, kind, lambda: session_raw_maps(session, align, post_s=post_s,
+                                                                         variant=variant),
+                                params=params, verbose=False)
+
+
+def _raw_maps_job(job):
+    """Module-level worker for `map_collect.collect`: ``(label, session, align, post_s, variant)``."""
+    _lab, s, align, post_s, variant = job
+    return session_raw_maps_cached(s, align, post_s=post_s, variant=variant)
+
+
 def reference_maps(parts, reference):
     """Turn one `session_raw_maps` result into one referenced form. ``parts`` is its dict.
 
@@ -628,12 +665,15 @@ def maps_by_epoch(align, variant, post_s=2.0):
     from wfield_local.grant_figures import ANIMALS, _day
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
+    from wfield_local import map_collect
+
     out, rel, n_out = {}, {}, {}
     n_noquiet = n_noprecue = n_norestw = 0
+    # PASS 1: which sessions, at which epoch -- cheap, serial, in the original order.
+    plan = {}
     for an in ANIMALS:
         want = {x for x in config.phase_labels("pre") + config.phase_labels("post")
                 if x.startswith(an)}
-        per, ntr = {}, {}
         for s in [x for x in SESSIONS if x["label"] in want]:
             d = _day(an, s["label"].split("_")[-1])
             if d is None:
@@ -641,11 +681,19 @@ def maps_by_epoch(align, variant, post_s=2.0):
             e = "pre" if int(d) <= 0 else ef.epoch_of_day(an, int(d))
             if e is None:
                 continue
-            try:
-                parts = session_raw_maps(s, align, post_s=post_s, variant=variant)
-            except Exception as ex:                                    # noqa: BLE001
-                print(f"  !! ref-map {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+            plan.setdefault(an, []).append((s, e))
+    # PASS 2: the per-session maps, FANNED OVER CORES and disk-cached (`map_collect`, 2026-10-21). Keyed by label, so
+    # PASS 3 below sees them in the same order as the old serial loop -- never completion order (rule 9).
+    jobs = [(s["label"], s, align, post_s, variant) for v in plan.values() for s, _e in v]
+    by_label, fail = map_collect.collect(jobs, _raw_maps_job, label="ref-map")
+    for it, err in fail:
+        print(f"  !! ref-map {it[0]}: {err[:90]}", flush=True)
+    for an in ANIMALS:
+        per, ntr = {}, {}
+        for s, e in plan.get(an, []):
+            if s["label"] not in by_label:
                 continue
+            parts = by_label[s["label"]]
             raw, used = parts["raw"], parts["used"]
             if not raw:
                 print(f"  .. ref-map {s['label']} {e}: no position reached "

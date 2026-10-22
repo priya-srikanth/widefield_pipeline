@@ -1576,6 +1576,36 @@ def split_half_reliability(maps, n_draw=20, seed=0):
     return float(np.median(rs)) if rs else None
 
 
+def _session_maps_code() -> str:
+    """Source digest of what builds one session's decoder maps (`map_collect.cache_kind`)."""
+    import sklearn
+
+    from wfield_local import joint_basis, map_collect, precue_engagement_states
+    return map_collect.code_digest(session_maps, _runs_to_blocks, _quit_mask, joint_basis._load_session,
+                                   precue_engagement_states) + f"-skl{sklearn.__version__}"
+
+
+def session_maps_cached(session, align, *, post_s=2.0, balance=False, variant="lick"):
+    """`session_maps` (default seed / penalty / folds), memoised to disk per session x arm (`map_collect`,
+    2026-10-21). Extra file input not in `session_signature`: the session's U_atlas."""
+    import glob
+
+    from wfield_local import map_collect, session_cache
+    kind = map_collect.cache_kind("bm", align, variant,
+                                  {"post_s": float(post_s), "balance": bool(balance), "c": C_PENALTY,
+                                   "folds": N_SPLITS, "min_trials": MIN_TRIALS_PER_CLASS}, _session_maps_code())
+    ua = glob.glob(f"{session['mc']}/wfield_local_results/allen_aligned_affine8v1/U_atlas.npy")
+    return session_cache.cached(session, kind, lambda: session_maps(session, align, post_s=post_s, balance=balance,
+                                                                     variant=variant),
+                                params={"u_atlas": map_collect.stat_sig(ua[0] if ua else None)}, verbose=False)
+
+
+def _session_maps_job(job):
+    """Module-level worker for `map_collect.collect`: ``(label, session, align, post_s, balance, variant)``."""
+    _lab, s, align, post_s, balance, variant = job
+    return session_maps_cached(s, align, post_s=post_s, balance=balance, variant=variant)
+
+
 @lru_cache(maxsize=8)
 def maps_by_epoch(align, variant, post_s=2.0, balance=None):
     """``{animal: {epoch: {position: [per-session maps]}}}`` plus per-epoch reliability.
@@ -1607,12 +1637,16 @@ def maps_by_epoch(align, variant, post_s=2.0, balance=None):
     from wfield_local.grant_figures import ANIMALS, _day
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 
+    from wfield_local import map_collect
+
     balance = True if balance is None else bool(balance)
     out, rel, n_out = {}, {}, {}
+    # PASS 1 plan (serial, original order); PASS 2 per-session maps FANNED OVER CORES and disk-cached
+    # (`map_collect`, 2026-10-21), keyed by label so PASS 3 sees the old serial order (rule 9).
+    plan = {}
     for an in ANIMALS:
         want = {x for x in config.phase_labels("pre") + config.phase_labels("post")
                 if x.startswith(an)}
-        per, ntr = {}, {}
         for s in [x for x in SESSIONS if x["label"] in want]:
             d = _day(an, s["label"].split("_")[-1])
             if d is None:
@@ -1620,12 +1654,17 @@ def maps_by_epoch(align, variant, post_s=2.0, balance=None):
             e = "pre" if int(d) <= 0 else ef.epoch_of_day(an, int(d))
             if e is None:
                 continue
-            try:
-                got, used = session_maps(s, align, post_s=post_s, balance=balance,
-                                         variant=variant)
-            except Exception as ex:                                    # noqa: BLE001
-                print(f"  !! beta-map {s['label']}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+            plan.setdefault(an, []).append((s, e))
+    jobs = [(s["label"], s, align, post_s, balance, variant) for v in plan.values() for s, _e in v]
+    by_label, fail = map_collect.collect(jobs, _session_maps_job, label="beta-map")
+    for it, err in fail:
+        print(f"  !! beta-map {it[0]}: {err[:90]}", flush=True)
+    for an in ANIMALS:
+        per, ntr = {}, {}
+        for s, e in plan.get(an, []):
+            if s["label"] not in by_label:
                 continue
+            got, used = by_label[s["label"]]
             if not got:
                 print(f"  .. beta-map {s['label']} {e}: no position reached "
                       f"{MIN_TRIALS_PER_CLASS} trials", flush=True)
