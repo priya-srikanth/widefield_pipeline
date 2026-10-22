@@ -9,6 +9,52 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000. UPDATE 10-22 ~09:40 — read first (supersedes §2 "RUNNING")
+
+**NOTHING of the encoding chain is running now.** What happened this morning:
+1. **Duplicate runs found and stopped.** Four copies of `S/run_chain_1022.sh` (08:44 / 08:45 / 08:51 / 08:52) + the old
+   `S/run_lp_encoder_lick.sh` were live (leftovers of the earlier pause / relaunches: killing a step's python lets its
+   wrapper start the NEXT step). Three were on step 2 writing the SAME lick-aligned folder concurrently (~17 GB), then
+   on step 3. All stopped (Priya ran the `taskkill /T` for the bash trees). **Integrity checked:** the lick-aligned folder
+   `E/movement_first_subset-full_licks-combined_gate-attempted/` = 35 sessions, all json + npz (with `peth_lick`) +
+   regions load, no torn writes (22 PS92 combined, 13 PS94_1005 / PS95 cam4). 3-D 2x2 folders were never created.
+   Check script: `S/check_lick_folder.py <folder>`.
+2. **The real frozen run (08:51) HUNG** in the pre-statistics phase: workers finished (~650 CPU-s each) but the main
+   process never collected (one worker in an "Executive" kernel wait = stalled I/O on M:). Priya stopped it (and the
+   post-frozen queue `S/run_after_frozen.sh`). `fit/pre_stats.pkl` + `fit/*.npz` on the share are from the 08:32 run =
+   BEFORE the protrusion move (STATS_VERSION 3) -> stale; the restart recomputes them (no `--reuse-stats`).
+   `<variant>/sessions/` hold 6 sessions from that stale run; they get overwritten.
+3. **Efficiency audit (Priya: "are things parallelized and using cache/sidecars appropriately?"):**
+   - Input cache works (hits: imaging 5 s + behaviour 5 s per session). One frozen `session_design` = **27 s** (the
+     uncached remainder is `raw_blocks`, 14 s). A per-session design sidecar was REJECTED: X is 170k x 507 (0.35-0.7 GB
+     / session, 35-70 GB for 107) to save ~10 min / run.
+   - **Fits were serial in the main process** (4 animals x (8 variants + 18 drop-spout fits)) with the pool idle ->
+     now one `fit_animal_job` per animal via `fan_sessions` (branch `frozen-parallel-fits` in worktree `S/wf_frozen`,
+     test `test_fit_animal_job_equals_direct_fits`). Merge to main after the tests pass.
+   - **Logs looked empty because stdout was redirected = block-buffered**: relaunch with `PYTHONUNBUFFERED=1` so
+     `fan_out`'s per-item progress lines appear (a hang is then visible in minutes).
+   - Relaunch plan: frozen at `--jobs 6` (44 GB free at 09:10); decompositions 4 at a time; then chain step 2
+     (lick-aligned resume, `--skip-done`, 35 / 119 done) and step 3 (3-D 2x2, 2 workers) SIDE BY SIDE.
+   - Expected: frozen ~30-40 min after relaunch (stats ~4 min, fits parallel, predict ~15-20 min); post-frozen queue
+     (Musall figures, leakage, per-session maps every epoch) ~+30 min; step 2 ~3-4 h; step 3 ~2-3 h.
+4. **Input cache backed up to the server** (Priya: "ensure caches are backed up to the server"):
+   `C:\Users\SabatiniLab\wfield_cache` (106 GB, 720 entries) -> `M:\MICROSCOPE\Priya\Widefield\input_cache_backup\wfield_cache\`
+   by `robocopy /E /XO` (copy only, never deletes; `*.tmp*` partials excluded); log `S/cache_backup.log`. Re-run the same
+   command to refresh. To restore on a fresh box, copy back and set `WFIELD_INPUT_CACHE`; entries are keyed by code hash
+   + env + source mtimes, so stale ones are simply never hit.
+5. **FR pilot projections arriving** (e3): `fr_cam4_20261021/factors/pilot_pre_PS92_PS93/proj/` has PS92_20260818 and
+   PS92_20260820 (acute, scored on the full pre basis). The watcher waits for PS92_0812 / PS92_0820 / PS93_0812.
+6. Other windows asked to free RAM: 5b had nothing running; e3 stopped its output-check script + 2 watchers (pilot fit,
+   pytest and fr JupyterLab kept).
+
+**New pitfalls (add to §4):**
+- **Stopping a bash wrapper does not stop its `( ... )` subshells** -- they carry on to the next step. Kill the whole
+  tree: `taskkill /F /T /PID <wrapper>` (Priya runs kill commands); then list `python.exe` + `bash.exe` command lines to
+  confirm. Never relaunch a chain without first confirming no older copy of it is alive.
+- **Redirected python stdout is block-buffered**: an empty log is not evidence of a hang or of progress. Set
+  `PYTHONUNBUFFERED=1` in chain scripts; diagnose a hang by per-worker CPU deltas (`Get-Process ... CPU` 20 s apart).
+- `fan_out` has no per-task timeout: a worker stuck on an M: read blocks the whole run silently.
+
 ## 0. Rules added 10-21 night / 10-22 (all of the 10-21 §0 still holds)
 
 - **LP_licks results are PROVISIONAL until cam1 finishes** (74 / 108 curated sessions have cam1; PS95 none, PS94_1005

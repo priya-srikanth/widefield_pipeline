@@ -579,24 +579,23 @@ def main(argv=None) -> int:
                                     protocol=pickle.HIGHEST_PROTOCOL))
     by_an: dict = {}
     for _lab, s in got:
-        by_an.setdefault(s["animal"], []).append(s)
+        by_an.setdefault(s["animal"], []).append(s["label"])
+    # one fit job per ANIMAL (variants + drop-spout fits are independent across animals; serial in the main process
+    # they took ~1.5 min / animal for the variants alone while the workers sat idle). Items stay small: the worker
+    # reads the statistics from the pickle written above.
+    fit_items = [(an, str(sp), tuple(sorted(by_an[an])), tuple(a.variants), not a.no_drop_spout) for an in sorted(by_an)]
+    fres, ffail = ak.fan_sessions(fit_items, fit_animal_job, jobs=min(a.jobs, len(fit_items)), label="fit")
+    if ffail:
+        raise RuntimeError(f"frozen fits failed: {[(it[0], err) for it, err in ffail]}")
     fits: dict = {}
-    for an in sorted(by_an):
-        st = sorted(by_an[an], key=lambda s: s["label"])
-        fits[an] = {}
+    for (an, _sp, labs, _v, _d), fa in fres:
+        fits[an] = fa
         for v in a.variants:
-            f = fit_animal(st, variant=v)
-            fits[an][v] = f
+            f = fa[v]
             np.savez_compressed(out / "fit" / f"{an}_{v}.npz", scale=f["scale"], C=f["C"], vcol=f["vcol"],
                                 beta_all=f["beta_all"], col_var=f["col_var"], areas=np.array(f["areas"]))
-            print(f"  {an} {v}: {len(st)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
+            print(f"  {an} {v}: {len(labs)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
                   f"alphas {f['alphas']}", flush=True)
-        if not a.no_drop_spout:                          # frozen drop-one-spout, each ordering (DROP_BASES)
-            for base in DROP_BASES:
-                if base not in fits[an]:
-                    continue
-                for q in st[0]["pos_order"]:
-                    fits[an][f"{base}|drop:{q}"] = fit_animal(st, variant=f"{base}|drop:{q}")
     jobs = [(x, fits[config.animal_of(x)], str(out)) for x in labels if config.animal_of(x) in fits]
     res, fail = _fan(jobs, a.jobs)
     for it, err in fail:
@@ -609,6 +608,21 @@ def main(argv=None) -> int:
               + " | ".join(f"{v} " + " ".join(f"{x:.3f}" if x is not None else "-" for x in r[v].values())
                            for v in a.variants), flush=True)
     return 0 if not fail else 1
+
+
+def fit_animal_job(item):
+    """All of one animal's frozen fits (each variant, then the drop-one-spout fits under DROP_BASES), from the saved
+    pre statistics. Module-level for spawn."""
+    import pickle
+    an, sp, labs, variants, drop = item
+    st = sorted((s for s in pickle.loads(Path(sp).read_bytes()) if s["label"] in set(labs)), key=lambda s: s["label"])
+    fits = {v: fit_animal(st, variant=v) for v in variants}
+    if drop:                                             # frozen drop-one-spout, each ordering (DROP_BASES)
+        for base in DROP_BASES:
+            if base in fits:
+                for q in st[0]["pos_order"]:
+                    fits[f"{base}|drop:{q}"] = fit_animal(st, variant=f"{base}|drop:{q}")
+    return fits
 
 
 def _fan(jobs, n):

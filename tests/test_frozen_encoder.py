@@ -141,3 +141,23 @@ def test_musall_r2_splits_condition_and_single_trial():
     r2 = fe.musall_r2(D, D.copy(), pos)                          # perfect prediction
     for k in ("frame", "trial", "avg"):
         np.testing.assert_allclose(r2[k], 1.0, atol=1e-12)
+
+
+def test_fit_animal_job_equals_direct_fits(tmp_path):
+    """The per-animal fit job (run in a worker, statistics read from the saved pickle) gives the same fits as calling
+    fit_animal in the main process; sessions of other animals / not listed are ignored."""
+    import pickle
+    rng = np.random.default_rng(5)
+    ss = _sessions(rng, n_sess=4)
+    for _x, _y, s in ss:
+        s["col_var"] = np.array(["cue"] * 3 + ["lick_onset"] * 3)
+    st = [s for *_, s in ss]
+    other = dict(st[0], label="S9", animal="B")
+    sp = tmp_path / "pre_stats.pkl"
+    sp.write_bytes(pickle.dumps(st + [other]))
+    labs = ("S0", "S1", "S3")
+    got = fe.fit_animal_job(("A", str(sp), labs, ("joint", "task_first"), False))
+    for v in ("joint", "task_first"):
+        ref = fe.fit_animal([s for s in st if s["label"] in labs], variant=v)
+        np.testing.assert_array_equal(got[v]["beta_all"], ref["beta_all"])
+        assert got[v]["alphas"] == ref["alphas"]
