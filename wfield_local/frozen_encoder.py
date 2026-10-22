@@ -120,8 +120,11 @@ def session_design(label: str) -> dict:
     E = T[T.engaged & np.isfinite(T.cue_s)].reset_index(drop=True)
     st = np.where(np.isfinite(E.strobe_s), E.strobe_s, E.cue_s - 3.0)
     rows = np.zeros(len(ft), bool)
-    for a, b_ in zip(st - 0.5, E.stop_s.to_numpy(float) + 1.0):        # as run_session
-        rows |= (ft >= a) & (ft <= b_)
+    fpos = np.full(len(ft), "", dtype=object)                          # each frame's trial position (drop-spout)
+    for a, b_, p_ in zip(st - 0.5, E.stop_s.to_numpy(float) + 1.0, E.pos.to_numpy()):   # as run_session
+        m_ = (ft >= a) & (ft <= b_)
+        rows |= m_
+        fpos[m_] = p_
     ridx = np.flatnonzero(rows)
     ftr = ft[ridx]
     raw = split_blocks(ce.raw_blocks(B, ft))
@@ -158,7 +161,9 @@ def session_design(label: str) -> dict:
     return {"label": label, "animal": animal, "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label),
             "X": X, "Rd": Rd, "area_names": area_names, "col_var": col_var, "pos": E.pos.to_numpy(),
             "cue_f": cue_f, "first_f": first_f, "fs": float(1.0 / np.median(np.diff(ft))), "win": win,
-            "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E)}
+            "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E),
+            "frame_pos": fpos[ridx], "pos_order": sorted(T.pos.unique()),
+            "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in sorted(T.pos.unique())}}
 
 
 def stats_job(label: str):
@@ -167,7 +172,7 @@ def stats_job(label: str):
     X, Rd = d["X"], d["Rd"]
     return {"label": label, "animal": d["animal"], "epoch": d["epoch"], "col_var": d["col_var"],
             "area_names": d["area_names"], "n": len(X), "XtX": X.T @ X, "XtY": X.T @ Rd, "YtY": (Rd ** 2).sum(0),
-            "sxx": (X ** 2).sum(0)}
+            "sxx": (X ** 2).sum(0), "pos_order": d["pos_order"], "pos_counts": d["pos_counts"]}
 
 
 def _subset(s: dict, keep: list[str]) -> tuple:
@@ -193,9 +198,46 @@ _KEEP = {"no_movement": ("task",), "task_movement": ("task", "movement"),
          "task_movement_dir": ("task", "movement", "direction"), "movement_only": ("movement",)}
 
 
-def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+#: FROZEN DROP-ONE-SPOUT (Priya 10-22: "should we do a leave-one-spout out but without removing movement first" -> yes):
+#: `<base>|drop:<p>` = base variant (joint / task_first / movement_first) with spout p's position deviation constrained
+#: to the trial-weighted mean of the others, exactly `combined_encoding.raw_blocks(drop_pos=p)`: with deviation blocks
+#: D_q = X_q - m_q * shared, the drop-p columns are D_q + m_q / (1 - m_p) * D_p (q != p) and D_p is removed -- a column
+#: recombination, so it is one more transform of the same Gram terms (m = the animal's POOLED pre trial shares, frozen
+#: like everything else). Scored on every session as the loss of variance vs the base (window offset free, all frames
+#: and spout p's own trials). task_first = position BEFORE movement (upper bound on spout-specific coding),
+#: movement_first = the encoder's order (lower bound), joint = ridge split.
+DROP_BASES = ("joint", "task_first", "movement_first")
+
+
+def _drop_transform(col_var: np.ndarray, pos_order: list, frac: dict, drop: str) -> tuple[np.ndarray, np.ndarray]:
+    ce = _ce()
+    p = len(col_var)
+    C = np.eye(p)
+    gone = []
+    k = pos_order.index(drop)
+    mp = frac[drop]
+    for var in ce.POS_VARS:
+        idx = np.flatnonzero(col_var == var)
+        if len(idx) % len(pos_order):
+            raise ValueError(f"{var}: {len(idx)} columns not divisible by {len(pos_order)} positions")
+        ch = idx.reshape(len(pos_order), -1)                       # raw_blocks order: one chunk per position
+        for j, q in enumerate(pos_order):
+            if j != k:
+                C[ch[k], ch[j]] += frac[q] / max(1.0 - mp, 1e-9)
+        gone.extend(ch[k].tolist())
+    keep = np.setdiff1d(np.arange(p), gone)
+    return C[:, keep], keep
+
+
+def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: dict | None = None
+                       ) -> tuple[np.ndarray, np.ndarray]:
     """((p, p') column transform of the scaled design, (p',) source column of each variant column) for ``variant``
-    (Gt = pooled scaled pre Gram, for the ordered projections)."""
+    (Gt = pooled scaled pre Gram, for the ordered projections; ``pos`` = {"order", "frac"} for drop variants)."""
+    base, _, drop = variant.partition("|drop:")
+    if drop:
+        C1, src1 = _drop_transform(col_var, pos["order"], pos["frac"], drop)
+        C2, src2 = _variant_transform(base, col_var[src1], C1.T @ Gt @ C1)
+        return C1 @ C2, src1[src2]
     p = len(col_var)
     eye = np.eye(p)
     if variant == "joint":
@@ -238,7 +280,10 @@ def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "
         xy, y2 = _subset(s, areas)
         b0.append(xy / scale[:, None])
         yy.append(y2)
-    C, src = _variant_transform(variant, col_var, sum(G0))
+    order = list(stats[0]["pos_order"])
+    cnt = {q: sum(s["pos_counts"].get(q, 0) for s in stats) for q in order}
+    frac = {q: cnt[q] / max(sum(cnt.values()), 1) for q in order}
+    C, src = _variant_transform(variant, col_var, sum(G0), {"order": order, "frac": frac})
     vcol = col_var[src]
     ok = ok0[src]
     G = [C.T @ g @ C for g in G0]
@@ -267,7 +312,8 @@ def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "
     beta_loso = {s["label"]: solve(Gt - G[k], bt - b[k], alphas) for k, s in enumerate(stats)} if len(stats) >= 2 else {}
     return {"variant": variant, "scale": scale, "C": C, "vcol": vcol, "areas": areas, "alphas": alphas,
             "beta_all": beta_all, "beta_loso": beta_loso, "col_var": col_var, "src": src,
-            "loso_r2": loso_r2(alphas) if len(stats) >= 2 else np.nan, "pre_labels": [s["label"] for s in stats]}
+            "loso_r2": loso_r2(alphas) if len(stats) >= 2 else np.nan, "pre_labels": [s["label"] for s in stats],
+            "pos_order": order, "pos_frac": frac}
 
 
 def _peth(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
@@ -293,17 +339,34 @@ def predict_job(job):
     pos_order = sorted(set(d["pos"]))
     ci_ = f0["areas"].index("cortex")
     summary = {"label": label}
+    # SSE subsets for the drop-spout scores: window x (all frames | each spout's own trials), window offset free
+    subsets = {(w, q): wm & ((d["frame_pos"] == q) if q != "all" else True)
+               for w, wm in d["win"].items() for q in ["all", *pos_order]}
+    sst = {f"{w}|{q}": (((Rd[m] - Rd[m].mean(0)) ** 2).sum(0)).tolist() for (w, q), m in subsets.items() if m.any()}
+    drop_sse = {}
+
+    def _sse(pred):
+        out = {}
+        for (w, q), m in subsets.items():
+            if m.any():
+                r = Rd[m] - pred[m]
+                out[f"{w}|{q}"] = (((r - r.mean(0)) ** 2).sum(0)).tolist()
+        return out
     for variant, fit in fits.items():
         beta = fit["beta_loso"].get(label, fit["beta_all"])
         frozen_from = "loso" if label in fit["beta_loso"] else "all_pre"
-        Zv = Z @ fit["C"]
+        Ce = fit["C"]                                     # effective weights on the scaled design: Z @ (C @ beta)
+        if "|drop:" in variant or variant in DROP_BASES:
+            drop_sse[variant] = _sse(Z @ (Ce @ beta))
+        if "|drop:" in variant:
+            continue
         gcol = np.array([FGROUP[v] for v in fit["vcol"]])
-        comp = {"data": Rd, "full": Zv @ beta}
+        comp = {"data": Rd, "full": Z @ (Ce @ beta)}
         for g in FGROUPS:
             m = gcol == g
-            comp[g] = Zv[:, m] @ beta[m] if m.any() else np.zeros_like(Rd)
+            comp[g] = Z @ (Ce[:, m] @ beta[m]) if m.any() else np.zeros_like(Rd)
         pm = np.isin(fit["vcol"], list(ce.POS_VARS))
-        comp["pos"] = Zv[:, pm] @ beta[pm] if pm.any() else np.zeros_like(Rd)
+        comp["pos"] = Z @ (Ce[:, pm] @ beta[pm]) if pm.any() else np.zeros_like(Rd)
         peth = np.full((len(comp), len(pos_order), len(ix), len(off)), np.nan, np.float32)
         peth_lick = np.full_like(peth, np.nan)
         n_lick = {}
@@ -332,7 +395,60 @@ def predict_job(job):
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2
         summary["frozen_from"] = frozen_from
+    if drop_sse:
+        dd = Path(out_dir) / "dropspout" / "sessions"
+        dd.mkdir(parents=True, exist_ok=True)
+        (dd / f"{label}.json").write_text(json.dumps(
+            {"label": label, "animal": d["animal"], "epoch": d["epoch"], "areas": f0["areas"], "pos_order": pos_order,
+             "sst": sst, "sse": drop_sse, "lick_set": d["lick_set"], "stats_version": STATS_VERSION},
+            default=str), encoding="utf-8")
     return summary
+
+
+def summarise_drop(out: Path) -> None:
+    """Frozen drop-one-spout table: per session, base, spout q, window, subset (all frames | q's own trials), area:
+    dR2 = (SSE[base|drop:q] - SSE[base]) / SST; then animal x epoch means (rule 8: animals first).
+    -> <out>/dropspout/frozen_dropspout{,_by_animal}.csv"""
+    import pandas as pd
+    rows = []
+    for js in sorted((Path(out) / "dropspout" / "sessions").glob("*.json")):
+        m = json.loads(js.read_text(encoding="utf-8"))
+        if m["label"][-4:] < "0801":
+            continue
+        for base in DROP_BASES:
+            if base not in m["sse"]:
+                continue
+            for q in m["pos_order"]:
+                v = f"{base}|drop:{q}"
+                if v not in m["sse"]:
+                    continue
+                for key, sst in m["sst"].items():
+                    w, sub = key.split("|")
+                    if sub not in ("all", q):
+                        continue
+                    d = (np.asarray(m["sse"][v][key]) - np.asarray(m["sse"][base][key])) / np.maximum(sst, 1e-12)
+                    for ai, area in enumerate(m["areas"]):
+                        rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "base": base,
+                                     "spout": q, "window": w, "subset": "all" if sub == "all" else "own",
+                                     "area": area, "dR2": float(d[ai])})
+    if not rows:
+        print("  (no drop-spout files)")
+        return
+    T = pd.DataFrame(rows)
+    A = (T.groupby(["animal", "epoch", "base", "spout", "window", "subset", "area"])
+         .agg(dR2=("dR2", "mean"), n_sess=("label", "nunique")).reset_index())
+    dd = Path(out) / "dropspout"
+    T.to_csv(dd / "frozen_dropspout.csv", index=False, float_format="%.5g")
+    A.to_csv(dd / "frozen_dropspout_by_animal.csv", index=False, float_format="%.5g")
+    pd.set_option("display.width", 220)
+    order = ["pre", "acute", "subacute", "chronic"]
+    for area in ("cortex", "SSp-m_left"):
+        S = A[(A.spout == "far_contra") & (A.window == "lick") & (A.subset == "own") & (A.area == area)]
+        if len(S):
+            P = (S.pivot_table(index=["base", "animal"], columns="epoch", values="dR2") * 1e3)
+            print(f"\n=== frozen drop far_contra, {area}, lick window, far-contra trials, dR2 x1e3")
+            print(P.reindex(columns=[c for c in order if c in P.columns]).round(1).to_string())
+    print(f"\n-> {dd / 'frozen_dropspout_by_animal.csv'}")
 
 
 def main(argv=None) -> int:
@@ -348,7 +464,12 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--tag", default="gate-attempted")
     ap.add_argument("--variants", nargs="+", default=list(VARIANTS), choices=VARIANTS)
+    ap.add_argument("--no-drop-spout", action="store_true", help="skip the frozen drop-one-spout variants")
+    ap.add_argument("--summarise-drop", action="store_true", help="only rebuild the drop-spout table from saved files")
     a = ap.parse_args(argv)
+    if a.summarise_drop:
+        summarise_drop(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}")
+        return 0
     labels = sorted(a.labels or (_ce().sessions_available() if a.all else []))
     labels = [x for x in labels if x[-4:] >= "0801"]                       # August-only pre baseline (primary)
     out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
@@ -378,10 +499,18 @@ def main(argv=None) -> int:
                                 beta_all=f["beta_all"], col_var=f["col_var"], areas=np.array(f["areas"]))
             print(f"  {an} {v}: {len(st)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
                   f"alphas {f['alphas']}", flush=True)
+        if not a.no_drop_spout:                          # frozen drop-one-spout, each ordering (DROP_BASES)
+            for base in DROP_BASES:
+                if base not in fits[an]:
+                    continue
+                for q in st[0]["pos_order"]:
+                    fits[an][f"{base}|drop:{q}"] = fit_animal(st, variant=f"{base}|drop:{q}")
     jobs = [(x, fits[config.animal_of(x)], str(out)) for x in labels if config.animal_of(x) in fits]
     res, fail = _fan(jobs, a.jobs)
     for it, err in fail:
         print(f"  !! predict {it[0]}: {err}", flush=True)
+    if not a.no_drop_spout:
+        summarise_drop(out)
     for _it, r in sorted(res, key=lambda kv: kv[1]["label"]):
         print(f"  {r['label']} [{r['frozen_from']}] frozen R^2 cortex (all / cue / lick): "
               + " | ".join(f"{v} " + " ".join(f"{x:.3f}" if x is not None else "-" for x in r[v].values())

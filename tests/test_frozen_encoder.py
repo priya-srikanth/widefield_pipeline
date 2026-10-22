@@ -18,7 +18,8 @@ def _sessions(rng, n_sess=3, n=400, p=6, r=3):
         Y -= Y.mean(0)
         out.append((X, Y, {"label": f"S{k}", "animal": "A", "epoch": "pre", "col_var": col_var,
                            "area_names": ["x", "y", "cortex"], "n": n, "XtX": X.T @ X, "XtY": X.T @ Y,
-                           "YtY": (Y ** 2).sum(0), "sxx": (X ** 2).sum(0)}))
+                           "YtY": (Y ** 2).sum(0), "sxx": (X ** 2).sum(0),
+                           "pos_order": ["p"], "pos_counts": {"p": n}}))
     return out
 
 
@@ -102,3 +103,23 @@ def test_split_blocks_layout():
     assert set(out["tongue_dir"][0]) == {0.0, 1.0} and set(out["tongue_mag"][0]) == {2.0, 3.0}
     assert set(out["jaw_dir"][0]) == {0.0} and set(out["jaw_mag"][0]) == {1.0, 2.0}
     assert set(out["nose_dir"][0]) == {0.0} and set(out["nose_mag"][0]) == {1.0}
+
+
+def test_drop_transform_reproduces_encoder_drop_columns():
+    """D @ C (drop p) must equal combined_encoding's drop_pos columns X_q - m_q/(1-m_p) (shared - X_p), q != p."""
+    rng = np.random.default_rng(4)
+    order = ["a", "b", "c"]
+    n, w = 50, 2
+    frac = {"a": 0.2, "b": 0.3, "c": 0.5}
+    Xq = {q: rng.normal(size=(n, w)) for q in order}           # per-position kernels (one var)
+    shared = sum(Xq.values())
+    D = np.hstack([Xq[q] - frac[q] * shared for q in order])   # deviation coding (raw_blocks)
+    extra = rng.normal(size=(n, 1))
+    for var in ("pos_enl", "pos_cue"):
+        col_var = np.array(["cue"] + [var] * (w * len(order)) + ["pos_enl" if var == "pos_cue" else "pos_cue"] * 0)
+        Xfull = np.hstack([extra, D])
+        C, keep = fe._drop_transform(col_var, order, frac, "b")
+        got = Xfull @ C
+        want = np.hstack([extra] + [Xq[q] - frac[q] / (1 - frac["b"]) * (shared - Xq["b"]) for q in order if q != "b"])
+        np.testing.assert_allclose(got, want, atol=1e-12)
+        assert list(col_var[keep]) == ["cue"] + [var] * (w * 2)
