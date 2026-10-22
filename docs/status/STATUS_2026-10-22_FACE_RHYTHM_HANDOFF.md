@@ -1,4 +1,46 @@
-# FaceRhythm — handoff (2026-10-22, ~09:30)
+# FaceRhythm — handoff (2026-10-22, ~09:30; UPDATE ~12:10 first)
+
+## UPDATE 10-22 ~12:10 (read first; sections 1-6 below are the 09:30 state)
+
+* **Array outputs on the share: 74 tasks (PS92 28, PS93 26, PS94 20), integrity 74 / 74 ok**, 0 NaN bins, 0 violations,
+  interior folds 0-0.15 % in every animal x epoch. Median displacement (px, pre -> acute -> subacute -> chronic): PS92
+  1.33 -> 1.11 -> 1.16 -> 1.18; PS93 1.19 -> **0.80** -> 1.21 -> 1.36 (the deficit animal moves least acutely); PS94
+  **2.06** -> 1.33 -> 2.35 -> 2.63 (~2x the others: a more mobile animal or a larger face in px; the per-animal scale
+  absorbs a constant). Priya may lift the array throttle (`scontrol update JobId=57168778 ArrayTaskThrottle=24`; total
+  CPU-h and fair-share charge are the same either way).
+* **Pilot `pilot_pre_PS92_PS93`**: leave-one-day-out DONE (15 / 15): held-out EVR PS92 median 0.798 (0.788-0.815) vs in
+  fit 0.805, gap median 0.006 (max 0.009); PS93 0.805 (0.773-0.813) vs 0.804, gap 0.001 (max 0.004); similarity to the
+  full fit 0.84-1.00. **Noise floor: leaving a pre day out costs <= 0.01 EVR** (animal-to-animal transfer ~0.10).
+  Projections 44 / 51 at 12:00 (the rest + fitsession continue in the local drivers). PS93 pre now projected too.
+* **Gallery** (`report/factor_gallery_abs.png`, `factor_gallery.png`): WHERE (weight on the master face) + HOW (blue
+  lateral / red vertical, opacity = weight) + spectrum + pre-stroke cue-aligned traces by position; y units
+  "a.u. (weight x D; per-animal scale)" -- the weight is the factor's amplitude in the bin (spatial + spectral columns
+  unit-norm) on the spectrogram divided by the animal's one scale; comparable within an animal across sessions, not a
+  physical unit. **Epoch figures** (`factor_epochs[_abs].png`): per animal, NORMALISED so each factor's pre-stroke mean
+  curve max = 1. Clips: 8 examples per factor, PS92_0806, `<dlc>/face_rhythm/cam4/factor_clips/pilot_pre_PS92_PS93/`.
+* **Priya's provisional pilot labels (from the clips; NOT carried from the preview -- factor numbers shift between fits)**:
+  f0 left licks later in trials; f1 right / central licks later; f2 sniff / whisk / jaw; f3 vertical nose late after
+  the cue / around a late lick attempt or spontaneous lick; f4 close-R / central licks early (faster?); f5 left licks
+  early (faster?); f6 weak, jaw (preparatory before a lick?); f7 nose wiggle / sniff / whisk while walking; f8 nose
+  wiggle with a few treadmill steps, sometimes around a little licking; f9 right licking early (faster). No labels.json
+  written yet.
+* **Identity check vs behaviour** (`scripts/face_rhythm_validate.py --set pilot_pre_PS92_PS93`, computation
+  `wfield_local/face_rhythm_validation.py`; LP licks_all with executed angle, + = animal's left; canonical treadmill
+  speed cached per session) -> `<dlc>/face_rhythm/cam4/validation/pilot_pre_PS92_PS93/` (factor_vs_licks_running.png,
+  factor_correlations.png + data/). First run, PS92_0806 + 0807 only: f0 LEFT-selective (left-rate r 0.49, right ~0),
+  strongest at SLOW lick rates (5-6 Hz); f1 weakly lick-linked, LATE (t-from-cue r 0.17), centre > R ~ L; f2 sharp peak
+  at RUNNING ONSET; f3 peaks ~0.3 s BEFORE early licks + doubles after running onset; f4 CENTRE / RIGHT (r 0.52 / 0.27),
+  peak at 6 Hz (slow, sustained), not early-fast; f5 EARLY + FAST (7-8 Hz), all directions with a left bias; f6 ~0.35 s
+  BEFORE early licks, all directions (preparatory); f7 strongest RUNNING factor (speed r 0.56 in trials, 0.68 outside
+  licks); f8 running-linked (0.32 / 0.38); f9 RIGHT-selective (r 0.49, left ~0), early AND late, peak ~7 Hz. Caveat:
+  absolute expression includes overall face movement, so every factor correlates positively with speed outside licks
+  (0.16-0.68) -- read speed relatively. **Rerun now that PS92's other pre days and PS93 pre are projected.**
+* **Rank sweep (Priya: no leave-one-out -- "what rank is enough" in pre-stroke sessions)**: `fit --rank R --no-loao` on
+  the pilot tensor, ranks 6 8 12 14 16 (3 starts) running locally after rank 10; rank 6: EVR 0.767, stability 0.84; rank
+  10: 0.807, 0.87. Read `report/rank_sweep.png` / `.csv` (EVR elbow + stability across starts). The cohort rank is
+  chosen on master_pre_v1.
+* Commits through e633e00 pushed. Scratchpad: ~20 GB of superseded local test outputs (frtest*, preview_r10, dryrun)
+  proposed for deletion, awaiting Priya's OK.
 
 Supersedes the CURRENT STATE block of [`STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md`](STATUS_2026-10-21_FACE_RHYTHM_O2_HANDOFF.md)
 (still the record of the parameter choice, the O2 runner, pitfalls and the PS92 preview). HOW everything runs:
