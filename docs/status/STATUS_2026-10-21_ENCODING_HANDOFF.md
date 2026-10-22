@@ -161,9 +161,9 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 | Rerender after the normalised tests (main) | DONE 21:09 (all steps exit 0); comparison `labcams/grant_figures/epoch/results/map_tests_raw_vs_normalised.csv` (353 cells, 30 moved >= 5 pts: mostly acute near-spout precue-ref cells; rest ref small; far contra unchanged) | ENCODING_FINDINGS already carries the caveat |
 | ENL LP census | DONE: `E/qc/enl_lp_census{,_summary}.csv` | window chosen: 1.0 s (DECISIONS late evening) |
 | jaw_onsets watcher (`S/watch_jaw.sh`) | EXPIRED 18:13, no rewrite seen | restart only if the pose window still plans the rewrite |
-| **LP_licks map render** 15r + 14m, `--parallel-arms 3`, from main | started 21:24; log `S/lp_render_maps.log`, arm logs `<tmp>/epoch_arms_20261021_212417/`; output `labcams/grant_figures/LP_licks/epoch/` | first LP run = cold map cache (~1 h+). 4 June sessions (PS92_0608, PS93_0606/0607, PS94_0608) DROPPED in some arms by a result_cache write race (WinError 32) -- see next row; PS93_0813 absent by design (no video) |
-| LP rerender with the race fix, from worktree `S/wf_render` (branch `fix/cache-race`, `0ca1a39`, NOT merged) | `S/run_lp_rerender_fixed.sh` waits for the first render, log `S/lp_render_maps_fixed.log`; warm cache -> fast | overwrites the LP figures with the full session set; then merge `fix/cache-race` to main |
-| **LP null calibration** (15r position maps, lick / cue / ENL 1.0 s) | `S/run_calib_lp.sh` waits for the first render; logs `S/calib_lp_<align>.log`; CSVs `labcams/grant_figures/LP_licks/epoch/results/map_test_calibration_position_<ref>_<align>_<variant>.csv` | read pure-null false positives, drift, real acute (esp. far contra, now drawable) BEFORE showing LP contours |
+| **LP_licks map render** 15r + 14m, `--parallel-arms 3`, from main | DONE 22:45 (81 min, rc 0) but 4 June pre sessions dropped by the cache race in some arms -> superseded by the fixed rerender | - |
+| LP rerender with the race fix (worktree `S/wf_render`, `fix/cache-race`) | DONE 22:58 (12 min warm, rc 0, 0 PermissionError; only PS93_0813 LPUnavailable = no video); output `labcams/grant_figures/LP_licks/epoch/` = full session set | fix merged to main (cherry-pick 882db3f) |
+| **LP null calibration** (15r position maps, lick / cue / ENL 1.0 s) | requeued as `S/run_calib_lp2.sh` (runs from the fixed worktree AFTER the fixed rerender; started ~22:58); logs `S/calib_lp_<align>.log`; CSVs `labcams/grant_figures/LP_licks/epoch/results/map_test_calibration_position_<ref>_<align>_<variant>.csv` | read pure-null false positives, drift, real acute (esp. far contra, now drawable) BEFORE showing LP contours |
 
 ## 2c. NEXT for LP_licks, in order
 
@@ -272,7 +272,7 @@ and chronic change < 2 %. PS93 pre far_L +39 % (its non-contact attempts). Agree
   (`git cat-file -e origin/main:<path>`), not `git branch -r --contains <old sha>`.
 - (night) Parallel renders write shared sidecars concurrently: `result_cache` used a fixed `.pkl.tmp` + unguarded replace
   -> WinError 32 -> sessions silently DROPPED from a collector (printed as `!! <label>: PermissionError`). Fixed on
-  `fix/cache-race`; grep render logs for `PermissionError` after any parallel run.
+  main (882db3f); grep render logs for `PermissionError` after any parallel run.
 - (evening) Cluster-permutation false positives on rest / restw maps are large in AREA (session-wide offset): a cluster
   contour's extent is not evidence of a broad change.
 
