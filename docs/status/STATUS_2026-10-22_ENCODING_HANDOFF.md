@@ -30,6 +30,9 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
   pre_spout_*); contact kernel NEGATIVE in 4/4 (frontal), so the acute far-contra contact part's + sign = fewer contacts
   x negative kernel (per-contact amplification would sit in the residual); PS93 unique contact ~0 although it has the
   most misses (0.74 contact) -- hypothesis: contact shared with direction (exec_within brightest in PS93). FINDINGS 3.4.
+- **Push behaviour DONE (FINDINGS 4.4):** pushes / cue-locked push collapse acutely with the deficit and overshoot after
+  recovery. 3-D job RELAUNCHED 18:55 with 4 workers (`--skip-done`; nothing had finished). Runaway transcript grep
+  (14:17, 250 CPU-min) killed -- never grep the session .jsonl with an unbounded regex.
 - **jaw_onsets.csv will be rewritten again** (pose window appends 3-D jaw / nose onset columns; existing unchanged) --
   check that trial_attempts / deficit do not move when it lands.
 

@@ -566,6 +566,24 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
    by lick) is still EPOCH-based. Queued: its per-session parts (lick, spout, target, residual per spout x window) and
    the coming all-session shared + per-epoch model into the TIME and BEHAVIOUR models.
 
+### 4.4 Postural / forelimb pushes collapse acutely with the deficit and overshoot after recovery — PROVISIONAL (10-23)
+
+`scripts/push_behaviour.py` -> `qc/push_behaviour_sessions.csv`; LMMs `scripts/imaging_lmm.py --sources push` ->
+`qc/imaging_lmm_summary_push.csv`. Push = backward treadmill movement > 0.3 mm/s (side-camera clips: a paw pushed
+forward at bout ends; upper-limb extension / posture change right after the cue). Per animal (pre -> acute -> chronic):
+cue-locked push (fraction of trials with a push in the 1 s after the cue) PS92 .13 -> .07 -> .43, PS93 .11 -> .02 -> .47,
+PS94 .46 -> .10 -> .47, PS95 .25 -> .03 -> .52 (acute down 4/4; chronic above pre 3/4, PS94 ~equal); pushes per minute
+1.3 -> 1.3 -> 4.3, 1.3 -> 0.6 -> 5.6, 7.2 -> 1.7 -> 7.9, 2.8 -> 0.4 -> 6.9. Forward running unchanged (no epoch / deficit
+effect). LMMs: every push measure FALLS with the far-contra deficit (push rate z -11.5, push fraction z -10.3, far-contra
+cue push z -5.0, cue push z -4.1) and sits ABOVE pre at full behavioural recovery (rate +2.7 / min z 7.9, size +0.18
+mm/s z 10.1, cue push +0.22 z 2.6); time: day-1 step down (q ~.10), rise with log(day) (rate z 12.1, cue push z 11.3).
+**Reading:** the cue-locked postural / forelimb adjustment is lost acutely in proportion to the orofacial deficit and
+returns above pre -- the same shape as the cortical coding (4.3.3). Part of the same motor programme (postural set for
+licking) and / or chronic compensation (bracing to reach). Open: engagement as a common cause (licked-trials-only /
+engagement covariate), side-camera clips acute vs chronic, some LMMs fell back to random intercepts (4 animals).
+Encoding consequence: push tracks the deficit, so it is modelled per session (`FROZEN_PUSH=free`, 3.4) and will get its
+own kernel + per-epoch deltas in the all-session model; a frozen push kernel fails (3.4).
+
 ## 5. Caveats that apply across sections
 
 - **Pre-cue slow band (STANDS as a size caveat; checked 10-20).** The >= 300 s component decodes position on its own
@@ -647,6 +665,9 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-23 (night)** — 4.4 added: pushes (incl. the cue-locked postural adjustment) collapse acutely with the
+  far-contra deficit and overshoot pre after recovery (LMM deficit z -4 to -11.5; log-day z 5-12).
 
 - **2026-10-23 (late evening)** — 3-D complete (119 sessions, 4 animals; re-cut 107 encoding sessions; 4-animal polar
   contest running); contact kernel sign checked (negative 4/4 -> the + contact part = fewer contacts); PS93 contact
