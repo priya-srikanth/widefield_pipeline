@@ -21635,4 +21635,17 @@ Context: encoding window (d4). Priya: "yes add running cap". Results ENCODING_FI
    ~3.7x cam4's pixels, and FR would normalise all views with ONE per-frame divisor. Here each camera keeps its own run
    (and stays analysable alone); rows align on the shared DAQ grid; each view is balanced to equal energy. Code ready
    (`face_rhythm_multiview.py`, `plan --views`); needs cam1 / cam2 / cam3 runs (Priya's landmark clicks first).
+4. **True bin times, lossy bins out** (10-23): the runner stamped 5 Hz / 25 Hz bins with a LINEAR frame -> DAQ fit;
+   PS92_0908 cam4 dropped 11.8 % of frames (57 % in its last tenth) -> stamps up to 841 s off (encoding run A used
+   them). Now every bin's time comes from the per-frame timestamps (`face_rhythm_timing`), and bins with > 2 % frames
+   missing within +-2 s (or outside the DAQ segment, e.g. PS92_0812 v1 after 636 s) are NaN / never drawn. Priya:
+   keep PS92_0908 (its first 80 % is clean, 0.1 % dropped), drop only the lossy stretch. Other 107 tasks: <= 20 ms.
+5. **Pre-cue rows locked to the spout, not only the cue** (Priya: spout arrival + "more ENL licks"): per fit trial, the
+   5 Hz bins in [strobe -1, strobe +2] UNION [cue -4, cue -2), cut where the 25 Hz grid starts (no double counting). A
+   fixed cue offset would miss arrival: the strobe -> cue lead varies (2.4 s to > 10 s). The 25 Hz grid itself stays
+   cue -2..+4 s (extending it needs new O2 runs).
+6. **Between rows split RUN / STILL** (Priya: "including quiet non-trial time? how about running?"): ~36 % of rows,
+   half inside canonical running bouts, half still (< 1 mm/s); full sessions are not fitted (~1 M near-duplicate rows,
+   ~370 GB) -- they are PROJECTED in full. Same sample per animal, then one RMS scalar per animal (balance across
+   animals). Details + table: FACE_RHYTHM_PIPELINE "Time windows and the fit sample".
 

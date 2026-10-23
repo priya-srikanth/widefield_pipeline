@@ -82,6 +82,45 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
 * **own/<key>.npz**: the session's own rank-R fit (`A_own`, `B_own` in the master's component order), `evr_own`,
   `evr_frozen` (same rows), `cos_spatial` / `cos_spectral` (matched cosine per component).
 
+## Time windows and the fit sample (master_pre_v1, decided 10-23 with Priya)
+
+All times are DAQ seconds; every bin carries its TRUE time from the camera's per-frame timestamps
+(`face_rhythm_timing`, `o2_face_rhythm.py timing` -> `<bundle>/timing/<key>.npz`), never the runner's linear
+frame -> DAQ stamps (841 s off on PS92_0908). LOSSY bins (> 2 % of frames missing within +-2 s) and bins outside the
+camera's DAQ segment are excluded everywhere (NaN in projections; never drawn for a fit).
+
+**Windows around each ENGAGED trial** (the cohort tables' gate; disengaged trials are not on the grid):
+
+| window | span | resolution | source | used for |
+|---|---|---|---|---|
+| TRIAL grid | cue -2 .. +4 s | 25 Hz (151 bins) | `<key>_trials.npz` (computed on O2) | trial rows of the fit (every 5th-bin block -> 200 ms rows); projections; readouts (pre-cue -2..0, response 0..4) |
+| PRE-CUE rows | [position strobe -1, strobe +2] UNION [cue -4, cue -2), cut at cue -2 s | 5 Hz | session spectrogram | fit rows drawn WITH their trial: spout arrival (the strobe; its lead to the cue varies, 2.4 s to > 10 s) + anticipation / ENL licks; each bin once, never inside the 25 Hz grid |
+| BUSY (no between rows) | from min(strobe -1, cue -4, cue -3) to cue +6 s | -- | -- | keeps trial tails, arrival and anticipation out of the between pool |
+| BETWEEN | everything else (2 s trimmed at each recording end) | 5 Hz | session spectrogram | between rows of the fit, labelled RUN (inside a canonical running bout: > 3 mm/s, gaps < 0.3 s merged, >= 2 s) / STILL (outside bouts, treadmill < 1 mm/s) / other (not drawn) |
+
+Projections cover WHOLE sessions (25 Hz in trial windows, 5 Hz everywhere else); only the FIT uses a sample.
+
+**Per animal** (pre-stroke, August baseline sessions: PS92 9, PS93 7, PS94 8, PS95 8):
+* 120 fit trials = **20 per spout position** x 6, drawn at random from the animal's pooled pre sessions (no per-session
+  quota; trials with a lossy grid bin excluded) -> 120 x 30 = 3600 trial rows (200 ms; `--trial-ds 5`).
+* their pre-cue rows (~10-15 per trial).
+* between rows = 0.556 x the trial rows (~2000), **half RUN, half STILL** (`--run-share 0.5`; if one pool is short the
+  other fills; "other" bins are not used).
+* `plan` prints each animal's drawn counts; the plan stores them (`fit.<animal>.n_between`).
+
+**Across animals**: the SAME sample size and composition per animal (trials, positions, run / still), so no animal
+dominates by having more sessions; then each animal is divided by ONE scalar (RMS of its own fit rows, `scales.json`)
+so faces of different size / tracked area carry equal energy (a per-point scale would amplify still points). The same
+scalar is applied to all that animal's sessions, pre and post, so post-stroke amplitude changes stay visible.
+
+**Scoring rows** (`session_rows`, for `fitsession` / `loso`): per session, 60 engaged trials (10 per position or all it
+has) + between rows in the same proportion and run / still split; seeded per session.
+
+Plan: `face_rhythm_factors.py plan --bundle fr_cam4_20261021 --set master_pre_v1 --trials-per-animal 120 --trial-ds 5
+--between-frac 0.556 --run-share 0.5 --arrival --inits 8 --ranks 8 10 12` (local run, Priya: "local, trimmed").
+The PILOT (`pilot_pre_PS92_PS93`, 10-22) predates this: 30 trials / animal at 80 ms rows, 25 % uniform between bins,
+no pre-cue rows, linear stamps (its two affected tasks re-projected with true times, 10-23).
+
 ## Conventions
 
 * **Figures** (10-22, Priya): every FR figure goes through `wfield_local/face_rhythm_figures.py` -- readable fonts

@@ -5,6 +5,13 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
 
 ## UPDATE 10-23 (read first)
 
+* **~later 10-23: master_pre_v1 RE-PLANNED** (sweep stopped before any fit): windows + balance in PIPELINE "Time windows
+  and the fit sample" (DECISIONS 10-23 #4-6): true bin times (`o2_face_rhythm.py timing`, run for all 108: only
+  PS92_0908 lossy / mis-stamped; PS92_0812 v1 partly outside its DAQ segment), pre-cue rows (spout arrival U cue -4..-2
+  s), between rows half run / half still, 20 trials per position per animal. Then restart `run_master_local.py sweep`.
+* Pilot: PS92_0908 + PS92_0812_v1 to re-project with true times (`scratchpad/fix_pilot_timing.py`; old files ->
+  `_superseded_linear_timing/`); then tell d4 (it reruns PS92_0908 in run A).
+
 * **cam4 array COMPLETE**: 108 / 108 on the share, qc 108 / 108 clean (`o2_face_rhythm.py qc`), `collect` done
   (`face_rhythm/cam4/o2_fr_cam4_20261021_index.csv`).
 * **master_pre_v1 RUNNING LOCALLY** (Priya: "local, trimmed"): plan = 4 animals x 120 trials (20 per position, fit rows
