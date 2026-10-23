@@ -120,6 +120,9 @@ def test_draw_rows_balanced_and_seeded():
     b = f.draw_rows(trials, between, 10, 0.25, np.random.default_rng(0))
     assert a == b and len(a["trials"]["k"]) == 10
     assert len(a["between"]["k"]) == round(0.25 * 10 * 75)
+    c = f.draw_rows(trials, between, 20, 0.25, np.random.default_rng(0), ds=4)   # 2x trials at half the row rate
+    assert c["ds"] == 4 and len(c["trials"]["k"]) == 20
+    assert len(c["between"]["k"]) == round(0.25 * 20 * (151 // 4))             # same trial-row share
 
 
 
@@ -162,3 +165,13 @@ def test_streamed_points_and_one_pass_power_match_the_in_memory_path(tmp_path, m
     one, ref2 = f._power_dict(*acc.result(), ps), f.window_power(S, 2.0, t5, cues, pos)
     for k in ("power_between", "power_precue", "power_response"):
         assert np.allclose(one[k], ref2[k], equal_nan=True, rtol=1e-6)
+
+
+def test_gather_rows_uses_the_plans_row_spacing(tmp_path):
+    """A pick's ``ds`` sets the fit-row spacing (plan --trial-ds); picks without it (older plans) use TRIAL_DS."""
+    _bundle(tmp_path)
+    k = "PS92_20260810_cam4"
+    X4, ix4 = f.gather_rows(tmp_path / "out", {"trials": {k: [0, 1]}, "between": {}, "ds": 4})
+    X2, _ = f.gather_rows(tmp_path / "out", {"trials": {k: [0, 1]}, "between": {}})
+    assert len(X4) == 2 * (151 // 4) and len(X2) == 2 * (151 // f.TRIAL_DS)
+    assert {r[3] for r in ix4} == set(range(151 // 4))

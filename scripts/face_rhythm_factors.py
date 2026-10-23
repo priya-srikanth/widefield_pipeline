@@ -76,7 +76,7 @@ from pathlib import Path
 import numpy as np
 
 EPS = 1e-12
-TRIAL_DS = 2                                        # 25 -> 12.5 Hz for the fit rows only
+TRIAL_DS = 2                                        # 25 -> 12.5 Hz for the fit rows only (default; plan --trial-ds)
 CHUNK = 256                                         # rows per einsum chunk
 PRECUE_S, RESP_S = (-2.0, 0.0), (0.0, 4.0)          # movement-power windows (s from cue)
 BUSY_S = (-3.0, 6.0)                                # "between trials" = outside this around every engaged cue
@@ -272,35 +272,38 @@ def session_candidates(key: str, z, n_frames: int) -> tuple[list, list]:
     return trials, [(key, int(b)) for b in np.nonzero(~busy)[0]]
 
 
-def draw_rows(trials: list, between: list, n_trials: int, between_frac: float, rng) -> dict:
+def draw_rows(trials: list, between: list, n_trials: int, between_frac: float, rng, ds: int = TRIAL_DS) -> dict:
     """Positions balanced (n_trials // n_positions each, or all a position has) + between_frac x the trial rows of
-    between-trial bins -> {"trials": {key: [trial, ...]}, "between": {key: [bin, ...]}} (sorted)."""
+    between-trial bins -> {"trials": {key: [trial, ...]}, "between": {key: [bin, ...]}, "ds": ds} (sorted). ``ds``:
+    25 Hz trial bins averaged per fit row (2 = 12.5 Hz; 4 = 6.25 Hz -- twice the trials for the same rows: adjacent
+    rows of one trial are near-duplicates, the spectrogram windows being far longer than 80 ms; Priya 10-23)."""
     pos = sorted({p for _, _, p in trials})
     per = n_trials // max(len(pos), 1)
     pick = []
     for p in pos:
         g = [t for t in trials if t[2] == p]
         pick += [g[i] for i in rng.choice(len(g), min(per, len(g)), replace=False)]
-    nb = min(int(round(between_frac * len(pick) * (151 // TRIAL_DS))), len(between))
+    nb = min(int(round(between_frac * len(pick) * (151 // ds))), len(between))
     bsel = [between[i] for i in rng.choice(len(between), nb, replace=False)] if nb else []
     out = {"trials": {}, "between": {}}
     for k, i, _ in pick:
         out["trials"].setdefault(k, []).append(int(i))
     for k, b in bsel:
         out["between"].setdefault(k, []).append(int(b))
-    return {kind: {k: sorted(v) for k, v in sorted(d.items())} for kind, d in out.items()}
+    return {**{kind: {k: sorted(v) for k, v in sorted(d.items())} for kind, d in out.items()}, "ds": int(ds)}
 
 
 def gather_rows(od: Path, picks: dict) -> tuple[np.ndarray, list]:
     """The rows a `draw_rows` pick names, from the outputs: trial windows at 12.5 Hz + session bins. -> (X (n, 2P, F)
     float32 UNSCALED, index [(key, kind, trial, bin)]). Rows with any NaN are dropped."""
     X, index = [], []
+    ds = int(picks.get("ds", TRIAL_DS))                                  # plans before 10-23: TRIAL_DS
     for key, tr in picks["trials"].items():
         S = npz_memmap(od / f"{key}_trials.npz", "spec")
         for ti in tr:
             x = rows_of(S[ti])                                           # (151, 2P, F)
-            nb = (x.shape[0] // TRIAL_DS) * TRIAL_DS
-            x = x[:nb].reshape(-1, TRIAL_DS, *x.shape[1:]).mean(1)
+            nb = (x.shape[0] // ds) * ds
+            x = x[:nb].reshape(-1, ds, *x.shape[1:]).mean(1)
             ok = np.isfinite(x).all(axis=(1, 2))
             X.append(x[ok])
             index += [(key, "trial", int(ti), int(j)) for j in np.nonzero(ok)[0]]
@@ -705,7 +708,7 @@ def _sbatch(b: str, opts: str, cmd: str) -> str:
 def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int, between_frac: float, seed: int,
              ranks: list[int], inits: int, n_iter: int, user: str, point_pcs: int = 20,
              points_bins: int = 20000, animals: list[str] | None = None, with_outputs: bool = False,
-             role: str = "master", loso: bool = True) -> Path:
+             role: str = "master", loso: bool = True, trial_ds: int = TRIAL_DS) -> Path:
     import pandas as pd
     from wfield_local import epochs, writeguard
     from wfield_local import o2_inference as oi
@@ -734,10 +737,10 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         if not keys:
             continue
         picks = draw_rows(sum((cand[k][0] for k in keys), []), sum((cand[k][1] for k in keys), []),
-                          trials_per_animal, between_frac, rng)
+                          trials_per_animal, between_frac, rng, ds=trial_ds)
         fit[a] = {"sessions": keys, **picks}
         n_tr = sum(map(len, picks["trials"].values()))
-        print(f"  {a}: {len(keys)} pre sessions, {n_tr} trials, {sum(map(len, picks['between'].values()))} between bins")
+        print(f"  {a}: {len(keys)} pre sessions, {n_tr} trials (fit rows every {trial_ds * 40} ms), {sum(map(len, picks['between'].values()))} between bins")
     points_fit = {}
     for a in fit:                                           # equal 25 Hz bins per animal, spread over its pre sessions
         keys = fit[a]["sessions"]
@@ -751,7 +754,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
     pl = {"set": name, "bundle": bundle, "created": time.strftime("%Y-%m-%d %H:%M"), "role": role,
           "animals": sorted(fit), "loso_jobs": loso_jobs,
           "params": {"trials_per_animal": trials_per_animal, "session_trials": session_trials,
-                     "between_frac": between_frac, "seed": seed, "trial_ds": TRIAL_DS, "ranks": ranks, "inits": inits,
+                     "between_frac": between_frac, "seed": seed, "trial_ds": trial_ds, "ranks": ranks, "inits": inits,
                      "n_iter": n_iter, "precue_s": PRECUE_S, "resp_s": RESP_S, "busy_s": BUSY_S,
                      "scale": "per animal: RMS of its fit rows", "point_pcs": point_pcs,
                      "points_bins_per_animal": points_bins,
@@ -775,7 +778,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
                                    "loso --task $SLURM_ARRAY_TASK_ID")
     for fn, (opts, cmd) in jobs.items():
         (sd / fn).write_text(_sbatch(b, opts, cmd), encoding="utf-8", newline="\n")
-    rows = sum(len(v) for a in fit.values() for v in a["trials"].values()) * (151 // TRIAL_DS) + \
+    rows = sum(len(v) for a in fit.values() for v in a["trials"].values()) * (151 // trial_ds) + \
         sum(len(v) for a in fit.values() for v in a["between"].values())
     print(f"plan [{role}] -> {sd}  (fit rows ~{rows}, tensor ~{rows * 2 * 1282 * 36 * 4 / 1e9:.1f} GB float32; {n} tasks; "
           f"{len(loso_jobs)} leave-one-session-out jobs = {len(ranks)} ranks x {len(days)} pre days)")
@@ -1042,6 +1045,8 @@ def main(argv=None) -> int:
                          "best match there (e.g. the named PS92 preview)")
     ap.add_argument("--trials-per-animal", type=int, default=60)
     ap.add_argument("--session-trials", type=int, default=60)
+    ap.add_argument("--trial-ds", type=int, default=TRIAL_DS,
+                    help="plan: 25 Hz trial bins per FIT row (4 -> 2x the trials for the same tensor; session rows stay 2)")
     ap.add_argument("--between-frac", type=float, default=0.25)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--ranks", type=int, nargs="*", default=[6, 8, 10, 12, 14, 16])
@@ -1060,7 +1065,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
-                 a.n_iter, a.user, a.point_pcs, a.points_bins, a.animals, a.with_outputs, a.role, not a.no_loso)
+                 a.n_iter, a.user, a.point_pcs, a.points_bins, a.animals, a.with_outputs, a.role, not a.no_loso,
+                 a.trial_ds)
         return 0
     sd = a.dir
     if sd is None:
