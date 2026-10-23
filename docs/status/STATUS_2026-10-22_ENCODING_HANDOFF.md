@@ -24,6 +24,16 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
   on data - model; PS95 1 acute session. **3-D 2x2 still paused** at 16/41 (`run_3d_2x2.sh`, `--skip-done`, 2 workers).
 - **Next:** FR inside frozen v6 (PS92 + PS93; FR traces through the spl / dev split, own penalty group, env flag);
   FR run A summary; resume 3-D 2x2; cache backup when idle.
+- **10-23 queue (Priya-approved):** (1) sublinear running test `_v6spl` (running); (2) basis re-run with pixel unique
+  R2 + per-position + direction maps (`scripts/frozen_r2_maps.py`; code fc6d441) on the winning running model;
+  (3) **ALL-SESSION model: shared kernels + per-epoch deltas** (Priya: "i like the shared kernels with per-epoch
+  changes idea!"): per animal, kernel = shared + acute / subacute / chronic delta (ridge-shrunk to 0), pre-stroke
+  templates kept as the reference frame, epoch weighting, held-out-session scoring for every session, DRIFT NULL =
+  early- vs late-pre pseudo-epoch; readout = per group, does an epoch delta improve held-out prediction (tests
+  "coupling preserved") + delta maps; built on the Gram statistics (one stats pass over post sessions); areas then basis;
+  (4) FR inside frozen; (5) strayed-lick counts (PS92 / PS93 gated).
+  **Target-vs-executed headline under verification (Priya 10-23):** FINDINGS 2.4c destination % were inflated (see the
+  correction there); lick-aligned arm running; 2x2 decides the coordinate frame.
 - **RE-ADDRESS WHEN 3-D TRACKING COVERS ALL SESSIONS (Priya 10-23).** 3-D tables exist for PS92 + PS93 only
   (20261021 snapshots); PS94 / PS95 direction is cam4 2-D, PS95 licks cam4 (cam1 unfinished). Everything that
   depends on lick DIRECTION must be re-run then and compared: exec_within / exec_locked groups and their unique dR2

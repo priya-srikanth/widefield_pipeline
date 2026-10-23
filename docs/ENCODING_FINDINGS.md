@@ -131,6 +131,17 @@ execution = far mid, 2 neither = close mid), target from subacute on. PS93 far_m
 pattern matches pre-stroke FAR CONTRA by chronic (5/6) -- neither. All spouts: target-like 61 / 73 / 90 % (acute /
 subacute / chronic), execution-like 4 % acute only, rest neither. **Reading:** post-stroke spout activity resembles the
 pre-stroke TARGET pattern far more than pre-stroke execution; deviations are "neither" and fade with recovery.
+**CORRECTION (10-23) -- the percentages above are INFLATED; do not quote them.** In 150 / 192 post-stroke rows the
+licks landed mostly at the AIMED spout, so a target match is equally an execution match, and every such row counts as
+target-like. Only rows where landing departs from the aim can separate the two: 42 rows (PS92 + PS93), target 32 /
+execution 2 / neither 8, and most are weak separations (own-zone landing 0.2-0.4, licks short toward the middle spout;
+almost all chronic rows); strong ones (own-zone < 0.15): 4 target / 1 execution / 2 neither. The default arm is
+CUE-aligned (spout present ~3 s before the cue; acute far-contra first licks often > 1.5 s after it), which favours
+target. Re-analysis pending: dissociating rows only, graded by own-zone landing, lick-aligned arm
+(`best_match_destination_lick_lick.csv`), a continuous target-vs-landing similarity score, a within-spout shuffle null,
+per animal. Status: target-leaning in the separating rows, NOT established. Read with 2.4 (xyz2: executed >= target
+pre-stroke in PS92) vs 2.4b (polar: comparable / target-led) -- the coordinate frame decides the pre-stroke answer; the
+3-D 2x2 (xyz2 / polar x lick timing) is the check.
 
 ### 2.5 Misdirected licks — STANDS (negative)
 
