@@ -14,6 +14,10 @@ Pre sessions are scored with their leave-one-session-out betas (held out), post 
 
 Figures: <E>/frozen_encoder_<tag>/figures/r2_maps_pre.png (full + unique per group, held-out pre) and
 r2_maps_<epoch>_minus_pre.png (frozen unique R^2, epoch minus pre). Maps saved to figures/r2_maps.npz.
+Two more views of the same numbers (Priya 10-23: one strong animal set the shared colour scale and PS93's contact read
+black): `*_peranimal.png` = every panel on its OWN scale (99th percentile, printed in the panel; compare shapes across
+animals, read magnitudes from the numbers) and `r2_share_*.png` = unique R^2 / that animal's full R^2 (fraction of
+what the model explains that is group-specific; pixels with full R^2 < SHARE_MIN_FULL blank).
 ipsi (lesioned LEFT hemisphere) = image LEFT; displayed at half resolution.
 
 Usage: python scripts/frozen_r2_maps.py --tag gate-attempted_v6basis
@@ -29,6 +33,7 @@ from pathlib import Path
 import numpy as np
 
 EPOCHS = ("pre", "acute", "subacute", "chronic")
+SHARE_MIN_FULL = 0.02
 #: (label, variant whose SSE minus joint's is the unique part)
 UNIQUE = (("lick", "no_lick"), ("spout", "no_spout"), ("target", "no_target"), ("exec_locked", "no_exec_locked"),
           ("exec_within", "no_exec_within"), ("contact", "no_contact"), ("other", "no_other"),
@@ -116,7 +121,7 @@ def main(argv=None) -> int:
     np.savez_compressed(fd / "r2_maps.npz", **{f"{an}|{ep}|{k}": x for (an, ep), mm in maps.items()
                                               for k, x in mm.items()})
 
-    def grid_fig(rows: dict, title: str, path: Path, diff: bool):
+    def grid_fig(rows: dict, title: str, path: Path, diff: bool, per_panel: bool = False, what: str = "unique"):
         names = list(rows)
         fig, axs = plt.subplots(len(names), len(cols), figsize=(1.6 * len(cols), 1.6 * len(names) + 0.9), squeeze=False)
         lims = {}                                          # one scale PER COLUMN (Musall): small groups stay visible
@@ -127,6 +132,10 @@ def main(argv=None) -> int:
             for j, c in enumerate(cols):
                 ax = axs[i][j]
                 lim = lims[c]
+                if per_panel:                              # this panel's own 99th percentile, printed in the panel
+                    v = rows[r][c]
+                    lim = float(np.nanpercentile(np.abs(v), 99) if diff else max(np.nanpercentile(v, 99), 1e-6))
+                    ax.text(0.02, 0.02, f"{'+/-' if diff else '0..'}{lim:.2g}", transform=ax.transAxes, fontsize=5)
                 if diff:
                     ax.imshow(rows[r][c], cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
                 else:
@@ -136,29 +145,68 @@ def main(argv=None) -> int:
                 ax.set_xticks([])
                 ax.set_yticks([])
                 if i == 0:
-                    ax.set_title(f"{'full R2' if c == 'full' else 'unique ' + c}\n{'+/-' if diff else '0..'}"
-                                 f"{lims[c]:.3g}", fontsize=7)
+                    ax.set_title(f"{'full R2' if c == 'full' else what + ' ' + c}"
+                                 + ("" if per_panel else f"\n{'+/-' if diff else '0..'}{lims[c]:.3g}"), fontsize=7)
                 if j == 0:
                     ax.set_ylabel(r, fontsize=8)
-        sub = "colour scale per column (99th percentile, in each title)"
+        sub = ("colour scale PER PANEL (99th percentile, printed bottom-left)" if per_panel
+               else "colour scale per column (99th percentile, in each title)")
         fig.suptitle(f"{title}\n{sub}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
         fig.savefig(path, dpi=120, bbox_inches="tight")
         plt.close(fig)
     kind = next(iter(spatial.values()))["kind"]
-    rows = {f"{an} (n={nsess[(an, 'pre')]})": maps[(an, "pre")] for an in animals if (an, "pre") in maps}
-    rows["mean"] = {c: np.nanmean([maps[(an, "pre")][c] for an in animals if (an, "pre") in maps], 0) for c in cols}
-    grid_fig(rows, f"Frozen encoder ({kind} targets): pixel R2, PRE-STROKE held-out sessions (leave-one-session-out), "
-                   "all frames; unique = joint - drop-group", fd / "r2_maps_pre.png", diff=False)
-    for ep in EPOCHS[1:]:
-        rows = {}
-        for an in animals:
-            if (an, "pre") in maps and (an, ep) in maps:
-                rows[f"{an} (n={nsess[(an, ep)]})"] = {c: maps[(an, ep)][c] - maps[(an, "pre")][c] for c in cols}
-        if not rows:
-            continue
-        rows["mean"] = {c: np.nanmean([rows[r][c] for r in rows], 0) for c in cols}
-        grid_fig(rows, f"Frozen encoder ({kind} targets): pixel R2, {ep} (frozen pre-stroke betas) MINUS pre "
-                       "(held out), all frames", fd / f"r2_maps_{ep}_minus_pre.png", diff=True)
+    share = {}                                             # unique / full (full kept as is)
+    for k, mm in maps.items():
+        f = np.where(mm["full"] >= SHARE_MIN_FULL, mm["full"], np.nan)
+        share[k] = {c: (mm[c] if c == "full" else mm[c] / f) for c in cols}
+    views = [("r2_maps", maps, "unique", False, ""), ("r2_maps", maps, "unique", True, "_peranimal"),
+             ("r2_share", share, "share", False, ""), ("r2_share", share, "share", True, "_peranimal")]
+    for stem, M, what, per_panel, sfx in views:
+        expl = "unique = joint - drop-group" if what == "unique" else "share = unique R2 / full R2 (full < 0.02 blank)"
+        rows = {f"{an} (n={nsess[(an, 'pre')]})": M[(an, "pre")] for an in animals if (an, "pre") in M}
+        rows["mean"] = {c: np.nanmean([M[(an, "pre")][c] for an in animals if (an, "pre") in M], 0) for c in cols}
+        grid_fig(rows, f"Frozen encoder ({kind} targets): pixel R2, PRE-STROKE held-out sessions (leave-one-session-out), "
+                       f"all frames; {expl}", fd / f"{stem}_pre{sfx}.png", diff=False, per_panel=per_panel, what=what)
+        for ep in EPOCHS[1:]:
+            rows = {}
+            for an in animals:
+                if (an, "pre") in M and (an, ep) in M:
+                    rows[f"{an} (n={nsess[(an, ep)]})"] = {c: M[(an, ep)][c] - M[(an, "pre")][c] for c in cols}
+            if not rows:
+                continue
+            rows["mean"] = {c: np.nanmean([rows[r][c] for r in rows], 0) for c in cols}
+            grid_fig(rows, f"Frozen encoder ({kind} targets): pixel R2, {ep} (frozen pre-stroke betas) MINUS pre "
+                           f"(held out), all frames; {expl}", fd / f"{stem}_{ep}_minus_pre{sfx}.png", diff=True,
+                     per_panel=per_panel, what=what)
+    def position_fig(rows, qs, diff, lim0, per_panel, base, what, ep):
+        fig, axs = plt.subplots(len(rows), len(qs), figsize=(1.7 * len(qs), 1.7 * len(rows) + 0.9), squeeze=False)
+        for i, r in enumerate(rows):
+            for j, q in enumerate(qs):
+                ax = axs[i][j]
+                lim = lim0
+                if per_panel:
+                    v = rows[r][q]
+                    lim = max(float(np.nanpercentile(np.abs(v), 99) if diff else np.nanpercentile(v, 99)), 1e-6)
+                    ax.text(0.02, 0.02, f"{'+/-' if diff else '0..'}{lim:.2g}", transform=ax.transAxes, fontsize=5)
+                ax.imshow(rows[r][q], cmap="RdBu_r" if diff else "magma", vmin=-lim if diff else 0, vmax=lim,
+                          interpolation="nearest")
+                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+                ax.set_xticks([])
+                ax.set_yticks([])
+                if i == 0:
+                    ax.set_title(q, fontsize=8)
+                if j == 0:
+                    ax.set_ylabel(r, fontsize=8)
+        when = "held-out pre" if not diff else f"{ep} (frozen) minus pre"
+        part = ("TARGET position response" if what == "drop"
+                else "WHOLE spout-specific response (target + spout-locked template swapped)")
+        scl = "scale PER PANEL (bottom-left)" if per_panel else f"scale {'+/-' if diff else '0..'}{lim0:.3f}"
+        fig.suptitle(f"Frozen encoder ({kind} targets, base {base}): PER-POSITION unique R2 of the {part} -- "
+                     f"on that spout's own trials, {when}; {scl}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
+        tag = "target" if what == "drop" else "whole"
+        fig.savefig(fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}"
+                         f"{'_peranimal' if per_panel else ''}.png", dpi=120, bbox_inches="tight")
+        plt.close(fig)
     # PER-POSITION unique R2 (frozen drop-one-spout): spout q's own target-position response folded into the others'
     # mean; dR2_q = (SSE[base|drop:q] - SSE[base]) / SST on q's OWN trial frames, summed over sessions per animal x
     # epoch (Priya 10-23 "and what about per-position unique r2")
@@ -202,31 +250,9 @@ def main(argv=None) -> int:
                 rows["mean"] = {q: np.nanmean([rows[r][q] for r in rows], 0) for q in qs}
                 vals = np.concatenate([rows[r][q].ravel() for r in rows for q in qs])
                 diff = ep != "pre"
-                lim = np.nanpercentile(np.abs(vals), 99) if diff else np.nanpercentile(vals, 99)
-                fig, axs = plt.subplots(len(rows), len(qs), figsize=(1.7 * len(qs), 1.7 * len(rows) + 0.9),
-                                        squeeze=False)
-                for i, r in enumerate(rows):
-                    for j, q in enumerate(qs):
-                        ax = axs[i][j]
-                        ax.imshow(rows[r][q], cmap="RdBu_r" if diff else "magma", vmin=-lim if diff else 0, vmax=lim,
-                                  interpolation="nearest")
-                        ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-                        if i == 0:
-                            ax.set_title(q, fontsize=8)
-                        if j == 0:
-                            ax.set_ylabel(r, fontsize=8)
-                when = "held-out pre" if not diff else f"{ep} (frozen) minus pre"
-                part = ("TARGET position response" if what == "drop"
-                        else "WHOLE spout-specific response (target + spout-locked template swapped)")
-                fig.suptitle(f"Frozen encoder ({kind} targets, base {base}): PER-POSITION unique R2 of the {part} -- "
-                             f"on that spout's own trials, {when}; scale {'+/-' if diff else '0..'}{lim:.3f}. "
-                             "ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
-                tag = "target" if what == "drop" else "whole"
-                fig.savefig(fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}.png", dpi=120,
-                            bbox_inches="tight")
-                plt.close(fig)
+                lim0 = np.nanpercentile(np.abs(vals), 99) if diff else np.nanpercentile(vals, 99)
+                for per_panel in (False, True):
+                    position_fig(rows, qs, diff, lim0, per_panel, base, what, ep)
     print(f"-> {fd} (r2_maps_*.png, r2_maps.npz)")
     return 0
 

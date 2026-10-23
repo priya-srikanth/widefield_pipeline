@@ -8,9 +8,13 @@ basis -> pixels = W @ values (W = the animal's shared basis on the stat mask); g
 value. Then the mean over animals in pixel space (rule 8: animals first). Columns: data, full, each part, data - full.
 dF/F x 1e3; ipsi (lesioned LEFT hemisphere) = image LEFT (orientation checked against the atlas names, as the area
 maps); displayed at half resolution.
+PRE-NORMALISED copy (Priya 10-23: animals differ in overall amplitude, so the mean row leaned on the brighter ones):
+`*_prenorm.png` divides each animal's change maps by ITS pre-stroke constant = the RMS over the stat mask of its mean
+PRE data evoked map at that spout / alignment (the repo's NORMALISE_BY_PRE convention, beta_maps.pre_scale); units =
+change as a fraction of the animal's typical pre-stroke evoked response; the mean row then weighs animals equally.
 
 Usage: python scripts/frozen_pixel_maps.py --tag gate-attempted_v4basis [--variant joint] [--spout far_contra]
-Output: <E>/frozen_encoder_<tag>/figures/pixel_maps_<variant>_<spout>_<epoch>_<align>.png
+Output: <E>/frozen_encoder_<tag>/figures/pixel_maps_<variant>_<spout>_<epoch>_<align>[_prenorm].png
 """
 from __future__ import annotations
 
@@ -81,44 +85,56 @@ def main(argv=None) -> int:
             has = np.asarray(P.sum(1)).ravel() > 0
             g[pix[has]] = v[blk_of_pix[has]]
         return g.reshape(H, W)
+    def pre_rms(an, al):                                  # the animal's pre-stroke constant (beta_maps.pre_scale)
+        names = parts_of[an]
+        pre = to_pixels(an, np.mean(acc[(an, "pre", al)], 0)[names.index("data")])
+        v = pre[np.isfinite(pre)]
+        r = float(np.sqrt(np.mean(v ** 2))) if v.size else 0.0
+        return r if r > 0 else 1.0
     for al in ("lick", "cue"):
         for ep in EPOCHS:
-            maps = {}
-            for an in sorted(parts_of):
-                if (an, "pre", al) not in acc or (an, ep, al) not in acc:
+            for norm in (False, True):
+                maps = {}
+                for an in sorted(parts_of):
+                    if (an, "pre", al) not in acc or (an, ep, al) not in acc:
+                        continue
+                    dlt = np.mean(acc[(an, ep, al)], 0) - np.mean(acc[(an, "pre", al)], 0)   # (parts, targets)
+                    names = parts_of[an]
+                    vals = {p: dlt[names.index(p)] for p in names}
+                    vals["residual"] = vals["data"] - vals["full"]
+                    k = 1.0 / pre_rms(an, al) if norm else 1e3
+                    maps[an] = {p: to_pixels(an, v * k)[::2, ::2] for p, v in vals.items() if p in SHOW}
+                if not maps:
                     continue
-                dlt = np.mean(acc[(an, ep, al)], 0) - np.mean(acc[(an, "pre", al)], 0)   # (parts, targets)
-                names = parts_of[an]
-                vals = {p: dlt[names.index(p)] for p in names}
-                vals["residual"] = vals["data"] - vals["full"]
-                maps[an] = {p: to_pixels(an, v * 1e3)[::2, ::2] for p, v in vals.items() if p in SHOW}
-            if not maps:
-                continue
-            show = [p for p in SHOW if all(p in mm for mm in maps.values())]
-            maps["mean"] = {p: np.nanmean([maps[an][p] for an in maps], 0) for p in show}
-            lim = np.nanpercentile(np.abs(np.concatenate([maps[an][p].ravel() for an in maps for p in show])), 98)
-            fig, axs = plt.subplots(len(maps), len(show), figsize=(1.75 * len(show), 1.75 * len(maps) + 0.9),
-                                    squeeze=False)
-            for i, an in enumerate(maps):
-                for j, p in enumerate(show):
-                    ax = axs[i][j]
-                    ax.imshow(maps[an][p], cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
-                    ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-                    ax.set_xticks([])
-                    ax.set_yticks([])
-                    if i == 0:
-                        ax.set_title(p, fontsize=8)
-                    if j == 0:
-                        n_ep = len(acc.get((an, ep, al), [])) if an != "mean" else len(maps) - 1
-                        ax.set_ylabel(f"{an}\n(n={n_ep})", fontsize=8)
-            sm = plt.cm.ScalarMappable(cmap="RdBu_r", norm=plt.Normalize(-lim, lim))
-            fig.colorbar(sm, ax=axs, fraction=0.012, pad=0.01, label="change vs pre, dF/F x 1e3")
-            kind = next(iter(spatial.values()))["kind"]
-            fig.suptitle(f"Frozen encoder ({a.variant}, {kind} targets) PIXEL maps: {a.spout}, {ep} minus pre, "
-                         f"{al}-aligned evoked response, per animal then mean. residual = data - full. ipsi (lesion) = "
-                         f"image LEFT. PROVISIONAL", fontsize=8)
-            fig.savefig(fd / f"pixel_maps_{a.variant}_{a.spout}_{ep}_{al}.png", dpi=120, bbox_inches="tight")
-            plt.close(fig)
+                show = [p for p in SHOW if all(p in mm for mm in maps.values())]
+                maps["mean"] = {p: np.nanmean([maps[an][p] for an in maps], 0) for p in show}
+                lim = np.nanpercentile(np.abs(np.concatenate([maps[an][p].ravel() for an in maps for p in show])), 98)
+                fig, axs = plt.subplots(len(maps), len(show), figsize=(1.75 * len(show), 1.75 * len(maps) + 0.9),
+                                        squeeze=False)
+                for i, an in enumerate(maps):
+                    for j, p in enumerate(show):
+                        ax = axs[i][j]
+                        ax.imshow(maps[an][p], cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+                        ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+                        ax.set_xticks([])
+                        ax.set_yticks([])
+                        if i == 0:
+                            ax.set_title(p, fontsize=8)
+                        if j == 0:
+                            n_ep = len(acc.get((an, ep, al), [])) if an != "mean" else len(maps) - 1
+                            ax.set_ylabel(f"{an}\n(n={n_ep})", fontsize=8)
+                sm = plt.cm.ScalarMappable(cmap="RdBu_r", norm=plt.Normalize(-lim, lim))
+                fig.colorbar(sm, ax=axs, fraction=0.012, pad=0.01,
+                             label="change vs pre / pre RMS (fraction)" if norm else "change vs pre, dF/F x 1e3")
+                kind = next(iter(spatial.values()))["kind"]
+                nt = ("PRE-NORMALISED (each animal / RMS of its mean pre data map; mean row = animals equal). "
+                      if norm else "")
+                fig.suptitle(f"Frozen encoder ({a.variant}, {kind} targets) PIXEL maps: {a.spout}, {ep} minus pre, "
+                             f"{al}-aligned evoked response, per animal then mean. {nt}residual = data - full. "
+                             f"ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
+                fig.savefig(fd / f"pixel_maps_{a.variant}_{a.spout}_{ep}_{al}{'_prenorm' if norm else ''}.png",
+                            dpi=120, bbox_inches="tight")
+                plt.close(fig)
     print(f"-> {fd} (pixel_maps_{a.variant}_{a.spout}_*.png)")
     return 0
 
