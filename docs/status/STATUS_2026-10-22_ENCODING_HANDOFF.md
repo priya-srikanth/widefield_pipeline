@@ -24,6 +24,14 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
   on data - model; PS95 1 acute session. **3-D 2x2 still paused** at 16/41 (`run_3d_2x2.sh`, `--skip-done`, 2 workers).
 - **Next:** FR inside frozen v6 (PS92 + PS93; FR traces through the spl / dev split, own penalty group, env flag);
   FR run A summary; resume 3-D 2x2; cache backup when idle.
+- **RE-ADDRESS WHEN 3-D TRACKING COVERS ALL SESSIONS (Priya 10-23).** 3-D tables exist for PS92 + PS93 only
+  (20261021 snapshots); PS94 / PS95 direction is cam4 2-D, PS95 licks cam4 (cam1 unfinished). Everything that
+  depends on lick DIRECTION must be re-run then and compared: exec_within / exec_locked groups and their unique dR2
+  (incl. PS94's negative post-stroke exec_within dR2 -- possible out-of-range extrapolation of direction deviations),
+  the strayed-lick direction test (planned 10-23: per-lick SSE gain from direction vs a within-spout shuffle of
+  direction deviations, gated on tracking quality, matched on vigour / contact, per animal), the 3-D target-vs-executed
+  contests and 2x2, within-spout per-position direction, and the direction pixel maps. LP results stay provisional
+  until cam1 finishes.
 
 ## 000c. UPDATE 10-22 EVENING (supersedes 000 / 000b where they differ)
 

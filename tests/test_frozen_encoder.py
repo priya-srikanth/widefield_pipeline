@@ -1,5 +1,7 @@
 """frozen_encoder.fit_animal: the Gram-matrix ridge (pooled-pre scaling, per-group penalties, leave-one-session-out)
 must equal a direct ridge on the stacked, scaled pre sessions."""
+from pathlib import Path
+
 import numpy as np
 
 from wfield_local import frozen_encoder as fe
@@ -296,3 +298,25 @@ def test_running_spline_basis_continuous_flat_above_cap_and_curve_matches():
     s = x[:, 0]
     y = fe.running_curve(beta, knots, s, cap)
     assert np.allclose(y, B @ beta)
+
+
+def test_pixel_sse_from_target_moments_matches_direct_residuals():
+    """Pixel R2 statistics: diag(W E W') with E from the Gram terms (`residual_moment`) = the per-pixel SSE of the
+    residual reconstructed in the basis; grid kind = each block's own diagonal; cortex-mean target dropped."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("frm", Path(__file__).resolve().parents[1] / "scripts" / "frozen_r2_maps.py")
+    frm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(frm)
+    rng = np.random.default_rng(3)
+    T, p, K, npx = 400, 6, 5, 30
+    Z = rng.standard_normal((T, p))
+    Yt = np.column_stack([rng.standard_normal((T, K)), rng.standard_normal(T)])      # K basis targets + cortex
+    Wf = rng.standard_normal((p, K + 1))
+    E = fe.residual_moment(Z.T @ Z, Z.T @ Yt, Yt.T @ Yt, Wf)
+    Rz = Yt - Z @ Wf
+    assert np.allclose(E, Rz.T @ Rz)
+    Wb = np.linalg.qr(rng.standard_normal((npx, K)))[0]
+    keep = np.r_[np.ones(K, bool), False]
+    sse = frm.pixel_sse({"kind": "basis", "P": Wb}, E, keep)
+    assert np.allclose(sse, ((Rz[:, :K] @ Wb.T) ** 2).sum(0))
+    assert np.allclose(frm.pixel_sse({"kind": "grid", "P": None}, E, keep), (Rz[:, :K] ** 2).sum(0))

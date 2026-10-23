@@ -833,6 +833,12 @@ def predict_job(job):
 EVOKED_WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5, 0.0))}
 
 
+def residual_moment(Sxx: np.ndarray, Sxy: np.ndarray, Syy: np.ndarray, Wf: np.ndarray) -> np.ndarray:
+    """(Y - Z Wf)'(Y - Z Wf) from Z'Z, Z'Y, Y'Y: the residual second moment in target space (R x R)."""
+    SW = Sxy.T @ Wf
+    return Syy - SW - SW.T + Wf.T @ Sxx @ Wf
+
+
 def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) -> dict:
     """Spatial targets (basis / grid): per variant, the EVOKED response (response window minus baseline, cue- and
     lick-aligned) of the data and of each group's part, per spout x target, from PETHs computed in the small spaces --
@@ -866,6 +872,11 @@ def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) ->
                 continue
             PZ[(p, al)] = _peth(Z, fr_, off)                                  # (p, off)
             PD[(p, al)] = (Ra.T @ _peth(d["Y"], fr_, off)) if lazy else _peth(Rd, fr_, off)   # (R, off)
+    # PIXEL R2 (Priya 10-23: unique R2 maps at pixel / SVD level): all-frames second moments in TARGET space, so a
+    # pixel's SSE / SST is diag(W E W') without a frames x pixels array (`scripts/frozen_r2_maps.py`)
+    Sxx = Z.T @ Z
+    Sxy = (Z.T @ d["Y"]) @ Ra if lazy else Z.T @ Rd
+    Syy = (Ra.T @ (d["Y"].T @ d["Y"]) @ Ra) if lazy else Rd.T @ Rd
     summary = {"label": label}
     for variant, fit in fits.items():
         if "|drop:" in variant:
@@ -906,7 +917,9 @@ def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) ->
             musall[al] = {k: [float(x) for x in v] for k, v in mr.items()}
         sess = Path(out_dir) / variant / "sessions"
         sess.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(sess / f"{label}.npz", evoked_cue=ev["cue"], evoked_lick=ev["lick"])
+        E = residual_moment(Sxx, Sxy, Syy, parts["full"])
+        np.savez_compressed(sess / f"{label}.npz", evoked_cue=ev["cue"], evoked_lick=ev["lick"],
+                            resid_mom=E.astype(np.float32), data_mom=Syy.astype(np.float32), n_frames=len(Z))
         meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
                 "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
                 "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],
@@ -917,6 +930,38 @@ def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) ->
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2
         summary["frozen_from"] = frozen_from
+    # PER-POSITION unique R2 maps (Priya 10-23 "and what about per-position unique r2"): for each frozen drop-one-spout
+    # fit base|drop:q, the residual second moments of base and drop on spout q's OWN trial frames and on all frames
+    # (dR2 = (SSE[drop] - SSE[base]) / SST, as `summarise_drop`; maps in scripts/frozen_r2_maps.py)
+    drops = [v for v in fits if "|drop:" in v]
+    if drops:
+        fp = d["frame_pos"]
+        mom = {"all": (Sxx, Sxy, Syy)}
+        for q in sorted({v.partition("|drop:")[2] for v in drops}):
+            m_ = fp == q
+            if m_.sum() < 10:
+                continue
+            Zq = Z[m_]
+            Yq = (d["Y"][m_] @ Ra) if lazy else Rd[m_]
+            mom[q] = (Zq.T @ Zq, Zq.T @ Yq, Yq.T @ Yq)
+        pix = {f"data|{k}": v[2].astype(np.float32) for k, v in mom.items()}
+        for v in drops:
+            base, _, q = v.partition("|drop:")
+            for sub in ("all", q):
+                if sub not in mom:
+                    continue
+                for tag, fv in (("base", fits[base]), ("drop", fits[v])):
+                    key = f"{base}|{q}|{sub}|{tag}"
+                    if key in pix:
+                        continue
+                    b_ = fv["beta_loso"].get(label, fv["beta_all"])
+                    pix[key] = residual_moment(*mom[sub], fv["C"] @ b_).astype(np.float32)
+        dd = Path(out_dir) / "dropspout" / "sessions"
+        dd.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(dd / f"{label}_pix.npz", **pix)
+        (dd / f"{label}_pix.json").write_text(json.dumps({"label": label, "animal": d["animal"], "epoch": d["epoch"],
+                                                          "targets": f0["areas"], "n_frames": {k: int((fp == k).sum())
+                                                          for k in mom if k != "all"}}, indent=1), encoding="utf-8")
     return summary
 
 
@@ -1016,9 +1061,8 @@ def main(argv=None) -> int:
                     help="Allen areas (default) | per-animal shared SVD basis | 8 x 8 pixel grid (SPATIAL TARGETS)")
     a = ap.parse_args(argv)
     if a.target != "areas":
-        a.no_drop_spout = True                           # spatial runs: maps of the decomposition, no drop-spout
         if a.variants == list(VARIANTS):
-            a.variants = list(PART_VARIANTS)             # the variants whose parts are a split
+            a.variants = [*PART_VARIANTS, *_DROP, "task_only"]   # parts (maps) + drop variants (unique-R2 maps)
     if a.summarise_drop:
         summarise_drop(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}")
         return 0
@@ -1096,7 +1140,7 @@ def main(argv=None) -> int:
     res, fail = _fan(jobs, a.jobs)
     for it, err in fail:
         print(f"  !! predict {it[0]}: {err}", flush=True)
-    if not a.no_drop_spout:
+    if not a.no_drop_spout and a.target == "areas":
         summarise_drop(out)
     summarise_musall(out, a.variants)
     for _it, r in sorted(res, key=lambda kv: kv[1]["label"]):
