@@ -116,7 +116,7 @@ TEMPLATE_S = (-4.0, 8.0)                                 # cue-relative span of 
 FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
           **{f"{v}:spl": "exec_locked" for v in SPLIT_VARS},
           **{f"{v}:dev": ("lick" if v in _LICK_BASE else "exec_within") for v in SPLIT_VARS},
-          "exec_angle": "exec_within", "nose_mag": "other", "running": "other", "contact": "contact"}
+          "exec_angle": "exec_within", "nose_mag": "other", "running": "other", "push": "other", "contact": "contact"}
 FGROUPS = ("timing", "target", "exec_locked", "exec_within", "lick", "other", "contact")
 SUPER = {"task": ("timing", "target"), "spout": ("target", "exec_locked", "exec_within"),
          "movement": ("lick", "exec_locked", "exec_within", "other"),
@@ -126,7 +126,8 @@ SUPER = {"task": ("timing", "target"), "spout": ("target", "exec_locked", "exec_
 _FPEN_BASE = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
               "lick_onset": "lick", "contact": "lick", "exec_angle": "lick",
               "tongue_mag": "orofacial", "tongue_dir": "orofacial", "jaw_mag": "orofacial", "jaw_dir": "orofacial",
-              "nose_mag": "uninstructed", "nose_dir": "uninstructed", "running": "uninstructed"}
+              "nose_mag": "uninstructed", "nose_dir": "uninstructed", "running": "uninstructed",
+              "push": "uninstructed"}
 FPEN = {v: _FPEN_BASE[v.split(":")[0]] for v in FGROUP}
 
 
@@ -289,9 +290,11 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         run0 = np.abs(raw["running"][ridx, 0].astype(np.float64))         # lag-0 |speed| on trial frames (RUN_CAP_Q)
         return {"label": label, "animal": animal, "pos_order": pos_order,
                 "sums": {v: template_sums(xc[v], pos_of, k_of, pos_order) for v in SPLIT_VARS},
-                "run_abs": run0[np.isfinite(run0)].astype(np.float32)}
+                "run_abs": run0[np.isfinite(run0)].astype(np.float32),
+                "push_abs": _push_abs(raw["running"][ridx, 0])}
     if templates is None:
         raise ValueError(f"{label}: the STATS_VERSION {STATS_VERSION} layout needs the animal's spout-locked templates")
+    raw["push"] = push_columns(raw["running"], templates.get("push_cap"))     # from the SIGNED speed, before
     raw["running"] = running_basis(raw["running"], templates.get("running_cap"),
                                    _knots(templates.get("running_knots")), _run_mode())
     parts = {}
@@ -301,7 +304,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
                       else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
         Ms[v] = M
         parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_of, k_of, pos_order, M)
-    vars_ = list(FGROUP)
+    vars_ = [v for v in FGROUP if v != "push" or _push_on()]
     blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
     X = np.hstack(blocks)
     # unknown frames (NaN pose) contribute nothing: the session's column mean, which the centring below removes
@@ -419,12 +422,14 @@ def build_templates(parts: list[dict], run_thresh: float | None = None) -> dict:
         if len(ra):
             ra = ra[ra > (run_thresh if run_thresh is not None else _run_thresh())]   # running frames, pooled
         cap = float(np.percentile(ra, RUN_CAP_Q)) if len(ra) else None
+        pa = [t["push_abs"] for t in ts if t.get("push_abs") is not None and len(t["push_abs"])]
+        push_cap = float(np.percentile(np.concatenate(pa), RUN_CAP_Q)) if pa else None
         rt = run_thresh if run_thresh is not None else (_run_thresh() if len(ra) else None)
         knots = [float(rt)] + [float(np.percentile(ra, q)) for q in RUN_KNOT_Q] if len(ra) else []
         out[an] = {"pos_order": order, "mean": mean, "n_sessions": len(ts), "labels": [t["label"] for t in ts],
                    "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N,
                    "running_cap": cap, "running_cap_q": RUN_CAP_Q, "running_knots": knots,
-                   "count": count}
+                   "count": count, "push_cap": push_cap}
     return out
 
 
@@ -469,8 +474,36 @@ def _knots(knots: list | None) -> list | None:
 
 
 def _run_tag() -> str:
-    """Running-model tag stored with the saved statistics (never reused across modes / knot overrides)."""
-    return _run_mode() + (f"|k0={os.environ['FROZEN_RUN_KNOT0']}" if os.environ.get("FROZEN_RUN_KNOT0") else "")
+    """Running-model tag stored with the saved statistics (never reused across modes / knot overrides / push)."""
+    return (_run_mode() + (f"|k0={os.environ['FROZEN_RUN_KNOT0']}" if os.environ.get("FROZEN_RUN_KNOT0") else "")
+            + ("|push" if _push_on() else ""))
+
+
+#: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
+#: the animal pushing a paw forward, and the post-cue dip is upper-limb extension / a posture change -- real movements,
+#: "should we really throw these out or might they be helpful?"). The threshold running models already ignore
+#: backward speed (forward hinges only) and the signed linear v6 treated it as NEGATIVE running, although cortex is
+#: HIGHER during pushes. `FROZEN_PUSH=1` adds its own variable "push" (group other, penalty uninstructed): backward
+#: speed beyond PUSH_FLOOR, capped at the animal's pooled pre-stroke RUN_CAP_Q percentile of backward speed.
+PUSH_FLOOR = 0.3
+
+
+def _push_on() -> bool:
+    return bool(os.environ.get("FROZEN_PUSH"))
+
+
+def _push_abs(x0: np.ndarray) -> np.ndarray:
+    """Backward speed magnitudes (lag-0 column, beyond PUSH_FLOOR) for the pooled cap."""
+    b = -np.asarray(x0, np.float64)
+    b = b[np.isfinite(b) & (b > PUSH_FLOOR)]
+    return b.astype(np.float32)
+
+
+def push_columns(x: np.ndarray, cap: float | None) -> np.ndarray:
+    """Signed lagged running columns -> backward-movement columns: max(0, -x - PUSH_FLOOR), capped (NaN kept)."""
+    b = np.maximum(-np.asarray(x, np.float64) - PUSH_FLOOR, 0.0)
+    b = np.where(np.isfinite(x), b, np.nan)
+    return b if cap is None else np.minimum(b, max(cap - PUSH_FLOOR, 0.0))
 
 
 def _run_blocks(s: np.ndarray, knots: list, mode: str) -> list:

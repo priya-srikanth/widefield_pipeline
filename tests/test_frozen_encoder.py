@@ -100,7 +100,8 @@ def test_split_blocks_layout():
     raw["jaw"] = np.repeat(np.arange(3.0), nl)[None, :].repeat(T, 0)       # x, y, speed
     raw["nose"] = np.repeat(np.arange(2.0), nl)[None, :].repeat(T, 0)      # x, y
     out = fe.split_blocks(raw)
-    assert set(out) == {v.split(":")[0] for v in fe.FGROUP}                 # base variables (split later into s / d)
+    # base variables (split later into s / d); "push" is derived later from the signed running columns
+    assert set(out) == {v.split(":")[0] for v in fe.FGROUP} - {"push"}
     assert (out["lick_onset"] == 0).all() and (out["contact"] == 1).all()
     assert set(out["tongue_dir"][0]) == {0.0, 1.0, 2.0} and set(out["tongue_mag"][0]) == {3.0}   # prot is spatial
     assert set(out["jaw_dir"][0]) == {0.0} and set(out["jaw_mag"][0]) == {1.0, 2.0}
@@ -355,3 +356,11 @@ def test_swap_template_pools_other_spouts_by_count():
     S = fe.swap_template(M, N, 0)
     assert np.allclose(S[0, :, 0], [(30 * 2 + 10 * 5) / 40, 5.0, 2.0, 0.0])
     assert np.array_equal(S[1:], M[1:])
+
+
+def test_push_columns_backward_only_floor_and_cap():
+    """push: only backward speed beyond PUSH_FLOOR counts, forward speed -> 0, capped, NaN kept."""
+    x = np.array([[-5.0], [-0.2], [0.0], [3.0], [np.nan], [-1.3]])
+    y = fe.push_columns(x, cap=2.3)
+    assert np.allclose(y[[0, 1, 2, 3, 5], 0], [2.0, 0.0, 0.0, 0.0, 1.0]) and np.isnan(y[4, 0])
+    assert np.allclose(fe._push_abs(x[:, 0]), [5.0, 1.3])
