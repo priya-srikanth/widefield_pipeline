@@ -9,6 +9,30 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000i. STATE 10-23 ~18:40 — READ FIRST (then 000h, 000g)
+
+- **3-D COMPLETE** (pose window 18:28): cam1 127 / 127, 3-D for all 119 curated sessions incl. PS95_0817 (acute). Re-cut
+  done: `scripts/prep_3d_inputs.py C:/Users/SabatiniLab/wfield_cache/pose3d_inputs 20261023` -> snapshot, spout table
+  (all 4 animals), bin calibration, `labels_3d_20261023.txt` = 107 sessions (PS92 27 / PS93 26 / PS94 27 / PS95 27).
+  Old 2-animal 3-D 2x2 STOPPED 18:30 (xyz2 x combined + xyz2 x cam4 done = the 2-animal record; polar x cam4 killed at 16/47).
+- **RUNNING:**
+  - `S/run_3d4_polar.sh` (wf_v4; combined_encoding unchanged since its commit): polar x combined, 4 animals, folder
+    suffix `_3d4`, 2 workers, started 18:33 (~12-15 h). Progress `S/3d4.log`, `S/3d4_polar_combined.log`.
+  - `S/run_v7pushfree.sh` (wf_v5 at d194565): FROZEN_PUSH=free areas run `_v7pushfree` (started 17:53) -> compare with
+    `scripts/frozen_running_compare.py` (pairs v7pushfree / v7fwd15push vs v7fwd15).
+  - `scripts/push_behaviour.py --jobs 3` (shared checkout) -> `qc/push_behaviour_sessions.csv`; then
+    `python scripts/imaging_lmm.py --sources push` (writes `imaging_lmm_push.csv`, never the full set).
+- **Re-run order proposed to Priya (awaiting her pick):** (1) polar x combined [running]; (2) within-spout 3-D direction;
+  (3) lick-level stray test incl. pre-cue / ITI licks (`kinematics_all`, key lick_uid); (4) frozen v7 with refreshed
+  combined licks (PS94 / PS95 cam1); (5) xyz2 x combined, cam4-timing cells. Also offered: model-free contact-vs-miss
+  check (per-contact amplification), PS93 contact shared-variance check, kernel maps (beta per pixel).
+- **10-23 evening results:** v7 basis done (`_v7basis/figures`: pixel maps, r2_maps_*, per-position target / whole,
+  pre_spout_*); contact kernel NEGATIVE in 4/4 (frontal), so the acute far-contra contact part's + sign = fewer contacts
+  x negative kernel (per-contact amplification would sit in the residual); PS93 unique contact ~0 although it has the
+  most misses (0.74 contact) -- hypothesis: contact shared with direction (exec_within brightest in PS93). FINDINGS 3.4.
+- **jaw_onsets.csv will be rewritten again** (pose window appends 3-D jaw / nose onset columns; existing unchanged) --
+  check that trial_attempts / deficit do not move when it lands.
+
 ## 000h. STATE 10-23 ~17:00 — READ FIRST (then 000g, 000f)
 
 - **v7 = DEFAULT** (STATS_VERSION 7, 73d2991): forward-only running from 1.5 mm/s, NO push (push breaks post-stroke

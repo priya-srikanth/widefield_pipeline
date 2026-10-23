@@ -28,9 +28,10 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 > curated sessions (PS95_0817 / PS95_0831 still on O2). Every 3-D result in this file was computed from the 10-21
 > SNAPSHOT (`pose3d_kin_licks_snapshot_20261021`, PS92 + PS93 only), and the "combined" lick timing in the runs above
 > predates PS94 / PS95 cam1 (cam4-only there). So the "2 animals" / "cam4 only" limits below are limits of OUR INPUTS,
-> not of the tracking: re-cut the 3-D tables, re-run on 4 animals, and again (small change) after the last 2 PS95
-> sessions. **PS95 has no ACUTE 3-D yet** (its single acute session PS95_0817 is still on O2), so PS95 acute lick
-> direction stays cam4-only until it lands. Per-lick 3-D for every lick including pre-cue and ITI licks exists since
+> not of the tracking. **3-D COMPLETE 10-23 18:28** (cam1 127 / 127; 3-D for all 119 curated sessions incl. PS95_0817,
+> PS95's only acute session); re-cut (`scripts/prep_3d_inputs.py`, 107 encoding sessions, all four animals) and the
+> 4-animal re-runs started (polar contest first, `_3d4`). Until each re-run lands, the result above it is still the
+> 2-animal / cam4 one. Per-lick 3-D for every lick including pre-cue and ITI licks exists since
 > 10-23 (`session_poses/pose3d/kinematics_all/licks.csv.gz`, 880k licks, column `context`; ITI licks have no target).
 
 > **Cohort and rules.** VLS-stroke cohort PS92-PS95, all lesions LEFT (left hemisphere = ipsilesional; spouts named
@@ -417,7 +418,15 @@ vs pre, dF/F x 1e3, per animal (PS92 5 / PS93 4 / PS94 6 / PS95 1 acute sessions
   exec_first, task_first, movement_first: robust to the credit order);
 - **target** -1.6 to +1.3 / -1.7 to -1.1 / -0.6 to +0.8 / -0.1 to +0.7 (target_first gives it every bit shared with the
   spout-locked execution: still <= 1.7);
-- contact +1.7 to +10.3 (opposes lick; sign of its kernel not yet checked), other -0.7 to +4.6;
+- contact +1.7 to +10.3 (opposes lick), other -0.7 to +4.6. **Contact kernel sign CHECKED 10-23 (v7): NEGATIVE in 4/4**
+  (cortex sum over lags -21 / -47 / -42 / -46 x1e3 PS93 / PS92 / PS94 / PS95; strongest MOp / MOs; PS93 SSp-m the one
+  positive cell): with lick timing in the model, a lick that touches is followed by LESS frontal activity than one that
+  misses. So the + contact part = FEWER contacts x a negative kernel (acute far contra touches on 2-15 % of trials),
+  not more activity per contact; lick and contact partly offset (PS92 cortex -22 / +9). A frozen part cannot show a
+  per-event response change -- that would sit in the residual (mildly +; PS95 1 session strong). Direct test pending
+  (model-free contact vs miss licks, pre vs post; or a per-epoch contact delta in the all-session model).
+  PS93's unique contact is ~0 (lick window 1.2 vs 13-32 x1e3) although it misses most (0.74 of trial licks touch vs
+  0.91-0.95): likely shared with direction (PS93's exec_within unique R2 is the brightest) -- check pending;
 - data - frozen prediction +1.3 to +7.5 (small, positive).
 
 Reading: the pre-stroke mapping, fed the licking actually made, predicts the drop; the change is carried by licking
@@ -487,6 +496,18 @@ per animal; six models incl. v7 candidates: `..._v6_to_v7fwd15push.csv`):**
   become 2-5x more frequent after the stroke in PS92 / PS93 / PS95 (PS94 already high pre) -- bracing / posture change.
 - acute far-contra decomposition identical in all six (contralesional SSp-m lick part -28 / -20 / -19 / -23 to -26,
   target <= 3.8).
+**v7 basis maps (10-23 evening, `E/frozen_encoder_gate-attempted_v7basis/figures/`; PROVISIONAL, no statistics):**
+acute far-contra pixel maps as v6 (bilateral lateral SSp / MOp drop reproduced by the lick part in 4/4; target /
+exec_locked blank; contact opposite; residual mildly +). Pixel unique R2, pre held out (`r2_maps_pre.png`, all frames):
+"other" largest (~0.55, posterior-medial), lick ~0.08 (frontal / MOs, anterolateral), target <= 0.04 (small bilateral
+anterolateral spots). Acute - pre (`r2_maps_acute_minus_pre.png`): full R2 falls (posterior-medial, via "other"); unique
+lick and exec_locked RISE in 4/4 (frontal / lateral: licking departs more from the pre template, so the same kernel
+explains more variance -- not higher lick sensitivity); unique target slightly down (PS93 frontal) or mixed. Per
+position, whole-spout unique R2 on own trials: pre = small lateral hot spots in both hemispheres, close_mid ~0; acute -
+pre: far_ipsi down at the ipsi anterolateral spot (PS93, PS94, mean); **far_contra NOT a clean loss** (mixed by animal,
+mean slightly +) -- the pre-stroke far-contra spout pattern still explains far-contra-trial activity about as well; the
+drop is in amount (lick), not spout-specific shape. Low acute counts (PS95 1 session); unsigned (pair with
+`pre_spout_contrast_*`); per-position direction readouts to be re-run with 4-animal 3-D.
 **Pre-stroke per-spout maps (10-23, `scripts/frozen_spout_maps.py --contrast`; `_v6basis/figures/pre_spout_contrast_*`):**
 data lateralised as expected in 4/4 (contra spouts -> left hemisphere, SSp-m L-R +12..+21; ipsi -> right); the SPOUT
 part (target + spout-locked) tracks the data; the target vs exec_locked split is unstable (close_mid +13 vs -13) -- on
@@ -626,6 +647,10 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-23 (late evening)** — 3-D complete (119 sessions, 4 animals; re-cut 107 encoding sessions; 4-animal polar
+  contest running); contact kernel sign checked (negative 4/4 -> the + contact part = fewer contacts); PS93 contact
+  note; v7 basis maps (per-position far contra not a clean loss); free-push variant and push behaviour readout running.
 
 - **2026-10-23 (evening)** — v7 chosen and made the default (forward-only running from 1.5 mm/s, no push term;
   STATS_VERSION 7); push term breaks post-stroke windows because pushes are 2-5x more frequent after the stroke
