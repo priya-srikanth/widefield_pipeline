@@ -212,6 +212,10 @@ rsync -ah --partial --exclude 'tmp*' $B/out/ /n/files/Neurobio/MICROSCOPE/Priya/
 `sbatch -p gpu_requeue --gres=gpu:1 --array=112-137%12 $B/run_pose.sbatch` = **array 57249401** (estimate ~10-23 06:30;
 preemptible -> a preempted video restarts). `-p gpu` multi-partition gives "Invalid qos"; `-p gpu` alone estimated
 10-24. 100 / 137 videos done on 10-22 (98 curated sessions through pose_chain). Suggested `ArrayTaskThrottle=6` on FR.
+**10-23:** 124 / 137 done (all curated except 112 running, 119 + 127). 119 (PS95_0817) and 127 (PS95_0831) FAILED in
+seconds on **compute-gc-17-242** (L40S x4, MIXED): "no GPU visible to torch" -> resubmit with
+`--exclude=compute-gc-17-242` (EXCLUDE THIS NODE in future cam1 / LP submissions). gpu_requeue preempts (112 lost 28 min
+at 34 % once); A100 there ran 3.6 it/s (~84 min / video). gpu_quad test-only 10-23 still later (10-25) than gpu_requeue.
 **pose_chain now defaults to --jobs 6 and collects in parallel** (856bcfc; 10-session batch was ~66 min, collect 19 min serial).
 Array 56830841: pending tasks ask `gres/gpu:1`, wait on Priority (fairshare). 10 non-curated tasks cancelled.
 `gpu_requeue` accepts 10 h jobs but its estimated start was ~1 day out. Local cam1 LP run (reverse order from task 137
