@@ -295,9 +295,11 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     raw["running"] = running_basis(raw["running"], templates.get("running_cap"),
                                    _knots(templates.get("running_knots")), _run_mode())
     parts = {}
+    Ms = {}
     for v in SPLIT_VARS:
         M = np.stack([templates["mean"][v][templates["pos_order"].index(p)] if p in templates["pos_order"]
                       else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
+        Ms[v] = M
         parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_of, k_of, pos_order, M)
     vars_ = list(FGROUP)
     blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
@@ -340,7 +342,49 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E),
             "frame_pos": pos_of, "pos_order": pos_order,
             "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
-            "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None}
+            "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None,
+            "spl_swap": spl_swap_deltas(Ms, templates, pos_of, k_of, pos_order, col_var, ftr) if spatial else None}
+
+
+def swap_template(M: np.ndarray, N: np.ndarray, qi: int) -> np.ndarray:
+    """M with spout qi's template replaced by the OTHER spouts' pooled template (frame-count weighted per bin, so
+    the bins where only some spouts have data use those): 'spout q's locked movement as the typical other spout'."""
+    w = np.asarray(N, float).copy()
+    w[qi] = 0.0
+    den = w.sum(0)
+    pooled = np.einsum("pk,pkc->kc", w, M) / np.where(den > 0, den, 1.0)[:, None]
+    out = M.copy()
+    out[qi] = np.where((den > 0)[:, None], pooled, 0.0)
+    return out
+
+
+def spl_swap_deltas(Ms: dict, templates: dict, pos_of, k_of, pos_order: list, col_var, ftr) -> dict:
+    """{spout q: (frame index of q's frames, delta (n_q, p))}: the change of the design X on q's frames when q's
+    spout-locked templates are swapped for the other spouts' pooled ones (`swap_template`), deviation columns
+    unchanged, after the same slow-drift projection as X. With the frozen drop-one-spout fit (target q folded into
+    the others) this removes the WHOLE spout-specific response of q (Priya 10-23: target and the spout-locked lick are
+    the same variable on on-target licks)."""
+    if "count" not in templates:
+        return {}
+    ce = _ce()
+    Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
+    tpos = templates["pos_order"]
+    Nall = np.asarray(templates["count"], float)
+    N = np.stack([Nall[tpos.index(p)] if p in tpos else np.zeros(Nall.shape[1:]) for p in pos_order])
+    out = {}
+    for qi, q in enumerate(pos_order):
+        rows = np.flatnonzero(pos_of == q)
+        if len(rows) < 10:
+            continue
+        D = np.zeros((len(rows), len(col_var)))
+        for v in SPLIT_VARS:
+            Msw = swap_template(Ms[v], N, qi)
+            s0, _ = spout_split(np.zeros((len(rows), Ms[v].shape[2])), pos_of[rows], k_of[rows], pos_order, Ms[v])
+            s1, _ = spout_split(np.zeros((len(rows), Ms[v].shape[2])), pos_of[rows], k_of[rows], pos_order, Msw)
+            D[:, col_var == f"{v}:spl"] = s1 - s0
+        D -= Q[rows] @ (Q[rows].T @ D)                    # the slow-drift projection, restricted to q's rows
+        out[q] = (rows, D)
+    return out
 
 
 def template_job(label: str) -> dict:
@@ -369,6 +413,7 @@ def build_templates(parts: list[dict], run_thresh: float | None = None) -> dict:
                 S[ix] += s_
                 N[ix] += n_
             mean[v] = template_means(S, N)
+            count = N                                       # same frame counts for every split variable
         ra = [t["run_abs"] for t in ts if t.get("run_abs") is not None and len(t["run_abs"])]
         ra = np.concatenate(ra) if ra else np.zeros(0)
         if len(ra):
@@ -378,7 +423,8 @@ def build_templates(parts: list[dict], run_thresh: float | None = None) -> dict:
         knots = [float(rt)] + [float(np.percentile(ra, q)) for q in RUN_KNOT_Q] if len(ra) else []
         out[an] = {"pos_order": order, "mean": mean, "n_sessions": len(ts), "labels": [t["label"] for t in ts],
                    "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N,
-                   "running_cap": cap, "running_cap_q": RUN_CAP_Q, "running_knots": knots}
+                   "running_cap": cap, "running_cap_q": RUN_CAP_Q, "running_knots": knots,
+                   "count": count}
     return out
 
 
@@ -986,6 +1032,16 @@ def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) ->
                         continue
                     b_ = fv["beta_loso"].get(label, fv["beta_all"])
                     pix[key] = residual_moment(*mom[sub], fv["C"] @ b_).astype(np.float32)
+            # WHOLE-SPOUT: the drop fit AND q's spout-locked templates swapped for the other spouts' (own trials)
+            sw = (d.get("spl_swap") or {}).get(q)
+            if sw is not None and q in mom:
+                rows, D = sw
+                fv = fits[v]
+                Zq = Z[rows] + D / fv["scale"]
+                Yq = (d["Y"][rows] @ Ra) if lazy else Rd[rows]
+                b_ = fv["beta_loso"].get(label, fv["beta_all"])
+                pix[f"{base}|{q}|{q}|whole"] = residual_moment(Zq.T @ Zq, Zq.T @ Yq, Yq.T @ Yq,
+                                                               fv["C"] @ b_).astype(np.float32)
         dd = Path(out_dir) / "dropspout" / "sessions"
         dd.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(dd / f"{label}_pix.npz", **pix)

@@ -184,11 +184,13 @@ def main(argv=None) -> int:
                 if tag == "base":
                     c["sst"] = c.get("sst", 0.0) + pixel_sse(sp, z[f"data|{q}"], keep)
         qs = sorted({k[3] for k in pacc})
-        for base in sorted({k[0] for k in pacc}):
+        for (base, what) in [(b, w) for b in sorted({k[0] for k in pacc}) for w in ("drop", "whole")]:
             pm = {}
+            if not any(k[0] == base and what in c for k, c in pacc.items()):
+                continue
             for (b_, an, ep, q), c in pacc.items():
-                if b_ == base and {"base", "drop", "sst"} <= set(c):
-                    pm[(an, ep, q)] = paint(an, (c["drop"] - c["base"]) / np.where(c["sst"] > 0, c["sst"], np.nan))
+                if b_ == base and {"base", what, "sst"} <= set(c):
+                    pm[(an, ep, q)] = paint(an, (c[what] - c["base"]) / np.where(c["sst"] > 0, c["sst"], np.nan))
             for ep in EPOCHS:
                 rows = {}
                 for an in animals:
@@ -215,11 +217,14 @@ def main(argv=None) -> int:
                             ax.set_title(q, fontsize=8)
                         if j == 0:
                             ax.set_ylabel(r, fontsize=8)
-                what = "held-out pre" if not diff else f"{ep} (frozen) minus pre"
-                fig.suptitle(f"Frozen encoder ({kind} targets, base {base}): PER-POSITION unique R2 of the target "
-                             f"position response, on that spout's own trials, {what}; scale "
-                             f"{'+/-' if diff else '0..'}{lim:.3f}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
-                fig.savefig(fd / f"r2_maps_position_{base}_{ep}{'_minus_pre' if diff else ''}.png", dpi=120,
+                when = "held-out pre" if not diff else f"{ep} (frozen) minus pre"
+                part = ("TARGET position response" if what == "drop"
+                        else "WHOLE spout-specific response (target + spout-locked template swapped)")
+                fig.suptitle(f"Frozen encoder ({kind} targets, base {base}): PER-POSITION unique R2 of the {part} -- "
+                             f"on that spout's own trials, {when}; scale {'+/-' if diff else '0..'}{lim:.3f}. "
+                             "ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
+                tag = "target" if what == "drop" else "whole"
+                fig.savefig(fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}.png", dpi=120,
                             bbox_inches="tight")
                 plt.close(fig)
     print(f"-> {fd} (r2_maps_*.png, r2_maps.npz)")

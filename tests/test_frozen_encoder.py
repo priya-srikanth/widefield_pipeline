@@ -344,3 +344,14 @@ def test_knot0_override(monkeypatch):
     assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [1.0, 4.7, 6.5, 8.7]
     monkeypatch.setenv("FROZEN_RUN_KNOT0", "5")
     assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [5.0, 6.5, 8.7]
+
+
+def test_swap_template_pools_other_spouts_by_count():
+    """swap_template: spout q's template = the other spouts' templates weighted by their frame counts per bin; bins
+    where no other spout has data -> 0; the other spouts unchanged."""
+    M = np.zeros((3, 4, 1))
+    M[0, :, 0], M[1, :, 0], M[2, :, 0] = 1.0, 2.0, 5.0
+    N = np.array([[10, 10, 10, 10], [30, 0, 30, 0], [10, 10, 0, 0]], float)
+    S = fe.swap_template(M, N, 0)
+    assert np.allclose(S[0, :, 0], [(30 * 2 + 10 * 5) / 40, 5.0, 2.0, 0.0])
+    assert np.array_equal(S[1:], M[1:])
