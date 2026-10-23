@@ -21695,3 +21695,19 @@ Context: encoding window (d4). Handoff STATUS_2026-10-22_ENCODING_HANDOFF §000f
    early- vs late-pre pseudo-epoch; held-out scoring). LMMs with 2 animals: animal FIXED.
 8. **PS92_0908 / PS92_0812 FR timing** (FaceRhythm window): rerun on fr-timing-v1; PS92_0908 FR model cortex R2
    .506 -> .618; PS92_0812 unchanged.
+
+## 2026-10-23 (afternoon) -- CORRECTION: the frozen decoder is NOT back at full behavioural recovery; refit gain over frozen > 0 in 4/4 but not established
+
+Priya asked: "is it true in our LMMs that the frozen decoder deficit is ~0 after behavioral recovery, but refit-over-frozen
+reorganization stays >0?" (the 10-20 late line in ENCODING_FINDINGS). Checked against the current output
+(`qc/imaging_lmm_summary.csv`, rerun 10-21 14:36 after the attempt re-definitions; post rows, y ~ deficit, cue / working):
+- frozen deficit F at deficit = 0: +0.083 (z 2.2) matched / +0.082 (z 2.7) unmatched -- NOT ~0. Per animal from day 11
+  (matched / unmatched): PS92 -.02 / .02, PS93 .09 / .06, PS94 .15 / .17, PS95 .09 / .08 -> only PS92 is back. The refit
+  decoder is back (refit deficit -0.01, z -0.4).
+- reorganisation G at deficit = 0: +0.093 (z 3.9) / +0.092 (z 5.1); > 0 in 4/4 from day 11 (.05-.17); does not track the
+  deficit (z -1.4 / -0.4); matched time model ~0 at day 1, rising with log(day) (z 2.2).
+The z values come from an LMM with no block level and no correction across the deck's nine contrasts; the 2026-09-12
+entry withdrew "reorganisation persists" for exactly that reason (deck bootstrap: chronic G intervals span 0). So: the
+first half of the 10-20 line is wrong, the second half is a 4/4 point-estimate pattern, not an established effect.
+FINDINGS §2 decoder bullet and §4.3.5 corrected; a single pre-registered contrast at the deck's resampling level is the
+way to settle it (FINDINGS §7.8).

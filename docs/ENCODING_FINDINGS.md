@@ -1,20 +1,40 @@
 # Imaging encoding findings: target vs executed, per-spout coding, recovery
 
-Status: **preliminary, living document.** Last updated **2026-10-21** (encoding window). Update this file whenever a
-result below changes: edit the section, change its status tag, add the date to the change log at the bottom. The
-reasoning and every number's history are in `DECISIONS.md` (entries 2026-10-19 ... 2026-10-20); the working state
-(running jobs, commands, pitfalls) is in the newest `docs/status/STATUS_*_ENCODING_HANDOFF.md`.
+Status: **preliminary, living document.** Last updated **2026-10-23 afternoon** (encoding window). Update this file
+whenever a result below changes: edit the section, change its status tag, add the date to the change log at the bottom.
+The reasoning and every number's history are in `DECISIONS.md` (entries 2026-10-19 ... 2026-10-23); the working state
+(running jobs, commands, pitfalls) is in the newest `docs/status/STATUS_*_ENCODING_HANDOFF.md` (now 10-22, §000f).
 
 Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one control still pending), **SUSPENDED**
-(contradicted by a better measurement on part of the data; waiting for the full check), **PENDING** (not yet run).
+(contradicted by a better measurement on part of the data; waiting for the full check), **PENDING** (not yet run),
+**CORRECTED** (an earlier statement here was wrong; the corrected numbers follow).
+
+> **Where things stand (10-23), with what each rests on.**
+>
+> | result | status | data it rests on / what is incomplete |
+> |---|---|---|
+> | Acute far-contra drop is carried by LICK in the frozen pre-stroke encoder; target <= ~4 x1e3 (3.4) | PROVISIONAL, robust to credit order and to 5 running models | 4/4 animals, but PS95 = 1 acute session; PS95 + PS94_1005 cam4 lick timing only (no cam1); running model v7 still being chosen; no test on data - model; not yet on the LMMs |
+> | Post-stroke rise is TARGET, not executed (2.1, 2.4b, LMM 4.3.4) | STANDS for cam4; PROVISIONAL in 3-D | 3-D only PS92 + PS93; the 3-D 2x2 (coordinate frame x lick timing) is still running; pre-stroke answer depends on the frame (2.4 vs 2.4b) |
+> | Destination vs landing "target-like 61 / 73 / 90 %" (2.4c) | CORRECTED (inflated) | separating rows only: target-leaning, ~6 decisive sessions, 2 animals |
+> | Target vs executed, decisive test = lick-level STRAYS vs on-target (2.6) | PENDING (census done) | 3-D strays only PS92 + PS93; trial licks only (whole-session 3-D needed for ITI licks) |
+> | Within-spout lick direction (2.5) | PROVISIONAL; no robust post-stroke execution-like shift | cam4 (all 4) / 3-D (2); split-half reliability ~0.5 |
+> | Chronic coding gain beyond behavioural normalisation (4.1, 4.3.3) | STANDS (4.1) / PROVISIONAL (LMM) | PS94 shows no gain |
+> | Frozen decoder back at full behavioural recovery (2, 4.3.5) | CORRECTED: NOT back (+0.08, only PS92 back); refit gain over frozen > 0 in 4/4 but not significant under the deck bootstrap | LMM vs deck resampling disagree (DECISIONS 2026-09-12) |
+> | Running response is sublinear, forward-only; backward treadmill movement = real postural push (3.4) | PROVISIONAL | v7 candidates (forward from 1.5 mm/s +/- push) finishing 10-23 |
+>
+> **Standing re-run rule (Priya 10-23):** every lick-DIRECTION result (exec_within / exec_locked dR2, stray test, 3-D
+> contests, within-spout direction, direction maps) must be RE-RUN once 3-D tracking covers all sessions -- now PS92 +
+> PS93 only; PS94 / PS95 use cam4 2-D. cam1 lick detection is also incomplete (74 / 108 curated sessions on 10-21; PS95
+> none), so "combined" lick timing is cam4-only there.
 
 > **Cohort and rules.** VLS-stroke cohort PS92-PS95, all lesions LEFT (left hemisphere = ipsilesional; spouts named
 > from the lesion: contra = the mouse's RIGHT). LP run `lp_r4_heatmap_20261013__clean_v36`; **August-only pre baseline**
 > (June sessions only where stated, as a sensitivity check); engaged trials only. n = 4 animals: every claim needs the
 > per-animal table and >= 3/4 animals (CLAUDE.md rule 8). Brain maps: image left = left hemisphere.
 >
-> **Open data issue (10-20):** the v36 timing fix changed PS92_0908 (chronic) and the June PS92_0606 / PS93_0606; their
-> encoding results are stale until rerun (handoff to-do 7). Cohort conclusions below do not depend on them.
+> **Data issues (updated 10-23):** PS92_0908 (v36 timing fix) rerun done 10-20 (3.1: PS92 chronic unchanged); its
+> FaceRhythm timing (cam4 dropped ~13 % of frames) RESOLVED 10-23 on fr-timing-v1 (FR model cortex R2 .506 -> .618;
+> PS92_0812 unchanged). June PS92_0606 / PS93_0606 are only in the June sensitivity runs, which are not primary.
 
 ## 1. The question and the model
 
@@ -88,6 +108,10 @@ cohort 3-D contest (xyz2 / polar + strict executed + combined cam1 / cam4 licks)
 deciding analysis.
 
 ### 2.4b 3-D polar contest, PS92 + PS93 (47 sessions) — PROVISIONAL (two animals); the cohort 3-D answer so far
+
+> **Status 10-23:** the 3-D 2x2 check (executed frame xyz2 / polar x lick timing combined / cam4) is RUNNING: xyz2 x
+> combined done 10-23 09:32, xyz2 x cam4 40 / 47, polar x cam4 next; results not yet read. Two animals only; re-run all
+> four when 3-D covers PS94 / PS95.
 
 `movement_first_subset-nokin_exec-polar_licks-combined_bins/` (polar executed set; cam4 + cam1 lick timing; soft
 calibrated landing-zone bins; 20261021 tables; 10-21 01:57). Cortex, dR2 x1e3, rule 8 (animals first):
@@ -226,9 +250,43 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   Target still tracks the deficit (3-D cue z -6.8, cam4 -6.7 / first lick -5.1); position first lick now z -2.0
   (q .08); strict executed null. Old outputs `qc/superseded_attempts_jaw_20261021/`.
 
-- **Decoders recover with behaviour, the code stays reorganised (PROVISIONAL, 10-20 late; `scripts/imaging_lmm.py`).**
-  Frozen-decoder deficit ~0 at full behavioural recovery while refit-over-frozen reorganisation stays positive (z 3.7).
+- **Frozen decoder vs refit after behavioural recovery (CORRECTED 10-23; was "decoders recover with behaviour, the code
+  stays reorganised", 10-20 late; `scripts/imaging_lmm.py`).** The 10-20 line said the frozen-decoder deficit is ~0 at
+  full behavioural recovery while refit-over-frozen reorganisation stays positive (z 3.7). **The current output (rerun
+  10-21 14:36 after the attempt re-definitions, `qc/imaging_lmm_summary.csv`, post rows, y ~ deficit, cue / working)
+  supports only the second half:**
+  - frozen deficit F at deficit = 0: **+0.083 (z 2.2) matched / +0.082 (z 2.7) unmatched -- NOT ~0**; per animal
+    (sessions from day 11 on, matched / unmatched) PS92 -.02 / .02, PS93 .09 / .06, PS94 .15 / .17, PS95 .09 / .08
+    -> only PS92 is back at its pre-stroke frozen accuracy; the refit decoder itself is back (refit deficit -0.01, z -0.4);
+  - reorganisation G = (refit - frozen) - pre gap at deficit = 0: +0.093 (z 3.9) matched / +0.092 (z 5.1) unmatched,
+    > 0 in 4/4 animals from day 11 (.06-.17 matched, .05-.15 unmatched; last three sessions .08-.22); G does NOT track
+    the behavioural deficit (slope z -1.4 / -0.4), so it is roughly flat over the post period; matched time model:
+    ~0 at day 1 (z 0.7), rising with log(day) (z 2.2).
+  **Status: PROVISIONAL and in tension with the 2026-09-12 withdrawal** (DECISIONS: "reorganisation persists into
+  chronic" withdrawn because the deck's animals -> sessions -> BLOCKS bootstrap, Bonferroni over 9 contrasts, puts chronic
+  G at +0.07-0.08 with intervals spanning 0; 83 % of the uncertainty between animals). The LMM has no block level and no
+  correction across those contrasts, so per that entry's rule it does not overrule the deck. What is new: G is positive
+  in each of the four animals individually (rule 8 met as a point-estimate pattern), and the frozen readout is not fully
+  back at full behavioural recovery in 3/4. Read as "refit gains over frozen persist in every animal; significance
+  depends on the resampling" -- not as established persistent reorganisation.
   All session-level time courses now via `wfield_local/mixed_models.py` (one definition).
+
+### 2.6 Lick-level strays vs on-target licks — PENDING (census done 10-23; the decisive target-vs-executed test)
+
+Why this test: on an on-target lick the TARGET and the spout-locked executed lick are the same variable (pre-stroke
+per-spout contrast maps, 3.4: the spout part tracks the data, the target / exec_locked split is unstable, e.g. close_mid
++13 vs -13), so only licks that land away from the aimed spout can separate them (Priya 10-23: "don't we want to be
+comparing LICK stray response vs on-target response"). The pre-stroke arm is a result in itself (target vs executed in
+the intact animal).
+- **Census (3-D, trial licks, August pre; `pose3d_kin_licks_snapshot_20261021`):** thousands of no-contact licks land
+  nearer another spout's CALIBRATED centre (median of that spout's contact licks; the nominal spout angles are biased
+  ~21 deg), pre-stroke included (PS92 1,129, PS93 6,679 pre). Close-spout centres overlap, so the error is treated as
+  continuous (in within-spout SD units, plus direction toward the nearest other centre), not as zones.
+- **Design (queued):** per-lick regressor sets (on-target at q; strays from q toward j) inside one model, so corrective
+  licks overlapping in time are separated by the fit (raw stray averages are contaminated toward the target); compare
+  stray kernels' maps with the pre on-target maps of q and j, controlling pre q-j similarity; pre AND post.
+- **Incomplete data:** 3-D only for PS92 + PS93; trial licks only. Spontaneous ITI licks (an execution-only reference)
+  need whole-session 3-D (to be requested from the pose window). Re-run on all four animals when 3-D covers them.
 
 ## 3. Where and how spouts are coded
 
@@ -323,7 +381,12 @@ animals), not a measured area; an unflagged bin is not evidence of no change, an
 not a test of a difference. Cluster-permutation outlines support only "a change exists" (cluster-level control; false
 clusters are large in area), not where it stops.
 
-### 3.4 Frozen pre-stroke encoder v4: the acute far-contra drop is a LICK change, not a target change — PROVISIONAL (10-22 afternoon)
+### 3.4 Frozen pre-stroke encoder (v4 -> v6; v7 running model pending): the acute far-contra drop is a LICK change, not a target change — PROVISIONAL (10-22 afternoon; robustness updated 10-23)
+
+> **Current version: v6** (`E/frozen_encoder_gate-attempted_v6/`, areas; `_v6basis` pixel maps). v7 (forward-only
+> running from 1.5 mm/s, +/- push) is being chosen 10-23; the pixel / per-position unique R2 maps will be re-run on v7.
+> Incomplete: PS95 1 acute session; PS95 + PS94_1005 no cam1 licks; no statistical test on data - model; still
+> epoch-based (not on the LMMs, 4.3.7); lick-direction parts (exec_within / exec_locked) to be re-run with full 3-D.
 
 Model (`wfield_local/frozen_encoder.py`, STATS_VERSION 4; DECISIONS 2026-10-22 afternoon): one ridge model per animal
 fitted on its August pre sessions and applied unchanged to every session (Allen-area targets). Every lick-related
@@ -388,6 +451,24 @@ forward (real, not belt backlash). Speeds < 1.5 mm/s sit within +-0.5 s of a cue
 (`scripts/qc_running_lick_jitter.py`). -> v7 candidates: forward-only running from 1.5 mm/s (Priya), without / with a
 separate PUSH variable (backward speed beyond 0.3 mm/s). **Headline unchanged in every running model** (acute
 far-contra lick part within ~1 of v6; target <= 1).
+**Side-by-side (10-23, `scripts/frozen_running_compare.py` -> `E/qc/frozen_running_compare_v6_to_v6thr1.csv`; cortex,
+per animal; v7 rows to be added):**
+- fitted running response (x1e3, summed over lags) at 1.5 / 3 / 5 / 12 mm/s: linear 11-15 / 22-30 / 36-50 / 86-119 and
+  -22 to -30 at -3 mm/s (backward = negative running); forward from 1 mm/s 10-16 / 41-64 / 75-119 / 51-80, i.e. peak
+  near 5 mm/s then lower, in 4/4;
+- unique dR2 of "other" (running + nose y), lick window, chronic, linear -> forward-from-1: PS92 246 -> 288, PS93 184 ->
+  250, PS94 243 -> 476, PS95 -68 -> +82 (the PS95 post-stroke window problem was the running model);
+- unique dR2 of lick, all frames: up to ~15 lower than linear (running no longer absorbs as much shared variance in
+  the linear direction), same epoch pattern in every animal;
+- acute far contra, lick window, contralesional SSp-m: lick part PS92 -27.4 to -28.2 / PS93 -19.4 to -19.8 / PS94 -19.1
+  to -19.4 / PS95 -22.7 to -23.0; target +3.8 / -0.2 / +1.8 / +2.3 in all four running models.
+**Pre-stroke per-spout maps (10-23, `scripts/frozen_spout_maps.py --contrast`; `_v6basis/figures/pre_spout_contrast_*`):**
+data lateralised as expected in 4/4 (contra spouts -> left hemisphere, SSp-m L-R +12..+21; ipsi -> right); the SPOUT
+part (target + spout-locked) tracks the data; the target vs exec_locked split is unstable (close_mid +13 vs -13) -- on
+on-target licks they are one variable (-> 2.6). **Pixel / per-position unique R2 maps** (`scripts/frozen_r2_maps.py`:
+full and per-group unique R2 per pixel, pre held out and epoch - pre; per position target-only and WHOLE-SPOUT = target +
+spout-locked template swapped for the other spouts' pooled template): code + smoke test only (`_smoke-r2b`; whole-spout
+~5x the target-only scale); full run PENDING on v7.
 
 ## 4. Recovery
 
@@ -425,8 +506,10 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
    the attempt re-definition; cam4 -6.7, first-lick window -5.1) and recovers with log days (3-D cue z 7.4); unique
    executed weaker (z 2.1 / -2.7); STRICT executed (beyond the spout category) present pre-stroke and unchanged after
    (step z ~1). The epoch reading "the post-stroke rise is target" holds as a time course.
-5. **Frozen decoders / encoder: identity returns, the frozen code does not fully.** Frozen-decoder deficit ~0 at full
-   behavioural recovery, but refit-over-frozen reorganisation stays positive (z 3.7); frozen encoder EV (family 11)
+5. **Frozen decoders / encoder: identity returns, the frozen code does not fully.** (CORRECTED 10-23, see the §2
+   decoder bullet: the frozen-decoder deficit is NOT ~0 at full behavioural recovery -- +0.08, z 2.2-2.7, only PS92 back
+   -- while refit-over-frozen G is +0.09, z 3.9-5.1, > 0 in 4/4 but not significant under the deck's block bootstrap,
+   DECISIONS 2026-09-12; PROVISIONAL.) Frozen encoder EV (family 11)
    still below pre at full recovery (z -4.1) while far-contra own-position best match (10b) is back at pre (z -0.7).
    Epoch tables alone could not separate "not yet recovered" from "recovered but reorganised".
 6. **Some epoch effects weakened or went away under the LMM + controls:** the within-spout toward-midline chronic
@@ -452,8 +535,15 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
   Pending: whole-session lick detection (other window) and an early vs late ENL split. `qc/precue_contacts.csv`.
 - **cam4 kinematics:** lateral angle faithful (r 0.95-0.97 with 3-D); "protrusion / reach" is 99 % the down axis, blind
   to forward. Every cam4 executed test is biased against executed by tracking noise and the missing axis.
-- **Lick events:** cam4-only so far; cam1 adds 3-7 % small licks and incomplete licks rise post-stroke (PS92 far_R
-  share .17 -> .86 acute). Combined cam1 + cam4 lick timing (optional lips kernel) is coded, not yet run.
+- **Lick events:** the older cam4-subset runs (2.1-2.3, 3.1, 3.2) use cam4 licks; cam1 adds 3-7 % small licks and
+  incomplete licks rise post-stroke (PS92 far_R share .17 -> .86 acute). Combined cam1 + cam4 lick timing is used in
+  the LP-gated / frozen-encoder runs (3.3, 3.4) and 2.4b; where cam1 is missing (PS95, PS94_1005, other unfinished
+  sessions) it falls back to cam4 only.
+- **Lick DIRECTION measurement is incomplete (10-23):** 3-D for PS92 + PS93 only; PS94 / PS95 direction terms are cam4
+  2-D (lateral angle faithful, forward axis missing). Every direction result is to be re-run with full 3-D (box at top).
+- **Running (10-23):** models before v6 extrapolated a linear running kernel (PS94 chronic fit failure); before v7 the
+  kernel was signed (backward postural pushes counted as negative running). Results that depend on the "other" group in
+  post-stroke windows (PS94 / PS95) should be read from v6 on and re-checked on v7.
 - **Movement-first ordering** credits shared variance to movement; "after movement" = after licks, tongue, jaw, nose,
   running (cam4 kinematics, no video). Video is not used in the lick window (it re-describes the licks).
 - **Shuffle dR2 of slow / event variables is inflated** (circular shift); lead with drop dR2.
@@ -488,21 +578,34 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
 | within-spout deviation | `qc/within_spout_deviation/` | `within_spout_deviation.csv`, `figures/within_spout_*.png` |
 | within-spout per spout / contact (10-21) | `qc/within_spout_deviation_lick{,_contact,_contact_hits}/` | `mixed_model.csv`, `map_significance_*.csv`; maps in `figures/within_spout/<folder>/` |
 | attempt classes / deficit | `qc/` | `trial_attempts*.csv` |
-| destination vs landing | `qc/` | `best_match_destination*.csv` |
+| destination vs landing | `qc/` | `best_match_destination*.csv` (lick arm `_lick_lick`; separating rows only) |
+| frozen pre-stroke encoder (areas) | `frozen_encoder_gate-attempted_v6/` (v7 candidates `_v7fwd15`, `_v7fwd15push`) | `frozen_musall_r2_by_animal.csv`, `joint/sessions/*.json`, `figures/area_maps_*` |
+| frozen encoder decomposition | `qc/` | `lp_encoder_decompose_frozen_encoder_gate-attempted_<tag>_<variant>[_lick]_by_animal.csv` |
+| frozen encoder pixel maps | `frozen_encoder_gate-attempted_v6basis/` (`_v6grid` PS92 check) | `figures/pixel_maps_*`, `figures/pre_spout_{maps,contrast}_*` |
+| running-model comparison | `qc/` | `frozen_running_compare_*.csv` (+ `_curves.csv`); QC `qc/running_clips/`, `_v6thr1/figures/qc_running_threshold*.png` |
+| decoder / reorganisation LMM | `qc/` | `imaging_lmm_summary.csv` (source `decoder_*`); inputs `labcams/grant_figures/epoch/data/recovery_trajectory_*_cue_working.csv` |
 
-## 7. Next (in order)
+## 7. Next (in order; 10-23)
 
-1. After the v36 rerun: PS92_0908 everywhere; polar on PS92; smoke-test combined licks + strict executed.
-2. Cohort 3-D contest (xyz2 / polar, strict executed, combined licks) when cam1 production lands.
-3. Binned contest (`COMBINED_ENCODING_BINS`) on PS92 polar, then in the cohort 3-D contest; within-spout deviation
-   check (`scripts/within_spout_deviation.py`) cam4 cohort running 10-20, 3-D version with the cohort 3-D tables.
-4. Pre-cue -> lick-window carry-over decode (cross-window, from the CD code).
-4b. LP_licks (3.3): DAQ 1.0 s ENL arm (makes the ENL window comparable, freezes 1.0 s precue decoders); LP-gated
-    movement-first encoder (is the acute far-contra post-lick drop the executed movement or the target?); PS93
-    far_ipsi / far_mid frozen sensitivity (`WIDEFIELD_LP_FROZEN=lp`); rerun when cam1 finishes (PS95 has none).
-5. Deferred: non-linear ceiling check.
+1. Pick the v7 running model (forward from 1.5 mm/s, +/- push) from the side-by-side; make it the default (STATS_VERSION 7).
+2. Basis re-run on v7 -> pixel unique R2 maps + per-position target-only / whole-spout maps (paired with the signed
+   per-spout contrasts).
+3. Lick-level strays vs on-target (2.6), pre and post.
+4. All-session model: shared kernels + per-epoch deltas, pre templates as the frame, early- vs late-pre drift null.
+5. FaceRhythm factors inside the frozen encoder; FR run A summary (50 PS92 + PS93 sessions done).
+6. Session-level competition LMM; frozen-encoder parts onto the TIME / BEHAVIOUR LMMs (4.3.7).
+7. Read the 3-D 2x2 when it finishes; re-run all lick-direction results when 3-D covers all sessions.
+8. Decoder reorganisation: one pre-registered contrast at the deck's resampling level (2 / 4.3.5), not another bootstrap.
+9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-23 (afternoon)** — status box at the top (what each result rests on, incomplete data, the 3-D re-run
+  rule); **CORRECTED** the decoder line (frozen deficit NOT ~0 at full behavioural recovery: +0.08, only PS92 back;
+  refit gain G > 0 in 4/4 but not significant under the deck bootstrap, DECISIONS 2026-09-12); 2.6 strays section
+  (census, design, pending); 2.4b 3-D 2x2 status; 3.4 retitled (v6 current, v7 pending) + running-model side-by-side,
+  pre-stroke per-spout contrasts, pixel / per-position maps pending; caveats (lick timing, direction, running);
+  where-to-look + next updated.
 
 - **2026-10-23** — §3.4 running model (sublinear; forward-only from 1.5 mm/s; push term candidate; headline unchanged);
   2.4c destination % corrected; 4.3 what the LMMs changed vs epochs; pixel / per-position (target-only + whole-spout)
