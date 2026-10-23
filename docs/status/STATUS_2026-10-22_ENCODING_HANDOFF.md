@@ -9,6 +9,22 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000g. UPDATE 10-23 ~15:00 (read with 000f)
+
+- **3-D NOW COVERS ALL FOUR ANIMALS** (pose window sabatinilab-5b, 10-23): 124 sessions (PS92 35, PS93 31, PS94 30,
+  PS95 28); cam1 125 / 127 curated (PS95_0817 / PS95_0831 still on O2; they'll message when landed). jaw_onsets.csv,
+  kinematics/licks.csv.gz, cue traces, spout error, phase all include PS94 / PS95. **Our 3-D inputs are the 10-21
+  snapshots** (`S/pose3d_kin_licks_snapshot_20261021.csv.gz`, `S/pose3d_spout_positions_PS92_PS93_20261021.csv`,
+  `S/exec_bins_calib_20261021.csv`, `S/labels_3d.txt` = PS92 + PS93) -> **the standing re-run rule is DUE**: re-cut 3-D
+  tables (incl. spout positions + bin calibration for PS94 / PS95), re-run all lick-direction results on 4 animals, and
+  refresh combined lick timing (PS94 / PS95 cam1) in the frozen encoder / LP_licks families. The running 3-D 2x2 is on
+  the snapshot (2 animals): let xyz2 x cam4 finish, then replace polar x cam4 with the 4-animal re-run.
+- Per-frame 3-D spans nearly the whole session (`<dlc>/session_poses/pose3d/<s>_frames.csv.gz`, cam1 windows from the
+  previous trial stop); per-lick ITI 3-D: asked the pose window for `pose3d_kinematics --licks all` (Priya approved
+  spontaneous licks for the stray test) -- they'll send path + trial/ITI column.
+- FINDINGS updated (status box, decoder correction, 2.6 strays); DECISIONS 2026-10-23 (afternoon) correction entry;
+  `scripts/frozen_running_compare.py` (41650de). FaceRhythm + pose windows asked to do the same findings pass.
+
 ## 000f. STATE 10-23 ~14:05 — READ FIRST (then 000e / 000d; decisions DECISIONS 2026-10-23; results FINDINGS 3.4)
 
 - **RUNNING:**

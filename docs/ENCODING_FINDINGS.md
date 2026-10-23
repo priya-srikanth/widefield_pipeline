@@ -13,19 +13,24 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 >
 > | result | status | data it rests on / what is incomplete |
 > |---|---|---|
-> | Acute far-contra drop is carried by LICK in the frozen pre-stroke encoder; target <= ~4 x1e3 (3.4) | PROVISIONAL, robust to credit order and to 5 running models | 4/4 animals, but PS95 = 1 acute session; PS95 + PS94_1005 cam4 lick timing only (no cam1); running model v7 still being chosen; no test on data - model; not yet on the LMMs |
-> | Post-stroke rise is TARGET, not executed (2.1, 2.4b, LMM 4.3.4) | STANDS for cam4; PROVISIONAL in 3-D | 3-D only PS92 + PS93; the 3-D 2x2 (coordinate frame x lick timing) is still running; pre-stroke answer depends on the frame (2.4 vs 2.4b) |
+> | Acute far-contra drop is carried by LICK in the frozen pre-stroke encoder; target <= ~4 x1e3 (3.4) | PROVISIONAL, robust to credit order and to 5 running models | 4/4 animals, but PS95 = 1 acute session; PS94 / PS95 lick timing cam4-only in these runs (their cam1 landed 10-21..23, not yet used); running model v7 still being chosen; no test on data - model; not yet on the LMMs |
+> | Post-stroke rise is TARGET, not executed (2.1, 2.4b, LMM 4.3.4) | STANDS for cam4; PROVISIONAL in 3-D | 3-D results so far PS92 + PS93 (10-21 snapshot; 3-D now exists for all 4 -> re-run due); the running 3-D 2x2 is on the snapshot; pre-stroke answer depends on the frame (2.4 vs 2.4b) |
 > | Destination vs landing "target-like 61 / 73 / 90 %" (2.4c) | CORRECTED (inflated) | separating rows only: target-leaning, ~6 decisive sessions, 2 animals |
-> | Target vs executed, decisive test = lick-level STRAYS vs on-target (2.6) | PENDING (census done) | 3-D strays only PS92 + PS93; trial licks only (whole-session 3-D needed for ITI licks) |
-> | Within-spout lick direction (2.5) | PROVISIONAL; no robust post-stroke execution-like shift | cam4 (all 4) / 3-D (2); split-half reliability ~0.5 |
+> | Target vs executed, decisive test = lick-level STRAYS vs on-target (2.6) | PENDING (census done) | census on the 10-21 snapshot (PS92 + PS93, trial licks); 3-D for all 4 now exists; per-lick ITI 3-D requested |
+> | Within-spout lick direction (2.5) | PROVISIONAL; no robust post-stroke execution-like shift | cam4 (all 4) / 3-D (2, snapshot; 4 now available); split-half reliability ~0.5 |
 > | Chronic coding gain beyond behavioural normalisation (4.1, 4.3.3) | STANDS (4.1) / PROVISIONAL (LMM) | PS94 shows no gain |
 > | Frozen decoder back at full behavioural recovery (2, 4.3.5) | CORRECTED: NOT back (+0.08, only PS92 back); refit gain over frozen > 0 in 4/4 but not significant under the deck bootstrap | LMM vs deck resampling disagree (DECISIONS 2026-09-12) |
 > | Running response is sublinear, forward-only; backward treadmill movement = real postural push (3.4) | PROVISIONAL | v7 candidates (forward from 1.5 mm/s +/- push) finishing 10-23 |
 >
-> **Standing re-run rule (Priya 10-23):** every lick-DIRECTION result (exec_within / exec_locked dR2, stray test, 3-D
-> contests, within-spout direction, direction maps) must be RE-RUN once 3-D tracking covers all sessions -- now PS92 +
-> PS93 only; PS94 / PS95 use cam4 2-D. cam1 lick detection is also incomplete (74 / 108 curated sessions on 10-21; PS95
-> none), so "combined" lick timing is cam4-only there.
+> **Standing re-run rule (Priya 10-23) -- NOW DUE:** every lick-DIRECTION result (exec_within / exec_locked dR2, stray
+> test, 3-D contests, within-spout direction, direction maps) must be RE-RUN on full 3-D. **Update 10-23 afternoon (pose
+> window):** 3-D now covers ALL FOUR animals (124 sessions: PS92 35, PS93 31, PS94 30, PS95 28) and cam1 is 125 / 127
+> curated sessions (PS95_0817 / PS95_0831 still on O2). Every 3-D result in this file was computed from the 10-21
+> SNAPSHOT (`pose3d_kin_licks_snapshot_20261021`, PS92 + PS93 only), and the "combined" lick timing in the runs above
+> predates PS94 / PS95 cam1 (cam4-only there). So the "2 animals" / "cam4 only" limits below are limits of OUR INPUTS,
+> not of the tracking: re-cut the 3-D tables, re-run on 4 animals, and again (small change) after the last 2 PS95
+> sessions. Per-frame 3-D already spans nearly the whole session (ITI included); per-lick 3-D for ITI licks (`--licks
+> all`) requested from the pose window 10-23.
 
 > **Cohort and rules.** VLS-stroke cohort PS92-PS95, all lesions LEFT (left hemisphere = ipsilesional; spouts named
 > from the lesion: contra = the mouse's RIGHT). LP run `lp_r4_heatmap_20261013__clean_v36`; **August-only pre baseline**
@@ -110,8 +115,8 @@ deciding analysis.
 ### 2.4b 3-D polar contest, PS92 + PS93 (47 sessions) — PROVISIONAL (two animals); the cohort 3-D answer so far
 
 > **Status 10-23:** the 3-D 2x2 check (executed frame xyz2 / polar x lick timing combined / cam4) is RUNNING: xyz2 x
-> combined done 10-23 09:32, xyz2 x cam4 40 / 47, polar x cam4 next; results not yet read. Two animals only; re-run all
-> four when 3-D covers PS94 / PS95.
+> combined done 10-23 09:32, xyz2 x cam4 40 / 47, polar x cam4 next; results not yet read. It runs on the 10-21
+> PS92 + PS93 snapshot; 3-D for all four animals exists since 10-23, so the cohort version is a re-run on 4 animals.
 
 `movement_first_subset-nokin_exec-polar_licks-combined_bins/` (polar executed set; cam4 + cam1 lick timing; soft
 calibrated landing-zone bins; 20261021 tables; 10-21 01:57). Cortex, dR2 x1e3, rule 8 (animals first):
@@ -285,8 +290,9 @@ the intact animal).
 - **Design (queued):** per-lick regressor sets (on-target at q; strays from q toward j) inside one model, so corrective
   licks overlapping in time are separated by the fit (raw stray averages are contaminated toward the target); compare
   stray kernels' maps with the pre on-target maps of q and j, controlling pre q-j similarity; pre AND post.
-- **Incomplete data:** 3-D only for PS92 + PS93; trial licks only. Spontaneous ITI licks (an execution-only reference)
-  need whole-session 3-D (to be requested from the pose window). Re-run on all four animals when 3-D covers them.
+- **Incomplete data:** the census used the 10-21 snapshot (PS92 + PS93, trial licks); 3-D for all four animals exists
+  since 10-23 -> run the test on 4 animals. Per-frame 3-D already spans nearly the whole session; per-lick 3-D for
+  spontaneous ITI licks (an execution-only reference) requested from the pose window (`--licks all`, 10-23).
 
 ## 3. Where and how spouts are coded
 
@@ -539,7 +545,8 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
   incomplete licks rise post-stroke (PS92 far_R share .17 -> .86 acute). Combined cam1 + cam4 lick timing is used in
   the LP-gated / frozen-encoder runs (3.3, 3.4) and 2.4b; where cam1 is missing (PS95, PS94_1005, other unfinished
   sessions) it falls back to cam4 only.
-- **Lick DIRECTION measurement is incomplete (10-23):** 3-D for PS92 + PS93 only; PS94 / PS95 direction terms are cam4
+- **Lick DIRECTION inputs are incomplete (10-23):** our 3-D inputs are the 10-21 PS92 + PS93 snapshot (3-D for all four
+  animals exists since 10-23 -- re-run due, box at top); PS94 / PS95 direction terms in the runs above are cam4
   2-D (lateral angle faithful, forward axis missing). Every direction result is to be re-run with full 3-D (box at top).
 - **Running (10-23):** models before v6 extrapolated a linear running kernel (PS94 chronic fit failure); before v7 the
   kernel was signed (backward postural pushes counted as negative running). Results that depend on the "other" group in
@@ -562,7 +569,8 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
   both; pre-stroke the two definitions agree except PS93 far_ipsi / far_mid (27 % / 14 % non-contact attempts). LP
   'lick-free' ENL needs a 1.0 s window (>= 95 % of trials kept; 2 s keeps 48-73 % in PS93). LP null calibration
   (10-21 night, 312 pure-null tests): nested flags >= 1 bin in 1.6 % (mostly 1-7 bins), cluster max 27 % of area.
-  cam1 is not finished (74/108 curated sessions; PS95 none) -- LP licks there are cam4 only; revisit when cam1 lands.
+  cam1 was not finished when these ran (74/108 curated sessions; PS95 none) -- LP licks there are cam4 only. cam1 is
+  now 125 / 127 (10-23); re-run the LP_licks families on it.
 
 ## 6. Where to look
 
