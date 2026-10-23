@@ -21767,3 +21767,28 @@ fitsession; then report, clips, validation, and Priya names the master factors.
 3. **Run on O2** (queue empty, Priya): `run_chain.sh 10` submits the chain with dependencies; the O2 stages import the
    timing / multiview modules from copies `plan` places next to `fr_factors.py`. Commands: `factors/master_pre_v1/COMMANDS.md`.
 
+
+## 2026-10-23 (late) -- grouping v2 (nose -> other), Layer 2 moved up, relabel + stray-lick tests, push readout
+
+1. **Nose x is not lick direction** (Priya: "why is nose direction in the lick group? did we show it's lick locked?"):
+   only 4 / 21 / 29 / 13 % of its pre-stroke variance (PS92-95) is in its spout-locked template (lick onsets 44-61 %).
+   Both parts -> "other" with nose y / running / push (`frozen_encoder.GROUPING_VERSION = 2`, 0f71a9c). Grouping only:
+   same columns, statistics and joint fit; drop / ordered variants change. "dir" / "mag" columns are POSITIONS: tongue
+   x / y / protrusion vs speed; jaw x vs y + speed; nose x vs y (mouth-relative, cam4 px).
+2. **Contact** is "non-task" only in the super-groups (task = experimenter-controlled cue / arrival / spout; contact =
+   touch feedback from the animal's own lick). Per-group results do not depend on it. Option offered: its own category.
+3. **Layer 2 moved up** (Priya): `wfield_local/allsession_encoder.py` -- shared kernels + per-epoch kernel changes,
+   held-out per-group change importance (cortex's RESPONSE to each behavioural component), drift null on pre halves.
+   Layer 1 (frozen) = how much of the activity change behaviour changes explain; Layer 2 = how much the response changed.
+4. **Relabel test** (`wfield_local/frozen_relabel.py`): frozen model, every spout q's trials predicted as every j with
+   the executed licks fixed -- which spout's pre-stroke target + typical-movement state the cortex is in (A "far contra,
+   execution off" vs B "re-targeted to far mid"). Distinct from the earlier shufpos / shuf:position shuffles (refit,
+   random, measure information) and from 10b best match (raw maps, execution confounded).
+5. **Stray-lick test** (`wfield_local/stray_licks.py`): NON-CONTACT licks only (no touch confound): stray q->j vs
+   near-miss q (same target), near-miss j (same execution), ITI near j (no target); per-session kernels by regression
+   (overlap separated), spout-specific parts vs pre references; pre and post.
+6. **Push behaviour** (FINDINGS 4.4): cue-locked push and push rate collapse acutely with the far-contra deficit and
+   overshoot after recovery (LMM deficit z -4 .. -11.5).
+7. **Map views** (Priya: PS93 contact read black): `*_peranimal` (per-panel scale), `r2_share_*` (unique / full),
+   `pixel_maps_*_prenorm` (each animal / RMS of its mean pre data map). R2 is already scale-free, so z-scoring would
+   not change PS93 vs PS95 contact (likely shared variance with direction; check pending).

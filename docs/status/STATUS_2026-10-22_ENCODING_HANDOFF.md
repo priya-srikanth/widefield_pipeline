@@ -9,6 +9,48 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000j. STATE 10-23 ~20:15 — READ FIRST (then 000i, 000h; decisions DECISIONS 2026-10-23 late; results FINDINGS 3.4 / 4.4)
+
+- **MEMORY (shared box): free RAM fell to 4 GB at ~20:00** (my jobs ~22 GB + other windows, e.g. the pose window's
+  `scripts.jaw_onsets`). STOPPED: Layer 2 run (`S/run_allsession.sh`, was in its post-stats pass) and the relabel smoke.
+  Check `python S/freegb.py` (>= 12-14 GB) before relaunching anything; never more than ~8 workers total.
+- **RUNNING:**
+  - `S/run_3d4_polar.sh` (wf_v4): 4-ANIMAL polar x combined 3-D contest, `_3d4`, 4 workers, relaunched 18:55
+    (`--skip-done`), 107 sessions; 2 done at 20:10 -> many hours; `S/3d4.log`, `S/3d4_polar_combined.log`.
+  - `S/run_v7pushfree.sh` (wf_v5 at d194565): FROZEN_PUSH=free areas run `_v7pushfree`, 22/107 at 20:10 (slow, CPU
+    contention) -> then decomps; compare with `scripts/frozen_running_compare.py` (PUSH_PAIRS v7pushfree / v7fwd15push
+    vs v7fwd15).
+  - `scripts/frozen_r2_maps.py` + `frozen_pixel_maps.py` re-render on `_v7basis` (new views: `*_peranimal`,
+    `r2_share_*`, `pixel_maps_*_prenorm`), shared checkout.
+- **TO RELAUNCH when memory allows (in this order):**
+  1. **Relabel test** (`wfield_local/frozen_relabel.py`, c796587): smoke first --
+     `python -m wfield_local.frozen_relabel --from gate-attempted_v7fwd15 --tag smoke --jobs 2 --labels PS92_<pre> PS92_<acute>`
+     (encoder env: OROFACIAL_GATE=attempted COMBINED_ENCODING_LICKS=combined COMBINED_ENCODING_ONLY=full
+     COMBINED_ENCODING_SUFFIX=_gate-attempted; FROZEN_* unset = v7). Check pre: the TRUE label must win (dSSE > 0 for
+     every j). Then full `--tag v7` (6 designs per session -> heavy; 2 workers). Readout: far_contra trials relabelled
+     as j (lick / cue windows, cortex / SSp-m_left) + best label per session.
+  2. **Stray-lick test** (`wfield_local/stray_licks.py`, c796587; tests pass): `python -m wfield_local.stray_licks --jobs 2`
+     (all frames per session; sparse design). Smoke on 1-2 sessions first (`--labels`), check validation table (split-
+     half near-miss kernels: own spout > others), then all 107.
+  3. **Layer 2** (`wfield_local/allsession_encoder.py`, a5fd177 + grouping v2 0f71a9c): relaunch from a worktree at
+     >= c796587 with FROZEN_PUSH=1, `--from gate-attempted_v7pushfree --tag v7push --jobs 2` (post-stats pass ~1 h at 2
+     workers, then fits; `--reuse-stats` thereafter).
+  4. **Grouping v2 refits** (nose x -> other, 0f71a9c): frozen areas + basis variants re-fit from saved statistics
+     (stats unchanged; STATS_VERSION 7 kept, outputs carry grouping_version 2) -- e.g. `frozen_encoder --all
+     --reuse-stats --tag gate-attempted_v7g2` and `--target basis --reuse-stats --tag gate-attempted_v7basis_g2`
+     (saved pre stats in the v7fwd15 / v7basis folders: copy fit/ or point a run at them).
+  5. Remaining 4-animal 3-D re-runs (handoff 000i order): within-spout 3-D direction, frozen v7 with refreshed combined
+     licks (PS94 / PS95 cam1), xyz2 x combined, cam4-timing cells.
+- **GPU** (Priya asked): RTX 5060, 8 GB, torch 2.11 + CUDA available in locanmf. Our runs are bound by per-session
+  loading / design building and RAM, not by the linear algebra; a torch port of the Gram / ridge steps (combined_encoding
+  variants, stray regression) could speed those parts ~2-3x but would not help memory. Not done; offer if wanted.
+- **Answered / decided 10-23 evening (DECISIONS 2026-10-23 late):** nose x -> "other" (only 4-29 % spout-locked);
+  "direction" / "magnitude" columns are POSITIONS (tongue x / y / protrusion vs speed; jaw x vs y + speed; nose x vs
+  y); contact stays a separate group (own-category option offered, not decided); Layer 2 moved up; relabel + stray
+  tests approved; push behaviour finding (FINDINGS 4.4).
+- **Open questions to Priya:** contact as its own category (vs non-task); model-free contact-vs-miss check; PS93
+  contact shared-variance check.
+
 ## 000i. STATE 10-23 ~18:40 — READ FIRST (then 000h, 000g)
 
 - **3-D COMPLETE** (pose window 18:28): cam1 127 / 127, 3-D for all 119 curated sessions incl. PS95_0817 (acute). Re-cut
