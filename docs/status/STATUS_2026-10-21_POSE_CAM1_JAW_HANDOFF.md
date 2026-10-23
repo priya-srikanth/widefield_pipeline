@@ -9,6 +9,11 @@ ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_mod
 
 ## 0000. 10-23 UPDATE -- read first
 
+* **EVENING: cam1 production COMPLETE** -- 127 / 127 curated videos; tasks 119 / 127 landed 17:15, chain run 17:20-18:28
+  (every step exit 0; kinematics recomputed cold after 28de81c). PS95 acute in 3-D: far_R midline +32.7 deg, miss +2.09
+  mm, FAR_DIR -0.31 mm; findings rows 2 / 3 / 4 / 8d now 4 / 4. Encoding window told. NEXT: 3-D jaw + nose onset columns
+  for jaw_onsets.csv (Priya 10-23), validated on the 24 reviewed trials (`session_poses/attempt_review/key.csv`).
+
 * **cam1 / 3-D coverage:** 125 / 127 curated cam1 videos through `pose_chain` (runs 10-21 .. 10-23; every step exit 0).
   Missing: O2 tasks **119 = PS95_20260817 (PS95's ONLY acute)** and **127 = PS95_20260831**, which failed 10-23 07:24 on
   compute-gc-17-242 ("no GPU visible") and were resubmitted with `--exclude=compute-gc-17-242` on gpu_requeue. When they
