@@ -9,7 +9,37 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
-## 000d. UPDATE 10-22 NIGHT — READ FIRST (then 000c)
+## 000e. STATE 10-23 ~07:00 — READ FIRST (then 000d for the queue / decisions)
+
+- **RUNNING** (worktrees in `S/`; never edit them while a run uses them):
+  - `_v6spl` = sublinear running test (`FROZEN_RUNNING=spline`, commit 5045ef5), Allen areas, 3 workers, from
+    `S/wf_v5` (detached at 5045ef5); `S/run_v6spl.sh`, progress `S/v6spl_chain.log` / `S/frozen_v6spl.log`; then
+    joint decompositions. READ: per-animal running curve (`running_curve` on fit/<an>_joint.npz betas + templates
+    knots), held-out pre R2 vs v6, post R2 per animal vs v6 (PS94 the test case), headline unchanged?
+  - 3-D 2x2 RESUMED 10-23 05:05 (`S/run_3d_resume.sh`, from `S/wf_v4`, 2 workers, `--skip-done`; progress
+    `S/3d_resume_1023.log`, cells `S/3d_2x2_<exec>_<licks>.log`): xyz2 x combined 25 remaining, then xyz2 x cam4 and
+    polar x cam4 (41 each) -- ~1 day at 2 workers; can go to 3-4 when memory frees (workers reach ~27 GB).
+- **10-23 morning findings / decisions** (details FINDINGS 2.4c correction, 4.3; queue in 000d):
+  - Destination-vs-landing % were inflated (target == landing rows counted as target); separating rows only:
+    cue 32 / 2 / 8, LICK-aligned 33 / 2 / 2 (target / execution / neither); strong (own-zone < 0.15) 5 / 0 / 1 lick-
+    aligned -- target-leaning, rests on ~6 acute far-contra sessions, 2 animals (lick arm:
+    `qc/best_match_destination_lick_lick.csv`; cue copy `_cue-working`).
+  - Target and the spout-locked lick are the SAME variable on on-target licks: pre-stroke per-spout contrast maps
+    (`scripts/frozen_spout_maps.py --contrast`; `E/..._v6basis/figures/pre_spout_contrast_*`) show the data
+    lateralised as expected in 4/4 (contra spouts -> left hemisphere, SSp-m L-R +12..+21; ipsi -> right), the SPOUT
+    part (target + spout-locked) tracking it, and the target / exec_locked split unstable (close_mid +13 vs -13).
+    -> per-position maps: add the whole-spout version; target vs executed only via STRAYS (queue 2b) and the bracket.
+  - Lick-direction dR2 exists only as exec_within unique dR2 (whole-cortex ~1 % pre; PS94 post negative in windows,
+    possibly out-of-range direction deviations); per-lick version = queue 2b.
+  - Stray census (good 3-D, August): thousands of no-contact licks nearer another calibrated centre, pre included
+    (PS92 1129, PS93 6679 pre); close-spout centres overlap -> continuous error, not zones. Spontaneous ITI licks =
+    execution-only reference once whole-session 3-D exists.
+  - LMM with 2 animals: animal FIXED (a random-effect variance cannot be estimated from 2 levels); per animal first.
+  - PS95 post-stroke window R2 ~0 with "other" in: running vs nose NOT separable with the current variants (they drop
+    together) -- needs no_running / no_nose variants (cheap, saved statistics).
+- **Stale in 000d below:** "3-D 2x2 still paused" (resumed, above); "PS95 ... nose y?" (see the line above).
+
+## 000d. UPDATE 10-22 NIGHT (then 000c)
 
 - **Frozen encoder is now v6 (STATS_VERSION 6, commit 34c803d)**: running clipped at each animal's pre-stroke p99 of
   RUNNING frames (> 3 mm/s, `segmentation.running.thresh_speed_mm_s`); caps PS92-95 14.8 / 17.3 / 13.2 / 16.8 mm/s.
