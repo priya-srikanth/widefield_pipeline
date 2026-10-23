@@ -132,6 +132,27 @@ down chronically (PS92 0.79, PS93 0.58) -- part of the per-lick drop is not side
 most. CAVEATS: direction is the executed angle (+-12 deg): smaller post-stroke right licks may be classed centre;
 absolute expression includes the frame's whole-face movement scale.
 
+### 5c. "Licks and misses" on PS92-95 (behaviour; the AR-HMM cohort's result, 10-23)
+
+The AR-HMM work on PS46-50 (github.com/htong1/Priya_ARHMM2026) found the contralesional deficit splits into "can't
+lick" vs "licks and misses" (contra miss-rate 25 % -> 40-90 % acute, ~45-50 % plateau by day 14; ipsi flat) -- a
+post-hoc contact split, not the model itself. Same check here (`scripts/lick_contact_by_epoch.py`; August pre):
+
+| | far-contra attempt rate (pre / acute / sub / chronic) | far-contra trial completion | per-LICK no-contact, contra spouts | ipsi spouts |
+|---|---|---|---|---|
+| PS92 | .97 / .79 / .93 / 1.00 | .98 / **.05** / .71 / .99 | .08 / .24 / .19 / **.14** | .08 / .06 / .19 / .09 |
+| PS93 | .99 / .80 / .97 / 1.00 | .97 / **.15** / .72 / .99 | .19 / .24 / .20 / .15 | .35 / .27 / .28 / .26 |
+| PS94 | .97 / .64 / .94 / .99 | .97 / **.04** / .86 / .95 | .09 / .33 / .27 / **.18** | .05 / .06 / .04 / .03 |
+| PS95 | .96 / .32 / .87 / .99 | .98 / **.03** / .93 / .99 | .09 / .14 / .15 / **.13** | .10 / .09 / .10 / .10 |
+
+Reading: REPLICATES acutely -- far-contra trials are attempted (64-80 %, PS95 32 %) but almost never completed
+(.03-.15), close contra and ipsi spared; "try and fail" (PS92 / 93 / 94) vs "fail to try" (PS95) as in the AR-HMM
+cohort. CHRONICALLY trial completion is back at pre (.95-.99, unlike the AR-HMM cohort's plateau), but per-lick misses
+on contra spouts stay mildly elevated in 3 / 4 (PS92 .14 vs .08, PS94 .18 vs .09, PS95 .13 vs .09; PS93 not) while
+ipsi is flat -- with 5b (f9 per right lick 0.4-0.6 chronically): animals get the water again, with less accurate and
+differently made contralesional licks. Per-lick numbers pool close + far contra (far alone will be larger); LP lick
+detection post-stroke is the caveat (cam1 rescues hidden tongues, `trial_attempts`).
+
 ## 6. Does the pre-stroke vocabulary still fit after the stroke? (PILOT, two animals)
 
 EVR GAP = a session's own rank-10 fit (`fitsession`, 1 start) minus the frozen pre-stroke factors on the same session
@@ -157,6 +178,7 @@ centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation fa
 
 ## Change log
 
+* 2026-10-23: section 5c (licks and misses, AR-HMM cohort cross-check).
 * 2026-10-23: section 1b (true bin times; PS92_0908 encoding R2 0.506 -> 0.618 after the fix).
 * 2026-10-22 pm: pilot labels.json written (Priya's names).
 * 2026-10-22 pm: QC 95 / 108 (PS94 complete, PS95 pre-subacute).

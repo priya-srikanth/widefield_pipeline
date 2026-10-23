@@ -5,6 +5,13 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
 
 ## UPDATE 10-23 (read first)
 
+* **AR-HMM (Hillary, github.com/htong1/Priya_ARHMM2026, private; clone in scratch `ext/`) assessed 10-23**: frozen
+  pre-stroke sticky AR-HMM (jax-moseq, K 24, 12.5 Hz) on FR consensus + DLC tongue / jaw + treadmill, PS46-50.
+  Recommendation given to Priya (not yet decided): NOT a core encoding regressor now (redundant with the continuous FR /
+  pose regressors, collinear with licks, fragile to K / kappa / seed); port a lean version AFTER master_pre_v1 is
+  projected (inputs = master factors + LP tongue / jaw + treadmill) for state-onset maps, pre-cue state as covariate,
+  per-session AR log-lik recovery score vs cortex. Its headline ("licks and misses") checked here directly: FINDINGS 5c.
+
 * **State now (keep this block current)**: master_pre_v1 PLANNED (counts in PIPELINE 'Time windows and the fit
   sample'; still = canonical REST, run = canonical running bouts, equal pre-cue rows per animal) and SWEEP RUNNING. Plan was (`--trials-per-animal 120 --trial-ds 5
   --between-frac 0.556 --run-share 0.5 --arrival --inits 8 --ranks 8 10 12`; it reads treadmill speed for all 108
