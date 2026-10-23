@@ -17,7 +17,7 @@ corrected numbers follow).
 > | cam4 tracking clean in every animal x epoch (1) | STANDS | all 108 cam4 tasks, 4 animals; cam1 / cam2 / cam3 not run (await Priya's landmark clicks) |
 > | Bin times now TRUE (per-frame timestamps); PS92_0908 / PS92_0812 v1 had wrong stamps (1b) | STANDS | all 108 cam4 tasks (`timing`); pilot projections of the two tasks redone on fr-timing-v1; FR-model R2 PS92_0908 .506 -> .618 (encoding window) |
 > | Interior mesh folds 0-0.15 % (1) | CORRECTED | 0-0.34 % on all 108 (PS95 highest, 0.1-0.34 %); still negligible |
-> | How many factors (2) | PROVISIONAL | pilot sweep 6-16 (2 animals, 3 starts); MASTER sweep (4 animals, 8 starts): rank 8 done (EVR .775, stability .83, one unstable factor), rank 10 done (EVR .792, stability .999, 7 / 8 starts converge), rank 12 RUNNING; rank not yet chosen |
+> | How many factors (2) | DECIDED: rank 10 (Priya 10-23) | MASTER sweep 8 / 10 / 12 (4 animals, 8 starts): rank 10 the only well-determined one (stability .999); split-half + leave-one-animal-out + leave-one-day-out at rank 10 RUNNING |
 > | Pre-stroke noise floor: leaving a day out costs <= 0.01 EVR (3) | STANDS for PS92 + PS93 (pilot) | master leave-one-day-out (31 days, 4 animals) PENDING (after the rank choice) |
 > | Factor identities (4) | PILOT | pilot rank 10, 15 pre sessions of PS92 + PS93; master rank 10 matches the pilot factor-by-factor (similarity .825; 9 / 10 >= .88 spatial) EXCEPT left licking (f0 -> spatial .51) and whisking peak 11.7 -> 14.7 Hz; master factors NOT yet named / validated |
 > | Contralesional licking factor (f9) down after stroke, still down chronically (5) | PILOT (2 animals) | PS92 + PS93; re-checked on fr-timing-v1 projections 10-23 (unchanged); master projections of PS94 / PS95 PENDING |
@@ -54,7 +54,7 @@ pilot projections): PS92_0908 FR-model cortex R2 **0.506 -> 0.618** (ENL 0.545 -
 0.413 -> 0.527; FR's unique contribution +0.26) -- the bad stamps had been diluting FR; PS92_0812 unchanged (its
 mistimed bins lay outside the imaged frames).
 
-## 2. How many factors (PROVISIONAL; master sweep running)
+## 2. How many factors (rank 10 chosen for the master, 10-23)
 
 **MASTER (master_pre_v1, all four animals, 10-23; fit sample: FACE_RHYTHM_PIPELINE "Time windows and the fit sample"
 -- 120 trials / animal = 20 per position, pre-cue rows (spout arrival U cue -4..-2 s), between rows half running /
@@ -64,11 +64,11 @@ half rest, true bin times; 27.4 k rows; 8 starts per rank, fit-only):**
 |---|---|---|---|---|
 | 8 | 0.775 | 2 / 8 (two solutions, err .4742 / .4764) | 0.83 | 0.31-0.98 (one unstable factor, #4: 0.31) |
 | 10 | 0.792 | **7 / 8** (err .4565) | **0.999** | 0.69-0.99 (only the one outlier start) |
-| 12 | running | | | |
+| 12 | 0.803 | 3 / 8 | 0.91 | two weaker factors (.80 / .82 median): the extra factors split left and centre-right licking |
 
-Rank 10 is well determined on four animals (rank 8 is not). Master EVR is a little lower than the pilot's at the same
-rank (more varied sample). Rank to be chosen by Priya when rank 12 is in; then split-half (is 20 / position enough),
-leave-one-animal-out and leave-one-day-out at that rank.
+**Rank 10 chosen (Priya 10-23 evening)**: the only well-determined rank (rank 8 is not; rank 12 splits lick factors
+less reproducibly for +0.011 EVR). Master EVR is a little lower than the pilot's at the same rank (more varied sample).
+Next at rank 10: split-half (is 20 / position enough), leave-one-animal-out, leave-one-day-out.
 
 **PILOT (2 animals; superseded for the rank choice by the master sweep).** Fit-only sweep on the PS92 + PS93 pre-stroke
 fit rows (3 starts each): EVR / stability across starts -- rank 6 0.767 /
@@ -243,6 +243,7 @@ centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation fa
 
 ## Change log
 
+* 2026-10-23 evening: master rank sweep complete (12 added); rank 10 chosen.
 * 2026-10-23 afternoon: findings pass (Priya via the encoding window): status table; section 1 -> 108 / 108 and
   interior folds CORRECTED to 0-0.34 %; section 2 master sweep (ranks 8, 10); master-vs-pilot rank-10 match (4);
   sections 5 / 6 re-checked on fr-timing-v1 (unchanged); FR run A marked pending summary; where to look / next.

@@ -21739,3 +21739,14 @@ v7fwd15push.csv`): signed linear v6, free spline, forward-only from 3 / 1 / 1.5 
 Code: `RUN_MODE_DEFAULT = "spline_thr"`, `RUN_KNOT0_DEFAULT = 1.5`; the run tag always records k0; reproduce older
 runs with FROZEN_RUNNING / FROZEN_RUN_KNOT0 (commit 73d2991). Areas folder for v7 = `_v7fwd15`; basis re-run
 `_v7basis` started 10-23 16:36.
+
+## 2026-10-23 (evening) -- master_pre_v1 rank = 10 (Priya)
+
+Master sweep (four animals, 8 starts, fit-only): rank 8 EVR .775, 2 / 8 starts at the best solution, stability .83, one
+unstable factor (median .35); **rank 10 EVR .792, 7 / 8 starts converge, stability .999, every factor >= .998**; rank 12
+EVR .803, 3 / 8 starts, stability .91 -- its two extra factors SPLIT lick factors (left licking 4.6 / 5.1 Hz, centre-
+right ongoing into two 6.5 Hz factors) and the slow nose factor, the splits less reproducible (.80 / .82). Rank 10 =
+the reproducible, one-factor-per-lick-type solution, matching the pilot vocabulary (similarity .825). Next (local
+driver `rank 10`): refit with leave-one-animal-out -> split-half -> loso (31 days) -> select -> project 108 ->
+fitsession; then report, clips, validation, and Priya names the master factors.
+
