@@ -116,6 +116,16 @@ scalar is applied to all that animal's sessions, pre and post, so post-stroke am
 **Scoring rows** (`session_rows`, for `fitsession` / `loso`): per session, 60 engaged trials (10 per position or all it
 has) + between rows in the same proportion and run / still split; seeded per session.
 
+**Row spacing vs time resolution** (Priya 10-23: "280 ms is too long with respect to the timing of a lick"): a fit
+row is the MEAN of `trial_ds` consecutive 25 Hz bins (not a subsample). FR's VQT (params.json: Q 4 -> 20 geometric
+over 1-60 Hz, Gaussian windows sigma = Q / (4 f)) already smooths each frequency over: 1 Hz sigma 1.0 s; 5 Hz 0.38 s;
+7 Hz 0.31 s (FWHM 0.72 s, ~5 lick cycles); 10 Hz 0.25 s; 30 Hz 0.13 s. A 200 ms boxcar (sigma 58 ms) widens the
+lick-band smoothing by ~2 % (30 Hz: ~10 %); individual licks are never resolved by the spectrogram -- it measures
+rhythmic power over ~0.7 s. Rows stay at 200 ms (`--trial-ds 5`); not coarser. Lick-level timing comes from LP licks
+against the 25 Hz projections, not from the fit rows.
+**Is the sample enough?** `face_rhythm_factors.py splithalf --rank R`: two disjoint halves of the fit trials (10 per
+position per animal each) fitted separately and compared (per factor); run by the local driver after the rank choice.
+
 Plan: `face_rhythm_factors.py plan --bundle fr_cam4_20261021 --set master_pre_v1 --trials-per-animal 120 --trial-ds 5
 --between-frac 0.556 --run-share 0.5 --arrival --inits 8 --ranks 8 10 12` (local run, Priya: "local, trimmed").
 The PILOT (`pilot_pre_PS92_PS93`, 10-22) predates this: 30 trials / animal at 80 ms rows, 25 % uniform between bins,
