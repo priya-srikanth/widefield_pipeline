@@ -20,7 +20,7 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 > | Within-spout lick direction (2.5) | PROVISIONAL; no robust post-stroke execution-like shift | cam4 (all 4) / 3-D (2, snapshot; 4 now available); split-half reliability ~0.5 |
 > | Chronic coding gain beyond behavioural normalisation (4.1, 4.3.3) | STANDS (4.1) / PROVISIONAL (LMM) | PS94 shows no gain |
 > | Frozen decoder back at full behavioural recovery (2, 4.3.5) | CORRECTED: NOT back (+0.08, only PS92 back); refit gain over frozen > 0 in 4/4 but not significant under the deck bootstrap | LMM vs deck resampling disagree (DECISIONS 2026-09-12) |
-> | Running response is sublinear, forward-only; backward treadmill movement = real postural push (3.4) | PROVISIONAL | v7 candidates (forward from 1.5 mm/s +/- push) finishing 10-23 |
+> | Running response is sublinear, forward-only from 1.5 mm/s = v7 default; a push term breaks post-stroke windows (3.4) | PROVISIONAL (v7 chosen 10-23) | push frames 2-5x more frequent post-stroke in 3/4 -> no push term |
 >
 > **Standing re-run rule (Priya 10-23) -- NOW DUE:** every lick-DIRECTION result (exec_within / exec_locked dR2, stray
 > test, 3-D contests, within-spout direction, direction maps) must be RE-RUN on full 3-D. **Update 10-23 afternoon (pose
@@ -390,11 +390,12 @@ animals), not a measured area; an unflagged bin is not evidence of no change, an
 not a test of a difference. Cluster-permutation outlines support only "a change exists" (cluster-level control; false
 clusters are large in area), not where it stops.
 
-### 3.4 Frozen pre-stroke encoder (v4 -> v6; v7 running model pending): the acute far-contra drop is a LICK change, not a target change — PROVISIONAL (10-22 afternoon; robustness updated 10-23)
+### 3.4 Frozen pre-stroke encoder (v4 -> v6 -> v7): the acute far-contra drop is a LICK change, not a target change — PROVISIONAL (10-22 afternoon; robustness updated 10-23)
 
-> **Current version: v6** (`E/frozen_encoder_gate-attempted_v6/`, areas; `_v6basis` pixel maps). v7 (forward-only
-> running from 1.5 mm/s, +/- push) is being chosen 10-23; the pixel / per-position unique R2 maps will be re-run on v7.
-> Incomplete: PS95 1 acute session; PS95 + PS94_1005 no cam1 licks; no statistical test on data - model; still
+> **Current version: v7** (STATS_VERSION 7, commit 73d2991, 10-23: forward-only running from 1.5 mm/s, no push term).
+> Areas: `E/frozen_encoder_gate-attempted_v7fwd15/` (same model, run before the default changed); pixel maps + pixel /
+> per-position unique R2: `_v7basis` RUNNING (started 10-23 16:36). v6 folders kept for comparison.
+> Incomplete: PS95 1 acute session; PS94 / PS95 lick timing cam4-only in these runs (their cam1 not yet used); no statistical test on data - model; still
 > epoch-based (not on the LMMs, 4.3.7); lick-direction parts (exec_within / exec_locked) to be re-run with full 3-D.
 
 Model (`wfield_local/frozen_encoder.py`, STATS_VERSION 4; DECISIONS 2026-10-22 afternoon): one ridge model per animal
@@ -461,7 +462,7 @@ forward (real, not belt backlash). Speeds < 1.5 mm/s sit within +-0.5 s of a cue
 separate PUSH variable (backward speed beyond 0.3 mm/s). **Headline unchanged in every running model** (acute
 far-contra lick part within ~1 of v6; target <= 1).
 **Side-by-side (10-23, `scripts/frozen_running_compare.py` -> `E/qc/frozen_running_compare_v6_to_v6thr1.csv`; cortex,
-per animal; v7 rows to be added):**
+per animal; six models incl. v7 candidates: `..._v6_to_v7fwd15push.csv`):**
 - fitted running response (x1e3, summed over lags) at 1.5 / 3 / 5 / 12 mm/s: linear 11-15 / 22-30 / 36-50 / 86-119 and
   -22 to -30 at -3 mm/s (backward = negative running); forward from 1 mm/s 10-16 / 41-64 / 75-119 / 51-80, i.e. peak
   near 5 mm/s then lower, in 4/4;
@@ -471,13 +472,28 @@ per animal; v7 rows to be added):**
   the linear direction), same epoch pattern in every animal;
 - acute far contra, lick window, contralesional SSp-m: lick part PS92 -27.4 to -28.2 / PS93 -19.4 to -19.8 / PS94 -19.1
   to -19.4 / PS95 -22.7 to -23.0; target +3.8 / -0.2 / +1.8 / +2.3 in all four running models.
+**v7 chosen (10-23 evening).** Six models side by side (`_v7fwd15` = forward from 1.5 mm/s, `_v7fwd15push` = + push):
+- forward from 1.5 vs from 1 mm/s: within .02 R2 in every animal x epoch x window (1 mm/s marginally higher); the
+  lick group's unique dR2 is not lower with the 1-1.5 band in, so the band does not absorb lick variance; 1.5 kept
+  (Priya: below it the treadmill moves with cue / lick jolts). Curve: 0 to 1.5 mm/s, peak 76-120 x1e3 near 5 mm/s,
+  50-80 by 12 mm/s, 4/4.
+- **push term: helps the whole-session fit (+3 to +34 x1e3 in most cells; pre PS95 +30, PS94 +18) but BREAKS post-stroke
+  cue / lick windows** (chronic cue-window R2 PS95 .15 -> -.80, PS94 .41 -> .16, PS93 .52 -> .38) and inflates lick's
+  unique dR2 there (PS95 chronic 26 -> 312). Cause (`scripts/qc_running_push_survey.py`, trial frames, backward speed > 0.3 mm/s): push
+  frames are RARE pre-stroke (PS92 / PS93 / PS94 / PS95 0.6 / 0.7 / 3.9 / 1.8 %) and 2-5x more frequent by chronic in
+  3/4 (2.5 / 3.8 / 5.3 / 5.9 %; PS94 1.4x), and harder (mean 0.54-0.60 -> 0.70-0.81 mm/s, p99 1.4-2.2 -> 2.2-2.5); a
+  kernel fitted on rare pre-stroke pushes, applied to many post-stroke pushes, over-predicts. -> no push term in v7
+  (option kept, `FROZEN_PUSH=1`). **Behavioural side-finding (PROVISIONAL):** backward / postural treadmill pushes
+  become 2-5x more frequent after the stroke in PS92 / PS93 / PS95 (PS94 already high pre) -- bracing / posture change.
+- acute far-contra decomposition identical in all six (contralesional SSp-m lick part -28 / -20 / -19 / -23 to -26,
+  target <= 3.8).
 **Pre-stroke per-spout maps (10-23, `scripts/frozen_spout_maps.py --contrast`; `_v6basis/figures/pre_spout_contrast_*`):**
 data lateralised as expected in 4/4 (contra spouts -> left hemisphere, SSp-m L-R +12..+21; ipsi -> right); the SPOUT
 part (target + spout-locked) tracks the data; the target vs exec_locked split is unstable (close_mid +13 vs -13) -- on
 on-target licks they are one variable (-> 2.6). **Pixel / per-position unique R2 maps** (`scripts/frozen_r2_maps.py`:
 full and per-group unique R2 per pixel, pre held out and epoch - pre; per position target-only and WHOLE-SPOUT = target +
 spout-locked template swapped for the other spouts' pooled template): code + smoke test only (`_smoke-r2b`; whole-spout
-~5x the target-only scale); full run PENDING on v7.
+~5x the target-only scale); full run on v7 RUNNING (`_v7basis`, 10-23 16:36).
 
 ## 4. Recovery
 
@@ -598,7 +614,7 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
 
 ## 7. Next (in order; 10-23)
 
-1. Pick the v7 running model (forward from 1.5 mm/s, +/- push) from the side-by-side; make it the default (STATS_VERSION 7).
+1. DONE 10-23: v7 = forward-only running from 1.5 mm/s, no push (STATS_VERSION 7, 73d2991).
 2. Basis re-run on v7 -> pixel unique R2 maps + per-position target-only / whole-spout maps (paired with the signed
    per-spout contrasts).
 3. Lick-level strays vs on-target (2.6), pre and post.
@@ -610,6 +626,10 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-23 (evening)** — v7 chosen and made the default (forward-only running from 1.5 mm/s, no push term;
+  STATS_VERSION 7); push term breaks post-stroke windows because pushes are 2-5x more frequent after the stroke
+  (provisional behavioural finding); 3.4 / status box / next updated; `_v7basis` running.
 
 - **2026-10-23 (afternoon)** — status box at the top (what each result rests on, incomplete data, the 3-D re-run
   rule); **CORRECTED** the decoder line (frozen deficit NOT ~0 at full behavioural recovery: +0.08, only PS92 back;

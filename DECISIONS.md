@@ -21722,3 +21722,20 @@ fr-timing-v1 projections of PS92_0908 / PS92_0812 v1: unchanged to two decimals 
 determined: 7 / 8 starts converge, stability .999); master rank 10 vs pilot: mean similarity .825, left licking the
 outlier (spatial .51). FR run A (encoder) marked pending summary.
 
+
+## 2026-10-23 (evening) -- frozen encoder v7 (STATS_VERSION 7): forward-only running from 1.5 mm/s, NO push term
+
+Six running models compared per animal (`scripts/frozen_running_compare.py` -> `qc/frozen_running_compare_v6_to_
+v7fwd15push.csv`): signed linear v6, free spline, forward-only from 3 / 1 / 1.5 mm/s, and 1.5 + a backward "push" term.
+- Forward-only beats signed linear everywhere; onset 1 vs 1.5 mm/s within .02 R2 and the 1-1.5 band does not take
+  variance from the lick group -> 1.5 kept (Priya's choice: below it the treadmill moves with cue / lick jolts).
+- The push term helps the whole-session fit (+3 to +34 x1e3) but breaks post-stroke cue / lick windows (chronic cue
+  R2 PS95 .15 -> -.80, PS94 .41 -> .16) and inflates lick's unique dR2 there. Why (`scripts/qc_running_push_survey.py`):
+  pushes (backward speed > 0.3 mm/s) are rare pre-stroke (0.6-3.9 % of trial frames) and 2-5x more frequent and harder
+  by chronic in 3/4 (PS94 1.4x) -- a kernel fit on rare pre events over-predicts when applied to many post events.
+  The pre-stroke push -> cortex mapping cannot be frozen reliably, so v7 has no push term (`FROZEN_PUSH=1` keeps the
+  option). The rise in pushing is itself a provisional behavioural finding (bracing / posture after the stroke).
+- Acute far-contra decomposition identical in all six models.
+Code: `RUN_MODE_DEFAULT = "spline_thr"`, `RUN_KNOT0_DEFAULT = 1.5`; the run tag always records k0; reproduce older
+runs with FROZEN_RUNNING / FROZEN_RUN_KNOT0 (commit 73d2991). Areas folder for v7 = `_v7fwd15`; basis re-run
+`_v7basis` started 10-23 16:36.

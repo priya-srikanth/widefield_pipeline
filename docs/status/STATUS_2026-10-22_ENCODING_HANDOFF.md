@@ -9,6 +9,22 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000h. STATE 10-23 ~17:00 — READ FIRST (then 000g, 000f)
+
+- **v7 = DEFAULT** (STATS_VERSION 7, 73d2991): forward-only running from 1.5 mm/s, NO push (push breaks post-stroke
+  windows: pushes 2-5x more frequent post-stroke; FINDINGS 3.4, DECISIONS 2026-10-23 evening). Areas = `E/..._v7fwd15/`.
+- **RUNNING: `_v7basis`** (`S/run_v7basis.sh`, worktree `S/wf_frozen` at 73d2991, 4 workers, started 16:36, ~1.5-2 h +
+  maps): basis fit (joint / ordered / drop variants / task_only / drop-spout, residual + data moments incl. whole-spout
+  swaps) -> `frozen_pixel_maps` (joint / target_first / exec_first), `frozen_r2_maps`, `frozen_spout_maps` (+
+  `--contrast`). Progress `S/v7basis_chain.log`, `S/frozen_v7basis.log`. READ: pixel full / unique R2 (pre held out,
+  epoch - pre), per-position target-only vs whole-spout, paired with the signed contrasts.
+- **3-D 2x2** still on the 10-21 snapshot (`S/run_3d_resume.sh`, `S/wf_v4`): when xyz2 x cam4 finishes, stop the
+  wrapper before polar x cam4 and run the 4-animal re-cut instead (000g).
+- **NEXT after _v7basis:** re-cut 3-D (`S/prep_3d.py` -> move into repo) for 4 animals; re-run lick-direction results
+  (3-D contests, within-spout, exec_within / exec_locked on v7 with combined licks incl. PS94 / PS95 cam1); stray test
+  (2b) with `kinematics_all` (pre-cue + ITI licks, key lick_uid). Then queue 3 / 4 / 6 / 7 (000d / 000e).
+- Worktrees: `wf_frozen` = _v7basis (busy); `wf_v5` idle (73d2991 not checked out there; at 215f0ff); `wf_v4` = 3-D 2x2.
+
 ## 000g. UPDATE 10-23 ~15:00 (read with 000f)
 
 - **3-D NOW COVERS ALL FOUR ANIMALS** (pose window sabatinilab-5b, 10-23): 124 sessions (PS92 35, PS93 31, PS94 30,
