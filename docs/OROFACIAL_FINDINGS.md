@@ -1,25 +1,56 @@
-# Orofacial (cam4) findings: pre- vs post-stroke licking kinematics
+# Orofacial findings: pre- vs post-stroke licking kinematics (cam4, plus 3-D and cam1)
 
-Status: **preliminary**. Rewritten 2026-10-18 after a full review of the data with all 136 sessions processed.
+Status: **preliminary, living document.** Last updated **2026-10-23** (pose / 3-D window). Rewritten 2026-10-18 for cam4;
+the 10-23 pass adds the status table below, the 3-D / cam1 section (8) on all four animals, and corrections. Update the
+section AND its status tag whenever a result changes, and add a line to the change log at the bottom.
 
-> **BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY.** Results below that were selected as
-> "significant under both baselines" predate this rule and are being re-checked on run v36 (June camera scale and
-> perspective; DECISIONS 2026-10-18 late). Primary tables / figures: `cohort/{tables,figures}/{prepost,w2,heatmaps,jaw_lateral}/`
-> of `lp_r4_heatmap_20261013__clean_v36`; the June-including versions (`*_allpre`, marked SUPERSEDED) may be quoted only
-> for scale-free measures, as a sensitivity check. Run v35 is SUPERSEDED in full.
+Status tags: **STANDS** (both tests, August-only baseline, visible in >= 3 / 4 animals individually), **PROVISIONAL** (one
+check pending or data incomplete), **PENDING** (not yet run), **CORRECTED** (an earlier statement here was wrong; the new
+numbers follow), **NOT ESTABLISHED** (fewer than 3 animals, or one test only).
 
-**What counts as a finding here.** An effect is reported only if it is significant by **both** tests (session
-Mann-Whitney with BH-FDR, and the animal-weighted bootstrap) under **both** pre-stroke baselines (Priya 10-18: "both, side
-by side"):
-- all curated pre sessions (June 0606-0608 + August);
-- the August pre sessions only, immediately before the stroke (`--baseline late`).
+> **Where things stand (10-23), with what each rests on.** cam4 numbers = LP run v36, AUGUST-ONLY baseline (primary),
+> `cohort/tables/prepost/stats/RESULTS.md` (10-20). 3-D / cam1 = `session_poses/pose3d/` and `session_poses/cam1_licks/`
+> (rebuilt 10-23 on all four animals).
+>
+> | result | status | data it rests on / what is incomplete |
+> |---|---|---|
+> | 1. Acute global slowing (ILI +14 to +26 ms at every position) + far-contra-graded deficit (contact -0.67, first lick +488 ms, first contact +898 ms) | STANDS | cam4, 4 / 4 animals; PS95 acute = ONE session |
+> | 1. Far-contra protrusion loss -26 px | PROVISIONAL (mostly a FAR-spout effect, see caveat) | far ipsi also drops in all four; 3-D reach drop is at far_R AND far_L in PS93 / PS94 (8.1) |
+> | 2. Acute licks aim ipsi (+30 deg far contra, +7 to +13 deg elsewhere) | STANDS; confirmed in 3-D | cam4 4 / 4; 3-D 3 / 3 animals with an acute session (far_R midline error +9.5 / +25 / +36 deg); PS95 acute 3-D pending (O2 task 119) |
+> | 3. Jaw stops steering toward the target acutely (FAR_DIR -11.4 px) | STANDS; confirmed in 3-D | cam4 4 / 4 (-7.8 to -13.9 px); 3-D -0.18 to -0.40 mm in 3 / 3 |
+> | 3. ... and does not fully recover (chronic -4.4 px) | **CORRECTED -> NOT ESTABLISHED per animal** | pooled cell is significant, but per animal only PS92 (-7.5 px) and PS93 (-5.5) keep a deficit; PS95 -2.9, PS94 -0.5; 3-D agrees (-0.16 / -0.14 / -0.01 / -0.02 mm) -> 2 / 4 animals |
+> | 4. Jaw moves without a lick on more acute trials | STANDS; survives the cam1 correction | cam4 4 / 4; cam1-corrected (removes cam1-seen tongues) still +0.11 to +0.38 acute in PS92 / 93 / 94; PS95 acute cam1 pending. These are REACTIONS, not attempts (blind video review 0 / 24, 10-21) |
+> | 5. Tongue cloud shift (W2), nose posture shift | PROVISIONAL | cam4 v36 W2 tables (10-18), not re-checked per animal in this pass |
+> | 6. Most acute response loss was quitting | STANDS | cam4 |
+> | 7. Chronic persistence (more licks / trial +1.5 to +4.2; shorter far licks; earlier first lick / contact) | STANDS for licks / trial; others PROVISIONAL | cam4 v36 August-only; per-animal check of each chronic cell not redone in this pass |
+> | 8a. cam4 lateral / angle / jaw measures are faithful to 3-D | STANDS (4 / 4) | per-lick r 0.94-0.97 lateral, 0.99 'out' vs DOWN, 0.69-0.87 angle |
+> | 8b. 3-D carries more target information than cam4 2-D | STANDS (4 / 4) | 6-way target decode from the lick endpoint 0.67-0.86 (3-D) vs 0.42-0.78 (cam4), August pre, LOSO |
+> | 8c. Acute licks reach less far at far spouts, in 3-D | PROVISIONAL | far_R -0.06 / -0.63 / -0.44 mm, far_L +0.12 / -0.45 / -0.36 (PS92 / 93 / 94): not contra-specific |
+> | 8d. Incomplete (no-contact) licks rise acutely at far contra | STANDS (3 / 3 with acute cam1); chronic PROVISIONAL | share of licks 0.17-0.38 pre -> 0.73-0.98 acute; chronic still raised in PS92 / PS94 only |
+> | 8e. 3-D CLOSE_DIR (jaw away from a close side spout) | NOT ESTABLISHED | PS92 / PS93 only; PS94 / PS95 flat or opposite |
+>
+> **Coverage (10-23).** cam4: all 119 curated sessions. cam1 LP production: 125 / 127 curated videos; missing
+> **PS95_20260817 (PS95's ONLY acute session) and PS95_20260831 (chronic)**, resubmitted on O2 10-23. 3-D and cam1 lick
+> detection: every session with cam1 (3-D sessions PS92 35 / PS93 31 / PS94 30 / PS95 28; 117 curated pass the 3-D gates).
+> So **every PS95 acute 3-D / cam1 number is pending**, and PS95 acute cam4 numbers rest on one session. When task 119
+> lands, re-run `python -m scripts.pose_chain` and re-check rows 2, 3, 4, 8c and 8d.
 
-The numbers below are "all-pre / August-only". Re-check against `cohort/tables/prepost{,_latepre}/stats/` after each
-re-run; this file is not regenerated.
+> **BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY.** Primary tables / figures:
+> `cohort/{tables,figures}/{prepost,w2,heatmaps,jaw_lateral}/` of `lp_r4_heatmap_20261013__clean_v36`; the June-including
+> versions (`*_allpre`, marked SUPERSEDED) may be quoted only for scale-free measures, as a sensitivity check. Run v35 is
+> SUPERSEDED in full.
+
+**What counts as a finding here -- CORRECTED 10-23.** This section used to require significance under BOTH baselines
+(all-pre and August-only). Since the 10-18 baseline rule the criterion is: significant by **both** tests (session
+Mann-Whitney with BH-FDR, and the animal-weighted bootstrap) under the **August-only** baseline (v36), AND visible in at
+least three animals individually (CLAUDE.md rule 8). The all-pre (June-including) result is a sensitivity check only.
+Numbers in findings 1-7 below were written as "all-pre / August-only" pairs on v35; where v36 August-only differs it is
+given in the status table above, which is authoritative. Re-check against `cohort/tables/prepost/stats/` after each re-run;
+this file is not regenerated.
 
 ## Data
 
-- **Pose model:** LP r4 with cleaning v35.
+- **Pose model:** LP r4 with cleaning v36 (v35 superseded: June camera rescale).
 - **Sessions:** 119 curated sessions (PS92 30, PS93 29, PS94 30, PS95 30). The lesions are all LEFT VLS, so ipsi = the
   mouse's left = image right.
 
@@ -65,7 +96,7 @@ point that should not move relative to the mouth. Against the August reference, 
 (bootstrap-only), so about **2-3 px** is the floor for chronic positional claims. Raw camera framing drifts 25-60 px over
 months, which is why raw image positions are never used.
 
-## Findings that hold under both baselines
+## Findings (v35-era text; status and v36 numbers in the table at the top)
 
 **1. An acute, global slowing of licking, plus a position-graded deficit that is worst at the far contralesional spout.**
 
@@ -107,7 +138,7 @@ months, which is why raw image positions are never used.
 - Subacute, the shift persists at far contra (+8°) and far ipsi (+4°).
 - Chronic, it is small but still present at close mid and far mid (+3 to +4°).
 
-**3. The jaw stops steering toward the target, and does not fully recover.**
+**3. The jaw stops steering toward the target acutely (all four). Chronic persistence: 2 / 4 animals only (CORRECTED 10-23).**
 - Jaw FAR_DIR, the sideways jaw displacement toward the target side:
 
 | epoch | change |
@@ -119,12 +150,23 @@ months, which is why raw image positions are never used.
 - The jaw opening angle shows the same pattern.
 - FAR_DIR is a difference between far ipsi and far contra, so drift common to both cancels out. The chronic deficit,
   about 40 % of the acute loss, is therefore not explained by framing drift.
+- **CORRECTED 10-23 (per-animal check):** the chronic deficit is carried by TWO animals. cam4 v36 FAR_DIR, August pre ->
+  chronic (px): PS92 13.0 -> 5.5, PS93 8.2 -> 2.7, PS94 12.0 -> 11.5, PS95 15.3 -> 12.4 (`cohort/tables/jaw_lateral/
+  epoch_by_animal.csv`); 3-D chronic change -0.16 / -0.14 / -0.02 / -0.01 mm. The pooled chronic cell stays
+  significant, but "does not fully recover" is NOT ESTABLISHED under rule 8 (2 / 4 animals; PS95 partial). The ACUTE loss
+  is in all four (cam4 -7.8 to -13.9 px; 3-D -0.18 to -0.40 mm in the three animals with acute 3-D).
 
 **4. The jaw moves without a lick on more acute trials.**
 - These are trials where the jaw opens but no LP lick follows: +0.23 at far contra, +0.19 far mid, +0.13 far ipsi.
 - Still +0.03 to +0.04 at the far spouts subacute.
 - Caveat: LP cannot track a tongue within about 20 px of the mouth, so some of these trials may contain tiny licks. The
   example gallery (to-do 7) is the check.
+- **Checked 10-21 / 10-23.** (a) cam1 sees the tongue from below: removing trials where cam1 has a tongue event leaves the
+  acute rise almost intact (cam1-corrected jaw-without-lick share, far_R: PS92 0.016 -> 0.277, PS93 0.009 -> 0.282, PS94
+  0.050 -> 0.387; `cam1_licks/incomplete/`). (b) Blind video review of 24 jaw-only / just-below-floor trials (Priya,
+  10-21): 0 / 24 were attempted licks; jaw responses without opening, jaw-up, walking-related movement. So these trials
+  are REACTIONS, not attempts; the encoding window's attempted = hit + incomplete (jaw-only excluded). PS95 acute: cam1
+  pending.
 
 **5. The tongue's spatial distribution moves acutely and only partly returns (W2).**
 - The tongue point cloud in the mouth frame moves away from the animal's own pre cloud at every position acutely: +14
@@ -149,6 +191,34 @@ months, which is why raw image positions are never used.
 - The first contact comes earlier at far mid (−90 / −171 ms).
 - Protrusion is shorter at close contra and far ipsi (−9 to −16 px). That is near the positional drift floor AND
   PS93-sensitive (see below), so do not quote it.
+
+**8. 3-D and cam1 (10-23, all four animals; PS95 acute pending).** 3-D = cam1 + cam4 triangulated per session (PnP on
+the commanded spouts; `docs/POSE_MODELS.md` D10-D12). Per animal, post sessions minus the animal's August pre median
+(`session_poses/pose3d/kinematics/sessions.csv`), order PS92 / PS93 / PS94 / PS95:
+
+| measure (far_R = far contra) | acute | subacute | chronic |
+|---|---|---|---|
+| midline error toward ipsi, far_R (deg) | +25.0 / +9.5 / +36.1 / -- | +5.4 / +5.7 / +14.8 / +5.2 | -0.8 / +3.1 / +8.5 / +1.6 |
+| miss distance, far_R (mm) | +2.06 / +0.34 / +2.45 / -- | +0.61 / +0.01 / +1.50 / +0.30 | +0.14 / +0.04 / +1.10 / +0.11 |
+| reach far_R / far_L (mm) | -0.06 / -0.63 / -0.44 / -- ; +0.12 / -0.45 / -0.36 / -- | mixed | -0.24 / +0.31 / -0.85 / -0.30 ; small |
+| jaw FAR_DIR (mm) | -0.26 / -0.18 / -0.40 / -- | -0.23 / -0.17 / -0.15 / -0.04 | -0.16 / -0.14 / -0.02 / -0.01 |
+| jaw CLOSE_DIR (mm) | -0.09 / -0.08 / +0.07 / -- | -0.26 / -0.21 / +0.01 / +0.04 | -0.12 / -0.15 / +0.01 / +0.02 |
+
+- **8a. cam4 is faithful to 3-D for what it measures** (`pose3d_crosscheck`, every cam4 v36 lick matched to its 3-D peak,
+  95-97 % matched): lateral r 0.94-0.97 (34-36 px / mm), cam4 'out' = the DOWN axis (r 0.99 with -dv; -0.2..+0.1 with the
+  true forward ap), protrusion vs 3-D reach r 0.97-0.99, peak angle r 0.69 (PS93) - 0.87. Jaw per trial r 0.66-0.83
+  lateral, 0.57-0.83 opening. So findings 1-3 stand as measured; how far the tongue comes FORWARD is invisible to cam4.
+- **8b. 3-D carries more target information** (`pose3d_vs_cam4`, target spout decoded from the lick endpoint, August pre,
+  leave-one-session-out, 6 positions, chance 0.17): 3-D 0.81 / 0.67 / 0.86 / 0.74 vs cam4 0.53 / 0.42 / 0.78 / 0.59.
+  Largest gain on centre close vs far (depth). CORRECTED from the 10-19 PS92-only line (0.80 vs 0.53), which holds.
+- **8c. Reach** drops acutely at BOTH far spouts in PS93 / PS94 (not contra-specific), consistent with finding 1's
+  protrusion caveat; PS92's far-contra licks are full length but aimed ipsi.
+- **8d. Incomplete licks** (no contact; cam4 + cam1-only, `cam1_incomplete_licks`): share of far_R licks pre -> acute
+  0.17 -> 0.86 (PS92), 0.38 -> 0.73 (PS93), 0.22 -> 0.98 (PS94); chronic 0.35 / 0.35 / 0.55 / 0.32 (pre 0.17 / 0.38 / 0.22
+  / 0.25): persistent in PS92 and PS94 only. cam1-only events are 3-8 % of cam1 events in every animal and epoch.
+- **8e. CLOSE_DIR** (jaw moves away from a close side spout, 10-20 in PS92 / PS93) does NOT generalise: PS94 / PS95 flat.
+- Whole-session 3-D lick table (pre-cue + post-cue + ITI licks; ITI licks have no target) exists since 10-23:
+  `session_poses/pose3d/kinematics_all/licks.csv.gz` (`context` column). Not yet analysed here.
 
 ## Robustness to PS93 (leave-PS93-out)
 
@@ -194,12 +264,21 @@ the same effect size but drop to one test, which is expected with 3 animals.
 - **PS95's acute values**, which rest on a single session.
 - **Within-trial homing.** The angle did not move toward the spout over licks 1-5 in the preliminary data; not
   re-checked.
+- **Chronic jaw-steering deficit** (finding 3; 2 / 4 animals) and **3-D CLOSE_DIR** (8e; 2 / 4).
+- **Any PS95 acute 3-D or cam1 number** until O2 task 119 (PS95_20260817) lands.
 - **The imaging-side readout of executed angle** (to-do 3). Whether the imaging readouts also need an August-only
   sensitivity check is being scoped.
 
 ## Where
 
-- **Figures:**
+- **CORRECTED 10-23:** the paths below said v35. Primary is `lp_r4_heatmap_20261013__clean_v36`, where `prepost/` IS the
+  August-only baseline and `prepost_allpre/` the June-including sensitivity version (stats: `cohort/tables/prepost/stats/
+  RESULTS.md`; per-animal jaw: `cohort/tables/jaw_lateral/epoch_by_animal.csv`).
+- **3-D / cam1 (DeepLabCut/Widefield/session_poses/):** `pose3d/kinematics/{licks.csv.gz, sessions.csv, by_animal.csv}`,
+  `pose3d/kinematics_all/` (whole session), `pose3d/crosscheck/`, `pose3d/vs_cam4/`, `pose3d/spout_error/`,
+  `pose3d/figures/summary_<animal>.png`, `pose3d/phase/`, `cam1_licks/` (+ `incomplete/`). Rebuilt by
+  `python -m scripts.pose_chain` after every O2 copy-back.
+- **Figures (older paths, v35 era):**
   - `LP_analysis/lp_r4_heatmap_20261013__clean_v35/cohort/figures/prepost/` (all-pre) and
     `prepost_latepre/` (August-only);
   - `figures/w2/` and `w2_latepre/`;
@@ -212,3 +291,20 @@ the same effect size but drop to one test, which is expected with 3 animals.
   - `cohort_cue_{minus_pre,raw}_inmouth_*`;
   - `cohort_trajectory_xy_within_*`;
   - `w2/epochs_by_position`.
+
+## Next
+
+- When O2 task 119 (PS95_20260817, PS95's only acute session) and 127 land: `python -m scripts.pose_chain`, then re-check
+  status-table rows 2, 3, 4, 8c, 8d with PS95 acute.
+- Per-animal check of each chronic cell in finding 7 and of W2 (finding 5) on v36.
+- Analyse the whole-session 3-D licks (`kinematics_all`, ITI / spontaneous licks; the encoding window's stray test uses them).
+
+## Change log
+
+- **2026-10-23** (pose / 3-D window): status table + coverage; criterion CORRECTED to August-only + rule 8; finding 3
+  chronic jaw deficit CORRECTED to 2 / 4 animals (NOT ESTABLISHED); finding 4 cam1 check + attempt review added; new
+  section 8 (3-D / cam1 on all four animals: cam4 faithful, 3-D > 2-D target decode in 4 / 4, acute ipsi aim and jaw
+  steering loss confirmed in 3-D in 3 / 3, CLOSE_DIR not general, incomplete licks); paths CORRECTED to v36; PS95 acute
+  3-D / cam1 pending (task 119).
+- 2026-10-20: protrusion caveat (far-spout effect; per-animal).
+- 2026-10-18: rewritten after the full cohort review (v35; June scale issue noted).

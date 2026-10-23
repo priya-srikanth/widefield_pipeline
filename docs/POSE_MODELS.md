@@ -437,6 +437,25 @@ two): PS94 0814 / 0821 / 0908 (no PS94 cam1 labels on those dates). Metrics, in 
 
 # Part D -- 3-D output and cam1 clean traces (Priya 2026-10-18: 3-D IS an analysis output)
 
+> **STATUS 2026-10-23 -- read before quoting D9-D12.** D9-D12 were written 10-18 .. 10-20 on PS92 (production) and PS93
+> (clips, then production); their numbers are ONE- or TWO-ANIMAL results. Since 10-23 3-D and cam1 licks cover all four
+> animals (3-D sessions PS92 35 / PS93 31 / PS94 30 / PS95 28; cam1 LP 125 / 127 curated videos; missing PS95_20260817 =
+> PS95's only ACUTE session, and PS95_20260831). The four-animal results, with status tags, are in
+> `docs/OROFACIAL_FINDINGS.md` (status table + section 8). In short:
+>
+> | D-section claim | status on four animals |
+> |---|---|
+> | D11 cam4 lateral / angle / 'out' = DOWN axis vs 3-D | STANDS (r 0.94-0.97 lateral, 0.99 out vs -dv in all four) |
+> | D10-D12 acute far_R deficit (miss up, aim medial / ipsi) | STANDS in 3 / 3 animals with acute 3-D; PS95 acute pending |
+> | D11 jaw FAR_DIR collapse acutely | STANDS (3 / 3); chronic persistence only PS92 / PS93 -> NOT ESTABLISHED |
+> | D11 "acute licks reach less DOWN, more FORWARD" | PROVISIONAL (reach drops at BOTH far spouts in PS93 / PS94) |
+> | late 10-19 (1) 3-D > cam4 for target decoding | STANDS (4 / 4: 0.67-0.86 vs 0.42-0.78, 6 positions) |
+> | 10-20 CLOSE_DIR (jaw away from close side spout) | NOT ESTABLISHED (PS94 / PS95 flat or opposite) |
+> | D9 / 10-19 cam1 lick detector, droplet flag | STANDS as a method (reviewed on PS92 / PS93 only) |
+>
+> Whole-session 3-D licks (pre-cue / post-cue / ITI): `pose3d_kinematics --licks all` -> `session_poses/pose3d/
+> kinematics_all/` (10-23). Production chain for new sessions: `python -m scripts.pose_chain`.
+
 ## D1. The 3-D route (order)
 
 1. **Single-view models chosen per camera** (Parts C / B, in progress).
