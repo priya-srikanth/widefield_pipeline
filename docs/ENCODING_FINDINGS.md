@@ -542,7 +542,7 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
   contact, so the final 2 s before the cue has no contacts (last contact median 2.2-2.5 s before the cue); but
   no-contact licks can occur in it and lick-evoked GCaMP6s activity from contacts just before it can spill in.
   Pending: whole-session lick detection (other window) and an early vs late ENL split. `qc/precue_contacts.csv`.
-- **cam4 kinematics:** lateral angle faithful (r 0.95-0.97 with 3-D); "protrusion / reach" is 99 % the down axis, blind
+- **cam4 kinematics:** lateral angle faithful (r 0.95-0.97 with 3-D; confirmed in 4 / 4 animals by the pose window 10-23, OROFACIAL_FINDINGS §8, PS95 acute pending); "protrusion / reach" is 99 % the down axis, blind
   to forward. Every cam4 executed test is biased against executed by tracking noise and the missing axis.
 - **Lick events:** the older cam4-subset runs (2.1-2.3, 3.1, 3.2) use cam4 licks; cam1 adds 3-7 % small licks and
   incomplete licks rise post-stroke (PS92 far_R share .17 -> .86 acute). Combined cam1 + cam4 lick timing is used in
