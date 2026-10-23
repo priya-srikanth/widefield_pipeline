@@ -279,3 +279,20 @@ def test_build_basis_orthonormal_and_captures_variance():
     assert out["evr"][-1] >= fe.BASIS_VAR and W.shape[1] <= fe.BASIS_KMAX
     resid = common - W @ (W.T @ common)                    # the shared patterns lie in the basis
     assert np.linalg.norm(resid) / np.linalg.norm(common) < 0.05
+
+
+def test_running_spline_basis_continuous_flat_above_cap_and_curve_matches():
+    """Spline running basis: blocks of lag columns, identical to the capped column below the first knot, flat above the
+    cap; `running_curve` = the basis times the betas (summed over lags); linear mode = the capped columns."""
+    x = np.column_stack([np.linspace(-2, 30, 200)] * 2)                  # two "lag" columns
+    knots, cap = [3.0, 6.0, 9.0], 15.0
+    B = fe.running_basis(x, cap, knots, "spline")
+    assert B.shape == (200, 2 * 4)
+    assert np.array_equal(B[:, :2], np.clip(x, -cap, cap))
+    hi = x[:, 0] >= cap
+    assert np.allclose(B[hi], B[hi][0])                                   # flat beyond the cap
+    assert np.array_equal(fe.running_basis(x, cap, knots, "linear"), np.clip(x, -cap, cap))
+    beta = np.array([1.0, 0.5, -0.4, 0.0, -0.3, -0.2, 0.1, 0.0])          # blocks [s | k1 | k2 | k3] x 2 lags
+    s = x[:, 0]
+    y = fe.running_curve(beta, knots, s, cap)
+    assert np.allclose(y, B @ beta)

@@ -292,7 +292,8 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
                 "run_abs": run0[np.isfinite(run0)].astype(np.float32)}
     if templates is None:
         raise ValueError(f"{label}: the STATS_VERSION {STATS_VERSION} layout needs the animal's spout-locked templates")
-    raw["running"] = cap_running(raw["running"], templates.get("running_cap"))
+    raw["running"] = running_basis(raw["running"], templates.get("running_cap"), templates.get("running_knots"),
+                                   _run_mode())
     parts = {}
     for v in SPLIT_VARS:
         M = np.stack([templates["mean"][v][templates["pos_order"].index(p)] if p in templates["pos_order"]
@@ -373,9 +374,11 @@ def build_templates(parts: list[dict], run_thresh: float | None = None) -> dict:
         if len(ra):
             ra = ra[ra > (run_thresh if run_thresh is not None else _run_thresh())]   # running frames, pooled
         cap = float(np.percentile(ra, RUN_CAP_Q)) if len(ra) else None
+        rt = run_thresh if run_thresh is not None else (_run_thresh() if len(ra) else None)
+        knots = [float(rt)] + [float(np.percentile(ra, q)) for q in RUN_KNOT_Q] if len(ra) else []
         out[an] = {"pos_order": order, "mean": mean, "n_sessions": len(ts), "labels": [t["label"] for t in ts],
                    "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N,
-                   "running_cap": cap, "running_cap_q": RUN_CAP_Q}
+                   "running_cap": cap, "running_cap_q": RUN_CAP_Q, "running_knots": knots}
     return out
 
 
@@ -384,6 +387,39 @@ def cap_running(x: np.ndarray, cap: float | None) -> np.ndarray:
     if cap is None:
         return x
     return np.clip(x, -cap, cap)
+
+
+#: SUBLINEAR RUNNING TEST (Priya 10-23: "yes test sublinear running"). With the linear kernel PS94's post-stroke fit
+#: was better under a LOWER cap (9.4 mm/s: chronic R2 0.53) than a higher one (13.2: 0.30), as if cortex saturated
+#: with speed. `FROZEN_RUNNING=spline` replaces the linear running term with a PIECEWISE-LINEAR curve in speed: the
+#: capped speed s plus hinges max(0, s - k) at knots k = the running threshold and the RUN_KNOT_Q percentiles of the
+#: animal's pre RUNNING frames (all below the cap). Every function is flat above the cap, so the frozen model still
+#: never extrapolates; the fitted curve's shape (`running_curve`) is the readout. Default "linear" = v6.
+RUN_KNOT_Q = (25.0, 50.0, 75.0)
+
+
+def _run_mode() -> str:
+    m = os.environ.get("FROZEN_RUNNING", "linear")
+    if m not in ("linear", "spline"):
+        raise ValueError(f"FROZEN_RUNNING={m!r}: expected linear | spline")
+    return m
+
+
+def running_basis(x: np.ndarray, cap: float | None, knots: list | None, mode: str) -> np.ndarray:
+    """(T, L) lagged running columns -> (T, L x (1 + len(knots))) for "spline" ([s | hinge k1 | hinge k2 ...], each
+    block L lag columns: the transform commutes with the lag shift); "linear" = capped columns unchanged."""
+    s = cap_running(x, cap)
+    if mode == "linear" or not knots:
+        return s
+    return np.hstack([s] + [np.maximum(s - k, 0.0) for k in knots])
+
+
+def running_curve(beta: np.ndarray, knots: list, speeds: np.ndarray, cap: float | None) -> np.ndarray:
+    """Fitted response vs speed from the running betas IN RAW UNITS (blocks as `running_basis`), summed over lags."""
+    nb = 1 + len(knots)
+    b = np.asarray(beta, float).reshape(nb, -1).sum(1)
+    s = cap_running(np.asarray(speeds, float), cap)
+    return b[0] * s + sum(b[i + 1] * np.maximum(s - k, 0.0) for i, k in enumerate(knots))
 
 
 #: SPATIAL TARGETS (Priya 10-22: "is predicting allen areas really what we want? not a downsampled map?" -> the
@@ -999,8 +1035,9 @@ def main(argv=None) -> int:
     spath = str(out / "fit") if a.target != "areas" else None
     spat_ok = a.target == "areas" or all((out / "fit" / f"spatial_{config.animal_of(x)}.pkl").exists() for x in pre)
     saved = pickle.loads(sp.read_bytes()) if (a.reuse_stats and sp.exists() and tp.exists() and spat_ok) else None
-    if saved is not None and any(s_.get("stats_version") != STATS_VERSION for s_ in saved):
-        print(f"  saved statistics are not STATS_VERSION {STATS_VERSION}: recomputing", flush=True)
+    if saved is not None and any(s_.get("stats_version") != STATS_VERSION or s_.get("run_mode", "linear") != _run_mode()
+                                 for s_ in saved):
+        print(f"  saved statistics are not STATS_VERSION {STATS_VERSION} / running {_run_mode()}: recomputing", flush=True)
         saved = None
     if saved is not None:                                # a re-scoring run: the pre statistics are already saved
         got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
@@ -1028,7 +1065,7 @@ def main(argv=None) -> int:
         got, fail = ak.fan_sessions([(x, str(tp), spath) for x in pre], stats_job, jobs=a.jobs)
         got = [(it[0], s_) for it, s_ in got]
         for s_ in (s_ for _l, s_ in got):
-            s_["stats_version"] = STATS_VERSION
+            s_["stats_version"], s_["run_mode"] = STATS_VERSION, _run_mode()
         for it, err in fail:
             print(f"  !! stats {it}: {err}", flush=True)
         (out / "fit").mkdir(parents=True, exist_ok=True)
