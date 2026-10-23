@@ -31,6 +31,21 @@ jaw_only = jaw responses WITHOUT opening / other movement / still; walking below
                                 ~1 = the jaw only did what it was already doing (e.g. walking jitter), > 1 = a cue response
   tread_pre_mm_s / tread_post_mm_s  mean DAQ treadmill speed -1000 .. 0 ms and cue .. stop (`behavior_events.session_speed`;
                                 running threshold 3 mm/s, rest floor ~0.2: sub-running steps show as ~0.5-3)
+
+10-23, APPENDED 3-D columns (Priya: "use 3-D jaw ... as well as 3-D nose"), DESCRIPTIVE -- the per-camera call above stays
+the jaw-moved classifier: on her 24 reviewed trials (side spouts) 3-D caught 5 / 7 of her jaw calls with 1 / 5 false
+(per-camera 4 / 7, 0 / 5), and 3-D nose separated her "other movement" calls (median 0.40 mm vs jaw 0.16, still 0.11).
+From `session_poses/pose3d/<s>_frames.csv.gz` (both cameras + one-camera fill, mm, stage frame: ml + = mouse right,
+ap + = forward, dv + = up); per trial, displacement from the pre-cue (-500 .. 0 ms) median over cue .. stop.
+BLANK at close_center / far_center (the rod crosses the face in cam1: 3-D jaw / nose < 15 % of pre-cue frames) and
+where < 50 % of the window has a 3-D point. Per part P in {jaw, nose}:
+  P3d_disp_mm      95th percentile of the 3-D displacement (robust size of the movement)
+  P3d_rest_mm      the same over the pre-cue frames (that trial's resting noise; compare with disp)
+  P3d_down_mm / P3d_up_mm       largest downward / upward displacement (jaw: down = opening, up = clench)
+  P3d_back_mm      largest backward displacement (nose: head pulled back)
+  P3d_side_ipsi_mm sideways displacement at the largest movement, + = mouse LEFT = ipsilesional (all four animals)
+  P3d_moved / P3d_onset_ms  the per-camera onset rule (`jaw_kinematics.jaw_onsets`, sustained 5 / 8 frames, > 4 sd) on
+                   the 3-D displacement, floor 0.10 mm; onset on the DAQ clock (PROVISIONAL: floor not tuned)
 """
 from __future__ import annotations
 
@@ -50,6 +65,10 @@ OVERRIDES = {"cam4": {"degenerate_as_unknown": True},
              # scale; < 12 px mostly still, >= 16 px nearly always moved, 12-16 a coin flip)
              "cam1": {"degenerate_as_unknown": True, "deflection_threshold_min_px": 15.0}}
 FPS = 250.0
+#: 3-D columns (10-23): positions where the rod hides the face in cam1 -> blank; onset floor in MICROMETRES (the onset
+#: rule's floor parameter is in trace units; the 3-D trace is displacement in um)
+CENTRE = ("close_center", "far_center")
+OVERRIDE_3D = {"degenerate_as_unknown": True, "deflection_threshold_min_px": 100.0}
 
 
 def _laid_out(y: np.ndarray, idx: pd.DataFrame) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:
@@ -106,6 +125,56 @@ def _extras(y: np.ndarray, ix: pd.DataFrame, cam: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _threed(s: str, root_d: str) -> pd.DataFrame | None:
+    """Per trial 3-D jaw / nose displacement columns (module docstring, 10-23); None without 3-D frames."""
+    from wfield_local import jaw_kinematics as jk
+    f = Path(root_d) / "session_poses" / "pose3d" / f"{s}_frames.csv.gz"
+    if not f.exists():
+        return None
+    cols = ["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"] + [f"{p}_{a}" for p in ("jaw", "nose")
+                                                                     for a in ("ml", "ap", "dv")]
+    F = pd.read_csv(f, usecols=cols).drop_duplicates(["trial_id", "t_ms"]).sort_values(["trial_id", "t_ms"])
+    F = F.reset_index(drop=True)
+    out = {}
+    for part in ("jaw", "nose"):
+        X = F[[f"{part}_ml", f"{part}_ap", f"{part}_dv"]].to_numpy(float)
+        dist = np.full(len(F), np.nan)
+        rows = []
+        for tid, g in F.groupby("trial_id", sort=False):
+            k = g.index.to_numpy()
+            t = g.t_ms.to_numpy(float)
+            st = float(g.stop_ms.iloc[0]) if np.isfinite(g.stop_ms.iloc[0]) else 3500.0
+            ok = np.isfinite(X[k]).all(1)
+            pre, win = (t >= -500) & (t < 0) & ok, (t >= 0) & (t <= st)
+            r = {"trial_id": int(tid)}
+            if str(g.position.iloc[0]) in CENTRE or pre.sum() < 20 or (win & ok).sum() < max(20, 0.5 * win.sum()):
+                rows.append(r)
+                continue
+            D = X[k] - np.median(X[k][pre], axis=0)
+            d = np.linalg.norm(D, axis=1)
+            dist[k] = d * 1000.0                                          # um, for the onset rule
+            w = win & ok
+            i = int(np.argmax(np.where(w, d, -1.0)))
+            r.update({f"{part}3d_disp_mm": float(np.percentile(d[w], 95)),
+                      f"{part}3d_rest_mm": float(np.percentile(d[pre], 95)),
+                      f"{part}3d_down_mm": float(max(-D[w, 2].min(), 0.0)), f"{part}3d_up_mm": float(max(D[w, 2].max(), 0.0)),
+                      f"{part}3d_back_mm": float(max(-D[w, 1].min(), 0.0)), f"{part}3d_side_ipsi_mm": float(-D[i, 0])})
+            rows.append(r)
+        R = pd.DataFrame(rows).set_index("trial_id")
+        if f"{part}3d_disp_mm" not in R:
+            R[f"{part}3d_disp_mm"] = np.nan
+        trace, trials, src = _laid_out(dist, F[["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"]])
+        O = jk.jaw_onsets(trace, FPS, trials, OVERRIDE_3D)
+        row = np.where(O["onset_idx"] >= 0, src[np.clip(O["onset_idx"], 0, None)], -1)
+        O["onset_ms"] = np.where(row >= 0, F.t_daq_ms.to_numpy(float)[np.clip(row, 0, None)], np.nan)
+        O = O.set_index(trials.trial_id.to_numpy())
+        has = R[f"{part}3d_disp_mm"].notna()
+        R[f"{part}3d_moved"] = O.jaw_pass_qc.reindex(R.index).where(has)
+        R[f"{part}3d_onset_ms"] = O.onset_ms.reindex(R.index).where(has & (R[f"{part}3d_moved"] == 1))
+        out[part] = R
+    return out["jaw"].join(out["nose"], how="outer")
+
+
 def _treadmill(a: str, d: str, ix4: pd.DataFrame) -> pd.DataFrame:
     """Per trial mean treadmill speed (mm/s) -1000 .. 0 ms and cue .. stop, on the DAQ clock."""
     from wfield_local import behavior_events, daq_io
@@ -139,7 +208,7 @@ def session(job) -> pd.DataFrame:
     except Exception:
         h5 = None
     inputs = [sd / "windows.npz", sd / "clean.npz", d1 / "windows_index.csv", d1 / "windows_LP.csv"] + \
-        ([Path(h5)] if h5 else [])
+        ([Path(h5)] if h5 else []) + [Path(root_d) / "session_poses" / "pose3d" / f"{s}_frames.csv.gz"]
     ver = result_cache.code_version(jaw_kinematics, sys.modules[__name__])
     return result_cache.cached(Path(root_o) / V36 / "imaging_encoding" / "qc" / "_cache" / "jaw_onsets", s, inputs, ver,
                                lambda: _session(job))
@@ -214,6 +283,12 @@ def _session(job) -> pd.DataFrame:
         out["tread_post_mm_s"] = out.trial_id.map(T.tread_post_mm_s)
     except Exception:
         out["tread_pre_mm_s"] = out["tread_post_mm_s"] = np.nan
+    # APPENDED 10-23: 3-D jaw / nose (descriptive; module docstring)
+    T3 = _threed(s, root_d)
+    for part in ("jaw", "nose"):
+        for c in ("disp_mm", "rest_mm", "down_mm", "up_mm", "back_mm", "side_ipsi_mm", "moved", "onset_ms"):
+            col = f"{part}3d_{c}"
+            out[col] = out.trial_id.map(T3[col]) if T3 is not None and col in T3 else np.nan
     return out.drop(columns=["cam4_onset_frames", "cam1_onset_frames"])
 
 
