@@ -38,7 +38,13 @@ from pathlib import Path
 
 import numpy as np
 
-KIN_ALL = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics_all/licks.csv.gz")
+
+def kin_all() -> Path:
+    """Per-lick 3-D table for ALL licks (pose window, `--licks all`), under the logical dlc root."""
+    from wfield_local.paths import PathResolver
+    return Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+
+
 LAGS_S = (-0.1, 0.5)
 CUE_LAGS_S = (-0.5, 2.0)
 MIN_N = 15
@@ -126,7 +132,7 @@ def session_job(item) -> dict:
     T = B.trials
     cue = T.cue_s.to_numpy(float)
     arr = T.strobe_s.to_numpy(float)
-    K = pd.read_csv(KIN_ALL, usecols=["session", "position", "context", "contact", "daq_peak_s", *COORDS])
+    K = pd.read_csv(kin_all(), usecols=["session", "position", "context", "contact", "daq_peak_s", *COORDS])
     K = K[K.session == f"{an}_{date}"].copy()
     K["spout"] = [pos_name(p) for p in K.position]
     cat = classify(K, cen)
@@ -286,7 +292,7 @@ def main(argv=None) -> int:
     if a.summarise_only:
         summarise(out)
         return 0
-    K = pd.read_csv(KIN_ALL, usecols=["animal", "date", "epoch", "position", "context", "contact", *COORDS])
+    K = pd.read_csv(kin_all(), usecols=["animal", "date", "epoch", "position", "context", "contact", *COORDS])
     K["spout"] = [pos_name(p) for p in K.position]
     cen = centres(K)
     (out / "centres.json").write_text(json.dumps({an: {s: c.tolist() for s, c in d.items()} for an, d in cen.items()},
