@@ -3,7 +3,9 @@
 
 On an on-target lick the TARGET and the spout-locked executed movement are the same variable; only licks that land
 away from the aimed spout separate them. All categories are NON-CONTACT licks, so the touch response cannot confound
-the comparison (on-target contact licks carry touch, strays do not):
+the comparison (on-target contact licks carry touch, strays do not). CONTACT licks get their own kernel per aimed
+spout (contact|q; Priya 10-23): contact(q) - near(q) = the response difference of a touching vs a non-touching lick at
+the same aimed spout, overlap-corrected -- the model-light test of "more cortical activity per contact" post-stroke:
 
   stray q->j    aimed at spout q, tongue peak nearest spout j's zone            the test licks
   near_q        aimed at q, nearest q's zone (no contact)                       same TARGET, different execution
@@ -58,7 +60,7 @@ def centres(K) -> dict:
 
 
 def classify(L, cen: dict) -> np.ndarray:
-    """Category per lick (np.ndarray of str): stray|q|j, near|q, iti|j, contact (excluded), '' (no 3-D)."""
+    """Category per lick (np.ndarray of str): stray|q|j, near|q, iti|j, contact|q (aimed q, touched), '' (no 3-D)."""
     sp = list(cen)
     P = L[list(COORDS)].to_numpy(float)
     D = np.stack([np.linalg.norm(P - cen[s], axis=1) for s in sp], 1)
@@ -70,7 +72,7 @@ def classify(L, cen: dict) -> np.ndarray:
         if ctx[i] == "iti":
             cat[i] = f"iti|{nearest[i]}"
         elif con[i]:
-            cat[i] = "contact"
+            cat[i] = f"contact|{q[i]}"
         elif nearest[i] == q[i]:
             cat[i] = f"near|{q[i]}"
         else:
@@ -131,13 +133,13 @@ def session_job(item) -> dict:
     fr = np.searchsorted(ft, K.daq_peak_s.to_numpy(float))
     inside = (fr > 0) & (fr < len(ft) - 1)
     cats, counts = np.unique(cat[inside & (cat != "")], return_counts=True)
-    keep = [c for c, n in zip(cats, counts) if n >= MIN_N and c != "contact"]
+    keep = [c for c, n in zip(cats, counts) if n >= MIN_N]
     from scipy import sparse
     blocks, labels = [], []
     for c in keep:
         blocks.append(_lagged(fr[inside & (cat == c)], len(ft), lags))
         labels.append(c)
-    rest = inside & (cat != "") & ~np.isin(cat, keep)                    # contact + rare categories: shared kernel
+    rest = inside & (cat != "") & ~np.isin(cat, keep)                    # rare categories: one shared kernel
     blocks += [_lagged(fr[rest], len(ft), lags),
                _lagged(np.searchsorted(ft, cue[np.isfinite(cue)]), len(ft), clags),
                _lagged(np.searchsorted(ft, arr[np.isfinite(arr)]), len(ft), clags)]
@@ -184,7 +186,7 @@ def summarise(out: Path) -> None:
         z = np.load(f, allow_pickle=True)
         rows.append(z["r"].item())
     order = ["pre", "acute", "subacute", "chronic"]
-    idx, val = [], []
+    idx, val, crow = [], [], []
     for an in sorted({r["animal"] for r in rows}):
         R = [r for r in rows if r["animal"] == an]
         ref, wref = combine(R, ("pre",))
@@ -220,7 +222,27 @@ def summarise(out: Path) -> None:
                 own = _corr(h1[c] - g1, h2[c] - g2)
                 oth = [_corr(h1[c] - g1, h2[o] - g2) for o in h2 if o.startswith("near|") and o != c]
                 val.append({"animal": an, "spout": c.split("|")[1], "r_own": own, "r_other_mean": np.nanmean(oth)})
+        # contact vs non-contact at the same aimed spout: summed 0 .. 0.5 s response difference per area (x1e3)
+        for ep in order:
+            cur, wcur = combine(R, (ep,))
+            for c in [c for c in cur if c.startswith("contact|")]:
+                q = c.split("|")[1]
+                if f"near|{q}" not in cur:
+                    continue
+                dk = cur[c] - cur[f"near|{q}"]
+                lag = R[0]["lags_s"]
+                w = (lag >= 0) & (lag <= 0.5)
+                for ai, ar in enumerate(R[0]["areas"]):
+                    if ar in ("cortex", "SSp-m_left", "SSp-m_right", "MOp_left", "MOs_left"):
+                        crow.append({"animal": an, "epoch": ep, "spout": q, "area": ar, "n_contact": wcur[c],
+                                     "n_near": wcur[f"near|{q}"], "contact_minus_near_x1e3": float(dk[w, ai].sum() * 1e3)})
     I = pd.DataFrame(idx)
+    Cd = pd.DataFrame(crow)
+    Cd.to_csv(out / "contact_vs_near.csv", index=False, float_format="%.4g")
+    if not Cd.empty:
+        print("=== CONTACT vs NON-CONTACT lick at the same aimed spout (kernel difference summed 0-0.5 s, x1e3), cortex\n"
+              + Cd[Cd.area == "cortex"].pivot_table(index=["animal", "spout"], columns="epoch",
+                                                    values="contact_minus_near_x1e3").round(2).to_string())
     Vd = pd.DataFrame(val)
     I.to_csv(out / "stray_index.csv", index=False, float_format="%.4g")
     Vd.to_csv(out / "stray_validation.csv", index=False, float_format="%.4g")

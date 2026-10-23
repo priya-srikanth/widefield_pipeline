@@ -426,7 +426,13 @@ vs pre, dF/F x 1e3, per animal (PS92 5 / PS93 4 / PS94 6 / PS95 1 acute sessions
   per-event response change -- that would sit in the residual (mildly +; PS95 1 session strong). Direct test pending
   (model-free contact vs miss licks, pre vs post; or a per-epoch contact delta in the all-session model).
   PS93's unique contact is ~0 (lick window 1.2 vs 13-32 x1e3) although it misses most (0.74 of trial licks touch vs
-  0.91-0.95): likely shared with direction (PS93's exec_within unique R2 is the brightest) -- check pending;
+  0.91-0.95): likely shared variance. **Cheap check (10-23, `scripts/contact_direction_predictability.py`, August pre
+  3-D trial licks, session-fold CV AUC of contact):** direction alone .84 / .85 / .75 / .62 (PS92 / PS93 / PS94 /
+  PS95), reach alone .77 / .85 / .68 / .83, both .86 / **.89** / .79 / .84 -- PS93's contacts are the MOST predictable
+  from how the lick was executed (direction AND reach), and the order of predictability runs nearly inverse to unique
+  contact (1.2 / 13.3 / 18.1 / 31.6 for PS93 / PS92 / PS94 / PS95; n = 4, PS94 / PS95 swapped). Reading: PS93's
+  touch response is not absent but SHARED with the lick (reach -> lick group) and direction (exec_within) terms, so
+  unique credit is ~0. Pending: the joint drop variant `no_contact_exec_within` (grouping-v3 refit);
 - data - frozen prediction +1.3 to +7.5 (small, positive).
 
 Reading: the pre-stroke mapping, fed the licking actually made, predicts the drop; the change is carried by licking
@@ -665,6 +671,10 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-23 (night, late)** — grouping v3 (contact its own category, out of "non-task"; nose -> other was v2);
+  PS93 contact predictability check (contact most predictable from execution in PS93 -> shared variance); stray-lick
+  test now has per-spout contact kernels (contact vs non-contact at the same aimed spout).
 
 - **2026-10-23 (night)** — 4.4 added: pushes (incl. the cue-locked postural adjustment) collapse acutely with the
   far-contra deficit and overshoot pre after recovery (LMM deficit z -4 to -11.5; log-day z 5-12).

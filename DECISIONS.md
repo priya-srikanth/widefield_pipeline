@@ -21792,3 +21792,13 @@ fitsession; then report, clips, validation, and Priya names the master factors.
 7. **Map views** (Priya: PS93 contact read black): `*_peranimal` (per-panel scale), `r2_share_*` (unique / full),
    `pixel_maps_*_prenorm` (each animal / RMS of its mean pre data map). R2 is already scale-free, so z-scoring would
    not change PS93 vs PS95 contact (likely shared variance with direction; check pending).
+
+## 2026-10-23 (night) -- contact its own category (grouping v3); contact kernels in the stray test; PS93 check
+
+Priya chose after the pros / cons: (1) CONTACT is its own category (touch feedback is neither an experimenter-controlled
+task event nor a movement); `SUPER["nontask"]` = movement only, GROUPING_VERSION 3; the old non-task number = joint -
+task_only, still reported. (2) The contact-vs-miss question is answered inside the stray-lick model (contact|q kernels,
+overlap-corrected, aim-matched) and by Layer 2's contact change -- no separate raw lick-triggered comparison (vigour /
+reach / bout confounds, 6-7 Hz overlap, few acute far-contra contacts). (3) PS93 cheap check: contact predictable from
+execution (direction + reach) at AUC .89 in PS93 vs .79-.86 others, nearly inverse to unique contact -> shared variance,
+not absent touch coding; joint drop `no_contact_exec_within` added.

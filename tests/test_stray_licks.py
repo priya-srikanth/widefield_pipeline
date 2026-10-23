@@ -28,4 +28,4 @@ def test_classify_categories():
                       "spout": ["far_contra", "far_contra", "far_contra", "far_contra", "far_mid", "far_mid"],
                       "contact": [True, False, False, False, False, False]})
     cat = sl.classify(L, cen)
-    assert list(cat) == ["contact", "stray|far_contra|far_mid", "near|far_contra", "iti|far_mid", "near|far_mid", ""]
+    assert list(cat) == ["contact|far_contra", "stray|far_contra|far_mid", "near|far_contra", "iti|far_mid", "near|far_mid", ""]

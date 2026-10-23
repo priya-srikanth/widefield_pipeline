@@ -37,7 +37,7 @@ SHARE_MIN_FULL = 0.02
 #: (label, variant whose SSE minus joint's is the unique part)
 UNIQUE = (("lick", "no_lick"), ("spout", "no_spout"), ("target", "no_target"), ("exec_locked", "no_exec_locked"),
           ("exec_within", "no_exec_within"), ("contact", "no_contact"), ("other", "no_other"),
-          ("timing", "no_timing"), ("task", "no_task"), ("movement", "no_movement"), ("non-task", "task_only"))
+          ("timing", "no_timing"), ("task", "no_task"), ("movement", "no_movement"), ("non-task+contact", "task_only"))
 
 
 def pixel_sse(sp: dict, M: np.ndarray, keep: np.ndarray) -> np.ndarray:

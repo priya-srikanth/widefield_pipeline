@@ -48,8 +48,13 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
   "direction" / "magnitude" columns are POSITIONS (tongue x / y / protrusion vs speed; jaw x vs y + speed; nose x vs
   y); contact stays a separate group (own-category option offered, not decided); Layer 2 moved up; relabel + stray
   tests approved; push behaviour finding (FINDINGS 4.4).
-- **Open questions to Priya:** contact as its own category (vs non-task); model-free contact-vs-miss check; PS93
-  contact shared-variance check.
+- **Decided (Priya, after pros / cons):** (1) contact = ITS OWN CATEGORY -> grouping v3 (out of "nontask"; task_first /
+  movement_first order task vs movement only; r2 maps' last column relabelled "non-task+contact"); (2) no separate
+  model-free contact-vs-miss script -- the stray-lick test now gives contact licks their own kernel per aimed spout
+  (contact|q) and reports contact(q) - near(q) per epoch (`contact_vs_near.csv`), plus Layer 2's per-epoch contact
+  change; (3) PS93 cheap check DONE (FINDINGS 3.4: contact most predictable from execution in PS93, AUC .89) + the
+  joint drop variant `no_contact_exec_within` (added to VARIANTS; fitted in the grouping-v3 refit).
+- Grouping-v3 refit replaces the "grouping v2 refit" in the relaunch list (item 4): same commands, tag `_v7g3`.
 
 ## 000i. STATE 10-23 ~18:40 — READ FIRST (then 000h, 000g)
 

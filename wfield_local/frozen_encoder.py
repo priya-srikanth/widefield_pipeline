@@ -124,12 +124,17 @@ FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": 
           **{f"{v}:dev": ("lick" if v in _LICK_BASE else "exec_within") for v in SPLIT_VARS},
           **{k: "other" for k in _NOSE_OTHER},
           "exec_angle": "exec_within", "nose_mag": "other", "running": "other", "push": "other", "contact": "contact"}
-#: grouping revision, saved with outputs (1 = up to 10-23 evening, nose x in exec_locked / exec_within; 2 = nose in other)
-GROUPING_VERSION = 2
+#: grouping revision, saved with outputs (1 = up to 10-23 evening, nose x in exec_locked / exec_within; 2 = nose in other;
+#: 3 = contact its own category, out of "nontask" -> task_first / movement_first order task vs movement only)
+GROUPING_VERSION = 3
 FGROUPS = ("timing", "target", "exec_locked", "exec_within", "lick", "other", "contact")
+#: CONTACT IS ITS OWN CATEGORY (grouping v3, Priya 10-23 "ok split out contact"): touch feedback from the animal's own
+#: lick is neither an experimenter-controlled task event nor a movement, so it is no longer inside "nontask" -- the
+#: task-first / movement-first bracket now orders task vs MOVEMENT with contact split jointly (in neither); the old
+#: "non-task" (movement + contact) is still joint - task_only.
 SUPER = {"task": ("timing", "target"), "spout": ("target", "exec_locked", "exec_within"),
          "movement": ("lick", "exec_locked", "exec_within", "other"),
-         "nontask": ("lick", "exec_locked", "exec_within", "other", "contact")}
+         "nontask": ("lick", "exec_locked", "exec_within", "other")}
 #: penalty groups as the encoder's PEN_GROUP_OF (task / lick / orofacial / uninstructed); s and d of a variable share
 #: its penalty group
 _FPEN_BASE = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
@@ -710,6 +715,9 @@ def _subset(s: dict, keep: list[str]) -> tuple:
 #: task-aligned = alone - task-independent.
 _GROUPSETS = {**{g: (g,) for g in FGROUPS}, **SUPER}
 _DROP = {f"no_{g}": gs for g, gs in _GROUPSETS.items() if g != "nontask"}
+#: SHARED-VARIANCE CHECK (Priya 10-23, PS93's unique contact ~0 although it misses most): drop contact AND within-spout
+#: direction together; unique(contact + exec_within) >> unique(contact) + unique(exec_within) = variance they share
+_DROP["no_contact_exec_within"] = ("contact", "exec_within")
 _ONLY = {"task_only": SUPER["task"], "lick_only": ("lick",), "spout_only": SUPER["spout"], "other_only": ("other",),
          "movement_only": SUPER["movement"]}
 _ORDERED = {"target_first": (("target",), ("exec_locked", "exec_within")),     # (A, B): residualise B on A

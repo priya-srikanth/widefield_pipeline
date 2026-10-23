@@ -409,4 +409,12 @@ def test_nose_is_other():
     """Grouping v2 (Priya 10-23): both parts of nose x and nose y are uninstructed "other", not lick direction."""
     assert fe.FGROUP["nose_dir:spl"] == fe.FGROUP["nose_dir:dev"] == fe.FGROUP["nose_mag"] == "other"
     assert fe.FGROUP["tongue_dir:dev"] == "exec_within" and fe.FGROUP["tongue_dir:spl"] == "exec_locked"
-    assert fe.GROUPING_VERSION == 2
+    assert fe.GROUPING_VERSION >= 2
+
+
+def test_contact_own_category():
+    """Grouping v3: contact is in neither task nor movement / nontask; the shared-variance drop variant exists."""
+    assert "contact" not in fe.SUPER["nontask"] and "contact" not in fe.SUPER["task"]
+    assert "contact" not in fe.SUPER["movement"]
+    assert fe._DROP["no_contact_exec_within"] == ("contact", "exec_within")
+    assert "no_contact_exec_within" in fe.VARIANTS and fe.GROUPING_VERSION == 3
