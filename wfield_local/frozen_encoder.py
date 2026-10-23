@@ -47,14 +47,24 @@ from pathlib import Path
 
 import numpy as np
 
-STATS_VERSION = 5   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split;
-#                     5: running capped at the animal's pre-stroke p99 (RUN_CAP_Q)
+STATS_VERSION = 6   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split;
+#                     5: running capped at the pre p99 of ALL frames (superseded); 6: p99 of RUNNING frames (RUN_CAP_Q)
 
 #: RUNNING CAP (Priya 10-22 evening: "yes add running cap"). A frozen model only interpolates within the pre-stroke
 #: range: PS94 ran far harder after the stroke (running SD 5.6-6.3 vs 1.4-2.9 pre; p99 20-23 vs 7-12), the linear
 #: running kernel extrapolated and drove chronic frozen R2 to -0.4 .. -0.6. Every running column is clipped to
-#: +/- the animal's pooled pre-session RUN_CAP_Q percentile of |speed| (trial frames, lag-0 column) before centring.
+#: +/- the animal's pooled pre-session RUN_CAP_Q percentile of |speed| over its RUNNING frames (trial frames, lag-0
+#: column, |speed| > the pipeline's running threshold `segmentation.running.thresh_speed_mm_s`, 3 mm/s) before
+#: centring. NOT the percentile of all frames (STATS_VERSION 5): PS95 runs on 1 % of pre frames, so its all-frame p99
+#: (2.8 mm/s) sat at the edge of standing still, the cap removed 63 % of its pre running SD, the per-mm/s kernel
+#: tripled and post-stroke cue / lick-window R2 fell to -0.65 (chronic). The cap = the speeds the animal REACHED when
+#: it ran, independent of how often it ran (PS92 / 93 / 94 / 95: 14.8 / 17.3 / 13.2 / 16.8 mm/s).
 RUN_CAP_Q = 99.0
+
+
+def _run_thresh() -> float:
+    from wfield_local import config
+    return float(config.defaults()["segmentation"]["running"]["thresh_speed_mm_s"])
 
 
 def _ce():
@@ -337,7 +347,7 @@ def template_job(label: str) -> dict:
     return session_design(label, template_only=True)
 
 
-def build_templates(parts: list[dict]) -> dict:
+def build_templates(parts: list[dict], run_thresh: float | None = None) -> dict:
     """{animal: {"pos_order", "mean": {var: (spouts, K, c)}, "n_sessions", "labels"}} pooled over the animal's pre
     sessions (sums / counts added, so every pre trial weighs the same)."""
     by: dict = {}
@@ -359,7 +369,10 @@ def build_templates(parts: list[dict]) -> dict:
                 N[ix] += n_
             mean[v] = template_means(S, N)
         ra = [t["run_abs"] for t in ts if t.get("run_abs") is not None and len(t["run_abs"])]
-        cap = float(np.percentile(np.concatenate(ra), RUN_CAP_Q)) if ra else None   # pooled: every pre frame weighs the same
+        ra = np.concatenate(ra) if ra else np.zeros(0)
+        if len(ra):
+            ra = ra[ra > (run_thresh if run_thresh is not None else _run_thresh())]   # running frames, pooled
+        cap = float(np.percentile(ra, RUN_CAP_Q)) if len(ra) else None
         out[an] = {"pos_order": order, "mean": mean, "n_sessions": len(ts), "labels": [t["label"] for t in ts],
                    "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N,
                    "running_cap": cap, "running_cap_q": RUN_CAP_Q}

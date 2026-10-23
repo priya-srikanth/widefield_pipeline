@@ -207,16 +207,18 @@ def test_build_templates_pools_sessions_by_trial_count():
 
 
 def test_running_cap_pooled_over_pre_frames_and_clips_both_signs():
-    """Cap = RUN_CAP_Q percentile of |speed| over ALL pre frames pooled (a long session weighs more); clipping keeps
-    sign, leaves values inside the cap and NaN untouched."""
+    """Cap = RUN_CAP_Q percentile of |speed| over the RUNNING pre frames (above the threshold) pooled across sessions;
+    stationary frames do not pull it down. Clipping keeps sign, leaves values inside the cap and NaN untouched."""
     k0, K = fe._template_bins()
     def part(label, run):
         S, Nn = np.zeros((1, K, 1)), np.zeros((1, K))
         return {"label": label, "animal": "A", "pos_order": ["a"], "sums": {v: (S, Nn) for v in fe.SPLIT_VARS},
                 "run_abs": np.asarray(run, np.float32)}
-    r1, r2 = np.arange(1000.0), 5000.0 + np.arange(100.0)
-    t = fe.build_templates([part("A_1", r1), part("A_2", r2)])["A"]
-    assert abs(t["running_cap"] - np.percentile(np.concatenate([r1, r2]), fe.RUN_CAP_Q)) < 1e-3
+    r1, r2 = np.r_[np.zeros(100000), np.arange(1000.0)], 5000.0 + np.arange(100.0)    # mostly stationary
+    t = fe.build_templates([part("A_1", r1), part("A_2", r2)], run_thresh=3.0)["A"]
+    mov = np.concatenate([r1, r2])
+    assert abs(t["running_cap"] - np.percentile(mov[mov > 3.0], fe.RUN_CAP_Q)) < 1e-2
+    assert t["running_cap"] > 1000                      # the all-frame p99 would be ~0 here
     x = np.array([[-50.0, 3.0], [np.nan, 50.0], [9.9, -2.0]])
     y = fe.cap_running(x, 10.0)
     assert np.array_equal(y[[0, 1, 2], [0, 1, 0]], [-10.0, 10.0, 9.9]) and y[2, 1] == -2.0 and np.isnan(y[1, 0])
