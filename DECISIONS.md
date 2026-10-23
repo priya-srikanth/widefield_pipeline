@@ -21750,3 +21750,20 @@ the reproducible, one-factor-per-lick-type solution, matching the pilot vocabula
 driver `rank 10`): refit with leave-one-animal-out -> split-half -> loso (31 days) -> select -> project 108 ->
 fitsession; then report, clips, validation, and Priya names the master factors.
 
+## 2026-10-23 (evening) -- master_pre_v1: equal days, one frozen basis for the encoder, run on O2
+
+1. **Each pre-stroke recording DAY weighs the same within its animal** (Priya: "equally weighted sessions"): every
+   draw (each position's trials, run bins, rest bins, pre-cue rows) is spread evenly over the animal's days
+   (`plan --even-days`, `even_draw`: round-robin quotas in a random dealing order, short days give all, a split day
+   counts once). Pooled draws had given single sessions 1-24 % of an animal's rows; now trials 13-18 per day, rows
+   10-16 % per day (one PS93 rest-rich day 20 %). The rank-10 choice stands (sweep in `logs/sweep_pooled_sample_20261023/`).
+2. **`proj/` = ONE full frozen basis for every session, pre included** (Priya, for the encoder): held-out bases differ
+   slightly per pre day (matched similarity .84-1.00 in the pilot), which would change a regressor's definition between
+   pre and post sessions in a frozen encoder; "in-sample" here means the face basis saw that day's face video (pilot
+   cost <= 0.01 face EVR), nothing about cortex. Pre projections on the HELD-OUT basis go to `proj_loso/` and are used
+   only for FaceRhythm's own scoring (reconstruction error, EVR gap / noise floor; readouts read them for pre) and as an
+   encoder sensitivity check. Order: build -> fit + LOAO -> split half + select -> project (encoder) -> loso ->
+   project_loso -> fitsession. Supersedes 10-22 #2 for `proj/` (pilot keeps its held-out pre projections).
+3. **Run on O2** (queue empty, Priya): `run_chain.sh 10` submits the chain with dependencies; the O2 stages import the
+   timing / multiview modules from copies `plan` places next to `fr_factors.py`. Commands: `factors/master_pre_v1/COMMANDS.md`.
+
