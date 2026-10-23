@@ -387,6 +387,39 @@ Day of 50 % of the acute -> chronic change: far-contra contact recovers first (P
 PS95 3 vs 4); PS94 partly recovers behaviourally with no cortical gain. Reading: cortex consolidates or reflects a
 recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/position_coding_half_recovery.csv`.
 
+### 4.3 What the time-course mixed models changed relative to the epoch tables (consolidated 10-23)
+
+Session-level LMMs (`wfield_local/mixed_models.py`, one definition; `scripts/encoding_mixed.py`, `scripts/imaging_lmm.py`,
+`scripts/within_spout_mixed.py`; models: TIME y ~ post + post:log(day), BEHAVIOUR y ~ post + post:deficit with deficit =
+far-contra time-to-contact / contact loss relative to the animal's August pre, random intercept + step + slope per animal
+with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What they did to the epoch-based results:
+
+1. **Epochs became descriptive, LMMs primary (10-20).** The chronic epoch starts on day 11 (PS92 / PS93), 15 (PS95)
+   and 25 (PS94), so an epoch table compares different post-stroke times across animals; the acute bin also mixes
+   day 1 with days 2-5 while coding recovers over log time. Maps use each animal's actual chronic days.
+2. **The acute drop is a step plus a log-time recovery, not a flat epoch.** Position coding drops at day 1 (cue step
+   z -3.2) and recovers with log(days) (z 4.0), carried mostly by DISTANCE (recovery z 8.6); far-contra spout coding
+   step z -2.6 / recovery z 5.5.
+3. **The chronic gain (4.1) is a gain BEYOND behavioural normalisation, not just elapsed time.** Indexed by behaviour,
+   coding falls with the far-contra deficit and sits ABOVE pre once behaviour is back at the pre level (cue ceiling
+   +53 x1e3, z 4.6; lick distance z 4.5). This upgrades 4.1 and reframes 4.2 (cortex follows / overshoots behavioural
+   recovery).
+4. **Target vs executed over recovery (2.1 / 2.4b):** unique TARGET tracks the deficit strongly (3-D cue z -6.8 after
+   the attempt re-definition; cam4 -6.7, first-lick window -5.1) and recovers with log days (3-D cue z 7.4); unique
+   executed weaker (z 2.1 / -2.7); STRICT executed (beyond the spout category) present pre-stroke and unchanged after
+   (step z ~1). The epoch reading "the post-stroke rise is target" holds as a time course.
+5. **Frozen decoders / encoder: identity returns, the frozen code does not fully.** Frozen-decoder deficit ~0 at full
+   behavioural recovery, but refit-over-frozen reorganisation stays positive (z 3.7); frozen encoder EV (family 11)
+   still below pre at full recovery (z -4.1) while far-contra own-position best match (10b) is back at pre (z -0.7).
+   Epoch tables alone could not separate "not yet recovered" from "recovered but reorganised".
+6. **Some epoch effects weakened or went away under the LMM + controls:** the within-spout toward-midline chronic
+   change (LMM z -3.4) falls to -1.5 with the contact covariate (hits only) -- not robust; position coding in the
+   first-lick window only z -2.0 (q .08) after the attempt re-definition; cue-window effects partly reflect delayed
+   licking (hence the first-lick windows).
+7. **NOT yet on the LMMs:** the frozen pre-stroke encoder decomposition (3.4, v4 / v6: acute far-contra drop carried
+   by lick) is still EPOCH-based. Queued: its per-session parts (lick, spout, target, residual per spout x window) and
+   the coming all-session shared + per-epoch model into the TIME and BEHAVIOUR models.
+
 ## 5. Caveats that apply across sections
 
 - **Pre-cue slow band (STANDS as a size caveat; checked 10-20).** The >= 300 s component decodes position on its own

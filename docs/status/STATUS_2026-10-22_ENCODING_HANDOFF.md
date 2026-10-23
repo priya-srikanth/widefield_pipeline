@@ -31,7 +31,10 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
   templates kept as the reference frame, epoch weighting, held-out-session scoring for every session, DRIFT NULL =
   early- vs late-pre pseudo-epoch; readout = per group, does an epoch delta improve held-out prediction (tests
   "coupling preserved") + delta maps; built on the Gram statistics (one stats pass over post sessions); areas then basis;
-  (4) FR inside frozen; (5) strayed-lick counts (PS92 / PS93 gated).
+  (4) FR inside frozen; (5) strayed-lick counts (PS92 / PS93 gated); (6) competition LMM for destination vs landing
+  (after the basis re-run; per (session, aimed, candidate) pattern correlation ~ target + 3-D landing weight + pre-stroke
+  spout similarity, x log days / deficit; animal FIXED with 2 animals); (7) frozen v6 per-session parts onto the
+  TIME / BEHAVIOUR LMMs (FINDINGS 4.3 item 7).
   **Target-vs-executed headline under verification (Priya 10-23):** FINDINGS 2.4c destination % were inflated (see the
   correction there); lick-aligned arm running; 2x2 decides the coordinate frame.
 - **RE-ADDRESS WHEN 3-D TRACKING COVERS ALL SESSIONS (Priya 10-23).** 3-D tables exist for PS92 + PS93 only
