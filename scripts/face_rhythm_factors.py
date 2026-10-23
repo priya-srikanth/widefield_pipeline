@@ -985,6 +985,16 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         print(f"  {a}: {len(keys)} pre sessions, {n_tr} trials (fit rows every {trial_ds * 40} ms), "
               f"{sum(map(len, picks.get('arrival', {}).values()))} pre-cue 5 Hz bins (arrival + cue-4..-2 s), "
               f"{sum(map(len, picks['between'].values()))} between bins {picks['n_between']}")
+    if arrival and fit:                                     # EQUAL pre-cue rows per animal (10-23): the count follows
+        n_min = min(sum(map(len, f_["arrival"].values())) for f_ in fit.values())   # each animal's strobe -> cue lead
+        for a_, f_ in fit.items():
+            allb = [(k, b) for k, v in sorted(f_["arrival"].items()) for b in v]
+            keep = sorted(rng.choice(len(allb), n_min, replace=False)) if len(allb) > n_min else range(len(allb))
+            f_["arrival"] = {}
+            for j in keep:
+                f_["arrival"].setdefault(allb[j][0], []).append(int(allb[j][1]))
+            f_["arrival"] = {k: sorted(v) for k, v in sorted(f_["arrival"].items())}
+            print(f"  {a_}: pre-cue rows {len(allb)} -> {sum(map(len, f_['arrival'].values()))} (equal per animal)")
     points_fit = {}
     for a in fit:                                           # equal 25 Hz bins per animal, spread over its pre sessions
         keys = fit[a]["sessions"]

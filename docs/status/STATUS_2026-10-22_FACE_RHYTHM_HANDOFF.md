@@ -5,7 +5,8 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
 
 ## UPDATE 10-23 (read first)
 
-* **State now (keep this block current)**: master_pre_v1 plan RUNNING (`--trials-per-animal 120 --trial-ds 5
+* **State now (keep this block current)**: master_pre_v1 PLANNED (counts in PIPELINE 'Time windows and the fit
+  sample'; still = canonical REST, run = canonical running bouts, equal pre-cue rows per animal) and SWEEP RUNNING. Plan was (`--trials-per-animal 120 --trial-ds 5
   --between-frac 0.556 --run-share 0.5 --arrival --inits 8 --ranks 8 10 12`; it reads treadmill speed for all 108
   sessions, cached) -> check the drawn counts per animal (printed; ~3600 trial + ~1500 pre-cue + ~2000 run / still rows)
   -> `run_master_local.py sweep` (build + ranks 8 / 10 / 12) -> Priya picks the rank -> `run_master_local.py rank R`

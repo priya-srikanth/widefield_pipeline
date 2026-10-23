@@ -103,10 +103,13 @@ Projections cover WHOLE sessions (25 Hz in trial windows, 5 Hz everywhere else);
 **Per animal** (pre-stroke, August baseline sessions: PS92 9, PS93 7, PS94 8, PS95 8):
 * 120 fit trials = **20 per spout position** x 6, drawn at random from the animal's pooled pre sessions (no per-session
   quota; trials with a lossy grid bin excluded) -> 120 x 30 = 3600 trial rows (200 ms; `--trial-ds 5`).
-* their pre-cue rows (~10-15 per trial).
+* their pre-cue rows, then subsampled to the SAME count per animal (the smallest animal's): the raw count follows each
+  animal's strobe -> cue lead (drawn 10-23: PS92 2425, PS93 2055, PS94 1567, PS95 1246 -> 1246 each).
 * between rows = 0.556 x the trial rows (~2000), **half RUN, half STILL (REST)** (`--run-share 0.5`; if one pool is
   short the other fills; "other" bins are not used).
 * `plan` prints each animal's drawn counts; the plan stores them (`fit.<animal>.n_between`).
+* Drawn 10-23 (master_pre_v1): per animal 120 trials (3600 rows) + 1246 pre-cue + 2002 between rows = ~6850; run /
+  still 1001 / 1001 except PS92 794 / 1208 (it runs little between trials; rest fills). 27.4 k rows, 10.1 GB.
 
 **Across animals**: the SAME sample size and composition per animal (trials, positions, run / still), so no animal
 dominates by having more sessions; then each animal is divided by ONE scalar (RMS of its own fit rows, `scales.json`)
