@@ -34,7 +34,12 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
   direction toward the nearest other centre + contact; per-lick regressor sets (on-target at q; strays from q toward j)
   so overlapping corrective licks are separated by the model (raw stray averages are contaminated toward target);
   compare stray kernels' maps with pre on-target maps of q and j, controlling pre q-j similarity = competition LMM at
-  LICK level, pre AND post. Census 10-23 (good 3-D, August pre, PS92 / PS93): no-contact licks nearer another spout's
+  LICK level, pre AND post. **The PRE-STROKE arm is a result in itself** (Priya: "pre-stroke variation can also be useful
+  to us (allow us to look at executed vs target pre-stroke also)"): stroke-independent target vs executed -- settles the
+  pre-stroke disagreement between xyz2 (executed >= target, PS92) and polar (comparable / target-led) by strays rather
+  than by coordinate choice; pre sessions scored leave-one-session-out; lick-level check of the within-spout crossed
+  SSp-m direction code (pre 4/4); PS93's high pre stray rate (21 % vs PS92 5 %) may reflect its known right orofacial
+  deficit -> per animal first. Census 10-23 (good 3-D, August pre, PS92 / PS93): no-contact licks nearer another spout's
   centre PS92 1129 / 1054 / 665 / 2645, PS93 6679 / 1783 / 2320 / 5429 (pre / acute / sub / chronic); far contra acute
   564 / 537 -- thousands, vs ~6 sessions in the session-level test. Close-spout centres overlap (3-10 deg apart vs
   within-spout SD 6-9 deg: 5-13k CONTACT licks sit nearer another centre) -> use the continuous error, categorical zones
