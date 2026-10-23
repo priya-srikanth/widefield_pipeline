@@ -18,6 +18,10 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 - **PS94 "OPEN" below is RESOLVED** by the cap (chronic joint all-frames R2 -0.44 -> +0.30; FINDINGS §3.4 v6 para).
   Headline unchanged (acute far-contra parts within 0.2 of v4 in all orderings).
 - **Pixel maps done** (basis + grid, joint / target_first / exec_first); they match the area maps.
+- **PS92_0908 OUT of every FR regressor / FR summary** (FaceRhythm window 10-23: cam4 dropped ~13 % of frames; the FR
+  linear frame->DAQ fit is off by median 3.2 s, so session / points bins are mistimed; our encoder rows start ~3.5 s
+  before the cue, before FR's 25 Hz trial grid). Marker `EXCLUDE_PS92_0908.txt` in the run-A folder; rerun that session
+  when the FR window reports corrected timestamps. Non-FR analyses unaffected.
 - **FR run A done** (50/50 PS92 + PS93 sessions; `S/fr_runA.log`) -- summarise how much grouped FR adds; the cam4
   pass exited instantly with an empty log (check it is "all done", not a skip by error).
 - **Still open:** PS95 subacute / chronic cue / lick-window R2 ~0 (no_other better: nose y?); contact kernel sign; test
