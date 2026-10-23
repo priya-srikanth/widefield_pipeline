@@ -29,8 +29,9 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 > SNAPSHOT (`pose3d_kin_licks_snapshot_20261021`, PS92 + PS93 only), and the "combined" lick timing in the runs above
 > predates PS94 / PS95 cam1 (cam4-only there). So the "2 animals" / "cam4 only" limits below are limits of OUR INPUTS,
 > not of the tracking: re-cut the 3-D tables, re-run on 4 animals, and again (small change) after the last 2 PS95
-> sessions. Per-frame 3-D already spans nearly the whole session (ITI included); per-lick 3-D for ITI licks (`--licks
-> all`) requested from the pose window 10-23.
+> sessions. **PS95 has no ACUTE 3-D yet** (its single acute session PS95_0817 is still on O2), so PS95 acute lick
+> direction stays cam4-only until it lands. Per-lick 3-D for every lick including pre-cue and ITI licks exists since
+> 10-23 (`session_poses/pose3d/kinematics_all/licks.csv.gz`, 880k licks, column `context`; ITI licks have no target).
 
 > **Cohort and rules.** VLS-stroke cohort PS92-PS95, all lesions LEFT (left hemisphere = ipsilesional; spouts named
 > from the lesion: contra = the mouse's RIGHT). LP run `lp_r4_heatmap_20261013__clean_v36`; **August-only pre baseline**
@@ -291,8 +292,10 @@ the intact animal).
   licks overlapping in time are separated by the fit (raw stray averages are contaminated toward the target); compare
   stray kernels' maps with the pre on-target maps of q and j, controlling pre q-j similarity; pre AND post.
 - **Incomplete data:** the census used the 10-21 snapshot (PS92 + PS93, trial licks); 3-D for all four animals exists
-  since 10-23 -> run the test on 4 animals. Per-frame 3-D already spans nearly the whole session; per-lick 3-D for
-  spontaneous ITI licks (an execution-only reference) requested from the pose window (`--licks all`, 10-23).
+  since 10-23 -> run the test on 4 animals (PS95 acute still missing). Per-lick 3-D for pre-cue and spontaneous ITI
+  licks landed 10-23 (`kinematics_all/licks.csv.gz`, `context` column, key `lick_uid`): ITI licks (PS92-95 20k / 25k /
+  30k / 9k) have no target, so they serve as the execution-only reference (direction relative to the calibrated spout
+  centres); pre-cue licks (spout parked) add strays with a defined target.
 
 ## 3. Where and how spouts are coded
 

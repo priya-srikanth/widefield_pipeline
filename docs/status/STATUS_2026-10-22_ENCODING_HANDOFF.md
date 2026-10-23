@@ -22,6 +22,23 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 - Per-frame 3-D spans nearly the whole session (`<dlc>/session_poses/pose3d/<s>_frames.csv.gz`, cam1 windows from the
   previous trial stop); per-lick ITI 3-D: asked the pose window for `pose3d_kinematics --licks all` (Priya approved
   spontaneous licks for the stray test) -- they'll send path + trial/ITI column.
+- **Re-cut = `S/prep_3d.py <dir> <tag>`** (copies the CURRENT `<dlc>/session_poses/pose3d/kinematics/licks.csv.gz`,
+  rebuilds the spout table via `S/spout3d_table.py` from the per-frame measured spout, the bin calibration via
+  `scripts/exec_bins_calibration.py`, and `labels_3d.txt` with the >= 50 % 3-D coverage + >= 6 spout rows gate) -- it
+  picks up all four animals by itself; the "PS92_PS93" in the spout filename is only a name. Move both scripts into
+  the repo when re-cutting.
+- **`--licks all` LANDED (pose 28de81c):** `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics_all/
+  licks.csv.gz` (880,532 licks, 117 curated sessions, 4 animals; + jaw_trials / sessions / by_animal). `context` =
+  post_cue (cue + 70 ms .. trial stop) / pre_cue (spout arrival .. cue + 70 ms) / iti (trial stop .. next strobe);
+  post / pre / iti PS92 111k / 103k / 20k, PS93 152k / 82k / 25k, PS94 148k / 49k / 30k, PS95 137k / 15k / 9k.
+  **Key = `lick_uid`** (row of that session's v36 licks_all.csv); trial_id + lick_idx is NOT unique across the three
+  source tables (`table` = licks / licks_precue / licks_iti). ITI licks have NO target: miss_mm, *_err, *_target blank;
+  kept: reach_mm, side_ml / out_ap / down_dv, midline, frontal, sagittal, speed_peak. Pre-cue licks keep targets. In
+  this mode `contact` blank -> False. The cam4 / combined outputs (`kinematics/licks.csv.gz`) are unchanged in columns,
+  rebuilt for all four animals (no `label` column: key on session).
+- **GAP: PS95 has NO acute 3-D** (its only acute session PS95_20260817 = O2 task 119, failed on a bad node,
+  resubmitted 10-23; PS95_20260831 chronic = task 127). Until then PS95 acute lick direction is cam4-only. The pose
+  window will message when both are through pose_chain -> re-cut again then.
 - FINDINGS updated (status box, decoder correction, 2.6 strays); DECISIONS 2026-10-23 (afternoon) correction entry;
   `scripts/frozen_running_compare.py` (41650de). FaceRhythm + pose windows asked to do the same findings pass.
 
