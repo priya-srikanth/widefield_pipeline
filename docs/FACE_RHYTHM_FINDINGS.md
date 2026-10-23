@@ -23,6 +23,17 @@ acute -> subacute -> chronic: PS92 1.33 / 1.11 / 1.16 / 1.18; PS93 1.19 / **0.80
 chronic still copying): 1.65 / **0.96** / 1.41, interior folds 0.1-0.3 % (highest of the four, still negligible). Acute
 displacement drops below pre in PS93 and PS95 (and mildly PS92) -- the face moves less in the first days.
 
+### 1b. Bin timing: true times from per-frame timestamps (STANDS, 10-23)
+
+The runner's LINEAR frame -> DAQ stamps were wrong on 2 of 108 cam4 tasks (`o2_face_rhythm.py timing`,
+`<bundle>/timing_summary.csv`): PS92_0908 dropped 11.8 % of frames (57 % in its last tenth) -> session / points stamps
+off by a median 3.2 s, up to 841 s; PS92_0812 v1's video ran ~39 min past its ~10 min of DAQ recording -> bins after
+636 s stamped at DAQ times with no recording. All others: <= 20 ms. Now true times everywhere + lossy bins NaN
+(PS92_0908: 5 % of session, 6 % of trial bins). Effect downstream (encoding window, FR run A rerun on the corrected
+pilot projections): PS92_0908 FR-model cortex R2 **0.506 -> 0.618** (ENL 0.545 -> 0.663, cue 0.466 -> 0.573, first lick
+0.413 -> 0.527; FR's unique contribution +0.26) -- the bad stamps had been diluting FR; PS92_0812 unchanged (its
+mistimed bins lay outside the imaged frames).
+
 ## 2. How many factors (PROVISIONAL, pilot tensor)
 
 Fit-only sweep on the PS92 + PS93 pre-stroke fit rows (3 starts each): EVR / stability across starts -- rank 6 0.767 /
@@ -146,6 +157,7 @@ centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation fa
 
 ## Change log
 
+* 2026-10-23: section 1b (true bin times; PS92_0908 encoding R2 0.506 -> 0.618 after the fix).
 * 2026-10-22 pm: pilot labels.json written (Priya's names).
 * 2026-10-22 pm: QC 95 / 108 (PS94 complete, PS95 pre-subacute).
 * 2026-10-22 pm: section 5b (per-lick by epoch: f9 deficit persists per lick, counts recover).
