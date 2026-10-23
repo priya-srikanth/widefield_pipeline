@@ -47,6 +47,15 @@ def trend_table(E: Path) -> pd.DataFrame:
     return _long(S, ("ceiling", "spread", "spread_enl"), "trend")
 
 
+PUSH_METRICS = ("push_frac", "push_rate_min", "push_amp", "run_frac", "cue_push_frac", "cue_dip",
+                "cue_push_frac_far_contra", "cue_dip_far_contra")
+
+
+def push_table(E: Path) -> pd.DataFrame:
+    """Backward / postural treadmill pushes per session (scripts/push_behaviour.py; Priya 10-23)."""
+    return _long(pd.read_csv(E / "qc" / "push_behaviour_sessions.csv"), PUSH_METRICS, "push")
+
+
 def behaviour_table(run_root: Path) -> pd.DataFrame:
     S = pd.read_csv(run_root / "cohort" / "tables" / "prepost" / "session_metrics.csv")
     return _long(S, BEHAVIOUR_METRICS, "behaviour")
@@ -126,7 +135,8 @@ def figures(L: pd.DataFrame, T: pd.DataFrame, figs: Path, sfx: str = "") -> None
              ("epoch:10b", [f"best match is own position | cue / working | {p}" for p in ("fC", "fM", "fI")],
               ("time", "behaviour"), "epoch family 10b: far positions best-match own"),
              ("epoch:11c", [f"{m} | {a}" for a in ("cue / working", "lick / lick") for m in ("ceiling", "frozen (matched)")],
-              ("time", "behaviour"), "epoch family 11c: encoder ceiling vs frozen (matched)")]
+              ("time", "behaviour"), "epoch family 11c: encoder ceiling vs frozen (matched)"),
+             ("push", PUSH_METRICS, ("time", "behaviour"), "backward / postural treadmill pushes (push_behaviour.py)")]
     for src, meas, models, title in sets:
         for model in models:
             if not ((T.source == src) & (T.model == model)).any():
@@ -149,11 +159,13 @@ def main(argv=None) -> int:
     E = run_root / "imaging_encoding"
     dname = a.deficit or mm.DEFICIT
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"
+    if set(a.sources.split(",")) != {"trend", "decoder", "behaviour", "epoch"}:   # a subset never overwrites the full set
+        sfx += "_" + "-".join(a.sources.split(","))
     deficit = mm.deficit(E / "qc", dname)
     src = a.sources.split(",")
     tabs, L, D, C = [], None, None, None
-    prepost = [f(E if f is trend_table else run_root) for name, f in (("trend", trend_table),
-                                                                      ("behaviour", behaviour_table)) if name in src]
+    prepost = [f(E if f in (trend_table, push_table) else run_root)
+               for name, f in (("trend", trend_table), ("behaviour", behaviour_table), ("push", push_table)) if name in src]
     if prepost:
         L = mm.add_time_covariates(pd.concat(prepost, ignore_index=True))
         L = mm.add_deficit(L, deficit)

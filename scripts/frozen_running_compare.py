@@ -26,7 +26,9 @@ E = Path(r"M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__cle
 EPOCHS = ["pre", "acute", "subacute", "chronic"]
 #: running mode + first knot per tag (knot0 is applied at run time from FROZEN_RUN_KNOT0, not stored in templates)
 RUN = {"v6": ("linear", None), "v6spl": ("spline", None), "v6thr3": ("spline_thr", 3.0), "v6thr1": ("spline_thr", 1.0),
-       "v7fwd15": ("spline_thr", 1.5), "v7fwd15push": ("spline_thr", 1.5)}
+       "v7fwd15": ("spline_thr", 1.5), "v7fwd15push": ("spline_thr", 1.5), "v7pushfree": ("spline_thr", 1.5)}
+#: push dR2 = joint(with push) - joint(without), matched sessions
+PUSH_PAIRS = {"v7fwd15push": "v7fwd15", "v7pushfree": "v7fwd15"}
 SPEEDS = np.array([-3.0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0, 12.0])
 
 
@@ -120,12 +122,12 @@ def main() -> None:
             print(by_animal(M[M.window == w], "d").round(1).to_string())
         out.append(M[["tag", "label", "animal", "epoch", "window", "d"]].rename(columns={"d": "r2"}).assign(measure=f"uniq_{g}_x1e3"))
 
-    for t in tags:
-        if t.endswith("push") and t[:-4] in tags:
-            P = J[J.tag == t].merge(J[J.tag == t[:-4]], on=["label", "animal", "epoch", "window"], suffixes=("", "_base"))
+    for t, t0 in PUSH_PAIRS.items():
+        if t in tags and t0 in tags:
+            P = J[J.tag == t].merge(J[J.tag == t0], on=["label", "animal", "epoch", "window"], suffixes=("", "_base"))
             P["d"] = (P.r2 - P.r2_base) * 1e3
             P["tag"] = t
-            print(f"\n=== 3. push dR2 x1e3 = joint({t}) - joint({t[:-4]}), cortex, per animal")
+            print(f"\n=== 3. push dR2 x1e3 = joint({t}) - joint({t0}), cortex, per animal")
             for w in ("all", "cue", "lick"):
                 print(f"\n--- {w} frames")
                 print(by_animal(P[P.window == w], "d").round(1).to_string())
