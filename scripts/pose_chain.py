@@ -16,6 +16,8 @@ Steps (each a separate process, the right conda env; per-session steps are CACHE
   spout_error    pose3d_spout_error                                                                       locanmf
   figures        pose3d_summary_fig, pose3d_jaw_crosscheck   (AFTER spout_error: the summary reads it)     locanmf
   phase          pose3d_phase                                                                              locanmf
+  cohort_checks  first_lick_latency, pose3d_crosscheck, pose3d_vs_cam4 (cohort tables that read the steps above;
+                 10-23: last run 10-19 / 10-20 on PS92 + part of PS93 only, so they were added here)             locanmf
   jaw_onsets     jaw_onsets (WATCHED by the encoding window: written last, once)                          locanmf
 --jobs (default 6) is per step: sessions in parallel, collect included.
 Each step's log goes to <dlc>/session_poses/pose_chain_logs/<stamp>_<step>.log; the run stops at the first failure.
@@ -31,7 +33,8 @@ from pathlib import Path
 ENVS = {"locanmf": r"C:\Users\SabatiniLab\miniconda3\envs\locanmf\python.exe",
         "dlc": r"C:\Users\SabatiniLab\miniconda3\envs\dlc\python.exe"}
 BUNDLE = "lp_cam1_ctx_prod_20261019"
-STEPS = ("collect", "pose3d", "kinematics", "cam1_licks", "cue_traces", "spout_error", "figures", "phase", "jaw_onsets")
+STEPS = ("collect", "pose3d", "kinematics", "cam1_licks", "cue_traces", "spout_error", "figures", "phase",
+         "cohort_checks", "jaw_onsets")
 
 
 def _pending(rv) -> dict:
@@ -66,6 +69,9 @@ def commands(rv, jobs: int, sessions: list[str] | None, step: str | None = None)
         "figures": [("locanmf", ["-m", "scripts.pose3d_summary_fig"]),
                     ("locanmf", ["-m", "scripts.pose3d_jaw_crosscheck"])],
         "phase": [("locanmf", ["-m", "scripts.pose3d_phase", *J])],
+        "cohort_checks": [("locanmf", ["-m", "scripts.first_lick_latency", *J]),
+                          ("locanmf", ["-m", "scripts.pose3d_crosscheck"]),
+                          ("locanmf", ["-m", "scripts.pose3d_vs_cam4"])],
         "jaw_onsets": [("locanmf", ["-m", "scripts.jaw_onsets", *J])],
     }
 
