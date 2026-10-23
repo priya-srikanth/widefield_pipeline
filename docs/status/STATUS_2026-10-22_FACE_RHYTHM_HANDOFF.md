@@ -3,7 +3,21 @@
 **Findings so far: [`docs/FACE_RHYTHM_FINDINGS.md`](../FACE_RHYTHM_FINDINGS.md)** (living, status-tagged). Decisions:
 DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-out, naming per fit, figures + methods".
 
-## UPDATE 10-22 ~14:00 (read first)
+## UPDATE 10-23 (read first)
+
+* **cam4 array COMPLETE**: 108 / 108 on the share, qc 108 / 108 clean (`o2_face_rhythm.py qc`), `collect` done
+  (`face_rhythm/cam4/o2_fr_cam4_20261021_index.csv`).
+* **master_pre_v1 RUNNING LOCALLY** (Priya: "local, trimmed"): plan = 4 animals x 120 trials (20 per position, fit rows
+  every 160 ms, `--trial-ds 4`) + 1110 between bins, 8 starts, ranks 8 / 10 / 12, loso jobs for 31 pre days.
+  Driver `factors/master_pre_v1/logs/run_master_local.py` (scratch copy runs; log `master_local.log` in the scratchpad):
+  `sweep` = build + fit-only ranks + report -> STOP for Priya's rank -> `rank R` = refit R with leave-one-animal-out,
+  loso at R, select, project 108, fitsession. Waits for >= 20 GB free RAM before heavy stages (Priya: may ask other
+  windows for RAM). Old 10-21 O2 plan kept as `logs/plan_20261021_o2_design.json`.
+* **Multi-view factor sets prepped** (DECISIONS 10-23 #3; PIPELINE "Other cameras" step 7): `plan --views cam1=... `;
+  waits on cam1 / cam2 / cam3 runs (Priya's landmark clicks -> register -> ROIs -> O2).
+* Pilot labels written 10-22 (FINDINGS 4); encoding (d4) uses grouping `pilot_v1` (fr_groups, pilot set only).
+
+## UPDATE 10-22 ~14:00
 
 * **Rank sweep complete**: 14 EVR 0.827 / stability 0.89; 16 0.835 / 0.92 (report re-rendered). No elbow; rank 12 the
   most reproducible. Rank 12 vs 10 (FINDINGS 2): lick factors unchanged; the extra two split SLOW movement (f8 by

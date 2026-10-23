@@ -21618,3 +21618,21 @@ Context: encoding window (d4). Priya: "yes add running cap". Results ENCODING_FI
 3. **Result:** PS94 post-stroke fit restored (chronic +0.30, subacute +0.28 all-frames); PS92 / PS93 / PS95 within
    0.01; the acute far-contra lick decomposition is unchanged (within 0.2 in all orderings). v5 outputs superseded
    (SUPERSEDED.txt in each folder), v4 kept for comparison.
+
+## 2026-10-23 -- FaceRhythm: master_pre_v1 sampling (20 trials per position) and multi-view at the factor stage
+
+1. **Fit rows: 120 trials per animal = 20 per spout position, rows every 160 ms** (`plan --trials-per-animal 120
+   --trial-ds 4`; Priya: "we probably want more than 10 trials per position"). The default 60 trials gave 10 per
+   position. Twice the trials at half the within-trial row rate keeps the tensor at ~8.2 GB (the shared box: 63 GB,
+   other windows): adjacent 80 ms rows of one trial are near-duplicates (VQT windows far longer than 80 ms), so trial
+   diversity is what the fit gains. Projections stay at 25 Hz; session (scoring) rows stay at 80 ms.
+2. **master_pre_v1 runs LOCALLY, trimmed** (Priya; no O2 fair share): ranks 8 / 10 / 12, 8 starts each, fit-only sweep
+   -> Priya picks the rank (per-factor stability) -> that rank refit WITH leave-one-animal-out (four animals: the real
+   cross-animal test) -> leave-one-day-out at that rank only (31 days) -> freeze -> project 108 tasks -> fitsession.
+3. **Several cameras: ONE factor set over all views' points, combined at the FACTOR stage, not a mosaic video** (Priya
+   10-23; a colleague ran FR on a 2 x 2 concatenated video with four masks). Same joint factors, but: the cameras have
+   independent clocks and drop frames independently (a mosaic must resample all four onto one clock), a mosaic run is
+   ~3.7x cam4's pixels, and FR would normalise all views with ONE per-frame divisor. Here each camera keeps its own run
+   (and stays analysable alone); rows align on the shared DAQ grid; each view is balanced to equal energy. Code ready
+   (`face_rhythm_multiview.py`, `plan --views`); needs cam1 / cam2 / cam3 runs (Priya's landmark clicks first).
+

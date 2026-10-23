@@ -293,13 +293,13 @@ def draw_rows(trials: list, between: list, n_trials: int, between_frac: float, r
     return {**{kind: {k: sorted(v) for k, v in sorted(d.items())} for kind, d in out.items()}, "ds": int(ds)}
 
 
-def gather_rows(od: Path, picks: dict) -> tuple[np.ndarray, list]:
+def gather_rows(sd: Path, picks: dict, weighted: bool = True) -> tuple[np.ndarray, list]:
     """The rows a `draw_rows` pick names, from the outputs: trial windows at 12.5 Hz + session bins. -> (X (n, 2P, F)
     float32 UNSCALED, index [(key, kind, trial, bin)]). Rows with any NaN are dropped."""
     X, index = [], []
     ds = int(picks.get("ds", TRIAL_DS))                                  # plans before 10-23: TRIAL_DS
     for key, tr in picks["trials"].items():
-        S = npz_memmap(od / f"{key}_trials.npz", "spec")
+        S = spec_of(sd, key, "trials", weighted)
         for ti in tr:
             x = rows_of(S[ti])                                           # (151, 2P, F)
             nb = (x.shape[0] // ds) * ds
@@ -308,7 +308,7 @@ def gather_rows(od: Path, picks: dict) -> tuple[np.ndarray, list]:
             X.append(x[ok])
             index += [(key, "trial", int(ti), int(j)) for j in np.nonzero(ok)[0]]
     for key, bins in picks["between"].items():
-        S = npz_memmap(od / f"{key}_session.npz", "spec")
+        S = spec_of(sd, key, "session", weighted)
         b = np.sort(np.asarray(bins, int))
         x = rows_of(S[b])
         ok = np.isfinite(x).all(axis=(1, 2))
@@ -325,6 +325,46 @@ def set_dir() -> Path:
 
 def out_dir(sd: Path) -> Path:
     return Path(os.environ.get("FR_OUT", sd.parent.parent / "out"))
+
+
+def view_out_dir(sd: Path, cam: str, bundle: str) -> Path:
+    """Outputs of another camera's run: its bundle sits next to this set's bundle (``FR_OUT_<CAM>`` overrides)."""
+    return Path(os.environ.get(f"FR_OUT_{cam.upper()}", sd.parent.parent.parent / bundle / "out"))
+
+
+def plan_views(sd: Path) -> list[dict]:
+    """[] for a single-view set; else [{"cam", "bundle"}] of the EXTRA views (the reference view is the set's bundle)."""
+    return load_plan(sd).get("views", {}).get("cams", [])
+
+
+def spec_of(sd: Path, key: str, kind: str, weighted: bool = True):
+    """Task ``key``'s ``kind`` ("trials" | "session") spectrogram, (lead..., 2, P, F): the reference run's memmap, or for
+    a MULTI-VIEW set (`face_rhythm_multiview`) a lazy `ViewStack` of every view's memmap along the point axis, each
+    view divided by its balance divisor (``view_scales.json``; ``weighted=False`` -> 1, as `build` needs before
+    computing them). Trial rows match by index (cue times checked); session bins by nearest DAQ time."""
+    ref = out_dir(sd) / f"{key}_{kind}.npz"
+    S = npz_memmap(ref, "spec")
+    views = plan_views(sd)
+    if not views:
+        return S
+    from wfield_local import face_rhythm_multiview as fmv
+    pl = load_plan(sd)
+    rc = pl["views"]["ref"]
+    arrays, maps = [S], [None]
+    t_ref = npz_small(ref, ("cue_daq_s",) if kind == "trials" else ("t_daq_s",))
+    for v in views:
+        f = view_out_dir(sd, v["cam"], v["bundle"]) / f"{fmv.view_key(key, rc, v['cam'])}_{kind}.npz"
+        arrays.append(npz_memmap(f, "spec"))
+        if kind == "trials":
+            fmv.check_trials_match(t_ref["cue_daq_s"], npz_small(f, ("cue_daq_s",))["cue_daq_s"], f.name)
+            maps.append(None)
+        else:
+            maps.append(fmv.session_row_map(t_ref["t_daq_s"], npz_small(f, ("t_daq_s",))["t_daq_s"]))
+    divs = None
+    vs = sd / "view_scales.json"
+    if weighted and vs.exists():
+        divs = json.loads(vs.read_text())[key.split("_")[0]]
+    return fmv.ViewStack(arrays, maps, divs)
 
 
 def load_plan(sd: Path) -> dict:
@@ -351,9 +391,17 @@ def _atomic_savez(dst: Path, **arrs) -> None:
 def cmd_build(sd: Path) -> None:
     pl = load_plan(sd)
     od = out_dir(sd)
-    rows, index, scale = [], [], {}
+    rows, index, scale, vscale = [], [], {}, {}
     for a, picks in pl["fit"].items():
-        Xa, ix = gather_rows(od, picks)
+        Xa, ix = gather_rows(sd, picks, weighted=False)
+        if plan_views(sd):                                  # MULTI-VIEW: equal energy per view (face_rhythm_multiview)
+            from wfield_local import face_rhythm_multiview as fmv
+            S0 = spec_of(sd, next(iter(picks["trials"])), "trials", weighted=False)
+            X4 = Xa.reshape(len(Xa), 2, -1, Xa.shape[-1])
+            vscale[a] = fmv.balance_divisors(X4, S0.P)
+            for sl, d in zip(fmv.view_slices(S0.P), vscale[a]):
+                X4[:, :, sl] /= d
+            print(f"  {a}: view divisors {dict(zip([pl['views']['ref']] + [v['cam'] for v in plan_views(sd)], [round(d, 4) for d in vscale[a]]))}")
         scale[a] = float(np.sqrt(np.mean(Xa.astype(np.float64) ** 2)))
         rows.append(Xa / scale[a])
         index += [(a, *r) for r in ix]
@@ -364,6 +412,8 @@ def cmd_build(sd: Path) -> None:
     np.savez(sd / "fit_index.npz", animal=idx[:, 0].astype(str), key=idx[:, 1].astype(str),
              kind=idx[:, 2].astype(str), trial=idx[:, 3].astype(int), bin=idx[:, 4].astype(int))
     (sd / "scales.json").write_text(json.dumps(scale, indent=1))
+    if vscale:
+        (sd / "view_scales.json").write_text(json.dumps(vscale, indent=1))
     print(f"fit tensor {X.shape} ({X.nbytes / 1e9:.1f} GB) -> {sd}")
     if pl.get("points_fit"):
         build_points_pca(sd, pl, od)
@@ -491,7 +541,7 @@ def cmd_loso(sd: Path, job: int) -> None:
     scales = json.loads((sd / "scales.json").read_text())
     tasks = [t for t in pl["tasks"] if session_group(t["key"]) == day]
     animal = tasks[0]["animal"]
-    Xs = np.concatenate([gather_rows(out_dir(sd), pl["session_rows"][t["key"]])[0] for t in tasks]) / scales[animal]
+    Xs = np.concatenate([gather_rows(sd, pl["session_rows"][t["key"]])[0] for t in tasks]) / scales[animal]
     _, e_out, n2 = project_rows(Xs, f["A"], f["B"])
     _, e_in, _ = project_rows(Xs, full["A"], full["B"])
     res = {"rank": rank, "day": day, "animal": animal, "epoch": "pre", "n_fit_rows_left_out": int(m.sum()),
@@ -636,16 +686,20 @@ def cmd_project(sd: Path, task: int) -> None:
     s = float(scales[animal])
     od = out_dir(sd)
     t0 = time.time()
-    St = npz_memmap(od / f"{key}_trials.npz", "spec")
+    St = spec_of(sd, key, "trials")
     n_tr, n_t = St.shape[:2]
     pr = load_plan(sd)["params"]
     fr_norm, fr_ex = float(pr.get("vqt_norm", 0.95)), float(pr.get("one_over_f", 0.5))
     freqs = M["freqs"].astype(np.float64)
     dfn = lambda x: normaliser(x * s, freqs, fr_norm, fr_ex)                   # rows are scaled by 1 / s
+    if plan_views(sd):                                  # multi-view: D = mean of the views' own D (provisional)
+        from wfield_local import face_rhythm_multiview as fmv
+        divs = json.loads((sd / "view_scales.json").read_text())[animal]
+        dfn = lambda x: fmv.view_normaliser(x, St.P, divs, s, normaliser, freqs, fr_norm, fr_ex)
     Wt, Et, _, Dt = project_rows(_scaled(St.reshape(n_tr * n_t, *St.shape[2:]), s), A, B, row_fn=dfn)
     meta = npz_small(od / f"{key}_trials.npz", ("t_ms", "trial_id", "position", "cue_daq_s"))
     tse = npz_small(od / f"{key}_session.npz", ("t_daq_s", "rate_hz"))
-    Ss = npz_memmap(od / f"{key}_session.npz", "spec")
+    Ss = spec_of(sd, key, "session")
     # ONE pass over the session spectrogram (6-9 GB on the share): the window power means (`window_power`) ride on the
     # projection's chunked read instead of a second read (10-22)
     lab, pos = window_labels(tse["t_daq_s"], meta["cue_daq_s"], meta["position"], EDGE_BINS)
@@ -675,7 +729,7 @@ def cmd_fitsession(sd: Path, task: int, inits: int = 3) -> None:
     A, B, basis, _ = task_basis(sd, t, A, B)
     R = A.shape[1]
     t0 = time.time()
-    X, _ = gather_rows(out_dir(sd), pl["session_rows"][key])
+    X, _ = gather_rows(sd, pl["session_rows"][key])
     X /= float(scales[animal])
     _, Ef, N2 = project_rows(X, A, B)
     evr_frozen = pooled_evr(Ef, N2)
@@ -708,7 +762,8 @@ def _sbatch(b: str, opts: str, cmd: str) -> str:
 def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int, between_frac: float, seed: int,
              ranks: list[int], inits: int, n_iter: int, user: str, point_pcs: int = 20,
              points_bins: int = 20000, animals: list[str] | None = None, with_outputs: bool = False,
-             role: str = "master", loso: bool = True, trial_ds: int = TRIAL_DS) -> Path:
+             role: str = "master", loso: bool = True, trial_ds: int = TRIAL_DS,
+             views: list[str] | None = None) -> Path:
     import pandas as pd
     from wfield_local import epochs, writeguard
     from wfield_local import o2_inference as oi
@@ -726,6 +781,22 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         T = T[[(bd / "out" / f"{k}_summary.json").exists() for k in T.key]]
     if role == "master" and (animals or with_outputs):
         sys.exit("a set restricted by --animals / --with-outputs is not the cohort master: pass --role pilot")
+    view_spec = None
+    if views:                                               # MULTI-VIEW (face_rhythm_multiview): cam=bundle each
+        from wfield_local import face_rhythm_multiview as fmv
+        rc = next((q for q in bundle.split("_") if q.startswith("cam")), None)
+        cams = [dict(zip(("cam", "bundle"), v.split("=", 1))) for v in views]
+        keep = np.ones(len(T), bool)
+        for v in cams:
+            Tv = pd.read_csv(oi.bundle_dir(rv, v["bundle"]) / "tasks.tsv", sep="\t", dtype=str)
+            has = set(Tv.key)
+            if with_outputs:
+                has = {k for k in has if (oi.bundle_dir(rv, v["bundle"]) / "out" / f"{k}_summary.json").exists()}
+            keep &= np.array([fmv.view_key(k, rc, v["cam"]) in has for k in T.key])
+        if (~keep).any():
+            print(f"  multi-view: {(~keep).sum()} task(s) lack a view, left out: {', '.join(T.key[~keep])}")
+        T = T[keep]
+        view_spec = {"ref": rc, "cams": cams}
     rng = np.random.default_rng(seed)
     tasks, cand = [], {}
     for r in T.itertuples():
@@ -752,6 +823,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
     days = sorted({session_group(k) for a in fit.values() for k in a["sessions"]})
     loso_jobs = [[r, d] for r in ranks for d in days] if loso else []
     pl = {"set": name, "bundle": bundle, "created": time.strftime("%Y-%m-%d %H:%M"), "role": role,
+          **({"views": view_spec} if view_spec else {}),
           "animals": sorted(fit), "loso_jobs": loso_jobs,
           "params": {"trials_per_animal": trials_per_animal, "session_trials": session_trials,
                      "between_frac": between_frac, "seed": seed, "trial_ds": trial_ds, "ranks": ranks, "inits": inits,
@@ -803,11 +875,26 @@ def cmd_select(sd: Path, rank: int) -> None:
     pl = load_plan(sd)
     first = next(iter(pl["fit"].values()))["sessions"][0]
     meta = npz_small(out_dir(sd) / f"{first}_trials.npz", ("freqs", "home"))
+    views = {}
+    if plan_views(sd):                                  # multi-view: every view's home points, in stacking order
+        from wfield_local import face_rhythm_multiview as fmv
+        rc = pl["views"]["ref"]
+        homes, Ps = [meta["home"]], [len(meta["home"])]
+        for v in plan_views(sd):
+            mv = npz_small(view_out_dir(sd, v["cam"], v["bundle"]) / f"{fmv.view_key(first, rc, v['cam'])}_trials.npz",
+                           ("freqs", "home"))
+            if not np.allclose(mv["freqs"], meta["freqs"]):
+                sys.exit(f"{v['cam']}: frequencies differ from {rc} -- views must share the VQT params")
+            homes.append(mv["home"])
+            Ps.append(len(mv["home"]))
+        meta["home"] = np.concatenate(homes)
+        views = {"view_cams": np.array([rc] + [v["cam"] for v in plan_views(sd)]), "view_P": np.array(Ps),
+                 "view_scales_json": (sd / "view_scales.json").read_text()}
     P = len(R["A"]) // 2
     np.savez(m, spatial=R["A"].reshape(2, P, rank).astype(np.float32), spectral=R["B"].astype(np.float32),
              freqs=meta["freqs"], home=meta["home"], scales_json=(sd / "scales.json").read_text(), rank=rank,
              spec_hash=h, set=pl["set"], frozen=time.strftime("%Y-%m-%d %H:%M"), role=pl.get("role", "master"),
-             animals=np.array(pl.get("animals", sorted(pl["fit"]))),
+             animals=np.array(pl.get("animals", sorted(pl["fit"]))), **views,
              **({f"points_{k}": v for k, v in np.load(sd / "points_pca.npz").items()}
                 if (sd / "points_pca.npz").exists() else {}))
     print(f"FROZEN {pl['set']} [{pl.get('role', 'master')}: {', '.join(sorted(pl['fit']))}] rank {rank} spec {h} -> {m}")
@@ -920,6 +1007,13 @@ animals {', '.join(sorted(pl['fit']))}. Rank sweep fits may skip the animal-out 
     _, B, _, M = load_master(sd)
     Wsp, freqs, home, R = M["spatial"], M["freqs"], M["home"], int(M["rank"])
     mag = np.hypot(Wsp[0], Wsp[1])                                       # (P, R) weight per point
+    vshare = ""
+    if "view_P" in M:                                   # multi-view: maps on the reference face; share per view
+        from wfield_local import face_rhythm_multiview as fmv
+        sl = fmv.view_slices([int(x) for x in M["view_P"]])
+        sh = np.array([(mag[q] ** 2).sum(0) for q in sl]) / np.maximum((mag ** 2).sum(0), EPS)    # (views, R)
+        vshare = {k: ", ".join(f"{c} {100 * sh[i, k]:.0f}%" for i, c in enumerate(M["view_cams"])) for k in range(R)}
+        Wsp, mag, home = Wsp[:, sl[0]], mag[sl[0]], home[sl[0]]
     lab = json.loads((sd / "labels.json").read_text()) if (sd / "labels.json").exists() else {}
     names = {str(k): lab.get(str(k), "") for k in range(R)}
     if match and (Path(match) / "master.npz").exists():                  # best match in another (named) set: a HINT
@@ -967,7 +1061,8 @@ animals {', '.join(sorted(pl['fit']))}. Rank sweep fits may skip the animal-out 
                 ax.set_aspect("equal")
                 ax.axis("off")
             aw.scatter(home[o, 0], home[o, 1], c=w[o], s=5, cmap="magma", vmin=0, vmax=1, linewidths=0)
-            aw.set_title(f"factor {k}{' ' + names[str(k)] if names[str(k)] else ''}: WHERE")
+            aw.set_title(f"factor {k}{' ' + names[str(k)] if names[str(k)] else ''}: WHERE"
+                         + (f"\n({str(M['view_cams'][0])}; views {vshare[k]})" if vshare else ""))
             rgba = np.column_stack([direction_colours(Wsp[..., k]), np.clip(w, 0, 1) ** 0.7])
             a0.scatter(home[o, 0], home[o, 1], c=rgba[o], s=2 + 24 * w[o], linewidths=0)
             a0.set_title("HOW (blue lateral, red vertical)")
@@ -1045,6 +1140,9 @@ def main(argv=None) -> int:
                          "best match there (e.g. the named PS92 preview)")
     ap.add_argument("--trials-per-animal", type=int, default=60)
     ap.add_argument("--session-trials", type=int, default=60)
+    ap.add_argument("--views", nargs="*", default=None,
+                    help="plan: MULTI-VIEW set -- extra cameras as cam=bundle (e.g. cam1=fr_cam1_20261101); points "
+                         "stacked with the --bundle camera's (wfield_local/face_rhythm_multiview.py)")
     ap.add_argument("--trial-ds", type=int, default=TRIAL_DS,
                     help="plan: 25 Hz trial bins per FIT row (4 -> 2x the trials for the same tensor; session rows stay 2)")
     ap.add_argument("--between-frac", type=float, default=0.25)
@@ -1066,7 +1164,7 @@ def main(argv=None) -> int:
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
                  a.n_iter, a.user, a.point_pcs, a.points_bins, a.animals, a.with_outputs, a.role, not a.no_loso,
-                 a.trial_ds)
+                 a.trial_ds, a.views)
         return 0
     sd = a.dir
     if sd is None:

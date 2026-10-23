@@ -169,9 +169,9 @@ def test_streamed_points_and_one_pass_power_match_the_in_memory_path(tmp_path, m
 
 def test_gather_rows_uses_the_plans_row_spacing(tmp_path):
     """A pick's ``ds`` sets the fit-row spacing (plan --trial-ds); picks without it (older plans) use TRIAL_DS."""
-    _bundle(tmp_path)
     k = "PS92_20260810_cam4"
-    X4, ix4 = f.gather_rows(tmp_path / "out", {"trials": {k: [0, 1]}, "between": {}, "ds": 4})
-    X2, _ = f.gather_rows(tmp_path / "out", {"trials": {k: [0, 1]}, "between": {}})
+    sd = _bundle(tmp_path)[0]
+    X4, ix4 = f.gather_rows(sd, {"trials": {k: [0, 1]}, "between": {}, "ds": 4})
+    X2, _ = f.gather_rows(sd, {"trials": {k: [0, 1]}, "between": {}})
     assert len(X4) == 2 * (151 // 4) and len(X2) == 2 * (151 // f.TRIAL_DS)
     assert {r[3] for r in ix4} == set(range(151 // 4))

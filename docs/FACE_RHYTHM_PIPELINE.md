@@ -50,6 +50,18 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
    camera's keys; encoding takes another camera's set as `--fr fr_<cam>_<date>/<set>` (folder tag `<cam>-<set>`).
    NOT done yet: readouts' midline / regions are cam4's (side views have no midline: compare cam2 vs cam3 instead);
    combining several cameras' sets in one encoding model.
+7. **Multi-view factor set** (10-23, Priya chose this over a colleague's 2 x 2 mosaic video): ONE factor set over
+   several cameras' points, `plan --bundle fr_cam4_<date> --set <set> --views cam1=fr_cam1_<d> cam2=fr_cam2_<d>
+   cam3=fr_cam3_<d>` (the bundles side by side under `o2/`; `FR_OUT_<CAM>` overrides an out dir), then the usual
+   build / fit / loso / select / project / fitsession / report. Code: `wfield_local/face_rhythm_multiview.py` (a lazy
+   `ViewStack` stands in for the spectrogram memmap, `face_rhythm_factors.spec_of`). Rows: trial rows match by index
+   (same cam4 DAQ grid; cue times checked to 20 ms), session 5 Hz bins by nearest DAQ time (<= 0.1 s, else NaN ->
+   dropped). Balance: per animal, each view divided by RMS x sqrt(its elements / mean) -> equal energy per view
+   (`view_scales.json`, in master.npz). Absolute expression: D = mean of the views' own FR normalisers (provisional).
+   master.npz gains `view_cams`, `view_P`; the gallery draws the reference view and lists each factor's weight share
+   per view. Why not a mosaic: independent camera clocks + frame drops (a mosaic needs every video resampled to one
+   clock), ~3.7x cam4's pixels per run, and ONE FR normaliser across all views. Tasks lacking any view are left out
+   (listed by `plan`). Needs the other cameras' O2 runs first (steps 2-5). Tests: `tests/test_face_rhythm_multiview.py`.
 
 ## Files
 
