@@ -272,7 +272,7 @@ def session_candidates(key: str, z, n_frames: int, timing: dict | None = None,
     arrival + "more ENL licks, peri-cue from 4 s before"): within ARRIVAL_S of its own strobe OR from cue + PRECUE_EXT_S,
     and before the 25 Hz trial grid (cue + t_ms[0]); non-lossy; a 4th element drawn with the trial. The between pool
     then also excludes all of that through the cue, whatever the trial's strobe -> cue lead."""
-    from wfield_local import face_rhythm_timing as frt
+    frt = _sidecar_module("face_rhythm_timing")
     n5 = int(n_frames) // 50
     if timing is not None:
         t5 = timing["t5"][:n5]
@@ -333,23 +333,53 @@ def between_states(rv, animal: str, date: str, t5: np.ndarray) -> np.ndarray:
     return out
 
 
+def even_draw(items: list, n: int, rng, group=None) -> list:
+    """``min(n, len(items))`` of ``items`` spread as EVENLY as possible over their groups (default: the recording DAY of
+    the item's key, `session_group`): quotas dealt one at a time round-robin over the days that still have items (a
+    short day gives all it has, the rest go to the others; the dealing order is random, so a remainder does not always
+    land on the earliest days), then a seeded random draw within each day."""
+    group = group or (lambda it: session_group(it[0]))
+    by = {}
+    for it in items:
+        by.setdefault(group(it), []).append(it)
+    days = sorted(by)
+    quota = dict.fromkeys(days, 0)
+    left = min(n, len(items))
+    deal = [days[i] for i in rng.permutation(len(days))]   # remainders to RANDOM days (not always the first ones)
+    while left:
+        for d in deal:
+            if left and quota[d] < len(by[d]):
+                quota[d] += 1
+                left -= 1
+    out = []
+    for d in days:
+        if quota[d]:
+            out += [by[d][i] for i in sorted(rng.choice(len(by[d]), quota[d], replace=False))]
+    return out
+
+
 def draw_rows(trials: list, between: list, n_trials: int, between_frac: float, rng, ds: int = TRIAL_DS,
-              run_share: float | None = None) -> dict:
+              run_share: float | None = None, even_days: bool = False) -> dict:
     """Positions balanced (n_trials // n_positions each, or all a position has) + between_frac x the trial rows of
     between-trial bins -> {"trials": {key: [trial, ...]}, "between": {key: [bin, ...]}, "ds": ds} (sorted). ``ds``:
     25 Hz trial bins averaged per fit row (2 = 12.5 Hz; 4 = 6.25 Hz -- twice the trials for the same rows: adjacent
     rows of one trial are near-duplicates, the spectrogram windows being far longer than 80 ms; Priya 10-23).
     ``run_share`` (between items carry a state, `session_candidates`): that share of the between rows from RUNNING
-    bins, the rest from STILL ones (either short -> the other fills); None = uniform over all between bins."""
+    bins, the rest from STILL ones (either short -> the other fills); None = uniform over all between bins.
+    ``even_days`` (Priya 10-23): every draw (each position's trials, the run bins, the still bins) spread evenly over the
+    recording DAYS (`even_draw`), so each pre day weighs the same within its animal; else uniform over the pooled items."""
+    def take(items, k):
+        if even_days:
+            return even_draw(items, k, rng)
+        return [items[i] for i in rng.choice(len(items), min(k, len(items)), replace=False)] if k else []
     pos = sorted({t[2] for t in trials})
     per = n_trials // max(len(pos), 1)
     pick = []
     for p in pos:
-        g = [t for t in trials if t[2] == p]
-        pick += [g[i] for i in rng.choice(len(g), min(per, len(g)), replace=False)]
+        pick += take([t for t in trials if t[2] == p], per)
     nb = min(int(round(between_frac * len(pick) * (151 // ds))), len(between))
     if run_share is None or not nb:
-        bsel = [between[i] for i in rng.choice(len(between), nb, replace=False)] if nb else []
+        bsel = take(between, nb)
     else:
         pools = {st: [b for b in between if len(b) > 2 and b[2] == st] for st in ("run", "still")}
         want = {"run": int(round(run_share * nb))}
@@ -358,8 +388,7 @@ def draw_rows(trials: list, between: list, n_trials: int, between_frac: float, r
         want = {"run": want["run"] - short["run"] + short["still"], "still": want["still"] - short["still"] + short["run"]}
         bsel = []
         for st in ("run", "still"):
-            k = min(want[st], len(pools[st]))
-            bsel += [pools[st][i] for i in rng.choice(len(pools[st]), k, replace=False)] if k else []
+            bsel += take(pools[st], min(want[st], len(pools[st])))
     out = {"trials": {}, "between": {}}
     if any(len(t) > 3 for t in pick):
         out["arrival"] = {}
@@ -404,6 +433,19 @@ def _session_rows(sd: Path, per_key: dict, kind: str, weighted: bool, X: list, i
 
 
 # ---------------------------------------------------------------------------------------- paths inside the bundle
+SIDECAR_MODULES = ("face_rhythm_timing", "face_rhythm_multiview")    # copied next to fr_factors.py by `plan` (O2)
+
+
+def _sidecar_module(name: str):
+    """``wfield_local.<name>`` on the desktop; on O2 (no repo) the copy `plan` put next to ``fr_factors.py``."""
+    import importlib
+    try:
+        return importlib.import_module(f"wfield_local.{name}")
+    except ImportError:
+        sys.path.insert(0, str(set_dir()))
+        return importlib.import_module(name)
+
+
 def set_dir() -> Path:
     """On O2 this file lives in <bundle>/factors/<set>/ (copied there by `plan`)."""
     return Path(__file__).resolve().parent
@@ -433,12 +475,12 @@ def spec_of(sd: Path, key: str, kind: str, weighted: bool = True):
     views = plan_views(sd)
     if not views:
         return S
-    from wfield_local import face_rhythm_multiview as fmv
+    fmv = _sidecar_module("face_rhythm_multiview")
     pl = load_plan(sd)
     rc = pl["views"]["ref"]
     arrays, maps = [S], [None]
     t_ref = npz_small(ref, ("cue_daq_s",) if kind == "trials" else ("t_daq_s",))
-    from wfield_local import face_rhythm_timing as frt
+    frt = _sidecar_module("face_rhythm_timing")
 
     def true_t5(out: Path, k: str, lin: np.ndarray) -> np.ndarray:      # true session bin times when cached
         tm = frt.load(out.parent, k)
@@ -489,7 +531,7 @@ def cmd_build(sd: Path) -> None:
     for a, picks in pl["fit"].items():
         Xa, ix = gather_rows(sd, picks, weighted=False)
         if plan_views(sd):                                  # MULTI-VIEW: equal energy per view (face_rhythm_multiview)
-            from wfield_local import face_rhythm_multiview as fmv
+            fmv = _sidecar_module("face_rhythm_multiview")
             S0 = spec_of(sd, next(iter(picks["trials"])), "trials", weighted=False)
             X4 = Xa.reshape(len(Xa), 2, -1, Xa.shape[-1])
             vscale[a] = fmv.balance_divisors(X4, S0.P)
@@ -823,15 +865,28 @@ def points_stream(pf: Path, comps: np.ndarray, cues: np.ndarray, positions: np.n
             "speed_response": rms[2::2], "speed_n_bins": cnts}
 
 
-def cmd_project(sd: Path, task: int) -> None:
+def cmd_project(sd: Path, task: int, loso: bool = False) -> None:
+    """Project one task on the frozen basis -> ``proj/<key>.npz``. Since 10-23 (Priya) EVERY session, pre included, is
+    projected on the ONE full frozen basis: the same regressor definitions for the encoder and every expression
+    analysis (held-out bases differ slightly per pre day). ``loso``: a PRE task on the basis that left its day out ->
+    ``proj_loso/<key>.npz``, used only where in-sample would flatter pre-stroke -- FaceRhythm's own scoring
+    (reconstruction error, EVR gap / noise floor; post tasks are not written there). Pilot sets made before 10-23 hold
+    pre tasks on their held-out basis in ``proj/`` (``basis`` field says which)."""
     t = load_plan(sd)["tasks"][task - 1]
     key, animal = t["key"], t["animal"]
-    dst = sd / "proj" / f"{key}.npz"
+    if loso and t["epoch"] != "pre":
+        print(f"{key}: post-stroke -- proj/ already is its scoring basis (full); nothing for proj_loso/")
+        return
+    dst = sd / ("proj_loso" if loso else "proj") / f"{key}.npz"
     if dst.exists():
         print("done already", dst)
         return
     A, B, scales, M = load_master(sd)
-    A, B, basis, bcos = task_basis(sd, t, A, B)
+    if loso:
+        A, B, basis, bcos = task_basis(sd, t, A, B)
+    else:
+        basis = "full_in_sample" if t["epoch"] == "pre" else "full"
+        bcos = np.ones((2, A.shape[1]))
     s = float(scales[animal])
     od = out_dir(sd)
     t0 = time.time()
@@ -842,13 +897,13 @@ def cmd_project(sd: Path, task: int) -> None:
     freqs = M["freqs"].astype(np.float64)
     dfn = lambda x: normaliser(x * s, freqs, fr_norm, fr_ex)                   # rows are scaled by 1 / s
     if plan_views(sd):                                  # multi-view: D = mean of the views' own D (provisional)
-        from wfield_local import face_rhythm_multiview as fmv
+        fmv = _sidecar_module("face_rhythm_multiview")
         divs = json.loads((sd / "view_scales.json").read_text())[animal]
         dfn = lambda x: fmv.view_normaliser(x, St.P, divs, s, normaliser, freqs, fr_norm, fr_ex)
     Wt, Et, _, Dt = project_rows(_scaled(St.reshape(n_tr * n_t, *St.shape[2:]), s), A, B, row_fn=dfn)
     meta = npz_small(od / f"{key}_trials.npz", ("t_ms", "trial_id", "position", "cue_daq_s"))
     tse = npz_small(od / f"{key}_session.npz", ("t_daq_s", "rate_hz"))
-    from wfield_local import face_rhythm_timing as frt
+    frt = _sidecar_module("face_rhythm_timing")
     tm = frt.load(od.parent, key)                      # TRUE bin times + lossy bins (10-23); linear stamps if absent
     if tm is not None:
         tse["t_daq_s"] = tm["t5"][:len(tse["t_daq_s"])]
@@ -925,7 +980,8 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
              ranks: list[int], inits: int, n_iter: int, user: str, point_pcs: int = 20,
              points_bins: int = 20000, animals: list[str] | None = None, with_outputs: bool = False,
              role: str = "master", loso: bool = True, trial_ds: int = TRIAL_DS,
-             views: list[str] | None = None, run_share: float | None = None, arrival: bool = False) -> Path:
+             views: list[str] | None = None, run_share: float | None = None, arrival: bool = False,
+             even_days: bool = False) -> Path:
     import pandas as pd
     from wfield_local import epochs, writeguard
     from wfield_local import o2_inference as oi
@@ -945,7 +1001,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         sys.exit("a set restricted by --animals / --with-outputs is not the cohort master: pass --role pilot")
     view_spec = None
     if views:                                               # MULTI-VIEW (face_rhythm_multiview): cam=bundle each
-        from wfield_local import face_rhythm_multiview as fmv
+        fmv = _sidecar_module("face_rhythm_multiview")
         rc = next((q for q in bundle.split("_") if q.startswith("cam")), None)
         cams = [dict(zip(("cam", "bundle"), v.split("=", 1))) for v in views]
         keep = np.ones(len(T), bool)
@@ -959,7 +1015,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
             print(f"  multi-view: {(~keep).sum()} task(s) lack a view, left out: {', '.join(T.key[~keep])}")
         T = T[keep]
         view_spec = {"ref": rc, "cams": cams}
-    from wfield_local import face_rhythm_timing as frt
+    frt = _sidecar_module("face_rhythm_timing")
     rng = np.random.default_rng(seed)
     tasks, cand = [], {}
     no_timing = [k for k in T.key if frt.load(bd, k) is None]
@@ -979,7 +1035,8 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         if not keys:
             continue
         picks = draw_rows(sum((cand[k][0] for k in keys), []), sum((cand[k][1] for k in keys), []),
-                          trials_per_animal, between_frac, rng, ds=trial_ds, run_share=run_share)
+                          trials_per_animal, between_frac, rng, ds=trial_ds, run_share=run_share,
+                          even_days=even_days)
         fit[a] = {"sessions": keys, **picks}
         n_tr = sum(map(len, picks["trials"].values()))
         print(f"  {a}: {len(keys)} pre sessions, {n_tr} trials (fit rows every {trial_ds * 40} ms), "
@@ -989,10 +1046,14 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         n_min = min(sum(map(len, f_["arrival"].values())) for f_ in fit.values())   # each animal's strobe -> cue lead
         for a_, f_ in fit.items():
             allb = [(k, b) for k, v in sorted(f_["arrival"].items()) for b in v]
-            keep = sorted(rng.choice(len(allb), n_min, replace=False)) if len(allb) > n_min else range(len(allb))
+            if even_days:                                   # ... and evenly over the animal's days
+                kept = even_draw(allb, n_min, rng)
+            else:
+                kept = [allb[j] for j in (sorted(rng.choice(len(allb), n_min, replace=False))
+                                          if len(allb) > n_min else range(len(allb)))]
             f_["arrival"] = {}
-            for j in keep:
-                f_["arrival"].setdefault(allb[j][0], []).append(int(allb[j][1]))
+            for k_, b_ in kept:
+                f_["arrival"].setdefault(k_, []).append(int(b_))
             f_["arrival"] = {k: sorted(v) for k, v in sorted(f_["arrival"].items())}
             print(f"  {a_}: pre-cue rows {len(allb)} -> {sum(map(len, f_['arrival'].values()))} (equal per animal)")
     points_fit = {}
@@ -1011,7 +1072,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
           "animals": sorted(fit), "loso_jobs": loso_jobs,
           "params": {"trials_per_animal": trials_per_animal, "session_trials": session_trials,
                      "between_frac": between_frac, "seed": seed, "trial_ds": trial_ds, "run_share": run_share,
-                     "still": "behavior_events rest periods", "timing": frt.TIMING_VERSION,
+                     "still": "behavior_events rest periods", "timing": frt.TIMING_VERSION, "even_days": even_days,
                      "precue_rows": {"strobe_s": list(ARRIVAL_S), "from_cue_s": PRECUE_EXT_S, "until": "trial grid start"}
                      if arrival else None, "ranks": ranks, "inits": inits,
                      "n_iter": n_iter, "precue_s": PRECUE_S, "resp_s": RESP_S, "busy_s": BUSY_S,
@@ -1023,6 +1084,9 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
     (sd / "logs").mkdir(parents=True, exist_ok=True)
     (sd / "plan.json").write_text(json.dumps(pl, indent=1), encoding="utf-8", newline="\n")
     (sd / "fr_factors.py").write_text(Path(__file__).read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+    for m in SIDECAR_MODULES:                               # O2 has no repo: the modules the O2 stages import
+        src = Path(__file__).resolve().parents[1] / "wfield_local" / f"{m}.py"
+        (sd / f"{m}.py").write_text(src.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
     b = f"{oi.scratch(user)}/o2/{bundle}/factors/{name}"
     n = len(tasks)
     jobs = {"run_build.sbatch": ("-J frf_build -c 4 --mem=40G -t 0-03:00:00", "build"),
@@ -1035,8 +1099,31 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
     if loso_jobs:                                           # after the fit (needs rank<R>.npz): --dependency=afterok
         jobs["run_loso.sbatch"] = (f"-J frf_loso -c 8 --mem=48G -t 0-06:00:00 --array=1-{len(loso_jobs)}%40",
                                    "loso --task $SLURM_ARRAY_TASK_ID")
+    jobs["run_splithalf.sbatch"] = ("-J frf_split -c 16 --mem=64G -t 0-12:00:00", "splithalf --rank $RANK")
+    jobs["run_select.sbatch"] = ("-J frf_select -c 1 --mem=8G -t 0-00:30:00", "select --rank $RANK")
+    jobs["run_project_loso.sbatch"] = (f"-J frf_projlo -c 4 --mem=16G -t 0-02:00:00 --array=1-{n}%40",
+                                       "project --task $SLURM_ARRAY_TASK_ID --loso-basis")
     for fn, (opts, cmd) in jobs.items():
         (sd / fn).write_text(_sbatch(b, opts, cmd), encoding="utf-8", newline="\n")
+    # the whole chain with dependencies (10-23, Priya: encoder projections FIRST, held-out scoring after):
+    # build -> fit R (+ leave-one-animal-out) -> {split half, select -> project (full basis, for the encoder),
+    # loso -> project --loso-basis (pre, FR scoring) -> fitsession}
+    (sd / "run_chain.sh").write_text(f"""#!/bin/bash
+# usage: bash {b}/run_chain.sh <rank>    (login node; prints the job ids)
+set -eo pipefail
+b={b}; R=${{1:?rank}}
+j1=$(sbatch --parsable $b/run_build.sbatch)
+j2=$(sbatch --parsable --dependency=afterok:$j1 --array=$R $b/run_fit.sbatch)
+j3=$(sbatch --parsable --dependency=afterok:$j2 --export=ALL,RANK=$R $b/run_splithalf.sbatch)
+j4=$(sbatch --parsable --dependency=afterok:$j2 --export=ALL,RANK=$R $b/run_select.sbatch)
+j5=$(sbatch --parsable --dependency=afterok:$j4 $b/run_project.sbatch)
+""" + ("""j6=$(sbatch --parsable --dependency=afterok:$j2 $b/run_loso.sbatch)
+j7=$(sbatch --parsable --dependency=afterok:$j6:$j4 $b/run_project_loso.sbatch)
+j8=$(sbatch --parsable --dependency=afterok:$j7 $b/run_fitsession.sbatch)
+echo "build $j1 fit $j2 split $j3 select $j4 project $j5 loso $j6 project_loso $j7 fitsession $j8"
+""" if loso_jobs else """j8=$(sbatch --parsable --dependency=afterok:$j5 $b/run_fitsession.sbatch)
+echo "build $j1 fit $j2 split $j3 select $j4 project $j5 fitsession $j8"
+"""), encoding="utf-8", newline="\n")
     rows = sum(len(v) for a in fit.values() for v in a.get("arrival", {}).values()) + \
         sum(len(v) for a in fit.values() for v in a["trials"].values()) * (151 // trial_ds) + \
         sum(len(v) for a in fit.values() for v in a["between"].values())
@@ -1065,7 +1152,7 @@ def cmd_select(sd: Path, rank: int) -> None:
     meta = npz_small(out_dir(sd) / f"{first}_trials.npz", ("freqs", "home"))
     views = {}
     if plan_views(sd):                                  # multi-view: every view's home points, in stacking order
-        from wfield_local import face_rhythm_multiview as fmv
+        fmv = _sidecar_module("face_rhythm_multiview")
         rc = pl["views"]["ref"]
         homes, Ps = [meta["home"]], [len(meta["home"])]
         for v in plan_views(sd):
@@ -1197,7 +1284,7 @@ animals {', '.join(sorted(pl['fit']))}. Rank sweep fits may skip the animal-out 
     mag = np.hypot(Wsp[0], Wsp[1])                                       # (P, R) weight per point
     vshare = ""
     if "view_P" in M:                                   # multi-view: maps on the reference face; share per view
-        from wfield_local import face_rhythm_multiview as fmv
+        fmv = _sidecar_module("face_rhythm_multiview")
         sl = fmv.view_slices([int(x) for x in M["view_P"]])
         sh = np.array([(mag[q] ** 2).sum(0) for q in sl]) / np.maximum((mag ** 2).sum(0), EPS)    # (views, R)
         vshare = {k: ", ".join(f"{c} {100 * sh[i, k]:.0f}%" for i, c in enumerate(M["view_cams"])) for k in range(R)}
@@ -1334,6 +1421,8 @@ def main(argv=None) -> int:
                          "stacked with the --bundle camera's (wfield_local/face_rhythm_multiview.py)")
     ap.add_argument("--arrival", action="store_true",
                     help="plan: add PRE-CUE 5 Hz rows per fit trial: spout arrival (strobe -1..+2 s) + cue -4..-2 s")
+    ap.add_argument("--even-days", action="store_true",
+                    help="plan: spread every fit draw evenly over each animal's pre-stroke recording DAYS")
     ap.add_argument("--run-share", type=float, default=None,
                     help="plan: share of the between-trial rows from RUNNING bins, the rest STILL (None = uniform)")
     ap.add_argument("--trial-ds", type=int, default=TRIAL_DS,
@@ -1353,12 +1442,14 @@ def main(argv=None) -> int:
     ap.add_argument("--no-loso", action="store_true", help="plan: no leave-one-pre-session-out jobs")
     ap.add_argument("--no-loao", action="store_true", help="fit: skip leave-one-animal-out (a plain rank sweep)")
     ap.add_argument("--split-inits", type=int, default=2, help="splithalf: random starts per half")
+    ap.add_argument("--loso-basis", action="store_true",
+                    help="project: a PRE task on its left-out-day basis -> proj_loso/ (FR's own scoring only)")
     ap.add_argument("--own-inits", type=int, default=3, help="fitsession: random starts of the session's own fit")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
                  a.n_iter, a.user, a.point_pcs, a.points_bins, a.animals, a.with_outputs, a.role, not a.no_loso,
-                 a.trial_ds, a.views, a.run_share, a.arrival)
+                 a.trial_ds, a.views, a.run_share, a.arrival, a.even_days)
         return 0
     sd = a.dir
     if sd is None:
@@ -1369,6 +1460,9 @@ def main(argv=None) -> int:
             from wfield_local.paths import PathResolver
             sd = oi.bundle_dir(PathResolver(), a.bundle) / "factors" / a.set
     task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "loso") else None)
+    if a.cmd == "project" and a.loso_basis:
+        cmd_project(sd, task, loso=True)
+        return 0
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank, not a.no_loao), "select": lambda: cmd_select(sd, a.rank),
      "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits),
      "loso": lambda: cmd_loso(sd, task), "splithalf": lambda: cmd_splithalf(sd, a.rank, a.split_inits),

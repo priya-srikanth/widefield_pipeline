@@ -147,10 +147,13 @@ def amplitudes(fdir: Path, names: list[str], absolute: bool = False) -> tuple[pd
 
 
 def reconstruction(fdir: Path) -> pd.DataFrame:
-    """Per session: median relative reconstruction error of trial-window and whole-session bins (frozen basis)."""
+    """Per session: median relative reconstruction error of trial-window and whole-session bins (frozen basis). A
+    PRE session is scored on its HELD-OUT basis (``proj_loso/``, 10-23) when that exists -- error on the full basis is
+    in-sample for pre; sets made before 10-23 already hold held-out pre projections in ``proj/``."""
     acc = {}
     for t in _tasks(fdir, "proj").itertuples():
-        z = np.load(t.file)
+        f_lo = fdir / "proj_loso" / Path(t.file).name
+        z = np.load(f_lo if t.epoch == "pre" and f_lo.exists() else t.file)
         a = acc.setdefault(t.label, ([], []))
         a[0].append(z["trials_err"].ravel())
         a[1].append(z["session_err"].ravel())

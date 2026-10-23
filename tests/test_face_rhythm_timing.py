@@ -89,3 +89,17 @@ def test_precue_rows_union_of_arrival_and_cue_minus_4():
     assert not ((bt >= 69.0) & (bt <= 86.0)).any() and not ((bt >= 26.0) & (bt <= 36.0)).any()
     picks = f.draw_rows(tr, between, 2, 0.5, np.random.default_rng(0))
     assert sorted(picks["arrival"]["k"]) == sorted(np.r_[b0, b1].tolist())
+
+
+def test_even_draw_spreads_over_days_and_fills_short_ones():
+    items = [(f"PS92_2026080{d}_cam4", i, "p") for d, n in ((1, 50), (2, 3), (3, 50)) for i in range(n)]
+    got = f.even_draw(items, 30, np.random.default_rng(0))
+    per = {d: sum(1 for k, *_ in got if k.startswith(f"PS92_2026080{d}")) for d in (1, 2, 3)}
+    assert sum(per.values()) == 30 and per[2] == 3 and abs(per[1] - per[3]) <= 1     # short day gives all
+    split = [("PS92_20260812_cam4_v1", i, "p") for i in range(10)] + [("PS92_20260812_cam4_v2", i, "p") for i in range(10)] \
+        + [("PS92_20260813_cam4", i, "p") for i in range(20)]
+    got = f.even_draw(split, 10, np.random.default_rng(1))
+    assert sum(1 for k, *_ in got if "0812" in k) == 5                                   # a split day counts once
+    tr = [(f"PS92_2026080{d}_cam4", i, pos) for d in (1, 2) for i, pos in enumerate(["L", "R"] * 20)]
+    a = f.draw_rows(tr, [], 8, 0.0, np.random.default_rng(0), even_days=True)
+    assert {k: len(v) for k, v in a["trials"].items()} == {"PS92_20260801_cam4": 4, "PS92_20260802_cam4": 4}

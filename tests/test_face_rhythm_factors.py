@@ -78,7 +78,11 @@ def test_pipeline_end_to_end(tmp_path):
     for i in range(1, len(plan["tasks"]) + 1):
         f.cmd_project(sd, i)
         f.cmd_fitsession(sd, i, inits=2)
-    assert str(np.load(sd / "proj" / "PS93_20260810_cam4.npz")["basis"]) == "loso"     # pre: its day left out
+    assert str(np.load(sd / "proj" / "PS93_20260810_cam4.npz")["basis"]) == "full_in_sample"   # ONE basis (10-23)
+    for i in range(1, len(plan["tasks"]) + 1):
+        f.cmd_project(sd, i, loso=True)                       # held-out pre projections, FR scoring only
+    assert str(np.load(sd / "proj_loso" / "PS93_20260810_cam4.npz")["basis"]) == "loso"
+    assert not (sd / "proj_loso" / "PS93_20260820_cam4.npz").exists()                   # post: not written there
     assert str(np.load(sd / "own" / "PS93_20260810_cam4.npz")["basis"]) == "loso"
     p = np.load(sd / "proj" / "PS93_20260820_cam4.npz")
     assert str(p["basis"]) == "full"                                                    # post: the full pre fit
@@ -102,8 +106,9 @@ def test_pre_task_without_its_left_out_basis_is_refused(tmp_path):
     (sd / "plan.json").write_text(json.dumps(pl))
     f.cmd_select(sd, R)
     pre = next(i for i, t in enumerate(plan["tasks"], 1) if t["epoch"] == "pre")
+    f.cmd_project(sd, pre)                                     # proj/: the full frozen basis, no refusal (10-23)
     with pytest.raises(SystemExit, match="loso array"):
-        f.cmd_project(sd, pre)
+        f.cmd_project(sd, pre, loso=True)                      # proj_loso/ needs the left-out-day basis
 
 
 def test_window_power_classes():
