@@ -21711,3 +21711,14 @@ entry withdrew "reorganisation persists" for exactly that reason (deck bootstrap
 first half of the 10-20 line is wrong, the second half is a 4/4 point-estimate pattern, not an established effect.
 FINDINGS §2 decoder bullet and §4.3.5 corrected; a single pre-registered contrast at the deck's resampling level is the
 way to settle it (FINDINGS §7.8).
+
+## 2026-10-23 -- FACE_RHYTHM_FINDINGS pass: status table, one correction
+
+Requested by Priya (via the encoding window): FACE_RHYTHM_FINDINGS now opens with a status table (each result, its
+tag, the data it rests on). **CORRECTED:** "interior mesh folds 0-0.15 %" was the 74-task figure; on all 108 cam4 tasks
+it is 0-0.34 % (PS95 0.1-0.34 %, others <= 0.15 %), still negligible. Pilot sections 4 / 5 / 5b / 6 re-rendered on the
+fr-timing-v1 projections of PS92_0908 / PS92_0812 v1: unchanged to two decimals except one PS92 chronic EVR gap
+(.042 -> .040) and f7's speed correlation outside licks (.58 -> .62). Master sweep ranks 8 / 10 added (rank 10 well
+determined: 7 / 8 starts converge, stability .999); master rank 10 vs pilot: mean similarity .825, left licking the
+outlier (spatial .51). FR run A (encoder) marked pending summary.
+
