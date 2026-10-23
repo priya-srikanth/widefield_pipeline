@@ -338,8 +338,10 @@ def test_running_threshold_spline_zero_below_threshold():
 
 
 def test_knot0_override(monkeypatch):
-    """FROZEN_RUN_KNOT0 replaces the first knot (and drops higher knots below it); unset = unchanged."""
+    """FROZEN_RUN_KNOT0 replaces the first knot (and drops higher knots below it); unset = the v7 default 1.5 mm/s."""
     monkeypatch.delenv("FROZEN_RUN_KNOT0", raising=False)
+    assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [1.5, 4.7, 6.5, 8.7]
+    monkeypatch.setenv("FROZEN_RUN_KNOT0", "3")
     assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [3.0, 4.7, 6.5, 8.7]
     monkeypatch.setenv("FROZEN_RUN_KNOT0", "1")
     assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [1.0, 4.7, 6.5, 8.7]
@@ -364,3 +366,16 @@ def test_push_columns_backward_only_floor_and_cap():
     y = fe.push_columns(x, cap=2.3)
     assert np.allclose(y[[0, 1, 2, 3, 5], 0], [2.0, 0.0, 0.0, 0.0, 1.0]) and np.isnan(y[4, 0])
     assert np.allclose(fe._push_abs(x[:, 0]), [5.0, 1.3])
+
+
+def test_v7_running_defaults(monkeypatch):
+    """STATS_VERSION 7: forward-only running from 1.5 mm/s, no push term, unless overridden; the run tag records all
+    three so saved statistics are never reused across running models."""
+    for v in ("FROZEN_RUNNING", "FROZEN_RUN_KNOT0", "FROZEN_PUSH"):
+        monkeypatch.delenv(v, raising=False)
+    assert fe.STATS_VERSION == 7
+    assert fe._run_mode() == "spline_thr" and not fe._push_on()
+    assert fe._run_tag() == "spline_thr|k0=1.5"
+    monkeypatch.setenv("FROZEN_RUNNING", "linear")
+    monkeypatch.setenv("FROZEN_PUSH", "1")
+    assert fe._run_tag() == "linear|k0=1.5|push"

@@ -47,8 +47,9 @@ from pathlib import Path
 
 import numpy as np
 
-STATS_VERSION = 6   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split;
-#                     5: running capped at the pre p99 of ALL frames (superseded); 6: p99 of RUNNING frames (RUN_CAP_Q)
+STATS_VERSION = 7   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split;
+#                     5: running capped at the pre p99 of ALL frames (superseded); 6: p99 of RUNNING frames (RUN_CAP_Q);
+#                     7: default running = forward-only hinges from RUN_KNOT0_DEFAULT mm/s (spline_thr), no push term
 
 #: RUNNING CAP (Priya 10-22 evening: "yes add running cap"). A frozen model only interpolates within the pre-stroke
 #: range: PS94 ran far harder after the stroke (running SD 5.6-6.3 vs 1.4-2.9 pre; p99 20-23 vs 7-12), the linear
@@ -453,10 +454,18 @@ RUN_KNOT_Q = (25.0, 50.0, 75.0)
 #: the pipeline's 3 mm/s running threshold (fidgets, treadmill creep). "spline_thr" (Priya: "launch the threshold
 #: variant") = no running response below the threshold: hinges max(0, s - k) at k = the threshold and the RUN_KNOT_Q
 #: percentiles of the pre running frames only (no linear s term), still flat above the cap.
+#: v7 DEFAULT (10-23, six models side by side, `scripts/frozen_running_compare.py` -> qc/frozen_running_compare_v6_to_
+#: v7fwd15push.csv): spline_thr from 1.5 mm/s. Forward-only beats signed linear in every animal x epoch x window (PS95
+#: chronic cue-window R2 .00 -> .15, PS94 chronic all frames .30 -> .62); onset 1 vs 1.5 mm/s within .02 everywhere and
+#: the 1-1.5 band takes no variance from the lick group (Priya chose 1.5: below it the treadmill moves with cue / lick
+#: jolts); the acute far-contra decomposition is unchanged in all six models. Reproduce older runs with
+#: FROZEN_RUNNING=linear (v6), =spline / =spline_thr with FROZEN_RUN_KNOT0=3 (`_v6spl`, `_v6thr3`), =1 (`_v6thr1`).
+RUN_MODE_DEFAULT = "spline_thr"
+RUN_KNOT0_DEFAULT = 1.5
 
 
 def _run_mode() -> str:
-    m = os.environ.get("FROZEN_RUNNING", "linear")
+    m = os.environ.get("FROZEN_RUNNING", RUN_MODE_DEFAULT)
     if m not in ("linear", "spline", "spline_thr"):
         raise ValueError(f"FROZEN_RUNNING={m!r}: expected linear | spline | spline_thr")
     return m
@@ -466,17 +475,20 @@ def _knots(knots: list | None) -> list | None:
     """The template knots with the first (= the response onset for spline_thr) overridden by FROZEN_RUN_KNOT0 (mm/s),
     if set: Priya 10-23 "is 3 mm too high a threshold for this" -- 3 mm/s is the behaviour segmentation's SUSTAINED-
     running threshold, the rest floor is ~0.1-0.5 mm/s (pre trial-frame p90), and the spline's response was mostly
-    reached by 2 mm/s. Higher knots stay the pre running-frame percentiles."""
-    k0 = os.environ.get("FROZEN_RUN_KNOT0")
-    if not knots or not k0:
+    reached by 2 mm/s. Higher knots stay the pre running-frame percentiles. Default RUN_KNOT0_DEFAULT (v7)."""
+    k0 = _knot0()
+    if not knots:
         return knots
-    return sorted({float(k0), *[k for k in knots[1:] if k > float(k0)]})
+    return sorted({k0, *[k for k in knots[1:] if k > k0]})
+
+
+def _knot0() -> float:
+    return float(os.environ.get("FROZEN_RUN_KNOT0") or RUN_KNOT0_DEFAULT)
 
 
 def _run_tag() -> str:
     """Running-model tag stored with the saved statistics (never reused across modes / knot overrides / push)."""
-    return (_run_mode() + (f"|k0={os.environ['FROZEN_RUN_KNOT0']}" if os.environ.get("FROZEN_RUN_KNOT0") else "")
-            + ("|push" if _push_on() else ""))
+    return _run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")
 
 
 #: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is

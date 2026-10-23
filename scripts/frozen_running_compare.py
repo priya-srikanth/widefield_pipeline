@@ -67,15 +67,15 @@ def running_curves(tag: str) -> pd.DataFrame:
         sel = vcol == "running"
         beta = (z["beta_all"][:, ci] / z["scale"])[sel]
         knots = list(t.get("running_knots") or [])
-        if k0 is not None and knots:
-            knots[0] = k0
-        old = os.environ.get("FROZEN_RUN_KNOT0")
-        os.environ.pop("FROZEN_RUN_KNOT0", None)          # knots already set explicitly
+        old = os.environ.get("FROZEN_RUN_KNOT0")          # the run's first knot (template value = the 3 mm/s threshold)
+        os.environ["FROZEN_RUN_KNOT0"] = str(k0 if k0 is not None else (knots[0] if knots else fe.RUN_KNOT0_DEFAULT))
         try:
             y = fe.running_curve(beta, fe._knots(knots) if knots else knots, SPEEDS, t.get("running_cap"), mode=mode)
         finally:
             if old is not None:
                 os.environ["FROZEN_RUN_KNOT0"] = old
+            else:
+                os.environ.pop("FROZEN_RUN_KNOT0", None)
         rows += [{"tag": tag, "animal": an, "speed": s, "y_x1e3": v * 1e3} for s, v in zip(SPEEDS, y)]
     return pd.DataFrame(rows)
 
