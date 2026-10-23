@@ -11,8 +11,10 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
   sessions, cached) -> check the drawn counts per animal (printed; ~3600 trial + ~1500 pre-cue + ~2000 run / still rows)
   -> `run_master_local.py sweep` (build + ranks 8 / 10 / 12) -> Priya picks the rank -> `run_master_local.py rank R`
   (fit with leave-one-animal-out -> `splithalf` -> loso -> select -> project 108 -> fitsession).
-  Pending alongside: pilot re-projection of PS92_0908 + PS92_0812_v1 with true times (`scratchpad/fix_pilot_timing.py`)
-  -> message d4 (paths: pilot `proj/<key>.npz`, `timing` field = fr-timing-v1). Decisions: DECISIONS 10-23 #1-7.
+  DONE 10-23: pilot PS92_0908 + PS92_0812_v1 re-projected + fitsession with true times (old files in
+  `proj|own/_superseded_linear_timing/`; plan.json session_rows of the two redrawn, old plan in
+  `logs/plan_before_timing_fix_20261023.json`); d4 told (reruns PS92_0908 in run A). Pilot readouts / validation /
+  lick_epochs NOT yet re-rendered with them (small effect: 2 of 51 tasks). Decisions: DECISIONS 10-23 #1-7.
 
 * **~later 10-23: master_pre_v1 RE-PLANNED** (sweep stopped before any fit): windows + balance in PIPELINE "Time windows
   and the fit sample" (DECISIONS 10-23 #4-6): true bin times (`o2_face_rhythm.py timing`, run for all 108: only
