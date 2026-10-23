@@ -17,7 +17,12 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
   regressors miss. Its headline ("licks and misses") cross-checked behaviourally: FINDINGS 5c. Open, for the encoding
   window if wanted: split the lick-onset kernel by outcome (hit / miss) to test a PRE-lick (preparation) difference.
 
-* **State now (10-23 ~18:30)**: master_pre_v1 RE-PLANNED with equal days (DECISIONS 10-23 evening #1-3), rank 10
+* **O2 chain SUBMITTED 10-23 ~19:00** (`run_chain.sh 10`): build DONE (27448 rows, 6862 per animal, 10.1 GB);
+  fit 57382949_10 running; select 57382951, split half 57382950, project 57382952 (-> encoder), loso 57382953,
+  project_loso 57382954, fitsession 57382955 pending on dependencies. Bring back: transfer node `rsync -ah --exclude
+  fit_tensor.npy $B/factors/master_pre_v1/ $S/factors/master_pre_v1/` (after project, then after fitsession). Then: tell
+  d4 `proj/` is ready (full frozen basis, `basis` = full / full_in_sample); report + clips + validation; Priya names.
+* Previous state (10-23 ~18:30): master_pre_v1 RE-PLANNED with equal days (DECISIONS 10-23 evening #1-3), rank 10
   only, and set up for O2: Priya runs `factors/master_pre_v1/COMMANDS.md` (transfer rsync -> `run_chain.sh 10`). Local
   driver stopped. Encoder gets `proj/` (full frozen basis, all 108) as soon as the project array finishes.
 * Previous state (10-23 17:10): master sweep DONE (8 / 10 / 12), **rank 10 chosen** (DECISIONS 10-23 evening); local
