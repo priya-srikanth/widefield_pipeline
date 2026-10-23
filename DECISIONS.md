@@ -21655,3 +21655,14 @@ Context: encoding window (d4). Priya: "yes add running cap". Results ENCODING_FI
    row spacing. 20 trials / position / animal is checked, not assumed: `splithalf` at the chosen rank (two disjoint
    halves of 10 / position) + per-factor stability + leave-one-day-out; increase if the halves disagree.
 
+## 2026-10-23 -- AR-HMM (github.com/htong1/Priya_ARHMM2026) not ported for imaging (low priority)
+
+**Asked (Priya):** would AR-HMM models be wise to incorporate into the imaging analysis? **Decision: no, low priority.**
+FaceRhythm factors are already continuous regressors for specific behaviours (whisking, sniff / nose, preparatory jaw,
+bout initiation, lick by side) and the encoder already separates failed vs successful licks (lick-onset kernel on every
+LP lick, contact kernel on hits, executed angle / reach modulation). An AR-HMM adds only discrete onsets, state
+combinations and a global per-session recovery score (frozen-model log-likelihood); revisit for that score. Its
+headline result ("licks and misses") was checked directly on PS92-95 (FACE_RHYTHM_FINDINGS 5c): replicates acutely
+(far-contra completion .03-.15), but completion recovers fully by chronic here (per-lick contra misses mildly elevated
+in 3 / 4).
+
