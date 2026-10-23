@@ -103,10 +103,10 @@ def _ce():
 #:   target       pos_enl, pos_cue (the six position blocks: the spout itself)
 #:   exec_locked  spout-locked part s of every lick-related column (executed, but fully predictable from the spout)
 #:   exec_within  deviation d of the DIRECTION traces + the per-lick executed angle (already within-spout): where the
-#:                tongue / jaw / nose go relative to that spout's usual path
+#:                tongue / jaw go relative to that spout's usual path (nose moved to "other", grouping v2)
 #:   lick         deviation d of lick onsets, tongue speed, jaw opening / speed: vigour and timing that is not
 #:                about which spout (leakage-checked: should decode the spout ~ chance in pre sessions)
-#:   other        nose y, running
+#:   other        nose x / y (both parts, grouping v2), running, push
 #:   contact      the spout-contact kernel
 #: Super-groups: task = timing + target; spout = target + exec_locked + exec_within; movement = lick + exec_locked +
 #: exec_within + other. target vs exec_locked are perfectly confounded by design (both follow the spout); only
@@ -114,10 +114,18 @@ def _ce():
 SPLIT_VARS = ("lick_onset", "tongue_mag", "jaw_mag", "tongue_dir", "jaw_dir", "nose_dir")
 _LICK_BASE = ("lick_onset", "tongue_mag", "jaw_mag")
 TEMPLATE_S = (-4.0, 8.0)                                 # cue-relative span of the spout-locked templates (s)
+#: NOSE IS "OTHER" (Priya 10-23: "why is nose direction in the lick group? did we show it's lick locked?" -> no: only
+#: 4 / 21 / 29 / 13 % of nose x's pre-stroke variance (PS92-95) is in its spout-locked template, vs 44-61 % for lick
+#: onsets; "nose_dir" = nose lateral POSITION, "nose_mag" = nose vertical position, both mouth-relative). Both parts of
+#: nose x go to "other" with nose y and running (uninstructed). Grouping only: same columns / statistics / joint fit.
+_NOSE_OTHER = {"nose_dir:spl", "nose_dir:dev"}
 FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
           **{f"{v}:spl": "exec_locked" for v in SPLIT_VARS},
           **{f"{v}:dev": ("lick" if v in _LICK_BASE else "exec_within") for v in SPLIT_VARS},
+          **{k: "other" for k in _NOSE_OTHER},
           "exec_angle": "exec_within", "nose_mag": "other", "running": "other", "push": "other", "contact": "contact"}
+#: grouping revision, saved with outputs (1 = up to 10-23 evening, nose x in exec_locked / exec_within; 2 = nose in other)
+GROUPING_VERSION = 2
 FGROUPS = ("timing", "target", "exec_locked", "exec_within", "lick", "other", "contact")
 SUPER = {"task": ("timing", "target"), "spout": ("target", "exec_locked", "exec_within"),
          "movement": ("lick", "exec_locked", "exec_within", "other"),
@@ -985,7 +993,7 @@ def predict_job(job):
                 "gate": os.environ.get("OROFACIAL_GATE", "reference"), "lick_set": d["lick_set"],
                 "n_trials": d["n_trials"], "n_lick_aligned_by_pos": n_lick, "pos_order": pos_order,
                 "peth_parts": list(comp), "areas": fit["areas"], "frozen_r2_cortex": r2, "r2_musall": musall,
-                "stats_version": STATS_VERSION, "run_tag": _run_tag(),
+                "stats_version": STATS_VERSION, "grouping_version": GROUPING_VERSION, "run_tag": _run_tag(),
                 "push": ("free" if pfree is not None else "frozen") if qm.any() else None}
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2

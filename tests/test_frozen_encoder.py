@@ -403,3 +403,10 @@ def test_free_push_is_cross_validated_ridge_on_the_frozen_residual(monkeypatch):
     assert fe._push_on() and fe._push_free()
     monkeypatch.setenv("FROZEN_PUSH", "1")
     assert fe._push_on() and not fe._push_free()
+
+
+def test_nose_is_other():
+    """Grouping v2 (Priya 10-23): both parts of nose x and nose y are uninstructed "other", not lick direction."""
+    assert fe.FGROUP["nose_dir:spl"] == fe.FGROUP["nose_dir:dev"] == fe.FGROUP["nose_mag"] == "other"
+    assert fe.FGROUP["tongue_dir:dev"] == "exec_within" and fe.FGROUP["tongue_dir:spl"] == "exec_locked"
+    assert fe.GROUPING_VERSION == 2
