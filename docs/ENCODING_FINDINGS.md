@@ -372,6 +372,23 @@ check for PS92, `..._v6grid/`): acute far contra, the data drop is bilateral, st
 part reproduces it in all four animals; spout / target / exec_locked faint; contact opposite in sign; residual small
 and patchy. Basis and grid agree for PS92.
 
+**Running model (10-23; areas; `_v6spl`, `_v6thr3`, `_v6thr1`; v7 candidates running).** The cortical response to
+running is SUBLINEAR, close to on / off: a free piecewise-linear curve rises steeply to ~3-5 mm/s and is flat or
+slightly falling above, in all four animals (the linear kernel keeps climbing, ~3x higher at 14 mm/s). Held-out pre R2
+(all frames) linear -> curve +0.03 .. +0.10; but the curve's steep part lies below the 3 mm/s running threshold and
+made later post-stroke cue / lick windows worse in PS92 / PS93 / PS95. Response only above 1 mm/s (forward hinges;
+`_v6thr1`) is better than linear in every animal x epoch x window (PS94 chronic all-frames .30 -> .63, PS95 chronic
+cue window .00 -> .15; held-out pre +.04 .. +.06); above 3 mm/s throws the 1-3 mm/s response away (pre no better than
+linear). The linear v6 used SIGNED speed: backward movement was negative running, although cortex is HIGHER then.
+QC (`scripts/qc_running_speed.py`, side-camera clips `scripts/qc_running_clips.py` -> `E/qc/running_clips/`): forward
+speed is bimodal (trough ~1.5-3 mm/s); post-cue biphasic treadmill jolts (backward dip then a small forward bounce,
+< ~1 mm/s forward) = upper-limb extension / posture change (Priya, clips); negative speed at bout ends = a paw pushed
+forward (real, not belt backlash). Speeds < 1.5 mm/s sit within +-0.5 s of a cue / lick at 1.5-2.5x chance pre-stroke;
+1.5-3 mm/s at chance pre in 3/4 (PS93 not), but lick-associated post-stroke (chronic .34-.51 vs chance .15-.31)
+(`scripts/qc_running_lick_jitter.py`). -> v7 candidates: forward-only running from 1.5 mm/s (Priya), without / with a
+separate PUSH variable (backward speed beyond 0.3 mm/s). **Headline unchanged in every running model** (acute
+far-contra lick part within ~1 of v6; target <= 1).
+
 ## 4. Recovery
 
 ### 4.1 Chronic position-coding gain — STANDS
@@ -486,6 +503,10 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
 5. Deferred: non-linear ceiling check.
 
 ## Change log
+
+- **2026-10-23** — §3.4 running model (sublinear; forward-only from 1.5 mm/s; push term candidate; headline unchanged);
+  2.4c destination % corrected; 4.3 what the LMMs changed vs epochs; pixel / per-position (target-only + whole-spout)
+  unique R2 code; target and the spout-locked lick are one variable on on-target licks (strays decide).
 
 - **2026-10-22 (night)** — §3.4: frozen v6 = running capped at the pre p99 of running frames; PS94 post-stroke fit
   restored, headline unchanged; v5 (all-frame p99) superseded; pixel maps (basis + PS92 grid).

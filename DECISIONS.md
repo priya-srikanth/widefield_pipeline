@@ -21666,3 +21666,32 @@ headline result ("licks and misses") was checked directly on PS92-95 (FACE_RHYTH
 (far-contra completion .03-.15), but completion recovers fully by chronic here (per-lick contra misses mildly elevated
 in 3 / 4).
 
+
+## 2026-10-23 -- frozen encoder: running model, target vs executed via strays, pixel / per-position unique R2, all-session model
+
+Context: encoding window (d4). Handoff STATUS_2026-10-22_ENCODING_HANDOFF §000f; results ENCODING_FINDINGS 2.4c, 3.4, 4.3.
+
+1. **Running cap at the pre p99 of RUNNING frames (v6), not all frames (v5).** The all-frame p99 fixed PS94 but broke
+   PS95 (runs on 1 % of pre frames -> cap 2.8 mm/s = standing still, kernel x3, chronic cue R2 -0.65).
+2. **Running is sublinear and FORWARD-only; response from 1.5 mm/s** (Priya: "test sublinear running" -> "launch the
+   threshold variant" -> "is 3 mm too high" -> "i'd probably favor a 1.5 mm/s threshold"). Free curve: steep to ~3-5
+   mm/s, flat above; its sub-threshold part hurt post-stroke windows; 1 mm/s forward-only beat linear everywhere; 3
+   mm/s discarded real response. The linear model's SIGNED speed made backward movement negative running.
+3. **Backward treadmill movement is real behaviour, kept as its own variable (candidate)** (Priya after the cam2 clips:
+   bout-end negative speed = paw pushed forward; post-cue dip = upper-limb extension / posture change; "should we
+   really throw these out or might they be helpful?"). `FROZEN_PUSH=1`: backward speed beyond 0.3 mm/s, capped, group
+   other. Candidate runs `_v7fwd15` / `_v7fwd15push`; the winner = v7 (pick by held-out pre R2, post windows per
+   animal, and whether push takes lick credit in the acute far-contra decomposition).
+4. **Destination-vs-landing percentages were inflated** (rows where licks landed at the aimed spout counted as target-
+   like); separating rows only: target-leaning (lick-aligned 33 / 2 / 2), resting on ~6 acute far-contra sessions.
+5. **Target and the spout-locked lick are the same variable on on-target licks** (pre-stroke per-spout contrast maps:
+   the split is unstable, the sum tracks the data). Target vs executed is decided only by STRAYS: lick-level strays
+   vs on-target within spout, model-based per-lick regressors, continuous 3-D error from the CALIBRATED centre, pre
+   AND post (pre = stroke-independent; settles xyz2 vs polar). Priya: reorder -> after the basis re-run.
+6. **Per-position maps in two forms:** target-only (bracketed by orderings) and whole-spout (target folded + spout-
+   locked templates swapped for the other spouts' pooled ones at prediction). Unsigned R2 = distinctness from the
+   other spouts, not activation -> read with the signed contrasts (`scripts/frozen_spout_maps.py --contrast`).
+7. **All-session model approved** (shared kernels + per-epoch deltas, pre templates as the frame, drift null =
+   early- vs late-pre pseudo-epoch; held-out scoring). LMMs with 2 animals: animal FIXED.
+8. **PS92_0908 / PS92_0812 FR timing** (FaceRhythm window): rerun on fr-timing-v1; PS92_0908 FR model cortex R2
+   .506 -> .618; PS92_0812 unchanged.

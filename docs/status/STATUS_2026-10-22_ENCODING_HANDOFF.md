@@ -9,7 +9,33 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
-## 000e. STATE 10-23 ~07:00 — READ FIRST (then 000d for the queue / decisions)
+## 000f. STATE 10-23 ~14:05 — READ FIRST (then 000e / 000d; decisions DECISIONS 2026-10-23; results FINDINGS 3.4)
+
+- **RUNNING:**
+  - **v7 candidates** (started 13:36, ETA ~15:45): `S/run_v7cand.sh` from `S/wf_v5` (detached at 215f0ff), Allen areas,
+    2 workers each: `E/frozen_encoder_gate-attempted_v7fwd15` (FROZEN_RUNNING=spline_thr, FROZEN_RUN_KNOT0=1.5 =
+    forward-only running from 1.5 mm/s) and `_v7fwd15push` (+ FROZEN_PUSH=1). Logs `S/frozen_v7<k>.log`,
+    `S/v7_chain.log`; joint decompositions after.
+  - **3-D 2x2** (`S/run_3d_resume.sh`, `S/wf_v4`, 2 workers): xyz2 x combined DONE 09:32; xyz2 x cam4 38/47 at 14:00;
+    then polar x cam4 (47). No failures.
+- **WHEN v7 CANDIDATES LAND:** compare with `_v6` (signed linear), `_v6spl`, `_v6thr3`, `_v6thr1` (all done): per animal
+  x epoch frozen R2 (all / cue / lick, pre held out), running curve (`fe.running_curve(..., mode="spline_thr")` with
+  `FROZEN_RUN_KNOT0` set), unique dR2 of push and of lick with push in / out, the acute far-contra decomposition.
+  Pick v7 -> make it the DEFAULT in code (STATS_VERSION 7: default FROZEN_RUNNING=spline_thr + knot0 1.5 [+ push]),
+  test, commit; then the **basis re-run** (`--target basis`, all animals; it now fits drop variants + task_only +
+  drop-spout and saves resid / data moments incl. whole-spout swaps) -> `scripts/frozen_r2_maps.py --tag <basis tag>`
+  and `scripts/frozen_spout_maps.py --tag <basis tag> [--contrast]`; ~1.5-2 h + maps.
+- **THEN (queue, 000d / 000e):** 2b lick-level strays vs on-target (pre + post); 3 all-session shared + per-epoch model;
+  4 FR inside frozen; 6 session-level competition LMM; 7 frozen parts onto the TIME / BEHAVIOUR LMMs; no_running /
+  no_nose variants if PS95 windows still need it.
+- **10-23 afternoon results** (FINDINGS 3.4 running paragraph): running sublinear (~on / off), forward-only from 1-1.5
+  mm/s beats linear everywhere, signed linear treated backward pushes as negative running; side-camera clips: bout-end
+  negative speed = paw push, post-cue dip = upper-limb extension (real) -> push variable; jitter check supports 1.5
+  mm/s; headline unchanged in every running model. Whole-spout per-position code 9ac1e60 (smoke `_smoke-r2b`: ~5x the
+  target-only scale). QC / clip scripts now in the repo: `scripts/qc_running_{speed,clips,lick_jitter,survey}.py`.
+- **Worktrees:** `S/wf_v5` = v7 candidates (busy until ~15:45); `S/wf_v4` = 3-D 2x2 (busy ~1 day); `S/wf_frozen` idle.
+
+## 000e. STATE 10-23 ~07:00 (superseded by 000f for state)
 
 - **RUNNING** (worktrees in `S/`; never edit them while a run uses them):
   - `_v6spl` = sublinear running test (`FROZEN_RUNNING=spline`, commit 5045ef5), Allen areas, 3 workers, from
