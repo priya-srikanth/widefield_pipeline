@@ -233,13 +233,15 @@ def _centred(x: np.ndarray) -> np.ndarray:
 
 
 def session_design(label: str, templates: dict | None = None, template_only: bool = False, spatial: dict | None = None,
-                   basis_only: bool = False) -> dict:
+                   basis_only: bool = False, relabel: dict | None = None) -> dict:
     """Raw (drift-removed, session-centred) design X, area targets Rd, column variables, trial alignment frames.
     ``templates`` = the animal's spout-locked templates (`build_templates`), required for the STATS_VERSION 4 layout;
     ``template_only`` = return only this session's template sums (behaviour pass, no imaging targets);
     ``spatial`` = {"P": (stat pixels x R) projection, "names"} for basis / grid targets instead of Allen areas (Rd stays
     None above MAX_DENSE_TARGETS: Y and Ra are returned and consumers project on demand); ``basis_only`` = return this
-    session's variance-weighted spatial components (the shared-basis pass)."""
+    session's variance-weighted spatial components (the shared-basis pass); ``relabel`` = {spout q: spout j}: q's
+    trials get spout j's TARGET columns and j's spout-locked templates (the executed traces stay as recorded: s + d = x),
+    for the relabel test (`frozen_relabel`); ``frame_pos`` keeps the TRUE spout of every frame."""
     ce = _ce()
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
@@ -293,7 +295,13 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         w, Ue = np.linalg.eigh(Y.T @ Y)                  # Y'Y = Ue diag(w) Ue'  ->  pixel covariance = (Ub Ue sqrt w)(...)'
         return {"label": label, "animal": animal, "n": len(Y),
                 "UbL": (Ub[pstat].astype(np.float64) @ (Ue * np.sqrt(np.clip(w, 0, None)))).astype(np.float32)}
-    raw = split_blocks(ce.raw_blocks(B, ft))
+    if relabel:
+        lab_r = np.array([relabel.get(p_, p_) for p_ in T.pos.to_numpy()], dtype=object)
+        raw = split_blocks(ce.raw_blocks(B, ft, pos_perm={"pos_enl": lab_r, "pos_cue": lab_r}))
+        pos_split = np.array([relabel.get(p_, p_) for p_ in pos_of], dtype=object)
+    else:
+        raw = split_blocks(ce.raw_blocks(B, ft))
+        pos_split = pos_of
     xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}
     if template_only:
         run0 = np.abs(raw["running"][ridx, 0].astype(np.float64))         # lag-0 |speed| on trial frames (RUN_CAP_Q)
@@ -312,7 +320,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         M = np.stack([templates["mean"][v][templates["pos_order"].index(p)] if p in templates["pos_order"]
                       else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
         Ms[v] = M
-        parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_of, k_of, pos_order, M)
+        parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_split, k_of, pos_order, M)
     vars_ = [v for v in FGROUP if v != "push" or _push_on()]
     blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
     X = np.hstack(blocks)
