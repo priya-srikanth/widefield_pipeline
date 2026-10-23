@@ -81,6 +81,9 @@ CHUNK = 256                                         # rows per einsum chunk
 PRECUE_S, RESP_S = (-2.0, 0.0), (0.0, 4.0)          # movement-power windows (s from cue)
 BUSY_S = (-3.0, 6.0)                                # "between trials" = outside this around every engaged cue
 EDGE_BINS = 10                                      # 2 s at 5 Hz kept out of the between-trial pool at each end
+STILL_MM_S = 1.0                                    # "still" between-trial bins: treadmill below this (defaults.yaml slow)
+ARRIVAL_S = (-1.0, 2.0)                             # PRE-CUE rows: 5 Hz bins around each trial's position strobe (spout
+PRECUE_EXT_S = -4.0                                 # arrival) + from cue - 4 s, both before the 25 Hz grid (cue - 2 s)
 POINTS_CHUNK = 20000                                # 25 Hz bins per chunk when centring / projecting displacements
 
 
@@ -259,38 +262,120 @@ def similarity(F1: list, F2: list) -> float:
 
 
 # ----------------------------------------------------------------------------------------------- rows (plan / O2)
-def session_candidates(key: str, z, n_frames: int) -> tuple[list, list]:
-    """A task's engaged trials [(key, trial, position)] and between-trial 5 Hz bins [(key, bin)] (its bundle trial
-    grid ``z``: position, cue_daq_s, daq_fit frame -> DAQ s)."""
-    trials = [(key, i, str(p)) for i, p in enumerate(z["position"])]
+def session_candidates(key: str, z, n_frames: int, timing: dict | None = None,
+                       state: np.ndarray | None = None, strobe_daq_s: np.ndarray | None = None) -> tuple[list, list]:
+    """A task's engaged trials [(key, trial, position)] and between-trial 5 Hz bins [(key, bin, state)] (its bundle
+    trial grid ``z``: position, cue_daq_s, daq_fit frame -> DAQ s). ``timing`` (`face_rhythm_timing.load`, 10-23): the
+    bins' TRUE DAQ times, and LOSSY / unaligned bins and trials (any lossy grid bin) are left out; without it the
+    linear frame -> DAQ fit (wrong on heavy-drop videos). ``state`` per 5 Hz bin ("run" / "still" / "other",
+    `between_states`) rides along for a balanced draw (`draw_rows` ``run_share``). ``strobe_daq_s`` (per trial, the
+    position strobe = SPOUT ARRIVAL; NaN = unknown): each trial carries its 5 Hz PRE-CUE bins (Priya 10-23: spout
+    arrival + "more ENL licks, peri-cue from 4 s before"): within ARRIVAL_S of its own strobe OR from cue + PRECUE_EXT_S,
+    and before the 25 Hz trial grid (cue + t_ms[0]); non-lossy; a 4th element drawn with the trial. The between pool
+    then also excludes all of that through the cue, whatever the trial's strobe -> cue lead."""
+    from wfield_local import face_rhythm_timing as frt
     n5 = int(n_frames) // 50
-    t5 = z["daq_fit"][0] * (np.arange(n5) * 50 + 24.5) + z["daq_fit"][1]
-    busy = np.zeros(n5, bool)
+    if timing is not None:
+        t5 = timing["t5"][:n5]
+        bad5 = frt.lossy(timing["drop5"][:n5])
+        bad_tr = frt.lossy(timing["drop_trials"]).any(axis=1)
+    else:
+        t5 = z["daq_fit"][0] * (np.arange(n5) * 50 + 24.5) + z["daq_fit"][1]
+        bad5, bad_tr = np.zeros(n5, bool), np.zeros(len(z["position"]), bool)
+    busy = bad5.copy()
     busy[:EDGE_BINS] = busy[-EDGE_BINS:] = True
     for c in z["cue_daq_s"]:
         busy |= (t5 >= c + BUSY_S[0]) & (t5 <= c + BUSY_S[1])
-    return trials, [(key, int(b)) for b in np.nonzero(~busy)[0]]
+    if strobe_daq_s is None:
+        trials = [(key, i, str(p)) for i, p in enumerate(z["position"]) if not bad_tr[i]]
+    else:
+        trials = []
+        for i, (p, sb, c) in enumerate(zip(z["position"], strobe_daq_s, z["cue_daq_s"])):
+            if bad_tr[i]:
+                continue
+            win = (t5 >= c + PRECUE_EXT_S) & (t5 < c + float(z["t_ms"][0]) / 1000.0)
+            busy |= (t5 >= c + PRECUE_EXT_S) & (t5 <= c)
+            if np.isfinite(sb):
+                win |= (t5 >= sb + ARRIVAL_S[0]) & (t5 <= sb + ARRIVAL_S[1]) & (t5 < c + float(z["t_ms"][0]) / 1000.0)
+                busy |= (t5 >= sb + ARRIVAL_S[0]) & (t5 <= c)
+            trials.append((key, i, str(p), tuple(int(b) for b in np.flatnonzero(win & ~bad5))))
+    st = state if state is not None else np.full(n5, "other")
+    return trials, [(key, int(b), str(st[b])) for b in np.nonzero(~busy)[0]]
 
 
-def draw_rows(trials: list, between: list, n_trials: int, between_frac: float, rng, ds: int = TRIAL_DS) -> dict:
+def trial_strobes(rv, animal: str, date: str, trial_ids: np.ndarray, cues: np.ndarray) -> np.ndarray:
+    """Per trial (bundle ``trial_id``, = v36 ``ix_trial_id``), the DAQ time of its position strobe (spout arrival):
+    cue + v36 ``ix_strobe_ms`` (strobe relative to the cue); NaN when v36 has no strobe for the trial."""
+    from wfield_local.orofacial_cohort import RUN
+    w = np.load(Path(rv.root("orofacial")) / RUN / "sessions" / animal / date / "windows.npz")
+    tid, sm = w["ix_trial_id"], w["ix_strobe_ms"].astype(float)
+    first = {}
+    for t, v in zip(tid[np.r_[0, np.flatnonzero(np.diff(tid)) + 1]], sm[np.r_[0, np.flatnonzero(np.diff(tid)) + 1]]):
+        first.setdefault(int(t), float(v))
+    rel = np.array([first.get(int(t), np.nan) for t in trial_ids], float) / 1000.0
+    return np.asarray(cues, float) + rel
+
+
+def between_states(rv, animal: str, date: str, t5: np.ndarray) -> np.ndarray:
+    """Per 5 Hz bin (true DAQ s): "run" inside a canonical running bout (`behavior_events`: > 3 mm/s, gaps < 0.3 s
+    merged, >= 2 s), "still" outside every bout with treadmill speed < STILL_MM_S, else "other" (Priya 10-23: the
+    non-trial rows split evenly between running and still)."""
+    from wfield_local import behavior_events as be
+    from wfield_local import face_rhythm_validation as frv
+    out = np.full(len(t5), "other", dtype="<U5")
+    ev = be.get_or_compute(rv, animal, date)
+    sp = frv.session_speed_25hz(rv, animal, date)
+    if ev is None or sp is None:
+        return out
+    fs = float(ev["fs"])
+    run = np.zeros(len(t5), bool)
+    for a, b in zip(np.asarray(ev["running_starts"], float) / fs, np.asarray(ev["running_stops"], float) / fs):
+        run |= (t5 >= a) & (t5 <= b)
+    v = np.interp(t5, *sp, left=np.nan, right=np.nan)
+    out[run] = "run"
+    out[~run & (v < STILL_MM_S)] = "still"
+    return out
+
+
+def draw_rows(trials: list, between: list, n_trials: int, between_frac: float, rng, ds: int = TRIAL_DS,
+              run_share: float | None = None) -> dict:
     """Positions balanced (n_trials // n_positions each, or all a position has) + between_frac x the trial rows of
     between-trial bins -> {"trials": {key: [trial, ...]}, "between": {key: [bin, ...]}, "ds": ds} (sorted). ``ds``:
     25 Hz trial bins averaged per fit row (2 = 12.5 Hz; 4 = 6.25 Hz -- twice the trials for the same rows: adjacent
-    rows of one trial are near-duplicates, the spectrogram windows being far longer than 80 ms; Priya 10-23)."""
-    pos = sorted({p for _, _, p in trials})
+    rows of one trial are near-duplicates, the spectrogram windows being far longer than 80 ms; Priya 10-23).
+    ``run_share`` (between items carry a state, `session_candidates`): that share of the between rows from RUNNING
+    bins, the rest from STILL ones (either short -> the other fills); None = uniform over all between bins."""
+    pos = sorted({t[2] for t in trials})
     per = n_trials // max(len(pos), 1)
     pick = []
     for p in pos:
         g = [t for t in trials if t[2] == p]
         pick += [g[i] for i in rng.choice(len(g), min(per, len(g)), replace=False)]
     nb = min(int(round(between_frac * len(pick) * (151 // ds))), len(between))
-    bsel = [between[i] for i in rng.choice(len(between), nb, replace=False)] if nb else []
+    if run_share is None or not nb:
+        bsel = [between[i] for i in rng.choice(len(between), nb, replace=False)] if nb else []
+    else:
+        pools = {st: [b for b in between if len(b) > 2 and b[2] == st] for st in ("run", "still")}
+        want = {"run": int(round(run_share * nb))}
+        want["still"] = nb - want["run"]
+        short = {st: max(0, want[st] - len(pools[st])) for st in want}
+        want = {"run": want["run"] - short["run"] + short["still"], "still": want["still"] - short["still"] + short["run"]}
+        bsel = []
+        for st in ("run", "still"):
+            k = min(want[st], len(pools[st]))
+            bsel += [pools[st][i] for i in rng.choice(len(pools[st]), k, replace=False)] if k else []
     out = {"trials": {}, "between": {}}
-    for k, i, _ in pick:
+    if any(len(t) > 3 for t in pick):
+        out["arrival"] = {}
+    for k, i, _, *arr in pick:
         out["trials"].setdefault(k, []).append(int(i))
-    for k, b in bsel:
+        if arr and arr[0]:
+            out["arrival"].setdefault(k, []).extend(arr[0])
+    for k, b, *_ in bsel:
         out["between"].setdefault(k, []).append(int(b))
-    return {**{kind: {k: sorted(v) for k, v in sorted(d.items())} for kind, d in out.items()}, "ds": int(ds)}
+    n_state = {st: sum(1 for b in bsel if len(b) > 2 and b[2] == st) for st in ("run", "still", "other")}
+    return {**{kind: {k: sorted(v) for k, v in sorted(d.items())} for kind, d in out.items()}, "ds": int(ds),
+            "n_between": n_state}
 
 
 def gather_rows(sd: Path, picks: dict, weighted: bool = True) -> tuple[np.ndarray, list]:
@@ -307,14 +392,19 @@ def gather_rows(sd: Path, picks: dict, weighted: bool = True) -> tuple[np.ndarra
             ok = np.isfinite(x).all(axis=(1, 2))
             X.append(x[ok])
             index += [(key, "trial", int(ti), int(j)) for j in np.nonzero(ok)[0]]
-    for key, bins in picks["between"].items():
+    for kind in ("arrival", "between"):
+        _session_rows(sd, picks.get(kind, {}), kind, weighted, X, index)
+    return np.concatenate(X).astype(np.float32), index
+
+
+def _session_rows(sd: Path, per_key: dict, kind: str, weighted: bool, X: list, index: list) -> None:
+    for key, bins in per_key.items():
         S = spec_of(sd, key, "session", weighted)
         b = np.sort(np.asarray(bins, int))
         x = rows_of(S[b])
         ok = np.isfinite(x).all(axis=(1, 2))
         X.append(x[ok])
-        index += [(key, "between", -1, int(v)) for v in b[ok]]
-    return np.concatenate(X).astype(np.float32), index
+        index += [(key, kind, -1, int(v)) for v in b[ok]]
 
 
 # ---------------------------------------------------------------------------------------- paths inside the bundle
@@ -352,6 +442,13 @@ def spec_of(sd: Path, key: str, kind: str, weighted: bool = True):
     rc = pl["views"]["ref"]
     arrays, maps = [S], [None]
     t_ref = npz_small(ref, ("cue_daq_s",) if kind == "trials" else ("t_daq_s",))
+    from wfield_local import face_rhythm_timing as frt
+
+    def true_t5(out: Path, k: str, lin: np.ndarray) -> np.ndarray:      # true session bin times when cached
+        tm = frt.load(out.parent, k)
+        return tm["t5"][:len(lin)] if tm is not None else lin
+    if kind == "session":
+        t_ref["t_daq_s"] = true_t5(out_dir(sd), key, t_ref["t_daq_s"])
     for v in views:
         f = view_out_dir(sd, v["cam"], v["bundle"]) / f"{fmv.view_key(key, rc, v['cam'])}_{kind}.npz"
         arrays.append(npz_memmap(f, "spec"))
@@ -359,7 +456,8 @@ def spec_of(sd: Path, key: str, kind: str, weighted: bool = True):
             fmv.check_trials_match(t_ref["cue_daq_s"], npz_small(f, ("cue_daq_s",))["cue_daq_s"], f.name)
             maps.append(None)
         else:
-            maps.append(fmv.session_row_map(t_ref["t_daq_s"], npz_small(f, ("t_daq_s",))["t_daq_s"]))
+            tv = true_t5(f.parent, fmv.view_key(key, rc, v["cam"]), npz_small(f, ("t_daq_s",))["t_daq_s"])
+            maps.append(fmv.session_row_map(t_ref["t_daq_s"], tv))
     divs = None
     vs = sd / "view_scales.json"
     if weighted and vs.exists():
@@ -639,14 +737,16 @@ def window_speed(Xp: np.ndarray, t25: np.ndarray, cues: np.ndarray, positions: n
     return {"speed_between": rms[0], "speed_precue": rms[1::2], "speed_response": rms[2::2], "speed_n_bins": cnt}
 
 
-def points_stream(pf: Path, comps: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
+def points_stream(pf: Path, comps: np.ndarray, cues: np.ndarray, positions: np.ndarray,
+                  t25: np.ndarray | None = None, bad: np.ndarray | None = None) -> dict:
     """`_centred_disp` + PCs + `window_speed` for a whole task WITHOUT holding its points: two sequential passes over
     ``disp`` in ``POINTS_CHUNK`` blocks (the session mean; then per block the centred rows on the frozen PCs and the
     speed^2 per bin, the block's first bin differenced against the previous block's last). Same numbers as the
     in-memory path (test); peak memory one block instead of ~5 GB at 230k bins x 1282 points."""
     D = npz_memmap(pf, "disp")
     n, P = D.shape[0], D.shape[1]
-    t25 = npz_small(pf, ("t_daq_s",))["t_daq_s"]
+    if t25 is None:                                  # else the TRUE times (`face_rhythm_timing`); ``bad`` -> NaN
+        t25 = npz_small(pf, ("t_daq_s",))["t_daq_s"]
     tot, cnt = np.zeros(2 * P), 0
     for c0 in range(0, n, POINTS_CHUNK):
         x = np.asarray(D[c0:c0 + POINTS_CHUNK], np.float32).reshape(-1, 2 * P)
@@ -655,6 +755,8 @@ def points_stream(pf: Path, comps: np.ndarray, cues: np.ndarray, positions: np.n
         cnt += ok.sum()
     mu = (tot / max(cnt, 1)).astype(np.float32)
     lab, pos = window_labels(t25, cues, positions, 5 * EDGE_BINS)
+    if bad is not None:
+        lab[bad[:len(lab)]] = -1
     acc = ClassMeans(lab, 1 + 2 * len(pos), (P,))
     pcs = np.empty((n, comps.shape[0]), np.float32)
     inv_dt, prev = 1.0 / np.median(np.diff(t25)), None
@@ -670,6 +772,8 @@ def points_stream(pf: Path, comps: np.ndarray, cues: np.ndarray, positions: np.n
         prev = xx[-1]
     mean, cnts = acc.result()
     rms = np.sqrt(mean)
+    if bad is not None:
+        pcs[bad[:len(pcs)]] = np.nan
     return {"points_pc": pcs, "points_t_daq_s": t25, "speed_between": rms[0], "speed_precue": rms[1::2],
             "speed_response": rms[2::2], "speed_n_bins": cnts}
 
@@ -699,19 +803,32 @@ def cmd_project(sd: Path, task: int) -> None:
     Wt, Et, _, Dt = project_rows(_scaled(St.reshape(n_tr * n_t, *St.shape[2:]), s), A, B, row_fn=dfn)
     meta = npz_small(od / f"{key}_trials.npz", ("t_ms", "trial_id", "position", "cue_daq_s"))
     tse = npz_small(od / f"{key}_session.npz", ("t_daq_s", "rate_hz"))
+    from wfield_local import face_rhythm_timing as frt
+    tm = frt.load(od.parent, key)                      # TRUE bin times + lossy bins (10-23); linear stamps if absent
+    if tm is not None:
+        tse["t_daq_s"] = tm["t5"][:len(tse["t_daq_s"])]
+    bad5 = frt.lossy(tm["drop5"][:len(tse["t_daq_s"])]) if tm is not None else np.zeros(len(tse["t_daq_s"]), bool)
     Ss = spec_of(sd, key, "session")
     # ONE pass over the session spectrogram (6-9 GB on the share): the window power means (`window_power`) ride on the
     # projection's chunked read instead of a second read (10-22)
     lab, pos = window_labels(tse["t_daq_s"], meta["cue_daq_s"], meta["position"], EDGE_BINS)
+    lab[bad5] = -1
     acc = ClassMeans(lab, 1 + 2 * len(pos), Ss.shape[1:])
     Ws, Es, _, Ds = project_rows(_scaled(Ss, s, on_chunk=lambda c0, x: acc.add(c0, x.reshape(len(x), *Ss.shape[1:]))),
                                  A, B, row_fn=dfn)
     pw = _power_dict(*acc.result(), pos)
     if "points_components" in M:
-        pw.update(points_stream(od / f"{key}_points.npz", M["points_components"], meta["cue_daq_s"], meta["position"]))
+        pw.update(points_stream(od / f"{key}_points.npz", M["points_components"], meta["cue_daq_s"], meta["position"],
+                                t25=tm["t25"] if tm is not None else None,
+                                bad=frt.lossy(tm["drop25"]) if tm is not None else None))
+    Ws[bad5], Es[bad5] = np.nan, np.nan
+    bad_tr = frt.lossy(tm["drop_trials"]).ravel() if tm is not None else np.zeros(len(Wt), bool)
+    Wt[bad_tr], Et[bad_tr] = np.nan, np.nan
     _atomic_savez(dst, trials=Wt.reshape(n_tr, n_t, -1), trials_err=Et.reshape(n_tr, n_t), session=Ws, session_err=Es,
                   trials_D=Dt.reshape(n_tr, n_t), session_D=Ds,
                   session_t_daq_s=tse["t_daq_s"], session_rate_hz=tse["rate_hz"], spec_hash=str(M["spec_hash"]),
+                  timing=frt.TIMING_VERSION if tm is not None else "linear", session_lossy=bad5,
+                  trials_lossy=bad_tr.reshape(n_tr, n_t),
                   animal=animal, epoch=str(t["epoch"]), date=t["date"], basis=basis, basis_cos=bcos, **meta, **pw)
     print(f"{key} [{t['epoch']}, basis {basis}]: trials err median {np.nanmedian(Et):.3f}, session err median {np.nanmedian(Es):.3f}, "
           f"{(time.time() - t0) / 60:.1f} min -> {dst}")
@@ -763,7 +880,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
              ranks: list[int], inits: int, n_iter: int, user: str, point_pcs: int = 20,
              points_bins: int = 20000, animals: list[str] | None = None, with_outputs: bool = False,
              role: str = "master", loso: bool = True, trial_ds: int = TRIAL_DS,
-             views: list[str] | None = None) -> Path:
+             views: list[str] | None = None, run_share: float | None = None, arrival: bool = False) -> Path:
     import pandas as pd
     from wfield_local import epochs, writeguard
     from wfield_local import o2_inference as oi
@@ -797,21 +914,32 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
             print(f"  multi-view: {(~keep).sum()} task(s) lack a view, left out: {', '.join(T.key[~keep])}")
         T = T[keep]
         view_spec = {"ref": rc, "cams": cams}
+    from wfield_local import face_rhythm_timing as frt
     rng = np.random.default_rng(seed)
     tasks, cand = [], {}
+    no_timing = [k for k in T.key if frt.load(bd, k) is None]
+    if no_timing:
+        sys.exit(f"{len(no_timing)} task(s) without timing ({', '.join(no_timing[:4])} ...): run "
+                 f"`o2_face_rhythm.py timing --name {bundle}` first (true bin times + lossy bins, 10-23)")
     for r in T.itertuples():
         tasks.append({"key": r.key, "animal": r.animal, "date": r.date, "epoch": epochs.epoch_of(f"{r.animal}_{r.date[4:]}")})
-        cand[r.key] = session_candidates(r.key, np.load(bd / "trials" / f"{r.key}.npz"), int(r.n_frames))
+        tm = frt.load(bd, r.key)
+        st = between_states(rv, r.animal, r.date, tm["t5"][:int(r.n_frames) // 50]) if run_share is not None else None
+        zt = np.load(bd / "trials" / f"{r.key}.npz")
+        sb = trial_strobes(rv, r.animal, r.date, zt["trial_id"], zt["cue_daq_s"]) if arrival else None
+        cand[r.key] = session_candidates(r.key, zt, int(r.n_frames), tm, st, sb)
     fit = {}
     for a in sorted({t["animal"] for t in tasks}):
         keys = [t["key"] for t in tasks if t["animal"] == a and t["epoch"] == "pre"]
         if not keys:
             continue
         picks = draw_rows(sum((cand[k][0] for k in keys), []), sum((cand[k][1] for k in keys), []),
-                          trials_per_animal, between_frac, rng, ds=trial_ds)
+                          trials_per_animal, between_frac, rng, ds=trial_ds, run_share=run_share)
         fit[a] = {"sessions": keys, **picks}
         n_tr = sum(map(len, picks["trials"].values()))
-        print(f"  {a}: {len(keys)} pre sessions, {n_tr} trials (fit rows every {trial_ds * 40} ms), {sum(map(len, picks['between'].values()))} between bins")
+        print(f"  {a}: {len(keys)} pre sessions, {n_tr} trials (fit rows every {trial_ds * 40} ms), "
+              f"{sum(map(len, picks.get('arrival', {}).values()))} pre-cue 5 Hz bins (arrival + cue-4..-2 s), "
+              f"{sum(map(len, picks['between'].values()))} between bins {picks['n_between']}")
     points_fit = {}
     for a in fit:                                           # equal 25 Hz bins per animal, spread over its pre sessions
         keys = fit[a]["sessions"]
@@ -819,14 +947,18 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
         per = points_bins // len(keys)
         points_fit[a] = {k: sorted(int(b) for b in rng.choice(nb[k], min(per, nb[k]), replace=False)) for k in keys}
     session_rows = {t["key"]: draw_rows(*cand[t["key"]], session_trials, between_frac,
-                                        np.random.default_rng([seed, zlib.crc32(t["key"].encode())])) for t in tasks}
+                                        np.random.default_rng([seed, zlib.crc32(t["key"].encode())]),
+                                        run_share=run_share) for t in tasks}
     days = sorted({session_group(k) for a in fit.values() for k in a["sessions"]})
     loso_jobs = [[r, d] for r in ranks for d in days] if loso else []
     pl = {"set": name, "bundle": bundle, "created": time.strftime("%Y-%m-%d %H:%M"), "role": role,
           **({"views": view_spec} if view_spec else {}),
           "animals": sorted(fit), "loso_jobs": loso_jobs,
           "params": {"trials_per_animal": trials_per_animal, "session_trials": session_trials,
-                     "between_frac": between_frac, "seed": seed, "trial_ds": trial_ds, "ranks": ranks, "inits": inits,
+                     "between_frac": between_frac, "seed": seed, "trial_ds": trial_ds, "run_share": run_share,
+                     "still_mm_s": STILL_MM_S, "timing": frt.TIMING_VERSION,
+                     "precue_rows": {"strobe_s": list(ARRIVAL_S), "from_cue_s": PRECUE_EXT_S, "until": "trial grid start"}
+                     if arrival else None, "ranks": ranks, "inits": inits,
                      "n_iter": n_iter, "precue_s": PRECUE_S, "resp_s": RESP_S, "busy_s": BUSY_S,
                      "scale": "per animal: RMS of its fit rows", "point_pcs": point_pcs,
                      "points_bins_per_animal": points_bins,
@@ -850,7 +982,8 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
                                    "loso --task $SLURM_ARRAY_TASK_ID")
     for fn, (opts, cmd) in jobs.items():
         (sd / fn).write_text(_sbatch(b, opts, cmd), encoding="utf-8", newline="\n")
-    rows = sum(len(v) for a in fit.values() for v in a["trials"].values()) * (151 // trial_ds) + \
+    rows = sum(len(v) for a in fit.values() for v in a.get("arrival", {}).values()) + \
+        sum(len(v) for a in fit.values() for v in a["trials"].values()) * (151 // trial_ds) + \
         sum(len(v) for a in fit.values() for v in a["between"].values())
     print(f"plan [{role}] -> {sd}  (fit rows ~{rows}, tensor ~{rows * 2 * 1282 * 36 * 4 / 1e9:.1f} GB float32; {n} tasks; "
           f"{len(loso_jobs)} leave-one-session-out jobs = {len(ranks)} ranks x {len(days)} pre days)")
@@ -1143,6 +1276,10 @@ def main(argv=None) -> int:
     ap.add_argument("--views", nargs="*", default=None,
                     help="plan: MULTI-VIEW set -- extra cameras as cam=bundle (e.g. cam1=fr_cam1_20261101); points "
                          "stacked with the --bundle camera's (wfield_local/face_rhythm_multiview.py)")
+    ap.add_argument("--arrival", action="store_true",
+                    help="plan: add PRE-CUE 5 Hz rows per fit trial: spout arrival (strobe -1..+2 s) + cue -4..-2 s")
+    ap.add_argument("--run-share", type=float, default=None,
+                    help="plan: share of the between-trial rows from RUNNING bins, the rest STILL (None = uniform)")
     ap.add_argument("--trial-ds", type=int, default=TRIAL_DS,
                     help="plan: 25 Hz trial bins per FIT row (4 -> 2x the trials for the same tensor; session rows stay 2)")
     ap.add_argument("--between-frac", type=float, default=0.25)
@@ -1164,7 +1301,7 @@ def main(argv=None) -> int:
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
                  a.n_iter, a.user, a.point_pcs, a.points_bins, a.animals, a.with_outputs, a.role, not a.no_loso,
-                 a.trial_ds, a.views)
+                 a.trial_ds, a.views, a.run_share, a.arrival)
         return 0
     sd = a.dir
     if sd is None:
