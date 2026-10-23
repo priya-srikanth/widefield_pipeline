@@ -504,6 +504,38 @@ def _push_on() -> bool:
     return bool(os.environ.get("FROZEN_PUSH"))
 
 
+#: FREE PUSH (Priya 10-23: "if push changes, wouldn't it be useful to include it somehow then?"). A FROZEN push kernel
+#: fails post-stroke (v7 test: chronic cue-window R2 PS95 .15 -> -.80): pushes are rare pre-stroke (0.6-3.9 % of trial
+#: frames) and 2-5x more frequent after, so the pre kernel rests on few events that coincide with bout ends / cue
+#: posture / licks. Leaving push out leaves its activity unexplained (residual, "data - model"). `FROZEN_PUSH=free`:
+#: push stays in the pre fit (the frozen groups are estimated with push accounted for), but on EVERY session (pre and
+#: post) the push columns' betas are re-fitted to that session's residual (data - frozen non-push prediction), ridge
+#: with the frozen push-group alpha, cross-validated over PUSH_FREE_FOLDS contiguous blocks (no in-sample gain). Areas
+#: only; the frozen parts are then read with push accounted for per session.
+PUSH_FREE_FOLDS = 5
+
+
+def _push_free() -> bool:
+    return os.environ.get("FROZEN_PUSH", "").strip().lower() == "free"
+
+
+def free_push(Zv: np.ndarray, R: np.ndarray, beta: np.ndarray, qm: np.ndarray, alpha: float,
+              folds: int = PUSH_FREE_FOLDS) -> tuple[np.ndarray, np.ndarray]:
+    """(frozen non-push prediction, cross-validated per-session push prediction) on the variant design Zv."""
+    base = Zv[:, ~qm] @ beta[~qm]
+    out = np.zeros_like(base)
+    if not qm.any():
+        return base, out
+    r, Zp = R - base, Zv[:, qm]
+    edges = np.linspace(0, len(Zp), folds + 1).astype(int)
+    for a, b in zip(edges[:-1], edges[1:]):
+        tr = np.ones(len(Zp), bool)
+        tr[a:b] = False
+        coef = np.linalg.solve(Zp[tr].T @ Zp[tr] + alpha * np.eye(qm.sum()), Zp[tr].T @ r[tr])
+        out[a:b] = Zp[a:b] @ coef
+    return base, out
+
+
 def _push_abs(x0: np.ndarray) -> np.ndarray:
     """Backward speed magnitudes (lag-0 column, beyond PUSH_FLOOR) for the pooled cap."""
     b = -np.asarray(x0, np.float64)
@@ -864,6 +896,8 @@ def predict_job(job):
     d = session_design(label, _templates_of(tpath, an), spatial=_spatial_of(spath, an))
     f0 = next(iter(fits.values()))
     if spath:
+        if _push_free():
+            raise ValueError("FROZEN_PUSH=free is implemented for Allen-area targets only")
         return _predict_spatial(label, fits, out_dir, d, f0)
     if len(d["col_var"]) != len(f0["col_var"]) or (d["col_var"] != f0["col_var"]).any():
         raise ValueError(f"{label}: column layout differs from the animal's pre fit")
@@ -890,19 +924,34 @@ def predict_job(job):
     for variant, fit in fits.items():
         beta = fit["beta_loso"].get(label, fit["beta_all"])
         frozen_from = "loso" if label in fit["beta_loso"] else "all_pre"
-        Ce = fit["C"]                                     # effective weights on the scaled design: Z @ (C @ beta)
+        Zv = Z @ fit["C"]                                 # the variant's design (effective weights: Z @ (C @ beta))
+        qm = np.asarray(fit["vcol"]) == "push"
+        pfree = None
+        if _push_free() and qm.any():                     # per-session cross-validated push (FREE PUSH above)
+            base, pfree = free_push(Zv, Rd, beta, qm, fit["alphas"][FPEN["push"]])
+            full = base + pfree
+        else:
+            full = Zv @ beta
+
+        def contrib(m, Zv=Zv, beta=beta, qm=qm, pfree=pfree):
+            x = Zv[:, m & ~qm] @ beta[m & ~qm]
+            if (m & qm).any():
+                x = x + (pfree if pfree is not None else Zv[:, m & qm] @ beta[m & qm])
+            return x
         if "|drop:" in variant or variant in DROP_BASES:
-            drop_sse[variant] = _sse(Z @ (Ce @ beta))
+            drop_sse[variant] = _sse(full)
         if "|drop:" in variant:
             continue
         gcol = np.array([FGROUP[v] for v in fit["vcol"]])
-        comp = {"data": Rd, "full": Z @ (Ce @ beta)}
+        comp = {"data": Rd, "full": full}
         if variant in PART_VARIANTS:                      # a reduced model's parts are not a split of anything
             for g, gs in (*((g, (g,)) for g in FGROUPS), ("spout", SUPER["spout"]), ("lick_all", ("lick", "exec_locked"))):
                 m = np.isin(gcol, gs)
-                comp[g] = Z @ (Ce[:, m] @ beta[m]) if m.any() else np.zeros_like(Rd)
+                comp[g] = contrib(m) if m.any() else np.zeros_like(Rd)
             pm = np.isin(fit["vcol"], list(ce.POS_VARS))
-            comp["pos"] = Z @ (Ce[:, pm] @ beta[pm]) if pm.any() else np.zeros_like(Rd)
+            comp["pos"] = contrib(pm) if pm.any() else np.zeros_like(Rd)
+            if qm.any():
+                comp["push"] = contrib(qm)
         peth = np.full((len(comp), len(pos_order), len(ix), len(off)), np.nan, np.float32)
         peth_lick = np.full_like(peth, np.nan)
         n_lick = {}
@@ -936,7 +985,8 @@ def predict_job(job):
                 "gate": os.environ.get("OROFACIAL_GATE", "reference"), "lick_set": d["lick_set"],
                 "n_trials": d["n_trials"], "n_lick_aligned_by_pos": n_lick, "pos_order": pos_order,
                 "peth_parts": list(comp), "areas": fit["areas"], "frozen_r2_cortex": r2, "r2_musall": musall,
-                "stats_version": STATS_VERSION}
+                "stats_version": STATS_VERSION, "run_tag": _run_tag(),
+                "push": ("free" if pfree is not None else "frozen") if qm.any() else None}
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2
         summary["frozen_from"] = frozen_from

@@ -379,3 +379,27 @@ def test_v7_running_defaults(monkeypatch):
     monkeypatch.setenv("FROZEN_RUNNING", "linear")
     monkeypatch.setenv("FROZEN_PUSH", "1")
     assert fe._run_tag() == "linear|k0=1.5|push"
+
+
+def test_free_push_is_cross_validated_ridge_on_the_frozen_residual(monkeypatch):
+    """FROZEN_PUSH=free: base = frozen non-push prediction; push part = per-fold ridge of the residual on the push
+    columns, each block predicted from the other blocks only; no push columns -> zeros."""
+    rng = np.random.default_rng(3)
+    n, p, r = 200, 6, 3
+    Zv = rng.normal(size=(n, p))
+    qm = np.array([False, False, False, False, True, True])
+    beta = rng.normal(size=(p, r))
+    R = Zv @ beta + rng.normal(size=(n, r))
+    base, pf = fe.free_push(Zv, R, beta, qm, alpha=2.0, folds=4)
+    assert np.allclose(base, Zv[:, ~qm] @ beta[~qm])
+    res, Zp = R - base, Zv[:, qm]
+    for a, b in ((0, 50), (50, 100), (100, 150), (150, 200)):
+        tr = np.r_[0:a, b:n]
+        coef = np.linalg.solve(Zp[tr].T @ Zp[tr] + 2.0 * np.eye(2), Zp[tr].T @ res[tr])
+        assert np.allclose(pf[a:b], Zp[a:b] @ coef)
+    b0, p0 = fe.free_push(Zv, R, beta, np.zeros(p, bool), alpha=2.0)
+    assert np.allclose(b0, Zv @ beta) and not p0.any()
+    monkeypatch.setenv("FROZEN_PUSH", "free")
+    assert fe._push_on() and fe._push_free()
+    monkeypatch.setenv("FROZEN_PUSH", "1")
+    assert fe._push_on() and not fe._push_free()
