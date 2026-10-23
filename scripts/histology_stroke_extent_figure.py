@@ -41,7 +41,7 @@ if SCHEME == 'severity':   # VLS paper phenotype groups + manuscript colours (sc
         for i, a in enumerate(animals):
             dl = (i - (len(animals) - 1) / 2) * 0.07          # small lightness steps around the paper colour
             COLORS[a] = colorsys.hls_to_rgb(h, min(max(l - dl, 0.15), 0.8), s_); STYLE[a] = DASH[i]
-EXTRA_FB = {}
+EXTRA_FB = {(29, 'PS55'): 28} if COHORT == 'PS46-55' else {}   # Priya 10-23: Severe #2 at +0.26 from its section at +0.38
 INTERP_EXTRA = {(30, 'PS51')} if COHORT == 'PS46-55' else set()   # Priya 10-22: interpolate Moderate #2 (PS51) at +0.14 in every version   # (was PS51 at -0.10 from +0.02; replaced by the real PS51_2_10 section, 2026-10-22)
 HATCH = ['|||', '---', '\\\\\\', '///']
 matplotlib.rcParams['hatch.linewidth'] = 0.6
