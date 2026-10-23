@@ -21645,7 +21645,8 @@ Context: encoding window (d4). Priya: "yes add running cap". Results ENCODING_FI
    fixed cue offset would miss arrival: the strobe -> cue lead varies (2.4 s to > 10 s). The 25 Hz grid itself stays
    cue -2..+4 s (extending it needs new O2 runs).
 6. **Between rows split RUN / STILL** (Priya: "including quiet non-trial time? how about running?"): ~36 % of rows,
-   half inside canonical running bouts, half still (< 1 mm/s); full sessions are not fitted (~1 M near-duplicate rows,
+   half inside the canonical running bouts, half inside the canonical REST periods (both already stored per session on
+   the server, `behavior_events`; Priya: use the rest / running periods we have); full sessions are not fitted (~1 M near-duplicate rows,
    ~370 GB) -- they are PROJECTED in full. Same sample per animal, then one RMS scalar per animal (balance across
    animals). Details + table: FACE_RHYTHM_PIPELINE "Time windows and the fit sample".
 7. **Fit rows at 200 ms, no coarser; sample size tested by split halves** (Priya: "280 ms is too long w.r.t. a lick";

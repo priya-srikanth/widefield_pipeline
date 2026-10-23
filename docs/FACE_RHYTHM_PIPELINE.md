@@ -96,7 +96,7 @@ camera's DAQ segment are excluded everywhere (NaN in projections; never drawn fo
 | TRIAL grid | cue -2 .. +4 s | 25 Hz (151 bins) | `<key>_trials.npz` (computed on O2) | trial rows of the fit (every 5th-bin block -> 200 ms rows); projections; readouts (pre-cue -2..0, response 0..4) |
 | PRE-CUE rows | [position strobe -1, strobe +2] UNION [cue -4, cue -2), cut at cue -2 s | 5 Hz | session spectrogram | fit rows drawn WITH their trial: spout arrival (the strobe; its lead to the cue varies, 2.4 s to > 10 s) + anticipation / ENL licks; each bin once, never inside the 25 Hz grid |
 | BUSY (no between rows) | from min(strobe -1, cue -4, cue -3) to cue +6 s | -- | -- | keeps trial tails, arrival and anticipation out of the between pool |
-| BETWEEN | everything else (2 s trimmed at each recording end) | 5 Hz | session spectrogram | between rows of the fit, labelled RUN (inside a canonical running bout: > 3 mm/s, gaps < 0.3 s merged, >= 2 s) / STILL (outside bouts, treadmill < 1 mm/s) / other (not drawn) |
+| BETWEEN | everything else (2 s trimmed at each recording end) | 5 Hz | session spectrogram | between rows of the fit, labelled from the CANONICAL per-session events on the server (`behavior_events`, `behavior_summary/events/<animal>/<date>.npz`; no DAQ read): RUN = inside a running bout (> 3 mm/s, gaps < 0.3 s merged, >= 2 s), STILL = inside a REST period (the lab's quiet definition: spout docked between trials, not running, not near licks / rewards), other = not drawn |
 
 Projections cover WHOLE sessions (25 Hz in trial windows, 5 Hz everywhere else); only the FIT uses a sample.
 
@@ -104,8 +104,8 @@ Projections cover WHOLE sessions (25 Hz in trial windows, 5 Hz everywhere else);
 * 120 fit trials = **20 per spout position** x 6, drawn at random from the animal's pooled pre sessions (no per-session
   quota; trials with a lossy grid bin excluded) -> 120 x 30 = 3600 trial rows (200 ms; `--trial-ds 5`).
 * their pre-cue rows (~10-15 per trial).
-* between rows = 0.556 x the trial rows (~2000), **half RUN, half STILL** (`--run-share 0.5`; if one pool is short the
-  other fills; "other" bins are not used).
+* between rows = 0.556 x the trial rows (~2000), **half RUN, half STILL (REST)** (`--run-share 0.5`; if one pool is
+  short the other fills; "other" bins are not used).
 * `plan` prints each animal's drawn counts; the plan stores them (`fit.<animal>.n_between`).
 
 **Across animals**: the SAME sample size and composition per animal (trials, positions, run / still), so no animal

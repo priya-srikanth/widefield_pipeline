@@ -81,7 +81,6 @@ CHUNK = 256                                         # rows per einsum chunk
 PRECUE_S, RESP_S = (-2.0, 0.0), (0.0, 4.0)          # movement-power windows (s from cue)
 BUSY_S = (-3.0, 6.0)                                # "between trials" = outside this around every engaged cue
 EDGE_BINS = 10                                      # 2 s at 5 Hz kept out of the between-trial pool at each end
-STILL_MM_S = 1.0                                    # "still" between-trial bins: treadmill below this (defaults.yaml slow)
 ARRIVAL_S = (-1.0, 2.0)                             # PRE-CUE rows: 5 Hz bins around each trial's position strobe (spout
 PRECUE_EXT_S = -4.0                                 # arrival) + from cue - 4 s, both before the 25 Hz grid (cue - 2 s)
 POINTS_CHUNK = 20000                                # 25 Hz bins per chunk when centring / projecting displacements
@@ -317,23 +316,20 @@ def trial_strobes(rv, animal: str, date: str, trial_ids: np.ndarray, cues: np.nd
 
 
 def between_states(rv, animal: str, date: str, t5: np.ndarray) -> np.ndarray:
-    """Per 5 Hz bin (true DAQ s): "run" inside a canonical running bout (`behavior_events`: > 3 mm/s, gaps < 0.3 s
-    merged, >= 2 s), "still" outside every bout with treadmill speed < STILL_MM_S, else "other" (Priya 10-23: the
+    """Per 5 Hz bin (true DAQ s), from the CANONICAL per-session behaviour events on the server (`behavior_events`,
+    ``behavior_summary/events/<animal>/<date>.npz``; no DAQ read): "run" inside a running bout (> 3 mm/s, gaps
+    < 0.3 s merged, >= 2 s), "still" inside a REST period (the lab's quiet definition: between trials with the spout
+    docked, not running, not near licks / rewards; `quiet_periods.rest_mask`), else "other" (Priya 10-23: the
     non-trial rows split evenly between running and still)."""
     from wfield_local import behavior_events as be
-    from wfield_local import face_rhythm_validation as frv
     out = np.full(len(t5), "other", dtype="<U5")
     ev = be.get_or_compute(rv, animal, date)
-    sp = frv.session_speed_25hz(rv, animal, date)
-    if ev is None or sp is None:
+    if ev is None:
         return out
     fs = float(ev["fs"])
-    run = np.zeros(len(t5), bool)
-    for a, b in zip(np.asarray(ev["running_starts"], float) / fs, np.asarray(ev["running_stops"], float) / fs):
-        run |= (t5 >= a) & (t5 <= b)
-    v = np.interp(t5, *sp, left=np.nan, right=np.nan)
-    out[run] = "run"
-    out[~run & (v < STILL_MM_S)] = "still"
+    for st, (a_, b_) in (("still", ("rest_starts", "rest_stops")), ("run", ("running_starts", "running_stops"))):
+        for a, b in zip(np.asarray(ev[a_], float) / fs, np.asarray(ev[b_], float) / fs):
+            out[(t5 >= a) & (t5 <= b)] = st
     return out
 
 
@@ -1005,7 +1001,7 @@ def cmd_plan(bundle: str, name: str, trials_per_animal: int, session_trials: int
           "animals": sorted(fit), "loso_jobs": loso_jobs,
           "params": {"trials_per_animal": trials_per_animal, "session_trials": session_trials,
                      "between_frac": between_frac, "seed": seed, "trial_ds": trial_ds, "run_share": run_share,
-                     "still_mm_s": STILL_MM_S, "timing": frt.TIMING_VERSION,
+                     "still": "behavior_events rest periods", "timing": frt.TIMING_VERSION,
                      "precue_rows": {"strobe_s": list(ARRIVAL_S), "from_cue_s": PRECUE_EXT_S, "until": "trial grid start"}
                      if arrival else None, "ranks": ranks, "inits": inits,
                      "n_iter": n_iter, "precue_s": PRECUE_S, "resp_s": RESP_S, "busy_s": BUSY_S,
