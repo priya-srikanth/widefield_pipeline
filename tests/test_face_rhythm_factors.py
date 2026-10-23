@@ -55,6 +55,9 @@ def test_pipeline_end_to_end(tmp_path):
     fz = np.load(sd / f"rank{R:02d}.npz")
     assert len(fj["stability_per_factor_min"]) == R and min(fj["stability_per_factor_min"]) > 0.9
     assert fz["A_starts"].shape[0] == len(fj["rel_errs"]) and fz["B_starts"].shape[1:] == fz["B"].shape
+    f.cmd_splithalf(sd, R, inits=1)                                # disjoint halves recover the same planted factors
+    sh = json.loads((sd / "splithalf" / f"rank{R:02d}.json").read_text())
+    assert sh["similarity_halves"] > 0.9 and min(sh["similarity_half_to_full"]) > 0.9 and sum(sh["n_trials"]) == 12
     pl = json.loads((sd / "plan.json").read_text())                # leave one pre DAY out (the post-stroke noise floor)
     pl["loso_jobs"], pl["role"] = [[R, f"{a}_20260810"] for a in ("PS92", "PS93", "PS94")], "pilot"
     (sd / "plan.json").write_text(json.dumps(pl))

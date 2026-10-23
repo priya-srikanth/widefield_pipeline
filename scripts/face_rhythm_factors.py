@@ -618,6 +618,55 @@ def task_basis(sd: Path, t: dict, A: np.ndarray, B: np.ndarray) -> tuple[np.ndar
     return A, B, "full_in_sample", np.ones((2, R))
 
 
+def cmd_splithalf(sd: Path, rank: int, inits: int = 2) -> None:
+    """IS THE SAMPLE ENOUGH? (Priya 10-23: "20 trials per position per animal is enough?") Split the fit rows in two
+    disjoint halves -- the fit TRIALS by animal x spout position, alternately after a seeded shuffle (10 per position
+    per animal each), every other row (pre-cue, between) at random -- fit rank R on each half (best of ``inits``
+    starts) and compare: half A vs half B (matched spatial x spectral similarity, per factor and mean) and each half vs
+    the full fit (``rank<R>.npz``). Halves that agree (~0.9+) = the full sample (twice each half) is comfortably enough.
+    -> ``splithalf/rank<R>.json``."""
+    pl = load_plan(sd)
+    dst = sd / "splithalf" / f"rank{rank:02d}.json"
+    X = np.load(sd / "fit_tensor.npy", mmap_mode="r")
+    ix = np.load(sd / "fit_index.npz")
+    rng = np.random.default_rng([int(pl["params"].get("seed", 0)), 7919, rank])
+    half = rng.integers(0, 2, len(ix["key"])).astype(np.int8)
+    tr = ix["kind"] == "trial"
+    pos_of = {}
+    for k in np.unique(ix["key"][tr]):
+        pos_of[k] = npz_small(out_dir(sd) / f"{k}_trials.npz", ("position",))["position"]
+    groups = {}
+    for a, k, t in {(a, k, int(t)) for a, k, t in zip(ix["animal"][tr], ix["key"][tr], ix["trial"][tr])}:
+        groups.setdefault((a, str(pos_of[k][t])), []).append((k, t))
+    side = {}
+    for g in sorted(groups):
+        items = sorted(groups[g])
+        for j, it in enumerate(rng.permutation(len(items))):
+            side[items[it]] = j % 2
+    half[tr] = [side[(k, int(t))] for k, t in zip(ix["key"][tr], ix["trial"][tr])]
+    t0 = time.time()
+    fits = []
+    for h in (0, 1):
+        Xh = np.ascontiguousarray(X[half == h])
+        fs = [ncp_hals(Xh, rank, seed=500 + 10 * h + i, n_iter=pl["params"]["n_iter"]) for i in range(inits)]
+        fits.append(min(fs, key=lambda f_: f_["rel_err"]))
+        del Xh
+        print(f"  half {'AB'[h]}: {int((half == h).sum())} rows, rel err {fits[-1]['rel_err']:.4f}", flush=True)
+    full = np.load(sd / f"rank{rank:02d}.npz")
+    _, cos_ab = match([fits[0]["A"], fits[0]["B"]], [fits[1]["A"], fits[1]["B"]])
+    res = {"rank": rank, "inits": inits, "n_rows": [int((half == h).sum()) for h in (0, 1)],
+           "n_trials": [int(sum(1 for v in side.values() if v == h)) for h in (0, 1)],
+           "similarity_halves": float(np.prod(cos_ab, axis=0).mean()),
+           "similarity_per_factor": np.prod(cos_ab, axis=0).round(4).tolist(),
+           "similarity_half_to_full": [similarity([full["A"], full["B"]], [f_["A"], f_["B"]]) for f_ in fits],
+           "rel_err_halves": [float(f_["rel_err"]) for f_ in fits], "minutes": (time.time() - t0) / 60}
+    dst.parent.mkdir(exist_ok=True)
+    dst.write_text(json.dumps(res, indent=1))
+    print(f"rank {rank} split half: halves similarity {res['similarity_halves']:.3f} (per factor min "
+          f"{min(res['similarity_per_factor']):.3f}), half vs full {res['similarity_half_to_full'][0]:.3f} / "
+          f"{res['similarity_half_to_full'][1]:.3f}, {res['minutes']:.0f} min -> {dst}")
+
+
 def cmd_loso(sd: Path, job: int) -> None:
     """LEAVE ONE PRE-STROKE SESSION OUT (job = 1-based row of plan ``loso_jobs`` = (rank, day)): refit rank R without the
     day's fit rows (one random start, the fit's n_iter), then project the day's SESSION rows (the same rows `fitsession`
@@ -1259,7 +1308,8 @@ Pre-stroke sessions on their left-out-day basis, post-stroke on the full pre fit
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["plan", "build", "fit", "loso", "select", "project", "fitsession", "report"])
+    ap.add_argument("cmd", choices=["plan", "build", "fit", "loso", "splithalf", "select", "project", "fitsession",
+                                    "report"])
     ap.add_argument("--bundle", default="fr_cam4_20261021")
     ap.add_argument("--set", default="master_pre_v1")
     ap.add_argument("--dir", type=Path, default=None, help="factor-set folder (default: this file's folder on O2, "
@@ -1296,6 +1346,7 @@ def main(argv=None) -> int:
                     help="plan: 'pilot' for a restricted set (stamped into plan + master.npz; never the cohort master)")
     ap.add_argument("--no-loso", action="store_true", help="plan: no leave-one-pre-session-out jobs")
     ap.add_argument("--no-loao", action="store_true", help="fit: skip leave-one-animal-out (a plain rank sweep)")
+    ap.add_argument("--split-inits", type=int, default=2, help="splithalf: random starts per half")
     ap.add_argument("--own-inits", type=int, default=3, help="fitsession: random starts of the session's own fit")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
@@ -1314,7 +1365,7 @@ def main(argv=None) -> int:
     task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "loso") else None)
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank, not a.no_loao), "select": lambda: cmd_select(sd, a.rank),
      "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits),
-     "loso": lambda: cmd_loso(sd, task),
+     "loso": lambda: cmd_loso(sd, task), "splithalf": lambda: cmd_splithalf(sd, a.rank, a.split_inits),
      "report": lambda: cmd_report(sd, a.face, a.absolute, a.match)}[a.cmd]()
     return 0
 
