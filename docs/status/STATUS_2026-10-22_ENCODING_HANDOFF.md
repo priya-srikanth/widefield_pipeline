@@ -24,15 +24,29 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
   on data - model; PS95 1 acute session. **3-D 2x2 still paused** at 16/41 (`run_3d_2x2.sh`, `--skip-done`, 2 workers).
 - **Next:** FR inside frozen v6 (PS92 + PS93; FR traces through the spl / dev split, own penalty group, env flag);
   FR run A summary; resume 3-D 2x2; cache backup when idle.
-- **10-23 queue (Priya-approved):** (1) sublinear running test `_v6spl` (running); (2) basis re-run with pixel unique
-  R2 + per-position + direction maps (`scripts/frozen_r2_maps.py`; code fc6d441) on the winning running model;
+- **10-23 queue (Priya-approved, reordered 10-23 "yes reorder"):** (1) sublinear running test `_v6spl` (running);
+  (2) basis re-run with pixel unique R2 + per-position (target-only AND whole-spout = target + spout-locked template
+  swapped for the other spouts' mean at prediction) + direction maps (`scripts/frozen_r2_maps.py`; code fc6d441) on
+  the winning running model; (2b) **LICK-LEVEL STRAYS vs ON-TARGET, within spout -- the decisive target-vs-executed
+  test** (Priya: "don't we want to be comparing LICK stray response vs on-target response"; target and the spout-locked
+  lick are the same variable on on-target licks, only strays separate them): per lick, continuous 3-D error from the
+  aimed spout's CALIBRATED centre (pre contact licks; nominal angles are biased ~21 deg) in within-spout SD units +
+  direction toward the nearest other centre + contact; per-lick regressor sets (on-target at q; strays from q toward j)
+  so overlapping corrective licks are separated by the model (raw stray averages are contaminated toward target);
+  compare stray kernels' maps with pre on-target maps of q and j, controlling pre q-j similarity = competition LMM at
+  LICK level, pre AND post. Census 10-23 (good 3-D, August pre, PS92 / PS93): no-contact licks nearer another spout's
+  centre PS92 1129 / 1054 / 665 / 2645, PS93 6679 / 1783 / 2320 / 5429 (pre / acute / sub / chronic); far contra acute
+  564 / 537 -- thousands, vs ~6 sessions in the session-level test. Close-spout centres overlap (3-10 deg apart vs
+  within-spout SD 6-9 deg: 5-13k CONTACT licks sit nearer another centre) -> use the continuous error, categorical zones
+  only for well-separated spouts. Spontaneous (ITI) licks = an EXECUTION-ONLY reference (no target) once whole-session
+  3-D exists (ask the pose window); pre-cue licks are still targeted (spout already in place).
   (3) **ALL-SESSION model: shared kernels + per-epoch deltas** (Priya: "i like the shared kernels with per-epoch
   changes idea!"): per animal, kernel = shared + acute / subacute / chronic delta (ridge-shrunk to 0), pre-stroke
   templates kept as the reference frame, epoch weighting, held-out-session scoring for every session, DRIFT NULL =
   early- vs late-pre pseudo-epoch; readout = per group, does an epoch delta improve held-out prediction (tests
   "coupling preserved") + delta maps; built on the Gram statistics (one stats pass over post sessions); areas then basis;
-  (4) FR inside frozen; (5) strayed-lick counts (PS92 / PS93 gated); (6) competition LMM for destination vs landing
-  (after the basis re-run; per (session, aimed, candidate) pattern correlation ~ target + 3-D landing weight + pre-stroke
+  (4) FR inside frozen; (5) [folded into 2b]; (6) SESSION-level competition LMM for destination vs landing
+  (secondary to 2b; per (session, aimed, candidate) pattern correlation ~ target + 3-D landing weight + pre-stroke
   spout similarity, x log days / deficit; animal FIXED with 2 animals); (7) frozen v6 per-session parts onto the
   TIME / BEHAVIOUR LMMs (FINDINGS 4.3 item 7).
   **Target-vs-executed headline under verification (Priya 10-23):** FINDINGS 2.4c destination % were inflated (see the
