@@ -21648,4 +21648,9 @@ Context: encoding window (d4). Priya: "yes add running cap". Results ENCODING_FI
    half inside canonical running bouts, half still (< 1 mm/s); full sessions are not fitted (~1 M near-duplicate rows,
    ~370 GB) -- they are PROJECTED in full. Same sample per animal, then one RMS scalar per animal (balance across
    animals). Details + table: FACE_RHYTHM_PIPELINE "Time windows and the fit sample".
+7. **Fit rows at 200 ms, no coarser; sample size tested by split halves** (Priya: "280 ms is too long w.r.t. a lick";
+   "20 per position enough?"). Rows are means of 5 x 40 ms bins; FR's VQT already smooths the lick band with sigma
+   ~0.31 s (7 Hz), so 200 ms adds ~2 % blur (30 Hz ~10 %); single licks are not resolved by the spectrogram at any
+   row spacing. 20 trials / position / animal is checked, not assumed: `splithalf` at the chosen rank (two disjoint
+   halves of 10 / position) + per-factor stability + leave-one-day-out; increase if the halves disagree.
 

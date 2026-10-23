@@ -5,6 +5,14 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
 
 ## UPDATE 10-23 (read first)
 
+* **State now (keep this block current)**: master_pre_v1 plan RUNNING (`--trials-per-animal 120 --trial-ds 5
+  --between-frac 0.556 --run-share 0.5 --arrival --inits 8 --ranks 8 10 12`; it reads treadmill speed for all 108
+  sessions, cached) -> check the drawn counts per animal (printed; ~3600 trial + ~1500 pre-cue + ~2000 run / still rows)
+  -> `run_master_local.py sweep` (build + ranks 8 / 10 / 12) -> Priya picks the rank -> `run_master_local.py rank R`
+  (fit with leave-one-animal-out -> `splithalf` -> loso -> select -> project 108 -> fitsession).
+  Pending alongside: pilot re-projection of PS92_0908 + PS92_0812_v1 with true times (`scratchpad/fix_pilot_timing.py`)
+  -> message d4 (paths: pilot `proj/<key>.npz`, `timing` field = fr-timing-v1). Decisions: DECISIONS 10-23 #1-7.
+
 * **~later 10-23: master_pre_v1 RE-PLANNED** (sweep stopped before any fit): windows + balance in PIPELINE "Time windows
   and the fit sample" (DECISIONS 10-23 #4-6): true bin times (`o2_face_rhythm.py timing`, run for all 108: only
   PS92_0908 lossy / mis-stamped; PS92_0812 v1 partly outside its DAQ segment), pre-cue rows (spout arrival U cue -4..-2
