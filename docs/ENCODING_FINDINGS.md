@@ -347,6 +347,20 @@ the contralesional lateral edge. Open: no test on data - model yet; PS95 1 acute
 (all-frames R2 -0.4 to -0.6 vs per-session 0.50-0.62) because of the "other" group (without it +0.11 / +0.12) --
 running or nose-y changed after the stroke; PS94 chronic frozen numbers are not to be read until resolved.
 
+**v6 (10-22 night): RUNNING CAP resolves PS94; the headline is unchanged.** Cause: PS94 ran far harder after the stroke
+(trial-frame |speed| p99 14 / 19 / 22 mm/s acute / subacute / chronic vs 9.4 pre; 7-9 % of chronic frames above its
+pre running-speed p99) and the linear running kernel extrapolated. v6 clips running at each animal's pre p99 of
+RUNNING frames (> 3 mm/s; PS92-95 14.8 / 17.3 / 13.2 / 16.8 mm/s). Joint frozen R2 cortex (all / cue / lick), v4 -> v6:
+PS94 subacute -0.09 / -0.26 / -0.27 -> +0.28 / +0.02 / +0.00, chronic -0.44 / -0.12 / -0.11 -> +0.30 / +0.18 / +0.18;
+PS92 / PS93 / PS95 within 0.01 in every epoch. Acute far-contra lick-window parts within 0.2 of v4 in all five
+orderings (lick -20.9 / -12.7 / -14.0 / -20.0). (A first cap at the all-frame p99, v5, broke PS95 -- it runs on 1 % of
+pre frames, cap 2.8 mm/s -- chronic cue-window R2 -0.65; superseded.) PS95 subacute / chronic cue / lick-window R2 stays
+near 0 (as in v4; no_other is better there -- open, likely nose y). **Pixel maps** (per-animal 200-component basis,
+`E/frozen_encoder_gate-attempted_v6basis/figures/pixel_maps_<variant>_far_contra_<epoch>_<align>.png`; 8 x 8 px grid
+check for PS92, `..._v6grid/`): acute far contra, the data drop is bilateral, strongest over lateral SSp / MOp; the lick
+part reproduces it in all four animals; spout / target / exec_locked faint; contact opposite in sign; residual small
+and patchy. Basis and grid agree for PS92.
+
 ## 4. Recovery
 
 ### 4.1 Chronic position-coding gain — STANDS
@@ -428,6 +442,9 @@ recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/p
 5. Deferred: non-linear ceiling check.
 
 ## Change log
+
+- **2026-10-22 (night)** — §3.4: frozen v6 = running capped at the pre p99 of running frames; PS94 post-stroke fit
+  restored, headline unchanged; v5 (all-frame p99) superseded; pixel maps (basis + PS92 grid).
 
 - **2026-10-22 (afternoon / evening)** — §3.4 added: frozen encoder v4 (lick / spout-position groups by pre-stroke
   spout-locked templates), acute far-contra drop carried by LICK in all orderings, target <= 1.7; area maps; PS94

@@ -9,7 +9,23 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
-## 000c. UPDATE 10-22 EVENING — READ FIRST (supersedes 000 / 000b where they differ)
+## 000d. UPDATE 10-22 NIGHT — READ FIRST (then 000c)
+
+- **Frozen encoder is now v6 (STATS_VERSION 6, commit 34c803d)**: running clipped at each animal's pre-stroke p99 of
+  RUNNING frames (> 3 mm/s, `segmentation.running.thresh_speed_mm_s`); caps PS92-95 14.8 / 17.3 / 13.2 / 16.8 mm/s.
+  Use `E/frozen_encoder_gate-attempted_v6/` (areas), `_v6basis/` (pixel maps, all animals), `_v6grid/` (PS92 check).
+  v5 folders (all-frame p99 cap: broke PS95) carry SUPERSEDED.txt; v4 kept for comparison.
+- **PS94 "OPEN" below is RESOLVED** by the cap (chronic joint all-frames R2 -0.44 -> +0.30; FINDINGS §3.4 v6 para).
+  Headline unchanged (acute far-contra parts within 0.2 of v4 in all orderings).
+- **Pixel maps done** (basis + grid, joint / target_first / exec_first); they match the area maps.
+- **FR run A done** (50/50 PS92 + PS93 sessions; `S/fr_runA.log`) -- summarise how much grouped FR adds; the cam4
+  pass exited instantly with an empty log (check it is "all done", not a skip by error).
+- **Still open:** PS95 subacute / chronic cue / lick-window R2 ~0 (no_other better: nose y?); contact kernel sign; test
+  on data - model; PS95 1 acute session. **3-D 2x2 still paused** at 16/41 (`run_3d_2x2.sh`, `--skip-done`, 2 workers).
+- **Next:** FR inside frozen v6 (PS92 + PS93; FR traces through the spl / dev split, own penalty group, env flag);
+  FR run A summary; resume 3-D 2x2; cache backup when idle.
+
+## 000c. UPDATE 10-22 EVENING (supersedes 000 / 000b where they differ)
 
 **Results: ENCODING_FINDINGS §3.4** (frozen v4). Reasoning: DECISIONS 2026-10-22 (afternoon / evening).
 

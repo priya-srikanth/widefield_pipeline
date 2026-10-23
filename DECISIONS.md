@@ -21602,3 +21602,19 @@ Context: encoding window (d4). Handoff STATUS_2026-10-22_ENCODING_HANDOFF §000c
    reach ~27 GB each); duplicate chain copies from the morning (killing a step's python lets its wrapper start the next
    step; `( )` subshells survive their wrapper) were stopped with `taskkill /T` by Priya -- check for older copies before
    relaunching any chain.
+
+## 2026-10-22 (night) -- frozen encoder: running cap at the pre-stroke p99 of RUNNING frames (STATS_VERSION 6)
+
+Context: encoding window (d4). Priya: "yes add running cap". Results ENCODING_FINDINGS §3.4 (v6 paragraph).
+
+1. **Why a cap:** a frozen model only interpolates inside the pre-stroke range. PS94 ran far harder after the stroke
+   (|speed| p99 19-22 mm/s subacute / chronic vs 9.4 pre) and the linear running kernel extrapolated: chronic frozen
+   R2 -0.4 .. -0.6. Running is clipped (sign kept) before centring; the cap is computed in the template pass.
+2. **Cap = p99 of RUNNING frames (|speed| > the pipeline's 3 mm/s running threshold), not of all frames.** The
+   all-frame p99 (v5) fixed PS94 but broke PS95: it runs on 1 % of pre frames, so the cap (2.8 mm/s) sat at standing
+   still, removed 63 % of its pre running SD, tripled the per-mm/s kernel and took chronic cue-window R2 from 0.00 to
+   -0.65. The cap must describe the speeds an animal reached when it ran, independent of how often it ran (PS92-95:
+   14.8 / 17.3 / 13.2 / 16.8 mm/s). Measured, per animal x epoch, before choosing (scratch `run_survey.py`).
+3. **Result:** PS94 post-stroke fit restored (chronic +0.30, subacute +0.28 all-frames); PS92 / PS93 / PS95 within
+   0.01; the acute far-contra lick decomposition is unchanged (within 0.2 in all orderings). v5 outputs superseded
+   (SUPERSEDED.txt in each folder), v4 kept for comparison.
