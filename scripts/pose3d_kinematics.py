@@ -29,6 +29,14 @@ Jaw per TRIAL (as `wfield_local.orofacial_jaw_lateral`, but cue + 70 ms .. the t
 pre-cue median; ``open_max_mm`` = largest 3-D distance from rest and its components there; ``lr_wide_mm`` = median sideways
 displacement (+ = mouse LEFT = ipsi) over frames opened > ``OPEN_MM`` (1.5 mm = cam4's 50 px at ~34 px / mm). Session
 FAR_DIR = (far_L - far_R) / 2 of the per-trial medians (+ = toward the target side), FAR_BIAS = (far_L + far_R) / 2.
+``--licks all`` (10-23, encoding window / Priya: spontaneous licks for the lick-level stray test): EVERY cam4 lick of the
+v36 windows (``licks_all.csv``: post-cue + pre-cue + ITI, the same detector), each with ``context`` (pre_cue / post_cue /
+iti by onset), ``table`` (source file), ``daq_peak_s`` (absolute DAQ time) and ``lick_uid`` (row of licks_all.csv;
+``trial_id`` + ``lick_idx`` is NOT unique across the three tables). ITI licks have NO TARGET (the spout is moving or
+retracted), so every target-relative column (miss / *_err / ang3d_err / *_target) is blank for them; reach, speed and the
+absolute angles (midline, frontal, sagittal) are kept. ``contact`` is the v36 column where it was measured, else False.
+The 3-D frames cover the cam1 windows (previous stop .. this stop), so most pre-cue / ITI licks have 3-D; a lick with < 3
+3-D frames is dropped as in the other modes. Output kinematics_all/.
 Output `session_poses/pose3d/kinematics/`: licks.csv.gz, jaw_trials.csv.gz, sessions.csv (per session x position medians +
 jaw FAR_DIR), by_animal.csv (each animal's post sessions minus its AUGUST pre median -- rule 8, printed first).
 """
@@ -44,6 +52,8 @@ V36 = "lp_r4_heatmap_20261013__clean_v36"
 OPEN_MM = 1.5
 JAW_WIN_MS = (70.0, 3500.0)   # cue + 70 ms .. the TRIAL'S stop (end of its response window, usually 3500 ms; Priya 10-19);
                               # the second value is only the fallback when stop is missing (cam4 jaw_lateral used 3000)
+TARGET_COLS = ["miss_mm", "lat_err_mm", "ap_err_mm", "dv_err_mm", "ang3d_err", "midline_target", "midline_err_ipsi",
+               "frontal_target", "frontal_err_ipsi", "sagittal_target", "sagittal_err"]   # blank for ITI licks (no target)
 LICK_MEASURES = ["miss_mm", "lat_err_mm", "ap_err_mm", "dv_err_mm", "ang3d_err", "midline", "midline_err_ipsi", "frontal",
                  "frontal_err_ipsi", "sagittal",
                  "sagittal_err", "reach_mm", "out_ap", "down_dv", "side_ml", "speed_peak", "dt_peak_ms", "share_single_view"]
@@ -62,6 +72,7 @@ def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) ->
     g = {k: (v.t_ms.to_numpy(float), v[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float),
              v.tongue_src.to_numpy() if has_src else None) for k, v in S.groupby("trial_id")}
     rows = []
+    extra = [c for c in ("context", "table", "daq_peak_s", "lick_uid") if c in C]
     for r in C.itertuples():
         f = g.get(r.trial_id)
         if f is None or r.position not in tgt:
@@ -91,8 +102,10 @@ def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) ->
         md_t = float(np.degrees(np.arcsin(np.clip(Tt[0] / np.linalg.norm(Tt), -1, 1))))
         sg, sg_t = np.degrees(np.arctan2(R[k, 1], -R[k, 2])), np.degrees(np.arctan2(Tt[1], -Tt[2]))      # forward tilt
         out_sign = np.sign(T[0]) if abs(T[0]) > 1e-6 else -1.0
+        ct = getattr(r, "contact", False)
         rows.append({"trial_id": r.trial_id, "lick_idx": r.lick_idx, "position": r.position,
-                     "contact": bool(getattr(r, "contact", False)), "cam4_matched": bool(getattr(r, "cam4_matched", True)), "t_peak_cam4": r.t_ms, "t_peak_3d": t[k],
+                     **{c: getattr(r, c) for c in extra},
+                     "contact": ct is True or ct == 1 or (isinstance(ct, str) and ct == "True"), "cam4_matched": bool(getattr(r, "cam4_matched", True)), "t_peak_cam4": r.t_ms, "t_peak_3d": t[k],
                      "dt_peak_ms": t[k] - r.t_ms, "n_3d": int(ok.sum()), "share_single_view": float(np.mean(src > 1)),
                      "reach_mm": float(d[k]), "side_ml": R[k, 0], "out_ap": R[k, 1], "down_dv": -R[k, 2],
                      "ang3d_err": float(np.degrees(np.arccos(np.clip(cosang, -1, 1)))),
@@ -102,7 +115,10 @@ def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) ->
                      "miss_mm": float(dm[m]), "lat_err_mm": float(out_sign * (P[m, 0] - T[0])),
                      "ap_err_mm": float(P[m, 1] - T[1]), "dv_err_mm": float(P[m, 2] - T[2]),
                      "speed_peak": float(np.nanmax(sp[:k + 1])) if np.isfinite(sp[:k + 1]).any() else np.nan})
-    return pd.DataFrame(rows)
+    L = pd.DataFrame(rows)
+    if "context" in L:
+        L.loc[L.context == "iti", TARGET_COLS] = np.nan
+    return L
 
 
 def combined_events(rv, S: pd.DataFrame, C4: pd.DataFrame, animal: str, date: str) -> pd.DataFrame:
@@ -153,7 +169,7 @@ def session_result(job) -> tuple:
     animal, date = s.split(":")
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
     fr = d3 / f"{animal}_{date}_frames.csv.gz"
-    lk = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv"
+    lk = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / ("licks_all.csv" if mode == "all" else "licks.csv")
     ver = result_cache.code_version(sys.modules[__name__], pose3d, spout_world, extra=mode)
     return result_cache.cached(d3 / "_cache" / f"kinematics_{mode}", f"{animal}_{date}", [fr, lk], ver,
                                lambda: _session_result(rv, s, mode, fr, lk))
@@ -167,6 +183,8 @@ def _session_result(rv, s, mode, fr, lk) -> tuple:
     rest = rest_points(S)
     E = np.zeros(3)                                   # the spout mouth zero = the frame's origin (Priya 10-19)
     C = pd.read_csv(lk)
+    if mode == "all":
+        C["lick_uid"] = np.arange(len(C))
     if mode == "combined":
         C = combined_events(rv, S, C, animal, date)
     geo = _rig(rv, animal, date)["geometry"]
@@ -201,9 +219,10 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("sessions", nargs="*", metavar="ANIMAL:YYYYMMDD")
-    ap.add_argument("--licks", choices=["cam4", "combined"], default="cam4",
+    ap.add_argument("--licks", choices=["cam4", "combined", "all"], default="cam4",
                     help="cam4 = the cam4 production lick events (default); combined = events from the 3-D track "
-                         "(`pose3d.lick_events`), flagged cam4_matched, DAQ contact; output kinematics_combined/")
+                         "(`pose3d.lick_events`), flagged cam4_matched, DAQ contact; output kinematics_combined/; all = every "
+                         "cam4 lick of the windows (licks_all.csv: + pre-cue + ITI, ``context``); output kinematics_all/")
     ap.add_argument("--all", action="store_true", help="every session with 3-D frames, not just the curated cohort")
     ap.add_argument("--jobs", type=int, default=3, help="sessions in parallel (~1 GB each)")
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
@@ -213,7 +232,7 @@ def main(argv=None) -> int:
     cur = None if a.all else ak.curated_ids()
     sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz")
                                 if cur is None or f.name.replace("_frames.csv.gz", "") in cur)
-    out = a.out or d3 / ("kinematics" if a.licks == "cam4" else "kinematics_combined")
+    out = a.out or d3 / {"cam4": "kinematics", "combined": "kinematics_combined", "all": "kinematics_all"}[a.licks]
     out.mkdir(exist_ok=True, parents=True)
     bad = P3.failed_sessions(d3)                      # spout fit / camera-timing gates (`pose3d.failed_sessions`)
     keep = []

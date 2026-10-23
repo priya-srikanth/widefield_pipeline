@@ -10,7 +10,7 @@ Steps (each a separate process, the right conda env; per-session steps are CACHE
 (`wfield_local.result_cache`), so after a batch only the new sessions are computed and the cohort tables re-assembled):
   collect        o2_inference collect --missing-only (+ binary windows.npz sidecars, `pose_windows`)      locanmf
   pose3d         3-D production for sessions without 3-D frames yet                                       dlc
-  kinematics     pose3d_kinematics (cam4 licks), then --licks combined                                    locanmf
+  kinematics     pose3d_kinematics (cam4 licks), --licks combined, --licks all                                   locanmf
   cam1_licks     cam1_licks run (sessions given, or those without events yet) + cam1_incomplete_licks    locanmf
   cue_traces     pose3d_cue_traces --align cue, then first_lick                                           locanmf
   spout_error    pose3d_spout_error                                                                       locanmf
@@ -60,7 +60,8 @@ def commands(rv, jobs: int, sessions: list[str] | None, step: str | None = None)
                     ("locanmf", ["-m", "wfield_local.pose_windows", "--jobs", str(jobs)])],
         "pose3d": [("dlc", ["-m", "scripts.pose3d", "production", *arg(p3), *J])] if p3 else [],
         "kinematics": [("locanmf", ["-m", "scripts.pose3d_kinematics", *J]),
-                       ("locanmf", ["-m", "scripts.pose3d_kinematics", "--licks", "combined", *J])],
+                       ("locanmf", ["-m", "scripts.pose3d_kinematics", "--licks", "combined", *J]),
+                       ("locanmf", ["-m", "scripts.pose3d_kinematics", "--licks", "all", *J])],
         "cam1_licks": ([("locanmf", ["-m", "scripts.cam1_licks", "run", *arg(cl), *J])] if cl else [])
         + [("locanmf", ["-m", "scripts.cam1_incomplete_licks"])],
         "cue_traces": [("locanmf", ["-m", "scripts.pose3d_cue_traces", "--align", "cue", *J]),
