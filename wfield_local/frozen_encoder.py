@@ -292,8 +292,8 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
                 "run_abs": run0[np.isfinite(run0)].astype(np.float32)}
     if templates is None:
         raise ValueError(f"{label}: the STATS_VERSION {STATS_VERSION} layout needs the animal's spout-locked templates")
-    raw["running"] = running_basis(raw["running"], templates.get("running_cap"), templates.get("running_knots"),
-                                   _run_mode())
+    raw["running"] = running_basis(raw["running"], templates.get("running_cap"),
+                                   _knots(templates.get("running_knots")), _run_mode())
     parts = {}
     for v in SPLIT_VARS:
         M = np.stack([templates["mean"][v][templates["pos_order"].index(p)] if p in templates["pos_order"]
@@ -396,30 +396,60 @@ def cap_running(x: np.ndarray, cap: float | None) -> np.ndarray:
 #: animal's pre RUNNING frames (all below the cap). Every function is flat above the cap, so the frozen model still
 #: never extrapolates; the fitted curve's shape (`running_curve`) is the readout. Default "linear" = v6.
 RUN_KNOT_Q = (25.0, 50.0, 75.0)
+#: RESULT of "spline" (10-23, `_v6spl`): the fitted curve jumps between 0 and ~3-5 mm/s and is flat / slightly falling
+#: above in all four animals; held-out pre R2 +0.03 .. +0.10 and PS94 post fixed (chronic 0.30 -> 0.60), but the cue /
+#: lick windows of later post-stroke epochs got WORSE in PS92 / PS93 / PS95 (by ~0.1-0.15): the steep part sits BELOW
+#: the pipeline's 3 mm/s running threshold (fidgets, treadmill creep). "spline_thr" (Priya: "launch the threshold
+#: variant") = no running response below the threshold: hinges max(0, s - k) at k = the threshold and the RUN_KNOT_Q
+#: percentiles of the pre running frames only (no linear s term), still flat above the cap.
 
 
 def _run_mode() -> str:
     m = os.environ.get("FROZEN_RUNNING", "linear")
-    if m not in ("linear", "spline"):
-        raise ValueError(f"FROZEN_RUNNING={m!r}: expected linear | spline")
+    if m not in ("linear", "spline", "spline_thr"):
+        raise ValueError(f"FROZEN_RUNNING={m!r}: expected linear | spline | spline_thr")
     return m
 
 
+def _knots(knots: list | None) -> list | None:
+    """The template knots with the first (= the response onset for spline_thr) overridden by FROZEN_RUN_KNOT0 (mm/s),
+    if set: Priya 10-23 "is 3 mm too high a threshold for this" -- 3 mm/s is the behaviour segmentation's SUSTAINED-
+    running threshold, the rest floor is ~0.1-0.5 mm/s (pre trial-frame p90), and the spline's response was mostly
+    reached by 2 mm/s. Higher knots stay the pre running-frame percentiles."""
+    k0 = os.environ.get("FROZEN_RUN_KNOT0")
+    if not knots or not k0:
+        return knots
+    return sorted({float(k0), *[k for k in knots[1:] if k > float(k0)]})
+
+
+def _run_tag() -> str:
+    """Running-model tag stored with the saved statistics (never reused across modes / knot overrides)."""
+    return _run_mode() + (f"|k0={os.environ['FROZEN_RUN_KNOT0']}" if os.environ.get("FROZEN_RUN_KNOT0") else "")
+
+
+def _run_blocks(s: np.ndarray, knots: list, mode: str) -> list:
+    """The running basis blocks of capped speed s: spline = [s, hinge k...], spline_thr = [hinge k...] (k[0] = the
+    running threshold, so nothing below it)."""
+    hinges = [np.maximum(s - k, 0.0) for k in knots]
+    return hinges if mode == "spline_thr" else [s, *hinges]
+
+
 def running_basis(x: np.ndarray, cap: float | None, knots: list | None, mode: str) -> np.ndarray:
-    """(T, L) lagged running columns -> (T, L x (1 + len(knots))) for "spline" ([s | hinge k1 | hinge k2 ...], each
-    block L lag columns: the transform commutes with the lag shift); "linear" = capped columns unchanged."""
+    """(T, L) lagged running columns -> blocks of L lag columns each (the transform commutes with the lag shift):
+    "spline" [s | hinge k1 | hinge k2 ...], "spline_thr" [hinge k1 | ...]; "linear" = capped columns unchanged."""
     s = cap_running(x, cap)
     if mode == "linear" or not knots:
         return s
-    return np.hstack([s] + [np.maximum(s - k, 0.0) for k in knots])
+    return np.hstack(_run_blocks(s, knots, mode))
 
 
-def running_curve(beta: np.ndarray, knots: list, speeds: np.ndarray, cap: float | None) -> np.ndarray:
+def running_curve(beta: np.ndarray, knots: list, speeds: np.ndarray, cap: float | None,
+                  mode: str = "spline") -> np.ndarray:
     """Fitted response vs speed from the running betas IN RAW UNITS (blocks as `running_basis`), summed over lags."""
-    nb = 1 + len(knots)
-    b = np.asarray(beta, float).reshape(nb, -1).sum(1)
     s = cap_running(np.asarray(speeds, float), cap)
-    return b[0] * s + sum(b[i + 1] * np.maximum(s - k, 0.0) for i, k in enumerate(knots))
+    blocks = _run_blocks(s, knots, mode)
+    b = np.asarray(beta, float).reshape(len(blocks), -1).sum(1)
+    return sum(bi * blk for bi, blk in zip(b, blocks))
 
 
 #: SPATIAL TARGETS (Priya 10-22: "is predicting allen areas really what we want? not a downsampled map?" -> the
@@ -1079,9 +1109,9 @@ def main(argv=None) -> int:
     spath = str(out / "fit") if a.target != "areas" else None
     spat_ok = a.target == "areas" or all((out / "fit" / f"spatial_{config.animal_of(x)}.pkl").exists() for x in pre)
     saved = pickle.loads(sp.read_bytes()) if (a.reuse_stats and sp.exists() and tp.exists() and spat_ok) else None
-    if saved is not None and any(s_.get("stats_version") != STATS_VERSION or s_.get("run_mode", "linear") != _run_mode()
+    if saved is not None and any(s_.get("stats_version") != STATS_VERSION or s_.get("run_mode", "linear") != _run_tag()
                                  for s_ in saved):
-        print(f"  saved statistics are not STATS_VERSION {STATS_VERSION} / running {_run_mode()}: recomputing", flush=True)
+        print(f"  saved statistics are not STATS_VERSION {STATS_VERSION} / running {_run_tag()}: recomputing", flush=True)
         saved = None
     if saved is not None:                                # a re-scoring run: the pre statistics are already saved
         got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
@@ -1109,7 +1139,7 @@ def main(argv=None) -> int:
         got, fail = ak.fan_sessions([(x, str(tp), spath) for x in pre], stats_job, jobs=a.jobs)
         got = [(it[0], s_) for it, s_ in got]
         for s_ in (s_ for _l, s_ in got):
-            s_["stats_version"], s_["run_mode"] = STATS_VERSION, _run_mode()
+            s_["stats_version"], s_["run_mode"] = STATS_VERSION, _run_tag()
         for it, err in fail:
             print(f"  !! stats {it}: {err}", flush=True)
         (out / "fit").mkdir(parents=True, exist_ok=True)

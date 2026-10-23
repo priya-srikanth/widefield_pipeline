@@ -320,3 +320,27 @@ def test_pixel_sse_from_target_moments_matches_direct_residuals():
     sse = frm.pixel_sse({"kind": "basis", "P": Wb}, E, keep)
     assert np.allclose(sse, ((Rz[:, :K] @ Wb.T) ** 2).sum(0))
     assert np.allclose(frm.pixel_sse({"kind": "grid", "P": None}, E, keep), (Rz[:, :K] ** 2).sum(0))
+
+
+def test_running_threshold_spline_zero_below_threshold():
+    """spline_thr: no response below the first knot (the running threshold), hinge blocks only, flat above the cap;
+    running_curve matches basis @ beta."""
+    x = np.column_stack([np.linspace(-2, 30, 300)] * 2)
+    knots, cap = [3.0, 6.0, 9.0], 15.0
+    B = fe.running_basis(x, cap, knots, "spline_thr")
+    assert B.shape == (300, 2 * 3)
+    assert np.all(B[x[:, 0] <= 3.0] == 0)
+    hi = x[:, 0] >= cap
+    assert np.allclose(B[hi], B[hi][0])
+    beta = np.array([1.0, 0.5, -0.4, 0.0, -0.3, -0.2])
+    assert np.allclose(fe.running_curve(beta, knots, x[:, 0], cap, mode="spline_thr"), B @ beta)
+
+
+def test_knot0_override(monkeypatch):
+    """FROZEN_RUN_KNOT0 replaces the first knot (and drops higher knots below it); unset = unchanged."""
+    monkeypatch.delenv("FROZEN_RUN_KNOT0", raising=False)
+    assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [3.0, 4.7, 6.5, 8.7]
+    monkeypatch.setenv("FROZEN_RUN_KNOT0", "1")
+    assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [1.0, 4.7, 6.5, 8.7]
+    monkeypatch.setenv("FROZEN_RUN_KNOT0", "5")
+    assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [5.0, 6.5, 8.7]
