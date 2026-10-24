@@ -76,6 +76,9 @@ CATALOGUE: dict[str, Analysis] = {
     "match": Analysis("face_rhythm_match", "statistics", "Do the factors change SHAPE? (own fits Hungarian-matched to "
                       "the master: spatial / spectral angles, loading asymmetry)", "readouts/<set>/matching/",
                       "~1 min", findings="6c"),
+    "epoch-shape": Analysis("face_rhythm_epoch_shape", "statistics", "Do the factors change shape, on POOLED per-epoch "
+                            "fits against a pre-day-half floor? (needs fitepoch's own_epoch/)",
+                            "readouts/<set>/epoch_shape/", "~1 min", "--plot-only (data/epoch_shape.csv)", "6c"),
     "nontask": Analysis("face_rhythm_nontask_state", "statistics", "Is the non-task drop just less activity? "
                         "(between-trial expression by running / rest)", "readouts/<set>/nontask_state/", "~2 min",
                         "--plot-only (data/nontask_state_sessions.csv)", "6d"),

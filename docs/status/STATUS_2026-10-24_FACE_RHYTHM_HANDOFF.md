@@ -64,8 +64,10 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    baseline run of the old code: peak x 3 splits, asym maps cache + epochs table, bout split windows); step 1b (the
    remaining scripts onto `face_rhythm.common`) verifying at handoff (`fr_verify2.sh` in the session scratchpad:
    readouts / evr / position maps / match / push / bout tables vs baseline). Still to do: step 4 (compute / plot split
-   for readouts, aligned_maps, match), step 5 (split `face_rhythm_factors.py`, after fitepoch). (iii) ON O2: fitepoch
-   (submitted) -> rsync `own_epoch/` back -> angle comparison script (post vs preA / preB against preA vs preB).
+   for readouts, aligned_maps, match), step 5 (split `face_rhythm_factors.py`, after fitepoch). (iii) fitepoch DONE (24 fits on the share, `own_epoch/`) and
+   `scripts/face_rhythm_epoch_shape.py` run (FINDINGS 6c-pooled): lick factors change shape beyond the pre-half floor
+   in 4 / 4 at every epoch; both drift toward a symmetric face in 3 / 4 (PS93 opposite). Results page v3. Optional next:
+   early-vs-late pre-day halves as a stricter floor (8 O2 tasks; `EPOCH_GROUPS` in face_rhythm_factors.py).
    Older 10-24 evening notes follow.
    Story order DECIDED (Priya; FINDINGS top, DECISIONS 10-24 "FaceRhythm framing"): acute R > L
    lick-factor drop -> persistent lick_right deficit (several methods) -> contra / ipsi face asymmetry -> pre-factor EVR

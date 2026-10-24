@@ -451,6 +451,26 @@ chronically a small residual carried by PS92 / PS94 (interval only just excludes
 
 ## 6c. Factor "morphing": which factors change shape, per animal (10-24; NOT consistent across animals -- secondary)
 
+**6c-pooled (10-24 late; the cleaner test Priya asked for).** `scripts/face_rhythm_epoch_shape.py` on
+`own_epoch/` (O2 `fitepoch`: one fit per animal x epoch on the epoch's sessions pooled, 11,000 rows each; two pre fits
+on disjoint alternating halves of the pre days = the FLOOR) -> `readouts/master_pre_v1/epoch_shape/`
+(epoch_shape_angles.png, epoch_shape_asymmetry.png, data/epoch_shape.csv). Pooling makes the fits stable: the pre-half
+floor is 4-8 deg spatial for the lick factors (per-session own fits: 10-50 deg).
+* The LICK factors change shape beyond the floor in 4 / 4 animals at every epoch (spatial angle to BOTH pre halves >
+  floor): lick_right 11-46 deg vs floor 4-8, lick_left 12-60 vs 7-8, lick_ongoing_7Hz 15-42 vs 5-11; spectrally
+  lick_right 4 / 4 / 3 and lick_left 4 / 3 / 3 (acute / subacute / chronic). Weak factors do not (run_onset_jaw 1 / 0 /
+  0, prep_jaw 2 / 2 / 2).
+* DIRECTION (loading asymmetry, floor = |preA - preB| <= .05): lick_right (pre +.54 to +.87, contralesional face)
+  moves OFF the contralesional face -- chronic -.13 / -.08 / -.13 in PS92 / PS94 / PS95, acute -.14 to -.34 -- and
+  lick_left (pre -.57 to -.76, ipsilesional) becomes LESS ipsilesional -- chronic +.27 / +.29 / +.28. PS93 goes the
+  other way on both (lick_right +.05 to +.23, lick_left -.09 to -.12). Both lick factors drift toward a symmetric face
+  in 3 / 4 -- the shape counterpart of 5d-5f.
+* Caveats: one value per animal x epoch, so descriptive (k / 4, no interval). A post epoch's fit also sees a different
+  MIX of behaviour (fewer contralesional licks acutely), which can reshape a factor without any single movement
+  changing; the alternating-day floor excludes slow drift across days (an early-vs-late split of the pre days would be
+  the stricter floor: 8 more O2 tasks). PS95 acute = one session, half the rows.
+Status: PROVISIONAL (descriptive; strong per-animal consistency for the lick factors).
+
 `scripts/face_rhythm_match.py` (`readouts/master_pre_v1/matching/`: match_by_day.png, match_example.png,
 asymmetry_two_ways.png, data/match_*.csv). Each session's own fit Hungarian-matched to the master (spatial x spectral
 cosine); angle = arccos. The baseline is like for like: each post session's own-vs-master angle against the RANGE of
