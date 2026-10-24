@@ -51,13 +51,20 @@ def session_residual_maps(out: Path, variant: str, spout: str, align: str):
     by: dict = {}
     for js in sess:
         m = json.loads(js.read_text(encoding="utf-8"))
-        if spout not in m["pos_order"]:
+        if spout != "all" and spout not in m["pos_order"]:
             continue
         an = m["animal"]
         if an not in spatial:
             spatial[an] = pickle.loads((out / "fit" / f"spatial_{an}.pkl").read_bytes())
         z = np.load(js.with_suffix(".npz"))
-        ev = z[f"evoked_{align}"][:, m["pos_order"].index(spout), :-1].astype(np.float64)
+        if spout == "all":                                 # mean over the session's spouts (Priya 10-24: "all 6 pooled")
+            ev_all = z[f"evoked_{align}"][:, :, :-1].astype(np.float64)
+            keep = [i for i in range(ev_all.shape[1]) if np.isfinite(ev_all[:, i]).all()]
+            if len(keep) < 4:
+                continue
+            ev = ev_all[:, keep].mean(1)
+        else:
+            ev = z[f"evoked_{align}"][:, m["pos_order"].index(spout), :-1].astype(np.float64)
         if not np.isfinite(ev).all():
             continue
         names = m["evoked_parts"]
@@ -98,7 +105,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_basis")
     ap.add_argument("--variant", default="joint")
-    ap.add_argument("--spout", default="far_contra")
+    ap.add_argument("--spout", default="far_contra", help="a spout, or 'all' = mean over the session's spouts")
     ap.add_argument("--aligns", nargs="+", default=["lick", "cue"])
     ap.add_argument("--n-boot", type=int, default=2000)
     ap.add_argument("--n-perm", type=int, default=500)

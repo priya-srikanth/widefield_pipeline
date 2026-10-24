@@ -9,6 +9,50 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000r. STATE 10-24 ~19:30 (pre-compaction) -- READ FIRST (then 000q)
+
+**Results page (Priya reviews here; keep it current, republish the same file):** https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
+-- source `goal_page/index.html` + figure scripts `fig_*.py` in the session scratchpad (S); a copy of the page is
+`docs/templates/results_page_example.html`. CONVENTIONS (Priya, memory `results-pages-as-artifacts`): hidable left
+contents panel, EVERY figure numbered in caption + contents, sections tagged neural / lick, per-animal first then
+within-animal-normalised pooled with stats. Other windows told.
+
+**O2 batch `enc_v36_full_20261024` DONE + ALL 14 RUNS COLLECTED** (bins_w1 / w05 / w2, main, droppos, shufpos, nodir, drop,
+trmodels, musall_shuf, fr_A / B / S / D). OOMs resubmitted with `resubmit_failed.sh` (on the share + scratch; now catches
+any session without output that is not running). droppos needed 128 GB. NOT YET ANALYSED: fr_* (does FaceRhythm absorb
+the chronic residual / spout coding?), droppos (per-spout unique maps), main / drop / nodir / trmodels / musall_shuf
+tables (run `scripts/combined_encoding_figures.py --order <folder>`).
+
+**Today's results (FINDINGS 2.4b, 2.8, 2.9, 3.4, Layer 2 bullets):**
+- Binned (softmax) contest, O2 final inputs: chronic target > executed 4/4 (w 0.5 / 1; 3/4 at w 2); acute lick 3/4 at w1,
+  width-dependent; subacute mixed. Landing (lick data): far-contra own bin -0.69 / -0.38 / -0.19, far mid +0.35 / +0.36 /
+  +0.20, significant 4/4 (nested bootstrap, Bonferroni 36).
+- Item 1 (attempt_coding): failed attempts lose the far-contra code, decoded as a far spout (4/4 lick); no pre-cue plan.
+- Item 4 (attempt_maps): weaker than hits 3/4 but vs touch-matched pre misses 2/4; ipsilesional ALM / tjM1 drop acute
+  (4/4); chronic tjM1 / SSp-m increase, contralesional > ipsi, all spouts (4/4).
+- Frozen encoder final frame: acute drop = lick part (target ~0); CHRONIC increase = RESIDUAL. Residual: pooled pixel test
+  weak; within animal 4/4 contralesional (calibrated, null 0/20); trend = raised plateau (3/4), not continuing drift.
+- Layer 2: original drift-null comparison was flawed (withdrawn); redesigned (`change_ref`, combined fit) + session-count
+  control: chronic > null 4/4, grows with time, no single group. All-August-pre reference values in FINDINGS.
+
+**RUNNING at 19:30 (S = session scratchpad; all write to the share):**
+- `S/run_resid_spouts.sh`: pooled residual maps + stats for close_ipsi .. far_mid, then `--spout all` (pooled + per animal);
+  CSV per spout `frozen_encoder_gate-attempted_v7g3_t3d_basis/residual_significance_<spout>.csv`, figures
+  `figures/residual_significance_joint_<spout>_<window>.png`. Log `S/resid_spouts.log`.
+- `S/binsize_test.py`: pooled residual stats at 8 / 16 / 32 px bins + 20 random-pre-split nulls each ->
+  `residual_binsize_test.csv`. If 16 / 32 keep the null clean, rerun all-spouts with that bin.
+- `scripts/lick_trajectories_3d.py`: mean 3-D tongue paths per target x epoch + far-contra by landing bin ->
+  `<dlc>/session_poses/pose3d/trajectories/` (npz + figures). Log `S/traj.log`.
+- `attempt_coding --aligns lick cue --out .../attempt_coding_pp` (python pid 18912; adds pp_<spout> = full decoder softmax);
+  then run `scripts/softmax_neural_vs_lick.py` (neural vs lick softmax confusion, widths 0.5 / 1, nested stats, trial-level
+  slope + by-landing).
+- `scripts/layer2_random_splits.py` x 4 animals (Layer 2 random-split null) -> `allsession_encoder_v7g3_t3d_ref/
+  random_splits_<animal>.csv`.
+
+**NEXT:** put each finished result on the page (numbered figure + headline); region-level residual test (Allen MOs / MOp
+/ SSp-m per hemisphere, fixed a priori); fr_* analysis; droppos maps; per-spout binned contest (needs per-spout scoring in
+combined_encoding + a small O2 batch); decoder and imaging-only-encoder pages. Push pending commits (pre-push hook 7 min).
+
 ## 000q. STATE 10-24 ~12:30 -- READ FIRST (then 000p)
 
 **Goal question (Priya 10-24):** what does cortex look like post-stroke when the animal attempts a movement it cannot

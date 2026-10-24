@@ -138,6 +138,10 @@ deciding analysis.
 >   ties: lick 14.1 vs 15.9, cue 18.4 vs 19.4); acute lick target ahead 4/4 at 0.5, 3/4 at 1, 2/4 at 2 (PS92, PS95). The
 >   executed set gains as the bins widen (a wide soft bin smears each lick over neighbouring spouts, so it overlaps the
 >   target categories more): the chronic lead holds across the sweep, the acute lead is width-dependent.
+> - **Where the licks land (LICK data; `fig9*` on the goal page, `softmax_landing_change_stats.csv`):** within-animal
+>   epoch - pre landing matrices, mean of animals, nested bootstrap (animals -> sessions), Bonferroni over 36 cells: far
+>   contra's own bin -0.69 / -0.38 / -0.19 (acute / subacute / chronic), far mid +0.35 / +0.36 / +0.20, far ipsi +0.35
+>   acute -- all significant, 4/4 same sign. Part of the far-contra licks still land like far-mid licks chronically.
 > - What the acute licks are: failed far-contra licks land in the far-mid / far-ipsi executed bins (e.g. PS95_0817 soft
 >   weights far mid .48, far ipsi .42, far contra .001) -- the dissociation the contest exploits. Caveat as 2.5:
 >   "target" = spout location (touch, posture, context), not intention alone.
@@ -369,6 +373,12 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   chronic > null 2/4, late chronic 4/4. The null spans one week, chronic one to two months, so progressive
   reorganisation and slow drift are not separable here -> the deciding test is a trend model with a pre-stroke slope
   (as 4.3.3). PROVISIONAL.
+  **All-August-pre reference (10-24 evening, Priya: "just use august sessions with loso"):** the "post" fit already does
+  this (every August pre session is reference, held out LOSO): change_ref cortex acute 50.2 / 36.5 / 60.2 / (1 session),
+  subacute 52.1 / 23.5 / 49.4 / 28.2, chronic 97.3 / 63.3 / 63.7 / 107.0; no single group carries it. It has no within-pre
+  baseline by construction (pre change = 0) -> RANDOM-SPLIT null (`scripts/layer2_random_splits.py`: every choice of k
+  August pre sessions as a pseudo-epoch, kappa fixed per animal) running; it controls session noise / count, not slow
+  drift (the trend model's job). June stays out of encoder analyses (kinematics off, no FaceRhythm).
 - **Layer 2 all-session encoder: the cortical RESPONSE to behaviour changes beyond pre-stroke drift, acutely AND
   chronically (FIRST RUN 10-23 night, PROVISIONAL; `wfield_local/allsession_encoder.py` at 2fc9fce, grouping v3, frozen
   push; `<E>/allsession_encoder_v7push/`).** Shared kernels + per-epoch kernel changes, scored on held-out sessions;
@@ -681,6 +691,18 @@ clusters are large in area), not where it stops.
 > chronic increase larger contralesionally); acute / subacute over contralesional lateral cortex. The drift panel itself
 > is a broad positive residual over ipsilesional lateral cortex, resembling the chronic pattern. -> At map level the
 > residual change is weak and not robust (nested ~1.5-2.5x the drift calibration, cluster nothing).
+> **PER ANIMAL + TREND (10-24 evening).** Reference = ALL the August pre sessions (LOSO), no early / late split (Priya).
+> Within-animal test (`--per-animal`; the repo's "musall" bin test = sessions as unit, since the nested bootstrap needs
+> >= 2 animals), lick window, bins / 2,022: chronic PS92 522, PS93 110, PS94 135, PS95 113 (4/4); cue chronic 182 / 0 /
+> 77 / 0; acute 0 in every animal; subacute only PS95 (114). CALIBRATED: 20 random 4-vs-4 splits of each animal's pre
+> sessions flag 0 bins in 20/20 (`residual_significance_musall_null.csv`). Significant chronic regions are all
+> CONTRALESIONAL (PS92 bilateral anterolateral, PS93 / PS94 right anterolateral, PS95 right posterolateral). TREND
+> (`scripts/frozen_residual_trend.py`, `residual_trend.csv`): the pre-stroke rise (1-2 x1e3 / day over the 8 August days
+> in PS92 / PS93 / PS95) did NOT continue -- chronic sits far BELOW the extrapolated line (z -1 .. -4); vs the flat pre mean
+> chronic is above in 3/4 (SSp-m z 7-9 / 3-7 / 5 / PS95 0.5-1); within the chronic sessions the residual is flat or falling
+> (no continuing drift). Reading: a raised, stable chronic level in 3/4 (not PS95), contralesional, significant within
+> animal; the pooled pixel test stays weak because the location differs between animals. Pending: per-spout and
+> all-spouts-pooled pooled maps, larger stat bins (16 / 32 px, calibrated), a region-level test (Allen ROIs fixed a priori).
 
 > **Current version: v7** (STATS_VERSION 7, commit 73d2991, 10-23: forward-only running from 1.5 mm/s, no push term).
 > Areas: `E/frozen_encoder_gate-attempted_v7fwd15/` (same model, run before the default changed); pixel maps + pixel /

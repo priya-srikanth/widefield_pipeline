@@ -232,6 +232,8 @@ def run_animal(animal, align="precue", verbose=True):
     code = np.concatenate([YE, YU]).astype(int)[keep]
     p_true = np.full(len(X), np.nan)
     pred = np.full(len(X), "", dtype=object)
+    # the FULL softmax over the six spouts (Priya 10-24: the neural counterpart of the lick landing matrix) -- pp_<spout>
+    pp = np.full((len(X), len(SPOUTS)), np.nan)
     for s in np.unique(G):
         m = G == s
         mdl = models["loso"].get(kept[s], models["full"])
@@ -239,9 +241,14 @@ def run_animal(animal, align="precue", verbose=True):
         idx = np.array([cl.index(c) if c in cl else -1 for c in code[m]])
         p_true[m] = np.where(idx >= 0, pr[np.arange(m.sum()), np.clip(idx, 0, None)], np.nan)
         pred[m] = [LESION_NAME.get(POSITION_NAMES.get(cl[j], str(cl[j])), "?") for j in pr.argmax(1)]
+        for j, c in enumerate(cl):
+            name = LESION_NAME.get(POSITION_NAMES.get(c, str(c)))
+            if name in SPOUTS:
+                pp[m, SPOUTS.index(name)] = pr[:, j]
     base = pd.DataFrame({"animal": animal, "align": align, "label": lab_row,
                          "epoch": [ep.get(l, "?") for l in lab_row], "day": [day.get(l, np.nan) for l in lab_row],
-                         "trial_id": T, "spout": sp, "cls": C, "p_true": p_true, "pred": pred})
+                         "trial_id": T, "spout": sp, "cls": C, "p_true": p_true, "pred": pred,
+                         **{f"pp_{q}": pp[:, i] for i, q in enumerate(SPOUTS)}})
     out = pd.concat([pd.concat([base, r], axis=1) for r in rows], ignore_index=True)
     if verbose:
         n = out[out.method == METHODS[0]].groupby(["epoch", "cls"]).size().unstack(fill_value=0)
