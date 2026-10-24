@@ -21,6 +21,14 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
   (smoke sessions are reused by the full run); log `S/stray_smoke.log`. Check validation, then all 107.
 - Map re-render on `_v7basis` DONE (prenorm / peranimal / r2_share views; grouping of that run, not v3).
 - Still to launch: Layer 2 (v3), grouping-v3 refits, remaining 3-D re-runs (000j list items 3-5).
+- Stray-lick first full run DONE (FINDINGS 2.6: far-contra reference fails validation 3/4 -> not decisive; Priya to
+  decide rescue vs rely on relabel). Grouping-v3 refit `_v7g3` RUNNING from worktree `Github/wf_g3` (358f73e; v7fwd15
+  saved stats are STATS_VERSION 6 -> pre pass recomputed), log `S/frozen_v7g3.log`.
+- **FaceRhythm master_pre_v1 READY** (FR window 10-23): `DeepLabCut/Widefield/o2/fr_cam4_20261021/factors/master_pre_v1/proj/`
+  108/108, rank 10, one frozen basis for every session (use proj/, NOT proj_loso/). Factors UNNAMED (f1..f10; master
+  indices do NOT map to pilot_v1 -> do not reuse the pilot grouping); wait for labels.json + master grouping before
+  encoder runs (or an unnamed early look if Priya asks). Caveats: PS92_0812 no speed_*; PS92_0812_v1 73 % NaN;
+  PS92_0908 last ~5 % lossy.
 
 ## 000j. STATE 10-23 ~20:15 — READ FIRST (then 000i, 000h; decisions DECISIONS 2026-10-23 late; results FINDINGS 3.4 / 4.4)
 
