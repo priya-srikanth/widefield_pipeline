@@ -590,6 +590,12 @@ clusters are large in area), not where it stops.
 
 ### 3.4 Frozen pre-stroke encoder (v4 -> v6 -> v7): the acute far-contra drop is a LICK change, not a target change — PROVISIONAL (10-22 afternoon; robustness updated 10-23)
 
+> **FINAL FRAME 10-24 (`frozen_encoder_gate-attempted_v7g3_t3d`: 3-D tongue, rebuilt attempts gate, combined licks with
+> complete cam1, grouping v3, 107 sessions).** The acute far-contra decomposition is unchanged: lick part, lick window,
+> SSp-m_left -29.0 / -19.4 / -19.0 / -24.3 (v7pushfree -28.0 / -19.6 / -19.3 / -24.9), cue window -18.0 / -11.7 / -18.6 /
+> -28.0; target <= 3.6 everywhere; contact +5..+9 (PS93 ~-1). `E/qc/lp_encoder_decompose_frozen_encoder_gate-attempted_
+> v7g3_t3d_joint[_lick]_by_animal.csv`. Relabel, Layer 2 and basis maps in this frame are running.
+
 > **Current version: v7** (STATS_VERSION 7, commit 73d2991, 10-23: forward-only running from 1.5 mm/s, no push term).
 > Areas: `E/frozen_encoder_gate-attempted_v7fwd15/` (same model, run before the default changed); pixel maps + pixel /
 > per-position unique R2: `_v7basis` RUNNING (started 10-23 16:36). v6 folders kept for comparison.
