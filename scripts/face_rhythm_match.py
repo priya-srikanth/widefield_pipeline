@@ -198,7 +198,7 @@ master factor SPLIT in that session's fit, a column with two is a MERGE.""")
 Two measures of contra- vs ipsilesional face asymmetry, (contra - ipsi) / (contra + ipsi), split at the face midline
 (x = {mid:.0f}, the master's LP nose; cam4 ipsilesional = IMAGE RIGHT, all lesions left), per animal x epoch (mean of
 sessions). LEFT TWO: tracked-point MOVEMENT -- RMS speed of the 25 Hz mesh points summed over each half of the face, in
-the response window (cue 0..+2 s, engaged trials) and between trials (`face_rhythm_readouts.movement`; independent of
+the response window (cue 0..+4 s, engaged trials, all six spouts pooled) and between trials (`face_rhythm_readouts.movement`; independent of
 the factor model). RIGHT: SPATIAL LOADING of each session's OWN-fit factor matched to the master factor named (Hungarian,
 {a.on}), |(x, y)| summed over each half (`face_rhythm_matching.loading_asymmetry`); dashed = the frozen master's value.
 On the frozen basis loadings are fixed, so only own fits can show a loading shift: below the master line = the factor's
