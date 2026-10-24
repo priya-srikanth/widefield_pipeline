@@ -98,3 +98,17 @@ def test_catalogue_points_at_real_scripts():
         assert f.exists(), (name, f)
         assert f.read_text(encoding="utf-8").lstrip().startswith('"""'), name      # every script says what it does
         assert a.stage in STAGES and a.question and a.outputs, name
+
+
+def test_boot_delta_columns_is_boot_delta_per_column():
+    from wfield_local import analysis_kit as ak
+    g = np.random.default_rng(1)
+    post = {a: g.normal(0.3, 1, (n, 5)) for a, n in (("A", 4), ("B", 9), ("C", 2), ("D", 6))}
+    pre = {a: g.normal(0, 1, (n, 5)) for a, n in (("A", 3), ("B", 5), ("C", 7), ("D", 1))}
+    pt, lo, hi, o, n = ak.boot_delta_columns(post, pre, np.random.default_rng(7), 300)
+    for c in range(5):
+        iv = ak.boot_delta({a: list(v[:, c]) for a, v in post.items()}, {a: list(v[:, c]) for a, v in pre.items()},
+                           np.random.default_rng(7), 300)
+        assert np.allclose([pt[c], lo[c], hi[c]], [iv.point, iv.lo, iv.hi], rtol=0, atol=1e-12)   # same draw
+    assert n == 4 and o.shape == (300, 5)
+    assert ak.bh([0.001, 0.02, 0.03, 0.5, np.nan]).tolist() == [True, True, True, False, False]

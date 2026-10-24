@@ -174,6 +174,55 @@ def boot_delta(post, pre, rng, n_boot: int = N_BOOT, draws: bool = False):
     return (iv, o) if draws else iv
 
 
+def boot_delta_columns(post, pre, rng, n_boot: int = N_BOOT):
+    """`boot_delta` for MANY quantities measured on the same sessions at once (e.g. every point of a face map):
+    ``{animal: array (n_sessions, C)}`` -> ``(point (C,), lo (C,), hi (C,), draws (n_boot, C), n_animals)`` or None.
+
+    NOT a second bootstrap: the SAME draw as `boot_delta` -- same animal / session index sequence from ``rng``, applied
+    to every column at once, so column c reproduces `boot_delta` on column c (pinned in tests, to float rounding of the
+    mean: an axis-0 mean over a 2-D slice sums in a different order than `np.mean` of a list). One resample serves all
+    columns, which is what makes a per-point map affordable (1,282 points x 2,000 draws in a second)."""
+    animals = sorted(set(post) & set(pre))
+    if not animals:
+        return None
+    post = {a: np.asarray(post[a], float) for a in animals}
+    pre = {a: np.asarray(pre[a], float) for a in animals}
+    obs = np.mean([post[a].mean(0) - pre[a].mean(0) for a in animals], 0)
+    out = []
+    for _ in range(n_boot):
+        d = []
+        for a in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
+            pa, qa = post[a], pre[a]
+            d.append(pa[rng.integers(0, len(pa), len(pa))].mean(0) - qa[rng.integers(0, len(qa), len(qa))].mean(0))
+        if d:
+            out.append(np.mean(d, 0))
+    if len(out) < n_boot // 4:
+        return None
+    o = np.asarray(out)
+    return obs, np.percentile(o, PCTL[0], axis=0), np.percentile(o, PCTL[1], axis=0), o, len(animals)
+
+
+def bh(p, q: float = 0.05) -> np.ndarray:
+    """Benjamini-Hochberg: boolean "discovery at false-discovery rate ``q``" per p-value (NaN = not a discovery). For
+    MANY tests of one map (per-point face maps), where a family-wise correction (`holm`) would be needlessly strict."""
+    p = np.asarray(p, float)
+    ok = np.flatnonzero(np.isfinite(p))
+    out = np.zeros(len(p), bool)
+    if not len(ok):
+        return out
+    o = ok[np.argsort(p[ok])]
+    passed = np.flatnonzero(p[o] <= q * np.arange(1, len(o) + 1) / len(o))
+    if len(passed):
+        out[o[:passed[-1] + 1]] = True
+    return out
+
+
+def boot_p_columns(o) -> np.ndarray:
+    """`boot_p` per column of a (n_boot, C) draw array."""
+    o = np.asarray(o, float)
+    return np.minimum(1.0, np.maximum(2 * np.minimum((o <= 0).mean(0), (o >= 0).mean(0)), 1.0 / len(o)))
+
+
 def boot_p(o) -> float:
     """Two-sided bootstrap p of a change from its `boot_delta(..., draws=True)` draws: twice the smaller share of draws
     on either side of 0, floored at 1 / len(draws). CRUDE at n = 4 animals (the outer draw has 4^4 = 256 animal

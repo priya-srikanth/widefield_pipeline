@@ -83,6 +83,116 @@ def compute(fdir: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+LICK = ("lick_right", "lick_left")
+
+
+def loadings_and_templates(fdir: Path, names: list[str]) -> dict:
+    """Priya 10-24: the contra - ipsi index is too coarse -- WHERE did the loading move, and does a post-stroke lick
+    factor now look like a different SPOUT's movement?
+      loading[(animal, group, factor)]  (P,) the fit's spatial loading magnitude |(x, y)| per mesh point, as a FRACTION of
+                                         the factor's total (shape only), master-aligned factor k
+      template[(animal, position)]      (P,) the animal's pre-stroke per-point response-window speed at that spout
+                                         (`proj` speed_response, session mean) minus its mean over the six spouts: the
+                                         spout-SPECIFIC movement pattern
+      corr[(animal, group, factor)]     (6,) Pearson r of the loading with each spout template"""
+    from wfield_local import face_rhythm_matching as fm
+    M = np.load(fdir / "master.npz")
+    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    ks = [names.index(n) for n in LICK if n in names]
+    out = {"loading": {}, "template": {}, "corr": {}, "home": M["home"], "factors": ks, "positions": frc.POSITIONS}
+    S = frc.sessions(fdir, "proj")
+    for an in sorted({f.stem.split("_")[0] for f in (fdir / "own_epoch").glob("*.npz")}):
+        acc = []
+        for t in S[(S.animal == an) & (S.epoch == "pre")].itertuples():
+            with np.load(t.file, allow_pickle=True) as z:          # a session can lack a spout (8/5-8/6: 4 positions)
+                have = list(z["power_positions"].astype(str))
+                sp_s = np.full((6, z["speed_response"].shape[1]), np.nan)
+                for i, p in enumerate(frc.POSITIONS):
+                    if p in have:
+                        sp_s[i] = z["speed_response"][have.index(p)]
+                acc.append(sp_s)
+        sp = np.nanmean(acc, 0)                                         # (6, P)
+        spec = sp - sp.mean(0, keepdims=True)
+        for i, p in enumerate(frc.POSITIONS):
+            out["template"][(an, p)] = spec[i]
+        for g in GROUPS:
+            f = fdir / "own_epoch" / f"{an}_{g}.npz"
+            if not f.exists():
+                continue
+            z = np.load(f)
+            A, B = z["A_own"].astype(float), z["B_own"].astype(float)
+            order = fm.match(A_ref, B_ref, A, B)["order"]
+            mag = fm.spatial_view(A, "magnitude")
+            for k in ks:
+                v = mag[:, order[k]]
+                v = v / v.sum()
+                out["loading"][(an, g, k)] = v
+                ok = np.isfinite(v) & np.isfinite(spec).all(0)
+                out["corr"][(an, g, k)] = np.array([np.corrcoef(v[ok], spec[i][ok])[0, 1] for i in range(6)])
+    return out
+
+
+def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None:
+    from wfield_local import face_rhythm_figures as frf
+    home, ks = D["home"], D["factors"]
+    animals = sorted({an for an, _ in D["template"]})
+    pos = list(D["positions"])
+    with frf.style():
+        for k in ks:
+            cols = ["preA - preB", *frc.POST_EPOCHS]
+            fig, axs = frf.subplots(len(animals), len(cols), figsize=(3.0 * len(cols), 3.0 * len(animals)),
+                                    squeeze=False)
+            sc = None
+            for r_i, an in enumerate(animals):
+                pre = (D["loading"][(an, "preA", k)] + D["loading"][(an, "preB", k)]) / 2
+                lim = float(np.nanpercentile(np.abs(np.concatenate([D["loading"][(an, g, k)] - pre for g in frc.POST_EPOCHS
+                                                                    if (an, g, k) in D["loading"]])), 99)) or 1e-4
+                for c_i, c in enumerate(cols):
+                    ax = axs[r_i, c_i]
+                    ax.axis("off")
+                    if c == "preA - preB":
+                        d = D["loading"][(an, "preA", k)] - D["loading"][(an, "preB", k)]
+                    elif (an, c, k) in D["loading"]:
+                        d = D["loading"][(an, c, k)] - pre
+                    else:
+                        continue
+                    sc = ax.scatter(home[:, 0], home[:, 1], c=d, s=4, cmap="PuOr_r", vmin=-lim, vmax=lim)
+                    ax.axvline(342.0, color="k", lw=0.4)
+                    ax.invert_yaxis()
+                    ax.set_aspect("equal")
+                    ax.set_title(f"{an}: {c}", fontsize=8)
+            if sc is not None:
+                fig.colorbar(sc, ax=axs, shrink=0.3, label="loading fraction, epoch - pre halves (per-animal scale)")
+            fig.suptitle(f"{set_name}: where did {names[k]}'s loading move? (pooled per-epoch fits; image left = "
+                         "contralesional)")
+            frf.save(fig, out / f"epoch_shape_loading_{names[k]}.png", f"""
+{names[k]}'s spatial loading magnitude |(x, y)| per mesh point as a fraction of its total (shape only), each epoch's
+pooled fit minus the mean of the two pre-half fits; orange = more of the factor's loading there after the stroke, purple
+= less. First column: preA - preB, what two fits of the same pre-stroke behaviour differ by (the noise to read the
+others against). Colour scale per animal (row). cam4: image LEFT = contralesional; vertical line = face midline.""")
+
+        fig, axs = frf.subplots(len(ks), len(animals), figsize=(3.4 * len(animals), 2.9 * len(ks)), squeeze=False)
+        for r_i, k in enumerate(ks):
+            for c_i, an in enumerate(animals):
+                ax = axs[r_i, c_i]
+                rows = [g for g in GROUPS if g != "pre" and (an, g, k) in D["corr"]]
+                C = np.array([D["corr"][(an, g, k)] for g in rows])
+                im = ax.imshow(C, cmap="RdBu_r", vmin=-0.8, vmax=0.8, aspect="auto")
+                ax.set_xticks(range(len(pos)), pos, rotation=45, fontsize=7)
+                ax.set_yticks(range(len(rows)), rows, fontsize=8)
+                for (yy, xx), v in np.ndenumerate(C):
+                    ax.text(xx, yy, f"{v:.2f}", ha="center", va="center", fontsize=6)
+                ax.set_title(f"{an}: {names[k]}", fontsize=9)
+        fig.colorbar(im, ax=axs, shrink=0.5, label="r(loading, spout template)")
+        fig.suptitle(f"{set_name}: which spout's pre-stroke movement does each lick factor look like?")
+        frf.save(fig, out / "epoch_shape_templates.png", """
+Pearson r between a pooled fit's lick-factor loading (fraction per mesh point) and the animal's pre-stroke
+spout-SPECIFIC movement pattern at each spout (per-point response-window speed at that spout minus the mean over the six
+spouts; `proj` speed_response, pre sessions). Rows: the two pre-half fits, then each post epoch. If a post-stroke
+lick_right looks more like a central / close spout than like far_R, its shape change reads as different AIM or a
+different MIX of licks rather than less contralesional recruitment. Descriptive, one fit per animal x epoch.""")
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -178,6 +288,17 @@ spectral = which frequencies. One value per animal: descriptive, no interval (PS
 Loading asymmetry (contra - ipsi) / (contra + ipsi) of |spatial loading| per factor (cam4: contralesional = image
 left), each epoch's pooled fit minus the mean of the two pre-half fits; < 0 = the factor moved towards the
 ipsilesional face. Bars at pre: +-|preA - preB| per animal, the pre-stroke noise of this number. Descriptive, n = 4.""")
+    lc = figure_layout.sidecar_for(out, "epoch_shape_loadings", ".pkl")
+    D = pd.read_pickle(lc) if a.plot_only else loadings_and_templates(fdir, names)
+    if not a.plot_only:
+        pd.to_pickle(D, lc)
+    print("\nr(lick factor loading, pre-stroke spout template): per animal, fits x spouts")
+    for k in D["factors"]:
+        for an in animals:
+            rows = [g for g in GROUPS if g != "pre" and (an, g, k) in D["corr"]]
+            print(f"{names[k]} {an}\n" + pd.DataFrame([D["corr"][(an, g, k)] for g in rows], index=rows,
+                                                       columns=D["positions"]).round(2).to_string())
+    loading_figures(D, names, out, fdir.name)
     print("->", out)
     return 0
 

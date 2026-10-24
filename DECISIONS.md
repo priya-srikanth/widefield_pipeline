@@ -21989,3 +21989,15 @@ kernels, so the comparison was not like-for-like. FINDINGS Layer 2 marked CORREC
 reference with a matched null. Relabel in the final frame reproduces the 10-24 heterogeneous pattern (PS95 far mid,
 PS93 stays far contra, PS92 / PS94 nonspecific); validation 1.0 in all animals and windows. Basis maps + pixel / r2 /
 spout figures written under `frozen_encoder_gate-attempted_v7g3_t3d_basis`.
+
+## 2026-10-24 (late) -- FaceRhythm: 3 of 4 animals is the consistency threshold; PS93 flagged (Priya)
+
+* Where a FaceRhythm statistic requires the animals to agree (per-point / patch face maps: the point's change has the
+  sign of the pooled change), the threshold is >= 3 of 4 animals, not 4 of 4 (Priya: "3/4 animals can be our
+  threshold, not 4/4"). `face_rhythm_aligned_maps.py --min-agree` (default 3). The bootstrap interval and the FDR
+  criterion are unchanged. Consistent with CLAUDE.md rule 8 ("anything not visible in at least three animals ...").
+* PS93 may be an outlier because of its PRE-EXISTING right orofacial deficit (Priya): its pre-stroke lick_right is
+  already atypical (best spout template close_R / close_center, r .40 / .38, not far_R), and it is the one animal going
+  the other way in the factor-shape results (FINDINGS 6c-pooled). Report such results as 3 / 4 with PS93 named, not as
+  inconsistent.
+

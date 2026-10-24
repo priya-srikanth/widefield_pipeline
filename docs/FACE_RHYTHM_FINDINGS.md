@@ -39,7 +39,9 @@ corrected numbers follow).
 > | FR in the encoder (encoding window's FR run A: grouped pilot factors, 50 PS92 + PS93 sessions) | PENDING summary | run done (incl. PS92_0908 / 0812 reruns on fr-timing-v1); summary by the encoding window; results belong in ENCODING_FINDINGS |
 > | AR-HMM not needed for imaging (DECISIONS 10-23) | decision, not a result | FR + LP + contact / angle regressors already cover specific behaviours and hit vs miss |
 
-> **Cohort and rules.** PS92-PS95, all lesions LEFT; on cam4 the ipsilesional face is IMAGE RIGHT; spouts / licks
+> **Cohort and rules.** Consistency threshold = >= 3 of 4 animals (Priya 10-24). PS93 has a PRE-EXISTING right orofacial
+> deficit and may be an outlier for that reason (its pre-stroke lick_right is already atypical); where it is the one
+> exception it is named. PS92-PS95, all lesions LEFT; on cam4 the ipsilesional face is IMAGE RIGHT; spouts / licks
 > named by the animal's side (right = contralesional). August-only pre baseline; engaged trials. n = 4 animals at most;
 > every claim needs the per-animal table (CLAUDE.md rule 8). Expression = ABSOLUTE (weights x FR normaliser D) unless
 > stated; a.u. on each animal's own scale, so compare within an animal across epochs.
@@ -359,6 +361,15 @@ acute -.12, subacute -.08, chronic -.09 [-.14, -.04]; cue-aligned far_R -.15 / -
 (all 4 / 4 lower). Smaller marks elsewhere (close_center cue-aligned chronic -.06**, far_center bout acute -.05**,
 close_L lick-aligned chronic +.05**), not the claim. STANDS with statistics.
 
+**5f per-point maps (10-24 late; Priya: no large square bins).** `face_rhythm_aligned_maps.py` now tests every mesh
+point (`--unit point`, default; `--unit patch` = the earlier bins): `analysis_kit.boot_delta_columns` (the same paired
+draw for all 1,282 points), marked when the interval excludes 0, >= 3 / 4 animals agree AND Benjamini-Hochberg FDR < .05
+over the face (agreement threshold >= 3 of 4 animals since 10-24 late, Priya). Lick-aligned far_R: the contralesional lower face (jaw / cheek) moves less and the ipsilesional face
+more per lick at every epoch (marked regions); close_R: the ipsilesional cheek gains (subacute / chronic). Marked points
+summed over positions (>= 3 / 4): cue 5,282 / 1,994 / 3,013, lick 1,873 / 751 / 1,499, bout 907 / 992 / 0 (acute /
+subacute / chronic). Halves statistics now draw from their own seeded stream (unchanged point estimates; interval ends move <=
+.014; no mark changed).
+
 **5f. Face-surface movement per trial vs per lick; the contralesional asymmetry is per lick (STANDS, 4 / 4, 10-24; first bullet CORRECTED 10-24).**
 `scripts/face_rhythm_aligned_maps.py` (`readouts/master_pre_v1/aligned_maps/`: aligned_maps_{cue,lick,bout}.png with
 significant face patches outlined, halves_{cue,lick,bout}.png, data/patch_stats.csv, halves_stats.csv). Per mesh
@@ -463,8 +474,25 @@ floor is 4-8 deg spatial for the lick factors (per-session own fits: 10-50 deg).
 * DIRECTION (loading asymmetry, floor = |preA - preB| <= .05): lick_right (pre +.54 to +.87, contralesional face)
   moves OFF the contralesional face -- chronic -.13 / -.08 / -.13 in PS92 / PS94 / PS95, acute -.14 to -.34 -- and
   lick_left (pre -.57 to -.76, ipsilesional) becomes LESS ipsilesional -- chronic +.27 / +.29 / +.28. PS93 goes the
-  other way on both (lick_right +.05 to +.23, lick_left -.09 to -.12). Both lick factors drift toward a symmetric face
-  in 3 / 4 -- the shape counterpart of 5d-5f.
+  other way on both (lick_right +.05 to +.23, lick_left -.09 to -.12). The INDEX moves toward symmetric in 3 / 4.
+  Priya 10-24: the contra - ipsi index is too coarse to read -- it collapses the loading map to one number, a factor is
+  fit across ALL spouts (so it is not per position; position-resolved evidence is the raw movement, 5e / 5f: R spouts
+  only), and a shift toward symmetric can mean (1) less contralesional recruitment, (2) licks aimed differently (more
+  central), or (3) a different mix of licks in the post fit. Separated (10-24 late) with loading DIFFERENCE MAPS
+  (`epoch_shape_loading_<factor>.png`: post minus pre halves per point, vs preA - preB) and SPOUT TEMPLATES
+  (`epoch_shape_templates.png`: r between the loading and each spout's pre-stroke spout-specific movement pattern):
+  - WHERE: in PS92 / PS94 / PS95 lick_right's loading leaves the contralesional face near the midline and concentrates
+    at the mouth / chin rim and the ipsilesional lateral cheek, at every epoch, far above the pre-half difference
+    (which is nearly blank). PS93 differs (acute: gains contralesional, loses chin).
+  - WHICH SPOUT: the post-stroke lick_right still looks most like the R spouts and least like the L spouts (the same
+    ranking as pre), but LESS spout-specific -- correlations shrink toward 0 (PS95 far_R .82 -> .53 / .55 / .59, far_L
+    -.69 -> -.24 / -.33 / -.46; PS94 far_R .58 -> .39 / .45 / .45). It does NOT turn into another spout's pattern, with
+    one exception: PS92 subacute (close_center .09 -> .50, far_R .71 -> .14; back by chronic). lick_left the same way
+    (PS95 subacute loses its pattern entirely).
+  - Reading: not a re-aimed lick (2) in general; the lick factors become less side-specific -- consistent with less
+    contralesional recruitment (1) or a blend of more lick types in the post fit (3), which shape alone cannot separate.
+    The position-resolved, fit-free evidence for (1) is the per-lick raw movement (5e / 5f): at the R spouts each lick
+    moves the contralesional lower face less and the ipsilesional face more.
 * Caveats: one value per animal x epoch, so descriptive (k / 4, no interval). A post epoch's fit also sees a different
   MIX of behaviour (fewer contralesional licks acutely), which can reshape a factor without any single movement
   changing; the alternating-day floor excludes slow drift across days (an early-vs-late split of the pre days would be
