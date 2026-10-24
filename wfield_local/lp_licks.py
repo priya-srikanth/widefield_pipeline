@@ -297,7 +297,8 @@ def _session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> d
     """The LP lick train for `_trial_features`, on the DAQ sample clock.
 
     Returns ``lick_samples`` (int, sorted), ``drop`` (bool per DAQ cue: no attempts row / unknown class / unmatched ->
-    exclude the trial; an `unknown` class is a no-lick trial, not a drop), ``attempted`` (bool per DAQ cue), ``first_s`` (first LP lick minus cue, s; NaN if none) and
+    exclude the trial; an `unknown` class is a no-lick trial, not a drop), ``attempted`` (bool per DAQ cue), ``first_s`` (first LP lick minus cue, s; NaN if none),
+    ``cls`` / ``trial_id`` (the attempts class and trial_id per DAQ cue; "" / -1 when unmatched -- `attempt_coding` reads them) and
     counts for the log."""
     cue_s = np.asarray(cue_samples, float) / float(sr)
     licks, cue_t = lp_lick_times(label, rv)
@@ -318,16 +319,19 @@ def _session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> d
     drop = np.ones(n, bool)
     attempted = np.zeros(n, bool)
     first_s = np.full(n, np.nan)
+    cue_cls = np.full(n, "", dtype=object)          # attempts class per DAQ cue ("" = no attempts row matched)
+    cue_tid = np.full(n, -1, int)                   # trial_attempts trial_id per DAQ cue (-1 = none)
     lat = A.combined.fillna(A.cam4).to_numpy(float) / 1000.0
     cls = A.cls.astype(str).to_numpy()
-    for kk, good, c, la in zip(k, ok, cls, lat):
+    for kk, good, c, la, tid in zip(k, ok, cls, lat, A.index.to_numpy(int)):
         if not good:
             continue
         drop[kk] = False
+        cue_cls[kk], cue_tid[kk] = c, tid
         if c in ATTEMPT_CLASSES and np.isfinite(la):
             attempted[kk] = True
             first_s[kk] = la
     t_all = edit_train(licks, cue_s, drop, attempted, first_s, max_rt)
     return {"lick_samples": np.round(t_all * sr).astype(np.int64), "drop": drop, "attempted": attempted,
-            "first_s": first_s, "n_cues": n, "n_matched": int((~drop).sum()),
+            "first_s": first_s, "cls": cue_cls, "trial_id": cue_tid, "n_cues": n, "n_matched": int((~drop).sum()),
             "n_attempted": int((attempted & (first_s <= max_rt)).sum())}
