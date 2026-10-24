@@ -56,6 +56,26 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+0. **10-24 NIGHT -- STATE NOW (before compaction).** Everything below committed; results page v7
+   https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 (source + figure copies in the session scratchpad `fr_page/`;
+   from a new session: Artifact read the URL, then publish with `url`). Since the late-evening entry:
+   * fitepoch DONE (24 fits) -> `face_rhythm_epoch_shape.py` (FINDINGS 6c-pooled): lick factors change shape beyond the
+     pre-half floor 4 / 4; loading DIFFERENCE MAPS (loading leaves the contralesional face near the midline -> mouth /
+     chin rim + ipsilesional cheek, PS92 / 94 / 95) and SPOUT TEMPLATES (post lick_right still R-like but less
+     side-specific; not a re-aimed lick except PS92 subacute). Contra - ipsi index called too coarse by Priya.
+   * Per-POINT face maps replace the square patches (Priya): `analysis_kit.boot_delta_columns` (boot_delta's draw on
+     all points at once, pinned per column) + `bh` FDR; aligned_maps `--unit point` (default) and position (speed)
+     maps both; agreement threshold >= 3 of 4 animals (Priya; DECISIONS 10-24 late); PS93 flagged as a possible outlier
+     (pre-existing right orofacial deficit).
+   * Display order of per-spout rows = close ipsi / centre / contra, far ipsi / centre / contra
+     (`common.POSITIONS_DISPLAY`); "response speed" = movement speed of each face point in cue 0..+4 s (titles say so).
+   * Open: early-vs-late pre-day halves as a stricter shape floor (8 O2 tasks, not set up); per-bout timing of
+     lick_right; split `face_rhythm_factors.py` (2c step 5); per_lick_by_epoch.png keeps old line styles until a full
+     `lick_epochs` run.
+   **Code clean-up status:** steps 1-4 of 2c DONE and verified byte-identical against a baseline run of the old code
+   (every readout table: peak x 3, asym, bout split, readouts, EVR, position maps, matching, push check, aligned maps);
+   only step 5 (splitting the O2 factor script) left.
+   Earlier late-evening entry:
 0. **10-24 late evening -- STATE NOW.** (i) STATISTICS on every claim + `*` / `**` marks (Holm over the family each
    figure tests) and the orofacial epoch palette (pink / gold / teal) on all FR figures (DECISIONS 10-24 "FaceRhythm
    figures: epoch colours and significance marks"); FINDINGS 5b-master / 5e / 5f / 5g / survey carry the numbers;

@@ -194,7 +194,7 @@ def main(argv=None) -> int:
     # traces: rows = positions, columns = classes; animal mean, epochs in the FR epoch colours
     fig, axs = plt.subplots(len(POSITIONS), len(CLASSES), figsize=(3.2 * len(CLASSES), 2.2 * len(POSITIONS)),
                             sharex=True, sharey=True, squeeze=False)
-    for r_i, p in enumerate(POSITIONS[::-1]):
+    for r_i, p in enumerate(frc.POSITIONS_DISPLAY):
         for c_i, cl in enumerate(CLASSES):
             ax = axs[r_i, c_i]
             for ep in EPOCHS:
@@ -228,7 +228,7 @@ pre-onset window {PRE_WIN[0]:+g}..{PRE_WIN[1]:+g} s. > 0 = more contralesional (
 
     # per-animal PRE-window asymmetry, class x epoch, for each position
     fig, axs = plt.subplots(1, len(POSITIONS), figsize=(3.4 * len(POSITIONS), 3.4), sharey=True, squeeze=False)
-    for c_i, p in enumerate(POSITIONS[::-1]):
+    for c_i, p in enumerate(frc.POSITIONS_DISPLAY):
         ax = axs[0, c_i]
         for k, cl in enumerate(CLASSES):
             for e, ep in enumerate(EPOCHS):

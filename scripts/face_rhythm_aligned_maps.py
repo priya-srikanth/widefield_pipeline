@@ -237,7 +237,7 @@ def main(argv=None) -> int:
             win = windows[ai]
             fig, axs = frf.subplots(len(positions), 3, figsize=(10.5, 3.1 * len(positions)), squeeze=False)
             sc = None
-            for r_i, p in enumerate(positions):
+            for r_i, p in enumerate(frc.POSITIONS_DISPLAY):
                 for c_i, ep in enumerate(EPOCHS[1:]):
                     ax = axs[r_i, c_i]
                     ax.axis("off")
@@ -275,7 +275,7 @@ positions). Data: data/{a.unit}_stats.csv, data/halves_stats.csv.""")
 
             fig, axs = frf.subplots(1, len(positions), figsize=(3.0 * len(positions), 3.8), squeeze=False, sharey=True)
             x = np.arange(3)
-            for c_i, p in enumerate(positions):
+            for c_i, p in enumerate(frc.POSITIONS_DISPLAY):
                 ax = axs[0, c_i]
                 hh = H[(H["align"] == al) & (H.position == p)].set_index("epoch").reindex(list(EPOCHS[1:]))
                 for an in an_cols:

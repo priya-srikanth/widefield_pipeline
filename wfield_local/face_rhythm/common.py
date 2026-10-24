@@ -18,6 +18,9 @@ POST_EPOCHS = EPOCHS[1:]
 POSITIONS = ("far_L", "close_L", "close_center", "far_center", "close_R", "far_R")
 #: the same, contralesional first (headline figures read top-down from the impaired side)
 POSITIONS_CONTRA_FIRST = POSITIONS[::-1]
+#: the lab's usual figure order for per-spout rows (Priya 10-24): close ipsi / centre / contra, then far ipsi / centre /
+#: contra. Display only -- tables and statistics keep `POSITIONS`.
+POSITIONS_DISPLAY = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 #: spout position -> side relative to the lesion
 SIDE = {"far_R": "contra", "close_R": "contra", "far_center": "centre", "close_center": "centre",
         "far_L": "ipsi", "close_L": "ipsi"}

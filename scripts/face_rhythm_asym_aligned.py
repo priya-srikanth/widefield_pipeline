@@ -198,7 +198,7 @@ def main(argv=None) -> int:
     ecol = frc.epoch_colors()        # FR epoch palette (orofacial / 3-D kinematics); animals own `animal_colors`
     with frf.style():
         fig, axs = frf.subplots(len(POSITIONS), 3, figsize=(16, 2.4 * len(POSITIONS)), squeeze=False, sharey=True)
-        for r_i, p in enumerate(POSITIONS):
+        for r_i, p in enumerate(frc.POSITIONS_DISPLAY):
             for c_i, (al, (lags, _, _)) in enumerate(ALIGN.items()):
                 ax = axs[r_i, c_i]
                 for ep in EPOCHS:
@@ -238,10 +238,10 @@ asym_aligned_by_animal.png / data/asym_aligned_epochs.csv; statistics data/asym_
                 ax = axs[r_i, j]
                 T = E[(E["align"] == al) & (E.animal == an)].pivot_table(index="position", columns="epoch",
                                                                            values="asym", observed=False)
-                T = T.reindex(index=list(POSITIONS), columns=list(EPOCHS))
+                T = T.reindex(index=list(frc.POSITIONS_DISPLAY), columns=list(EPOCHS))
                 im = ax.imshow(T.to_numpy(float), cmap="RdBu_r", vmin=-vmax, vmax=vmax, aspect="auto")
                 ax.set_xticks(range(len(EPOCHS)), [e[:5] for e in EPOCHS])
-                ax.set_yticks(range(len(POSITIONS)), POSITIONS if j == 0 else [])
+                ax.set_yticks(range(len(POSITIONS)), frc.POSITIONS_DISPLAY if j == 0 else [])
                 ax.set_title(f"{an}: {al}-aligned", fontsize=9)
                 for (yy, xx), v in np.ndenumerate(T.to_numpy(float)):
                     if np.isfinite(v):
@@ -258,7 +258,7 @@ contralesional movement. Rule 8: read per animal.""")
         acol = frc.animal_colors()
         for c_i, al in enumerate(ALIGN):
             ax = axs[0, c_i]
-            for j, p in enumerate(POSITIONS):
+            for j, p in enumerate(frc.POSITIONS_DISPLAY):
                 for e_i, ep in enumerate(EPOCHS[1:]):
                     x0 = j + (e_i - 1) * 0.25
                     r = ST[(ST["align"] == al) & (ST.position == p) & (ST.epoch == ep)]
@@ -273,7 +273,7 @@ contralesional movement. Rule 8: read per animal.""")
                                     color=ecol[ep], mec="k", ms=5, capsize=2, label=ep if j == 0 else None)
                         ax.text(x0, r.ci_hi, r.mark, ha="center", va="bottom", fontsize=9)
             ax.axhline(0, color="k", lw=0.5)
-            ax.set_xticks(range(len(POSITIONS)), POSITIONS, rotation=30, fontsize=8)
+            ax.set_xticks(range(len(POSITIONS)), frc.POSITIONS_DISPLAY, rotation=30, fontsize=8)
             ax.set_title(f"{al}-aligned ({ALIGN[al][1][0]:+g}..{ALIGN[al][1][1]:+g} s)", fontsize=10)
         axs[0, 0].set_ylabel("change of (contra - ipsi) / sum vs pre")
         frf.legend_outside(axs[0, -1])

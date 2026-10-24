@@ -353,6 +353,17 @@ with a more ipsilesional face movement. Cue-aligned per-position speed maps (`po
 the contralesional face loses more movement than the ipsilesional mainly on contralesional-spout trials (far_R contra -
 ipsi log2 change acute -.17 to -.62 in 4 / 4; chronic PS92 -.25, PS94 -.53, PS95 -.10, PS93 recovered).
 
+**5e speed maps with statistics (10-24 late; Priya).** `face_rhythm_position_maps.py` (`position_maps/
+position_maps_response_mean.png`, data/position_maps_response_{points,halves}.csv): the MOVEMENT SPEED of each face
+point (RMS px / s; not reaction time) in the response window (cue 0..+4 s) at each spout, per session log2 vs the
+animal's pre; per point `boot_delta_columns` + >= 3 / 4 agree + BH FDR < .05 (rings); halves contra - ipsi with Holm
+over 6 positions. Acute: whole face lower at most spouts (4 / 4 at far_L, far_center, close_R, far_R; far_R -.47).
+Contra - ipsi at the R spouts: close_R -.27** / -.16** / -.19** (acute / subacute / chronic), far_R -.47** / -.29** /
+-.22*; also close_L acute -.14**. Chronic: the face moves MORE than pre at the close and centre spouts, mostly the
+ipsilesional side (close_R +.22, close_center +.23, close_L +.21; marked points ipsilesional, all "up"). Rows of every
+per-spout figure now in the lab order close ipsi / centre / contra, far ipsi / centre / contra
+(`face_rhythm.common.POSITIONS_DISPLAY`).
+
 **5e statistics (10-24 evening; `asym_aligned/asym_aligned_change.png`, data/asym_aligned_stats.csv):** per session
 the window asymmetry minus the animal's pre mean, `boot_delta`, Holm over the 6 positions of an alignment x epoch. The
 asymmetry FALLS at both contralesional spouts, every alignment, every epoch, ** after Holm (bout-aligned chronic: far_R
