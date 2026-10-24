@@ -353,6 +353,18 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   (PS93, PS95). The gain measures each epoch's distance from an all-epoch compromise, not change from pre. Fix to run:
   pre kernels as the reference (deltas for post epochs only) with the null built the same way (pre-late deltas against
   pre-early in a fit that also contains the post sessions). Until then: no Layer 2 claim.
+- **Layer 2 REDESIGNED (10-24, `allsession_encoder_v7g3_t3d_ref`, `change_ref` from the EARLY-pre reference, pre_late
+  null in the same "combined" fit).** Cortex, x1e3, null / acute / subacute / chronic: PS92 10.3 / 50.5 / 59.5 / 101.9,
+  PS93 33.9 / 32.9 / 23.9 / 49.8, PS94 28.7 / 52.3 / 61.0 / 61.7, PS95 21.6 / (1 session) / 33.4 / 100.1 -> chronic >
+  null 4/4 (PS93 1.5x); SSp-m_left chronic 88.7 / 48.3 / 98.0 / 46.1 vs null 15.8 / 12.8 / 17.5 / 25.0. **No single
+  group's unique change beats the null** (e.g. lick chronic 3.8 / 0.8 / 1.6 / 3.7 vs pre_late 3.4 / 1.8 / 2.9 / 7.5;
+  target 5.2 / 4.0 / 0.9 / 3.1 vs 4.9 / 3.2 / 2.2 / 9.6): the change is shared across groups, not "motor" vs "sensory".
+  **Session-count control** (chronic cut to 4 sessions = pre_late's; `matched_n_control.csv`): first-4 chronic 107.0 /
+  38.7 / 59.0 / 4.0, last-4 122.6 / 59.6 / 62.1 / 138.3 vs null 9.8 / 33.4 / 28.7 / 22.1 -> not a session-count effect
+  (PS92 / PS94 stay far above), but it GROWS WITH TIME (PS93 / PS95: early chronic ~null, late chronic >> null). Early
+  chronic > null 2/4, late chronic 4/4. The null spans one week, chronic one to two months, so progressive
+  reorganisation and slow drift are not separable here -> the deciding test is a trend model with a pre-stroke slope
+  (as 4.3.3). PROVISIONAL.
 - **Layer 2 all-session encoder: the cortical RESPONSE to behaviour changes beyond pre-stroke drift, acutely AND
   chronically (FIRST RUN 10-23 night, PROVISIONAL; `wfield_local/allsession_encoder.py` at 2fc9fce, grouping v3, frozen
   push; `<E>/allsession_encoder_v7push/`).** Shared kernels + per-epoch kernel changes, scored on held-out sessions;
