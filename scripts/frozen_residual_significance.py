@@ -10,19 +10,26 @@ TOO, and it drifts (FINDINGS 3.4: late pre - early pre +5..+12 x1e3 in SSp-m, 3/
     tests = the repo's map tests (`beta_maps.significance_contour`): "nested" (animals -> sessions bootstrap on the 8 x 8
             grid, Bonferroni over bins, pre-normalised -- PRIMARY) and "cluster" (cluster mass, within-animal
             relabelling, animal = unit)
-    DRIFT CALIBRATION = the same tests on LATE pre vs EARLY pre sessions (halves by date): what one week of drift alone
-            flags. An epoch's result is read against it.
+    REFERENCE = ALL the pre sessions, each scored leave-one-session-out (Priya 10-24: "i don't want to use early vs late
+            pre - just all loso pre"). The late-vs-early-pre calibration is optional (--drift), off by default.
 
 Per-session maps are rebuilt exactly as `frozen_pixel_maps.py` (evoked parts saved by the basis run, reconstructed
 through each animal's shared basis on the stat mask). Image left = ipsilesional.
 
-Usage: python scripts/frozen_residual_significance.py --tag gate-attempted_v7g3_t3d_basis [--spout far_contra]
+PER ANIMAL (--per-animal, Priya 10-24 "are we testing residuals within animal?"): the same tests called with ONE animal,
+so the nested bootstrap resamples only that animal's sessions (epoch sessions vs pre sessions, Bonferroni over bins) and
+the cluster test relabels sessions within it. The nested bootstrap needs >= 2 animals (it returns nothing for one), so
+per animal the bin test is the repo's "musall" method (sessions as the unit, Welch t per bin, corrected over bins).
+Rule 8: per animal first.
+
+Usage: python scripts/frozen_residual_significance.py --tag gate-attempted_v7g3_t3d_basis [--spout far_contra] [--per-animal]
 Output: <E>/frozen_encoder_<tag>/figures/residual_significance_<variant>_<spout>_<align>.png + residual_significance.csv
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import pickle
 import sys
 from pathlib import Path
@@ -64,14 +71,15 @@ def session_residual_maps(out: Path, variant: str, spout: str, align: str):
     return by, H, W
 
 
-def run_tests(pre_by, post_by, n_boot=2000, n_perm=500):
+def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "cluster")):
     from wfield_local import beta_maps as bm
     out = {}
-    for method in ("nested", "cluster"):
+    for method in methods:
         keep, lab = bm.significance_contour(pre_by, post_by, method=method, n_boot=n_boot, n_perm=n_perm)
-        last = getattr(bm.significance_contour, "last", None) or {}
-        out[method] = {"mask": keep, "label": lab, "sig_bins": last.get("sig_bins") if method == "nested" else None,
-                       "n_bins": last.get("n_bins") if method == "nested" else None,
+        m_ = re.search(r"(\d+) of (\d+) bins", lab or "")
+        out[method] = {"mask": keep, "label": lab,
+                       "sig_bins": int(m_.group(1)) if m_ else (0 if method != "cluster" else None),
+                       "n_bins": int(m_.group(2)) if m_ else None,
                        "px": int(keep.sum()) if keep is not None else 0}
     return out
 
@@ -94,6 +102,8 @@ def main(argv=None) -> int:
     ap.add_argument("--aligns", nargs="+", default=["lick", "cue"])
     ap.add_argument("--n-boot", type=int, default=2000)
     ap.add_argument("--n-perm", type=int, default=500)
+    ap.add_argument("--per-animal", action="store_true", help="one test per animal (sessions as the resampled unit)")
+    ap.add_argument("--drift", action="store_true", help="also test late vs early pre (off by default)")
     a = ap.parse_args(argv)
     out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
     fd = out / "figures"
@@ -109,12 +119,27 @@ def main(argv=None) -> int:
         pre = {an: sorted([s for s in v if s[1] == "pre"], key=lambda s: s[2]) for an, v in by.items()}
         comps = {}
         h = {an: len(p) // 2 for an, p in pre.items()}
-        comps["drift: late pre vs early pre"] = ({an: [s[3] for s in p[:h[an]]] for an, p in pre.items() if h[an] >= 2},
-                                                 {an: [s[3] for s in p[h[an]:]] for an, p in pre.items() if h[an] >= 2})
+        if a.drift:
+            comps["drift: late pre vs early pre"] = ({an: [s[3] for s in p[:h[an]]] for an, p in pre.items() if h[an] >= 2},
+                                                     {an: [s[3] for s in p[h[an]:]] for an, p in pre.items() if h[an] >= 2})
         for ep in EPOCHS:
             post = {an: [s[3] for s in v if s[1] == ep] for an, v in by.items()}
             common = [an for an in by if post[an] and pre[an]]
             comps[f"{ep} vs pre"] = ({an: [s[3] for s in pre[an]] for an in common}, {an: post[an] for an in common})
+        if a.per_animal:
+            for name, (pb, qb) in comps.items():
+                for an in sorted(qb):
+                    if len(pb.get(an, [])) < 2 or len(qb[an]) < 2:
+                        rows.append({"align": al, "comparison": name, "animal": an, "note": "< 2 sessions in a group"})
+                        continue
+                    r = run_tests({an: pb[an]}, {an: qb[an]}, a.n_boot, a.n_perm, methods=("musall", "cluster"))
+                    rows.append({"align": al, "comparison": name, "animal": an, "n_pre": len(pb[an]),
+                                 "n_post": len(qb[an]), "musall_sig_bins": r["musall"]["sig_bins"],
+                                 "musall_n_bins": r["musall"]["n_bins"], "cluster_px": r["cluster"]["px"],
+                                 "musall_label": r["musall"]["label"], "cluster_label": r["cluster"]["label"]})
+                    print(f"[residual sig] {al} {name} {an}: sessions-as-unit {r['musall']['sig_bins']}/"
+                          f"{r['musall']['n_bins']} bins, cluster {r['cluster']['px']} px", flush=True)
+            continue
         res = {}
         for name, (pb, qb) in comps.items():
             print(f"[residual sig] {al} {name}: animals {sorted(qb)}, sessions {[len(qb[x]) for x in sorted(qb)]}",
@@ -147,11 +172,11 @@ def main(argv=None) -> int:
             ax.set_xticks([]); ax.set_yticks([])
         fig.suptitle(f"Frozen-encoder RESIDUAL (data - full), {a.spout}, {al} window: epoch residual minus pre-stroke "
                      f"residual, pre-normalised, mean of animals. Contours: black = nested bootstrap (primary), purple "
-                     f"dashed = cluster. Left panel = drift calibration. Image left = ipsilesional.", fontsize=8)
+                     f"dashed = cluster. Reference = all pre sessions (LOSO). Image left = ipsilesional.", fontsize=8)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
         fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}.png", dpi=130)
         plt.close(fig)
-    pd.DataFrame(rows).to_csv(out / "residual_significance.csv", index=False)
+    pd.DataFrame(rows).to_csv(out / f"residual_significance{'_per_animal' if a.per_animal else ''}.csv", index=False)
     print(f"-> {fd} (residual_significance_*.png), {out / 'residual_significance.csv'}")
     return 0
 

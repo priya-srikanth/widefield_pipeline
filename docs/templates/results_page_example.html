@@ -1,0 +1,161 @@
+<title>Attempt Encoding Figures</title>
+<style>
+:root { --bg:#fbfaf7; --fg:#22211f; --muted:#6b675f; --rule:#e2ded5; --accent:#6a3d9a; --card:#ffffff; --tag:#f1ece2; --side:#f4f1ea; --neural:#6a3d9a; --lick:#b35806; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#17161a; --fg:#ece9e3; --muted:#a59f94; --rule:#34313a; --accent:#b799e0; --card:#1f1e23; --tag:#2a2830; --side:#1c1b20; --neural:#b799e0; --lick:#f1a340; color-scheme:dark } }
+:root[data-theme="dark"] { --bg:#17161a; --fg:#ece9e3; --muted:#a59f94; --rule:#34313a; --accent:#b799e0; --card:#1f1e23; --tag:#2a2830; --side:#1c1b20; --neural:#b799e0; --lick:#f1a340; color-scheme:dark }
+* { box-sizing:border-box }
+html { scroll-behavior:smooth; scroll-padding-top:12px }
+body { background:var(--bg); color:var(--fg); font:15px/1.55 "Source Sans 3", system-ui, sans-serif; margin:0; }
+.toc { position:fixed; top:env(safe-area-inset-top,0px); left:0; bottom:0; width:270px; overflow-y:auto; background:var(--side); border-right:1px solid var(--rule); padding:56px 14px 24px; font-size:.86rem; transition:transform .2s ease; z-index:10 }
+.toc h3 { font:600 .72rem/1 "Source Sans 3", sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 10px }
+.toc ol { list-style:none; margin:0; padding:0 }
+.toc li { margin:0 0 6px }
+.toc li li { margin:3px 0 3px 12px }
+.toc a { color:var(--fg); text-decoration:none; display:block; padding:2px 6px; border-radius:3px }
+.toc a:hover, .toc a.on { background:var(--tag) }
+.toc .sub a { color:var(--muted); font-size:.82rem }
+.kind { display:inline-block; font-size:.62rem; letter-spacing:.06em; text-transform:uppercase; padding:0 5px; border-radius:2px; margin-left:4px; vertical-align:1px; border:1px solid currentColor }
+.kind.n { color:var(--neural) } .kind.l { color:var(--lick) }
+.tocbtn { position:fixed; top:calc(env(safe-area-inset-top,0px) + 10px); left:10px; z-index:11; font:600 .8rem "Source Sans 3", sans-serif; background:var(--card); color:var(--fg); border:1px solid var(--rule); border-radius:4px; padding:6px 10px; cursor:pointer }
+body.closed .toc { transform:translateX(-100%) }
+.main { margin-left:270px; transition:margin .2s ease }
+body.closed .main { margin-left:0 }
+@media (max-width: 860px) { .main { margin-left:0 } .toc { box-shadow:2px 0 12px rgba(0,0,0,.15) } }
+.wrap { max-width:1120px; margin:0 auto; padding-inline:16px; padding-block:56px 64px; }
+h1 { font:600 1.7rem/1.2 "Source Serif 4", Georgia, serif; margin:0 0 6px; text-wrap:balance; }
+.sub { color:var(--muted); margin:0 0 22px; max-width:76ch; }
+section { border-top:1px solid var(--rule); padding-block:22px 6px; }
+h2 { font:600 1.15rem/1.3 "Source Serif 4", Georgia, serif; margin:0 0 4px; text-wrap:balance }
+.tag { display:inline-block; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; background:var(--tag); color:var(--muted); padding:2px 8px; border-radius:3px; margin-bottom:8px; }
+p, li { max-width:80ch; }
+.take { border-left:3px solid var(--accent); padding-left:12px; margin:10px 0 14px; }
+figure { margin:0 0 18px; background:var(--card); border:1px solid var(--rule); border-radius:4px; padding:10px; overflow-x:auto; }
+figure img { display:block; max-width:100%; height:auto; background:#fff; }
+figcaption { color:var(--muted); font-size:.86rem; margin-top:6px; }
+figcaption b.h { color:var(--fg) }
+code { font-size:.85em; }
+table { border-collapse:collapse; font-size:.86rem; font-variant-numeric:tabular-nums }
+td, th { border-bottom:1px solid var(--rule); padding:3px 8px; text-align:right } th:first-child, td:first-child { text-align:left }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:wght@600&display=swap">
+
+<button class="tocbtn" id="tocbtn" type="button" aria-controls="toc" aria-expanded="true">&#9776; Contents</button>
+<nav class="toc" id="toc" aria-label="Contents">
+<h3>Contents</h3>
+<ol id="toclist"></ol>
+</nav>
+
+<div class="main"><div class="wrap">
+<h1>What cortex looks like when a post-stroke attempt fails</h1>
+<p class="sub">VLS stroke, PS92&ndash;PS95, lesion left (brain maps: image left = ipsilesional). Final inputs: rebuilt attempts table, complete cam1, 3-D tongue; encoder analyses August-only pre. Every claim needs &ge; 3/4 animals. <span class="kind n">neural</span> = imaging; <span class="kind l">lick</span> = behaviour only. Details: <code>docs/ENCODING_FINDINGS.md</code>.</p>
+
+<section id="contest" data-toc="1. Target vs executed" data-kind="n">
+<span class="tag">Target vs executed &middot; FINDINGS 2.4b</span>
+<h2>1. Does cortex follow where the spout is, or where the tongue went? <span class="kind n">neural</span></h2>
+<p>Encoding model with 6 spout categories (target) and soft-binned 3-D landing (executed, "softmax" bins: each lick weighted over the six spouts by its distance to each spout's pre-stroke landing centre). Values = what one set explains beyond the other.</p>
+<div class="take">Chronic: target &gt; executed 4/4 in both windows (width 1). Acute lick window: target ahead 3/4. Subacute mixed, pre no lead. The chronic lead holds across softmax widths (3/4 at the widest); the acute lead depends on width.</div>
+<figure id="fig1"><img src="fig1_binned_contest.png" alt="Binned contest per animal"><figcaption><b class="h">Fig 1 &middot; binned contest, width 1.</b> Cortex, unique &Delta;R&sup2; &times;1e3; lines = epoch means, dots = sessions.</figcaption></figure>
+<figure id="fig10"><img src="fig10_softmax_width.png" alt="Softmax width sweep"><figcaption><b class="h">Fig 10 &middot; softmax width sweep.</b> Widths 0.5 / 1 / 2 left to right within each epoch. Executed gains as bins widen (wider bins overlap the target categories more).</figcaption></figure>
+</section>
+
+<section id="landing" data-toc="2. Where licks land" data-kind="l">
+<span class="tag">Behaviour &middot; the dissociation the contest uses</span>
+<h2>2. Where the licks actually land <span class="kind l">lick</span></h2>
+<div class="take">Acute far-contra licks land like far-mid / far-ipsi licks (own bin &minus;0.69, far mid +0.35, far ipsi +0.35; significant, 4/4). It shrinks but stays significant: subacute &minus;0.38 / far mid +0.36, chronic &minus;0.19 / far mid +0.20 (4/4) &ndash; part of the far-contra licks still land like far-mid licks chronically.</div>
+<figure id="fig9"><img src="fig9_softmax_landing.png" alt="Softmax landing matrices per animal and epoch"><figcaption><b class="h">Fig 9 &middot; landing matrices.</b> For each target spout (row), the mean softmax weight of its licks on each executed bin (column); rows sum to 1.</figcaption></figure>
+<figure id="fig9b"><img src="fig9b_softmax_landing_change.png" alt="Landing matrices epoch minus pre"><figcaption><b class="h">Fig 9b &middot; epoch minus pre, within animal, then mean.</b> Blue diagonal = fewer licks landing like their own target; red off-diagonal = landing like another spout.</figcaption></figure>
+<figure id="fig9c"><img src="fig9c_softmax_landing_stats.png" alt="Landing change with bootstrap significance"><figcaption><b class="h">Fig 9c &middot; landing change with statistics.</b> Nested bootstrap (animals &rarr; sessions), Bonferroni over 36 cells; boxed = significant; second line = animals with the same sign. Far contra: own bin &minus;0.69 / &minus;0.38 / &minus;0.19 (acute / subacute / chronic), far mid +0.35 / +0.36 / +0.20, all significant, 4/4 animals.</figcaption></figure>
+<figure id="fig11"><img src="fig11_lick_landing.png" alt="3-D landing points with softmax bins"><figcaption><b class="h">Fig 11 &middot; landing points, top view.</b> Ellipses = each spout's pre-stroke landing centre &plusmn; 1 SD (the width-1 bins). Trajectories (whole tongue path) coming next.</figcaption></figure>
+</section>
+
+<section id="decoder" data-toc="3. Failed attempts: decoder" data-kind="n">
+<span class="tag">Failed attempts &middot; FINDINGS 2.8</span>
+<h2>3. Is the far-contra code there when the attempt fails? <span class="kind n">neural</span></h2>
+<div class="take">Failed attempts lose the far-contra code (to the no-task floor in PS92/PS93) but are decoded as <em>a far spout</em> &ndash; distance kept, side lost (lick window 4/4). Nothing before the cue. Failed attempts stay low in every epoch; successful hits recover but stay below pre even chronically.</div>
+<figure id="fig2"><img src="fig2_attempt_decoder.png" alt="Frozen decoder by trial class"><figcaption><b class="h">Fig 2 &middot; acute.</b> Top: P(true spout), chance dotted. Bottom: share decoded as any far spout.</figcaption></figure>
+<figure id="fig2b"><img src="fig2b_attempt_decoder_epochs.png" alt="Frozen decoder by trial class across epochs"><figcaption><b class="h">Fig 2b &middot; across epochs.</b> Classes with &ge; 5 trials; solid = pre-stroke hits.</figcaption></figure>
+</section>
+
+<section id="maps" data-toc="4. Failed attempts: maps" data-kind="n">
+<span class="tag">Trial-type maps &middot; FINDINGS 2.9</span>
+<h2>4. What failed attempts look like on the cortex <span class="kind n">neural</span></h2>
+<div class="take">Same bilateral pattern as hits, smaller in 3/4 &ndash; but vs touch-matched pre-stroke misses only 2/4 (much of the drop = no touch / reward). Regionally: acute failed attempts reduce <b>ipsilesional ALM / tjM1</b> more than contralesional (4/4); chronic hits <b>increase tjM1 / SSp-m</b>, more contralesionally, at every spout (4/4).</div>
+<figure id="fig3"><img src="fig3_attempt_amplitude.png" alt="Failed attempt amplitudes"><figcaption><b class="h">Fig 3 &middot; amplitudes</b> vs pre-stroke hits and vs pre-stroke misses (lick window, far contra).</figcaption></figure>
+<figure id="mapatt"><img src="map_attempt_lick.png" alt="Trial-type maps far contra lick window"><figcaption><b class="h">Fig 3b &middot; trial-type maps, far contra, lick window.</b> per animal + mean; subacute / chronic failed attempts pooled over sessions (chronic 8 / 12 / 38 / 8 trials).</figcaption></figure>
+<figure id="mapattd"><img src="map_attempt_lick_minus_pre.png" alt="Trial-type maps minus pre hits"><figcaption><b class="h">Fig 3c &middot; minus pre-stroke hits.</b> Same maps minus each animal's pre-stroke hits.</figcaption></figure>
+</section>
+
+<section id="frozen" data-toc="5. Frozen encoder parts" data-kind="n">
+<span class="tag">Frozen pre-stroke encoder &middot; FINDINGS 3.4</span>
+<h2>5. Which part of the pre-stroke model carries the change <span class="kind n">neural</span></h2>
+<div class="take">Acute: the far-contra drop is predicted from how the animal now licks (lick part; target &asymp; 0). Chronic: the response is larger than pre and the pre-stroke model does not predict it &ndash; the increase is in the residual.</div>
+<figure id="fig4"><img src="fig4_decomp_epochs.png" alt="Decomposition across epochs"><figcaption><b class="h">Fig 4.</b> Bars = change from pre. Black measured, lavender predicted, orange lick part, purple target part, green residual (measured &minus; predicted). SSp-m, lick window.</figcaption></figure>
+<figure id="mapac"><img src="map_frozen_acute_lick.png" alt="Pixel maps acute"><figcaption><b class="h">Fig 4b &middot; pixel maps, acute.</b> Acute minus pre, by model part.</figcaption></figure>
+<figure id="mapsa"><img src="map_frozen_subacute_lick.png" alt="Pixel maps subacute"><figcaption><b class="h">Fig 4c &middot; pixel maps, subacute.</b> Subacute minus pre.</figcaption></figure>
+<figure id="mapch"><img src="map_frozen_chronic_lick.png" alt="Pixel maps chronic"><figcaption><b class="h">Fig 4d &middot; pixel maps, chronic.</b> Chronic minus pre.</figcaption></figure>
+</section>
+
+<section id="residual" data-toc="6. Residual: stats &amp; trend" data-kind="n">
+<span class="tag">Is the chronic residual real? &middot; FINDINGS 3.4</span>
+<h2>6. The chronic residual: map statistics, per animal, and trend <span class="kind n">neural</span></h2>
+<div class="take"><b>Pooled</b> (each animal normalised by its own pre scale, nested bootstrap animals &rarr; sessions): weak &ndash; 80 / 41 / 48 of 2,022 bins (acute / subacute / chronic, lick), cluster test nothing. <b>Within animal</b> (sessions as unit; calibrated: random pre splits flag 0 bins in 20/20 per animal): chronic differs in 4/4 (lick: 522 / 110 / 135 / 113 bins), always on the <b>contralesional</b> side (PS92 bilateral anterolateral, PS93 / PS94 right anterolateral, PS95 right posterolateral); acute never. <b>Trend</b>: the pre-stroke rise did not continue (chronic far below the extrapolated 8-day trend) and the chronic level is flat over ~30 days &ndash; a raised plateau in 3/4 (not PS95), not ongoing drift.</div>
+<figure id="fig7"><img src="fig7_residual_sig_lick.png" alt="Pooled residual change maps with significance, lick"><figcaption><b class="h">Fig 7 &middot; pooled, lick window.</b> Epoch residual minus all LOSO pre-stroke residuals, pre-normalised, mean of animals; black = nested bootstrap, purple dashed = cluster (none).</figcaption></figure>
+<figure id="fig7c"><img src="fig7_residual_sig_cue.png" alt="Pooled residual maps cue"><figcaption><b class="h">Fig 7b &middot; pooled, cue window.</b></figcaption></figure>
+<figure id="fig8"><img src="fig8_residual_per_animal_lick.png" alt="Per-animal residual change maps, lick"><figcaption><b class="h">Fig 8 &middot; per animal, lick window.</b> Each animal normalised by its own pre scale, shared colour scale; contour = within-animal test (the title's "uncalibrated" is now resolved: 0 false bins in 20 random pre splits per animal).</figcaption></figure>
+<figure id="fig8c"><img src="fig8_residual_per_animal_cue.png" alt="Per-animal residual maps cue"><figcaption><b class="h">Fig 8b &middot; per animal, cue window.</b> Chronic: PS92 182, PS94 77 bins; PS93 / PS95 none.</figcaption></figure>
+<figure id="fig12"><img src="fig12_residual_trend_lick.png" alt="Residual vs day with pre trend"><figcaption><b class="h">Fig 12 &middot; trend.</b> Residual per session vs day, with a straight line through the August pre sessions and its 95 % prediction interval (8-day span &rarr; wide). SSp-m, far contra, lick window.</figcaption></figure>
+</section>
+
+<section id="layer2" data-toc="7. Layer 2" data-kind="n">
+<span class="tag">All-session encoder &middot; FINDINGS 2 (Layer 2)</span>
+<h2>7. Does the brain&rarr;behaviour mapping itself change? <span class="kind n">neural</span></h2>
+<div class="take">Chronic kernel change exceeds the pre-stroke baseline in 4/4, not a session-count effect, but it grows with time (PS93 / PS95); no single kernel group (lick, contact, target &hellip;) changes more than the baseline. Random-split null (August pre, no early/late) running.</div>
+<figure id="fig5"><img src="fig5_layer2_change.png" alt="Layer 2 change by epoch"><figcaption><b class="h">Fig 5.</b> Change from early-pre kernels; dashed = late-pre baseline; triangles = chronic refit with 4 sessions.</figcaption></figure>
+<figure id="fig6"><img src="fig6_layer2_groups.png" alt="Layer 2 per group"><figcaption><b class="h">Fig 6.</b> Unique change per kernel group, cortex.</figcaption></figure>
+</section>
+
+<section id="next" data-toc="Pending">
+<span class="tag">Coming next</span>
+<h2>Pending</h2>
+<ul>
+<li>Lick trajectories (whole 3-D tongue path) by target spout and epoch.</li>
+<li>Layer 2 random-split null (running) and its per-animal p-values.</li>
+<li>Per-spout binned contest (far contra only).</li>
+<li>FaceRhythm models (does face movement absorb the chronic residual or the spout coding?).</li>
+</ul>
+</section>
+</div></div>
+
+<script>
+(function () {
+  var list = document.getElementById('toclist');
+  document.querySelectorAll('section[data-toc]').forEach(function (s) {
+    var li = document.createElement('li');
+    var a = document.createElement('a'); a.href = '#' + s.id; a.textContent = s.getAttribute('data-toc');
+    var k = s.getAttribute('data-kind');
+    if (k) { var t = document.createElement('span'); t.className = 'kind ' + k; t.textContent = k === 'n' ? 'neural' : 'lick'; a.appendChild(t); }
+    li.appendChild(a);
+    var figs = s.querySelectorAll('figure[id]');
+    if (figs.length) {
+      var ol = document.createElement('ol'); ol.className = 'sub';
+      figs.forEach(function (f) {
+        var b = f.querySelector('figcaption b.h'); var cap = f.querySelector('figcaption');
+        var txt = b ? b.textContent.replace(/\.$/, '') : (cap ? cap.textContent.slice(0, 38) + '…' : f.id);
+        var l2 = document.createElement('li'); var a2 = document.createElement('a'); a2.href = '#' + f.id; a2.textContent = txt;
+        l2.appendChild(a2); ol.appendChild(l2);
+      });
+      li.appendChild(ol);
+    }
+    list.appendChild(li);
+  });
+  var btn = document.getElementById('tocbtn');
+  function setClosed(c) { document.body.classList.toggle('closed', c); btn.setAttribute('aria-expanded', String(!c)); try { localStorage.setItem('tocClosed', c ? '1' : '0'); } catch (e) {} }
+  var saved = null; try { saved = localStorage.getItem('tocClosed'); } catch (e) {}
+  setClosed(saved === null ? window.innerWidth < 860 : saved === '1');
+  btn.addEventListener('click', function () { setClosed(!document.body.classList.contains('closed')); });
+  list.addEventListener('click', function (e) { if (e.target.closest('a') && window.innerWidth < 860) setClosed(true); });
+  var links = list.querySelectorAll('a');
+  var io = new IntersectionObserver(function (es) { es.forEach(function (en) { if (en.isIntersecting) { links.forEach(function (l) { l.classList.toggle('on', l.getAttribute('href') === '#' + en.target.id); }); } }); }, { rootMargin: '-10% 0px -80% 0px' });
+  document.querySelectorAll('section[data-toc], figure[id]').forEach(function (el) { io.observe(el); });
+})();
+</script>
