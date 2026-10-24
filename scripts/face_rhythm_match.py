@@ -62,7 +62,9 @@ def main(argv=None) -> int:
     M = np.load(fdir / "master.npz")
     A_ref, B_ref = M["spatial"].reshape(-1, M["spectral"].shape[1]), M["spectral"]
     names = fro.labels(fdir)
-    T = frr._tasks(fdir, "own")
+    own = frr.own_sub(fdir)                              # own8 (8 starts) once complete, else own (3)
+    print("own fits from", own)
+    T = frr._tasks(fdir, own)
     if T.empty:
         sys.exit(f"no per-session fits in {fdir / 'own'} (run fitsession)")
     T["day"] = [frr._day(lb) for lb in T.label]

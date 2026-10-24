@@ -161,11 +161,28 @@ def reconstruction(fdir: Path) -> pd.DataFrame:
                           "recon_err_session": float(np.nanmedian(np.concatenate(v[1])))} for k, v in acc.items()])
 
 
+def own_sub(fdir: Path) -> str:
+    """The per-session own-fit folder to read: ``own8`` (8 starts, 10-24 rerun) once it is COMPLETE (as many files as
+    ``own``), else ``own`` (3 starts). More starts = the session's best solution more often found: a tighter pre range
+    for the factor angles and an unbiased EVR gap (a missed optimum makes own EVR, hence the gap, too low)."""
+    n = lambda d: len(list((fdir / d).glob("*.npz"))) if (fdir / d).exists() else 0  # noqa: E731
+    return "own8" if n("own8") and n("own8") >= n("own") else "own"
+
+
+def loso_floor(fdir: Path) -> pd.DataFrame:
+    """Leave-one-pre-day-out EVR per pre day (``loso/rank<R>_<day>.json`` at the master's rank): held-out EVR = the
+    pre-stroke level a session's frozen EVR is read against (FINDINGS 3)."""
+    import json
+    R = int(np.load(fdir / "master.npz")["rank"])
+    rows = [json.loads(f.read_text()) for f in sorted((fdir / "loso").glob(f"rank{R:02d}_*.json"))]
+    return pd.DataFrame(rows)[["animal", "day", "evr_held_out", "evr_in_fit"]] if rows else pd.DataFrame()
+
+
 def evr_gap(fdir: Path, names: list[str]) -> pd.DataFrame:
     """Per session (mean over its videos): EVR own / frozen / gap, and matched cosine of own to frozen factors
     (mean + per component)."""
     rows = []
-    for t in _tasks(fdir, "own").itertuples():
+    for t in _tasks(fdir, own_sub(fdir)).itertuples():
         z = np.load(t.file)
         r = {"label": t.label, "evr_own": float(z["evr_own"]), "evr_frozen": float(z["evr_frozen"]),
              "cos_spatial_mean": float(np.mean(z["cos_spatial"])),

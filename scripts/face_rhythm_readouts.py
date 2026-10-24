@@ -128,6 +128,49 @@ the same rows (`fitsession`; how much the session's structure departs from the p
 leave-one-pre-day-out noise floor in the factor set's report); matched spatial / spectral cosines between the
 session's own factors and the frozen ones (morphing; 1 = unchanged).""")
 
+    # EVR: own components vs the frozen pre-stroke components (the manuscript's Fig 4 variance-explained panel)
+    if "evr_own" in S:
+        LF = frr.loso_floor(fdir)
+        animals_ = sorted(S.animal.unique())
+        with frf.style():
+            fig, axs = frf.subplots(2, len(animals_), figsize=(4.2 * len(animals_), 7.5), squeeze=False, sharey="row")
+            for j, an in enumerate(animals_):
+                g = S[S.animal == an].sort_values("day")
+                ax = axs[0, j]
+                lf = LF[LF.animal == an] if len(LF) else LF
+                if len(lf):
+                    ax.axhspan(lf.evr_held_out.min(), lf.evr_held_out.max(), color="0.85", lw=0,
+                               label="pre noise floor (held-out day)")
+                ax.plot(g.day, g.evr_own, "o-", ms=4, lw=1, color="k", label="own components")
+                ax.plot(g.day, g.evr_frozen, "o-", ms=4, lw=1, color="tab:red", mfc="white",
+                        label="frozen pre-stroke components")
+                ax.axvline(0.5, color="k", lw=0.5)
+                ax.set(title=an, xlabel="days since stroke", ylabel="EVR (uncentred)" if j == 0 else None)
+                ax = axs[1, j]
+                m = g.groupby("epoch")[["evr_own", "evr_frozen"]].mean().reindex(EPOCHS)
+                x = np.arange(len(EPOCHS))
+                ax.bar(x - 0.18, m.evr_own, 0.36, color="k", label="own")
+                ax.bar(x + 0.18, m.evr_frozen, 0.36, color="tab:red", label="frozen pre")
+                for e_i, ep in enumerate(EPOCHS):
+                    ge = g[g.epoch == ep]
+                    ax.plot(np.full(len(ge), e_i - 0.18), ge.evr_own, ".", color="0.5", ms=3)
+                    ax.plot(np.full(len(ge), e_i + 0.18), ge.evr_frozen, ".", color="0.5", ms=3)
+                ax.set_xticks(x, [e[:5] for e in EPOCHS])
+                lo = np.nanmin(g[["evr_own", "evr_frozen"]].to_numpy())
+                ax.set_ylim(max(0.0, lo - 0.05), 1.0)
+                ax.set(ylabel="EVR, epoch mean" if j == 0 else None)
+            frf.legend_outside(axs[0, -1])
+            fig.suptitle(f"{fdir.name}: variance explained by each session's own components vs the frozen pre-stroke set")
+            frf.save(fig, out / "evr_own_vs_frozen.png", f"""
+{common}
+The 2pRAM-cohort manuscript's variance-explained panel on one frozen basis across animals. Per session: uncentred EVR
+(1 - ||X - X^||^2 / ||X||^2, the TCA definition) of the session's OWN rank-R non-negative CP fit (black; `fitsession`,
+best of its random starts, folder `{frr.own_sub(fdir)}`) and of the FROZEN pre-stroke master's spatial + spectral factors with
+only the temporal weights refit (red), on the same rows. Top: per session over days since stroke; grey band = the
+leave-one-pre-day-out held-out EVR range of that animal's pre days (`loso/`): where a pre-stroke day scored on a fit
+without it lands. Bottom: epoch means (bars) and sessions (dots). Own >= frozen by construction; the GAP (own - frozen)
+is what the pre-stroke repertoire fails to describe. Pre sessions' frozen EVR is on their held-out basis.""")
+
     # movement maps + asymmetry
     _, maps = frr.movement(fdir, home, freqs, a.midline_x, a.band, a.measure)
     animals = sorted({k[0] for k in maps if isinstance(k, tuple)})
