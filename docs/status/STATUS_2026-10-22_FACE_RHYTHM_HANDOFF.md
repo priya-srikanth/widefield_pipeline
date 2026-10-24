@@ -17,6 +17,10 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
   regressors miss. Its headline ("licks and misses") cross-checked behaviourally: FINDINGS 5c. Open, for the encoding
   window if wanted: split the lick-onset kernel by outcome (hit / miss) to test a PRE-lick (preparation) difference.
 
+* **~07:00 10-24: rank-12 master BACK + NAMED.** proj/ 108 (12 cols, spec f4f84d67773df9bc), split half .911 (lick
+  pair .96 / .99; f6 .36, f10 .76), labels.json written (FINDINGS 4a), grouping `fr_groups.master_v1`, report re-rendered
+  with names, clips for 4 animals, validation. d4 TOLD (proj/ + labels + grouping). Pending on O2: project_loso +
+  fitsession -> rsync -> readouts (EVR gap, reconstruction) on all four animals, redo FINDINGS 5 / 5b / 6.
 * **~00:45 10-24: RANK 12 CHOSEN** (Priya; DECISIONS 10-24, FINDINGS 2): left / right lick pair, robust in 6 / 8
   starts. Share: rank-10 outputs renamed `proj_r10/ proj_loso_r10/ own_r10/ report_r10/ master_r10.npz`, clips +
   validation `master_pre_v1_r10`. O2 commands given to Priya (same renames on scratch, plan loso_jobs -> 12, then select 12

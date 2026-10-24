@@ -241,7 +241,8 @@ def pooled_evr(E: np.ndarray, N2: np.ndarray) -> float:
 
 def match(ref: list, F: list) -> tuple[np.ndarray, np.ndarray]:
     """Hungarian match of F's components to ref's on the product of per-mode cosines. -> (order: for each ref
-    component the matched F column, cos (n_modes, R_ref) per mode for the matched pairs)."""
+    component the matched F column, cos (n_modes, R_ref) per mode for the matched pairs). When ref has MORE components
+    than F (a rank-12 set against a rank-10 one) the extra ref components are unmatched: order -1, cos NaN."""
     from scipy.optimize import linear_sum_assignment
     cs = []
     for a, b in zip(ref, F):
@@ -249,9 +250,11 @@ def match(ref: list, F: list) -> tuple[np.ndarray, np.ndarray]:
         b = b / np.maximum(np.linalg.norm(b, axis=0), EPS)
         cs.append(a.T @ b)
     i, j = linear_sum_assignment(-np.prod(cs, axis=0))
-    order = np.empty(len(i), int)
+    order = np.full(cs[0].shape[0], -1)
     order[i] = j
-    return order, np.array([c[i, j] for c in cs])
+    cos = np.full((len(cs), cs[0].shape[0]), np.nan)
+    cos[:, i] = [c[i, j] for c in cs]
+    return order, cos
 
 
 def similarity(F1: list, F2: list) -> float:
@@ -1297,9 +1300,9 @@ animals {', '.join(sorted(pl['fit']))}. Rank sweep fits may skip the animal-out 
         order, cos = match_sets([Wsp.reshape(-1, R), B], [Mo["spatial"].reshape(-1, Mo["spatial"].shape[-1]),
                                                             Mo["spectral"]])
         for k in range(R):
-            nm = lab_o.get(str(order[k]), f"#{order[k]}")
-            names[str(k)] = (names[str(k)] + " " if names[str(k)] else "") + \
-                f"~ {Path(match).name}:{nm} (cos {cos[0, k]:.2f} / {cos[1, k]:.2f})"
+            hint = f"~ {Path(match).name}: no match (new)" if order[k] < 0 else \
+                f"~ {Path(match).name}:{lab_o.get(str(order[k]), f'#{order[k]}')} (cos {cos[0, k]:.2f} / {cos[1, k]:.2f})"
+            names[str(k)] = (names[str(k)] + " " if names[str(k)] else "") + hint
     tc, ep_tc, t_ms = {}, {}, None                     # pre by position; by (animal, epoch): one mean per session
     n_pre = set()
     for f in sorted((sd / "proj").glob("*.npz")) if (sd / "proj").exists() else []:

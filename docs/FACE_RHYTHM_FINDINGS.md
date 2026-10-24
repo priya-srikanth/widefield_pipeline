@@ -114,6 +114,30 @@ held-out factors match the full fit (similarity 0.84-1.00). Moving between ANIMA
 the other: held-out error 0.52-0.54 vs 0.43-0.45 in fit) -- animals differ far more than days, so the master set needs
 all four animals. Pre-stroke sessions are always scored on their held-out basis (DECISIONS 10-22 #2).
 
+## 4a. What the MASTER factors are (master_pre_v1, rank 12; names 10-24, Priya + validation)
+
+Names in `master_pre_v1/labels.json`; evidence = gallery (`report/factor_gallery_abs.png`) + validation
+(`face_rhythm/cam4/validation/master_pre_v1/`: lick-triggered by direction / bout number / spout / lick frequency,
+running onsets, rate correlations over 31 pre sessions). Grouping `fr_groups.master_v1`.
+
+| # | Hz | name | evidence |
+|---|---|---|---|
+| 0 | 4.1 | sniff_prelick | nose, vertical; peaks ~0.4 s before the lick, 1st licks, far spouts; new vs pilot |
+| 1 | 1.3 | nose_prelick_slow | nose, vertical; early in trial, before licking, far spouts higher |
+| 2 | 6.5 | lick_ongoing_7Hz | peaks after the lick on 4th+ licks, sharply tuned to ~7 Hz lick frequency, all spouts |
+| 3 | 1.3 | nose_steps | nose, lateral; falls during licking, rises late in trial and at running onset |
+| 4 | 6.5 | lick_right | right spouts only; lick-rate r right .53 / left -.03 |
+| 5 | 6.5 | lick_left | left spouts only; r left .52 / right -.03 (absent at rank 10) |
+| 6 | 1.0 | run_onset_jaw | peaks just before running onset; split half .36 (least reproducible) |
+| 7 | 8.2 | lick_fast_close | 2nd-3rd licks, >= 8 Hz, close spouts (Priya's name) |
+| 8 | 5.8 | lick_far_nose | nose region, locked to 1st-3rd licks at FAR spouts (L ~ R); new vs pilot |
+| 9 | 14.7 | whisk_run | running (speed r .55, .68 lick-free), also rises at each lick |
+| 10 | 2.9 | prep_jaw | peaks ~0.4 s before the lick, 1st lick highest; also at running onset; split half .76 |
+| 11 | 5.8 | lick_slow_late | peaks ~0.5 s into licking, 4th+ licks, ~5 Hz (pilot "bout_init" renamed: it peaks DURING licking) |
+
+Lick group (2, 4, 5, 7, 8, 11) summed over 0-2 s is within +-10 % across the six spouts in PS92 / PS94 / PS95; PS93
+far_L .79, close .13-.17 above (its licking, not the grouping). 7 (close) and 8 (far) carry spout DISTANCE.
+
 ## 4. What the pilot factors are (PILOT; names Priya's, checked against licks + treadmill)
 
 **Master rank 10 vs this pilot (10-23, structure only; master factors not yet named):** matched one to one, mean

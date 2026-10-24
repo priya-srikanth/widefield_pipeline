@@ -38,9 +38,21 @@ ENV = "COMBINED_ENCODING_FR_GROUPS"
 #:                   0.25-0.4 s before the first licks of a bout; f6 locks .43-.61 but lick-rate r ~ 0), so "other"
 #:                   is NOT "non-lick"; f7 (running onset, 1.3-1.8), f8. Priya: "ok" (10-22).
 #: Factor numbers belong to this fit only: master_pre_v1 renumbers them -- never carry this mapping over.
+#: master_v1 (set master_pre_v1, RANK 12, frozen 10-24 spec f4f84d67773df9bc; names in its labels.json, from the gallery +
+#: validation 10-24: lick-triggered by direction / bout number / spout position / lick frequency, running onsets, rate r):
+#:   lick   2 lick_ongoing_7Hz (peaks at 4th+ licks, tuned to ~7 Hz), 4 lick_right, 5 lick_left, 7 lick_fast_close (2nd-3rd
+#:          licks, >= 8 Hz, close spouts), 8 lick_far_nose (1st-3rd licks at FAR spouts, L ~ R), 11 lick_slow_late (4th+,
+#:          ~5 Hz). 7 (close) and 8 (far) carry spout DISTANCE, not side: the lick sum is side-balanced, not distance-
+#:          balanced -- check before reading mode B as "position beyond FR".
+#:   left 5 (rate r left .52 / right -.03), right 4 (.53 / -.03); no centre-specific factor (centre empty).
+#:   other  0 sniff_prelick + 10 prep_jaw (peak ~0.4 s BEFORE the lick, 1st lick highest: lick INITIATION), 1 / 3 nose,
+#:          6 run_onset_jaw (peaks just before running onset), 9 whisk_run (running, speed r .55).
+#:   Split half: 6 (.36) and 10 (.76) are the least reproducible factors -- keep them in "other", don't interpret singly.
 GROUPINGS = {
     "pilot_v1": {"set": "pilot_pre_PS92_PS93",
                  "lick": (0, 4, 5, 9), "left": (0, 5), "centre": (4,), "right": (9,), "other": (1, 2, 3, 6, 7, 8)},
+    "master_v1": {"set": "master_pre_v1",
+                  "lick": (2, 4, 5, 7, 8, 11), "left": (5,), "centre": (), "right": (4,), "other": (0, 1, 3, 6, 9, 10)},
 }
 MODES = {"A": ("lick", "left", "centre", "right", "other"), "B": ("lick", "other")}
 
@@ -74,6 +86,6 @@ def group(sig: dict, grouping: str, mode: str, set_name: str | None = None) -> d
         if part == "other":
             for k in G["other"]:
                 out[f"fr_other_{k}"] = (t, np.asarray(sig[idx[k]][1], float))
-        else:
+        elif G[part]:                                    # an empty part (master_v1 has no centre factor) is left out
             out[f"fr_{part}"] = (t, np.sum([np.asarray(sig[idx[k]][1], float) for k in G[part]], axis=0))
     return out

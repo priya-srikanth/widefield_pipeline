@@ -21896,3 +21896,11 @@ within-spout SD per axis (PS92-95 ml 0.43-0.63, ap 0.43-0.63, down 0.90-1.28 mm)
 reading); sensitivity sweep w = 0.5 / 2 (`COMBINED_ENCODING_BINS_WIDTH`, submit-time on O2, folder `_bw<w>`). Result
 change: the pre-stroke "target-led 3/4" (polar) is a capacity effect -- matched capacity shows no clear pre-stroke lead;
 chronic spout identity > landing in 4/4, both windows.
+
+## 2026-10-24 -- FaceRhythm master_pre_v1 rank-12 names + encoder grouping master_v1
+
+Names (labels.json) from the gallery + validation (FINDINGS 4a); Priya named 7 lick_fast_close and asked for the others
+to follow the lick / treadmill data ("bout_init" dropped: it peaks during licking -> lick_slow_late). Grouping
+`fr_groups.master_v1`: lick = 2, 4, 5, 7, 8, 11; left = 5; right = 4; no centre factor (empty parts are skipped);
+other = 0, 1, 3, 6, 9, 10 (0 / 10 are lick INITIATION, so "other" is not "non-lick"). Lick sum side-balanced, distance
+carried by 7 / 8.
