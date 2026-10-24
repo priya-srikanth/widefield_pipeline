@@ -8,3 +8,11 @@ def test_shifts_cover_every_pair_once():
     assert len(pairs) == 30 and len(set(pairs)) == 30
     assert all(q != j for q, j in pairs)
     assert all(sorted(rl.values()) == sorted(order) for rl in fr.shifts(order))      # each shift is a permutation
+
+
+def test_all_areas_dsse_pools_parcels():
+    """Summed over areas, normalised by summed SST; the excluded whole-cortex trace does not enter."""
+    import numpy as np
+    sse_as, sse_true, sst = np.array([5.0, 3.0, 100.0]), np.array([4.0, 4.0, 0.0]), np.array([10.0, 10.0, 1.0])
+    assert np.isclose(fr.all_areas_dsse(sse_as, sse_true, sst, [0, 1]), 0.0)
+    assert np.isclose(fr.all_areas_dsse(sse_as, sse_true, sst, [0]), 0.1)

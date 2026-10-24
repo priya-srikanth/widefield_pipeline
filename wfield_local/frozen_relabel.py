@@ -33,6 +33,14 @@ import numpy as np
 WINDOWS = ("all", "cue", "lick")
 
 
+ALL = "all_areas"
+
+
+def all_areas_dsse(sse_as: np.ndarray, sse_true: np.ndarray, sst: np.ndarray, idx) -> float:
+    """Relabel cost over several areas jointly: summed SSE increase / summed SST (fraction of variance lost)."""
+    return float((sse_as[idx] - sse_true[idx]).sum() / max(float(sst[idx].sum()), 1e-12))
+
+
 def shifts(pos_order: list) -> list[dict]:
     """The 5 non-identity cyclic relabellings {q: j}; together they map every q to every other j once."""
     n = len(pos_order)
@@ -87,14 +95,29 @@ def summarise(out: Path) -> None:
                 for ai, ar in enumerate(m["areas"]):
                     rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "window": w,
                                  "spout": q, "as": j, "area": ar, "dsse_x1e3": d[ai] * 1e3})
+                # ALL AREAS jointly (smoke 10-23: the whole-cortex MEAN trace averages away the left / right pattern
+                # that tells spouts apart and fails the pre check; summed SSE over the parcels keeps it)
+                ia = [i for i, ar in enumerate(m["areas"]) if ar != "cortex"]
+                rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "window": w,
+                             "spout": q, "as": j, "area": ALL,
+                             "dsse_x1e3": all_areas_dsse(np.asarray(ss[key]), base, np.asarray(sst), ia) * 1e3})
     T = pd.DataFrame(rows)
     T.to_csv(out / "relabel_by_session.csv", index=False, float_format="%.5g")
     order = ["pre", "acute", "subacute", "chronic"]
     A = T.groupby(["animal", "epoch", "window", "spout", "as", "area"]).dsse_x1e3.mean().reset_index()
     A.to_csv(out / "relabel_by_animal.csv", index=False, float_format="%.4g")
     pd.set_option("display.width", 250)
+    V = A[(A.area == ALL) & (A.epoch == "pre")]
+    if not V.empty:
+        V = V.assign(true_wins=V.dsse_x1e3 > 0)
+        print("\n=== VALIDATION (pre, all areas): fraction of (q -> j) relabellings where the TRUE label fits better\n"
+              + V.pivot_table(index="animal", columns="window", values="true_wins").round(2).to_string())
+        for an in sorted(V.animal.unique()):
+            M = V[(V.animal == an) & (V.window == "lick")].pivot_table(index="spout", columns="as", values="dsse_x1e3")
+            print(f"\n  {an} pre, lick window, all areas: rows = true spout, cols = relabelled as (x1e3 of SST; "
+                  "small = weakly separated)\n" + M.round(1).to_string())
     for w in ("lick", "cue"):
-        for area in ("cortex", "SSp-m_left"):
+        for area in (ALL, "SSp-m_left"):
             S = A[(A.window == w) & (A.area == area) & (A.spout == "far_contra")]
             if S.empty:
                 continue
@@ -102,11 +125,11 @@ def summarise(out: Path) -> None:
             P = P.reindex(sorted(P.index, key=lambda k: (k[0], order.index(k[1]) if k[1] in order else 9)))
             print(f"\n=== RELABEL far_contra trials as spout j, {w} window, {area}: dSSE x1e3 (> 0 = TRUE label fits "
                   "better; < 0 = j fits better)\n" + P.round(2).to_string())
-    B = T[(T.area == "cortex") & (T.window == "lick")]
+    B = T[(T.area == ALL) & (T.window == "lick")]
     best = B.loc[B.groupby(["label", "spout"]).dsse_x1e3.idxmin()]
     best = best.assign(winner=np.where(best.dsse_x1e3 < 0, best["as"], best.spout))
     W = best.groupby(["animal", "epoch", "spout"]).winner.agg(lambda s: ", ".join(f"{k} {v}" for k, v in s.value_counts().items()))
-    print("\n=== best-fitting label per session (cortex, lick window): true unless another label lowers SSE\n"
+    print("\n=== best-fitting label per session (all areas, lick window): true unless another label lowers SSE\n"
           + W.unstack("spout").reindex(columns=sorted(B.spout.unique())).to_string())
     print(f"\n-> {out}")
 
