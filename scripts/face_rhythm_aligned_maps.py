@@ -36,22 +36,50 @@ EPOCHS = ("pre", "acute", "subacute", "chronic")
 MIN_EVENTS = 5
 
 
-def patches(home: np.ndarray, mid: float, ncol_half: int, nrow: int) -> np.ndarray:
-    """Patch id per point (-1 = none): columns of equal width mirrored about the midline (column k on the contra side
-    pairs with column k on the ipsi side), rows of equal height."""
+def patches(home: np.ndarray, mid: float, ncol_half: int, nrow: int) -> tuple[np.ndarray, dict]:
+    """Patch id per point: columns of equal width mirrored about the midline (column k on the contra side pairs with
+    column k on the ipsi side), rows of equal height. -> (ids, grid geometry for `outline`)."""
     x, y = home[:, 0], home[:, 1]
     half = max(mid - x.min(), x.max() - mid)
     cw = half / ncol_half
+    rh = (y.max() - y.min()) / nrow
     col = np.minimum((np.abs(x - mid) // cw).astype(int), ncol_half - 1)
     side = np.where(x <= mid, 0, 1)                                     # 0 = contra (image left on cam4)
-    row = np.minimum(((y - y.min()) / ((y.max() - y.min()) / nrow)).astype(int), nrow - 1)
-    return (side * ncol_half + col) * nrow + row
+    row = np.minimum(((y - y.min()) / rh).astype(int), nrow - 1)
+    return (side * ncol_half + col) * nrow + row, {"mid": mid, "cw": cw, "rh": rh, "y0": float(y.min()),
+                                                    "ncol": ncol_half, "nrow": nrow}
+
+
+def outline(ax, sig_ids: list[int], g: dict, **kw) -> None:
+    """Draw the BORDER of the union of significant patches (edges between a significant and a non-significant cell)."""
+    nc, nr = g["ncol"], g["nrow"]
+    G = np.zeros((2 * nc, nr), bool)                                    # grid x index: contra cols mirrored to the left
+    for q in sig_ids:
+        side, rem = divmod(q, nc * nr)
+        c, r = divmod(rem, nr)
+        G[nc - 1 - c if side == 0 else nc + c, r] = True
+    x0 = g["mid"] - nc * g["cw"]
+    X = lambda i: x0 + i * g["cw"]                                      # noqa: E731
+    Y = lambda j: g["y0"] + j * g["rh"]                                 # noqa: E731
+    for i in range(2 * nc):
+        for j in range(nr):
+            if not G[i, j]:
+                continue
+            if i == 0 or not G[i - 1, j]:
+                ax.plot([X(i), X(i)], [Y(j), Y(j + 1)], **kw)
+            if i == 2 * nc - 1 or not G[i + 1, j]:
+                ax.plot([X(i + 1), X(i + 1)], [Y(j), Y(j + 1)], **kw)
+            if j == 0 or not G[i, j - 1]:
+                ax.plot([X(i), X(i + 1)], [Y(j), Y(j)], **kw)
+            if j == nr - 1 or not G[i, j + 1]:
+                ax.plot([X(i), X(i + 1)], [Y(j + 1), Y(j + 1)], **kw)
 
 
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
     from wfield_local import analysis_kit as ak
+    from wfield_local import config
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import face_rhythm_readouts as frr
@@ -59,8 +87,9 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--set", default=fro.SET)
-    ap.add_argument("--grid", type=int, nargs=2, default=(3, 5), help="patch columns per face half, rows")
-    ap.add_argument("--min-points", type=int, default=15, help="a patch needs this many mesh points")
+    ap.add_argument("--grid", type=int, nargs=2, default=(4, 7), help="patch columns per face half, rows")
+    ap.add_argument("--min-points", type=int, default=10, help="a patch needs this many mesh points")
+    ap.add_argument("--patch-boot", type=int, default=2000, help="bootstrap draws per patch test (halves: 4000)")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
     rv = PathResolver()
@@ -74,7 +103,7 @@ def main(argv=None) -> int:
     aligns, positions, windows = list(Z["aligns"].astype(str)), list(Z["positions"].astype(str)), Z["windows"]
     mid = float(frr.MASTER_MIDLINE_X)
     contra = home[:, 0] <= mid
-    pid = patches(home, mid, *a.grid)
+    pid, grid = patches(home, mid, *a.grid)
     keep = [q for q in np.unique(pid) if (pid == q).sum() >= a.min_points]
     rng = np.random.default_rng(0)
 
@@ -111,7 +140,7 @@ def main(argv=None) -> int:
                 for ep in EPOCHS[1:]:
                     post = {an: list(vq[(an_s == an) & (ep_s == ep)]) for an in np.unique(an_s)
                             if ((an_s == an) & (ep_s == ep)).any()}
-                    iv = ak.boot_delta(post, pre, rng)
+                    iv = ak.boot_delta(post, pre, rng, n_boot=a.patch_boot)
                     per = [float(np.mean(v)) for v in post.values()]
                     same = len(per) >= 4 and (all(x < 0 for x in per) or all(x > 0 for x in per))
                     sig = bool(iv and (iv.lo > 0 or iv.hi < 0) and same)
@@ -164,9 +193,7 @@ def main(argv=None) -> int:
                     if m is None:
                         continue
                     sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="RdBu_r", vmin=-1, vmax=1)
-                    for q in marks.get((al, p, ep), []):
-                        hp = home[pid == q]
-                        ax.scatter(hp[:, 0], hp[:, 1], s=7, facecolors="none", edgecolors="k", linewidths=0.3)
+                    outline(ax, marks.get((al, p, ep), []), grid, color="k", lw=1.0)
                     ax.axvline(mid, color="k", lw=0.4)
                     ax.invert_yaxis()
                     ax.set_aspect("equal")
@@ -180,10 +207,11 @@ def main(argv=None) -> int:
 Per mesh point (image LEFT = CONTRALESIONAL on cam4, lesions left; vertical line = face midline): mean speed in the
 {al.upper()}-aligned window ({win[0]:+g}..{win[1]:+g} s; cue = engaged-trial cue; lick = every LP lick in engaged trials,
 per lick; bout = the first lick of each bout), per spout position (rows; R = contralesional spouts), as log2(session /
-the animal's pre-stroke mean), averaged within the epoch per animal, then over the four animals. Points with black
-rings: face PATCHES ({a.grid[0]} columns per half mirrored about the midline x {a.grid[1]} rows) whose change vs pre
-has a paired animals -> sessions bootstrap 95 % interval excluding 0 AND the same sign in all four animals (many
-patches tested: a map of consistency). Panel titles: whole-face mean log2 change (animals lower than pre) and the
+the animal's pre-stroke mean), averaged within the epoch per animal, then over the four animals. Black OUTLINES: the
+border of the face PATCHES ({a.grid[0]} columns per half mirrored about the midline x {a.grid[1]} rows, >= {a.min_points}
+points each) whose change vs pre has a paired animals -> sessions bootstrap 95 % interval ({a.patch_boot} draws)
+excluding 0 AND the same sign in all four animals (many patches tested: a map of consistency, not of independent
+discoveries; the colour gives the sign). Panel titles: whole-face mean log2 change (animals lower than pre) and the
 CONTRA - IPSI half difference of the change with its bootstrap (* = interval excludes 0). Data: data/patch_stats.csv,
 data/halves_stats.csv.""")
 
@@ -193,7 +221,8 @@ data/halves_stats.csv.""")
                 ax = axs[0, c_i]
                 hh = H[(H["align"] == al) & (H.position == p)].set_index("epoch").reindex(list(EPOCHS[1:]))
                 for an in an_cols:
-                    ax.plot(x, hh[an].to_numpy(), "o-", color="0.7", ms=3, lw=0.8)
+                    ax.plot(x, hh[an].to_numpy(), "o-", color=config.animal_color().get(an, "0.6"), ms=3, lw=0.9,
+                            alpha=0.8, label=an)
                 vals = hh[an_cols].to_numpy(float)
                 ax.errorbar(x, np.nanmean(vals, 1), yerr=np.nanstd(vals, 1, ddof=1) / np.sqrt(np.isfinite(vals).sum(1)),
                             fmt="o", color="k", capsize=3, ms=5)

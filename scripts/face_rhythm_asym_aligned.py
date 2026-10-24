@@ -195,7 +195,8 @@ def main(argv=None) -> int:
         print("failed:", [f[0] for f in fail])
 
     animals = sorted(E.animal.unique())
-    ecol = dict(zip(EPOCHS, ("0.3", "tab:red", "tab:orange", "tab:blue")))
+    from wfield_local.epoch_figures import EPOCH_GREY
+    ecol = dict(EPOCH_GREY)          # the repo's epoch grey ramp (pre light -> chronic dark); animals own the colours
     with frf.style():
         fig, axs = frf.subplots(len(POSITIONS), 3, figsize=(16, 2.4 * len(POSITIONS)), squeeze=False, sharey=True)
         for r_i, p in enumerate(POSITIONS):

@@ -117,7 +117,8 @@ def main(argv=None) -> int:
 
     groups = sorted(S.group.unique(), key=GROUP_ORDER.index)
     animals = sorted(S.animal.unique())
-    col = dict(zip(animals, ("tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple")))
+    from wfield_local import config
+    col = config.animal_color()                          # the repo's one animal palette (configs/animals.yaml)
     with frf.style():
         fig, axs = frf.subplots(len(names), len(groups), figsize=(4.6 * len(groups) + 1.5, 2.3 * len(names)),
                                 squeeze=False, sharex=True)
@@ -168,6 +169,8 @@ def headline(S: pd.DataFrame, names: list[str], out: Path, set_name: str, rows: 
                         names.index("lick_left") if "lick_left" in names else None) if k is not None]
     if len(want) < 2:
         return
+    from wfield_local import config
+    acol = config.animal_color()
     rng = np.random.default_rng(0)
     x = np.arange(len(EPOCHS))
     with frf.style():
@@ -178,8 +181,8 @@ def headline(S: pd.DataFrame, names: list[str], out: Path, set_name: str, rows: 
                 d = S[(S.factor == k) & (S.group == g)]
                 A = d.groupby(["animal", "epoch"]).log2_vs_pre.mean().unstack().reindex(columns=list(EPOCHS))
                 for an, row in A.iterrows():
-                    ax.plot(x, row.to_numpy(), "o-", color="0.7", ms=3, lw=0.8)
-                    ax.text(x[-1] + 0.08, row.iloc[-1], an, fontsize=7, va="center", color="0.4")
+                    ax.plot(x, row.to_numpy(), "o-", color=acol.get(an, "0.6"), ms=3, lw=0.9, alpha=0.8)
+                    ax.text(x[-1] + 0.08, row.iloc[-1], an, fontsize=7, va="center", color=acol.get(an, "0.4"))
                 m, se = A.mean(0), A.std(0, ddof=1) / np.sqrt(A.notna().sum(0))
                 ax.errorbar(x, m.to_numpy(), yerr=se.to_numpy(), fmt="o", color="k", ms=6, capsize=3, zorder=5)
                 pre = {an: list(v.log2_vs_pre) for an, v in d[d.epoch == "pre"].groupby("animal")}
@@ -213,7 +216,8 @@ def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx:
     """Cohort views of peak / pre (Priya 10-24): by day bin (mean +- SEM across animals) and by epoch with statistics."""
     from wfield_local import analysis_kit as ak
     from wfield_local import face_rhythm_figures as frf
-    from wfield_local import figure_layout
+    from wfield_local import config, figure_layout
+    acol = config.animal_color()
     rng = np.random.default_rng(0)
     S = S.copy()
     S["bin"] = None
@@ -257,7 +261,7 @@ def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx:
                         x = np.arange(len(bins))
                         st = d.groupby("bin").log2_vs_pre.agg(["mean", "sem", "count"]).reindex(bins)
                         for _an, da in d.groupby("animal"):
-                            ax.plot([bins.index(b) for b in da.bin], da.log2_vs_pre, ".", color="0.6", ms=3)
+                            ax.plot([bins.index(b) for b in da.bin], da.log2_vs_pre, ".", color=acol.get(_an, "0.6"), ms=4)
                         ax.errorbar(x, st["mean"], yerr=st["sem"], fmt="o-", color="k", ms=4, lw=1.2, capsize=2)
                         ax.set_xticks(x, bins, fontsize=7)
                     else:
@@ -266,8 +270,7 @@ def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx:
                         st = d.groupby("epoch").log2_vs_pre.agg(["mean", "sem"]).reindex(EPOCHS)
                         for _an, da in d.groupby("animal"):
                             da = da.set_index("epoch").log2_vs_pre.reindex(EPOCHS)
-                            ax.plot(x, da.to_numpy(), "-", color="0.75", lw=0.8)
-                            ax.plot(x, da.to_numpy(), ".", color="0.5", ms=4)
+                            ax.plot(x, da.to_numpy(), ".-", color=acol.get(_an, "0.6"), lw=0.8, ms=4, alpha=0.8)
                         ax.errorbar(x, st["mean"], yerr=st["sem"], fmt="o", color="k", ms=5, capsize=3, zorder=5)
                         ax.set_xticks(x, [e[:5] for e in EPOCHS])
                         tt = T[(T.factor == kk) & (T.group == g)].set_index("epoch")

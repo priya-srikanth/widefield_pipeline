@@ -116,7 +116,8 @@ def main(argv=None) -> int:
           .round(2).to_string())
 
     animals = sorted(S.animal.unique())
-    col = {an: c for an, c in zip(animals, ("tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"))}
+    from wfield_local import config
+    col = config.animal_color()                          # the repo's one animal palette (configs/animals.yaml)
     with frf.style():
         fig, axs = frf.subplots(len(names), 2, figsize=(13, 2.4 * len(names)), squeeze=False, sharex=True)
         for k, nm in enumerate(names):

@@ -33,9 +33,10 @@ EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 
 def _epoch_lines(ax, S, col, title):
+    from wfield_local import config
     for a, g in S.groupby("animal"):
         m = g.groupby("epoch")[col].mean().reindex(EPOCHS)
-        ax.plot(range(4), m.to_numpy(), "o-", ms=3, lw=1, label=a)
+        ax.plot(range(4), m.to_numpy(), "o-", ms=3, lw=1, label=a, color=config.animal_color().get(a))
     ax.set_xticks(range(4), [e[:5] for e in EPOCHS])
     ax.set_title(title)
 
@@ -43,6 +44,7 @@ def _epoch_lines(ax, S, col, title):
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
+    from wfield_local import config
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import face_rhythm_readouts as frr
@@ -115,7 +117,7 @@ SHARE of the frame (weight only). Pre-stroke sessions are projected on their lef
         fig, axs = frf.subplots(1, len(cols), figsize=(4.4 * len(cols) + 1.5, 4.0), squeeze=False)
         for ax, c in zip(axs[0], cols):
             for an, g in S.groupby("animal"):
-                ax.plot(g.day, g[c], "o-", ms=4, lw=1, label=an)
+                ax.plot(g.day, g[c], "o-", ms=4, lw=1, label=an, color=config.animal_color().get(an))
             ax.axvline(0.5, color="k", lw=0.5)
             ax.set(xlabel="days since stroke", title=c)
         frf.legend_outside(axs[0, -1])
@@ -145,7 +147,8 @@ session's own factors and the frozen ones (morphing; 1 = unchanged).""")
                 ax.plot(g.day, g.evr_frozen, "o-", ms=4, lw=1, color="tab:red", mfc="white",
                         label="frozen pre-stroke components")
                 ax.axvline(0.5, color="k", lw=0.5)
-                ax.set(title=an, xlabel="days since stroke", ylabel="EVR (uncentred)" if j == 0 else None)
+                ax.set(xlabel="days since stroke", ylabel="EVR (uncentred)" if j == 0 else None)
+                ax.set_title(an, color=config.animal_color().get(an, "k"), fontweight="bold")
                 ax = axs[1, j]
                 m = g.groupby("epoch")[["evr_own", "evr_frozen"]].mean().reindex(EPOCHS)
                 x = np.arange(len(EPOCHS))
@@ -169,7 +172,8 @@ session's own factors and the frozen ones (morphing; 1 = unchanged).""")
                     sem = float(pr.std(ddof=1) / np.sqrt(len(pr))) if len(pr) > 1 else 0.0
                     ax.axhspan(1 - sem, 1 + sem, color="0.85", lw=0, label="pre +- 1 SEM")
                 ax.axhline(1, color="k", lw=0.5)
-                ax.plot(g.day, rt, "o-", ms=4, lw=1, color="tab:purple", label="frozen / own")
+                ax.plot(g.day, rt, "o-", ms=4, lw=1, color=config.animal_color().get(an, "tab:purple"),
+                        label="frozen / own")
                 ax.axvline(0.5, color="k", lw=0.5)
                 ax.set(xlabel="days since stroke", ylabel="EVR frozen / own, / pre mean" if j == 0 else None)
             frf.legend_outside(axs[0, -1])

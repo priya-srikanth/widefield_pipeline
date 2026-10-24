@@ -73,14 +73,16 @@ def main(argv=None) -> int:
           "(n_worse = animals whose epoch mean is worse than their pre level)")
     print(T[["metric", "epoch", *animals, "delta", "ci_lo", "ci_hi", "excludes_0", "n_worse"]].round(4).to_string(index=False))
 
+    from wfield_local import config
+    acol = config.animal_color()                         # the repo's one animal palette (configs/animals.yaml)
     x = np.arange(len(EPOCHS))
     with frf.style():
         fig, axs = frf.subplots(1, len(METRICS), figsize=(4.6 * len(METRICS), 4.4), squeeze=False)
         for ax, (m, (lab, kind)) in zip(axs[0], METRICS.items()):
             A = S.groupby(["animal", "epoch"])[f"{m}_n"].mean().unstack().reindex(columns=list(EPOCHS))
             for an, r in A.iterrows():
-                ax.plot(x, r.to_numpy(), "o-", color="0.7", ms=3, lw=0.8)
-                ax.text(x[-1] + 0.08, r.iloc[-1], an, fontsize=7, va="center", color="0.4")
+                ax.plot(x, r.to_numpy(), "o-", color=acol.get(an, "0.6"), ms=3, lw=0.9, alpha=0.8)
+                ax.text(x[-1] + 0.08, r.iloc[-1], an, fontsize=7, va="center", color=acol.get(an, "0.4"))
             ax.errorbar(x, A.mean(0).to_numpy(), yerr=(A.std(0, ddof=1) / np.sqrt(A.notna().sum(0))).to_numpy(),
                         fmt="o", color="k", ms=6, capsize=3, zorder=5)
             ax.axhline(1.0 if kind == "ratio" else 0.0, color="k", lw=0.5)
@@ -102,7 +104,7 @@ Per session (`data/session_table.csv`): LEFT the ratio EVR(frozen pre-stroke fac
 fit), divided by the animal's mean pre-stroke ratio (1 = its pre level; the ratio divides out what lowers both fits);
 MIDDLE the EVR gap (own - frozen) minus the animal's pre-stroke mean; RIGHT the frozen basis' median relative
 reconstruction error / the animal's pre mean. Pre sessions are scored on their held-out (leave-one-day-out) basis.
-Grey lines: per-animal epoch means (sessions pooled within the epoch); black: mean +- SEM across the four animals;
+Coloured lines: per-animal epoch means (configs/animals.yaml colours) (sessions pooled within the epoch); black: mean +- SEM across the four animals;
 grey band: +-1 SEM of the pre-stroke sessions around the pre level (per animal, then averaged over animals).
 Numbers: change vs pre by `analysis_kit.boot_delta` (paired animals -> sessions bootstrap, animals weighted equally,
 95 % interval; * = excludes 0) and how many animals' epoch means are worse than their pre level. n = 4 animals: read
