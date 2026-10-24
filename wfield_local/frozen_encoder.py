@@ -364,6 +364,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     return {"label": label, "animal": animal, "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label),
             "X": X, "Rd": Rd, "area_names": area_names, "col_var": col_var, "pos": E.pos.to_numpy(),
             "cue_f": cue_f, "first_f": first_f, "fs": float(1.0 / np.median(np.diff(ft))), "win": win,
+            "trial_id": E.trial_id.to_numpy(int),
             "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E),
             "frame_pos": pos_of, "pos_order": pos_order,
             "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
@@ -911,6 +912,41 @@ def _segments(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
     return np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
 
 
+def trial_means(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
+    """(trials, areas) mean of R over each trial's window ``frames + off``; NaN for a trial without an anchor (frame < 0)
+    or a window entirely outside the record."""
+    out = np.full((len(frames), R.shape[1]), np.nan)
+    ok = frames >= 0
+    if ok.any():
+        seg = _segments(R, frames[ok], off)
+        with np.errstate(invalid="ignore"):
+            out[ok] = np.nanmean(seg, 1)
+    return out
+
+
+def load_trial_parts(run_dir, variant: str = "joint", areas=None):
+    """Long table of the saved per-trial parts of one frozen run: label, trial_id, pos, window, area, part, value.
+    Join on (label, trial_id) with `trial_attempts.csv` for any trial-level split. Sessions predicted before the
+    per-trial output existed (no ``trial_parts`` in the npz) are skipped with a note."""
+    import pandas as pd
+    rows, old = [], []
+    for f in sorted((Path(run_dir) / variant / "sessions").glob("*.npz")):
+        z = np.load(f, allow_pickle=False)
+        if "trial_parts" not in z.files:
+            old.append(f.stem)
+            continue
+        T, ar = z["trial_parts"], list(z["areas"])
+        keep = [i for i, a in enumerate(ar) if areas is None or a in areas]
+        for ci, part in enumerate(z["parts"]):
+            for wi, w in enumerate(z["trial_windows"]):
+                for ai in keep:
+                    rows.append(pd.DataFrame({"label": f.stem, "trial_id": z["trial_id"], "pos": z["trial_pos"],
+                                              "window": w, "area": ar[ai], "part": part, "value": T[ci, :, wi, ai]}))
+    if old:
+        print(f"[frozen] {len(old)} session(s) have no per-trial parts (predicted before 10-24): {old[:5]} ...", flush=True)
+    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+
+
 def predict_job(job):
     """Apply the animal's frozen models (one per variant) to one session; PETHs of data and each part, cue- and
     lick-aligned, written to <out>/<variant>/sessions/<label>.{npz,json}."""
@@ -1003,7 +1039,19 @@ def predict_job(job):
             r2[w] = float(1.0 - ((y - yh) ** 2).sum() / max(((y - y.mean()) ** 2).sum(), 1e-12)) if wm.any() else None
         sess = Path(out_dir) / variant / "sessions"
         sess.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(sess / f"{label}.npz", peth=peth, peth_lick=peth_lick, peth_off_s=off / d["fs"])
+        # PER-TRIAL PARTS (Priya 10-24: "save outputs so we can re-plot or re-analyse without re-doing calculations"):
+        # every part (data, full, each FGROUP part ...) averaged over each trial's Musall window, so trial-level
+        # questions (attempt class, landing, touch) are a re-read joined on trial_id, not a refit.
+        tr_parts = np.full((len(comp), len(d["pos"]), len(MUSALL_WINDOWS), len(ix)), np.nan, np.float32)
+        for wi, (al, (a0, a1)) in enumerate(MUSALL_WINDOWS.items()):
+            fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+            offm = np.arange(int(round(a0 * d["fs"])), int(round(a1 * d["fs"])))
+            for ci, R in enumerate(comp.values()):
+                tr_parts[ci, :, wi] = trial_means(R, fr_, offm)
+        np.savez_compressed(sess / f"{label}.npz", peth=peth, peth_lick=peth_lick, peth_off_s=off / d["fs"],
+                            trial_parts=tr_parts, trial_id=d["trial_id"], trial_pos=np.asarray(d["pos"], dtype=str),
+                            trial_windows=np.array(list(MUSALL_WINDOWS)), parts=np.array(list(comp)),
+                            areas=np.array(fit["areas"]))
         meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
                 "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
                 "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],

@@ -438,3 +438,15 @@ def test_run_tag_marks_tongue3d(monkeypatch):
     assert fe._run_tag().endswith("|tongue3d")
     monkeypatch.delenv("COMBINED_ENCODING_TONGUE")
     assert "tongue3d" not in fe._run_tag()
+
+
+def test_trial_means_windows_and_missing_anchor():
+    """Per-trial part means: window mean per trial and area; NaN for a trial with no anchor or no frames in range."""
+    import numpy as np
+    from wfield_local.frozen_encoder import trial_means
+    R = np.arange(20, dtype=float)[:, None] * np.array([[1.0, 10.0]])      # frames x 2 areas
+    out = trial_means(R, np.array([2, -1, 18, 30]), np.arange(0, 3))
+    assert np.allclose(out[0], [3.0, 30.0])                                  # frames 2, 3, 4
+    assert np.isnan(out[1]).all()                                            # no anchor (no lick)
+    assert np.allclose(out[2], [18.5, 185.0])                                # frames 18, 19 (20 is outside)
+    assert np.isnan(out[3]).all()                                            # window entirely outside
