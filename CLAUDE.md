@@ -359,7 +359,8 @@ outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity onl
 
 **[`docs/status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`](docs/status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md)**
 — **START HERE for FaceRhythm (10-24).** Master `master_pre_v1` = RANK 12 (left / right lick pair), named, `proj/` with the
-encoder (grouping `fr_groups.master_v1`); next: rsync `own/`, then readouts / factor matching / push check on four animals.
+encoder (grouping `fr_groups.master_v1`); four-animal readouts / matching / push check / aligned maps DONE (FINDINGS 5d-5f, 6);
+open items with Priya in the handoff §2 item 0.
 
 **[`docs/status/STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md`](docs/status/STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md)**
 — **START HERE for FaceRhythm (10-22).** cam4 outputs arriving (all checked clean; cached parallel `qc`); PILOT factor set
