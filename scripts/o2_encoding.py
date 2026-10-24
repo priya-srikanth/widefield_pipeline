@@ -39,6 +39,11 @@ sys.path.insert(0, str(b / "code"))
 task = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ["SLURM_ARRAY_TASK_ID"])
 labels = [x.strip() for x in (b / "labels.txt").read_text().splitlines() if x.strip()]
 label = labels[task - 1]
+# the bundle's INPUT settings (COMBINED_ENCODING_* / OROFACIAL_* at bundle time, e.g. lick set, executed set, binned
+# contest + its calibration table): '@'-paths point into the bundle; submit-time options below still override
+bundle_env = json.loads((b / "env.json").read_text()) if (b / "env.json").exists() else {}
+for k, v in bundle_env.items():
+    os.environ[k] = str(b / v[1:]) if isinstance(v, str) and v.startswith("@") else v
 order, tag = os.environ.get("ORDER", "movement_first"), os.environ["TAG"]
 if os.environ.get("ONLY"):
     os.environ["COMBINED_ENCODING_ONLY"] = os.environ["ONLY"]
@@ -59,7 +64,7 @@ out = b / "out" / tag
                                           "fr_points": os.environ.get("FR_POINTS", ""),
                                           "fr_share": os.environ.get("FR_SHARE", ""),
                                           "match": os.environ.get("MATCH", ""),
-                                          "tag": tag}))
+                                          "bundle_env": bundle_env, "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
     print("done already", label); sys.exit(0)
 from wfield_local import combined_encoding as ce
@@ -95,6 +100,28 @@ def _inputs_worker(job):
             "fr": x.get("fr") is not None}
 
 
+#: per-submit options (sbatch --export), never part of a bundle's recorded input settings
+_SUBMIT_ENVS = ("COMBINED_ENCODING_ONLY", "COMBINED_ENCODING_VIDEO", "COMBINED_ENCODING_FR",
+                "COMBINED_ENCODING_FR_POINTS", "COMBINED_ENCODING_FR_SHARE", "COMBINED_ENCODING_MATCH")
+
+
+def bundle_env(d: Path | None = None) -> dict:
+    """The bundle's INPUT settings: every COMBINED_ENCODING_* / OROFACIAL_* variable set now except the per-submit ones
+    and the local input cache. A value naming an existing file is copied to <bundle>/tables/ and recorded as
+    '@tables/<name>' (the runner resolves it inside the bundle on O2). Recorded so one bundle = one input
+    configuration (lick set, executed set, gate, 3-D tables, binned contest), and `collect` names folders the same."""
+    env = {}
+    for k, v in sorted(os.environ.items()):
+        if not k.startswith(("COMBINED_ENCODING_", "OROFACIAL_")) or k in _SUBMIT_ENVS or not v:
+            continue
+        if d is not None and Path(v).is_file():
+            (d / "tables").mkdir(exist_ok=True)
+            shutil.copy2(v, d / "tables" / Path(v).name)
+            v = f"@tables/{Path(v).name}"
+        env[k] = v
+    return env
+
+
 def cmd_bundle(a) -> Path:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
@@ -117,6 +144,7 @@ def cmd_bundle(a) -> Path:
         print(f"  FAILED {it[0]}: {err}")
     ok = sorted(p.stem for p in (d / "inputs").glob("*.pkl"))
     (d / "labels.txt").write_text("".join(f"{x}\n" for x in ok), encoding="utf-8", newline="\n")
+    (d / "env.json").write_text(json.dumps(bundle_env(d), indent=1), encoding="utf-8", newline="\n")
     repo = Path(__file__).resolve().parents[1]
     code = d / "code"
     if code.exists():
@@ -238,6 +266,8 @@ def cmd_collect(a) -> int:
     os.environ[ce.RUN_ENV] = a.run or RUN
     src = oi.bundle_dir(rv, a.name) / "out" / a.tag
     meta = json.loads((src / "run.json").read_text())
+    for k, v in (meta.get("bundle_env") or {}).items():        # same input settings -> same folder name as a local run
+        os.environ[k] = v
     _set_env(meta)
     dst = ce.out_dir(rv, meta["order"] or "movement_first") / "sessions"
     writeguard.assert_writable(dst)
