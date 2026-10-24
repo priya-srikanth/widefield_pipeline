@@ -21814,3 +21814,11 @@ vs close_contra +0.3 %, far_ipsi vs far_contra -0.8 %). So the A / B question (f
 before the stroke, and acute values must be read as a CHANGE from each animal's pre margin, not by sign. (3) One acute
 session: far_contra fits WORSE as far_mid (+8.0 %, from -0.2 pre) and slightly better as far_ipsi (-3.2 %); close_mid
 trials fit better under every other label acutely (to check). Not a result (n = 1); full run `frozen_relabel_v7` started.
+
+## 2026-10-23 (night, last) -- stray-lick test: reference threshold, first full run not decisive
+
+1. Reference kernels (near|q, contact|q) kept down to 3 licks per session (`MIN_N_REF`; strays / ITI keep MIN_N 15):
+   non-contact near-misses are rare pre-stroke, so at MIN_N 15 they fell into "rest" in every session (smoke).
+2. Full run (104 / 107 sessions): the far-contra aim reference fails split-half validation in PS92 / PS93 and is absent
+   in PS95; pre strays follow the landing more than the aim; no consistent acute shift. Recorded as NOT DECISIVE for
+   A vs B (FINDINGS 2.6). Not changing the design until Priya decides; options listed in 2.6.

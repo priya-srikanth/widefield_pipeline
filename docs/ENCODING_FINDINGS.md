@@ -16,7 +16,7 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 > | Acute far-contra drop is carried by LICK in the frozen pre-stroke encoder; target <= ~4 x1e3 (3.4) | PROVISIONAL, robust to credit order and to 5 running models | 4/4 animals, but PS95 = 1 acute session; PS94 / PS95 lick timing cam4-only in these runs (their cam1 landed 10-21..23, not yet used); running model v7 still being chosen; no test on data - model; not yet on the LMMs |
 > | Post-stroke rise is TARGET, not executed (2.1, 2.4b, LMM 4.3.4) | STANDS for cam4; PROVISIONAL in 3-D | 3-D results so far PS92 + PS93 (10-21 snapshot; 3-D now exists for all 4 -> re-run due); the running 3-D 2x2 is on the snapshot; pre-stroke answer depends on the frame (2.4 vs 2.4b) |
 > | Destination vs landing "target-like 61 / 73 / 90 %" (2.4c) | CORRECTED (inflated) | separating rows only: target-leaning, ~6 decisive sessions, 2 animals |
-> | Target vs executed, decisive test = lick-level STRAYS vs on-target (2.6) | PENDING (census done) | census on the 10-21 snapshot (PS92 + PS93, trial licks); 3-D for all 4 now exists; per-lick ITI 3-D requested |
+> | Target vs executed, decisive test = lick-level STRAYS vs on-target (2.6) | FIRST RUN: not decisive (far-contra reference fails validation 3/4) | census on the 10-21 snapshot (PS92 + PS93, trial licks); 3-D for all 4 now exists; per-lick ITI 3-D requested |
 > | Within-spout lick direction (2.5) | PROVISIONAL; no robust post-stroke execution-like shift | cam4 (all 4) / 3-D (2, snapshot; 4 now available); split-half reliability ~0.5 |
 > | Chronic coding gain beyond behavioural normalisation (4.1, 4.3.3) | STANDS (4.1) / PROVISIONAL (LMM) | PS94 shows no gain |
 > | Frozen decoder back at full behavioural recovery (2, 4.3.5) | CORRECTED: NOT back (+0.08, only PS92 back); refit gain over frozen > 0 in 4/4 but not significant under the deck bootstrap | LMM vs deck resampling disagree (DECISIONS 2026-09-12) |
@@ -278,7 +278,33 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   depends on the resampling" -- not as established persistent reorganisation.
   All session-level time courses now via `wfield_local/mixed_models.py` (one definition).
 
-### 2.6 Lick-level strays vs on-target licks — PENDING (census done 10-23; the decisive target-vs-executed test)
+### 2.6 Lick-level strays vs on-target licks — FIRST RUN 10-23: NOT DECISIVE for far contra (reference fails validation)
+
+**First full run (10-23 night, `wfield_local/stray_licks.py` at 4bc7687, 104 / 107 sessions, 4 animals, all licks with
+3-D; `<E>/stray_licks/`; PRELIMINARY).** Per session one regression of all frames on lick-event kernels (stray q->j,
+non-contact near-miss q, ITI near j, contact|q; cue / arrival kernels; drift + running / push nuisance); kernels pooled
+count-weighted per animal x epoch; the spout-specific part (minus the mean over spouts) of a stray q->j kernel is
+correlated with the PRE references near|q (r_target: same aim) and near|j (r_exec: same landing).
+- **Validation (pre, split-half near-miss kernels, own spout vs others): passes 16 / 18 spouts, but FAILS for
+  far_contra in PS92 (r_own .04 vs others .22) and PS93 (-.62), and PS95 has no far_contra near-misses at all**; only
+  PS94's far_contra reference is reliable (.50 vs -.04). Non-contact near-misses at far contra are rare pre-stroke (the
+  animals touch when they get near). So r_target for far_contra strays is not trustworthy in 3 / 4 animals.
+- **Pre-stroke strays mostly look like where the tongue LANDED** (r_exec > r_target in most stray types: PS92 / PS93 /
+  PS95 weighted target_minus_exec -0.50 .. -0.67; PS94 -0.25). Caveat: pre strays and pre references come from the
+  same sessions (partly circular). Reading: the spout-specific part of cortex's lick response follows the executed
+  movement more than the aim, in the intact animal.
+- **far_contra strays, pre -> acute (target_minus_exec):** -> far_mid PS92 -.39 -> -.76, PS93 +.21 (n = 20) -> +.29,
+  PS94 +.93 -> +1.01, PS95 no target reference; -> close_mid PS92 -.72 -> -.55, PS93 -.97 -> -.52, PS94 -.11 -> .00.
+  No consistent shift toward either answer; PS94 (the one valid reference) is target-like before AND after.
+- **Contact vs non-contact lick at the same aimed spout** (`contact_vs_near.csv`, summed 0-0.5 s, cortex): pre mostly
+  NEGATIVE (a touching lick evokes less than a non-touching one at the same spout; matches the negative contact kernel,
+  3.4); acute / chronic mixed in sign and noisy (few non-contact references).
+- **Verdict:** the stray test does not resolve A ("aims far contra, execution off") vs B ("re-aimed at far mid") for
+  far contra, because the far-contra aim reference cannot be estimated from non-contact licks. Possible next step (not
+  run): use contact|far_contra (on-target, touch-confounded) as the aim reference with the pre contact-minus-near
+  difference from the other spouts subtracted, or rely on the relabel test (running).
+
+**Original design notes (10-23, before the run):**
 
 Why this test: on an on-target lick the TARGET and the spout-locked executed lick are the same variable (pre-stroke
 per-spout contrast maps, 3.4: the spout part tracks the data, the target / exec_locked split is unstable, e.g. close_mid
@@ -671,6 +697,10 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-23 (night, last)** — stray-lick test first full run (2.6): validation fails for the far-contra aim reference
+  in 3 / 4 animals; strays look like where they landed pre-stroke; no consistent acute shift -> not decisive. Relabel
+  test readout = all areas jointly (smoke; full run going).
 
 - **2026-10-23 (night, late)** — grouping v3 (contact its own category, out of "non-task"; nose -> other was v2);
   PS93 contact predictability check (contact most predictable from execution in PS93 -> shared variance); stray-lick
