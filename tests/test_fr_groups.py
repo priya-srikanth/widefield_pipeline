@@ -45,3 +45,14 @@ def test_wrong_set_and_bad_env_refused(monkeypatch):
         fr_groups.spec()
     monkeypatch.setenv(fr_groups.ENV, "pilot_v1:B")
     assert fr_groups.spec() == ("pilot_v1", "B")
+
+
+def test_master_v1_side_and_distance_modes():
+    sig = _sig(k=12)
+    G = fr_groups.GROUPINGS["master_v1"]
+    a = fr_groups.group(sig, "master_v1", "A", set_name="master_pre_v1")
+    assert list(a) == ["fr_lick", "fr_left", "fr_right", "fr_close", "fr_far"] + [f"fr_other_{k}" for k in G["other"]]
+    assert set(fr_groups.group(sig, "master_v1", "S")) - set(fr_groups.group(sig, "master_v1", "B")) == {"fr_left", "fr_right"}
+    assert set(fr_groups.group(sig, "master_v1", "D")) - set(fr_groups.group(sig, "master_v1", "B")) == {"fr_close", "fr_far"}
+    np.testing.assert_allclose(a["fr_lick"][1], sum(sig[f"fr_{k}"][1] for k in G["lick"]))
+    assert list(fr_groups.group(_sig(), "pilot_v1", "D"))[:1] == ["fr_lick"]          # pilot: no close / far parts

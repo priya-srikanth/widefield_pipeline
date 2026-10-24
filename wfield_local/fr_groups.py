@@ -9,12 +9,16 @@ DIRECTION through FR, and "position beyond FR" becomes a lower bound by construc
             spout. Directionless only because it is balanced across directions -- dropping one direction's factor
             (e.g. central f4) would make the sum read low on those trials and carry direction (10-22 discussion)
   left / centre / right   side-pooled lick factors: lick DIRECTION through FR
+  close / far             distance-selective lick factors (master_v1 only, Priya 10-24): spout DISTANCE through FR
   other     the remaining factors, one trace each (includes lick-INITIATION factors: not "non-lick")
 
 Modes (the env value "<grouping>:<mode>", COMBINED_ENCODING_FR_GROUPS, read by `face_rhythm_outputs.fr_signals`):
-  A = lick + left + centre + right + other   (everything FR says, direction included)
+  A = lick + left + centre + right + close + far + other   (everything FR says, side and distance included)
   B = lick + other                            (directionless FR: position beyond B = position beyond FR's lick amount)
-Side information through FR = A - B.
+  S = lick + left + centre + right + other    (side only)
+  D = lick + close + far + other              (distance only)
+Side information through FR = S - B; distance = D - B; both = A - B. A part a grouping does not define, or defines
+empty, is left out (pilot_v1 has no close / far; master_v1 no centre).
 
 GROUPINGS keys name a factor SET's labelling; factor numbers shift between fits, so a grouping is only valid for the
 set it names (checked).
@@ -44,7 +48,10 @@ ENV = "COMBINED_ENCODING_FR_GROUPS"
 #:          licks, >= 8 Hz, close spouts), 8 lick_far_nose (1st-3rd licks at FAR spouts, L ~ R), 11 lick_slow_late (4th+,
 #:          ~5 Hz). 7 (close) and 8 (far) carry spout DISTANCE, not side: the lick sum is side-balanced, not distance-
 #:          balanced -- check before reading mode B as "position beyond FR".
-#:   left 5 (rate r left .52 / right -.03), right 4 (.53 / -.03); no centre-specific factor (centre empty).
+#:   left 5 (rate r left .52 / right -.03), right 4 (.53 / -.03); no centre-specific factor (centre empty): centre
+#:          spouts drive BOTH 4 and 5 at about the animal mean.
+#:   close 7 (close-far +.10-.13, not PS95), far 8 (close-far -.08 to -.42, centre-lateral -.20 to -.31, not PS93): the
+#:          shared lick factors carry DISTANCE, little side (L-R within +-.16; PS93's 2 -.27). Stay in the lick sum.
 #:   other  0 sniff_prelick + 10 prep_jaw (peak ~0.4 s BEFORE the lick, 1st lick highest: lick INITIATION), 1 / 3 nose,
 #:          6 run_onset_jaw (peaks just before running onset), 9 whisk_run (running, speed r .55).
 #:   Split half: 6 (.36) and 10 (.76) are the least reproducible factors -- keep them in "other", don't interpret singly.
@@ -52,9 +59,12 @@ GROUPINGS = {
     "pilot_v1": {"set": "pilot_pre_PS92_PS93",
                  "lick": (0, 4, 5, 9), "left": (0, 5), "centre": (4,), "right": (9,), "other": (1, 2, 3, 6, 7, 8)},
     "master_v1": {"set": "master_pre_v1",
-                  "lick": (2, 4, 5, 7, 8, 11), "left": (5,), "centre": (), "right": (4,), "other": (0, 1, 3, 6, 9, 10)},
+                  "lick": (2, 4, 5, 7, 8, 11), "left": (5,), "centre": (), "right": (4,), "close": (7,), "far": (8,),
+                  "other": (0, 1, 3, 6, 9, 10)},
 }
-MODES = {"A": ("lick", "left", "centre", "right", "other"), "B": ("lick", "other")}
+PARTS = ("lick", "left", "centre", "right", "close", "far", "other")
+MODES = {"A": PARTS, "B": ("lick", "other"), "S": ("lick", "left", "centre", "right", "other"),
+         "D": ("lick", "close", "far", "other")}
 
 
 def spec() -> tuple[str, str] | None:
@@ -76,7 +86,7 @@ def group(sig: dict, grouping: str, mode: str, set_name: str | None = None) -> d
         raise ValueError(f"FR grouping {grouping!r} is for set {G['set']!r}, not {set_name!r} (factor numbers shift)")
     names = list(sig)
     idx = {int(n.rsplit("_", 1)[1]): n for n in names if n.rsplit("_", 1)[-1].isdigit()}
-    need = {k for part in ("lick", "left", "centre", "right", "other") for k in G[part]}
+    need = {k for part in PARTS for k in G.get(part, ())}
     missing = sorted(need - set(idx))
     if missing:
         raise ValueError(f"FR grouping {grouping!r}: factors {missing} not in {names}")
@@ -86,6 +96,6 @@ def group(sig: dict, grouping: str, mode: str, set_name: str | None = None) -> d
         if part == "other":
             for k in G["other"]:
                 out[f"fr_other_{k}"] = (t, np.asarray(sig[idx[k]][1], float))
-        elif G[part]:                                    # an empty part (master_v1 has no centre factor) is left out
+        elif G.get(part):                                # undefined / empty part (no centre in master_v1) left out
             out[f"fr_{part}"] = (t, np.sum([np.asarray(sig[idx[k]][1], float) for k in G[part]], axis=0))
     return out

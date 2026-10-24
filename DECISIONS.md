@@ -21913,3 +21913,6 @@ carried by 7 / 8.
    runs done on the old table are not re-run for the gate alone; the final-frame runs use the new table.
 2. Priya approved deleting the inventory's DELETE-NOW list (53 GB, `docs/status/OUTPUT_INVENTORY_2026-10-24.md`) and
    pruning pre-10-23 local input-cache entries; the three CHECK items are kept for now.
+master_v1 amended (Priya 10-24 "yes"): the shared lick factors carry spout DISTANCE (7 close, 8 far / lateral), little
+side, so `close` (7) and `far` (8) are their own parts. Modes: A everything, B lick + other, S + side (left / right),
+D + distance (close / far). Side through FR = S - B, distance = D - B. 7 and 8 stay in the lick sum.
