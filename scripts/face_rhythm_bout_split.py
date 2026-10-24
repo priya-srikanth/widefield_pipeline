@@ -16,7 +16,7 @@ ipsi) / (contra + ipsi). Window summaries: PRE -0.5 .. -0.1 s and POST 0 .. +0.5
 
     python scripts/face_rhythm_bout_split.py [--set master_pre_v1] [--jobs 4] [--plot-only]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/asym_aligned/bout_split/``: bout_split.png (animal-mean traces; rows =
-positions, columns = classes, epochs as greys), bout_split_pre_window.png (per-animal PRE-window asymmetry), data/
+positions, columns = classes, epochs in the FR epoch colours), bout_split_pre_window.png (per-animal PRE-window asymmetry), data/
 bout_split_traces.npz (cache; ``--plot-only`` redraws from it), bout_split_windows.csv (per animal x epoch x class x
 position: pre / post asymmetry, n events).
 """
@@ -30,52 +30,37 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+from wfield_local.face_rhythm import face as frface  # noqa: E402
+from wfield_local.face_rhythm import licks as frl  # noqa: E402
 
 FS = 25.0
 LAGS = np.arange(-1.0, 1.0001, 1 / FS)
 PRE_WIN, POST_WIN = (-0.5, -0.1), (0.0, 0.5)
-CLASSES = ("first", "later", "leadin", "carry", "first_late")
-POSITIONS = ("far_L", "close_L", "close_center", "far_center", "close_R", "far_R")   # animal's L = ipsilesional
-EPOCHS = ("pre", "acute", "subacute", "chronic")
-
-
-def bout_classes(L: pd.DataFrame, leadin: float) -> dict[str, np.ndarray]:
-    """Boolean masks over ``L`` (lick table, sorted by time) of the bout onsets in each class."""
-    t = L.daq_on_s.to_numpy(float)
-    gap = np.r_[np.inf, np.diff(t)]                                    # time since the previous lick (any trial)
-    onset = (L.n_in_bout == 1).to_numpy() & np.isfinite(L.t_from_cue.to_numpy(float))
-    on = L[onset]
-    first_bout = on.groupby("cue_idx").bout_idx.transform("min")
-    first = np.zeros(len(L), bool)
-    first[np.flatnonzero(onset)[(on.bout_idx == first_bout).to_numpy()]] = True
-    return {"first": first, "later": onset & ~first, "leadin": onset & (gap >= leadin),
-            "carry": onset & (gap < leadin), "first_late": first & (L.t_from_cue.to_numpy(float) >= 0.6)}
+CLASSES = frl.BOUT_CLASSES
+POSITIONS = frc.POSITIONS                      # animal's L (ipsilesional) -> R (contralesional)
+EPOCHS = frc.EPOCHS
 
 
 def job(item: tuple) -> dict:
     fdir, key, leadin = item
-    import face_rhythm_asym_aligned as faa
-    from wfield_local import face_rhythm_readouts as frr
-    from wfield_local import face_rhythm_validation as frv
     from wfield_local.paths import PathResolver
     fdir = Path(fdir)
-    M = np.load(fdir / "master.npz")
-    comps = M["points_components"].astype(np.float32)
-    contra = M["home"][:, 0] <= float(frr.MASTER_MIDLINE_X)                     # image LEFT = contralesional (cam4)
+    comps, contra = frface.master_points(fdir)                           # image LEFT = contralesional (cam4)
     with np.load(fdir / "proj" / f"{key}.npz", allow_pickle=True) as z:
         animal, date, epoch = str(z["animal"]), str(z["date"]), str(z["epoch"])
         pcs, t = z["points_pc"].astype(np.float32), z["points_t_daq_s"].astype(float)
         cues = z["cue_daq_s"].astype(float)
-    L = frv.lick_table(PathResolver(), animal, date, cues)
-    C = bout_classes(L, leadin)
-    c, i, _ = faa.side_speed(pcs, t, comps, contra)
-    out = {"key": key, "animal": animal, "epoch": epoch, "label": frr._label(animal, date)}
+    L = frl.lick_table(PathResolver(), animal, date, cues)
+    C = frl.bout_classes(L, leadin)
+    c, i, _ = frface.side_speed(pcs, t, comps, contra)
+    out = {"key": key, "animal": animal, "epoch": epoch, "label": frc.label(animal, date)}
     pos = L.position.astype(str).to_numpy()
     for cl, m in C.items():
         for p in POSITIONS:
             ev = L.daq_on_s.to_numpy(float)[m & (pos == p)]
-            out[(cl, p)] = (faa._aligned(t, c, ev, LAGS), faa._aligned(t, i, ev, LAGS), len(ev))
+            out[(cl, p)] = (frface.aligned_mean(t, c, ev, LAGS, FS), frface.aligned_mean(t, i, ev, LAGS, FS), len(ev))
     return out
 
 
@@ -118,8 +103,7 @@ def animal_traces(R: list[dict], min_events: int) -> dict:
     return out
 
 
-def asym(c: np.ndarray, i: np.ndarray) -> np.ndarray:
-    return (c - i) / (c + i)
+asym = frface.asymmetry
 
 
 def win_mean(y: np.ndarray, w: tuple[float, float]) -> float:
@@ -137,7 +121,7 @@ def main(argv=None) -> int:
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import figure_layout, writeguard
-    from wfield_local.epoch_figures import EPOCH_GREY
+    ecol = frc.epoch_colors()        # FR epoch palette (orofacial / 3-D kinematics)
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--set", default=fro.SET)
@@ -172,6 +156,32 @@ def main(argv=None) -> int:
              "post_asym": win_mean(asym(c, i), POST_WIN), "n_sessions": ns, "n_events": ne}
             for (an, ep, cl, p), (c, i, ns, ne) in A.items()]
     T = pd.DataFrame(rows)
+    # LEVEL statistics (Priya 10-24 marks): is the pre-onset asymmetry above / below 0? Per SESSION (split-video halves
+    # averaged) the pre-window asymmetry of its own traces, `analysis_kit.boot_ci` (nested animals -> sessions; a
+    # LEVEL, so boot_ci, not boot_delta); * = 95 % interval excludes 0
+    from wfield_local import analysis_kit as ak
+    sv = {}
+    for r in R:
+        for cl in CLASSES:
+            for p in POSITIONS:
+                c, i, n = r[(cl, p)]
+                if n >= a.min_events:
+                    sv.setdefault((r["epoch"], cl, p, r["animal"], r["label"]), []).append(
+                        win_mean(asym(c, i), PRE_WIN))
+    lv = {}
+    for (ep, cl, p, an, _lab), v in sorted(sv.items()):
+        lv.setdefault((ep, cl, p), {}).setdefault(an, []).append(float(np.nanmean(v)))
+    rng = np.random.default_rng(0)
+    L = []
+    for (ep, cl, p), by in sorted(lv.items()):
+        by = {an: [x for x in v if np.isfinite(x)] for an, v in by.items()}
+        iv = ak.boot_ci({an: v for an, v in by.items() if v}, rng)
+        L.append({"epoch": ep, "class": cl, "position": p, "level": iv.point if iv else np.nan,
+                  "ci_lo": iv.lo if iv else np.nan, "ci_hi": iv.hi if iv else np.nan,
+                  "n_animals": iv.n_animals if iv else 0,
+                  "mark": "*" if iv and (iv.lo > 0 or iv.hi < 0) else ""})
+    L = pd.DataFrame(L)
+    L.to_csv(figure_layout.sidecar_for(out, "bout_split_pre_window_stats", ".csv"), index=False, float_format="%.4g")
     T.to_csv(out / "bout_split_windows.csv", index=False)
     pd.set_option("display.width", 200)
     for p in ("close_R", "far_R", "close_L"):
@@ -181,7 +191,7 @@ def main(argv=None) -> int:
         print(sub.pivot_table(index=["class", "epoch"], columns="animal", values="cell", aggfunc="first")
               .reindex(pd.MultiIndex.from_product([CLASSES, EPOCHS])).to_string())
 
-    # traces: rows = positions, columns = classes; animal mean, epochs in the repo greys
+    # traces: rows = positions, columns = classes; animal mean, epochs in the FR epoch colours
     fig, axs = plt.subplots(len(POSITIONS), len(CLASSES), figsize=(3.2 * len(CLASSES), 2.2 * len(POSITIONS)),
                             sharex=True, sharey=True, squeeze=False)
     for r_i, p in enumerate(POSITIONS[::-1]):
@@ -193,8 +203,8 @@ def main(argv=None) -> int:
                     continue
                 ys = np.array(ys)
                 m, se = np.nanmean(ys, 0), np.nanstd(ys, 0) / np.sqrt(len(ys))
-                ax.plot(LAGS, m, color=EPOCH_GREY[ep], lw=1.3, label=f"{ep} (n={len(ys)})")
-                ax.fill_between(LAGS, m - se, m + se, color=EPOCH_GREY[ep], alpha=0.15, lw=0)
+                ax.plot(LAGS, m, color=ecol[ep], lw=1.3, label=f"{ep} (n={len(ys)})")
+                ax.fill_between(LAGS, m - se, m + se, color=ecol[ep], alpha=0.15, lw=0)
             ax.axhline(0, color="k", lw=0.5)
             ax.axvline(0, color="k", lw=0.5, ls=":")
             ax.axvspan(*PRE_WIN, color="tab:purple", alpha=0.06, lw=0)
@@ -212,7 +222,7 @@ def main(argv=None) -> int:
     frf.save(fig, out / "bout_split.png", f"""Bout-onset-aligned face asymmetry (contra - ipsi) /
 (contra + ipsi) of mean mesh-point speed, split by bout class: first = the trial's first bout; later = later bouts;
 leadin = >= {a.leadin:g} s without a lick before onset; carry = a lick < {a.leadin:g} s before; first_late = first bouts
->= 0.6 s after the cue. Animal means of session means, +- SEM across animals; epochs in grey (light = pre). Purple =
+>= 0.6 s after the cue. Animal means of session means, +- SEM across animals; epochs: pre black, acute pink, subacute gold, chronic teal. Purple =
 pre-onset window {PRE_WIN[0]:+g}..{PRE_WIN[1]:+g} s. > 0 = more contralesional (image-left) movement.""")
     plt.close(fig)
 
@@ -229,7 +239,12 @@ pre-onset window {PRE_WIN[0]:+g}..{PRE_WIN[1]:+g} s. > 0 = more contralesional (
                         ax.plot(x0, s.pre_asym.iloc[0], "o", ms=3, color=config.animal_color()[an])
                 v = T[(T.epoch == ep) & (T["class"] == cl) & (T.position == p)].pre_asym
                 if len(v):
-                    ax.bar(x0, v.mean(), color=EPOCH_GREY[ep], alpha=0.6, width=0.8)
+                    ax.bar(x0, v.mean(), color=ecol[ep], alpha=0.6, width=0.8)
+                    mk = L[(L.epoch == ep) & (L["class"] == cl) & (L.position == p)]
+                    if len(mk) and mk["mark"].iloc[0]:
+                        y = v.max() if v.mean() >= 0 else v.min()
+                        ax.text(x0, y, mk["mark"].iloc[0], ha="center", va="bottom" if v.mean() >= 0 else "top",
+                                fontsize=9)
         ax.axhline(0, color="k", lw=0.5)
         ax.set_xticks([k * (len(EPOCHS) + 1) + 1.5 for k in range(len(CLASSES))], CLASSES, rotation=40, fontsize=7)
         ax.set_title(p)
@@ -241,8 +256,9 @@ pre-onset window {PRE_WIN[0]:+g}..{PRE_WIN[1]:+g} s. > 0 = more contralesional (
                  f"left to right in each group; dots = animals)")
     fig.tight_layout()
     frf.save(fig, out / "bout_split_pre_window.png", """Pre-onset window asymmetry per animal (dots,
-repo animal colours) and the animal mean (bars, epoch greys: pre, acute, subacute, chronic left to right within each
-bout class).""")
+repo animal colours) and the animal mean (bars, epoch colours: pre, acute, subacute, chronic left to right within each
+bout class). * = the level differs from 0: nested animals -> sessions bootstrap 95 % interval of the per-session
+pre-onset asymmetry excludes 0 (`analysis_kit.boot_ci`; data/bout_split_pre_window_stats.csv).""")
     plt.close(fig)
     print(f"-> {out}")
     return 0

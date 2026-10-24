@@ -32,7 +32,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-EPOCHS = ("pre", "acute", "subacute", "chronic")
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+from wfield_local.face_rhythm import stats as frs  # noqa: E402
+
+EPOCHS = frc.EPOCHS
 MIN_EVENTS = 5
 
 
@@ -157,18 +160,20 @@ def main(argv=None) -> int:
             for ep in EPOCHS[1:]:
                 post = {an: list(d[(an_s == an) & (ep_s == ep)]) for an in np.unique(an_s)
                         if ((an_s == an) & (ep_s == ep)).any()}
-                iv = ak.boot_delta(post, pre, rng)
+                iv, draws = ak.boot_delta(post, pre, rng, draws=True)       # same draws as without `draws`
                 per = {an: float(np.mean(v)) for an, v in sorted(post.items())}
                 whole = {an: float(np.nanmean(lg[(an_s == an) & (ep_s == ep)])) for an in per}
                 rows_half.append({"align": al, "position": p, "epoch": ep, **{f"{an}": v for an, v in per.items()},
                                   "contra_minus_ipsi": iv.point if iv else np.nan, "ci_lo": iv.lo if iv else np.nan,
                                   "ci_hi": iv.hi if iv else np.nan,
                                   "excludes_0": bool(iv and (iv.lo > 0 or iv.hi < 0)),
+                                  "p_boot": ak.boot_p(draws) if iv else np.nan,
                                   "n_contra_lower": sum(v < 0 for v in per.values()),
                                   "whole_face_log2": float(np.mean(list(whole.values()))),
                                   "n_whole_lower": sum(v < 0 for v in whole.values())})
     P = pd.DataFrame(rows_patch)
-    H = pd.DataFrame(rows_half)
+    # Priya 10-24 marks: * = interval excludes 0; ** = also Holm over the 6 positions of an alignment x epoch
+    H = frs.add_holm(pd.DataFrame(rows_half), ["align", "epoch"])
     P.to_csv(figure_layout.sidecar_for(out, "patch_stats", ".csv"), index=False, float_format="%.4g")
     H.to_csv(figure_layout.sidecar_for(out, "halves_stats", ".csv"), index=False, float_format="%.4g")
     pd.set_option("display.width", 220)
@@ -199,7 +204,7 @@ def main(argv=None) -> int:
                     ax.set_aspect("equal")
                     h = H[(H["align"] == al) & (H.position == p) & (H.epoch == ep)].iloc[0]
                     ax.set_title(f"{p} -- {ep}\nwhole {h.whole_face_log2:+.2f} ({int(h.n_whole_lower)}/4 down); "
-                                 f"C-I {h.contra_minus_ipsi:+.2f}{'*' if h.excludes_0 else ''}", fontsize=8)
+                                 f"C-I {h.contra_minus_ipsi:+.2f}{h['mark']}", fontsize=8)
             if sc is not None:
                 fig.colorbar(sc, ax=axs, shrink=0.3, label="log2(epoch / pre), mean of animals")
             fig.suptitle(f"{a.set}: face movement per spout position, {al}-aligned ({win[0]:+g}..{win[1]:+g} s) vs pre")
@@ -212,7 +217,8 @@ border of the face PATCHES ({a.grid[0]} columns per half mirrored about the midl
 points each) whose change vs pre has a paired animals -> sessions bootstrap 95 % interval ({a.patch_boot} draws)
 excluding 0 AND the same sign in all four animals (many patches tested: a map of consistency, not of independent
 discoveries; the colour gives the sign). Panel titles: whole-face mean log2 change (animals lower than pre) and the
-CONTRA - IPSI half difference of the change with its bootstrap (* = interval excludes 0). Data: data/patch_stats.csv,
+CONTRA - IPSI half difference of the change with its bootstrap (* = interval excludes 0; ** = also Holm over the 6
+positions). Data: data/patch_stats.csv,
 data/halves_stats.csv.""")
 
             fig, axs = frf.subplots(1, len(positions), figsize=(3.0 * len(positions), 3.8), squeeze=False, sharey=True)
@@ -227,15 +233,16 @@ data/halves_stats.csv.""")
                 ax.errorbar(x, np.nanmean(vals, 1), yerr=np.nanstd(vals, 1, ddof=1) / np.sqrt(np.isfinite(vals).sum(1)),
                             fmt="o", color="k", capsize=3, ms=5)
                 ax.axhline(0, color="k", lw=0.5)
-                ax.set_xticks(x, [f"{e[:5]}\n{r.contra_minus_ipsi:+.2f}{'*' if r.excludes_0 else ''}\n"
+                ax.set_xticks(x, [f"{e[:5]}\n{r.contra_minus_ipsi:+.2f}{r['mark']}\n"
                                   f"{int(r.n_contra_lower)}/4 C<I" for e, r in hh.iterrows()], fontsize=7)
                 ax.set_title(p, fontsize=9)
             axs[0, 0].set_ylabel("contra - ipsi log2 change")
             fig.suptitle(f"{a.set}: is the contralesional half's change larger? ({al}-aligned)")
             frf.save(fig, out / f"halves_{al}.png", f"""
 Per session: mean log2 change vs the animal's pre of the CONTRALESIONAL half of the face minus that of the IPSILESIONAL
-half ({al}-aligned window); per animal epoch means (grey), mean +- SEM across animals (black); under each epoch the
-paired animals -> sessions bootstrap of the change vs pre (* = 95 % interval excludes 0) and how many animals have the
+half ({al}-aligned window); per animal epoch means (repo animal colours), mean +- SEM across animals (black); under each epoch the
+paired animals -> sessions bootstrap of the change vs pre (* = 95 % interval excludes 0; ** = also significant after
+Holm over the 6 positions of this alignment x epoch, bootstrap p from the same draws) and how many animals have the
 contralesional half changing more negatively (C<I). Negative = the contralesional half lost more movement.""")
     print("->", out)
     return 0

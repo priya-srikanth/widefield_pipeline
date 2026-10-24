@@ -186,8 +186,8 @@ def main(argv=None) -> int:
         print("failed:", [f[0] for f in fail])
 
     animals = sorted(S.animal.unique())
-    from wfield_local.epoch_figures import EPOCH_GREY
-    col = dict(EPOCH_GREY)           # the repo's epoch grey ramp (pre light -> chronic dark); animals own the colours
+    from wfield_local.face_rhythm import common as frc
+    col = frc.epoch_colors()         # FR epoch palette (orofacial / 3-D kinematics); animals own `animal_colors`
     with frf.style():
         fig, axs = frf.subplots(3, 2 * len(animals), figsize=(4 * 2 * len(animals), 9), squeeze=False, sharex=True)
         for j, an in enumerate(animals):

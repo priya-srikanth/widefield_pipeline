@@ -87,7 +87,8 @@ def main(argv=None) -> int:
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import face_rhythm_readouts as frr
     from wfield_local import figure_layout, writeguard
-    from wfield_local.epoch_figures import EPOCH_GREY
+    from wfield_local.face_rhythm import common as frc
+    ecol = frc.epoch_colors()        # FR epoch palette (orofacial / 3-D kinematics)
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--set", default=fro.SET)
@@ -176,7 +177,7 @@ def main(argv=None) -> int:
                 t = T[(T.quantity == q) & (T.state == st) & (T.epoch == ep)]
                 if len(t):
                     ax.errorbar(e, t.point.iloc[0], yerr=[[t.point.iloc[0] - t.lo.iloc[0]], [t.hi.iloc[0] - t.point.iloc[0]]],
-                                fmt="s", color=EPOCH_GREY[ep], mec="k", ms=5, capsize=2)
+                                fmt="s", color=ecol[ep], mec="k", ms=5, capsize=2)
             ax.axhline(0, color="k", lw=0.5)
             ax.set_xticks(range(len(EPOCHS)), EPOCHS, fontsize=7)
             if r_i == 0:
@@ -187,7 +188,7 @@ def main(argv=None) -> int:
     frf.save(fig, out / "nontask_state.png", f"""Between-trial (cue -3..+6 s excluded) absolute factor expression per
 behavioural state (DAQ behaviour events: running bouts, rest mask, grooming), log2 vs the animal's pre sessions. Dots =
 animals (repo colours), squares = `boot_delta` point estimate and 95 % interval (paired animals -> sessions; epoch
-greys). Cells with < {a.min_bins} bins per session skipped. lick / nontask = summed lick / other factors (fr_groups
+colours). Cells with < {a.min_bins} bins per session skipped. lick / nontask = summed lick / other factors (fr_groups
 lick split, as 6d).""")
 
     fig, axs = frf.subplots(1, 4, figsize=(12, 3), sharey=True, squeeze=False)
@@ -199,13 +200,13 @@ lick split, as 6d).""")
             for an, v in per.items():
                 ax.plot(e + rng.uniform(-0.12, 0.12), v, "o", ms=4, color=config.animal_color()[an], label=an if e == 0 else None)
             if len(per):
-                ax.bar(e, per.mean(), color=EPOCH_GREY[ep], alpha=0.6)
+                ax.bar(e, per.mean(), color=ecol[ep], alpha=0.6)
         ax.set_xticks(range(len(EPOCHS)), EPOCHS, fontsize=8)
         ax.set_title(st)
     axs[0, 0].set_ylabel("fraction of between-trial time")
     axs[0, -1].legend(fontsize=7, frameon=False)
     frf.save(fig, out / "nontask_occupancy.png", """Fraction of between-trial time in each behavioural state, per
-animal (dots) and mean of animals (bars, epoch greys).""")
+animal (dots) and mean of animals (bars, FR epoch colours).""")
     print(f"-> {out}")
     return 0
 

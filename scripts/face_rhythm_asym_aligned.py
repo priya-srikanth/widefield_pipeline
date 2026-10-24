@@ -16,10 +16,14 @@ Per session: mean contra and ipsi speed traces per position; per animal x epoch:
 lick -0.1 .. +0.2 s, bout 0 .. +0.5 s. The same windows give PER-POINT mean speed maps per session x alignment x
 position, cached in data/aligned_point_maps.npz for `face_rhythm_aligned_maps.py` (maps + patch statistics).
 
-    python scripts/face_rhythm_asym_aligned.py [--set master_pre_v1] [--jobs 3]
+    python scripts/face_rhythm_asym_aligned.py [--set master_pre_v1] [--jobs 3] [--plot-only]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/asym_aligned/``: asym_aligned_epochs.csv (per animal x epoch x position x
 alignment: window asymmetry, contra, ipsi), asym_aligned_traces.png (animal-mean traces, rows = positions, epochs as
-colours), asym_aligned_by_animal.png (window asymmetry, per animal: positions x epochs).
+colours; each panel lists the change vs pre with its mark), asym_aligned_by_animal.png (window asymmetry, per animal:
+positions x epochs), asym_aligned_change.png + data/asym_aligned_stats.csv (Priya 10-24 statistics: per session the
+window asymmetry minus the animal's pre mean, `boot_delta` per alignment x position x epoch; * = 95 % interval
+excludes 0, ** = also Holm over the 6 positions of an alignment x epoch). data/asym_traces.pkl = the per-session
+traces (``--plot-only`` redraws everything from it; the per-point maps cache is written only by a full run).
 """
 from __future__ import annotations
 
@@ -32,6 +36,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+from wfield_local.face_rhythm import face as frface  # noqa: E402
+from wfield_local.face_rhythm import stats as frs  # noqa: E402
+
 FS = 25.0
 CUE_LAGS = np.arange(-2.0, 4.0001, 1 / FS)
 LICK_LAGS = np.arange(-0.5, 0.5001, 1 / FS)
@@ -39,69 +47,31 @@ BOUT_LAGS = np.arange(-0.5, 2.0001, 1 / FS)
 CUE_WIN, LICK_WIN, BOUT_WIN = (0.0, 2.0), (-0.1, 0.2), (0.0, 0.5)
 ALIGN = {"cue": (CUE_LAGS, CUE_WIN, "s from cue"), "lick": (LICK_LAGS, LICK_WIN, "s from lick onset"),
          "bout": (BOUT_LAGS, BOUT_WIN, "s from bout onset (first lick)")}
-POSITIONS = ("far_L", "close_L", "close_center", "far_center", "close_R", "far_R")   # animal's L = ipsilesional
-EPOCHS = ("pre", "acute", "subacute", "chronic")
-CHUNK = 20000
+POSITIONS = frc.POSITIONS                      # animal's L (ipsilesional) -> R (contralesional)
+EPOCHS = frc.EPOCHS
 
 
-def side_speed(pcs: np.ndarray, t: np.ndarray, comps: np.ndarray, contra: np.ndarray,
-               W: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
-    """(contra, ipsi) mean point speed per frame (px / s) from the frozen point PCs. ``comps`` (k, 2P) on the INTERLEAVED
-    (x0, y0, x1, y1, ...) displacement layout of `points_stream`; ``contra`` (P,) bool. ``W`` (frames, m) event weights
-    (how many events' windows cover each frame) -> also (P, m) per-point weighted SUMS of speed (NaN frames skipped)."""
-    dt = np.diff(t)
-    c = np.full(len(t), np.nan, np.float32)
-    i = np.full(len(t), np.nan, np.float32)
-    P = comps.shape[1] // 2
-    S = np.zeros((P, W.shape[1])) if W is not None else None
-    for c0 in range(1, len(t), CHUNK):
-        c1 = min(c0 + CHUNK, len(t))
-        dv = (pcs[c0:c1] - pcs[c0 - 1:c1 - 1]) / dt[c0 - 1:c1 - 1, None]          # PC velocity
-        v = (dv @ comps).reshape(-1, P, 2)
-        sp = np.sqrt((v ** 2).sum(-1))                                           # (frames, P)
-        c[c0:c1] = sp[:, contra].mean(1)
-        i[c0:c1] = sp[:, ~contra].mean(1)
-        if W is not None:
-            ok = np.isfinite(sp).all(1)
-            S += sp[ok].T.astype(np.float64) @ W[c0:c1][ok]
-    return c, i, S
-
-
-def window_weights(t: np.ndarray, ev: np.ndarray, win: tuple[float, float], ok: np.ndarray) -> np.ndarray:
-    """Per frame: how many events' [ev + win] windows cover it (frames with NaN speed, ``~ok``, get 0) -- so a weighted
-    mean over frames is the mean over events of each event's window mean (overlapping lick windows count per lick)."""
-    w = np.zeros(len(t) + 1)
-    np.add.at(w, np.searchsorted(t, ev + win[0]), 1)
-    np.add.at(w, np.searchsorted(t, ev + win[1], side="right"), -1)
-    return np.cumsum(w)[:-1] * ok
+# speed reconstruction, event weights and event alignment: `wfield_local.face_rhythm.face` (shared with the
+# aligned-map and bout-split readouts; kept as names here so `face_rhythm_asym_aligned.side_speed` still resolves)
+side_speed = frface.side_speed
+window_weights = frface.window_weights
 
 
 def _aligned(t: np.ndarray, y: np.ndarray, ev: np.ndarray, lags: np.ndarray) -> np.ndarray:
-    """Mean over events of ``y`` at the nearest frame to event + lag (NaN off the recording)."""
-    if not len(ev):
-        return np.full(len(lags), np.nan)
-    q = ev[:, None] + lags[None]
-    k = np.clip(np.searchsorted(t, q), 1, len(t) - 1)
-    k = np.where(np.abs(t[k - 1] - q) < np.abs(t[k] - q), k - 1, k)
-    out = y[k].astype(float)
-    out[np.abs(t[k] - q) > 1.5 / FS] = np.nan
-    return np.nanmean(out, 0)
+    return frface.aligned_mean(t, y, ev, lags, FS)
 
 
 def job(item: tuple) -> dict:
     fdir, key = item
-    from wfield_local import face_rhythm_readouts as frr
-    from wfield_local import face_rhythm_validation as frv
+    from wfield_local.face_rhythm import licks
     from wfield_local.paths import PathResolver
     fdir = Path(fdir)
-    M = np.load(fdir / "master.npz")
-    comps = M["points_components"].astype(np.float32)
-    contra = M["home"][:, 0] <= float(frr.MASTER_MIDLINE_X)                     # image LEFT = contralesional (cam4)
+    comps, contra = frface.master_points(fdir)                           # image LEFT = contralesional (cam4)
     with np.load(fdir / "proj" / f"{key}.npz", allow_pickle=True) as z:
         animal, date, epoch = str(z["animal"]), str(z["date"]), str(z["epoch"])
         pcs, t = z["points_pc"].astype(np.float32), z["points_t_daq_s"].astype(float)
         cues, pos = z["cue_daq_s"].astype(float), z["position"].astype(str)
-    L = frv.lick_table(PathResolver(), animal, date, cues)
+    L = licks.lick_table(PathResolver(), animal, date, cues)
     L = L[np.isfinite(L.t_from_cue)]
     events = {}
     for p in POSITIONS:
@@ -114,7 +84,7 @@ def job(item: tuple) -> dict:
     W = np.column_stack([window_weights(t, events[k], ALIGN[k[0]][1], okf) for k in cols])
     c, i, Ssum = side_speed(pcs, t, comps, contra, W)
     wsum = W.sum(0)
-    out = {"key": key, "animal": animal, "date": date, "epoch": epoch, "label": frr._label(animal, date)}
+    out = {"key": key, "animal": animal, "date": date, "epoch": epoch, "label": frc.label(animal, date)}
     for j, (al, p) in enumerate(cols):
         ev, lags = events[(al, p)], ALIGN[al][0]
         out[(al, p)] = (_aligned(t, c, ev, lags), _aligned(t, i, ev, lags), len(ev))
@@ -136,6 +106,7 @@ def main(argv=None) -> int:
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--min-events", type=int, default=5, help="per session x position, else that cell is skipped")
+    ap.add_argument("--plot-only", action="store_true", help="redraw from data/asym_traces.pkl, no recompute")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
     rv = PathResolver()
@@ -145,18 +116,26 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     M = np.load(fdir / "master.npz")
     print(f"point PCs carry {100 * float(np.sum(M['points_explained'])):.1f} % of point displacement variance")
-    keys = sorted(f.stem for f in (fdir / "proj").glob("*.npz") if not f.name.endswith(".part.npz"))
-    got, fail = ak.fan_sessions([(str(fdir), k) for k in keys], job, jobs=a.jobs, key=lambda it: it[1], label="asym")
-    R = [r for _, r in got]
-    # per-point window maps for `face_rhythm_aligned_maps.py`: (sessions, alignments, positions, P) + event counts
-    aligns = tuple(ALIGN)
-    maps = np.stack([[[r[("map", al, p)] for p in POSITIONS] for al in aligns] for r in R]).astype(np.float32)
-    counts = np.array([[[r[(al, p)][2] for p in POSITIONS] for al in aligns] for r in R])
-    np.savez(figure_layout.sidecar_for(out, "aligned_point_maps", ".npz"), maps=maps, counts=counts,
-             key=np.array([r["key"] for r in R]), label=np.array([r["label"] for r in R]),
-             animal=np.array([r["animal"] for r in R]), epoch=np.array([r["epoch"] for r in R]),
-             aligns=np.array(aligns), positions=np.array(POSITIONS),
-             windows=np.array([ALIGN[al][1] for al in aligns]), home=M["home"])
+    tcache = figure_layout.sidecar_for(out, "asym_traces", ".pkl")
+    fail = []
+    if a.plot_only:
+        R = pd.read_pickle(tcache)
+    else:
+        keys = frc.session_keys(fdir)
+        got, fail = ak.fan_sessions([(str(fdir), k) for k in keys], job, jobs=a.jobs, key=lambda it: it[1],
+                                    label="asym")
+        R = [r for _, r in got]
+        # per-point window maps for `face_rhythm_aligned_maps.py`: (sessions, alignments, positions, P) + event counts
+        aligns = tuple(ALIGN)
+        maps = np.stack([[[r[("map", al, p)] for p in POSITIONS] for al in aligns] for r in R]).astype(np.float32)
+        counts = np.array([[[r[(al, p)][2] for p in POSITIONS] for al in aligns] for r in R])
+        np.savez(figure_layout.sidecar_for(out, "aligned_point_maps", ".npz"), maps=maps, counts=counts,
+                 key=np.array([r["key"] for r in R]), label=np.array([r["label"] for r in R]),
+                 animal=np.array([r["animal"] for r in R]), epoch=np.array([r["epoch"] for r in R]),
+                 aligns=np.array(aligns), positions=np.array(POSITIONS),
+                 windows=np.array([ALIGN[al][1] for al in aligns]), home=M["home"])
+        R = [{k: v for k, v in r.items() if not (isinstance(k, tuple) and k[0] == "map")} for r in R]
+        pd.to_pickle(R, tcache)
 
     # per animal x epoch x alignment x position: mean of SESSION traces (a split video, PS92_0812 v1 / v2, is one
     # session: its two halves averaged first)
@@ -168,9 +147,27 @@ def main(argv=None) -> int:
                 if n < a.min_events:
                     continue
                 acc.setdefault((r["animal"], r["epoch"], al, p, r["label"]), []).append((cc, ii))
-    sess = {}
-    for (an, ep, al, p, _lab), v in acc.items():
-        sess.setdefault((an, ep, al, p), []).append((np.nanmean([x[0] for x in v], 0), np.nanmean([x[1] for x in v], 0)))
+    sess, srows = {}, []
+    for (an, ep, al, p, lab), v in acc.items():
+        cc, ii = np.nanmean([x[0] for x in v], 0), np.nanmean([x[1] for x in v], 0)
+        sess.setdefault((an, ep, al, p), []).append((cc, ii))
+        lags, win = ALIGN[al][0], ALIGN[al][1]
+        w = (lags >= win[0]) & (lags <= win[1])
+        cw, iw = float(np.nanmean(cc[w])), float(np.nanmean(ii[w]))
+        srows.append({"animal": an, "epoch": ep, "label": lab, "align": al, "position": p, "asym": (cw - iw) / (cw + iw)})
+    # STATISTICS (Priya 10-24): per SESSION the window asymmetry minus the mean of the animal's pre sessions (same
+    # alignment x position), change vs pre by `boot_delta`; Holm over the 6 positions of each alignment x epoch
+    Ss = pd.DataFrame(srows).sort_values(["align", "position", "animal", "label"], kind="stable")
+    Ss["rel"] = Ss.asym - Ss.groupby(["animal", "align", "position"]).asym.transform(
+        lambda x: x[Ss.loc[x.index, "epoch"] == "pre"].mean())
+    rng = np.random.default_rng(0)
+    st = []
+    for al in ALIGN:
+        for p in POSITIONS:
+            d = Ss[(Ss["align"] == al) & (Ss.position == p)]
+            st += [{"align": al, "position": p, **r} for r in frs.epoch_change(d, "rel", rng)]
+    ST = frs.add_holm(pd.DataFrame(st), ["align", "epoch"])
+    ST.to_csv(figure_layout.sidecar_for(out, "asym_aligned_stats", ".csv"), index=False, float_format="%.4g")
     rows, traces = [], {}
     for (an, ep, al, p), v in sess.items():
         cc, ii = np.nanmean([x[0] for x in v], 0), np.nanmean([x[1] for x in v], 0)
@@ -193,10 +190,12 @@ def main(argv=None) -> int:
                                               observed=True).round(3).to_string())
     if fail:
         print("failed:", [f[0] for f in fail])
+    print("\nCHANGE vs pre of the window asymmetry (per animal first, rule 8; then boot_delta, Holm over positions)")
+    print(ST[["align", "position", "epoch", *sorted(Ss.animal.unique()), "delta", "ci_lo", "ci_hi", "p_holm",
+              "mark"]].round(3).to_string(index=False))
 
     animals = sorted(E.animal.unique())
-    from wfield_local.epoch_figures import EPOCH_GREY
-    ecol = dict(EPOCH_GREY)          # the repo's epoch grey ramp (pre light -> chronic dark); animals own the colours
+    ecol = frc.epoch_colors()        # FR epoch palette (orofacial / 3-D kinematics); animals own `animal_colors`
     with frf.style():
         fig, axs = frf.subplots(len(POSITIONS), 3, figsize=(16, 2.4 * len(POSITIONS)), squeeze=False, sharey=True)
         for r_i, p in enumerate(POSITIONS):
@@ -208,7 +207,12 @@ def main(argv=None) -> int:
                         ax.plot(lags, np.nanmean(tr, 0), color=ecol[ep], lw=1.3, label=f"{ep} ({len(tr)} animals)")
                 ax.axhline(0, color="k", lw=0.5)
                 ax.axvline(0, color="k", lw=0.5)
+                ax.axvspan(*ALIGN[al][1], color="0.92", zorder=0, lw=0)
                 ax.set_title(f"{p}: {al}-aligned", fontsize=9)
+                tt = ST[(ST["align"] == al) & (ST.position == p)].set_index("epoch")
+                ax.text(0.99, 0.03, "change vs pre: " + "  ".join(
+                    f"{e[:3]} {tt.loc[e, 'delta']:+.2f}{tt.loc[e, 'mark']}" for e in EPOCHS[1:] if e in tt.index),
+                    transform=ax.transAxes, ha="right", va="bottom", fontsize=7)
                 if c_i == 0:
                     ax.set_ylabel("(contra - ipsi) / sum")
         for c_i, (_, _, xl) in enumerate(ALIGN.values()):
@@ -222,7 +226,10 @@ traces around engaged-trial CUES (left), LP LICK onsets within engaged trials (m
 the first lick of each bout, -0.5..+2 s), per spout position
 (rows; the animal's L = ipsilesional, R = contralesional spouts); per animal x epoch the mean over sessions; drawn: the
 mean over animals of (contra - ipsi) / (contra + ipsi). > 0 = more contralesional movement. Sessions with < {a.min_events}
-events at a position skipped there. Per-animal values: asym_aligned_by_animal.png / data/asym_aligned_epochs.csv.""")
+events at a position skipped there. Grey band: the summary window. Bottom right of each panel: change of the window
+asymmetry vs pre (per session minus the animal's pre mean; `analysis_kit.boot_delta`, paired animals -> sessions);
+* = 95 % interval excludes 0, ** = also Holm over the 6 positions of that alignment x epoch. Per-animal values:
+asym_aligned_by_animal.png / data/asym_aligned_epochs.csv; statistics data/asym_aligned_stats.csv.""")
 
         fig, axs = frf.subplots(len(ALIGN), len(animals), figsize=(3.6 * len(animals) + 1, 3.8 * len(ALIGN)), squeeze=False)
         vmax = float(np.nanpercentile(np.abs(E.asym), 98)) or 0.1
@@ -246,6 +253,38 @@ Window asymmetry (contra - ipsi) / (contra + ipsi) of the mean point speed on ea
 x spout position (rows) x epoch, CUE-aligned (cue 0..+2 s, engaged trials), LICK-aligned (lick onset -0.1..+0.2 s, LP
 licks inside engaged trials, per lick) and BOUT-onset-aligned (first lick of a bout, 0..+0.5 s). Red = more
 contralesional movement. Rule 8: read per animal.""")
+        # the change, per position: per-animal epoch means (dots) + boot_delta point and interval, marks
+        fig, axs = frf.subplots(1, len(ALIGN), figsize=(5.2 * len(ALIGN), 4.2), squeeze=False, sharey=True)
+        acol = frc.animal_colors()
+        for c_i, al in enumerate(ALIGN):
+            ax = axs[0, c_i]
+            for j, p in enumerate(POSITIONS):
+                for e_i, ep in enumerate(EPOCHS[1:]):
+                    x0 = j + (e_i - 1) * 0.25
+                    r = ST[(ST["align"] == al) & (ST.position == p) & (ST.epoch == ep)]
+                    if r.empty:
+                        continue
+                    r = r.iloc[0]
+                    for an in animals:
+                        if an in r and np.isfinite(r[an]):
+                            ax.plot(x0, r[an], ".", color=acol.get(an, "0.5"), ms=4, alpha=0.8)
+                    if np.isfinite(r.delta):
+                        ax.errorbar(x0, r.delta, yerr=[[r.delta - r.ci_lo], [r.ci_hi - r.delta]], fmt="s",
+                                    color=ecol[ep], mec="k", ms=5, capsize=2, label=ep if j == 0 else None)
+                        ax.text(x0, r.ci_hi, r.mark, ha="center", va="bottom", fontsize=9)
+            ax.axhline(0, color="k", lw=0.5)
+            ax.set_xticks(range(len(POSITIONS)), POSITIONS, rotation=30, fontsize=8)
+            ax.set_title(f"{al}-aligned ({ALIGN[al][1][0]:+g}..{ALIGN[al][1][1]:+g} s)", fontsize=10)
+        axs[0, 0].set_ylabel("change of (contra - ipsi) / sum vs pre")
+        frf.legend_outside(axs[0, -1])
+        fig.suptitle(f"{fdir.name}: change of face asymmetry vs pre, per spout position (< 0 = less contralesional)")
+        frf.save(fig, out / "asym_aligned_change.png", """
+Per session, the window asymmetry (contra - ipsi) / (contra + ipsi) of the mean point speed (cue 0..+2 s; each lick
+-0.1..+0.2 s; bout onset 0..+0.5 s), minus the mean of the animal's pre-stroke sessions. Dots: per-animal epoch means
+(repo animal colours); squares: `analysis_kit.boot_delta` change vs pre and its 95 % interval (paired animals ->
+sessions, animal-weighted; FR epoch colours acute / subacute / chronic left to right). * = interval excludes 0; ** =
+also significant after Holm over the 6 positions of that alignment x epoch. Negative = the face moves relatively less on
+the contralesional side than before the stroke. The animal's R spouts are contralesional (all lesions left).""")
     print("->", out)
     return 0
 

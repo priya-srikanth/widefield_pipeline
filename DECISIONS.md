@@ -21963,3 +21963,20 @@ is expressed relative to the cue. Factor angles / shape change stay SECONDARY (i
 per-epoch fits are the cleaner test). Correction recorded with it: the face-mesh result "whole face ~0 per lick" does
 NOT mean "fewer licks, not smaller licks" -- DLC / LP kinematics show slower, shorter acute licks; the mesh speed window
 is not sensitive to tongue extent or lick rate (FINDINGS 5f).
+
+## 2026-10-24 -- FaceRhythm figures: epoch colours and significance marks (Priya)
+
+* EPOCH COLOURS: every FR figure uses the orofacial / 3-D kinematics line palette (`orofacial_cohort.EPOCH_LINE`: pre
+  black, acute pink, subacute goldenrod, chronic teal), through `wfield_local.face_rhythm.common.epoch_colors()`. It
+  replaces the epoch grey ramp (`epoch_figures.EPOCH_GREY`), which made overlaid traces hard to tell apart (Priya,
+  FINDINGS 5e / 5f traces). Animals keep `config.animal_color()`.
+* MARKS: `*` = the 95 % interval of the change vs pre (`analysis_kit.boot_delta`, paired animals -> sessions)
+  excludes 0; `**` = also significant after Holm over the family the figure tests at once (12 factors per epoch x
+  trial group in the survey, timing and per-lick figures; 6 positions per alignment x epoch for the face-half and
+  asymmetry figures). The Holm p is the two-sided bootstrap p of the SAME draws (`boot_delta(..., draws=True)`,
+  `analysis_kit.boot_p` / `holm`): `draws=True` changes nothing about the draw, so every published interval is
+  unchanged (pinned tests). At n = 4 the bootstrap p is crude (the outer draw has 256 animal combinations); it ranks and
+  corrects tests, it is not quoted as an exact probability. Planned contrasts (lick_right on contralesional-spout trials,
+  licks per trial, first-lick latency) carry `*` only. LEVELS (is a quantity above 0, e.g. pre-onset asymmetry) use
+  `boot_ci`, not `boot_delta`.
+

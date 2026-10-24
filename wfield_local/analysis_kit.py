@@ -128,8 +128,12 @@ def boot_ci(by_animal, rng, n_boot: int = N_BOOT):
                     float(np.percentile(o, PCTL[1])), len(animals))
 
 
-def boot_delta(post, pre, rng, n_boot: int = N_BOOT):
+def boot_delta(post, pre, rng, n_boot: int = N_BOOT, draws: bool = False):
     """Paired animals -> sessions bootstrap of ``post - pre``. ``Interval`` or None.
+
+    ``draws=True`` returns ``(Interval or None, the bootstrap draws)`` instead -- for a p-value / multiple-comparison
+    correction from the SAME draws (`boot_p`). It changes nothing about the draw itself: same rng sequence, same
+    interval.
 
     **THE ANIMALS ARE RESAMPLED ONCE AND THE SAME DRAW IS USED FOR BOTH ARMS**, which is what
     makes it paired: each animal is its own pre-stroke control, so between-animal variance -- the
@@ -152,7 +156,7 @@ def boot_delta(post, pre, rng, n_boot: int = N_BOOT):
     """
     animals = sorted(set(post) & set(pre))
     if not animals:
-        return None
+        return (None, np.array([])) if draws else None
     obs = float(np.mean([float(np.mean(post[a])) - float(np.mean(pre[a])) for a in animals]))
     out = []
     for _ in range(n_boot):
@@ -164,10 +168,34 @@ def boot_delta(post, pre, rng, n_boot: int = N_BOOT):
         if d:
             out.append(float(np.mean(d)))
     if len(out) < n_boot // 4:
-        return None
+        return (None, np.asarray(out)) if draws else None
     o = np.asarray(out)
-    return Interval(obs, float(np.percentile(o, PCTL[0])), float(np.percentile(o, PCTL[1])),
-                    len(animals))
+    iv = Interval(obs, float(np.percentile(o, PCTL[0])), float(np.percentile(o, PCTL[1])), len(animals))
+    return (iv, o) if draws else iv
+
+
+def boot_p(o) -> float:
+    """Two-sided bootstrap p of a change from its `boot_delta(..., draws=True)` draws: twice the smaller share of draws
+    on either side of 0, floored at 1 / len(draws). CRUDE at n = 4 animals (the outer draw has 4^4 = 256 animal
+    combinations): use it to RANK and CORRECT tests (`holm`), not as an exact probability."""
+    o = np.asarray(o, float)
+    if not len(o):
+        return float("nan")
+    return float(min(1.0, max(2 * min(np.mean(o <= 0), np.mean(o >= 0)), 1.0 / len(o))))
+
+
+def holm(p) -> np.ndarray:
+    """Holm-Bonferroni adjusted p-values (family-wise error) for a family of tests; NaN stays NaN."""
+    p = np.asarray(p, float)
+    ok = np.isfinite(p)
+    out = np.full(len(p), np.nan)
+    q = p[ok]
+    o = np.argsort(q)
+    adj = np.minimum(1.0, np.maximum.accumulate((len(q) - np.arange(len(q))) * q[o]))
+    r = np.empty(len(q))
+    r[o] = adj
+    out[ok] = r
+    return out
 
 
 def boot_delta_pairs(pairs, rng, n_boot: int = N_BOOT):
