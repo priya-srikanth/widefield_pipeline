@@ -21952,7 +21952,6 @@ reconstruction error at push onsets is LOWER than at random times in 27 / 32 ani
 chronic cell, although pushes are 2-4x more frequent chronically. The pre-only master stays; pushes remain a treadmill
 regressor. Revisit only if a post-only fit matched to the master (`face_rhythm_match.py`) leaves an unmatched factor.
 
-<<<<<<< HEAD
 ## 2026-10-24 -- FaceRhythm framing (Priya)
 
 Story order for the FaceRhythm results: (1) the acute deficit that confirms what we know -- the contralesional (right)
@@ -21981,7 +21980,6 @@ is not sensitive to tongue extent or lick rate (FINDINGS 5f).
   licks per trial, first-lick latency) carry `*` only. LEVELS (is a quantity above 0, e.g. pre-onset asymmetry) use
   `boot_ci`, not `boot_delta`.
 
-=======
 ## 2026-10-24 (late afternoon) -- Layer 2 claim withdrawn pending a like-for-like null; final-frame downstream done
 
 The final-frame Layer 2 rerun (`allsession_encoder_v7g3_t3d`) printed, and the 10-23 run already contained, the PRE
@@ -21991,4 +21989,3 @@ kernels, so the comparison was not like-for-like. FINDINGS Layer 2 marked CORREC
 reference with a matched null. Relabel in the final frame reproduces the 10-24 heterogeneous pattern (PS95 far mid,
 PS93 stays far contra, PS92 / PS94 nonspecific); validation 1.0 in all animals and windows. Basis maps + pixel / r2 /
 spout figures written under `frozen_encoder_gate-attempted_v7g3_t3d_basis`.
->>>>>>> 7979e7c (FINDINGS / DECISIONS: Layer 2 drift-null comparison not like-for-like (pre epoch's own change gain = post's) -> claim withdrawn pending a pre-referenced redesign)
