@@ -108,6 +108,12 @@ master_pre_v1 (four animals). Figure: `<bundle>/factors/pilot_pre_PS92_PS93/repo
 
 ## 3. The pre-stroke noise floor (STANDS for PS92 + PS93)
 
+**MASTER rank 12, all four animals (10-24, `loso/rank12_<day>.json`, 31 pre days):** a pre-stroke day scored on the fit
+that left it out explains .768-.820 (PS92 .795-.820, PS93 .768-.805, PS94 .784-.817, PS95 .796-.812); in fit .778-.822.
+Leaving a day out costs at most .010 EVR (median ~.004; PS93_0814, the largest left-out day, the most) -> the master
+is not fitted to any one day, and ~.80 is the pre-stroke level a post session is read against. Factor similarity of
+the day-out refits to the full fit .87-1.00: the rank-12 start-to-start level (stability .91), not day-specific factors.
+
 Leaving one pre-stroke DAY out of the fit costs <= 0.01 EVR on that day's session rows: PS92 held-out median 0.798
 (0.788-0.815) vs in-fit 0.805, gap median 0.006 (max 0.009); PS93 0.805 (0.773-0.813) vs 0.804, gap 0.001 (max 0.004);
 held-out factors match the full fit (similarity 0.84-1.00). Moving between ANIMALS costs ~0.10 EVR (fit one, project
