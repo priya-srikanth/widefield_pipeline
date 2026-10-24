@@ -462,7 +462,7 @@ probability of the true spout (chance .167); within-session permutation contrast
   movement-matched comparison (failed far-contra attempts vs pre-stroke / acute licks with the same 3-D landing).
   The per-spout projection (`own`) is unstable post-stroke (see module docstring) and is not used.
 
-### 2.9 What failed attempts look like (trial-type maps) — FIRST RUN 10-24: same bilateral pattern at lower amplitude (3/4); acute hits full-size
+### 2.9 What failed attempts look like (trial-type maps) — FIRST RUN 10-24: same bilateral pattern; lower amplitude vs hits (3/4) but NOT vs touch-matched pre-stroke misses (2/4)
 
 `wfield_local/attempt_maps.py` (goal-question item 4): 15r's rest-referenced maps split by video class, per animal,
 session-weighted means (>= 5 trials per session x spout x class). `E/attempt_maps/` (`maps_*.npz`, `counts_*`,
@@ -478,10 +478,16 @@ mask in each half, / the same animal's pre-stroke far-contra hits (ipsi | contra
   PS92 / PS93 (1.35 | 2.12, 1.11 | 1.13) -- read with the late-start caveat (acute PS92 / PS93 far-contra licks start
   > 1.5 s after the cue on 35-38 % of trials, so much of the cue window precedes the failed lick); stopped trials
   variable (PS93 ~0, PS92 .72 | 1.0, PS94 .75 | 1.21).
-- **Main confound: touch and reward.** Hits contact the spout (touch, water); failed attempts by definition do not, and
-  their tongue movements are shorter. The lower amplitude may be missing touch / reward / movement size rather than a
-  weaker plan. Control to run: failed attempts vs PRE-stroke non-contact attempts (PS93 27 / PS94 31 / PS95 20 at far
-  contra; few per session -> pool sessions or far spouts), and the frozen encoder's touch / lick split (item 3).
+- **Touch / reward control (re-collected 10-24 with `pre_incomplete` = pre-stroke attempts that missed the spout, trial-
+  weighted over sessions; far contra 7 / 27 / 30 / 20 trials, 4 / 8 / 10 / 8 sessions).** Pre-stroke misses are NOT
+  uniformly smaller than hits (lick window, ipsi | contra: PS92 1.32 | 1.67, PS93 .41 | .49, PS94 1.35 | 1.67, PS95 .57 |
+  .73). Acute failed attempts / pre-stroke misses: PS92 .30 | .27 (reference n 7), PS93 .92 | .85, PS94 .42 | .44, PS95
+  1.58 | 1.72 -> smaller in 2/4 (PS94 well sampled; PS92 thin), unchanged in PS93 (its whole drop vs hits = missing
+  contact), larger in PS95. Cue window the same pattern (.21 / .65 / .33 / 1.57 of pre misses). **So "failed attempts are
+  weaker" does not survive the touch-matched reference at >= 3/4; the reduction vs hits is partly touch / reward / movement
+  size.** Caveats: pre-stroke misses are a selected set (PS93's are its pre-existing leftward-reach misses), and few.
+  Next: the frozen encoder's touch / lick split (item 3) on these classes. First-pass maps (no control) kept in
+  `attempt_maps/v1_20261024/`.
 
 ## 3. Where and how spouts are coded
 
