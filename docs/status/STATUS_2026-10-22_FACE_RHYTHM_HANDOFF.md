@@ -17,6 +17,14 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
   regressors miss. Its headline ("licks and misses") cross-checked behaviourally: FINDINGS 5c. Open, for the encoding
   window if wanted: split the lick-onset kernel by outcome (hit / miss) to test a PRE-lick (preparation) difference.
 
+* **~21:05 10-23: master_pre_v1 FIT + `proj/` BACK ON THE SHARE** (Priya rsync): fit 131 min on O2, EVR .792 (err
+  .4564), 8 starts on two solutions (5 at .4564, 3 at .4571; per-factor min across starts .66-.72 for f4 / f5 / f10 =
+  the factors that differ in the .4571 solution, median >= .99 for all), stability .998; leave-one-animal-out held-out
+  err .468-.504 vs in-fit .452-.464, factor similarity .957-.984; split half .990 (per factor min .969). `proj/`
+  108 / 108 (`basis` full_in_sample 32 / full 76; only gaps PS92_0812 v1 73% lossy + no speed, PS92_0908 5% lossy).
+  d4 TOLD (waits for labels.json + a master grouping; box full). Loso 60 / 62 files copied mid-run; project_loso +
+  fitsession still to come -> rsync again. NOW: master report (`--absolute` and share, `--match` the pilot) ->
+  clips + validation -> Priya names.
 * **O2 chain SUBMITTED 10-23 ~19:00** (`run_chain.sh 10`): build DONE (27448 rows, 6862 per animal, 10.1 GB);
   fit 57382949_10 running; select 57382951, split half 57382950, project 57382952 (-> encoder), loso 57382953,
   project_loso 57382954, fitsession 57382955 pending on dependencies. Bring back: transfer node `rsync -ah --exclude
