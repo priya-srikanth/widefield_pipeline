@@ -647,6 +647,15 @@ clusters are large in area), not where it stops.
 > (the response change the redesigned Layer 2 attributes to groups). Maps: `frozen_encoder_gate-attempted_v7g3_t3d_basis/
 > figures/pixel_maps_joint_far_contra_{acute,subacute,chronic}_lick.png` (residual broad lateral / anterior, PS92
 > strongest).
+> **DRIFT CHECK (10-24, same frozen run, LOSO-scored pre sessions): NOT YET BEYOND DRIFT IN 3/4.** The residual already
+> rises within the pre-stroke sessions (late half - early half, SSp-m far contra lick, left | right): 11.6 | 12.2, 11.6 |
+> 5.4, -1.8 | -3.7, 12.1 | 7.0 (session SD 4-10). Chronic - pre 27.9 | 23.6, 11.0 | 12.7, 14.8 | 10.2, 2.2 | 3.3; chronic -
+> late pre 22.1 | 17.5, 6.0 | 10.4, 15.7 | 12.1, -3.9 | -0.2 -> clearly beyond drift in PS92 and PS94, ~drift-sized in
+> PS93, below in PS95. Something was already increasing the response during the pre-stroke weeks (practice / slow signal
+> change), so the claim needs the chronic increase to exceed the extrapolated pre-stroke TREND. Tests: redesigned Layer 2
+> (per-group change from early pre with the pre-late null in the same fit; lick vs contact = motor vs sensory), a
+> residual-vs-day model with a pre-stroke slope (as 4.3.3), and the FR runs (does face movement absorb it). Not a
+> finding until then. Also not far-contra-specific (chronic hits up at all six spouts, 2.9).
 
 > **Current version: v7** (STATS_VERSION 7, commit 73d2991, 10-23: forward-only running from 1.5 mm/s, no push term).
 > Areas: `E/frozen_encoder_gate-attempted_v7fwd15/` (same model, run before the default changed); pixel maps + pixel /
