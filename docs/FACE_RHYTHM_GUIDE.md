@@ -93,5 +93,11 @@ Conventions every FR script follows:
 * Factor numbers differ between fits (rank 10 vs 12, own fits): always go through names (`labels.json`) and matching.
 * `fr_groups` and `face_rhythm_outputs` are used by the encoding model, `face_rhythm_timing` / `face_rhythm_multiview`
   are copied next to the O2 factor script: change their interfaces only with those users in mind.
-* The O2 factor script (`scripts/face_rhythm_factors.py`) runs as a single file on O2 (`fr_factors.py` on the share):
-  after editing it, copy it to the share and then to scratch before submitting jobs.
+* The factor stages live in the package `wfield_local/face_rhythm/factors/` (config, files, cp, sample, fit, project,
+  validate, o2, report, cli; split from the single script 10-25, map in its docstring); `scripts/face_rhythm_factors.py`
+  is the launcher. O2 has no repo, so a set carries its own code: `plan` (or, for an existing set without
+  re-planning, `python -c "from pathlib import Path; from wfield_local.face_rhythm.factors import deploy_code;
+  deploy_code(Path(r'<share>/<bundle>/factors/<set>'))"`) writes `fr_factors.py` + `fr_factors_lib/` + the sidecar
+  modules into the set folder; then copy the set's code to scratch before submitting jobs. The launcher prefers a
+  `fr_factors_lib/` beside it, so a set always runs the code deployed into it (sets deployed before 10-25 hold the old
+  single-file `fr_factors.py`, which still runs).

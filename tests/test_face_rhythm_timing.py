@@ -5,7 +5,7 @@ import json
 
 import numpy as np
 
-from scripts import face_rhythm_factors as f
+from wfield_local.face_rhythm import factors as f
 from wfield_local import face_rhythm_timing as frt
 
 

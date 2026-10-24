@@ -211,5 +211,5 @@ the first real session (log-transform if a few outliers dominate after z-scoring
 ## Tests
 
 `tests/test_face_rhythm_factors.py` (synthetic bundle: planted factors recovered, freeze guard, project / fitsession /
-movement power), `tests/test_face_rhythm_readouts.py` (windows, contra / ipsi sign, split-session join),
+movement power; a deployed set runs its own code copy and the old `scripts.face_rhythm_factors` names resolve), `tests/test_face_rhythm_readouts.py` (windows, contra / ipsi sign, split-session join),
 `tests/test_face_rhythm_outputs.py` (loader), `tests/test_face_rhythm_tracking_qc.py` (fold counting, interior vs rim), `tests/test_combined_encoding_options.py` (`_fr-<set>` folders).

@@ -50,7 +50,7 @@ def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
 
-    from scripts.face_rhythm_factors import position_style
+    from wfield_local.face_rhythm.factors import position_style
     from wfield_local import analysis_kit as ak
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_outputs as fro

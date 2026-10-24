@@ -75,11 +75,20 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      within-animal-normalised pooled results with stats. Template: docs/templates/ (copy its CSS, #tocbtn / #toc markup
      and bottom script); example https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Page is at v7.
    * Open: early-vs-late pre-day halves as a stricter shape floor (8 O2 tasks, not set up); per-bout timing of
-     lick_right; split `face_rhythm_factors.py` (2c step 5); per_lick_by_epoch.png keeps old line styles until a full
-     `lick_epochs` run.
+     lick_right; per_lick_by_epoch.png keeps old line styles until a full `lick_epochs` run.
    **Code clean-up status:** steps 1-4 of 2c DONE and verified byte-identical against a baseline run of the old code
-   (every readout table: peak x 3, asym, bout split, readouts, EVR, position maps, matching, push check, aligned maps);
-   only step 5 (splitting the O2 factor script) left.
+   (every readout table: peak x 3, asym, bout split, readouts, EVR, position maps, matching, push check, aligned maps).
+   **Step 5 DONE 10-25** (all O2 jobs back): the factor stages are the package `wfield_local/face_rhythm/factors/`
+   (config / files / cp / sample / fit / project / validate / o2 / report / cli; every definition moved verbatim by a
+   script, imports generated, two circular imports resolved by placing `session_group` with the row sampling);
+   `scripts/face_rhythm_factors.py` is a launcher that forwards the old attribute names (tests, `o2_face_rhythm`
+   tracking QC, clips / validate scripts unchanged in behaviour). O2: `o2.deploy_code(sd)` (called by `plan`) writes
+   `fr_factors.py` + `fr_factors_lib/` + sidecars into the set; the launcher prefers the copy beside it. Verified:
+   every stage (build, fit + LOAO, splithalf, loso, select, project, project --loso-basis, fitsession, fitepoch, report)
+   on the synthetic bundle, old script vs package: all 47 output files identical except the run-time fields
+   (`minutes`, master `frozen` stamp), which differ between two runs of the old script too; 28 FR tests pass incl. a
+   new deployed-set test. The share's master_pre_v1 still holds the old single-file `fr_factors.py` (still runs); the
+   next code change there goes through `deploy_code`.
    Earlier late-evening entry:
 0. **10-24 late evening -- STATE NOW.** (i) STATISTICS on every claim + `*` / `**` marks (Holm over the family each
    figure tests) and the orofacial epoch palette (pink / gold / teal) on all FR figures (DECISIONS 10-24 "FaceRhythm
@@ -176,8 +185,8 @@ verified by re-running the affected scripts into a scratch ``--out`` and diffing
    image sides), run order from FR outputs to figures and encoder regressors, the analysis catalogue (question ->
    command -> figure -> FINDINGS section), pitfalls. PIPELINE (O2) / FINDINGS / handoffs keep their roles.
 4. Compute / plot split for the remaining heavy scripts (list above).
-5. Last, after the O2 `fitepoch` jobs are back: split `face_rhythm_factors.py` (fit / sample / project / validate /
-   report / O2), keeping the single-file O2 copy working.
+5. DONE 10-25: `face_rhythm_factors.py` split into `wfield_local/face_rhythm/factors/` (see item 0, NIGHT entry,
+   clean-up status); O2 copy via `o2.deploy_code`.
 
 ## 3. Open questions
 

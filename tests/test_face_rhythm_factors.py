@@ -1,4 +1,4 @@
-"""scripts/face_rhythm_factors.py on a synthetic bundle in the runner's file formats: planted non-negative factors are
+"""The factor stages (wfield_local/face_rhythm/factors/, launcher scripts/face_rhythm_factors.py) on a synthetic bundle in the runner's file formats: planted non-negative factors are
 recovered, the leave-one-animal-out / freeze / projection / own-fit / movement-power steps run, and refreezing is
 refused. Small sizes (seconds)."""
 import json
@@ -6,7 +6,7 @@ import json
 import numpy as np
 import pytest
 
-from scripts import face_rhythm_factors as f
+from wfield_local.face_rhythm import factors as f
 
 P, F, R = 30, 10, 3
 
@@ -156,9 +156,10 @@ def test_streamed_points_and_one_pass_power_match_the_in_memory_path(tmp_path, m
     np.savez(pf, disp=disp, t_daq_s=t25)
     comps = rng.standard_normal((3, 2 * Pn)).astype(np.float32)
     cues, pos = np.array([20.0, 45.0, 70.0]), np.array(["a", "b", "a"])
-    monkeypatch.setattr(f, "POINTS_CHUNK", 1000)                          # several blocks
+    monkeypatch.setattr(f.project, "POINTS_CHUNK", 1000)                  # several blocks
+    monkeypatch.setattr(f.fit, "POINTS_CHUNK", 1000)
     st = f.points_stream(pf, comps, cues, pos)
-    Xp, _ = f._centred_disp(pf)
+    Xp, _ = f.fit._centred_disp(pf)
     ref = f.window_speed(Xp, t25, cues, pos)
     assert np.allclose(st["points_pc"], Xp @ comps.T, equal_nan=True, atol=1e-5)
     for k in ("speed_between", "speed_precue", "speed_response"):
@@ -168,9 +169,9 @@ def test_streamed_points_and_one_pass_power_match_the_in_memory_path(tmp_path, m
     t5 = np.arange(600) / 5.0
     lab, ps = f.window_labels(t5, cues, pos, f.EDGE_BINS)
     acc = f.ClassMeans(lab, 1 + 2 * len(ps), S.shape[1:])
-    X = f._scaled(S, 2.0, on_chunk=lambda c0, x: acc.add(c0, x.reshape(len(x), *S.shape[1:])))
+    X = f.cp._scaled(S, 2.0, on_chunk=lambda c0, x: acc.add(c0, x.reshape(len(x), *S.shape[1:])))
     f.project_rows(X, rng.random((2 * Pn, 2)), rng.random((4, 2)))
-    one, ref2 = f._power_dict(*acc.result(), ps), f.window_power(S, 2.0, t5, cues, pos)
+    one, ref2 = f.project._power_dict(*acc.result(), ps), f.window_power(S, 2.0, t5, cues, pos)
     for k in ("power_between", "power_precue", "power_response"):
         assert np.allclose(one[k], ref2[k], equal_nan=True, rtol=1e-6)
 
@@ -183,3 +184,24 @@ def test_gather_rows_uses_the_plans_row_spacing(tmp_path):
     X2, _ = f.gather_rows(sd, {"trials": {k: [0, 1]}, "between": {}})
     assert len(X4) == 2 * (151 // 4) and len(X2) == 2 * (151 // f.TRIAL_DS)
     assert {r[3] for r in ix4} == set(range(151 // 4))
+
+
+def test_deployed_set_runs_its_own_copy_and_old_imports_resolve(tmp_path):
+    """O2 has no repo: `deploy_code` puts the launcher + package + sidecars in the set folder, and the launcher there
+    imports the COPY (a set runs exactly the code deployed into it); old `scripts.face_rhythm_factors` names resolve."""
+    import subprocess
+    import sys
+
+    from scripts import face_rhythm_factors as launcher
+    assert launcher.cmd_project is f.cmd_project and launcher.npz_memmap is f.npz_memmap
+    assert launcher.POINTS_CHUNK == f.config.POINTS_CHUNK and launcher._scaled is f.cp._scaled
+    sd, *_ = _bundle(tmp_path)
+    written = f.deploy_code(sd)
+    assert (sd / "fr_factors.py") in written and (sd / f.LIB / "cp.py").exists()
+    assert all((sd / f"{m}.py").exists() for m in f.SIDECAR_MODULES)
+    code = (f"import sys; sys.path.insert(0, r'{sd}'); import fr_factors; "
+            f"print(fr_factors._pkg.__file__); fr_factors._pkg.cli.main(['build', '--dir', r'{sd}'])")
+    r = subprocess.run([sys.executable, "-c", code], cwd=tmp_path, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert str(sd / f.LIB) in r.stdout.splitlines()[0]
+    assert (sd / "fit_tensor.npy").exists() and (sd / "points_pca.npz").exists()

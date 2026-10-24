@@ -6,7 +6,7 @@ import json
 import numpy as np
 import pytest
 
-from scripts import face_rhythm_factors as f
+from wfield_local.face_rhythm import factors as f
 from wfield_local import face_rhythm_multiview as fmv
 
 F, R = 10, 3

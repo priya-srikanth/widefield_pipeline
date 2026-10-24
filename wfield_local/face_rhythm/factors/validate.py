@@ -1,0 +1,182 @@
+"""O2 stages that test the set: `splithalf`, `loso` (leave one pre-stroke day out: the noise floor), `fitsession` (each session's own fit vs the frozen set) and `fitepoch` (pooled own fit per animal x epoch, + the two pre-day halves)."""
+from __future__ import annotations
+
+import json
+import time
+import zlib
+from pathlib import Path
+
+import numpy as np
+
+from .config import EPOCH_GROUPS
+from .cp import match, ncp_hals, pooled_evr, project_rows, similarity
+from .files import _atomic_savez, load_master, load_plan, npz_small, out_dir
+from .project import task_basis
+from .sample import gather_rows, session_group
+
+
+def cmd_splithalf(sd: Path, rank: int, inits: int = 2) -> None:
+    """IS THE SAMPLE ENOUGH? (Priya 10-23: "20 trials per position per animal is enough?") Split the fit rows in two
+    disjoint halves -- the fit TRIALS by animal x spout position, alternately after a seeded shuffle (10 per position
+    per animal each), every other row (pre-cue, between) at random -- fit rank R on each half (best of ``inits``
+    starts) and compare: half A vs half B (matched spatial x spectral similarity, per factor and mean) and each half vs
+    the full fit (``rank<R>.npz``). Halves that agree (~0.9+) = the full sample (twice each half) is comfortably enough.
+    -> ``splithalf/rank<R>.json``."""
+    pl = load_plan(sd)
+    dst = sd / "splithalf" / f"rank{rank:02d}.json"
+    X = np.load(sd / "fit_tensor.npy", mmap_mode="r")
+    ix = np.load(sd / "fit_index.npz")
+    rng = np.random.default_rng([int(pl["params"].get("seed", 0)), 7919, rank])
+    half = rng.integers(0, 2, len(ix["key"])).astype(np.int8)
+    tr = ix["kind"] == "trial"
+    pos_of = {}
+    for k in np.unique(ix["key"][tr]):
+        pos_of[k] = npz_small(out_dir(sd) / f"{k}_trials.npz", ("position",))["position"]
+    groups = {}
+    for a, k, t in {(a, k, int(t)) for a, k, t in zip(ix["animal"][tr], ix["key"][tr], ix["trial"][tr])}:
+        groups.setdefault((a, str(pos_of[k][t])), []).append((k, t))
+    side = {}
+    for g in sorted(groups):
+        items = sorted(groups[g])
+        for j, it in enumerate(rng.permutation(len(items))):
+            side[items[it]] = j % 2
+    half[tr] = [side[(k, int(t))] for k, t in zip(ix["key"][tr], ix["trial"][tr])]
+    t0 = time.time()
+    fits = []
+    for h in (0, 1):
+        Xh = np.ascontiguousarray(X[half == h])
+        fs = [ncp_hals(Xh, rank, seed=500 + 10 * h + i, n_iter=pl["params"]["n_iter"]) for i in range(inits)]
+        fits.append(min(fs, key=lambda f_: f_["rel_err"]))
+        del Xh
+        print(f"  half {'AB'[h]}: {int((half == h).sum())} rows, rel err {fits[-1]['rel_err']:.4f}", flush=True)
+    full = np.load(sd / f"rank{rank:02d}.npz")
+    _, cos_ab = match([fits[0]["A"], fits[0]["B"]], [fits[1]["A"], fits[1]["B"]])
+    res = {"rank": rank, "inits": inits, "n_rows": [int((half == h).sum()) for h in (0, 1)],
+           "n_trials": [int(sum(1 for v in side.values() if v == h)) for h in (0, 1)],
+           "similarity_halves": float(np.prod(cos_ab, axis=0).mean()),
+           "similarity_per_factor": np.prod(cos_ab, axis=0).round(4).tolist(),
+           "similarity_half_to_full": [similarity([full["A"], full["B"]], [f_["A"], f_["B"]]) for f_ in fits],
+           "rel_err_halves": [float(f_["rel_err"]) for f_ in fits], "minutes": (time.time() - t0) / 60}
+    dst.parent.mkdir(exist_ok=True)
+    dst.write_text(json.dumps(res, indent=1))
+    print(f"rank {rank} split half: halves similarity {res['similarity_halves']:.3f} (per factor min "
+          f"{min(res['similarity_per_factor']):.3f}), half vs full {res['similarity_half_to_full'][0]:.3f} / "
+          f"{res['similarity_half_to_full'][1]:.3f}, {res['minutes']:.0f} min -> {dst}")
+
+
+def cmd_loso(sd: Path, job: int) -> None:
+    """LEAVE ONE PRE-STROKE SESSION OUT (job = 1-based row of plan ``loso_jobs`` = (rank, day)): refit rank R without the
+    day's fit rows (one random start, the fit's n_iter), then project the day's SESSION rows (the same rows `fitsession`
+    scores every session on) with that fit (HELD OUT) and with the full fit (``rank<R>.npz``, IN FIT). The held-out pre
+    EVR is the NOISE FLOOR the post-stroke frozen EVRs (and EVR gaps) are read against: how well a basis that never saw
+    a pre-stroke day explains it. -> ``loso/rank<R>_<day>.json``."""
+    pl = load_plan(sd)
+    rank, day = pl["loso_jobs"][job - 1]
+    dst = sd / "loso" / f"rank{rank:02d}_{day}.json"
+    if dst.exists():
+        print("done already", dst)
+        return
+    t0 = time.time()
+    X = np.load(sd / "fit_tensor.npy", mmap_mode="r")
+    keys = np.load(sd / "fit_index.npz")["key"]
+    m = np.array([session_group(k) == day for k in keys])
+    f = ncp_hals(np.ascontiguousarray(X[~m]), rank, seed=31 + rank, n_iter=pl["params"]["n_iter"])
+    full = np.load(sd / f"rank{rank:02d}.npz")
+    scales = json.loads((sd / "scales.json").read_text())
+    tasks = [t for t in pl["tasks"] if session_group(t["key"]) == day]
+    animal = tasks[0]["animal"]
+    Xs = np.concatenate([gather_rows(sd, pl["session_rows"][t["key"]])[0] for t in tasks]) / scales[animal]
+    _, e_out, n2 = project_rows(Xs, f["A"], f["B"])
+    _, e_in, _ = project_rows(Xs, full["A"], full["B"])
+    res = {"rank": rank, "day": day, "animal": animal, "epoch": "pre", "n_fit_rows_left_out": int(m.sum()),
+           "n_session_rows": int(len(Xs)), "evr_held_out": pooled_evr(e_out, n2), "evr_in_fit": pooled_evr(e_in, n2),
+           "similarity_to_full": similarity([full["A"], full["B"]], [f["A"], f["B"]]),
+           "minutes": (time.time() - t0) / 60}
+    order, cos = match([full["A"], full["B"]], [f["A"], f["B"]])
+    res["cos_spatial"], res["cos_spectral"] = cos[0].tolist(), cos[1].tolist()
+    dst.parent.mkdir(exist_ok=True)
+    _atomic_savez(dst.with_suffix(".npz"), A=f["A"][:, order], B=f["B"][:, order], cos=cos, rank=rank, day=day)
+    dst.write_text(json.dumps(res, indent=1))
+    print(f"rank {rank} leave out {day}: EVR held out {res['evr_held_out']:.4f} vs in fit {res['evr_in_fit']:.4f} "
+          f"({len(Xs)} session rows), similarity {res['similarity_to_full']:.3f}, {res['minutes']:.0f} min")
+
+
+def cmd_fitsession(sd: Path, task: int, inits: int = 3, own_dir: str = "own") -> None:
+    pl = load_plan(sd)
+    t = pl["tasks"][task - 1]
+    key, animal = t["key"], t["animal"]
+    dst = sd / own_dir / f"{key}.npz"          # own_dir: e.g. "own8" for an 8-start rerun beside the 3-start own/
+    if dst.exists():
+        print("done already", dst)
+        return
+    A, B, scales, M = load_master(sd)
+    A, B, basis, _ = task_basis(sd, t, A, B)
+    R = A.shape[1]
+    t0 = time.time()
+    X, _ = gather_rows(sd, pl["session_rows"][key])
+    X /= float(scales[animal])
+    _, Ef, N2 = project_rows(X, A, B)
+    evr_frozen = pooled_evr(Ef, N2)
+    fits = [ncp_hals(X, R, seed=zlib.crc32(key.encode()) + k, n_iter=pl["params"]["n_iter"]) for k in range(inits)]
+    f = fits[int(np.argmin([x["rel_err"] for x in fits]))]
+    order, cos = match([A, B], [f["A"], f["B"]])
+    _atomic_savez(dst, A_own=f["A"][:, order].astype(np.float32), B_own=f["B"][:, order].astype(np.float32),
+                  evr_own=1 - f["rel_err"] ** 2, evr_frozen=evr_frozen, cos_spatial=cos[0], cos_spectral=cos[1],
+                  rel_errs_own=np.array([x["rel_err"] for x in fits]), n_rows=len(X), spec_hash=str(M["spec_hash"]),
+                  animal=animal, epoch=str(t["epoch"]), date=t["date"], basis=basis)
+    print(f"{key} [{t['epoch']}, basis {basis}]: EVR own {1 - f['rel_err'] ** 2:.3f} vs frozen {evr_frozen:.3f}; matched cosine "
+          f"spatial {cos[0].mean():.3f} spectral {cos[1].mean():.3f}; {len(X)} rows, {(time.time() - t0) / 60:.1f} min")
+
+
+def epoch_fit_tasks(pl: dict) -> list[tuple[str, str, list[str]]]:
+    """[(animal, group, task keys)] in a fixed order (animals sorted, then EPOCH_GROUPS); array task n = row n - 1."""
+    out = []
+    for an in sorted({t["animal"] for t in pl["tasks"]}):
+        mine = sorted((t for t in pl["tasks"] if t["animal"] == an), key=lambda t: t["key"])
+        pre_days = sorted({t["date"] for t in mine if t["epoch"] == "pre"})
+        for g in EPOCH_GROUPS:
+            if g in ("preA", "preB"):
+                days = set(pre_days[(0 if g == "preA" else 1)::2])
+                keys = [t["key"] for t in mine if t["epoch"] == "pre" and t["date"] in days]
+            else:
+                keys = [t["key"] for t in mine if t["epoch"] == g]
+            out.append((an, g, keys))
+    return out
+
+
+def cmd_fitepoch(sd: Path, task: int, inits: int = 8, n_rows: int = 11000, own_dir: str = "own_epoch") -> None:
+    """ONE own fit per animal x epoch on that epoch's sessions pooled (Priya 10-24: per-session own fits are too noisy to
+    read factor shape -- pre own-vs-master angles 10-50 deg). Every fit gets the SAME number of rows (``n_rows``, ~2
+    sessions; drawn evenly over the group's sessions from their `session_rows`), so a fit's noise does not depend on
+    how many sessions the epoch has; a group with fewer rows uses all of them (PS95 acute = 1 session) and says so.
+    preA / preB = disjoint alternating halves of the pre days -> their angle is the noise floor for pre vs post."""
+    pl = load_plan(sd)
+    an, g, keys = epoch_fit_tasks(pl)[task - 1]
+    dst = sd / own_dir / f"{an}_{g}.npz"
+    if dst.exists():
+        print("done already", dst)
+        return
+    A, B, scales, M = load_master(sd)
+    R = A.shape[1]
+    t0 = time.time()
+    rng = np.random.default_rng(zlib.crc32(f"{an}_{g}".encode()))
+    per = n_rows // len(keys)                        # even over sessions; a short session gives what it has
+    parts = []
+    for k in keys:                                   # subsample as each session is read (a row is ~0.4 MB: nine
+        x = gather_rows(sd, pl["session_rows"][k])[0]    # whole pre sessions at once would be ~20 GB)
+        parts.append(x[np.sort(rng.choice(len(x), min(per, len(x)), replace=False))])
+        del x
+    X = np.concatenate(parts) / float(scales[an])
+    del parts
+    _, Ef, N2 = project_rows(X, A, B)
+    fits = [ncp_hals(X, R, seed=zlib.crc32(f"{an}_{g}".encode()) + k, n_iter=pl["params"]["n_iter"])
+            for k in range(inits)]
+    f = fits[int(np.argmin([x["rel_err"] for x in fits]))]
+    order, cos = match([A, B], [f["A"], f["B"]])
+    _atomic_savez(dst, A_own=f["A"][:, order].astype(np.float32), B_own=f["B"][:, order].astype(np.float32),
+                  evr_own=1 - f["rel_err"] ** 2, evr_frozen=pooled_evr(Ef, N2), cos_spatial=cos[0],
+                  cos_spectral=cos[1], rel_errs_own=np.array([x["rel_err"] for x in fits]), n_rows=len(X),
+                  n_rows_target=n_rows, keys=np.array(keys), spec_hash=str(M["spec_hash"]), animal=an, group=g)
+    print(f"{an} {g} ({len(keys)} sessions): EVR own {1 - f['rel_err'] ** 2:.3f} vs frozen {pooled_evr(Ef, N2):.3f}; "
+          f"cosine to master spatial {cos[0].mean():.3f} spectral {cos[1].mean():.3f}; {len(X)} rows"
+          f"{' (FEWER than target)' if len(X) < 0.95 * n_rows else ''}, {(time.time() - t0) / 60:.1f} min")
