@@ -487,6 +487,12 @@ lick direction; not separable here). Around licking the dominant per-spout patte
 
 ### 3.3 Epoch change of the position activity maps, LP lick attempts — PROVISIONAL (10-21 night)
 
+> **RE-RENDERED 10-24 on the rebuilt attempts table + complete cam1** (15r / 14m / acc / 5c / 5cr, all five arms,
+> `G/LP_licks/epoch/`; LP trial counts re-run first; PS93 frozen models on its 10 LP-available pre sessions). The frozen
+> decoders did not move: acute far contra lick .31 (10-21 .32), far ipsi .58 (.58), far mid .51 (.51); cue (working)
+> far contra .29, far ipsi .45, far mid .40 (pre .88 / .85 / .82); ENL far contra .21 (pre .40). Map numbers below are
+> still the 10-21 ones until re-read from the new figures; LP null calibration not yet re-run.
+
 Family 15r (trial-average position maps, no model) re-gated on VIDEO lick attempts (LP_licks: cam4 + cam1 licks,
 trial = hit / incomplete attempt within max_rt, lick-aligned = first LP lick onset, ENL lick-free window 1.0 s) instead
 of spout contact. `labcams/grant_figures/LP_licks/epoch/` (corner-stamped); calibration `.../LP_licks/epoch/results/`.
