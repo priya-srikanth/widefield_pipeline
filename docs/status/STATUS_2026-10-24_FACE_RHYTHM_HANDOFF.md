@@ -46,16 +46,19 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 | factor angles / morphing | NOT consistent across animals (Priya: "no clear consistent changes") -> secondary; lead with amplitudes | `matching/match_by_day.png`, `match_example.png` (`face_rhythm_match.py`) |
 | asymmetry two ways (points vs own-fit loadings) | agree acutely; loadings: lick_right moves off the contralesional face | `matching/asymmetry_two_ways.png` |
 | per-position face speed maps | whole face moves less acutely at every position; contralesional half more, strongest far_R; chronic overshoot, ipsi half up on R spouts | `position_maps/position_maps_response_{mean,PS9x}.png` (`face_rhythm_position_maps.py`; cue 0..+4 s) |
-| lick- / bout-aligned maps + patch statistics | RUNNING at handoff time | `aligned_maps/aligned_maps_{cue,lick,bout}.png`, `halves_*.png` (`face_rhythm_aligned_maps.py`, needs the cache from `face_rhythm_asym_aligned.py`) |
+| lick- / bout-aligned maps + patch statistics | DONE: whole face down per TRIAL acutely, not per LICK; per lick the contralesional half loses more at close_R / far_R, 4/4, every epoch (FINDINGS 5f) | `aligned_maps/aligned_maps_{cue,lick,bout}.png`, `halves_*.png` (`face_rhythm_aligned_maps.py`, needs the cache from `face_rhythm_asym_aligned.py`) |
 | pre + post master for pushes? | no: frozen error LOWER at pushes, 27 / 32 cells | `push_check/` (`face_rhythm_push_check.py`); DECISIONS 10-24 |
 | task vs non-task, severity | non-task NOT preserved acutely; no ordering by lesion size (n = 4) | `task_vs_nontask.png`, `severity.png` |
 
 ## 2. Next, in order
 
-0. **10-24 afternoon: items 1-3 below are DONE** (own + own8 rsynced; readouts, matching, push check run; FINDINGS
-   rewritten on four animals). NOW: (a) finish `face_rhythm_aligned_maps.py` (lick- / bout-aligned maps + patch and
-   contra-vs-ipsi statistics) and discuss with Priya; (b) FINDINGS for those; (c) optional: one own fit per animal x
-   epoch for a cleaner shape test (6c); non-task drop vs running / per factor (6d caveat).
+0. **10-24 afternoon: items 1-3 below are DONE**, plus aligned maps / statistics (FINDINGS 5f) and the repo palettes
+   (animals `config.animal_color()`, epochs `epoch_figures.EPOCH_GREY`; all FR figures re-rendering in the background
+   at handoff, push check last, ~1.5 h). OPEN with Priya: (a) close_R bout-aligned asymmetry > 0 before onset -- split
+   first bout of trial vs later and >= 0.5 s lick-free lead-in (offered, not run); (b) lead framing: contralesional
+   licks keep their rate but are made with less contralesional / more ipsilesional face movement (5d / 5e / 5f) + the
+   acute EVR drop; (c) optional: one own fit per animal x epoch for a cleaner shape test (6c); non-task drop vs
+   running / per factor (6d caveat).
 1. (done) **Rsync `own/`** once `frf_own` is done (transfer node; RESET the variables -- the encoding bundle reuses B / S):
    `B=/n/scratch/users/p/ps150/o2/fr_cam4_20261021; S=/n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/fr_cam4_20261021`
    `rsync -ah --exclude fit_tensor.npy --exclude 'proj_r10' --exclude 'proj_loso_r10' $B/factors/master_pre_v1/ $S/factors/master_pre_v1/`

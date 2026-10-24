@@ -329,6 +329,25 @@ with a more ipsilesional face movement. Cue-aligned per-position speed maps (`po
 the contralesional face loses more movement than the ipsilesional mainly on contralesional-spout trials (far_R contra -
 ipsi log2 change acute -.17 to -.62 in 4 / 4; chronic PS92 -.25, PS94 -.53, PS95 -.10, PS93 recovered).
 
+**5f. Fewer licks, not smaller licks; the contralesional asymmetry is per lick (STANDS, 4 / 4, 10-24).**
+`scripts/face_rhythm_aligned_maps.py` (`readouts/master_pre_v1/aligned_maps/`: aligned_maps_{cue,lick,bout}.png with
+significant face patches outlined, halves_{cue,lick,bout}.png, data/patch_stats.csv, halves_stats.csv). Per mesh
+point, mean speed in a window (cue 0..+2 s; every lick -0.1..+0.2 s; bout onset 0..+0.5 s) per spout position, log2 vs
+the animal's pre; patches = 4 columns per face half (mirrored) x 7 rows (48 with >= 10 points); `boot_delta` per
+patch, marked when the 95 % interval excludes 0 AND 4 / 4 animals share the sign (a consistency map; many tests).
+
+* Whole-face movement falls acutely PER TRIAL (cue-aligned: far_R -1.15 log2, far_center -.74, 4 / 4) but NOT PER LICK
+  (lick-aligned whole face ~0 at every position): the acute global decrease is fewer licks, not smaller ones.
+* Contra-half minus ipsi-half change, per lick: far_R acute -.68 [-.97, -.38], chronic -.38 [-.66, -.13]; close_R acute
+  -.31 [-.43, -.18], chronic -.25 [-.42, -.11]; 4 / 4 at every epoch; n.s. at the L and centre spouts. Bout onsets:
+  far_R significant at every epoch. Licks to the contralesional spouts are made with relatively less contralesional face
+  movement -- the raw-movement counterpart of 5d / 5e.
+* Open (Priya 10-24): close_R bout-aligned asymmetry is > 0 BEFORE onset (~-0.5..-0.1 s) in every epoch incl. pre --
+  candidates: preparatory movement between cue and first lick (cue-aligned close_R rises ~0.15 s after the cue) or
+  carry-over from an earlier bout in the trial. Test: first bout of the trial vs later; >= 0.5 s lick-free lead-in.
+
+Figures use the repo palettes (10-24): animals `config.animal_color()`, epochs `epoch_figures.EPOCH_GREY`.
+
 ## 6-master. Does the pre-stroke vocabulary still fit? Four animals, rank 12 (10-24)
 
 `scripts/face_rhythm_readouts.py --set master_pre_v1` (`face_rhythm/cam4/readouts/master_pre_v1/`: session_table,
