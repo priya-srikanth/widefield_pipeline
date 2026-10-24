@@ -9,6 +9,19 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000n. STATE 10-24 mid-morning -- OUTPUT INVENTORY + decisions -- READ FIRST (then 000m)
+
+- **Inventory:** `docs/status/OUTPUT_INVENTORY_2026-10-24.md` (every encoding output: data version, class, size).
+  REDO 41 GB (keep until replaced), DELETE-NOW 53 GB (PROPOSED, awaiting Priya's OK -- nothing deleted yet),
+  DELETE-AFTER 44 GB, CHECK 3 items, KEEP 3.6 GB; local input cache 304 GB (proposal: prune pre-10-23 entries).
+- **Decisions today:** BINNED contest PRIMARY (supersedes polar-primary); soft-bin width sweep 0.5 / 2 via
+  `COMBINED_ENCODING_BINS_WIDTH` (258db8a; submit-time `BINS_WIDTH` on O2); O2 bundles self-describing (env.json,
+  4626e08); 3-D tongue option (9f45819).
+- **Running:** trial_attempts rebuild (bj09r90b1, 1 worker), xyz2 x combined 4 animals (4 workers -> restart at 2 when
+  Layer 1 relaunches), within-spout 3-D 4 animals.
+- **Next:** attempts flips -> `run_v7g3_t3d.sh` (Layer 1 final frame) + O2 bundle (combined licks + 3-D tongue +
+  attempted gate; runs in the inventory's phase-A list) -> basis / Layer 2 / relabel / LMMs -> phase B (FR rank 12).
+
 ## 000m. STATE 10-24 morning -- RE-RUN REVIEW on complete cam1 / 3-D (Priya: "what else should we re run") -- READ FIRST
 
 - **STALE INPUT FOUND: `qc/trial_attempts.csv` (built 10-21 14:33) has cam1 for PS92 / PS93 100 %, PS94 40 %, PS95 0 %
