@@ -21837,3 +21837,8 @@ exceed the pre late-vs-early drift null in 4/4 animals acute and chronic (cortex
 direction; recorded PROVISIONAL (FINDINGS 2, after the decoder G entry). Bug fixed: `summarise` read the fit label
 "null" as NA (pandas default), dropping the null rows from the printed table and from allsession_changes_by_session.csv
 (rewritten). Next for Layer 2: block-level / session bootstrap of the gain vs null; per-position (far contra) change.
+
+## 2026-10-24 -- PS93 contact: not shared with direction (grouping-v3 joint drop)
+
+`no_contact_exec_within` in `_v7g3`: shared part ~0 in PS93 (and all animals) -> the 10-23 "likely shared variance with
+direction" reading is withdrawn (FINDINGS 3.4). Next candidate (lick group / reach) offered, not run.

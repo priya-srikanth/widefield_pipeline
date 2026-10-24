@@ -490,7 +490,12 @@ vs pre, dF/F x 1e3, per animal (PS92 5 / PS93 4 / PS94 6 / PS95 1 acute sessions
   from how the lick was executed (direction AND reach), and the order of predictability runs nearly inverse to unique
   contact (1.2 / 13.3 / 18.1 / 31.6 for PS93 / PS92 / PS94 / PS95; n = 4, PS94 / PS95 swapped). Reading: PS93's
   touch response is not absent but SHARED with the lick (reach -> lick group) and direction (exec_within) terms, so
-  unique credit is ~0. Pending: the joint drop variant `no_contact_exec_within` (grouping-v3 refit);
+  unique credit is ~0. **Joint-drop check DONE (grouping-v3 refit `_v7g3`, 10-24; pre, cortex, held-out): the
+  contact / within-spout direction SHARED part = unique(both) - unique(contact) - unique(exec_within) is ~0 in PS93
+  (+0.0 .. +0.2 x1e3 across cue / lick x frame / trial) and in the others (-4.7 .. +0.8)** -> PS93's missing contact
+  credit is NOT shared with the direction group; that explanation is withdrawn. Remaining candidate (untested): shared
+  with the LICK group (reach -> lick magnitude; reach alone predicts PS93 contact at AUC .85, the highest), or PS93's
+  touch response is simply small. A `no_contact_lick` joint drop would test it;
 - data - frozen prediction +1.3 to +7.5 (small, positive).
 
 Reading: the pre-stroke mapping, fed the licking actually made, predicts the drop; the change is carried by licking
@@ -736,6 +741,9 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-24** — PS93 contact joint-drop check: no variance shared with within-spout direction (~0); the
+  shared-with-direction explanation is withdrawn (3.4).
 
 - **2026-10-23 (night, Layer 2)** — all-session encoder first run: per-epoch kernel changes beat the pre drift null in
   4/4 acute and chronic (cortex); target + within-spout direction responses change most; free-push frozen run (4.4).
