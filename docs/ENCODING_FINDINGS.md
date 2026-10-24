@@ -668,6 +668,15 @@ clusters are large in area), not where it stops.
 > (per-group change from early pre with the pre-late null in the same fit; lick vs contact = motor vs sensory), a
 > residual-vs-day model with a pre-stroke slope (as 4.3.3), and the FR runs (does face movement absorb it). Not a
 > finding until then. Also not far-contra-specific (chronic hits up at all six spouts, 2.9).
+> **MAP SIGNIFICANCE of the residual (10-24, `scripts/frozen_residual_significance.py`; each epoch's per-session residual
+> maps vs the PRE sessions' residual maps, repo map tests, pre-normalised; `frozen_encoder_gate-attempted_v7g3_t3d_basis/
+> residual_significance.csv`, `figures/residual_significance_*`).** Nested bootstrap bins / 2,022 (cluster test):
+> lick window -- drift calibration (late vs early pre) 22, acute 80, subacute 41, chronic 48; cue -- drift 39, acute 20
+> (suppressed: rim), subacute 8, chronic 34. The cluster test finds NOTHING in any epoch; pure nulls flag ~1.6 % under
+> nested (10-21 calibration). Chronic patches sit over CONTRALESIONAL anterolateral cortex (fits the 2.9 ROI result:
+> chronic increase larger contralesionally); acute / subacute over contralesional lateral cortex. The drift panel itself
+> is a broad positive residual over ipsilesional lateral cortex, resembling the chronic pattern. -> At map level the
+> residual change is weak and not robust (nested ~1.5-2.5x the drift calibration, cluster nothing).
 
 > **Current version: v7** (STATS_VERSION 7, commit 73d2991, 10-23: forward-only running from 1.5 mm/s, no push term).
 > Areas: `E/frozen_encoder_gate-attempted_v7fwd15/` (same model, run before the default changed); pixel maps + pixel /
