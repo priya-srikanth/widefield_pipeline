@@ -130,6 +130,9 @@ deciding analysis.
 > - **acute (the failed / altered far-contra licks live here): target > executed 3/4 in the lick window** (14.6 vs -21.4,
 >   17.8 vs 3.5, 9.0 vs -1.7; PS93 the other way, -0.9 vs 6.6); cue window PS94 / PS95 target, PS92 both negative, PS93
 >   tied. Stronger than the reference-gate local run (PS92 lick 14.6 vs 8.9, PS95 9.0 vs 2.7).
+> - subacute: MIXED -- target ahead 2/4 per window, different animals (cue PS94 9.8 vs 6.6, PS95 6.6 vs 0.1; PS93
+>   executed ahead 2.4 vs 10.9; PS92 tied; lick PS92 10.7 vs 3.4, PS93 14.0 vs 10.9; PS94 tied; PS95 ~0); fewest
+>   sessions (2 / 3 / 5 / 7), behaviour recovering.
 > - pre: no target lead (both small). Bin width 0.5: same pattern. Width 2 pending.
 > - What the acute licks are: failed far-contra licks land in the far-mid / far-ipsi executed bins (e.g. PS95_0817 soft
 >   weights far mid .48, far ipsi .42, far contra .001) -- the dissociation the contest exploits. Caveat as 2.5:
