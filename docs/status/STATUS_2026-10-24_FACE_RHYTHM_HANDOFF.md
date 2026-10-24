@@ -23,7 +23,7 @@ EVR .803, stability .912, leave-one-animal-out factor similarity .82-.90, split 
 | `splithalf/rank12.json` | done (.911; lick pair .96 / .99; f6 run_onset_jaw .36, f10 prep_jaw .76) |
 | `own/` (per-session fits, EVR gap, morphing) | **15 / 108 copied** -- `frf_own` (57438149) was still running; RSYNC AGAIN |
 | `report/` | rank-12 gallery (abs + share, with names), rank sweep, stability, loso tables |
-| rank-10 outputs | kept as `proj_r10/ proj_loso_r10/ own_r10/ report_r10/ master_r10.npz`; clips / validation `master_pre_v1_r10` |
+| rank-10 outputs | record kept: `master_r10.npz`, `rank10.*`, `own_r10/`, `report_r10/`, validation `master_pre_v1_r10` |
 
 Local clips (one pre session per animal, 12 factors) `face_rhythm/cam4/factor_clips/master_pre_v1/`; validation
 `face_rhythm/cam4/validation/master_pre_v1/` (+ `lick_epochs/`).
@@ -36,7 +36,8 @@ far 8; other 0, 1, 3, 6, 9, 10; modes A / B / S / D; side = S - B, distance = D 
 
 1. **Rsync `own/`** once `frf_own` is done (transfer node; RESET the variables -- the encoding bundle reuses B / S):
    `B=/n/scratch/users/p/ps150/o2/fr_cam4_20261021; S=/n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/fr_cam4_20261021`
-   `rsync -ah --exclude fit_tensor.npy $B/factors/master_pre_v1/ $S/factors/master_pre_v1/` -> expect `own/` 108.
+   `rsync -ah --exclude fit_tensor.npy --exclude 'proj_r10' --exclude 'proj_loso_r10' $B/factors/master_pre_v1/ $S/factors/master_pre_v1/`
+   -> expect `own/` 108. (The excludes keep the rank-10 projections deleted from the share on 10-24 from coming back.)
 2. Run on all four animals (fr env; `export PYTHONPATH=<repo>`; push check needs the locanmf env for behaviour):
    * `python scripts/face_rhythm_readouts.py --set master_pre_v1` -> movement maps, amplitudes, EVR gap, recovery by
      day, task vs non-task, severity (`face_rhythm/cam4/readouts/master_pre_v1/`)
@@ -46,6 +47,32 @@ far 8; other 0, 1, 3, 6, 9, 10; modes A / B / S / D; side = S - B, distance = D 
      behaviour at handoff time -- check `scratchpad` output / run one session first.
 3. Redo FINDINGS 5 / 6 on four animals; add the matching, push, task / non-task and severity results.
 4. Other cameras (cam1 / cam2 / cam3): await Priya's landmark clicks -> register -> ROIs -> O2 -> multi-view set.
+
+## 2b. Clean-up done 10-24 (Priya OK)
+
+Deleted from the share (all DERIVED, rebuildable; `writeguard.assert_deletable(derived=True, approved=True)`), ~14.7 GB:
+`master_pre_v1/fit_tensor.npy` (STALE: the earlier sweep sample's tensor, 27,392 rows, no longer matching fit_index's
+27,448; the live tensor is on O2 scratch, `build` rebuilds it), `master_pre_v1/proj_r10/` + `proj_loso_r10/` (rank-10
+projections; `master_r10.npz` kept), `face_rhythm/cam4/factor_clips/master_pre_v1_r10/` (rank-12 clips complete: 48 =
+12 factors x 4 animals), `factors/preview_r10_PS92/` + `face_rhythm/cam4/preview_r10_PS92/` (single-session preview,
+superseded). Kept: `register_v1..v4_20261021/` (1.7 GB, comparison sets) and `param_test/` (1.1 GB) pending Priya; O2
+scratch left to purge itself. JupyterLab (ROI notebook) stopped -- restart for the cam1-3 landmark clicks. Other
+windows asked to prune their stale git worktrees.
+
+## 2c. TO DO: make the FaceRhythm code modular and easy to use (Priya 10-24)
+
+"Clean up the code to make it modular and easy to use, as a Claude engineer would organise it for a systems
+neuroscientist to use." Not mid-analysis (after the four-animal readouts), and refactors must carry the reasoning in
+the comments forward (CLAUDE.md engineering note). Starting points:
+* `scripts/face_rhythm_factors.py` (~1,480 lines) mixes the CP fit, planning / sampling, O2 sbatch generation,
+  projection, LOSO / split half, and the report. Split into `wfield_local/face_rhythm/` modules (fit, sample, project,
+  validate, report, o2) with a thin CLI; keep the O2 single-file copy working (`plan` copies the sidecars today).
+* One entry point per question a user asks ("fit a factor set", "project sessions", "name / validate", "readouts",
+  "match fits"), each with a short docstring stating inputs, outputs and where they land; one config block (set name,
+  bundle, rank, windows) instead of constants spread over modules.
+* A worked notebook / README walk-through: from FR outputs to a named factor set to the encoder regressors, with the
+  pitfalls (in-sample pre, absolute vs share, factor numbers shift between fits).
+* Tests per module (the existing ones in tests/test_face_rhythm_*.py are the base).
 
 ## 3. Open questions
 
