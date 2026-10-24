@@ -114,7 +114,30 @@ forward, compressed lateral angle); in 3-D, motor cortex carries the executed li
 cohort 3-D contest (xyz2 / polar + strict executed + combined cam1 / cam4 licks) when cam1 production lands — the
 deciding analysis.
 
-### 2.4b 3-D polar contest, PS92 + PS93 (47 sessions) — PROVISIONAL (two animals); the cohort 3-D answer so far
+### 2.4b 3-D polar contest — 4 ANIMALS DONE 10-24 (107 sessions); the two-animal record follows below
+
+**Four-animal re-run (`movement_first_subset-nokin_exec-polar_licks-combined_bins_3d4/`, 20261023 re-cut tables,
+combined lick timing, soft calibrated bins; tables via `scripts/combined_encoding_figures.py --order ..._3d4`).**
+Cortex, unique dR2 x1e3, August pre, per animal (PS92 / PS93 / PS94 / PS95), pre -> acute -> subacute -> chronic:
+
+| | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|
+| unique target, lick | 5.2 / 14.4 / 29.6 / 29.6 | 27.5 / 8.3 / 14.2 / 65.4 | 5.7 / 6.6 / 17.4 / 24.0 | 18.1 / 32.7 / 8.6 / 23.5 |
+| unique executed, lick | 6.1 / 8.2 / 20.6 / 8.1 | 6.3 / 4.9 / 9.7 / 19.8 | 2.9 / 12.1 / 25.3 / 22.9 | -0.2 / -1.8 / 1.4 / 8.0 |
+| unique target, cue | 2.7 / 5.7 / 27.3 / 37.3 | 9.2 / 2.5 / 4.7 / 35.0 | 7.5 / 7.7 / 15.7 / 36.1 | 18.8 / 14.1 / 13.8 / 35.1 |
+| unique executed, cue | 0.9 / 3.7 / 19.1 / 11.7 | 3.0 / 5.6 / 12.2 / 15.5 | 0.9 / 9.7 / 15.6 / 28.7 | 0.3 / -3.0 / -3.2 / 8.3 |
+| executed beyond spout category, lick | 15.1 / 21.4 / 30.2 / 13.3 | 9.3 / 13.4 / 11.8 / 19.2 | 6.4 / 10.5 / 21.7 / 17.7 | 1.4 / 9.4 / -10.0 / 5.9 |
+
+Sessions per epoch: PS92 8 / 5 / 2 / 12, PS93 7 / 4 / 3 / 12, PS94 8 / 6 / 5 / 8, PS95 8 / 1 / 7 / 11. PS92 and
+PS93 pre-to-subacute values reproduce the two-animal run exactly (same 3-D inputs); PS93 chronic now has 12 sessions.
+- **Pre-stroke: target-led in 3/4** (PS93 27.5 vs 6.3, PS94 5.7 vs 2.9, PS95 18.1 vs -0.2 lick; PS92 tied 5.2 vs 6.1).
+- **By chronic, unique target is above pre in 4/4 in both windows** (cue 35-37 in all four, from 2.7-18.8).
+- **The executed rise differs:** PS94's executed part rises as much as target (lick 2.9 -> 22.9, cue 0.9 -> 28.7);
+  PS95's stays small; PS92 / PS93 rise less than target. So "the post-stroke rise is TARGET" holds in 3/4 (PS92,
+  PS93, PS95), with PS94 rising in both.
+- Acute is mixed (target up in PS92 / PS95, down in PS93, flat in PS94); PS95 acute is one session.
+
+#### Two-animal record (PS92 + PS93, 47 sessions, 10-21)
 
 > **Status 10-23:** the 3-D 2x2 check (executed frame xyz2 / polar x lick timing combined / cam4) is RUNNING: xyz2 x
 > combined done 10-23 09:32, xyz2 x cam4 40 / 47, polar x cam4 next; results not yet read. It runs on the 10-21
@@ -768,6 +791,9 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-24 (3-D)** — 4-animal 3-D polar contest (2.4b): pre target-led 3/4; chronic target above pre 4/4; the
+  post-stroke rise is target in 3/4 (PS94 executed rises as much).
 
 - **2026-10-24 (relabel)** — relabel test full run (2.7): validation 100 %; heterogeneous -- PS95 re-aimed at far mid
   (specific, transient), PS93 stays far contra, PS92 / PS94 nonspecific loss of spout structure.
