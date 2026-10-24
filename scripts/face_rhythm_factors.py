@@ -964,6 +964,65 @@ def cmd_fitsession(sd: Path, task: int, inits: int = 3, own_dir: str = "own") ->
           f"spatial {cos[0].mean():.3f} spectral {cos[1].mean():.3f}; {len(X)} rows, {(time.time() - t0) / 60:.1f} min")
 
 
+#: pooled own fits per animal x epoch (`fitepoch`, Priya 10-24 "cleaner shape test"): the four epochs + two pre fits on
+#: DISJOINT halves of the pre days (alternating dates), whose angle to each other is the like-for-like noise floor
+EPOCH_GROUPS = ("pre", "acute", "subacute", "chronic", "preA", "preB")
+
+
+def epoch_fit_tasks(pl: dict) -> list[tuple[str, str, list[str]]]:
+    """[(animal, group, task keys)] in a fixed order (animals sorted, then EPOCH_GROUPS); array task n = row n - 1."""
+    out = []
+    for an in sorted({t["animal"] for t in pl["tasks"]}):
+        mine = sorted((t for t in pl["tasks"] if t["animal"] == an), key=lambda t: t["key"])
+        pre_days = sorted({t["date"] for t in mine if t["epoch"] == "pre"})
+        for g in EPOCH_GROUPS:
+            if g in ("preA", "preB"):
+                days = set(pre_days[(0 if g == "preA" else 1)::2])
+                keys = [t["key"] for t in mine if t["epoch"] == "pre" and t["date"] in days]
+            else:
+                keys = [t["key"] for t in mine if t["epoch"] == g]
+            out.append((an, g, keys))
+    return out
+
+
+def cmd_fitepoch(sd: Path, task: int, inits: int = 8, n_rows: int = 11000, own_dir: str = "own_epoch") -> None:
+    """ONE own fit per animal x epoch on that epoch's sessions pooled (Priya 10-24: per-session own fits are too noisy to
+    read factor shape -- pre own-vs-master angles 10-50 deg). Every fit gets the SAME number of rows (``n_rows``, ~2
+    sessions; drawn evenly over the group's sessions from their `session_rows`), so a fit's noise does not depend on
+    how many sessions the epoch has; a group with fewer rows uses all of them (PS95 acute = 1 session) and says so.
+    preA / preB = disjoint alternating halves of the pre days -> their angle is the noise floor for pre vs post."""
+    pl = load_plan(sd)
+    an, g, keys = epoch_fit_tasks(pl)[task - 1]
+    dst = sd / own_dir / f"{an}_{g}.npz"
+    if dst.exists():
+        print("done already", dst)
+        return
+    A, B, scales, M = load_master(sd)
+    R = A.shape[1]
+    t0 = time.time()
+    rng = np.random.default_rng(zlib.crc32(f"{an}_{g}".encode()))
+    per = n_rows // len(keys)                        # even over sessions; a short session gives what it has
+    parts = []
+    for k in keys:                                   # subsample as each session is read (a row is ~0.4 MB: nine
+        x = gather_rows(sd, pl["session_rows"][k])[0]    # whole pre sessions at once would be ~20 GB)
+        parts.append(x[np.sort(rng.choice(len(x), min(per, len(x)), replace=False))])
+        del x
+    X = np.concatenate(parts) / float(scales[an])
+    del parts
+    _, Ef, N2 = project_rows(X, A, B)
+    fits = [ncp_hals(X, R, seed=zlib.crc32(f"{an}_{g}".encode()) + k, n_iter=pl["params"]["n_iter"])
+            for k in range(inits)]
+    f = fits[int(np.argmin([x["rel_err"] for x in fits]))]
+    order, cos = match([A, B], [f["A"], f["B"]])
+    _atomic_savez(dst, A_own=f["A"][:, order].astype(np.float32), B_own=f["B"][:, order].astype(np.float32),
+                  evr_own=1 - f["rel_err"] ** 2, evr_frozen=pooled_evr(Ef, N2), cos_spatial=cos[0],
+                  cos_spectral=cos[1], rel_errs_own=np.array([x["rel_err"] for x in fits]), n_rows=len(X),
+                  n_rows_target=n_rows, keys=np.array(keys), spec_hash=str(M["spec_hash"]), animal=an, group=g)
+    print(f"{an} {g} ({len(keys)} sessions): EVR own {1 - f['rel_err'] ** 2:.3f} vs frozen {pooled_evr(Ef, N2):.3f}; "
+          f"cosine to master spatial {cos[0].mean():.3f} spectral {cos[1].mean():.3f}; {len(X)} rows"
+          f"{' (FEWER than target)' if len(X) < 0.95 * n_rows else ''}, {(time.time() - t0) / 60:.1f} min")
+
+
 # ------------------------------------------------------------------------------------- desktop: plan / select
 def _sbatch(b: str, opts: str, cmd: str) -> str:
     thr = opts.split(" -c ")[1].split()[0]
@@ -1406,7 +1465,7 @@ Pre-stroke sessions on their left-out-day basis, post-stroke on the full pre fit
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["plan", "build", "fit", "loso", "splithalf", "select", "project", "fitsession",
-                                    "report"])
+                                    "fitepoch", "report"])
     ap.add_argument("--bundle", default="fr_cam4_20261021")
     ap.add_argument("--set", default="master_pre_v1")
     ap.add_argument("--dir", type=Path, default=None, help="factor-set folder (default: this file's folder on O2, "
@@ -1450,6 +1509,8 @@ def main(argv=None) -> int:
                     help="project: a PRE task on its left-out-day basis -> proj_loso/ (FR's own scoring only)")
     ap.add_argument("--own-inits", type=int, default=3, help="fitsession: random starts of the session's own fit")
     ap.add_argument("--own-dir", default="own", help="fitsession: output folder in the set (own8 = 8-start rerun, 10-24)")
+    ap.add_argument("--epoch-rows", type=int, default=11000,
+                    help="fitepoch: rows per pooled animal x epoch fit (~2 sessions; equal for every fit)")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
@@ -1464,12 +1525,13 @@ def main(argv=None) -> int:
             from wfield_local import o2_inference as oi
             from wfield_local.paths import PathResolver
             sd = oi.bundle_dir(PathResolver(), a.bundle) / "factors" / a.set
-    task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "loso") else None)
+    task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "fitepoch", "loso") else None)
     if a.cmd == "project" and a.loso_basis:
         cmd_project(sd, task, loso=True)
         return 0
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank, not a.no_loao), "select": lambda: cmd_select(sd, a.rank),
-     "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits, a.own_dir),
+     "project": lambda: cmd_project(sd, task),
+     "fitepoch": lambda: cmd_fitepoch(sd, task, a.own_inits, a.epoch_rows), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits, a.own_dir),
      "loso": lambda: cmd_loso(sd, task), "splithalf": lambda: cmd_splithalf(sd, a.rank, a.split_inits),
      "report": lambda: cmd_report(sd, a.face, a.absolute, a.match)}[a.cmd]()
     return 0
