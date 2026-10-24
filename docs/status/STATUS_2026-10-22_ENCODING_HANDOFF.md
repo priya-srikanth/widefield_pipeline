@@ -9,6 +9,21 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000o. STATE 10-24 ~06:40 -- READ FIRST (then 000n)
+
+- DONE: attempts rebuilt (small effect, DECISIONS); DELETE-NOW list deleted (53 GB, 147 entries; log
+  `S/deleted_20261024.log`); CHECK items kept (Priya). Local cache prune (pre-10-23 entries) still to do.
+- RUNNING: (1) Layer 1 final frame `_v7g3_t3d` (worktree `Github/wf_t3d` 9f45819; grouping v3 + 3-D tongue + rebuilt
+  gate; `S/frozen_v7g3_t3d.log`); (2) O2 bundle `enc_v36_full_20261024` (ef748dc; 107 sessions; attempted gate, combined
+  licks, polar 3-D exec + 20261023 tables, 3-D tongue, RAW FR master_pre_v1 rank 12; `S/bundle_full_run.log`);
+  (3) xyz2 x combined 4 animals, restarted at 2 workers; (4) within-spout 3-D 4 animals.
+- O2 submit-time options added: BINS, BINS_WIDTH, FR_GROUPS (master_v1:A|B|S|D) -> one bundle for: main, droppos-,
+  shufpos-, nodir:, nokin:, drop:, trmodels, musall shuf:, binned contest (nokin: + BINS=1, widths 1 / 0.5 / 2), FR
+  modes A / B / S / D (FR=master_pre_v1, VIDEO=cam1,cam4). nokin_matched needs a new match.json (old one cam4-era) --
+  not in the first batch. Commands to Priya when the bundle lands (+ `check` on one session first).
+- FR master rank 12 (FR window): labels.json + grouping `fr_groups.master_v1` (lick 2,4,5,7,8,11; left 5; right 4;
+  close 7; far 8; other 0,1,3,6,9,10); side via FR = S - B, distance = D - B; PS93 B leaks position; f6 / f10 unreliable.
+
 ## 000n. STATE 10-24 mid-morning -- OUTPUT INVENTORY + decisions -- READ FIRST (then 000m)
 
 - **Inventory:** `docs/status/OUTPUT_INVENTORY_2026-10-24.md` (every encoding output: data version, class, size).
