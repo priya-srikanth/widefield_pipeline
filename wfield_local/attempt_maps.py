@@ -41,11 +41,15 @@ import pandas as pd
 
 from wfield_local.attempt_coding import LESION_NAME, SPOUTS, POST_EPOCHS, _cue_classes
 
-CLASSES = ("pre_hit", "pre_incomplete", "hit", "incomplete", "noattempt", "reaction", "stopped")
+CLASSES = ("pre_hit", "pre_incomplete", "hit", "incomplete", "incomplete_pooled", "noattempt", "reaction", "stopped")
 #: the TOUCH / REWARD control (10-24): pre-stroke attempts that missed the spout -- no contact, no water, like the
 #: post-stroke failed attempts. Few per session (far contra 7 / 27 / 31 / 20 pre trials in all, PS92-95), so no
 #: per-session floor and a TRIAL-weighted pool across sessions instead of the session-weighted mean.
-POOLED = ("pre_incomplete",)
+POOLED = ("pre_incomplete", "incomplete_pooled")
+#: derived classes: the same trials as the source class, pooled trial-weighted with no per-session floor (Priya 10-24
+#: "why no chronic incomplete maps": chronic far-contra failed attempts are 8 / 12 / 38 / 9 trials in all, 1-3 per
+#: session, so the session-weighted >= 5 floor drops almost every session). Kept beside the session-weighted class.
+ALIAS = {"incomplete_pooled": "incomplete"}
 ALIGNS = ("cue", "lick", "precue")
 MIN_TRIALS = 5          # per session x spout x class to enter that session's class mean
 DS = 2                  # 2 x 2 block mean -> 270 x 320
@@ -109,7 +113,7 @@ def session_class_maps(label, align, post_s=None):
         sp = np.array([LESION_NAME.get(POSITION_NAMES.get(int(c), str(c)), "?") for c in ya])
         for P in SPOUTS:
             for c in CLASSES:
-                m = (sp == P) & (ca == c)
+                m = (sp == P) & (ca == ALIAS.get(c, c))
                 if m.sum() < (1 if c in POOLED else MIN_TRIALS):
                     continue
                 f = Xa[m].mean(0).reshape(n_bins, K).mean(0)
@@ -166,8 +170,9 @@ def out_dir():
 
 
 EPOCHS = ("pre",) + POST_EPOCHS
-SHOW = (("pre", "pre_hit"), ("pre", "pre_incomplete"), ("acute", "hit"), ("acute", "incomplete"), ("acute", "noattempt"), ("acute", "reaction"),
-        ("acute", "stopped"), ("subacute", "hit"), ("subacute", "incomplete"), ("chronic", "hit"))
+SHOW = (("pre", "pre_hit"), ("pre", "pre_incomplete"), ("acute", "hit"), ("acute", "incomplete"), ("acute", "noattempt"),
+        ("acute", "reaction"), ("acute", "stopped"), ("subacute", "hit"), ("subacute", "incomplete_pooled"),
+        ("chronic", "hit"), ("chronic", "incomplete_pooled"))
 
 
 def _mask_edges():
