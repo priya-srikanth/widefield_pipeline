@@ -53,8 +53,8 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 ## 2. Next, in order
 
 0. **10-24 afternoon: items 1-3 below are DONE**, plus aligned maps / statistics (FINDINGS 5f) and the repo palettes
-   (animals `config.animal_color()`, epochs `epoch_figures.EPOCH_GREY`; all FR figures re-rendering in the background
-   at handoff, push check last, ~1.5 h). OPEN with Priya: (a) close_R bout-aligned asymmetry > 0 before onset -- split
+   (animals `config.animal_color()`, epochs `epoch_figures.EPOCH_GREY`; all FR figures RE-RENDERED 14:09; push check
+   cached, `--plot-only` redraws in seconds). OPEN with Priya: (a) close_R bout-aligned asymmetry > 0 before onset -- split
    first bout of trial vs later and >= 0.5 s lick-free lead-in (offered, not run); (b) lead framing: contralesional
    licks keep their rate but are made with less contralesional / more ipsilesional face movement (5d / 5e / 5f) + the
    acute EVR drop; (c) optional: one own fit per animal x epoch for a cleaner shape test (6c); non-task drop vs
