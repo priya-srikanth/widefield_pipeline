@@ -13,7 +13,9 @@ Modules (import them, do not copy them into a script):
   face     face movement from the frozen point PCs: per-frame contra / ipsi mean speed, event-aligned averages,
            event-window weights (per-point maps)
   licks    LP lick table with bouts (re-exported), bout classes, first-lick latency
-  stats    log2 change vs each animal's own pre, the per-animal epoch table + `analysis_kit.boot_delta` (rule 8 first)
+  stats    log2 change vs each animal's own pre, the per-animal epoch table + `analysis_kit.boot_delta` (rule 8 first),
+           Holm marks (* / **)
+  __main__ the analysis catalogue: `python -m wfield_local.face_rhythm list | show <name> | run <name> [args]`
 
 Modules that other code imports by name stay flat in `wfield_local/` and are NOT moved here: `face_rhythm_outputs`
 and `fr_groups` (the encoding model), `face_rhythm_timing` and `face_rhythm_multiview` (copied next to the O2 factor

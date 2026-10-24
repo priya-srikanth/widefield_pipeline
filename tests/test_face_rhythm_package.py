@@ -89,3 +89,12 @@ def test_draws_do_not_change_the_interval_and_holm():
     T = pd.DataFrame({"fam": ["x", "x", "x", "y"], "p_boot": [0.001, 0.03, 0.04, 0.04],
                       "excludes_0": [True, True, True, True]})
     assert stats.add_holm(T, ["fam"])["mark"].tolist() == ["**", "*", "*", "**"]      # x: .003 .06 .06; y: .04
+
+
+def test_catalogue_points_at_real_scripts():
+    from wfield_local.face_rhythm.__main__ import CATALOGUE, REPO, STAGES
+    for name, a in CATALOGUE.items():
+        f = REPO / "scripts" / f"{a.script}.py"
+        assert f.exists(), (name, f)
+        assert f.read_text(encoding="utf-8").lstrip().startswith('"""'), name      # every script says what it does
+        assert a.stage in STAGES and a.question and a.outputs, name

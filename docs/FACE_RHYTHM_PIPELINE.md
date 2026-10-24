@@ -1,6 +1,6 @@
 # FaceRhythm pipeline (cam4; cam1 / cam2 / cam3 prepped) — stages, files, run order
 
-The reference for HOW the FaceRhythm (FR) analysis works and how to run it. WHY each choice was made:
+**New here? Start with [`FACE_RHYTHM_GUIDE.md`](FACE_RHYTHM_GUIDE.md)** (concepts, the analysis catalogue `python -m wfield_local.face_rhythm list`, adding an analysis). The reference for HOW the FaceRhythm (FR) analysis works and how to run it. WHY each choice was made:
 [`FACE_RHYTHM_PLAN.md`](FACE_RHYTHM_PLAN.md) + `DECISIONS.md` (2026-10-21 evening entries). Current status / running jobs:
 the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bioRxiv 10.1101/2025.09.10.675423 v4.
 
