@@ -21943,3 +21943,11 @@ execute or executes differently?" -> FINDINGS 7 items 1-5.
    (distance kept, side lost, lick 4/4) -- not yet separated from the failed movement itself; trial-type maps show the
    same bilateral pattern at lower amplitude vs hits (3/4) but only 2/4 vs touch-matched pre-stroke misses (not a robust
    stroke effect); final frame keeps the lick-carried acute drop, target ~0.
+
+## 2026-10-24 -- FaceRhythm: no pre + post master for treadmill pushes (push check)
+
+Priya asked whether a pre + post FR master is needed to capture the encoder's pushes. Tested instead of assumed
+(`face_rhythm_push_check.py`, all sessions, FINDINGS 6b): the face moves at pushes, but the frozen pre-stroke basis'
+reconstruction error at push onsets is LOWER than at random times in 27 / 32 animal x epoch x context cells and in every
+chronic cell, although pushes are 2-4x more frequent chronically. The pre-only master stays; pushes remain a treadmill
+regressor. Revisit only if a post-only fit matched to the master (`face_rhythm_match.py`) leaves an unmatched factor.

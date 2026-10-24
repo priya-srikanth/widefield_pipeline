@@ -288,6 +288,25 @@ PS92 chronic gap (.042 -> .040).
 Encoding grouping (Priya-approved, `wfield_local/fr_groups.py`, pilot set only): lick = f0 + f4 + f5 + f9 (left f0 + f5,
 centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation factors).
 
+## 6b. Treadmill pushes are inside the pre-stroke face repertoire (STANDS, four animals, 10-24)
+
+Question (Priya 10-24): do we need a pre + post master to capture the encoder's postural / forelimb PUSHES
+(ENCODING_FINDINGS 4.4: 2-5x more frequent after the stroke)? `scripts/face_rhythm_push_check.py` (all 107 sessions;
+`face_rhythm/cam4/readouts/master_pre_v1/push_check/`): around every push onset (backward treadmill speed > 0.3 mm/s,
+>= 2 samples), the frozen master's reconstruction error (pre sessions on their held-out day basis) and the face's
+movement energy D, against random times of the same context (in-trial cue -1..+4 s / between trials), >= 2 s from any
+push; (0..1 s) - (-1.5..-0.5 s), push minus random.
+
+* The face MOVES at pushes: D rises +1.3 to +5.5 above random times in every animal x epoch x context.
+* The frozen pre-stroke basis describes that movement BETTER than average: reconstruction-error excess is NEGATIVE in
+  27 / 32 animal x epoch x context cells, every chronic cell included (chronic -.005 to -.041); the five positive cells
+  are small (<= +.007; PS93 in-trial pre / subacute, PS94 between acute, PS95 acute = 1 session).
+* Pushes are 2-4x more frequent chronically (between trials PS92 .87 -> 2.63 / min, PS93 .69 -> 3.01, PS94 3.9 -> 4.4,
+  PS95 .98 -> 2.19), yet no animal's error rises at them.
+
+-> No pre + post master for pushes (Priya's question answered by the check, DECISIONS 10-24): the face movement that
+accompanies a push is already in the pre-stroke repertoire; pushes stay a treadmill regressor for the encoder.
+
 ## Where to look
 
 * Pilot factor set: `<dlc>/../o2/fr_cam4_20261021/factors/pilot_pre_PS92_PS93/` (`report/` gallery, epochs, rank
