@@ -278,6 +278,17 @@ def contrasts(T):
     return pd.DataFrame(rows)
 
 
+def _lp_available(label) -> bool:
+    """True if the LP source has lick tables for this session (else the LP feature path drops it)."""
+    from wfield_local import lp_licks
+    try:
+        lp_licks.lp_lick_times(label)
+        return True
+    except lp_licks.LPUnavailable:
+        print(f"[attempt_coding] {label}: no LP tables -> not in the LP pool, left out of the frozen set", flush=True)
+        return False
+
+
 def freeze_reference(animal, align):
     """Fit and store the DAQ-path frozen decoder this module reads, when it is not stored yet (DAQ mode only).
 
@@ -293,8 +304,11 @@ def freeze_reference(animal, align):
     if lp_licks.is_lp():
         raise RuntimeError("--freeze runs the DAQ path: unset WIDEFIELD_LICK_SOURCE")
     post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
-    pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
-    post = [l for l in config.phase_labels("post") if l.startswith(animal)]
+    # THE LP POOL'S SESSIONS, not the DAQ pool's: a session with no LP lick tables (PS93_0813 has no behaviour video)
+    # is dropped by the LP run, so its training set -- and the spec id it asks for -- has one session fewer. Freezing on
+    # the DAQ pool would store a model the LP run never finds (found 10-24 on PS93).
+    pre = [l for l in config.phase_labels("pre") if l.startswith(animal) and _lp_available(l)]
+    post = [l for l in config.phase_labels("post") if l.startswith(animal) and _lp_available(l)]
     basis = joint_locanmf.load(animal, sessions=_ALL)
     feat = features_with_indices(basis)
     XE, YE, GE, _BE, _XU, _YU, kept, _c, _GU = pool_sessions(pre + post, source="locanmf", align=align,
