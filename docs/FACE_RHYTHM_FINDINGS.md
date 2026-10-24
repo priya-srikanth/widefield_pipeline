@@ -312,6 +312,23 @@ mean (the 2pRAM manuscript's FR panel: pre-stroke components refit to post sessi
 Caveat: a trial-average peak also falls with fewer licks per trial (acute contralesional licks are rare); the chronic
 values are where lick counts are back (5b-master).
 
+**5d statistics (cohort, `peak/data/peak_epoch_stats_side.csv`, figure `peak/peak_side_headline.png`):** change of
+peak / own pre vs pre, `analysis_kit.boot_delta` (paired animals -> sessions, animal-weighted, 95 % interval):
+contra-spout lick_right acute -.60 [-.67, -.52], subacute -.39 [-.46, -.31], chronic -.30 [-.40, -.21], 4 / 4 below
+pre at every epoch; contra-spout lick_left subacute +.94 [.34, 1.54], chronic +1.08 [.35, 1.87], 4 / 4 above pre;
+ipsi-spout lick_left n.s. at every epoch, ipsi-spout lick_right only acute (-.45). Cohort views: peak_cohort_by_day /
+by_epoch (+ _side).
+
+**5e. The same substitution in raw face movement, per lick (STANDS, 4 / 4, 10-24).** `scripts/face_rhythm_asym_aligned.py`
+(`readouts/master_pre_v1/asym_aligned/`): per 25 Hz frame, mean point speed on the contra- vs ipsilesional half of the
+face (reconstructed from the frozen point PCs; independent of the factors), LICK-aligned (-0.1..+0.2 s, LP licks in
+engaged trials, PER LICK so lick count drops out), per spout position. Pre-stroke a lick at the far contralesional
+spout moves the contralesional face more (far_R asym +.26 / .00 / +.22 / +.27 for PS92 / 93 / 94 / 95); acutely
++.05 / -.11 / -.05 / -.09, chronically +.14 / -.03 / -.05 / +.16 -- below pre in all four: contralesional licks are made
+with a more ipsilesional face movement. Cue-aligned per-position speed maps (`position_maps/`, response window) agree:
+the contralesional face loses more movement than the ipsilesional mainly on contralesional-spout trials (far_R contra -
+ipsi log2 change acute -.17 to -.62 in 4 / 4; chronic PS92 -.25, PS94 -.53, PS95 -.10, PS93 recovered).
+
 ## 6-master. Does the pre-stroke vocabulary still fit? Four animals, rank 12 (10-24)
 
 `scripts/face_rhythm_readouts.py --set master_pre_v1` (`face_rhythm/cam4/readouts/master_pre_v1/`: session_table,

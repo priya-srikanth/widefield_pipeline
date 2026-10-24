@@ -138,8 +138,57 @@ shaded band per animal = the range of its pre-stroke sessions. The peak of a tri
 trials contain the movement (fewer licks): per-lick amplitude is `face_rhythm_lick_epochs.py` (FINDINGS 5b-master).
 Frozen master `{fdir.name}` (pre and post on the same basis; `proj/`). The 2pRAM-cohort manuscript's FR panel.""")
     cohort(S, names, groups, out, sfx, fdir.name, tuple(a.window))
+    if a.split == "side":
+        headline(S, names, out, fdir.name)
     print("->", out)
     return 0
+
+
+def headline(S: pd.DataFrame, names: list[str], out: Path, set_name: str) -> None:
+    """The side result in one figure (Priya 10-24): rows = contra- / ipsilesional-spout trials, columns = the
+    contralesional (lick_right) and ipsilesional (lick_left) lick factors; per-animal epoch means (grey, joined),
+    mean +- SEM across animals, `boot_delta` change vs pre (95 % interval) printed per epoch."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local import face_rhythm_figures as frf
+    want = [k for k in (names.index("lick_right") if "lick_right" in names else None,
+                        names.index("lick_left") if "lick_left" in names else None) if k is not None]
+    if len(want) < 2:
+        return
+    rng = np.random.default_rng(0)
+    x = np.arange(len(EPOCHS))
+    with frf.style():
+        fig, axs = frf.subplots(2, 2, figsize=(9, 7.5), squeeze=False, sharey=True)
+        for r_i, g in enumerate(("contra", "ipsi")):
+            for c_i, k in enumerate(want):
+                ax = axs[r_i, c_i]
+                d = S[(S.factor == k) & (S.group == g)]
+                A = d.groupby(["animal", "epoch"]).peak_vs_pre.mean().unstack().reindex(columns=list(EPOCHS))
+                for an, row in A.iterrows():
+                    ax.plot(x, row.to_numpy(), "o-", color="0.7", ms=3, lw=0.8)
+                    ax.text(x[-1] + 0.08, row.iloc[-1], an, fontsize=7, va="center", color="0.4")
+                m, se = A.mean(0), A.std(0, ddof=1) / np.sqrt(A.notna().sum(0))
+                ax.errorbar(x, m.to_numpy(), yerr=se.to_numpy(), fmt="o", color="k", ms=6, capsize=3, zorder=5)
+                pre = {an: list(v.peak_vs_pre) for an, v in d[d.epoch == "pre"].groupby("animal")}
+                for e_i, ep in enumerate(EPOCHS[1:], start=1):
+                    post = {an: list(v.peak_vs_pre) for an, v in d[d.epoch == ep].groupby("animal")}
+                    iv = ak.boot_delta(post, pre, rng)
+                    if iv:
+                        star = "*" if (iv.lo > 0 or iv.hi < 0) else ""
+                        ax.annotate(f"{iv.point:+.2f}{star}\n[{iv.lo:+.2f}, {iv.hi:+.2f}]", (e_i, 0.02),
+                                    xycoords=("data", "axes fraction"), ha="center", fontsize=7)
+                ax.axhline(1, color="k", lw=0.5)
+                ax.set_xticks(x, [e[:5] for e in EPOCHS])
+                ax.set_title(f"{names[k]} -- on {'CONTRA' if g == 'contra' else 'IPSI'}lesional-spout trials", fontsize=10)
+                if c_i == 0:
+                    ax.set_ylabel("peak / own pre")
+        fig.suptitle(f"{set_name}: contralesional-spout trials recruit the IPSILESIONAL lick pattern")
+        frf.save(fig, out / "peak_side_headline.png", f"""
+Peak of the trial-averaged absolute expression (cue 0..+4 s) of the contralesional lick factor (lick_right, left
+column) and the ipsilesional lick factor (lick_left, right column), on trials at the CONTRALESIONAL spouts (the
+animal's right: far_R, close_R; top) and the IPSILESIONAL spouts (far_L, close_L; bottom); each session / the mean of
+that animal's pre-stroke sessions on the same spout side. Grey: per-animal epoch means (joined); black: mean +- SEM
+across the four animals. Numbers: change vs pre, `analysis_kit.boot_delta` (paired animals -> sessions bootstrap,
+animal-weighted) with its 95 % interval; * = excludes 0. Frozen master {set_name}; FINDINGS 5d.""")
 
 
 def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx: str, set_name: str,
