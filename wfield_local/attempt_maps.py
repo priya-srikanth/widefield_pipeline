@@ -157,15 +157,123 @@ def out_dir():
     return lp_licks._run_dir() / "imaging_encoding" / "attempt_maps"
 
 
+EPOCHS = ("pre",) + POST_EPOCHS
+SHOW = (("pre", "pre_hit"), ("acute", "hit"), ("acute", "incomplete"), ("acute", "noattempt"), ("acute", "reaction"),
+        ("acute", "stopped"), ("subacute", "hit"), ("subacute", "incomplete"), ("chronic", "hit"))
+
+
+def _mask_edges():
+    """Brain mask + atlas edges at map resolution (beta_maps' shared-grid versions, 2 x 2 block-reduced)."""
+    from wfield_local.beta_maps import atlas_edges, brain_mask
+    m = brain_mask()
+    e = atlas_edges()
+    m = None if m is None else _down(np.asarray(m, float)) > 0.5
+    e = None if e is None else _down(np.asarray(e, float)) > 0
+    return m, e
+
+
+def hemisphere_table(od, align, animals):
+    """Per animal x epoch x spout x class: mean map value in the image-LEFT (ipsilesional) and image-RIGHT
+    (contralesional) halves inside the brain mask, and the same for the difference from that spout's pre-stroke hits."""
+    m, _e = _mask_edges()
+    rows = []
+    for an in animals:
+        f = od / f"maps_{align}_{an}.npz"
+        if not f.exists():
+            continue
+        Z = np.load(f)
+        for k in Z.files:
+            e, P, c = k.split("|")
+            M = Z[k]
+            mm = np.ones_like(M, bool) if m is None else m
+            half = M.shape[1] // 2
+            ref = Z[f"pre|{P}|pre_hit"] if f"pre|{P}|pre_hit" in Z.files else None
+            r = {"animal": an, "align": align, "epoch": e, "spout": P, "cls": c,
+                 "ipsi": float(M[:, :half][mm[:, :half]].mean()), "contra": float(M[:, half:][mm[:, half:]].mean())}
+            if ref is not None:
+                D = M - ref
+                r["d_ipsi"] = float(D[:, :half][mm[:, :half]].mean())
+                r["d_contra"] = float(D[:, half:][mm[:, half:]].mean())
+                r["ref_ipsi"] = float(ref[:, :half][mm[:, :half]].mean())
+                r["ref_contra"] = float(ref[:, half:][mm[:, half:]].mean())
+            rows.append(r)
+    return pd.DataFrame(rows)
+
+
+def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
+    """Per spout: one figure per animal-set, rows = animals (+ mean of animal means), columns = SHOW (epoch x class);
+    one absolute version (shared symmetric scale per row) and one minus that animal's pre-stroke hits."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    m, edges = _mask_edges()
+    fd = od / "figures"
+    fd.mkdir(exist_ok=True)
+    Zs = {an: np.load(od / f"maps_{align}_{an}.npz") for an in animals if (od / f"maps_{align}_{an}.npz").exists()}
+    out = []
+    for P in spouts:
+        for diff in (False, True):
+            cols = [sc for sc in SHOW if not (diff and sc == ("pre", "pre_hit"))]
+            fig, axes = plt.subplots(len(Zs) + 1, len(cols), figsize=(1.9 * len(cols), 1.75 * (len(Zs) + 1)),
+                                     squeeze=False)
+            stack = {sc: [] for sc in cols}
+            for i, (an, Z) in enumerate(list(Zs.items()) + [("mean", None)]):
+                mats = []
+                for sc in cols:
+                    k = f"{sc[0]}|{P}|{sc[1]}"
+                    if Z is None:
+                        M = np.mean(stack[sc], 0) if len(stack[sc]) >= 2 else None
+                    else:
+                        M = Z[k] if k in Z.files else None
+                        ref = Z[f"pre|{P}|pre_hit"] if f"pre|{P}|pre_hit" in Z.files else None
+                        if M is not None and diff:
+                            M = None if ref is None else M - ref
+                        if M is not None:
+                            stack[sc].append(M)
+                    mats.append(M)
+                vals = [np.abs(M[m] if m is not None else M) for M in mats if M is not None]
+                v = float(np.percentile(np.concatenate(vals), 99)) if vals else 1.0
+                for j, (sc, M) in enumerate(zip(cols, mats)):
+                    ax = axes[i, j]
+                    ax.set_xticks([]); ax.set_yticks([])
+                    if M is not None:
+                        show = np.where(m, M, np.nan) if m is not None else M
+                        ax.imshow(show, cmap="RdBu_r", vmin=-v, vmax=v)
+                        if edges is not None:
+                            ax.contour(edges, levels=[0.5], colors="k", linewidths=0.2)
+                    else:
+                        ax.set_facecolor("0.92")
+                    if i == 0:
+                        ax.set_title(f"{sc[0]}\n{sc[1]}", fontsize=7)
+                    if j == 0:
+                        ax.set_ylabel(f"{an}\n(+/-{v:.2g})", fontsize=7)
+            what = "minus pre-stroke hits" if diff else "rest-referenced dF"
+            fig.suptitle(f"{P}, {align} window: {what} (image left = ipsilesional; mean = mean of animal means, "
+                         f">= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)
+            fig.tight_layout(rect=(0, 0, 1, 0.95))
+            fn = fd / f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}.png"
+            fig.savefig(fn, dpi=130)
+            plt.close(fig)
+            out.append(fn)
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--animals", nargs="+", default=["PS92", "PS93", "PS94", "PS95"])
     ap.add_argument("--aligns", nargs="+", default=list(ALIGNS), choices=ALIGNS)
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--figures", action="store_true", help="figures + hemisphere table from the stored maps, then exit")
     a = ap.parse_args(argv)
     od = a.out or out_dir()
     od.mkdir(parents=True, exist_ok=True)
+    if a.figures:
+        for align in a.aligns:
+            hemisphere_table(od, align, a.animals).to_csv(od / f"hemispheres_{align}.csv", index=False)
+            for fn in figures(od, align, a.animals):
+                print(f"[attempt_maps] wrote {fn.name}", flush=True)
+        return 0
     for align in a.aligns:
         counts = []
         for an in a.animals:

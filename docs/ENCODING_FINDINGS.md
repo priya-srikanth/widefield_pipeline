@@ -462,6 +462,27 @@ probability of the true spout (chance .167); within-session permutation contrast
   movement-matched comparison (failed far-contra attempts vs pre-stroke / acute licks with the same 3-D landing).
   The per-spout projection (`own`) is unstable post-stroke (see module docstring) and is not used.
 
+### 2.9 What failed attempts look like (trial-type maps) — FIRST RUN 10-24: same bilateral pattern at lower amplitude (3/4); acute hits full-size
+
+`wfield_local/attempt_maps.py` (goal-question item 4): 15r's rest-referenced maps split by video class, per animal,
+session-weighted means (>= 5 trials per session x spout x class). `E/attempt_maps/` (`maps_*.npz`, `counts_*`,
+`hemispheres_*.csv`, `figures/attempt_maps_<window>_<spout>[_minus_pre].png`). Amplitude below = mean over the brain
+mask in each half, / the same animal's pre-stroke far-contra hits (ipsi | contra hemisphere).
+
+- **Lick window (aligned to the trial's own first video lick), acute far contra:** failed attempts (incomplete) PS92
+  .40 | .45, PS93 .38 | .42, PS94 .57 | .74, PS95 .90 | 1.25 -> weaker in 3/4, bilateral, SAME SPATIAL PATTERN (lateral
+  SSp-m / MO / ALM, both hemispheres). The few acute HITS are full size or larger (PS92 1.77 | 2.09, n 10; PS93 1.27 |
+  1.10, n 31; PS94 1.21 | 1.47, n 8). This splits the 15r LP pooled acute amplitude (0.70, 3.3): hits large, failed
+  attempts small. Subacute failed attempts stay low in PS92 / PS93 (.25-.36), not in PS94 / PS95 (1.0-1.7).
+- **Cue window:** failed attempts .29-.52 of pre in PS92-94 (PS95 .83 | 1.12); jaw-only REACTION trials are large in
+  PS92 / PS93 (1.35 | 2.12, 1.11 | 1.13) -- read with the late-start caveat (acute PS92 / PS93 far-contra licks start
+  > 1.5 s after the cue on 35-38 % of trials, so much of the cue window precedes the failed lick); stopped trials
+  variable (PS93 ~0, PS92 .72 | 1.0, PS94 .75 | 1.21).
+- **Main confound: touch and reward.** Hits contact the spout (touch, water); failed attempts by definition do not, and
+  their tongue movements are shorter. The lower amplitude may be missing touch / reward / movement size rather than a
+  weaker plan. Control to run: failed attempts vs PRE-stroke non-contact attempts (PS93 27 / PS94 31 / PS95 20 at far
+  contra; few per session -> pool sessions or far spouts), and the frozen encoder's touch / lick split (item 3).
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92_0908 rerun done 10-20: PS92 chronic unchanged)
