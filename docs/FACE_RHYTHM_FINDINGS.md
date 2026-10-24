@@ -288,6 +288,30 @@ PS92 chronic gap (.042 -> .040).
 Encoding grouping (Priya-approved, `wfield_local/fr_groups.py`, pilot set only): lick = f0 + f4 + f5 + f9 (left f0 + f5,
 centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation factors).
 
+## 5d. Peak factor amplitude over recovery; contralesional trials recruit the IPSILESIONAL lick pattern (STANDS, 4 / 4, 10-24)
+
+`scripts/face_rhythm_peak.py [--split side]` (`readouts/master_pre_v1/peak/`: peak_by_day[_side].png, data/peak_*.csv):
+per session and frozen factor, the PEAK of the trial-averaged absolute expression over cue 0..+4 s, / the animal's pre
+mean (the 2pRAM manuscript's FR panel: pre-stroke components refit to post sessions, amplitude over recovery).
+
+| peak / pre | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|
+| lick_right, all trials: acute / chronic | .45 / .65 | .46 / .81 | .39 / .61 | .30 / .77 |
+| lick_right, CONTRA-spout trials: acute / chronic | .41 / **.57** | .43 / **.73** | .42 / **.76** | .33 / **.74** |
+| lick_left, CONTRA-spout trials: acute / chronic | .78 / **2.30** | 1.21 / **1.20** | 2.30 / **3.28** | 1.57 / **1.54** |
+| lick_left, ipsi-spout trials: chronic | .69 | 1.10 | .96 | .78 |
+
+* The contralesional lick factor falls acutely and stays reduced chronically in all four (with 5b-master's per-lick
+  .57-.79: the same deficit by two measures).
+* On CONTRALESIONAL-spout trials the IPSILESIONAL lick factor rises above pre in all four (1.2-3.3x chronically), not on
+  ipsilesional-spout trials: the animals reach the contralesional spouts with more of the ipsilesional lick pattern --
+  a substitution / compensation in how the pre-stroke repertoire is MIXED, not a new movement (push check 6b, EVR gap
+  back to pre in 2 / 4) and not a reshaped factor (6c: shape changes inconsistent across animals).
+* Shared lick factors fall acutely in all four (lick_ongoing .38-.54, lick_fast_close .29-.85) and recover;
+  lick_fast_close overshoots chronically (1.2-2.1).
+Caveat: a trial-average peak also falls with fewer licks per trial (acute contralesional licks are rare); the chronic
+values are where lick counts are back (5b-master).
+
 ## 6-master. Does the pre-stroke vocabulary still fit? Four animals, rank 12 (10-24)
 
 `scripts/face_rhythm_readouts.py --set master_pre_v1` (`face_rhythm/cam4/readouts/master_pre_v1/`: session_table,
@@ -304,7 +328,7 @@ Acute rise in 4 / 4 (reconstruction error too, +.016 to +.033); chronically back
 PS92 / PS94 (reconstruction error: only PS94, +.013). Replicates the pilot (6: PS93 back, PS92 elevated) on four
 animals. STANDS (per animal; no pooled test at n = 4).
 
-## 6c. Factor "morphing": which factors change shape, per animal (PROVISIONAL, 10-24)
+## 6c. Factor "morphing": which factors change shape, per animal (10-24; NOT consistent across animals -- secondary)
 
 `scripts/face_rhythm_match.py` (`readouts/master_pre_v1/matching/`: match_by_day.png, match_example.png,
 asymmetry_two_ways.png, data/match_*.csv). Each session's own fit Hungarian-matched to the master (spatial x spectral
@@ -329,7 +353,10 @@ beyond the pre range:
 * Unreadable: lick_far_nose (pre-pre floor at chance), PS93's nose / sniff factors (at chance even pre: not in PS93's
   own fits), PS93 lick_right (pre range 24-52 deg). Acute angles partly reflect few contralesional licks to fit.
 * Split / merge flags: pre .18, acute .27, chronic .22.
-Amplitude per lick (5b-master) is the 4 / 4 result; shape changes are animal-specific (the 2pRAM manuscript's
+Priya 10-24: "the cosine similarity doesn't show clear consistent changes post stroke" -- agreed: per-session own
+fits are noisy (pre angles 10-50 deg) and changes differ by animal. LEAD with frozen-basis amplitudes (5b-master, 5d)
+and the EVR gap; report shape as heterogeneous. A cleaner shape test if wanted: one own fit per animal x epoch
+(pooled sessions). Amplitude per lick (5b-master) is the 4 / 4 result; shape changes are animal-specific (the 2pRAM manuscript's
 "heterogeneous reorganization", here on one basis across animals).
 
 ## 6d. Task vs non-task, asymmetry, severity (10-24)
