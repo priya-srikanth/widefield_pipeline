@@ -1,4 +1,4 @@
-# FaceRhythm handoff (2026-10-24 morning) -- START HERE
+# FaceRhythm handoff (2026-10-24; afternoon update at the top of section 2) -- START HERE
 
 Supersedes `STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md` for current state (that file keeps the 10-22 / 10-23 history:
 pilot, timing fix, master planning, rank-10 fit). Findings: `docs/FACE_RHYTHM_FINDINGS.md` (status table at the top).
@@ -21,7 +21,7 @@ EVR .803, stability .912, leave-one-animal-out factor similarity .82-.90, split 
 | `proj/` 108 | done (full frozen basis for every session; `basis` full_in_sample 32 / full 76) -> **ENCODER** |
 | `loso/rank12_*` 31, `proj_loso/` 32 | done (pre sessions on their left-out-day basis; FR scoring only) |
 | `splithalf/rank12.json` | done (.911; lick pair .96 / .99; f6 run_onset_jaw .36, f10 prep_jaw .76) |
-| `own/` (per-session fits, EVR gap, morphing) | **15 / 108 copied** -- `frf_own` (57438149) was still running; RSYNC AGAIN |
+| `own/` (3 starts) + `own8/` (8 starts, O2 rerun 10-24) | done, 108 each; readouts / matching read `own8/` automatically (`face_rhythm_readouts.own_sub`) |
 | `report/` | rank-12 gallery (abs + share, with names), rank sweep, stability, loso tables |
 | rank-10 outputs | record kept: `master_r10.npz`, `rank10.*`, `own_r10/`, `report_r10/`, validation `master_pre_v1_r10` |
 
@@ -32,9 +32,31 @@ Local clips (one pre session per animal, 12 factors) `face_rhythm/cam4/factor_cl
 far 8; other 0, 1, 3, 6, 9, 10; modes A / B / S / D; side = S - B, distance = D - B). Bundling into
 `enc_v36_full_20261024` (107 sessions; raw 12 factors, grouping applied at submit).
 
+## 1b. Results and figure index (10-24 afternoon; FINDINGS 5b-master, 5d, 5e, 6-master, 6b-6d)
+
+All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/` unless noted.
+
+| question (Priya) | result | figure(s) / script |
+|---|---|---|
+| contralesional deficit per lick? | lick_right per right lick .57-.79 of pre chronically, 4 / 4 | `validation/master_pre_v1/lick_epochs/` (`face_rhythm_lick_epochs.py`) |
+| peak factor amplitude over recovery (manuscript FR panel) | contra-spout lick_right chronic -.30 [-.40, -.21] 4/4; contra-spout lick_left +1.08 [.35, 1.87] 4/4 (ratio scale); per position: far_R loses most contralesional, close_R gains most ipsilesional | `peak/peak_by_day*.png`, `peak_cohort_by_{day,epoch}*.png`, `peak_side_headline.png`, `peak_position_headline.png` -- LOG2 scale since 10-24 pm (`face_rhythm_peak.py --split none/side/position`) |
+| KEY: contralesional licks made with an ipsilesional face movement | factors (above) + raw point movement, lick-aligned, far_R asym pre +.22-.27 -> chronic below pre 4/4 | `asym_aligned/asym_aligned_traces.png` (cue / lick / bout-onset columns), `asym_aligned_by_animal.png` (`face_rhythm_asym_aligned.py`) |
+| does the pre vocabulary fit post? (EVR, normalised) | frozen / own ratio vs own pre: acute -.035 [-.045, -.025] 4/4, chronic -.008 (3/4, borderline) | `evr_own_vs_frozen.png` (bottom row pre = 1, +-1 SEM), `evr_epochs.png` (`face_rhythm_evr_epochs.py`) |
+| why does own EVR drop too? | less movement vs fixed tracking noise + less stereotyped movement (partial: r with between-trial speed .48-.66 in PS94 / PS95 only); the ratio divides it out | -- |
+| factor angles / morphing | NOT consistent across animals (Priya: "no clear consistent changes") -> secondary; lead with amplitudes | `matching/match_by_day.png`, `match_example.png` (`face_rhythm_match.py`) |
+| asymmetry two ways (points vs own-fit loadings) | agree acutely; loadings: lick_right moves off the contralesional face | `matching/asymmetry_two_ways.png` |
+| per-position face speed maps | whole face moves less acutely at every position; contralesional half more, strongest far_R; chronic overshoot, ipsi half up on R spouts | `position_maps/position_maps_response_{mean,PS9x}.png` (`face_rhythm_position_maps.py`; cue 0..+4 s) |
+| lick- / bout-aligned maps + patch statistics | RUNNING at handoff time | `aligned_maps/aligned_maps_{cue,lick,bout}.png`, `halves_*.png` (`face_rhythm_aligned_maps.py`, needs the cache from `face_rhythm_asym_aligned.py`) |
+| pre + post master for pushes? | no: frozen error LOWER at pushes, 27 / 32 cells | `push_check/` (`face_rhythm_push_check.py`); DECISIONS 10-24 |
+| task vs non-task, severity | non-task NOT preserved acutely; no ordering by lesion size (n = 4) | `task_vs_nontask.png`, `severity.png` |
+
 ## 2. Next, in order
 
-1. **Rsync `own/`** once `frf_own` is done (transfer node; RESET the variables -- the encoding bundle reuses B / S):
+0. **10-24 afternoon: items 1-3 below are DONE** (own + own8 rsynced; readouts, matching, push check run; FINDINGS
+   rewritten on four animals). NOW: (a) finish `face_rhythm_aligned_maps.py` (lick- / bout-aligned maps + patch and
+   contra-vs-ipsi statistics) and discuss with Priya; (b) FINDINGS for those; (c) optional: one own fit per animal x
+   epoch for a cleaner shape test (6c); non-task drop vs running / per factor (6d caveat).
+1. (done) **Rsync `own/`** once `frf_own` is done (transfer node; RESET the variables -- the encoding bundle reuses B / S):
    `B=/n/scratch/users/p/ps150/o2/fr_cam4_20261021; S=/n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/fr_cam4_20261021`
    `rsync -ah --exclude fit_tensor.npy --exclude 'proj_r10' --exclude 'proj_loso_r10' $B/factors/master_pre_v1/ $S/factors/master_pre_v1/`
    -> expect `own/` 108. (The excludes keep the rank-10 projections deleted from the share on 10-24 from coming back.)
@@ -84,6 +106,12 @@ the comments forward (CLAUDE.md engineering note). Starting points:
 * PS93: weakest side selectivity in both lick factors; lick sum not position-balanced (far_L .79, close ~1.15).
 
 ## 4. Code added 10-23 / 10-24 (all committed)
+
+* 10-24 afternoon: `scripts/face_rhythm_peak.py` (peak amplitude, cohort views, boot_delta, log2, side / position
+  splits, headline figures), `face_rhythm_evr_epochs.py` (normalised EVR ratio by epoch), `face_rhythm_position_maps.py`
+  (per-position speed maps), `face_rhythm_asym_aligned.py` (cue / lick / bout-onset aligned contra vs ipsi speed + cached
+  per-point maps), `face_rhythm_aligned_maps.py` (aligned maps + patch / halves statistics), readouts EVR ratio row,
+  matching loading asymmetry, `fitsession --own-dir`.
 
 * `wfield_local/face_rhythm_matching.py` + `scripts/face_rhythm_match.py` (+ tests): Hungarian matching of independent
   fits (on product / spatial / spectral / sum; spatial as vectors or magnitudes), angles in degrees, split / merge
