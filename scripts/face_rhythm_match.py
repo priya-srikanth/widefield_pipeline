@@ -31,7 +31,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-EPOCHS = ("pre", "acute", "subacute", "chronic")
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+
+EPOCHS = frc.EPOCHS
 
 
 def main(argv=None) -> int:
@@ -66,10 +68,10 @@ def main(argv=None) -> int:
     asym_master = fm.loading_asymmetry(A_ref, home, mid)
     own = frr.own_sub(fdir)                              # own8 (8 starts) once complete, else own (3)
     print("own fits from", own)
-    T = frr._tasks(fdir, own)
+    T = frc.sessions(fdir, own)
     if T.empty:
         sys.exit(f"no per-session fits in {fdir / 'own'} (run fitsession)")
-    T["day"] = [frr._day(lb) for lb in T.label]
+    T["day"] = [frc.day(lb) for lb in T.label]
 
     rows, fits, examples = [], {}, {}
     for t in T.itertuples():

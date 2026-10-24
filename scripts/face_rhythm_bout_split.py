@@ -142,7 +142,7 @@ def main(argv=None) -> int:
     if a.plot_only:
         R = load_cache(cache)
     else:
-        keys = sorted(f.stem for f in (fdir / "proj").glob("*.npz") if not f.name.endswith(".part.npz"))
+        keys = frc.session_keys(fdir)
         got, fail = ak.fan_sessions([(str(fdir), k, a.leadin) for k in keys], job, jobs=a.jobs, key=lambda it: it[1],
                                     label="bout_split")
         if fail:

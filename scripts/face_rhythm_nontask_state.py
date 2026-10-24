@@ -28,7 +28,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-EPOCHS = ("pre", "acute", "subacute", "chronic")
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+
+EPOCHS = frc.EPOCHS
 STATES = ("all", "rest", "running", "grooming", "other")
 BUSY_S = (-3.0, 6.0)                      # = face_rhythm_readouts.BUSY_S (the 6d "between trials" definition)
 
@@ -46,7 +48,6 @@ def _in_bouts(t: np.ndarray, starts: np.ndarray, stops: np.ndarray) -> np.ndarra
 def job(item: tuple) -> list[dict]:
     fdir, key = item
     from wfield_local import behavior_events as be
-    from wfield_local import face_rhythm_readouts as frr
     from wfield_local.paths import PathResolver
     with np.load(Path(fdir) / "proj" / f"{key}.npz", allow_pickle=True) as z:
         animal, date, epoch = str(z["animal"]), str(z["date"]), str(z["epoch"])
@@ -70,7 +71,7 @@ def job(item: tuple) -> list[dict]:
              "other": between & ~run & ~rest & ~groom}
     rows = []
     for st, m in masks.items():
-        r = {"key": key, "label": frr._label(animal, date), "animal": animal, "epoch": epoch, "state": st,
+        r = {"key": key, "label": frc.label(animal, date), "animal": animal, "epoch": epoch, "state": st,
              "n_bins": int(m.sum()), "frac": float(m.sum() / max(between.sum(), 1))}
         if m.sum():
             r.update({f"f{j}": float(v) for j, v in enumerate(W[m].mean(0))})
@@ -87,7 +88,6 @@ def main(argv=None) -> int:
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import face_rhythm_readouts as frr
     from wfield_local import figure_layout, writeguard
-    from wfield_local.face_rhythm import common as frc
     ecol = frc.epoch_colors()        # FR epoch palette (orofacial / 3-D kinematics)
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -109,7 +109,7 @@ def main(argv=None) -> int:
     if a.plot_only:
         S = pd.read_csv(cache)
     else:
-        keys = sorted(f.stem for f in (fdir / "proj").glob("*.npz") if not f.name.endswith(".part.npz"))
+        keys = frc.session_keys(fdir)
         got, fail = ak.fan_sessions([(str(fdir), k) for k in keys], job, jobs=a.jobs, key=lambda it: it[1],
                                     label="nontask")
         if fail:

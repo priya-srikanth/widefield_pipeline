@@ -22,15 +22,16 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-POSITIONS = ("far_L", "close_L", "close_center", "far_center", "close_R", "far_R")   # animal's L = ipsilesional
-EPOCHS = ("pre", "acute", "subacute", "chronic")
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+
+POSITIONS = frc.POSITIONS                      # animal's L (ipsilesional) -> R (contralesional)
+EPOCHS = frc.EPOCHS
 
 
 def position_speed(fdir: Path, window: str) -> dict:
     """{(animal, epoch, position): (P,) RMS speed} -- bin-weighted mean of speed^2 over the epoch's sessions."""
-    from wfield_local import face_rhythm_readouts as frr
     acc = {}
-    for t in frr._tasks(fdir, "proj").itertuples():
+    for t in frc.sessions(fdir, "proj").itertuples():
         with np.load(t.file) as z:
             if "speed_n_bins" not in z.files:
                 continue

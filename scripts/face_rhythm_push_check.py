@@ -34,12 +34,14 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+
 FS = 31.25                 # = push_behaviour.FS
 PUSH_FLOOR = 0.3           # = frozen_encoder.PUSH_FLOOR
 LAGS = np.arange(-2.0, 3.0001, 0.2)
 BASE, POST = (-1.5, -0.5), (0.0, 1.0)
 TRIAL = (-1.0, 4.0)        # around the cue: "in-trial" pushes
-EPOCHS = ("pre", "acute", "subacute", "chronic")
+EPOCHS = frc.EPOCHS
 
 
 def push_onsets(t: np.ndarray, v: np.ndarray, floor: float = PUSH_FLOOR, min_len: int = 2) -> np.ndarray:
@@ -162,7 +164,7 @@ def main(argv=None) -> int:
     if a.plot_only:
         S = load_cache(cache)
     else:
-        keys = sorted(f.stem for f in (fdir / "proj").glob("*.npz") if not f.name.endswith(".part.npz"))
+        keys = frc.session_keys(fdir)
         got, fail = ak.fan_sessions([(str(fdir), k) for k in keys], job, jobs=a.jobs, key=lambda it: it[1],
                                     label="push")
         S = pd.DataFrame([r for _, rs in got for r in rs])
@@ -186,7 +188,6 @@ def main(argv=None) -> int:
         print("failed:", [f[0] for f in fail])
 
     animals = sorted(S.animal.unique())
-    from wfield_local.face_rhythm import common as frc
     col = frc.epoch_colors()         # FR epoch palette (orofacial / 3-D kinematics); animals own `animal_colors`
     with frf.style():
         fig, axs = frf.subplots(3, 2 * len(animals), figsize=(4 * 2 * len(animals), 9), squeeze=False, sharex=True)

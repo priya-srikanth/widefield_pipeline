@@ -23,7 +23,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-EPOCHS = ("pre", "acute", "subacute", "chronic")
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+
+EPOCHS = frc.EPOCHS
 METRICS = {"ratio": ("EVR frozen / EVR own, / own pre", "ratio"),
            "evr_gap": ("EVR gap (own - frozen), - own pre", "diff"),
            "recon_err_session": ("reconstruction error (frozen), / own pre", "ratio")}

@@ -29,7 +29,9 @@ from pathlib import Path
 
 import numpy as np
 
-EPOCHS = ("pre", "acute", "subacute", "chronic")
+from wfield_local.face_rhythm import common as frc
+
+EPOCHS = frc.EPOCHS
 
 
 def _epoch_lines(ax, S, col, title):

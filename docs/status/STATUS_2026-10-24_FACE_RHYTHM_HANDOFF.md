@@ -56,7 +56,18 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
-0. **10-24 evening.** Story order DECIDED (Priya; FINDINGS top, DECISIONS 10-24 "FaceRhythm framing"): acute R > L
+0. **10-24 late evening -- STATE NOW.** (i) STATISTICS on every claim + `*` / `**` marks (Holm over the family each
+   figure tests) and the orofacial epoch palette (pink / gold / teal) on all FR figures (DECISIONS 10-24 "FaceRhythm
+   figures: epoch colours and significance marks"); FINDINGS 5b-master / 5e / 5f / 5g / survey carry the numbers;
+   results page REPUBLISHED (version 2). Corrections: close_R pre-onset "sustained offset" n.s.; close_L mirror only a
+   trend. (ii) CLEAN-UP steps 1-3 of 2c DONE and on main (0234cb6, 9faf322; verified byte-identical against a
+   baseline run of the old code: peak x 3 splits, asym maps cache + epochs table, bout split windows); step 1b (the
+   remaining scripts onto `face_rhythm.common`) verifying at handoff (`fr_verify2.sh` in the session scratchpad:
+   readouts / evr / position maps / match / push / bout tables vs baseline). Still to do: step 4 (compute / plot split
+   for readouts, aligned_maps, match), step 5 (split `face_rhythm_factors.py`, after fitepoch). (iii) ON O2: fitepoch
+   (submitted) -> rsync `own_epoch/` back -> angle comparison script (post vs preA / preB against preA vs preB).
+   Older 10-24 evening notes follow.
+   Story order DECIDED (Priya; FINDINGS top, DECISIONS 10-24 "FaceRhythm framing"): acute R > L
    lick-factor drop -> persistent lick_right deficit (several methods) -> contra / ipsi face asymmetry -> pre-factor EVR
    drop -> survey of all factors (peak + timing); angles secondary. 5f wording CORRECTED (not "fewer licks, not smaller":
    DLC shows slower / shorter acute licks; the mesh-speed window is insensitive to that). (a) bout split DONE, (c2)
@@ -110,6 +121,14 @@ the comments forward (CLAUDE.md engineering note). Starting points:
   saves what its figures need and takes ``--plot-only``. Done: `face_rhythm_push_check.py` (data/push_check_traces.npz).
   To do: `face_rhythm_readouts.py` (~30 min recompute), `face_rhythm_asym_aligned.py` (traces; maps already cached),
   `face_rhythm_aligned_maps.py` (patch / halves statistics + mean maps), `face_rhythm_match.py` (chance shuffles).
+
+**Progress (10-24 late evening):** 1 DONE (`common`, `face`, `licks`, `stats`; epoch panel helper not needed yet --
+`stats.tick_label` / `mark` carry the statistics; `face_rhythm_readouts._tasks / _label / _day` now delegate to
+`common`), 2 DONE (`python -m wfield_local.face_rhythm list | show | run`, a test checks every entry), 3 DONE
+(`docs/FACE_RHYTHM_GUIDE.md`, linked from PIPELINE). Compute / plot split DONE for peak (`--plot-only`), asym
+(`--plot-only`), per-lick (`--stats-only`), bout split, non-task, push check. Verification record: scratchpad
+`verify/baseline` (old code, 047c09d) vs `verify/after*`; `boot_delta(draws=True)` leaves every interval unchanged
+(pinned tests).
 
 **Plan adopted 10-24 evening (Priya: "once we submit these jobs, please work on cleaning up the facerhythm code and
 documentation").** Measured: ~8,000 lines of FR code; `EPOCHS` defined in 8+ files, `POSITIONS` in two different orders

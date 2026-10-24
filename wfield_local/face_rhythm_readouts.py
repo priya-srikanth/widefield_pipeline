@@ -70,26 +70,20 @@ def large_movement(ts: np.ndarray, D: np.ndarray, cues: np.ndarray, pct: float =
     return out
 
 
+# session helpers: ONE definition in `wfield_local.face_rhythm.common` (kept under these names for existing callers)
 def _label(animal: str, date: str) -> str:
-    return f"{animal}_{str(date)[4:]}"
+    from wfield_local.face_rhythm import common
+    return common.label(animal, date)
 
 
 def _tasks(fdir: Path, sub: str) -> pd.DataFrame:
-    rows = []
-    for f in sorted((fdir / sub).glob("*.npz")) if (fdir / sub).exists() else []:
-        if f.name.endswith(".part.npz"):
-            continue
-        with np.load(f) as z:
-            rows.append({"key": f.stem, "file": f, "animal": str(z["animal"]), "date": str(z["date"]),
-                         "epoch": str(z["epoch"])})
-    T = pd.DataFrame(rows, columns=["key", "file", "animal", "date", "epoch"])
-    T["label"] = [_label(a, d) for a, d in zip(T.animal, T.date)]
-    return T
+    from wfield_local.face_rhythm import common
+    return common.sessions(fdir, sub)
 
 
 def _day(label: str):
-    from wfield_local import epochs
-    return epochs.days_since_stroke(label)
+    from wfield_local.face_rhythm import common
+    return common.day(label)
 
 
 def amplitudes(fdir: Path, names: list[str], absolute: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
