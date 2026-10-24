@@ -21904,3 +21904,12 @@ to follow the lick / treadmill data ("bout_init" dropped: it peaks during lickin
 `fr_groups.master_v1`: lick = 2, 4, 5, 7, 8, 11; left = 5; right = 4; no centre factor (empty parts are skipped);
 other = 0, 1, 3, 6, 9, 10 (0 / 10 are lick INITIATION, so "other" is not "non-lick"). Lick sum side-balanced, distance
 carried by 7 / 8.
+
+## 2026-10-24 -- attempts rebuild: small effect; output clean-up approved
+
+1. `trial_attempts.csv` rebuilt with complete cam1 (has_cam1 100 % in all four): attempted-gate flips PS94 93 / 16,000,
+   PS95 62 / 17,151 trials (all toward attempted; PS92 / PS93 none); class flips 137 / 137 (jaw_only -> incomplete via cam1
+   licks, no_try -> jaw_only via cam1 jaw). Far-contra acute attempt rate PS94 .441 -> .445, PS95 .325 -> .342. Gated
+   runs done on the old table are not re-run for the gate alone; the final-frame runs use the new table.
+2. Priya approved deleting the inventory's DELETE-NOW list (53 GB, `docs/status/OUTPUT_INVENTORY_2026-10-24.md`) and
+   pruning pre-10-23 local input-cache entries; the three CHECK items are kept for now.

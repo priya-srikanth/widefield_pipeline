@@ -13,9 +13,10 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 >
 > | result | status | data it rests on / what is incomplete |
 > |---|---|---|
-> **10-24 WARNING:** `qc/trial_attempts.csv` (the `attempted` gate + deficit index) was built before PS94 / PS95 cam1
-> (cam1 on 40 / 0 % of their trials) -> every PS94 / PS95 gate / attempt / deficit number below is cam4-only until the
-> rebuild (handoff 000m) and its re-runs land.
+> **10-24: attempts table REBUILT with complete cam1** (was cam1 on PS94 40 % / PS95 0 % of trials). Effect is small:
+> gate flips 0 / 0 / 93 / 62 trials (0 / 0 / 0.6 / 0.4 %, all toward attempted); far-contra acute attempt rate PS94
+> .441 -> .445, PS95 .325 -> .342 -> "PS94 / PS95 also fail to initiate" stands; gated results below are not expected
+> to move; final-frame re-runs use the new table.
 >
 > | Acute far-contra drop is carried by LICK in the frozen pre-stroke encoder; target <= ~4 x1e3 (3.4) | PROVISIONAL, robust to credit order and to 5 running models | 4/4 animals, but PS95 = 1 acute session; PS94 / PS95 lick timing cam4-only in these runs (their cam1 landed 10-21..23, not yet used); running model v7 still being chosen; no test on data - model; not yet on the LMMs |
 > | Post-stroke rise is TARGET, not executed (2.1, 2.4b, LMM 4.3.4) | STANDS for cam4; PROVISIONAL in 3-D | 3-D results so far PS92 + PS93 (10-21 snapshot; 3-D now exists for all 4 -> re-run due); the running 3-D 2x2 is on the snapshot; pre-stroke answer depends on the frame (2.4 vs 2.4b) |
