@@ -21848,3 +21848,17 @@ direction" reading is withdrawn (FINDINGS 3.4). Next candidate (lick group / rea
 Full run validates (100 % pre). Far-contra trials: PS95 best-fit = far_mid (acute 1/1, subacute 5/7, other spouts
 intact) -> B; PS93 stays far_contra (4/4) -> A; PS92 / PS94 broad loss of spout structure. Recorded per animal (rule 8),
 no pooled verdict (FINDINGS 2.7).
+
+## 2026-10-24 -- FaceRhythm master_pre_v1: rank 12, not 10 (supersedes 10-23 "rank 10 chosen")
+
+The O2 rank-10 fit on the final sample had no dedicated LEFT-lick factor: m5 is a clean right lick (L/R index -.27 to
+-.95 in all four animals) but left licking was carried by the shared lick factors (+.1 to +.5). Not the sample (exactly
+20 trials per position per animal; left trials reconstructed as well as right). Refits at 11 and 12 (O2 57395128): both
+have a left lick (6.5 Hz, L/R +.40 to +.92 in all four animals, PS93 weakest), the same factor the archived sweep found
+on the earlier sample (match .99 / 1.00). It appears in 6 / 8 starts at rank 12 but only in the best 2 / 8 at rank 11.
+Rank 12: EVR .803, stability .912, leave-one-animal-out similarity .82-.90 (rank 10: .792 / .998 / .96-.98); keeps every
+rank-10 factor (spatial >= .95 except m7 .89), adds the left lick, splits m1 (4.1 / 1.3 Hz). Its unstable factors are
+slow / whisk (5.8 Hz m7-like 4 / 8, whisk 4 / 8, 2.9 Hz 5 / 8), not lick: name those coarsely. DECIDED (Priya 10-24):
+rank 12 -- the encoder's direction groups need the left / right lick pair. Rank-10 outputs kept as `*_r10` (proj, own,
+proj_loso, report, master_r10.npz, clips / validation `master_pre_v1_r10`); plan `loso_jobs` switched to rank 12 on O2
+(backup `logs/plan_loso_rank10.json`).

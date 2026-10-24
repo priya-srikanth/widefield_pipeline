@@ -54,7 +54,7 @@ pilot projections): PS92_0908 FR-model cortex R2 **0.506 -> 0.618** (ENL 0.545 -
 0.413 -> 0.527; FR's unique contribution +0.26) -- the bad stamps had been diluting FR; PS92_0812 unchanged (its
 mistimed bins lay outside the imaged frames).
 
-## 2. How many factors (rank 10 chosen for the master, 10-23)
+## 2. How many factors (rank 12 chosen for the master, 10-24; was 10 on 10-23)
 
 **MASTER (master_pre_v1, all four animals, 10-23; fit sample: FACE_RHYTHM_PIPELINE "Time windows and the fit sample"
 -- 120 trials / animal = 20 per position, pre-cue rows (spout arrival U cue -4..-2 s), between rows half running /
@@ -81,6 +81,12 @@ licking as default + m5. **Rank 12 (archived sweep, pooled sample, rows re-mappe
 r12 f8, 6.5 Hz, L/R +.52 to +.91 in all four animals (far and close), present in 6 / 7 other starts, mirror of r12 f11
 = m5 (right, -.64 to -.85; PS93 weak). Its unstable factors are slow ones (f7 5.1 Hz 2 / 7 starts, f12 1.1 Hz 3 / 7).
 Rank 8 already had a left-leaning factor (+.4 to +.66, not PS93).
+
+**O2 refits at 11 / 12 (10-24) -> RANK 12 CHOSEN (Priya 10-24; supersedes rank 10).** Both have the left lick (6.5 Hz,
+L/R +.40 to +.92 in all four animals, PS93 weakest; = the sweep's r12 f8, match .99 / 1.00 across two samples); found
+in 6 / 8 starts at 12, only the best 2 / 8 at 11. Rank 12: EVR .803, stability .912, leave-one-animal-out factor
+similarity .82-.90 (PS93 lowest); keeps every rank-10 factor (spatial >= .95, m7 .89), adds the left lick, splits m1
+(4.1 / 1.3 Hz). Less reproducible: 5.8 Hz m7-like (4 / 8 starts), whisk 14.7 Hz (4 / 8, median .97), 2.9 Hz jaw (5 / 8).
 
 **PILOT (2 animals; superseded for the rank choice by the master sweep).** Fit-only sweep on the PS92 + PS93 pre-stroke
 fit rows (3 starts each): EVR / stability across starts -- rank 6 0.767 /
