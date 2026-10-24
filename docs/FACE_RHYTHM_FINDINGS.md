@@ -345,6 +345,22 @@ Acute rise in 4 / 4 (reconstruction error too, +.016 to +.033); chronically back
 PS92 / PS94 (reconstruction error: only PS94, +.013). Replicates the pilot (6: PS93 back, PS92 elevated) on four
 animals. STANDS (per animal; no pooled test at n = 4).
 
+**Normalised and pooled by epoch (Priya 10-24; `scripts/face_rhythm_evr_epochs.py` -> `readouts/master_pre_v1/
+evr_epochs.png`, data/evr_epoch_stats.csv; per-day panel `evr_own_vs_frozen.png` bottom row).** Own-fit EVR itself dips
+acutely (.822-.831 vs .833-.840 pre: less movement against a fixed tracking-noise floor, less stereotyped movement),
+so the RATIO EVR frozen / EVR own, / each animal's pre mean (pre = 1), divides that out. Per animal, sessions pooled
+within the epoch; change vs pre by `boot_delta` (paired animals -> sessions, 95 % interval):
+
+| ratio / pre | PS92 | PS93 | PS94 | PS95 | change [95 % CI] | worse |
+|---|---|---|---|---|---|---|
+| acute | .979 | .954 | .965 | .963 | **-.035 [-.045, -.025]** | 4 / 4 |
+| subacute | .997 | .991 | .989 | .992 | -.008 [-.014, -.003] | 4 / 4 |
+| chronic | .986 | 1.001 | .983 | .997 | -.008 [-.016, -.0003] | 3 / 4 |
+
+EVR gap (- own pre): acute +.027 [.019, .035] 4 / 4, chronic +.007 [.0003, .013] 3 / 4; frozen reconstruction error /
+pre: acute +7.5 % [5.9, 9.4] 4 / 4, chronic n.s. -> the pre-stroke vocabulary fits clearly worse ACUTELY in all four;
+chronically a small residual carried by PS92 / PS94 (interval only just excludes 0), PS93 fully back.
+
 ## 6c. Factor "morphing": which factors change shape, per animal (10-24; NOT consistent across animals -- secondary)
 
 `scripts/face_rhythm_match.py` (`readouts/master_pre_v1/matching/`: match_by_day.png, match_example.png,
