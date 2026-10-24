@@ -18,8 +18,15 @@ READOUTS (all leave-one-session-out held out; per animal x epoch; cortex + every
   change      R2(shared + all changes) - R2(shared only)          how much the epoch's kernel changes matter at all
   change_<g>  R2(all changes) - R2(all changes except group g's)  how much cortex's RESPONSE to group g changed
   dbeta sums  per group x epoch x area, summed over lags (raw units, x1e3): the sign / size of each kernel change
-DRIFT NULL: the same fit on the PRE sessions only with the later half of them as a pseudo-epoch ("pre_late"):
-  its change / change_<g> = what day-to-day drift alone produces.
+  change_ref  R2(reference kernels + this epoch's change) - R2(reference kernels), BOTH from the same "all" fit (the
+              epoch's dbeta zeroed for the second): change FROM THE REFERENCE. Added 10-24 because `change` compares with
+              a separate pooled refit ("shared"), so every epoch -- the reference too -- gains by moving away from an
+              all-epoch compromise (pre gained 23-35 x1e3 inside the post fit, as much as the post epochs).
+FITS: "combined" (PRIMARY, 10-24): reference = the EARLIER half of the pre sessions; pre_late, acute, subacute, chronic
+  each get changes in ONE fit (one kappa), so the drift null (pre_late) and the stroke epochs are measured from the same
+  reference in the same model -- read change_ref of each post epoch against pre_late's. "post" (pre = reference, post
+  epochs change) and "null" (pre sessions only, later half as a pseudo-epoch) are the 10-23 fits, kept for comparison:
+  their `change` readouts are NOT comparable with each other (DECISIONS 2026-10-24 late afternoon).
 Limits: areas, all frames (window readouts need a prediction pass); an epoch with ONE session (PS95 acute) cannot be
 held out -- its change is then pure shrinkage (flagged n_epoch = 1).
 
@@ -104,9 +111,16 @@ def fit_animal(sessions: list[dict], alphas: dict, groups_of: np.ndarray, pen_of
         kappa = min(KAPPA_GRID, key=score)
     lam = lam_of(kappa)
     out = {m: {sessions[k]["label"]: held_out(k, lam, keep) for k in range(len(sessions))} for m, keep in models.items()}
+
+    def held_out_ref(k):                                 # the "all" fit, its change blocks zeroed: reference kernels only
+        Gk, bk = aug[k]
+        beta = ridge(Gt - Gk, bt - bk, lam, models["all"])
+        beta[is_d] = 0.0
+        return sse(beta, Gk, bk, sessions[k]["yy"])
+    out["ref"] = {sessions[k]["label"]: held_out_ref(k) for k in range(len(sessions))}
     full = ridge(Gt, bt, lam)
     return {"kappa": kappa, "sse": out, "beta": full[:p], "dbeta": {e: full[i * p:(i + 1) * p] for e, i in eidx.items()},
-            "models": list(models)}
+            "models": [*models, "ref"]}
 
 
 def main(argv=None) -> int:
@@ -179,8 +193,12 @@ def main(argv=None) -> int:
         pre_sorted = sorted([x for x in sess if x["epoch"] == "pre"], key=lambda x: epochs.days_since_stroke(x["label"]))
         half = len(pre_sorted) // 2
         if half >= 2:                                    # drift null: later half of the pre sessions as a pseudo-epoch
+            late = {x["label"] for x in pre_sorted[half:]}
             sets["null"] = ([{**x, "epoch": "pre_late" if i >= half else "pre"} for i, x in enumerate(pre_sorted)],
                             ("pre_late",))
+            # PRIMARY: early pre = reference; pre_late + every post epoch change, in ONE fit (module docstring)
+            sets["combined"] = ([{**x, "epoch": "pre_late"} if x["label"] in late else x for x in sess],
+                                ("pre_late", *POST_EPOCHS))
         fits = {k: fit_animal(ss, alphas, groups_of, pen_of, ok, eps) for k, (ss, eps) in sets.items()}
         for fit_name, f in fits.items():
             ss = sets[fit_name][0]
@@ -205,7 +223,8 @@ def main(argv=None) -> int:
                                 areas=np.array(areas), kappa=f["kappa"],
                                 **{f"dbeta_{e}": d for e, d in f["dbeta"].items()})
         print(f"  {an}: kappa post {fits['post']['kappa']:g}"
-              + (f", null {fits['null']['kappa']:g}" if "null" in fits else "") + "; sessions per epoch "
+              + (f", null {fits['null']['kappa']:g}" if "null" in fits else "")
+              + (f", combined {fits['combined']['kappa']:g}" if "combined" in fits else "") + "; sessions per epoch "
               + ", ".join(f"{e} {sum(x['epoch'] == e for x in sess)}" for e in ("pre", *POST_EPOCHS)), flush=True)
     R = pd.DataFrame(rows)
     D = pd.DataFrame(drows)
@@ -221,16 +240,24 @@ def summarise(out: Path) -> None:
     R = pd.read_csv(out / "allsession_scores.csv", keep_default_na=False, na_values=[""])   # fit "null" is a label, not NA
     W = R.pivot_table(index=["fit", "animal", "label", "epoch", "area", "n_epoch"], columns="model", values="r2").reset_index()
     W["change"] = (W["all"] - W["shared"]) * 1e3
+    if "ref" in W.columns:
+        W["change_ref"] = (W["all"] - W["ref"]) * 1e3
     gcols = [c for c in W.columns if str(c).startswith("no_d_")]
     for c in gcols:
         W[f"change_{c[5:]}"] = (W["all"] - W[c]) * 1e3
-    keep = ["change"] + [f"change_{c[5:]}" for c in gcols]
+    keep = ["change"] + (["change_ref"] if "change_ref" in W.columns else []) + [f"change_{c[5:]}" for c in gcols]
     pd.set_option("display.width", 250)
     for area in ("cortex", "SSp-m_left"):
         A = W[W.area == area].groupby(["fit", "animal", "epoch"])[keep + ["n_epoch"]].mean().round(2)
         print(f"\n=== all-session encoder: held-out R2 gain x1e3 from per-epoch kernel CHANGES, {area} "
               "(change = all - shared; change_<g> = all - all-but-g's-change; fit null = pre late vs early)\n"
               + A.to_string())
+    if "change_ref" in W.columns and (W.fit == "combined").any():
+        C = W[(W.fit == "combined") & (W.epoch != "pre")]
+        for area in ("cortex", "SSp-m_left"):
+            T = C[C.area == area].groupby(["animal", "epoch"])[["change_ref", "n_epoch"]].mean().unstack("epoch")
+            print(f"\n=== PRIMARY (combined fit; reference = early pre): change FROM THE REFERENCE x1e3, {area}; "
+                  "pre_late = the drift null in the same fit\n" + T.round(2).to_string())
     W.to_csv(out / "allsession_changes_by_session.csv", index=False, float_format="%.5g")
     D = pd.read_csv(out / "allsession_dbeta.csv", keep_default_na=False, na_values=[""])
     print("\n=== kernel change, summed over lags x1e3 (raw units), cortex\n"

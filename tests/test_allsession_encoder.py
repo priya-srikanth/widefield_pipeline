@@ -59,3 +59,22 @@ def test_no_change_gives_no_gain():
     g = np.mean([(f["sse"]["shared"][k][0] - f["sse"]["all"][k][0]) / s["yy"][0]
                  for k, s in zip(acute, [s for s in sess if s["epoch"] == "acute"])])
     assert g < 0.005                                              # held-out: no free gain from extra columns
+
+
+def test_change_ref_is_measured_from_the_reference():
+    """change_ref (10-24): reference sessions gain exactly 0 by construction; an epoch with a planted change gains; an
+    unchanged epoch (the drift null's role) gains ~0 -- while the old `change` (vs a pooled refit) also credits the
+    REFERENCE sessions once another epoch pulls the pooled kernels away (the flaw it replaces)."""
+    rng = np.random.default_rng(3)
+    groups = np.array(["lick", "lick", "contact", "other"])
+    sess = _sessions(rng, change_group_cols=[2], eps=("pre",) * 4 + ("pre_late",) * 4 + ("acute",) * 4, delta=2.0)
+    f = ae.fit_animal(sess, {"a": 1.0}, groups, np.array(["a"] * 4), np.ones(4, bool), ("pre_late", "acute"))
+    yy = {s["label"]: s["yy"][0] for s in sess}
+
+    def gain(m, ep, base="all"):
+        ks = [s["label"] for s in sess if s["epoch"] == ep]
+        return np.mean([(f["sse"][m][k][0] - f["sse"][base][k][0]) / yy[k] for k in ks])
+    assert abs(gain("ref", "pre")) < 1e-9                         # reference: no change block -> all == ref
+    assert gain("ref", "acute") > 0.05                            # planted change, measured from the reference
+    assert abs(gain("ref", "pre_late")) < 0.01                    # unchanged epoch ~ 0 (the matched drift null)
+    assert gain("shared", "pre") > 0.01                           # the old readout credits the reference too
