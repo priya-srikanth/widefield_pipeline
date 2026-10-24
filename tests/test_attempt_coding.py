@@ -51,5 +51,5 @@ def test_map_classes_for_rows():
                                  np.array([False, False, True, True]), pre=False)
     assert list(ce) == ["hit", "incomplete"] and list(cu) == ["noattempt", "reaction", "stopped", ""]
     ce, cu = am.classes_for_rows(np.array(["hit", "incomplete"]), np.array(["no_try"]), np.array([False]), pre=True)
-    assert list(ce) == ["pre_hit", ""] and list(cu) == [""]
+    assert list(ce) == ["pre_hit", "pre_incomplete"] and list(cu) == [""]
     assert am._down(np.ones((540, 640))).shape == (270, 320)

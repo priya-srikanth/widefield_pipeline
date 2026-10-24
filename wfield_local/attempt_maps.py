@@ -41,7 +41,11 @@ import pandas as pd
 
 from wfield_local.attempt_coding import LESION_NAME, SPOUTS, POST_EPOCHS, _cue_classes
 
-CLASSES = ("pre_hit", "hit", "incomplete", "noattempt", "reaction", "stopped")
+CLASSES = ("pre_hit", "pre_incomplete", "hit", "incomplete", "noattempt", "reaction", "stopped")
+#: the TOUCH / REWARD control (10-24): pre-stroke attempts that missed the spout -- no contact, no water, like the
+#: post-stroke failed attempts. Few per session (far contra 7 / 27 / 31 / 20 pre trials in all, PS92-95), so no
+#: per-session floor and a TRIAL-weighted pool across sessions instead of the session-weighted mean.
+POOLED = ("pre_incomplete",)
 ALIGNS = ("cue", "lick", "precue")
 MIN_TRIALS = 5          # per session x spout x class to enter that session's class mean
 DS = 2                  # 2 x 2 block mean -> 270 x 320
@@ -55,7 +59,8 @@ def _down(m):
 def classes_for_rows(cls_e, cls_u, quit_u, pre):
     """Class per engaged row and per no-lick row of ONE session (strings; "" = unused)."""
     if pre:
-        return (np.where(cls_e == "hit", "pre_hit", "").astype(object), np.full(len(cls_u), "", dtype=object))
+        ce = np.select([cls_e == "hit", cls_e == "incomplete"], ["pre_hit", "pre_incomplete"], "").astype(object)
+        return ce, np.full(len(cls_u), "", dtype=object)
     ce = np.where(np.isin(cls_e, ("hit", "incomplete")), cls_e, "").astype(object)
     cu = np.full(len(cls_u), "", dtype=object)
     cu[quit_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
@@ -105,7 +110,7 @@ def session_class_maps(label, align, post_s=None):
         for P in SPOUTS:
             for c in CLASSES:
                 m = (sp == P) & (ca == c)
-                if m.sum() < MIN_TRIALS:
+                if m.sum() < (1 if c in POOLED else MIN_TRIALS):
                     continue
                 f = Xa[m].mean(0).reshape(n_bins, K).mean(0)
                 out[(P, c)] = (_down((u @ f).reshape(MAP_SHAPE)), int(m.sum()))
@@ -145,10 +150,13 @@ def collect(animal, align, jobs=4):
             continue
         for (P, c), (m, n) in d.items():
             k = (ep[label], P, c)
-            acc.setdefault(k, []).append(m)
+            acc.setdefault(k, []).append((m, n))
             rows.append({"animal": animal, "align": align, "label": label, "epoch": ep[label], "spout": P,
                          "cls": c, "n": n})
-    maps = {f"{e}|{P}|{c}": np.mean(ms, 0).astype(np.float32) for (e, P, c), ms in acc.items()}
+    maps = {}
+    for (e, P, c), mn in acc.items():
+        w = np.array([n for _m, n in mn], float) if c in POOLED else np.ones(len(mn))
+        maps[f"{e}|{P}|{c}"] = (np.tensordot(w, np.stack([m for m, _n in mn]), 1) / w.sum()).astype(np.float32)
     return maps, pd.DataFrame(rows)
 
 
@@ -158,7 +166,7 @@ def out_dir():
 
 
 EPOCHS = ("pre",) + POST_EPOCHS
-SHOW = (("pre", "pre_hit"), ("acute", "hit"), ("acute", "incomplete"), ("acute", "noattempt"), ("acute", "reaction"),
+SHOW = (("pre", "pre_hit"), ("pre", "pre_incomplete"), ("acute", "hit"), ("acute", "incomplete"), ("acute", "noattempt"), ("acute", "reaction"),
         ("acute", "stopped"), ("subacute", "hit"), ("subacute", "incomplete"), ("chronic", "hit"))
 
 
