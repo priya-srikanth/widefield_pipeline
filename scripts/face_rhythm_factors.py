@@ -1336,8 +1336,8 @@ animals {', '.join(sorted(pl['fit']))}. Rank sweep fits may skip the animal-out 
                 ax.set_aspect("equal")
                 ax.axis("off")
             aw.scatter(home[o, 0], home[o, 1], c=w[o], s=5, cmap="magma", vmin=0, vmax=1, linewidths=0)
-            aw.set_title(f"factor {k}{' ' + names[str(k)] if names[str(k)] else ''}: WHERE"
-                         + (f"\n({str(M['view_cams'][0])}; views {vshare[k]})" if vshare else ""))
+            aw.set_title(f"factor {k}: WHERE"                       # the name goes on the wide timecourse panel:
+                         + (f"\n({str(M['view_cams'][0])}; views {vshare[k]})" if vshare else ""))  # it overflowed here
             rgba = np.column_stack([direction_colours(Wsp[..., k]), np.clip(w, 0, 1) ** 0.7])
             a0.scatter(home[o, 0], home[o, 1], c=rgba[o], s=2 + 24 * w[o], linewidths=0)
             a0.set_title("HOW (blue lateral, red vertical)")
@@ -1347,7 +1347,8 @@ animals {', '.join(sorted(pl['fit']))}. Rank sweep fits may skip the animal-out 
             for pos, xs in sorted(tc.items()):
                 a2.plot(t_ms / 1000, np.nanmean(xs, 0)[:, k], lw=1.2, label=pos, **position_style(pos))
             a2.axvline(0, color="k", lw=0.5)
-            a2.set(xlabel="s from cue", ylabel=ylab, title="pre-stroke trials by position")
+            a2.set(xlabel="s from cue", ylabel=ylab,
+                   title=(f"factor {k} {names[str(k)]}\n" if names[str(k)] else "") + "pre-stroke trials by position")
             if k == 0 and tc:
                 frf.legend_outside(a2)
         fig.suptitle(f"{M['set']} [{str(M['role']) if 'role' in M else 'master'}] rank {R}: factor gallery ({unit})")
