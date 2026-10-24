@@ -626,6 +626,13 @@ licking) and / or chronic compensation (bracing to reach). Open: engagement as a
 engagement covariate), side-camera clips acute vs chronic, some LMMs fell back to random intercepts (4 animals).
 Encoding consequence: push tracks the deficit, so it is modelled per session (`FROZEN_PUSH=free`, 3.4) and will get its
 own kernel + per-epoch deltas in the all-session model; a frozen push kernel fails (3.4).
+- **Free-push frozen run DONE (10-23 night, `_v7pushfree`; `qc/frozen_running_compare_v7fwd15_to_v7pushfree.csv`).**
+  Re-fitting push per session (5-block CV ridge on the frozen residual) removes the frozen-push failure: PS95 chronic
+  cue / lick R2 -0.80 / -0.75 (frozen push) -> 0.05 / 0.04 (free; no push 0.15 / 0.13); all-frames R2 >= no-push in
+  15 / 16 animal x epoch cells. Not uniformly better in the windows: PS92 chronic cue / lick 0.21 / 0.08 vs 0.36 / 0.23
+  without push (the CV push prediction costs in-window fit there). **The acute far-contra decomposition is unchanged
+  by push treatment** (lick part SSp-m_left -28.0 / -19.6 / -19.3 / -24.9 free vs -28.2 / -19.7 / -19.4 / -25.8 none;
+  target ~0; push / other part |x| < 3). Layer 2 (frozen push + per-epoch push deltas) launched 10-23 night.
 
 ## 5. Caveats that apply across sections
 
