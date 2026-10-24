@@ -61,8 +61,10 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    drop -> survey of all factors (peak + timing); angles secondary. 5f wording CORRECTED (not "fewer licks, not smaller":
    DLC shows slower / shorter acute licks; the mesh-speed window is insensitive to that). (a) bout split DONE, (c2)
    non-task by state DONE, cue timing DONE (FINDINGS 5g; next could be per-bout timing of lick_right). ON O2: `fitepoch`
-   (24 tasks, `run_fitepoch.sbatch`) -> rsync `own_epoch/` back, then write the angle comparison (post vs preA / preB
-   against preA vs preB, per factor; `face_rhythm_matching.match`). NEXT (Priya): an FR RESULTS ARTIFACT PAGE (Priya via the encoding window: every result family as a published
+   (24 tasks, `run_fitepoch.sbatch`; SUBMITTED by Priya 10-24 evening) -> rsync `own_epoch/` back, then write the angle comparison (post vs preA / preB
+   against preA vs preB, per factor; `face_rhythm_matching.match`). FR RESULTS PAGE PUBLISHED 10-24: https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 (private; to update from a new
+   session, read it then publish with `url`; figure copies were in the session scratchpad -- re-copy from `readouts/`).
+   Done: an FR RESULTS ARTIFACT PAGE (Priya via the encoding window: every result family as a published
    Artifact -- per-animal figures + maps, one-line takeaway per figure, sections keyed to FINDINGS; example
    https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d), then CODE + DOC CLEAN-UP (section 2c).
 1. (done) **Rsync `own/`** once `frf_own` is done (transfer node; RESET the variables -- the encoding bundle reuses B / S):

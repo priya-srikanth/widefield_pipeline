@@ -10,6 +10,8 @@ set still pending), **PILOT** (two animals, PS92 + PS93, the pilot factor set `p
 `master_pre_v1`), **PENDING** (not yet run / not yet summarised), **CORRECTED** (an earlier statement here was wrong;
 corrected numbers follow).
 
+> **Results page (figures + one-line takeaways, in this order): https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1**
+>
 > **Story order (Priya 10-24; DECISIONS 2026-10-24 "FaceRhythm framing").**
 > 1. Acute deficit that confirms what we know: acute drop in RIGHT (contralesional) lick factor amplitude > LEFT (5d).
 > 2. PERSISTENT contralesional lick deficit in lick_right expression, by several methods: per lick (5b-master), peak
