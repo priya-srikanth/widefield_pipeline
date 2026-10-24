@@ -11,7 +11,12 @@ trials that drive it. Lick-count matters: a peak of a trial average falls when f
 
     python scripts/face_rhythm_peak.py [--set master_pre_v1] [--split none|side] [--window 0 4]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/peak/``: peak_sessions.csv, peak_epochs.csv (per animal x epoch, ratio to
-pre), peak_by_day[_side].png (per factor: peak / pre over days since stroke, one line per animal, grey = the pre range).
+pre), peak_by_day[_side].png (per factor: peak / pre over days since stroke, one line per animal, grey = the pre range);
+  peak_cohort_by_day[_side].png  (Priya 10-24) per factor: mean +- SEM ACROSS ANIMALS of each animal's mean in day bins
+                                 (values already / each animal's own pre mean);
+  peak_cohort_by_epoch[_side].png + data/peak_epoch_stats[_side].csv  per factor: per-animal epoch means (dots), mean +-
+                                 SEM across animals, change vs pre by `analysis_kit.boot_delta` (paired animals ->
+                                 sessions bootstrap, animal-weighted; 95 % interval) + how many animals move the same way.
 """
 from __future__ import annotations
 
@@ -25,6 +30,9 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 EPOCHS = ("pre", "acute", "subacute", "chronic")
+#: day bins for the cohort-by-day view (animals are imaged on different days): (label, first day, last day)
+DAY_BINS = (("pre", -999, 0), ("1-3", 1, 3), ("4-7", 4, 7), ("8-14", 8, 14), ("15-21", 15, 21), ("22-35", 22, 35),
+            ("36+", 36, 999))
 SIDE = {"far_R": "contra", "close_R": "contra", "far_center": "centre", "close_center": "centre",
         "far_L": "ipsi", "close_L": "ipsi"}           # lesions LEFT: the animal's right spouts are contralesional
 
@@ -129,8 +137,91 @@ animal's pre-stroke sessions (1 = pre level). One line per animal over days sinc
 shaded band per animal = the range of its pre-stroke sessions. The peak of a trial average also falls when fewer
 trials contain the movement (fewer licks): per-lick amplitude is `face_rhythm_lick_epochs.py` (FINDINGS 5b-master).
 Frozen master `{fdir.name}` (pre and post on the same basis; `proj/`). The 2pRAM-cohort manuscript's FR panel.""")
+    cohort(S, names, groups, out, sfx, fdir.name, tuple(a.window))
     print("->", out)
     return 0
+
+
+def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx: str, set_name: str,
+           window: tuple[float, float]) -> None:
+    """Cohort views of peak / pre (Priya 10-24): by day bin (mean +- SEM across animals) and by epoch with statistics."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import figure_layout
+    rng = np.random.default_rng(0)
+    S = S.copy()
+    S["bin"] = None
+    for lab, lo, hi in DAY_BINS:
+        S.loc[(S.day >= lo) & (S.day <= hi) & ((S.epoch == "pre") == (lab == "pre")), "bin"] = lab
+    bins = [b[0] for b in DAY_BINS]
+    # per animal: mean of its sessions in each bin / epoch (one value per animal), then across animals
+    A_bin = S.dropna(subset=["bin"]).groupby(["group", "factor", "animal", "bin"]).peak_vs_pre.mean().reset_index()
+    A_ep = S.groupby(["group", "factor", "animal", "epoch"]).peak_vs_pre.mean().reset_index()
+    rows = []
+    for (g, k), d in S.groupby(["group", "factor"]):
+        pre = {an: list(x.peak_vs_pre) for an, x in d[d.epoch == "pre"].groupby("animal")}
+        for ep in EPOCHS[1:]:
+            post = {an: list(x.peak_vs_pre) for an, x in d[d.epoch == ep].groupby("animal")}
+            iv = ak.boot_delta(post, pre, rng)
+            per = {an: float(np.mean(post[an])) for an in sorted(post)}
+            n_dn = sum(v < 1 for v in per.values())
+            rows.append({"group": g, "factor": k, "name": names[k], "epoch": ep,
+                         "mean_vs_pre": float(np.mean(list(per.values()))) if per else np.nan,
+                         "sem": float(np.std(list(per.values()), ddof=1) / np.sqrt(len(per))) if len(per) > 1 else np.nan,
+                         "delta": iv.point if iv else np.nan, "ci_lo": iv.lo if iv else np.nan,
+                         "ci_hi": iv.hi if iv else np.nan, "n_animals": iv.n_animals if iv else len(per),
+                         "excludes_0": bool(iv and (iv.lo > 0 or iv.hi < 0)),
+                         "n_below_pre": n_dn, "n_above_pre": len(per) - n_dn,
+                         **{f"{an}": v for an, v in per.items()}})
+    T = pd.DataFrame(rows)
+    T.to_csv(figure_layout.sidecar_for(out, f"peak_epoch_stats{sfx}", ".csv"), index=False, float_format="%.4g")
+    print("\nPER-ANIMAL epoch means of peak / pre FIRST (rule 8), then the paired bootstrap of the change vs pre")
+    print(T[["group", "name", "epoch", *sorted(S.animal.unique()), "delta", "ci_lo", "ci_hi", "excludes_0",
+             "n_below_pre"]].round(3).to_string(index=False))
+
+    with frf.style():
+        for view in ("day", "epoch"):
+            fig, axs = frf.subplots(len(names), len(groups), figsize=(4.4 * len(groups) + 1.5, 2.3 * len(names)),
+                                    squeeze=False, sharex=True)
+            for kk, nm in enumerate(names):
+                for j, g in enumerate(groups):
+                    ax = axs[kk, j]
+                    if view == "day":
+                        d = A_bin[(A_bin.factor == kk) & (A_bin.group == g)]
+                        x = np.arange(len(bins))
+                        st = d.groupby("bin").peak_vs_pre.agg(["mean", "sem", "count"]).reindex(bins)
+                        for _an, da in d.groupby("animal"):
+                            ax.plot([bins.index(b) for b in da.bin], da.peak_vs_pre, ".", color="0.6", ms=3)
+                        ax.errorbar(x, st["mean"], yerr=st["sem"], fmt="o-", color="k", ms=4, lw=1.2, capsize=2)
+                        ax.set_xticks(x, bins, fontsize=7)
+                    else:
+                        d = A_ep[(A_ep.factor == kk) & (A_ep.group == g)]
+                        x = np.arange(len(EPOCHS))
+                        st = d.groupby("epoch").peak_vs_pre.agg(["mean", "sem"]).reindex(EPOCHS)
+                        for _an, da in d.groupby("animal"):
+                            da = da.set_index("epoch").peak_vs_pre.reindex(EPOCHS)
+                            ax.plot(x, da.to_numpy(), "-", color="0.75", lw=0.8)
+                            ax.plot(x, da.to_numpy(), ".", color="0.5", ms=4)
+                        ax.errorbar(x, st["mean"], yerr=st["sem"], fmt="o", color="k", ms=5, capsize=3, zorder=5)
+                        ax.set_xticks(x, [e[:5] for e in EPOCHS])
+                        tt = T[(T.factor == kk) & (T.group == g)].set_index("epoch")
+                        top = ax.get_ylim()[1]
+                        for e_i, ep in enumerate(EPOCHS[1:], start=1):
+                            if ep in tt.index:
+                                r = tt.loc[ep]
+                                ax.text(e_i, top, ("*" if r.excludes_0 else "") + f"{int(r.n_below_pre)}/{int(r.n_animals)}v",
+                                        ha="center", va="bottom", fontsize=7)
+                    ax.axhline(1, color="k", lw=0.5)
+                    ax.set_title(f"{kk} {nm}" + ("" if g == "all" else f" -- {g} spouts"), fontsize=9)
+                    if j == 0:
+                        ax.set_ylabel("peak / pre")
+            fig.suptitle(f"{set_name}: peak factor amplitude / each animal's pre, mean +- SEM across animals"
+                         + (" (day bins)" if view == "day" else " (epochs; * = bootstrap 95 % CI of the change excludes 0; "
+                            "k/n v = animals below pre)"))
+            frf.save(fig, out / f"peak_cohort_by_{view}{sfx}.png", f"""
+Peak of the trial-averaged absolute expression over cue {window[0]:g}..+{window[1]:g} s per session, divided by the mean
+of that animal's pre-stroke sessions (each animal its own reference). {'Sessions binned by days since stroke (' + ', '.join(bins) + '); per animal the mean of its sessions in a bin (grey dots), then the mean +- SEM ACROSS ANIMALS (black; n = animals with a session in the bin, which differs between bins).' if view == 'day' else 'Per animal the mean of its sessions in each epoch (grey, lines join an animal), then the mean +- SEM ACROSS ANIMALS (black). Statistics: the change vs pre by `analysis_kit.boot_delta` -- paired animals -> sessions bootstrap, animals weighted equally, 95 % interval; * = interval excludes 0. k/n v = number of animals whose epoch mean is below their pre level (with n = 4 a result not seen in 3+ animals individually will not survive; CLAUDE.md rule 8). Per-animal values and intervals: data/peak_epoch_stats.csv.'}
+Set {set_name}; frozen basis, absolute expression (weight x FR normaliser D).""")
 
 
 if __name__ == "__main__":
