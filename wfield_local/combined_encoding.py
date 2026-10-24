@@ -296,6 +296,44 @@ TR_MODELS = ("full", "alone:task", "alone:instructed", "alone:uninstructed",
 #: session's source files (imaging files, the orofacial session dir, the DAQ h5, any env-named table), so a changed input
 #: or loader makes a new entry. A disposable copy of INPUTS, never results; delete the directory any time. Off when unset.
 CACHE_ENV = "WFIELD_INPUT_CACHE"
+#: TONGUE_ENV=3d (Priya 10-24 "we should probably use 3d tongue traces"): the continuous tongue block (tongue_x / tongue_y
+#: / tongue_prot / tongue_speed) from the per-frame 3-D pose (pose3d/<animal>_<date>_frames.csv.gz, mouth-centred mm:
+#: x = ml lateral, y = ap forward, prot = 3-D distance, speed = |d prot / dt|) instead of cam4 px, and the per-lick
+#: within-spout angle (`exec_angle`) from the 3-D lateral angle out of the sagittal plane (kinematics licks table) instead
+#: of the cam4 peak angle. Frames pair with the cam4 pose rows exactly on (trial_id, t_ms). Tongue IN the mouth (cam4
+#: tongue_x == 0, no 3-D point) = 0, the cam4 convention; tongue OUT on cam4 but not triangulated = NaN (skipped by the
+#: frame binning). Unset = cam4 (default; all runs before 10-24).
+TONGUE_ENV = "COMBINED_ENCODING_TONGUE"
+
+
+def pose3d_frames_path(rv, animal: str, date: str) -> Path:
+    return Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"{animal}_{date}_frames.csv.gz"
+
+
+def tongue_3d_traces(ix: pd.DataFrame, cam4_tx: np.ndarray, F: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(x = ml, y = ap, prot = 3-D distance) mm on the cam4 pose rows ``ix`` (trial_id, t_ms); see TONGUE_ENV."""
+    J = ix[["trial_id", "t_ms"]].merge(F[["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"]]
+                                       .drop_duplicates(["trial_id", "t_ms"]), on=["trial_id", "t_ms"], how="left")
+    ml, ap, dv = (J[c].to_numpy(float) for c in ("tongue_ml", "tongue_ap", "tongue_dv"))
+    have = np.isfinite(ml) & np.isfinite(ap) & np.isfinite(dv)
+    inside = (np.asarray(cam4_tx, float) == 0) & ~have
+    out = []
+    for v in (ml, ap, np.sqrt(ml ** 2 + ap ** 2 + dv ** 2)):
+        out.append(np.where(have, v, np.where(inside, 0.0, np.nan)))
+    return out[0], out[1], out[2]
+
+
+def lick_angle_3d(L: pd.DataFrame, session: str) -> np.ndarray:
+    """Per-lick 3-D lateral angle out of the sagittal plane (deg; pose3d `midline`), NaN without a 3-D peak."""
+    path = os.environ.get(EXEC3D_TABLE_ENV)
+    if not path:
+        from wfield_local.paths import PathResolver
+        path = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "licks.csv.gz"
+    K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
+    K = K[K.session == session].drop_duplicates(["trial_id", "lick_idx"])
+    J = L[["trial_id", "lick_idx"]].merge(K, on=["trial_id", "lick_idx"], how="left")
+    ml, ap, dv = (J[c].to_numpy(float) for c in ("side_ml", "out_ap", "down_dv"))
+    return np.degrees(np.arctan2(ml, np.hypot(ap, dv)))
 _CACHE_CODE = ("wfield_local/combined_encoding.py", "wfield_local/orofacial_cohort.py",
                "wfield_local/orofacial_outputs.py", "wfield_local/trial_windows.py", "wfield_local/beta_maps.py",
                "wfield_local/daq_trials.py", "scripts/pose_kinematics_demo.py")
@@ -428,6 +466,10 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
             *(Path(rv.root("behavior_out")) / "sessions" / animal / date).glob(f"{animal}_{date}_*_trials.csv")]
     if oc.ENGAGEMENT_GATE != "reference":
         src.append(oo.root(rv) / oc.RUN / "imaging_encoding" / "qc" / "trial_attempts.csv")
+    if os.environ.get(TONGUE_ENV, "") == "3d":                  # a rewritten 3-D frame / lick table makes a new entry
+        src.append(pose3d_frames_path(rv, animal, date))
+        src.append(os.environ.get(EXEC3D_TABLE_ENV) or
+                   Path(rv.root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "licks.csv.gz")
     return _cached("behaviour", f"{animal}_{date}", src, lambda: _load_behaviour(animal, date, rv))
 
 
@@ -457,11 +499,15 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
     ang = L.peak_angle_deg.to_numpy(float).copy()
     ok = (~L.peak_interp.astype(bool).to_numpy()) & (L.protrusion_px.to_numpy(float) >= MIN_REACH_PX) & np.isfinite(ang)
     ang[~ok] = np.nan
-    within = ang.copy()
+    if os.environ.get(TONGUE_ENV, "") == "3d":                  # exec_angle from the 3-D lateral angle (TONGUE_ENV)
+        a3 = lick_angle_3d(L, f"{animal}_{date}")
+        within = np.where(ok & np.isfinite(a3), a3, np.nan)
+    else:
+        within = ang.copy()
     for p in np.unique(pos):                         # within-position deviation of the executed angle
         m = pos == p
-        if np.isfinite(ang[m]).any():
-            within[m] = ang[m] - np.nanmean(ang[m])
+        if np.isfinite(within[m]).any():
+            within[m] = within[m] - np.nanmean(within[m])
     contacts = D.daq_contacts_ms(animal, date, b, rv)
     cue_of = dict(zip(b.trial_id.astype(int), b.cue_s.to_numpy(float)))
     contact_s = np.concatenate([cue_of[t] + np.asarray(v, float) / 1000.0 for t, v in contacts.items()
@@ -475,6 +521,15 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
     o = np.load(sd / "clean.npz")["tongue_origin"].astype(float)
     tx, ty = cl.tongue_x.to_numpy(float), cl.tongue_y.to_numpy(float)
     prot = np.hypot(tx, ty)
+    tongue_mode = os.environ.get(TONGUE_ENV, "")
+    if tongue_mode not in ("", "cam4", "3d"):
+        raise ValueError(f"{TONGUE_ENV}={tongue_mode!r}; expected cam4 | 3d")
+    if tongue_mode == "3d":                                       # see TONGUE_ENV
+        f3 = pose3d_frames_path(rv, animal, date)
+        if not f3.exists():                                       # never mix cam4 / 3-D tongue silently
+            raise FileNotFoundError(f"{TONGUE_ENV}=3d needs {f3}")
+        F3 = pd.read_csv(f3, usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
+        tx, ty, prot = tongue_3d_traces(S["index"], tx, F3)
     jx, jy = cl.jaw_x.to_numpy(float), cl.jaw_y.to_numpy(float)
     nlik = pose.nose_likelihood.to_numpy(float) >= 0.6
     nx = np.where(nlik, pose.nose_x.to_numpy(float) - o[0], np.nan)

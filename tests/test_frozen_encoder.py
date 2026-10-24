@@ -418,3 +418,23 @@ def test_contact_own_category():
     assert "contact" not in fe.SUPER["movement"]
     assert fe._DROP["no_contact_exec_within"] == ("contact", "exec_within")
     assert "no_contact_exec_within" in fe.VARIANTS and fe.GROUPING_VERSION == 3
+
+
+def test_tongue_3d_traces_fill_rules():
+    """3-D tongue on cam4 pose rows: triangulated -> mm; in the mouth (cam4 0, no 3-D) -> 0; out but untriangulated -> NaN."""
+    import numpy as np
+    import pandas as pd
+    from wfield_local import combined_encoding as ce
+    ix = pd.DataFrame({"trial_id": [1, 1, 1], "t_ms": [0.0, 4.0, 8.0]})
+    F = pd.DataFrame({"trial_id": [1], "t_ms": [4.0], "tongue_ml": [1.0], "tongue_ap": [2.0], "tongue_dv": [-2.0]})
+    x, y, prot = ce.tongue_3d_traces(ix, np.array([0.0, 5.0, 7.0]), F)
+    assert x[0] == 0 and y[0] == 0 and prot[0] == 0
+    assert x[1] == 1.0 and y[1] == 2.0 and np.isclose(prot[1], 3.0)
+    assert np.isnan(x[2]) and np.isnan(prot[2])
+
+
+def test_run_tag_marks_tongue3d(monkeypatch):
+    monkeypatch.setenv("COMBINED_ENCODING_TONGUE", "3d")
+    assert fe._run_tag().endswith("|tongue3d")
+    monkeypatch.delenv("COMBINED_ENCODING_TONGUE")
+    assert "tongue3d" not in fe._run_tag()

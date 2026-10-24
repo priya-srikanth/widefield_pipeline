@@ -509,7 +509,8 @@ def _knot0() -> float:
 
 def _run_tag() -> str:
     """Running-model tag stored with the saved statistics (never reused across modes / knot overrides / push)."""
-    return _run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")
+    return (_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")
+            + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else ""))   # TONGUE_ENV
 
 
 #: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
