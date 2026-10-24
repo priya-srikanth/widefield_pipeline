@@ -21862,3 +21862,16 @@ slow / whisk (5.8 Hz m7-like 4 / 8, whisk 4 / 8, 2.9 Hz 5 / 8), not lick: name t
 rank 12 -- the encoder's direction groups need the left / right lick pair. Rank-10 outputs kept as `*_r10` (proj, own,
 proj_loso, report, master_r10.npz, clips / validation `master_pre_v1_r10`); plan `loso_jobs` switched to rank 12 on O2
 (backup `logs/plan_loso_rank10.json`).
+
+## 2026-10-24 -- trial_attempts was built before PS94 / PS95 cam1; rebuild + re-run order; 3-D tongue option
+
+1. `qc/trial_attempts.csv` (10-21 14:33) used cam1 for 100 / 100 / 40 / 0 % of PS92-95 trials (missing event files were
+   silently cam4-only). It defines the `attempted` gate and the deficit index -> rebuild first, compare flips, then
+   re-run gated encoding (Layer 1 / 2, relabel, basis) and the LMMs (handoff 000m). Old tables kept under
+   `qc/superseded_attempts_cam1incomplete_20261021/`.
+2. `COMBINED_ENCODING_TONGUE=3d` (9f45819, Priya "we should probably use 3d tongue traces"): continuous tongue = 3-D ml /
+   ap / reach / speed; exec_angle = 3-D lateral angle; frozen run tag gets `|tongue3d`. PS94_0818: ml vs cam4 x r -0.99,
+   ap new (vs cam4 y r -0.02), reach vs cam4 protrusion .93; 3-D exec angle on 85 % of licks (cam4 89 %), |r| .63 with cam4.
+3. Polar vs xyz2: the target lead differs because polar's target set (angle, angle^2, tilt, distance) spans more of the
+   six spouts' 5-D identity space than linear xyz (target / category gain chronic PS93 .88 vs .60); executed agrees.
+   Frame-robust measure: executed beyond spout category.

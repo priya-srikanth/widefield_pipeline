@@ -13,6 +13,10 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 >
 > | result | status | data it rests on / what is incomplete |
 > |---|---|---|
+> **10-24 WARNING:** `qc/trial_attempts.csv` (the `attempted` gate + deficit index) was built before PS94 / PS95 cam1
+> (cam1 on 40 / 0 % of their trials) -> every PS94 / PS95 gate / attempt / deficit number below is cam4-only until the
+> rebuild (handoff 000m) and its re-runs land.
+>
 > | Acute far-contra drop is carried by LICK in the frozen pre-stroke encoder; target <= ~4 x1e3 (3.4) | PROVISIONAL, robust to credit order and to 5 running models | 4/4 animals, but PS95 = 1 acute session; PS94 / PS95 lick timing cam4-only in these runs (their cam1 landed 10-21..23, not yet used); running model v7 still being chosen; no test on data - model; not yet on the LMMs |
 > | Post-stroke rise is TARGET, not executed (2.1, 2.4b, LMM 4.3.4) | STANDS for cam4; PROVISIONAL in 3-D | 3-D results so far PS92 + PS93 (10-21 snapshot; 3-D now exists for all 4 -> re-run due); the running 3-D 2x2 is on the snapshot; pre-stroke answer depends on the frame (2.4 vs 2.4b) |
 > | Destination vs landing "target-like 61 / 73 / 90 %" (2.4c) | CORRECTED (inflated) | separating rows only: target-leaning, ~6 decisive sessions, 2 animals |
@@ -143,6 +147,11 @@ PS93 pre-to-subacute values reproduce the two-animal run exactly (same 3-D input
   xyz2. So the target lead depends on the frame: PS93 pre target-led in both, PS92 chronic target-led in both; PS93
   chronic target-led in polar only. "The post-stroke rise is TARGET" is therefore frame-dependent -- the 4-animal xyz2
   run (`..._xyz2_licks-combined_bins_3d4`, launched 10-24) decides it for the cohort.
+  **Why the frames differ:** there are only six spouts, so target regressors take six values and can span at most the
+  5-D space of between-spout differences; polar's target set (lateral angle, its SQUARE, tilt, distance) covers more of
+  it than linear xyz (it can express midline-vs-side, non-monotonic in ml) -- target gain / free-category gain, chronic,
+  PS92 .83 vs .77, PS93 .88 vs .60. The tongue varies continuously lick to lick, so both frames capture executed alike.
+  The frame-robust readout is executed BEYOND spout category (pre PS92 15.1 vs 16.2, PS93 9.3 vs 10.8).
 
 #### Two-animal record (PS92 + PS93, 47 sessions, 10-21)
 

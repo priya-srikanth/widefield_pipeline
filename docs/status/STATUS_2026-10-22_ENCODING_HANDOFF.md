@@ -9,6 +9,27 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000m. STATE 10-24 morning -- RE-RUN REVIEW on complete cam1 / 3-D (Priya: "what else should we re run") -- READ FIRST
+
+- **STALE INPUT FOUND: `qc/trial_attempts.csv` (built 10-21 14:33) has cam1 for PS92 / PS93 100 %, PS94 40 %, PS95 0 %
+  of trials** (cam1 jaw 74 / 80 / 29 / 0 %; jaw_onsets now 76 / 81 / 73 / 71 %). Missing cam1 files were silently
+  cam4-only. It feeds (a) the `attempted` engagement gate of every `gate-attempted` run (frozen Layer 1, Layer 2,
+  relabel, basis), (b) the deficit index of all LMMs (attempt / completion / ttc / latency), (c) the LP-lick source
+  (3.3), (d) the "PS94 / PS95 also fail to INITIATE" behavioural claim. Old tables copied to
+  `qc/superseded_attempts_cam1incomplete_20261021/`; REBUILD queued (bj09r90b1, waits for 8 GB).
+- 3-D tongue frozen run `_v7g3_t3d` STOPPED at its template pass (would have used the stale gate); relaunch after the
+  attempts rebuild. Basis g3 run stopped earlier (maps go in the final frame).
+- **Re-run list, in order:** (0) trial_attempts [queued] -> compare per-animal gate / class flips; (1) frozen Layer 1 in
+  the final frame = grouping v3 + 3-D tongue + new gate (`run_v7g3_t3d.sh`), compare with `_v7g3`; then basis maps,
+  Layer 2, relabel in that frame; (2) LMMs (`imaging_lmm.py`, `encoding_mixed.py`) on the new attempts; (3) LP-lick
+  position maps (3.3); (4) cam4-lick-timing O2-era runs (10-19/20, 119 sessions, reference gate): per-spout unique maps
+  3.1 (`droppos`), signed 3.2 (`shufpos`), main `movement_first`, contests 2.1 / 2.2 / 2.3 (`nokin`, `_matched`, `_tr`),
+  `nokin_win`, `trmodels` -> with combined licks (3.1 is a headline); 2.1 may be retired in favour of 2.4b;
+  (5) destination vs landing 2.4c (2 animals) -> 4; (6) cam4-timing cells of the 3-D 2x2.
+- RUNNING: xyz2 x combined 4 animals (`_3d4`, reference gate), within-spout 3-D 4 animals (reference gate).
+- Already on complete data: polar `_3d4`, stray test, push behaviour; v7g3 / v7pushfree / Layer 2 / relabel used
+  complete cam1 LICK TIMING but the STALE GATE (PS94 / PS95).
+
 ## 000l. STATE 10-24 ~early morning -- READ FIRST (then 000k)
 
 - **All queued runs DONE, nothing of mine running.** Results in FINDINGS: stray test 2.6 (not decisive; rescue failed),
