@@ -256,7 +256,9 @@ def cmd_check(a) -> int:
     from wfield_local.paths import PathResolver
     _repo_on_path()
     os.environ[ce.RUN_ENV] = a.run or RUN
-    _set_env({"only": a.only, "video": a.video, "fr": a.fr})
+    _set_env({"only": a.only, "video": a.video, "fr": a.fr,          # submit-time options from this shell's env
+              **{k: os.environ.get(e, "") for k, e in (("bins", ce.BINS_ENV), ("bins_width", ce.BINS_WIDTH_ENV),
+                                                         ("fr_groups", "COMBINED_ENCODING_FR_GROUPS"))}})
     d = oi.bundle_dir(PathResolver(), a.name)
     inputs = pickle.loads((d / "inputs" / f"{a.label}.pkl").read_bytes())
     r1 = ce.run_session(a.label, a.order, inputs=inputs)["region"]
