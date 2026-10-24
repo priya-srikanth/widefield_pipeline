@@ -516,6 +516,21 @@ mask in each half, / the same animal's pre-stroke far-contra hits (ipsi | contra
   Next: the frozen encoder's touch / lick split (item 3) on these classes. First-pass maps (no control) kept in
   `attempt_maps/v1_20261024/`.
 
+- **Regional / hemispheric readout (Priya 10-24, from the maps; `E/alm_roi_far_contra.csv`, `E/chronic_roi_hits.csv`;
+  regions = Allen MOs / MOp / SSp-m per hemisphere on the eroded stat mask, ALM proxy = lateral half of MOs within its
+  anterior half; ratios of region means, lick window; image left = ipsilesional).**
+  - **Acute failed far-contra attempts: IPSILESIONAL ALM / tjM1 reduced more than contralesional.** / pre-stroke hits, left
+    vs right: ALM proxy .33 vs .42, .41 vs .55, .46 vs 1.00, .73 vs 1.15; MOp .32 vs .33, .37 vs .42, .43 vs .79, .80 vs
+    1.30; SSp-m .17 vs .21, .24 vs .35, .24 vs .52, .56 vs .87 -> left < right 4/4 in every region (PS92 small), cue window
+    the same. Against touch-matched pre-stroke misses the ALM proxy keeps left < right 4/4 (PS92 .41 vs .42, PS93 1.57 vs
+    1.89, PS94 .40 vs .60, PS95 1.14 vs 1.53); MOp does not (PS92 / PS93 reverse).
+  - **Chronic hits: INCREASED tjM1 / SSp-m activation, larger contralesionally, all spouts.** / pre-stroke hits, far
+    contra, left | right: SSp-m 1.54 | 1.65, 1.35 | 1.77, 1.32 | 1.94, 1.15 | 1.20; MOp 1.22 | 1.33, 1.21 | 1.32, 1.09 |
+    1.46, 1.05 | 1.29 -> up 4/4 both hemispheres, right > left 4/4; median over the six spouts also > 1 for SSp-m and MOp
+    4/4; ALM proxy inconsistent (PS95 < 1). Whole hemispheres ~1 (.87-1.15), so regional rather than a global gain change.
+    Fits the chronic position-coding gain (4.1). Caveats: no statistics yet (ratios of session-weighted means), ALM / tjM1
+    are proxies from Allen areas, amplitude across months also carries slow baseline drift (09-12 note).
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92_0908 rerun done 10-20: PS92 chronic unchanged)
