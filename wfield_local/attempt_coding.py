@@ -17,6 +17,11 @@ CLASSES (post-stroke, per spout; pre-stroke reference = video HITS at that spout
                VIDEO attempts) -- the "no task state" floor
   late         attempted after max_rt (reported for n only)
 
+PRIMARY READOUT = p_true (the frozen decoder). The PS92 smoke run (10-24) showed `own` is unstable post-stroke (class
+means -8 .. +5 on a 0 / 1 pole scale): the 1.0 s ENL axes separate spouts weakly, so the pole normalisation divides by
+a small gap, and `pool_sessions` z-scores each session on its OWN engaged (attempted) trials, whose spout mix shifts
+acutely. `own` is kept for comparison with August; do not read its contrasts alone.
+
 READOUTS, per trial, from directions fitted on pre-stroke hits only (`position_coding_directions.direction`):
   own          projection on ITS spout's axis, pole-normalised (0 = pre-stroke hits elsewhere, 1 = pre-stroke hits here)
                -- the August number, kept for comparison. No "own minus other axes" index: the six one-vs-rest axes

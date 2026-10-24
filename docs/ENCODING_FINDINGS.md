@@ -802,18 +802,32 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 | running-model comparison | `qc/` | `frozen_running_compare_*.csv` (+ `_curves.csv`); QC `qc/running_clips/`, `_v6thr1/figures/qc_running_threshold*.png` |
 | decoder / reorganisation LMM | `qc/` | `imaging_lmm_summary.csv` (source `decoder_*`); inputs `labcams/grant_figures/epoch/data/recovery_trajectory_*_cue_working.csv` |
 
-## 7. Next (in order; 10-23)
+## 7. Next (in order; 10-24) -- the goal question
 
-1. DONE 10-23: v7 = forward-only running from 1.5 mm/s, no push (STATS_VERSION 7, 73d2991).
-2. Basis re-run on v7 -> pixel unique R2 maps + per-position target-only / whole-spout maps (paired with the signed
-   per-spout contrasts).
-3. Lick-level strays vs on-target (2.6), pre and post.
-4. All-session model: shared kernels + per-epoch deltas, pre templates as the frame, early- vs late-pre drift null.
-5. FaceRhythm factors inside the frozen encoder; FR run A summary (50 PS92 + PS93 sessions done).
-6. Session-level competition LMM; frozen-encoder parts onto the TIME / BEHAVIOUR LMMs (4.3.7).
-7. Read the 3-D 2x2 when it finishes; re-run all lick-direction results when 3-D covers all sessions.
-8. Decoder reorganisation: one pre-registered contrast at the deck's resampling level (2 / 4.3.5), not another bootstrap.
-9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
+**Goal (Priya 10-24): what does cortex "look like" post-stroke when the animal attempts a movement it cannot execute, or
+executes differently?** Post-stroke trials per spout, by what the animal did (video attempt classes, `trial_attempts.csv`
+rebuilt 10-24): hit (executed, maybe differently) / incomplete (tongue out, no contact = cannot execute) / no attempt while
+working / reaction (jaw only) / stopped (quit = no-task floor); pre-stroke hits at the same spout = reference.
+
+1. **Is the plan there when execution fails?** `wfield_local/attempt_coding.py` (NEW): stored frozen pre-stroke decoder +
+   per-spout pre-stroke directions on each class, ENL (clean) / cue / lick windows; within-session contrasts incomplete vs
+   stopped, no-attempt vs stopped. Redo of the August contact-defined coding directions (`miss_vs_stopped`), which could
+   not split no-contact attempts from no attempt. Default (June + August) pre, matching the imaging families and the
+   frozen decoders; August-only = sensitivity (needs its own DAQ-frozen set).
+2. **When execution differs, does cortex follow target or movement?** Binned contest (O2, primary, w = 1 / 0.5 / 2);
+   relabel test in the final frame; strays secondary.
+3. **What is different / missing?** Frozen encoder final frame `_v7g3_t3d` (running) -> `lp_encoder_decompose` on it
+   (audit gap 2), basis maps, Layer 2, relabel.
+4. **What it looks like:** `wfield_local/attempt_maps.py` (NEW): 15r's rest-referenced maps split by class, per animal.
+5. **Recovery + confounds:** LMMs after 1-4 land; FR groups (O2); push (4.4).
+
+**Redo list (full audit `docs/status/OUTPUT_AUDIT_2026-10-24.md`):** LP_licks re-render (maps 15r / 14, frozen decoders
+acc / accdelta / 5c / 5cr, calibration; `lp_trial_counts` first; PS93 LP-frozen sensitivity); `lp_encoder_decompose` on
+the final frame + O2 main; O2 variants not in the batch (nokin_matched / tr / win, drop_win: submit or retire); within-spout
+in the final frame (attempted gate + combined licks; cue-aligned + ENL variants; mixed model, per-position direction maps,
+reliability chained after); destination vs landing (fix `CONTEST_3D`, deleted folder) and lick templates on 4 animals;
+behaviour / target-vs-execution figures, `lick_contact_by_epoch`, recovery trend, trial-average R2 after the O2 collect.
+Deferred: non-linear ceiling; pre-cue -> lick-window carry-over decode; decoder reorganisation contrast (2 / 4.3.5).
 
 ## Change log
 

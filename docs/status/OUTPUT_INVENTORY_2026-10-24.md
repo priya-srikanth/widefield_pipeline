@@ -1,5 +1,8 @@
 # Encoding-window output inventory (2026-10-24)
 
+> **SUPERSEDED IN PART (10-24 later): the full-scope audit is `OUTPUT_AUDIT_2026-10-24.md`.** This inventory missed the
+> LP_licks family (`grant_figures/LP_licks/`) and had several figures / qc tables as KEEP that are stale (audit §2a, §3.11).
+
 Written for: Priya and the next encoding session. Scope: the encoding window's outputs in
 `LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/` (run folders, `qc/`, `figures/`), the O2
 encoding bundle `DeepLabCut/Widefield/o2/enc_v36_20261019/`, and the local input cache. Other windows' outputs
