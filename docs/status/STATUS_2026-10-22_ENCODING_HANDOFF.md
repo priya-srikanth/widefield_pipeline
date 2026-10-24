@@ -9,6 +9,19 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000k. STATE 10-23 late night -- READ FIRST (then 000j)
+
+- Pushed through 39332a1 (stray_licks path via the dlc root; the machine-path test had blocked the push). jaw_onsets
+  3-D append (pose window 19:54) checked: trial_attempts reads by column name -> unchanged; trial_attempts.csv NOT
+  regenerated (LP cache keys on its mtime).
+- **Relabel**: smoke done (DECISIONS 2026-10-23 night, later): readout = all areas jointly; far spouts ~0 margin pre ->
+  judge acute as change from pre. FULL run `frozen_relabel_v7` running from worktree `Github/wf_relabel` (f27339a, 2
+  workers), log `S/relabel_v7.log`.
+- **Stray-lick smoke** running from worktree `Github/wf_stray` (39332a1) on PS92_0812 + PS92_0819 -> `<E>/stray_licks`
+  (smoke sessions are reused by the full run); log `S/stray_smoke.log`. Check validation, then all 107.
+- Map re-render on `_v7basis` DONE (prenorm / peranimal / r2_share views; grouping of that run, not v3).
+- Still to launch: Layer 2 (v3), grouping-v3 refits, remaining 3-D re-runs (000j list items 3-5).
+
 ## 000j. STATE 10-23 ~20:15 — READ FIRST (then 000i, 000h; decisions DECISIONS 2026-10-23 late; results FINDINGS 3.4 / 4.4)
 
 - **MEMORY (shared box): free RAM fell to 4 GB at ~20:00** (my jobs ~22 GB + other windows, e.g. the pose window's

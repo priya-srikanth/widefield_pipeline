@@ -21802,3 +21802,15 @@ overlap-corrected, aim-matched) and by Layer 2's contact change -- no separate r
 reach / bout confounds, 6-7 Hz overlap, few acute far-contra contacts). (3) PS93 cheap check: contact predictable from
 execution (direction + reach) at AUC .89 in PS93 vs .79-.86 others, nearly inverse to unique contact -> shared variance,
 not absent touch coding; joint drop `no_contact_exec_within` added.
+
+## 2026-10-23 (night, later) -- relabel smoke: read all areas jointly, judge far spouts against the pre margin
+
+Smoke (PS92_0812 pre, PS92_0819 acute, frozen v7). (1) The whole-cortex MEAN trace fails the pre check (far_contra
+trials "prefer" close_contra / far_mid): averaging both hemispheres removes the left / right pattern that tells spouts
+apart. Readout is now ALL AREAS JOINTLY (summed SSE increase / summed SST over the 41 parcels; `frozen_relabel.ALL`),
+plus SSp-m_left. (2) With all areas, the true label wins 100 % (whole trial) / 97 % (cue) / 90 % (lick window) of pre
+relabellings; close spouts are separated by 7-96 % of variance, but the FAR spouts barely (far_contra vs far_mid -0.2 %,
+vs close_contra +0.3 %, far_ipsi vs far_contra -0.8 %). So the A / B question (far_contra vs far_mid) has ~0 margin
+before the stroke, and acute values must be read as a CHANGE from each animal's pre margin, not by sign. (3) One acute
+session: far_contra fits WORSE as far_mid (+8.0 %, from -0.2 pre) and slightly better as far_ipsi (-3.2 %); close_mid
+trials fit better under every other label acutely (to check). Not a result (n = 1); full run `frozen_relabel_v7` started.
