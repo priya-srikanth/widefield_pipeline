@@ -62,6 +62,8 @@ def main(argv=None) -> int:
     M = np.load(fdir / "master.npz")
     A_ref, B_ref = M["spatial"].reshape(-1, M["spectral"].shape[1]), M["spectral"]
     names = fro.labels(fdir)
+    home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
+    asym_master = fm.loading_asymmetry(A_ref, home, mid)
     own = frr.own_sub(fdir)                              # own8 (8 starts) once complete, else own (3)
     print("own fits from", own)
     T = frr._tasks(fdir, own)
@@ -76,6 +78,7 @@ def main(argv=None) -> int:
         fits[t.key] = (A, B)
         m = fm.match(A_ref, B_ref, A, B, on=a.on, spatial=a.spatial)
         ch = fm.chance(A_ref, B_ref, A, B, a.on, a.spatial, n=a.chance) if a.chance else {}
+        asym_own = fm.loading_asymmetry(A, home, mid)
         if t.epoch in ("pre", "acute"):
             examples.setdefault((t.animal, t.epoch), (t.key, m["score_matrix"]))
         for k in range(len(names)):
@@ -84,6 +87,8 @@ def main(argv=None) -> int:
                          "cos_spatial": m["cos_spatial"][k], "cos_spectral": m["cos_spectral"][k],
                          "score": m["score"][k], "margin": m["margin"][k],
                          "split_flag": bool(m["free"][k] != m["order"][k]),
+                         "loading_asym": float(asym_own[m["order"][k]]) if m["order"][k] >= 0 else np.nan,
+                         "loading_asym_master": float(asym_master[k]),
                          "chance_spatial_p95": ch.get("cos_spatial_p95", [np.nan] * len(names))[k],
                          "chance_spectral_p95": ch.get("cos_spectral_p95", [np.nan] * len(names))[k]})
     S = pd.DataFrame(rows)
@@ -158,6 +163,46 @@ Computation `wfield_local/face_rhythm_matching.py`; driver `scripts/face_rhythm_
 Every master x own-factor {a.on} similarity for one PRE and one ACUTE session per animal (the matrix the Hungarian
 assignment works on). A clean one-to-one match is one bright cell per row and column; a row with two bright cells is a
 master factor SPLIT in that session's fit, a column with two is a MERGE.""")
+
+        # asymmetry two ways (Priya 10-24): tracked-point movement (readouts) and own-fit spatial loading (here)
+        st = Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "readouts" / a.set / "data" / "session_table.csv"
+        pts = pd.read_csv(st) if st.exists() else None
+        show = [k for k, n in enumerate(names) if "lick" in n and "prelick" not in n] + \
+               [k for k, n in enumerate(names) if "jaw" in n]
+        ncol = 2 + len(show)
+        fig, axs = frf.subplots(1, ncol, figsize=(3.2 * ncol, 3.8), squeeze=False, sharey=False)
+        x = np.arange(len(EPOCHS))
+        for j, w in enumerate(("response", "between")):
+            ax = axs[0, j]
+            c = f"asym_speed_{w}"
+            if pts is not None and c in pts:
+                for an, g in pts.groupby("animal"):
+                    mm = g.groupby("epoch")[c].mean().reindex(EPOCHS)
+                    ax.plot(x, mm.to_numpy(), "o-", ms=4, lw=1.2, color=col.get(an), label=an)
+            ax.axhline(0, color="k", lw=0.5)
+            ax.set_xticks(x, [e[:5] for e in EPOCHS])
+            ax.set(title=f"POINT MOVEMENT\n{w} window (speed)", ylabel="(contra - ipsi) / sum" if j == 0 else None)
+        for jj, k in enumerate(show):
+            ax = axs[0, 2 + jj]
+            for an in animals:
+                g = S[(S.factor == k) & (S.animal == an)]
+                mm = g.groupby("epoch")["loading_asym"].mean().reindex(EPOCHS)
+                ax.plot(x, mm.to_numpy(), "o-", ms=4, lw=1.2, color=col[an], label=an)
+            ax.axhline(asym_master[k], color="0.4", ls="--", lw=0.8, label="frozen master")
+            ax.axhline(0, color="k", lw=0.5)
+            ax.set_xticks(x, [e[:5] for e in EPOCHS])
+            ax.set(title=f"OWN-FIT LOADING\n{k} {names[k].removeprefix('fr_')}")
+        frf.legend_outside(axs[0, -1])
+        fig.suptitle(f"{fdir.name}: face asymmetry two ways (> 0 = more CONTRALESIONAL; cam4 ipsi = image right)")
+        frf.save(fig, out / "asymmetry_two_ways.png", f"""
+Two measures of contra- vs ipsilesional face asymmetry, (contra - ipsi) / (contra + ipsi), split at the face midline
+(x = {mid:.0f}, the master's LP nose; cam4 ipsilesional = IMAGE RIGHT, all lesions left), per animal x epoch (mean of
+sessions). LEFT TWO: tracked-point MOVEMENT -- RMS speed of the 25 Hz mesh points summed over each half of the face, in
+the response window (cue 0..+2 s, engaged trials) and between trials (`face_rhythm_readouts.movement`; independent of
+the factor model). RIGHT: SPATIAL LOADING of each session's OWN-fit factor matched to the master factor named (Hungarian,
+{a.on}), |(x, y)| summed over each half (`face_rhythm_matching.loading_asymmetry`); dashed = the frozen master's value.
+On the frozen basis loadings are fixed, so only own fits can show a loading shift: below the master line = the factor's
+movement moved off the contralesional face. Lick and jaw factors shown. Own fits: folder `{own}`.""")
     print("->", out)
     return 0
 

@@ -122,3 +122,16 @@ def pairwise(fits: dict, A_ref, B_ref, on: str = "product", spatial: str = "vect
                              "cos_spatial": float(al[a][0][k] @ al[b][0][k]),
                              "cos_spectral": float(al[a][1][k] @ al[b][1][k])})
     return pd.DataFrame(rows)
+
+
+def loading_asymmetry(A, home: np.ndarray, midline_x: float) -> np.ndarray:
+    """Per factor: (contra - ipsi) / (contra + ipsi) of its SPATIAL LOADING magnitude |(x, y)| summed over the mesh
+    points on each side of the face midline (Priya 10-24: asymmetry "both ways" -- this is the loading way; the other is
+    the tracked points' movement, `face_rhythm_readouts.movement`). cam4: IPSILESIONAL = IMAGE RIGHT (x > midline),
+    all lesions left. On the frozen basis this is a constant of the master; it can only change in a session's OWN fit,
+    so per session it says which way a factor's shape moved (towards / away from the contralesional face), where the
+    matched angle says only how much."""
+    m = spatial_view(A, "magnitude")                                   # (P, R)
+    ipsi = np.asarray(home)[:, 0] > midline_x
+    c, i = m[~ipsi].sum(0), m[ipsi].sum(0)
+    return (c - i) / np.maximum(c + i, EPS)
