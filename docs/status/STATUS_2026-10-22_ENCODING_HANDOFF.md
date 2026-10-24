@@ -9,6 +9,46 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000p. STATE 10-24 ~07:00 (pre-compaction) -- READ FIRST (then 000o, 000n, 000m; inventory OUTPUT_INVENTORY_2026-10-24.md)
+
+S = C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad
+
+**O2 (Priya started both tmux loops 06:50, UNATTENDED):**
+- Bundle `DeepLabCut/Widefield/o2/enc_v36_full_20261024` being written by the desktop (`S/run_bundle_full.sh`, ef748dc+;
+  14 / 107 inputs at 06:57, ~1 / min -> done ~08:20-08:30; then labels.txt, env.json, code/, run_enc.sbatch,
+  COMMANDS.md appear). Contents: attempted gate (REBUILT attempts), combined licks, polar 3-D exec + 20261023 tables
+  (bins calib copied to tables/), 3-D tongue, RAW FR master_pre_v1 rank 12.
+- Transfer node tmux `encxfer`: rsync loop share -> /n/scratch/users/p/ps150/o2/enc_v36_full_20261024 until complete.
+- Login node tmux `encsub`: `submit_all.sh` (in the bundle) waits for the full bundle, runs ONE smoke task
+  (TAG smoke_bins, BINS=1), and only if it wrote output submits 14 arrays: bins_w1 / bins_w05 / bins_w2 (nokin: +
+  BINS=1, BINS_WIDTH 1 / 0.5 / 2), main, droppos (droppos-), shufpos (shufpos-), nodir, drop, trmodels, musall_shuf,
+  fr_A / fr_B / fr_S / fr_D (ONLY=fr:, FR=master_pre_v1, FR_GROUPS=master_v1:<mode>). Expected submission ~09:00-09:30.
+  Log `$B/submit_all.log`. Cancel all: `scancel -u ps150 -n enc_enc_v36_full_20261024`. Progress / copy-back commands
+  are in the bundle's START_HERE.md (rsync out/ back on the transfer node; then desktop
+  `python scripts/o2_encoding.py collect --name enc_v36_full_20261024 --tag <TAG>` with the same env as the bundle --
+  collect now applies run.json's bundle_env + bins / bins_width / fr_groups for folder names).
+- **PENDING LOCAL CHECK** (`S/check_bins.log`, `S/check_frB.log`; task bpgt30iv6): PS92_0806 from bundle vs share, (a)
+  nokin: + BINS=1, (b) fr: + FR_GROUPS=master_v1:B. Must print max |r2 diff| < 1e-4. IF EITHER FAILS -> tell Priya to
+  scancel (above). Not yet reported.
+- nokin_matched NOT in the batch (old match.json is cam4-era; needs a new one).
+
+**Local runs:**
+- Layer 1 final frame `_v7g3_t3d` (`S/run_v7g3_t3d.sh`, worktree Github/wf_t3d 9f45819, grouping v3 + 3-D tongue +
+  rebuilt gate; `S/frozen_v7g3_t3d.log`): template pass 16 / 31 at 06:57, then stats + 107 sessions (hours). Next: compare
+  with `_v7g3` (frozen decomposition per animal, acute far-contra; lp_encoder_decompose), then basis maps (`run_v7basis_g3.sh`
+  adapted: tag `_v7basis_g3_t3d`, TONGUE=3d), Layer 2 (`allsession_encoder --from <final frame>`), relabel in that frame.
+- xyz2 x combined 4 animals (`S/run_3d4_xyz2.sh`, 2 workers, --skip-done; sensitivity only).
+- Within-spout 3-D 4 animals (`S/run_ws3d4.sh`): 103 / 107 at 06:57 -> then `--figures-only` + FINDINGS 2.5 update
+  (compare with the 2-animal record in qc/superseded_2animal_20261021_*; cam4 version still in qc/within_spout_deviation*).
+- After the bundle finishes: prune local cache entries modified before 10-23 (`C:/Users/SabatiniLab/wfield_cache`,
+  304 GB; approved).
+
+**Decisions today (DECISIONS 10-24 entries):** binned contest PRIMARY (width 1 within-spout SD; sweep 0.5 / 2);
+polar secondary, xyz2 sensitivity; attempts rebuilt (small effect); 3-D tongue option; deletions done (53 GB);
+CHECK items kept (motion-energy video pilot, xyz2 x cam4 2-animal, pose window's nose_onsets).
+**Open offers:** trial-level linear vs flexible check (low priority); smooth executed basis (not needed now); PS93
+contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so Claude can monitor / collect O2.
+
 ## 000o. STATE 10-24 ~06:40 -- READ FIRST (then 000n)
 
 - DONE: attempts rebuilt (small effect, DECISIONS); DELETE-NOW list deleted (53 GB, 147 entries; log
