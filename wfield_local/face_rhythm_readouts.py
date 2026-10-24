@@ -261,6 +261,50 @@ def epoch_stats(S: pd.DataFrame, metrics: list[str], seed: int = 0) -> tuple[pd.
     return oc.epoch_tables(S[S.epoch.isin(oc.EPOCH_ORDER)], seed=seed, metrics=metrics)
 
 
+def lick_split(names: list[str]) -> tuple[list[str], list[str]]:
+    """(lick-locked components, the rest) by NAME: "lick" in the name, lick INITIATION ("prelick") excluded -- the
+    master's labels.json (FINDINGS 4a); matches fr_groups.master_v1's lick part for master_pre_v1."""
+    lick = [n for n in names if "lick" in n and "prelick" not in n]
+    return lick, [n for n in names if n not in lick]
+
+
+def task_nontask(S: pd.DataFrame, names: list[str]) -> pd.DataFrame:
+    """The manuscript's "relative preservation of NON-TASK orofacial movements" (2pRAM cohort, Fig 4): per session,
+    TASK = summed absolute expression of the lick components in the RESPONSE window; NON-TASK = summed absolute
+    expression of the other components BETWEEN trials (median bins, large movement excluded). -> per animal x epoch,
+    each as the ratio to the animal's pre-stroke mean (rule 8: per animal; one mean per session)."""
+    lick, other = lick_split(names)
+    T = S[["label", "animal", "epoch"]].copy()
+    T["task"] = S[[f"abs_{n}_response" for n in lick]].sum(1, min_count=len(lick))
+    T["nontask"] = S[[f"abs_{n}_between" for n in other]].sum(1, min_count=len(other))
+    A = T.groupby(["animal", "epoch"])[["task", "nontask"]].mean().reset_index()
+    pre = A[A.epoch == "pre"].set_index("animal")[["task", "nontask"]]
+    for c in ("task", "nontask"):
+        A[f"{c}_vs_pre"] = A[c] / A.animal.map(pre[c])
+    return A
+
+
+def severity_table(S: pd.DataFrame, names: list[str]) -> pd.DataFrame:
+    """One row per animal: lesion burden (histology, caudoputamen ipsi / contra % area; LOWER = more tissue lost) and
+    its FaceRhythm deficit -- lick (task) and non-task expression vs pre, acute and chronic; chronic minus pre
+    reconstruction error, EVR gap and morphing where present. DESCRIPTIVE: n = 4 animals, no test (rule 8)."""
+    from wfield_local import histology_area as ha
+    H = ha.per_animal(ha.load())
+    A = task_nontask(S, names).set_index(["animal", "epoch"])
+    rows = []
+    for an in sorted(S.animal.unique()):
+        r = {"animal": an, "burden_ipsi_contra_pct": H["mean"].get(an, np.nan), "burden_sem": H["sem"].get(an, np.nan)}
+        for ep in ("acute", "chronic"):
+            for c in ("task", "nontask"):
+                r[f"{c}_vs_pre_{ep}"] = A[f"{c}_vs_pre"].get((an, ep), np.nan)
+        g = S[S.animal == an].groupby("epoch").mean(numeric_only=True)
+        for c in ("recon_err_trials", "evr_gap", "cos_spatial_mean", "cos_spectral_mean"):
+            if c in g and "pre" in g.index and "chronic" in g.index:
+                r[f"{c}_chronic_minus_pre"] = g.loc["chronic", c] - g.loc["pre", c]
+        rows.append(r)
+    return pd.DataFrame(rows)
+
+
 # ------------------------------------------------------------------------------------------- naming the components
 #: face regions on the master image, relative to its LP nose (MASTER_MIDLINE_X, NOSE_Y) -- coarse, for naming only
 NOSE_Y = 268.0

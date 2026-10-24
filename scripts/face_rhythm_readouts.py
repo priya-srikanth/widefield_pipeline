@@ -18,6 +18,8 @@ Needs ``<set>/master.npz`` + ``proj/`` (and ``own/`` for the EVR gap / morphing)
   movement_maps_<measure>_<window>.png   log2(epoch / pre) per point on the master face, per animal + animal mean
                            (speed = absolute movement; share = normalised spectral distribution)
   asymmetry_by_epoch.png   (contra - ipsi) / (contra + ipsi) per window, speed and share (cam4 ipsi = image right)
+  task_vs_nontask.png      lick components (response) vs the others (between trials) / pre, per animal x epoch
+  severity.png             per animal: FaceRhythm deficit vs histological lesion burden (descriptive, n = 4)
 """
 from __future__ import annotations
 
@@ -179,6 +181,52 @@ animal maps. Red = more movement than pre, blue = less; colour clipped at +-1 (2
 (contra - ipsi) / (contra + ipsi) of the movement summed over the mesh points on each side of the face midline (x =
 {maps['midline_x']:.0f}; cam4 ipsilesional = image RIGHT, all lesions left), per window (between / pre-cue / response),
 for absolute SPEED (top) and the normalised spectral SHARE (bottom). 0 = symmetric; > 0 = more contralesional movement.""")
+    # non-task preservation + severity (the 2pRAM-cohort manuscript's Fig 4 framing; Priya 10-24)
+    TN = frr.task_nontask(S, names)
+    TN.to_csv(figure_layout.sidecar_for(out, "task_nontask", ".csv"), index=False, float_format="%.5g")
+    SV = frr.severity_table(S, names)
+    SV.to_csv(figure_layout.sidecar_for(out, "severity", ".csv"), index=False, float_format="%.5g")
+    print("TASK (lick, response) vs NON-TASK (other, between) expression vs pre, per animal x epoch")
+    print(TN.pivot(index="animal", columns="epoch", values=["task_vs_pre", "nontask_vs_pre"])
+          .reindex(columns=list(EPOCHS), level=1).round(2).to_string())
+    print("SEVERITY (descriptive, n = 4)\n" + SV.round(3).to_string(index=False))
+    lick, other = frr.lick_split(names)
+    with frf.style():
+        fig, axs = frf.subplots(1, 2, figsize=(10, 4), sharey=True)
+        for ax, c in zip(axs, ("task_vs_pre", "nontask_vs_pre")):
+            for an, g in TN.groupby("animal"):
+                m = g.set_index("epoch")[c].reindex(EPOCHS)
+                ax.plot(range(4), m.to_numpy(), "o-", ms=4, lw=1.2, label=an)
+            ax.axhline(1, color="k", lw=0.5)
+            ax.set_xticks(range(4), [e[:5] for e in EPOCHS])
+            ax.set_title("TASK: lick components, response window" if c.startswith("task") else
+                         "NON-TASK: other components, between trials")
+        axs[0].set_ylabel("expression / pre")
+        frf.legend_outside(axs[-1])
+        fig.suptitle(f"{fdir.name}: task vs non-task orofacial movement over recovery")
+        frf.save(fig, out / "task_vs_nontask.png", f"""
+{common}
+The 2pRAM-cohort manuscript's "relative preservation of non-task orofacial movements", on one frozen basis across
+animals. TASK = summed ABSOLUTE expression (weight x D) of the lick components ({', '.join(lick)}) in the response
+window; NON-TASK = summed absolute expression of the other components ({', '.join(other)}) BETWEEN trials (median of
+the 5 Hz bins outside cue -3..+6 s, large movement excluded). Per animal: epoch mean of the session values / the
+animal's pre-stroke mean. Lick INITIATION components ("prelick") count as non-lick here, as in fr_groups.""")
+        mets = [c for c in SV.columns if c.endswith(("_acute", "_chronic", "_minus_pre")) and SV[c].notna().any()]
+        fig, axs = frf.subplots(1, len(mets), figsize=(3.3 * len(mets), 3.6), squeeze=False)
+        for ax, c in zip(axs[0], mets):
+            ax.errorbar(SV.burden_ipsi_contra_pct, SV[c], xerr=SV.burden_sem, fmt="o", color="k", ms=5, lw=0.8)
+            for _, r in SV.iterrows():
+                ax.annotate(r.animal, (r.burden_ipsi_contra_pct, r[c]), fontsize=8, xytext=(3, 3),
+                            textcoords="offset points")
+            ax.set(xlabel="ipsi / contra CP area (%)\n(lower = larger lesion)", title=c.replace("_", " "))
+        fig.suptitle(f"{fdir.name}: FaceRhythm deficit vs lesion burden (descriptive, n = {len(SV)})")
+        frf.save(fig, out / "severity.png", f"""
+{common}
+One point per animal: x = lesion burden from histology (`wfield_local/histology_area.py`: caudoputamen ipsi / contra %
+area, mean +- SEM over sections; LOWER = more tissue lost), y = the animal's FaceRhythm deficit: task / non-task
+expression vs pre (acute, chronic; `task_vs_nontask.png`), and chronic minus pre reconstruction error, EVR gap and
+matched spatial / spectral cosine (morphing) where the per-session fits exist. DESCRIPTIVE ONLY: four animals, no test
+and no fitted line (CLAUDE.md rule 8); the 2pRAM-cohort manuscript's mild-vs-severe framing.""")
     print(f"{len(S)} sessions -> {out}")
     return 0
 
