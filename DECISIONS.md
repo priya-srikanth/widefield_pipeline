@@ -21875,3 +21875,12 @@ proj_loso, report, master_r10.npz, clips / validation `master_pre_v1_r10`); plan
 3. Polar vs xyz2: the target lead differs because polar's target set (angle, angle^2, tilt, distance) spans more of the
    six spouts' 5-D identity space than linear xyz (target / category gain chronic PS93 .88 vs .60); executed agrees.
    Frame-robust measure: executed beyond spout category.
+
+## 2026-10-24 -- 3-D frame: POLAR primary, xyz2 sensitivity (Priya "ok")
+
+Polar explains held-out cortex better than xyz2 on the 47 matched PS92 / PS93 sessions (joint target + executed gain:
+lick 38 / 47 sessions, cue 44 / 47, all frames 38 / 47; e.g. PS93 chronic lick 102.8 vs 76.0), cross-validated so its
+extra term is already penalised. Contests: polar primary, xyz2 (4-animal `_3d4`) as sensitivity; the deciding
+target-vs-executed readout is executed BEYOND spout category (frame-robust); any "target leads" statement notes its size
+is frame-dependent. Within-spout direction + encoder exec_angle = 3-D lateral angle (polar's first term). Encoder
+continuous tongue traces = positions (ml / ap / reach / speed; angles are undefined with the tongue in the mouth).
