@@ -10,7 +10,8 @@ master, spatial loading and spectral (frequency) similarity reported separately,
                                         [--spatial vector|magnitude] [--chance 200] [--out DIR]
 
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/matching[_<on>_<spatial>]/``:
-  match_sessions.csv     one row per (session, master factor): matched own factor, cos_spatial, cos_spectral, score,
+  match_sessions.csv     one row per (session, master factor): matched own factor, cos_spatial, cos_spectral (+ the
+                         same as ANGLES in degrees, angle_* = arccos: the manuscript's "factor angle"), score,
                          margin (best - runner-up), split_flag (unconstrained best partner != assigned), chance p95
   match_pre_pairs.csv    pre-vs-pre pairs within each animal, per factor (the floor)
   match_epochs.csv       per animal x epoch x factor: mean cosines + the animal's pre floor (rule 8: per animal first)
@@ -84,12 +85,16 @@ def main(argv=None) -> int:
                          "chance_spatial_p95": ch.get("cos_spatial_p95", [np.nan] * len(names))[k],
                          "chance_spectral_p95": ch.get("cos_spectral_p95", [np.nan] * len(names))[k]})
     S = pd.DataFrame(rows)
+    for c in ("spatial", "spectral"):                    # the manuscript's "factor ANGLE": arccos of the matched cosine
+        S[f"angle_{c}_deg"] = np.degrees(np.arccos(np.clip(S[f"cos_{c}"], -1, 1)))
     S.to_csv(figure_layout.sidecar_for(out, "match_sessions", ".csv"), index=False, float_format="%.4g")
 
     pre = T[T.epoch == "pre"]
     P = pd.concat([fm.pairwise({k: fits[k] for k in g.key}, A_ref, B_ref, a.on, a.spatial).assign(animal=an)
                    for an, g in pre.groupby("animal") if len(g) > 1], ignore_index=True)
     P["name"] = [names[k] for k in P.factor]
+    for c in ("spatial", "spectral"):
+        P[f"angle_{c}_deg"] = np.degrees(np.arccos(np.clip(P[f"cos_{c}"], -1, 1)))
     P.to_csv(figure_layout.sidecar_for(out, "match_pre_pairs", ".csv"), index=False, float_format="%.4g")
 
     floor = P.groupby(["animal", "factor"])[["cos_spatial", "cos_spectral"]].median() \
