@@ -9,6 +9,36 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000q. STATE 10-24 ~12:30 -- READ FIRST (then 000p)
+
+**Goal question (Priya 10-24):** what does cortex look like post-stroke when the animal attempts a movement it cannot
+execute / executes differently -> plan + redo list in ENCODING_FINDINGS 7; full output audit
+`docs/status/OUTPUT_AUDIT_2026-10-24.md` (supersedes the imaging_encoding-only inventory). DECISIONS 10-24 afternoon.
+
+Done today (all pushed, main 4a81441):
+- `wfield_local/attempt_coding.py` (item 1): video attempt classes on the STORED frozen decoder; `--freeze` stores the DAQ
+  1.0 s ENL models (LP pool sessions; PS93 = 10 pre). Outputs `E/attempt_coding/`. FINDINGS 2.8.
+- `wfield_local/attempt_maps.py` (item 4): rest-referenced maps by class incl. `pre_incomplete` (touch control);
+  `--figures`. Outputs `E/attempt_maps/` (first pass in `v1_20261024/`). FINDINGS 2.9 (touch-matched: 2/4 only).
+- LP_licks re-render (15r / 14m / acc / 5c / 5cr, `G/LP_licks/epoch/`), LP trial counts, LP null calibration (15 CSVs;
+  the 10-21 cross-arm summary CSV came from a scratch script, not regenerated). Decoders unchanged. FINDINGS 3.3.
+- Layer 1 final frame `frozen_encoder_gate-attempted_v7g3_t3d` (107 sessions) + decomposition: unchanged. FINDINGS 3.4.
+- O2 bundle `enc_v36_full_20261024` built 08:38, both local checks passed (binned + FR mode B, max |dr2| 5e-7);
+  Priya's tmux loops submit (14 runs). When `out/` is copied back: `python scripts/o2_encoding.py collect --name
+  enc_v36_full_20261024 --tag <TAG>` (bins_w1 first).
+- Cache prune 153 GB (pre-10-23 entries; log in the session scratchpad). Stale worktrees removed (FR window request).
+
+Running / queued (session scratchpad `S`):
+- `S/run_t3d_downstream.sh` (worktree wf_t3d): relabel `--tag v7g3_t3d` -> Layer 2 `--tag v7g3_t3d` -> basis maps
+  (`gate-attempted_v7g3_t3d_basis`) + pixel / r2 / spout figures. Log `S/t3d_downstream.log`.
+- PAUSED: xyz2 4-animal contest (`S/run_3d4_xyz2.sh`, `--skip-done`; sensitivity, restart when CPU is free).
+- QUEUED (audit gaps): within-spout in the final frame (attempted gate + combined licks; cue + ENL variants;
+  mixed model / per-position direction maps / reliability chained); destination vs landing (fix `CONTEST_3D` in
+  `scripts/best_match_destination.py` -- its folder was deleted); lick templates 4 animals; O2 variants not in the
+  batch (nokin_matched / tr / win, drop_win); behaviour figures + lick_contact_by_epoch; LMMs after the O2 collect.
+- Next analysis for the goal question: movement-matched control for 2.8 (failed far-contra attempts vs licks with the
+  same 3-D landing), and the frozen encoder's touch / lick split on the attempt classes.
+
 ## 000p. STATE 10-24 ~07:00 (pre-compaction) -- READ FIRST (then 000o, 000n, 000m; inventory OUTPUT_INVENTORY_2026-10-24.md)
 
 S = C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad
