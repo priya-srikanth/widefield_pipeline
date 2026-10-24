@@ -431,6 +431,37 @@ better). Pre sessions are predicted by leave-one-session-out fits. PRELIMINARY.
   general shrink of all margins (Layer 2's changed mapping) can move best labels without re-aiming -- hence the
   per-spout control; executed-lick templates are spout-locked, so "state" = target + typical movement, not aim alone.
 
+### 2.8 Failed attempts on the frozen pre-stroke decoder (video attempt classes) — FIRST RUN 10-24: "distance kept, side lost" on failed attempts; no pre-cue plan signature
+
+`wfield_local/attempt_coding.py` (goal-question item 1; FINDINGS 7). LP source (rebuilt attempts table, complete cam1),
+joint-LocaNMF features, the STORED DAQ-frozen pre-stroke decoder (1.0 s ENL models frozen 10-24 on the LP pool's
+sessions; PS93 = 10 pre sessions, PS93_0813 has no video), default June + August pre. Classes per far-contra trial,
+acute: hit (n 15 / 35 / 13 / 1, PS92-95), incomplete (257 / 196 / 251 / 39), no attempt while working (27 / 27 / 78 /
+22), reaction (jaw only), stopped (after the video-attempt quit; PS95 none acute). Readout p_true = frozen-decoder
+probability of the true spout (chance .167); within-session permutation contrasts. Outputs `E/attempt_coding/`
+(`summary_*`, `contrasts_*`, `far_ring_share_contrasts.csv`).
+
+- **Pre-stroke reference (LOSO):** far contra p_true ENL .22 / .27 / .45 / .30, cue .86 / .76 / .88 / .93, lick .91 / .86
+  / .88 / .92.
+- **Failed attempts lose the far-contra code** (acute incomplete, cue .24 / .08 / .38 / .33, lick .14 / .13 / .43 / .22),
+  to the level of the no-task floor in PS92 / PS93 (vs stopped: cue .24 vs .23, .08 vs .10; lick .14 vs .10, .13 vs .18);
+  PS94 keeps part (lick .43 vs stopped .17, p < .001). The few acute hits score higher than failed attempts in PS93 /
+  PS94 (cue .40 vs .08, .69 vs .38).
+- **But failed attempts are decoded as a FAR spout -- distance kept, side lost.** Share decoded as any far spout,
+  incomplete vs stopped / no-attempt in the same sessions, LICK window: PS92 .58 vs .41 (p .06), PS93 .68 vs .34
+  (p .001), PS94 .90 vs .49 (p < .001), PS95 .85 vs .18 vs no-attempt (1 session) -> 4/4 direction, 3/4 p < .01; CUE
+  window 3/4 (PS93 .80 vs .48, PS94 .83 vs .65, PS95 .87 vs .55; PS92 none). Mostly decoded as far mid / far ipsi
+  (PS93 far ipsi .41-.50). Same confusion as the 10-21 LP frozen decoders, now shown to belong to FAILED ATTEMPTS
+  specifically, not to quitting.
+- **No pre-cue plan signature:** in the ENL window incomplete ~ stopped in p_true (PS92 / PS93 / PS94 +.02 / +.01 /
+  +.09) and far share (PS94 only, .72 vs .50, p < .001) -> nothing consistent before movement.
+- **Not yet separable from execution.** The cue / lick windows contain the failed attempt's own tongue movement; post-stroke
+  far-contra licks fall short and drift ipsi, and tongue protrusion is spatial (scales with spout distance; 10-22 audit),
+  so "far, wrong side" may be the EXECUTED movement rather than a degraded target. Stopped / no-attempt trials have no
+  movement, so the far-share contrast is movement-present vs absent. Deciding test = item 2 (binned contest on O2) and a
+  movement-matched comparison (failed far-contra attempts vs pre-stroke / acute licks with the same 3-D landing).
+  The per-spout projection (`own`) is unstable post-stroke (see module docstring) and is not used.
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92_0908 rerun done 10-20: PS92 chronic unchanged)
