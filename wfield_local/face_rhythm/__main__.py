@@ -88,6 +88,18 @@ CATALOGUE: dict[str, Analysis] = {
 }
 STAGES = ("setup", "factors", "readouts", "statistics")
 
+#: the HAND steps of setup (JupyterLab, fr env; not run by `run`), in their place in the setup order:
+#: prep -> click landmarks -> register -> overlay -> DRAW THE MASTER ROI -> warp-rois -> mesh-qc -> O2 tracking
+NOTEBOOKS = {
+    "click-landmarks": ("notebooks/face_rhythm_click_landmarks.ipynb", "after prep",
+                        "Click the registration landmarks on each session's reference face (Priya)",
+                        "face_rhythm/<cam>/register_inputs/landmarks.json"),
+    "draw-roi": ("notebooks/face_rhythm_draw_roi.ipynb", "after overlay",
+                 "Draw the face + mask polygons on the MASTER face (Priya; CAM = '<cam>', SESSION = the master, "
+                 "cam4: PS95_20260812); every session's mesh is this ROI warped by warp-rois",
+                 "face_rhythm/<cam>/rois/<master>/ROIs.h5"),
+}
+
 
 def _list() -> None:
     for st in STAGES:
@@ -96,6 +108,10 @@ def _list() -> None:
             if a.stage == st:
                 extra = f"  [{a.cache}]" if a.cache else ""
                 print(f"  {name:14s} {a.question}\n  {'':14s} -> {a.outputs}  ({a.runtime}){extra}")
+        if st == "setup":
+            print("  hand steps (notebooks, JupyterLab in the fr env):")
+            for name, (nb, when, what, out) in NOTEBOOKS.items():
+                print(f"  {name:14s} {what}\n  {'':14s} {nb} ({when}) -> {out}")
     print("\nrun one: python -m wfield_local.face_rhythm run <name> [its arguments]; details: show <name>")
 
 

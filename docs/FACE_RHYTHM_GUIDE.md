@@ -35,7 +35,22 @@ someone who wants to answer a question with the cam4 FR data of the VLS-stroke c
 * **Colours.** Animals: `config.animal_color()` (the repo palette). Epochs: pre black, acute pink, subacute gold, chronic
   teal (the orofacial / 3-D kinematics palette).
 
-## 2. Answering a question
+## 2. Setting up a camera (once; done for cam4)
+
+The face mesh every factor lives on comes from ONE hand-drawn ROI on the master face. In order (`list` shows each step,
+`docs/FACE_RHYTHM_PIPELINE.md` stages 1-4 the details):
+
+1. `prep` (per-session reference faces) -> **`notebooks/face_rhythm_click_landmarks.ipynb`** (click landmarks) ->
+   `register` (every session onto the master face).
+2. `overlay` (spouts / nose / jaw / tongue of every session on the master) -> **`notebooks/face_rhythm_draw_roi.ipynb`**
+   (draw the face + mask polygons on the master; cam4: PS95_20260812 -> `rois/PS95_20260812/ROIs.h5`).
+3. `warp-rois` (the master mesh, 12 px, onto every session) -> `mesh-qc` -> O2 tracking (`scripts/o2_face_rhythm.py`)
+   -> the factor set (`factors`, PIPELINE stage 5).
+
+Redrawing the ROI changes the mesh, so every downstream output (tracking, factor set, readouts) must be rebuilt: a new
+ROI is a new factor set, never an edit of `master_pre_v1`.
+
+## 3. Answering a question
 
 ```bash
 export PYTHONPATH=C:/Users/SabatiniLab/Github/widefield_pipeline   # the fr env does not install the repo
@@ -61,7 +76,7 @@ folder with a `README.md` of figure captions (methods) and the tables behind the
 | non-task movement, by behavioural state | `nontask` | 6d |
 | treadmill pushes | `push` (locanmf env) | 6b |
 
-## 3. Adding an analysis
+## 4. Adding an analysis
 
 Write a script in `scripts/face_rhythm_<name>.py` and build it from the shared pieces in `wfield_local/face_rhythm/`
 rather than copying code out of another script:
@@ -82,7 +97,7 @@ Conventions every FR script follows:
 5. `writeguard.assert_writable(out)` before writing on the share.
 6. Add the analysis to `CATALOGUE` in `wfield_local/face_rhythm/__main__.py`, and its result to FINDINGS.
 
-## 4. Pitfalls
+## 5. Pitfalls
 
 * Pre-stroke sessions in `proj/` are scored on the basis fit WITHOUT their own day (leave-one-day-out, `proj_loso/`)
   for EVR; otherwise their fit is in-sample and looks better than any post session.
