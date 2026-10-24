@@ -121,6 +121,20 @@ deciding analysis.
 
 ### 2.4b 3-D polar contest — 4 ANIMALS DONE 10-24 (107 sessions); the two-animal record follows below
 
+> **FINAL INPUTS 10-24 (O2 `enc_v36_full_20261024`, `bins_w1` / `bins_w05`; attempted gate on the rebuilt attempts
+> table, combined licks with complete cam1, 20261023 3-D tables; `E/movement_first_subset-nokin_exec-polar_licks-
+> combined_bins[_bw0.5]/`, 107 sessions; 7 big sessions re-run at 64 GB after OOM).** Cortex, unique dR2 x1e3, target
+> bins vs executed bins, PS92 / PS93 / PS94 / PS95:
+> - **chronic: target > executed 4/4 in both windows** -- cue 17.7 vs 4.7, 15.2 vs 9.2, 10.5 vs 7.3, 22.1 vs 3.8; lick
+>   10.6 vs 2.7, 32.0 vs 9.1, 8.3 vs 5.4, 12.2 vs 6.5.
+> - **acute (the failed / altered far-contra licks live here): target > executed 3/4 in the lick window** (14.6 vs -21.4,
+>   17.8 vs 3.5, 9.0 vs -1.7; PS93 the other way, -0.9 vs 6.6); cue window PS94 / PS95 target, PS92 both negative, PS93
+>   tied. Stronger than the reference-gate local run (PS92 lick 14.6 vs 8.9, PS95 9.0 vs 2.7).
+> - pre: no target lead (both small). Bin width 0.5: same pattern. Width 2 pending.
+> - What the acute licks are: failed far-contra licks land in the far-mid / far-ipsi executed bins (e.g. PS95_0817 soft
+>   weights far mid .48, far ipsi .42, far contra .001) -- the dissociation the contest exploits. Caveat as 2.5:
+>   "target" = spout location (touch, posture, context), not intention alone.
+
 **Four-animal re-run (`movement_first_subset-nokin_exec-polar_licks-combined_bins_3d4/`, 20261023 re-cut tables,
 combined lick timing, soft calibrated bins; tables via `scripts/combined_encoding_figures.py --order ..._3d4`).**
 Cortex, unique dR2 x1e3, August pre, per animal (PS92 / PS93 / PS94 / PS95), pre -> acute -> subacute -> chronic:
