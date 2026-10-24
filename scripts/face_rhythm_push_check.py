@@ -15,7 +15,10 @@ against RANDOM times in the same session and the same context (in-trial: cue -1 
                                                worth doing, its unmatched factors are the candidates;
   no rise (or the same pre and post)        -> the pre basis covers the face at pushes; pushes stay a TREADMILL regressor.
 
-    python scripts/face_rhythm_push_check.py [--set master_pre_v1] [--jobs 4]
+    python scripts/face_rhythm_push_check.py [--set master_pre_v1] [--jobs 4] [--plot-only]
+COMPUTE once (~1 h: every session's treadmill speed is reloaded), then the per-session table WITH its traces is saved
+(data/push_check_traces.npz); ``--plot-only`` redraws the figure and tables from it in seconds (Priya 10-24: re-render
+figures without redoing calculations).
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/push_check/``: push_check_sessions.csv (per session x context), the per
 animal x epoch table (printed; rule 8 first), push_check.png (traces by epoch, per animal).
 """
@@ -117,6 +120,22 @@ def job(item: tuple) -> list:
     return rows
 
 
+def save_cache(S: pd.DataFrame, f: Path) -> None:
+    """The per-session table with its traces: scalar columns as arrays, ``tr_*`` stacked (rows, lags)."""
+    tr = [c for c in S.columns if c.startswith("tr_")]
+    np.savez(f, lags=LAGS, columns=np.array([c for c in S.columns if c not in tr]),
+             **{f"col_{c}": S[c].to_numpy() for c in S.columns if c not in tr},
+             **{c: np.vstack(S[c].to_numpy()) for c in tr})
+
+
+def load_cache(f: Path) -> pd.DataFrame:
+    z = np.load(f, allow_pickle=True)
+    S = pd.DataFrame({c: z[f"col_{c}"] for c in z["columns"].astype(str)})
+    for c in (k for k in z.files if k.startswith("tr_")):
+        S[c] = list(z[c])
+    return S
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -131,15 +150,23 @@ def main(argv=None) -> int:
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--plot-only", action="store_true", help="redraw from data/push_check_traces.npz, no recompute")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = a.fdir or fro.factor_dir(rv, a.bundle, a.set)
     out = a.out or Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "readouts" / a.set / "push_check"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    keys = sorted(f.stem for f in (fdir / "proj").glob("*.npz") if not f.name.endswith(".part.npz"))
-    got, fail = ak.fan_sessions([(str(fdir), k) for k in keys], job, jobs=a.jobs, key=lambda it: it[1], label="push")
-    S = pd.DataFrame([r for _, rs in got for r in rs])
+    cache = figure_layout.sidecar_for(out, "push_check_traces", ".npz")
+    fail = []
+    if a.plot_only:
+        S = load_cache(cache)
+    else:
+        keys = sorted(f.stem for f in (fdir / "proj").glob("*.npz") if not f.name.endswith(".part.npz"))
+        got, fail = ak.fan_sessions([(str(fdir), k) for k in keys], job, jobs=a.jobs, key=lambda it: it[1],
+                                    label="push")
+        S = pd.DataFrame([r for _, rs in got for r in rs])
+        save_cache(S, cache)
     tr_cols = [c for c in S.columns if c.startswith("tr_")]
     S.drop(columns=tr_cols).to_csv(figure_layout.sidecar_for(out, "push_check_sessions", ".csv"), index=False,
                                    float_format="%.5g")
