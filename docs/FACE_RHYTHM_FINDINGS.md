@@ -288,6 +288,62 @@ PS92 chronic gap (.042 -> .040).
 Encoding grouping (Priya-approved, `wfield_local/fr_groups.py`, pilot set only): lick = f0 + f4 + f5 + f9 (left f0 + f5,
 centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation factors).
 
+## 6-master. Does the pre-stroke vocabulary still fit? Four animals, rank 12 (10-24)
+
+`scripts/face_rhythm_readouts.py --set master_pre_v1` (`face_rhythm/cam4/readouts/master_pre_v1/`: session_table,
+epoch_means, evr_own_vs_frozen.png, recovery_by_day.png). Own fits = 8 random starts (`own8/`; vs 3 starts: session EVR
+up in 19 / 108 sessions by <= .0013, gap unchanged to 3 decimals). Pre sessions scored on their held-out day basis.
+
+| EVR gap (own - frozen) | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|
+| pre | .035 | .043 | .031 | .030 |
+| acute | **.051** | **.077** | **.058** | **.060** (1 session) |
+| chronic | **.047** | .042 | **.044** | .033 |
+
+Acute rise in 4 / 4 (reconstruction error too, +.016 to +.033); chronically back to pre in PS93 / PS95, still up in
+PS92 / PS94 (reconstruction error: only PS94, +.013). Replicates the pilot (6: PS93 back, PS92 elevated) on four
+animals. STANDS (per animal; no pooled test at n = 4).
+
+## 6c. Factor "morphing": which factors change shape, per animal (PROVISIONAL, 10-24)
+
+`scripts/face_rhythm_match.py` (`readouts/master_pre_v1/matching/`: match_by_day.png, match_example.png,
+asymmetry_two_ways.png, data/match_*.csv). Each session's own fit Hungarian-matched to the master (spatial x spectral
+cosine); angle = arccos. The baseline is like for like: each post session's own-vs-master angle against the RANGE of
+the animal's pre sessions' own-vs-master angles (not the pre-pre floor, which mixes two fits' noise). Chronic sessions
+beyond the pre range:
+
+| | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|
+| lick_right spatial angle | **12 / 12** | 0 / 12 | **8 / 8** | 5 / 11 |
+| lick_right loading asymmetry | 4 / 12 | 2 / 12 | 3 / 8 | **11 / 11** |
+| lick_left spatial angle | 2 / 12 | **11 / 12** | **8 / 8** | 3 / 11 |
+| lick_left spectral angle | 1 / 12 | 10 / 12 | **8 / 8** | 5 / 11 |
+| lick_left loading asymmetry | 1 / 12 | **10 / 12** | **8 / 8** | 4 / 11 |
+
+* Both lick factors change shape chronically, in DIFFERENT animals (no clean left / right dissociation; an earlier
+  reading against the pre-pre floor suggested one -- CORRECTED 10-24). PS94 changes on both sides.
+* Direction (own-fit loading asymmetry, (contra - ipsi) / sum of |loading|, `face_rhythm_matching.loading_asymmetry`):
+  lick_right moves OFF the contralesional face (pre +.50 to +.76 -> acute +.37 to +.63, chronic +.47 to +.64; strongest
+  PS95, all 11 chronic sessions below its pre range); lick_left becomes LESS ipsilesional (pre -.55 to -.66 -> chronic
+  -.31 to -.50; PS93, PS94).
+* Unreadable: lick_far_nose (pre-pre floor at chance), PS93's nose / sniff factors (at chance even pre: not in PS93's
+  own fits), PS93 lick_right (pre range 24-52 deg). Acute angles partly reflect few contralesional licks to fit.
+* Split / merge flags: pre .18, acute .27, chronic .22.
+Amplitude per lick (5b-master) is the 4 / 4 result; shape changes are animal-specific (the 2pRAM manuscript's
+"heterogeneous reorganization", here on one basis across animals).
+
+## 6d. Task vs non-task, asymmetry, severity (10-24)
+
+* Task (lick factors, response window) vs non-task (other factors, between trials), vs pre: acute task .66-.80, non-task
+  .58-.83 -- non-task is NOT preserved acutely (drops as much or more in PS93 / PS94); both >= pre chronically. The
+  2pRAM manuscript's "relative preservation of non-task movements" does not replicate here. Caveat: between-trial
+  expression also falls if animals are less active overall acutely (to check against running, per factor). PROVISIONAL.
+* Face movement asymmetry (tracked points, response window, (contra - ipsi) / sum): acutely less contralesional movement
+  in PS93 / PS94 / PS95 (-.08 to -.11), PS92 ~0; chronically only PS94 (-.07). Agrees with the loading asymmetry.
+* Severity vs lesion burden (histology, ipsi / contra CP area: PS93 45 %, PS92 47 %, PS94 68 %, PS95 82 %): no ordering
+  -- largest acute task drop in the mildest (PS95), chronic EVR-gap elevation in PS92 (severe) and PS94 (intermediate),
+  not PS93 (severe). Descriptive, n = 4.
+
 ## 6b. Treadmill pushes are inside the pre-stroke face repertoire (STANDS, four animals, 10-24)
 
 Question (Priya 10-24): do we need a pre + post master to capture the encoder's postural / forelimb PUSHES
@@ -326,6 +382,8 @@ accompanies a push is already in the pre-stroke repertoire; pushes stay a treadm
 4. Other cameras: Priya's landmark clicks -> registration -> ROIs -> O2 -> multi-view factor set (`plan --views`).
 
 ## Change log
+
+* 2026-10-24 (later): four-animal readouts on own8 (6-master, 6c, 6d); push check (6b).
 
 * 2026-10-24: rank 12 chosen (left / right lick pair); master named (4a); leave-one-day-out noise floor on four animals
   (3); per-lick by epoch on four animals (5b-master: contralesional per-lick deficit 4 / 4); new code: factor matching /
