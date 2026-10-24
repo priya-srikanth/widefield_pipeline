@@ -356,6 +356,33 @@ the intact animal).
   30k / 9k) have no target, so they serve as the execution-only reference (direction relative to the calibrated spout
   centres); pre-cue licks (spout parked) add strays with a defined target.
 
+### 2.7 Relabel test: which spout's pre-stroke state the far-contra trials are in — FIRST RUN 10-24: HETEROGENEOUS
+
+`wfield_local/frozen_relabel.py` (f27339a), `<E>/frozen_relabel_v7/` (107 / 107). Frozen pre-stroke model (v7 frame);
+each spout q's trials re-predicted as every other spout j with the EXECUTED licks fixed (only the target + spout-locked
+typical-movement parts move); cost = summed SSE increase over the 41 parcels / summed SST (x1e3; > 0 = true label fits
+better). Pre sessions are predicted by leave-one-session-out fits. PRELIMINARY.
+- **Validation passes fully:** pre, the true label beats every relabelling in 100 % of (q -> j) pairs in all four
+  animals and all windows (all / cue / lick). The far spouts are now separated pre (far_contra vs far_mid 27 / 44 / 22 /
+  420 for PS92-95, lick window), unlike the single-session smoke.
+- **far_contra trials, lick window, margin vs far_mid (pre -> acute -> subacute -> chronic):** PS92 27 -> 90 -> 17 -> 12;
+  PS93 44 -> 28 -> 30 -> 34; PS94 22 -> 5 -> **-28** -> -8; PS95 420 -> **-148** (n = 1) -> **-167** (n = 7) -> 209.
+- **Best-fitting label per session for far_contra trials** (count of sessions), with the other spouts as the control
+  for a general loss of spout structure:
+  - **PS95 -> re-aimed at far mid (B), specific:** acute 1/1 and subacute 5/7 best = far_mid, while its other five
+    spouts keep their true label (5-7/7); recovers chronic (far_contra 7/11).
+  - **PS93 -> stays far contra (A):** acute 4/4 and chronic 10/12 best = far_contra (pre only 3/7).
+  - **PS92 -> far-contra state lost, not toward far mid:** acute best = far_ipsi 4/5 and the far_mid margin GROWS (27 ->
+    90); but PS92's acute frame is confused for other spouts too (close_ipsi 1/5, far_ipsi 1/5 true) -> not specific.
+  - **PS94 -> nonspecific:** acute far_ipsi 3 / far_contra 2 / far_mid 1, subacute far_mid 2 / close_contra 2; other
+    spouts equally mixed (close_ipsi -> close_mid 4/6, far_mid -> far_contra 3/6).
+- **Reading:** no single answer across animals. One animal (PS95) shows the "re-aimed at far mid" pattern cleanly and
+  transiently; one (PS93) keeps the far-contra state while executing badly ("aims far contra, execution off"); two lose
+  spout-specific structure broadly. Combined with Layer 1 (behaviour carries the drop) and the stray test (lick responses
+  follow the landing), the far-contra deficit is not one mechanism in all four. Caveats: PS95 acute is one session; a
+  general shrink of all margins (Layer 2's changed mapping) can move best labels without re-aiming -- hence the
+  per-spout control; executed-lick templates are spout-locked, so "state" = target + typical movement, not aim alone.
+
 ## 3. Where and how spouts are coded
 
 ### 3.1 Per-spout unique maps — STANDS (PS92_0908 rerun done 10-20: PS92 chronic unchanged)
@@ -741,6 +768,9 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-24 (relabel)** — relabel test full run (2.7): validation 100 %; heterogeneous -- PS95 re-aimed at far mid
+  (specific, transient), PS93 stays far contra, PS92 / PS94 nonspecific loss of spout structure.
 
 - **2026-10-24** — PS93 contact joint-drop check: no variance shared with within-spout direction (~0); the
   shared-with-direction explanation is withdrawn (3.4).

@@ -21842,3 +21842,9 @@ direction; recorded PROVISIONAL (FINDINGS 2, after the decoder G entry). Bug fix
 
 `no_contact_exec_within` in `_v7g3`: shared part ~0 in PS93 (and all animals) -> the 10-23 "likely shared variance with
 direction" reading is withdrawn (FINDINGS 3.4). Next candidate (lick group / reach) offered, not run.
+
+## 2026-10-24 -- relabel test result: heterogeneous across animals
+
+Full run validates (100 % pre). Far-contra trials: PS95 best-fit = far_mid (acute 1/1, subacute 5/7, other spouts
+intact) -> B; PS93 stays far_contra (4/4) -> A; PS92 / PS94 broad loss of spout structure. Recorded per animal (rule 8),
+no pooled verdict (FINDINGS 2.7).
