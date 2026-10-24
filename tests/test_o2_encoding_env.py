@@ -27,3 +27,11 @@ def test_bundle_env_records_inputs_and_copies_tables(tmp_path, monkeypatch):
     assert env == {"COMBINED_ENCODING_BINS_CALIB": "@tables/calib.csv", "COMBINED_ENCODING_LICKS": "combined",
                    "OROFACIAL_GATE": "attempted"}
     assert (d / "tables" / "calib.csv").read_text() == "x\n1\n"
+
+
+def test_bins_width_env(monkeypatch):
+    from wfield_local import combined_encoding as ce
+    monkeypatch.delenv("COMBINED_ENCODING_BINS_WIDTH", raising=False)
+    assert ce.bins_width() == 1.0
+    monkeypatch.setenv("COMBINED_ENCODING_BINS_WIDTH", "0.5")
+    assert ce.bins_width() == 0.5

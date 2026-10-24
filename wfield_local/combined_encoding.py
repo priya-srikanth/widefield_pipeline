@@ -165,6 +165,18 @@ BINS_ENV = "COMBINED_ENCODING_BINS"
 #: within-spout SD per axis; executed bin = nearest calibrated landing point in SD units. Pre-stroke-only, so
 #: post-stroke departures stay visible. Used when given and the executed set is 3-D.
 BINS_CALIB_ENV = "COMBINED_ENCODING_BINS_CALIB"
+#: SOFT-BIN WIDTH (Priya 10-24, sensitivity sweep 0.5 / 1 / 2): the softmax temperature of the executed landing-zone
+#: weights in units of the pooled within-spout SD (1 = default: the weights are the posterior of "which spout's pre-stroke
+#: landing distribution this lick came from"; -> 0 = hard nearest-zone bins; large = all weights 1/6). Read at design
+#: time, so one O2 bundle serves every width; a width != 1 adds `_bw<w>` to the output folder.
+BINS_WIDTH_ENV = "COMBINED_ENCODING_BINS_WIDTH"
+
+
+def bins_width() -> float:
+    w = float(os.environ.get(BINS_WIDTH_ENV) or 1.0)
+    if not w > 0:
+        raise ValueError(f"{BINS_WIDTH_ENV} must be > 0, got {w}")
+    return w
 
 
 def _match_trials(T: pd.DataFrame, B, label: str, path: str, seed: int) -> pd.DataFrame:
@@ -705,7 +717,7 @@ def exec_bins(B: Behaviour, weights: bool = False):
         # SOFT bins (Priya 10-20: "licks may not land nearest their own spout"): each lick's weight on every landing
         # zone = Gaussian of its distance in SD units, rows sum to 1 -- no hard misassignment between overlapping zones
         Wt = np.zeros((n, len(P)))
-        e = np.exp(-0.5 * (d - d.min(1, keepdims=True)))
+        e = np.exp(-0.5 * (d - d.min(1, keepdims=True)) / bins_width() ** 2)
         Wt[ok] = e / e.sum(1, keepdims=True)
         return tgt, ex, frame, Wt, P
     return tgt, ex, frame
@@ -1687,6 +1699,8 @@ def out_dir(rv, order: str) -> Path:
                                                          + (f"_licks-{os.environ[LICKS_ENV]}"
                                                             if os.environ.get(LICKS_ENV, "cam4") != "cam4" else "")
                                                          + ("_bins" if os.environ.get(BINS_ENV) else "")
+                                                         + (f"_bw{bins_width():g}" if os.environ.get(BINS_ENV)
+                                                            and bins_width() != 1.0 else "")
                                                          + (f"_licksall-{os.environ[LICKS_ALL_ENV]}"
                                                             if os.environ.get(LICKS_ALL_ENV) else "")
                                                          + os.environ.get(SUFFIX_ENV, ""))

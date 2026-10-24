@@ -21884,3 +21884,15 @@ extra term is already penalised. Contests: polar primary, xyz2 (4-animal `_3d4`)
 target-vs-executed readout is executed BEYOND spout category (frame-robust); any "target leads" statement notes its size
 is frame-dependent. Within-spout direction + encoder exec_angle = 3-D lateral angle (polar's first term). Encoder
 continuous tongue traces = positions (ml / ap / reach / speed; angles are undefined with the tongue in the mouth).
+
+## 2026-10-24 (later) -- BINNED contest is PRIMARY for target vs executed (supersedes "polar primary" earlier today)
+
+Priya ("make this primary as suggested"). The binned contest gives target (6 spout categories) and executed (soft weights
+on 6 calibrated 3-D landing zones) the same capacity (5 dof each) and uses no polar / xyz2 coordinates (identical numbers
+in both runs). Hierarchy: (1) PRIMARY binned contest (u:tgtbin vs u:exbin); (2) executed beyond spout category (polar;
+frame-robust); (3) continuous polar / xyz2 contests as sensitivity, the target side's size flagged as frame-dependent.
+Soft bins = softmax of -0.5 d^2 / w^2, d = 3-D distance to each animal's pre-stroke landing centre in units of the pooled
+within-spout SD per axis (PS92-95 ml 0.43-0.63, ap 0.43-0.63, down 0.90-1.28 mm). Width w = 1 primary (posterior
+reading); sensitivity sweep w = 0.5 / 2 (`COMBINED_ENCODING_BINS_WIDTH`, submit-time on O2, folder `_bw<w>`). Result
+change: the pre-stroke "target-led 3/4" (polar) is a capacity effect -- matched capacity shows no clear pre-stroke lead;
+chronic spout identity > landing in 4/4, both windows.

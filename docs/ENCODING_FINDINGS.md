@@ -134,7 +134,15 @@ Cortex, unique dR2 x1e3, August pre, per animal (PS92 / PS93 / PS94 / PS95), pre
 
 Sessions per epoch: PS92 8 / 5 / 2 / 12, PS93 7 / 4 / 3 / 12, PS94 8 / 6 / 5 / 8, PS95 8 / 1 / 7 / 11. PS92 and
 PS93 pre-to-subacute values reproduce the two-animal run exactly (same 3-D inputs); PS93 chronic now has 12 sessions.
-- **Pre-stroke: target-led in 3/4** (PS93 27.5 vs 6.3, PS94 5.7 vs 2.9, PS95 18.1 vs -0.2 lick; PS92 tied 5.2 vs 6.1).
+- **PRIMARY (10-24, DECISIONS): the BINNED contest -- matched capacity, independent of polar vs xyz2.** Cortex, unique
+  dR2 x1e3, spout identity (target bins) vs landing zone (soft executed bins, width 1 within-spout SD), pre -> acute ->
+  subacute -> chronic. Lick: PS92 -0.1 / 8.9 / 10.0 / 10.5 vs -0.1 / -16.3 / 4.0 / 2.7; PS93 9.8 / -0.6 / 12.4 / 31.4
+  vs 5.0 / 3.9 / 10.3 / 9.0; PS94 2.6 / 14.4 / 11.0 / 9.0 vs 4.0 / 5.4 / 12.0 / 6.3; PS95 0.1 / 2.7 / -0.5 / 9.2 vs
+  -0.1 / -1.2 / 0.2 / 4.8. Cue: chronic 17.7 / 14.5 / 10.4 / 21.5 vs 4.7 / 9.4 / 7.7 / 3.9. **Chronic: spout identity >
+  landing in 4/4, both windows** (PS94 closest). **Pre-stroke: no clear target lead** (PS92 / PS95 ~0, PS93 9.8 vs 5.0,
+  PS94 2.6 vs 4.0). Acute mixed. Width sweep 0.5 / 2 queued (O2).
+- (Polar, secondary / sensitivity) Pre-stroke target-led in 3/4 (PS93 27.5 vs 6.3, PS94 5.7 vs 2.9, PS95 18.1 vs -0.2
+  lick; PS92 tied 5.2 vs 6.1) -- a CAPACITY effect of polar's target set, not seen at matched capacity.
 - **By chronic, unique target is above pre in 4/4 in both windows** (cue 35-37 in all four, from 2.7-18.8).
 - **The executed rise differs:** PS94's executed part rises as much as target (lick 2.9 -> 22.9, cue 0.9 -> 28.7);
   PS95's stays small; PS92 / PS93 rise less than target. So "the post-stroke rise is TARGET" holds in 3/4 (PS92,
