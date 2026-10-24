@@ -21916,3 +21916,30 @@ carried by 7 / 8.
 master_v1 amended (Priya 10-24 "yes"): the shared lick factors carry spout DISTANCE (7 close, 8 far / lateral), little
 side, so `close` (7) and `far` (8) are their own parts. Modes: A everything, B lick + other, S + side (left / right),
 D + distance (close / far). Side through FR = S - B, distance = D - B. 7 and 8 stay in the lick sum.
+
+## 2026-10-24 (afternoon) -- goal-question analyses: attempt classes, frozen 1.0 s ENL models, touch control, full audit
+
+Priya 10-24: "what does brain activity look like post stroke when an animal is attempting to do a behavior it cannot
+execute or executes differently?" -> FINDINGS 7 items 1-5.
+1. **Classes = video attempt classes** (rebuilt `trial_attempts.csv`): hit / incomplete / no attempt (working) / reaction
+   (jaw only) / stopped (engagement gate on VIDEO attempts) / pre-stroke hit; pre-stroke non-contact attempts
+   (`pre_incomplete`) are the TOUCH / REWARD control for the maps. Replaces the August contact-defined miss / stopped
+   classes, which could not separate a no-contact attempt from no attempt.
+2. **Readout = the STORED frozen pre-stroke decoder** (rule 10), not an in-memory refit; the per-spout dom projection is
+   kept for comparison only (unstable post-stroke: weak 1.0 s ENL axes + per-session z-scoring on attempted trials).
+   A planned "own minus other axes" index was dropped: the six one-vs-rest axes sum to ~0, so it is degenerate.
+3. **Frozen models for the LP runs:** under LP the ENL window is 1.0 s and the spec carries it, so the DAQ path must
+   freeze the 1.0 s models first (`attempt_coding --freeze`, `WIDEFIELD_ENL_WINDOW_S=1.0`); the joint-basis ones were
+   never stored (the 10-21 DAQ_ENL1s run did not leave them). Freezing uses the LP pool's sessions: PS93_0813 has no
+   behaviour video, so PS93's LP-reused models (all three windows) are trained on 10 pre sessions. New ids; the
+   canonical models are untouched.
+4. **Baseline:** default June + August pre for these imaging analyses (matches 15r / the LP frozen decoders and their
+   stored models); June lick detection checked against spout contact (video finds 100 % of contact trials, onset before
+   contact 99.3-100 %, June = August). August-only = sensitivity, needs its own DAQ-frozen set.
+5. **Full output audit** (`docs/status/OUTPUT_AUDIT_2026-10-24.md`) supersedes the imaging_encoding-only inventory for
+   what to redo. Done today from it: LP_licks re-render (decoders unchanged, acute far contra lick .31), LP trial counts,
+   LP null calibration, final-frame decomposition (unchanged). Cache prune done (153 GB, log in the session scratchpad).
+6. **Results so far (FINDINGS 2.8, 2.9, 3.4):** failed attempts lose the far-contra code and are decoded as a FAR spout
+   (distance kept, side lost, lick 4/4) -- not yet separated from the failed movement itself; trial-type maps show the
+   same bilateral pattern at lower amplitude vs hits (3/4) but only 2/4 vs touch-matched pre-stroke misses (not a robust
+   stroke effect); final frame keeps the lick-carried acute drop, target ~0.
