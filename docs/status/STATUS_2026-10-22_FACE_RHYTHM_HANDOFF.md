@@ -1,3 +1,5 @@
+> **SUPERSEDED for current state by [`STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`](STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md)** (rank 12, names, own/ rsync, next steps). Kept for the 10-22 / 10-23 history.
+
 # FaceRhythm — handoff (2026-10-22, ~09:30; UPDATES ~13:15 and ~12:10 first)
 
 **Findings so far: [`docs/FACE_RHYTHM_FINDINGS.md`](../FACE_RHYTHM_FINDINGS.md)** (living, status-tagged). Decisions:

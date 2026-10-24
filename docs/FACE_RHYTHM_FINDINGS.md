@@ -1,27 +1,27 @@
 # FaceRhythm findings (cam4)
 
-Status: **preliminary, living document.** Last updated **2026-10-23 afternoon** (FaceRhythm window). Update a section
+Status: **preliminary, living document.** Last updated **2026-10-24 morning** (FaceRhythm window). Update a section
 when its result changes (edit, re-tag, add to the change log). Reasoning and decisions: `DECISIONS.md` (2026-10-21
 evening, 2026-10-22, 2026-10-23); how everything runs: `docs/FACE_RHYTHM_PIPELINE.md`; working state: the newest
-`docs/status/STATUS_*_FACE_RHYTHM_*` handoff ("UPDATE 10-23" state block).
+`docs/status/STATUS_*_FACE_RHYTHM_*` handoff (10-24: `STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`).
 
 Status tags: **STANDS** (survived the listed checks on the data named), **PROVISIONAL** (a control or the four-animal
 set still pending), **PILOT** (two animals, PS92 + PS93, the pilot factor set `pilot_pre_PS92_PS93` -- to be redone on
 `master_pre_v1`), **PENDING** (not yet run / not yet summarised), **CORRECTED** (an earlier statement here was wrong;
 corrected numbers follow).
 
-> **Where things stand (10-23 afternoon), with what each rests on.**
+> **Where things stand (10-24 morning), with what each rests on.**
 >
 > | result | status | data it rests on / what is incomplete |
 > |---|---|---|
 > | cam4 tracking clean in every animal x epoch (1) | STANDS | all 108 cam4 tasks, 4 animals; cam1 / cam2 / cam3 not run (await Priya's landmark clicks) |
 > | Bin times now TRUE (per-frame timestamps); PS92_0908 / PS92_0812 v1 had wrong stamps (1b) | STANDS | all 108 cam4 tasks (`timing`); pilot projections of the two tasks redone on fr-timing-v1; FR-model R2 PS92_0908 .506 -> .618 (encoding window) |
 > | Interior mesh folds 0-0.15 % (1) | CORRECTED | 0-0.34 % on all 108 (PS95 highest, 0.1-0.34 %); still negligible |
-> | How many factors (2) | DECIDED: rank 10 (Priya 10-23) | MASTER sweep 8 / 10 / 12 (4 animals, 8 starts): rank 10 the only well-determined one (stability .999); split-half + leave-one-animal-out + leave-one-day-out at rank 10 RUNNING |
-> | Pre-stroke noise floor: leaving a day out costs <= 0.01 EVR (3) | STANDS for PS92 + PS93 (pilot) | master leave-one-day-out (31 days, 4 animals) PENDING (after the rank choice) |
-> | Factor identities (4) | PILOT | pilot rank 10, 15 pre sessions of PS92 + PS93; master rank 10 matches the pilot factor-by-factor (similarity .825; 9 / 10 >= .88 spatial) EXCEPT left licking (f0 -> spatial .51) and whisking peak 11.7 -> 14.7 Hz; master factors NOT yet named / validated |
+> | How many factors (2) | DECIDED: **rank 12** (Priya 10-24; supersedes rank 10) | rank 10 had no left-lick factor; rank 12 has a clean left / right lick pair (6 / 8 starts, both samples); EVR .803, stability .912, leave-one-animal-out .82-.90, split half .911 (lick pair .96 / .99; f6 .36, f10 .76) |
+> | Pre-stroke noise floor: leaving a day out costs <= 0.01 EVR (3) | STANDS, 4 animals | master rank 12, 31 pre days: held-out EVR .768-.820, cost <= .010 (median ~.004) |
+> | Factor identities (4a) | STANDS (names 10-24) | master rank 12 named from gallery + validation on 31 pre sessions of 4 animals (lick-triggered, running onsets, rate r); pilot section 4 kept for the record |
 > | Contralesional licking factor (f9) down after stroke, still down chronically (5) | PILOT (2 animals) | PS92 + PS93; re-checked on fr-timing-v1 projections 10-23 (unchanged); master projections of PS94 / PS95 PENDING |
-> | Chronic f9 deficit is PER LICK, not fewer licks (5b) | PILOT (2 animals) | PS92 + PS93; executed-angle direction classes (cam4 only) |
+> | Chronic contralesional (right) deficit is PER LICK, not fewer licks (5b) | **STANDS, 4 / 4 animals** (10-24) | master rank 12: lick_right per right lick chronic .57-.79 of pre in all four; right-lick count back to .97-1.41 in 3 / 4 (PS94 .52) |
 > | "Licks and misses": acute far-contra completion .03-.15, recovers fully by chronic; per-lick contra misses mildly up chronically in 3 / 4 (5c) | STANDS acutely / PROVISIONAL chronic | behaviour only (LP v36 + DAQ contact), 4 / 4 animals; close + far contra pooled per lick; LP post-stroke detection caveat |
 > | Pre-stroke vocabulary fits post-stroke movement worse acutely (EVR gap ~2x), PS93 back by subacute, PS92 slightly above chronically (6) | PILOT (2 animals) | PS92 + PS93; own fits with 1 start; re-checked on fr-timing-v1 10-23 (one PS92 chronic gap .042 -> .040, otherwise unchanged) |
 > | FR in the encoder (encoding window's FR run A: grouped pilot factors, 50 PS92 + PS93 sessions) | PENDING summary | run done (incl. PS92_0908 / 0812 reruns on fr-timing-v1); summary by the encoding window; results belong in ENCODING_FINDINGS |
@@ -182,6 +182,23 @@ f0 `lick_left_slow`, f1 `bout_init`, f2 `run_onset_jaw`, f3 `nose_prelick`, f4 `
 0.47-0.72 of left vs f0 0.24-0.52), f6 `prep_jaw`, f7 `whisk_run`, f8 `nose_steps`, f9 `lick_right`. Loader / encoder
 columns are `fr_<name>`. The encoding direction split keeps f5 in "left" for now (Priya).
 
+## 5b-master. Per lick, by epoch, on the rank-12 master (STANDS, four animals, 10-24)
+
+`scripts/face_rhythm_lick_epochs.py --set master_pre_v1` -> `face_rhythm/cam4/validation/master_pre_v1/lick_epochs/`.
+Ratios to each animal's pre-stroke mean (right = contralesional):
+
+| | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|
+| right licks / trial, acute | .09 | .36 | .06 | .13 |
+| right licks / trial, chronic | 1.01 | .97 | .52 | 1.41 |
+| lick_right per right lick, acute | .60 | .73 | .51 | .28 |
+| **lick_right per right lick, chronic** | **.57** | **.77** | **.79** | **.62** |
+| lick_left per left lick, chronic | .67 | .97 | 1.23 | .59 |
+
+The pilot's result (5b) replicates on four animals and on the master basis: the contralesional lick COUNT recovers (3 /
+4; PS94 half), the contralesional lick factor PER LICK stays at .57-.79 chronically in all four -> the lasting deficit is
+in how contralesional licks are made. Ipsilesional per-lick change is smaller and mixed in sign.
+
 ## 5. Changes after the stroke (PILOT, two animals; read per animal)
 
 Response-window (0..+4 s) absolute expression, per animal x epoch, relative to that animal's pre-stroke mean (session
@@ -290,6 +307,10 @@ centre f4, right f9); other = f1 f2 f3 f6 f7 f8 (includes the lick-initiation fa
 4. Other cameras: Priya's landmark clicks -> registration -> ROIs -> O2 -> multi-view factor set (`plan --views`).
 
 ## Change log
+
+* 2026-10-24: rank 12 chosen (left / right lick pair); master named (4a); leave-one-day-out noise floor on four animals
+  (3); per-lick by epoch on four animals (5b-master: contralesional per-lick deficit 4 / 4); new code: factor matching /
+  angles (`face_rhythm_match.py`), push-aligned check, task vs non-task + severity panels (readouts).
 
 * 2026-10-23 evening: master rank sweep complete (12 added); rank 10 chosen.
 * 2026-10-23 afternoon: findings pass (Priya via the encoding window): status table; section 1 -> 108 / 108 and

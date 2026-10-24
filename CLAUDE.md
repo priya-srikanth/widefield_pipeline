@@ -357,6 +357,10 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 
+**[`docs/status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`](docs/status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md)**
+— **START HERE for FaceRhythm (10-24).** Master `master_pre_v1` = RANK 12 (left / right lick pair), named, `proj/` with the
+encoder (grouping `fr_groups.master_v1`); next: rsync `own/`, then readouts / factor matching / push check on four animals.
+
 **[`docs/status/STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md`](docs/status/STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md)**
 — **START HERE for FaceRhythm (10-22).** cam4 outputs arriving (all checked clean; cached parallel `qc`); PILOT factor set
 `pilot_pre_PS92_PS93` (rank 10, PS92 + PS93, running locally; pre-stroke sessions scored on their left-out-day basis,
