@@ -937,11 +937,11 @@ def cmd_project(sd: Path, task: int, loso: bool = False) -> None:
           f"{(time.time() - t0) / 60:.1f} min -> {dst}")
 
 
-def cmd_fitsession(sd: Path, task: int, inits: int = 3) -> None:
+def cmd_fitsession(sd: Path, task: int, inits: int = 3, own_dir: str = "own") -> None:
     pl = load_plan(sd)
     t = pl["tasks"][task - 1]
     key, animal = t["key"], t["animal"]
-    dst = sd / "own" / f"{key}.npz"
+    dst = sd / own_dir / f"{key}.npz"          # own_dir: e.g. "own8" for an 8-start rerun beside the 3-start own/
     if dst.exists():
         print("done already", dst)
         return
@@ -1449,6 +1449,7 @@ def main(argv=None) -> int:
     ap.add_argument("--loso-basis", action="store_true",
                     help="project: a PRE task on its left-out-day basis -> proj_loso/ (FR's own scoring only)")
     ap.add_argument("--own-inits", type=int, default=3, help="fitsession: random starts of the session's own fit")
+    ap.add_argument("--own-dir", default="own", help="fitsession: output folder in the set (own8 = 8-start rerun, 10-24)")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
@@ -1468,7 +1469,7 @@ def main(argv=None) -> int:
         cmd_project(sd, task, loso=True)
         return 0
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank, not a.no_loao), "select": lambda: cmd_select(sd, a.rank),
-     "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits),
+     "project": lambda: cmd_project(sd, task), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits, a.own_dir),
      "loso": lambda: cmd_loso(sd, task), "splithalf": lambda: cmd_splithalf(sd, a.rank, a.split_inits),
      "report": lambda: cmd_report(sd, a.face, a.absolute, a.match)}[a.cmd]()
     return 0
