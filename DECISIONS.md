@@ -21822,3 +21822,10 @@ trials fit better under every other label acutely (to check). Not a result (n = 
 2. Full run (104 / 107 sessions): the far-contra aim reference fails split-half validation in PS92 / PS93 and is absent
    in PS95; pre strays follow the landing more than the aim; no consistent acute shift. Recorded as NOT DECISIVE for
    A vs B (FINDINGS 2.6). Not changing the design until Priya decides; options listed in 2.6.
+
+## 2026-10-23 (night, last+) -- stray-lick rescue tried (option 3), fails its check; relabel is the A / B test
+
+Priya chose option 3 (try the touch-corrected contact reference as secondary; relabel primary). Result: the corrected
+reference is reliable split-half but does not match the near-miss reference at spouts where one exists (mostly negative
+r), so the equal-touch assumption fails and its far-contra readout is not interpreted (FINDINGS 2.6). The stray test is
+closed for A vs B; its pre-stroke "landing > aim" observation is kept.

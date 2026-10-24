@@ -304,6 +304,17 @@ correlated with the PRE references near|q (r_target: same aim) and near|j (r_exe
   run): use contact|far_contra (on-target, touch-confounded) as the aim reference with the pre contact-minus-near
   difference from the other spouts subtracted, or rely on the relabel test (running).
 
+- **Secondary rescue (Priya 10-23, option 3: try it, relabel stays primary) -- FAILS ITS CHECK, not used.** Aim and
+  landing references rebuilt from contact licks: contact|q minus the touch response (contact - near) averaged over the
+  OTHER spouts (`touch_corrected`, `stray_index_touchcorr.csv`, `stray_validation_touchcorr.csv`). Split-half
+  reliable (own .23-.99 vs others <= .04: contact kernels are high-n), but where a near-miss reference exists the
+  corrected reference does NOT resemble it (r_vs_near_ref mostly NEGATIVE, -0.3 .. -0.98; PS95 -0.83 .. -0.98; only
+  close / far contra positive, .01-.54). So the equal-touch-response assumption fails (part of the negative r is
+  mechanical: the leave-spout-out average contains the other spouts' near kernels, whose spout-specific part is
+  anti-correlated with q's). Its far-contra table (e.g. PS95 "target-like" before and after, driven by very negative
+  landing r) is an artefact of this and is NOT interpreted. **The stray test does not answer A vs B; relabel is the
+  test.** Kept from 2.6: in the intact animal the spout-specific lick response follows the landing more than the aim.
+
 **Original design notes (10-23, before the run):**
 
 Why this test: on an on-target lick the TARGET and the spout-locked executed lick are the same variable (pre-stroke
