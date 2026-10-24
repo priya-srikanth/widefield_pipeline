@@ -1016,6 +1016,19 @@ def _diag_quad(U, C, chunk=50000):
 # =============================================================================== one session
 
 
+def group_bundled_fr(X: np.ndarray, fr_set: str, grouped: bool = False) -> np.ndarray:
+    """Bundled RAW FaceRhythm factors (frames x k) -> the COMBINED_ENCODING_FR_GROUPS grouping (same as `fr_signals`
+    applies when reading from the share); unchanged when the env is unset or the bundle stored grouped columns (older
+    bundles, `grouped` missing = True)."""
+    from wfield_local import fr_groups
+    gs = fr_groups.spec()
+    if not gs or grouped:
+        return X
+    sig = fr_groups.group({f"fr_{j}": (None, X[:, j]) for j in range(X.shape[1])}, *gs,
+                          set_name=Path(fr_set).name)
+    return np.column_stack([v for _t, v in sig.values()])
+
+
 def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     """Everything `run_session` reads from the share, for one session (O2 bundles, `scripts/o2_encoding.py`):
     imaging (load_imaging tuple), behaviour (Behaviour), epoch / day, and -- if `cams` -- the video motion-energy
@@ -1031,13 +1044,18 @@ def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     fr = fr or os.environ.get(FR_ENV)
     if fr:
         from wfield_local import face_rhythm_outputs as fro
+        from wfield_local import fr_groups
+        held = os.environ.pop(fr_groups.ENV, None)     # bundle the RAW factors; FR_GROUPS is applied at design time
         try:
             sig = fro.fr_signals(animal, date, rv, imaging[1], fdir=fro.factor_dir(rv, set_name=fr),
                                  absolute=_fr_absolute())
         except FileNotFoundError:
             sig = {}
+        finally:
+            if held is not None:
+                os.environ[fr_groups.ENV] = held
         if sig:
-            out["fr"] = {"set": fr, "absolute": _fr_absolute(), "names": list(sig),
+            out["fr"] = {"set": fr, "absolute": _fr_absolute(), "names": list(sig), "grouped": False,
                          "X": np.column_stack([sig[k_][1] for k_ in sig]).astype(np.float32)}
         kp = int(os.environ.get(FR_POINTS_ENV) or 0)
         if kp:
@@ -1222,6 +1240,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             fi = inputs.get("fr")
             Xf = (fi["X"].astype(np.float64) if fi and fi["set"] == fr_set
                   and fi.get("absolute", False) == _fr_absolute() else None)
+            if Xf is not None:
+                Xf = group_bundled_fr(Xf, fr_set, grouped=fi.get("grouped", True))
         else:
             from wfield_local import face_rhythm_outputs as fro
             try:

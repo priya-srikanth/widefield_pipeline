@@ -44,3 +44,19 @@ def test_bins_is_a_submit_option(monkeypatch, tmp_path):
     monkeypatch.setenv("COMBINED_ENCODING_BINS_WIDTH", "2")
     assert "COMBINED_ENCODING_BINS" not in m.bundle_env(None)
     assert "COMBINED_ENCODING_BINS_WIDTH" not in m.bundle_env(None)
+
+
+def test_bundled_fr_grouped_at_design_time(monkeypatch):
+    """Raw bundled factors are grouped per submit (master_v1 mode B = lick sum + others), not at bundle time."""
+    import numpy as np
+    from wfield_local import combined_encoding as ce
+    from wfield_local import fr_groups
+    G = fr_groups.GROUPINGS["master_v1"]
+    X = np.arange(12 * 3, dtype=float).reshape(3, 12)
+    monkeypatch.delenv(fr_groups.ENV, raising=False)
+    assert ce.group_bundled_fr(X, G["set"]) is X
+    monkeypatch.setenv(fr_groups.ENV, "master_v1:B")
+    Y = ce.group_bundled_fr(X, G["set"])
+    assert Y.shape == (3, 1 + len(G["other"]))
+    assert np.allclose(Y[:, 0], X[:, list(G["lick"])].sum(1))
+    assert ce.group_bundled_fr(X, G["set"], grouped=True) is X
