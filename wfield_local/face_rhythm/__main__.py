@@ -67,7 +67,7 @@ CATALOGUE: dict[str, Analysis] = {
                      "--plot-only (data/asym_traces.pkl)", "5e"),
     "maps": Analysis("face_rhythm_aligned_maps", "statistics", "WHERE on the face does movement change, per spout "
                      "and alignment? (patch maps + contra / ipsi halves)", "readouts/<set>/aligned_maps/",
-                     "~8 min (needs asym's map cache)", findings="5f"),
+                     "~8 min (needs asym's map cache)", "--plot-only (data/aligned_maps_cache.pkl)", "5f"),
     "bout-split": Analysis("face_rhythm_bout_split", "statistics", "Why is close_R asymmetric before a bout starts? "
                            "(bout classes)", "readouts/<set>/asym_aligned/bout_split/", "~10 min",
                            "--plot-only (data/bout_split_traces.npz)", "5f"),

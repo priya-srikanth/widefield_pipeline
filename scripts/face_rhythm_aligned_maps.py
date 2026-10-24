@@ -16,7 +16,7 @@ Per animal: log2(session / mean of the animal's pre-stroke sessions) per point, 
   * HALVES: contra-half minus ipsi-half log2 change per session (the asymmetry of the change), same bootstrap -- the
     direct test of "the contralesional half drops more".
 
-    python scripts/face_rhythm_aligned_maps.py [--set master_pre_v1] [--grid 6 5]
+    python scripts/face_rhythm_aligned_maps.py [--set master_pre_v1] [--grid 6 5] [--plot-only]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/aligned_maps/``: aligned_maps_<align>.png (rows = positions, cols = acute /
 subacute / chronic; animal-mean log2 change per point, consistent patches outlined), halves_<align>.png (contra - ipsi
 change per position x epoch, animals + mean +- SEM + interval), data/patch_stats.csv, data/halves_stats.csv.
@@ -93,6 +93,8 @@ def main(argv=None) -> int:
     ap.add_argument("--grid", type=int, nargs=2, default=(4, 7), help="patch columns per face half, rows")
     ap.add_argument("--min-points", type=int, default=10, help="a patch needs this many mesh points")
     ap.add_argument("--patch-boot", type=int, default=2000, help="bootstrap draws per patch test (halves: 4000)")
+    ap.add_argument("--plot-only", action="store_true",
+                    help="redraw from data/aligned_maps_cache.pkl (statistics + maps), no bootstrap")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
     rv = PathResolver()
@@ -108,74 +110,79 @@ def main(argv=None) -> int:
     contra = home[:, 0] <= mid
     pid, grid = patches(home, mid, *a.grid)
     keep = [q for q in np.unique(pid) if (pid == q).sum() >= a.min_points]
-    rng = np.random.default_rng(0)
+    cache = figure_layout.sidecar_for(out, "aligned_maps_cache", ".pkl")   # statistics + mean maps: --plot-only
+    if a.plot_only:
+        P, H, mean_maps, marks = pd.read_pickle(cache)
+    else:
+        rng = np.random.default_rng(0)
 
-    # one value per SESSION (a split video, PS92_0812 v1 / v2, averaged first), log2 vs the animal's pre mean
-    lab_u = sorted(set(label))
-    rows_patch, rows_half, mean_maps, marks = [], [], {}, {}
-    for ai, al in enumerate(aligns):
-        for pi, p in enumerate(positions):
-            V, an_s, ep_s = [], [], []
-            for lb in lab_u:
-                ii = np.flatnonzero((label == lb) & (counts[:, ai, pi] >= MIN_EVENTS))
-                if len(ii):
-                    V.append(np.nanmean(maps[ii, ai, pi], 0))
-                    an_s.append(animal[ii[0]])
-                    ep_s.append(epoch[ii[0]])
-            V, an_s, ep_s = np.array(V), np.array(an_s), np.array(ep_s)
-            lg = np.log2(np.maximum(V, 1e-9))
-            for an in np.unique(an_s):
-                m = an_s == an
-                pre = m & (ep_s == "pre")
-                if pre.any():
-                    lg[m] -= lg[pre].mean(0)
-                else:
-                    lg[m] = np.nan
-            for ep in EPOCHS[1:]:
-                per = [np.nanmean(lg[(an_s == an) & (ep_s == ep)], 0) for an in np.unique(an_s)
-                       if ((an_s == an) & (ep_s == ep)).any()]
-                if per:
-                    mean_maps[(al, p, ep)] = np.nanmean(per, 0)
-            # patches
-            for q in keep:
-                vq = np.nanmean(lg[:, pid == q], 1)
-                pre = {an: list(vq[(an_s == an) & (ep_s == "pre")]) for an in np.unique(an_s)}
+        # one value per SESSION (a split video, PS92_0812 v1 / v2, averaged first), log2 vs the animal's pre mean
+        lab_u = sorted(set(label))
+        rows_patch, rows_half, mean_maps, marks = [], [], {}, {}
+        for ai, al in enumerate(aligns):
+            for pi, p in enumerate(positions):
+                V, an_s, ep_s = [], [], []
+                for lb in lab_u:
+                    ii = np.flatnonzero((label == lb) & (counts[:, ai, pi] >= MIN_EVENTS))
+                    if len(ii):
+                        V.append(np.nanmean(maps[ii, ai, pi], 0))
+                        an_s.append(animal[ii[0]])
+                        ep_s.append(epoch[ii[0]])
+                V, an_s, ep_s = np.array(V), np.array(an_s), np.array(ep_s)
+                lg = np.log2(np.maximum(V, 1e-9))
+                for an in np.unique(an_s):
+                    m = an_s == an
+                    pre = m & (ep_s == "pre")
+                    if pre.any():
+                        lg[m] -= lg[pre].mean(0)
+                    else:
+                        lg[m] = np.nan
                 for ep in EPOCHS[1:]:
-                    post = {an: list(vq[(an_s == an) & (ep_s == ep)]) for an in np.unique(an_s)
+                    per = [np.nanmean(lg[(an_s == an) & (ep_s == ep)], 0) for an in np.unique(an_s)
+                           if ((an_s == an) & (ep_s == ep)).any()]
+                    if per:
+                        mean_maps[(al, p, ep)] = np.nanmean(per, 0)
+                # patches
+                for q in keep:
+                    vq = np.nanmean(lg[:, pid == q], 1)
+                    pre = {an: list(vq[(an_s == an) & (ep_s == "pre")]) for an in np.unique(an_s)}
+                    for ep in EPOCHS[1:]:
+                        post = {an: list(vq[(an_s == an) & (ep_s == ep)]) for an in np.unique(an_s)
+                                if ((an_s == an) & (ep_s == ep)).any()}
+                        iv = ak.boot_delta(post, pre, rng, n_boot=a.patch_boot)
+                        per = [float(np.mean(v)) for v in post.values()]
+                        same = len(per) >= 4 and (all(x < 0 for x in per) or all(x > 0 for x in per))
+                        sig = bool(iv and (iv.lo > 0 or iv.hi < 0) and same)
+                        rows_patch.append({"align": al, "position": p, "epoch": ep, "patch": int(q),
+                                           "side": "contra" if q < a.grid[0] * a.grid[1] else "ipsi",
+                                           "delta_log2": iv.point if iv else np.nan, "ci_lo": iv.lo if iv else np.nan,
+                                           "ci_hi": iv.hi if iv else np.nan, "n_animals": len(per),
+                                           "all_same_sign": same, "marked": sig})
+                        if sig:
+                            marks.setdefault((al, p, ep), []).append(int(q))
+                # halves: contra - ipsi change per session
+                d = np.nanmean(lg[:, contra], 1) - np.nanmean(lg[:, ~contra], 1)
+                pre = {an: list(d[(an_s == an) & (ep_s == "pre")]) for an in np.unique(an_s)}
+                for ep in EPOCHS[1:]:
+                    post = {an: list(d[(an_s == an) & (ep_s == ep)]) for an in np.unique(an_s)
                             if ((an_s == an) & (ep_s == ep)).any()}
-                    iv = ak.boot_delta(post, pre, rng, n_boot=a.patch_boot)
-                    per = [float(np.mean(v)) for v in post.values()]
-                    same = len(per) >= 4 and (all(x < 0 for x in per) or all(x > 0 for x in per))
-                    sig = bool(iv and (iv.lo > 0 or iv.hi < 0) and same)
-                    rows_patch.append({"align": al, "position": p, "epoch": ep, "patch": int(q),
-                                       "side": "contra" if q < a.grid[0] * a.grid[1] else "ipsi",
-                                       "delta_log2": iv.point if iv else np.nan, "ci_lo": iv.lo if iv else np.nan,
-                                       "ci_hi": iv.hi if iv else np.nan, "n_animals": len(per),
-                                       "all_same_sign": same, "marked": sig})
-                    if sig:
-                        marks.setdefault((al, p, ep), []).append(int(q))
-            # halves: contra - ipsi change per session
-            d = np.nanmean(lg[:, contra], 1) - np.nanmean(lg[:, ~contra], 1)
-            pre = {an: list(d[(an_s == an) & (ep_s == "pre")]) for an in np.unique(an_s)}
-            for ep in EPOCHS[1:]:
-                post = {an: list(d[(an_s == an) & (ep_s == ep)]) for an in np.unique(an_s)
-                        if ((an_s == an) & (ep_s == ep)).any()}
-                iv, draws = ak.boot_delta(post, pre, rng, draws=True)       # same draws as without `draws`
-                per = {an: float(np.mean(v)) for an, v in sorted(post.items())}
-                whole = {an: float(np.nanmean(lg[(an_s == an) & (ep_s == ep)])) for an in per}
-                rows_half.append({"align": al, "position": p, "epoch": ep, **{f"{an}": v for an, v in per.items()},
-                                  "contra_minus_ipsi": iv.point if iv else np.nan, "ci_lo": iv.lo if iv else np.nan,
-                                  "ci_hi": iv.hi if iv else np.nan,
-                                  "excludes_0": bool(iv and (iv.lo > 0 or iv.hi < 0)),
-                                  "p_boot": ak.boot_p(draws) if iv else np.nan,
-                                  "n_contra_lower": sum(v < 0 for v in per.values()),
-                                  "whole_face_log2": float(np.mean(list(whole.values()))),
-                                  "n_whole_lower": sum(v < 0 for v in whole.values())})
-    P = pd.DataFrame(rows_patch)
-    # Priya 10-24 marks: * = interval excludes 0; ** = also Holm over the 6 positions of an alignment x epoch
-    H = frs.add_holm(pd.DataFrame(rows_half), ["align", "epoch"])
-    P.to_csv(figure_layout.sidecar_for(out, "patch_stats", ".csv"), index=False, float_format="%.4g")
-    H.to_csv(figure_layout.sidecar_for(out, "halves_stats", ".csv"), index=False, float_format="%.4g")
+                    iv, draws = ak.boot_delta(post, pre, rng, draws=True)       # same draws as without `draws`
+                    per = {an: float(np.mean(v)) for an, v in sorted(post.items())}
+                    whole = {an: float(np.nanmean(lg[(an_s == an) & (ep_s == ep)])) for an in per}
+                    rows_half.append({"align": al, "position": p, "epoch": ep, **{f"{an}": v for an, v in per.items()},
+                                      "contra_minus_ipsi": iv.point if iv else np.nan, "ci_lo": iv.lo if iv else np.nan,
+                                      "ci_hi": iv.hi if iv else np.nan,
+                                      "excludes_0": bool(iv and (iv.lo > 0 or iv.hi < 0)),
+                                      "p_boot": ak.boot_p(draws) if iv else np.nan,
+                                      "n_contra_lower": sum(v < 0 for v in per.values()),
+                                      "whole_face_log2": float(np.mean(list(whole.values()))),
+                                      "n_whole_lower": sum(v < 0 for v in whole.values())})
+        P = pd.DataFrame(rows_patch)
+        # Priya 10-24 marks: * = interval excludes 0; ** = also Holm over the 6 positions of an alignment x epoch
+        H = frs.add_holm(pd.DataFrame(rows_half), ["align", "epoch"])
+        P.to_csv(figure_layout.sidecar_for(out, "patch_stats", ".csv"), index=False, float_format="%.4g")
+        H.to_csv(figure_layout.sidecar_for(out, "halves_stats", ".csv"), index=False, float_format="%.4g")
+        pd.to_pickle((P, H, mean_maps, marks), cache)
     pd.set_option("display.width", 220)
     an_cols = [c for c in H.columns if c.startswith("PS")]
     print("HALVES: contra - ipsi log2 change per animal (rule 8 first), then the paired bootstrap; whole-face change")
