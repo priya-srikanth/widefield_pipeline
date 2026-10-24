@@ -734,6 +734,10 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
   without push (the CV push prediction costs in-window fit there). **The acute far-contra decomposition is unchanged
   by push treatment** (lick part SSp-m_left -28.0 / -19.6 / -19.3 / -24.9 free vs -28.2 / -19.7 / -19.4 / -25.8 none;
   target ~0; push / other part |x| < 3). Layer 2 (frozen push + per-epoch push deltas) launched 10-23 night.
+- **The frozen pre-stroke FR basis does not miss the face at pushes (FaceRhythm window, 10-24; FACE_RHYTHM_FINDINGS 6b,
+  `scripts/face_rhythm_push_check.py`, 107 sessions).** The face moves at push onsets, but reconstruction error there is
+  LOWER than at random times in 27 / 32 animal x epoch x context cells and every chronic cell, despite 2-4x more pushes
+  chronically. So no pre + post FR master; pushes stay a treadmill regressor here.
 
 ## 5. Caveats that apply across sections
 
