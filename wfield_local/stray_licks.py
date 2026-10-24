@@ -48,6 +48,11 @@ def kin_all() -> Path:
 LAGS_S = (-0.1, 0.5)
 CUE_LAGS_S = (-0.5, 2.0)
 MIN_N = 15
+#: REFERENCE categories (near|q, contact|q) are kept down to this many licks per session (smoke 10-23: non-contact
+#: near-misses are rare pre-stroke -- PS92_0812 had 5 at far_contra, 1-2 at close_ipsi / far_ipsi vs 600-1100 contacts --
+#: so with MIN_N they fell into "rest" in EVERY session and r_target was undefined). Pooling over sessions is
+#: count-weighted (`combine`), so a few-lick session kernel carries a small weight.
+MIN_N_REF = 3
 COORDS = ("side_ml", "out_ap", "down_dv")
 PRE_FROM = "20260806"
 RUN_ON, PUSH_FLOOR = 1.5, 0.3
@@ -139,7 +144,7 @@ def session_job(item) -> dict:
     fr = np.searchsorted(ft, K.daq_peak_s.to_numpy(float))
     inside = (fr > 0) & (fr < len(ft) - 1)
     cats, counts = np.unique(cat[inside & (cat != "")], return_counts=True)
-    keep = [c for c, n in zip(cats, counts) if n >= MIN_N]
+    keep = [c for c, n in zip(cats, counts) if n >= (MIN_N_REF if c.startswith(("near|", "contact|")) else MIN_N)]
     from scipy import sparse
     blocks, labels = [], []
     for c in keep:
