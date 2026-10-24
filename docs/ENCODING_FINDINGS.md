@@ -637,6 +637,16 @@ clusters are large in area), not where it stops.
 > SSp-m_left -29.0 / -19.4 / -19.0 / -24.3 (v7pushfree -28.0 / -19.6 / -19.3 / -24.9), cue window -18.0 / -11.7 / -18.6 /
 > -28.0; target <= 3.6 everywhere; contact +5..+9 (PS93 ~-1). `E/qc/lp_encoder_decompose_frozen_encoder_gate-attempted_
 > v7g3_t3d_joint[_lick]_by_animal.csv`. Relabel, Layer 2 and basis maps in this frame are running.
+>
+> **Across epochs (final frame, far contra, SSp-m, lick window, x1e3, left | right):** subacute the measured response
+> recovers faster than the pre-stroke mapping predicts (residual +5..+15, 4/4); **chronic the response is LARGER than
+> pre** (data 18.8 | 18.4, 16.0 | 19.5, 6.7 | 8.6, 2.4 | 3.9) while the frozen model predicts ~0 or a decrease (full
+> -9.1 | -5.1, 4.9 | 6.8, -8.1 | -1.5, 0.3 | 0.6), so the increase is in the RESIDUAL (27.9 | 23.6, 11.0 | 12.7, 14.8 |
+> 10.2, 2.2 | 3.3; 4/4 positive, PS95 small). MOs the same direction, weaker; cue window the same. Reading: the acute
+> drop is behaviour through the pre-stroke mapping; the chronic increase is cortex responding MORE to the same behaviour
+> (the response change the redesigned Layer 2 attributes to groups). Maps: `frozen_encoder_gate-attempted_v7g3_t3d_basis/
+> figures/pixel_maps_joint_far_contra_{acute,subacute,chronic}_lick.png` (residual broad lateral / anterior, PS92
+> strongest).
 
 > **Current version: v7** (STATS_VERSION 7, commit 73d2991, 10-23: forward-only running from 1.5 mm/s, no push term).
 > Areas: `E/frozen_encoder_gate-attempted_v7fwd15/` (same model, run before the default changed); pixel maps + pixel /
