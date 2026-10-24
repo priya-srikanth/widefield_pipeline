@@ -162,13 +162,16 @@ session's own factors and the frozen ones (morphing; 1 = unchanged).""")
                 # RATIO frozen / own (Priya 10-24): divides out what lowers BOTH fits (less movement against a fixed
                 # tracking-noise floor, less stereotyped movement) -> what is left is the pre-stroke vocabulary's fit
                 ax = axs[2, j]
-                rt = g.evr_frozen / g.evr_own
+                rt = g.evr_frozen / g.evr_own                  # normalised: the animal's pre-stroke mean = 1 (Priya)
                 pr = rt[g.epoch == "pre"]
                 if len(pr):
-                    ax.axhspan(pr.min(), pr.max(), color="0.85", lw=0, label="pre sessions' range")
+                    rt, pr = rt / pr.mean(), pr / pr.mean()
+                    sem = float(pr.std(ddof=1) / np.sqrt(len(pr))) if len(pr) > 1 else 0.0
+                    ax.axhspan(1 - sem, 1 + sem, color="0.85", lw=0, label="pre +- 1 SEM")
+                ax.axhline(1, color="k", lw=0.5)
                 ax.plot(g.day, rt, "o-", ms=4, lw=1, color="tab:purple", label="frozen / own")
                 ax.axvline(0.5, color="k", lw=0.5)
-                ax.set(xlabel="days since stroke", ylabel="EVR frozen / EVR own" if j == 0 else None)
+                ax.set(xlabel="days since stroke", ylabel="EVR frozen / own, / pre mean" if j == 0 else None)
             frf.legend_outside(axs[0, -1])
             fig.suptitle(f"{fdir.name}: variance explained by each session's own components vs the frozen pre-stroke set")
             frf.save(fig, out / "evr_own_vs_frozen.png", f"""
@@ -178,8 +181,8 @@ The 2pRAM-cohort manuscript's variance-explained panel on one frozen basis acros
 best of its random starts, folder `{frr.own_sub(fdir)}`) and of the FROZEN pre-stroke master's spatial + spectral factors with
 only the temporal weights refit (red), on the same rows. Top: per session over days since stroke; grey band = the
 leave-one-pre-day-out held-out EVR range of that animal's pre days (`loso/`): where a pre-stroke day scored on a fit
-without it lands. Middle: epoch means (bars) and sessions (dots). Bottom: the RATIO frozen / own per session (grey = the
-animal's pre-session range): own EVR itself dips acutely (less movement against a fixed tracking-noise floor, less
+without it lands. Middle: epoch means (bars) and sessions (dots). Bottom: the RATIO frozen / own per session, divided by the
+animal's mean pre-stroke ratio (pre = 1; grey = +-1 SEM of its pre sessions): own EVR itself dips acutely (less movement against a fixed tracking-noise floor, less
 stereotyped movement), the ratio divides that out. Own >= frozen by construction; the GAP (own - frozen) / the ratio is
 what the pre-stroke repertoire fails to describe. Pre sessions' frozen EVR is on their held-out basis.""")
 
