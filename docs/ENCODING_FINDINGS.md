@@ -136,6 +136,13 @@ PS93 pre-to-subacute values reproduce the two-animal run exactly (same 3-D input
   PS95's stays small; PS92 / PS93 rise less than target. So "the post-stroke rise is TARGET" holds in 3/4 (PS92,
   PS93, PS95), with PS94 rising in both.
 - Acute is mixed (target up in PS92 / PS95, down in PS93, flat in PS94); PS95 acute is one session.
+- **Polar vs xyz2 (coordinate frame), PS92 + PS93 on matched sessions (27 / 20), cortex, unique target - unique
+  executed x1e3 (lick; cue):** PS92 polar -0.9 / 6.2 / 9.1 / 21.5 vs xyz2 -4.0 / -4.9 / -4.3 / 9.0 (cue 1.8 / 2.0 /
+  8.2 / 25.6 vs -0.6 / -1.8 / -1.9 / 19.8); PS93 polar 21.2 / 3.5 / 4.5 / 31.1 vs xyz2 14.9 / 3.0 / -2.6 / 2.2 (cue
+  6.1 / -3.1 / -7.5 / 12.1 vs 1.8 / -3.6 / -13.7 / -9.4). Executed parts agree across frames; TARGET is smaller in
+  xyz2. So the target lead depends on the frame: PS93 pre target-led in both, PS92 chronic target-led in both; PS93
+  chronic target-led in polar only. "The post-stroke rise is TARGET" is therefore frame-dependent -- the 4-animal xyz2
+  run (`..._xyz2_licks-combined_bins_3d4`, launched 10-24) decides it for the cohort.
 
 #### Two-animal record (PS92 + PS93, 47 sessions, 10-21)
 
