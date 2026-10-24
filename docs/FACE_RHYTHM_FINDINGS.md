@@ -358,9 +358,33 @@ patch, marked when the 95 % interval excludes 0 AND 4 / 4 animals share the sign
   -.31 [-.43, -.18], chronic -.25 [-.42, -.11]; 4 / 4 at every epoch; n.s. at the L and centre spouts. Bout onsets:
   far_R significant at every epoch. Licks to the contralesional spouts are made with relatively less contralesional face
   movement -- the raw-movement counterpart of 5d / 5e.
-* Open (Priya 10-24): close_R bout-aligned asymmetry is > 0 BEFORE onset (~-0.5..-0.1 s) in every epoch incl. pre --
-  candidates: preparatory movement between cue and first lick (cue-aligned close_R rises ~0.15 s after the cue) or
-  carry-over from an earlier bout in the trial. Test: first bout of the trial vs later; >= 0.5 s lick-free lead-in.
+* close_R asymmetry > 0 BEFORE bout onset (Priya 10-24) -- ANSWERED, three parts (`scripts/face_rhythm_bout_split.py`,
+  `asym_aligned/bout_split/`: bout_split.png, bout_split_pre_window.png, bout_split_windows.csv; pre-onset window
+  -0.5..-0.1 s, per animal pre): (1) CARRY-OVER from earlier licks: bouts with a lick < 0.5 s before onset +.10 to +.20
+  (4 / 4); (2) PREPARATION after the cue: first bouts starting >= 0.6 s after the cue (window entirely post-cue, pre-lick)
+  +.10 to +.15; (3) a smaller SUSTAINED close_R offset with no lick in the preceding 0.5 s (+.02 to +.06; flat from -1 s,
+  so partly before the cue). Mirror image at close_L (carry / first_late -.12 to -.21): the pre-onset asymmetry points
+  toward the TARGET side, i.e. directed movement, not a close_R artefact. Same in every epoch; since 5f's statistics are
+  changes vs each animal's own pre, a stable offset cancels there.
+
+**5g. WHEN each factor is expressed after the cue: the contralesional lick factor is re-timed LATER (STANDS, 4 / 4,
+10-24 evening).** Priya: "should we also look at when each behaviour is expressed with respect to cue and whether that
+changes?" `scripts/face_rhythm_peak.py` (`peak/timing_by_epoch_{com,t_half}[_side,_position].png`,
+data/timing_epoch_stats*.csv): per session the trial average's CENTRE OF MASS above its pre-cue level over cue 0..+4 s
+(and the half-rise time), change vs pre in seconds by `boot_delta`; reference row = median first-lick latency of the
+same trials.
+
+* lick_right on CONTRALESIONAL-spout trials: subacute +.40 s [.19, .62], chronic +.41 s [.23, .59], 4 / 4 later; per
+  position chronic close_R +.51 [.22, .75], far_R +.27 [.12, .43], 4 / 4. Over the same trials the FIRST LICK comes
+  EARLIER chronically (contra -.06 s [-.11, -.01]; far_R -.04, close_R -.04; 0 / 4 later). So the shift is not reaction
+  time: the contralesional lick movement is concentrated later in the response window (later in the bout), not delayed
+  at its start. Acutely far_R lick_right is later too (+.80 s) but there the first lick is also late (+.48 s, 4 / 4).
+* lick_left (ipsilesional factor) on contralesional-spout trials: acute far_R +1.26 s (4 / 4) -- the substitute
+  movement appears late in the trial acutely; not consistent later.
+* lick_fast_close all trials: acute +.41 s [.18, .73], 4 / 4; back by subacute. Acute first lick +.08 s.
+* Other factors: no change consistent across animals (nose / sniff factors have wide pre ranges).
+Caveat: a centre of mass of a trial average mixes timing within a trial with WHICH trials have the movement; a per-lick /
+per-bout timing (lick number within the bout at which lick_right is expressed) would separate the two.
 
 Figures use the repo palettes (10-24): animals `config.animal_color()`, epochs `epoch_figures.EPOCH_GREY`.
 
@@ -431,8 +455,13 @@ and the EVR gap; report shape as heterogeneous. A cleaner shape test if wanted: 
 
 * Task (lick factors, response window) vs non-task (other factors, between trials), vs pre: acute task .66-.80, non-task
   .58-.83 -- non-task is NOT preserved acutely (drops as much or more in PS93 / PS94); both >= pre chronically. The
-  2pRAM manuscript's "relative preservation of non-task movements" does not replicate here. Caveat: between-trial
-  expression also falls if animals are less active overall acutely (to check against running, per factor). PROVISIONAL.
+  2pRAM manuscript's "relative preservation of non-task movements" does not replicate here. Caveat checked 10-24
+  (`scripts/face_rhythm_nontask_state.py`, `readouts/master_pre_v1/nontask_state/`: between-trial bins classed by the
+  DAQ behaviour events into running / rest / other): NOT explained by state occupancy -- running time does not fall
+  consistently acutely (PS92 .05 -> .11, PS94 .07 -> .11, PS93 ~flat, PS95 .06 -> .005), and non-task expression falls
+  WITHIN state: rest acute -.99 log2 [-1.24, -.80] 4 / 4, "other" (85-99 % of between-trial time) -.37 [-.63, -.17]
+  4 / 4, running -.28 (3 animals, n.s.); back to pre chronically. (The events carry no grooming bouts for these
+  sessions, so grooming is inside "other".) STANDS: non-task face movement is reduced acutely, not preserved.
 * Face movement asymmetry (tracked points, response window, (contra - ipsi) / sum): acutely less contralesional movement
   in PS93 / PS94 / PS95 (-.08 to -.11), PS92 ~0; chronically only PS94 (-.07). Agrees with the loading asymmetry.
 * Severity vs lesion burden (histology, ipsi / contra CP area: PS93 45 %, PS92 47 %, PS94 68 %, PS95 82 %): no ordering

@@ -223,8 +223,9 @@ def timing(S: pd.DataFrame, FL: pd.DataFrame, names: list[str], groups: list[str
     for metric in ("com_s", "t_half_s"):
         lab = {"com_s": "centre of mass", "t_half_s": "half-rise time"}[metric]
         with frf.style():
+            # NOT sharex: each panel carries its own change-vs-pre tick labels (a shared axis shows the last panel's)
             fig, axs = frf.subplots(len(rows_q), len(groups), figsize=(4.0 * len(groups) + 1.5, 2.0 * len(rows_q)),
-                                    squeeze=False, sharex=True)
+                                    squeeze=False)
             for r_i, (k, nm) in enumerate(rows_q):
                 for j, g in enumerate(groups):
                     ax = axs[r_i, j]
@@ -247,7 +248,7 @@ def timing(S: pd.DataFrame, FL: pd.DataFrame, names: list[str], groups: list[str
                         per = A[ep] - A["pre"]
                         sig = bool(iv and (iv.lo > 0 or iv.hi < 0))
                         ticks.append(f"{ep[:5]}\n{iv.point:+.2f}{'*' if sig else ''}" if iv else ep[:5])
-                        if metric == "com_s" or k < 0:
+                        if metric == "com_s":            # one stats row per factor (+ the first-lick reference)
                             stats.append({"metric": "first_lick_s" if k < 0 else metric, "group": g, "factor": k,
                                           "name": nm, "epoch": ep, **{an: per.get(an, np.nan) for an in sorted(A.index)},
                                           "delta_s": iv.point if iv else np.nan, "ci_lo": iv.lo if iv else np.nan,

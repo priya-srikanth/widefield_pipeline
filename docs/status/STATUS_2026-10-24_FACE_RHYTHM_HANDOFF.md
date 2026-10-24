@@ -47,18 +47,24 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 | asymmetry two ways (points vs own-fit loadings) | agree acutely; loadings: lick_right moves off the contralesional face | `matching/asymmetry_two_ways.png` |
 | per-position face speed maps | whole face moves less acutely at every position; contralesional half more, strongest far_R; chronic overshoot, ipsi half up on R spouts | `position_maps/position_maps_response_{mean,PS9x}.png` (`face_rhythm_position_maps.py`; cue 0..+4 s) |
 | lick- / bout-aligned maps + patch statistics | DONE: whole face down per TRIAL acutely, not per LICK; per lick the contralesional half loses more at close_R / far_R, 4/4, every epoch (FINDINGS 5f) | `aligned_maps/aligned_maps_{cue,lick,bout}.png`, `halves_*.png` (`face_rhythm_aligned_maps.py`, needs the cache from `face_rhythm_asym_aligned.py`) |
+| close_R asymmetry before bout onset? | carry-over from earlier licks + post-cue preparation + small sustained offset; mirror at close_L (target-directed), FINDINGS 5f | `asym_aligned/bout_split/` (`face_rhythm_bout_split.py`, `--plot-only`) |
+| non-task drop = less active? | no: drops within rest (-.99 log2, 4/4) and "other" (-.37, 4/4); running time not consistently down (FINDINGS 6d) | `nontask_state/` (`face_rhythm_nontask_state.py`, `--plot-only`) |
+| WHEN is each factor expressed vs the cue? | lick_right on contra-spout trials LATER subacute / chronic (+.40 / +.41 s, 4/4) while the first lick is EARLIER (-.06 s, 4/4): re-timed within the response, not reaction time (FINDINGS 5g) | `peak/timing_by_epoch_{com,t_half}[_side,_position].png`, data/timing_epoch_stats*.csv (`face_rhythm_peak.py`) |
+| factor shape, cleaner test | SUBMITTED to O2 (Priya): `fitepoch`, one pooled own fit per animal x epoch + two pre-day halves (noise floor), 11,000 rows each | -> `own_epoch/` on the share; analysis script still to write (angle post vs preA / preB against preA vs preB) |
 | pre + post master for pushes? | no: frozen error LOWER at pushes, 27 / 32 cells | `push_check/` (`face_rhythm_push_check.py`); DECISIONS 10-24 |
 | task vs non-task, severity | non-task NOT preserved acutely; no ordering by lesion size (n = 4) | `task_vs_nontask.png`, `severity.png` |
 
 ## 2. Next, in order
 
-0. **10-24 afternoon: items 1-3 below are DONE**, plus aligned maps / statistics (FINDINGS 5f) and the repo palettes
-   (animals `config.animal_color()`, epochs `epoch_figures.EPOCH_GREY`; all FR figures RE-RENDERED 14:09; push check
-   cached, `--plot-only` redraws in seconds). OPEN with Priya: (a) close_R bout-aligned asymmetry > 0 before onset -- split
-   first bout of trial vs later and >= 0.5 s lick-free lead-in (offered, not run); (b) lead framing: contralesional
-   licks keep their rate but are made with less contralesional / more ipsilesional face movement (5d / 5e / 5f) + the
-   acute EVR drop; (c) optional: one own fit per animal x epoch for a cleaner shape test (6c); non-task drop vs
-   running / per factor (6d caveat).
+0. **10-24 evening.** Story order DECIDED (Priya; FINDINGS top, DECISIONS 10-24 "FaceRhythm framing"): acute R > L
+   lick-factor drop -> persistent lick_right deficit (several methods) -> contra / ipsi face asymmetry -> pre-factor EVR
+   drop -> survey of all factors (peak + timing); angles secondary. 5f wording CORRECTED (not "fewer licks, not smaller":
+   DLC shows slower / shorter acute licks; the mesh-speed window is insensitive to that). (a) bout split DONE, (c2)
+   non-task by state DONE, cue timing DONE (FINDINGS 5g; next could be per-bout timing of lick_right). ON O2: `fitepoch`
+   (24 tasks, `run_fitepoch.sbatch`) -> rsync `own_epoch/` back, then write the angle comparison (post vs preA / preB
+   against preA vs preB, per factor; `face_rhythm_matching.match`). NEXT (Priya): an FR RESULTS ARTIFACT PAGE (Priya via the encoding window: every result family as a published
+   Artifact -- per-animal figures + maps, one-line takeaway per figure, sections keyed to FINDINGS; example
+   https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d), then CODE + DOC CLEAN-UP (section 2c).
 1. (done) **Rsync `own/`** once `frf_own` is done (transfer node; RESET the variables -- the encoding bundle reuses B / S):
    `B=/n/scratch/users/p/ps150/o2/fr_cam4_20261021; S=/n/files/Neurobio/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/fr_cam4_20261021`
    `rsync -ah --exclude fit_tensor.npy --exclude 'proj_r10' --exclude 'proj_loso_r10' $B/factors/master_pre_v1/ $S/factors/master_pre_v1/`
@@ -103,6 +109,28 @@ the comments forward (CLAUDE.md engineering note). Starting points:
   To do: `face_rhythm_readouts.py` (~30 min recompute), `face_rhythm_asym_aligned.py` (traces; maps already cached),
   `face_rhythm_aligned_maps.py` (patch / halves statistics + mean maps), `face_rhythm_match.py` (chance shuffles).
 
+**Plan adopted 10-24 evening (Priya: "once we submit these jobs, please work on cleaning up the facerhythm code and
+documentation").** Measured: ~8,000 lines of FR code; `EPOCHS` defined in 8+ files, `POSITIONS` in two different orders
+(peak: contra first; the rest: animal-left first), the point-speed reconstruction, rule-8 per-animal table + `boot_delta`
+epoch statistics and the epoch panel re-written per script. On a branch (`fr-cleanup`, own worktree), each step
+verified by re-running the affected scripts into a scratch ``--out`` and diffing the CSVs against the current outputs
+(a refactor must not move a number):
+1. `wfield_local/face_rhythm/` package for the ANALYSIS layer: `common` (epochs, positions in ONE canonical order + a
+   contra-first display order, sides, frame rate, set / bundle defaults, palettes, session iteration from `proj/`),
+   `face` (point-speed reconstruction from the frozen point PCs, event alignment, window weights), `licks` (lick table,
+   bout classes, first-lick latency), `stats` (log2 vs pre, per-animal epoch table + `boot_delta`, printed rule-8
+   first), `figures` (epoch panel). Existing flat modules that other code or O2 imports BY NAME stay where they are
+   (`face_rhythm_outputs`, `fr_groups` -- encoder; `face_rhythm_timing`, `face_rhythm_multiview` -- O2 sidecars);
+   moved modules leave a one-line re-export so nothing breaks.
+2. One catalogue CLI: `python -m wfield_local.face_rhythm list` (each analysis: the question it answers, inputs,
+   outputs, runtime) and `... run <analysis> [--plot-only]`.
+3. A user guide `docs/FACE_RHYTHM_GUIDE.md`: concepts (frozen master, own fits, absolute vs share, log2 vs pre,
+   image sides), run order from FR outputs to figures and encoder regressors, the analysis catalogue (question ->
+   command -> figure -> FINDINGS section), pitfalls. PIPELINE (O2) / FINDINGS / handoffs keep their roles.
+4. Compute / plot split for the remaining heavy scripts (list above).
+5. Last, after the O2 `fitepoch` jobs are back: split `face_rhythm_factors.py` (fit / sample / project / validate /
+   report / O2), keeping the single-file O2 copy working.
+
 ## 3. Open questions
 
 * **Pre + post master?** (Priya 10-24, for the encoder's treadmill "pushes"). Not yet: the pre-only basis makes the EVR
@@ -114,6 +142,9 @@ the comments forward (CLAUDE.md engineering note). Starting points:
 
 ## 4. Code added 10-23 / 10-24 (all committed)
 
+* 10-24 evening: `face_rhythm_factors.py fitepoch` (+ `epoch_fit_tasks`, `EPOCH_GROUPS`; share `run_fitepoch.sbatch`),
+  `face_rhythm_bout_split.py`, `face_rhythm_nontask_state.py`, `face_rhythm_peak.py` timing (centre of mass, half-rise,
+  first-lick latency; `timing()`), all with cached data + `--plot-only` where they recompute.
 * 10-24 afternoon: `scripts/face_rhythm_peak.py` (peak amplitude, cohort views, boot_delta, log2, side / position
   splits, headline figures), `face_rhythm_evr_epochs.py` (normalised EVR ratio by epoch), `face_rhythm_position_maps.py`
   (per-position speed maps), `face_rhythm_asym_aligned.py` (cue / lick / bout-onset aligned contra vs ipsi speed + cached

@@ -21951,3 +21951,15 @@ Priya asked whether a pre + post FR master is needed to capture the encoder's pu
 reconstruction error at push onsets is LOWER than at random times in 27 / 32 animal x epoch x context cells and in every
 chronic cell, although pushes are 2-4x more frequent chronically. The pre-only master stays; pushes remain a treadmill
 regressor. Revisit only if a post-only fit matched to the master (`face_rhythm_match.py`) leaves an unmatched factor.
+
+## 2026-10-24 -- FaceRhythm framing (Priya)
+
+Story order for the FaceRhythm results: (1) the acute deficit that confirms what we know -- the contralesional (right)
+lick factor falls more than the left acutely; (2) the PERSISTENT contralesional lick deficit in lick_right expression,
+shown by several methods (per lick, peak per spout side / position, raw point movement); (3) contra / ipsi face
+asymmetry (contralesional licks made with less contralesional face movement); (4) the drop in the pre-stroke factors'
+EVR after the stroke; (5) a survey of every other factor post-stroke (per-trial peak temporal amplitude) plus WHEN each
+is expressed relative to the cue. Factor angles / shape change stay SECONDARY (inconsistent across animals; the pooled
+per-epoch fits are the cleaner test). Correction recorded with it: the face-mesh result "whole face ~0 per lick" does
+NOT mean "fewer licks, not smaller licks" -- DLC / LP kinematics show slower, shorter acute licks; the mesh speed window
+is not sensitive to tongue extent or lick rate (FINDINGS 5f).
