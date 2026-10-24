@@ -98,6 +98,10 @@ the comments forward (CLAUDE.md engineering note). Starting points:
 * A worked notebook / README walk-through: from FR outputs to a named factor set to the encoder regressors, with the
   pitfalls (in-sample pre, absolute vs share, factor numbers shift between fits).
 * Tests per module (the existing ones in tests/test_face_rhythm_*.py are the base).
+* SEPARATE COMPUTE FROM PLOT (Priya 10-24: "can figures re-render without redoing calculations?"): every heavy script
+  saves what its figures need and takes ``--plot-only``. Done: `face_rhythm_push_check.py` (data/push_check_traces.npz).
+  To do: `face_rhythm_readouts.py` (~30 min recompute), `face_rhythm_asym_aligned.py` (traces; maps already cached),
+  `face_rhythm_aligned_maps.py` (patch / halves statistics + mean maps), `face_rhythm_match.py` (chance shuffles).
 
 ## 3. Open questions
 
