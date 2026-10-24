@@ -70,6 +70,18 @@ half rest, true bin times; 27.4 k rows; 8 starts per rank, fit-only):**
 less reproducibly for +0.011 EVR). Master EVR is a little lower than the pilot's at the same rank (more varied sample).
 Next at rank 10: split-half (is 20 / position enough), leave-one-animal-out, leave-one-day-out.
 
+**O2 rank-10 fit (10-23 ~20:25, equal-days sample): NO dedicated LEFT-lick factor (OPEN, Priya surprised).** EVR .792,
+5 / 8 starts at the best solution (.4564; 3 at .4571), stability .998, leave-one-animal-out similarity .957-.984,
+split half .990. L/R index (L-R)/(L+R) of mean 0-2 s expression, pre sessions, far / close: m5 lick_right -.35 to -.91
+in all four animals (PS93 weakest), but the most left-leaning factor (m7, pilot lick_left_slow, spatial match .56) only
++.16 to +.45; the shared lick factors m3 / m4 / m10 lean +.1 to +.3. NOT the sample: exactly 20 trials per position per
+animal (300 rows in 0-3 s per position per animal), and left trials are reconstructed as well as right (0-2 s rel err
+within ~.03 across positions, same movement energy D). So rank 10 codes left licking as the DEFAULT lick and right
+licking as default + m5. **Rank 12 (archived sweep, pooled sample, rows re-mapped to positions) HAS the left factor**:
+r12 f8, 6.5 Hz, L/R +.52 to +.91 in all four animals (far and close), present in 6 / 7 other starts, mirror of r12 f11
+= m5 (right, -.64 to -.85; PS93 weak). Its unstable factors are slow ones (f7 5.1 Hz 2 / 7 starts, f12 1.1 Hz 3 / 7).
+Rank 8 already had a left-leaning factor (+.4 to +.66, not PS93).
+
 **PILOT (2 animals; superseded for the rank choice by the master sweep).** Fit-only sweep on the PS92 + PS93 pre-stroke
 fit rows (3 starts each): EVR / stability across starts -- rank 6 0.767 /
 0.84; 8 0.792 / 0.96; 10 0.807 / 0.87; 12 0.819 / **0.997**; 14 0.827 / 0.89; 16 0.835 / 0.92. EVR rises slowly and
