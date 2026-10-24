@@ -55,6 +55,8 @@ if os.environ.get("FR_POINTS"):
     os.environ["COMBINED_ENCODING_FR_POINTS"] = os.environ["FR_POINTS"]
 if os.environ.get("FR_SHARE"):
     os.environ["COMBINED_ENCODING_FR_SHARE"] = os.environ["FR_SHARE"]
+if os.environ.get("BINS"):                       # binned contest on (submit-time; combined_encoding.BINS_ENV)
+    os.environ["COMBINED_ENCODING_BINS"] = os.environ["BINS"]
 if os.environ.get("BINS_WIDTH"):                 # soft-bin width sweep (submit-time; combined_encoding.BINS_WIDTH_ENV)
     os.environ["COMBINED_ENCODING_BINS_WIDTH"] = os.environ["BINS_WIDTH"]
 if os.environ.get("MATCH"):                      # lick-matched subsampling: MATCH = a JSON in the bundle (match.json)
@@ -66,6 +68,7 @@ out = b / "out" / tag
                                           "fr_points": os.environ.get("FR_POINTS", ""),
                                           "fr_share": os.environ.get("FR_SHARE", ""),
                                           "match": os.environ.get("MATCH", ""),
+                                          "bins": os.environ.get("BINS", ""),
                                           "bins_width": os.environ.get("BINS_WIDTH", ""),
                                           "bundle_env": bundle_env, "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
@@ -106,7 +109,7 @@ def _inputs_worker(job):
 #: per-submit options (sbatch --export), never part of a bundle's recorded input settings
 _SUBMIT_ENVS = ("COMBINED_ENCODING_ONLY", "COMBINED_ENCODING_VIDEO", "COMBINED_ENCODING_FR",
                 "COMBINED_ENCODING_FR_POINTS", "COMBINED_ENCODING_FR_SHARE", "COMBINED_ENCODING_MATCH",
-                "COMBINED_ENCODING_BINS_WIDTH")
+                "COMBINED_ENCODING_BINS", "COMBINED_ENCODING_BINS_WIDTH")
 
 
 def bundle_env(d: Path | None = None) -> dict:
@@ -232,7 +235,7 @@ def _set_env(order_only_video: dict) -> None:
     from wfield_local import combined_encoding as ce
     for k, env in (("only", ce.ONLY_ENV), ("video", ce.VIDEO_ENV), ("fr", ce.FR_ENV),
                    ("fr_points", ce.FR_POINTS_ENV), ("fr_share", ce.FR_SHARE_ENV), ("match", ce.MATCH_ENV),
-                   ("bins_width", ce.BINS_WIDTH_ENV)):
+                   ("bins", ce.BINS_ENV), ("bins_width", ce.BINS_WIDTH_ENV)):
         if order_only_video.get(k):
             os.environ[env] = order_only_video[k]
         else:

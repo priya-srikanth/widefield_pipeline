@@ -35,3 +35,12 @@ def test_bins_width_env(monkeypatch):
     assert ce.bins_width() == 1.0
     monkeypatch.setenv("COMBINED_ENCODING_BINS_WIDTH", "0.5")
     assert ce.bins_width() == 0.5
+
+
+def test_bins_is_a_submit_option(monkeypatch, tmp_path):
+    """The binned contest is switched per submit, so one bundle serves contests and full models."""
+    m = _mod()
+    monkeypatch.setenv("COMBINED_ENCODING_BINS", "1")
+    monkeypatch.setenv("COMBINED_ENCODING_BINS_WIDTH", "2")
+    assert "COMBINED_ENCODING_BINS" not in m.bundle_env(None)
+    assert "COMBINED_ENCODING_BINS_WIDTH" not in m.bundle_env(None)
