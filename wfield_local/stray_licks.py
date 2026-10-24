@@ -177,6 +177,21 @@ def combine(rows: list[dict], epoch_set: tuple) -> dict:
     return {c: acc[c] / w[c] for c in acc}, w
 
 
+def touch_corrected(kern: dict) -> dict:
+    """SECONDARY aim references (Priya 10-23, option 3): {spout q: contact|q - T(-q)}, where T(-q) = mean over the OTHER
+    spouts k of (contact|k - near|k), the touch response estimated where non-contact near-misses exist. Leave-q-out,
+    so the check at spouts with a near|q reference is honest. ASSUMPTION: the touch response is the same at every
+    spout -- untestable at far_contra itself (no near-misses there), which is why this readout is secondary."""
+    qs = [c.split("|")[1] for c in kern if c.startswith("contact|")]
+    diffs = {k: kern[f"contact|{k}"] - kern[f"near|{k}"] for k in qs if f"near|{k}" in kern}
+    out = {}
+    for q in qs:
+        others = [d for k, d in diffs.items() if k != q]
+        if others:
+            out[q] = kern[f"contact|{q}"] - np.mean(others, 0)
+    return out
+
+
 def _spec(kern: dict, prefix: str) -> np.ndarray | None:
     ks = [k for c, k in kern.items() if c.startswith(prefix)]
     return np.mean(ks, 0) if ks else None
@@ -197,7 +212,7 @@ def summarise(out: Path) -> None:
         z = np.load(f, allow_pickle=True)
         rows.append(z["r"].item())
     order = ["pre", "acute", "subacute", "chronic"]
-    idx, val, crow = [], [], []
+    idx, val, crow, tc, tval = [], [], [], [], []
     for an in sorted({r["animal"] for r in rows}):
         R = [r for r in rows if r["animal"] == an]
         ref, wref = combine(R, ("pre",))
@@ -223,6 +238,31 @@ def summarise(out: Path) -> None:
                            "r_iti": (_corr(S, rk[f"iti|{j}"] - gi) if (gi is not None and f"iti|{j}" in rk) else np.nan)}
                     row["target_minus_exec"] = row["r_target"] - row["r_exec"]
                     idx.append(row)
+        # SECONDARY readout: touch-corrected contact references for BOTH aim (q) and landing (j), one common frame
+        A = touch_corrected(ref)
+        if len(A) >= 3:
+            gA = np.mean(list(A.values()), 0)
+            for ep in order:
+                cur, wcur = combine(R, (ep,))
+                for c, k in cur.items():
+                    if not c.startswith("stray|"):
+                        continue
+                    _s, q, j = c.split("|")
+                    S = k - gA
+                    rt = _corr(S, A[q] - gA) if q in A else np.nan
+                    rx = _corr(S, A[j] - gA) if j in A else np.nan
+                    tc.append({"animal": an, "epoch": ep, "stray": f"{q}->{j}", "aimed": q, "landed": j, "n": wcur[c],
+                               "r_target_tc": rt, "r_exec_tc": rx, "target_minus_exec_tc": rt - rx})
+            # checks: (a) split-half own vs others; (b) agreement with the near-miss reference where it exists
+            pre_ = [r for r in R if r["epoch"] == "pre"]
+            A1, A2 = touch_corrected(combine(pre_[0::2], ("pre",))[0]), touch_corrected(combine(pre_[1::2], ("pre",))[0])
+            if len(A1) >= 3 and len(A2) >= 3:
+                g1, g2 = np.mean(list(A1.values()), 0), np.mean(list(A2.values()), 0)
+                for q in [q for q in A1 if q in A2]:
+                    tval.append({"animal": an, "spout": q, "r_own": _corr(A1[q] - g1, A2[q] - g2),
+                                 "r_other_mean": np.nanmean([_corr(A1[q] - g1, A2[o] - g2) for o in A2 if o != q]),
+                                 "r_vs_near_ref": (_corr(A[q] - gA, ref[f"near|{q}"] - gA)
+                                                   if f"near|{q}" in ref else np.nan)})
         # validation: split-half near_q (sessions alternately) -> own spout vs others
         pre = [r for r in R if r["epoch"] == "pre"]
         h1, _ = combine(pre[0::2], ("pre",))
@@ -273,6 +313,18 @@ def summarise(out: Path) -> None:
     F = P[P.aimed == "far_contra"].sort_values(["animal", "epoch", "landed"])
     print("\n=== far_contra strays\n" + F[["animal", "epoch", "landed", "n", "r_target", "r_exec", "r_iti",
                                          "target_minus_exec"]].round(3).to_string(index=False))
+    T, Tv = pd.DataFrame(tc), pd.DataFrame(tval)
+    T.to_csv(out / "stray_index_touchcorr.csv", index=False, float_format="%.4g")
+    Tv.to_csv(out / "stray_validation_touchcorr.csv", index=False, float_format="%.4g")
+    if not Tv.empty:
+        print("\n=== SECONDARY (touch-corrected contact references; assumes equal touch response across spouts)\n"
+              "checks (pre): split-half own vs others; r_vs_near_ref = agreement with the near-miss reference where one "
+              "exists (leave-spout-out touch estimate)\n" + Tv.round(3).to_string(index=False))
+    if not T.empty:
+        Ft = T[T.aimed == "far_contra"].sort_values(["animal", "epoch", "landed"])
+        print("\n=== SECONDARY far_contra strays: r_target_tc (aim) vs r_exec_tc (landing), > 0 = TARGET-like\n"
+              + Ft[["animal", "epoch", "landed", "n", "r_target_tc", "r_exec_tc", "target_minus_exec_tc"]]
+              .round(3).to_string(index=False))
     print(f"\n-> {out}")
 
 

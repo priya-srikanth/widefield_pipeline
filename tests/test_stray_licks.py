@@ -29,3 +29,15 @@ def test_classify_categories():
                       "contact": [True, False, False, False, False, False]})
     cat = sl.classify(L, cen)
     assert list(cat) == ["contact|far_contra", "stray|far_contra|far_mid", "near|far_contra", "iti|far_mid", "near|far_mid", ""]
+
+
+def test_touch_corrected_removes_shared_touch_response():
+    """With the same touch response at every spout, contact|q - T(-q) recovers the non-contact response of q,
+    including at a spout with no near-miss reference."""
+    rng = np.random.default_rng(1)
+    touch = rng.normal(size=(5, 3))
+    near = {q: rng.normal(size=(5, 3)) for q in ("a", "b", "c", "d")}
+    kern = {f"contact|{q}": near[q] + touch for q in near}
+    kern.update({f"near|{q}": near[q] for q in ("a", "b", "c")})          # d has no near-miss reference
+    A = sl.touch_corrected(kern)
+    assert set(A) == {"a", "b", "c", "d"} and all(np.allclose(A[q], near[q]) for q in A)
