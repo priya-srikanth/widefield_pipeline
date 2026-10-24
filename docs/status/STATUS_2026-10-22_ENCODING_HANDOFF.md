@@ -9,6 +9,18 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000l. STATE 10-24 ~early morning -- READ FIRST (then 000k)
+
+- **All queued runs DONE, nothing of mine running.** Results in FINDINGS: stray test 2.6 (not decisive; rescue failed),
+  relabel 2.7 (heterogeneous: PS95 re-aimed far mid, PS93 stays far contra, PS92 / PS94 nonspecific), 4-animal 3-D
+  contest 2.4b, Layer 2 (section 2 after the decoder G entry; changes beat drift null 4/4 acute + chronic), free push
+  4.4, PS93 contact joint drop 3.4 (not shared with direction).
+- **Open offers to Priya:** (a) `no_contact_lick` joint drop (PS93 contact vs lick group); (b) Layer 2 session
+  bootstrap vs the drift null + far-contra-specific change; (c) remaining 3-D re-runs (within-spout 3-D direction,
+  frozen v7 with refreshed combined licks, xyz2 x combined, cam4 cells); (d) FaceRhythm: rank 11 / 12 refits running on
+  O2 (FR window), wait for rank + labels.json + master grouping.
+- Worktrees in use by nothing: `Github/wf_relabel`, `Github/wf_stray`, `Github/wf_g3`, `S/wf_frozen` (2fc9fce).
+
 ## 000k. STATE 10-23 late night -- READ FIRST (then 000j)
 
 - Pushed through 39332a1 (stray_licks path via the dlc root; the machine-path test had blocked the push). jaw_onsets
