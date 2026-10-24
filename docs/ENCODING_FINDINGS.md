@@ -278,6 +278,27 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   depends on the resampling" -- not as established persistent reorganisation.
   All session-level time courses now via `wfield_local/mixed_models.py` (one definition).
 
+- **Layer 2 all-session encoder: the cortical RESPONSE to behaviour changes beyond pre-stroke drift, acutely AND
+  chronically (FIRST RUN 10-23 night, PROVISIONAL; `wfield_local/allsession_encoder.py` at 2fc9fce, grouping v3, frozen
+  push; `<E>/allsession_encoder_v7push/`).** Shared kernels + per-epoch kernel changes, scored on held-out sessions;
+  gain = held-out R2 of (shared + changes) - (shared only), x1e3; null = same fit on pre sessions with the later half as
+  a pseudo-epoch. Cortex, per animal (PS92 / PS93 / PS94 / PS95):
+  - total change: acute **25.8 / 40.7 / 14.5 / 45.4** (PS95 n = 1), chronic **29.1 / 13.2 / 10.8 / 17.0** vs null
+    pre_late **0.9 / 0.9 / 9.0 / 3.3** -> above null 4/4 in both epochs (PS94 chronic marginal: 10.8 vs 9.0);
+  - per group (unique change gain), acute vs null: within-spout direction (exec_within) 5.2 / 5.0 / 2.7 / 1.5 vs
+    <= 0.1; target 4.1 / 5.5 / 1.9 / 4.5 vs <= 0.3; lick 0.7 / 0.2 / 1.6 / 8.2 vs 0.6 / -0.5 / -0.3 / 0.5 (3/4;
+    PS92 ~null). Chronic: exec_within 3.0 / 2.1 / 0.4 / 0.7, target 5.0 / 2.9 / 1.1 / 2.9, lick 3.2 / 0.7 / 1.4 / 3.0,
+    all above null 4/4 (PS94 exec_within small). "other" (running / push / nose) is noisy (PS94 null 7.0);
+  - contralesional SSp-m: acute 12.1 / 75.3 / -5.6 / -24.9 vs null 4.0 / 1.7 / 2.3 / 6.1 -> only 2/4 (PS94 / PS95
+    below the shared fit); chronic 16.4 / 8.5 / 23.1 / 9.3 -> 4/4.
+  **Reading:** on top of Layer 1 (behaviour changes carry the acute far-contra drop; small residual), the mapping from
+  behaviour to cortex does change -- most in the target and within-spout direction responses -- and the change
+  persists chronically after behavioural recovery. This is the encoding-side counterpart of the decoder's
+  refit-over-frozen G > 0 in 4/4 above. Sizes are small (gains of 1-5e-3 R2 per group). Caveats: the null has 4 + 4
+  sessions vs 1-12 per post epoch; kappa is chosen separately per fit (post 3-30, null 10-100); no block-level
+  resampling yet; a summary bug (pandas read the fit label "null" as missing) hid the null rows on the first print --
+  fixed in `summarise`.
+
 ### 2.6 Lick-level strays vs on-target licks — FIRST RUN 10-23: NOT DECISIVE for far contra (reference fails validation)
 
 **First full run (10-23 night, `wfield_local/stray_licks.py` at 4bc7687, 104 / 107 sessions, 4 animals, all licks with
@@ -715,6 +736,9 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 9. Deferred: non-linear ceiling check; pre-cue -> lick-window carry-over decode.
 
 ## Change log
+
+- **2026-10-23 (night, Layer 2)** — all-session encoder first run: per-epoch kernel changes beat the pre drift null in
+  4/4 acute and chronic (cortex); target + within-spout direction responses change most; free-push frozen run (4.4).
 
 - **2026-10-23 (night, last)** — stray-lick test first full run (2.6): validation fails for the far-contra aim reference
   in 3 / 4 animals; strays look like where they landed pre-stroke; no consistent acute shift -> not decisive. Relabel

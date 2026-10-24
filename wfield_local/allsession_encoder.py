@@ -218,7 +218,7 @@ def main(argv=None) -> int:
 def summarise(out: Path) -> None:
     """Per animal x epoch held-out R2 changes (x1e3), cortex and contralesional SSp-m; drift null alongside."""
     import pandas as pd
-    R = pd.read_csv(out / "allsession_scores.csv")
+    R = pd.read_csv(out / "allsession_scores.csv", keep_default_na=False, na_values=[""])   # fit "null" is a label, not NA
     W = R.pivot_table(index=["fit", "animal", "label", "epoch", "area", "n_epoch"], columns="model", values="r2").reset_index()
     W["change"] = (W["all"] - W["shared"]) * 1e3
     gcols = [c for c in W.columns if str(c).startswith("no_d_")]
@@ -232,7 +232,7 @@ def summarise(out: Path) -> None:
               "(change = all - shared; change_<g> = all - all-but-g's-change; fit null = pre late vs early)\n"
               + A.to_string())
     W.to_csv(out / "allsession_changes_by_session.csv", index=False, float_format="%.5g")
-    D = pd.read_csv(out / "allsession_dbeta.csv")
+    D = pd.read_csv(out / "allsession_dbeta.csv", keep_default_na=False, na_values=[""])
     print("\n=== kernel change, summed over lags x1e3 (raw units), cortex\n"
           + D[D.area == "cortex"].pivot_table(index=["fit", "animal", "epoch"], columns="group",
                                                values="dbeta_sum_x1e3").round(1).to_string())

@@ -21829,3 +21829,11 @@ Priya chose option 3 (try the touch-corrected contact reference as secondary; re
 reference is reliable split-half but does not match the near-miss reference at spouts where one exists (mostly negative
 r), so the equal-touch assumption fails and its far-contra readout is not interpreted (FINDINGS 2.6). The stray test is
 closed for A vs B; its pre-stroke "landing > aim" observation is kept.
+
+## 2026-10-23 (night, Layer 2) -- all-session encoder first run; null-label bug
+
+Layer 2 ran on grouping v3 with frozen push + per-epoch deltas (from the free-push frame). Held-out kernel-change gains
+exceed the pre late-vs-early drift null in 4/4 animals acute and chronic (cortex), mostly target and within-spout
+direction; recorded PROVISIONAL (FINDINGS 2, after the decoder G entry). Bug fixed: `summarise` read the fit label
+"null" as NA (pandas default), dropping the null rows from the printed table and from allsession_changes_by_session.csv
+(rewritten). Next for Layer 2: block-level / session bootstrap of the gain vs null; per-position (far contra) change.
