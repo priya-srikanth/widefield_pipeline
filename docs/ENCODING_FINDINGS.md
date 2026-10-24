@@ -326,6 +326,16 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   depends on the resampling" -- not as established persistent reorganisation.
   All session-level time courses now via `wfield_local/mixed_models.py` (one definition).
 
+- **CORRECTED 10-24 (afternoon) -- the Layer 2 drift-null comparison below is NOT like-for-like; the claim does not
+  stand as written.** In the post fit EVERY epoch, pre included, gets its own kernel changes from shared kernels fitted
+  over all epochs, and the PRE epoch's own change gain is as large as the post epochs': cortex, v7push (10-23) pre 31.8 /
+  20.1 / 32.1 / 35.8 vs acute 25.8 / 40.7 / 14.5 / 45.4, chronic 29.1 / 13.2 / 10.8 / 16.9; final frame (`allsession_
+  encoder_v7g3_t3d`) pre 34.8 / 23.0 / 32.1 / 33.7 vs acute 31.8 / 38.3 / 14.1 / 41.9, chronic 31.9 / 14.4 / 9.6 / 18.8.
+  The null was fitted on pre sessions ONLY (shared kernels ~= pre kernels), so its pseudo-epoch gain is small by
+  construction. Within the same fit, chronic change < the pre epoch's own change in 4/4 and acute > it in only 2/4
+  (PS93, PS95). The gain measures each epoch's distance from an all-epoch compromise, not change from pre. Fix to run:
+  pre kernels as the reference (deltas for post epochs only) with the null built the same way (pre-late deltas against
+  pre-early in a fit that also contains the post sessions). Until then: no Layer 2 claim.
 - **Layer 2 all-session encoder: the cortical RESPONSE to behaviour changes beyond pre-stroke drift, acutely AND
   chronically (FIRST RUN 10-23 night, PROVISIONAL; `wfield_local/allsession_encoder.py` at 2fc9fce, grouping v3, frozen
   push; `<E>/allsession_encoder_v7push/`).** Shared kernels + per-epoch kernel changes, scored on held-out sessions;
