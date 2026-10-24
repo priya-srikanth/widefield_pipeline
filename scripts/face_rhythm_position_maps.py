@@ -231,7 +231,7 @@ def main(argv=None) -> int:
                     ax.set_title(title_, fontsize=7 if stats else 9)
             if sc is not None:
                 fig.colorbar(sc, ax=axs, shrink=0.3, label="log2(epoch / pre)")
-            fig.suptitle(title)
+            fig.suptitle(title.replace(", per spout", ",\nper spout"), fontsize=11)   # long: two lines
             frf.save(fig, out / fn, f"""
 Per mesh point on the master face (image LEFT = CONTRALESIONAL on cam4, all lesions left; vertical line = the face
 midline, x = {mid:.0f}): log2(epoch / pre) of the point's RMS speed in the {a.window.upper()} window

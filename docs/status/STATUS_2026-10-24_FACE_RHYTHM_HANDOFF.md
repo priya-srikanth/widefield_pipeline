@@ -69,6 +69,11 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      (pre-existing right orofacial deficit).
    * Display order of per-spout rows = close ipsi / centre / contra, far ipsi / centre / contra
      (`common.POSITIONS_DISPLAY`); "response speed" = movement speed of each face point in cue 0..+4 s (titles say so).
+   * NEXT for the results page (Priya's conventions via the encoding window, 10-24): clickable hidable left-panel table
+     of contents; every figure numbered (Fig 1, 2b, ...) in caption and contents; each section tagged neural vs
+     behaviour (FR = behaviour); captions say how to read the figure + headline numbers; per-animal results first, then
+     within-animal-normalised pooled results with stats. Template: docs/templates/ (copy its CSS, #tocbtn / #toc markup
+     and bottom script); example https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Page is at v7.
    * Open: early-vs-late pre-day halves as a stricter shape floor (8 O2 tasks, not set up); per-bout timing of
      lick_right; split `face_rhythm_factors.py` (2c step 5); per_lick_by_epoch.png keeps old line styles until a full
      `lick_epochs` run.
