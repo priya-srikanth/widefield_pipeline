@@ -133,7 +133,11 @@ deciding analysis.
 > - subacute: MIXED -- target ahead 2/4 per window, different animals (cue PS94 9.8 vs 6.6, PS95 6.6 vs 0.1; PS93
 >   executed ahead 2.4 vs 10.9; PS92 tied; lick PS92 10.7 vs 3.4, PS93 14.0 vs 10.9; PS94 tied; PS95 ~0); fewest
 >   sessions (2 / 3 / 5 / 7), behaviour recovering.
-> - pre: no target lead (both small). Bin width 0.5: same pattern. Width 2 pending.
+> - pre: no target lead (both small).
+> - **Softmax width sweep (0.5 / 1 / 2):** chronic target > executed 4/4 at 0.5 and 1 in both windows, 3/4 at 2 (PS94
+>   ties: lick 14.1 vs 15.9, cue 18.4 vs 19.4); acute lick target ahead 4/4 at 0.5, 3/4 at 1, 2/4 at 2 (PS92, PS95). The
+>   executed set gains as the bins widen (a wide soft bin smears each lick over neighbouring spouts, so it overlaps the
+>   target categories more): the chronic lead holds across the sweep, the acute lead is width-dependent.
 > - What the acute licks are: failed far-contra licks land in the far-mid / far-ipsi executed bins (e.g. PS95_0817 soft
 >   weights far mid .48, far ipsi .42, far contra .001) -- the dissociation the contest exploits. Caveat as 2.5:
 >   "target" = spout location (touch, posture, context), not intention alone.
