@@ -12,14 +12,14 @@ from .fit import cmd_build, cmd_fit, cmd_select
 from .o2 import cmd_plan
 from .project import cmd_project
 from .report import cmd_report
-from .validate import cmd_fitepoch, cmd_fitsession, cmd_loso, cmd_splithalf
+from .validate import cmd_fitcohort, cmd_fitepoch, cmd_fitsession, cmd_loso, cmd_splithalf
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=sys.modules[__package__].__doc__,      # the package docstring: stages
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["plan", "build", "fit", "loso", "splithalf", "select", "project", "fitsession",
-                                    "fitepoch", "report"])
+                                    "fitepoch", "fitcohort", "report"])
     ap.add_argument("--bundle", default="fr_cam4_20261021")
     ap.add_argument("--set", default="master_pre_v1")
     ap.add_argument("--dir", type=Path, default=None, help="factor-set folder (default: this file's folder on O2, "
@@ -65,6 +65,8 @@ def main(argv=None) -> int:
     ap.add_argument("--own-dir", default="own", help="fitsession: output folder in the set (own8 = 8-start rerun, 10-24)")
     ap.add_argument("--epoch-rows", type=int, default=11000,
                     help="fitepoch: rows per pooled animal x epoch fit (~2 sessions; equal for every fit)")
+    ap.add_argument("--cohort-rows", type=int, default=5500,
+                    help="fitcohort: rows PER ANIMAL in a cohort / leave-one-animal-out epoch fit")
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         cmd_plan(a.bundle, a.set, a.trials_per_animal, a.session_trials, a.between_frac, a.seed, a.ranks, a.inits,
@@ -79,13 +81,14 @@ def main(argv=None) -> int:
             from wfield_local import o2_inference as oi
             from wfield_local.paths import PathResolver
             sd = oi.bundle_dir(PathResolver(), a.bundle) / "factors" / a.set
-    task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "fitepoch", "loso") else None)
+    task = a.task or (int(os.environ["SLURM_ARRAY_TASK_ID"]) if a.cmd in ("project", "fitsession", "fitepoch", "fitcohort", "loso") else None)
     if a.cmd == "project" and a.loso_basis:
         cmd_project(sd, task, loso=True)
         return 0
     {"build": lambda: cmd_build(sd), "fit": lambda: cmd_fit(sd, a.rank, not a.no_loao), "select": lambda: cmd_select(sd, a.rank),
      "project": lambda: cmd_project(sd, task),
-     "fitepoch": lambda: cmd_fitepoch(sd, task, a.own_inits, a.epoch_rows), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits, a.own_dir),
+     "fitepoch": lambda: cmd_fitepoch(sd, task, a.own_inits, a.epoch_rows),
+     "fitcohort": lambda: cmd_fitcohort(sd, task, a.own_inits, a.cohort_rows), "fitsession": lambda: cmd_fitsession(sd, task, a.own_inits, a.own_dir),
      "loso": lambda: cmd_loso(sd, task), "splithalf": lambda: cmd_splithalf(sd, a.rank, a.split_inits),
      "report": lambda: cmd_report(sd, a.face, a.absolute, a.match)}[a.cmd]()
     return 0

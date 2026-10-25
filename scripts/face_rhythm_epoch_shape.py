@@ -34,6 +34,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from wfield_local.face_rhythm import common as frc  # noqa: E402
 
 GROUPS = ("preA", "preB", "pre", "acute", "subacute", "chronic")
+# A fit whose Hungarian-matched column is this unlike the master factor did not recover that factor (Priya 10-25:
+# "PS95's lick L subacute is wrong" -- matched cos .35; its lick_left content is split over three own factors, best
+# single column .74). Such a cell is dropped from every loading / asymmetry / template / angle readout, not re-matched.
+MIN_COS = 0.5
 
 
 def deg(c):
@@ -59,9 +63,10 @@ def compute(fdir: Path) -> pd.DataFrame:
         P = fm.pairwise(fits, A_ref, B_ref)                      # every pair, aligned to the master's factor order
         cos = {(r.key_a, r.key_b, r.factor): (r.cos_spatial, r.cos_spectral) for r in P.itertuples()}
         get = lambda a, b, k, cos=cos: cos.get((a, b, k), cos.get((b, a, k), (np.nan, np.nan)))  # noqa: E731
-        asym = {}
+        asym, mcos = {}, {}
         for g, (A, _B) in fits.items():                          # loading asymmetry on the master-aligned columns
-            order = fm.match(A_ref, B_ref, *fits[g])["order"]
+            mm = fm.match(A_ref, B_ref, *fits[g])
+            order, mcos[g] = mm["order"], mm["cos_spatial"]
             a = fm.loading_asymmetry(A, home, mid)
             asym[g] = np.array([a[o] if o >= 0 else np.nan for o in order])
         R = A_ref.shape[1]
@@ -71,7 +76,8 @@ def compute(fdir: Path) -> pd.DataFrame:
                 if ep not in fits:
                     continue
                 ca, cb = get(ep, "preA", k), get(ep, "preB", k)
-                row = {"animal": an, "epoch": ep, "factor": k, "n_rows": nrow[ep]}
+                row = {"animal": an, "epoch": ep, "factor": k, "n_rows": nrow[ep],
+                       "cos_master": float(min(mcos[ep][k], mcos["preA"][k], mcos["preB"][k]))}
                 for i, mode in enumerate(("spatial", "spectral")):
                     fa, ea, eb = deg(fl[i]), deg(ca[i]), deg(cb[i])
                     row.update({f"floor_{mode}": fa, f"angle_{mode}": (ea + eb) / 2,
@@ -121,9 +127,12 @@ def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
                 continue
             z = np.load(f)
             A, B = z["A_own"].astype(float), z["B_own"].astype(float)
-            order = fm.match(A_ref, B_ref, A, B)["order"]
+            mm = fm.match(A_ref, B_ref, A, B)
+            order = mm["order"]
             mag = fm.spatial_view(A, "magnitude")
             for k in ks:
+                if mm["cos_spatial"][k] < MIN_COS:               # factor not recovered in this fit: leave the cell out
+                    continue
                 v = mag[:, order[k]]
                 v = v / v.sum()
                 out["loading"][(an, g, k)] = v
@@ -249,7 +258,7 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
                     rows.append(dict(factor=names[k], epoch=c, n_animals=P.shape[0], ringed=int(ring.sum()),
                                      ringed_more=int((ring & (m > 0)).sum()), ringed_less=int((ring & (m < 0)).sum()),
                                      n_points=len(m)))
-                    ttl = f"{names[k]}: {c}\n{ring.sum()} pts >= 3/4 (+{int((ring & (m > 0)).sum())} / " \
+                    ttl = f"{names[k]}: {c}\n{ring.sum()} pts >= 3/{P.shape[0]} (+{int((ring & (m > 0)).sum())} / " \
                           f"-{int((ring & (m < 0)).sum())})"
                 else:
                     ttl = f"{names[k]}: preA - preB (noise)"
@@ -279,6 +288,8 @@ def pooled_summary_figures(T: pd.DataFrame, D: dict, names: list[str], out: Path
     from wfield_local import face_rhythm_figures as frf
     acol, ecol = frc.animal_colors(), frc.epoch_colors()
     animals = sorted(T.animal.unique())
+    if "cos_master" in T:                                   # cells whose factor the fit did not recover (MIN_COS)
+        T = T[T.cos_master >= MIN_COS]
     T = T.assign(ratio_spatial=T.angle_spatial / T.floor_spatial, ratio_spectral=T.angle_spectral / T.floor_spectral)
     eps = list(frc.POST_EPOCHS)
     rows = []

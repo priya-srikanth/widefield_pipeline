@@ -144,6 +144,65 @@ def epoch_fit_tasks(pl: dict) -> list[tuple[str, str, list[str]]]:
     return out
 
 
+def cohort_fit_tasks(pl: dict) -> list[tuple[str, str, dict[str, list[str]]]]:
+    """[(tag, group, {animal: task keys})]: the COHORT (all animals) and each leave-one-animal-out set (``LOAO-<animal>``)
+    x EPOCH_GROUPS, in a fixed order; array task n = row n - 1 (5 sets x 6 groups = 30 for four animals). The groups
+    per animal are exactly `epoch_fit_tasks`' (preA / preB = that animal's alternating pre days)."""
+    per: dict[str, dict[str, list[str]]] = {}
+    for an, g, keys in epoch_fit_tasks(pl):
+        per.setdefault(an, {})[g] = keys
+    animals = sorted(per)
+    sets = [("COHORT", animals)] + [(f"LOAO-{an}", [a for a in animals if a != an]) for an in animals]
+    return [(tag, g, {a: per[a][g] for a in use}) for tag, use in sets for g in EPOCH_GROUPS]
+
+
+def cmd_fitcohort(sd: Path, task: int, inits: int = 8, rows_per_animal: int = 5500,
+                  own_dir: str = "own_epoch_cohort") -> None:
+    """ONE own fit per EPOCH on all animals pooled (Priya 10-25: "shouldn't we just do a pooled animal per epoch fit?"),
+    plus the leave-one-animal-out fits that show a result is not one animal's. Why: the per-animal x epoch fits split /
+    merge the lick factors (PS95 subacute: lick_left spread over three own factors, best single column .74), and 16
+    Hungarian matches per readout are 16 chances to mis-assign; the master itself is a cohort fit. Rows: the same
+    ``rows_per_animal`` from every animal (drawn evenly over its sessions in the group, as `cmd_fitepoch`), each animal
+    divided by ITS OWN scale (the master's normalisation), so no animal dominates; PS95 acute (1 session) gives what it
+    has. preA / preB = every animal's alternating pre-day halves pooled -> their angle is the cohort noise floor."""
+    pl = load_plan(sd)
+    tag, g, by_animal = cohort_fit_tasks(pl)[task - 1]
+    dst = sd / own_dir / f"{tag}_{g}.npz"
+    if dst.exists():
+        print("done already", dst)
+        return
+    A, B, scales, M = load_master(sd)
+    R = A.shape[1]
+    t0 = time.time()
+    rng = np.random.default_rng(zlib.crc32(f"{tag}_{g}".encode()))
+    parts, rows_of = [], {}
+    for an in sorted(by_animal):
+        keys = by_animal[an]
+        per = rows_per_animal // max(len(keys), 1)
+        n0 = sum(len(p) for p in parts)
+        for k in keys:
+            x = gather_rows(sd, pl["session_rows"][k])[0]
+            parts.append(x[np.sort(rng.choice(len(x), min(per, len(x)), replace=False))] / float(scales[an]))
+            del x
+        rows_of[an] = sum(len(p) for p in parts) - n0
+    X = np.concatenate(parts)
+    del parts
+    _, Ef, N2 = project_rows(X, A, B)
+    fits = [ncp_hals(X, R, seed=zlib.crc32(f"{tag}_{g}".encode()) + k, n_iter=pl["params"]["n_iter"])
+            for k in range(inits)]
+    f = fits[int(np.argmin([x["rel_err"] for x in fits]))]
+    order, cos = match([A, B], [f["A"], f["B"]])
+    keys_all = [k for an in sorted(by_animal) for k in by_animal[an]]
+    _atomic_savez(dst, A_own=f["A"][:, order].astype(np.float32), B_own=f["B"][:, order].astype(np.float32),
+                  evr_own=1 - f["rel_err"] ** 2, evr_frozen=pooled_evr(Ef, N2), cos_spatial=cos[0],
+                  cos_spectral=cos[1], rel_errs_own=np.array([x["rel_err"] for x in fits]), n_rows=len(X),
+                  rows_per_animal=np.array([rows_of[a] for a in sorted(rows_of)]), animals=np.array(sorted(rows_of)),
+                  keys=np.array(keys_all), spec_hash=str(M["spec_hash"]), animal=tag, group=g)
+    print(f"{tag} {g} ({', '.join(f'{a} {n}' for a, n in sorted(rows_of.items()))} rows): EVR own "
+          f"{1 - f['rel_err'] ** 2:.3f} vs frozen {pooled_evr(Ef, N2):.3f}; cosine to master spatial {cos[0].mean():.3f} "
+          f"spectral {cos[1].mean():.3f}; {(time.time() - t0) / 60:.1f} min")
+
+
 def cmd_fitepoch(sd: Path, task: int, inits: int = 8, n_rows: int = 11000, own_dir: str = "own_epoch") -> None:
     """ONE own fit per animal x epoch on that epoch's sessions pooled (Priya 10-24: per-session own fits are too noisy to
     read factor shape -- pre own-vs-master angles 10-50 deg). Every fit gets the SAME number of rows (``n_rows``, ~2

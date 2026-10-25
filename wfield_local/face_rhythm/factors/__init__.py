@@ -96,7 +96,7 @@ from .sample import (
 )
 from .fit import cmd_build, build_points_pca, cmd_fit, spec_hash, cmd_select
 from .project import task_basis, window_labels, ClassMeans, window_power, window_speed, points_stream, cmd_project
-from .validate import cmd_splithalf, cmd_loso, cmd_fitsession, epoch_fit_tasks, cmd_fitepoch
+from .validate import cmd_splithalf, cmd_loso, cmd_fitsession, epoch_fit_tasks, cmd_fitepoch, cohort_fit_tasks, cmd_fitcohort
 from .o2 import LIB, cmd_plan, deploy_code
 from .report import direction_colours, position_style, cmd_report
 from .cli import main
@@ -109,5 +109,5 @@ __all__ = [
     "even_draw", "draw_rows", "gather_rows", "spec_of", "session_group", "cmd_build", "build_points_pca", "cmd_fit",
     "spec_hash", "cmd_select", "task_basis", "window_labels", "ClassMeans", "window_power", "window_speed",
     "points_stream", "cmd_project", "cmd_splithalf", "cmd_loso", "cmd_fitsession", "epoch_fit_tasks",
-    "cmd_fitepoch", "LIB", "cmd_plan", "deploy_code", "direction_colours", "position_style", "cmd_report", "main",
+    "cmd_fitepoch", "cohort_fit_tasks", "cmd_fitcohort", "LIB", "cmd_plan", "deploy_code", "direction_colours", "position_style", "cmd_report", "main",
 ]
