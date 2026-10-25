@@ -1159,6 +1159,10 @@ cells are many; per-animal numbers on the page.
   contra SSp-m +0.054 / +0.059 chronic 4/4; task unique self chronic +0.020-0.025 SSp-m. => the refit chronic target gain
   (8.6) reappears in the frozen windows when weights are refit: the frozen "not reproduced" is a frame effect. Target
   information persists chronically in a remapped pattern.
+- Area maps (`session_vs_frozen.py --maps`, `session_vs_frozen/figures/remap_area_maps_<w>.png`, Bonferroni over 41
+  areas): full model 27 / 36 areas acute, 40 / 40 chronic (cue / lick, all up). WHAT is remapped changes: acutely the
+  movement / FR columns (broad, individually n.s.); chronically spout unique 35 / 38 areas, target 13 / 18, task 10 / 11,
+  movement ~0 -- chronic remapping is of the spout / target code, cortex-wide (not only orofacial).
 - Free push (`_v7pushfree` vs `_v7fwd15`, older no-FR base; specificity_control on both): cue residual unchanged; lick
   window chronic control residual halves (+1.03 -> +0.52 pre-SD), orofacial contra +2.12 -> +1.83, orofacial - control
   +0.69 (3/4) -> +0.92 (4/4). Pushes explain part of the cortex-wide lick-window residual; the orofacial residual stays.
