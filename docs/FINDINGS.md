@@ -85,7 +85,8 @@ Checked by 5b 10-25.*
 
 *Extracted 10-25 by d4 from PRELIM_DATA_VLS_STROKE (09-26 render), BEHAVIOURAL_STATE_CONTROL, WHERE_THE_CODE_MOVES,
 STATUS_2026-10-07, REST_ENGAGEMENT_AUDIT and DECISIONS, with 5b's 10-24 per-animal recheck (imaging page
-https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV). **Owner to confirm: 5b reviews / corrects.** Imaging decode keeps its
+https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV). **Reviewed 10-25 by 5b**, with e3's 10-25 per-animal / October /
+mixed-model re-runs folded in. Imaging decode keeps its
 default (June + August) baseline; an August-only rerun confirms the acute numbers (DECISIONS 10-18).*
 
 **Caveat that qualifies several older claims: "no cortex is damaged" is CORRECTED.** BEHAVIOURAL_STATE_CONTROL, PRELIM,
@@ -101,16 +102,21 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    `epoch_13n_state_vs_position_cue.csv`): position .863 -> .428 / .696 / .761 (acute / subacute / chronic), state
    .976 -> .872 / .820 / .838, running alone ~.97. State DOES fall (acute -.069, Bonferroni interval excludes 0); the
    claim is the RATIO (~5x). **STANDS**; the state numbers in BEHAVIOURAL_STATE_CONTROL / VLS_STROKE_SYNTHESIS
-   (.917 -> .812, .982 -> .918, .902) are **CORRECTED** to these.
+   (.917 -> .812, .982 -> .918, .902) are **CORRECTED** to these. **Per animal (10-25, CORRECTED reading):** the cohort
+   state drop is PS94 alone (above chance .978 -> .747 / .577 / .447); PS92 / PS93 / PS95 lose only .01-.09 (chronic
+   .873 / .951 / .960), so state is nearly intact in 3 / 4 and the specificity claim is stronger there.
 3. **The frozen decoder is NOT back at recovery, but that gap is within two months of no-stroke drift.** Deficit at
    behavioural recovery F(0) +.083, only PS92 recovered; refit-over-frozen G > 0 in 4 / 4 but a healthy mouse already
    shows G +.05-.10 (DECISIONS 09-12, 10-23). June -> August no-stroke drift group (5b, 10-24,
    `scripts/june_august_drift.py`): frozen-decoder deficit / refit gain June -> Aug vs Aug -> chronic .13 / .09 vs
    .03 / .11, .28 / .16 vs .09 / .21, .17 / .18 vs .18 / .20, .18 / .18 vs .11 / .11 -> not beyond drift (3 / 4).
    "Chronic reorganisation" (PRELIM §3, H5) is **CORRECTED -> NOT ESTABLISHED**; "decoder back" **CORRECTED**.
+   October sessions now included (10-25 re-render; the 10-07 table had dropped 2 chronic sessions / animal): frozen
+   chronic level / pre 1.04 / .85 / .83 / .90, flat 4 / 4; G still rising in 3 / 4 (mixed-model log-day slope +.030,
+   z 4.5) but does not track behaviour (q .16) -- drift-sized per the June -> August group.
 4. **Cortical position-coding gain follows behaviour, lagging ~1 week, not practice.** 3 / 4 (not PS94). **STANDS**
    (DECISIONS 10-19). Plateau by the end of imaging in every decode / encoder readout, 4 / 4 (STATUS 10-07, F18);
-   caveat: the October decoder rerun after the `_day` fix (660bcbe) is still listed as outstanding.
+   the October decoder rerun after the `_day` fix (660bcbe) was DONE 10-25 (e3): verdicts unchanged.
 5. **Acute map loss graded by eccentricity, far contra largest.** Rest-referenced (15r REST / RESTW, engagement-gated)
    far-contra acute amplitude / pre .50 / .45 / .53 / .40 (4 / 4); chronic .90 / .98 / .60 / 1.12. **STANDS**; the
    09-12 QUIET / MEAN amplitude tables in WHERE_THE_CODE_MOVES are **CORRECTED** (superseded by 15r).
@@ -132,8 +138,18 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    the same acute dip" **WITHDRAWN** (DECISIONS 09-15).
 10. **Pre-cue (ENL) position code: no consistent acute loss** (up PS92 / PS95, down PS93 / PS94; the slow band accounts
     for PS93's drop). Coding-direction leave-one-out: held-out far-contra pre-cue projection drops acutely 3 / 4 (not
-    PS94), **PROVISIONAL** (LMM tables need the rebuilt attempts table).
+    PS94), **PROVISIONAL**. Mixed model re-run 10-25 on the rebuilt attempts table: step at the stroke -.53 (z -3.0,
+    q .019), but it NO LONGER tracks the time-to-contact deficit (q .25; was .023 on the old table; contact deficit
+    q .050, borderline).
 11. **Haemodynamics: CLOSED** (the data cannot answer it; no evidence of changed 415 / 470 coupling).
+12. **The pre-stroke spatial template (simple position encoder, family 11): amplitude falls in 4 / 4 but returns in only
+    2 / 4; its shape stays off in 4 / 4.** Per animal amplitude a pre -> chronic .96 -> 1.19, .96 -> .84, .93 -> .68,
+    .91 -> .73; variance captured below pre chronically 4 / 4 (.45 / .38 / .47 / .24 vs .71 / .73 / .66 / .56). "Amplitude
+    fully returns" (the pooled 09-10 three-animal number .749 -> .745) is **CORRECTED**; the shape claim **STANDS**.
+13. **Session mixed models (re-run 10-25 on the rebuilt attempts table, `scripts/imaging_lmm.py`, both deficit
+    definitions):** every decoder / template readout steps down at the stroke, recovers with log(days) and tracks the
+    behavioural deficit session by session (frozen -.040 / unit, z -3.2; template amplitude z -8.7; best-match z -7.6).
+    Position-coding ceiling vs deficit is NOW significant (z -4.0; was q .080). **STANDS**. Imaging page section 13.
 
 ## 4. Encoding model and the goal question
 
