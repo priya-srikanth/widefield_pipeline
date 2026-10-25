@@ -9,6 +9,42 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000x. STATE 10-25 ~18:00 (pre-compaction) -- READ FIRST (then 000w, 000v, 000u)
+
+Page v68 (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; source `S/goal_page/index.html`, S = `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`). New today
+(after 000w): self-fit vs frozen (8.12: refit target gain is a FRAME effect -> target remapped), remapping maps + per-animal
++ time course (8.13: spout/target remap cortex-wide, smooth with time; task remap orofacial-specific), PETH vs trial maps
++ Musall alone layout + kernel beta maps, Allen-ROI Fig 10 family (10h-j), free push on current frame (8.12), "control" ->
+non-orofacial comparison set (wording everywhere), PS94 dominance caveat (FINDINGS 4.12b). FINDINGS section 0 = synthesis.
+Priya rules today: canonical spout order everywhere (memory canonical-spout-order); no vessel mask; white halo under
+significance outlines; first-lick window primary (narrow every-lick window = secondary, Priya to confirm); gain correction
+dropped; no "control areas" as a null.
+
+**RUNNING at ~18:00 (worktree wf_attempt):**
+- partial refit (`scripts/partial_refit.py`, S/run_partial.sh, log S/partial_full.log): refit ONLY target / exec / exec+FR
+  dir / target+exec / target+exec+FR / target with shifted labels (null), per session, frozen everything else; per-spout
+  scores (check 5) included. 24/107 at 17:50. Then: summarise (prints per animal + boot + by-spout), page figure.
+- free push current frame chain (S/run_frA_pushfree.sh, log S/frA_pushfree_chain.log): frozen + spec done; residual_roi +
+  matched residual finishing.
+- `scripts/state_spout_check.py` (log S/state_spout.log): PS94 dominance check (state x spout eta2 + tracking).
+- `scripts/spout_unique_maps.py` (logs S/spout_unique*.log): per-spout target vs executed unique maps (levels / changes /
+  per animal with own colour bars + within-animal tests); builds a cache then redraws.
+- halo redraw chain (b4f92tuv8): spec / remap figure redraws with haloed outlines.
+
+**QUEUED / NEXT (Priya approved):**
+1. Per-spout LICK kernels in the FROZEN model (env-gated in frozen_encoder.py -- edit only when no run imports it):
+   replace lick_onset spl/dev by 6 per-spout copies (by TARGET spout; optionally by EXECUTED landing bin = lick-locked
+   contest); + per-VARIABLE drop variants for Musall's bottom-row single-variable unique dR2 maps (cue, arrival, target,
+   lick onset, contact, exec angle, tongue, jaw, nose, running, FR lick / right / left / other). Areas + basis runs.
+2. Per-epoch pooled PIXEL kernel fits (early pre / late pre / acute / subacute / chronic, matched sessions) -> target and
+   per-spout lick kernels pre vs post (map correlation per lag; early vs late pre as drift reference).
+3. Self-fit + partial refit with the per-spout-lick design; check 4 (no-FR self-fit).
+4. Pixel-resolution PETH vs trial pass (basis); per-spout data / prediction / residual activity maps (quick, from saved
+   evoked).
+5. Narrow every-lick window second pass (both frames) + design-space distance diagnostic.
+6. Older: noise-weighted relabel; failed-attempt movement-matched control; encoding_mixed re-run; share deletions / nokin
+   retirement only when Priya decides.
+
 ## 000w. STATE 10-25 ~15:45 -- READ FIRST (then 000v)
 
 Priya: "do analyses 1, queue up 2 and 4"; "keep where we stand in the repo" -> FINDINGS section 0 (synthesis, revised).

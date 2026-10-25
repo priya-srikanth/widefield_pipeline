@@ -1150,6 +1150,39 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.13 PETH vs trial-by-trial maps, Musall layouts, kernels, remapping time course, PS94 dominance (10-25 evening) -- PROVISIONAL
+
+- PETH vs TRIAL-BY-TRIAL by Allen area (`scripts/frozen_peth_trial_maps.py`, frozen + FR, page Figs 1t / 1u; no-FR 1uf):
+  pre-stroke task / spout unique live in the PETH, movement / FR unique in single trials (Musall's split). Post-stroke the
+  change is in the PETH: full-model PETH R2 down 30 / 29 areas (acute / chronic, lick, 0 up), task-unique PETH down 16
+  chronic; trial-by-trial maps barely move (chronic FR-unique +0.02 SSp-m both sides, movement-unique +0.058 contra SSp-m,
+  4/4). Interpretation: the frozen model still tracks moment-to-moment movement coupling; the stroke changes the
+  task-locked per-spout average. ALONE models (`--alone`, Musall et al. 2019 top-row layout; Figs 1ua / 1ua2): task /
+  spout alone PETH ~0.6-0.8 pre; post full / task / spout PETH fall acutely (30 / 15 / 16), full / task stay down
+  chronically; single-trial: acute RISE of lick alone (38 areas) and spout alone (26).
+- EVENT-KERNEL beta maps (`scripts/frozen_kernel_maps.py`, frozen pixel fits, Figs 1ub / 1uc; no vessel mask -- Priya: too
+  much): target kernels of all six spouts (canonical order) = deviations from the shared cue kernel; dominant pattern =
+  distance / ease (close mid strongly positive bilateral lateral frontal / orofacial 0.3-1 s, far spouts negative) plus a
+  lateralised component (close contra -> LEFT lateral cortex, close ipsi weak mirror). Ridge credit sharing; lick-onset /
+  contact kernels look venous.
+- REMAPPING maps + checks (`session_vs_frozen.py --maps`, `scripts/remap_checks.py`; Figs 1x / 1y / 1yb / 1yc): per animal
+  >= 3/4 agree in all 41 areas (chronic full / target / spout). Time course: FULL model steps up at day 1 (+0.06, z 4);
+  SPOUT / TARGET unique have NO step but rise smoothly with log day (z 3-6.4), equally in non-orofacial areas, larger in
+  better-behaving sessions -> cortex-wide (stroke-related or drift: undecided); TASK unique rises in orofacial cortex
+  (z 3.1) but not in non-orofacial areas (z 0.2) -- the orofacial-specific part.
+- "CONTROL" WORDING (Priya): visual / retrosplenial / trunk SSp = non-orofacial COMPARISON set, not a null.
+- PS94 DOMINANCE: pre target-unique R2 contra SSp-m (cue PETH / lick frame) PS92 .004 / .022, PS93 .024 / .020, PS94 .37 /
+  .16, PS95 .029 / .004 -> mean target maps are largely PS94's (tests count animals). Per-spout target unique ~0 in PS93
+  (close spouts ~1e-6..4e-4). R2 is already normalised per area / pixel, so not a data-scale issue; candidates = block-
+  aligned state (positions in ~6-trial blocks; PS94 high running / pushing, lowest full R2), weaker movement regressors,
+  or real tuning. RUNNING: `scripts/state_spout_check.py` (state x spout eta2 within / systematic vs circular-shift null;
+  tracking quality). Per-spout target vs executed unique maps with animal-normalised means + per-animal panels / tests:
+  `scripts/spout_unique_maps.py` (running; no-FR basis run only has drop-one-spout fits).
+- Allen-ROI versions of the residual pixel tests (`scripts/residual_roi.py`; Figs 10h / 10i / 10j): every significant area
+  an increase, 4/4; cue chronic SSp-m both sides only; lick chronic SSp-m both + contra SSp-n / MOp / SSp-un / MOs + contra
+  VISam / VISrl; far contra chronic lick SSp-m both + contra SSp-n / MOp / MOs / VISam.
+- Free push on the current frame: see 8.12 (lick-window non-orofacial residual -40 %, cue unchanged).
+
 ### 8.12 Per-session self-fit vs frozen (remapping; resolves the scoring caveat) and free push (10-25 late) -- PROVISIONAL
 
 - `scripts/session_vs_frozen.py` (frA frame; `frozen_encoder_gate-attempted_v7g3_t3d_frA/session_vs_frozen/`): each session
