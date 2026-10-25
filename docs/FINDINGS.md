@@ -467,7 +467,14 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     so their floor (3-8 deg) leaves out across-day drift and nearly every factor is "beyond" it -- read lick_right against
     the other factors (it alone does not come back), and the early-vs-late-pre drift floor is still owed; best-match
     pairing gives sniff_prelick / nose_prelick_slow and nose_steps / lick_far_nose one shared cohort factor each (those
-    pairs not separately recovered). **PROVISIONAL**.
+    pairs not separately recovered). **PROVISIONAL**. SIGNIFICANCE (jackknife over animals from the LOAO fits, t with
+    3 df -- the only cross-animal test without refitting): NOTHING SURVIVES CORRECTION. Spout-template r changes (FR page
+    Fig 7): uncorrected p .02-.05 in 5 of 36 cells, all q >= .17 (BH over 6 spouts x 3 epochs per factor). Per-point loading
+    (Fig 7b): lick_right 80 / 286 / 217 points p < .05 against 64 expected, 0 at q < .10 (BH over 1,282); lick_left acute
+    292, q < .10 at 5 points. One number per factor (side-specificity = mean r with own-side spouts minus other side):
+    lick_right -.38 / -.33 / -.47 (p .19 / .07 / .07), lick_left -.43 acute (p .04), then -.10 / -.07 (n.s.). LOAO fits
+    share 3 / 4 of their data, so 4 / 4 same sign is NOT independent evidence. A powered test needs a session-level null:
+    refits on session-shuffled epoch labels within animal (O2).
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).
