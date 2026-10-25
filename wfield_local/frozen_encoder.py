@@ -175,19 +175,37 @@ def _fr_vars() -> dict:
 
 
 FR_VARS = _fr_vars()
+#: FR SPOUT-LOCKED SPLIT (Priya 10-25: "can we group by lick position information vs no lick position information across
+#: FR and kinematics?"). FROZEN_FR_SPLIT=1 splits every FR column like the pose columns (SPLIT_VARS): s = the animal's
+#: pre-stroke spout-locked template, d = the deviation. Without it the FR lick sum counts as "directionless" although
+#: its spout-locked amplitude differs by spout. Groups then: fr_locked (all FR s parts, position information), fr_dir
+#: (side / distance d parts), fr (lick sum + other d parts, no position information).
+FR_SPLIT = bool(FR_VARS) and os.environ.get("FROZEN_FR_SPLIT", "") in ("1", "true", "yes")
 if FR_VARS:
-    _frg = tuple(g for g in ("fr", "fr_dir") if g in FR_VARS.values())
-    FGROUP.update(FR_VARS)
+    if FR_SPLIT:
+        _frmap = {**{f"{v}:spl": "fr_locked" for v in FR_VARS}, **{f"{v}:dev": g for v, g in FR_VARS.items()}}
+        SPLIT_VARS = (*SPLIT_VARS, *FR_VARS)
+    else:
+        _frmap = dict(FR_VARS)
+    _frg = tuple(g for g in ("fr_locked", "fr", "fr_dir") if g in _frmap.values())
+    FGROUP.update(_frmap)
     FGROUPS = (*FGROUPS, *_frg)
     SUPER["movement"] = (*SUPER["movement"], *_frg)
     SUPER["nontask"] = (*SUPER["nontask"], *_frg)
     if len(_frg) > 1:
         SUPER["fr_all"] = _frg
-    FPEN.update({v: "fr" for v in FR_VARS})
+    FPEN.update({v: "fr" for v in _frmap})
+    #: LICK-POSITION INFORMATION across pose AND FR (Priya 10-25): posinfo = everything that carries where the lick goes
+    #: (pose spout-locked parts + pose direction deviations / executed angle + FR spout-locked parts + FR side / distance);
+    #: noposinfo = movement without it (pose lick timing / speed / opening deviations, nose, running + FR lick sum / other
+    #: deviations). Contact and the task groups are in neither. Without FROZEN_FR_SPLIT the FR lick sum sits in noposinfo
+    #: with its spout-locked part (approximate).
+    SUPER["posinfo"] = ("exec_locked", "exec_within", *(g for g in ("fr_locked", "fr_dir") if g in _frg))
+    SUPER["noposinfo"] = ("lick", "other", *(g for g in ("fr",) if g in _frg))
 
 
-def _fr_columns(animal: str, date: str, rv, ft: np.ndarray, ridx: np.ndarray) -> dict:
-    """{FR variable: (n_rows, 1) raw column on the trial rows} in FR_VARS order (NaN = blanked)."""
+def _fr_columns(animal: str, date: str, rv, ft: np.ndarray) -> dict:
+    """{FR variable: (n_frames, 1) raw column on every imaging frame} in FR_VARS order (NaN = blanked)."""
     ce = _ce()
     from wfield_local import face_rhythm_outputs as fro
     fr_set = os.environ["COMBINED_ENCODING_FR"]
@@ -195,7 +213,7 @@ def _fr_columns(animal: str, date: str, rv, ft: np.ndarray, ridx: np.ndarray) ->
     missing = [v for v in FR_VARS if v not in sig]
     if missing:
         raise ValueError(f"FaceRhythm {fr_set}: grouped traces {missing} missing (got {list(sig)})")
-    return {v: np.asarray(sig[v][1], float)[ridx][:, None] for v in FR_VARS}
+    return {v: np.asarray(sig[v][1], float)[:, None] for v in FR_VARS}
 
 
 def split_blocks(raw: dict) -> dict:
@@ -360,6 +378,8 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     else:
         raw = split_blocks(ce.raw_blocks(B, ft))
         pos_split = pos_of
+    if FR_VARS:                                          # FaceRhythm columns (FROZEN_FR); split like pose if FR_SPLIT
+        raw.update(_fr_columns(animal, date, rv, ft))
     xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}
     if template_only:
         run0 = np.abs(raw["running"][ridx, 0].astype(np.float64))         # lag-0 |speed| on trial frames (RUN_CAP_Q)
@@ -379,8 +399,6 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
                       else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
         Ms[v] = M
         parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_split, k_of, pos_order, M)
-    if FR_VARS:
-        parts.update(_fr_columns(animal, date, rv, ft, ridx))
     vars_ = [v for v in FGROUP if v != "push" or _push_on()]
     blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
     X = np.hstack(blocks)
@@ -567,7 +585,8 @@ def _run_tag() -> str:
     """Running-model tag stored with the saved statistics (never reused across modes / knot overrides / push)."""
     return (_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")
             + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
-            + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else ""))
+            + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else "")
+            + ("|frsplit" if FR_SPLIT else ""))
 
 
 #: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
@@ -778,6 +797,7 @@ _DROP = {f"no_{g}": gs for g, gs in _GROUPSETS.items() if g != "nontask"}
 _DROP["no_contact_exec_within"] = ("contact", "exec_within")
 _ONLY = {"task_only": SUPER["task"], "lick_only": ("lick",), "spout_only": SUPER["spout"], "other_only": ("other",),
          "movement_only": SUPER["movement"]}
+_ONLY.update({f"{g}_only": SUPER[g] for g in ("posinfo", "noposinfo") if g in SUPER})   # FR runs (FR_VARS block)
 _ORDERED = {"target_first": (("target",), ("exec_locked", "exec_within")),     # (A, B): residualise B on A
             "exec_first": (("exec_locked", "exec_within"), ("target",)),
             "task_first": (SUPER["task"], SUPER["nontask"]),
