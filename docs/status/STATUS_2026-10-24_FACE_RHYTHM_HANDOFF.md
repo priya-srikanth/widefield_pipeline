@@ -56,6 +56,23 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+0a. **10-25 ~08:30 -- UPDATE (supersedes the OPEN list's item a and the cd_loo_pooled line below).**
+   * cd_loo_pooled switched to DIFFERENCE from each animal's own held-out pre (the ratio blew up where pre ~ 0); on the
+     imaging page as 9f-9k (5b). Map drift (`map_drift_prepre.py`) COMPLETE for contact / LP_licks / DAQ_ENL1s (output
+     folders are the writeguard tag names, not the arm names); results FINDINGS 3.14, on the imaging page section 7
+     (v20, nested window > reference > gate, every title "window . reference . gate"). Headline far-contra losses are
+     beyond drift everywhere; cue-window far-middle acute is NOT separable from drift; chronic far-middle PRE-CUE loss
+     IS beyond drift (new).
+   * FR: `scripts/fr_enl_decode.py` -- face (FR factors) decodes spout position in the lick-free pre-cue window (2 s
+     .43, .34 without the last 0.5 s; chance .17); acute far-contra recall to chance. FINDINGS 5.13, FACE_RHYTHM_FINDINGS
+     7, FR page section 6. NEXT here: cortical ENL decode with FR factors regressed out (is the cortical pre-cue code
+     face posture?), and a spout-in-mesh control for FR.
+   * Pages: Priya's standing rules (docs/templates/README.md + memory): windows always PRE-CUE, CUE, LICK; like figures
+     adjacent, nested window > reference > gate; collapsible sidebar per figure group. FR page (owner e3,
+     X8NDdQNHi3zMP77PBrZAC1, v12) built from `scratchpad/fr_page/index_reordered.html` + `toc_patch.py` (titles in
+     `titles.py`) -- that scratch dir is session-local; the published page is the source of truth (Artifact read).
+   * Still open from below: b (13b dimensions + composite), c onward.
+
 0. **10-25 LATE -- STATE NOW (before compaction): this window also took IMAGING-page work (Priya; page owner = 5b,
    https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, now v5; 5b republishes from numbers we send).** Done + on main:
    * Items 1 / 3 / 4 of the page's pending list (DECISIONS 2026-10-25 "Imaging page pending items"): decoder trajectory
