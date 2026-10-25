@@ -1175,8 +1175,13 @@ cells are many; per-animal numbers on the page.
   .16, PS95 .029 / .004 -> mean target maps are largely PS94's (tests count animals). Per-spout target unique ~0 in PS93
   (close spouts ~1e-6..4e-4). R2 is already normalised per area / pixel, so not a data-scale issue; candidates = block-
   aligned state (positions in ~6-trial blocks; PS94 high running / pushing, lowest full R2), weaker movement regressors,
-  or real tuning. RUNNING: `scripts/state_spout_check.py` (state x spout eta2 within / systematic vs circular-shift null;
-  tracking quality). Per-spout target vs executed unique maps with animal-normalised means + per-animal panels / tests:
+  or real tuning. CHECKED (`scripts/state_spout_check.py`, `qc/state_spout_check.csv` / `_tracking.csv`): post-cue
+  PUSHING is strongly spout-locked in EVERY animal (systematic eta2 .13-.17 vs shift null <= .005; running weakly, PS93 .05)
+  -- not specific to PS94 (.14), though PS94 pushes most (9 % of post-cue time vs 2-5 %); tracking not worse in PS94 (3-D
+  first lick 97.7 %, single-view 23 %). Free push barely changes PS94's target unique (cue PETH .176 -> .163; others
+  unchanged); FaceRhythm already halves it (.37 without FR -> .18). => not block-state, push or tracking; most likely
+  stronger spout-specific responses in PS94 (or an unmeasured spout-locked factor). Mean target maps must be animal-
+  normalised (the per-spout figures are). Per-spout target vs executed unique maps with animal-normalised means + per-animal panels / tests:
   `scripts/spout_unique_maps.py` (no-FR basis run; page Figs 1ud-1uh): animal-normalised (pre scales target .004-.036,
   executed .07-.18; PS94 highest). TARGET unique per spout changes little (chronic close ipsi up 16 bins; far spouts small
   decreases 2-7). EXECUTED unique changes ACUTELY and spout-specifically: far contra UP in ipsilesional lateral / frontal
