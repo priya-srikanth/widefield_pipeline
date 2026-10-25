@@ -139,37 +139,46 @@ def stats(T: pd.DataFrame, L: dict, seed: int = 0) -> tuple[pd.DataFrame, pd.Dat
 
 
 def map_figure(Mp: pd.DataFrame, scale: str, home: np.ndarray, out: Path, set_name: str) -> None:
-    """Per-point loading change maps (rows = lick factors, columns = post epochs), FDR-significant points ringed;
-    ``scale`` "raw" (loading fraction) or "z" (each animal's change / its own pre-session SD)."""
+    """Per-point loading change maps (rows = lick factors, columns = post epochs). Priya 10-25: direction must be
+    readable at significant points and panels comparable -> diverging RdBu_r (red = more loading after the stroke), ONE
+    colour scale for all six panels (98th percentile of |change| over all of them), FDR-significant points drawn full
+    size and opaque with a thin black edge, the rest small and faded. ``scale`` "raw" (loading fraction) or "z" (each
+    animal's change / its own pre-session SD)."""
     from wfield_local import face_rhythm_figures as frf
+    rows = {(r.factor, r.epoch): r for r in Mp[Mp.scale == scale].itertuples()}
+    lim = float(np.nanpercentile(np.abs(np.concatenate([r.obs for r in rows.values()])), 98)) if rows else 1.0
     with frf.style():
         fig, axs = frf.subplots(2, 3, figsize=(12.5, 7.2), squeeze=False)
+        sc = None
         for r_i, nm in enumerate(FACTORS):
             for c_i, ep in enumerate(frc.POST_EPOCHS):
                 ax = axs[r_i, c_i]
-                row = Mp[(Mp.factor == nm) & (Mp.epoch == ep) & (Mp.scale == scale)]
-                if not len(row):
+                if (nm, ep) not in rows:
                     ax.axis("off")
                     continue
-                row = row.iloc[0]
-                lim = np.nanpercentile(np.abs(row.obs), 99)
-                sc = ax.scatter(home[:, 0], home[:, 1], c=row.obs, s=4, cmap="PuOr_r", vmin=-lim, vmax=lim)
-                ax.scatter(home[row.sig, 0], home[row.sig, 1], s=13, facecolors="none", edgecolors="k", linewidths=0.4)
+                row = rows[(nm, ep)]
+                ns = ~row.sig
+                ax.scatter(home[ns, 0], home[ns, 1], c=row.obs[ns], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
+                           lw=0)
+                sc = ax.scatter(home[row.sig, 0], home[row.sig, 1], c=row.obs[row.sig], s=11, cmap="RdBu_r", vmin=-lim,
+                                vmax=lim, edgecolors="k", linewidths=0.25)
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")
                 ax.axis("off")
-                if scale == "z":
-                    fig.colorbar(sc, ax=ax, shrink=0.6, label="change / own pre-session SD")
                 ax.set_title(f"{nm}: {ep}\n{int(row.sig.sum())} pts FDR .05 (+{int((row.sig & (row.obs > 0)).sum())} / "
                              f"-{int((row.sig & (row.obs < 0)).sum())}); {int(row.sig10.sum())} at .10", fontsize=8)
+        if sc is not None:
+            fig.colorbar(sc, ax=axs.ravel().tolist(), shrink=0.5, extend="both",
+                         label="change / own pre-session SD" if scale == "z" else "change in loading fraction")
         fig.suptitle(f"{set_name}: per-point loading change, sessions (paired bootstrap)"
                      + ("\nunits: each animal's change / its own pre-session SD" if scale == "z" else "")
                      + "; image left = contralesional")
         frf.save(fig, out / f"session_shape_loading_map{'_z' if scale == 'z' else ''}.png", """
 Loading fraction per mesh point of each session's matched lick factor; change vs pre = mean over animals of (post
 sessions - pre sessions), paired animals -> sessions bootstrap per point (`boot_delta_columns`); ringed = Benjamini-
-Hochberg discovery at FDR .05 over the 1,282 points. Orange = more loading after the stroke. _z: every session of an
+Hochberg discovery at FDR .05 over the 1,282 points (large, opaque, black edge; the rest small and faded). Red = more
+loading after the stroke, blue = less; one colour scale for all panels. _z: every session of an
 animal divided per point by the SD of that animal's pre sessions (floored at 1/4 of its median SD) before the same
 test -- each animal's change in units of its own pre-session noise, as Fig 8d.""")
 

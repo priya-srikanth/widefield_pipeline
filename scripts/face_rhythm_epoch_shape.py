@@ -203,10 +203,12 @@ def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None
             fig, axs = frf.subplots(len(animals), len(cols), figsize=(3.0 * len(cols), 3.0 * len(animals)),
                                     squeeze=False)
             sc = None
+            # ONE colour scale for every panel (Priya 10-25: "keep all maps on the same scale"), RdBu_r (red = more)
+            lim = float(np.nanpercentile(np.abs(np.concatenate([
+                D["loading"][(an, g, k)] - (D["loading"][(an, "preA", k)] + D["loading"][(an, "preB", k)]) / 2
+                for an in animals for g in frc.POST_EPOCHS if (an, g, k) in D["loading"]])), 98)) or 1e-4
             for r_i, an in enumerate(animals):
                 pre = (D["loading"][(an, "preA", k)] + D["loading"][(an, "preB", k)]) / 2
-                lim = float(np.nanpercentile(np.abs(np.concatenate([D["loading"][(an, g, k)] - pre for g in frc.POST_EPOCHS
-                                                                    if (an, g, k) in D["loading"]])), 99)) or 1e-4
                 for c_i, c in enumerate(cols):
                     ax = axs[r_i, c_i]
                     ax.axis("off")
@@ -216,20 +218,20 @@ def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None
                         d = D["loading"][(an, c, k)] - pre
                     else:
                         continue
-                    sc = ax.scatter(home[:, 0], home[:, 1], c=d, s=4, cmap="PuOr_r", vmin=-lim, vmax=lim)
+                    sc = ax.scatter(home[:, 0], home[:, 1], c=d, s=4, cmap="RdBu_r", vmin=-lim, vmax=lim)
                     ax.axvline(342.0, color="k", lw=0.4)
                     ax.invert_yaxis()
                     ax.set_aspect("equal")
                     ax.set_title(f"{an}: {c}", fontsize=8)
             if sc is not None:
-                fig.colorbar(sc, ax=axs, shrink=0.3, label="loading fraction, epoch - pre halves (per-animal scale)")
+                fig.colorbar(sc, ax=axs, shrink=0.3, extend="both", label="loading fraction, epoch - pre halves (one scale)")
             fig.suptitle(f"{set_name}: where did {names[k]}'s loading move? (pooled per-epoch fits; image left = "
                          "contralesional)")
             frf.save(fig, out / f"epoch_shape_loading_{names[k]}.png", f"""
 {names[k]}'s spatial loading magnitude |(x, y)| per mesh point as a fraction of its total (shape only), each epoch's
-pooled fit minus the mean of the two pre-half fits; orange = more of the factor's loading there after the stroke, purple
+pooled fit minus the mean of the two pre-half fits; red = more of the factor's loading there after the stroke, blue
 = less. First column: preA - preB, what two fits of the same pre-stroke behaviour differ by (the noise to read the
-others against). Colour scale per animal (row). cam4: image LEFT = contralesional; vertical line = face midline.""")
+others against). One colour scale for all panels. cam4: image LEFT = contralesional; vertical line = face midline.""")
 
         fig, axs = frf.subplots(len(ks), len(animals), figsize=(3.4 * len(animals), 2.9 * len(ks)), squeeze=False)
         for r_i, k in enumerate(ks):
@@ -269,8 +271,9 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
         cols = ["preA - preB", *frc.POST_EPOCHS]
         fig, axs = frf.subplots(len(ks), len(cols), figsize=(3.1 * len(cols), 3.2 * len(ks)), squeeze=False)
         sc = None
-        for r_i, k in enumerate(ks):
-            Z = {}
+        ZZ = {}
+        for k in ks:
+            Z = ZZ.setdefault(k, {})
             for c in cols:
                 per, beyond = [], []
                 for an in animals:
@@ -289,7 +292,11 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
                     beyond.append(np.abs(d) > 2 * s)
                 if per:
                     Z[c] = (np.vstack(per), np.vstack(beyond))
-            lim = float(np.nanpercentile(np.abs(np.concatenate([Z[c][0].mean(0) for c in Z])), 99)) or 1.0
+        # ONE colour scale for both factors and all epochs (Priya 10-25), RdBu_r; significant points opaque
+        lim = float(np.nanpercentile(np.abs(np.concatenate([np.nanmean(Z[c][0], 0) for Z in ZZ.values() for c in Z])),
+                                     98)) or 1.0
+        for r_i, k in enumerate(ks):
+            Z = ZZ[k]
             for c_i, c in enumerate(cols):
                 ax = axs[r_i, c_i]
                 ax.axis("off")
@@ -300,8 +307,12 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
                 sgn = np.sign(m)
                 agree = ((np.sign(P) == sgn) & B).sum(0)
                 ring = agree >= 3 if c != "preA - preB" else np.zeros(len(m), bool)
-                sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="PuOr_r", vmin=-lim, vmax=lim)
-                ax.scatter(home[ring, 0], home[ring, 1], s=13, facecolors="none", edgecolors="k", linewidths=0.4)
+                fade = ~ring if c != "preA - preB" else np.zeros(len(m), bool)
+                show = ~fade
+                ax.scatter(home[fade, 0], home[fade, 1], c=m[fade], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
+                           lw=0)
+                sc = ax.scatter(home[show, 0], home[show, 1], c=m[show], s=11 if c != "preA - preB" else 4, cmap="RdBu_r",
+                                vmin=-lim, vmax=lim, edgecolors="k" if c != "preA - preB" else "none", linewidths=0.25)
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")
@@ -315,7 +326,7 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
                     ttl = f"{names[k]}: preA - preB (noise)"
                 ax.set_title(ttl, fontsize=8)
         if sc is not None:
-            fig.colorbar(sc, ax=axs, shrink=0.3, label="loading change / own pre-fit noise SD, mean of animals")
+            fig.colorbar(sc, ax=axs, shrink=0.3, extend="both", label="loading change / own pre-fit noise SD, mean of animals")
         fig.suptitle(f"Lick-factor loading change, POOLED over {len(animals)} animals (each / its own pre-fit noise); "
                      "image left = contralesional")
         frf.save(fig, out / "epoch_shape_loading_pooled.png", f"""
