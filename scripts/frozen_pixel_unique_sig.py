@@ -177,11 +177,13 @@ def main(argv=None) -> int:
                 cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02, orientation="horizontal")
                 cb.ax.tick_params(labelsize=6)
     unit = "PER-ANIMAL z test (each animal / its pre-session SD map); maps shown in R2" if a.zscore else "raw R2 test"
-    fig.suptitle(f"NEURAL: FROZEN-frame pixel maps WITH significance, run {a.tag} (all frames; held-out R2, fraction). Row 1 pre level; "
-                 f"rows 2-4 epoch minus pre (one scale per column).\nContours: significant bins, black 16 px, purple dashed 32 px "
-                 f"(nested bootstrap animals > sessions, Bonferroni; {unit}); null: >= 1 false bin in {nr.get(16, np.nan):.0%} / "
-                 f"{nr.get(32, np.nan):.0%} of random pre half-splits. Image left = ipsilesional.", fontsize=9)
-    fig.subplots_adjust(left=0.03, right=0.995, top=0.88, bottom=0.03, wspace=0.08, hspace=0.14)
+    import textwrap
+    ttl = (f"NEURAL: FROZEN-frame pixel maps WITH significance, run {a.tag} (all frames; held-out R2, fraction). Row 1 pre "
+           f"level; rows 2-4 epoch minus pre (one scale per column). Contours: significant bins, black 16 px, purple dashed 32 px "
+           f"(nested bootstrap animals > sessions, Bonferroni; {unit}); null: >= 1 false bin in {nr.get(16, np.nan):.0%} / "
+           f"{nr.get(32, np.nan):.0%} of random pre half-splits. Image left = ipsilesional.")
+    fig.suptitle("\n".join(textwrap.wrap(ttl, int(21 * len(qs)))), fontsize=9)       # wrapped to the figure width
+    fig.subplots_adjust(left=0.03, right=0.995, top=0.86, bottom=0.03, wspace=0.08, hspace=0.14)
     p = run / "figures" / f"unique_sig{sfx}.png"
     p.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(p, dpi=105)
