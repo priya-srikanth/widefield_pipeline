@@ -60,8 +60,11 @@ def main(argv=None) -> int:
     ap.add_argument("--mode", default="A")
     ap.add_argument("--windows", nargs="+", default=["lick", "cue"])
     ap.add_argument("--n-null", type=int, default=50)
+    ap.add_argument("--zscore", action="store_true",
+                    help="PER-ANIMAL z: every map of an animal divided by its pre-session SD map (floored at its median "
+                         "pixel SD) before the test (Priya 10-25); output pixel_significance_z/")
     a = ap.parse_args(argv)
-    out = E / "fr_encoding_summary" / "pixel_significance"
+    out = E / "fr_encoding_summary" / ("pixel_significance_z" if a.zscore else "pixel_significance")
     (out / "figures").mkdir(parents=True, exist_ok=True)
     meta = table(a.mode, a.windows)[["label", "animal", "epoch"]].drop_duplicates().sort_values("label")
     got = Parallel(n_jobs=8)(delayed(_load)((lab, a.mode, a.windows)) for lab in meta.label)
@@ -69,17 +72,30 @@ def main(argv=None) -> int:
     mask = block_mask()
     print(f"{len(maps)} sessions loaded; stat mask {mask.sum()} block px", flush=True)
 
-    def by(ep, q, w):
+    def by(ep, q, w, z=None):
         d = {}
         for _, m in meta[meta.epoch == ep].iterrows():
             d.setdefault(m.animal, []).append(np.where(mask, maps[m.label][(q, w)], np.nan))
+        if z is not None:                                  # per-animal z units (same SD for pre and post)
+            d = {an: [x / z[an] for x in v] for an, v in d.items() if an in z}
         return d
+
+    def zsd(q, w):
+        """{animal: pre-session SD map, floored at its median} (None unless --zscore)."""
+        if not a.zscore:
+            return None
+        out_ = {}
+        for an, v in by("pre", q, w).items():
+            sd = np.nanstd(np.stack(v), 0, ddof=1)
+            out_[an] = np.maximum(sd, np.nanmedian(sd))
+        return out_
 
     def job(q, w):
         res, pics = [], {}
-        pre = by("pre", q, w)
+        z = zsd(q, w)
+        pre = by("pre", q, w, z)
         for ep in EPS:
-            post = by(ep, q, w)
+            post = by(ep, q, w, z)
             com = sorted(set(pre) & set(post))
             pb, qb = {x: pre[x] for x in com}, {x: post[x] for x in com}
             mm = np.nanmean([np.nanmean(qb[x], 0) - np.nanmean(pb[x], 0) for x in com], 0)
@@ -107,7 +123,7 @@ def main(argv=None) -> int:
     # null: random half-splits of pre
     def null(q, w, i):
         rng = np.random.default_rng(1000 + i)
-        pre = by("pre", q, w)
+        pre = by("pre", q, w, zsd(q, w))
         pb, qb = {}, {}
         for an, p in pre.items():
             idx = rng.permutation(len(p))
@@ -158,7 +174,7 @@ def main(argv=None) -> int:
                     cb = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=0.05, pad=0.03)
                     cb.ax.tick_params(labelsize=6)
         nr = N[N.window == w].groupby("px").false_bins.apply(lambda x: (x > 0).mean())
-        fig.suptitle(f"NEURAL: significance of the FaceRhythm-encoder pixel maps, {w} window: epoch minus pre, held-out R2 (fraction, 0-1), "
+        fig.suptitle(f"NEURAL: significance of the FaceRhythm-encoder pixel maps, {w} window: epoch minus pre, " + ("PER-ANIMAL z (each animal / its pre-session SD map)" if a.zscore else "held-out R2 (fraction, 0-1)") + ", "
                      "mean of animals. Contours: black = significant 16 px bins, purple dashed = 32 px bins\n(nested bootstrap "
                      f"animals -> sessions, Bonferroni over bins). Null (random pre half-splits): >= 1 false bin in "
                      f"{nr.get(16, np.nan):.0%} (16 px) / {nr.get(32, np.nan):.0%} (32 px) of splits. Image left = ipsilesional.",

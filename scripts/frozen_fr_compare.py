@@ -44,12 +44,14 @@ WINDOWS = ["cue", "lick"]                                 # cue before lick (Pri
 COL = {"noFR": "#999999", "FR-B": "#7570b3", "FR-A": "#e7298a"}
 
 
-def session_r2(folder: str, variant: str) -> pd.DataFrame:
+def session_r2(folder: str, variant: str, measure: str = "frame") -> pd.DataFrame:
+    """Per session x window x area frozen R2; measure = frame (all frames of the window) | trial (single-trial window
+    means) | avg (trial-averaged = PETH), as `frozen_encoder.musall_r2`."""
     rows = []
     for f in sorted(glob.glob(str(E / folder / variant / "sessions" / "*.json"))):
         m = json.loads(Path(f).read_text())
         for w in WINDOWS:
-            fr = m["r2_musall"][w]["frame"]
+            fr = m["r2_musall"][w][measure]
             for a in AREAS:
                 if a in m["areas"]:
                     rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "window": w, "area": a,
