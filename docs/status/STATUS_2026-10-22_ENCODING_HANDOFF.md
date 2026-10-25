@@ -45,8 +45,7 @@ outputs (share imaging_encoding folders, o2 enc_* bundles, wfield_cache, worktre
 lost at compaction, redo and send the list to e3 / Priya. Previously: (section 4 = §8 headlines +
 2.4b, 2.7-2.9, 3.4, 4.x of ENCODING_FINDINGS, short, status-tagged, with page figure numbers).
 
-**REVIEWER HITS TO FIX IN ENCODING_FINDINGS (from e3's reviewer, 10-25 ~01:30; line numbers as of 10-24 22:00 main) -- FIRST
-TASK AFTER COMPACTION:** (1) PS94/PS95 acute attempt rate has 3 versions (top box L16-19 .441->.445 / .325->.342 per
+**REVIEWER HITS IN ENCODING_FINDINGS -- DONE 10-25 ~00:45 (commit 8390343; items 1-7 below; current attempt rates recounted with denominators in the top box; e3 told). Section-3 items at the end of this paragraph still open (FINDINGS section 3). Original list (e3's reviewer, line numbers as of 10-24 22:00 main):** (1) PS94/PS95 acute attempt rate has 3 versions (top box L16-19 .441->.445 / .325->.342 per
 DECISIONS L21912; §2.5 L329 .79/.80/.64/.32; L325 ".81-.93"): put current values + each denominator. (2) mechanism label:
 use PS94 = "try and fail" (acute 251 incomplete vs 78 no-attempt), PS95 = mostly "fail to try" (39 incomplete, 22
 no-attempt, 57 reaction) -- matches FR 5c; fix L274 / L329 / top box; tell e3. (3) §2.4b: FINAL box (target > executed
