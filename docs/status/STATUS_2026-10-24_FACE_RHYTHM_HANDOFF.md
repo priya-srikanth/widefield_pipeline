@@ -78,6 +78,15 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
+   * 10-25 NIGHT: shape STATISTICS. (1) Per-session version DONE (`scripts/face_rhythm_session_shape.py`, FINDINGS 5.10
+     "PER-SESSION STATS", FR page v24 section 7): lick_left loses side-specificity 4 / 4 at every epoch (Holm .002-.016);
+     lick_right 3 / 4, not Holm. (2) ON O2 (Priya to submit; code deployed to the share): permutation null
+     `run_fitcohortnull.sbatch` (600 fits = 3 epochs x 100 perms x pseudo-pre / pseudo-post; test task 2 first, then
+     `--array=1,3-600%60`) -> own_epoch_cohort_null/; DRIFT fits `run_fitcohort.sbatch --array=31-40` (COHORT / LOAO x
+     preEarly / preLate) -> own_epoch_cohort/. SCORING THE NULL (to write): rebuild spout templates from each
+     permutation's pseudo-pre keys (saved in the npz) -- the real pre fit shares sessions with the real templates, so a
+     fixed template makes the null anti-conservative for Fig 7; max-statistic over mesh points for Fig 7b; the null is
+     within-animal (fixed effects) and includes drift. Cohort Fig 7d / 7e: pooled line +- jackknife SE over animals.
    * DONE 10-25 evening: fitcohort back (30 / 30; tasks 4, 23, 28 finished after the first rsync) and run
      (`--own-dir own_epoch_cohort`, + `--gallery`) -> FINDINGS 5.10 "COHORT FITS": lick_right stays changed through
      chronic in the cohort and all 4 LOAO fits, lick_left recovers. FR page v21: new section 7 (cohort), 8 (per-animal

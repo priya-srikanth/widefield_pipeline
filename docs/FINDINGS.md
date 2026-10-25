@@ -475,6 +475,18 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     lick_right -.38 / -.33 / -.47 (p .19 / .07 / .07), lick_left -.43 acute (p .04), then -.10 / -.07 (n.s.). LOAO fits
     share 3 / 4 of their data, so 4 / 4 same sign is NOT independent evidence. A powered test needs a session-level null:
     refits on session-shuffled epoch labels within animal (O2).
+    PER-SESSION STATS (10-25 night; `scripts/face_rhythm_session_shape.py` -> readouts/master_pre_v1/session_shape/; FR
+    page section 7 "Per-session fits"): each session's own rank-12 fit (`own/`), best spatial match per lick factor, one
+    value per session, paired animals -> sessions bootstrap, Holm within factor (3 measures x 3 epochs); pre sessions
+    scored against leave-this-session-out spout templates. lick_left side-specificity (own-side r - other-side r) -.29 /
+    -.27 / -.17 (Holm p .002 / .002 / .016, 4 / 4); far_R r +.18 / +.18 / +.10 (4 / 4); asymmetry +.19 acute (Holm .002,
+    4 / 4). lick_right side-specificity -.38 / -.27 / -.13, intervals exclude 0 every epoch, Holm .24-.34, 3 / 4 (PS93
+    pre already .46 vs 1.2-1.6; pre-existing right orofacial deficit); far_R r -.19 / -.14 / -.09. Per-point loading,
+    FDR .05 of 1,282: lick_right 441 / 644 / 45, lick_left 667 / 186 / 17. CAVEAT: per-session cosine to the master also
+    falls (lick_left -.08 / -.07 / -.06, 4 / 4), so single-session splitting / mixing contributes. DISAGREES with the
+    cohort fits on lick_left after acute (cohort: recovered by subacute; per session: still changed chronically); the
+    cohort permutation null + early-vs-late pre drift fits (O2, submitted 10-25 night: `fitcohortnull` tasks 1-600,
+    `fitcohort` tasks 31-40) decide. **lick_left STANDS per session; lick_right PROVISIONAL.**
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).

@@ -1,0 +1,233 @@
+"""Lick-factor SHAPE per SESSION, with statistics (Priya 10-25: "so we need the per session version for stats").
+
+The pooled per-epoch fits (`face_rhythm_epoch_shape.py`, own_epoch / own_epoch_cohort) give ONE fit per epoch, so their
+only cross-animal test is a jackknife over 4 animals -- nothing survives correction (FINDINGS 5.10). Here every session
+has its own rank-12 fit (`own/`, `fr_factors.py fitsession`), so each shape readout is one value PER SESSION and the
+change vs pre is tested like every other result on the FR page: per-animal table first (CLAUDE.md rule 8), then the
+paired animals -> sessions bootstrap (`analysis_kit.boot_delta`), Holm over the family.
+
+Per session and lick factor (lick_right, lick_left): the own column standing for it = its BEST SPATIAL match to the
+master (`face_rhythm_matching.columns(..., "best")`, the DECISIONS 10-25 rule; < MIN_COS = not recovered, dropped):
+  side_spec   mean r(loading, own-side spout templates) - mean r(other side), sign so that pre > 0 for both factors
+              (the one-number version of FR page Fig 7). Templates = the animal's pre-stroke spout-specific movement
+              (`proj` speed_response minus its mean over spouts); a PRE session is scored against a template built
+              WITHOUT it (leave-one-session-out), so its own noise cannot inflate its r
+  r_<spout>   the six r values themselves (Fig 7 cells)
+  asym        (contra - ipsi) / sum of |loading| (`face_rhythm_matching.loading_asymmetry`)
+  cos_master  spatial cosine of the matched column to the master factor
+  loading     (P,) |loading| fraction per mesh point -> per-point change map (Fig 7b), `boot_delta_columns`, BH over
+              points
+
+    python scripts/face_rhythm_session_shape.py [--set master_pre_v1] [--plot-only]
+-> <dlc>/face_rhythm/cam4/readouts/<set>/session_shape/ (session_shape.csv, session_shape_stats.csv, figures).
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from wfield_local.face_rhythm import common as frc  # noqa: E402
+
+MIN_COS = 0.5
+FACTORS = {"lick_right": ("close_R", "far_R"), "lick_left": ("close_L", "far_L")}   # factor -> its own-side spouts
+MEASURES = ("side_spec", "asym", "cos_master")
+
+
+def _speed(f) -> np.ndarray:
+    """(6, P) per-spout response-window speed of one session (NaN for a spout the session lacks)."""
+    with np.load(f, allow_pickle=True) as z:
+        have = list(z["power_positions"].astype(str))
+        out = np.full((6, z["speed_response"].shape[1]), np.nan)
+        for i, p in enumerate(frc.POSITIONS):
+            if p in have:
+                out[i] = z["speed_response"][have.index(p)]
+    return out
+
+
+def compute(fdir: Path) -> tuple[pd.DataFrame, dict]:
+    from wfield_local import face_rhythm_matching as fm
+    from wfield_local import face_rhythm_readouts as frr
+    M = np.load(fdir / "master.npz")
+    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
+    names = frc.factor_names(fdir)
+    own, proj = frc.sessions(fdir, "own"), frc.sessions(fdir, "proj").set_index("key")
+    pre_speed = {an: {r.key: _speed(proj.loc[r.key, "file"]) for r in own[(own.animal == an) & (own.epoch == "pre")]
+                      .itertuples() if r.key in proj.index} for an in sorted(own.animal.unique())}
+    rows, loads = [], {}
+    for r in own.itertuples():                                         # sorted by file name (rule 9)
+        sp = np.nanmean([v for k, v in pre_speed[r.animal].items() if k != r.key], 0)   # leave this session out
+        spec = sp - sp.mean(0, keepdims=True)
+        with np.load(r.file) as z:
+            A, B = z["A_own"].astype(float), z["B_own"].astype(float)
+        m = fm.match(A_ref, B_ref, A, B, on="spatial")
+        order = fm.columns(m, "best")
+        cs = fm.cosines(A_ref, B_ref, A, B)[0]
+        mag, asym = fm.spatial_view(A, "magnitude"), fm.loading_asymmetry(A, home, mid)
+        for nm, own_side in FACTORS.items():
+            k = names.index(nm)
+            c = int(order[k])
+            row = {"key": r.key, "label": r.label, "animal": r.animal, "date": r.date, "epoch": r.epoch, "factor": nm,
+                   "column": c, "cos_master": float(cs[k, c])}
+            if cs[k, c] >= MIN_COS:
+                v = mag[:, c] / mag[:, c].sum()
+                ok = np.isfinite(v) & np.isfinite(spec).all(0)
+                rr = np.array([np.corrcoef(v[ok], spec[i][ok])[0, 1] for i in range(6)])
+                own_r = np.mean([rr[frc.POSITIONS.index(p)] for p in own_side])
+                oth_r = np.mean([rr[frc.POSITIONS.index(p)] for p in frc.POSITIONS     # the other side's two spouts
+                                 if p[-1] in "LR" and p[-1] != own_side[0][-1]])
+                row.update({"side_spec": own_r - oth_r, "asym": float(asym[c]),
+                            **{f"r_{p}": float(rr[i]) for i, p in enumerate(frc.POSITIONS)}})
+                loads[(r.key, nm)] = v
+            rows.append(row)
+    return pd.DataFrame(rows), {"loading": loads, "home": home}
+
+
+def stats(T: pd.DataFrame, L: dict, seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Change vs pre per factor x measure x epoch: paired animals -> sessions bootstrap, Holm over each factor's family
+    (measures x 3 epochs, r_<spout> x 3 epochs separately); per-point loading map: `boot_delta_columns`, BH over points."""
+    from wfield_local import analysis_kit as ak
+    rows = []
+    for nm in FACTORS:
+        d = T[(T.factor == nm) & T.side_spec.notna()]
+        for fam, cols in (("summary", list(MEASURES)), ("spouts", [f"r_{p}" for p in frc.POSITIONS])):
+            fam_rows = []
+            for col in cols:
+                pre = {an: g[col].to_numpy() for an, g in d[d.epoch == "pre"].groupby("animal")}
+                for ep in frc.POST_EPOCHS:
+                    post = {an: g[col].to_numpy() for an, g in d[d.epoch == ep].groupby("animal")}
+                    iv, o = ak.boot_delta(post, pre, np.random.default_rng(seed), draws=True)
+                    per = {an: float(np.mean(post[an]) - np.mean(pre[an])) for an in sorted(set(post) & set(pre))}
+                    same = sum(np.sign(v) == np.sign(iv.point) for v in per.values()) if iv else 0
+                    fam_rows.append({"factor": nm, "family": fam, "measure": col, "epoch": ep,
+                                     "change": iv.point if iv else np.nan, "lo": iv.lo if iv else np.nan,
+                                     "hi": iv.hi if iv else np.nan, "p": ak.boot_p(o), "same_sign": f"{same}/{len(per)}",
+                                     **{f"d_{an}": v for an, v in per.items()}})
+            ph = ak.holm([x["p"] for x in fam_rows])
+            for x, q in zip(fam_rows, ph):
+                x["p_holm"] = q
+            rows += fam_rows
+    S = pd.DataFrame(rows)
+    mrows = []
+    for nm in FACTORS:
+        d = T[(T.factor == nm) & T.side_spec.notna()]
+        pre = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == "pre"].groupby("animal")}
+        for ep in frc.POST_EPOCHS:
+            post = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == ep].groupby("animal")}
+            res = ak.boot_delta_columns(post, pre, np.random.default_rng(seed))
+            if res is None:
+                continue
+            obs, lo, hi, o, n = res
+            p = np.minimum(1.0, np.maximum(2 * np.minimum((o <= 0).mean(0), (o >= 0).mean(0)), 1.0 / len(o)))
+            mrows.append({"factor": nm, "epoch": ep, "obs": obs, "p": p, "sig": ak.bh(p, 0.05), "sig10": ak.bh(p, 0.10)})
+    return S, pd.DataFrame(mrows)
+
+
+def figures(T: pd.DataFrame, S: pd.DataFrame, Mp: pd.DataFrame, home: np.ndarray, out: Path, set_name: str) -> None:
+    from wfield_local import face_rhythm_figures as frf
+    acol, ecol = frc.animal_colors(), frc.epoch_colors()
+    eps = ["pre", *frc.POST_EPOCHS]
+    with frf.style():
+        fig, axs = frf.subplots(2, 2, figsize=(11, 7.5), squeeze=False)
+        for r_i, nm in enumerate(FACTORS):
+            d = T[(T.factor == nm) & T.side_spec.notna()]
+            for c_i, col in enumerate(("side_spec", "asym")):
+                ax = axs[r_i, c_i]
+                for an, g in d.groupby("animal"):
+                    for e_i, ep in enumerate(eps):
+                        v = g[g.epoch == ep][col].to_numpy()
+                        ax.scatter(np.full(len(v), e_i) + (sorted(d.animal.unique()).index(an) - 1.5) * 0.08, v, s=9,
+                                   color=acol.get(an, "0.5"), alpha=0.6, lw=0)
+                    m = [g[g.epoch == ep][col].mean() for ep in eps]
+                    ax.plot(range(len(eps)), m, "-", color=acol.get(an, "0.5"), lw=0.8, alpha=0.8,
+                            label=an if r_i == 0 and c_i == 1 else None)
+                pre_mean = np.mean([g[g.epoch == "pre"][col].mean() for _, g in d.groupby("animal")])
+                for e_i, ep in enumerate(frc.POST_EPOCHS, start=1):
+                    s = S[(S.factor == nm) & (S.measure == col) & (S.epoch == ep)].iloc[0]
+                    ax.errorbar(e_i + 0.3, pre_mean + s.change, yerr=[[s.change - s.lo], [s.hi - s.change]], fmt="s",
+                                color="k", ms=4, capsize=2)
+                    star = "**" if s.p_holm < 0.05 else "*" if s.hi < 0 or s.lo > 0 else ""
+                    ax.text(e_i + 0.3, ax.get_ylim()[1], f"{star}\n{s.same_sign}", ha="center", va="top", fontsize=7)
+                    ax.axvspan(e_i - 0.45, e_i + 0.45, color=ecol[ep], alpha=0.06, lw=0)
+                ax.axhline(pre_mean, color="0.5", lw=0.6, ls=":")
+                ax.set_xticks(range(len(eps)), eps)
+                ax.set_title(f"{nm}: {'side-specificity (own-side r - other-side r)' if col == 'side_spec' else 'loading asymmetry (contra - ipsi) / sum'}",
+                             fontsize=9)
+        frf.legend_outside(axs[0, 1])
+        fig.suptitle(f"{set_name}: lick-factor shape PER SESSION (own fit per session, best spatial match)")
+        frf.save(fig, out / "session_shape_summary.png", """
+Each dot = one session's own rank-12 fit (lick factor = its best spatial match to the master; cos < .5 dropped).
+Lines = animal means. Black squares = pooled change vs pre placed on the pre mean, 95 % interval from the paired animals
+-> sessions bootstrap; * interval excludes 0, ** Holm-adjusted p < .05 over the factor's family (3 measures x 3 epochs);
+k/4 = animals whose own mean change has the pooled sign. Side-specificity: mean r of the loading with the animal's own-
+side pre-stroke spout templates minus the other side's (pre sessions scored against a template built without them).""")
+        fig, axs = frf.subplots(2, 3, figsize=(12, 7.2), squeeze=False)
+        for r_i, nm in enumerate(FACTORS):
+            for c_i, ep in enumerate(frc.POST_EPOCHS):
+                ax = axs[r_i, c_i]
+                row = Mp[(Mp.factor == nm) & (Mp.epoch == ep)]
+                if not len(row):
+                    ax.axis("off")
+                    continue
+                row = row.iloc[0]
+                lim = np.nanpercentile(np.abs(row.obs), 99)
+                ax.scatter(home[:, 0], home[:, 1], c=row.obs, s=4, cmap="PuOr_r", vmin=-lim, vmax=lim)
+                ax.scatter(home[row.sig, 0], home[row.sig, 1], s=13, facecolors="none", edgecolors="k", linewidths=0.4)
+                ax.axvline(342.0, color="k", lw=0.4)
+                ax.invert_yaxis()
+                ax.set_aspect("equal")
+                ax.axis("off")
+                ax.set_title(f"{nm}: {ep}\n{int(row.sig.sum())} pts FDR .05 (+{int((row.sig & (row.obs > 0)).sum())} / "
+                             f"-{int((row.sig & (row.obs < 0)).sum())}); {int(row.sig10.sum())} at .10", fontsize=8)
+        fig.suptitle(f"{set_name}: per-point loading change, sessions (paired bootstrap), image left = contralesional")
+        frf.save(fig, out / "session_shape_loading_map.png", """
+Loading fraction per mesh point of each session's matched lick factor; change vs pre = mean over animals of (post
+sessions - pre sessions), paired animals -> sessions bootstrap per point (`boot_delta_columns`); ringed = Benjamini-
+Hochberg discovery at FDR .05 over the 1,282 points. Orange = more loading after the stroke.""")
+
+
+def main(argv=None) -> int:
+    import matplotlib
+    matplotlib.use("Agg")
+    from wfield_local import face_rhythm_outputs as fro
+    from wfield_local import figure_layout, writeguard
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--set", default=fro.SET)
+    ap.add_argument("--plot-only", action="store_true")
+    a = ap.parse_args(argv)
+    fdir = frc.default_set_dir(set_name=a.set)
+    out = frc.readouts_dir(a.set) / "session_shape"
+    writeguard.assert_writable(out)
+    out.mkdir(parents=True, exist_ok=True)
+    csv, pk = figure_layout.sidecar_for(out, "session_shape", ".csv"), figure_layout.sidecar_for(out, "session_shape", ".pkl")
+    if a.plot_only:
+        T, L = pd.read_csv(csv), pd.read_pickle(pk)
+    else:
+        T, L = compute(fdir)
+        T.to_csv(csv, index=False, float_format="%.4g")
+        pd.to_pickle(L, pk)
+    pd.set_option("display.width", 220)
+    print("sessions per animal x epoch with the factor recovered (cos >= .5):")
+    print(T[T.side_spec.notna()].groupby(["factor", "animal", "epoch"]).size().unstack().to_string())
+    print("\nPER ANIMAL mean (rule 8)")
+    print(T.groupby(["factor", "animal", "epoch"])[list(MEASURES)].mean().round(3).unstack().to_string())
+    S, Mp = stats(T, L["loading"])
+    S.to_csv(figure_layout.sidecar_for(out, "session_shape_stats", ".csv"), index=False, float_format="%.4g")
+    print("\nCHANGE vs PRE (paired animals -> sessions bootstrap; Holm within factor x family)")
+    print(S.drop(columns=[c for c in S.columns if c.startswith("d_")]).round(3).to_string(index=False))
+    for r in Mp.itertuples():
+        print(f"loading map {r.factor} {r.epoch}: {int(r.sig.sum())} points FDR .05, {int(r.sig10.sum())} at .10, "
+              f"p < .05 uncorrected {int((r.p < .05).sum())} (chance {0.05 * len(r.p):.0f})")
+    figures(T, S, Mp, L["home"], out, fdir.name)
+    print("->", out)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
