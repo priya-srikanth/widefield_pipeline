@@ -56,6 +56,28 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+0b. **10-25 afternoon -- UPDATE (newest; read first).**
+   * Imaging (page owner 5b, v26+): map drift COMPLETE for contact / LP_licks / DAQ_ENL1s (FINDINGS 3.14); trend LMM
+     re-run on d4's final-frame tables -> ceiling vs deficit is DEFINITION-DEPENDENT (contact z -3.9, ttc n.s.; FINDINGS
+     3.13); `mixed_models.plot_fits` x-labels fixed. Pages: sidebar breakpoint 640 px, "Where things stand" cites figures,
+     window order pre-cue > cue > lick, window > reference > gate nesting (docs/templates/README.md).
+   * FR page (owner e3, v20): pooled within-animal twins of every Fig 7 panel (subagents wrote the pooled parts of
+     `face_rhythm_match.py`, `face_rhythm_readouts.py --pooled-only`, `face_rhythm_push_check.py --pooled-only`); FR
+     pre-cue position decode (`fr_enl_decode.py`, FINDINGS 5.13).
+   * FR SHAPE PAIRING CHANGED (DECISIONS 10-25 afternoon, Priya): per-epoch own fits are paired with the master by BEST
+     SPATIAL match (`face_rhythm_matching.columns(..., "best")`, `face_rhythm_epoch_shape.py` ASSIGN / MATCH_ON; MIN_COS
+     .5 drops unrecovered fits), not Hungarian. Lateral lick factors less lateralised 3 / 4 every epoch; the acute
+     central-lick (lick_ongoing_7Hz) shift is WITHDRAWN; lick_far_nose not recovered even pre. Tools: `--gallery`,
+     `--candidates ANIMAL GROUP FACTOR`, `--factors ...` (+ `--out`).
+   * RUNNING ON O2 (submitted by Priya 10-25): `fr_factors.py fitcohort` (`run_fitcohort.sbatch`, 30 tasks = cohort +
+     4 leave-one-animal-out x {pre, acute, subacute, chronic, preA, preB}; 5,500 rows / animal, 8 inits, 16 c / 96 GB /
+     12 h). When done (transfer node): `rsync -ah $B/factors/master_pre_v1/own_epoch_cohort/
+     $S/factors/master_pre_v1/own_epoch_cohort/` (B / S as in item 1 below; expect 30 files). THEN: point
+     `face_rhythm_epoch_shape.py` at `own_epoch_cohort/` (cohort fit vs cohort preA / preB floor; LOAO fits as the
+     per-animal check) and redo the shape figures on the FR page.
+   * Still open: cortical ENL decode with FR factors regressed out (is the cortical pre-cue code face posture?); FR
+     spout-in-mesh control; 13b (dimension comparison + composite deficit; agree the list with d4).
+
 0a. **10-25 ~08:30 -- UPDATE (supersedes the OPEN list's item a and the cd_loo_pooled line below).**
    * cd_loo_pooled switched to DIFFERENCE from each animal's own held-out pre (the ratio blew up where pre ~ 0); on the
      imaging page as 9f-9k (5b). Map drift (`map_drift_prepre.py`) COMPLETE for contact / LP_licks / DAQ_ENL1s (output
