@@ -336,6 +336,13 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     regressor) FALLS acutely and stays DOWN chronically (cortex lick -0.016 [-0.028, -0.004], 0/4 up; with FR -0.008,
     0/4); the executed movement's spout-locked part RISES acutely (cue cortex +0.041, 4/4) and stays slightly up with FR.
     The refit chronic target gain is not reproduced when the weights are frozen (page Fig 1e, 1f). CAVEAT (10-25): the refit and frozen numbers are SCORED differently (refit: cue 0-1 s, lick +/-0.2 s around EVERY lick peak, prediction offset penalised; frozen: cue 0-1.5 s, lick -0.1..+1.0 s around the FIRST lick, data and prediction centred separately), so "not reproduced" mixes frame and scoring; the per-session self-fit in the frozen windows (`scripts/session_vs_frozen.py`, running) separates them.
+    **RESOLVED (10-25, self-fit, 107 sessions): a FRAME effect, not scoring.** Each session refit on itself in the frozen
+    design + windows: chronic target-unique R2 RISES (SSp-m +0.017 / +0.019, cortex +0.010 / +0.013, 3-4/4) while the frozen
+    model's falls (cortex -0.006 / -0.008, 0/4). -> Chronically cortex still carries the target beyond the executed
+    movement, but in a NEW pattern that a session-specific mapping reads and the pre-stroke mapping does not (target
+    coding remapped). Full-model self - frozen gap rises acutely (SSp-m +0.07-0.12) and chronically (+0.06-0.09), 4/4;
+    self spout-unique contra SSp-m +0.054 / +0.059 chronic 4/4. PROVISIONAL (different-size training sets; change from
+    pre only).
 12. **Face movement (FaceRhythm) explains about half of the spout-position code and most of its chronic rise.**
     **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** the post-stroke CHANGE claims below were per-session refit; in the
     frozen frame: (a) contralesional position | FR rise NOT reproduced (position unique flat; contra - ipsi -0.010
