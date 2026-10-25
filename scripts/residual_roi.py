@@ -101,7 +101,8 @@ def main(argv=None) -> int:
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
                 sg = paint(img, nm, {k: 1.0 for k, v in (s.p_bonf < 0.05).items() if v})
                 if np.isfinite(sg).any():
-                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.4)
+                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)  # halo
+                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
                 up = int(((s.p_bonf < 0.05) & (s.point > 0)).sum())
                 dn = int(((s.p_bonf < 0.05) & (s.point < 0)).sum())
                 ax.set_title(f"{w} window, {ep} minus pre\n{up + dn} / {len(s)} areas ({up} up, {dn} down)", fontsize=8.5)
@@ -160,7 +161,8 @@ def by_spout(tag: str) -> int:
                     ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
                     sg = paint(img, nm, {k: 1.0 for k, v in (s_.p_bonf < 0.05).items() if v})
                     if np.isfinite(sg).any():
-                        ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.2)
+                        ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)  # halo
+                        ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
                     up, dn = int(((s_.p_bonf < .05) & (s_.point > 0)).sum()), int(((s_.p_bonf < .05) & (s_.point < 0)).sum())
                     ax.set_title(f"{sp.replace('_', ' ')}, {ep}\n{up} up / {dn} down", fontsize=7.5)
                     ax.set_xticks([]); ax.set_yticks([])
