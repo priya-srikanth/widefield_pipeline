@@ -80,21 +80,115 @@ Checked by 5b 10-25.*
 
 ## 3. Imaging: position decoding, state control, where the code moves
 
-*Owner to confirm (d4 is extracting the claims from BEHAVIOURAL_STATE_CONTROL, WHERE_THE_CODE_MOVES,
-VLS_STROKE_SYNTHESIS, PRELIM_DATA_VLS_STROKE and DECISIONS). Known corrections to carry: the state-decoder numbers in
-BEHAVIOURAL_STATE_CONTROL are stale (current = the 10-15 sidecar); the WHERE_THE_CODE_MOVES QUIET / MEAN tables are
-superseded by 15r REST / RESTW; "decoder back at recovery" CORRECTED. New 10-24 (5b): a June -> August no-stroke drift
-group puts the chronic frozen-decoder deficit within drift (3 / 4) while chronic crossnobis distance exceeds it
-(3 / 4).*
+*Extracted 10-25 by d4 from PRELIM_DATA_VLS_STROKE (09-26 render), BEHAVIOURAL_STATE_CONTROL, WHERE_THE_CODE_MOVES,
+STATUS_2026-10-07, REST_ENGAGEMENT_AUDIT and DECISIONS, with 5b's 10-24 per-animal recheck (imaging page
+https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV). **Owner to confirm: 5b reviews / corrects.** Imaging decode keeps its
+default (June + August) baseline; an August-only rerun confirms the acute numbers (DECISIONS 10-18).*
 
-(pending)
+1. **A frozen pre-stroke decoder loses the far-contralesional spout acutely, graded by eccentricity.** Far contra
+   .896 -> .321 acute (-.575, Bonferroni [-.738, -.394]); 5 / 6 positions significant acutely; far contra and near
+   middle still below pre chronically (-.171, -.163). **STANDS** (PRELIM §2 / H1).
+2. **Specificity: position loses far more than behavioural state.** Above-chance performance retained (current sidecar
+   `epoch_13n_state_vs_position_cue.csv`): position .863 -> .428 / .696 / .761 (acute / subacute / chronic), state
+   .976 -> .872 / .820 / .838, running alone ~.97. State DOES fall (acute -.069, Bonferroni interval excludes 0); the
+   claim is the RATIO (~5x). **STANDS**; the state numbers in BEHAVIOURAL_STATE_CONTROL / VLS_STROKE_SYNTHESIS
+   (.917 -> .812, .982 -> .918, .902) are **CORRECTED** to these.
+3. **The frozen decoder is NOT back at recovery, but that gap is within two months of no-stroke drift.** Deficit at
+   behavioural recovery F(0) +.083, only PS92 recovered; refit-over-frozen G > 0 in 4 / 4 but a healthy mouse already
+   shows G +.05-.10 (DECISIONS 09-12, 10-23). June -> August no-stroke drift group (5b, 10-24,
+   `scripts/june_august_drift.py`): frozen-decoder deficit / refit gain June -> Aug vs Aug -> chronic .13 / .09 vs
+   .03 / .11, .28 / .16 vs .09 / .21, .17 / .18 vs .18 / .20, .18 / .18 vs .11 / .11 -> not beyond drift (3 / 4).
+   "Chronic reorganisation" (PRELIM §3, H5) is **CORRECTED -> NOT ESTABLISHED**; "decoder back" **CORRECTED**.
+4. **Cortical position-coding gain follows behaviour, lagging ~1 week, not practice.** 3 / 4 (not PS94). **STANDS**
+   (DECISIONS 10-19). Plateau by the end of imaging in every decode / encoder readout, 4 / 4 (STATUS 10-07, F18);
+   caveat: the October decoder rerun after the `_day` fix (660bcbe) is still listed as outstanding.
+5. **Acute map loss graded by eccentricity, far contra largest.** Rest-referenced (15r REST / RESTW, engagement-gated)
+   far-contra acute amplitude / pre .50 / .45 / .53 / .40 (4 / 4); chronic .90 / .98 / .60 / 1.12. **STANDS**; the
+   09-12 QUIET / MEAN amplitude tables in WHERE_THE_CODE_MOVES are **CORRECTED** (superseded by 15r).
+6. **The acute far-contra map change has the same shape across animals** (between-animal r MEAN +.82, PRECUE +.86 vs a
+   cross-position null ~.02-.08, p <= .001). **STANDS** acutely; chronic agreement is at its own null (DECISIONS
+   09-17). Near-position "increases" under the MEAN reference are a coupling artefact (**STANDS**).
+7. **Region level, acute.** Licks recruit more bilateral orofacial sensorimotor cortex (SSp-m / SSp-n lead, 4 / 4, all
+   three references); at far contra the cue-evoked increment falls 1.7-3x more in the ipsilesional hemisphere (4 / 4).
+   **STANDS** acutely; chronic region cells **PROVISIONAL** (the `15k` table predates the full chronic cohort).
+8. **Representational geometry.** Crossnobis distance from each position's pre template: far contra +1.02 acutely;
+   chronic +.30 to +.78 at all six positions. The still-RISING chronic distance is drift, not ongoing reorganisation
+   (within-chronic rate not above each animal's pre drift floor, 4 / 4; F18). But chronic distance from the August
+   template exceeds June -> August drift in 3 / 4 (Aug-vs-June / chronic-vs-Aug .63 / 1.01, .95 / 1.16, .43 / .43,
+   .59 / .81; June -> Aug includes learning, so an upper bound). "Chronic diffuse = replacement" (PRELIM H4)
+   **PROVISIONAL**.
+9. **Rest carries spout position** (engagement-gated): observed / null 1.634, 43 / 44 sessions, 4 / 4; per-session
+   decode 94 / 96; persistence, not anticipation (r_prev - r_next +.077, 4 / 4); a different code from the task
+   (cosine .09 / .16). **STANDS** (REST_ENGAGEMENT_AUDIT §3; ungated predecessors 1.622 / 1.443 **CORRECTED**). "Rest shows
+   the same acute dip" **WITHDRAWN** (DECISIONS 09-15).
+10. **Pre-cue (ENL) position code: no consistent acute loss** (up PS92 / PS95, down PS93 / PS94; the slow band accounts
+    for PS93's drop). Coding-direction leave-one-out: held-out far-contra pre-cue projection drops acutely 3 / 4 (not
+    PS94), **PROVISIONAL** (LMM tables need the rebuilt attempts table).
+11. **Haemodynamics: CLOSED** (the data cannot answer it; no evidence of changed 415 / 470 coupling).
 
 ## 4. Encoding model and the goal question
 
-*Owner d4; detail [ENCODING_FINDINGS.md](ENCODING_FINDINGS.md), page https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d.*
+*Owner d4; detail [ENCODING_FINDINGS.md](ENCODING_FINDINGS.md) (section numbers below), results page
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (figure numbers as of 10-25). Frozen pre-stroke encoder = final frame
+`gate-attempted_v7g3_t3d` (3-D tongue, attempted-trial gate, combined cam1 + cam4 licks). Within-animal changes, nested
+bootstrap unless stated; LICK DATA = behaviour only.*
 
-(pending; includes FaceRhythm in the encoder: FR takes ~half of the unique spout-position R2 pre-stroke and most of
-the chronic position-coding rise, lick window +22 -> +4 n.s. with FR; modes A ~ B ~ S ~ D -- d4 to state and tag)
+1. **The acute far-contralesional drop in cortex is carried by the LICK, not the target.** Frozen pre-stroke encoder
+   decomposition: the acute drop = the predicted lick part in all model orderings, target part ~0 (<= 1.7 x1e3).
+   Pooled: measured -.53 / -.30 of the pre response (ipsi / contra SSp-m), predicted -.62 (4 / 4). **STANDS** (3.4;
+   Fig 8, 8b).
+2. **Chronically cortex responds MORE than the pre-stroke mapping predicts for the same behaviour (the residual).**
+   Residual +.32 / +.43 of the pre response (ipsi / contra SSp-m) with predicted change ~0, 4 / 4. Pixel maps,
+   calibrated bins (random pre splits within the nominal 5 %): all six spouts pooled, 32 px, lick window 19 / 35 / 30
+   of 128 bins (acute / subacute / chronic), every one an INCREASE (413 up, 2 down across all tests), bilateral
+   lateral frontal (ALM / tongue-jaw motor) + contralesional SSp; within animal 4 / 4 contralesional. By area (pre-SD
+   units, chronic): MOp +1.8* / +2.3*, SSp-m +2.1* / +2.5*, SSp-n +.9 / +2.5*, MOs +.7 / +1.4*, contralesional >
+   ipsilesional in every area; a raised plateau, not continuing drift (3 / 4). **STANDS**; the earlier "pooled pixel
+   test weak" (8 px) is **CORRECTED** (8.4; Fig 9-9g, 10, 11, 11b).
+3. **The behaviour-to-cortex mapping is rewritten chronically (Layer 2).** One fit per animal, epoch kernel changes from
+   early-August pre: chronic gain beats the late-pre null (cortex +54.8 [+22.0, +87.4], SSp-m +52.5 / +51.6) and every
+   one of 20 random pre pseudo-epochs in 4 / 4 (cortex and both SSp-m); grows with time; spread across kernel groups
+   (none alone beyond the null). **STANDS** within August; its nulls do not include June -> August drift (cf. 3.3).
+   The original pooled-refit version was **WITHDRAWN** (10-24; 8.5; Fig 12-13b).
+4. **Licks to far contra go to the wrong spout from launch (LICK DATA).** Landing soft bins: own bin -.69 / -.38 / -.19,
+   far mid +.35 / +.36 / +.20 (4 / 4, significant); whole tracked 3-D path: own -.65 / -.36 / -.22, acute toward far
+   ipsi +.42 (part general forward overshoot) then far mid; mis-landing licks follow the other spout's course from the
+   first tracked point. **STANDS** (2.4b, 8.1; Fig 3-3e, 5, 5b).
+5. **On average the frozen pre-stroke DECODER reads far-contra trials as the spout the tongue goes to.** Own -.66 /
+   -.30 / -.22, far mid +.26 / +.14 / +.11, far ipsi +.19 acute (4 / 4; cue window the same). But acutely the decoder's
+   diagonal falls for EVERY spout while those licks land on target (general weakening). **STANDS** (8.2; Fig 3f, 3g).
+6. **Trial by trial, cortex follows execution before and after the stroke, but NOT acutely.** Within session, neural
+   (far mid - far contra) tracks executed (far mid - far contra) pre-stroke 4 / 4 (r .12-.41), subacute and chronic
+   4 / 4; acutely r ~ 0 (only PS92 significant). Executed-bin vs decoder matrix: acute diagonal -.41 (far mid), -.34
+   (far ipsi), 4 / 4. **STANDS** (8.2; Fig 3h-3j).
+7. **When a lick misses, cortex mostly still looks like the TARGET, except at the far spouts.** Off-target trials,
+   decoder = target vs = executed: close spouts .65-.95 vs ~.05 at every epoch; far contra .66 / .21 pre -> .25 / .29
+   acute (executed wins only here) -> .45 / .33 chronic; far ipsi / far mid split acutely. **STANDS** (8.2; Fig 3k, 3l).
+8. **Encoder relabel test: no single answer for "which spout is cortex in".** Best-fitting label (target + spout-locked
+   pattern swapped, executed licks kept): far contra loses its label toward far mid / close contra but other spouts
+   lose theirs too (close contra -.58 acute, far mid -.44 chronic); per animal PS95 re-aimed at far mid (transient),
+   PS93 stays far contra, PS92 / PS94 nonspecific. **PROVISIONAL** (session level; per-trial run in progress) (2.7, 8.3;
+   Fig 3m, 3n).
+9. **Failed attempts lose the side but keep the distance.** Frozen decoder on video attempt classes: acute failed
+   (incomplete) far-contra attempts are read as A far spout (distance kept, side lost; 4 / 4, lick window); no
+   pre-cue plan signature; retained code ~.1 of pre-stroke hits at every epoch while hits recover to .71. **STANDS**
+   (2.8; Fig 6-6c).
+10. **Failed attempts look like weaker hits, not like no-movement.** Same bilateral pattern; lower amplitude than hits
+    (3 / 4) but not than touch-matched pre-stroke misses (2 / 4); ipsilesional ALM / tongue-jaw motor down acutely,
+    tongue-jaw motor / SSp up chronically. **PROVISIONAL** (2.9; Fig 7-7c).
+11. **Target vs executed: chronically cortex carries the target beyond the executed movement.** Binned contest (unique
+    R2 of target bins beyond executed bins): chronic change +9.0 [+3.6, +16.0] lick, +9.8 [+3.9, +16.2] cue, at every
+    softmax width; acute lick +12.5 (n.s.; PS93 opposite). Pre-stroke "cortex tracks target, not executed" remains
+    **SUSPENDED** (2.4). **STANDS** chronically (2.4b, 8.6; Fig 1-2b).
+12. **Face movement (FaceRhythm) explains about half of the spout-position code and most of its chronic rise.**
+    Per-session encoder with FR (master_pre_v1, rank 12): unique position R2 pre-stroke 52 -> 30 x1e3 (cortex, lick);
+    chronic rise +22 [+7, +38] -> +4 (n.s.) with FR (cue +39 -> +15 [+3, +27]); the acute ipsilesional SSp-m position
+    loss survives FR; FR's side / distance information adds little beyond its lick amount (modes A ~ B ~ S ~ D).
+    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound) (8.7; Fig 16-16c).
+13. **Not established / withdrawn here:** pre-stroke target-over-executed lead (SUSPENDED, 2.4); pooled toward-midline
+    within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
+    lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit
+    claim (WITHDRAWN 10-24).
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
@@ -156,5 +250,11 @@ Paxinos plates: `wfield_local/histology_map/`.
 ## 7. Open questions and withdrawn claims (index)
 
 * WITHDRAWN / CORRECTED / NOT ESTABLISHED claims are listed in their sections above; collect the cross-arm ones here.
+* Stale elsewhere (flagged 10-25, not yet edited): CLAUDE.md's pointer to STATUS_2026-09-20 says "NO within-session motor
+  fatigue"; DECISIONS 09-20 revised it the same day to "partly fatigue" (acute within-bout slope +10.1 ms; within-bout
+  deceleration +15-25 ms at every epoch, 4 / 4).
+* Open (section 3-4): October decoder rerun after the `_day` fix; chronic region-level (`15k`) cells on the full chronic
+  cohort; per-trial encoder relabel matrices (running); drift-group null for Layer 2 / residual (June sessions lack
+  FaceRhythm and have off kinematics, so a June -> August encoder null is not available).
 * Open: per-bout timing of lick_right (5.6); early-vs-late pre-day floor for factor shape (5.10); other cameras for
   FaceRhythm (cam1-3).

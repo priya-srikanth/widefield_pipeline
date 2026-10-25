@@ -1,5 +1,7 @@
 # Imaging encoding findings: target vs executed, per-spout coding, recovery
 
+> **Current conclusions: [FINDINGS.md](FINDINGS.md) section 4** (one-page, status-tagged; 10-25). This document is the detailed evidence record for the encoding model and the goal question.
+
 Status: **preliminary, living document.** Last updated **2026-10-23 afternoon** (encoding window). Update this file
 whenever a result below changes: edit the section, change its status tag, add the date to the change log at the bottom.
 The reasoning and every number's history are in `DECISIONS.md` (entries 2026-10-19 ... 2026-10-23); the working state

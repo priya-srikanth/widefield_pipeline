@@ -38,7 +38,11 @@ August no-stroke drift group (scripts/june_august_drift.py): frozen-decoder chro
 (3/4), crossnobis distance IS (3/4); CD LOO acute far-contra drop 3/4 PROVISIONAL; pre-cue mixed. A background reader
 (agent) was extracting headline claims from the older docs when context compacted; if its report is lost, re-read
 VLS_STROKE_SYNTHESIS, PRELIM_DATA, WHERE_THE_CODE_MOVES, BEHAVIOURAL_STATE_CONTROL, STATUS_2026-10-07, DECISIONS.
-**TODO: once e3's skeleton is on origin, write sections 3 and 4 into docs/FINDINGS.md** (section 4 = §8 headlines +
+**DONE 10-25 ~01:30: FINDINGS.md sections 3 (imaging; 5b to confirm) and 4 (encoding) written; banners pointing to FINDINGS.md
+added to ENCODING_FINDINGS, VLS_STROKE_SYNTHESIS, PRELIM_DATA, BEHAVIOURAL_STATE_CONTROL, WHERE_THE_CODE_MOVES. Keep section 4
+in sync when results change.** CLEANUP SURVEY (Priya via e3, survey only, no deletes): a background reader was listing my
+outputs (share imaging_encoding folders, o2 enc_* bundles, wfield_cache, worktrees, scratchpad) with recommendations; if
+lost at compaction, redo and send the list to e3 / Priya. Previously: (section 4 = §8 headlines +
 2.4b, 2.7-2.9, 3.4, 4.x of ENCODING_FINDINGS, short, status-tagged, with page figure numbers).
 
 **RUNNING at ~01:00 (all write to the share):**

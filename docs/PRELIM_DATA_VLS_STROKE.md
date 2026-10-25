@@ -1,5 +1,7 @@
 # Preliminary data: what VLS stroke does to cortical position coding
 
+> **Current conclusions (10-25): [FINDINGS.md](FINDINGS.md) section 3.** This remains the detailed 09-26-render record. Since then: the chronic "reorganisation" framing (section 3, H5) is CORRECTED to NOT ESTABLISHED (DECISIONS 09-12 withdrawal, 10-23 correction, 10-24 June -> August drift group); chronic crossnobis "replacement" is PROVISIONAL (F18 drift); chronic region cells were pending.
+
 **Rewritten clean on 2026-09-17.** Earlier versions carried four stacked "SUPERSEDED" strata
 (2026-09-09, 09-10, 09-12, 09-16), numbers read off renders that no longer exist, and one whole
 section whose sign convention was inverted. Priya, 2026-09-17: *"make the prelim data doc accurate

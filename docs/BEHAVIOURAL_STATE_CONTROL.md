@@ -1,5 +1,7 @@
 # The behavioural-state control — does *everything* degrade after the lesion, or only the target?
 
+> **Current conclusions (10-25): [FINDINGS.md](FINDINGS.md) section 3, claim 2.** The state-decoder numbers below are STALE; current sidecar `epoch_13n_state_vs_position_cue.csv`: position .863 -> .428 / .696 / .761, state .976 -> .872 / .820 / .838 (the claim is the ratio).
+
 Built 2026-09-11. Priya: *"I'm more looking for evidence that not **all** decoding/encoding degrades
 post stroke, with running as an example."*
 
