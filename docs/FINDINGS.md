@@ -353,7 +353,10 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     paired bootstrap, Holm over 12 factors): lick_left changed at every epoch on both measures (spatial ** 4 / 4),
     lick_right * (3 / 4, PS93 opposite). Together: the lick factors become LESS LATERALISED, consistently across animals
     (PS93 the exception) -- upgraded from per-animal description to a 3-4 / 4 pooled pattern; still no session-level test
-    for the per-epoch fits.
+    for the per-epoch fits. CENTRAL lick factors (Priya 10-25, `--factors lick_ongoing_7Hz lick_fast_close lick_far_nose
+    lick_slow_late`): acutely lick_ongoing_7Hz (all spouts) also moves its loading from the contralesional lower face to
+    the ipsilesional side (438 points, asymmetry -.32, 4 / 4), mostly back later -- the acute ipsilesional shift is not
+    limited to the left / right lick factors.
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).

@@ -86,7 +86,7 @@ def compute(fdir: Path) -> pd.DataFrame:
 LICK = ("lick_right", "lick_left")
 
 
-def loadings_and_templates(fdir: Path, names: list[str]) -> dict:
+def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
     """Priya 10-24: the contra - ipsi index is too coarse -- WHERE did the loading move, and does a post-stroke lick
     factor now look like a different SPOUT's movement?
       loading[(animal, group, factor)]  (P,) the fit's spatial loading magnitude |(x, y)| per mesh point, as a FRACTION of
@@ -98,7 +98,7 @@ def loadings_and_templates(fdir: Path, names: list[str]) -> dict:
     from wfield_local import face_rhythm_matching as fm
     M = np.load(fdir / "master.npz")
     A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
-    ks = [names.index(n) for n in LICK if n in names]
+    ks = [names.index(n) for n in factors if n in names]
     out = {"loading": {}, "template": {}, "corr": {}, "home": M["home"], "factors": ks, "positions": frc.POSITIONS}
     S = frc.sessions(fdir, "proj")
     for an in sorted({f.stem.split("_")[0] for f in (fdir / "own_epoch").glob("*.npz")}):
@@ -391,6 +391,9 @@ def main(argv=None) -> int:
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--plot-only", action="store_true", help="redraw from data/epoch_shape.csv")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--factors", nargs="+", default=list(LICK),
+                    help="factors for the loading maps / templates (default the lateralised lick pair); e.g. the "
+                         "non-lateralised lick factors (Priya 10-25 'central lick version') -- use with --out")
     a = ap.parse_args(argv)
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
     out = a.out or frc.readouts_dir(a.set) / "epoch_shape"
@@ -476,7 +479,7 @@ Loading asymmetry (contra - ipsi) / (contra + ipsi) of |spatial loading| per fac
 left), each epoch's pooled fit minus the mean of the two pre-half fits; < 0 = the factor moved towards the
 ipsilesional face. Bars at pre: +-|preA - preB| per animal, the pre-stroke noise of this number. Descriptive, n = 4.""")
     lc = figure_layout.sidecar_for(out, "epoch_shape_loadings", ".pkl")
-    D = pd.read_pickle(lc) if a.plot_only else loadings_and_templates(fdir, names)
+    D = pd.read_pickle(lc) if a.plot_only else loadings_and_templates(fdir, names, tuple(a.factors))
     if not a.plot_only:
         pd.to_pickle(D, lc)
     print("\nr(lick factor loading, pre-stroke spout template): per animal, fits x spouts")
