@@ -56,6 +56,38 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+0. **10-25 LATE -- STATE NOW (before compaction): this window also took IMAGING-page work (Priya; page owner = 5b,
+   https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, now v5; 5b republishes from numbers we send).** Done + on main:
+   * Items 1 / 3 / 4 of the page's pending list (DECISIONS 2026-10-25 "Imaging page pending items"): decoder trajectory
+     re-rendered (October days 46 / 50 restored), chronic_stability + chronic_drift_vs_reorg re-run, session LMMs re-run
+     on the rebuilt trial_attempts (ttc + contact), per-animal template / state tables (`scripts/imaging_per_animal_tables.py`;
+     state drop = PS94 alone; template amplitude returns 2 / 4). 5b integrated all of it (page sections 3, 4, 6, 10, 13).
+   * `scripts/cd_loo_pooled.py` (Priya: "within-animal normalized pooled version of 9c-e"): each animal / its held-out
+     pre, pooled over animals, boot_delta per epoch -> labcams/grant_figures/epoch/cd_loo/cd_loo_pooled_{window,traj}_
+     {precue,cue,lick}.png + cd_loo_pooled_stats.csv. far_R: pre-cue subacute -.39* (4 / 4 below), chronic -.25 (4 / 4,
+     CI touches 0); cue subacute -.18* (4 / 4); lick no consistent change. NOT YET SENT to 5b for the page.
+   OPEN, in this order:
+   a. `scripts/map_drift_prepre.py` (Priya: a late-pre vs early-pre version of figure 15r to compare map drift):
+      June pre vs August pre position maps, LATE - EARLY beside acute / chronic - late pre, same pooling + test as 15r.
+      Written + lint-clean; a TEST run (contact arm, cue, rest -> scratchpad imaging/drift_test) was still collecting maps
+      at compaction (cold cache?). When it works: run `--arm contact`, `--arm lp`, `--arm enl1s` (refs rest + precue,
+      aligns cue / lick / precue) -> labcams/grant_figures/map_drift_prepre/<arm>/; send figures + drift_vs_stroke_panels
+      .csv to 5b. Answered Priya: the existing 15r family already has pooled within-animal pre-normalised maps for REST /
+      PRECUE refs x cue / contact-lick / ENL in grant_figures/epoch (contact), LP_licks (LP gate), DAQ_ENL1s (1 s ENL);
+      the page shows only REST cue + LP lick -> ask 5b to add the PRECUE ref, contact lick and ENL panels.
+   b. 13b "compare dimensions" + "composite deficit score" (Priya chose BOTH): replace the single ttc deficit with
+      session-level behaviour dimensions -- attempt rate / completion (trial_attempts_sessions.csv), aim (cam4 ipsi_bias /
+      angle_gain_far from cohort/tables/prepost/session_metrics.csv; 3-D far_R midline error, 5b's pose3d tables), jaw
+      steering (FAR_DIR), FaceRhythm (lick_right per right lick: readouts/master_pre_v1 lick_epochs data; EVR ratio
+      evr_epochs data; contra-ipsi asymmetry asym_aligned data) -- each per-animal-normalised vs own August pre. (1) one
+      LMM per dimension on the SAME sessions + variance partitioning (which dimension explains the decoder / template
+      deficit beyond the others); (2) composite = PC1 of the standardised dimensions, as a new `mixed_models.DEFICITS`
+      entry. Agree the variable list with d4 first (goal-question overlap). Inputs: imaging_lmm decoder / epoch tables.
+   c. 13c drift: Priya noted pre points cluster -- explained: family 11 pre = 8 August sessions (~10-day span), June not
+      included, so it cannot show 2-month drift. Proposed: a template June -> August arm (template from June, scored on
+      August), like 5b's june_august_drift. Not started; same blind spot in the CD loo family (August pre only).
+   d. Ask 5b: add the refit-deficit definition to the Fig 13 caption (refit deficit = pre_refit - refit = F - G;
+      explained to Priya in chat).
 0. **10-25 -- clean-up + findings.** Current conclusions now in docs/FINDINGS.md (section 5 = FaceRhythm; all windows
    agreed one file). Results page v8: figures open in a zoomable viewer. DELETED (Priya-approved 10-25, derived only,
    writeguard): o2/fr_cam4_20261021/out_test/ the 10 unchosen tracking parameter sets (kept PS95_20260812_cam4_midlk12.npz,
