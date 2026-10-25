@@ -32,8 +32,8 @@ encoder = headline for every change claim since 10-25; per-session refit = suppo
 
 **In one line (revised 10-25 afternoon after analyses 1-2):** acutely cortex mostly reports a worse movement, with a
 transient orofacial-specific disruption; chronically the movement is largely back and most of the cortical excess has
-shrunk with it -- what persists is an orofacial-weighted residual (cue window), a contralesional shift of the spout
-package and more position-free movement coding, with less spout-specific tuning; the large chronic mapping change is
+shrunk with it -- what persists is a residual in BOTH windows (orofacial-specific in the cue window; in the lick
+window larger in orofacial cortex but shared with control cortex), a contralesional shift of the spout package and more position-free movement coding, with less spout-specific tuning; the large chronic mapping change is
 cortex-wide and grows with time, so it is not evidence of motor remapping.
 
 1. **Behaviour changed, and recovery is compensation, not restoration.** Acute global slowing + far-contra-graded deficit,
