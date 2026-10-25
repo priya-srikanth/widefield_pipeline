@@ -329,15 +329,31 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
    **STANDS** (5d).
 8. **Non-task face movement is reduced acutely, not preserved** (the 2pRAM cohort's relative preservation does not
    replicate): between-trial movement falls within behavioural state, rest -.99 log2 [-1.24, -.80] 4 / 4, other -.37
-   4 / 4; back to pre chronically. **STANDS** (6d).
+   4 / 4; back to pre chronically. **STANDS** (6d). Pooled task vs non-task (10-25, `face_rhythm_readouts.py
+   --pooled-only`, log2 vs own pre, paired bootstrap): acute task -.47* / non-task -.62* (4 / 4 each), task - non-task
+   n.s. at every epoch; chronic task +.22* above pre (3 / 4; PS92 at pre).
 9. **Treadmill pushes are inside the pre-stroke face repertoire**: frozen-basis error at pushes is below random times in
-   27 / 32 animal x epoch x context cells, although pushes are 2-4x more frequent chronically. No pre + post master
-   needed. **STANDS** (6b).
+   27 / 32 animal x epoch x context cells (28 / 32 in the current cache), although pushes are 2-4x more frequent
+   chronically. No pre + post master needed. **STANDS** (6b). Pooled (10-25, `face_rhythm_push_check.py
+   --pooled-only`; push - random in own pre-SD units, paired bootstrap): the advantage is already there pre-stroke
+   (between trials -2.2*, 4 / 4) and chronically (-2.2*, 4 / 4); it shrinks only acutely between trials (change vs pre
+   +1.76*, 3 / 4) while push movement energy rises (+1.82*, 4 / 4). Lower error may partly reflect larger movement.
 10. **The lick factors change shape after the stroke, becoming less side-specific rather than re-aimed.** Pooled per
     animal x epoch fits: lick_right / lick_left / lick_ongoing beyond the pre-half floor in 4 / 4 at every epoch;
     lick_right's loading leaves the contralesional near-midline face for the mouth rim and ipsilesional cheek (PS92 /
     94 / 95; PS93 opposite); it still resembles the R spouts' pre pattern, less strongly. Per-session matching:
     heterogeneous across animals. **PROVISIONAL** (descriptive, one value per animal x epoch) (6c).
+    POOLED within-animal versions (Priya 10-25; FR page Fig 7 pooled twins; `face_rhythm_epoch_shape.py`,
+    `face_rhythm_match.py`): loading change / own pre-fit noise, mean of animals -- lick_right loses loading on the
+    contralesional central face and gains on the ipsilesional cheek and mouth rim, lick_left the reverse, at 149-421 of
+    1,282 points per epoch with >= 3 / 4 animals beyond 2x own noise (chance ~0); asymmetry change lick_right -.13 /
+    -.20 / -.07, lick_left +.25 / +.26 / +.18 (3 / 4 each); acutely / subacutely lick_right resembles the R spouts'
+    pattern less (-.16 to -.25) and the L spouts' more (+.12 to +.22), lick_left mirrored, mostly back chronically;
+    angle / own floor 2.5-5x for both lick factors, 4 / 4 every epoch. Per-session own fit vs master (z vs own pre,
+    paired bootstrap, Holm over 12 factors): lick_left changed at every epoch on both measures (spatial ** 4 / 4),
+    lick_right * (3 / 4, PS93 opposite). Together: the lick factors become LESS LATERALISED, consistently across animals
+    (PS93 the exception) -- upgraded from per-animal description to a 3-4 / 4 pooled pattern; still no session-level test
+    for the per-epoch fits.
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).

@@ -20,7 +20,9 @@ COMPUTE once (~1 h: every session's treadmill speed is reloaded), then the per-s
 (data/push_check_traces.npz); ``--plot-only`` redraws the figure and tables from it in seconds (Priya 10-24: re-render
 figures without redoing calculations).
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/push_check/``: push_check_sessions.csv (per session x context), the per
-animal x epoch table (printed; rule 8 first), push_check.png (traces by epoch, per animal).
+animal x epoch table (printed; rule 8 first), push_check.png (traces by epoch, per animal), push_check_pooled.png
+(cross-animal pooled, within-animal normalised push - random excess with tests; data/push_check_pooled*.csv).
+``--pooled-only`` draws only the pooled figure from the cached session CSV (seconds).
 """
 from __future__ import annotations
 
@@ -153,6 +155,9 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--plot-only", action="store_true", help="redraw from data/push_check_traces.npz, no recompute")
+    ap.add_argument("--pooled-only", action="store_true",
+                    help="only the pooled figure, from data/push_check_sessions.csv (no traces, no recompute)")
+    ap.add_argument("--n-boot", type=int, default=None)
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = a.fdir or fro.factor_dir(rv, a.bundle, a.set)
@@ -161,6 +166,10 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     cache = figure_layout.sidecar_for(out, "push_check_traces", ".npz")
     fail = []
+    if a.pooled_only:
+        pooled_figure(pd.read_csv(figure_layout.sidecar_for(out, "push_check_sessions", ".csv")), out, fdir.name,
+                      a.n_boot)
+        return 0
     if a.plot_only:
         S = load_cache(cache)
     else:
@@ -218,8 +227,149 @@ session_err; pre sessions on their held-out leave-one-day-out basis, `proj_loso/
 trial pushes (cue -1 .. +4 s) and between-trial pushes. Row 2 = random times of the same context >= 2 s from any push
 (the control: trial structure alone moves the error). A post-stroke error rise at pushes that random times and pre
 sessions do not show = face movement the pre-stroke basis does not contain.""")
+    pooled_figure(S.drop(columns=tr_cols), out, fdir.name, a.n_boot)
     print("->", out)
     return 0
+
+
+MEASURES = (("d_err_excess", "reconstruction error"), ("d_D_excess", "face movement energy D"))
+CONTEXTS = (("trial", "in-trial pushes"), ("between", "between-trial pushes"))
+
+
+def pooled_table(S: pd.DataFrame) -> pd.DataFrame:
+    """Per SESSION (animal x date; a split video's halves pooled, push-count weighted) x context: push - random
+    excess of each measure, divided by that animal's SD of the same excess across its PRE sessions (same context).
+    Sessions with >= 5 pushes, as the per-animal figure."""
+    S = S[S.n_push >= 5].copy()
+    S["epoch"] = S.epoch.astype(str)
+    S["d_err_excess"] = S.d_err_push - S.d_err_random
+    S["d_D_excess"] = S.d_D_push - S.d_D_random
+    m = [c for c, _ in MEASURES]
+    w = S.assign(**{c: S[c] * S.n_push for c in m}).groupby(["animal", "date", "epoch", "context"], as_index=False)
+    P = w[m + ["n_push"]].sum()
+    for c in m:
+        P[c] = P[c] / P.n_push
+        sd = P[P.epoch == "pre"].groupby(["animal", "context"])[c].std(ddof=1)
+        P[f"{c}_preSD"] = [sd.get((an, cx), np.nan) for an, cx in zip(P.animal, P.context)]
+        P[f"{c}_z"] = P[c] / P[f"{c}_preSD"]
+    return P.sort_values(["animal", "context", "date"]).reset_index(drop=True)
+
+
+def _k_same(post: pd.Series, pre: pd.Series, delta: float) -> int:
+    """Animals whose own epoch - pre change has the sign of the pooled change."""
+    dd = (post - pre).dropna()
+    return int((np.sign(dd) == np.sign(delta)).sum())
+
+
+def pooled_stats(P: pd.DataFrame, rng, n_boot: int | None = None) -> pd.DataFrame:
+    """Per measure x context x epoch: per-animal means, mean +- SEM of animals, the level vs 0 and the change vs pre,
+    both by `analysis_kit.boot_delta` (paired animals -> sessions). The level vs 0 is `boot_delta` against a constant
+    0 baseline per animal = the animal-weighted nested bootstrap of the level (no second bootstrap). ``rng`` is
+    advanced in measure, context, epoch order (sessions in date order, rule 9)."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local.face_rhythm import stats as frs
+    nb = n_boot or ak.N_BOOT
+    rows = []
+    for c, _ in MEASURES:
+        for cx, _ in CONTEXTS:
+            d = P[P.context == cx].rename(columns={f"{c}_z": "z"})
+            zero = {an: [0.0] for an in sorted(d.animal.unique())}
+            lvl = {ep: ak.boot_delta(frs.by_animal(d[d.epoch == ep], "z"), zero, rng, nb) for ep in EPOCHS}
+            chg = {r["epoch"]: r for r in frs.epoch_change(d, "z", rng, nb, epochs=EPOCHS[1:])}
+            pre_per = d[d.epoch == "pre"].groupby("animal").z.mean()
+            for ep in EPOCHS:
+                per = d[d.epoch == ep].groupby("animal").z.mean()
+                mu = float(per.mean())
+                iv, ch = lvl[ep], chg.get(ep)
+                rows.append({"measure": c, "context": cx, "epoch": ep, **per.round(4).to_dict(),
+                             "n_animals": len(per), "n_sessions": int((d.epoch == ep).sum()),
+                             "mean": mu, "sem": float(per.std(ddof=1) / np.sqrt(len(per))) if len(per) > 1 else np.nan,
+                             "k_same_sign": int((np.sign(per) == np.sign(mu)).sum()),
+                             "lvl_lo": iv.lo if iv else np.nan, "lvl_hi": iv.hi if iv else np.nan,
+                             "lvl_star": bool(iv and iv.excludes_zero),
+                             "dpre": ch["delta"] if ch else np.nan, "dpre_lo": ch["ci_lo"] if ch else np.nan,
+                             "dpre_hi": ch["ci_hi"] if ch else np.nan, "dpre_star": bool(ch and ch["excludes_0"]),
+                             "k_dpre_same_sign": _k_same(per, pre_per, ch["delta"]) if ch else np.nan})
+    return pd.DataFrame(rows)
+
+
+def pooled_figure(S: pd.DataFrame, out: Path, set_name: str, n_boot: int | None = None) -> None:
+    """push_check_pooled.png: the push - random excess per measure (rows) x context (columns), within-animal
+    normalised, per epoch: animal dots, mean +- SEM of animals, level vs 0 and change vs pre. Per-animal table
+    printed first (rule 8)."""
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import figure_layout
+    P = pooled_table(S)
+    P.to_csv(figure_layout.sidecar_for(out, "push_check_pooled_sessions", ".csv"), index=False, float_format="%.5g")
+    pd.set_option("display.width", 220)
+    print("\nPOOLED, PER ANIMAL x epoch (rule 8 first): push - random excess / the animal's pre-session SD of it "
+          "(same context);\nerr_z < 0 = pushes better described than random times; D_z > 0 = more face movement at pushes.")
+    A = P.groupby(["context", "animal", "epoch"]).agg(
+        n=("date", "size"), err_z=("d_err_excess_z", "mean"), D_z=("d_D_excess_z", "mean"),
+        err_preSD=("d_err_excess_preSD", "first"), D_preSD=("d_D_excess_preSD", "first")).reset_index()
+    A["epoch"] = pd.Categorical(A.epoch, EPOCHS, ordered=True)
+    print(A.sort_values(["context", "animal", "epoch"]).round(4).to_string(index=False))
+    T = pooled_stats(P, np.random.default_rng(0), n_boot)
+    T.to_csv(figure_layout.sidecar_for(out, "push_check_pooled", ".csv"), index=False, float_format="%.5g")
+    print("\nPOOLED stats (mean of animals; lvl = vs 0, dpre = change vs pre; boot_delta 95 % CI)")
+    print(T.drop(columns=[c for c in T.columns if c.startswith("PS")]).round(3).to_string(index=False))
+
+    acol, ecol = frc.animal_colors(), frc.epoch_colors()
+    animals = sorted(P.animal.unique())
+    jit = dict(zip(animals, np.linspace(-0.18, 0.18, len(animals))))
+    with frf.style():
+        fig, axs = frf.subplots(2, 2, figsize=(11, 8.6), squeeze=False)
+        for r, (c, ttl) in enumerate(MEASURES):
+            for k, (cx, cttl) in enumerate(CONTEXTS):
+                ax = axs[r, k]
+                t = T[(T.measure == c) & (T.context == cx)].set_index("epoch")
+                for e, ep in enumerate(EPOCHS):
+                    if ep not in t.index:
+                        continue
+                    for an in animals:
+                        v = t.loc[ep].get(an, np.nan)
+                        if np.isfinite(v):
+                            ax.plot(e + jit[an], v, "o", ms=5, color=acol[an], alpha=0.85,
+                                    label=an if (e == 0 and r == 0 and k == len(CONTEXTS) - 1) else None)
+                    ax.errorbar(e, t.loc[ep, "mean"], yerr=t.loc[ep, "sem"], fmt="s", ms=8, color=ecol[ep],
+                                mec="k", ecolor="k", capsize=4, zorder=5)
+                ax.axhline(0, color="k", lw=0.6)
+                lo, hi = ax.get_ylim()
+                ax.set_ylim(lo, hi + 0.25 * (hi - lo))
+                labels = []
+                for e, ep in enumerate(EPOCHS):
+                    row = t.loc[ep] if ep in t.index else None
+                    if row is None:
+                        labels.append(ep)
+                        continue
+                    ax.text(e, 0.98, f"vs 0{'*' if row.lvl_star else ''}\n{row.k_same_sign}/{row.n_animals}",
+                            transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=8.5)
+                    if ep == "pre" or not np.isfinite(row.dpre):
+                        labels.append(ep)
+                    else:
+                        labels.append(f"{ep}\nΔpre {row.dpre:+.2f}{'*' if row.dpre_star else ''}\n"
+                                      f"{int(row.k_dpre_same_sign)}/{row.n_animals}")
+                ax.set_xticks(range(len(EPOCHS)), labels, fontsize=8.5)
+                ax.set_xlim(-0.5, len(EPOCHS) - 0.5)
+                ax.set_title(f"{ttl}, {cttl}", fontsize=10.5)
+                if k == 0:
+                    ax.set_ylabel("push - random (pre-SD units)")
+        frf.legend_outside(axs[0, -1])
+        fig.suptitle(f"{set_name}: pushes vs random times, pooled across animals")
+        frf.save(fig, out / "push_check_pooled.png", f"""
+Cross-animal pooled version of push_check.png. Per SESSION (sessions with >= 5 pushes; a split video's halves pooled,
+push-weighted) and context (in-trial = cue -1 .. +4 s; between trials = the rest): (0 .. 1 s) - (-1.5 .. -0.5 s) of
+the frozen basis's relative reconstruction error (row 1; pre sessions on their held-out leave-one-day-out basis) and of
+the face movement energy D (row 2), push minus random times of the same context. NORMALISED WITHIN ANIMAL by DIVIDING
+by that animal's SD of the same push - random excess across its PRE sessions (same context): the excess is a signed
+difference, so a log ratio does not apply; the SD keeps 0 = "push same as random" and puts the animals on one noise
+scale. Row 1 below 0 = the pre basis describes the face at pushes BETTER than at random times; row 2 above 0 = more
+face movement at pushes. Dots = per-animal epoch means (animal colours), squares = mean of animals +- SEM (epoch
+colours). Top of each epoch: "vs 0" = level against 0 by `analysis_kit.boot_delta` against a constant-0 baseline (the
+paired animals -> sessions draw, animals weighted equally), * = 95 % interval excludes 0; k/n = animals on the side of
+the mean. Post-epoch tick labels: change vs pre ("Dpre", `boot_delta`, paired animals -> sessions), * = 95 % interval
+excludes 0, k/n = animals whose own change has that sign. {n_boot or 4000} draws, seed 0, uncorrected. PS95 acute = 1
+session. Tables: data/push_check_pooled.csv (stats), data/push_check_pooled_sessions.csv (per session).""")
 
 
 if __name__ == "__main__":

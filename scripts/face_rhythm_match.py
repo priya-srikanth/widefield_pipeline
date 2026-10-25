@@ -17,6 +17,9 @@ master, spatial loading and spectral (frequency) similarity reported separately,
   match_epochs.csv       per animal x epoch x factor: mean cosines + the animal's pre floor (rule 8: per animal first)
   match_by_day.png       per factor: spatial and spectral cosine to the master over days since stroke, per animal,
                          grey band = pre floor (5th-95th pct of pre pairs, all animals), dashed = chance
+  match_by_day_pooled.png  the same angles z-scored vs each animal's own pre sessions, pooled over animals by epoch
+                         (boot_delta, * / ** Holm over factors; + data/match_by_day_pooled.csv); `--plot-only` redraws
+                         it alone from data/match_sessions.csv
   match_example.png      the full score matrix (master x own) for one pre and one acute session per animal
 Computation: `wfield_local/face_rhythm_matching.py` (choices and caveats in its docstring).
 """
@@ -34,6 +37,87 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from wfield_local.face_rhythm import common as frc  # noqa: E402
 
 EPOCHS = frc.EPOCHS
+
+
+def pooled_by_day_figure(S: pd.DataFrame, names: list[str], out: Path, set_name: str) -> pd.DataFrame:
+    """Cross-animal, WITHIN-ANIMAL-NORMALISED version of `match_by_day.png` (Priya 10-25). Per animal x factor, each
+    session's matched-factor ANGLE to the master (spatial and spectral separately) is z-scored against that animal's own
+    PRE sessions (August only): (angle - mean pre) / SD pre, so pre averages exactly 0. Per post epoch: the mean of the
+    animals, the `boot_delta` change vs pre (via `face_rhythm.stats.epoch_change`, seeded rng 0, factors in order) and the
+    animals above pre; Holm over the 12 factors of one measure x epoch. Per-animal table printed FIRST (rule 8).
+    Writes ``match_by_day_pooled.png`` + ``data/match_by_day_pooled.csv``; returns the stats table."""
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import figure_layout
+    from wfield_local.face_rhythm import stats as frs
+    S = S.copy()
+    S = S[(S.epoch != "pre") | S.date.astype(str).str.startswith("202608")]          # pre = August only
+    meas = {"spatial": "angle_spatial_deg", "spectral": "angle_spectral_deg"}
+    for m, c in meas.items():
+        g = S[c].where(S.epoch == "pre").groupby([S.animal, S.factor])
+        S[f"z_{m}"] = (S[c] - g.transform("mean")) / g.transform("std")
+    n_pre = S[S.epoch == "pre"].groupby("animal").key.nunique()
+    print("pre sessions per animal (August):", n_pre.to_dict())
+    for m in meas:
+        A = S.groupby(["factor", "name", "animal", "epoch"])[f"z_{m}"].mean().reset_index()
+        A["epoch"] = pd.Categorical(A.epoch, EPOCHS, ordered=True)
+        print(f"PER-ANIMAL epoch mean of the {m} angle, z vs own pre (pre = 0 by construction)")
+        print(A[A.epoch != "pre"].pivot_table(index=["factor", "name"], columns=["epoch", "animal"],
+                                               values=f"z_{m}", observed=True).round(2).to_string())
+    rng = np.random.default_rng(0)
+    rows = []
+    for m in meas:
+        for k, nm in enumerate(names):
+            d = S[S.factor == k].sort_values(["animal", "day"])
+            rows += [{"measure": m, "factor": k, "name": nm, **r} for r in frs.epoch_change(d, f"z_{m}", rng)]
+    T = frs.add_holm(pd.DataFrame(rows), ["measure", "epoch"])
+    T.to_csv(figure_layout.sidecar_for(out, "match_by_day_pooled", ".csv"), index=False, float_format="%.4g")
+    print("POOLED change vs pre (z units; * = 95 % CI excludes 0, ** = Holm over 12 factors)")
+    print(T[["measure", "name", "epoch", "delta", "ci_lo", "ci_hi", "n_above", "n_animals", "p_holm", "mark"]]
+          .round(3).to_string(index=False))
+
+    ecol = frc.epoch_colors()
+    animals = sorted(S.animal.unique())
+    x = np.arange(len(names))
+    off = dict(zip(frc.POST_EPOCHS, (-0.24, 0.0, 0.24)))
+    with frf.style():
+        fig, axs = frf.subplots(2, 1, figsize=(13, 8.2), sharex=True, squeeze=False)
+        for ax, m in zip(axs[:, 0], meas):
+            ax.axhline(0, color=ecol["pre"], lw=1.0, label="pre (own mean = 0)")
+            ax.axhspan(-1, 1, color="0.9", lw=0, zorder=0, label="pre +/- 1 SD")
+            top = []
+            for ep in frc.POST_EPOCHS:
+                r = T[(T.measure == m) & (T.epoch == ep)].set_index("factor").reindex(range(len(names)))
+                xx = x + off[ep]
+                for an in animals:
+                    if an in r:
+                        ax.plot(xx, r[an], "o", ms=2.5, color=ecol[ep], alpha=0.35, lw=0)
+                ax.errorbar(xx, r["delta"], yerr=[r["delta"] - r["ci_lo"], r["ci_hi"] - r["delta"]], fmt="o", ms=6,
+                            color=ecol[ep], ecolor=ecol[ep], elinewidth=1.2, capsize=0, label=ep)
+                hi = np.fmax(r["ci_hi"], np.nanmax(r[[an for an in animals if an in r]], axis=1))
+                top.append(np.nanmax(hi))
+                for xi, (h, row) in zip(xx, zip(hi, r.itertuples())):
+                    if np.isfinite(h):
+                        lab = f"{row.mark}\n{row.n_above}/{row.n_animals}" if row.mark else f"{row.n_above}/{row.n_animals}"
+                        ax.annotate(lab, (xi, h), xytext=(0, 3), textcoords="offset points", ha="center",
+                                    va="bottom", fontsize=6.5, color=ecol[ep], linespacing=0.9)
+            lo = ax.get_ylim()[0]
+            ax.set_ylim(lo, max(top) * 1.18 + 0.5)
+            ax.set(ylabel=f"{m} angle to master\n(z vs own pre)", xlim=(-0.6, len(names) - 0.4))
+            ax.set_title(f"{'Spatial loading' if m == 'spatial' else 'Spectrum'}: angle to the frozen master, "
+                         f"change vs own pre", fontsize=10)
+        axs[-1, 0].set_xticks(x, [n.removeprefix("fr_") for n in names], rotation=35, ha="right")
+        frf.legend_outside(axs[0, 0])
+        fig.suptitle(f"{set_name}: own fit vs master, pooled over {len(animals)} animals")
+        frf.save(fig, out / "match_by_day_pooled.png", f"""
+Cross-animal version of match_by_day.png. Per animal x factor: each session's angle (arccos of the matched cosine, own
+fit Hungarian-matched to the frozen master; larger = further from the master) as a z-score against that animal's own PRE
+sessions (August only; mean and SD over its {', '.join(f'{a} {n}' for a, n in n_pre.items())} pre sessions), so pre is
+0 by construction. Big markers: the mean over animals of each animal's epoch mean = the `boot_delta` change vs pre
+(paired animals -> sessions bootstrap, 95 % interval, `face_rhythm.stats.epoch_change`); small dots: the animals. Number
+above each = animals above pre; * = interval excludes 0, ** = also Holm-significant over the {len(names)} factors of that
+measure x epoch. Caveats: the master was fitted on pre sessions, so pre angles are in-sample and a post increase partly
+measures out-of-sample fit; an animal with few or very similar pre sessions has a small SD and large z. Descriptive.""")
+    return T
 
 
 def main(argv=None) -> int:
@@ -54,6 +138,8 @@ def main(argv=None) -> int:
                     help="spatial loadings as (x, y) vectors (direction-sensitive) or |(x, y)| per point (where only)")
     ap.add_argument("--chance", type=int, default=200, help="shuffles per session for the chance line (0 = skip)")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--plot-only", action="store_true",
+                    help="only redraw match_by_day_pooled.png from data/match_sessions.csv (no matching)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = a.fdir or fro.factor_dir(rv, a.bundle, a.set)
@@ -61,6 +147,11 @@ def main(argv=None) -> int:
     out = a.out or Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "readouts" / a.set / f"matching{sfx}"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
+    if a.plot_only:
+        S = pd.read_csv(figure_layout.sidecar_for(out, "match_sessions", ".csv", mkdir=False), dtype={"date": str})
+        pooled_by_day_figure(S, list(S.drop_duplicates("factor").sort_values("factor").name), out, fdir.name)
+        print("->", out)
+        return 0
     M = np.load(fdir / "master.npz")
     A_ref, B_ref = M["spatial"].reshape(-1, M["spectral"].shape[1]), M["spectral"]
     names = fro.labels(fdir)
@@ -97,6 +188,7 @@ def main(argv=None) -> int:
     for c in ("spatial", "spectral"):                    # the manuscript's "factor ANGLE": arccos of the matched cosine
         S[f"angle_{c}_deg"] = np.degrees(np.arccos(np.clip(S[f"cos_{c}"], -1, 1)))
     S.to_csv(figure_layout.sidecar_for(out, "match_sessions", ".csv"), index=False, float_format="%.4g")
+    pooled_by_day_figure(S, names, out, fdir.name)
 
     pre = T[T.epoch == "pre"]
     P = pd.concat([fm.pairwise({k: fits[k] for k in g.key}, A_ref, B_ref, a.on, a.spatial).assign(animal=an)

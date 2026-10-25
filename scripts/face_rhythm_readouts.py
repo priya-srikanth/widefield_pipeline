@@ -19,6 +19,8 @@ Needs ``<set>/master.npz`` + ``proj/`` (and ``own/`` for the EVR gap / morphing)
                            (speed = absolute movement; share = normalised spectral distribution)
   asymmetry_by_epoch.png   (contra - ipsi) / (contra + ipsi) per window, speed and share (cam4 ipsi = image right)
   task_vs_nontask.png      lick components (response) vs the others (between trials) / pre, per animal x epoch
+  task_vs_nontask_pooled.png  the same, log2 vs each animal's own pre, pooled: mean +- SEM of animals, boot_delta vs
+                           pre (* = CI excludes 0), plus task - non-task (`--pooled-only` redraws from session_table.csv)
   severity.png             per animal: FaceRhythm deficit vs histological lesion burden (descriptive, n = 4)
 """
 from __future__ import annotations
@@ -43,6 +45,84 @@ def _epoch_lines(ax, S, col, title):
     ax.set_title(title)
 
 
+def task_nontask_pooled(S, names, out: Path, set_name: str, n_boot: int | None = None):
+    """Cross-animal version of task_vs_nontask.png (Priya 10-25): per session, TASK (lick components, response window)
+    and NON-TASK (other components, between trials) as log2 vs the animal's own pre sessions (`stats.log2_vs_pre`, the
+    within-animal normalisation; pre averages 0), and their difference task - non-task (log2 task / non-task ratio vs
+    pre: > 0 = task held up better, < 0 = non-task preserved relative to task). Per epoch: per-animal means (PRINTED
+    first, rule 8), mean +- SEM over animals, `stats.epoch_change` (`boot_delta`, paired animals -> sessions) vs pre.
+    -> task_vs_nontask_pooled.png + data/task_vs_nontask_pooled.csv; returns the stats table."""
+    import pandas as pd
+
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import face_rhythm_readouts as frr
+    from wfield_local import figure_layout
+    from wfield_local.face_rhythm import stats as frs
+    lick, other = frr.lick_split(names)
+    T = S[["label", "animal", "epoch"]].copy()
+    T["task"] = S[[f"abs_{n}_response" for n in lick]].sum(1, min_count=len(lick))
+    T["nontask"] = S[[f"abs_{n}_between" for n in other]].sum(1, min_count=len(other))
+    T = T.dropna(subset=["task", "nontask"]).sort_values(["animal", "label"]).reset_index(drop=True)
+    for c in ("task", "nontask"):
+        T[f"{c}_l2"] = frs.log2_vs_pre(T, c, ["animal"])
+    T["diff_l2"] = T.task_l2 - T.nontask_l2
+    Q = {"task_l2": "TASK: lick factors, response", "nontask_l2": "NON-TASK: other factors, between",
+         "diff_l2": "TASK - NON-TASK (< 0: non-task kept better)"}
+    per = T.groupby(["animal", "epoch"])[list(Q)].mean().unstack("epoch")
+    nses = T.groupby(["animal", "epoch"]).size().unstack("epoch").reindex(columns=list(EPOCHS))
+    print("PER-ANIMAL log2 vs own pre (session means; rule 8 -- read before the pooled test)")
+    for q in Q:
+        print(f"  {q}\n" + per[q].reindex(columns=list(EPOCHS)).round(3).to_string())
+    print("  sessions per animal x epoch\n" + nses.to_string())
+    rng = np.random.default_rng(0)
+    rows = []
+    for q in Q:                                   # fixed order -> the same rng draws every run (rule 9)
+        p = per[q]["pre"]
+        rows.append({"quantity": q, "epoch": "pre", **p.to_dict(), "mean": float(p.mean()), "sem": float(p.sem())})
+        rows += [{"quantity": q, **r} for r in frs.epoch_change(T, q, rng, n_boot)]
+    R = pd.DataFrame(rows)
+    R["mark"] = ["*" if x is True else "" for x in R.excludes_0]
+    R.to_csv(figure_layout.sidecar_for(out, "task_vs_nontask_pooled", ".csv"), index=False, float_format="%.5g")
+    print("POOLED (mean of animals; boot_delta vs pre, * = 95 % CI excludes 0)")
+    print(R[["quantity", "epoch", "mean", "sem", "delta", "ci_lo", "ci_hi", "mark", "n_below", "n_animals"]]
+          .round(3).to_string(index=False))
+
+    col = frc.animal_colors()
+    animals = sorted(T.animal.unique())
+    off = {an: (i - (len(animals) - 1) / 2) * 0.09 for i, an in enumerate(animals)}
+    with frf.style():
+        fig, axs = frf.subplots(1, 3, figsize=(13, 4.6), sharey=True)
+        for ax, (q, title) in zip(axs, Q.items()):
+            for an in animals:
+                y = per[q].loc[an].reindex(EPOCHS).to_numpy()
+                x = np.arange(4) + off[an]
+                ax.plot(x, y, "-", lw=0.6, color=col.get(an, "0.5"), alpha=0.6)
+                ax.plot(x, y, "o", ms=5, color=col.get(an, "0.5"), mec="none", label=an)
+            r = R[R.quantity == q].set_index("epoch").reindex(EPOCHS)
+            ax.errorbar(np.arange(4), r["mean"], yerr=r["sem"], fmt="s-", color="k", ms=6, lw=1.6, capsize=3,
+                        zorder=5, label="mean +- SEM")
+            ax.axhline(0, color="k", lw=0.5, ls=":")
+            labs = ["pre"]
+            for ep in EPOCHS[1:]:
+                rr = r.loc[ep]
+                labs.append(f"{ep}\n{rr['delta']:+.2f}{rr['mark']}\n{int(rr['n_below'])}/{int(rr['n_animals'])} below")
+            ax.set_xticks(range(4), labs, fontsize=8)
+            ax.set_title(title, fontsize=10)
+        axs[0].set_ylabel("log2 vs own pre (animal mean)")
+        frf.legend_outside(axs[-1], fontsize=8)
+        fig.suptitle(f"{set_name}: task vs non-task, pooled across animals")
+        frf.save(fig, out / "task_vs_nontask_pooled.png", f"""
+Cross-animal version of task_vs_nontask.png, normalised WITHIN each animal (Priya 10-25). Per session: TASK = summed
+absolute expression of the lick components ({', '.join(lick)}) in the response window; NON-TASK = summed absolute
+expression of the other components ({', '.join(other)}) between trials; each as log2 minus the mean log2 of the same
+animal's pre sessions (`face_rhythm.stats.log2_vs_pre`; pre averages 0). Right: TASK - NON-TASK (log2 of the task /
+non-task ratio vs pre; < 0 = non-task preserved relative to task). Dots = per-animal epoch means of the sessions (repo
+animal colours); black = mean +- SEM over animals. Tick labels: `stats.epoch_change` (`analysis_kit.boot_delta`,
+paired animals -> sessions, animals weighted equally) change vs pre, * = 95 % interval excludes 0; k/n = animals below
+pre. Per-animal table first (rule 8): data/task_vs_nontask_pooled.csv.""")
+    return R
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -63,6 +143,8 @@ def main(argv=None) -> int:
                                                                    "frr.MASTER_MIDLINE_X, the master's LP nose)")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--fdir", type=Path, default=None, help="factor-set folder (default: <bundle>/factors/<set>)")
+    ap.add_argument("--pooled-only", action="store_true", help="only task_vs_nontask_pooled.png, from the cached "
+                                                                 "data/session_table.csv (no recomputation)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = a.fdir or fro.factor_dir(rv, a.bundle, a.set)
@@ -71,6 +153,10 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     M = np.load(fdir / "master.npz")
     names, home, freqs = fro.labels(fdir), M["home"], M["freqs"]
+    if a.pooled_only:
+        import pandas as pd
+        task_nontask_pooled(pd.read_csv(figure_layout.sidecar_for(out, "session_table", ".csv")), names, out, fdir.name)
+        return 0
 
     C = frr.describe_components(fdir)
     C.to_csv(figure_layout.sidecar_for(out, "components", ".csv"), index=False, float_format="%.4g")
@@ -291,6 +377,7 @@ area, mean +- SEM over sections; LOWER = more tissue lost), y = the animal's Fac
 expression vs pre (acute, chronic; `task_vs_nontask.png`), and chronic minus pre reconstruction error, EVR gap and
 matched spatial / spectral cosine (morphing) where the per-session fits exist. DESCRIPTIVE ONLY: four animals, no test
 and no fitted line (CLAUDE.md rule 8); the 2pRAM-cohort manuscript's mild-vs-severe framing.""")
+    task_nontask_pooled(S, names, out, fdir.name)
     print(f"{len(S)} sessions -> {out}")
     return 0
 

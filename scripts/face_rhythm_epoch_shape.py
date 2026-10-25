@@ -193,6 +193,193 @@ lick_right looks more like a central / close spout than like far_R, its shape ch
 different MIX of licks rather than less contralesional recruitment. Descriptive, one fit per animal x epoch.""")
 
 
+def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -> pd.DataFrame:
+    """Cross-animal, WITHIN-ANIMAL-NORMALISED version of `epoch_shape_loading_<factor>.png` (Priya 10-25: "why don't we
+    have a cross-animal within-animal-normalized version of fig 7c"). Per animal, each epoch's loading change (epoch fit
+    minus the mean of the pre-half fits) is divided by that animal's own pre-fit noise (SD over mesh points of preA -
+    preB), then averaged over animals. Points are RINGED where >= 3 / 4 animals change in the same direction AND by more
+    than 2x their own pre-fit noise SD. One fit per animal x epoch -> no session bootstrap is possible; the
+    animal count is the test (CLAUDE.md rule 8). All points share the master mesh (`home`), so animals align point by
+    point. Returns the per-epoch summary (points ringed, per sign)."""
+    from wfield_local import face_rhythm_figures as frf
+    home, ks = D["home"], D["factors"]
+    animals = sorted({an for an, _ in D["template"]})
+    rows = []
+    with frf.style():
+        cols = ["preA - preB", *frc.POST_EPOCHS]
+        fig, axs = frf.subplots(len(ks), len(cols), figsize=(3.1 * len(cols), 3.2 * len(ks)), squeeze=False)
+        sc = None
+        for r_i, k in enumerate(ks):
+            Z = {}
+            for c in cols:
+                per, beyond = [], []
+                for an in animals:
+                    a_, b_ = D["loading"].get((an, "preA", k)), D["loading"].get((an, "preB", k))
+                    if a_ is None or b_ is None:
+                        continue
+                    noise = a_ - b_
+                    s = np.nanstd(noise) or 1e-12
+                    if c == "preA - preB":
+                        d = noise
+                    elif (an, c, k) in D["loading"]:
+                        d = D["loading"][(an, c, k)] - (a_ + b_) / 2
+                    else:
+                        continue
+                    per.append(d / s)
+                    beyond.append(np.abs(d) > 2 * s)
+                if per:
+                    Z[c] = (np.vstack(per), np.vstack(beyond))
+            lim = float(np.nanpercentile(np.abs(np.concatenate([Z[c][0].mean(0) for c in Z])), 99)) or 1.0
+            for c_i, c in enumerate(cols):
+                ax = axs[r_i, c_i]
+                ax.axis("off")
+                if c not in Z:
+                    continue
+                P, B = Z[c]
+                m = np.nanmean(P, 0)
+                sgn = np.sign(m)
+                agree = ((np.sign(P) == sgn) & B).sum(0)
+                ring = agree >= 3 if c != "preA - preB" else np.zeros(len(m), bool)
+                sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="PuOr_r", vmin=-lim, vmax=lim)
+                ax.scatter(home[ring, 0], home[ring, 1], s=13, facecolors="none", edgecolors="k", linewidths=0.4)
+                ax.axvline(342.0, color="k", lw=0.4)
+                ax.invert_yaxis()
+                ax.set_aspect("equal")
+                if c != "preA - preB":
+                    rows.append(dict(factor=names[k], epoch=c, n_animals=P.shape[0], ringed=int(ring.sum()),
+                                     ringed_more=int((ring & (m > 0)).sum()), ringed_less=int((ring & (m < 0)).sum()),
+                                     n_points=len(m)))
+                    ttl = f"{names[k]}: {c}\n{ring.sum()} pts >= 3/4 (+{int((ring & (m > 0)).sum())} / " \
+                          f"-{int((ring & (m < 0)).sum())})"
+                else:
+                    ttl = f"{names[k]}: preA - preB (noise)"
+                ax.set_title(ttl, fontsize=8)
+        if sc is not None:
+            fig.colorbar(sc, ax=axs, shrink=0.3, label="loading change / own pre-fit noise SD, mean of animals")
+        fig.suptitle(f"Lick-factor loading change, POOLED over {len(animals)} animals (each / its own pre-fit noise); "
+                     "image left = contralesional")
+        frf.save(fig, out / "epoch_shape_loading_pooled.png", f"""
+Cross-animal version of epoch_shape_loading_<factor>.png. Per animal: each epoch's pooled-fit loading fraction minus the
+mean of the two pre-half fits, divided by that animal's pre-fit noise (SD over the face of preA - preB); then the mean of
+the {len(animals)} animals (orange = more of the factor's loading there after the stroke, purple = less). Ringed points:
+>= 3 of {len(animals)} animals change in the mean's direction AND by more than 2 x their own pre-fit noise SD. First
+column: the pooled noise itself (preA - preB on the same scale). One fit per animal x epoch, so the animal count is the
+test -- no session bootstrap. Chance of a ring: the epoch-vs-pre-halves difference has ~0.87x the noise SD of
+preA - preB, so one animal passes 2 SD in one direction with p ~ .01 and >= 3 of 4 with p ~ 5e-6 per point (~0 of
+1,282 expected). PS93 (pre-existing right orofacial deficit) went the other way in the per-animal figure.""")
+    return pd.DataFrame(rows)
+
+
+def pooled_summary_figures(T: pd.DataFrame, D: dict, names: list[str], out: Path) -> pd.DataFrame:
+    """Cross-animal versions of epoch_shape_angles.png, epoch_shape_asymmetry.png and epoch_shape_templates.png (Priya
+    10-25), each WITHIN ANIMAL before pooling: angle = epoch angle / the animal's own pre-half floor (1 = as different as
+    two pre-stroke fits); asymmetry change / the animal's own |preA - preB|; template r change = epoch r minus the mean
+    of the animal's two pre-half r. Mean of animals, with k / n animals beyond the floor (angles) or sharing the mean's
+    sign (asymmetry, templates). One fit per animal x epoch -> the animal count is the test, no bootstrap."""
+    from wfield_local import face_rhythm_figures as frf
+    acol, ecol = frc.animal_colors(), frc.epoch_colors()
+    animals = sorted(T.animal.unique())
+    T = T.assign(ratio_spatial=T.angle_spatial / T.floor_spatial, ratio_spectral=T.angle_spectral / T.floor_spectral)
+    eps = list(frc.POST_EPOCHS)
+    rows = []
+    with frf.style():
+        fig, axs = frf.subplots(2, 1, figsize=(14, 7.2), squeeze=False)
+        for r_i, mode in enumerate(("spatial", "spectral")):
+            ax = axs[r_i, 0]
+            for e_i, ep in enumerate(eps):
+                off = (e_i - 1) * 0.26
+                for k, nm in enumerate(names):
+                    d = T[(T.factor == k) & (T.epoch == ep)]
+                    if d.empty:
+                        continue
+                    for an, v in zip(d.animal, d[f"ratio_{mode}"]):
+                        ax.scatter(k + off, v, s=9, color=acol.get(an, "0.5"), alpha=.7, lw=0, zorder=2)
+                    m, nb = d[f"ratio_{mode}"].mean(), int(d[f"beyond_{mode}"].sum())
+                    ax.plot([k + off - .1, k + off + .1], [m, m], color=ecol[ep], lw=2.6, zorder=3,
+                            label=ep if k == 0 else None)
+                    rows.append(dict(measure=f"angle_{mode}", factor=nm, epoch=ep, mean_ratio=m,
+                                     beyond=f"{nb}/{len(d)}"))
+            ax.axhline(1, color="0.5", ls=":", lw=1)
+            ax.set_xticks(range(len(names)), names, rotation=30, ha="right", fontsize=8)
+            ax.set_ylabel(f"{mode} angle / own pre-half floor")
+            ax.legend(fontsize=8, frameon=False, ncol=3, loc="upper right")
+            ylo, yhi = ax.get_ylim()
+            for rr in rows:
+                if rr["measure"] == f"angle_{mode}":
+                    k, e_i = names.index(rr["factor"]), eps.index(rr["epoch"])
+                    ax.text(k + (e_i - 1) * 0.26, yhi, rr["beyond"], ha="center", va="bottom", fontsize=6,
+                            color=ecol[rr["epoch"]])
+        fig.suptitle("Factor shape change, POOLED over animals: angle / own pre-half floor "
+                     "(bars = mean of animals; k/n = animals beyond floor)")
+        frf.save(fig, out / "epoch_shape_angles_pooled.png", f"""
+Cross-animal version of epoch_shape_angles.png. Per animal and factor: the epoch fit's mean angle to the two pre-half
+fits divided by the angle between the two pre halves (the animal's own fit-noise floor), so 1 = as different as two
+fits of the same pre-stroke behaviour. Dots = animals ({', '.join(animals)}), bars = mean of animals per epoch; numbers on
+top = animals whose epoch fit is beyond the floor (angle to BOTH halves > floor). One fit per animal x epoch, so the
+animal count is the test; no bootstrap.""")
+
+        ks = D["factors"]
+        pos = list(D["positions"])
+        fig, axs = frf.subplots(1, 1 + len(ks), figsize=(4.2 + 4.6 * len(ks), 3.8), squeeze=False)
+        ax = axs[0, 0]
+        for i, k in enumerate(ks):
+            d = T[T.factor == k]
+            for e_i, ep in enumerate(eps):
+                de = d[d.epoch == ep]
+                xx = i * 4 + e_i
+                # native units (dimensionless, shared by all animals), each animal vs its OWN pre halves; dividing by
+                # each animal's |preA - preB| blew up where that floor is ~0 (-21x), so the floor is drawn instead
+                for an, v in zip(de.animal, de.asym_change):
+                    ax.scatter(xx, v, s=12, color=acol.get(an, "0.5"), lw=0, zorder=2)
+                m = de.asym_change.mean()
+                agree = int((np.sign(de.asym_change) == np.sign(m)).sum())
+                fl = de.asym_floor.mean()
+                ax.fill_between([xx - .35, xx + .35], -fl, fl, color="0.88", lw=0, zorder=0)
+                ax.plot([xx - .3, xx + .3], [m, m], color=ecol[ep], lw=2.6, zorder=3)
+                ax.text(xx, 0.98, f"{agree}/{len(de)}", transform=ax.get_xaxis_transform(), ha="center", va="top",
+                        fontsize=7, color=ecol[ep])
+                rows.append(dict(measure="asymmetry change vs own pre halves", factor=names[k], epoch=ep,
+                                 mean_ratio=m, beyond=f"{agree}/{len(de)} same sign"))
+        ax.axhline(0, color="0.5", lw=.8)
+        ax.set_xticks([i * 4 + 1 for i in range(len(ks))], [names[k] for k in ks])
+        ax.set_ylabel("asymmetry change vs own pre halves\n(< 0 = towards the ipsilesional face)", fontsize=8)
+        ax.set_title("loading asymmetry (acute, subacute, chronic)", fontsize=9)
+        im = None
+        for i, k in enumerate(ks):
+            ax = axs[0, 1 + i]
+            M, A = [], []
+            for ep in eps:
+                per = [D["corr"][(an, ep, k)] - (D["corr"][(an, "preA", k)] + D["corr"][(an, "preB", k)]) / 2
+                       for an in animals if (an, ep, k) in D["corr"] and (an, "preA", k) in D["corr"]]
+                P = np.vstack(per)
+                m = P.mean(0)
+                M.append(m)
+                A.append((np.sign(P) == np.sign(m)).sum(0))
+                for p_i, p in enumerate(pos):
+                    rows.append(dict(measure=f"template r change ({p})", factor=names[k], epoch=ep,
+                                     mean_ratio=m[p_i], beyond=f"{A[-1][p_i]}/{P.shape[0]} same sign"))
+            M, A = np.array(M), np.array(A)
+            im = ax.imshow(M, cmap="RdBu_r", vmin=-0.6, vmax=0.6, aspect="auto")
+            for (yy, xx), v in np.ndenumerate(M):
+                ax.text(xx, yy, f"{v:+.2f}\n{A[yy, xx]}/{len(animals)}", ha="center", va="center", fontsize=6)
+            ax.set_xticks(range(len(pos)), pos, rotation=45, fontsize=7)
+            ax.set_yticks(range(len(eps)), eps, fontsize=8)
+            ax.set_title(f"{names[k]}: r with each spout's pre pattern,\nepoch - pre halves", fontsize=9)
+        fig.colorbar(im, ax=axs[0, 1:], shrink=0.8, label="change in r, mean of animals")
+        for an in animals:
+            axs[0, 0].scatter([], [], color=acol.get(an), s=12, label=an)
+        axs[0, 0].legend(fontsize=6, frameon=False, loc="lower left")
+        fig.suptitle("Lick factors, POOLED over animals: loading asymmetry and resemblance to each spout")
+        frf.save(fig, out / "epoch_shape_lick_pooled.png", """
+Cross-animal versions of epoch_shape_asymmetry.png and epoch_shape_templates.png. Left: each animal's loading-asymmetry
+change (contra - ipsi over sum; epoch fit minus the mean of its OWN pre halves; dimensionless, so the animals share
+units); bars = mean of animals; grey band = +- the animals' mean |preA - preB| (pre-fit noise); k/n = animals sharing
+the mean's sign. (Dividing by each animal's own floor blows up where it is ~0.) Right: change in r between the lick factor's loading and each spout's
+pre-stroke spout-specific movement pattern (epoch minus the mean of the two pre halves), mean of animals; cell text =
+change and animals sharing its sign. One fit per animal x epoch: the animal count is the test.""")
+    return pd.DataFrame(rows)
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -299,6 +486,13 @@ ipsilesional face. Bars at pre: +-|preA - preB| per animal, the pre-stroke noise
             print(f"{names[k]} {an}\n" + pd.DataFrame([D["corr"][(an, g, k)] for g in rows], index=rows,
                                                        columns=D["positions"]).round(2).to_string())
     loading_figures(D, names, out, fdir.name)
+    P = pooled_summary_figures(T, D, names, out)
+    P.to_csv(figure_layout.sidecar_for(out, "epoch_shape_pooled_summary", ".csv"), index=False, float_format="%.4g")
+    print("\npooled shape summaries (within-animal normalised)\n"
+          + P[~P.measure.str.startswith("template")].to_string(index=False))
+    S = pooled_loading_figure(D, names, out, fdir.name)
+    S.to_csv(figure_layout.sidecar_for(out, "epoch_shape_loading_pooled", ".csv"), index=False)
+    print("\npooled loading change, points with >= 3 / 4 animals beyond their own pre-fit noise\n" + S.to_string(index=False))
     print("->", out)
     return 0
 
