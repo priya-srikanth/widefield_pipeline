@@ -192,8 +192,11 @@ bootstrap unless stated; LICK DATA = behaviour only.*
 8. **Encoder relabel test: no single answer for "which spout is cortex in".** Best-fitting label (target + spout-locked
    pattern swapped, executed licks kept): far contra loses its label toward far mid / close contra but other spouts
    lose theirs too (close contra -.58 acute, far mid -.44 chronic); per animal PS95 re-aimed at far mid (transient),
-   PS93 stays far contra, PS92 / PS94 nonspecific. **PROVISIONAL** (session level; per-trial run in progress) (2.7, 8.3;
-   Fig 3m, 3n).
+   PS93 stays far contra, PS92 / PS94 nonspecific. TRIAL LEVEL (10-25, Fig 3o-3q): far contra loses its own label in
+   every epoch (-.14 / -.17 / -.14, 4/4) but far ipsi as much (-.23 / -.21 / -.17), and trials at EVERY spout drift to the
+   close-mid label (close ipsi +.20 acute, 4/4): a label-wide bias, not far contra re-aimed; on off-target far-contra
+   trials the encoder reads target ~.12-.15, executed ~.17-.23, another spout ~.65 (unlike the decoder, 8.2).
+   **PROVISIONAL** (2.7, 8.3; Fig 3m-3q).
 9. **Failed attempts lose the side but keep the distance.** Frozen decoder on video attempt classes: acute failed
    (incomplete) far-contra attempts are read as A far spout (distance kept, side lost; 4 / 4, lick window); no
    pre-cue plan signature; retained code ~.1 of pre-stroke hits at every epoch while hits recover to .71. **STANDS**
@@ -212,8 +215,13 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     Musall-style with FR (Fig 16d-16h): FaceRhythm alone ~310-380 x1e3 (cortex), ~120-155 unique; it overlaps mostly
     with UNINSTRUCTED movement (that group's unique R2 halves, 241 -> 109 pre, lick window); in the lick window FR's
     unique R2 rises acutely (135 -> 156) while every other group's falls. Pixel maps: the chronic rise in position
-    unique is broad without FR, focal contralesional anterior-lateral with FR (descriptive).
-    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound) (8.7; Fig 16-16h).
+    unique is broad without FR, focal contralesional anterior-lateral with FR. TESTS (10-25, Fig 16i-16k, R2 as a
+    fraction): pixel test (16 / 32 px, calibrated 5 % false-bin rate) finds NO chronic bins for position unique | FR (69
+    without FR), 13 up for task unique | FR; a priori AREA test: chronic position unique | FR in CONTRALESIONAL SSp-m cue
+    +0.037 [0.010, 0.067] 4/4 (p_bonf .002), lick +0.025 3/4 (n.s. after correction), ipsilesional ~0; contra - ipsi
+    +0.025 / +0.032 (CIs exclude 0); task the same; uninstructed ALONE rises in SSp-m on both sides (4/4). Beyond pre drift
+    in PS94 / PS95 only (PS92 marginal, PS93 not); not a denominator effect (total variance rose).
+    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound; carried by PS94 / PS95) (8.7; Fig 16-16k).
 13. **Not established / withdrawn here:** pre-stroke target-over-executed lead (SUSPENDED, 2.4); pooled toward-midline
     within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
     lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit
@@ -283,7 +291,7 @@ Paxinos plates: `wfield_local/histology_map/`.
   fatigue"; DECISIONS 09-20 revised it the same day to "partly fatigue" (acute within-bout slope +10.1 ms; within-bout
   deceleration +15-25 ms at every epoch, 4 / 4).
 * Open (section 3-4): October decoder rerun after the `_day` fix; chronic region-level (`15k`) cells on the full chronic
-  cohort; per-trial encoder relabel matrices (running); drift-group null for Layer 2 / residual (June sessions lack
+  cohort; FR trial-to-trial vs PETH split (O2 fr_A_tr, lined up 10-25); drift-group null for Layer 2 / residual (June sessions lack
   FaceRhythm and have off kinematics, so a June -> August encoder null is not available).
 * Open: per-bout timing of lick_right (5.6); early-vs-late pre-day floor for factor shape (5.10); other cameras for
   FaceRhythm (cam1-3).

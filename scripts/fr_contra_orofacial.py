@@ -239,7 +239,7 @@ def main(argv=None) -> int:
                     ax.set_ylabel(lab_[q], fontsize=9)
             cb = fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.02, pad=0.01)
             cb.set_label("chronic - pre, R2 (fraction, 0-1)", fontsize=8); cb.ax.tick_params(labelsize=7)
-        fig.suptitle(f"NEURAL: chronic minus pre PER ANIMAL, per-session encoder with FaceRhythm (mode {a.mode}), {w} window; "
+        fig.suptitle(f"NEURAL: chronic minus pre PER ANIMAL, per-session encoder with FaceRhythm (mode {a.mode}), {w} window;\n"
                      "held-out R2 (fraction, 0-1) per 2x2-px block; one colour scale per row (+-p98). Image left = ipsilesional.",
                      fontsize=9.5)
         fig.subplots_adjust(left=0.04, right=0.9, top=0.93, bottom=0.02, wspace=0.04, hspace=0.08)

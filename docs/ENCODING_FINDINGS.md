@@ -1069,15 +1069,19 @@ cells are many; per-animal numbers on the page.
   (far contra .25 target vs .29 executed — the only target where executed wins acutely; far ipsi .21 / .20; far mid
   .38 / .30); far contra stays near even chronically (.45 / .33). The bars do not add to 1: the rest = a third spout.
 
-### 8.3 Neural (frozen pre-stroke ENCODER, relabel test) vs target — PROVISIONAL (session level); trial level RUNNING
+### 8.3 Neural (frozen pre-stroke ENCODER, relabel test) vs target — PROVISIONAL; trial level DONE 10-25 (label-wide close-mid bias)
 - `scripts/relabel_confusion.py` on `frozen_relabel_v7g3_t3d` (Fig 3m / 3n): best-fitting label per session (all
   parcels, lick window): far contra loses its label -.43 / -.45 / -.33 toward far mid +.29 / +.39 / +.18 and close
   contra, nothing survives Bonferroni; OTHER spouts lose their label too (close contra -.58 acute, close ipsi -.35 to
   -.37, far mid -.44 chronic 4/4): a general loss of each spout's pre-stroke pattern (cf. Layer 2), not far contra
   specifically re-aimed. PS93's spouts are poorly separated pre (far contra best in 2/7 pre sessions).
-- Per-TRIAL relabel (`frozen_relabel` now saves trial_sse; `session_design` returns frame_trial) RUNNING as
-  `frozen_relabel_v7g3_t3d_trial` (8 workers, ~5 h from 10-25 00:00); queued after it: `relabel_confusion.py --trial`
-  (lick, cue) and `exec_vs_neural_match.py --source encoder`.
+- Per-TRIAL relabel DONE 10-25 01:39 (`frozen_relabel_v7g3_t3d_trial`, 106 / 106; Fig 3o-3q): best label per trial,
+  epoch - pre: far contra own label -.14 / -.17 / -.14 (4/4, Bonferroni), far ipsi -.23 / -.21 / -.17, and every spout's
+  trials gain the CLOSE-MID label (close ipsi +.20 / +.17 / +.17, 4/4): post-stroke responses fit the most generic template
+  best -- a label-wide bias, not far contra re-aimed (far mid +.11 subacute 3/4 only). Executed landing vs encoder label
+  shows the same bias; acute far-contra landings exist in PS92 only. Off-target far-contra trials: target ~.2 pre -> .12-.15,
+  executed ~.17-.23, another spout ~.65 -- the encoder's trial label is a weak target-vs-executed readout (the decoder,
+  8.2, is the better one).
 
 ### 8.4 Frozen-encoder residual: pooled maps at calibrated bins, and by area — STANDS (pooled); CORRECTS 3.4's "pooled weak"
 - **Bin size**: random pre half-splits — 8 px 0/20 false, 16 px 0/20 (lick) / 1/20 (cue), 32 px 2-4 % of 100 splits
@@ -1125,6 +1129,17 @@ cells are many; per-animal numbers on the page.
   the same); acutely FR alone / unique rise while uninstructed, task and position unique fall. Descriptive. NOTE: our
   "task-aligned" (alone - drop-one unique) is the overlap with EVERYTHING else in the model, not Musall's overlap with
   task only (R2(task + X) - R2(task)); schematic Fig 16d.
+  **Tests (10-25; `scripts/fr_pixel_significance.py`, `scripts/fr_contra_orofacial.py`; R2 as a FRACTION from here on,
+  Priya):** pixel test (nested bootstrap, Bonferroni over 514 / 131 bins; null half-splits flag >= 1 bin in 5 %): chronic
+  position unique | FR 0 bins (lick and cue) vs 69 / 99 without FR; task unique | FR 13 / 8 up (contralesional lateral);
+  uninstructed unique | FR down over ~190-300 central bins in every epoch. A priori areas (SSp-m, MOp, MOs, SSp-n x
+  hemisphere, Bonferroni x8): chronic position unique | FR contralesional SSp-m cue +0.037 [0.010, 0.067] 4/4 p_bonf .002,
+  lick +0.025 [0.002, 0.051] 3/4 n.s.; ipsilesional ~0; task unique | FR contralesional SSp-m cue +0.041 4/4 p_bonf .002;
+  contra - ipsi SSp-m position +0.025 / +0.032, task +0.025 / +0.035 (CIs exclude 0). Uninstructed alone rises in SSp-m
+  BOTH sides (lick +0.046 / +0.060, 4/4), falls in MOp / MOs / SSp-ul. Without FR position unique rises broadly (MOp / MOs
+  / SSp-ul bilateral, cortex +0.022 / +0.039, 4/4). Per animal: carried by PS94 / PS95 (0.064 / 0.061 cue vs PS92 0.016,
+  PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
+  chronically (not a denominator effect). PROVISIONAL.
 
 ### 8.8 Variance explained (Musall style) and R2 maps on the final frame — descriptive
 - `frozen_musall_figures.py --tag gate-attempted_v7g3_t3d` (Fig 14 / 14b; MOs / MOp / SSp-m / SSp-n per hemisphere
