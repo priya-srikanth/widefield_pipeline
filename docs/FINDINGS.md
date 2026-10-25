@@ -164,7 +164,9 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
     bound. LICK window, REST, LP-lick gate (the headline lick map, page Fig 7.3b): far contra drift 1.04 (15 bins) vs
     acute .67 (500 bins), beyond drift; far middle drift .90 (12 bins, rim-suppressed) vs acute 1.07 -- no far-middle
     acute loss in the lick window, so the far-middle caveat is specific to the cue window; near positions drift
-    .86-.98 vs acute increases 1.32-1.58. **PROVISIONAL** until the remaining references / windows / arms render.
+    .86-.98 vs acute increases 1.32-1.58. LICK, REST, contact gate: far contra drift 1.11, acute empty (contact gating
+    leaves < 20 acute far-contra trials -- read the LP panel), far middle drift .93 vs acute 1.29, near drift .86-.98
+    vs acute 1.32-1.58. **PROVISIONAL** until the remaining references / windows / arms render.
 
 ## 4. Encoding model and the goal question
 
