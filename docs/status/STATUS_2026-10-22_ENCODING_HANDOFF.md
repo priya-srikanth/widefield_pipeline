@@ -9,6 +9,21 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000w. STATE 10-25 ~15:45 -- READ FIRST (then 000v)
+
+Priya: "do analyses 1, queue up 2 and 4"; "keep where we stand in the repo" -> FINDINGS section 0 (synthesis, revised).
+DONE (ENCODING_FINDINGS 8.11; both frames; page v56 Figs 1n-1s + revised status rows):
+- 1 specificity (`scripts/specificity_control.py`): Layer 2 NOT orofacial-specific (control = orofacial; grows steadily
+  with log day; only an acute orofacial excess) -> FINDINGS 4.3 CORRECTED. Residual orofacial-weighted in the cue window
+  (contrast 3/4 FR / 4/4 no-FR), partly global in the lick window. Gain correction tried and DROPPED (Priya: not needed).
+- 2 recovery (`scripts/remap_lmm.py`, figures in remap_lmm/<tag>/figures): residual largest at day 1, declines, persists
+  at full recovery (cue orofacial - control +0.73 / +1.09 pre-SD); the deficit slope is carried by PS94 (PS92 opposite).
+- 4 matched (`scripts/matched_residual.py`): residual unchanged on trials inside the pre behavioural envelope -> not
+  extrapolation. Design-space distance diagnostic still to do (fold into the self-fit second pass).
+STILL RUNNING: session_vs_frozen (S/svf_full.log), split run, maps chain (frA maps now). NEXT: when svf lands -> remapping
++ scoring-caveat verdict; second pass = narrow every-lick window (both frames) + design-space distance; frA / split maps to page;
+posinfo split -> page; then analyses 3 / 5 / 6 / 7 if Priya picks them.
+
 ## 000v. STATE 10-25 ~14:45 -- READ FIRST (then 000u)
 
 - Page v55: noise bands on Figs 1-1k; frozen noFR PIXEL maps added (Fig 1l nested test, Fig 1m per-animal view; status row).
