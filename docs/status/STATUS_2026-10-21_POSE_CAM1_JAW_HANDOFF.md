@@ -9,6 +9,33 @@ ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_mod
 
 ## 0000. 10-23 UPDATE -- read first
 
+* **10-25 FINDINGS CONSOLIDATION (Priya: one science-conclusions doc). OPEN, resume here:**
+  * Agreed by all three windows: ONE file, **`docs/FINDINGS.md`**. The FaceRhythm window (e3) drafts and pushes the
+    skeleton; it was not on origin at 10-25 ~00:30.
+  * Tags: STANDS / PROVISIONAL / CORRECTED / WITHDRAWN / NOT ESTABLISHED. Each claim 2-4 lines: numbers, animals
+    agreeing, link, detail-doc pointer. Family docs stay as the evidence record (no deletions) and get a header line
+    pointing to FINDINGS.md.
+  * Sections:
+    1. behaviour + orofacial kinematics -- **mine**;
+    2. pose / 3-D / cam1 -- **mine**;
+    3. imaging decode / state / anatomy -- d4 extracts, **I review / correct**;
+    4. encoding + goal question -- d4 (cites my 3-D landing / trajectories);
+    5. FaceRhythm -- e3;
+    6. histology;
+    7. open questions / withdrawn.
+  * My 10 headline claims for sections 1-2 were sent to e3 (they match the OROFACIAL_FINDINGS status table and the
+    POSE_MODELS Part D box).
+  * The section 3 corrections and the June -> Aug drift group were sent to d4 (stale state numbers in
+    BEHAVIOURAL_STATE_CONTROL; WHERE_THE_CODE_MOVES QUIET / MEAN superseded by 15r REST / RESTW).
+  * TODO when FINDINGS.md lands (fetch + rebase first):
+    1. edit sections 1-2 directly;
+    2. review section 3;
+    3. add the header pointer in OROFACIAL_FINDINGS.md and POSE_MODELS.md Part D;
+    4. fix any reviewer contradictions e3 sends for my docs.
+* **Imaging page v3** (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV) adds a figure viewer: click a figure, then
+  wheel / pinch to zoom and drag to pan. Source: `scratchpad/imaging_page/imaging_results.html`, which is not in the
+  repo; republish edits from it in this session, or from another session by `url`.
+
 * **10-24 IMAGING RESULTS PAGE + DECKS (this window):**
   * Page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV ("Cortical Spout Coding After Stroke"). Scope: imaging results
     whose behaviour input is only DAQ contact, the engagement gate or the LP attempt gate -- no full encoding models, no
