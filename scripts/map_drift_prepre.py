@@ -140,7 +140,7 @@ def main(argv=None) -> int:
     from wfield_local import position_reference_maps as prm
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
-    aligns = a.aligns or (["precue"] if a.arm == "enl1s" else ["cue", "lick", "precue"])
+    aligns = a.aligns or (["precue"] if a.arm == "enl1s" else ["precue", "cue", "lick"])
     from wfield_local import lp_licks
     # a non-default arm must sit under its tag directory (LP_licks, DAQ_ENL1s) or writeguard refuses it
     out_dir = a.out or Path(PathResolver().root("labcams")) / "grant_figures" / "map_drift_prepre"

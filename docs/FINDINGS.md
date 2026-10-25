@@ -117,8 +117,11 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
 4. **Cortical position-coding gain follows behaviour, lagging ~1 week, not practice.** 3 / 4 (not PS94). **STANDS**
    (DECISIONS 10-19). Plateau by the end of imaging in every decode / encoder readout, 4 / 4 (STATUS 10-07, F18);
    the October decoder rerun after the `_day` fix (660bcbe) was DONE 10-25 (e3): verdicts unchanged.
-5. **Acute map loss graded by eccentricity, far contra largest.** Rest-referenced (15r REST / RESTW, engagement-gated)
-   far-contra acute amplitude / pre .50 / .45 / .53 / .40 (4 / 4); chronic .90 / .98 / .60 / 1.12. **STANDS**; the
+5. **Acute map loss graded by eccentricity, far contra largest.** Rest-referenced, engagement-gated,
+   cue window: far-contra acute amplitude / pre .50 / .45 / .53 / .40 (4 / 4); chronic .90 / .98 / .60 / 1.12 -- these
+   per-animal numbers are the POSITION-WEIGHTED rest reference (15r RESTW; 5b found 10-25 that the page's "rest"
+   figure and table were RESTW). Plain REST pooled gives the same picture: far contra .48, far middle .66, near ipsi
+   1.43 acutely (RESTW .47 / .68 / 1.46). **STANDS**; the
    09-12 QUIET / MEAN amplitude tables in WHERE_THE_CODE_MOVES are **CORRECTED** (superseded by 15r).
 6. **The acute far-contra map change has the same shape across animals** (between-animal r MEAN +.82, PRECUE +.86 vs a
    cross-position null ~.02-.08, p <= .001). **STANDS** acutely; chronic agreement is at its own null (DECISIONS
@@ -151,14 +154,17 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
     behavioural deficit session by session (frozen -.040 / unit, z -3.2; template amplitude z -8.7; best-match z -7.6).
     Position-coding ceiling vs deficit is NOW significant (z -4.0; was q .080). **STANDS**. Imaging page section 13.
 14. **Map drift without a stroke (June pre -> August pre, 15r maps; `scripts/map_drift_prepre.py`, 10-25; imaging page
-    Fig 7k).** REST reference, cue, contact arm, 4 / 4 animals (12 June / 32 August sessions), ratio = amplitude vs the
+    Fig 7.2d).** CUE window, REST reference, contact gate, 4 / 4 animals (12 June / 32 August sessions), ratio = amplitude vs the
     reference epoch, sig bins of 2022 (nested bootstrap, maxstat). Far contra: drift .95 (7 bins) vs acute .49 (1178
     bins) -> the acute far-contra loss (claim 5) is far beyond drift, **STANDS**. Far MIDDLE is the exception: drift .77
     (244 bins) is as large as its acute change .71 (151 bins), so the far-middle acute loss is **not separable from
     drift**, and the pooled CD leave-one-out far_center chronic -.51 (4 / 4; scored against August pre only) needs the
     same caveat. Far ipsi drift .76 (294 bins) vs acute 1.06 (6 bins). Near positions: drift .82-.94; stroke changes
     are increases (near ipsi acute 1.51, chronic 1.43), the opposite sign. June includes learning -> drift is an upper
-    bound. **PROVISIONAL** until the other references / aligns / arms (LP, ENL 1 s) render.
+    bound. LICK window, REST, LP-lick gate (the headline lick map, page Fig 7.3b): far contra drift 1.04 (15 bins) vs
+    acute .67 (500 bins), beyond drift; far middle drift .90 (12 bins, rim-suppressed) vs acute 1.07 -- no far-middle
+    acute loss in the lick window, so the far-middle caveat is specific to the cue window; near positions drift
+    .86-.98 vs acute increases 1.32-1.58. **PROVISIONAL** until the remaining references / windows / arms render.
 
 ## 4. Encoding model and the goal question
 
