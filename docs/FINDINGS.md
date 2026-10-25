@@ -152,7 +152,9 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
 13. **Session mixed models (re-run 10-25 on the rebuilt attempts table, `scripts/imaging_lmm.py`, both deficit
     definitions):** every decoder / template readout steps down at the stroke, recovers with log(days) and tracks the
     behavioural deficit session by session (frozen -.040 / unit, z -3.2; template amplitude z -8.7; best-match z -7.6).
-    Position-coding ceiling vs deficit is NOW significant (z -4.0; was q .080). **STANDS**. Imaging page section 13.
+    The decoder / template rows **STAND**. Position-coding ceiling vs deficit now reads significant (z -4.0; was q .080) but is
+    **PROVISIONAL**: the trend-family outputs that model reads were not re-run on the rebuilt attempts table (OUTPUT_AUDIT
+    2026-10-24 §2a, STALE). Imaging page section 13.
 14. **Map drift without a stroke (June pre -> August pre, 15r maps; `scripts/map_drift_prepre.py`, 10-25; imaging page
     §7, drift panels).** CUE window, REST reference, contact gate, 4 / 4 animals (12 June / 32 August sessions), ratio = amplitude vs the
     reference epoch, sig bins of 2022 (nested bootstrap, maxstat). Far contra: drift .95 (7 bins) vs acute .49 (1178
