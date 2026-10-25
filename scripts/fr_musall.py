@@ -60,6 +60,95 @@ def table(mode: str, windows) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+PIX = [("full_fr", "full R2 (with FR)"), ("alone_fr", "FaceRhythm alone"), ("unique_fr", "FaceRhythm unique"),
+       ("alone_uninstructed", "uninstructed alone"), ("uniquefr_uninstructed", "uninstructed unique | FR"),
+       ("uniquefr_task", "task unique | FR"), ("unique_position", "position unique, no FR"),
+       ("uniquefr_position", "position unique | FR")]
+
+
+def session_pixels(lab: str, mode: str, windows) -> dict:
+    """{(quantity, window): (H, W) block R2 x1e3} for one session from the stored 2 x 2-block SSE maps of the main
+    (no-FR) and FR runs (same grid; R2 = 1 - SSE / SST per block, as combined_encoding_figures._grid_from)."""
+    frd = E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{mode}" / "sessions"
+    zm, zf = np.load(MAIN / f"{lab}.npz"), np.load(frd / f"{lab}.npz")
+    assert np.array_equal(zm["flat"], zf["flat"])
+    H, W = (int(x) for x in zm["shape"])
+    km = {str(k): i for i, k in enumerate(zm["map_keys"])}
+    kf = {str(k): i for i, k in enumerate(zf["map_keys"])}
+    Mm, Mf = zm["maps"].astype(float), zf["maps"].astype(float)
+    out = {}
+    for w in windows:
+        tot = Mf[kf[f"TOTAL|{w}"]]
+        ok = tot > 0
+        den = np.where(ok, tot, 1.0)
+        def r2(M, ix, k):
+            return np.where(ok, 1 - M[ix[f"{k}|{w}"]] / den, np.nan)  # noqa: B023 (called within this iteration)
+        full_fr = r2(Mf, kf, "fr:full")
+        q = {"full_fr": full_fr, "alone_fr": r2(Mf, kf, "fr:alone"), "unique_fr": full_fr - r2(Mf, kf, "full"),
+             "alone_uninstructed": r2(Mm, km, "alone:uninstructed"),
+             "unique_position": r2(Mm, km, "full") - r2(Mm, km, "drop:position")}
+        for g in ("task", "uninstructed", "position"):
+            q[f"uniquefr_{g}"] = full_fr - r2(Mf, kf, f"fr:drop:{g}")
+        for k, v in q.items():
+            g_ = np.full(H * W, np.nan)
+            g_[zm["flat"]] = v * 1e3
+            out[(k, w)] = g_.reshape(H, W)
+    return out
+
+
+def pixel_maps(mode: str, windows, T: pd.DataFrame, out: Path) -> None:
+    """Musall-style PIXEL maps (Musall 2019 Fig. 4: full / alone / unique cvR2 per pixel): rows pre level, acute - pre,
+    chronic - pre (within animal, then mean of animals); one colorbar per panel."""
+    import matplotlib.pyplot as plt
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from combined_encoding_figures import _outline
+    acc: dict = {}
+    meta = T[["label", "animal", "epoch"]].drop_duplicates()
+    for _, m in meta.iterrows():
+        for k, g in session_pixels(m.label, mode, windows).items():
+            acc.setdefault((m.epoch, m.animal, k), []).append(g)
+    A = {key: np.nanmean(v, 0) for key, v in acc.items()}            # per animal x epoch
+    ol = _outline(meta.rename(columns={}))
+    np.savez_compressed(out / f"fr_musall_pixel_maps_mode{mode}.npz",
+                        keys=np.array([f"{e}|{an}|{k}|{w}" for (e, an, (k, w)) in A]), maps=np.stack(list(A.values())))
+    for w in windows:
+        rows_ = [("pre (level)", None)] + [(f"{ep} minus pre", ep) for ep in ("acute", "chronic")]
+        fig, axs = plt.subplots(3, len(PIX), figsize=(2.3 * len(PIX), 7.6), squeeze=False)
+        for r, (title, ep) in enumerate(rows_):
+            for j, (c, lab_) in enumerate(PIX):
+                ans = sorted({an for (e, an, kk) in A if e == "pre" and kk == (c, w)})
+                if ep is None:
+                    M = np.nanmean([A[("pre", an, (c, w))] for an in ans], 0)
+                else:
+                    M = np.nanmean([A[(ep, an, (c, w))] - A[("pre", an, (c, w))] for an in ans if (ep, an, (c, w)) in A], 0)
+                ax = axs[r, j]
+                if ep is None:
+                    im = ax.imshow(M, cmap="viridis", vmin=0, vmax=np.nanpercentile(M, 99), interpolation="nearest")
+                else:
+                    v = np.nanpercentile(np.abs(M), 99)
+                    im = ax.imshow(M, cmap="RdBu_r", vmin=-v, vmax=v, interpolation="nearest")
+                if ol is not None and ol.shape == M.shape:
+                    ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.5, interpolation="nearest")
+                ax.set_xticks([]); ax.set_yticks([])
+                for s_ in ax.spines.values():
+                    s_.set_visible(False)
+                cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02, orientation="horizontal")
+                cb.ax.tick_params(labelsize=6)
+                if r == 0:
+                    ax.set_title(lab_, fontsize=8)
+                if j == 0:
+                    ax.set_ylabel(title, fontsize=9)
+        fig.suptitle(f"NEURAL: Musall-style PIXEL maps, per-session encoder with FaceRhythm (mode {mode}), {w} window; "
+                     "held-out R2 x1e3 per 2x2-px block (1 - SSE/SST), within animal then mean of 4 animals.\n"
+                     "Row 1: pre-stroke level (viridis, 0 to p99); rows 2-3: epoch minus pre (RdBu, +-p99). unique = "
+                     "full minus the model without the group; | FR = FaceRhythm in the model. Image left = ipsilesional.",
+                     fontsize=9)
+        fig.subplots_adjust(left=0.03, right=0.995, top=0.88, bottom=0.03, wspace=0.08, hspace=0.12)
+        fig.savefig(out / "figures" / f"fr_pixel_maps_{w}_mode{mode}.png", dpi=110)
+        plt.close(fig)
+        print("->", out / "figures" / f"fr_pixel_maps_{w}_mode{mode}.png", flush=True)
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -158,6 +247,7 @@ def main(argv=None) -> int:
         fig.tight_layout(rect=(0, 0, 1, 0.92))
         fig.savefig(out / "figures" / f"fr_area_maps_{w}_mode{a.mode}.png", dpi=115)
         plt.close(fig)
+    pixel_maps(a.mode, a.windows, T, out)
     show = A[(A.area == a.area)].groupby(["window", "epoch"])[["alone_fr", "unique_fr", "unique_position", "uniquefr_position",
                                                                "uniquefr_task", "uniquefr_uninstructed"]].mean().round(1)
     print(show.to_string())
