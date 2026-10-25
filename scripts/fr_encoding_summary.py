@@ -52,10 +52,10 @@ def session_table(areas, windows) -> pd.DataFrame:
                 b = base.loc[(ar, w)]
                 rows.append({"label": lab, "animal": config.animal_of(lab), "epoch": epochs.epoch_of(lab), "mode": mode,
                              "area": ar, "window": w, "full_main": b["full"], "full_frrun": x["full"],
-                             "fr_gain": (x["fr:full"] - x["full"]) * 1e3,
-                             "fr_alone": x["fr:alone"] * 1e3,
-                             "pos": (b["full"] - b["drop:position"]) * 1e3,
-                             "pos_fr": (x["fr:full"] - x["fr:drop:position"]) * 1e3})
+                             "fr_gain": x["fr:full"] - x["full"],
+                             "fr_alone": x["fr:alone"],
+                             "pos": b["full"] - b["drop:position"],
+                             "pos_fr": x["fr:full"] - x["fr:drop:position"]})
     return pd.DataFrame(rows)
 
 
@@ -80,7 +80,7 @@ def main(argv=None) -> int:
     A.to_csv(out / "fr_summary_by_animal.csv", index=False)
     pd.set_option("display.width", 220)
     show = A[(A.area == "cortex")].pivot_table(index=["window", "mode", "animal"], columns="epoch",
-                                               values=["fr_gain", "pos", "pos_fr"]).round(1)
+                                               values=["fr_gain", "pos", "pos_fr"]).round(3)
     print(show.to_string())
     rng = lambda: np.random.default_rng(0)  # noqa: E731
     lines = []
@@ -100,7 +100,7 @@ def main(argv=None) -> int:
                     for an, y in v.items():
                         ax.scatter(x, y, marker=MK[an], s=12, facecolor="w", edgecolor="k", lw=0.6, zorder=5)
             ax.set_xticks(range(4)); ax.set_xticklabels(EP); ax.axhline(0, color="k", lw=0.6)
-            ax.set_ylabel(f"{w} window\nR2 x1e3"); ax.set_title("what FaceRhythm adds (fr:full - full)", fontsize=9)
+            ax.set_ylabel(f"{w} window\nR2 (fraction)"); ax.set_title("what FaceRhythm adds (fr:full - full)", fontsize=9)
             if r == 0:
                 ax.legend(fontsize=7, frameon=False, ncol=4)
             # (2) unique position R2 without FR vs with FR (mode B and A)
@@ -119,7 +119,7 @@ def main(argv=None) -> int:
                     for an, y in v.items():
                         ax.scatter(x, y, marker=MK[an], s=12, facecolor="w", edgecolor="k", lw=0.6, zorder=5)
             ax.set_xticks(range(4)); ax.set_xticklabels(EP); ax.axhline(0, color="k", lw=0.6)
-            ax.set_title("unique spout-position R2 (x1e3)", fontsize=9)
+            ax.set_title("unique spout-position R2 (fraction)", fontsize=9)
             if r == 0:
                 ax.legend(fontsize=7, frameon=False)
             # (3) pooled change from pre (nested bootstrap): position unique with FR (A), without FR, and FR gain
@@ -141,12 +141,12 @@ def main(argv=None) -> int:
                     ax.errorbar(x, iv.point, yerr=[[iv.point - iv.lo], [iv.hi - iv.point]], color="k", capsize=2, lw=1)
                     if iv.lo > 0 or iv.hi < 0:
                         ax.text(x, iv.hi, "*", ha="center", va="bottom")
-                    lines.append(f"{area} {w} {lab} {ep}-pre: {iv.point:+.1f} [{iv.lo:+.1f}, {iv.hi:+.1f}]")
+                    lines.append(f"{area} {w} {lab} {ep}-pre: {iv.point:+.3f} [{iv.lo:+.3f}, {iv.hi:+.3f}]")
             ax.set_xticks(range(3)); ax.set_xticklabels(EP[1:]); ax.axhline(0, color="k", lw=0.6)
             ax.set_title("change from pre (pooled, 95% nested CI; * excludes 0)", fontsize=9)
             if r == 0:
                 ax.legend(fontsize=7, frameon=False)
-        fig.suptitle(f"NEURAL: FaceRhythm (master_pre_v1, rank 12) in the per-session encoder, {area}. Held-out R2 x1e3; bars = mean of "
+        fig.suptitle(f"NEURAL: FaceRhythm (master_pre_v1, rank 12) in the per-session encoder, {area}. Held-out R2 (fraction); bars = mean of "
                      "animals, markers = animals (o PS92, s PS93, ^ PS94, D PS95).\nMode A = FR lick amount + side + distance + other; B = "
                      "directionless (lick amount + other); S = + side; D = + distance.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.93))
