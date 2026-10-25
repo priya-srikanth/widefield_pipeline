@@ -230,8 +230,20 @@ def main(argv=None) -> int:
             if up is None:
                 ax.axis("off")
                 continue
-            net = np.where(np.isfinite(pics[(q, ep)][0][:up.shape[0] * 8:8, :up.shape[1] * 8:8]), up - dn, np.nan)
-            im = ax.imshow(np.clip(net, -3, 3), cmap=cm, norm=nb, interpolation="nearest")
+            f8 = FACTORS[16]
+            M0 = pics[(q, ep)][0]                         # block grid -> map grid, painted inside the brain only
+            big = np.full(M0.shape, np.nan)
+            hh, ww = min(up.shape[0] * f8, M0.shape[0]), min(up.shape[1] * f8, M0.shape[1])
+            big[:hh, :ww] = np.kron(up - dn, np.ones((f8, f8)))[:hh, :ww]
+            big = np.where(np.isfinite(M0), big, np.nan)
+            im = ax.imshow(np.clip(big, -3, 3), cmap=cm, norm=nb, interpolation="nearest")
+            if ol is not None and ol.shape == M0.shape:   # Allen outlines, as the other map figures
+                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+            for cnt, col in ((up, "k"), (dn, "k")):        # outline bins where >= 3 animals agree
+                if (cnt >= 3).any():
+                    c3 = np.zeros(M0.shape)
+                    c3[:hh, :ww] = np.kron((cnt >= 3).astype(float), np.ones((f8, f8)))[:hh, :ww]
+                    ax.contour(c3, levels=[0.5], colors=col, linewidths=1.0)
             n3u, n3d = int((up >= 3).sum()), int((dn >= 3).sum())
             crow.append({"q": q, "epoch": ep, "bins_3plus_up": n3u, "bins_3plus_down": n3d, "animals": "/".join(tested)})
             ax.text(0.02, 0.02, f">=3 animals: {n3u} up / {n3d} down", transform=ax.transAxes, fontsize=6.5,
@@ -246,7 +258,7 @@ def main(argv=None) -> int:
     cb.set_label("animals significantly UP minus DOWN\n(per animal: sessions as unit, Welch t, Bonferroni)", fontsize=8)
     fig.suptitle(textwrap.fill(f"NEURAL: FROZEN-frame pixel maps, PER-ANIMAL view (secondary; the nested bootstrap is primary), "
                                f"run {a.tag}, 16 px bins: how many of the 4 animals change significantly in each direction, "
-                               "each tested on its own sessions. Image left = ipsilesional.", int(21 * len(qs))), fontsize=9)
+                               "each tested on its own sessions; black outline = bins where >= 3 animals agree; grey = Allen areas. Image left = ipsilesional.", int(21 * len(qs))), fontsize=9)
     fig.savefig(run / "figures" / "unique_sig_per_animal.png", dpi=105)
     plt.close(fig)
     pd.DataFrame(crow).to_csv(run / "unique_sig_per_animal.csv", index=False)
