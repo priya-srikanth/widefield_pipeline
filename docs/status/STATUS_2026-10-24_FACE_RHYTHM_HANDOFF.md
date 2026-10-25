@@ -56,6 +56,14 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+0. **10-25 -- clean-up + findings.** Current conclusions now in docs/FINDINGS.md (section 5 = FaceRhythm; all windows
+   agreed one file). Results page v8: figures open in a zoomable viewer. DELETED (Priya-approved 10-25, derived only,
+   writeguard): o2/fr_cam4_20261021/out_test/ the 10 unchosen tracking parameter sets (kept PS95_20260812_cam4_midlk12.npz,
+   the chosen set; decision DECISIONS 10-21), face_rhythm/cam4/register_v1..v4_*_20261021 (superseded registrations;
+   register/ is current), and a local pilot scratch (fr/pilot: a 20k-frame clip of PS94 0810 cam4 -- the original video is
+   on MICROSCOPE -- plus its points / spec). 9.6 GB. KEPT: o2/fr_cam4_20261021/out/ (2.2 TB, the ONLY copy of the FR VQT
+   outputs: trial windows 25 Hz, whole session 5 Hz, points 25 Hz; whole-session 25 Hz VQT and 250 fps tracks were never
+   saved), the pilot factor set (encoder FR run A used it), param_test figures.
 0. **10-24 NIGHT -- STATE NOW (before compaction).** Everything below committed; results page v7
    https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 (source + figure copies in the session scratchpad `fr_page/`;
    from a new session: Artifact read the URL, then publish with `url`). Since the late-evening entry:
