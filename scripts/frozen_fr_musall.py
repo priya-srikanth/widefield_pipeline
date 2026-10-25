@@ -69,8 +69,9 @@ def main() -> int:
             ax.text(0.005, 0.03, "pre level: " + "; ".join(f"{f} {ALAB[a]} {pre.get((f, a), float('nan')):.3f}"
                                                          for f in fr_ for a in ("SSp-m_right", "cortex")),
                     transform=ax.transAxes, fontsize=7)
-        h, _l = axs[0].get_legend_handles_labels()
-        fig.legend(h, ["noFR = frozen final frame", "FR-A = frozen + FaceRhythm (mode A)"], loc="upper center", ncol=2,
+        h, lb = axs[0].get_legend_handles_labels()
+        nm = {"noFR": "noFR = frozen final frame", "FR-A": "FR-A = frozen + FaceRhythm (mode A)"}
+        fig.legend(h, [nm.get(x, x) for x in lb], loc="upper center", ncol=3,
                    fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.955))
         fig.suptitle(f"NEURAL: Musall-style UNIQUE R2 in the FROZEN frame (pre-stroke model applied unchanged), {w} window. Bars = "
                      "mean of animals' epoch - pre; whisker 95 % nested CI; * excludes 0; dots = animals. contra = right "

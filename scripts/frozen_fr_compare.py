@@ -75,6 +75,22 @@ def boot(df: pd.DataFrame, val: str, ref_epoch: str = "pre", epochs=EPS, keys=("
             rows.append({**dict(zip(keys, k if isinstance(k, tuple) else (k,))), "epoch": ep,
                          "ref": float(np.mean([ref[x].mean() for x in com])), "point": iv.point, "lo": iv.lo, "hi": iv.hi,
                          "p": float(ak.boot_p(d)), "n_up": sum(v > 0 for v in per.values()), "n": len(com), **per})
+        # PRE-STROKE NOISE BAND (Priya 10-25: "there's no pre in those plots ... would it be helpful to see pre variability"):
+        # random half-splits of each animal's ref sessions (>= 4), half B - half A, mean over animals, 500 splits -> 95 % range
+        rng = np.random.default_rng(1)
+        el = [x for x in AN if len(ref[x]) >= 4]
+        if len(el) >= 2:
+            nd = []
+            for _ in range(500):
+                dd = []
+                for x in el:
+                    v = rng.permutation(ref[x])
+                    h = len(v) // 2
+                    dd.append(v[h:].mean() - v[:h].mean())
+                nd.append(np.mean(dd))
+            rows.append({**dict(zip(keys, k if isinstance(k, tuple) else (k,))), "epoch": f"{ref_epoch}_split",
+                         "point": float(np.median(nd)), "lo": float(np.percentile(nd, 2.5)),
+                         "hi": float(np.percentile(nd, 97.5)), "n": len(el)})
     return pd.DataFrame(rows)
 
 
@@ -82,7 +98,14 @@ def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
     """Grouped bars: x = area x epoch, one bar per frame; whisker 95 % CI; * CI excludes 0; dots = animals."""
     nf = len(frames)
     xt, xl = [], []
+    band = False
     for i, a in enumerate(area_list):
+        nb = B[B.area.eq(a) & B.epoch.astype(str).str.endswith("_split") & B.frame.isin(frames)]
+        if not nb.empty:                                  # pre-stroke split-half 95 % range, widest over frames
+            x_0, x_1 = i * (len(EPS) + 1) - 0.5, i * (len(EPS) + 1) + len(EPS) - 0.5
+            ax.fill_between([x_0, x_1], nb.lo.min() * scale, nb.hi.max() * scale, color="#bbbbbb", alpha=0.35, lw=0,
+                            zorder=0, label=None if band else "pre-stroke split-half 95 % range")
+            band = True
         for j, ep in enumerate(EPS):
             x0 = i * (len(EPS) + 1) + j
             xt.append(x0); xl.append(f"{ep[:3]}" + ("\n" + ALAB[a] if j == 1 else "\n"))
@@ -196,8 +219,9 @@ def main() -> int:
         bars(axs[1, 1], B4, ["noFR", "FR-A"], AREAS, "change_ref minus pre_late (R2)",
              "4. LAYER 2: how much each epoch's mapping changes beyond the pre-stroke drift (pre_late), all windows")
         h, lb = axs[0, 0].get_legend_handles_labels()
-        fig.legend(h, ["noFR = final frame (no FaceRhythm)", "FR-B = frozen + directionless FR", "FR-A = frozen + all FR"],
-                   loc="upper center", ncol=3, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.925))
+        nm = {"noFR": "noFR = final frame (no FaceRhythm)", "FR-B": "FR-B = frozen + directionless FR", "FR-A": "FR-A = frozen + all FR"}
+        fig.legend(h, [nm.get(x, x) for x in lb],
+                   loc="upper center", ncol=4, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.925))
         fig.suptitle(f"NEURAL: FROZEN pre-stroke encoder with vs without FaceRhythm, {w} window (panel 4: all frames). Bars = "
                      "mean of animals' epoch - pre (panel 4: - pre_late); whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=10)

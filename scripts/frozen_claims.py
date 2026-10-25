@@ -103,8 +103,9 @@ def main() -> int:
                 fr_ = [f for f in RUNS if (b.frame == f).any()]
                 lab = {"avg": "PETH (spout-mean traces)", "trial": "TRIAL-TO-TRIAL (around each spout's mean)"}.get(m, "")
                 bars(ax, b, fr_, AR, "change from pre (R2)", f"{q} unique R2 {lab}")
-            h, _l = axs[0, 0].get_legend_handles_labels()
-            fig.legend(h, ["noFR = frozen final frame", "FR-A = frozen + FaceRhythm"], loc="upper center", ncol=2, fontsize=9,
+            h, lb = axs[0, 0].get_legend_handles_labels()
+            nm = {"noFR": "noFR = frozen final frame", "FR-A": "FR-A = frozen + FaceRhythm"}
+            fig.legend(h, [nm.get(x, x) for x in lb], loc="upper center", ncol=3, fontsize=9,
                        frameon=False, bbox_to_anchor=(0.5, 1 - 0.6 / (2.7 * len(rows_) + 1.3)))
             what = {"contest": "TARGET vs EXECUTED (target = the spout beyond every executed regressor)",
                     "peth": "TRIAL-TO-TRIAL vs PETH"}[name]
