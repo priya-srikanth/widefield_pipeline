@@ -1162,6 +1162,11 @@ R2 as a FRACTION from here on. FRAME: per-session refit encoder (FR factors froz
   [-0.11, -0.03] 4/4. Distance index: no change. READING: acute = face + measurement change; chronic = cortical decoupling
   (ipsilesional SSp-m) plus less within-spout side movement; not a measurement failure. |r| <= 0.2. The frozen-with-FR encoder
   is the model-based check (handoff 000t plan item 3).
+- **Contralesional SSp-m position rise across FR groupings** (`scripts/fr_contra_orofacial.py --mode A|B|S|D`; non-A in
+  `contra_orofacial_mode<X>/`): chronic position unique | FR, contralesional SSp-m, cue window: A +0.037 [0.010, 0.067]
+  (p_bonf .002), B +0.028 [0.002, 0.058] (.16), S +0.026 [0.004, 0.053] (.05), D +0.038 [0.005, 0.073] (.06), all 4/4;
+  lick window n.s. in every mode; contra - ipsi (lick) +0.031-0.035, CI excludes 0 in all four. The rise does not depend on
+  how FR's lick direction / distance enters; only mode A survives Bonferroni x8.
 - **Total variance** (`scripts/variance_maps.py`, data only; Fig 16p): every significant bin is an INCREASE (null 0-2 %); acute lateral
   orofacial both sides + posterior; chronic cortex x1.54 [1.37, 1.73] lick 4/4, VISp x1.83, RSPd x1.72 (global); R2 not raw variance
   is the measure.
