@@ -1,5 +1,7 @@
 # Orofacial findings: pre- vs post-stroke licking kinematics (cam4, plus 3-D and cam1)
 
+> **Cross-arm summary: [FINDINGS.md](FINDINGS.md) sections 1-2** (10-25). This file is the detailed record.
+
 Status: **preliminary, living document.** Last updated **2026-10-23** (pose / 3-D window). Rewritten 2026-10-18 for cam4;
 the 10-23 pass adds the status table below, the 3-D / cam1 section (8) on all four animals, and corrections. Update the
 section AND its status tag whenever a result changes, and add a line to the change log at the bottom.

@@ -437,6 +437,8 @@ two): PS94 0814 / 0821 / 0908 (no PS94 cam1 labels on those dates). Metrics, in 
 
 # Part D -- 3-D output and cam1 clean traces (Priya 2026-10-18: 3-D IS an analysis output)
 
+> **Cross-arm summary: [FINDINGS.md](FINDINGS.md) section 2** (10-25).
+>
 > **STATUS 2026-10-23 -- read before quoting D9-D12.** D9-D12 were written 10-18 .. 10-20 on PS92 (production) and PS93
 > (clips, then production); their numbers are ONE- or TWO-ANIMAL results. Since 10-23 3-D and cam1 licks cover all four
 > animals (3-D sessions PS92 35 / PS93 31 / PS94 30 / PS95 28; cam1 LP 125 / 127 curated videos; missing PS95_20260817 =

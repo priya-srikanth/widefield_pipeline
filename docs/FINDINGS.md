@@ -27,7 +27,8 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - imaging https://claude.ai/ar
 ## 1. Behaviour and orofacial kinematics (cam4)
 
 *Owner 5b; detail [OROFACIAL_FINDINGS.md](OROFACIAL_FINDINGS.md) (its status table, v36, is authoritative). cam4 = LP
-v36, August-only baseline. Entered from 5b's list 10-25; 5b to edit.*
+v36, August-only baseline, both tests (session Mann-Whitney + BH-FDR and the animal-weighted bootstrap); stats table
+`LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/tables/prepost/stats/RESULTS.md`. Checked by 5b 10-25.*
 
 1. **Acute global slowing plus a far-contralesional-graded deficit.** Inter-lick interval +14 to +26 ms at every
    position; far contra: contact -0.67, first lick +488 ms, first contact +898 ms. **STANDS**, 4 / 4 (PS95 acute = 1
@@ -39,7 +40,8 @@ v36, August-only baseline. Entered from 5b's list 10-25; 5b to edit.*
    PS93 (-5.5); PS94 -0.5, PS95 -2.9; 3-D agrees.
 4. **Jaw movement without a lick on more acute trials** (far_R +0.23). **STANDS**, survives the cam1 correction 4 / 4
    (far_R pre -> acute .02 -> .28, .01 -> .28, .05 -> .39, .08 -> .58). They are REACTIONS, not attempts (blind video
-   review 0 / 24), so attempted = hit + incomplete.
+   review 0 / 24), so attempted = hit + incomplete. Source `session_poses/cam1_licks/incomplete/`; review page
+   https://claude.ai/artifact/TbQ4pud711MBrT6ygAH5FX.
 5. **Far-contralesional protrusion -26 px.** **PROVISIONAL**: mostly a far-spout effect (far ipsi drops too; 3-D reach
    drops at both far spouts in PS93 / PS94).
 6. **Chronic: more licks per responded trial**, +1.5 to +4.2. **STANDS**. Other chronic cells not re-checked per
@@ -52,14 +54,29 @@ v36, August-only baseline. Entered from 5b's list 10-25; 5b to edit.*
 
 ## 2. Pose, 3-D tongue and cam1
 
-*Owner 5b; detail [POSE_MODELS.md](POSE_MODELS.md) Part D. 3-D = cam1 + cam4 PnP triangulation, complete (127 / 127
-curated cam1 videos, all 119 curated sessions). Entered from 5b's list 10-25; 5b to edit.*
+*Owner 5b; detail [POSE_MODELS.md](POSE_MODELS.md) Part D (status box) and OROFACIAL_FINDINGS section 8. 3-D = cam1 +
+cam4 triangulated with cameras posed per session on the commanded spouts (PnP), mm in the stage frame, origin = the spout
+mouth zero; complete (127 / 127 curated cam1 videos, all 119 curated sessions). Outputs `DeepLabCut/Widefield/
+session_poses/pose3d/` (per-animal summaries `figures/summary_<animal>.png`); rebuilt by `python -m scripts.pose_chain`.
+Checked by 5b 10-25.*
 
-1. **cam4 measures are faithful to 3-D**: lateral r .94-.97; cam4 "out" is the DOWN axis (r .99), so forward reach is
-   invisible to cam4. **STANDS** 4 / 4.
+1. **cam4 measures are faithful to 3-D**: lateral r .94-.97 (34-36 px / mm); cam4 "out" is the DOWN axis (r .99 with
+   -dv, about 0 with the forward axis), so forward reach is invisible to cam4; jaw per trial r .57-.83. **STANDS** 4 / 4
+   (`pose3d/crosscheck/`).
 2. **3-D carries more target information than 2-D**: target spout decoded from the lick endpoint (August pre, leave
-   one session out) 3-D .67-.86 vs cam4 .42-.78. **STANDS** 4 / 4.
-3. **3-D CLOSE_DIR** (the jaw moves away from a close side spout). **NOT ESTABLISHED**: PS92 / PS93 only.
+   one session out, 6 positions, chance .17) 3-D .81 / .67 / .86 / .74 vs cam4 .53 / .42 / .78 / .59. **STANDS** 4 / 4
+   (`pose3d/vs_cam4/`).
+3. **Acute far-contra licks miss the spout and aim ipsilesionally in 3-D**: closest approach to the far_R spout +2.06 /
+   +0.34 / +2.45 / +2.09 mm vs August pre (PS93 small), midline error +25 / +9.5 / +36 / +33 deg; partly back by
+   subacute (+5 to +15 deg), near pre chronically except PS94 (+8.5 deg, +1.1 mm). **STANDS** acutely (aim 4 / 4, miss
+   3 / 4); chronic **PROVISIONAL** (`pose3d/kinematics/sessions.csv`).
+4. **Acute reach drops at both far spouts, not only contra** (far_R -0.06 / -0.63 / -0.44 / -1.50 mm, far_L +0.12 /
+   -0.45 / -0.36 / -0.79). **PROVISIONAL**: a far-spout effect, matching 1.5.
+5. **3-D CLOSE_DIR** (the jaw moves away from a close side spout). **NOT ESTABLISHED**: PS92 / PS93 only; PS94 / PS95
+   flat or opposite.
+6. **Whole-session 3-D licks exist** (pre-cue, post-cue and ITI; ITI licks have no target, so target errors are
+   blank): `pose3d/kinematics_all/licks.csv.gz`, key `lick_uid`. A resource, not yet a finding; used by the encoding
+   window's stray-lick test.
 
 ## 3. Imaging: position decoding, state control, where the code moves
 
