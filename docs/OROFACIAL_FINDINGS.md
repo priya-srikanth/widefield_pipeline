@@ -132,7 +132,8 @@ months, which is why raw image positions are never used.
 
 **2. Acute licks aim toward the ipsilesional side.**
 - Executed peak angle shifts toward ipsi at every position. Far contra is the largest shift (about +29°); the close
-  positions shift by about +9 to +13°.
+  positions shift by about +9 to +13° (v35 prose). v36 August-only, the authoritative values (status table): far contra
+  +29.8°, other positions +7.1 (far ipsi) to +13.1° (close ipsi).
 - In the lick- and cue-aligned traces, the lateral tip offset toward ipsi lasts through the whole lick, both with and
   without in-mouth frames.
 - Subacute, the shift persists at far contra (+8°) and far ipsi (+4°).
@@ -154,7 +155,7 @@ months, which is why raw image positions are never used.
   chronic (px): PS92 13.0 -> 5.5, PS93 8.2 -> 2.7, PS94 12.0 -> 11.5, PS95 15.3 -> 12.4 (`cohort/tables/jaw_lateral/
   epoch_by_animal.csv`); 3-D chronic change -0.16 / -0.14 / -0.02 / -0.01 mm. The pooled chronic cell stays
   significant, but "does not fully recover" is NOT ESTABLISHED under rule 8 (2 / 4 animals; PS95 partial). The ACUTE loss
-  is in all four (cam4 -7.8 to -13.9 px; 3-D -0.18 to -0.40 mm in the three animals with acute 3-D).
+  is in all four (cam4 -7.8 to -13.9 px; 3-D -0.18 to -0.40 mm, 4 / 4 since PS95's acute session landed 10-23).
 
 **4. The jaw moves without a lick on more acute trials.**
 - These are trials where the jaw opens but no LP lick follows: +0.23 at far contra, +0.19 far mid, +0.13 far ipsi.
@@ -165,8 +166,8 @@ months, which is why raw image positions are never used.
   acute rise almost intact (cam1-corrected jaw-without-lick share, far_R: PS92 0.016 -> 0.277, PS93 0.009 -> 0.282, PS94
   0.050 -> 0.387; `cam1_licks/incomplete/`). (b) Blind video review of 24 jaw-only / just-below-floor trials (Priya,
   10-21): 0 / 24 were attempted licks; jaw responses without opening, jaw-up, walking-related movement. So these trials
-  are REACTIONS, not attempts; the encoding window's attempted = hit + incomplete (jaw-only excluded). PS95 acute: cam1
-  pending.
+  are REACTIONS, not attempts; the encoding window's attempted = hit + incomplete (jaw-only excluded). PS95 acute (cam1
+  complete 10-23): 0.075 -> 0.58 at far_R, so 4 / 4.
 
 **5. The tongue's spatial distribution moves acutely and only partly returns (W2).**
 - The tongue point cloud in the mouth frame moves away from the animal's own pre cloud at every position acutely: +14
@@ -216,6 +217,10 @@ the commanded spouts; `docs/POSE_MODELS.md` D10-D12). Per animal, post sessions 
 - **8d. Incomplete licks** (no contact; cam4 + cam1-only, `cam1_incomplete_licks`): share of far_R licks pre -> acute
   0.17 -> 0.86 (PS92), 0.38 -> 0.73 (PS93), 0.22 -> 0.98 (PS94), 0.25 -> 0.99 (PS95, one session); chronic 0.35 / 0.35 / 0.55 / 0.32 (pre 0.17 / 0.38 / 0.22
   / 0.25): persistent in PS92 and PS94 only. cam1-only events are 3-8 % of cam1 events in every animal and epoch.
+  MEASURE: share of a trial's licks at the far_R spout with no DAQ contact (cam4 no-contact licks + cam1-only
+  no-contact events), far_R only. Not the same as FACE_RHYTHM_FINDINGS 5c's per-lick contra MISSES (close + far
+  contra pooled), which are mildly up chronically in 3 / 4 incl. PS95 (.13 vs .09): the two agree that chronic far-
+  contra misses remain in some animals and differ in which positions they pool.
 - **8e. CLOSE_DIR** (jaw moves away from a close side spout, 10-20 in PS92 / PS93) does NOT generalise: PS94 / PS95 flat.
 - Whole-session 3-D lick table (pre-cue + post-cue + ITI licks; ITI licks have no target) exists since 10-23:
   `session_poses/pose3d/kinematics_all/licks.csv.gz` (`context` column). Not yet analysed here.
