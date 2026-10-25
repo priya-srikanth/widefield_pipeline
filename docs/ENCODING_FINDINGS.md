@@ -1011,7 +1011,100 @@ reliability chained after); destination vs landing (fix `CONTEST_3D`, deleted fo
 behaviour / target-vs-execution figures, `lick_contact_by_epoch`, recovery trend, trial-average R2 after the O2 collect.
 Deferred: non-linear ceiling; pre-cue -> lick-window carry-over decode; decoder reorganisation contrast (2 / 4.3.5).
 
+## 8. Results of 10-24 night / 10-25 (goal question; to be folded into 2-4) — results page Figs renumbered 10-25
+
+All on the goal-question results page https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (figure numbers as of 10-25,
+in page order). August pre only; nested bootstrap = animals -> sessions (`analysis_kit.boot_delta`), Bonferroni where
+cells are many; per-animal numbers on the page.
+
+### 8.1 Licks: where they land and the whole path (LICK DATA) — STANDS
+- **Landing (soft bins, Fig 3c)**: far-contra licks lose their own bin -0.69 / -0.38 / -0.19 (acute / subacute /
+  chronic) to far mid +0.35 / +0.36 / +0.20 (all significant, 4/4).
+- **Trajectory softmax (Fig 3d, `scripts/lick_path_softmax.py`)**: each lick's tracked 3-D path (-32..+32 ms around the
+  peak) vs every spout's pre-stroke mean path (SD units, LOSO pre templates): far contra own -0.65 / -0.36 / -0.22;
+  acute toward far IPSI +0.42 > far mid +0.26, then far mid +0.31 / +0.21. Caveat: acutely every spout's paths move
+  toward the far-ipsi template (general forward overshoot, Fig 5), so part of the acute far-ipsi pull is reach, not side.
+- **Paths (Fig 5 / 5b, camera bottom + front views)**: mis-landing far-contra licks are on the other spout's course from
+  the first tracked point (wrong at launch, not corrected late).
+
+### 8.2 Neural (frozen pre-stroke DECODER) vs executed — STANDS (average); trial coupling breaks acutely
+- **Average (Fig 3f / 3g, `scripts/softmax_neural_vs_lick.py`)**: far-contra trials decoded as far contra -0.66 / -0.30
+  / -0.22 (lick window; cue -0.59 / -0.27 / -0.17), as far mid +0.26 / +0.14 / +0.11 and far ipsi +0.19 acute, 4/4 —
+  the decoder follows the landing. But acutely the neural diagonal drops for EVERY spout (far mid -0.32) while licks to
+  those spouts land on target: part of the acute neural change is a general weakening of the code.
+- **Trial by trial (Fig 3h / 3i, `scripts/trial_neural_vs_exec.py`)**: within session, neural (P far mid - P far contra)
+  follows executed (far mid - far contra) PRE-STROKE in 4/4 (landing r .12-.33, trajectory .18-.41; shuffle p < .001):
+  the decoder tracks execution in general. Subacute and chronic keep it (4/4). ACUTELY IT BREAKS (r ~ 0; PS92 .16 the
+  only significant). Far-mid landings of far-contra trials: PS92 / PS95 decoded more far mid than far contra acutely;
+  PS93 / PS94 stay far contra (as their rare pre-stroke far-mid landings did).
+- **Executed best bin vs decoder best match, all trials (Fig 3j, `scripts/exec_vs_neural_match.py`)**: acute diagonal
+  falls 4/4 (far mid -.41, far ipsi -.34, close mid -.24): licks that land on a spout are no longer read as that spout;
+  mostly recovered chronically.
+- **Off-target trials (Fig 3k / 3l)**: the decoder reads the TARGET far more than the executed bin (pre .82 vs .07;
+  acute .52 vs .18); by target, close spouts .65-.95 target vs ~.05 executed at every epoch; FAR spouts split acutely
+  (far contra .25 target vs .29 executed — the only target where executed wins acutely; far ipsi .21 / .20; far mid
+  .38 / .30); far contra stays near even chronically (.45 / .33). The bars do not add to 1: the rest = a third spout.
+
+### 8.3 Neural (frozen pre-stroke ENCODER, relabel test) vs target — PROVISIONAL (session level); trial level RUNNING
+- `scripts/relabel_confusion.py` on `frozen_relabel_v7g3_t3d` (Fig 3m / 3n): best-fitting label per session (all
+  parcels, lick window): far contra loses its label -.43 / -.45 / -.33 toward far mid +.29 / +.39 / +.18 and close
+  contra, nothing survives Bonferroni; OTHER spouts lose their label too (close contra -.58 acute, close ipsi -.35 to
+  -.37, far mid -.44 chronic 4/4): a general loss of each spout's pre-stroke pattern (cf. Layer 2), not far contra
+  specifically re-aimed. PS93's spouts are poorly separated pre (far contra best in 2/7 pre sessions).
+- Per-TRIAL relabel (`frozen_relabel` now saves trial_sse; `session_design` returns frame_trial) RUNNING as
+  `frozen_relabel_v7g3_t3d_trial` (8 workers, ~5 h from 10-25 00:00); queued after it: `relabel_confusion.py --trial`
+  (lick, cue) and `exec_vs_neural_match.py --source encoder`.
+
+### 8.4 Frozen-encoder residual: pooled maps at calibrated bins, and by area — STANDS (pooled); CORRECTS 3.4's "pooled weak"
+- **Bin size**: random pre half-splits — 8 px 0/20 false, 16 px 0/20 (lick) / 1/20 (cue), 32 px 2-4 % of 100 splits
+  had any false bin (= nominal 5 %). 32 px primary pooled test, 16 px shown.
+- **All 6 spouts pooled (Fig 9b, 32 px)**: lick window 19 / 35 / 30 of 128 bins significant (acute / subacute /
+  chronic), EVERY one an increase (data > frozen model): bilateral lateral frontal (ALM / tongue-jaw motor) at every
+  epoch, contralesional SSp subacute + chronic; cue 0 / 4 / 4. 16 px: 73 / 116 / 110 of 512. Far contra alone (Fig 9,
+  16 px): 25 / 16 / 25 of 512. Across all 32 px tests 413 significant bins up, 2 down.
+- **By area, pre-SD units (Fig 11b, `frozen_residual_trend.py` now MOs / MOp / SSp-n too)**: chronic change from pre
+  mean: cortex +1.3*; MOs +0.7 (ns) ipsi / +1.4* contra; MOp +1.8* / +2.3*; SSp-m +2.1* / +2.5*; SSp-n +0.9 (ns) /
+  +2.5*; contralesional > ipsilesional in every area; contralesional SSp-n jumps most acutely (+3.5*). Pre itself
+  drifts up over ~10 days (Fig 11's per-animal trend model handles it).
+- **Decomposition pooled (Fig 8b)**: chronic residual +0.32 (ipsi) / +0.43 (contra) of each animal's pre-stroke
+  response, 4/4, while the predicted change is ~0.
+
+### 8.5 Layer 2 random-split null — STANDS
+- 20 random August-pre pseudo-epochs per animal (`scripts/layer2_random_splits.py`, now saves per split + resumes):
+  CHRONIC beats every split in 4/4 animals in cortex, SSp-m left and right (P = 0.00); subacute cortex 4/4 (P <= .05);
+  acute 3/4 (PS95 one session). Pooled in null-SD units (Fig 12d): chronic 8.2 / 8.4 / 6.0 null SDs. Pooled vs
+  late-pre (Fig 12b): chronic cortex +54.8 [+22.0, +87.4], SSp-m +52.5 / +51.6. Per kernel group (Fig 13b): no group
+  beyond the null chronically — the rewrite is spread across groups. Note: 5b's June -> August no-stroke drift group
+  (imaging, 10-24) finds the frozen-DECODER chronic deficit within 2-month drift (3/4) but crossnobis distance beyond
+  it (3/4); Layer 2's nulls are within-August only.
+
+### 8.6 Pooled target-vs-executed contest — STANDS (chronic)
+- Fig 1b / 2b: contest (target - executed) change from pre: chronic +9.0 [+3.6, +16.0] lick, +9.8 [+3.9, +16.2] cue,
+  significant at every softmax width; acute lick +12.5 (ns; PS93 the other way).
+
+### 8.7 FaceRhythm in the per-session encoder — PROVISIONAL (FR window owns the factors)
+- O2 runs fr_A / B / S / D (master_pre_v1, rank 12; `scripts/fr_encoding_summary.py`, Fig 16-16c). COLLECTION BUG
+  FIXED: the four modes had been collected into one folder (each overwrote the last); re-collected to
+  `..._frg-{A,B,S,D}`; `combined_encoding.out_dir` now adds `_frg-<mode>`.
+- FR adds R2 ~0.1-0.2 and takes about HALF of the unique spout-position R2 pre-stroke (cortex lick 52 -> 30 x1e3). The
+  CHRONIC rise in position coding is mostly face-movement-related: lick +22 [+7, +38] -> +4 (ns) with FR; cue +39 ->
+  +15 [+3, +27]. Acute SSp-m (ipsi) position loss survives FR (cue -44 -> -32, lick -31 -> -20). Modes A ~ B ~ S ~ D:
+  FR side / distance add little beyond its lick amount. Chronic pre-cue face movement explains more cortex (+72).
+
+### 8.8 Variance explained (Musall style) and R2 maps on the final frame — descriptive
+- `frozen_musall_figures.py --tag gate-attempted_v7g3_t3d` (Fig 14 / 14b; MOs / MOp / SSp-m / SSp-n per hemisphere
+  on the share): uninstructed movement dominates single-trial / frame R2, mostly task-independent; spout explains the
+  trial-averaged response, almost all task-aligned. Pixel R2 (Fig 15-15e): frozen full R2 falls over most of cortex
+  chronically. Colorbars added to r2 and trial-type maps (r2 redraw running).
+
 ## Change log
+
+- **2026-10-25 (night)** — section 8 added: trajectory softmax; neural decoder vs landing / trajectory (average,
+  trial-level coupling breaks acutely, executed-vs-decoder matrix, off-target by target); relabel confusion
+  (session level; per-trial running); residual at calibrated 16 / 32 px bins (pooled now strong, all increases) and by
+  area incl. MOs / MOp / SSp-n; Layer 2 random-split null; pooled versions of the per-animal figures; FR-in-encoder
+  (collection bug fixed); Musall / R2 maps on the final frame. Repo-wide consolidation into docs/FINDINGS.md agreed
+  with the FR (e3) and pose (5b) windows.
 
 - **2026-10-24 (3-D)** — 4-animal 3-D polar contest (2.4b): pre target-led 3/4; chronic target above pre 4/4; the
   post-stroke rise is target in 3/4 (PS94 executed rises as much).

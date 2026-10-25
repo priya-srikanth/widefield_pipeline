@@ -1712,6 +1712,12 @@ def out_dir(rv, order: str) -> Path:
                                                          + ("share" if fr_set and not _fr_absolute() else "")
                                                          + (f"_pts{os.environ[FR_POINTS_ENV]}"
                                                             if fr_set and os.environ.get(FR_POINTS_ENV) else "")
+                                                         # FR grouping MODE in the name (10-25): without it the O2
+                                                         # fr_A / B / S / D runs were collected into ONE folder, each
+                                                         # overwriting the last (re-collected as _frg-<mode>)
+                                                         + (f"_frg-{os.environ['COMBINED_ENCODING_FR_GROUPS'].split(':')[-1]}"
+                                                            if fr_set and os.environ.get("COMBINED_ENCODING_FR_GROUPS")
+                                                            else "")
                                                          + (f"_subset-{'-'.join(only)}" if only else "")
                                                          + ("_matched" if os.environ.get(MATCH_ENV) else "")
                                                          + (f"_exec-{os.environ[EXEC_ENV]}" if os.environ.get(EXEC_ENV)

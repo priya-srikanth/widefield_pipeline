@@ -9,6 +9,64 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000s. STATE 10-25 ~01:00 (pre-compaction) -- READ FIRST (then 000r)
+
+**Results of the night: `docs/ENCODING_FINDINGS.md` §8** (trajectory softmax, neural decoder vs executed incl. the
+trial-level coupling that breaks acutely, off-target by target, relabel confusion, residual at calibrated 16 / 32 px
+bins and by area, Layer 2 random-split null, pooled figures, FR in the encoder, Musall / R2 on the final frame).
+
+**Results page** https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (source `S/goal_page/index.html`; v35). Figures were
+RENUMBERED 10-25 into page order (1 .. 16c; pooled versions are letters now, no "p"); one-pass renumber script
+`S/renumber_figs.py` (rewrites caption labels, ids and every "Fig N" cross-reference). Click-to-zoom viewer added
+(`S/add_zoom.py`; wheel / pinch / drag / dblclick reset / Esc) — UNTESTED in a browser, ask Priya. Conventions in
+memory `results-page-conventions` (now incl. page order, matrix colours viridis 0-1 / RdBu +-0.6, colorbars on maps,
+no overlaps). Figure scripts: repo `scripts/` for analyses; page-only figure scripts in `S/fig_*.py`
+(fig_pooled.py = all pooled panels, fig_resid16.py / fig_resid_spout.py = residual maps, fig_goal_traj2.py = paths,
+fig_landing.py, fig_softmax.py, fig_layer2.py, fig_rsplit.py).
+
+**FINDINGS CONSOLIDATION (Priya 10-25, all windows):** ONE new top-level `docs/FINDINGS.md`, skeleton by
+`sabatinilab-e3` (FR window), status tags STANDS / PROVISIONAL / CORRECTED / WITHDRAWN / NOT ESTABLISHED. Sections:
+1 behaviour + orofacial (5b), 2 pose / 3-D (5b), 3 imaging decode / state / anatomy (ME to draft from 5b's imaging
+page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV + its corrections, 5b then corrects), 4 encoding + goal
+question (ME), 5 FaceRhythm (e3), 6 histology, 7 open / withdrawn. Family docs stay (no deletions) with a header
+pointing to FINDINGS.md; VLS_STROKE_SYNTHESIS / PRELIM_DATA get "superseded for current conclusions" banners after
+their valid claims are carried. 5b's section-3 corrections (from its message): state-decoder numbers in
+BEHAVIOURAL_STATE_CONTROL / synthesis are STALE (current epoch_13n: position .863 -> .428 / .696 / .761, state .976 ->
+.872 / .820 / .838; state does fall, claim = the RATIO); WHERE_THE_CODE_MOVES QUIET / MEAN tables superseded by 15r
+REST / RESTW (far-contra acute amplitude / pre .50 / .45 / .53 / .40, chronic .90 / .98 / .60 / 1.12); NEW June ->
+August no-stroke drift group (scripts/june_august_drift.py): frozen-decoder chronic deficit NOT beyond 2-month drift
+(3/4), crossnobis distance IS (3/4); CD LOO acute far-contra drop 3/4 PROVISIONAL; pre-cue mixed. A background reader
+(agent) was extracting headline claims from the older docs when context compacted; if its report is lost, re-read
+VLS_STROKE_SYNTHESIS, PRELIM_DATA, WHERE_THE_CODE_MOVES, BEHAVIOURAL_STATE_CONTROL, STATUS_2026-10-07, DECISIONS.
+**TODO: once e3's skeleton is on origin, write sections 3 and 4 into docs/FINDINGS.md** (section 4 = §8 headlines +
+2.4b, 2.7-2.9, 3.4, 4.x of ENCODING_FINDINGS, short, status-tagged, with page figure numbers).
+
+**RUNNING at ~01:00 (all write to the share):**
+- `frozen_relabel --from gate-attempted_v7g3_t3d --tag v7g3_t3d_trial --jobs 8` (log `S/relabel_trial.log`; ~5 h
+  from 00:00; writes all session jsons at the END). Then a waiter (`S/...` bash, task bx9xor7g5) runs
+  `scripts/relabel_confusion.py --tag v7g3_t3d_trial --trial --window lick|cue` and
+  `scripts/exec_vs_neural_match.py --source encoder` -> figures in `E/frozen_relabel_v7g3_t3d_trial/figures/` and
+  `E/attempt_coding_pp/figures/exec_vs_encoder_*`. Put them on the page after Fig 3n (encoder: target vs best label;
+  executed best bin vs encoder best label; off-target by target).
+- `scripts/frozen_r2_maps.py --tag gate-attempted_v7g3_t3d_basis` (colorbars; log `S/r2maps_cbar.log`) -> recopy
+  `_basis/figures/r2_maps_{pre,acute_minus_pre,chronic_minus_pre}.png` + `r2_maps_position_joint_whole_{pre,chronic_minus_pre}.png`
+  to `S/goal_page/fig15*.png` and republish.
+
+**NEXT:**
+1. Musall-style figure WITH FaceRhythm from the per-session FR runs (Priya asked; the frozen-encoder Musall / R2 maps
+   have NO FR). Per-session region tables in `E/movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-<mode>/`
+   have models full / fr:full / fr:alone / fr:raw:full / fr:drop:{task,instructed,uninstructed,position}: alone vs
+   unique for FR and the groups, task-aligned vs independent, per epoch.
+2. Encoder trial-level matrices (above) on the page; FINDINGS.md sections 3-4.
+3. Region-level residual test (a priori MOs / MOp / SSp-m per hemisphere), droppos maps, per-spout binned contest,
+   decoder + imaging-only encoder pages (5b built an imaging page — coordinate, don't duplicate).
+
+**Repo:** branch `analysis/attempt-coding` (worktree wf_attempt). Commits this night: trajectory softmax
+(lick_path_softmax.py), trial_neural_vs_exec.py, exec_vs_neural_match.py (--source decoder|encoder, off-target by
+spout), relabel_confusion.py (--trial), fr_encoding_summary.py, frozen_relabel per-trial SSE + frozen_encoder
+frame_trial, frozen_r2_maps / attempt_maps colorbars, frozen_residual_trend MOs / MOp / SSp-n,
+frozen_residual_significance colorbars, layer2_random_splits resume, combined_encoding.out_dir `_frg-<mode>`.
+
 ## 000r. STATE 10-24 ~19:30 (pre-compaction) -- READ FIRST (then 000q)
 
 **Results page (Priya reviews here; keep it current, republish the same file):** https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
