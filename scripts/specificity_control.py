@@ -193,7 +193,8 @@ def main(argv=None) -> int:
         ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
         sg = paint(img, nm, {k: 1.0 for k, v in sig.items() if v})
         if np.isfinite(sg).any():
-            ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.2)
+            ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)  # halo
+            ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
         ax.set_title(title, fontsize=8.5)
         ax.set_xticks([]); ax.set_yticks([])
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02, orientation="horizontal")

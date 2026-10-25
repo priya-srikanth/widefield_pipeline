@@ -123,7 +123,8 @@ def main(argv=None) -> int:
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
                 sg = paint(img, nm, {k: 1.0 for k, v in n_up.items() if v >= 3 or n_an[k] - v >= 3})
                 if np.isfinite(sg).any():
-                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.2)
+                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)  # halo
+                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
                 ax.text(0.02, 0.02, f">=3 up: {int((n_up >= 3).sum())}, >=3 down: {int(((n_an - n_up) >= 3).sum())}",
                         transform=ax.transAxes, fontsize=6.5, bbox={"facecolor": "white", "alpha": 0.8, "pad": 1, "lw": 0})
                 ax.set_xticks([]); ax.set_yticks([])

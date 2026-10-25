@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +28,10 @@ from fr_musall import E  # noqa: E402
 
 QS = [("full", None), ("task", "no_task"), ("spout", "no_spout"), ("movement", "no_movement"), ("FaceRhythm", "no_fr"),
       ("FR direction", "no_fr_dir")]
+#: Musall et al. 2019 (PETH / trial-by-trial prediction panels): each variable group ALONE. instructed = our lick group
+#: (lick timing / speed / opening deviations), uninstructed = "other" (nose, running, other pose; FaceRhythm not in it)
+QS_ALONE = [("full", None), ("task", "task_only"), ("instructed (lick)", "lick_only"), ("uninstructed (other)", "other_only"),
+            ("spout", "spout_only"), ("movement", "movement_only")]
 MEASURES = [("avg", "PETH"), ("trial", "trial-by-trial")]
 
 
@@ -53,16 +58,19 @@ def main(argv=None) -> int:
     from frozen_area_maps import area_image, outline, paint
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--alone", action="store_true",
+                    help="Musall et al. 2019 layout: each group ALONE (single-group model R2) instead of unique R2")
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     key = ["label", "animal", "epoch", "window", "measure", "area"]
     J = table(run, "joint").set_index(key).r2
     parts = []
     qs = []
-    for q, v in QS:
+    sfx = "_alone" if a.alone else ""
+    for q, v in (QS_ALONE if a.alone else QS):
         if v is not None and not (run / v / "sessions").is_dir():
             continue
-        val = J if v is None else J - table(run, v).set_index(key).r2
+        val = J if v is None else (table(run, v).set_index(key).r2 if a.alone else J - table(run, v).set_index(key).r2)
         parts.append(val.rename("u").reset_index().assign(q=q))
         qs.append(q)
     U = pd.concat(parts, ignore_index=True)
@@ -70,7 +78,7 @@ def main(argv=None) -> int:
                    for q in qs], ignore_index=True)
     B = B[B.epoch.isin(["acute", "chronic"])].copy()
     B["p_bonf"] = np.minimum(B.p * B.groupby(["q", "window", "measure", "epoch"]).area.transform("nunique"), 1.0)
-    B.to_csv(run / "peth_trial_area.csv", index=False)
+    B.to_csv(run / f"peth_trial_area{sfx}.csv", index=False)
     pre = U[U.epoch == "pre"].groupby(["q", "window", "measure", "area", "animal"]).u.mean() \
         .groupby(["q", "window", "measure", "area"]).mean()
     pd.set_option("display.width", 220)
@@ -108,19 +116,21 @@ def main(argv=None) -> int:
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
                 ax.set_xticks([]); ax.set_yticks([])
                 if i == 0:
-                    ax.set_title(q if q == "full" else f"{q} unique", fontsize=8.5)
+                    ax.set_title(q if q == "full" else (f"{q} alone" if sfx else f"{q} unique"), fontsize=8.5)
                 if j == 0:
                     ax.set_ylabel(title, fontsize=7.5)
                 if i in (1, 3, 5):                            # one bar per row pair, in its own inset below the pair
                     cax = ax.inset_axes([0.1, -0.13, 0.8, 0.06])
                     cb = fig.colorbar(im, cax=cax, orientation="horizontal")
                     cb.ax.tick_params(labelsize=6)
-        fig.suptitle(f"NEURAL: Musall-style PETH vs TRIAL-BY-TRIAL R2 by Allen area, FROZEN frame ({a.tag}), {w} window. "
-                     "Columns: full model, then each group's unique R2 (joint - without it).\nRows: pre level, then acute and "
-                     "chronic minus pre; PETH = per-spout trial averages, trial-by-trial = variability around them. Outline = "
-                     "area whose change is significant after Bonferroni over areas (nested bootstrap); corner = count. Image left = ipsilesional.", fontsize=8.5)
+        title = (f"NEURAL: Musall-style PETH vs TRIAL-BY-TRIAL R2 by Allen area, FROZEN frame ({a.tag}), {w} window. "
+                 "Columns: full model, then each group's " + ("R2 ALONE (single-group model; Musall et al. 2019 layout)" if sfx else "unique R2 (joint - without it)") + ". Rows: pre level, then acute and "
+                 "chronic minus pre; PETH = per-spout trial averages, trial-by-trial = variability around them. Outline = "
+                 "area whose change is significant after Bonferroni over areas (nested bootstrap); corner = count. "
+                 "Image left = ipsilesional.")
+        fig.suptitle(textwrap.fill(title, width=int(42 * len(qs))), fontsize=8.5)   # wrapped to the figure width
         fig.subplots_adjust(left=0.05, right=0.97, bottom=0.02, top=0.9, wspace=0.06, hspace=0.3)
-        fig.savefig(run / "figures" / f"peth_trial_maps_{w}.png", dpi=105)
+        fig.savefig(run / "figures" / f"peth_trial_maps_{w}{sfx}.png", dpi=105)
         plt.close(fig)
     print("->", run / "figures")
     return 0
