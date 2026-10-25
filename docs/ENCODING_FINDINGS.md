@@ -1177,7 +1177,11 @@ cells are many; per-animal numbers on the page.
   aligned state (positions in ~6-trial blocks; PS94 high running / pushing, lowest full R2), weaker movement regressors,
   or real tuning. RUNNING: `scripts/state_spout_check.py` (state x spout eta2 within / systematic vs circular-shift null;
   tracking quality). Per-spout target vs executed unique maps with animal-normalised means + per-animal panels / tests:
-  `scripts/spout_unique_maps.py` (running; no-FR basis run only has drop-one-spout fits).
+  `scripts/spout_unique_maps.py` (no-FR basis run; page Figs 1ud-1uh): animal-normalised (pre scales target .004-.036,
+  executed .07-.18; PS94 highest). TARGET unique per spout changes little (chronic close ipsi up 16 bins; far spouts small
+  decreases 2-7). EXECUTED unique changes ACUTELY and spout-specifically: far contra UP in ipsilesional lateral / frontal
+  cortex (52 bins), close ipsi / far ipsi / far mid DOWN there (41 / 28 / 22); chronic close ipsi still down (32).
+  Consistent with the acute far-contra change being carried by the executed (misdirected) movement.
 - Allen-ROI versions of the residual pixel tests (`scripts/residual_roi.py`; Figs 10h / 10i / 10j): every significant area
   an increase, 4/4; cue chronic SSp-m both sides only; lick chronic SSp-m both + contra SSp-n / MOp / SSp-un / MOs + contra
   VISam / VISrl; far contra chronic lick SSp-m both + contra SSp-n / MOp / MOs / VISam.
