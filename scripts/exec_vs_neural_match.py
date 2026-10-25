@@ -9,7 +9,9 @@ within animal, mean of 4, nested bootstrap (Bonferroni over 36). The diagonal = 
 tongue went to", whatever the target was. Also the agreement rate (diagonal share of all trials) per animal x epoch,
 split by whether the licks went to the TARGET (on-target) or elsewhere (off-target).
 
-Usage: python scripts/exec_vs_neural_match.py [--source decoder|encoder]
+Usage: python scripts/exec_vs_neural_match.py [--source decoder|encoder] [--target far_contra]
+--target (Priya 10-25: "executed vs decoded just for far contra and far mid trials, separately"): only trials of that
+TARGET spout; rows need >= 3 trials per session (5 otherwise); outputs get the suffix _<target>.
 Output: <E>/attempt_coding_pp/exec_vs_decoder_*.csv + figures/exec_vs_decoder_*.png
 """
 from __future__ import annotations
@@ -32,13 +34,13 @@ NAME = {"decoder": "frozen pre-stroke decoder argmax",
         "encoder": "frozen pre-stroke encoder, best of the six relabellings (lowest lick-window SSE)"}
 
 
-def mats(J: pd.DataFrame) -> dict:
+def mats(J: pd.DataFrame, min_n: int = 5) -> dict:
     out = {}
     for (an, ep, _lab), g in J.groupby(["animal", "epoch", "label"]):
         M = np.full((6, 6), np.nan)
         for r, t in enumerate(SP):
             x = g[g.exec_bin == t]
-            if len(x) >= 5:
+            if len(x) >= min_n:
                 M[r] = [(x.dec == c).mean() for c in SP]
         out.setdefault((an, ep), []).append(M)
     return out
@@ -67,7 +69,10 @@ def main(argv=None) -> int:
     import matplotlib.pyplot as plt
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", default="decoder", choices=("decoder", "encoder"))
-    src = ap.parse_args(argv).source
+    ap.add_argument("--target", default=None, choices=SP)
+    args = ap.parse_args(argv)
+    src, tgt = args.source, args.target
+    suf = f"_{tgt}" if tgt else ""
     D = E / "attempt_coding_pp"
     if src == "decoder":
         T = pd.concat([pd.read_csv(D / f"trials_lick_{an}.csv.gz") for an in AN])
@@ -81,6 +86,8 @@ def main(argv=None) -> int:
         J = T.merge(W, on=["label", "trial_id"], how="inner")
         J["exec_bin"] = np.array(SP)[J[[f"{pre}{p}" for p in SP]].to_numpy().argmax(1)]
         J["on_target"] = J.exec_bin == J.spout
+        if tgt:
+            J = J[J.spout == tgt]
         for (an, ep, tg), g in J[~J.on_target].groupby(["animal", "epoch", "spout"]):
             if len(g) >= 10:
                 bys.append({"exec": kind, "animal": an, "epoch": ep, "target": tg, "n": len(g),
@@ -92,7 +99,7 @@ def main(argv=None) -> int:
                     agree.append({"exec": kind, "animal": an, "epoch": ep, "licks": ot, "n": len(h),
                                   "neural_matches_executed": float((h.dec == h.exec_bin).mean()),
                                   "neural_matches_target": float((h.dec == h.spout).mean())})
-        S = mats(J)
+        S = mats(J, 3 if tgt else 5)
         fig, axs = plt.subplots(5, 4, figsize=(13, 16))
         for i, an in enumerate(AN):
             for k, ep in enumerate(EP):
@@ -126,15 +133,15 @@ def main(argv=None) -> int:
             ax.set_xticks(range(6)); ax.set_xticklabels(LAB, fontsize=7); ax.set_yticks(range(6)); ax.set_yticklabels(LAB, fontsize=7)
             ax.set_xlabel(f"{src} best match", fontsize=8)
         axs[4, 0].set_visible(False)
-        fig.suptitle(f"EXECUTED best bin ({kind}) vs NEURAL best match ({NAME[src]}), every trial with 3-D licks, any target.\n"
+        fig.suptitle(f"EXECUTED best bin ({kind}) vs NEURAL best match ({NAME[src]}), " + (f"TARGET = {tgt} trials only" if tgt else "every trial with 3-D licks, any target") + ".\n"
                      "Rows 1-4: per animal x epoch (share of a session's trials in that executed bin decoded as each spout; viridis 0-1).\n"
                      "Row 5: epoch minus pre within animal, mean of 4, nested bootstrap (boxed = Bonferroni over 36; second line = animals same sign).",
                      fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
-        fig.savefig(D / "figures" / f"exec_vs_{src}_{kind}.png", dpi=115)
+        fig.savefig(D / "figures" / f"exec_vs_{src}_{kind}{suf}.png", dpi=115)
         plt.close(fig)
     R = pd.DataFrame(rows); A = pd.DataFrame(agree)
-    R.to_csv(D / f"exec_vs_{src}_change.csv", index=False); A.to_csv(D / f"exec_vs_{src}_agreement.csv", index=False)
+    R.to_csv(D / f"exec_vs_{src}_change{suf}.csv", index=False); A.to_csv(D / f"exec_vs_{src}_agreement{suf}.csv", index=False)
     pd.set_option("display.width", 200)
     print(A[A.exec == "landing"].round(2).to_string(index=False))
     print(R[(R.exec == "landing") & (R.exec_bin == R.decoded)].round(2).to_string(index=False))
@@ -161,10 +168,10 @@ def main(argv=None) -> int:
     fig.suptitle(f"When the licks miss the target, does the cortex look like where they went or like the target? ({NAME[src]}; "
                  "markers = animals with >= 10 off-target trials; chance dotted)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(D / "figures" / f"exec_vs_{src}_offtarget.png", dpi=125)
+    fig.savefig(D / "figures" / f"exec_vs_{src}_offtarget{suf}.png", dpi=125)
     # off-target trials by TARGET spout: stacked target / executed / neither (mean of animals with >= 10 such trials)
     Bs = pd.DataFrame(bys)
-    Bs.to_csv(D / f"exec_vs_{src}_offtarget_by_spout.csv", index=False)
+    Bs.to_csv(D / f"exec_vs_{src}_offtarget_by_spout{suf}.csv", index=False)
     for kind in ("landing", "trajectory"):
         b = Bs[Bs.exec == kind]
         fig, axs = plt.subplots(1, 6, figsize=(17, 4.2), sharey=True)
@@ -194,7 +201,7 @@ def main(argv=None) -> int:
                      "the licks went, or as another spout.\nBars = mean over animals with >= 10 off-target trials at that target "
                      "(animal count and trials above each bar)", fontsize=9)
         fig.tight_layout(rect=(0, 0.07, 1, 0.9))
-        fig.savefig(D / "figures" / f"exec_vs_{src}_offtarget_by_spout_{kind}.png", dpi=120)
+        fig.savefig(D / "figures" / f"exec_vs_{src}_offtarget_by_spout_{kind}{suf}.png", dpi=120)
         plt.close(fig)
     print(Bs[Bs.exec == "landing"].groupby(["target", "epoch"])[["target_part", "executed_part"]].mean().round(2).to_string())
     print(f"-> {D / 'figures'}")
