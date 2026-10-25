@@ -145,6 +145,9 @@ def job(item):
     preds["target_shuf"] = base + _refit(Z2[:, m], R - base, lam_all[m], fold)
     out = {"label": label, "animal": an, "epoch": d["epoch"], "day": d["day"], "n_trials": int(d["n_trials"]),
            "areas": list(F["areas"]), "scores": {k: _scores(fe, R, P, d, pos_order) for k, P in preds.items()}}
+    sdir = Path(fits_path).parent / "sessions"              # saved per session as it finishes -> a restart resumes
+    sdir.mkdir(parents=True, exist_ok=True)
+    (sdir / f"{label}.json").write_text(json.dumps(out))
     return out
 
 
