@@ -9,6 +9,22 @@ ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_mod
 
 ## 0000. 10-23 UPDATE -- read first
 
+* **10-24 IMAGING RESULTS PAGE + DECKS (this window):**
+  * Page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV ("Cortical Spout Coding After Stroke"). Scope: imaging results
+    whose behaviour input is only DAQ contact, the engagement gate or the LP attempt gate -- no full encoding models, no
+    kinematics. Sources: `scratchpad/imaging_page/`.
+  * Decks rebuilt 20:35 on the share FROM THE SHARE's figure tree:
+    `--src M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures`. This box's figures_working (`C:/Users/SabatiniLab/cue_lick`)
+    is stale: 857 figures missing. Then `deck_split`. Previous deck kept as `__20261018_0810`.
+  * New slides: section K = LP-gated imaging (`deck_registry.LP_GATED_FIGURES`); I112-117 = CD leave-one-out; I118 = the
+    no-stroke drift group.
+  * **June -> August no-stroke drift group** (`scripts/june_august_drift.py`, `labcams/chronic_stability/june_august_drift/`):
+    * frozen-decoder deficit / refit gain, June -> Aug (~65 d, no stroke) vs Aug -> chronic (~40 d): PS92 .13/.09 vs .03/.11,
+      PS93 .28/.16 vs .09/.21, PS94 .17/.18 vs .18/.20, PS95 .18/.18 vs .11/.11 -> chronic NOT beyond drift (3/4).
+    * crossnobis from template, Aug-vs-June vs chronic-vs-Aug: .63/1.01, .95/1.16, .43/.43, .59/.81 -> chronic beyond
+      drift (3/4, not PS94).
+    * June -> Aug includes learning. FIRST RUN.
+
 * **EVENING: cam1 production COMPLETE** -- 127 / 127 curated videos; tasks 119 / 127 landed 17:15, chain run 17:20-18:28
   (every step exit 0; kinematics recomputed cold after 28de81c). PS95 acute in 3-D: far_R midline +32.7 deg, miss +2.09
   mm, FAR_DIR -0.31 mm; findings rows 2 / 3 / 4 / 8d now 4 / 4. Encoding window told. NEXT: 3-D jaw + nose onset columns
