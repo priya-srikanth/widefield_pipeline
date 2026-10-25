@@ -868,8 +868,17 @@ Beyond the pre-stroke practice trend: with June + August (69-day pre span) the p
 chronic exceeds it in PS92 / PS93 / PS95 (ceiling +.047 / +.080 / +.058), not PS94. In signal units the spread of the
 six spout deviations nearly doubles in PS92 / PS93 (4.1 -> 7.3, 3.9 -> 6.8), flat in PS94 / PS95.
 `imaging_encoding/qc/position_coding_trend_recovery*.csv`.
+**10-25 re-run on the FINAL-FRAME O2 runs** (`scripts/position_coding_trend_recovery.py`, now defaulting to
+`movement_first_subset-nokin_exec-polar_licks-combined_bins` + `movement_first_exec-polar_licks-combined`; 107 August+
+sessions): the LEVEL change replicates, ceiling pre -> chronic PS92 .041 -> .108, PS93 .057 -> .108, PS95 .047 -> .076, PS94
+.040 -> .037 (3/4 again). The PRACTICE-TREND test cannot be repeated there: the bundle has no June sessions, so the pre
+span is 8 days and the extrapolated prediction intervals are +-0.07 .. +-0.45 (beyond_trend False everywhere: uninformative,
+not a negative). The June + August result above is from the 10-19 cam4 runs (stale inputs); it stands only until a
+final-frame run with June sessions exists. Status: level gain STANDS; beyond-trend PROVISIONAL.
 
 ### 4.2 It FOLLOWS behavioural recovery — PROVISIONAL (coarse sampling)
+10-25 final-frame re-run: 50 % day, ceiling vs far-contra contact PS92 18 vs 9, PS93 15 vs 7, PS94 9 vs 11, PS95 no
+ceiling change (spread 7 vs contact 3): cortex still later in PS92 / PS93. Numbers below are the 10-20 version.
 
 Day of 50 % of the acute -> chronic change: far-contra contact recovers first (PS92 day 9 vs neural 15, PS93 7 vs 15,
 PS95 3 vs 4); PS94 partly recovers behaviourally with no cortical gain. Reading: cortex consolidates or reflects a

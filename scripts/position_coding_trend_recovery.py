@@ -32,6 +32,11 @@ import pandas as pd
 
 POS6 = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
 RESP_WIN = 3.5
+#: source encoder runs (10-25: the O2 final-frame runs -- 3-D polar exec, combined licks, rebuilt attempts gate, 107
+#: August+ sessions, so the "June+August pre" baseline equals August here; the 10-19 cam4 runs `movement_first_subset-nokin`
+#: / `movement_first` were STALE, OUTPUT_AUDIT 2a)
+NOKIN_RUN = "movement_first_subset-nokin_exec-polar_licks-combined_bins"
+MAIN_RUN = "movement_first_exec-polar_licks-combined"
 
 
 def _enc_root():
@@ -41,14 +46,14 @@ def _enc_root():
     return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
 
 
-def neural(E: Path) -> pd.DataFrame:
+def neural(E: Path, nokin: str = NOKIN_RUN, main: str = MAIN_RUN) -> pd.DataFrame:
     rows = {}
-    for f in glob.glob(str(E / "movement_first_subset-nokin" / "sessions" / "*_regions.csv")):
+    for f in glob.glob(str(E / nokin / "sessions" / "*_regions.csv")):
         R = pd.read_csv(f)
         R = R[(R.area == "cortex") & (R.window == "lick")].set_index("model").r2
         if {"nokin:category", "nokin:none"} <= set(R.index):
             rows.setdefault(Path(f).stem[:-8], {})["ceiling"] = float(R["nokin:category"] - R["nokin:none"])
-    for f in glob.glob(str(E / "movement_first" / "sessions" / "*.npz")):
+    for f in glob.glob(str(E / main / "sessions" / "*.npz")):
         z = np.load(f)
         mk = [str(k) for k in z["map_keys"]]
         for w, col in (("c0.5-1.5", "spread"), ("enl", "spread_enl")):
@@ -121,10 +126,17 @@ def half_recovery_day(D: pd.DataFrame, col: str) -> float:
     return float(post.loc[hit[0], "day"]) if len(hit) else np.nan
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import argparse
+
     from wfield_local import epochs, writeguard
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--nokin", default=NOKIN_RUN, help="encoder run with nokin:category / nokin:none (ceiling)")
+    ap.add_argument("--main", default=MAIN_RUN, help="main encoder run with respdev maps (spread)")
+    a = ap.parse_args(argv)
     E = _enc_root()
-    N = neural(E)
+    N = neural(E, a.nokin, a.main)
+    N["src_nokin"], N["src_main"] = a.nokin, a.main
     N["animal"] = N.label.str[:4]
     N["epoch"] = N.label.map(epochs.epoch_of)
     N["day"] = N.label.map(epochs.days_since_stroke)
