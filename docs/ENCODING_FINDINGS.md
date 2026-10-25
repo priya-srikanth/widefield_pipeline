@@ -1150,6 +1150,19 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.12 Per-session self-fit vs frozen (remapping; resolves the scoring caveat) and free push (10-25 late) -- PROVISIONAL
+
+- `scripts/session_vs_frozen.py` (frA frame; `frozen_encoder_gate-attempted_v7g3_t3d_frA/session_vs_frozen/`): each session
+  refit on itself (frozen design, 5 trial blocks, penalties chosen in-session), scored with the frozen `musall_r2` windows.
+  Pre gap self - frozen ~0.01. Change from pre: full model SSp-m +0.07-0.12 acute, +0.06-0.09 chronic (4/4); target unique
+  self chronic +0.017-0.019 SSp-m / +0.010-0.013 cortex (3-4/4) vs frozen -0.006 / -0.008 cortex (0/4); spout unique self
+  contra SSp-m +0.054 / +0.059 chronic 4/4; task unique self chronic +0.020-0.025 SSp-m. => the refit chronic target gain
+  (8.6) reappears in the frozen windows when weights are refit: the frozen "not reproduced" is a frame effect. Target
+  information persists chronically in a remapped pattern.
+- Free push (`_v7pushfree` vs `_v7fwd15`, older no-FR base; specificity_control on both): cue residual unchanged; lick
+  window chronic control residual halves (+1.03 -> +0.52 pre-SD), orofacial contra +2.12 -> +1.83, orofacial - control
+  +0.69 (3/4) -> +0.92 (4/4). Pushes explain part of the cortex-wide lick-window residual; the orofacial residual stays.
+
 ### 8.11 Is the chronic change specific to orofacial cortex? Does it track recovery? (10-25 afternoon) -- PROVISIONAL
 
 Frozen frame with FaceRhythm (`gate-attempted_v7g3_t3d_frA`; Layer 2 `allsession_encoder_v7g3_t3d_frA`). Orofacial = SSp-m,

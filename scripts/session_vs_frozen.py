@@ -183,7 +183,7 @@ def summarise(run: Path, out: Path, variants) -> None:
     (out / "figures").mkdir(exist_ok=True)
     for w in ffc.WINDOWS:
         fig, ax = plt.subplots(1, 1, figsize=(15, 4.8))
-        ffc.bars(ax, B[(B.window == w) & B.q.isin(qs)], qs, AREAS, "remap: (self - frozen) epoch - pre (R2)",
+        ffc.bars(ax, B[(B.window == w) & B.q.isin(qs)].assign(frame=lambda d: d.q), qs, AREAS, "remap: (self - frozen) epoch - pre (R2)",
                  "black = full model; colours = each group's UNIQUE R2, self-fit minus frozen")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         fig.suptitle(f"NEURAL: per-session vs FROZEN encoder, {w} window, {run.name.replace('frozen_encoder_', '')}. "

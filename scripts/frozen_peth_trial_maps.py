@@ -82,7 +82,7 @@ def main(argv=None) -> int:
     rows_ = [(f"pre, {ml}", "pre", mk) for mk, ml in MEASURES] + \
             [(f"{ep} - pre, {ml}", ep, mk) for ep in ("acute", "chronic") for mk, ml in MEASURES]
     for w in ("cue", "lick"):
-        fig, axs = plt.subplots(len(rows_), len(qs), figsize=(2.5 * len(qs) + 0.6, 2.35 * len(rows_) + 0.9), squeeze=False)
+        fig, axs = plt.subplots(len(rows_), len(qs), figsize=(2.6 * len(qs) + 0.6, 2.5 * len(rows_) + 0.9), squeeze=False)
         for j, q in enumerate(qs):
             pl = pre.loc[q, w]
             vmax = np.nanpercentile(pl.to_numpy(), 98)
@@ -98,22 +98,28 @@ def main(argv=None) -> int:
                     im = ax.imshow(paint(img, nm, s_.point.to_dict()), cmap="RdBu_r", vmin=-lim, vmax=lim,
                                    interpolation="nearest")
                     sg = paint(img, nm, {k: 1.0 for k, v in (s_.p_bonf < 0.05).items() if v})
-                    if np.isfinite(sg).any():
-                        ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.2)
+                    if np.isfinite(sg).any():                 # white halo + black line: visible on dark and light fills
+                        ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)
+                        ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
+                    up = int(((s_.p_bonf < 0.05) & (s_.point > 0)).sum())
+                    dn = int(((s_.p_bonf < 0.05) & (s_.point < 0)).sum())
+                    ax.text(0.02, 0.02, f"sig {up} up / {dn} down", transform=ax.transAxes, fontsize=6.5,
+                            bbox={"facecolor": "white", "alpha": 0.8, "pad": 1, "lw": 0})
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
                 ax.set_xticks([]); ax.set_yticks([])
                 if i == 0:
                     ax.set_title(q if q == "full" else f"{q} unique", fontsize=8.5)
                 if j == 0:
                     ax.set_ylabel(title, fontsize=7.5)
-                if i in (1, 3, 5):
-                    cb = fig.colorbar(im, ax=[axs[i - 1, j], axs[i, j]], fraction=0.05, pad=0.02)
+                if i in (1, 3, 5):                            # one bar per row pair, in its own inset below the pair
+                    cax = ax.inset_axes([0.1, -0.13, 0.8, 0.06])
+                    cb = fig.colorbar(im, cax=cax, orientation="horizontal")
                     cb.ax.tick_params(labelsize=6)
         fig.suptitle(f"NEURAL: Musall-style PETH vs TRIAL-BY-TRIAL R2 by Allen area, FROZEN frame ({a.tag}), {w} window. "
                      "Columns: full model, then each group's unique R2 (joint - without it).\nRows: pre level, then acute and "
                      "chronic minus pre; PETH = per-spout trial averages, trial-by-trial = variability around them. Outline = "
-                     "Bonferroni-significant area (nested bootstrap). Image left = ipsilesional.", fontsize=8.5)
-        fig.subplots_adjust(left=0.05, right=0.97, bottom=0.02, top=0.9, wspace=0.08, hspace=0.12)
+                     "area whose change is significant after Bonferroni over areas (nested bootstrap); corner = count. Image left = ipsilesional.", fontsize=8.5)
+        fig.subplots_adjust(left=0.05, right=0.97, bottom=0.02, top=0.9, wspace=0.06, hspace=0.3)
         fig.savefig(run / "figures" / f"peth_trial_maps_{w}.png", dpi=105)
         plt.close(fig)
     print("->", run / "figures")

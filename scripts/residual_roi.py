@@ -164,13 +164,13 @@ def by_spout(tag: str) -> int:
                     up, dn = int(((s_.p_bonf < .05) & (s_.point > 0)).sum()), int(((s_.p_bonf < .05) & (s_.point < 0)).sum())
                     ax.set_title(f"{sp.replace('_', ' ')}, {ep}\n{up} up / {dn} down", fontsize=7.5)
                     ax.set_xticks([]); ax.set_yticks([])
-            cb = fig.colorbar(im, ax=axs.ravel().tolist(), fraction=0.02, pad=0.01)
+            cb = fig.colorbar(im, cax=fig.add_axes([0.915, 0.25, 0.012, 0.5]))   # own axes: never over a panel
             cb.set_label(f"residual change ({unit})", fontsize=7)
             fig.suptitle(f"NEURAL: frozen-encoder RESIDUAL by ALLEN AREA, PER SPOUT, {w} window, epoch minus pre, mean of 4 "
                          f"animals ({tag}).\nBlack = area significant after Bonferroni over areas (nested bootstrap animals > "
                          "sessions); one colour scale. ROI counterpart of Figs 10 / 10c-10g. Image left = ipsilesional.",
                          fontsize=8.5)
-            fig.subplots_adjust(left=0.01, right=0.9, bottom=0.02, top=0.86, wspace=0.04, hspace=0.3)
+            fig.subplots_adjust(left=0.01, right=0.9, bottom=0.02, top=0.86, wspace=0.04, hspace=0.3)  # bar at 0.915
             fig.savefig(out / "figures" / f"residual_roi_by_spout_{w}_{'raw' if q == 'residual' else 'z'}.png", dpi=110)
             plt.close(fig)
     print("->", out)
