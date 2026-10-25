@@ -204,6 +204,26 @@ if FR_VARS:
     SUPER["noposinfo"] = ("lick", "other", *(g for g in ("fr",) if g in _frg))
 
 
+#: PER-SPOUT LICK KERNELS (Priya 10-25: "should we have done spout-position lick kernels for our current models" -> "i.e.
+#: the frozen model"). FROZEN_LICKSPOUT=1 replaces the lick-onset spout-locked + deviation columns (s + d = the recorded
+#: lick-onset lag columns) by SIX copies of the recorded columns, each masked to one spout's trial frames (spout = the
+#: TARGET spout of the trial; relabel runs use the relabelled spout like the templates). Group "lickspout": executed,
+#: spout-specific, lick-locked -> in the spout / movement / posinfo super-groups and on the EXECUTED side of the ordered
+#: target / executed bracket. Penalty group "lick". The other pose variables keep their s / d split.
+LICKSPOUT = os.environ.get("FROZEN_LICKSPOUT", "") in ("1", "true", "yes")
+LICKSPOUT_POS = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")   # canonical order
+if LICKSPOUT:
+    for _k in ("lick_onset:spl", "lick_onset:dev"):
+        FGROUP.pop(_k, None)
+    FGROUP.update({f"lick_onset@{q}": "lickspout" for q in LICKSPOUT_POS})
+    FGROUPS = (*FGROUPS, "lickspout")
+    for _g in ("spout", "movement", "nontask", "posinfo"):
+        if _g in SUPER:
+            SUPER[_g] = (*SUPER[_g], "lickspout")
+    FPEN.update({f"lick_onset@{q}": "lick" for q in LICKSPOUT_POS})
+_EXEC_SIDE = ("exec_locked", "exec_within", *(("lickspout",) if LICKSPOUT else ()))
+
+
 def _fr_columns(animal: str, date: str, rv, ft: np.ndarray) -> dict:
     """{FR variable: (n_frames, 1) raw column on every imaging frame} in FR_VARS order (NaN = blanked)."""
     ce = _ce()
@@ -399,6 +419,10 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
                       else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
         Ms[v] = M
         parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_split, k_of, pos_order, M)
+    if LICKSPOUT:                                        # one masked copy of the recorded lick-onset columns per spout
+        x_ = parts["lick_onset:spl"] + parts["lick_onset:dev"]
+        for q_ in LICKSPOUT_POS:
+            parts[f"lick_onset@{q_}"] = x_ * (np.asarray(pos_split) == q_)[:, None]
     vars_ = [v for v in FGROUP if v != "push" or _push_on()]
     blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
     X = np.hstack(blocks)
@@ -480,7 +504,8 @@ def spl_swap_deltas(Ms: dict, templates: dict, pos_of, k_of, pos_order: list, co
             Msw = swap_template(Ms[v], N, qi)
             s0, _ = spout_split(np.zeros((len(rows), Ms[v].shape[2])), pos_of[rows], k_of[rows], pos_order, Ms[v])
             s1, _ = spout_split(np.zeros((len(rows), Ms[v].shape[2])), pos_of[rows], k_of[rows], pos_order, Msw)
-            D[:, col_var == f"{v}:spl"] = s1 - s0
+            if (col_var == f"{v}:spl").any():           # absent for lick_onset under FROZEN_LICKSPOUT
+                D[:, col_var == f"{v}:spl"] = s1 - s0
         D -= Q[rows] @ (Q[rows].T @ D)                    # the slow-drift projection, restricted to q's rows
         out[q] = (rows, D)
     return out
@@ -586,7 +611,7 @@ def _run_tag() -> str:
     return (_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")
             + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
             + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else "")
-            + ("|frsplit" if FR_SPLIT else ""))
+            + ("|frsplit" if FR_SPLIT else "") + ("|lickspout" if LICKSPOUT else ""))
 
 
 #: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
@@ -798,11 +823,17 @@ _DROP["no_contact_exec_within"] = ("contact", "exec_within")
 _ONLY = {"task_only": SUPER["task"], "lick_only": ("lick",), "spout_only": SUPER["spout"], "other_only": ("other",),
          "movement_only": SUPER["movement"]}
 _ONLY.update({f"{g}_only": SUPER[g] for g in ("posinfo", "noposinfo") if g in SUPER})   # FR runs (FR_VARS block)
-_ORDERED = {"target_first": (("target",), ("exec_locked", "exec_within")),     # (A, B): residualise B on A
-            "exec_first": (("exec_locked", "exec_within"), ("target",)),
+if FR_VARS:
+    _ONLY["fr_only"] = tuple(g for g in FGROUPS if g.startswith("fr"))       # FaceRhythm alone (Musall top row)
+#: PER-VARIABLE DROPS (Priya 10-25, Musall et al. 2019 bottom row = single-variable unique dR2): novar_<base> drops every
+#: column of ONE base variable (its s and d parts / per-spout copies together), everything else joint.
+_VAR_BASES = sorted({v.split(":")[0].split("@")[0] for v in FGROUP})
+_VDROP = {f"novar_{b}": b for b in _VAR_BASES}
+_ORDERED = {"target_first": (("target",), _EXEC_SIDE),     # (A, B): residualise B on A
+            "exec_first": (_EXEC_SIDE, ("target",)),
             "task_first": (SUPER["task"], SUPER["nontask"]),
             "movement_first": (SUPER["nontask"], SUPER["task"])}
-VARIANTS = ("joint", *_ORDERED, *_DROP, *_ONLY)
+VARIANTS = ("joint", *_ORDERED, *_DROP, *_ONLY, *_VDROP)
 #: variants whose per-group PETH parts are saved (the others save data + full only: their parts are not a split)
 PART_VARIANTS = ("joint", *_ORDERED)
 
@@ -871,6 +902,10 @@ def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: d
     grp = np.array([FGROUP[v] for v in col_var])
     if variant in _DROP or variant in _ONLY:
         keep = ~np.isin(grp, _DROP[variant]) if variant in _DROP else np.isin(grp, _ONLY[variant])
+        return eye[:, keep], np.flatnonzero(keep)
+    if variant in _VDROP:
+        base_ = np.array([v.split(":")[0].split("@")[0] for v in col_var])
+        keep = base_ != _VDROP[variant]
         return eye[:, keep], np.flatnonzero(keep)
     if variant in _ORDERED:
         A, Bg = _ORDERED[variant]
@@ -1153,6 +1188,52 @@ def predict_job(job):
 EVOKED_WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5, 0.0))}
 
 
+#: PIXEL PETH vs TRIAL-BY-TRIAL (Priya 10-25: Musall et al. 2019 PETH / trial-by-trial prediction maps at pixel level).
+#: FROZEN_PIX_MUSALL=1: for the spatial-target runs, save per MUSALL window the target-space second moments that
+#: `musall_r2` needs, so a pixel's R2 = 1 - diag(W E W') / diag(W S W') (W = the animal's basis):
+#:   avg    per-spout trial-averaged traces, each centred on its own mean over spouts x time (data and prediction apart)
+#:   trial  single trials minus their spout's mean (data and prediction apart)
+#: keys mus_<window>_<avg|trial>_<E|S>; only trials whose window lies inside the record. Variants: joint, the alone
+#: (<g>_only) and the group drops (no_<g>) -- the per-variable drops keep all-frames moments only.
+PIX_MUSALL = os.environ.get("FROZEN_PIX_MUSALL", "") in ("1", "true", "yes")
+
+
+def _pix_musall_variant(variant: str) -> bool:
+    return variant == "joint" or variant.endswith("_only") or (variant.startswith("no_") and "|" not in variant)
+
+
+def musall_moments(d: dict, Z: np.ndarray, Wf: np.ndarray, R: np.ndarray, fs: float) -> dict:
+    P = Z @ Wf                                           # frames x targets prediction
+    out = {}
+    for al, (a0, a1) in MUSALL_WINDOWS.items():
+        fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+        offm = np.arange(int(round(a0 * fs)), int(round(a1 * fs)))
+        idx = fr_[:, None] + offm[None, :]
+        ok = (fr_ >= 0) & (idx.min(1) >= 0) & (idx.max(1) < len(R))
+        if ok.sum() < 2:
+            continue
+        idx, pos = idx[ok], np.asarray(d["pos"])[ok]
+        D, Q = R[idx], P[idx]                            # (trials, t, targets)
+        Dt, Qt = D.copy(), Q.copy()
+        Dm, Qm = [], []
+        for q in np.unique(pos):
+            m = pos == q
+            dm, qm = D[m].mean(0), Q[m].mean(0)
+            Dt[m] -= dm
+            Qt[m] -= qm
+            Dm.append(dm)
+            Qm.append(qm)
+        Dm, Qm = np.stack(Dm), np.stack(Qm)
+        Dm -= Dm.mean((0, 1))
+        Qm -= Qm.mean((0, 1))
+        for kind, (a_, b_) in (("avg", (Dm, Qm)), ("trial", (Dt, Qt))):
+            A = a_.reshape(-1, a_.shape[-1])
+            Bm = (a_ - b_).reshape(-1, a_.shape[-1])
+            out[f"mus_{al}_{kind}_E"] = (Bm.T @ Bm).astype(np.float32)
+            out[f"mus_{al}_{kind}_S"] = (A.T @ A).astype(np.float32)
+    return out
+
+
 def residual_moment(Sxx: np.ndarray, Sxy: np.ndarray, Syy: np.ndarray, Wf: np.ndarray) -> np.ndarray:
     """(Y - Z Wf)'(Y - Z Wf) from Z'Z, Z'Y, Y'Y: the residual second moment in target space (R x R)."""
     SW = Sxy.T @ Wf
@@ -1195,6 +1276,7 @@ def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) ->
     # PIXEL R2 (Priya 10-23: unique R2 maps at pixel / SVD level): all-frames second moments in TARGET space, so a
     # pixel's SSE / SST is diag(W E W') without a frames x pixels array (`scripts/frozen_r2_maps.py`)
     Sxx = Z.T @ Z
+    Rfull = ((d["Y"] @ Ra) if lazy else Rd) if PIX_MUSALL else None      # frames x targets, for the PETH / trial moments
     Sxy = (Z.T @ d["Y"]) @ Ra if lazy else Z.T @ Rd
     Syy = (Ra.T @ (d["Y"].T @ d["Y"]) @ Ra) if lazy else Rd.T @ Rd
     summary = {"label": label}
@@ -1238,8 +1320,10 @@ def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) ->
         sess = Path(out_dir) / variant / "sessions"
         sess.mkdir(parents=True, exist_ok=True)
         E = residual_moment(Sxx, Sxy, Syy, parts["full"])
+        extra = musall_moments(d, Z, parts["full"], Rfull, fs) if (PIX_MUSALL and Rfull is not None
+                                                                   and _pix_musall_variant(variant)) else {}
         np.savez_compressed(sess / f"{label}.npz", evoked_cue=ev["cue"], evoked_lick=ev["lick"],
-                            resid_mom=E.astype(np.float32), data_mom=Syy.astype(np.float32), n_frames=len(Z))
+                            resid_mom=E.astype(np.float32), data_mom=Syy.astype(np.float32), n_frames=len(Z), **extra)
         meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
                 "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
                 "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],
@@ -1383,7 +1467,7 @@ def main(argv=None) -> int:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--tag", default="gate-attempted")
-    ap.add_argument("--variants", nargs="+", default=list(VARIANTS), choices=VARIANTS)
+    ap.add_argument("--variants", nargs="+", default=[v for v in VARIANTS if v not in _VDROP], choices=VARIANTS)   # novar_* opt-in
     ap.add_argument("--no-drop-spout", action="store_true", help="skip the frozen drop-one-spout variants")
     ap.add_argument("--reuse-stats", action="store_true", help="reuse fit/pre_stats.pkl (skip the pre statistics pass)")
     ap.add_argument("--summarise-drop", action="store_true", help="only rebuild the drop-spout table from saved files")

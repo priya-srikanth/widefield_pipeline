@@ -25,7 +25,7 @@ from session_vs_frozen import DEFAULT_VARIANTS, frozen_r2, self_r2  # noqa: E402
 from specificity_control import GROUPS  # noqa: E402
 
 QLAB = {"joint": "full", "no_target": "target", "no_spout": "spout", "no_task": "task", "no_movement": "movement",
-        "no_fr": "fr", "no_fr_dir": "fr_dir"}
+        "no_fr": "fr", "no_fr_dir": "fr_dir", "no_lickspout": "lickspout"}
 
 
 def remap_table(run: Path) -> pd.DataFrame:
