@@ -62,6 +62,15 @@ G. Older: lick-variability check (within-spout lick timing / count variance per 
    lick-alone single-trial R2, Fig 1ua2); noise-weighted relabel; failed-attempt movement-matched control; encoding_mixed
    re-run; share deletions / nokin retirement only when Priya decides.
 
+### O2 (Priya asked 10-25 ~18:50: anything to submit?)
+Not tonight: the frozen pipeline has never run on O2 and the local chain should finish overnight (~8-9 h). If wanted
+later, the natural split is FIT LOCALLY (pooled pre statistics -> per-animal fits, minutes) and SCORE SESSIONS ON O2 as an
+array job (one task per session: design build + predict + moments). Prerequisites: code pushed and pulled on O2; confirm the
+10-24 O2 bundle carries every input of this frame (3-D tongue snapshot pose3d_kin_licks_snapshot_20261023, FaceRhythm
+master_pre_v1 projections, attempts table / gate, per-animal templates.pkl, spatial_<an>.pkl for basis runs); a submit
+wrapper that ships the fit pickles; Priya runs submit / transfer. Best first candidate: task E (per-epoch pixel kernel
+fits) -- write it O2-ready (per-animal x epoch tasks) from the start.
+
 ### PITFALLS (today)
 - HEREDOCS eat escapes: `\n` inside python strings and `\` line continuations became literal newlines / broke code
   three times -> write patch scripts with the Write tool; heredoc only for code with no backslashes.
