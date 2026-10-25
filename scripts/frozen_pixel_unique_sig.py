@@ -30,8 +30,35 @@ from frozen_r2_maps import pixel_sse  # noqa: E402
 QS = [("full", None, "full R2"), ("target", "no_target", "position unique (target)"),
       ("spout", "no_spout", "spout unique (target + executed spout part)"), ("task", "no_task", "task unique"),
       ("movement", "no_movement", "movement unique (all)"), ("fr", "no_fr_all", "FaceRhythm unique"),
-      ("fr_dir", "no_fr_dir", "FaceRhythm direction unique")]
+      ("fr_dir", "no_fr_dir", "FaceRhythm direction unique"),
+      ("posinfo", "no_posinfo", "movement WITH lick-position info (pose + FR)"),
+      ("noposinfo", "no_noposinfo", "movement WITHOUT lick-position info")]
 EPS = ["acute", "subacute", "chronic"]
+
+
+def per_animal_counts(pre_by: dict, post_by: dict, f: int, mask: np.ndarray, alpha: float = 0.05):
+    """SECONDARY view (Priya 10-25: nested bootstrap stays primary): per animal, its own sessions as the unit (the repo's
+    "musall" logic: Welch t per bin, Bonferroni over that animal's bins); returns (n_up, n_down) maps on the bin grid =
+    how many animals change significantly in each direction, and the animals tested."""
+    from scipy import stats
+
+    from wfield_local import beta_maps as bm
+    up = dn = None
+    tested = []
+    for an in sorted(set(pre_by) & set(post_by)):
+        if len(pre_by[an]) < 2 or len(post_by[an]) < 2:
+            continue
+        P = np.stack([bm.downsample(m, f, mask)[0] for m in pre_by[an]])
+        Q = np.stack([bm.downsample(m, f, mask)[0] for m in post_by[an]])
+        ok = np.isfinite(P).all(0) & np.isfinite(Q).all(0)
+        t, pv = stats.ttest_ind(Q, P, axis=0, equal_var=False)
+        sig = ok & (pv < alpha / max(int(ok.sum()), 1))
+        d = np.nanmean(Q, 0) - np.nanmean(P, 0)
+        u, w = (sig & (d > 0)).astype(int), (sig & (d < 0)).astype(int)
+        up = u if up is None else up + u
+        dn = w if dn is None else dn + w
+        tested.append(an)
+    return up, dn, tested
 
 
 def main(argv=None) -> int:
@@ -94,7 +121,7 @@ def main(argv=None) -> int:
             out[an] = np.maximum(sd, np.nanmedian(sd))
         return out
 
-    rows, pics = [], {}
+    rows, pics, pa_counts = [], {}, {}
     for q, _v, _l in qs:
         z = zsd(q)
         pre = by("pre", q, z)
@@ -117,6 +144,7 @@ def main(argv=None) -> int:
                     up, dn = int((sig & (sm > 0)).sum()), int((sig & (sm < 0)).sum())
                 rows.append({"q": q, "epoch": ep, "px": F, "sig": k, "up": up, "down": dn, "n_bins": n})
             pics[(q, ep)] = (mm, sigs)
+            pa_counts[(q, ep)] = per_animal_counts(raw_pre, raw_post, FACTORS[16], mask)
         print(q, [(r["epoch"], r["px"], r["up"], r["down"]) for r in rows if r["q"] == q], flush=True)
     S = pd.DataFrame(rows)
     sfx = "_z" if a.zscore else ""
@@ -189,6 +217,38 @@ def main(argv=None) -> int:
     fig.savefig(p, dpi=105)
     plt.close(fig)
     print("->", p)
+    # secondary: animals per bin (16 px), up - down, per quantity x epoch
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    cm = ListedColormap(["#2166ac", "#67a9cf", "#d1e5f0", "#f7f7f7", "#fddbc7", "#ef8a62", "#b2182b"])
+    nb = BoundaryNorm(np.arange(-3.5, 4.5, 1), cm.N)
+    fig, axs = plt.subplots(len(EPS), len(qs), figsize=(2.35 * len(qs), 2.5 * len(EPS) + 1.2), squeeze=False)
+    crow = []
+    for j, (q, _v, lab) in enumerate(qs):
+        for r, ep in enumerate(EPS):
+            ax = axs[r, j]
+            up, dn, tested = pa_counts[(q, ep)]
+            if up is None:
+                ax.axis("off")
+                continue
+            net = np.where(np.isfinite(pics[(q, ep)][0][:up.shape[0] * 8:8, :up.shape[1] * 8:8]), up - dn, np.nan)
+            im = ax.imshow(np.clip(net, -3, 3), cmap=cm, norm=nb, interpolation="nearest")
+            n3u, n3d = int((up >= 3).sum()), int((dn >= 3).sum())
+            crow.append({"q": q, "epoch": ep, "bins_3plus_up": n3u, "bins_3plus_down": n3d, "animals": "/".join(tested)})
+            ax.text(0.02, 0.02, f">=3 animals: {n3u} up / {n3d} down", transform=ax.transAxes, fontsize=6.5,
+                    bbox={"facecolor": "white", "alpha": 0.7, "pad": 1, "lw": 0})
+            ax.set_xticks([]); ax.set_yticks([])
+            if r == 0:
+                ax.set_title(lab, fontsize=8)
+            if j == 0:
+                ax.set_ylabel(f"{ep} minus pre", fontsize=9)
+    cb = fig.colorbar(im, ax=axs, shrink=0.6, ticks=range(-3, 4))
+    cb.set_label("animals significantly UP minus DOWN\n(per animal: sessions as unit, Welch t, Bonferroni)", fontsize=8)
+    fig.suptitle(textwrap.fill(f"NEURAL: FROZEN-frame pixel maps, PER-ANIMAL view (secondary; the nested bootstrap is primary), "
+                               f"run {a.tag}, 16 px bins: how many of the 4 animals change significantly in each direction, "
+                               "each tested on its own sessions. Image left = ipsilesional.", int(21 * len(qs))), fontsize=9)
+    fig.savefig(run / "figures" / "unique_sig_per_animal.png", dpi=105)
+    plt.close(fig)
+    pd.DataFrame(crow).to_csv(run / "unique_sig_per_animal.csv", index=False)
     return 0
 
 
