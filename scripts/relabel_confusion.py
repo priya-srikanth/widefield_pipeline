@@ -48,6 +48,24 @@ def session_rows(d: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def trial_rows(D: Path, window: str) -> pd.DataFrame:
+    """One row per TRIAL (frozen_relabel trial_sse, parcels summed): the best-fitting of the six labels as one-hot
+    b_<spout>, then averaged over each session's trials of a target -> the same row layout as `session_rows`."""
+    import json
+    rows = []
+    for js in sorted((D / "sessions").glob("*.json")):
+        m = json.loads(js.read_text(encoding="utf-8"))
+        for _tid, v in (m.get("trial_sse") or {}).get(window, {}).items():
+            cost = {k: x for k, x in v.items() if k in SP}
+            if len(cost) == 6 and v["spout"] in SP:
+                best = min(cost, key=cost.get)
+                rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "spout": v["spout"],
+                             **{f"b_{j}": float(j == best) for j in SP}})
+    T = pd.DataFrame(rows)
+    keep = T.groupby(["label", "spout"]).spout.transform("size") >= 5
+    return T[keep].groupby(["label", "animal", "epoch", "spout"]).mean().reset_index()
+
+
 def session_mats(R: pd.DataFrame, prefix: str) -> dict:
     out = {}
     for (an, ep, _lab), g in R.groupby(["animal", "epoch", "label"]):
@@ -67,16 +85,23 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="v7g3_t3d")
     ap.add_argument("--window", default="lick", choices=("all", "cue", "lick"))
+    ap.add_argument("--trial", action="store_true", help="per-TRIAL best label (needs a trial_sse run, e.g. --tag v7g3_t3d_trial)")
     a = ap.parse_args(argv)
     D = E / f"frozen_relabel_{a.tag}"
     fd = D / "figures"
     fd.mkdir(exist_ok=True)
-    d = pd.read_csv(D / "relabel_by_session.csv")
-    d = d[(d.window == a.window) & (d.area == "all_areas")]
-    if d.empty:
-        raise SystemExit("no all_areas rows")
-    R = session_rows(d)
-    R.to_csv(D / f"relabel_confusion_sessions_{a.window}.csv", index=False)
+    unit = "trials" if a.trial else "sessions"
+    if a.trial:
+        R = trial_rows(D, a.window)
+        sfx = f"{a.window}_trial"
+    else:
+        d = pd.read_csv(D / "relabel_by_session.csv")
+        d = d[(d.window == a.window) & (d.area == "all_areas")]
+        if d.empty:
+            raise SystemExit("no all_areas rows")
+        R = session_rows(d)
+        sfx = a.window
+    R.to_csv(D / f"relabel_confusion_sessions_{sfx}.csv", index=False)
     S = session_mats(R, "b_")
     # per-animal best-label share matrices
     fig, axs = plt.subplots(4, 4, figsize=(13, 13))
@@ -94,10 +119,10 @@ def main(argv=None) -> int:
                 ax.set_title(f"{an} {ep} (n {len(S[(an, ep)])} sessions)", fontsize=9)
             ax.set_xticks(range(6)); ax.set_xticklabels(LAB, fontsize=7); ax.set_yticks(range(6)); ax.set_yticklabels(LAB, fontsize=7)
     fig.suptitle(f"NEURAL (encoding model): which spout's pre-stroke pattern best explains each spout's trials, {a.window} window.\n"
-                 "Rows = true spout, columns = best-fitting label in the relabel test (executed licks fixed); share of sessions; rows sum to 1.",
+                 f"Rows = true spout, columns = best-fitting label in the relabel test (executed licks fixed); share of {unit}; rows sum to 1.",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(fd / f"relabel_confusion_matrices_{a.window}.png", dpi=120)
+    fig.savefig(fd / f"relabel_confusion_matrices_{sfx}.png", dpi=120)
     plt.close(fig)
     # epoch minus pre, pooled
     rows = []
@@ -119,16 +144,17 @@ def main(argv=None) -> int:
         ax.set_title(f"{ep} minus pre", fontsize=10); ax.set_xlabel("best-fitting label (encoding model)")
         if k == 0:
             ax.set_ylabel("true spout")
-    fig.suptitle(f"NEURAL (encoding model, relabel test): share of sessions best fit by each label, {a.window} window, epoch minus pre within animal, mean of 4.\n"
+    fig.suptitle(f"NEURAL (encoding model, relabel test): share of {unit} best fit by each label, {a.window} window, epoch minus pre within animal, mean of 4.\n"
                  "Boxed = nested bootstrap excludes 0 (Bonferroni over 36); second line = animals with the same sign.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(fd / f"relabel_confusion_change_{a.window}.png", dpi=130)
+    fig.savefig(fd / f"relabel_confusion_change_{sfx}.png", dpi=130)
     plt.close(fig)
     T = pd.DataFrame(rows)
-    T.to_csv(D / f"relabel_confusion_{a.window}.csv", index=False)
+    T.to_csv(D / f"relabel_confusion_{sfx}.csv", index=False)
     pd.set_option("display.width", 200)
     print(T[T.target == "far_contra"].round(2).to_string(index=False))
-    print(R[R.spout == "far_contra"].groupby(["animal", "epoch"]).best.value_counts().unstack(fill_value=0).to_string())
+    if "best" in R:
+        print(R[R.spout == "far_contra"].groupby(["animal", "epoch"]).best.value_counts().unstack(fill_value=0).to_string())
     return 0
 
 
