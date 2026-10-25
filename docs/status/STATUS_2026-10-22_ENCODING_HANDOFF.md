@@ -50,7 +50,23 @@ leaves new images missing -- happened once, "16g/h broken"). ALL R2 now a FRACTI
   best label by class (hit / incomplete / jaw_only / no_try), session-summed as in `S/relabel_fc_by_class.csv` analysis (code in this
   window's transcript: sum trial_sse per session x class, % worse than the fC label).
 
-**NEXT:** (1) the two results above; (2) FROZEN pre-stroke encoder WITH FaceRhythm (Priya 10-25: "should we be mixing frozen and
+**AGREED PLAN AFTER COMPACTION (Priya 10-25 ~03:45: "update handoff with these tasks then will do after compacting"):**
+1. Read the mechanism result (`direction_mechanism/bootstrap.csv`): (a) behaviour (eta2 side / dist / tongue, sd_side fall?) vs
+   (c) measurement (r_side_tongue falls?) vs (b) neural (partial r SSp-m vs side / distance falls with (a) intact?). Page figure after
+   16o; FINDINGS 4.12. Also check the refgate relabel (stalled at 20/107 since ~03:20 -- disk contention with the mechanism run?
+   restart if dead) and finish the far-contra class table incl. no_try / jaw_only (cue window).
+2. BUILD the FROZEN pre-stroke encoder WITH FaceRhythm -- main purpose: every frozen result (residual maps, Layer 2 "behaviour ->
+   cortex mapping changes chronically 4/4", relabel) has NO face movement, while FR explains ~0.12-0.13 extra and absorbs the broad
+   chronic position rise in the refit frame -> are the chronic residual / Layer 2 change partly unmodelled face movement? Secondary:
+   decoupling test (pre-stroke face -> cortex weights applied post-stroke: frozen FR contribution collapses while refit does not ->
+   mapping changed = neural; both collapse -> face signal changed). Code: FR factors as a group in `frozen_encoder.session_design`
+   (inputs exist for all 107 August sessions: O2 bundle `inputs/<label>.pkl` key "fr", X (T x 12) at imaging frames, names), ~1-2 h.
+   Run modes B (directionless: lick sum + other) AND A (full; needed for direction); movement-first credit (FR = movement);
+   "beyond FR" = lower bound for spout effects (B reduces this). Local compute: fit a few h; downstream overnight.
+3. Re-run on it: residual by area + calibration (frozen_residual_trend / frozen_residual_significance), Layer 2 change vs late-pre and
+   random-split nulls (allsession_encoder + layer2_random_splits; 20 splits are the slow part -> O2 if needed), relabel (trial level).
+   Compare each to the no-FR final frame; update FINDINGS 3.4 / 4.x and the page (new section or alongside 5-7).
+**Older NEXT list:** (1) the two results above; (2) FROZEN pre-stroke encoder WITH FaceRhythm (Priya 10-25: "should we be mixing frozen and
 refit"): frame map -- frozen (residual / relabel / Layer 2) vs per-session refit (all FR + Musall); a frozen-with-FR encoder is the
 direct test of decoupling (b); new frozen fit, likely O2; (3) FR direction modes B / S / D for the contra SSp-m area tests;
 (4) encoder likelihood re-score (noise-weighted) for the relabel trial labels; (5) failed-attempt movement-matched control + trial-class
