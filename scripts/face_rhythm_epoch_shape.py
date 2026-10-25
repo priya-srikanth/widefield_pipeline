@@ -47,6 +47,21 @@ ASSIGN = "best"
 # can pick a factor with the right rhythm in the wrong place (PS93 acute lick_right: own 4 has its place, spatial .92,
 # but no 6.5 Hz peak; own 11 has the rhythm, spatial .77, bilateral; Priya 10-25 reviewing the candidate panels).
 MATCH_ON = "spatial"
+# Where the per-epoch fits live: ``own_epoch`` (one fit per animal) or ``own_epoch_cohort`` (`fr_factors.py fitcohort`,
+# Priya 10-25 "shouldn't we just do a pooled animal per epoch fit?": tag COHORT = all four animals pooled with equal
+# rows, LOAO-<animal> = the other three -- the per-animal check). A tag stands where an animal does in every readout;
+# `members` says whose pre-stroke spout templates it is compared with. Set by --own-dir.
+OWN = "own_epoch"
+
+
+def members(tag: str, animals) -> list[str]:
+    """Animals whose data a fit tag holds: COHORT = all, LOAO-<an> = all but <an>, else the animal itself."""
+    animals = sorted(set(animals))
+    if tag == "COHORT":
+        return animals
+    if tag.startswith("LOAO-"):
+        return [a for a in animals if a != tag[len("LOAO-"):]]
+    return [tag]
 
 
 def deg(c):
@@ -60,11 +75,11 @@ def compute(fdir: Path) -> pd.DataFrame:
     A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
     home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
     rows = []
-    animals = sorted({f.stem.split("_")[0] for f in (fdir / "own_epoch").glob("*.npz")})
+    animals = sorted({f.stem.split("_")[0] for f in (fdir / OWN).glob("*.npz")})
     for an in animals:
         fits, nrow = {}, {}
         for g in GROUPS:
-            f = fdir / "own_epoch" / f"{an}_{g}.npz"
+            f = fdir / OWN / f"{an}_{g}.npz"
             if f.exists():
                 z = np.load(f)
                 fits[g] = (z["A_own"].astype(float), z["B_own"].astype(float))
@@ -118,9 +133,9 @@ def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
     ks = [names.index(n) for n in factors if n in names]
     out = {"loading": {}, "template": {}, "corr": {}, "home": M["home"], "factors": ks, "positions": frc.POSITIONS}
     S = frc.sessions(fdir, "proj")
-    for an in sorted({f.stem.split("_")[0] for f in (fdir / "own_epoch").glob("*.npz")}):
+    for an in sorted({f.stem.split("_")[0] for f in (fdir / OWN).glob("*.npz")}):
         acc = []
-        for t in S[(S.animal == an) & (S.epoch == "pre")].itertuples():
+        for t in S[S.animal.isin(members(an, S.animal)) & (S.epoch == "pre")].itertuples():
             with np.load(t.file, allow_pickle=True) as z:          # a session can lack a spout (8/5-8/6: 4 positions)
                 have = list(z["power_positions"].astype(str))
                 sp_s = np.full((6, z["speed_response"].shape[1]), np.nan)
@@ -133,7 +148,7 @@ def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
         for i, p in enumerate(frc.POSITIONS):
             out["template"][(an, p)] = spec[i]
         for g in GROUPS:
-            f = fdir / "own_epoch" / f"{an}_{g}.npz"
+            f = fdir / OWN / f"{an}_{g}.npz"
             if not f.exists():
                 continue
             z = np.load(f)
@@ -422,11 +437,11 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
     home, freqs = M["home"], M["freqs"]
     acol = frc.epoch_colors()
     fcol = {"master": "k", "preA": "0.55", "preB": "0.75", **{e: acol[e] for e in frc.POST_EPOCHS}}
-    animals = sorted({f.stem.split("_")[0] for f in (fdir / "own_epoch").glob("*.npz")})
+    animals = sorted({f.stem.split("_")[0] for f in (fdir / OWN).glob("*.npz")})
     fits = {}
     for an in animals:
         for g in FITS[1:]:
-            f = fdir / "own_epoch" / f"{an}_{g}.npz"
+            f = fdir / OWN / f"{an}_{g}.npz"
             if f.exists():
                 z = np.load(f)
                 A, B = z["A_own"].astype(float), z["B_own"].astype(float)
@@ -512,7 +527,7 @@ def candidates_figure(fdir: Path, names: list[str], out: Path, animal: str, grou
     M = np.load(fdir / "master.npz")
     A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
     home, freqs, k = M["home"], M["freqs"], names.index(factor)
-    z = np.load(fdir / "own_epoch" / f"{animal}_{group}.npz")
+    z = np.load(fdir / OWN / f"{animal}_{group}.npz")
     A, B = z["A_own"].astype(float), z["B_own"].astype(float)
     m = fm.match(A_ref, B_ref, A, B, on=MATCH_ON)
     owner = {int(m["order"][r]): names[r] for r in range(len(names))}
@@ -579,9 +594,13 @@ def main(argv=None) -> int:
     ap.add_argument("--factors", nargs="+", default=list(LICK),
                     help="factors for the loading maps / templates (default the lateralised lick pair); e.g. the "
                          "non-lateralised lick factors (Priya 10-25 'central lick version') -- use with --out")
+    ap.add_argument("--own-dir", default="own_epoch", help="per-epoch fit folder: own_epoch (per animal) or own_epoch_cohort "
+                    "(COHORT + LOAO-<animal> tags; output defaults to epoch_shape_cohort/)")
     a = ap.parse_args(argv)
+    global OWN
+    OWN = a.own_dir
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
-    out = a.out or frc.readouts_dir(a.set) / "epoch_shape"
+    out = a.out or frc.readouts_dir(a.set) / ("epoch_shape" if OWN == "own_epoch" else f"epoch_shape_{OWN[len('own_epoch_'):] or OWN}")
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     if a.candidates:

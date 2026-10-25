@@ -72,9 +72,12 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    * RUNNING ON O2 (submitted by Priya 10-25): `fr_factors.py fitcohort` (`run_fitcohort.sbatch`, 30 tasks = cohort +
      4 leave-one-animal-out x {pre, acute, subacute, chronic, preA, preB}; 5,500 rows / animal, 8 inits, 16 c / 96 GB /
      12 h). When done (transfer node): `rsync -ah $B/factors/master_pre_v1/own_epoch_cohort/
-     $S/factors/master_pre_v1/own_epoch_cohort/` (B / S as in item 1 below; expect 30 files). THEN: point
-     `face_rhythm_epoch_shape.py` at `own_epoch_cohort/` (cohort fit vs cohort preA / preB floor; LOAO fits as the
-     per-animal check) and redo the shape figures on the FR page.
+     $S/factors/master_pre_v1/own_epoch_cohort/` (B / S as in item 1 below; expect 30 files). THEN (code READY 10-25
+     ~15:50; share folder still empty then): `python scripts/face_rhythm_epoch_shape.py --own-dir own_epoch_cohort` ->
+     `readouts/master_pre_v1/epoch_shape_cohort/` (each tag COHORT / LOAO-<animal> stands where an animal did; its pre
+     spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
+     LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
+     them as LOAO agreement only. Redo the shape figures on the FR page.
    * Still open: cortical ENL decode with FR factors regressed out (is the cortical pre-cue code face posture?); FR
      spout-in-mesh control; 13b (dimension comparison + composite deficit; agree the list with d4).
 
