@@ -144,16 +144,29 @@ def epoch_fit_tasks(pl: dict) -> list[tuple[str, str, list[str]]]:
     return out
 
 
+# Priya 10-25: a DRIFT reference for the cohort shape readouts -- preA / preB interleave the pre days, so their floor
+# leaves out slow change across days; early vs late pre days (same procedure) shows how much shape moves with time alone.
+# Appended AFTER the 30 epoch tasks (31-40), so the existing task numbers are unchanged.
+DRIFT_GROUPS = ("preEarly", "preLate")
+
+
 def cohort_fit_tasks(pl: dict) -> list[tuple[str, str, dict[str, list[str]]]]:
     """[(tag, group, {animal: task keys})]: the COHORT (all animals) and each leave-one-animal-out set (``LOAO-<animal>``)
-    x EPOCH_GROUPS, in a fixed order; array task n = row n - 1 (5 sets x 6 groups = 30 for four animals). The groups
+    x EPOCH_GROUPS, in a fixed order; array task n = row n - 1 (5 sets x 6 groups = 30 for four animals), then the same
+    sets x DRIFT_GROUPS (tasks 31-40). The groups
     per animal are exactly `epoch_fit_tasks`' (preA / preB = that animal's alternating pre days)."""
     per: dict[str, dict[str, list[str]]] = {}
     for an, g, keys in epoch_fit_tasks(pl):
         per.setdefault(an, {})[g] = keys
     animals = sorted(per)
+    for an in animals:                        # DRIFT halves: the pre DAYS in time order, first half vs second half
+        days = sorted({k.split("_")[1] for k in per[an]["pre"]})
+        early = set(days[:len(days) // 2])
+        per[an]["preEarly"] = [k for k in per[an]["pre"] if k.split("_")[1] in early]
+        per[an]["preLate"] = [k for k in per[an]["pre"] if k.split("_")[1] not in early]
     sets = [("COHORT", animals)] + [(f"LOAO-{an}", [a for a in animals if a != an]) for an in animals]
-    return [(tag, g, {a: per[a][g] for a in use}) for tag, use in sets for g in EPOCH_GROUPS]
+    return ([(tag, g, {a: per[a][g] for a in use}) for tag, use in sets for g in EPOCH_GROUPS]
+            + [(tag, g, {a: per[a][g] for a in use}) for tag, use in sets for g in DRIFT_GROUPS])
 
 
 def cmd_fitcohort(sd: Path, task: int, inits: int = 8, rows_per_animal: int = 5500,
