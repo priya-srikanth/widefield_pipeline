@@ -38,6 +38,15 @@ GROUPS = ("preA", "preB", "pre", "acute", "subacute", "chronic")
 # "PS95's lick L subacute is wrong" -- matched cos .35; its lick_left content is split over three own factors, best
 # single column .74). Such a cell is dropped from every loading / asymmetry / template / angle readout, not re-matched.
 MIN_COS = 0.5
+# Which own column stands for a master factor (`face_rhythm_matching.columns`): its BEST-scoring column (spatial x
+# spectral cosine), allowed to repeat -- Priya 10-25: the extra post-stroke leftward licking is split over several own
+# factors, so a one-to-one (Hungarian) assignment can hand lick_left a poor column (PS95 acute: a ~12 Hz factor, while
+# its lick_left-like column went to lick_ongoing_7Hz; PS95 subacute: own 7, spatial .74, went to lick_fast_close).
+ASSIGN = "best"
+# ... scored on the SPATIAL cosine alone: these readouts ask WHERE on the face a factor loads, and the frequency term
+# can pick a factor with the right rhythm in the wrong place (PS93 acute lick_right: own 4 has its place, spatial .92,
+# but no 6.5 Hz peak; own 11 has the rhythm, spatial .77, bilateral; Priya 10-25 reviewing the candidate panels).
+MATCH_ON = "spatial"
 
 
 def deg(c):
@@ -60,13 +69,15 @@ def compute(fdir: Path) -> pd.DataFrame:
                 z = np.load(f)
                 fits[g] = (z["A_own"].astype(float), z["B_own"].astype(float))
                 nrow[g] = int(z["n_rows"])
-        P = fm.pairwise(fits, A_ref, B_ref)                      # every pair, aligned to the master's factor order
+        P = fm.pairwise(fits, A_ref, B_ref, on=MATCH_ON, assign=ASSIGN)       # every pair, aligned to the master's factor order
         cos = {(r.key_a, r.key_b, r.factor): (r.cos_spatial, r.cos_spectral) for r in P.itertuples()}
         get = lambda a, b, k, cos=cos: cos.get((a, b, k), cos.get((b, a, k), (np.nan, np.nan)))  # noqa: E731
         asym, mcos = {}, {}
         for g, (A, _B) in fits.items():                          # loading asymmetry on the master-aligned columns
-            mm = fm.match(A_ref, B_ref, *fits[g])
-            order, mcos[g] = mm["order"], mm["cos_spatial"]
+            mm = fm.match(A_ref, B_ref, *fits[g], on=MATCH_ON)
+            order = fm.columns(mm, ASSIGN)
+            cs_g = fm.cosines(A_ref, B_ref, *fits[g])[0]
+            mcos[g] = cs_g[np.arange(len(order)), order]
             a = fm.loading_asymmetry(A, home, mid)
             asym[g] = np.array([a[o] if o >= 0 else np.nan for o in order])
         R = A_ref.shape[1]
@@ -127,11 +138,12 @@ def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
                 continue
             z = np.load(f)
             A, B = z["A_own"].astype(float), z["B_own"].astype(float)
-            mm = fm.match(A_ref, B_ref, A, B)
-            order = mm["order"]
+            mm = fm.match(A_ref, B_ref, A, B, on=MATCH_ON)
+            order = fm.columns(mm, ASSIGN)
+            cs_g = fm.cosines(A_ref, B_ref, A, B)[0]
             mag = fm.spatial_view(A, "magnitude")
             for k in ks:
-                if mm["cos_spatial"][k] < MIN_COS:               # factor not recovered in this fit: leave the cell out
+                if cs_g[k, order[k]] < MIN_COS:                  # factor not recovered in this fit: leave the cell out
                     continue
                 v = mag[:, order[k]]
                 v = v / v.sum()
@@ -418,7 +430,7 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
             if f.exists():
                 z = np.load(f)
                 A, B = z["A_own"].astype(float), z["B_own"].astype(float)
-                fits[(an, g)] = (A, B, fm.match(A_ref, B_ref, A, B))
+                fits[(an, g)] = (A, B, fm.match(A_ref, B_ref, A, B, on=MATCH_ON))
     rows = []
     mag_ref = fm.spatial_view(A_ref, "magnitude")
     with frf.style():
@@ -433,17 +445,23 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
                     if (an, g) not in fits:
                         continue
                     A, B, m = fits[(an, g)]
-                    j = m["order"][k]
+                    cols = fm.columns(m, ASSIGN)
+                    j, jh = int(cols[k]), int(m["order"][k])
+                    cs_g, cf_g = fm.cosines(A_ref, B_ref, A, B)
                     mag = fm.spatial_view(A, "magnitude")[:, j]
                     maps[g], spec[g] = mag / mag.sum(), np.abs(B[:, j]) / np.abs(B[:, j]).sum()
-                    free = m["free"][k]
-                    rival = [names[r] for r in range(len(names)) if m["order"][r] == free and r != k]
-                    bad = bool(rival) or m["cos_spatial"][k] < 0.8
-                    ttl[g] = (f"{g}  cos {m['cos_spatial'][k]:.2f}  m {m['margin'][k]:.3f}"
-                              + (f"\nbest fits {rival[0]}'s slot" if rival else ""), bad)
-                    rows.append(dict(factor=nm, animal=an, fit=g, cos_spatial=m["cos_spatial"][k],
-                                     cos_spectral=m["cos_spectral"][k], margin=m["margin"][k],
-                                     rival=rival[0] if rival else "", contested=bad))
+                    # flags: the pick differs from the one-to-one (Hungarian) one; another LICK factor picks the same
+                    # column (shared); or the pick is still unlike the master (cos < .8)
+                    shared = [names[r] for r in range(len(names)) if r != k and cols[r] == j and names[r] in GALLERY]
+                    changed = j != jh
+                    bad = bool(shared) or changed or cs_g[k, j] < 0.8
+                    note = (f"\nown {j} (Hungarian: own {jh})" if changed else f"\nown {j}") + \
+                           (f", shared with {shared[0]}" if shared else "")
+                    ttl[g] = (f"{g}  cos {cs_g[k, j]:.2f}  freq {cf_g[k, j]:.2f}" + note, bad)
+                    rows.append(dict(factor=nm, animal=an, fit=g, col_best=j, col_hungarian=jh, changed=changed,
+                                     cos_spatial=cs_g[k, j], cos_spectral=cf_g[k, j],
+                                     cos_spatial_hungarian=cs_g[k, jh], shared_with=shared[0] if shared else "",
+                                     contested=bad))
                 hi = float(np.nanpercentile(np.concatenate(list(maps.values())), 99.5))
                 for c_i, g in enumerate(FITS):
                     ax = axs[r_i, c_i]
@@ -466,17 +484,82 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
                 ax.tick_params(labelsize=6)
                 ax.set_title("frequency loading", fontsize=7)
             axs[0, -1].legend(fontsize=6, frameon=False, loc="upper left")
-            fig.suptitle(f"{nm}: the matched factor in each per-epoch fit (spatial loading, frequency); "
-                         "red title = contested match")
+            fig.suptitle(f"{nm}: its best-matching factor in each per-epoch fit (spatial loading, frequency); "
+                         "red = differs from Hungarian, shared, or cos < .8")
             frf.save(fig, out / f"matched_factor_gallery_{nm}.png", f"""
-{nm} as matched in every pooled per-epoch fit (rows = animals). Columns 1-6: spatial loading magnitude per mesh point as
-a fraction of the factor's total (shape only), colour scale per row; image left = contralesional, vertical line = face
-midline; master = the frozen cohort factor. Last column: spectral (frequency) loading, fraction of total, all fits
-overlaid (dashed black = master). Titles: spatial cosine of the matched column with the master and the Hungarian
-margin (best minus second-best score); RED = contested: the fit's best unconstrained partner for {nm} is a column the
-one-to-one assignment gave to another master factor (named), or cosine < 0.8 -- read that panel's change as possibly
-a factor merge / swap, not a shape change.""")
+{nm} in every pooled per-epoch fit (rows = animals). Columns 1-6: spatial loading magnitude per mesh point as a fraction
+of the factor's total (shape only), colour scale per row; image left = contralesional, vertical line = face midline;
+master = the frozen cohort factor. Last column: spectral (frequency) loading, fraction of total, all fits overlaid
+(dashed black = master). Each panel = the fit's BEST-matching own factor for {nm} (highest SPATIAL cosine, `MATCH_ON`;
+`ASSIGN` = best, so two master factors may share one own factor), titled with its spatial / frequency cosine with the
+master and its own-factor index; RED = it differs from the one-to-one Hungarian pick (shown), another lick factor picks
+the same own factor (named), or spatial cosine < 0.8.""")
     return pd.DataFrame(rows)
+
+
+def candidates_figure(fdir: Path, names: list[str], out: Path, animal: str, group: str, factor: str) -> Path:
+    """Priya 10-25 ("did you look through the PS95 factors carefully to see if another might have fit?"): ALL own factors
+    of one per-epoch fit next to one master factor, ranked by spatial cosine -- spatial loading magnitude (top) and
+    frequency loading (bottom, dashed = master) -- each titled with the master factor the Hungarian match gave it, and
+    the best non-negative 2-factor combination printed (does a SPLIT rebuild the master factor?)."""
+    import itertools
+
+    import matplotlib.pyplot as plt
+    from scipy.optimize import nnls
+
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import face_rhythm_matching as fm
+    M = np.load(fdir / "master.npz")
+    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    home, freqs, k = M["home"], M["freqs"], names.index(factor)
+    z = np.load(fdir / "own_epoch" / f"{animal}_{group}.npz")
+    A, B = z["A_own"].astype(float), z["B_own"].astype(float)
+    m = fm.match(A_ref, B_ref, A, B, on=MATCH_ON)
+    owner = {int(m["order"][r]): names[r] for r in range(len(names))}
+    cs, cf = fm.cosines(A_ref, B_ref, A, B, "vector")
+    unit = lambda v: v / np.linalg.norm(v)  # noqa: E731
+    pairs = []
+    for c in itertools.combinations(range(A.shape[1]), 2):
+        w, _ = nnls(A[:, list(c)], A_ref[:, k])
+        pairs.append((float(unit(A[:, list(c)] @ w) @ unit(A_ref[:, k])), c, w / max(w.sum(), 1e-12)))
+    pairs.sort(reverse=True)
+    pc, pcol, pw = pairs[0]
+    mag_ref, mag = fm.spatial_view(A_ref, "magnitude")[:, k], fm.spatial_view(A, "magnitude")
+    order = [None] + [int(j) for j in np.argsort(-cs[k])]
+    with frf.style():
+        fig, axs = plt.subplots(2, len(order), figsize=(2.15 * len(order), 4.4))
+        for i, j in enumerate(order):
+            v = mag_ref if j is None else mag[:, j]
+            ax = axs[0, i]
+            ax.scatter(home[:, 0], home[:, 1], c=v / v.sum(), s=2, cmap="magma_r")
+            ax.axvline(342.0, color="0.5", lw=0.4)
+            ax.invert_yaxis()
+            ax.set_aspect("equal")
+            ax.axis("off")
+            ax.set_title(f"MASTER {factor}" if j is None else
+                         f"own {j} -> {owner.get(j)}\nspatial {cs[k, j]:.2f}  freq {cf[k, j]:.2f}", fontsize=6.5,
+                         color="#b2182b" if j == m["order"][k] else "k")
+            ax2 = axs[1, i]
+            s = B_ref[:, k] if j is None else np.abs(B[:, j])
+            ax2.plot(freqs, B_ref[:, k] / B_ref[:, k].sum(), "k--", lw=0.8)
+            if j is not None:
+                ax2.plot(freqs, s / s.sum(), color="C3", lw=1.2)
+            ax2.set_xscale("log")
+            ax2.set_yticks([])
+            ax2.tick_params(labelsize=5)
+            ax2.set_xlabel("Hz", fontsize=6)
+        fig.suptitle(f"{animal} {group}: every own factor vs master {factor} (red title = the Hungarian pick); best "
+                     f"2-factor NNLS rebuild: own {pcol[0]} x {pw[0]:.2f} + own {pcol[1]} x {pw[1]:.2f} -> spatial "
+                     f"{pc:.2f}", fontsize=8.5)
+        p = out / f"candidates_{animal}_{group}_{factor}.png"
+        frf.save(fig, p, f"""
+Every factor of {animal}'s pooled {group} own fit, ranked by spatial (vector) cosine with the master {factor}. Top: spatial
+loading magnitude per mesh point (fraction of total; image left = contralesional, vertical line = face midline). Bottom:
+frequency loading (red) against the master's (dashed). Title: the master factor the one-to-one Hungarian match assigned
+that column to, and its spatial / frequency cosine with {factor}; RED title = the column actually assigned to {factor}.
+The best non-negative combination of any two own columns (NNLS on the spatial vectors) tests whether {factor} was SPLIT
+across two factors: if it rebuilds much better than the best single column, it was split.""")
+    return p
 
 
 def main(argv=None) -> int:
@@ -491,6 +574,8 @@ def main(argv=None) -> int:
     ap.add_argument("--plot-only", action="store_true", help="redraw from data/epoch_shape.csv")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--gallery", action="store_true", help="only the matched-factor gallery (fast)")
+    ap.add_argument("--candidates", nargs=3, metavar=("ANIMAL", "GROUP", "FACTOR"), action="append", default=None,
+                    help="all own factors of one fit vs one master factor (repeatable), e.g. PS95 subacute lick_left")
     ap.add_argument("--factors", nargs="+", default=list(LICK),
                     help="factors for the loading maps / templates (default the lateralised lick pair); e.g. the "
                          "non-lateralised lick factors (Priya 10-25 'central lick version') -- use with --out")
@@ -499,6 +584,10 @@ def main(argv=None) -> int:
     out = a.out or frc.readouts_dir(a.set) / "epoch_shape"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
+    if a.candidates:
+        for an, g, fac in a.candidates:
+            print("->", candidates_figure(fdir, frc.factor_names(fdir), out, an, g, fac))
+        return 0
     if a.gallery:
         G = matched_factor_gallery(fdir, frc.factor_names(fdir), out)
         G.to_csv(figure_layout.sidecar_for(out, "matched_factor_gallery", ".csv"), index=False, float_format="%.4g")

@@ -22026,3 +22026,21 @@ spout figures written under `frozen_encoder_gate-attempted_v7g3_t3d_basis`.
   .023; step at the stroke still q .019); position-coding ceiling vs the ttc deficit now significant (z -4.0, q < .001,
   was .080); G_reorg log-day slope stronger (above).
 * Item 2 (failed-attempt movement-matched control, statistics on trial-class maps) stays with the encoding window.
+
+## 2026-10-25 (afternoon) -- FaceRhythm shape readouts pair factors by BEST SPATIAL match, not Hungarian (Priya)
+
+* Context: the per-animal x epoch own fits (`own_epoch/`) are compared with the frozen master factor by factor, so each
+  master factor needs a partner column in each fit. Until now: the one-to-one Hungarian assignment (spatial x spectral
+  score). The match galleries (`face_rhythm_epoch_shape.py --gallery`) showed it handing lick_left poor partners after
+  the stroke: PS95 acute got a ~12 Hz factor while its lick_left-like column (own 2, spatial .78) went to
+  lick_ongoing_7Hz; PS95 subacute got cos .35 while own 7 (.74) went to lick_fast_close. Priya: the extra leftward
+  licking after the stroke is split over several own factors.
+* Decision (Priya 10-25, "spatial similarity makes sense to me"): for the SHAPE readouts (loading maps, asymmetry,
+  spout templates, angles), each master factor takes its best-matching own column by SPATIAL cosine, allowed to repeat
+  (`face_rhythm_matching.columns(..., "best")`, `ASSIGN` / `MATCH_ON` in the script). Spatial only, because the readouts
+  ask where on the face a factor loads; the frequency term picked the right rhythm in the wrong place (PS93 acute
+  lick_right: own 4 = place, .92; own 11 = rhythm, bilateral). Fits whose best match is still < .5 are dropped.
+* Kept Hungarian: per-session own fit vs master angles (`face_rhythm_match.py`), the order the O2 fits save.
+* Consequence: the acute "central lick (lick_ongoing_7Hz) shifts ipsilesional" result is WITHDRAWN (it was the shared
+  column); the lateral lick factors' less-lateralised pattern stands (3 / 4 animals every epoch). The cleaner test --
+  cohort per-epoch fits + leave-one-animal-out (`fitcohort`) -- is running on O2.

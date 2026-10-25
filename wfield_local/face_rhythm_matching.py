@@ -97,11 +97,23 @@ def chance(A_ref, B_ref, A, B, on: str = "product", spatial: str = "vector", n: 
     return {"cos_spatial_p95": np.nanpercentile(sp, 95, axis=0), "cos_spectral_p95": np.nanpercentile(sf, 95, axis=0)}
 
 
-def pairwise(fits: dict, A_ref, B_ref, on: str = "product", spatial: str = "vector") -> "pd.DataFrame":  # noqa: F821
+def columns(m: dict, assign: str = "hungarian") -> np.ndarray:
+    """The other fit's column standing for each reference factor: ``hungarian`` = the one-to-one assignment (``order``);
+    ``best`` = each reference factor's best-scoring column, allowed to repeat (Priya 10-25: after the stroke the extra
+    leftward licking is SPLIT over several own factors, and a one-to-one assignment can then hand a factor a poor column
+    -- PS95 acute lick_left got a ~12 Hz factor while its lick_left-like column went to lick_ongoing_7Hz)."""
+    if assign not in ("hungarian", "best"):
+        raise ValueError(f"assign={assign!r}: hungarian | best")
+    return np.asarray(m["order"] if assign == "hungarian" else m["free"])
+
+
+def pairwise(fits: dict, A_ref, B_ref, on: str = "product", spatial: str = "vector",
+             assign: str = "hungarian") -> "pd.DataFrame":  # noqa: F821
     """Every pair of fits {key: (A, B)}, each first aligned to the REFERENCE (so factor k means the reference's factor k
     in both), then compared factor by factor: one row per (key_a, key_b, k) with the spatial / spectral cosine between
     fit a's and fit b's factor k. Pre-vs-pre pairs of one animal = the PRE-STROKE FLOOR for any post-vs-pre number.
-    Aligning both to the reference (rather than matching a to b directly) keeps the factor identity fixed across pairs."""
+    Aligning both to the reference (rather than matching a to b directly) keeps the factor identity fixed across pairs.
+    ``assign``: see `columns`."""
     import pandas as pd
     keys = sorted(fits)
     al = {}
@@ -109,7 +121,7 @@ def pairwise(fits: dict, A_ref, B_ref, on: str = "product", spatial: str = "vect
         m = match(A_ref, B_ref, *fits[k], on=on, spatial=spatial)
         A, B = fits[k]
         A = np.asarray(A, float).reshape(-1, np.shape(A)[-1])
-        cols = [c if c >= 0 else None for c in m["order"]]
+        cols = [c if c >= 0 else None for c in columns(m, assign)]
         al[k] = ([_unit(spatial_view(A, spatial))[:, c] if c is not None else None for c in cols],
                  [_unit(np.asarray(B, float))[:, c] if c is not None else None for c in cols])
     rows = []

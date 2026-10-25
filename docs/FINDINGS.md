@@ -422,25 +422,25 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     lick_right's loading leaves the contralesional near-midline face for the mouth rim and ipsilesional cheek (PS92 /
     94 / 95; PS93 opposite); it still resembles the R spouts' pre pattern, less strongly. Per-session matching:
     heterogeneous across animals. **PROVISIONAL** (descriptive, one value per animal x epoch) (6c).
-    POOLED within-animal versions (Priya 10-25; FR page Fig 7 pooled twins; `face_rhythm_epoch_shape.py`,
-    `face_rhythm_match.py`): loading change / own pre-fit noise, mean of animals -- lick_right loses loading on the
-    contralesional central face and gains on the ipsilesional cheek and mouth rim, lick_left the reverse, at 149-421 of
-    1,282 points per epoch with >= 3 / 4 animals beyond 2x own noise (chance ~0); asymmetry change lick_right -.13 /
-    -.20 / -.07, lick_left +.25 / +.26 / +.18 (3 / 4 each); acutely / subacutely lick_right resembles the R spouts'
-    pattern less (-.16 to -.25) and the L spouts' more (+.12 to +.22), lick_left mirrored, mostly back chronically;
-    angle / own floor 2.5-5x for both lick factors, 4 / 4 every epoch. Per-session own fit vs master (z vs own pre,
-    paired bootstrap, Holm over 12 factors): lick_left changed at every epoch on both measures (spatial ** 4 / 4),
-    lick_right * (3 / 4, PS93 opposite). Together: the lick factors become LESS LATERALISED, consistently across animals
-    (PS93 the exception) -- upgraded from per-animal description to a 3-4 / 4 pooled pattern; still no session-level test
-    for the per-epoch fits. CENTRAL lick factors (Priya 10-25, `--factors lick_ongoing_7Hz lick_fast_close lick_far_nose
-    lick_slow_late`): acutely lick_ongoing_7Hz (all spouts) also moves its loading from the contralesional lower face to
-    the ipsilesional side (438 points, asymmetry -.32, 4 / 4), mostly back later -- the acute ipsilesional shift is not
-    limited to the left / right lick factors. MATCH CHECK (10-25, `face_rhythm_epoch_shape.py --gallery`, FR page match galleries): the
-    per-epoch fits' Hungarian matches are clean for lick_right (bar PS93 acute) but ACUTE lick_left is contested in 4 / 4
-    (its best unconstrained partner is lick_ongoing_7Hz's slot; PS92-94 a more bilateral, slower ~5 Hz lick_left;
-    PS95 a different factor) -> the acute lick_left and lick_ongoing_7Hz loading shifts are partly a factor MERGE, not
-    only a loading move; the subacute / chronic pattern rests on clean matches and agrees with the factor-free per-point
-    maps (5f). lick_far_nose is not recovered even in the pre-half fits (cos .27-.39): its shape readouts are void.
+    POOLED within-animal versions (Priya 10-25; FR page Fig 7; `face_rhythm_epoch_shape.py`, `face_rhythm_match.py`).
+    FACTOR PAIRING (decided 10-25 with Priya, DECISIONS): each per-epoch own fit's factor for a master factor = its BEST
+    SPATIAL match (allowed to repeat), not the one-to-one Hungarian assignment -- post-stroke leftward licking is split over
+    several own factors, and one-to-one pairing handed lick_left poor partners (PS95 acute a ~12 Hz factor; PS95 subacute
+    cos .35); spatial, not spatial x spectral, because the readouts ask WHERE a factor loads (PS93 acute lick_right: own 4
+    has the place, .92, own 11 the rhythm). All lateral-lick picks then have spatial cos >= .74, none shared; fits whose
+    best is < .5 are dropped (`MIN_COS`). Results (loading change / own pre-fit noise, mean of animals, rings = >= 3
+    animals beyond 2x own noise, chance ~0 of 1,282): lick_right loses loading on the contralesional central face and
+    gains on the ipsilesional cheek / mouth rim (397 / 311 / 169 points acute / subacute / chronic), lick_left the reverse
+    (211 / 69 / 163); asymmetry change lick_right -.13 / -.08 / -.07, lick_left +.14 / +.13 / +.18 (3 / 4 each, PS93 the
+    exception); angle / own floor lick_right 5.1 / 3.4 / 3.0, lick_left 3.6 / 3.3 / 2.5, 4 / 4 every epoch. Per-session
+    own fit vs master (Hungarian, z vs own pre, paired bootstrap, Holm over 12): lick_left changed at every epoch (spatial
+    ** 4 / 4), lick_right * (3 / 4, PS93 opposite). Together: the two LATERAL lick factors become LESS LATERALISED, 3 / 4
+    animals at every epoch (PS93 the exception); no session-level test for the per-epoch fits. CENTRAL lick factor:
+    lick_ongoing_7Hz barely changes (5 / 1 / 0 points, asymmetry -.10 acute 4 / 4) -- the first-version acute 438-point
+    ipsilesional shift (Hungarian pairing, which gave acute lick_left and lick_ongoing_7Hz one shared own factor in 4 / 4)
+    is **WITHDRAWN**. lick_far_nose is not recovered even in the pre-half fits (cos .27-.39): its shape readouts are void.
+    Match galleries + per-fit candidate panels on the FR page (`--gallery`, `--candidates`). Next: cohort per-epoch fits
+    + leave-one-animal-out (`fr_factors.py fitcohort`, O2 run_fitcohort.sbatch, 30 tasks, submitted 10-25).
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).
