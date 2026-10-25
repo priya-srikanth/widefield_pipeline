@@ -166,7 +166,9 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
     acute loss in the lick window, so the far-middle caveat is specific to the cue window; near positions drift
     .86-.98 vs acute increases 1.32-1.58. LICK, REST, contact gate: far contra drift 1.11, acute empty (contact gating
     leaves < 20 acute far-contra trials -- read the LP panel), far middle drift .93 vs acute 1.29, near drift .86-.98
-    vs acute 1.32-1.58. **PROVISIONAL** until the remaining references / windows / arms render.
+    vs acute 1.32-1.58. LICK, PRECUE, contact: far contra drift 1.32 UP (the cue-evoked lick increment grew June ->
+    August, consistent with learning; acute empty under contact), near / far-middle / far-ipsi drift .86-1.08 vs acute
+    increases 1.34-1.92. **PROVISIONAL** until the remaining references / windows / arms render.
 
 ## 4. Encoding model and the goal question
 
