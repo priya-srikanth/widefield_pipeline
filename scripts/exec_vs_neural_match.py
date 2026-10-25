@@ -76,11 +76,16 @@ def main(argv=None) -> int:
     else:
         T = encoder_trials()
         print(f"encoder: {len(T)} trials with all six relabellings", flush=True)
-    rows, agree = [], []
+    rows, agree, bys = [], [], []
     for kind, W, pre in (("landing", lick_weights(1.0), "lw_"), ("trajectory", path_weights(1.0), "tw_")):
         J = T.merge(W, on=["label", "trial_id"], how="inner")
         J["exec_bin"] = np.array(SP)[J[[f"{pre}{p}" for p in SP]].to_numpy().argmax(1)]
         J["on_target"] = J.exec_bin == J.spout
+        for (an, ep, tg), g in J[~J.on_target].groupby(["animal", "epoch", "spout"]):
+            if len(g) >= 10:
+                bys.append({"exec": kind, "animal": an, "epoch": ep, "target": tg, "n": len(g),
+                            "target_part": float((g.dec == g.spout).mean()),
+                            "executed_part": float((g.dec == g.exec_bin).mean())})
         for (an, ep), g in J.groupby(["animal", "epoch"]):
             for ot, h in (("on-target", g[g.on_target]), ("off-target", g[~g.on_target])):
                 if len(h) >= 10:
@@ -157,6 +162,41 @@ def main(argv=None) -> int:
                  "markers = animals with >= 10 off-target trials; chance dotted)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(D / "figures" / f"exec_vs_{src}_offtarget.png", dpi=125)
+    # off-target trials by TARGET spout: stacked target / executed / neither (mean of animals with >= 10 such trials)
+    Bs = pd.DataFrame(bys)
+    Bs.to_csv(D / f"exec_vs_{src}_offtarget_by_spout.csv", index=False)
+    for kind in ("landing", "trajectory"):
+        b = Bs[Bs.exec == kind]
+        fig, axs = plt.subplots(1, 6, figsize=(17, 4.2), sharey=True)
+        for j, tg in enumerate(SP):
+            ax = axs[j]
+            for k, ep in enumerate(EP):
+                v = b[(b.target == tg) & (b.epoch == ep)]
+                if not len(v):
+                    continue
+                t_, x_ = v.target_part.mean(), v.executed_part.mean()
+                ax.bar(k, t_, color="#d94801", width=0.7, label="= target" if k == 0 else None)
+                ax.bar(k, x_, bottom=t_, color="#252525", width=0.7, label="= where the licks went" if k == 0 else None)
+                ax.bar(k, 1 - t_ - x_, bottom=t_ + x_, color="0.82", width=0.7, label="= another spout" if k == 0 else None)
+                ax.text(k, 1.01, f"{len(v)} an.\nn={int(v.n.sum())}", ha="center", va="bottom", fontsize=6.5)
+            ax.set_xticks(range(4)); ax.set_xticklabels(["pre", "acu", "sub", "chr"], fontsize=8)
+            ax.set_title(f"target {tg.replace('_', ' ')}", fontsize=9, pad=22)
+            ax.set_ylim(0, 1.0)
+        axs[0].set_ylabel("share of OFF-target trials")
+        h, l_ = axs[-1].get_legend_handles_labels()
+        if not h:
+            for ax in axs:
+                h, l_ = ax.get_legend_handles_labels()
+                if h:
+                    break
+        fig.legend(h, l_, loc="lower center", ncol=3, fontsize=9, frameon=False)
+        fig.suptitle(f"OFF-target trials (executed = {kind}) split by target spout: the {NAME[src]} reads the cortex as the target, as where "
+                     "the licks went, or as another spout.\nBars = mean over animals with >= 10 off-target trials at that target "
+                     "(animal count and trials above each bar)", fontsize=9)
+        fig.tight_layout(rect=(0, 0.07, 1, 0.9))
+        fig.savefig(D / "figures" / f"exec_vs_{src}_offtarget_by_spout_{kind}.png", dpi=120)
+        plt.close(fig)
+    print(Bs[Bs.exec == "landing"].groupby(["target", "epoch"])[["target_part", "executed_part"]].mean().round(2).to_string())
     print(f"-> {D / 'figures'}")
     return 0
 
