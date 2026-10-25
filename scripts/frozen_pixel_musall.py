@@ -153,7 +153,8 @@ def main(argv=None) -> int:
     T = pd.DataFrame(rows)
     out = run / "figures"
     out.mkdir(parents=True, exist_ok=True)
-    stem = f"pixel_musall_{a.layout}_{a.window}"
+    win = "allframes" if meas == ["all"] else a.window                   # the window applies to PETH / trial only
+    stem = f"pixel_musall_{a.layout}_{win}"
     T.to_csv(run / f"{stem}.csv", index=False)
     with pd.option_context("display.width", 200, "display.max_rows", 400):
         print(T.pivot_table(index=["measure", "q"], columns=["animal", "epoch"], values="p95_px").round(3)
@@ -241,7 +242,7 @@ def main(argv=None) -> int:
             cb.update_ticks()
     what = {"alone": "single-group ALONE cvR2 (Musall top row)", "unique": "single-group UNIQUE dR2",
             "novar": "single-VARIABLE UNIQUE dR2 (Musall bottom row)"}[a.layout]
-    ttl = (f"NEURAL: frozen-frame PIXEL maps, {what}, {a.window} window ({', '.join(MLAB[m] for m in meas)}), run {a.tag}. "
+    ttl = (f"NEURAL: frozen-frame PIXEL maps, {what}, {win if win == 'allframes' else win + ' window'} ({', '.join(MLAB[m] for m in meas)}), run {a.tag}. "
            f"Pre level = held-out; epoch - pre = frozen all-pre betas; mean of animals (SSE, SST summed over each animal's "
            f"sessions). Outlines: significant 16-px bins (nested bootstrap animals > sessions, Bonferroni); +/- = bins up / "
            f"down. Grey = Allen areas. Image left = ipsilesional.")
