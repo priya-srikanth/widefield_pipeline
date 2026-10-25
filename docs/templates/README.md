@@ -12,6 +12,8 @@ goal-question page, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Conventi
 - Each figure's caption says how to read it and gives the headline numbers; one `.take` box per section with the
   result; per-animal first, then within-animal-normalised pooled results with statistics.
 - Section tags point to the FINDINGS section the result lives in.
+- **"Where things stand" table at the top cites its evidence** (Priya 10-25): a "figures" column right after the result,
+  each cell linking the supporting figures (`<a href="#fig7b">7b</a>`), or the section when only a table supports it.
 - **Windows are always ordered PRE-CUE (ENL), CUE, LICK** (Priya 10-25, "across figures and pages"): figures within a
   section, rows / columns / panels inside a figure, table columns, sidebar entries.
 - **Like figures sit together**, nested WINDOW > REFERENCE (rest, precue ...) > GATE (DAQ contact next to LP lick), and
