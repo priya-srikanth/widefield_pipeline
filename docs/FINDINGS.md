@@ -298,6 +298,17 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     fewer, later and slower / shorter licks (5f).
 12. **Severity does not order by lesion burden** (largest acute task drop in the mildest lesion, PS95). Descriptive,
     n = 4 (6d; section 6).
+13. **The face carries spout position BEFORE the cue, on lick-free trials** (Priya 10-25; `scripts/fr_enl_decode.py`,
+    FACE_RHYTHM_FINDINGS 7). 12 frozen factors in 0.5 s bins, trials with no LP lick and no spout contact in the
+    window, the imaging decoder (logistic C .5, position-block CV), chance .167, 107 sessions. Pre-stroke 2 s window
+    .43 (per animal .39 / .47 / .49 / .38; 31 / 31 sessions p < .05); 1 s .39. FR smooths acausally (~0.3-1 s), so
+    features stopping 0.5 s BEFORE the cue are the clean test: 2 s window .34 (31 / 31), 1 s window .25 (18 / 31) --
+    the position signal is real but sits mostly in the second before the cue. Acutely lower (2 s, above-chance change
+    -.10 [-.21, +.01], 3 / 4; end -0.5 s -.08 [-.17, +.02], 3 / 4), back chronically (.46). The acute drop is FAR
+    CONTRA: far_R recall .42 -> .19 (chance) -> .41 chronic; other spouts change little. **PROVISIONAL**. Bearing on
+    imaging 3.10: the cortical pre-cue position code (.33-.55) sits in the same range as the face's, so part of it may
+    be face posture / movement; a movement-removed cortical ENL decode with FR as regressors is the test. Untested:
+    whether the FR mesh sees the spout itself (the video motion-energy check masked the spout; FR has no such check).
 
 ## 6. Histology
 

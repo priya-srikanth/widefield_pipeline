@@ -583,6 +583,47 @@ push; (0..1 s) - (-1.5..-0.5 s), push minus random.
 -> No pre + post master for pushes (Priya's question answered by the check, DECISIONS 10-24): the face movement that
 accompanies a push is already in the pre-stroke repertoire; pushes stay a treadmill regressor for the encoder.
 
+## 7. Spout position from face movement in the lick-free pre-cue (ENL) window (PROVISIONAL, four animals, 10-25)
+
+Priya 10-25: "can we also analyze whether we can decode spout position from fr factors in the no-lick ENL time
+periods (1s or 2s windows)?" `scripts/fr_enl_decode.py`; output `<dlc>/face_rhythm/cam4/readouts/master_pre_v1/
+enl_decode/` (`fr_enl_decode_sessions.csv`, `_epochs.csv`, `fr_enl_decode.png`).
+
+Method. Frozen master factors (absolute expression, 25 Hz cue-aligned grid, engaged trials). A trial is lick-free for
+window W if no LP video lick (cam4; catches licks that miss the spout) and no DAQ spout contact falls in [cue - W,
+cue); fixed window (the FR grid starts at cue - 2 s, so the imaging decoder's slide-back is not possible). Features =
+12 factors x 0.5 s sub-bin means. The imaging decoder: StandardScaler + multinomial logistic (C .5), GroupKFold over
+position blocks (`block_ids`, the session's block_size_max), positions with >= 5 lick-free trials (all six in every
+session), chance 1/6. Null per session: labels permuted against the cross-validated predictions (2,000x). Epoch
+change: above-chance accuracy, `boot_delta` (paired animals -> sessions). 107 sessions (31 pre, all August; 16 / 17 /
+43 post). Lick-free trials per session (median): 2 s ~350 of ~480 engaged, 1 s ~385.
+
+The FR spectrogram is acausal (VQT sigma ~1 s at 1 Hz, 0.3 s at 7 Hz), so the last bins before the cue can carry
+post-cue licking. Each W is therefore also run with features ending 0.5 s before the cue (same trials).
+
+| arm (accuracy, mean of animals) | pre | acute | subacute | chronic | sessions p < .05 (pre) |
+|---|---|---|---|---|---|
+| 2 s | .431 | .348 | .432 | .457 | 31 / 31 |
+| 2 s, features end -0.5 s | .344 | .282 | .343 | .354 | 31 / 31 |
+| 1 s | .390 | .330 | .417 | .441 | 31 / 31 |
+| 1 s, features end -0.5 s | .248 | .216 | .247 | .274 | 18 / 31 |
+
+Per animal, pre (2 s / 2 s end -0.5): PS92 .39 / .34, PS93 .47 / .39, PS94 .49 / .41, PS95 .38 / .24.
+Change vs pre (above-chance units): 2 s acute -.10 [-.21, +.01] 3 / 4 lower, chronic +.03 [-.02, +.09]; 2 s end -0.5
+acute -.08 [-.17, +.02] 3 / 4, chronic +.01. No interval excludes 0.
+Recall by spout (2 s, mean of animals; pre / acute / subacute / chronic): far_R .42 / .19 / .29 / .41; close_R .51 /
+.51 / .52 / .50; far_L .40 / .27 / .40 / .38; close_L .50 / .42 / .49 / .59; centre spouts .30-.45 throughout. The
+acute drop is carried by far contra (to chance), recovering by chronic.
+
+Reading. (1) The face differs by spout before the cue on lick-free trials, robustly with a 2 s window even after
+dropping the last 0.5 s; the 1 s window's signal is mostly in its last 0.5 s, where acausal smoothing could carry
+post-cue licks, so read 1 s with care. (2) This is in the range of the cortical pre-cue decode (.33-.55, imaging
+page section 1), so the imaging ENL position code cannot be assumed movement-free: a cortical ENL decode with the FR
+factors regressed out (or FR as a competing decoder on the same trials) is the test. (3) Acutely the face stops
+distinguishing far contra before the cue, like cortex. Open: whether the FR mesh responds to the spout itself (the
+video motion-energy check, `scripts/enl_video_spout_check.py`, masked the spout; FR has no such control); a
+per-trial cortex-vs-face comparison on matched trials.
+
 ## Where to look
 
 * Pilot factor set: `<dlc>/../o2/fr_cam4_20261021/factors/pilot_pre_PS92_PS93/` (`report/` gallery, epochs, rank
