@@ -98,12 +98,14 @@ def main(argv=None) -> int:
     from combined_encoding_figures import _outline
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--windows", nargs="+", default=["lick", "cue"])
+    ap.add_argument("--windows", nargs="+", default=["cue", "lick"])       # cue before lick (Priya 10-25)
+    ap.add_argument("--plot-only", action="store_true", help="redraw the area figures from areas.csv / bootstrap.csv")
     a = ap.parse_args(argv)
     out = E / "fr_encoding_summary" / "direction"
     (out / "figures").mkdir(parents=True, exist_ok=True)
-    T = area_rows(a.windows)
-    T.to_csv(out / "areas.csv", index=False)
+    T = pd.read_csv(out / "areas.csv") if a.plot_only else area_rows(a.windows)
+    if not a.plot_only:
+        T.to_csv(out / "areas.csv", index=False)
     Q = ["gain_B", "gain_side", "gain_dist", "gain_both", "pos_B", "pos_side", "pos_dist", "pos_both"]
     A = T.groupby(["window", "area", "animal", "epoch"])[Q].mean().reset_index()
     pd.set_option("display.width", 220)
@@ -111,7 +113,7 @@ def main(argv=None) -> int:
     print("== pre level, mean of animals (R2 fraction)")
     print(A[A.epoch == "pre"].groupby(["window", "area"])[Q].mean().round(4).to_string())
     rows = []
-    for (w, ar), t in T.groupby(["window", "area"]):
+    for (w, ar), t in ([] if a.plot_only else T.groupby(["window", "area"])):
         for q in Q:
             pre = {x: t[(t.epoch == "pre") & (t.animal == x)][q].dropna().to_numpy() for x in AN}
             for ep in EPS:
@@ -121,8 +123,9 @@ def main(argv=None) -> int:
                 per = {x: float(post[x].mean() - pre[x].mean()) for x in com}
                 rows.append({"window": w, "area": ar, "q": q, "epoch": ep, "point": iv.point, "lo": iv.lo, "hi": iv.hi,
                              "p": float(ak.boot_p(d)), "n_up": sum(v > 0 for v in per.values()), **per})
-    B = pd.DataFrame(rows)
-    B.to_csv(out / "bootstrap.csv", index=False)
+    B = pd.read_csv(out / "bootstrap.csv") if a.plot_only else pd.DataFrame(rows)
+    if not a.plot_only:
+        B.to_csv(out / "bootstrap.csv", index=False)
     print("== chronic - pre (point [CI], p, animals up)")
     print(B[B.epoch == "chronic"][["window", "area", "q", "point", "lo", "hi", "p", "n_up"]].round(4).to_string(index=False))
 
@@ -156,16 +159,21 @@ def main(argv=None) -> int:
                 ttl = "what FaceRhythm adds (fr:full - full)" if q == "gain" else "unique spout-position R2 with FaceRhythm"
                 ax.set_title(f"{ttl}:\n{'pre-stroke level (B; increments for S / D / A)' if kind == 'pre' else kind + ' - pre [95% nested CI; * excludes 0]'}",
                              fontsize=9)
-                if c in (0, 1):
-                    ax.set_ylabel("held-out R2 (fraction)")
-        axs[0, 0].legend(fontsize=8, frameon=False, ncol=4, loc="upper right")
+                ax.set_ylabel("held-out R2 (fraction)" if c == 0 else "change from pre (R2)", fontsize=8)
+                ax.tick_params(axis="y", labelsize=7.5)
+        # legend OUTSIDE the axes, one row under the title (it covered data / labels inside panel 1)
+        fig.legend(*axs[0, 0].get_legend_handles_labels(), loc="upper center", ncol=4, fontsize=9, frameon=False,
+                   bbox_to_anchor=(0.5, 0.915))
         fig.suptitle(f"NEURAL: FaceRhythm lick DIRECTION vs DIRECTIONLESS, per-session encoder, {w} window. B = lick amount + other "
                      "factors (directionless); S / D / A add side, distance, both.\nPre: B bars = level, others = what the direction "
                      "factors add on top of B (dots = animals). Bottom: negative increment = direction factors take that much more "
                      "of the position code.", fontsize=9)
-        fig.subplots_adjust(left=0.05, right=0.99, top=0.88, bottom=0.08, hspace=0.42, wspace=0.12)
+        fig.subplots_adjust(left=0.045, right=0.995, top=0.84, bottom=0.08, hspace=0.45, wspace=0.26)
         fig.savefig(out / "figures" / f"fr_direction_areas_{w}.png", dpi=115)
         plt.close(fig)
+
+    if a.plot_only:
+        return 0
 
     # figure 2: pixel maps
     meta = T[["label", "animal", "epoch"]].drop_duplicates().sort_values("label")
