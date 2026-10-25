@@ -376,6 +376,11 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     and ipsilesional SSp-m loses its coupling with the FR side index (partial r -0.10 -> ~-0.02, 4/4), contra - ipsi -0.07
     [-0.11, -0.03] 4/4 -> chronic decoupling is CORTICAL (ipsilesional), not a measurement failure. Small r (<= 0.2). PROVISIONAL.
     **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound; carried by PS94 / PS95) (8.7, 8.9; Fig 16-16q).
+12b. **(10-25 evening, ENCODING_FINDINGS 8.13) The post-stroke change lives in the trial-averaged (PETH) response;
+    trial-to-trial movement coupling is preserved** (frozen frame, Allen-area PETH vs trial-by-trial maps, unique and
+    Musall-layout alone models; page Figs 1t-1uf). **STANDS** at area level (pixel version queued). **Caveat for every
+    mean target map:** PS94's target-unique R2 is ~10x the other animals' (cue PETH contra SSp-m .37 vs .004-.029), so mean
+    maps are PS94-weighted (tests count animals); cause under test (block-aligned state vs tracking vs tuning).
 13. **Not established / withdrawn here:** pre-stroke target-over-executed lead (SUSPENDED, 2.4); pooled toward-midline
     within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
     lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit
