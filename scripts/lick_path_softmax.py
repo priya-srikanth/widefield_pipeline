@@ -210,14 +210,14 @@ def main(argv=None) -> int:
         for k, ep in enumerate(("acute", "subacute", "chronic")):
             obs, sig, agree, n = boot_change(S, ep)
             ax = axs[k]
-            ax.imshow(obs, cmap="RdBu_r", vmin=-0.5, vmax=0.5)
+            ax.imshow(obs, cmap="RdBu_r", vmin=-0.6, vmax=0.6)
             for r in range(6):
                 for c in range(6):
                     if sig[r, c]:
                         ax.add_patch(plt.Rectangle((c - .5, r - .5), 1, 1, fill=False, ec="k", lw=2))
                     if abs(obs[r, c]) >= 0.06 or sig[r, c]:
                         ax.text(c, r, f"{obs[r, c]:+.2f}\n{agree[r, c]}/{n}", ha="center", va="center", fontsize=6.5,
-                                color="w" if abs(obs[r, c]) > 0.35 else "k")
+                                color="w" if abs(obs[r, c]) > 0.4 else "k")
                     stats.append({"width": w, "epoch": ep, "target": SP[r], "as": SP[c], "change": obs[r, c],
                                   "significant": bool(sig[r, c]), "same_sign": int(agree[r, c]), "n_animals": n})
             ax.set_xticks(range(6)); ax.set_xticklabels(LAB); ax.set_yticks(range(6)); ax.set_yticklabels(LAB)

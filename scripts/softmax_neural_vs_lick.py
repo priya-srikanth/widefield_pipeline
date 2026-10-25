@@ -130,7 +130,7 @@ def main(argv=None) -> int:
             for r, (S, name, kind) in enumerate(panels):
                 obs, sig, agree, n = boot_change(S, ep)
                 ax = axs[r, k]
-                ax.imshow(obs, cmap="RdBu_r", vmin=-0.5, vmax=0.5)
+                ax.imshow(obs, cmap="RdBu_r", vmin=-0.6, vmax=0.6)
                 for i in range(6):
                     for j in range(6):
                         if sig[i, j]:
