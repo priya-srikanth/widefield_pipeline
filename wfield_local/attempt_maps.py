@@ -227,8 +227,8 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
     for P in spouts:
         for diff in (False, True):
             cols = [sc for sc in SHOW if not (diff and sc == ("pre", "pre_hit"))]
-            fig, axes = plt.subplots(len(Zs) + 1, len(cols), figsize=(1.9 * len(cols), 1.75 * (len(Zs) + 1)),
-                                     squeeze=False)
+            fig, axes = plt.subplots(len(Zs) + 1, len(cols) + 1, figsize=(1.9 * len(cols) + 0.5, 1.75 * (len(Zs) + 1)),
+                                     squeeze=False, gridspec_kw={"width_ratios": [1] * len(cols) + [0.07]})
             stack = {sc: [] for sc in cols}
             for i, (an, Z) in enumerate(list(Zs.items()) + [("mean", None)]):
                 mats = []
@@ -246,12 +246,13 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
                     mats.append(M)
                 vals = [np.abs(M[m] if m is not None else M) for M in mats if M is not None]
                 v = float(np.percentile(np.concatenate(vals), 99)) if vals else 1.0
+                im = None
                 for j, (sc, M) in enumerate(zip(cols, mats)):
                     ax = axes[i, j]
                     ax.set_xticks([]); ax.set_yticks([])
                     if M is not None:
                         show = np.where(m, M, np.nan) if m is not None else M
-                        ax.imshow(show, cmap="RdBu_r", vmin=-v, vmax=v)
+                        im = ax.imshow(show, cmap="RdBu_r", vmin=-v, vmax=v)
                         if edges is not None:
                             ax.contour(edges, levels=[0.5], colors="k", linewidths=0.2)
                     else:
@@ -260,6 +261,12 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
                         ax.set_title(f"{sc[0]}\n{sc[1]}", fontsize=7)
                     if j == 0:
                         ax.set_ylabel(f"{an}\n(+/-{v:.2g})", fontsize=7)
+                if im is not None:                         # the row's shared symmetric scale
+                    cb = fig.colorbar(im, cax=axes[i, -1])
+                    cb.ax.tick_params(labelsize=5)
+                    cb.set_label("dF", fontsize=6)
+                else:
+                    axes[i, -1].set_visible(False)
             what = "minus pre-stroke hits" if diff else "rest-referenced dF"
             fig.suptitle(f"{P}, {align} window: {what} (image left = ipsilesional; mean = mean of animal means, "
                          f">= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)

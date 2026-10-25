@@ -65,17 +65,33 @@ def relabel_job(item) -> dict:
     order = list(d0["pos_order"])
     masks = {(w, q): d0["win"][w] & (fpos == q) for w in WINDOWS for q in order}
 
-    def sse(d):
+    # PER TRIAL (Priya 10-24: encoder match vs executed best bin, trial by trial): each trial's SSE in the lick and cue
+    # windows, summed over the parcels (cortex mean excluded, as all_areas_dsse), under every label
+    ftri = d0["frame_trial"]
+    ia = np.array([a != "cortex" for a in fit["areas"]])
+    tw = {w: [(int(d0["trial_id"][t]), np.flatnonzero(d0["win"][w] & (ftri == t))) for t in range(len(d0["trial_id"]))]
+          for w in ("lick", "cue")}
+    trial_sse: dict = {w: {} for w in tw}
+
+    def sse(d, lab_of=None):
         P = (d["X"] / fit["scale"]) @ (fit["C"] @ beta)
-        return {f"{w}|{q}": (((Rd[m] - P[m]) ** 2).sum(0)).tolist() for (w, q), m in masks.items() if m.any()}
+        E2 = (Rd - P) ** 2
+        for w, lst in tw.items():
+            for tid, fr in lst:
+                if len(fr) >= 5:
+                    q = fpos[fr[0]]
+                    lab = q if lab_of is None else lab_of.get(q, q)
+                    trial_sse[w].setdefault(str(tid), {"spout": q})[lab] = float(E2[np.ix_(fr, ia)].sum())
+        return {f"{w}|{q}": (E2[m].sum(0)).tolist() for (w, q), m in masks.items() if m.any()}
     out = {"label": label, "animal": an, "epoch": d0["epoch"], "areas": fit["areas"], "pos_order": order,
            "frozen_from": "loso" if label in fit["beta_loso"] else "all_pre",
            "sst": {f"{w}|{q}": (((Rd[m] - Rd[m].mean(0)) ** 2).sum(0)).tolist() for (w, q), m in masks.items() if m.any()},
            "sse": {"true": sse(d0)}}
     for rl in shifts(order):
-        s = sse(fe.session_design(label, templates, relabel=rl))
+        s = sse(fe.session_design(label, templates, relabel=rl), lab_of=rl)
         for q, j in rl.items():
             out["sse"].setdefault(f"as:{j}", {}).update({k: v for k, v in s.items() if k.endswith(f"|{q}")})
+    out["trial_sse"] = trial_sse
     return out
 
 

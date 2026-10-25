@@ -366,7 +366,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             "cue_f": cue_f, "first_f": first_f, "fs": float(1.0 / np.median(np.diff(ft))), "win": win,
             "trial_id": E.trial_id.to_numpy(int),
             "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E),
-            "frame_pos": pos_of, "pos_order": pos_order,
+            "frame_pos": pos_of, "frame_trial": tri, "pos_order": pos_order,
             "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
             "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None,
             "spl_swap": spl_swap_deltas(Ms, templates, pos_of, k_of, pos_order, col_var, ftr) if spatial else None}

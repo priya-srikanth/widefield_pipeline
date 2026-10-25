@@ -137,10 +137,12 @@ def main(argv=None) -> int:
                     lim = float(np.nanpercentile(np.abs(v), 99) if diff else max(np.nanpercentile(v, 99), 1e-6))
                     ax.text(0.02, 0.02, f"{'+/-' if diff else '0..'}{lim:.2g}", transform=ax.transAxes, fontsize=5)
                 if diff:
-                    ax.imshow(rows[r][c], cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+                    im = ax.imshow(rows[r][c], cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
                 else:
-                    ax.imshow(rows[r][c], cmap="viridis" if c == "full" else "magma", vmin=0, vmax=lim,
-                              interpolation="nearest")
+                    im = ax.imshow(rows[r][c], cmap="viridis" if c == "full" else "magma", vmin=0, vmax=lim,
+                                   interpolation="nearest")
+                if i == len(names) - 1 and not per_panel:   # one colorbar per column (its shared scale), under it
+                    fig.colorbar(im, ax=ax, orientation="horizontal", fraction=0.08, pad=0.04).ax.tick_params(labelsize=5)
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
                 ax.set_xticks([])
                 ax.set_yticks([])
@@ -188,8 +190,8 @@ def main(argv=None) -> int:
                     v = rows[r][q]
                     lim = max(float(np.nanpercentile(np.abs(v), 99) if diff else np.nanpercentile(v, 99)), 1e-6)
                     ax.text(0.02, 0.02, f"{'+/-' if diff else '0..'}{lim:.2g}", transform=ax.transAxes, fontsize=5)
-                ax.imshow(rows[r][q], cmap="RdBu_r" if diff else "magma", vmin=-lim if diff else 0, vmax=lim,
-                          interpolation="nearest")
+                im = ax.imshow(rows[r][q], cmap="RdBu_r" if diff else "magma", vmin=-lim if diff else 0, vmax=lim,
+                               interpolation="nearest")
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
                 ax.set_xticks([])
                 ax.set_yticks([])
@@ -197,6 +199,9 @@ def main(argv=None) -> int:
                     ax.set_title(q, fontsize=8)
                 if j == 0:
                     ax.set_ylabel(r, fontsize=8)
+        if not per_panel:                                  # one shared scale -> one colorbar for the figure
+            fig.colorbar(im, ax=list(axs.ravel()), orientation="vertical", fraction=0.015, pad=0.02,
+                         label="unique R2" + (" change" if diff else ""))
         when = "held-out pre" if not diff else f"{ep} (frozen) minus pre"
         part = ("TARGET position response" if what == "drop"
                 else "WHOLE spout-specific response (target + spout-locked template swapped)")
