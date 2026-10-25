@@ -98,7 +98,7 @@ def main(argv=None) -> int:
             sfx = "" if model == "time" else f"_{dname}"
             for w in ("cue", "lick"):
                 panels = [(f"{q} | {ar}", {"source": "remap", "measure": f"{q} | {w} | {ar}"})
-                          for q in ("full", "target", "spout", "movement") for ar in ("orofacial contra", "control")]
+                          for q in ("full", "target", "spout", "task", "movement") for ar in ("orofacial contra", "control")]
                 mm.plot_fits(Ld, T, panels, model, out / "figures" / f"remap_lmm_{w}_{model}{sfx}.png",
                              f"NEURAL: remapping gain (self - frozen R2) per session, {w} window", "self - frozen (R2)", ncols=4)
 
