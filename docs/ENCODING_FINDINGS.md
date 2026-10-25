@@ -1168,7 +1168,7 @@ Scripts: frozen_fr_compare.py, frozen_fr_musall.py, frozen_claims.py, frozen_pos
   position rise (not reproduced; SPOUT package contra - ipsi +0.039 / +0.048 with FR, 4/4); PETH loss does not recover
   chronically; recovery course 2/4 up (cortex at / after behaviour). Pixel maps (no FR, basis): position unique only
   decreases (few bins), spout unique up acutely (31 bins, lateral), full R2 down acute (377) / chronic central (69); per-
-  animal z and per-animal session-level views agree; calibrated 4-6 % (raw).
+  animal z and per-animal session-level views agree; calibrated 4-6 % (raw). Per-animal session-level view: only the chronic medial full-R2 fall reaches >= 3 of 4 animals (20 bins at 16 px); the acute spout rise is 1-2 animals per bin. Page Figs 1l-1m (v54).
 - FR unique in the frozen frame (per regressor): cortex directionless 0.008 vs direction 0.001; SSp-m 0.004 vs 0.003 --
   "almost all directionless" holds cortex-wide, NOT in SSp-m. Direction unique falls chronically in contra SSp-m (0.013 ->
   0.003 cue), but Layer 2 change_fr_dir <= pre_late drift: MIXED behaviour / neural.
