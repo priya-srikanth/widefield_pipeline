@@ -20,7 +20,7 @@ body { background:var(--bg); color:var(--fg); font:15px/1.55 "Source Sans 3", sy
 body.closed .toc { transform:translateX(-100%) }
 .main { margin-left:270px; transition:margin .2s ease }
 body.closed .main { margin-left:0 }
-@media (max-width: 860px) { .main { margin-left:0 } .toc { box-shadow:2px 0 12px rgba(0,0,0,.15) } }
+@media (max-width: 640px) { .main { margin-left:0 } .toc { box-shadow:2px 0 12px rgba(0,0,0,.15) } }
 .wrap { max-width:1120px; margin:0 auto; padding-inline:16px; padding-block:56px 64px; }
 h1 { font:600 1.7rem/1.2 "Source Serif 4", Georgia, serif; margin:0 0 6px; text-wrap:balance; }
 .sub { color:var(--muted); margin:0 0 22px; max-width:76ch; }
@@ -151,9 +151,9 @@ td, th { border-bottom:1px solid var(--rule); padding:3px 8px; text-align:right 
   var btn = document.getElementById('tocbtn');
   function setClosed(c) { document.body.classList.toggle('closed', c); btn.setAttribute('aria-expanded', String(!c)); try { localStorage.setItem('tocClosed', c ? '1' : '0'); } catch (e) {} }
   var saved = null; try { saved = localStorage.getItem('tocClosed'); } catch (e) {}
-  setClosed(saved === null ? window.innerWidth < 860 : saved === '1');
+  setClosed(saved === null ? window.innerWidth < 640 : saved === '1');
   btn.addEventListener('click', function () { setClosed(!document.body.classList.contains('closed')); });
-  list.addEventListener('click', function (e) { if (e.target.closest('a') && window.innerWidth < 860) setClosed(true); });
+  list.addEventListener('click', function (e) { if (e.target.closest('a') && window.innerWidth < 640) setClosed(true); });
   var links = list.querySelectorAll('a');
   var io = new IntersectionObserver(function (es) { es.forEach(function (en) { if (en.isIntersecting) { links.forEach(function (l) { l.classList.toggle('on', l.getAttribute('href') === '#' + en.target.id); }); } }); }, { rootMargin: '-10% 0px -80% 0px' });
   document.querySelectorAll('section[data-toc], figure[id]').forEach(function (el) { io.observe(el); });
