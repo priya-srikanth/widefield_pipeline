@@ -85,25 +85,25 @@ def self_fit_job(item):
     return out
 
 
-def frozen_r2(run: Path, variant: str, measure: str = "frame") -> pd.DataFrame:
+def frozen_r2(run: Path, variant: str, measure: str = "frame", areas=None) -> pd.DataFrame:
     rows = []
     for f in sorted((run / variant / "sessions").glob("*.json")):
         m = json.loads(f.read_text())
         for w, dd in m["r2_musall"].items():
-            for a in AREAS:
+            for a in (m["areas"] if areas == "all" else (areas or AREAS)):
                 if a in m["areas"]:
                     rows.append({"label": m["label"], "window": w, "area": a, "variant": variant,
                                  "frozen": dd[measure][m["areas"].index(a)]})
     return pd.DataFrame(rows)
 
 
-def self_r2(sdir: Path, measure: str = "frame") -> pd.DataFrame:
+def self_r2(sdir: Path, measure: str = "frame", areas=None) -> pd.DataFrame:
     rows = []
     for f in sorted(sdir.glob("*.json")):
         m = json.loads(f.read_text())
         for v, ww in m["r2_musall"].items():
             for w, dd in ww.items():
-                for a in AREAS:
+                for a in (m["areas"] if areas == "all" else (areas or AREAS)):
                     if a in m["areas"]:
                         rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"],
                                      "n_trials": m["n_trials"], "window": w, "area": a, "variant": v,
@@ -118,6 +118,7 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--maps", action="store_true", help="Allen-area maps of the remapping (all areas; after the fits)")
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     out = run / "session_vs_frozen"
@@ -135,8 +136,82 @@ def main(argv=None) -> int:
             (sdir / f"{r['label']}.json").write_text(json.dumps(r))
         for it, err in fail:
             print(f"  !! {it[0]}: {err}", flush=True)
+    if a.maps:
+        area_maps(run, out, variants)
+        return 0
     summarise(run, out, variants)
     return 0
+
+
+def area_maps(run: Path, out: Path, variants) -> None:
+    """Allen-area maps of the remapping: per area, (self - frozen) epoch - pre within animal, mean of animals, for the
+    full model and each group's unique R2; outline = significant after Bonferroni over areas (nested bootstrap)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    import frozen_fr_compare as ffc
+    from frozen_area_maps import area_image, outline, paint
+    S = self_r2(out / "sessions", areas="all")
+    F = pd.concat([frozen_r2(run, v, areas="all") for v in variants])
+    G = S.merge(F, on=["label", "window", "area", "variant"])
+    G = G[G.area != "cortex"]
+    key = ["label", "animal", "epoch", "window", "area"]
+    W = G.pivot_table(index=key, columns="variant", values=["self", "frozen"]).reset_index()
+    qs, rows = [], []
+    for v in variants:
+        q = "full" if v == "joint" else v.replace("no_", "")
+        val = (W[("self", "joint")] - W[("frozen", "joint")]) if v == "joint" else \
+            (W[("self", "joint")] - W[("self", v)]) - (W[("frozen", "joint")] - W[("frozen", v)])
+        rows.append(pd.DataFrame({k: W[k] for k in key}).assign(q=q, u=val.to_numpy()))
+        qs.append(q)
+    U = pd.concat(rows, ignore_index=True)
+    U.columns = [c if isinstance(c, str) else c[0] for c in U.columns]
+    B = pd.concat([ffc.boot(U[U.q == q], "u", epochs=["acute", "chronic"]).assign(q=q) for q in qs], ignore_index=True)
+    B = B[B.epoch.isin(["acute", "chronic"])].copy()
+    B["p_bonf"] = np.minimum(B.p * B.groupby(["q", "window", "epoch"]).area.transform("nunique"), 1.0)
+    B.to_csv(out / "remap_area.csv", index=False)
+    img, nm = area_image(U.label.iloc[0])
+    ol = outline(img)
+    (out / "figures").mkdir(exist_ok=True)
+    for w in ("cue", "lick"):
+        fig, axs = plt.subplots(2, len(qs), figsize=(2.6 * len(qs) + 0.6, 6.2), squeeze=False)
+        for j, q in enumerate(qs):
+            Bq = B[(B.q == q) & (B.window == w)]
+            lim = np.nanpercentile(np.abs(Bq.point), 98) or 1e-3
+            for i, ep in enumerate(("acute", "chronic")):
+                ax = axs[i, j]
+                s_ = Bq[Bq.epoch == ep].set_index("area")
+                im = ax.imshow(paint(img, nm, s_.point.to_dict()), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
+                sg = paint(img, nm, {k: 1.0 for k, v in (s_.p_bonf < 0.05).items() if v})
+                if np.isfinite(sg).any():
+                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)
+                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
+                up, dn = int(((s_.p_bonf < .05) & (s_.point > 0)).sum()), int(((s_.p_bonf < .05) & (s_.point < 0)).sum())
+                ax.text(0.02, 0.02, f"sig {up} up / {dn} down", transform=ax.transAxes, fontsize=6.5,
+                        bbox={"facecolor": "white", "alpha": 0.8, "pad": 1, "lw": 0})
+                ax.set_xticks([]); ax.set_yticks([])
+                if i == 0:
+                    ax.set_title(q if q == "full" else f"{q} unique", fontsize=8.5)
+                if j == 0:
+                    ax.set_ylabel(f"{ep} - pre", fontsize=8)
+            cax = axs[1, j].inset_axes([0.1, -0.13, 0.8, 0.06])
+            cb = fig.colorbar(im, cax=cax, orientation="horizontal")
+            cb.ax.tick_params(labelsize=6)
+        fig.suptitle(f"NEURAL: REMAPPING by Allen area, {w} window ({run.name.replace('frozen_encoder_', '')}): each session refit "
+                     "on itself (frozen design + windows) minus the frozen pre-stroke model, epoch - pre within animal, mean of 4."
+                     "\n> 0 = a session-specific mapping explains more than the pre-stroke one, beyond the pre-stroke gap. "
+                     "Outline = significant after Bonferroni over areas (nested bootstrap). Image left = ipsilesional.",
+                     fontsize=8.5)
+        fig.subplots_adjust(left=0.04, right=0.99, bottom=0.08, top=0.86, wspace=0.06, hspace=0.3)
+        fig.savefig(out / "figures" / f"remap_area_maps_{w}.png", dpi=110)
+        plt.close(fig)
+    pd.set_option("display.width", 220)
+    sig = B[B.p_bonf < .05]
+    print(sig.groupby(["q", "window", "epoch"]).apply(lambda g: f"{(g.point > 0).sum()} up / {(g.point < 0).sum()} down",
+                                                     include_groups=False).to_string())
+    print("->", out / "figures")
 
 
 def summarise(run: Path, out: Path, variants) -> None:
