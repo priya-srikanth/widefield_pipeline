@@ -452,8 +452,22 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     lick_ongoing_7Hz barely changes (5 / 1 / 0 points, asymmetry -.10 acute 4 / 4) -- the first-version acute 438-point
     ipsilesional shift (Hungarian pairing, which gave acute lick_left and lick_ongoing_7Hz one shared own factor in 4 / 4)
     is **WITHDRAWN**. lick_far_nose is not recovered even in the pre-half fits (cos .27-.39): its shape readouts are void.
-    Match galleries + per-fit candidate panels on the FR page (`--gallery`, `--candidates`). Next: cohort per-epoch fits
-    + leave-one-animal-out (`fr_factors.py fitcohort`, O2 run_fitcohort.sbatch, 30 tasks, submitted 10-25).
+    Match galleries + per-fit candidate panels on the FR page (`--gallery`, `--candidates`).
+    COHORT FITS (10-25 evening; `fr_factors.py fitcohort` on O2, 30 fits = all four animals pooled + each animal left out,
+    x pre / preA / preB / acute / subacute / chronic, 5,500 rows per animal; `face_rhythm_epoch_shape.py --own-dir
+    own_epoch_cohort` -> `readouts/master_pre_v1/epoch_shape_cohort/`; FR page section 7). lick_right is recovered as the
+    same factor in every fit (best spatial match own 4, cos .87-.97) and **stays changed through chronic**: r with the
+    pre far_R spout pattern .71 / .72 (pre halves) -> .53 / .54 / .46 (acute / subacute / chronic), with close-centre .25
+    -> .50; loading moves from the contralesional mid-face to the contralesional mouth rim and lower cheeks; spatial angle
+    to pre 26 / 23 / 27 deg while most factors return to 7-14 deg chronically; asymmetry -.19 / -.09 / -.16. Same in all
+    four leave-one-out fits. **lick_left changes acutely and recovers**: far_L r .77 -> .56 -> .71 / .75, angle 30 ->
+    15 / 14 deg, asymmetry +.33 acute then +.07 / -.07; the acute matched factor is broad / partly bilateral and differs
+    from the Hungarian pick in 4 / 5 fits; subacute recovery leans on PS92 (without it far_L .45). This REVISES the
+    per-animal reading for lick_left (chronic +.18 there, not confirmed). CAVEATS: the cohort pre halves interleave days,
+    so their floor (3-8 deg) leaves out across-day drift and nearly every factor is "beyond" it -- read lick_right against
+    the other factors (it alone does not come back), and the early-vs-late-pre drift floor is still owed; best-match
+    pairing gives sniff_prelick / nose_prelick_slow and nose_steps / lick_far_nose one shared cohort factor each (those
+    pairs not separately recovered). **PROVISIONAL**.
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).

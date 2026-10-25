@@ -78,6 +78,12 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
+   * DONE 10-25 evening: fitcohort back (30 / 30; tasks 4, 23, 28 finished after the first rsync) and run
+     (`--own-dir own_epoch_cohort`, + `--gallery`) -> FINDINGS 5.10 "COHORT FITS": lick_right stays changed through
+     chronic in the cohort and all 4 LOAO fits, lick_left recovers. FR page v21: new section 7 (cohort), 8 (per-animal
+     shape), 9 (secondary); page source scratchpad `fr_page/index_reordered.html` + `toc_patch.py` (sections dict now
+     shape / shapeanimal / secondary). NEXT for shape: the early-vs-late-pre DRIFT floor (cohort preA / preB interleave
+     days, floor 3-8 deg, too lenient).
    * DONE 10-25 ~16:40: cortical ENL decode with FR factors regressed out (`scripts/enl_fr_removed_decode.py`, local,
      107 sessions, ~25 min at 6 jobs) -> 70-100 % of the cortical pre-cue code survives, residual tracks raw r .91-.97;
      NOT face posture as FR sees it (FINDINGS 5.14, FACE_RHYTHM_FINDINGS 7b). Not yet on either results page.
