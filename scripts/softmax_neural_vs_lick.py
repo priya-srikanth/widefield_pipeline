@@ -146,9 +146,9 @@ def main(argv=None) -> int:
                 if k == 0:
                     ax.set_ylabel(f"{name}\ntarget spout", fontsize=8)
         fig.suptitle(f"Same trials, {a.window} window: NEURAL (top) vs LICK landing / trajectory softmax, epoch minus pre within animal, "
-                     f"mean of 4 animals. Boxed = nested bootstrap excludes 0 (Bonferroni over 36); second line = animals "
+                     f"mean of 4 animals.\nBoxed = nested bootstrap excludes 0 (Bonferroni over 36); second line = animals "
                      f"with the same sign.", fontsize=9)
-        fig.tight_layout(rect=(0, 0, 1, 0.95))
+        fig.tight_layout(rect=(0, 0, 1, 0.94))
         fig.savefig(fd / f"softmax_neural_vs_lick_{a.window}_w{w:g}.png", dpi=130)
         plt.close(fig)
         # trial level, far-contra trials post-stroke: within-session slope of neural p on lick weight, per animal
