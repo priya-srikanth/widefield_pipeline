@@ -78,8 +78,10 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
-   * Still open: cortical ENL decode with FR factors regressed out (is the cortical pre-cue code face posture?); FR
-     spout-in-mesh control; 13b (dimension comparison + composite deficit; agree the list with d4).
+   * DONE 10-25 ~16:40: cortical ENL decode with FR factors regressed out (`scripts/enl_fr_removed_decode.py`, local,
+     107 sessions, ~25 min at 6 jobs) -> 70-100 % of the cortical pre-cue code survives, residual tracks raw r .91-.97;
+     NOT face posture as FR sees it (FINDINGS 5.14, FACE_RHYTHM_FINDINGS 7b). Not yet on either results page.
+   * Still open: FR spout-in-mesh control; 13b (dimension comparison + composite deficit; agree the list with d4).
 
 0a. **10-25 ~08:30 -- UPDATE (supersedes the OPEN list's item a and the cd_loo_pooled line below).**
    * cd_loo_pooled switched to DIFFERENCE from each animal's own held-out pre (the ratio blew up where pre ~ 0); on the

@@ -624,6 +624,33 @@ distinguishing far contra before the cue, like cortex. Open: whether the FR mesh
 video motion-energy check, `scripts/enl_video_spout_check.py`, masked the spout; FR has no such control); a
 per-trial cortex-vs-face comparison on matched trials.
 
+## 7b. Cortical pre-cue position code with the FR factors regressed out (PROVISIONAL, four animals, 10-25)
+
+The test asked for in 7 (2). `scripts/enl_fr_removed_decode.py` -> `<labcams>/enl_fr_removed_decode/`
+(`sessions/*.csv`, `enl_fr_removed_decode.csv`, `.png`). Same trials, features, decoder and in-fold removal as the video
+analysis `enl_movement_multisession` (2 s lick-free window ending at the cue, 4 x 0.5 s bins of all LocaNMF
+components, logistic C .5, position-block GroupKFold; RidgeCV movement -> dF/F fit on the training trials' frames of
+each fold, lags 0 / 0.1 / 0.2 s, subtracted from every frame). Movement = the 12 frozen FR factors on the imaging
+frames (`face_rhythm_outputs.fr_signals`, absolute) +/- DAQ running. 107 sessions (all with an FR projection; August
+pre). Check: the raw arm equals the video analysis's raw on all 107 sessions (max difference 0).
+
+| per animal, mean over sessions | raw | minus running | minus FR | minus FR + running | FR alone | kept (FR + run) | kept, features end -0.5 s |
+|---|---|---|---|---|---|---|---|
+| PS92 pre / acute / sub / chron | .38 / .40 / .30 / .45 | .38 / .41 / .30 / .45 | .34 / .39 / .28 / .41 | .34 / .39 / .27 / .41 | .37 / .47 / .49 / .46 | .81 / .96 / .81 / .88 | .80 / .88 / .77 / .86 |
+| PS93 | .40 / .37 / .26 / .42 | .41 / .37 / .26 / .42 | .37 / .34 / .24 / .38 | .38 / .34 / .24 / .38 | .45 / .39 / .43 / .48 | .91 / .70 / .71 / .85 | .82 / .87 / .91 / .86 |
+| PS94 | .55 / .45 / .43 / .52 | .55 / .45 / .43 / .52 | .49 / .42 / .39 / .45 | .50 / .43 / .40 / .46 | .51 / .43 / .44 / .49 | .86 / .94 / .87 / .81 | .87 / .81 / .83 / .76 |
+| PS95 | .38 / .59 / .34 / .44 | .38 / .59 / .34 / .44 | .37 / .59 / .33 / .40 | .37 / .59 / .33 / .40 | .38 / .50 / .38 / .42 | .91 / 1.00 / .94 / .85 | .91 / .97 / 1.01 / .80 |
+
+kept = (residual - null) / (raw - null). Sessions per animal x epoch: PS92 8 / 5 / 2 / 12, PS93 7 / 4 / 3 / 12, PS94 8 /
+6 / 5 / 8, PS95 8 / 1 / 7 / 11. Session-level r(raw, minus FR + running) .95 / .91 / .91 / .97; r(raw, FR alone) .50 /
+.47 / .72 / .63. Mean over sessions: raw .424, minus FR + running .390, minus video + running (same sessions) .272.
+
+Reading. Removing everything the 12 face factors (and running) predict linearly leaves 70-100 % of cortex's
+above-chance pre-cue position code, in every animal and epoch, and the epoch pattern is unchanged. The face carries
+position (FR alone ~ cortex) but cortex's code is largely not that signal. Video removes more (~40-50 % kept); a likely (untested) reason: its
+motion energy covers regions the FR mesh does not (body, paws, whisker pad edge, spout / rod contrast). Lower bound,
+linear removal; FR in the last 0.5 s can carry post-cue licking (end -0.5 s arm gives the same answer).
+
 ## Where to look
 
 * Pilot factor set: `<dlc>/../o2/fr_cam4_20261021/factors/pilot_pre_PS92_PS93/` (`report/` gallery, epochs, rank

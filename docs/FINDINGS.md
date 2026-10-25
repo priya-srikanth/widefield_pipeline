@@ -464,6 +464,17 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     imaging 3.10: the cortical pre-cue position code (.33-.55) sits in the same range as the face's, so part of it may
     be face posture / movement; a movement-removed cortical ENL decode with FR as regressors is the test. Untested:
     whether the FR mesh sees the spout itself (the video motion-energy check masked the spout; FR has no such check).
+14. **The cortical pre-cue position code is NOT the face movement FR captures** (10-25; `scripts/enl_fr_removed_decode.py`,
+    FACE_RHYTHM_FINDINGS 7b; answers 13's test). The video analysis's trials, features and in-fold removal
+    (`enl_movement_multisession`; raw arm identical on all 107 shared sessions), with the 12 FR factors + running
+    (lags 0-0.2 s) as the movement model. Mean raw .424 -> minus FR + running .390 (minus video + running was .272);
+    105 / 107 sessions still p < .05. Share of raw's above-null code kept, per animal x epoch: .70-1.00 (pre .81 / .91
+    / .86 / .91); with features ending 0.5 s before the cue (no acausal lick leak) .76-1.01. The residual tracks raw
+    session by session (r .95 / .91 / .91 / .97, PS92-95), so every epoch pattern of the cortical ENL code (imaging
+    3.10: no consistent acute loss; subacute dip PS92 / PS93) survives FR removal unchanged. FR alone decodes position
+    about as well as cortex (.37-.51) but only partly the same trials' structure (r(raw, FR alone) .47-.72): the face
+    and cortex carry position largely SEPARATELY. **PROVISIONAL** (linear removal, lower bound; FR's mesh omits body /
+    whisker-pad regions video sees -- a likely, untested, reason video removes more).
 
 ## 6. Histology
 
