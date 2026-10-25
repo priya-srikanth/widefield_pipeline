@@ -9,6 +9,25 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000v. STATE 10-25 ~14:45 -- READ FIRST (then 000u)
+
+- Page v55: noise bands on Figs 1-1k; frozen noFR PIXEL maps added (Fig 1l nested test, Fig 1m per-animal view; status row).
+- SCORING CAVEAT (Priya asked 10-25): refit and frozen R2 are scored differently (refit cue 0-1 s, lick +/-0.2 s around EVERY
+  lick peak, offset penalised; frozen cue 0-1.5 s, lick -0.1..+1.0 s around the FIRST lick, data / prediction centred
+  separately). Within-frame changes are fine; the cross-frame "not reproduced" revisions (FINDINGS 4.11, 4.12a) mix frame
+  and scoring -> flagged "check pending" on the page and in FINDINGS.
+- RUNNING: `S/run_svf.sh` -> `scripts/session_vs_frozen.py` (log `S/svf_full.log`): each session refit on ITSELF in the
+  frozen design + windows (5 trial blocks, penalties chosen in-session; frA env), minus its frozen R2, epoch - pre.
+  Answers both NEXT 3 (remapping) and the caveat: if the self-fit's target unique rises chronically, "not reproduced" is a
+  frame effect; if not, the refit gain came from refit scoring / design. Smoke (PS92_0806): pre gap +0.10 SSp-m.
+  Output `frozen_encoder_gate-attempted_v7g3_t3d_frA/session_vs_frozen/` (gap.csv, remap_boot.csv, figures/).
+- Synthesis given to Priya 10-25 (acute = movement + transient decoupling; chronic = same behaviour, different cortical
+  solution). Proposed next analyses, priority: (1) specificity control -- residual / Layer 2 in VIS / RSP + normalise by a
+  task-independent response (total variance rose globally); (2) residual / Layer 2 vs behavioural deficit, session mixed
+  model; (3) target-free execution test from ITI 3-D licks; (4) behaviour-matched residual + frozen extrapolation
+  diagnostic; (5) pre-lick ramp timing in ALM / tongue-jaw motor; (6) June -> August reduced-model drift ceiling;
+  (7) lesion burden / leave-PS93-out. Not started -- wait for Priya's pick.
+
 ## 000u. STATE 10-25 ~14:20 (pre-compaction) -- READ FIRST (then 000t)
 
 **Headline change (Priya 10-25): the FROZEN pre-stroke encoder is the frame for every post-stroke CHANGE claim; FaceRhythm is
