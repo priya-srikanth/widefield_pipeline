@@ -146,7 +146,9 @@ def main(argv=None) -> int:
     ap.add_argument("--mode", default="A")
     ap.add_argument("--windows", nargs="+", default=["lick", "cue"])
     a = ap.parse_args(argv)
-    out = E / "fr_encoding_summary" / "contra_orofacial"
+    # mode A = the original folder (page / docs cite it); other FR modes get their own folder (a mode-D run once
+    # overwrote the mode-A tables, 10-25)
+    out = E / "fr_encoding_summary" / ("contra_orofacial" + ("" if a.mode == "A" else f"_mode{a.mode}"))
     (out / "figures").mkdir(parents=True, exist_ok=True)
     T = table(a.mode, a.windows)
     areas = [f"{b}_{h}" for b in APRIORI + CTRL for h in ("left", "right")] + ["cortex"]
@@ -213,7 +215,11 @@ def main(argv=None) -> int:
 
     # 6. per-animal pixel maps
     from combined_encoding_figures import _outline
-    z = np.load(E / "fr_encoding_summary" / f"fr_musall_pixel_maps_mode{a.mode}.npz")
+    zp = E / "fr_encoding_summary" / f"fr_musall_pixel_maps_mode{a.mode}.npz"
+    if not zp.exists():
+        print(f"(no pixel maps for mode {a.mode}: fr_musall.py --mode {a.mode} first; per-animal map figure skipped)")
+        return 0
+    z = np.load(zp)
     Mp = dict(zip([str(k) for k in z["keys"]], z["maps"]))
     ol = _outline(T[["label"]].drop_duplicates())
     lab_ = {"alone_uninstructed": "uninstructed alone", "uniquefr_task": "task unique | FR",
