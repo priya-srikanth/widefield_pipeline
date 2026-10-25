@@ -84,7 +84,7 @@ half rest, true bin times; 27.4 k rows; 8 starts per rank, fit-only):**
 | 10 | 0.792 | **7 / 8** (err .4565) | **0.999** | 0.69-0.99 (only the one outlier start) |
 | 12 | 0.803 | 3 / 8 | 0.91 | two weaker factors (.80 / .82 median): the extra factors split left and centre-right licking |
 
-**Rank 10 chosen (Priya 10-23 evening)**: the only well-determined rank (rank 8 is not; rank 12 splits lick factors
+**Rank 10 chosen (Priya 10-23 evening; SUPERSEDED 10-24 by rank 12, see the heading and 4a)**: the only well-determined rank (rank 8 is not; rank 12 splits lick factors
 less reproducibly for +0.011 EVR). Master EVR is a little lower than the pilot's at the same rank (more varied sample).
 Next at rank 10: split-half (is 20 / position enough), leave-one-animal-out, leave-one-day-out.
 
@@ -124,7 +124,7 @@ why rank 12 is reproducible -- to confirm with per-factor stability on the maste
 start's factors, `stability_per_factor.csv`; default 8 starts). The cohort rank is chosen on
 master_pre_v1 (four animals). Figure: `<bundle>/factors/pilot_pre_PS92_PS93/report/rank_sweep.png`.
 
-## 3. The pre-stroke noise floor (STANDS for PS92 + PS93)
+## 3. The pre-stroke noise floor (STANDS, four animals on the master; pilot paragraph below = PS92 + PS93)
 
 **MASTER rank 12, all four animals (10-24, `loso/rank12_<day>.json`, 31 pre days):** a pre-stroke day scored on the fit
 that left it out explains .768-.820 (PS92 .795-.820, PS93 .768-.805, PS94 .784-.817, PS95 .796-.812); in fit .778-.822.
@@ -282,7 +282,8 @@ post-hoc contact split, not the model itself. Same check here (`scripts/lick_con
 Reading: REPLICATES acutely -- far-contra trials are attempted (64-80 %, PS95 32 %) but almost never completed
 (.03-.15), close contra and ipsi spared; "try and fail" (PS92 / 93 / 94) vs "fail to try" (PS95) as in the AR-HMM
 cohort. CHRONICALLY trial completion is back at pre (.95-.99, unlike the AR-HMM cohort's plateau), but per-lick misses
-on contra spouts stay mildly elevated in 3 / 4 (PS92 .14 vs .08, PS94 .18 vs .09, PS95 .13 vs .09; PS93 not) while
+on contra spouts (close + far POOLED, per lick) stay mildly elevated in 3 / 4 (PS92 .14 vs .08, PS94 .18 vs .09, PS95
+.13 vs .09; PS93 not; far_R ALONE: incomplete licks still raised only in PS92 / PS94, OROFACIAL_FINDINGS 8d) while
 ipsi is flat -- with 5b (f9 per right lick 0.4-0.6 chronically): animals get the water again, with less accurate and
 differently made contralesional licks. Per-lick numbers pool close + far contra (far alone will be larger); LP lick
 detection post-stroke is the caveat (cam1 rescues hidden tongues, `trial_attempts`).
@@ -573,7 +574,8 @@ push; (0..1 s) - (-1.5..-0.5 s), push minus random.
 * The frozen pre-stroke basis describes that movement BETTER than average: reconstruction-error excess is NEGATIVE in
   27 / 32 animal x epoch x context cells, every chronic cell included (chronic -.005 to -.041); the five positive cells
   are small (<= +.007; PS93 in-trial pre / subacute, PS94 between acute, PS95 acute = 1 session).
-* Pushes are 2-4x more frequent chronically (between trials PS92 .87 -> 2.63 / min, PS93 .69 -> 3.01, PS94 3.9 -> 4.4,
+* Pushes are 2-4x more frequent chronically, BETWEEN-TRIAL rates (ENCODING_FINDINGS 4.4 quotes 2-5x on its own
+  window / push-frame measure) (between trials PS92 .87 -> 2.63 / min, PS93 .69 -> 3.01, PS94 3.9 -> 4.4,
   PS95 .98 -> 2.19), yet no animal's error rises at them.
 
 -> No pre + post master for pushes (Priya's question answered by the check, DECISIONS 10-24): the face movement that
@@ -591,14 +593,19 @@ accompanies a push is already in the pre-stroke repertoire; pushes stay a treadm
 
 ## Next
 
-1. Master rank 12 -> Priya chooses the rank -> refit with leave-one-animal-out -> split-half -> leave-one-day-out ->
-   freeze -> project 108 tasks -> fitsession -> report + clips + validation -> Priya names the master factors.
-2. Redo sections 5, 5b, 6 on the master (all four animals): f9 / contralesional licking, per lick, EVR gap.
-3. Encoding: FR run A summary (encoding window); then the master set into the encoder.
-4. Other cameras: Priya's landmark clicks -> registration -> ROIs -> O2 -> multi-view factor set (`plan --views`).
+Done since this list was written: master rank 12 frozen, projected, named; sections 5 / 5b / 6 redone on four animals
+(5b-master, 5d, 6-master). Open: per-bout timing of lick_right (5g caveat); early-vs-late pre-day shape floor (6c,
+8 O2 tasks); other cameras (Priya's landmark clicks -> registration -> ROIs -> O2 -> multi-view set, `plan --views`);
+FR run A / master FR in the encoder is summarised by the encoding window (ENCODING_FINDINGS; FINDINGS.md section 4).
 
 ## Change log
 
+* 2026-10-25: current conclusions moved to docs/FINDINGS.md section 5 (one status-tagged line each); pilot sections and
+  the 10-24 morning status table marked SUPERSEDED; cross-doc review fixes (rank-10 line, section 3 heading, push-rate
+  and contra-miss measures named, Next list).
+* 2026-10-24 (evening / late): 5d-5g on four animals with statistics (`*` / `**`, Holm), per-point face maps (5f,
+  `boot_delta_columns` + BH FDR), speed maps per spout (5e), cue timing (5g), pooled per-epoch shape fits (6c-pooled),
+  non-task by state (6d); agreement threshold >= 3 / 4 animals (Priya); "fewer licks, not smaller" CORRECTED (5f).
 * 2026-10-24 (later): four-animal readouts on own8 (6-master, 6c, 6d); push check (6b).
 
 * 2026-10-24: rank 12 chosen (left / right lick pair); master named (4a); leave-one-day-out noise floor on four animals
