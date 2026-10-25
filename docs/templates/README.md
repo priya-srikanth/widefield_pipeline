@@ -10,7 +10,10 @@ goal-question page, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Conventi
   contents lists the bold part.
 - **Tag each section** neural (`data-kind="n"`) or lick / behaviour (`data-kind="l"`).
 - Each figure's caption says how to read it and gives the headline numbers; one `.take` box per section with the
-  result; per-animal first, then within-animal-normalised pooled results with statistics.
+  result; within a section the pooled / cohort (within-animal-normalised, with statistics) figures come BEFORE the
+  per-animal ones (Priya 10-25 evening; reverses the earlier per-animal-first rule), headline figure first.
+  Change maps: diverging RdBu_r (red = more), one colour scale for all panels of a figure, significant points large and
+  outlined with the rest faded.
 - Section tags point to the FINDINGS section the result lives in.
 - **"Where things stand" table at the top cites its evidence** (Priya 10-25): a "figures" column right after the result,
   each cell linking the supporting figures (`<a href="#fig7b">7b</a>`), or the section when only a table supports it.

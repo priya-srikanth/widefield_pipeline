@@ -60,7 +60,7 @@ def compute(fdir: Path) -> tuple[pd.DataFrame, dict]:
     own, proj = frc.sessions(fdir, "own"), frc.sessions(fdir, "proj").set_index("key")
     pre_speed = {an: {r.key: _speed(proj.loc[r.key, "file"]) for r in own[(own.animal == an) & (own.epoch == "pre")]
                       .itertuples() if r.key in proj.index} for an in sorted(own.animal.unique())}
-    rows, loads = [], {}
+    rows, loads, specs = [], {}, {}
     for r in own.itertuples():                                         # sorted by file name (rule 9)
         sp = np.nanmean([v for k, v in pre_speed[r.animal].items() if k != r.key], 0)   # leave this session out
         spec = sp - sp.mean(0, keepdims=True)
@@ -85,8 +85,10 @@ def compute(fdir: Path) -> tuple[pd.DataFrame, dict]:
                 row.update({"side_spec": own_r - oth_r, "asym": float(asym[c]),
                             **{f"r_{p}": float(rr[i]) for i, p in enumerate(frc.POSITIONS)}})
                 loads[(r.key, nm)] = v
+                b = B[:, c]
+                specs[(r.key, nm)] = b / b.sum()                     # frequency loading, fraction of total (shape)
             rows.append(row)
-    return pd.DataFrame(rows), {"loading": loads, "home": home}
+    return pd.DataFrame(rows), {"loading": loads, "spectral": specs, "home": home, "freqs": M["freqs"]}
 
 
 def stats(T: pd.DataFrame, L: dict, seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -113,14 +115,21 @@ def stats(T: pd.DataFrame, L: dict, seed: int = 0) -> tuple[pd.DataFrame, pd.Dat
             for x, q in zip(fam_rows, ph):
                 x["p_holm"] = q
             rows += fam_rows
-    S = pd.DataFrame(rows)
+    return pd.DataFrame(rows), column_change(T, L, seed)
+
+
+def column_change(T: pd.DataFrame, L: dict, seed: int = 0) -> pd.DataFrame:
+    """Change vs pre of a per-session VECTOR readout (the per-point loading map, or the frequency loading), column by
+    column: paired animals -> sessions bootstrap (`boot_delta_columns`), BH over columns. ``L`` {(session key, factor):
+    vector}. Rows per factor x epoch x scale ("raw", "z"); obs / lo / hi / p / sig (FDR .05) / sig10 (FDR .10)."""
+    from wfield_local import analysis_kit as ak
     mrows = []
     for nm in FACTORS:
         d = T[(T.factor == nm) & T.side_spec.notna()]
         pre0 = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == "pre"].groupby("animal")}
-        # "z" (Priya 10-25, as Fig 8d): each animal's sessions divided per point by the SD of its OWN pre sessions, so
-        # the map is the mean over animals of change / own pre-session noise; the SD is floored at a quarter of the
-        # animal's median SD (points the factor never loads have ~0 SD and would otherwise dominate)
+        # "z" (Priya 10-25, as Fig 8d): each animal's sessions divided per column by the SD of its OWN pre sessions, so
+        # the result is the mean over animals of change / own pre-session noise; the SD is floored at a quarter of the
+        # animal's median SD (columns the factor never loads have ~0 SD and would otherwise dominate)
         sd = {an: np.maximum(v.std(0, ddof=1), 0.25 * np.median(v.std(0, ddof=1))) for an, v in pre0.items()}
         for scale in ("raw", "z"):
             div = {an: (sd[an] if scale == "z" else 1.0) for an in pre0}
@@ -133,9 +142,60 @@ def stats(T: pd.DataFrame, L: dict, seed: int = 0) -> tuple[pd.DataFrame, pd.Dat
                     continue
                 obs, lo, hi, o, n = res
                 p = np.minimum(1.0, np.maximum(2 * np.minimum((o <= 0).mean(0), (o >= 0).mean(0)), 1.0 / len(o)))
-                mrows.append({"factor": nm, "epoch": ep, "scale": scale, "obs": obs, "p": p, "sig": ak.bh(p, 0.05),
-                              "sig10": ak.bh(p, 0.10)})
-    return S, pd.DataFrame(mrows)
+                mrows.append({"factor": nm, "epoch": ep, "scale": scale, "obs": obs, "lo": lo, "hi": hi, "p": p,
+                              "sig": ak.bh(p, 0.05), "sig10": ak.bh(p, 0.10)})
+    return pd.DataFrame(mrows)
+
+
+def spectral_figure(Sp: pd.DataFrame, T: pd.DataFrame, L: dict, freqs: np.ndarray, out: Path, set_name: str) -> None:
+    """Spectral twin of the z loading map (Priya 10-25: "7h is our headline. can we do the spectral version?"). Left:
+    the matched lick factor's frequency loading (fraction of total), mean of animals, pre and each epoch. Right: change
+    vs pre per frequency in units of each animal's own pre-session SD, mean of animals with the paired-bootstrap 95 %
+    band; filled markers = FDR .05 over the 36 frequencies. One y scale for both factors."""
+    from wfield_local import face_rhythm_figures as frf
+    ecol = {"pre": "k", **frc.epoch_colors()}
+    z = Sp[Sp.scale == "z"]
+    ylim = float(np.nanmax(np.abs(np.concatenate([np.r_[r.lo, r.hi] for r in z.itertuples()])))) * 1.05 if len(z) else 1
+    with frf.style():
+        fig, axs = frf.subplots(2, 2, figsize=(11, 7), squeeze=False)
+        for r_i, nm in enumerate(FACTORS):
+            d = T[(T.factor == nm) & T.side_spec.notna()]
+            ax = axs[r_i, 0]
+            for ep in ("pre", *frc.POST_EPOCHS):
+                per = [np.mean([L[(k, nm)] for k in g.key], 0) for _, g in d[d.epoch == ep].groupby("animal")]
+                if per:
+                    ax.plot(freqs, np.mean(per, 0), color=ecol[ep], lw=2.0 if ep == "pre" else 1.3,
+                            ls="--" if ep == "pre" else "-", label=ep)
+            ax.set_xscale("log")
+            ax.set_ylabel("frequency loading (fraction)")
+            ax.set_title(f"{nm}: frequency loading, mean of animals", fontsize=9)
+            ax.legend(fontsize=7)
+            ax = axs[r_i, 1]
+            for ep in frc.POST_EPOCHS:
+                row = z[(z.factor == nm) & (z.epoch == ep)]
+                if not len(row):
+                    continue
+                row = row.iloc[0]
+                ax.fill_between(freqs, row.lo, row.hi, color=ecol[ep], alpha=0.15, lw=0)
+                ax.plot(freqs, row.obs, color=ecol[ep], lw=1.3, label=f"{ep} ({int(row.sig.sum())} sig.)")
+                ax.scatter(freqs[row.sig], row.obs[row.sig], color=ecol[ep], s=22, edgecolors="k", linewidths=0.4,
+                           zorder=3)
+            ax.axhline(0, color="k", lw=0.6)
+            ax.set_xscale("log")
+            ax.set_ylim(-ylim, ylim)
+            ax.set_ylabel("change / own pre-session SD")
+            ax.set_title(f"{nm}: change vs pre per frequency (filled = FDR .05)", fontsize=9)
+            ax.legend(fontsize=7)
+        for ax in axs[-1]:
+            ax.set_xlabel("Hz")
+        fig.suptitle(f"{set_name}: lick-factor FREQUENCY loading per session (own fit, best spatial match)")
+        frf.save(fig, out / "session_shape_spectral_z.png", """
+Each session's matched lick factor's frequency loading (B column, fraction of its total). Left: mean over animals of
+each animal's session mean, pre (dashed) and each post epoch. Right: change vs pre per frequency, each animal's
+sessions divided by the SD of its own pre sessions at that frequency (floored at 1/4 of its median SD), mean of
+animals; band = paired animals -> sessions bootstrap 95 % interval; filled markers = Benjamini-Hochberg FDR .05 over
+the 36 frequencies. Factors are matched SPATIALLY (best spatial match), so this asks whether the same face movement
+changed its rhythm.""")
 
 
 def map_figure(Mp: pd.DataFrame, scale: str, home: np.ndarray, out: Path, set_name: str) -> None:
@@ -258,6 +318,13 @@ def main(argv=None) -> int:
     figures(T, S, out, fdir.name)
     for scale in ("raw", "z"):
         map_figure(Mp, scale, L["home"], out, fdir.name)
+    Sp = column_change(T, L["spectral"])
+    for r in Sp[Sp.scale == "z"].itertuples():
+        f = L["freqs"][r.sig]
+        print(f"spectral [z] {r.factor} {r.epoch}: {int(r.sig.sum())} / {len(r.p)} frequencies FDR .05"
+              + (f" ({', '.join(f'{x:.1f}' for x in f)} Hz; change {', '.join(f'{v:+.1f}' for v in r.obs[r.sig])})"
+                 if len(f) else ""))
+    spectral_figure(Sp, T, L["spectral"], L["freqs"], out, fdir.name)
     print("->", out)
     return 0
 

@@ -487,6 +487,11 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     cohort fits on lick_left after acute (cohort: recovered by subacute; per session: still changed chronically); the
     cohort permutation null + early-vs-late pre drift fits (O2, submitted 10-25 night: `fitcohortnull` tasks 1-600,
     `fitcohort` tasks 31-40) decide. **lick_left STANDS per session; lick_right PROVISIONAL.**
+    HEADLINE (Priya 10-25; FR page Fig 7): per-point loading change with each animal / its own pre-session SD (floored at
+    1/4 of its median SD), FDR .05 of 1,282 points: lick_right 717 / 760 / 54, lick_left 660 / 208 / 33. SPECTRAL twin
+    (Fig 7b; same test over the 36 frequencies of the matched factor's frequency loading): lick_right loses weight at its
+    6.5-7.3 Hz peak (-2 SD) and gains at 4.6-5.1 and 10.4-11.7 Hz (+2 SD); 5 / 6 / 2 frequencies FDR .05, the 10-12 Hz
+    gain persisting chronically. lick_left: mean peak shifts lower acutely (~5 Hz) and flattens, 0 frequencies survive.
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).
