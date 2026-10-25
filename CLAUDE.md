@@ -354,6 +354,9 @@ noise-floor — followed by the post-stroke intention-readout (frozen decoder) a
 
 ## Current status / handoff
 
+**[`docs/FINDINGS.md`](docs/FINDINGS.md) — THE CURRENT SCIENCE CONCLUSIONS (10-25), one status-tagged line per claim, all
+arms; the per-arm FINDINGS docs are the detailed record. Change a conclusion there when it changes in your arm.**
+
 **Orofacial / encoding BASELINE RULE (Priya 2026-10-18): the AUGUST-ONLY pre baseline is PRIMARY; June-including
 outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity only); LP run v35 is SUPERSEDED by v36.**
 

@@ -10,6 +10,9 @@ set still pending), **PILOT** (two animals, PS92 + PS93, the pilot factor set `p
 `master_pre_v1`), **PENDING** (not yet run / not yet summarised), **CORRECTED** (an earlier statement here was wrong;
 corrected numbers follow).
 
+> **Current conclusions, one line each with status: [docs/FINDINGS.md](FINDINGS.md) section 5** (10-25; this
+> document stays the detailed record).
+>
 > **Results page (figures + one-line takeaways, in this order): https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1**
 >
 > **Story order (Priya 10-24; DECISIONS 2026-10-24 "FaceRhythm framing").**
@@ -22,7 +25,8 @@ corrected numbers follow).
 >    each behaviour is expressed relative to the cue (timing; PENDING).
 > Secondary: factor angles / shape (6c, + the pooled per-epoch fits, PENDING); task vs non-task (6d).
 
-> **Where things stand (10-24 morning), with what each rests on.**
+> **Where things stood on 10-24 MORNING (SUPERSEDED: rows marked PILOT / PENDING were since redone on the
+> four-animal master -- sections 5b-master, 5d, 5g, 6-master, 6c-pooled; current status per claim: FINDINGS.md section 5).**
 >
 > | result | status | data it rests on / what is incomplete |
 > |---|---|---|
@@ -219,7 +223,7 @@ right lick acute -1.06 [-1.64, -.51]**, subacute -.44 [-.75, -.10]*, chronic -.5
 every epoch; right licks per trial acute -3.1*, subacute -1.1*, chronic -.14 [-.75, +.35] n.s. (count recovers);
 lick_left per left lick n.s. at every epoch. STANDS with statistics.
 
-## 5. Changes after the stroke (PILOT, two animals; read per animal)
+## 5. Changes after the stroke (PILOT, two animals; SUPERSEDED by 5b-master / 5d on four animals)
 
 Response-window (0..+4 s) absolute expression, per animal x epoch, relative to that animal's pre-stroke mean (session
 means first; n sessions pre / acute / subacute / chronic: PS92 8 / 5 / 2 / 12, PS93 7 / 4 / 3 / 9):
@@ -242,7 +246,7 @@ CAVEATS: two animals; absolute expression scales with how much the animal licks,
 not a different movement per lick -- next: per-lick expression (lick-triggered, as in section 4) by epoch, and the
 master set's four animals. Figures: `report/factor_epochs_abs.png` (cue-aligned, pre max = 1).
 
-### 5b. Fewer licks or different licks? (PILOT, two animals)
+### 5b. Fewer licks or different licks? (PILOT, two animals; SUPERSEDED by 5b-master)
 
 `scripts/face_rhythm_lick_epochs.py` (`<dlc>/face_rhythm/cam4/validation/pilot_pre_PS92_PS93/lick_epochs/`): per
 session and executed lick DIRECTION, response-window licks per engaged trial and each factor's expression AT the lick
@@ -283,7 +287,7 @@ ipsi is flat -- with 5b (f9 per right lick 0.4-0.6 chronically): animals get the
 differently made contralesional licks. Per-lick numbers pool close + far contra (far alone will be larger); LP lick
 detection post-stroke is the caveat (cam1 rescues hidden tongues, `trial_attempts`).
 
-## 6. Does the pre-stroke vocabulary still fit after the stroke? (PILOT, two animals)
+## 6. Does the pre-stroke vocabulary still fit after the stroke? (PILOT, two animals; SUPERSEDED by 6-master)
 
 EVR GAP = a session's own rank-10 fit (`fitsession`, 1 start) minus the frozen pre-stroke factors on the same session
 rows; larger = the session's movement fits the pre-stroke factors less well. Pre sessions are scored on their
