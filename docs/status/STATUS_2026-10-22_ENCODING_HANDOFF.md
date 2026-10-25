@@ -9,6 +9,75 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000y. STATE 10-25 ~18:45 -- READ FIRST (supersedes the RUNNING / NEXT lists of 000x; 000x keeps the day's results)
+
+Page v70 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (source `S/goal_page/index.html`; S = `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`). Results of
+the day: ENCODING_FINDINGS 8.11-8.13, FINDINGS section 0 (synthesis) + 4.2 / 4.3 / 4.11 / 4.12b. Code edited today in
+`wfield_local/frozen_encoder.py` (opt-in envs only; tests pass, default runs unchanged; backup of the pre-edit file at
+`S/frozen_encoder_backup.py`).
+
+### RUNNING (worktree wf_attempt; check logs, do not restart)
+1. `scripts/partial_refit.py` frA frame (S/run_partial.sh, log S/partial_full.log, task b9q60utqe): 33/107 at 18:40.
+   WHY: which part of the mapping changed -- refit ONLY target / executed / executed+FR dir / target+executed /
+   +FR, others frozen; null = target with labels circularly shifted; per-spout scores (= remap check 5). On finish it
+   prints per-animal table + boot + by-spout. TODO: page figure (partial_refit/figures/partial_refit_<w>.png), FINDINGS.
+2. `S/run_lickspout.sh` (task b2dnwtwfm, log S/lickspout_chain.log): WAITS for (1), then in order:
+   a. AREA run `gate-attempted_v7g3_t3d_frA_ls` = frozen + FR mode A + FROZEN_LICKSPOUT=1 (lick-onset s/d columns
+      replaced by SIX per-spout copies of the recorded lick-onset columns, spout = target spout; group "lickspout" on
+      the EXECUTED side of the target / executed bracket), variants = group drops + alone (task / lick / spout / other /
+      movement / fr _only) + 26 novar_<var> per-variable drops + drop-one-spout. ~1-1.5 h.
+   b. BASIS run `..._frA_ls_basis` (FROZEN_PIX_MUSALL=1: saves per MUSALL window target-space moments
+      mus_<cue|lick>_<avg|trial>_<E|S> for joint / *_only / no_* variants; drop-one-spout incl. whole-spout swap).
+      ~3 h, JOBS 2.
+   c. self-fit (`session_vs_frozen.py --tag ..._frA_ls`) and d. partial refit (`partial_refit.py --tag ..._frA_ls`; adds
+      sets lickspout / exec_ls / target_ls) on the same design. ~1.5-2 h each.
+
+### TO DO after the runs (exact tasks, why)
+A. Area run (a): unique R2 of target vs lickspout (frozen), per spout, epoch changes; compare with the current frame
+   (does adding lick-locked spout kernels absorb the target-unique term? that is the target-vs-executed question with
+   both terms lick-aligned). Script: extend `frozen_fr_musall.py` / `frozen_claims.py` QS with no_lickspout, or a small
+   new script. Per-animal table first; PS94 normalisation for any mean map.
+B. Musall bottom row (single-VARIABLE unique dR2): area maps from the novar_* variants (`frozen_peth_trial_maps.py`
+   style, painted Allen areas) and PIXEL maps from the basis run -- `frozen_pixel_unique_sig.py` reads resid_mom per
+   variant: add the novar_* / no_lickspout / *_only quantities to its QS (or a sibling script). Pre level row (=
+   Musall) + acute / chronic minus pre with the nested test. Canonical spout order is irrelevant here; variable order:
+   task (cue, arrival, target), licking (lick onset / per-spout, contact, exec angle), pose (tongue, jaw, nose), running,
+   FR (lick, right, left, close, far, other).
+C. Musall TOP row (alone) and PETH vs trial at PIXEL level: NEW script needed -- per session read mus_* E / S from the
+   basis run npz, pixel SSE = diag(W E W'), SST = diag(W S W') with W = spatial_<an>.pkl P (as `frozen_r2_maps.pixel_sse`),
+   R2 = 1 - SSE / SST (alone: E of the <g>_only variant; unique: E[no_g] - E[joint] over S); per animal x epoch SUM
+   E and S over sessions before the ratio (frames weigh equally; as frozen_r2_maps); nested test on per-session maps
+   (fr_pixel_significance.test, 16 px). Layout as Figs 1t / 1ua (rows pre PETH, pre trial, acute / chronic minus pre).
+D. Per-spout target vs EXECUTED unique maps in the FR frame: rerun `spout_unique_maps.py --tag ..._frA_ls_basis`
+   (the basis run has drop-one-spout now); with LICKSPOUT the "whole" swap no longer touches lick onset (guarded) --
+   say so in the caption.
+E. Per-epoch pooled PIXEL KERNEL fits (approved, NOT written): per animal pool sessions by epoch (early pre / late pre
+   / acute / subacute / chronic; match session counts), fit in the basis with the frozen penalties, save target and
+   per-spout lick kernels; compare map correlation with the early-pre kernel per spout x lag, late-pre = drift
+   reference. Use `frozen_kernel_maps.py` for plotting (canonical spout order, NO vessel mask, NO grey bar).
+F. Second pass of the self-fit: narrow every-lick window (+/-0.2 s around each lick peak; secondary, Priya to confirm
+   first-lick primary) for frozen and self-fit, + design-space distance diagnostic (Mahalanobis of post design rows
+   vs the pre Gram). Needs lick-peak times (not returned by session_design -- load via combined_encoding.load_behaviour).
+G. Older: lick-variability check (within-spout lick timing / count variance per epoch: explains the acute rise of
+   lick-alone single-trial R2, Fig 1ua2); noise-weighted relabel; failed-attempt movement-matched control; encoding_mixed
+   re-run; share deletions / nokin retirement only when Priya decides.
+
+### PITFALLS (today)
+- HEREDOCS eat escapes: `\n` inside python strings and `\` line continuations became literal newlines / broke code
+  three times -> write patch scripts with the Write tool; heredoc only for code with no backslashes.
+- Do not edit frozen_encoder.py while a run that imports it is starting workers (fan_out pools spawn per stage). The
+  current partial refit already spawned its pool; the lickspout chain imports the edited file.
+- `sessions.csv` / caches: specificity_control --reuse, spout_unique_maps (spout_unique_cache_<base>.npz),
+  residual_roi --by-spout (sessions_by_spout.csv) reuse cached tables -- delete the cache when the source run changes.
+- ffc.bars needs a `frame` column and labels in ffc.ALAB (KeyError otherwise); ffc.boot adds `<ref>_split` rows -- filter
+  epochs before painting maps (a map once painted the noise-band rows).
+- Smoke tests: use a REAL session label (PS92_0912 does not exist -> StopIteration in load_imaging).
+- R2 is already normalised per area / pixel: PS94's ~10x target-unique is NOT a data-scale issue (8.13); mean target
+  maps must be animal-normalised.
+- "Control" areas are a comparison set, not a null; cortex-wide != drift / not stroke.
+- Canonical spout order everywhere; Musall citations: alone = top row, single-variable unique dR2 = bottom row.
+- Push pushes from a temp worktree (pre-push tests ~25 min); origin may already contain rebased copies of local commits.
+
 ## 000x. STATE 10-25 ~18:00 (pre-compaction) -- READ FIRST (then 000w, 000v, 000u)
 
 Page v68 (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; source `S/goal_page/index.html`, S = `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`). New today
