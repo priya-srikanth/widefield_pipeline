@@ -77,7 +77,7 @@ deck_registry:733 0.749->0.286->0.745; VLS 0.943->...->0.943; PRELIM §4 0.943->
   to `S/goal_page/fig15*.png` and republish.
 
 **NEXT:**
-1. Musall-style figure WITH FaceRhythm from the per-session FR runs (Priya asked; the frozen-encoder Musall / R2 maps
+1. DONE 10-25 (Figs 16d-16g, scripts/fr_musall.py --mode A; other modes via --mode): Musall-style figure WITH FaceRhythm from the per-session FR runs (Priya asked; the frozen-encoder Musall / R2 maps
    have NO FR). Per-session region tables in `E/movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-<mode>/`
    have models full / fr:full / fr:alone / fr:raw:full / fr:drop:{task,instructed,uninstructed,position}: alone vs
    unique for FR and the groups, task-aligned vs independent, per epoch.
