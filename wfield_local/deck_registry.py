@@ -2340,3 +2340,120 @@ BASES = (("roi", "Allen-ROI", M_FROZEN, M_FROZEN_ENC,
 # the roi-vs-joint comparison, so the evidence for the agreement stays in the deck; what is gone
 # is showing the same conclusion twice.
 NOLICK_BASES = (("joint", "joint-LocaNMF, 2.0 s cut"),)
+
+
+#: Section K -- LP-GATED imaging (Priya 10-24: "add the LP-lick-gated analyses where appropriate").
+#: The same decoder / map families as section I, re-rendered with trials and lick windows taken from
+#: the VIDEO (LP) lick detector instead of DAQ spout contact (`grant_figures/LP_licks/`, 10-24), the
+#: 1.0 s pre-cue window (`grant_figures/DAQ_ENL1s/`), and the trial-CLASS maps built on the LP attempt
+#: classes (`trial_attempts.csv`: hit / incomplete attempt / jaw-only reaction / no attempt / stopped).
+#: Entries are (root, path relative to that root -- a glob is allowed --, title, legend); root is a
+#: `PathResolver` root name, so no machine path is written here. A figure that does not exist is
+#: skipped, as in section J: this section is optional, not a completeness check.
+_LP_GATE = (
+    "LP GATE. Trials and the lick window come from the video (Lightning Pose) lick detector rather"
+    " than from DAQ spout contact. Contact-gating selects acute far-spout trials on which the tongue"
+    " REACHED the spout, which inflates acute far-spout lick-window decoding; the LP gate keeps the"
+    " licks that missed. Status PROVISIONAL (first LP render 10-22, re-rendered 10-24 unchanged);"
+    " docs/ENCODING_FINDINGS.md, frozen-decoder section. Baseline June + August pre (the decoder"
+    " families' default). Read each panel per animal first: a claim needs >= 3 / 4 animals.")
+LP_GATED_FIGURES = (
+    ("labcams", "grant_figures/LP_licks/epoch/epoch_acc_by_position_lick_lick.png",
+     "Frozen pre-stroke decoder by position, LP lick gate, lick window",
+     _LP_GATE + "\n\nWHAT IT SHOWS. Acute far-contra accuracy 0.32 [0.17, 0.51] under the LP gate (4 / 4"
+     " animals, 16 sessions) against 0.50 under contact gating. Per animal, pre -> acute: PS92 0.92 ->"
+     " 0.26, PS93 0.85 -> 0.16, PS94 0.90 -> 0.49, PS95 0.94 -> 0.35 (PS95 acute = ONE session)."),
+    ("labcams", "grant_figures/LP_licks/epoch/epoch_accdelta_by_position_lick_lick.png",
+     "Frozen decoder, LP lick gate: change from pre-stroke with intervals", None),
+    ("labcams", "grant_figures/LP_licks/epoch/epoch_acc_by_position_cue_working.png",
+     "Frozen decoder by position, LP gate, cue window",
+     _LP_GATE + "\n\nWHAT IT SHOWS. In the cue window the gate does not matter: LP and contact agree within"
+     " 0.05 at every position and epoch, so the section I cue-window panels stand as drawn."),
+    ("labcams", "grant_figures/LP_licks/epoch/epoch_5c_frozen_confusion_lick_lick.png",
+     "Frozen decoder confusion, LP lick gate, lick window", _LP_GATE),
+    ("labcams", "grant_figures/DAQ_ENL1s/epoch/epoch_acc_by_position_precue_working.png",
+     "Pre-cue (ENL) position information at a 1.0 s window",
+     "1.0 s PRE-CUE WINDOW (lick-free by construction: it ends at the cue). With a 1.0 s window"
+     " contact and LP gating agree within 0.03, so the drop from the 2 s window is window LENGTH, not"
+     " licking.\n\nWHAT IT SHOWS. Acute far-contra 0.21 [0.12, 0.29], down in 4 / 4 animals (PS92 0.29 ->"
+     " 0.15, PS93 0.33 -> 0.16, PS94 0.54 -> 0.30, PS95 0.40 -> 0.14). Pre-cue information is a"
+     " readout, never a 'plan' (the spout arrives ~3 s before the cue). PROVISIONAL."),
+    ("labcams", "grant_figures/LP_licks/epoch/epoch_15rpa_position_RESTref_by_animal_lick_lick.png",
+     "Position maps, LP lick gate, rest reference, per animal",
+     _LP_GATE + "\n\nWHAT IT SHOWS. Far-contra map amplitude around the lick, acute vs pre, per animal"
+     " (ipsi | contra hemisphere; 10-21 render): PS92 -55 | -49 %, PS93 -48 | -48 %, PS94 -38 | -27 %,"
+     " PS95 +2 | +36 % (one acute session). The drop is in 3 / 4 animals; compare the contact-gated"
+     " section I maps, which select licks that reached the spout."),
+    ("labcams", "grant_figures/LP_licks/epoch/epoch_15r_position_RESTref_lick_lick.png",
+     "Position maps, LP lick gate, rest reference, pooled",
+     _LP_GATE + "\n\nWHAT IT SHOWS (10-24 stats sidecars). Far-contra amplitude / pre, acute / subacute /"
+     " chronic: lick window 0.67 (502 significant bins of 2,022) / 1.02 / 1.03; cue window 0.48"
+     " (1,219 bins) / 0.96 / 1.01. Acute loss, back by subacute."),
+    ("orofacial", "lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/figures/attempt_maps_lick_far_contra.png",
+     "What failed attempts look like on the cortex: far contra, lick window",
+     "TRIAL-CLASS MAPS (`wfield_local.attempt_maps`, FIRST RUN 10-24, PROVISIONAL). Rest-referenced"
+     " (15r) maps per LP attempt class -- pre-stroke hits, acute failed attempts (incomplete: a"
+     " video lick that did not reach the spout), subacute / chronic classes -- aligned to the first"
+     " video lick; pre-stroke contact-defined MISSES are the touch control. No model.\n\nWHAT IT"
+     " SHOWS. Acute failed far-contra attempts have the same bilateral pattern as hits at lower"
+     " amplitude. Failed / pre-stroke hits, ipsi | contra hemisphere: PS92 .40 | .45, PS93 .38 | .42,"
+     " PS94 .57 | .74, PS95 .90 | 1.25 (3 / 4 lower). Against touch-matched pre-stroke misses only"
+     " 2 / 4 are lower (.30 | .27, .92 | .85, .42 | .44, 1.58 | 1.72): much of the drop is the missing"
+     " touch / reward. Ipsilesional ALM proxy reduced more than contralesional in 4 / 4. No statistics"
+     " yet; PS95 acute = one session; not separable from the failed movement itself."),
+    ("orofacial", "lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/figures/attempt_maps_lick_far_contra_minus_pre.png",
+     "Failed attempts minus pre-stroke hits: far contra, lick window",
+     "The preceding maps minus each animal's own pre-stroke hits. See the previous slide for the"
+     " class definitions, ratios and caveats (FIRST RUN 10-24, PROVISIONAL)."),
+    ("orofacial", "lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/figures/attempt_maps_cue_far_contra.png",
+     "Trial-class maps: far contra, cue window",
+     "As the lick-window trial-class maps, aligned to the cue (FIRST RUN 10-24, PROVISIONAL)."),
+)
+
+
+#: CD LEAVE-ONE-OUT (10-21, `scripts/cd_loo_sessions.py` + `scripts/cd_loo_figures.py`), appended to
+#: section I. The per-position coding direction refitted with each pre-stroke session HELD OUT, so the
+#: pre-stroke points are out-of-sample like the post-stroke ones (the in-sample pre projection is ~1 by
+#: construction). August-only pre fit (WIDEFIELD_PRE_FROM=0801); contact-gated trials.
+_CD_LOO = (
+    "CD, LEAVE-ONE-SESSION-OUT. Each animal's per-position coding direction (one-vs-rest, condition-"
+    "independent mode projected out, window mean) is refitted with each pre-stroke session held out"
+    " and that session projected onto it, so pre-stroke values are out-of-sample like post-stroke"
+    " ones (an in-sample pre projection is ~1 by construction). Projections are normalised to the"
+    " animal's in-sample pre mean. August-only pre fit; contact-gated trials (DAQ).\n\nWHAT IT SHOWS."
+    " Held-out pre, all positions, pre-cue window: PS92 0.87, PS93 0.70, PS94 0.66, PS95 0.69 -- the"
+    " cross-day cost of a pre-stroke direction. Far contra, pre-cue, pre / acute / subacute / chronic:"
+    " PS92 0.87 / -0.13 / 0.71 / 0.63, PS93 0.85 / 0.67 / 0.61 / 0.72, PS94 0.62 / 0.64 / 0.25 / 0.28,"
+    " PS95 0.65 / -1.41 / 0.33 / 0.64 (acute = one session): an acute drop in 3 / 4 (not PS94)."
+    " PROVISIONAL; the mixed-model tables on these values are due a re-run (deficit index from the"
+    " incomplete 10-21 attempts table).")
+EPOCH_FIGURES = EPOCH_FIGURES + (
+    ("cd_loo/cd_loo_window_precue.png", "CD leave-one-out, window means: pre-cue", _CD_LOO),
+    ("cd_loo/cd_loo_window_cue.png", "CD leave-one-out, window means: cue", _CD_LOO),
+    ("cd_loo/cd_loo_window_lick.png", "CD leave-one-out, window means: lick", _CD_LOO),
+    ("cd_loo/cd_loo_traj_precue.png", "CD leave-one-out, mean trajectories: pre-cue", _CD_LOO),
+    ("cd_loo/cd_loo_traj_cue.png", "CD leave-one-out, mean trajectories: cue", _CD_LOO),
+    ("cd_loo/cd_loo_traj_lick.png", "CD leave-one-out, mean trajectories: lick", _CD_LOO),
+)
+
+
+#: NO-STROKE DRIFT GROUP (10-24, `scripts/june_august_drift.py`; Priya: "add in a june vs august pre comparison
+#: group (for effects of drift over time)"), appended to section I after the CD leave-one-out set. The figure lives
+#: in <labcams>/chronic_stability/june_august_drift/, reached from grant_figures/epoch by a relative path.
+_DRIFT_GROUP = (
+    "NO-STROKE COMPARISON GROUP. June pre plays 'pre' and August pre plays 'post' (~65 days, no lesion), next to the"
+    " stroke twin built the same way (August pre -> acute / subacute / chronic, chronic ~40 days). TOP: crossnobis"
+    " distance of each session from a pooled template (own-position diagonal, pre between-position units, the units"
+    " of the 8-series), by days apart. BOTTOM: frozen decoder (size-matched to the refit, whole blocks) and within-"
+    "session refit, cue window, licking trials; each arm against its own leave-one-out baseline.\n\nWHAT IT SHOWS."
+    " Frozen deficit June -> Aug (no stroke) / Aug -> chronic: PS92 .13 / .03, PS93 .28 / .09, PS94 .17 / .18, PS95"
+    " .18 / .11; refit gain .09 / .11, .16 / .21, .18 / .20, .18 / .11. The chronic frozen deficit and refit gain are"
+    " no larger than two months of pre-stroke drift (3 / 4; PS94 equal), so 'frozen decoder not back' cannot be told"
+    " from drift with this readout. DISTANCE separates them: chronic vs August template 1.01 / 1.16 / .43 / .81"
+    " against August vs June template .63 / .95 / .43 / .59 (3 / 4 above, not PS94, over a shorter gap); floor"
+    " (August vs other August) .24-.36. June -> August includes learning, so it overstates pure drift. FIRST RUN"
+    " 10-24, PROVISIONAL.")
+EPOCH_FIGURES = EPOCH_FIGURES + (
+    ("../../chronic_stability/june_august_drift/june_august_drift.png",
+     "Drift or stroke? A no-stroke June -> August comparison group", _DRIFT_GROUP),
+)

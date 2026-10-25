@@ -70,7 +70,7 @@ from wfield_local import epochs as _epochs
 # about, as data. This module decides which of it EXISTS on disk, and where it goes.
 from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage
                                             #  script and tests import EPOCH_FIGURES from here)
-    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
+    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, LP_GATED_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
 )
 # The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
 # `import *` so what the builder uses stays greppable and ruff can still see an unused one.
@@ -2146,6 +2146,40 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "every panel are persisted beside the figure under results/, so this can be "
                  "re-plotted with `--replot` without recomputing; a dump made under different "
                  "constants is REFUSED rather than redrawn under the current title.")
+            big(_sl, _f, top=1.40, width=12.6)
+
+    # ---------------------------------------------------------------------------------------
+    # K. LP-GATED IMAGING (Priya 10-24: "add the LP-lick-gated analyses where appropriate").
+    # The decoder / map families of section I re-rendered with the VIDEO (LP) lick detector as the
+    # trial and lick-window gate, the 1.0 s pre-cue window, and the trial-CLASS maps built on the LP
+    # attempt classes. Optional like J: an absent figure is skipped, not counted as missing.
+    # ---------------------------------------------------------------------------------------
+    _roots = {}
+    _k_found = []
+    for _n, (_root, _rel, _ttl, _legend) in enumerate(LP_GATED_FIGURES, 1):
+        if _root not in _roots:
+            try:
+                _roots[_root] = Path(PathResolver().root(_root))
+            except Exception:                                          # noqa: BLE001
+                _roots[_root] = None
+        _base = _roots[_root]
+        if _base is None:
+            continue
+        for _f in (sorted(_base.glob(_rel)) if "*" in _rel else [_base / _rel]):
+            if _f.exists():
+                _k_found.append((_n, _ttl, _legend, _f))
+    if _k_found:
+        divider("K. LP-GATED IMAGING — video-lick gate, 1 s pre-cue window, failed-attempt maps",
+                "The decoder and map families of section I with the trials and lick window taken from "
+                "the VIDEO (Lightning Pose) lick detector instead of DAQ spout contact, plus the trial-"
+                "class maps built on the LP attempt classes (hit / incomplete attempt / jaw-only "
+                "reaction / no attempt). Contact gating keeps only the licks that reached the spout, "
+                "so it overstates acute far-spout decoding in the lick window; the cue window is "
+                "unaffected. All PROVISIONAL (first renders 10-22 / 10-24).")
+        for _n, _ttl, _legend, _f in _k_found:
+            _sl = slide()
+            title(_sl, f"K{_n}. {_ttl}", "")
+            note(_sl, (_legend or _CI_LEGEND) + chr(10) + chr(10) + "Source: " + _f.name)
             big(_sl, _f, top=1.40, width=12.6)
 
     out_path = Path(out_path)
