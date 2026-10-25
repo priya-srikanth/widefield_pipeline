@@ -24,6 +24,60 @@ window (e3). 6: histology. 7: everyone.
 **Results pages.** FaceRhythm https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 - goal question / encoding
 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - imaging https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV - licking kinematics (2-D + 3-D, sections 1-2) https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv
 
+## 0. Synthesis: how cortical motor encoding changes after the stroke (10-25, d4's reading; all arms may edit)
+
+*The goal question: how does cortical motor encoding change after a VLS stroke? This section reads across sections 1-5;
+each statement points to the claims it rests on and inherits their status. Frame named where it matters (FROZEN pre-stroke
+encoder = headline for every change claim since 10-25; per-session refit = supporting).*
+
+**In one line:** acutely cortex mostly reports a worse movement; chronically the movement is largely back but cortex does
+not return to its old mapping -- more activity than the pre-stroke mapping predicts, shifted toward the contralesional
+hemisphere and toward movement that carries no lick-position information, with less spout-specific (directional) tuning.
+
+1. **Behaviour changed, and recovery is compensation, not restoration.** Acute global slowing + far-contra-graded deficit,
+   licks aimed ipsilesionally from launch, jaw stops steering, far-contra trials attempted but failed in 3 / 4 (1.1-1.8,
+   2.3, 4.4). Chronic completion returns, but each contralesional lick moves the contralesional face less and contra
+   spouts are reached with more of the ipsilesional lick pattern, re-timed later (5.2-5.4, 5.6). -> Cortical change must
+   be judged against behaviour that differs even when it succeeds; hence the frozen frame.
+2. **Acute: losses are mostly the movement, plus a transient decoupling.** Frozen decoder loses far contra (.90 -> .32),
+   position ~5x more than state (3.1, 3.2). The frozen encoder predicts the acute far-contra drop from the changed lick;
+   target part ~0, with FaceRhythm too (4.1). Frozen pixel maps: the acute fit loss is cortex-wide and movement-driven (page
+   Fig 1l). Beyond the movement: trial-by-trial coupling of cortex to execution vanishes acutely (r ~ 0; 4.6) and the
+   decoder weakens for every spout, even on-target licks (4.5).
+3. **Chronic: same task, different cortical solution.** Residual: cortex responds MORE than the pre mapping predicts for
+   the same behaviour, bilateral ALM / tongue-jaw motor + contralesional SSp, contra > ipsi, a plateau, not face movement
+   (4.2). Layer 2: the mapping is rewritten beyond pre-stroke drift in 4 / 4, spread across kernel groups (4.3). Frozen
+   frame: target-unique coding stays down, the PETH spout code does not recover, the spout package shifts contralesionally,
+   position-free movement gains unique share in SSp-m, ipsilesional SSp-m decouples from the face's side signal (4.11, 4.12);
+   template shape stays off 4 / 4 (3.12).
+4. **Target vs execution:** no robust evidence that cortex holds a target separate from execution after the stroke -- the
+   refit "chronic target gain" is not reproduced in the frozen frame (4.11; scoring caveat pending); failed attempts keep
+   distance, lose side (4.9).
+5. **Working interpretation (hypothesis, not a result):** losing striatal input removes spatially specific (directional)
+   drive to orofacial cortex; cortex compensates with more gain in lateral frontal / orofacial motor areas, mostly in the
+   contralesional hemisphere (intact-striatum side), and encodes movement more generically -- matching the behavioural
+   substitution.
+
+**Caveats that bound this:** n = 4; drift nulls for residual / Layer 2 only within August (June lacks FaceRhythm and good
+kinematics); PS93 anterior motor-cortex injury (section 3 caveat); total variance rises GLOBALLY (VISp x1.83 > cortex x1.54),
+so specificity of the chronic increase is not yet shown (analysis 1 below, running); refit vs frozen claims are scored in
+different windows (4.11 caveat); lick-direction results carry the standing 3-D re-run rule.
+
+**Analyses that would sharpen it (proposed 10-25; Priya: run 1, queue 2 and 4):**
+1. *Specificity control* (RUNNING, `scripts/specificity_control.py`): residual + Layer 2 in visual / retrosplenial / trunk
+   cortex vs orofacial, raw and after removing a global gain estimated from the control areas.
+2. *Does remapping track recovery?* (QUEUED) session mixed model, residual and Layer 2 as outcome vs the behavioural
+   deficit (both deficit definitions) -- compensation vs epiphenomenon.
+3. *Target-free execution test* from inter-trial 3-D licks (no target): per-lick encoding pre vs post.
+4. *Behaviour-matched residual + frozen extrapolation diagnostic* (QUEUED): chronic trials inside the pre range of 3-D
+   trajectory / latency / ILI; distance of post designs from the pre support.
+5. *Preparatory timing:* pre-lick ramp in ALM / tongue-jaw motor relative to the first lick, per spout x epoch.
+6. *June -> August drift ceiling* with a reduced model June supports (no FR, 2-D pose).
+7. *Per-animal links:* contra vs ipsi change vs lesion burden; leave-PS93-out for every chronic map claim.
+Also running / queued: per-session vs frozen self-fit in the same windows (`scripts/session_vs_frozen.py`; remapping +
+the scoring caveat), then a second pass in the narrow every-lick window (+/-0.2 s, the refit window) as a secondary
+per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to confirm).
+
 ## 1. Behaviour and orofacial kinematics (cam4)
 
 *Owner 5b; detail [OROFACIAL_FINDINGS.md](OROFACIAL_FINDINGS.md) (its status table, v36, is authoritative). cam4 = LP
