@@ -282,7 +282,8 @@ bootstrap unless stated; LICK DATA = behaviour only.*
    opposite), so "tracks the deficit" is not 4/4; persistence at recovery is the robust part. NOT an extrapolation
    artefact: on trials inside each animal's pre-stroke behavioural envelope (3-D endpoint, reach, speed, latency, lick
    count; 93-96 % of chronic trials in PS92 / PS93, 72-78 % in PS94 / PS95) the residual is the same (chronic SSp-m lick
-   +5.5 / +5.6 x1e3, 4/4). PROVISIONAL (no-FR repeat pending).
+   +5.5 / +5.6 x1e3, 4/4). Same in the no-FR frame (cue orofacial - control chronic +1.33 [0.17, 3.09], 4/4; at
+   recovery +1.09 pre-SD, z 4.0). PROVISIONAL (n = 4; deficit slope animal-dependent).
 3. **The behaviour-to-cortex mapping is rewritten chronically (Layer 2).** One fit per animal, epoch kernel changes from
    early-August pre: chronic gain beats the late-pre null (cortex +54.8 [+22.0, +87.4], SSp-m +52.5 / +51.6) and every
    one of 20 random pre pseudo-epochs in 4 / 4 (cortex and both SSp-m); grows with time; spread across kernel groups
@@ -296,7 +297,8 @@ bootstrap unless stated; LICK DATA = behaviour only.*
    control areas there is no step at the stroke but a steady rise with log day (z 6.1), larger in later / better-behaving
    sessions: slow cortex-wide change (longer-time-scale drift or a global state / signal change), which the 8-day August
    null cannot rule out. Stroke-specific part = an ACUTE orofacial excess (+0.025, z 2.6) that decays. "The motor mapping is
-   rewritten chronically" is withdrawn as a stroke-specific claim.
+   rewritten chronically" is withdrawn as a stroke-specific claim. Same in the no-FR frame (contrast -0.005
+   [-0.036, 0.019]).
 4. **Licks to far contra go to the wrong spout from launch (LICK DATA).** Landing soft bins: own bin -.69 / -.38 / -.19,
    far mid +.35 / +.36 / +.20 (4 / 4, significant); whole tracked 3-D path: own -.65 / -.36 / -.22, acute toward far
    ipsi +.42 (part general forward overshoot) then far mid; mis-landing licks follow the other spout's course from the

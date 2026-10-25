@@ -1190,7 +1190,10 @@ animal's pre-SD units per area. Scripts `scripts/specificity_control.py` (output
   SSp-m lick +5.5 / +5.6 (ipsi / contra) 4/4, cue the same pattern; acute inside-envelope residual is if anything LARGER
   (PS94). The frozen model is not being asked to extrapolate chronically, and the residual does not depend on the trials
   it would have to extrapolate on.
-- Gain correction: tried and dropped (above). No-FR repeat: see below when it lands.
+- **No-FR frame repeat (`gate-attempted_v7g3_t3d`, Layer 2 `_ref`): same answers.** Layer 2 chronic orofacial +0.050 vs
+  control +0.054, contrast -0.005 [-0.036, 0.019]; residual orofacial - control cue chronic +1.33 [0.17, 3.09] 4/4 (STRONGER
+  without FR), lick +0.80 n.s.; at full recovery (mixed model, ttc) cue orofacial - control +1.09 pre-SD (z 4.0); matched
+  residual holds (chronic SSp-m contra cue +4.9, lick +6.6 x1e3, 4/4).
 
 ### 8.10 FROZEN encoder WITH FaceRhythm; every post-stroke change claim redone in the frozen frame (10-25 day)
 WHY: the FR results (8.7, 8.9) and the target-vs-executed contest (2.4b, 8.6) used the PER-SESSION REFIT encoder, which
