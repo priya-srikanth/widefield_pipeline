@@ -366,7 +366,7 @@ encoder (grouping `fr_groups.master_v1`); four-animal readouts / matching / push
 open items with Priya in the handoff §2 item 0.
 
 **[`docs/status/STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md`](docs/status/STATUS_2026-10-22_FACE_RHYTHM_HANDOFF.md)**
-— **START HERE for FaceRhythm (10-22).** cam4 outputs arriving (all checked clean; cached parallel `qc`); PILOT factor set
+— Superseded by the 10-24 FaceRhythm handoff above; record of 10-22. cam4 outputs arriving (all checked clean; cached parallel `qc`); PILOT factor set
 `pilot_pre_PS92_PS93` (rank 10, PS92 + PS93, running locally; pre-stroke sessions scored on their left-out-day basis,
 leave-one-day-out EVR = the noise floor); cam1 / cam2 / cam3 prepped up to Priya's landmark clicks; efficiency + backups.
 Findings (living): [`docs/FACE_RHYTHM_FINDINGS.md`](docs/FACE_RHYTHM_FINDINGS.md).
@@ -385,7 +385,7 @@ close_center masked; watched by the encoding window); whole-session licks (licks
 tables for the epoch families; cam1 re-collected on template time; running chain, O2 status, to-dos, pitfalls 22-29.
 
 **[`docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md`](docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md)**
-— **START HERE for POSE TRACKING, 3-D and cam1 licks, newest.** Video timing from the alignment templates (v36 re-run for all sessions), cameras paired on true time, jaw rest-depth anchor, cam1 2-D lick detector + water-droplet flag (3 blind reviews), incomplete-lick / jaw-without-lick readout, CLOSE_DIR, phase-figure conventions, running branches, to-dos, pitfalls.
+— Superseded by the 10-21 pose handoff; the detailed 10-20 record. Video timing from the alignment templates (v36 re-run for all sessions), cameras paired on true time, jaw rest-depth anchor, cam1 2-D lick detector + water-droplet flag (3 blind reviews), incomplete-lick / jaw-without-lick readout, CLOSE_DIR, phase-figure conventions, running branches, to-dos, pitfalls.
 
 **[`docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md`](docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md)**
 — superseded by the 10-20 handoff; still the reference for how the 3-D pipeline is built. cam1 production on O2 (array 56830841), the 3-D tongue / jaw pipeline
@@ -406,7 +406,7 @@ trial-averaged R2), FaceRhythm pilot in the encoder, running chain, next steps, 
 of 10-21 still apply.
 
 **[`docs/status/STATUS_2026-10-21_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-21_ENCODING_HANDOFF.md)**
-— **START HERE for the encoding model, newest (10-21).** Attempt-based deficit (time to contact), target vs execution
+— Superseded by the 10-22 encoding handoff above; record of 10-21. Attempt-based deficit (time to contact), target vs execution
 vs neither (3-D contest, templates, destination), within-spout per spout + contact control (pooled toward-midline NOT
 robust), one-load variants + local input cache (`WFIELD_INPUT_CACHE`), running jobs, to-dos, pitfalls; evening (§1d): map
 tests on the pre-normalised scale + calibration (merged), LP_licks video-lick family (`WIDEFIELD_LICK_SOURCE=lp`,
@@ -480,19 +480,19 @@ change rate not above each animal's pre-stroke drift floor). Last sessions day ~
 `_day` join (fixed 660bcbe).
 
 **[`docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md`](docs/status/STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md)**
-— **START HERE for the imaging x movement analyses and orofacial cleaning, newest.** First whole-session (O2)
+— Superseded (10-06 record): imaging x movement analyses and orofacial cleaning. First whole-session (O2)
 analyses on PS93 0814, windows cut at the next trial, smooth kernels / split licks, retuned Rule 4 (tip swaps
 across the straddled spout), contact classes + grooming, video motion energy (mask spout + treadmill before use),
 and the next steps (model comparison with video, contact survey, pilot multi-view LP).
 
 **[`docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md`](docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md)**
-— **START HERE for tracking, 3-D and O2, newest.** cam1 DLC + single-view LP (LP not better on cam1; the tongue
+— Superseded by the 10-21 pose handoff (10-05 record): tracking, 3-D and O2. cam1 DLC + single-view LP (LP not better on cam1; the tongue
 "jitter" is the tip definition from below), cam1 labelling round 2, the 3-D spout world frame (`spout_world`;
 June via per-session scale), multi-camera EKS plumbing, calibration plans, and the first O2 run
 (`runbooks/o2_pose_inference.md`).
 
 **[`docs/status/STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md`](docs/status/STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md)**
-— **START HERE, newest.** Orofacial data in the widefield analyses: movement-regressor encoding framework, residual
+— Superseded (10-05 record). Orofacial data in the widefield analyses: movement-regressor encoding framework, residual
 (movement-removed) position encoding, executed-angle vs target (calibrated readout test: no evidence yet), O2 on hold
 until the next DLC / LP iteration; pre-registered re-runs for whole sessions.
 
@@ -508,21 +508,21 @@ ported from stroke_orofacial with exact parity, per-trial windows ending at the 
 mouth, first QC on our data. Its open decisions are settled (cutoff 0.4, offset fixed).
 
 **[`docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md`](docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md)**
-— **START HERE for cam4/cam1 tracking, newest.** LP now trained with blank = occluded (fixes the jaw riding
+— Superseded by the 10-21 pose handoff (09-30 record): cam4/cam1 tracking. LP now trained with blank = occluded (fixes the jaw riding
 the tongue); labelling round 4 (incomplete licks, with consecutive context frames) and cam1 context frames;
 the target-vs-context rule and what a blank means to DLC / LP / multi-view LP. **Never run `litpose predict`
 in WSL with the default 96-frame DALI chunk — it blue-screened this machine twice; use 16.** Drive letters
 moved after that reboot (M: = MICROSCOPE, N: = standby): take paths from `PathResolver`.
 
 **[`docs/status/STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md`](docs/status/STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md)**
-— **START HERE for cam4 orofacial tracking (DLC / Lightning Pose).** DLC round 3 (iteration-2,
+— Superseded by the 10-21 pose handoff (09-28 record): cam4 DLC / Lightning Pose. DLC round 3 (iteration-2,
 best-160) is the model in use: the between-trial spout frames closed the retracted-spout gap
 (dropout 9.8 % → 0.1 % on an unseen session), prior ON for tongue and jaw. Lightning Pose is built
 and validated but blocked on Windows by DALI; WSL2 is staged and needs a reboot — the doc has the
 step list, where every clip is and which network it came from, and the evaluation protocol (score on
 OUR held-out sessions, never LP's frame-level split).
 
-**[`docs/status/STATUS_2026-09-17.md`](docs/status/STATUS_2026-09-17.md)** — **START HERE FIRST.** The
+**[`docs/status/STATUS_2026-09-17.md`](docs/status/STATUS_2026-09-17.md)** — Reference (09-17): the
 TRANSFER / ROTATION arm (`epoch_15g`, `epoch_15h`) and **four corrections to things this repo
 believed**: the adopted filter (`meegkit_hpfit`) does NOT smear — the ~0.21 pre-cue inflation is the
 retired `zerophase` product's; QUIET is a RETIRED category, not a synonym for REST; the QUIET-era
@@ -538,7 +538,7 @@ Rest is `restdock05` — docked, `lick_buffer_s [0.5, 1.0]`, `SCHEMA_VERSION 5`,
 and **`restw` is NOT retired** (finding 11 re-measured at 1.622, 44/44).
 `docs/status/STATUS_2026-09-13.md` is the long-form record behind it.
 
-**[`docs/status/STATUS_2026-08-26.md`](docs/status/STATUS_2026-08-26.md)** — START HERE after a break. The grant
+**[`docs/status/STATUS_2026-08-26.md`](docs/status/STATUS_2026-08-26.md)** — Reference (08-26 state). The grant
 figure set and what it shows, the method decisions that must not be silently reverted, what is
 pending, and who owns which files across the two windows and three machines.
 (`docs/status/STATUS_2026-08-23.md` remains the record of what the post-stroke readout asks and where its nulls
