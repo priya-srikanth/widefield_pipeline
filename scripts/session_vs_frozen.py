@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
 
 AREAS = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left"]
-DEFAULT_VARIANTS = ["joint", "no_target", "no_spout", "no_task", "no_movement", "no_fr", "no_fr_dir"]
+DEFAULT_VARIANTS = ["joint", "no_target", "no_spout", "no_task", "no_movement", "no_fr", "no_fr_dir", "no_lickspout"]
 NFOLD = 5
 
 

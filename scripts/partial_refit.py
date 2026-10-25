@@ -41,8 +41,11 @@ AREAS = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left"]
 NFOLD = 5
 SETS = {"target": ("target",), "exec": ("exec_locked", "exec_within"), "exec_fr": ("exec_locked", "exec_within", "fr_dir"),
         "target_exec": ("target", "exec_locked", "exec_within"),
-        "target_exec_fr": ("target", "exec_locked", "exec_within", "fr_dir")}
-VARIANTS = ["target", "exec", "exec_fr", "target_exec", "target_exec_fr", "target_shuf"]
+        "target_exec_fr": ("target", "exec_locked", "exec_within", "fr_dir"),
+        # FROZEN_LICKSPOUT runs: the per-spout lick kernels (executed, lick-locked spout code) -- the crisp contest
+        "lickspout": ("lickspout",), "exec_ls": ("exec_locked", "exec_within", "lickspout"),
+        "target_ls": ("target", "lickspout")}
+VARIANTS = ["target", "exec", "exec_fr", "target_exec", "target_exec_fr", "lickspout", "exec_ls", "target_ls", "target_shuf"]
 
 
 def frozen_fits(run: Path) -> Path:
@@ -119,6 +122,8 @@ def job(item):
     preds = {"frozen": Zv @ beta}
     for name, gs in SETS.items():
         m = np.isin(grp, gs)
+        if not m.any():                                  # e.g. lickspout sets in a run without FROZEN_LICKSPOUT
+            continue
         base = Zv[:, ~m] @ beta[~m]
         preds[name] = base + _refit(Zv[:, m], R - base, lam_all[m], fold)
     # NULL: target columns from positions circularly shifted by half the session (patched in this worker only)
@@ -204,7 +209,7 @@ def summarise(run: Path, out: Path) -> None:
     per = Gf[Gf.area.isin(["SSp-m_right", "SSp-m_left", "cortex"])].groupby(["q", "window", "area", "animal", "epoch"]) \
         .u.mean().unstack("epoch").reindex(columns=ffc.EP4)
     print("== per animal (rule 8): R2 gain over frozen, by refit set\n" + per.round(4).to_string())
-    B = pd.concat([ffc.boot(Gf[Gf.q == q], "u").assign(q=q, frame=q) for q in VARIANTS], ignore_index=True)
+    B = pd.concat([ffc.boot(Gf[Gf.q == q], "u").assign(q=q, frame=q) for q in VARIANTS if (Gf.q == q).any()], ignore_index=True)
     B.to_csv(out / "boot.csv", index=False)
     print(B[B.area.isin(["SSp-m_right", "SSp-m_left", "cortex"]) & B.epoch.isin(["acute", "chronic"])]
           [["q", "window", "area", "epoch", "ref", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
@@ -214,12 +219,12 @@ def summarise(run: Path, out: Path) -> None:
     Bs.to_csv(out / "boot_by_spout.csv", index=False)
     print("== by spout, SSp-m contra, chronic\n" + Bs[(Bs.area == "SSp-m_right") & (Bs.epoch == "chronic")]
           [["q", "window", "spout", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
-    cols = dict(zip(VARIANTS, ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#999999"]))
+    cols = dict(zip(VARIANTS, ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf", "#66c2a5", "#999999"]))
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
     for w in ffc.WINDOWS:
         fig, ax = plt.subplots(1, 1, figsize=(15, 4.8))
-        ffc.bars(ax, B[B.window == w], VARIANTS, AREAS, "R2 gain over frozen, epoch - pre",
+        ffc.bars(ax, B[B.window == w], [v for v in VARIANTS if (B.q == v).any()], AREAS, "R2 gain over frozen, epoch - pre",
                  "refit ONLY: red = target, blue = executed position, green = executed + FR side / distance, purple = "
                  "target + executed, orange = target + executed + FR, grey = target with shuffled labels (null)")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
