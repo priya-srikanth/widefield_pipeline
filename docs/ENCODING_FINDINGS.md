@@ -1152,7 +1152,16 @@ R2 as a FRACTION from here on. FRAME: per-session refit encoder (FR factors froz
 - **Direction vs directionless** (`scripts/fr_direction.py`, modes B / S / D / A; Fig 16n-16o): FR gain ~all directionless (cortex
   0.13; direction +0.005; SSp-m +0.01 of 0.06). Direction factors' added fit in SSp-m FALLS acutely (cue -0.005 / -0.007, 0/4 up) and
   chronically (-0.010, 0/4); they take less of the position code post-stroke. The contralesional SSp-m position rise is present with
-  DIRECTIONLESS FR (cue +0.028 [+0.002, +0.058], 4/4; lick +0.022 3/4 n.s.). Mechanism test running (`fr_direction_mechanism.py`).
+  DIRECTIONLESS FR (cue +0.028 [+0.002, +0.058], 4/4; lick +0.022 3/4 n.s.). 
+- **Why the direction factors decouple** (`scripts/fr_direction_mechanism.py`, MODEL-FREE: raw FR factors, bundle 3-D tongue
+  and cortex, engaged trials, cue 0-1.5 s; Fig 16p): (a) behaviour: side-index spout eta2 pre 0.72, acute -0.10 [-0.20, -0.01];
+  tongue ml eta2 pre 0.86, acute -0.12 [-0.19, -0.04] 4/4, subacute -0.07, chronic back; within-spout SD of side index chronic
+  -21 % [-38, -4] (3/4). (c) measurement: within-spout r(side, tongue ml) pre -0.23, acute +0.15 [0.01, 0.30] (weaker), sub /
+  chronic back. (b) cortex: partial r(SSp-m, side | lick) ipsilesional pre -0.10 -> +0.12 acute, +0.13 subacute, +0.08 [0.02,
+  0.15] chronic (4/4 toward 0 = coupling lost); contralesional ~0 pre, n.s. chronic; contra - ipsi pre 0.19, chronic -0.07
+  [-0.11, -0.03] 4/4. Distance index: no change. READING: acute = face + measurement change; chronic = cortical decoupling
+  (ipsilesional SSp-m) plus less within-spout side movement; not a measurement failure. |r| <= 0.2. The frozen-with-FR encoder
+  is the model-based check (handoff 000t plan item 3).
 - **Total variance** (`scripts/variance_maps.py`, data only; Fig 16p): every significant bin is an INCREASE (null 0-2 %); acute lateral
   orofacial both sides + posterior; chronic cortex x1.54 [1.37, 1.73] lick 4/4, VISp x1.83, RSPd x1.72 (global); R2 not raw variance
   is the measure.

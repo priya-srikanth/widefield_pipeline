@@ -262,7 +262,11 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     TRIAL vs PETH (8.9): FR explains trial-to-trial variability, the spout code lives in the PETH; the ACUTE spout loss is a PETH loss.
     DIRECTION (8.9): FR's side / distance factors explain less SSp-m acutely and chronically (0/4 up); the contralesional rise
     is present with directionless FR (cue +0.028, 4/4). Total variance rises (global). Frame = per-session refit encoder.
-    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound; carried by PS94 / PS95) (8.7, 8.9; Fig 16-16p).
+    WHY (8.9, model-free, Fig 16p): acutely the face's spout signal weakens (side eta2 -0.10, tongue -0.12) and FR tracks the
+    tongue less (behaviour + measurement); chronically those are back at pre, but within-spout side movement is -21 % (3/4)
+    and ipsilesional SSp-m loses its coupling with the FR side index (partial r -0.10 -> ~-0.02, 4/4), contra - ipsi -0.07
+    [-0.11, -0.03] 4/4 -> chronic decoupling is CORTICAL (ipsilesional), not a measurement failure. Small r (<= 0.2). PROVISIONAL.
+    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound; carried by PS94 / PS95) (8.7, 8.9; Fig 16-16q).
 13. **Not established / withdrawn here:** pre-stroke target-over-executed lead (SUSPENDED, 2.4); pooled toward-midline
     within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
     lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit
