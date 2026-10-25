@@ -36,6 +36,10 @@ dropped; no "control areas" as a null.
    replace lick_onset spl/dev by 6 per-spout copies (by TARGET spout; optionally by EXECUTED landing bin = lick-locked
    contest); + per-VARIABLE drop variants for Musall's bottom-row single-variable unique dR2 maps (cue, arrival, target,
    lick onset, contact, exec angle, tongue, jaw, nose, running, FR lick / right / left / other). Areas + basis runs.
+   SAME basis run should also carry (Priya 10-25): single-GROUP ALONE variants (task_only, lick_only, other_only,
+   spout_only, movement_only, fr_only) for Musall's TOP row at pixel level, and save per-spout x window data / prediction
+   moments in `_predict_spatial` so each pixel gets PETH (avg) vs trial-by-trial R2 (the pixel version of Figs 1t / 1u /
+   1ua). Launch only after partial_refit finishes (it imports frozen_encoder).
 2. Per-epoch pooled PIXEL kernel fits (early pre / late pre / acute / subacute / chronic, matched sessions) -> target and
    per-spout lick kernels pre vs post (map correlation per lag; early vs late pre as drift reference).
 3. Self-fit + partial refit with the per-spout-lick design; check 4 (no-FR self-fit).
