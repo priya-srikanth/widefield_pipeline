@@ -117,19 +117,64 @@ def stats(T: pd.DataFrame, L: dict, seed: int = 0) -> tuple[pd.DataFrame, pd.Dat
     mrows = []
     for nm in FACTORS:
         d = T[(T.factor == nm) & T.side_spec.notna()]
-        pre = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == "pre"].groupby("animal")}
-        for ep in frc.POST_EPOCHS:
-            post = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == ep].groupby("animal")}
-            res = ak.boot_delta_columns(post, pre, np.random.default_rng(seed))
-            if res is None:
-                continue
-            obs, lo, hi, o, n = res
-            p = np.minimum(1.0, np.maximum(2 * np.minimum((o <= 0).mean(0), (o >= 0).mean(0)), 1.0 / len(o)))
-            mrows.append({"factor": nm, "epoch": ep, "obs": obs, "p": p, "sig": ak.bh(p, 0.05), "sig10": ak.bh(p, 0.10)})
+        pre0 = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == "pre"].groupby("animal")}
+        # "z" (Priya 10-25, as Fig 8d): each animal's sessions divided per point by the SD of its OWN pre sessions, so
+        # the map is the mean over animals of change / own pre-session noise; the SD is floored at a quarter of the
+        # animal's median SD (points the factor never loads have ~0 SD and would otherwise dominate)
+        sd = {an: np.maximum(v.std(0, ddof=1), 0.25 * np.median(v.std(0, ddof=1))) for an, v in pre0.items()}
+        for scale in ("raw", "z"):
+            div = {an: (sd[an] if scale == "z" else 1.0) for an in pre0}
+            pre = {an: v / div[an] for an, v in pre0.items()}
+            for ep in frc.POST_EPOCHS:
+                post = {an: np.array([L[(k, nm)] for k in g.key]) / div[an]
+                        for an, g in d[d.epoch == ep].groupby("animal") if an in div}
+                res = ak.boot_delta_columns(post, pre, np.random.default_rng(seed))
+                if res is None:
+                    continue
+                obs, lo, hi, o, n = res
+                p = np.minimum(1.0, np.maximum(2 * np.minimum((o <= 0).mean(0), (o >= 0).mean(0)), 1.0 / len(o)))
+                mrows.append({"factor": nm, "epoch": ep, "scale": scale, "obs": obs, "p": p, "sig": ak.bh(p, 0.05),
+                              "sig10": ak.bh(p, 0.10)})
     return S, pd.DataFrame(mrows)
 
 
-def figures(T: pd.DataFrame, S: pd.DataFrame, Mp: pd.DataFrame, home: np.ndarray, out: Path, set_name: str) -> None:
+def map_figure(Mp: pd.DataFrame, scale: str, home: np.ndarray, out: Path, set_name: str) -> None:
+    """Per-point loading change maps (rows = lick factors, columns = post epochs), FDR-significant points ringed;
+    ``scale`` "raw" (loading fraction) or "z" (each animal's change / its own pre-session SD)."""
+    from wfield_local import face_rhythm_figures as frf
+    with frf.style():
+        fig, axs = frf.subplots(2, 3, figsize=(12.5, 7.2), squeeze=False)
+        for r_i, nm in enumerate(FACTORS):
+            for c_i, ep in enumerate(frc.POST_EPOCHS):
+                ax = axs[r_i, c_i]
+                row = Mp[(Mp.factor == nm) & (Mp.epoch == ep) & (Mp.scale == scale)]
+                if not len(row):
+                    ax.axis("off")
+                    continue
+                row = row.iloc[0]
+                lim = np.nanpercentile(np.abs(row.obs), 99)
+                sc = ax.scatter(home[:, 0], home[:, 1], c=row.obs, s=4, cmap="PuOr_r", vmin=-lim, vmax=lim)
+                ax.scatter(home[row.sig, 0], home[row.sig, 1], s=13, facecolors="none", edgecolors="k", linewidths=0.4)
+                ax.axvline(342.0, color="k", lw=0.4)
+                ax.invert_yaxis()
+                ax.set_aspect("equal")
+                ax.axis("off")
+                if scale == "z":
+                    fig.colorbar(sc, ax=ax, shrink=0.6, label="change / own pre-session SD")
+                ax.set_title(f"{nm}: {ep}\n{int(row.sig.sum())} pts FDR .05 (+{int((row.sig & (row.obs > 0)).sum())} / "
+                             f"-{int((row.sig & (row.obs < 0)).sum())}); {int(row.sig10.sum())} at .10", fontsize=8)
+        fig.suptitle(f"{set_name}: per-point loading change, sessions (paired bootstrap)"
+                     + ("\nunits: each animal's change / its own pre-session SD" if scale == "z" else "")
+                     + "; image left = contralesional")
+        frf.save(fig, out / f"session_shape_loading_map{'_z' if scale == 'z' else ''}.png", """
+Loading fraction per mesh point of each session's matched lick factor; change vs pre = mean over animals of (post
+sessions - pre sessions), paired animals -> sessions bootstrap per point (`boot_delta_columns`); ringed = Benjamini-
+Hochberg discovery at FDR .05 over the 1,282 points. Orange = more loading after the stroke. _z: every session of an
+animal divided per point by the SD of that animal's pre sessions (floored at 1/4 of its median SD) before the same
+test -- each animal's change in units of its own pre-session noise, as Fig 8d.""")
+
+
+def figures(T: pd.DataFrame, S: pd.DataFrame, out: Path, set_name: str) -> None:
     from wfield_local import face_rhythm_figures as frf
     acol, ecol = frc.animal_colors(), frc.epoch_colors()
     eps = ["pre", *frc.POST_EPOCHS]
@@ -167,29 +212,6 @@ Lines = animal means. Black squares = pooled change vs pre placed on the pre mea
 -> sessions bootstrap; * interval excludes 0, ** Holm-adjusted p < .05 over the factor's family (3 measures x 3 epochs);
 k/4 = animals whose own mean change has the pooled sign. Side-specificity: mean r of the loading with the animal's own-
 side pre-stroke spout templates minus the other side's (pre sessions scored against a template built without them).""")
-        fig, axs = frf.subplots(2, 3, figsize=(12, 7.2), squeeze=False)
-        for r_i, nm in enumerate(FACTORS):
-            for c_i, ep in enumerate(frc.POST_EPOCHS):
-                ax = axs[r_i, c_i]
-                row = Mp[(Mp.factor == nm) & (Mp.epoch == ep)]
-                if not len(row):
-                    ax.axis("off")
-                    continue
-                row = row.iloc[0]
-                lim = np.nanpercentile(np.abs(row.obs), 99)
-                ax.scatter(home[:, 0], home[:, 1], c=row.obs, s=4, cmap="PuOr_r", vmin=-lim, vmax=lim)
-                ax.scatter(home[row.sig, 0], home[row.sig, 1], s=13, facecolors="none", edgecolors="k", linewidths=0.4)
-                ax.axvline(342.0, color="k", lw=0.4)
-                ax.invert_yaxis()
-                ax.set_aspect("equal")
-                ax.axis("off")
-                ax.set_title(f"{nm}: {ep}\n{int(row.sig.sum())} pts FDR .05 (+{int((row.sig & (row.obs > 0)).sum())} / "
-                             f"-{int((row.sig & (row.obs < 0)).sum())}); {int(row.sig10.sum())} at .10", fontsize=8)
-        fig.suptitle(f"{set_name}: per-point loading change, sessions (paired bootstrap), image left = contralesional")
-        frf.save(fig, out / "session_shape_loading_map.png", """
-Loading fraction per mesh point of each session's matched lick factor; change vs pre = mean over animals of (post
-sessions - pre sessions), paired animals -> sessions bootstrap per point (`boot_delta_columns`); ringed = Benjamini-
-Hochberg discovery at FDR .05 over the 1,282 points. Orange = more loading after the stroke.""")
 
 
 def main(argv=None) -> int:
@@ -222,9 +244,11 @@ def main(argv=None) -> int:
     print("\nCHANGE vs PRE (paired animals -> sessions bootstrap; Holm within factor x family)")
     print(S.drop(columns=[c for c in S.columns if c.startswith("d_")]).round(3).to_string(index=False))
     for r in Mp.itertuples():
-        print(f"loading map {r.factor} {r.epoch}: {int(r.sig.sum())} points FDR .05, {int(r.sig10.sum())} at .10, "
+        print(f"loading map [{r.scale}] {r.factor} {r.epoch}: {int(r.sig.sum())} points FDR .05, {int(r.sig10.sum())} at .10, "
               f"p < .05 uncorrected {int((r.p < .05).sum())} (chance {0.05 * len(r.p):.0f})")
-    figures(T, S, Mp, L["home"], out, fdir.name)
+    figures(T, S, out, fdir.name)
+    for scale in ("raw", "z"):
+        map_figure(Mp, scale, L["home"], out, fdir.name)
     print("->", out)
     return 0
 
