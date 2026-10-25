@@ -279,7 +279,9 @@ post-hoc contact split, not the model itself. Same check here (`scripts/lick_con
 | PS94 | .97 / .64 / .94 / .99 | .97 / **.04** / .86 / .95 | .09 / .33 / .27 / **.18** | .05 / .06 / .04 / .03 |
 | PS95 | .96 / .32 / .87 / .99 | .98 / **.03** / .93 / .99 | .09 / .14 / .15 / **.13** | .10 / .09 / .10 / .10 |
 
-Reading: REPLICATES acutely -- far-contra trials are attempted (64-80 %, PS95 32 %) but almost never completed
+Reading: REPLICATES acutely -- far-contra trials are attempted (64-80 %, PS95 32 %: session means on the 10-23
+trial_attempts; recount 10-25 on the rebuilt table, engaged trials pooled: .79 / .79 / .58 / .34, all-trials denominator
+.62 / .61 / .445 / .342 -- ENCODING_FINDINGS 2.5) but almost never completed
 (.03-.15), close contra and ipsi spared; "try and fail" (PS92 / 93 / 94) vs "fail to try" (PS95) as in the AR-HMM
 cohort. CHRONICALLY trial completion is back at pre (.95-.99, unlike the AR-HMM cohort's plateau), but per-lick misses
 on contra spouts (close + far POOLED, per lick) stay mildly elevated in 3 / 4 (PS92 .14 vs .08, PS94 .18 vs .09, PS95

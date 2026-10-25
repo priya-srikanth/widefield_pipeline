@@ -48,8 +48,11 @@ v36, August-only baseline, both tests (session Mann-Whitney + BH-FDR and the ani
    animal: **PROVISIONAL**.
 7. **Incomplete (no-contact) licks rise acutely at far contra**: share of far_R licks .17-.38 pre -> .73-.99 acute.
    **STANDS** 4 / 4. Chronically still raised only in PS92 / PS94 (**PROVISIONAL**).
-8. **Licks and misses** (contact, DAQ + LP): far-contra trials are attempted acutely (64-80 %, PS95 32 %) but almost
-   never completed (.03-.15); completion back to pre chronically (.95-.99); per-lick contra misses mildly up chronically
+8. **Licks and misses** (contact, DAQ + LP): far-contra trials are attempted acutely but almost never completed.
+   Attempt rate, engaged trials, pooled (recount on the rebuilt trial_attempts.csv, 10-25): .79 / .79 / .58 / .34
+   (PS92 / 93 / 94 / 95; n 336 / 292 / 450 / 120; all-trials denominator .62 / .61 / .445 / .342); completion .06 / .15 /
+   .04 / .02. PS92-94 "try and fail" (incomplete >> no attempt), PS95 mostly "fail to try" ([ENCODING_FINDINGS 2.5]
+   (ENCODING_FINDINGS.md)); completion back to pre chronically (.95-.99); per-lick contra misses mildly up chronically
    in 3 / 4. **STANDS** acutely / **PROVISIONAL** chronically ([FACE_RHYTHM_FINDINGS 5c](FACE_RHYTHM_FINDINGS.md)).
 
 ## 2. Pose, 3-D tongue and cam1
