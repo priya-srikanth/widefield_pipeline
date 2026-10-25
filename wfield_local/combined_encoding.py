@@ -295,7 +295,9 @@ POS_VARS = ("pos_enl", "pos_cue")
 TR_MODELS = ("full", "alone:task", "alone:instructed", "alone:uninstructed",
              "shuf:task", "shuf:instructed", "shuf:uninstructed", "shuf:pos_enl", "shuf:pos_cue",
              "shuf:exec_angle", "drop:task", "drop:instructed", "drop:uninstructed", "drop:pos_cue",
-             "drop:exec_angle", "shuf:position", "drop:position", "shufside:position", "shufdist:position")
+             "drop:exec_angle", "shuf:position", "drop:position", "shufside:position", "shufdist:position",
+             # FaceRhythm models (10-25, Priya: trial-to-trial vs PETH WITH FR); present only in FR runs (filtered below)
+             "fr:full", "fr:alone", "fr:drop:task", "fr:drop:instructed", "fr:drop:uninstructed", "fr:drop:position")
 
 
 # =============================================================================== inputs
