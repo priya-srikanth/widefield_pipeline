@@ -9,6 +9,9 @@ sessions bootstrap, 95 %). Dots = sessions, coloured by animal. A cell needs >= 
   pose3d_change_pooled.png    3-D per-session medians (`pose3d_kinematics` sessions.csv): midline error toward ipsi,
                               miss distance, reach, peak speed, widest jaw opening, by position x epoch; jaw FAR_DIR /
                               CLOSE_DIR
+  pose3d_paths_pooled.png     3-D tongue / jaw paths through the lick (front / side / top views), cohort pre path +
+                              mean over animals of each session's change from its animal's pre path (twin of the
+                              per-animal `pose3d_phase` trajectories3d)
   pose3d_cue_pooled.png       3-D cue-aligned traces (`pose3d_cue_traces`, engaged trials): midline angle and jaw
                               opening, each session's trace minus its animal's August pre trace; bold = mean over
                               animals, band = SEM over animals
@@ -201,6 +204,195 @@ def fig_cue(out: Path) -> pd.DataFrame:
     return R
 
 
+def fig_paths3d(out: Path) -> pd.DataFrame:
+    """POOLED 3-D tongue / jaw paths (twin of `pose3d_phase` trajectories3d, per animal): per (position, phase bin),
+    each session's mean path minus its animal's August pre path, averaged within animal per epoch, then over animals
+    (>= 3), added to the cohort pre path (mean over animals of each animal's August pre path) -- the convention of the
+    cam4 `cohort_trajectory_xy_within` figures. Phase-normalised (`kind == "norm"`), all post-cue licks, bins with
+    coverage >= 0.5 per session."""
+    import matplotlib.pyplot as plt
+    from wfield_local.paths import PathResolver
+    C = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "phase" / "curves.csv.gz")
+    C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["side", "out", "down", "j_side", "j_out", "j_down"])
+          & (C["cov"] >= 0.5)]
+    aug = C[(C.epoch == "pre") & (C.date.astype(str).str[-4:] >= "0801")]
+    base = aug.groupby(["animal", "position", "measure", "x"]).v.mean()
+    rows = []
+    for (p, m), g in C.groupby(["position", "measure"]):
+        b = base.xs((p, m), level=("position", "measure"))
+        pre = b.groupby(level="x").mean().rename("pre")                      # cohort pre path (mean over animals)
+        n_pre = b.groupby(level="x").size()
+        rows.append(pd.DataFrame({"position": p, "measure": m, "epoch": "pre", "x": pre.index, "v": pre.to_numpy(),
+                                  "n_animals": n_pre.reindex(pre.index).to_numpy()}))
+        for e in EPOCHS:
+            q = g[g.epoch == e].join(b.rename("base"), on=["animal", "x"])
+            if not len(q):
+                continue
+            per = q.assign(d=q.v - q.base).groupby(["animal", "x"]).d.mean().unstack(0)
+            d = per.mean(1)
+            rows.append(pd.DataFrame({"position": p, "measure": m, "epoch": e, "x": d.index,
+                                      "v": (pre.reindex(d.index) + d).to_numpy(), "n_animals": per.notna().sum(1).to_numpy()}))
+    R = pd.concat(rows, ignore_index=True)
+    R = R[R.n_animals >= 3]
+    views = (("side", "down", "FRONT: side (+ = mouse left = ipsi) x down"), ("out", "down", "SIDE: out (forward) x down"),
+             ("side", "out", "TOP: side (+ = ipsi) x out"))
+    fig, axs = plt.subplots(3, 6, figsize=(16, 8.4))
+    col = {"pre": "#222222", **ECOL}
+    for j, p in enumerate(POS_3D):
+        for i, (a, b, lab) in enumerate(views):
+            ax = axs[i, j]
+            for part, ls in (("", "-"), ("j_", "--")):
+                for e in ("pre",) + EPOCHS:
+                    A = R[(R.position == p) & (R.measure == part + a) & (R.epoch == e)].set_index("x").v
+                    B = R[(R.position == p) & (R.measure == part + b) & (R.epoch == e)].set_index("x").v
+                    ix = A.index.intersection(B.index)
+                    if not len(ix):
+                        continue
+                    yb = -B[ix] if b == "down" else B[ix]                     # draw "down" downward
+                    ax.plot(A[ix], yb, ls, color=col[e], lw=1.5 if part == "" else 1.0,
+                            label=(e if part == "" else None) if (i == 0 and j == 0) else None)
+                    mid = ix[len(ix) // 2]
+                    ax.plot(A[mid], (-B[mid] if b == "down" else B[mid]), "o", color=col[e], ms=3)
+            ax.plot(0, 0, "+", color="k", ms=8)
+            ax.tick_params(labelsize=6.5)
+            if i == 0:
+                ax.set_title(POS_LABEL[p].replace("_", " "), fontsize=9)
+            if j == 0:
+                ax.set_ylabel(lab + " (mm)", fontsize=7)
+            ax.set_aspect("equal", adjustable="datalim")
+    axs[0, 0].legend(fontsize=7, frameon=False, loc="lower left")
+    fig.suptitle("3-D tongue (solid) and jaw (dashed) paths through the lick, POOLED within animal: cohort August-pre path\n"
+                 "+ mean over animals of each session's change from its animal's own pre path (phase 0.1-0.9, all post-cue "
+                 "licks, >= 3 animals); + = mouth zero; dot = mid-lick; mm", fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.savefig(out / "pose3d_paths_pooled.png", dpi=130)
+    plt.close(fig)
+    return R
+
+
+DAY_BINS = ((1, 3), (4, 7), (8, 14), (15, 21), (22, 35), (36, 70))
+
+
+def _draw_days(ax, S, aug, col, key, rows):
+    base = S[aug].groupby("animal")[col].mean()
+    d = S[S.day.notna()].assign(chg=S[col] - S.animal.map(base))
+    d = d[(d.day > 0) | aug]
+    for a in ANIMALS:
+        q = d[d.animal == a]
+        ax.scatter(q.day, q.chg, s=8, color=ACOL[a], alpha=0.55, lw=0)
+    xs, ms, ss = [], [], []
+    for lo, hi in DAY_BINS:
+        per = d[(d.day >= lo) & (d.day <= hi)].groupby("animal").chg.mean().dropna()
+        ok = len(per) >= 3
+        rows.append({"measure": key, "bin": f"{lo}-{hi}", "n_animals": len(per),
+                     **{a: per.get(a, np.nan) for a in ANIMALS},
+                     "mean": per.mean() if ok else np.nan, "sem": per.std() / np.sqrt(len(per)) if ok else np.nan})
+        if ok:
+            xs.append((lo + hi) / 2)
+            ms.append(per.mean())
+            ss.append(per.std() / np.sqrt(len(per)))
+    xs, ms, ss = np.asarray(xs), np.asarray(ms), np.asarray(ss)
+    ax.plot(xs, ms, color="k", lw=1.6)
+    ax.fill_between(xs, ms - ss, ms + ss, color="k", alpha=0.15, lw=0)
+    ax.axhline(0, color="0.6", lw=0.8)
+    ax.axvline(0, color="0.8", lw=0.8)
+    ax.tick_params(labelsize=6.5)
+
+
+def fig_days(out: Path) -> pd.DataFrame:
+    """POOLED twin of the per-animal 3-D summaries (`pose3d_summary_fig`): every session's change from ITS animal's
+    August pre mean against days from that animal's stroke, all animals on one axis (dots coloured by animal); line =
+    mean over animals of each animal's mean change within day bins (>= 3 animals), band = SEM over animals."""
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from wfield_local.epochs import days_since_stroke
+    from wfield_local.paths import PathResolver
+    S = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "sessions.csv")
+    S["day"] = [days_since_stroke(f"{a}_{str(d)[-4:]}") for a, d in zip(S.animal, S.date)]
+    aug = _is_aug_pre(S)
+    meas = [("midline_err_ipsi", "midline error (deg; + = ipsi)"), ("miss_mm", "closest approach (mm)"),
+            ("lat_err_mm", "lateral error at closest (mm)"), ("reach_mm", "reach (mm)"),
+            ("speed_peak", "peak speed (mm/s)"), ("open_max_mm", "widest jaw opening (mm)")]
+    rows = []
+    fig, axs = plt.subplots(len(meas) + 1, 6, figsize=(16, 2.3 * (len(meas) + 1)), sharex=True)
+    for i, (m, lab) in enumerate(meas):
+        for j, p in enumerate(POS_3D):
+            c = f"{m}|{p}"
+            if c not in S:
+                axs[i, j].axis("off")
+                continue
+            _draw_days(axs[i, j], S, aug, c, c, rows)
+            if i == 0:
+                axs[i, j].set_title(POS_LABEL[p].replace("_", " "), fontsize=9)
+            if j == 0:
+                axs[i, j].set_ylabel(lab + ",\nchange", fontsize=7)
+    for j, (c, lab) in enumerate((("jaw_far_dir_mm", "jaw FAR_DIR (mm), change"),
+                                  ("jaw_close_dir_mm", "jaw CLOSE_DIR (mm), change"))):
+        _draw_days(axs[-1, j], S, aug, c, c, rows)
+        axs[-1, j].set_ylabel(lab, fontsize=7)
+        axs[-1, j].set_xlabel("days from stroke (left of 0 = August pre)", fontsize=7)
+    for j in range(2, 6):
+        axs[-1, j].axis("off")
+    fig.legend(handles=[Line2D([], [], marker="o", ls="", color=ACOL[a], label=a) for a in ANIMALS]
+               + [Line2D([], [], color="k", label="mean over animals of within-animal bin means (+- SEM)")],
+               loc="lower right", ncol=5, fontsize=7, frameon=False)
+    fig.suptitle("3-D measures over days, POOLED within animal: each session minus its animal's August pre mean; "
+                 "day bins 1-3, 4-7, 8-14, 15-21, 22-35, 36-70", fontsize=10)
+    fig.tight_layout(rect=(0, 0.02, 1, 0.97))
+    fig.savefig(out / "pose3d_days_pooled.png", dpi=120)
+    plt.close(fig)
+    return pd.DataFrame(rows)
+
+
+def fig_phase(out: Path) -> pd.DataFrame:
+    """POOLED twin of the per-animal lick-phase figures (`pose3d_phase` phase_angle / phase_dist): phase-normalised
+    midline angle and 3-D distance from the mouth zero, each session minus its animal's August pre curve, averaged
+    within animal per epoch, then over animals (>= 3; band = SEM over animals)."""
+    import matplotlib.pyplot as plt
+    from wfield_local.paths import PathResolver
+    C = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "phase" / "curves.csv.gz")
+    C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["mid", "dist"]) & (C["cov"] >= 0.5)]
+    aug = C[(C.epoch == "pre") & (C.date.astype(str).str[-4:] >= "0801")]
+    base = aug.groupby(["animal", "position", "measure", "x"]).v.mean()
+    rows = []
+    for (p, m), g in C.groupby(["position", "measure"]):
+        b = base.xs((p, m), level=("position", "measure"))
+        for e in EPOCHS:
+            q = g[g.epoch == e].join(b.rename("base"), on=["animal", "x"])
+            if not len(q):
+                continue
+            per = q.assign(d=q.v - q.base).groupby(["animal", "x"]).d.mean().unstack(0)
+            rows.append(pd.DataFrame({"position": p, "measure": m, "epoch": e, "x": per.index,
+                                      "mean": per.mean(1).to_numpy(),
+                                      "sem": (per.std(1) / np.sqrt(per.notna().sum(1))).to_numpy(),
+                                      "n_animals": per.notna().sum(1).to_numpy()}))
+    R = pd.concat(rows, ignore_index=True)
+    fig, axs = plt.subplots(2, 6, figsize=(15, 5.6), sharex=True)
+    for i, (m, lab) in enumerate((("mid", "midline angle, change\n(deg; + = ipsi)"),
+                                  ("dist", "3-D distance from mouth\nzero, change (mm)"))):
+        for j, p in enumerate(POS_3D):
+            ax = axs[i, j]
+            for e in EPOCHS:
+                r = R[(R.measure == m) & (R.position == p) & (R.epoch == e) & (R.n_animals >= 3)]
+                ax.plot(r.x, r["mean"], color=ECOL[e], lw=1.4, label=e)
+                ax.fill_between(r.x, r["mean"] - r["sem"], r["mean"] + r["sem"], color=ECOL[e], alpha=0.2, lw=0)
+            ax.axhline(0, color="0.6", lw=0.8)
+            ax.tick_params(labelsize=7)
+            if i == 0:
+                ax.set_title(POS_LABEL[p].replace("_", " "), fontsize=9)
+            if j == 0:
+                ax.set_ylabel(lab, fontsize=7.5)
+            if i == 1:
+                ax.set_xlabel("lick phase (0 = out, 1 = back in)", fontsize=7)
+    axs[0, 0].legend(fontsize=7, frameon=False)
+    fig.suptitle("3-D lick phase, POOLED within animal: each session's phase curve minus its animal's August pre curve, "
+                 "mean over animals (band = SEM over animals, >= 3 animals); all post-cue licks", fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(out / "pose3d_phase_pooled.png", dpi=130)
+    plt.close(fig)
+    return R
+
+
 def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
@@ -219,6 +411,10 @@ def main(argv=None) -> int:
     B.to_csv(out / "pose3d_change_pooled.csv", index=False)
     C = fig_cue(out)
     C.to_csv(out / "pose3d_cue_pooled.csv", index=False)
+    D = fig_paths3d(out)
+    D.to_csv(out / "pose3d_paths_pooled.csv", index=False)
+    fig_days(out).to_csv(out / "pose3d_days_pooled.csv", index=False)
+    fig_phase(out).to_csv(out / "pose3d_phase_pooled.csv", index=False)
     pd.set_option("display.width", 220)
     print(A[["group", "epoch", "PS92", "PS93", "PS94", "PS95", "est", "lo", "hi"]].round(2).to_string(index=False))
     print(B[B.group.isin(["far_R", "all"])][["measure", "group", "epoch", "PS92", "PS93", "PS94", "PS95", "est", "lo", "hi"]]
