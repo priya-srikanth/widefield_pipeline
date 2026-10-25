@@ -91,7 +91,8 @@ def main(argv=None) -> int:
     run = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
     assert_writable(run)
     T = session_table(run, a.variant)
-    T.to_csv(run / "residual_trend_sessions.csv", index=False)
+    sfx = "" if a.variant == "joint" else f"_{a.variant}"   # one file set per variant (no_fr_dir once overwrote joint)
+    T.to_csv(run / f"residual_trend_sessions{sfx}.csv", index=False)
     rows = []
     for (an, w, ar), g in T.groupby(["animal", "window", "region"]):
         pre, post = g[g.epoch == "pre"], g[g.epoch != "pre"]
@@ -122,7 +123,7 @@ def main(argv=None) -> int:
                     r["chronic_slope_per_day"], r["chronic_slope_p"] = sl.slope, sl.pvalue
                 rows.append(r)
     R = pd.DataFrame(rows)
-    R.to_csv(run / "residual_trend.csv", index=False)
+    R.to_csv(run / f"residual_trend{sfx}.csv", index=False)
     pd.set_option("display.width", 250)
     show = R[(R.spout == "far_contra") & (R.region.isin(["SSp-m_left", "SSp-m_right"])) & (R.window == "lick")]
     print(show[["animal", "region", "epoch", "n_post", "pre_slope_per_day", "mean_residual", "trend_pred",
@@ -162,7 +163,7 @@ def main(argv=None) -> int:
                      f"sessions (LOSO) with 95 % prediction interval, {w} window. Pre span ~8 days -> wide interval when "
                      f"extrapolated.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.94))
-        fig.savefig(fd / f"residual_trend_{w}.png", dpi=130)
+        fig.savefig(fd / f"residual_trend{sfx}_{w}.png", dpi=130)
         plt.close(fig)
     print(f"-> {run / 'residual_trend.csv'}, {fd}/residual_trend_*.png")
     return 0
