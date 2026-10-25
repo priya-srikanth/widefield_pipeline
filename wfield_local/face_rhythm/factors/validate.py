@@ -171,10 +171,18 @@ def cmd_fitcohort(sd: Path, task: int, inits: int = 8, rows_per_animal: int = 55
     if dst.exists():
         print("done already", dst)
         return
+    _cohort_fit(sd, pl, by_animal, f"{tag}_{g}", dst, inits, rows_per_animal, animal=tag, group=g)
+
+
+def _cohort_fit(sd: Path, pl: dict, by_animal: dict[str, list[str]], seed: str, dst: Path, inits: int,
+                rows_per_animal: int, **meta) -> None:
+    """The cohort fit itself (shared by `cmd_fitcohort` and the permutation null `cmd_fitcohortnull`, so the null is
+    the SAME procedure): ``rows_per_animal`` rows per animal, even over its sessions, each animal / its own scale;
+    ``inits`` HALS starts, best kept, columns aligned to the master; ``seed`` seeds the row draw and the starts."""
     A, B, scales, M = load_master(sd)
     R = A.shape[1]
     t0 = time.time()
-    rng = np.random.default_rng(zlib.crc32(f"{tag}_{g}".encode()))
+    rng = np.random.default_rng(zlib.crc32(seed.encode()))
     parts, rows_of = [], {}
     for an in sorted(by_animal):
         keys = by_animal[an]
@@ -188,7 +196,7 @@ def cmd_fitcohort(sd: Path, task: int, inits: int = 8, rows_per_animal: int = 55
     X = np.concatenate(parts)
     del parts
     _, Ef, N2 = project_rows(X, A, B)
-    fits = [ncp_hals(X, R, seed=zlib.crc32(f"{tag}_{g}".encode()) + k, n_iter=pl["params"]["n_iter"])
+    fits = [ncp_hals(X, R, seed=zlib.crc32(seed.encode()) + k, n_iter=pl["params"]["n_iter"])
             for k in range(inits)]
     f = fits[int(np.argmin([x["rel_err"] for x in fits]))]
     order, cos = match([A, B], [f["A"], f["B"]])
@@ -197,10 +205,58 @@ def cmd_fitcohort(sd: Path, task: int, inits: int = 8, rows_per_animal: int = 55
                   evr_own=1 - f["rel_err"] ** 2, evr_frozen=pooled_evr(Ef, N2), cos_spatial=cos[0],
                   cos_spectral=cos[1], rel_errs_own=np.array([x["rel_err"] for x in fits]), n_rows=len(X),
                   rows_per_animal=np.array([rows_of[a] for a in sorted(rows_of)]), animals=np.array(sorted(rows_of)),
-                  keys=np.array(keys_all), spec_hash=str(M["spec_hash"]), animal=tag, group=g)
-    print(f"{tag} {g} ({', '.join(f'{a} {n}' for a, n in sorted(rows_of.items()))} rows): EVR own "
+                  keys=np.array(keys_all), spec_hash=str(M["spec_hash"]), **meta)
+    print(f"{seed} ({', '.join(f'{a} {n}' for a, n in sorted(rows_of.items()))} rows): EVR own "
           f"{1 - f['rel_err'] ** 2:.3f} vs frozen {pooled_evr(Ef, N2):.3f}; cosine to master spatial {cos[0].mean():.3f} "
           f"spectral {cos[1].mean():.3f}; {(time.time() - t0) / 60:.1f} min")
+
+
+NULL_EPOCHS = ("acute", "subacute", "chronic")
+
+
+def cohort_null_tasks(pl: dict, n_perm: int) -> list[tuple[str, int, str]]:
+    """[(epoch, permutation, side)] for `cmd_fitcohortnull`: epoch-major, then permutation, then side ("pre", "post");
+    array task n = row n - 1 (3 x n_perm x 2)."""
+    return [(ep, k, side) for ep in NULL_EPOCHS for k in range(n_perm) for side in ("pre", "post")]
+
+
+def null_split(pl: dict, epoch: str, perm: int) -> dict[str, dict[str, list[str]]]:
+    """One permutation's PSEUDO groups: per animal, its pre and ``epoch`` sessions pooled and their labels shuffled
+    (seeded by epoch + permutation, so the "pre" and "post" tasks of one permutation draw the SAME split), keeping each
+    animal's counts -> {"pre": {animal: keys}, "post": {animal: keys}}."""
+    per: dict[str, dict[str, list[str]]] = {}
+    for an, g, keys in epoch_fit_tasks(pl):
+        per.setdefault(an, {})[g] = keys
+    out: dict[str, dict[str, list[str]]] = {"pre": {}, "post": {}}
+    for an in sorted(per):
+        pre, post = list(per[an].get("pre", [])), list(per[an].get(epoch, []))
+        if not pre or not post:
+            continue
+        pool = np.array(pre + post)
+        rng = np.random.default_rng(zlib.crc32(f"null_{epoch}_{perm}_{an}".encode()))
+        pool = pool[rng.permutation(len(pool))]
+        out["pre"][an], out["post"][an] = sorted(pool[:len(pre)].tolist()), sorted(pool[len(pre):].tolist())
+    return out
+
+
+def cmd_fitcohortnull(sd: Path, task: int, n_perm: int = 100, inits: int = 8, rows_per_animal: int = 5500,
+                      own_dir: str = "own_epoch_cohort_null") -> None:
+    """PERMUTATION NULL for the cohort shape readouts (Priya 10-25: "yes set up the null distribution" -- the jackknife
+    over 4 animals cannot test 7 / 7b). For each post epoch and permutation: within every animal, pre and that epoch's
+    sessions are pooled and their labels shuffled (counts kept), and the cohort fit is redone on the pseudo-pre and the
+    pseudo-post groups by the identical procedure (`_cohort_fit`). Any readout's change (post fit - pre fit) over the
+    permutations is its null; the observed change is the same readout on the real COHORT_<epoch> vs COHORT_pre fits.
+    The null includes drift between pre and post days (shuffling breaks time order), so "beyond the null" = the
+    sessions differ, by stroke or by time."""
+    pl = load_plan(sd)
+    ep, k, side = cohort_null_tasks(pl, n_perm)[task - 1]
+    dst = sd / own_dir / f"{ep}_p{k:03d}_{side}.npz"
+    if dst.exists():
+        print("done already", dst)
+        return
+    split = null_split(pl, ep, k)[side]
+    _cohort_fit(sd, pl, split, f"null_{ep}_{k}_{side}", dst, inits, rows_per_animal, animal="COHORT", group=side,
+                null_epoch=ep, perm=k)
 
 
 def cmd_fitepoch(sd: Path, task: int, inits: int = 8, n_rows: int = 11000, own_dir: str = "own_epoch") -> None:
