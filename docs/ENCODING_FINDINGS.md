@@ -1203,6 +1203,9 @@ cells are many; per-animal numbers on the page.
   unchanged (orofacial contra chronic +1.42 -> +1.40, contrast +0.88 -> +0.93); lick window chronic non-orofacial
   +1.46 -> +0.83 pre-SD, orofacial contra +2.35 -> +1.95, contrast +0.53 -> +0.79. Pushes carry ~40 % of the lick-window
   residual in non-orofacial cortex and a smaller share in orofacial cortex; no headline claim depends on push.
+  Allen-ROI (residual_roi): lick chronic significant areas 13 -> 7 with free push (posterior / visual drop out except
+  contra VISam; SSp-m both, contra SSp-n / MOp / SSp-un / MOs stay), cue unchanged (3). Behaviour-matched residual
+  still positive in SSp-m (lick +3.7 / +4.1 x1e3, 3-4/4; without push +5.5 / +5.6).
 
 ### 8.11 Is the chronic change specific to orofacial cortex? Does it track recovery? (10-25 afternoon) -- PROVISIONAL
 
