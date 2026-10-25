@@ -128,6 +128,7 @@ def main(argv=None) -> int:
     print(Bt[Bt.area.isin(["cortex", "SSp-m_right", "SSp-m_left"]) & (Bt.epoch != "pre_split")]
           [["frame", "window", "area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(2).to_string(index=False))
     sels = ["all trials", "3-D tracked", "inside envelope"]
+    ffc.ALAB.update({"MOs_right": "MOs contra", "MOs_left": "MOs ipsi"})
     ffc.COL.update(dict(zip(sels, ["#999999", "#66a61e", "#d95f02"])))
     fig, axs = plt.subplots(2, 1, figsize=(15, 8.5))
     for ax, w in zip(axs, ffc.WINDOWS):

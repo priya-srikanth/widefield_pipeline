@@ -1150,6 +1150,48 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.11 Is the chronic change specific to orofacial cortex? Does it track recovery? (10-25 afternoon) -- PROVISIONAL
+
+Frozen frame with FaceRhythm (`gate-attempted_v7g3_t3d_frA`; Layer 2 `allsession_encoder_v7g3_t3d_frA`). Orofacial = SSp-m,
+SSp-n, MOp, MOs; CONTROL = visual (7 areas), retrosplenial (3), SSp trunk / lower limb; both hemispheres; group = mean over
+the areas present in all of an animal's sessions. Residual = data - frozen prediction, evoked, mean of six spouts, in each
+animal's pre-SD units per area. Scripts `scripts/specificity_control.py` (outputs
+`imaging_encoding/specificity_control/<tag>/`), `scripts/remap_lmm.py` (`imaging_encoding/remap_lmm/<tag>/`).
+
+- **LAYER 2 IS NOT OROFACIAL-SPECIFIC.** Chronic change beyond pre_late: orofacial +0.053 [0.033, 0.074], control +0.052
+  [0.028, 0.075] (4/4 each), contrast +0.002 [-0.017, 0.018]; per-area map uniform, every area's CI excludes 0 (visual and
+  retrosplenial included). Mixed model (time): control areas NO step at the stroke (-0.003) but a steady rise with log day
+  (+0.016 / e-fold, z 6.1); orofacial - control has an ACUTE step only (+0.025, z 2.6) that decays (-0.007 / e-fold, z -3.0).
+  Behaviour model: the change is LARGER in better-behaving (later) sessions (control -0.007 / unit ttc deficit, z -5.0).
+  -> the signature of slow, cortex-wide change accumulating with time (drift on a longer time scale than the 8-day August
+  null, or a global state / signal change), not a stroke-specific motor remapping; the stroke-specific part is an acute,
+  transient orofacial excess.
+- **RESIDUAL: partly global, partly orofacial; a disruption that tracks the deficit plus a persistent part.** Chronic,
+  pre-SD units: orofacial contra cue +1.42 [0.70, 2.36] / lick +2.35 [1.65, 3.07] (4/4); control cue +0.25 (n.s.) / lick
+  +1.46 [0.35, 2.54] (3/4). Orofacial - control: cue +0.88 [-0.005, 2.16] 3/4, lick
+  +0.53 n.s. Area map: cue residual = bilateral lateral frontal / orofacial cortex; lick residual also posterior (contra RSP
+  / visual). Mixed model (ttc): orofacial residual steps up at day 1 (+2.7 to +3.3 SD, z 6.8-7.9) and DECLINES with log day
+  (z -2.4 to -6.0); larger in sessions with a larger deficit (+0.16 to +0.36 SD / unit, z 2.6-5.5); still present at full
+  behavioural recovery (contra cue +1.33, lick +2.31, z 5.0 / 8.3); orofacial - control at recovery, cue +0.73 (z 3.2),
+  lick +0.39 (n.s.). Contact deficit: same signs.
+- A global-gain correction (control-area scale removed) was tried and DROPPED (Priya 10-25: not needed; it assumes one
+  multiplicative scale shared by all areas and was unstable, PS94); the orofacial - control contrast is the test.
+- **DEFICIT SLOPE IS CARRIED BY FEW SESSIONS.** Figures `remap_lmm/<tag>/figures/remap_lmm_residual_<window>_behaviour_ttc.png`:
+  the positive residual-vs-deficit slope rests on a handful of high-deficit acute sessions -- PS94 (deficit ~7, large
+  residual) drives it; PS92's high-deficit sessions (~5) go the OTHER way (slightly negative). So "tracks the deficit" is
+  NOT 4/4; "persists at recovery" (the fitted level at deficit 0, where most post sessions sit) is the robust part.
+  Layer 2 vs days (`remap_lmm_layer2_time.png`): control areas rise steadily ~0.02 -> ~0.08 over 50 days in every animal;
+  the orofacial excess over control is confined to the first ~5 days (PS93, PS94).
+- **BEHAVIOUR-MATCHED RESIDUAL (analysis 4, `scripts/matched_residual.py`, `imaging_encoding/matched_residual/<tag>/`):
+  NOT an extrapolation artefact.** Per animal x spout envelope = Mahalanobis distance on the first lick's 3-D endpoint,
+  reach, peak speed, 3-D peak time and the trial's lick count <= the pre trials' leave-one-session-out 95th percentile.
+  Share of 3-D-tracked trials inside: chronic .96 / .93 / .72 / .78 (PS92-95), acute .81 / .75 / .35 / .77; far contra acute
+  .24-.46, chronic .85-.96. Residual (per-trial window means, x1e3 dF/F) on inside-envelope trials ~ all trials: chronic
+  SSp-m lick +5.5 / +5.6 (ipsi / contra) 4/4, cue the same pattern; acute inside-envelope residual is if anything LARGER
+  (PS94). The frozen model is not being asked to extrapolate chronically, and the residual does not depend on the trials
+  it would have to extrapolate on.
+- Gain correction: tried and dropped (above). No-FR repeat: see below when it lands.
+
 ### 8.10 FROZEN encoder WITH FaceRhythm; every post-stroke change claim redone in the frozen frame (10-25 day)
 WHY: the FR results (8.7, 8.9) and the target-vs-executed contest (2.4b, 8.6) used the PER-SESSION REFIT encoder, which
 re-learns every session's weights, so a post-stroke change there mixes changed movement with changed cortex; the frozen

@@ -3,8 +3,8 @@
 random intercept / step / slope per animal when estimable) with the two strongest chronic results as the OUTCOME:
 
   residual   frozen-encoder residual (data - prediction, evoked, mean of six spouts) per session, from the specificity
-             control's sessions table (`scripts/specificity_control.py`): raw pre-SD units and GAIN-CORRECTED (global scale
-             estimated on control areas removed), for orofacial contra / ipsi, control, and orofacial - control
+             control's sessions table (`scripts/specificity_control.py`): raw pre-SD units
+             for orofacial contra / ipsi, control, and orofacial - control
   layer2     Layer 2 change_ref per session (combined fit; pre rows = the LATE-pre sessions, i.e. drift from early pre,
              so `post` is the change beyond pre-stroke drift), same area groups
 
@@ -33,9 +33,9 @@ from specificity_control import GROUPS, group_means  # noqa: E402
 
 def residual_long(tag: str) -> pd.DataFrame:
     T = pd.read_csv(E / "specificity_control" / tag / "sessions.csv")
-    G = group_means(T, ("residual_z", "resid_gc_z"))
+    G = group_means(T, ("residual_z",))
     G = G[G.area.isin(["orofacial contra", "orofacial ipsi", "control", "orofacial - control"])]
-    L = G.melt(id_vars=["label", "window", "area"], value_vars=["residual_z", "resid_gc_z"], var_name="q", value_name="y")
+    L = G.melt(id_vars=["label", "window", "area"], value_vars=["residual_z"], var_name="q", value_name="y")
     return L.assign(source="residual", measure=L.q + " | " + L.window + " | " + L.area)[["label", "source", "measure", "y"]]
 
 
@@ -75,6 +75,18 @@ def main(argv=None) -> int:
                          print_animals=(dname == a.deficits[0]))
         T.to_csv(out / f"remap_lmm_{dname}.csv", index=False, float_format="%.5g")
         mm.summary_table(T, ["source", "measure"]).to_csv(out / f"remap_lmm_{dname}_summary.csv")
+        groups = ["orofacial contra", "orofacial ipsi", "control", "orofacial - control"]
+        for model in ("time", "behaviour"):
+            if model == "time" and dname != a.deficits[0]:
+                continue                                  # the time model does not depend on the deficit
+            sfx = "" if model == "time" else f"_{dname}"
+            for w in ("cue", "lick"):
+                mm.plot_fits(Ld, T, [(f"residual {w} | {g}", {"source": "residual", "measure": f"residual_z | {w} | {g}"})
+                                     for g in groups], model, out / "figures" / f"remap_lmm_residual_{w}_{model}{sfx}.png",
+                             f"NEURAL: frozen residual, {w} window (pre-SD units)", "residual (pre-SD units)", ncols=4)
+            mm.plot_fits(Ld, T, [(f"Layer 2 | {g}", {"source": "layer2", "measure": f"change_ref | {g}"}) for g in groups],
+                         model, out / "figures" / f"remap_lmm_layer2_{model}{sfx}.png",
+                         "NEURAL: Layer 2 mapping change (R2; pre rows = late pre)", "change_ref (R2)", ncols=4)
         for model in ("time", "behaviour"):
             S = T[(T.model == model) & (T.term != "Intercept")]
             print(f"\n=== {model} (deficit {dname})\n" + S.pivot_table(index=["source", "measure"], columns="term",
