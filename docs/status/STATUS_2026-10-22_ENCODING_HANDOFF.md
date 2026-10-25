@@ -9,6 +9,54 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000t. STATE 10-25 ~03:30 (pre-compaction) -- READ FIRST (then 000s)
+
+**Page** https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d v43 (source `S/goal_page/index.html`, S = this window's scratchpad
+`C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`). Sidebar now groups figures by NUMBER with a collapsible toggle (Priya). Figures renumbered with `S/renumber_figs.py`
+(insert new figures with unused temp letters, e.g. 16x, then run it). Publish new PNGs with `files` (an index-only publish
+leaves new images missing -- happened once, "16g/h broken"). ALL R2 now a FRACTION 0-1 (Priya): FR scripts, fig_layer2 / fig_rsplit
+/ fig_pooled / fig_softmax / fig_goal_summary (S/), fr_encoding_summary.py; Layer 2 CSVs are stored x1e3 and divided at load. Figs
+4 / 12 stay dF/F. Captions converted. Docs below 8.7 still quote some x1e3 numbers (convert when touched).
+
+**Done 10-25 night (all in ENCODING_FINDINGS 8.3 / 8.7 / 8.9 and FINDINGS 4.8 / 4.12):**
+- Reviewer hits in ENCODING_FINDINGS (8390343): attempt rates with denominators (canonical .79/.79/.58/.34; all trials .62/.61/.445/.342),
+  mechanism PS92-94 try-and-fail, PS95 mostly fail-to-try; Layer 2 10-23 WITHDRAWN; e3 told.
+- FR Musall PIXEL maps (fr_musall.py; Figs 16e-16h) + Venn schematic (16d; our "task-aligned" = overlap with EVERYTHING, not task only).
+- FR map significance (fr_pixel_significance.py, 16i-16j; calibrated 5 %) + contralesional SSp-m area tests (fr_contra_orofacial.py,
+  16k): chronic position unique | FR contra SSp-m cue +0.037 [0.010, 0.067] 4/4 p_bonf .002, lick n.s.; contra-ipsi CIs exclude 0;
+  pixel test 0 bins; carried by PS94 / PS95; total variance ROSE (not a denominator effect). PROVISIONAL, window-sensitive.
+- Per-trial encoder relabel DONE (Figs 3q-3s): label-wide close-mid bias; far contra least separable label pre-stroke (far ipsi only
+  +16 % worse, SD 46 %); session-summed by class: pre hits fC best 4/4; ACUTE HITS fit far mid slightly better (0/3 fC best),
+  incomplete stay ~far contra (2/4). Running: no-attempt trials (below).
+- exec_vs_neural_match.py --target (Figs 3m-3n): off-target far-contra trials acutely decoded as executed >= target in 3/4 (near chance),
+  target returns subacute / chronic except PS92; far mid target-led throughout except PS93 acute.
+- O2 fr_A_tr (FR models in TR_MODELS, 7dcc8d3; 107 sessions incl. 4 resubmitted at 64 GB; collected `..._frg-A_subset-fr_..._tr`):
+  fr_trial_peth.py (16l-16m): FR + uninstructed = trial-to-trial; task / position = PETH; ACUTE spout loss is a PETH loss (cortex lick
+  -0.050, ipsi SSp-m -0.016, 0/4); chronic contra rise split, n.s. with these windows.
+- variance_maps.py (16p; data only): total variance rises, all significant bins up; cortex x1.54 lick chronic, global (VISp x1.83).
+- fr_direction.py (16n-16o, all epochs + pixel contours): FR gain ~all directionless; direction factors' added fit in SSp-m FALLS acutely
+  and chronically (0/4 up); contralesional SSp-m position rise present with DIRECTIONLESS FR (B: cue +0.028, 4/4).
+- Cleanup (approved by Priya): wfield_cache pre-10-24 06:29 (163.6 GB), session-cache LP tag lp92d8d7aa (23.4 GB), scratch stores
+  (35.5 GB) DELETED; C: 308 GB free. Share deletions = TO-DO to revisit (list in this file, CLEANUP 10-25 block).
+
+**RUNNING at ~03:30:**
+- `scripts/fr_direction_mechanism.py` (log `S/fr_mech.log`) -> `E/fr_encoding_summary/direction_mechanism/`: WHY FR direction factors
+  explain less SSp-m post-stroke -- (a) behaviour: spout-specificity (eta2) of the FR side / distance index and of the 3-D tongue ml;
+  sd of side; (c) measurement: within-spout r(FR side, tongue ml); (b) neural: within-spout partial r(SSp-m R / L / c-i, MOp; FR side /
+  distance | lick). Per animal + bootstrap. Priya: "could be critical to interpretation". Report (a) vs (b) vs (c), add figure to page
+  after 16o, update FINDINGS 4.12.
+- `frozen_relabel --tag v7g3_t3d_trial_refgate` (OROFACIAL_GATE=reference, log `S/relabel_refgate.log`, ~20/107 at 03:20, ~1.5 h):
+  NO-ATTEMPT far-contra trials (cue window only). CAVEAT: the run refits its joint pre fit on the reference gate. Then: far-contra
+  best label by class (hit / incomplete / jaw_only / no_try), session-summed as in `S/relabel_fc_by_class.csv` analysis (code in this
+  window's transcript: sum trial_sse per session x class, % worse than the fC label).
+
+**NEXT:** (1) the two results above; (2) FROZEN pre-stroke encoder WITH FaceRhythm (Priya 10-25: "should we be mixing frozen and
+refit"): frame map -- frozen (residual / relabel / Layer 2) vs per-session refit (all FR + Musall); a frozen-with-FR encoder is the
+direct test of decoupling (b); new frozen fit, likely O2; (3) FR direction modes B / S / D for the contra SSp-m area tests;
+(4) encoder likelihood re-score (noise-weighted) for the relabel trial labels; (5) failed-attempt movement-matched control + trial-class
+map stats (mine; e3 does imaging LMMs on the rebuilt attempts table); (6) encoding_mixed re-run on the rebuilt table; (7) 5b asked for an
+OUTPUT_AUDIT status column (items answered by message 10-25: decomposition re-run identical; nokin_* recommend retire).
+
 ## 000s. STATE 10-25 ~01:00 (pre-compaction) -- READ FIRST (then 000r)
 
 **Results of the night: `docs/ENCODING_FINDINGS.md` §8** (trajectory softmax, neural decoder vs executed incl. the

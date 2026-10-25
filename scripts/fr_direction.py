@@ -130,9 +130,9 @@ def main(argv=None) -> int:
     lab = {"B": "directionless (B)", "side": "+ side (S-B)", "dist": "+ distance (D-B)", "both": "+ side & distance (A-B)"}
     col = {"B": "#7570b3", "side": "#d95f02", "dist": "#1b9e77", "both": "#e7298a"}
     for w in a.windows:
-        fig, axs = plt.subplots(2, 2, figsize=(16, 8.5))
+        fig, axs = plt.subplots(2, 4, figsize=(24, 8.5))
         for r, q in enumerate(("gain", "pos")):
-            for c, kind in enumerate(("pre", "chronic")):
+            for c, kind in enumerate(("pre", "acute", "subacute", "chronic")):
                 ax = axs[r, c]
                 for k, part in enumerate(("B", "side", "dist", "both")):
                     x = np.arange(len(AREAS)) + (k - 1.5) * 0.2
@@ -144,16 +144,19 @@ def main(argv=None) -> int:
                             v = t[t.area == ar][f"{q}_{part}"].to_numpy()
                             ax.scatter(np.full(len(v), x[i]), v, s=7, c="k", zorder=5)
                     else:
-                        b = B[(B.window == w) & (B.epoch == "chronic") & (B.q == f"{q}_{part}")].set_index("area").reindex(AREAS)
+                        b = B[(B.window == w) & (B.epoch == kind) & (B.q == f"{q}_{part}")].set_index("area").reindex(AREAS)
                         ax.bar(x, b.point, width=0.19, color=col[part])
                         ax.errorbar(x, b.point, yerr=[b.point - b.lo, b.hi - b.point], fmt="none", ecolor="k", lw=0.8)
+                        for i_, (lo, hi) in enumerate(zip(b.lo, b.hi)):
+                            if lo > 0 or hi < 0:                       # 95% nested CI excludes 0
+                                ax.text(x[i_], max(hi, 0) + 0.001, "*", ha="center", fontsize=9)
                 ax.axhline(0, color="k", lw=0.6)
                 ax.set_xticks(range(len(AREAS)))
                 ax.set_xticklabels([x.replace("_right", "\ncontra").replace("_left", "\nipsi") for x in AREAS], fontsize=8)
                 ttl = "what FaceRhythm adds (fr:full - full)" if q == "gain" else "unique spout-position R2 with FaceRhythm"
-                ax.set_title(f"{ttl}: {'pre-stroke level (B; increments for S / D / A)' if kind == 'pre' else 'chronic - pre [95% nested CI]'}",
+                ax.set_title(f"{ttl}:\n{'pre-stroke level (B; increments for S / D / A)' if kind == 'pre' else kind + ' - pre [95% nested CI; * excludes 0]'}",
                              fontsize=9)
-                if c == 0:
+                if c in (0, 1):
                     ax.set_ylabel("held-out R2 (fraction)")
         axs[0, 0].legend(fontsize=8, frameon=False, ncol=4, loc="upper right")
         fig.suptitle(f"NEURAL: FaceRhythm lick DIRECTION vs DIRECTIONLESS, per-session encoder, {w} window. B = lick amount + other "
@@ -175,15 +178,27 @@ def main(argv=None) -> int:
     ol = _outline(meta)
     cols = [("gain_B", "FR adds: directionless (B)"), ("gain_side", "FR adds: + side (S-B)"), ("gain_dist", "+ distance (D-B)"),
             ("gain_both", "+ side & distance (A-B)"), ("pos_B", "position unique | FR-B"), ("pos_both", "position: A - B")]
+    from fr_pixel_significance import FACTORS, block_mask, test
+    mask = block_mask()
+    srows = []
+    kinds = ("pre", "acute", "subacute", "chronic")
     for w in a.windows:
-        fig, axs = plt.subplots(2, len(cols), figsize=(2.5 * len(cols), 6), squeeze=False)
+        fig, axs = plt.subplots(len(kinds), len(cols), figsize=(2.5 * len(cols), 2.75 * len(kinds) + 0.8), squeeze=False)
         for j, (q, t_) in enumerate(cols):
-            for i, kind in enumerate(("pre", "chronic")):
+            for i, kind in enumerate(kinds):
                 ans = [x for x in AN if ("pre", x, (q, w)) in Mp]
+                sig = None
                 if kind == "pre":
                     M = np.nanmean([Mp[("pre", x, (q, w))] for x in ans], 0)
                 else:
-                    M = np.nanmean([Mp[("chronic", x, (q, w))] - Mp[("pre", x, (q, w))] for x in ans if ("chronic", x, (q, w)) in Mp], 0)
+                    com = [x for x in ans if (kind, x, (q, w)) in Mp]
+                    M = np.nanmean([Mp[(kind, x, (q, w))] - Mp[("pre", x, (q, w))] for x in com], 0)
+                    pb = {x: [np.where(mask, v, np.nan) for v in acc[("pre", x, (q, w))]] for x in com}
+                    qb = {x: [np.where(mask, v, np.nan) for v in acc[(kind, x, (q, w))]] for x in com}
+                    sig = {F: test(pb, qb, f, mask)[0] for F, f in FACTORS.items()}
+                    for F in FACTORS:
+                        srows.append({"window": w, "q": q, "epoch": kind, "px": F,
+                                      "sig": 0 if sig[F] is None else int(sig[F].sum())})
                 ax = axs[i, j]
                 if kind == "pre" and q.endswith("_B"):
                     im = ax.imshow(M, cmap="viridis", vmin=0, vmax=np.nanpercentile(M, 99), interpolation="nearest")
@@ -192,6 +207,13 @@ def main(argv=None) -> int:
                     im = ax.imshow(M, cmap="RdBu_r", vmin=-v, vmax=v, interpolation="nearest")
                 if ol is not None and ol.shape == M.shape:
                     ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+                if sig is not None:
+                    for F, c_, ls in ((16, "k", "solid"), (32, "#7a0177", "dashed")):
+                        sg, f = sig[F], FACTORS[F]
+                        if sg is not None and sg.any():
+                            big = np.zeros(M.shape)
+                            big[:sg.shape[0] * f, :sg.shape[1] * f] = np.kron(sg, np.ones((f, f)))
+                            ax.contour(big, levels=[0.5], colors=c_, linewidths=0.9, linestyles=ls)
                 ax.set_xticks([]); ax.set_yticks([])
                 for s_ in ax.spines.values():
                     s_.set_visible(False)
@@ -202,12 +224,15 @@ def main(argv=None) -> int:
                 if i == 0:
                     ax.set_title(t_, fontsize=8)
                 if j == 0:
-                    ax.set_ylabel("pre level" if kind == "pre" else "chronic - pre", fontsize=9)
+                    ax.set_ylabel("pre level" if kind == "pre" else f"{kind} - pre", fontsize=9)
         fig.suptitle(f"NEURAL: FaceRhythm direction vs directionless, pixel maps (2x2-px blocks), {w} window; held-out R2 (fraction), "
-                     "within animal then mean of 4.\nViridis = level, RdBu = increment or change. Image left = ipsilesional.", fontsize=9)
-        fig.subplots_adjust(left=0.03, right=0.995, top=0.86, bottom=0.03, wspace=0.08, hspace=0.18)
+                     "within animal then mean of 4.\nViridis = level (amount), RdBu = increment or change. Contours = significant bins "
+                     "(black 16 px, purple dashed 32 px; nested bootstrap, Bonferroni). Image left = ipsilesional.", fontsize=9)
+        fig.subplots_adjust(left=0.03, right=0.995, top=0.9, bottom=0.02, wspace=0.08, hspace=0.18)
         fig.savefig(out / "figures" / f"fr_direction_maps_{w}.png", dpi=115)
         plt.close(fig)
+    pd.DataFrame(srows).to_csv(out / "pixel_sig.csv", index=False)
+    print(pd.DataFrame(srows).pivot_table(index=["window", "q"], columns=["epoch", "px"], values="sig").to_string())
     print("->", out)
     return 0
 

@@ -221,7 +221,10 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     +0.037 [0.010, 0.067] 4/4 (p_bonf .002), lick +0.025 3/4 (n.s. after correction), ipsilesional ~0; contra - ipsi
     +0.025 / +0.032 (CIs exclude 0); task the same; uninstructed ALONE rises in SSp-m on both sides (4/4). Beyond pre drift
     in PS94 / PS95 only (PS92 marginal, PS93 not); not a denominator effect (total variance rose).
-    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound; carried by PS94 / PS95) (8.7; Fig 16-16k).
+    TRIAL vs PETH (8.9): FR explains trial-to-trial variability, the spout code lives in the PETH; the ACUTE spout loss is a PETH loss.
+    DIRECTION (8.9): FR's side / distance factors explain less SSp-m acutely and chronically (0/4 up); the contralesional rise
+    is present with directionless FR (cue +0.028, 4/4). Total variance rises (global). Frame = per-session refit encoder.
+    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound; carried by PS94 / PS95) (8.7, 8.9; Fig 16-16p).
 13. **Not established / withdrawn here:** pre-stroke target-over-executed lead (SUSPENDED, 2.4); pooled toward-midline
     within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
     lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit

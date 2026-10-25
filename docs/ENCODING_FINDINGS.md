@@ -1141,6 +1141,23 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.9 FaceRhythm: trial-to-trial vs PETH, direction vs directionless, total variance (10-25 night) — PROVISIONAL
+R2 as a FRACTION from here on. FRAME: per-session refit encoder (FR factors frozen master_pre_v1; encoder weights per session).
+- **Trial-to-trial vs PETH** (`scripts/fr_trial_peth.py`, O2 fr_A_tr, 107 sessions; Fig 16l-16m): pre cortex, FR unique 0.21-0.24
+  and uninstructed 0.12-0.14 are TRIAL-TO-TRIAL (PETH ~0); task / position unique 0.07-0.10 are PETH (trial ~0). ACUTE spout loss is a
+  PETH loss (position unique PETH cortex lick -0.050 [-0.131, -0.004], ipsilesional SSp-m -0.016 [-0.035, -0.004], 0/4 up) while
+  trial-to-trial position rises slightly (cortex +0.013, 3/4); uninstructed unique trial-to-trial falls (cortex -0.07, 4/4). Chronic
+  contralesional SSp-m rise splits (PETH +0.014-0.018 2/4, trial +0.020-0.022 3/4), n.s. with these windows (cue 0-1.5 s, first lick
+  -0.1..1.0 s; the encoder's own windows give +0.037: window-sensitive).
+- **Direction vs directionless** (`scripts/fr_direction.py`, modes B / S / D / A; Fig 16n-16o): FR gain ~all directionless (cortex
+  0.13; direction +0.005; SSp-m +0.01 of 0.06). Direction factors' added fit in SSp-m FALLS acutely (cue -0.005 / -0.007, 0/4 up) and
+  chronically (-0.010, 0/4); they take less of the position code post-stroke. The contralesional SSp-m position rise is present with
+  DIRECTIONLESS FR (cue +0.028 [+0.002, +0.058], 4/4; lick +0.022 3/4 n.s.). Mechanism test running (`fr_direction_mechanism.py`).
+- **Total variance** (`scripts/variance_maps.py`, data only; Fig 16p): every significant bin is an INCREASE (null 0-2 %); acute lateral
+  orofacial both sides + posterior; chronic cortex x1.54 [1.37, 1.73] lick 4/4, VISp x1.83, RSPd x1.72 (global); R2 not raw variance
+  is the measure.
+- **Executed vs decoded by target** (`exec_vs_neural_match.py --target`; Fig 3m-3n): see FINDINGS 4.
+
 ### 8.8 Variance explained (Musall style) and R2 maps on the final frame — descriptive
 - `frozen_musall_figures.py --tag gate-attempted_v7g3_t3d` (Fig 14 / 14b; MOs / MOp / SSp-m / SSp-n per hemisphere
   on the share): uninstructed movement dominates single-trial / frame R2, mostly task-independent; spout explains the
