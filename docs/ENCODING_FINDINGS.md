@@ -1166,6 +1166,10 @@ cells are many; per-animal numbers on the page.
 - Free push (`_v7pushfree` vs `_v7fwd15`, older no-FR base; specificity_control on both): cue residual unchanged; lick
   window chronic control residual halves (+1.03 -> +0.52 pre-SD), orofacial contra +2.12 -> +1.83, orofacial - control
   +0.69 (3/4) -> +0.92 (4/4). Pushes explain part of the cortex-wide lick-window residual; the orofacial residual stays.
+- Free push on the CURRENT frame (`gate-attempted_v7g3_t3d_frA_pushfree`, 10-25 evening): same answer -- cue residual
+  unchanged (orofacial contra chronic +1.42 -> +1.40, contrast +0.88 -> +0.93); lick window chronic non-orofacial
+  +1.46 -> +0.83 pre-SD, orofacial contra +2.35 -> +1.95, contrast +0.53 -> +0.79. Pushes carry ~40 % of the lick-window
+  residual in non-orofacial cortex and a smaller share in orofacial cortex; no headline claim depends on push.
 
 ### 8.11 Is the chronic change specific to orofacial cortex? Does it track recovery? (10-25 afternoon) -- PROVISIONAL
 
