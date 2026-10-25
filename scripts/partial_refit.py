@@ -16,6 +16,8 @@ predictions only). Variants:
   target_exec_fr  target + exec + fr_dir (the whole position package)
   target_shuf  NULL: target columns rebuilt with the trial positions circularly shifted by half the session (block
                structure kept, alignment with the data broken), refit the same way
+  exec_shuf    NULL for exec: executed templates assigned by spout labels shifted by half the session (10-25; added to
+               an existing run with --add exec_shuf). Read every set AGAINST its null: the nulls also gain post-stroke
 Scores: `frozen_encoder.musall_r2` (frame / trial / avg) per window x area, and frame R2 per spout (all areas).
 Readout: gain = R2[variant] - R2[frozen], epoch - pre within animal (nested bootstrap), per-animal table first.
 
@@ -45,7 +47,12 @@ SETS = {"target": ("target",), "exec": ("exec_locked", "exec_within"), "exec_fr"
         # FROZEN_LICKSPOUT runs: the per-spout lick kernels (executed, lick-locked spout code) -- the crisp contest
         "lickspout": ("lickspout",), "exec_ls": ("exec_locked", "exec_within", "lickspout"),
         "target_ls": ("target", "lickspout")}
-VARIANTS = ["target", "exec", "exec_fr", "target_exec", "target_exec_fr", "lickspout", "exec_ls", "target_ls", "target_shuf"]
+VARIANTS = ["target", "exec", "exec_fr", "target_exec", "target_exec_fr", "lickspout", "exec_ls", "target_ls", "target_shuf",
+            "exec_shuf"]
+NULLS = ("target_shuf", "exec_shuf")
+CONTRASTS = {"target - null": ("target", "target_shuf"), "exec - null": ("exec", "exec_shuf"),
+             "exec - target": ("exec", "target"),
+             "lickspout - target": ("lickspout", "target")}
 
 
 def frozen_fits(run: Path) -> Path:
@@ -96,8 +103,49 @@ def _refit(Z, r, lam, fold):
     return out
 
 
+def _null_preds(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, which):
+    """NULLS: the refit set's columns rebuilt with the spout labels circularly shifted by half the session (block
+    structure kept, alignment with the data broken), refit the same way. target_shuf: target columns from shifted trial
+    positions (raw_blocks patched). exec_shuf: executed spout-locked / within-spout columns from templates assigned by
+    shifted per-frame spout labels (spout_split patched; frames rolled by half the record ~ trials shifted by half the
+    session; exec_angle is label-free and stays real -> conservative). Patches live in this worker only."""
+    out = {}
+    if "target_shuf" in which:
+        ce = fe._ce()
+        orig = ce.raw_blocks
+
+        def shifted(B, ft, pos_perm=None, drop_pos=None):
+            p = B.trials.pos.to_numpy()
+            sh = np.roll(p, len(p) // 2)
+            return orig(B, ft, pos_perm={"pos_enl": sh, "pos_cue": sh}, drop_pos=drop_pos)
+        ce.raw_blocks = shifted
+        try:
+            d2 = fe.session_design(label, tpl)
+        finally:
+            ce.raw_blocks = orig
+        m = grp == "target"
+        base = Zv[:, ~m] @ beta[~m]
+        out["target_shuf"] = base + _refit(((d2["X"] / F["scale"]) @ F["C"])[:, m], R - base, lam_all[m], fold)
+    if "exec_shuf" in which:
+        orig_s = fe.spout_split
+
+        def split_shifted(x, pos_split, k_of, pos_order, M):
+            ps = np.asarray(pos_split, dtype=object)
+            return orig_s(x, np.roll(ps, len(ps) // 2), k_of, pos_order, M)
+        fe.spout_split = split_shifted
+        try:
+            d3 = fe.session_design(label, tpl)
+        finally:
+            fe.spout_split = orig_s
+        m = np.isin(grp, SETS["exec"])
+        base = Zv[:, ~m] @ beta[~m]
+        out["exec_shuf"] = base + _refit(((d3["X"] / F["scale"]) @ F["C"])[:, m], R - base, lam_all[m], fold)
+    return out
+
+
 def job(item):
-    label, run_dir, fits_path = item
+    label, run_dir, fits_path, *rest = item
+    add = tuple(rest[0]) if rest and rest[0] else None     # add-only mode: compute these nulls, merge into the saved json
     from wfield_local import config
     from wfield_local import frozen_encoder as fe
     run = Path(run_dir)
@@ -120,33 +168,23 @@ def job(item):
     fold = np.array([fmap[t] for t in tri])
     pos_order = sorted(set(d["pos"]))
     preds = {"frozen": Zv @ beta}
+    sdir = Path(fits_path).parent / "sessions"
+    if add:
+        old = json.loads((sdir / f"{label}.json").read_text())
+        new = _null_preds(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, add)
+        old["scores"].update({k: _scores(fe, R, P, d, pos_order) for k, P in new.items()})
+        (sdir / f"{label}.json").write_text(json.dumps(old))
+        return old
     for name, gs in SETS.items():
         m = np.isin(grp, gs)
-        if not m.any():                                  # e.g. lickspout sets in a run without FROZEN_LICKSPOUT
+        if not set(gs) <= set(grp):                      # e.g. lickspout sets in a run without FROZEN_LICKSPOUT
             continue
         base = Zv[:, ~m] @ beta[~m]
         preds[name] = base + _refit(Zv[:, m], R - base, lam_all[m], fold)
-    # NULL: target columns from positions circularly shifted by half the session (patched in this worker only)
-    ce = fe._ce()
-    orig = ce.raw_blocks
-
-    def shifted(B, ft, pos_perm=None, drop_pos=None):
-        p = B.trials.pos.to_numpy()
-        sh = np.roll(p, len(p) // 2)
-        return orig(B, ft, pos_perm={"pos_enl": sh, "pos_cue": sh}, drop_pos=drop_pos)
-    ce.raw_blocks = shifted
-    try:
-        d2 = fe.session_design(label, tpl)
-    finally:
-        ce.raw_blocks = orig
-    m = grp == "target"
-    Z2 = (d2["X"] / F["scale"]) @ F["C"]
-    base = Zv[:, ~m] @ beta[~m]
-    preds["target_shuf"] = base + _refit(Z2[:, m], R - base, lam_all[m], fold)
+    preds.update(_null_preds(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, NULLS))
     out = {"label": label, "animal": an, "epoch": d["epoch"], "day": d["day"], "n_trials": int(d["n_trials"]),
            "areas": list(F["areas"]), "scores": {k: _scores(fe, R, P, d, pos_order) for k, P in preds.items()}}
-    sdir = Path(fits_path).parent / "sessions"              # saved per session as it finishes -> a restart resumes
-    sdir.mkdir(parents=True, exist_ok=True)
+    sdir.mkdir(parents=True, exist_ok=True)                  # saved per session as it finishes -> a restart resumes
     (sdir / f"{label}.json").write_text(json.dumps(out))
     return out
 
@@ -172,6 +210,7 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--add", nargs="+", choices=NULLS, help="compute only these nulls for sessions already scored")
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     out = run / "partial_refit"
@@ -181,9 +220,13 @@ def main(argv=None) -> int:
         from wfield_local import analysis_kit as ak
         fp = frozen_fits(run)
         labels = a.labels or sorted(p.stem for p in (run / "joint" / "sessions").glob("*.json"))
-        todo = [lab for lab in labels if not (sdir / f"{lab}.json").exists()]
+        if a.add:
+            todo = [lab for lab in labels if (sdir / f"{lab}.json").exists()
+                    and not set(a.add) <= set(json.loads((sdir / f"{lab}.json").read_text())["scores"])]
+        else:
+            todo = [lab for lab in labels if not (sdir / f"{lab}.json").exists()]
         print(f"{len(todo)} of {len(labels)} sessions", flush=True)
-        res, fail = ak.fan_sessions([(lab, str(run), str(fp)) for lab in todo], job, jobs=a.jobs, label="partial")
+        res, fail = ak.fan_sessions([(lab, str(run), str(fp), a.add) for lab in todo], job, jobs=a.jobs, label="partial")
         for _it, r in res:
             (sdir / f"{r['label']}.json").write_text(json.dumps(r))
         for it, err in fail:
@@ -204,15 +247,28 @@ def summarise(run: Path, out: Path) -> None:
         return
     key = ["label", "animal", "epoch", "window", "measure", "area"]
     W = T.pivot_table(index=key, columns="variant", values="r2")
+    seen = []
+    for v in [v for v in VARIANTS if v in W]:            # sets with an absent group (older runs) duplicate their base
+        if any(np.allclose(W[v], W[u], equal_nan=True) for u in seen):
+            W = W.drop(columns=v)
+        else:
+            seen.append(v)
     G = pd.concat([(W[v] - W["frozen"]).rename("u").reset_index().assign(q=v) for v in VARIANTS if v in W],
                   ignore_index=True)
+    #: CONTRASTS (10-25): the shuffled-label null also gains post-stroke (any refit block-structured regressor absorbs
+    #: some of the larger post residual), so target is read AGAINST it; executed vs target = whose refit helps more
+    Wg = G.pivot_table(index=key, columns="q", values="u")
+    for name, (x, y) in CONTRASTS.items():
+        if x in Wg and y in Wg:
+            G = pd.concat([G, (Wg[x] - Wg[y]).rename("u").reset_index().assign(q=name)], ignore_index=True)
     G.to_csv(out / "gain.csv", index=False)
     Gf = G[G.measure == "frame"]
     pd.set_option("display.width", 230)
     per = Gf[Gf.area.isin(["SSp-m_right", "SSp-m_left", "cortex"])].groupby(["q", "window", "area", "animal", "epoch"]) \
         .u.mean().unstack("epoch").reindex(columns=ffc.EP4)
     print("== per animal (rule 8): R2 gain over frozen, by refit set\n" + per.round(4).to_string())
-    B = pd.concat([ffc.boot(Gf[Gf.q == q], "u").assign(q=q, frame=q) for q in VARIANTS if (Gf.q == q).any()], ignore_index=True)
+    QQ = [*VARIANTS, *CONTRASTS]
+    B = pd.concat([ffc.boot(Gf[Gf.q == q], "u").assign(q=q, frame=q) for q in QQ if (Gf.q == q).any()], ignore_index=True)
     B.to_csv(out / "boot.csv", index=False)
     print(B[B.area.isin(["SSp-m_right", "SSp-m_left", "cortex"]) & B.epoch.isin(["acute", "chronic"])]
           [["q", "window", "area", "epoch", "ref", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
@@ -222,20 +278,27 @@ def summarise(run: Path, out: Path) -> None:
     Bs.to_csv(out / "boot_by_spout.csv", index=False)
     print("== by spout, SSp-m contra, chronic\n" + Bs[(Bs.area == "SSp-m_right") & (Bs.epoch == "chronic")]
           [["q", "window", "spout", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
-    cols = dict(zip(VARIANTS, ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf", "#66c2a5", "#999999"]))
+    cols = dict(zip(VARIANTS, ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf", "#66c2a5", "#999999",
+                               "#bdd7e7"]))
+    cols.update({"target - null": "#b2182b", "exec - null": "#6baed6", "exec - target": "#2166ac",
+                 "lickspout - target": "#8c510a"})
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
     for w in ffc.WINDOWS:
-        fig, ax = plt.subplots(1, 1, figsize=(15, 4.8))
+        fig, (ax, ax2) = plt.subplots(2, 1, figsize=(15, 8.6))
         ffc.bars(ax, B[B.window == w], [v for v in VARIANTS if (B.q == v).any()], AREAS, "R2 gain over frozen, epoch - pre",
                  "refit ONLY: red = target, blue = executed position, green = executed + FR side / distance, purple = "
                  "target + executed, orange = target + executed + FR, grey = target with shuffled labels (null)")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        ffc.bars(ax2, B[B.window == w], [v for v in CONTRASTS if (B.q == v).any()], AREAS, "difference of gains, epoch - pre",
+                 "CONTRASTS: dark red = target minus its shuffled-label null; light blue = executed minus its shuffled-"
+                 "label null; dark blue = executed minus target (whose refit helps more)")
+        ax2.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         fig.suptitle(f"NEURAL: PARTIAL REFIT, {w} window ({run.name.replace('frozen_encoder_', '')}): one group refit per session "
                      "(cross-validated), all else frozen;\ngain in held-out R2 over the frozen model, as a change from pre "
                      "(within animal). Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=9)
-        fig.subplots_adjust(left=0.05, right=0.86, top=0.84, bottom=0.12)
+        fig.subplots_adjust(left=0.05, right=0.83, top=0.9, bottom=0.07, hspace=0.35)
         fig.savefig(out / "figures" / f"partial_refit_{w}.png", dpi=105)
         plt.close(fig)
     print("->", out)
