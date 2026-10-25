@@ -1169,7 +1169,9 @@ cells are many; per-animal numbers on the page.
 
 ### 8.11 Is the chronic change specific to orofacial cortex? Does it track recovery? (10-25 afternoon) -- PROVISIONAL
 
-Frozen frame with FaceRhythm (`gate-attempted_v7g3_t3d_frA`; Layer 2 `allsession_encoder_v7g3_t3d_frA`). Orofacial = SSp-m,
+**WORDING (Priya 10-25): the "control" areas are a non-orofacial COMPARISON set, not a null -- widefield movement,
+arousal and stroke (diaschisis) effects reach visual / retrosplenial cortex too. They show where a change is concentrated;
+a cortex-wide change is not thereby drift or artefact.** Frozen frame with FaceRhythm (`gate-attempted_v7g3_t3d_frA`; Layer 2 `allsession_encoder_v7g3_t3d_frA`). Orofacial = SSp-m,
 SSp-n, MOp, MOs; CONTROL = visual (7 areas), retrosplenial (3), SSp trunk / lower limb; both hemispheres; group = mean over
 the areas present in all of an animal's sessions. Residual = data - frozen prediction, evoked, mean of six spouts, in each
 animal's pre-SD units per area. Scripts `scripts/specificity_control.py` (outputs
@@ -1180,9 +1182,8 @@ animal's pre-SD units per area. Scripts `scripts/specificity_control.py` (output
   retrosplenial included). Mixed model (time): control areas NO step at the stroke (-0.003) but a steady rise with log day
   (+0.016 / e-fold, z 6.1); orofacial - control has an ACUTE step only (+0.025, z 2.6) that decays (-0.007 / e-fold, z -3.0).
   Behaviour model: the change is LARGER in better-behaving (later) sessions (control -0.007 / unit ttc deficit, z -5.0).
-  -> the signature of slow, cortex-wide change accumulating with time (drift on a longer time scale than the 8-day August
-  null, or a global state / signal change), not a stroke-specific motor remapping; the stroke-specific part is an acute,
-  transient orofacial excess.
+  -> a cortex-wide change accumulating with time: a real stroke effect reaching all of cortex, or drift on a longer time
+  scale than the 8-day August null -- undecided; the orofacial-SPECIFIC part is an acute, transient excess.
 - **RESIDUAL: partly global, partly orofacial; a disruption that tracks the deficit plus a persistent part.** Chronic,
   pre-SD units: orofacial contra cue +1.42 [0.70, 2.36] / lick +2.35 [1.65, 3.07] (4/4); control cue +0.25 (n.s.) / lick
   +1.46 [0.35, 2.54] (3/4). Orofacial - control: cue +0.88 [-0.005, 2.16] 3/4, lick
