@@ -64,6 +64,18 @@ deck_registry:733 0.749->0.286->0.745; VLS 0.943->...->0.943; PRELIM §4 0.943->
 "No cortex damaged" CORRECTED in FINDINGS §3 (PS93 anterior motor-cortex injury, HISTOLOGY) -- CLAUDE.md still says it
 (flag to Priya; don't edit CLAUDE.md unasked).
 
+**CLEANUP 10-25 (survey: background reader; lists in `S/delete_lists_20261025/`). Priya APPROVED + DONE:** scratchpad
+LP / DAQ calibration stores of 10-21 (7 files, 35.5 GB; 10-24 LP stores kept); session-cache LP tag `lp92d8d7aa` (2,456
+files, 23.4 GB; current tag `lp90d0a4f6` kept); wfield_cache entries older than 10-24 06:29 (1,008 files, 163.6 GB) --
+deleted by a waiter AFTER the per-trial relabel finishes (check `S/delete_lists_20261025/` + task output).
+NOT approved (kept): CD-window session-cache entries (~12.5 GB, tell that window), wfield_cache 10-24 06:29-23:40 (~82 GB).
+**TO-DO, REVISIT WITH PRIYA (share, proposed, ~170 GB + unsure):** o2/enc_v36_full_20261024/out (41.6 GB, all 14 collected,
+sizes match); o2/enc_v36_20261019/inputs (29 GB; keep code / match.json); Widefield/input_cache_backup (60 GB, pre-final-frame
+keys); stale imaging_encoding folders: no-suffix FR collision copy (1.8), frozen v7basis / v7fwd15 / v7pushfree, frozen_relabel_v7,
+allsession_v7push (9.9), 10-19..10-22 combined runs (23.0), FR pilots (2.3), 2-animal xyz2 (2.8). Unsure: v35 LP run (16,
+SUPERSEDED.md), frozen v7g3 cam4 twin (3.5), nokin_matched / tr / win + drop_win (9.0), nokin bins_3d4 (3.0). Worktrees
+wf_g3 / wf_lp2 / wf_frclean / wf_v4 / base3 merged + clean -> `git worktree remove` when convenient.
+
 **RUNNING at ~01:00 (all write to the share):**
 - `frozen_relabel --from gate-attempted_v7g3_t3d --tag v7g3_t3d_trial --jobs 8` (log `S/relabel_trial.log`; ~5 h
   from 00:00; writes all session jsons at the END). Then a waiter (`S/...` bash, task bx9xor7g5) runs

@@ -50,12 +50,12 @@ def table(mode: str, windows) -> pd.DataFrame:
         for key in r.index.intersection(m.index):
             a, b = m.loc[key], r.loc[key]
             row = {"label": lab, "animal": config.animal_of(lab), "epoch": epochs.epoch_of(lab), "area": key[0],
-                   "window": key[1], "full": a["full"] * 1e3, "full_fr": b["fr:full"] * 1e3,
-                   "alone_fr": b["fr:alone"] * 1e3, "unique_fr": (b["fr:full"] - b["full"]) * 1e3}
+                   "window": key[1], "full": a["full"], "full_fr": b["fr:full"],
+                   "alone_fr": b["fr:alone"], "unique_fr": (b["fr:full"] - b["full"])}
             for gname in ("task", "instructed", "uninstructed", "position"):
-                row[f"alone_{gname}"] = a.get(f"alone:{gname}", np.nan) * 1e3
-                row[f"unique_{gname}"] = (a["full"] - a[f"drop:{gname}"]) * 1e3
-                row[f"uniquefr_{gname}"] = (b["fr:full"] - b[f"fr:drop:{gname}"]) * 1e3
+                row[f"alone_{gname}"] = a.get(f"alone:{gname}", np.nan)
+                row[f"unique_{gname}"] = (a["full"] - a[f"drop:{gname}"])
+                row[f"uniquefr_{gname}"] = (b["fr:full"] - b[f"fr:drop:{gname}"])
             rows.append(row)
     return pd.DataFrame(rows)
 
@@ -67,7 +67,7 @@ PIX = [("full_fr", "full R2 (with FR)"), ("alone_fr", "FaceRhythm alone"), ("uni
 
 
 def session_pixels(lab: str, mode: str, windows) -> dict:
-    """{(quantity, window): (H, W) block R2 x1e3} for one session from the stored 2 x 2-block SSE maps of the main
+    """{(quantity, window): (H, W) block R2 (fraction, 0-1)} for one session from the stored 2 x 2-block SSE maps of the main
     (no-FR) and FR runs (same grid; R2 = 1 - SSE / SST per block, as combined_encoding_figures._grid_from)."""
     frd = E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{mode}" / "sessions"
     zm, zf = np.load(MAIN / f"{lab}.npz"), np.load(frd / f"{lab}.npz")
@@ -91,7 +91,7 @@ def session_pixels(lab: str, mode: str, windows) -> dict:
             q[f"uniquefr_{g}"] = full_fr - r2(Mf, kf, f"fr:drop:{g}")
         for k, v in q.items():
             g_ = np.full(H * W, np.nan)
-            g_[zm["flat"]] = v * 1e3
+            g_[zm["flat"]] = v
             out[(k, w)] = g_.reshape(H, W)
     return out
 
@@ -139,7 +139,7 @@ def pixel_maps(mode: str, windows, T: pd.DataFrame, out: Path) -> None:
                 if j == 0:
                     ax.set_ylabel(title, fontsize=9)
         fig.suptitle(f"NEURAL: Musall-style PIXEL maps, per-session encoder with FaceRhythm (mode {mode}), {w} window; "
-                     "held-out R2 x1e3 per 2x2-px block (1 - SSE/SST), within animal then mean of 4 animals.\n"
+                     "held-out R2 (fraction, 0-1) per 2x2-px block (1 - SSE/SST), within animal then mean of 4 animals.\n"
                      "Row 1: pre-stroke level (viridis, 0 to p99); rows 2-3: epoch minus pre (RdBu, +-p99). unique = "
                      "full minus the model without the group; | FR = FaceRhythm in the model. Image left = ipsilesional.",
                      fontsize=9)
@@ -195,7 +195,7 @@ def main(argv=None) -> int:
                         ax.scatter(i + (j - 0.5) * 0.36, y, marker=MK[an], s=12, facecolor="w", edgecolor="k", lw=0.6, zorder=5)
             ax.set_xticks(range(4)); ax.set_xticklabels(["task", "instructed", "uninstr.", "position"], fontsize=8, rotation=20)
             ax.axhline(0, color="k", lw=0.6)
-        axs[0, 0].set_ylabel(f"{a.area}, {w} window\nheld-out R2 x1e3"); axs[1, 0].set_ylabel("unique R2 x1e3\nwithout vs with FaceRhythm")
+        axs[0, 0].set_ylabel(f"{a.area}, {w} window\nheld-out R2 (fraction, 0-1)"); axs[1, 0].set_ylabel("unique R2 (fraction, 0-1)\nwithout vs with FaceRhythm")
         axs[0, 0].legend(fontsize=7, frameon=False, loc="upper left"); axs[1, 0].legend(fontsize=7, frameon=False, loc="upper left")
         fig.suptitle(f"NEURAL: Musall-style variance with FaceRhythm (master_pre_v1, mode {a.mode}) in the per-session encoder, {a.area}, {w} window.\n"
                      "Top: stacked task-independent (unique R2 with FR in the model; coloured) + task-aligned (alone - unique; grey); filled dots = unique, "
@@ -241,7 +241,7 @@ def main(argv=None) -> int:
                     ax.set_title(lab_, fontsize=8)
                 if j == 0:
                     ax.set_ylabel(title, fontsize=9)
-        fig.suptitle(f"NEURAL: area maps, per-session encoder with FaceRhythm (mode {a.mode}), {w} window; held-out R2 x1e3, mean of animals "
+        fig.suptitle(f"NEURAL: area maps, per-session encoder with FaceRhythm (mode {a.mode}), {w} window; held-out R2 (fraction, 0-1), mean of animals "
                      "(each area painted with its value).\nRow 1: pre-stroke level; rows 2-3: epoch minus pre within animal, then mean. "
                      "Image left = ipsilesional.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.92))
@@ -249,7 +249,7 @@ def main(argv=None) -> int:
         plt.close(fig)
     pixel_maps(a.mode, a.windows, T, out)
     show = A[(A.area == a.area)].groupby(["window", "epoch"])[["alone_fr", "unique_fr", "unique_position", "uniquefr_position",
-                                                               "uniquefr_task", "uniquefr_uninstructed"]].mean().round(1)
+                                                               "uniquefr_task", "uniquefr_uninstructed"]].mean().round(3)
     print(show.to_string())
     return 0
 
