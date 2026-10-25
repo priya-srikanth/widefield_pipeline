@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import textwrap
 import pickle
 import sys
 from pathlib import Path
@@ -198,14 +199,13 @@ def main(argv=None) -> int:
             for s_ in ax.spines.values():
                 s_.set_visible(False)
             if r == 0:
-                ax.set_title(lab, fontsize=8)
+                ax.set_title(textwrap.fill(lab, 24), fontsize=8)
             if j == 0:
                 ax.set_ylabel(title, fontsize=9)
             if r in (0, len(rows_) - 1):
                 cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02, orientation="horizontal")
                 cb.ax.tick_params(labelsize=6)
     unit = "PER-ANIMAL z test (each animal / its pre-session SD map); maps shown in R2" if a.zscore else "raw R2 test"
-    import textwrap
     ttl = (f"NEURAL: FROZEN-frame pixel maps WITH significance, run {a.tag} (all frames; held-out R2, fraction). Row 1 pre "
            f"level; rows 2-4 epoch minus pre (one scale per column). Contours: significant bins, black 16 px, purple dashed 32 px "
            f"(nested bootstrap animals > sessions, Bonferroni; {unit}); null: >= 1 false bin in {nr.get(16, np.nan):.0%} / "
@@ -221,7 +221,7 @@ def main(argv=None) -> int:
     from matplotlib.colors import BoundaryNorm, ListedColormap
     cm = ListedColormap(["#2166ac", "#67a9cf", "#d1e5f0", "#f7f7f7", "#fddbc7", "#ef8a62", "#b2182b"])
     nb = BoundaryNorm(np.arange(-3.5, 4.5, 1), cm.N)
-    fig, axs = plt.subplots(len(EPS), len(qs), figsize=(2.35 * len(qs), 2.5 * len(EPS) + 1.2), squeeze=False)
+    fig, axs = plt.subplots(len(EPS), len(qs), figsize=(2.7 * len(qs) + 1.0, 2.6 * len(EPS) + 1.6), squeeze=False)
     crow = []
     for j, (q, _v, lab) in enumerate(qs):
         for r, ep in enumerate(EPS):
@@ -238,10 +238,11 @@ def main(argv=None) -> int:
                     bbox={"facecolor": "white", "alpha": 0.7, "pad": 1, "lw": 0})
             ax.set_xticks([]); ax.set_yticks([])
             if r == 0:
-                ax.set_title(lab, fontsize=8)
+                ax.set_title(textwrap.fill(lab, 24), fontsize=8)
             if j == 0:
                 ax.set_ylabel(f"{ep} minus pre", fontsize=9)
-    cb = fig.colorbar(im, ax=axs, shrink=0.6, ticks=range(-3, 4))
+    fig.subplots_adjust(left=0.04, right=0.9, top=0.8, bottom=0.03, wspace=0.06, hspace=0.3)
+    cb = fig.colorbar(im, cax=fig.add_axes([0.92, 0.2, 0.012, 0.55]), ticks=range(-3, 4))
     cb.set_label("animals significantly UP minus DOWN\n(per animal: sessions as unit, Welch t, Bonferroni)", fontsize=8)
     fig.suptitle(textwrap.fill(f"NEURAL: FROZEN-frame pixel maps, PER-ANIMAL view (secondary; the nested bootstrap is primary), "
                                f"run {a.tag}, 16 px bins: how many of the 4 animals change significantly in each direction, "
