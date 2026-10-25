@@ -1150,6 +1150,33 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.10 FROZEN encoder WITH FaceRhythm; every post-stroke change claim redone in the frozen frame (10-25 day)
+WHY: the FR results (8.7, 8.9) and the target-vs-executed contest (2.4b, 8.6) used the PER-SESSION REFIT encoder, which
+re-learns every session's weights, so a post-stroke change there mixes changed movement with changed cortex; the frozen
+encoder (one model per animal from its August pre sessions, pre held out leave-one-session-out) had no face movement. Code:
+`frozen_encoder.py` FROZEN_FR=1 (+ COMBINED_ENCODING_FR=master_pre_v1, COMBINED_ENCODING_FR_GROUPS=master_v1:A; groups fr =
+lick sum + other, fr_dir = side / distance; movement super-group; own penalty) and FROZEN_FR_SPLIT=1 (FR split into spout-
+locked template + deviation like pose; groups fr_locked / fr / fr_dir; super-groups posinfo / noposinfo across pose + FR).
+Runs: `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/frozen_encoder_gate-attempted_v7g3_t3d_frA` (+ Layer 2 `allsession_encoder_v7g3_t3d_frA`, relabel
+`frozen_relabel_v7g3_t3d_frA`, decomposition `qc/lp_encoder_decompose_frozen_encoder_gate-attempted_v7g3_t3d_frA_joint*`).
+Scripts: frozen_fr_compare.py, frozen_fr_musall.py, frozen_claims.py, frozen_posinfo.py, frozen_pixel_unique_sig.py
+(outputs `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/frozen_fr_compare/`). Page section 0 + "Where things stand" (v53).
+- FR raises pre-stroke frozen R2 (cortex cue 0.44 -> 0.60, lick 0.34 -> 0.53; LOSO areas-summed PS92 0.68 vs 0.64 no_fr).
+- STANDS with FR: acute far-contra drop carried by movement (target ~0); chronic residual (SSp-m +9.5 / +10.6 cue, 4/4);
+  Layer 2 chronic change beyond drift (cortex +0.054, SSp-m +0.059 / +0.061, 4/4); relabel pattern.
+- REVISED: target vs executed (frozen target unique falls and stays down; executed spout-locked part up); contralesional
+  position rise (not reproduced; SPOUT package contra - ipsi +0.039 / +0.048 with FR, 4/4); PETH loss does not recover
+  chronically; recovery course 2/4 up (cortex at / after behaviour). Pixel maps (no FR, basis): position unique only
+  decreases (few bins), spout unique up acutely (31 bins, lateral), full R2 down acute (377) / chronic central (69); per-
+  animal z and per-animal session-level views agree; calibrated 4-6 % (raw).
+- FR unique in the frozen frame (per regressor): cortex directionless 0.008 vs direction 0.001; SSp-m 0.004 vs 0.003 --
+  "almost all directionless" holds cortex-wide, NOT in SSp-m. Direction unique falls chronically in contra SSp-m (0.013 ->
+  0.003 cue), but Layer 2 change_fr_dir <= pre_late drift: MIXED behaviour / neural.
+- Movement with vs without lick-position info (quick, FR lick sum unsplit): pre SSp-m alone 0.46 / 0.46, unique 0.03 vs
+  0.09; chronic noposinfo unique up in SSp-m (ipsi +0.050 [0.023, 0.074] 4/4), posinfo alone down contra (-0.065, 0/4).
+- Refit FR maps with PER-ANIMAL z (`fr_pixel_significance.py --zscore`): counts kept or raised (chronic position no FR 99 ->
+  188, task | FR 8 -> 28, position | FR 2 -> 13) but the z test is liberal (9 % / 8.6 % false-bin splits vs 5 %).
+
 ### 8.9 FaceRhythm: trial-to-trial vs PETH, direction vs directionless, total variance (10-25 night) — PROVISIONAL
 R2 as a FRACTION from here on. FRAME: per-session refit encoder (FR factors frozen master_pre_v1; encoder weights per session).
 - **Trial-to-trial vs PETH** (`scripts/fr_trial_peth.py`, O2 fr_A_tr, 107 sessions; Fig 16l-16m): pre cortex, FR unique 0.21-0.24

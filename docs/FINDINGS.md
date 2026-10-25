@@ -200,6 +200,8 @@ bootstrap unless stated; LICK DATA = behaviour only.*
    decomposition: the acute drop = the predicted lick part in all model orderings, target part ~0 (<= 1.7 x1e3).
    Pooled: measured -.53 / -.30 of the pre response (ipsi / contra SSp-m), predicted -.62 (4 / 4). **STANDS** (3.4;
    Fig 8, 8b).
+   **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** unchanged: predicted -.58 / -.61 vs measured -.30 / -.53 (SSp-m contra /
+   ipsi, lick), target part ~0; FaceRhythm takes part of the lick share (page Fig 9-9b, 1).
 2. **Chronically cortex responds MORE than the pre-stroke mapping predicts for the same behaviour (the residual).**
    Residual +.32 / +.43 of the pre response (ipsi / contra SSp-m) with predicted change ~0, 4 / 4. Pixel maps,
    calibrated bins (random pre splits within the nominal 5 %): all six spouts pooled, 32 px, lick window 19 / 35 / 30
@@ -208,11 +210,16 @@ bootstrap unless stated; LICK DATA = behaviour only.*
    units, chronic): MOp +1.8* / +2.3*, SSp-m +2.1* / +2.5*, SSp-n +.9 / +2.5*, MOs +.7 / +1.4*, contralesional >
    ipsilesional in every area; a raised plateau, not continuing drift (3 / 4). **STANDS**; the earlier "pooled pixel
    test weak" (8 px) is **CORRECTED** (8.4; Fig 9-9g, 10, 11, 11b).
+   **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** NOT face movement: SSp-m chronic residual +9.4 / +9.4
+   -> +9.5 / +10.6 (x1e3 dF/F, cue; lick +12.4 / +14.0 -> +10.9 / +13.4), 4/4 (page Fig 1, 1b).
 3. **The behaviour-to-cortex mapping is rewritten chronically (Layer 2).** One fit per animal, epoch kernel changes from
    early-August pre: chronic gain beats the late-pre null (cortex +54.8 [+22.0, +87.4], SSp-m +52.5 / +51.6) and every
    one of 20 random pre pseudo-epochs in 4 / 4 (cortex and both SSp-m); grows with time; spread across kernel groups
    (none alone beyond the null). **STANDS** within August; its nulls do not include June -> August drift (cf. 3.3).
    The original pooled-refit version was **WITHDRAWN** (10-24; 8.5; Fig 12-13b).
+   **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** unchanged: chronic change beyond pre drift cortex
+   +0.055 -> +0.054, SSp-m +0.052 -> +0.059 / +0.061 (4/4). The FR direction weights change no more than
+   pre-stroke drift (page Fig 1 panel 4).
 4. **Licks to far contra go to the wrong spout from launch (LICK DATA).** Landing soft bins: own bin -.69 / -.38 / -.19,
    far mid +.35 / +.36 / +.20 (4 / 4, significant); whole tracked 3-D path: own -.65 / -.36 / -.22, acute toward far
    ipsi +.42 (part general forward overshoot) then far mid; mis-landing licks follow the other spout's course from the
@@ -245,8 +252,23 @@ bootstrap unless stated; LICK DATA = behaviour only.*
 11. **Target vs executed: chronically cortex carries the target beyond the executed movement.** Binned contest (unique
     R2 of target bins beyond executed bins): chronic change +9.0 [+3.6, +16.0] lick, +9.8 [+3.9, +16.2] cue, at every
     softmax width; acute lick +12.5 (n.s.; PS93 opposite). Pre-stroke "cortex tracks target, not executed" remains
-    **SUSPENDED** (2.4). **STANDS** chronically (2.4b, 8.6; Fig 1-2b).
+    **SUSPENDED** (2.4). **STANDS** chronically (2.4b, 8.6; Fig 1-2b) -- in the PER-SESSION REFIT frame only.
+    **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** **REVISED.** Frozen target-unique R2 (the spout beyond every executed
+    regressor) FALLS acutely and stays DOWN chronically (cortex lick -0.016 [-0.028, -0.004], 0/4 up; with FR -0.008,
+    0/4); the executed movement's spout-locked part RISES acutely (cue cortex +0.041, 4/4) and stays slightly up with FR.
+    The refit chronic target gain is not reproduced when the weights are frozen (page Fig 1e, 1f).
 12. **Face movement (FaceRhythm) explains about half of the spout-position code and most of its chronic rise.**
+    **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** the post-stroke CHANGE claims below were per-session refit; in the
+    frozen frame: (a) contralesional position | FR rise NOT reproduced (position unique flat; contra - ipsi -0.010
+    without FR) -- the SPOUT package (target + executed spout part) shifts contralesionally instead, contra - ipsi
+    +0.039 [0.011, 0.081] cue / +0.048 [0.015, 0.094] lick with FR, 4/4 (page Fig 1c, 1d); (b) the spout code is a PETH
+    code and the acute loss is a PETH loss (STANDS), but it does NOT recover chronically (PETH target unique cortex lick
+    -0.096 without / -0.054 with FR, 0/4; Fig 1g, 1h); (c) FR direction unique in SSp-m falls chronically, but the
+    direction weights do not change beyond drift (Layer 2): less direction signal through the same mapping, MIXED
+    behaviour / neural; (d) recovery course: frozen spout unique pre -> chronic up 2/4, cortex reaches half its change at
+    or after behaviour (Fig 1i); (e) movement WITHOUT lick-position information (pose + FR) gains unique R2 in SSp-m
+    chronically (ipsi +0.050 [0.023, 0.074] 4/4), position-carrying movement alone falls contralesionally (quick run,
+    Fig 1j, 1k). PROVISIONAL. Refit statements kept below for the record:
     Per-session encoder with FR (master_pre_v1, rank 12): unique position R2 pre-stroke 52 -> 30 x1e3 (cortex, lick);
     chronic rise +22 [+7, +38] -> +4 (n.s.) with FR (cue +39 -> +15 [+3, +27]); the acute ipsilesional SSp-m position
     loss survives FR; FR's side / distance information adds little beyond its lick amount (modes A ~ B ~ S ~ D).

@@ -9,6 +9,51 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000u. STATE 10-25 ~14:20 (pre-compaction) -- READ FIRST (then 000t)
+
+**Headline change (Priya 10-25): the FROZEN pre-stroke encoder is the frame for every post-stroke CHANGE claim; FaceRhythm is
+now inside it.** Per-session refit results are supporting only (say the frame in every claim). Results: ENCODING_FINDINGS 8.10,
+FINDINGS 4 (items 1-3 unchanged with FR; 11 and 12 REVISED). Page https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d v53:
+"Where things stand" table at the top (result | figures | status | frame | animals; Priya rule: cite figures), section 0 =
+frozen key figures (Fig 1-1k), FR refit section is now 17. Page source `S/goal_page/index.html` (S = `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`); renumber with
+`S/renumber_figs.py` (now also remaps href="#fig.." anchors and their text, and protects "Musall ... Fig" citations -- a
+renumber had turned "Musall Fig. 5" into "Fig. 13"; fixed). Window order everywhere: pre-cue, cue, lick (Priya rule). Sidebar
+breakpoint 640 px. Peers told (5b, e3).
+
+**Done today (beyond 000t):** mechanism read-out (FINDINGS 4.12 WHY); no-attempt relabel by class (Fig 4t;
+`scripts/relabel_fc_by_class.py`); FR modes B/S/D contra tests (contra_orofacial_mode<X>/; mode-D overwrite of mode A fixed);
+position-coding trend re-run on O2 runs (ENCODING 4.1-4.2; 5b told; practice-trend test needs June); OUTPUT_AUDIT 2a status
+column; frozen + FR runs and every comparison above; refit FR map z-scored; per-animal secondary pixel view; FR modes
+schematic (Fig 17e); direction lick-window figures; layout fixes.
+
+**RUNNING at ~14:20 (all from worktree wf_attempt; do NOT rebase onto code changes while they run):**
+- `S/run_frozen_basis_fr.sh` (log `S/frozen_basis_fr_chain.log`): frozen + FR mode A on the per-animal SVD basis ->
+  `frozen_encoder_gate-attempted_v7g3_t3d_frA_basis` (predict 8/107 at 14:15).
+- `S/run_frozen_pos.sh` (log `S/frozen_pos_chain.log`): quick posinfo done; FULL split run FROZEN_FR_SPLIT=1, areas, all
+  variants -> `frozen_encoder_gate-attempted_v7g3_t3d_frAsplit` (stats done, fitting).
+- `S/run_frozen_maps.sh` (log `S/frozen_maps_chain.log`): noFR pixel maps done -> waits for the FR basis -> frA pixel maps
+  (raw + z) -> waits for the split run -> split BASIS run (posinfo / noposinfo variants) -> split pixel maps (raw + z).
+- background redraws: noise-band redraw of frozen_fr_compare / frozen_fr_musall / frozen_claims / frozen_posinfo (/tmp/r1-4.log,
+  /tmp/redraw.done) and the noFR pixel redraw (new layout, S/pix_nofr2*.log).
+
+**NEXT (in order):**
+1. When the redraws land: copy figures to `S/goal_page/` (frozen_fr_compare_*, frozen_musall_*, frozen_claims_*,
+   frozen_posinfo_quick_*) and republish (files!). Add frozen pixel figures (noFR `frozen_encoder_gate-attempted_v7g3_t3d_basis/
+   figures/unique_sig{,_z,_per_animal}.png`; then `_frA_basis`, `_frAsplit_basis`) to section 0 + status table rows.
+2. Split run done -> `python scripts/frozen_posinfo.py --tag gate-attempted_v7g3_t3d_frAsplit` (replaces the quick version on
+   the page; update FINDINGS 4.12 (e)) ; split basis maps -> page (Priya asked for posinfo MAPS).
+3. Per-session vs frozen comparison for "remapping" (Priya 10-25): same session refit R2 - frozen R2, epoch - pre, per area
+   and per group (caveat: different designs, only the change is interpretable); Layer 2 is the formal version.
+4. Optional (offered): absolute-level plots with per-animal pre spread (Priya asked about pre variability; noise band added).
+5. Older (000t list): noise-weighted relabel re-score; failed-attempt movement-matched control; encoding_mixed re-run on the
+   rebuilt table; convert remaining x1e3 numbers when touched; revisit share deletions with Priya; retire nokin_* runs only
+   when Priya decides (5b relays; NOT in DECISIONS yet).
+
+**Pitfalls learned today:** heredoc python patches eat backslashes (`\n`, `\1`) -> use the Edit tool or Write a .py file;
+scripts that write shared filenames per variant / mode must suffix them (two overwrites today, fixed); the push pre-hook
+runs ~25 min of tests and loses races -> push from a temp worktree or retry loop, never while chains import the worktree;
+Artifact publish with `edits` is refused here (a file-edit hook) -> edit the file, publish without edits.
+
 ## 000t. STATE 10-25 ~03:30 (pre-compaction) -- READ FIRST (then 000s)
 
 **Page** https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d v43 (source `S/goal_page/index.html`, S = this window's scratchpad
