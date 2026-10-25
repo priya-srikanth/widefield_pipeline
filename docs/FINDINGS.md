@@ -459,9 +459,9 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     same factor in every fit (best spatial match own 4, cos .87-.97) and **stays changed through chronic**: r with the
     pre far_R spout pattern .71 / .72 (pre halves) -> .53 / .54 / .46 (acute / subacute / chronic), with close-centre .25
     -> .50; loading moves from the contralesional mid-face to the contralesional mouth rim and lower cheeks; spatial angle
-    to pre 26 / 23 / 27 deg while most factors return to 7-14 deg chronically; asymmetry -.19 / -.09 / -.16. Same in all
+    to pre 26 / 23 / 27 deg while most factors return to 7-14 deg chronically; asymmetry -.19 / -.09 / -.19 (jackknife SE over animals .10 / .10 / .15; angle SE 7 / 4 / 8 deg). Same in all
     four leave-one-out fits. **lick_left changes acutely and recovers**: far_L r .77 -> .56 -> .71 / .75, angle 30 ->
-    15 / 14 deg, asymmetry +.33 acute then +.07 / -.07; the acute matched factor is broad / partly bilateral and differs
+    15 / 14 deg, asymmetry +.33 (SE .15) acute then -.06 / -.12; the acute matched factor is broad / partly bilateral and differs
     from the Hungarian pick in 4 / 5 fits; subacute recovery leans on PS92 (without it far_L .45). This REVISES the
     per-animal reading for lick_left (chronic +.18 there, not confirmed). CAVEATS: the cohort pre halves interleave days,
     so their floor (3-8 deg) leaves out across-day drift and nearly every factor is "beyond" it -- read lick_right against

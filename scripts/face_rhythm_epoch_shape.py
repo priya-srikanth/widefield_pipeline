@@ -64,6 +64,30 @@ def members(tag: str, animals) -> list[str]:
     return [tag]
 
 
+def tag_style(tag: str, acol: dict) -> dict:
+    """Line style per fit tag (Priya 10-25: show the all-sessions-pooled fit, not one line per animal): COHORT = thick
+    black (the pooled fit); LOAO-<an> = thin, in the LEFT-OUT animal's colour, labelled "without <an>"; an animal =
+    its colour as before."""
+    if tag == "COHORT":
+        return {"color": "k", "lw": 2.4, "alpha": 1.0, "label": "all animals pooled", "zorder": 3}
+    if tag.startswith("LOAO-"):
+        an = tag[len("LOAO-"):]
+        return {"color": acol.get(an, "0.5"), "lw": 0.8, "alpha": 0.7, "label": f"without {an}", "zorder": 2}
+    return {"color": acol.get(tag, "0.5"), "lw": 0.9, "alpha": 0.85, "label": tag, "zorder": 2}
+
+
+def jackknife_se(curves: dict) -> np.ndarray | None:
+    """SE of the all-animals-pooled (COHORT) fit's curve from its leave-one-animal-out fits (Priya 10-25: "add SEM ...
+    for the pooled cohort data"). The pooled fit is ONE fit per epoch, so there is no session spread to take an SEM
+    over; the delete-one-animal jackknife is its standard error: sqrt((n - 1) / n * sum_i (theta_(-i) - mean)^2),
+    n = animals (LOAO fits). ``curves`` {tag: (n_points,)}; None if there is no COHORT or fewer than 2 LOAO fits."""
+    loo = np.array([v for t, v in curves.items() if t.startswith("LOAO-")], float)
+    if "COHORT" not in curves or len(loo) < 2:
+        return None
+    n = len(loo)
+    return np.sqrt((n - 1) / n * np.nansum((loo - np.nanmean(loo, 0)) ** 2, 0))
+
+
 def deg(c):
     return np.degrees(np.arccos(np.clip(c, -1.0, 1.0)))
 
@@ -640,11 +664,17 @@ def main(argv=None) -> int:
             for c_i, mode in enumerate(("spatial", "spectral")):
                 ax = axs[k, c_i]
                 d = T[T.factor == k]
+                curves = {}
                 for an in animals:
                     da = d[d.animal == an].set_index("epoch").reindex(list(frc.POST_EPOCHS))
                     if da[f"floor_{mode}"].notna().any():
                         y = [da[f"floor_{mode}"].dropna().iloc[0], *da[f"angle_{mode}"].to_numpy()]
-                        ax.plot(x, y, ".-", color=acol.get(an, "0.5"), lw=0.9, ms=4, alpha=0.85)
+                        curves[an] = np.asarray(y, float)
+                        st = tag_style(an, acol)
+                        ax.plot(x, y, ".-", color=st["color"], lw=st["lw"], ms=4, alpha=st["alpha"], zorder=st["zorder"])
+                se = jackknife_se(curves)
+                if se is not None:
+                    ax.errorbar(x, curves["COHORT"], yerr=se, fmt="none", ecolor="k", elinewidth=1.4, capsize=3, zorder=4)
                 labels = ["pre A vs B"]
                 for ep in frc.POST_EPOCHS:
                     nb = int(d[d.epoch == ep][f"beyond_{mode}"].sum())
@@ -656,9 +686,13 @@ def main(argv=None) -> int:
                 if c_i == 0:
                     ax.set_ylabel("angle (deg)")
         for an in animals:
-            axs[0, -1].plot([], [], ".-", color=acol.get(an, "0.5"), label=an)
+            st = tag_style(an, acol)
+            axs[0, -1].plot([], [], ".-", color=st["color"], lw=st["lw"], label=st["label"])
         frf.legend_outside(axs[0, -1])
-        fig.suptitle(f"{fdir.name}: factor shape, pooled per-epoch fits vs the two pre-day halves (n = 4 animals)")
+        fig.suptitle(f"{fdir.name}: factor shape, pooled per-epoch fits vs the two pre-day halves ("
+                     + ("black = all sessions of all animals pooled +- jackknife SE; thin = each animal left out)"
+                        if OWN != "own_epoch"
+                        else "n = 4 animals)"))
         frf.save(fig, out / "epoch_shape_angles.png", """
 One own fit per animal x epoch on the epoch's sessions pooled (`face_rhythm_factors.py fitepoch`, equal rows per fit),
 plus two pre fits on disjoint alternating halves of the pre days. Every fit Hungarian-aligned to the frozen master
@@ -673,21 +707,31 @@ spectral = which frequencies. One value per animal: descriptive, no interval (PS
         for c_i, k in enumerate(lick):
             ax = axs[0, c_i]
             d = T[T.factor == k]
+            curves = {}
             for an in animals:
                 da = d[d.animal == an].set_index("epoch").reindex(list(frc.POST_EPOCHS))
-                ax.plot(x, [0.0, *da.asym_change.to_numpy()], ".-", color=acol.get(an, "0.5"), lw=0.9, ms=5)
+                curves[an] = np.array([0.0, *da.asym_change.to_numpy()], float)
+                st = tag_style(an, acol)
+                ax.plot(x, [0.0, *da.asym_change.to_numpy()], ".-", color=st["color"], lw=st["lw"], ms=5, alpha=st["alpha"],
+                        zorder=st["zorder"])
                 fl = da.asym_floor.dropna()
                 if len(fl):
-                    ax.errorbar(-0.15 + 0.1 * animals.index(an), 0, yerr=float(fl.iloc[0]), color=acol.get(an, "0.5"),
+                    ax.errorbar(-0.15 + 0.1 * animals.index(an), 0, yerr=float(fl.iloc[0]), color=tag_style(an, acol)["color"],
                                 capsize=2, lw=0.8)
+            se = jackknife_se(curves)
+            if se is not None:
+                ax.errorbar(x[1:], curves["COHORT"][1:], yerr=se[1:], fmt="none", ecolor="k", elinewidth=1.4, capsize=3,
+                            zorder=4)
             ax.axhline(0, color="k", lw=0.5)
             ax.set_xticks(x, ["pre", *[e[:5] for e in frc.POST_EPOCHS]])
             ax.set_title(f"{names[k]}: loading asymmetry change", fontsize=10)
         axs[0, 0].set_ylabel("(contra - ipsi) / sum, epoch - pre")
         for an in animals:
-            axs[0, -1].plot([], [], ".-", color=acol.get(an, "0.5"), label=an)
+            st = tag_style(an, acol)
+            axs[0, -1].plot([], [], ".-", color=st["color"], lw=st["lw"], label=st["label"])
         frf.legend_outside(axs[0, -1])
-        fig.suptitle(f"{fdir.name}: do the lick factors move across the face? (pooled per-epoch fits)")
+        fig.suptitle(f"{fdir.name}: do the lick factors move across the face? (pooled per-epoch fits)"
+                     + ("\nblack = all animals pooled, +- jackknife SE over animals" if OWN != "own_epoch" else ""))
         frf.save(fig, out / "epoch_shape_asymmetry.png", """
 Loading asymmetry (contra - ipsi) / (contra + ipsi) of |spatial loading| per factor (cam4: contralesional = image
 left), each epoch's pooled fit minus the mean of the two pre-half fits; < 0 = the factor moved towards the
