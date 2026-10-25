@@ -256,12 +256,12 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** **REVISED.** Frozen target-unique R2 (the spout beyond every executed
     regressor) FALLS acutely and stays DOWN chronically (cortex lick -0.016 [-0.028, -0.004], 0/4 up; with FR -0.008,
     0/4); the executed movement's spout-locked part RISES acutely (cue cortex +0.041, 4/4) and stays slightly up with FR.
-    The refit chronic target gain is not reproduced when the weights are frozen (page Fig 1e, 1f).
+    The refit chronic target gain is not reproduced when the weights are frozen (page Fig 1e, 1f). CAVEAT (10-25): the refit and frozen numbers are SCORED differently (refit: cue 0-1 s, lick +/-0.2 s around EVERY lick peak, prediction offset penalised; frozen: cue 0-1.5 s, lick -0.1..+1.0 s around the FIRST lick, data and prediction centred separately), so "not reproduced" mixes frame and scoring; the per-session self-fit in the frozen windows (`scripts/session_vs_frozen.py`, running) separates them.
 12. **Face movement (FaceRhythm) explains about half of the spout-position code and most of its chronic rise.**
     **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** the post-stroke CHANGE claims below were per-session refit; in the
     frozen frame: (a) contralesional position | FR rise NOT reproduced (position unique flat; contra - ipsi -0.010
     without FR) -- the SPOUT package (target + executed spout part) shifts contralesionally instead, contra - ipsi
-    +0.039 [0.011, 0.081] cue / +0.048 [0.015, 0.094] lick with FR, 4/4 (page Fig 1c, 1d); (b) the spout code is a PETH
+    +0.039 [0.011, 0.081] cue / +0.048 [0.015, 0.094] lick with FR, 4/4 (page Fig 1c, 1d); (same scoring caveat as 11); (b) the spout code is a PETH
     code and the acute loss is a PETH loss (STANDS), but it does NOT recover chronically (PETH target unique cortex lick
     -0.096 without / -0.054 with FR, 0/4; Fig 1g, 1h); (c) FR direction unique in SSp-m falls chronically, but the
     direction weights do not change beyond drift (Layer 2): less direction signal through the same mapping, MIXED
