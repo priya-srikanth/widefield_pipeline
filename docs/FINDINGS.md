@@ -22,7 +22,7 @@ state control / anatomy (claims extracted from the docs by d4; owner to confirm)
 window (e3). 6: histology. 7: everyone.
 
 **Results pages.** FaceRhythm https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 - goal question / encoding
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - imaging https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - imaging https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV - licking kinematics (2-D + 3-D, sections 1-2) https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv
 
 ## 1. Behaviour and orofacial kinematics (cam4)
 

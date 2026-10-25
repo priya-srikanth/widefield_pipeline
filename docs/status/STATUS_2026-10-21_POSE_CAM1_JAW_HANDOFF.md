@@ -32,6 +32,8 @@ ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_mod
     2. review section 3;
     3. add the header pointer in OROFACIAL_FINDINGS.md and POSE_MODELS.md Part D;
     4. fix any reviewer contradictions e3 sends for my docs.
+* **Kinematics page** https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv (10-25; FINDINGS 1-2 with figures, per animal; source
+  scratchpad/kin_page/, built from _style/_body/_script.html). CLAUDE.md stale START HERE markers removed (Priya OK).
 * **Imaging page v3** (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV) adds a figure viewer: click a figure, then
   wheel / pinch to zoom and drag to pan. Source: `scratchpad/imaging_page/imaging_results.html`, which is not in the
   repo; republish edits from it in this session, or from another session by `url`.
