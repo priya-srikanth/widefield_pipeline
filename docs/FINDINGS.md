@@ -168,7 +168,11 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
     leaves < 20 acute far-contra trials -- read the LP panel), far middle drift .93 vs acute 1.29, near drift .86-.98
     vs acute 1.32-1.58. LICK, PRECUE, contact: far contra drift 1.32 UP (the cue-evoked lick increment grew June ->
     August, consistent with learning; acute empty under contact), near / far-middle / far-ipsi drift .86-1.08 vs acute
-    increases 1.34-1.92. **PROVISIONAL** until the remaining references / windows / arms render.
+    increases 1.34-1.92. CUE, PRECUE, contact: far contra drift 1.10 (33 bins) vs acute .18 (1,883), far middle .83
+    (30) vs .55 (800) -- both beyond drift. PRE-CUE window (2 s), REST, contact: the far-contra pre-cue map FALLS with
+    time alone (drift .67, 67 bins); acute goes UP 1.85 (339 bins), beyond drift; chronic .65 (0 bins) is drift-sized,
+    so a chronic pre-cue decrease is not a stroke effect. Contact panels complete (CSV
+    `map_drift_prepre/contact/drift_vs_stroke_panels.csv`). **PROVISIONAL** until the remaining references / windows / arms render.
 
 ## 4. Encoding model and the goal question
 
