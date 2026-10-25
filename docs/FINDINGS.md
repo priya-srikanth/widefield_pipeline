@@ -190,7 +190,10 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     Per-session encoder with FR (master_pre_v1, rank 12): unique position R2 pre-stroke 52 -> 30 x1e3 (cortex, lick);
     chronic rise +22 [+7, +38] -> +4 (n.s.) with FR (cue +39 -> +15 [+3, +27]); the acute ipsilesional SSp-m position
     loss survives FR; FR's side / distance information adds little beyond its lick amount (modes A ~ B ~ S ~ D).
-    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound) (8.7; Fig 16-16c).
+    Musall-style with FR (Fig 16d-16g): FaceRhythm alone ~310-380 x1e3 (cortex), ~120-155 unique; it overlaps mostly
+    with UNINSTRUCTED movement (that group's unique R2 halves, 241 -> 109 pre, lick window); in the lick window FR's
+    unique R2 rises acutely (135 -> 156) while every other group's falls.
+    **PROVISIONAL** (FR factors owned by e3; position beyond FR is a lower bound) (8.7; Fig 16-16g).
 13. **Not established / withdrawn here:** pre-stroke target-over-executed lead (SUSPENDED, 2.4); pooled toward-midline
     within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
     lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit

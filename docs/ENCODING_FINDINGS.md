@@ -1092,6 +1092,12 @@ cells are many; per-animal numbers on the page.
   CHRONIC rise in position coding is mostly face-movement-related: lick +22 [+7, +38] -> +4 (ns) with FR; cue +39 ->
   +15 [+3, +27]. Acute SSp-m (ipsi) position loss survives FR (cue -44 -> -32, lick -31 -> -20). Modes A ~ B ~ S ~ D:
   FR side / distance add little beyond its lick amount. Chronic pre-cue face movement explains more cortex (+72).
+- **Musall-style with FR (10-25, `scripts/fr_musall.py --mode A`, Fig 16d-16g)**: cortex, lick window, pre: FR alone
+  313, unique 135 (x1e3); with FR in the model the unique R2 of uninstructed movement 241 -> 109, task 73 -> 43, position
+  52 -> 30 (instructed ~10 either way): FR overlaps mostly with uninstructed movement. Chronic: task / position unique
+  111 / 74 without FR vs 51 / 34 with. Lick-window FR unique rises acutely (135 -> 156; cue falls 132 -> 111). Area maps:
+  pre FR unique broad, highest in contralesional lateral SSp; chronic full R2 and position / task unique rise most in
+  contralesional lateral areas. Alone models are the main run's (FR is not in them); position has no alone model.
 
 ### 8.8 Variance explained (Musall style) and R2 maps on the final frame — descriptive
 - `frozen_musall_figures.py --tag gate-attempted_v7g3_t3d` (Fig 14 / 14b; MOs / MOp / SSp-m / SSp-n per hemisphere
