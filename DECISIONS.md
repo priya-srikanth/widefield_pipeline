@@ -22001,3 +22001,28 @@ spout figures written under `frozen_encoder_gate-attempted_v7g3_t3d_basis`.
   the other way in the factor-shape results (FINDINGS 6c-pooled). Report such results as 3 / 4 with PS93 named, not as
   inconsistent.
 
+
+## 2026-10-25 -- Imaging page pending items: October days restored in the decoder trajectory; two pooled claims corrected per animal
+
+* **Stale decoder table (re-rendered).** `recovery_trajectory_{matched,unmatched}_cue_working.csv` on the share (10-07
+  13:28) still carried the PRE-`660bcbe` day numbers: October sessions stamped day 47 / 51, true 46 / 50. `chronic_stability`
+  joins on `days_since_stroke` and silently dropped them (decoder rows n_chronic 10 / 10 / 6 / 9 instead of 12 / 12 / 8 /
+  11), including the PS92_1002 frozen dip the 10-07 handoff asked to check. Re-rendered (`wfield_local.recovery_trajectory`,
+  values within .007 of the old table, 8 day labels changed), then `scripts.chronic_stability` and
+  `scripts.chronic_drift_vs_reorg`. Frozen decoder: chronic level unchanged (+-.01), FLAT 4 / 4. Reorganisation G: now
+  still RISING chronically in 3 / 4 (PS92, PS93, PS95; was 1 / 4), matching the session LMM's log-day slope (+.030, z
+  4.5); with the June -> August no-stroke arm (G drift-sized) this is a rising readout, not reorganisation beyond drift.
+  Crossnobis drift-vs-reorganisation: DRIFT-consistent 4 / 4, unchanged.
+* **Per-animal tables** (`scripts/imaging_per_animal_tables.py`, `labcams/grant_figures/epoch/per_animal_tables/`,
+  existing sidecars, nothing refitted): (1) the frozen STATE decoder's cohort-level drop is carried by PS94 (above chance
+  .98 -> .75 / .58 / .45); the other three lose .01-.09 -- "state also falls" is one animal; the position-vs-state
+  specificity holds in 3 / 4 with state near intact. (2) Pre-stroke template AMPLITUDE falls acutely 4 / 4 but is back
+  chronically only in PS92 / PS93 (PS94 .68, PS95 .73 of ~.93 pre): "amplitude fully returns" CORRECTED to 2 / 4. The
+  captured fraction stays below pre chronically 4 / 4 (shape claim stands). The page's template numbers (.749 / .286 /
+  .527 / .745) were the 09-10 three-chronic-animal version; current pooled sidecar .943 / .361 / .675 / .883.
+* **Session LMMs re-run on the rebuilt trial_attempts (10-24 06:29)** and the re-rendered decoder tables
+  (`scripts/imaging_lmm.py`, default ttc deficit and `--deficit contact`; `<LP v36 run>/imaging_encoding/qc/imaging_lmm*`).
+  Conclusions unchanged except: CD leave-one-out pre-cue far contra vs the ttc deficit no longer significant (q .25, was
+  .023; step at the stroke still q .019); position-coding ceiling vs the ttc deficit now significant (z -4.0, q < .001,
+  was .080); G_reorg log-day slope stronger (above).
+* Item 2 (failed-attempt movement-matched control, statistics on trial-class maps) stays with the encoding window.
