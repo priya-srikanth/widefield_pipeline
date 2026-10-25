@@ -3,15 +3,16 @@ Figs 9c-e). Priya 10-25: "can we have a within-animal normalized pooled version 
 
 Same inputs as `cd_loo_figures` (<labcams>/grant_figures/epoch/data/cd_window_projection_loo_sessions_long.csv and
 cd_loo_traces.npz): each position's projection on its OWN coding direction, pole-normalised per animal (0 = pre-stroke
-not-P, 1 = pre-stroke lick at P), August pre sessions scored leave-one-out. Here each animal is further divided by ITS
-held-out pre mean for that position and alignment (window mean), so pre = 1 for every animal and the pooled figure is an
-average of animals, not of sessions (the maps' convention, `beta_maps.within_animal_pooled`).
+not-P, 1 = pre-stroke lick at P), August pre sessions scored leave-one-out. Here each animal's held-out pre mean for that
+position and alignment (window mean) is SUBTRACTED, so pre = 0 for every animal and the pooled figure is an average of
+animals, not of sessions. Subtracted, not divided: the pole scale is already shared across animals, and a held-out pre
+near 0 (PS93 close_center pre-cue) made the first, ratio version blow up (acute -89x).
 
   cd_loo_pooled_window_<align>.png  per position: per-animal epoch means (animal colours, thin), mean of animals +- SEM
                                     (black); under each post epoch the change vs pre by `analysis_kit.boot_delta`
                                     (paired animals -> sessions, animal-weighted, 95 % interval; * = excludes 0) and
                                     k / n animals below pre
-  cd_loo_pooled_traj_<align>.png    per position and epoch: each animal's session-mean trace / its pre window mean, then
+  cd_loo_pooled_traj_<align>.png    per position and epoch: each animal's session-mean trace - its pre window mean, then
                                     mean +- SEM over ANIMALS (n animals in the legend)
   cd_loo_pooled_stats.csv           every plotted change
 Caveats: pre = August only (~10-day span; the June -> August drift of these projections is not measured here); PS95
@@ -33,10 +34,10 @@ EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 
 def normalised(C: pd.DataFrame) -> pd.DataFrame:
-    """Add ``y`` = value / that animal's held-out pre mean (same align, position)."""
+    """Add ``y`` = value - that animal's held-out pre mean (same align, position), in pole units."""
     pre = C[C.epoch == "pre"].groupby(["align", "animal", "position"]).value.mean().rename("pre_mean")
     D = C.join(pre, on=["align", "animal", "position"])
-    return D.assign(y=D.value / D.pre_mean)
+    return D.assign(y=D.value - D.pre_mean)
 
 
 def changes(D: pd.DataFrame, align: str, rng) -> list[dict]:
@@ -73,8 +74,7 @@ def fig_window(D: pd.DataFrame, stats: list[dict], align: str, path: Path) -> No
         mu, se = M.mean(), M.std(ddof=1) / np.sqrt(M.notna().sum().clip(lower=1))
         ax.errorbar(range(4), mu.values, yerr=se.values, color="k", lw=2.2, marker="s", ms=5, capsize=3,
                     label="mean of animals")
-        ax.axhline(1, color="0.6", ls="--", lw=0.8)
-        ax.axhline(0, color="0.8", lw=0.6)
+        ax.axhline(0, color="0.6", ls="--", lw=0.8)
         ax.set_xticks(range(4))
         ax.set_xticklabels(EPOCHS, fontsize=7)
         ax.set_title(p + (" (contra)" if p.endswith("_R") else ""), fontsize=9)
@@ -84,9 +84,9 @@ def fig_window(D: pd.DataFrame, stats: list[dict], align: str, path: Path) -> No
             ticks.append(f"{e[:3]} {s['change']:+.2f}{s['mark']} {s['below_pre']}/{s['n_animals']}")
         ax.text(0.02, 0.02, "\n".join(ticks), transform=ax.transAxes, fontsize=6.3, va="bottom", family="monospace")
         ax.spines[["top", "right"]].set_visible(False)
-    axes[0].set_ylabel("CD projection / own held-out pre\n(pre = 1)", fontsize=8)
+    axes[0].set_ylabel("CD projection - own held-out pre\n(pole units; pre = 0)", fontsize=8)
     axes[0].legend(fontsize=6, frameon=False, loc="upper left")
-    fig.suptitle(f"CD leave-one-out window means, {align}-aligned -- POOLED within animal (each animal / its own pre). "
+    fig.suptitle(f"CD leave-one-out window means, {align}-aligned -- POOLED within animal (each animal minus its own pre). "
                  "Text: change vs pre (paired animals -> sessions bootstrap; * = 95 % interval excludes 0), "
                  "animals below pre / animals", fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
@@ -117,7 +117,7 @@ def fig_traj(Z, D: pd.DataFrame, align: str, path: Path) -> None:
                 if m.sum() < 1 or (a, p) not in pre_mean.index:
                     continue
                 with np.errstate(all="ignore"):
-                    per.append(np.nanmean(X[m], 0) / pre_mean[(a, p)])
+                    per.append(np.nanmean(X[m], 0) - pre_mean[(a, p)])
             if len(per) < 2:
                 continue
             P = np.vstack(per)
@@ -125,17 +125,16 @@ def fig_traj(Z, D: pd.DataFrame, align: str, path: Path) -> None:
             se = np.nanstd(P, 0, ddof=1) / np.sqrt(len(per))
             ax.plot(t, mu, color=EP_COL[e], lw=1.6 if e == "pre" else 1.2, label=f"{e} ({len(per)} an)")
             ax.fill_between(t, mu - se, mu + se, color=EP_COL[e], alpha=0.18, lw=0)
-        ax.axhline(1, color="0.6", ls="--", lw=0.7)
-        ax.axhline(0, color="0.8", lw=0.6)
+        ax.axhline(0, color="0.6", ls="--", lw=0.7)
         ax.axvline(0, color="k", lw=0.5)
         ax.set_title(p + (" (contra)" if p.endswith("_R") else ""), fontsize=9)
         ax.set_xlabel(ALIGN_LABEL.get(align, "s"), fontsize=7)
         ax.tick_params(labelsize=6)
         ax.spines[["top", "right"]].set_visible(False)
-    axes[0].set_ylabel("CD projection / own held-out pre\n(window mean = 1)", fontsize=8)
+    axes[0].set_ylabel("CD projection - own held-out pre\n(pole units; pre window = 0)", fontsize=8)
     axes[-1].legend(fontsize=6, frameon=False, loc="upper left")
     fig.suptitle(f"CD leave-one-out trajectories, {align}-aligned -- POOLED within animal: each animal's session-mean "
-                 "trace / its pre window mean, then mean +- SEM over ANIMALS; shaded = window-mean window", fontsize=8.5)
+                 "trace minus its pre window mean, then mean +- SEM over ANIMALS; shaded = window-mean window", fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(path, dpi=150)
     plt.close(fig)
