@@ -20,7 +20,7 @@ the stroke.
     python scripts/map_drift_prepre.py --arm contact|lp|enl1s [--refs rest precue] [--aligns cue lick precue]
 Arms: contact = DAQ spout contact (grant_figures/epoch), lp = LP video lick gate (WIDEFIELD_LICK_SOURCE=lp,
 grant_figures/LP_licks), enl1s = 1.0 s pre-cue window (WIDEFIELD_ENL_WINDOW_S=1.0, grant_figures/DAQ_ENL1s; precue only).
-Output: <labcams>/grant_figures/map_drift_prepre/<arm>/epoch_15rdrift_<REF>ref_<align>_<variant>.png + a CSV of the
+Output: <labcams>/grant_figures/map_drift_prepre/{contact,LP_licks,DAQ_ENL1s}/epoch_15rdrift_<REF>ref_<align>_<variant>.png + a CSV of the
 amplitude ratios and test summaries per panel.
 """
 from __future__ import annotations
@@ -141,7 +141,11 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     aligns = a.aligns or (["precue"] if a.arm == "enl1s" else ["cue", "lick", "precue"])
-    out_dir = a.out or Path(PathResolver().root("labcams")) / "grant_figures" / "map_drift_prepre" / a.arm
+    from wfield_local import lp_licks
+    # a non-default arm must sit under its tag directory (LP_licks, DAQ_ENL1s) or writeguard refuses it
+    out_dir = a.out or Path(PathResolver().root("labcams")) / "grant_figures" / "map_drift_prepre"
+    tag = lp_licks.output_tag()
+    out_dir = out_dir / (tag or "contact") if tag is None or f"/{tag.lower()}/" not in out_dir.as_posix().lower() + "/" else out_dir
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     rows = []

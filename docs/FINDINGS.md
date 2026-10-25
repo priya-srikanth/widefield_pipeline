@@ -150,6 +150,15 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
     definitions):** every decoder / template readout steps down at the stroke, recovers with log(days) and tracks the
     behavioural deficit session by session (frozen -.040 / unit, z -3.2; template amplitude z -8.7; best-match z -7.6).
     Position-coding ceiling vs deficit is NOW significant (z -4.0; was q .080). **STANDS**. Imaging page section 13.
+14. **Map drift without a stroke (June pre -> August pre, 15r maps; `scripts/map_drift_prepre.py`, 10-25; imaging page
+    Fig 7k).** REST reference, cue, contact arm, 4 / 4 animals (12 June / 32 August sessions), ratio = amplitude vs the
+    reference epoch, sig bins of 2022 (nested bootstrap, maxstat). Far contra: drift .95 (7 bins) vs acute .49 (1178
+    bins) -> the acute far-contra loss (claim 5) is far beyond drift, **STANDS**. Far MIDDLE is the exception: drift .77
+    (244 bins) is as large as its acute change .71 (151 bins), so the far-middle acute loss is **not separable from
+    drift**, and the pooled CD leave-one-out far_center chronic -.51 (4 / 4; scored against August pre only) needs the
+    same caveat. Far ipsi drift .76 (294 bins) vs acute 1.06 (6 bins). Near positions: drift .82-.94; stroke changes
+    are increases (near ipsi acute 1.51, chronic 1.43), the opposite sign. June includes learning -> drift is an upper
+    bound. **PROVISIONAL** until the other references / aligns / arms (LP, ENL 1 s) render.
 
 ## 4. Encoding model and the goal question
 
