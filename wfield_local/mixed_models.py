@@ -260,13 +260,14 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
             stat = f"{icpt} {a0:+.3g} (z {c.z[icpt]:.1f}), {term} {b:+.3g} (z {c.z[term]:.1f})"
         a_.set_title(f"{name}\n{stat}; re {c.re.iloc[0]}", fontsize=7)
         a_.axhline(0, color="0.8", lw=0.5)
-        a_.set_xlabel(xlab, fontsize=7)
+        a_.set_xlabel(xlab.split(",")[0].split(" (")[0], fontsize=7)    # short per panel; full text once, below
         a_.set_ylabel(ylabel, fontsize=7)
         a_.tick_params(labelsize=7)
     for a_ in ax.flat[len(panels):]:
         a_.axis("off")
     ax.flat[0].legend(fontsize=6, ncol=2)
     fig.suptitle(f"{title} -- mixed model, animal random effects ({model})", fontsize=9)
+    fig.supxlabel(f"x: {xlab}", fontsize=7)        # the long label once, so neighbouring panels' labels cannot collide
     fig.tight_layout()
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=150)
