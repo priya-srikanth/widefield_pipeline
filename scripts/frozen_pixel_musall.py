@@ -43,8 +43,9 @@ from frozen_r2_maps import pixel_sse  # noqa: E402
 QS = {"alone": [("full", None), ("task", "task_only"), ("instructed (lick)", "lick_only"),
                 ("uninstructed (other)", "other_only"), ("spout", "spout_only"), ("movement", "movement_only"),
                 ("FaceRhythm", "fr_only")],
-      "unique": [("full", None), ("task", "no_task"), ("target", "no_target"), ("spout", "no_spout"),
-                 ("lick spout", "no_lickspout"), ("movement", "no_movement"), ("FaceRhythm", "no_fr")],
+      "unique": [("full", None), ("task", "no_task"), ("target", "no_target"), ("executed (spout-locked)", "no_exec_locked"),
+                 ("executed (within-spout)", "no_exec_within"), ("lick spout", "no_lickspout"), ("spout", "no_spout"),
+                 ("movement", "no_movement"), ("FaceRhythm", "no_fr")],
       # Musall bottom row per VARIABLE (Priya 10-25); order: task, licking, pose, running, FaceRhythm
       "novar": [("full", None)] + [(v, f"novar_{v}") for v in (
           "cue", "arrival", "target", "lick_onset", "contact", "exec_angle", "tongue", "jaw", "nose", "running",
@@ -199,7 +200,7 @@ def main(argv=None) -> int:
 
     ol = _outline(meta[["label"]])
     rws = [(me, "pre") for me in meas] + [(me, ep) for ep in a.epochs for me in meas]
-    fig, axs = plt.subplots(len(rws), len(qs), figsize=(2.2 * len(qs) + 0.6, 2.25 * len(rws) + 1.3), squeeze=False)
+    fig, axs = plt.subplots(len(rws), len(qs), figsize=(2.2 * len(qs) + 0.6, 2.6 * len(rws) + 1.3), squeeze=False)
     for j, (q, _v) in enumerate(qs):
         lims = {}
         for me in meas:
@@ -231,24 +232,24 @@ def main(argv=None) -> int:
                     ax.contour(big, levels=[0.5], colors="k", linewidths=0.9)
                 rr = Sg[(Sg.q == q) & (Sg.measure == me) & (Sg.epoch == ep)]
                 if len(rr):
-                    ax.text(0.02, 0.02, f"{rr.iloc[0].up}+/{rr.iloc[0].down}-", transform=ax.transAxes, fontsize=6.5,
+                    ax.text(0.02, 0.98, f"{rr.iloc[0].up}+/{rr.iloc[0].down}-", transform=ax.transAxes, fontsize=6.5, va="top",
                             bbox={"facecolor": "white", "alpha": 0.7, "pad": 1, "lw": 0})
             if ol is not None and ol.shape == M.shape:
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-            cax = ax.inset_axes([0.62, 0.9, 0.36, 0.05])                      # inset colour bar, off the brain
+            cax = ax.inset_axes([0.2, -0.07, 0.6, 0.045])                     # colour bar UNDER the brain (Priya 10-25)
             cb = fig.colorbar(im, cax=cax, orientation="horizontal")
             cb.ax.tick_params(labelsize=5, length=1.5, pad=1)
             cb.locator = matplotlib.ticker.MaxNLocator(2)
             cb.update_ticks()
     what = {"alone": "single-group ALONE cvR2 (Musall top row)", "unique": "single-group UNIQUE dR2",
             "novar": "single-VARIABLE UNIQUE dR2 (Musall bottom row)"}[a.layout]
-    ttl = (f"NEURAL: frozen-frame PIXEL maps, {what}, {win if win == 'allframes' else win + ' window'} ({', '.join(MLAB[m] for m in meas)}), run {a.tag}. "
+    ttl = (f"NEURAL: frozen-frame PIXEL maps, {what}, {'all frames' if win == 'allframes' else win + ' window (' + ', '.join(MLAB[m] for m in meas) + ')'}, run {a.tag}. "
            f"Pre level = held-out; epoch - pre = frozen all-pre betas; mean of animals (SSE, SST summed over each animal's "
            f"sessions). Outlines: significant 16-px bins (nested bootstrap animals > sessions, Bonferroni); +/- = bins up / "
            f"down. Grey = Allen areas. Image left = ipsilesional.")
     fig.suptitle("\n".join(textwrap.wrap(ttl, int(24 * len(qs)))), fontsize=9)
-    fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.0 / (2.25 * len(rws) + 1.3), bottom=0.01,
-                        wspace=0.05, hspace=0.08)
+    fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.0 / (2.6 * len(rws) + 1.3), bottom=0.05,
+                        wspace=0.05, hspace=0.3)
     p = out / f"{stem}.png"
     fig.savefig(p, dpi=105)
     plt.close(fig)
