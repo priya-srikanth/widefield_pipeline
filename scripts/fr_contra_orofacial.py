@@ -121,7 +121,9 @@ def sst_table(mode: str, labels, windows) -> pd.DataFrame:
         z = np.load(frd / f"{lab}.npz")
         k = {str(x): i for i, x in enumerate(z["map_keys"])}
         M = z["maps"].astype(float)
-        code = img.ravel()[z["flat"]]
+        H, W = (int(x) for x in z["shape"])
+        im_ = img if img.shape == (H, W) else img[::2, ::2][:H, :W]    # block maps live on the half-resolution grid
+        code = im_.ravel()[z["flat"]]
         for w in windows:
             tot = M[k[f"TOTAL|{w}"]]
             for i, nm in enumerate(names):
