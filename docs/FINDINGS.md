@@ -152,9 +152,13 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
 13. **Session mixed models (re-run 10-25 on the rebuilt attempts table, `scripts/imaging_lmm.py`, both deficit
     definitions):** every decoder / template readout steps down at the stroke, recovers with log(days) and tracks the
     behavioural deficit session by session (frozen -.040 / unit, z -3.2; template amplitude z -8.7; best-match z -7.6).
-    The decoder / template rows **STAND**. Position-coding ceiling vs deficit now reads significant (z -4.0; was q .080) but is
-    **PROVISIONAL**: the trend-family outputs that model reads were not re-run on the rebuilt attempts table (OUTPUT_AUDIT
-    2026-10-24 §2a, STALE). Imaging page section 13.
+    The decoder / template rows **STAND**. Position-coding TREND rows re-run 10-25 ~08:45 on d4's final-frame trend
+    tables (107 August+ sessions): the ceiling (category - none) has NO acute step (-.014, z -1.0), rises with log-day
+    (+.014, z 2.4, q .017) and is chronically above pre (+.038, z 5.0) in 3 / 4 (pre -> chronic .041 -> .108, .058 ->
+    .108, .047 -> .076; PS94 flat .040 -> .037). Ceiling vs deficit is **DEFINITION-DEPENDENT**: significant against the
+    contact deficit (-.050 / unit, z -3.9, q < .001) but NOT against time-to-contact (z -1.5, q .13) -- the 01:40
+    "z -4.0, now significant" is **CORRECTED** (that run read stale trend tables). The per-spout SPREAD tracks the deficit
+    under both definitions (z -4.5 ttc / -5.3 contact; pre-cue spread -4.2 / -4.6). Imaging page section 13.
 14. **Map drift without a stroke (June pre -> August pre, 15r maps; `scripts/map_drift_prepre.py`, 10-25; imaging page
     §7, drift panels).** CUE window, REST reference, contact gate, 4 / 4 animals (12 June / 32 August sessions), ratio = amplitude vs the
     reference epoch, sig bins of 2022 (nested bootstrap, maxstat). Far contra: drift .95 (7 bins) vs acute .49 (1178
