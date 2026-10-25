@@ -144,6 +144,59 @@ _FPEN_BASE = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "t
               "push": "uninstructed"}
 FPEN = {v: _FPEN_BASE[v.split(":")[0]] for v in FGROUP}
 
+#: FACERHYTHM IN THE FROZEN MODEL (Priya 10-25, handoff 000t plan item 3: "should we be mixing frozen and refit encoder
+#: vs FR models" -> build the frozen pre-stroke encoder WITH FR). Opt-in: FROZEN_FR=1 plus the encoder's own FR envs
+#: (COMBINED_ENCODING_FR = factor set, e.g. master_pre_v1; COMBINED_ENCODING_FR_GROUPS = <grouping>:<mode>, see
+#: fr_groups). One lag-0 column per grouped FR trace (as the per-session encoder enters FR), raw absolute expression,
+#: scaled by the animal's pooled pre SD like every other column (so a smaller post-stroke face movement keeps a smaller
+#: regressor). Groups: "fr" = lick sum + other factors (directionless); "fr_dir" = left / right / close / far (mode A
+#: only: lick DIRECTION through FR). Both are MOVEMENT (super-groups movement / nontask), so movement_first credits
+#: shared task / FR variance to movement; own penalty group "fr" (searched like the others). no_fr / no_fr_dir = their
+#: unique R2 in the FROZEN frame (the model-based decoupling test). Frames where FR is blanked enter at the session mean.
+FROZEN_FR_ENV = "FROZEN_FR"
+_FR_DIR_PARTS = ("left", "centre", "right", "close", "far")
+
+
+def _fr_vars() -> dict:
+    if os.environ.get(FROZEN_FR_ENV, "") not in ("1", "true", "yes"):
+        return {}
+    from wfield_local import fr_groups
+    gs = fr_groups.spec()
+    if not gs or not os.environ.get("COMBINED_ENCODING_FR"):
+        raise ValueError(f"{FROZEN_FR_ENV}=1 needs COMBINED_ENCODING_FR (set) and {fr_groups.ENV} (<grouping>:<mode>)")
+    G = fr_groups.GROUPINGS[gs[0]]
+    out = {}
+    for part in fr_groups.MODES[gs[1]]:
+        if part == "other":
+            out.update({f"fr_other_{k}": "fr" for k in G["other"]})
+        elif G.get(part):
+            out[f"fr_{part}"] = "fr_dir" if part in _FR_DIR_PARTS else "fr"
+    return out
+
+
+FR_VARS = _fr_vars()
+if FR_VARS:
+    _frg = tuple(g for g in ("fr", "fr_dir") if g in FR_VARS.values())
+    FGROUP.update(FR_VARS)
+    FGROUPS = (*FGROUPS, *_frg)
+    SUPER["movement"] = (*SUPER["movement"], *_frg)
+    SUPER["nontask"] = (*SUPER["nontask"], *_frg)
+    if len(_frg) > 1:
+        SUPER["fr_all"] = _frg
+    FPEN.update({v: "fr" for v in FR_VARS})
+
+
+def _fr_columns(animal: str, date: str, rv, ft: np.ndarray, ridx: np.ndarray) -> dict:
+    """{FR variable: (n_rows, 1) raw column on the trial rows} in FR_VARS order (NaN = blanked)."""
+    ce = _ce()
+    from wfield_local import face_rhythm_outputs as fro
+    fr_set = os.environ["COMBINED_ENCODING_FR"]
+    sig = fro.fr_signals(animal, date, rv, ft, fdir=fro.factor_dir(rv, set_name=fr_set), absolute=ce._fr_absolute())
+    missing = [v for v in FR_VARS if v not in sig]
+    if missing:
+        raise ValueError(f"FaceRhythm {fr_set}: grouped traces {missing} missing (got {list(sig)})")
+    return {v: np.asarray(sig[v][1], float)[ridx][:, None] for v in FR_VARS}
+
 
 def split_blocks(raw: dict) -> dict:
     """The encoder's raw blocks split into the FGROUP variables. Column order inside each encoder block is fixed by
@@ -326,6 +379,8 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
                       else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
         Ms[v] = M
         parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_split, k_of, pos_order, M)
+    if FR_VARS:
+        parts.update(_fr_columns(animal, date, rv, ft, ridx))
     vars_ = [v for v in FGROUP if v != "push" or _push_on()]
     blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
     X = np.hstack(blocks)
@@ -511,7 +566,8 @@ def _knot0() -> float:
 def _run_tag() -> str:
     """Running-model tag stored with the saved statistics (never reused across modes / knot overrides / push)."""
     return (_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")
-            + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else ""))   # TONGUE_ENV
+            + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
+            + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else ""))
 
 
 #: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
