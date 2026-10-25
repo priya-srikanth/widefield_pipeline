@@ -159,14 +159,15 @@ def main(argv=None) -> int:
                          "cluster_label": r["cluster"]["label"]})
             print(f"   nested: {r['nested']['label']}\n   cluster: {r['cluster']['label']}", flush=True)
         # figure: mean (animals first, pre-normalised) of post - pre residual, with both contours
-        fig, axs = plt.subplots(1, len(res), figsize=(3.6 * len(res), 3.7), squeeze=False)
+        fig, axs = plt.subplots(1, len(res), figsize=(4.3 * len(res), 3.9), squeeze=False)
         for j, (name, (pb, qb, r)) in enumerate(res.items()):
             sc = bm.pre_scale(pb)
             d = [np.nanmean(bm.scale_maps(qb, sc)[an], 0) - np.nanmean(bm.scale_maps(pb, sc)[an], 0) for an in qb]
             mm = np.nanmean(d, 0)
             lim = np.nanpercentile(np.abs(mm), 98) or 1.0
             ax = axs[0][j]
-            ax.imshow(mm, cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            im = ax.imshow(mm, cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            fig.colorbar(im, ax=ax, fraction=0.04, pad=0.02, label="residual change (/ pre scale)")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.4, interpolation="nearest")
             for meth, col in (("nested", "k"), ("cluster", "#7a0177")):
                 mk = r[meth]["mask"]

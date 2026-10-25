@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-REGIONS = ("SSp-m_left", "SSp-m_right", "cortex")
+REGIONS = ("SSp-m_left", "SSp-m_right", "cortex", "MOs_left", "MOs_right", "MOp_left", "MOp_right", "SSp-n_left", "SSp-n_right")
 WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5, 0.0))}
 
 
