@@ -30,9 +30,11 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - imaging https://claude.ai/ar
 each statement points to the claims it rests on and inherits their status. Frame named where it matters (FROZEN pre-stroke
 encoder = headline for every change claim since 10-25; per-session refit = supporting).*
 
-**In one line:** acutely cortex mostly reports a worse movement; chronically the movement is largely back but cortex does
-not return to its old mapping -- more activity than the pre-stroke mapping predicts, shifted toward the contralesional
-hemisphere and toward movement that carries no lick-position information, with less spout-specific (directional) tuning.
+**In one line (revised 10-25 afternoon after analyses 1-2):** acutely cortex mostly reports a worse movement, with a
+transient orofacial-specific disruption; chronically the movement is largely back and most of the cortical excess has
+shrunk with it -- what persists is an orofacial-weighted residual (cue window), a contralesional shift of the spout
+package and more position-free movement coding, with less spout-specific tuning; the large chronic mapping change is
+cortex-wide and grows with time, so it is not evidence of motor remapping.
 
 1. **Behaviour changed, and recovery is compensation, not restoration.** Acute global slowing + far-contra-graded deficit,
    licks aimed ipsilesionally from launch, jaw stops steering, far-contra trials attempted but failed in 3 / 4 (1.1-1.8,
@@ -44,9 +46,13 @@ hemisphere and toward movement that carries no lick-position information, with l
    target part ~0, with FaceRhythm too (4.1). Frozen pixel maps: the acute fit loss is cortex-wide and movement-driven (page
    Fig 1l). Beyond the movement: trial-by-trial coupling of cortex to execution vanishes acutely (r ~ 0; 4.6) and the
    decoder weakens for every spout, even on-target licks (4.5).
-3. **Chronic: same task, different cortical solution.** Residual: cortex responds MORE than the pre mapping predicts for
-   the same behaviour, bilateral ALM / tongue-jaw motor + contralesional SSp, contra > ipsi, a plateau, not face movement
-   (4.2). Layer 2: the mapping is rewritten beyond pre-stroke drift in 4 / 4, spread across kernel groups (4.3). Frozen
+3. **Chronic: same task, partly different cortical solution.** Residual: cortex responds MORE than the pre mapping
+   predicts for the same behaviour, bilateral ALM / tongue-jaw motor + contralesional SSp, not face movement (4.2) -- but
+   (analyses 1-2, 10-25) it is partly GLOBAL in the lick window, largest at day 1, shrinks with recovery and tracks the
+   deficit (mostly PS94), with an orofacial-specific part persisting at recovery in the cue window; not an
+   extrapolation artefact (unchanged on behaviour-matched trials). Layer 2's chronic mapping change is
+   NOT orofacial-specific: control cortex changes as much, rising steadily with time -- slow cortex-wide change, not motor
+   remapping; only an acute orofacial excess is stroke-specific (4.3). Frozen
    frame: target-unique coding stays down, the PETH spout code does not recover, the spout package shifts contralesionally,
    position-free movement gains unique share in SSp-m, ipsilesional SSp-m decouples from the face's side signal (4.11, 4.12);
    template shape stays off 4 / 4 (3.12).
@@ -60,16 +66,17 @@ hemisphere and toward movement that carries no lick-position information, with l
 
 **Caveats that bound this:** n = 4; drift nulls for residual / Layer 2 only within August (June lacks FaceRhythm and good
 kinematics); PS93 anterior motor-cortex injury (section 3 caveat); total variance rises GLOBALLY (VISp x1.83 > cortex x1.54),
-so specificity of the chronic increase is not yet shown (analysis 1 below, running); refit vs frozen claims are scored in
+and analysis 1 shows the chronic Layer 2 change is global and the residual partly global; refit vs frozen claims are scored in
 different windows (4.11 caveat); lick-direction results carry the standing 3-D re-run rule.
 
 **Analyses that would sharpen it (proposed 10-25; Priya: run 1, queue 2 and 4):**
-1. *Specificity control* (RUNNING, `scripts/specificity_control.py`): residual + Layer 2 in visual / retrosplenial / trunk
-   cortex vs orofacial, raw and after removing a global gain estimated from the control areas.
-2. *Does remapping track recovery?* (QUEUED) session mixed model, residual and Layer 2 as outcome vs the behavioural
-   deficit (both deficit definitions) -- compensation vs epiphenomenon.
+1. *Specificity control* (DONE frozen + FR, `scripts/specificity_control.py`; no-FR repeat running): Layer 2 NOT
+   orofacial-specific; residual partly global (lick), orofacial-weighted (cue). ENCODING_FINDINGS 8.11.
+2. *Does remapping track recovery?* (DONE, `scripts/remap_lmm.py`): residual = disruption tracking the deficit + a
+   persistent part; Layer 2 = steady cortex-wide rise with time, larger when behaviour is better (not compensation-specific).
 3. *Target-free execution test* from inter-trial 3-D licks (no target): per-lick encoding pre vs post.
-4. *Behaviour-matched residual + frozen extrapolation diagnostic* (QUEUED): chronic trials inside the pre range of 3-D
+4. *Behaviour-matched residual* (DONE, `scripts/matched_residual.py`): residual unchanged on inside-envelope trials ->
+   not extrapolation. Design-space distance diagnostic still queued with the self-fit second pass.: chronic trials inside the pre range of 3-D
    trajectory / latency / ILI; distance of post designs from the pre support.
 5. *Preparatory timing:* pre-lick ramp in ALM / tongue-jaw motor relative to the first lick, per spout x epoch.
 6. *June -> August drift ceiling* with a reduced model June supports (no FR, 2-D pose).
@@ -266,6 +273,16 @@ bootstrap unless stated; LICK DATA = behaviour only.*
    test weak" (8 px) is **CORRECTED** (8.4; Fig 9-9g, 10, 11, 11b).
    **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** NOT face movement: SSp-m chronic residual +9.4 / +9.4
    -> +9.5 / +10.6 (x1e3 dF/F, cue; lick +12.4 / +14.0 -> +10.9 / +13.4), 4/4 (page Fig 1, 1b).
+   **SPECIFICITY + TIME COURSE (10-25, ENCODING_FINDINGS 8.11): PARTLY GLOBAL.** Control areas (visual / retrosplenial /
+   trunk SSp) also carry a chronic residual in the lick window (+1.46 pre-SD, 3/4; cue +0.25 n.s.); orofacial - control
+   cue +0.88 (3/4, borderline), lick n.s. The residual is largest at day 1,
+   declines with log day, scales with the behavioural deficit, and persists at full recovery (cue orofacial - control
+   +0.73 pre-SD, z 3.2). Read 2 as: an orofacial-weighted (cue) / partly global (lick) excess, mostly a disruption that
+   shrinks with recovery, plus a persistent orofacial part. The deficit slope is carried by few sessions (PS94; PS92
+   opposite), so "tracks the deficit" is not 4/4; persistence at recovery is the robust part. NOT an extrapolation
+   artefact: on trials inside each animal's pre-stroke behavioural envelope (3-D endpoint, reach, speed, latency, lick
+   count; 93-96 % of chronic trials in PS92 / PS93, 72-78 % in PS94 / PS95) the residual is the same (chronic SSp-m lick
+   +5.5 / +5.6 x1e3, 4/4). PROVISIONAL (no-FR repeat pending).
 3. **The behaviour-to-cortex mapping is rewritten chronically (Layer 2).** One fit per animal, epoch kernel changes from
    early-August pre: chronic gain beats the late-pre null (cortex +54.8 [+22.0, +87.4], SSp-m +52.5 / +51.6) and every
    one of 20 random pre pseudo-epochs in 4 / 4 (cortex and both SSp-m); grows with time; spread across kernel groups
@@ -274,6 +291,12 @@ bootstrap unless stated; LICK DATA = behaviour only.*
    **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** unchanged: chronic change beyond pre drift cortex
    +0.055 -> +0.054, SSp-m +0.052 -> +0.059 / +0.061 (4/4). The FR direction weights change no more than
    pre-stroke drift (page Fig 1 panel 4).
+   **SPECIFICITY + TIME COURSE (10-25, ENCODING_FINDINGS 8.11): CORRECTED -> NOT OROFACIAL-SPECIFIC.** Control areas
+   change as much chronically (+0.052 vs +0.053; contrast +0.002 [-0.017, 0.018]); every area is beyond pre_late. In
+   control areas there is no step at the stroke but a steady rise with log day (z 6.1), larger in later / better-behaving
+   sessions: slow cortex-wide change (longer-time-scale drift or a global state / signal change), which the 8-day August
+   null cannot rule out. Stroke-specific part = an ACUTE orofacial excess (+0.025, z 2.6) that decays. "The motor mapping is
+   rewritten chronically" is withdrawn as a stroke-specific claim.
 4. **Licks to far contra go to the wrong spout from launch (LICK DATA).** Landing soft bins: own bin -.69 / -.38 / -.19,
    far mid +.35 / +.36 / +.20 (4 / 4, significant); whole tracked 3-D path: own -.65 / -.36 / -.22, acute toward far
    ipsi +.42 (part general forward overshoot) then far mid; mis-landing licks follow the other spout's course from the

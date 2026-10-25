@@ -7,11 +7,7 @@ changed mapping everywhere. Three tests, all within animal, nested bootstrap ani
      vs -0.5..0 s; from the frozen run's saved PETHs, mean over the six spouts), in each animal's PRE-SD units per area
      (z = (residual - pre mean) / pre SD). OROFACIAL areas vs CONTROL areas (visual, retrosplenial, trunk / lower-limb
      somatosensory) and their contrast.
-  2. GAIN-CORRECTED RESIDUAL. A global multiplicative change g makes the residual proportional to the prediction in
-     every area (data = g * true, prediction ~ true -> residual ~ (g - 1) * prediction). Per session, k = least-squares
-     slope of residual on predicted evoked over the CONTROL areas only; corrected residual = residual - k * prediction in
-     every area. What survives in orofacial cortex is not explained by a scale change shared with the control areas.
-  3. LAYER 2 BY AREA (`allsession_encoder` combined fit, change_ref, epoch minus pre_late = beyond pre-stroke drift),
+  2. LAYER 2 BY AREA (`allsession_encoder` combined fit, change_ref, epoch minus pre_late = beyond pre-stroke drift),
      orofacial vs control and the contrast.
 
 Usage: python scripts/specificity_control.py [--tag gate-attempted_v7g3_t3d_frA] [--layer2 allsession_encoder_v7g3_t3d_frA]
@@ -60,14 +56,11 @@ def session_rows(run: Path, variant: str = "joint") -> pd.DataFrame:
 
 
 def add_measures(T: pd.DataFrame) -> pd.DataFrame:
-    """Gain-corrected residual (k from the control areas, per session x window) and pre-SD z units per animal x area."""
-    out = []
-    for (_lab, _w), g in T.groupby(["label", "window"]):
-        c = g[g.area.isin(CONTROL)]
-        k = float((c.residual * c.full).sum() / max((c.full ** 2).sum(), 1e-12)) if len(c) >= 4 else np.nan
-        out.append(g.assign(k=k, resid_gc=g.residual - k * g.full))
-    T = pd.concat(out, ignore_index=True)
-    for col in ("residual", "resid_gc"):
+    """Residual in pre-SD z units per animal x window x area (a global-gain correction was tried and dropped, Priya
+    10-25: it assumes one multiplicative scale shared by all areas and was unstable; the orofacial - control contrast is
+    the specificity test)."""
+    T = T.copy()
+    for col in ("residual",):
         pre = T[T.epoch == "pre"].groupby(["animal", "window", "area"])[col].agg(["mean", "std"])
         j = T.join(pre, on=["animal", "window", "area"])
         T[f"{col}_z"] = (j[col] - j["mean"]) / j["std"]
@@ -114,23 +107,20 @@ def main(argv=None) -> int:
         T = add_measures(session_rows(run))
         T.to_csv(out / "sessions.csv", index=False)
     ffc.ALAB.update({g: g for g in (*GROUPS, "orofacial - control")})
-    cols = ("residual_z", "resid_gc_z", "residual", "k")
+    cols = ("residual_z", "residual")
     G = group_means(T, cols)
     pd.set_option("display.width", 230)
     per = G[G.area.isin(["orofacial", "control", "orofacial - control"])] \
-        .groupby(["window", "area", "animal", "epoch"])[["residual_z", "resid_gc_z"]].mean().unstack("epoch")
-    print("== per animal (rule 8): residual in pre-SD units (raw | gain-corrected), group means\n"
+        .groupby(["window", "area", "animal", "epoch"])[["residual_z"]].mean().unstack("epoch")
+    print("== per animal (rule 8): residual in pre-SD units, group means\n"
           + per.reindex(columns=EP4, level=1).round(2).to_string())
-    kt = T.drop_duplicates(["label", "window"]).groupby(["window", "animal", "epoch"]).k.median().unstack("epoch")
-    print("== global gain slope k (residual ~ k * prediction over control areas), median per animal x epoch\n"
-          + kt.reindex(columns=EP4).round(3).to_string())
-    B = pd.concat([ffc.boot(G, c).assign(q=c) for c in ("residual_z", "resid_gc_z", "k")], ignore_index=True)
+    B = pd.concat([ffc.boot(G, c).assign(q=c) for c in ("residual_z",)], ignore_index=True)
     B.to_csv(out / "boot.csv", index=False)
     show = B[B.area.isin(["orofacial contra", "orofacial ipsi", "control", "orofacial - control"]) & (B.epoch != "pre_split")]
     print("\n== group changes vs pre (nested bootstrap)\n"
           + show[["q", "window", "area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(3).to_string(index=False))
     # per-area chronic change (for the maps)
-    A = pd.concat([ffc.boot(T, c, epochs=["acute", "chronic"]).assign(q=c) for c in ("residual_z", "resid_gc_z")],
+    A = pd.concat([ffc.boot(T, c, epochs=["acute", "chronic"]).assign(q=c) for c in ("residual_z",)],
                   ignore_index=True)
     A.to_csv(out / "area_boot.csv", index=False)
 
@@ -164,12 +154,12 @@ def main(argv=None) -> int:
 
     # FIGURE 1: group bars
     gl = ["orofacial contra", "orofacial ipsi", "control", "orofacial - control"]
-    ffc.COL.update({"residual_z": "#d95f02", "resid_gc_z": "#7570b3"})
+    ffc.COL.update({"residual_z": "#d95f02"})
     fig, axs = plt.subplots(3, 1, figsize=(13, 11))
     for ax, w in zip(axs[:2], WINDOWS):
-        Bw = B[(B.window == w) & B.q.isin(["residual_z", "resid_gc_z"])].rename(columns={"q": "frame"})
-        ffc.bars(ax, Bw, ["residual_z", "resid_gc_z"], gl, "change from pre (pre-SD units)",
-                 f"RESIDUAL, {w} window: orange = raw, purple = after removing a global gain estimated from the control areas")
+        Bw = B[(B.window == w) & B.q.isin(["residual_z"])].rename(columns={"q": "frame"})
+        ffc.bars(ax, Bw, ["residual_z"], gl, "change from pre (pre-SD units)",
+                 f"RESIDUAL (data - frozen prediction), {w} window, in each animal's pre-SD units")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
     LBp = LB.copy()
     LBp["frame"] = "layer2"
@@ -190,7 +180,7 @@ def main(argv=None) -> int:
     ol = outline(img)
     panels = []
     for w in WINDOWS:
-        for q, lab in (("residual_z", "residual"), ("resid_gc_z", "residual, gain-corrected")):
+        for q, lab in (("residual_z", "residual"),):
             s = A[(A.q == q) & (A.window == w) & (A.epoch == "chronic")].set_index("area")
             panels.append((f"{lab}, {w}", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "pre-SD units"))
     s = LA[LA.epoch == "chronic"].set_index("area")
