@@ -356,7 +356,12 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     for the per-epoch fits. CENTRAL lick factors (Priya 10-25, `--factors lick_ongoing_7Hz lick_fast_close lick_far_nose
     lick_slow_late`): acutely lick_ongoing_7Hz (all spouts) also moves its loading from the contralesional lower face to
     the ipsilesional side (438 points, asymmetry -.32, 4 / 4), mostly back later -- the acute ipsilesional shift is not
-    limited to the left / right lick factors.
+    limited to the left / right lick factors. MATCH CHECK (10-25, `face_rhythm_epoch_shape.py --gallery`, FR page match galleries): the
+    per-epoch fits' Hungarian matches are clean for lick_right (bar PS93 acute) but ACUTE lick_left is contested in 4 / 4
+    (its best unconstrained partner is lick_ongoing_7Hz's slot; PS92-94 a more bilateral, slower ~5 Hz lick_left;
+    PS95 a different factor) -> the acute lick_left and lick_ongoing_7Hz loading shifts are partly a factor MERGE, not
+    only a loading move; the subacute / chronic pattern rests on clean matches and agrees with the factor-free per-point
+    maps (5f). lick_far_nose is not recovered even in the pre-half fits (cos .27-.39): its shape readouts are void.
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).

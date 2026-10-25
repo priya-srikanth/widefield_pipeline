@@ -380,6 +380,94 @@ change and animals sharing its sign. One fit per animal x epoch: the animal coun
     return pd.DataFrame(rows)
 
 
+GALLERY = ("lick_right", "lick_left", "lick_ongoing_7Hz", "lick_fast_close", "lick_far_nose", "lick_slow_late")
+FITS = ("master", "preA", "preB", "acute", "subacute", "chronic")
+
+
+def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALLERY) -> pd.DataFrame:
+    """Priya 10-25: show the spatial loading and frequency profile of the MATCHED factor in every per-epoch fit, so a
+    shape change can be told from a matching artefact. One figure per master factor: rows = animals; columns = the master,
+    the two pre-half fits, acute / subacute / chronic -- each the own-fit column the Hungarian match assigns to that master
+    factor (`face_rhythm_matching.match`), drawn as loading magnitude per mesh point (fraction of total; one colour scale
+    per row); last column = the spectra (frequency loading, fraction of total) of all fits overlaid. Panel titles give the
+    matched spatial cosine to the master and the match margin; CONTESTED (red) = the fit's best unconstrained partner
+    for this master factor is a column the assignment gave to ANOTHER master factor, or cosine < 0.8."""
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import face_rhythm_matching as fm
+    M = np.load(fdir / "master.npz")
+    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    home, freqs = M["home"], M["freqs"]
+    acol = frc.epoch_colors()
+    fcol = {"master": "k", "preA": "0.55", "preB": "0.75", **{e: acol[e] for e in frc.POST_EPOCHS}}
+    animals = sorted({f.stem.split("_")[0] for f in (fdir / "own_epoch").glob("*.npz")})
+    fits = {}
+    for an in animals:
+        for g in FITS[1:]:
+            f = fdir / "own_epoch" / f"{an}_{g}.npz"
+            if f.exists():
+                z = np.load(f)
+                A, B = z["A_own"].astype(float), z["B_own"].astype(float)
+                fits[(an, g)] = (A, B, fm.match(A_ref, B_ref, A, B))
+    rows = []
+    mag_ref = fm.spatial_view(A_ref, "magnitude")
+    with frf.style():
+        for nm in factors:
+            k = names.index(nm)
+            fig, axs = frf.subplots(len(animals), len(FITS) + 1, figsize=(2.5 * len(FITS) + 3.6, 2.6 * len(animals)),
+                                    squeeze=False)
+            for r_i, an in enumerate(animals):
+                maps, spec = {"master": mag_ref[:, k] / mag_ref[:, k].sum()}, {"master": B_ref[:, k] / B_ref[:, k].sum()}
+                ttl = {"master": ("master", False)}
+                for g in FITS[1:]:
+                    if (an, g) not in fits:
+                        continue
+                    A, B, m = fits[(an, g)]
+                    j = m["order"][k]
+                    mag = fm.spatial_view(A, "magnitude")[:, j]
+                    maps[g], spec[g] = mag / mag.sum(), np.abs(B[:, j]) / np.abs(B[:, j]).sum()
+                    free = m["free"][k]
+                    rival = [names[r] for r in range(len(names)) if m["order"][r] == free and r != k]
+                    bad = bool(rival) or m["cos_spatial"][k] < 0.8
+                    ttl[g] = (f"{g}  cos {m['cos_spatial'][k]:.2f}  m {m['margin'][k]:.3f}"
+                              + (f"\nbest fits {rival[0]}'s slot" if rival else ""), bad)
+                    rows.append(dict(factor=nm, animal=an, fit=g, cos_spatial=m["cos_spatial"][k],
+                                     cos_spectral=m["cos_spectral"][k], margin=m["margin"][k],
+                                     rival=rival[0] if rival else "", contested=bad))
+                hi = float(np.nanpercentile(np.concatenate(list(maps.values())), 99.5))
+                for c_i, g in enumerate(FITS):
+                    ax = axs[r_i, c_i]
+                    ax.axis("off")
+                    if g not in maps:
+                        continue
+                    ax.scatter(home[:, 0], home[:, 1], c=maps[g], s=3, cmap="magma_r", vmin=0, vmax=hi)
+                    ax.axvline(342.0, color="0.4", lw=0.4)
+                    ax.invert_yaxis()
+                    ax.set_aspect("equal")
+                    t, bad = ttl[g]
+                    ax.set_title((f"{an}\n" if c_i == 0 else "") + t, fontsize=7, color="#b2182b" if bad else "k")
+                ax = axs[r_i, -1]
+                for g in FITS:
+                    if g in spec:
+                        ax.plot(freqs, spec[g], color=fcol[g], lw=2.0 if g == "master" else 1.2,
+                                ls="--" if g == "master" else "-", label=g if r_i == 0 else None)
+                ax.set_xscale("log")
+                ax.set_xlabel("Hz", fontsize=7)
+                ax.tick_params(labelsize=6)
+                ax.set_title("frequency loading", fontsize=7)
+            axs[0, -1].legend(fontsize=6, frameon=False, loc="upper left")
+            fig.suptitle(f"{nm}: the matched factor in each per-epoch fit (spatial loading, frequency); "
+                         "red title = contested match")
+            frf.save(fig, out / f"matched_factor_gallery_{nm}.png", f"""
+{nm} as matched in every pooled per-epoch fit (rows = animals). Columns 1-6: spatial loading magnitude per mesh point as
+a fraction of the factor's total (shape only), colour scale per row; image left = contralesional, vertical line = face
+midline; master = the frozen cohort factor. Last column: spectral (frequency) loading, fraction of total, all fits
+overlaid (dashed black = master). Titles: spatial cosine of the matched column with the master and the Hungarian
+margin (best minus second-best score); RED = contested: the fit's best unconstrained partner for {nm} is a column the
+one-to-one assignment gave to another master factor (named), or cosine < 0.8 -- read that panel's change as possibly
+a factor merge / swap, not a shape change.""")
+    return pd.DataFrame(rows)
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -391,6 +479,7 @@ def main(argv=None) -> int:
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--plot-only", action="store_true", help="redraw from data/epoch_shape.csv")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--gallery", action="store_true", help="only the matched-factor gallery (fast)")
     ap.add_argument("--factors", nargs="+", default=list(LICK),
                     help="factors for the loading maps / templates (default the lateralised lick pair); e.g. the "
                          "non-lateralised lick factors (Priya 10-25 'central lick version') -- use with --out")
@@ -399,6 +488,12 @@ def main(argv=None) -> int:
     out = a.out or frc.readouts_dir(a.set) / "epoch_shape"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
+    if a.gallery:
+        G = matched_factor_gallery(fdir, frc.factor_names(fdir), out)
+        G.to_csv(figure_layout.sidecar_for(out, "matched_factor_gallery", ".csv"), index=False, float_format="%.4g")
+        print(G[G.contested].to_string(index=False))
+        print("->", out)
+        return 0
     csv = figure_layout.sidecar_for(out, "epoch_shape", ".csv")
     T = pd.read_csv(csv) if a.plot_only else compute(fdir)
     if not a.plot_only:
