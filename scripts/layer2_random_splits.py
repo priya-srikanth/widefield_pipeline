@@ -8,7 +8,7 @@ epoch's mean change_ref (the null: what a set of k pre sessions gains from its o
 epoch's. Removes TIME on purpose (random, not date-ordered), so it controls session noise and session count, not slow
 drift -- that is the trend model's job. kappa is fixed per animal at its combined-fit value (no per-split grid search).
 
-Usage: python scripts/layer2_random_splits.py PS92 [--max-splits 70]
+Usage: python scripts/layer2_random_splits.py PS92 [--max-splits 70]   (resumes from random_splits_<animal>.partial.csv)
 Output: <E>/allsession_encoder_v7g3_t3d_ref/random_splits_<animal>.csv (one row per split x epoch)
 """
 from __future__ import annotations
@@ -64,8 +64,12 @@ def main(argv=None) -> int:
         splits = [splits[i] for i in sorted(rng.choice(len(splits), a.max_splits, replace=False))]
     date_late = tuple(pre[len(pre) // 2:])
     ai = {ar: areas.index(ar) for ar in ("cortex", "SSp-m_left", "SSp-m_right") if ar in areas}
-    rows = []
+    part = L2 / f"random_splits_{an}.partial.csv"         # saved after every split; a restart resumes (same seed)
+    rows = pd.read_csv(part).to_dict("records") if part.exists() else []
+    done = {r["split"] for r in rows}
     for si, sp in enumerate(splits):
+        if si in done:
+            continue
         pset = set(sp)
         ss = [{**x, "epoch": "pseudo"} if x["label"] in pset else x for x in sess]
         f = ae.fit_animal(ss, alphas, groups_of, pen_of, ok, ("pseudo", *ae.POST_EPOCHS), kappa=kappa)
@@ -76,6 +80,7 @@ def main(argv=None) -> int:
                 g = (f["sse"]["ref"][x["label"]][i] - f["sse"]["all"][x["label"]][i]) / max(x["yy"][i], 1e-12) * 1e3
                 rows.append({"animal": an, "split": si, "date_ordered": sp == date_late, "epoch": x["epoch"],
                              "label": x["label"], "area": ar, "change_ref": g})
+        pd.DataFrame(rows).to_csv(part, index=False)
         print(f"[random splits] {an} {si + 1}/{len(splits)}", flush=True)
     T = pd.DataFrame(rows)
     T.to_csv(L2 / f"random_splits_{an}.csv", index=False)

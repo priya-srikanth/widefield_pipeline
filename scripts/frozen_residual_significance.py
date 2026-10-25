@@ -178,9 +178,9 @@ def main(argv=None) -> int:
                          fontsize=8)
             ax.set_xticks([]); ax.set_yticks([])
         fig.suptitle(f"Frozen-encoder RESIDUAL (data - full), {a.spout}, {al} window: epoch residual minus pre-stroke "
-                     f"residual, pre-normalised, mean of animals. Contours: black = nested bootstrap (primary), purple "
-                     f"dashed = cluster. Reference = all pre sessions (LOSO). Image left = ipsilesional.", fontsize=8)
-        fig.tight_layout(rect=(0, 0, 1, 0.9))
+                     f"residual,\npre-normalised, mean of animals. Contours: black = nested bootstrap (primary), purple "
+                     f"dashed = cluster.\nReference = all pre sessions (LOSO). Image left = ipsilesional.", fontsize=8)
+        fig.tight_layout(rect=(0, 0, 1, 0.86))
         fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}.png", dpi=130)
         plt.close(fig)
     pd.DataFrame(rows).to_csv(out / f"residual_significance{'_per_animal' if a.per_animal else ''}.csv", index=False)
