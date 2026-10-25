@@ -165,15 +165,13 @@ def main(argv=None) -> int:
     maps, shape = kernel_maps(run, PANELS + TARGET)
     img, nm = area_image(sorted(p.stem for p in (run / "joint" / "sessions").glob("PS92_*.json"))[0])
     ol = outline(img)
-    vmask = vessel_mask(img.shape)
     base = (f"NEURAL: EVENT-KERNEL beta maps of the FROZEN pre-stroke encoder (Musall et al. 2019 style), {a.tag}: mean of 4 "
             "animals' pre-stroke weights mapped to pixels through each animal's SVD basis (dF/F x1e3 per unit). Image left = "
             "ipsilesional.")
     draw(maps, [t for t, _v, _k in PANELS if t in maps], run / "figures" / "kernel_maps.png",
          base + " Target = per-spout DEVIATION from the shared cue kernel; lick-onset deviation = the lick-locked response "
-         "beyond the spout template. Lick-onset and contact panels: surface VESSELS masked (white; from each animal's "
-         "pre-stroke mean images, darkest 8 %, dilated 2 px) -- these kernels are venous-contaminated.", ol, vmask,
-         mask_for=VESSEL_PANELS)
+         "beyond the spout template. Lick-onset and contact kernels look venous-contaminated (vessel-shaped stripes); read "
+         "them with that caution.", ol, None)
     draw(maps, [t for t, _v, _k in TARGET if t in maps], run / "figures" / "kernel_maps_target_6spouts.png",
          base + " TARGET kernels of all six spouts (canonical order: close ipsi, mid, contra, then far ipsi, mid, contra): each spout's deviation from the shared "
          "cue kernel, at 0.3 / 0.6 / 1.0 / 2.0 s after the cue; one colour scale per row.", ol, None, ncol=6, shared_rows=True)
