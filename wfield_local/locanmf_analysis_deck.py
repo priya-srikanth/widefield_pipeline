@@ -2154,12 +2154,20 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # trial and lick-window gate, the 1.0 s pre-cue window, and the trial-CLASS maps built on the LP
     # attempt classes. Optional like J: an absent figure is skipped, not counted as missing.
     # ---------------------------------------------------------------------------------------
-    _roots = {}
+    # ROOTS FOLLOW `grant_dir`, like every other labcams input here: "labcams" is its parent, and the other
+    # share roots are used only when `grant_dir` IS the share's (a test that points `grant_dir` at an empty
+    # tmp dir must not have real figures placed from MICROSCOPE -- `test_builds_and_skips_missing`).
+    _lab = Path(_grant).parent
+    try:
+        _on_share = _lab.resolve() == Path(PathResolver().root("labcams")).resolve()
+    except Exception:                                                  # noqa: BLE001
+        _on_share = False
+    _roots = {"labcams": _lab}
     _k_found = []
     for _n, (_root, _rel, _ttl, _legend) in enumerate(LP_GATED_FIGURES, 1):
         if _root not in _roots:
             try:
-                _roots[_root] = Path(PathResolver().root(_root))
+                _roots[_root] = Path(PathResolver().root(_root)) if _on_share else None
             except Exception:                                          # noqa: BLE001
                 _roots[_root] = None
         _base = _roots[_root]
