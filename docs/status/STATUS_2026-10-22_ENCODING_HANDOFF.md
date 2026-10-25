@@ -45,6 +45,26 @@ outputs (share imaging_encoding folders, o2 enc_* bundles, wfield_cache, worktre
 lost at compaction, redo and send the list to e3 / Priya. Previously: (section 4 = §8 headlines +
 2.4b, 2.7-2.9, 3.4, 4.x of ENCODING_FINDINGS, short, status-tagged, with page figure numbers).
 
+**REVIEWER HITS TO FIX IN ENCODING_FINDINGS (from e3's reviewer, 10-25 ~01:30; line numbers as of 10-24 22:00 main) -- FIRST
+TASK AFTER COMPACTION:** (1) PS94/PS95 acute attempt rate has 3 versions (top box L16-19 .441->.445 / .325->.342 per
+DECISIONS L21912; §2.5 L329 .79/.80/.64/.32; L325 ".81-.93"): put current values + each denominator. (2) mechanism label:
+use PS94 = "try and fail" (acute 251 incomplete vs 78 no-attempt), PS95 = mostly "fail to try" (39 incomplete, 22
+no-attempt, 57 reaction) -- matches FR 5c; fix L274 / L329 / top box; tell e3. (3) §2.4b: FINAL box (target > executed
+3/4, width sweep done) vs PRIMARY bullet L163-169 ("acute mixed", "sweep queued"); change log L1016 "pre target-led 3/4"
+was demoted to a capacity effect (DECISIONS L21888). (4) Layer 2 10-23 bullet L382-401 needs a SUPERSEDED / WITHDRAWN label
++ a 10-24 change-log entry. (5) pre-cue: §5 L925 (all spouts pooled, no consistent loss) vs §3.3 L644-646 (far contra,
+4/4 down): say which in each. (6) stale: L32-36 "124 sessions / cam1 125/127" and L963-964 (now 127/127, 119);
+L707-710 "_v7basis RUNNING", "PS94/PS95 cam4-only"; L935 "cam1 adds 3-7 % small licks" (POSE_MODELS D11: mostly
+occlusion-lost licks); L208 / L318-320 cue z -5.3 / -8.0 (now -6.8); L48 "cam4 dropped ~13 %" vs FR 1b "11.8 %". (7) top
+status table: add relabel 2.7, failed-attempt decoding 2.8, attempt maps 2.9, Layer 2, §8. Label §4.4 push rate "2-5x"
+(context). Section-3 items e3 flagged that are not yet in FINDINGS: F18 drift detail, movement-removed ENL code tracks raw
+(10-13, 118 sessions), null/potent (one session), within-session fatigue / quitting time-driven (09-20), 15g/15h
+transfer arm (09-17), ENL sensory-vs-plan status (09-24); encoder amplitude has 3 versions (WHERE / CLAUDE.md /
+deck_registry:733 0.749->0.286->0.745; VLS 0.943->...->0.943; PRELIM §4 0.943->0.361->0.675->0.854 newest); rest obs/null
+1.32 / 1.443 / 1.622 / 1.634 (gated, newest); deck_registry notes stale (L533, L307/391); name the lick source for ILI.
+"No cortex damaged" CORRECTED in FINDINGS §3 (PS93 anterior motor-cortex injury, HISTOLOGY) -- CLAUDE.md still says it
+(flag to Priya; don't edit CLAUDE.md unasked).
+
 **RUNNING at ~01:00 (all write to the share):**
 - `frozen_relabel --from gate-attempted_v7g3_t3d --tag v7g3_t3d_trial --jobs 8` (log `S/relabel_trial.log`; ~5 h
   from 00:00; writes all session jsons at the END). Then a waiter (`S/...` bash, task bx9xor7g5) runs

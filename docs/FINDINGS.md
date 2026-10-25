@@ -85,6 +85,12 @@ STATUS_2026-10-07, REST_ENGAGEMENT_AUDIT and DECISIONS, with 5b's 10-24 per-anim
 https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV). **Owner to confirm: 5b reviews / corrects.** Imaging decode keeps its
 default (June + August) baseline; an August-only rerun confirms the acute numbers (DECISIONS 10-18).*
 
+**Caveat that qualifies several older claims: "no cortex is damaged" is CORRECTED.** BEHAVIOURAL_STATE_CONTROL, PRELIM,
+VLS_STROKE_SYNTHESIS and CLAUDE.md argue specificity partly from "the lesion is striatal, no cortex is damaged";
+HISTOLOGY.md records an ipsilesional ANTERIOR MOTOR-CORTEX injury in PS93 (and DLS involvement in some animals, from a
+fibre-hit vessel). The position-vs-state ratio (claim 2) does not depend on it, but any PS93 frontal-map result should
+be read with it, and the "rules out generic explanations" argument holds for 3 / 4 animals cleanly.
+
 1. **A frozen pre-stroke decoder loses the far-contralesional spout acutely, graded by eccentricity.** Far contra
    .896 -> .321 acute (-.575, Bonferroni [-.738, -.394]); 5 / 6 positions significant acutely; far contra and near
    middle still below pre chronically (-.171, -.163). **STANDS** (PRELIM §2 / H1).
