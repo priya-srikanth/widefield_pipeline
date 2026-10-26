@@ -156,6 +156,9 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    (xi) Decoded vs actual (10-26): executed licks drift ipsilesionally; the frozen decoder does not follow (ITI bias
    contralesional at fixed executed position); for cued licks, ipsi-deviated licks decode MORE like on-target licks
    after the stroke (share of the deviation followed 0.26 -> 0.14 chronic, 4/4) -> target over execution.
+   (xii) CORRECTION (10-26): in-trial frozen r is also lower (-0.146 acute -> -0.063 chronic, CI excludes 0), smaller than
+   ITI; its time course follows lick accuracy (a target-only reader loses -0.246 -> -0.036; session corr 0.82), so the
+   in-trial loss is mostly 'decoder reads the target, licks deviate'; the ITI loss is the remapping.
    (vi) Recovery marker: within animal, the in-trial frozen decoder tracks far-contra behaviour across post sessions
    (r +0.62, 4/4; +0.53 controlling lick-direction spread) and the ITI one does not (+0.10); beyond the shared time
    trend the link is small (+0.16, 4/4 positive, n.s.) -> a marker of the recovery time course, not yet of day-to-day
