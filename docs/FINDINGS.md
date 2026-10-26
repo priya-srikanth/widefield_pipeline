@@ -146,6 +146,8 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    no-contact -0.125), 3/4 animals (PS93 none).
    (vii) Basis-independent (10-26): the same in joint LocaNMF and a pre-stroke SVD basis (ITI chronic -0.12 r in all
    three bases, 4/4 each; in-trial recovers in all three).
+   (viii) Which dimension: the ITI loss is LATERAL (-19..-20 % in all bases, 4/4); outward position is weakly decoded and
+   unchanged. In-trial: outward drops acutely and recovers fully; angle decoding ends ABOVE pre chronically (+7..+11 %).
    (vi) Recovery marker: within animal, the in-trial frozen decoder tracks far-contra behaviour across post sessions
    (r +0.62, 4/4; +0.53 controlling lick-direction spread) and the ITI one does not (+0.10); beyond the shared time
    trend the link is small (+0.16, 4/4 positive, n.s.) -> a marker of the recovery time course, not yet of day-to-day

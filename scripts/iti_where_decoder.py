@@ -195,7 +195,7 @@ def main() -> int:
                 for s_ in ("top", "right"):
                     ax.spines[s_].set_visible(False)
                 pr = g[g.epoch == "pre"].r.mean()
-                ax.set_title(f"{LAB[src]} | {'ITI' if st == 'iti' else 'in-trial'} | {tg}\n(pre r {pr:.2f})", fontsize=8)
+                ax.set_title(f"{LAB[src]} | {'ITI' if st == 'iti' else 'in-trial'} | {tg}\n(pre r {pr:.2f})", fontsize=8, pad=14)
                 if j == 0:
                     ax.set_ylabel("frozen r / animal's pre", fontsize=7.5)
     fig.suptitle("NEURAL: WHERE did the lick go? Frozen pre-stroke decoder of the tongue tip's lateral and outward position "
