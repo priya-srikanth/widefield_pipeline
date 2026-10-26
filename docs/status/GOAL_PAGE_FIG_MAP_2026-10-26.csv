@@ -1,4 +1,4 @@
-old (before 10-26),new (local page after 16:20)
+old (before 10-26),new (local page after 19:00)
 1,0.1
 1b,0.2
 1c,0.3
@@ -87,8 +87,8 @@ old (before 10-26),new (local page after 16:20)
 7e,3.5
 7f,3.6
 7g,3.7
-7h,3.16
-7i,3.19
+7h,3.17
+7i,3.20
 8,4.1
 8b,4.2
 8c,4.3
@@ -148,3 +148,4 @@ old (before 10-26),new (local page after 16:20)
 (new 10-26) lick rate,3.11
 (new 10-26) where decoder,3.15
 (new 10-26) TE partial refit,1.37
+"(new 10-26) where decoder, lateral x bases",3.16
