@@ -6,7 +6,7 @@ Run all python from the worktree with `PYTHONPATH=<worktree>` (another `wfield_l
 
 ## Page
 
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v101** (11:10: target vs execution 1.34 / 1.35; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v102** (11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
 `C:/Users/SabatiniLab/AppData/Local/Temp/...` (the 8.3 path is blocked for images).
 
 - **Numbering = Fig SECTION.POSITION** (Priya 10-26: "why two letters"); ids `fig<sec>-<k>`. To add a figure: insert it
@@ -63,7 +63,8 @@ B. **(i) + (ii) DONE 09:00** (ENCODING_FINDINGS 8.17 top, page 3.9 caption; `scr
    PS93 -0.01). (iii) **Recovery marker** (Priya: "perhaps a marker of recovery?"): within animal, does the in-trial
    frozen decoder track that day's behaviour (far-contra hit rate / pre, `recovery_timing.series`) across post sessions,
    and the ITI one not? Chronic behaviour has no between-animal spread, so it is a within-animal time-course test.
-C. **Frozen unique + self-fit DONE (8.20).** Still open: group-kernel MAPS from the basis run (replace 1.20-1.21);
+C. **Frozen unique + self-fit DONE (8.20).** Pixel CHANGE maps of the group parts DONE (page 1.36, `frozen_pixel_maps.py` now shows `execution`). Still open:
+   PRE-level group-kernel maps (each group's evoked part per spout in pre; replace 1.20-1.21);
    pixel unique maps; TE partial refit readout when it lands (`partial_refit.py --plot-only --tag ..._frA_te`
    with FROZEN_DESIGN=te). C. **TE readouts** when run 1 lands: unique(target) vs unique(execution) (frozen, epoch − pre, nested; per area +
    pixel); self-fit remapping; GROUP-KERNEL maps = each group's summed contribution averaged around the event per spout

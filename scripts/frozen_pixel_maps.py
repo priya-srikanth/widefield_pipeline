@@ -27,7 +27,7 @@ from pathlib import Path
 import numpy as np
 
 EPOCHS = ("acute", "subacute", "chronic")
-SHOW = ("data", "full", "lick", "spout", "target", "exec_locked", "exec_within", "contact", "other", "timing",
+SHOW = ("data", "full", "lick", "spout", "target", "execution", "exec_locked", "exec_within", "contact", "other", "timing",
         "residual")
 
 
