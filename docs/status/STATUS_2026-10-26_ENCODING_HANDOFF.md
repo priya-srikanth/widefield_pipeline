@@ -1,4 +1,4 @@
-# Encoding handoff — 2026-10-26 (~07:00) — READ FIRST
+# Encoding handoff — 2026-10-26 (updated ~13:50) — READ FIRST
 
 Supersedes the RUNNING / TO-DO lists of `STATUS_2026-10-22_ENCODING_HANDOFF.md` §000z (its addenda record 10-25 night →
 10-26 early morning; keep it for history and pitfalls). Scratchpad `S = C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`.
@@ -6,7 +6,7 @@ Run all python from the worktree with `PYTHONPATH=<worktree>` (another `wfield_l
 
 ## Page
 
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v102** (11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103** (12:00: the 9 images missing from v98-v102 uploaded; v102 11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
 `C:/Users/SabatiniLab/AppData/Local/Temp/...` (the 8.3 path is blocked for images).
 
 - **Numbering = Fig SECTION.POSITION** (Priya 10-26: "why two letters"); ids `fig<sec>-<k>`. To add a figure: insert it
@@ -17,6 +17,32 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v102** (11:30: target vs exe
 - Where things stand: rows added 10-26 — self-initiated licks (KEY), cortex–face-lick coupling; Pending list updated.
 
 ## RUNNING (do not restart; check logs)
+
+### NOW (13:50) -- read this block first
+- **TE partial refit** (`S/run_partial_te.sh`, log `S/partial_te.log`, 6 workers, started 11:09; 54/107 at 13:49, ~16:15
+  end; a background wait prints the exit + any `!!` lines). Then: read out with `FROZEN_DESIGN=te` env
+  (`partial_refit.py --tag gate-attempted_v7g3_t3d_frA_te --plot-only`; sets target / target_spout / target_lick /
+  execution / exec_land / contact; contrasts vs target_perm / target_lick_perm / exec_land_perm / execution_perm), page
+  next to 1.34-1.36, ENCODING_FINDINGS 8.20. Check results without PS95_0907 (lick-heavy outlier).
+- **AFTER the refit exits: message sabatinilab-5b "go"** for the kinematics_all swap (their regenerated table in
+  `session_poses/pose3d/kinematics_all__tmp_20261026/`: only daq_peak_s differs, diff checked; Priya APPROVED the rename
+  10-26 and runs the lines 5b gives her). Then re-run `python -m wfield_local.stray_licks` (patched 1d6e227; move the old
+  `<E>/stray_licks/sessions` aside first -- it skips sessions already done; derived outputs, Priya's OK not needed to
+  rename) and update ENCODING_FINDINGS 2.6.
+- **Frozen decoder in other bases** (`scripts/iti_basis_decoder.py`, log `S/iti_basis.log`, 2 workers, 61/212 at 13:49;
+  summarises itself at the end -> `basis_decoder_tests.csv`, `figures/iti_basis_decoder.png`). Then page next to 3.9.
+- **WHERE decoder** (Priya 10-26: angle / distance together, "or lateral location instead of angle"):
+  `scripts/iti_where_decoder.py` written + lint-clean, NOT YET RUN -- run it AFTER the basis job (it picks up the basis
+  folders if present and raises if a basis file does not line up). Targets lateral (side_ml), outward (out_ap), 2-D
+  vector r, angle / reach polar check; prints reach spread per epoch. -> page next to 3.9.
+- **ITI lick RATE vs recovery** (Priya 10-26: "does inter-trial licking correlate with recovery (and exceed pre-stroke
+  levels)"): `scripts/iti_lick_rate.py` RUNNING in the foreground task (output `tasks/bxvqmai05.output`; ~100 behaviour
+  loads). Rate = ITI licks / ITI minutes (next strobe - stop, clipped 0..60 s), no-contact rate, per trial, contact share;
+  change vs pre + within-animal correlation with far-contra behaviour (raw, log-day detrended). Earlier count check:
+  fewer ITI licks post-stroke in PS92-94 (so exceeding pre is unlikely in counts; rate is the fair test). -> page + docs.
+- Pushed to origin through e9656c8; LOCAL commits since (1d6e227 stray fix, b60d363, ff61daa, d47d32c, + this) need a
+  cherry-pick push (memory note: never rebase this branch; cherry-pick onto origin/main in a temp worktree).
+
 
 1. **DONE 11:05 (areas 08:49, basis 10:10, self-fit 11:05; first readouts ENCODING_FINDINGS 8.20, page 1.34 / 1.35,
    `scripts/te_readout.py`). TE partial refit now running (`S/partial_te.log`).** 1. **Encoder redesign, FROZEN_DESIGN=te** (`S/run_te.sh`, log `S/te_chain.log`; started 06:34):
@@ -41,7 +67,7 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v102** (11:30: target vs exe
    `S/iti_area.log`) -> `iti_area_maps.png` (per-area response / build-up AUC change from pre on the Allen atlas,
    significant areas outlined), `iti_area_peth.png` (non-orofacial PETHs: VISp, VISl, VISam, RSPd, SSp-bfd / ul / ll / tr,
    ACAd, PL), `iti_area_groups.png` (orofacial vs visual + RSP, session dots) -> page supplement (section 3).
-5. **Push** of the 10-26 commits: the first attempt hit a rebase CONFLICT in DECISIONS.md (another session appended a
+5. **DONE (all 10-26 work through 13:00 on origin)** -- Push of the 10-26 commits: the first attempt hit a rebase CONFLICT in DECISIONS.md (another session appended a
    10-25 FaceRhythm entry at the same place); resolved by keeping both entries (theirs first), rebase completed, push
    retrying (task in this session). CONFIRM on origin: `git log origin/main --oneline | grep "Handoff 2026-10-26"`.
 
