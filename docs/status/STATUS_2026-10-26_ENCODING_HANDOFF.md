@@ -22,10 +22,10 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
   - section-3 captions open with "Decoder: frozen / per-session" and "Measured: r vs dF/F";
   - 3.9 caption carries the paired ITI vs in-trial test;
   - new figures: 1.37 TE partial refit, 3.11 lick rate, 3.14 basis decoder, 3.15 where decoder, 3.16 lateral x bases,
-    3.26 orofacial vs control PETHs; supplements 3.17 / 3.18 = the where decoder (every target) in the joint LocaNMF
+    3.28 orofacial vs control PETHs; supplements 3.17 / 3.18 = the where decoder (every target) in the joint LocaNMF
     and pre-stroke SVD bases (`iti_where_decoder_locanmf.png`, `iti_where_decoder_svdbasis.png`);
-  - corrected whole-cortex claim; 3.23 kinematics control with a face-adjusted row;
-  - all section-3 figures redrawn: frame / measure labels, stars above data, SEM bands on 3.7 / 3.19 / 3.22,
+  - corrected whole-cortex claim; 3.25 kinematics control with a face-adjusted row;
+  - all section-3 figures redrawn: frame / measure labels, stars above data, SEM bands on 3.7 / 3.21 / 3.24,
     3.15 split in two.
 - **Step 1 — bring in the last redrawn images** (only if the redraw chain finished after 19:30; check `S/relabel.log`
   ends with `relabel3 done`):
@@ -57,9 +57,9 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
   - `label`: e.g. "Titles, ITI labels, where + refit".
   - If the refusal hands back the live version, check it is v103 and publish the local file again. It is the merge,
     since local = v103 + our edits.
-  - Then open the published page and spot-check 3.7, 3.15, 3.16, 3.23 and 1.37 for images.
+  - Then open the published page and spot-check 3.7, 3.15, 3.16, 3.25 and 1.37 for images.
 - Numbering: **Priya may quote LIVE (v103) numbers.** Local numbers moved after several inserts: her "3.17" on
-  10-26 evening was the kinematics control, which is 3.23 locally. Map with `_goal_page/fig_map.csv` (last renumber)
+  10-26 evening was the kinematics control, which is 3.25 locally. Map with `_goal_page/fig_map.csv` (last renumber)
   and `docs/status/GOAL_PAGE_FIG_MAP_2026-10-26.csv` (pre-10-26 → current).
 
 ### 0b. RUNNING (background in THIS session; may die with it)
@@ -67,22 +67,22 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
   1. plot-direction / key / binned / recovery marker: DONE;
   2. basis decoder `--summarise` was running at 19:30;
   3. then `iti_area_maps.py`, `iti_area_maps.py --compare`, `iti_where_decoder.py` (full, ~25 min);
-  4. then `iti_licks.py --key` again (3.8 / 3.9 / 3.20 with the star fix);
-  5. then `iti_licks.py --ramp` (SEM bands on 3.19 / 3.22).
+  4. then `iti_licks.py --key` again (3.8 / 3.9 / 3.22 with the star fix);
+  5. then `iti_licks.py --ramp` (SEM bands on 3.21 / 3.24).
 
   If the log does not end with `relabel3 done`, rerun the missing steps from the worktree with the PYTHONPATH above.
   Each step redraws from saved session data; nothing is lost. Then do 0a step 1.
 
-- **Decoded vs actual landing scatter** (Priya ~19:40: "plot the actual 3d (or 2d) decoded vs true lick positions for
-  given spout positions per epoch per position"; NEW `scripts/iti_where_scatter.py`, started ~19:45):
-  - Same frozen decoder as 3.15: one ridge per axis (lateral, outward), PER LICK.
-  - Saves `<E>/iti_licks/where_preds.csv` (one row per lick).
-  - Figures `iti_where_scatter_{trial,iti}.png`: rows = all animals + each animal, columns = epochs; per spout, an arrow
-    from the actual mean to the decoded mean, with 1-SD ellipses.
-  - In-trial licks are grouped by target spout; ITI licks by the spout nearest their actual landing.
-  - Ridge shrinks predictions toward the centre, so read each epoch against pre.
-  - `--plot-only` redraws from the CSV.
-  - When done: look at the figures, add them to the page as a KEY / supplement pair after 3.16, then renumber.
+- **DONE 20:10: decoded vs actual landing** (`scripts/iti_where_scatter.py`, per-lick `where_preds.csv`; LOCAL page
+  3.19 in-trial / 3.20 ITI). Rig names in `tr_pos` (close_L ...) are mapped to lesion-relative names (all lesions LEFT).
+  Ipsilesional-bias test (Priya): `where_bias_sessions.csv`, ENCODING_FINDINGS 8.17 top. Executed licks shift ipsi
+  4/4; the decoded ITI position does NOT follow (bias at fixed actual position +0.18 mm contra chronic, 0/4 ipsi;
+  gain lower) -> not an ipsilesional decoder deviation.
+- **DONE 20:10: full movement regression** for the post-lick response (kinematics control, LOCAL 3.25 row 5: 3-D tongue
+  position, reach, speed, duration, retraction + FaceRhythm post): response survives (tjM1 contra chronic +0.86).
+  **JAW still missing:** jaw kinematics exist per trial (`kinematics_all/jaw_trials.csv.gz`), not per ITI lick ->
+  needs a per-lick jaw extraction from the whole-session 3-D jaw trace (ask the pose window / see pose handoff 10-21),
+  then add to `_more_kin` in `iti_licks.py` and rerun `--controls`.
 - **Helper agents launched ~19:45 (results may land in this session):**
   - (1) TITLE VERIFICATION from the code for figures whose model frame was inferred: 3.1-3.6, 1.15-1.16, 1.18, 1.21-1.22,
     1.24-1.28, 1.44-1.47, 7.1-7.6, 9.13-9.14, plus a spot-check of sections 5 / 6 / 8. Output
@@ -114,10 +114,10 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
      → redraw via `--plot-direction`.
    - 3.8: frozen decoder per lag, `decode_frozen_lags_sessions.csv` → the `key_figures` block (`--key`).
    - 3.14: basis decoder time courses (`iti_basis_decoder.py --summarise`).
-   - 3.19 / 3.22: `ramp_figure`, animal-mean PETH normalised by pre amplitude. Test on per-session PETHs (same
+   - 3.21 / 3.24: `ramp_figure`, animal-mean PETH normalised by pre amplitude. Test on per-session PETHs (same
      normalisation) → `--ramp`.
-   - 3.20: `iti_ramp_sessions.png`, raw + normalised rows, per-session PETHs → `--key`.
-   - 3.26 orofacial vs control PETHs (`iti_area_maps.py --compare`); optionally 3.25.
+   - 3.22: `iti_ramp_sessions.png`, raw + normalised rows, per-session PETHs → `--key`.
+   - 3.28 orofacial vs control PETHs (`iti_area_maps.py --compare`); optionally 3.27.
 
    Then update captions and republish.
 2. TE partial-refit line figure (page 1.37): the title still names only the target null. Add the landing − target
@@ -127,8 +127,7 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
 5. Older open items: PRE-level TE group-kernel maps (replace 1.20-1.21); epoch-kernel drift-RATE test (8.18);
    every-lick window (Priya to confirm first-lick primary); June→August drift ceiling; lesion burden /
    leave-PS93-out; share deletions / nokin retirement (Priya decides).
-6. **Push**: origin has everything through 66a287e. Local commits after it (31423a1, a73908c, d384d9b, 270885e, + this
-   handoff) need a cherry-pick push:
+6. **Push**: origin has everything through 66a287e. Pushed through b644af5 (20:05). Later local commits need a cherry-pick push:
    ```bash
    git fetch origin; git worktree add --detach ../wf_push_tmpNN origin/main; cd ../wf_push_tmpNN
    git cherry-pick <commits>; git push origin HEAD:main   # retry: fetch + rebase origin/main
@@ -151,9 +150,17 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
     −0.024; 0/4 up).
   - Acute target advantage falls (−0.126), back by chronic.
   - Same without PS95_0907.
-- **Kinematics control + FACE (3.23 row 4):** the larger post-lick response survives regressing out reach + speed +
+- **Kinematics control + FACE (3.25 row 4):** the larger post-lick response survives regressing out reach + speed +
   post-onset FaceRhythm (tjM1 contra chronic +0.74 [+0.22, +1.26], SSp-m +0.63 [+0.14, +1.11]); unchanged from reach
   + speed alone.
+- **Ipsilesional bias? (3.19 / 3.20):** no. Executed licks shift ipsi in every epoch (4/4); decoded ITI positions stay
+  near pre, so the bias at fixed executed position is CONTRAlesional (+0.32 acute, +0.18 chronic mm) and the ITI gain
+  is lower. In-trial: no consistent bias.
+- **Full tongue + face regression (3.25 row 5):** the larger post-lick response survives (tjM1 contra chronic +0.86
+  [+0.24, +1.55]). Jaw not yet included.
+- **Decoder AUC (Priya):** answered "keep the time-binned decoder (3.12-3.13) as the one number per session"; the area under
+  the per-lag r curve double-counts overlapping lags; ROC-AUC needs a binary target (an ipsi-vs-contra AUC was offered
+  as an optional supplement).
 - **Decoder r vs AUC:**
   - r = information about lick position (decoded vs actual lateral tongue-tip position).
   - AUC = amount of activity (dF/F integrated over a window); not ROC.
@@ -201,7 +208,7 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
   redraws from the CSVs). Answer: dips with the deficit and returns, exceeds pre only in PS95. Rate = ITI licks / ITI minutes (next strobe - stop, clipped 0..60 s), no-contact rate, per trial, contact share;
   change vs pre + within-animal correlation with far-contra behaviour (raw, log-day detrended). Earlier count check:
   fewer ITI licks post-stroke in PS92-94 (so exceeding pre is unlikely in counts; rate is the fair test).
-- **Page publish pending**: files = iti_area_compare.png, iti_basis_decoder.png, iti_where_decoder.png, iti_lick_rate.png, iti_direction_decoding.png (3.7 now with SEM bands), iti_where_decoder_bases.png (new 3.16) + every section-3 PNG redrawn 10-26 evening (frame + measure labels, stars above data, SEM on 3.19 / 3.22); every figure now has a title (.ftitle, fig_titles.csv in the scratchpad),
+- **Page publish pending**: files = iti_area_compare.png, iti_basis_decoder.png, iti_where_decoder.png, iti_lick_rate.png, iti_direction_decoding.png (3.7 now with SEM bands), iti_where_decoder_bases.png (new 3.16) + every section-3 PNG redrawn 10-26 evening (frame + measure labels, stars above data, SEM on 3.21 / 3.24); every figure now has a title (.ftitle, fig_titles.csv in the scratchpad),
   te_partial_refit_lines.png
   (all copied into S/goal_page; renumbered 16:00, map in GOAL_PAGE_FIG_MAP_2026-10-26.csv).
 - Pushed to origin through e9656c8; LOCAL commits since (1d6e227 stray fix, b60d363, ff61daa, d47d32c, + this) need a
@@ -280,7 +287,7 @@ E. Open from before: epoch-kernel drift-RATE test (8.18; within-chronic r per da
 
 ## Results of 10-26 (all PROVISIONAL; details ENCODING_FINDINGS 8.17–8.19, FINDINGS 4d / 4e)
 
-- **Self-initiated ITI licks (KEY, page 3.7–3.28):** within-session direction decoding intact; FROZEN pre-stroke decoder
+- **Self-initiated ITI licks (KEY, page 3.7–3.30):** within-session direction decoding intact; FROZEN pre-stroke decoder
   down every epoch for ITI licks (-0.135 r chronic, -22 %), largely recovers for cued in-trial licks (-20 % acute → -9 %
   chronic). Each lick evokes a larger response (~2× acutely, +0.6–0.8 chronic, also isolated licks; post-stroke bouts are
   SHORTER); slow build-up before the lick weaker chronically in tjM1 / SSp-m (3/4). Not lick kinematics (post-stroke ITI
