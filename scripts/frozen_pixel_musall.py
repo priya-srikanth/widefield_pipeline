@@ -47,9 +47,12 @@ QS = {"alone": [("full", None), ("task", "task_only"), ("instructed (lick)", "li
                  ("executed (within-spout)", "no_exec_within"), ("lick spout", "no_lickspout"), ("spout", "no_spout"),
                  ("movement", "no_movement"), ("FaceRhythm", "no_fr")],
       # Musall bottom row per VARIABLE (Priya 10-25); order: task, licking, pose, running, FaceRhythm
+      # names = the frozen variable bases (`frozen_encoder._VAR_BASES`): target = pos_enl (pre-cue) + pos_cue (post-cue);
+      # pose magnitude / direction separate; the FaceRhythm "other" factors (fr_other_<k>) are left out of the figure
       "novar": [("full", None)] + [(v, f"novar_{v}") for v in (
-          "cue", "arrival", "target", "lick_onset", "contact", "exec_angle", "tongue", "jaw", "nose", "running",
-          "fr_lick", "fr_right", "fr_left", "fr_close", "fr_far", "fr_other")]}
+          "cue", "arrival", "pos_enl", "pos_cue", "lick_onset", "contact", "exec_angle", "tongue_mag", "tongue_dir",
+          "jaw_mag", "jaw_dir", "nose_mag", "nose_dir", "running", "push",
+          "fr_lick", "fr_right", "fr_left", "fr_close", "fr_far")]}
 MLAB = {"avg": "PETH", "trial": "trial-by-trial", "all": "all frames"}
 EPS = ("acute", "subacute", "chronic")
 
