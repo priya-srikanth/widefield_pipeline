@@ -1157,6 +1157,29 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.18 Per-epoch pooled pixel kernel fits: where the event kernels move (10-26 ~00:30) -- PROVISIONAL
+
+`scripts/epoch_kernels.py` (000y item E; Priya 10-25: "what happened to our cross-epoch event kernel maps"), frame
+`..._frA_ls_basis` (frozen + FaceRhythm A + per-spout lick kernels, per-animal 200-component pixel basis). Per animal,
+sessions pooled into early pre / late pre (halves of the August pre by date; late pre = DRIFT reference) / acute /
+subacute / chronic, refit with the FROZEN scaling and penalties (re-derived pre fit = saved fit exactly, 4/4); kernel maps
+compared with the early-pre maps (pixel r, window-stacked: target 0.2-1.5 s, lick -0.1..+0.5 s); split-half
+reliability per group = the ceiling. MATCHED session counts drop PS95 (one acute session) and leave PS92 at 2 per group,
+so the UNMATCHED fit (all of a group's sessions; table mode = all) is read alongside.
+- PER-SPOUT LICK KERNELS (reliable: split-half 0.8-0.95): r with early pre falls steadily -- late pre 0.82-0.92, acute
+  0.71-0.76, subacute 0.63-0.73, chronic 0.50-0.69 (unmatched, 4/4 animals; matched 3/3 the same) -- chronic below both
+  the drift reference and the group's own reliability. Largest at the MIDDLE spouts (close / far mid; PS92 / PS94
+  chronic 0.25-0.43) and PS94 close ipsi (0.03); far ipsi stays near pre (0.66-0.92); far contra mixed (0.37-0.76).
+  No far-contra-specific pattern.
+- CUE kernel: changes sharply acutely (r 0.0-0.5 vs late pre 0.65-0.91) and partly returns; reliability low in PS93.
+- TARGET kernels: too noisy to read (split-half 0.13-0.76; late pre vs early pre already 0.35-0.75).
+- CAVEAT that decides the reading: chronic sessions are 3-7 weeks from early pre, late pre only days, so a steady
+  divergence is what ordinary representational drift predicts (the 10-07 chronic_drift_vs_reorg result: the crossnobis
+  distance still rising chronically was drift, not reorganisation). NEEDED: a drift-RATE test -- within-chronic early vs
+  late kernel r per day against the pre-stroke rate per day -- before any "lick kernels remapped" claim. Maps at +0.1 s
+  also show midline venous stripes post-stroke (vessel contamination, as in 8.13).
+Figures `<run>/epoch_kernels/epoch_kernels_r.png`, `epoch_kernel_maps_<lick|target|cue>.png`; page Figs 1uc2 / 1uc3.
+
 ### 8.17 Self-initiated (ITI) licks: pre-lick ramp and target-free direction coding (10-26 ~00:15) -- PROVISIONAL
 
 `scripts/iti_licks.py`, `<E>/iti_licks/` (102 sessions, 4 animals; Priya 10-25: "let's also do the inter-trial 3d licks,
