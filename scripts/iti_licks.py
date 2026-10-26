@@ -334,17 +334,27 @@ def summarise(labels: list[str]) -> None:
             m = (P - b).mean(0)
             for roi in RAMP_ROIS:
                 if roi in cols:
-                    A, t50, t20 = ramp_metrics(m[:, cols.index(roi)], LAGS_P)
+                    v = m[:, cols.index(roi)]
+                    A, t50, t20 = ramp_metrics(v, LAGS_P)
                     rr.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "kind": kind, "roi": roi,
-                               "n": len(P), "amp": A, "t50": t50, "t20": t20})
+                               "n": len(P), "amp": A, "t50": t50, "t20": t20,
+                               "early": float(v[(LAGS_P >= -0.6) & (LAGS_P <= -0.2)].mean()),
+                               "peak": float(v[(LAGS_P >= 0.1) & (LAGS_P <= 0.4)].mean())})
     RR = pd.DataFrame(rr)
+    # AMPLITUDE-FREE readouts (t50 / t20 are fractions of the amplitude AT the lick, which rose post-stroke -- a larger
+    # post-onset response alone moves t50 later): early ramp (-0.6..-0.2 s) and post-onset peak (0.1..0.4 s), each in
+    # units of the animal's PRE amplitude at the lick (same kind x ROI), so epochs compare on one scale per animal
+    pa = RR[RR.epoch == "pre"].groupby(["kind", "roi", "animal"]).amp.mean()
+    den = np.array([pa.get((k, r_, a), np.nan) for k, r_, a in zip(RR.kind, RR.roi, RR.animal)])
+    den = np.where(np.abs(den) > 0, den, np.nan)
+    RR["early_n"], RR["peak_n"] = RR.early / den, RR.peak / den
     RR.to_csv(OUT / "ramp_sessions.csv", index=False)
     print("\n== per animal (rule 8): t50 (s from lick ONSET), bout-start ITI licks\n"
           + RR[RR.kind == "iti_bout"].pivot_table(index=["roi", "animal"], columns="epoch", values="t50")
           .reindex(columns=EP4).round(2).to_string())
     bt = []
     for (kind, roi), t in RR.groupby(["kind", "roi"]):
-        for val in ("t50", "t20", "amp"):
+        for val in ("t50", "t20", "amp", "early_n", "peak_n"):
             ref = {a: t[(t.animal == a) & (t.epoch == "pre")][val].dropna().to_numpy() for a in AN}
             for ep in EP4[1:]:
                 post = {a: t[(t.animal == a) & (t.epoch == ep)][val].dropna().to_numpy() for a in AN}
@@ -354,10 +364,13 @@ def summarise(labels: list[str]) -> None:
                 iv = ak.boot_delta({a: post[a] for a in com}, {a: ref[a] for a in com}, np.random.default_rng(0))
                 bt.append({"kind": kind, "roi": roi, "value": val, "epoch": ep, "n_animals": len(com),
                            "pre": float(np.mean([ref[a].mean() for a in com])), "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
-                           "n_later": sum(post[a].mean() < ref[a].mean() for a in com)})
-    BT = pd.DataFrame(bt, columns=["kind", "roi", "value", "epoch", "n_animals", "pre", "delta", "lo", "hi", "n_later"])
+                           "n_down": sum(post[a].mean() < ref[a].mean() for a in com)})
+    BT = pd.DataFrame(bt, columns=["kind", "roi", "value", "epoch", "n_animals", "pre", "delta", "lo", "hi", "n_down"])
     BT.to_csv(OUT / "ramp_change.csv", index=False)
-    print("\n== ramp change vs pre (nested bootstrap; t: negative = EARLIER rise)\n"
+    print("\n== per animal (rule 8): EARLY RAMP (-0.6..-0.2 s) / animal's pre amplitude, bout-start ITI licks\n"
+          + RR[RR.kind == "iti_bout"].pivot_table(index=["roi", "animal"], columns="epoch", values="early_n")
+          .reindex(columns=EP4).round(2).to_string())
+    print("\n== ramp change vs pre (nested bootstrap; t: negative = EARLIER rise; n_down = animals whose mean fell)\n"
           + BT[BT.value != "amp"].round(3).to_string(index=False))
     # ramp figure: pooled PETH per epoch (mean of animals of session means, each animal's PETHs scaled by its pre amplitude)
     fig, axs = plt.subplots(2, len(RAMP_ROIS) // 2 + 1, figsize=(19, 7.5), squeeze=False)
