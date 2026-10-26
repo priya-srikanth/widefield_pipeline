@@ -54,6 +54,10 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   ONE ANIMAL -- read the full run's per-animal table first. Caveats to state: a cortex-wide component rides on every
   ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
   change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
+- PERM NULLS DONE (106/106) -> to-do A DONE: partial_refit_lines.png = page 1yd (bars = 1ye), FINDINGS 4.11 / section 0 and
+  ENCODING_FINDINGS 8.14 updated: block-permutation nulls reproduce the single-shift contrasts (chronic contra SSp-m
+  target +0.036 / +0.034, executed +0.055 / +0.064; acute ipsi SSp-m target +0.039 / +0.041; all 4/4). Lickspout map
+  passes (000y B / C / D) DONE 01:16 -> figures in <E>/frozen_encoder_..._frA_ls_basis/figures, not yet on the page.
 - EPOCH KERNELS FULL RUN DONE 00:27 -> ENCODING_FINDINGS 8.18, page 1uc2 / 1uc3. Per-spout lick kernels diverge
   steadily from early pre (chronic r 0.50-0.69 vs late pre 0.82-0.92, below split-half), cue kernel changes acutely,
   target kernels too noisy. NEXT (decides it): drift-RATE test (within-chronic early vs late r per day vs the pre rate

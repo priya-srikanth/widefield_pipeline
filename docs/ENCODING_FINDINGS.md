@@ -1257,6 +1257,13 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
 
 ### 8.14 Partial refit: target vs executed, each against its own null (10-25 night) -- PROVISIONAL
 
+> **10-26: BLOCK-PERMUTATION NULLS DONE** (target_perm / exec_perm: same-spout runs permuted, 5 draws, scores averaged;
+> 106 / 106 sessions). They reproduce the single-shift contrasts: chronic contralesional SSp-m target - null
+> +0.036 [0.018, 0.058] cue / +0.034 [0.013, 0.055] lick, executed - null +0.055 [0.021, 0.087] / +0.064 [0.023, 0.104],
+> cortex executed - null +0.038 / +0.045 (all 4/4); acute ipsilesional SSp-m target - null +0.039 [0.012, 0.069] /
+> +0.041 (4/4); every other acute contrast's CI includes 0. Main figure now the line version (page 1yd),
+> grouped bars = supplement (1ye). The numbers below are the single-shift ones.
+
 - Design (`scripts/partial_refit.py`, frA frame, 107 sessions, page Figs 1yd / 1ye): per session refit ONLY one group set
   (target; executed = exec_locked + exec_within; + FR side / distance; combinations), everything else frozen, ridge with
   the frozen penalties, 5 contiguous trial-block CV (held-out predictions). Gain = R2 - R2[frozen], epoch - pre within

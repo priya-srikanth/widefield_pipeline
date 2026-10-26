@@ -70,8 +70,8 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    information IS present chronically, but in a NEW pattern the pre-stroke mapping cannot read -> target coding REMAPPED.
    (d) Partial refit (only one group refit, against its shuffled-label null): chronically BOTH are specific in
    contralesional SSp-m -- target +0.034, executed movement +0.054 / +0.064 (4/4) -- so the chronic remapping is NOT
-   target-only; executed movement is remapped at least as much. (Single-shift nulls; 5-draw block-permutation nulls
-   running.) Acutely both are non-specific except a target-specific gain in ipsilesional SSp-m.
+   target-only; executed movement is remapped at least as much. (Confirmed 10-26 against 5-draw block-permutation
+   nulls: target +0.036 / +0.034, executed +0.055 / +0.064, 4/4.) Acutely both are non-specific except a target-specific gain in ipsilesional SSp-m.
    (e) Per-spout lick kernels in the frozen model (both terms spout-specific and lick-aligned): pre-stroke, target and
    spout-specific lick kernels carry similar unique variance (target ahead only in contralesional SSp-m, 0.015 vs 0.012
    cue; ipsilesional SSp-m / MOp favour the lick kernels), and the lick kernels absorb part of the old target term
@@ -82,7 +82,7 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    in the pre-stroke frame, while with session-specific weights both are readable in a remapped form. "Target >
    executed" is better read as "target remapped, executed remapped too". Open: the self-fit / partial refit on the
    per-spout lick-kernel design (the decisive contest: does a session-specific mapping prefer target or spout-specific
-   lick kernels?) and the block-permutation nulls. Failed attempts keep distance, lose side (4.9).
+   lick kernels?). Block-permutation nulls DONE 10-26 (same numbers as the single shift). Failed attempts keep distance, lose side (4.9).
 4b. **Recovery = behavioural compensation with PARTIAL cortical recovery, not restoration (10-25 night; key point).**
    Judge recovery PER SUCCESSFUL TRIAL, not per epoch: acutely ~92 % of far-contra trials are failed attempts, which carry
    no far-contra code (decoder retention ~0 in every window, 4.9 / page 7e) and no trial-by-trial coupling (4.6), so
@@ -440,9 +440,11 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     vs .013 / .014; lick kernels absorb part of target (contra SSp-m .020 -> .015 cue). Epoch - pre (frozen): target acute
     -.008 / -.014 (1/4 up), chronic +.007 / +.002 (2/4); lick kernels acute -.007, chronic -.007 / -.010 (0-1/4); executed
     spout-locked templates acute +.023 / +.024, chronic +.008 / +.007 (4/4). PROVISIONAL.
-    **WHICH PART (10-25 night, partial refit, `scripts/partial_refit.py`, page Figs 1yd / 1ye; NULLS BEING REDONE as
-    5-draw block permutations -- spouts come in ~6-trial runs and one half-session shift is a noisy null; numbers below
-    use the single shift):** per session refit ONLY
+    **WHICH PART (10-25 night, partial refit, `scripts/partial_refit.py`, page Figs 1yd / 1ye; nulls = 5-draw BLOCK
+    PERMUTATIONS of same-spout runs (10-26; spouts come in ~6-trial runs, so one half-session shift was a noisy null).
+    The permutation nulls reproduce the single-shift numbers: chronic contra SSp-m target - null +0.036 cue / +0.034 lick,
+    executed - null +0.055 / +0.064, acute ipsi SSp-m target - null +0.039 / +0.041, all 4/4; acute otherwise CIs include 0.
+    Single-shift numbers below):** per session refit ONLY
     the target or ONLY the executed-position columns (rest frozen, 5-block CV), each read against its own null (the same
     columns rebuilt with spout labels shifted by half the session). The nulls ALSO gain post-stroke (any refit
     spout-structured regressor absorbs part of the larger residual), so raw refit gains overstate specificity. Acute:

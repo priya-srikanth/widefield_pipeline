@@ -389,10 +389,10 @@ def summarise(run: Path, out: Path) -> None:
                 ax.set_ylabel(f"{w} window\nrefit gain beyond null\n(change from pre, R2)", fontsize=8.5)
     ffc.lines_legend(fig, ser)
     fig.suptitle(f"NEURAL: which part of the mapping changed? ({run.name.replace('frozen_encoder_', '')}) Refit ONE part per "
-                 "session (rest frozen); gain in held-out R2 beyond its shuffled-label null,\nas a change from pre (within "
-                 "animal; line = mean of animals, band = 95% nested CI animals > sessions). All refit sets: "
-                 "partial_refit_bars_<window>.png.", fontsize=10)
-    fig.subplots_adjust(left=0.07, right=0.99, top=0.86, bottom=0.15, wspace=0.08, hspace=0.25)
+                 "session (rest frozen);\ngain in held-out R2 beyond its null (block permutation of same-spout runs, 5 "
+                 "draws), as a change from pre\n(within animal; line = mean of animals, band = 95% nested CI animals > "
+                 "sessions). All refit sets: partial_refit_bars_<window>.png.", fontsize=10)
+    fig.subplots_adjust(left=0.09, right=0.99, top=0.83, bottom=0.15, wspace=0.08, hspace=0.25)
     fig.savefig(out / "figures" / "partial_refit_lines.png", dpi=110)
     plt.close(fig)
     print("->", out)
