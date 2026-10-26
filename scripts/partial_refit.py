@@ -49,8 +49,16 @@ SETS = {"target": ("target",), "exec": ("exec_locked", "exec_within"), "exec_fr"
         "target_ls": ("target", "lickspout")}
 VARIANTS = ["target", "exec", "exec_fr", "target_exec", "target_exec_fr", "lickspout", "exec_ls", "target_ls", "target_shuf",
             "exec_shuf"]
-NULLS = ("target_shuf", "exec_shuf")
-CONTRASTS = {"target - null": ("target", "target_shuf"), "exec - null": ("exec", "exec_shuf"),
+NULLS = ("target_shuf", "exec_shuf", "target_perm", "exec_perm")
+VARIANTS += ["target_perm", "exec_perm"]
+#: BLOCK-PERMUTATION nulls (Priya 10-25: "spout labels aren't totally random - a half session shift may not be
+#: appropriate" -> "let's do block permutation"): spouts come in runs of ~6 trials (10-90 % 4-8); one circular shift is
+#: a single noisy draw (label agreement 0.12-0.19 per animal x epoch vs chance 0.167, PS92_1006 0.34). Each draw permutes
+#: the ORDER of the same-spout runs (run lengths travel with their runs, so block structure is kept and agreement with
+#: the true labels is chance in expectation); N_PERM draws, each scored, scores AVERAGED (not the predictions).
+N_PERM = 5
+CONTRASTS = {"target - null": ("target", "target_perm"), "exec - null": ("exec", "exec_perm"),
+             "target - shift null": ("target", "target_shuf"), "exec - shift null": ("exec", "exec_shuf"),
              "exec - target": ("exec", "target"),
              "lickspout - target": ("lickspout", "target")}
 
@@ -100,6 +108,63 @@ def _refit(Z, r, lam, fold):
         te = fold == k
         A = Z[~te].T @ Z[~te] + np.diag(lam)
         out[te] = Z[te] @ np.linalg.solve(A, Z[~te].T @ r[~te])
+    return out
+
+
+def _block_perm(p, rng):
+    """Labels with the order of their same-label runs permuted (run lengths kept)."""
+    p = np.asarray(p, dtype=object)
+    st = np.flatnonzero(np.r_[True, p[1:] != p[:-1]])
+    ln = np.diff(np.r_[st, len(p)])
+    o = rng.permutation(len(st))
+    return np.repeat(p[st][o], ln[o])
+
+
+def _avg_scores(ds):
+    """Element-wise mean of a list of nested score dicts (window -> measure -> per-area list)."""
+    out = {}
+    for w in ds[0]:
+        out[w] = {k: [float(np.mean([d[w][k][i] for d in ds if w in d and k in d[w]])) for i in range(len(v))]
+                  for k, v in ds[0][w].items()}
+    return out
+
+
+def _perm_scores(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, which, d, pos_order):
+    """Block-permutation nulls: N_PERM draws per null, each scored; returns averaged score dicts."""
+    import zlib
+    ce = fe._ce()
+    out = {}
+    for name in which:
+        sc = []
+        for i in range(N_PERM):
+            rng = np.random.default_rng(zlib.crc32(f"{label}|{name}|{i}".encode()))
+            if name == "target_perm":
+                orig = ce.raw_blocks
+
+                def permuted(B, ft, pos_perm=None, drop_pos=None, _o=orig, _r=rng):
+                    pp = _block_perm(B.trials.pos.to_numpy(), _r)
+                    return _o(B, ft, pos_perm={"pos_enl": pp, "pos_cue": pp}, drop_pos=drop_pos)
+                ce.raw_blocks = permuted
+                try:
+                    d2 = fe.session_design(label, tpl)
+                finally:
+                    ce.raw_blocks = orig
+                m = grp == "target"
+            else:
+                orig_s = fe.spout_split
+
+                def split_perm(x, pos_split, k_of, pos_order_, M, _o=orig_s, _r=rng):
+                    return _o(x, _block_perm(pos_split, _r), k_of, pos_order_, M)
+                fe.spout_split = split_perm
+                try:
+                    d2 = fe.session_design(label, tpl)
+                finally:
+                    fe.spout_split = orig_s
+                m = np.isin(grp, SETS["exec"])
+            base = Zv[:, ~m] @ beta[~m]
+            P = base + _refit(((d2["X"] / F["scale"]) @ F["C"])[:, m], R - base, lam_all[m], fold)
+            sc.append(_scores(fe, R, P, d, pos_order))
+        out[name] = _avg_scores(sc)
     return out
 
 
@@ -173,6 +238,8 @@ def job(item):
         old = json.loads((sdir / f"{label}.json").read_text())
         new = _null_preds(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, add)
         old["scores"].update({k: _scores(fe, R, P, d, pos_order) for k, P in new.items()})
+        old["scores"].update(_perm_scores(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold,
+                                          [n for n in add if n.endswith("_perm")], d, pos_order))
         (sdir / f"{label}.json").write_text(json.dumps(old))
         return old
     for name, gs in SETS.items():
@@ -182,8 +249,11 @@ def job(item):
         base = Zv[:, ~m] @ beta[~m]
         preds[name] = base + _refit(Zv[:, m], R - base, lam_all[m], fold)
     preds.update(_null_preds(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, NULLS))
+    perm = _perm_scores(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, ("target_perm", "exec_perm"), d,
+                        pos_order)
     out = {"label": label, "animal": an, "epoch": d["epoch"], "day": d["day"], "n_trials": int(d["n_trials"]),
-           "areas": list(F["areas"]), "scores": {k: _scores(fe, R, P, d, pos_order) for k, P in preds.items()}}
+           "areas": list(F["areas"]), "scores": {**{k: _scores(fe, R, P, d, pos_order) for k, P in preds.items()},
+                                                 **perm}}
     sdir.mkdir(parents=True, exist_ok=True)                  # saved per session as it finishes -> a restart resumes
     (sdir / f"{label}.json").write_text(json.dumps(out))
     return out
@@ -299,8 +369,32 @@ def summarise(run: Path, out: Path) -> None:
                      "(within animal). Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=9)
         fig.subplots_adjust(left=0.05, right=0.83, top=0.9, bottom=0.07, hspace=0.35)
-        fig.savefig(out / "figures" / f"partial_refit_{w}.png", dpi=105)
+        fig.savefig(out / "figures" / f"partial_refit_bars_{w}.png", dpi=105)            # supplementary (all sets)
         plt.close(fig)
+    # MAIN: epoch lines of the contrasts that carry the claim (Priya 10-25: bars too many to read)
+    ser = [(q, lab, cols[q]) for q, lab in (("target - null", "target (vs its null)"),
+                                            ("exec - null", "executed movement (vs its null)"),
+                                            ("lickspout - target", "per-spout lick kernels minus target"))
+           if (B.q == q).any()]
+    areas = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]
+    fig, axs = plt.subplots(len(ffc.WINDOWS), len(areas), figsize=(14, 3.2 * len(ffc.WINDOWS) + 1.2), sharey=True,
+                            squeeze=False)
+    for r, w in enumerate(ffc.WINDOWS):
+        for c, a_ in enumerate(areas):
+            ax = axs[r, c]
+            ffc.epoch_lines(ax, B[B.window == w], ser, a_)
+            if r == 0:
+                ax.set_title(ffc.ALAB.get(a_, a_), fontsize=10)
+            if c == 0:
+                ax.set_ylabel(f"{w} window\nrefit gain beyond null\n(change from pre, R2)", fontsize=8.5)
+    ffc.lines_legend(fig, ser)
+    fig.suptitle(f"NEURAL: which part of the mapping changed? ({run.name.replace('frozen_encoder_', '')}) Refit ONE part per "
+                 "session (rest frozen); gain in held-out R2 beyond its shuffled-label null,\nas a change from pre (within "
+                 "animal; line = mean of animals, band = 95% nested CI animals > sessions). All refit sets: "
+                 "partial_refit_bars_<window>.png.", fontsize=10)
+    fig.subplots_adjust(left=0.07, right=0.99, top=0.86, bottom=0.15, wspace=0.08, hspace=0.25)
+    fig.savefig(out / "figures" / "partial_refit_lines.png", dpi=110)
+    plt.close(fig)
     print("->", out)
 
 
