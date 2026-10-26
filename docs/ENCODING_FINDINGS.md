@@ -1150,6 +1150,21 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.16 Per-spout lick kernels in the frozen model; target vs executed reconciled (10-25 night) -- PROVISIONAL
+
+- Run `gate-attempted_v7g3_t3d_frA_ls` (frozen + FaceRhythm mode A + FROZEN_LICKSPOUT=1: the lick-onset s / d columns
+  replaced by six per-spout copies of the recorded lick-onset columns, group "lickspout", executed side). Unique R2 =
+  joint - no_<g>, frame, orofacial areas, August pre; epoch - pre nested bootstrap.
+- Pre level (cue / lick): contra SSp-m target .015 / .019, lickspout .012 / .015, exec_locked ~0 / .004; ipsi SSp-m target
+  .006 / .008, lickspout .013 / .014; MOp lickspout .009-.010 > target .003-.008. Versus the frA frame (no lickspout),
+  target unique drops (contra SSp-m .020 -> .015 cue, .026 -> .019 lick): part of the "target" term was spout-specific
+  lick-locked activity.
+- Epoch - pre (frozen): target acute -.008 / -.014 (1/4), chronic +.007 / +.002 (2/4); lickspout acute -.007 / -.008, chronic
+  -.007 / -.010 (0-1/4); exec_locked acute +.023 / +.024, chronic +.008 / +.007 (4/4 in every orofacial area).
+- Reconciliation (FINDINGS 0 point 4): old refit "target > executed" was chronic + refit-only; frozen: neither target nor
+  executed spout coding recovers; self-fit: target readable in a remapped pattern; partial refit: target AND executed
+  remapped (executed at least as much). Pending: self-fit / partial refit on the lickspout design (chain), block nulls.
+
 ### 8.15 Trial-by-trial coupling by trial class; what acute far-contra trials look like; nulls (10-25 night) -- PROVISIONAL
 
 - Coupling = within-session r between the frozen decoder's P(far mid) - P(far contra) and the trial's lick weight far mid
