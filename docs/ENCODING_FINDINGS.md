@@ -1227,6 +1227,10 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   (-0.6..-0.2 s, same units): acute UNCHANGED (PS93 / PS94 up, PS92 / PS95 down); CHRONIC WEAKER in tjM1 (contra -0.40
   [-0.70, -0.08], ipsi -0.33), SSp-m (-0.46 / -0.35), MOp (-0.23 / -0.19), ALM (-0.15 / -0.12, 4/4 down); MOs and cortex
   CIs include 0. Per animal the chronic drop is PS92 / PS93 / PS94; PS95's tjM1 ramp does not fall.
+  BOUT-LENGTH CONTROL (10-26): post-stroke ITI bouts are SHORTER, not longer (licks following the bout start within
+  0.75 s: pre 0.42-1.72 per animal, acute 0.35-0.64), and ISOLATED licks (none following) show the same larger
+  post-onset response (tjM1 contra +1.41 acute / +0.74 chronic, SSp-m contra +1.56 / +0.68, all 4/4), so the larger
+  response is per lick, not a longer bout. Lick kinematics (reach / speed) of these licks not yet checked.
   Reading: after the stroke, self-initiated licks are preceded by less slow build-up in orofacial sensorimotor cortex
   and followed by a larger cortical response (consistent with the chronic positive frozen residual, 4.x / Fig 1 row 2).
   Caveats: pre-lick orofacial movement (jaw / whisking) is not controlled here (FaceRhythm could be regressed out); a
@@ -1235,10 +1239,13 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   chronically (+0.02-0.05 s).
 - DIRECTION WITHOUT A TRIAL (each lick's 3-D lateral direction decoded from area activity, ridge, 5 time-block folds;
   lags 0..0.2 s). Within session: ITI direction r 0.53 pre, unchanged in every epoch (acute -0.015 [-0.10, 0.11]); n-matched
-  in-trial licks 0.71, unchanged; within-spout ITI direction (spout identity removed) 0.31, unchanged (chronic +0.05,
-  CI includes 0). Information rises from ~-0.2 s and peaks ~+0.1 s after the lick peak in every epoch. FROZEN decoder
+  in-trial licks 0.71, unchanged. CORRECTED 10-26 (Priya: the spout is RETRACTED during the ITI): the first run's
+  'within-spout' ITI measure grouped licks by the label of the trial WINDOW they fell in (the trial just finished for
+  'tail' licks, the UPCOMING trial for 'lead' licks), which is not a spout in place. Re-run with direction RELATIVE to
+  the PREVIOUS trial's spout (removes residual aiming toward the last spout location): 0.32 pre, unchanged acutely,
+  +0.066 [0.014, 0.143] chronically. Information rises from ~-0.2 s and peaks ~+0.1 s after the lick peak in every epoch. FROZEN decoder
   (each animal's pre ITI licks; pre = leave-one-session-out): DROPS in every epoch, 4/4 -- direction -0.13 [-0.19, -0.07]
-  acute, -0.12 subacute, -0.13 chronic; within-spout -0.13 / -0.10 / -0.07.
+  acute, -0.12 subacute, -0.13 chronic; relative to the previous trial's spout -0.10 / -0.09 / -0.06 (chronic n.s.).
   Reading: cortex still carries the executed direction of self-initiated licks as strongly as before, but in a
   DIFFERENT mapping from the pre-stroke one -- the execution code without a target is intact but remapped, like the
   trial code (8.12-8.14). This is the target-free counterpart of the far-contra trial result: there the code on failed

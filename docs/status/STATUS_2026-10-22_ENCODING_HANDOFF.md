@@ -54,6 +54,13 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   ONE ANIMAL -- read the full run's per-animal table first. Caveats to state: a cortex-wide component rides on every
   ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
   change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
+- PAGE RENUMBERED 10-26 ~06:00 (Priya: "why two letters"): every figure is now Fig SECTION.POSITION in page order (ids
+  fig<sec>-<k>); old -> new map docs/status/GOAL_PAGE_FIG_MAP_2026-10-26.csv (docs written before 10-26 cite OLD numbers:
+  read them through the map). Script S/renumber_sections.py; when adding a figure, insert it with any temporary label and
+  rerun the script (it also sets the sidebar to one collapsible list per section). New figs: landing vs target (1.35),
+  self-fit remap (1.36), FR lags (9.21), ITI decoding with frozen panel (3.7), ITI PETH (3.8), isolated licks (3.9).
+  ITI 'within-spout' corrected to 'relative to the previous trial's spout' (spout retracted in the ITI); bout-length
+  control added. Epoch colours = orofacial_cohort.EPOCH_LINE on every new figure.
 - TO-DOS B / C / D(self-fit) DONE 04:30 -> ENCODING_FINDINGS 8.19, FINDINGS point 4 (f). Landing kernels do not absorb
   the chronic target term (target unique +0.010 / +0.011 contra SSp-m, 4/4); FR lags: no shift toward cortex leading,
   acute face -> contra SSp-m rise; self-fit: target remap halves with lick kernels present, lick-kernel remap ~0, spout
