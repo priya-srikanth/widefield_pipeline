@@ -18,6 +18,29 @@ PARTIAL cortical recovery), 4c (early predictors, exploratory n=4, pre-registere
 throughout ("cortical activity consistent with the movement under the pre-stroke mapping; direction not determined").
 ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (per-spout lick kernels).
 
+### 000z ADDENDUM 10-25 ~23:50 (Priya asleep; read with the RUNNING list below)
+- PER-EPOCH PIXEL KERNEL FITS (000y E; Priya: "what happened to our cross-epoch event kernel maps" -> never written; now
+  `scripts/epoch_kernels.py`, run LOCALLY, Priya: "if too complicated, just queue locally"; O2 not needed: the post-session
+  statistics pass is ~2-3 min / session). Frame = `..._frA_ls_basis` (frA env + FROZEN_LICKSPOUT=1, launcher
+  `S/run_epoch_kernels.sh`). Groups per animal: early / late pre (halves by date; late pre = drift reference), acute,
+  subacute, chronic; MATCHED session counts (n = smallest group: PS92 has only 2 subacute sessions -> PS92 matched n = 2;
+  the unmatched fit is in the table, mode = all); frozen scale + frozen penalties (re-derived fit checked = saved, 0.0
+  difference); split-half reliability per group. Outputs `<run>/epoch_kernels/` (kernel_similarity.csv, kernels.pkl,
+  epoch_kernels_r.png = main, epoch_kernel_maps_<target|lick|cue>.png). Smoke (PS92, 2 per group) log
+  S/epoch_kernels_smoke.log; FULL run queued after it: S/epoch_kernels_full.log (stats resume from <out>/stats/).
+  TO DO: read the per-animal table first (rule 8); stroke-specific = r vs early pre below late pre AND below the group's
+  split-half; then page figures + ENCODING_FINDINGS entry.
+- PUSH FAILED x3 overnight: pre-push test `test_no_hardcoded_machine_paths` caught a machine path literal I added as the
+  FROZEN_LICKLAND_CALIB default. Fixed (default = $WFIELD_INPUT_CACHE/pose3d_inputs/..., identical path in the chain's
+  env; atomic write) in c47dd89; push restarted (task blybs3kqm, worktree wf_push_tmp11). CONFIRM it landed:
+  `git fetch; git log origin/main --oneline | grep -c c47dd89`-style check on the rebased commit subject.
+- Three OLD pre-push pytest processes (started 18:37 / 19:05 / 19:35, not attributable to this session) are still alive;
+  left alone (shared box).
+- Page v86: Figs 1 / 1b (FR comparison) and 15b (Musall alone vs unique) are now EPOCH-LINE figures (bars = supplement
+  links); scripts frozen_fr_compare.py (lines_figure), frozen_musall_figures.py (musall_alone_vs_unique_lines_*).
+  Running these scripts from the worktree needs PYTHONPATH=<worktree> (another wfield_local install shadows it).
+- Lickspout basis run FINISHED 23:36; the land/lag chain started (landing run first).
+
 ### Key results of the night (all PROVISIONAL, details in FINDINGS / ENCODING_FINDINGS)
 - KEY FIGURE (page, under the bottom line; = Fig 1i4): per-animal-normalised, hits-only. Behaviour chronic +0.01 (fully back);
   cortical far-contra code on HITS chronic -0.30 [-0.46, -0.13]; per-session gap ~0 subacute -> -0.31 chronic. By day (1i3):
