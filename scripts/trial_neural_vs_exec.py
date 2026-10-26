@@ -198,6 +198,60 @@ def main() -> int:
     fig.tight_layout(rect=(0, 0.08, 1, 0.9))
     fig.savefig(D / "figures" / "trial_neural_vs_exec_coupling_sessions.png", dpi=125)
     plt.close(fig)
+
+    # figure 4: POOLED PER EPOCH, one dot per session (Priya 10-25). Line = mean of animals' session means; epoch - pre
+    # tested with the nested animals -> sessions bootstrap (analysis_kit.boot_delta, animal-weighted).
+    from wfield_local import analysis_kit as ak
+    fig, axs = plt.subplots(1, 2, figsize=(12, 4.6), sharey=True)
+    prow = []
+    for r, kind in enumerate(("landing", "trajectory")):
+        ax = axs[r]
+        c = Sx[Sx.exec == kind]
+        ax.axhline(0, color="k", lw=0.6)
+        by = {ep: {an: c[(c.animal == an) & (c.epoch == ep)].r.to_numpy() for an in AN
+                   if ((c.animal == an) & (c.epoch == ep)).any()} for ep in EP}
+        for k, ep in enumerate(EP):
+            for j, an in enumerate(AN):
+                v = c[(c.animal == an) & (c.epoch == ep)]
+                if not len(v):
+                    continue
+                xs = k + (j - 1.5) * 0.12 + np.random.default_rng(j * 10 + k).uniform(-0.04, 0.04, len(v))
+                sig = (v.p_perm < 0.05).to_numpy()
+                ax.scatter(xs[sig], v.r[sig], marker=MK[an], s=26, color=ACOL[an], edgecolor="k", lw=0.4, zorder=4)
+                ax.scatter(xs[~sig], v.r[~sig], marker=MK[an], s=22, facecolor="w", edgecolor=ACOL[an], lw=1.1, zorder=4)
+            lev = np.mean([x.mean() for x in by[ep].values()]) if by[ep] else np.nan
+            ax.plot([k - 0.3, k + 0.3], [lev, lev], color="k", lw=2.2, zorder=5)
+            if ep != "pre" and by[ep]:
+                com = [an for an in by[ep] if an in by["pre"]]
+                iv = ak.boot_delta({an: by[ep][an] for an in com}, {an: by["pre"][an] for an in com},
+                                   np.random.default_rng(0))
+                if iv is not None:
+                    prow.append({"exec": kind, "epoch": ep, "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
+                                 "animals": "/".join(com), "n_sessions": sum(len(by[ep][an]) for an in com)})
+                    sig_ = iv.lo > 0 or iv.hi < 0
+                    ax.text(k, 0.97, f"{iv.point:+.2f}\n[{iv.lo:+.2f}, {iv.hi:+.2f}]"
+                            + (" *" if sig_ else ""), ha="center", va="top", fontsize=8,
+                            fontweight="bold" if sig_ else "normal")
+        ax.set_xticks(range(4)); ax.set_xticklabels(EP)
+        ax.set_ylim(-0.32, 0.98)
+        ax.set_title(f"executed = {kind}", fontsize=10)
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+        if r == 0:
+            ax.set_ylabel("within-session r: neural (fM - fC)\nvs executed (fM - fC)")
+    Pd = pd.DataFrame(prow)
+    Pd.to_csv(D / "trial_neural_vs_exec_coupling_pooled.csv", index=False)
+    print("== pooled epoch - pre (sessions, nested bootstrap animals -> sessions)\n" + Pd.round(3).to_string(index=False))
+    h = [Line2D([], [], marker=MK[a], ls="", mfc=ACOL[a], mec="k", label=a) for a in AN]
+    h += [Line2D([], [], marker="o", ls="", mfc="0.4", mec="k", label="session p < 0.05 (block permutation)"),
+          Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.1, label="session n.s."),
+          Line2D([], [], color="k", lw=2.2, label="mean of animals")]
+    fig.legend(handles=h, loc="lower center", ncol=7, fontsize=8.5, frameon=False)
+    fig.suptitle("Trial-by-trial coupling pooled per epoch, one dot per session (far-contra target trials; August pre). Numbers = "
+                 "epoch minus pre,\nmean of animals with 95% nested CI (animals > sessions; * excludes 0)", fontsize=10)
+    fig.tight_layout(rect=(0, 0.08, 1, 0.9))
+    fig.savefig(D / "figures" / "trial_neural_vs_exec_coupling_pooled.png", dpi=125)
+    plt.close(fig)
     print(f"-> {D / 'figures'}")
     return 0
 
