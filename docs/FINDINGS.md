@@ -141,6 +141,10 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    not face movement (face-adjusted build-up still weaker). Caveats: ITI vs in-trial gap 3/4 animals (PS93 none);
    no-contact in-trial test pending. Not lick count: test sets matched to 40 licks per session give the same
    frozen-decoder result.
+   (iii) Binned frozen decoder (10-26): same result (ITI -22 % chronic, in-trial -19 -> -10 %); with visual + RSP areas
+   only, both lick types lose ~half and in-trial does not recover -> the in-trial recovery is orofacial-specific.
+   (iv) Whole cortex: the acute / subacute response increase is global (41-45 Allen areas); chronically the larger
+   response (MOp, SSp-m, tjM1) and the weaker build-up (SSp-n, SSp-un, ALM) are confined to orofacial cortex.
 4e. **Chronic cortex - face-lick coupling tightens in orofacial motor cortex** (10-26, ENCODING_FINDINGS 8.17b,
    page 1.16 / 1.17): the FaceRhythm lick factor's trial-by-trial unique contribution rises chronically while its
    trial-to-trial variance FALLS (-40 % / -44 %), so it is not more face variability. PROVISIONAL.

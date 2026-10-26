@@ -3,12 +3,14 @@ activity maps to look at the whole cortex question? (supplemental figure with VI
 
 From the saved ITI sessions (`scripts/iti_licks.py`, every Allen area per bout-start ITI lick, >= 2 s without licking):
 per session x area, response AUC (0..0.5 s after lick onset = first frame the tongue is visible) and build-up AUC
-(-0.4..-0.05 s), baseline -1.5..-1.0 s, each divided by that area's PRE response AUC for the animal (pre response = 1).
-  iti_area_maps.png   change from pre per area (acute / subacute / chronic) painted on the Allen atlas, one colour scale
-                      per row; areas whose nested-bootstrap CI (animals > sessions) excludes 0 are outlined (black).
+(-0.4..-0.05 s), baseline -1.5..-1.0 s.
+  iti_area_maps.png   change from pre per area in RAW dF/F AUC (acute / subacute / chronic) on the Allen atlas, one colour
+                      scale per row; areas whose nested-bootstrap CI (animals > sessions) excludes 0 are outlined (black).
+                      (10-26: per-area normalisation by the area's own pre response was dropped -- small caudal areas
+                      with near-zero pre responses gave huge ratios of either sign and dominated the maps.)
   iti_area_peth.png   per-session mean PETH +- SEM (all animals pooled) for non-orofacial areas, both hemispheres.
   iti_area_groups.png orofacial (ALM, tjM1, MOs, MOp, SSp-m, SSp-n) vs visual + retrosplenial areas: one dot per
-                      session, normalised response and build-up.
+                      session; group-mean AUCs divided by the animal's pre GROUP-mean response AUC.
 Image left = ipsilesional (_left); _right = contralesional.
 Usage: python scripts/iti_area_maps.py
 """
@@ -79,13 +81,13 @@ def main() -> int:
     D = {x: il._load(x) for x in labels}
     T, peths = session_table(D)
     T.to_csv(il.OUT / "area_auc_sessions.csv", index=False)
-    C = pd.concat([changes(T, "resp_n"), changes(T, "build_n")])
+    C = pd.concat([changes(T, "resp"), changes(T, "build")])
     C.to_csv(il.OUT / "area_auc_changes.csv", index=False)
     print(C[C.sig].sort_values(["value", "epoch", "delta"]).round(3).to_string(index=False))
     img, nm = area_image(labels[0])
     ol = outline(img)
     fig, axs = plt.subplots(2, 3, figsize=(14, 9))
-    for i, (val, ttl) in enumerate((("resp_n", "response AUC 0..0.5 s"), ("build_n", "build-up AUC -0.4..-0.05 s"))):
+    for i, (val, ttl) in enumerate((("resp", "response AUC 0..0.5 s"), ("build", "build-up AUC -0.4..-0.05 s"))):
         c = C[C.value == val]
         lim = np.nanpercentile(np.abs(c.delta), 98) or 1.0
         for j, ep in enumerate(il.EP4[1:]):
@@ -102,9 +104,9 @@ def main() -> int:
             ax.imshow(np.where(sig_edge, 1.0, np.nan), cmap="Greys", vmin=0, vmax=1, interpolation="nearest")
             ax.set_title(f"{ttl}\n{ep} - pre ({int(ce_.sig.sum())} areas significant)", fontsize=9)
             ax.axis("off")
-        fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change / animal's pre response AUC")
-    fig.suptitle("NEURAL: self-initiated (ITI) licks across the whole cortex -- change from pre per Allen area, normalised to "
-                 "each animal's pre response AUC of that area; black outline = nested-bootstrap CI excludes 0. Image left = "
+        fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F AUC (x1e3 s)")
+    fig.suptitle("NEURAL: self-initiated (ITI) licks across the whole cortex -- change from pre per Allen area in raw dF/F "
+                 "AUC (x1e3 s); black outline = nested-bootstrap CI excludes 0. Image left = "
                  "ipsilesional.", fontsize=10, wrap=True)
     fig.savefig(il.OUT / "figures" / "iti_area_maps.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
@@ -140,20 +142,29 @@ def main() -> int:
     # group summary: orofacial vs visual + RSP
     T["group"] = np.where(T.area.str.rsplit("_", n=1).str[0].isin(ORO), "orofacial",
                           np.where(T.area.str.startswith(VISR), "visual + RSP", "other"))
-    G = T[T.group != "other"].groupby(["label", "animal", "epoch", "group"])[["resp_n", "build_n"]].mean().reset_index()
+    G = T[T.group != "other"].groupby(["label", "animal", "epoch", "group"])[["resp", "build"]].mean().reset_index()
+    den = G[G.epoch == "pre"].groupby(["group", "animal"]).resp.mean()
+    dg = np.array([den.get((g_, a_), np.nan) for g_, a_ in zip(G.group, G.animal)])
+    G["resp_n"], G["build_n"] = G.resp / dg, G.build / dg
     rng = np.random.default_rng(4)
-    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+    fig, axs = plt.subplots(2, 3, figsize=(15, 8))
     tests = []
     for i, (val, ttl) in enumerate((("resp_n", "response AUC / pre"), ("build_n", "build-up AUC / pre response"))):
-        for j, g in enumerate(("orofacial", "visual + RSP")):
+        for j, g in enumerate(("orofacial", "visual + RSP", "orofacial - visual + RSP")):
             ax = axs[i, j]
-            for r_ in il.session_dots(ax, G[G.group == g], val, colors, rng):
+            if j < 2:
+                sub = G[G.group == g]
+            else:                                         # is the change orofacial-specific? session-paired difference
+                Wd = G.pivot_table(index=["label", "animal", "epoch"], columns="group", values=val).dropna()
+                sub = (Wd["orofacial"] - Wd["visual + RSP"]).rename(val).reset_index()
+            for r_ in il.session_dots(ax, sub, val, colors, rng):
                 tests.append({"group": g, **r_})
             ax.set_title(f"{g}: {ttl}", fontsize=9)
     pd.DataFrame(tests).to_csv(il.OUT / "area_group_tests.csv", index=False)
     print(pd.DataFrame(tests).round(3).to_string(index=False))
-    fig.suptitle("NEURAL: self-initiated licks, orofacial vs visual + retrosplenial areas (area means per session; one dot per "
-                 "session; * = nested-bootstrap change from pre).", fontsize=9.5, wrap=True)
+    fig.suptitle("NEURAL: self-initiated licks, orofacial vs visual + retrosplenial areas (area means per session, divided by "
+                 "the animal's pre group-mean response AUC; one dot per session; * = nested-bootstrap change from pre; right = "
+                 "orofacial minus visual + RSP in the same session).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(il.OUT / "figures" / "iti_area_groups.png", dpi=110)
     plt.close(fig)
