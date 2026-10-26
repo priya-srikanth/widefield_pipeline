@@ -1272,6 +1272,16 @@ coupling (direction not determined), not more face variability.
   PS95 +0.32, PS94 ~0). Permutation p (behaviour shuffled within animal) ignores autocorrelation -> not quoted. Contact
   share up acute / subacute (+19 / +34 %, CIs exclude 0), ~pre chronic. Reading: ITI licking dips with the deficit and
   returns with it; it exceeds pre only in PS95; the frozen-decoder ITI loss is not a rate effect.
+  IN-TRIAL r LOSS EXPLAINED BY LICK ACCURACY (10-26 ~21:00; Priya: "shouldn't we still see lower r for in-trial licks
+  if the decoder predicts on-target but the lick is deviated ipsi?"). CORRECTION of earlier wording ("the decoding change
+  is only true for ITI licks"): the in-trial frozen r IS lower in every epoch (per-lick lateral, Allen areas: -0.146
+  [-0.212, -0.079] acute, -0.079 subacute, -0.063 [-0.135, -0.010] chronic; SVD basis chronic n.s.), smaller than ITI and
+  shrinking. A pure TARGET reader (each lick predicted at its target spout's pre landing) loses r the same way: -0.246
+  acute, -0.120 subacute, -0.036 chronic, because the within-spout (deviation) share of lateral variance rises (0.31 pre
+  -> 0.44 acute -> 0.34 chronic). Session-level corr(decoder r, target-only r) over post sessions = 0.82. Reading: the
+  in-trial r time course mostly tracks how far licks deviate from their target (the decoder reads the target), with at
+  most a small extra chronic loss (-0.063 vs -0.036); the ITI loss (no target) is the remapping, and the paired
+  ITI - in-trial gap still widens chronically (3/4).
   IPSI-DEVIATED IN-TRIAL LICKS (10-26 ~20:30, where_ipsi_deviated_sessions.csv; Priya: "does the in-trial licks show that
   ipsi-deviated licks look like on-target licks?"). Per session and target spout: licks >= 0.5 mm ipsilesional of the
   target's PRE landing mean vs on-target licks (|dev| < 0.25 mm); share of the executed difference that the frozen
