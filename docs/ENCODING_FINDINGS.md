@@ -1272,6 +1272,16 @@ coupling (direction not determined), not more face variability.
   PS95 +0.32, PS94 ~0). Permutation p (behaviour shuffled within animal) ignores autocorrelation -> not quoted. Contact
   share up acute / subacute (+19 / +34 %, CIs exclude 0), ~pre chronic. Reading: ITI licking dips with the deficit and
   returns with it; it exceeds pre only in PS95; the frozen-decoder ITI loss is not a rate effect.
+  IPSI-DEVIATED IN-TRIAL LICKS (10-26 ~20:30, where_ipsi_deviated_sessions.csv; Priya: "does the in-trial licks show that
+  ipsi-deviated licks look like on-target licks?"). Per session and target spout: licks >= 0.5 mm ipsilesional of the
+  target's PRE landing mean vs on-target licks (|dev| < 0.25 mm); share of the executed difference that the frozen
+  decoder follows (decoded diff / actual diff), and the within-spout slope of decoded on actual. PRE: the decoder
+  follows only 26 % of a within-spout deviation (within-spout slope 0.25 vs across-spout 0.74) -> even pre-stroke the
+  decoded position mostly reflects the TARGET spout. POST: the share followed FALLS (acute 0.08, -0.18 [-0.33, -0.05];
+  chronic 0.14, -0.12 [-0.20, -0.05]; chronic lower in 4/4: PS92 .17->.11, PS93 .27->.18, PS94 .26->.04, PS95 .33->.25)
+  while the across-spout layout slope is unchanged -> ipsi-deviated cued licks look MORE like on-target licks after the
+  stroke (target over execution), converging with the TE partial refit (target-labelled > landing-labelled lick
+  kernels chronically). Share of licks >= 0.5 mm ipsi of target: pre 0.14, acute 0.46, chronic 0.20.
   DECODED vs ACTUAL LANDING + IPSILESIONAL BIAS (10-26 ~20:00, `scripts/iti_where_scatter.py` -> where_preds.csv (per
   lick), where_bias_sessions.csv; page 3.19 / 3.20; Priya: "is the decoder lateral loss deviated ipsilesionally? but not
   corrected for by the executed ipsilesional tongue deviation?"). Per session: decoded lateral = a + b x actual lateral
