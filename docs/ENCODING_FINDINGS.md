@@ -1292,6 +1292,16 @@ coupling (direction not determined), not more face variability.
   while the across-spout layout slope is unchanged -> ipsi-deviated cued licks look MORE like on-target licks after the
   stroke (target over execution), converging with the TE partial refit (target-labelled > landing-labelled lick
   kernels chronically). Share of licks >= 0.5 mm ipsi of target: pre 0.14, acute 0.46, chronic 0.20.
+  SIGNED DECODING ERROR PER LICK, ITI vs IN-TRIAL (10-26 late, `scripts/iti_where_signed_error.py` ->
+  where_signed_error_tests.csv; Priya: "does the decoder predict the tongue further right (contralesional) than where it
+  ended up?"). err = decoded - actual lateral (+ = contralesional), change vs the animal's pre error for the same spout;
+  held-fixed version = licks landing within 0.25 mm of the pre landing mean for their spout. ITI, held fixed: acute +0.40
+  [+0.27, +0.53] (PS92 .29 / PS93 .28 / PS94 .50 / PS95 .51, 4/4), subacute +0.17, chronic +0.18 [+0.02, +0.37] (.03 /
+  .02 / .41 / .26: large in PS94 / PS95 only) -> self-initiated licks are READ AS MORE CONTRALESIONAL than they land.
+  IN-TRIAL, held fixed: acute -0.01 (mixed), subacute -0.13, chronic -0.17 [-0.31, -0.04] (0/4 contra: -.08 / -.37 /
+  -.21 / -.00) -> on-target cued licks are read slightly IPSIlesional chronically. In-trial over ALL licks acute +0.54
+  (4/4) only because deviated (ipsi) licks are read at their target. Reading: the contralesional reading is an ITI
+  result; for cued licks the result is "deviated licks read as on-target". PROVISIONAL.
   DECODED vs ACTUAL LANDING + IPSILESIONAL BIAS (10-26 ~20:00, `scripts/iti_where_scatter.py` -> where_preds.csv (per
   lick), where_bias_sessions.csv; page 3.19 / 3.20; Priya: "is the decoder lateral loss deviated ipsilesionally? but not
   corrected for by the executed ipsilesional tongue deviation?"). Per session: decoded lateral = a + b x actual lateral
