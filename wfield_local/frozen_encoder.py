@@ -318,13 +318,18 @@ def _off_target(W: np.ndarray, tg: np.ndarray) -> float:
     return float(np.mean(W[m].argmax(1) != np.array([LICKSPOUT_POS.index(t_) for t_ in tg[m]])))
 
 
-def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray, ridx: np.ndarray) -> dict:
+def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray, ridx: np.ndarray,
+                  tpos_perm=None, land_roll: float | None = None) -> dict:
     """FROZEN_DESIGN=te lick families into ``parts``: lick_onset@tgt:<q> (lick-locked kernels of every in-trial lick
     labelled by its trial's TARGET spout) and lick_onset@land:<q> / @land:unknown (every lick, ITI included, by its 3-D
     LANDING: soft weights, amplitude-weighted kernels + mean weight x plain kernel as FROZEN_LICKLAND, since
     `_event_cols` centres an amplitude). Licks: post-cue = the behaviour licks (B.lick_on_s / B.lick_pos), cam1-only
     in-trial licks (B.extra_lick_on_s, no 3-D), pre-cue and ITI licks from the session's licks_all.csv (exact DAQ onsets;
-    3-D via lick_uid into kinematics_all)."""
+    3-D via lick_uid into kinematics_all).
+    NULLS (`partial_refit.py`, TE): ``tpos_perm`` = permuted trial spouts (one per row of T, the same array the caller
+    passes to raw_blocks as pos_perm) -> every target label comes from it (post-cue licks too, through their trial);
+    ``land_roll`` = circular shift of the landing weights over the landed licks in time order, as a fraction (0..1) of
+    their number (bout structure kept, alignment with the data broken)."""
     import pandas as pd
     ce = _ce()
     from wfield_local import orofacial_outputs as oo
@@ -336,13 +341,15 @@ def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray,
     # trials' spans (strobe - 0.5 .. stop + 3 s) -> target of any in-trial onset
     st = np.asarray(np.where(np.isfinite(T.strobe_s), T.strobe_s, T.cue_s - 3.0), float) - 0.5
     en = T.stop_s.to_numpy(float) + 3.0
-    tpos = T.pos.astype(str).to_numpy()
+    tpos = (T.pos if tpos_perm is None else pd.Series(np.asarray(tpos_perm))).astype(str).to_numpy()
 
     def target_of(t):
         out = np.full(len(t), "", dtype=object)
         for a_, e_, p_ in zip(st, en, tpos):
             out[(t >= a_) & (t <= e_) & (out == "")] = p_
         return out
+    if tpos_perm is not None:                            # permuted labels reach the post-cue licks through their trial
+        tg_post = target_of(on_post).astype(str)
     ex = getattr(B, "extra_lick_on_s", None)
     on_x = np.asarray([] if ex is None else ex, float)
     tg_x = target_of(on_x)
@@ -361,6 +368,10 @@ def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray,
     W_all = np.vstack([W_post, np.full((len(on_x), len(LICKSPOUT_POS)), np.nan), W_c])
     keep = np.isfinite(on_all)
     on_all, tg_all, W_all = on_all[keep], tg_all[keep], W_all[keep]
+    if land_roll:                                        # landing null: weights shifted along the landed licks
+        li = np.flatnonzero(np.isfinite(W_all).all(1))
+        li = li[np.argsort(on_all[li], kind="stable")]
+        W_all[li] = W_all[np.roll(li, int(round(land_roll * len(li))))]
     for q in LICKSPOUT_POS:                              # TARGET-labelled lick kernels
         m = tg_all == q
         parts[f"lick_onset@tgt:{q}"] = _centred(ce._event_cols(on_all[m], ft, lags)[ridx].astype(np.float64))

@@ -21,7 +21,13 @@ predictions only). Variants:
 Scores: `frozen_encoder.musall_r2` (frame / trial / avg) per window x area, and frame R2 per spout (all areas).
 Readout: gain = R2[variant] - R2[frozen], epoch - pre within animal (nested bootstrap), per-animal table first.
 
-Run with the SAME env as the frozen run (run_frozen_fr.sh for the frA frame).
+FROZEN_DESIGN=te runs (DECISIONS 2026-10-26: target vs execution kernels) use their own sets and nulls (TE_SETS):
+  target / target_spout (pos_enl, pos_cue) / target_lick (lick_onset@tgt:*) / execution / exec_land
+  (lick_onset@land:*) / contact / target_land; nulls target_perm + target_lick_perm (ONE block permutation of the trial
+  spouts fed to BOTH raw_blocks and te_lick_parts, so the arrival / cue kernels and the target-labelled lick kernels see
+  the same shuffled labels), exec_land_perm + execution_perm (landing weights circularly shifted along the session's
+  landed licks by a random 10-90 % of their number; kinematics / FR stay real -> conservative). N_PERM draws each.
+Run with the SAME env as the frozen run (run_frozen_fr.sh for the frA frame; run_te.sh for the te frame).
 Usage: python scripts/partial_refit.py --tag gate-attempted_v7g3_t3d_frA [--jobs 2] [--labels ...] [--plot-only]
 Output: <run>/partial_refit/{fits.pkl, sessions/<label>.json, gain.csv, boot.csv, figures/partial_refit_<window>.png}
 """
@@ -61,6 +67,26 @@ CONTRASTS = {"target - null": ("target", "target_perm"), "exec - null": ("exec",
              "target - shift null": ("target", "target_shuf"), "exec - shift null": ("exec", "exec_shuf"),
              "exec - target": ("exec", "target"),
              "lickspout - target": ("lickspout", "target")}
+#: FROZEN_DESIGN=te sets: name -> (FGROUP groups, column-variable prefixes); a column is in the set if either matches
+TE_SETS = {"target": (("target",), ()), "target_spout": ((), ("pos_enl", "pos_cue")),
+           "target_lick": ((), ("lick_onset@tgt:",)), "execution": (("execution",), ()),
+           "exec_land": ((), ("lick_onset@land:",)), "contact": (("contact",), ()),
+           "target_land": (("target",), ("lick_onset@land:",))}
+TE_NULLS = {"target_perm": "target", "target_lick_perm": "target_lick", "exec_land_perm": "exec_land",
+            "execution_perm": "execution"}
+TE_CONTRASTS = {"target - null": ("target", "target_perm"), "target lick - null": ("target_lick", "target_lick_perm"),
+                "landing lick - null": ("exec_land", "exec_land_perm"),
+                "execution - null": ("execution", "execution_perm"),
+                "landing lick - target lick": ("exec_land", "target_lick"), "execution - target": ("execution", "target")}
+TE = __import__("os").environ.get("FROZEN_DESIGN", "") == "te"
+if TE:
+    VARIANTS = [*TE_SETS, *TE_NULLS]
+    CONTRASTS = TE_CONTRASTS
+
+
+def _te_mask(name, vcol, grp):
+    gs, pre = TE_SETS[name]
+    return np.isin(grp, gs) | np.array([str(v).startswith(pre) for v in vcol]) if pre else np.isin(grp, gs)
 
 
 def frozen_fits(run: Path) -> Path:
@@ -168,6 +194,45 @@ def _perm_scores(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, which, d, p
     return out
 
 
+def _te_perm_scores(fe, label, tpl, F, Zv, beta, vcol, grp, R, lam_all, fold, d, pos_order):
+    """FROZEN_DESIGN=te nulls (module docstring): per draw one rebuilt design per null family, the family's sets refit
+    from it; scores averaged over N_PERM draws."""
+    import zlib
+    ce = fe._ce()
+    sc = {k: [] for k in TE_NULLS}
+    for i in range(N_PERM):
+        for fam in ("target", "land"):
+            rng = np.random.default_rng(zlib.crc32(f"{label}|te_{fam}|{i}".encode()))
+            orig_rb, orig_tl = ce.raw_blocks, fe.te_lick_parts
+            held = {}
+            if fam == "target":
+                def rb(B, ft, pos_perm=None, drop_pos=None, _o=orig_rb, _r=rng, _h=held):
+                    _h["pp"] = _block_perm(B.trials.pos.to_numpy(), _r)
+                    return _o(B, ft, pos_perm={"pos_enl": _h["pp"], "pos_cue": _h["pp"]}, drop_pos=drop_pos)
+
+                def tl(*args, _o=orig_tl, _h=held, **kw):
+                    return _o(*args, tpos_perm=_h["pp"], **kw)
+                ce.raw_blocks = rb
+            else:
+                frac = float(rng.uniform(0.1, 0.9))
+
+                def tl(*args, _o=orig_tl, _f=frac, **kw):
+                    return _o(*args, land_roll=_f, **kw)
+            fe.te_lick_parts = tl
+            try:
+                d2 = fe.session_design(label, tpl)
+            finally:
+                ce.raw_blocks, fe.te_lick_parts = orig_rb, orig_tl
+            Z2 = (d2["X"] / F["scale"]) @ F["C"]
+            for null, base_set in TE_NULLS.items():
+                if (fam == "target") != base_set.startswith("target"):
+                    continue
+                m = _te_mask(base_set, vcol, grp)
+                base = Zv[:, ~m] @ beta[~m]
+                sc[null].append(_scores(fe, R, base + _refit(Z2[:, m], R - base, lam_all[m], fold), d, pos_order))
+    return {k: _avg_scores(v) for k, v in sc.items()}
+
+
 def _null_preds(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, which):
     """NULLS: the refit set's columns rebuilt with the spout labels circularly shifted by half the session (block
     structure kept, alignment with the data broken), refit the same way. target_shuf: target columns from shifted trial
@@ -242,6 +307,21 @@ def job(item):
                                           [n for n in add if n.endswith("_perm")], d, pos_order))
         (sdir / f"{label}.json").write_text(json.dumps(old))
         return old
+    if TE:
+        if not fe.TE:
+            raise ValueError("partial_refit TE mode needs FROZEN_DESIGN=te in the frozen encoder too")
+        for name in TE_SETS:
+            m = _te_mask(name, vcol, grp)
+            if m.any():
+                base = Zv[:, ~m] @ beta[~m]
+                preds[name] = base + _refit(Zv[:, m], R - base, lam_all[m], fold)
+        perm = _te_perm_scores(fe, label, tpl, F, Zv, beta, vcol, grp, R, lam_all, fold, d, pos_order)
+        out = {"label": label, "animal": an, "epoch": d["epoch"], "day": d["day"], "n_trials": int(d["n_trials"]),
+               "design": "te", "areas": list(F["areas"]),
+               "scores": {**{k: _scores(fe, R, P, d, pos_order) for k, P in preds.items()}, **perm}}
+        sdir.mkdir(parents=True, exist_ok=True)
+        (sdir / f"{label}.json").write_text(json.dumps(out))
+        return out
     for name, gs in SETS.items():
         m = np.isin(grp, gs)
         if not set(gs) <= set(grp):                      # e.g. lickspout sets in a run without FROZEN_LICKSPOUT
@@ -344,7 +424,8 @@ def summarise(run: Path, out: Path) -> None:
           [["q", "window", "area", "epoch", "ref", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
     Sp = G[G.measure.str.startswith("spout:")].assign(spout=lambda d: d.measure.str[6:])
     Bs = pd.concat([ffc.boot(Sp[Sp.q == q], "u", keys=("window", "area", "spout")).assign(q=q)
-                    for q in ("target", "exec", "target_shuf")], ignore_index=True)
+                    for q in (("target", "target_lick", "exec_land", "target_perm") if TE else ("target", "exec", "target_shuf"))
+                    if (Sp.q == q).any()], ignore_index=True)
     Bs.to_csv(out / "boot_by_spout.csv", index=False)
     print("== by spout, SSp-m contra, chronic\n" + Bs[(Bs.area == "SSp-m_right") & (Bs.epoch == "chronic")]
           [["q", "window", "spout", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
@@ -352,15 +433,24 @@ def summarise(run: Path, out: Path) -> None:
                                "#bdd7e7"]))
     cols.update({"target - null": "#b2182b", "exec - null": "#6baed6", "exec - target": "#2166ac",
                  "lickspout - target": "#8c510a"})
+    if TE:
+        cols = dict(zip(VARIANTS, ["#e41a1c", "#fb9a99", "#b2182b", "#377eb8", "#1f78b4", "#4daf4a", "#984ea3", "#999999",
+                                   "#cccccc", "#9ecae1", "#c6dbef"]))
+        cols.update({"target - null": "#b2182b", "target lick - null": "#e7298a", "landing lick - null": "#2166ac",
+                     "execution - null": "#6baed6", "landing lick - target lick": "#8c510a",
+                     "execution - target": "#01665e"})
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
     for w in ffc.WINDOWS:
         fig, (ax, ax2) = plt.subplots(2, 1, figsize=(15, 8.6))
         ffc.bars(ax, B[B.window == w], [v for v in VARIANTS if (B.q == v).any()], AREAS, "R2 gain over frozen, epoch - pre",
+                 "refit ONLY one set (legend); greys / light blues = the label-shuffled nulls" if TE else
                  "refit ONLY: red = target, blue = executed position, green = executed + FR side / distance, purple = "
                  "target + executed, orange = target + executed + FR, grey = target with shuffled labels (null)")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         ffc.bars(ax2, B[B.window == w], [v for v in CONTRASTS if (B.q == v).any()], AREAS, "difference of gains, epoch - pre",
+                 "CONTRASTS (legend): each set minus its label-shuffled null; landing vs target-labelled lick kernels; "
+                 "execution vs target" if TE else
                  "CONTRASTS: dark red = target minus its shuffled-label null; light blue = executed minus its shuffled-"
                  "label null; dark blue = executed minus target (whose refit helps more)")
         ax2.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
@@ -374,7 +464,10 @@ def summarise(run: Path, out: Path) -> None:
     # MAIN: epoch lines of the contrasts that carry the claim (Priya 10-25: bars too many to read)
     ser = [(q, lab, cols[q]) for q, lab in (("target - null", "target (vs its null)"),
                                             ("exec - null", "executed movement (vs its null)"),
-                                            ("lickspout - target", "per-spout lick kernels minus target"))
+                                            ("lickspout - target", "per-spout lick kernels minus target"),
+                                            ("target lick - null", "target-labelled lick kernels (vs null)"),
+                                            ("landing lick - null", "landing-labelled lick kernels (vs null)"),
+                                            ("execution - target", "execution minus target"))
            if (B.q == q).any()]
     areas = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]
     fig, axs = plt.subplots(len(ffc.WINDOWS), len(areas), figsize=(14, 3.2 * len(ffc.WINDOWS) + 1.2), sharey=True,
