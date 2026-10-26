@@ -204,12 +204,14 @@ def fig_cue(out: Path) -> pd.DataFrame:
     return R
 
 
-def fig_paths3d(out: Path) -> pd.DataFrame:
+def fig_paths3d(out: Path, shared: bool = False) -> pd.DataFrame:
     """POOLED 3-D tongue / jaw paths (twin of `pose3d_phase` trajectories3d, per animal): per (position, phase bin),
     each session's mean path minus its animal's August pre path, averaged within animal per epoch, then over animals
     (>= 3), added to the cohort pre path (mean over animals of each animal's August pre path) -- the convention of the
     cam4 `cohort_trajectory_xy_within` figures. Phase-normalised (`kind == "norm"`), all post-cue licks, bins with
-    coverage >= 0.5 per session."""
+    coverage >= 0.5 per session. ``shared`` (Priya 10-26, PI deck): every view row on ONE set of axes across the six
+    spouts (same limits, equal aspect), so the mouth sits in the same place in every panel of a row ->
+    pose3d_paths_pooled_shared.png."""
     import matplotlib.pyplot as plt
     from wfield_local.paths import PathResolver
     C = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "phase" / "curves.csv.gz")
@@ -236,7 +238,8 @@ def fig_paths3d(out: Path) -> pd.DataFrame:
     R = R[R.n_animals >= 3]
     views = (("side", "down", "FRONT: side (+ = mouse left = ipsi) x down"), ("out", "down", "SIDE: out (forward) x down"),
              ("side", "out", "TOP: side (+ = ipsi) x out"))
-    fig, axs = plt.subplots(3, 6, figsize=(16, 8.4))
+    fig, axs = plt.subplots(3, 6, figsize=(11.5, 9.4) if shared else (16, 8.4), sharex="row" if shared else False,
+                            sharey="row" if shared else False)
     col = {"pre": "#222222", **ECOL}
     for j, p in enumerate(POS_3D):
         for i, (a, b, lab) in enumerate(views):
@@ -259,13 +262,22 @@ def fig_paths3d(out: Path) -> pd.DataFrame:
                 ax.set_title(POS_LABEL[p].replace("_", " "), fontsize=9)
             if j == 0:
                 ax.set_ylabel(lab + " (mm)", fontsize=7)
-            ax.set_aspect("equal", adjustable="datalim")
+            ax.set_aspect("equal", adjustable="box" if shared else "datalim")
+    if shared:                                                # one box per view row: data of all spouts + the mouth
+        for i, (a, b, _lab) in enumerate(views):
+            xs = R[R.measure.isin([a, "j_" + a])].v.to_numpy()
+            ys = R[R.measure.isin([b, "j_" + b])].v.to_numpy() * (-1 if b == "down" else 1)
+            (x0, x1), (y0, y1) = (min(np.nanmin(xs), 0), max(np.nanmax(xs), 0)), (min(np.nanmin(ys), 0), max(np.nanmax(ys), 0))
+            mx, my = 0.06 * (x1 - x0), 0.06 * (y1 - y0)
+            axs[i, 0].set_xlim(x0 - mx, x1 + mx)
+            axs[i, 0].set_ylim(y0 - my, y1 + my)
     axs[0, 0].legend(fontsize=7, frameon=False, loc="lower left")
     fig.suptitle("3-D tongue (solid) and jaw (dashed) paths through the lick, POOLED within animal: cohort August-pre path\n"
                  "+ mean over animals of each session's change from its animal's own pre path (phase 0.1-0.9, all post-cue "
-                 "licks, >= 3 animals); + = mouth zero; dot = mid-lick; mm", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(out / "pose3d_paths_pooled.png", dpi=130)
+                 "licks, >= 3 animals); + = mouth zero; dot = mid-lick; mm"
+                 + ("\naxes shared across spouts within each view" if shared else ""), fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=0.2 if shared else None)
+    fig.savefig(out / ("pose3d_paths_pooled_shared.png" if shared else "pose3d_paths_pooled.png"), dpi=130)
     plt.close(fig)
     return R
 
@@ -413,6 +425,7 @@ def main(argv=None) -> int:
     C.to_csv(out / "pose3d_cue_pooled.csv", index=False)
     D = fig_paths3d(out)
     D.to_csv(out / "pose3d_paths_pooled.csv", index=False)
+    fig_paths3d(out, shared=True)
     fig_days(out).to_csv(out / "pose3d_days_pooled.csv", index=False)
     fig_phase(out).to_csv(out / "pose3d_phase_pooled.csv", index=False)
     pd.set_option("display.width", 220)
