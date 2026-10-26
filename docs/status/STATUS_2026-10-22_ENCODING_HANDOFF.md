@@ -17,6 +17,14 @@ the day: ENCODING_FINDINGS 8.11-8.13, FINDINGS section 0 (synthesis) + 4.2 / 4.3
 `S/frozen_encoder_backup.py`).
 
 ### RUNNING (worktree wf_attempt; check logs, do not restart)
+000. UPDATE 10-25 ~23:40: old lickspout chain bash STOPPED (its basis run continues as its own process). New chain
+   S/run_land_lag.sh (log S/land_lag_chain.log) waits for the basis python to exit, then: LANDING lick kernels
+   (FROZEN_LICKSPOUT + FROZEN_LICKLAND, tag ..._frA_lsland, trimmed variants), LAGGED FaceRhythm (FROZEN_FR_LAGS
+   -0.3..0.3 s, tag ..._frA_frlag; read no_frcortexlead vs no_frfacelead unique, pre -> post change), then self-fit (jobs 3)
+   and partial refit (jobs 4, includes the slow block-permutation nulls) on ..._frA_ls. Partial-refit perm nulls on frA:
+   S/partial_perm.log (28/107 at 22:14; morning). New tonight: decoder_retention_sessions.py, precue_class_matched.py,
+   coupling_by_class.py, recovery_timing.py (hits-only timing: no consistent order; neither predicts the other).
+   Page v81. Analyses after the runs: landing vs target unique (contest on misdirected trials), FR lead / lag change.
 00. UPDATE 10-25 ~22:30: partial-refit BLOCK-PERMUTATION nulls running (`partial_refit.py --add target_perm exec_perm`,
    JOBS 6, log S/partial_perm.log; ~3 h). When done: `run_partial.sh --plot-only` -> partial_refit_lines.png becomes page
    1yd (bars -> supplement), numbers into FINDINGS 4.11 / ENCODING_FINDINGS 8.14. The lickspout chain's partial stage
