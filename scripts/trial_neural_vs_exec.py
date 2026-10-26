@@ -10,7 +10,7 @@ width 1 (`softmax_neural_vs_lick.lick_weights / path_weights`).
      P(far mid), P(far ipsi) per animal x epoch (n >= 8 trials), pre included as the control (pre far-contra trials
      that happened to land like far mid).
   2. within-session coupling: neural (P far mid - P far contra) regressed on executed (w far mid - w far contra), both
-     centred within session; slope and r per animal x epoch; null = executed values shuffled within session (1000x),
+     centred within session; slope and r per animal x epoch; null = executed values block-permuted within session (runs of consecutive far-contra trials, 1000x),
      p = share of shuffled |slopes| >= observed.
 
 Usage: python scripts/trial_neural_vs_exec.py
@@ -40,16 +40,26 @@ def coupling(g: pd.DataFrame, x: str, y: str, rng, n_perm=1000):
     ys = g[y] - g.groupby("label")[y].transform("mean")
     ok = np.isfinite(xs) & np.isfinite(ys)
     xs, ys, labs = xs[ok].to_numpy(), ys[ok].to_numpy(), g.label[ok].to_numpy()
+    tid = g.trial_id[ok].to_numpy()
     if len(xs) < 20 or xs.std() == 0:
         return None
     b = np.polyfit(xs, ys, 1)[0]
     r = np.corrcoef(xs, ys)[0, 1]
-    groups = [np.flatnonzero(labs == lab) for lab in np.unique(labs)]
+    # BLOCK-PERMUTATION null (Priya 10-25): far-contra trials come in runs of ~6 consecutive trials and both quantities
+    # drift within a session, so a trial-level shuffle is too narrow. Per session, the executed values of whole RUNS
+    # (consecutive far-contra trials; a trial_id jump > 2 starts a new run) are permuted in run order, each run's
+    # internal order kept, and laid back onto the session's trial positions.
+    sess = []
+    for lab in np.unique(labs):
+        ix = np.flatnonzero(labs == lab)
+        ix = ix[np.argsort(tid[ix], kind="stable")]
+        cut = np.flatnonzero(np.diff(tid[ix]) > 2) + 1
+        sess.append((ix, np.split(ix, cut)))
     null = np.empty(n_perm)
     for k in range(n_perm):
         xp = xs.copy()
-        for ix in groups:
-            xp[ix] = xp[rng.permutation(ix)]
+        for ix, runs in sess:
+            xp[ix] = xs[np.concatenate([runs[j] for j in rng.permutation(len(runs))])]
         null[k] = np.polyfit(xp, ys, 1)[0]
     return b, r, float((np.abs(null) >= abs(b)).mean()), len(xs)
 
@@ -135,7 +145,7 @@ def main() -> int:
         if r == 0:
             ax.set_ylabel("within-session r: neural (fM - fC)\nvs executed (fM - fC)")
     fig.legend([Line2D([], [], marker=MK[a], ls="", mfc="w", mec="k") for a in AN] +
-               [Line2D([], [], marker="o", ls="", mfc="k", mec="k")], AN + ["filled = p < 0.05 (within-session shuffle)"],
+               [Line2D([], [], marker="o", ls="", mfc="k", mec="k")], AN + ["filled = p < 0.05 (within-session block permutation)"],
                loc="lower center", ncol=5, fontsize=8.5, frameon=False)
     fig.suptitle("Trial-by-trial coupling on far-contra target trials: the more a trial's licks look like far mid rather than far contra, "
                  "\nthe more its cortex is decoded as far mid rather than far contra? (both centred within session; line = mean of animals)", fontsize=10)
