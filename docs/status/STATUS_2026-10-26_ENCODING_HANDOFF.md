@@ -1,22 +1,165 @@
-# Encoding handoff — 2026-10-26 (updated ~13:50) — READ FIRST
+# Encoding handoff — 2026-10-26 (updated ~19:35) — READ FIRST
 
-Supersedes the RUNNING / TO-DO lists of `STATUS_2026-10-22_ENCODING_HANDOFF.md` §000z (its addenda record 10-25 night →
-10-26 early morning; keep it for history and pitfalls). Scratchpad `S = C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`.
-Run all python from the worktree with `PYTHONPATH=<worktree>` (another `wfield_local` install shadows it).
+Supersedes the RUNNING / TO-DO lists of `STATUS_2026-10-22_ENCODING_HANDOFF.md` §000z. Window = session `sabatinilab-d4`
+(pose window `sabatinilab-5b`, FaceRhythm `sabatinilab-e3`). Worktree `C:/Users/SabatiniLab/Github/wf_attempt` (branch
+analysis/attempt-coding). Old scratchpad (this session only; a NEW session can read it by absolute path but cannot
+publish from it): `S = C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`.
+Python: `C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe`, run from the worktree with
+`PYTHONPATH=$(cygpath -w $PWD)` (another `wfield_local` install shadows it). ITI outputs: `<E>/iti_licks/` =
+`M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/` (figures in `figures/`).
 
-## Page
+## 0. START HERE (19:35)
 
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOCALLY, NOT PUBLISHED** (14:15: Artifact tool switched off in the session -- publish S/goal_page/index.html with files={"iti_area_compare.png", "iti_basis_decoder.png"} when available; adds orofacial-vs-control PETHs 3.24, basis decoder 3.14 + corrected whole-cortex claim; v103 12:00: the 9 images missing from v98-v102 uploaded; v102 11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
-`C:/Users/SabatiniLab/AppData/Local/Temp/...` (the 8.3 path is blocked for images).
+### 0a. PUBLISH THE PAGE — exact steps for a new session
 
-- **Numbering = Fig SECTION.POSITION** (Priya 10-26: "why two letters"); ids `fig<sec>-<k>`. To add a figure: insert it
-  with any temporary label (e.g. `Fig 93a`, id `fig93a`; links `href="#fig93a"`), then run `S/renumber_sections.py`
-  (rewrites labels, ids, links, cross-references; writes `goal_page/fig_map.csv`). Keep `docs/status/GOAL_PAGE_FIG_MAP_2026-10-26.csv`
-  = pre-10-26 numbers → current (compose with the new fig_map after every renumber; docs written before 10-26 cite OLD numbers).
-- Epoch colours on every new figure = `orofacial_cohort.EPOCH_LINE` (pre black, acute pink, subacute goldenrod, chronic teal).
-- Where things stand: rows added 10-26 — self-initiated licks (KEY), cortex–face-lick coupling; Pending list updated.
+The Artifact tool was switched off in this session from ~14:15, so everything since v103 is LOCAL ONLY.
+- Live: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d = **v103** (12:00). Everything after it exists only locally.
+- **Local source (newest, complete): `C:/Users/SabatiniLab/Github/wf_attempt/_goal_page/index.html`** (+ its 190 PNGs;
+  untracked, listed in `.git/info/exclude`; 63 MB). Backup copy: `M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/`.
+  The old `S/goal_page/` was identical at 19:30.
+- What the local page adds over v103:
+  - a TITLE above every figure (`<div class="ftitle">`, also used by the sidebar; source `_goal_page/fig_titles.csv`);
+  - section-3 captions open with "Decoder: frozen / per-session" and "Measured: r vs dF/F";
+  - 3.9 caption carries the paired ITI vs in-trial test;
+  - new figures: 1.37 TE partial refit, 3.11 lick rate, 3.14 basis decoder, 3.15 where decoder, 3.16 lateral x bases,
+    3.26 orofacial vs control PETHs; supplements 3.17 / 3.18 = the where decoder (every target) in the joint LocaNMF
+    and pre-stroke SVD bases (`iti_where_decoder_locanmf.png`, `iti_where_decoder_svdbasis.png`);
+  - corrected whole-cortex claim; 3.23 kinematics control with a face-adjusted row;
+  - all section-3 figures redrawn: frame / measure labels, stars above data, SEM bands on 3.7 / 3.19 / 3.22,
+    3.15 split in two.
+- **Step 1 — bring in the last redrawn images** (only if the redraw chain finished after 19:30; check `S/relabel.log`
+  ends with `relabel3 done`):
+  ```bash
+  F="M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/figures"
+  G=/c/Users/SabatiniLab/Github/wf_attempt/_goal_page
+  for n in iti_basis_decoder iti_area_maps iti_area_peth iti_area_groups iti_area_compare iti_where_decoder \
+           iti_where_decoder_bases iti_where_decoder_locanmf iti_where_decoder_svdbasis iti_frozen_timecourse iti_frozen_summary iti_ramp_sessions iti_ramp_summary \
+           iti_ramp_peth iti_ramp_peth_isolated iti_kinematics_control; do cp "$F/$n.png" $G/; done
+  ```
+- **Step 2 — read the live page first.** Call Artifact with `action: "read"` and the URL. A publish to an artifact the
+  session has not read is refused. Confirm the live page is our v103: its 3.x sections end at the whole-cortex
+  supplement, and it has no `ftitle` divs. The local file is a strict superset of v103: no one edited the live page
+  after 12:00.
+- **Step 3 — publish** with ALL changed images in `files` (publishing index.html alone does NOT upload PNGs; v98-v102
+  showed 9 broken figures that way):
+  - `action: "publish"`, `url`: the page URL above;
+  - `file_path`: `C:/Users/SabatiniLab/Github/wf_attempt/_goal_page/index.html`;
+  - `root`: `C:/Users/SabatiniLab/Github/wf_attempt/_goal_page`;
+  - `files`: every PNG in `_goal_page` modified after 2026-10-26 12:00, each mapped to itself. Generate the map with:
+    ```bash
+    cd /c/Users/SabatiniLab/Github/wf_attempt/_goal_page && find . -maxdepth 1 -name "*.png" -newermt "2026-10-26 12:00" \
+      | sed 's|^\./||' | awk 'BEGIN{printf "{"} {printf "%s\"%s\": \"%s\"", (NR>1?", ":""), $0, $0} END{print "}"}'
+    ```
+    About 25 files. Expect at least: te_partial_refit_lines, iti_area_compare, iti_basis_decoder, iti_where_decoder,
+    iti_where_decoder_bases, iti_lick_rate, iti_direction_decoding, iti_frozen_timecourse, iti_frozen_summary,
+    iti_ramp_sessions, iti_ramp_summary, iti_binned_sweep, iti_binned_summary, iti_recovery_marker,
+    iti_kinematics_control (+ the step-1 files).
+  - `label`: e.g. "Titles, ITI labels, where + refit".
+  - If the refusal hands back the live version, check it is v103 and publish the local file again. It is the merge,
+    since local = v103 + our edits.
+  - Then open the published page and spot-check 3.7, 3.15, 3.16, 3.23 and 1.37 for images.
+- Numbering: **Priya may quote LIVE (v103) numbers.** Local numbers moved after several inserts: her "3.17" on
+  10-26 evening was the kinematics control, which is 3.23 locally. Map with `_goal_page/fig_map.csv` (last renumber)
+  and `docs/status/GOAL_PAGE_FIG_MAP_2026-10-26.csv` (pre-10-26 → current).
 
-## RUNNING (do not restart; check logs)
+### 0b. RUNNING (background in THIS session; may die with it)
+- **Redraw chain** `S/run_relabel.sh`, log `S/relabel.log`, started 18:45. Steps:
+  1. plot-direction / key / binned / recovery marker: DONE;
+  2. basis decoder `--summarise` was running at 19:30;
+  3. then `iti_area_maps.py`, `iti_area_maps.py --compare`, `iti_where_decoder.py` (full, ~25 min);
+  4. then `iti_licks.py --key` again (3.8 / 3.9 / 3.20 with the star fix);
+  5. then `iti_licks.py --ramp` (SEM bands on 3.19 / 3.22).
+
+  If the log does not end with `relabel3 done`, rerun the missing steps from the worktree with the PYTHONPATH above.
+  Each step redraws from saved session data; nothing is lost. Then do 0a step 1.
+
+### 0c. WAITING ON OTHERS
+- **sabatinilab-5b:** "go" for the kinematics_all swap sent 15:50; Priya runs the rename lines 5b gives her. When the
+  table is live, re-run `python -m wfield_local.stray_licks`. Move the old `<E>/stray_licks/sessions` aside first; it
+  skips sessions already done. These are derived outputs, so no approval is needed for that rename. Then update
+  ENCODING_FINDINGS 2.6.
+
+### 0d. TO DO (in order)
+1. **Per-time-bin significance bars on the time-course figures** (Priya 19:30: "for the post-lick response curves and
+   decoder curves -- significance testing and mark with lines (colored per epoch) where in the time bins curves
+   differ from pre"). Plan, agreed in chat:
+   - one helper in `scripts/iti_licks.py`, e.g. `sig_bars(ax, X_by_animal_epoch, lags, colors)`;
+   - for each post epoch, `ak.boot_delta_columns(post, pre, rng)` with `{animal: array (n_sessions, n_lags)}`. This is
+     the same paired animals → sessions draw as every dot-plot star, vectorised over time bins;
+   - then `ak.boot_p_columns(draws)` → `ak.bh(p, q=0.05)` across the bins of that curve;
+   - draw contiguous significant runs as thick horizontal segments in the epoch colour (`EPOCH_LINE`) in a strip below
+     the curves, one row per post epoch (x in data, y in axes: blended transform);
+   - say "paired nested bootstrap per time bin, BH-FDR q = 0.05 across bins" in the suptitle and caption.
+
+   Figures and their data:
+   - 3.7 left / middle: per-session decoder per lag, `decode_sessions.csv` (label, animal, epoch, set, target, lag, r)
+     → redraw via `--plot-direction`.
+   - 3.8: frozen decoder per lag, `decode_frozen_lags_sessions.csv` → the `key_figures` block (`--key`).
+   - 3.14: basis decoder time courses (`iti_basis_decoder.py --summarise`).
+   - 3.19 / 3.22: `ramp_figure`, animal-mean PETH normalised by pre amplitude. Test on per-session PETHs (same
+     normalisation) → `--ramp`.
+   - 3.20: `iti_ramp_sessions.png`, raw + normalised rows, per-session PETHs → `--key`.
+   - 3.26 orofacial vs control PETHs (`iti_area_maps.py --compare`); optionally 3.25.
+
+   Then update captions and republish.
+2. TE partial-refit line figure (page 1.37): the title still names only the target null. Add the landing − target
+   lick-kernel contrast, which is significant but not drawn (`boot.csv`).
+3. 3.9 caption: add the lick-count control line (matched 40 licks / session: same numbers; `iti_nmatch_check.py`).
+4. stray_licks re-run (0c).
+5. Older open items: PRE-level TE group-kernel maps (replace 1.20-1.21); epoch-kernel drift-RATE test (8.18);
+   every-lick window (Priya to confirm first-lick primary); June→August drift ceiling; lesion burden /
+   leave-PS93-out; share deletions / nokin retirement (Priya decides).
+6. **Push**: origin has everything through 66a287e. Local commits after it (31423a1, a73908c, d384d9b, 270885e, + this
+   handoff) need a cherry-pick push:
+   ```bash
+   git fetch origin; git worktree add --detach ../wf_push_tmpNN origin/main; cd ../wf_push_tmpNN
+   git cherry-pick <commits>; git push origin HEAD:main   # retry: fetch + rebase origin/main
+   ```
+   The pre-push tests take ~7–14 min. Never rebase the local branch, never force-push. `S/push28.sh` is the template.
+
+### 0e. Results since 13:50 (PROVISIONAL; ENCODING_FINDINGS 8.17 / 8.20, FINDINGS 4d vii-x)
+- **ITI lick rate (BEHAVIOUR):**
+  - PS92-94 drop acutely and stay 14-28 % below pre chronically.
+  - Only PS95 ends above pre: about 4×, from near-zero pre ITI licking.
+  - Rate tracks far-contra hit rate within animal (r +0.67; +0.51 with the log-day trend removed, PS94 ~0).
+  - So rate is not the cause of the decoder's ITI loss.
+- **Where decoder:**
+  - The ITI loss is LATERAL, in every basis (−19 to −20 %, 4/4); outward position is weakly decoded and unchanged.
+  - In-trial: outward drops acutely and recovers; angle ends above pre (+7 to +11 %).
+- **ITI vs in-trial, paired test (3.9):** chronic −0.062 [−0.110, −0.014], 3/4 animals (PS93 0.00). Say "in three of
+  four animals", not "confidently".
+- **TE partial refit (1.37):**
+  - Landing-labelled minus target-labelled lick kernels: lower chronically in every area (contra SSp-m −0.019, cortex
+    −0.024; 0/4 up).
+  - Acute target advantage falls (−0.126), back by chronic.
+  - Same without PS95_0907.
+- **Kinematics control + FACE (3.23 row 4):** the larger post-lick response survives regressing out reach + speed +
+  post-onset FaceRhythm (tjM1 contra chronic +0.74 [+0.22, +1.26], SSp-m +0.63 [+0.14, +1.11]); unchanged from reach
+  + speed alone.
+- **Decoder r vs AUC:**
+  - r = information about lick position (decoded vs actual lateral tongue-tip position).
+  - AUC = amount of activity (dF/F integrated over a window); not ROC.
+  - They can move independently: post-stroke AUC is up, frozen ITI r is down.
+
+### 0f. NEW PITFALLS (evening)
+- **The Artifact tool can be switched off mid-session.** Keep the page source somewhere a new session can publish from
+  (now `_goal_page/` in the worktree). Pass every changed PNG in `files`.
+- **Regex over the page:** `<figure id="...">.*?X` with re.S spans ACROSS figures. This hit Fig 3.1, whose title and
+  caption were overwritten, then restored. Match inside one figure: `<figure id="(fig[^"]+)">(?:(?!</figure>).)*?X`.
+- **Escapes in Bash:** a `\\n` inside a Bash heredoc reaches Python as a real newline (the tool layer unescapes it).
+  Build backslashes with `chr(92) + "n"`, write the script with the Write tool, or use Edit.
+- **`renumber_sections.py`** defaults to `goal_page/index.html` next to the script. In `_goal_page/`, pass the
+  index.html path explicitly.
+- **Background jobs:** a script launched with `&` inside a run_in_background shell gives no completion notice (wait on
+  a log line instead). Define every variable (`S=...`) inside chain scripts; one chain ran 8 steps with `$S` empty.
+- **Editing a script while a chain runs:** a step already started keeps the old code. 3.8 / 3.9 were redrawn before the
+  star fix, hence the queued `--key` rerun.
+- **Old-design vs new-design figure names:** `partial_refit_lines.png` = OLD design (1.38);
+  `te_partial_refit_lines.png` = TE design (1.37).
+
+# EARLIER 10-26 (history; superseded by section 0)
+
+## RUNNING as of 16:20 (history)
 
 ### NOW (16:20) -- read this block first
 - **DONE 15:46: TE partial refit** (exit 0; ENCODING_FINDINGS 8.20 top, FINDINGS 4d x; LOCAL page 1.37 as
@@ -40,7 +183,7 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOC
   redraws from the CSVs). Answer: dips with the deficit and returns, exceeds pre only in PS95. Rate = ITI licks / ITI minutes (next strobe - stop, clipped 0..60 s), no-contact rate, per trial, contact share;
   change vs pre + within-animal correlation with far-contra behaviour (raw, log-day detrended). Earlier count check:
   fewer ITI licks post-stroke in PS92-94 (so exceeding pre is unlikely in counts; rate is the fair test).
-- **Page publish pending**: files = iti_area_compare.png, iti_basis_decoder.png, iti_where_decoder.png, iti_lick_rate.png, iti_direction_decoding.png (3.7 now with SEM bands), iti_where_decoder_bases.png (new 3.16) + every section-3 PNG redrawn 10-26 evening (frame + measure labels, stars above data, SEM on 3.17 / 3.20); every figure now has a title (.ftitle, fig_titles.csv in the scratchpad),
+- **Page publish pending**: files = iti_area_compare.png, iti_basis_decoder.png, iti_where_decoder.png, iti_lick_rate.png, iti_direction_decoding.png (3.7 now with SEM bands), iti_where_decoder_bases.png (new 3.16) + every section-3 PNG redrawn 10-26 evening (frame + measure labels, stars above data, SEM on 3.19 / 3.22); every figure now has a title (.ftitle, fig_titles.csv in the scratchpad),
   te_partial_refit_lines.png
   (all copied into S/goal_page; renumbered 16:00, map in GOAL_PAGE_FIG_MAP_2026-10-26.csv).
 - Pushed to origin through e9656c8; LOCAL commits since (1d6e227 stray fix, b60d363, ff61daa, d47d32c, + this) need a
@@ -119,7 +262,7 @@ E. Open from before: epoch-kernel drift-RATE test (8.18; within-chronic r per da
 
 ## Results of 10-26 (all PROVISIONAL; details ENCODING_FINDINGS 8.17–8.19, FINDINGS 4d / 4e)
 
-- **Self-initiated ITI licks (KEY, page 3.7–3.26):** within-session direction decoding intact; FROZEN pre-stroke decoder
+- **Self-initiated ITI licks (KEY, page 3.7–3.28):** within-session direction decoding intact; FROZEN pre-stroke decoder
   down every epoch for ITI licks (-0.135 r chronic, -22 %), largely recovers for cued in-trial licks (-20 % acute → -9 %
   chronic). Each lick evokes a larger response (~2× acutely, +0.6–0.8 chronic, also isolated licks; post-stroke bouts are
   SHORTER); slow build-up before the lick weaker chronically in tjM1 / SSp-m (3/4). Not lick kinematics (post-stroke ITI
