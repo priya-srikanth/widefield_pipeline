@@ -47,7 +47,8 @@ OUT = E / "iti_licks"
 ROI_FRAC = 0.4
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
 LAGS_C = np.round(np.arange(-1.0, 2.5001, 0.05), 3)          # cue-aligned lags (trial first licks)
-LAGS_D = np.round(np.arange(-0.5, 0.5001, 0.05), 3)          # decoding lags
+LAGS_D = np.round(np.arange(-1.0, 1.0001, 0.05), 3)          # decoding lags (-1..+1 s: binned-decoder sweep, 10-26)
+LAGS_D_SHOW = 0.5                                            # per-lag curves drawn / within-session decoded to +-0.5 s
 BASE = (-1.5, -1.0)
 BOUT_GAP = 1.0                     # extraction: ITI onsets with no lick for >= 1 s (each lick's gap is saved)
 GAP_MAIN = 2.0                     # summaries: >= 2 s, so the -1.5..-1.0 s baseline starts >= 0.5 s after the last lick
@@ -310,6 +311,8 @@ def decode_session(d: dict, rng) -> list[dict]:
     for sname, (X, side, pos, t) in sets.items():
         for target, y in (("direction", side), ("relative", _within(side, pos))):
             for li, lag in enumerate(LAGS_D):
+                if abs(lag) > LAGS_D_SHOW + 1e-9:
+                    continue
                 rows.append({"set": sname, "target": target, "lag": float(lag), "n": len(y),
                              "r": _cv_r(X[:, li, feat], y, t)})
     return rows
@@ -1009,6 +1012,163 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
     print("\n== controls: change vs pre (nested bootstrap animals > sessions)\n" + T.round(3).to_string(index=False))
 
 
+# ------------------------------------------------------------------------------------------------ BINNED decoder (Priya 10-26)
+# "a decoder accuracy version that uses binned time dynamics (sweep the best one, e.g. -1..1 s in 0.25 s bins) for a
+# single-number decoder comparison across sessions"; feature sets: all areas (main), orofacial sensorimotor, and a
+# visual / retrosplenial comparison set (not a null). The configuration (window x bin width) is chosen per lick type x
+# feature set by PRE-stroke leave-one-session-out r only, then applied unchanged to every session.
+BIN_WINDOWS = ((-1.0, 1.0), (-0.5, 0.5), (-0.5, 0.0), (0.0, 0.5), (-0.25, 0.25), (0.0, 0.25))
+BIN_WIDTHS = (0.1, 0.25, 0.5)
+OROFACIAL = ("ALM", "tjM1", "MOs", "MOp", "SSp-m", "SSp-n", "SSp-un", "SSs", "SSp-bfd")
+
+
+def feature_sets(cols) -> dict:
+    cols = list(cols)
+    allf = [i for i, c in enumerate(cols) if c != "cortex" and not c.startswith(("ALM", "tjM1"))]
+    oro = [i for i, c in enumerate(cols) if c.rsplit("_", 1)[0] in OROFACIAL]
+    vis = [i for i, c in enumerate(cols) if c.startswith(("VIS", "RSP"))]
+    return {"all areas": allf, "orofacial": oro, "visual + RSP": vis}
+
+
+def _binned(X: np.ndarray, win, bw) -> np.ndarray | None:
+    """(n, lags, areas) -> (n, bins * areas): mean activity in consecutive bins of width bw across win."""
+    edges = np.round(np.arange(win[0], win[1] + 1e-9, bw), 3)
+    if len(edges) < 2:
+        return None
+    out = []
+    for a, b in zip(edges[:-1], edges[1:]):
+        m = (LAGS_D >= a - 1e-9) & (LAGS_D <= b + 1e-9)
+        if not m.any():
+            return None
+        out.append(X[:, m, :].mean(1))
+    return np.concatenate(out, 1)
+
+
+def binned_frozen(D: dict, set_name: str) -> pd.DataFrame:
+    """Frozen binned decoder r per session for every (feature set, window, bin width); pre sessions leave-one-out."""
+    from sklearn.linear_model import RidgeCV
+    from sklearn.preprocessing import StandardScaler
+    kx, ky, kp = ("iti_X", "iti_side", "iti_pos") if set_name == "iti" else ("tr_X", "tr_side", "tr_pos")
+    rows = []
+    for a in AN:
+        S = {x: d for x, d in D.items() if str(d["animal"]) == a and len(d[ky]) >= 20}
+        pre = [x for x, d in S.items() if str(d["epoch"]) == "pre"]
+        if len(pre) < 3:
+            continue
+        fsets = feature_sets(next(iter(S.values()))["cols"])
+        for fname, feat in fsets.items():
+            if not feat:
+                continue
+            Xs = {x: S[x][kx].astype(float)[:, :, feat] for x in S}
+            for win in BIN_WINDOWS:
+                for bw in BIN_WIDTHS:
+                    if bw > (win[1] - win[0]) + 1e-9:
+                        continue
+                    F = {x: _binned(Xs[x], win, bw) for x in S}
+                    if any(v is None for v in F.values()):
+                        continue
+                    for tg in ("direction", "relative"):
+                        Y = {x: (S[x][ky] if tg == "direction" else _within(S[x][ky], S[x][kp])) for x in S}
+                        fits = {}
+                        for held in [*pre, None]:
+                            trn = [q for q in pre if q != held]
+                            Xt = np.vstack([F[q] for q in trn])
+                            sc = StandardScaler().fit(Xt)
+                            fits[held] = (sc, RidgeCV(alphas=np.logspace(0, 5, 11)).fit(
+                                sc.transform(Xt), np.concatenate([Y[q] for q in trn])))
+                        for x in S:
+                            sc, m = fits[x if x in pre else None]
+                            pr = m.predict(sc.transform(F[x]))
+                            rows.append({"label": x, "animal": a, "epoch": str(S[x]["epoch"]), "set": set_name,
+                                         "features": fname, "window": f"{win[0]:g}..{win[1]:g}", "bin": bw, "target": tg,
+                                         "r": float(np.corrcoef(pr, Y[x])[0, 1]) if np.std(pr) > 0 else np.nan})
+    return pd.DataFrame(rows)
+
+
+def binned_figures(D: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    B = pd.concat([binned_frozen(D, "iti"), binned_frozen(D, "trial")])
+    B.to_csv(OUT / "decode_binned_sessions.csv", index=False)
+    B["config"] = B.window + " s / " + B.bin.map("{:g}".format) + " s bins"
+    # selection on PRE only: mean over animals of each animal's mean pre (LOSO) r
+    pre = B[B.epoch == "pre"].groupby(["set", "features", "target", "config", "animal"]).r.mean() \
+        .groupby(["set", "features", "target", "config"]).mean().rename("pre_r").reset_index()
+    best = pre.loc[pre.groupby(["set", "features", "target"]).pre_r.idxmax()]
+    best.to_csv(OUT / "decode_binned_selected.csv", index=False)
+    print("\n== binned decoder: configuration selected on PRE leave-one-session-out r\n" + best.round(3).to_string(index=False))
+    # sweep figure: pre r and chronic normalised r per config
+    norm = B.copy()
+    pm = norm[norm.epoch == "pre"].groupby(["set", "features", "target", "config", "animal"]).r.mean()
+    norm["r_norm"] = norm.r / [pm.get(k, np.nan) for k in zip(norm.set, norm.features, norm.target, norm.config, norm.animal)]
+    chron = norm[norm.epoch == "chronic"].groupby(["set", "features", "target", "config", "animal"]).r_norm.mean() \
+        .groupby(["set", "features", "target", "config"]).mean().rename("chronic_norm").reset_index()
+    cfgs = sorted(B.config.unique(), key=lambda c: (c.split(" ")[0], float(c.split("/ ")[1].split(" ")[0])))
+    rowsk = [(st, f) for st in ("iti", "trial") for f in ("all areas", "orofacial", "visual + RSP")]
+    fig, axs = plt.subplots(1, 2, figsize=(18, 6))
+    for ax, (T, val, ttl, cmap) in zip(axs, ((pre, "pre_r", "pre-stroke r (leave-one-session-out)", "viridis"),
+                                             (chron, "chronic_norm", "chronic r / animal's pre (frozen)", "RdBu_r"))):
+        M = np.full((len(rowsk), len(cfgs)), np.nan)
+        for i, (st, f) in enumerate(rowsk):
+            t = T[(T.set == st) & (T.features == f) & (T.target == "direction")].set_index("config")[val]
+            M[i] = [t.get(c, np.nan) for c in cfgs]
+        im = ax.imshow(M, aspect="auto", cmap=cmap, vmin=(0 if val == "pre_r" else 0.5), vmax=(np.nanmax(M) if val == "pre_r" else 1.5))
+        ax.set_yticks(range(len(rowsk)))
+        ax.set_yticklabels([f"{'ITI' if st == 'iti' else 'in-trial'} | {f}" for st, f in rowsk], fontsize=8)
+        ax.set_xticks(range(len(cfgs)))
+        ax.set_xticklabels(cfgs, rotation=60, ha="right", fontsize=7)
+        for i in range(M.shape[0]):
+            for j in range(M.shape[1]):
+                if np.isfinite(M[i, j]):
+                    ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", fontsize=6,
+                            color="w" if val == "pre_r" and M[i, j] < 0.5 * np.nanmax(M) else "k")
+        for _i, r_ in best[best.target == "direction"].iterrows():
+            if (r_.set, r_.features) in rowsk:
+                ax.add_patch(plt.Rectangle((cfgs.index(r_.config) - 0.5, rowsk.index((r_.set, r_.features)) - 0.5), 1, 1,
+                                           fill=False, ec="k", lw=2))
+        ax.set_title(ttl, fontsize=9)
+        fig.colorbar(im, ax=ax, fraction=0.03)
+    fig.suptitle("NEURAL: binned frozen decoder of lick direction -- sweep of window x bin width (boxed = configuration selected "
+                 "on PRE r only). Left: pre-stroke leave-one-session-out r; right: chronic r normalised to each animal's pre.",
+                 fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(OUT / "figures" / "iti_binned_sweep.png", dpi=110)
+    plt.close(fig)
+    # summary at the selected configuration: one dot per session, raw and normalised
+    rng = np.random.default_rng(3)
+    tests = []
+    fig, axs = plt.subplots(2, 6, figsize=(22, 8))
+    for j, (st, f) in enumerate(rowsk):
+        sel = best[(best.set == st) & (best.features == f) & (best.target == "direction")]
+        if sel.empty:
+            axs[0, j].axis("off"); axs[1, j].axis("off")
+            continue
+        cfg = sel.config.iloc[0]
+        T = norm[(norm.set == st) & (norm.features == f) & (norm.target == "direction") & (norm.config == cfg)]
+        T = T.groupby(["label", "animal", "epoch"])[["r", "r_norm"]].mean().reset_index()
+        for i, (val, ylab) in enumerate((("r", "frozen binned decoder r"), ("r_norm", "r / animal's pre mean (pre = 1)"))):
+            ax = axs[i, j]
+            if val == "r_norm":
+                ax.axhline(1, color="0.7", lw=0.8, ls="--")
+            for r_ in session_dots(ax, T, val, colors, rng):
+                tests.append({"set": st, "features": f, "config": cfg, **r_})
+            if i == 0:
+                ax.set_title(f"{'ITI' if st == 'iti' else 'in-trial'} | {f}\n{cfg}", fontsize=8.5)
+            if j == 0:
+                ax.set_ylabel(ylab)
+    pd.DataFrame(tests).to_csv(OUT / "decode_binned_tests.csv", index=False)
+    fig.suptitle("NEURAL: FROZEN pre-stroke BINNED decoder of lick direction at the configuration selected on pre data (one "
+                 "number per session; dots = sessions, all animals pooled; black = mean +- SEM). * = nested-bootstrap change "
+                 "from pre (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0.01, 0, 0.99, 0.91))
+    fig.savefig(OUT / "figures" / "iti_binned_summary.png", dpi=110)
+    plt.close(fig)
+    print("\n== binned decoder at the selected configuration: change vs pre\n" + pd.DataFrame(tests).round(3).to_string(index=False))
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local.writeguard import assert_writable
@@ -1019,6 +1179,7 @@ def main(argv=None) -> int:
     ap.add_argument("--rois-only", action="store_true")
     ap.add_argument("--key", action="store_true", help="only the KEY figures, from saved sessions + ramp_sessions.csv")
     ap.add_argument("--controls", action="store_true", help="only the kinematics / face / FR-variance controls")
+    ap.add_argument("--binned", action="store_true", help="only the binned frozen-decoder sweep + summary")
     a = ap.parse_args(argv)
     assert_writable(OUT)
     (OUT / "sessions").mkdir(parents=True, exist_ok=True)
@@ -1027,6 +1188,9 @@ def main(argv=None) -> int:
     labels = [x for x in labels if x[-4:] >= "0801"]
     if a.rois_only:
         roi_figure(labels[0])
+        return 0
+    if a.binned:
+        binned_figures({x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()})
         return 0
     if a.controls:
         D = {x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()}

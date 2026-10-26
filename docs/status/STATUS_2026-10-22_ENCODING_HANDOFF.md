@@ -9,6 +9,8 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+> **10-26 ~07:00: CURRENT HANDOFF = `docs/status/STATUS_2026-10-26_ENCODING_HANDOFF.md`** (running jobs, to-do, results of 10-26). This file = history.
+
 ## 000z. STATE 10-25 ~23:00 -- READ FIRST (supersedes the RUNNING / TO DO of 000y; 000y keeps its pitfalls, 000x the day's results)
 
 Page v84 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (source `S/goal_page/index.html`, S = `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`; publish with the
