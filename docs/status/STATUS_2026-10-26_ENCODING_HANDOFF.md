@@ -6,7 +6,7 @@ Run all python from the worktree with `PYTHONPATH=<worktree>` (another `wfield_l
 
 ## Page
 
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v98** (08:40: binned decoder 3.10 / 3.11, whole-cortex supplement 3.18-3.20, lick-count line in 3.9), source `S/goal_page/index.html`; publish with the LONG path
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v100** (09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
 `C:/Users/SabatiniLab/AppData/Local/Temp/...` (the 8.3 path is blocked for images).
 
 - **Numbering = Fig SECTION.POSITION** (Priya 10-26: "why two letters"); ids `fig<sec>-<k>`. To add a figure: insert it
@@ -53,7 +53,9 @@ A. **DONE v98 (results ENCODING_FINDINGS 8.17 top, FINDINGS 4d iii-iv).** **ITI 
    session at the chosen configuration, raw + normalised, all areas / orofacial / visual+RSP). Priya asked for this
    ("binned time dynamics ... single-number decoder comparison across sessions").
 B. **(i) + (ii) DONE 09:00** (ENCODING_FINDINGS 8.17 top, page 3.9 caption; `scripts/iti_contact_check.py`): no-contact
-   in-trial licks recover too; paired ITI - in-trial gap widens chronically -0.062 [-0.110, -0.014]. (iii) open.
+   in-trial licks recover too; paired ITI - in-trial gap widens chronically -0.062 [-0.110, -0.014]. (iii) DONE 09:30 (`iti_recovery_marker.py`,
+   page 3.10): in-trial tracks the recovery time course (+0.62; spread-controlled +0.53), ITI does not;
+   beyond the time trend +0.16 n.s.
    B. **3.9 decisive checks** (Priya: "3.9 looks really good — is it as important as I think?"): (i) in-trial licks
    WITHOUT spout contact through the frozen decoder (does in-trial recovery ride on contact?); (ii) session-paired
    nested test of the ITI − in-trial frozen difference (per animal chronic gap: PS92 -0.11, PS94 -0.16, PS95 -0.24,
@@ -80,7 +82,7 @@ E. Open from before: epoch-kernel drift-RATE test (8.18; within-chronic r per da
 
 ## Results of 10-26 (all PROVISIONAL; details ENCODING_FINDINGS 8.17–8.19, FINDINGS 4d / 4e)
 
-- **Self-initiated ITI licks (KEY, page 3.7–3.20):** within-session direction decoding intact; FROZEN pre-stroke decoder
+- **Self-initiated ITI licks (KEY, page 3.7–3.21):** within-session direction decoding intact; FROZEN pre-stroke decoder
   down every epoch for ITI licks (-0.135 r chronic, -22 %), largely recovers for cued in-trial licks (-20 % acute → -9 %
   chronic). Each lick evokes a larger response (~2× acutely, +0.6–0.8 chronic, also isolated licks; post-stroke bouts are
   SHORTER); slow build-up before the lick weaker chronically in tjM1 / SSp-m (3/4). Not lick kinematics (post-stroke ITI
