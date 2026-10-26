@@ -136,7 +136,13 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    tjM1 / SSp-m is unchanged acutely and WEAKER chronically (3/4 animals; PS95 not), and the post-onset cortical
    response is ~2x larger acutely and still elevated chronically (4/4). Not bout length: post-stroke bouts are shorter and isolated licks show the same
    larger response. An earlier half-amplitude-timing readout
-   ("later ramp") was an amplitude artefact and is not a finding. Pre-lick face movement not yet controlled.
+   ("later ramp") was an amplitude artefact and is not a finding. Controls (10-26): not lick kinematics (post-stroke
+   licks are slightly slower; kinematics-adjusted and range-matched responses stay ~2x acute, +0.6-0.8 chronic) and
+   not face movement (face-adjusted build-up still weaker). Caveats: ITI vs in-trial gap 3/4 animals (PS93 none);
+   no-contact in-trial test pending.
+4e. **Chronic cortex - face-lick coupling tightens in orofacial motor cortex** (10-26, ENCODING_FINDINGS 8.17b,
+   page 1.16 / 1.17): the FaceRhythm lick factor's trial-by-trial unique contribution rises chronically while its
+   trial-to-trial variance FALLS (-40 % / -44 %), so it is not more face variability. PROVISIONAL.
 5. **Working interpretation (hypothesis, not a result):** losing striatal input removes spatially specific (directional)
    drive to orofacial cortex; cortex compensates with more gain in lateral frontal / orofacial motor areas, mostly in the
    contralesional hemisphere (intact-striatum side), and encodes movement more generically -- matching the behavioural

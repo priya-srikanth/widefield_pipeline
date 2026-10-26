@@ -1211,6 +1211,15 @@ so the UNMATCHED fit (all of a group's sessions; table mode = all) is read along
   also show midline venous stripes post-stroke (vessel contamination, as in 8.13).
 Figures `<run>/epoch_kernels/epoch_kernels_r.png`, `epoch_kernel_maps_<lick|target|cue>.png`; page Figs 1uc2 / 1uc3.
 
+### 8.17b FaceRhythm lick factor: chronic trial-by-trial coupling in orofacial motor cortex is not more variability (10-26) -- PROVISIONAL
+
+Page 1.16 (pixel single-variable unique, frozen lickspout frame) shows the FaceRhythm lick factor's trial-by-trial unique
+dR2 rising chronically in bilateral orofacial motor cortex (77 bins up). Unique dR2 grows with regressor variance, so the
+check (`iti_licks.py --controls`, fr_variance_sessions.csv, page 1.17): within-spout trial-to-trial variance of fr_lick in
+the encoder windows rises acutely (+36 % cue, +61 % lick window) and FALLS chronically (-40 % / -44 %; total variance
+-29 % / -34 %; mean +12 % / +5 %). The chronic gain happens with LESS regressor variance -> tighter cortex - face-lick
+coupling (direction not determined), not more face variability.
+
 ### 8.17 Self-initiated (ITI) licks: pre-lick ramp and target-free direction coding (10-26 ~00:15) -- PROVISIONAL
 
 `scripts/iti_licks.py`, `<E>/iti_licks/` (102 sessions, 4 animals; Priya 10-25: "let's also do the inter-trial 3d licks,
@@ -1246,6 +1255,17 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   +0.066 [0.014, 0.143] chronically. Information rises from ~-0.2 s and peaks ~+0.1 s after the lick peak in every epoch. FROZEN decoder
   (each animal's pre ITI licks; pre = leave-one-session-out): DROPS in every epoch, 4/4 -- direction -0.13 [-0.19, -0.07]
   acute, -0.12 subacute, -0.13 chronic; relative to the previous trial's spout -0.10 / -0.09 / -0.06 (chronic n.s.).
+  CONTROLS (10-26, Priya: "lick kinematics ... and face movement before the lick"; page 3.14 / 3.15; controls_tests.csv):
+  post-stroke ITI bout-start licks are slightly SLOWER (peak speed -10, -0.26 SD acute and chronic) and a little longer
+  chronically (reach +0.23 mm). Post-onset response after regressing reach + speed (per-animal fit on pre licks): tjM1
+  contra +1.43 acute / +0.74 chronic, SSp-m contra +1.51 / +0.62 pre amplitudes (CIs exclude 0); restricted to post
+  licks inside the pre 10-90 % reach AND speed range: +1.41 / +0.84, +1.46 / +0.71 -> NOT kinematics. Face (FaceRhythm
+  factors, z vs pre licks): small changes before the lick (lick factor +0.14, left face +0.21 SD acutely; left face -0.12
+  chronically); build-up after regressing pre-lick face movement still weaker chronically (tjM1 contra -0.41, SSp-m
+  contra -0.47) -> NOT face movement. AUC version (page 3.12; Priya: response AUC 0..0.5 s, build-up -0.4..-0.05 s
+  before the tongue is visible = before cam4 `on_frame`): same conclusions. Caveats for the frozen-decoder contrast
+  (ITI stays down, in-trial recovers): per animal the chronic ITI - in-trial gap is PS92 -0.11, PS94 -0.16, PS95 -0.24,
+  PS93 -0.01 (3/4; subacute 4/4); in-trial recovery may ride on spout CONTACT -> test in-trial licks without contact.
   FROZEN DECODER PER LAG + SESSION-POOLED (10-26, Priya: "KEY results"; page 3.8 / 3.9; one dot per session, nested
   bootstrap animals -> sessions): ITI lateral direction -0.138 [-0.191, -0.075] acute, -0.123 subacute, -0.135
   [-0.213, -0.067] chronic (normalised to each animal's pre: -23 % / -20 % / -22 %); IN-TRIAL licks (decoder trained on
