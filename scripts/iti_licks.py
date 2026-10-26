@@ -144,12 +144,20 @@ def extract(item) -> dict:
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["context", "daq_on_s", "daq_peak_s"])
+                    usecols=["context", "segment", "daq_on_s", "daq_peak_s"])
     uid = K.lick_uid.to_numpy(int)
     if not (A.context.to_numpy()[uid] == K.context.to_numpy()).all():
         raise RuntimeError(f"{label}: lick_uid join to licks_all.csv does not match on context")
     K["daq_peak_s"] = A.daq_peak_s.to_numpy(float)[uid]
     K["daq_on_s"] = A.daq_on_s.to_numpy(float)[uid]
+    # ITI licks carry the label of the trial WINDOW they fall in: "tail" = after that trial's response window (label =
+    # the trial just finished), "lead" = before the next trial's spout arrives (label = the UPCOMING trial). The spout
+    # is retracted during the ITI (Priya 10-26), so the label is not a spout in place: use the PREVIOUS trial's spout
+    # (the last spout the animal licked at) for every ITI lick -- trial_id for tail, trial_id - 1 for lead
+    seg = A.segment.astype(str).to_numpy()[uid]
+    pos_of_trial = dict(zip(T.trial_id.to_numpy(), T.pos.astype(str).to_numpy()))
+    prev_tid = np.where(seg == "lead", K.trial_id.to_numpy() - 1, K.trial_id.to_numpy())
+    K["prev_pos"] = [pos_of_trial.get(t_, "") for t_ in prev_tid]
     K = K.sort_values("daq_peak_s").reset_index(drop=True)
     # every lick ONSET (all cam4 licks of the windows + the behaviour licks) for the bout rule
     t_all = np.sort(np.concatenate([A.daq_on_s.to_numpy(float), np.asarray(B.lick_on_s, float)]))
@@ -175,6 +183,9 @@ def extract(item) -> dict:
     k = np.searchsorted(t_all, to - 0.05)                # onsets within 50 ms = the same lick (cam4 vs behaviour copy)
     gap = to - np.where(k > 0, t_all[np.maximum(k - 1, 0)], -np.inf)
     bout = (gap >= BOUT_GAP) & ~np.array([near_event(t, *CUE_EXCL) for t in to], bool) & (to > lo) & (to < hi)
+    # licks FOLLOWING the bout start within the post-onset window (0.05..0.75 s): a longer bout sums more lick
+    # responses, so the post-onset amplitude is also read on ISOLATED licks (none following)
+    nfol = np.searchsorted(t_all, to + 0.75, side="right") - np.searchsorted(t_all, to + 0.05)
     # trial first licks (engaged trials), ONSET-aligned (behaviour lick onsets)
     bo = np.sort(np.asarray(B.lick_on_s, float)[np.isfinite(B.lick_on_s)])
     Eg = T[T.engaged & np.isfinite(T.cue_s)]
@@ -195,12 +206,12 @@ def extract(item) -> dict:
     np.savez_compressed(
         f, cols=np.array(cols), epoch=epochs.epoch_of(label), animal=an, clock_med_s=clock,
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
-        bout_pos=iti.position.to_numpy(dtype=str)[bout],
+        bout_pos=iti.position.to_numpy(dtype=str)[bout], bout_nfol=nfol[bout], bout_t=to[bout],
         first_peth=_sample(R, ft, fl, LAGS_P).astype(f16) if len(fl) else np.zeros((0, len(LAGS_P), len(cols)), f16),
         first_cue=_sample(R, ft, fl - rt, LAGS_C).astype(f16) if len(fl) else np.zeros((0, len(LAGS_C), len(cols)), f16),
         first_rt=rt, first_pos=np.asarray(fpos, str),
         iti_X=_sample(R, ft, di.daq_peak_s.to_numpy(float), LAGS_D).astype(f16), iti_side=di.side_ml.to_numpy(float),
-        iti_pos=di.position.to_numpy(dtype=str), iti_t=di.daq_peak_s.to_numpy(float),
+        iti_pos=di.prev_pos.to_numpy(dtype=str), iti_t=di.daq_peak_s.to_numpy(float),
         tr_X=_sample(R, ft, tr.daq_peak_s.to_numpy(float), LAGS_D).astype(f16), tr_side=tr.side_ml.to_numpy(float),
         tr_pos=tr.position.to_numpy(dtype=str), tr_t=tr.daq_peak_s.to_numpy(float))
     return {"label": label, "n_bout": int(bout.sum()), "n_iti": len(di), "n_first": len(fl), "clock_med_s": clock}
@@ -214,9 +225,12 @@ def _load(label: str) -> dict:
     return {k: z[k] for k in z.files}
 
 
-def _bout(d: dict, gap: float) -> np.ndarray:
-    """Bout-start ITI PETHs whose preceding no-lick gap is >= gap s."""
-    return d["bout_peth"][d["bout_gap"] >= gap]
+def _bout(d: dict, gap: float, isolated: bool = False) -> np.ndarray:
+    """Bout-start ITI PETHs whose preceding no-lick gap is >= gap s; isolated = no lick FOLLOWING within 0.75 s."""
+    m = d["bout_gap"] >= gap
+    if isolated:
+        m &= d["bout_nfol"] == 0
+    return d["bout_peth"][m]
 
 
 def ramp_metrics(P: np.ndarray, lags: np.ndarray) -> tuple[float, float, float]:
@@ -267,7 +281,7 @@ def decode_session(d: dict, rng) -> list[dict]:
             "trial": (d["tr_X"].astype(float)[sub], d["tr_side"][sub], d["tr_pos"][sub], d["tr_t"][sub])}
     feat = [i for i, c in enumerate(d["cols"]) if c not in ("cortex",) and not c.startswith(("ALM", "tjM1"))]
     for sname, (X, side, pos, t) in sets.items():
-        for target, y in (("direction", side), ("within_spout", _within(side, pos))):
+        for target, y in (("direction", side), ("relative", _within(side, pos))):
             for li, lag in enumerate(LAGS_D):
                 rows.append({"set": sname, "target": target, "lag": float(lag), "n": len(y),
                              "r": _cv_r(X[:, li, feat], y, t)})
@@ -290,9 +304,9 @@ def frozen_decode(D: dict) -> pd.DataFrame:
 
         def xy(x, tg, S=S, feat=feat):
             d = S[x]
-            y = d["iti_side"] if tg == "direction" else _within(d["iti_side"], d["iti_pos"])
+            y = d["iti_side"] if tg == "direction" else _within(d["iti_side"], d["iti_pos"])   # iti_pos = PREVIOUS trial spout
             return d["iti_X"].astype(float)[:, w][:, :, feat].mean(1), y
-        for tg in ("direction", "within_spout"):
+        for tg in ("direction", "relative"):
             for x in S:
                 trn = [p_ for p_ in pre if p_ != x]
                 Xt = np.vstack([xy(p_, tg)[0] for p_ in trn])
@@ -304,6 +318,45 @@ def frozen_decode(D: dict) -> pd.DataFrame:
                 rows.append({"label": x, "animal": a, "epoch": str(S[x]["epoch"]), "target": tg, "n": len(y),
                              "r": float(np.corrcoef(pr, y)[0, 1]) if np.std(pr) > 0 else np.nan})
     return pd.DataFrame(rows)
+
+
+def ramp_figure(plt, D: dict, RR: pd.DataFrame, kind: str, iso: bool, colors: dict, path, what: str) -> None:
+    """Pooled PETH per epoch: mean of animals of session means, each animal's PETHs scaled by its pre amplitude."""
+    fig, axs = plt.subplots(2, len(RAMP_ROIS) // 2 + 1, figsize=(19, 7.5), squeeze=False)
+    for i, roi in enumerate(RAMP_ROIS):
+        ax = axs.flat[i]
+        for ep in EP4:
+            curves = []
+            for a in AN:
+                cs = []
+                for d in D.values():
+                    P = _bout(d, GAP_MAIN, isolated=iso)
+                    if str(d["animal"]) != a or str(d["epoch"]) != ep or len(P) < 10 or roi not in list(d["cols"]):
+                        continue
+                    P = P.astype(float)[:, :, list(d["cols"]).index(roi)]
+                    P = P - P[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1])].mean(1, keepdims=True)
+                    cs.append(P.mean(0))
+                pre_a = RR[(RR.kind == kind) & (RR.roi == roi) & (RR.animal == a) & (RR.epoch == "pre")].amp.mean()
+                if cs and np.isfinite(pre_a) and abs(pre_a) > 0:
+                    curves.append(np.mean(cs, 0) / pre_a)
+            if curves:
+                ax.plot(LAGS_P, np.nanmean(curves, 0), color=colors[ep], lw=2, label=f"{ep} ({len(curves)})")
+        ax.axvline(0, color="0.6", lw=0.6)
+        ax.axhline(0, color="0.8", lw=0.6)
+        ax.set_title(roi, fontsize=9)
+        ax.set_xlim(-1.5, 0.75)
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+    for ax in axs.flat[len(RAMP_ROIS):]:
+        ax.axis("off")
+    axs.flat[0].legend(fontsize=7, frameon=False)
+    axs.flat[0].set_ylabel("activity / animal's pre amplitude at the lick")
+    fig.suptitle(f"NEURAL: activity around SELF-INITIATED licks ({what}; no cue / spout move within -2..+0.75 s), "
+                 "lick-ONSET aligned, baseline -1.5..-1.0 s; mean of animals (n in legend), each scaled by its pre amplitude "
+                 "at the lick. ALM / tjM1 = anterolateral 40 % of MOs / MOp; _right = contralesional.", fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(path, dpi=110)
+    plt.close(fig)
 
 
 def summarise(labels: list[str]) -> None:
@@ -321,12 +374,19 @@ def summarise(labels: list[str]) -> None:
     print("== sessions per animal x epoch (n bout-start ITI licks, summed)\n"
           + meta.pivot_table(index="animal", columns="epoch", values="n_bout", aggfunc="sum").reindex(columns=EP4).to_string())
     print(f"clock check (median |3-D post-cue peak - behaviour lick peak|, s): max over sessions {meta.clock_med_s.max():.3f}")
+    bl = pd.DataFrame([{"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]),
+                        "nfol": float(d["bout_nfol"][d["bout_gap"] >= GAP_MAIN].mean()),
+                        "isolated": float((d["bout_nfol"][d["bout_gap"] >= GAP_MAIN] == 0).mean())}
+                       for x, d in D.items() if (d["bout_gap"] >= GAP_MAIN).sum() >= 10])
+    bl.to_csv(OUT / "bout_length_sessions.csv", index=False)
+    print("\n== per animal (rule 8): licks FOLLOWING a bout start within 0.75 s (mean) / share isolated\n"
+          + bl.pivot_table(index="animal", columns="epoch", values=["nfol", "isolated"]).round(2).to_string())
     # (A) ramp metrics per session x ROI (bout-start ITI licks, >= 10 per session) and trial first licks
     rr = []
     for x, d in D.items():
         cols = list(d["cols"])
         for kind, P in (("iti_bout", _bout(d, GAP_MAIN)), ("iti_bout_gap1", _bout(d, BOUT_GAP)),
-                        ("trial_first", d["first_peth"])):
+                        ("iti_isolated", _bout(d, GAP_MAIN, isolated=True)), ("trial_first", d["first_peth"])):
             if len(P) < 10:
                 continue
             P = P.astype(float)
@@ -372,45 +432,11 @@ def summarise(labels: list[str]) -> None:
           .reindex(columns=EP4).round(2).to_string())
     print("\n== ramp change vs pre (nested bootstrap; t: negative = EARLIER rise; n_down = animals whose mean fell)\n"
           + BT[BT.value != "amp"].round(3).to_string(index=False))
-    # ramp figure: pooled PETH per epoch (mean of animals of session means, each animal's PETHs scaled by its pre amplitude)
-    fig, axs = plt.subplots(2, len(RAMP_ROIS) // 2 + 1, figsize=(19, 7.5), squeeze=False)
-    colors = {"pre": "k", "acute": "#d7301f", "subacute": "#fc8d59", "chronic": "#2b8cbe"}
-    for i, roi in enumerate(RAMP_ROIS):
-        ax = axs.flat[i]
-        for ep in EP4:
-            an_curves = []
-            for a in AN:
-                cs = []
-                for d in D.values():
-                    if str(d["animal"]) != a or str(d["epoch"]) != ep or len(_bout(d, GAP_MAIN)) < 10 or roi not in list(d["cols"]):
-                        continue
-                    P = _bout(d, GAP_MAIN).astype(float)[:, :, list(d["cols"]).index(roi)]
-                    P = P - P[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1])].mean(1, keepdims=True)
-                    cs.append(P.mean(0))
-                if cs:
-                    an_curves.append((a, np.mean(cs, 0)))
-            if an_curves:
-                curves = []
-                for a, cv in an_curves:
-                    pre_a = RR[(RR.kind == "iti_bout") & (RR.roi == roi) & (RR.animal == a) & (RR.epoch == "pre")].amp.mean()
-                    curves.append(cv / pre_a if np.isfinite(pre_a) and abs(pre_a) > 0 else cv * np.nan)
-                ax.plot(LAGS_P, np.nanmean(curves, 0), color=colors[ep], lw=2, label=f"{ep} ({len(curves)})")
-        ax.axvline(0, color="0.6", lw=0.6)
-        ax.axhline(0, color="0.8", lw=0.6)
-        ax.set_title(roi, fontsize=9)
-        ax.set_xlim(-1.5, 0.75)
-        for s_ in ("top", "right"):
-            ax.spines[s_].set_visible(False)
-    for ax in axs.flat[len(RAMP_ROIS):]:
-        ax.axis("off")
-    axs.flat[0].legend(fontsize=7, frameon=False)
-    axs.flat[0].set_ylabel("activity / animal's pre amplitude at the lick")
-    fig.suptitle("NEURAL: activity before SELF-INITIATED licks (bout-start ITI 3-D licks: no lick for 2 s, no cue / spout "
-                 "move within -2..+0.75 s), lick-ONSET aligned, baseline -1.5..-1.0 s; mean of animals, each scaled by its pre "
-                 "amplitude. ALM / tjM1 = anterolateral 40 % of MOs / MOp; _right = contralesional.", fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(OUT / "figures" / "iti_ramp_peth.png", dpi=110)
-    plt.close(fig)
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors   # the epoch palette used across the page
+    for kind, iso, fname, what in (("iti_bout", False, "iti_ramp_peth.png", "bout-start ITI licks: no lick for 2 s"),
+                                   ("iti_isolated", True, "iti_ramp_peth_isolated.png",
+                                    "ISOLATED ITI licks: no lick for 2 s before AND none within 0.75 s after")):
+        ramp_figure(plt, D, RR, kind, iso, colors, OUT / "figures" / fname, what)
     # (B) decoding: within session, per lag
     rng = np.random.default_rng(0)
     dr = []
@@ -440,8 +466,9 @@ def summarise(labels: list[str]) -> None:
     DB = pd.DataFrame(db)
     DB.to_csv(OUT / "decode_change.csv", index=False)
     print("\n== decoding change vs pre (nested bootstrap)\n" + DB.round(3).to_string(index=False))
-    fig, axs = plt.subplots(2, 2, figsize=(12, 8), sharey=True, sharex=True)
-    for i, tg in enumerate(("direction", "within_spout")):
+    FZ = frozen_decode(D)
+    fig, axs = plt.subplots(2, 3, figsize=(16, 8), sharey=True, gridspec_kw={"width_ratios": [1, 1, 0.7]})
+    for i, tg in enumerate(("direction", "relative")):
         for j, s_ in enumerate(("iti", "trial")):
             ax = axs[i, j]
             t = DR[(DR.target == tg) & (DR.set == s_)]
@@ -451,22 +478,38 @@ def summarise(labels: list[str]) -> None:
                     ax.plot(c.index, c.values, color=colors[ep], lw=2, label=ep)
             ax.axvline(0, color="0.6", lw=0.6)
             ax.axhline(0, color="0.8", lw=0.6)
-            ax.set_title(f"{'ITI (self-initiated)' if s_ == 'iti' else 'in-trial post-cue (n-matched)'}: "
-                         f"{'3-D lateral direction' if tg == 'direction' else 'within-spout direction'}", fontsize=9)
+            rel = "relative to the PREVIOUS trial's spout" if s_ == "iti" else "within the spout in place"
+            ax.set_title(f"{'ITI (self-initiated; spout retracted)' if s_ == 'iti' else 'in-trial post-cue (n-matched)'}:\n"
+                         f"{'3-D lateral direction' if tg == 'direction' else 'direction ' + rel}", fontsize=9)
+            ax.set_xlabel("lag from lick peak (s)")
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
+        ax = axs[i, 2]                                     # FROZEN pre-stroke ITI decoder, per animal across epochs
+        f = FZ[FZ.target == tg] if not FZ.empty else FZ
+        x = np.arange(len(EP4))
+        if not f.empty:
+            P = f.groupby(["animal", "epoch"]).r.mean().unstack("epoch").reindex(columns=EP4)
+            for _a, v in P.iterrows():
+                ax.plot(x, v.values, color="0.6", lw=0.8, marker="o", ms=3)
+            ax.plot(x, P.mean().values, color="k", lw=2.2, marker="o")
+            for k_, ep in enumerate(EP4):
+                ax.scatter([k_], [P[ep].mean()], s=60, color=colors[ep], zorder=5)
+        ax.set_xticks(x)
+        ax.set_xticklabels(["pre (LOSO)", "acute", "sub", "chronic"], fontsize=8)
+        ax.set_title("FROZEN decoder trained on pre-stroke ITI licks\n(lags 0..0.2 s; grey = animals)", fontsize=9)
+        ax.axhline(0, color="0.8", lw=0.6)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
     axs[0, 0].legend(fontsize=8, frameon=False)
-    axs[1, 0].set_xlabel("lag from lick peak (s)")
-    axs[1, 1].set_xlabel("lag from lick peak (s)")
     axs[0, 0].set_ylabel("CV r (decoded vs actual)")
     axs[1, 0].set_ylabel("CV r (decoded vs actual)")
-    fig.suptitle("NEURAL: decoding each lick's 3-D lateral direction from cortical area activity, within session (ridge, "
-                 "5 time-block folds), per lag; mean of animals. Within-spout = direction minus its spout's mean (execution "
-                 "variation without spout identity).", fontsize=9.5, wrap=True)
+    fig.suptitle("NEURAL: decoding each lick's 3-D lateral direction from cortical area activity. Left / middle: within "
+                 "session (ridge, 5 time-block folds), per lag, mean of animals. Right: a decoder trained on each animal's "
+                 "PRE-stroke ITI licks applied unchanged to every session (pre scored leave-one-session-out).",
+                 fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(OUT / "figures" / "iti_direction_decoding.png", dpi=110)
     plt.close(fig)
-    FZ = frozen_decode(D)
     FZ.to_csv(OUT / "decode_frozen_sessions.csv", index=False)
     if not FZ.empty:
         print("\n== per animal (rule 8): FROZEN pre-ITI decoder, r per epoch (pre = leave-one-session-out)\n"

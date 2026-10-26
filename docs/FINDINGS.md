@@ -133,7 +133,8 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    session (r ~0.53, unchanged every epoch), but the FROZEN pre-stroke decoder loses ~0.13 r in every epoch (4/4): the
    target-free execution code is intact but remapped. (ii) Before self-initiated licks, the slow pre-lick build-up in
    tjM1 / SSp-m is unchanged acutely and WEAKER chronically (3/4 animals; PS95 not), and the post-onset cortical
-   response is ~2x larger acutely and still elevated chronically (4/4). An earlier half-amplitude-timing readout
+   response is ~2x larger acutely and still elevated chronically (4/4). Not bout length: post-stroke bouts are shorter and isolated licks show the same
+   larger response. An earlier half-amplitude-timing readout
    ("later ramp") was an amplitude artefact and is not a finding. Pre-lick face movement not yet controlled.
 5. **Working interpretation (hypothesis, not a result):** losing striatal input removes spatially specific (directional)
    drive to orofacial cortex; cortex compensates with more gain in lateral frontal / orofacial motor areas, mostly in the
