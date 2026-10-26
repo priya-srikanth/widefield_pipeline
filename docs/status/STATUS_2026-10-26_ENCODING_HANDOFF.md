@@ -61,9 +61,14 @@ B. **3.9 decisive checks** (Priya: "3.9 looks really good — is it as important
 C. **TE readouts** when run 1 lands: unique(target) vs unique(execution) (frozen, epoch − pre, nested; per area +
    pixel); self-fit remapping; GROUP-KERNEL maps = each group's summed contribution averaged around the event per spout
    (from the basis run's per-group parts, PART_VARIANTS) — replaces page 1.20–1.21 single-beta maps and the contests
-   1.33–1.36. **TE partial refit needs new nulls**: `partial_refit.py` permutes spout labels through `raw_blocks`, which does
-   not reach `te_lick_parts` (target-labelled lick kernels use T.pos / B.lick_pos) — permute the trial→spout labels for BOTH;
-   execution null = permute landing labels across licks within session. Then partial refit TE (consider O2).
+   1.33–1.36. **TE partial refit: code DONE (61743c3) and QUEUED** (`S/run_partial_te.sh`, log `S/partial_te.log`; waits
+   for `done` in te_chain.log and `exit` in partial_ls7.log, then 6 workers; ~11 design builds x ~2 min per session ->
+   ~6 h local, no O2). Sets target / target_spout / target_lick / execution / exec_land / contact / target_land; nulls:
+   ONE block permutation of trial spouts fed to raw_blocks AND te_lick_parts (`tpos_perm`), landing weights circularly
+   shifted along the landed licks (`land_roll`, 10-90 %). Smoke PS92_0819: target null changes only pos_enl / pos_cue /
+   lick_onset@tgt:*, landing null only lick_onset@land:*, defaults rebuild identically (label agreement 0.11).
+   Decoder / encoder signals = per-session adopted SVD x U_atlas averaged per Allen area (NOT a shared LocaNMF basis;
+   Priya asked 10-26) -- registration drift cannot explain ITI-down / in-trial-recovered (same sessions, same features).
 D. Tell the pose window: `pose3d/kinematics_all/licks.csv.gz` daq_peak_s was rounded to 4 significant digits (writer fixed
    c2aa922; regenerates on its next kinematics step); `stray_licks.py` (ENCODING_FINDINGS 2.6) must be re-run with exact
    times (lick_uid → licks_all.csv).
