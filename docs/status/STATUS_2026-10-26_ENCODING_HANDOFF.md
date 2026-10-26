@@ -119,3 +119,5 @@ E. Open from before: epoch-kernel drift-RATE test (8.18; within-chronic r per da
 - TE runs need FROZEN_LICKSPOUT / LICKLAND / FR_SPLIT / FR_LAGS unset (TE raises otherwise); frozen_encoder backups:
   `S/frozen_encoder_backup3.py` (before TE).
 - Push: pre-push tests ~8–14 min; races with other sessions retry automatically (temp worktree loop).
+- PAGE IMAGES: publishing index.html alone does NOT upload new / changed PNGs (v98-v102 had 9 broken figures). Always
+  pass every new or regenerated image in the Artifact `files` map (root = goal_page) on the same publish.
