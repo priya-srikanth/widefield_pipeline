@@ -557,6 +557,232 @@ def roi_figure(label: str) -> None:
     plt.close(fig)
 
 
+# ------------------------------------------------------------------------------------------------ KEY figures (Priya 10-26)
+# "3.7 frozen decoder and 3.8 are KEY results": frozen-decoder time courses for ITI and in-trial licks; summaries pooled
+# over SESSIONS (one dot per session, mean +- SEM), raw and within-animal normalised to pre, with the nested-bootstrap
+# test (animals -> sessions, analysis_kit.boot_delta) of each epoch against pre.
+KEY_ROIS = ["ALM_right", "ALM_left", "tjM1_right", "tjM1_left", "SSp-m_right", "SSp-m_left", "cortex"]
+
+
+def frozen_decode_lags(D: dict, set_name: str) -> pd.DataFrame:
+    """FROZEN decoder per LAG: ridge trained on each animal's August PRE licks of the set (ITI or in-trial post-cue) at
+    that lag, pre sessions scored leave-one-session-out, post sessions with the full pre fit. Targets: lateral direction
+    and direction RELATIVE to the previous trial's spout (ITI) / the spout in place (in-trial)."""
+    from sklearn.linear_model import RidgeCV
+    from sklearn.preprocessing import StandardScaler
+    kx, ky, kp = ("iti_X", "iti_side", "iti_pos") if set_name == "iti" else ("tr_X", "tr_side", "tr_pos")
+    rows = []
+    for a in AN:
+        S = {x: d for x, d in D.items() if str(d["animal"]) == a and len(d[ky]) >= 20}
+        pre = [x for x, d in S.items() if str(d["epoch"]) == "pre"]
+        if len(pre) < 3:
+            continue
+        feat = [i for i, c in enumerate(next(iter(S.values()))["cols"]) if c != "cortex" and not c.startswith(("ALM", "tjM1"))]
+        Y = {tg: {x: (S[x][ky] if tg == "direction" else _within(S[x][ky], S[x][kp])) for x in S}
+             for tg in ("direction", "relative")}
+        for li, lag in enumerate(LAGS_D):
+            X = {x: S[x][kx][:, li, :][:, feat].astype(float) for x in S}
+            for tg in ("direction", "relative"):
+                fits = {}
+                for held in [*pre, None]:
+                    trn = [q for q in pre if q != held]
+                    Xt = np.vstack([X[q] for q in trn])
+                    sc = StandardScaler().fit(Xt)
+                    fits[held] = (sc, RidgeCV(alphas=np.logspace(-1, 4, 11)).fit(sc.transform(Xt),
+                                                                                np.concatenate([Y[tg][q] for q in trn])))
+                for x in S:
+                    sc, m = fits[x if x in pre else None]
+                    pr = m.predict(sc.transform(X[x]))
+                    rows.append({"label": x, "animal": a, "epoch": str(S[x]["epoch"]), "set": set_name, "target": tg,
+                                 "lag": float(lag), "r": float(np.corrcoef(pr, Y[tg][x])[0, 1]) if np.std(pr) > 0 else np.nan})
+    return pd.DataFrame(rows)
+
+
+def _star(ax, x, top):
+    import matplotlib.patheffects as pe
+    ax.annotate("*", (x, top), xytext=(0, 2), textcoords="offset points", ha="center", va="bottom", fontsize=14,
+                fontweight="bold", zorder=6, annotation_clip=False, path_effects=[pe.withStroke(linewidth=2.5, foreground="w")])
+
+
+def session_dots(ax, T: pd.DataFrame, val: str, colors: dict, rng) -> list[dict]:
+    """One dot per session per epoch (epoch colour), mean +- SEM over sessions, * = nested-bootstrap CI of the change
+    from pre excludes 0. T: label, animal, epoch, <val>. Returns the test rows."""
+    from wfield_local import analysis_kit as ak
+    out = []
+    ref = {a: T[(T.animal == a) & (T.epoch == "pre")][val].dropna().to_numpy() for a in AN}
+    for k, ep in enumerate(EP4):
+        v = T[T.epoch == ep][val].dropna().to_numpy()
+        if not len(v):
+            continue
+        ax.scatter(k + rng.uniform(-0.18, 0.18, len(v)), v, s=12, color=colors[ep], alpha=0.55, lw=0, zorder=3)
+        m, se = v.mean(), v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0.0
+        ax.errorbar(k + 0.27, m, yerr=se, fmt="o", color="k", ms=5, capsize=3, lw=1.4, zorder=5)
+        ax.text(k, 0.01, f"n={len(v)}", ha="center", va="bottom", fontsize=6.5, color="0.4",
+                transform=ax.get_xaxis_transform())          # x in data, y in axes: always at the bottom
+        if ep != "pre":
+            post = {a: T[(T.animal == a) & (T.epoch == ep)][val].dropna().to_numpy() for a in AN}
+            com = [a for a in AN if len(ref[a]) and len(post[a])]
+            if len(com) >= 3:
+                iv = ak.boot_delta({a: post[a] for a in com}, {a: ref[a] for a in com}, np.random.default_rng(0))
+                out.append({"value": val, "epoch": ep, "delta": iv.point, "lo": iv.lo, "hi": iv.hi, "n_sessions": len(v)})
+                if iv.lo > 0 or iv.hi < 0:
+                    _star(ax, k, max(v.max(), m + se))
+    ax.set_xticks(range(len(EP4)))
+    ax.set_xticklabels(["pre", "acute", "sub", "chronic"], fontsize=8)
+    lo, hi = ax.get_ylim()
+    ax.set_ylim(lo, hi + 0.12 * (hi - lo))                 # headroom: stars clear the title
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    return out
+
+
+def _norm_to_pre(T: pd.DataFrame, val: str, how: str = "ratio") -> pd.Series:
+    pre = T[T.epoch == "pre"].groupby("animal")[val].mean()
+    den = T.animal.map(pre)
+    return T[val] / den if how == "ratio" else T[val] - den
+
+
+def key_figures(D: dict, RR: pd.DataFrame) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    rng = np.random.default_rng(1)
+    # ---- 3.7: frozen decoder time courses + session summaries
+    FL = pd.concat([frozen_decode_lags(D, "iti"), frozen_decode_lags(D, "trial")])
+    FL.to_csv(OUT / "decode_frozen_lags_sessions.csv", index=False)
+    tgt_lab = {"direction": "3-D lateral direction", "relative": "direction relative to a reference spout"}
+    set_lab = {"iti": "ITI (self-initiated; spout retracted; reference = previous trial's spout)",
+               "trial": "in-trial post-cue (reference = spout in place)"}
+    fig, axs = plt.subplots(2, 2, figsize=(13, 8.5), sharey=True, sharex=True)
+    for i, tg in enumerate(("direction", "relative")):
+        for j, st in enumerate(("iti", "trial")):
+            ax = axs[i, j]
+            t = FL[(FL.target == tg) & (FL.set == st)]
+            for ep in EP4:
+                g = t[t.epoch == ep].groupby("lag").r
+                m, se = g.mean(), g.std(ddof=1) / np.sqrt(g.count())
+                if len(m):
+                    ax.plot(m.index, m.values, color=colors[ep], lw=2, label=f"{ep} ({t[t.epoch == ep].label.nunique()} sessions)")
+                    ax.fill_between(m.index, (m - se).values, (m + se).values, color=colors[ep], alpha=0.18, lw=0)
+            ax.axvline(0, color="0.6", lw=0.6)
+            ax.axhline(0, color="0.8", lw=0.6)
+            ax.set_title(f"{set_lab[st]}\n{tgt_lab[tg]}", fontsize=8.5)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            if i == 1:
+                ax.set_xlabel("lag from lick peak (s)")
+            if j == 0:
+                ax.set_ylabel("FROZEN decoder r (mean +- SEM over sessions)")
+            ax.legend(fontsize=7, frameon=False, loc="upper left")
+    fig.suptitle("NEURAL: FROZEN pre-stroke decoder of each lick's direction, per lag from the lick peak. A decoder trained on "
+                 "each animal's PRE-stroke licks of the same kind (ITI or in-trial; pre sessions leave-one-session-out), "
+                 "applied unchanged to every session. Line = mean over sessions (all animals pooled), band = SEM.",
+                 fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(OUT / "figures" / "iti_frozen_timecourse.png", dpi=110)
+    plt.close(fig)
+    W = FL[(FL.lag >= 0.0) & (FL.lag <= 0.2)].groupby(["label", "animal", "epoch", "set", "target"]).r.mean().reset_index()
+    tests = []
+    fig, axs = plt.subplots(2, 4, figsize=(17, 8))
+    for j, (st, tg) in enumerate([(a, b) for a in ("iti", "trial") for b in ("direction", "relative")]):
+        T = W[(W.set == st) & (W.target == tg)].copy()
+        T["r_norm"] = _norm_to_pre(T, "r")
+        for i, (val, ylab) in enumerate((("r", "frozen decoder r"), ("r_norm", "r / animal's pre mean (pre = 1)"))):
+            ax = axs[i, j]
+            if val == "r_norm":
+                ax.axhline(1, color="0.7", lw=0.8, ls="--")
+            for r_ in session_dots(ax, T, val, colors, rng):
+                tests.append({"set": st, "target": tg, **r_})
+            if i == 0:
+                ax.set_title(f"{'ITI' if st == 'iti' else 'in-trial post-cue'}: {tgt_lab[tg]}", fontsize=9)
+            if j == 0:
+                ax.set_ylabel(ylab)
+    pd.DataFrame(tests).to_csv(OUT / "decode_frozen_session_tests.csv", index=False)
+    fig.suptitle("NEURAL: FROZEN pre-stroke decoder (lags 0..0.2 s), one dot per session, all animals pooled; black = mean +- "
+                 "SEM over sessions. Top: r; bottom: r normalised within animal to its own pre mean. * = change from pre with "
+                 "95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0.01, 0, 0.99, 0.9))
+    fig.savefig(OUT / "figures" / "iti_frozen_summary.png", dpi=110)
+    plt.close(fig)
+    print("\n== frozen decoder (lags 0..0.2), change vs pre, session-pooled figure tests\n"
+          + pd.DataFrame(tests).round(3).to_string(index=False))
+    # ---- 3.8: per-session PETH mean +- SEM, raw and normalised; amplitude-free summaries
+    rows = []
+    for x, d in D.items():
+        P = _bout(d, GAP_MAIN)
+        if len(P) < 10:
+            continue
+        P = P.astype(float)
+        P = P - P[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1]), :].mean(1, keepdims=True)
+        m = P.mean(0)
+        for roi in KEY_ROIS:
+            if roi in list(d["cols"]):
+                rows.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "roi": roi,
+                             "peth": m[:, list(d["cols"]).index(roi)]})
+    PE = pd.DataFrame(rows)
+    pa = RR[(RR.kind == "iti_bout") & (RR.epoch == "pre")].groupby(["roi", "animal"]).amp.mean()
+    fig, axs = plt.subplots(2, len(KEY_ROIS), figsize=(21, 7.5), sharex=True)
+    for j, roi in enumerate(KEY_ROIS):
+        for i, norm in enumerate((False, True)):
+            ax = axs[i, j]
+            for ep in EP4:
+                t = PE[(PE.roi == roi) & (PE.epoch == ep)]
+                if t.empty:
+                    continue
+                M = np.stack(t.peth.to_numpy())
+                if norm:
+                    M = M / np.array([pa.get((roi, a), np.nan) for a in t.animal])[:, None]
+                mu, se = np.nanmean(M, 0), np.nanstd(M, 0, ddof=1) / np.sqrt(np.isfinite(M[:, 0]).sum())
+                ax.plot(LAGS_P, mu, color=colors[ep], lw=2, label=f"{ep} ({len(t)})")
+                ax.fill_between(LAGS_P, mu - se, mu + se, color=colors[ep], alpha=0.2, lw=0)
+            ax.axvline(0, color="0.6", lw=0.6)
+            ax.axhline(0, color="0.8", lw=0.6)
+            ax.set_xlim(-1.5, 0.75)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            if i == 0:
+                ax.set_title(roi, fontsize=9)
+            if j == 0:
+                ax.set_ylabel("dF/F x1e3 (baseline-subtracted)" if not norm else "/ animal's pre amplitude at the lick")
+            if i == 1:
+                ax.set_xlabel("time from lick onset (s)")
+    axs[0, 0].legend(fontsize=7, frameon=False, loc="upper left")
+    fig.suptitle("NEURAL: activity around self-initiated licks (first ITI lick after >= 2 s without licking), per-session mean "
+                 "PETH, all animals pooled: line = mean over sessions, band = SEM (n sessions in legend). Top: raw; bottom: "
+                 "each session divided by its animal's PRE amplitude at the lick (within-animal normalised).",
+                 fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(OUT / "figures" / "iti_ramp_sessions.png", dpi=110)
+    plt.close(fig)
+    T0 = RR[RR.kind == "iti_bout"].copy()
+    tests = []
+    spec = (("peak", "post-onset response 0.1..0.4 s (dF/F x1e3)"), ("peak_n", "post-onset / animal's pre amplitude"),
+            ("early", "early build-up -0.6..-0.2 s (dF/F x1e3)"), ("early_n", "early build-up / animal's pre amplitude"))
+    fig, axs = plt.subplots(len(spec), len(KEY_ROIS), figsize=(21, 13))
+    for j, roi in enumerate(KEY_ROIS):
+        T = T0[T0.roi == roi]
+        for i, (val, ylab) in enumerate(spec):
+            ax = axs[i, j]
+            ax.axhline(0, color="0.8", lw=0.6)
+            for r_ in session_dots(ax, T, val, colors, rng):
+                tests.append({"roi": roi, **r_})
+            if i == 0:
+                ax.set_title(roi, fontsize=9)
+            if j == 0:
+                ax.set_ylabel(ylab, fontsize=8)
+    pd.DataFrame(tests).to_csv(OUT / "ramp_session_tests.csv", index=False)
+    fig.suptitle("NEURAL: self-initiated licks, per-session summaries (one dot per session, all animals pooled; black = mean +- "
+                 "SEM over sessions). Rows: post-onset response and early build-up, raw and within-animal normalised to the "
+                 "animal's pre amplitude at the lick. * = change from pre with 95% nested-bootstrap CI (animals > sessions) "
+                 "excluding 0.", fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
+    fig.savefig(OUT / "figures" / "iti_ramp_summary.png", dpi=110)
+    plt.close(fig)
+    print("\n== ramp per-session tests (change vs pre)\n" + pd.DataFrame(tests).round(3).to_string(index=False))
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local.writeguard import assert_writable
@@ -565,6 +791,7 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--rois-only", action="store_true")
+    ap.add_argument("--key", action="store_true", help="only the KEY figures, from saved sessions + ramp_sessions.csv")
     a = ap.parse_args(argv)
     assert_writable(OUT)
     (OUT / "sessions").mkdir(parents=True, exist_ok=True)
@@ -573,6 +800,10 @@ def main(argv=None) -> int:
     labels = [x for x in labels if x[-4:] >= "0801"]
     if a.rois_only:
         roi_figure(labels[0])
+        return 0
+    if a.key:
+        D = {x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()}
+        key_figures(D, pd.read_csv(OUT / "ramp_sessions.csv"))
         return 0
     if not a.summarise:
         roi_figure(labels[0])
