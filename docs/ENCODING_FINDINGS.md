@@ -1376,7 +1376,10 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   licks inside the pre 10-90 % reach AND speed range: +1.41 / +0.84, +1.46 / +0.71 -> NOT kinematics. Face (FaceRhythm
   factors, z vs pre licks): small changes before the lick (lick factor +0.14, left face +0.21 SD acutely; left face -0.12
   chronically); build-up after regressing pre-lick face movement still weaker chronically (tjM1 contra -0.41, SSp-m
-  contra -0.47) -> NOT face movement. AUC version (page 3.19; Priya: response AUC 0..0.5 s, build-up -0.4..-0.05 s
+  contra -0.47) -> NOT face movement. FACE-ADJUSTED RESPONSE (10-26 evening, Priya: "add FR adjustment"): post-onset
+  response regressed on reach + speed + post-onset FaceRhythm lick / right / left (0.1..0.4 s), per animal on pre licks:
+  tjM1 contra chronic +0.74 [+0.22, +1.26], SSp-m contra +0.63 [+0.14, +1.11] (reach + speed only: +0.74 / +0.62) ->
+  the larger response is NOT face movement either. AUC version (page 3.19; Priya: response AUC 0..0.5 s, build-up -0.4..-0.05 s
   before the tongue is visible = before cam4 `on_frame`): same conclusions. Caveats for the frozen-decoder contrast
   (ITI stays down, in-trial recovers): per animal the chronic ITI - in-trial gap is PS92 -0.11, PS94 -0.16, PS95 -0.24,
   PS93 -0.01 (3/4; subacute 4/4); in-trial recovery may ride on spout CONTACT -> test in-trial licks without contact.
