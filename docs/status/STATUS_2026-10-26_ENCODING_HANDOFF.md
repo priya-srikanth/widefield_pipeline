@@ -12,7 +12,13 @@ Python: `C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe`, run from the 
 
 ### 0a. PUBLISH THE PAGE — exact steps for a new session
 
-The Artifact tool was switched off in this session from ~14:15, so everything since v103 is LOCAL ONLY.
+**PUBLISHED 10-26 evening by a new session: live = v105** (local `_goal_page/index.html` + all 183 referenced PNGs). Two
+publishes (v104 = index + 121 PNGs, v105 = the other 62): the referenced PNGs total ~65 MB, over the 64 MB per-publish
+cap, so split `files` into batches under ~35 MB. Old images not read in a session block the publish ("published content
+is not what you last saw"): `action: "list", scope: "files"` on the URL first counts as seeing them. Spot-checked 1.37,
+3.7, 3.15-3.20, 3.25 (published byte sizes = local). The steps below are kept as the procedure for the next republish.
+
+The Artifact tool was switched off in this session from ~14:15, so everything since v103 was LOCAL ONLY until v105.
 - Live: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d = **v103** (12:00). Everything after it exists only locally.
 - **Local source (newest, complete): `C:/Users/SabatiniLab/Github/wf_attempt/_goal_page/index.html`** (+ its 190 PNGs;
   untracked, listed in `.git/info/exclude`; 63 MB). Backup copy: `M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/`.
