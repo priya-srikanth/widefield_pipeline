@@ -1170,7 +1170,9 @@ unique, change from pre; remap_boot.csv): full model +0.06..+0.12 acute and chro
 target -0.016 [-0.031, -0.001], execution -0.029 n.s. lick / -0.037 [-0.060, -0.016] cue, 4/4); movement (execution +
 other) SSp-m contra chronic +0.028 [+0.003, +0.053] 4/4. Reading: the remapped information is mostly SHARED between
 target and execution (no single group's unique part carries it), as in the old design (8.19). PS95_0907 is an outlier
-session (joint cortex R2 0.22, no_target 0.36 > joint): check before quoting per-session values. Partial refit with
+session (joint cortex R2 0.22, no_target 0.36 > joint; 0.44 in the old designs): a LICK-HEAVY session, not bad data
+(14,153 licks vs 7,402 in PS95_0903; ITI 2,080 vs 467; pre-cue 2,520 vs 784), so the summed frozen lick-locked kernels
+over-predict; check results without it before quoting per-session values. Partial refit with
 the TE label-shuffled nulls (61743c3) running (`S/partial_te.log`, ~6 h). Pixel parts (basis run, `frozen_pixel_maps.py`, page 1.36): chronic - pre far-contra
 lick evoked: target part barely changes, execution part follows each animal's movement (PS94 down, PS93 up), most of
 the data change is in the RESIDUAL (not predicted by the pre-stroke mapping).
