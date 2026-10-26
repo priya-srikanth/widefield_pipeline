@@ -12,8 +12,9 @@ Same features and decoder as page 3.9 (per animal ridge trained on AUGUST pre li
 0..0.2 s averaged), in each feature basis available: Allen areas (`<E>/iti_licks/sessions`), joint LocaNMF and the
 pre-stroke SVD basis (`iti_basis_decoder.py` outputs, when present). Reach spread per epoch is printed too (r is
 blind to a mean shift, not to a change in spread).
-Outputs <E>/iti_licks/where_decoder.csv, where_decoder_tests.csv, figures/iti_where_decoder.png.
-Usage: python scripts/iti_where_decoder.py
+Outputs <E>/iti_licks/where_decoder.csv, where_decoder_tests.csv, figures/iti_where_decoder.png (Allen areas, every
+target) + iti_where_decoder_bases.png (lateral, three bases); split 10-26 so the panels are readable.
+Usage: python scripts/iti_where_decoder.py [--plot-only]   (--plot-only redraws from the saved CSVs)
 """
 from __future__ import annotations
 
@@ -145,10 +146,8 @@ def decode(source: str) -> pd.DataFrame:
 def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
 
     from wfield_local import analysis_kit as ak
-    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     srcs = [s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{s}" / "sessions").exists()]
     R = pd.concat([decode(s) for s in srcs], ignore_index=True)
     R.to_csv(il.OUT / "where_decoder.csv", index=False)
@@ -174,38 +173,83 @@ def main() -> int:
     T = pd.DataFrame(rows)
     T.to_csv(il.OUT / "where_decoder_tests.csv", index=False)
     print(T[(T.value == "r_norm")].round(3).to_string(index=False))
-    fig, axs = plt.subplots(len(srcs) * 2, len(TARGETS), figsize=(3.3 * len(TARGETS), 2.9 * len(srcs) * 2), squeeze=False)
-    rng = np.random.default_rng(1)
-    for i, src in enumerate(srcs):
-        for k, st in enumerate(("iti", "trial")):
-            for j, tg in enumerate(TARGETS):
-                ax = axs[2 * i + k, j]
-                g = R[(R.source == src) & (R.set == st) & (R.target == tg)]
-                for e, ep in enumerate(EP):
-                    v = g[g.epoch == ep].r_norm.dropna().to_numpy()
-                    ax.scatter(e + rng.uniform(-0.18, 0.18, len(v)), v, s=8, color=colors[ep], alpha=0.6, lw=0)
-                    if len(v):
-                        ax.errorbar(e + 0.3, v.mean(), v.std(ddof=1) / np.sqrt(len(v)), fmt="o", color="k", ms=4, capsize=2)
-                    tt = T[(T.source == src) & (T.set == st) & (T.target == tg) & (T.value == "r_norm") & (T.epoch == ep)]
-                    if len(tt) and (tt.lo.iloc[0] > 0 or tt.hi.iloc[0] < 0):
-                        ax.text(e, 1.02, "*", transform=ax.get_xaxis_transform(), ha="center", fontsize=12)
-                ax.axhline(1, color="0.7", lw=0.6, ls="--")
-                ax.set_xticks(range(4), ["pre", "acu", "sub", "chr"], fontsize=7)
-                ax.tick_params(labelsize=7)
-                for s_ in ("top", "right"):
-                    ax.spines[s_].set_visible(False)
-                pr = g[g.epoch == "pre"].r.mean()
-                ax.set_title(f"{LAB[src]} | {'ITI' if st == 'iti' else 'in-trial'} | {tg}\n(pre r {pr:.2f})", fontsize=8, pad=14)
-                if j == 0:
-                    ax.set_ylabel("frozen r / animal's pre", fontsize=7.5)
-    fig.suptitle("NEURAL: WHERE did the lick go? Frozen pre-stroke decoder of the tongue tip's lateral and outward position "
-                 "(and together, 2-D), with angle / reach as a polar check; one dot per session divided by the animal's pre "
-                 "mean; black = mean +- SEM; * = nested-bootstrap change from pre (animals > sessions).", fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / "iti_where_decoder.png", dpi=105)
-    plt.close(fig)
+    plot(R, T)
     return 0
 
 
+def _panel(ax, g, tt, colors, rng, title):
+    """One target x lick set: session dots / animal's pre, black mean +- SEM, stars in a strip above the data."""
+    import matplotlib.patheffects as pe
+    for e, ep in enumerate(EP):
+        v = g[g.epoch == ep].r_norm.dropna().to_numpy()
+        ax.scatter(e + rng.uniform(-0.18, 0.18, len(v)), v, s=14, color=colors[ep], alpha=0.6, lw=0)
+        if len(v) > 1:
+            ax.errorbar(e + 0.3, v.mean(), v.std(ddof=1) / np.sqrt(len(v)), fmt="o", color="k", ms=6, capsize=5, lw=2.2,
+                        capthick=2.2)
+    ax.axhline(1, color="0.7", lw=0.8, ls="--")
+    lo, hi = ax.get_ylim()
+    ax.set_ylim(lo, hi + 0.15 * (hi - lo))
+    for e, ep in enumerate(EP):
+        t = tt[tt.epoch == ep]
+        if len(t) and (t.lo.iloc[0] > 0 or t.hi.iloc[0] < 0):
+            ax.text(e, 0.95, "*", transform=ax.get_xaxis_transform(), ha="center", va="center", fontsize=15,
+                    fontweight="bold", path_effects=[pe.withStroke(linewidth=2.5, foreground="w")])
+    ax.set_xticks(range(4), ["pre", "acute", "sub", "chronic"], fontsize=9)
+    ax.tick_params(labelsize=9)
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
+    ax.set_title(title, fontsize=10.5)
+
+
+def plot(R: pd.DataFrame, T: pd.DataFrame) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    if "r_norm" not in R:
+        pre = R[R.epoch == "pre"].groupby(["source", "set", "target", "animal"]).r.mean()
+        R = R.assign(r_norm=R.r / [pre.get(k, np.nan) for k in zip(R.source, R.set, R.target, R.animal)])
+    TN = T[T.value == "r_norm"]
+    yl = "FROZEN decoder r (decoded vs actual)\n/ animal's pre mean (pre = 1)"
+    tl = {"lateral": "LATERAL position", "outward": "OUTWARD position", "2-D": "lateral + outward (2-D)",
+          "angle": "ANGLE (polar check)", "reach": "REACH (polar check)"}
+    sl = {"iti": "ITI licks", "trial": "in-trial licks"}
+    rng = np.random.default_rng(1)
+    # A: Allen areas, every target
+    fig, axs = plt.subplots(2, len(TARGETS), figsize=(4.2 * len(TARGETS), 9.5), squeeze=False)
+    for k, st in enumerate(("iti", "trial")):
+        for j, tg in enumerate(TARGETS):
+            g = R[(R.source == "areas") & (R.set == st) & (R.target == tg)]
+            _panel(axs[k, j], g, TN[(TN.source == "areas") & (TN.set == st) & (TN.target == tg)], colors, rng,
+                   f"{sl[st]}: {tl.get(tg, tg)}\n(pre r {g[g.epoch == 'pre'].r.mean():.2f})")
+        axs[k, 0].set_ylabel(yl, fontsize=10)
+    fig.suptitle("NEURAL: WHERE did the lick go? FROZEN pre-stroke decoder (fit once on each animal's August pre licks, never "
+                 "refit), Allen-area features.\nOne decoder per target; one dot per session = r between decoded and actual "
+                 "tongue-tip position, divided by the animal's pre mean;\nblack = mean +- SEM over sessions; * = nested-"
+                 "bootstrap change from pre (animals > sessions) excluding 0.", fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(il.OUT / "figures" / "iti_where_decoder.png", dpi=105)
+    plt.close(fig)
+    # B: lateral position in each basis
+    srcs = [s_ for s_ in SOURCES if s_ in set(R.source)]
+    fig, axs = plt.subplots(2, len(srcs), figsize=(4.6 * len(srcs), 9.5), squeeze=False)
+    for k, st in enumerate(("iti", "trial")):
+        for j, src in enumerate(srcs):
+            g = R[(R.source == src) & (R.set == st) & (R.target == "lateral")]
+            _panel(axs[k, j], g, TN[(TN.source == src) & (TN.set == st) & (TN.target == "lateral")], colors, rng,
+                   f"{LAB[src]}\n{sl[st]}: LATERAL position (pre r {g[g.epoch == 'pre'].r.mean():.2f})")
+        axs[k, 0].set_ylabel(yl, fontsize=10)
+    fig.suptitle("NEURAL: the LATERAL-position result in three feature bases (FROZEN pre-stroke decoder, never refit; same "
+                 "licks).\nDots = sessions, r / animal's pre; black = mean +- SEM; * = nested-bootstrap change from pre "
+                 "excluding 0. Other targets per basis: where_decoder_tests.csv.", fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(il.OUT / "figures" / "iti_where_decoder_bases.png", dpi=105)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
+    if "--plot-only" in sys.argv:
+        plot(pd.read_csv(il.OUT / "where_decoder.csv"), pd.read_csv(il.OUT / "where_decoder_tests.csv"))
+        raise SystemExit(0)
     raise SystemExit(main())

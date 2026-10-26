@@ -123,12 +123,12 @@ def main() -> int:
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
             if j == 0:
-                ax.set_ylabel(f"frozen decoder r / pre\n({'in-trial' if st == 'trial' else 'ITI'} licks)", fontsize=9)
+                ax.set_ylabel(f"FROZEN decoder r (decoded vs actual lateral\ntongue-tip position) / pre\n({'in-trial' if st == 'trial' else 'ITI'} licks)", fontsize=9)
             if i == 1:
                 ax.set_xlabel("far-contra hit rate / pre", fontsize=9)
     axs[0, 0].legend(fontsize=7, frameon=False)
     t_ = T.set_index(["set", "kind"])
-    fig.suptitle("NEURAL vs BEHAVIOUR: does the frozen pre-stroke lick-direction decoder track recovery? One dot per post-stroke "
+    fig.suptitle("NEURAL vs BEHAVIOUR: does the FROZEN pre-stroke decoder (fit once on pre licks, never refit) of lateral tongue-tip position track recovery? One dot per post-stroke "
                  "session. Mean within-animal r: in-trial "
                  f"{t_.loc[('trial', 'raw'), 'mean_r']:+.2f} (p {t_.loc[('trial', 'raw'), 'p_perm']:.3f}), ITI "
                  f"{t_.loc[('iti', 'raw'), 'mean_r']:+.2f} (p {t_.loc[('iti', 'raw'), 'p_perm']:.3f}); after removing the shared "
