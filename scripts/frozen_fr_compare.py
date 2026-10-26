@@ -175,6 +175,42 @@ def lines_legend(fig, series, y: float = 0.01, split: bool = True):
     fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, y), ncol=min(len(h), 6), frameon=False, fontsize=8.5)
 
 
+def lines_figure(plt, w, B1, B2, B3, B4, lev, out):
+    """MAIN figure (Priya 10-25: lines "much better" than grouped bars): rows = the four measures, columns = areas, one
+    line per frame; the grouped-bar version stays as the supplement `frozen_fr_compare_<w>.png`."""
+    fr3 = [(k, k, COL[k]) for k in RUNS]
+    uq = [("directionless (joint - no_fr)", "FR directionless unique", COL["FR-B"]),
+          ("direction (joint - no_fr_dir)", "FR direction unique", COL["FR-A"]),
+          ("all FR (joint - no_fr_all)", "all FR unique", COL["noFR"])]
+    rows = [(B1[B1.window == w], fr3, 1.0, "1. frozen R2\nepoch - pre"),
+            (B2[B2.window == w], fr3, 1.0, "2. residual far contra\nepoch - pre (x1e3 dF/F)"),
+            (B3[B3.window == w], uq, 1.0, "3. FR unique R2\nepoch - pre"),
+            (B4, [s for s in fr3 if s[0] != "FR-B"], 1.0, "4. Layer 2 change_ref\nepoch - pre_late (all windows)")]
+    fig, axs = plt.subplots(len(rows), len(AREAS), figsize=(17, 13), sharey="row")
+    lv = lev[lev.window == w].groupby(["frame", "area", "epoch"]).r2.mean()
+    for i, (B, ser, sc, ylab) in enumerate(rows):
+        for j, a in enumerate(AREAS):
+            ax = axs[i, j]
+            epoch_lines(ax, B, ser, a, sc)
+            if i == 0:
+                ax.set_title(ALAB[a] + "\npre R2: " + " / ".join(f"{lv.get((fr, a, 'pre'), np.nan):.2f}" for fr in RUNS),
+                             fontsize=9)
+            if j == 0:
+                ax.set_ylabel(ylab, fontsize=8.5)
+            if i == 3:
+                ax.set_xticklabels(["pre_late", "acute", "sub", "chronic"], fontsize=8)
+            ax.tick_params(axis="y", labelsize=7.5)
+    nm = {"noFR": "noFR = final frame (no FaceRhythm)", "FR-B": "FR-B = frozen + directionless FR",
+          "FR-A": "FR-A = frozen + all FR"}
+    lines_legend(fig, [(q, nm[q], c) for q, _l, c in fr3] + uq, y=0.005)
+    fig.suptitle(f"NEURAL: FROZEN pre-stroke encoder with vs without FaceRhythm, {w} window (row 4: all frames). Line = mean "
+                 "of animals' epoch - pre (row 4: - pre_late), band 95 % nested CI; title: pre R2 noFR / FR-B / FR-A.",
+                 fontsize=10.5)
+    fig.subplots_adjust(left=0.07, right=0.995, top=0.91, bottom=0.075, hspace=0.35, wspace=0.12)
+    fig.savefig(out / "figures" / f"frozen_fr_compare_lines_{w}.png", dpi=110)
+    plt.close(fig)
+
+
 def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -277,6 +313,7 @@ def main() -> int:
         fig.subplots_adjust(left=0.045, right=0.995, top=0.86, bottom=0.07, hspace=0.42, wspace=0.14)
         fig.savefig(out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
         plt.close(fig)
+        lines_figure(plt, w, B1, B2, B3, B4, lev, out)
     print("->", out)
     return 0
 
