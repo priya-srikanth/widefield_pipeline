@@ -105,7 +105,7 @@ def main() -> int:
             ax.set_title(f"{ttl}\n{ep} - pre ({int(ce_.sig.sum())} areas significant)", fontsize=9)
             ax.axis("off")
         fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F AUC (x1e3 s)")
-    fig.suptitle("NEURAL: self-initiated (ITI) licks across the whole cortex -- change from pre per Allen area in raw dF/F "
+    fig.suptitle("NEURAL, NO DECODER: self-initiated (ITI) licks across the whole cortex -- change from pre per Allen area in raw dF/F "
                  "AUC (x1e3 s); black outline = nested-bootstrap CI excludes 0. Image left = "
                  "ipsilesional.", fontsize=10, wrap=True)
     fig.savefig(il.OUT / "figures" / "iti_area_maps.png", dpi=110, bbox_inches="tight")
@@ -134,7 +134,7 @@ def main() -> int:
     axs[0, 0].legend(fontsize=6, frameon=False)
     axs[0, 0].set_ylabel("dF/F x1e3", fontsize=8)
     axs[1, 0].set_ylabel("dF/F x1e3", fontsize=8)
-    fig.suptitle("NEURAL: activity around self-initiated licks in NON-orofacial areas (per-session mean PETH, all animals "
+    fig.suptitle("NEURAL, NO DECODER: dF/F around self-initiated licks in NON-orofacial areas (per-session mean PETH, all animals "
                  "pooled; band = SEM over sessions; lick onset at 0).", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(il.OUT / "figures" / "iti_area_peth.png", dpi=110)
@@ -162,7 +162,7 @@ def main() -> int:
             ax.set_title(f"{g}: {ttl}", fontsize=9)
     pd.DataFrame(tests).to_csv(il.OUT / "area_group_tests.csv", index=False)
     print(pd.DataFrame(tests).round(3).to_string(index=False))
-    fig.suptitle("NEURAL: self-initiated licks, orofacial vs visual + retrosplenial areas (area means per session, divided by "
+    fig.suptitle("NEURAL, NO DECODER: self-initiated licks (dF/F), orofacial vs visual + retrosplenial areas (area means per session, divided by "
                  "the animal's pre group-mean response AUC; one dot per session; * = nested-bootstrap change from pre; right = "
                  "orofacial minus visual + RSP in the same session).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
@@ -220,7 +220,7 @@ def compare(T: pd.DataFrame, peths: dict) -> None:
     axs[0, 0].set_ylabel("dF/F x1e3 (shared axis)", fontsize=8)
     axs[1, 0].set_ylabel("/ animal's pre peak of that area", fontsize=8)
     axs[0, 0].legend(fontsize=6, frameon=False)
-    fig.suptitle("NEURAL: self-initiated (ITI) licks, orofacial ROIs next to control areas (contralesional; first ITI lick "
+    fig.suptitle("NEURAL, NO DECODER: self-initiated (ITI) licks (dF/F), orofacial ROIs next to control areas (contralesional; first ITI lick "
                  "after >= 2 s without licking; per-session mean PETH, all animals pooled, band = SEM over sessions; "
                  "bottom = each session / its animal's pre-stroke peak of that area).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))

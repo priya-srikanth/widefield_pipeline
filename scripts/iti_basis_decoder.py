@@ -176,11 +176,11 @@ def summarise(sources) -> None:
             for sp_ in ("top", "right"):
                 ax.spines[sp_].set_visible(False)
             if j == 0:
-                ax.set_ylabel("FROZEN decoder r (mean +- SEM over sessions)", fontsize=8.5)
+                ax.set_ylabel("FROZEN decoder: r (decoded vs actual\nlateral tongue-tip position)", fontsize=8.5)
             if i == 1:
                 ax.set_xlabel("lag from lick peak (s)", fontsize=8.5)
     axs[0, 0].legend(fontsize=7, frameon=False)
-    fig.suptitle("NEURAL: the frozen pre-stroke lick-direction decoder in three feature bases (same licks, same decoder; "
+    fig.suptitle("NEURAL: the FROZEN pre-stroke decoder (fit once on pre licks, never refit) of lateral tongue-tip position in three SPATIAL bases (same licks, same decoder; "
                  "per animal, trained on August pre licks, pre leave-one-session-out). Title numbers = change from pre "
                  "normalised to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
