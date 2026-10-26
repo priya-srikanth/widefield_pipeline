@@ -17,6 +17,12 @@ the day: ENCODING_FINDINGS 8.11-8.13, FINDINGS section 0 (synthesis) + 4.2 / 4.3
 `S/frozen_encoder_backup.py`).
 
 ### RUNNING (worktree wf_attempt; check logs, do not restart)
+0. UPDATE 10-25 ~19:30: partial refit (1) DONE (restarted at 4 workers; now saves each session as it finishes) + executed
+   null added (`--add exec_shuf`); results ENCODING_FINDINGS 8.14, FINDINGS 4.11, page v71 Figs 1yd / 1ye. The lickspout
+   chain (2) started 17:56 in parallel. Its stages c / d run at --jobs 2: when it reaches them and the box is free, stop
+   and relaunch at 5-6 (partial_refit resumes; check session_vs_frozen). After (2d): run `partial_refit.py --tag
+   ..._frA_ls --add exec_shuf` is NOT needed (new runs compute both nulls). Task C script written:
+   `scripts/frozen_pixel_musall.py` (alone / unique / novar layouts, PETH / trial / all frames; tested on frA_basis).
 1. `scripts/partial_refit.py` frA frame (S/run_partial.sh, log S/partial_full.log, task b9q60utqe): 33/107 at 18:40.
    WHY: which part of the mapping changed -- refit ONLY target / executed / executed+FR dir / target+executed /
    +FR, others frozen; null = target with labels circularly shifted; per-spout scores (= remap check 5). On finish it

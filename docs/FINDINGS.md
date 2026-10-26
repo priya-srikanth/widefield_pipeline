@@ -344,6 +344,15 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     coding remapped). Full-model self - frozen gap rises acutely (SSp-m +0.07-0.12) and chronically (+0.06-0.09), 4/4;
     self spout-unique contra SSp-m +0.054 / +0.059 chronic 4/4. PROVISIONAL (different-size training sets; change from
     pre only).
+    **WHICH PART (10-25 night, partial refit, `scripts/partial_refit.py`, page Figs 1yd / 1ye):** per session refit ONLY
+    the target or ONLY the executed-position columns (rest frozen, 5-block CV), each read against its own null (the same
+    columns rebuilt with spout labels shifted by half the session). The nulls ALSO gain post-stroke (any refit
+    spout-structured regressor absorbs part of the larger residual), so raw refit gains overstate specificity. Acute:
+    mostly NON-SPECIFIC (target - null, executed - null ~0 in contra SSp-m and cortex-wide; the acute "executed beats
+    target" is matched by the executed null) except a target-specific gain in IPSILESIONAL SSp-m (+0.037, 4/4 cue, 3/4
+    lick). Chronic: BOTH specific in contralesional SSp-m (target - null +0.034 cue / +0.032 lick, executed - null
+    +0.054 / +0.064, 4/4) and executed - null cortex-wide (+0.038 / +0.045, 4/4; target - null +0.022, 3/4). The two
+    were not tested against each other. PROVISIONAL.
 12. **Face movement (FaceRhythm) explains about half of the spout-position code and most of its chronic rise.**
     **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** the post-stroke CHANGE claims below were per-session refit; in the
     frozen frame: (a) contralesional position | FR rise NOT reproduced (position unique flat; contra - ipsi -0.010
