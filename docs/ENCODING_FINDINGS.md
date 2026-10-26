@@ -1150,6 +1150,27 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.14 Partial refit: target vs executed, each against its own null (10-25 night) -- PROVISIONAL
+
+- Design (`scripts/partial_refit.py`, frA frame, 107 sessions, page Figs 1yd / 1ye): per session refit ONLY one group set
+  (target; executed = exec_locked + exec_within; + FR side / distance; combinations), everything else frozen, ridge with
+  the frozen penalties, 5 contiguous trial-block CV (held-out predictions). Gain = R2 - R2[frozen], epoch - pre within
+  animal, nested bootstrap. NULLS: target_shuf (target columns from trial positions circularly shifted by half the
+  session) and exec_shuf (executed templates assigned by per-frame spout labels rolled by half the record; exec_angle is
+  label-free and stays real -> conservative; added with `--add exec_shuf`).
+- Raw gains (cortex cue, acute / chronic): target +0.021 / +0.037, executed +0.034 / +0.055 (4/4) -- but the target null
+  gains +0.016 / +0.015 and the executed null up to +0.076 acutely in ipsilesional SSp-m. Read each set AGAINST its null.
+- target - null: acute ~0 in contra SSp-m (+0.001) and cortex (+0.005), but +0.037 [0.012, 0.062] 4/4 in IPSILESIONAL
+  SSp-m (cue; lick +0.038, 3/4); chronic +0.034 [0.015, 0.059] 4/4 contra SSp-m (lick +0.032, 4/4), cortex +0.022 3/4.
+- executed - null: acute ~0 everywhere (SSp-m +0.003 to +0.015, CIs include 0); subacute contra SSp-m +0.020 4/4; chronic
+  contra SSp-m +0.054 [0.021, 0.087] cue / +0.064 [0.022, 0.105] lick 4/4, cortex +0.038 / +0.045 4/4 (PS93 / PS95 small).
+- executed - target (raw): + acutely in ipsi SSp-m (+0.038 / +0.046, 4/4) -- matched by the executed null, so it is
+  flexibility, not execution-specific remapping.
+- Reading: acutely a session-specific mapping helps whatever spout labels it is given (structured residual), except a
+  target-specific gain ipsilesionally; chronically both target and executed movement are coded in a remapped,
+  label-specific way in contralesional SSp-m, the executed part also cortex-wide. Open: (executed - null) - (target - null)
+  test; the same on the lickspout frame (chain running; adds lickspout / exec_ls / target_ls sets, no lickspout null yet).
+
 ### 8.13 PETH vs trial-by-trial maps, Musall layouts, kernels, remapping time course, PS94 dominance (10-25 evening) -- PROVISIONAL
 
 - PETH vs TRIAL-BY-TRIAL by Allen area (`scripts/frozen_peth_trial_maps.py`, frozen + FR, page Figs 1t / 1u; no-FR 1uf):
