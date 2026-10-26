@@ -255,6 +255,8 @@ def main(argv=None) -> int:
         SS.append(row)
         print(f"{s} ({row['epoch']}): {len(L)} / {row['cam4_licks']} cam4 licks with >= 3 3-D frames; {len(J)} jaw trials")
     L, J, S = pd.concat(LL, ignore_index=True), pd.concat(JJ, ignore_index=True), pd.DataFrame(SS)
+    if "daq_peak_s" in L:                                # absolute DAQ time: %.4g kept 0.1 s after 100 s, 1 s after
+        L["daq_peak_s"] = L["daq_peak_s"].map("{:.4f}".format)   # 1000 s (found 10-25); keep it to 0.1 ms
     L.to_csv(out / "licks.csv.gz", index=False, float_format="%.4g")
     J.to_csv(out / "jaw_trials.csv.gz", index=False, float_format="%.4g")
     S.to_csv(out / "sessions.csv", index=False)

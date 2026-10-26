@@ -422,6 +422,13 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
 
 ### 2.6 Lick-level strays vs on-target licks — FIRST RUN 10-23: NOT DECISIVE for far contra (reference fails validation)
 
+> **TIMING BUG, RE-RUN NEEDED (found 10-25 ~23:50).** `stray_licks.py` places its lick events with the kinematics_all
+> table's `daq_peak_s`, which is stored to 4 SIGNIFICANT DIGITS (0.1 s resolution after 100 s, 1 s after 1000 s: up to
+> 0.5 s off in a 1 h session; e.g. two licks of one bout both read 121.3). The lick-event kernels below are therefore
+> smeared by up to +-0.5 s, worse late in each session. Fix: take the exact time from the session's `licks_all.csv`
+> row `lick_uid` (as `scripts/iti_licks.py` does; checked: context matches 100 %, clock match to the behaviour licks
+> 1 ms). Read everything in this section as provisional until the re-run.
+
 **First full run (10-23 night, `wfield_local/stray_licks.py` at 4bc7687, 104 / 107 sessions, 4 animals, all licks with
 3-D; `<E>/stray_licks/`; PRELIMINARY).** Per session one regression of all frames on lick-event kernels (stray q->j,
 non-contact near-miss q, ITI near j, contact|q; cue / arrival kernels; drift + running / push nuisance); kernels pooled
