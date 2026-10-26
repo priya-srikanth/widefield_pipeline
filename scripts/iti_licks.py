@@ -54,6 +54,9 @@ GAP_MAIN = 2.0                     # summaries: >= 2 s, so the -1.5..-1.0 s base
 #                                    (with 1 s the acute baseline still carried the previous licks' decay)
 CUE_EXCL = (-2.0, 0.75)
 N_TRIAL_MAX = 1500
+FR_KEEP = ["fr_lick", "fr_right", "fr_left", "fr_close", "fr_far"]   # FaceRhythm master_v1 mode-A factors (no "other")
+LAGS_FRC = np.round(np.arange(0.0, 1.5001, 0.05), 3)       # cue window (frozen Musall cue window 0..1.5 s)
+LAGS_FRL = np.round(np.arange(-0.1, 1.0001, 0.05), 3)      # first-lick window (-0.1..1.0 s)
 RAMP_ROIS = ["ALM_right", "ALM_left", "tjM1_right", "tjM1_left", "MOs_right", "MOs_left", "MOp_right", "MOp_left",
              "SSp-m_right", "SSp-m_left", "cortex"]
 EP4 = ["pre", "acute", "subacute", "chronic"]
@@ -62,7 +65,8 @@ EP4 = ["pre", "acute", "subacute", "chronic"]
 def lick_table() -> pd.DataFrame:
     from wfield_local.paths import PathResolver
     p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
-    return pd.read_csv(p, usecols=["session", "context", "lick_uid", "side_ml", "out_ap", "position", "trial_id"])
+    return pd.read_csv(p, usecols=["session", "context", "lick_uid", "side_ml", "out_ap", "position", "trial_id",
+                                   "reach_mm", "speed_peak"])
 
 
 def roi_masks(parea, pstat, names, flat, shape, frac: float = ROI_FRAC) -> dict:
@@ -202,11 +206,34 @@ def extract(item) -> dict:
     tr = K[(K.context == "post_cue") & np.isfinite(K.side_ml) & (K.daq_peak_s > dlo) & (K.daq_peak_s < dhi)]
     if len(tr) > N_TRIAL_MAX:
         tr = tr.iloc[np.sort(np.random.default_rng(0).choice(len(tr), N_TRIAL_MAX, replace=False))]
+    # CONTROLS (Priya 10-26): FaceRhythm factors around each bout start (pre-lick face movement) and per trial in the
+    # cue / first-lick windows (trial-to-trial variance of the lick factor, Fig 1.16); 3-D reach / speed per bout start
+    from wfield_local import frozen_encoder as fe
+    from wfield_local.paths import PathResolver as _PR
+    try:
+        frc = fe._fr_columns(an, date, _PR(), ft)
+        FRM = np.column_stack([frc[v][:, 0] for v in FR_KEEP])
+    except Exception as ex:                              # no FaceRhythm for this session: NaN placeholders
+        print(f"  {label}: no FaceRhythm ({ex})", flush=True)
+        FRM = np.full((len(ft), len(FR_KEEP)), np.nan)
+    FRM = np.where(np.isfinite(FRM), FRM, np.nan)
+
+    def fr_at(t, lags):
+        tt = (np.asarray(t, float)[:, None] + lags[None, :]).ravel()
+        o = np.empty((len(tt), FRM.shape[1]), np.float32)
+        for j_ in range(FRM.shape[1]):
+            ok_ = np.isfinite(FRM[:, j_])
+            o[:, j_] = np.interp(tt, ft[ok_], FRM[ok_, j_]) if ok_.sum() > 10 else np.nan
+        return o.reshape(len(t), len(lags), FRM.shape[1])
     f16 = np.float16
     np.savez_compressed(
         f, cols=np.array(cols), epoch=epochs.epoch_of(label), animal=an, clock_med_s=clock,
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
         bout_pos=iti.position.to_numpy(dtype=str)[bout], bout_nfol=nfol[bout], bout_t=to[bout],
+        bout_reach=iti.reach_mm.to_numpy(float)[bout], bout_speed=iti.speed_peak.to_numpy(float)[bout],
+        bout_fr=fr_at(to[bout], LAGS_P), fr_names=np.array(FR_KEEP),
+        first_fr_cue=fr_at(fl - rt, LAGS_FRC) if len(fl) else np.zeros((0, len(LAGS_FRC), len(FR_KEEP)), np.float32),
+        first_fr_lick=fr_at(fl, LAGS_FRL) if len(fl) else np.zeros((0, len(LAGS_FRL), len(FR_KEEP)), np.float32),
         first_peth=_sample(R, ft, fl, LAGS_P).astype(f16) if len(fl) else np.zeros((0, len(LAGS_P), len(cols)), f16),
         first_cue=_sample(R, ft, fl - rt, LAGS_C).astype(f16) if len(fl) else np.zeros((0, len(LAGS_C), len(cols)), f16),
         first_rt=rt, first_pos=np.asarray(fpos, str),
@@ -642,6 +669,11 @@ def _norm_to_pre(T: pd.DataFrame, val: str, how: str = "ratio") -> pd.Series:
     return T[val] / den if how == "ratio" else T[val] - den
 
 
+def _auc(v: np.ndarray, t0: float, t1: float) -> float:
+    m = (LAGS_P >= t0 - 1e-9) & (LAGS_P <= t1 + 1e-9)
+    return float(np.trapezoid(v[m], LAGS_P[m])) if hasattr(np, "trapezoid") else float(np.trapz(v[m], LAGS_P[m]))
+
+
 def key_figures(D: dict, RR: pd.DataFrame) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -756,10 +788,23 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(OUT / "figures" / "iti_ramp_sessions.png", dpi=110)
     plt.close(fig)
-    T0 = RR[RR.kind == "iti_bout"].copy()
+    # AUC readouts (Priya 10-26): response = AUC 0..0.5 s after lick onset (= the first frame the tongue is visible,
+    # cam4 `on_frame`); build-up = AUC -0.4..-0.05 s BEFORE the tongue is visible. dF/F x1e3 * s; normalised versions
+    # divide by the animal's PRE response AUC (one scale for both rows, pre response = 1)
+    rows = []
+    for _i, r_ in PE.iterrows():
+        v = r_.peth
+        rows.append({"label": r_.label, "animal": r_.animal, "epoch": r_.epoch, "roi": r_.roi,
+                     "resp_auc": _auc(v, 0.0, 0.5), "build_auc": _auc(v, -0.4, -0.05)})
+    T0 = pd.DataFrame(rows)
+    den = T0[T0.epoch == "pre"].groupby(["roi", "animal"]).resp_auc.mean()
+    d_ = np.array([den.get((r_, a_), np.nan) for r_, a_ in zip(T0.roi, T0.animal)])
+    T0["resp_auc_n"], T0["build_auc_n"] = T0.resp_auc / d_, T0.build_auc / d_
+    T0.to_csv(OUT / "ramp_auc_sessions.csv", index=False)
     tests = []
-    spec = (("peak", "post-onset response 0.1..0.4 s (dF/F x1e3)"), ("peak_n", "post-onset / animal's pre amplitude"),
-            ("early", "early build-up -0.6..-0.2 s (dF/F x1e3)"), ("early_n", "early build-up / animal's pre amplitude"))
+    spec = (("resp_auc", "response AUC 0..0.5 s (dF/F x1e3 * s)"), ("resp_auc_n", "response AUC / animal's pre response AUC"),
+            ("build_auc", "build-up AUC -0.4..-0.05 s before tongue visible"),
+            ("build_auc_n", "build-up AUC / animal's pre response AUC"))
     fig, axs = plt.subplots(len(spec), len(KEY_ROIS), figsize=(21, 13))
     for j, roi in enumerate(KEY_ROIS):
         T = T0[T0.roi == roi]
@@ -773,14 +818,195 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
             if j == 0:
                 ax.set_ylabel(ylab, fontsize=8)
     pd.DataFrame(tests).to_csv(OUT / "ramp_session_tests.csv", index=False)
-    fig.suptitle("NEURAL: self-initiated licks, per-session summaries (one dot per session, all animals pooled; black = mean +- "
-                 "SEM over sessions). Rows: post-onset response and early build-up, raw and within-animal normalised to the "
-                 "animal's pre amplitude at the lick. * = change from pre with 95% nested-bootstrap CI (animals > sessions) "
-                 "excluding 0.", fontsize=9.5, wrap=True)
+    fig.suptitle("NEURAL: self-initiated licks, per-session AUCs (one dot per session, all animals pooled; black = mean +- SEM "
+                 "over sessions). Response = AUC 0..0.5 s after lick onset (first frame the tongue is visible); build-up = AUC "
+                 "-0.4..-0.05 s before it; raw and divided by the animal's PRE response AUC. * = change from pre with 95% "
+                 "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
     fig.savefig(OUT / "figures" / "iti_ramp_summary.png", dpi=110)
     plt.close(fig)
     print("\n== ramp per-session tests (change vs pre)\n" + pd.DataFrame(tests).round(3).to_string(index=False))
+
+
+# ------------------------------------------------------------------------------------------------ CONTROLS (Priya 10-26)
+# "lick kinematics of these licks (a bigger or faster tongue movement could drive a bigger response) and face movement
+# before the lick" + "trial-to-trial variance of the FaceRhythm lick factor per epoch" (Fig 1.16 reading).
+CTRL_ROIS = ["tjM1_right", "tjM1_left", "SSp-m_right", "SSp-m_left", "ALM_right", "cortex"]
+
+
+def _per_lick(d: dict, roi: str, w=(0.1, 0.4)) -> np.ndarray:
+    """Per bout-start (gap >= GAP_MAIN) baseline-subtracted mean activity in window w for one ROI."""
+    m = d["bout_gap"] >= GAP_MAIN
+    P = d["bout_peth"][m].astype(float)[:, :, list(d["cols"]).index(roi)]
+    P = P - P[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1])].mean(1, keepdims=True)
+    return P[:, (LAGS_P >= w[0]) & (LAGS_P <= w[1])].mean(1)
+
+
+def _per_lick_fr(d: dict, k: int, w) -> np.ndarray:
+    m = d["bout_gap"] >= GAP_MAIN
+    F = d["bout_fr"][m].astype(float)[:, :, k]
+    F = F - np.nanmean(F[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1])], 1, keepdims=True)
+    return np.nanmean(F[:, (LAGS_P >= w[0]) & (LAGS_P <= w[1])], 1)
+
+
+def controls(D: dict, RR: pd.DataFrame) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    rng = np.random.default_rng(2)
+    D = {x: d for x, d in D.items() if (d["bout_gap"] >= GAP_MAIN).sum() >= 10 and "bout_reach" in d}
+    pa = RR[(RR.kind == "iti_bout") & (RR.epoch == "pre")].groupby(["roi", "animal"]).amp.mean()
+    # per-lick table
+    L = []
+    for x, d in D.items():
+        m = d["bout_gap"] >= GAP_MAIN
+        base = pd.DataFrame({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]),
+                             "reach": d["bout_reach"][m], "speed": d["bout_speed"][m]})
+        for roi in CTRL_ROIS:
+            base[f"amp_{roi}"] = _per_lick(d, roi) / pa.get((roi, str(d["animal"])), np.nan)
+            base[f"early_{roi}"] = _per_lick(d, roi, (-0.6, -0.2)) / pa.get((roi, str(d["animal"])), np.nan)
+        names = list(d["fr_names"])
+        for k, v in enumerate(names):
+            base[f"{v}_pre"] = _per_lick_fr(d, k, (-0.6, -0.2))
+            base[f"{v}_post"] = _per_lick_fr(d, k, (0.1, 0.4))
+        L.append(base)
+    L = pd.concat(L, ignore_index=True)
+    # z-scores of kinematics / face within animal, against the animal's PRE licks
+    for c in ["reach", "speed", *[c for c in L if c.startswith("fr_")]]:
+        mu = L[L.epoch == "pre"].groupby("animal")[c].mean()
+        sd = L[L.epoch == "pre"].groupby("animal")[c].std()
+        L[f"z_{c}"] = (L[c] - L.animal.map(mu)) / L.animal.map(sd)
+    # (1) kinematics-adjusted and range-matched post-onset response
+    for roi in CTRL_ROIS:
+        adj = np.full(len(L), np.nan)
+        matched = np.zeros(len(L), bool)
+        for _a, g in L.groupby("animal"):
+            pre = g[(g.epoch == "pre")].dropna(subset=[f"amp_{roi}", "z_reach", "z_speed"])
+            if len(pre) < 30:
+                continue
+            Xp = np.column_stack([np.ones(len(pre)), pre.z_reach, pre.z_speed])
+            beta = np.linalg.lstsq(Xp, pre[f"amp_{roi}"].to_numpy(), rcond=None)[0]
+            ok = g[["z_reach", "z_speed"]].notna().all(1)
+            Xg = np.column_stack([np.ones(ok.sum()), g.z_reach[ok], g.z_speed[ok]])
+            adj[g.index[ok]] = g[f"amp_{roi}"][ok].to_numpy() - Xg @ beta + beta[0]   # residual + pre intercept
+            lo_r, hi_r = np.nanpercentile(pre.reach, [10, 90])
+            lo_s, hi_s = np.nanpercentile(pre.speed, [10, 90])
+            matched[g.index] = ((g.reach >= lo_r) & (g.reach <= hi_r) & (g.speed >= lo_s) & (g.speed <= hi_s)).to_numpy()
+        L[f"adj_{roi}"] = adj
+        L[f"matched_{roi}"] = np.where(matched, L[f"amp_{roi}"], np.nan)
+    S = L.groupby(["label", "animal", "epoch"]).mean(numeric_only=True).reset_index()
+    S.to_csv(OUT / "controls_sessions.csv", index=False)
+    print("\n== per animal (rule 8): 3-D reach (mm) / peak speed of bout-start ITI licks, session means\n"
+          + S.pivot_table(index="animal", columns="epoch", values=["reach", "speed"]).reindex(columns=EP4, level=1)
+          .round(2).to_string())
+    tests = []
+
+    def panel_row(axrow, items, tag):
+        for ax, (val, ttl, ref1) in zip(axrow, items):
+            if ref1 is not None:
+                ax.axhline(ref1, color="0.7", lw=0.8, ls="--")
+            for r_ in session_dots(ax, S, val, colors, rng):
+                tests.append({"figure": tag, **r_})
+            ax.set_title(ttl, fontsize=8.5)
+    # figure A: kinematics + adjusted response
+    fig, axs = plt.subplots(3, 6, figsize=(21, 11))
+    panel_row(axs[0, :2], [("reach", "3-D reach (mm)", None), ("speed", "peak tongue speed", None)], "kin")
+    panel_row(axs[0, 2:4], [("z_reach", "reach, z vs animal's pre licks", 0), ("z_speed", "speed, z vs animal's pre", 0)], "kin")
+    for ax in axs[0, 4:]:
+        ax.axis("off")
+    panel_row(axs[1], [(f"adj_{r}", f"{r}: post-onset, KINEMATICS-ADJUSTED", None) for r in CTRL_ROIS], "adj")
+    panel_row(axs[2], [(f"matched_{r}", f"{r}: post-onset, licks in pre reach+speed range", None) for r in CTRL_ROIS],
+              "matched")
+    axs[1, 0].set_ylabel("/ animal's pre amplitude")
+    axs[2, 0].set_ylabel("/ animal's pre amplitude")
+    fig.suptitle("NEURAL + LICK: does the larger post-onset response to self-initiated licks follow bigger / faster licks? Row 1: "
+                 "3-D reach and peak speed of the same bout-start ITI licks (one dot per session). Row 2: post-onset response "
+                 "after regressing out reach + speed (per-animal fit on PRE licks; residual + pre intercept). Row 3: only post "
+                 "licks inside the animal's pre 10-90 % reach AND speed range. * = nested-bootstrap change from pre.",
+                 fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0.01, 0, 0.99, 0.92))
+    fig.savefig(OUT / "figures" / "iti_kinematics_control.png", dpi=110)
+    plt.close(fig)
+    # figure B: face movement before / after the lick, and build-up adjusted for it
+    for roi in CTRL_ROIS:
+        adj = np.full(len(L), np.nan)
+        cols = [c for c in ("z_fr_lick_pre", "z_fr_right_pre", "z_fr_left_pre") if c in L]
+        for _a, g in L.groupby("animal"):
+            pre = g[g.epoch == "pre"].dropna(subset=[f"early_{roi}", *cols])
+            if len(pre) < 30 or not cols:
+                continue
+            Xp = np.column_stack([np.ones(len(pre)), *[pre[c] for c in cols]])
+            beta = np.linalg.lstsq(Xp, pre[f"early_{roi}"].to_numpy(), rcond=None)[0]
+            ok = g[cols].notna().all(1)
+            Xg = np.column_stack([np.ones(ok.sum()), *[g[c][ok] for c in cols]])
+            adj[g.index[ok]] = g[f"early_{roi}"][ok].to_numpy() - Xg @ beta + beta[0]
+        L[f"earlyadj_{roi}"] = adj
+    S = L.groupby(["label", "animal", "epoch"]).mean(numeric_only=True).reset_index()
+    S.to_csv(OUT / "controls_sessions.csv", index=False)
+    fig, axs = plt.subplots(3, 6, figsize=(21, 11))
+    fr_items = [(f"z_{v}_pre", f"{v} BEFORE the lick (-0.6..-0.2 s), z", 0) for v in FR_KEEP if f"z_{v}_pre" in S]
+    panel_row(axs[0, :len(fr_items)], fr_items, "face_pre")
+    fr_post = [(f"z_{v}_post", f"{v} AFTER onset (0.1..0.4 s), z", 0) for v in FR_KEEP if f"z_{v}_post" in S]
+    panel_row(axs[1, :len(fr_post)], fr_post, "face_post")
+    for ax in [*axs[0, len(fr_items):], *axs[1, len(fr_post):]]:
+        ax.axis("off")
+    panel_row(axs[2], [(f"earlyadj_{r}", f"{r}: early build-up, FACE-ADJUSTED", None) for r in CTRL_ROIS], "early_adj")
+    axs[2, 0].set_ylabel("/ animal's pre amplitude")
+    fig.suptitle("NEURAL + FACE: face movement (FaceRhythm master factors, z vs each animal's pre licks) before and after "
+                 "self-initiated licks, one dot per session; row 3: the early build-up after regressing out pre-lick face "
+                 "movement (fr_lick, fr_right, fr_left; per-animal fit on PRE licks). * = nested-bootstrap change from pre.",
+                 fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0.01, 0, 0.99, 0.92))
+    fig.savefig(OUT / "figures" / "iti_face_control.png", dpi=110)
+    plt.close(fig)
+    # figure C: trial-to-trial (within-spout) variance of the FaceRhythm factors in the cue / first-lick windows
+    V = []
+    for x, d in D.items():
+        if "first_fr_cue" not in d or not len(d["first_rt"]):
+            continue
+        pos = d["first_pos"]
+        for wname, key in (("cue", "first_fr_cue"), ("lick", "first_fr_lick")):
+            A = d[key].astype(float)
+            for k, v in enumerate(d["fr_names"]):
+                Y = A[:, :, k]
+                if np.isnan(Y).all():
+                    continue
+                R = Y - np.nanmean(Y, 0, keepdims=True)
+                W_ = Y.copy()
+                for q in np.unique(pos):
+                    m = pos == q
+                    W_[m] = Y[m] - np.nanmean(Y[m], 0, keepdims=True)
+                V.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "window": wname, "factor": v,
+                          "var_within": float(np.nanvar(W_)), "var_total": float(np.nanvar(R)),
+                          "mean": float(np.nanmean(Y))})
+    V = pd.DataFrame(V)
+    V.to_csv(OUT / "fr_variance_sessions.csv", index=False)
+    fig, axs = plt.subplots(2, 4, figsize=(16, 8))
+    for i, wname in enumerate(("cue", "lick")):
+        for j, (fac, val) in enumerate((("fr_lick", "var_within"), ("fr_lick", "var_total"), ("fr_lick", "mean"),
+                                        ("fr_right", "var_within"))):
+            T = V[(V.window == wname) & (V.factor == fac)].copy()
+            if T.empty:
+                axs[i, j].axis("off")
+                continue
+            T["norm"] = _norm_to_pre(T, val)
+            axs[i, j].axhline(1, color="0.7", lw=0.8, ls="--")
+            for r_ in session_dots(axs[i, j], T, "norm", colors, rng):
+                tests.append({"figure": f"frvar_{wname}_{fac}_{val}", **r_})
+            axs[i, j].set_title(f"{wname} window: {fac} {val.replace('var_', 'variance, ')}\n(/ animal's pre mean)",
+                                fontsize=8.5)
+    fig.suptitle("FACE: trial-to-trial variability of the FaceRhythm lick factor in the encoder's cue (0..1.5 s) and first-lick "
+                 "(-0.1..1.0 s) windows, per session, normalised to each animal's pre mean. var_within = variance after "
+                 "removing each spout's mean time course (what the trial-by-trial R2 of Fig 1.16 sees); var_total = all "
+                 "trials. * = nested-bootstrap change from pre.", fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0.01, 0, 0.99, 0.91))
+    fig.savefig(OUT / "figures" / "fr_lick_variance.png", dpi=110)
+    plt.close(fig)
+    T = pd.DataFrame(tests)
+    T.to_csv(OUT / "controls_tests.csv", index=False)
+    print("\n== controls: change vs pre (nested bootstrap animals > sessions)\n" + T.round(3).to_string(index=False))
 
 
 def main(argv=None) -> int:
@@ -792,6 +1018,7 @@ def main(argv=None) -> int:
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--rois-only", action="store_true")
     ap.add_argument("--key", action="store_true", help="only the KEY figures, from saved sessions + ramp_sessions.csv")
+    ap.add_argument("--controls", action="store_true", help="only the kinematics / face / FR-variance controls")
     a = ap.parse_args(argv)
     assert_writable(OUT)
     (OUT / "sessions").mkdir(parents=True, exist_ok=True)
@@ -800,6 +1027,10 @@ def main(argv=None) -> int:
     labels = [x for x in labels if x[-4:] >= "0801"]
     if a.rois_only:
         roi_figure(labels[0])
+        return 0
+    if a.controls:
+        D = {x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()}
+        controls(D, pd.read_csv(OUT / "ramp_sessions.csv"))
         return 0
     if a.key:
         D = {x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()}
