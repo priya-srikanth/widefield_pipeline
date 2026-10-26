@@ -359,10 +359,10 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
     `map_drift_prepre/contact/drift_vs_stroke_panels.csv`).
     LP-lick gate (`map_drift_prepre/LP_licks/`): cue window as contact (far contra REST drift .94 / acute .49; PRECUE
     1.11 / .18). LICK, PRECUE, LP -- the only lick-window panel with an acute far-contra estimate under PRECUE: drift
-    1.24 (72 bins) vs acute .56 (436), opposite signs, beyond drift. PRE-CUE 2 s, REST, LP: far contra drift .65 /
+    1.24 (72 bins) vs acute .56 (436), opposite signs, beyond drift. PRE-CUE 1 s (the LP default, `lp_licks.LP_ENL_WINDOW_S`; corrected 10-26 from "2 s"), REST, LP: far contra drift .65 /
     acute 1.84 / chronic .81 (0 bins) -- as contact. ENL 1 s, REST, contact (`DAQ_ENL1s/`): far contra drift .63 / acute
     2.21 (186 bins) / chronic .58 (0) -- the same picture at 1 s. **New, consistent across gates and windows: the
-    chronic FAR-MIDDLE pre-cue map loss is beyond drift** -- chronic .53 (572 bins, 2 s contact), .30 (1,051, 2 s LP),
+    chronic FAR-MIDDLE pre-cue map loss is beyond drift** -- chronic .53 (572 bins, 2 s contact), .30 (1,051, 1 s LP),
     .35 (954, 1 s) against drift .86-.97. Near-ipsi pre-cue ratios (2-3x, 0 bins) are unstable (near-zero reference
     amplitude), not results. All three arms complete 10-25. **PROVISIONAL** (June includes learning; June ~3 sessions
     per animal) until the remaining references / windows / arms render.
