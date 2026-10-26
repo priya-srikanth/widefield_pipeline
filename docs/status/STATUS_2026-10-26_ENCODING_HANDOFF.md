@@ -18,13 +18,12 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOC
 
 ## RUNNING (do not restart; check logs)
 
-### NOW (16:00) -- read this block first
-- **TE partial refit** (`S/run_partial_te.sh`, log `S/partial_te.log`, 6 workers, started 11:09; 54/107 at 13:49, ~16:15
-  end; a background wait prints the exit + any `!!` lines). Then: read out with `FROZEN_DESIGN=te` env
-  (`partial_refit.py --tag gate-attempted_v7g3_t3d_frA_te --plot-only`; sets target / target_spout / target_lick /
-  execution / exec_land / contact; contrasts vs target_perm / target_lick_perm / exec_land_perm / execution_perm), page
-  next to 1.34-1.36, ENCODING_FINDINGS 8.20. Check results without PS95_0907 (lick-heavy outlier).
-- **AFTER the refit exits: message sabatinilab-5b "go"** for the kinematics_all swap (their regenerated table in
+### NOW (16:20) -- read this block first
+- **DONE 15:46: TE partial refit** (exit 0; ENCODING_FINDINGS 8.20 top, FINDINGS 4d x; LOCAL page 1.37 as
+  `te_partial_refit_lines.png` -- NOT `partial_refit_lines.png`, which is the OLD design's figure, now 1.38). Result:
+  landing-labelled minus target-labelled lick kernels lower chronically in every area (0/4 up); acute target advantage
+  falls. Same without PS95_0907. To do: retitle the line figure for the TE nulls + draw the landing - target contrast.
+- **"go" SENT to sabatinilab-5b 15:50; waiting for them to report the table live.** Was: AFTER the refit exits: message sabatinilab-5b "go" for the kinematics_all swap (their regenerated table in
   `session_poses/pose3d/kinematics_all__tmp_20261026/`: only daq_peak_s differs, diff checked; Priya APPROVED the rename
   10-26 and runs the lines 5b gives her). Then re-run `python -m wfield_local.stray_licks` (patched 1d6e227; move the old
   `<E>/stray_licks/sessions` aside first -- it skips sessions already done; derived outputs, Priya's OK not needed to
@@ -41,7 +40,8 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOC
   redraws from the CSVs). Answer: dips with the deficit and returns, exceeds pre only in PS95. Rate = ITI licks / ITI minutes (next strobe - stop, clipped 0..60 s), no-contact rate, per trial, contact share;
   change vs pre + within-animal correlation with far-contra behaviour (raw, log-day detrended). Earlier count check:
   fewer ITI licks post-stroke in PS92-94 (so exceeding pre is unlikely in counts; rate is the fair test).
-- **Page publish pending**: files = iti_area_compare.png, iti_basis_decoder.png, iti_where_decoder.png, iti_lick_rate.png
+- **Page publish pending**: files = iti_area_compare.png, iti_basis_decoder.png, iti_where_decoder.png, iti_lick_rate.png,
+  te_partial_refit_lines.png
   (all copied into S/goal_page; renumbered 16:00, map in GOAL_PAGE_FIG_MAP_2026-10-26.csv).
 - Pushed to origin through e9656c8; LOCAL commits since (1d6e227 stray fix, b60d363, ff61daa, d47d32c, + this) need a
   cherry-pick push (memory note: never rebase this branch; cherry-pick onto origin/main in a temp worktree).

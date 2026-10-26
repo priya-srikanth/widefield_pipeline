@@ -1,4 +1,4 @@
-old (before 10-26),new (local page after 16:00)
+old (before 10-26),new (local page after 16:20)
 1,0.1
 1b,0.2
 1c,0.3
@@ -44,16 +44,16 @@ old (before 10-26),new (local page after 16:00)
 1y,1.31
 1yb,1.32
 1yc,1.33
-1yd,1.37
-1ye,1.38
-1yf,1.39
-1yg,1.40
-1z,1.41
-1zb,1.42
-2,1.43
-2b,1.44
-3,1.45
-3b,1.46
+1yd,1.38
+1ye,1.39
+1yf,1.40
+1yg,1.41
+1z,1.42
+1zb,1.43
+2,1.44
+2b,1.45
+3,1.46
+3b,1.47
 4,2.1
 4b,2.2
 4c,2.3
@@ -147,3 +147,4 @@ old (before 10-26),new (local page after 16:00)
 17u,9.21
 (new 10-26) lick rate,3.11
 (new 10-26) where decoder,3.15
+(new 10-26) TE partial refit,1.37

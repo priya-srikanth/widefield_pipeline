@@ -1159,6 +1159,19 @@ cells are many; per-animal numbers on the page.
 
 ### 8.20 TARGET vs EXECUTION design (FROZEN_DESIGN=te): first readouts (10-26 ~11:10) -- PROVISIONAL
 
+PARTIAL REFIT, TE design (10-26 15:46; `partial_refit.py` with FROZEN_DESIGN=te, `<run>_te/partial_refit/boot.csv`;
+page 1.37). One set refit per session on held-out folds, rest frozen; gain over its null; 5 draws. Nulls: TARGET = block
+permutation of trial spouts (arrival / cue kernels + target-labelled lick kernels; only refit columns rebuilt); LANDING
+= landing weights circularly shifted along landed licks (10-90 %). Pre levels, contra SSp-m lick window: target - null
+0.22, target lick - null 0.18, landing lick - null 0.07, execution - null 0.04 (nulls differ in kind -> compare changes).
+ACUTE: target - null falls (contra SSp-m -0.126 [-0.230, -0.027], 0/4 up; also contra MOp); landing lick - null -0.048
+[-0.094, -0.002]; execution - null -0.03. CHRONIC: target - null above pre (+0.079 [-0.005, +0.176], 3/4); landing ~0.
+LANDING LICK - TARGET LICK falls acutely (-0.011) and chronically in every area (contra SSp-m -0.019 [-0.032, -0.006];
+cortex -0.024 [-0.045, -0.012]; 0/4 up in every chronic cell). Execution - target (whole groups): no change. Without
+PS95_0907: same to the third decimal. Reading: chronically, lick-locked activity is described better by the target
+spout than by the 3-D landing, more so than before the stroke. Caveat: the line figure's title names only the target
+null and the landing - target contrast is not drawn (boot.csv).
+
 Run `frozen_encoder_gate-attempted_v7g3_t3d_frA_te` (+ `_te_basis` pixels, self-fit `session_vs_frozen`), design in
 DECISIONS 2026-10-26 / `frozen_encoder` TE_BLOCK. Readout `scripts/te_readout.py` (te_unique_boot_frame.csv; page
 1.34 / 1.35). FROZEN unique R2 (joint - refit without the group), change from pre, nested bootstrap: no group's

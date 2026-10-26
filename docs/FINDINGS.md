@@ -151,6 +151,8 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    (ix) BEHAVIOUR, ITI lick rate: drops acutely in PS92-94 and stays 14-28 % below pre chronically; only PS95 (near-zero
    ITI licking pre) ends above pre (~4x). Tracks far-contra hit rate within animal (r +0.67; +0.51 with log-day removed,
    PS94 ~0) -- the shared dip-and-return; not the cause of the decoder's ITI loss.
+   (x) Encoder, TE partial refit (10-26): target-labelled lick kernels gain over landing-labelled ones chronically
+   (landing - target -0.019 contra SSp-m, -0.024 cortex, 0/4 up); acute target advantage falls (-0.126), back by chronic.
    (vi) Recovery marker: within animal, the in-trial frozen decoder tracks far-contra behaviour across post sessions
    (r +0.62, 4/4; +0.53 controlling lick-direction spread) and the ITI one does not (+0.10); beyond the shared time
    trend the link is small (+0.16, 4/4 positive, n.s.) -> a marker of the recovery time course, not yet of day-to-day
