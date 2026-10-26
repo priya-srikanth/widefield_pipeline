@@ -1159,6 +1159,13 @@ cells are many; per-animal numbers on the page.
 
 ### 8.19 Landing-split lick kernels, lagged FaceRhythm, self-fit on the lick-kernel design (10-26 ~04:30) -- PROVISIONAL
 
+  PARTIAL REFIT, OLD lick-kernel design (10-26 08:31, `frozen_encoder_..._frA_ls/partial_refit`, 101 sessions, block-
+  permutation nulls; SUPERSEDED for the contest by the TE design, recorded for completeness). R2 gain over frozen,
+  epoch - pre, lick window: per-spout lick kernels refit beat target refit ACUTELY in SSp-m both sides (left +0.076,
+  right +0.052, 4/4) and cortex (+0.014, 4/4), not chronically (+0.01, n.s.). Chronic contralesional SSp-m: target
+  beyond its null +0.051 [+0.028, +0.074] 4/4, executed beyond its null +0.073 [+0.010, +0.134] 4/4. Reading: the
+  acute remapping sits more in lick-locked spout terms than in target terms; chronically both gain about equally.
+
 Handoff 000z to-dos B / C / D (self-fit half). Table `<E>/landing_lag_unique.csv` (script `S/landlag_unique.py`);
 self-fit `frozen_encoder_gate-attempted_v7g3_t3d_frA_ls/session_vs_frozen/remap_boot.csv`. Unique = joint - no_<g>
 (frozen, frame measure), epoch - pre, nested bootstrap, n up of 4.
