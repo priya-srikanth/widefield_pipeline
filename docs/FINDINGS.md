@@ -144,6 +144,8 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    (v) Not spout contact: in-trial licks WITHOUT contact recover too (-0.21 acute -> -0.03 chronic); ITI licks without
    contact stay down (-0.15 chronic). Session-paired ITI - in-trial gap widens chronically (-0.062 [-0.110, -0.014];
    no-contact -0.125), 3/4 animals (PS93 none).
+   (vii) Basis-independent (10-26): the same in joint LocaNMF and a pre-stroke SVD basis (ITI chronic -0.12 r in all
+   three bases, 4/4 each; in-trial recovers in all three).
    (vi) Recovery marker: within animal, the in-trial frozen decoder tracks far-contra behaviour across post sessions
    (r +0.62, 4/4; +0.53 controlling lick-direction spread) and the ITI one does not (+0.10); beyond the shared time
    trend the link is small (+0.16, 4/4 positive, n.s.) -> a marker of the recovery time course, not yet of day-to-day
