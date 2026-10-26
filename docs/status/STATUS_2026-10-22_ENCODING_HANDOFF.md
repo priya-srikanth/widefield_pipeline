@@ -41,6 +41,34 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   Running these scripts from the worktree needs PYTHONPATH=<worktree> (another wfield_local install shadows it).
 - Lickspout basis run FINISHED 23:36; the land/lag chain started (landing run first).
 
+### 000z ADDENDUM 2 10-26 ~00:00 (Priya asleep)
+- NEW `scripts/iti_licks.py` (Priya: "let's also do the inter-trial 3d licks, pre-lick ramp timing"): (A) activity before
+  SELF-INITIATED licks (bout-start ITI 3-D licks: no lick for 2 s [1 s secondary], no cue / spout move within -2..+0.75 s;
+  onset-aligned; baseline -1.5..-1.0 s; t50 / t20 / amplitude per session x ROI; trial first licks secondary) in ALM /
+  tjM1 ROIs (Priya: "the anterolateral 1/3 to 1/2 of MOs and MOp" -> anterolateral 40 %, figure iti_licks_rois.png) +
+  MOs / MOp / SSp-m / cortex; (B) decoding each lick's 3-D lateral direction from area activity per lag, ITI vs n-matched
+  in-trial licks, total and WITHIN-SPOUT direction (the spout is in place during the ITI), + frozen pre-ITI decoder.
+  Full run log S/iti_full.log -> <E>/iti_licks/ (ramp_sessions / ramp_change / decode_* csv, figures iti_ramp_peth.png,
+  iti_direction_decoding.png). SMOKE (PS92 only, 3 pre + 2 acute sessions): pre rise starts ~0.1-0.4 s before onset
+  (earliest tjM1 / SSp-m), acute ~0.05-0.08 s; ITI direction decodes r ~0.6 pre, ~0.5 acute; within-spout r ~0.28 both.
+  ONE ANIMAL -- read the full run's per-animal table first. Caveats to state: a cortex-wide component rides on every
+  ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
+  change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
+- TIMING BUG in a shared table: `pose3d/kinematics_all/licks.csv.gz` daq_peak_s was written with %.4g (0.1 s after
+  100 s, 1 s after 1000 s). Exact time = the session's licks_all.csv row lick_uid. AFFECTED: `wfield_local/stray_licks.py`
+  (ENCODING_FINDINGS 2.6 now carries a RE-RUN NEEDED box). Writer fixed (pose3d_kinematics.py, c2aa922): the table
+  regenerates at the pose chain's next kinematics step -- tell the pose window. face_rhythm_readouts reads licks_all
+  (fine); the landing kernels join on (trial_id, lick_idx) (fine).
+- QUEUED behind the epoch-kernel run: `S/run_ls_maps.sh` (log S/ls_maps.log) = 000y B / C / D on `..._frA_ls_basis`
+  (pixel Musall novar + alone, cue / lick; spout_unique_maps).
+- STILL OPEN (Priya asked "anything else that fell through the cracks", 10-25 ~23:55; answered): session dots in the
+  line panels; pre-cue -> lick coupling; template-similarity check of acute trials; PS94 state x spout with the block
+  null; design-space distance diagnostic; no-FR self-fit (check 4); lick-variability check; noise-weighted relabel;
+  failed-attempt movement-matched control; encoding_mixed re-run; frAsplit_basis pixel (posinfo) maps -> page.
+  Priya to decide: narrow every-lick window (first-lick primary?); June -> August drift ceiling; lesion burden /
+  leave-PS93-out; share deletions / nokin retirement. The lickspout partial refit at the chain's end runs at 4 workers
+  with perm nulls (~10 h): relaunch at 5-6 when the box frees.
+
 ### Key results of the night (all PROVISIONAL, details in FINDINGS / ENCODING_FINDINGS)
 - KEY FIGURE (page, under the bottom line; = Fig 1i4): per-animal-normalised, hits-only. Behaviour chronic +0.01 (fully back);
   cortical far-contra code on HITS chronic -0.30 [-0.46, -0.13]; per-session gap ~0 subacute -> -0.31 chronic. By day (1i3):
