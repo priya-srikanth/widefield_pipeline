@@ -1229,6 +1229,17 @@ coupling (direction not determined), not more face variability.
 
 ### 8.17 Self-initiated (ITI) licks: pre-lick ramp and target-free direction coding (10-26 ~00:15) -- PROVISIONAL
 
+  CONTACT + PAIRED GAP (10-26 ~09:00, `scripts/iti_contact_check.py`, contact_check.csv; handoff B(i)-(ii)). Each lick's
+  DAQ contact flag from licks_all.csv (exact peak-time join, 100 % matched). In-trial licks touch the spout 74-95 %;
+  ITI licks 10-30 % (the spout is approaching / leaving at window edges). Same frozen decoder as 3.9, scored on subsets
+  (sessions with >= 15 licks): in-trial NO-contact licks recover too (-0.210 acute -> -0.027 chronic n.s.; contact
+  -0.123 -> -0.067) -> the in-trial recovery does NOT ride on contact. ITI no-contact licks stay down (-0.174 / -0.168 /
+  -0.152, 4/4); ITI licks WITH contact lose about half as much (-0.091 / -0.050 / -0.077). Session-paired ITI - in-trial
+  difference, change from pre: acute +0.012 n.s., subacute -0.041 (CI to +0.001), chronic -0.062 [-0.110, -0.014]
+  (per animal PS92 -0.06, PS94 -0.07, PS95 -0.12, PS93 0.00); no-contact licks only: chronic -0.125 [-0.240, -0.014].
+  Reading: the pre-stroke mapping fails most for licks with no spout at all, and returns for licks made in the task
+  context whether or not they touch the spout.
+
   BINNED FROZEN DECODER + WHOLE CORTEX (10-26 ~08:30; page 3.10 / 3.11 / 3.18-3.20, `iti_licks.py --binned`,
   `scripts/iti_area_maps.py`). Binned decoder (area activity in consecutive bins; window x bin swept, configuration
   chosen on PRE r only: ITI -0.5..0.5 s / 0.1 s, in-trial -1..1 s / 0.1 s): all areas ITI -0.145 / -0.165 / -0.168 r

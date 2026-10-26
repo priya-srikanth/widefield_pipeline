@@ -141,6 +141,9 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    not face movement (face-adjusted build-up still weaker). Caveats: ITI vs in-trial gap 3/4 animals (PS93 none);
    no-contact in-trial test pending. Not lick count: test sets matched to 40 licks per session give the same
    frozen-decoder result.
+   (v) Not spout contact: in-trial licks WITHOUT contact recover too (-0.21 acute -> -0.03 chronic); ITI licks without
+   contact stay down (-0.15 chronic). Session-paired ITI - in-trial gap widens chronically (-0.062 [-0.110, -0.014];
+   no-contact -0.125), 3/4 animals (PS93 none).
    (iii) Binned frozen decoder (10-26): same result (ITI -22 % chronic, in-trial -19 -> -10 %); with visual + RSP areas
    only, both lick types lose ~half and in-trial does not recover -> the in-trial recovery is orofacial-specific.
    (iv) Whole cortex: the acute / subacute response increase is global (41-45 Allen areas); chronically the larger
