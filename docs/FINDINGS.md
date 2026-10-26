@@ -139,7 +139,8 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    ("later ramp") was an amplitude artefact and is not a finding. Controls (10-26): not lick kinematics (post-stroke
    licks are slightly slower; kinematics-adjusted and range-matched responses stay ~2x acute, +0.6-0.8 chronic) and
    not face movement (face-adjusted build-up still weaker). Caveats: ITI vs in-trial gap 3/4 animals (PS93 none);
-   no-contact in-trial test pending.
+   no-contact in-trial test pending. Not lick count: test sets matched to 40 licks per session give the same
+   frozen-decoder result.
 4e. **Chronic cortex - face-lick coupling tightens in orofacial motor cortex** (10-26, ENCODING_FINDINGS 8.17b,
    page 1.16 / 1.17): the FaceRhythm lick factor's trial-by-trial unique contribution rises chronically while its
    trial-to-trial variance FALLS (-40 % / -44 %), so it is not more face variability. PROVISIONAL.
