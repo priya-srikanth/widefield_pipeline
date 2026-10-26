@@ -1270,7 +1270,7 @@ coupling (direction not determined), not more face variability.
   Reading: the pre-stroke mapping fails most for licks with no spout at all, and returns for licks made in the task
   context whether or not they touch the spout.
 
-  BINNED FROZEN DECODER + WHOLE CORTEX (10-26 ~08:30; page 3.11 / 3.12 / 3.19-3.21, `iti_licks.py --binned`,
+  BINNED FROZEN DECODER + WHOLE CORTEX (10-26 ~08:30; page 3.11 / 3.12 / 3.19-3.22, `iti_licks.py --binned`,
   `scripts/iti_area_maps.py`). Binned decoder (area activity in consecutive bins; window x bin swept, configuration
   chosen on PRE r only: ITI -0.5..0.5 s / 0.1 s, in-trial -1..1 s / 0.1 s): all areas ITI -0.145 / -0.165 / -0.168 r
   (acute / subacute / chronic, -19 / -21 / -22 %), in-trial -0.151 / -0.099 / -0.084 (-19 -> -10 %); orofacial areas
@@ -1282,6 +1282,10 @@ coupling (direction not determined), not more face variability.
   contra, ALM contra (SSp-m -1.2, tjM1 contra -1.0 just miss); medial / visual / RSP unchanged. Group test (divided
   by the animal's pre group-mean response): chronic build-up orofacial -0.11 [-0.21, -0.01], visual + RSP +0.10 n.s.
   Per-area normalisation by each area's own pre response was dropped (near-zero denominators in small caudal areas).
+  CORRECTION (10-26 ~14:10, `iti_area_maps.py --compare`, page orofacial-vs-control PETHs): control areas show the
+  same DIRECTION chronically (VISam, RSPd, SSp-bfd responses ~1.4-1.8x their pre peak; build-up lower in SSp-bfd and
+  visual areas; RSPd / ACAd no build-up change), so the chronic changes are strongest in, NOT confined to, orofacial
+  cortex -- only orofacial areas reach significance in the per-area test.
   Pre-stroke ITI direction is decodable already at -1 s (r ~0.22, flat to -0.4 s; post ~0.1): with the spout
   retracted, probably the previous lick of a bout or a postural / aiming state, not a ramp specific to the next lick.
   Decoder / encoder signals = per-session adopted SVD x U_atlas averaged per Allen area (no shared LocaNMF basis);
