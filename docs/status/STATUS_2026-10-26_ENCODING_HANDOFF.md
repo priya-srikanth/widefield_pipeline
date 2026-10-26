@@ -88,8 +88,8 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
     1.24-1.28, 1.44-1.47, 7.1-7.6, 9.13-9.14, plus a spot-check of sections 5 / 6 / 8. Output
     `_goal_page/title_verification.csv` (proposed_title column). Apply the proposed titles to `_goal_page/index.html`
     (edit the `<div class="ftitle">` text inside ONE figure: see pitfall 0f), then republish.
-  - (2) PUBLISH attempt by a subagent (in case the Artifact tool is available to it). If it reports the tool is off
-    too, the page is still v103: use section 0a from a new session.
+  - (2) PUBLISH by a subagent: FAILED 19:50 -- subagents in this session do not get the Artifact tool either. Publish
+    from a NEW session via section 0a (the page is still v103).
 
 ### 0c. WAITING ON OTHERS
 - **sabatinilab-5b:** "go" for the kinematics_all swap sent 15:50; Priya runs the rename lines 5b gives her. When the
