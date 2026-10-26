@@ -78,7 +78,14 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
-   * 10-25 LATE NIGHT -- STATE NOW (newest). FR page v29 (owner: this window; source scratchpad `fr_page/`:
+   * 10-25 PAST MIDNIGHT -- STATE NOW (newest). Drift fits back (10 / 10) and scored: `scripts/face_rhythm_drift_floor.py`
+     (drift 5-7 deg; lick_right 22-26 deg beyond it, 5 / 5 fits; FINDINGS 5.10 "DRIFT FLOOR"). Null scorer WRITTEN:
+     `scripts/face_rhythm_cohort_null.py` (templates per permutation from pseudo-pre keys, max-|t| maps / spectra, Holm
+     over the lick pair + the other ten; ~10 s, `--plot-only`). Only 50 / 600 null files were on the share (acute p000-
+     p026, 25 pairs) -> copy back the rest (transfer node: `rsync -ah $B/factors/master_pre_v1/own_epoch_cohort_null/
+     $S/factors/master_pre_v1/own_epoch_cohort_null/`), rerun the scorer, then put drift_floor.png + cohort_null_*.png on
+     the FR page (section 7, after the cohort fits) and update FINDINGS 5.10 "COHORT PERMUTATION NULL" (now PARTIAL).
+   * 10-25 LATE NIGHT. FR page v29 (owner: this window; source scratchpad `fr_page/`:
      edit `index_reordered.html` + `titles.py`, then `python rebuild.py` -- rebuilds via `toc_patch.py` and REMAPS the
      "Where things stand" links by image src, so figures can move freely; write a new link as `href="#src:fig/x.png"`).
      HEADLINE (Priya) = Fig 7: per-session per-point lick-factor loading change / each animal's own pre-session SD, FDR;

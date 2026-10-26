@@ -510,6 +510,24 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     spectral ** acute and chronic; lick_right spatial +6.2 / +3.3 / +3.5 (* 3 / 4, PS93 opposite); acutely ** also
     sniff_prelick, nose_prelick_slow, lick_ongoing_7Hz, lick_fast_close, whisk_run, lick_slow_late (the first two and
     whisk_run also chronically). The whole FR page now pairs factors by best spatial match.
+    DRIFT FLOOR (10-25 late night; `scripts/face_rhythm_drift_floor.py` -> readouts/.../epoch_shape_cohort/drift_floor.png;
+    O2 `fitcohort` 31-40 = COHORT / LOAO fits on the first vs second half of the pre days IN TIME). Pre-stroke drift is
+    small: early-vs-late angle 5-7 deg spatial (lick_right 5.2, lick_left 5.2), barely above the interleaved-day noise
+    (3-8 deg). Against the LATE pre half, lick_right is 25 / 22 / 26 deg (acute / subacute / chronic), beyond its own
+    drift in 5 / 5 fits (COHORT + 4 LOAO) at every epoch, and at chronic the largest of all 12 factors; lick_left 29 / 15 /
+    15 deg (still ~3x drift chronically, 5 / 5 fits -- "recovered" in the cohort means smaller than acute, not back to
+    pre). CAVEAT: EVERY factor's cohort fit is 10-17 deg from late pre after the stroke (jaw factors included), so the
+    angle beyond drift is not by itself lick-specific; specificity comes from the per-session maps (jaw factors ~0 points)
+    and lick_right being largest chronically. Drift does NOT explain the lick_right change. **STANDS** (drift part).
+    COHORT PERMUTATION NULL (`scripts/face_rhythm_cohort_null.py`; O2 `fitcohortnull`, within-animal label shuffle of
+    pre vs epoch sessions, both fits redone; templates rebuilt per permutation from its pseudo-pre sessions; max-|t| over
+    mesh points / frequencies; Holm over the lick pair and separately over the other ten). PARTIAL: 25 / 100 acute
+    permutations back at first look. lick_right acute beyond every permutation on all four scalars (spatial angle 26 deg,
+    spectral 21, asymmetry -.19, side-specificity -.38; p = 1 / 26, the floor at n = 25), 8 mesh points + 5 / 36
+    frequencies family-wise .05 (loses ~7 Hz, gains ~4.5 and ~10 Hz -- the per-session result). lick_left acute INSIDE
+    the null on every measure (0 points even uncorrected): the shuffled fits that draw real acute sessions into the
+    pseudo-post group reproduce its change (lick_left lands on another column, cos .81-.85, in ~1 / 6 fits -- as the real
+    COHORT_acute fit does), so the pooled-fit lick_left change is carried by few sessions. Wait for 100 x 3 epochs.
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).
@@ -554,5 +572,5 @@ Paxinos plates: `wfield_local/histology_map/`.
 * Open (section 3-4): October decoder rerun after the `_day` fix; chronic region-level (`15k`) cells on the full chronic
   cohort; FR trial-to-trial vs PETH split (O2 fr_A_tr, lined up 10-25); drift-group null for Layer 2 / residual (June sessions lack
   FaceRhythm and have off kinematics, so a June -> August encoder null is not available).
-* Open: per-bout timing of lick_right (5.6); early-vs-late pre-day floor for factor shape (5.10); other cameras for
+* Open: per-bout timing of lick_right (5.6); cohort permutation null for factor shape, full 100 x 3 epochs (5.10); other cameras for
   FaceRhythm (cam1-3).
