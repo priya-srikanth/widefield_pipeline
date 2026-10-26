@@ -78,6 +78,22 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
+   * 10-25 LATE NIGHT -- STATE NOW (newest). FR page v29 (owner: this window; source scratchpad `fr_page/`:
+     edit `index_reordered.html` + `titles.py`, then `python rebuild.py` -- rebuilds via `toc_patch.py` and REMAPS the
+     "Where things stand" links by image src, so figures can move freely; write a new link as `href="#src:fig/x.png"`).
+     HEADLINE (Priya) = Fig 7: per-session per-point lick-factor loading change / each animal's own pre-session SD, FDR;
+     Fig 7b its spectral twin (SEM + significance strips); 7c side-specificity; 7e / 7f the same tests for the other ten
+     factors; 7g-7u cohort fits; section 8 per-animal fits, by-day matching now BEST SPATIAL (`face_rhythm_match.py --on
+     spatial --assign best` -> matching_spatial_vector_best/). The whole page pairs factors by best spatial match. Page
+     rules added (docs/templates/README.md + memory): pooled / cohort BEFORE per-animal in a section, headline first;
+     change maps RdBu_r, one colour scale per figure, significant points large + outlined, rest faded.
+     `face_rhythm_session_shape.py` now: all 12 factors (`ok` = spatial cos >= .5), loading + spectral, raw and own-SD
+     ("z") scales, `--plot-only`. RUNNING ON O2 (Priya submitted 10-25 night): null `frf_null` 1-600 and drift
+     `fitcohort` 31-40 -> copy back own_epoch_cohort/ and own_epoch_cohort_null/ (commands in item 0b below), then WRITE
+     the null scorer: per permutation, rebuild spout templates from that permutation's pseudo-pre keys; max-statistic over
+     mesh points for the maps; compare observed COHORT_<epoch> - COHORT_pre. Then the drift floor (preEarly vs preLate)
+     against lick_right's 23-27 deg. Open: lick_left after acute disagrees between cohort (recovered) and per-session /
+     per-animal fits (still changed) -- the null + drift decide; FR spout-in-mesh control; 13b with d4.
    * 10-25 NIGHT: shape STATISTICS. (1) Per-session version DONE (`scripts/face_rhythm_session_shape.py`, FINDINGS 5.10
      "PER-SESSION STATS", FR page v24 section 7): lick_left loses side-specificity 4 / 4 at every epoch (Holm .002-.016);
      lick_right 3 / 4, not Holm. (2) ON O2 (Priya to submit; code deployed to the share): permutation null
