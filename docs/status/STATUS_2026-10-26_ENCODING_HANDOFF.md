@@ -30,12 +30,23 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v97**, source `S/goal_page/i
 2. **ITI chain v4** (wide decoding lags -1..+1 s): `S/iti_full4.log` (re-extract + summary) → `S/iti_key4.log` (key
    figures) → `S/iti_ctrl4.log` (controls) → `S/iti_binned.log` (binned frozen-decoder sweep). Outputs `<E>/iti_licks/`
    (session npz backups of earlier versions: `sessions_v1..v3`, figures `figures_v3`; derived, deletable).
-3. **Lick-kernel partial refit, OLD design** (`S/run_partial_ls.sh`, 7 workers, `S/partial_ls7.log`; 58/101 at 06:46).
+   At 06:56: frozen area run in its pre-statistics pass (11/31 pre sessions); ITI extraction 92/107.
+3. **Lick-kernel partial refit, OLD design** (`S/run_partial_ls.sh`, 7 workers, `S/partial_ls7.log`; 62/101 at 06:56).
    Superseded for the contest by the TE design, but let it finish: then `run_partial.sh`-style `--plot-only` with
    `--tag gate-attempted_v7g3_t3d_frA_ls`.
+4. **Whole-cortex supplement** (Priya 10-26: "non-orofacial per-area activity maps ... supplemental figure with VIS
+   areas"): `scripts/iti_area_maps.py`, queued to start when the ITI re-extraction finishes (`S/run_area.sh`, log
+   `S/iti_area.log`) -> `iti_area_maps.png` (per-area response / build-up AUC change from pre on the Allen atlas,
+   significant areas outlined), `iti_area_peth.png` (non-orofacial PETHs: VISp, VISl, VISam, RSPd, SSp-bfd / ul / ll / tr,
+   ACAd, PL), `iti_area_groups.png` (orofacial vs visual + RSP, session dots) -> page supplement (section 3).
+5. **Push** of the 10-26 commits: the first attempt hit a rebase CONFLICT in DECISIONS.md (another session appended a
+   10-25 FaceRhythm entry at the same place); resolved by keeping both entries (theirs first), rebase completed, push
+   retrying (task in this session). CONFIRM on origin: `git log origin/main --oneline | grep "Handoff 2026-10-26"`.
 
 ## TO DO (in order, with why)
 
+A0. **Whole-cortex supplement → page** (running job 4): say in the caption whether the larger response / weaker
+   build-up are orofacial-specific or cortex-wide (orofacial vs visual + RSP test).
 A. **ITI v4 outputs → page**: frozen time courses now -1..+1 s (3.8), refreshed 3.9 / 3.11 / 3.12; binned decoder
    (`iti_binned_sweep.png` = configuration sweep, boxed = chosen on PRE only; `iti_binned_summary.png` = one number per
    session at the chosen configuration, raw + normalised, all areas / orofacial / visual+RSP). Priya asked for this
