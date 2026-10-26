@@ -142,7 +142,18 @@ def main() -> int:
     fig.savefig(D / "figures" / "trial_neural_vs_exec_by_landing.png", dpi=125)
     plt.close(fig)
 
-    # figure 2: within-session coupling slope per animal x epoch
+    # figure 2: within-session coupling per animal x epoch. STATISTIC = CROSS-EPOCH (Priya 10-25: "shouldn't we have a
+    # cross epoch statistical test, instead of a per session test"): filled = this animal's epoch differs from its own
+    # pre sessions (Welch t over session r values, sessions as the unit; the per-animal check, rule 8). The pooled test
+    # (nested bootstrap animals -> sessions) is figure 4 and the title.
+    from scipy import stats as _st
+    xe = {}
+    for (kind, an, ep), g in Sx.groupby(["exec", "animal", "epoch"]):
+        pre_r = Sx[(Sx.exec == kind) & (Sx.animal == an) & (Sx.epoch == "pre")].r.to_numpy()
+        if ep != "pre" and len(g) >= 2 and len(pre_r) >= 2:
+            xe[(kind, an, ep)] = float(_st.ttest_ind(g.r.to_numpy(), pre_r, equal_var=False).pvalue)
+    print("== per-animal cross-epoch test (epoch vs own pre sessions, Welch t): p")
+    print(pd.Series(xe).unstack(2).reindex(columns=EP[1:]).round(3).to_string())
     fig, axs = plt.subplots(1, 2, figsize=(12, 4.2), sharey=True)
     for r, kind in enumerate(("landing", "trajectory")):
         ax = axs[r]
@@ -151,7 +162,9 @@ def main() -> int:
             cc = c[c.epoch == ep]
             for _, row in cc.iterrows():
                 x = k + {"PS92": -0.15, "PS93": -0.05, "PS94": 0.05, "PS95": 0.15}[row.animal]
-                ax.scatter(x, row.r, marker=MK[row.animal], s=40, facecolor="k" if row.p_perm < 0.05 else "w", edgecolor="k")
+                pv = xe.get((kind, row.animal, ep))
+                fc = "0.6" if ep == "pre" else ("k" if pv is not None and pv < 0.05 else "w")
+                ax.scatter(x, row.r, marker=MK[row.animal], s=40, facecolor=fc, edgecolor="k")
             if len(cc):
                 ax.plot([k - 0.25, k + 0.25], [cc.r.mean()] * 2, color="k", lw=2)
         ax.axhline(0, color="k", lw=0.6); ax.set_xticks(range(4)); ax.set_xticklabels(EP)
@@ -159,7 +172,8 @@ def main() -> int:
         if r == 0:
             ax.set_ylabel("within-session r: neural (fM - fC)\nvs executed (fM - fC)")
     fig.legend([Line2D([], [], marker=MK[a], ls="", mfc="w", mec="k") for a in AN] +
-               [Line2D([], [], marker="o", ls="", mfc="k", mec="k")], AN + ["filled = p < 0.05 (within-session block permutation)"],
+               [Line2D([], [], marker="o", ls="", mfc="k", mec="k")],
+               AN + ["filled = epoch differs from the animal's own pre sessions (p < 0.05, Welch t over sessions)"],
                loc="lower center", ncol=5, fontsize=8.5, frameon=False)
     fig.suptitle("Trial-by-trial coupling on far-contra target trials: the more a trial's licks look like far mid rather than far contra, "
                  "\nthe more its cortex is decoded as far mid rather than far contra? (both centred within session; line = mean of animals)", fontsize=10)
@@ -179,9 +193,7 @@ def main() -> int:
             if not len(c):
                 continue
             ax.plot(c.day, c.r, color=ACOL[an], lw=0.8, alpha=0.5)
-            sig = c.p_perm < 0.05
-            ax.scatter(c.day[sig], c.r[sig], marker=MK[an], s=34, color=ACOL[an], edgecolor="k", lw=0.5, zorder=5)
-            ax.scatter(c.day[~sig], c.r[~sig], marker=MK[an], s=30, facecolor="w", edgecolor=ACOL[an], lw=1.3, zorder=5)
+            ax.scatter(c.day, c.r, marker=MK[an], s=32, color=ACOL[an], edgecolor="k", lw=0.5, zorder=5)
         ax.set_xlabel("days from stroke (grey = pre-stroke)")
         ax.set_title(f"executed = {kind}", fontsize=10)
         for s_ in ("top", "right"):
@@ -189,8 +201,6 @@ def main() -> int:
         if r == 0:
             ax.set_ylabel("within-session r: neural (fM - fC)\nvs executed (fM - fC)")
     h = [Line2D([], [], marker=MK[a], color=ACOL[a], mfc=ACOL[a], mec="k", lw=0.8, label=a) for a in AN]
-    h += [Line2D([], [], marker="o", ls="", mfc="0.4", mec="k", label="p < 0.05 (within-session block permutation)"),
-          Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.3, label="n.s.")]
     fig.legend(handles=h, loc="lower center", ncol=6, fontsize=8.5, frameon=False)
     fig.suptitle("Trial-by-trial coupling PER SESSION (far-contra target trials, sessions with >= 20 such trials): does cortex follow "
                  "where each lick went?\nr between the decoder's (P far mid - P far contra) and the lick's (far mid - far contra) "
@@ -226,9 +236,7 @@ def main() -> int:
                     if not len(v):
                         continue
                     xs = k + (j - 1.5) * 0.12 + np.random.default_rng(j * 10 + k).uniform(-0.04, 0.04, len(v))
-                    sig = (v.p_perm < 0.05).to_numpy()
-                    ax.scatter(xs[sig], v[vcol][sig], marker=MK[an], s=26, color=ACOL[an], edgecolor="k", lw=0.4, zorder=4)
-                    ax.scatter(xs[~sig], v[vcol][~sig], marker=MK[an], s=22, facecolor="w", edgecolor=ACOL[an], lw=1.1, zorder=4)
+                    ax.scatter(xs, v[vcol], marker=MK[an], s=24, color=ACOL[an], edgecolor="k", lw=0.4, zorder=4)
                 lev = np.mean([x.mean() for x in by[ep].values()]) if by[ep] else np.nan
                 ax.plot([k - 0.3, k + 0.3], [lev, lev], color="k", lw=2.2, zorder=5)
                 if ep != "pre" and by[ep]:
@@ -253,9 +261,7 @@ def main() -> int:
         Pd.to_csv(D / f"trial_neural_vs_exec_coupling_{ver}.csv", index=False)
         print(f"== {ver} epoch - pre (sessions, nested bootstrap animals -> sessions)\n" + Pd.round(3).to_string(index=False))
         h = [Line2D([], [], marker=MK[a], ls="", mfc=ACOL[a], mec="k", label=a) for a in AN]
-        h += [Line2D([], [], marker="o", ls="", mfc="0.4", mec="k", label="session p < 0.05 (block permutation)"),
-              Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.1, label="session n.s."),
-              Line2D([], [], color="k", lw=2.2, label="mean of animals")]
+        h += [Line2D([], [], color="k", lw=2.2, label="mean of animals")]
         fig.legend(handles=h, loc="lower center", ncol=7, fontsize=8.5, frameon=False)
         fig.suptitle(f"Trial-by-trial coupling pooled per epoch, one dot per session (far-contra target trials; August pre){ttl}. Numbers = "
                      "epoch minus pre,\nmean of animals with 95% nested CI (animals > sessions; * excludes 0)", fontsize=10)
