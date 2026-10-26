@@ -229,8 +229,9 @@ _EXEC_SIDE = ("exec_locked", "exec_within", *(("lickspout",) if LICKSPOUT else (
 #: licks, often small / incomplete) go to a SEVENTH copy lick_onset@unknown -- not to the target, which would credit
 #: untracked (mostly failed-attempt) licks to the target spout. The seven copies sum to the recorded lick-onset columns.
 LICKLAND = os.environ.get("FROZEN_LICKLAND", "") in ("1", "true", "yes", "landing")
-LICKLAND_CALIB = os.environ.get("FROZEN_LICKLAND_CALIB",
-                                "C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/exec_bins_calib_20261023.csv")
+#: calibration table (default: the input cache's pose3d_inputs snapshot, where the 3-D tables of these runs live)
+LICKLAND_CALIB = os.environ.get("FROZEN_LICKLAND_CALIB") or (
+    os.environ.get("WFIELD_INPUT_CACHE", ".").rstrip("/\\") + "/pose3d_inputs/exec_bins_calib_20261023.csv")
 if LICKLAND and not LICKSPOUT:
     raise ValueError("FROZEN_LICKLAND needs FROZEN_LICKSPOUT=1")
 if LICKLAND:                                             # licks with no landing information: their own copy
