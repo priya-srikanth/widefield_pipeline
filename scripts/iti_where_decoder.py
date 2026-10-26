@@ -216,21 +216,23 @@ def plot(R: pd.DataFrame, T: pd.DataFrame) -> None:
           "angle": "ANGLE (polar check)", "reach": "REACH (polar check)"}
     sl = {"iti": "ITI licks", "trial": "in-trial licks"}
     rng = np.random.default_rng(1)
-    # A: Allen areas, every target
-    fig, axs = plt.subplots(2, len(TARGETS), figsize=(4.2 * len(TARGETS), 9.5), squeeze=False)
-    for k, st in enumerate(("iti", "trial")):
-        for j, tg in enumerate(TARGETS):
-            g = R[(R.source == "areas") & (R.set == st) & (R.target == tg)]
-            _panel(axs[k, j], g, TN[(TN.source == "areas") & (TN.set == st) & (TN.target == tg)], colors, rng,
-                   f"{sl[st]}: {tl.get(tg, tg)}\n(pre r {g[g.epoch == 'pre'].r.mean():.2f})")
-        axs[k, 0].set_ylabel(yl, fontsize=10)
-    fig.suptitle("NEURAL: WHERE did the lick go? FROZEN pre-stroke decoder (fit once on each animal's August pre licks, never "
-                 "refit), Allen-area features.\nOne decoder per target; one dot per session = r between decoded and actual "
-                 "tongue-tip position, divided by the animal's pre mean;\nblack = mean +- SEM over sessions; * = nested-"
-                 "bootstrap change from pre (animals > sessions) excluding 0.", fontsize=11)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "iti_where_decoder.png", dpi=105)
-    plt.close(fig)
+    # A: every target, one figure per basis (Allen areas = main page figure; the other bases = supplements, Priya 10-26)
+    for src in [s_ for s_ in SOURCES if s_ in set(R.source)]:
+        fig, axs = plt.subplots(2, len(TARGETS), figsize=(4.2 * len(TARGETS), 9.5), squeeze=False)
+        for k, st in enumerate(("iti", "trial")):
+            for j, tg in enumerate(TARGETS):
+                g = R[(R.source == src) & (R.set == st) & (R.target == tg)]
+                _panel(axs[k, j], g, TN[(TN.source == src) & (TN.set == st) & (TN.target == tg)], colors, rng,
+                       f"{sl[st]}: {tl.get(tg, tg)}\n(pre r {g[g.epoch == 'pre'].r.mean():.2f})")
+            axs[k, 0].set_ylabel(yl, fontsize=10)
+        fig.suptitle("NEURAL: WHERE did the lick go? FROZEN pre-stroke decoder (fit once on each animal's August pre licks, "
+                     f"never refit), {LAB[src]} features.\nOne decoder per target; one dot per session = r between decoded and "
+                     "actual tongue-tip position, divided by the animal's pre mean;\nblack = mean +- SEM over sessions; * = "
+                     "nested-bootstrap change from pre (animals > sessions) excluding 0.", fontsize=11)
+        fig.tight_layout(rect=(0, 0, 1, 0.9))
+        fig.savefig(il.OUT / "figures" / ("iti_where_decoder.png" if src == "areas" else f"iti_where_decoder_{src}.png"),
+                    dpi=105)
+        plt.close(fig)
     # B: lateral position in each basis
     srcs = [s_ for s_ in SOURCES if s_ in set(R.source)]
     fig, axs = plt.subplots(2, len(srcs), figsize=(4.6 * len(srcs), 9.5), squeeze=False)
