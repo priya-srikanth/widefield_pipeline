@@ -222,6 +222,61 @@ if LICKSPOUT:
             SUPER[_g] = (*SUPER[_g], "lickspout")
     FPEN.update({f"lick_onset@{q}": "lick" for q in LICKSPOUT_POS})
 _EXEC_SIDE = ("exec_locked", "exec_within", *(("lickspout",) if LICKSPOUT else ()))
+#: LANDING-SPLIT LICK KERNELS (Priya 10-25: "let's try the 3d landing ... lick kernels"): with FROZEN_LICKSPOUT, the six
+#: copies of the lick-onset kernel are assigned by where each lick LANDED, not by the trial's target spout: each lick's
+#: soft weight over the six spouts' pre-stroke landing centres (3-D peak, within-spout SD units, w ~ exp(-d^2 / 2), width
+#: 1; the encoder's executed-bin rule, `exec_bins_calib`). Licks without a 3-D peak and cam1-only licks keep the target
+#: spout (the old rule), so the six copies still sum to the recorded lick-onset columns. Same group / penalty.
+LICKLAND = os.environ.get("FROZEN_LICKLAND", "") in ("1", "true", "yes", "landing")
+LICKLAND_CALIB = os.environ.get("FROZEN_LICKLAND_CALIB",
+                                "C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/exec_bins_calib_20261023.csv")
+if LICKLAND and not LICKSPOUT:
+    raise ValueError("FROZEN_LICKLAND needs FROZEN_LICKSPOUT=1")
+#: LAGGED FACERHYTHM (Priya 10-25: "sure let's try lagged kernel"): FROZEN_FR_LAGS = comma-separated lags in s (e.g.
+#: "-0.3,-0.2,-0.1,0.1,0.2,0.3"); each FR variable keeps its lag-0 column and gains <v>:facelead (lags > 0: the face
+#: value from BEFORE the frame -- face precedes cortex) and <v>:cortexlead (lags < 0: the face value from AFTER the frame
+#: -- cortex precedes the face). Same group / penalty as the variable. Variants no_frfacelead / no_frcortexlead drop one
+#: side: unique(cortexlead) = future face beyond present + past = cortex leading. Slow calcium biases absolute timing
+#: toward cortex lagging (constant across epochs: read the pre -> post CHANGE). Not with FROZEN_FR_SPLIT.
+FR_LAGS = tuple(float(x) for x in os.environ.get("FROZEN_FR_LAGS", "").split(",") if x.strip())
+if FR_LAGS:
+    if not FR_VARS or FR_SPLIT:
+        raise ValueError("FROZEN_FR_LAGS needs FROZEN_FR (FaceRhythm) and not FROZEN_FR_SPLIT")
+    for _v, _g in list(FR_VARS.items()):
+        for _side in ("facelead", "cortexlead"):
+            FGROUP[f"{_v}:{_side}"] = _g
+            FPEN[f"{_v}:{_side}"] = "fr"
+_LAGDROP = {"no_frfacelead": ":facelead", "no_frcortexlead": ":cortexlead"} if FR_LAGS else {}
+
+
+def lick_landing_weights(B, animal: str, date: str, rv, width: float = 1.0) -> np.ndarray:
+    """(n_licks, 6) soft landing weights over LICKSPOUT_POS for each lick of ``B.lick_on_s`` (rows NaN = no 3-D peak).
+    Re-joins the session's lick table (same rows / order as `combined_encoding._load_behaviour`) to the 3-D lick table on
+    (trial_id, lick_idx)."""
+    import pandas as pd
+
+    ce = _ce()
+    from wfield_local import orofacial_outputs as oo
+    L = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks.csv")
+    L = L[L.trial_id.isin(set(B.trials.trial_id))]
+    if len(L) != len(B.lick_on_s):
+        raise ValueError(f"{animal}_{date}: lick table has {len(L)} rows, behaviour {len(B.lick_on_s)} licks")
+    path = os.environ.get(ce.EXEC3D_TABLE_ENV)
+    if not path:
+        from wfield_local.paths import PathResolver
+        path = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "licks.csv.gz"
+    K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
+    K = K[K.session == f"{animal}_{date}"].drop_duplicates(["trial_id", "lick_idx"])
+    X = L[["trial_id", "lick_idx"]].merge(K, on=["trial_id", "lick_idx"], how="left")[
+        ["side_ml", "out_ap", "down_dv"]].to_numpy(float)
+    C = pd.read_csv(LICKLAND_CALIB)
+    C = C[(C.calib_for == "default") & (C.animal == animal)].set_index("position").reindex(list(LICKSPOUT_POS))
+    G = C[["ml", "ap", "down"]].to_numpy(float)
+    sc = C[["sd_ml", "sd_ap", "sd_down"]].iloc[0].to_numpy(float)
+    d = (((X / sc)[:, None, :] - (G / sc)[None]) ** 2).sum(2)
+    with np.errstate(invalid="ignore"):
+        e = np.exp(-0.5 * (d - np.nanmin(d, 1, keepdims=True)) / width ** 2)
+        return e / e.sum(1, keepdims=True)
 
 
 def _fr_columns(animal: str, date: str, rv, ft: np.ndarray) -> dict:
@@ -233,7 +288,15 @@ def _fr_columns(animal: str, date: str, rv, ft: np.ndarray) -> dict:
     missing = [v for v in FR_VARS if v not in sig]
     if missing:
         raise ValueError(f"FaceRhythm {fr_set}: grouped traces {missing} missing (got {list(sig)})")
-    return {v: np.asarray(sig[v][1], float)[:, None] for v in FR_VARS}
+    out = {v: np.asarray(sig[v][1], float)[:, None] for v in FR_VARS}
+    if FR_LAGS:                                          # FROZEN_FR_LAGS: face leading / cortex leading copies
+        from wfield_local import movement_encoding as ME
+        fs = ME.frame_fs(ft)
+        for v in FR_VARS:
+            x = out[v][:, 0]
+            for side, lags in (("facelead", [lg for lg in FR_LAGS if lg > 0]), ("cortexlead", [lg for lg in FR_LAGS if lg < 0])):
+                out[f"{v}:{side}"] = np.column_stack([ME._shift(x, int(round(lg * fs))) for lg in lags])
+    return out
 
 
 def split_blocks(raw: dict) -> dict:
@@ -419,10 +482,31 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
                       else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
         Ms[v] = M
         parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_split, k_of, pos_order, M)
+    lickland_info = None
     if LICKSPOUT:                                        # one masked copy of the recorded lick-onset columns per spout
         x_ = parts["lick_onset:spl"] + parts["lick_onset:dev"]
-        for q_ in LICKSPOUT_POS:
-            parts[f"lick_onset@{q_}"] = x_ * (np.asarray(pos_split) == q_)[:, None]
+        if LICKLAND:                                     # FROZEN_LICKLAND: copies by each lick's 3-D landing
+            W = lick_landing_weights(B, animal, date, rv)
+            tg = np.array([LICKSPOUT_POS.index(p_) if p_ in LICKSPOUT_POS else -1 for p_ in np.asarray(B.lick_pos)])
+            miss = ~np.isfinite(W).all(1)
+            W[miss] = 0.0
+            W[miss & (tg >= 0), tg[miss & (tg >= 0)]] = 1.0          # no 3-D peak: the target spout (old rule)
+            # `movement_encoding.build_design` mean-centres an amplitude modulator, so a weighted kernel = centred-amp kernel
+            # + mean weight x the plain kernel (weights sum to 1 per lick -> the six copies sum to the plain kernel)
+            on_ = np.asarray(B.lick_on_s, float)
+            inr = (on_ >= ft[0]) & (on_ <= ft[-1])
+            plain = ce._event_cols(on_, ft, ce.LAGS["lick"])[ridx].astype(np.float64)
+            cols = [_centred(ce._event_cols(on_, ft, ce.LAGS["lick"], amp=W[:, k_])[ridx].astype(np.float64)
+                             + (W[inr, k_].mean() if inr.any() else 0.0) * plain) for k_ in range(len(LICKSPOUT_POS))]
+            resid = x_ - np.sum(cols, 0)                 # cam1-only licks (and unknown-spout licks): target-masked
+            for k_, q_ in enumerate(LICKSPOUT_POS):
+                parts[f"lick_onset@{q_}"] = cols[k_] + resid * (np.asarray(pos_split) == q_)[:, None]
+            lickland_info = {"n_licks": int(len(W)), "share_3d": float(1 - miss.mean()) if len(W) else float("nan"),
+                             "share_off_target": float(np.mean(W[~miss].argmax(1) != tg[~miss])) if (~miss).any() else 0.0,
+                             "resid_share": float(np.linalg.norm(resid) / max(np.linalg.norm(x_), 1e-12))}
+        else:
+            for q_ in LICKSPOUT_POS:
+                parts[f"lick_onset@{q_}"] = x_ * (np.asarray(pos_split) == q_)[:, None]
     vars_ = [v for v in FGROUP if v != "push" or _push_on()]
     blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
     X = np.hstack(blocks)
@@ -466,7 +550,8 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             "frame_pos": pos_of, "frame_trial": tri, "pos_order": pos_order,
             "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
             "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None,
-            "spl_swap": spl_swap_deltas(Ms, templates, pos_of, k_of, pos_order, col_var, ftr) if spatial else None}
+            "spl_swap": spl_swap_deltas(Ms, templates, pos_of, k_of, pos_order, col_var, ftr) if spatial else None,
+            "lickland": lickland_info}
 
 
 def swap_template(M: np.ndarray, N: np.ndarray, qi: int) -> np.ndarray:
@@ -611,7 +696,8 @@ def _run_tag() -> str:
     return (_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")
             + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
             + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else "")
-            + ("|frsplit" if FR_SPLIT else "") + ("|lickspout" if LICKSPOUT else ""))
+            + ("|frsplit" if FR_SPLIT else "") + ("|lickspout" if LICKSPOUT else "") + ("|lickland" if LICKLAND else "")
+            + (f"|frlags={','.join(f'{x:g}' for x in FR_LAGS)}" if FR_LAGS else ""))
 
 
 #: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
@@ -833,7 +919,7 @@ _ORDERED = {"target_first": (("target",), _EXEC_SIDE),     # (A, B): residualise
             "exec_first": (_EXEC_SIDE, ("target",)),
             "task_first": (SUPER["task"], SUPER["nontask"]),
             "movement_first": (SUPER["nontask"], SUPER["task"])}
-VARIANTS = ("joint", *_ORDERED, *_DROP, *_ONLY, *_VDROP)
+VARIANTS = ("joint", *_ORDERED, *_DROP, *_ONLY, *_VDROP, *_LAGDROP)
 #: variants whose per-group PETH parts are saved (the others save data + full only: their parts are not a split)
 PART_VARIANTS = ("joint", *_ORDERED)
 
@@ -902,6 +988,9 @@ def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: d
     grp = np.array([FGROUP[v] for v in col_var])
     if variant in _DROP or variant in _ONLY:
         keep = ~np.isin(grp, _DROP[variant]) if variant in _DROP else np.isin(grp, _ONLY[variant])
+        return eye[:, keep], np.flatnonzero(keep)
+    if variant in _LAGDROP:                              # FROZEN_FR_LAGS: drop one lag side of every FR variable
+        keep = ~np.char.endswith(np.asarray(col_var).astype(str), _LAGDROP[variant])
         return eye[:, keep], np.flatnonzero(keep)
     if variant in _VDROP:
         base_ = np.array([v.split(":")[0].split("@")[0] for v in col_var])
@@ -1467,7 +1556,8 @@ def main(argv=None) -> int:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--tag", default="gate-attempted")
-    ap.add_argument("--variants", nargs="+", default=[v for v in VARIANTS if v not in _VDROP], choices=VARIANTS)   # novar_* opt-in
+    ap.add_argument("--variants", nargs="+", default=[v for v in VARIANTS if v not in _VDROP and v not in _LAGDROP],
+                    choices=VARIANTS)   # novar_* / lag drops opt-in
     ap.add_argument("--no-drop-spout", action="store_true", help="skip the frozen drop-one-spout variants")
     ap.add_argument("--reuse-stats", action="store_true", help="reuse fit/pre_stats.pkl (skip the pre statistics pass)")
     ap.add_argument("--summarise-drop", action="store_true", help="only rebuild the drop-spout table from saved files")
