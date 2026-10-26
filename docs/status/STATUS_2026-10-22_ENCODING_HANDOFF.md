@@ -17,6 +17,16 @@ the day: ENCODING_FINDINGS 8.11-8.13, FINDINGS section 0 (synthesis) + 4.2 / 4.3
 `S/frozen_encoder_backup.py`).
 
 ### RUNNING (worktree wf_attempt; check logs, do not restart)
+00. UPDATE 10-25 ~22:30: partial-refit BLOCK-PERMUTATION nulls running (`partial_refit.py --add target_perm exec_perm`,
+   JOBS 6, log S/partial_perm.log; ~3 h). When done: `run_partial.sh --plot-only` -> partial_refit_lines.png becomes page
+   1yd (bars -> supplement), numbers into FINDINGS 4.11 / ENCODING_FINDINGS 8.14. The lickspout chain's partial stage
+   now computes the perm nulls too (~5x slower per session): relaunch it at JOBS 5-6 when it gets there.
+   Done tonight: coupling block null + cross-epoch stats + per session + class split (8.15, page 4i-4i4); bar figures ->
+   haloed stars (wfield_local/sig_marks.py); epoch-line figures (ffc.epoch_lines) to replace grouped bars page-wide
+   (Priya: lines "much better"; convert the other bar families next, 2-3 lines per figure, bars as supplement).
+   Queued (Priya yes): session-level plots (decoder retention 7 / 7c per session, then session dots in the line panels);
+   pre-cue class-matched test + pre-cue -> lick coupling; template-similarity check of acute trials; PS94 state x spout
+   check -> block null.
 0. UPDATE 10-25 ~19:30: partial refit (1) DONE (restarted at 4 workers; now saves each session as it finishes) + executed
    null added (`--add exec_shuf`); results ENCODING_FINDINGS 8.14, FINDINGS 4.11, page v71 Figs 1yd / 1ye. The lickspout
    chain (2) started 17:56 in parallel. Its stages c / d run at --jobs 2: when it reaches them and the box is free, stop

@@ -1150,6 +1150,31 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.15 Trial-by-trial coupling by trial class; what acute far-contra trials look like; nulls (10-25 night) -- PROVISIONAL
+
+- Coupling = within-session r between the frozen decoder's P(far mid) - P(far contra) and the trial's lick weight far mid
+  - far contra (landing: 3-D endpoints; trajectory: lick paths; soft weights to each spout's pre landing centre), on
+  far-contra target trials, August pre only (June had been in the landing panel; removed).
+- NULLS: the per-session / per-cell test is now a BLOCK permutation (runs of consecutive far-contra trials permuted,
+  internal order kept); the trial shuffle it replaced gave the same calls in every cell. Spout sequences: runs of ~6
+  trials (10-90 % 4-8); one half-session circular shift agrees with the true labels 0.165 on average (chance 0.167) but
+  0.12-0.19 per animal x epoch (PS92_1006 0.34) -> a single shift is a noisy null; the partial refit's nulls are being
+  redone as 5-draw block permutations (scores averaged).
+- Statistic = change ACROSS EPOCHS (Priya 10-25), not r vs 0. All trials: acute -0.25 [-0.39, -0.11] landing / -0.30
+  [-0.42, -0.18] trajectory (nested bootstrap on session r); normalised to each animal's pre r: -1.04 / -1.01 (~100 %
+  loss); subacute / chronic ~0. Per animal (Welch over sessions): acute < pre in PS93, PS94 (landing p .045 / .030) and
+  PS92 trajectory (.004); PS95 has one acute session.
+- BY CLASS (`scripts/coupling_by_class.py`): failed attempts acute -0.26 [-0.42, -0.15] (each animal p <= .025), subacute
+  -0.29; hits acute -0.02 [-0.43, +0.44] (64 trials; PS92 +0.43, PS93 -0.14, PS94 -0.34, PS95 1 hit), subacute -0.10,
+  chronic -0.07. -> the acute loss is mostly composition (92 % of acute far-contra trials are failed attempts).
+- Not range restriction: within-session SD of the executed measure is larger acutely (PS92 landing .16 -> .35).
+- Decoder posteriors on acute far-contra trials: confident (max P ~.8, entropy ~.3 of flat) but mostly another spout,
+  animal-specific (PS93 far ipsi, PS95 close contra, PS92 spread, PS94 half far contra). Off-distribution confidence is
+  possible; template-similarity check not run.
+- Pre-cue (ENL) frozen-decoder P(true): pre hits .24 / .28 / .51 / .34 (chance .17); far contra lower on failed attempts
+  than hits 3 / 4 acute, 4 / 4 chronic -- to test class-matched; and whether the pre-cue lean predicts the lick (coupling
+  moved before movement onset; the closest "plan predicts execution" test this design allows).
+
 ### 8.14 Partial refit: target vs executed, each against its own null (10-25 night) -- PROVISIONAL
 
 - Design (`scripts/partial_refit.py`, frA frame, 107 sessions, page Figs 1yd / 1ye): per session refit ONLY one group set

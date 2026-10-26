@@ -45,8 +45,10 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
 2. **Acute: losses are mostly the movement, plus a transient decoupling.** Frozen decoder loses far contra (.90 -> .32),
    position ~5x more than state (3.1, 3.2). The frozen encoder predicts the acute far-contra drop from the changed lick;
    target part ~0, with FaceRhythm too (4.1). Frozen pixel maps: the acute fit loss is cortex-wide and movement-driven (page
-   Fig 1l). Beyond the movement: trial-by-trial coupling of cortex to execution vanishes acutely (r ~ 0; 4.6) and the
-   decoder weakens for every spout, even on-target licks (4.5).
+   Fig 1l). Beyond the movement: the decoder weakens for every spout, even on-target licks (4.5); acute far-contra trials
+   are each decoded CONFIDENTLY as some other spout, which one varying trial to trial and by animal (4.6b, 10-25 night);
+   trial-by-trial coupling of cortex to execution is ABSENT ON FAILED ATTEMPTS (4/4) -- the acute "r ~ 0" was mostly
+   that 92 % of acute far-contra trials are failed attempts; the few acute hits look like pre-stroke hits (thin; 4.6).
 3. **Chronic: same task, partly different cortical solution.** Residual: cortex responds MORE than the pre mapping
    predicts for the same behaviour, bilateral ALM / tongue-jaw motor + contralesional SSp, not face movement (4.2) -- but
    (analyses 1-2, 10-25) it is partly GLOBAL in the lick window, largest at day 1, shrinks with recovery and tracks the
@@ -307,10 +309,26 @@ bootstrap unless stated; LICK DATA = behaviour only.*
 5. **On average the frozen pre-stroke DECODER reads far-contra trials as the spout the tongue goes to.** Own -.66 /
    -.30 / -.22, far mid +.26 / +.14 / +.11, far ipsi +.19 acute (4 / 4; cue window the same). But acutely the decoder's
    diagonal falls for EVERY spout while those licks land on target (general weakening). **STANDS** (8.2; Fig 3f, 3g).
-6. **Trial by trial, cortex follows execution before and after the stroke, but NOT acutely.** Within session, neural
-   (far mid - far contra) tracks executed (far mid - far contra) pre-stroke 4 / 4 (r .12-.41), subacute and chronic
-   4 / 4; acutely r ~ 0 (only PS92 significant). Executed-bin vs decoder matrix: acute diagonal -.41 (far mid), -.34
-   (far ipsi), 4 / 4. **STANDS** (8.2; Fig 3h-3j).
+6. **Trial by trial, cortex follows execution on HITS; on FAILED ATTEMPTS it does not** (REVISED 10-25 night,
+   `scripts/coupling_by_class.py`, page Figs 4i-4i4). Within session, neural (decoder P far mid - P far contra) tracks
+   executed (lick weight far mid - far contra) on far-contra trials. Pre-stroke (hits only, August pre) r .14-.35 landing /
+   .18-.41 trajectory, 4 / 4. Split by class, change vs pre-stroke hits (pooled r, nested bootstrap animals -> sessions):
+   FAILED attempts acute -0.26 [-0.42, -0.15] landing / -0.34 trajectory, significant in each of the 4 animals; subacute
+   -0.29 / -0.40; HITS acute -0.02 [-0.43, +0.44] (64 trials, PS92 +0.43, PS93 / PS94 negative, PS95 1 hit -- uncertain),
+   subacute -0.10 / -0.12, chronic -0.07 / -0.06 (n.s.). The earlier "acutely r ~ 0" (all trials) was mostly a
+   composition effect: 92 % of acute far-contra trials are failed attempts and the pre reference is hits only. Not a
+   range restriction (executed spread is LARGER acutely). Statistic is the class-matched change across epochs; the
+   per-session null is block permutation (runs of consecutive far-contra trials; trial shuffle gave the same calls).
+   Candidate readings: contact feedback (no touch, no location signal) vs execution quality; pre-stroke failed attempts
+   (not classified) are the missing reference. Executed-bin vs decoder matrix: acute diagonal -.41 (far mid), -.34
+   (far ipsi), 4 / 4. **REVISED** (8.2; Fig 3h-3j; page 4i-4i4).
+6b. **What acute far-contra trials look like to the frozen decoder** (10-25 night): not "nothing" -- each trial still
+   gets a confident posterior (max P ~.78-.82, entropy .26-.31 of flat; pre .95 / .05-.10) -- but mostly NOT far contra,
+   and the wrong spout differs by animal (lick window, mean P): PS92 spread (far mid .24, close ipsi / mid .20, far contra
+   .14); PS93 far ipsi .28; PS94 far contra .30 / far mid .29; PS95 close contra .28. Hits lean far contra (PS93 .42, PS94
+   .63); failed attempts drift to a neighbouring far spout (PS92 far mid .31, PS93 far ipsi .39, PS95 far mid .46).
+   Caveat: a logistic decoder can be confident off-distribution; the template-similarity check (does an acute trial
+   match any pre spout pattern better than pre trials match their own) is not run. **PROVISIONAL** (no page figure yet).
 7. **When a lick misses, cortex mostly still looks like the TARGET, except at the far spouts.** Off-target trials,
    decoder = target vs = executed: close spouts .65-.95 vs ~.05 at every epoch; far contra .66 / .21 pre -> .25 / .29
    acute (executed wins only here) -> .45 / .33 chronic; far ipsi / far mid split acutely. **STANDS** (8.2; Fig 3k, 3l).
@@ -325,7 +343,10 @@ bootstrap unless stated; LICK DATA = behaviour only.*
 9. **Failed attempts lose the side but keep the distance.** Frozen decoder on video attempt classes: acute failed
    (incomplete) far-contra attempts are read as A far spout (distance kept, side lost; 4 / 4, lick window); no
    pre-cue plan signature; retained code ~.1 of pre-stroke hits at every epoch while hits recover to .71. **STANDS**
-   (2.8; Fig 6-6c).
+   (2.8; Fig 6-6c). RECHECK (10-25 night): the pre-cue far-contra P(true) is lower on failed attempts than on hits in
+   3 / 4 acutely (.14 vs .21, .17 vs .23, .30 vs .40, .20 vs .20) and 4 / 4 chronically -- "no pre-cue signature" needs a
+   class-matched test (time-in-session and movement matched); the pre-cue code is weak per trial (pre hits .24-.51,
+   chance .17), so only class averages are readable.
 10. **Failed attempts look like weaker hits, not like no-movement.** Same bilateral pattern; lower amplitude than hits
     (3 / 4) but not than touch-matched pre-stroke misses (2 / 4); ipsilesional ALM / tongue-jaw motor down acutely,
     tongue-jaw motor / SSp up chronically. **PROVISIONAL** (2.9; Fig 7-7c).
@@ -344,7 +365,9 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     coding remapped). Full-model self - frozen gap rises acutely (SSp-m +0.07-0.12) and chronically (+0.06-0.09), 4/4;
     self spout-unique contra SSp-m +0.054 / +0.059 chronic 4/4. PROVISIONAL (different-size training sets; change from
     pre only).
-    **WHICH PART (10-25 night, partial refit, `scripts/partial_refit.py`, page Figs 1yd / 1ye):** per session refit ONLY
+    **WHICH PART (10-25 night, partial refit, `scripts/partial_refit.py`, page Figs 1yd / 1ye; NULLS BEING REDONE as
+    5-draw block permutations -- spouts come in ~6-trial runs and one half-session shift is a noisy null; numbers below
+    use the single shift):** per session refit ONLY
     the target or ONLY the executed-position columns (rest frozen, 5-block CV), each read against its own null (the same
     columns rebuilt with spout labels shifted by half the session). The nulls ALSO gain post-stroke (any refit
     spout-structured regressor absorbs part of the larger residual), so raw refit gains overstate specificity. Acute:
