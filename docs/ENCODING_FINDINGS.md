@@ -1157,6 +1157,37 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.19 Landing-split lick kernels, lagged FaceRhythm, self-fit on the lick-kernel design (10-26 ~04:30) -- PROVISIONAL
+
+Handoff 000z to-dos B / C / D (self-fit half). Table `<E>/landing_lag_unique.csv` (script `S/landlag_unique.py`);
+self-fit `frozen_encoder_gate-attempted_v7g3_t3d_frA_ls/session_vs_frozen/remap_boot.csv`. Unique = joint - no_<g>
+(frozen, frame measure), epoch - pre, nested bootstrap, n up of 4.
+- B, LANDING-split lick kernels (`..._frA_lsland`: six lick-kernel copies weighted by each lick's 3-D landing; licks
+  without landing information -> lick_onset@unknown) vs TARGET-split (`..._frA_ls`). Pre: nearly the same split of
+  variance (contra SSp-m target unique 0.0128 vs 0.0152 cue, lick kernels 0.0101 vs 0.0120): landing assignment takes
+  slightly more of the target term. Post: in the landing frame the contralesional SSp-m TARGET unique RISES
+  chronically (+0.010 cue / +0.011 lick, 4/4; CIs exclude 0) while the landing lick kernels LOSE unique variance
+  (-0.015 / -0.016, 0/4 up); in the target-split frame target is n.s. chronically (+0.007 / +0.002) and the lick kernels
+  fall less (-0.007 / -0.010). Executed spout-locked templates gain in both frames (acute +0.02-0.03, chronic
+  +0.003-0.014). Reading: kernels that follow where the tongue LANDED do not absorb the chronic target term -- the
+  target term carries something not explained by the landing (consistent with the target being remapped, 8.12-8.14).
+- C, LAGGED FaceRhythm (`..._frA_frlag`, lags +-0.1..0.3 s). Pre: past-face columns ("face leads cortex") carry far more
+  unique variance than future-face columns ("cortex leads face"): 0.02-0.05 vs 0.001-0.004 -- the expected calcium-lag
+  bias, so only the change is read. Change: cortex-leads unique tiny and unchanged (small acute decreases in MOp / MOs
+  contra and cortex, 0/4 up; chronic n.s.); face-leads unique RISES acutely in contralesional SSp-m only (+0.009 cue /
+  +0.010 lick, 4/4) and otherwise falls (subacute / chronic decreases, mostly n.s.; ipsi SSp-m chronic lick -0.011, 0/4).
+  The direction FR term falls chronically in SSp-m (fr_dir -0.008 / -0.015 cue, -0.013 / -0.024 lick). Reading: no
+  sign of a shift toward cortex leading the face; the one acute increase is face -> contralesional SSp-m (sensory
+  reafference of the changed face movement). Temporal precedence in this design cannot establish causal direction.
+- D (self-fit half), session-specific weights on the lick-kernel design (remapping index = self-fit unique minus frozen
+  unique, change from pre). Target: contra SSp-m chronic cue +0.005 [-0.002, 0.013] (was +0.014 without lick kernels),
+  lick +0.010 [0.000, 0.019] (was +0.018); cortex +0.005 / +0.009 (was +0.016 / +0.021). Lick kernels: ~0 (+0.000-0.004,
+  CIs include 0). Spout group (target + executed + lick kernels): cortex +0.027 cue / +0.039 lick (4/4), SSp-m +0.027-
+  0.040 -- unchanged or larger than without lick kernels. Reading: the chronically remapped spout information is shared
+  between target and spout-specific lick-locked regressors; adding either takes unique credit from the other, so the
+  unique-variance contest cannot decide. The lick-kernel partial refit with block-permutation nulls (running, ~10 h)
+  is the null-controlled version.
+
 ### 8.18 Per-epoch pooled pixel kernel fits: where the event kernels move (10-26 ~00:30) -- PROVISIONAL
 
 `scripts/epoch_kernels.py` (000y item E; Priya 10-25: "what happened to our cross-epoch event kernel maps"), frame
