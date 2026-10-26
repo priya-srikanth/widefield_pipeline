@@ -59,9 +59,48 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    frame: target-unique coding stays down, the PETH spout code does not recover, the spout package shifts contralesionally,
    position-free movement gains unique share in SSp-m, ipsilesional SSp-m decouples from the face's side signal (4.11, 4.12);
    template shape stays off 4 / 4 (3.12).
-4. **Target vs execution:** no robust evidence that cortex holds a target separate from execution after the stroke -- the
-   refit "chronic target gain" is not reproduced in the frozen frame (4.11; scoring caveat pending); failed attempts keep
-   distance, lose side (4.9).
+4. **Target vs execution -- how the answer changed with the frame (10-25 night; the key reconciliation):**
+   (a) The old "target > executed" result was CHRONIC and PER-SESSION REFIT only (binned contest: target bins beyond
+   executed bins +9.0 lick / +9.8 cue chronic; acute +12.5 n.s.; the pre-stroke "target, not executed" was already
+   SUSPENDED). It never conflicted with the ACUTE result (frozen decomposition: the acute far-contra drop is the
+   predicted lick part, target ~0).
+   (b) In the frozen pre-stroke frame the chronic target gain disappears (target-unique stays down, 0/4 up).
+   (c) Self-fit (each session refit on itself, frozen windows) brings it back (SSp-m +0.017 / +0.019, 3-4/4): target
+   information IS present chronically, but in a NEW pattern the pre-stroke mapping cannot read -> target coding REMAPPED.
+   (d) Partial refit (only one group refit, against its shuffled-label null): chronically BOTH are specific in
+   contralesional SSp-m -- target +0.034, executed movement +0.054 / +0.064 (4/4) -- so the chronic remapping is NOT
+   target-only; executed movement is remapped at least as much. (Single-shift nulls; 5-draw block-permutation nulls
+   running.) Acutely both are non-specific except a target-specific gain in ipsilesional SSp-m.
+   (e) Per-spout lick kernels in the frozen model (both terms spout-specific and lick-aligned): pre-stroke, target and
+   spout-specific lick kernels carry similar unique variance (target ahead only in contralesional SSp-m, 0.015 vs 0.012
+   cue; ipsilesional SSp-m / MOp favour the lick kernels), and the lick kernels absorb part of the old target term
+   (contra SSp-m 0.020 -> 0.015) -- part of "target" was spout-specific lick-locked activity. Post-stroke (frozen) neither
+   gains; only the executed spout-locked templates do (+0.023 acute, +0.008 chronic, 4/4) = the changed movement.
+   -> READING: acutely cortex follows the changed movement; chronically neither target nor executed spout coding recovers
+   in the pre-stroke frame, while with session-specific weights both are readable in a remapped form. "Target >
+   executed" is better read as "target remapped, executed remapped too". Open: the self-fit / partial refit on the
+   per-spout lick-kernel design (the decisive contest: does a session-specific mapping prefer target or spout-specific
+   lick kernels?) and the block-permutation nulls. Failed attempts keep distance, lose side (4.9).
+4b. **Recovery = behavioural compensation with PARTIAL cortical recovery, not restoration (10-25 night; key point).**
+   Judge recovery PER SUCCESSFUL TRIAL, not per epoch: acutely ~92 % of far-contra trials are failed attempts, which carry
+   no far-contra code (decoder retention ~0 in every window, 4.9 / page 7e) and no trial-by-trial coupling (4.6), so
+   epoch-level "cortical recovery" is partly just hits becoming common again (composition). On hits:
+   (a) BEHAVIOUR is compensated, not restored: success returns, but contralesional licks move the contralesional face
+   less and contra spouts are reached with more of the ipsilesional lick pattern, re-timed later (point 1; 5.2-5.6).
+   (b) The far-contra CODE recovers only partly: frozen-decoder retention on chronic hits = ~70-77 % of pre-stroke hits
+   (lick -0.30 [-0.46, -0.13], cue -0.24 [-0.40, -0.11], pre-cue -0.27 [-0.50, -0.04]; session values, nested
+   bootstrap; page 7d / 7e); the PETH spout code and target-unique R2 do not recover in the frozen frame (4.11, 4.12b).
+   (c) TRIAL-BY-TRIAL COUPLING to the executed movement on hits IS back at the pre-stroke level (chronic -0.07 / -0.06
+   n.s.; page 4i): within a session, cortex again follows where the tongue goes.
+   (d) Cortex does it with a DIFFERENT mapping: on behaviour-matched trials (inside the pre-stroke movement envelope) the
+   residual is unchanged (4.2) -- same movement, different cortical response; session-specific weights fit better
+   chronically (self-fit gap +0.06-0.09, 4/4) and target / executed coding are readable only in a remapped form (point 4).
+   (e) Timing: cortex reaches half its change at or after behaviour (frozen recovery course, page 1i) -- cortex does not
+   lead behavioural recovery.
+   -> Behaviour comes back through a changed movement strategy; cortex regains its moment-to-moment tracking of the
+   movement but with ~3/4 of the original spout code and a partly remapped, not restored, mapping. Caveats: n = 4; the
+   cortex-wide part of the remapping cannot be separated from drift without a time-matched no-stroke reference; whether
+   the remapping is compensatory (helps behaviour) is untested (correlations with recovery only, 4.2 / 4.3 mixed models).
 5. **Working interpretation (hypothesis, not a result):** losing striatal input removes spatially specific (directional)
    drive to orofacial cortex; cortex compensates with more gain in lateral frontal / orofacial motor areas, mostly in the
    contralesional hemisphere (intact-striatum side), and encodes movement more generically -- matching the behavioural
@@ -350,7 +389,9 @@ bootstrap unless stated; LICK DATA = behaviour only.*
 10. **Failed attempts look like weaker hits, not like no-movement.** Same bilateral pattern; lower amplitude than hits
     (3 / 4) but not than touch-matched pre-stroke misses (2 / 4); ipsilesional ALM / tongue-jaw motor down acutely,
     tongue-jaw motor / SSp up chronically. **PROVISIONAL** (2.9; Fig 7-7c).
-11. **Target vs executed: chronically cortex carries the target beyond the executed movement.** Binned contest (unique
+11. **Target vs executed** (HISTORY + current reading in synthesis point 4; the original heading "chronically cortex carries
+    the target beyond the executed movement" holds only in the per-session refit frame and is now read as remapping of
+    BOTH target and executed coding). Binned contest (unique
     R2 of target bins beyond executed bins): chronic change +9.0 [+3.6, +16.0] lick, +9.8 [+3.9, +16.2] cue, at every
     softmax width; acute lick +12.5 (n.s.; PS93 opposite). Pre-stroke "cortex tracks target, not executed" remains
     **SUSPENDED** (2.4). **STANDS** chronically (2.4b, 8.6; Fig 1-2b) -- in the PER-SESSION REFIT frame only.
@@ -365,6 +406,11 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     coding remapped). Full-model self - frozen gap rises acutely (SSp-m +0.07-0.12) and chronically (+0.06-0.09), 4/4;
     self spout-unique contra SSp-m +0.054 / +0.059 chronic 4/4. PROVISIONAL (different-size training sets; change from
     pre only).
+    **PER-SPOUT LICK KERNELS (10-25 night, frozen + FR + FROZEN_LICKSPOUT, run `..._frA_ls`, ENCODING_FINDINGS 8.16):**
+    pre unique R2 contra SSp-m target .015 / .019 vs per-spout lick kernels .012 / .015 (cue / lick); ipsi SSp-m .006 / .008
+    vs .013 / .014; lick kernels absorb part of target (contra SSp-m .020 -> .015 cue). Epoch - pre (frozen): target acute
+    -.008 / -.014 (1/4 up), chronic +.007 / +.002 (2/4); lick kernels acute -.007, chronic -.007 / -.010 (0-1/4); executed
+    spout-locked templates acute +.023 / +.024, chronic +.008 / +.007 (4/4). PROVISIONAL.
     **WHICH PART (10-25 night, partial refit, `scripts/partial_refit.py`, page Figs 1yd / 1ye; NULLS BEING REDONE as
     5-draw block permutations -- spouts come in ~6-trial runs and one half-session shift is a noisy null; numbers below
     use the single shift):** per session refit ONLY
