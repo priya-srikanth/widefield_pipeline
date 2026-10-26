@@ -225,13 +225,17 @@ _EXEC_SIDE = ("exec_locked", "exec_within", *(("lickspout",) if LICKSPOUT else (
 #: LANDING-SPLIT LICK KERNELS (Priya 10-25: "let's try the 3d landing ... lick kernels"): with FROZEN_LICKSPOUT, the six
 #: copies of the lick-onset kernel are assigned by where each lick LANDED, not by the trial's target spout: each lick's
 #: soft weight over the six spouts' pre-stroke landing centres (3-D peak, within-spout SD units, w ~ exp(-d^2 / 2), width
-#: 1; the encoder's executed-bin rule, `exec_bins_calib`). Licks without a 3-D peak and cam1-only licks keep the target
-#: spout (the old rule), so the six copies still sum to the recorded lick-onset columns. Same group / penalty.
+#: 1; the encoder's executed-bin rule, `exec_bins_calib`). Licks WITHOUT landing information (no 3-D peak; cam1-only
+#: licks, often small / incomplete) go to a SEVENTH copy lick_onset@unknown -- not to the target, which would credit
+#: untracked (mostly failed-attempt) licks to the target spout. The seven copies sum to the recorded lick-onset columns.
 LICKLAND = os.environ.get("FROZEN_LICKLAND", "") in ("1", "true", "yes", "landing")
 LICKLAND_CALIB = os.environ.get("FROZEN_LICKLAND_CALIB",
                                 "C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/exec_bins_calib_20261023.csv")
 if LICKLAND and not LICKSPOUT:
     raise ValueError("FROZEN_LICKLAND needs FROZEN_LICKSPOUT=1")
+if LICKLAND:                                             # licks with no landing information: their own copy
+    FGROUP["lick_onset@unknown"] = "lickspout"
+    FPEN["lick_onset@unknown"] = "lick"
 #: LAGGED FACERHYTHM (Priya 10-25: "sure let's try lagged kernel"): FROZEN_FR_LAGS = comma-separated lags in s (e.g.
 #: "-0.3,-0.2,-0.1,0.1,0.2,0.3"); each FR variable keeps its lag-0 column and gains <v>:facelead (lags > 0: the face
 #: value from BEFORE the frame -- face precedes cortex) and <v>:cortexlead (lags < 0: the face value from AFTER the frame
@@ -489,8 +493,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             W = lick_landing_weights(B, animal, date, rv)
             tg = np.array([LICKSPOUT_POS.index(p_) if p_ in LICKSPOUT_POS else -1 for p_ in np.asarray(B.lick_pos)])
             miss = ~np.isfinite(W).all(1)
-            W[miss] = 0.0
-            W[miss & (tg >= 0), tg[miss & (tg >= 0)]] = 1.0          # no 3-D peak: the target spout (old rule)
+            W[miss] = 0.0                                # no 3-D peak: nothing on the six spouts -> @unknown (resid)
             # `movement_encoding.build_design` mean-centres an amplitude modulator, so a weighted kernel = centred-amp kernel
             # + mean weight x the plain kernel (weights sum to 1 per lick -> the six copies sum to the plain kernel)
             on_ = np.asarray(B.lick_on_s, float)
@@ -498,10 +501,12 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             plain = ce._event_cols(on_, ft, ce.LAGS["lick"])[ridx].astype(np.float64)
             cols = [_centred(ce._event_cols(on_, ft, ce.LAGS["lick"], amp=W[:, k_])[ridx].astype(np.float64)
                              + (W[inr, k_].mean() if inr.any() else 0.0) * plain) for k_ in range(len(LICKSPOUT_POS))]
-            resid = x_ - np.sum(cols, 0)                 # cam1-only licks (and unknown-spout licks): target-masked
+            resid = x_ - np.sum(cols, 0)                 # cam1-only licks + licks without a 3-D peak
             for k_, q_ in enumerate(LICKSPOUT_POS):
-                parts[f"lick_onset@{q_}"] = cols[k_] + resid * (np.asarray(pos_split) == q_)[:, None]
+                parts[f"lick_onset@{q_}"] = cols[k_]
+            parts["lick_onset@unknown"] = resid
             lickland_info = {"n_licks": int(len(W)), "share_3d": float(1 - miss.mean()) if len(W) else float("nan"),
+                             "n_cam1_only": int(0 if B.extra_lick_on_s is None else len(B.extra_lick_on_s)),
                              "share_off_target": float(np.mean(W[~miss].argmax(1) != tg[~miss])) if (~miss).any() else 0.0,
                              "resid_share": float(np.linalg.norm(resid) / max(np.linalg.norm(x_), 1e-12))}
         else:
