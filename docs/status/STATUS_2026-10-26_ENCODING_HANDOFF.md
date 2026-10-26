@@ -27,7 +27,7 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
   - corrected whole-cortex claim; 3.25 kinematics control with a face-adjusted row;
   - all section-3 figures redrawn: frame / measure labels, stars above data, SEM bands on 3.7 / 3.21 / 3.24,
     3.15 split in two.
-- **Step 1 — bring in the last redrawn images** (only if the redraw chain finished after 19:30; check `S/relabel.log`
+- **Step 1 — DONE 20:40 (chain finished 19:33, all images copied into `_goal_page` + backup). Only needed again if figures are redrawn later; check `S/relabel.log`
   ends with `relabel3 done`):
   ```bash
   F="M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/figures"
@@ -84,10 +84,19 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
   needs a per-lick jaw extraction from the whole-session 3-D jaw trace (ask the pose window / see pose handoff 10-21),
   then add to `_more_kin` in `iti_licks.py` and rerun `--controls`.
 - **Helper agents launched ~19:45 (results may land in this session):**
-  - (1) TITLE VERIFICATION from the code for figures whose model frame was inferred: 3.1-3.6, 1.15-1.16, 1.18, 1.21-1.22,
-    1.24-1.28, 1.44-1.47, 7.1-7.6, 9.13-9.14, plus a spot-check of sections 5 / 6 / 8. Output
-    `_goal_page/title_verification.csv` (proposed_title column). Apply the proposed titles to `_goal_page/index.html`
-    (edit the `<div class="ftitle">` text inside ONE figure: see pitfall 0f), then republish.
+  - (1) TITLE VERIFICATION: DONE 20:45 and APPLIED to `_goal_page/index.html` (details
+    `_goal_page/title_verification.csv`; 46 figures, 45 high confidence).
+    - Corrected: 1.25 / 1.26 / 1.27 = frozen encoder WITHOUT FaceRhythm (run `..._v7g3_t3d_basis`, md5-matched), not the
+      lick-kernel run.
+    - Clarified: 9.13 / 9.14 = PER-SESSION FaceRhythm encoder (`combined_encoding` fr_A_tr, 10-fold within session).
+    - Confirmed: 3.1-3.6 frozen pre-stroke decoder (`attempt_coding.py`); 1.15 / 1.16 / 1.24 frozen lick-kernel run with
+      FR; 1.18 frozen without FR; 1.21-1.22 per-epoch pooled refit (`epoch_kernels.py`); 1.28 self-fit minus frozen;
+      1.44-1.47 per-session encoder; 7.1-7.6 all-session shared encoder (`allsession_encoder.py`; the page may not
+      define "Layer 2"); spot checks in sections 5 / 6 / 8 correct.
+    - Writer not found: 6.1 (`fig7_residual_far_contra_16px.png`; frozen frame supported only by ENCODING_FINDINGS
+      8.4).
+    - Many page PNGs were drawn by scratchpad scripts outside the repo (`fig_goal_summary.py`, `fig_pooled.py`,
+      `fig_layer2.py`, ...; in S). Folding them into scripts/ is a to-do.
   - (2) PUBLISH by a subagent: FAILED 19:50 -- subagents in this session do not get the Artifact tool either. Publish
     from a NEW session via section 0a (the page is still v103).
 
