@@ -70,12 +70,17 @@ def compute(fdir: Path) -> tuple[pd.DataFrame, dict]:
         order = fm.columns(m, "best")
         cs = fm.cosines(A_ref, B_ref, A, B)[0]
         mag, asym = fm.spatial_view(A, "magnitude"), fm.loading_asymmetry(A, home, mid)
-        for nm, own_side in FACTORS.items():
+        for nm in names:                     # every factor: loading + spectrum (Priya 10-25: Fig 7 / 7b for the others)
             k = names.index(nm)
             c = int(order[k])
             row = {"key": r.key, "label": r.label, "animal": r.animal, "date": r.date, "epoch": r.epoch, "factor": nm,
-                   "column": c, "cos_master": float(cs[k, c])}
-            if cs[k, c] >= MIN_COS:
+                   "column": c, "cos_master": float(cs[k, c]), "ok": bool(cs[k, c] >= MIN_COS)}
+            if cs[k, c] >= MIN_COS and nm not in FACTORS:
+                v = mag[:, c] / mag[:, c].sum()
+                loads[(r.key, nm)] = v
+                specs[(r.key, nm)] = B[:, c] / B[:, c].sum()
+            if cs[k, c] >= MIN_COS and nm in FACTORS:
+                own_side = FACTORS[nm]
                 v = mag[:, c] / mag[:, c].sum()
                 ok = np.isfinite(v) & np.isfinite(spec).all(0)
                 rr = np.array([np.corrcoef(v[ok], spec[i][ok])[0, 1] for i in range(6)])
@@ -118,15 +123,17 @@ def stats(T: pd.DataFrame, L: dict, seed: int = 0) -> tuple[pd.DataFrame, pd.Dat
     return pd.DataFrame(rows), column_change(T, L, seed)
 
 
-def column_change(T: pd.DataFrame, L: dict, seed: int = 0) -> pd.DataFrame:
+def column_change(T: pd.DataFrame, L: dict, seed: int = 0, factors=FACTORS) -> pd.DataFrame:
     """Change vs pre of a per-session VECTOR readout (the per-point loading map, or the frequency loading), column by
     column: paired animals -> sessions bootstrap (`boot_delta_columns`), BH over columns. ``L`` {(session key, factor):
-    vector}. Rows per factor x epoch x scale ("raw", "z"); obs / lo / hi / p / sig (FDR .05) / sig10 (FDR .10)."""
+    vector}; ``factors`` which factors (sessions where the factor is recovered, ``ok``; an animal needs >= 2 pre
+    sessions for its SD). Rows per factor x epoch x scale ("raw", "z"); obs / lo / hi / p / sig (FDR .05) / sig10."""
     from wfield_local import analysis_kit as ak
     mrows = []
-    for nm in FACTORS:
-        d = T[(T.factor == nm) & T.side_spec.notna()]
-        pre0 = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == "pre"].groupby("animal")}
+    for nm in factors:
+        d = T[(T.factor == nm) & T.ok]
+        pre0 = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == "pre"].groupby("animal")
+                if len(g) >= 2}
         # "z" (Priya 10-25, as Fig 8d): each animal's sessions divided per column by the SD of its OWN pre sessions, so
         # the result is the mean over animals of change / own pre-session noise; the SD is floored at a quarter of the
         # animal's median SD (columns the factor never loads have ~0 SD and would otherwise dominate)
@@ -147,6 +154,22 @@ def column_change(T: pd.DataFrame, L: dict, seed: int = 0) -> pd.DataFrame:
     return pd.DataFrame(mrows)
 
 
+def sig_strip(ax, freqs: np.ndarray, rows: list) -> None:
+    """Priya 10-25: significance as BARS near the top of a frequency panel -- one thin row per epoch, in that epoch's
+    colour, filled over each significant frequency bin (bin edges = geometric midpoints between frequencies). ``rows``
+    [(colour, bool mask over freqs)], top row first; drawn in axes-fraction y, so it needs headroom above the data."""
+    f = np.asarray(freqs, float)
+    mid = np.sqrt(f[1:] * f[:-1])
+    lo, hi = np.r_[f[0] ** 2 / mid[0], mid], np.r_[mid, f[-1] ** 2 / mid[-1]]
+    tr = ax.get_xaxis_transform()
+    for i, (col, sig) in enumerate(rows):
+        y0 = 0.955 - i * 0.04
+        ax.broken_barh([(lo[j], hi[j] - lo[j]) for j in np.flatnonzero(sig)], (y0, 0.028), transform=tr, color=col,
+                       lw=0)
+        ax.plot([f[0], f[-1]], [y0 + 0.014] * 2, transform=tr, color=col, lw=0.3, alpha=0.4)
+    ax.set_xlim(lo[0], hi[-1])                         # the bars must not widen the frequency axis
+
+
 def spectral_figure(Sp: pd.DataFrame, T: pd.DataFrame, L: dict, freqs: np.ndarray, out: Path, set_name: str) -> None:
     """Spectral twin of the z loading map (Priya 10-25: "7h is our headline. can we do the spectral version?"). Left:
     the matched lick factor's frequency loading (fraction of total), mean of animals, pre and each epoch. Right: change
@@ -161,15 +184,28 @@ def spectral_figure(Sp: pd.DataFrame, T: pd.DataFrame, L: dict, freqs: np.ndarra
         for r_i, nm in enumerate(FACTORS):
             d = T[(T.factor == nm) & T.side_spec.notna()]
             ax = axs[r_i, 0]
+            raw = Sp[(Sp.scale == "raw") & (Sp.factor == nm)].set_index("epoch")
             for ep in ("pre", *frc.POST_EPOCHS):
                 per = [np.mean([L[(k, nm)] for k in g.key], 0) for _, g in d[d.epoch == ep].groupby("animal")]
                 if per:
-                    ax.plot(freqs, np.mean(per, 0), color=ecol[ep], lw=2.0 if ep == "pre" else 1.3,
-                            ls="--" if ep == "pre" else "-", label=ep)
+                    y = np.mean(per, 0)
+                    if len(per) > 1:                     # Priya 10-25: SEM over animals (each animal's session mean)
+                        sem = np.std(per, 0, ddof=1) / np.sqrt(len(per))
+                        ax.fill_between(freqs, y - sem, y + sem, color=ecol[ep], alpha=0.15 if ep != "pre" else 0.12,
+                                        lw=0)
+                    sig = raw.loc[ep, "sig"] if ep in raw.index else np.zeros(len(freqs), bool)
+                    ax.plot(freqs, y, color=ecol[ep], lw=2.0 if ep == "pre" else 1.3, ls="--" if ep == "pre" else "-",
+                            label=ep if ep == "pre" else f"{ep} ({int(np.sum(sig))} sig.)")
+                    # Priya 10-25: significance on the left panels too -- the same paired test on the UNnormalised
+                    # loading (fraction), FDR .05 over the 36 frequencies, marked on that epoch's curve
+                    ax.scatter(freqs[sig], y[sig], color=ecol[ep], s=22, edgecolors="k", linewidths=0.4, zorder=3)
             ax.set_xscale("log")
+            ax.set_ylim(top=ax.get_ylim()[1] * 1.35)          # headroom for the significance strip
+            sig_strip(ax, freqs, [(ecol[ep], raw.loc[ep, "sig"]) for ep in frc.POST_EPOCHS if ep in raw.index])
             ax.set_ylabel("frequency loading (fraction)")
-            ax.set_title(f"{nm}: frequency loading, mean of animals", fontsize=9)
-            ax.legend(fontsize=7)
+            ax.set_title(f"{nm}: frequency loading, mean of animals +- SEM (bars / dots = change vs pre FDR .05)",
+                         fontsize=9)
+            ax.legend(fontsize=7, loc="center right")
             ax = axs[r_i, 1]
             for ep in frc.POST_EPOCHS:
                 row = z[(z.factor == nm) & (z.epoch == ep)]
@@ -182,10 +218,12 @@ def spectral_figure(Sp: pd.DataFrame, T: pd.DataFrame, L: dict, freqs: np.ndarra
                            zorder=3)
             ax.axhline(0, color="k", lw=0.6)
             ax.set_xscale("log")
-            ax.set_ylim(-ylim, ylim)
+            ax.set_ylim(-ylim, ylim * 1.4)
+            sig_strip(ax, freqs, [(ecol[ep], z[(z.factor == nm) & (z.epoch == ep)].iloc[0].sig)
+                                  for ep in frc.POST_EPOCHS if len(z[(z.factor == nm) & (z.epoch == ep)])])
             ax.set_ylabel("change / own pre-session SD")
-            ax.set_title(f"{nm}: change vs pre per frequency (filled = FDR .05)", fontsize=9)
-            ax.legend(fontsize=7)
+            ax.set_title(f"{nm}: change vs pre per frequency (bars / dots = FDR .05)", fontsize=9)
+            ax.legend(fontsize=7, loc="lower right")
         for ax in axs[-1]:
             ax.set_xlabel("Hz")
         fig.suptitle(f"{set_name}: lick-factor FREQUENCY loading per session (own fit, best spatial match)")
@@ -283,6 +321,75 @@ k/4 = animals whose own mean change has the pooled sign. Side-specificity: mean 
 side pre-stroke spout templates minus the other side's (pre sessions scored against a template built without them).""")
 
 
+OTHER_GROUPS = {"lick": ("lick_ongoing_7Hz", "lick_fast_close", "lick_slow_late", "lick_far_nose"),
+                "nonlick": ("sniff_prelick", "nose_prelick_slow", "nose_steps", "whisk_run", "run_onset_jaw", "prep_jaw")}
+
+
+def other_factors_figure(Mz: pd.DataFrame, Sz: pd.DataFrame, T: pd.DataFrame, factors, home: np.ndarray,
+                         freqs: np.ndarray, lim: float, ylim: float, out: Path, tag: str, set_name: str) -> None:
+    """Fig 7 / 7b for factors other than the lateral lick pair (Priya 10-25): per row one factor; columns = the per-point
+    loading change in own pre-session SD units at each post epoch (same style and ONE colour scale ``lim`` shared by both
+    group figures), then the per-frequency change (same units, one y scale ``ylim``)."""
+    from wfield_local import face_rhythm_figures as frf
+    ecol = frc.epoch_colors()
+    with frf.style():
+        fig, axs = frf.subplots(len(factors), 4, figsize=(15, 2.9 * len(factors)), squeeze=False,
+                                gridspec_kw={"width_ratios": [1, 1, 1, 1.25]})
+        sc = None
+        for r_i, nm in enumerate(factors):
+            n_ok = T[(T.factor == nm)].groupby("epoch").ok.agg(["sum", "size"])
+            for c_i, ep in enumerate(frc.POST_EPOCHS):
+                ax = axs[r_i, c_i]
+                ax.axis("off")
+                row = Mz[(Mz.factor == nm) & (Mz.epoch == ep)]
+                if not len(row):
+                    ax.set_title(f"{nm}: {ep}\n(not recovered)", fontsize=8)
+                    continue
+                row = row.iloc[0]
+                ns = ~row.sig
+                ax.scatter(home[ns, 0], home[ns, 1], c=row.obs[ns], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
+                           lw=0)
+                sc = ax.scatter(home[row.sig, 0], home[row.sig, 1], c=row.obs[row.sig], s=11, cmap="RdBu_r", vmin=-lim,
+                                vmax=lim, edgecolors="k", linewidths=0.25)
+                ax.axvline(342.0, color="k", lw=0.4)
+                ax.invert_yaxis()
+                ax.set_aspect("equal")
+                ok = n_ok.loc[ep] if ep in n_ok.index else None
+                ax.set_title(f"{nm}: {ep}\n{int(row.sig.sum())} pts FDR .05 (+{int((row.sig & (row.obs > 0)).sum())} / "
+                             f"-{int((row.sig & (row.obs < 0)).sum())})"
+                             + (f"; {int(ok['sum'])}/{int(ok['size'])} sess." if ok is not None else ""), fontsize=8)
+            ax = axs[r_i, 3]
+            for ep in frc.POST_EPOCHS:
+                row = Sz[(Sz.factor == nm) & (Sz.epoch == ep)]
+                if not len(row):
+                    continue
+                row = row.iloc[0]
+                ax.fill_between(freqs, row.lo, row.hi, color=ecol[ep], alpha=0.15, lw=0)
+                ax.plot(freqs, row.obs, color=ecol[ep], lw=1.2, label=f"{ep} ({int(row.sig.sum())})")
+                ax.scatter(freqs[row.sig], row.obs[row.sig], color=ecol[ep], s=20, edgecolors="k", linewidths=0.4, zorder=3)
+            ax.axhline(0, color="k", lw=0.6)
+            ax.set_xscale("log")
+            ax.set_ylim(-ylim, ylim * 1.4)
+            sig_strip(ax, freqs, [(ecol[ep], Sz[(Sz.factor == nm) & (Sz.epoch == ep)].iloc[0].sig)
+                                  for ep in frc.POST_EPOCHS if len(Sz[(Sz.factor == nm) & (Sz.epoch == ep)])])
+            ax.set_title(f"{nm}: frequency change (bars / dots = FDR .05)", fontsize=8)
+            ax.legend(fontsize=6, loc="lower right")
+            if r_i == len(factors) - 1:
+                ax.set_xlabel("Hz")
+        if sc is not None:
+            fig.colorbar(sc, ax=axs[:, :3].ravel().tolist(), shrink=0.4, extend="both",
+                         label="change / own pre-session SD")
+        fig.suptitle(f"{set_name}: {'other LICK' if tag == 'lick' else 'NON-LICK'} factors per session -- loading "
+                     "(per point) and frequency change, each animal / its own pre-session SD")
+        frf.save(fig, out / f"session_shape_other_{tag}.png", """
+Same tests as the headline lick-factor figures (session_shape_loading_map_z, session_shape_spectral_z) for the other
+factors: each session's own fit, factor = its best SPATIAL match to the master (sessions where that cosine < .5 are
+dropped; 'k/n sess.' = sessions kept); per point / per frequency, each animal's sessions divided by the SD of its own pre
+sessions (floored at 1/4 of its median SD), change vs pre = mean of animals, paired animals -> sessions bootstrap,
+Benjamini-Hochberg FDR .05 over the 1,282 points / 36 frequencies (large outlined points / filled markers). One colour
+scale and one y scale across both 'other factor' figures. Red = more after the stroke.""")
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -305,9 +412,10 @@ def main(argv=None) -> int:
         pd.to_pickle(L, pk)
     pd.set_option("display.width", 220)
     print("sessions per animal x epoch with the factor recovered (cos >= .5):")
-    print(T[T.side_spec.notna()].groupby(["factor", "animal", "epoch"]).size().unstack().to_string())
+    print(T[T.ok].groupby(["factor", "epoch"]).size().unstack().to_string())
     print("\nPER ANIMAL mean (rule 8)")
-    print(T.groupby(["factor", "animal", "epoch"])[list(MEASURES)].mean().round(3).unstack().to_string())
+    print(T[T.factor.isin(list(FACTORS))].groupby(["factor", "animal", "epoch"])[list(MEASURES)].mean().round(3)
+          .unstack().to_string())
     S, Mp = stats(T, L["loading"])
     S.to_csv(figure_layout.sidecar_for(out, "session_shape_stats", ".csv"), index=False, float_format="%.4g")
     print("\nCHANGE vs PRE (paired animals -> sessions bootstrap; Holm within factor x family)")
@@ -325,6 +433,21 @@ def main(argv=None) -> int:
               + (f" ({', '.join(f'{x:.1f}' for x in f)} Hz; change {', '.join(f'{v:+.1f}' for v in r.obs[r.sig])})"
                  if len(f) else ""))
     spectral_figure(Sp, T, L["spectral"], L["freqs"], out, fdir.name)
+    others = [nm for g in OTHER_GROUPS.values() for nm in g]
+    Mo = column_change(T, L["loading"], factors=others)
+    So = column_change(T, L["spectral"], factors=others)
+    Mz, Sz = Mo[Mo.scale == "z"], So[So.scale == "z"]
+    lim = float(np.nanpercentile(np.abs(np.concatenate(list(Mz.obs))), 98)) if len(Mz) else 1.0
+    # y scale from the CHANGES, not the intervals (a few weak factors -- run_onset_jaw, prep_jaw -- have intervals of
+    # +-30 SD that flattened every other panel); intervals beyond it are clipped at the panel edge
+    ylim = max(3.0, 1.3 * float(np.nanpercentile(np.abs(np.concatenate(list(Sz.obs))), 99))) if len(Sz) else 1.0
+    for r in Mz.itertuples():
+        s = Sz[(Sz.factor == r.factor) & (Sz.epoch == r.epoch)]
+        nf = int(s.iloc[0].sig.sum()) if len(s) else 0
+        print(f"other [z] {r.factor:18s} {r.epoch:9s}: loading {int(r.sig.sum()):4d} pts FDR .05 "
+              f"(+{int((r.sig & (r.obs > 0)).sum())} / -{int((r.sig & (r.obs < 0)).sum())}); spectrum {nf} / 36 freqs")
+    for tag, fs in OTHER_GROUPS.items():
+        other_factors_figure(Mz, Sz, T, fs, L["home"], L["freqs"], lim, ylim, out, tag, fdir.name)
     print("->", out)
     return 0
 

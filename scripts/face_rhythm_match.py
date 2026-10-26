@@ -39,7 +39,8 @@ from wfield_local.face_rhythm import common as frc  # noqa: E402
 EPOCHS = frc.EPOCHS
 
 
-def pooled_by_day_figure(S: pd.DataFrame, names: list[str], out: Path, set_name: str) -> pd.DataFrame:
+def pooled_by_day_figure(S: pd.DataFrame, names: list[str], out: Path, set_name: str,
+                         rule: str = "Hungarian-matched") -> pd.DataFrame:
     """Cross-animal, WITHIN-ANIMAL-NORMALISED version of `match_by_day.png` (Priya 10-25). Per animal x factor, each
     session's matched-factor ANGLE to the master (spatial and spectral separately) is z-scored against that animal's own
     PRE sessions (August only): (angle - mean pre) / SD pre, so pre averages exactly 0. Per post epoch: the mean of the
@@ -110,7 +111,7 @@ def pooled_by_day_figure(S: pd.DataFrame, names: list[str], out: Path, set_name:
         fig.suptitle(f"{set_name}: own fit vs master, pooled over {len(animals)} animals")
         frf.save(fig, out / "match_by_day_pooled.png", f"""
 Cross-animal version of match_by_day.png. Per animal x factor: each session's angle (arccos of the matched cosine, own
-fit Hungarian-matched to the frozen master; larger = further from the master) as a z-score against that animal's own PRE
+fit {rule} to the frozen master; larger = further from the master) as a z-score against that animal's own PRE
 sessions (August only; mean and SD over its {', '.join(f'{a} {n}' for a, n in n_pre.items())} pre sessions), so pre is
 0 by construction. Big markers: the mean over animals of each animal's epoch mean = the `boot_delta` change vs pre
 (paired animals -> sessions bootstrap, 95 % interval, `face_rhythm.stats.epoch_change`); small dots: the animals. Number
@@ -133,7 +134,10 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--bundle", default=fro.BUNDLE)
     ap.add_argument("--fdir", type=Path, default=None)
-    ap.add_argument("--on", default="product", choices=fm.ON, help="what the Hungarian assignment maximises")
+    ap.add_argument("--on", default="product", choices=fm.ON, help="what the assignment maximises")
+    ap.add_argument("--assign", default="hungarian", choices=("hungarian", "best"),
+                    help="one-to-one Hungarian, or each master factor's BEST column (may repeat; DECISIONS 10-25: the "
+                         "shape readouts use --on spatial --assign best)")
     ap.add_argument("--spatial", default="vector", choices=("vector", "magnitude"),
                     help="spatial loadings as (x, y) vectors (direction-sensitive) or |(x, y)| per point (where only)")
     ap.add_argument("--chance", type=int, default=200, help="shuffles per session for the chance line (0 = skip)")
@@ -143,13 +147,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = a.fdir or fro.factor_dir(rv, a.bundle, a.set)
-    sfx = "" if (a.on, a.spatial) == ("product", "vector") else f"_{a.on}_{a.spatial}"
+    sfx = ("" if (a.on, a.spatial) == ("product", "vector") else f"_{a.on}_{a.spatial}") +         ("" if a.assign == "hungarian" else f"_{a.assign}")
     out = a.out or Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "readouts" / a.set / f"matching{sfx}"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         S = pd.read_csv(figure_layout.sidecar_for(out, "match_sessions", ".csv", mkdir=False), dtype={"date": str})
-        pooled_by_day_figure(S, list(S.drop_duplicates("factor").sort_values("factor").name), out, fdir.name)
+        pooled_by_day_figure(S, list(S.drop_duplicates("factor").sort_values("factor").name), out, fdir.name,
+                             "Hungarian-matched" if a.assign == "hungarian" else f"best-{a.on}-matched (may repeat)")
         print("->", out)
         return 0
     M = np.load(fdir / "master.npz")
@@ -170,7 +175,13 @@ def main(argv=None) -> int:
             A, B = z["A_own"], z["B_own"]
         fits[t.key] = (A, B)
         m = fm.match(A_ref, B_ref, A, B, on=a.on, spatial=a.spatial)
-        ch = fm.chance(A_ref, B_ref, A, B, a.on, a.spatial, n=a.chance) if a.chance else {}
+        if a.assign != "hungarian":                  # re-point every per-factor value at the chosen column
+            cs_, cf_ = fm.cosines(A_ref, B_ref, A, B, a.spatial)
+            col = fm.columns(m, a.assign)
+            ix = np.arange(len(col))
+            m = {**m, "order": col, "cos_spatial": cs_[ix, col], "cos_spectral": cf_[ix, col],
+                 "score": m["score_matrix"][ix, col]}
+        ch = fm.chance(A_ref, B_ref, A, B, a.on, a.spatial, n=a.chance, assign=a.assign) if a.chance else {}
         asym_own = fm.loading_asymmetry(A, home, mid)
         if t.epoch in ("pre", "acute"):
             examples.setdefault((t.animal, t.epoch), (t.key, m["score_matrix"]))
@@ -188,10 +199,10 @@ def main(argv=None) -> int:
     for c in ("spatial", "spectral"):                    # the manuscript's "factor ANGLE": arccos of the matched cosine
         S[f"angle_{c}_deg"] = np.degrees(np.arccos(np.clip(S[f"cos_{c}"], -1, 1)))
     S.to_csv(figure_layout.sidecar_for(out, "match_sessions", ".csv"), index=False, float_format="%.4g")
-    pooled_by_day_figure(S, names, out, fdir.name)
+    pooled_by_day_figure(S, names, out, fdir.name, "Hungarian-matched" if a.assign == "hungarian" else f"best-{a.on}-matched (may repeat)")
 
     pre = T[T.epoch == "pre"]
-    P = pd.concat([fm.pairwise({k: fits[k] for k in g.key}, A_ref, B_ref, a.on, a.spatial).assign(animal=an)
+    P = pd.concat([fm.pairwise({k: fits[k] for k in g.key}, A_ref, B_ref, a.on, a.spatial, a.assign).assign(animal=an)
                    for an, g in pre.groupby("animal") if len(g) > 1], ignore_index=True)
     P["name"] = [names[k] for k in P.factor]
     for c in ("spatial", "spectral"):
@@ -232,11 +243,12 @@ def main(argv=None) -> int:
         for ax in axs[-1]:
             ax.set_xlabel("days since stroke")
         frf.legend_outside(axs[0, -1])
-        fig.suptitle(f"{fdir.name}: own-fit factors matched to the frozen master (Hungarian on {a.on}, "
+        fig.suptitle(f"{fdir.name}: own-fit factors matched to the frozen master "
+                     f"({'Hungarian' if a.assign == 'hungarian' else 'best match'} on {a.on}, "
                      f"spatial = {a.spatial})")
         frf.save(fig, out / "match_by_day.png", f"""
 Each session's OWN rank-{len(names)} non-negative CP fit (`fitsession`, best of its random starts) is matched to the frozen
-master's factors by the Hungarian assignment maximising the {a.on} of the spatial and spectral cosines (spatial loadings
+master's factors by {'the Hungarian assignment maximising' if a.assign == 'hungarian' else "each master factor's best column (may repeat) by"} the {a.on} of the spatial and spectral cosines (spatial loadings
 as {'(x, y) displacement vectors over all points' if a.spatial == 'vector' else '|(x, y)| per point'}). Plotted: the
 matched pair's spatial (left) and spectral (right) cosine, per session, over days since stroke, one line per animal.
 Grey band: 5th-95th percentile of the same factor's cosine between two PRE-stroke sessions of one animal (both own fits

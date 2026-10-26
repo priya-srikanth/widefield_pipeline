@@ -17,7 +17,8 @@ Choices made explicit here (each changes the answer):
     assignment still pairs something. ``free`` gives each ref factor's best partner WITHOUT the one-to-one constraint and
     ``margin`` its similarity minus the runner-up's: free != assigned, or a small margin, flags a split / merge.
   * A cosine means nothing without a reference: ``chance`` = the same match against factors with points (spatial) and
-    frequencies (spectral) PERMUTED (non-negative vectors have positive cosines by construction: chance is not 0), and
+    frequencies (spectral) PERMUTED (non-negative vectors have positive cosines by construction: chance is not 0; scored
+    with the same ``assign`` rule as the readout), and
     the PRE-STROKE FLOOR = the matched cosines between pre-stroke sessions of the same animal (`pairwise`).
 
 All inputs are non-negative, so there is no sign ambiguity; columns are unit-normalised before any cosine.
@@ -79,7 +80,8 @@ def match(A_ref, B_ref, A, B, on: str = "product", spatial: str = "vector") -> d
             "free": S.argmax(1), "margin": srt[:, -1] - (srt[:, -2] if S.shape[1] > 1 else 0.0), "score_matrix": S}
 
 
-def chance(A_ref, B_ref, A, B, on: str = "product", spatial: str = "vector", n: int = 200, seed: int = 0) -> dict:
+def chance(A_ref, B_ref, A, B, on: str = "product", spatial: str = "vector", n: int = 200, seed: int = 0,
+           assign: str = "hungarian") -> dict:
     """Matched cosines against the other fit's factors with POINTS (spatial) and FREQUENCIES (spectral) permuted --
     keeps each factor's loading distribution, destroys where / how fast. -> per-ref-factor 95th percentiles over ``n``
     shuffles of the matched spatial / spectral cosine (the chance line to read a matched cosine against)."""
@@ -92,8 +94,14 @@ def chance(A_ref, B_ref, A, B, on: str = "product", spatial: str = "vector", n: 
         As = np.concatenate([A[:P][pp], A[P:][pp]])                     # same permutation for x and y of a point
         Bs = np.asarray(B, float)[rng.permutation(len(B))]
         m = match(A_ref, B_ref, As, Bs, on, spatial)
-        sp.append(m["cos_spatial"])
-        sf.append(m["cos_spectral"])
+        if assign == "hungarian":
+            sp.append(m["cos_spatial"])
+            sf.append(m["cos_spectral"])
+        else:                                    # the same rule as the readout: each ref factor's best column
+            cs, cf = cosines(A_ref, B_ref, As, Bs, spatial)
+            cols = columns(m, assign)
+            sp.append(cs[np.arange(len(cols)), cols])
+            sf.append(cf[np.arange(len(cols)), cols])
     return {"cos_spatial_p95": np.nanpercentile(sp, 95, axis=0), "cos_spectral_p95": np.nanpercentile(sf, 95, axis=0)}
 
 

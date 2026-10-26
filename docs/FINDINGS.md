@@ -501,6 +501,15 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     (Fig 7b; same test over the 36 frequencies of the matched factor's frequency loading): lick_right loses weight at its
     6.5-7.3 Hz peak (-2 SD) and gains at 4.6-5.1 and 10.4-11.7 Hz (+2 SD); 5 / 6 / 2 frequencies FDR .05, the 10-12 Hz
     gain persisting chronically. lick_left: mean peak shifts lower acutely (~5 Hz) and flattens, 0 frequencies survive.
+    OTHER TEN FACTORS (same per-session tests; FR page Fig 7e / 7f): the lateral pair changes most and longest; next
+    whisk_run acute 407 points, lick_fast_close 334 / 185 / 65, lick_slow_late subacute 322; run_onset_jaw / prep_jaw <= 21
+    points and no frequencies (in-data negative control). Spectra: nose_steps acute 33 / 36 frequencies (small tilt toward
+    low frequencies), lick_far_nose acute 20 / 36 (loses high-frequency weight). BY-DAY MATCHING redone with best spatial
+    match (`face_rhythm_match.py --on spatial --assign best` -> readouts/master_pre_v1/matching_spatial_vector_best/; FR
+    page section 8): lick_left further from the master at every epoch, spatial z +2.4 / +1.9 / +1.7 (Holm ** 4 / 4),
+    spectral ** acute and chronic; lick_right spatial +6.2 / +3.3 / +3.5 (* 3 / 4, PS93 opposite); acutely ** also
+    sniff_prelick, nose_prelick_slow, lick_ongoing_7Hz, lick_fast_close, whisk_run, lick_slow_late (the first two and
+    whisk_run also chronically). The whole FR page now pairs factors by best spatial match.
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).
