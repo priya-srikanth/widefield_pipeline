@@ -78,7 +78,19 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
-   * 10-26 AFTERNOON -- STATE NOW (newest). PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
+   * 10-26 EVENING -- STATE NOW (newest). PAGE FORMAT (Priya: every page like the attempt-encoding / goal page;
+     rule in docs/templates/README.md): N.k figure numbers, a title above each image, captions with the full method.
+     (1) FR page v33 (https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1; source scratchpad `fr_page/`): `toc_patch.py`
+     numbers figures N.k (ids fig<N>-<k>), adds `ftitles.py` FT titles + a Model / Input / Baseline line by figure
+     family + the figure's saved METHODS (from the readout READMEs, `../fr_fmt/readme_methods.json`, regenerate with
+     `../fr_fmt/readmes.py`) + script; in-text refs are `<a href="#src:fig/x.png">@fig/x.png@</a>` placeholders resolved
+     at build; `rebuild.py` remaps status links. Four page figures were older renders than the share (same numbers) and
+     were refreshed. Stale prose fixed (lick_left "recovers" -> beyond the null subacute + chronic). (2) KINEMATICS page
+     v7 (https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv) -- taken over from 5b / c67b with their OK: source now this
+     window's scratchpad `kin_page/` (`src_v6.html` = live v6, `convert_fmt.py` -> `index.html`; edit index.html or
+     src + rerun). Sections renumbered 1-10 (were 1, 1b, 2, 2b ...), 48 figures N.k, titles, Data / Window / Stats /
+     Script per caption. (3) Imaging page: 5b / c67b converting. Goal page: d4 already in this format.
+   * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
      all four scalars (Holm); lick_left inside it acutely, beyond it subacute + chronic -> the lick_left cohort vs
