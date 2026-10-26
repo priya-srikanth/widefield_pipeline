@@ -1255,6 +1255,12 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   +0.066 [0.014, 0.143] chronically. Information rises from ~-0.2 s and peaks ~+0.1 s after the lick peak in every epoch. FROZEN decoder
   (each animal's pre ITI licks; pre = leave-one-session-out): DROPS in every epoch, 4/4 -- direction -0.13 [-0.19, -0.07]
   acute, -0.12 subacute, -0.13 chronic; relative to the previous trial's spout -0.10 / -0.09 / -0.06 (chronic n.s.).
+  LICK-COUNT CONTROL (10-26, Priya: "are the number of ITI licks session-matched? is this a confound";
+  `scripts/iti_nmatch_check.py`, `<E>/iti_licks/nmatch_check.csv`): ITI licks per session are fewer post-stroke in
+  PS92-94 (median pre 888 / 1174 / 1225 vs acute 524 / 697 / 476; PS95 more chronically). Frozen decoder scored on test
+  sets subsampled to 40 licks in EVERY session (200 draws): ITI -0.136 / -0.115 / -0.123, in-trial -0.144 / -0.080 /
+  -0.064 (acute / subacute / chronic) = the full-n values; within epoch, sessions with MORE licks have slightly LOWER r
+  (Spearman -0.55 / -0.79 / -0.29) -- not a fewer-licks artefact.
   CONTROLS (10-26, Priya: "lick kinematics ... and face movement before the lick"; page 3.14 / 3.15; controls_tests.csv):
   post-stroke ITI bout-start licks are slightly SLOWER (peak speed -10, -0.26 SD acute and chronic) and a little longer
   chronically (reach +0.23 mm). Post-onset response after regressing reach + speed (per-animal fit on pre licks): tjM1

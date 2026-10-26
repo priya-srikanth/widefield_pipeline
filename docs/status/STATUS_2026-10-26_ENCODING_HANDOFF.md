@@ -30,7 +30,8 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v97**, source `S/goal_page/i
 2. **ITI chain v4** (wide decoding lags -1..+1 s): `S/iti_full4.log` (re-extract + summary) → `S/iti_key4.log` (key
    figures) → `S/iti_ctrl4.log` (controls) → `S/iti_binned.log` (binned frozen-decoder sweep). Outputs `<E>/iti_licks/`
    (session npz backups of earlier versions: `sessions_v1..v3`, figures `figures_v3`; derived, deletable).
-   At 06:56: frozen area run in its pre-statistics pass (11/31 pre sessions); ITI extraction 92/107.
+   At 06:59: TE frozen area run in its pre-statistics pass (17/31 pre sessions); ITI v4 extraction DONE (summary
+   running, then key / controls / binned); whole-cortex maps (job 4) STARTED; old partial refit 64/101.
 3. **Lick-kernel partial refit, OLD design** (`S/run_partial_ls.sh`, 7 workers, `S/partial_ls7.log`; 62/101 at 06:56).
    Superseded for the contest by the TE design, but let it finish: then `run_partial.sh`-style `--plot-only` with
    `--tag gate-attempted_v7g3_t3d_frA_ls`.
@@ -78,6 +79,10 @@ E. Open from before: epoch-kernel drift-RATE test (8.18; within-chronic r per da
   SHORTER); slow build-up before the lick weaker chronically in tjM1 / SSp-m (3/4). Not lick kinematics (post-stroke ITI
   licks slightly slower; kinematics-adjusted / range-matched responses unchanged) and not face movement (face-adjusted
   build-up still weaker). "Relative" direction for ITI = relative to the PREVIOUS trial's spout (spout retracted in ITI).
+- **Lick-count control (Priya: "is this a confound")**: ITI licks are fewer post-stroke (PS92-94), but the frozen
+  decoder on test sets matched to 40 licks per session gives the same numbers (ITI -0.136 / -0.115 / -0.123,
+  in-trial -0.144 / -0.080 / -0.064); more licks -> slightly lower r within epoch. `scripts/iti_nmatch_check.py`
+  (uses the complete v3 extraction). Not on the page yet: add one line to the 3.9 caption.
 - **FaceRhythm lick factor (1.16 / 1.17):** chronic trial-by-trial unique gain in bilateral orofacial motor cortex with
   LOWER trial-to-trial variance (-40 % / -44 %) → tighter coupling, not more variability.
 - **Block-permutation nulls** reproduce the single-shift partial-refit contrasts (1.33 lines).
