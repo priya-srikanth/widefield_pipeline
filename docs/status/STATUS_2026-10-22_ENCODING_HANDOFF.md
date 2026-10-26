@@ -54,6 +54,10 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   ONE ANIMAL -- read the full run's per-animal table first. Caveats to state: a cortex-wide component rides on every
   ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
   change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
+- EPOCH KERNELS FULL RUN DONE 00:27 -> ENCODING_FINDINGS 8.18, page 1uc2 / 1uc3. Per-spout lick kernels diverge
+  steadily from early pre (chronic r 0.50-0.69 vs late pre 0.82-0.92, below split-half), cue kernel changes acutely,
+  target kernels too noisy. NEXT (decides it): drift-RATE test (within-chronic early vs late r per day vs the pre rate
+  per day; as chronic_drift_vs_reorg). Matched fits drop PS95 (one acute session).
 - ITI FULL RUN DONE 00:10 (102 sessions) -> ENCODING_FINDINGS 8.17, FINDINGS 4d. t50 'later ramp' = AMPLITUDE
   artefact (post-onset response ~2x acutely); amplitude-free early ramp (-0.6..-0.2 s / pre amplitude) weaker
   CHRONICALLY in tjM1 / SSp-m (3/4); direction decoding intact within session, frozen pre decoder -0.13 every epoch
