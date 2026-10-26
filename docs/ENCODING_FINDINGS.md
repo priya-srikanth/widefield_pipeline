@@ -1157,6 +1157,41 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.17 Self-initiated (ITI) licks: pre-lick ramp and target-free direction coding (10-26 ~00:15) -- PROVISIONAL
+
+`scripts/iti_licks.py`, `<E>/iti_licks/` (102 sessions, 4 animals; Priya 10-25: "let's also do the inter-trial 3d licks,
+pre-lick ramp timing"). ITI licks (whole-session 3-D table, context iti) have no trial, cue or target; the spout is still
+in place. Lick times from each session's licks_all.csv via lick_uid (the kinematics table's daq_peak_s is rounded to
+4 significant digits -- see 2.6); clock match to the behaviour licks 1 ms in every session. ROIs: ALM / tjM1 = the
+anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to 1/2 of MOs and MOp").
+- RAMP (bout-start ITI licks: no lick for 2 s, no cue / spout move within -2..+0.75 s; onset-aligned, baseline -1.5..-1.0
+  s; 427-3177 per animal pre). Pre-stroke activity rises from ~-1 s, earliest in tjM1 (half-amplitude ~-0.35 s) and
+  SSp-m, later in ALM / MOs (~-0.15 s). The half-amplitude time (t50) moves LATER post-stroke (tjM1 contra +0.25 s acute,
+  4/4) -- but that is an AMPLITUDE artefact: the post-onset response roughly DOUBLES acutely (peak 0.1-0.4 s, in units of
+  the animal's pre amplitude at the lick: tjM1 contra +1.43 [0.51, 2.41], SSp-m contra +1.52, MOp +0.85-0.94, ALM
+  +0.55-0.73; 4/4) and stays elevated chronically (tjM1 / SSp-m / MOp +0.5-0.8, 4/4). Amplitude-free early ramp
+  (-0.6..-0.2 s, same units): acute UNCHANGED (PS93 / PS94 up, PS92 / PS95 down); CHRONIC WEAKER in tjM1 (contra -0.40
+  [-0.70, -0.08], ipsi -0.33), SSp-m (-0.46 / -0.35), MOp (-0.23 / -0.19), ALM (-0.15 / -0.12, 4/4 down); MOs and cortex
+  CIs include 0. Per animal the chronic drop is PS92 / PS93 / PS94; PS95's tjM1 ramp does not fall.
+  Reading: after the stroke, self-initiated licks are preceded by less slow build-up in orofacial sensorimotor cortex
+  and followed by a larger cortical response (consistent with the chronic positive frozen residual, 4.x / Fig 1 row 2).
+  Caveats: pre-lick orofacial movement (jaw / whisking) is not controlled here (FaceRhythm could be regressed out); a
+  cortex-wide component rides on every ROI (ROI minus cortex not yet done); calcium lag; ITI lick numbers fall acutely
+  (PS95 65 acute bout starts). Trial FIRST licks (cue-triggered, secondary): t50 unchanged acutely, slightly later
+  chronically (+0.02-0.05 s).
+- DIRECTION WITHOUT A TRIAL (each lick's 3-D lateral direction decoded from area activity, ridge, 5 time-block folds;
+  lags 0..0.2 s). Within session: ITI direction r 0.53 pre, unchanged in every epoch (acute -0.015 [-0.10, 0.11]); n-matched
+  in-trial licks 0.71, unchanged; within-spout ITI direction (spout identity removed) 0.31, unchanged (chronic +0.05,
+  CI includes 0). Information rises from ~-0.2 s and peaks ~+0.1 s after the lick peak in every epoch. FROZEN decoder
+  (each animal's pre ITI licks; pre = leave-one-session-out): DROPS in every epoch, 4/4 -- direction -0.13 [-0.19, -0.07]
+  acute, -0.12 subacute, -0.13 chronic; within-spout -0.13 / -0.10 / -0.07.
+  Reading: cortex still carries the executed direction of self-initiated licks as strongly as before, but in a
+  DIFFERENT mapping from the pre-stroke one -- the execution code without a target is intact but remapped, like the
+  trial code (8.12-8.14). This is the target-free counterpart of the far-contra trial result: there the code on failed
+  attempts is lost; here, with no target, direction stays decodable session by session.
+  Caveat: in-trial within-spout r rises post-stroke (0.15 -> 0.25-0.26) with larger within-spout spread (r depends on the
+  behavioural variance); the frozen drop is not explained by variance (more variance would raise r).
+
 ### 8.16 Per-spout lick kernels in the frozen model; target vs executed reconciled (10-25 night) -- PROVISIONAL
 
 - Run `gate-attempted_v7g3_t3d_frA_ls` (frozen + FaceRhythm mode A + FROZEN_LICKSPOUT=1: the lick-onset s / d columns

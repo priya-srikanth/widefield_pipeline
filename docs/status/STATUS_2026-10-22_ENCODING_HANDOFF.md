@@ -54,6 +54,11 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   ONE ANIMAL -- read the full run's per-animal table first. Caveats to state: a cortex-wide component rides on every
   ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
   change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
+- ITI FULL RUN DONE 00:10 (102 sessions) -> ENCODING_FINDINGS 8.17, FINDINGS 4d. t50 'later ramp' = AMPLITUDE
+  artefact (post-onset response ~2x acutely); amplitude-free early ramp (-0.6..-0.2 s / pre amplitude) weaker
+  CHRONICALLY in tjM1 / SSp-m (3/4); direction decoding intact within session, frozen pre decoder -0.13 every epoch
+  (remapped). NEXT: page figures (iti_ramp_peth.png, iti_direction_decoding.png + a line panel of early_n / peak_n);
+  regress pre-lick FaceRhythm out of the ramp; ROI minus cortex; per-animal PETH view.
 - TIMING BUG in a shared table: `pose3d/kinematics_all/licks.csv.gz` daq_peak_s was written with %.4g (0.1 s after
   100 s, 1 s after 1000 s). Exact time = the session's licks_all.csv row lick_uid. AFFECTED: `wfield_local/stray_licks.py`
   (ENCODING_FINDINGS 2.6 now carries a RE-RUN NEEDED box). Writer fixed (pose3d_kinematics.py, c2aa922): the table
