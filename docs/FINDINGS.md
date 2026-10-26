@@ -110,6 +110,19 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    movement but with ~3/4 of the original spout code and a partly remapped, not restored, mapping. Caveats: n = 4; the
    cortex-wide part of the remapping cannot be separated from drift without a time-matched no-stroke reference; whether
    the remapping is compensatory (helps behaviour) is untested (correlations with recovery only, 4.2 / 4.3 mixed models).
+4c. **Do early cortical features predict the chronic outcome per animal? EXPLORATORY, n = 4** (10-25 night,
+   `scripts/early_predictors.py`, page 1i5). Exact Spearman over the 24 orderings (perfect = p .083 two-sided / .042
+   one-sided; nothing else can be significant). Perfect orderings: (i) LESION SIZE orders behavioural recovery speed
+   (half-recovery day PS93 3.9 < PS92 4.7 < PS94 7.0 < PS95 7.9; lesion 45.0 / 46.7 / 67.7 / 81.9 %) -- structural, not
+   cortical, and the one prediction plausible a priori (one-sided .042). (ii) Acute far-contra retention (all trials)
+   orders the chronic cortical code on hits INVERSELY (rho -1) and the chronic cue residual positively (+1): animals that
+   kept more far-contra code acutely end with a LESS pre-like code and a larger residual chronically -- but acute
+   retention is near 0 in 3/4 and PS94 alone sets the order (PS94 is extreme on early residual, acute retention, chronic
+   code and chronic residual), so read (ii) as "PS94 differs". Day-1 / days 1-3 residual: chronic code rho -0.8, chronic
+   residual +0.8 (persistence). Chronic behaviour has no between-animal variance (all ~1.0), so it cannot be predicted.
+   PRE-REGISTER for the next cohort (direction stated): lesion % -> slower behavioural recovery (+); day 1-3 orofacial
+   residual -> lower chronic cortical code on hits (-) and larger chronic residual (+); acute far-contra retention ->
+   chronic code (sign open: - here); acute coupling on failed attempts -> recovery speed (open).
 5. **Working interpretation (hypothesis, not a result):** losing striatal input removes spatially specific (directional)
    drive to orofacial cortex; cortex compensates with more gain in lateral frontal / orofacial motor areas, mostly in the
    contralesional hemisphere (intact-striatum side), and encodes movement more generically -- matching the behavioural
