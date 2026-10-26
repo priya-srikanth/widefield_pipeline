@@ -6,7 +6,7 @@ Run all python from the worktree with `PYTHONPATH=<worktree>` (another `wfield_l
 
 ## Page
 
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOCALLY, NOT PUBLISHED** (14:15: Artifact tool switched off in the session -- publish S/goal_page/index.html with files={"iti_area_compare.png": ...} when available; adds orofacial-vs-control PETHs 3.21 + corrected whole-cortex claim; v103 12:00: the 9 images missing from v98-v102 uploaded; v102 11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOCALLY, NOT PUBLISHED** (14:15: Artifact tool switched off in the session -- publish S/goal_page/index.html with files={"iti_area_compare.png", "iti_basis_decoder.png"} when available; adds orofacial-vs-control PETHs 3.22, basis decoder 3.13 + corrected whole-cortex claim; v103 12:00: the 9 images missing from v98-v102 uploaded; v102 11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
 `C:/Users/SabatiniLab/AppData/Local/Temp/...` (the 8.3 path is blocked for images).
 
 - **Numbering = Fig SECTION.POSITION** (Priya 10-26: "why two letters"); ids `fig<sec>-<k>`. To add a figure: insert it
@@ -29,10 +29,10 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOC
   10-26 and runs the lines 5b gives her). Then re-run `python -m wfield_local.stray_licks` (patched 1d6e227; move the old
   `<E>/stray_licks/sessions` aside first -- it skips sessions already done; derived outputs, Priya's OK not needed to
   rename) and update ENCODING_FINDINGS 2.6.
-- **Frozen decoder in other bases** (`scripts/iti_basis_decoder.py`, log `S/iti_basis.log`, 2 workers, 61/212 at 13:49;
-  summarises itself at the end -> `basis_decoder_tests.csv`, `figures/iti_basis_decoder.png`). Then page next to 3.9.
+- **DONE 14:35: frozen decoder in other bases** (`iti_basis_decoder.py`): result holds in joint LocaNMF and the pre-stroke
+  SVD basis (ENCODING_FINDINGS 8.17 top, FINDINGS 4d vii); figure added to the LOCAL page after 3.12 (unpublished).
 - **WHERE decoder** (Priya 10-26: angle / distance together, "or lateral location instead of angle"):
-  `scripts/iti_where_decoder.py` written + lint-clean, NOT YET RUN -- run it AFTER the basis job (it picks up the basis
+  `scripts/iti_where_decoder.py` RUNNING since 14:35 (log `S/iti_where.log`) (it picks up the basis
   folders if present and raises if a basis file does not line up). Targets lateral (side_ml), outward (out_ap), 2-D
   vector r, angle / reach polar check; prints reach spread per epoch. -> page next to 3.9.
 - **ITI lick RATE vs recovery** (Priya 10-26: "does inter-trial licking correlate with recovery (and exceed pre-stroke
@@ -116,7 +116,7 @@ E. Open from before: epoch-kernel drift-RATE test (8.18; within-chronic r per da
 
 ## Results of 10-26 (all PROVISIONAL; details ENCODING_FINDINGS 8.17–8.19, FINDINGS 4d / 4e)
 
-- **Self-initiated ITI licks (KEY, page 3.7–3.21):** within-session direction decoding intact; FROZEN pre-stroke decoder
+- **Self-initiated ITI licks (KEY, page 3.7–3.23):** within-session direction decoding intact; FROZEN pre-stroke decoder
   down every epoch for ITI licks (-0.135 r chronic, -22 %), largely recovers for cued in-trial licks (-20 % acute → -9 %
   chronic). Each lick evokes a larger response (~2× acutely, +0.6–0.8 chronic, also isolated licks; post-stroke bouts are
   SHORTER); slow build-up before the lick weaker chronically in tjM1 / SSp-m (3/4). Not lick kinematics (post-stroke ITI
