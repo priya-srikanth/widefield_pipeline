@@ -96,6 +96,7 @@ def boot(df: pd.DataFrame, val: str, ref_epoch: str = "pre", epochs=EPS, keys=("
 
 def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
     """Grouped bars: x = area x epoch, one bar per frame; whisker 95 % CI; * CI excludes 0; dots = animals."""
+    from wfield_local.sig_marks import sig_star
     nf = len(frames)
     xt, xl = [], []
     band = False
@@ -117,13 +118,61 @@ def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
                 x = x0 + (k - (nf - 1) / 2) * 0.8 / nf
                 ax.bar(x, r.point * scale, width=0.8 / nf, color=COL.get(fr, f"C{k}"), label=fr if (i == 0 and j == 0) else None)
                 ax.plot([x, x], [r.lo * scale, r.hi * scale], color="k", lw=0.8)
-                ax.scatter([x] * 4, [r.get(an, np.nan) * scale for an in AN], s=5, c="k", zorder=5)
-                if r.lo > 0 or r.hi < 0:
-                    ax.text(x, max(r.hi, 0) * scale, "*", ha="center", va="bottom", fontsize=9)
+                dots = [r.get(an, np.nan) * scale for an in AN]
+                ax.scatter([x] * 4, dots, s=5, c="k", zorder=5)
+                sig_star(ax, x, r.lo * scale, r.hi * scale, dots)
     ax.axhline(0, color="k", lw=0.6)
     ax.set_xticks(xt); ax.set_xticklabels(xl, fontsize=7)
     ax.set_ylabel(ylabel, fontsize=8); ax.tick_params(axis="y", labelsize=7.5)
     ax.set_title(title, fontsize=9)
+
+
+def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key: str = "frame"):
+    """EPOCH LINES (Priya 10-25: "the partial lines is much better" than grouped bars): x = pre (0 by construction, a
+    change from pre) -> acute -> subacute -> chronic; per series a line (mean of animals), a shaded 95 % nested CI, faint
+    per-animal lines; FILLED marker = CI excludes 0, OPEN = includes 0. ``series`` = [(value of B[key], label, colour)];
+    B = ``boot`` output (columns area, epoch, point, lo, hi and one column per animal). Grey band = the pre-stroke
+    split-half range when B has `<ref>_split` rows."""
+    x = np.arange(len(EP4))
+    ax.axhline(0, color="0.6", lw=0.8, zorder=0)
+    nb = B[B.area.eq(area) & B.epoch.astype(str).str.endswith("_split") & B[key].isin([s[0] for s in series])]
+    if not nb.empty:
+        ax.axhspan(nb.lo.min() * scale, nb.hi.max() * scale, color="#bbbbbb", alpha=0.25, lw=0, zorder=0)
+    ns = len(series)
+    for k, (q, _lab, col) in enumerate(series):
+        t = B[(B[key] == q) & (B.area == area) & B.epoch.isin(EPS)].set_index("epoch").reindex(EPS)
+        if t.point.isna().all():
+            continue
+        xs = x + (k - (ns - 1) / 2) * 0.06
+        pt = np.r_[0, t.point.to_numpy() * scale]
+        lo, hi = np.r_[0, t.lo.to_numpy() * scale], np.r_[0, t.hi.to_numpy() * scale]
+        for an in AN:
+            if an in t:
+                ax.plot(xs, np.r_[0, t[an].to_numpy() * scale], color=col, lw=0.6, alpha=0.25)
+        ax.fill_between(xs, lo, hi, color=col, alpha=0.15, lw=0)
+        ax.plot(xs, pt, color=col, lw=2)
+        sig = np.r_[False, ((t.lo > 0) | (t.hi < 0)).to_numpy()]
+        ax.scatter(xs[sig], pt[sig], s=44, color=col, edgecolor="k", lw=0.6, zorder=5)
+        ns_ = ~sig
+        ns_[0] = False
+        ax.scatter(xs[ns_], pt[ns_], s=38, facecolor="w", edgecolor=col, lw=1.5, zorder=5)
+    ax.set_xticks(x)
+    ax.set_xticklabels(["pre", "acute", "sub", "chronic"], fontsize=8)
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
+
+
+def lines_legend(fig, series, y: float = 0.01, split: bool = True):
+    """One legend row under the panels: series colours + filled / open marker key + animals (+ pre split-half band)."""
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    h = [Line2D([], [], color=c, lw=2, label=lab) for _q, lab, c in series]
+    h += [Line2D([], [], marker="o", ls="", mfc="0.4", mec="k", label="95% nested CI excludes 0"),
+          Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.5, label="CI includes 0"),
+          Line2D([], [], color="0.4", lw=0.6, alpha=0.5, label="each animal")]
+    if split:
+        h.append(Patch(color="#bbbbbb", alpha=0.4, label="pre-stroke split-half range"))
+    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, y), ncol=min(len(h), 6), frameon=False, fontsize=8.5)
 
 
 def main() -> int:
