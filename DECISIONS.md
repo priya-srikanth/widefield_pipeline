@@ -22044,3 +22044,25 @@ spout figures written under `frozen_encoder_gate-attempted_v7g3_t3d_basis`.
 * Consequence: the acute "central lick (lick_ongoing_7Hz) shifts ipsilesional" result is WITHDRAWN (it was the shared
   column); the lateral lick factors' less-lateralised pattern stands (3 / 4 animals every epoch). The cleaner test --
   cohort per-epoch fits + leave-one-animal-out (`fitcohort`) -- is running on O2.
+
+## 2026-10-26 -- Encoder redesign: TARGET kernel vs EXECUTION kernel, with ITI licks (Priya)
+
+Priya 10-26 on the per-spout lick kernels ("I don't think this is what we wanted"): we want a flexible, meaningful lick
+kernel -- a TARGET kernel vs an EXECUTION kernel. The frozen design so far split every lick-related trace into a
+spout-locked TEMPLATE (predictable from the spout alone) and a deviation, so its "executed" side partly carried target
+information, and per-spout lick kernels added on top were leftover terms (sign flips across lags / animals).
+Decided (AskUserQuestion, all recommended options):
+- TARGET = spout identity only, no kinematics: arrival / cue-locked per-spout kernels (pos_enl, pos_cue) + lick-locked
+  kernels labelled by the trial's TARGET spout (so alignment alone cannot favour execution).
+- EXECUTION = the movement as it happened: 3-D tongue / jaw traces (unsplit, lagged), executed lick angle, all FaceRhythm
+  factors, and lick-locked kernels labelled by where each lick LANDED in 3-D (untracked licks -> "unknown"). No
+  spout-template / deviation split.
+- CONTACT stays its own group (sensory feedback: neither target nor motor command).
+- Nuisance: cue / arrival timing, running, nose, push.
+- ITI LICKS INCLUDED (Priya: "should we include ITI licks?" -> yes): frames extend into the ITI; target columns are zero
+  outside trials (no cue, spout retracted), execution columns apply everywhere. ITI licks are execution WITHOUT a
+  target, which separates the two kernels even in pre-stroke data. A "previous trial's spout" term is left out of v1.
+- Readouts: unique(target) vs unique(execution) in the frozen model, self-fit and partial refit (block-permutation
+  nulls); kernel maps = each group's summed contribution averaged around the event per spout (not single betas).
+- The lick-only model is NOT used for the contest (it absorbs target-related lick-locked activity); descriptive only.
+Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the epoch kernel maps (1.20-1.21).
