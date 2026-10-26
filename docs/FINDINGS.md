@@ -144,6 +144,10 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    (v) Not spout contact: in-trial licks WITHOUT contact recover too (-0.21 acute -> -0.03 chronic); ITI licks without
    contact stay down (-0.15 chronic). Session-paired ITI - in-trial gap widens chronically (-0.062 [-0.110, -0.014];
    no-contact -0.125), 3/4 animals (PS93 none).
+   (vi) Recovery marker: within animal, the in-trial frozen decoder tracks far-contra behaviour across post sessions
+   (r +0.62, 4/4; +0.53 controlling lick-direction spread) and the ITI one does not (+0.10); beyond the shared time
+   trend the link is small (+0.16, 4/4 positive, n.s.) -> a marker of the recovery time course, not yet of day-to-day
+   behaviour.
    (iii) Binned frozen decoder (10-26): same result (ITI -22 % chronic, in-trial -19 -> -10 %); with visual + RSP areas
    only, both lick types lose ~half and in-trial does not recover -> the in-trial recovery is orofacial-specific.
    (iv) Whole cortex: the acute / subacute response increase is global (41-45 Allen areas); chronically the larger

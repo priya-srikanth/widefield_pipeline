@@ -1229,6 +1229,16 @@ coupling (direction not determined), not more face variability.
 
 ### 8.17 Self-initiated (ITI) licks: pre-lick ramp and target-free direction coding (10-26 ~00:15) -- PROVISIONAL
 
+  RECOVERY MARKER (10-26 ~09:30, `scripts/iti_recovery_marker.py`, recovery_marker.csv; Priya: "perhaps a marker of
+  recovery?"). Within animal, post sessions (19 per animal): frozen-decoder r / pre vs far-contra hit rate / pre.
+  In-trial: r +0.62 (PS92 0.85, PS93 0.60, PS94 0.53, PS95 0.50; within-animal permutation p 0.0002); after
+  partialling out the session's spread of lick directions (a correlation rises with spread; PS92 r(behaviour, spread)
+  0.79) +0.53 (4/4, p 0.0002); after removing log(day) +0.29 (4/4, p 0.02); spread + log(day) +0.16 (4/4 positive,
+  0.07-0.24, p 0.19). ITI: +0.10 (signs mixed, p 0.39). In-trial minus ITI +0.52 (p 0.0006; spread-controlled +0.40,
+  p 0.005). Reading: the in-trial frozen decoder follows the RECOVERY TIME COURSE and the ITI one does not; behaviour
+  is nearly bimodal (acute ~0, chronic ~1), so most of the link is the acute -> chronic step, and tracking of
+  day-to-day behaviour beyond the shared trend is not established (small, consistent in sign).
+
   CONTACT + PAIRED GAP (10-26 ~09:00, `scripts/iti_contact_check.py`, contact_check.csv; handoff B(i)-(ii)). Each lick's
   DAQ contact flag from licks_all.csv (exact peak-time join, 100 % matched). In-trial licks touch the spout 74-95 %;
   ITI licks 10-30 % (the spout is approaching / leaving at window edges). Same frozen decoder as 3.9, scored on subsets
@@ -1240,7 +1250,7 @@ coupling (direction not determined), not more face variability.
   Reading: the pre-stroke mapping fails most for licks with no spout at all, and returns for licks made in the task
   context whether or not they touch the spout.
 
-  BINNED FROZEN DECODER + WHOLE CORTEX (10-26 ~08:30; page 3.10 / 3.11 / 3.18-3.20, `iti_licks.py --binned`,
+  BINNED FROZEN DECODER + WHOLE CORTEX (10-26 ~08:30; page 3.11 / 3.12 / 3.19-3.21, `iti_licks.py --binned`,
   `scripts/iti_area_maps.py`). Binned decoder (area activity in consecutive bins; window x bin swept, configuration
   chosen on PRE r only: ITI -0.5..0.5 s / 0.1 s, in-trial -1..1 s / 0.1 s): all areas ITI -0.145 / -0.165 / -0.168 r
   (acute / subacute / chronic, -19 / -21 / -22 %), in-trial -0.151 / -0.099 / -0.084 (-19 -> -10 %); orofacial areas
@@ -1296,14 +1306,14 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   sets subsampled to 40 licks in EVERY session (200 draws): ITI -0.136 / -0.115 / -0.123, in-trial -0.144 / -0.080 /
   -0.064 (acute / subacute / chronic) = the full-n values; within epoch, sessions with MORE licks have slightly LOWER r
   (Spearman -0.55 / -0.79 / -0.29) -- not a fewer-licks artefact.
-  CONTROLS (10-26, Priya: "lick kinematics ... and face movement before the lick"; page 3.16 / 3.17; controls_tests.csv):
+  CONTROLS (10-26, Priya: "lick kinematics ... and face movement before the lick"; page 3.17 / 3.18; controls_tests.csv):
   post-stroke ITI bout-start licks are slightly SLOWER (peak speed -10, -0.26 SD acute and chronic) and a little longer
   chronically (reach +0.23 mm). Post-onset response after regressing reach + speed (per-animal fit on pre licks): tjM1
   contra +1.43 acute / +0.74 chronic, SSp-m contra +1.51 / +0.62 pre amplitudes (CIs exclude 0); restricted to post
   licks inside the pre 10-90 % reach AND speed range: +1.41 / +0.84, +1.46 / +0.71 -> NOT kinematics. Face (FaceRhythm
   factors, z vs pre licks): small changes before the lick (lick factor +0.14, left face +0.21 SD acutely; left face -0.12
   chronically); build-up after regressing pre-lick face movement still weaker chronically (tjM1 contra -0.41, SSp-m
-  contra -0.47) -> NOT face movement. AUC version (page 3.14; Priya: response AUC 0..0.5 s, build-up -0.4..-0.05 s
+  contra -0.47) -> NOT face movement. AUC version (page 3.15; Priya: response AUC 0..0.5 s, build-up -0.4..-0.05 s
   before the tongue is visible = before cam4 `on_frame`): same conclusions. Caveats for the frozen-decoder contrast
   (ITI stays down, in-trial recovers): per animal the chronic ITI - in-trial gap is PS92 -0.11, PS94 -0.16, PS95 -0.24,
   PS93 -0.01 (3/4; subacute 4/4); in-trial recovery may ride on spout CONTACT -> test in-trial licks without contact.
@@ -1314,7 +1324,7 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   => the pre-stroke mapping largely returns for cued, targeted licks but NOT for self-initiated ones. Pre-stroke ITI
   direction is decodable from ~-0.5 s before the lick peak (r ~0.25), post-stroke ~0.1 (may include the previous lick
   of a bout). Figures iti_frozen_timecourse.png / iti_frozen_summary.png; tests decode_frozen_session_tests.csv.
-  Ramp session-pooled (page 3.13 / 3.14; ramp_session_tests.csv): post-onset response up acutely in every ROI, still up
+  Ramp session-pooled (page 3.14 / 3.15; ramp_session_tests.csv): post-onset response up acutely in every ROI, still up
   chronically in tjM1 / SSp-m (raw and normalised); early build-up down chronically in tjM1, SSp-m, ALM.
   Reading: cortex still carries the executed direction of self-initiated licks as strongly as before, but in a
   DIFFERENT mapping from the pre-stroke one -- the execution code without a target is intact but remapped, like the
