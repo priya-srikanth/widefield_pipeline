@@ -941,6 +941,22 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
             matched[g.index] = ((g.reach >= lo_r) & (g.reach <= hi_r) & (g.speed >= lo_s) & (g.speed <= hi_s)).to_numpy()
         L[f"adj_{roi}"] = adj
         L[f"matched_{roi}"] = np.where(matched, L[f"amp_{roi}"], np.nan)
+    # (1b) the same regression with post-onset FACE movement added (Priya 10-26: "add FR adjustment"): reach + speed +
+    # FaceRhythm lick / right / left factors in the response window (0.1..0.4 s), per animal on PRE licks
+    fcols = [c for c in ("z_fr_lick_post", "z_fr_right_post", "z_fr_left_post") if c in L]
+    for roi in CTRL_ROIS:
+        adj = np.full(len(L), np.nan)
+        cols = ["z_reach", "z_speed", *fcols]
+        for _a, g in L.groupby("animal"):
+            pre = g[g.epoch == "pre"].dropna(subset=[f"amp_{roi}", *cols])
+            if len(pre) < 30:
+                continue
+            Xp = np.column_stack([np.ones(len(pre)), *[pre[c] for c in cols]])
+            beta = np.linalg.lstsq(Xp, pre[f"amp_{roi}"].to_numpy(), rcond=None)[0]
+            ok = g[cols].notna().all(1)
+            Xg = np.column_stack([np.ones(ok.sum()), *[g[c][ok] for c in cols]])
+            adj[g.index[ok]] = g[f"amp_{roi}"][ok].to_numpy() - Xg @ beta + beta[0]
+        L[f"adjfr_{roi}"] = adj
     S = L.groupby(["label", "animal", "epoch"]).mean(numeric_only=True).reset_index()
     S.to_csv(OUT / "controls_sessions.csv", index=False)
     print("\n== per animal (rule 8): 3-D reach (mm) / peak speed of bout-start ITI licks, session means\n"
@@ -956,7 +972,7 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
                 tests.append({"figure": tag, **r_})
             ax.set_title(ttl, fontsize=8.5)
     # figure A: kinematics + adjusted response
-    fig, axs = plt.subplots(3, 6, figsize=(21, 11))
+    fig, axs = plt.subplots(4, 6, figsize=(21, 14.5))
     panel_row(axs[0, :2], [("reach", "3-D reach (mm)", None), ("speed", "peak tongue speed", None)], "kin")
     panel_row(axs[0, 2:4], [("z_reach", "reach, z vs animal's pre licks", 0), ("z_speed", "speed, z vs animal's pre", 0)], "kin")
     for ax in axs[0, 4:]:
@@ -964,12 +980,13 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
     panel_row(axs[1], [(f"adj_{r}", f"{r}: post-onset, KINEMATICS-ADJUSTED", None) for r in CTRL_ROIS], "adj")
     panel_row(axs[2], [(f"matched_{r}", f"{r}: post-onset, licks in pre reach+speed range", None) for r in CTRL_ROIS],
               "matched")
-    axs[1, 0].set_ylabel("/ animal's pre amplitude")
-    axs[2, 0].set_ylabel("/ animal's pre amplitude")
+    panel_row(axs[3], [(f"adjfr_{r}", f"{r}: post-onset, KINEMATICS + FACE-ADJUSTED", None) for r in CTRL_ROIS], "adj_fr")
+    for k in (1, 2, 3):
+        axs[k, 0].set_ylabel("dF/F / animal's pre amplitude")
     fig.suptitle("NEURAL + LICK: does the larger post-onset response to self-initiated licks follow bigger / faster licks? Row 1: "
                  "3-D reach and peak speed of the same bout-start ITI licks (one dot per session). Row 2: post-onset response "
                  "after regressing out reach + speed (per-animal fit on PRE licks; residual + pre intercept). Row 3: only post "
-                 "licks inside the animal's pre 10-90 % reach AND speed range. * = nested-bootstrap change from pre.",
+                 "licks inside the animal's pre 10-90 % reach AND speed range. Row 4: as row 2 with post-onset face movement (FaceRhythm lick, right, left factors, 0.1..0.4 s) added to the regression. * = nested-bootstrap change from pre.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.92))
     fig.savefig(OUT / "figures" / "iti_kinematics_control.png", dpi=110)
