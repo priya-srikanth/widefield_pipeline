@@ -6,7 +6,7 @@ Run all python from the worktree with `PYTHONPATH=<worktree>` (another `wfield_l
 
 ## Page
 
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOCALLY, NOT PUBLISHED** (14:15: Artifact tool switched off in the session -- publish S/goal_page/index.html with files={"iti_area_compare.png", "iti_basis_decoder.png"} when available; adds orofacial-vs-control PETHs 3.22, basis decoder 3.13 + corrected whole-cortex claim; v103 12:00: the 9 images missing from v98-v102 uploaded; v102 11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOCALLY, NOT PUBLISHED** (14:15: Artifact tool switched off in the session -- publish S/goal_page/index.html with files={"iti_area_compare.png", "iti_basis_decoder.png"} when available; adds orofacial-vs-control PETHs 3.24, basis decoder 3.14 + corrected whole-cortex claim; v103 12:00: the 9 images missing from v98-v102 uploaded; v102 11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
 `C:/Users/SabatiniLab/AppData/Local/Temp/...` (the 8.3 path is blocked for images).
 
 - **Numbering = Fig SECTION.POSITION** (Priya 10-26: "why two letters"); ids `fig<sec>-<k>`. To add a figure: insert it
@@ -18,7 +18,7 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOC
 
 ## RUNNING (do not restart; check logs)
 
-### NOW (13:50) -- read this block first
+### NOW (16:00) -- read this block first
 - **TE partial refit** (`S/run_partial_te.sh`, log `S/partial_te.log`, 6 workers, started 11:09; 54/107 at 13:49, ~16:15
   end; a background wait prints the exit + any `!!` lines). Then: read out with `FROZEN_DESIGN=te` env
   (`partial_refit.py --tag gate-attempted_v7g3_t3d_frA_te --plot-only`; sets target / target_spout / target_lick /
@@ -30,17 +30,19 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOC
   `<E>/stray_licks/sessions` aside first -- it skips sessions already done; derived outputs, Priya's OK not needed to
   rename) and update ENCODING_FINDINGS 2.6.
 - **DONE 14:35: frozen decoder in other bases** (`iti_basis_decoder.py`): result holds in joint LocaNMF and the pre-stroke
-  SVD basis (ENCODING_FINDINGS 8.17 top, FINDINGS 4d vii); figure added to the LOCAL page after 3.12 (unpublished).
+  SVD basis (ENCODING_FINDINGS 8.17 top, FINDINGS 4d vii); figure added to the LOCAL page after 3.13 (unpublished).
 - **WHERE decoder** (Priya 10-26: angle / distance together, "or lateral location instead of angle"):
-  `scripts/iti_where_decoder.py` DONE 15:00 (ENCODING_FINDINGS 8.17 top, FINDINGS 4d viii; re-render with title pad
-  running, log `S/iti_where2.log`); NOT yet on the page (it picks up the basis
+  `scripts/iti_where_decoder.py` DONE 15:00 (ENCODING_FINDINGS 8.17 top, FINDINGS 4d viii); on the LOCAL page as 3.15
+  (unpublished) (it picks up the basis
   folders if present and raises if a basis file does not line up). Targets lateral (side_ml), outward (out_ap), 2-D
   vector r, angle / reach polar check; prints reach spread per epoch. -> page next to 3.9.
 - **ITI lick RATE vs recovery** (Priya 10-26: "does inter-trial licking correlate with recovery (and exceed pre-stroke
-  levels)"): `scripts/iti_lick_rate.py` RUNNING in the foreground task (output `tasks/bxvqmai05.output`; ~100 behaviour
-  loads). Rate = ITI licks / ITI minutes (next strobe - stop, clipped 0..60 s), no-contact rate, per trial, contact share;
+  levels)"): `scripts/iti_lick_rate.py` DONE 15:40 (ENCODING_FINDINGS 8.17 top, FINDINGS 4d ix; LOCAL page 3.11; `--plot-only`
+  redraws from the CSVs). Answer: dips with the deficit and returns, exceeds pre only in PS95. Rate = ITI licks / ITI minutes (next strobe - stop, clipped 0..60 s), no-contact rate, per trial, contact share;
   change vs pre + within-animal correlation with far-contra behaviour (raw, log-day detrended). Earlier count check:
-  fewer ITI licks post-stroke in PS92-94 (so exceeding pre is unlikely in counts; rate is the fair test). -> page + docs.
+  fewer ITI licks post-stroke in PS92-94 (so exceeding pre is unlikely in counts; rate is the fair test).
+- **Page publish pending**: files = iti_area_compare.png, iti_basis_decoder.png, iti_where_decoder.png, iti_lick_rate.png
+  (all copied into S/goal_page; renumbered 16:00, map in GOAL_PAGE_FIG_MAP_2026-10-26.csv).
 - Pushed to origin through e9656c8; LOCAL commits since (1d6e227 stray fix, b60d363, ff61daa, d47d32c, + this) need a
   cherry-pick push (memory note: never rebase this branch; cherry-pick onto origin/main in a temp worktree).
 
@@ -76,7 +78,7 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOC
 
 A0. **DONE v98.** **Whole-cortex supplement → page** (running job 4): say in the caption whether the larger response / weaker
    build-up are orofacial-specific or cortex-wide (orofacial vs visual + RSP test).
-A. **DONE v98 (results ENCODING_FINDINGS 8.17 top, FINDINGS 4d iii-iv).** **ITI v4 outputs → page**: frozen time courses now -1..+1 s (3.8), refreshed 3.9 / 3.11 / 3.12; binned decoder
+A. **DONE v98 (results ENCODING_FINDINGS 8.17 top, FINDINGS 4d iii-iv).** **ITI v4 outputs → page**: frozen time courses now -1..+1 s (3.8), refreshed 3.9 / 3.12 / 3.13; binned decoder
    (`iti_binned_sweep.png` = configuration sweep, boxed = chosen on PRE only; `iti_binned_summary.png` = one number per
    session at the chosen configuration, raw + normalised, all areas / orofacial / visual+RSP). Priya asked for this
    ("binned time dynamics ... single-number decoder comparison across sessions").
@@ -117,7 +119,7 @@ E. Open from before: epoch-kernel drift-RATE test (8.18; within-chronic r per da
 
 ## Results of 10-26 (all PROVISIONAL; details ENCODING_FINDINGS 8.17–8.19, FINDINGS 4d / 4e)
 
-- **Self-initiated ITI licks (KEY, page 3.7–3.23):** within-session direction decoding intact; FROZEN pre-stroke decoder
+- **Self-initiated ITI licks (KEY, page 3.7–3.25):** within-session direction decoding intact; FROZEN pre-stroke decoder
   down every epoch for ITI licks (-0.135 r chronic, -22 %), largely recovers for cued in-trial licks (-20 % acute → -9 %
   chronic). Each lick evokes a larger response (~2× acutely, +0.6–0.8 chronic, also isolated licks; post-stroke bouts are
   SHORTER); slow build-up before the lick weaker chronically in tjM1 / SSp-m (3/4). Not lick kinematics (post-stroke ITI

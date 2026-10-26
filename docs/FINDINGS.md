@@ -148,6 +148,9 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    three bases, 4/4 each; in-trial recovers in all three).
    (viii) Which dimension: the ITI loss is LATERAL (-19..-20 % in all bases, 4/4); outward position is weakly decoded and
    unchanged. In-trial: outward drops acutely and recovers fully; angle decoding ends ABOVE pre chronically (+7..+11 %).
+   (ix) BEHAVIOUR, ITI lick rate: drops acutely in PS92-94 and stays 14-28 % below pre chronically; only PS95 (near-zero
+   ITI licking pre) ends above pre (~4x). Tracks far-contra hit rate within animal (r +0.67; +0.51 with log-day removed,
+   PS94 ~0) -- the shared dip-and-return; not the cause of the decoder's ITI loss.
    (vi) Recovery marker: within animal, the in-trial frozen decoder tracks far-contra behaviour across post sessions
    (r +0.62, 4/4; +0.53 controlling lick-direction spread) and the ITI one does not (+0.10); beyond the shared time
    trend the link is small (+0.16, 4/4 positive, n.s.) -> a marker of the recovery time course, not yet of day-to-day

@@ -1,4 +1,4 @@
-old (before 10-26),new (local page after 14:40)
+old (before 10-26),new (local page after 16:00)
 1,0.1
 1b,0.2
 1c,0.3
@@ -87,8 +87,8 @@ old (before 10-26),new (local page after 14:40)
 7e,3.5
 7f,3.6
 7g,3.7
-7h,3.14
-7i,3.17
+7h,3.16
+7i,3.19
 8,4.1
 8b,4.2
 8c,4.3
@@ -145,3 +145,5 @@ old (before 10-26),new (local page after 14:40)
 17s,9.19
 17t,9.20
 17u,9.21
+(new 10-26) lick rate,3.11
+(new 10-26) where decoder,3.15

@@ -9,7 +9,7 @@ Tests: change from pre per epoch (nested bootstrap, per-animal table first); wit
 correlation with far-contra hit rate / pre (`recovery_timing.series`), raw and with log(day) removed (permutation of
 behaviour within animal, as `iti_recovery_marker.py`).
 Outputs <E>/iti_licks/iti_lick_rate.csv, figures/iti_lick_rate.png.
-Usage: python scripts/iti_lick_rate.py
+Usage: python scripts/iti_lick_rate.py [--plot-only]   (--plot-only redraws from the saved CSVs)
 """
 from __future__ import annotations
 
@@ -57,12 +57,7 @@ def _resid(y, d):
 
 
 def main() -> int:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     from wfield_local import analysis_kit as ak
-    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
     R = pd.DataFrame([session_row(x) for x in labels])
     VALS = ("rate", "rate_nocontact", "per_trial", "share_contact")
@@ -118,6 +113,16 @@ def main() -> int:
     print("\n== within-animal correlation with far-contra hit rate / pre (post sessions)\n" + C.to_string(index=False))
     T.to_csv(il.OUT / "iti_lick_rate_tests.csv", index=False)
     C.to_csv(il.OUT / "iti_lick_rate_recovery.csv", index=False)
+    plot(R, T, C)
+    return 0
+
+
+def plot(R: pd.DataFrame, T: pd.DataFrame, C: pd.DataFrame) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     fig, axs = plt.subplots(2, 4, figsize=(16, 7.5))
     rng2 = np.random.default_rng(1)
     for j, a in enumerate(AN):
@@ -155,17 +160,20 @@ def main() -> int:
         ax.set_xticks(range(4), EP, fontsize=8)
         ax.set_title({"rate": "ITI licks per ITI minute", "rate_nocontact": "... without spout contact",
                       "per_trial": "ITI licks per trial", "share_contact": "share of ITI licks touching the spout"}[v]
-                     + " / pre", fontsize=9)
+                     + " / pre", fontsize=9, pad=14)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     fig.suptitle("BEHAVIOUR: inter-trial (self-initiated) licking across recovery. Top: per session vs day from stroke, divided "
-                 "by the animal's pre mean (dotted = far-contra hit rate / pre). Bottom: one dot per session; black = mean +- "
-                 "SEM; * = nested-bootstrap change from pre.", fontsize=9.5, wrap=True)
+                 "by the animal's pre mean\n(dotted = far-contra hit rate / pre). Bottom: one dot per session; black = mean +- "
+                 "SEM; * = nested-bootstrap change from pre.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(il.OUT / "figures" / "iti_lick_rate.png", dpi=110)
     plt.close(fig)
-    return 0
 
 
 if __name__ == "__main__":
+    if "--plot-only" in sys.argv:
+        plot(pd.read_csv(il.OUT / "iti_lick_rate.csv"), pd.read_csv(il.OUT / "iti_lick_rate_tests.csv"),
+             pd.read_csv(il.OUT / "iti_lick_rate_recovery.csv"))
+        raise SystemExit(0)
     raise SystemExit(main())
