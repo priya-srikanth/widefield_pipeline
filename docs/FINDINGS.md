@@ -662,11 +662,11 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     COHORT PERMUTATION NULL (`scripts/face_rhythm_cohort_null.py` -> readouts/.../epoch_shape_cohort/cohort_null_
     {scalars,maps,spectral}.png + data/cohort_null.csv; O2 `fitcohortnull`, within-animal label shuffle of pre vs epoch
     sessions, both fits redone; templates rebuilt per permutation from its pseudo-pre sessions; max-|t| over mesh points
-    / frequencies; Holm over the lick pair and separately over the other ten). 10-26: 100 / 100 / 96 permutations
-    (acute / subacute / chronic; 4 chronic halves never landed, p094 / p096 / p098 / p099). LICK_RIGHT beyond every
+    / frequencies; Holm over the lick pair and separately over the other ten). 10-26: all 600 files = 100 permutations per epoch
+    (acute / subacute / chronic). LICK_RIGHT beyond every
     permutation at EVERY epoch on all four scalars (spatial angle 26 / 23 / 27 deg, spectral 21 / 22 / 14, side-
     specificity -.38 / -.33 / -.48; asymmetry -.19 acute and chronic, subacute p .03 not Holm), Holm p .010 = the floor
-    1 / (n + 1). Maps family-wise .05: 0 / 21 / 144 points -- chronically a solid block LOSES loading on the image-right
+    1 / (n + 1). Maps family-wise .05: 0 / 21 / 142 points -- chronically a solid block LOSES loading on the image-right
     (ipsilesional) cheek; spectra 6 / 6 / 5 of 36 frequencies (loses ~7 Hz, gains ~4.5 and ~10-12 Hz at every epoch).
     LICK_LEFT: acute INSIDE the null (spatial 30 deg but the acute null spans 5-35; p .34, 0 points), BEYOND it subacute
     and chronic (spatial 16 / 15 deg, spectral 30 / 13, side-specificity -.10 / -.08, Holm p .010; 26 / 56 points, contra

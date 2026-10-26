@@ -78,9 +78,9 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
-   * 10-26 AFTERNOON -- STATE NOW (newest). PERMUTATION NULL SCORED: 588 / 600 files on the share = 100 / 100 / 96
-     permutations (acute / subacute / chronic; chronic p094 / p096 / p099 post and p098 pre never landed -- not worth
-     resubmitting). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
+   * 10-26 AFTERNOON -- STATE NOW (newest). PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
+     last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
+     142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
      all four scalars (Holm); lick_left inside it acutely, beyond it subacute + chronic -> the lick_left cohort vs
      per-session disagreement is SETTLED (changed after acute, smaller than acute). Other ten: none Holm, a RESOLUTION
      limit (min p .0099 at n ~100, Holm over ten needs < .005) -> >= 500 permutations if they matter. Maps now coloured
