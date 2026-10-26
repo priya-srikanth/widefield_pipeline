@@ -1249,6 +1249,16 @@ coupling (direction not determined), not more face variability.
 
 ### 8.17 Self-initiated (ITI) licks: pre-lick ramp and target-free direction coding (10-26 ~00:15) -- PROVISIONAL
 
+  WHERE: LATERAL vs OUTWARD (10-26 ~15:00, `scripts/iti_where_decoder.py`, where_decoder_tests.csv; Priya: "angle and
+  distance together ... or lateral location instead of angle"). Same decoder per target, three bases (areas / LocaNMF /
+  SVD basis), chronic change normalised to pre. ITI: LATERAL -20 / -19 / -19 % (4/4 each); OUTWARD poorly decoded even
+  pre (r 0.35-0.42) and no consistent change; 2-D vector r -21 / -13 / -13 % (lateral-driven); angle -10 / -14 / -10 %
+  (CIs reach 0 in two bases); reach -10 % areas only. IN-TRIAL: outward drops ACUTELY (-24 / -16 / -22 %) and recovers
+  fully by subacute (chronic ~0, SVD basis +7 %); lateral -8 / -9 / -4 %; ANGLE unchanged acutely and BETTER than pre
+  chronically (+7 / +9 / +11 %, 0/4 animals down). Spread: ITI lateral SD 1.02 -> 0.89 mm chronic (median), in-trial
+  0.94 -> 0.93; the within-session decoder on the same licks (3.7) does not drop, so narrower spread does not explain the
+  frozen ITI loss. Reading: the self-initiated-lick remap is in the LATERAL (direction) dimension; for cued licks the
+  distance code recovers fully and the angle code ends above pre.
   OTHER FEATURE BASES (10-26 ~14:40, `scripts/iti_basis_decoder.py`, basis_decoder_tests.csv; Priya: LocaNMF + the
   pre-stroke SVD basis). Same licks / decoder (per animal, August pre, LOSO, lags 0..0.2 s). Joint LocaNMF (per-animal
   footprints fit 08-15 on 11 pre sessions; every session projected from the adopted SVTcorr) and the te_basis pre-stroke

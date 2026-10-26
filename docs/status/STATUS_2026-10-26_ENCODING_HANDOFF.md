@@ -32,7 +32,8 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103 LIVE; v104 PREPARED LOC
 - **DONE 14:35: frozen decoder in other bases** (`iti_basis_decoder.py`): result holds in joint LocaNMF and the pre-stroke
   SVD basis (ENCODING_FINDINGS 8.17 top, FINDINGS 4d vii); figure added to the LOCAL page after 3.12 (unpublished).
 - **WHERE decoder** (Priya 10-26: angle / distance together, "or lateral location instead of angle"):
-  `scripts/iti_where_decoder.py` RUNNING since 14:35 (log `S/iti_where.log`) (it picks up the basis
+  `scripts/iti_where_decoder.py` DONE 15:00 (ENCODING_FINDINGS 8.17 top, FINDINGS 4d viii; re-render with title pad
+  running, log `S/iti_where2.log`); NOT yet on the page (it picks up the basis
   folders if present and raises if a basis file does not line up). Targets lateral (side_ml), outward (out_ap), 2-D
   vector r, angle / reach polar check; prints reach spread per epoch. -> page next to 3.9.
 - **ITI lick RATE vs recovery** (Priya 10-26: "does inter-trial licking correlate with recovery (and exceed pre-stroke
