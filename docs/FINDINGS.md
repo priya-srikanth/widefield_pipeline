@@ -649,15 +649,24 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     pre). CAVEAT: EVERY factor's cohort fit is 10-17 deg from late pre after the stroke (jaw factors included), so the
     angle beyond drift is not by itself lick-specific; specificity comes from the per-session maps (jaw factors ~0 points)
     and lick_right being largest chronically. Drift does NOT explain the lick_right change. **STANDS** (drift part).
-    COHORT PERMUTATION NULL (`scripts/face_rhythm_cohort_null.py`; O2 `fitcohortnull`, within-animal label shuffle of
-    pre vs epoch sessions, both fits redone; templates rebuilt per permutation from its pseudo-pre sessions; max-|t| over
-    mesh points / frequencies; Holm over the lick pair and separately over the other ten). PARTIAL: 25 / 100 acute
-    permutations back at first look. lick_right acute beyond every permutation on all four scalars (spatial angle 26 deg,
-    spectral 21, asymmetry -.19, side-specificity -.38; p = 1 / 26, the floor at n = 25), 8 mesh points + 5 / 36
-    frequencies family-wise .05 (loses ~7 Hz, gains ~4.5 and ~10 Hz -- the per-session result). lick_left acute INSIDE
-    the null on every measure (0 points even uncorrected): the shuffled fits that draw real acute sessions into the
-    pseudo-post group reproduce its change (lick_left lands on another column, cos .81-.85, in ~1 / 6 fits -- as the real
-    COHORT_acute fit does), so the pooled-fit lick_left change is carried by few sessions. Wait for 100 x 3 epochs.
+    COHORT PERMUTATION NULL (`scripts/face_rhythm_cohort_null.py` -> readouts/.../epoch_shape_cohort/cohort_null_
+    {scalars,maps,spectral}.png + data/cohort_null.csv; O2 `fitcohortnull`, within-animal label shuffle of pre vs epoch
+    sessions, both fits redone; templates rebuilt per permutation from its pseudo-pre sessions; max-|t| over mesh points
+    / frequencies; Holm over the lick pair and separately over the other ten). 10-26: 100 / 100 / 96 permutations
+    (acute / subacute / chronic; 4 chronic halves never landed, p094 / p096 / p098 / p099). LICK_RIGHT beyond every
+    permutation at EVERY epoch on all four scalars (spatial angle 26 / 23 / 27 deg, spectral 21 / 22 / 14, side-
+    specificity -.38 / -.33 / -.48; asymmetry -.19 acute and chronic, subacute p .03 not Holm), Holm p .010 = the floor
+    1 / (n + 1). Maps family-wise .05: 0 / 21 / 144 points -- chronically a solid block LOSES loading on the image-right
+    (ipsilesional) cheek; spectra 6 / 6 / 5 of 36 frequencies (loses ~7 Hz, gains ~4.5 and ~10-12 Hz at every epoch).
+    LICK_LEFT: acute INSIDE the null (spatial 30 deg but the acute null spans 5-35; p .34, 0 points), BEYOND it subacute
+    and chronic (spatial 16 / 15 deg, spectral 30 / 13, side-specificity -.10 / -.08, Holm p .010; 26 / 56 points, contra
+    / image-left cheek and lip; 10 / 3 frequencies). This SETTLES the lick_left cohort-vs-per-session disagreement: the
+    cohort fit's lick_left after acute is smaller than acute but beyond the null, as the per-session and per-animal
+    fits said; the ACUTE cohort lick_left is the uncertain one (few acute sessions, lick_left swaps column in ~1 / 6
+    shuffled fits). OTHER TEN: none Holm, but this is a RESOLUTION limit, not a negative -- with ~100 permutations the
+    smallest p is ~.0099 and Holm over ten needs < .005; many sit at the floor (e.g. whisk_run, lick_fast_close,
+    lick_ongoing_7Hz spatial acute). Calling any of them needs >= 500 permutations. The null includes drift (within-
+    animal shuffle across all pre days). **STANDS** (lick pair, subacute + chronic; lick_right acute too).
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).

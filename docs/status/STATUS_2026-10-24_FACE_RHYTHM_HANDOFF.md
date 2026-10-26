@@ -78,7 +78,16 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
-   * 10-26 -- STATE NOW (newest). (1) PI OVERVIEW DECK (Priya, for a 30 min PI meeting): `M:/MICROSCOPE/Priya/Widefield/
+   * 10-26 AFTERNOON -- STATE NOW (newest). PERMUTATION NULL SCORED: 588 / 600 files on the share = 100 / 100 / 96
+     permutations (acute / subacute / chronic; chronic p094 / p096 / p099 post and p098 pre never landed -- not worth
+     resubmitting). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
+     all four scalars (Holm); lick_left inside it acutely, beyond it subacute + chronic -> the lick_left cohort vs
+     per-session disagreement is SETTLED (changed after acute, smaller than acute). Other ten: none Holm, a RESOLUTION
+     limit (min p .0099 at n ~100, Holm over ten needs < .005) -> >= 500 permutations if they matter. Maps now coloured
+     by t (change / null SD), not raw change: low-loading points that change reliably drew as white. FINDINGS 5.10
+     "COHORT PERMUTATION NULL" rewritten; FR page v31: Figs 7m-7o (scalars / maps / spectral), status rows updated,
+     pending = >= 500 permutations. Still open: FR spout-in-mesh control; 13b with d4.
+   * 10-26 MORNING. (1) PI OVERVIEW DECK (Priya, for a 30 min PI meeting): `M:/MICROSCOPE/Priya/Widefield/
      presentations/PI_overview_kinematics_FR_encoder_2026-10-26.pptx`, 59 slides (4 hidden backups). Sections 1 cortical
      spout coding (decoders + RESTW position maps: ENL 1 s from grant_figures/DAQ_ENL1s, cue / lick LP-gated from
      grant_figures/LP_licks), 2 kinematics (pose methods, 3-D clips re-encoded H.264, softmax landing / trajectory

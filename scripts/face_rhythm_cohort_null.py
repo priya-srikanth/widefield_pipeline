@@ -220,7 +220,7 @@ def map_figure(P: dict, out: Path, set_name: str) -> None:
     cells = [(nm, ep) for nm in FACTORS for ep in eps if ("load", nm, ep) in pts]
     if not cells:
         return
-    lim = float(np.nanpercentile(np.abs(np.concatenate([pts[("load", nm, ep)]["obs"] for nm, ep in cells])), 98))
+    lim = float(np.nanpercentile(np.abs(np.concatenate([pts[("load", nm, ep)]["t"] for nm, ep in cells])), 98))
     with frf.style():
         fig, axs = frf.subplots(2, 3, figsize=(12.5, 7.2), squeeze=False)
         sc = None
@@ -232,9 +232,9 @@ def map_figure(P: dict, out: Path, set_name: str) -> None:
                     continue
                 d = pts[("load", nm, ep)]
                 s = d["sig"]
-                ax.scatter(home[~s, 0], home[~s, 1], c=d["obs"][~s], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
+                ax.scatter(home[~s, 0], home[~s, 1], c=d["t"][~s], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
                            lw=0)
-                sc = ax.scatter(home[s, 0], home[s, 1], c=d["obs"][s], s=11, cmap="RdBu_r", vmin=-lim, vmax=lim,
+                sc = ax.scatter(home[s, 0], home[s, 1], c=d["t"][s], s=11, cmap="RdBu_r", vmin=-lim, vmax=lim,
                                 edgecolors="k", linewidths=0.25)
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
@@ -243,14 +243,15 @@ def map_figure(P: dict, out: Path, set_name: str) -> None:
                 ax.set_title(f"{nm}: {ep}\n{int(s.sum())} pts FWE .05 (+{int((s & (d['obs'] > 0)).sum())} / "
                              f"-{int((s & (d['obs'] < 0)).sum())}); {d['n_perm']} perms", fontsize=8)
         if sc is not None:
-            fig.colorbar(sc, ax=axs.ravel().tolist(), shrink=0.5, extend="both", label="change in loading fraction")
+            fig.colorbar(sc, ax=axs.ravel().tolist(), shrink=0.5, extend="both", label="t (change / null SD)")
         fig.suptitle(f"{set_name}: all-animals-pooled fit, per-point loading change vs the label-shuffle null "
                      "(max-statistic); image left = contralesional")
         frf.save(fig, out / "cohort_null_maps.png", """
-Loading fraction per mesh point of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre. Each point is
-divided by its SD over the permutation null (within-animal label shuffle, both fits redone), and its family-wise p is
+Loading fraction per mesh point of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre. Colour = t: each
+point's change divided by its SD over the permutation null (within-animal label shuffle, both fits redone), and its family-wise p is
 the share of permutations whose MAX |t| over all points reaches it: ringed = FWE p < .05 (large, opaque, black edge).
-Red = more loading after the stroke; one colour scale for all panels.""")
+Red = more loading after the stroke; one colour scale (t) for all panels, so low-loading points that change
+reliably are visible.""")
 
 
 def spectral_figure(P: dict, out: Path, set_name: str) -> None:
