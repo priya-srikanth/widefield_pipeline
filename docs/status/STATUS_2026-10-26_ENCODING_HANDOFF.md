@@ -32,7 +32,7 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v98** (08:40: binned decoder
    (session npz backups of earlier versions: `sessions_v1..v3`, figures `figures_v3`; derived, deletable).
    At 06:59: TE frozen area run in its pre-statistics pass (17/31 pre sessions); ITI v4 extraction DONE (summary
    running, then key / controls / binned); whole-cortex maps (job 4) STARTED; old partial refit 64/101.
-3. **Lick-kernel partial refit, OLD design** (`S/run_partial_ls.sh`, 7 workers, `S/partial_ls7.log`; 62/101 at 06:56).
+3. **DONE 08:31 (results ENCODING_FINDINGS 8.19 top; figures in its partial_refit/figures) -- Lick-kernel partial refit, OLD design** (`S/run_partial_ls.sh`, 7 workers, `S/partial_ls7.log`; 62/101 at 06:56).
    Superseded for the contest by the TE design, but let it finish: then `run_partial.sh`-style `--plot-only` with
    `--tag gate-attempted_v7g3_t3d_frA_ls`.
 4. **DONE (re-run 08:30 on RAW dF/F AUC; per-area normalisation dropped) -- Whole-cortex supplement** (Priya 10-26: "non-orofacial per-area activity maps ... supplemental figure with VIS
