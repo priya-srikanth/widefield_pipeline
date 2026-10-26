@@ -78,7 +78,20 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spout templates = its member animals' pre sessions, `members()`). Read COHORT against its own preA / preB floor,
      LOAO tags as "does any one animal carry it"; the pooled ">= 3 / N" figures then mix COHORT with the LOAOs -- read
      them as LOAO agreement only. Redo the shape figures on the FR page.
-   * 10-25 PAST MIDNIGHT -- STATE NOW (newest). Drift fits back (10 / 10) and scored: `scripts/face_rhythm_drift_floor.py`
+   * 10-26 -- STATE NOW (newest). (1) PI OVERVIEW DECK (Priya, for a 30 min PI meeting): `M:/MICROSCOPE/Priya/Widefield/
+     presentations/PI_overview_kinematics_FR_encoder_2026-10-26.pptx`, 59 slides (4 hidden backups). Sections 1 cortical
+     spout coding (decoders + RESTW position maps: ENL 1 s from grant_figures/DAQ_ENL1s, cue / lick LP-gated from
+     grant_figures/LP_licks), 2 kinematics (pose methods, 3-D clips re-encoded H.264, softmax landing / trajectory
+     confusion), 3 FaceRhythm, 4 kinematics + encoder; main point on each slide, methods + data in the speaker notes.
+     PRIYA EDITS THE DECK HERSELF: build scripts + every pre-edit backup in `presentations/_source_PI_overview_2026-10-26/`
+     (`build.py` first build, `edit_maps.py` ... `edit8.py` = passes on her edited copy; each pass snapshots her file and
+     overwrites only if unchanged). Style rules in memory `slide-deck-style`. (2) FR page v30: Fig 7l = drift floor. (3)
+     Permutation null still running on O2: 81 / 600 done at last check (80 on the share, acute only); the two CANCELLED
+     entries are the original submissions (0 s), nothing to resubmit. When more lands: rsync own_epoch_cohort_null/
+     (command in the entry below), rerun `python scripts/face_rhythm_cohort_null.py`, add cohort_null_*.png to the FR page
+     next to 7l, update FINDINGS 5.10 "COHORT PERMUTATION NULL". (4) `kinematics_pooled_figs.py` gained fig_paths3d(shared=
+     True) -> pose3d_paths_pooled_shared.png (one axis box per view across spouts; 1cde99a).
+   * 10-25 PAST MIDNIGHT. Drift fits back (10 / 10) and scored: `scripts/face_rhythm_drift_floor.py`
      (drift 5-7 deg; lick_right 22-26 deg beyond it, 5 / 5 fits; FINDINGS 5.10 "DRIFT FLOOR"). Null scorer WRITTEN:
      `scripts/face_rhythm_cohort_null.py` (templates per permutation from pseudo-pre keys, max-|t| maps / spectra, Holm
      over the lick pair + the other ten; ~10 s, `--plot-only`). Only 50 / 600 null files were on the share (acute p000-
