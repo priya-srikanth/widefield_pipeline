@@ -152,6 +152,11 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    only, both lick types lose ~half and in-trial does not recover -> the in-trial recovery is orofacial-specific.
    (iv) Whole cortex: the acute / subacute response increase is global (41-45 Allen areas); chronically the larger
    response (MOp, SSp-m, tjM1) and the weaker build-up (SSp-n, SSp-un, ALM) are confined to orofacial cortex.
+4g. **Target vs execution kernels (new encoder design, 10-26, ENCODING_FINDINGS 8.20, page 1.34 / 1.35): PROVISIONAL.**
+   In the frozen pre-stroke encoder neither the target nor the execution group's unique contribution changes much
+   after the stroke; in SSp-m execution falls slightly relative to target (-0.03). A session-specific refit gains a
+   lot (+0.06..+0.12 R2, 4/4), but almost none of it is unique to target or execution: the remapped information is
+   shared between them. Partial refit with label-shuffled nulls pending.
 4e. **Chronic cortex - face-lick coupling tightens in orofacial motor cortex** (10-26, ENCODING_FINDINGS 8.17b,
    page 1.16 / 1.17): the FaceRhythm lick factor's trial-by-trial unique contribution rises chronically while its
    trial-to-trial variance FALLS (-40 % / -44 %), so it is not more face variability. PROVISIONAL.
