@@ -71,9 +71,11 @@ def main() -> int:
     D = E / "attempt_coding_pp"
     T = pd.concat([pd.read_csv(D / f"trials_lick_{an}.csv.gz") for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
+    T = T[T.label.str[-4:] >= "0801"]          # AUGUST-ONLY pre baseline (primary, Priya 10-18); June was in landing only
     T["neural_d"] = T.pp_far_mid - T.pp_far_contra
-    rows, coup = [], []
+    rows, coup, sess_rows = [], [], []
     rng = np.random.default_rng(0)
+    rng_s = np.random.default_rng(1)          # per-session nulls draw from their own stream: per-animal draws unchanged
     for kind, W in (("landing", lick_weights(1.0)), ("trajectory", path_weights(1.0))):
         pre = "lw_" if kind == "landing" else "tw_"
         J = T.merge(W, on=["label", "trial_id"], how="inner")
@@ -88,12 +90,24 @@ def main() -> int:
             c = coupling(g, "exec_d", "neural_d", rng)
             if c:
                 coup.append({"exec": kind, "animal": an, "epoch": ep, "slope": c[0], "r": c[1], "p_perm": c[2], "n": c[3]})
+        for (an, ep, lab), g in J.groupby(["animal", "epoch", "label"]):      # PER SESSION (Priya 10-25)
+            c = coupling(g, "exec_d", "neural_d", rng_s)
+            if c:
+                sess_rows.append({"exec": kind, "animal": an, "epoch": ep, "label": lab, "day": int(g.day.iloc[0]),
+                                  "slope": c[0], "r": c[1], "p_perm": c[2], "n": c[3]})
     B = pd.DataFrame(rows); C = pd.DataFrame(coup)
     B.to_csv(D / "trial_neural_vs_exec_by_landing.csv", index=False)
     C.to_csv(D / "trial_neural_vs_exec_coupling.csv", index=False)
+    Sx = pd.DataFrame(sess_rows).sort_values(["exec", "animal", "day"])
+    Sx.to_csv(D / "trial_neural_vs_exec_coupling_sessions.csv", index=False)
     pd.set_option("display.width", 200)
     print(B[B.exec == "landing"].round(2).to_string(index=False))
     print(C.round(3).to_string(index=False))
+    print("== per session (landing): r, p, n")
+    print(Sx[Sx.exec == "landing"][["animal", "epoch", "label", "day", "r", "p_perm", "n"]].round(3).to_string(index=False))
+    print("== sessions significant / tested, per animal x epoch (landing)")
+    print(Sx[Sx.exec == "landing"].assign(sig=lambda d: d.p_perm < 0.05).groupby(["animal", "epoch"]).sig
+          .agg(lambda x: f"{int(x.sum())}/{len(x)}").unstack("epoch").reindex(columns=EP).to_string())
 
     # figure 1: neural probabilities by where the licks landed (landing), animals x epochs
     fig, axs = plt.subplots(2, 4, figsize=(15, 7.6), sharey=True)
@@ -151,6 +165,39 @@ def main() -> int:
                  "\nthe more its cortex is decoded as far mid rather than far contra? (both centred within session; line = mean of animals)", fontsize=10)
     fig.tight_layout(rect=(0, 0.08, 1, 0.88))
     fig.savefig(D / "figures" / "trial_neural_vs_exec_coupling.png", dpi=125)
+    plt.close(fig)
+
+    # figure 3: PER SESSION, r against days from stroke (Priya 10-25: "can we do this per session instead of per animal")
+    ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
+    fig, axs = plt.subplots(1, 2, figsize=(14, 4.6), sharey=True)
+    for r, kind in enumerate(("landing", "trajectory")):
+        ax = axs[r]
+        ax.axvspan(Sx.day.min() - 2, 0, color="0.92", lw=0, zorder=0)
+        ax.axhline(0, color="k", lw=0.6)
+        for an in AN:
+            c = Sx[(Sx.exec == kind) & (Sx.animal == an)].sort_values("day")
+            if not len(c):
+                continue
+            ax.plot(c.day, c.r, color=ACOL[an], lw=0.8, alpha=0.5)
+            sig = c.p_perm < 0.05
+            ax.scatter(c.day[sig], c.r[sig], marker=MK[an], s=34, color=ACOL[an], edgecolor="k", lw=0.5, zorder=5)
+            ax.scatter(c.day[~sig], c.r[~sig], marker=MK[an], s=30, facecolor="w", edgecolor=ACOL[an], lw=1.3, zorder=5)
+        ax.set_xlabel("days from stroke (grey = pre-stroke)")
+        ax.set_title(f"executed = {kind}", fontsize=10)
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+        if r == 0:
+            ax.set_ylabel("within-session r: neural (fM - fC)\nvs executed (fM - fC)")
+    h = [Line2D([], [], marker=MK[a], color=ACOL[a], mfc=ACOL[a], mec="k", lw=0.8, label=a) for a in AN]
+    h += [Line2D([], [], marker="o", ls="", mfc="0.4", mec="k", label="p < 0.05 (within-session block permutation)"),
+          Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.3, label="n.s.")]
+    fig.legend(handles=h, loc="lower center", ncol=6, fontsize=8.5, frameon=False)
+    fig.suptitle("Trial-by-trial coupling PER SESSION (far-contra target trials, sessions with >= 20 such trials): does cortex follow "
+                 "where each lick went?\nr between the decoder's (P far mid - P far contra) and the lick's (far mid - far contra) "
+                 "weight, centred within session", fontsize=10)
+    fig.tight_layout(rect=(0, 0.08, 1, 0.9))
+    fig.savefig(D / "figures" / "trial_neural_vs_exec_coupling_sessions.png", dpi=125)
+    plt.close(fig)
     print(f"-> {D / 'figures'}")
     return 0
 
