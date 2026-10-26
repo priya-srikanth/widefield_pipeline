@@ -151,7 +151,8 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    (iii) Binned frozen decoder (10-26): same result (ITI -22 % chronic, in-trial -19 -> -10 %); with visual + RSP areas
    only, both lick types lose ~half and in-trial does not recover -> the in-trial recovery is orofacial-specific.
    (iv) Whole cortex: the acute / subacute response increase is global (41-45 Allen areas); chronically the larger
-   response (MOp, SSp-m, tjM1) and the weaker build-up (SSp-n, SSp-un, ALM) are confined to orofacial cortex.
+   response (MOp, SSp-m, tjM1) and the weaker build-up (SSp-n, SSp-un, ALM) reach significance only in orofacial cortex,
+   but control areas move the same way (corrected 10-26 14:10): strongest in, not confined to, orofacial cortex.
 4g. **Target vs execution kernels (new encoder design, 10-26, ENCODING_FINDINGS 8.20, page 1.34 / 1.35): PROVISIONAL.**
    In the frozen pre-stroke encoder neither the target nor the execution group's unique contribution changes much
    after the stroke; in SSp-m execution falls slightly relative to target (-0.03). A session-specific refit gains a

@@ -6,7 +6,7 @@ Run all python from the worktree with `PYTHONPATH=<worktree>` (another `wfield_l
 
 ## Page
 
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v103** (12:00: the 9 images missing from v98-v102 uploaded; v102 11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d **v104** (14:15: orofacial-vs-control PETHs 3.21, whole-cortex claim corrected; v103 12:00: the 9 images missing from v98-v102 uploaded; v102 11:30: target vs execution 1.34 / 1.35, pixel parts 1.36; v100 09:40: recovery marker 3.10, binned decoder 3.11 / 3.12, whole-cortex supplement 3.19-3.21; contact + paired + lick-count lines in 3.9), source `S/goal_page/index.html`; publish with the LONG path
 `C:/Users/SabatiniLab/AppData/Local/Temp/...` (the 8.3 path is blocked for images).
 
 - **Numbering = Fig SECTION.POSITION** (Priya 10-26: "why two letters"); ids `fig<sec>-<k>`. To add a figure: insert it

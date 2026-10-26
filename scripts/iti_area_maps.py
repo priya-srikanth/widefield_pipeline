@@ -168,8 +168,69 @@ def main() -> int:
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(il.OUT / "figures" / "iti_area_groups.png", dpi=110)
     plt.close(fig)
+    compare(T, peths)
     return 0
 
 
+#: orofacial ROIs next to control areas (Priya 10-26: "control area figures for activity traces, e.g. VIS to compare to
+#: ALM"); contralesional (_right) hemisphere
+COMPARE = ["ALM_right", "tjM1_right", "SSp-m_right", "VISp_right", "VISam_right", "RSPd_right", "SSp-bfd_right", "ACAd_right"]
+
+
+def compare(T: pd.DataFrame, peths: dict) -> None:
+    """Orofacial vs control areas side by side: per-session mean PETH (all animals pooled, band = SEM over sessions);
+    top raw with ONE shared y-axis, bottom each session divided by its animal's pre-stroke peak (0..0.5 s) of that area."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    post = (il.LAGS_P >= 0.0) & (il.LAGS_P <= 0.5)
+    pk = {}
+    for (x, ar), v in peths.items():
+        a_ = T[T.label == x].animal.iloc[0]
+        if T[T.label == x].epoch.iloc[0] == "pre":
+            pk.setdefault((a_, ar), []).append(v)
+    pk = {k: float(np.mean(v, 0)[post].max()) for k, v in pk.items()}
+    fig, axs = plt.subplots(2, len(COMPARE), figsize=(2.3 * len(COMPARE), 6.2), sharex=True, sharey="row")
+    for j, ar in enumerate(COMPARE):
+        for ep in il.EP4:
+            labs = sorted(x for x in T[(T.area == ar) & (T.epoch == ep)].label.unique() if (x, ar) in peths)
+            if not labs:
+                continue
+            for i, norm in enumerate((False, True)):
+                M = np.stack([peths[(x, ar)] / (pk.get((T[T.label == x].animal.iloc[0], ar), np.nan) if norm else 1.0)
+                              for x in labs])
+                mu, se = np.nanmean(M, 0), np.nanstd(M, 0, ddof=1) / np.sqrt(len(M))
+                axs[i, j].plot(il.LAGS_P, mu, color=colors[ep], lw=1.6, label=f"{ep} ({len(M)})")
+                axs[i, j].fill_between(il.LAGS_P, mu - se, mu + se, color=colors[ep], alpha=0.2, lw=0)
+        for i in range(2):
+            ax = axs[i, j]
+            ax.axvline(0, color="0.6", lw=0.6)
+            ax.axhline(0, color="0.8", lw=0.6)
+            if i == 1:
+                ax.axhline(1, color="0.8", lw=0.6, ls="--")
+                ax.set_xlabel("s from lick onset", fontsize=8)
+            ax.set_xlim(-1.5, 0.75)
+            ax.tick_params(labelsize=7)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+        grp = "OROFACIAL" if j < 3 else "control"
+        axs[0, j].set_title(f"{ar.replace('_right', '')} contra\n({grp})", fontsize=9, fontweight="bold" if j < 3 else None)
+    axs[0, 0].set_ylabel("dF/F x1e3 (shared axis)", fontsize=8)
+    axs[1, 0].set_ylabel("/ animal's pre peak of that area", fontsize=8)
+    axs[0, 0].legend(fontsize=6, frameon=False)
+    fig.suptitle("NEURAL: self-initiated (ITI) licks, orofacial ROIs next to control areas (contralesional; first ITI lick "
+                 "after >= 2 s without licking; per-session mean PETH, all animals pooled, band = SEM over sessions; "
+                 "bottom = each session / its animal's pre-stroke peak of that area).", fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(il.OUT / "figures" / "iti_area_compare.png", dpi=110)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
+    if "--compare" in sys.argv:                          # only the comparison figure
+        labels_ = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+        compare(*session_table({x: il._load(x) for x in labels_}))
+        raise SystemExit(0)
     raise SystemExit(main())
