@@ -54,6 +54,11 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   ONE ANIMAL -- read the full run's per-animal table first. Caveats to state: a cortex-wide component rides on every
   ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
   change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
+- 10-26 ~06:15 KEY FIGURES (Priya: "3.7 frozen decoder and 3.8 are KEY results"): `iti_licks.py --key` -> frozen
+  decoder per lag for ITI and in-trial licks (page 3.8), per-session summaries raw + within-animal normalised with nested
+  tests (3.9), per-session PETH mean +- SEM raw + normalised (3.11), per-session post-onset / build-up summaries (3.12);
+  'Where things stand' row added (Key reconciliations). Page v96; GOAL_PAGE_FIG_MAP_2026-10-26.csv maps pre-10-26
+  numbers to v96. Open checks: lick kinematics (reach / speed) of the ITI licks; pre-lick face movement (FaceRhythm).
 - PAGE RENUMBERED 10-26 ~06:00 (Priya: "why two letters"): every figure is now Fig SECTION.POSITION in page order (ids
   fig<sec>-<k>); old -> new map docs/status/GOAL_PAGE_FIG_MAP_2026-10-26.csv (docs written before 10-26 cite OLD numbers:
   read them through the map). Script S/renumber_sections.py; when adding a figure, insert it with any temporary label and

@@ -1246,6 +1246,15 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   +0.066 [0.014, 0.143] chronically. Information rises from ~-0.2 s and peaks ~+0.1 s after the lick peak in every epoch. FROZEN decoder
   (each animal's pre ITI licks; pre = leave-one-session-out): DROPS in every epoch, 4/4 -- direction -0.13 [-0.19, -0.07]
   acute, -0.12 subacute, -0.13 chronic; relative to the previous trial's spout -0.10 / -0.09 / -0.06 (chronic n.s.).
+  FROZEN DECODER PER LAG + SESSION-POOLED (10-26, Priya: "KEY results"; page 3.8 / 3.9; one dot per session, nested
+  bootstrap animals -> sessions): ITI lateral direction -0.138 [-0.191, -0.075] acute, -0.123 subacute, -0.135
+  [-0.213, -0.067] chronic (normalised to each animal's pre: -23 % / -20 % / -22 %); IN-TRIAL licks (decoder trained on
+  pre in-trial licks) -0.149 acute but -0.080 subacute and -0.063 [-0.131, -0.009] chronic (-20 % -> -11 % -> -9 %).
+  => the pre-stroke mapping largely returns for cued, targeted licks but NOT for self-initiated ones. Pre-stroke ITI
+  direction is decodable from ~-0.5 s before the lick peak (r ~0.25), post-stroke ~0.1 (may include the previous lick
+  of a bout). Figures iti_frozen_timecourse.png / iti_frozen_summary.png; tests decode_frozen_session_tests.csv.
+  Ramp session-pooled (page 3.11 / 3.12; ramp_session_tests.csv): post-onset response up acutely in every ROI, still up
+  chronically in tjM1 / SSp-m (raw and normalised); early build-up down chronically in tjM1, SSp-m, ALM.
   Reading: cortex still carries the executed direction of self-initiated licks as strongly as before, but in a
   DIFFERENT mapping from the pre-stroke one -- the execution code without a target is intact but remapped, like the
   trial code (8.12-8.14). This is the target-free counterpart of the far-contra trial result: there the code on failed
