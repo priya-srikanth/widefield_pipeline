@@ -1157,6 +1157,22 @@ cells are many; per-animal numbers on the page.
   PS93 0.006); beyond each animal's late - early pre drift in PS94 / PS95, not PS93. Total variance per pixel ROSE
   chronically (not a denominator effect). PROVISIONAL.
 
+### 8.20 TARGET vs EXECUTION design (FROZEN_DESIGN=te): first readouts (10-26 ~11:10) -- PROVISIONAL
+
+Run `frozen_encoder_gate-attempted_v7g3_t3d_frA_te` (+ `_te_basis` pixels, self-fit `session_vs_frozen`), design in
+DECISIONS 2026-10-26 / `frozen_encoder` TE_BLOCK. Readout `scripts/te_readout.py` (te_unique_boot_frame.csv; page
+1.34 / 1.35). FROZEN unique R2 (joint - refit without the group), change from pre, nested bootstrap: no group's
+unique contribution moves beyond the pre split-half range in SSp-m / MOp / cortex; contact flat. Only consistent
+shift: SSp-m lick window, execution falls RELATIVE to target (execution - target: contra chronic -0.032 [-0.060,
+-0.000]; ipsi chronic -0.029 [-0.045, -0.011] and acute -0.038, 4/4 down). SELF-FIT remap (self-fit unique - frozen
+unique, change from pre; remap_boot.csv): full model +0.06..+0.12 acute and chronic in every area (cortex chronic
++0.116 [+0.060, +0.185], 4/4); target and execution remap ~0 chronically (acutely slightly NEGATIVE in SSp-m contra:
+target -0.016 [-0.031, -0.001], execution -0.029 n.s. lick / -0.037 [-0.060, -0.016] cue, 4/4); movement (execution +
+other) SSp-m contra chronic +0.028 [+0.003, +0.053] 4/4. Reading: the remapped information is mostly SHARED between
+target and execution (no single group's unique part carries it), as in the old design (8.19). PS95_0907 is an outlier
+session (joint cortex R2 0.22, no_target 0.36 > joint): check before quoting per-session values. Partial refit with
+the TE label-shuffled nulls (61743c3) running (`S/partial_te.log`, ~6 h).
+
 ### 8.19 Landing-split lick kernels, lagged FaceRhythm, self-fit on the lick-kernel design (10-26 ~04:30) -- PROVISIONAL
 
   PARTIAL REFIT, OLD lick-kernel design (10-26 08:31, `frozen_encoder_..._frA_ls/partial_refit`, 101 sessions, block-
