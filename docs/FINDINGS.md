@@ -80,9 +80,14 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    -> READING: acutely cortical activity stays consistent with the changed movement under the pre-stroke mapping
    (direction not determined); chronically neither target nor executed spout coding recovers
    in the pre-stroke frame, while with session-specific weights both are readable in a remapped form. "Target >
-   executed" is better read as "target remapped, executed remapped too". Open: the self-fit / partial refit on the
-   per-spout lick-kernel design (the decisive contest: does a session-specific mapping prefer target or spout-specific
-   lick kernels?). Block-permutation nulls DONE 10-26 (same numbers as the single shift). Failed attempts keep distance, lose side (4.9).
+   executed" is better read as "target remapped, executed remapped too". (f) SELF-FIT on the per-spout lick-kernel
+   design (10-26, ENCODING_FINDINGS 8.19): with spout-specific lick kernels present, the target's chronic remapping
+   roughly HALVES (contra SSp-m cue +0.014 -> +0.005 n.s., lick +0.018 -> +0.010) and the lick kernels' own remapping
+   is ~0, while the whole spout group (target + executed + lick kernels) stays remapped (+0.027 / +0.039 cortex, 4/4):
+   the remapped information is SHARED by the target and the spout-specific lick-locked terms, so unique variance
+   cannot assign it to either. Landing-split lick kernels (by where the tongue landed) do NOT absorb the chronic target
+   term in the frozen frame (contra SSp-m target unique +0.010 / +0.011, 4/4). The lick-kernel PARTIAL refit (with
+   permutation nulls) is still running. Block-permutation nulls DONE 10-26 (same numbers as the single shift). Failed attempts keep distance, lose side (4.9).
 4b. **Recovery = behavioural compensation with PARTIAL cortical recovery, not restoration (10-25 night; key point).**
    Judge recovery PER SUCCESSFUL TRIAL, not per epoch: acutely ~92 % of far-contra trials are failed attempts, which carry
    no far-contra code (decoder retention ~0 in every window, 4.9 / page 7e) and no trial-by-trial coupling (4.6), so

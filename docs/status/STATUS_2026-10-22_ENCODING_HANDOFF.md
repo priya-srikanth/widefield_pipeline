@@ -54,6 +54,12 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   ONE ANIMAL -- read the full run's per-animal table first. Caveats to state: a cortex-wide component rides on every
   ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
   change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
+- TO-DOS B / C / D(self-fit) DONE 04:30 -> ENCODING_FINDINGS 8.19, FINDINGS point 4 (f). Landing kernels do not absorb
+  the chronic target term (target unique +0.010 / +0.011 contra SSp-m, 4/4); FR lags: no shift toward cortex leading,
+  acute face -> contra SSp-m rise; self-fit: target remap halves with lick kernels present, lick-kernel remap ~0, spout
+  group still remapped = shared information. Chain stage d (lick-kernel PARTIAL refit, perm nulls) running since 03:55
+  (log S/partial_ls.log, ~10 h at 4 workers): when done -> `partial_refit.py --tag gate-attempted_v7g3_t3d_frA_ls
+  --plot-only`, compare target - null vs lickspout - null.
 - NOVAR PIXEL MAPS DONE 03:45 (re-scored ..._frA_ls_basis_novar; layout names fixed to the real variable bases: pos_enl /
   pos_cue, tongue / jaw / nose _mag + _dir) -> page Fig 1ub4 (cue; lick linked). Drop the empty push column at the next redraw.
 - NOVAR PIXEL MAPS (000y B) were IMPOSSIBLE from ..._frA_ls_basis: _pix_musall_variant matched "no_" not "novar_", so no
