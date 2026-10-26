@@ -30,7 +30,8 @@ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - imaging https://claude.ai/ar
 each statement points to the claims it rests on and inherits their status. Frame named where it matters (FROZEN pre-stroke
 encoder = headline for every change claim since 10-25; per-session refit = supporting).*
 
-**In one line (revised 10-25 afternoon after analyses 1-2):** acutely cortex mostly reports a worse movement, with a
+**In one line (revised 10-25 afternoon after analyses 1-2):** acutely cortical activity stays mostly consistent with the worse movement under the
+pre-stroke mapping (shared variance; direction -- cortex driving vs following the movement -- not determined), with a
 transient orofacial-specific disruption; chronically the movement is largely back and most of the cortical excess has
 shrunk with it -- what persists is a residual in BOTH windows (orofacial-specific in the cue window; in the lick
 window larger in orofacial cortex but shared with non-orofacial cortex), a contralesional shift of the spout package and more position-free movement coding, with less spout-specific tuning; the large chronic mapping change is
@@ -76,7 +77,8 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    cue; ipsilesional SSp-m / MOp favour the lick kernels), and the lick kernels absorb part of the old target term
    (contra SSp-m 0.020 -> 0.015) -- part of "target" was spout-specific lick-locked activity. Post-stroke (frozen) neither
    gains; only the executed spout-locked templates do (+0.023 acute, +0.008 chronic, 4/4) = the changed movement.
-   -> READING: acutely cortex follows the changed movement; chronically neither target nor executed spout coding recovers
+   -> READING: acutely cortical activity stays consistent with the changed movement under the pre-stroke mapping
+   (direction not determined); chronically neither target nor executed spout coding recovers
    in the pre-stroke frame, while with session-specific weights both are readable in a remapped form. "Target >
    executed" is better read as "target remapped, executed remapped too". Open: the self-fit / partial refit on the
    per-spout lick-kernel design (the decisive contest: does a session-specific mapping prefer target or spout-specific
@@ -95,9 +97,16 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    (d) Cortex does it with a DIFFERENT mapping: on behaviour-matched trials (inside the pre-stroke movement envelope) the
    residual is unchanged (4.2) -- same movement, different cortical response; session-specific weights fit better
    chronically (self-fit gap +0.06-0.09, 4/4) and target / executed coding are readable only in a remapped form (point 4).
-   (e) Timing: cortex reaches half its change at or after behaviour (frozen recovery course, page 1i) -- cortex does not
-   lead behavioural recovery.
-   -> Behaviour comes back through a changed movement strategy; cortex regains its moment-to-moment tracking of the
+   (e) Timing: NO EVIDENCE THAT CORTEX LEADS behavioural recovery -- but no good evidence it lags either. Half-change
+   days (spout unique vs far-contra contact, page 1i): cortex later in 3/4 (PS92 +6, PS93 +2, PS95 +1 days), earlier in
+   PS94 (-2); differences within the early session spacing (1-4 days), no CIs, a cortical measure without a consistent
+   chronic gain, all trials (composition). Hits-only half-times with CIs + lagged correlation + mixed model are queued.
+   DIRECTION: encoding models measure shared variance; "cortex follows the movement" and "cortex drives the movement"
+   are both consistent with them. Hints: failed attempts are directed movements without a matching cortical spout
+   signal (generated without spout-specific cortex?); hits-only coupling hints touch feedback; the weaker pre-cue code on
+   failing trials is suggestive only. Tests: within-trial lead / lag (pre-lick vs post-lick prediction of the lick's
+   direction), lagged FaceRhythm kernels, pre-cue -> lick coupling.
+   -> Behaviour comes back through a changed movement strategy; cortex regains its moment-to-moment covariation with the
    movement but with ~3/4 of the original spout code and a partly remapped, not restored, mapping. Caveats: n = 4; the
    cortex-wide part of the remapping cannot be separated from drift without a time-matched no-stroke reference; whether
    the remapping is compensatory (helps behaviour) is untested (correlations with recovery only, 4.2 / 4.3 mixed models).
@@ -348,7 +357,7 @@ bootstrap unless stated; LICK DATA = behaviour only.*
 5. **On average the frozen pre-stroke DECODER reads far-contra trials as the spout the tongue goes to.** Own -.66 /
    -.30 / -.22, far mid +.26 / +.14 / +.11, far ipsi +.19 acute (4 / 4; cue window the same). But acutely the decoder's
    diagonal falls for EVERY spout while those licks land on target (general weakening). **STANDS** (8.2; Fig 3f, 3g).
-6. **Trial by trial, cortex follows execution on HITS; on FAILED ATTEMPTS it does not** (REVISED 10-25 night,
+6. **Trial by trial, cortex covaries with execution on HITS; on FAILED ATTEMPTS it does not** (REVISED 10-25 night,
    `scripts/coupling_by_class.py`, page Figs 4i-4i4). Within session, neural (decoder P far mid - P far contra) tracks
    executed (lick weight far mid - far contra) on far-contra trials. Pre-stroke (hits only, August pre) r .14-.35 landing /
    .18-.41 trajectory, 4 / 4. Split by class, change vs pre-stroke hits (pooled r, nested bootstrap animals -> sessions):
@@ -430,7 +439,7 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     code and the acute loss is a PETH loss (STANDS), but it does NOT recover chronically (PETH target unique cortex lick
     -0.096 without / -0.054 with FR, 0/4; Fig 1g, 1h); (c) FR direction unique in SSp-m falls chronically, but the
     direction weights do not change beyond drift (Layer 2): less direction signal through the same mapping, MIXED
-    behaviour / neural; (d) recovery course: frozen spout unique pre -> chronic up 2/4, cortex reaches half its change at
+    behaviour / neural; (d) recovery course: frozen spout unique pre -> chronic up 2/4, cortex reaches half its change (weak: within session spacing) at
     or after behaviour (Fig 1i); (e) movement WITHOUT lick-position information (pose + FR) gains unique R2 in SSp-m
     chronically (ipsi +0.050 [0.023, 0.074] 4/4), position-carrying movement alone falls contralesionally (quick run,
     Fig 1j, 1k). PROVISIONAL. Refit statements kept below for the record:
