@@ -389,6 +389,62 @@ def ramp_figure(plt, D: dict, RR: pd.DataFrame, kind: str, iso: bool, colors: di
     plt.close(fig)
 
 
+def plot_direction(DR: pd.DataFrame, FZ: pd.DataFrame) -> None:
+    """Page 3.7: within-session direction decoding per lag (session-pooled mean +- SEM) + the frozen pre-ITI decoder.
+    Called by summarise(); `--plot-direction` redraws it from decode_sessions.csv / decode_frozen_sessions.csv."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    fig, axs = plt.subplots(2, 3, figsize=(16, 8), sharey=True, gridspec_kw={"width_ratios": [1, 1, 0.7]})
+    for i, tg in enumerate(("direction", "relative")):
+        for j, s_ in enumerate(("iti", "trial")):
+            ax = axs[i, j]
+            t = DR[(DR.target == tg) & (DR.set == s_)]
+            for ep in EP4:
+                g = t[t.epoch == ep].groupby(["label", "lag"]).r.mean().groupby("lag")   # session-pooled, as 3.8
+                m, se = g.mean(), g.std(ddof=1) / np.sqrt(g.count())
+                if len(m):
+                    ax.plot(m.index, m.values, color=colors[ep], lw=2,
+                            label=f"{ep} ({t[t.epoch == ep].label.nunique()} sessions)")
+                    ax.fill_between(m.index, (m - se).values, (m + se).values, color=colors[ep], alpha=0.18, lw=0)
+            ax.axvline(0, color="0.6", lw=0.6)
+            ax.axhline(0, color="0.8", lw=0.6)
+            rel = "relative to the PREVIOUS trial's spout" if s_ == "iti" else "within the spout in place"
+            ax.set_title(f"{'ITI (self-initiated; spout retracted)' if s_ == 'iti' else 'in-trial post-cue (n-matched)'}:\n"
+                         f"{'3-D lateral direction' if tg == 'direction' else 'direction ' + rel}", fontsize=9)
+            ax.set_xlabel("lag from lick peak (s)")
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+        ax = axs[i, 2]                                     # FROZEN pre-stroke ITI decoder, per animal across epochs
+        f = FZ[FZ.target == tg] if not FZ.empty else FZ
+        x = np.arange(len(EP4))
+        if not f.empty:
+            P = f.groupby(["animal", "epoch"]).r.mean().unstack("epoch").reindex(columns=EP4)
+            for _a, v in P.iterrows():
+                ax.plot(x, v.values, color="0.6", lw=0.8, marker="o", ms=3)
+            ax.plot(x, P.mean().values, color="k", lw=2.2, marker="o")
+            for k_, ep in enumerate(EP4):
+                ax.scatter([k_], [P[ep].mean()], s=60, color=colors[ep], zorder=5)
+        ax.set_xticks(x)
+        ax.set_xticklabels(["pre (LOSO)", "acute", "sub", "chronic"], fontsize=8)
+        ax.set_title("FROZEN decoder trained on pre-stroke ITI licks\n(lags 0..0.2 s; grey = animals)", fontsize=9)
+        ax.axhline(0, color="0.8", lw=0.6)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axs[0, 0].legend(fontsize=8, frameon=False)
+    axs[0, 0].set_ylabel("CV r (decoded vs actual)")
+    axs[1, 0].set_ylabel("CV r (decoded vs actual)")
+    fig.suptitle("NEURAL: decoding each lick's 3-D lateral direction from cortical area activity. Left / middle: within "
+                 "session (ridge, 5 time-block folds), per lag, mean over sessions +- SEM. Right: a decoder trained on each animal's "
+                 "PRE-stroke ITI licks applied unchanged to every session (pre scored leave-one-session-out).",
+                 fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(OUT / "figures" / "iti_direction_decoding.png", dpi=110)
+    plt.close(fig)
+
+
 def summarise(labels: list[str]) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -497,49 +553,7 @@ def summarise(labels: list[str]) -> None:
     DB.to_csv(OUT / "decode_change.csv", index=False)
     print("\n== decoding change vs pre (nested bootstrap)\n" + DB.round(3).to_string(index=False))
     FZ = frozen_decode(D)
-    fig, axs = plt.subplots(2, 3, figsize=(16, 8), sharey=True, gridspec_kw={"width_ratios": [1, 1, 0.7]})
-    for i, tg in enumerate(("direction", "relative")):
-        for j, s_ in enumerate(("iti", "trial")):
-            ax = axs[i, j]
-            t = DR[(DR.target == tg) & (DR.set == s_)]
-            for ep in EP4:
-                c = t[t.epoch == ep].groupby(["animal", "lag"]).r.mean().groupby("lag").mean()
-                if len(c):
-                    ax.plot(c.index, c.values, color=colors[ep], lw=2, label=ep)
-            ax.axvline(0, color="0.6", lw=0.6)
-            ax.axhline(0, color="0.8", lw=0.6)
-            rel = "relative to the PREVIOUS trial's spout" if s_ == "iti" else "within the spout in place"
-            ax.set_title(f"{'ITI (self-initiated; spout retracted)' if s_ == 'iti' else 'in-trial post-cue (n-matched)'}:\n"
-                         f"{'3-D lateral direction' if tg == 'direction' else 'direction ' + rel}", fontsize=9)
-            ax.set_xlabel("lag from lick peak (s)")
-            for sp in ("top", "right"):
-                ax.spines[sp].set_visible(False)
-        ax = axs[i, 2]                                     # FROZEN pre-stroke ITI decoder, per animal across epochs
-        f = FZ[FZ.target == tg] if not FZ.empty else FZ
-        x = np.arange(len(EP4))
-        if not f.empty:
-            P = f.groupby(["animal", "epoch"]).r.mean().unstack("epoch").reindex(columns=EP4)
-            for _a, v in P.iterrows():
-                ax.plot(x, v.values, color="0.6", lw=0.8, marker="o", ms=3)
-            ax.plot(x, P.mean().values, color="k", lw=2.2, marker="o")
-            for k_, ep in enumerate(EP4):
-                ax.scatter([k_], [P[ep].mean()], s=60, color=colors[ep], zorder=5)
-        ax.set_xticks(x)
-        ax.set_xticklabels(["pre (LOSO)", "acute", "sub", "chronic"], fontsize=8)
-        ax.set_title("FROZEN decoder trained on pre-stroke ITI licks\n(lags 0..0.2 s; grey = animals)", fontsize=9)
-        ax.axhline(0, color="0.8", lw=0.6)
-        for sp in ("top", "right"):
-            ax.spines[sp].set_visible(False)
-    axs[0, 0].legend(fontsize=8, frameon=False)
-    axs[0, 0].set_ylabel("CV r (decoded vs actual)")
-    axs[1, 0].set_ylabel("CV r (decoded vs actual)")
-    fig.suptitle("NEURAL: decoding each lick's 3-D lateral direction from cortical area activity. Left / middle: within "
-                 "session (ridge, 5 time-block folds), per lag, mean of animals. Right: a decoder trained on each animal's "
-                 "PRE-stroke ITI licks applied unchanged to every session (pre scored leave-one-session-out).",
-                 fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(OUT / "figures" / "iti_direction_decoding.png", dpi=110)
-    plt.close(fig)
+    plot_direction(DR, FZ)
     FZ.to_csv(OUT / "decode_frozen_sessions.csv", index=False)
     if not FZ.empty:
         print("\n== per animal (rule 8): FROZEN pre-ITI decoder, r per epoch (pre = leave-one-session-out)\n"
@@ -1180,6 +1194,7 @@ def main(argv=None) -> int:
     ap.add_argument("--key", action="store_true", help="only the KEY figures, from saved sessions + ramp_sessions.csv")
     ap.add_argument("--controls", action="store_true", help="only the kinematics / face / FR-variance controls")
     ap.add_argument("--binned", action="store_true", help="only the binned frozen-decoder sweep + summary")
+    ap.add_argument("--plot-direction", action="store_true", help="redraw page 3.7 from the saved CSVs")
     a = ap.parse_args(argv)
     assert_writable(OUT)
     (OUT / "sessions").mkdir(parents=True, exist_ok=True)
@@ -1188,6 +1203,9 @@ def main(argv=None) -> int:
     labels = [x for x in labels if x[-4:] >= "0801"]
     if a.rois_only:
         roi_figure(labels[0])
+        return 0
+    if a.plot_direction:
+        plot_direction(pd.read_csv(OUT / "decode_sessions.csv"), pd.read_csv(OUT / "decode_frozen_sessions.csv"))
         return 0
     if a.binned:
         binned_figures({x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()})
