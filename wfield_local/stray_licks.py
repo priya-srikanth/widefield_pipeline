@@ -137,8 +137,17 @@ def session_job(item) -> dict:
     T = B.trials
     cue = T.cue_s.to_numpy(float)
     arr = T.strobe_s.to_numpy(float)
-    K = pd.read_csv(kin_all(), usecols=["session", "position", "context", "contact", "daq_peak_s", *COORDS])
+    K = pd.read_csv(kin_all(), usecols=["session", "lick_uid", "position", "context", "contact", *COORDS])
     K = K[K.session == f"{an}_{date}"].copy()
+    # EXACT TIMES (ENCODING_FINDINGS 2.6 timing bug, 10-25): kinematics_all stored daq_peak_s to 4 significant digits;
+    # lick_uid = the row of the session's licks_all.csv, which has the full-precision DAQ peak (as scripts/iti_licks.py)
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["context", "daq_peak_s"])
+    uid = K.lick_uid.to_numpy(int)
+    if not (A.context.to_numpy()[uid] == K.context.to_numpy()).all():
+        raise RuntimeError(f"{label}: lick_uid join to licks_all.csv does not match on context")
+    K["daq_peak_s"] = A.daq_peak_s.to_numpy(float)[uid]
     K["spout"] = [pos_name(p) for p in K.position]
     cat = classify(K, cen)
     fr = np.searchsorted(ft, K.daq_peak_s.to_numpy(float))
