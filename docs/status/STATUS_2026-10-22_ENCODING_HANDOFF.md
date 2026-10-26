@@ -9,6 +9,90 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`;
 `G` = `M:\MICROSCOPE\Priya\Widefield\labcams\grant_figures\`.
 
+## 000z. STATE 10-25 ~23:00 -- READ FIRST (supersedes the RUNNING / TO DO of 000y; 000y keeps its pitfalls, 000x the day's results)
+
+Page v84 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (source `S/goal_page/index.html`, S = `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`; publish with the
+LONG path form `C:/Users/SabatiniLab/AppData/Local/Temp/...` -- the 8.3 `SABATI~1` path is blocked by a read rule for the image
+files). FINDINGS section 0 now has: point 4 (target vs executed reconciled), 4b (recovery = behavioural compensation with
+PARTIAL cortical recovery), 4c (early predictors, exploratory n=4, pre-registered predictions); direction-neutral wording
+throughout ("cortical activity consistent with the movement under the pre-stroke mapping; direction not determined").
+ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (per-spout lick kernels).
+
+### Key results of the night (all PROVISIONAL, details in FINDINGS / ENCODING_FINDINGS)
+- KEY FIGURE (page, under the bottom line; = Fig 1i4): per-animal-normalised, hits-only. Behaviour chronic +0.01 (fully back);
+  cortical far-contra code on HITS chronic -0.30 [-0.46, -0.13]; per-session gap ~0 subacute -> -0.31 chronic. By day (1i3):
+  both climb to ~0.8 by day ~9, then behaviour completes and cortex plateaus at ~0.7.
+- Coupling (neural decoder fM - fC vs lick fM - fC, within session): absent on FAILED attempts (acute -0.26 vs pre hits, each
+  animal; subacute -0.29), kept on hits (acute hits ~pre but 64 trials; chronic hits at pre). The old "acute r ~ 0" was
+  composition (92 % of acute far-contra trials are failed attempts). Block-permutation null; cross-epoch statistics.
+- Decoder: failed attempts carry ~no far-contra code in any window (retention ~0); acute far-contra trials are decoded
+  CONFIDENTLY as another spout, animal-specific (off-distribution confidence not excluded). Pre-cue class-matched: weaker on
+  failing trials acutely, raw P -0.14 [-0.24, -0.04] but median session -0.06, few hits -> suggestive only.
+- Target vs executed: old refit "target > executed" was chronic + refit-only; frozen: neither recovers; self-fit: target
+  remapped; partial refit (single-shift nulls): target AND executed remapped chronically in contra SSp-m; per-spout lick
+  kernels (frozen, `..._frA_ls`) absorb part of the old target term and only the executed spout-locked templates gain.
+- Recovery timing, hits only: no consistent order (every CI includes 0); neither predicts the other session to session.
+- Early predictors (n=4): lesion % perfectly orders behavioural recovery speed (one-sided p .042); acute retention orders
+  chronic code inversely but PS94 alone sets it.
+
+### RUNNING (do not restart; check logs)
+1. Partial-refit BLOCK-PERMUTATION nulls on frA (`partial_refit.py --add target_perm exec_perm`, JOBS 6, log
+   S/partial_perm.log): 48/107 at 23:00, ~10 min / session / worker -> done ~03:00-04:00. THEN: `bash S/run_partial.sh
+   --plot-only` -> `partial_refit/figures/partial_refit_lines.png` = new page 1yd (contrasts target - null, exec - null now
+   use the PERM nulls; bars -> supplement partial_refit_bars_<w>.png); update FINDINGS 4.11 "WHICH PART", ENCODING_FINDINGS 8.14,
+   page row + 1yd/1ye captions (remove "nulls being redone").
+2. Lickspout PIXEL run `..._frA_ls_basis` (FROZEN_PIX_MUSALL=1, JOBS 2, log S/frozen_frA_ls_basis.log): 66/107 at 23:00. Its
+   old chain bash was STOPPED on purpose (the python runs on its own).
+3. New chain `S/run_land_lag.sh` (log S/land_lag_chain.log; task bxa5qlvlf) waits for (2) to exit, then:
+   a. LANDING lick kernels `..._frA_lsland` (FROZEN_LICKSPOUT + FROZEN_LICKLAND: lick copies by each lick's 3-D landing soft
+      weights; licks without landing info -> 7th copy lick_onset@unknown). Trimmed variants.
+   b. LAGGED FaceRhythm `..._frA_frlag` (FROZEN_FR_LAGS=-0.3..0.3: <v>:facelead = past face, <v>:cortexlead = future face;
+      variants no_frfacelead / no_frcortexlead).
+   c. self-fit `..._frA_ls` (jobs 3), d. partial refit `..._frA_ls` (jobs 4; computes ALL nulls incl. block perm -> slow,
+      ~10 h at 4 workers: consider O2).
+
+### TO DO after the runs (why)
+A. Partial refit perm nulls -> figures / docs (1 above). Priya's call on the statistic: contrasts vs PERM null.
+B. Landing run: unique R2 of lick_onset@<spout> (landing) vs target; compare with the target-split run `..._frA_ls`
+   (adapt S/ls_unique.py: tags, add no_lickspout vs no_target). WHY: the target-vs-executed contest on misdirected trials
+   (landing diverges from target on 64 % of tracked licks in an acute session).
+C. Lagged FR: unique(cortexlead) = joint - no_frcortexlead, unique(facelead) = joint - no_frfacelead, per area, pre level and
+   epoch - pre (nested bootstrap). WHY: the only direction evidence this dataset gives (temporal precedence); calcium lag biases
+   absolute timing toward cortex lagging -> read the CHANGE.
+D. Self-fit / partial refit on the lickspout design -> the decisive contest (does a session-specific mapping prefer target or
+   spout-specific lick kernels chronically?).
+E. Queued, not started: within-trial lead / lag (pre-lick vs post-lick prediction of the lick's direction); pre-cue -> lick
+   coupling; template-similarity check of acute trials ("confident wrong spout" vs off-distribution); PS94 state x spout check
+   -> block null; convert the remaining bar families to epoch-line figures (`ffc.epoch_lines`; Priya: lines "much better";
+   2-3 lines per figure, bars as supplement, session dots where per-session values exist); session-level versions of other
+   per-animal figures (4f / 4g, behaviour 3-6).
+F. O2 bundle for the frozen encoder (Priya: "we can run on o2"): code sync, inputs (3-D snapshot, FR master_pre_v1 proj,
+   attempts table, templates / pre_stats / spatial pickles), submit wrapper; Priya runs transfer / submit. Best candidates:
+   the lickspout partial refit with perm nulls, per-epoch pixel kernel fits (000y E).
+G. From 000y still open: B (novar pixel maps; `frozen_pixel_musall.py --layout novar` on `..._frA_ls_basis` when it lands),
+   C (pixel Musall alone / PETH-vs-trial: `frozen_pixel_musall.py --layout alone --window cue|lick` on `..._frA_ls_basis`),
+   D (spout_unique_maps on `..._frA_ls_basis`), E (per-epoch kernel fits), F (narrow every-lick window), G (older items).
+
+### New scripts tonight (repo)
+`frozen_pixel_musall.py` (pixel Musall layouts), `coupling_by_class.py`, `trial_neural_vs_exec.py` (block null, per session,
+pooled, normalised, cross-epoch stats), `decoder_retention_sessions.py`, `precue_class_matched.py`, `recovery_timing.py`
+(hits-only timing + pooled by day / epoch = key figure), `early_predictors.py`; `wfield_local/sig_marks.py` (haloed stars);
+`frozen_fr_compare.epoch_lines / lines_legend` (line panels); `partial_refit.py` (per-session save / resume, contrasts,
+exec_shuf, block-perm nulls, --add); `frozen_encoder.py` FROZEN_LICKLAND / FROZEN_FR_LAGS (opt-in; tests pass).
+
+### PITFALLS (tonight, in addition to 000y)
+- HEREDOCS AND sed STILL EAT `\n` (hit 4 more times): write patch scripts with the Write tool, always.
+- `build_design` MEAN-CENTRES event amplitudes: an amplitude-weighted kernel needs + mean(amp) x the plain kernel added back.
+- `df.align` is a DataFrame method: use df["align"].
+- Retention units ((P - 1/6) / (pre - 1/6)) explode when the pre code is near chance (pre-cue PS92): use raw P as primary there.
+- One half-session circular shift is a noisy null (spouts in ~6-trial runs): use block permutation, several draws, average
+  SCORES (never predictions).
+- Pre-stroke trials are HITS only: any hit vs failed contrast has no class-matched pre reference for failed attempts.
+- Do not edit combined_encoding.py while encoder runs use the input cache (its source is in the cache key -> every session
+  reloads from the share); edits to frozen_encoder.py: atomic tmp + os.replace.
+- Killing a chain: stop only the bash (Stop-Process by command line); child pythons keep running.
+- Publishing the page: use the long user path for root / file_path (see top).
+
 ## 000y. STATE 10-25 ~18:45 -- READ FIRST (supersedes the RUNNING / NEXT lists of 000x; 000x keeps the day's results)
 
 Page v70 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (source `S/goal_page/index.html`; S = `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`). Results of
