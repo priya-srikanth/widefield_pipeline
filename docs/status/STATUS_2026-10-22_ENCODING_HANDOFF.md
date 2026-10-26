@@ -54,6 +54,12 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   ONE ANIMAL -- read the full run's per-animal table first. Caveats to state: a cortex-wide component rides on every
   ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
   change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
+- NOVAR PIXEL MAPS (000y B) were IMPOSSIBLE from ..._frA_ls_basis: _pix_musall_variant matched "no_" not "novar_", so no
+  moments were saved for the single-variable drops (the novar figure drew only the full column). Fixed (frozen_encoder,
+  atomic); re-scoring joint + novar_* into a SEPARATE tag ..._frA_ls_basis_novar (fit inputs copied; summarise_musall
+  rewrites frozen_musall_r2*.csv with only the listed variants, so in-place would clobber the basis table), then the novar
+  figures: S/run_novar_pix.sh, log S/novar_pix.log (~2-3 h at 2 workers). Page v92 has the ls-frame alone maps (1ub3) and
+  spout-unique maps (1ud2).
 - PERM NULLS DONE (106/106) -> to-do A DONE: partial_refit_lines.png = page 1yd (bars = 1ye), FINDINGS 4.11 / section 0 and
   ENCODING_FINDINGS 8.14 updated: block-permutation nulls reproduce the single-shift contrasts (chronic contra SSp-m
   target +0.036 / +0.034, executed +0.055 / +0.064; acute ipsi SSp-m target +0.039 / +0.041; all 4/4). Lickspout map

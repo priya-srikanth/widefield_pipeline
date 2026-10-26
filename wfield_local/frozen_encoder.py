@@ -1294,7 +1294,10 @@ PIX_MUSALL = os.environ.get("FROZEN_PIX_MUSALL", "") in ("1", "true", "yes")
 
 
 def _pix_musall_variant(variant: str) -> bool:
-    return variant == "joint" or variant.endswith("_only") or (variant.startswith("no_") and "|" not in variant)
+    # novar_* (single-variable drops, Musall bottom row) included 10-26: "novar_" does not start with "no_", so the
+    # 10-25 basis run saved no moments for them and the per-variable pixel maps could not be built
+    return (variant == "joint" or variant.endswith("_only") or variant.startswith("novar_")
+            or (variant.startswith("no_") and "|" not in variant))
 
 
 def musall_moments(d: dict, Z: np.ndarray, Wf: np.ndarray, R: np.ndarray, fs: float) -> dict:
