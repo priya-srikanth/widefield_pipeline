@@ -153,6 +153,9 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    PS94 ~0) -- the shared dip-and-return; not the cause of the decoder's ITI loss.
    (x) Encoder, TE partial refit (10-26): target-labelled lick kernels gain over landing-labelled ones chronically
    (landing - target -0.019 contra SSp-m, -0.024 cortex, 0/4 up); acute target advantage falls (-0.126), back by chronic.
+   (xi) Decoded vs actual (10-26): executed licks drift ipsilesionally; the frozen decoder does not follow (ITI bias
+   contralesional at fixed executed position); for cued licks, ipsi-deviated licks decode MORE like on-target licks
+   after the stroke (share of the deviation followed 0.26 -> 0.14 chronic, 4/4) -> target over execution.
    (vi) Recovery marker: within animal, the in-trial frozen decoder tracks far-contra behaviour across post sessions
    (r +0.62, 4/4; +0.53 controlling lick-direction spread) and the ITI one does not (+0.10); beyond the shared time
    trend the link is small (+0.16, 4/4 positive, n.s.) -> a marker of the recovery time course, not yet of day-to-day
