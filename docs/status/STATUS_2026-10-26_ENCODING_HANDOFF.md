@@ -73,6 +73,24 @@ The Artifact tool was switched off in this session from ~14:15, so everything si
   If the log does not end with `relabel3 done`, rerun the missing steps from the worktree with the PYTHONPATH above.
   Each step redraws from saved session data; nothing is lost. Then do 0a step 1.
 
+- **Decoded vs actual landing scatter** (Priya ~19:40: "plot the actual 3d (or 2d) decoded vs true lick positions for
+  given spout positions per epoch per position"; NEW `scripts/iti_where_scatter.py`, started ~19:45):
+  - Same frozen decoder as 3.15: one ridge per axis (lateral, outward), PER LICK.
+  - Saves `<E>/iti_licks/where_preds.csv` (one row per lick).
+  - Figures `iti_where_scatter_{trial,iti}.png`: rows = all animals + each animal, columns = epochs; per spout, an arrow
+    from the actual mean to the decoded mean, with 1-SD ellipses.
+  - In-trial licks are grouped by target spout; ITI licks by the spout nearest their actual landing.
+  - Ridge shrinks predictions toward the centre, so read each epoch against pre.
+  - `--plot-only` redraws from the CSV.
+  - When done: look at the figures, add them to the page as a KEY / supplement pair after 3.16, then renumber.
+- **Helper agents launched ~19:45 (results may land in this session):**
+  - (1) TITLE VERIFICATION from the code for figures whose model frame was inferred: 3.1-3.6, 1.15-1.16, 1.18, 1.21-1.22,
+    1.24-1.28, 1.44-1.47, 7.1-7.6, 9.13-9.14, plus a spot-check of sections 5 / 6 / 8. Output
+    `_goal_page/title_verification.csv` (proposed_title column). Apply the proposed titles to `_goal_page/index.html`
+    (edit the `<div class="ftitle">` text inside ONE figure: see pitfall 0f), then republish.
+  - (2) PUBLISH attempt by a subagent (in case the Artifact tool is available to it). If it reports the tool is off
+    too, the page is still v103: use section 0a from a new session.
+
 ### 0c. WAITING ON OTHERS
 - **sabatinilab-5b:** "go" for the kinematics_all swap sent 15:50; Priya runs the rename lines 5b gives her. When the
   table is live, re-run `python -m wfield_local.stray_licks`. Move the old `<E>/stray_licks/sessions` aside first; it
