@@ -184,6 +184,16 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
    -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
    far-contra licks (4d0b) is carried by the later, corrective licks.
+4d0j. **SAME-PLACE like-for-like read-out (PRIMARY, DECISIONS 10-27 late; page v130 figs 3.15 / 3.16, stable ids
+   #f-lick_matched_place_readout / _curves). PROVISIONAL.** Each lick vs the animal's pre licks (any spout) that landed
+   at the same lateral place. ITI, all spouts +0.31 / +0.21 / +0.24 mm (4/4 each epoch); far ipsi +0.43 / +0.38 / +0.38.
+   CUED, all spouts +0.14 acute (4/4) -> ~0 / -0.04; cued FIRST lick +0.27 / +0.20 / +0.15 (4/4 every epoch) vs later
+   +0.12 / +0.02 / -0.06; cued far contra first lick +0.58 / +0.29 / +0.11; cued far contra all licks +0.20 acute ->
+   -0.10 / -0.28 (4/4, ipsilesional chronically). So under the primary measure: the cortical read-out sits contralesional
+   of where licks land -- ITI licks in every epoch, cued licks acutely and on the first lick throughout; cued far contra
+   ipsilesional chronically (compression at the edge). The 'first cued lick read toward the target' (4d0d) and the acute
+   far-contra contralesional read-out STAND under this measure; 4d0h / 4d0i's pooled-deviation and same-spout numbers
+   are sensitivity analyses (same ITI answer; same-spout cannot score the acute large misses).
 4d0i. **LIKE-FOR-LIKE read-out = the primary offset measure (Priya 10-27); response-size attribution. PROVISIONAL**
    (`scripts/lick_matched_readout.py`, `scripts/lick_gain_prediction.py`). Each lick vs the animal's pre licks with the
    same landing deviation (no pull slope). ITI, all spouts: +0.23 / +0.16 / +0.22 mm (4/4 each); bout starts +0.26 /
