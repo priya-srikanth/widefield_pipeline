@@ -31,31 +31,62 @@ from wfield_local import analysis_kit as ak  # noqa: E402
 EP = ["acute", "subacute", "chronic"]
 
 
-def measures() -> dict:
-    O = il.OUT
-    out = {}
-    d = pd.read_csv(O / "zscore_check" / "where_decoder_z.csv")
-    d = d[(d.source == "areas") & (d.target == "lateral")]
-    for st, nm in (("iti", "r_lat_iti"), ("trial", "r_lat_cued")):
-        g = d[d.set == st].copy()
-        g["value"] = g.r / g.animal.map(g[g.epoch == "pre"].groupby("animal").r.mean())
-        out[nm] = g[["animal", "epoch", "label", "value"]]
-    r = pd.read_csv(O / "recovery_link_sessions_withpre_angle_z.csv")
-    for st, nm in (("iti", "off_lat_iti"), ("trial", "off_lat_cued")):
-        out[nm] = r[r.set == st].rename(columns={"bey_lat": "value"})[["animal", "epoch", "label", "value"]]
-    oc = pd.read_csv(O / "overcorrection_sessions.csv")
-    out["off_farcontra_cued"] = oc[oc.spout == "far_contra"].rename(columns={"beyond": "value"})[
-        ["animal", "epoch", "label", "value"]]
-    h = pd.read_csv(O / "hemo_check" / "variant_resp_sessions.csv")
-    h = h[(h.variant == "adopted")]
-    if "key_mean" in set(h.roi):
-        h = h[h.roi == "key_mean"]
+COLS = ["animal", "epoch", "label", "value"]
+
+
+# --- session-level readers, one per producing table (shared with scripts/iti_lmm_figures.py; one row per session) ---
+def where_r(st: str, target: str = "lateral") -> pd.DataFrame:
+    """Decoder r (Allen areas, z-scored features) for lick set `st` (iti / trial) / the animal's pre mean."""
+    d = pd.read_csv(il.OUT / "zscore_check" / "where_decoder_z.csv")
+    g = d[(d.source == "areas") & (d.target == target) & (d.set == st)].copy()
+    g["value"] = g.r / g.animal.map(g[g.epoch == "pre"].groupby("animal").r.mean())
+    return g[COLS]
+
+
+def recovery_link(st: str, col: str = "bey_lat") -> pd.DataFrame:
+    """recovery_link_sessions_withpre_angle_z.csv column `col` (bey_lat = lateral offset beyond the pull vs pre)."""
+    r = pd.read_csv(il.OUT / "recovery_link_sessions_withpre_angle_z.csv")
+    return r[r.set == st].rename(columns={col: "value"})[COLS]
+
+
+def overcorrection(spout: str, col: str = "beyond") -> pd.DataFrame:
+    """overcorrection_sessions.csv (cued licks) at one spout."""
+    oc = pd.read_csv(il.OUT / "overcorrection_sessions.csv")
+    return oc[oc.spout == spout].rename(columns={col: "value"})[COLS]
+
+
+def hemo_resp(variant: str = "adopted", roi: str = "key_mean") -> pd.DataFrame:
+    """ITI post-lick response / the animal's pre ADOPTED response (hemo_check), one variant x ROI (mean of ROIs when
+    `roi` is absent)."""
+    h = pd.read_csv(il.OUT / "hemo_check" / "variant_resp_sessions.csv")
+    h = h[h.variant == variant]
+    if roi in set(h.roi):
+        h = h[h.roi == roi]
     else:
         h = h.groupby(["animal", "epoch", "label"]).resp_rel_adopted.mean().reset_index().assign(roi="mean")
-    out["resp_key"] = h.rename(columns={"resp_rel_adopted": "value"})[["animal", "epoch", "label", "value"]]
-    m = pd.read_csv(O / "recovery_measure_sessions.csv")
-    out["aim_weighted"] = m.rename(columns={"weighted_signed": "value"})[["animal", "epoch", "label", "value"]]
-    return out
+    return h.rename(columns={"resp_rel_adopted": "value"})[COLS]
+
+
+def lick_order(scope: str, st: str, col: str) -> pd.DataFrame:
+    """lick_order_sessions.csv (scripts/iti_lick_order.py) column `col` for scope (all spouts / far contra) x set."""
+    lo = pd.read_csv(il.OUT / "lick_order_sessions.csv")
+    if col not in lo.columns:
+        return pd.DataFrame(columns=COLS)
+    return lo[(lo.scope == scope) & (lo.set == st)].rename(columns={col: "value"})[COLS]
+
+
+def recovery_measure(col: str = "weighted_signed") -> pd.DataFrame:
+    """recovery_measure_sessions.csv (behaviour: cued lick angle offset from own pre landing, degrees)."""
+    m = pd.read_csv(il.OUT / "recovery_measure_sessions.csv")
+    return m.rename(columns={col: "value"})[COLS]
+
+
+def measures() -> dict:
+    return {"r_lat_iti": where_r("iti"), "r_lat_cued": where_r("trial"),
+            "off_lat_iti": recovery_link("iti"), "off_lat_cued": recovery_link("trial"),
+            "off_farcontra_cued": overcorrection("far_contra"),
+            "resp_key": hemo_resp("adopted", "key_mean"),
+            "aim_weighted": recovery_measure()}
 
 
 def main() -> int:

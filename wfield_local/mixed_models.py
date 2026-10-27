@@ -268,7 +268,10 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
     ax.flat[0].legend(fontsize=6, ncol=2)
     fig.suptitle(f"{title} -- mixed model, animal random effects ({model})", fontsize=9)
     fig.supxlabel(f"x: {xlab}", fontsize=7)        # the long label once, so neighbouring panels' labels cannot collide
-    fig.tight_layout()
+    # fixed headroom in INCHES for the suptitle / supxlabel: tight_layout alone ignores them, and on a tall figure
+    # (8 rows, lmm_*_lickclass) the suptitle landed on the first row's panel titles (10-27)
+    h = fig.get_figheight()
+    fig.tight_layout(rect=(0, 0.25 / h, 1, 1 - 0.45 / h))
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=150)
     plt.close(fig)
