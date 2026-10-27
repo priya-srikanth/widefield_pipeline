@@ -161,16 +161,16 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    licks, ipsi-deviated licks decode MORE like on-target licks after the stroke (share of the deviation followed
    0.26 -> 0.14 chronic, 4/4) -> target over execution. Superseded as a summary by (xiii).
    (xiii) **KEY (10-26 late, page 3.19-3.21, ENCODING_FINDINGS 8.17): post-stroke, cortex read with the pre-stroke
-   decoder places licks CONTRALESIONAL of where they land.** Measure = decoded minus actual lateral position per lick,
-   change vs pre for the same spout (+ = contralesional). Acutely both lick types, 4/4: cued +0.54 mm [+0.25, +0.85],
-   self-initiated (ITI) +0.56 [+0.35, +0.79]. Restricted to licks landing at their usual (pre-stroke) spot, which removes
-   the decoder's pre-existing pull toward the middle: ITI still +0.34 [+0.18, +0.54] acute (4/4) and +0.16
-   [+0.03, +0.32] chronic (sign 4/4; large in PS94 +0.39 / PS95 +0.15, ~0 in PS92 / PS93); cued ~0 acute and slightly
-   IPSI chronic (-0.16, 0/4 contra) -> for cued licks the acute shift is ipsi-strayed licks read at their target; for
-   ITI licks a lick in the same place is read further contralesional than before. Cued licks are also read CLOSER to the
-   mouth than they land (-0.30 mm chronic at the usual spot, 0/4 further; all licks -0.47, mostly because cued licks
-   reach further out post-stroke). This is a mean offset and does not enter r (3.15-3.18 measure lick-to-lick
-   tracking, a separate loss; part of the ITI lateral r loss is a narrower spread of lick positions in PS92 / PS95).
+   decoder places SELF-INITIATED licks CONTRALESIONAL of where they land.** Measure = decoded minus actual lateral
+   position per lick, change vs pre for the same spout (+ = contralesional), on licks landing at their USUAL
+   (pre-stroke) spot so that licks moving cannot cause it: ITI +0.34 [+0.18, +0.54] acute (4/4), subacute +0.09 n.s.,
+   chronic +0.16 [+0.03, +0.32] (large in PS94 +0.39 / PS95 +0.15, ~0 in PS92 / PS93). Cued licks at their usual spot
+   are not read contralesionally (~0 acute, -0.16 chronic, 0/4 contra) but CLOSER to the mouth (-0.30 mm chronic, 0/4
+   further); ipsi-strayed cued licks are read at their target. Over ALL licks the average offset is contralesional
+   acutely for both types (+0.54 cued, +0.56 ITI, 4/4), but its epoch course (ITI +0.56 / +0.25 / +0.19) matches what
+   the ipsi shift of the licks plus the decoder's pre-existing pull toward the middle predict (+0.56 / +0.26 / +0.18),
+   so it is not evidence of a cortical change by itself. The pull (pre-stroke ITI licks 1.7 mm ipsi of average are
+   decoded 0.6 mm ipsi) is constant across epochs (frozen decoder). Mean offsets do not enter r (3.15-3.18).
    Shared variance only: whether cortex carries the aim or does not register the changed movement is not determined.
    (xii) CORRECTION (10-26): in-trial frozen r is also lower (-0.146 acute -> -0.063 chronic, CI excludes 0), smaller than
    ITI; its time course follows lick accuracy (a target-only reader loses -0.246 -> -0.036; session corr 0.82), so the
