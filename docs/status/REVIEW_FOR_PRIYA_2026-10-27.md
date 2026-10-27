@@ -27,6 +27,12 @@ section. Everything here is PROVISIONAL until you have looked at it.
    barely lose lateral r over the 8-day pre span; post sessions sit below that curve (ITI chronic -0.13, 4/4; cued
    lateral loss gone chronically; sagittal ~0).
 
+6. **Haufe pattern maps of the lick-position decoder** (`figures/iti_decoder_patterns_lat.png`, per animal
+   `iti_decoder_patterns_animals_lat.png`): pre-stroke lateral map = crossed push-pull in lateral orofacial S1/M1
+   (more lesioned-side activity for contralesional licks). Preserved chronically in PS92 / PS93 / PS95 (similarity
+   0.76-0.90); PS94's ITI map is genuinely different (0.19, reliability 0.99) -- the least-recovered animal remapped.
+   PS93 / PS95-ITI pre maps are mostly one-signed (less clear push-pull) -- worth a look.
+
 ## Questions for you
 1. Recovery ranking: by far-contra cued lick ANGLE / pre, chronic PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. You
    rank PS95 best (fast early recovery, dip, then improvement) -- is there a measure you want used for the
