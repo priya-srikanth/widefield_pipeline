@@ -245,6 +245,13 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    contra spouts -> left). FAR CONTRA is the one spout whose map is REPLACED acutely (similarity to pre 0.31 / 0.28 /
    0.42, PS95 n/a) and comes back (chronic 0.97 / 0.61 / 0.96 / 0.92; PS93 partial); the other spouts stay 0.65-0.95
    (exception PS93 close mid 0.13-0.26 throughout). Fits the acute far-contra failure and the decoder results (4.x).
+   F0 CHECK on the larger ITI post-lick response (10-27 ~03:15, `scripts/iti_f0_check.py`, f0_check.csv; F0 = mean of the
+   pipeline's per-pixel temporal mean image `frames_average.npy`, central 60 % of the frame, raw counts): 470 nm F0 / pre
+   +11 % [+3, +20] acute, +14 % subacute, +4 % n.s. chronic (415 nm similar, no trend) -> F0 did NOT fall, so the larger
+   dF/F response is not a smaller-baseline artefact; in dF-equivalent units (dF/F x F0 / pre F0) the increase is slightly
+   LARGER (+96 / +59 / +44 %, all CIs exclude 0; dF/F +76 / +39 / +36 %). Within animal F0 and response are not
+   consistently related (r -0.60..+0.54). Caveat: whole-frame F0 includes LED power / focus; per-area F0 on the atlas grid
+   and the 415 nm lick-aligned response are not done.
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
