@@ -39,6 +39,23 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-OVERNIGHT (10-27 ~04:00, autonomous while Priya slept) -- read FIRST
+- REVIEW LIST for Priya: `docs/status/REVIEW_FOR_PRIYA_2026-10-27.md` (key results, questions, issues). Page v121.
+- DONE overnight (all in FINDINGS 4d, scripts committed, pushed through d6ebdb1 + this batch):
+  spread-matched r (`iti_where_spread_matched.py`), recovery link on the z-scored decoder + per-animal figure
+  (`iti_recovery_link.py --beh angle --z`, page 3.37), far-contra pattern test (`iti_farcontra_pattern.py`, 3.38),
+  drift vs day gap (`iti_where_drift.py`, 3.36), Haufe position maps (`iti_decoder_patterns.py`, 3.33 / 3.34), per-spout
+  one-vs-rest maps (`iti_spout_patterns.py`, 3.35), F0 check (`iti_f0_check.py`), three-axis decoder
+  (`iti_where_3axis.py`), significance bars on 3.14 / 3.23 / 3.24 / 3.26 / 3.31. New "Where things stand" row on the
+  lateral r loss. Page figures 3.33-3.38 APPENDED (no renumbering; fig maps updated).
+- NOT DONE / blocked: jaw per far-contra lick (licks.csv.gz has no per-lick jaw; jaw_trials is per trial -> needs the pose
+  window); 415 nm lick response (haemodynamic arm closed per CLAUDE.md -> asked Priya); RMSE bias/SD split, ALM/tjM1
+  non-overlapping ROIs (optional); older 00f item 7 items untouched.
+- iti_where_decoder.coords now returns 5 columns (+ down_dv at index 4); load() also stores `<set>_pos` per lick.
+- Pitfall hit 4x tonight: python heredoc replacement strings containing "\n" write a REAL newline into the file ->
+  use the Edit tool for any string with 
+.
+
 ### 00-NOW (10-27 ~00:30) -- read before 00a-00g
 - Sagittal chain DONE (22:56); page v119 PUBLISHED with the sagittal figures (3.15-3.22 redrawn + recaptioned; scatter
   y = 0 line removed; decoder suptitle gap fixed) and the NEW KEY row (Priya liked: cued licks read AHEAD of the failing

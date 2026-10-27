@@ -1,6 +1,6 @@
 # For Priya to review (overnight 10-26 -> 10-27, encoding window sabatinilab-d4)
 
-Live page: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d -- v120 (02:45) has everything below: new Figs 3.33-3.38
+Live page: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d -- v121 (~04:00) has everything below: new Figs 3.33-3.38
 (maps, drift, recovery link, far-contra table), 3.14 significance bars, and a new 'Where things stand' row on the r loss. Newest at the bottom of each
 section. Everything here is PROVISIONAL until you have looked at it.
 
@@ -62,3 +62,8 @@ section. Everything here is PROVISIONAL until you have looked at it.
 ## Issues / caveats
 1. The chronic cued far-contra "read ipsilesional" interpretation (scaled-down command vs changed strategy vs blurred
    pattern) is open; the "smaller decoded size" argument was WITHDRAWN (measured from the mouth on forward only).
+2. Jaw per far-contra lick (proposed test of the "changed strategy" reading) is BLOCKED: the kinematics lick table has no
+   per-lick jaw measure (jaw is per trial) -- needs the pose window (sabatinilab-5b).
+3. Haufe maps use unscaled SVD features (z-scoring 200 components per session is not the same as per-area z-scoring);
+   the decoder offsets / KEY row use z-scored areas. Say if you want a z-scored map version.
+4. PS95 acute has a single session, so no acute map / pattern for PS95 (shown as n = 3 animals).
