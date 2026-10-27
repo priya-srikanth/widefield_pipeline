@@ -34,6 +34,9 @@ renumbered or reordered. `imaging_fig_ids.csv` (fid, number, title) is the regis
 `#figN-k` still works, but means the figure that had number N.k when stable ids were introduced (v32), not
 whatever is N.k later. Same scheme as the encoding goal page (`_goal_page/fig_ids.csv`). A printed number next
 to a link is still a number and must be refreshed from the registry after a renumbering.
+**`imaging_fig_ids.csv` has a reader outside this folder**: the PI deck's figure provenance (e3's `edit11.py`) takes
+imaging figure numbers from it. Any page change that moves numbers must re-run the chain through `p_img_stableids.py`
+and commit the regenerated CSV with the page.
 
 - `imaging_fig_map.csv` — old figure label -> new N.k number (for reading older notes that cite e.g. "Fig 7.2c").
 - `page_figs.py` — copies and downscales a source figure into `imaging_page/`.
