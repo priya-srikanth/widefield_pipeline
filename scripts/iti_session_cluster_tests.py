@@ -128,6 +128,7 @@ def run(n_perm: int) -> dict:
                     items.append((k, ep, data, idx_img, n_perm))
     res, fails = parallel.fan_out(items, test_one, jobs=parallel.default_jobs(6), label="map x epoch",
                                   log=lambda m: print(m[:110], flush=True))
+    res = sorted(res, key=lambda t: (t[1]["key"], t[1]["epoch"]))     # completion order -> fixed order (CLAUDE.md 6)
     if fails:
         print("FAILED:", [f[0][:2] for f in fails])
     out = {(r["key"], r["epoch"]): r for _it, r in res}
