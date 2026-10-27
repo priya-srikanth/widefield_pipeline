@@ -15,7 +15,8 @@ Per panel, per spout: actual mean (open circle) and decoded mean (filled) with a
 ellipses (actual solid, decoded dashed). Ridge predictions are SHRUNK toward the mean, so decoded points sit closer to
 the centre even pre-stroke: read each epoch against the pre column, not against the actual points.
 Outputs <E>/iti_licks/where_preds.csv (one row per lick), figures/iti_where_scatter_{trial,iti}.png.
-Usage: python scripts/iti_where_scatter.py [--plot-only]
+Usage: python scripts/iti_where_scatter.py [--plot-only | --z]   (--z: within-session z-scored predictions of
+iti_zscore_check.py -> figures/*_z.png, tables in zscore_check/ with a _z suffix)
 """
 from __future__ import annotations
 
@@ -136,7 +137,10 @@ def error_change(R: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(out, ignore_index=True)
 
 
-def plot_delta(R: pd.DataFrame) -> None:
+ZHEAD = "Z-SCORED FEATURES (each area / its frame-wise SD in the session, pre and post alike; iti_zscore_check.py)\n"
+
+
+def plot_delta(R: pd.DataFrame, tag: str = "") -> None:
     """Change in the decoding ERROR vector vs pre (Priya 10-26: 'a normalized to pre figure of the delta direction
     change'): per row (lick set x lick selection) and epoch, one dot per spout (mean of animals), faint = animals, black
     cross = all spouts pooled with 95 % nested CI (animals > sessions) on each axis."""
@@ -197,25 +201,27 @@ def plot_delta(R: pd.DataFrame) -> None:
     hd = [Line2D([], [], marker="o", ls="", color=PCOL[p], mec="k", mew=0.5, label=p.replace("_", " ")) for p in POS]
     hd += [Line2D([], [], marker="o", ls="", color="0.6", alpha=0.4, label="each animal"),
            Line2D([], [], marker="s", ls="-", color="k", label="all spouts, 95% nested CI (* excludes 0)")]
-    fig.suptitle("NEURAL: how the decoded lick position moved relative to the real one, vs PRE. FROZEN pre-stroke decoder "
-                 "(Allen areas, lags 0..0.2 s).\nPer spout: (decoded - actual) in the epoch minus the same in pre (removes "
-                 "the decoder's pre-stroke shrinkage toward the centre). 0,0 = same error as before the stroke.",
-                 fontsize=10, y=0.995)
-    fig.legend(handles=hd, loc="upper center", ncol=8, fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.955))
-    fig.tight_layout(rect=(0, 0, 1, 0.935))
-    fig.savefig(il.OUT / "figures" / "iti_where_delta.png", dpi=95)
+    fig.suptitle(ZHEAD * bool(tag) + "NEURAL: how the decoded lick position moved relative to the real one, vs PRE. "
+                 "FROZEN pre-stroke decoder (Allen areas, lags 0..0.2 s).\nPer spout: (decoded - actual) in the epoch minus "
+                 "the same in pre (removes the decoder's pre-stroke shrinkage toward the centre). 0,0 = same error as "
+                 "before the stroke.", fontsize=10, y=0.995)
+    fig.legend(handles=hd, loc="upper center", ncol=8, fontsize=8.5, frameon=False,
+               bbox_to_anchor=(0.5, 0.945 if tag else 0.955))
+    fig.tight_layout(rect=(0, 0, 1, 0.925 if tag else 0.935))
+    fig.savefig(il.OUT / "figures" / f"iti_where_delta{tag}.png", dpi=95)
     plt.close(fig)
     pd.set_option("display.width", 220)
     P = pd.concat(per_animal, ignore_index=True)
     print("== per animal (rule 8): change vs pre, mm (+ lateral = contra, - sagittal = closer)")
     print(P.round(2).to_string(index=False))
-    P.to_csv(il.OUT / "where_delta_by_animal.csv", index=False)
+    od = il.OUT / "zscore_check" if tag else il.OUT
+    P.to_csv(od / f"where_delta_by_animal{tag}.csv", index=False)
     Tt = pd.DataFrame(tests)
     print(Tt.round(3).to_string(index=False))
-    Tt.to_csv(il.OUT / "where_delta_tests.csv", index=False)
+    Tt.to_csv(od / f"where_delta_tests{tag}.csv", index=False)
 
 
-def plot(R: pd.DataFrame) -> None:
+def plot(R: pd.DataFrame, tag: str = "") -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -258,18 +264,24 @@ def plot(R: pd.DataFrame) -> None:
                Line2D([], [], marker=r"$\rightarrow$", ls="", color="k", ms=12, label="arrow = landed -> decoded"),
                Patch(fc="0.5", alpha=0.25, label="shaded ellipse = landing spread (1 SD)"),
                Line2D([], [], ls=":", color="k", alpha=0.6, label="dotted ellipse = decoded spread (1 SD)")]
-        fig.suptitle(f"NEURAL: decoded vs actual lick landing, {'in-trial' if st == 'trial' else 'ITI (self-initiated)'} licks, "
+        fig.suptitle(ZHEAD * bool(tag) + f"NEURAL: decoded vs actual lick landing, {'in-trial' if st == 'trial' else 'ITI (self-initiated)'} licks, "
                      f"grouped by {gname}.\nFROZEN pre-stroke decoder (fit once on each animal's August pre licks, never refit; "
                      "one ridge per axis, Allen-area features, lags 0..0.2 s); per lick, lateral x sagittal extension (mm), "
                      "+ lateral = contralesional.\nThe decoder shrinks predictions toward the centre even before the stroke, "
-                     "so compare each epoch with PRE (change figure: iti_where_delta.png).", fontsize=10.5, y=0.997)
-        fig.legend(handles=hd, loc="upper center", ncol=6, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.962))
-        fig.tight_layout(rect=(0, 0, 1, 0.925))
-        fig.savefig(il.OUT / "figures" / f"iti_where_scatter_{st}.png", dpi=95)
+                     f"so compare each epoch with PRE (change figure: iti_where_delta{tag}.png).", fontsize=10.5, y=0.997)
+        fig.legend(handles=hd, loc="upper center", ncol=6, fontsize=9, frameon=False,
+                   bbox_to_anchor=(0.5, 0.955 if tag else 0.962))
+        fig.tight_layout(rect=(0, 0, 1, 0.918 if tag else 0.925))
+        fig.savefig(il.OUT / "figures" / f"iti_where_scatter_{st}{tag}.png", dpi=95)
         plt.close(fig)
 
 
 def main() -> int:
+    if "--z" in sys.argv:          # z-scored predictions from iti_zscore_check.py -> *_z figures / tables
+        R = _groups(pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv"))
+        plot(R, "_z")
+        plot_delta(R, "_z")
+        return 0
     if "--plot-only" in sys.argv:
         R = _groups(pd.read_csv(il.OUT / "where_preds.csv"))
         plot(R)

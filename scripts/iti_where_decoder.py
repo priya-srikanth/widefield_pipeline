@@ -14,7 +14,8 @@ pre-stroke SVD basis (`iti_basis_decoder.py` outputs, when present). Reach sprea
 blind to a mean shift, not to a change in spread).
 Outputs <E>/iti_licks/where_decoder.csv, where_decoder_tests.csv, figures/iti_where_decoder.png (Allen areas, every
 target) + iti_where_decoder_bases.png (lateral, three bases); split 10-26 so the panels are readable.
-Usage: python scripts/iti_where_decoder.py [--plot-only]   (--plot-only redraws from the saved CSVs)
+Usage: python scripts/iti_where_decoder.py [--plot-only | --z]   (--plot-only redraws from the saved CSVs; --z draws
+iti_where_decoder_z.png + zscore_check/where_decoder_tests_z.csv from the z-scored run of iti_zscore_check.py)
 """
 from __future__ import annotations
 
@@ -32,6 +33,7 @@ EP = ["pre", "acute", "subacute", "chronic"]
 TARGETS = ("lateral", "sagittal", "2-D", "angle", "reach")         # outward is also scored (where_decoder.csv)
 SOURCES = ("areas", "locanmf", "svdbasis")
 LAB = {"areas": "Allen areas", "locanmf": "joint LocaNMF", "svdbasis": "pre-stroke SVD basis"}
+ZHEAD = "Z-SCORED FEATURES (each area / its frame-wise SD in the session, pre and post alike; iti_zscore_check.py)\n"
 
 
 def coords(label: str, t: np.ndarray) -> np.ndarray:
@@ -159,8 +161,7 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
 
-    from wfield_local import analysis_kit as ak
-    srcs = [s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{s}" / "sessions").exists()]
+    srcs =[s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{s}" / "sessions").exists()]
     R = pd.concat([decode(s) for s in srcs], ignore_index=True)
     R.to_csv(il.OUT / "where_decoder.csv", index=False)
     pre = R[R.epoch == "pre"].groupby(["source", "set", "target", "animal"]).r.mean()
@@ -169,6 +170,19 @@ def main() -> int:
     sp = R[(R.source == "areas") & (R.target == "lateral")].groupby(["set", "epoch"])[["sd_lateral", "sd_sagittal", "sd_angle", "sd_reach"]] \
         .median().unstack("epoch")
     print("== lick spread per session (median over sessions, mm)\n" + sp.round(3).to_string())
+    T = tests(R)
+    T.to_csv(il.OUT / "where_decoder_tests.csv", index=False)
+    print(T[(T.value == "r_norm")].round(3).to_string(index=False))
+    plot(R, T)
+    return 0
+
+
+def tests(R: pd.DataFrame) -> pd.DataFrame:
+    """Change in r and r / pre vs pre per (source, set, target, epoch): nested bootstrap (animals > sessions)."""
+    from wfield_local import analysis_kit as ak
+    if "r_norm" not in R:
+        pre = R[R.epoch == "pre"].groupby(["source", "set", "target", "animal"]).r.mean()
+        R = R.assign(r_norm=R.r / [pre.get(k, np.nan) for k in zip(R.source, R.set, R.target, R.animal)])
     rows = []
     for (src, st, tg), t in R.groupby(["source", "set", "target"]):
         ref = {a: t[(t.animal == a) & (t.epoch == "pre")] for a in AN}
@@ -182,11 +196,7 @@ def main() -> int:
                 rows.append({"source": src, "set": st, "target": tg, "value": val, "epoch": ep, "pre_r":
                              float(np.mean([ref[a].r.mean() for a in com])), "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
                              "n_down": int(sum(v < 0 for v in per.values())), "n": len(com)})
-    T = pd.DataFrame(rows)
-    T.to_csv(il.OUT / "where_decoder_tests.csv", index=False)
-    print(T[(T.value == "r_norm")].round(3).to_string(index=False))
-    plot(R, T)
-    return 0
+    return pd.DataFrame(rows)
 
 
 def _panel(ax, g, tt, colors, rng, title):
@@ -213,7 +223,9 @@ def _panel(ax, g, tt, colors, rng, title):
     ax.set_title(title, fontsize=10.5)
 
 
-def plot(R: pd.DataFrame, T: pd.DataFrame) -> None:
+def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
+    """tag "_z": within-session z-scored features (`iti_zscore_check.py`); writes iti_where_decoder_z.png only (the
+    basis figures need per-component session SDs, which do not exist)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -237,17 +249,19 @@ def plot(R: pd.DataFrame, T: pd.DataFrame) -> None:
                 _panel(axs[k, j], g, TN[(TN.source == src) & (TN.set == st) & (TN.target == tg)], colors, rng,
                        f"{sl[st]}: {tl.get(tg, tg)}\n(pre r {g[g.epoch == 'pre'].r.mean():.2f})")
             axs[k, 0].set_ylabel(yl, fontsize=10)
-        fig.suptitle("NEURAL: WHERE did the lick go? FROZEN pre-stroke decoder (fit once on each animal's August pre licks, "
+        fig.suptitle(ZHEAD * bool(tag) + "NEURAL: WHERE did the lick go? FROZEN pre-stroke decoder (fit once on each animal's August pre licks, "
                      f"never refit), {LAB[src]} features.\nOne decoder per target; one dot per session = r between decoded and "
                      "actual tongue-tip position, divided by the animal's pre mean;\nblack = mean +- SEM over sessions; * = "
                      "nested-bootstrap change from pre (animals > sessions) excluding 0.\nTOP ROW: self-initiated ITI licks "
                      "(spout retracted) | BOTTOM ROW: cued in-trial licks (spout in place); separate frozen decoder per row. "
                      "Sagittal = sqrt(forward^2 + down^2); angle = atan2(lateral, sagittal).", fontsize=11)
         fig.tight_layout(rect=(0, 0, 1, 0.88))
-        fig.subplots_adjust(top=0.84)      # tight_layout left a large gap under the 5-line suptitle
-        fig.savefig(il.OUT / "figures" / ("iti_where_decoder.png" if src == "areas" else f"iti_where_decoder_{src}.png"),
+        fig.subplots_adjust(top=0.82 if tag else 0.84)      # tight_layout left a large gap under the 5-line suptitle
+        fig.savefig(il.OUT / "figures" / (f"iti_where_decoder{tag}.png" if src == "areas" else f"iti_where_decoder_{src}{tag}.png"),
                     dpi=105)
         plt.close(fig)
+    if tag:
+        return
     # B: lateral position in each basis
     srcs = [s_ for s_ in SOURCES if s_ in set(R.source)]
     fig, axs = plt.subplots(2, len(srcs), figsize=(4.6 * len(srcs), 9.5), squeeze=False)
@@ -266,6 +280,13 @@ def plot(R: pd.DataFrame, T: pd.DataFrame) -> None:
 
 
 if __name__ == "__main__":
+    if "--z" in sys.argv:                    # redraw from the z-scored run (iti_zscore_check.py); Allen areas only
+        Z = il.OUT / "zscore_check"
+        Rz = pd.read_csv(Z / "where_decoder_z.csv")
+        Tz = tests(Rz)
+        Tz.to_csv(Z / "where_decoder_tests_z.csv", index=False)
+        plot(Rz, Tz, "_z")
+        raise SystemExit(0)
     if "--plot-only" in sys.argv:
         plot(pd.read_csv(il.OUT / "where_decoder.csv"), pd.read_csv(il.OUT / "where_decoder_tests.csv"))
         raise SystemExit(0)
