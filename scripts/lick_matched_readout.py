@@ -135,7 +135,7 @@ def sessions(P: pd.DataFrame) -> pd.DataFrame:
     Q = P.dropna(subset=["resid"])
     cells = [("all spouts", "all", Q)] + [(p, "all", Q[Q.pos == p]) for p in POS] + \
             [("all spouts", c, Q[Q.cls == c]) for c in ("first", "later")] + \
-            [("far_contra", c, Q[(Q.pos == "far_contra") & (Q.cls == c)]) for c in ("first", "later")]
+            [(p, c, Q[(Q.pos == p) & (Q.cls == c)]) for p in POS for c in ("first", "later")]
     for scope, cls, g in cells:
         for (st, a, lab, ep), h in g.groupby(["set", "animal", "label", "epoch"]):
             if len(h) >= MIN:
@@ -279,19 +279,20 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
     fig.savefig(il.OUT / "figures" / f"lick_matched{TAG}_readout.png", dpi=100)
     plt.close(fig)
     # 3. per spout
-    fig, axs = plt.subplots(2, 6, figsize=(19, 7.6), squeeze=False)
-    for i, st in enumerate(SETS):
+    rows = [("iti", "all", "ITI"), ("trial", "all", "cued"), ("trial", "first", "cued, FIRST lick")]   # Priya 10-27
+    fig, axs = plt.subplots(len(rows), 6, figsize=(19, 3.8 * len(rows)), squeeze=False)
+    for i, (st, cls_, rlab) in enumerate(rows):
         for j, p in enumerate(POS):
             ax = axs[i, j]
-            g = S[(S.set == st) & (S.scope == p) & (S.cls == "all")]
-            t = T[(T.set == st) & (T.scope == p) & (T.cls == "all") & (T.measure == "resid")].set_index("epoch")
+            g = S[(S.set == st) & (S.scope == p) & (S.cls == cls_)]
+            t = T[(T.set == st) & (T.scope == p) & (T.cls == cls_) & (T.measure == "resid")].set_index("epoch")
             for k, ep in enumerate(EPS):
                 _dots(ax, g[g.epoch == ep], k, col[ep])
                 if ep in t.index:
                     _stars(ax, k, t.loc[ep], col[ep])
             ax.axhline(0, color="0.6", lw=0.7, ls="--")
             ax.set_xticks(range(4), EPS, fontsize=7.5)
-            ax.set_title(f"{SETS[st]}: {p.replace('_', ' ')}", fontsize=9, pad=22)
+            ax.set_title(f"{rlab}: {p.replace('_', ' ')}", fontsize=9, pad=22)
             if j == 0:
                 ax.set_ylabel("read-out vs " + REFLAB.replace("pre licks ", "pre licks\n", 1)
                               + "\n(mm, + = contralesional)", fontsize=7.5)
