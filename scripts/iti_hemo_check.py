@@ -61,7 +61,9 @@ import iti_licks as il  # noqa: E402
 from fr_musall import AN  # noqa: E402
 
 HC = il.OUT / "hemo_check"
-CACHE = HC / "cache"
+# per-session caches hold ROI-mean PETHs, so they depend on the ALM / tjM1 ROI version (iti_licks.ROI_VERSION; 10-27):
+# v1 (40 / 40) stays in cache/, v2 (ALM 40 % / tjM1 50 %) goes to cache_roi2/
+CACHE = HC / ("cache" if il.ROI_VERSION == "1" else f"cache_roi{il.ROI_VERSION}")
 CACHE_VERSION = 1
 VARIANTS = ("adopted", "orig", "raw470", "raw415")
 VLAB = {"adopted": "corrected ADOPTED (meegkit_hpfit)", "orig": "corrected ORIGINAL (zero-phase HP)",
