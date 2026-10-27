@@ -38,6 +38,11 @@ def epoch_panel(ax, df: pd.DataFrame, val: str, ref: float | None = None, title:
     mu = [am.xs(e, level="epoch").mean() if e in am.index.get_level_values("epoch") else np.nan for e in EPS]
     ax.plot(range(4), mu, "-", color="k", lw=2.2, zorder=5, label="mean of animals")
     prd = {a: h[val].dropna().to_numpy() for a, h in df[df.epoch == "pre"].groupby("animal")}
+    pv = sess[sess.epoch == "pre"][val].dropna().to_numpy(float)       # pre-stroke spread: SEM over pre SESSIONS
+    if len(pv) > 1:
+        sem = pv.std(ddof=1) / np.sqrt(len(pv))
+        ax.errorbar(0.13, mu[0], yerr=sem, fmt="D", color="k", ms=5, capsize=3, zorder=6)
+        ax.text(0.13, mu[0] + sem, f"pre +/-SEM\n({len(pv)} sessions)", ha="center", va="bottom", fontsize=6.5)
     for x, e in enumerate(EPS[1:], start=1):
         post = {a: h[val].dropna().to_numpy() for a, h in df[df.epoch == e].groupby("animal")}
         post = {a: v for a, v in post.items() if len(v) and a in prd}
@@ -60,9 +65,16 @@ def epoch_panel(ax, df: pd.DataFrame, val: str, ref: float | None = None, title:
         ax.spines[s_].set_visible(False)
 
 
-def _save(fig, name: str, top: float) -> None:
+def _fit(fig) -> None:
+    """tight_layout leaving room for the suptitle: ~0.2 in per title line + 0.3 in margin (no title / panel overlap)."""
+    t = fig._suptitle.get_text() if fig._suptitle is not None else ""
+    n = t.count(chr(10)) + 1 if t else 0
+    fig.tight_layout(rect=(0, 0, 1, 1 - (0.17 * n + 0.12) / fig.get_size_inches()[1]))
+
+
+def _save(fig, name: str, top: float = 0.0) -> None:
     import matplotlib.pyplot as plt
-    fig.tight_layout(rect=(0, 0, 1, top))
+    _fit(fig)
     fig.savefig(il.OUT / "figures" / f"iti_check_{name}.png", dpi=100)
     plt.close(fig)
 
@@ -171,7 +183,7 @@ def course(rows: list, title: str, name: str, ref_of: dict) -> None:
                 ax.spines[s_].set_visible(False)
     fig.suptitle(title + "\nOne dot per SESSION; grey band = pre-stroke sessions; blue line = the animal's pre mean.",
                  fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.95 if len(rows) > 3 else 0.9))
+    _fit(fig)
     fig.savefig(il.OUT / "figures" / f"iti_check_{name}_sessions.png", dpi=95)
     plt.close(fig)
 
@@ -248,7 +260,7 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "error_per_lick") -> 
                 ax.text(0.01, 0.99 - 0.065 * k, f"{ep}: {t}", transform=ax.transAxes, fontsize=6.3, va="top",
                         color=EPOCH_LINE[ep])
             ax.axvline(0, color="0.5", lw=0.5)
-            ax.set_ylim(0, ax.get_ylim()[1] * 1.35)
+            ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
             if j == 0:
                 ax.legend(fontsize=7, frameon=False, loc="center left")
             ax.set_title(f"{a}{' (animals weighted equally)' if a == 'POOLED' else ''}, "
@@ -264,7 +276,7 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "error_per_lick") -> 
                  "* = CI excludes 0.\nNB the error includes the decoder's pull toward the pre mean, so a changed lick "
                  "distribution moves the mean error too; the offset BEYOND the pull (3.21 / 3.37) removes that. "
                  "PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.93 if len(sets) > 1 else 0.86))
+    _fit(fig)
     fig.savefig(il.OUT / "figures" / f"iti_check_{name}.png", dpi=95)
     plt.close(fig)
 
