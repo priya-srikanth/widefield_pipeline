@@ -53,8 +53,8 @@ OUT = E / "iti_licks"
 ROI_VERSION = os.environ.get("WFIELD_ROI_VERSION", "1")
 ROI_FRAC = {"ALM": 0.4, "tjM1": 0.5} if ROI_VERSION == "2" else {"ALM": 0.4, "tjM1": 0.4}
 SESS_NAME = "sessions_roi2" if ROI_VERSION == "2" else "sessions"
-SD_NAME = "session_sd_roi2.csv" if ROI_VERSION == "2" else "session_sd.csv"     # zscore_check/ frame SDs
-SPLIT_NAME = "session_sd_split_roi2.csv" if ROI_VERSION == "2" else "session_sd_split.csv"
+SD_NAME = "session_sd_roi2_tj50.csv" if ROI_VERSION == "2" else "session_sd.csv"     # zscore_check/ frame SDs
+SPLIT_NAME = "session_sd_split_roi2_tj50.csv" if ROI_VERSION == "2" else "session_sd_split.csv"
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
 LAGS_C = np.round(np.arange(-1.0, 2.5001, 0.05), 3)          # cue-aligned lags (trial first licks)
 LAGS_D = np.round(np.arange(-1.0, 1.0001, 0.05), 3)          # decoding lags (-1..+1 s: binned-decoder sweep, 10-26)
