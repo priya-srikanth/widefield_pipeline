@@ -70,6 +70,9 @@ def locanmf_inmask(animal: str) -> np.ndarray:
     return out <= MASK_OUT_MAX
 
 
+CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scaled, act, order, pos)}, (scaler, ridge))
+
+
 def preds_path() -> Path:
     return il.OUT / f"lick_order_preds{SRC_TAG}.csv.gz"
 VALS = ("landing", "decoded", "beyond")
@@ -109,7 +112,7 @@ def predictions() -> pd.DataFrame:
     # basis scaling: FRAME-level SD of each component (iti_basis_frame_sd.py; like the Allen session_sd) when available --
     # the lick-window SD (fallback) is inflated by the larger post-stroke lick response (Priya 10-27)
     sd_svd = {}
-    if SOURCE in ("svd", "locanmf") and SRC_TAG.endswith("F"):
+    if SOURCE in ("svd", "locanmf") and SRC_TAG.rstrip("M").endswith("F"):
         fsd = il.OUT / f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}" / "frame_sd.csv"
         if fsd.exists():
             F = pd.read_csv(fsd, index_col=0)
@@ -153,6 +156,8 @@ def predictions() -> pd.DataFrame:
                 Xt, yt = np.vstack([S[q][1] for q in trn]), np.concatenate([S[q][2] for q in trn])
                 sc = StandardScaler().fit(Xt)
                 fits[held] = (sc, RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), yt))
+            if CONTRIB_HOOK is not None:                 # lick_offset_contrib_map.py: the scaled features + frozen fit
+                CONTRIB_HOOK(st, a, S, fits[None])
             for x, (ep, X, y, idx, pos) in S.items():
                 sc, m = fits[x if x in pre else None]
                 rows.append(pd.DataFrame({"set": st, "animal": a, "label": x, "epoch": ep, "pos": pos, "order": idx,
