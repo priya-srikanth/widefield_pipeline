@@ -29,13 +29,15 @@ import iti_licks as il  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
-TARGETS = ("lateral", "outward", "2-D", "angle", "reach")
+TARGETS = ("lateral", "sagittal", "2-D", "angle", "reach")         # outward is also scored (where_decoder.csv)
 SOURCES = ("areas", "locanmf", "svdbasis")
 LAB = {"areas": "Allen areas", "locanmf": "joint LocaNMF", "svdbasis": "pre-stroke SVD basis"}
 
 
 def coords(label: str, t: np.ndarray) -> np.ndarray:
-    """(n, 3) side_ml, out_ap, reach_mm for licks at exact DAQ peak times t (NaN where unmatched)."""
+    """(n, 4) side_ml, out_ap, reach_mm, SAGITTAL extension for licks at exact DAQ peak times t (NaN where unmatched).
+    Sagittal = sqrt(out_ap^2 + down_dv^2): the tongue's extension out of the mouth excluding its lateral part (licks run
+    mostly DOWN, so out_ap alone misses most of it); lateral / sagittal = tan(encoder exec_angle)."""
     from wfield_local import config
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -47,9 +49,11 @@ def coords(label: str, t: np.ndarray) -> np.ndarray:
     K = _K()
     K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
     u = uid.reindex(np.asarray(t, float)).to_numpy()
-    out = np.full((len(t), 3), np.nan)
+    out = np.full((len(t), 4), np.nan)
     ok = np.isfinite(u)
-    out[ok] = K.reindex(u[ok].astype(int))[["side_ml", "out_ap", "reach_mm"]].to_numpy(float)
+    R = K.reindex(u[ok].astype(int))
+    out[ok, :3] = R[["side_ml", "out_ap", "reach_mm"]].to_numpy(float)
+    out[ok, 3] = np.hypot(R.out_ap.to_numpy(float), R.down_dv.to_numpy(float))
     return out
 
 
@@ -58,7 +62,7 @@ _KC = {}
 
 def _K():
     if "K" not in _KC:
-        _KC["K"] = il.lick_table()[["session", "lick_uid", "side_ml", "out_ap", "reach_mm"]]
+        _KC["K"] = il.lick_table()[["session", "lick_uid", "side_ml", "out_ap", "down_dv", "reach_mm"]]
     return _KC["K"]
 
 
@@ -116,8 +120,11 @@ def decode(source: str) -> pd.DataFrame:
                 X, C = d[st]
                 ok = np.isfinite(C).all(1)
                 if ok.sum() >= 20:
-                    ang = np.degrees(np.arctan2(C[ok, 0], C[ok, 1]))
-                    S[x] = (d["epoch"], X[ok], np.column_stack([C[ok, 0], C[ok, 1], ang, C[ok, 2]]))
+                    # columns: lateral, SAGITTAL, angle = atan2(lateral, sagittal) (the encoder's exec_angle; the old
+                    # horizontal atan2(lateral, outward) wraps when outward ~ 0, licks running mostly down), reach,
+                    # outward (kept for continuity with the 10-26 outward version)
+                    ang = np.degrees(np.arctan2(C[ok, 0], C[ok, 3]))
+                    S[x] = (d["epoch"], X[ok], np.column_stack([C[ok, 0], C[ok, 3], ang, C[ok, 2], C[ok, 1]]))
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
                 continue
@@ -129,17 +136,18 @@ def decode(source: str) -> pd.DataFrame:
                 Xt = np.vstack([S[q][1] for q in trn])
                 Yt = np.vstack([S[q][2] for q in trn])
                 sc = StandardScaler().fit(Xt)
-                fits[held] = (sc, [RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), Yt[:, k]) for k in range(4)])
+                fits[held] = (sc, [RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), Yt[:, k]) for k in range(5)])
             for x, (ep, X, Y) in S.items():
                 sc, ms = fits[x if x in pre else None]
                 Pr = np.column_stack([m.predict(sc.transform(X)) for m in ms])
-                r = {"lateral": np.corrcoef(Pr[:, 0], Y[:, 0])[0, 1], "outward": np.corrcoef(Pr[:, 1], Y[:, 1])[0, 1],
+                r = {"lateral": np.corrcoef(Pr[:, 0], Y[:, 0])[0, 1], "sagittal": np.corrcoef(Pr[:, 1], Y[:, 1])[0, 1],
                      "2-D": _vec_r(Pr[:, :2] / sd, Y[:, :2] / sd), "angle": np.corrcoef(Pr[:, 2], Y[:, 2])[0, 1],
-                     "reach": np.corrcoef(Pr[:, 3], Y[:, 3])[0, 1]}
+                     "reach": np.corrcoef(Pr[:, 3], Y[:, 3])[0, 1], "outward": np.corrcoef(Pr[:, 4], Y[:, 4])[0, 1]}
                 for tg, v in r.items():
                     rows.append({"source": source, "set": st, "label": x, "animal": a, "epoch": ep, "target": tg,
                                  "r": float(v), "n": len(Y), "sd_lateral": float(Y[:, 0].std()),
-                                 "sd_outward": float(Y[:, 1].std()), "sd_reach": float(Y[:, 3].std())})
+                                 "sd_sagittal": float(Y[:, 1].std()), "sd_angle": float(Y[:, 2].std()),
+                                 "sd_reach": float(Y[:, 3].std()), "sd_outward": float(Y[:, 4].std())})
     return pd.DataFrame(rows)
 
 
@@ -154,7 +162,7 @@ def main() -> int:
     pre = R[R.epoch == "pre"].groupby(["source", "set", "target", "animal"]).r.mean()
     R["r_norm"] = R.r / [pre.get(k, np.nan) for k in zip(R.source, R.set, R.target, R.animal)]
     pd.set_option("display.width", 220)
-    sp = R[(R.source == "areas") & (R.target == "lateral")].groupby(["set", "epoch"])[["sd_lateral", "sd_outward", "sd_reach"]] \
+    sp = R[(R.source == "areas") & (R.target == "lateral")].groupby(["set", "epoch"])[["sd_lateral", "sd_sagittal", "sd_angle", "sd_reach"]] \
         .median().unstack("epoch")
     print("== lick spread per session (median over sessions, mm)\n" + sp.round(3).to_string())
     rows = []
@@ -212,9 +220,9 @@ def plot(R: pd.DataFrame, T: pd.DataFrame) -> None:
         R = R.assign(r_norm=R.r / [pre.get(k, np.nan) for k in zip(R.source, R.set, R.target, R.animal)])
     TN = T[T.value == "r_norm"]
     yl = "FROZEN decoder r (decoded vs actual)\n/ animal's pre mean (pre = 1)"
-    tl = {"lateral": "LATERAL position", "outward": "OUTWARD position", "2-D": "lateral + outward (2-D)",
-          "angle": "ANGLE (polar check)", "reach": "REACH (polar check)"}
-    sl = {"iti": "ITI licks", "trial": "in-trial licks"}
+    tl = {"lateral": "LATERAL position", "sagittal": "SAGITTAL extension", "2-D": "lateral + sagittal (2-D)",
+          "angle": "ANGLE (lateral vs sagittal)", "reach": "REACH (3-D distance)", "outward": "OUTWARD position"}
+    sl = {"iti": "ITI (self-initiated) licks", "trial": "CUED in-trial licks"}
     rng = np.random.default_rng(1)
     # A: every target, one figure per basis (Allen areas = main page figure; the other bases = supplements, Priya 10-26)
     for src in [s_ for s_ in SOURCES if s_ in set(R.source)]:
@@ -228,8 +236,10 @@ def plot(R: pd.DataFrame, T: pd.DataFrame) -> None:
         fig.suptitle("NEURAL: WHERE did the lick go? FROZEN pre-stroke decoder (fit once on each animal's August pre licks, "
                      f"never refit), {LAB[src]} features.\nOne decoder per target; one dot per session = r between decoded and "
                      "actual tongue-tip position, divided by the animal's pre mean;\nblack = mean +- SEM over sessions; * = "
-                     "nested-bootstrap change from pre (animals > sessions) excluding 0.", fontsize=11)
-        fig.tight_layout(rect=(0, 0, 1, 0.9))
+                     "nested-bootstrap change from pre (animals > sessions) excluding 0.\nTOP ROW: self-initiated ITI licks "
+                     "(spout retracted) | BOTTOM ROW: cued in-trial licks (spout in place); separate frozen decoder per row. "
+                     "Sagittal = sqrt(forward^2 + down^2); angle = atan2(lateral, sagittal).", fontsize=11)
+        fig.tight_layout(rect=(0, 0, 1, 0.88))
         fig.savefig(il.OUT / "figures" / ("iti_where_decoder.png" if src == "areas" else f"iti_where_decoder_{src}.png"),
                     dpi=105)
         plt.close(fig)
