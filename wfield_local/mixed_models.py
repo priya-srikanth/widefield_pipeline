@@ -65,13 +65,18 @@ def add_time_covariates(L: pd.DataFrame, label_col: str = "label", august_pre: b
     return L.reset_index(drop=True)
 
 
-def behaviour_deficit(sessions_csv: Path, column: str = "contact_far_contra", higher_is_better: bool = True) -> dict:
+def behaviour_deficit(sessions_csv: Path, column: str = "contact_far_contra", higher_is_better: bool = True,
+                      relative: bool = True) -> dict:
     """{label: deficit} = (animal's August-pre mean - session) / pre mean of `column` (default far-contra contact,
     from qc/position_coding_trend_recovery_sessions.csv, scripts/position_coding_trend_recovery.py). For a column where
-    larger is worse (a latency; scripts/trial_attempts.py) pass higher_is_better=False: (session - pre) / pre."""
+    larger is worse (a latency; scripts/trial_attempts.py) pass higher_is_better=False: (session - pre) / pre.
+    relative=False: (pre - session) in the column's own units -- for measures whose pre level is ~0 (signed angle
+    offsets, e.g. the weighted aim of scripts/iti_recovery_measure.py), where dividing by pre is meaningless."""
     S = pd.read_csv(sessions_csv)
     pre = S[(S.epoch == "pre") & (S.label.str[-4:] >= "0806")].groupby("animal")[column].mean()
-    d = (S.animal.map(pre) - S[column]) / S.animal.map(pre)
+    d = S.animal.map(pre) - S[column]
+    if relative:
+        d = d / S.animal.map(pre)
     return dict(zip(S.label, d if higher_is_better else -d))
 
 
@@ -215,8 +220,69 @@ _X = {"behaviour": ("deficit", "behavioural deficit, relative to pre (0 = pre le
       "time_post": ("day", "days since stroke")}
 
 
+def _bold(txt: str) -> str:
+    """matplotlib mathtext bold for a plain stats string (spaces / special characters escaped)."""
+    for ch in ("\\", "%", "_", "$", "{", "}"):
+        txt = txt.replace(ch, "\\" + ch)
+    return "$\\mathbf{" + txt.replace(" ", "\\ ") + "}$"
+
+
+def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str = "", ylabel: str = "y",
+               ncols: int = 3) -> None:
+    """EPOCH-model companion of `plot_fits` (y ~ C(epoch), same random-effects ladder): per panel, session dots per
+    epoch (shape = animal) + animal means, the fitted epoch levels (pre + coefficient) with 95% Wald CI; text strip =
+    each post epoch's coefficient (change vs pre), BOLD and * when BH-FDR q < 0.05."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    nrows = int(np.ceil(len(panels) / ncols))
+    fig, ax = plt.subplots(nrows, ncols, figsize=(4.4 * ncols, 3.9 * nrows), squeeze=False)
+    for k, (name, sel) in enumerate(panels):
+        a_ = ax.flat[k]
+        G, c = L, T[T.model == "epoch"]
+        for col, v in sel.items():
+            G, c = G[G[col] == v], c[c[col] == v]
+        if G.empty or c.empty:
+            a_.axis("off")
+            continue
+        c = c.set_index("term")
+        pre = c.coef.get("pre_level", np.nan)
+        for i, ep in enumerate(EPOCHS):
+            g = G[G.epoch == ep]
+            rng = np.random.default_rng(i)
+            for an, h in g.groupby("animal"):
+                mk = ANIMAL_MARKER.get(an, "o")
+                a_.plot(i + rng.uniform(-0.2, 0.2, len(h)), h.y, mk, color=EPOCH_LINE[ep], ms=3, alpha=0.4, mew=0)
+                a_.plot(i, h.y.mean(), mk, mfc="none", mec=EPOCH_LINE[ep], mew=1.1, ms=6)
+            t = f"C(epoch)[T.{ep}]"
+            lvl, se = (pre, c.se.get("pre_level", np.nan)) if ep == "pre" else (pre + c.coef.get(t, np.nan),
+                                                                                c.se.get(t, np.nan))
+            a_.errorbar(i + 0.3, lvl, yerr=1.96 * se, fmt="s", color="k", ms=4, capsize=3, zorder=4)
+            if ep != "pre" and t in c.index:
+                q = c.q.get(t, np.nan)
+                txt = f"{c.coef[t]:+.3g}" + ("*" if q < 0.05 else "") + f"\nq {q:.3f}"
+                a_.text(i, 1.01, txt, transform=a_.get_xaxis_transform(), ha="center", va="bottom", fontsize=6.5,
+                        color=EPOCH_LINE[ep], fontweight="bold" if q < 0.05 else "normal", clip_on=False)
+        a_.axhline(pre, color="k", ls=":", lw=0.8)
+        a_.set_xticks(range(len(EPOCHS)), EPOCHS, fontsize=7)
+        a_.set_title(f"{name}; re {c.re.iloc[0]}", fontsize=7, pad=22)
+        a_.set_ylabel(ylabel, fontsize=7)
+        a_.tick_params(labelsize=7)
+    for a_ in ax.flat[len(panels):]:
+        a_.axis("off")
+    fig.suptitle(f"{title} -- EPOCH mixed model (y ~ C(epoch), animal random effects): small = sessions, open = animal "
+                 "means, shape = animal; black square = fitted epoch level +/- 95% CI; text = change vs pre, bold * = "
+                 "BH-FDR q < 0.05", fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 1 - 0.5 / fig.get_size_inches()[1]))
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
 def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, title: str = "",
-              ylabel: str = "y", ncols: int = 3) -> None:
+              ylabel: str = "y", ncols: int = 3, xlabel: str | None = None) -> None:
     """Session values (o pre, ^ post, coloured by animal) vs deficit or days, with the fitted fixed effects.
     `panels` = [(panel title, {column: value} selecting rows of L and of T)]; `model` = a T.model value (time,
     behaviour, time_post, behaviour_post). One figure -> `path`."""
@@ -224,6 +290,8 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     xcol, xlab = _X[model]
+    if xlabel and model.startswith("behaviour"):                  # the caller's deficit (e.g. an angle measure)
+        xlab = xlabel
     nrows = int(np.ceil(len(panels) / ncols))
     fig, ax = plt.subplots(nrows, ncols, figsize=(4.4 * ncols, 3.7 * nrows), squeeze=False)
     for k, (name, sel) in enumerate(panels):
@@ -250,11 +318,12 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
                     label="fit: post" if k == 0 else None)
             a_.axhline(pre, color="k", ls=":", lw=1, label="fit: pre level" if k == 0 else None)
             # * = FDR q < 0.05 (lmm_table's BH within model x term), so the panel says which terms are significant
-            def _q(t, c=c):
+            def _term(t, label, v, c=c):
+                """'label v (z, q*)' -- BOLD when the term is significant (BH-FDR q < 0.05)."""
                 q = c.q.get(t, np.nan) if "q" in c else np.nan
-                return f", q {q:.3f}{'*' if q < 0.05 else ''}" if np.isfinite(q) else ""
-            stat = (f"post {step:+.3g} (z {c.z['post']:.1f}{_q('post')}), {sl} {b:+.3g} "
-                    f"(z {c.z.get(sl, np.nan):.1f}{_q(sl)})")
+                txt = f"{label} {v:+.3g} (z {c.z.get(t, np.nan):.1f}" + (f", q {q:.3f}" if np.isfinite(q) else "") + ")"
+                return _bold(txt + "*") if np.isfinite(q) and q < 0.05 else txt
+            stat = f"{_term('post', 'post', step)}, {_term(sl, sl, b)}"
         else:
             term, icpt = (("lday", "post_level_day1") if model == "time_post"
                           else ("deficit", "post_level_full_recovery"))
