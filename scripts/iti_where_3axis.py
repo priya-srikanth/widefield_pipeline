@@ -7,7 +7,7 @@ Same decoder as 3.15 / KEY row: per animal x lick set, ridge on Allen areas (lag
 one ridge per axis. Per session: r per axis (/ animal's pre mean) and the offset beyond the pre pull per axis
 (decoded - (a + b * actual), a, b fit on the animal's pre licks). Change vs pre: paired nested bootstrap.
 + lateral = contralesional; + forward = further forward; + down = further down (larger down_dv, as the lick table).
-Output <E>/iti_licks/where_3axis[_unscaled]_{sessions,tests}.csv. Usage: python scripts/iti_where_3axis.py [--unscaled]
+Output <E>/iti_licks/where_3axis[_unscaled]_{sessions,tests}.csv and per-lick where_3axis[_unscaled]_preds.csv.gz. Usage: python scripts/iti_where_3axis.py [--unscaled]
 """
 from __future__ import annotations
 
@@ -36,7 +36,8 @@ def main(argv=None) -> int:
     SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
     names = feature_names()
     D = wd.load("areas")
-    rows = []
+    rows, lick_rows = [], []
+    POSL = {}
     for st in ("iti", "trial"):
         for a in AN:
             S = {}
@@ -48,6 +49,7 @@ def main(argv=None) -> int:
                 if ok.sum() >= 20:
                     Xs = X[ok] if unscaled else X[ok] / SD.loc[x, names].to_numpy(float)[None, :]
                     S[x] = (d["epoch"], Xs, C[ok][:, list(AXES.values())])
+                    POSL[x] = np.asarray(d[f"{st}_pos"])[ok]
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
                 continue
@@ -65,6 +67,10 @@ def main(argv=None) -> int:
             Ya = np.vstack([preds[q][1] for q in pre])
             Pa = np.vstack([preds[q][2] for q in pre])
             pull = [np.polyfit(Ya[:, k], Pa[:, k], 1) for k in range(len(AXES))]
+            for x, (ep, Y, P) in preds.items():           # per-LICK predictions (histograms / recovery / overcorrection)
+                lick_rows.append(pd.DataFrame({"set": st, "animal": a, "label": x, "epoch": ep, "pos": POSL[x],
+                                               **{f"act_{k}": Y[:, i] for i, k in enumerate(AXES)},
+                                               **{f"dec_{k}": P[:, i] for i, k in enumerate(AXES)}}))
             for x, (ep, Y, P) in preds.items():
                 for k, ax_ in enumerate(AXES):
                     b, c = pull[k]
@@ -72,6 +78,8 @@ def main(argv=None) -> int:
                                      r=float(np.corrcoef(P[:, k], Y[:, k])[0, 1]),
                                      beyond=float(np.mean(P[:, k] - (c + b * Y[:, k])))))
     R = pd.DataFrame(rows)
+    sfx_ = "_unscaled" if unscaled else ""
+    pd.concat(lick_rows, ignore_index=True).to_csv(il.OUT / f"where_3axis{sfx_}_preds.csv.gz", index=False)
     pre = R[R.epoch == "pre"].groupby(["set", "animal", "axis"])[["r", "beyond"]].mean()
     key = list(zip(R.set, R.animal, R.axis))
     R["r_norm"] = R.r / [pre.r.get(k, np.nan) for k in key]
