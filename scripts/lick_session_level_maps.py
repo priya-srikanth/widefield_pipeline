@@ -19,9 +19,10 @@ ITI is only ~3.1 s; the share of these >= 1 s from both the window end and the n
 lick_idx 0 = the first post-cue lick, `iti_first_lick._lick_idx`). Later licks of a bout overlap the previous lick's activity at lags 0..0.2 s
 (ILI ~150 ms) and are corrective. A session map needs >= MIN_LICKS (40) licks in the subset (>= MIN_SPOUT per spout).
 
-LEVEL TEST per map x epoch (is the epoch's map != 0, per pixel). Statistic: per animal the one-sample t over its sessions
-of that epoch (variance floored at the 10th percentile over pixels, as the change test), cohort z = sum of the animals' t
-/ sqrt(k) (animals weighted equally); TFCE (E 0.5, H 2, `iti_session_cluster_tests._tfce`); null = SIGN-FLIP of whole
+LEVEL TEST per map x epoch (is the epoch's map != 0, per pixel): `iti_session_cluster_tests.test_level`. Statistic
+`level_z`: per animal the mean of its session maps of the epoch / s_pooled, s_pooled = the within-animal session SD
+pooled (df-weighted) over ALL animals' sessions of that epoch (floored at its 10th percentile over pixels), summed over
+animals / sqrt(k) (animals weighted equally); TFCE (E 0.5, H 2); null = SIGN-FLIP of whole
 SESSION maps, independently per session (within each animal), N_PERM x; FWER p = share of permutations whose max |TFCE|
 over cortex reaches the pixel's. Why per session, not per animal: a self-fit Haufe pattern flips sign exactly with the
 target (A(X, -y) = -A(X, y)), so if a session's licks carry no information about the target its map is symmetric about 0,
@@ -30,10 +31,16 @@ epoch codes the target". Flipping whole maps keeps the spatial correlation in th
 effects test) has 2^4 = 16 arrangements at n = 4 (min two-sided p 0.125): it cannot reach 0.05. So inference is over
 sessions within THESE animals (fixed effects over animals); the per-animal table (rule 8) and the dashed outline (>= 3
 animals share the sign) are the guard against one animal carrying a pixel.
-CHANGE TEST epoch - pre: `iti_session_cluster_tests.test_one` (per-pixel Welch t per animal, summed, session labels
-permuted between pre and the epoch within animal, max-|TFCE|), on the amplitude-kept maps.
-An animal enters a level test with >= 2 sessions in the epoch, a change test with >= 3 pre and >= 3 epoch sessions (as
-the shape-only change test); a test needs >= 3 animals.
+CHANGE TEST epoch - pre: `iti_session_cluster_tests.test_one`, statistic `change_z`: per animal (mean of its epoch
+sessions - mean of its pre sessions) / s_pooled, s_pooled = the within-animal session SD pooled over ALL animals and both
+groups (df-weighted, floored), summed over animals / sqrt(k); null = session labels permuted between pre and the epoch
+within animal (s_pooled recomputed per draw), max-|TFCE| FWER; on the amplitude-kept maps. The same two statistics serve
+the shape-only figures of iti_session_cluster_tests.py (one definition, rule 9).
+INCLUSION: EVERY animal with >= 1 session in the epoch (level) or >= 1 pre AND >= 1 epoch session (change) contributes --
+an animal with one session in a group adds no df to s_pooled but its mean / difference still counts, and sign-flipping a
+single session map is still valid. A cell is drawn whenever any animal has data (no minimum number of animals); the dashed
+">= 3 animals share the sign" outline is the only animal-agreement marker. Session counts per animal per cell are
+printed (rule 8).
 
 PER-ANIMAL TABLE (rule 8): per animal x map x epoch: n sessions, licks per session, gain (mean session-map RMS / the pre
 denominator), RMS of the animal's epoch-mean map and its noise-debiased version (mean^2 - var/n per pixel), r to its own
@@ -69,7 +76,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 from figdata import CHANGE_CMAP, PRE_CMAP, grid_fns, imaging_grid, load_fd, plot_only, save_fd, sym_lim  # noqa: E402
-from iti_session_cluster_tests import _tfce, test_one  # noqa: E402
+from iti_session_cluster_tests import print_counts, test_level, test_one  # noqa: E402
 from iti_session_patterns import AN, MIN_LICKS, MIN_SPOUT, _pattern, _within  # noqa: E402
 
 from wfield_local.orofacial_cohort import POS_ORDER  # noqa: E402
@@ -82,7 +89,6 @@ N_PERM = 1000
 MIN_FIT = 0.05                        # session map kept only if in-sample var(yhat) / var(y) >= this (see docstring)
 DROPPED: list = []
 GAP_FIRST = 2.0                       # ITI first lick: no lick onset in the preceding 2 s
-MIN_LEVEL, MIN_CHANGE, MIN_ANIMALS = 2, 3, 3
 OUTD = il.OUT / "session_levels"
 SETLAB = {"iti": "ITI", "trial": "cued"}
 TGLAB = {"lat": "LATERAL position", "sag": "SAGITTAL extension", "wlat": "WITHIN-SPOUT lateral"}
@@ -255,55 +261,9 @@ def build_maps(P: dict, sel: np.ndarray) -> dict:
 # ------------------------------------------------------------------------------------------------ tests
 
 
-def _img_fn(idx_img: np.ndarray):
-    ok = idx_img >= 0
-
-    def img(v):
-        g = np.full(idx_img.shape, np.nan)
-        g[ok] = v[idx_img[ok]]
-        return g
-    return img
-
-
-def test_level(item):
-    """(key, epoch, {animal: (n, pix)}, image index, n_perm) -> result dict. Session sign-flip null, max |TFCE|."""
-    key, ep, data, idx_img, n_perm = item
-    import zlib
-    rng = np.random.default_rng(zlib.crc32(f"{key}|{ep}|level".encode()))
-    img = _img_fn(idx_img)
-    an = sorted(data)
-    floors = {a: np.quantile(data[a].var(0, ddof=1) / len(data[a]), 0.1) for a in an}
-
-    def cohort(signs=None):
-        zs = []
-        for a in an:
-            M = data[a] if signs is None else data[a] * signs[a][:, None]
-            zs.append(M.mean(0) / np.sqrt(np.maximum(M.var(0, ddof=1) / len(M), floors[a])))
-        return np.sum(zs, 0) / np.sqrt(len(an))
-    z = cohort()
-    T = _tfce(img(z))
-    mx = np.empty(n_perm)
-    for i in range(n_perm):
-        signs = {a: rng.choice([-1.0, 1.0], len(data[a])) for a in an}
-        mx[i] = np.nanmax(np.abs(_tfce(img(cohort(signs)))))
-    p = (np.sum(mx[None, None, :] >= np.abs(T)[..., None], -1) + 1) / (n_perm + 1)
-    p = np.where(np.isfinite(T), p, np.nan)
-    am = np.vstack([data[a].mean(0) for a in an])
-    agree = (np.sign(am) == np.sign(am.mean(0))[None, :]).sum(0)
-    return dict(key=key, epoch=ep, kind="level", n=len(an), point=img(am.mean(0)), z=img(z), tfce=T, p=p,
-                agree=img(agree.astype(float)), n_sess=sum(len(v) for v in data.values()),
-                n_sess_animal={a: len(data[a]) for a in an})
-
-
 def _dispatch(item):
     kind, rest = item
-    if kind == "level":
-        return test_level(rest)
-    r = test_one(rest)
-    r["kind"] = "change"
-    r["key"] = rest[0]
-    r["n_sess_animal"] = {a: (len(v[0]), len(v[1])) for a, v in rest[2].items()}
-    return r
+    return test_level(rest) if kind == "level" else test_one(rest)
 
 
 def run_tests(L: dict, idx_img: np.ndarray, n_perm: int, jobs: int) -> dict:
@@ -313,8 +273,8 @@ def run_tests(L: dict, idx_img: np.ndarray, n_perm: int, jobs: int) -> dict:
     for k in keys:
         for ep in EP:
             lv = {a: L[a][k]["M"][L[a][k]["epoch"] == ep] for a in AN if a in L and k in L[a]}
-            lv = {a: m for a, m in lv.items() if len(m) >= MIN_LEVEL}
-            if len(lv) >= MIN_ANIMALS:
+            lv = {a: m for a, m in lv.items() if len(m)}           # every animal with >= 1 session in the epoch
+            if lv:
                 items.append(("level", (k, ep, lv, idx_img, n_perm)))
             if ep == "pre":
                 continue
@@ -324,9 +284,9 @@ def run_tests(L: dict, idx_img: np.ndarray, n_perm: int, jobs: int) -> dict:
                 if v is None:
                     continue
                 pre, post = v["M"][v["epoch"] == "pre"], v["M"][v["epoch"] == ep]
-                if len(pre) >= MIN_CHANGE and len(post) >= MIN_CHANGE:
+                if len(pre) and len(post):                          # >= 1 session in each group
                     ch[a] = (pre, post)
-            if len(ch) >= MIN_ANIMALS:
+            if ch:
                 items.append(("change", (k, ep, ch, idx_img, n_perm)))
     print(f"{len(items)} tests x {n_perm} permutations on {jobs} workers", flush=True)
     res, fails = parallel.fan_out(items, _dispatch, jobs=jobs, label="test", log=lambda m: print(m[:110], flush=True))
@@ -449,11 +409,12 @@ def _head(fam: str, change: bool, n_perm: int) -> str:
     unit = "pattern / animal's mean pre-session RMS of the all-lick map (amplitude KEPT; one scale per row)"
     if change:
         test = (f"Col 1 = pre LEVEL (purple-orange, own scale), cols 2-4 = epoch - pre (red-blue). SOLID = TFCE FWER "
-                f"0.05, Welch t per animal summed, session labels permuted within animal ({n_perm}x); DASHED = also >= 3 "
-                "animals share the sign.")
+                f"0.05: per animal (mean epoch - mean pre) / within-animal session SD pooled over all animals and groups, "
+                f"summed; every animal with >= 1 session per group counts; session labels permuted within animal ({n_perm}x); "
+                "DASHED = also >= 3 animals share the sign.")
     else:
-        test = (f"SOLID = TFCE FWER 0.05 vs 0: one-sample t per animal summed, null = sign-flip of each SESSION map "
-                f"({n_perm}x, max |TFCE|); DASHED = also >= 3 animals share the sign. Title: n sessions / animals, % cortex "
+        test = (f"SOLID = TFCE FWER 0.05 vs 0: per animal mean map / within-animal session SD pooled over all animals, "
+                f"summed; every animal with >= 1 session counts; null = sign-flip of each SESSION map ({n_perm}x, max |TFCE|); DASHED = also >= 3 animals share the sign. Title: n sessions / animals, % cortex "
                 "significant, global share = (cortex mean)^2 / mean square.")
     paras = [f"NEURAL: per-SESSION self-fit Haufe {'CHANGE' if change else 'LEVEL'} maps -- {what}. Mean of animals; "
              f"{unit}.", test,
@@ -480,7 +441,7 @@ def plot_levels(D: dict) -> None:
             ax.set_yticks([])
             r = R.get((k, ep, "level"))
             if r is None:
-                ax.set_title(f"{ep}: < {MIN_ANIMALS} animals", fontsize=7.5)
+                ax.set_title(f"{ep}: no data", fontsize=7.5)
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
                 continue
             im = ax.imshow(r["point"], cmap=PRE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
@@ -518,7 +479,7 @@ def plot_change(D: dict) -> None:
             ax.set_yticks([])
             r = R.get((k, ep, "level" if ep == "pre" else "change"))
             if r is None:
-                ax.set_title(f"{ep} - pre: < {MIN_ANIMALS} animals", fontsize=7.5)
+                ax.set_title(f"{ep} - pre: no data", fontsize=7.5)
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
                 continue
             if ep == "pre":
@@ -629,6 +590,7 @@ def main() -> int:
         R = run_tests(L, idx_img, n_perm, jobs)
         f.write_bytes(pickle.dumps(R, protocol=pickle.HIGHEST_PROTOCOL))
     print(f"tests: {time.time() - t1:.0f} s", flush=True)
+    print_counts(R, "per-session LEVEL / CHANGE tests (amplitude kept)")
     T = tests_table(R)
     T.to_csv(OUTD / "tests.csv", index=False)
     print("\n== TFCE tests (fraction of cortex p_FWER < 0.05)")

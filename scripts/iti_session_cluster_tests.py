@@ -3,10 +3,14 @@ session versions with better powered stats? do we have the shape data plotted or
 
 Input: the fully per-session self-fit maps of `iti_session_patterns.py` (each session's own decoder, unit-RMS = SHAPE
 only, as `iti_session_pattern_tests.load`). Per map (cued / ITI x spout one-vs-rest; also lateral / sagittal) x epoch:
-  statistic  per pixel, per animal Welch t of (epoch sessions - pre sessions); cohort z = sum of the animals' t / sqrt(k)
-             (each animal weighted equally, its own pre as control).
+  statistic  `change_z` (shared with lick_session_level_maps.py): per pixel, per animal (mean of its epoch sessions -
+             mean of its pre sessions) / s_pooled, s_pooled = the within-animal session SD pooled over ALL animals and
+             both groups (df-weighted; floored at its 10th percentile over pixels), cohort z = sum over animals / sqrt(k)
+             (each animal weighted equally, its own pre as control). EVERY animal with >= 1 pre and >= 1 epoch session
+             contributes (a one-session group adds no df to s_pooled, its difference still counts); a cell is tested
+             when any animal has data.
   null       session labels permuted between pre and that epoch WITHIN each animal (N_PERM), the same permutation for
-             every pixel, so the spatial correlation of the maps is kept in the null.
+             every pixel, so the spatial correlation of the maps is kept in the null; s_pooled is recomputed per draw.
   TFCE       threshold-free cluster enhancement (E 0.5, H 2) on the cortex image, both signs; FWER p per pixel = share of
              permutations whose max |TFCE| reaches the pixel's. Uses the fact that real effects are spatially extended
              (smooth maps from 200 SVD components), which the per-pixel max-statistic of Figs 3.50-3.53 / 3.67 ignores
@@ -14,7 +18,8 @@ only, as `iti_session_pattern_tests.load`). Per map (cued / ITI x spout one-vs-r
   per animal the share of animals whose own mean change has the pixel's sign is kept (drawn as a dashed >= 3/4 line).
 Shape read-outs DRAWN, not only printed: (1) whole-map distance d per animal + its early-vs-late pre drift floor, per
 spout x epoch (from session_pattern_maplevel.csv); (2) per-session r to the animal's pre map over days, every spout.
-Outputs <E>/iti_licks/session_cluster/{tests.csv, maps.pkl}, figures/lick_session_cluster_position.png, lick_{cued,iti}_session_cluster_spout.png,
+Outputs <E>/iti_licks/session_cluster/{tests.csv, maps.pkl}, figures/lick_session_cluster_{position,within_spout}.png,
+lick_{cued,iti}_session_cluster_spout.png,
 figures/lick_session_shape_d.png, figures/lick_{cued,iti}_session_shape_days.png.
 Figure data: figdata/<figure stem>.pkl per figure (the TFCE results + outline + n_perm for the map figures; the whole-map
 table / similarity table for the shape figures). --plot-only redraws from those files alone (no permutation, no imaging
@@ -39,9 +44,11 @@ from iti_session_patterns import AN, POS  # noqa: E402
 N_PERM = 1000
 DH = 0.2            # TFCE step (z units)
 OUTD = il.OUT / "session_cluster"
-FAMS = {"spout_cued": FAMILIES["spout_cued"], "spout_iti": FAMILIES["spout_iti"], "position": FAMILIES["position"]}
+FAMS = {"spout_cued": FAMILIES["spout_cued"], "spout_iti": FAMILIES["spout_iti"], "position": FAMILIES["position"],
+        "within_spout": FAMILIES["within_spout"]}
 FIG_NAME = {"spout_cued": "lick_cued_session_cluster_spout.png", "spout_iti": "lick_iti_session_cluster_spout.png",
-            "position": "lick_session_cluster_position.png"}       # lick_ names since 10-27 (ITI + cued = no set tag)
+            "position": "lick_session_cluster_position.png",
+            "within_spout": "lick_session_cluster_within_spout.png"}       # lick_ names since 10-27 (ITI + cued = no set tag)
 
 
 def _tfce(img: np.ndarray, struct=None) -> np.ndarray:
@@ -63,49 +70,122 @@ def _tfce(img: np.ndarray, struct=None) -> np.ndarray:
     return np.where(np.isfinite(img), out, np.nan)
 
 
-def _welch(pre: np.ndarray, post: np.ndarray, floor: float) -> np.ndarray:
-    v = pre.var(0, ddof=1) / len(pre) + post.var(0, ddof=1) / len(post)
-    return (post.mean(0) - pre.mean(0)) / np.sqrt(np.maximum(v, floor))
+def pooled_sd(groups: list, floor: float | None = None) -> np.ndarray:
+    """Per-pixel within-group session SD pooled over ALL groups, df-weighted: sqrt(sum_g sum_i (x_gi - mean_g)^2 /
+    sum_g (n_g - 1)). A group with ONE session adds no df but still counts in the statistic (its difference / mean). If
+    no group has two sessions, the spread of all sessions around their grand mean is used instead. floor = minimum SD."""
+    df = sum(len(g) - 1 for g in groups)
+    if df > 0:
+        v = sum(((g - g.mean(0)) ** 2).sum(0) for g in groups) / df
+    else:
+        Z = np.vstack(groups)
+        v = Z.var(0, ddof=1) if len(Z) > 1 else np.ones(Z.shape[1])
+    sd = np.sqrt(v)
+    return sd if floor is None else np.maximum(sd, floor)
+
+
+def change_z(data: dict, perms: dict | None = None, floor: float | None = None) -> np.ndarray:
+    """THE change statistic (one definition for every per-session TFCE change map, CLAUDE.md rule 9): per animal
+    (mean of its epoch sessions - mean of its pre sessions) / s_pooled, s_pooled = `pooled_sd` over every animal x group
+    (pre and epoch), summed over animals / sqrt(k). data = {animal: (pre (n0, pix), epoch (n1, pix))}, n0, n1 >= 1;
+    perms = {animal: permutation of its n0 + n1 sessions} (labels re-dealt within animal)."""
+    an = sorted(data)
+    G = {}
+    for a in an:
+        pre, post = data[a]
+        if perms is not None:
+            Z = np.vstack([pre, post])
+            o = perms[a]
+            pre, post = Z[o[: len(pre)]], Z[o[len(pre):]]
+        G[a] = (pre, post)
+    s = pooled_sd([g for a in an for g in G[a]], floor)
+    return np.sum([(G[a][1].mean(0) - G[a][0].mean(0)) / s for a in an], 0) / np.sqrt(len(an))
+
+
+def level_z(data: dict, signs: dict | None = None, floor: float | None = None) -> np.ndarray:
+    """THE level statistic: per animal mean of its session maps / s_pooled (`pooled_sd` over every animal's sessions of
+    the epoch, each around its own animal mean), summed over animals / sqrt(k). data = {animal: (n >= 1, pix)};
+    signs = {animal: (n,) +-1} flips whole session maps."""
+    an = sorted(data)
+    M = {a: data[a] if signs is None else data[a] * signs[a][:, None] for a in an}
+    s = pooled_sd([M[a] for a in an], floor)
+    return np.sum([M[a].mean(0) / s for a in an], 0) / np.sqrt(len(an))
+
+
+def _img_fn(idx_img: np.ndarray):
+    ok = idx_img >= 0
+
+    def img(v):
+        g = np.full(idx_img.shape, np.nan)
+        g[ok] = v[idx_img[ok]]
+        return g
+    return img
+
+
+def _fwer(z: np.ndarray, null_z, img, n_perm: int):
+    """TFCE of z (on the image) and the max-|TFCE| familywise p per pixel against n_perm null draws of z."""
+    T = _tfce(img(z))
+    mx = np.empty(n_perm)
+    for i in range(n_perm):
+        mx[i] = np.nanmax(np.abs(_tfce(img(null_z()))))
+    p = (np.sum(mx[None, None, :] >= np.abs(T)[..., None], -1) + 1) / (n_perm + 1)
+    return T, np.where(np.isfinite(T), p, np.nan)
 
 
 def test_one(item):
-    """(key, epoch, {animal: (pre (n0, pix), post (n1, pix))}, image index, n_perm) -> result dict. Module-level (spawn)."""
+    """CHANGE test: (key, epoch, {animal: (pre (n0, pix), epoch (n1, pix))}, image index, n_perm) -> result dict.
+    Statistic `change_z`; null = session labels permuted within each animal (same permutation for every pixel; s_pooled
+    recomputed per draw); max-|TFCE| FWER. Every animal with >= 1 pre and >= 1 epoch session contributes. The SD floor
+    (10th percentile over pixels of the observed s_pooled) is fixed across draws. Module-level (spawn)."""
     key, ep, data, idx_img, n_perm = item
     import zlib
     rng = np.random.default_rng(zlib.crc32(f"{key}|{ep}".encode()))   # stable across processes (not hash())
     an = sorted(data)
-    floors = {a: np.quantile(np.r_[data[a][0].var(0, ddof=1) / len(data[a][0]),
-                                   data[a][1].var(0, ddof=1) / len(data[a][1])], 0.1) for a in an}
-
-    def img(v):
-        g = np.full(idx_img.shape, np.nan)
-        ok = idx_img >= 0
-        g[ok] = v[idx_img[ok]]
-        return g
-
-    def cohort(perms=None):
-        zs = []
-        for a in an:
-            pre, post = data[a]
-            if perms is None:
-                zs.append(_welch(pre, post, floors[a]))
-            else:
-                Z = np.vstack([pre, post])
-                o = perms[a]
-                zs.append(_welch(Z[o[: len(pre)]], Z[o[len(pre):]], floors[a]))
-        return np.sum(zs, 0) / np.sqrt(len(an))
-    z = cohort()
-    T = _tfce(img(z))
-    mx = np.empty(n_perm)
-    for i in range(n_perm):
-        perms = {a: rng.permutation(len(data[a][0]) + len(data[a][1])) for a in an}
-        mx[i] = np.nanmax(np.abs(_tfce(img(cohort(perms)))))
-    p = (np.sum(mx[None, None, :] >= np.abs(T)[..., None], -1) + 1) / (n_perm + 1)
-    p = np.where(np.isfinite(T), p, np.nan)
+    img = _img_fn(idx_img)
+    floor = float(np.quantile(pooled_sd([g for a in an for g in data[a]]), 0.1))
+    z = change_z(data, floor=floor)
+    T, p = _fwer(z, lambda: change_z(data, {a: rng.permutation(len(data[a][0]) + len(data[a][1])) for a in an}, floor),
+                 img, n_perm)
     chg = np.vstack([data[a][1].mean(0) - data[a][0].mean(0) for a in an])
     agree = (np.sign(chg) == np.sign(chg.mean(0))[None, :]).sum(0)
-    return dict(key=key, epoch=ep, n=len(an), point=img(chg.mean(0)), z=img(z), tfce=T, p=p, agree=img(agree.astype(float)),
-                n_sess=sum(len(d[0]) + len(d[1]) for d in data.values()))
+    return dict(key=key, epoch=ep, kind="change", n=len(an), point=img(chg.mean(0)), z=img(z), tfce=T, p=p,
+                agree=img(agree.astype(float)), n_sess=sum(len(d[0]) + len(d[1]) for d in data.values()),
+                n_sess_animal={a: (len(data[a][0]), len(data[a][1])) for a in an})
+
+
+def test_level(item):
+    """LEVEL test (is the epoch map != 0): (key, epoch, {animal: (n >= 1, pix)}, image index, n_perm) -> result dict.
+    Statistic `level_z`; null = sign-flip of each whole SESSION map, independently within each animal (valid with one
+    session: a self-fit Haufe map flips sign with its target, so a no-information session is symmetric about 0;
+    s_pooled recomputed per draw); max-|TFCE| FWER. Module-level (spawn)."""
+    key, ep, data, idx_img, n_perm = item
+    import zlib
+    rng = np.random.default_rng(zlib.crc32(f"{key}|{ep}|level".encode()))
+    an = sorted(data)
+    img = _img_fn(idx_img)
+    floor = float(np.quantile(pooled_sd([data[a] for a in an]), 0.1))
+    z = level_z(data, floor=floor)
+    T, p = _fwer(z, lambda: level_z(data, {a: rng.choice([-1.0, 1.0], len(data[a])) for a in an}, floor), img, n_perm)
+    am = np.vstack([data[a].mean(0) for a in an])
+    agree = (np.sign(am) == np.sign(am.mean(0))[None, :]).sum(0)
+    return dict(key=key, epoch=ep, kind="level", n=len(an), point=img(am.mean(0)), z=img(z), tfce=T, p=p,
+                agree=img(agree.astype(float)), n_sess=sum(len(v) for v in data.values()),
+                n_sess_animal={a: len(data[a]) for a in an})
+
+
+def print_counts(R: dict, title: str) -> None:
+    """Rule 8: sessions per animal in every tested cell (change cells: pre/epoch)."""
+    rows = []
+    for kk, r in sorted(R.items(), key=lambda t: str(t[0])):
+        if "n_sess_animal" not in r:
+            continue
+        row = {"cell": " | ".join(str(x) for x in kk)}
+        for a in AN:
+            v = r["n_sess_animal"].get(a)
+            row[a] = "-" if v is None else (f"{v[0]}/{v[1]}" if isinstance(v, tuple) else str(v))
+        rows.append(row)
+    print(f"\n== {title}: sessions per animal per cell (change = pre/epoch; '-' = no data)")
+    print(pd.DataFrame(rows).to_string(index=False))
 
 
 def run(n_perm: int) -> dict:
@@ -128,9 +208,9 @@ def run(n_perm: int) -> dict:
                     if v is None:
                         continue
                     pre, post = v["M"][v["epoch"] == "pre"], v["M"][v["epoch"] == ep]
-                    if len(pre) >= 3 and len(post) >= 3:
+                    if len(pre) and len(post):                  # every animal with >= 1 session in each group
                         data[a] = (pre[:, sel], post[:, sel])
-                if len(data) >= 3:
+                if data:
                     items.append((k, ep, data, idx_img, n_perm))
     res, fails = parallel.fan_out(items, test_one, jobs=parallel.default_jobs(6), label="map x epoch",
                                   log=lambda m: print(m[:110], flush=True))
@@ -141,9 +221,11 @@ def run(n_perm: int) -> dict:
     # pre LEVEL maps (mean of animals' pre means) for column 1
     for keys in FAMS.values():
         for k in keys:
-            pm = [L[a][k]["M"][L[a][k]["epoch"] == "pre"].mean(0) for a in AN if a in L and k in L[a]]
+            pm = [L[a][k]["M"][L[a][k]["epoch"] == "pre"] for a in AN if a in L and k in L[a]]
+            pm = [m for m in pm if len(m)]
             if pm:
-                out[(k, "pre")] = dict(point=to_img(np.mean(pm, 0)), n=len(pm))
+                out[(k, "pre")] = dict(point=to_img(np.mean([m.mean(0) for m in pm], 0)), n=len(pm),
+                                       n_sess=sum(len(m) for m in pm))
     return out
 
 
@@ -182,8 +264,9 @@ def plot_maps(D: dict) -> None:
             ax.set_xticks([])
             ax.set_yticks([])
             r = R.get((k, ep))
-            if r is None:
-                ax.axis("off")
+            if r is None:                           # blank only when NO animal has data
+                ax.set_title(f"{ep} - pre: no data", fontsize=7)
+                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
                 continue
             if ep == "pre":                         # pre LEVEL: purple-orange, own scale (Priya 10-27)
                 lim = np.nanpercentile(np.abs(r["point"]), 99)
@@ -192,14 +275,15 @@ def plot_maps(D: dict) -> None:
                 im_c = ax.imshow(r["point"], cmap=CHANGE_CMAP, vmin=-lim_c, vmax=lim_c, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
             if ep == "pre":
-                ax.set_title(f"pre (level), n={r['n']} animals", fontsize=7.5)
+                ax.set_title(f"pre (level): {r.get('n_sess', '?')} sess / {r['n']} an", fontsize=7.5)
             else:
                 sig = np.nan_to_num(r["p"], nan=1) < 0.05
                 ax.contour(sig.astype(float), levels=[0.5], colors="k", linewidths=1.3)
                 ax.contour((sig & (np.nan_to_num(r["agree"]) >= 3)).astype(float), levels=[0.5], colors="k",
                            linewidths=0.7, linestyles="--")
                 cx = np.isfinite(r["p"])
-                ax.set_title(f"{ep} - pre: TFCE sig {100 * sig.sum() / cx.sum():.0f}% (+{100 * (sig & (r['point'] > 0)).sum() / cx.sum():.0f} / "
+                ax.set_title(f"{ep} - pre: {r['n_sess']} sess (pre + {ep}) / {r['n']} an\nTFCE sig "
+                             f"{100 * sig.sum() / cx.sum():.0f}% (+{100 * (sig & (r['point'] > 0)).sum() / cx.sum():.0f} / "
                              f"-{100 * (sig & (r['point'] < 0)).sum() / cx.sum():.0f}), min p {np.nanmin(r['p']):.3f}",
                              fontsize=7)
             if j == 0:
@@ -216,9 +300,10 @@ def plot_maps(D: dict) -> None:
     txt = "\n".join(textwrap.fill(q, 125) for q in [
         f"NEURAL: per-SESSION self-fit Haufe maps ({fam}), unit RMS (SHAPE only). Column 1 = pre map (mean of animals); "
         f"columns 2-4 = epoch - pre, mean of animals. {CMAP_NOTE[0].upper() + CMAP_NOTE[1:]}; one scale per row for each.",
-        f"SOLID = TFCE family-wise p < 0.05: per-pixel Welch t per animal (epoch vs pre sessions), summed over animals; null = "
-        f"session labels permuted within animal ({n_perm} x), max |TFCE| over cortex. DASHED = also >= 3/4 animals share the "
-        "sign. ipsi (lesion) = image LEFT. PROVISIONAL"])
+        f"SOLID = TFCE family-wise p < 0.05: per animal (mean epoch - mean pre sessions) / within-animal session SD pooled "
+        f"over all animals and both groups, summed over animals / sqrt(k); every animal with >= 1 session per group "
+        f"contributes; null = session labels permuted within animal ({n_perm} x), max |TFCE| over cortex. DASHED = also >= 3 "
+        "animals share the sign. ipsi (lesion) = image LEFT. PROVISIONAL"])
     fig.suptitle(txt, fontsize=8.5)
     fig.savefig(il.OUT / "figures" / FIG_NAME[fam], dpi=95)
     plt.close(fig)
@@ -327,6 +412,7 @@ def main() -> int:
     else:
         R = run(n_perm)
         f.write_bytes(pickle.dumps(R))
+    print_counts(R, "per-session TFCE change maps (shape only)")
     T = tests_table(R)
     T.to_csv(OUTD / "tests.csv", index=False)
     pd.set_option("display.width", 220)
