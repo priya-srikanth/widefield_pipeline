@@ -23,12 +23,18 @@ section. Everything here is PROVISIONAL until you have looked at it.
    degraded with partial drift toward close contra in PS93 -- but far ipsi loses gain as much (0.25-0.93), so the
    across-spout contrast shrinks broadly while only far contra is read ipsi. Not resolved; worth discussing.
 
+5. **The ITI lateral r loss is not elapsed-time drift** (`figures/iti_where_drift.png`): single-pre-session decoders
+   barely lose lateral r over the 8-day pre span; post sessions sit below that curve (ITI chronic -0.13, 4/4; cued
+   lateral loss gone chronically; sagittal ~0).
+
 ## Questions for you
 1. Recovery ranking: by far-contra cued lick ANGLE / pre, chronic PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. You
    rank PS95 best (fast early recovery, dip, then improvement) -- is there a measure you want used for the
    between-animal ranking (e.g. area under the recovery curve, days to criterion)?
 2. Should figures 3.15-3.22 be redrawn on z-scored features too (KEY row already uses them)? ~15 min chain.
-3. sabatinilab-e3 (PI deck) asked to be told when the decoder and activity-map figures are final: not told yet.
+3. Drift check: the August-only pre span is 8 days, so chronic gaps (~39 days) are extrapolated. June pre sessions
+   would give 2-month pre -> pre gaps -- OK to use them for THIS drift reference only (August-only stays the baseline)?
+4. sabatinilab-e3 (PI deck) asked to be told when the decoder and activity-map figures are final: not told yet.
 
 ## Issues / caveats
 1. The chronic cued far-contra "read ipsilesional" interpretation (scaled-down command vs changed strategy vs blurred
