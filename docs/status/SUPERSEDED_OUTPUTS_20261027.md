@@ -11,7 +11,7 @@ All paths are derived outputs (reproducible from code + inputs), under
 |---|---|---|---|
 | `sessions_roi3/` | 367 MB, 30 files | v3 (front-edge slivers), killed mid-run | now |
 | `sessions_roi4/` | 1.3 GB | v4 (lateral rim, detached ALM corner); extracted WITHOUT the frozen FR env | now |
-| `sessions_roi8/` (current partial) | ~0.5 GB | v8 first attempt WITHOUT the frozen env (killed) | after the env-correct v8 re-extraction has overwritten every file (check 107 files + bout_fr not NaN) |
+| `sessions_roi8/` | ~1.3 GB | v8 first run WITHOUT the frozen env (complete, FaceRhythm fields empty); env-correct files are in `sessions_roi8fr/` | now |
 | `sessions_roi2/` | 1.4 GB | v2 (ALM 40 / tjM1 50, 16-px rim; env-fixed) | once v8 is the default and its redo is checked |
 | `roi2_envfix_20261027/` | 2.7 GB | v2 env-fix work dir + backup of the defective v2 files | now (fixed files are in sessions_roi2/) |
 | `roi_v1_backup_20261027/` | 2.0 GB | copies of the v1 (40/40) CSVs / figures / figdata before the v2 redo | after the v8 numbers are on the page and checked against it |
