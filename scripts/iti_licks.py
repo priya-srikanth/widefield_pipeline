@@ -50,7 +50,7 @@ OUT = E / "iti_licks"
 # ALM unchanged, tjM1 50 % -- ALM 45 % starts to take in whisker M2): v1 = ALM / tjM1 = anterolateral 40 % (session
 # files in sessions/); v2 = ALM 40 % of MOs, tjM1 50 % of MOp (sessions_roi2/). WFIELD_ROI_VERSION selects; the v1 files
 # are kept unchanged.
-ROI_VERSION = os.environ.get("WFIELD_ROI_VERSION", "1")
+ROI_VERSION = os.environ.get("WFIELD_ROI_VERSION", "2")      # default = the FINAL ROIs (v1 = 40/40, kept)
 # FINAL (Priya 10-27): v2 = ALM 40 % / tjM1 50 % (45 / 50 considered; ALM 45 % takes in part of whisker M2).
 _ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_sd_split.csv"),
         "2": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi2", "session_sd_roi2_tj50.csv", "session_sd_split_roi2_tj50.csv")}
