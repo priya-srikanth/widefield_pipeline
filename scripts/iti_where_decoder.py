@@ -67,13 +67,14 @@ def _K():
     return _KC["K"]
 
 
-def load(source: str) -> dict:
-    """{label: {epoch, animal, iti: (X (n, feat) lags 0..0.2 mean, Y (n, 3)), trial: (...)}} for one feature basis."""
+def load(source: str, sess_dir: Path | None = None) -> dict:
+    """{label: {epoch, animal, iti: (X (n, feat) lags 0..0.2 mean, Y (n, 3)), trial: (...)}} for one feature basis.
+    sess_dir: another folder of `iti_licks.extract` session files (e.g. the June reference, `iti_june_ref.py`)."""
     W_d = (il.LAGS_D >= 0.0) & (il.LAGS_D <= 0.2)
-    labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = sorted(p.stem for p in (sess_dir or il.OUT / "sessions").glob("*.npz"))
     D = {}
     for x in labels:
-        z = il._load(x)
+        z = il._load(x, sess_dir)
         rec = {"epoch": str(z["epoch"]), "animal": str(z["animal"])}
         if source == "areas":
             feat = [i for i, c in enumerate(z["cols"]) if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
