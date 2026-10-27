@@ -110,6 +110,17 @@ section. Everything here is PROVISIONAL until you have looked at it.
   acute cued sagittal and ipsi / mid lateral offsets; sign flips only in n.s. cells). -> Proposal: swap the page figures
   3.15 / 3.19-3.22 to the z-scored versions (unscaled kept as supplementary), captions note the changed cells.
 
+- WHOLE-MAP PERMUTATION (per-session self-fit maps, unit-RMS = shape only; session_pattern_maplevel.csv): nearly EVERY
+  map differs from pre (BH), chronic included -- the session-label permutation is powerful and also detects slow drift
+  (pre sessions precede post), so read the DISTANCE d = 1 - r, not p. Cued per-spout d acute: far contra 0.67 (3/3) vs
+  0.09-0.35 for the other five spouts; chronic far contra 0.17, inside the others' range (0.10-0.34). Lateral-position map
+  d: ITI 0.39 / 0.35 / 0.33, cued 0.36 / 0.21 / 0.16 (ITI stays further from pre). Within-spout (executed-direction) maps
+  d ~0.41-0.48 in both sets, every epoch. Re-running with a DRIFT FLOOR (early vs late pre sessions) to read d against;
+  a bug (pandas `T.map` = method) had dropped the d / p subtitles from the change-map panels -- fixed.
+- ITI scatter "SEM ovals look bigger" (Priya): they are 1-SD spread ellipses (never SEM; unchanged since 10-25). They grew
+  on 10-26 22:45 when the y-axis switched from OUTWARD (forward) to SAGITTAL extension (forward + down), which spreads more
+  (SD ~0.7-0.9 mm). The z-scored redraw did not change them. QUESTION: switch to SEM ellipses (mean +/- SEM) or keep SD?
+
 ### Running / queued
 - Whole-map permutation + amplitude-normalised change maps (per-session self-fit maps, 107 sessions) -- drawing.
 - Haemodynamic / artefact checks (415 nm, uncorrected 470, zero-phase filter, edge / vessel, per-area F0; then global
@@ -119,4 +130,6 @@ section. Everything here is PROVISIONAL until you have looked at it.
   first-lick read-out; behaviour-only decoder (low). Tell the deck window the decoder figures are final AFTER the publish.
 
 ### Questions for Priya (accumulating)
-- (none new yet)
+- Page figures 3.15 / 3.19-3.22: swap to the z-scored versions (unscaled -> supplementary)?
+- Scatter ellipses: 1 SD (now) or SEM?
+- Whole-map test: also add a June no-stroke map reference (needs per-session SVD-basis features for June)?
