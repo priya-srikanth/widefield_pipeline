@@ -74,7 +74,21 @@ _ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_
         # that continue the ALM wedge (same anterolateral rank threshold as ALM) are added to ALM (and MOs); no other
         # front-edge pixels (no PL / FRP / medial MOs slivers)
         "5": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi5", "session_sd_roi5_rimlat_almfront.csv",
-              "session_sd_split_roi5_rimlat_almfront.csv", "lat+almfront")}
+              "session_sd_split_roi5_rimlat_almfront.csv", "lat+almfront"),
+        # v6 (Priya 10-27: "keep the lateral extent but I'm worried about edge artefact anteriorly"): as v4, but a lateral-
+        # edge pixel is NOT added when it is also within 16 px of the FRONT edge (the mask ends within 16 px going
+        # anterior) -- removes v4's detached anterolateral ALM sliver; nothing added at the front edge (v5 rejected)
+        "6": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi6", "session_sd_roi6_rimlat_nofront.csv",
+              "session_sd_split_roi6_rimlat_nofront.csv", "lat-nofront"),
+        # v7 (Priya 10-27: "I don't want to be right up on FRP, medium rim is better"; "v6 doesn't have the lateral
+        # extent in tjM1 and SSp-m"): lateral thin rim as v4 (full lateral extent) + ALM continued toward the front edge
+        # with a MEDIUM rim:
+        # front-edge MOs pixels >= RIM_FRONT_PX inside the brain mask that pass the ALM anterolateral rank are added to
+        # ALM (and MOs); ALM / tjM1 kept as one connected region each
+        "7": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi7", "session_sd_roi7_rimlat_almfront8.csv",
+              "session_sd_split_roi7_rimlat_almfront8.csv", "lat-almfront8")}
+RIM_FRONT_PX = 8
+FRP_GAP_PX = 10           # 0.19 mm
 RIM_LAT_AP_MIN = -0.5
 ROI_FRAC, SESS_NAME, SD_NAME, SPLIT_NAME, ROI_THIN_ANT_RIM = _ROI[ROI_VERSION]   # SD files live in zscore_check/
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
@@ -129,9 +143,19 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
             ok_c = (out_c >= 0) & (out_c < W)
             lat_edge = ~ok_c | ~bmask[r, np.clip(out_c, 0, W - 1)]
             add = lat_edge & (ap_mm > RIM_LAT_AP_MIN)
+            if ROI_THIN_ANT_RIM == "lat-nofront":
+                up_r = r - step                                                   # 16 px anterior (image up)
+                front_edge = (up_r < 0) | ~bmask[np.clip(up_r, 0, H - 1), c]
+                add &= ~front_edge
         else:                                                                     # "ant" (v3, abandoned)
             add = ap_mm > RIM_AP_MIN
         front = thin & ~pstat & ~add & (ap_mm > RIM_AP_MIN) & (parea != 0)   # anterior thin-rim candidates (v5)
+        if ROI_THIN_ANT_RIM == "lat-almfront8":                                  # v7: medium front rim
+            front &= ndimage.binary_erosion(bmask, iterations=RIM_FRONT_PX).ravel()[flat]
+            # ... and >= FRP_GAP_PX from the frontal pole (Priya: "I don't want to be right up on FRP")
+            frp = np.zeros(H * W, bool)
+            frp[flat[np.isin(parea, [k for k, v in names.items() if str(v).startswith("FRP")])]] = True
+            front &= ndimage.distance_transform_edt(~frp.reshape(H, W)).ravel()[flat] >= FRP_GAP_PX
         pstat = pstat | (thin & add & (parea != 0))   # labelled cortex only
     m = {names.get(int(a), str(a)): (parea == a) & pstat for a in sorted(np.unique(parea[pstat])) if a != 0}
     left = np.zeros(len(flat), bool)
@@ -151,7 +175,7 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
             sel = np.zeros(len(flat), bool)
             thr = np.quantile(u, 1 - (frac or ROI_FRAC)[dst])
             sel[np.flatnonzero(mk)[u >= thr]] = True
-            if ROI_THIN_ANT_RIM == "lat+almfront" and dst == "ALM":
+            if ROI_THIN_ANT_RIM in ("lat+almfront", "lat-almfront8") and dst == "ALM":
                 # front-edge MOs pixels of this hemisphere that continue the wedge: same rank, same z-scoring
                 cand = front & (parea == next(k for k, v in names.items() if v == f"MOs_{h}"))
                 ua = (-r[cand].astype(float) - ant.mean()) / (ant.std() or 1) \
@@ -160,9 +184,17 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
                 sel[idx] = True
                 m[f"MOs_{h}"] = m[f"MOs_{h}"].copy()
                 m[f"MOs_{h}"][idx] = True
+            if ROI_THIN_ANT_RIM in ("lat-nofront", "lat-almfront8"):   # v6 / v7: one connected ROI
+                from scipy import ndimage
+                g = np.zeros(H * W, bool)
+                g[flat[sel]] = True
+                lab_, n_ = ndimage.label(g.reshape(H, W))
+                if n_ > 1:
+                    keep = np.argmax(np.bincount(lab_.ravel())[1:]) + 1
+                    sel &= (lab_.ravel()[flat] == keep)
             m[f"{dst}_{h}"] = sel
     m["cortex"] = pstat.copy()
-    if ROI_THIN_ANT_RIM == "lat+almfront":
+    if ROI_THIN_ANT_RIM in ("lat+almfront", "lat-almfront8"):
         m["cortex"] |= m.get("ALM_left", False) | m.get("ALM_right", False)
     return m
 
