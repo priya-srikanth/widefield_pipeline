@@ -78,6 +78,7 @@ def load(source: str) -> dict:
             feat = [i for i, c in enumerate(z["cols"]) if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
             for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
                 rec[st] = (z[kx].astype(float)[:, W_d][:, :, feat].mean(1), z[kt].astype(float))
+                rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
         else:
             f = il.OUT / f"basis_{source}" / "sessions" / f"{x}.npz"
             if not f.exists():
@@ -94,6 +95,7 @@ def load(source: str) -> dict:
                 if Xb.shape[0] != keep.sum() or not np.allclose(b[f"{st}_y"], y[keep]):
                     raise ValueError(f"{x} {source} {st}: basis licks do not line up with the ITI session file")
                 rec[st] = (Xb, t[keep])
+                rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)[keep]   # spout per lick
         for st in ("iti", "trial"):
             X, t = rec[st]
             rec[st] = (X, coords(x, t))

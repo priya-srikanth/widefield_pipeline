@@ -239,6 +239,12 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    Sagittal patterns stay similar (0.70-0.97). So the lateral read-out map is largely preserved in 3 animals while
    lick-to-lick r falls; PS94 -- least recovered, largest persistent ITI offset -- remapped its self-initiated lateral
    map. Unscaled SVD features; PS95 acute has one session (no pattern). PROVISIONAL; per-spout one-vs-rest maps next.
+   SAGITTAL map = BILATERAL, symmetric orofacial S1/M1 (longer licks -> more activity in both hemispheres), preserved
+   (0.70-0.97). PER-SPOUT ONE-VS-REST maps (`scripts/iti_spout_patterns.py`, spout_patterns.csv, figures/
+   iti_spout_patterns.png; cued licks): each spout's map is crossed (ipsi spouts -> right lateral orofacial cortex,
+   contra spouts -> left). FAR CONTRA is the one spout whose map is REPLACED acutely (similarity to pre 0.31 / 0.28 /
+   0.42, PS95 n/a) and comes back (chronic 0.97 / 0.61 / 0.96 / 0.92; PS93 partial); the other spouts stay 0.65-0.95
+   (exception PS93 close mid 0.13-0.26 throughout). Fits the acute far-contra failure and the decoder results (4.x).
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
