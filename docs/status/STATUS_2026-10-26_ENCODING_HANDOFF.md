@@ -39,6 +39,18 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-NIGHT (10-27) -- read FIRST
+- Page v124 (figs through 3.70; source backed up). Running list of results / decisions / open questions for Priya:
+  `docs/status/REVIEW_FOR_PRIYA_2026-10-27.md` section "AFTERNOON / EVENING RUNNING LIST" -- present it all when she is back.
+- Decisions today: DECISIONS.md 2026-10-27 (decoder r + offsets LATERAL primary; behaviour ANGLE as change vs pre; no
+  extension filter; max-stat + FDR contours). FINDINGS 4d0 (synthesis), 4d0b (far-contra read-out vs landing), 4d0c
+  (confound ledger, checks done), 4d0d (first lick read toward the target).
+- New scripts today: iti_session_patterns / iti_session_pattern_tests (per-session maps, whole-map permutation, drift
+  floor), iti_first_lick, iti_overcorrection [--angle], iti_recovery_measure, iti_where_angle_reach (polar), iti_check_figures
+  (coord_table: lateral / angle / x-y-z), iti_hemo_check (agent), iti_mixed_models, iti_spout_animal_panels,
+  iti_extension_dist, iti_june_ref + iti_where_drift --june, iti_where_decoder / iti_where_scatter --z (agent).
+- Pitfall: pandas `T.map` is the DataFrame METHOD -- use T["map"] (silently broke subtitles once).
+
 ### 00-AFTERNOON (10-27) -- read FIRST
 - Page v122 (figs 3.39-3.51 appended after 3.38; 3.37 now draws pre sessions; "Where things stand" first row =
   Priya's synthesis, FINDINGS 4d0). Source backed up to M:/.../encoding_goal_page_src.
