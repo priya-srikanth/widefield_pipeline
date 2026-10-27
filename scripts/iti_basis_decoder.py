@@ -156,6 +156,7 @@ def summarise(sources) -> None:
            "svdbasis": "pre-stroke SVD basis (200 comps)"}
     fig, axs = plt.subplots(2, len(srcs), figsize=(4.6 * len(srcs), 7.5), sharey=True, squeeze=False)
     TC = R[R.lag != "0-0.2"].astype({"lag": float})
+    sig_recs = []
     for j, src in enumerate(srcs):
         for i, st in enumerate(("iti", "trial")):
             ax = axs[i, j]
@@ -166,6 +167,7 @@ def summarise(sources) -> None:
                 mu, se = g.mean(1), g.std(1, ddof=1) / np.sqrt(g.shape[1])
                 ax.plot(g.index, mu, color=colors[ep], lw=1.8, label=f"{ep} ({g.shape[1]})")
                 ax.fill_between(g.index, mu - se, mu + se, color=colors[ep], alpha=0.2, lw=0)
+            sig_recs += il.sig_bars(ax, TC[(TC.source == src) & (TC.set == st)], colors, tag={"source": src, "set": st})
             tt = T[(T.source == src) & (T.set == st) & (T.value == "r_norm")].set_index("epoch")
             txt = "  ".join(f"{ep[:3]} {tt.loc[ep, 'delta'] * 100:+.0f}%{'*' if tt.loc[ep, 'lo'] > 0 or tt.loc[ep, 'hi'] < 0 else ''}"
                             for ep in EP[1:] if ep in tt.index)
@@ -180,10 +182,13 @@ def summarise(sources) -> None:
             if i == 1:
                 ax.set_xlabel("lag from lick peak (s)", fontsize=8.5)
     axs[0, 0].legend(fontsize=7, frameon=False)
+    il._headroom([axs[0, 0]])                              # y is shared: raise once
+    pd.DataFrame(sig_recs).to_csv(il.OUT / "sig_bins_3_14.csv", index=False)
     fig.suptitle("NEURAL: the FROZEN pre-stroke decoder (fit once on pre licks, never refit) of lateral tongue-tip position in three SPATIAL bases (same licks, same decoder; "
                  "per animal, trained on August pre licks, pre leave-one-session-out). Title numbers = change from pre "
-                 "normalised to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.", fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
+                 "normalised to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.\n" + il.SIG_NOTE,
+                 fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(il.OUT / "figures" / "iti_basis_decoder.png", dpi=110)
     plt.close(fig)
 

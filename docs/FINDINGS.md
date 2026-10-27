@@ -228,6 +228,17 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    (4/4; chronic mean gap 39 days); cued lateral -0.16 / -0.09 (4/4), chronic -0.04 n.s.; sagittal ~0 for both.
    Caveat: the August pre sessions span only 8 days, so chronic gaps are extrapolated (the fitted slope is near flat,
    so drift would have to accelerate sharply to explain the loss).
+   WHERE POSITION IS CARRIED: HAUFE PATTERN MAPS (10-27 ~02:30, `scripts/iti_decoder_patterns.py`, decoder_patterns.csv,
+   figures/iti_decoder_patterns_{lat,sag,animals_lat}.png; activation pattern Cov(activity, decoded) / Var of a ridge
+   decoder refit per epoch in each animal's pre-stroke SVD basis (200 comps), mapped to pixels; similarity to pre =
+   pixel correlation corrected by split-half reliability). PRE lateral pattern: licks further CONTRALESIONAL go with more
+   activity in the LEFT (lesioned-side) lateral orofacial sensorimotor cortex and less in the right one -- a
+   crossed, push-pull map (PS92 / PS94 / PS95 cued clearly; PS93 and PS95-ITI mostly one-signed). Chronic similarity
+   to pre, ITI lateral: PS92 0.83, PS93 0.90, PS95 0.76, PS94 0.19 (reliability 0.99 -> a genuinely DIFFERENT map in
+   PS94, -0.01 subacute); cued lateral 0.87 / 0.68 / 0.83 / 0.98 (PS93 / PS94 dip acutely to 0.49 / 0.44 and recover).
+   Sagittal patterns stay similar (0.70-0.97). So the lateral read-out map is largely preserved in 3 animals while
+   lick-to-lick r falls; PS94 -- least recovered, largest persistent ITI offset -- remapped its self-initiated lateral
+   map. Unscaled SVD features; PS95 acute has one session (no pattern). PROVISIONAL; per-spout one-vs-rest maps next.
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
