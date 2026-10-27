@@ -1,0 +1,566 @@
+goal_page_reorder v129 (10-27)
+
+== PROBLEMS ==
+none
+
+== REPLACEMENTS / CHANGES ==
+SOURCE PAGE CHECK (info): html (before): stray </figure> x1
+STRUCTURE: removed 1 stray </figure> tag(s) between figures in section decoder
+"THE SAME" LINKED: old Fig 0.12 (now 0.6) header now says "the same (as Fig 0.12)" = its old predecessor 0.11, no longer directly before it
+"THE SAME" LINKED: old Fig 0.4 (now 0.8) header now says "the same (as Fig 0.2)" = its old predecessor 0.3, no longer directly before it
+"THE SAME" LINKED: old Fig 0.6 (now 0.9) header now says "the same (as Fig 0.3)" = its old predecessor 0.5, no longer directly before it
+"THE SAME" LINKED: old Fig 0.8 (now 0.10) header now says "the same (as Fig 0.4)" = its old predecessor 0.7, no longer directly before it
+"THE SAME" LINKED: old Fig 1.6 (now 1.10) header now says "the same (as Fig 1.2)" = its old predecessor 1.5, no longer directly before it
+"THE SAME" LINKED: old Fig 1.29 (now 1.20) header now says "the same (as Fig 1.5)" = its old predecessor 1.28, no longer directly before it
+"THE SAME" LINKED: old Fig 1.4 (now 1.31) header now says "the same (as Fig 1.1)" = its old predecessor 1.3, no longer directly before it
+"THE SAME" LINKED: old Fig 2.7 (now 2.2) header now says "the same (as Fig 2.10)" = its old predecessor 2.6, no longer directly before it
+"THE SAME" LINKED: old Fig 2.4 (now 2.9) header now says "the same (as Fig 2.1)" = its old predecessor 2.3, no longer directly before it
+"CAPTION BELOW" LINKED: Fig 2.6 -> 2.10 points to Fig 2.2
+"THE SAME" LINKED: old Fig 2.10 (now 2.12) header now says "the same (as Fig 2.3)" = its old predecessor 2.9, no longer directly before it
+"THE SAME" LINKED: old Fig 3.9 (now 3.1) header now says "the same (as Fig 3.22)" = its old predecessor 3.8, no longer directly before it
+TAG REMOVED (contradicts tier supporting): Fig 3.8 -> 3.22 [iti_frozen_timecourse]: 'Fig \x00N:iti_frozen_timecourse\x00 · NEURAL · KEY · the pre-stroke direction decoder over time,' -> 'Fig \x00N:iti_frozen_timecourse\x00 · NEURAL · the pre-stroke direction decoder over time, self-'
+TAG REMOVED (contradicts tier supporting): Fig 3.20 -> 3.26 [iti_where_scatter_iti_z]: 'Fig \x00N:iti_where_scatter_iti_z\x00 · NEURAL · SUPPLEMENT · decoded vs actual lick landing, IT' -> 'Fig \x00N:iti_where_scatter_iti_z\x00 · NEURAL · decoded vs actual lick landing, ITI licks.'
+TAG REMOVED (contradicts tier supporting): Fig 3.25 -> 3.30 [iti_ramp_summary]: 'Fig \x00N:iti_ramp_summary\x00 · NEURAL · KEY · the same per session as AUCs: response and build' -> 'Fig \x00N:iti_ramp_summary\x00 · NEURAL · the same per session as AUCs: response and build-up.'
+"THE SAME" LINKED: old Fig 3.25 (now 3.30) header now says "the same (as Fig 3.3)" = its old predecessor 3.24, no longer directly before it
+TAG REMOVED (contradicts tier supporting): Fig 3.29 -> 3.34 [iti_area_maps]: 'Fig \x00N:iti_area_maps\x00 · NEURAL · SUPPLEMENT · whole cortex: the acute increase is global; ' -> 'Fig \x00N:iti_area_maps\x00 · NEURAL · whole cortex: the acute increase is global; chronically o'
+TAG REMOVED (contradicts tier supporting): Fig 3.30 -> 3.35 [iti_area_peth]: 'Fig \x00N:iti_area_peth\x00 · NEURAL · SUPPLEMENT · activity around self-initiated licks in NON-' -> 'Fig \x00N:iti_area_peth\x00 · NEURAL · activity around self-initiated licks in NON-orofacial are'
+TAG REMOVED (contradicts tier supporting): Fig 3.31 -> 3.36 [iti_area_compare]: 'Fig \x00N:iti_area_compare\x00 · NEURAL · SUPPLEMENT · orofacial ROIs next to control areas, sam' -> 'Fig \x00N:iti_area_compare\x00 · NEURAL · orofacial ROIs next to control areas, same licks, same'
+TAG REMOVED (contradicts tier supporting): Fig 3.32 -> 3.37 [iti_area_groups]: 'Fig \x00N:iti_area_groups\x00 · NEURAL · SUPPLEMENT · orofacial vs visual + retrosplenial areas,' -> 'Fig \x00N:iti_area_groups\x00 · NEURAL · orofacial vs visual + retrosplenial areas, per session.'
+TAG REMOVED (contradicts tier supporting): Fig 3.37 -> 3.39 [iti_recovery_link_angle_z]: 'Fig \x00N:iti_recovery_link_angle_z\x00 · NEURAL vs BEHAVIOUR · KEY · within animal over post-st' -> 'Fig \x00N:iti_recovery_link_angle_z\x00 · NEURAL vs BEHAVIOUR · within animal over post-stroke d'
+TAG REMOVED (contradicts tier supporting): Fig 3.54 -> 3.48 [cued_first_lick]: 'Fig \x00N:cued_first_lick\x00 · NEURAL + BEHAVIOUR · KEY.' -> 'Fig \x00N:cued_first_lick\x00 · NEURAL + BEHAVIOUR.'
+TAG REMOVED (contradicts tier supplementary): Fig 3.13 -> 3.59 [iti_binned_summary]: 'Fig \x00N:iti_binned_summary\x00 · NEURAL · KEY · binned frozen decoder, one number per session.' -> 'Fig \x00N:iti_binned_summary\x00 · NEURAL · binned frozen decoder, one number per session.'
+TAG REMOVED (contradicts tier supplementary): Fig 3.14 -> 3.60 [iti_basis_decoder]: 'Fig \x00N:iti_basis_decoder\x00 · NEURAL · KEY · the frozen-decoder result does not depend on th' -> 'Fig \x00N:iti_basis_decoder\x00 · NEURAL · the frozen-decoder result does not depend on the parc'
+"THE SAME" LINKED: old Fig 6.5 (now 6.9) header now says "the same (as Fig 6.6)" = its old predecessor 6.4, no longer directly before it
+LINK RANGE: "2.9–2.12" -> "2.3, 2.4, 2.12, 2.13"
+LINK RANGE: "0.10–0.12" -> "0.5, 0.6, 0.12"
+LINK RANGE: "3.29–3.32" -> "3.34–3.37"
+LINK RANGE: "3.19–3.22" -> "3.25–3.28"
+LINK RANGE: "3.33–3.36" -> "3.38, 3.64, 3.65, 3.66"
+LINK RANGE: "3.4–3.6" -> "3.18–3.20"
+LINK RANGE: "Fig 3.29–3.32" -> "Fig 3.34–3.37"
+LINK: #fig2-9 "2.9" -> #f-fig9i_cls_animals "2.3"
+LINK: #fig3-5 "3.5" -> #f-decoder_retention_pooled "3.19"
+LINK: #fig1-10 "1.10" -> #f-matched_residual "1.3"
+LINK: #fig1-28 "1.28" -> #f-selffit_cue "1.5"
+LINK: #fig0-10 "0.10" -> #f-recovery_timing_lick "0.5"
+LINK: #fig1-28 "1.28" -> #f-selffit_cue "1.5"
+LINK: #fig1-38 "1.38" -> #f-partial_refit_lines "1.25"
+LINK: #fig0-11 "0.11" -> #f-recovery_timing_pooled_day_lick "0.12"
+LINK: #fig0-12 "0.12" -> #f-recovery_timing_pooled_epoch_lick "0.6"
+LINK: #fig1-5 "1.5" -> #f-spec_groups "1.2"
+LINK: #fig1-6 "1.6" -> #f-spec_area_maps "1.10"
+LINK: #fig1-7 "1.7" -> #f-remap_resid_cue_deficit "1.11"
+LINK: #fig1-5 "1.5" -> #f-spec_groups "1.2"
+LINK: #fig1-6 "1.6" -> #f-spec_area_maps "1.10"
+LINK: #fig1-8 "1.8" -> #f-remap_resid_lick_time "1.12"
+LINK: #fig0-3 "0.3" -> #f-frozen_musall_cue "0.2"
+LINK: #fig0-4 "0.4" -> #f-frozen_musall_lick "0.8"
+LINK: #fig1-1 "1.1" -> #f-frozen_posinfo_split_cue "1.8"
+LINK: #fig1-2 "1.2" -> #f-frozen_posinfo_split_lick "1.9"
+LINK: #fig0-5 "0.5" -> #f-frozen_claims_contest_cue "0.3"
+LINK: #fig0-6 "0.6" -> #f-frozen_claims_contest_lick "0.9"
+LINK: #fig0-7 "0.7" -> #f-frozen_claims_peth_cue "0.4"
+LINK: #fig0-8 "0.8" -> #f-frozen_claims_peth_lick "0.10"
+LINK: #fig0-3 "0.3" -> #f-frozen_musall_cue "0.2"
+LINK: #fig9-19 "9.19" -> #f-fr_direction_mechanism_summary "9.5"
+LINK: #fig3-21 "3.21" -> #f-iti_where_delta_z "3.27"
+LINK: #fig3-22 "3.22" -> #f-iti_where_per_spout_z "3.28"
+LINK: #fig3-37 "3.37" -> #f-iti_recovery_link_angle_z "3.39"
+LINK: #fig3-39 "3.39" -> #f-iti_recovery_link_pooled_angle_z "3.4"
+LINK: #fig3-40 "3.40" -> #f-iti_recovery_link_sessions_angle_z "3.40"
+LINK: #fig3-42 "3.42" -> #f-iti_check_error_per_lick_iti "3.5"
+LINK: #fig3-43 "3.43" -> #f-cued_check_error_per_lick "3.6"
+LINK: #fig3-48 "3.48" -> #f-iti_check_3axis "3.46"
+LINK: #fig3-41 "3.41" -> #f-iti_where_drift_june "3.41"
+LINK: #fig3-54 "3.54" -> #f-cued_first_lick "3.48"
+LINK: #fig3-55 "3.55" -> #f-cued_overcorrection "3.49"
+LINK: #fig3-46 "3.46" -> #f-iti_check_f0 "3.44"
+LINK: #fig3-63 "3.63" -> #f-iti_hemo_check_variants "3.7"
+LINK: #fig3-64 "3.64" -> #f-iti_hemo_check_edge_vessel "3.51"
+LINK: #fig3-65 "3.65" -> #f-iti_hemo_check_state_gap "3.52"
+LINK: #fig3-4 "3.4" -> #f-decoder_retention_sessions "3.18"
+LINK: #fig3-5 "3.5" -> #f-decoder_retention_pooled "3.19"
+LINK: #fig2-9 "2.9" -> #f-fig9i_cls_animals "2.3"
+LINK: #fig2-11 "2.11" -> #f-fig9i3_cls_pooled "2.4"
+LINK: #fig1-10 "1.10" -> #f-matched_residual "1.3"
+LINK: #fig1-28 "1.28" -> #f-selffit_cue "1.5"
+LINK: #fig0-9 "0.9" -> #f-frozen_claims_trend "0.11"
+LINK: #fig2-1 "2.1" -> #f-fig9_softmax_landing "2.7"
+LINK: #fig1-44 "1.44" -> #f-fig1_binned_contest "1.45"
+LINK: #fig1-45 "1.45" -> #f-fig1p_contest_pooled "1.30"
+LINK: #fig0-5 "0.5" -> #f-frozen_claims_contest_cue "0.3"
+LINK: #fig0-6 "0.6" -> #f-frozen_claims_contest_lick "0.9"
+LINK: #fig1-28 "1.28" -> #f-selffit_cue "1.5"
+LINK: #fig1-29 "1.29" -> #f-selffit_lick "1.20"
+LINK: #fig1-38 "1.38" -> #f-partial_refit_lines "1.25"
+LINK: #fig1-39 "1.39" -> #f-partial_refit_bars_cue "1.44"
+LINK: #fig3-9 "3.9" -> #f-iti_frozen_summary "3.1"
+LINK: #fig3-8 "3.8" -> #f-iti_frozen_timecourse "3.22"
+LINK: #fig3-7 "3.7" -> #f-iti_direction_decoding "3.21"
+LINK: #fig3-25 "3.25" -> #f-iti_ramp_summary "3.30"
+LINK: #fig3-24 "3.24" -> #f-iti_ramp_sessions "3.3"
+LINK: #fig3-23 "3.23" -> #f-iti_ramp_peth "3.29"
+LINK: #fig3-26 "3.26" -> #f-iti_ramp_peth_isolated "3.31"
+LINK: #fig3-27 "3.27" -> #f-iti_kinematics_control "3.32"
+LINK: #fig3-28 "3.28" -> #f-iti_face_control "3.33"
+LINK: #fig3-13 "3.13" -> #f-iti_binned_summary "3.59"
+LINK: #fig3-15 "3.15" -> #f-iti_where_decoder_z "3.2"
+LINK: #fig3-15 "3.15" -> #f-iti_where_decoder_z "3.2"
+LINK: #fig3-15 "3.15" -> #f-iti_where_decoder_z "3.2"
+LINK: #fig3-36 "3.36" -> #f-iti_where_drift "3.38"
+LINK: #fig3-41 "3.41" -> #f-iti_where_drift_june "3.41"
+LINK: #fig3-33 "3.33" -> #f-iti_decoder_patterns_lat "3.64"
+LINK: #fig3-34 "3.34" -> #f-iti_decoder_patterns_animals_lat "3.65"
+LINK: #fig3-35 "3.35" -> #f-cued_spout_patterns "3.66"
+LINK: #fig1-16 "1.16" -> #f-ls_pixel_novar_cue "1.16"
+LINK: #fig1-17 "1.17" -> #f-fr_lick_variance "1.17"
+LINK: #fig5-1 "5.1" -> #f-fig4_decomp_epochs "5.2"
+LINK: #fig5-2 "5.2" -> #f-fig4p_decomp_pooled "5.1"
+LINK: #fig0-1 "0.1" -> #f-frozen_fr_compare_lines_cue "0.1"
+LINK: #fig0-1 "0.1" -> #f-frozen_fr_compare_lines_cue "0.1"
+LINK: #fig0-2 "0.2" -> #f-frozen_fr_compare_lines_lick "0.7"
+LINK: #fig6-2 "6.2" -> #f-fig7c_residual_allspouts_32px "6.1"
+LINK: #fig6-11 "6.11" -> #f-fig8_residual_per_animal_cue "6.7"
+LINK: #fig6-12 "6.12" -> #f-fig8_residual_per_animal_lick "6.2"
+LINK: #fig6-14 "6.14" -> #f-fig12p_residual_trend_pooled "6.3"
+LINK: #fig1-5 "1.5" -> #f-spec_groups "1.2"
+LINK: #fig1-6 "1.6" -> #f-spec_area_maps "1.10"
+LINK: #fig1-7 "1.7" -> #f-remap_resid_cue_deficit "1.11"
+LINK: #fig1-8 "1.8" -> #f-remap_resid_lick_time "1.12"
+LINK: #fig1-10 "1.10" -> #f-matched_residual "1.3"
+LINK: #fig6-3 "6.3" -> #f-residual_roi_pooled "6.5"
+LINK: #fig6-4 "6.4" -> #f-residual_roi_spout_lick "6.6"
+LINK: #fig0-1 "0.1" -> #f-frozen_fr_compare_lines_cue "0.1"
+LINK: #fig7-1 "7.1" -> #f-fig5_layer2_change "7.4"
+LINK: #fig7-2 "7.2" -> #f-fig5p_layer2_pooled "7.1"
+LINK: #fig7-3 "7.3" -> #f-fig5b_layer2_random_splits "7.5"
+LINK: #fig7-4 "7.4" -> #f-fig5c_layer2_random_splits_pooled "7.2"
+LINK: #fig1-5 "1.5" -> #f-spec_groups "1.2"
+LINK: #fig1-6 "1.6" -> #f-spec_area_maps "1.10"
+LINK: #fig1-9 "1.9" -> #f-remap_layer2_time "1.13"
+LINK: #fig1-28 "1.28" -> #f-selffit_cue "1.5"
+LINK: #fig1-29 "1.29" -> #f-selffit_lick "1.20"
+LINK: #fig0-5 "0.5" -> #f-frozen_claims_contest_cue "0.3"
+LINK: #fig0-6 "0.6" -> #f-frozen_claims_contest_lick "0.9"
+LINK: #fig1-45 "1.45" -> #f-fig1p_contest_pooled "1.30"
+LINK: #fig1-47 "1.47" -> #f-fig10p_width_pooled "1.47"
+LINK: #fig0-7 "0.7" -> #f-frozen_claims_peth_cue "0.4"
+LINK: #fig0-8 "0.8" -> #f-frozen_claims_peth_lick "0.10"
+LINK: #fig9-13 "9.13" -> #f-fr_trial_peth_pre "9.13"
+LINK: #fig9-14 "9.14" -> #f-fr_trial_peth_chronic "9.4"
+LINK: #fig1-28 "1.28" -> #f-selffit_cue "1.5"
+LINK: #fig1-29 "1.29" -> #f-selffit_lick "1.20"
+LINK: #fig0-3 "0.3" -> #f-frozen_musall_cue "0.2"
+LINK: #fig0-4 "0.4" -> #f-frozen_musall_lick "0.8"
+LINK: #fig9-12 "9.12" -> #f-fr_chronic_per_animal_lick "9.19"
+LINK: #fig1-28 "1.28" -> #f-selffit_cue "1.5"
+LINK: #fig1-29 "1.29" -> #f-selffit_lick "1.20"
+LINK: #fig1-30 "1.30" -> #f-remap_maps_cue "1.21"
+LINK: #fig1-31 "1.31" -> #f-remap_maps_lick "1.22"
+LINK: #fig1-32 "1.32" -> #f-remap_per_animal_lick "1.42"
+LINK: #fig1-33 "1.33" -> #f-remap_time_lick "1.23"
+LINK: #fig1-38 "1.38" -> #f-partial_refit_lines "1.25"
+LINK: #fig1-39 "1.39" -> #f-partial_refit_bars_cue "1.44"
+LINK: #fig1-11 "1.11" -> #f-peth_trial_cue "1.14"
+LINK: #fig1-12 "1.12" -> #f-peth_trial_lick "1.15"
+LINK: #fig0-7 "0.7" -> #f-frozen_claims_peth_cue "0.4"
+LINK: #fig0-8 "0.8" -> #f-frozen_claims_peth_lick "0.10"
+LINK: #fig1-1 "1.1" -> #f-frozen_posinfo_split_cue "1.8"
+LINK: #fig1-2 "1.2" -> #f-frozen_posinfo_split_lick "1.9"
+LINK: #fig1-43 "1.43" -> #f-frozen_unique_sig_split "1.29"
+LINK: #fig1-3 "1.3" -> #f-frozen_unique_sig_nofr "1.1"
+LINK: #fig1-4 "1.4" -> #f-frozen_unique_sig_nofr_per_animal "1.31"
+LINK: #fig1-42 "1.42" -> #f-frozen_unique_sig_fra "1.28"
+LINK: #fig0-3 "0.3" -> #f-frozen_musall_cue "0.2"
+LINK: #fig9-19 "9.19" -> #f-fr_direction_mechanism_summary "9.5"
+LINK: #fig9-15 "9.15" -> #f-fr_direction_areas_cue "9.14"
+LINK: #fig9-17 "9.17" -> #f-fr_direction_maps_cue "9.20"
+LINK: #fig0-9 "0.9" -> #f-frozen_claims_trend "0.11"
+LINK: #fig2-1 "2.1" -> #f-fig9_softmax_landing "2.7"
+LINK: #fig2-2 "2.2" -> #f-fig9b_softmax_landing_change "2.8"
+LINK: #fig2-3 "2.3" -> #f-fig9c_softmax_landing_stats "2.1"
+LINK: #fig2-4 "2.4" -> #f-fig9d_path_change_stats "2.9"
+LINK: #fig2-24 "2.24" -> #f-fig11_lick_landing "2.19"
+LINK: #fig2-25 "2.25" -> #f-fig13_lick_paths "2.6"
+LINK: #fig2-26 "2.26" -> #f-fig13b_farcontra_paths "2.20"
+LINK: #fig2-6 "2.6" -> #f-fig9g_neural_vs_lick_cue "2.10"
+LINK: #fig2-7 "2.7" -> #f-fig9f_neural_vs_lick "2.2"
+LINK: #fig2-8 "2.8" -> #f-fig9h_trial_by_landing "2.11"
+LINK: #fig2-9 "2.9" -> #f-fig9i_cls_animals "2.3"
+LINK: #fig2-10 "2.10" -> #f-fig9i2_cls_sessions "2.12"
+LINK: #fig2-11 "2.11" -> #f-fig9i3_cls_pooled "2.4"
+LINK: #fig2-12 "2.12" -> #f-fig9i4_cls_pooled_norm "2.13"
+LINK: #fig2-13 "2.13" -> #f-fig9l_exec_vs_decoder "2.14"
+LINK: #fig2-14 "2.14" -> #f-fig9m_offtarget "2.5"
+LINK: #fig2-15 "2.15" -> #f-fig9n_offtarget_by_spout "2.15"
+LINK: #fig2-16 "2.16" -> #f-exec_dec_far_contra "2.16"
+LINK: #fig2-17 "2.17" -> #f-exec_dec_far_mid "2.17"
+LINK: #fig2-18 "2.18" -> #f-fig9j_relabel_change "2.18"
+LINK: #fig2-20 "2.20" -> #f-fig3x_relabel_trial_change "2.23"
+LINK: #fig2-21 "2.21" -> #f-fig3y_exec_vs_encoder "2.24"
+LINK: #fig2-22 "2.22" -> #f-fig3z_encoder_offtarget_by_spout "2.25"
+LINK: #fig2-23 "2.23" -> #f-relabel_fc_by_class_cue "2.26"
+LINK: #fig3-1 "3.1" -> #f-fig2_attempt_decoder "3.15"
+LINK: #fig3-2 "3.2" -> #f-fig2b_attempt_decoder_epochs "3.16"
+LINK: #fig3-3 "3.3" -> #f-fig2c_decoder_pooled "3.17"
+LINK: #fig4-1 "4.1" -> #f-fig3_attempt_amplitude "4.1"
+LINK: #fig4-2 "4.2" -> #f-map_attempt_lick "4.2"
+LINK: #fig4-3 "4.3" -> #f-map_attempt_lick_minus_pre "4.3"
+LINK: #fig9-1 "9.1" -> #f-fig16_fr_cortex "9.1"
+LINK: #fig9-6 "9.6" -> #f-fr_musall_cortex_cue_modea "9.9"
+LINK: #fig9-8 "9.8" -> #f-fr_pixel_maps_cue_modea "9.11"
+LINK: #fig9-13 "9.13" -> #f-fr_trial_peth_pre "9.13"
+LINK: #fig9-15 "9.15" -> #f-fr_direction_areas_cue "9.14"
+LINK: #fig1-40 "1.40" -> #f-contest_landing_vs_target "1.26"
+LINK: #fig1-38 "1.38" -> #f-partial_refit_lines "1.25"
+LINK: #fig1-34 "1.34" -> #f-te_unique_lines_frame "1.6"
+LINK: #fig1-16 "1.16" -> #f-ls_pixel_novar_cue "1.16"
+LINK: #fig1-23 "Fig 1.23" -> #f-spout_unique_maps "Fig 1.4"
+LINK: #fig1-35 "Fig 1.35" -> #f-te_selffit_lick "Fig 1.24"
+LINK: #fig3-7 "3.7" -> #f-iti_direction_decoding "3.21"
+LINK: #fig3-13 "Fig 3.13" -> #f-iti_binned_summary "Fig 3.59"
+LINK: #fig3-21 "3.21" -> #f-iti_where_delta_z "3.27"
+LINK: #fig3-9 "3.9" -> #f-iti_frozen_summary "3.1"
+LINK: #fig3-21 "3.21" -> #f-iti_where_delta_z "3.27"
+LINK: #fig3-21 "3.21" -> #f-iti_where_delta_z "3.27"
+LINK: #fig3-26 "3.26" -> #f-iti_ramp_peth_isolated "3.31"
+LINK: #fig3-27 "3.27" -> #f-iti_kinematics_control "3.32"
+LINK: #fig3-28 "3.28" -> #f-iti_face_control "3.33"
+LINK: #fig3-25 "3.25" -> #f-iti_ramp_summary "3.30"
+LINK: #fig3-29 "3.29" -> #f-iti_area_maps "3.34"
+LINK: #fig3-12 "Fig 3.12" -> #f-iti_binned_sweep "Fig 3.58"
+LINK: #fig3-9 "3.9" -> #f-iti_frozen_summary "3.1"
+LINK: #fig3-15 "3.15" -> #f-iti_where_decoder_z "3.2"
+LINK: #fig3-15 "3.15" -> #f-iti_where_decoder_z "3.2"
+LINK: #fig3-15 "3.15" -> #f-iti_where_decoder_z "3.2"
+TEXT bare [section status]: "3.15–3.18" -> "3.2, 3.61, 3.62, 3.63"   | ... mean offset, separate from the lick-to-lick r loss of 3.15–3.18 (lateral only; sagittal r is not lost). Shared varianc...
+TEXT Fig [caption of pre-run Fig 0.1]: "0.1–0.13, 1.1–1.2" -> "0.1–0.13, 1.8–1.9"   | ...SSp-m +0.052 vs +0.059 / +0.061, 4/4). Grey band (Figs 0.1–0.13, 1.1–1.2) = pre-stroke split-half 95% range: the change two ran...
+TEXT Fig [caption of pre-run Fig 0.5]: "1.45" -> "1.30"   | .... The refit "chronic target-beyond-executed gain" (Fig 1.45) is NOT reproduced in the frozen frame. Script ...
+TEXT Fig [caption of pre-run Fig 1.30]: "1.32, 1.33" -> "1.42, 1.23"   | ...Caveat (Figs 1.32, 1.33): consistent across animals, but the spout / target pa...
+TEXT Fig [caption of pre-run Fig 1.33]: "1.9" -> "1.13"   | ... — a cortex-wide change (as Layer 2’s, Fig 1.9): a stroke effect reaching all of cortex or representa...
+TEXT Fig [caption of pre-run Fig 1.42]: "1.3" -> "1.1"   | ... As Fig 1.3 with FaceRhythm in the frozen model (calibrated: 3% / ...
+TEXT Fig [caption of pre-run Fig 1.42]: "0.3" -> "0.2"   | ... area test shows the direction part falling there (Fig 0.3): read the pixel rise as a cortex-wide shift, not an S...
+TEXT Fig [caption of pre-run Fig 1.43]: "1.1 / 1.2" -> "1.8 / 1.9"   | ...) — the map behind the SSp-m area result in Figs 1.1 / 1.2....
+TEXT Fig [caption of pre-run Fig 1.45 (alt)]: "1.45" -> "1.30"   | ...Fig 1.45 · contest, pooled....
+TEXT Fig [caption of pre-run Fig 1.4]: "1.3" -> "1.1"   | ...e rise (pink, lateral) in 1. The nested bootstrap (Fig 1.3) is the primary test....
+TEXT Fig [caption of pre-run Fig 1.18]: "1.12" -> "1.15"   | ... Same pattern as Fig 1.12: full PETH down 18 acute / 19 chronic, task PETH down,...
+TEXT Fig [caption of pre-run Fig 1.24]: "1.23" -> "1.4"   | ... As Fig 1.23, run ...
+TEXT Fig [caption of pre-run Fig 1.27]: "1.26" -> "1.40"   | ... (as Fig 1.26)....
+TEXT Fig [caption of pre-run Fig 2.11]: "2.9" -> "2.3"   | ...ute hits: too few per session to show (pooled r in Fig 2.9); the single acute-hit and chronic failed-attempt sess...
+TEXT Fig [caption of pre-run Fig 2.4]: "2.25" -> "2.6"   | ...ed), in line with the general forward overshoot in Fig 2.25, so part of the acute far-ipsi pull is reaching furthe...
+TEXT Fig [caption of pre-run Fig 2.10]: "2.9 / 2.11" -> "2.3 / 2.4"   | ...e ~4 hits each, so acute hits appear only pooled (Figs 2.9 / 2.11). Failed-attempt sessions sit near or below 0 acutely ...
+TEXT Fig [caption of pre-run Fig 2.12]: "2.11" -> "2.4"   | ...Fig  N:fig9i4_cls_pooled_norm  · as Fig 2.11, NORMALISED within animal to its pre-stroke hit coupli...
+TEXT Fig [caption of pre-run Fig 2.24]: "2.25" -> "2.6"   | ...e landing centre ± 1 SD (the width-1 bins). Fig 2.25 shows the whole tongue path....
+TEXT Fig [caption of pre-run Fig 2.21]: "2.13" -> "2.14"   | ... (the encoder counterpart of Fig 2.13). Rows 1–4 per animal × epoch (viridis 0&n...
+TEXT Fig [caption of pre-run Fig 2.23]: "2.20" -> "2.23"   | ...id is always worst (the label-wide close-mid bias, Fig 2.20). The run includes non-attempted trials, so its pre fi...
+TEXT Fig [caption of pre-run Fig 3.39]: "3.37" -> "3.39"   | ... offset stays above pre in every epoch (summary of Fig 3.37)...
+TEXT bare [caption of pre-run Fig 3.39]: "3.37" -> "3.39"   | ...middot; NEURAL vs BEHAVIOUR · POOLED per epoch (3.37 summarised)....
+TEXT bare [caption of pre-run Fig 3.42]: "3.21 / 3.37" -> "3.27 / 3.39"   | ...e from the observed shift is the beyond-pull offset of 3.21 / 3.37. PROVISIONAL....
+TEXT bare [caption of pre-run Fig 3.43]: "3.42" -> "3.5"   | ... Top row (NEURAL): decoder error, as 3.42. Bottom row (BEHAVIOUR): lateral landing (3-D, extensi...
+TEXT Fig [caption of pre-run Fig 3.43]: "3.39" -> "3.4"   | ..., triangle); the part BEYOND the pull, +0.19 (4/4, Fig 3.39), is what holds back toward the target: the read-out m...
+TEXT bare [caption of pre-run Fig 3.43]: "3.21 / 3.37" -> "3.27 / 3.39"   | ...e from the observed shift is the beyond-pull offset of 3.21 / 3.37. PROVISIONAL....
+TEXT Fig [caption of pre-run Fig 3.70]: "3.64" -> "3.51"   | ...where the acute response increase is rim-weighted (Fig 3.64). Script ...
+TEXT Fig [caption of pre-run Fig 3.71]: "3.54" -> "3.48"   | ...e lick, cued LATER = the rest (cued rows reproduce Fig 3.54). Lateral, frozen KEY-row decoder per lick set (z-scor...
+TEXT bare [caption of pre-run Fig 3.72]: "3.71" -> "3.11"   | ... CI excludes 0, † = mixed model p < 0.05 (as 3.71). The text at the bottom of each slope panel gives the...
+TEXT bare [caption of pre-run Fig 3.73]: "3.72" -> "3.12"   | ... across-spout pre slope (pull-slope question open, see 3.72). Mixed model (shared ...
+TEXT Fig [caption of pre-run Fig 3.3 (alt)]: "3.3" -> "3.17"   | ...Fig 3.3 · decoder, pooled and normalised....
+TEXT bare [caption of pre-run Fig 3.7]: "3.8" -> "3.22"   | .../ middle: line = mean over sessions, band = SEM (as in 3.8; session counts in the legend). Left = inter-trial (IT...
+TEXT bare [caption of pre-run Fig 3.19]: "3.15–3.18" -> "3.2, 3.61, 3.62, 3.63"   | ...= straight out). Decoding is PER LICK; the r values in 3.15–3.18 are computed per session over its licks. Rows = all an...
+TEXT bare [caption of pre-run Fig 3.20]: "3.15–3.18" -> "3.2, 3.61, 3.62, 3.63"   | ...= straight out). Decoding is PER LICK; the r values in 3.15–3.18 are computed per session over its licks. Rows = all an...
+TEXT bare [caption of pre-run Fig 3.21]: "3.19 / 3.20" -> "3.25 / 3.26"   | ... FROZEN pre-stroke, as 3.19 / 3.20. ...
+TEXT bare [caption of pre-run Fig 3.21]: "3.15" -> "3.2"   | ...L position in the epoch minus the same in pre (axes as 3.15). x: + = decoded more contralesional than the lick; y:...
+TEXT bare [caption of pre-run Fig 3.37]: "3.39" -> "3.4"   | ...bout 0 by ±0.05–0.1 mm). Pooled versions: 3.39 (per epoch), 3.40 (per session) (far-contra hit rate c...
+TEXT Fig [caption of pre-run Fig 3.40]: "3.37" -> "3.39"   | ...rse aim, more contralesional reading (companion to Fig 3.37)...
+TEXT bare [caption of pre-run Fig 3.40]: "3.37" -> "3.39"   | ...the test is the within-animal, time-trend-removed r of 3.37 (ITI −0.48, 4/4, permutation p 0.0002). PROVISIO...
+TEXT Fig [caption of pre-run Fig 3.41]: "3.36" -> "3.38"   | ...al loss is smaller but still beyond drift (extends Fig 3.36)...
+TEXT bare [caption of pre-run Fig 3.41]: "3.36" -> "3.38"   | ...Fig  N:iti_where_drift_june  · NEURAL · 3.36 with JUNE pre sessions as a no-stroke long-gap referen...
+TEXT bare [caption of pre-run Fig 3.44]: "3.42" -> "3.5"   | ... the animal's pre mean. The per-session summary behind 3.42. PROVISIONAL....
+TEXT bare [caption of pre-run Fig 3.45]: "3.44" -> "3.42"   | ... As 3.44 for cued licks (behind 3.43). PROVISIONAL....
+TEXT bare [caption of pre-run Fig 3.45]: "3.43" -> "3.6"   | ... As 3.44 for cued licks (behind 3.43). PROVISIONAL....
+TEXT bare [caption of pre-run Fig 3.48]: "3.15 / 3.21" -> "3.2 / 3.27"   | ... ITI lateral r loss and contralesional offset as in 3.15 / 3.21. Statistics as 3.46. Script ...
+TEXT bare [caption of pre-run Fig 3.48]: "3.46" -> "3.44"   | ...contralesional offset as in 3.15 / 3.21. Statistics as 3.46. Script ...
+TEXT Fig [caption of pre-run Fig 3.54]: "3.55" -> "3.49"   | ...chronic ipsilesional read-out of far-contra licks (Fig 3.55) is carried by the later, corrective licks, not by the...
+TEXT Fig [caption of pre-run Fig 3.55]: "3.56" -> "3.72"   | ...nically in mm (−0.12, 4/4) but not in angle (Fig 3.56). Not decisive between a downstream correction and a w...
+TEXT Fig [caption of pre-run Fig 3.55]: "3.54" -> "3.48"   | ...nstream correction and a weakened far-contra code; Fig 3.54 shows the chronic ipsilesional read-out belongs to lat...
+TEXT Fig [caption of pre-run Fig 3.68]: "3.67" -> "3.9"   | ... As Fig 3.67 for the lateral and sagittal position decoders, ITI an...
+TEXT Fig [caption of pre-run Fig 3.69]: "3.67" -> "3.9"   | ... As Fig 3.67 for decoders of landing minus the session’s mean...
+TEXT bare [caption of pre-run Fig 3.77]: "3.72" -> "3.12"   | ... across-spout pre slope (pull-slope question open, see 3.72). Mixed model (shared ...
+TEXT bare [caption of pre-run Fig 3.79]: "3.72" -> "3.12"   | ... across-spout pre slope (pull-slope question open, see 3.72). Mixed model (shared ...
+TEXT bare [caption of pre-run Fig 3.81]: "3.57" -> "3.50"   | ...~20 → ~55; 0 = no recovery). Weighted signed aim (3.57): −15.6° at day 1, +3.8° per e-fold; far...
+TEXT bare [caption of pre-run Fig 3.16]: "3.17 / 3.18" -> "3.62 / 3.63"   | ...ers to −4 to −9%. Other targets per basis: 3.17 / 3.18 and ...
+TEXT bare [caption of pre-run Fig 3.17]: "3.15" -> "3.2"   | ... FROZEN pre-stroke (as 3.15, LocaNMF components as features). ...
+TEXT bare [caption of pre-run Fig 3.18]: "3.15" -> "3.2"   | ... FROZEN pre-stroke (as 3.15, SVD components as features). ...
+TEXT bare [caption of pre-run Fig 3.33]: "3.15" -> "3.2"   | ... in 3 of 4 animals while lick-to-lick lateral r falls (3.15). Script ...
+TEXT bare [caption of pre-run Fig 3.34]: "3.33" -> "3.64"   | ..._lat  · NEURAL · SUPPLEMENT · the 3.33 lateral maps per animal....
+TEXT bare [caption of pre-run Fig 3.35]: "3.33" -> "3.64"   | ...coder per spout (indicator of the spout), otherwise as 3.33. Rows = spouts (canonical order), columns = epochs + c...
+TEXT bare [caption of pre-run Fig 3.38]: "3.22" -> "3.28"   | ...ks broadly while only far contra is READ ipsilesional (3.22): a weaker copy alone does not explain the sign. OPEN....
+TEXT Fig [caption of pre-run Fig 3.50]: "3.33" -> "3.64"   | ... statistics for the lateral-position pattern maps (Fig 3.33)...
+TEXT bare [caption of pre-run Fig 3.50]: "3.33" -> "3.64"   | ... · NEURAL · per-pixel statistics for the 3.33 LATERAL maps....
+TEXT bare [caption of pre-run Fig 3.50]: "3.46" -> "3.44"   | ...st likely the cortex-wide post-lick response increase (3.46) entering the pattern; read SHAPE from the per-animal ...
+TEXT Fig [caption of pre-run Fig 3.51]: "3.33" -> "3.64"   | ...er-pixel statistics for the sagittal pattern maps (Fig 3.33)...
+TEXT bare [caption of pre-run Fig 3.51]: "3.50" -> "3.68"   | ...decoder_pattern_stats_sag  · NEURAL · as 3.50 for the SAGITTAL-extension maps....
+TEXT Fig [caption of pre-run Fig 3.52]: "3.35" -> "3.66"   | ...Per-pixel statistics for the per-spout maps (Fig 3.35): far contra changes most acutely (cued licks)...
+TEXT Fig [caption of pre-run Fig 3.52]: "3.35" -> "3.66"   | ...l statistics for the per-spout one-vs-rest maps of Fig 3.35 (cued licks)....
+TEXT Fig [caption of pre-run Fig 3.52]: "3.50" -> "3.68"   | .../ close ipsi are the whole-cortex component (as in Fig 3.50): read those spouts by similarity, not the change maps...
+TEXT Fig [caption of pre-run Fig 3.53]: "3.35 / 3.52" -> "3.66 / 3.70"   | ...dot; NEURAL · SUPPLEMENTARY: ITI version of Fig 3.35 / 3.52....
+TEXT Fig [caption of pre-run Fig 3.53]: "3.52" -> "3.70"   | ...e spout is retracted during the ITI), otherwise as Fig 3.52. Much noisier than the cued maps: several pre-to-post ...
+TEXT Fig [caption of pre-run Fig 3.56]: "3.55" -> "3.49"   | ... As Fig 3.55 in lick angle (atan2(lateral, sagittal), degrees). Far...
+TEXT Fig [caption of pre-run Fig 3.59]: "3.42" -> "3.5"   | ... As Fig 3.42 in lick angle (degrees). PROVISIONAL....
+TEXT Fig [caption of pre-run Fig 3.60]: "3.43" -> "3.6"   | ... As Fig 3.43 in lick angle (degrees). Chronic landing −2.3&de...
+TEXT Fig [caption of pre-run Fig 3.61]: "3.42" -> "3.5"   | ... As Fig 3.42 for the three-axis decoder: lateral x, forward y, down...
+TEXT Fig [caption of pre-run Fig 3.62]: "3.43" -> "3.6"   | ... As Fig 3.43 on x / y / z. Forward: decoded less far forward in eve...
+TEXT bare [caption of pre-run Fig 3.74]: "3.72" -> "3.12"   | ... across-spout pre slope (pull-slope question open, see 3.72). Mixed model (shared ...
+TEXT bare [caption of pre-run Fig 3.78]: "3.72" -> "3.12"   | ... across-spout pre slope (pull-slope question open, see 3.72). Mixed model (shared ...
+TEXT bare [caption of pre-run Fig 3.80]: "3.72" -> "3.12"   | ... across-spout pre slope (pull-slope question open, see 3.72). Mixed model (shared ...
+TEXT Fig [caption of pre-run Fig 5.2 (alt)]: "5.2" -> "5.1"   | ...Fig 5.2 · decomposition, pooled....
+TEXT Fig [caption of pre-run Fig 6.2]: "6.1" -> "6.4"   | ... The Fig 6.1 test on the mean over each session's spouts, at 32 px ...
+TEXT Fig [caption of pre-run Fig 6.14]: "6.13" -> "6.8"   | ...sessions themselves drift upward (~10 days), which Fig 6.13's per-animal trend model handles; this panel measures ...
+TEXT Fig [caption of pre-run Fig 6.1]: "6.12" -> "6.2"   | ...t pooled (it differs in place between animals; see Fig 6.12). Cue window: 7 / 4 / 12 bins, mixed sign. Calibration...
+TEXT Fig [caption of pre-run Fig 6.3]: "6.2" -> "6.1"   | ...residual_roi_pooled  · ALLEN-ROI version of Fig 6.2: residual by area, all spouts pooled....
+TEXT Fig [caption of pre-run Fig 6.3]: "6.1 / 6.6" -> "6.4 / 6.10"   | ...same areas (lick chronic 13). Per-spout versions (Figs 6.1 / 6.6–g counterparts) follow. Script ...
+TEXT Fig [caption of pre-run Fig 6.4]: "6.1, 6.7, 6.10" -> "6.4, 6.11, 6.14"   | ...I residual PER SPOUT, lick window (counterpart of Figs 6.1, 6.7, 6.10)....
+TEXT Fig [caption of pre-run Fig 6.4]: "6.1" -> "6.4"   | ... MOp, MOs, VISam (6 areas, all up, 4/4) — as Fig 6.1. Far ipsi has the most chronic areas (10), close contr...
+TEXT Fig [caption of pre-run Fig 6.5]: "6.6, 6.9" -> "6.10, 6.13"   | ...), cue window (counterpart of Figs 6.6, 6.9)....
+TEXT Fig [caption of pre-run Fig 6.8]: "6.2" -> "6.1"   | ...increases; cue window 0 / 16 / 13. Same regions as Fig 6.2, drawn with finer edges....
+TEXT Fig [caption of pre-run Fig 7.2 (alt)]: "7.2" -> "7.1"   | ...Fig 7.2 · Layer 2, pooled....
+TEXT Fig [caption of pre-run Fig 7.4 (alt)]: "7.4" -> "7.2"   | ...Fig 7.4 · random-split null, pooled....
+TEXT Fig [caption of pre-run Fig 7.6 (alt)]: "7.6" -> "7.3"   | ...Fig 7.6 · Layer 2 groups, pooled....
+TEXT Fig [caption of pre-run Fig 7.6]: "7.2" -> "7.1"   | ... interval excluding 0. The chronic Layer 2 change (Fig 7.2) is spread across groups, not owned by one....
+TEXT Fig [caption of pre-run Fig 7.3]: "6.13" -> "6.8"   | ...l session noise and session count, not slow drift (Fig 6.13 handles drift)....
+TEXT Fig [caption of pre-run Fig 9.14]: "9.12" -> "9.19"   | ...dows (the encoder’s own windows give +0.037, Fig 9.12: window-sensitive)....
+TEXT Fig [caption of pre-run Fig 9.7]: "9.4" -> "9.17"   | ...unique; grey; = shared with the rest of the model, Fig 9.4); filled dots = unique, open = alone, per animal (posi...
+TEXT Fig [caption of pre-run Fig 9.5]: "9.15–9.18" -> "9.14, 9.15, 9.20, 9.21"   | ...rison (frozen-frame unique R² per regressor: Figs 9.15–9.18 text). (c) Position unique with directionless FR (FR-B...
+TEXT bare [section next]: "1.33–1.36" -> "1.6, 1.23, 1.24, 1.43"   | ...ded, contact = all DAQ licks; replaces the contests in 1.33–1.36 and the kernel maps 1.20–1.21....
+TEXT bare [section next]: "1.20–1.21" -> "1.19, 1.36"   | ...es the contests in 1.33–1.36 and the kernel maps 1.20–1.21....
+
+== AMBIGUOUS (left unchanged) ==
+section status: "1.5" | ...ly, no consistent order (cortex earlier in 3/4 by 1.5–6 days, later in PS93; every CI includes 0)...
+caption of pre-run Fig 7.4: "8.2" | ...e pooled null in all three areas (chronic: cortex 8.2, SSp-m left 8.4, right 6.0 null-SDs; P = 0.00, no...
+caption of pre-run Fig 7.4: "8.4" | ... all three areas (chronic: cortex 8.2, SSp-m left 8.4, right 6.0 null-SDs; P = 0.00, none of 20 pooled ...
+caption of pre-run Fig 9.15: "0.06" | ....13; direction factors add +0.005; SSp-m +0.01 of 0.06). Pre-stroke the direction factors take more of t...
+caption of pre-run Fig 9.20: "1.37" | ... contralesional (area ratios: cortex ×1.54 [1.37, 1.73] lick, 4/4; VISp ×1.83, RSPd ×1...
+
+== ORDER ==
+0.1    -> 0.1    frozen_fr_compare_lines_cue key                                        Frozen pre-stroke encoder with vs without FaceRhythm, cue window: FaceRhythm does not absorb chronic residual
+0.3    -> 0.2    frozen_musall_cue key                                        Unique R², frozen pre-stroke encoder, cue window: no chronic target rise, spout unique shifts contralesionally
+0.5    -> 0.3    frozen_claims_contest_cue key                                        Target vs executed unique R², frozen pre-stroke encoder, cue window: target falls, executed rises acutely
+0.7    -> 0.4    frozen_claims_peth_cue key                                        PETH vs trial-to-trial unique R², frozen pre-stroke encoder, cue window: PETH loss without chronic recovery
+0.10   -> 0.5    recovery_timing_lick key                                        Recovery timing on hits, far-contra hit rate vs frozen pre-stroke decoder code: no consistent order
+0.12   -> 0.6    recovery_timing_pooled_epoch_lick key                                        Far-contra hit rate vs frozen pre-stroke decoder code on hits by epoch: chronic gap remains
+0.2    -> 0.7    frozen_fr_compare_lines_lick supporting                                 Frozen pre-stroke encoder with vs without FaceRhythm, lick window: epoch changes per measure and area
+0.4    -> 0.8    frozen_musall_lick supporting                                 Unique R² in the frozen pre-stroke encoder, lick window: spout unique shifts contralesionally chronically
+0.6    -> 0.9    frozen_claims_contest_lick supporting                                 Target vs executed unique R², frozen pre-stroke encoder, lick window
+0.8    -> 0.10   frozen_claims_peth_lick supporting                                 PETH vs trial-to-trial unique R², frozen pre-stroke encoder, lick window
+0.9    -> 0.11   frozen_claims_trend supporting                                 Spout unique R² by session, frozen pre-stroke encoder, vs far-contra contact: no consistent chronic gain
+0.11   -> 0.12   recovery_timing_pooled_day_lick supporting                                 Far-contra hit rate and frozen pre-stroke decoder code on hits by day: gap opens chronically
+0.13   -> 0.13   early_predictors supplementary                              Early features vs chronic outcome per animal (exploratory, n=4): lesion size orders recovery speed
+1.3    -> 1.1    frozen_unique_sig_nofr key                                        Frozen pre-stroke encoder pixel R² maps, no FaceRhythm: acute full-R² loss carried by movement unique
+1.5    -> 1.2    spec_groups    key                                        Residual and Layer 2, orofacial vs comparison areas (frozen pre-stroke encoder): Layer 2 not orofacial-specific
+1.10   -> 1.3    matched_residual key                                        Frozen pre-stroke encoder residual on behaviour-matched trials: residual unchanged, not an extrapolation artefact
+1.23   -> 1.4    spout_unique_maps key                                        Per-spout target vs executed unique R² maps, frozen pre-stroke encoder: executed changes acutely, target little
+1.28   -> 1.5    selffit_cue    key                                        Per-session self-fit minus frozen pre-stroke encoder R², cue window: gap rises post-stroke, target included
+1.34   -> 1.6    te_unique_lines_frame key                                        Target vs execution kernel unique R², frozen pre-stroke encoder: SSp-m execution falls relative to target
+1.37   -> 1.7    te_partial_refit_lines key                                        NEW-design partial refit, target vs landing labels: chronic lick-locked activity follows the target spout more than landing
+1.1    -> 1.8    frozen_posinfo_split_cue supporting                                 Position-carrying vs position-free movement R², frozen pre-stroke encoder, cue window: SSp-m position-free unique rises chronically
+1.2    -> 1.9    frozen_posinfo_split_lick supporting                                 Position-carrying vs position-free movement R², frozen pre-stroke encoder, lick window
+1.6    -> 1.10   spec_area_maps supporting                                 Chronic residual and Layer 2 by Allen area (frozen pre-stroke encoder): Layer 2 change cortex-wide
+1.7    -> 1.11   remap_resid_cue_deficit supporting                                 Frozen pre-stroke encoder residual vs behavioural deficit, cue window: stays above pre at full recovery
+1.8    -> 1.12   remap_resid_lick_time supporting                                 Frozen pre-stroke encoder residual vs days since stroke, lick window: orofacial step up, then decline
+1.9    -> 1.13   remap_layer2_time supporting                                 Layer 2 mapping change vs days since stroke: steady cortex-wide rise, acute orofacial excess
+1.11   -> 1.14   peth_trial_cue supporting                                 Area PETH vs trial-by-trial R², frozen pre-stroke encoder + FaceRhythm, cue window: PETH R² falls
+1.12   -> 1.15   peth_trial_lick supporting                                 Area PETH vs trial-by-trial R², frozen pre-stroke encoder with FaceRhythm, lick window: only PETH falls
+1.16   -> 1.16   ls_pixel_novar_cue supporting                                 Single-variable unique ΔR² pixel maps, PETH and trial-by-trial, frozen pre-stroke lick-kernel encoder, cue window
+1.17   -> 1.17   fr_lick_variance supporting                                 Trial-to-trial variance of the FaceRhythm lick factor: falls chronically, so not more variable licking
+1.19   -> 1.18   kernel_maps    supporting                                 Event-kernel weight (β) maps of the frozen pre-stroke encoder with FaceRhythm, mean of 4 animals
+1.20   -> 1.19   kernel_maps_target6 supporting                                 Target kernels for all six spouts, frozen pre-stroke encoder: dominant pattern follows spout distance
+1.29   -> 1.20   selffit_lick   supporting                                 Per-session self-fit minus frozen pre-stroke encoder R², lick window: chronic SSp-m spout unique gap rises
+1.30   -> 1.21   remap_maps_cue supporting                                 Remapping by area (per-session self-fit minus frozen pre-stroke encoder), cue window: chronic spout remapping cortex-wide
+1.31   -> 1.22   remap_maps_lick supporting                                 Remapping by area (per-session self-fit minus frozen pre-stroke encoder), lick window: chronic spout, target remapping
+1.33   -> 1.23   remap_time_lick supporting                                 Per-session self-fit remapping vs days since stroke: full-model step at day 1, spout/target rise gradually
+1.35   -> 1.24   te_selffit_lick supporting                                 Per-session self-fit minus frozen pre-stroke encoder, target/execution design: full-model gain shared between groups
+1.38   -> 1.25   partial_refit_lines supporting                                 OLD-design partial refit of target vs executed-position columns against nulls: chronic remapping in both, not target-only
+1.40   -> 1.26   contest_landing_vs_target supporting                                 Landing- vs target-assigned lick kernels, frozen pre-stroke encoder: landing kernels do not absorb target term
+1.41   -> 1.27   contest_selffit_remap supporting                                 Per-session self-fit remapping of target vs lick kernels: target remapping halves with lick kernels present
+1.42   -> 1.28   frozen_unique_sig_fra supporting                                 Frozen pre-stroke encoder pixel R² maps with FaceRhythm: acute full-R² loss, FaceRhythm unique rises broadly
+1.43   -> 1.29   frozen_unique_sig_split supporting                                 Position-carrying vs position-free movement unique R² pixel maps, frozen pre-stroke encoder: position-free falls acutely
+1.45   -> 1.30   fig1p_contest_pooled supporting                                 Per-session refit binned contest, pooled: target − executed rises chronically in both windows
+1.4    -> 1.31   frozen_unique_sig_nofr_per_animal supplementary                              Frozen pre-stroke encoder pixel R² maps per animal: only chronic medial full-R² fall is consistent
+1.13   -> 1.32   peth_alone_cue supplementary                              Each group alone, area PETH vs trial-by-trial R², frozen pre-stroke encoder + FaceRhythm, cue window
+1.14   -> 1.33   peth_alone_lick supplementary                              Group-alone PETH vs trial-by-trial R² by area, frozen pre-stroke encoder, lick window: PETH R² falls
+1.15   -> 1.34   ls_pixel_alone_cue supplementary                              Pixel group-alone PETH vs trial-by-trial R², frozen pre-stroke lick-kernel encoder, cue window: PETH falls broadly
+1.18   -> 1.35   peth_trial_lick_nofr supplementary                              Robustness without FaceRhythm: area PETH vs trial-by-trial unique R², frozen pre-stroke encoder, lick window
+1.21   -> 1.36   epoch_kernels_r supplementary                              Per-epoch kernel refits vs early pre: per-spout lick kernels diverge, not yet tested against drift
+1.22   -> 1.37   epoch_kernel_maps_lick supplementary                              Per-spout lick kernel maps by epoch at +0.1 s, per-epoch kernel refits
+1.24   -> 1.38   ls_spout_unique_maps supplementary                              Per-spout target vs executed unique R² maps, frozen pre-stroke lick-kernel encoder
+1.25   -> 1.39   spout_unique_levels supplementary                              Per-spout target vs executed unique R² levels by epoch, frozen pre-stroke encoder without FaceRhythm (descriptive)
+1.26   -> 1.40   spout_unique_per_animal_target supplementary                              Per-spout target unique R² per animal, pre and chronic, frozen pre-stroke encoder without FaceRhythm
+1.27   -> 1.41   spout_unique_per_animal_executed supplementary                              Per-spout executed unique R² per animal, pre and chronic, frozen pre-stroke encoder without FaceRhythm
+1.32   -> 1.42   remap_per_animal_lick supplementary                              Per-animal remapping (per-session self-fit minus frozen pre-stroke encoder), lick window: chronic gains in ≥3 animals
+1.36   -> 1.43   te_pixel_parts_farcontra_chronic_lick supplementary                              Chronic minus pre far-contra maps of frozen pre-stroke encoder parts: change lands in the residual
+1.39   -> 1.44   partial_refit_bars_cue supplementary                              Partial refit, every refit set and both nulls as grouped bars, cue window
+1.44   -> 1.45   fig1_binned_contest supplementary                              Per-session refit binned contest (target − executed unique ΔR²), cortex, softmax width 1
+1.46   -> 1.46   fig10_softmax_width supplementary                              Per-session refit binned contest across softmax widths: executed gains as bins widen
+1.47   -> 1.47   fig10p_width_pooled supplementary                              Per-session refit contest across softmax widths, pooled: chronic target lead at every width
+2.3    -> 2.1    fig9c_softmax_landing_stats key                                        Lick landing change with statistics: far-contra licks land like far mid in every epoch
+2.7    -> 2.2    fig9f_neural_vs_lick key                                        Frozen pre-stroke decoder vs landing and trajectory, lick window: cortex read as tongue destination
+2.9    -> 2.3    fig9i_cls_animals key                                        Trial-by-trial coupling of frozen pre-stroke decoder and licks by class: none in failed attempts
+2.11   -> 2.4    fig9i3_cls_pooled key                                        Frozen pre-stroke decoder–lick coupling by epoch and trial class: failed attempts lower, hits unchanged
+2.14   -> 2.5    fig9m_offtarget key                                        Off-target trials, frozen pre-stroke decoder: decoded as target far more than executed bin
+2.25   -> 2.6    fig13_lick_paths key                                        Mean 3-D tongue paths per target spout: acute far-contra paths overlap far-mid path
+2.1    -> 2.7    fig9_softmax_landing supporting                                 Lick landing matrices: each target spout's mean softmax weight on executed landing bins
+2.2    -> 2.8    fig9b_softmax_landing_change supporting                                 Lick landing matrices, epoch minus pre within animal, mean of animals
+2.4    -> 2.9    fig9d_path_change_stats supporting                                 Lick trajectory-match matrices: far-contra paths follow far ipsi acutely, far mid later
+2.6    -> 2.10   fig9g_neural_vs_lick_cue supporting                                 Frozen pre-stroke decoder vs lick landing, cue window: far contra decoded as far mid
+2.8    -> 2.11   fig9h_trial_by_landing supporting                                 Far-contra trials by where licks went: frozen pre-stroke decoder probabilities per landing group
+2.10   -> 2.12   fig9i2_cls_sessions supporting                                 Frozen pre-stroke decoder–lick coupling vs days from stroke: hits return, failed attempts near 0
+2.12   -> 2.13   fig9i4_cls_pooled_norm supporting                                 Frozen pre-stroke decoder–lick coupling normalised to pre hits: ~100% loss in acute failed attempts
+2.13   -> 2.14   fig9l_exec_vs_decoder supporting                                 Executed landing bin vs frozen pre-stroke decoder best match, every trial: diagonal falls acutely
+2.15   -> 2.15   fig9n_offtarget_by_spout supporting                                 Off-target trials by target spout, frozen pre-stroke decoder: far contra near even, close spouts target-led
+2.16   -> 2.16   exec_dec_far_contra supporting                                 Executed landing vs frozen pre-stroke decoder for far-contra target trials: weak acute following of licks
+2.17   -> 2.17   exec_dec_far_mid supporting                                 Executed landing vs frozen pre-stroke decoder for far-mid target trials: decoding stays target-led
+2.18   -> 2.18   fig9j_relabel_change supporting                                 Frozen pre-stroke encoder relabel test by session: general loss of each spout's pre-stroke pattern
+2.24   -> 2.19   fig11_lick_landing supporting                                 Lick landing points, bottom camera view, with pre-stroke landing ellipses per spout
+2.26   -> 2.20   fig13b_farcontra_paths supporting                                 Far-contra tongue paths by landing bin: mis-landing licks wrong-sided from launch
+2.5    -> 2.21   fig9e_path_matrices supplementary                              Lick trajectory-match matrices per animal, softmax width 1
+2.19   -> 2.22   fig9k_relabel_matrices supplementary                              Frozen pre-stroke encoder relabel matrices per animal, lick window: PS93 poorly separated pre
+2.20   -> 2.23   fig3x_relabel_trial_change supplementary                              Trial-level frozen pre-stroke encoder relabel: all spouts drift toward close-mid label, not far-contra specific
+2.21   -> 2.24   fig3y_exec_vs_encoder supplementary                              Executed landing bin vs frozen pre-stroke encoder best label, every trial: close-mid bias dominates
+2.22   -> 2.25   fig3z_encoder_offtarget_by_spout supplementary                              Off-target trials by target spout, frozen pre-stroke encoder relabel: weak readout, close-mid bias
+2.23   -> 2.26   relabel_fc_by_class_cue supplementary                              Frozen pre-stroke encoder relabel, far-contra trials by attempt class: acute trials fit generically
+3.9    -> 3.1    iti_frozen_summary key                                        Frozen pre-stroke decoder r by session: ITI stays lower chronically, in-trial mostly recovers (3/4 animals)
+3.15   -> 3.2    iti_where_decoder_z key                                        Frozen pre-stroke decoders (Allen areas) for lateral, sagittal, 2-D, angle and reach: the loss is LATERAL, sagittal is not lost
+3.24   -> 3.3    iti_ramp_sessions key                                        dF/F around self-initiated ITI licks, session-pooled: larger post-lick response, flat chronic build-up
+3.39   -> 3.4    iti_recovery_link_pooled_angle_z key                                        Pooled per epoch: the ITI contralesional offset stays above pre in every epoch (summary of Fig 3.39)
+3.42   -> 3.5    iti_check_error_per_lick_iti key                                        ITI licks: the decoding error is SHIFTED contralesionally, not wider
+3.43   -> 3.6    cued_check_error_per_lick key                                        Cued licks: cortex reads them contralesional while the tongue lands ipsilesional
+3.63   -> 3.7    iti_hemo_check_variants key                                        The larger lick response in four signal variants: 415 nm rises only acutely, and little
+3.66   -> 3.8    iti_session_pattern_maplevel key                                        Whole-map shape test on fully per-session decoder maps
+3.67   -> 3.9    iti_session_pattern_change_spout_cued key                                        Shape-only change maps per spout (cued licks), per-session maps
+3.70   -> 3.10   cued_spout_animal_panels key                                        Per-animal far-contra and close-contra maps (cued licks)
+3.71   -> 3.11   lick_order_iti_cued key                                        First vs later licks, ITI and cued: the ITI contralesional read-out runs through the whole bout
+3.72   -> 3.12   lick_order_iti_cued_slope key                                        Lick order as a continuous variable: later cued licks land closer to the target and are read less contralesionally
+3.73   -> 3.13   lmm_time_readout key                                        Read-out over days (time model): ITI loss and ITI contralesional offset do not recover; cued recovers
+3.75   -> 3.14   lmm_time_response key                                        Larger ITI post-lick response over days (time model): large step, partial recovery
+3.1    -> 3.15   fig2_attempt_decoder supporting                                 Frozen pre-stroke decoder on far-contra trials by class, acute: P(true spout) and far-spout share
+3.2    -> 3.16   fig2b_attempt_decoder_epochs supporting                                 Frozen pre-stroke decoder P(true spout) on far-contra trials by class across epochs
+3.3    -> 3.17   fig2c_decoder_pooled supporting                                 Far-contra code retained by trial class, frozen pre-stroke decoder pooled: failed attempts near 0.1
+3.4    -> 3.18   decoder_retention_sessions supporting                                 Far-contra code retained by session vs days, frozen pre-stroke decoder: failed attempts near 0
+3.5    -> 3.19   decoder_retention_pooled supporting                                 Far-contra code retained by epoch, frozen pre-stroke decoder: failed attempts absent, hits ~70% chronically
+3.6    -> 3.20   precue_class_matched supporting                                 Pre-cue frozen pre-stroke decoder P(far contra), failed attempts vs matched hits: lower acutely, suggestive
+3.7    -> 3.21   iti_direction_decoding supporting                                 Decoding lateral tongue-tip position of ITI and in-trial licks: per-session decoder intact, frozen pre-stroke decoder lower
+3.8    -> 3.22   iti_frozen_timecourse supporting                                 Frozen pre-stroke lateral-position decoder r over lags: ITI licks stay lower, in-trial licks return
+3.10   -> 3.23   iti_recovery_marker supporting                                 Frozen pre-stroke decoder r vs far-contra hit rate: in-trial follows recovery time course, ITI not
+3.11   -> 3.24   iti_lick_rate  supporting                                 Inter-trial lick rate (no model): dips with deficit and returns, above pre only in PS95
+3.19   -> 3.25   iti_where_scatter_trial_z supporting                                 Decoded vs actual landing of in-trial licks by target spout and epoch, frozen pre-stroke decoder
+3.20   -> 3.26   iti_where_scatter_iti_z supporting                                 Decoded vs actual landing of ITI licks by nearest spout and epoch, frozen pre-stroke decoder
+3.21   -> 3.27   iti_where_delta_z supporting                                 Change in the decoder’s lick position error vs pre: ITI licks read contralesional
+3.22   -> 3.28   iti_where_per_spout_z supporting                                 Lick-position decoder per spout: ITI licks read contralesional, chronic cued far-contra licks read ipsilesional
+3.23   -> 3.29   iti_ramp_peth  supporting                                 dF/F around self-initiated ITI licks: weaker build-up chronically, larger post-lick response after stroke
+3.25   -> 3.30   iti_ramp_summary supporting                                 Post-lick response and pre-lick build-up AUCs (dF/F) by session: response up, build-up down chronically
+3.26   -> 3.31   iti_ramp_peth_isolated supporting                                 dF/F around isolated ITI licks: larger post-lick response persists, not a longer bout
+3.27   -> 3.32   iti_kinematics_control supporting                                 ITI lick tongue kinematics and face movement regressed out: the larger post-lick response is not explained by movement
+3.28   -> 3.33   iti_face_control supporting                                 FaceRhythm around ITI licks and face-regressed build-up: weaker chronic build-up not less face movement
+3.29   -> 3.34   iti_area_maps  supporting                                 ITI-lick dF/F response and build-up by Allen area: acute increase global, chronic orofacial only
+3.30   -> 3.35   iti_area_peth  supporting                                 dF/F around self-initiated ITI licks in non-orofacial areas: all respond more acutely
+3.31   -> 3.36   iti_area_compare supporting                                 dF/F around ITI licks, orofacial ROIs vs control areas: chronic larger response also in controls
+3.32   -> 3.37   iti_area_groups supporting                                 ITI-lick dF/F, orofacial vs visual+RSP areas by session: chronic build-up weaker only orofacially
+3.36   -> 3.38   iti_where_drift supporting                                 The lateral r loss is not elapsed-time drift
+3.37   -> 3.39   iti_recovery_link_angle_z supporting                                 As far-contra aim recovers, the contralesional reading of self-initiated licks fades (z-scored decoder)
+3.40   -> 3.40   iti_recovery_link_sessions_angle_z supporting                                 Pooled, one dot per session: worse aim, more contralesional reading (companion to Fig 3.39)
+3.41   -> 3.41   iti_where_drift_june supporting                                 Drift check with the June no-stroke reference: the ITI lateral loss is smaller but still beyond drift (extends Fig 3.38)
+3.44   -> 3.42   iti_check_error_sessions supporting                                 ITI decoding error shift and width per session
+3.45   -> 3.43   cued_check_error_sessions supporting                                 Cued decoding error shift and width per session
+3.46   -> 3.44   iti_check_f0   supporting                                 The larger post-lick response is not an F0 artefact
+3.47   -> 3.45   iti_check_f0_sessions supporting                                 F0 and the post-lick response per session
+3.48   -> 3.46   iti_check_3axis supporting                                 Three axes (lateral, forward, down): reproduces the lateral and sagittal results
+3.49   -> 3.47   iti_check_3axis_sessions supporting                                 Three-axis decoder per session (ITI licks)
+3.54   -> 3.48   cued_first_lick supporting                                 The FIRST cued lick is read toward the target; later licks are not
+3.55   -> 3.49   cued_overcorrection supporting                                 Chronic ipsilesional read-out is specific to the contralesional spouts (lateral) (cued licks)
+3.57   -> 3.50   iti_recovery_measure supporting                                 Behavioural recovery measure: weighted angle offset from each spout's pre landing
+3.64   -> 3.51   iti_hemo_check_edge_vessel supporting                                 Edge and vessel pixels: the acute increase is somewhat rim-weighted; vessels unchanged
+3.65   -> 3.52   iti_hemo_check_state_gap supporting                                 Running around licks and matched pre-lick gaps: the increase is unchanged
+3.68   -> 3.53   iti_session_pattern_change_position supporting                                 Shape-only change maps for lateral and sagittal position
+3.69   -> 3.54   iti_session_pattern_change_within_spout supporting                                 Shape-only change maps WITHIN spout (executed direction, target fixed)
+3.77   -> 3.55   lmm_time_lickclass supporting                                 First vs later licks and lick order over days (time model)
+3.79   -> 3.56   lmm_time_perspout supporting                                 Cued far-contra and close-contra offset over days (time model): far contra crosses to ipsilesional
+3.81   -> 3.57   lmm_time_behaviour supporting                                 Behavioural recovery measure over days (time model)
+3.12   -> 3.58   iti_binned_sweep supplementary                              Binned frozen pre-stroke decoder, window × bin-width sweep: ITI loss, in-trial recovery at every setting
+3.13   -> 3.59   iti_binned_summary supplementary                              Time-binned frozen pre-stroke decoder (all / orofacial / visual+RSP areas): ITI lower everywhere; in-trial recovers except in visual+RSP
+3.14   -> 3.60   iti_basis_decoder supplementary                              Frozen pre-stroke decoder in three spatial bases (Allen, LocaNMF, SVD): ITI loss, in-trial recovery throughout
+3.16   -> 3.61   iti_where_decoder_bases supplementary                              Frozen pre-stroke lateral-position decoder in three spatial bases: lateral loss in every basis
+3.17   -> 3.62   iti_where_decoder_locanmf supplementary                              Frozen pre-stroke decoders in the joint LocaNMF basis, every target: loss lateral, sagittal not lost
+3.18   -> 3.63   iti_where_decoder_svdbasis supplementary                              Frozen pre-stroke decoders in the pre-stroke SVD basis, every target: loss lateral, sagittal not lost
+3.33   -> 3.64   iti_decoder_patterns_lat supplementary                              Where cortex carries lick position: decoder activation maps per epoch (crossed lateral map, bilateral sagittal map)
+3.34   -> 3.65   iti_decoder_patterns_animals_lat supplementary                              Lateral-position activation maps per animal and epoch: PS94’s self-initiated map is remapped
+3.35   -> 3.66   cued_spout_patterns supplementary                              Per-spout activation maps across epochs: the far-contra map is replaced acutely and returns (cued licks)
+3.38   -> 3.67   far_contra_cortical_pattern_after_the supplementary                              Far-contra cortical pattern after the stroke: a weaker copy in 3 of 4 animals (table)
+3.50   -> 3.68   iti_decoder_pattern_stats_lat supplementary                              Per-pixel statistics for the lateral-position pattern maps (Fig 3.64)
+3.51   -> 3.69   iti_decoder_pattern_stats_sag supplementary                              Per-pixel statistics for the sagittal pattern maps (Fig 3.64)
+3.52   -> 3.70   cued_spout_pattern_stats supplementary                              Per-pixel statistics for the per-spout maps (Fig 3.66): far contra changes most acutely (cued licks)
+3.53   -> 3.71   iti_spout_pattern_stats_iti supplementary                              Per-spout maps for ITI licks, by the preceding trial's spout (supplementary)
+3.56   -> 3.72   cued_overcorrection_angle supplementary                              Overcorrection check in lick angle (supplementary) (cued licks)
+3.58   -> 3.73   iti_where_angle_reach supplementary                              Lick read-out in 3-D polar coordinates: angle, elevation, reach (supplementary)
+3.59   -> 3.74   iti_check_error_per_lick_iti_angle supplementary                              Per-lick decoding error in ANGLE, ITI licks (supplementary)
+3.60   -> 3.75   cued_check_error_per_lick_angle supplementary                              Per-lick decoding error and landing in ANGLE, cued licks (supplementary)
+3.61   -> 3.76   iti_check_error_per_lick_iti_xyz supplementary                              Per-lick decoding error on x / y / z, ITI licks (supplementary)
+3.62   -> 3.77   cued_check_error_per_lick_xyz supplementary                              Per-lick decoding error and landing on x / y / z, cued licks (supplementary)
+3.74   -> 3.78   lmm_behaviour_readout supplementary                              Read-out vs behavioural recovery (behaviour model): the ITI changes remain at full recovery
+3.76   -> 3.79   lmm_behaviour_response supplementary                              Larger ITI post-lick response vs behavioural recovery
+3.78   -> 3.80   lmm_behaviour_lickclass supplementary                              First vs later licks and lick order vs behavioural recovery
+3.80   -> 3.81   lmm_behaviour_perspout supplementary                              Cued far-contra and close-contra offset vs behavioural recovery
+4.1    -> 4.1    fig3_attempt_amplitude key                                        Far-contra failed-attempt dF/F amplitudes vs pre-stroke hits and misses, lick window
+4.2    -> 4.2    map_attempt_lick supporting                                 dF/F maps by trial type, far contra, lick window, per animal and mean
+4.3    -> 4.3    map_attempt_lick_minus_pre supporting                                 dF/F maps by trial type minus pre-stroke hits, far contra, lick window
+5.2    -> 5.1    fig4p_decomp_pooled key                                        Frozen pre-stroke encoder decomposition, pooled: acute drop in lick part, chronic increase in residual
+5.1    -> 5.2    fig4_decomp_epochs supporting                                 SSp-m far-contra response change split into frozen pre-stroke encoder parts, lick window
+5.3    -> 5.3    map_frozen_acute_lick supporting                                 Acute minus pre pixel maps by frozen pre-stroke encoder part
+5.4    -> 5.4    map_frozen_subacute_lick supporting                                 Subacute minus pre pixel maps by frozen pre-stroke encoder part
+5.5    -> 5.5    map_frozen_chronic_lick supporting                                 Chronic minus pre pixel maps by frozen pre-stroke encoder part
+6.2    -> 6.1    fig7c_residual_allspouts_32px key                                        Frozen pre-stroke encoder residual maps, all spouts pooled, 32 px bins: every significant bin increases
+6.12   -> 6.2    fig8_residual_per_animal_lick key                                        Frozen pre-stroke encoder residual maps per animal, lick window, within-animal test
+6.14   -> 6.3    fig12p_residual_trend_pooled key                                        Far-contra frozen pre-stroke encoder residual over days by area: chronic increase, larger contralesionally
+6.1    -> 6.4    fig7_residual_far_contra_16px supporting                                 Frozen pre-stroke encoder residual maps, far contra, 16 px bins: all lick-window bins increase
+6.3    -> 6.5    residual_roi_pooled supporting                                 Frozen pre-stroke encoder residual by Allen area, all spouts pooled: every significant area increases
+6.4    -> 6.6    residual_roi_spout_lick supporting                                 Frozen pre-stroke encoder residual by Allen area per spout, lick window: far-contra chronic orofacial increase
+6.11   -> 6.7    fig8_residual_per_animal_cue supporting                                 Frozen pre-stroke encoder residual per animal, cue window: chronic bins only in PS92, PS94
+6.13   -> 6.8    fig12_residual_trend_lick supporting                                 SSp-m far-contra frozen pre-stroke encoder residual by day vs pre-stroke trend, lick window
+6.5    -> 6.9    residual_roi_spout_cue supplementary                              Frozen pre-stroke encoder residual by Allen area per spout, cue window: acute areas, few chronic
+6.6    -> 6.10   fig7d_residual_perspout_cue_32px supplementary                              Frozen pre-stroke encoder residual per spout, cue window, 32 px: mostly acute close-spout bins
+6.7    -> 6.11   fig7d_residual_perspout_lick_32px supplementary                              Frozen pre-stroke encoder residual per spout, lick window, 32 px: chronic largest for far ipsi
+6.8    -> 6.12   fig7c_residual_allspouts_16px supplementary                              Frozen pre-stroke encoder residual maps, all spouts pooled, 16 px bins: all lick-window bins increase
+6.9    -> 6.13   fig7d_residual_perspout_cue_16px supplementary                              Frozen pre-stroke encoder residual per spout, cue window, 16 px: acute close contra and ipsi
+6.10   -> 6.14   fig7d_residual_perspout_lick_16px supplementary                              Frozen pre-stroke encoder residual per spout, lick window, 16 px bins
+7.2    -> 7.1    fig5p_layer2_pooled key                                        Layer 2 mapping change beyond pre-stroke drift, pooled: chronic increase in cortex and SSp-m
+7.4    -> 7.2    fig5c_layer2_random_splits_pooled key                                        Layer 2 mapping change vs random-split null, pooled: every post epoch far above null
+7.6    -> 7.3    fig6p_layer2_groups_pooled key                                        Layer 2 unique change per kernel group, pooled: no group changes chronically beyond null
+7.1    -> 7.4    fig5_layer2_change supplementary                              Layer 2 kernel change from early-pre kernels per animal, with late-pre baseline
+7.3    -> 7.5    fig5b_layer2_random_splits supplementary                              Layer 2 mapping change vs random-split pre null per animal: chronic exceeds every split
+7.5    -> 7.6    fig6_layer2_groups supplementary                              Layer 2 unique change per kernel group, cortex
+8.1    -> 8.1    fig14_musall_task_aligned key                                        Task-aligned vs task-independent R², frozen pre-stroke encoder, cortex, lick-aligned
+8.2    -> 8.2    fig15b_musall_alone_unique_lines key                                        Alone vs unique R² per group, frozen pre-stroke encoder, cortex: uninstructed movement dominates single trials
+8.5    -> 8.3    fig15c_r2_chronic key                                        Chronic minus pre pixel R² maps, frozen pre-stroke encoder: full R² lower over most cortex
+8.3    -> 8.4    fig15_r2_pre   supporting                                 Pre-stroke pixel R² maps, full and unique by group, frozen pre-stroke encoder (held out)
+8.4    -> 8.5    fig15b_r2_acute supporting                                 Acute minus pre pixel R² maps, frozen pre-stroke encoder, full and unique by group
+8.6    -> 8.6    fig15d_r2_pos_pre supporting                                 Per-spout unique R² of whole spout-specific response, frozen pre-stroke encoder, pre-stroke maps
+8.7    -> 8.7    fig15e_r2_pos_chronic supporting                                 Per-spout spout-specific unique R², chronic minus pre, frozen pre-stroke encoder: far contra heterogeneous
+9.1    -> 9.1    fig16_fr_cortex key                                        FaceRhythm in the per-session encoder, whole cortex: added R² and spout-position unique R²
+9.10   -> 9.2    fr_pixel_sig_cue key                                        Significance, per-session encoder pixel R² maps, cue window: chronic position rise largely absent with FaceRhythm
+9.11   -> 9.3    fr_pixel_sig_lick key                                        Significance, per-session encoder pixel R² maps, lick window: chronic position rise absent with FaceRhythm
+9.14   -> 9.4    fr_trial_peth_chronic key                                        Trial-to-trial vs PETH unique R², per-session FaceRhythm encoder, chronic minus pre: no significant position change
+9.19   -> 9.5    fr_direction_mechanism_summary key                                        Model-free FaceRhythm side index, tongue and SSp-m coupling: chronic decoupling is in ipsilesional cortex
+9.21   -> 9.6    contest_fr_lags key                                        Frozen pre-stroke encoder with time-shifted FaceRhythm, unique R²: no shift toward cortex leading face
+9.2    -> 9.7    fig16_fr_ssp_m_left supporting                                 Per-session encoder with FaceRhythm, ipsilesional SSp-m: acute position-coding loss remains with FaceRhythm
+9.3    -> 9.8    fig16_fr_ssp_m_right supporting                                 Per-session encoder with FaceRhythm, contralesional SSp-m: added R² and position unique R²
+9.6    -> 9.9    fr_musall_cortex_cue_modea supporting                                 Musall-style R² with FaceRhythm, per-session encoder, cortex, cue window: FaceRhythm takes part of position unique
+9.7    -> 9.10   fr_musall_cortex_lick_modea supporting                                 Musall-style R² with FaceRhythm, per-session encoder, cortex, lick window: overlaps mostly with uninstructed movement
+9.8    -> 9.11   fr_pixel_maps_cue_modea supporting                                 Musall-style pixel R² maps with FaceRhythm, per-session encoder, cue window
+9.9    -> 9.12   fr_pixel_maps_lick_modea supporting                                 Musall-style pixel R² maps with FaceRhythm, per-session encoder, lick window: acute FaceRhythm rise, task/position fall
+9.13   -> 9.13   fr_trial_peth_pre supporting                                 Trial-to-trial vs PETH R², per-session FaceRhythm encoder, pre-stroke cortex: face and spout code barely compete
+9.15   -> 9.14   fr_direction_areas_cue supporting                                 FaceRhythm direction vs directionless factors by area, per-session encoder, cue window: gain almost all directionless
+9.16   -> 9.15   fr_direction_areas_lick supporting                                 FaceRhythm direction vs directionless factors by area, per-session encoder, lick window: distance factor fit falls
+9.20   -> 9.16   variance_maps_lick supporting                                 Total dF/F variance per pixel (data only), lick window: increases after stroke, global
+9.4    -> 9.17   fig16_schematic supplementary                              Schematic: alone, unique and task-aligned R² as used on this page
+9.5    -> 9.18   fig16_fr_modes_schematic supplementary                              Schematic: FaceRhythm grouping modes B, S, D and A
+9.12   -> 9.19   fr_chronic_per_animal_lick supplementary                              Chronic minus pre per animal, per-session encoder, lick window: contralesional SSp-m position rise mainly PS94/PS95
+9.17   -> 9.20   fr_direction_maps_cue supplementary                              FaceRhythm direction vs directionless pixel maps, per-session encoder, cue window: lateral direction coding weakens chronically
+9.18   -> 9.21   fr_direction_maps_lick supplementary                              FaceRhythm direction vs directionless pixel maps, per-session encoder, lick window: distance clusters lost chronically
