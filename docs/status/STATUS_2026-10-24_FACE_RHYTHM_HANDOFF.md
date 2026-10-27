@@ -109,6 +109,17 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      AFTER ANY GOAL-PAGE REORDER run `_source_PI_overview_2026-10-26/refresh_goal_numbers.py` (re-runnable; rewrites
      every "<n> [#f-<fid>]" from `_goal_page/fig_ids.csv`, `--dry-run` to preview). v130 (+5 section-3 figs): slide 54
      decoder_retention_pooled 3.19 -> 3.21, nothing else cited moved.
+     PERMANENT FIGURE IDS (Priya 10-27, as the goal page): FR page v35 + kinematics page v9 give every figure
+     id="f-<image name>" (old "#figN-K" anchors kept inside each figure), in-page links use the f- ids, registry
+     fig_ids.csv (fid, number, title, src). Tool: `scripts/page_stable_ids.py <index.html>` (idempotent; run after any
+     page build -- FR rebuild.py now calls it). PAGE SOURCES MOVED OFF SCRATCH to the share:
+     `Widefield/fr_page_src/{fr_page,fr_fmt}` (build: cd fr_page; python rebuild.py) and `Widefield/kin_page_src/kin_page`.
+     DECK PROVENANCE (Priya: source tag in the notes): `edit11.py` (re-runnable) adds a "FIGURE SOURCE:" line per
+     picture at the end of the notes (page + current number + [#f-id] + link, share original, deck image, crop /
+     composite), the same text as alt text, shape name fig:<id>, and `figure_provenance.csv`; 49 pictures / videos,
+     46 slides; backup `backup_before_provenance.pptx`. Deck build inputs copied to `_source.../build_inputs/`
+     (crops, enc, fr, img, kin, vid; 191 MB). Imaging numbers from `imaging_fig_ids.csv` (snapshot of imaging v31;
+     re-snapshot if that page renumbers). Not on any page: slides 8-10 (RESTW maps), 32-34 (FR set-up).
    * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
