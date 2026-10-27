@@ -188,6 +188,10 @@ section. Everything here is PROVISIONAL until you have looked at it.
   before the page. 3.70 key figure: per-animal self-fit redraw + cross-animal null + global-activity confound queued.
 - Per-spout supplement of 3.72 (Priya: yes) queued; first-lick map shape (cued) queued (re-extract all first licks).
 
+- DECOMPOSITION (Priya: try it; FINDINGS 4d0g): ITI = uniform contralesional shift (+0.27 / +0.17 / +0.14) +
+  compression; cued = compression only (no shift). Figure lick_decoded_decomposition.png -> page after the reorder.
+- MIXED MODELS WITH TIME on the page (v128, 3.73-3.81); reorder of all sections with stable ids running (helper agent).
+
 ### Running / queued
 - Nothing running. Open: behaviour-only decoder (low priority); June SVD-basis features if the June map reference is
   wanted; small fix: whole-map change-figure suptitle is clipped at the sides (fix on the next rerun).
