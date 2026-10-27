@@ -252,6 +252,10 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    LARGER (+96 / +59 / +44 %, all CIs exclude 0; dF/F +76 / +39 / +36 %). Within animal F0 and response are not
    consistently related (r -0.60..+0.54). Caveat: whole-frame F0 includes LED power / focus; per-area F0 on the atlas grid
    and the 415 nm lick-aligned response are not done.
+   PER-BIN SIGNIFICANCE on the ITI-lick PETHs (10-27, page 3.23 / 3.24 / 3.26, sig_bins_*.csv; paired nested bootstrap per
+   bin, BH-FDR): larger post-lick response significant in every ROI acutely / subacutely, chronically in tjM1 and SSp-m;
+   weaker chronic build-up (~-1.2..-0.2 s) significant in tjM1 and SSp-m bilaterally. 3.14 (basis decoder): ITI lateral r
+   below pre at every lag, every basis, every epoch.
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
