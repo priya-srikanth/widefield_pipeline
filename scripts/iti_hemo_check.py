@@ -43,6 +43,7 @@ so "415 change" is read in units of the corrected pre response (415's own pre re
 ratio to it is meaningless).
 Usage: python scripts/iti_hemo_check.py [--labels ...] [--jobs 3]     (extract, cached, then summarise)
        python scripts/iti_hemo_check.py --summarise
+       python scripts/iti_hemo_check.py --plot-only     (re-render the figures from the saved csv + cache only)
 Output: <iti_licks OUT>/hemo_check/*.csv, cache/<label>.npz ; figures <OUT>/figures/iti_hemo_check_*.png
 """
 from __future__ import annotations
@@ -227,36 +228,67 @@ def _per_animal(T: pd.DataFrame, idx: list[str], val: str) -> str:
     return (T.groupby([*idx, "animal", "epoch"])[val].mean().unstack("epoch").reindex(columns=EP).round(2).to_string())
 
 
+EP_SHORT = {"pre": "pre", "acute": "acute", "subacute": "sub", "chronic": "chronic"}
+CI_ROW = 0.085            # axes-fraction height of one delta / CI text row
+CI_TOP = 0.985            # first row (acute) top, axes fraction
+
+
 def _panel(ax, T: pd.DataFrame, val: str, colors: dict, ref: float | None = 1.0) -> None:
-    """Epoch on x, one thin line per animal (animal mean over sessions), black = mean of animals, boot_delta CI text."""
+    """Epoch on x, one thin line per animal (animal mean over sessions), black = mean of animals, boot_delta CI text.
+
+    The change-vs-pre numbers are a compact 3-row TABLE in a reserved band at the top of the axes (one row per post
+    epoch, in the epoch colour, monospace so the columns line up) -- not centred over each epoch, where the three
+    labels ran into each other in narrow panels. The y range is extended so no data reaches the band."""
     x = np.arange(len(EP))
     A = T.groupby(["animal", "epoch"])[val].mean().unstack("epoch").reindex(columns=EP)
-    for a, r in A.iterrows():
+    for _a, r in A.iterrows():
         ax.plot(x, r.to_numpy(float), color="0.6", lw=0.9, marker="o", ms=2.5)
-        ax.text(x[-1] + 0.08, r.to_numpy(float)[-1], a[-2:], fontsize=5.5, color="0.5", va="center")
     mu = A.mean(0).to_numpy(float)
     ax.plot(x, mu, color="k", lw=2)
     for i, ep in enumerate(EP):
         ax.scatter(x[i], mu[i], color=colors[ep], s=40, zorder=5, edgecolor="k", lw=0.6)
     if ref is not None:
         ax.axhline(ref, color="0.75", lw=0.7, ls="--")
-    for i, ep in enumerate(POST, start=1):
-        iv = _boot(T, val, ep)
-        if iv is not None:
-            ax.text(i, 1.0, f"{iv.point:+.2f}\n[{iv.lo:+.2f},{iv.hi:+.2f}]" + (" *" if iv.excludes_zero else ""),
-                    transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=5.8, color=colors[ep])
+    rows = [(ep, _boot(T, val, ep)) for ep in POST]
+    rows = [(ep, iv) for ep, iv in rows if iv is not None]
+    for k, (ep, iv) in enumerate(rows):
+        ax.text(0.02, CI_TOP - CI_ROW * k,
+                f"{EP_SHORT[ep]:<7} Δ{iv.point:+.2f} [{iv.lo:+.2f},{iv.hi:+.2f}]" + (" *" if iv.excludes_zero else ""),
+                transform=ax.transAxes, ha="left", va="top", fontsize=5.6, family="monospace", color=colors[ep])
     ax.set_xticks(x)
-    ax.set_xticklabels(["pre", "acute", "sub", "chronic"], fontsize=7)
+    ax.set_xticklabels([EP_SHORT[e] for e in EP], fontsize=7)
+    ax.set_xlim(-0.25, len(EP) - 1 + 0.45)
     lo, hi = ax.get_ylim()
-    ax.set_ylim(lo, hi + 0.25 * (hi - lo))
+    frac = CI_TOP - CI_ROW * max(len(rows), 1) - 0.04          # data must stay below the text band
+    ax.set_ylim(lo, lo + (hi - lo) / frac)
+    # animal ids at the right end, nudged apart so they never overprint
+    end = sorted((float(r.to_numpy(float)[-1]), a[-2:]) for a, r in A.iterrows() if np.isfinite(r.to_numpy(float)[-1]))
+    gap = 0.05 * (lo + (hi - lo) / frac - lo)
+    ys = []
+    for y, _n in end:
+        ys.append(y if not ys else max(y, ys[-1] + gap))
+    for (_y, n), y in zip(end, ys):
+        ax.text(x[-1] + 0.1, y, n, fontsize=5.5, color="0.5", va="center")
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
+
+
+def _title(fig, text: str, width: int) -> None:
+    """Suptitle wrapped with EXPLICIT line breaks, so the layout can reserve its true height (no title / panel overlap)."""
+    import textwrap
+    fig.suptitle(textwrap.fill(text, width), fontsize=9)
+
+
+def _fit(fig) -> None:
+    """tight_layout leaving room for the suptitle (same rule as iti_check_figures._fit)."""
+    t = fig._suptitle.get_text() if fig._suptitle is not None else ""
+    n = t.count(chr(10)) + 1 if t else 0
+    fig.tight_layout(rect=(0, 0, 1, 1 - (0.17 * n + 0.12) / fig.get_size_inches()[1]))
 
 
 def summarise(labels: list[str]) -> None:
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     from wfield_local.writeguard import assert_writable
@@ -329,50 +361,8 @@ def summarise(labels: list[str]) -> None:
     cnt["n_areas"] = AC.groupby(["variant", "epoch"]).size()
     cnt.to_csv(HC / "variant_area_counts.csv")
     print("\n== cortex-wide: Allen areas with a significant response change (raw AUC)\n" + cnt.to_string())
-    # --- figure 1: variants x ROIs
-    fig, axs = plt.subplots(len(VARIANTS), len(SHOW_ROIS), figsize=(2.5 * len(SHOW_ROIS), 2.4 * len(VARIANTS)))
-    for i, v in enumerate(VARIANTS):
-        for j, roi in enumerate(SHOW_ROIS):
-            ax = axs[i, j]
-            _panel(ax, S[(S.variant == v) & (S.roi == roi)], "resp_rel_adopted", colors)
-            ax.axhline(0, color="0.85", lw=0.6)
-            if i == 0:
-                ax.set_title(roi, fontsize=8)
-            if j == 0:
-                ax.set_ylabel(f"{VLAB[v]}\n/ pre ADOPTED resp.", fontsize=7)
-    fig.suptitle("NEURAL, NO DECODER: self-initiated (ITI) lick response (AUC 0..0.5 s after onset, baseline -1.5..-1.0 s, "
-                 ">= 2 s no-lick gap) in four signal variants -- same licks, ROIs, drift removal and window. Every variant is "
-                 "divided by the animal's PRE response in the ADOPTED corrected signal (1 = pre corrected response). Grey = "
-                 "animals, black = mean of animals; text = change vs pre, paired nested bootstrap (animals > sessions) 95% CI, "
-                 "* excludes 0. key_mean = mean of ALM, tjM1, SSp-m (both sides) and cortex, as iti_f0_check.",
-                 fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(il.OUT / "figures" / "iti_hemo_check_variants.png", dpi=110)
-    plt.close(fig)
-    # --- figure 2: key_mean PETH per variant, mean of animals
-    PE = pd.DataFrame(peth_rows)
-    fig, axs = plt.subplots(1, len(VARIANTS), figsize=(4 * len(VARIANTS), 3.3), sharey=True)
-    for i, v in enumerate(VARIANTS):
-        ax = axs[i]
-        for ep in EP:
-            t = PE[(PE.variant == v) & (PE.epoch == ep)]
-            if t.empty:
-                continue
-            A = np.stack([np.mean(np.stack(g.peth.to_numpy()), 0) for _a, g in t.groupby("animal")])
-            ax.plot(il.LAGS_P, A.mean(0), color=colors[ep], lw=2, label=f"{ep} ({len(A)} animals)")
-        ax.axvline(0, color="0.6", lw=0.6)
-        ax.axhline(0, color="0.8", lw=0.6)
-        ax.set_title(VLAB[v], fontsize=9)
-        ax.set_xlabel("time from lick onset (s)")
-        for sp in ("top", "right"):
-            ax.spines[sp].set_visible(False)
-    axs[0].set_ylabel("dF/F x1e3 (baseline-subtracted)\nkey_mean ROI")
-    axs[0].legend(fontsize=7, frameon=False)
-    fig.suptitle("NEURAL, NO DECODER: ITI-lick PETH (key ROIs averaged) per signal variant; mean of animals (each animal = mean "
-                 "of its sessions). Same y scale across variants.", fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(il.OUT / "figures" / "iti_hemo_check_peth.png", dpi=110)
-    plt.close(fig)
+    fig_variants(S, colors)
+    fig_peth(pd.DataFrame(peth_rows), colors)
     # --- (e) pixel sets
     prow = []
     for x, c in C.items():
@@ -409,49 +399,7 @@ def summarise(labels: list[str]) -> None:
           + PC[PC.value == "ratio"].round(3).to_string(index=False))
     print("\n== (e) change vs pre: growth vs own pre per set (adopted, raw415)\n"
           + PC[(PC.value == "resp_rel_own") & PC.variant.isin(MAP_VARIANTS)].round(3).to_string(index=False))
-    # pooled pixel change maps (mean over animals of animal epoch-mean minus animal pre-mean)
-    maps = {}
-    for v in MAP_VARIANTS:
-        per = {}
-        for c in C.values():
-            if (c["bout_gap"] >= il.GAP_MAIN).sum() < 10:
-                continue
-            per.setdefault((str(c["animal"]), str(c["epoch"])), []).append(c[f"map_{v}"].astype(np.float32))
-        for ep in POST:
-            dd = [np.nanmean(per[(a, ep)], 0) - np.nanmean(per[(a, "pre")], 0) for a in AN if (a, ep) in per and (a, "pre") in per]
-            maps[(v, ep)] = np.nanmean(dd, 0) if dd else None
-        maps[(v, "pre")] = np.nanmean([np.nanmean(per[(a, "pre")], 0) for a in AN if (a, "pre") in per], 0)
-    any_c = next(iter(C.values()))
-    stat_img = any_c["pstat_img"]
-    fig, axs = plt.subplots(len(MAP_VARIANTS) + 1, 4, figsize=(15, 3.6 * (len(MAP_VARIANTS) + 1)))
-    lim = np.nanpercentile(np.abs(maps[("adopted", "pre")]), 99)
-    for i, v in enumerate(MAP_VARIANTS):
-        for j, ep in enumerate(EP):
-            ax = axs[i, j]
-            mp = maps[(v, ep)]
-            if mp is None:
-                ax.axis("off")
-                continue
-            im = ax.imshow(mp, cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
-            ax.contour(stat_img, levels=[0.5], colors="k", linewidths=0.5)
-            ax.set_title(f"{VLAB[v]}\n{'pre mean' if ep == 'pre' else ep + ' - pre'}", fontsize=8)
-            ax.axis("off")
-    fig.colorbar(im, ax=axs[:len(MAP_VARIANTS), :], fraction=0.015).set_label("response AUC (dF/F x1e3 s)")
-    for j, (s_, lab) in enumerate((("edge_over_interior", "edge / interior"), ("vessel_over_nonvessel", "vessel / non-vessel"),
-                                   ("var415_over_rest", "top-5% 415-variance / rest"))):
-        ax = axs[-1, j]
-        _panel(ax, W[W.variant == "adopted"].rename(columns={s_: "val"}), "val", colors, ref=None)
-        ax.set_title(f"ADOPTED: {lab} response ratio", fontsize=8)
-    ax = axs[-1, 3]
-    _panel(ax, PX[(PX.variant == "raw415") & (PX.set == "interior")], "resp_rel", colors, ref=0.0)
-    ax.set_title("415 interior response / pre ADOPTED interior", fontsize=8)
-    fig.suptitle("MOTION / EDGE / VESSEL check: ITI-lick response maps (AUC 0..0.5 s), mean of animals, one colour scale "
-                 "(adopted pre 99th pct); contour = eroded stat mask (outside = EDGE rim). Image left = ipsilesional. Bottom: "
-                 "per-session ratios of the adopted response in artefact-prone pixels to the rest (grey = animals, black = mean; "
-                 "text = change vs pre, nested bootstrap). VESSEL = top 5 % of the high-passed negated mean 470 image; "
-                 "415-variance = top 5 % of interior pixels by 415 variance.", fontsize=9, wrap=True)
-    fig.savefig(il.OUT / "figures" / "iti_hemo_check_edge_vessel.png", dpi=105, bbox_inches="tight")
-    plt.close(fig)
+    fig_edge_vessel(_pixel_maps(C), next(iter(C.values()))["pstat_img"], W, PX, colors)
     # --- (f) F0 per area
     frows = []
     for x, c in C.items():
@@ -482,29 +430,7 @@ def summarise(labels: list[str]) -> None:
     DFc.to_csv(HC / "resp_dF_area_change.csv", index=False)
     print("\n== (f) areas significant UP in dF/F vs in dF (per-area F0):\n"
           + DFc.assign(up=DFc.sig & (DFc.delta > 0)).groupby(["value", "epoch"]).up.sum().unstack().to_string())
-    try:
-        from frozen_area_maps import area_image, outline, paint
-        img, nm = area_image(next(iter(C)))
-        ol = outline(img)
-        fig, axs = plt.subplots(2, 3, figsize=(13, 8))
-        for i, ch_ in enumerate(("f0_470_rel", "f0_415_rel")):
-            c_ = FC[FC.value == ch_]
-            for j, ep in enumerate(POST):
-                ax = axs[i, j]
-                ce_ = c_[c_.epoch == ep].set_index("area")
-                im = ax.imshow(paint(img, nm, ce_.delta.to_dict()), cmap="RdBu_r", vmin=-0.3, vmax=0.3, interpolation="nearest")
-                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-                w = ce_.loc["WHOLE_central60"] if "WHOLE_central60" in ce_.index else None
-                ax.set_title(f"F0 {ch_[3:6]} nm, {ep} - pre (fraction of pre)\n{int(ce_.sig.sum())} areas sig.; whole frame "
-                             f"{w.delta:+.2f}" if w is not None else "", fontsize=8)
-                ax.axis("off")
-            fig.colorbar(im, ax=axs[i, :], fraction=0.02).set_label("F0 / pre - 1")
-        fig.suptitle("Raw fluorescence F0 (frames_average on the atlas grid, raw counts) per Allen area, change vs the animal's "
-                     "pre mean (mean of animals, paired nested bootstrap). Image left = ipsilesional.", fontsize=9, wrap=True)
-        fig.savefig(il.OUT / "figures" / "iti_hemo_check_f0_areas.png", dpi=105, bbox_inches="tight")
-        plt.close(fig)
-    except Exception as ex:                                # noqa: BLE001
-        print(f"F0 area map figure skipped: {ex}")
+    fig_f0(FC, next(iter(C)))
     # --- (g) state around licks + (h) gap-matched response
     grow, hrow = [], []
     pre_gap = {}
@@ -557,7 +483,163 @@ def summarise(labels: list[str]) -> None:
     HCh = _change_table(Hh, ["variant"], [c_ for c_ in Hh.columns if c_.endswith("_rel")])
     HCh.to_csv(HC / "gapmatch_change.csv", index=False)
     print(HCh.round(3).to_string(index=False))
-    fig, axs = plt.subplots(1, 4, figsize=(15, 3.6))
+    fig_state_gap(G, Hh, colors)
+    print("->", HC)
+
+
+# ------------------------------------------------------------------------------------------------ figures
+# Pure plotting from the summary tables (+ the cached PETH / pixel maps), so `--plot-only` re-renders without touching
+# a bootstrap table or the extraction. The CI text is recomputed by `_boot` (seeded, same row order as the csv), i.e.
+# the same numbers as variant_resp_change.csv / pixelset_change.csv / gapmatch_change.csv / state_change.csv.
+
+
+def _savefig(fig, name: str, dpi: int, tight_bbox: bool = False) -> None:
+    import matplotlib.pyplot as plt
+    if tight_bbox:
+        fig.savefig(il.OUT / "figures" / name, dpi=dpi, bbox_inches="tight")
+    else:
+        _fit(fig)
+        fig.savefig(il.OUT / "figures" / name, dpi=dpi)
+    plt.close(fig)
+    print("wrote", il.OUT / "figures" / name)
+
+
+def fig_variants(S: pd.DataFrame, colors: dict) -> None:
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(len(VARIANTS), len(SHOW_ROIS), figsize=(2.6 * len(SHOW_ROIS), 2.6 * len(VARIANTS)))
+    for i, v in enumerate(VARIANTS):
+        for j, roi in enumerate(SHOW_ROIS):
+            ax = axs[i, j]
+            _panel(ax, S[(S.variant == v) & (S.roi == roi)], "resp_rel_adopted", colors)
+            ax.axhline(0, color="0.85", lw=0.6)
+            if i == 0:
+                ax.set_title(roi, fontsize=8)
+            if j == 0:
+                ax.set_ylabel(f"{VLAB[v]}\n/ pre ADOPTED resp.", fontsize=7)
+    _title(fig, "NEURAL, NO DECODER: self-initiated (ITI) lick response (AUC 0..0.5 s after onset, baseline -1.5..-1.0 s, "
+           ">= 2 s no-lick gap) in four signal variants -- same licks, ROIs, drift removal and window. Every variant is "
+           "divided by the animal's PRE response in the ADOPTED corrected signal (1 = pre corrected response). Grey = "
+           "animals, black = mean of animals; text rows (top of each panel) = change vs pre (Δ) with paired nested "
+           "bootstrap (animals > sessions) 95% CI, * excludes 0. key_mean = mean of ALM, tjM1, SSp-m (both sides) and "
+           "cortex, as iti_f0_check.", 230)
+    _savefig(fig, "iti_hemo_check_variants.png", 110)
+
+
+def _peth_frame(C: dict) -> pd.DataFrame:
+    rows = []
+    for x, c in C.items():
+        keep = c["bout_gap"] >= il.GAP_MAIN
+        if keep.sum() < 10:
+            continue
+        cols = list(c["cols"])
+        for v in VARIANTS:
+            rows.append({"label": x, "animal": str(c["animal"]), "epoch": str(c["epoch"]), "variant": v,
+                         "peth": c[f"peth_{v}"][:, [cols.index(k) for k in il.KEY_ROIS]].astype(float).mean(1)})
+    return pd.DataFrame(rows)
+
+
+def fig_peth(PE: pd.DataFrame, colors: dict) -> None:
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(1, len(VARIANTS), figsize=(4 * len(VARIANTS), 3.3), sharey=True)
+    for i, v in enumerate(VARIANTS):
+        ax = axs[i]
+        for ep in EP:
+            t = PE[(PE.variant == v) & (PE.epoch == ep)]
+            if t.empty:
+                continue
+            A = np.stack([np.mean(np.stack(g.peth.to_numpy()), 0) for _a, g in t.groupby("animal")])
+            ax.plot(il.LAGS_P, A.mean(0), color=colors[ep], lw=2, label=f"{ep} ({len(A)} animals)")
+        ax.axvline(0, color="0.6", lw=0.6)
+        ax.axhline(0, color="0.8", lw=0.6)
+        ax.set_title(VLAB[v], fontsize=9)
+        ax.set_xlabel("time from lick onset (s)")
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axs[0].set_ylabel("dF/F x1e3 (baseline-subtracted)\nkey_mean ROI")
+    axs[0].legend(fontsize=7, frameon=False)
+    _title(fig, "NEURAL, NO DECODER: ITI-lick PETH (key ROIs averaged) per signal variant; mean of animals (each animal = "
+           "mean of its sessions). Same y scale across variants.", 200)
+    _savefig(fig, "iti_hemo_check_peth.png", 110)
+
+
+def _pixel_maps(C: dict) -> dict:
+    """Pooled pixel change maps (mean over animals of animal epoch-mean minus animal pre-mean)."""
+    maps = {}
+    for v in MAP_VARIANTS:
+        per = {}
+        for c in C.values():
+            if (c["bout_gap"] >= il.GAP_MAIN).sum() < 10:
+                continue
+            per.setdefault((str(c["animal"]), str(c["epoch"])), []).append(c[f"map_{v}"].astype(np.float32))
+        for ep in POST:
+            dd = [np.nanmean(per[(a, ep)], 0) - np.nanmean(per[(a, "pre")], 0) for a in AN if (a, ep) in per and (a, "pre") in per]
+            maps[(v, ep)] = np.nanmean(dd, 0) if dd else None
+        maps[(v, "pre")] = np.nanmean([np.nanmean(per[(a, "pre")], 0) for a in AN if (a, "pre") in per], 0)
+    return maps
+
+
+def fig_edge_vessel(maps: dict, stat_img: np.ndarray, W: pd.DataFrame, PX: pd.DataFrame, colors: dict) -> None:
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(len(MAP_VARIANTS) + 1, 4, figsize=(15, 3.6 * (len(MAP_VARIANTS) + 1)))
+    lim = np.nanpercentile(np.abs(maps[("adopted", "pre")]), 99)
+    for i, v in enumerate(MAP_VARIANTS):
+        for j, ep in enumerate(EP):
+            ax = axs[i, j]
+            mp = maps[(v, ep)]
+            if mp is None:
+                ax.axis("off")
+                continue
+            im = ax.imshow(mp, cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            ax.contour(stat_img, levels=[0.5], colors="k", linewidths=0.5)
+            ax.set_title(f"{VLAB[v]}\n{'pre mean' if ep == 'pre' else ep + ' - pre'}", fontsize=8)
+            ax.axis("off")
+    fig.colorbar(im, ax=axs[:len(MAP_VARIANTS), :], fraction=0.015).set_label("response AUC (dF/F x1e3 s)")
+    for j, (s_, lab) in enumerate((("edge_over_interior", "edge / interior"), ("vessel_over_nonvessel", "vessel / non-vessel"),
+                                   ("var415_over_rest", "top-5% 415-variance / rest"))):
+        ax = axs[-1, j]
+        _panel(ax, W[W.variant == "adopted"].rename(columns={s_: "val"}), "val", colors, ref=None)
+        ax.set_title(f"ADOPTED: {lab} response ratio", fontsize=8)
+    ax = axs[-1, 3]
+    _panel(ax, PX[(PX.variant == "raw415") & (PX.set == "interior")], "resp_rel", colors, ref=0.0)
+    ax.set_title("415 interior response / pre ADOPTED interior", fontsize=8)
+    fig.subplots_adjust(wspace=0.32)
+    _title(fig, "MOTION / EDGE / VESSEL check: ITI-lick response maps (AUC 0..0.5 s), mean of animals, one colour scale "
+           "(adopted pre 99th pct); contour = eroded stat mask (outside = EDGE rim). Image left = ipsilesional. Bottom: "
+           "per-session ratios of the adopted response in artefact-prone pixels to the rest (grey = animals, black = mean; "
+           "text rows = change vs pre (Δ) with nested bootstrap 95% CI, * excludes 0). VESSEL = top 5 % of the "
+           "high-passed negated mean 470 image; 415-variance = top 5 % of interior pixels by 415 variance.", 190)
+    _savefig(fig, "iti_hemo_check_edge_vessel.png", 105, tight_bbox=True)
+
+
+def fig_f0(FC: pd.DataFrame, label: str) -> None:
+    import matplotlib.pyplot as plt
+    try:
+        from frozen_area_maps import area_image, outline, paint
+        img, nm = area_image(label)
+        ol = outline(img)
+        fig, axs = plt.subplots(2, 3, figsize=(13, 8))
+        for i, ch_ in enumerate(("f0_470_rel", "f0_415_rel")):
+            c_ = FC[FC.value == ch_]
+            for j, ep in enumerate(POST):
+                ax = axs[i, j]
+                ce_ = c_[c_.epoch == ep].set_index("area")
+                im = ax.imshow(paint(img, nm, ce_.delta.to_dict()), cmap="RdBu_r", vmin=-0.3, vmax=0.3, interpolation="nearest")
+                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+                w = ce_.loc["WHOLE_central60"] if "WHOLE_central60" in ce_.index else None
+                ax.set_title(f"F0 {ch_[3:6]} nm, {ep} - pre (fraction of pre)\n{int(ce_.sig.sum())} areas sig.; whole frame "
+                             f"{w.delta:+.2f}" if w is not None else "", fontsize=8)
+                ax.axis("off")
+            fig.colorbar(im, ax=axs[i, :], fraction=0.02).set_label("F0 / pre - 1")
+        _title(fig, "Raw fluorescence F0 (frames_average on the atlas grid, raw counts) per Allen area, change vs the "
+               "animal's pre mean (mean of animals, paired nested bootstrap). Image left = ipsilesional.", 170)
+        _savefig(fig, "iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
+    except Exception as ex:                                # noqa: BLE001
+        print(f"F0 area map figure skipped: {ex}")
+
+
+def fig_state_gap(G: pd.DataFrame, Hh: pd.DataFrame, colors: dict) -> None:
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(1, 4, figsize=(15, 3.8))
     _panel(axs[0], G, "run_win", colors, ref=None)
     axs[0].set_title("treadmill speed -1..+1 s (mm/s)", fontsize=8)
     _panel(axs[1], G, "gap_median", colors, ref=None)
@@ -566,12 +648,30 @@ def summarise(labels: list[str]) -> None:
     axs[2].set_title("ADOPTED key_mean response / pre (all licks)", fontsize=8)
     _panel(axs[3], Hh[Hh.variant == "adopted"], "resp_key_gapmatched_rel", colors)
     axs[3].set_title("same, GAP-MATCHED to the animal's pre distribution", fontsize=8)
-    fig.suptitle("BEHAVIOUR + NEURAL: global state around ITI licks and the response after matching the no-lick gap "
-                 "(grey = animals, black = mean; text = change vs pre, nested bootstrap).", fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.86))
-    fig.savefig(il.OUT / "figures" / "iti_hemo_check_state_gap.png", dpi=110)
-    plt.close(fig)
-    print("->", HC)
+    _title(fig, "BEHAVIOUR + NEURAL: global state around ITI licks and the response after matching the no-lick gap "
+           "(grey = animals, black = mean; text rows = change vs pre (Δ) with nested bootstrap 95% CI, * excludes 0).",
+           230)
+    _savefig(fig, "iti_hemo_check_state_gap.png", 110)
+
+
+def plot_only(labels: list[str]) -> None:
+    """Re-render the five figures from the saved hemo_check/*.csv (+ the cached PETH / pixel maps). No extraction, no
+    table is rewritten."""
+    import matplotlib
+    matplotlib.use("Agg")
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    rd = {"label": str, "animal": str, "epoch": str}
+    R = pd.read_csv(HC / "variant_resp_sessions.csv", dtype=rd)
+    fig_variants(R[R.roi.isin(SHOW_ROIS)], colors)
+    C = {x: dict(np.load(CACHE / f"{x}.npz", allow_pickle=False)) for x in labels if (CACHE / f"{x}.npz").exists()}
+    fig_peth(_peth_frame(C), colors)
+    W = pd.read_csv(HC / "pixelset_ratios_sessions.csv", dtype=rd)
+    PX = pd.read_csv(HC / "pixelset_sessions.csv", dtype=rd)
+    fig_edge_vessel(_pixel_maps(C), next(iter(C.values()))["pstat_img"], W, PX, colors)
+    fig_f0(pd.read_csv(HC / "f0_area_change.csv"), next(iter(C)))
+    fig_state_gap(pd.read_csv(HC / "state_sessions.csv", dtype=rd), pd.read_csv(HC / "gapmatch_sessions.csv", dtype=rd),
+                  colors)
 
 
 def main(argv=None) -> int:
@@ -579,12 +679,18 @@ def main(argv=None) -> int:
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--summarise", action="store_true")
+    ap.add_argument("--plot-only", action="store_true",
+                    help="re-render the figures from the saved hemo_check/*.csv + cache; no extraction, no table rewrite")
     a = ap.parse_args(argv)
     from wfield_local import analysis_kit as ak
     from wfield_local.writeguard import assert_writable
     assert_writable(HC)
-    CACHE.mkdir(parents=True, exist_ok=True)
     labels = a.labels or sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    if a.plot_only:
+        assert_writable(il.OUT / "figures")
+        plot_only(labels)
+        return 0
+    CACHE.mkdir(parents=True, exist_ok=True)
     if not a.summarise:
         res, fail = ak.fan_sessions(labels, work, jobs=min(a.jobs, 3))
         for f_ in fail:

@@ -213,13 +213,16 @@ def plot_change(res: dict, keys: list, fam: str, T: pd.DataFrame, to_img, ol) ->
                          + sub, fontsize=7)
             if j == 0:
                 ax.set_ylabel(k.replace("trial/", "cued ").replace("iti/", "ITI ").replace("sp_", ""), fontsize=8.5)
-    fig.suptitle(f"NEURAL: fully per-SESSION Haufe maps ({fam}), each session map scaled to unit RMS (SHAPE only: a "
-                 "cortex-wide gain change cannot appear).\nColumn 1 = pre map; columns 2-4 = epoch - pre, mean of "
-                 "animals; SOLID = max-statistic FWER 0.05; DASHED = per-pixel nested bootstrap CI excludes 0 after BH q 0.05 AND >= 3 animals share the "
-                 "sign.\n'map differs' = whole-map permutation test: d = 1 - r(epoch mean map, pre mean map), session "
-                 "labels permuted within animal; * = BH over all maps x epochs. ipsi (lesion) = image LEFT. PROVISIONAL",
-                 fontsize=8.5)
-    fig.tight_layout(rect=(0, 0, 1, 1 - 0.75 / fig.get_size_inches()[1]))
+    import textwrap
+    paras = [f"NEURAL: fully per-SESSION Haufe maps ({fam}), each session map scaled to unit RMS (SHAPE only: a "
+             "cortex-wide gain change cannot appear).",
+             "Column 1 = pre map; columns 2-4 = epoch - pre, mean of animals; SOLID = max-statistic FWER 0.05; DASHED = "
+             "per-pixel nested bootstrap CI excludes 0 after BH q 0.05 AND >= 3 animals share the sign.",
+             "Titles: d = 1 - r(epoch mean map, pre mean map) (whole-map permutation test, session labels permuted within "
+             "animal; * = BH over all maps x epochs). ipsi (lesion) = image LEFT. PROVISIONAL"]
+    txt = "\n".join(textwrap.fill(q, 125) for q in paras)       # wrapped to the figure width (titles ran off the sides)
+    fig.suptitle(txt, fontsize=8.5)
+    fig.tight_layout(rect=(0, 0, 1, 1 - (0.17 * (txt.count(chr(10)) + 1) + 0.25) / fig.get_size_inches()[1]))
     fig.savefig(il.OUT / "figures" / f"iti_session_pattern_change_{fam}.png", dpi=95)
     plt.close(fig)
 
@@ -282,8 +285,11 @@ def main() -> int:
     if not L:
         print("no session maps yet (run iti_session_patterns.py)")
         return 1
-    T = maplevel(L)
-    T.to_csv(il.OUT / "session_pattern_maplevel.csv", index=False)
+    if "--plot-only" in sys.argv:                                 # redraw from the saved whole-map test
+        T = pd.read_csv(il.OUT / "session_pattern_maplevel.csv")
+    else:
+        T = maplevel(L)
+        T.to_csv(il.OUT / "session_pattern_maplevel.csv", index=False)
     S = similarity(L)
     S.to_csv(il.OUT / "session_pattern_similarity.csv", index=False)
     G = S.groupby(["map", "animal", "epoch"]).gain.mean().unstack("epoch").reindex(columns=EP)
