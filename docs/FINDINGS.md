@@ -179,6 +179,12 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    outward -0.22 / -0.21 / -0.17 [-0.25, -0.06], 0/4 further every epoch (~30-45 % smaller than unscaled; PS95 chronic
    ~0); cued lateral +0.19 acute 4/4. Frozen r losses unchanged or slightly larger (ITI lateral chronic -23 %). So
    neither the offsets nor the r loss are a response-scale (F0 / variance) artifact.
+   PER SPOUT (10-26 late, page 3.22, `scripts/iti_where_per_spout.py`; ITI grouped by the PREVIOUS trial's spout, fixed
+   before the lick): ITI read contralesional after every spout acutely (+0.24..+0.43, 4/4 at 5 of 6) and chronically
+   after far-ipsi / far-mid trials (+0.33 [+0.10, +0.51] / +0.19 [+0.08, +0.36], 4/4 each); cued read closer at every
+   spout and epoch (-0.16..-0.40, 0/4 further); chronic cued FAR-CONTRA licks read IPSIlesional (-0.24 [-0.35, -0.12],
+   0/4 contra; +0.32 acutely); cued far-ipsi frozen r down every epoch (-0.32 / -0.16 / -0.20, 0/4 up). Same with
+   z-scored features (chronic ITI far ipsi +0.39, far mid +0.23; cued far contra -0.27).
    (xii) CORRECTION (10-26): in-trial frozen r is also lower (-0.146 acute -> -0.063 chronic, CI excludes 0), smaller than
    ITI; its time course follows lick accuracy (a target-only reader loses -0.246 -> -0.036; session corr 0.82), so the
    in-trial loss is mostly 'decoder reads the target, licks deviate'; the ITI loss is the remapping.

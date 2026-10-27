@@ -25,6 +25,12 @@ NEW 3.21 = change in decoded - actual position vs pre (`iti_where_delta.png`) ->
 Pending Priya: KEY row wording (ITI-only contralesional reading), spread-matched lateral / angle check (angle here =
 horizontal atan2(lat, out), not the encoder's exec_angle), relabel ITI / in-trial rows in 3.15-3.18.
 
+**10-26 later (live v112):** KEY row = beyond-pull offsets (ITI read contralesional, cued read closer), robust to
+within-session z-scoring (`iti_zscore_check.py`); per-spout version = NEW 3.22 (`iti_where_per_spout.py`) -> old
+3.22-3.31 are now 3.23-3.32 (`_goal_page/fig_map.csv`). Per-area split (`iti_decoder_contrib.py`): no single area.
+NEXT (Priya's order): F0 / dF check on the larger response; frozen-decoder drift vs day gap within pre; spread-matched
+r (encoder-style angle); per-epoch decoder PATTERN maps (Haufe) in the SVD basis; 3.7 / 3.8 significance bars.
+
 The Artifact tool was switched off in this session from ~14:15, so everything since v103 was LOCAL ONLY until v105.
 - Live: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d = **v103** (12:00). Everything after it exists only locally.
 - **Local source (newest, complete): `C:/Users/SabatiniLab/Github/wf_attempt/_goal_page/index.html`** (+ its 190 PNGs;
