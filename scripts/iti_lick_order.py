@@ -40,6 +40,17 @@ POS = fl.POS
 ORDER_CAP = 9
 MIN = 8
 SETS = {"iti": "ITI", "trial": "cued"}
+# DECODER SOURCE (Priya 10-27: "let's use the SVD basis"): env WFIELD_LICK_DECODER = "areas" (Allen areas, z-scored by
+# zscore_check/session_sd.csv; the KEY row until 10-27) or "svd" (the animal's pre-stroke 200-component SVD basis,
+# iti_basis_decoder extraction; each component z-scored by its SD over that session's licks, ITI + cued together)
+import os  # noqa: E402
+
+SOURCE = os.environ.get("WFIELD_LICK_DECODER", "areas")
+SRC_TAG = "" if SOURCE == "areas" else f"_{SOURCE}"
+
+
+def preds_path() -> Path:
+    return il.OUT / f"lick_order_preds{SRC_TAG}.csv.gz"
 VALS = ("landing", "decoded", "beyond")
 VLAB = {"landing": "landing vs pre at the spout (BEHAVIOUR)", "decoded": "decoded position vs pre at the spout (NEURAL)",
         "beyond": "offset beyond the pull (NEURAL)"}
@@ -73,7 +84,8 @@ def predictions() -> pd.DataFrame:
     from wfield_local import orofacial_cohort as oc
     SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
     names = feature_names()
-    D = wd.load("areas")
+    D = wd.load("areas" if SOURCE == "areas" else "svdbasis")
+    sd_svd = {x: np.vstack([d["iti"][0], d["trial"][0]]).std(0) for x, d in D.items()} if SOURCE != "areas" else {}
     rows = []
     for st in SETS:
         for a in AN:
@@ -87,7 +99,8 @@ def predictions() -> pd.DataFrame:
                 pos = np.array([q if q in POS or "_" not in q else oc.pos_key(q, "L") for q in d[f"{st}_pos"].astype(str)])
                 ok = np.isfinite(C[:, 0]) & np.isfinite(idx) & np.isin(pos, POS)
                 if ok.sum() >= 20:
-                    S[x] = (d["epoch"], X[ok] / SD.loc[x, names].to_numpy(float)[None, :], C[ok, 0], idx[ok], pos[ok])
+                    sd = SD.loc[x, names].to_numpy(float) if SOURCE == "areas" else np.where(sd_svd[x] > 0, sd_svd[x], 1)
+                    S[x] = (d["epoch"], X[ok] / sd[None, :], C[ok, 0], idx[ok], pos[ok])
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
                 continue
@@ -223,7 +236,7 @@ def plot_classes(T: pd.DataFrame) -> None:
                  "lateral, change vs pre,\nfrozen KEY-row decoder per set (z-scored Allen areas); 95% paired nested "
                  "bootstrap CI, * = CI excludes 0 (bold),\n\u2020 = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n animals. + = contralesional. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.05)
-    fig.savefig(il.OUT / "figures" / "lick_order_iti_cued.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / f"lick_order_iti_cued{SRC_TAG}.png", dpi=100)
     plt.close(fig)
 
 
@@ -296,12 +309,12 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
                  "* = CI excludes 0 (bold), † = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n "
                  "animals. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.08)
-    fig.savefig(il.OUT / "figures" / "lick_order_iti_cued_slope.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / f"lick_order_iti_cued_slope{SRC_TAG}.png", dpi=100)
     plt.close(fig)
 
 
 def main() -> int:
-    f = il.OUT / "lick_order_preds.csv.gz"
+    f = preds_path()
     if f.exists():
         P = pd.read_csv(f)
     else:
@@ -311,7 +324,7 @@ def main() -> int:
     print("share first (order 0) by set x epoch:\n",
           P.groupby(["set", "epoch"]).order.apply(lambda s: (s == 0).mean()).round(3).unstack().to_string())
     S = sessions(P)
-    S.to_csv(il.OUT / "lick_order_sessions.csv", index=False)
+    S.to_csv(il.OUT / f"lick_order_sessions{SRC_TAG}.csv", index=False)
     pd.set_option("display.width", 240)
     print("== per animal (rule 8): beyond-pull offset, first / later / slope")
     for scope in ("all spouts", "far contra"):
@@ -320,7 +333,7 @@ def main() -> int:
             print(S[S.scope == scope].pivot_table(index=["set", "animal"], columns="epoch", values=m)
                   .reindex(columns=EPS).round(3).to_string())
     T = tests(S)
-    T.to_csv(il.OUT / "lick_order_tests.csv", index=False)
+    T.to_csv(il.OUT / f"lick_order_tests{SRC_TAG}.csv", index=False)
     print(T[T.epoch != "pre"].round(3).to_string(index=False))
     plot_classes(T)
     plot_slope(P, T)
