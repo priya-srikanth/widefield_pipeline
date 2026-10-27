@@ -176,6 +176,18 @@ section. Everything here is PROVISIONAL until you have looked at it.
 - FIGURE FIXES: iti_hemo_check_* per-epoch labels (now a 3-row table per panel, --plot-only added);
   iti_session_pattern_change_* suptitle wrapped (--plot-only added); lick-order legends.
 
+- PULL-SLOPE ISSUE (raised to Priya, awaiting answer): "beyond the pull" uses the ACROSS-spout pre slope (~0.6); the
+  pre lick-to-lick coupling WITHIN a spout is 0.2-0.3 (per animal 0.20 / 0.30 / 0.20 / 0.31, cued). With the within-spout
+  slope: cued first lick all spouts +0.05 / +0.03 / +0.03 n.s. (was +0.38 / +0.27 / +0.19); ITI bout starts still
+  +0.25 / +0.20 / +0.21 (4/4); cued far-contra first - later still +0.45 / +0.32 / +0.35 (4/4). 3.72: decoded position
+  is FLAT with lick order (cued -0.001 / +0.008 / +0.002), the beyond-pull slope = landing slope x 0.6. Proposal: show
+  both slopes as bounds + raw decoded shift, correct the within-spout slope for tracking noise (regression dilution),
+  re-check 3.39 / 3.43 / 3.54 / 3.55 / 3.71 / 3.72. Page v126 3.72 caption marked "under review".
+- TFCE session-level tests DONE (scripts/iti_session_cluster_tests.py, session_cluster/tests.csv): much more sensitive
+  than per-pixel (e.g. ITI far contra acute 81 % of cortex, cued lateral 78-87 % every epoch) -> maps to be reviewed
+  before the page. 3.70 key figure: per-animal self-fit redraw + cross-animal null + global-activity confound queued.
+- Per-spout supplement of 3.72 (Priya: yes) queued; first-lick map shape (cued) queued (re-extract all first licks).
+
 ### Running / queued
 - Nothing running. Open: behaviour-only decoder (low priority); June SVD-basis features if the June map reference is
   wanted; small fix: whole-map change-figure suptitle is clipped at the sides (fix on the next rerun).

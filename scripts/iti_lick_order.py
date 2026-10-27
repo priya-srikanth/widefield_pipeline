@@ -40,6 +40,10 @@ POS = fl.POS
 ORDER_CAP = 9
 MIN = 8
 SETS = {"iti": "ITI", "trial": "cued"}
+VALS = ("landing", "decoded", "beyond")
+VLAB = {"landing": "landing vs pre at the spout (BEHAVIOUR)", "decoded": "decoded position vs pre at the spout (NEURAL)",
+        "beyond": "offset beyond the pull (NEURAL)"}
+VCOL = {"landing": "0.45", "decoded": "#2c7fb8", "beyond": "#7b3294"}
 
 
 def _bout_idx(label: str, t: np.ndarray) -> np.ndarray:
@@ -109,6 +113,7 @@ def per_lick(P: pd.DataFrame) -> pd.DataFrame:
         b, c = np.polyfit(pre.act, pre.dec, 1)
         g["landing"] = g.act - g.pos.map(pre.groupby("pos").act.mean())
         g["beyond"] = g.dec - (c + b * g.act)
+        g["decoded"] = g.dec - g.pos.map(pre.groupby("pos").dec.mean())     # read-out vs the animal's pre at the spout
         out.append(g)
     P = pd.concat(out, ignore_index=True)
     P["cls"] = np.where(P.order == 0, "first", "later")
@@ -123,10 +128,10 @@ def sessions(P: pd.DataFrame) -> pd.DataFrame:
             r = dict(scope=scope, set=st, animal=a, label=lab, epoch=ep)
             for cls in ("first", "later"):
                 q = h[h.cls == cls]
-                for v in ("landing", "beyond"):
+                for v in VALS:
                     r[f"{v}_{cls}"] = q[v].mean() if len(q) >= MIN else np.nan
                 r[f"n_{cls}"] = len(q)
-            for v in ("landing", "beyond"):
+            for v in VALS:
                 r[f"{v}_diff"] = r[f"{v}_first"] - r[f"{v}_later"]
                 if len(h) >= 2 * MIN and h.ord_c.nunique() > 2:
                     yv = h[v] - h.groupby("pos")[v].transform("mean")
@@ -140,7 +145,7 @@ def sessions(P: pd.DataFrame) -> pd.DataFrame:
 
 def tests(S: pd.DataFrame) -> pd.DataFrame:
     out = []
-    cols = [f"{v}_{k}" for v in ("landing", "beyond") for k in ("first", "later", "diff", "slope")]
+    cols = [f"{v}_{k}" for v in VALS for k in ("first", "later", "diff", "slope")]
     for (scope, st), g in S.groupby(["scope", "set"]):
         for col in cols:
             prd = {a: h[col].dropna().to_numpy() for a, h in g[g.epoch == "pre"].groupby("animal")}
@@ -198,14 +203,20 @@ def plot_classes(T: pd.DataFrame) -> None:
                 ax.spines[s_].set_visible(False)
     h = [Line2D([], [], color=CL[k], marker="o", lw=0, label=f"{SETS[k[0]]} {k[1]} lick" + ("s" if k[1] == "later" else ""))
          for k in CL]
-    axs[0, 0].legend(handles=h, loc="lower right", ncol=2, fontsize=7.5, frameon=False)
+    fig.legend(handles=h, loc="lower center", ncol=4, fontsize=8.5, frameon=False)
     fig.suptitle("FIRST vs LATER licks, ITI (first = bout start, gap >= 1 s) and cued (first = first post-cue lick): "
                  "lateral, change vs pre,\nfrozen KEY-row decoder per set (z-scored Allen areas); 95% paired nested "
                  "bootstrap CI, * = CI excludes 0 (bold),\n\u2020 = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n animals. + = contralesional. PROVISIONAL", fontsize=9.5)
-    from iti_check_figures import _fit
-    _fit(fig)
+    _layout(fig, bottom=0.05)
     fig.savefig(il.OUT / "figures" / "iti_lick_order.png", dpi=100)
     plt.close(fig)
+
+
+def _layout(fig, bottom: float) -> None:
+    """tight_layout leaving room for the suptitle (0.2 in per line + 0.3 in) and a legend row at the bottom."""
+    t = fig._suptitle.get_text() if fig._suptitle is not None else ""
+    top = 1 - (0.2 * (t.count(chr(10)) + 1) + 0.3) / fig.get_size_inches()[1]
+    fig.tight_layout(rect=(0, bottom, 1, top))
 
 
 def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
@@ -215,57 +226,61 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
     from matplotlib.lines import Line2D
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
-    col = {"pre": "0.35", **EPOCH_LINE}
-    fig, axs = plt.subplots(2, 4, figsize=(17, 8), squeeze=False)
+    col = {"pre": "k", **EPOCH_LINE}
+    fig, axs = plt.subplots(2, 5, figsize=(21, 8.6), squeeze=False)
     for i, st in enumerate(SETS):
-        for j, val in enumerate(("landing", "beyond")):
+        for j, val in enumerate(VALS):
             ax = axs[i, j]
-            g = P[P.set == st].copy()
-            g["v"] = g[val]                                  # already referenced to the animal's pre at the spout
+            g = P[P.set == st]
             # per animal x epoch x order mean, then mean +/- SEM over animals
-            A = g.groupby(["epoch", "animal", "ord_c"]).v.mean().reset_index()
+            A = g.groupby(["epoch", "animal", "ord_c"])[val].mean().reset_index()
             for ep in EPS:
-                q = A[A.epoch == ep].groupby("ord_c").v
+                q = A[A.epoch == ep].groupby("ord_c")[val]
                 mu, se = q.mean(), q.sem()
                 ax.plot(mu.index, mu, "o-", color=col[ep], ms=3.5, lw=1.4)
                 ax.fill_between(mu.index, mu - se, mu + se, color=col[ep], alpha=0.15, lw=0)
             ax.axhline(0, color="0.7", lw=0.6, ls=":")
             ax.set_xticks(range(ORDER_CAP + 1), [*map(str, range(ORDER_CAP)), f"{ORDER_CAP}+"])
             ax.set_xlabel("lick order (0 = " + ("bout start)" if st == "iti" else "first post-cue lick)"), fontsize=8)
-            ax.set_title(f"{SETS[st]}: {'landing vs pre at the spout (BEHAVIOUR)' if val == 'landing' else 'offset beyond the pull (NEURAL)'}"
-                         "\nmm, mean +/- SEM over animals", fontsize=8.5)
+            ax.set_ylabel(f"{val} (mm, + = contralesional)", fontsize=8)
+            ax.set_title(f"{SETS[st]}: {VLAB[val]}\nmean +/- SEM over animals", fontsize=8.5)
         for j, scope in enumerate(("all spouts", "far contra")):
-            ax = axs[i, 2 + j]
-            for k, val in enumerate(("landing", "beyond")):
+            ax = axs[i, 3 + j]
+            for k, val in enumerate(VALS):
                 t = T[(T.scope == scope) & (T.set == st) & (T.measure == f"{val}_slope")].set_index("epoch").reindex(EP)
-                x = np.arange(1, 4) + (k - 0.5) * 0.2
-                c = "0.45" if val == "landing" else "#7b3294"
+                x = np.arange(1, 4) + (k - 1) * 0.22
+                c = VCOL[val]
                 ax.errorbar(x, t.point, yerr=[t.point - t.lo, t.hi - t.point], fmt="o", color=c, capsize=2.5)
                 for xx, (_e, r) in zip(x, t.iterrows()):
                     if np.isfinite(r.point):
                         ax.text(xx, r.hi, f"{r.point:+.3f}{_star(r)}\n{int(r.n_dir)}/{int(r.n)}", ha="center",
-                                va="bottom", fontsize=6, color=c, fontweight="bold" if "*" in _star(r) else "normal")
-                pre = T[(T.scope == scope) & (T.set == st) & (T.measure == f"{val}_slope") & (T.epoch == "pre")]
-                if len(pre):
-                    ax.text(0.98, 0.03 + 0.06 * k, f"pre {val} slope {pre.level.iloc[0]:+.3f} mm/lick", color=c,
-                            transform=ax.transAxes, fontsize=7, va="bottom", ha="right")
+                                va="bottom", fontsize=5.8, color=c, fontweight="bold" if "*" in _star(r) else "normal")
+            pre = T[(T.scope == scope) & (T.set == st) & (T.epoch == "pre")].set_index("measure")
+            ax.text(0.99, 0.01, "pre slopes (mm/lick): " + ", ".join(
+                f"{v} {pre.level.get(f'{v}_slope', np.nan):+.3f}" for v in VALS), transform=ax.transAxes, fontsize=6.5,
+                va="bottom", ha="right", color="0.3")
             ax.axhline(0, color="0.7", lw=0.6, ls=":")
             ax.set_xticks([1, 2, 3], EP)
-            ax.set_title(f"{SETS[st]}, {scope}: lick-order SLOPE\n(mm / lick, spout means removed), change vs pre",
-                         fontsize=8.5)
+            ax.set_xlim(0.5, 3.5)
+            lo, hi = ax.get_ylim()
+            ax.set_ylim(lo - 0.12 * (hi - lo), hi + 0.12 * (hi - lo))     # room for the pre text and the labels
+            ax.set_ylabel("change in slope vs pre (mm per lick)", fontsize=8)
+            ax.set_title(f"{SETS[st]}, {scope}: lick-order SLOPE\n(spout means removed), change vs pre", fontsize=8.5)
         for ax in axs[i]:
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    h = [Line2D([], [], color=col[e], lw=2, label=e) for e in EPS] + \
-        [Line2D([], [], color="0.45", marker="o", lw=0, label="landing slope"),
-         Line2D([], [], color="#7b3294", marker="o", lw=0, label="beyond-pull slope")]
-    axs[0, 1].legend(handles=h, loc="upper right", ncol=2, fontsize=7.5, frameon=False)
+    # two legends, each under the columns it belongs to
+    fig.legend(handles=[Line2D([], [], color=col[e], lw=2, label=e) for e in EPS], loc="lower center",
+               bbox_to_anchor=(0.30, 0.0), ncol=4, fontsize=8.5, frameon=False, title="columns 1-3: epoch", title_fontsize=8)
+    fig.legend(handles=[Line2D([], [], color=VCOL[v], marker="o", lw=0, label=f"{v} slope") for v in VALS],
+               loc="lower center", bbox_to_anchor=(0.80, 0.0), ncol=3, fontsize=8.5, frameon=False,
+               title="columns 4-5: measure", title_fontsize=8)
     fig.suptitle("LICK ORDER vs lateral landing and read-out, ITI (row 1, order within the lick bout) and cued (row 2, "
                  "order after the cue); frozen KEY-row decoder per set.\nSlope = per-session OLS of the value on "
                  f"min(order, {ORDER_CAP}), spout means removed; 95% paired nested bootstrap CI of the change vs pre, "
-                 "* = CI excludes 0, \u2020 = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4). + = contralesional. PROVISIONAL", fontsize=9.5)
-    from iti_check_figures import _fit
-    _fit(fig)
+                 "* = CI excludes 0 (bold), † = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n "
+                 "animals. PROVISIONAL", fontsize=9.5)
+    _layout(fig, bottom=0.08)
     fig.savefig(il.OUT / "figures" / "iti_lick_order_slope.png", dpi=100)
     plt.close(fig)
 
