@@ -40,7 +40,7 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
 ## C. Controls on the new measure
 | item | to do | status |
 |---|---|---|
-| landing + FaceRhythm | Gaussian on landing + linear FR terms at the lick; also + kinematics (reach, speed, elevation) | Q |
+| covariate references (Priya: four versions) | (1) landing only (= the Gaussian same-place reference); (2) landing + kinematics (reach / extension, peak speed, elevation); (3) landing + FaceRhythm factors around the lick; (4) landing + FR + kinematics -- each: Gaussian kernel on landing + linear covariate terms fitted on pre licks, residual for post licks; same session tests + mixed models | Q |
 | same-target same-place | 'more misses' vs 'each lick read differently' | Q |
 | response-size attribution (lick_gain_prediction) | SVD decoder | Q |
 | non-linear decoder | after the above | Q (low) |
