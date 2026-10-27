@@ -402,6 +402,63 @@ def ramp_figure(plt, D: dict, RR: pd.DataFrame, kind: str, iso: bool, colors: di
     plt.close(fig)
 
 
+SIG_Q = 0.05
+SIG_NOTE = ("Bars above the curves: time bins where that epoch differs from pre\n(paired nested bootstrap animals > "
+            "sessions per bin, BH-FDR q = 0.05 across the bins of the curve), one row per epoch in its colour.")
+
+
+def sig_bars(ax, t: pd.DataFrame, colors: dict, value: str = "r", rows_top: float = 0.985, row_h: float = 0.045,
+             tag: dict | None = None) -> list[dict]:
+    """Per-time-bin significance of each post epoch vs pre on one curve (Priya 10-26: "mark with lines (colored per
+    epoch) where in the time bins curves differ from pre"). ``t`` = one row per session x lag (columns label, animal,
+    epoch, lag, ``value``). Per post epoch: `analysis_kit.boot_delta_columns` (the SAME paired animals > sessions draw as
+    every dot-plot star, vectorised over lags) -> `boot_p_columns` -> `bh` (q = SIG_Q) across that curve's lags.
+    Contiguous significant runs are drawn as thick segments in the epoch colour in a strip at the top of the axes (x in
+    data, y in axes coordinates), one row per epoch; each segment spans half a bin either side. Returns one record per
+    epoch x lag for the tests CSV."""
+    from matplotlib.transforms import blended_transform_factory
+
+    from wfield_local import analysis_kit as ak
+    W = t.groupby(["label", "animal", "epoch", "lag"])[value].mean().unstack("lag").sort_index(axis=1)
+    lags = W.columns.to_numpy(float)
+    half = np.median(np.diff(lags)) / 2 if len(lags) > 1 else 0.05
+    tr = blended_transform_factory(ax.transData, ax.transAxes)
+    pre = {a: g.to_numpy(float) for a, g in W.xs("pre", level="epoch").groupby(level="animal")} \
+        if "pre" in W.index.get_level_values("epoch") else {}
+    recs = []
+    for k, ep in enumerate([e for e in EP4 if e != "pre"]):
+        if ep not in W.index.get_level_values("epoch") or not pre:
+            continue
+        post = {a: g.to_numpy(float) for a, g in W.xs(ep, level="epoch").groupby(level="animal")}
+        res = ak.boot_delta_columns(post, pre, np.random.default_rng(0))
+        if res is None:
+            continue
+        point, lo, hi, draws, n_an = res
+        sig = ak.bh(ak.boot_p_columns(draws), SIG_Q)
+        y = rows_top - k * row_h
+        i = 0
+        while i < len(lags):
+            if sig[i]:
+                j = i
+                while j + 1 < len(lags) and sig[j + 1]:
+                    j += 1
+                ax.plot([lags[i] - half, lags[j] + half], [y, y], color=colors[ep], lw=4, solid_capstyle="butt",
+                        transform=tr, clip_on=False)
+                i = j + 1
+            else:
+                i += 1
+        recs += [dict(**(tag or {}), epoch=ep, lag=float(lg), delta=float(pt), lo=float(lo_), hi=float(hi_),
+                      sig_bh=bool(s), n_animals=n_an) for lg, pt, lo_, hi_, s in zip(lags, point, lo, hi, sig)]
+    return recs
+
+
+def _headroom(axs, frac: float = 0.2) -> None:
+    """Raise every axis top by ``frac`` of its range so the significance strip sits above the data."""
+    for ax in np.ravel(axs):
+        lo, hi = ax.get_ylim()
+        ax.set_ylim(lo, hi + frac * (hi - lo))
+
+
 def plot_direction(DR: pd.DataFrame, FZ: pd.DataFrame) -> None:
     """Page 3.7: within-session direction decoding per lag (session-pooled mean +- SEM) + the frozen pre-ITI decoder.
     Called by summarise(); `--plot-direction` redraws it from decode_sessions.csv / decode_frozen_sessions.csv."""
@@ -410,11 +467,13 @@ def plot_direction(DR: pd.DataFrame, FZ: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
-    fig, axs = plt.subplots(2, 3, figsize=(16, 8), sharey=True, gridspec_kw={"width_ratios": [1, 1, 0.7]})
+    fig, axs = plt.subplots(2, 3, figsize=(16, 8.6), sharey=True, gridspec_kw={"width_ratios": [1, 1, 0.7]})
+    sig_recs = []
     for i, tg in enumerate(("direction", "relative")):
         for j, s_ in enumerate(("iti", "trial")):
             ax = axs[i, j]
             t = DR[(DR.target == tg) & (DR.set == s_)]
+            sig_recs += sig_bars(ax, t, colors, tag={"figure": "3.7", "set": s_, "target": tg})
             for ep in EP4:
                 g = t[t.epoch == ep].groupby(["label", "lag"]).r.mean().groupby("lag")   # session-pooled, as 3.8
                 m, se = g.mean(), g.std(ddof=1) / np.sqrt(g.count())
@@ -447,14 +506,16 @@ def plot_direction(DR: pd.DataFrame, FZ: pd.DataFrame) -> None:
         ax.axhline(0, color="0.8", lw=0.6)
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
-    axs[0, 0].legend(fontsize=8, frameon=False)
+    _headroom([axs[0, 0]])                              # y is shared: raise once
+    axs[0, 0].legend(fontsize=8, frameon=False, loc="lower right")
     axs[0, 0].set_ylabel(YR)
     axs[1, 0].set_ylabel(YR)
+    pd.DataFrame(sig_recs).to_csv(OUT / "sig_bins_3_7.csv", index=False)
     fig.suptitle("NEURAL: decoding each lick's lateral tongue-tip position (3-D, mm) from cortical area activity; y = r between "
                  "decoded and actual position.\nLeft / middle: " + REFIT_TAG + " (ridge, 5 time-block folds), per lag, mean over "
-                 "sessions +- SEM.\nRight: " + FROZEN_TAG + ", applied unchanged to every session (pre scored leave-one-session-out).",
-                 fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
+                 "sessions +- SEM.\n" + SIG_NOTE + "\nRight: " + FROZEN_TAG + ", applied unchanged to every session (pre "
+                 "scored leave-one-session-out).", fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.88))
     fig.savefig(OUT / "figures" / "iti_direction_decoding.png", dpi=110)
     plt.close(fig)
 
@@ -717,6 +778,50 @@ def _auc(v: np.ndarray, t0: float, t1: float) -> float:
     return float(np.trapezoid(v[m], LAGS_P[m])) if hasattr(np, "trapezoid") else float(np.trapz(v[m], LAGS_P[m]))
 
 
+def plot_frozen_timecourse(FL: pd.DataFrame) -> None:
+    """Page 3.8: the frozen pre-stroke decoder per lag (session-pooled mean +- SEM) with per-bin significance bars;
+    called by key_figures, `--plot-frozen-tc` redraws it from decode_frozen_lags_sessions.csv."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    set_lab = {"iti": "ITI (self-initiated; spout retracted; reference = previous trial's spout)",
+               "trial": "in-trial post-cue (reference = spout in place)"}
+    fig, axs = plt.subplots(2, 2, figsize=(13, 9), sharey=True, sharex=True)
+    sig_recs = []
+    for i, tg in enumerate(("direction", "relative")):
+        for j, st in enumerate(("iti", "trial")):
+            ax = axs[i, j]
+            t = FL[(FL.target == tg) & (FL.set == st)]
+            sig_recs += sig_bars(ax, t, colors, tag={"figure": "3.8", "set": st, "target": tg})
+            for ep in EP4:
+                g = t[t.epoch == ep].groupby("lag").r
+                m, se = g.mean(), g.std(ddof=1) / np.sqrt(g.count())
+                if len(m):
+                    ax.plot(m.index, m.values, color=colors[ep], lw=2, label=f"{ep} ({t[t.epoch == ep].label.nunique()} sessions)")
+                    ax.fill_between(m.index, (m - se).values, (m + se).values, color=colors[ep], alpha=0.18, lw=0)
+            ax.axvline(0, color="0.6", lw=0.6)
+            ax.axhline(0, color="0.8", lw=0.6)
+            ax.set_title(f"{set_lab[st]}\n{TGT_LAB[tg]}", fontsize=8.5)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            if i == 1:
+                ax.set_xlabel("lag from lick peak (s)")
+            if j == 0:
+                ax.set_ylabel("FROZEN decoder r\n(decoded vs actual lateral position)", fontsize=8.5)
+    axs[0, 0].legend(fontsize=7, frameon=False, loc="lower right")
+    _headroom([axs[0, 0]])                              # y is shared: raise once
+    pd.DataFrame(sig_recs).to_csv(OUT / "sig_bins_3_8.csv", index=False)
+    fig.suptitle("NEURAL: " + FROZEN_TAG + ", per lag from the lick peak; y = r between decoded and actual lateral "
+                 "tongue-tip position.\nTrained on each animal's PRE-stroke licks of the same kind (ITI or in-trial; pre "
+                 "sessions leave-one-session-out), applied unchanged to every session. Line = mean over sessions (all animals "
+                 "pooled), band = SEM.\n" + SIG_NOTE, fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.91))
+    fig.savefig(OUT / "figures" / "iti_frozen_timecourse.png", dpi=110)
+    plt.close(fig)
+
+
 def key_figures(D: dict, RR: pd.DataFrame) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -728,37 +833,7 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
     FL = pd.concat([frozen_decode_lags(D, "iti"), frozen_decode_lags(D, "trial")])
     FL.to_csv(OUT / "decode_frozen_lags_sessions.csv", index=False)
     tgt_lab = TGT_LAB
-    set_lab = {"iti": "ITI (self-initiated; spout retracted; reference = previous trial's spout)",
-               "trial": "in-trial post-cue (reference = spout in place)"}
-    fig, axs = plt.subplots(2, 2, figsize=(13, 8.5), sharey=True, sharex=True)
-    for i, tg in enumerate(("direction", "relative")):
-        for j, st in enumerate(("iti", "trial")):
-            ax = axs[i, j]
-            t = FL[(FL.target == tg) & (FL.set == st)]
-            for ep in EP4:
-                g = t[t.epoch == ep].groupby("lag").r
-                m, se = g.mean(), g.std(ddof=1) / np.sqrt(g.count())
-                if len(m):
-                    ax.plot(m.index, m.values, color=colors[ep], lw=2, label=f"{ep} ({t[t.epoch == ep].label.nunique()} sessions)")
-                    ax.fill_between(m.index, (m - se).values, (m + se).values, color=colors[ep], alpha=0.18, lw=0)
-            ax.axvline(0, color="0.6", lw=0.6)
-            ax.axhline(0, color="0.8", lw=0.6)
-            ax.set_title(f"{set_lab[st]}\n{tgt_lab[tg]}", fontsize=8.5)
-            for sp in ("top", "right"):
-                ax.spines[sp].set_visible(False)
-            if i == 1:
-                ax.set_xlabel("lag from lick peak (s)")
-            if j == 0:
-                ax.set_ylabel("FROZEN decoder: " + YR, fontsize=8.5)
-            ax.legend(fontsize=7, frameon=False, loc="upper left")
-    fig.suptitle("NEURAL: " + FROZEN_TAG + ", per lag from the lick peak; y = r between decoded and actual lateral "
-                 "tongue-tip position.\nTrained on each animal's PRE-stroke licks of the same kind (ITI or in-trial; pre "
-                 "sessions leave-one-session-out), applied unchanged to every session. Line = mean over sessions (all animals "
-                 "pooled), band = SEM.",
-                 fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(OUT / "figures" / "iti_frozen_timecourse.png", dpi=110)
-    plt.close(fig)
+    plot_frozen_timecourse(FL)
     W = FL[(FL.lag >= 0.0) & (FL.lag <= 0.2)].groupby(["label", "animal", "epoch", "set", "target"]).r.mean().reset_index()
     tests = []
     fig, axs = plt.subplots(2, 4, figsize=(17, 8))
@@ -1291,6 +1366,7 @@ def main(argv=None) -> int:
     ap.add_argument("--controls", action="store_true", help="only the kinematics / face / FR-variance controls")
     ap.add_argument("--binned", action="store_true", help="only the binned frozen-decoder sweep + summary")
     ap.add_argument("--plot-direction", action="store_true", help="redraw page 3.7 from the saved CSVs")
+    ap.add_argument("--plot-frozen-tc", action="store_true", help="redraw page 3.8 from decode_frozen_lags_sessions.csv")
     ap.add_argument("--ramp", action="store_true", help="redraw pages 3.16 / 3.19 (ITI-lick PETHs)")
     a = ap.parse_args(argv)
     assert_writable(OUT)
@@ -1307,6 +1383,9 @@ def main(argv=None) -> int:
         return 0
     if a.plot_direction:
         plot_direction(pd.read_csv(OUT / "decode_sessions.csv"), pd.read_csv(OUT / "decode_frozen_sessions.csv"))
+        return 0
+    if a.plot_frozen_tc:
+        plot_frozen_timecourse(pd.read_csv(OUT / "decode_frozen_lags_sessions.csv"))
         return 0
     if a.binned:
         binned_figures({x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()})
