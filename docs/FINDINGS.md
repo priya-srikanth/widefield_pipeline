@@ -148,14 +148,30 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    three bases, 4/4 each; in-trial recovers in all three).
    (viii) Which dimension: the ITI loss is LATERAL (-19..-20 % in all bases, 4/4); outward position is weakly decoded and
    unchanged. In-trial: outward drops acutely and recovers fully; angle decoding ends ABOVE pre chronically (+7..+11 %).
+   Lateral falls more than angle chronically (paired, ITI -0.10 [-0.14, -0.06] areas, 4/4). Caveats (10-26 late): part
+   of the lateral r loss is a narrower spread of lick positions (fully accounts for ITI PS92 / PS95 and in-trial PS93,
+   not ITI PS93 / PS94); the angle here is horizontal atan2(lateral, outward), not the encoder's exec_angle. A
+   spread-matched check is proposed.
    (ix) BEHAVIOUR, ITI lick rate: drops acutely in PS92-94 and stays 14-28 % below pre chronically; only PS95 (near-zero
    ITI licking pre) ends above pre (~4x). Tracks far-contra hit rate within animal (r +0.67; +0.51 with log-day removed,
    PS94 ~0) -- the shared dip-and-return; not the cause of the decoder's ITI loss.
    (x) Encoder, TE partial refit (10-26): target-labelled lick kernels gain over landing-labelled ones chronically
    (landing - target -0.019 contra SSp-m, -0.024 cortex, 0/4 up); acute target advantage falls (-0.126), back by chronic.
-   (xi) Decoded vs actual (10-26): executed licks drift ipsilesionally; the frozen decoder does not follow (ITI bias
-   contralesional at fixed executed position); for cued licks, ipsi-deviated licks decode MORE like on-target licks
-   after the stroke (share of the deviation followed 0.26 -> 0.14 chronic, 4/4) -> target over execution.
+   (xi) Decoded vs actual (10-26): executed licks drift ipsilesionally; the frozen decoder does not follow; for cued
+   licks, ipsi-deviated licks decode MORE like on-target licks after the stroke (share of the deviation followed
+   0.26 -> 0.14 chronic, 4/4) -> target over execution. Superseded as a summary by (xiii).
+   (xiii) **KEY (10-26 late, page 3.19-3.21, ENCODING_FINDINGS 8.17): post-stroke, cortex read with the pre-stroke
+   decoder places licks CONTRALESIONAL of where they land.** Measure = decoded minus actual lateral position per lick,
+   change vs pre for the same spout (+ = contralesional). Acutely both lick types, 4/4: cued +0.54 mm [+0.25, +0.85],
+   self-initiated (ITI) +0.56 [+0.35, +0.79]. Restricted to licks landing at their usual (pre-stroke) spot, which removes
+   the decoder's pre-existing pull toward the middle: ITI still +0.34 [+0.18, +0.54] acute (4/4) and +0.16
+   [+0.03, +0.32] chronic (sign 4/4; large in PS94 +0.39 / PS95 +0.15, ~0 in PS92 / PS93); cued ~0 acute and slightly
+   IPSI chronic (-0.16, 0/4 contra) -> for cued licks the acute shift is ipsi-strayed licks read at their target; for
+   ITI licks a lick in the same place is read further contralesional than before. Cued licks are also read CLOSER to the
+   mouth than they land (-0.30 mm chronic at the usual spot, 0/4 further; all licks -0.47, mostly because cued licks
+   reach further out post-stroke). This is a mean offset and does not enter r (3.15-3.18 measure lick-to-lick
+   tracking, a separate loss; part of the ITI lateral r loss is a narrower spread of lick positions in PS92 / PS95).
+   Shared variance only: whether cortex carries the aim or does not register the changed movement is not determined.
    (xii) CORRECTION (10-26): in-trial frozen r is also lower (-0.146 acute -> -0.063 chronic, CI excludes 0), smaller than
    ITI; its time course follows lick accuracy (a target-only reader loses -0.246 -> -0.036; session corr 0.82), so the
    in-trial loss is mostly 'decoder reads the target, licks deviate'; the ITI loss is the remapping.
