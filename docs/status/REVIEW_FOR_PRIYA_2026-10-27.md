@@ -1,6 +1,7 @@
 # For Priya to review (overnight 10-26 -> 10-27, encoding window sabatinilab-d4)
 
-Live page: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (version noted per item). Newest at the bottom of each
+Live page: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d -- v120 (02:45) has everything below: new Figs 3.33-3.38
+(maps, drift, recovery link, far-contra table), 3.14 significance bars, and a new 'Where things stand' row on the r loss. Newest at the bottom of each
 section. Everything here is PROVISIONAL until you have looked at it.
 
 ## Key results to look at
