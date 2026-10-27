@@ -121,10 +121,14 @@ section. Everything here is PROVISIONAL until you have looked at it.
   on 10-26 22:45 when the y-axis switched from OUTWARD (forward) to SAGITTAL extension (forward + down), which spreads more
   (SD ~0.7-0.9 mm). The z-scored redraw did not change them. QUESTION: switch to SEM ellipses (mean +/- SEM) or keep SD?
 
+- CONFOUND CHECKS on the larger lick response (iti_hemo_check.py; FINDINGS 4d0c): LATER increase survives everything
+  (zero-phase filter, uncorrected 470, F0 per area, vessel pixels, pre-lick gap matching); 415 nm grows only ACUTELY
+  (+0.17 of the pre response vs +0.76 corrected; mostly PS95 / PS94) and the acute increase is somewhat edge-rim weighted
+  -> up to ~1/5 of the ACUTE increase may be haemodynamic / motion. PS94 runs during ~50 % of its subacute / chronic
+  licks (9 % pre). Figures: iti_hemo_check_{variants,peth,edge_vessel,f0_areas,state_gap}.png.
+
 ### Running / queued
 - Whole-map permutation + amplitude-normalised change maps (per-session self-fit maps, 107 sessions) -- drawing.
-- Haemodynamic / artefact checks (415 nm, uncorrected 470, zero-phase filter, edge / vessel, per-area F0; then global
-  state, baseline window) -- background agent.
 - Max-stat contour redraws of 3.50-3.53.
 - Then: one page publish; mixed-effects models (sessions in animals) for headline results; per-animal per-spout panels;
   first-lick read-out; behaviour-only decoder (low). Tell the deck window the decoder figures are final AFTER the publish.
