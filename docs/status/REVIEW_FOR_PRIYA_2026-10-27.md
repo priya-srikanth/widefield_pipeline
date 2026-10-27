@@ -43,6 +43,11 @@ section. Everything here is PROVISIONAL until you have looked at it.
    so the larger ITI post-lick dF/F response (3.23-3.25) is not a baseline artefact; in dF units it is slightly larger.
    415 nm lick-aligned response still not done.
 
+10. **Three-axis version (low priority, done)**: lateral / forward / down in one z-scored run reproduces everything --
+    the cued "closer" of the KEY row is the FORWARD axis every epoch, and the DOWN axis carries "ahead acutely, closer
+    chronically". Nothing new; numbers in FINDINGS 4d.
+11. **Significance bars added** to the ITI-lick PETHs (3.23 / 3.24 / 3.26) and the orofacial-vs-control PETHs (3.31).
+
 ## Questions for you
 1. Recovery ranking: by far-contra cued lick ANGLE / pre, chronic PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. You
    rank PS95 best (fast early recovery, dip, then improvement) -- is there a measure you want used for the
@@ -50,7 +55,9 @@ section. Everything here is PROVISIONAL until you have looked at it.
 2. Should figures 3.15-3.22 be redrawn on z-scored features too (KEY row already uses them)? ~15 min chain.
 3. Drift check: the August-only pre span is 8 days, so chronic gaps (~39 days) are extrapolated. June pre sessions
    would give 2-month pre -> pre gaps -- OK to use them for THIS drift reference only (August-only stays the baseline)?
-4. sabatinilab-e3 (PI deck) asked to be told when the decoder and activity-map figures are final: not told yet.
+4. 415 nm lick-aligned response (handoff to-do): CLAUDE.md says the haemodynamic arm is CLOSED ("do not spend analysis
+   effort there"), so I did not run it. Do you still want it as a control for the larger post-lick response?
+5. sabatinilab-e3 (PI deck) asked to be told when the decoder and activity-map figures are final: not told yet.
 
 ## Issues / caveats
 1. The chronic cued far-contra "read ipsilesional" interpretation (scaled-down command vs changed strategy vs blurred

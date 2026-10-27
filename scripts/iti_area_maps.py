@@ -193,7 +193,10 @@ def compare(T: pd.DataFrame, peths: dict) -> None:
             pk.setdefault((a_, ar), []).append(v)
     pk = {k: float(np.mean(v, 0)[post].max()) for k, v in pk.items()}
     fig, axs = plt.subplots(2, len(COMPARE), figsize=(2.3 * len(COMPARE), 6.2), sharex=True, sharey="row")
+    shown = (il.LAGS_P >= -1.5) & (il.LAGS_P <= 0.75)
+    sig_recs = []
     for j, ar in enumerate(COMPARE):
+        long = {False: [], True: []}
         for ep in il.EP4:
             labs = sorted(x for x in T[(T.area == ar) & (T.epoch == ep)].label.unique() if (x, ar) in peths)
             if not labs:
@@ -204,6 +207,12 @@ def compare(T: pd.DataFrame, peths: dict) -> None:
                 mu, se = np.nanmean(M, 0), np.nanstd(M, 0, ddof=1) / np.sqrt(len(M))
                 axs[i, j].plot(il.LAGS_P, mu, color=colors[ep], lw=1.6, label=f"{ep} ({len(M)})")
                 axs[i, j].fill_between(il.LAGS_P, mu - se, mu + se, color=colors[ep], alpha=0.2, lw=0)
+                long[norm] += [pd.DataFrame({"label": x, "animal": T[T.label == x].animal.iloc[0], "epoch": ep,
+                                             "lag": il.LAGS_P[shown], "v": m_[shown]}) for x, m_ in zip(labs, M)]
+        for i, norm in enumerate((False, True)):
+            if long[norm]:
+                sig_recs += il.sig_bars(axs[i, j], pd.concat(long[norm], ignore_index=True), colors, value="v",
+                                        tag={"area": ar, "normalised": norm})
         for i in range(2):
             ax = axs[i, j]
             ax.axvline(0, color="0.6", lw=0.6)
@@ -222,8 +231,11 @@ def compare(T: pd.DataFrame, peths: dict) -> None:
     axs[0, 0].legend(fontsize=6, frameon=False)
     fig.suptitle("NEURAL, NO DECODER: self-initiated (ITI) licks (dF/F), orofacial ROIs next to control areas (contralesional; first ITI lick "
                  "after >= 2 s without licking; per-session mean PETH, all animals pooled, band = SEM over sessions; "
-                 "bottom = each session / its animal's pre-stroke peak of that area).", fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+                 "bottom = each session / its animal's pre-stroke peak of that area).\n" + il.SIG_NOTE, fontsize=9.5,
+                 wrap=True)
+    il._headroom([axs[0, 0], axs[1, 0]])                 # y shared per row: raise each row once
+    pd.DataFrame(sig_recs).to_csv(il.OUT / "sig_bins_3_31.csv", index=False)
+    fig.tight_layout(rect=(0, 0, 1, 0.87))
     fig.savefig(il.OUT / "figures" / "iti_area_compare.png", dpi=110)
     plt.close(fig)
 

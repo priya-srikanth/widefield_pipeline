@@ -256,6 +256,12 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    bin, BH-FDR): larger post-lick response significant in every ROI acutely / subacutely, chronically in tjM1 and SSp-m;
    weaker chronic build-up (~-1.2..-0.2 s) significant in tjM1 and SSp-m bilaterally. 3.14 (basis decoder): ITI lateral r
    below pre at every lag, every basis, every epoch.
+   THREE-AXIS VERSION (10-27, `scripts/iti_where_3axis.py`, where_3axis_{sessions,tests}.csv; z-scored, one ridge per
+   axis: lateral, forward = out_ap, down = down_dv). Same picture as the outward and sagittal runs: ITI lateral beyond
+   pull +0.33 / +0.22 / +0.25 (4/4 each), r -25 / -22 / -23 % (0/4 up); cued FORWARD read less forward every epoch
+   (-0.22 / -0.21 / -0.17, 0/4 further) -> the old "outward" result; cued DOWN read further down acutely (+0.20 [+0.09,
+   +0.31], 4/4) and less chronically (-0.14 [-0.27, -0.01]) -> the sagittal "ahead acutely, closer chronically" result;
+   cued lateral +0.19 acute (4/4). r on forward / down not lost except cued forward acutely (-23 %).
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
