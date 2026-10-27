@@ -262,6 +262,12 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    (-0.22 / -0.21 / -0.17, 0/4 further) -> the old "outward" result; cued DOWN read further down acutely (+0.20 [+0.09,
    +0.31], 4/4) and less chronically (-0.14 [-0.27, -0.01]) -> the sagittal "ahead acutely, closer chronically" result;
    cued lateral +0.19 acute (4/4). r on forward / down not lost except cued forward acutely (-23 %).
+   RMSE = BIAS + SCATTER (10-27, `scripts/iti_where_rmse_split.py`, where_rmse_split.csv; z-scored decoder; error =
+   decoded - actual per lick, RMSE^2 = mean^2 + SD^2 per session): the post-stroke error increase is almost all BIAS
+   (a shifted prediction), not scatter: ITI lateral |bias| +0.81 / +0.41 / +0.36 mm (CIs exclude 0), error SD -0.01 /
+   +0.04 / -0.01 (n.s.); cued lateral |bias| +0.40 / +0.15 / +0.06, SD n.s.; cued sagittal SD even falls chronically
+   (-0.15). PS94 carries the chronic ITI bias (+0.90). Raw bias includes the pull acting on changed landings (the
+   beyond-pull offsets of the KEY row remove that).
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
