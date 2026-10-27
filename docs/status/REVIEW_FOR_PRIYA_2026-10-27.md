@@ -18,6 +18,11 @@ section. Everything here is PROVISIONAL until you have looked at it.
    -0.51; p 2e-4). Cued sagittal offset also tracks recovery (-0.57, 4/4): "read further" acutely -> "read closer" as
    aim returns. PS95 angle course: fast rise to ~0.95 by day 9, ~0.85 days 11-20, ~0.95 later (your "dip").
 
+4. **Far-contra pattern test** (biology question about the chronic far-contra ipsi reading; FINDINGS 4d): the
+   chronic far-contra pattern is the same pattern at lower gain in PS92 / PS94 / PS95 (cos 0.85-0.97, gain 0.57-0.84),
+   degraded with partial drift toward close contra in PS93 -- but far ipsi loses gain as much (0.25-0.93), so the
+   across-spout contrast shrinks broadly while only far contra is read ipsi. Not resolved; worth discussing.
+
 ## Questions for you
 1. Recovery ranking: by far-contra cued lick ANGLE / pre, chronic PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. You
    rank PS95 best (fast early recovery, dip, then improvement) -- is there a measure you want used for the

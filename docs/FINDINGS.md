@@ -212,6 +212,15 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    PS93 -0.44, PS94 -0.62, PS95 -0.51; PS95 was + on the hit-rate measure); ITI lateral error -0.45 (4/4); cued
    sagittal offset -0.57 (4/4: cued licks read CLOSER as aim recovers, i.e. the acute "read further" fades into the
    chronic "read closer"); cued lateral -0.42 (3/4, PS95 +0.22). Frozen r: not beyond the time trend.
+   FAR-CONTRA PATTERN TEST (10-27 ~01:30, `scripts/iti_farcontra_pattern.py`, farcontra_pattern.csv; cued licks,
+   z-scored Allen areas lags 0..0.2 s, spout patterns centred on the mean over the six spouts per epoch so epoch-wide
+   changes drop out). Chronic far-contra vs its pre pattern, gain / cosine (pre half-vs-half floor ~0.9-1.0 / 0.90-0.99):
+   PS92 0.84 / 0.97, PS93 0.55 / 0.56, PS94 0.84 / 0.97, PS95 0.57 / 0.85 -> in 3/4 the SAME pattern at reduced gain
+   (a weaker copy); PS93 degraded with a rise in similarity to the close-contra pattern (cos 0.07 -> 0.58), i.e. partial
+   drift toward a nearer spout. BUT the mirror control loses gain too: far-ipsi chronic 0.68 / 0.72, 0.25 / 0.28,
+   0.93 / 0.94, 0.56 / 0.44 -> the spatial contrast across spouts shrinks broadly (PS93 / PS95 most), not only at far
+   contra; yet only far contra is READ ipsilesional (far-ipsi offset ~0), so the weaker-copy account alone does not
+   explain the offset sign. Usual-spot subset too sparse to test (pre halves missing). OPEN.
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
