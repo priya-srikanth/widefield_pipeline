@@ -131,6 +131,7 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      5 / 4 / 6 / 1 (was 4 / 4 / 4 / 1). `edit13.py` fixed the slide 4 / 5 notes; `refresh_goal_numbers.py` now reads
      ALL four page registries (ambiguous fids resolved by the page named before the citation) -- run it, then
      edit11.py, after any page reorder.
+     GOAL PAGE v136 (23 topical sections, every number changed): refresh 47 numbers + edit11, all ids resolved.
    * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
