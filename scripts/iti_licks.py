@@ -255,8 +255,8 @@ def extract(item) -> dict:
 # ------------------------------------------------------------------------------------------------ summaries
 
 
-def _load(label: str) -> dict:
-    z = np.load(OUT / "sessions" / f"{label}.npz", allow_pickle=False)
+def _load(label: str, sess_dir: Path | None = None) -> dict:
+    z = np.load((sess_dir or OUT / "sessions") / f"{label}.npz", allow_pickle=False)
     return {k: z[k] for k in z.files}
 
 

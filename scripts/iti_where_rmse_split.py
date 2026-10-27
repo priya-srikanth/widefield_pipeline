@@ -2,7 +2,7 @@
 actual; RMSE^2 = mean(e)^2 + SD(e)^2. Does the post-stroke error grow because predictions are shifted (bias, the
 offsets of 3.21 / 3.22) or because they scatter more around the licks (SD, what r loses)? Per lick set x axis
 (lateral, sagittal), decoder on z-scored features (`zscore_check/where_preds_z.csv`; --unscaled for where_preds.csv).
-Change vs pre per epoch: paired nested bootstrap. Output <E>/iti_licks/where_rmse_split[_unscaled].csv.
+Change vs pre per epoch: paired nested bootstrap. Output <E>/iti_licks/where_rmse_split[_unscaled][_sessions].csv.
 Usage: python scripts/iti_where_rmse_split.py [--unscaled]
 """
 from __future__ import annotations
@@ -32,6 +32,7 @@ def main(argv=None) -> int:
                 rows.append(dict(set=st, animal=a, epoch=ep, label=lab, axis=ax_, rmse=float(np.sqrt(np.mean(e ** 2))),
                                  bias=float(abs(e.mean())), sd=float(e.std())))
     S = pd.DataFrame(rows)
+    S.to_csv(il.OUT / f"where_rmse_split{'_unscaled' if unscaled else ''}_sessions.csv", index=False)
     pd.set_option("display.width", 200)
     print("== per animal (rule 8), chronic minus pre: RMSE, |bias|, SD (mm)")
     m = S.groupby(["set", "axis", "animal", "epoch"])[["rmse", "bias", "sd"]].mean()

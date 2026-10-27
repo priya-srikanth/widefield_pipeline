@@ -112,8 +112,8 @@ def main(argv=None) -> int:
         k = p.groupby(["animal", "epoch", "label"]).k.mean().reset_index()
         k["beh"] = k.k / k.animal.map(k[k.epoch == "pre"].groupby("animal").k.mean())
         B = B[["label", "day"]].merge(k[["label", "beh"]], on="label")
-    G = S[S.epoch != "pre"].merge(B, on="label", how="inner").dropna(subset=["beh", "day"])
-    G = G[G.day > 0].copy()
+    GA = S.merge(B, on="label", how="inner").dropna(subset=["beh", "day"])   # pre sessions kept for the figures
+    G = GA[(GA.epoch != "pre") & (GA.day > 0)].copy()
     pd.set_option("display.width", 220)
     # BETWEEN animals (descriptive)
     bb = G.drop_duplicates("label").groupby(["animal", "epoch"]).beh.mean().unstack()[EP]
@@ -143,12 +143,94 @@ def main(argv=None) -> int:
     print("\n== within-animal r(measure, behaviour / pre) over post sessions\n" + R.to_string(index=False))
     R.to_csv(src / f"recovery_link_within_{tag}.csv", index=False)
     G.to_csv(src / f"recovery_link_sessions_{tag}.csv", index=False)
-    plot_course(G, R, tag, ax2, args.z, src)
+    GA.to_csv(src / f"recovery_link_sessions_withpre_{tag}.csv", index=False)
+    plot_course(GA, R, tag, ax2, args.z, src)
+    plot_pooled(GA, tag, args.z, src)
     return 0
 
 
+def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
+    """Per epoch (pre included): behaviour and lateral offset, animal means + nested-bootstrap CI of the change vs pre,
+    and the per-animal epoch trajectory in (behaviour, offset) space. Per-animal table printed first (rule 8)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local import analysis_kit as ak
+    eps = ["pre", *EP]
+    blab = {"hit": "far-contra hit rate / pre", "angle": "far-contra lick angle / pre",
+            "lateral": "far-contra lateral protrusion / pre"}[tag.replace("_z", "")]
+    fig, axs = plt.subplots(2, 3, figsize=(15, 8.2), squeeze=False)
+    cols = plt.get_cmap("tab10")
+    rows = []
+    for i, st in enumerate(("iti", "trial")):
+        g = GA[GA.set == st]
+        am = g.groupby(["animal", "epoch"])[["beh", "bey_lat"]].mean()
+        print(f"\n== POOLED {st}: per animal x epoch (beh / pre; bey_lat change vs pre, mm)\n"
+              + am.unstack("epoch").reindex(columns=eps, level=1).round(3).to_string())
+        for j, (val, lab) in enumerate((("beh", blab), ("bey_lat", "lateral offset beyond pre pull, mm\n"
+                                                                   "(+ = read contralesional; change vs pre)"))):
+            ax = axs[i, j]
+            prd = {a: h[val].to_numpy() for a, h in g[g.epoch == "pre"].groupby("animal")}
+            for k, a in enumerate(AN):
+                y = [am[val].get((a, e), np.nan) for e in eps]
+                ax.plot(range(4), y, "o-", color=cols(k), ms=5, lw=1, alpha=0.75, label=a)
+            mu = [am[val].xs(e, level="epoch").mean() for e in eps]
+            ax.plot(range(4), mu, "-", color="k", lw=2.5, zorder=5, label="mean of animals")
+            for x, e in enumerate(EP, start=1):
+                post = {a: h[val].to_numpy() for a, h in g[g.epoch == e].groupby("animal")}
+                ci = ak.boot_delta(post, prd, np.random.default_rng(0))
+                ref = mu[0]
+                ax.errorbar(x + 0.12, ref + ci.point, yerr=[[ci.point - ci.lo], [ci.hi - ci.point]], fmt="D",
+                            color="k", ms=6, capsize=3, zorder=6)
+                sig = ci.lo > 0 or ci.hi < 0
+                ax.text(x + 0.12, ref + ci.hi, f"{ci.point:+.2f}" + (" *" if sig else ""), ha="center",
+                        va="bottom", fontsize=8)
+                rows.append(dict(set=st, measure=val, epoch=e, point=ci.point, lo=ci.lo, hi=ci.hi,
+                                 n_dir=int(((am[val].xs(e, level="epoch") - am[val].xs("pre", level="epoch")) *
+                                            np.sign(ci.point) > 0).sum())))
+            ax.axhline(1 if val == "beh" else 0, color="0.7", lw=0.7, ls=":")
+            ax.set_xticks(range(4), eps)
+            ax.set_ylabel(lab, fontsize=8.5)
+            ax.set_title(f"{'ITI' if st == 'iti' else 'cued'} licks: {'behaviour' if val == 'beh' else 'decoder'}",
+                         fontsize=9.5)
+            if i == 0 and j == 0:
+                ax.legend(fontsize=7.5, frameon=False)
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+        ax = axs[i, 2]
+        for k, a in enumerate(AN):
+            x = [am["beh"].get((a, e), np.nan) for e in eps]
+            y = [am["bey_lat"].get((a, e), np.nan) for e in eps]
+            ax.plot(x, y, "-", color=cols(k), lw=1, alpha=0.7)
+            for _e, xx, yy, mk in zip(eps, x, y, ("o", "^", "s", "*")):
+                ax.plot(xx, yy, mk, color=cols(k), ms=7 if mk != "*" else 11, mec="k", mew=0.4)
+        ax.plot([], [], "o", color="0.5", label="pre")
+        ax.plot([], [], "^", color="0.5", label="acute")
+        ax.plot([], [], "s", color="0.5", label="subacute")
+        ax.plot([], [], "*", color="0.5", ms=10, label="chronic")
+        ax.legend(fontsize=7.5, frameon=False)
+        ax.axhline(0, color="0.7", lw=0.7, ls=":")
+        ax.axvline(1, color="0.7", lw=0.7, ls=":")
+        ax.set_xlabel(blab, fontsize=8.5)
+        ax.set_ylabel("lateral offset (mm, change vs pre)", fontsize=8.5)
+        ax.set_title("per animal, epoch means: aim vs decoder offset", fontsize=9.5)
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+    pd.DataFrame(rows).to_csv(src / f"recovery_link_pooled_{tag}.csv", index=False)
+    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED per epoch (pre included): far-contra aim and the "
+                 "FROZEN pre-stroke decoder's lateral offset beyond its pre pull.\nThin lines = animals (session "
+                 "means per epoch); black line = mean of animals; diamonds = mean of animals' pre + change vs pre "
+                 "with 95% nested bootstrap CI\n(animals > sessions; * = CI excludes 0). TOP = ITI licks, BOTTOM = "
+                 "cued licks. Behaviour is the same in both rows (cued far-contra licks).", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(src / "figures" / f"iti_recovery_link_pooled_{tag}.png", dpi=100)
+    plt.close(fig)
+
+
 def plot_course(G: pd.DataFrame, R: pd.DataFrame, tag: str, ax2: str, z: bool, src: Path) -> None:
-    """Per animal over post-stroke days: behaviour (/ pre) and the decoder's lateral offset beyond the pull."""
+    """Per animal over days, pre-stroke sessions included (left of the stroke line): behaviour (/ pre) and the
+    decoder's lateral offset beyond the pull. Pre values scatter around 1 / 0 by construction (the reference)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -167,6 +249,10 @@ def plot_course(G: pd.DataFrame, R: pd.DataFrame, tag: str, ax2: str, z: bool, s
             ax2_.plot(g.day, g.bey_lat, "s-", color="#c0392b", ms=4, lw=1.2, alpha=0.85,
                       label="decoded lateral offset beyond pre pull (mm, change vs pre)")
             ax2_.axhline(0, color="#c0392b", lw=0.5, ls=":")
+            ax.axvspan(g.day.min() - 1, 0, color="0.93", zorder=0)
+            ax.axvline(0, color="k", lw=0.8, ls="--")
+            if i == 0 and j == 0:
+                ax.text(0, 1.0, " stroke", transform=ax.get_xaxis_transform(), fontsize=7.5, va="top")
             if j == 3:
                 ax2_.set_ylabel("lateral offset, mm\n(+ = read contralesional)" + ("\n" + zl.strip() if z else ""),
                                 fontsize=8.5, color="#c0392b")
@@ -179,15 +265,15 @@ def plot_course(G: pd.DataFrame, R: pd.DataFrame, tag: str, ax2: str, z: bool, s
                 ax.spines[s_].set_visible(False)
     rr = R[(R.measure == "bey_lat")].set_index(["set", "kind"])
     fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "NEURAL vs BEHAVIOUR, within animal: as far-contra aim "
-                 f"recovers, does the decoder's contralesional reading fade?\nBlack = {blab} (one dot per post-stroke "
-                 "session); red = FROZEN pre-stroke decoder's lateral offset beyond its pre pull (Allen areas, lags "
+                 f"recovers, does the decoder's contralesional reading fade?\nBlack = {blab} (one dot per session; grey = PRE-STROKE "
+                 "sessions, the reference); red = FROZEN pre-stroke decoder's lateral offset beyond its pre pull (Allen areas, lags "
                  "0..0.2 s;\n+ = cortex reads the lick more contralesional than it landed)" + zl + ". TOP = ITI licks "
                  "(different licks from those defining recovery), BOTTOM = cued licks.\nMean within-animal r: ITI "
                  f"{rr.loc[('iti', 'raw'), 'mean_r']:+.2f} (time trend removed {rr.loc[('iti', 'detrended'), 'mean_r']:+.2f},"
                  f" p {rr.loc[('iti', 'detrended'), 'p_perm']:.4f}); cued {rr.loc[('trial', 'raw'), 'mean_r']:+.2f} "
                  f"({rr.loc[('trial', 'detrended'), 'mean_r']:+.2f}, p {rr.loc[('trial', 'detrended'), 'p_perm']:.4f}); "
                  "p = within-animal permutation of behaviour.", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    fig.tight_layout(rect=(0, 0, 1, 0.89))
     fig.savefig(src / "figures" / f"iti_recovery_link_{tag}.png", dpi=100)
     plt.close(fig)
 
