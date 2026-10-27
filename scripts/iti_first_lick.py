@@ -166,12 +166,13 @@ def plot(T: pd.DataFrame) -> None:
                 ax.spines[s_].set_visible(False)
     axs[0, 0].legend(fontsize=8, frameon=False)
     d = T[(T.measure == "first_minus_later")]
-    txt = "; ".join(f"{r.scope} {r.epoch}: {r.point:+.2f} [{r.lo:+.2f},{r.hi:+.2f}] {r.n_dir}/{r.n}" for r in d.itertuples())
+    txt = "\n".join(sc_ + ": " + "; ".join(f"{r.epoch} {r.point:+.2f} [{r.lo:+.2f},{r.hi:+.2f}] {r.n_dir}/{r.n}"
+                                           for r in d[d.scope == sc_].itertuples()) for sc_ in ("far contra", "all spouts"))
     fig.suptitle("FIRST cued lick (launched before feedback) vs LATER licks: landing (BEHAVIOUR), decoded and offset "
                  "beyond the pull (NEURAL), lateral, change vs each class's pre mean at the spout;\nfrozen KEY-row "
                  "decoder (z-scored Allen areas); 95% paired nested bootstrap CI, k/n animals. + = contralesional.\n"
-                 f"Beyond-pull first - later, change vs pre: {txt}. PROVISIONAL", fontsize=8.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.86))
+                 f"Beyond-pull FIRST - LATER, change vs pre (PROVISIONAL):\n{txt}", fontsize=8.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.82))
     fig.savefig(il.OUT / "figures" / "iti_first_lick.png", dpi=100)
     plt.close(fig)
 
