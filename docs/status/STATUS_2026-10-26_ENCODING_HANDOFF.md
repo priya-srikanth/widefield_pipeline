@@ -39,6 +39,19 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-NOW (10-27 ~00:30) -- read before 00a-00g
+- Sagittal chain DONE (22:56); page v119 PUBLISHED with the sagittal figures (3.15-3.22 redrawn + recaptioned; scatter
+  y = 0 line removed; decoder suptitle gap fixed) and the NEW KEY row (Priya liked: cued licks read AHEAD of the failing
+  movement acutely; "as aim recovers, the ITI contralesional offset fades"). Z-SCORED features = PRIMARY readout in the
+  KEY row for BOTH axes (Priya 10-26: OK for sagittal; lateral agrees either way); figures 3.15-3.22 still show
+  unscaled (3.22 links the z version). Page src backed up; push of b5de1e7..HEAD queued (push41).
+- Recovery link: `scripts/iti_recovery_link.py --beh {hit,angle,lateral}` (outputs recovery_link_*_{tag}.csv); hit rate
+  saturates -> angle is the recovery measure (chronic PS92 1.01 / PS93 0.77 / PS94 0.13 / PS95 0.89). Priya says PS95
+  recovered best -- ask which measure ranks PS95 first.
+- TO-DO (low priority, Priya 10-27): 3-AXIS version (lateral, outward = forward, down) in one run, z-scored; sagittal
+  ~ |down| (r 0.96), outward independent (r -0.05). Then: spread-matched r for lateral AND sagittal, projection on the
+  pre far-contra pattern axis, jaw per far-contra lick. sabatinilab-e3 not yet told the figures are final.
+
 ### 00d. Results this session (all PROVISIONAL; FINDINGS 4d (xiii), ENCODING_FINDINGS 8.17 KEY block)
 - **KEY (page "Where things stand"): cortex read with the frozen pre-stroke decoder places self-initiated (ITI) licks
   further CONTRALESIONAL, and cued licks CLOSER, than where they land.** Measure = decoded minus where the animal's
