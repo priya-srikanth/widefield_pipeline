@@ -240,6 +240,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame) -> None:
                      "(spout retracted) | BOTTOM ROW: cued in-trial licks (spout in place); separate frozen decoder per row. "
                      "Sagittal = sqrt(forward^2 + down^2); angle = atan2(lateral, sagittal).", fontsize=11)
         fig.tight_layout(rect=(0, 0, 1, 0.88))
+        fig.subplots_adjust(top=0.84)      # tight_layout left a large gap under the 5-line suptitle
         fig.savefig(il.OUT / "figures" / ("iti_where_decoder.png" if src == "areas" else f"iti_where_decoder_{src}.png"),
                     dpi=105)
         plt.close(fig)

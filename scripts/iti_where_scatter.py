@@ -242,7 +242,7 @@ def plot(R: pd.DataFrame) -> None:
                     ax.scatter(*ma, s=50, facecolor="w", edgecolor=PCOL[p], lw=2, zorder=4)
                     ax.scatter(*md, s=50, color=PCOL[p], zorder=5)
                 ax.set_aspect("equal", adjustable="box")
-                ax.axhline(0, color="0.9", lw=0.6, zorder=0)
+                # no y = 0 line: sagittal extension sits at ~3-6 mm, a zero line squashes the panels
                 ax.axvline(0, color="0.9", lw=0.6, zorder=0)
                 for s_ in ("top", "right"):
                     ax.spines[s_].set_visible(False)
