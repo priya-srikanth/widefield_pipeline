@@ -48,6 +48,10 @@ section. Everything here is PROVISIONAL until you have looked at it.
     chronically". Nothing new; numbers in FINDINGS 4d.
 11. **Significance bars added** to the ITI-lick PETHs (3.23 / 3.24 / 3.26) and the orofacial-vs-control PETHs (3.31).
 
+12. **RMSE = bias + scatter**: the larger post-stroke decoding error is a SHIFT of the predictions (ITI lateral |bias|
+    +0.81 / +0.41 / +0.36 mm), not more scatter (error SD unchanged) -- consistent with the offset story; PS94 carries
+    the chronic ITI bias.
+
 ## Questions for you
 1. Recovery ranking: by far-contra cued lick ANGLE / pre, chronic PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. You
    rank PS95 best (fast early recovery, dip, then improvement) -- is there a measure you want used for the
