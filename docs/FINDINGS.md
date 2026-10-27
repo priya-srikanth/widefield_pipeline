@@ -173,6 +173,12 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    grouped by nearest spout so the within-spout shift is much smaller -- done per lick the pull explains only part of
    it. Mean offsets do not enter r (3.15-3.18). Shared variance only: whether cortex carries the aim or does not
    register the changed movement is not determined.
+   ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
+   session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
+   pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
+   outward -0.22 / -0.21 / -0.17 [-0.25, -0.06], 0/4 further every epoch (~30-45 % smaller than unscaled; PS95 chronic
+   ~0); cued lateral +0.19 acute 4/4. Frozen r losses unchanged or slightly larger (ITI lateral chronic -23 %). So
+   neither the offsets nor the r loss are a response-scale (F0 / variance) artifact.
    (xii) CORRECTION (10-26): in-trial frozen r is also lower (-0.146 acute -> -0.063 chronic, CI excludes 0), smaller than
    ITI; its time course follows lick accuracy (a target-only reader loses -0.246 -> -0.036; session corr 0.82), so the
    in-trial loss is mostly 'decoder reads the target, licks deviate'; the ITI loss is the remapping.

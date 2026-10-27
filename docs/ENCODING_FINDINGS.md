@@ -1273,6 +1273,14 @@ coupling (direction not determined), not more face variability.
   -0.09 chronic n.s. Usual-spot licks give the same answer. RETRACTED (same evening): "all-licks ITI offset follows
   moving licks + pull (+0.56 / +0.26 / +0.18)" -- used the overall ipsi shift, but per-spout grouping makes the
   within-spout shift much smaller. Details in the SIGNED DECODING ERROR and OUTWARD AXIS paragraphs below.
+  Z-SCORE CHECK (10-26 late, `scripts/iti_zscore_check.py` -> iti_licks/zscore_check/; Priya: "z-scored within session
+  is ok", not a pre-lick baseline because the ITI carries position information): every area divided by its frame-wise
+  SD in the session (after the same drift removal; over all frames, not licks). Beyond-pull ITI lateral +0.33 / +0.22 /
+  +0.25, 4/4 every epoch; cued outward -0.22 / -0.21 / -0.17, 0/4 further every epoch; cued lateral +0.19 acute 4/4.
+  Frozen r: ITI lateral -25 / -22 / -23 % (unscaled -22 / -19 / -20), in-trial lateral -19 / -11 / -8 %, in-trial
+  angle +2 / +3 / +8 %. Not a scale artifact. Per-area split of the decoded shift (`scripts/iti_decoder_contrib.py`):
+  many small mixed-sign contributions (ridge spreads credit over correlated areas), no single area; lick-window activity
+  rises in PS92 / PS93 and falls in PS94 / PS95 for cued licks, so "more tjM1 / ALM" is not the cue-lick premise.
 
   ITI LICK RATE vs RECOVERY (BEHAVIOUR, 10-26 ~15:40, `scripts/iti_lick_rate.py`, iti_lick_rate{,_tests,_recovery}.csv;
   page 3.11; Priya: "does inter-trial licking correlate with recovery (and exceed pre-stroke levels)"). Rate = licks_all
