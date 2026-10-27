@@ -15,7 +15,7 @@ target-free in the TASK sense but can still be aimed at the spout present. Two q
      no spout identity). Plus a FROZEN version: decoder trained on each animal's August pre ITI licks (pre sessions
      leave-one-session-out), applied to every post session. If ITI execution coding is intact while the trial
      far-contra code is lost, plan / target and execution dissociate.
-ROIs (Priya 10-25: "ALM and tjM1 ... are the anterolateral 1/3 to 1/2 of MOs and MOp"): per hemisphere, the ROI_FRAC (v1 40 %; v2 ALM 50 %, tjM1 60 %) most
+ROIs (Priya 10-25: "ALM and tjM1 ... are the anterolateral 1/3 to 1/2 of MOs and MOp"): per hemisphere, the ROI_FRAC (v1 40 %; v2 ALM 40 %, tjM1 50 %) most
 anterolateral pixels of MOs (ALM) / MOp (tjM1) on the eroded stat mask, ranked by z(anterior) + z(lateral distance from
 the midline) within the area (Allen grid shared by all sessions; figure lick_iti_rois.png to check placement). _right =
 contralesional (image right), _left = ipsilesional.
@@ -46,11 +46,12 @@ from fr_musall import AN, E  # noqa: E402
 
 OUT = E / "iti_licks"
 # ROI VERSION (Priya 10-27, after lick_roi_check / lick_roi_foci and the MOp decile profile: the pre-map hot spot in MOp
-# runs to ~60 % anterolaterally; "make both ROIs bigger"): v1 = ALM / tjM1 = anterolateral 40 % of MOs / MOp (session
-# files in sessions/); v2 = ALM 50 % of MOs, tjM1 60 % of MOp (sessions_roi2/). WFIELD_ROI_VERSION selects; the v1 files
+# runs past 40 %; literature check vs Guo 2014 / Mayrhofer 2019 / Esmaeili 2021 + lick_roi_candidates.png; Priya chose
+# ALM unchanged, tjM1 50 % -- ALM 45 % starts to take in whisker M2): v1 = ALM / tjM1 = anterolateral 40 % (session
+# files in sessions/); v2 = ALM 40 % of MOs, tjM1 50 % of MOp (sessions_roi2/). WFIELD_ROI_VERSION selects; the v1 files
 # are kept unchanged.
 ROI_VERSION = os.environ.get("WFIELD_ROI_VERSION", "1")
-ROI_FRAC = {"ALM": 0.5, "tjM1": 0.6} if ROI_VERSION == "2" else {"ALM": 0.4, "tjM1": 0.4}
+ROI_FRAC = {"ALM": 0.4, "tjM1": 0.5} if ROI_VERSION == "2" else {"ALM": 0.4, "tjM1": 0.4}
 SESS_NAME = "sessions_roi2" if ROI_VERSION == "2" else "sessions"
 SD_NAME = "session_sd_roi2.csv" if ROI_VERSION == "2" else "session_sd.csv"     # zscore_check/ frame SDs
 SPLIT_NAME = "session_sd_split_roi2.csv" if ROI_VERSION == "2" else "session_sd_split.csv"
