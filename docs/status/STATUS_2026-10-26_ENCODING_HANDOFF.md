@@ -39,6 +39,27 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-2 (10-27 ~16:00) -- READ FIRST (adds to 00-COMPACT below)
+**Priya's answers on the review page (P4Md3KfTSt3Nqq9hxU2knq):** (1) aim-deficit comparison figure -> SUPPLEMENTARY next to
+the recovery measure; (2) TFCE contours replace the per-pixel contours on the per-session change-map figures (per-pixel kept
+as supplementary; caption: TFCE = family-wise, session labels permuted within animal; a large significant area = broad
+layout change of a shape-only map); (5) shape-distance dots figure (lick_session_shape_d.png) REPLACES the whole-map
+heatmap (heatmap linked as table view); (6, 7) map similarity over days (cued, ITI) -> SUPPLEMENTARY; (8) drift sensitivity
+-> repo only (no page).
+**Page restructure (Priya):** split ballooning sections into named topical sections of ~6-15 figures, Key / Supporting /
+Supplementary within each, every sidebar entry = number + short descriptive name, stable #f-<id> links. A helper agent is
+doing the restructure + the figure changes above on `_goal_page/index.html` (NOT published; backup
+encoding_goal_page_src/index_pre_sections_20261027.html; map docs/status/GOAL_PAGE_FIG_MAP_2026-10-27_SECTIONS.csv). When
+it reports: check, copy the listed new images into the publish `files`, publish as v136, tell e3 + 5b (numbers changed;
+stable ids unchanged).
+**Open observation (not a result):** PS95 cued FAR-MID per-session map similarity to pre dips to 0.31-0.41 on days 25-39
+(pre floor 0.45-0.87, mean ~0.66), recovers by days 46-50; close mid also dips (days 25-36); far contra unaffected (0.79-0.90);
+behaviour unchanged (far-mid landing -0.20..-0.27 mm, aim improving, lick counts normal). Offered checks (Priya: not yet
+answered): session state in 9/10-9/24 (running, engagement, lick-response size); imaging / acquisition notes around 9/10
+(docs/EXPERIMENT_ERRORS.md, preprocessing QC).
+**Priority notes:** compensation check (first-lick contact rate etc.) LOW, after the non-linear decoder.
+**Push:** 15 commits since 78e6593d pushing via S2/push51.sh (log S2/push51.log); later commits need a new push script.
+
 ### 00-COMPACT (10-27 ~15:40) -- READ FIRST; then the queue doc docs/status/SVD_GAUSS_SUPERSEDE_QUEUE_2026-10-27.md
 **Pages:** goal page LIVE v135 (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; source `_goal_page/index.html`, untracked,
 backup M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/). Review page for loose-end figures (not yet on the goal page):
