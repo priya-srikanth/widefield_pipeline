@@ -115,7 +115,7 @@ def f0() -> None:
     axs[0, 0].legend(fontsize=7, frameon=False)
     fig.suptitle("NEURAL / MEASUREMENT: is the larger post-lick response an F0 artefact (dF/F inflated by a fall in "
                  "baseline fluorescence)? F0 = mean of frames_average.npy over the central 60% of the image;\nresponse "
-                 "= the ITI-lick response area (as 3.24). If F0 fell, dF/F would rise with no change in dF: the dF "
+                 "= the ITI-lick response area (orofacial ROIs, the ITI-lick PETH figures). If F0 fell, dF/F would rise with no change in dF: the dF "
                  "panel answers it. PROVISIONAL", fontsize=9.5)
     _save(fig, "f0", 0.86)
 
@@ -226,7 +226,7 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
             for st in sets]
     if landing:
         rows.append(("cued: BEHAVIOUR landing shift", landing_errors(p),
-                     "landing - animal's PRE landing at that spout, LATERAL mm (+ = contralesional)", -4, 4))
+                     "landing - own pre landing at spout (mm, + = contra)", -4, 4))
     rng = np.random.default_rng(0)
 
     def within(h, ep, v):
@@ -264,6 +264,21 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
                 ax.hist(np.clip(e, x0, x1), bins=bins, weights=w, density=True, histtype="step", lw=1.6,
                         color=EPOCH_LINE[ep], label=ep)
                 ax.axvline(mu, ymax=0.64, color=EPOCH_LINE[ep], lw=0.9, ls="--")   # stops below the stats text
+                if "pull_err" in P.columns:
+                    # PULL-ONLY expected mean (triangle on the x axis): where this epoch's mean error would sit if only
+                    # the lick landings had moved = pre mean + (mean pull error now - mean pull error pre), same weights
+                    def _wm(q, a=a):
+                        if a == "POOLED":
+                            xs = [q[q.animal == b].pull_err.to_numpy() for b in AN]
+                            xs = [x for x in xs if len(x) >= 20]
+                            return np.mean([x.mean() for x in xs]) if xs else np.nan
+                        return q[q.animal == a].pull_err.mean()
+                    if ep == "pre":
+                        mu_pre, pe_pre = mu, _wm(P[P.epoch == "pre"])
+                    else:
+                        x_exp = mu_pre + _wm(P[P.epoch == ep]) - pe_pre
+                        ax.plot([x_exp], [0], marker="^", ms=8, color=EPOCH_LINE[ep], mec="k", mew=0.5, clip_on=False,
+                                zorder=7)
                 if ep == "pre":
                     continue
                 if a == "POOLED":
@@ -306,11 +321,11 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
            if landing else "")
     fig.suptitle("Per-LICK lateral error distributions. NEURAL rows: frozen where-decoder (z-scored Allen areas), decoded - "
                  "actual." + beh + "\nA shifted distribution = BIAS, a wider one = SCATTER; dashed = epoch mean. Text = "
-                 "change vs pre in the per-SESSION mean (shift) and SD (width), mm, 95% CI (epoch* = shift significant): per animal = session "
+                 "change vs pre in the per-SESSION mean (shift) and SD (width), mm, 95% CI (epoch* = shift significant):\nper animal = session "
                  "bootstrap; POOLED = paired nested bootstrap (animals > sessions) + animals changing that way; * = CI "
-                 "excludes 0.\nBlack text = CONTROL: the shift a PULL-ONLY decoder (a + b x actual, fit on pre) "
+                 "excludes 0.\nCONTROL (black text; triangles on the x axis = the expected mean): the shift a PULL-ONLY decoder (a + b x actual, fit on pre) "
                  "would show from the changed lick distribution alone.\nNB the decoder error includes its pull toward the pre mean, so a changed lick "
-                 "distribution moves the mean error too; the offset BEYOND the pull (3.21 / 3.37) removes that. "
+                 "distribution moves the mean error too; the offset BEYOND the pull (the beyond-pull offset figures) removes that. "
                  "PROVISIONAL", fontsize=9.5)
     _fit(fig)
     fig.savefig(il.OUT / "figures" / f"{name}.png", dpi=95)
