@@ -184,6 +184,15 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
    -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
    far-contra licks (4d0b) is carried by the later, corrective licks.
+4d0g. **Per-spout DECOMPOSITION of the decoded lateral shift (no pull slope assumed). PROVISIONAL** (10-27 late,
+   `scripts/iti_decoded_decomposition.py`). Per session, over spouts: dDecoded_s = SHIFT + GAIN x (spout's pre place) +
+   TRACK x dLanding_s. ITI: a UNIFORM contralesional SHIFT +0.27 / +0.17 / +0.14 mm (4/4, 3/4, 3/4; with TRACK fixed at
+   the pre within-spout slope +0.23 / +0.17 / +0.18, 4/4 each) PLUS compression (GAIN -0.13 / -0.18 / -0.09). Cued: NO
+   contralesional shift (+0.05 / -0.05 / -0.09) -- the cued effect is COMPRESSION (GAIN -0.13 / -0.16 / -0.17; 4/4 from
+   subacute), i.e. the lateral-r loss seen per spout. TRACK does not change. Caveat: post-stroke the far spouts both sit
+   furthest out and deviate most (corr(place, landing change) -0.5 to -0.7), so GAIN and TRACK trade off; SHIFT is the
+   stable term. So the ITI contralesional read-out survives without any assumed pull, and the cued 'read toward the
+   target' in the beyond-pull figures is mostly compression + the pull slope.
 4d0f. **Mixed models WITH TIME for the ITI / lick headlines** (10-27 late, `scripts/iti_mixed_models.py`, shared
    `wfield_local.mixed_models`, random intercept per animal -- the slope / step random effects did not converge). Time
    model (step at day 1, change per e-fold of days): ITI lateral r -0.21 step, NO recovery (+0.004 n.s.); ITI lateral
