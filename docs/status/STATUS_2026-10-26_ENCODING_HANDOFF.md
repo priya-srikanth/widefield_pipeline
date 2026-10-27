@@ -39,6 +39,36 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-LATE (10-27 evening, Priya back) -- read FIRST (supersedes 00-NIGHT for state / to-dos)
+**Page:** LIVE v130 (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). v129 = REORDER: every section Key ->
+Supporting -> Supplementary, STABLE ids `#f-<image stem>` (registry `_goal_page/fig_ids.csv`), old numbers kept as
+`#figS-N` anchors; renumber with `python scripts/goal_page_reorder.py --version vNNN --date YYYY-MM-DD` (it rewrites all
+cross-references; insert new figures with a unique placeholder number + data-tier first, see scratchpad page_1027f.py).
+Maps: docs/status/GOAL_PAGE_FIG_MAP_2026-10-27_REORDER.csv, _goal_page/fig_map_20261027_reorder.csv. Other windows
+(e3 deck, 5b imaging page) told and remapped; e3 waits for "decoder figures final".
+**Decisions (DECISIONS 10-27 late):** z-scored where-decoder figures primary (unscaled supplementary); mixed models WITH
+TIME primary (shared `wfield_local/mixed_models.py`; `scripts/iti_lmm_figures.py`, figs lmm_time_* / lmm_behaviour_*),
+epoch figures supplementary; SAME-PLACE like-for-like read-out = primary offset measure (`scripts/lick_matched_readout.py
+--ref place|spout|pooled`), per-lick error coding vs pre = secondary; per-session self-fit maps primary for maps; scatter
+ellipses 1 SD + session-level CI markers (TO DO); rename all iti_/cued_ figures to lick_ / lick_iti_ / lick_cued_ (helper
+agent running at handoff: copies on M:, scripts' savefig, page img src; fids unchanged; table
+docs/status/FIGURE_RENAME_LICK_20261027.csv) + captions rewritten to same-place numbers (log
+docs/status/CAPTION_REWRITE_20261027.txt).
+**New scripts:** lick_matched_readout.py, lick_gain_prediction.py, iti_decoded_decomposition.py, cued_misdirected_licks.py,
+iti_lick_order.py, iti_lmm_figures.py, iti_session_cluster_tests.py (TFCE, session-level), goal_page_reorder.py.
+**Results:** FINDINGS 4d0-LATE (synthesis), 4d0e-4d0j; review list REVIEW_FOR_PRIYA_2026-10-27.md.
+**TO DO (in order):** (1) after the rename agent: check its report, publish, push; (2) REDO the figures that still PLOT
+'beyond the pull' with the same-place measure -- lick order first/later + slope (old 3.54 / 3.71 / 3.72), recovery link
+(3.37 / 3.39 / 3.40), per-spout offsets (3.22, overcorrection 3.55), cued per-lick histogram pull triangles (3.43), LMM
+read-out / lickclass / perspout panels -- old versions to Supplementary; (3) scatter ellipses: session-level CI markers;
+(4) animal shapes (orofacial_cohort.ANIMAL_MARKER) on every pooled session graph (done for lick_matched_*); (5) 2-D
+(lateral + extension) matched sensitivity if Priya OKs; (6) 3.70 follow-ups (per-animal self-fit redraw, cross-animal
+null, global-activity confound); (7) first-lick map shape (re-extract all first licks); (8) tell e3 when decoder figures
+are final. Push: `S2/push<NN>.sh` cherry-picks named commits onto origin/main in a temp worktree; pre-push pytest takes
+~8-11 min (`test_parallel_results_are_ordered` guards fan_out ordering -- sort results).
+**Pitfall:** python heredocs in bash turn "
+" in string literals into real newlines -- use Write/Edit for Python.
+
 ### 00-NIGHT (10-27) -- read FIRST
 - Page v124 (figs through 3.70; source backed up). Running list of results / decisions / open questions for Priya:
   `docs/status/REVIEW_FOR_PRIYA_2026-10-27.md` section "AFTERNOON / EVENING RUNNING LIST" -- present it all when she is back.

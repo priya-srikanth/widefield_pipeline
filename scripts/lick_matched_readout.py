@@ -114,6 +114,21 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def _dots(ax, g: pd.DataFrame, k: int, c) -> None:
+    """One small dot per SESSION (jittered), one outlined marker per ANIMAL (mean of its sessions), bar = mean of the
+    animals (the animal-weighted point the paired nested bootstrap tests)."""
+    if g.empty:
+        return
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER
+    rng = np.random.default_rng(k)
+    am = g.groupby("animal").resid.mean()
+    for q, (a, h) in enumerate(g.groupby("animal")):
+        mk = ANIMAL_MARKER.get(a, "o")
+        ax.plot(k + rng.uniform(-0.22, 0.22, len(h)), h.resid, mk, color=c, ms=3, alpha=0.4, mew=0)
+        ax.plot(k - 0.12 + 0.08 * q, am[a], mk, mfc="none", mec=c, mew=1.3, ms=7)
+    ax.plot([k - 0.25, k + 0.25], [am.mean()] * 2, color=c, lw=2.5)
+
+
 def _stars(ax, x, r, col):
     sig = r.lo > 0 or r.hi < 0
     lo_, hi_ = ax.get_ylim()
@@ -168,9 +183,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame) -> None:
             g = S[(S.set == st) & (S.scope == scope) & (S.cls == cls)]
             t = T[(T.set == st) & (T.scope == scope) & (T.cls == cls) & (T.measure == "resid")].set_index("epoch")
             for k, ep in enumerate(EPS):
-                v = g[g.epoch == ep].groupby("animal").resid.mean()
-                ax.plot(np.full(len(v), k) + np.linspace(-0.12, 0.12, len(v)), v, "o", color=col[ep], ms=4, alpha=0.8)
-                ax.plot([k - 0.2, k + 0.2], [v.mean()] * 2, color=col[ep], lw=2.5)
+                _dots(ax, g[g.epoch == ep], k, col[ep])
                 if ep in t.index:
                     _stars(ax, k, t.loc[ep], col[ep])
             ax.axhline(0, color="0.6", lw=0.7, ls="--")
@@ -196,10 +209,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame) -> None:
             g = S[(S.set == st) & (S.scope == p) & (S.cls == "all")]
             t = T[(T.set == st) & (T.scope == p) & (T.cls == "all") & (T.measure == "resid")].set_index("epoch")
             for k, ep in enumerate(EPS):
-                v = g[g.epoch == ep].groupby("animal").resid.mean()
-                ax.plot(np.full(len(v), k) + np.linspace(-0.12, 0.12, len(v)), v, "o", color=col[ep], ms=4, alpha=0.8)
-                if len(v):
-                    ax.plot([k - 0.2, k + 0.2], [v.mean()] * 2, color=col[ep], lw=2.5)
+                _dots(ax, g[g.epoch == ep], k, col[ep])
                 if ep in t.index:
                     _stars(ax, k, t.loc[ep], col[ep])
             ax.axhline(0, color="0.6", lw=0.7, ls="--")

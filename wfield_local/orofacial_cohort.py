@@ -111,6 +111,8 @@ POS_GROUPS = {"engagement": ("resp_rate", "licks_per_resp", "precue_rate_hz", "i
 #: Chosen to collide with NO animal colour (PS92 blue, PS93 red, PS94 orange, PS95 green -- Priya 10-16: "confusing for
 #: animals colors to be the same as the pre/acute/subacute/chronic colors").
 EPOCH_LINE = {"pre": "k", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
+#: one marker per animal for epoch-coloured session plots (colour = epoch, shape = animal; Priya 10-27)
+ANIMAL_MARKER = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 ILI_MAX_MS = 300.0
 FRAME_MS = 4.0
 PHASE_HALF = 38                       # frames each side of the lick peak (+-152 ms)
