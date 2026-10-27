@@ -120,6 +120,12 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      46 slides; backup `backup_before_provenance.pptx`. Deck build inputs copied to `_source.../build_inputs/`
      (crops, enc, fr, img, kin, vid; 191 MB). Imaging numbers from 5b's registry `docs/results_pages/imaging/imaging_fig_ids.csv`
      (kept current by the imaging page chain). Not on any page: slides 8-10 (RESTW maps), 32-34 (FR set-up).
+     SLIDES 4-6 (Priya "yes", 10-27; `edit12.py`, backup `backup_before_slide4_refit.pptx`): slide 4 = the REFIT
+     within-session decoder (native per-animal table from imaging section 1; was the frozen Fig 1.1 beside refit
+     bullets); slide 5 notes: bars = trial-pooled accuracy, frozen decoder trained on ALL pre (June + August), not
+     August only; slide 6 adds imaging Fig 4.2 (refit - frozen gap minus pre gap, by spout; title block cropped) beside
+     Fig 13.1 + a by-spout bullet. Checked by a PowerPoint render. The IMAGING PAGE section 1 has the same mismatch
+     (refit "take" text beside the frozen Fig 1.1) -- imaging window's page, not edited.
    * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
