@@ -119,11 +119,128 @@ def three_axis() -> None:
     _save(fig, "3axis", 0.95)
 
 
+def _days() -> pd.DataFrame:
+    from recovery_timing import series
+    return series("lick")[["label", "day"]].drop_duplicates("label")
+
+
+def _aim() -> pd.DataFrame:
+    """Per session: far-contra cued lick angle / animal's pre mean (the 3.37 behaviour)."""
+    return pd.read_csv(il.OUT / "recovery_link_sessions_withpre_angle_z.csv")[["label", "beh"]].drop_duplicates("label")
+
+
+def course(rows: list, title: str, name: str, ref_of: dict) -> None:
+    """One column per animal, one row per (label, df, value): the measure per SESSION over days, pre shaded."""
+    import matplotlib.pyplot as plt
+    D = _days()
+    fig, axs = plt.subplots(len(rows), 4, figsize=(17, 2.6 * len(rows)), squeeze=False, sharex="col")
+    for i, (lab, df, val) in enumerate(rows):
+        g0 = df.merge(D, on="label", how="left") if "day" not in df.columns else df
+        for j, a in enumerate(AN):
+            ax = axs[i, j]
+            g = g0[g0.animal == a].groupby(["label", "day", "epoch"])[val].mean().reset_index().sort_values("day")
+            ax.axvspan(g.day.min() - 1 if len(g) else -12, 0, color="0.93", zorder=0)
+            ax.axvline(0, color="k", lw=0.7, ls="--")
+            ax.plot(g.day, g[val], "o-", color="k", ms=3.5, lw=1)
+            if ref_of.get(val) is not None:
+                ax.axhline(ref_of[val], color="0.6", lw=0.6, ls=":")
+            if len(g):
+                pm = g[g.epoch == "pre"][val].mean()
+                ax.axhline(pm, color="#2980b9", lw=0.8, ls="-", alpha=0.6)
+            ax.set_title(f"{a}: {lab}", fontsize=8.5)
+            if i == len(rows) - 1:
+                ax.set_xlabel("day after stroke", fontsize=8)
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+    fig.suptitle(title + "\nOne dot per SESSION; grey band = pre-stroke sessions; blue line = the animal's pre mean.",
+                 fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.95 if len(rows) > 3 else 0.9))
+    fig.savefig(il.OUT / "figures" / f"iti_check_{name}_sessions.png", dpi=95)
+    plt.close(fig)
+
+
+def error_hist() -> None:
+    """Per LICK: signed decoding error (decoded - actual, lateral) distributions, pre vs acute vs chronic, per animal.
+    A SHIFTED distribution = bias; a WIDER one = scatter."""
+    import matplotlib.pyplot as plt
+    p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+    p["err"] = p.dec_lat - p.act_lat
+    col = {"pre": "0.35", "acute": "#c0392b", "subacute": "#e67e22", "chronic": "#2980b9"}
+    fig, axs = plt.subplots(2, 4, figsize=(17, 6.4), squeeze=False, sharex=True)
+    bins = np.linspace(-3, 3, 61)
+    for i, st in enumerate(("iti", "trial")):
+        for j, a in enumerate(AN):
+            ax = axs[i, j]
+            for ep in EPS:
+                e = p[(p.set == st) & (p.animal == a) & (p.epoch == ep)].err.dropna().to_numpy()
+                if len(e) < 20:
+                    continue
+                ax.hist(e, bins=bins, density=True, histtype="step", lw=1.4, color=col[ep],
+                        label=f"{ep}: mean {e.mean():+.2f}, SD {e.std():.2f} (n {len(e)})")
+                ax.axvline(e.mean(), color=col[ep], lw=0.8, ls="--")
+            ax.axvline(0, color="k", lw=0.5)
+            ax.legend(fontsize=6.5, frameon=False, loc="upper left")
+            ax.set_title(f"{a}, {'ITI' if st == 'iti' else 'cued'} licks", fontsize=9)
+            if i == 1:
+                ax.set_xlabel("decoded - actual LATERAL position, mm (+ = read more contralesional)", fontsize=8)
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+    fig.suptitle("NEURAL: per-LICK decoding error of the frozen where-decoder (z-scored Allen areas; lateral). A shifted "
+                 "distribution = BIAS (predictions displaced), a wider one = SCATTER.\nNB the error includes the decoder's "
+                 "pull toward the pre mean, so a changed lick distribution moves the mean error too; the offset BEYOND "
+                 "the pull (3.21 / 3.37) removes that. PROVISIONAL", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.91))
+    fig.savefig(il.OUT / "figures" / "iti_check_error_per_lick.png", dpi=95)
+    plt.close(fig)
+
+
+def f0_severity() -> pd.DataFrame:
+    """Does the post-lick response increase track the far-contra aim deficit? Within animal across POST sessions
+    (log(day) removed from both, as 3.37), and per animal acute rise vs histology lesion burden (descriptive, n = 4)."""
+    S = pd.read_csv(il.OUT / "f0_check.csv").merge(_days(), on="label").merge(_aim(), on="label")
+    S = S[(S.epoch != "pre") & (S.day > 0)]
+    rows = []
+    for a, g in S.groupby("animal"):
+        g = g.dropna(subset=["resp_auc_rel", "beh"])
+        if len(g) < 5:
+            continue
+        d = np.log(g.day.to_numpy(float))
+        res = {}
+        for v in ("resp_auc_rel", "beh"):
+            y = g[v].to_numpy(float)
+            X = np.column_stack([np.ones(len(y)), d])
+            res[v] = y - X @ np.linalg.lstsq(X, y, rcond=None)[0]
+        rows.append(dict(animal=a, n=len(g), r_raw=float(np.corrcoef(g.resp_auc_rel, g.beh)[0, 1]),
+                         r_detrended=float(np.corrcoef(res["resp_auc_rel"], res["beh"])[0, 1])))
+    return pd.DataFrame(rows)
+
+
 def main() -> int:
     rmse()
     f0()
     three_axis()
-    print("wrote iti_check_{rmse,f0,3axis}.png")
+    error_hist()
+    R = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
+    R = R[R.set == "iti"]
+    course([(f"ITI {'lateral' if ax_ == 'lat' else 'sagittal'} {lab}", R[R.axis == ax_], v)
+            for ax_ in ("lat", "sag") for v, lab in (("bias", "|bias|"), ("sd", "scatter (SD)"))],
+           "NEURAL: frozen where-decoder error per session, ITI licks (z-scored decoder; mm).", "rmse", {})
+    F = pd.read_csv(il.OUT / "f0_check.csv").merge(_aim(), on="label", how="left")
+    course([("F0 470 / pre", F, "f0_470_rel"), ("post-lick response dF/F / pre", F, "resp_auc_rel"),
+            ("post-lick response dF / pre", F, "resp_dF_rel"), ("far-contra lick angle / pre (behaviour)", F, "beh")],
+           "NEURAL / MEASUREMENT: F0 and the ITI post-lick response per session, with far-contra aim for comparison.",
+           "f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 1})
+    T = pd.read_csv(il.OUT / "where_3axis_sessions.csv")
+    T = T[T.set == "iti"]
+    course([(f"ITI {ax_}: {lab}", T[T.axis == ax_], v) for ax_ in ("lat", "fwd", "down")
+            for v, lab in (("r_norm", "r / pre"), ("beyond_d", "offset beyond pull (mm)"))],
+           "NEURAL: frozen where-decoder on three axes per session, ITI licks (z-scored).", "3axis",
+           {"r_norm": 1, "beyond_d": 0})
+    sev = f0_severity()
+    pd.set_option("display.width", 200)
+    print("== does the ITI post-lick response (dF/F / pre) track far-contra aim within animal? (post sessions)")
+    print(sev.round(2).to_string(index=False))
+    print("wrote iti_check_{rmse,f0,3axis}[_sessions].png, iti_check_error_per_lick.png")
     return 0
 
 

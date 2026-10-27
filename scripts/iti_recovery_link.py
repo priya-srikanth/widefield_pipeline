@@ -100,7 +100,14 @@ def main(argv=None) -> int:
     ap.add_argument("--src", default=str(il.OUT))
     ap.add_argument("--beh", choices=("hit", "angle", "lateral"), default="hit")
     ap.add_argument("--z", action="store_true", help="decoder on within-session Z-SCORED features")
+    ap.add_argument("--plot-only", action="store_true", help="redraw the pooled + session-scatter figures from CSVs")
     args = ap.parse_args(argv)
+    if args.plot_only:
+        tag = args.beh + ("_z" if args.z else "")
+        GA = pd.read_csv(Path(args.src) / f"recovery_link_sessions_withpre_{tag}.csv")
+        plot_pooled(GA, tag, args.z, Path(args.src))
+        plot_session_scatter(GA, tag, args.z, Path(args.src))
+        return 0
     src, tag = Path(args.src), args.beh + ("_z" if args.z else "")
     S, ax2 = session_measures(src, args.z)
     meas = ["r_lat", "bey_lat", f"bey_{ax2}", "mae_lat", "mae_2d"]
@@ -146,7 +153,55 @@ def main(argv=None) -> int:
     GA.to_csv(src / f"recovery_link_sessions_withpre_{tag}.csv", index=False)
     plot_course(GA, R, tag, ax2, args.z, src)
     plot_pooled(GA, tag, args.z, src)
+    plot_session_scatter(GA, tag, args.z, src)
     return 0
+
+
+def plot_session_scatter(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
+    """POOLED over animals, one dot per SESSION (pre included): decoder lateral offset vs far-contra aim, colour =
+    animal, marker = epoch; a line per animal = its least-squares fit over post sessions."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    blab = {"hit": "far-contra hit rate / pre", "angle": "far-contra cued lick angle / pre",
+            "lateral": "far-contra lateral protrusion / pre"}[tag.replace("_z", "")]
+    cols = plt.get_cmap("tab10")
+    mk = {"pre": "o", "acute": "^", "subacute": "s", "chronic": "*"}
+    fig, axs = plt.subplots(1, 2, figsize=(14, 5.6), squeeze=False)
+    for i, st in enumerate(("iti", "trial")):
+        ax = axs[0, i]
+        g = GA[GA.set == st]
+        for k, a in enumerate(AN):
+            h = g[g.animal == a]
+            for ep, m_ in mk.items():
+                q = h[h.epoch == ep]
+                ax.scatter(q.beh, q.bey_lat, marker=m_, s=40 if m_ == "*" else 22, color=cols(k), alpha=0.8,
+                           edgecolor="k" if ep == "pre" else "none", lw=0.4, label=a if ep == "acute" else None)
+            post = h[h.epoch != "pre"].dropna(subset=["beh", "bey_lat"])
+            if len(post) >= 5:
+                b, c = np.polyfit(post.beh, post.bey_lat, 1)
+                xx = np.linspace(post.beh.min(), post.beh.max(), 20)
+                ax.plot(xx, c + b * xx, color=cols(k), lw=1.2)
+        post = g[g.epoch != "pre"].dropna(subset=["beh", "bey_lat"])
+        r_all = float(np.corrcoef(post.beh, post.bey_lat)[0, 1])
+        ax.axhline(0, color="0.7", lw=0.6, ls=":")
+        ax.axvline(1, color="0.7", lw=0.6, ls=":")
+        for ep, m_ in mk.items():
+            ax.scatter([], [], marker=m_, color="0.5", label=ep)
+        ax.legend(fontsize=7, frameon=False, ncol=2)
+        ax.set_xlabel(blab, fontsize=9)
+        ax.set_ylabel("lateral offset beyond pre pull, mm (change vs pre;\n+ = read contralesional)", fontsize=9)
+        ax.set_title(f"{'ITI' if st == 'iti' else 'cued'} licks: all post sessions pooled r {r_all:+.2f} "
+                     "(between + within animal)", fontsize=9.5)
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED, one dot per SESSION: FROZEN decoder's lateral offset "
+                 "beyond its pre pull vs far-contra aim. Colour = animal, marker = epoch (outlined = pre-stroke);\n"
+                 "lines = per-animal fit over post sessions. The within-animal test with the shared time trend removed "
+                 "is in 3.37 (this pooled r mixes animals and includes the time trend). PROVISIONAL", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(src / "figures" / f"iti_recovery_link_sessions_{tag}.png", dpi=100)
+    plt.close(fig)
 
 
 def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
