@@ -407,7 +407,7 @@ SIG_NOTE = ("Bars above the curves: time bins where that epoch differs from pre\
             "sessions per bin, BH-FDR q = 0.05 across the bins of the curve), one row per epoch in its colour.")
 
 
-def sig_bars(ax, t: pd.DataFrame, colors: dict, value: str = "r", rows_top: float = 0.985, row_h: float = 0.045,
+def sig_bars(ax, t: pd.DataFrame, colors: dict, value: str = "r", rows_top: float = 0.975, row_h: float = 0.04,
              tag: dict | None = None) -> list[dict]:
     """Per-time-bin significance of each post epoch vs pre on one curve (Priya 10-26: "mark with lines (colored per
     epoch) where in the time bins curves differ from pre"). ``t`` = one row per session x lag (columns label, animal,
@@ -442,7 +442,7 @@ def sig_bars(ax, t: pd.DataFrame, colors: dict, value: str = "r", rows_top: floa
                 j = i
                 while j + 1 < len(lags) and sig[j + 1]:
                     j += 1
-                ax.plot([lags[i] - half, lags[j] + half], [y, y], color=colors[ep], lw=4, solid_capstyle="butt",
+                ax.plot([lags[i] - half, lags[j] + half], [y, y], color=colors[ep], lw=2.6, alpha=0.5, solid_capstyle="butt",
                         transform=tr, clip_on=False)
                 i = j + 1
             else:
@@ -508,8 +508,8 @@ def plot_direction(DR: pd.DataFrame, FZ: pd.DataFrame) -> None:
             ax.spines[sp].set_visible(False)
     _headroom([axs[0, 0]])                              # y is shared: raise once
     axs[0, 0].legend(fontsize=8, frameon=False, loc="lower right")
-    axs[0, 0].set_ylabel(YR)
-    axs[1, 0].set_ylabel(YR)
+    axs[0, 0].set_ylabel("r, decoded vs actual\nlateral position", fontsize=9)
+    axs[1, 0].set_ylabel("r, decoded vs actual\nlateral position (relative)", fontsize=9)
     pd.DataFrame(sig_recs).to_csv(OUT / "sig_bins_3_7.csv", index=False)
     fig.suptitle("NEURAL: decoding each lick's lateral tongue-tip position (3-D, mm) from cortical area activity; y = r between "
                  "decoded and actual position.\nLeft / middle: " + REFIT_TAG + " (ridge, 5 time-block folds), per lag, mean over "
