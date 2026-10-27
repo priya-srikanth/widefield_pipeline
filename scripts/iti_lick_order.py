@@ -70,7 +70,7 @@ def locanmf_inmask(animal: str) -> np.ndarray:
     return out <= MASK_OUT_MAX
 
 
-CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scaled, act, order, pos)}, (scaler, ridge))
+CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scaled, act, order, pos)}, {held-out pre label | None: (scaler, ridge)})
 
 
 def preds_path() -> Path:
@@ -162,7 +162,7 @@ def predictions() -> pd.DataFrame:
                 sc = StandardScaler().fit(Xt)
                 fits[held] = (sc, RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), yt))
             if CONTRIB_HOOK is not None:                 # lick_offset_contrib_map.py: the scaled features + frozen fit
-                CONTRIB_HOOK(st, a, S, fits[None])
+                CONTRIB_HOOK(st, a, S, fits)
             for x, (ep, X, y, idx, pos) in S.items():
                 sc, m = fits[x if x in pre else None]
                 rows.append(pd.DataFrame({"set": st, "animal": a, "label": x, "epoch": ep, "pos": pos, "order": idx,

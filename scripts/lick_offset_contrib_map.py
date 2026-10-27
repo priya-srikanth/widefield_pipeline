@@ -4,8 +4,10 @@ map"; why does the chronic offset persist in Allen areas / LocaNMF but not in th
 The frozen pre-stroke lateral decoder is linear in its (scaled) features h: dec = b0 + beta . h, with beta = ridge coef /
 StandardScaler scale (iti_lick_order.predictions, all-pre fit). Per lick, the like-for-like change is
   dh_i = h_i - sum_j K(act_i - act_j) h_j / sum_j K       (j = the animal's pre licks of the same set; Gaussian, SIGMA)
-so the offset = beta . dh exactly (same-place Gaussian reference as lick_matched_readout.py --ref gauss, but every lick
-scored by the ALL-pre decoder instead of leave-one-pre-session-out; the sanity column compares the two).
+and beta . dh is the part of the offset a pixel map can show. The like-for-like read-out itself (readout_change; as
+lick_matched_readout.py --ref gauss) scores pre licks with their HELD-OUT (leave-one-pre-session-out) decoder, post licks
+with the all-pre decoder; readout_change = beta . dh + heldout_ref_term, the latter = the in-sample vs held-out gap of
+the pre reference (larger for bases with more features).
 Per basis the features are f = M x of pixel activity x, with a spatial matrix B such that M B = I:
   areas    M = area means (stat mask, iti_licks.roi_masks), B = area indicators
   svd      M = P' (the animal's pre-stroke spatial basis, orthonormal), B = P
@@ -39,12 +41,17 @@ H, W = 540, 640
 ACC: dict = {}
 
 
-def _hook(st, a, S, fit):
-    sc, m = fit
+def _hook(st, a, S, fits):
+    sc, m = fits[None]
     beta = m.coef_ / sc.scale_
+
+    def dec(x, X):
+        s_, m_ = fits[x if x in fits else None]
+        return m_.predict(s_.transform(X))
     pre = [x for x, v in S.items() if v[0] == "pre"]
     Xp = np.vstack([S[x][1] for x in pre])
     ap = np.concatenate([S[x][2] for x in pre])
+    dp = np.concatenate([dec(x, S[x][1]) for x in pre])           # pre licks, each by its held-out decoder
     sess = {}
     for x, (ep, X, act, _o, _p) in S.items():
         K = np.exp(-0.5 * ((act[:, None] - ap[None, :]) / SIGMA) ** 2)
@@ -54,8 +61,10 @@ def _hook(st, a, S, fit):
         ok = K.sum(1) > 1e-6
         if ok.sum() < 8:
             continue
-        dh = X[ok] - (K[ok] @ Xp) / K[ok].sum(1, keepdims=True)
-        sess[x] = (ep, dh.mean(0))
+        Kn = K[ok] / K[ok].sum(1, keepdims=True)
+        dh = X[ok] - Kn @ Xp
+        full = dec(x, X[ok]) - Kn @ dp                 # = the like-for-like read-out (held-out pre reference)
+        sess[x] = (ep, dh.mean(0), float(full.mean()))
     ACC[(st, a)] = (beta, sess)
 
 
@@ -118,8 +127,9 @@ def compute():
         if B.shape[1] != len(beta):
             raise ValueError(f"{a} {source}: {B.shape[1]} spatial columns vs {len(beta)} features")
         w = Mt @ beta
-        by = {ep: np.mean([v for e, v in sess.values() if e == ep], 0) for ep in ["pre", *EP]
-              if any(e == ep for e, _ in sess.values())}
+        by = {ep: np.mean([v for e, v, _f in sess.values() if e == ep], 0) for ep in ["pre", *EP]
+              if any(e == ep for e, _v, _f in sess.values())}
+        full = {ep: np.mean([f_ for e, _v, f_ in sess.values() if e == ep]) for ep in by}
         for ep in EP:
             if ep not in by:
                 continue
@@ -136,9 +146,10 @@ def compute():
             g = P[(P.set == st) & (P.animal == a)]
             rows.append(dict(source=lo.SRC_TAG.lstrip("_") or "areas", set=st, animal=a, epoch=ep,
                              offset=float(beta @ dh), check=float(c.sum()), global_part=glob,
-                             pattern_part=float(c.sum()) - glob, w_sum=float(w.sum()), dx_mean=float(dx.mean()),
-                             n_pre=sum(e == "pre" for e, _ in sess.values()),
-                             n_ep=sum(e == ep for e, _ in sess.values()),
+                             pattern_part=float(c.sum()) - glob, readout_change=float(full[ep] - full["pre"]),
+                             heldout_ref_term=float(full[ep] - full["pre"] - beta @ dh), w_sum=float(w.sum()), dx_mean=float(dx.mean()),
+                             n_pre=sum(e == "pre" for e, _v, _f in sess.values()),
+                             n_ep=sum(e == ep for e, _v, _f in sess.values()),
                              loso_dec_change=float(g[g.epoch == ep].dec.mean() - g[g.epoch == "pre"].dec.mean())))
     OUT.mkdir(exist_ok=True)
     tag = lo.SRC_TAG.lstrip("_") or "areas"
