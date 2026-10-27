@@ -154,13 +154,21 @@ section. Everything here is PROVISIONAL until you have looked at it.
   chronic ipsi read-out belongs to the follow-up licks. PS94 first-lick offset is largest (+1.09 acute, +0.35 chronic).
   Caveat: b (pull slope) fit on all pre cued licks; ~8-14 % of cued licks are first licks.
 
+- DRIFT FLOOR for the whole-map test (early vs late pre sessions): cued far contra d 0.67 / 0.26 / 0.17 vs floor
+  0.09-0.11 (6x acute, 2x chronic); cued lateral 0.36 / 0.21 / 0.16 vs 0.05-0.06; cued WITHIN-SPOUT (executed-direction)
+  0.46 / 0.41 / 0.44 vs 0.12-0.14 -- does NOT recover; ITI lateral 0.39 / 0.35 / 0.33 vs 0.16-0.20. Far-contra acute
+  change map: lesioned-side lateral orofacial region loses (passes max-stat FWER).
+- PAGE v124 PUBLISHED (figs 3.54-3.70 + max-stat contours on 3.50-3.53 + two status rows: first lick; confound
+  ledger). 212 figures, numbering check 0 problems. Pushing all 36 local commits to origin (push45).
+- Deck window NOT told yet: the decoder figures depend on the z-scored-swap answer (question 1).
+
 ### Running / queued
-- Whole-map permutation + amplitude-normalised change maps (per-session self-fit maps, 107 sessions) -- drawing.
-- Max-stat contour redraws of 3.50-3.53.
-- Then: one page publish; mixed-effects models (sessions in animals) for headline results; per-animal per-spout panels;
-  first-lick read-out; behaviour-only decoder (low). Tell the deck window the decoder figures are final AFTER the publish.
+- Nothing running. Open: behaviour-only decoder (low priority); June SVD-basis features if the June map reference is
+  wanted; small fix: whole-map change-figure suptitle is clipped at the sides (fix on the next rerun).
 
 ### Questions for Priya (accumulating)
 - Page figures 3.15 / 3.19-3.22: swap to the z-scored versions (unscaled -> supplementary)?
 - Scatter ellipses: 1 SD (now) or SEM?
 - Whole-map test: also add a June no-stroke map reference (needs per-session SVD-basis features for June)?
+- Mixed-model p in captions / methods, bootstrap kept on figures?
+- When the decoder figures are final (after Q1), tell the deck window (sabatinilab-e3)?
