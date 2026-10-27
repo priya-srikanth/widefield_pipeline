@@ -1263,14 +1263,16 @@ coupling (direction not determined), not more face variability.
 ### 8.17 Self-initiated (ITI) licks: pre-lick ramp and target-free direction coding (10-26 ~00:15) -- PROVISIONAL
 
   **KEY (10-26 late; FINDINGS 4d xiii; page "Where things stand" + 3.19-3.21): post-stroke, cortex read with the
-  pre-stroke decoder places SELF-INITIATED licks CONTRALESIONAL of where they land** -- shown on licks at their usual
-  (pre-stroke) spot: +0.34 acute (4/4), +0.16 chronic (PS94 / PS95). Cued licks at their usual spot: no contralesional
-  reading (-0.16 chronic) but read closer to the mouth (-0.30). The ALL-licks offsets (+0.54 cued / +0.56 ITI acute)
-  follow, epoch by epoch, what the licks' ipsi shift plus the decoder's constant pull toward the middle predict (ITI
-  observed +0.56 / +0.25 / +0.19 vs predicted +0.56 / +0.26 / +0.18), so they are not the evidence (10-26 late, Priya:
-  "that also wouldn't explain the per-epoch changes"). The pull, pre-stroke ITI licks: 1.7 mm ipsi of the animal's
-  average decoded at 0.6 mm ipsi; 1.7 mm contra decoded at 0.75 contra. Mean offsets do not enter r. Details in the
-  SIGNED DECODING ERROR and OUTWARD AXIS paragraphs below.
+  pre-stroke decoder places SELF-INITIATED licks further CONTRALESIONAL and CUED licks CLOSER than where they land.**
+  BEYOND THE PRE-STROKE PULL (`scripts/iti_where_beyond_pull.py`, where_beyond_pull_{by_animal,tests}.csv): per animal
+  x set x axis, decoded = a + b * actual fit on pre licks (held-out predictions; slope lateral ITI 0.31-0.44 / in-trial
+  0.51-0.65, outward ITI 0.13-0.18 / in-trial 0.18-0.36: the pull is 2-3x stronger outward, which is why the 3.19 arrows
+  run mostly inward); beyond = decoded - (a + b * actual), change vs pre. ITI lateral +0.34 [+0.26, +0.43] acute 4/4,
+  +0.20 [+0.05, +0.36] subacute 3/4, +0.23 [+0.04, +0.44] chronic (PS92 .04 / PS93 .03 / PS94 .54 / PS95 .28); ITI
+  outward n.s. In-trial outward -0.30 / -0.30 / -0.31 (0/4 further each epoch); in-trial lateral +0.20 acute n.s.,
+  -0.09 chronic n.s. Usual-spot licks give the same answer. RETRACTED (same evening): "all-licks ITI offset follows
+  moving licks + pull (+0.56 / +0.26 / +0.18)" -- used the overall ipsi shift, but per-spout grouping makes the
+  within-spout shift much smaller. Details in the SIGNED DECODING ERROR and OUTWARD AXIS paragraphs below.
 
   ITI LICK RATE vs RECOVERY (BEHAVIOUR, 10-26 ~15:40, `scripts/iti_lick_rate.py`, iti_lick_rate{,_tests,_recovery}.csv;
   page 3.11; Priya: "does inter-trial licking correlate with recovery (and exceed pre-stroke levels)"). Rate = licks_all

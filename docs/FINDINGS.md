@@ -161,17 +161,18 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    licks, ipsi-deviated licks decode MORE like on-target licks after the stroke (share of the deviation followed
    0.26 -> 0.14 chronic, 4/4) -> target over execution. Superseded as a summary by (xiii).
    (xiii) **KEY (10-26 late, page 3.19-3.21, ENCODING_FINDINGS 8.17): post-stroke, cortex read with the pre-stroke
-   decoder places SELF-INITIATED licks CONTRALESIONAL of where they land.** Measure = decoded minus actual lateral
-   position per lick, change vs pre for the same spout (+ = contralesional), on licks landing at their USUAL
-   (pre-stroke) spot so that licks moving cannot cause it: ITI +0.34 [+0.18, +0.54] acute (4/4), subacute +0.09 n.s.,
-   chronic +0.16 [+0.03, +0.32] (large in PS94 +0.39 / PS95 +0.15, ~0 in PS92 / PS93). Cued licks at their usual spot
-   are not read contralesionally (~0 acute, -0.16 chronic, 0/4 contra) but CLOSER to the mouth (-0.30 mm chronic, 0/4
-   further); ipsi-strayed cued licks are read at their target. Over ALL licks the average offset is contralesional
-   acutely for both types (+0.54 cued, +0.56 ITI, 4/4), but its epoch course (ITI +0.56 / +0.25 / +0.19) matches what
-   the ipsi shift of the licks plus the decoder's pre-existing pull toward the middle predict (+0.56 / +0.26 / +0.18),
-   so it is not evidence of a cortical change by itself. The pull (pre-stroke ITI licks 1.7 mm ipsi of average are
-   decoded 0.6 mm ipsi) is constant across epochs (frozen decoder). Mean offsets do not enter r (3.15-3.18).
-   Shared variance only: whether cortex carries the aim or does not register the changed movement is not determined.
+   decoder places SELF-INITIATED licks further CONTRALESIONAL, and CUED licks CLOSER to the mouth, than where they
+   land.** Per lick, decoded position minus where the animal's unchanged pre-stroke pull toward the middle would place
+   it (pull = decoded on actual, fit per animal and axis on pre licks; slope lateral 0.31-0.65, outward 0.13-0.36),
+   change vs pre (`scripts/iti_where_beyond_pull.py`). ITI lateral +0.34 [+0.26, +0.43] acute (4/4), +0.20 subacute
+   (3/4), +0.23 [+0.04, +0.44] chronic (sign 4/4; PS94 +0.54, PS95 +0.28, PS92 / PS93 ~0.03); ITI outward n.s. Cued
+   outward -0.30 [-0.39, -0.22] acute, -0.30 subacute, -0.31 [-0.43, -0.18] chronic (0/4 further in each); cued lateral
+   n.s. (ipsi-strayed cued licks read at their target). Same answer on licks landing at their usual (pre-stroke) spot
+   (ITI +0.34 acute / +0.16 chronic; cued outward -0.30 chronic). CORRECTION (same evening): an earlier line here said
+   the all-licks ITI offset follows "moving licks + the pull"; that multiplied the OVERALL ipsi shift, but ITI licks are
+   grouped by nearest spout so the within-spout shift is much smaller -- done per lick the pull explains only part of
+   it. Mean offsets do not enter r (3.15-3.18). Shared variance only: whether cortex carries the aim or does not
+   register the changed movement is not determined.
    (xii) CORRECTION (10-26): in-trial frozen r is also lower (-0.146 acute -> -0.063 chronic, CI excludes 0), smaller than
    ITI; its time course follows lick accuracy (a target-only reader loses -0.246 -> -0.036; session corr 0.82), so the
    in-trial loss is mostly 'decoder reads the target, licks deviate'; the ITI loss is the remapping.
