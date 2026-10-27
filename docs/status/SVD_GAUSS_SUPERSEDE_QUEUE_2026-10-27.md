@@ -83,3 +83,14 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
    beside far-contra-specific neural measures.
 10. Offered: compensation check (first-lick contact rate, licks to first contact, latency vs hit rate; PS95 near-normal
     hit rate ~day 2 with aim still off) -- LOW priority, AFTER the non-linear decoder (Priya).
+
+## Added 10-27 ~16:30 (Priya): Haufe pre + change-map figures
+Every Haufe / pattern figure that shows the PRE map next to epoch - pre change maps: draw the PRE map in a DIFFERENT
+colormap from the change maps (signed pre map -> a second diverging map, e.g. PuOr_r, so 0 still means 0; change maps
+stay RdBu_r), main figure = pre + acute/subacute/chronic - pre; the absolute pre / acute / subacute / chronic maps go
+into a separate PNG shown in a collapsible <details> "Supplementary: epoch maps (not changes)" directly below the figure.
+Scripts (all currently being edited by the figdata helpers -- do after they report): iti_decoder_pattern_stats.py
+(lat, sag), iti_spout_pattern_stats.py (cued, --iti), iti_session_cluster_tests.py (spout cued / ITI, position),
+iti_session_pattern_tests.py, iti_pattern_area_stats.py, plus the new x/y/z / angle / elevation / reach maps (item 6).
+Shared helper in wfield_local (PRE_CMAP) so all map figures match. Page: <details> block after the figure (after the
+restructure helper reports).
