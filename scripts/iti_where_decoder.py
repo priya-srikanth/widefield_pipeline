@@ -35,7 +35,7 @@ LAB = {"areas": "Allen areas", "locanmf": "joint LocaNMF", "svdbasis": "pre-stro
 
 
 def coords(label: str, t: np.ndarray) -> np.ndarray:
-    """(n, 4) side_ml, out_ap, reach_mm, SAGITTAL extension for licks at exact DAQ peak times t (NaN where unmatched).
+    """(n, 5) side_ml, out_ap, reach_mm, SAGITTAL extension, down_dv for licks at exact DAQ peak times t (NaN where unmatched).
     Sagittal = sqrt(out_ap^2 + down_dv^2): the tongue's extension out of the mouth excluding its lateral part (licks run
     mostly DOWN, so out_ap alone misses most of it); lateral / sagittal = tan(encoder exec_angle)."""
     from wfield_local import config
@@ -49,11 +49,12 @@ def coords(label: str, t: np.ndarray) -> np.ndarray:
     K = _K()
     K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
     u = uid.reindex(np.asarray(t, float)).to_numpy()
-    out = np.full((len(t), 4), np.nan)
+    out = np.full((len(t), 5), np.nan)
     ok = np.isfinite(u)
     R = K.reindex(u[ok].astype(int))
     out[ok, :3] = R[["side_ml", "out_ap", "reach_mm"]].to_numpy(float)
     out[ok, 3] = np.hypot(R.out_ap.to_numpy(float), R.down_dv.to_numpy(float))
+    out[ok, 4] = R.down_dv.to_numpy(float)              # 3-axis version (Priya 10-27); consumers index 0..3
     return out
 
 

@@ -361,22 +361,28 @@ def ramp_figure(plt, D: dict, RR: pd.DataFrame, kind: str, iso: bool, colors: di
     """Pooled PETH per epoch: mean of animals of session means, each animal's PETHs scaled by its pre amplitude; band =
     SEM over animals (Priya 10-26)."""
     fig, axs = plt.subplots(2, len(RAMP_ROIS) // 2 + 1, figsize=(19, 7.5), squeeze=False)
+    shown = (LAGS_P >= -1.5) & (LAGS_P <= 0.75)
+    sig_recs = []
     for i, roi in enumerate(RAMP_ROIS):
         ax = axs.flat[i]
+        long = []
         for ep in EP4:
             curves = []
             for a in AN:
-                cs = []
-                for d in D.values():
+                cs, labs = [], []
+                for x, d in D.items():
                     P = _bout(d, GAP_MAIN, isolated=iso)
                     if str(d["animal"]) != a or str(d["epoch"]) != ep or len(P) < 10 or roi not in list(d["cols"]):
                         continue
                     P = P.astype(float)[:, :, list(d["cols"]).index(roi)]
                     P = P - P[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1])].mean(1, keepdims=True)
                     cs.append(P.mean(0))
+                    labs.append(x)
                 pre_a = RR[(RR.kind == kind) & (RR.roi == roi) & (RR.animal == a) & (RR.epoch == "pre")].amp.mean()
                 if cs and np.isfinite(pre_a) and abs(pre_a) > 0:
                     curves.append(np.mean(cs, 0) / pre_a)
+                    long += [pd.DataFrame({"label": x, "animal": a, "epoch": ep, "lag": LAGS_P[shown], "v": c[shown] / pre_a})
+                             for x, c in zip(labs, cs)]
             if curves:
                 cv = np.asarray(curves)
                 mu = np.nanmean(cv, 0)
@@ -386,6 +392,9 @@ def ramp_figure(plt, D: dict, RR: pd.DataFrame, kind: str, iso: bool, colors: di
                     ax.fill_between(LAGS_P, mu - se, mu + se, color=colors[ep], alpha=0.18, lw=0)
         ax.axvline(0, color="0.6", lw=0.6)
         ax.axhline(0, color="0.8", lw=0.6)
+        if long:
+            sig_recs += sig_bars(ax, pd.concat(long, ignore_index=True), colors, value="v", tag={"roi": roi, "kind": kind})
+            _headroom([ax])
         ax.set_title(roi, fontsize=9)
         ax.set_xlim(-1.5, 0.75)
         for s_ in ("top", "right"):
@@ -396,9 +405,11 @@ def ramp_figure(plt, D: dict, RR: pd.DataFrame, kind: str, iso: bool, colors: di
     axs.flat[0].set_ylabel("dF/F / animal's pre amplitude at the lick")
     fig.suptitle(f"NEURAL, NO DECODER: dF/F around SELF-INITIATED licks ({what}; no cue / spout move within -2..+0.75 s), "
                  "lick-ONSET aligned, baseline -1.5..-1.0 s; line = mean of animals, band = SEM over animals, each scaled by its pre amplitude "
-                 "at the lick. ALM / tjM1 = anterolateral 40 % of MOs / MOp; _right = contralesional.", fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+                 "at the lick. ALM / tjM1 = anterolateral 40 % of MOs / MOp; _right = contralesional.\n" + SIG_NOTE +
+                 " Tests on session PETHs (/ animal's pre amplitude).", fontsize=9.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(path, dpi=110)
+    pd.DataFrame(sig_recs).to_csv(OUT / f"sig_bins_{Path(path).stem}.csv", index=False)
     plt.close(fig)
 
 
@@ -876,9 +887,12 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
     PE = pd.DataFrame(rows)
     pa = RR[(RR.kind == "iti_bout") & (RR.epoch == "pre")].groupby(["roi", "animal"]).amp.mean()
     fig, axs = plt.subplots(2, len(KEY_ROIS), figsize=(21, 7.5), sharex=True)
+    shown = (LAGS_P >= -1.5) & (LAGS_P <= 0.75)
+    sig_recs = []
     for j, roi in enumerate(KEY_ROIS):
         for i, norm in enumerate((False, True)):
             ax = axs[i, j]
+            long = []
             for ep in EP4:
                 t = PE[(PE.roi == roi) & (PE.epoch == ep)]
                 if t.empty:
@@ -889,6 +903,12 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
                 mu, se = np.nanmean(M, 0), np.nanstd(M, 0, ddof=1) / np.sqrt(np.isfinite(M[:, 0]).sum())
                 ax.plot(LAGS_P, mu, color=colors[ep], lw=2, label=f"{ep} ({len(t)})")
                 ax.fill_between(LAGS_P, mu - se, mu + se, color=colors[ep], alpha=0.2, lw=0)
+                long += [pd.DataFrame({"label": x, "animal": a, "epoch": ep, "lag": LAGS_P[shown], "v": m_[shown]})
+                         for x, a, m_ in zip(t.label, t.animal, M)]
+            if long:
+                sig_recs += sig_bars(ax, pd.concat(long, ignore_index=True), colors, value="v",
+                                     tag={"roi": roi, "normalised": norm})
+                _headroom([ax])
             ax.axvline(0, color="0.6", lw=0.6)
             ax.axhline(0, color="0.8", lw=0.6)
             ax.set_xlim(-1.5, 0.75)
@@ -903,10 +923,11 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
     axs[0, 0].legend(fontsize=7, frameon=False, loc="upper left")
     fig.suptitle("NEURAL, NO DECODER: dF/F around self-initiated licks (first ITI lick after >= 2 s without licking), per-session mean "
                  "PETH, all animals pooled: line = mean over sessions, band = SEM (n sessions in legend). Top: raw; bottom: "
-                 "each session divided by its animal's PRE amplitude at the lick (within-animal normalised).",
+                 "each session divided by its animal's PRE amplitude at the lick (within-animal normalised).\n" + SIG_NOTE,
                  fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(OUT / "figures" / "iti_ramp_sessions.png", dpi=110)
+    pd.DataFrame(sig_recs).to_csv(OUT / "sig_bins_3_24.csv", index=False)
     plt.close(fig)
     # AUC readouts (Priya 10-26): response = AUC 0..0.5 s after lick onset (= the first frame the tongue is visible,
     # cam4 `on_frame`); build-up = AUC -0.4..-0.05 s BEFORE the tongue is visible. dF/F x1e3 * s; normalised versions
