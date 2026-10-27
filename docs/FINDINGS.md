@@ -164,11 +164,19 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    adjusted and range-matched responses stay ~2x acute (`iti_licks.py --controls`); (4) face movement -- FaceRhythm-
    adjusted; (5) lick count -- matched to 40 licks / session; (6) for the decoder results only: response scale (within-
    session z-scoring). NOT A CONCERN: the drift filter -- the ITI analyses load the ADOPTED non-smearing variant
-   `hemo_meegkit_hpfit` (`combined_encoding.load_imaging`), not the zero-phase original. RUNNING (10-27 evening,
-   `scripts/iti_hemo_check.py`): 415 nm lick-aligned response (haemodynamic / motion), uncorrected 470, original
-   zero-phase SVTcorr (filter sensitivity), edge / vessel pixels (motion), per-area F0; lower priority: global state
-   (running / face) around licks, pre-lick gap matching (baseline window). Also open: PS95's response was already rising
-   across its pre sessions.
+   `hemo_meegkit_hpfit` (`combined_encoding.load_imaging`), not the zero-phase original. CHECKS (10-27 evening,
+   `scripts/iti_hemo_check.py`, commit ca96d32) -- DONE 10-27, 107 sessions, change vs pre in units of the animal's
+   pre corrected response (key ROIs mean, acute / subacute / chronic; adopted reproduces the published numbers exactly):
+   corrected +0.76* / +0.39* / +0.36*; ZERO-PHASE original SVTcorr +0.73* / +0.39* / +0.40* (filter: no effect);
+   UNCORRECTED 470 +0.98* / +0.37* / +0.39*; 415 nm +0.17* [0.01, 0.33] acute only (mostly PS95, PS94), -0.02 / +0.02
+   later (32 / 0 / 0 areas up vs 41 / 45 / 6 corrected). EDGE rim grows more than interior acutely (edge / interior ratio
+   +0.12*, subacute +0.07*, chronic n.s.), interior alone still +0.66* / +0.49* / +0.39 (n.s.); VESSEL pixels and
+   high-415-variance pixels: no change in ratio. Per-area F0 470 +12 % acute, fairly uniform (dF per area 39 / 41 / 4
+   areas up). Running around licks unchanged except PS94 (runs during ~50 % of subacute / chronic licks vs 9 % pre).
+   PRE-LICK GAP matched: unchanged (+0.76* / +0.41* / +0.41*). VERDICT: the later (subacute / chronic) increase is not a
+   415-visible haemodynamic, motion, filter, F0, vessel or baseline-window artefact; up to ~1/5 of the ACUTE increase
+   may be haemodynamic / motion (415 +0.17, rim-weighted). Caveats: 415 carries a small negative GCaMP term; PS94's
+   chronic running; PS95's response was already rising across its pre sessions.
 4d. **Self-initiated (ITI) licks, no trial / cue / target: PROVISIONAL** (10-26, ENCODING_FINDINGS 8.17,
    `scripts/iti_licks.py`). (i) Executed lick DIRECTION is decoded from cortex as well as before the stroke within each
    session (r ~0.53, unchanged every epoch), but the FROZEN pre-stroke decoder loses ~0.13 r in every epoch (4/4): the
