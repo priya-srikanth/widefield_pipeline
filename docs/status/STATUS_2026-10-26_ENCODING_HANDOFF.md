@@ -39,6 +39,20 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-AFTERNOON (10-27) -- read FIRST
+- Page v122 (figs 3.39-3.51 appended after 3.38; 3.37 now draws pre sessions; "Where things stand" first row =
+  Priya's synthesis, FINDINGS 4d0). Source backed up to M:/.../encoding_goal_page_src.
+- New scripts: iti_check_figures.py (per-lick error histograms ITI + cued with landing row, pull-only control, F0,
+  3-axis, per-session courses; cued figures named cued_check_*), iti_decoder_pattern_stats.py / iti_spout_pattern_stats.py
+  [--iti] (held-out per-session Haufe maps, pixel BH, >= 3/4), iti_pattern_area_stats.py (Allen areas), iti_june_ref.py +
+  iti_where_drift.py --june, iti_recovery_link.py --plot-only (pooled + session scatter).
+- PENDING to page: 3.35 stats (iti_spout_pattern_stats.png) + ITI version of 3.35 (iti_spout_pattern_stats_iti.png) +
+  area-stat figures (iti_pattern_area_stats_{position,spout,spout_iti}.png) -- were re-drawing with the 3/4 rule.
+- Priya to decide: switch pixel stats to the decoder page's FWER max-stat for consistency? z-scored pattern-map check?
+  behaviour-only decoder (approved, low priority, not started).
+- PITFALL again: Python heredoc replacement strings with 
+ become real newlines -> fix with Edit (hit 5x today).
+
 ### 00-OVERNIGHT (10-27 ~04:00, autonomous while Priya slept) -- read FIRST
 - REVIEW LIST for Priya: `docs/status/REVIEW_FOR_PRIYA_2026-10-27.md` (key results, questions, issues). Page v121.
 - DONE overnight (all in FINDINGS 4d, scripts committed, pushed through d6ebdb1 + this batch):

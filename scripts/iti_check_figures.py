@@ -289,9 +289,10 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
                     exp = [f"{e[:3]} {(am_[e] - am_['pre']).mean():+.2f}" for e in EPS[1:] if e in am_.columns]
                     lines.append(("pre", "CONTROL, pull-only expected shift: " + ", ".join(exp)))
             for k, (ep, t) in enumerate(lines):
-                ax.text(0.01, 0.99 - 0.06 * k, t if t.startswith("CONTROL") else f"{ep}{'*' if ']*' in t.split(';')[0] else ''}: {t}",
-                        transform=ax.transAxes, fontsize=6.3, va="top",
-                        color=EPOCH_LINE[ep])
+                sig_ = (not t.startswith("CONTROL")) and "]*" in t.split(";")[0]      # shift significant -> * + bold
+                ax.text(0.01, 0.99 - 0.06 * k, t if t.startswith("CONTROL") else f"{ep}{'*' if sig_ else ''}: {t}",
+                        transform=ax.transAxes, fontsize=6.3, va="top", color=EPOCH_LINE[ep],
+                        fontweight="bold" if sig_ else "normal")
             ax.axvline(0, ymax=0.64, color="0.5", lw=0.5)
             ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
             if j == 0:
