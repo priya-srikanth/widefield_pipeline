@@ -254,7 +254,8 @@ def _panel(ax, T: pd.DataFrame, val: str, colors: dict, ref: float | None = 1.0)
     for k, (ep, iv) in enumerate(rows):
         ax.text(0.02, CI_TOP - CI_ROW * k,
                 f"{EP_SHORT[ep]:<7} Δ{iv.point:+.2f} [{iv.lo:+.2f},{iv.hi:+.2f}]" + (" *" if iv.excludes_zero else ""),
-                transform=ax.transAxes, ha="left", va="top", fontsize=5.6, family="monospace", color=colors[ep])
+                transform=ax.transAxes, ha="left", va="top", fontsize=5.6, family="monospace", color=colors[ep],
+                fontweight="bold" if iv.excludes_zero else "normal")
     ax.set_xticks(x)
     ax.set_xticklabels([EP_SHORT[e] for e in EP], fontsize=7)
     ax.set_xlim(-0.25, len(EP) - 1 + 0.45)

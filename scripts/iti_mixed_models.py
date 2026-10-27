@@ -81,6 +81,17 @@ def recovery_measure(col: str = "weighted_signed") -> pd.DataFrame:
     return m.rename(columns={col: "value"})[COLS]
 
 
+def matched(scope: str = "all spouts", cls: str = "all", st: str = "iti", ref: str = "place") -> pd.DataFrame:
+    """Like-for-like read-out per session (scripts/lick_matched_readout.py; PRIMARY offset measure from 10-27): resid =
+    decoded minus the animal's pre licks that landed at the same place (ref place), mm, + = contralesional. Decoder
+    source follows iti_lick_order.SOURCE (env WFIELD_LICK_DECODER)."""
+    import iti_lick_order as lo
+    tag = ("" if ref == "pooled" else f"_{ref}") + lo.SRC_TAG
+    S = pd.read_csv(il.OUT / f"matched{tag}_sessions.csv")
+    S = S[(S.scope == scope) & (S.cls == cls) & (S.set == st)]
+    return S.rename(columns={"resid": "value"})[["animal", "epoch", "label", "value"]]
+
+
 def measures() -> dict:
     return {"r_lat_iti": where_r("iti"), "r_lat_cued": where_r("trial"),
             "off_lat_iti": recovery_link("iti"), "off_lat_cued": recovery_link("trial"),
