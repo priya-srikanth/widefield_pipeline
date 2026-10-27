@@ -69,7 +69,12 @@ _ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_
         # the midline along its row) -- i.e. it is rim because of the lateral edge, not the front / back edge -- AND it
         # lies anterior of RIM_LAT_AP_MIN (the lateral MOp / tjM1 edge and the orofacial S1 strip; posterior rim kept out)
         "4": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi4", "session_sd_roi4_rimlat.csv",
-              "session_sd_split_roi4_rimlat.csv", "lat")}
+              "session_sd_split_roi4_rimlat.csv", "lat"),
+        # v5 (Priya 10-27 sketch on lick_rim_overlay: ALM reaches the FRONT edge): as v4 + the anterior thin-rim MOs pixels
+        # that continue the ALM wedge (same anterolateral rank threshold as ALM) are added to ALM (and MOs); no other
+        # front-edge pixels (no PL / FRP / medial MOs slivers)
+        "5": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi5", "session_sd_roi5_rimlat_almfront.csv",
+              "session_sd_split_roi5_rimlat_almfront.csv", "lat+almfront")}
 RIM_LAT_AP_MIN = -0.5
 ROI_FRAC, SESS_NAME, SD_NAME, SPLIT_NAME, ROI_THIN_ANT_RIM = _ROI[ROI_VERSION]   # SD files live in zscore_check/
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
@@ -118,7 +123,7 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
         bmask = beta_maps.brain_mask()
         thin = ndimage.binary_erosion(bmask, iterations=RIM_ANT_PX).ravel()[flat]
         ap_mm = (BREGMA_OFFSET[1] - r) * RESOLUTION
-        if ROI_THIN_ANT_RIM == "lat":
+        if ROI_THIN_ANT_RIM.startswith("lat"):
             step = beta_maps.STAT_ERODE_PX
             out_c = np.where(c >= BREGMA_OFFSET[0], c + step, c - step)          # 16 px further from the midline
             ok_c = (out_c >= 0) & (out_c < W)
@@ -126,6 +131,7 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
             add = lat_edge & (ap_mm > RIM_LAT_AP_MIN)
         else:                                                                     # "ant" (v3, abandoned)
             add = ap_mm > RIM_AP_MIN
+        front = thin & ~pstat & ~add & (ap_mm > RIM_AP_MIN) & (parea != 0)   # anterior thin-rim candidates (v5)
         pstat = pstat | (thin & add & (parea != 0))   # labelled cortex only
     m = {names.get(int(a), str(a)): (parea == a) & pstat for a in sorted(np.unique(parea[pstat])) if a != 0}
     left = np.zeros(len(flat), bool)
@@ -143,9 +149,21 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
             lat = np.abs(c[mk] - mid).astype(float)
             u = (ant - ant.mean()) / (ant.std() or 1) + (lat - lat.mean()) / (lat.std() or 1)
             sel = np.zeros(len(flat), bool)
-            sel[np.flatnonzero(mk)[u >= np.quantile(u, 1 - (frac or ROI_FRAC)[dst])]] = True
+            thr = np.quantile(u, 1 - (frac or ROI_FRAC)[dst])
+            sel[np.flatnonzero(mk)[u >= thr]] = True
+            if ROI_THIN_ANT_RIM == "lat+almfront" and dst == "ALM":
+                # front-edge MOs pixels of this hemisphere that continue the wedge: same rank, same z-scoring
+                cand = front & (parea == next(k for k, v in names.items() if v == f"MOs_{h}"))
+                ua = (-r[cand].astype(float) - ant.mean()) / (ant.std() or 1) \
+                    + (np.abs(c[cand] - mid).astype(float) - lat.mean()) / (lat.std() or 1)
+                idx = np.flatnonzero(cand)[ua >= thr]
+                sel[idx] = True
+                m[f"MOs_{h}"] = m[f"MOs_{h}"].copy()
+                m[f"MOs_{h}"][idx] = True
             m[f"{dst}_{h}"] = sel
     m["cortex"] = pstat.copy()
+    if ROI_THIN_ANT_RIM == "lat+almfront":
+        m["cortex"] |= m.get("ALM_left", False) | m.get("ALM_right", False)
     return m
 
 
