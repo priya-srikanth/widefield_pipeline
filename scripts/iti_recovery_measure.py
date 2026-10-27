@@ -44,28 +44,34 @@ def main() -> int:
     rows = []
     for (a, lab, ep), g in p.groupby(["animal", "label", "epoch"]):
         per = g.groupby("pos").off.agg(lambda x: np.abs(x).mean() if len(x) >= MIN else np.nan).dropna()
+        sgn = g.groupby("pos").off.agg(lambda x: x.mean() if len(x) >= MIN else np.nan).dropna()
         if per.empty:
             continue
         w = np.array([W.get(q, 1.0) for q in per.index])
+        ws = np.array([W.get(q, 1.0) for q in sgn.index])
         fc = g[g.pos == "far_contra"].off
         rows.append(dict(animal=a, label=lab, epoch=ep, weighted_abs=float((per.to_numpy() * w).sum() / w.sum()),
+                         weighted_signed=float((sgn.to_numpy() * ws).sum() / ws.sum()),
                          far_contra_signed=float(fc.mean()) if len(fc) >= MIN else np.nan,
                          far_contra_abs=float(per.get("far_contra", np.nan)), n_spouts=len(per)))
     S = pd.DataFrame(rows).merge(_days(), on="label", how="left")
     S.to_csv(il.OUT / "recovery_measure_sessions.csv", index=False)
-    A = S.groupby(["animal", "epoch"])[["weighted_abs", "far_contra_signed", "far_contra_abs"]].mean().unstack("epoch")
+    A = (S.groupby(["animal", "epoch"])[["weighted_signed", "weighted_abs", "far_contra_signed", "far_contra_abs"]].mean()
+         .unstack("epoch"))
     A = A.reindex(columns=EPS, level=1)
-    w = A["weighted_abs"]
+    w = A["weighted_signed"]           # PRIMARY: signed (|.| adds each animal's pre noise floor; PS93's is ~2x the others)
+    A[("chronic_minus_pre_deg", "chronic")] = w["chronic"] - w["pre"]
     A[("deficit_remaining", "chronic")] = (w["chronic"] - w["pre"]) / (w["acute"] - w["pre"])
     A.to_csv(il.OUT / "recovery_measure_animals.csv")
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): weighted |angle offset from own pre landing| (deg), far-contra signed offset, and the "
           "fraction of the acute deficit remaining chronically")
     print(A.round(2).to_string())
-    rank = A[("deficit_remaining", "chronic")].sort_values()
-    print("\n== recovery ranking (least deficit remaining first):", ", ".join(f"{a} {v:.2f}" for a, v in rank.items()))
+    rank = A[("chronic_minus_pre_deg", "chronic")].sort_values(ascending=False)
+    print("\n== recovery ranking by chronic weighted SIGNED offset vs pre (deg; closest to 0 first):",
+          ", ".join(f"{a} {v:+.1f}" for a, v in rank.items()))
     fig, axs = plt.subplots(1, 2, figsize=(13, 4.6))
-    for k, (val, lab) in enumerate((("weighted_abs", "weighted |angle offset| from own pre landing (deg)"),
+    for k, (val, lab) in enumerate((("weighted_signed", "weighted SIGNED angle offset from own pre (deg; - = ipsi)"),
                                     ("far_contra_signed", "far-contra signed angle offset (deg; - = ipsilesional)"))):
         ax = axs[k]
         for j, a in enumerate(AN):
