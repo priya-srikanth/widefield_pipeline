@@ -91,7 +91,8 @@ _ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_
         # zig zag"): as v7, but ALM's front boundary is ONE horizontal line -- the most anterior row of v7's medium-rim
         # front -- carried laterally to the thin (4-px) lateral rim; ALM = MOs pixels at or behind that row that pass the
         # ALM rank, within the 4-px-eroded brain mask, >= FRP_GAP_PX from FRP; one connected region
-        "8": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi8", "session_sd_roi8_rimlat_almline.csv",
+        "8": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi8fr",   # sessions_roi8/ = env-less first run (superseded)
+               "session_sd_roi8_rimlat_almline.csv",
               "session_sd_split_roi8_rimlat_almline.csv", "lat-almline")}
 RIM_FRONT_PX = 8
 FRP_GAP_PX = 10           # 0.19 mm
