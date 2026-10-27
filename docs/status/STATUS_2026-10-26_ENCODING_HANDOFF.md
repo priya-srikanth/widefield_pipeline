@@ -58,6 +58,13 @@ behaviour unchanged (far-mid landing -0.20..-0.27 mm, aim improving, lick counts
 answered): session state in 9/10-9/24 (running, engagement, lick-response size); imaging / acquisition notes around 9/10
 (docs/EXPERIMENT_ERRORS.md, preprocessing QC).
 **Priority notes:** compensation check (first-lick contact rate etc.) LOW, after the non-linear decoder.
+**FRAME-SCALED SVD (svdF) RESULT (16:00):** same as lick-scaled and unscaled SVD -> scaling is NOT the reason SVD differs.
+Same-place gauss, change vs pre: ITI all licks +0.19 (4/4, CI [+0.01,+0.40]) / +0.07 / +0.14 (n.s.); ITI bout starts +0.27 (4/4) /
++0.12 / +0.17 (4/4, CI excl 0); cued first lick +0.23 (4/4) / +0.10 / +0.06; cued far contra -0.32 chronic (4/4). PS93
+negative in SVD in later epochs (ITI -0.14 / -0.09), PS95 ~0; PS92 / PS94 positive. So: the acute ITI and first-lick
+contralesional read-out is basis-robust; its PERSISTENCE (subacute / chronic) is Allen / LocaNMF-dependent and in the SVD
+basis rests on PS92 + PS94. Decision needed with Priya before switching the page to SVD (which basis is primary for the
+persistence claim; report basis-dependence explicitly). Run LocaNMF frame-scaled for completeness.
 **Push:** 15 commits since 78e6593d pushing via S2/push51.sh (log S2/push51.log); later commits need a new push script.
 
 ### 00-COMPACT (10-27 ~15:40) -- READ FIRST; then the queue doc docs/status/SVD_GAUSS_SUPERSEDE_QUEUE_2026-10-27.md
