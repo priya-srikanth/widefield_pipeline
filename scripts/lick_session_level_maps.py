@@ -467,6 +467,9 @@ def plot_levels(D: dict) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     keys = [k for k in keys if any((k, e, "level") in R for e in EP)]
+    # within-spout FIRST-lick rows are not drawn (Priya 10-27): a single-session within-spout decoder on first licks
+    # fits ~nothing (median fit share 0.06-0.18), most sessions are dropped and most cells are < 3 animals
+    keys = [k for k in keys if not (fam == "wlat" and "/first/" in k)]
     fig, axs = plt.subplots(len(keys), 4, figsize=(13.5, 2.75 * len(keys) + 1.3), squeeze=False, layout="constrained")
     for i, k in enumerate(keys):
         lim = sym_lim([R[(k, e, "level")]["point"] for e in EP if (k, e, "level") in R])
@@ -502,6 +505,9 @@ def plot_change(D: dict) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     keys = [k for k in keys if (k, "pre", "level") in R]
+    # within-spout FIRST-lick rows are not drawn (Priya 10-27): a single-session within-spout decoder on first licks
+    # fits ~nothing (median fit share 0.06-0.18), most sessions are dropped and most cells are < 3 animals
+    keys = [k for k in keys if not (fam == "wlat" and "/first/" in k)]
     fig, axs = plt.subplots(len(keys), 4, figsize=(13.5, 2.75 * len(keys) + 1.3), squeeze=False, layout="constrained")
     for i, k in enumerate(keys):
         lim_c = sym_lim([R[(k, e, "change")]["point"] for e in EP[1:] if (k, e, "change") in R])
