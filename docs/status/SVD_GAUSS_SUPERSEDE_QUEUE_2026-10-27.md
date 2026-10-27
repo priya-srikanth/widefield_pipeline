@@ -82,4 +82,4 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
 9. Aim axis: FIRST-lick weighted aim = behaviour axis + LMM deficit (DONE in iti_lmm_figures); far-contra first-lick aim
    beside far-contra-specific neural measures.
 10. Offered: compensation check (first-lick contact rate, licks to first contact, latency vs hit rate; PS95 near-normal
-    hit rate ~day 2 with aim still off) -- awaiting yes.
+    hit rate ~day 2 with aim still off) -- LOW priority, AFTER the non-linear decoder (Priya).
