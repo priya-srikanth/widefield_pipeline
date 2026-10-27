@@ -23,8 +23,15 @@ import iti_licks as il  # noqa: E402
 
 AP_ALM, AP_TJ = 1.9, 1.0
 ML_ALM_MIN = 1.25        # proposal: ALM lateral of the rostral forelimb area (RFA ~AP +2.0, ML ~1.0)
+# NEAREST PUBLISHED CENTRE (Esmaeili et al. 2021 Neuron, Petersen lab, targeting coordinates + Fig 3A probe map;
+# Mayrhofer et al. 2019 tjM1; Guo 2014 ALM): every frontal cortex pixel (MOs / MOp, AP > AP_MIN) goes to the nearest
+# centre within R_MAX mm; ALM and tjM1 are the pixels won by those centres (wM2 / wM1 / mPFC centres compete only).
+CENTRES = {"ALM": [(2.5, 1.5)], "tjM1": [(2.0, 2.0), (1.8, 2.6)], "wM2": [(2.0, 1.0)], "wM1": [(1.0, 1.0)],
+           "mPFC": [(2.0, 0.5)]}
+R_MAX, AP_MIN = 0.9, 0.8
 LIT = {"ALM (Guo 2014)": (2.5, 1.5, "k"), "tjM1 (Mayrhofer 2019)": (1.8, 2.6, "g"), "tongue/jaw ICMS (Komiyama 2010)": (2.4, 2.0, "m"),
-       "RFA (approx.)": (2.0, 1.0, "b"), "CFA (forelimb M1)": (0.5, 1.25, "c")}
+       "wM2 / RFA (Esmaeili 2021; approx.)": (2.0, 1.0, "b"), "CFA (forelimb M1)": (0.5, 1.25, "c"),
+       "tjM1 (Esmaeili 2021)": (2.0, 2.0, "lime"), "wM1 (Esmaeili 2021)": (1.0, 1.0, "y")}
 
 
 def main() -> int:
@@ -52,14 +59,22 @@ def main() -> int:
         return sel
 
     cands = {}
-    for nm, spec in {"v1: 40 % / 40 % anterolateral": ("rank", 0.4, 0.4, 1.0),
-                     f"AP cut: ALM = MOs AP > +{AP_ALM}, tjM1 = MOp AP > +{AP_TJ}": ("ap",),
-                     f"PROPOSAL: ALM = MOs AP > +{AP_ALM} & ML > {ML_ALM_MIN}; tjM1 = MOp AP > +{AP_TJ}": ("apml",),
-                     "PROPOSAL over the PRE cued LATERAL map": ("apml",)}.items():
+    for nm, spec in {"v1: ALM 40 % / tjM1 40 % anterolateral": ("rank", 0.4, 0.4, 1.0),
+                     "ALM 40 % / tjM1 50 %": ("rank", 0.4, 0.5, 1.0),
+                     "ALM 45 % / tjM1 50 %": ("rank", 0.45, 0.5, 1.0),
+                     "ALM 45 % / tjM1 50 % over the PRE cued LATERAL map": ("rank", 0.45, 0.5, 1.0)}.items():
         A = np.zeros(len(flat), bool)
         T = np.zeros(len(flat), bool)
         for h in ("left", "right"):
-            if spec[0] == "apml":
+            if spec[0] == "near":
+                fr = (base[f"MOs_{h}"] | base[f"MOp_{h}"]) & (ap > AP_MIN)
+                dist = {k: np.min([np.hypot(ap - a0, ml - m0) for a0, m0 in v], 0) for k, v in CENTRES.items()}
+                Dm = np.stack(list(dist.values()))
+                win = np.array(list(dist))[np.argmin(Dm, 0)]
+                ok = fr & (Dm.min(0) <= R_MAX)
+                A |= ok & (win == "ALM")
+                T |= ok & (win == "tjM1")
+            elif spec[0] == "apml":
                 A |= base[f"MOs_{h}"] & (ap > AP_ALM) & (ml > ML_ALM_MIN)
                 T |= base[f"MOp_{h}"] & (ap > AP_TJ)
             elif spec[0] == "ap":
@@ -103,8 +118,8 @@ def main() -> int:
         ax.axis("off")
     fig.suptitle("Candidate ALM (black) / tjM1 (green) ROIs over the PRE ITI sagittal Haufe map (orange = more active for longer "
                  "licks). Grey = Allen MOs / MOp. Circles = literature centres: black ALM AP +2.5 ML 1.5 (Guo 2014), green "
-                 "tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019),\nmagenta tongue/jaw ICMS AP +2.4 ML 2.0 (Komiyama 2010), blue RFA ~AP +2.0 ML ~1.0 "
-                 "(approx.), cyan CFA (forelimb M1) AP +0.5 ML 1.25; red + = bregma. Last panel: PRE cued lateral map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
+                 "tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019),\nmagenta tongue/jaw ICMS AP +2.4 ML 2.0 (Komiyama 2010), blue wM2 / RFA AP +2.0 ML 1.0 (Esmaeili 2021), "
+                 "lime tjM1 AP +2.0 ML 2.0 (Esmaeili 2021), yellow wM1 AP +1.0 ML 1.0, cyan CFA AP +0.5 ML 1.25; red + = bregma. Last panel: PRE cued lateral map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
     fig.savefig(il.OUT / "figures" / "lick_roi_candidates.png", dpi=95)
     return 0
 
