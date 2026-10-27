@@ -43,7 +43,7 @@ FIG = "lick_cued_misdirected_licks"
 def lick_table() -> pd.DataFrame:
     from iti_decoder_contrib import feature_names
     from wfield_local import orofacial_cohort as oc
-    SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
+    SD = pd.read_csv(il.OUT / "zscore_check" / il.SD_NAME, index_col=0)
     names = feature_names()
     D = wd.load("areas")
     rows, feats = [], []

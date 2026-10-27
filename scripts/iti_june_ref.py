@@ -35,17 +35,17 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     from wfield_local.writeguard import assert_writable
     assert_writable(JUNE)
-    (JUNE / "sessions").mkdir(parents=True, exist_ok=True)
-    todo = [(x, str(JUNE)) for x in LABELS if not (JUNE / "sessions" / f"{x}.npz").exists()]
+    (JUNE / il.SESS_NAME).mkdir(parents=True, exist_ok=True)
+    todo = [(x, str(JUNE)) for x in LABELS if not (JUNE / il.SESS_NAME / f"{x}.npz").exists()]
     got, fail = ak.fan_sessions(todo, il.extract, jobs=a.jobs, label="june")
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)
-    have = sorted(p.stem for p in (JUNE / "sessions").glob("*.npz"))
+    have = sorted(p.stem for p in (JUNE / il.SESS_NAME).glob("*.npz"))
     got, fail = ak.fan_sessions([(x,) for x in have], session_sd, jobs=a.jobs, label="sd")
     for it, err in fail:
         print(f"  !! sd {it[0]}: {err}", flush=True)
     S = pd.DataFrame({r["label"]: r["sd"] for _it, r in got}).T.sort_index()
-    S.to_csv(JUNE / "session_sd.csv")
+    S.to_csv(JUNE / il.SD_NAME)
     print(f"[june_ref] {len(have)} sessions, SDs for {len(S)} -> {JUNE}")
     return 0
 

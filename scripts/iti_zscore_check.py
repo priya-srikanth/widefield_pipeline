@@ -46,7 +46,7 @@ def session_sd(item) -> dict:
 
 
 def sds(jobs: int) -> pd.DataFrame:
-    f = OUTZ / "session_sd.csv"
+    f = OUTZ / il.SD_NAME
     if f.exists():
         return pd.read_csv(f, index_col=0)
     from wfield_local import analysis_kit as ak

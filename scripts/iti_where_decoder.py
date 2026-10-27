@@ -114,7 +114,7 @@ def _load_one(item):
     elif source == "areas_split":
         cols = [str(c) for c in z["cols"]]
         feat, rest = split_feats(cols)
-        fr = pd.read_csv(il.OUT / "zscore_check" / "session_sd_split.csv", index_col=0).loc[x]
+        fr = pd.read_csv(il.OUT / "zscore_check" / il.SPLIT_NAME, index_col=0).loc[x]
         for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
             Xa = z[kx].astype(float)[:, W_d].mean(1)
             R = [(Xa[:, cols.index(f"{src}_{h}")] - fr[f"f_{dst}_{h}"] * Xa[:, cols.index(f"{dst}_{h}")])

@@ -33,7 +33,7 @@ def main(argv=None) -> int:
     from sklearn.preprocessing import StandardScaler
     from iti_decoder_contrib import feature_names
     unscaled = "--unscaled" in (argv if argv is not None else sys.argv[1:])
-    SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
+    SD = pd.read_csv(il.OUT / "zscore_check" / il.SD_NAME, index_col=0)
     names = feature_names()
     D = wd.load("areas")
     rows, lick_rows = [], []

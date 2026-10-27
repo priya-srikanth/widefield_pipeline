@@ -15,7 +15,7 @@ target-free in the TASK sense but can still be aimed at the spout present. Two q
      no spout identity). Plus a FROZEN version: decoder trained on each animal's August pre ITI licks (pre sessions
      leave-one-session-out), applied to every post session. If ITI execution coding is intact while the trial
      far-contra code is lost, plan / target and execution dissociate.
-ROIs (Priya 10-25: "ALM and tjM1 ... are the anterolateral 1/3 to 1/2 of MOs and MOp"): per hemisphere, the ROI_FRAC most
+ROIs (Priya 10-25: "ALM and tjM1 ... are the anterolateral 1/3 to 1/2 of MOs and MOp"): per hemisphere, the ROI_FRAC (v1 40 %; v2 ALM 50 %, tjM1 60 %) most
 anterolateral pixels of MOs (ALM) / MOp (tjM1) on the eroded stat mask, ranked by z(anterior) + z(lateral distance from
 the midline) within the area (Allen grid shared by all sessions; figure lick_iti_rois.png to check placement). _right =
 contralesional (image right), _left = ipsilesional.
@@ -45,7 +45,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E  # noqa: E402
 
 OUT = E / "iti_licks"
-ROI_FRAC = 0.4
+# ROI VERSION (Priya 10-27, after lick_roi_check / lick_roi_foci and the MOp decile profile: the pre-map hot spot in MOp
+# runs to ~60 % anterolaterally; "make both ROIs bigger"): v1 = ALM / tjM1 = anterolateral 40 % of MOs / MOp (session
+# files in sessions/); v2 = ALM 50 % of MOs, tjM1 60 % of MOp (sessions_roi2/). WFIELD_ROI_VERSION selects; the v1 files
+# are kept unchanged.
+ROI_VERSION = os.environ.get("WFIELD_ROI_VERSION", "1")
+ROI_FRAC = {"ALM": 0.5, "tjM1": 0.6} if ROI_VERSION == "2" else {"ALM": 0.4, "tjM1": 0.4}
+SESS_NAME = "sessions_roi2" if ROI_VERSION == "2" else "sessions"
+SD_NAME = "session_sd_roi2.csv" if ROI_VERSION == "2" else "session_sd.csv"     # zscore_check/ frame SDs
+SPLIT_NAME = "session_sd_split_roi2.csv" if ROI_VERSION == "2" else "session_sd_split.csv"
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
 LAGS_C = np.round(np.arange(-1.0, 2.5001, 0.05), 3)          # cue-aligned lags (trial first licks)
 LAGS_D = np.round(np.arange(-1.0, 1.0001, 0.05), 3)          # decoding lags (-1..+1 s: binned-decoder sweep, 10-26)
@@ -78,7 +86,7 @@ def lick_table() -> pd.DataFrame:
                                    "trial_id", "reach_mm", "speed_peak"])
 
 
-def roi_masks(parea, pstat, names, flat, shape, frac: float = ROI_FRAC) -> dict:
+def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dict:
     """{name: boolean over brain pixels}: every Allen area (stat mask) + ALM / tjM1 per hemisphere (module docstring)."""
     H, W = (int(x) for x in shape)
     r, c = flat // W, flat % W
@@ -98,7 +106,7 @@ def roi_masks(parea, pstat, names, flat, shape, frac: float = ROI_FRAC) -> dict:
             lat = np.abs(c[mk] - mid).astype(float)
             u = (ant - ant.mean()) / (ant.std() or 1) + (lat - lat.mean()) / (lat.std() or 1)
             sel = np.zeros(len(flat), bool)
-            sel[np.flatnonzero(mk)[u >= np.quantile(u, 1 - frac)]] = True
+            sel[np.flatnonzero(mk)[u >= np.quantile(u, 1 - (frac or ROI_FRAC)[dst])]] = True
             m[f"{dst}_{h}"] = sel
     m["cortex"] = pstat.copy()
     return m
@@ -135,7 +143,7 @@ def extract(item) -> dict:
     from wfield_local import combined_encoding as ce
     from wfield_local import config, epochs
     label, out = item
-    f = Path(out) / "sessions" / f"{label}.npz"
+    f = Path(out) / SESS_NAME / f"{label}.npz"
     if f.exists():
         return {"label": label, "cached": True}
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -257,7 +265,7 @@ def extract(item) -> dict:
 
 
 def _load(label: str, sess_dir: Path | None = None) -> dict:
-    z = np.load((sess_dir or OUT / "sessions") / f"{label}.npz", allow_pickle=False)
+    z = np.load((sess_dir or OUT / SESS_NAME) / f"{label}.npz", allow_pickle=False)
     return {k: z[k] for k in z.files}
 
 
@@ -619,7 +627,7 @@ def summarise(labels: list[str]) -> None:
 
     from wfield_local import analysis_kit as ak
     (OUT / "figures").mkdir(parents=True, exist_ok=True)
-    D = {x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()}
+    D = {x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}
     meta = pd.DataFrame([{"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "clock_med_s": float(d["clock_med_s"]),
                           "n_bout": len(d["bout_side"]), "n_iti": len(d["iti_side"]), "n_first": len(d["first_rt"])}
                          for x, d in D.items()])
@@ -757,7 +765,7 @@ def roi_figure(label: str | None, plot_only: bool = False) -> None:
             g[flat[M[n]]] = True
             img[g] = v
         ai, _nm = area_image(label)
-        F = {"label": label, "img": img.reshape(H, W), "outline": outline(ai), "roi_frac": ROI_FRAC}
+        F = {"label": label, "img": img.reshape(H, W), "outline": outline(ai), "roi_frac": ROI_FRAC["tjM1"], "roi_frac_alm": ROI_FRAC["ALM"]}
         save_fd("lick_iti_rois", F)
     roi_draw(F)
 
@@ -770,7 +778,8 @@ def roi_draw(F: dict) -> None:
     fig, ax = plt.subplots(figsize=(5, 4.5))
     ax.imshow(np.where(img > 0, img, np.nan), cmap="Set1", vmin=1, vmax=9)
     ax.imshow(F["outline"], cmap="Greys", vmin=0, vmax=1.2, alpha=0.6)
-    ax.set_title(f"ROIs: ALM (MOs) / tjM1 (MOp) anterolateral {F['roi_frac']:.0%}\nimage left = ipsilesional", fontsize=9)
+    ax.set_title(f"ROIs: ALM = anterolateral {F.get('roi_frac_alm', F['roi_frac']):.0%} of MOs, tjM1 = "
+                 f"{F['roi_frac']:.0%} of MOp\nimage left = ipsilesional", fontsize=9)
     ax.axis("off")
     (OUT / "figures").mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT / "figures" / "lick_iti_rois.png", dpi=120, bbox_inches="tight")
@@ -1628,7 +1637,7 @@ def main(argv=None) -> int:
             binned_plot()
         return 0
     assert_writable(OUT)
-    (OUT / "sessions").mkdir(parents=True, exist_ok=True)
+    (OUT / SESS_NAME).mkdir(parents=True, exist_ok=True)
     run = E / "frozen_encoder_gate-attempted_v7g3_t3d_frA" / "joint" / "sessions"
     labels = sorted(a.labels or (p.stem for p in run.glob("*.json")))
     labels = [x for x in labels if x[-4:] >= "0801"]
@@ -1636,7 +1645,7 @@ def main(argv=None) -> int:
         roi_figure(labels[0])
         return 0
     if a.ramp:
-        ramp_figures({x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()},
+        ramp_figures({x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()},
                      pd.read_csv(OUT / "ramp_sessions.csv"))
         return 0
     if a.plot_direction:
@@ -1646,19 +1655,19 @@ def main(argv=None) -> int:
         plot_frozen_timecourse(pd.read_csv(OUT / "decode_frozen_lags_sessions.csv"))
         return 0
     if a.binned:
-        binned_figures({x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()})
+        binned_figures({x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()})
         return 0
     if a.controls:
-        D = {x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()}
+        D = {x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}
         controls(D, pd.read_csv(OUT / "ramp_sessions.csv"))
         return 0
     if a.key:
-        D = {x: _load(x) for x in labels if (OUT / "sessions" / f"{x}.npz").exists()}
+        D = {x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}
         key_figures(D, pd.read_csv(OUT / "ramp_sessions.csv"))
         return 0
     if not a.summarise:
         roi_figure(labels[0])
-        todo = [(x, str(OUT)) for x in labels if not (OUT / "sessions" / f"{x}.npz").exists()]
+        todo = [(x, str(OUT)) for x in labels if not (OUT / SESS_NAME / f"{x}.npz").exists()]
         print(f"[iti_licks] {len(labels)} sessions, {len(todo)} to extract -> {OUT}", flush=True)
         got, fail = ak.fan_sessions(todo, extract, jobs=a.jobs, label="extract")
         for it, r in got:

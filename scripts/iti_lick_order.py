@@ -129,10 +129,10 @@ def predictions() -> pd.DataFrame:
 
     from iti_decoder_contrib import feature_names
     from wfield_local import orofacial_cohort as oc
-    SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
+    SD = pd.read_csv(il.OUT / "zscore_check" / il.SD_NAME, index_col=0)
     names = feature_names()
     if SOURCE == "areas_split":                       # ALM / tjM1 split (iti_area_split_sd.py); same frame-SD z-scoring
-        SD = SD.join(pd.read_csv(il.OUT / "zscore_check" / "session_sd_split.csv", index_col=0))
+        SD = SD.join(pd.read_csv(il.OUT / "zscore_check" / il.SPLIT_NAME, index_col=0))
         x0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
         names = wd.split_names([str(c) for c in il._load(x0)["cols"]])
     D = wd.load({"areas": "areas", "areas_split": "areas_split", "svd": "svdbasis", "svdraw": "svdbasis",

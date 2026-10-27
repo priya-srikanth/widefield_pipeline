@@ -49,16 +49,16 @@ def pairs(june: bool = False) -> pd.DataFrame:
     from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
     from iti_decoder_contrib import feature_names
-    S = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
+    S = pd.read_csv(il.OUT / "zscore_check" / il.SD_NAME, index_col=0)
     names = feature_names()
     D = wd.load("areas")
     if june:
         from iti_june_ref import JUNE
-        DJ = wd.load("areas", JUNE / "sessions")
+        DJ = wd.load("areas", JUNE / il.SESS_NAME)
         for d in DJ.values():
             d["epoch"] = "june"
         D = {**D, **DJ}
-        S = pd.concat([S, pd.read_csv(JUNE / "session_sd.csv", index_col=0)])
+        S = pd.concat([S, pd.read_csv(JUNE / il.SD_NAME, index_col=0)])
     rows = []
     for st in ("iti", "trial"):
         for a in AN:

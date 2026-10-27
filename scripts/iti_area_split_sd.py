@@ -21,7 +21,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
-F = il.OUT / "zscore_check" / "session_sd_split.csv"
+F = il.OUT / "zscore_check" / il.SPLIT_NAME
 PAIRS = (("MOs", "ALM"), ("MOp", "tjM1"))
 HEMI = ("left", "right")
 
