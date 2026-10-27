@@ -143,7 +143,12 @@ sec = (
     "weights into the activity pattern the decoder actually reads. Decoders are refit in every session on the SVT "
     "(full-resolution pixels, no component intermediary), DAQ licks only, no kinematics. The maps are one-vs-rest, so "
     "the six positions are coupled: read a far-contra drop and a near-position gain as one event. The reference-free "
-    "response maps of section 7 are the deficit measure; these say where each position&rsquo;s signal sits.</p>\n"
+    "response maps of section 7 are the deficit measure; these say where each position&rsquo;s signal sits. "
+    "<b>Not the same maps as the encoding page&rsquo;s Haufe figures</b> "
+    '(<a href="https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#fig3-33" target="_blank">Figs 3.33&ndash;3.35</a>): '
+    "those decode continuous lick POSITION (lateral / sagittal, 3-D tongue) with a ridge, lick-locked (0&ndash;0.2 s), "
+    "on each animal&rsquo;s pre-stroke 200-component basis, refit per epoch; 3.35 is one-vs-rest per spout on cued "
+    "licks, without the mean-reference coupling of these maps.</p>\n"
     '<div class="take">After the cue, far contra and far middle lose their pre-stroke maps acutely and flip sign '
     "&mdash; their trials become less active than the average trial over both hemispheres "
     '(<a href="#fig14-2">Fig 14.2</a>; far contra in all four animals, <a href="#fig14-8">Fig 14.8</a>); far middle&rsquo;s map no longer clears zero acutely '
@@ -157,14 +162,7 @@ anchor = '<section id="closed"'
 assert s.count(anchor) == 1
 s = s.replace(anchor, sec + anchor)
 
-row = ('<tr><td>Haufe decoder maps: after the cue far contra and far middle flip sign acutely (all bilateral), near '
-       "positions gain; back toward pre by chronic. Pre-cue maps too weak to localise</td>"
-       '<td class="figs"><a href="#fig14-2">14.2</a>, <a href="#fig14-5">14.5</a>, <a href="#fig14-8">14.8</a>, '
-       '<a href="#fig14-3">14.3</a>, <a href="#fig14-4">14.4</a></td>'
-       '<td><span class="st prov">coupled reference</span></td><td>engagement; DAQ lick (no kinematics)</td>'
-       "<td>4 / 4 acute flip (cue)</td></tr>\n")
-i = s.index('<section id="status"')
-j = s.index("</table></div>", i)
-s = s[:j] + row + s[j:]
+# No 'Where things stand' row (Priya 10-27): these maps are a coupled reference, not a deficit measure, and the
+# cue-window acute loss they show is already carried by section 7. The section is linked from its own take-home.
 P.write_text(s, encoding="utf8")
 print("section 14 added:", len(FIGS), "figures")
