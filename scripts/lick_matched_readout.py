@@ -42,14 +42,14 @@ MIN_FINE = 15
 # the same spout with the same deviation (abnormal vs pre; no reference for acute large misses); "pooled" = pre licks of
 # any spout with the same deviation from their own spout (first version)
 REF = sys.argv[sys.argv.index("--ref") + 1] if "--ref" in sys.argv else "place"
-TAG = "" if REF == "pooled" else f"_{REF}"
+TAG = ("" if REF == "pooled" else f"_{REF}") + lo.SRC_TAG      # + decoder source (iti_lick_order.SOURCE)
 REFLAB = {"place": "pre licks (any spout) that landed at the SAME PLACE",
           "spout": "pre licks of the SAME SPOUT with the same landing deviation",
           "pooled": "pre licks (any spout) with the same landing deviation from their spout"}[REF]
 
 
 def per_lick() -> pd.DataFrame:
-    P = pd.read_csv(il.OUT / "lick_order_preds.csv.gz")
+    P = pd.read_csv(lo.preds_path())
     ref = P[P.epoch == "pre"].groupby(["set", "animal", "pos"])[["act", "dec"]].mean()
     P = P.join(ref, on=["set", "animal", "pos"], rsuffix="_ref")
     P["dLand"], P["dDec"] = P.act - P.act_ref, P.dec - P.dec_ref
@@ -176,15 +176,15 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
         for ep in EPS:
             q = A[(A.set == st) & (A.epoch == ep)].groupby("mid").y
             mu, se = q.mean(), q.sem()
-            ax.errorbar(mu.index.astype(float), mu, yerr=se, fmt="o-", color=col[ep], ms=4, capsize=2, lw=1.3)
+            ax.errorbar(mu.index.astype(float), mu, yerr=se, fmt="o-", color=col[ep], ms=4, capsize=2, lw=1.3, zorder=3)
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.axvline(0, color="0.7", lw=0.6, ls=":")
         # significance strip: one row per post epoch, translucent bar over bins whose change vs pre survives BH
         for r_i, ep in enumerate(EP):
             bt = BT[(BT.set == st) & (BT.epoch == ep) & BT.sig] if BT is not None and len(BT) else []
             for m_ in (bt.mid if len(bt) else []):
-                ax.axvspan(m_ - 0.125, m_ + 0.125, ymin=0.955 - 0.035 * r_i, ymax=0.985 - 0.035 * r_i, color=col[ep],
-                           alpha=0.5, lw=0)
+                ax.axvspan(m_ - 0.125, m_ + 0.125, ymin=0.975 - 0.018 * r_i, ymax=0.987 - 0.018 * r_i, color=col[ep],
+                           alpha=0.35, lw=0, zorder=0)                  # thin, BEHIND the data and SEM bars
         ax.set_xlabel("landing, lateral (mm, + = contralesional)" if REF == "place" else
                       "landing deviation from the animal's pre mean at the spout (mm, + = contralesional)", fontsize=8)
         ax.set_ylabel(("decoded lateral" if REF == "place" else "read-out deviation (decoded")
