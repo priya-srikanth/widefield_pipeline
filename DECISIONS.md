@@ -22095,3 +22095,14 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   lick is read more target-ward than an equally deviated PRE-stroke lick of the same spout (`--ref spout`; pre-stroke
   misdirected licks as the baseline, `scripts/cued_misdirected_licks.py`). Not decidable for the acute large misses
   (no same-spout pre licks deviate that far; 20-73 pre-stroke misses per animal, smaller).
+
+
+## 2026-10-27 (evening) -- ITI lick definition; ROI review (Priya)
+- ITI licks: KEEP ALL ITI licks (every lick outside the response windows) as the PRIMARY decoder / read-out set. Report as
+  SECONDARY: 2 s quiet before the lick; >= 1 s after the window end and >= 1 s before the next spout arrival; both
+  (WFIELD_ITI_FILTER gap2 / far1 / gap2far1; page Fig 12.14). Why: the ITI is only ~3.1 s, ~70 % of ITI licks sit within
+  1 s of a trial edge, and the offset holds on every stricter set (iti_lick_timing_audit.py).
+- ALM / tjM1: being re-defined (Priya: "make both ROIs bigger"; sketch extends ALM medially/back and tjM1 back to meet
+  ALM). Literature check: our 40 % ROIs were centred on ALM AP +2.5 ML 1.5 (Guo 2014) and tjM1 AP +1.8 ML 2.6 (Mayrhofer
+  2019). Candidates in figures/lick_roi_candidates.png; decision pending (AP-cut levels; RFA overlap of a medially
+  extended ALM). ROI version machinery: WFIELD_ROI_VERSION (v1 = 40 %; v1 files kept).
