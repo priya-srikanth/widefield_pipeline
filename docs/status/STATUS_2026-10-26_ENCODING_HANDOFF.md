@@ -49,6 +49,14 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 - **Per spout (3.22; ITI by PREVIOUS trial's spout):** ITI contralesional after every spout acutely, chronically after
   far-ipsi / far-mid trials; cued closer at every spout; chronic cued FAR-CONTRA licks read IPSIlesional (-0.24, 0/4
   contra) -- not the pull: usual-spot -0.22 / -0.46 / -0.17 (PS92 / 93 / 95; PS94 none), no mirror shift at far ipsi.
+  23:10 decomposition (outward version, where_preds.csv, cued far-contra, mean per animal x epoch): ACUTE decoded lies
+  on the TARGET side of a failed (ipsi-landing) lick; CHRONIC landings are back near pre (lateral 1.26 / 1.18 / 1.27 vs
+  pre 1.36 / 1.43 / 1.43, PS94 not recovered) but reached further out (outward 1.16 / 1.39 / 1.08 vs 0.94 / 0.92 /
+  0.88, shallower angle), while the decoded vector keeps roughly the pre DIRECTION (decoded angle 58 / 44 / 48 deg vs
+  pre 49 / 58 / 47) at a SMALLER size (decoded magnitude 1.01 / 0.81 / 1.20 vs 1.36 / 1.26 / 1.48 mm); within-spout
+  lateral r ~0. Reading (interpretation, Priya asked 10-26): cortex issues a scaled-down far-contra command and the
+  lick gets there anyway -> extra gain / strategy outside the dorsal-cortex signal. Proposed tests: projection on the
+  pre far-contra pattern axis (weaker copy vs drift toward mid), jaw per lick on far-contra, same split on sagittal run.
 - **r is unaffected by offsets / pull** (correlation ignores shift + scale); the r loss is a separate finding. Part of
   the lateral r loss is a narrower spread of lick positions (fully: ITI PS92 / PS95, in-trial PS93; not ITI PS93 / PS94).
   Lateral falls more than (horizontal) angle chronically (paired, 4/4 areas). In-trial angle r above pre 4/4.
