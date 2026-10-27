@@ -188,19 +188,16 @@ def course(rows: list, title: str, name: str, ref_of: dict) -> None:
     plt.close(fig)
 
 
-def landing_errors(labels: set) -> pd.DataFrame:
-    """Per CUED lick (lick table `licks`, post-cue): lateral LANDING error = tongue ml - target spout ml at the frame of
-    closest approach (`pose3d.lick_peaks` lat_err_mm), re-signed so + = CONTRALESIONAL of the spout (lat_err_mm is +
-    = outward of the spout, mouse left at the centre spouts; all four lesions are on the same side, contra = R).
-    Restricted to the sessions the decoder scores (`labels`, e.g. PS92_0806)."""
-    from wfield_local.paths import PathResolver
-    f = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
-    K = pd.read_csv(f, usecols=["session", "animal", "epoch", "table", "position", "lat_err_mm"])
-    K = K[(K.table == "licks") & K.lat_err_mm.notna()].copy()
-    K["label"] = K.session.str.replace("_2026", "_", regex=False)
-    K = K[K.label.isin(labels)]
-    K["err"] = K.lat_err_mm * np.where(K.position.str.endswith("_R"), 1.0, -1.0)
-    return K[["animal", "epoch", "label", "err"]]
+def landing_errors(p: pd.DataFrame) -> pd.DataFrame:
+    """Per CUED lick: lateral LANDING shift = the lick's lateral landing (extension peak, `act_lat` of the decoder table,
+    + = contralesional; the same licks and coordinate the decoder is scored against) minus the animal's PRE mean landing
+    at the same spout. 0 = lands where it landed before the stroke at that spout; - = ipsilesional of it.
+    (Not the closest-approach `lat_err_mm` of the lick table: picking the frame nearest the spout pulls that toward the
+    spout and hides most of the deviation.)"""
+    t = p[p.set == "trial"].dropna(subset=["act_lat", "pos"]).copy()
+    pre = t[t.epoch == "pre"].groupby(["animal", "pos"]).act_lat.mean()
+    t["err"] = t.act_lat - [pre.get((a, q), np.nan) for a, q in zip(t.animal, t.pos)]
+    return t.dropna(subset=["err"])[["animal", "epoch", "label", "err"]]
 
 
 def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_lick", landing: bool = False) -> None:
@@ -228,8 +225,8 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
     rows = [(f"{'ITI' if st == 'iti' else 'cued'}: NEURAL decoder error", p[p.set == st], xdec, -3, 3)
             for st in sets]
     if landing:
-        rows.append(("cued: BEHAVIOUR landing vs spout", landing_errors(set(p.label)),
-                     "landing - target spout LATERAL, mm (+ = landed contralesional of the spout)", -4, 4))
+        rows.append(("cued: BEHAVIOUR landing shift", landing_errors(p),
+                     "landing - animal's PRE landing at that spout, LATERAL mm (+ = contralesional)", -4, 4))
     rng = np.random.default_rng(0)
 
     def within(h, ep, v):
@@ -292,7 +289,7 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
                     exp = [f"{e[:3]} {(am_[e] - am_['pre']).mean():+.2f}" for e in EPS[1:] if e in am_.columns]
                     lines.append(("pre", "CONTROL, pull-only expected shift: " + ", ".join(exp)))
             for k, (ep, t) in enumerate(lines):
-                ax.text(0.01, 0.99 - 0.06 * k, t if t.startswith("CONTROL") else f"{ep}: {t}",
+                ax.text(0.01, 0.99 - 0.06 * k, t if t.startswith("CONTROL") else f"{ep}{'*' if ']*' in t.split(';')[0] else ''}: {t}",
                         transform=ax.transAxes, fontsize=6.3, va="top",
                         color=EPOCH_LINE[ep])
             ax.axvline(0, ymax=0.64, color="0.5", lw=0.5)
@@ -304,11 +301,11 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
             ax.set_xlabel(xlab, fontsize=7.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    beh = (" Bottom row = BEHAVIOUR: where the tongue landed relative to the target spout (3-D, closest approach)."
+    beh = (" Bottom row = BEHAVIOUR: lateral landing (3-D, extension peak) minus the animal's pre landing at the same spout."
            if landing else "")
     fig.suptitle("Per-LICK lateral error distributions. NEURAL rows: frozen where-decoder (z-scored Allen areas), decoded - "
                  "actual." + beh + "\nA shifted distribution = BIAS, a wider one = SCATTER; dashed = epoch mean. Text = "
-                 "change vs pre in the per-SESSION mean (shift) and SD (width), mm, 95% CI: per animal = session "
+                 "change vs pre in the per-SESSION mean (shift) and SD (width), mm, 95% CI (epoch* = shift significant): per animal = session "
                  "bootstrap; POOLED = paired nested bootstrap (animals > sessions) + animals changing that way; * = CI "
                  "excludes 0.\nBlack text = CONTROL: the shift a PULL-ONLY decoder (a + b x actual, fit on pre) "
                  "would show from the changed lick distribution alone.\nNB the decoder error includes its pull toward the pre mean, so a changed lick "
