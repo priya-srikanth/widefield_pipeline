@@ -177,6 +177,13 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    415-visible haemodynamic, motion, filter, F0, vessel or baseline-window artefact; up to ~1/5 of the ACUTE increase
    may be haemodynamic / motion (415 +0.17, rim-weighted). Caveats: 415 carries a small negative GCaMP term; PS94's
    chronic running; PS95's response was already rising across its pre sessions.
+4d0d. **The FIRST cued lick is read toward the target; later licks are not. PROVISIONAL** (10-27,
+   `scripts/iti_first_lick.py`; cued, lateral, frozen KEY-row decoder z-scored; each lick class vs its own pre mean at the
+   spout). Offset beyond the pull, all spouts: first +0.39 / +0.27 / +0.19 mm (4/4 each epoch), later +0.17 / +0.03 /
+   -0.06; first - later +0.22 / +0.24 / +0.25 (4/4, CIs exclude 0). Far contra: first +0.63 acute (4/4) / +0.27 / +0.11
+   n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
+   -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
+   far-contra licks (4d0b) is carried by the later, corrective licks.
 4d. **Self-initiated (ITI) licks, no trial / cue / target: PROVISIONAL** (10-26, ENCODING_FINDINGS 8.17,
    `scripts/iti_licks.py`). (i) Executed lick DIRECTION is decoded from cortex as well as before the stroke within each
    session (r ~0.53, unchanged every epoch), but the FROZEN pre-stroke decoder loses ~0.13 r in every epoch (4/4): the
