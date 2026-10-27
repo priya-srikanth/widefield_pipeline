@@ -128,6 +128,21 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    PRE-REGISTER for the next cohort (direction stated): lesion % -> slower behavioural recovery (+); day 1-3 orofacial
    residual -> lower chronic cortical code on hits (-) and larger chronic residual (+); acute far-contra retention ->
    chronic code (sign open: - here); acute coupling on failed attempts -> recovery speed (open).
+4d0. **SYNTHESIS (Priya 10-27): the cortical lick read-out is SHIFTED after the stroke -- acutely contralesional and
+   further out; the distance shift resolves, the contralesional shift lessens but does not resolve, more for ITI than
+   cued licks. PROVISIONAL** (page v122 "Where things stand" first row; figs 3.37, 3.39-3.43, 3.48). Frozen decoder,
+   z-scored, offset beyond the pre pull vs pre: lateral ITI +0.33 / +0.22 / +0.25 (4/4 each; PS94 +0.55 chronic), cued
+   +0.19 (4/4) / +0.05 / -0.03; distance (down ~ sagittal) +0.20 acute (ITI 3/4, cued 4/4), ITI back (-0.03), cued
+   reverses to CLOSER chronically (-0.14, 3/4); cued forward -0.22 -> -0.17 every epoch (4/4). Per-lick error: shift,
+   width unchanged (ITI +0.89 / +0.48 / +0.43, 4/4); ~60 % of the acute cued shift is expected from the pull alone
+   (control +0.28 of +0.47). Behaviour on the same cued licks: landing vs own pre landing at the spout -0.53 mm acute
+   (4/4; far contra -1 to -3 mm) -> read AHEAD of the failing movement. Tracks recovery within animal (3.37). ITI lateral r
+   loss beyond drift with the JUNE no-stroke reference: -0.08 [-0.15, -0.02] chronic, 4/4 (August-only fit -0.13; the 8-day
+   curve under-predicted 64-day drift in PS92 / PS95). Landing measure note: the lick table's closest-approach `lat_err_mm`
+   hides most of the deviation (frame chosen nearest the spout); use extension-peak landing vs own pre landing.
+   Pattern-map stats (3.50-3.51): held-out per-session Haufe maps, per-pixel nested bootstrap + BH + >= 3/4 sign; change
+   maps dominated by one bilateral component (likely the cortex-wide response increase); Allen-area version
+   `scripts/iti_pattern_area_stats.py`. Our FDR differs from the decoder page's FWER max-stat (section 14).
 4d. **Self-initiated (ITI) licks, no trial / cue / target: PROVISIONAL** (10-26, ENCODING_FINDINGS 8.17,
    `scripts/iti_licks.py`). (i) Executed lick DIRECTION is decoded from cortex as well as before the stroke within each
    session (r ~0.53, unchanged every epoch), but the FROZEN pre-stroke decoder loses ~0.13 r in every epoch (4/4): the
