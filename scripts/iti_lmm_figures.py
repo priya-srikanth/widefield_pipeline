@@ -120,7 +120,7 @@ def lo_tag() -> str:
     return lo.SRC_TAG
 
 
-XLAB = {"aim": "aim deficit: cued licks' weighted signed aim, pre - session (deg; 0 = pre aim, + = aim shifted ipsilesional)",
+XLAB = {"aim": "aim deficit: FIRST cued lick's weighted signed aim, pre - session (deg; 0 = pre aim, + = aim shifted ipsilesional)",
         "ttc": None}
 DEFICIT = "aim"
 
@@ -168,7 +168,9 @@ def main() -> int:
     global DEFICIT
     DEFICIT = a.deficit
     if a.deficit == "aim":
-        dfc = mx.behaviour_deficit(il.OUT / "recovery_measure_sessions.csv", "weighted_signed", True, relative=False)
+        # FIRST post-cue lick weighted aim (lick_aim_deficit.py; Priya 10-27: reliability 0.98, shows the chronic deficit
+        # that later corrective licks hide)
+        dfc = mx.behaviour_deficit(il.OUT / "aim_deficit_sessions.csv", "weighted_first", True, relative=False)
     else:
         dfc = mx.deficit(il.OUT.parent / "qc")
     for g in a.groups:
