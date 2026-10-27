@@ -86,7 +86,13 @@ _ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_
         # front-edge MOs pixels >= RIM_FRONT_PX inside the brain mask that pass the ALM anterolateral rank are added to
         # ALM (and MOs); ALM / tjM1 kept as one connected region each
         "7": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi7", "session_sd_roi7_rimlat_almfront8.csv",
-              "session_sd_split_roi7_rimlat_almfront8.csv", "lat-almfront8")}
+              "session_sd_split_roi7_rimlat_almfront8.csv", "lat-almfront8"),
+        # v8 (Priya 10-27: "v7 just needs to extend the front horizontal line until it intersects the lateral edge - no
+        # zig zag"): as v7, but ALM's front boundary is ONE horizontal line -- the most anterior row of v7's medium-rim
+        # front -- carried laterally to the thin (4-px) lateral rim; ALM = MOs pixels at or behind that row that pass the
+        # ALM rank, within the 4-px-eroded brain mask, >= FRP_GAP_PX from FRP; one connected region
+        "8": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi8", "session_sd_roi8_rimlat_almline.csv",
+              "session_sd_split_roi8_rimlat_almline.csv", "lat-almline")}
 RIM_FRONT_PX = 8
 FRP_GAP_PX = 10           # 0.19 mm
 RIM_LAT_AP_MIN = -0.5
@@ -150,6 +156,12 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
         else:                                                                     # "ant" (v3, abandoned)
             add = ap_mm > RIM_AP_MIN
         front = thin & ~pstat & ~add & (ap_mm > RIM_AP_MIN) & (parea != 0)   # anterior thin-rim candidates (v5)
+        if ROI_THIN_ANT_RIM == "lat-almline":                                    # v8: pool for the line rule
+            frp_ = np.zeros(H * W, bool)
+            frp_[flat[np.isin(parea, [k for k, v in names.items() if str(v).startswith("FRP")])]] = True
+            gap_ = ndimage.distance_transform_edt(~frp_.reshape(H, W)).ravel()[flat] >= FRP_GAP_PX
+            pool4 = thin & gap_ & (parea != 0)
+            front8 = front & ndimage.binary_erosion(bmask, iterations=RIM_FRONT_PX).ravel()[flat] & gap_
         if ROI_THIN_ANT_RIM == "lat-almfront8":                                  # v7: medium front rim
             front &= ndimage.binary_erosion(bmask, iterations=RIM_FRONT_PX).ravel()[flat]
             # ... and >= FRP_GAP_PX from the frontal pole (Priya: "I don't want to be right up on FRP")
@@ -184,7 +196,22 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
                 sel[idx] = True
                 m[f"MOs_{h}"] = m[f"MOs_{h}"].copy()
                 m[f"MOs_{h}"][idx] = True
-            if ROI_THIN_ANT_RIM in ("lat-nofront", "lat-almfront8"):   # v6 / v7: one connected ROI
+            if ROI_THIN_ANT_RIM == "lat-almline" and dst == "ALM":
+                code = next(k for k, v in names.items() if v == f"MOs_{h}")
+
+                def _u(ix, ant=ant, lat=lat):
+                    return (-r[ix].astype(float) - ant.mean()) / (ant.std() or 1) \
+                        + (np.abs(c[ix] - mid).astype(float) - lat.mean()) / (lat.std() or 1)
+                c8 = front8 & (parea == code)
+                c8 = np.flatnonzero(c8)[_u(c8) >= thr]
+                line = int(r[c8].min()) if len(c8) else int(r[sel].min())          # v7's most anterior ALM row
+                pool = pool4 & (parea == code) & (r >= line)
+                idx = np.flatnonzero(pool)[_u(pool) >= thr]
+                sel[idx] = True
+                sel &= r >= line
+                m[f"MOs_{h}"] = m[f"MOs_{h}"].copy()
+                m[f"MOs_{h}"][idx] = True
+            if ROI_THIN_ANT_RIM in ("lat-nofront", "lat-almfront8", "lat-almline"):   # v6-v8: one connected ROI
                 from scipy import ndimage
                 g = np.zeros(H * W, bool)
                 g[flat[sel]] = True
@@ -194,7 +221,7 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
                     sel &= (lab_.ravel()[flat] == keep)
             m[f"{dst}_{h}"] = sel
     m["cortex"] = pstat.copy()
-    if ROI_THIN_ANT_RIM in ("lat+almfront", "lat-almfront8"):
+    if ROI_THIN_ANT_RIM in ("lat+almfront", "lat-almfront8", "lat-almline"):
         m["cortex"] |= m.get("ALM_left", False) | m.get("ALM_right", False)
     return m
 
