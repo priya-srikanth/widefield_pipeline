@@ -15,7 +15,7 @@ target-free in the TASK sense but can still be aimed at the spout present. Two q
      no spout identity). Plus a FROZEN version: decoder trained on each animal's August pre ITI licks (pre sessions
      leave-one-session-out), applied to every post session. If ITI execution coding is intact while the trial
      far-contra code is lost, plan / target and execution dissociate.
-ROIs (Priya 10-25: "ALM and tjM1 ... are the anterolateral 1/3 to 1/2 of MOs and MOp"): per hemisphere, the ROI_FRAC (v1 40 %; v2 ALM 40 %, tjM1 50 %) most
+ROIs (Priya 10-25: "ALM and tjM1 ... are the anterolateral 1/3 to 1/2 of MOs and MOp"): per hemisphere, the ROI_FRAC (v1 40 %; v2 ALM 40 % / tjM1 50 %) most
 anterolateral pixels of MOs (ALM) / MOp (tjM1) on the eroded stat mask, ranked by z(anterior) + z(lateral distance from
 the midline) within the area (Allen grid shared by all sessions; figure lick_iti_rois.png to check placement). _right =
 contralesional (image right), _left = ipsilesional.
@@ -51,10 +51,10 @@ OUT = E / "iti_licks"
 # files in sessions/); v2 = ALM 40 % of MOs, tjM1 50 % of MOp (sessions_roi2/). WFIELD_ROI_VERSION selects; the v1 files
 # are kept unchanged.
 ROI_VERSION = os.environ.get("WFIELD_ROI_VERSION", "1")
-ROI_FRAC = {"ALM": 0.4, "tjM1": 0.5} if ROI_VERSION == "2" else {"ALM": 0.4, "tjM1": 0.4}
-SESS_NAME = "sessions_roi2" if ROI_VERSION == "2" else "sessions"
-SD_NAME = "session_sd_roi2_tj50.csv" if ROI_VERSION == "2" else "session_sd.csv"     # zscore_check/ frame SDs
-SPLIT_NAME = "session_sd_split_roi2_tj50.csv" if ROI_VERSION == "2" else "session_sd_split.csv"
+# FINAL (Priya 10-27): v2 = ALM 40 % / tjM1 50 % (45 / 50 considered; ALM 45 % takes in part of whisker M2).
+_ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_sd_split.csv"),
+        "2": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi2", "session_sd_roi2_tj50.csv", "session_sd_split_roi2_tj50.csv")}
+ROI_FRAC, SESS_NAME, SD_NAME, SPLIT_NAME = _ROI[ROI_VERSION]   # SD files live in zscore_check/
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
 LAGS_C = np.round(np.arange(-1.0, 2.5001, 0.05), 3)          # cue-aligned lags (trial first licks)
 LAGS_D = np.round(np.arange(-1.0, 1.0001, 0.05), 3)          # decoding lags (-1..+1 s: binned-decoder sweep, 10-26)

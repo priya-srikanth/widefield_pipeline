@@ -22106,3 +22106,7 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   ALM). Literature check: our 40 % ROIs were centred on ALM AP +2.5 ML 1.5 (Guo 2014) and tjM1 AP +1.8 ML 2.6 (Mayrhofer
   2019). Candidates in figures/lick_roi_candidates.png; decision pending (AP-cut levels; RFA overlap of a medially
   extended ALM). ROI version machinery: WFIELD_ROI_VERSION (v1 = 40 %; v1 files kept).
+- ALM / tjM1 FINAL (Priya 10-27 late): ALM = anterolateral 40 % of MOs (unchanged), tjM1 = anterolateral 50 % of MOp
+  (ROI version 2; WFIELD_ROI_VERSION=2, sessions_roi2/). Literature: ALM Guo 2014 / Esmaeili 2021 (AP 2.5, ML 1.5) and tjM1
+  Mayrhofer 2019 (AP 1.8, ML 2.6) inside; forelimb M1 (CFA) and whisker M2 (Esmaeili 2021) outside; ALM 45 % rejected
+  (takes in part of wM2). Esmaeili's tjM1 targeting point (AP 2.0, ML 2.0) falls in Allen MOs on our registration.
