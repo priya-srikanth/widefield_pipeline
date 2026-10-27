@@ -184,13 +184,29 @@ def course(rows: list, title: str, name: str, ref_of: dict) -> None:
     fig.suptitle(title + "\nOne dot per SESSION; grey band = pre-stroke sessions; blue line = the animal's pre mean.",
                  fontsize=9.5)
     _fit(fig)
-    fig.savefig(il.OUT / "figures" / f"iti_check_{name}_sessions.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / f"{name}_sessions.png", dpi=95)
     plt.close(fig)
 
 
-def error_hist(sets: tuple = ("iti", "trial"), name: str = "error_per_lick") -> None:
+def landing_errors(labels: set) -> pd.DataFrame:
+    """Per CUED lick (lick table `licks`, post-cue): lateral LANDING error = tongue ml - target spout ml at the frame of
+    closest approach (`pose3d.lick_peaks` lat_err_mm), re-signed so + = CONTRALESIONAL of the spout (lat_err_mm is +
+    = outward of the spout, mouse left at the centre spouts; all four lesions are on the same side, contra = R).
+    Restricted to the sessions the decoder scores (`labels`, e.g. PS92_0806)."""
+    from wfield_local.paths import PathResolver
+    f = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+    K = pd.read_csv(f, usecols=["session", "animal", "epoch", "table", "position", "lat_err_mm"])
+    K = K[(K.table == "licks") & K.lat_err_mm.notna()].copy()
+    K["label"] = K.session.str.replace("_2026", "_", regex=False)
+    K = K[K.label.isin(labels)]
+    K["err"] = K.lat_err_mm * np.where(K.position.str.endswith("_R"), 1.0, -1.0)
+    return K[["animal", "epoch", "label", "err"]]
+
+
+def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_lick", landing: bool = False) -> None:
     """Per LICK: signed decoding error (decoded - actual, lateral) distributions per epoch; POOLED column first (animals
-    weighted equally), then per animal. A SHIFTED distribution = bias; a WIDER one = scatter.
+    weighted equally), then per animal. A SHIFTED distribution = bias; a WIDER one = scatter. landing=True adds a
+    BEHAVIOUR row below: the cued licks' lateral LANDING error vs the target spout (`landing_errors`).
     Stats (session = unit): per session, mean and SD of the signed error. Per animal: change vs pre with a within-animal
     session bootstrap 95% CI (2000 draws). Pooled: paired nested bootstrap (animals > sessions, `boot_delta`) + the
     number of animals changing in that direction. * = CI excludes 0."""
@@ -200,8 +216,20 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "error_per_lick") -> 
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
     p["err"] = p.dec_lat - p.act_lat
     p = p.dropna(subset=["err"])
-    S = p.groupby(["set", "animal", "epoch", "label"]).err.agg(["mean", "std", "size"]).reset_index()
-    S = S[S["size"] >= 20]
+    # CONTROL for the shift: the error a PULL-ONLY decoder would make (decoded = a + b * actual, a, b fit on the animal's
+    # pre licks per lick set). A changed lick distribution moves this mean too; observed shift minus this = beyond pull
+    parts_ = []
+    for (_st, _a), g in p.groupby(["set", "animal"]):
+        pre_ = g[g.epoch == "pre"]
+        b_, c_ = np.polyfit(pre_.act_lat, pre_.dec_lat, 1)
+        parts_.append(g.assign(pull_err=c_ + (b_ - 1) * g.act_lat))
+    p = pd.concat(parts_)
+    xdec = "decoded - actual LATERAL, mm (+ = read more contralesional)"
+    rows = [(f"{'ITI' if st == 'iti' else 'cued'}: NEURAL decoder error", p[p.set == st], xdec, -3, 3)
+            for st in sets]
+    if landing:
+        rows.append(("cued: BEHAVIOUR landing vs spout", landing_errors(set(p.label)),
+                     "landing - target spout LATERAL, mm (+ = landed contralesional of the spout)", -4, 4))
     rng = np.random.default_rng(0)
 
     def within(h, ep, v):
@@ -214,31 +242,31 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "error_per_lick") -> 
     def fmt(t):
         return "" if t is None else f"{t[0]:+.2f} [{t[1]:+.2f},{t[2]:+.2f}]{'*' if t[1] > 0 or t[2] < 0 else ''}"
     cols = ["POOLED", *AN]
-    fig, axs = plt.subplots(len(sets), len(cols), figsize=(4.1 * len(cols), 1.2 + 3.2 * len(sets)), squeeze=False,
-                            sharex=True)
-    bins = np.linspace(-3, 3, 61)
-    for i, st in enumerate(sets):
-        Ss = S[S.set == st]
+    fig, axs = plt.subplots(len(rows), len(cols), figsize=(4.1 * len(cols), 1.2 + 3.2 * len(rows)), squeeze=False)
+    for i, (rlab, P, xlab, x0, x1) in enumerate(rows):
+        bins = np.linspace(x0, x1, 61)
+        Ss = P.groupby(["animal", "epoch", "label"]).err.agg(["mean", "std", "size"]).reset_index()
+        Ss = Ss[Ss["size"] >= 20]
         for j, a in enumerate(cols):
             ax = axs[i, j]
             lines = []
             for ep in EPS:
                 if a == "POOLED":
-                    parts = [p[(p.set == st) & (p.animal == b) & (p.epoch == ep)].err.to_numpy() for b in AN]
+                    parts = [P[(P.animal == b) & (P.epoch == ep)].err.to_numpy() for b in AN]
                     parts = [x for x in parts if len(x) >= 20]
                     if not parts:
                         continue
                     e = np.concatenate(parts)
                     w = np.concatenate([np.full(len(x), 1 / len(x)) for x in parts])
                 else:
-                    e = p[(p.set == st) & (p.animal == a) & (p.epoch == ep)].err.to_numpy()
+                    e = P[(P.animal == a) & (P.epoch == ep)].err.to_numpy()
                     w = None
                     if len(e) < 20:
                         continue
                 mu = np.average(e, weights=w)
-                ax.hist(e, bins=bins, weights=w, density=True, histtype="step", lw=1.6, color=EPOCH_LINE[ep],
-                        label=ep)
-                ax.axvline(mu, color=EPOCH_LINE[ep], lw=0.9, ls="--")
+                ax.hist(np.clip(e, x0, x1), bins=bins, weights=w, density=True, histtype="step", lw=1.6,
+                        color=EPOCH_LINE[ep], label=ep)
+                ax.axvline(mu, ymax=0.64, color=EPOCH_LINE[ep], lw=0.9, ls="--")   # stops below the stats text
                 if ep == "pre":
                     continue
                 if a == "POOLED":
@@ -247,8 +275,8 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "error_per_lick") -> 
                         prd = {b: h[v].to_numpy() for b, h in Ss[Ss.epoch == "pre"].groupby("animal")}
                         post = {b: h[v].to_numpy() for b, h in Ss[Ss.epoch == ep].groupby("animal") if b in prd}
                         ci = ak.boot_delta(post, prd, np.random.default_rng(0))
-                        am = Ss[Ss.epoch == ep].groupby("animal")[v].mean() - Ss[Ss.epoch == "pre"].groupby("animal")[v].mean()
-                        am = am.dropna()
+                        am = (Ss[Ss.epoch == ep].groupby("animal")[v].mean()
+                              - Ss[Ss.epoch == "pre"].groupby("animal")[v].mean()).dropna()
                         n_dir = int((am * np.sign(ci.point) > 0).sum())
                         sig = "*" if ci.lo > 0 or ci.hi < 0 else ""
                         txt.append(f"{nm} {ci.point:+.2f} [{ci.lo:+.2f},{ci.hi:+.2f}]{sig} {n_dir}/{len(am)}")
@@ -256,28 +284,38 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "error_per_lick") -> 
                 else:
                     h = Ss[Ss.animal == a]
                     lines.append((ep, f"shift {fmt(within(h, ep, 'mean'))}; width {fmt(within(h, ep, 'std'))}"))
+            if "pull_err" in P.columns:                  # expected shift from the pull alone, per epoch (session means)
+                q = P if a == "POOLED" else P[P.animal == a]
+                sm = q.groupby(["animal", "epoch", "label"]).pull_err.mean().groupby(["animal", "epoch"]).mean()
+                am_ = sm.unstack("epoch")
+                if "pre" in am_.columns:
+                    exp = [f"{e[:3]} {(am_[e] - am_['pre']).mean():+.2f}" for e in EPS[1:] if e in am_.columns]
+                    lines.append(("pre", "CONTROL, pull-only expected shift: " + ", ".join(exp)))
             for k, (ep, t) in enumerate(lines):
-                ax.text(0.01, 0.99 - 0.065 * k, f"{ep}: {t}", transform=ax.transAxes, fontsize=6.3, va="top",
+                ax.text(0.01, 0.99 - 0.06 * k, t if t.startswith("CONTROL") else f"{ep}: {t}",
+                        transform=ax.transAxes, fontsize=6.3, va="top",
                         color=EPOCH_LINE[ep])
-            ax.axvline(0, color="0.5", lw=0.5)
+            ax.axvline(0, ymax=0.64, color="0.5", lw=0.5)
             ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
             if j == 0:
                 ax.legend(fontsize=7, frameon=False, loc="center left")
-            ax.set_title(f"{a}{' (animals weighted equally)' if a == 'POOLED' else ''}, "
-                         f"{'ITI' if st == 'iti' else 'cued'} licks", fontsize=9, fontweight="bold" if j == 0 else None)
-            if i == len(sets) - 1:
-                ax.set_xlabel("decoded - actual LATERAL, mm (+ = read more contralesional)", fontsize=8)
+            ax.set_title(f"{'POOLED (animals equal)' if a == 'POOLED' else a}: {rlab}", fontsize=8.5,
+                         fontweight="bold" if j == 0 else None)
+            ax.set_xlabel(xlab, fontsize=7.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    fig.suptitle("NEURAL: per-LICK decoding error of the frozen where-decoder (z-scored Allen areas; lateral). A shifted "
-                 "distribution = BIAS (predictions displaced), a wider one = SCATTER. Dashed = epoch mean.\nText = change "
-                 "vs pre in the per-SESSION mean error (shift) and SD (width), mm, 95% CI: per animal = session "
-                 "bootstrap; POOLED = paired nested bootstrap (animals > sessions) + animals changing that way; "
-                 "* = CI excludes 0.\nNB the error includes the decoder's pull toward the pre mean, so a changed lick "
+    beh = (" Bottom row = BEHAVIOUR: where the tongue landed relative to the target spout (3-D, closest approach)."
+           if landing else "")
+    fig.suptitle("Per-LICK lateral error distributions. NEURAL rows: frozen where-decoder (z-scored Allen areas), decoded - "
+                 "actual." + beh + "\nA shifted distribution = BIAS, a wider one = SCATTER; dashed = epoch mean. Text = "
+                 "change vs pre in the per-SESSION mean (shift) and SD (width), mm, 95% CI: per animal = session "
+                 "bootstrap; POOLED = paired nested bootstrap (animals > sessions) + animals changing that way; * = CI "
+                 "excludes 0.\nBlack text = CONTROL: the shift a PULL-ONLY decoder (a + b x actual, fit on pre) "
+                 "would show from the changed lick distribution alone.\nNB the decoder error includes its pull toward the pre mean, so a changed lick "
                  "distribution moves the mean error too; the offset BEYOND the pull (3.21 / 3.37) removes that. "
                  "PROVISIONAL", fontsize=9.5)
     _fit(fig)
-    fig.savefig(il.OUT / "figures" / f"iti_check_{name}.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / f"{name}.png", dpi=95)
     plt.close(fig)
 
 
@@ -307,15 +345,15 @@ def main() -> int:
     f0()
     three_axis()
     error_hist()
-    error_hist(("iti",), "error_per_lick_iti")
-    error_hist(("trial",), "error_per_lick_cued")
+    error_hist(("iti",), "iti_check_error_per_lick_iti")
+    error_hist(("trial",), "cued_check_error_per_lick", landing=True)
     R0 = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
     p["err"] = p.dec_lat - p.act_lat
     E0 = (p.dropna(subset=["err"]).groupby(["set", "animal", "epoch", "label"]).err
           .agg(shift="mean", width="std", n="size").reset_index())
     E0 = E0[E0.n >= 20]
-    for st, nm, sfx in (("iti", "ITI", "rmse"), ("trial", "cued", "rmse_cued")):
+    for st, nm, sfx in (("iti", "ITI", "iti_check_rmse"), ("trial", "cued", "cued_check_rmse")):
         R = R0[R0.set == st]
         course([(f"{nm} {'lateral' if ax_ == 'lat' else 'sagittal'} {lab}", R[R.axis == ax_], v)
                 for ax_ in ("lat", "sag") for v, lab in (("bias", "|bias|"), ("sd", "scatter (SD)"))],
@@ -324,26 +362,27 @@ def main() -> int:
         course([(f"{nm} lat SHIFT (mean error, mm; + = contra)", E, "shift"),
                 (f"{nm} lat WIDTH (SD of error, mm)", E, "width")],
                f"NEURAL: per-session summary of the per-lick error histograms ({nm} licks, lateral, z-scored decoder).",
-               f"error_{'iti' if st == 'iti' else 'cued'}", {"shift": 0})
+               "iti_check_error" if st == "iti" else "cued_check_error", {"shift": 0})
     F = pd.read_csv(il.OUT / "f0_check.csv").merge(_aim(), on="label", how="left")
     course([("F0 470 (raw fluorescence) / pre", F, "f0_470_rel"),
             ("post-lick response / pre: dF/F vs dF (dF = dF/F x F0)", F, "resp_auc_rel", "resp_dF_rel",
              "dF/F (as on the page)", "dF, raw units"),
             ("far-contra lick angle / pre (behaviour)", F, "beh")],
            "NEURAL / MEASUREMENT: F0 and the ITI post-lick response per session, with far-contra aim for comparison.",
-           "f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 1})
+           "iti_check_f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 1})
     T = pd.read_csv(il.OUT / "where_3axis_sessions.csv")
     T = T[T.set == "iti"]
     course([(f"ITI {ax_}: {lab}", T[T.axis == ax_], v) for ax_ in ("lat", "fwd", "down")
             for v, lab in (("r_norm", "r / pre"), ("beyond_d", "offset beyond pull (mm)"))],
-           "NEURAL: frozen where-decoder on three axes per session, ITI licks (z-scored).", "3axis",
+           "NEURAL: frozen where-decoder on three axes per session, ITI licks (z-scored).", "iti_check_3axis",
            {"r_norm": 1, "beyond_d": 0})
     sev = f0_severity()
     pd.set_option("display.width", 200)
     print("== does the ITI post-lick response (dF/F / pre) track far-contra aim within animal? (post sessions)")
     print(sev.round(2).to_string(index=False))
-    print("wrote iti_check_{rmse,f0,3axis}[_sessions].png, iti_check_error_per_lick[_iti,_cued].png, "
-          "iti_check_error_{iti,cued}_sessions.png, iti_check_rmse_cued_sessions.png")
+    print("wrote iti_check_{rmse,f0,3axis}[_sessions].png, iti_check_error_per_lick[_iti].png, "
+          "iti_check_error_sessions.png; CUED: cued_check_error_per_lick.png (+ landing row), "
+          "cued_check_{error,rmse}_sessions.png")
     return 0
 
 
