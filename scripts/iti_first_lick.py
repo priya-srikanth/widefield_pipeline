@@ -10,7 +10,8 @@ Per animal x lick class (first / later) x spout x epoch: landing shift (actual -
 class), decoded shift (same), offset beyond the pull (decoded shift - b x landing shift; b = the animal's pre slope,
 fit on all pre cued licks). Change vs pre = paired nested bootstrap over sessions; first - later difference per session.
 Outputs <E>/iti_licks/first_lick_{preds.csv.gz,sessions.csv,tests.csv}, figures/lick_cued_first_lick.png.
-Usage: python scripts/iti_first_lick.py
+Figure data <E>/iti_licks/figdata/lick_cued_first_lick.pkl; --plot-only redraws from it alone (no bootstrap).
+Usage: python scripts/iti_first_lick.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -178,6 +180,9 @@ def plot(T: pd.DataFrame) -> None:
 
 
 def main() -> int:
+    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+        plot(load_fd("lick_cued_first_lick")["T"])
+        return 0
     f = il.OUT / "first_lick_preds.csv.gz"
     if f.exists():
         P = pd.read_csv(f)
@@ -194,6 +199,7 @@ def main() -> int:
     T = tests(S)
     T.to_csv(il.OUT / "first_lick_tests.csv", index=False)
     print(T.round(3).to_string(index=False))
+    save_fd("lick_cued_first_lick", dict(T=T))
     plot(T)
     return 0
 

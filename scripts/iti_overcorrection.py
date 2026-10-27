@@ -15,7 +15,8 @@ areas (zscore_check/where_preds_z.csv), cued licks.
 Outputs <E>/iti_licks/overcorrection_{sessions,tests}.csv, figures/lick_cued_overcorrection[_angle].png.
 --angle: the same in lick ANGLE (atan2(lateral, sagittal), degrees), the primary behaviour measure (Priya 10-27: "keep
 angle and lateral analyses, but make primary the one that is most consistent").
-Usage: python scripts/iti_overcorrection.py [--angle]
+Figure data <E>/iti_licks/figdata/lick_cued_overcorrection[_angle].pkl; --plot-only redraws from it alone (no bootstrap).
+Usage: python scripts/iti_overcorrection.py [--angle] [--plot-only]
 """
 from __future__ import annotations
 
@@ -27,6 +28,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -130,6 +132,10 @@ def plot(S: pd.DataFrame, T: pd.DataFrame, angle: bool = False) -> None:
 def main(argv=None) -> int:
     angle = "--angle" in (argv if argv is not None else sys.argv[1:])
     sfx = "_angle" if angle else ""
+    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+        F = load_fd(f"lick_cued_overcorrection{sfx}")
+        plot(F["S"], F["T"], F["angle"])
+        return 0
     S = sessions(angle)
     S.to_csv(il.OUT / f"overcorrection{sfx}_sessions.csv", index=False)
     pd.set_option("display.width", 220)
@@ -143,6 +149,7 @@ def main(argv=None) -> int:
     T.to_csv(il.OUT / f"overcorrection{sfx}_tests.csv", index=False)
     print("\n== change vs pre (paired nested bootstrap)")
     print(T.round(3).to_string(index=False))
+    save_fd(f"lick_cued_overcorrection{sfx}", dict(S=S, T=T, angle=angle))
     plot(S, T, angle)
     return 0
 

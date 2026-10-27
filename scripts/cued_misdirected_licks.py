@@ -15,7 +15,9 @@ Read-outs (per session, post-stroke; animal's pre sessions build the references)
       same-session LEFT licks with the same landing (landing bins of 0.25 mm) -- 0 = read as a left lick, > 0 = read
       toward the right / target.
 Output <E>/iti_licks/misdirected_{licks,sessions}.csv, figures/lick_cued_misdirected_licks.png.
-Usage: python scripts/cued_misdirected_licks.py
+Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_cued_misdirected_licks.pkl = dict(S per-session table);
+`--plot-only` redraws from that file alone.
+Usage: python scripts/cued_misdirected_licks.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -29,11 +31,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_first_lick as fl  # noqa: E402
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["acute", "subacute", "chronic"]
 LEFT_T = ("close_ipsi", "far_ipsi")
 MIN = 5
+FIG = "lick_cued_misdirected_licks"
 
 
 def lick_table() -> pd.DataFrame:
@@ -115,7 +119,8 @@ def decoder_diff(T: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def plot(S: pd.DataFrame) -> None:
+def plot(D: dict) -> None:
+    S = D["S"]
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -162,11 +167,14 @@ def plot(S: pd.DataFrame) -> None:
                  "lateral decoder vs left-target licks with the same landing, same session. Lesion LEFT; far R = "
                  "contralesional. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "lick_cued_misdirected_licks.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=100)
     plt.close(fig)
 
 
 def main() -> int:
+    if plot_only():                                       # redraw from the figure data alone
+        plot(load_fd(FIG))
+        return 0
     T, F = lick_table()
     T = scores(classify(T), F)
     S = decoder_diff(T)
@@ -177,7 +185,9 @@ def main() -> int:
     print(T[T.grp != ""].groupby(["animal", "epoch", "grp"]).size().unstack("grp").to_string())
     print("== per animal x epoch (rule 8): mean of session values")
     print(S.groupby(["animal", "epoch"])[["s_left", "s_mis", "s_right", "dec_mis_minus_left"]].mean().round(2).to_string())
-    plot(S)
+    D = dict(S=S)
+    save_fd(FIG, D)
+    plot(D)
     return 0
 
 

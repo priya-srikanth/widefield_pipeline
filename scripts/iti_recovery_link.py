@@ -15,7 +15,11 @@ Two levels:
   BETWEEN animals (n = 4, descriptive only): chronic means per animal, ranked against chronic behaviour.
   WITHIN animal across post sessions: Pearson r of measure vs behaviour, raw and with log(day) regressed out of both
   (the shared recovery trend); mean of animals, within-animal permutation of behaviour (N_PERM).
-Usage: python scripts/iti_recovery_link.py [--src DIR]   (DIR default <E>/iti_licks; output written there)
+Figure data (figdata.py convention): <DIR>/figdata/lick_recovery_link{,_pooled,_sessions}_<tag>.pkl (tag = beh + "_z"
+if --z) hold everything each figure draws (session table, within-animal r table, the pooled nested-bootstrap CIs, the
+per-animal fit lines); `--plot-only` redraws the three figures from those files alone (no permutation, no bootstrap).
+Usage: python scripts/iti_recovery_link.py [--src DIR] [--beh hit|angle|lateral] [--z] [--plot-only]
+       (DIR default <E>/iti_licks; output written there)
 """
 from __future__ import annotations
 
@@ -28,6 +32,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, save_fd  # noqa: E402
 from recovery_timing import series  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -100,15 +105,15 @@ def main(argv=None) -> int:
     ap.add_argument("--src", default=str(il.OUT))
     ap.add_argument("--beh", choices=("hit", "angle", "lateral"), default="hit")
     ap.add_argument("--z", action="store_true", help="decoder on within-session Z-SCORED features")
-    ap.add_argument("--plot-only", action="store_true", help="redraw the pooled + session-scatter figures from CSVs")
+    ap.add_argument("--plot-only", action="store_true", help="redraw the three figures from the figure data alone")
     args = ap.parse_args(argv)
-    if args.plot_only:
-        tag = args.beh + ("_z" if args.z else "")
-        GA = pd.read_csv(Path(args.src) / f"recovery_link_sessions_withpre_{tag}.csv")
-        plot_pooled(GA, tag, args.z, Path(args.src))
-        plot_session_scatter(GA, tag, args.z, Path(args.src))
-        return 0
     src, tag = Path(args.src), args.beh + ("_z" if args.z else "")
+    fdroot = src / "figdata"
+    if args.plot_only:                                    # no permutation, no bootstrap: figdata only
+        plot_course(load_fd(f"lick_recovery_link_{tag}", fdroot))
+        plot_pooled(load_fd(f"lick_recovery_link_pooled_{tag}", fdroot))
+        plot_session_scatter(load_fd(f"lick_recovery_link_sessions_{tag}", fdroot))
+        return 0
     S, ax2 = session_measures(src, args.z)
     meas = ["r_lat", "bey_lat", f"bey_{ax2}", "mae_lat", "mae_2d"]
     B = series("lick")[["label", "day", "beh"]]
@@ -153,9 +158,12 @@ def main(argv=None) -> int:
     R.to_csv(src / f"recovery_link_within_{tag}.csv", index=False)
     G.to_csv(src / f"recovery_link_sessions_{tag}.csv", index=False)
     GA.to_csv(src / f"recovery_link_sessions_withpre_{tag}.csv", index=False)
-    plot_course(GA, R, tag, ax2, args.z, src)
-    plot_pooled(GA, tag, args.z, src)
-    plot_session_scatter(GA, tag, args.z, src)
+    figs = {f"lick_recovery_link_{tag}": (plot_course, dict(G=GA, R=R, tag=tag, z=args.z, src=src)),
+            f"lick_recovery_link_pooled_{tag}": (plot_pooled, pooled_data(GA, tag, args.z, src)),
+            f"lick_recovery_link_sessions_{tag}": (plot_session_scatter, scatter_data(GA, tag, args.z, src))}
+    for stem, (fn, D) in figs.items():
+        save_fd(stem, D, fdroot)
+        fn(D)
     return 0
 
 
@@ -169,12 +177,31 @@ def _bref(tag: str) -> float:
     return 1.0 if tag.startswith("hit") else 0.0
 
 
-def plot_session_scatter(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
+def scatter_data(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> dict:
+    """Figure data for the session scatter: the session dots (set, animal, epoch, beh, bey_lat), per (set, animal) the
+    least-squares line over post sessions (x, y), per set the pooled post r."""
+    pts = GA[["set", "animal", "epoch", "beh", "bey_lat"]].copy()
+    lines, r_all = {}, {}
+    for st in ("iti", "trial"):
+        g = GA[GA.set == st]
+        for a in AN:
+            post = g[(g.animal == a) & (g.epoch != "pre")].dropna(subset=["beh", "bey_lat"])
+            if len(post) >= 5:
+                b, c = np.polyfit(post.beh, post.bey_lat, 1)
+                xx = np.linspace(post.beh.min(), post.beh.max(), 20)
+                lines[(st, a)] = (xx, c + b * xx)
+        post = g[g.epoch != "pre"].dropna(subset=["beh", "bey_lat"])
+        r_all[st] = float(np.corrcoef(post.beh, post.bey_lat)[0, 1])
+    return dict(pts=pts, lines=lines, r_all=r_all, tag=tag, z=z, src=src)
+
+
+def plot_session_scatter(D: dict) -> None:
     """POOLED over animals, one dot per SESSION (pre included): decoder lateral offset vs far-contra aim, colour =
     animal, marker = epoch; a line per animal = its least-squares fit over post sessions."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    GA, tag, z, src = D["pts"], D["tag"], D["z"], D["src"]
     blab = _blab(tag)
     cols = plt.get_cmap("tab10")
     mk = {"pre": "o", "acute": "^", "subacute": "s", "chronic": "*"}
@@ -188,13 +215,10 @@ def plot_session_scatter(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None
                 q = h[h.epoch == ep]
                 ax.scatter(q.beh, q.bey_lat, marker=m_, s=40 if m_ == "*" else 22, color=cols(k), alpha=0.8,
                            edgecolor="k" if ep == "pre" else "none", lw=0.4, label=a if ep == "acute" else None)
-            post = h[h.epoch != "pre"].dropna(subset=["beh", "bey_lat"])
-            if len(post) >= 5:
-                b, c = np.polyfit(post.beh, post.bey_lat, 1)
-                xx = np.linspace(post.beh.min(), post.beh.max(), 20)
-                ax.plot(xx, c + b * xx, color=cols(k), lw=1.2)
-        post = g[g.epoch != "pre"].dropna(subset=["beh", "bey_lat"])
-        r_all = float(np.corrcoef(post.beh, post.bey_lat)[0, 1])
+            if (st, a) in D["lines"]:
+                xx, yy = D["lines"][(st, a)]
+                ax.plot(xx, yy, color=cols(k), lw=1.2)
+        r_all = D["r_all"][st]
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.axvline(_bref(tag), color="0.7", lw=0.6, ls=":")
         for ep, m_ in mk.items():
@@ -215,45 +239,63 @@ def plot_session_scatter(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None
     plt.close(fig)
 
 
-def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
-    """Per epoch (pre included): behaviour and lateral offset, animal means + nested-bootstrap CI of the change vs pre,
-    and the per-animal epoch trajectory in (behaviour, offset) space. Per-animal table printed first (rule 8)."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
+def pooled_data(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> dict:
+    """Figure data for the pooled figure: per set the animal x epoch means (am), per (set, measure) the mean of animals
+    per epoch and the nested-bootstrap change vs pre per post epoch. Per-animal table printed first (rule 8); writes
+    recovery_link_pooled_<tag>.csv."""
     from wfield_local import analysis_kit as ak
     eps = ["pre", *EP]
-    blab = _blab(tag)
-    fig, axs = plt.subplots(2, 3, figsize=(15, 8.2), squeeze=False)
-    cols = plt.get_cmap("tab10")
-    rows = []
-    for i, st in enumerate(("iti", "trial")):
+    rows, sets = [], {}
+    for st in ("iti", "trial"):
         g = GA[GA.set == st]
         am = g.groupby(["animal", "epoch"])[["beh", "bey_lat"]].mean()
         print(f"\n== POOLED {st}: per animal x epoch (beh / pre; bey_lat change vs pre, mm)\n"
               + am.unstack("epoch").reindex(columns=eps, level=1).round(3).to_string())
-        for j, (val, lab) in enumerate((("beh", blab), ("bey_lat", "lateral offset beyond pre pull, mm\n"
-                                                                   "(+ = read contralesional; change vs pre)"))):
-            ax = axs[i, j]
+        mus, cis = {}, {}
+        for val in ("beh", "bey_lat"):
             prd = {a: h[val].to_numpy() for a, h in g[g.epoch == "pre"].groupby("animal")}
-            for k, a in enumerate(AN):
-                y = [am[val].get((a, e), np.nan) for e in eps]
-                ax.plot(range(4), y, "o-", color=cols(k), ms=5, lw=1, alpha=0.75, label=a)
-            mu = [am[val].xs(e, level="epoch").mean() for e in eps]
-            ax.plot(range(4), mu, "-", color="k", lw=2.5, zorder=5, label="mean of animals")
-            for x, e in enumerate(EP, start=1):
+            mus[val] = [am[val].xs(e, level="epoch").mean() for e in eps]
+            for e in EP:
                 post = {a: h[val].to_numpy() for a, h in g[g.epoch == e].groupby("animal")}
                 ci = ak.boot_delta(post, prd, np.random.default_rng(0))
-                ref = mu[0]
-                ax.errorbar(x + 0.12, ref + ci.point, yerr=[[ci.point - ci.lo], [ci.hi - ci.point]], fmt="D",
-                            color="k", ms=6, capsize=3, zorder=6)
-                sig = ci.lo > 0 or ci.hi < 0
-                ax.text(x + 0.12, ref + ci.hi, f"{ci.point:+.2f}" + (" *" if sig else ""), ha="center",
-                        va="bottom", fontsize=8)
+                cis[(val, e)] = (ci.point, ci.lo, ci.hi)
                 rows.append(dict(set=st, measure=val, epoch=e, point=ci.point, lo=ci.lo, hi=ci.hi,
                                  n_dir=int(((am[val].xs(e, level="epoch") - am[val].xs("pre", level="epoch")) *
                                             np.sign(ci.point) > 0).sum())))
+        sets[st] = dict(am=am, mu=mus, ci=cis)
+    pd.DataFrame(rows).to_csv(src / f"recovery_link_pooled_{tag}.csv", index=False)
+    return dict(sets=sets, tag=tag, z=z, src=src)
+
+
+def plot_pooled(D: dict) -> None:
+    """Per epoch (pre included): behaviour and lateral offset, animal means + nested-bootstrap CI of the change vs pre,
+    and the per-animal epoch trajectory in (behaviour, offset) space."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    tag, z, src = D["tag"], D["z"], D["src"]
+    eps = ["pre", *EP]
+    blab = _blab(tag)
+    fig, axs = plt.subplots(2, 3, figsize=(15, 8.2), squeeze=False)
+    cols = plt.get_cmap("tab10")
+    for i, st in enumerate(("iti", "trial")):
+        am = D["sets"][st]["am"]
+        for j, (val, lab) in enumerate((("beh", blab), ("bey_lat", "lateral offset beyond pre pull, mm\n"
+                                                                   "(+ = read contralesional; change vs pre)"))):
+            ax = axs[i, j]
+            for k, a in enumerate(AN):
+                y = [am[val].get((a, e), np.nan) for e in eps]
+                ax.plot(range(4), y, "o-", color=cols(k), ms=5, lw=1, alpha=0.75, label=a)
+            mu = D["sets"][st]["mu"][val]
+            ax.plot(range(4), mu, "-", color="k", lw=2.5, zorder=5, label="mean of animals")
+            for x, e in enumerate(EP, start=1):
+                point, lo, hi = D["sets"][st]["ci"][(val, e)]
+                ref = mu[0]
+                ax.errorbar(x + 0.12, ref + point, yerr=[[point - lo], [hi - point]], fmt="D",
+                            color="k", ms=6, capsize=3, zorder=6)
+                sig = lo > 0 or hi < 0
+                ax.text(x + 0.12, ref + hi, f"{point:+.2f}" + (" *" if sig else ""), ha="center",
+                        va="bottom", fontsize=8)
             ax.axhline(_bref(tag) if val == "beh" else 0, color="0.7", lw=0.7, ls=":")
             ax.set_xticks(range(4), eps)
             ax.set_ylabel(lab, fontsize=8.5)
@@ -282,7 +324,6 @@ def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
         ax.set_title("per animal, epoch means: aim vs decoder offset", fontsize=9.5)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    pd.DataFrame(rows).to_csv(src / f"recovery_link_pooled_{tag}.csv", index=False)
     fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED per epoch (pre included): far-contra aim and the "
                  "FROZEN pre-stroke decoder's lateral offset beyond its pre pull.\nThin lines = animals (session "
                  "means per epoch); black line = mean of animals; diamonds = mean of animals' pre + change vs pre "
@@ -293,12 +334,14 @@ def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
     plt.close(fig)
 
 
-def plot_course(G: pd.DataFrame, R: pd.DataFrame, tag: str, ax2: str, z: bool, src: Path) -> None:
+def plot_course(D: dict) -> None:
     """Per animal over days, pre-stroke sessions included (left of the stroke line): behaviour (/ pre) and the
-    decoder's lateral offset beyond the pull. Pre values scatter around 1 / 0 by construction (the reference)."""
+    decoder's lateral offset beyond the pull. Pre values scatter around 1 / 0 by construction (the reference).
+    D = figure data: G (session table incl. pre), R (within-animal r table), tag, z, src."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    G, R, tag, z, src = D["G"], D["R"], D["tag"], D["z"], D["src"]
     blab = _blab(tag)
     zl = " [decoder on Z-SCORED features]" if z else ""
     fig, axs = plt.subplots(2, 4, figsize=(17, 7.5), sharex="col", squeeze=False)

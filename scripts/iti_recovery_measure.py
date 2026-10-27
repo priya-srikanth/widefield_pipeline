@@ -9,7 +9,8 @@ far contra 3, far mid 2, every other spout 1 (renormalised over the spouts prese
 relative to its acute level (fraction of the acute deficit remaining). Pre sessions are scored the same way (their
 |offset| is the pre noise floor).
 Outputs <E>/iti_licks/recovery_measure_{sessions,animals}.csv, figures/lick_cued_recovery_measure.png.
-Usage: python scripts/iti_recovery_measure.py
+Figure data <E>/iti_licks/figdata/lick_cued_recovery_measure.pkl; --plot-only redraws from it alone.
+Usage: python scripts/iti_recovery_measure.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EPS = ["pre", "acute", "subacute", "chronic"]
@@ -29,11 +31,8 @@ W = {"far_contra": 3.0, "far_mid": 2.0}
 MIN = 10
 
 
-def main() -> int:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
+def compute() -> pd.DataFrame:
+    """Per-session recovery measures (+ day after stroke); writes the session / animal tables and prints the ranking."""
     from iti_check_figures import _days
 
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
@@ -70,6 +69,13 @@ def main() -> int:
     rank = A[("chronic_minus_pre_deg", "chronic")].sort_values(ascending=False)
     print("\n== recovery ranking by chronic weighted SIGNED offset vs pre (deg; closest to 0 first):",
           ", ".join(f"{a} {v:+.1f}" for a, v in rank.items()))
+    return S
+
+
+def plot(S: pd.DataFrame) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
     fig, axs = plt.subplots(1, 2, figsize=(13, 4.6))
     for k, (val, lab) in enumerate((("weighted_signed", "weighted SIGNED angle offset from own pre (deg; - = ipsi)"),
                                     ("far_contra_signed", "far-contra signed angle offset (deg; - = ipsilesional)"))):
@@ -90,6 +96,15 @@ def main() -> int:
                  "session; pre sessions (left of the dashed line) = the noise floor. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
     fig.savefig(il.OUT / "figures" / "lick_cued_recovery_measure.png", dpi=100)
+
+
+def main() -> int:
+    if plot_only():                       # redraw from figdata only
+        plot(load_fd("lick_cued_recovery_measure")["S"])
+        return 0
+    S = compute()
+    save_fd("lick_cued_recovery_measure", dict(S=S))
+    plot(S)
     return 0
 
 

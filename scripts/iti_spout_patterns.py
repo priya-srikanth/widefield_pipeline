@@ -7,7 +7,10 @@ licks from the other five's. Per animal, each map / the RMS of that animal's pre
 Similarity to pre per animal x spout x epoch = pixel correlation corrected by split-half reliability (sessions
 alternating by date), as for the position maps.
 Outputs <E>/iti_licks/spout_patterns.csv, figures/lick_cued_spout_patterns.png (rows = spouts in canonical order, columns =
-epochs + chronic - pre). Usage: python scripts/iti_spout_patterns.py
+epochs + chronic - pre).
+Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_cued_spout_patterns.pkl (mean-of-animals map, n and
+similarity per spout x column + the imaging grid); `--plot-only` redraws from that file alone (no decoder fit).
+Usage: python scripts/iti_spout_patterns.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -21,10 +24,13 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 from iti_decoder_patterns import SPATIAL, pattern  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
+COLS = [*EP, "chronic - pre"]
+FIG = "lick_cued_spout_patterns"
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 
 
@@ -73,25 +79,31 @@ def compute():
     return pd.DataFrame(rows), maps
 
 
-def plot(T, maps) -> None:
+def figure_data(T: pd.DataFrame, maps: dict) -> dict:
+    """Everything the figure draws: per (spout, column) the mean-of-animals map, the number of animals and (post epochs)
+    the mean noise-corrected similarity to pre; plus the imaging grid that places stat-mask pixels on the image."""
+    cells = {}
+    for sp in POS:
+        for cname in COLS:
+            if cname in EP:
+                have = [maps[(a, sp, cname)] for a in AN if (a, sp, cname) in maps]
+            else:
+                have = [maps[(a, sp, "chronic")] - maps[(a, sp, "pre")] for a in AN
+                        if (a, sp, "chronic") in maps and (a, sp, "pre") in maps]
+            if not have:
+                continue
+            g = T[(T.spout == sp) & (T.epoch == cname)]
+            cells[(sp, cname)] = dict(map=np.nanmean(have, 0), n=len(have),
+                                      sim=g.r_disatt.mean() if cname in EP[1:] else None)
+    return dict(cells=cells, grid=imaging_grid())
+
+
+def plot(D: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-
-    from frozen_area_maps import area_image, outline
-    from wfield_local import combined_encoding as ce
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
-    _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(lab0)
-    Hh, Ww = (int(x) for x in shape)
-    pix = flat[pstat]
-    img, _ = area_image(lab0)
-    ol = outline(img)[::2, ::2]
-
-    def to_img(v):
-        g = np.full(Hh * Ww, np.nan)
-        g[pix] = v
-        return g.reshape(Hh, Ww)[::2, ::2]
-    cols = [*EP, "chronic - pre"]
+    to_img, ol = grid_fns(D["grid"])
+    cols = COLS
     fig, axs = plt.subplots(len(POS), len(cols), figsize=(2.6 * len(cols), 2.3 * len(POS)), squeeze=False)
     lim = 2.5
     for i, sp in enumerate(POS):
@@ -99,18 +111,13 @@ def plot(T, maps) -> None:
             ax = axs[i, j]
             ax.set_xticks([])
             ax.set_yticks([])
-            if cname in EP:
-                have = [maps[(a, sp, cname)] for a in AN if (a, sp, cname) in maps]
-            else:
-                have = [maps[(a, sp, "chronic")] - maps[(a, sp, "pre")] for a in AN
-                        if (a, sp, "chronic") in maps and (a, sp, "pre") in maps]
-            if not have:
+            c = D["cells"].get((sp, cname))
+            if c is None:
                 ax.axis("off")
                 continue
-            im = ax.imshow(to_img(np.nanmean(have, 0)), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            im = ax.imshow(to_img(c["map"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-            g = T[(T.spout == sp) & (T.epoch == cname)]
-            ttl = f"{cname} (n={len(have)})" + (f"\nsim to pre {g.r_disatt.mean():.2f}" if cname in EP[1:] else "")
+            ttl = f"{cname} (n={c['n']})" + (f"\nsim to pre {c['sim']:.2f}" if cname in EP[1:] else "")
             ax.set_title(ttl, fontsize=7.5)
             if j == 0:
                 ax.set_ylabel(sp.replace("_", " "), fontsize=9)
@@ -119,11 +126,14 @@ def plot(T, maps) -> None:
                  "pattern of a one-vs-rest ridge decoder, refit per epoch\n(each animal's pre-stroke SVD basis, lags "
                  "0..0.2 s from the lick peak), / the animal's pre RMS, mean of animals; sim = noise-corrected similarity to "
                  "pre (mean of animals). ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / "lick_cued_spout_patterns.png", dpi=100, bbox_inches="tight")
+    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
 def main() -> int:
+    if plot_only():                                       # redraw from the figure data alone
+        plot(load_fd(FIG))
+        return 0
     T, maps = compute()
     T.to_csv(il.OUT / "spout_patterns.csv", index=False)
     pd.set_option("display.width", 220)
@@ -133,7 +143,9 @@ def main() -> int:
     print("\n== amplitude / pre")
     print(T.pivot_table(index=["spout", "animal"], columns="epoch", values="amp")[EP].reindex(POS, level=0).round(2)
           .to_string())
-    plot(T, maps)
+    D = figure_data(T, maps)
+    save_fd(FIG, D)
+    plot(D)
     return 0
 
 

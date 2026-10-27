@@ -13,7 +13,8 @@ Per animal Pearson r; summary = mean of animals with a within-animal permutation
 animal's post sessions, N_PERM draws, same shuffle for every statistic of a draw).
 Inputs: <E>/iti_licks/contact_check.csv (`iti_contact_check.py`). Output: <E>/iti_licks/recovery_marker.csv,
 figures/lick_recovery_marker.png.
-Usage: python scripts/iti_recovery_marker.py
+Figure data <E>/iti_licks/figdata/lick_recovery_marker.pkl; --plot-only redraws from it alone (no permutations).
+Usage: python scripts/iti_recovery_marker.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 from recovery_timing import series  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -60,12 +62,8 @@ def _stats(G: pd.DataFrame, beh: dict) -> dict:
     return out
 
 
-def main() -> int:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+def compute() -> dict:
+    """Post sessions (G), per-animal correlations (obs) and the permutation table (T); writes recovery_marker.csv."""
     R = pd.read_csv(il.OUT / "contact_check.csv")
     pre = R[R.epoch == "pre"].groupby(["set", "animal"]).r_all.mean()
     R["r_norm"] = R.r_all / [pre.get((s_, a_), np.nan) for s_, a_ in zip(R.set, R.animal)]
@@ -107,6 +105,16 @@ def main() -> int:
     pd.set_option("display.width", 200)
     print("== within-animal correlation of frozen-decoder r (/ pre) with far-contra hit rate (/ pre), post sessions\n"
           + T.to_string(index=False))
+    return dict(G=G, obs=obs, T=T)
+
+
+def plot(F: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    G, obs, T = F["G"], F["obs"], F["T"]
     fig, axs = plt.subplots(2, 4, figsize=(15, 7), sharex=True, sharey="row")
     for i, st in enumerate(("trial", "iti")):
         for j, a in enumerate(AN):
@@ -141,6 +149,15 @@ def main() -> int:
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(il.OUT / "figures" / "lick_recovery_marker.png", dpi=110)
     plt.close(fig)
+
+
+def main() -> int:
+    if plot_only():                       # redraw from figdata only: no data, no permutations
+        plot(load_fd("lick_recovery_marker"))
+        return 0
+    F = compute()
+    save_fd("lick_recovery_marker", F)
+    plot(F)
     return 0
 
 

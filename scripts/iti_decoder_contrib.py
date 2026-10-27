@@ -9,7 +9,10 @@ mean of animals reported, per-animal table first. Pre is scored with the all-pre
 model), so the totals differ slightly from the leave-one-session-out numbers on the page.
 Also writes the decoder weights per area (w / sd, mm per dF/F unit) and the mean feature change, so a sign can be read
 as "this area going up pushes the decoded lick further / more contralesional".
-Outputs <E>/iti_licks/decoder_contrib.csv, figures/lick_decoder_contrib.png. Usage: python scripts/iti_decoder_contrib.py
+Outputs <E>/iti_licks/decoder_contrib.csv, figures/lick_decoder_contrib.png.
+Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_decoder_contrib.pkl (per panel row: area order, per epoch
+the area x animal contributions and per-animal totals); `--plot-only` redraws from that file alone (no decoder fit).
+Usage: python scripts/iti_decoder_contrib.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -22,9 +25,11 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["acute", "subacute", "chronic"]
+FIG = "lick_decoder_contrib"
 AXES = {"lat": 0, "sag": 3}                  # columns of iti_where_decoder.coords
 
 
@@ -67,22 +72,39 @@ def contributions() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def plot(T: pd.DataFrame) -> None:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    panels = [("trial", "sag", "cued in-trial licks, SAGITTAL (- = read closer)"),
-              ("iti", "lat", "ITI licks, LATERAL (+ = read more contralesional)"),
-              ("trial", "lat", "cued in-trial licks, LATERAL"), ("iti", "sag", "ITI licks, SAGITTAL")]
-    fig, axs = plt.subplots(len(panels), len(EP), figsize=(5.2 * len(EP), 4.2 * len(panels)), squeeze=False)
-    for i, (st, ax_, ttl) in enumerate(panels):
+PANELS = [("trial", "sag", "cued in-trial licks, SAGITTAL (- = read closer)"),
+          ("iti", "lat", "ITI licks, LATERAL (+ = read more contralesional)"),
+          ("trial", "lat", "cued in-trial licks, LATERAL"), ("iti", "sag", "ITI licks, SAGITTAL")]
+
+
+def figure_data(T: pd.DataFrame) -> dict:
+    """Everything the figure draws, per panel row: the 14 areas with the largest |chronic contribution| and, per epoch,
+    the area x animal contribution table (in that order) and the per-animal total shift."""
+    rows = []
+    for st, ax_, ttl in PANELS:
         G = T[(T.set == st) & (T.axis == ax_)]
         order = (G[G.epoch == "chronic"].groupby("area").contrib.mean().abs().sort_values(ascending=False)
                  .index[:14].tolist())
+        eps = {}
+        for ep in EP:
+            g = G[(G.epoch == ep) & G.area.isin(order)]
+            eps[ep] = dict(per=g.pivot_table(index="area", columns="animal", values="contrib").reindex(order),
+                           tot=G[G.epoch == ep].groupby("animal").contrib.sum())
+        rows.append(dict(title=ttl, order=order, eps=eps))
+    return dict(rows=rows)
+
+
+def plot(D: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    R = D["rows"]
+    fig, axs = plt.subplots(len(R), len(EP), figsize=(5.2 * len(EP), 4.2 * len(R)), squeeze=False)
+    for i, r in enumerate(R):
+        ttl, order = r["title"], r["order"]
         for j, ep in enumerate(EP):
             ax = axs[i, j]
-            g = G[(G.epoch == ep) & G.area.isin(order)]
-            per = g.pivot_table(index="area", columns="animal", values="contrib").reindex(order)
+            per, tot = r["eps"][ep]["per"], r["eps"][ep]["tot"]
             mu = per.mean(1)
             yy = np.arange(len(order))[::-1]
             ax.barh(yy, mu.to_numpy(), color=["#c0392b" if v > 0 else "#2166ac" for v in mu], alpha=0.75)
@@ -91,7 +113,6 @@ def plot(T: pd.DataFrame) -> None:
             ax.axvline(0, color="0.5", lw=0.7)
             ax.set_yticks(yy)
             ax.set_yticklabels(order, fontsize=7.5)
-            tot = G[G.epoch == ep].groupby("animal").contrib.sum()
             ax.set_title(f"{ttl}\n{ep}: total shift {tot.mean():+.2f} mm (animals {', '.join(f'{v:+.2f}' for v in tot)})",
                          fontsize=8.5)
             ax.set_xlabel("contribution to the decoded shift (mm)", fontsize=8)
@@ -102,11 +123,14 @@ def plot(T: pd.DataFrame) -> None:
                  "bars = mean of animals, dots = animals; the 14 areas with the largest chronic contribution per row; "
                  "contributions sum to the shift of the mean decoded position.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / "lick_decoder_contrib.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=95)
     plt.close(fig)
 
 
 def main() -> int:
+    if plot_only():                                       # redraw from the figure data alone
+        plot(load_fd(FIG))
+        return 0
     T = contributions()
     T.to_csv(il.OUT / "decoder_contrib.csv", index=False)
     pd.set_option("display.width", 220)
@@ -118,7 +142,9 @@ def main() -> int:
                                   n_same=("contrib", lambda v: int((np.sign(v) == np.sign(v.mean())).sum())))
         print(f"\n== {st} {ax_}, chronic: top areas (mean of animals; weight in mm per dF/F unit)")
         print(s.reindex(s.contrib.abs().sort_values(ascending=False).index).head(12).round(3).to_string())
-    plot(T)
+    D = figure_data(T)
+    save_fd(FIG, D)
+    plot(D)
     return 0
 
 

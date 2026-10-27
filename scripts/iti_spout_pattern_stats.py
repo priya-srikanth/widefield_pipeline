@@ -10,7 +10,9 @@ session-mean epoch map to the pre map with a within-animal session-bootstrap 95%
 --iti: the same for ITI (self-initiated) licks labelled by the PRECEDING trial's spout (`iti_pos`; Priya 10-27: "map
 distinguishing ITI licks based on preceding trial's spout location").
 Outputs <E>/iti_licks/spout_pattern_stats[_iti].csv, figures/lick_cued_spout_pattern_stats.png / lick_iti_spout_pattern_stats.png. Usage:
-python scripts/iti_spout_pattern_stats.py [--iti]
+python scripts/iti_spout_pattern_stats.py [--iti] [--plot-only]
+Figure data: figdata/lick_{cued,iti}_spout_pattern_stats.pkl (test results, stats table, imaging grid, set); --plot-only
+redraws from it alone (no bootstrap).
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
 from iti_decoder_pattern_stats import AGREE_MIN, N_BOOT, _bh, _boot, _maxstat, _ridge  # noqa: E402
 from iti_decoder_patterns import SPATIAL, pattern  # noqa: E402
@@ -114,24 +117,17 @@ def test(SM: dict):
     return res, pd.DataFrame(rows)
 
 
-def plot(res: dict, T: pd.DataFrame, st: str = "trial") -> None:
+def fig_name(st: str) -> str:
+    return "lick_iti_spout_pattern_stats.png" if st == "iti" else "lick_cued_spout_pattern_stats.png"
+
+
+def plot(D: dict) -> None:
+    """D = figure data: res (test results), T (stats table), st (set), grid (imaging grid)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-
-    from frozen_area_maps import area_image, outline
-    from wfield_local import combined_encoding as ce
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
-    _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(lab0)
-    Hh, Ww = (int(x) for x in shape)
-    pix = flat[pstat]
-    img, _ = area_image(lab0)
-    ol = outline(img)[::2, ::2]
-
-    def to_img(v, fill=np.nan):
-        g = np.full(Hh * Ww, fill, dtype=float)
-        g[pix] = v
-        return g.reshape(Hh, Ww)[::2, ::2]
+    res, T, st = D["res"], D["T"], D["st"]
+    to_img, ol = grid_fns(D["grid"])
     cols = [*EP, "acute - pre", "subacute - pre", "chronic - pre"]
     fig, axs = plt.subplots(len(POS), len(cols), figsize=(2.5 * len(cols), 2.45 * len(POS)), squeeze=False)
     lim = np.nanpercentile(np.abs(np.concatenate([r["point"] for k, r in res.items() if k[2] == "level"])), 99)
@@ -167,13 +163,16 @@ def plot(res: dict, T: pd.DataFrame, st: str = "trial") -> None:
                  "sign; 'sig %' = the dashed fraction of cortex.\nChange columns = epoch - pre, paired "
                  "by animal; sim = r(session-mean epoch map, pre map), mean of animals. ipsi (lesion) = image LEFT. "
                  "PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / ('lick_iti_spout_pattern_stats.png' if st == 'iti' else 'lick_cued_spout_pattern_stats.png'), dpi=95, bbox_inches="tight")
+    fig.savefig(il.OUT / "figures" / fig_name(st), dpi=95, bbox_inches="tight")
     plt.close(fig)
 
 
 def main(argv=None) -> int:
     st = "iti" if "--iti" in (argv if argv is not None else sys.argv[1:]) else "trial"
     sfx = "_iti" if st == "iti" else ""
+    if plot_only():
+        plot(load_fd(fig_name(st)))
+        return 0
     cache = il.OUT / f"spout_pattern_sessions{sfx}.pkl"
     if cache.exists():
         SM = pickle.loads(cache.read_bytes())
@@ -191,7 +190,9 @@ def main(argv=None) -> int:
     print("\n== fraction of cortex significant (BH q 0.05), and also >= 3 animals same sign")
     print(T[T.kind != "similarity"][["spout", "epoch", "kind", "n_animals", "frac_sig", "frac_sig_agree"]]
           .round(3).to_string(index=False))
-    plot(res, T, st)
+    D = dict(res=res, T=T, st=st, grid=imaging_grid())
+    save_fd(fig_name(st), D)
+    plot(D)
     return 0
 
 

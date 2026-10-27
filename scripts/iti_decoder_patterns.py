@@ -16,7 +16,11 @@ disattenuated similarity = r(epoch, pre) across halves / sqrt(rel_pre * rel_epoc
 Maps are divided by the RMS of the animal's pre pattern (animals equal), then averaged over animals; ipsi = image LEFT.
 Features are NOT z-scored (SVD components share one dF/F scale); the z-scored check is per area (3.21 / KEY row).
 Outputs <E>/iti_licks/decoder_patterns.csv (similarities), figures/lick_decoder_patterns_{lat,sag}.png,
-figures/lick_decoder_patterns_animals_lat.png. Usage: python scripts/iti_decoder_patterns.py
+figures/lick_decoder_patterns_animals_lat.png.
+Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_decoder_patterns_{lat,sag,animals_lat}.pkl (the maps each
+figure draws, colour limits, n and similarity per panel + the imaging grid); `--plot-only` redraws the three figures
+from those files alone (no decoder fit).
+Usage: python scripts/iti_decoder_patterns.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -30,8 +34,9 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 
-AN = ["PS92", "PS93", "PS94", "PS95"]
+AN =["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 AXES = {"lat": 0, "sag": 3}
 SPATIAL = il.E / "frozen_encoder_gate-attempted_v7g3_t3d_frA_te_basis" / "fit"
@@ -100,30 +105,22 @@ def compute():
     return pd.DataFrame(rows), maps
 
 
-def plot(T: pd.DataFrame, maps: dict) -> None:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+COLS = [*EP, "chronic - pre"]
 
-    from frozen_area_maps import area_image, outline
-    from wfield_local import combined_encoding as ce
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
-    _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(lab0)
-    Hh, Ww = (int(x) for x in shape)
-    pix = flat[pstat]
-    img, _ = area_image(lab0)
-    ol = outline(img)[::2, ::2]
 
-    def to_img(v):
-        g = np.full(Hh * Ww, np.nan)
-        g[pix] = v
-        return g.reshape(Hh, Ww)[::2, ::2]
-    axname = {"lat": "LATERAL position (+ = contralesional)", "sag": "SAGITTAL extension (+ = further out)"}
-    setname = {"iti": "ITI (self-initiated) licks", "trial": "CUED in-trial licks"}
+def fig_stems() -> dict:
+    return {**{ax_: f"lick_decoder_patterns_{ax_}" for ax_ in AXES}, "animals": "lick_decoder_patterns_animals_lat"}
+
+
+def figure_data(T: pd.DataFrame, maps: dict) -> dict:
+    """{figure key: figure data}. Per axis figure: per lick set the mean-of-animals map + n per column, the colour limit and
+    the mean noise-corrected similarity per post epoch. Animals figure: per (animal, set) the four epoch maps, the colour
+    limit and the similarity per epoch. Each carries the imaging grid."""
+    grid = imaging_grid()
+    out = {}
     for ax_ in AXES:
-        cols = [*EP, "chronic - pre"]
-        fig, axs = plt.subplots(2, len(cols), figsize=(2.9 * len(cols), 6.4), squeeze=False)
-        for i, st in enumerate(("iti", "trial")):
+        rows = {}
+        for st in ("iti", "trial"):
             M = {}
             for ep in EP:
                 have = [maps[(a, st, ax_, ep)] for a in AN if (a, st, ax_, ep) in maps]
@@ -133,39 +130,74 @@ def plot(T: pd.DataFrame, maps: dict) -> None:
             M["chronic - pre"] = (np.nanmean([maps[(a, st, ax_, "chronic")] - maps[(a, st, ax_, "pre")]
                                               for a in both], 0), len(both))
             lim = np.nanpercentile(np.abs(np.concatenate([v.ravel() for v, _ in M.values()])), 99)
-            for j, c in enumerate(cols):
-                ax = axs[i, j]
-                ax.set_xticks([])
-                ax.set_yticks([])
-                if c not in M:
-                    ax.axis("off")
-                    continue
-                v, n = M[c]
-                im = ax.imshow(to_img(v), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
-                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-                g = T[(T.set == st) & (T.axis == ax_) & (T.epoch == (c if c in EP else "chronic"))]
-                sub = "" if c == "pre" else (f"\nsimilarity to pre {g.r_disatt.mean():.2f} (noise-corrected)"
-                                             if c in EP else "")
-                ax.set_title(f"{c} (n={n} animals){sub}", fontsize=8)
-                if j == 0:
-                    ax.set_ylabel(setname[st], fontsize=9)
-            fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.012, pad=0.01,
-                         label="pattern / animal's pre RMS")
-        fig.suptitle(f"NEURAL: WHERE cortex carries {axname[ax_]} -- Haufe activation pattern of the lick-position "
-                     "decoder (Cov(activity, decoded position) / Var), refit per epoch,\nin each animal's pre-stroke SVD "
-                     "basis (200 components, lags 0..0.2 s from the lick peak), mapped to pixels, / the animal's pre "
-                     "pattern RMS, mean of animals. Red = more activity for licks further +; ipsi (lesion) = image LEFT. "
-                     "Unscaled features. PROVISIONAL", fontsize=9)
-        fig.savefig(il.OUT / "figures" / f"lick_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
-        plt.close(fig)
-    # per animal, lateral
+            sim = {c: T[(T.set == st) & (T.axis == ax_) & (T.epoch == c)].r_disatt.mean() for c in EP[1:]}
+            rows[st] = dict(M=M, lim=lim, sim=sim)
+        out[ax_] = dict(axis=ax_, rows=rows, grid=grid)
+    cells = {}
+    for a in AN:
+        for st in ("iti", "trial"):
+            vs = [maps.get((a, st, "lat", ep)) for ep in EP]
+            ok = [v for v in vs if v is not None]
+            lim = np.nanpercentile(np.abs(np.concatenate([v.ravel() for v in ok])), 99) if ok else 1
+            sim = {}
+            for ep in EP[1:]:
+                g = T[(T.animal == a) & (T.set == st) & (T.axis == "lat") & (T.epoch == ep)]
+                if len(g):
+                    sim[ep] = g.r_disatt.iloc[0]
+            cells[(a, st)] = dict(vs=vs, lim=lim, sim=sim)
+    out["animals"] = dict(cells=cells, grid=grid)
+    return out
+
+
+def plot_axis(D: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    to_img, ol = grid_fns(D["grid"])
+    axname = {"lat": "LATERAL position (+ = contralesional)", "sag": "SAGITTAL extension (+ = further out)"}
+    setname = {"iti": "ITI (self-initiated) licks", "trial": "CUED in-trial licks"}
+    ax_ = D["axis"]
+    cols = COLS
+    fig, axs = plt.subplots(2, len(cols), figsize=(2.9 * len(cols), 6.4), squeeze=False)
+    for i, st in enumerate(("iti", "trial")):
+        M, lim, sim = D["rows"][st]["M"], D["rows"][st]["lim"], D["rows"][st]["sim"]
+        for j, c in enumerate(cols):
+            ax = axs[i, j]
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if c not in M:
+                ax.axis("off")
+                continue
+            v, n = M[c]
+            im = ax.imshow(to_img(v), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+            sub = "" if c == "pre" else (f"\nsimilarity to pre {sim[c]:.2f} (noise-corrected)"
+                                         if c in EP else "")
+            ax.set_title(f"{c} (n={n} animals){sub}", fontsize=8)
+            if j == 0:
+                ax.set_ylabel(setname[st], fontsize=9)
+        fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.012, pad=0.01,
+                     label="pattern / animal's pre RMS")
+    fig.suptitle(f"NEURAL: WHERE cortex carries {axname[ax_]} -- Haufe activation pattern of the lick-position "
+                 "decoder (Cov(activity, decoded position) / Var), refit per epoch,\nin each animal's pre-stroke SVD "
+                 "basis (200 components, lags 0..0.2 s from the lick peak), mapped to pixels, / the animal's pre "
+                 "pattern RMS, mean of animals. Red = more activity for licks further +; ipsi (lesion) = image LEFT. "
+                 "Unscaled features. PROVISIONAL", fontsize=9)
+    fig.savefig(il.OUT / "figures" / f"lick_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_animals(D: dict) -> None:
+    """Per animal, lateral."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    to_img, ol = grid_fns(D["grid"])
     fig, axs = plt.subplots(2 * len(AN), len(EP), figsize=(2.6 * len(EP), 2.3 * 2 * len(AN)), squeeze=False)
     for ai, a in enumerate(AN):
         for si, st in enumerate(("iti", "trial")):
             i = 2 * ai + si
-            vs = [maps.get((a, st, "lat", ep)) for ep in EP]
-            ok = [v for v in vs if v is not None]
-            lim = np.nanpercentile(np.abs(np.concatenate([v.ravel() for v in ok])), 99) if ok else 1
+            vs, lim, sim = D["cells"][(a, st)]["vs"], D["cells"][(a, st)]["lim"], D["cells"][(a, st)]["sim"]
             for j, (ep, v) in enumerate(zip(EP, vs)):
                 ax = axs[i, j]
                 ax.set_xticks([])
@@ -175,18 +207,27 @@ def plot(T: pd.DataFrame, maps: dict) -> None:
                     continue
                 ax.imshow(to_img(v), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-                g = T[(T.animal == a) & (T.set == st) & (T.axis == "lat") & (T.epoch == ep)]
-                ax.set_title(f"{ep}" + (f" (sim {g.r_disatt.iloc[0]:.2f})" if ep != "pre" and len(g) else ""),
+                ax.set_title(f"{ep}" + (f" (sim {sim[ep]:.2f})" if ep != "pre" and ep in sim else ""),
                              fontsize=8)
                 if j == 0:
                     ax.set_ylabel(f"{a}\n{'ITI' if st == 'iti' else 'cued'}", fontsize=8)
     fig.suptitle("Per animal: Haufe pattern of the LATERAL lick-position decoder, refit per epoch (pre-stroke SVD basis), "
                  "/ pre RMS; sim = noise-corrected similarity to pre. ipsi = image LEFT. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / "lick_decoder_patterns_animals_lat.png", dpi=100, bbox_inches="tight")
+    fig.savefig(il.OUT / "figures" / f"{fig_stems()['animals']}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
+def plot(F: dict) -> None:
+    """F = {figure key: figure data} from figure_data()."""
+    for ax_ in AXES:
+        plot_axis(F[ax_])
+    plot_animals(F["animals"])
+
+
 def main() -> int:
+    if plot_only():                                       # redraw the three figures from the figure data alone
+        plot({k: load_fd(stem) for k, stem in fig_stems().items()})
+        return 0
     T, maps = compute()
     T.to_csv(il.OUT / "decoder_patterns.csv", index=False)
     pd.set_option("display.width", 220)
@@ -198,7 +239,10 @@ def main() -> int:
     print(T.pivot_table(index=["set", "axis", "animal"], columns="epoch", values="amp")[EP].round(2).to_string())
     with open(il.OUT / "decoder_patterns_maps.pkl", "wb") as fh:
         pickle.dump({k: v.astype(np.float32) for k, v in maps.items()}, fh, protocol=pickle.HIGHEST_PROTOCOL)
-    plot(T, maps)
+    F = figure_data(T, maps)
+    for k, stem in fig_stems().items():
+        save_fd(stem, F[k])
+    plot(F)
     return 0
 
 

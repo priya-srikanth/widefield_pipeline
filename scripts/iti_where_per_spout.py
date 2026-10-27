@@ -11,7 +11,9 @@ grouping of 3.20 / 3.21, which depends on where the lick landed). Per spout, cha
                            (within-spout range is small, so r is low and spread-sensitive; read the offsets first).
 Cells need >= 15 licks per session x spout. Per-animal table first; paired nested bootstrap (animals > sessions).
 `--z` uses the within-session z-scored predictions (`iti_zscore_check.py`).
-Outputs <E>/iti_licks/per_spout[_z]_{by_animal,tests}.csv, figures/lick_where_per_spout[_z].png.
+Outputs <E>/iti_licks/per_spout[_z]_{by_animal,tests}.csv, figures/lick_where_per_spout[_z].png; figure data
+<E>/iti_licks/figdata/lick_where_per_spout[_z].pkl (`--plot-only` redraws from it alone: no bootstrap).
+Usage: python scripts/iti_where_per_spout.py [--z] [--plot-only]
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -134,6 +137,10 @@ def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
 def main() -> int:
     z = "--z" in sys.argv
     tag = "_z" if z else ""
+    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+        F = load_fd(f"lick_where_per_spout{tag}")
+        plot(F["T"], F["S"], F["tag"])
+        return 0
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv" if z else il.OUT / "where_preds.csv")
     s = table(p)
     T, P = tests(s)
@@ -150,6 +157,7 @@ def main() -> int:
     T.to_csv(il.OUT / f"per_spout{tag}_tests.csv", index=False)
     S = session_changes(s)
     S.to_csv(il.OUT / f"per_spout{tag}_by_session.csv", index=False)
+    save_fd(f"lick_where_per_spout{tag}", dict(T=T, S=S, tag=tag))
     plot(T, S, tag)
     return 0
 

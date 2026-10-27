@@ -15,7 +15,10 @@ ridge per animal trained on its AUGUST pre-stroke licks of the set, pre sessions
 activity averaged over lags 0..0.2 s from the lick peak (and per lag for the time course).
 Outputs <E>/iti_licks/basis_<source>/sessions/<label>.npz, <E>/iti_licks/basis_decoder.csv,
 figures/lick_basis_decoder.png.
-Usage: python scripts/iti_basis_decoder.py [--sources locanmf svdbasis] [--jobs 2] [--summarise]
+Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_basis_decoder.pkl (per source x lick set: the epoch
+time-course mean +- SEM, the per-lag significance strip (`il.sig_compute`) and the title numbers); `--plot-only`
+redraws the figure from that file alone (no decoding, no bootstrap).
+Usage: python scripts/iti_basis_decoder.py [--sources locanmf svdbasis] [--jobs 2] [--summarise] [--plot-only]
 """
 from __future__ import annotations
 
@@ -28,6 +31,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, save_fd  # noqa: E402
+
+FIG = "lick_basis_decoder"
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
@@ -124,12 +130,7 @@ def decode(source: str) -> pd.DataFrame:
 
 
 def summarise(sources) -> None:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     from wfield_local import analysis_kit as ak
-    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     R = pd.concat([decode(s) for s in ["areas", *sources]], ignore_index=True)
     R.to_csv(il.OUT / "basis_decoder.csv", index=False)
     W = R[R.lag == "0-0.2"].copy()
@@ -152,25 +153,48 @@ def summarise(sources) -> None:
     T.to_csv(il.OUT / "basis_decoder_tests.csv", index=False)
     print("\n" + T[T.value == "r"].round(3).to_string(index=False))
     srcs = ["areas", *sources]
-    lab = {"areas": "Allen areas (primary)", "locanmf": "joint LocaNMF (pre-stroke footprints)",
-           "svdbasis": "pre-stroke SVD basis (200 comps)"}
-    fig, axs = plt.subplots(2, len(srcs), figsize=(4.6 * len(srcs), 7.5), sharey=True, squeeze=False)
     TC = R[R.lag != "0-0.2"].astype({"lag": float})
-    sig_recs = []
-    for j, src in enumerate(srcs):
-        for i, st in enumerate(("iti", "trial")):
-            ax = axs[i, j]
+    sig_recs, cells = [], {}
+    for src in srcs:
+        for st in ("iti", "trial"):
+            curves = {}
             for ep in EP:
                 g = TC[(TC.source == src) & (TC.set == st) & (TC.epoch == ep)].groupby(["lag", "label"]).r.mean().unstack()
                 if g.empty:
                     continue
-                mu, se = g.mean(1), g.std(1, ddof=1) / np.sqrt(g.shape[1])
-                ax.plot(g.index, mu, color=colors[ep], lw=1.8, label=f"{ep} ({g.shape[1]})")
-                ax.fill_between(g.index, mu - se, mu + se, color=colors[ep], alpha=0.2, lw=0)
-            sig_recs += il.sig_bars(ax, TC[(TC.source == src) & (TC.set == st)], colors, tag={"source": src, "set": st})
+                curves[ep] = (g.index.to_numpy(float), g.mean(1).to_numpy(), (g.std(1, ddof=1) /
+                                                                              np.sqrt(g.shape[1])).to_numpy(), g.shape[1])
+            S = il.sig_compute(TC[(TC.source == src) & (TC.set == st)], tag={"source": src, "set": st})
+            sig_recs += S["recs"]
             tt = T[(T.source == src) & (T.set == st) & (T.value == "r_norm")].set_index("epoch")
             txt = "  ".join(f"{ep[:3]} {tt.loc[ep, 'delta'] * 100:+.0f}%{'*' if tt.loc[ep, 'lo'] > 0 or tt.loc[ep, 'hi'] < 0 else ''}"
                             for ep in EP[1:] if ep in tt.index)
+            cells[(src, st)] = dict(curves=curves, sig=S, txt=txt)
+    pd.DataFrame(sig_recs).to_csv(il.OUT / "sig_bins_3_14.csv", index=False)
+    D = dict(srcs=srcs, cells=cells)
+    save_fd(FIG, D)
+    plot(D)
+
+
+def plot(D: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    srcs = D["srcs"]
+    lab = {"areas": "Allen areas (primary)", "locanmf": "joint LocaNMF (pre-stroke footprints)",
+           "svdbasis": "pre-stroke SVD basis (200 comps)"}
+    fig, axs = plt.subplots(2, len(srcs), figsize=(4.6 * len(srcs), 7.5), sharey=True, squeeze=False)
+    for j, src in enumerate(srcs):
+        for i, st in enumerate(("iti", "trial")):
+            ax = axs[i, j]
+            c = D["cells"][(src, st)]
+            for ep, (x, mu, se, n) in c["curves"].items():
+                ax.plot(x, mu, color=colors[ep], lw=1.8, label=f"{ep} ({n})")
+                ax.fill_between(x, mu - se, mu + se, color=colors[ep], alpha=0.2, lw=0)
+            il.sig_draw(ax, c["sig"], colors)
+            txt = c["txt"]
             ax.set_title(f"{lab[src]}\n{'ITI (self-initiated)' if st == 'iti' else 'in-trial post-cue'} licks\n"
                          f"0-0.2 s vs pre: {txt}", fontsize=8.5)
             ax.axvline(0, color="0.7", lw=0.6)
@@ -183,13 +207,12 @@ def summarise(sources) -> None:
                 ax.set_xlabel("lag from lick peak (s)", fontsize=8.5)
     axs[0, 0].legend(fontsize=7, frameon=False)
     il._headroom([axs[0, 0]])                              # y is shared: raise once
-    pd.DataFrame(sig_recs).to_csv(il.OUT / "sig_bins_3_14.csv", index=False)
     fig.suptitle("NEURAL: the FROZEN pre-stroke decoder (fit once on pre licks, never refit) of lateral tongue-tip position in three SPATIAL bases (same licks, same decoder; "
                  "per animal, trained on August pre licks, pre leave-one-session-out). Title numbers = change from pre "
                  "normalised to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.\n" + il.SIG_NOTE,
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "lick_basis_decoder.png", dpi=110)
+    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=110)
     plt.close(fig)
 
 
@@ -200,7 +223,11 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--summarise", action="store_true")
+    ap.add_argument("--plot-only", action="store_true", help="redraw the figure from its figure data alone")
     a = ap.parse_args(argv)
+    if a.plot_only:
+        plot(load_fd(FIG))
+        return 0
     if not a.summarise:
         labels = a.labels or sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
         items = [(x, s) for s in a.sources for x in labels

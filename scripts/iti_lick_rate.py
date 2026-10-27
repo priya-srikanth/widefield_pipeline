@@ -9,7 +9,9 @@ Tests: change from pre per epoch (nested bootstrap, per-animal table first); wit
 correlation with far-contra hit rate / pre (`recovery_timing.series`), raw and with log(day) removed (permutation of
 behaviour within animal, as `iti_recovery_marker.py`).
 Outputs <E>/iti_licks/iti_lick_rate.csv, figures/lick_iti_rate.png.
-Usage: python scripts/iti_lick_rate.py [--plot-only]   (--plot-only redraws from the saved CSVs)
+Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_iti_rate.pkl = dict(R sessions, T change tests, C recovery
+correlations); `--plot-only` redraws from that file alone (no bootstrap, no permutation).
+Usage: python scripts/iti_lick_rate.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -21,6 +23,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 from recovery_timing import series  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -113,11 +116,14 @@ def main() -> int:
     print("\n== within-animal correlation with far-contra hit rate / pre (post sessions)\n" + C.to_string(index=False))
     T.to_csv(il.OUT / "iti_lick_rate_tests.csv", index=False)
     C.to_csv(il.OUT / "iti_lick_rate_recovery.csv", index=False)
-    plot(R, T, C)
+    D = dict(R=R, T=T, C=C)
+    save_fd("lick_iti_rate", D)
+    plot(D)
     return 0
 
 
-def plot(R: pd.DataFrame, T: pd.DataFrame, C: pd.DataFrame) -> None:
+def plot(D: dict) -> None:
+    R, T, C = D["R"], D["T"], D["C"]
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -172,8 +178,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, C: pd.DataFrame) -> None:
 
 
 if __name__ == "__main__":
-    if "--plot-only" in sys.argv:
-        plot(pd.read_csv(il.OUT / "iti_lick_rate.csv"), pd.read_csv(il.OUT / "iti_lick_rate_tests.csv"),
-             pd.read_csv(il.OUT / "iti_lick_rate_recovery.csv"))
+    if plot_only():                                       # redraw from the figure data alone
+        plot(load_fd("lick_iti_rate"))
         raise SystemExit(0)
     raise SystemExit(main())

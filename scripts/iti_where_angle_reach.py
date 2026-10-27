@@ -12,7 +12,9 @@ r_ang_long column = licks above the pre median, kept for reference only); offset
 beyond the pre pull (decoded - (a + b x actual), a, b fit on the animal's pre licks) minus pre. Change vs pre: paired
 nested bootstrap; per-animal tables first (rule 8).
 Outputs <E>/iti_licks/where_angle_reach_{preds.csv.gz,sessions.csv,tests.csv}, figures/lick_where_angle_reach.png.
-Usage: python scripts/iti_where_angle_reach.py
+Figure data <E>/iti_licks/figdata/lick_where_angle_reach.pkl (every panel's dots, lines and bootstrap CIs);
+--plot-only redraws from it alone (no bootstrap).
+Usage: python scripts/iti_where_angle_reach.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -25,6 +27,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -113,23 +116,31 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
-def plot(S: pd.DataFrame) -> None:
+PANELS = [("r_ang_d", "ANGLE r / pre", 1.0),
+          ("r_elev_d", "ELEVATION r / pre", 1.0), ("r_reach_d", "3-D REACH r / pre", 1.0),
+          ("bey_ang_d", "ANGLE offset beyond pre pull (deg)", 0.0),
+          ("bey_elev_d", "ELEVATION offset beyond pull (deg)", 0.0),
+          ("bey_reach_d", "REACH offset beyond pre pull (mm)", 0.0)]
+
+
+def figure_data(S: pd.DataFrame) -> dict:
+    """Every panel's drawn values (session dots, animal lines, mean, pre SEM, paired nested bootstrap per epoch)."""
+    from iti_check_figures import epoch_compute
+    return {(st, c): epoch_compute(S[S.set == st], c) for st in ("iti", "trial") for c, _lab, _ref in PANELS}
+
+
+def plot(F: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from iti_check_figures import epoch_panel
-    panels = [("r_ang_d", "ANGLE r / pre", 1.0),
-              ("r_elev_d", "ELEVATION r / pre", 1.0), ("r_reach_d", "3-D REACH r / pre", 1.0),
-              ("bey_ang_d", "ANGLE offset beyond pre pull (deg)", 0.0),
-              ("bey_elev_d", "ELEVATION offset beyond pull (deg)", 0.0),
-              ("bey_reach_d", "REACH offset beyond pre pull (mm)", 0.0)]
+    from iti_check_figures import epoch_draw
+    panels = PANELS
     fig, axs = plt.subplots(2, len(panels), figsize=(3.3 * len(panels), 8.2), squeeze=False)
     for i, st in enumerate(("iti", "trial")):
-        g = S[S.set == st]
         for j, (c, lab, ref) in enumerate(panels):
-            epoch_panel(axs[i, j], g, c, ref=ref, title=f"{'ITI' if st == 'iti' else 'cued'}: {lab}",
-                        ylab=lab if j in (0, 3) else "")
+            epoch_draw(axs[i, j], F[(st, c)], ref=ref, title=f"{'ITI' if st == 'iti' else 'cued'}: {lab}",
+                       ylab=lab if j in (0, 3) else "")
     axs[0, 0].legend(fontsize=6.5, frameon=False)
     fig.suptitle("NEURAL: DIRECTION vs EXTENT -- the frozen where-decoder (z-scored Allen areas, lags 0..0.2 s, trained on "
                  "August pre licks) on the lick's 3-D POLAR coordinates: lateral ANGLE (atan2(lateral, sagittal)), ELEVATION below the axial plane (atan2(down, horizontal extent); + = steeper down) and 3-D REACH.\nr / pre: how well cortex "
@@ -143,6 +154,9 @@ def plot(S: pd.DataFrame) -> None:
 
 
 def main() -> int:
+    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+        plot(load_fd("lick_where_angle_reach"))
+        return 0
     f = il.OUT / "where_angle_reach_preds.csv.gz"
     P = pd.read_csv(f) if f.exists() else predictions()
     if not f.exists():
@@ -156,7 +170,9 @@ def main() -> int:
     T = tests(S)
     T.to_csv(il.OUT / "where_angle_reach_tests.csv", index=False)
     print("\n== change vs pre (paired nested bootstrap)\n" + T.round(3).to_string(index=False))
-    plot(S)
+    F = figure_data(S)
+    save_fd("lick_where_angle_reach", F)
+    plot(F)
     return 0
 
 

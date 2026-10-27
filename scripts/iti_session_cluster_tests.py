@@ -16,7 +16,10 @@ Shape read-outs DRAWN, not only printed: (1) whole-map distance d per animal + i
 spout x epoch (from session_pattern_maplevel.csv); (2) per-session r to the animal's pre map over days, every spout.
 Outputs <E>/iti_licks/session_cluster/{tests.csv, maps.pkl}, figures/lick_session_cluster_position.png, lick_{cued,iti}_session_cluster_spout.png,
 figures/lick_session_shape_d.png, figures/lick_{cued,iti}_session_shape_days.png.
-Usage: python scripts/iti_session_cluster_tests.py [--plot-only] [--perm N]
+Figure data: figdata/<figure stem>.pkl per figure (the TFCE results + outline + n_perm for the map figures; the whole-map
+table / similarity table for the shape figures). --plot-only redraws from those files alone (no permutation, no imaging
+load); --reuse-maps rebuilds the figure data from session_cluster/maps.pkl without re-running the permutations.
+Usage: python scripts/iti_session_cluster_tests.py [--plot-only | --reuse-maps] [--perm N]
 """
 from __future__ import annotations
 
@@ -29,7 +32,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
-from iti_session_pattern_tests import EP, FAMILIES, _imaging_grid, load  # noqa: E402
+from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
+from iti_session_pattern_tests import EP, FAMILIES, load  # noqa: E402
 from iti_session_patterns import AN, POS  # noqa: E402
 
 N_PERM = 1000
@@ -107,7 +111,7 @@ def test_one(item):
 def run(n_perm: int) -> dict:
     from wfield_local import parallel
     L = load()
-    to_img, _ol = _imaging_grid()
+    to_img, _ol = grid_fns(imaging_grid())
     npix = next(iter(next(iter(L.values())).values()))["M"].shape[1]
     g = to_img(np.arange(npix, dtype=float))
     ok = np.isfinite(g)
@@ -161,7 +165,9 @@ def _lab(k: str) -> str:
     return k.replace("trial/", "cued ").replace("iti/", "ITI ").replace("sp_", "").replace("_", " ")
 
 
-def plot_maps(R: dict, fam: str, keys: list, ol, n_perm: int) -> None:
+def plot_maps(D: dict) -> None:
+    """D = figure data: R (TFCE results of this family's maps + pre levels), fam, keys, ol (outline), n_perm."""
+    R, fam, keys, ol, n_perm = D["R"], D["fam"], D["keys"], D["ol"], D["n_perm"]
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -207,7 +213,7 @@ def plot_maps(R: dict, fam: str, keys: list, ol, n_perm: int) -> None:
     plt.close(fig)
 
 
-def plot_shape_d() -> None:
+def plot_shape_d(D: dict) -> None:
     """Whole-map shape distance per animal (dots) vs its early-vs-late pre drift floor, per spout x epoch."""
     import matplotlib
     matplotlib.use("Agg")
@@ -217,7 +223,7 @@ def plot_shape_d() -> None:
     from wfield_local import config
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = config.animal_color()
-    T = pd.read_csv(il.OUT / "session_pattern_maplevel.csv")
+    T = D["T"]
     keys = {"cued": [f"trial/sp_{p}" for p in POS], "ITI": [f"iti/sp_{p}" for p in POS]}
     fig, axs = plt.subplots(2, 6, figsize=(17, 6.8), sharey=True, squeeze=False)
     for i, (st, ks) in enumerate(keys.items()):
@@ -255,7 +261,7 @@ def plot_shape_d() -> None:
     plt.close(fig)
 
 
-def plot_shape_days() -> None:
+def plot_shape_days(D: dict) -> None:
     """Per-session r to the animal's pre map over days, every spout (pre sessions vs the mean of the OTHER pre)."""
     import matplotlib
     matplotlib.use("Agg")
@@ -264,8 +270,8 @@ def plot_shape_days() -> None:
 
     from wfield_local import config
     col = config.animal_color()
-    S = pd.read_csv(il.OUT / "session_pattern_similarity.csv")
-    for st, pre_ in (("cued", "trial"), ("iti", "iti")):
+    S = D["S"]
+    for st, pre_ in [(D["st"], "trial" if D["st"] == "cued" else "iti")]:
         fig, axs = plt.subplots(2, 3, figsize=(14, 7.2), sharex=True, sharey=True, squeeze=False)
         for j, p in enumerate(POS):
             ax = axs[j // 3, j % 3]
@@ -295,10 +301,17 @@ def plot_shape_days() -> None:
 
 
 def main() -> int:
+    if plot_only():                                       # figure data only: no permutation, no imaging load
+        for fam in FAMS:
+            plot_maps(load_fd(FIG_NAME[fam]))
+        plot_shape_d(load_fd("lick_session_shape_d"))
+        for st in ("cued", "iti"):
+            plot_shape_days(load_fd(f"lick_{st}_session_shape_days"))
+        return 0
     n_perm = int(sys.argv[sys.argv.index("--perm") + 1]) if "--perm" in sys.argv else N_PERM
     OUTD.mkdir(exist_ok=True)
     f = OUTD / "maps.pkl"
-    if "--plot-only" in sys.argv and f.exists():
+    if "--reuse-maps" in sys.argv and f.exists():
         R = pickle.loads(f.read_bytes())
     else:
         R = run(n_perm)
@@ -307,11 +320,19 @@ def main() -> int:
     T.to_csv(OUTD / "tests.csv", index=False)
     pd.set_option("display.width", 220)
     print(T.round(3).to_string(index=False))
-    _to_img, ol = _imaging_grid()
+    _to_img, ol = grid_fns(imaging_grid())
     for fam, keys in FAMS.items():
-        plot_maps(R, fam, keys, ol, n_perm)
-    plot_shape_d()
-    plot_shape_days()
+        D = dict(R={k: v for k, v in R.items() if k[0] in keys}, fam=fam, keys=list(keys), ol=ol, n_perm=n_perm)
+        save_fd(FIG_NAME[fam], D)
+        plot_maps(D)
+    D = dict(T=pd.read_csv(il.OUT / "session_pattern_maplevel.csv"))      # from iti_session_pattern_tests.py
+    save_fd("lick_session_shape_d", D)
+    plot_shape_d(D)
+    S = pd.read_csv(il.OUT / "session_pattern_similarity.csv")
+    for st in ("cued", "iti"):
+        D = dict(S=S, st=st)
+        save_fd(f"lick_{st}_session_shape_days", D)
+        plot_shape_days(D)
     return 0
 
 

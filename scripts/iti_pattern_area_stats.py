@@ -10,7 +10,8 @@ are in the CSV. A sign-flip permutation across 4 animals (16 arrangements, min p
 the bootstrap is kept.
 Outputs <E>/iti_licks/pattern_area_stats_{position,spout,spout_iti}.csv and figures/lick_pattern_area_stats_position.png (ITI + cued), lick_cued_pattern_area_stats_spout.png,
 lick_iti_pattern_area_stats_spout.png.
-Usage: python scripts/iti_pattern_area_stats.py
+Figure data: figdata/<figure stem>.pkl = dict(T=the area table, label); --plot-only redraws from it (no bootstrap).
+Usage: python scripts/iti_pattern_area_stats.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import fd_path, load_fd, plot_only, save_fd  # noqa: E402
 from iti_decoder_pattern_stats import _bh, _boot  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -81,7 +83,9 @@ def family(SM: dict, groups: list, label: str, A: np.ndarray, keep: list) -> pd.
     return T
 
 
-def plot(T: pd.DataFrame, label: str) -> None:
+def plot(D: dict) -> None:
+    """D = figure data: T (the family's area table), label."""
+    T, label = D["T"], D["label"]
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -117,6 +121,13 @@ def plot(T: pd.DataFrame, label: str) -> None:
 
 
 def main() -> int:
+    if plot_only():
+        for label, fn in FIG_NAME.items():
+            if fd_path(fn).exists():
+                plot(load_fd(fn))
+            else:
+                print(f"  (skip {label}: no figure data)")
+        return 0
     A, keep = area_index()
     out = []
     srcs = [("position", "decoder_pattern_sessions.pkl", [(s, ax) for s in ("iti", "trial") for ax in ("lat", "sag")]),
@@ -130,7 +141,9 @@ def main() -> int:
         SM = pickle.loads(f.read_bytes())
         T = family(SM, groups or POS, label, A, keep)
         T.to_csv(il.OUT / f"pattern_area_stats_{label}.csv", index=False)
-        plot(T, label)
+        D = dict(T=T, label=label)
+        save_fd(FIG_NAME[label], D)
+        plot(D)
         s = T[T.kind == "change"].groupby(["group", "epoch"]).sig_3of4.sum().unstack().reindex(columns=EP[1:])
         print(f"== {label}: number of areas (of {len(keep)}) whose change vs pre is significant (BH, >= 3/4)\n"
               + s.to_string())

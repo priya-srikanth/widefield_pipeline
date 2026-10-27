@@ -15,7 +15,9 @@ gap). The drift curve is then fit on pre -> pre AND June pairs, so chronic gaps 
 June residual against the August-only curve says whether that extrapolation was right. Caveat: June is earlier in
 training, so June <-> August drift includes learning (makes the test conservative).
 Output <E>/iti_licks/where_drift[_june]_{pairs,tests}.csv, figures/lick_where_drift[_june].png.
-Usage: python scripts/iti_where_drift.py [--june]
+Figure data <E>/iti_licks/figdata/lick_where_drift[_june].pkl; --plot-only redraws from it alone (no decoder fits,
+no bootstrap).
+Usage: python scripts/iti_where_drift.py [--june] [--plot-only]
 """
 from __future__ import annotations
 
@@ -29,6 +31,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -86,8 +89,8 @@ def pairs(june: bool = False) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def main(argv=None) -> int:
-    june = "--june" in (argv if argv is not None else sys.argv[1:])
+def compute(june: bool) -> dict:
+    """Decoder pairs, drift fits, residual tests (CSVs + per-animal tables); returns the figure data."""
     sfx = "_june" if june else ""
     P = pairs(june)
     ref_eps = ["pre", "june"] if june else ["pre"]
@@ -129,6 +132,20 @@ def main(argv=None) -> int:
     T.to_csv(il.OUT / f"where_drift{sfx}_tests.csv", index=False)
     print("\n== r beyond elapsed-time drift, change vs pre (paired nested bootstrap)")
     print(T.round(3).to_string(index=False))
+    fits = {}
+    for st, ax_ in [("iti", "lat"), ("trial", "lat"), ("iti", "sag"), ("trial", "sag")]:
+        for a in AN:
+            pp = P[(P.set == st) & (P.axis == ax_) & (P.animal == a)]
+            if len(pp):
+                xx = np.linspace(0, pp.gap.max(), 100)
+                fits[(st, ax_, a)] = (xx, pp.slope.iloc[0] * np.log1p(xx) + (pp.pred - pp.slope * np.log1p(pp.gap)).iloc[0],
+                                      pp.max_pre_gap.iloc[0])
+    return dict(june=june, ref_eps=ref_eps, ses=ses, T=T, fits=fits)
+
+
+def plot(F: dict) -> None:
+    june, ref_eps, ses, T, fits = F["june"], F["ref_eps"], F["ses"], F["T"], F["fits"]
+    sfx = "_june" if june else ""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -144,12 +161,10 @@ def main(argv=None) -> int:
                 ax.scatter(h.gap, h.r, s=14, color=colors.get(ep, "#8e44ad"), label=ep + (" (no stroke)" if ep == "june"
                                                                                        else ""),
                            alpha=0.8, marker="D" if ep == "june" else "o")
-            pp = P[(P.set == st) & (P.axis == ax_) & (P.animal == a)]
-            if len(pp):
-                xx = np.linspace(0, pp.gap.max(), 100)
-                ax.plot(xx, pp.slope.iloc[0] * np.log1p(xx) + (pp.pred - pp.slope * np.log1p(pp.gap)).iloc[0], "k--",
-                        lw=1, label="drift fit (pre + June)" if june else "pre drift fit")
-                ax.axvline(pp.max_pre_gap.iloc[0], color="0.7", lw=0.6, ls=":")
+            if (st, ax_, a) in fits:
+                xx, yy, mx = fits[(st, ax_, a)]
+                ax.plot(xx, yy, "k--", lw=1, label="drift fit (pre + June)" if june else "pre drift fit")
+                ax.axvline(mx, color="0.7", lw=0.6, ls=":")
             ax.set_title(f"{a} {'ITI' if st == 'iti' else 'cued'} {'LATERAL' if ax_ == 'lat' else 'SAGITTAL'}",
                          fontsize=9)
             if j == 0:
@@ -171,6 +186,18 @@ def main(argv=None) -> int:
     fig.tight_layout(rect=(0, 0, 1, 0.92 if june else 0.94))
     fig.savefig(il.OUT / "figures" / f"lick_where_drift{sfx}.png", dpi=95)
     plt.close(fig)
+
+
+def main(argv=None) -> int:
+    argv = argv if argv is not None else sys.argv[1:]
+    june = "--june" in argv
+    stem = f"lick_where_drift{'_june' if june else ''}"
+    if "--plot-only" in argv or plot_only():   # redraw from figdata only: no decoder fits, no bootstrap
+        plot(load_fd(stem))
+        return 0
+    F = compute(june)
+    save_fd(stem, F)
+    plot(F)
     return 0
 
 

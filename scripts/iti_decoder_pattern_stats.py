@@ -12,7 +12,9 @@ Also per pixel: number of animals whose own mean has the sign of the pooled mean
 animal is flagged by the count, not by the CI). Similarity to pre: per-animal r(epoch session-mean map, pre map) with a
 session-bootstrap 95% CI (within animal), printed per animal.
 Outputs <E>/iti_licks/decoder_pattern_stats.csv (per epoch / axis / set: fraction of mask significant, per-animal
-similarity CI), figures/lick_decoder_pattern_stats_{lat,sag}.png. Usage: python scripts/iti_decoder_pattern_stats.py
+similarity CI), figures/lick_decoder_pattern_stats_{lat,sag}.png, and the figure data figdata/lick_decoder_pattern_stats_{lat,sag}.pkl
+(the test results for that axis + the stats table + the imaging grid). Usage:
+python scripts/iti_decoder_pattern_stats.py [--plot-only]   (--plot-only redraws from figdata: no bootstrap)
 """
 from __future__ import annotations
 
@@ -26,6 +28,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_decoder_patterns as dp  # noqa: E402
 import iti_licks as il  # noqa: E402
+from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
 
 AN, EP, AXES = dp.AN, dp.EP, dp.AXES
@@ -156,66 +159,64 @@ def test(SM: dict):
     return res, pd.DataFrame(rows)
 
 
-def plot(res: dict, T: pd.DataFrame) -> None:
+def figdata(res: dict, T: pd.DataFrame) -> dict:
+    """{axis: figure data} -- everything `plot` draws for lick_decoder_pattern_stats_<axis>.png."""
+    grid = imaging_grid()
+    return {ax_: dict(axis=ax_, res={k: v for k, v in res.items() if k[1] == ax_}, T=T, grid=grid) for ax_ in AXES}
+
+
+def plot(D: dict) -> None:
+    """D = one axis's figure data (`figdata`)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-
-    from frozen_area_maps import area_image, outline
-    from wfield_local import combined_encoding as ce
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
-    _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(lab0)
-    Hh, Ww = (int(x) for x in shape)
-    pix = flat[pstat]
-    img, _ = area_image(lab0)
-    ol = outline(img)[::2, ::2]
-
-    def to_img(v, fill=np.nan):
-        g = np.full(Hh * Ww, fill, dtype=float)
-        g[pix] = v
-        return g.reshape(Hh, Ww)[::2, ::2]
+    res, T, ax_ = D["res"], D["T"], D["axis"]
+    to_img, ol = grid_fns(D["grid"])
     axname = {"lat": "LATERAL position (+ = contralesional)", "sag": "SAGITTAL extension (+ = further out)"}
-    for ax_ in AXES:
-        cols = [*EP, "acute - pre", "subacute - pre", "chronic - pre"]
-        fig, axs = plt.subplots(2, len(cols), figsize=(2.7 * len(cols), 6.6), squeeze=False)
-        for i, st in enumerate(("iti", "trial")):
-            lim = np.nanpercentile(np.abs(np.concatenate([res[(st, ax_, e, "level")]["point"]
-                                                          for e in EP if (st, ax_, e, "level") in res])), 99)
-            for j, c in enumerate(cols):
-                ax = axs[i, j]
-                ax.set_xticks([])
-                ax.set_yticks([])
-                key = (st, ax_, c, "level") if c in EP else (st, ax_, c.split(" ")[0], "change")
-                if key not in res:
-                    ax.axis("off")
-                    continue
-                r = res[key]
-                im = ax.imshow(to_img(r["point"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
-                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-                s_img = to_img((r["sig"] & (r["agree"] >= min(AGREE_MIN, r["n"]))).astype(float), 0)
-                ax.contour(s_img, levels=[0.5], colors="k", linewidths=0.7, linestyles="--")
-                if "sig_max" in r:
-                    ax.contour(to_img(r["sig_max"].astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
-                g = T[(T.set == st) & (T.axis == ax_) & (T.epoch == key[2]) & (T.kind == key[3])]
-                fs = float(g.frac_sig.iloc[0]) if len(g) else np.nan
-                fa = float(g.frac_sig_agree.iloc[0]) if len(g) else np.nan
-                ax.set_title(f"{c} (n={r['n']})\nsig {100 * fs:.0f}% of cortex ({100 * fa:.0f}% also >=3/{r['n']} agree)",
-                             fontsize=7.5)
-                if j == 0:
-                    ax.set_ylabel("ITI licks" if st == "iti" else "cued licks", fontsize=9)
-            fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.01, pad=0.01, label="pattern / animal's pre RMS")
-        fig.suptitle(f"STATS for the decoder pattern maps -- NEURAL: Haufe pattern of the {axname[ax_]} decoder, one held-out pattern per "
-                     "SESSION (epoch decoder refit leaving the session out), / animal's pre RMS, mean of animals.\n"
-                     f"SOLID outline = max-statistic FWER 0.05 over cortex (as the decoder page); DASHED = 95% nested "
-                     f"bootstrap CI (animals > sessions, {N_BOOT} draws) excludes 0 after Benjamini-Hochberg q 0.05 AND >= 3 "
-                     "animals (of 4) agree in sign. Change columns = "
-                     "epoch - pre, paired by animal.\nipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL",
-                     fontsize=9)
-        fig.savefig(il.OUT / "figures" / f"lick_decoder_pattern_stats_{ax_}.png", dpi=105, bbox_inches="tight")
-        plt.close(fig)
+    cols = [*EP, "acute - pre", "subacute - pre", "chronic - pre"]
+    fig, axs = plt.subplots(2, len(cols), figsize=(2.7 * len(cols), 6.6), squeeze=False)
+    for i, st in enumerate(("iti", "trial")):
+        lim = np.nanpercentile(np.abs(np.concatenate([res[(st, ax_, e, "level")]["point"]
+                                                      for e in EP if (st, ax_, e, "level") in res])), 99)
+        for j, c in enumerate(cols):
+            ax = axs[i, j]
+            ax.set_xticks([])
+            ax.set_yticks([])
+            key = (st, ax_, c, "level") if c in EP else (st, ax_, c.split(" ")[0], "change")
+            if key not in res:
+                ax.axis("off")
+                continue
+            r = res[key]
+            im = ax.imshow(to_img(r["point"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+            s_img = to_img((r["sig"] & (r["agree"] >= min(AGREE_MIN, r["n"]))).astype(float), 0)
+            ax.contour(s_img, levels=[0.5], colors="k", linewidths=0.7, linestyles="--")
+            if "sig_max" in r:
+                ax.contour(to_img(r["sig_max"].astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
+            g = T[(T.set == st) & (T.axis == ax_) & (T.epoch == key[2]) & (T.kind == key[3])]
+            fs = float(g.frac_sig.iloc[0]) if len(g) else np.nan
+            fa = float(g.frac_sig_agree.iloc[0]) if len(g) else np.nan
+            ax.set_title(f"{c} (n={r['n']})\nsig {100 * fs:.0f}% of cortex ({100 * fa:.0f}% also >=3/{r['n']} agree)",
+                         fontsize=7.5)
+            if j == 0:
+                ax.set_ylabel("ITI licks" if st == "iti" else "cued licks", fontsize=9)
+        fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.01, pad=0.01, label="pattern / animal's pre RMS")
+    fig.suptitle(f"STATS for the decoder pattern maps -- NEURAL: Haufe pattern of the {axname[ax_]} decoder, one held-out pattern per "
+                 "SESSION (epoch decoder refit leaving the session out), / animal's pre RMS, mean of animals.\n"
+                 f"SOLID outline = max-statistic FWER 0.05 over cortex (as the decoder page); DASHED = 95% nested "
+                 f"bootstrap CI (animals > sessions, {N_BOOT} draws) excludes 0 after Benjamini-Hochberg q 0.05 AND >= 3 "
+                 "animals (of 4) agree in sign. Change columns = "
+                 "epoch - pre, paired by animal.\nipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL",
+                 fontsize=9)
+    fig.savefig(il.OUT / "figures" / f"lick_decoder_pattern_stats_{ax_}.png", dpi=105, bbox_inches="tight")
+    plt.close(fig)
 
 
 def main() -> int:
+    if plot_only():
+        for ax_ in AXES:
+            plot(load_fd(f"lick_decoder_pattern_stats_{ax_}"))
+        return 0
     cache = il.OUT / "decoder_pattern_sessions.pkl"
     if cache.exists():
         SM = pickle.loads(cache.read_bytes())
@@ -232,7 +233,9 @@ def main() -> int:
     print("\n== fraction of cortex significant (BH q 0.05), and also >= 3 animals same sign")
     print(T[T.kind != "similarity"][["set", "axis", "epoch", "kind", "n_animals", "frac_sig", "frac_sig_agree"]]
           .round(3).to_string(index=False))
-    plot(res, T)
+    for ax_, D in figdata(res, T).items():
+        save_fd(f"lick_decoder_pattern_stats_{ax_}", D)
+        plot(D)
     return 0
 
 

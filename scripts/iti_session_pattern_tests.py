@@ -16,7 +16,10 @@ kept separately as GAIN), so a cortex-wide change in response size cannot pass a
 Outputs <E>/iti_licks/session_pattern_{maplevel,similarity,gain}.csv, figures/lick_session_pattern_maplevel.png,
 figures/lick_session_pattern_similarity.png, figures/lick_session_pattern_change_{position,within_spout}.png,
 figures/lick_{cued,iti}_session_pattern_change_spout.png.
-Usage: python scripts/iti_session_pattern_tests.py
+Figure data (figdata.py convention): <E>/iti_licks/figdata/<figure stem>.pkl holds everything each figure draws (the
+whole-map test table, the similarity table, and per change figure the change_maps results + the imaging grid), so
+`--plot-only` redraws all six figures from those files alone -- no permutation, no bootstrap (the change maps took hours).
+Usage: python scripts/iti_session_pattern_tests.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 from iti_decoder_pattern_stats import AGREE_MIN, _bh, _boot, _maxstat  # noqa: E402
 from iti_session_patterns import AN, OUT, POS  # noqa: E402
 
@@ -47,8 +51,9 @@ CHANGE_FIG = {"position": "lick_session_pattern_change_position.png",       # li
               "spout_iti": "lick_iti_session_pattern_change_spout.png"}
 
 
-def load() -> dict:
-    """{animal: {map key: {"epoch": [...], "day": [...], "M": (n, pix) unit-RMS, "gain": (n,)}}}"""
+def load(only: list | None = None) -> dict:
+    """{animal: {map key: {"epoch": [...], "day": [...], "M": (n, pix) unit-RMS, "gain": (n,)}}}; `only` = keep these
+    map keys (the change-map workers load just their family)."""
     out = {}
     for a in AN:
         f = OUT / f"{a}.pkl"
@@ -56,6 +61,8 @@ def load() -> dict:
             continue
         S = pickle.loads(f.read_bytes())
         keys = sorted({k for r in S.values() for k in r["maps"]})
+        if only is not None:
+            keys = [k for k in keys if k in set(only)]
         out[a] = {}
         for k in keys:
             labs = [x for x in sorted(S) if k in S[x]["maps"]]
@@ -164,25 +171,17 @@ def change_maps(L: dict, keys: list) -> dict:
     return res
 
 
-def _imaging_grid():
-    from frozen_area_maps import area_image, outline
-
-    from wfield_local import combined_encoding as ce
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
-    _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(lab0)
-    Hh, Ww = (int(x) for x in shape)
-    pix = flat[pstat]
-    img, _ = area_image(lab0)
-    ol = outline(img)[::2, ::2]
-
-    def to_img(v, fill=np.nan):
-        g = np.full(Hh * Ww, fill, dtype=float)
-        g[pix] = v
-        return g.reshape(Hh, Ww)[::2, ::2]
-    return to_img, ol
+def _change_worker(item):
+    """Module-level (spawn) worker: one map family's change maps. Each family's change_maps starts its own rng(0), as the
+    serial loop did, so fanning the families out leaves every draw unchanged."""
+    _fam, keys = item
+    return change_maps(load(keys), list(keys))
 
 
-def plot_change(res: dict, keys: list, fam: str, T: pd.DataFrame, to_img, ol) -> None:
+def plot_change(D: dict) -> None:
+    """D = figure data: res (change_maps output), keys, fam, T (whole-map test table), grid."""
+    res, keys, fam, T = D["res"], D["keys"], D["fam"], D["T"]
+    to_img, ol = grid_fns(D["grid"])
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -232,7 +231,11 @@ def plot_change(res: dict, keys: list, fam: str, T: pd.DataFrame, to_img, ol) ->
     plt.close(fig)
 
 
-def plot_similarity(S: pd.DataFrame, keys: list) -> None:
+SIM_KEYS = ["iti/lat", "trial/lat", "iti/wlat", "trial/wlat", "trial/sp_far_contra"]
+
+
+def plot_similarity(D: dict) -> None:
+    S, keys = D["S"], D["keys"]
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -260,7 +263,8 @@ def plot_similarity(S: pd.DataFrame, keys: list) -> None:
     plt.close(fig)
 
 
-def plot_maplevel(T: pd.DataFrame) -> None:
+def plot_maplevel(D: dict) -> None:
+    T = D["T"]
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -286,11 +290,20 @@ def plot_maplevel(T: pd.DataFrame) -> None:
 
 
 def main() -> int:
+    if plot_only():                                               # redraw from figdata only: no permutation, no bootstrap
+        plot_maplevel(load_fd("lick_session_pattern_maplevel"))
+        plot_similarity(load_fd("lick_session_pattern_similarity"))
+        for fam in FAMILIES:
+            try:
+                plot_change(load_fd(CHANGE_FIG[fam]))
+            except SystemExit as e:
+                print(e)
+        return 0
     L = load()
     if not L:
         print("no session maps yet (run iti_session_patterns.py)")
         return 1
-    if "--plot-only" in sys.argv:                                 # redraw from the saved whole-map test
+    if "--reuse-maplevel" in sys.argv:                            # keep the saved whole-map permutation test
         T = pd.read_csv(il.OUT / "session_pattern_maplevel.csv")
     else:
         T = maplevel(L)
@@ -305,13 +318,22 @@ def main() -> int:
             + [c for c in T.columns if c.startswith(("d_PS", "p_PS"))]].round(3).to_string(index=False))
     print("\n== map GAIN (session map RMS / animal's pre RMS), per animal")
     print(G.round(2).to_string())
-    to_img, ol = _imaging_grid()
-    for fam, keys in FAMILIES.items():
-        keys = [k for k in keys if any(k in L[a] for a in L)]
-        if keys:
-            plot_change(change_maps(L, keys), keys, fam, T, to_img, ol)
-    plot_similarity(S, ["iti/lat", "trial/lat", "iti/wlat", "trial/wlat", "trial/sp_far_contra"])
-    plot_maplevel(T)
+    save_fd("lick_session_pattern_maplevel", dict(T=T))
+    save_fd("lick_session_pattern_similarity", dict(S=S, keys=SIM_KEYS))
+    plot_similarity(dict(S=S, keys=SIM_KEYS))
+    plot_maplevel(dict(T=T))
+    grid = imaging_grid()
+    fams = [(fam, tuple(k for k in keys if any(k in L[a] for a in L))) for fam, keys in FAMILIES.items()]
+    fams = [f for f in fams if f[1]]
+    del L                                                         # the workers load their own family
+    from wfield_local import parallel
+    got, fail = parallel.fan_out(fams, _change_worker, jobs=len(fams), label="change-map family")
+    if fail:
+        raise SystemExit(f"change maps failed: {fail}")
+    for (fam, keys), res in sorted(got):
+        D = dict(res=res, keys=list(keys), fam=fam, T=T, grid=grid)
+        save_fd(CHANGE_FIG[fam], D)
+        plot_change(D)
     return 0
 
 
