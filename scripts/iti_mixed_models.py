@@ -1,8 +1,9 @@
 """MIXED-EFFECTS models for the headline ITI / lick read-out results (Priya 10-27: "mixed-effects model with sessions
 nested in animals ... for any headline result" -> "yes").
 
-Per measure: value ~ C(epoch, Treatment("pre")) + (1 | animal), sessions as observations (statsmodels MixedLM, REML),
-random intercept per animal. Reported: each post epoch's coefficient (change vs pre), 95 % Wald CI and p, beside the
+Per measure, the SHARED models of wfield_local.mixed_models (time: y ~ post + post:lday; behaviour: y ~ post +
+post:deficit, deficit = far-contra time to contact; epoch: y ~ C(epoch)), sessions as observations, random-effects
+ladder per animal (10-27 late: was an epoch-only random-intercept model written here -- replaced, rule 9). Reported: each post epoch's coefficient (change vs pre), 95 % Wald CI and p, beside the
 paired nested bootstrap used on the page (boot_delta) for the same session values. With 4 animals the random-effect
 variance is poorly estimated, so the Wald p is anti-conservative relative to the bootstrap; both are shown, and the
 per-animal direction count (rule 8).
@@ -17,7 +18,6 @@ Output <E>/iti_licks/mixed_models.csv. Usage: python scripts/iti_mixed_models.py
 from __future__ import annotations
 
 import sys
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -58,26 +58,22 @@ def measures() -> dict:
     return out
 
 
-def fit(df: pd.DataFrame) -> dict:
-    import statsmodels.formula.api as smf
-    df = df.dropna(subset=["value"]).copy()
-    df["epoch"] = pd.Categorical(df.epoch, ["pre", *EP])
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        res = smf.mixedlm('value ~ C(epoch, Treatment("pre"))', df, groups=df["animal"]).fit(reml=True)
-    ci = res.conf_int()
-    out = {}
-    for ep in EP:
-        k = f'C(epoch, Treatment("pre"))[T.{ep}]'
-        if k in res.params:
-            out[ep] = (res.params[k], ci.loc[k, 0], ci.loc[k, 1], res.pvalues[k])
-    return out
-
-
 def main() -> int:
+    """Shared models (wfield_local.mixed_models; DECISIONS 2026-10-20 night: mixed models with time are the PRIMARY
+    readout, epochs descriptive): time (y ~ post + post:lday), behaviour (y ~ post + post:deficit, deficit = far-contra
+    time to contact) and epoch (y ~ C(epoch)), random-effects ladder per animal; the paired nested bootstrap per epoch
+    alongside for the page figures."""
+    from wfield_local import mixed_models as mx
+    M = measures()
+    L = pd.concat([d.assign(measure=nm) for nm, d in M.items()], ignore_index=True).rename(columns={"value": "y"})
+    L = mx.add_time_covariates(L.dropna(subset=["y"]))
+    L = mx.add_deficit(L, mx.deficit(il.OUT.parent / "qc"))
+    T = mx.lmm_table(L, ["measure"], models=("time", "behaviour", "epoch"), fdr_by=())
+    T.to_csv(il.OUT / "mixed_models.csv", index=False)
+    pd.set_option("display.width", 240)
+    print(mx.summary_table(T, ["measure"]).to_string())
     rows = []
-    for nm, df in measures().items():
-        mm = fit(df)
+    for nm, df in M.items():
         prd = {a: h.value.dropna().to_numpy() for a, h in df[df.epoch == "pre"].groupby("animal")}
         for ep in EP:
             post = {a: h.value.dropna().to_numpy() for a, h in df[df.epoch == ep].groupby("animal") if a in prd}
@@ -85,15 +81,9 @@ def main() -> int:
             ci = ak.boot_delta(post, prd, np.random.default_rng(0))
             am = (df[df.epoch == ep].groupby("animal").value.mean() - df[df.epoch == "pre"].groupby("animal").value.mean()
                   ).dropna()
-            b, lo, hi, p = mm.get(ep, (np.nan,) * 4)
-            rows.append(dict(measure=nm, epoch=ep, mixed_coef=b, mixed_lo=lo, mixed_hi=hi, mixed_p=p,
-                             boot_point=ci.point, boot_lo=ci.lo, boot_hi=ci.hi,
-                             n_dir=int((am * np.sign(ci.point) > 0).sum()), n_animals=len(am),
-                             n_sessions=int((df.epoch == ep).sum())))
-    T = pd.DataFrame(rows)
-    T.to_csv(il.OUT / "mixed_models.csv", index=False)
-    pd.set_option("display.width", 220)
-    print(T.round(3).to_string(index=False))
+            rows.append(dict(measure=nm, epoch=ep, boot_point=ci.point, boot_lo=ci.lo, boot_hi=ci.hi,
+                             n_dir=int((am * np.sign(ci.point) > 0).sum()), n_animals=len(am)))
+    pd.DataFrame(rows).to_csv(il.OUT / "mixed_models_boot.csv", index=False)
     return 0
 
 
