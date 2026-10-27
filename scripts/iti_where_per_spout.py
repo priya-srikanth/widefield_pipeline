@@ -116,16 +116,17 @@ def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
             if i == 0:
                 ax.set_title(pos.replace("_", " "), fontsize=10)
             if j == 0:
-                ax.set_ylabel(f"{sl[st]}\n{MEAS[m]}", fontsize=8)
+                ax.set_ylabel(f"{sl[st]}\n{MEAS[m]}" + ("\n[decoder on Z-SCORED features]" if tag else ""), fontsize=8)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    fig.suptitle("NEURAL: frozen pre-stroke lick-position decoder PER SPOUT (Allen areas, lags 0..0.2 s"
-                 f"{', features z-scored within session' if tag else ''}). One dot per SESSION = change from its "
+    fig.suptitle(("Z-SCORED FEATURES (each area / its frame-wise SD in the session, pre and post alike) -- " if tag else "")
+                 + "NEURAL: frozen pre-stroke lick-position decoder PER SPOUT (Allen areas, lags 0..0.2 s)."
+                 "\nOne dot per SESSION = change from its "
                  "animal's pre mean (all animals pooled; pre sessions show the pre spread); black = mean +- SEM over "
                  "sessions;\n* = paired nested bootstrap (animals > sessions) excludes 0. Cued licks grouped by target, "
                  "ITI licks by the previous trial's spout (fixed before the lick).\nOffset = decoded minus where "
                  "the animal's pre-stroke pull toward the middle alone would put the lick.", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(il.OUT / "figures" / f"iti_where_per_spout{tag}.png", dpi=95)
     plt.close(fig)
 
