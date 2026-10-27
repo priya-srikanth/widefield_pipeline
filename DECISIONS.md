@@ -22113,3 +22113,25 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   lick is read more target-ward than an equally deviated PRE-stroke lick of the same spout (`--ref spout`; pre-stroke
   misdirected licks as the baseline, `scripts/cued_misdirected_licks.py`). Not decidable for the acute large misses
   (no same-spout pre licks deviate that far; 20-73 pre-stroke misses per animal, smaller).
+
+**Addendum (2026-10-27, evening) — side cameras: first (pilot) LP model on SIDECAM Part A.** Labels: the student
+finished Part A (16 folders, saved 10-22..10-27): 143 / 144 listed frames (missing: cam3_2026-06-06T12_25_18 slider 46,
+close_R ENL) PLUS 87 frames not on the list (76 context, 11 listed for the other camera), almost all labelled
+completely. Priya: USE the extras (complete context labels allowed since 10-13); rows with ONE part only are dropped
+(2: cam2 06-06T14_09_26 img0233867, cam3 06-06T12_25_18 img0811263 -- the nose is placed on every listed frame, so a
+lone part reads as unfinished) -> 228 training frames. Fill on the listed frames: nose 143, jaw 115, tongue 67, spout
+131. **New fact: JUNE side videos are 800 x 600, August onward 600 x 450**, and the face is ~1.2x larger in June
+(median nose-spout 112-141 vs 94-112 px); nothing in the repo recorded this before. Consequences: the cam3 flip uses each
+frame's own width (flipping June with 600 put labels at x < 0), and the crop is ONE box, (x0, y0, w, h) = (0, 32, 384,
+384) of the flipped frame, which contains every Part A point in both sizes (x 41-199, y 91-320) at native resolution
+(384 = multiple of 128, no resize). Code: `wfield_local/lp_sidecam.py` (`to_model` / `to_raw` / `transform_image`,
+`stage`, `unseen`), tests `tests/test_lp_sidecam.py`. Model (Priya: local now, O2 later): LP `heatmap` ResNet-50, the
+LP r4 recipe, Windows-native SUPERVISED ONLY (no DALI on Windows -> no temporal loss), batch 4, 300 epochs (17 min, peak
+1.6 GB), `lp_stage/lp_side_pilot_20261027/models/side_pilot_heatmap_20261027`. Held-out frames (LP's random 22 val +
+24 test; NOT session-held-out, often neighbours of training frames, so optimistic): median px nose 1.3 / jaw 2.5 /
+tongue 2.1 / spout 1.2 (test), p90 2.4 / 5.2 / 5.9 / 2.4 (val + test). OUT-OF-SESSION check = the 188 Part B + C target
+frames (13 sessions never seen): confident (cut 0.6, tongue 0.4) nose 99 %, jaw 89 %, tongue 52 %, spout 88 %; sheets
+`DeepLabCut/Widefield/inference_check_20261027_side_pilot/unseen_{0,1}.png` (circle = confident, x = below cut). Seen
+there: a confident tongue on a PAW (grooming, cam2 08-19), weaker jaw on cam2 June 16_08_37 and 09-17 (0.6-0.67).
+Next: Priya QCs the sheets; then the predictions can PRE-LABEL Parts B / C for the student (to_raw back to the raw
+frame), and the O2 run (temporal loss, unlabelled cropped / flipped side clips) once B / C are in.

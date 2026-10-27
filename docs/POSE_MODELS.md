@@ -1013,3 +1013,17 @@ far_R trial-averaged distance falls ~85 % (time with the tongue out), tongue-out
 left-side incomplete licks are pre-stroke behaviour (DAQ contact far_L 0.39), not a cam1 side flip. `apparatus_mouth`
 uses the per-session PnP pose (cam1 cleaning origin = PnP mouth + constant 30-32 px, the rod edge). Details:
 `docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md` §4a.
+
+# Part E -- Side cameras (cam2 + cam3), one shared model (2026-10-27)
+
+Plan: DECISIONS 2026-10-13 night (cam3 flipped left-right, one moment per camera, every 5th in both). Transform and
+crop: `wfield_local/lp_sidecam.py` (DECISIONS 2026-10-27 evening; June side videos are 800 x 600, August+ 600 x 450).
+
+| id | type | labels | settings | why | where |
+|---|---|---|---|---|---|
+| **LP side pilot** | LP `heatmap`, ResNet-50 | SIDECAM Part A: 228 frames (143 listed + 85 complete extras), 8 sessions, all animals / epochs | LP r4 recipe, 384 x 384 face crop at native resolution, batch 4, 300 epochs, Windows-native, **supervised only** (no temporal loss) | check the pilot before Parts B / C; pre-labels for B / C | `C:/Users/SabatiniLab/lp_stage/lp_side_pilot_20261027/models/side_pilot_heatmap_20261027` |
+
+Results: held-out frames (frame split, optimistic) median px nose 1.3 / jaw 2.5 / tongue 2.1 / spout 1.2; on the 188 Part B
++ C targets of 13 UNSEEN sessions, confident nose 99 % / jaw 89 % / tongue 52 % / spout 88 %; QC sheets in
+`DeepLabCut/Widefield/inference_check_20261027_side_pilot/`. Not yet judged by Priya. Next model: O2, temporal loss on
+cropped / flipped side clips, after Parts B / C.
