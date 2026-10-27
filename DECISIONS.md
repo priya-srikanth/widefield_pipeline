@@ -22100,3 +22100,16 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   change per e-fold of days, the primary readout per DECISIONS 10-20 night) and the BEHAVIOUR model. It is ANTI-conservative at 4 animals: on the
   lick-order family it never missed a bootstrap-significant cell and flagged 18 more, several carried by 2-3 of 4
   animals. So a dagger without an asterisk is not a result; the per-animal count still decides.
+
+## 2026-10-27 (late) -- Lick read-out offsets: SAME-PLACE like-for-like comparison is the primary measure (Priya)
+
+- **Primary question (Priya):** does the cortical read-out of a session's licks sit contralesional of where the tongue
+  actually lands? -> measured like-for-like: each lick's decoded position vs the animal's PRE licks (any spout, same lick
+  set) that landed at the SAME absolute lateral place (0.25-mm bins, >= 15 pre licks; `scripts/lick_matched_readout.py
+  --ref place`). No pull slope enters; covers 96-99 % of licks including the acute large misses.
+- **Retired as primary:** 'offset beyond the pull' (its sign depended on which pull slope was assumed: across-spout ~0.6
+  vs within-spout 0.2-0.3).
+- **Secondary (Priya: "could speak to how motor error looks in normal motor control"):** whether a single misdirected
+  lick is read more target-ward than an equally deviated PRE-stroke lick of the same spout (`--ref spout`; pre-stroke
+  misdirected licks as the baseline, `scripts/cued_misdirected_licks.py`). Not decidable for the acute large misses
+  (no same-spout pre licks deviate that far; 20-73 pre-stroke misses per animal, smaller).
