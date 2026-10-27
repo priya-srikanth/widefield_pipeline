@@ -1262,6 +1262,13 @@ coupling (direction not determined), not more face variability.
 
 ### 8.17 Self-initiated (ITI) licks: pre-lick ramp and target-free direction coding (10-26 ~00:15) -- PROVISIONAL
 
+  **KEY (10-26 late; FINDINGS 4d xiii; page "Where things stand" + 3.19-3.21): post-stroke, cortex read with the
+  pre-stroke decoder places licks CONTRALESIONAL of where they land** -- acutely both lick types (cued +0.54, ITI +0.56
+  mm, 4/4); for ITI licks also at their usual (pre-stroke) spot (+0.34 acute 4/4, +0.16 chronic, PS94 / PS95); for cued
+  licks the acute shift is ipsi-strayed licks read at their target (usual spot ~0 acute, -0.16 chronic), and cued licks
+  are read closer to the mouth (-0.30 chronic). A mean offset, separate from the r loss. Details in the SIGNED DECODING
+  ERROR and OUTWARD AXIS paragraphs below.
+
   ITI LICK RATE vs RECOVERY (BEHAVIOUR, 10-26 ~15:40, `scripts/iti_lick_rate.py`, iti_lick_rate{,_tests,_recovery}.csv;
   page 3.11; Priya: "does inter-trial licking correlate with recovery (and exceed pre-stroke levels)"). Rate = licks_all
   context iti / ITI minutes (next strobe - stop, gaps clipped 0..60 s). Per animal licks / ITI min pre / acute / subacute /
@@ -1295,10 +1302,10 @@ coupling (direction not determined), not more face variability.
   SIGNED DECODING ERROR PER LICK, ITI vs IN-TRIAL (10-26 late, `scripts/iti_where_signed_error.py` ->
   where_signed_error_tests.csv; Priya: "does the decoder predict the tongue further right (contralesional) than where it
   ended up?"). err = decoded - actual lateral (+ = contralesional), change vs the animal's pre error for the same spout;
-  held-fixed version = licks landing within 0.25 mm of the pre landing mean for their spout. ITI, held fixed: acute +0.40
+  "usual spot" = licks landing within 0.25 mm of the pre landing mean for their spout. ITI, usual spot: acute +0.40
   [+0.27, +0.53] (PS92 .29 / PS93 .28 / PS94 .50 / PS95 .51, 4/4), subacute +0.17, chronic +0.18 [+0.02, +0.37] (.03 /
   .02 / .41 / .26: large in PS94 / PS95 only) -> self-initiated licks are READ AS MORE CONTRALESIONAL than they land.
-  IN-TRIAL, held fixed: acute -0.01 (mixed), subacute -0.13, chronic -0.17 [-0.31, -0.04] (0/4 contra: -.08 / -.37 /
+  IN-TRIAL, usual spot: acute -0.01 (mixed), subacute -0.13, chronic -0.17 [-0.31, -0.04] (0/4 contra: -.08 / -.37 /
   -.21 / -.00) -> on-target cued licks are read slightly IPSIlesional chronically. In-trial over ALL licks acute +0.54
   (4/4) only because deviated (ipsi) licks are read at their target. Reading: the contralesional reading is an ITI
   result; for cued licks the result is "deviated licks read as on-target". PROVISIONAL.
@@ -1306,8 +1313,8 @@ coupling (direction not determined), not more face variability.
   Priya: "the decoder predicts licks are further right and closer than they are"). Change in (decoded - actual) vs pre
   per spout, both axes. IN-TRIAL licks are read CLOSER than they land: all licks -0.59 acute / -0.47 chronic mm (0/4
   further), mostly because cued licks reach FURTHER out post-stroke (actual outward +0.3..+0.7 mm, 4/4) and the decoded
-  position does not follow; landing held fixed still -0.30 [-0.43, -0.17] chronic (0/4 further: PS92 -.43, PS93 -.40,
-  PS94 -.21, PS95 -.15). ITI licks: outward only slightly closer (chronic -0.09 [-0.20, -0.01] held fixed). So
+  position does not follow; at the usual spot still -0.30 [-0.43, -0.17] chronic (0/4 further: PS92 -.43, PS93 -.40,
+  PS94 -.21, PS95 -.15). ITI licks: outward only slightly closer (chronic -0.09 [-0.20, -0.01] usual spot). So
   "further right" = ITI, "closer" = in-trial; neither lick type shows both strongly. Close-far separation of the decoded
   means is clearer in-trial than ITI because outward is decoded far better in-trial (pre r 0.53-0.58 vs 0.35-0.42 ITI,
   3.15), likely spout / target-related activity that ITI licks lack. PROVISIONAL.
