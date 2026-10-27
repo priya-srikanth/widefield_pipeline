@@ -1,0 +1,541 @@
+<title>Cortical Spout Coding After Stroke</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: fixed hidable contents rail at left, one reading column of tagged sections (shared results-page template, 10-24). */
+:root { --bg:#fbfaf7; --fg:#22211f; --muted:#6b675f; --rule:#e2ded5; --accent:#6a3d9a; --card:#ffffff; --tag:#f1ece2; --side:#f4f1ea; --neural:#6a3d9a; --beh:#b35806; --warn:#a33a2a; --ok:#2f6b3a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#17161a; --fg:#ece9e3; --muted:#a59f94; --rule:#34313a; --accent:#b799e0; --card:#1f1e23; --tag:#2a2830; --side:#1c1b20; --neural:#b799e0; --beh:#f1a340; --warn:#f08a78; --ok:#8fd19a; color-scheme:dark } }
+:root[data-theme="dark"] { --bg:#17161a; --fg:#ece9e3; --muted:#a59f94; --rule:#34313a; --accent:#b799e0; --card:#1f1e23; --tag:#2a2830; --side:#1c1b20; --neural:#b799e0; --beh:#f1a340; --warn:#f08a78; --ok:#8fd19a; color-scheme:dark }
+* { box-sizing:border-box }
+html { scroll-behavior:smooth; scroll-padding-top:12px }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto } .toc, .main { transition:none !important } }
+body { background:var(--bg); color:var(--fg); font:15px/1.55 "Source Sans 3", system-ui, sans-serif; margin:0; }
+.toc { position:fixed; top:env(safe-area-inset-top,0px); left:0; bottom:0; width:280px; overflow-y:auto; background:var(--side); border-right:1px solid var(--rule); padding:56px 14px 24px; padding-left:max(14px, env(safe-area-inset-left,0px)); font-size:.86rem; transition:transform .2s ease; z-index:10 }
+.toc h3 { font:600 .72rem/1 "Source Sans 3", sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 10px }
+.toc ol { list-style:none; margin:0; padding:0 }
+.toc li { margin:0 0 6px }
+.toc li li { margin:3px 0 3px 12px }
+.toc a { color:var(--fg); text-decoration:none; display:block; padding:2px 6px; border-radius:3px }
+.toc a:hover, .toc a.on, .toc a:focus-visible { background:var(--tag) }
+.toc .sub a { color:var(--muted); font-size:.82rem }
+.toc .grphead { display:flex; align-items:flex-start; gap:2px }
+.toc .grphead a { flex:1; min-width:0 }
+.toc .tg { flex:none; font:600 .7rem/1.4 "Source Sans 3", sans-serif; color:var(--muted); background:none; border:1px solid var(--rule); border-radius:3px; padding:1px 4px; margin-top:2px; cursor:pointer; min-width:30px }
+.toc .tg:hover { background:var(--tag) }
+.toc .sub2 { margin:2px 0 4px 14px }
+.toc .sub2 a { font-size:.78rem }
+.kind { display:inline-block; font-size:.62rem; letter-spacing:.06em; text-transform:uppercase; padding:0 5px; border-radius:2px; margin-left:4px; vertical-align:1px; border:1px solid currentColor }
+.kind.n { color:var(--neural) } .kind.b { color:var(--beh) }
+.tocbtn { position:fixed; top:calc(env(safe-area-inset-top,0px) + 10px); left:max(10px, env(safe-area-inset-left,0px)); z-index:11; font:600 .8rem "Source Sans 3", sans-serif; background:var(--card); color:var(--fg); border:1px solid var(--rule); border-radius:4px; padding:6px 10px; cursor:pointer }
+.tocbtn:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+body.closed .toc { transform:translateX(-100%) }
+.main { margin-left:280px; transition:margin .2s ease }
+body.closed .main { margin-left:0 }
+@media (max-width: 640px) { .main { margin-left:0 } .toc { box-shadow:2px 0 12px rgba(0,0,0,.15) } }
+.wrap { max-width:1120px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); padding-block:56px 64px; }
+h1 { font:600 1.7rem/1.2 "Source Serif 4", Georgia, serif; margin:0 0 6px; text-wrap:balance; }
+.sub { color:var(--muted); margin:0 0 14px; max-width:80ch; }
+section { border-top:1px solid var(--rule); padding-block:22px 6px; }
+h2 { font:600 1.15rem/1.3 "Source Serif 4", Georgia, serif; margin:0 0 4px; text-wrap:balance }
+h4 { font:600 .9rem/1.3 "Source Sans 3", sans-serif; margin:14px 0 4px }
+.tag { display:inline-block; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; background:var(--tag); color:var(--muted); padding:2px 8px; border-radius:3px; margin-bottom:8px; }
+.st { display:inline-block; font-size:.66rem; letter-spacing:.06em; text-transform:uppercase; padding:1px 6px; border-radius:2px; border:1px solid currentColor; margin-left:6px; vertical-align:2px }
+.st.stands { color:var(--ok) } .st.prov { color:var(--beh) } .st.corr { color:var(--warn) } .st.closed { color:var(--muted) }
+p, li { max-width:80ch; }
+.take { border-left:3px solid var(--accent); padding-left:12px; margin:10px 0 14px; max-width:80ch }
+.input { font-size:.84rem; color:var(--muted); margin:0 0 8px }
+figure { margin:0 0 18px; background:var(--card); border:1px solid var(--rule); border-radius:4px; padding:10px; overflow-x:auto; }
+figure img { display:block; max-width:100%; height:auto; background:#fff; }
+figcaption { color:var(--muted); font-size:.86rem; margin-top:6px; max-width:90ch }
+figcaption b.h { color:var(--fg) }
+code { font-size:.85em; }
+.tbl { overflow-x:auto; margin:6px 0 14px }
+table { border-collapse:collapse; font-size:.86rem; font-variant-numeric:tabular-nums }
+td, th { border-bottom:1px solid var(--rule); padding:3px 8px; text-align:right; vertical-align:top } th:first-child, td:first-child { text-align:left }
+th { font-weight:600; color:var(--muted) }
+table.wide td { text-align:left }
+figure img { cursor:zoom-in }
+.zoomhint { font-size:.78rem; color:var(--muted) }
+.lb { position:fixed; inset:0; z-index:50; background:rgba(10,10,12,.92); display:flex; flex-direction:column; touch-action:none; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px) }
+.lb-bar { display:flex; gap:8px; align-items:center; padding:8px max(12px, env(safe-area-inset-right,0px)) 8px max(12px, env(safe-area-inset-left,0px)); color:#eee; font-size:.85rem }
+.lb-bar .t { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.lb-bar button { font:600 .8rem "Source Sans 3", sans-serif; background:#2a2a30; color:#eee; border:1px solid #444; border-radius:4px; padding:5px 10px; cursor:pointer }
+.lb-bar button:focus-visible { outline:2px solid #b799e0; outline-offset:2px }
+.lb-stage { flex:1; overflow:hidden; position:relative; cursor:grab }
+.lb-stage.drag { cursor:grabbing }
+.lb-stage img { position:absolute; left:0; top:0; transform-origin:0 0; max-width:none; background:#fff; user-select:none; -webkit-user-drag:none }
+.figs { font-size:.8rem; white-space:normal; min-width:6.5rem }
+.figs a { white-space:nowrap }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:wght@600&display=swap">
+
+<button class="tocbtn" id="tocbtn" type="button" aria-controls="toc" aria-expanded="true">&#9776; Contents</button>
+<nav class="toc" id="toc" aria-label="Contents">
+<h3>Contents</h3>
+<ol id="toclist"></ol>
+</nav>
+
+<div class="main"><div class="wrap">
+<h1>Where the cortical spout code goes after a striatal stroke</h1>
+<p class="sub">Widefield imaging, VLS stroke, PS92&ndash;PS95 (all lesions left; brain maps: image left = ipsilesional; contra spout = mouse right). <b>Scope:</b> imaging readouts whose behavioural input is only DAQ spout contact, the engagement gate, or the video (LP) lick-attempt gate &mdash; no full encoding models and no kinematic regressors (those are on the encoding window's page; the licking kinematics themselves are on the <a href="https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv">kinematics page</a>). Every claim needs &ge; 3 / 4 animals individually; per-animal numbers come first, pooled numbers after. PS95 has ONE acute session. <span class="kind n">neural</span> = imaging, <span class="kind b">behaviour</span> = behaviour only. Compiled 2026-10-24 from <code>docs/</code> and the share's figure sidecars; each section names its source.</p>
+<p class="zoomhint">Click any figure to open it full screen: scroll or pinch to zoom, drag to pan, double-click to reset, Esc to close.</p>
+
+<section id="status" data-toc="Where things stand">
+<span class="tag">Summary &middot; status of each result</span>
+<h2>Where things stand</h2>
+<div class="tbl"><table class="wide">
+<tr><th>result</th><th>figures</th><th>status</th><th>behaviour input</th><th>animals</th></tr>
+<tr><td>Spout position decodes within session after the cue (0.68&ndash;0.86) and weakly before it (0.33&ndash;0.55)</td><td class="figs"><a href="#fig1">1</a>, <a href="#fig1b">1b</a>, <a href="#within">&sect; table</a></td><td><span class="st stands">stands</span></td><td>contact, engagement</td><td>4 / 4</td></tr>
+<tr><td>Frozen pre-stroke decoder collapses acutely, graded near &rarr; far, worst at far contra (0.90 &rarr; 0.32)</td><td class="figs"><a href="#fig2b">2b</a>, <a href="#fig2c">2c</a>, <a href="#fig2">2</a></td><td><span class="st stands">stands</span></td><td>engagement; LP gate</td><td>4 / 4</td></tr>
+<tr><td>Position falls ~5&times; more than behavioural state or running on the same cortex; the pooled state drop is PS94 alone</td><td class="figs"><a href="#fig3">3</a>, <a href="#fig3b">3b</a>, <a href="#fig3c">3c</a></td><td><span class="st stands">stands</span> (ratio) <span class="st corr">corrected 10-25</span></td><td>engagement, DAQ running</td><td>state intact in 3 / 4</td></tr>
+<tr><td>Frozen decoder back at behavioural recovery</td><td class="figs"><a href="#fig4">4</a>, <a href="#fig13">13</a></td><td><span class="st corr">corrected: not back</span></td><td>engagement</td><td>only PS92 back</td></tr>
+<tr><td>&hellip; but the chronic frozen deficit and refit gain are no larger than June &rarr; August (no stroke)</td><td class="figs"><a href="#fig4c">4c</a>, <a href="#fig4b">4b</a></td><td><span class="st prov">first run</span></td><td>engagement</td><td>3 / 4 (PS94 equal)</td></tr>
+<tr><td>Chronic distance from pre exceeds June &rarr; August (no stroke) distance</td><td class="figs"><a href="#fig10">10</a>, <a href="#fig10b">10b</a></td><td><span class="st prov">first run</span></td><td>engagement</td><td>3 / 4 (not PS94)</td></tr>
+<tr><td>Failed attempts lose the far-contra side but keep "far"</td><td class="figs"><a href="#fig5">5</a>, <a href="#fig5b">5b</a></td><td><span class="st prov">first run</span></td><td>LP attempt classes</td><td>4 / 4 direction, 3 / 4 p &lt; .01</td></tr>
+<tr><td>Pre-stroke template: amplitude drops in 4 / 4 but returns in only 2 / 4; its shape stays off in 4 / 4</td><td class="figs"><a href="#fig6">6</a>, <a href="#fig6b">6b</a>, <a href="#fig6c">6c</a>, <a href="#fig3c">3c</a>, <a href="#fig13c">13c</a></td><td><span class="st corr">corrected 10-25</span></td><td>contact</td><td>4 / 4 drop; 2 / 4 return</td></tr>
+<tr><td>Far-contra map amplitude roughly halves acutely, back by chronic</td><td class="figs"><a href="#fig7_2a">7.2a</a>, <a href="#fig7_2b">7.2b</a>, <a href="#fig7_2c">7.2c</a>, <a href="#fig7_3c">7.3c</a>, <a href="#fig7_3d">7.3d</a>, <a href="#fig7_3e">7.3e</a></td><td><span class="st stands">stands</span></td><td>engagement; LP gate</td><td>4 / 4 acute</td></tr>
+<tr><td>Failed attempts: same map, lower than pre hits, not lower than pre misses</td><td class="figs"><a href="#fig8">8</a>, <a href="#fig8b">8b</a></td><td><span class="st prov">first run</span></td><td>LP attempt classes</td><td>3 / 4 vs hits, 2 / 4 vs misses</td></tr>
+<tr><td>CD: shared mode grows and rotates; far contra drifts toward far centre</td><td class="figs"><a href="#fig9">9</a>, <a href="#fig9b">9b</a></td><td><span class="st stands">stands</span></td><td>contact</td><td>12 / 12 cells; 4 / 4 sign</td></tr>
+<tr><td>CD leave-one-out: held-out far-contra projection drops acutely</td><td class="figs"><a href="#fig9c">9c</a>, <a href="#fig9d">9d</a>, <a href="#fig9f">9f</a>, <a href="#fig9g">9g</a>, <a href="#fig9j">9j</a></td><td><span class="st prov">provisional</span></td><td>contact</td><td>3 / 4</td></tr>
+<tr><td>Representational distance: focal acutely, spread chronically; chronic rise = drift</td><td class="figs"><a href="#fig10">10</a>, <a href="#fig10b">10b</a>, <a href="#fig4c">4c</a></td><td><span class="st stands">stands</span> (underpowered)</td><td>engagement</td><td>4 / 4 drift-consistent</td></tr>
+<tr><td>Pre-cue code partly survives stopped trials and movement removal</td><td class="figs"><a href="#fig11">11</a>, <a href="#fig11b">11b</a></td><td><span class="st prov">provisional</span></td><td>contact, engagement; video ME</td><td>2 / 4 (stopped)</td></tr>
+<tr><td>Rest carries position; frozen rest decoder retained chronically</td><td class="figs"><a href="#fig12">12</a></td><td><span class="st stands">stands</span></td><td>engagement</td><td>4 / 4 (rest &gt; null)</td></tr>
+<tr><td>Mixed models: frozen and refit decoders recover with time and track the behavioural deficit; the reorganisation index keeps rising (drift-sized)</td><td class="figs"><a href="#fig13">13</a>, <a href="#fig13b">13b</a>, <a href="#fig13c">13c</a>, <a href="#fig13d">13d</a>, <a href="#fig13e">13e</a>, <a href="#fig13f">13f</a></td><td><span class="st stands">stands</span> (rebuilt attempts table, 10-25)</td><td>contact or LP-attempt deficit</td><td>animal random effects</td></tr>
+</table></div>
+</section>
+
+<section id="behaviour" data-toc="0. Behavioural deficit and epochs" data-kind="b">
+<span class="tag">Context &middot; what the epochs mean</span>
+<h2>0. The behavioural deficit that defines the epochs <span class="kind b">behaviour</span></h2>
+<div class="take">Accuracy falls at the far spouts, most at far contra, and recovers at animal-specific rates. Acute = days when far-contra accuracy is below 25 % of the animal's own pre-stroke level; chronic starts when that animal's hit rate flattens. Every neural result below is stratified by these per-animal epochs.</div>
+<figure id="fig0"><img src="b_timecourse.png" alt="Licking accuracy per position across days from lesion, per animal" loading="lazy"><figcaption><b class="h">Fig 0 &middot; behaviour over days from each animal's own lesion.</b> Each point = one session; shaded = acute epoch, dotted = first subacute day. Read it first per animal: PS92 / PS93 recover within ~10 days, PS94 is slowest.</figcaption></figure>
+</section>
+
+<section id="within" data-toc="1. Within-session decoding" data-kind="n">
+<span class="tag">Decoding &middot; within day</span>
+<h2>1. Spout position is decodable from cortex, before and after the cue <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Input: DAQ contact (the pre-cue window is free of spout contact), engagement gate. Multinomial logistic on cortex features, block cross-validation, chance 0.167.</p>
+<h4>Per animal (session means; Allen-ROI features; pre n = 8, acute 4 / 4 / 4 / 1)</h4>
+<div class="tbl"><table>
+<tr><th>animal</th><th>pre-cue: pre</th><th>acute</th><th>subacute</th><th>chronic</th><th>post-cue: pre</th><th>acute</th><th>subacute</th><th>chronic</th></tr>
+<tr><td>PS92</td><td>.361</td><td>.389</td><td>.340</td><td>.402</td><td>.751</td><td>.669</td><td>.770</td><td>.822</td></tr>
+<tr><td>PS93</td><td>.405</td><td>.348</td><td>.281</td><td>.405</td><td>.680</td><td>.551</td><td>.664</td><td>.821</td></tr>
+<tr><td>PS94</td><td>.549</td><td>.430</td><td>.468</td><td>.530</td><td>.860</td><td>.769</td><td>.819</td><td>.869</td></tr>
+<tr><td>PS95</td><td>.326</td><td>.474</td><td>.304</td><td>.362</td><td>.841</td><td>.906</td><td>.802</td><td>.853</td></tr>
+</table></div>
+<div class="take">Re-fitting each day, position stays decodable in every epoch: post-cue 0.55&ndash;0.91, pre-cue 0.28&ndash;0.55 against chance 0.167. There is no consistent acute pre-cue loss (up in PS92 / PS95, down in PS93 / PS94). The pre-cue readout is <b>position information</b>, never a "plan": the spout arrives ~3 s before the cue, so a sustained sensory response and a held intention cannot be separated here. Removing the slowest (&ge; 300 s) band lowers pre-cue decoding by 0.03&ndash;0.09 in every epoch; PS93's acute pre-cue drop is entirely that band.</div>
+<figure id="fig1"><img src="d_within_precue.png" alt="Pre-cue decoding accuracy by position and epoch" loading="lazy"><figcaption><b class="h">Fig 1 &middot; pre-cue (ENL) decoding by position and epoch.</b> Bars = pooled session means, dots = sessions coloured by animal. Pooled pre-stroke frozen decoder at far contra: ENL 0.51, cue 0.90, lick 0.95 &mdash; the pre-cue baseline is low.</figcaption></figure>
+<figure id="fig1b"><img src="d_slowband.png" alt="Decoding with and without the slow band" loading="lazy"><figcaption><b class="h">Fig 1b &middot; slow-band sensitivity.</b> Each epoch with and without the &ge; 300 s band. Read the drop as how much of the pre-cue number is slow drift (0.03&ndash;0.09).</figcaption></figure>
+</section>
+
+<section id="frozen" data-toc="2. Frozen pre-stroke decoder" data-kind="n">
+<span class="tag">Decoding &middot; frozen pre-stroke reference</span>
+<h2>2. A decoder frozen before the stroke fails acutely, worst at far contra <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Input: engagement gate (cue window); LP lick gate for the lick window (Fig 2b). Decoder trained on pre-stroke sessions and never refitted.</p>
+<h4>Per animal, far contra, lick window, LP gate (pre &rarr; acute)</h4>
+<div class="tbl"><table>
+<tr><th>animal</th><th>pre</th><th>acute</th></tr>
+<tr><td>PS92</td><td>.92</td><td>.26</td></tr><tr><td>PS93</td><td>.85</td><td>.16</td></tr><tr><td>PS94</td><td>.90</td><td>.49</td></tr><tr><td>PS95</td><td>.94</td><td>.35 (1 session)</td></tr>
+</table></div>
+<div class="take"><b>Pooled</b>, cue window: far contra 0.896 &rarr; 0.321 &rarr; 0.630 &rarr; 0.724 (pre / acute / subacute / chronic); acute change &minus;0.575, Bonferroni interval [&minus;0.738, &minus;0.394]; 5 of 6 positions fall, graded near &rarr; far. Chronic far contra (&minus;0.171) and near middle (&minus;0.163) are still below pre. <b>Lick window:</b> contact gating keeps only licks that reached the spout and overstates acute far-contra accuracy (0.50); under the LP gate it is 0.32 [0.17, 0.51] in 4 / 4 animals. In the cue window the gate does not matter (within 0.05). At a 1.0 s pre-cue window acute far contra is 0.21 [0.12, 0.29], down in 4 / 4.</div>
+<figure id="fig2"><img src="d_acc_cue.png" alt="Frozen decoder accuracy by position, cue window" loading="lazy"><figcaption><b class="h">Fig 2 &middot; frozen decoder by position, cue window (engagement gate).</b> Bars = pooled epoch means, dots = sessions by animal, chance dotted.</figcaption></figure>
+<figure id="fig2b"><img src="d_lp_lick.png" alt="Frozen decoder accuracy by position, LP lick gate" loading="lazy"><figcaption><b class="h">Fig 2b &middot; the same decoder, lick window, LP lick gate (render 10-24).</b> Compare far contra acute with the contact-gated version (0.50): the LP gate keeps the licks that missed. <span class="st prov">provisional</span></figcaption></figure>
+<figure id="fig2c"><img src="d_enl1s.png" alt="Pre-cue decoding at a 1 s window" loading="lazy"><figcaption><b class="h">Fig 2c &middot; pre-cue window shortened to 1.0 s.</b> Contact and LP gates agree within 0.03 here, so the difference from the 2 s window is window length, not licking. Per animal pre &rarr; acute: .29 &rarr; .15, .33 &rarr; .16, .54 &rarr; .30, .40 &rarr; .14.</figcaption></figure>
+</section>
+
+<section id="state" data-toc="3. Specificity: position vs state" data-kind="n">
+<span class="tag">Decoding &middot; specificity control</span>
+<h2>3. Position fails far more than behavioural state on the same cortex <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Input: DAQ running and contact define the states (running / licking / rest); engagement gate. Same window, basis and estimator as position; only the label changes.</p>
+<div class="tbl"><table>
+<tr><th>frozen decoder, above-chance (normalised)</th><th>pre</th><th>acute</th><th>subacute</th><th>chronic</th></tr>
+<tr><td>position</td><td>.863</td><td>.428</td><td>.696</td><td>.761</td></tr>
+<tr><td>behavioural state</td><td>.976</td><td>.872</td><td>.820</td><td>.838</td></tr>
+</table></div>
+<div class="take">Acutely position keeps 0.50 of its pre-stroke above-chance accuracy, state ~0.89, running alone 0.99 &rarr; 0.96. State does fall at the cohort level (acute &minus;0.069 [&minus;0.148, &minus;0.012], subacute &minus;0.104, chronic &minus;0.092, Bonferroni intervals exclude 0), so the claim is the <b>ratio</b> &mdash; position falls about five times further &mdash; never that state is flat. Values from the 10-15 re-render; <code>BEHAVIOURAL_STATE_CONTROL.md</code> still quotes older numbers.</div>
+<h4>Per animal (added 10-25): state decoder above chance, (accuracy &minus; 1/3) / (2/3)</h4>
+<div class="tbl"><table>
+<tr><th>animal</th><th>pre</th><th>acute</th><th>subacute</th><th>chronic</th></tr>
+<tr><td>PS92</td><td>.963</td><td>.939</td><td>.883</td><td>.873</td></tr>
+<tr><td>PS93</td><td>.978</td><td>.949</td><td>.961</td><td>.951</td></tr>
+<tr><td>PS94</td><td>.978</td><td>.747</td><td>.577</td><td>.447</td></tr>
+<tr><td>PS95</td><td>.985</td><td>.979 (1 session)</td><td>.915</td><td>.960</td></tr>
+</table></div>
+<div class="take"><b>Corrected 10-25:</b> the cohort-level state drop is carried by <b>PS94</b> (chronic &minus;0.53, still falling); the other three lose only 0.01&ndash;0.09. So in 3 / 4 animals the state readout is nearly intact while position falls by half acutely &mdash; the specificity claim is, if anything, stronger. PS94's state loss is its own question (its behaviour also recovers slowest). Session means, cue window, engaged trials; pre = leave one session out (state pre includes June, n = 11). Source: e3 per-animal tables from the 13n sidecars.</div>
+<figure id="fig3"><img src="d_state.png" alt="Position vs state frozen decoders" loading="lazy"><figcaption><b class="h">Fig 3 &middot; position vs state, frozen decoders, cue window.</b> Normalised above-chance accuracy by epoch.</figcaption></figure>
+<figure id="fig3b"><img src="d_state_delta.png" alt="State decoder change from pre" loading="lazy"><figcaption><b class="h">Fig 3b &middot; state decoder, change from pre with intervals.</b> Thick bar = 95 %, thin = Bonferroni.</figcaption></figure>
+<figure id="fig3c"><img src="s_per_animal.png" alt="Per-animal template amplitude, captured variance and state decoder" loading="lazy"><figcaption><b class="h">Fig 3c &middot; per animal: pre-stroke template amplitude, variance it captures, and the frozen state decoder.</b> Coloured = animals, black = mean of animals. Right panel: PS94 alone falls (section 3); left / middle: the template (section 6).</figcaption></figure>
+</section>
+
+<section id="recovery" data-toc="4. Recovery: frozen vs refit" data-kind="n">
+<span class="tag">Decoding &middot; is the old code back?</span>
+<h2>4. At behavioural recovery the frozen decoder is still below pre; a refit decoder is not <span class="kind n">neural</span><span class="st corr">corrected</span></h2>
+<p class="input">Input: engagement gate, cue window; training sets size-matched.</p>
+<h4>Per animal, raw accuracy, frozen (refit)</h4>
+<div class="tbl"><table>
+<tr><th>animal</th><th>pre</th><th>acute</th><th>subacute</th><th>chronic</th></tr>
+<tr><td>PS92</td><td>.722 (.786)</td><td>.475 (.566)</td><td>.605 (.760)</td><td>.739 (.860)</td></tr>
+<tr><td>PS93</td><td>.617 (.725)</td><td>.302 (.418)</td><td>.419 (.575)</td><td>.525 (.800)</td></tr>
+<tr><td>PS94</td><td>.763 (.854)</td><td>.406 (.574)</td><td>.563 (.770)</td><td>.630 (.862)</td></tr>
+<tr><td>PS95</td><td>.768 (.870)</td><td>.572 (.694), 1 session</td><td>.610 (.750)</td><td>.684 (.856)</td></tr>
+</table></div>
+<div class="take"><b>Corrected 10-23:</b> the earlier line "decoders recover with behaviour" does not hold. Extrapolated to zero behavioural deficit (mixed model), the frozen decoder is still +0.083 below pre (z 2.2); only PS92 is back (per animal &minus;.02 / .09 / .15 / .09). A refit decoder is back (&minus;0.01, z &minus;0.4). The gap between refit and frozen beyond its pre-stroke size is &gt; 0 in 4 / 4 animals (0.05&ndash;0.17) but not significant under the animals &rarr; sessions &rarr; blocks bootstrap, so "reorganisation" stays provisional.<br><b>Updated 10-25 with the October sessions</b> (the 10-07 table had dropped 2 chronic sessions per animal; now 12 / 12 / 8 / 11): frozen decoder chronic level / pre 1.04 / .85 / .83 / .90 and <b>flat in 4 / 4</b> (unchanged); refit 1.10 / 1.11 / 1.02 / .99; the reorganisation index G (.056 / .168 / .141 / .070) is <b>still rising in 3 / 4</b> (PS92, PS93, PS95; mixed-model log-day slope +.030, z 4.5, section 13) &mdash; but the June &rarr; August group below shows G of this size from two months of drift alone, so read it as "still drifting", not reorganisation beyond drift.</div>
+<figure id="fig4"><img src="d_recovery.png" alt="Frozen and refit decoder accuracy over recovery per animal" loading="lazy"><figcaption><b class="h">Fig 4 &middot; frozen vs refit over recovery, per animal.</b> The vertical gap between the two lines is the code that a pre-stroke reader can no longer use.</figcaption></figure>
+<figure id="fig4b"><img src="d_refitgap.png" alt="Refit minus frozen gap change from pre" loading="lazy"><figcaption><b class="h">Fig 4b &middot; refit &minus; frozen gap, change from pre, by position.</b> Matched chronic gap: near middle +0.267, far contra +0.130 (Bonferroni).</figcaption></figure>
+<h4>No-stroke comparison group: June pre &rarr; August pre (added 10-24)</h4>
+<p>To ask how much of the chronic gap two months of time alone produces, June plays "pre" and August plays "post": a decoder frozen on the June sessions is scored on each August session (~65 days later, no stroke). Its twin is frozen on August pre and scored on each post-stroke session (chronic ~40 days later). Both arms are size-matched to the refit, cue window, licking trials, and each is measured against its own leave-one-out baseline. Frozen deficit (F) = baseline frozen accuracy minus scored; refit gain (G) = (refit &minus; frozen) minus the same at baseline.</p>
+<div class="tbl"><table>
+<tr><th>animal</th><th>F: June &rarr; Aug (no stroke)</th><th>F: Aug &rarr; acute</th><th>F: Aug &rarr; chronic</th><th>G: June &rarr; Aug</th><th>G: Aug &rarr; chronic</th></tr>
+<tr><td>PS92</td><td>.13</td><td>.12</td><td>.03</td><td>.09</td><td>.11</td></tr>
+<tr><td>PS93</td><td>.28</td><td>.27</td><td>.09</td><td>.16</td><td>.21</td></tr>
+<tr><td>PS94</td><td>.17</td><td>.35</td><td>.18</td><td>.18</td><td>.20</td></tr>
+<tr><td>PS95</td><td>.18</td><td>.20 (1 session)</td><td>.11</td><td>.18</td><td>.11</td></tr>
+</table></div>
+<div class="take"><b>The chronic frozen deficit is no larger than two months of pre-stroke drift</b> (chronic below the June &rarr; August value in 3 / 4, PS94 equal), and the chronic refit gain is about the size of the no-stroke one (0.11&ndash;0.21 vs 0.09&ndash;0.18). Even the acute deficit exceeds the no-stroke value only in PS94 &mdash; though it arrives within days rather than two months. So "the frozen decoder is not back" and "reorganisation G &gt; 0" cannot be told apart from ordinary drift with this readout. Caveats: June &rarr; August also includes learning (the animals were still improving in June), so the drift arm is an upper bound on drift alone; the June arm has 3 training sessions, the August arm 8; the gaps differ (~65 vs ~40 days). <span class="st prov">first run 10-24</span></div>
+<figure id="fig4c"><img src="j_drift.png" alt="June to August drift comparison, distance and decoder" loading="lazy"><figcaption><b class="h">Fig 4c &middot; no-stroke comparison group.</b> Top: crossnobis distance of each session from a template by days apart (green squares = August vs June template, no stroke; red / orange / blue = acute / subacute / chronic vs August template; dotted = August vs other August). Bottom: frozen (grey) and refit (pink) accuracy per session; green band = the no-stroke arm; "&larr; X" = frozen on X. Source <code>chronic_stability/june_august_drift/</code>, <code>scripts/june_august_drift.py</code>.</figcaption></figure>
+</section>
+
+<section id="attempts" data-toc="5. Failed attempts: decoder" data-kind="n">
+<span class="tag">LP attempt classes &middot; first run 10-24</span>
+<h2>5. On a failed attempt, the decoder keeps "far" but loses the side <span class="kind n">neural</span><span class="st prov">first run</span></h2>
+<p class="input">Input: LP attempt classes (hit / incomplete attempt / jaw-only reaction / no attempt / stopped) from the video; decoders trained on pre-stroke contact trials.</p>
+<div class="tbl"><table>
+<tr><th>animal</th><th>pre far contra (cue / lick)</th><th>acute incomplete, cue</th><th>lick</th><th>decoded "a far spout": incomplete vs stopped</th></tr>
+<tr><td>PS92</td><td>.86 / .91</td><td>.24</td><td>.14</td><td>.58 vs .41 (p .06)</td></tr>
+<tr><td>PS93</td><td>.76 / .86</td><td>.08</td><td>.13</td><td>.68 vs .34 (p .001)</td></tr>
+<tr><td>PS94</td><td>.88 / .88</td><td>.38</td><td>.43</td><td>.90 vs .49 (p &lt; .001)</td></tr>
+<tr><td>PS95</td><td>.93 / .92</td><td>.33</td><td>.22</td><td>.85 vs .18 (vs no attempt; 1 session)</td></tr>
+</table></div>
+<div class="take">Failed acute far-contra attempts lose the far-contra code (PS92 / PS93 at the stopped-trial floor) but are decoded as <i>a far spout</i> more than stopped trials: 4 / 4 in direction, 3 / 4 at p &lt; .01. Distance kept, side lost. No pre-cue signature. Not yet separable from the failed movement itself.</div>
+<figure id="fig5"><img src="fig2_attempt_decoder.png" alt="Frozen decoder by trial class, acute" loading="lazy"><figcaption><b class="h">Fig 5 &middot; frozen decoder by attempt class, acute</b> (from the encoding window's page). Top: probability of the true spout, chance dotted. Bottom: share decoded as any far spout.</figcaption></figure>
+<figure id="fig5b"><img src="fig2b_attempt_decoder_epochs.png" alt="Frozen decoder by trial class across epochs" loading="lazy"><figcaption><b class="h">Fig 5b &middot; across epochs.</b> Classes with &ge; 5 trials; solid = pre-stroke hits. Failed attempts stay low in every epoch; hits recover but stay below pre.</figcaption></figure>
+</section>
+
+<section id="encoder" data-toc="6. Pre-stroke position template" data-kind="n">
+<span class="tag">Encoding &middot; simple position template (not the full model)</span>
+<h2>6. The pre-stroke spatial template: amplitude returns, shape does not <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Input: DAQ cue and contact (lick window contact-gated). The "encoder" is each position's mean cortical pattern; a session is scored by how much between-position variance the pre-stroke template explains after one amplitude rescale, against a size-matched pre pool.</p>
+<h4>Per animal (added 10-25; session means, cue window, engaged; pre = leave one session out, August, n = 8)</h4>
+<div class="tbl"><table>
+<tr><th>animal</th><th>amplitude a: pre / acute / subacute / chronic</th><th>variance captured (frozen / ceiling)</th></tr>
+<tr><td>PS92</td><td>.96 / .66 / .78 / 1.19</td><td>.71 / .32 / .39 / .45</td></tr>
+<tr><td>PS93</td><td>.96 / .17 / .59 / .84</td><td>.73 / .11 / .37 / .38</td></tr>
+<tr><td>PS94</td><td>.93 / .17 / .64 / .68</td><td>.66 / .11 / .42 / .47</td></tr>
+<tr><td>PS95</td><td>.91 / .44 / .69 / .73</td><td>.56 / .06 / .30 / .24</td></tr>
+</table></div>
+<div class="tbl"><table>
+<tr><th>post-cue, pooled (full-cohort sidecar, 10-07)</th><th>pre</th><th>acute</th><th>subacute</th><th>chronic</th></tr>
+<tr><td>fitted amplitude a</td><td>.943</td><td>.361</td><td>.675</td><td>.883</td></tr>
+<tr><td>variance captured (09-10 numbers)</td><td>61 %</td><td>18 %</td><td>36 %</td><td>41 %</td></tr>
+</table></div>
+<div class="take"><b>Corrected 10-25 (per animal):</b> the amplitude falls in 4 / 4 but returns to pre only in PS92 / PS93 (PS94 .68, PS95 .73 of ~.93 still below) &mdash; "fully returns" was the pooled 09-10 three-animal number (.749 &rarr; .745). The variance the pre-stroke template captures stays below pre in <b>4 / 4</b>, so the shape claim stands. Mixed model (section 13): amplitude steps &minus;0.62 at the stroke (z &minus;3.8), recovers with log-day (+0.16, q .003) and tracks the deficit (z &minus;8.7). Per position: far contra's ceiling is unchanged acutely (0.628 &rarr; 0.626) while its captured fraction falls 0.55 &rarr; 0.01 &mdash; its code is displaced, not degraded; the neighbours lose ceiling (far ipsi &minus;0.323, far mid &minus;0.270). Figures rendered 10-07 on the full cohort; per-animal panels in Fig 3c.</div>
+<figure id="fig6"><img src="e_amp.png" alt="Template amplitude by epoch" loading="lazy"><figcaption><b class="h">Fig 6 &middot; template amplitude a by epoch</b> (post-cue, engagement gate).</figcaption></figure>
+<figure id="fig6b"><img src="e_ceiling.png" alt="Encoder ceiling" loading="lazy"><figcaption><b class="h">Fig 6b &middot; ceiling vs captured.</b> Ceiling = what any template could explain that day; captured = what the pre-stroke one does.</figcaption></figure>
+<figure id="fig6c"><img src="e_captured.png" alt="Captured fraction by position" loading="lazy"><figcaption><b class="h">Fig 6c &middot; captured fraction by position.</b> Far contra: 0.55 &rarr; 0.01 acute, 0.28 chronic.</figcaption></figure>
+</section>
+
+<section id="maps" data-toc="7. Maps: far-contra amplitude" data-kind="n">
+<span class="tag">Anatomy &middot; rest-referenced position maps</span>
+<h2>7. The far-contra cortical response roughly halves acutely and returns <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Input: engagement gate (contact trials), referenced to each session's rest; LP lick gate in Fig 7c&ndash;d.</p>
+<div class="tbl"><table>
+<tr><th>far contra amplitude / pre</th><th>PS92</th><th>PS93</th><th>PS94</th><th>PS95</th></tr>
+<tr><td>acute (cue window)</td><td>.50</td><td>.45</td><td>.53</td><td>.40</td></tr>
+<tr><td>chronic</td><td>.90</td><td>.98</td><td>.60</td><td>1.12</td></tr>
+</table></div>
+<div class="take">Acute far contra 0.47 of pre pooled (1,190 of 2,022 bins significant), 4 / 4 animals; far middle 0.68; near ipsi rises to 1.46. Chronic far contra 0.93 (PS94 still 0.60). The acute far-contra shape replicates across animals (r +0.86 vs null +0.08). Around the lick under the LP gate: 0.67 acute (502 bins) &rarr; 1.02 &rarr; 1.03; per animal &minus;55 / &minus;48 / &minus;38 / +2 % (contra hemisphere &minus;49 / &minus;48 / &minus;27 / +36 %; PS95 one session) &mdash; 3 / 4. Caveat: the pre-stroke rest SD rises ~1.29&times; after stroke, so amplitude ratios carry some general gain change.</div>
+<figure id="fig7"><img src="m_rest_animal.png" alt="Position maps per animal, rest reference, cue" loading="lazy"><figcaption><span class="st">contact</span> <b class="h">Fig 7 &middot; per animal, cue window, rest reference.</b> Rows = epochs, columns = positions; shared colour scale per animal. <i>LP twin: Fig 7l.</i></figcaption></figure>
+<figure id="fig7b"><img src="m_rest_pooled.png" alt="Pooled position maps with significance" loading="lazy"><figcaption><span class="st">contact</span> <b class="h">Fig 7b &middot; pooled with significance.</b> Contours = nested bootstrap (animals &rarr; sessions), on an eroded mask. <i>LP twin: Fig 7l.</i></figcaption></figure>
+<figure id="fig7c"><img src="m_lp_animal.png" alt="Position maps per animal, LP lick gate" loading="lazy"><figcaption><span class="st">LP lick</span> <b class="h">Fig 7c &middot; per animal, lick window, LP lick gate (10-24).</b> <span class="st prov">provisional</span></figcaption></figure>
+<figure id="fig7d"><img src="m_lp_pooled.png" alt="Pooled position maps, LP lick gate" loading="lazy"><figcaption><span class="st">LP lick</span> <b class="h">Fig 7d &middot; pooled, lick window, LP lick gate.</b> Far contra 0.67 acute, back by subacute. <i>contact twin: Fig 7f.</i></figcaption></figure>
+<p class="input">Figs 7e&ndash;7j: the same position maps under the other references and gates (15r family). REST ref = each session&rsquo;s time-local rest baseline; PRECUE ref = each trial&rsquo;s own pre-cue window, so it shows the cue-evoked <i>increment</i> and removes the anticipatory position signal. PRECUE has no ENL panel by construction. Every map is labelled with its gate (contact = DAQ spout contact; LP lick = Lightning Pose lick attempts) and names its twin under the other gate. ENL (Fig 7j) is defined on lick-free trials, so the gate barely matters there and it has no twin. Fig 7k compares the stroke changes with map drift between June and August pre-stroke sessions (no stroke).</p>
+<figure id="fig7e"><img src="p_ct_pre_cue.png" alt="Position maps, pre-cue reference, cue window, contact gate" loading="lazy"><figcaption><span class="st">contact</span> <b class="h">Fig 7e &middot; PRECUE reference, cue window, contact gate.</b> Pooled over 4 animals; difference columns are within-animal (each animal minus its own pre), contours = nested bootstrap with max-statistic correction. Acute amplitude / own pre: far contra 0.18, far middle 0.52, far ipsi 1.00, near positions 1.55&ndash;1.69. The cue-evoked increment falls more than the rest-referenced map (Fig 7b, 0.47); chronic far contra is above pre. <i>LP twin: Fig 7m.</i></figcaption></figure>
+<figure id="fig7f"><img src="p_ct_rest_lick.png" alt="Position maps, rest reference, lick window, contact gate" loading="lazy"><figcaption><span class="st">contact</span> <b class="h">Fig 7f &middot; REST reference, lick window, contact gate</b> (compare the LP-gated Fig 7d). Pooled over 4 animals; difference columns are within-animal (each animal minus its own pre), contours = nested bootstrap with max-statistic correction. <i>LP twin: Fig 7d.</i></figcaption></figure>
+<figure id="fig7g"><img src="p_ct_pre_lick.png" alt="Position maps, pre-cue reference, lick window, contact gate" loading="lazy"><figcaption><span class="st">contact</span> <b class="h">Fig 7g &middot; PRECUE reference, lick window, contact gate.</b> Pooled over 4 animals; difference columns are within-animal (each animal minus its own pre), contours = nested bootstrap with max-statistic correction. <i>LP twin: Fig 7h.</i></figcaption></figure>
+<figure id="fig7h"><img src="p_lp_pre_lick.png" alt="Position maps, pre-cue reference, lick window, LP gate" loading="lazy"><figcaption><span class="st">LP lick</span> <b class="h">Fig 7h &middot; PRECUE reference, lick window, LP lick gate.</b> Pooled over 4 animals; difference columns are within-animal (each animal minus its own pre), contours = nested bootstrap with max-statistic correction. <i>contact twin: Fig 7g.</i></figcaption></figure>
+<figure id="fig7i"><img src="p_ct_rest_precue.png" alt="Position maps, rest reference, pre-cue window, contact gate" loading="lazy"><figcaption><span class="st">contact</span> <b class="h">Fig 7i &middot; REST reference, pre-cue window, contact gate</b> (anticipatory position signal). Pooled over 4 animals; difference columns are within-animal (each animal minus its own pre), contours = nested bootstrap with max-statistic correction. <i>LP twin: Fig 7n.</i></figcaption></figure>
+<figure id="fig7j"><img src="p_enl_rest.png" alt="Position maps, rest reference, ENL pre-cue window" loading="lazy"><figcaption><b class="h">Fig 7j &middot; REST reference, ENL (1 s lick-free pre-cue window), DAQ contact licks.</b> Pooled over 4 animals; difference columns are within-animal (each animal minus its own pre), contours = nested bootstrap with max-statistic correction. Acute amplitude / own pre: far contra 1.67, far ipsi 1.10, far middle 1.00, near ipsi 1.72, near middle 0.42, near contra 0.55 &mdash; the far-contra loss seen after the cue is not present in the lick-free pre-cue window; chronic far contra falls below pre.</figcaption></figure>
+<figure id="fig7k"><img src="p_drift_rest_cue.png" alt="Map drift June to August pre beside stroke changes, rest reference, cue, contact" loading="lazy"><figcaption><b class="h">Fig 7k &middot; map drift without a stroke (June &rarr; August pre) beside the stroke changes &mdash; REST reference, cue window, contact gate.</b> Columns: June pre | August pre | Aug &minus; June (no stroke; scaled by June maps) | acute &minus; Aug pre | chronic &minus; Aug pre (scaled by August maps). Same maps and test as Fig 7b; pooled within animal; contours = nested animals &rarr; sessions bootstrap; 4 animals, 12 June / 32 August sessions. Ratio = amplitude vs the reference epoch. <b>Far contra:</b> drift is small (Aug / June .95, 7 of 2,022 bins significant) against the acute loss (.49, 1,178 bins); chronic 1.02 with lateral frontal / motor increases &mdash; drift does not explain the far-contra acute loss. <b>Far middle is the exception:</b> drift (.77, 244 bins) is as large as the acute change (.71, 151 bins), so the far-middle acute loss cannot be separated from drift. Far ipsi drifts as much (.76, 294 bins) but shows no acute change (1.06, 6 bins). <span class="st prov">provisional until the other arms render</span> <b>Other positions:</b> drift .76&ndash;.94, mostly small decreases; their stroke changes are mostly increases (near ipsi acute 1.51, chronic 1.43) &mdash; opposite in sign to the drift. Chronically a bilateral anterolateral (ALM / MOs-like) increase appears at most positions. Caveat: June still includes learning, so the drift column is an upper bound on drift alone; June has ~3 sessions per animal vs ~8 in August. Script <code>scripts/map_drift_prepre.py</code> (ccf631a); the LP, pre-cue-reference and ENL arms are rendering.</figcaption></figure>
+<figure id="fig7l"><img src="p_lp_rest_cue.png" alt="Position maps, rest reference, cue window, LP lick gate" loading="lazy"><figcaption><span class="st">LP lick</span> <b class="h">Fig 7l &middot; REST reference, cue window, LP lick gate (10-24).</b> Contact twin: Figs 7 / 7b.</figcaption></figure>
+<figure id="fig7m"><img src="p_lp_pre_cue.png" alt="Position maps, pre-cue reference, cue window, LP lick gate" loading="lazy"><figcaption><span class="st">LP lick</span> <b class="h">Fig 7m &middot; PRECUE reference, cue window, LP lick gate (10-24).</b> Contact twin: Fig 7e.</figcaption></figure>
+<figure id="fig7n"><img src="p_lp_rest_precue.png" alt="Position maps, rest reference, pre-cue window, LP lick gate" loading="lazy"><figcaption><span class="st">LP lick</span> <b class="h">Fig 7n &middot; REST reference, pre-cue window, LP lick gate (10-24).</b> Contact twin: Fig 7i.</figcaption></figure>
+</section>
+
+<section id="attmaps" data-toc="8. Failed attempts: maps" data-kind="n">
+<span class="tag">LP attempt classes &middot; first run 10-24</span>
+<h2>8. Failed attempts look like weak hits &mdash; or like misses <span class="kind n">neural</span><span class="st prov">first run</span></h2>
+<p class="input">Input: LP attempt classes, aligned to the first video lick; pre-stroke contact-defined misses as the touch control. No model.</p>
+<div class="tbl"><table>
+<tr><th>acute failed far-contra attempt, lick window (ipsi | contra hemisphere)</th><th>PS92</th><th>PS93</th><th>PS94</th><th>PS95</th></tr>
+<tr><td>/ pre-stroke hits</td><td>.40 | .45</td><td>.38 | .42</td><td>.57 | .74</td><td>.90 | 1.25</td></tr>
+<tr><td>/ pre-stroke misses (touch control)</td><td>.30 | .27</td><td>.92 | .85</td><td>.42 | .44</td><td>1.58 | 1.72</td></tr>
+</table></div>
+<div class="take">Same bilateral pattern as hits, smaller in 3 / 4 &mdash; but against touch-matched pre-stroke misses only 2 / 4, so much of the drop is the missing touch and reward. Ipsilesional ALM reduced more than contralesional in 4 / 4. No statistics yet.</div>
+<figure id="fig8"><img src="a_maps.png" alt="Trial-class maps, far contra, lick window" loading="lazy"><figcaption><b class="h">Fig 8 &middot; trial-class maps, far contra, lick window.</b> Per animal + mean; subacute / chronic failed attempts pooled over sessions.</figcaption></figure>
+<figure id="fig8b"><img src="a_maps_minus.png" alt="Trial-class maps minus pre hits" loading="lazy"><figcaption><b class="h">Fig 8b &middot; minus each animal's pre-stroke hits.</b></figcaption></figure>
+</section>
+
+<section id="cd" data-toc="9. Coding directions" data-kind="n">
+<span class="tag">CD trajectories</span>
+<h2>9. Coding directions: a growing shared mode, far contra drifting toward far centre <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Input: DAQ contact (lick-gated trials; lick alignment = first contact). Per-position one-vs-rest directions in each animal's frozen basis.</p>
+<div class="take"><b>Read first:</b> the six one-vs-rest directions nearly cancel (they sum to length 0.29 of a possible 6), so any signal shared by all trials is forced to split sign across positions &mdash; e.g. PS95 pre-cue close centre +14.1 is +14.3 shared and &minus;0.2 position-specific. Every panel removes the shared (condition-independent) mode first. That shared mode both <b>grows</b> (magnitude / pre above 1 in 12 / 12 animal &times; epoch cells: PS92 1.10 / 1.61 / 1.28, PS93 1.32 / 1.49 / 1.75, PS94 1.17 / 1.21 / 1.74, PS95 1.51 / 1.35 / 1.32) and <b>rotates</b> (overlap below its trial-matched ceiling in 36 / 36 cells). Acute far-contra trials move toward the far-centre direction (+1.19 [+0.08, +2.72], 4 / 4 in sign); the stronger "usurpation" reading is retracted (1 / 4).</div>
+<h4>Leave-one-session-out refit, far contra, pre-cue (pre / acute / subacute / chronic)</h4>
+<div class="tbl"><table>
+<tr><th>animal</th><th>pre</th><th>acute</th><th>subacute</th><th>chronic</th></tr>
+<tr><td>PS92</td><td>.87</td><td>&minus;.13</td><td>.71</td><td>.63</td></tr><tr><td>PS93</td><td>.85</td><td>.67</td><td>.61</td><td>.72</td></tr><tr><td>PS94</td><td>.62</td><td>.64</td><td>.25</td><td>.28</td></tr><tr><td>PS95</td><td>.65</td><td>&minus;1.41 (1 session)</td><td>.33</td><td>.64</td></tr>
+</table></div>
+<p>Held-out pre (all positions) is 0.66&ndash;0.87, the cross-day cost of a pre-stroke direction; acute far contra drops in 3 / 4 (not PS94). <span class="st prov">provisional</span> The mixed-model tables on these values are due a re-run (their behavioural deficit index came from an incomplete attempts table).</p>
+<figure id="fig9"><img src="c_cim.png" alt="Shared mode geometry vs ceiling" loading="lazy"><figcaption><b class="h">Fig 9 &middot; shared-mode geometry against its ceiling.</b> Overlap (rotation) and magnitude per animal and epoch; ceiling = trial-matched pre-vs-pre.</figcaption></figure>
+<figure id="fig9b"><img src="c_migration.png" alt="Migration contrast" loading="lazy"><figcaption><b class="h">Fig 9b &middot; migration.</b> Projection of far-contra trials onto each other position's direction, change from pre; boxed = family-wise significant (pre early-vs-late null: 0 cells).</figcaption></figure>
+<figure id="fig9c"><img src="c_window_precue.png" alt="CD leave-one-out window means, pre-cue" loading="lazy"><figcaption><b class="h">Fig 9c &middot; leave-one-out window means, pre-cue.</b> Pre-stroke points held out, so they are comparable with post-stroke points.</figcaption></figure>
+<figure id="fig9d"><img src="c_window_cue.png" alt="CD leave-one-out window means, cue" loading="lazy"><figcaption><b class="h">Fig 9d &middot; leave-one-out, cue window.</b> Far contra pre / acute: .77 / .21, .81 / .59, .71 / .53, .89 / 1.02.</figcaption></figure>
+<figure id="fig9e"><img src="c_traj_cue.png" alt="CD leave-one-out trajectories, cue" loading="lazy"><figcaption><b class="h">Fig 9e &middot; leave-one-out mean trajectories, cue-aligned.</b></figcaption></figure>
+<figure id="fig9f"><img src="cp_window_precue.png" alt="CD leave-one-out window means, pre-cue, pooled within animal" loading="lazy"><figcaption><b class="h">Fig 9f &middot; pooled within animal, pre-cue window (pooled twin of Fig 9c).</b> Each animal minus its own held-out pre (pole units, pre = 0; 1 = the full not-P &rarr; P separation), pooled over animals; text = change vs pre (paired animals &rarr; sessions bootstrap, * = 95 % CI excludes 0) and animals below pre / 4. Pre = August only (~10 days), so like Fig 13c this family cannot show 2-month drift. Far contra: acute &minus;.81 [&minus;1.69, +.02] 3 / 4 (PS95 one session, &minus;2.06), subacute &minus;.28 [&minus;.45, &minus;.09]* 4 / 4, chronic &minus;.18 [&minus;.37, +.01] 4 / 4. Far middle chronic &minus;.51* 4 / 4 &mdash; but scored against August pre only, and far middle drifts as much without a stroke as it changes after one (Fig 7k), so treat it as not separable from drift. (Re-rendered 10-25 as differences; the earlier ratio version was distorted by a near-zero pre in close centre.)</figcaption></figure>
+<figure id="fig9g"><img src="cp_window_cue.png" alt="CD leave-one-out window means, cue, pooled within animal" loading="lazy"><figcaption><b class="h">Fig 9g &middot; pooled within animal, cue window (twin of Fig 9d).</b> Far contra: acute &minus;.21 [&minus;.49, +.07] 3 / 4, subacute &minus;.15 [&minus;.26, &minus;.03]* 4 / 4, chronic &minus;.13 [&minus;.32, +.11] 3 / 4.</figcaption></figure>
+<figure id="fig9h"><img src="cp_traj_cue.png" alt="CD leave-one-out trajectories, cue, pooled within animal" loading="lazy"><figcaption><b class="h">Fig 9h &middot; pooled within animal, cue-aligned trajectories (twin of Fig 9e).</b> Each animal&rsquo;s session-mean trace minus its pre window mean, then mean &plusmn; SEM over animals; shaded = window used for the means.</figcaption></figure>
+<figure id="fig9i"><img src="cp_traj_precue.png" alt="CD leave-one-out trajectories, pre-cue, pooled" loading="lazy"><figcaption><b class="h">Fig 9i &middot; pooled within animal, pre-cue-aligned trajectories.</b></figcaption></figure>
+<figure id="fig9j"><img src="cp_window_lick.png" alt="CD leave-one-out window means, lick, pooled" loading="lazy"><figcaption><b class="h">Fig 9j &middot; pooled within animal, lick window.</b> No consistent change (far contra acute +.39 [&minus;.31, +1.40], 2 / 4 below pre, driven by PS94; chronic &minus;.15, 3 / 4).</figcaption></figure>
+<figure id="fig9k"><img src="cp_traj_lick.png" alt="CD leave-one-out trajectories, lick, pooled" loading="lazy"><figcaption><b class="h">Fig 9k &middot; pooled within animal, lick-aligned trajectories.</b></figcaption></figure>
+</section>
+
+<section id="rsa" data-toc="10. Representational distance" data-kind="n">
+<span class="tag">RSA &middot; crossnobis</span>
+<h2>10. The representation moves focally at first, broadly later &mdash; at the rate of normal drift <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Input: engagement gate. Crossnobis (noise-unbiased) distance from the animal's own pre-stroke pattern.</p>
+<div class="tbl"><table>
+<tr><th>animal</th><th>chronic drift rate minus pre-stroke drift rate (per day) [95 % CI]</th><th>mean distance, pre &rarr; chronic</th></tr>
+<tr><td>PS92</td><td>+.0059 [&minus;.017, .016]</td><td>0.37 &rarr; 3.01</td></tr>
+<tr><td>PS93</td><td>&minus;.0009 [&minus;.013, .008]</td><td>0.52 &rarr; 2.47</td></tr>
+<tr><td>PS94</td><td>+.0006 [&minus;.013, .007]</td><td>0.26 &rarr; 1.68</td></tr>
+<tr><td>PS95</td><td>+.0068 [&minus;.011, .016]</td><td>0.34 &rarr; 2.47</td></tr>
+</table></div>
+<p class="input">Re-run 10-25 with the October chronic sessions included: drift-consistent in 4 / 4, table unchanged.</p>
+<div class="take">Acutely the displacement is focal: far contra +1.02 (corrected CI 0.74&ndash;1.48), more than 3&times; any other position. Chronically it is spread (near ipsi +0.84, near middle +0.54, far contra +0.48). The chronic rise in distance-from-pre does not exceed each animal's pre-stroke drift rate in any animal (all intervals span 0): drift, not reorganisation. Underpowered (June&ndash;August gap in the pre sessions).</div>
+<h4>No-stroke comparison group: distance from a template, June &rarr; August (added 10-24)</h4>
+<div class="tbl"><table>
+<tr><th>median distance (pre between-position units)</th><th>PS92</th><th>PS93</th><th>PS94</th><th>PS95</th></tr>
+<tr><td>August vs other August (short-gap floor)</td><td>.28</td><td>.36</td><td>.24</td><td>.27</td></tr>
+<tr><td>August vs June template, no stroke (~65 d)</td><td>.63</td><td>.95</td><td>.43</td><td>.59</td></tr>
+<tr><td>acute vs August template</td><td>.63</td><td>.66</td><td>.58</td><td>.90</td></tr>
+<tr><td>chronic vs August template (~37&ndash;43 d)</td><td>1.01</td><td>1.16</td><td>.43</td><td>.81</td></tr>
+</table></div>
+<div class="take">Unlike the decoder (section 4), the <b>level</b> of distance separates stroke from time: chronic sessions sit further from the August template than two months of no-stroke time moves August from June, in 3 / 4 animals (not PS94), over a shorter gap. The slope test above (rate of change within chronic) is still drift-consistent, so the reading is a one-time displacement after the stroke that then drifts at the normal rate. Same caveats as section 4 (June &rarr; August includes learning, so it overstates pure drift &mdash; which makes the 3 / 4 excess conservative). Fig 4c, top row. <span class="st prov">first run 10-24</span></div>
+<figure id="fig10"><img src="r_crossnobis.png" alt="Crossnobis distance from pre by position" loading="lazy"><figcaption><b class="h">Fig 10 &middot; distance from pre by position and epoch.</b> Bars = change from pre with intervals.</figcaption></figure>
+<figure id="fig10b"><img src="d_drift.png" alt="Chronic drift vs reorganisation per animal" loading="lazy"><figcaption><b class="h">Fig 10b &middot; drift vs reorganisation, per animal.</b> Within-chronic rate against the pre-stroke drift floor.</figcaption></figure>
+</section>
+
+<section id="enl" data-toc="11. Pre-cue code: sensory part" data-kind="n">
+<span class="tag">Pre-cue (ENL) &middot; sensory vs plan</span>
+<h2>11. Part of the pre-cue code survives when the animal has stopped, and after movement removal <span class="kind n">neural</span><span class="st prov">provisional</span></h2>
+<p class="input">Input: DAQ contact (lick-free gate) and engagement state; movement removal uses running + video motion energy only (no pose).</p>
+<div class="tbl"><table>
+<tr><th>pre-stroke balanced accuracy</th><th>success</th><th>miss while working</th><th>stopped</th></tr>
+<tr><td>PS92</td><td>.565</td><td>.227 (null)</td><td>.111 (null)</td></tr>
+<tr><td>PS93</td><td>.513</td><td>.302</td><td>.089 (null)</td></tr>
+<tr><td>PS94</td><td>.712</td><td>.314</td><td>.251</td></tr>
+<tr><td>PS95</td><td>.485</td><td>.328</td><td>.304</td></tr>
+</table></div>
+<div class="take">Success &gt; miss-while-working in 4 / 4. Position survives in stopped trials only in PS94 / PS95 (2 / 4: fails the 3-animal rule), so a sensory component exists but no fraction can be given. After removing running and video motion energy, the residual pre-cue code keeps ~40&ndash;50 % of the above-chance code (raw / residual: pre .40 / .26, acute .45 / .31, subacute .33 / .23, chronic .46 / .28) and tracks the raw code session by session (r .92 / .91 / .80 / .77). Linear removal may over-remove: a lower bound. The contact-defined classes are being replaced by the video attempt classes.</div>
+<figure id="fig11"><img src="d_enl_states.png" alt="Pre-cue decoding by behavioural state, pre-stroke" loading="lazy"><figcaption><b class="h">Fig 11 &middot; pre-cue decoding by state, pre-stroke.</b> Success / miss while working / stopped, per animal.</figcaption></figure>
+<figure id="fig11b"><img src="d_enl_move.png" alt="Movement-removed pre-cue decoding" loading="lazy"><figcaption><b class="h">Fig 11b &middot; raw vs movement-removed pre-cue decoding across recovery.</b></figcaption></figure>
+</section>
+
+<section id="rest" data-toc="12. Rest" data-kind="n">
+<span class="tag">Rest arm &middot; docked rest</span>
+<h2>12. Cortex at rest still carries the last spout position <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Input: engagement gate (rest frames inside the engaged session; docked, lick buffer 0.5&ndash;1.0 s).</p>
+<div class="take">Rest decodes position above its own null in 43 / 44 pre sessions (observed / null 1.63; PS92 1.47, PS93 2.00, PS94 1.72, PS95 1.46) and 94 / 96 sessions overall. It resembles the last target (r<sub>prev</sub> &minus; r<sub>next</sub> +0.077, 4 / 4). A frozen pre-stroke rest decoder retains 0.36 subacute and 0.51 chronic of its above-chance accuracy (refit 0.44 / 1.25). The acute cell is underpowered (per animal .61 / .28 / .09 / &minus;.09; PS95 one session) and is not quoted; the earlier "acute rest dip" is withdrawn.</div>
+<figure id="fig12"><img src="d_rest15f.png" alt="Frozen vs refit rest decoder" loading="lazy"><figcaption><b class="h">Fig 12 &middot; frozen vs refit rest decoder</b> (duration- and gap-matched).</figcaption></figure>
+</section>
+
+<section id="lmm" data-toc="13. Mixed models" data-kind="n">
+<span class="tag">Session-level mixed models &middot; re-run 10-25 on the rebuilt attempts table</span>
+<h2>13. Mixed models: recovery with time and with behaviour <span class="kind n">neural</span><span class="st stands">stands</span></h2>
+<p class="input">Per-session values, animal random effects (<code>scripts/imaging_lmm.py</code>). <b>time</b> model: step at the stroke + log(days) slope; <b>behaviour</b> model: slope against the behavioural deficit (default = time to first far-contra contact on LP-attempted trials; <code>--deficit contact</code> = contact-based). FDR within source; * = q &lt; .05. Re-run 10-25 by the FaceRhythm window on <code>trial_attempts.csv</code> 10-24 (complete cam1); the 10-21 tables used an attempts table with cam1 on 40 % / 0 % of PS94 / PS95 trials.</p>
+<div class="tbl"><table class="wide">
+<tr><th>measure</th><th>step at stroke</th><th>log-day slope</th><th>vs deficit (time-to-contact)</th><th>vs deficit (contact)</th><th>change vs 10-21</th></tr>
+<tr><td>frozen decoder (matched, post only)</td><td>day-1 level .41</td><td>+.064 (z 3.9)*</td><td>&minus;.040 (z &minus;3.2, q .009)*</td><td>&minus;.276 (z &minus;4.5)*</td><td>same</td></tr>
+<tr><td>refit decoder</td><td>day-1 level .51</td><td>+.094 (z 9.9)*</td><td>&minus;.059 (q .015)*</td><td>&minus;.377 (z &minus;4.0)*</td><td>same</td></tr>
+<tr><td>reorganisation G (refit &minus; frozen)</td><td>&ndash;</td><td>+.030 (z 4.5)*</td><td>n.s. (q .16)</td><td>n.s. (q .054)</td><td>slope stronger (was z 2.2)</td></tr>
+<tr><td>template amplitude (11amp)</td><td>&minus;.62 (z &minus;3.8)*</td><td>+.156 (q .003)*</td><td>&minus;.085 (z &minus;8.7)*</td><td>* </td><td>same</td></tr>
+<tr><td>template captured (11c frozen)</td><td>&minus;.37 (z &minus;5.0)*</td><td>+.058 (q .010)*</td><td>z &minus;7.9*</td><td>q .018*</td><td>same</td></tr>
+<tr><td>template ceiling (11c)</td><td>&minus;.16 (q .036)*</td><td>+.062 (q .009)*</td><td>n.s.</td><td>n.s.</td><td>same</td></tr>
+<tr><td>best-match accuracy (10)</td><td>&minus;.40 (z &minus;8.7)*</td><td>+.082 (z 5.9)*</td><td>z &minus;7.6*</td><td>*</td><td>same</td></tr>
+<tr><td>CD leave-one-out, far contra, pre-cue</td><td>&minus;.53 (z &minus;3.0, q .019)*</td><td>n.s.</td><td><b>n.s. (q .25)</b></td><td>q .050 (borderline)</td><td><b>was q .023</b></td></tr>
+<tr><td>CD leave-one-out, far contra, cue</td><td>&minus;.23 (q .062)</td><td>n.s.</td><td>n.s.</td><td>&minus;.22 (q .043)*</td><td>&ndash;</td></tr>
+<tr><td>position-coding ceiling (trend)</td><td>&minus;.014 (z &minus;1.0, q .31): none</td><td>+.014 (z 2.4, q .017)*</td><td><b>&minus;.008 (z &minus;1.5, q .13): n.s.</b></td><td>&minus;.050 (z &minus;3.9, q &lt; .001)*</td><td><b>CORRECTED: definition-dependent</b> (01:40 z &minus;4.0 came from stale trend tables)</td></tr>
+<tr><td>per-spout spread, post-cue (trend)</td><td>&ndash;</td><td>+.0007 (z 4.6)*</td><td>z &minus;4.5*</td><td>z &minus;5.3*</td><td>new 10-25</td></tr>
+<tr><td>per-spout spread, pre-cue ENL (trend)</td><td>&ndash;</td><td>+.0005 (z 5.8)*</td><td>z &minus;4.2*</td><td>z &minus;4.6*</td><td>new 10-25</td></tr>
+</table></div>
+<div class="take">Every decoder and template readout steps down at the stroke, recovers with log(time) and tracks the behavioural deficit session by session (the more impaired the session, the lower the code), under both deficit definitions. The reorganisation index G rises with time but does not track behaviour &mdash; consistent with drift (section 4's June &rarr; August group). Two rows moved with the rebuilt attempts table: the CD leave-one-out pre-cue projection no longer tracks the time-to-contact deficit (q .023 &rarr; .25; borderline with the contact deficit), and, after the trend family was re-run on the final-frame O2 runs (10-25 08:45), the position-coding ceiling tracks the deficit only under the contact definition (z &minus;3.9) and not under the default time-to-contact one (z &minus;1.5, q .13) &mdash; definition-dependent. The per-spout spread (post-cue and ENL) tracks the deficit under both. The pixel maps (section 7) are not in these models; they keep their bootstrap contours.</div>
+<figure id="fig13"><img src="m_dec_time.png" alt="Frozen and refit decoder over days, mixed model" loading="lazy"><figcaption><b class="h">Fig 13 &middot; frozen / refit decoder (matched, post-stroke) over days, with the mixed-model fit.</b> Panels: frozen, refit, gap; F_deficit, G_reorg, refit deficit. <b>F_deficit</b> = pre_frozen &minus; frozen: how much the old (pre-stroke) decoder stops working. <b>G_reorg</b> = (refit &minus; frozen) &minus; (pre_refit &minus; pre_frozen): information a newly fitted decoder finds that the old one cannot &mdash; moved, not lost. <b>Refit deficit</b> = pre_refit &minus; refit = F &minus; G: information missing even for a decoder allowed to relearn &mdash; genuinely weaker. Chronically refit is back (1.10 / 1.11 / 1.02 / .99 of pre), so the refit deficit is ~0. Triangles = sessions coloured by animal; line = fit (animal random effects). Titles give the day-1 level and log-day slope.</figcaption></figure>
+<figure id="fig13b"><img src="m_dec_beh.png" alt="Decoder against behavioural deficit" loading="lazy"><figcaption><b class="h">Fig 13b &middot; the same readouts against the behavioural deficit (time to far-contra contact).</b></figcaption></figure>
+<figure id="fig13c"><img src="m_tmpl_time.png" alt="Template measures over days" loading="lazy"><figcaption><b class="h">Fig 13c &middot; pre-stroke template (family 11) over days.</b></figcaption></figure>
+<figure id="fig13d"><img src="m_trend_time.png" alt="Position-coding trend over days" loading="lazy"><figcaption><b class="h">Fig 13d &middot; position-coding ceiling and per-spout spread (trend family) over days.</b> Re-run 10-25 on the final-frame O2 runs (107 August+ sessions). Ceiling (category &minus; none) per animal pre / acute / subacute / chronic: PS92 .041 / .071 / .080 / .108; PS93 .058 / .036 / .044 / .108; PS94 .040 / .027 / .036 / .037 (flat); PS95 .047 / .062 / .030 / .076. No acute step (&minus;.014, q .31); log-day slope +.014 (q .017); chronic +.038 (z 5.0) &mdash; a chronic level gain in 3 / 4. The beyond-practice-trend test cannot be repeated (no June sessions in these runs, so the pre span is 8 days). Spread slopes +.0007 (z 4.6) post-cue, +.0005 (z 5.8) ENL.</figcaption></figure>
+<figure id="fig13e"><img src="m_trend_beh.png" alt="Position-coding trend against time-to-contact deficit" loading="lazy"><figcaption><b class="h">Fig 13e &middot; ceiling and spread against the deficit, time-to-contact definition.</b> Ceiling &minus;.008 / unit (z &minus;1.5, q .13): not significant. Spread &minus;.00033 (z &minus;4.5), spread ENL &minus;.00021 (z &minus;4.2): significant.</figcaption></figure>
+<figure id="fig13f"><img src="m_trend_beh_contact.png" alt="Position-coding trend against contact deficit" loading="lazy"><figcaption><b class="h">Fig 13f &middot; the same against the contact deficit.</b> Ceiling &minus;.050 / unit (z &minus;3.9, q &lt; .001); spread z &minus;5.3, spread ENL z &minus;4.6. The ceiling result depends on the deficit definition; the spread result does not.</figcaption></figure>
+</section>
+
+<section id="closed" data-toc="Closed, corrected, not established">
+<span class="tag">Read before quoting older numbers</span>
+<h2>Closed, corrected and not established</h2>
+<ul>
+<li><b>Haemodynamics: closed, negative.</b> No evidence that 415 / 470 coupling increases after stroke. Rest HRF lag lengthens acutely (+0.16 s ipsi, +0.12 s contra, 4 / 4) but bilaterally and not in the evoked response.</li>
+<li><b>Preprocessing filter:</b> <code>meegkit_hpfit</code> adopted. The ~0.21 pre-cue inflation belonged to the retired zero-phase filter; current data are not smeared backwards.</li>
+<li><b>Corrected 10-25:</b> the cohort state-decoder drop is PS94 alone (section 3); the template amplitude returns in 2 / 4, not "fully" (section 6); CD leave-one-out vs deficit no longer significant on the rebuilt attempts table (section 13).</li>
+<li><b>Corrected:</b> "frozen decoder back at recovery" (section 4); acute rest-decode dip (withdrawn); CD "usurpation" (1 / 4); state-decoder numbers in older docs (use the 10-15 values in section 3).</li>
+<li><b>Superseded references:</b> QUIET and MEAN map references (use rest); the 09-12 amplitude tables.</li>
+<li><b>Not established:</b> a fraction of the pre-cue code that is "sensory" (2 / 4); reorganisation beyond drift (section 10); per-animal template numbers (section 6, pooled only).</li>
+</ul>
+</section>
+
+<section id="next" data-toc="Pending">
+<span class="tag">Coming next</span>
+<h2>Pending</h2>
+<ul>
+<li>Failed-attempt decoder and maps: movement-matched control; statistics on the trial-class maps (encoding window).</li>
+<li>Done 10-25: mixed models re-run on the rebuilt attempts table (section 13); per-animal state / template tables (sections 3, 6); chronic stability with the October sessions (sections 4, 10).</li>
+</ul>
+</section>
+</div></div>
+
+<script>
+(function () {
+  var list = document.getElementById('toclist');
+  document.querySelectorAll('section[data-toc]').forEach(function (s) {
+    var li = document.createElement('li');
+    var a = document.createElement('a'); a.href = '#' + s.id; a.textContent = s.getAttribute('data-toc');
+    var k = s.getAttribute('data-kind');
+    if (k) { var t = document.createElement('span'); t.className = 'kind ' + k; t.textContent = k === 'n' ? 'neural' : 'behaviour'; a.appendChild(t); }
+    li.appendChild(a);
+    var figs = s.querySelectorAll('figure[id]');
+    if (figs.length) {
+      // group by figure NUMBER (Fig 7, 7b ... 7n -> one collapsible "Fig 7" row), Priya 10-25
+      var ol = document.createElement('ol'); ol.className = 'sub';
+      var groups = [], byNum = {};
+      figs.forEach(function (f) {
+        var b = f.querySelector('figcaption b.h');
+        var txt = b ? b.textContent.replace(/[.:]$/, '') : f.id;
+        var m = /^fig(\d+)/.exec(f.id); var num = m ? m[1] : f.id;
+        if (!byNum[num]) { byNum[num] = []; groups.push(num); }
+        byNum[num].push({ id: f.id, txt: txt });
+      });
+      groups.forEach(function (num) {
+        var items = byNum[num];
+        var g = document.createElement('li');
+        var head = document.createElement('div'); head.className = 'grphead';
+        var a1 = document.createElement('a'); a1.href = '#' + items[0].id; a1.textContent = items[0].txt;
+        if (items.length > 1) {
+          var key = 'tocgrp-' + num, open = false;
+          try { open = localStorage.getItem(key) === '1'; } catch (e) {}
+          var tg = document.createElement('button'); tg.type = 'button'; tg.className = 'tg';
+          tg.setAttribute('aria-label', 'Show or hide figures ' + num + 'b onwards');
+          var sub = document.createElement('ol'); sub.className = 'sub2'; sub.hidden = !open;
+          tg.setAttribute('aria-expanded', String(open)); tg.textContent = (open ? '\u25BE ' : '\u25B8 ') + items.length;
+          tg.addEventListener('click', function () {
+            var o = sub.hidden; sub.hidden = !o; tg.setAttribute('aria-expanded', String(o));
+            tg.textContent = (o ? '\u25BE ' : '\u25B8 ') + items.length;
+            try { localStorage.setItem(key, o ? '1' : '0'); } catch (e) {}
+          });
+          items.slice(1).forEach(function (it) {
+            var l3 = document.createElement('li'); var a3 = document.createElement('a'); a3.href = '#' + it.id; a3.textContent = it.txt;
+            l3.appendChild(a3); sub.appendChild(l3);
+          });
+          head.appendChild(tg); head.appendChild(a1); g.appendChild(head); g.appendChild(sub);
+        } else {
+          head.appendChild(a1); g.appendChild(head);
+        }
+        ol.appendChild(g);
+      });
+      li.appendChild(ol);
+    }
+    list.appendChild(li);
+  });
+  var btn = document.getElementById('tocbtn');
+  function setClosed(c) { document.body.classList.toggle('closed', c); btn.setAttribute('aria-expanded', String(!c)); try { localStorage.setItem('tocClosed', c ? '1' : '0'); } catch (e) {} }
+  var saved = null; try { saved = localStorage.getItem('tocClosed'); } catch (e) {}
+  setClosed(saved === null ? window.innerWidth < 640 : saved === '1');
+  btn.addEventListener('click', function () { setClosed(!document.body.classList.contains('closed')); });
+  list.addEventListener('click', function (e) { if (e.target.closest('a') && window.innerWidth < 640) setClosed(true); });
+  var links = list.querySelectorAll('a');
+  // FIGURE VIEWER: click a figure -> full screen; wheel / pinch zoom about the pointer, drag / swipe to pan.
+  var lb = null, img, stage, s = 1, tx = 0, ty = 0, base = 1, ptrs = {}, pinch = null, drag = null, lastFocus = null;
+  function apply() { img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')'; }
+  function fit() {
+    var w = stage.clientWidth, h = stage.clientHeight, iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
+    base = Math.min(w / iw, h / ih); s = base; tx = (w - iw * s) / 2; ty = (h - ih * s) / 2; apply();
+  }
+  function zoomAt(f, cx, cy) {
+    var ns = Math.max(base * 0.5, Math.min(base * 12, s * f)); f = ns / s;
+    tx = cx - (cx - tx) * f; ty = cy - (cy - ty) * f; s = ns; apply();
+  }
+  function close() { if (lb) { lb.remove(); lb = null; document.removeEventListener('keydown', onKey); if (lastFocus) lastFocus.focus(); } }
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+    else if (e.key === '+' || e.key === '=') zoomAt(1.25, stage.clientWidth / 2, stage.clientHeight / 2);
+    else if (e.key === '-') zoomAt(0.8, stage.clientWidth / 2, stage.clientHeight / 2);
+    else if (e.key === '0') fit();
+  }
+  function open(src, title) {
+    lastFocus = document.activeElement;
+    lb = document.createElement('div'); lb.className = 'lb'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true'); lb.setAttribute('aria-label', 'Figure viewer');
+    var bar = document.createElement('div'); bar.className = 'lb-bar';
+    var t = document.createElement('div'); t.className = 't'; t.textContent = title;
+    function btn(label, fn) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', fn); bar.appendChild(b); return b; }
+    bar.appendChild(t);
+    btn('−', function () { zoomAt(0.8, stage.clientWidth / 2, stage.clientHeight / 2); });
+    btn('+', function () { zoomAt(1.25, stage.clientWidth / 2, stage.clientHeight / 2); });
+    btn('Fit', fit);
+    var cb = btn('Close', close);
+    stage = document.createElement('div'); stage.className = 'lb-stage';
+    img = document.createElement('img'); img.alt = title; img.draggable = false;
+    stage.appendChild(img); lb.appendChild(bar); lb.appendChild(stage); document.body.appendChild(lb);
+    img.onload = fit; img.src = src; if (img.complete) fit();
+    stage.addEventListener('wheel', function (e) { e.preventDefault(); var r = stage.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+    stage.addEventListener('dblclick', fit);
+    stage.addEventListener('pointerdown', function (e) {
+      stage.setPointerCapture(e.pointerId); ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var k = Object.keys(ptrs);
+      if (k.length === 2) { var a = ptrs[k[0]], b = ptrs[k[1]]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) }; drag = null; }
+      else if (k.length === 1) { drag = { x: e.clientX, y: e.clientY, moved: false }; stage.classList.add('drag'); }
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!ptrs[e.pointerId]) return;
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var k = Object.keys(ptrs), r = stage.getBoundingClientRect();
+      if (k.length === 2 && pinch) {
+        var a = ptrs[k[0]], b = ptrs[k[1]], d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch.d > 0) zoomAt(d / pinch.d, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+        pinch.d = d;
+      } else if (drag) {
+        var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+        tx += dx; ty += dy; drag.x = e.clientX; drag.y = e.clientY; apply();
+      }
+    });
+    function up(e) {
+      delete ptrs[e.pointerId];
+      if (Object.keys(ptrs).length < 2) pinch = null;
+      if (!Object.keys(ptrs).length) {
+        if (drag && !drag.moved && e.target === stage) close();      // click on the dark backdrop closes
+        drag = null; stage.classList.remove('drag');
+      }
+    }
+    stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+    document.addEventListener('keydown', onKey);
+    cb.focus();
+  }
+  document.querySelectorAll('figure img').forEach(function (im) {
+    im.tabIndex = 0;
+    im.setAttribute('role', 'button');
+    var cap = im.closest('figure').querySelector('figcaption b.h');
+    var title = cap ? cap.textContent : im.alt;
+    im.addEventListener('click', function () { open(im.currentSrc || im.src, title); });
+    im.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(im.currentSrc || im.src, title); } });
+  });
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (en) { if (en.isIntersecting) { links.forEach(function (l) { l.classList.toggle('on', l.getAttribute('href') === '#' + en.target.id); }); } }); }, { rootMargin: '-10% 0px -80% 0px' });
+    document.querySelectorAll('section[data-toc], figure[id]').forEach(function (el) { io.observe(el); });
+  }
+})();
+</script>
