@@ -14,7 +14,7 @@ baseline) as a NO-STROKE LONG-GAP reference: pairs August pre <-> June (both dir
 gap). The drift curve is then fit on pre -> pre AND June pairs, so chronic gaps are interpolated, not extrapolated; the
 June residual against the August-only curve says whether that extrapolation was right. Caveat: June is earlier in
 training, so June <-> August drift includes learning (makes the test conservative).
-Output <E>/iti_licks/where_drift[_june]_{pairs,tests}.csv, figures/iti_where_drift[_june].png.
+Output <E>/iti_licks/where_drift[_june]_{pairs,tests}.csv, figures/lick_where_drift[_june].png.
 Usage: python scripts/iti_where_drift.py [--june]
 """
 from __future__ import annotations
@@ -169,7 +169,7 @@ def main(argv=None) -> int:
                  f" [{t.loc[('trial', 'lat', 'chronic'), 'lo']:+.3f}, {t.loc[('trial', 'lat', 'chronic'), 'hi']:+.3f}]. "
                  "PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92 if june else 0.94))
-    fig.savefig(il.OUT / "figures" / f"iti_where_drift{sfx}.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / f"lick_where_drift{sfx}.png", dpi=95)
     plt.close(fig)
     return 0
 

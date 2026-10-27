@@ -11,7 +11,7 @@ grouping of 3.20 / 3.21, which depends on where the lick landed). Per spout, cha
                            (within-spout range is small, so r is low and spread-sensitive; read the offsets first).
 Cells need >= 15 licks per session x spout. Per-animal table first; paired nested bootstrap (animals > sessions).
 `--z` uses the within-session z-scored predictions (`iti_zscore_check.py`).
-Outputs <E>/iti_licks/per_spout[_z]_{by_animal,tests}.csv, figures/iti_where_per_spout[_z].png.
+Outputs <E>/iti_licks/per_spout[_z]_{by_animal,tests}.csv, figures/lick_where_per_spout[_z].png.
 """
 from __future__ import annotations
 
@@ -127,7 +127,7 @@ def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
                  "ITI licks by the previous trial's spout (fixed before the lick).\nOffset = decoded minus where "
                  "the animal's pre-stroke pull toward the middle alone would put the lick.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(il.OUT / "figures" / f"iti_where_per_spout{tag}.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / f"lick_where_per_spout{tag}.png", dpi=95)
     plt.close(fig)
 
 

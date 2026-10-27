@@ -9,7 +9,7 @@ mean of animals reported, per-animal table first. Pre is scored with the all-pre
 model), so the totals differ slightly from the leave-one-session-out numbers on the page.
 Also writes the decoder weights per area (w / sd, mm per dF/F unit) and the mean feature change, so a sign can be read
 as "this area going up pushes the decoded lick further / more contralesional".
-Outputs <E>/iti_licks/decoder_contrib.csv, figures/iti_decoder_contrib.png. Usage: python scripts/iti_decoder_contrib.py
+Outputs <E>/iti_licks/decoder_contrib.csv, figures/lick_decoder_contrib.png. Usage: python scripts/iti_decoder_contrib.py
 """
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ def plot(T: pd.DataFrame) -> None:
                  "bars = mean of animals, dots = animals; the 14 areas with the largest chronic contribution per row; "
                  "contributions sum to the shift of the mean decoded position.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / "iti_decoder_contrib.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / "lick_decoder_contrib.png", dpi=95)
     plt.close(fig)
 
 

@@ -9,7 +9,7 @@ extraction's subsample (<= 1500 / session), so every class keeps its share.
 Per animal x lick class (first / later) x spout x epoch: landing shift (actual - the animal's pre mean for that spout and
 class), decoded shift (same), offset beyond the pull (decoded shift - b x landing shift; b = the animal's pre slope,
 fit on all pre cued licks). Change vs pre = paired nested bootstrap over sessions; first - later difference per session.
-Outputs <E>/iti_licks/first_lick_{preds.csv.gz,sessions.csv,tests.csv}, figures/cued_first_lick.png.
+Outputs <E>/iti_licks/first_lick_{preds.csv.gz,sessions.csv,tests.csv}, figures/lick_cued_first_lick.png.
 Usage: python scripts/iti_first_lick.py
 """
 from __future__ import annotations
@@ -173,7 +173,7 @@ def plot(T: pd.DataFrame) -> None:
                  "decoder (z-scored Allen areas); 95% paired nested bootstrap CI, k/n animals. + = contralesional.\n"
                  f"Beyond-pull FIRST - LATER, change vs pre (PROVISIONAL):\n{txt}", fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 0.82))
-    fig.savefig(il.OUT / "figures" / "cued_first_lick.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / "lick_cued_first_lick.png", dpi=100)
     plt.close(fig)
 
 

@@ -14,7 +14,7 @@ Same licks (`<E>/iti_licks/sessions/*.npz`: ITI and in-trial post-cue licks, 3-D
 ridge per animal trained on its AUGUST pre-stroke licks of the set, pre sessions leave-one-session-out, features =
 activity averaged over lags 0..0.2 s from the lick peak (and per lag for the time course).
 Outputs <E>/iti_licks/basis_<source>/sessions/<label>.npz, <E>/iti_licks/basis_decoder.csv,
-figures/iti_basis_decoder.png.
+figures/lick_basis_decoder.png.
 Usage: python scripts/iti_basis_decoder.py [--sources locanmf svdbasis] [--jobs 2] [--summarise]
 """
 from __future__ import annotations
@@ -189,7 +189,7 @@ def summarise(sources) -> None:
                  "normalised to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.\n" + il.SIG_NOTE,
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "iti_basis_decoder.png", dpi=110)
+    fig.savefig(il.OUT / "figures" / "lick_basis_decoder.png", dpi=110)
     plt.close(fig)
 
 

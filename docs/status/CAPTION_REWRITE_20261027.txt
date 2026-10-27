@@ -1,0 +1,134 @@
+CAPTION REWRITE 2026-10-27: offset captions -> SAME-PLACE like-for-like read-out (primary; DECISIONS 2026-10-27 late).
+Source of numbers: iti_licks/matched_place_tests.csv (measure resid). Page: _goal_page/index.html.
+
+== Where things stand, Synthesis row 1 (lateral read-out shift)
+OLD: Frozen pre-stroke decoder (z-scored Allen areas), offset beyond its pre pull, change vs pre. <b>Lateral</b>: ITI +0.33 acute &rarr; +0.22 &rarr; +0.25 mm chronic (4/4 each; PS94 +0.55, its acute level); cued +0.19 acute (4/4) &rarr; +0.05 &rarr; &minus;0.03 (resolved). <b>Distance</b> (down &asymp; sagittal extension): acute +0.20
+NEW: Frozen pre-stroke decoder (z-scored Allen areas), change vs pre. <b>Lateral, like-for-like (same place, primary</b>: each lick vs the animal&rsquo;s pre licks that landed at the same place, <a href="#f-lick_matched_place_readout">3.15</a>): ITI +0.31 [+0.15, +0.47] acute &rarr; +0.21 [+0.08, +0.35] &rarr; +0.24 [+0.08, +0.44] mm chronic (4/4 each; PS94 +0.53 chronic, its acute level); cued +0.14 [+0.04, +0.23] acute (4/4) &rarr; +0.04 &rarr; &minus;0.04 (resolved); cued FIRST lick +0.27 / +0.20 / +0.15 (4/4 each). <b>Distance</b> (down &asymp; sagittal extension; offset beyond the pull, retired as primary, no same-place version on this axis yet): acute +0.20
+
+== Where things stand, Synthesis row 1 (ahead of the movement / tracks recovery)
+OLD: while the same licks are read contralesional. It TRACKS recovery: within animal the ITI offset falls as far-contra aim returns (r &minus;0.48 with the time trend removed, 4/4); the least-recovered animal (PS94) keeps the largest chronic offset.
+NEW: while the same licks are read contralesional of pre licks that landed at the same place (cued +0.14 acute, 4/4; far contra +0.20, 4/4). It TRACKS recovery: within animal the ITI offset falls as far-contra aim returns (r &minus;0.48 with the time trend removed, 4/4; computed on the retired beyond-pull offset, same-place version not yet run); the least-recovered animal (PS94) keeps the largest chronic offset (same place +0.53).
+
+== Where things stand, Synthesis row 1 (figure links)
+OLD: <td class="figs"><a href="#f-iti_where_delta_z">3.29</a>, <a href="#f-iti_where_per_spout_z">3.30</a>, <a href="#f-iti_recovery_link_angle_z">3.41</a>
+NEW: <td class="figs"><a href="#f-lick_matched_place_readout">3.15</a>, <a href="#f-lick_matched_place_perspout">3.60</a>, <a href="#f-iti_where_delta_z">3.29</a>, <a href="#f-iti_where_per_spout_z">3.30</a>, <a href="#f-iti_recovery_link_angle_z">3.41</a>
+
+== Where things stand, Synthesis row 2 (first cued lick)
+OLD: First &minus; later offset beyond the pull +0.22 / +0.24 / +0.25 mm (4/4, CIs exclude 0); first licks +0.39 / +0.27 / +0.19 (4/4). The chronic ipsilesional read-out of far-contra licks is carried by later, corrective licks (far contra later &minus;0.33 chronic, 4/4; first +0.11 n.s.).</td><td class="figs"><a href="#f-cued_first_lick">3.50</a>
+NEW: Like-for-like (same place, primary; <a href="#f-lick_matched_place_readout">3.15</a>): first licks +0.27 [+0.22, +0.34] / +0.20 [+0.14, +0.25] / +0.15 [+0.08, +0.24] mm (4/4 each), later licks +0.12 / +0.02 / &minus;0.06. The chronic ipsilesional read-out of far-contra licks is carried by later, corrective licks (far contra later &minus;0.16 / &minus;0.34 subacute / chronic, 4/4; first +0.58 / +0.29 / +0.11, chronic n.s.).</td><td class="figs"><a href="#f-lick_matched_place_readout">3.15</a>, <a href="#f-cued_first_lick">3.50</a>
+
+== Where things stand, row 'Cortex reads self-initiated licks as more CONTRALESIONAL'
+OLD: The decoder pulls every prediction toward the mean of all the animal&rsquo;s pre licks, so each lick is compared with where that unchanged pre-stroke pull alone would place it (fit per animal and axis on pre licks). <b>Self-initiated (ITI) licks are read further contralesional</b> in every epoch: +0.33 / +0.22 / +0.25 mm, 4/4 in every epoch [unscaled +0.34 / +0.20 / +0.22]; largest chronically in PS94 / PS95. <b>Cued licks acutely are read AHEAD of the movement on both axes:</b> further out (+0.16 [+0.04, +0.29], 4/4) although acute protrusion is actually lower, and far-contra licks, which land ipsi of their usual spot, are read contralesional of the landing (3/4). <b>Chronically cued licks are read closer</b> (&minus;0.15 [&minus;0.26, &minus;0.05], 0/4 further [unscaled &minus;0.12 n.s.; forward axis alone &minus;0.30 every epoch]), and <b>chronic cued far-contra licks are read IPSIlesional</b> (&minus;0.27, 0/4 contra; also at their usual spot). <b>As aim recovers, the ITI contralesional offset fades:</b> within animal across post sessions, the offset and ITI lateral error fall as far-contra lick angle returns, beyond the shared time trend (&minus;0.53 and &minus;0.48, 4/4; different licks from those defining recovery);
+NEW: The decoder pulls every prediction toward the mean of all the animal&rsquo;s pre licks, so each lick is compared with the animal&rsquo;s PRE licks that landed at the SAME lateral place (like-for-like, primary; <a href="#f-lick_matched_place_readout">3.15</a>; no pull slope enters). <b>Self-initiated (ITI) licks are read further contralesional</b> in every epoch: +0.31 / +0.21 / +0.24 mm, 4/4 in every epoch; largest chronically in PS94 (+0.53). <b>Cued licks acutely are read AHEAD of the movement:</b> contralesional of where they land (+0.14 [+0.04, +0.23], 4/4; far contra, which land ipsi of their usual spot, +0.20 [+0.04, +0.37], 4/4) and further out (sagittal +0.16 [+0.04, +0.29], 4/4; offset beyond the pull, retired as primary, no same-place sagittal version) although acute protrusion is actually lower. <b>Chronically cued licks are read closer</b> (sagittal, beyond the pull: &minus;0.15 [&minus;0.26, &minus;0.05], 0/4 further [unscaled &minus;0.12 n.s.; forward axis alone &minus;0.30 every epoch]), and <b>chronic cued far-contra licks are read IPSIlesional</b> (like-for-like &minus;0.10 / &minus;0.28 [&minus;0.36, &minus;0.18] subacute / chronic, 4/4; <a href="#f-lick_matched_place_perspout">3.60</a>). <b>As aim recovers, the ITI contralesional offset fades:</b> within animal across post sessions, the offset and ITI lateral error fall as far-contra lick angle returns, beyond the shared time trend (&minus;0.53 and &minus;0.48, 4/4; different licks from those defining recovery; offset = the retired beyond-pull measure, same-place version not yet run);
+
+== Where things stand, row 'Cortex reads self-initiated licks' (figure links + frame column)
+OLD: <td class="figs"><a href="#f-iti_where_decoder_z">3.2</a>, <a href="#f-iti_where_scatter_trial_z">3.27</a>&ndash;<a href="#f-iti_where_per_spout_z">3.30</a></td><td><span class="st prov">provisional</span></td><td>frozen decoder, per lick, beyond the pre-stroke pull, z-scored features</td>
+NEW: <td class="figs"><a href="#f-lick_matched_place_readout">3.15</a>, <a href="#f-lick_matched_place_perspout">3.60</a>, <a href="#f-iti_where_decoder_z">3.2</a>, <a href="#f-iti_where_scatter_trial_z">3.27</a>&ndash;<a href="#f-iti_where_per_spout_z">3.30</a></td><td><span class="st prov">provisional</span></td><td>frozen decoder, per lick, like-for-like (same place) lateral; sagittal beyond the pre-stroke pull (retired as primary); z-scored features</td>
+
+== Fig 3.4 (f-iti_recovery_link_pooled_angle_z)
+OLD: <b>ITI offset +0.33 [0.16, 0.50] acute, +0.22 [0.09, 0.37] subacute, +0.25 [0.08, 0.45] chronic, 4/4 each</b>; PS94 carries the chronic ITI offset (+0.55 mm, its acute level; aim &minus;9&deg; vs pre). Cued offset +0.19 acute (4/4), back to pre chronically (&minus;0.03).
+NEW: <b>Like-for-like (same place, primary): ITI +0.31 [+0.15, +0.47] / +0.21 [+0.08, +0.35] / +0.24 [+0.08, +0.44] mm (4/4 each)</b>; PS94 carries the chronic ITI offset (+0.53, its acute level; aim &minus;9&deg; vs pre). Cued +0.14 [+0.04, +0.23] acute (4/4), back to pre chronically (&minus;0.04). (beyond-pull, retired: ITI +0.33 / +0.22 / +0.25, 4/4 each; PS94 +0.55; cued +0.19 acute, &minus;0.03 chronic.) The figure shows the older &lsquo;offset beyond the pull&rsquo; (retired as primary 10-27: its sign depended on the assumed pull slope); the primary read-out is the like-for-like comparison of <a href="#f-lick_matched_place_readout">3.15</a>.
+
+== Fig 3.5 (f-iti_check_error_per_lick_iti)
+OLD: It is a point value (a, b fixed); its CI-tested difference from the observed shift is the beyond-pull offset of 3.29 / 3.41. PROVISIONAL.</figcaption></figure>
+<figure id="f-cued_check_error_per_lick"
+NEW: It is a point value (a, b fixed); its CI-tested difference from the observed shift is the beyond-pull offset of 3.41 (retired as primary 10-27; the primary like-for-like read-out, ITI +0.31 / +0.21 / +0.24 mm, 4/4 each, is <a href="#f-lick_matched_place_readout">3.15</a>). PROVISIONAL.</figcaption></figure>
+<figure id="f-cued_check_error_per_lick"
+
+== Fig 3.6 (f-cued_check_error_per_lick), results
+OLD: Most of that is the decoder&rsquo;s pull (a pull-only decoder would show +0.28, triangle); the part BEYOND the pull, +0.19 (4/4, Fig 3.4), is what holds back toward the target: the read-out mostly follows the failing lick (far contra: 61&ndash;97% of the execution-predicted shift) but lags it toward the target. About 60% of the acute decoder shift is expected from the pull alone (control +0.28); chronic decoder shift is all pull (+0.03 vs +0.07).
+NEW: Much of that is the decoder&rsquo;s pull (a pull-only decoder would show +0.28, triangle). Like-for-like (same place, primary; <a href="#f-lick_matched_place_readout">3.15</a>): cued licks are read +0.14 [+0.04, +0.23] mm contralesional of pre licks that landed at the same place acutely (4/4; far contra +0.20, 4/4; first lick +0.27, 4/4), i.e. the read-out mostly follows the failing lick but lags it toward the target; chronically ~0 (&minus;0.04, 3/4). (beyond-pull, retired: +0.19 acute, 4/4.) The figure shows the per-lick error and the pull-only control, not the like-for-like read-out.
+
+== Fig 3.6 (f-cued_check_error_per_lick), statistics sentence
+OLD: It is a point value (a, b fixed); its CI-tested difference from the observed shift is the beyond-pull offset of 3.29 / 3.41. PROVISIONAL.</figcaption></figure>
+<figure id="f-iti_hemo_check_variants"
+NEW: It is a point value (a, b fixed); its CI-tested difference from the observed shift is the beyond-pull offset of 3.41 (retired as primary 10-27; primary: <a href="#f-lick_matched_place_readout">3.15</a>). PROVISIONAL.</figcaption></figure>
+<figure id="f-iti_hemo_check_variants"
+
+== Fig 3.11 (f-lick_order_iti_cued)
+OLD: <b>ITI: bout starts AND later ITI licks are both read contralesional in every epoch</b> (first +0.35 / +0.25 / +0.24, later +0.29 / +0.21 / +0.25 mm; first &minus; later n.s.), <b>unlike cued licks, where only the first lick is</b> (first &minus; later +0.22 / +0.24 / +0.24, 4/4 each). Far contra: the ITI bout start carries it (+0.47 / +0.18 / +0.21; later ITI licks ~0; first &minus; later +0.42 acute, 4/4); cued later far-contra licks read IPSIlesional from subacute (&minus;0.16 / &minus;0.33, 4/4).
+NEW: Like-for-like (same place, primary; <a href="#f-lick_matched_place_readout">3.15</a>): <b>ITI: bout starts AND later ITI licks are both read contralesional in every epoch</b> (first +0.33 / +0.22 / +0.23, 4/4 each; later +0.27 / +0.21 / +0.25, 4/4, 3/4, 4/4), <b>unlike cued licks, where only the first lick is</b> (first +0.27 / +0.20 / +0.15, 4/4 each; later +0.12 / +0.02 / &minus;0.06). Far contra: the ITI bout start carries it (+0.43 / +0.18 / +0.21; later ITI licks ~0); cued later far-contra licks read IPSIlesional from subacute (&minus;0.16 / &minus;0.34, 4/4). (beyond-pull, retired, as plotted: ITI first +0.35 / +0.25 / +0.24, later +0.29 / +0.21 / +0.25; cued first &minus; later +0.22 / +0.24 / +0.24, 4/4 each; ITI far-contra first &minus; later +0.42 acute.) The figure shows the older &lsquo;offset beyond the pull&rsquo; (retired as primary 10-27: its sign depended on the assumed pull slope); the primary read-out is the like-for-like comparison of <a href="#f-lick_matched_place_readout">3.15</a>.
+
+== Fig 3.12 (f-lick_order_iti_cued_slope)
+OLD: <b>Cued: each later lick lands further contralesional (toward the target) in every epoch</b> (+0.049 / +0.035 / +0.019 mm per lick, 4/4; far contra +0.108 / +0.064, 4/4) <b>while the offset beyond the pull falls</b> (&minus;0.030 acute 4/4, &minus;0.013 subacute 3/4, chronic n.s.; far contra &minus;0.082 / &minus;0.049 / &minus;0.049, 4/4 each): the read-out moves less than the pull predicts as the landing corrects, i.e. it stays nearer where the first lick was read.
+NEW: <b>Cued: each later lick lands further contralesional (toward the target) in every epoch</b> (+0.049 / +0.035 / +0.019 mm per lick, 4/4; far contra +0.108 / +0.064, 4/4) while the decoded position stays flat. The plotted fall of the offset beyond the pull with lick order (&minus;0.030 acute 4/4, &minus;0.013 subacute 3/4, chronic n.s.; far contra &minus;0.082 / &minus;0.049 / &minus;0.049, 4/4 each) is the landing slope times the assumed pull slope, so it is not stated as a result (beyond-pull retired as primary 10-27). Like-for-like (same place, primary; <a href="#f-lick_matched_place_readout">3.15</a>): cued first licks +0.27 / +0.20 / +0.15 (4/4 each) vs later +0.12 / +0.02 / &minus;0.06.
+
+== Fig 3.13 (f-lmm_time_readout)
+OLD: Lateral offset: ITI +0.28 with no recovery (&minus;0.01, n.s.); cued +0.28 recovering and crossing 0 late (&minus;0.09).
+NEW: Lateral offset (beyond the pull, retired as primary; the time model has not been refit on the same-place read-out): ITI +0.28 with no recovery (&minus;0.01, n.s.); cued +0.28 recovering and crossing 0 late (&minus;0.09). Like-for-like (same place, primary) per epoch: ITI +0.31 / +0.21 / +0.24 (4/4 each); cued +0.14 acute (4/4), then +0.04 / &minus;0.04 (<a href="#f-lick_matched_place_readout">3.15</a>).
+
+== Fig 3.29 (f-iti_where_delta_z)
+OLD: <b>ITI licks are read CONTRALESIONAL of where they land</b>: all licks +0.45 / +0.25 / +0.19 mm (4/4 each epoch); at the usual spot +0.26 [+0.08, +0.51] acute and +0.22 [+0.03, +0.53] chronic (3/3 animals with such licks).
+NEW: <b>ITI licks are read CONTRALESIONAL of where they land</b>: like-for-like (same place, primary; <a href="#f-lick_matched_place_readout">3.15</a>) +0.31 [+0.15, +0.47] / +0.21 [+0.08, +0.35] / +0.24 [+0.08, +0.44] mm (4/4 each epoch). This figure plots the raw error change, which includes the pull: all licks +0.45 / +0.25 / +0.19 mm (4/4 each epoch); at the usual spot +0.26 [+0.08, +0.51] acute and +0.22 [+0.03, +0.53] chronic (3/3 animals with such licks).
+
+== Fig 3.29 (f-iti_where_delta_z), in-trial lateral
+OLD: In-trial licks: lateral +0.52 acute over all licks (4/4; ipsi-deviated licks read toward their usual position), +0.19 subacute, ~0 chronic;
+NEW: In-trial licks (raw error change): lateral +0.52 acute over all licks (4/4; ipsi-deviated licks read toward their usual position), +0.19 subacute, ~0 chronic (like-for-like: +0.14 acute, 4/4, then +0.04 / &minus;0.04);
+
+== Fig 3.30 (f-iti_where_per_spout_z), lateral results
+OLD: <b>ITI licks are read contralesional after 5 of 6 spouts acutely</b> (+0.21 to +0.46 mm, 4/4 each; close contra +0.15 n.s.) and <b>chronically after far-ipsi, far-mid and close-mid trials</b> (+0.39 [+0.19, +0.56] and +0.23 [+0.10, +0.39], 4/4; +0.24 [+0.03, +0.45], 3/4).
+NEW: Lateral, like-for-like (same place, primary; per spout <a href="#f-lick_matched_place_perspout">3.60</a>): <b>ITI licks are read contralesional after 5 of 6 spouts acutely</b> (+0.17 to +0.43 mm, 4/4 each; close contra +0.14 n.s.) and <b>chronically after far-ipsi, far-mid and close-mid trials</b> (+0.38 [+0.20, +0.52] and +0.24 [+0.10, +0.39], 4/4; +0.21 [+0.03, +0.40], 3/4) (beyond-pull, retired, as plotted: acute +0.21 to +0.46; chronic far ipsi +0.39, far mid +0.23, close mid +0.24). The figure shows the older &lsquo;offset beyond the pull&rsquo; (retired as primary 10-27: its sign depended on the assumed pull slope); the primary read-out is the like-for-like comparison of <a href="#f-lick_matched_place_readout">3.15</a>.
+
+== Fig 3.30 (f-iti_where_per_spout_z), cued sagittal + far contra
+OLD: <b>Cued SAGITTAL: read FURTHER acutely</b> at close contra / far ipsi / far mid (+0.25 to +0.26, 4/4) and <b>closer from subacute at the close spouts</b> (chronic close mid / close contra &minus;0.21 / &minus;0.21, 0/4 further). <b>Chronic cued far-contra licks are read IPSIlesional</b> (&minus;0.27 [&minus;0.36, &minus;0.18], 0/4 contra; +0.26 acutely, 4/4); cued far-ipsi licks show no mirror shift (+0.28 / +0.25 / +0.12, toward contra).
+NEW: <b>Cued SAGITTAL</b> (beyond the pull only; no same-place sagittal version): <b>read FURTHER acutely</b> at close contra / far ipsi / far mid (+0.25 to +0.26, 4/4) and <b>closer from subacute at the close spouts</b> (chronic close mid / close contra &minus;0.21 / &minus;0.21, 0/4 further). <b>Chronic cued far-contra licks are read IPSIlesional</b>: like-for-like +0.20 acute (4/4), then &minus;0.10 / &minus;0.28 [&minus;0.36, &minus;0.18] (4/4) (beyond-pull, retired: +0.26 acute, &minus;0.27 chronic); cued far-ipsi licks show no mirror shift (like-for-like +0.11 / +0.16 / +0.08, toward contra; beyond-pull +0.28 / +0.25 / +0.12).
+
+== Fig 3.30 (f-iti_where_per_spout_z), unscaled version
+OLD: same pattern (chronic ITI far ipsi +0.33, far mid +0.19; cued far contra &minus;0.24; far-contra licks at their usual spot &minus;0.22 / &minus;0.46 / &minus;0.17 in PS92 / PS93 / PS95, so not the pull).
+NEW: same pattern (beyond-pull: chronic ITI far ipsi +0.33, far mid +0.19; cued far contra &minus;0.24; far-contra licks at their usual spot &minus;0.22 / &minus;0.46 / &minus;0.17 in PS92 / PS93 / PS95).
+
+== Fig 3.41 (f-iti_recovery_link_angle_z)
+OLD: Red = the FROZEN pre-stroke decoder&rsquo;s lateral offset beyond its pre pull (decoder on Z-SCORED features; + = cortex reads the lick more contralesional than it landed).
+NEW: Red = the FROZEN pre-stroke decoder&rsquo;s lateral offset beyond its pre pull (decoder on Z-SCORED features; + = cortex reads the lick more contralesional than it landed). The figure shows the older &lsquo;offset beyond the pull&rsquo; (retired as primary 10-27: its sign depended on the assumed pull slope); the primary read-out is the like-for-like comparison of <a href="#f-lick_matched_place_readout">3.15</a>. The correlations below are on the beyond-pull offset; the same-place version of this test has not been run.
+
+== Fig 3.42 (f-iti_recovery_link_sessions_angle_z)
+OLD: Decoder lateral offset beyond its pre pull vs far-contra cued lick angle change vs pre (degrees);
+NEW: Decoder lateral offset beyond its pre pull (the retired measure; primary like-for-like read-out: <a href="#f-lick_matched_place_readout">3.15</a>; same-place recovery link not yet run) vs far-contra cued lick angle change vs pre (degrees);
+
+== Fig 3.48 (f-iti_check_3axis)
+OLD: <b>Cued licks are read less far FORWARD in every epoch (&minus;0.22 / &minus;0.21 / &minus;0.17, 4/4); on DOWN they are read further out acutely (+0.20, 4/4) and less far chronically (&minus;0.14, 3/4).</b> ITI lateral r loss and contralesional offset as in 3.2 / 3.29.
+NEW: Offsets here are beyond the pull (retired as primary 10-27; no same-place version on the forward / down axes yet). <b>Cued licks are read less far FORWARD in every epoch (&minus;0.22 / &minus;0.21 / &minus;0.17, 4/4); on DOWN they are read further out acutely (+0.20, 4/4) and less far chronically (&minus;0.14, 3/4).</b> ITI lateral r loss as in 3.2; lateral contralesional offset like-for-like (same place, primary): ITI +0.31 / +0.21 / +0.24 (4/4 each), cued +0.14 acute (4/4) (<a href="#f-lick_matched_place_readout">3.15</a>).
+
+== Fig 3.49 (f-iti_check_3axis_sessions)
+OLD: r / pre and offset beyond the pre pull on each axis, ITI licks. PROVISIONAL.
+NEW: r / pre and offset beyond the pre pull on each axis, ITI licks (beyond-pull retired as primary; lateral like-for-like read-out: <a href="#f-lick_matched_place_readout">3.15</a>). PROVISIONAL.
+
+== Fig 3.50 (f-cued_first_lick)
+OLD: <b>All spouts: first licks are read contralesional beyond the pull in every epoch (+0.39 / +0.27 / +0.19 mm, 4/4 each), later licks are not (+0.17 / +0.03 / &minus;0.06); first &minus; later +0.22 / +0.24 / +0.25 (4/4, CIs exclude 0).</b> Far contra: first +0.63 acute (4/4), later &minus;0.16 subacute and &minus;0.33 chronic (4/4) &mdash; the chronic ipsilesional read-out of far-contra licks (Fig 3.51) is carried by the later, corrective licks, not by the aimed launch.
+NEW: <b>Like-for-like (same place, primary): all spouts, first licks are read contralesional of where they land in every epoch (+0.27 [+0.22, +0.34] / +0.20 [+0.14, +0.25] / +0.15 [+0.08, +0.24] mm, 4/4 each), later licks only weakly acutely (+0.12 / +0.02 / &minus;0.06).</b> Far contra: first +0.58 / +0.29 / +0.11 (4/4, 4/4, 3/4), later &minus;0.16 subacute and &minus;0.34 chronic (4/4) &mdash; the chronic ipsilesional read-out of far-contra licks (Fig 3.51) is carried by the later, corrective licks, not by the aimed launch. (beyond-pull, retired, as plotted: first +0.39 / +0.27 / +0.19, later +0.17 / +0.03 / &minus;0.06, first &minus; later +0.22 / +0.24 / +0.25; far contra first +0.63 acute, later &minus;0.16 / &minus;0.33.) The figure shows the older &lsquo;offset beyond the pull&rsquo; (retired as primary 10-27: its sign depended on the assumed pull slope); the primary read-out is the like-for-like comparison of <a href="#f-lick_matched_place_readout">3.15</a>.
+
+== Fig 3.51 (f-cued_overcorrection)
+OLD: Chronic offset: far contra &minus;0.27 [&minus;0.36, &minus;0.18] (4/4), close contra &minus;0.11 (3/4), others n.s. (close ipsi +0.16): not a uniform downstream offset.
+NEW: Chronic offset, like-for-like (same place, primary; <a href="#f-lick_matched_place_perspout">3.60</a>): far contra &minus;0.28 [&minus;0.36, &minus;0.18] (4/4), close contra &minus;0.08 n.s. (2/4), close ipsi +0.13 [+0.01, +0.23] (3/4), others n.s.: not a uniform downstream offset. (beyond-pull, retired, as plotted: far contra &minus;0.27 (4/4), close contra &minus;0.11 (3/4), close ipsi +0.16.) The figure shows the older &lsquo;offset beyond the pull&rsquo; (retired as primary 10-27: its sign depended on the assumed pull slope); the primary read-out is the like-for-like comparison of <a href="#f-lick_matched_place_readout">3.15</a>.
+
+== Fig 3.57 (f-lmm_time_lickclass)
+OLD: Offset beyond the pull, all spouts: cued first +0.43 at day 1 (recovers, &minus;0.07), cued later +0.25 (recovers, &minus;0.09); ITI first +0.32, ITI later +0.23 with no recovery.
+NEW: Offset beyond the pull (retired as primary; time model not yet refit on the same-place read-out), all spouts: cued first +0.43 at day 1 (recovers, &minus;0.07), cued later +0.25 (recovers, &minus;0.09); ITI first +0.32, ITI later +0.23 with no recovery. Like-for-like (same place, primary) per epoch: cued first +0.27 / +0.20 / +0.15 (4/4 each), cued later +0.12 / +0.02 / &minus;0.06; ITI first +0.33 / +0.22 / +0.23, ITI later +0.27 / +0.21 / +0.25 (<a href="#f-lick_matched_place_readout">3.15</a>).
+
+== Fig 3.58 (f-lmm_time_perspout)
+OLD: Cued far contra: +0.38 at day 1, &minus;0.19 per e-fold, so ipsilesional of the landing from ~day 7 on; close contra: +0.05 n.s., &minus;0.05 per e-fold.
+NEW: Beyond-pull offset (retired as primary; time model not yet refit on the same-place read-out): cued far contra +0.38 at day 1, &minus;0.19 per e-fold, so ipsilesional of the landing from ~day 7 on; close contra +0.05 n.s., &minus;0.05 per e-fold. Like-for-like (same place, primary) per epoch: far contra +0.20 acute (4/4) &rarr; &minus;0.10 / &minus;0.28 (4/4); close contra +0.05 / &minus;0.02 / &minus;0.08, n.s. (<a href="#f-lick_matched_place_perspout">3.60</a>).
+
+== Fig 3.72 (f-far_contra_cortical_pattern_after_the)
+OLD: so the across-spout contrast shrinks broadly while only far contra is READ ipsilesional (3.30):
+NEW: so the across-spout contrast shrinks broadly while only far contra is READ ipsilesional (like-for-like &minus;0.28 chronic, 4/4; <a href="#f-lick_matched_place_perspout">3.60</a>):
+
+== Fig 3.77 (f-cued_overcorrection_angle)
+OLD: Far contra chronic offset &minus;3.3&deg; [&minus;4.8, &minus;1.5] (4/4); lick-to-lick slope not reduced (&minus;0.06, 2/4).
+NEW: Far contra chronic offset beyond the pull &minus;3.3&deg; [&minus;4.8, &minus;1.5] (4/4) (retired as primary; no same-place angle version yet; lateral like-for-like &minus;0.28 mm, 4/4, <a href="#f-lick_matched_place_perspout">3.60</a>); lick-to-lick slope not reduced (&minus;0.06, 2/4).
+
+== Fig 3.78 (f-iti_where_angle_reach)
+OLD: Angle offset beyond the pull: ITI +4.6 / +2.8 / +3.1&deg; (4/4 every epoch), cued +2.7 &rarr; resolved.
+NEW: Angle offset beyond the pull (retired as primary; no same-place angle version yet): ITI +4.6 / +2.8 / +3.1&deg; (4/4 every epoch), cued +2.7 &rarr; resolved; lateral like-for-like (primary): ITI +0.31 / +0.21 / +0.24 mm (4/4 each), cued +0.14 acute (4/4) then ~0 (<a href="#f-lick_matched_place_readout">3.15</a>).
+
+== Fig 3.83 (f-lmm_behaviour_readout)
+OLD: Change remaining at full behavioural recovery: ITI lateral r &minus;0.22, ITI offset +0.23, cued lateral r &minus;0.08, cued offset none (&minus;0.02 n.s., tracks the deficit).
+NEW: Change remaining at full behavioural recovery: ITI lateral r &minus;0.22, ITI offset +0.23, cued lateral r &minus;0.08, cued offset none (&minus;0.02 n.s., tracks the deficit); offsets beyond the pull (retired as primary; not yet refit on the same-place read-out, whose chronic epoch values are ITI +0.24, 4/4, and cued &minus;0.04, <a href="#f-lick_matched_place_readout">3.15</a>).
+
+== Fig 3.85 (f-lmm_behaviour_lickclass)
+OLD: At full recovery: cued first +0.20 and ITI first / later +0.24 / +0.23 remain; cued later none (&minus;0.04). Far contra cued first &minus; later +0.43.
+NEW: At full recovery (beyond-pull offsets, retired as primary; not yet refit on the same-place read-out): cued first +0.20 and ITI first / later +0.24 / +0.23 remain; cued later none (&minus;0.04). Far contra cued first &minus; later +0.43. Like-for-like chronic epoch values: cued first +0.15 (4/4), cued later &minus;0.06, ITI first / later +0.23 / +0.25 (<a href="#f-lick_matched_place_readout">3.15</a>).
+
+== Fig 3.86 (f-lmm_behaviour_perspout)
+OLD: At full recovery: far contra &minus;0.24 and close contra &minus;0.10 (ipsilesional; matches the late overcorrection, size model-dependent).
+NEW: At full recovery (beyond-pull offsets, retired as primary; not yet refit on the same-place read-out): far contra &minus;0.24 and close contra &minus;0.10 (ipsilesional; matches the late overcorrection, size model-dependent). Like-for-like chronic epoch values: far contra &minus;0.28 (4/4), close contra &minus;0.08 n.s. (<a href="#f-lick_matched_place_perspout">3.60</a>).

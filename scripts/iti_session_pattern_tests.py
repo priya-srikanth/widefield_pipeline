@@ -13,8 +13,9 @@ kept separately as GAIN), so a cortex-wide change in response size cannot pass a
 (3) AMPLITUDE-NORMALISED CHANGE MAPS: per pixel, epoch - pre on the unit-RMS maps, paired by animal, nested bootstrap
     (animals > sessions, `iti_decoder_pattern_stats._boot`), BH q 0.05 over cortex, outline = significant AND >= 3
     animals share the sign. Level maps (epoch mean) drawn alongside.
-Outputs <E>/iti_licks/session_pattern_{maplevel,similarity,gain}.csv, figures/iti_session_pattern_maplevel.png,
-figures/iti_session_pattern_similarity.png, figures/iti_session_pattern_change_<family>.png.
+Outputs <E>/iti_licks/session_pattern_{maplevel,similarity,gain}.csv, figures/lick_session_pattern_maplevel.png,
+figures/lick_session_pattern_similarity.png, figures/lick_session_pattern_change_{position,within_spout}.png,
+figures/lick_{cued,iti}_session_pattern_change_spout.png.
 Usage: python scripts/iti_session_pattern_tests.py
 """
 from __future__ import annotations
@@ -40,6 +41,10 @@ FAMILIES = {
     "spout_cued": [f"trial/sp_{p}" for p in POS],
     "spout_iti": [f"iti/sp_{p}" for p in POS],
 }
+CHANGE_FIG = {"position": "lick_session_pattern_change_position.png",       # lick_ names since 10-27
+              "within_spout": "lick_session_pattern_change_within_spout.png",
+              "spout_cued": "lick_cued_session_pattern_change_spout.png",
+              "spout_iti": "lick_iti_session_pattern_change_spout.png"}
 
 
 def load() -> dict:
@@ -223,7 +228,7 @@ def plot_change(res: dict, keys: list, fam: str, T: pd.DataFrame, to_img, ol) ->
     txt = "\n".join(textwrap.fill(q, 125) for q in paras)       # wrapped to the figure width (titles ran off the sides)
     fig.suptitle(txt, fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 1 - (0.17 * (txt.count(chr(10)) + 1) + 0.25) / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / f"iti_session_pattern_change_{fam}.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / CHANGE_FIG[fam], dpi=95)
     plt.close(fig)
 
 
@@ -251,7 +256,7 @@ def plot_similarity(S: pd.DataFrame, keys: list) -> None:
     fig.suptitle("NEURAL: per-session map SHAPE vs the animal's pre map over days (pre sessions vs the mean of the OTHER "
                  "pre sessions = the noise floor, blue line). Grey band = pre. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.45 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / "iti_session_pattern_similarity.png", dpi=90)
+    fig.savefig(il.OUT / "figures" / "lick_session_pattern_similarity.png", dpi=90)
     plt.close(fig)
 
 
@@ -276,7 +281,7 @@ def plot_maplevel(T: pd.DataFrame) -> None:
     ax.set_title("Whole-map SHAPE change vs pre: d = 1 - r(epoch map, pre map), unit-RMS session maps;\n* = session-"
                  "label permutation within animal, cohort p, BH q 0.05; k/n = animals with own p < 0.05", fontsize=8.5)
     fig.tight_layout()
-    fig.savefig(il.OUT / "figures" / "iti_session_pattern_maplevel.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / "lick_session_pattern_maplevel.png", dpi=100)
     plt.close(fig)
 
 

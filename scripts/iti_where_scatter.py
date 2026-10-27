@@ -14,7 +14,7 @@ Groups:
 Per panel, per spout: actual mean (open circle) and decoded mean (filled) with an arrow actual -> decoded and 1-SD
 ellipses (actual solid, decoded dashed). Ridge predictions are SHRUNK toward the mean, so decoded points sit closer to
 the centre even pre-stroke: read each epoch against the pre column, not against the actual points.
-Outputs <E>/iti_licks/where_preds.csv (one row per lick), figures/iti_where_scatter_{trial,iti}.png.
+Outputs <E>/iti_licks/where_preds.csv (one row per lick), figures/lick_{cued,iti}_where_scatter.png.
 Usage: python scripts/iti_where_scatter.py [--plot-only | --z]   (--z: within-session z-scored predictions of
 iti_zscore_check.py -> figures/*_z.png, tables in zscore_check/ with a _z suffix)
 """
@@ -208,7 +208,7 @@ def plot_delta(R: pd.DataFrame, tag: str = "") -> None:
     fig.legend(handles=hd, loc="upper center", ncol=8, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 0.945 if tag else 0.955))
     fig.tight_layout(rect=(0, 0, 1, 0.925 if tag else 0.935))
-    fig.savefig(il.OUT / "figures" / f"iti_where_delta{tag}.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / f"lick_where_delta{tag}.png", dpi=95)
     plt.close(fig)
     pd.set_option("display.width", 220)
     P = pd.concat(per_animal, ignore_index=True)
@@ -268,11 +268,11 @@ def plot(R: pd.DataFrame, tag: str = "") -> None:
                      f"grouped by {gname}.\nFROZEN pre-stroke decoder (fit once on each animal's August pre licks, never refit; "
                      "one ridge per axis, Allen-area features, lags 0..0.2 s); per lick, lateral x sagittal extension (mm), "
                      "+ lateral = contralesional.\nThe decoder shrinks predictions toward the centre even before the stroke, "
-                     f"so compare each epoch with PRE (change figure: iti_where_delta{tag}.png).", fontsize=10.5, y=0.997)
+                     f"so compare each epoch with PRE (change figure: lick_where_delta{tag}.png).", fontsize=10.5, y=0.997)
         fig.legend(handles=hd, loc="upper center", ncol=6, fontsize=9, frameon=False,
                    bbox_to_anchor=(0.5, 0.955 if tag else 0.962))
         fig.tight_layout(rect=(0, 0, 1, 0.918 if tag else 0.925))
-        fig.savefig(il.OUT / "figures" / f"iti_where_scatter_{st}{tag}.png", dpi=95)
+        fig.savefig(il.OUT / "figures" / f"lick_{'cued' if st == 'trial' else st}_where_scatter{tag}.png", dpi=95)
         plt.close(fig)
 
 

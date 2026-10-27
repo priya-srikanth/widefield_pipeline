@@ -522,7 +522,7 @@ def fig_variants(S: pd.DataFrame, colors: dict) -> None:
            "animals, black = mean of animals; text rows (top of each panel) = change vs pre (Δ) with paired nested "
            "bootstrap (animals > sessions) 95% CI, * excludes 0. key_mean = mean of ALM, tjM1, SSp-m (both sides) and "
            "cortex, as iti_f0_check.", 230)
-    _savefig(fig, "iti_hemo_check_variants.png", 110)
+    _savefig(fig, "lick_iti_hemo_check_variants.png", 110)
 
 
 def _peth_frame(C: dict) -> pd.DataFrame:
@@ -559,7 +559,7 @@ def fig_peth(PE: pd.DataFrame, colors: dict) -> None:
     axs[0].legend(fontsize=7, frameon=False)
     _title(fig, "NEURAL, NO DECODER: ITI-lick PETH (key ROIs averaged) per signal variant; mean of animals (each animal = "
            "mean of its sessions). Same y scale across variants.", 200)
-    _savefig(fig, "iti_hemo_check_peth.png", 110)
+    _savefig(fig, "lick_iti_hemo_check_peth.png", 110)
 
 
 def _pixel_maps(C: dict) -> dict:
@@ -608,7 +608,7 @@ def fig_edge_vessel(maps: dict, stat_img: np.ndarray, W: pd.DataFrame, PX: pd.Da
            "per-session ratios of the adopted response in artefact-prone pixels to the rest (grey = animals, black = mean; "
            "text rows = change vs pre (Δ) with nested bootstrap 95% CI, * excludes 0). VESSEL = top 5 % of the "
            "high-passed negated mean 470 image; 415-variance = top 5 % of interior pixels by 415 variance.", 190)
-    _savefig(fig, "iti_hemo_check_edge_vessel.png", 105, tight_bbox=True)
+    _savefig(fig, "lick_iti_hemo_check_edge_vessel.png", 105, tight_bbox=True)
 
 
 def fig_f0(FC: pd.DataFrame, label: str) -> None:
@@ -632,7 +632,7 @@ def fig_f0(FC: pd.DataFrame, label: str) -> None:
             fig.colorbar(im, ax=axs[i, :], fraction=0.02).set_label("F0 / pre - 1")
         _title(fig, "Raw fluorescence F0 (frames_average on the atlas grid, raw counts) per Allen area, change vs the "
                "animal's pre mean (mean of animals, paired nested bootstrap). Image left = ipsilesional.", 170)
-        _savefig(fig, "iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
+        _savefig(fig, "lick_iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
     except Exception as ex:                                # noqa: BLE001
         print(f"F0 area map figure skipped: {ex}")
 
@@ -651,7 +651,7 @@ def fig_state_gap(G: pd.DataFrame, Hh: pd.DataFrame, colors: dict) -> None:
     _title(fig, "BEHAVIOUR + NEURAL: global state around ITI licks and the response after matching the no-lick gap "
            "(grey = animals, black = mean; text rows = change vs pre (Δ) with nested bootstrap 95% CI, * excludes 0).",
            230)
-    _savefig(fig, "iti_hemo_check_state_gap.png", 110)
+    _savefig(fig, "lick_iti_hemo_check_state_gap.png", 110)
 
 
 def plot_only(labels: list[str]) -> None:

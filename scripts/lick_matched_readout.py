@@ -114,6 +114,29 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def bin_tests(P: pd.DataFrame) -> pd.DataFrame:
+    """Per landing bin of the curve figure: session mean of resid in that bin (>= 5 licks), change vs pre by the paired
+    nested bootstrap, p from the same draws (analysis_kit.boot_p), BH across bins within set x epoch."""
+    b = "bin_a" if REF == "place" else "bin"
+    Q = P.dropna(subset=["resid"])
+    S = Q.groupby(["set", b, "animal", "label", "epoch"], observed=True).resid.agg(["mean", "size"]).reset_index()
+    S = S[S["size"] >= 5]
+    rows = []
+    for (st, bb), g in S.groupby(["set", b], observed=True):
+        prd = {a: h["mean"].to_numpy() for a, h in g[g.epoch == "pre"].groupby("animal")}
+        for ep in EP:
+            post = {a: h["mean"].to_numpy() for a, h in g[g.epoch == ep].groupby("animal") if a in prd}
+            if len(post) < 3:
+                continue
+            ci, draws = ak.boot_delta(post, prd, np.random.default_rng(0), draws=True)
+            rows.append(dict(set=st, epoch=ep, mid=bb.mid, point=ci.point, p=ak.boot_p(draws), n=len(post)))
+    T = pd.DataFrame(rows)
+    T["sig"] = False
+    for _k, idx in T.groupby(["set", "epoch"]).groups.items():
+        T.loc[idx, "sig"] = ak.bh(T.loc[idx, "p"].to_numpy())
+    return T
+
+
 def _dots(ax, g: pd.DataFrame, k: int, c) -> None:
     """One small dot per SESSION (jittered), one outlined marker per ANIMAL (mean of its sessions), bar = mean of the
     animals (the animal-weighted point the paired nested bootstrap tests)."""
@@ -130,15 +153,14 @@ def _dots(ax, g: pd.DataFrame, k: int, c) -> None:
 
 
 def _stars(ax, x, r, col):
+    """Change-vs-pre label in a strip ABOVE the data (axes coordinates), so it never sits on the markers."""
     sig = r.lo > 0 or r.hi < 0
-    lo_, hi_ = ax.get_ylim()
-    if r.hi + 0.12 * (hi_ - lo_) > hi_:                     # keep the label inside the panel
-        ax.set_ylim(lo_, r.hi + 0.15 * (hi_ - lo_))
-    ax.text(x, r.hi, f"{r.point:+.2f}{'*' if sig else ''}\n{int(r.n_dir)}/{int(r.n)}", ha="center", va="bottom",
-            fontsize=6.5, color=col, fontweight="bold" if sig else "normal")
+    ax.text(x, 1.01, f"{r.point:+.2f}{'*' if sig else ''}\n{int(r.n_dir)}/{int(r.n)}", ha="center", va="bottom",
+            fontsize=6.5, color=col, fontweight="bold" if sig else "normal", transform=ax.get_xaxis_transform(),
+            clip_on=False)
 
 
-def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame) -> None:
+def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | None = None) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -157,19 +179,25 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame) -> None:
             ax.errorbar(mu.index.astype(float), mu, yerr=se, fmt="o-", color=col[ep], ms=4, capsize=2, lw=1.3)
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.axvline(0, color="0.7", lw=0.6, ls=":")
+        # significance strip: one row per post epoch, translucent bar over bins whose change vs pre survives BH
+        for r_i, ep in enumerate(EP):
+            bt = BT[(BT.set == st) & (BT.epoch == ep) & BT.sig] if BT is not None and len(BT) else []
+            for m_ in (bt.mid if len(bt) else []):
+                ax.axvspan(m_ - 0.125, m_ + 0.125, ymin=0.955 - 0.035 * r_i, ymax=0.985 - 0.035 * r_i, color=col[ep],
+                           alpha=0.5, lw=0)
         ax.set_xlabel("landing, lateral (mm, + = contralesional)" if REF == "place" else
                       "landing deviation from the animal's pre mean at the spout (mm, + = contralesional)", fontsize=8)
         ax.set_ylabel(("decoded lateral" if REF == "place" else "read-out deviation (decoded")
                       + " (mm, + = contralesional)", fontsize=8)
         ax.set_title(f"{SETS[st]} licks: read-out vs landing{' place' if REF == 'place' else ' deviation'}\n(bins with >= {MIN_BIN} licks per animal; "
                      "mean +/- SEM over animals)", fontsize=9)
-        ax.legend(handles=epl, fontsize=8, frameon=False, loc="upper left")
+        ax.legend(handles=epl, fontsize=8, frameon=False, loc="lower right")
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     fig.suptitle("LIKE-FOR-LIKE: decoded position for a given landing, before and after the stroke (frozen KEY-row "
-                 "lateral decoder).\nA curve shifted UP = read more contralesional than " + REFLAB + ". PROVISIONAL",
+                 "lateral decoder).\nA curve shifted UP = read more contralesional than " + REFLAB + ".\nBars at the top = bins whose change vs pre survives BH (paired nested bootstrap; rows acute / subacute / chronic). PROVISIONAL",
                  fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    fig.tight_layout(rect=(0, 0, 1, 0.85))
     fig.savefig(il.OUT / "figures" / f"lick_matched{TAG}_curves.png", dpi=100)
     plt.close(fig)
     # 2. pooled read-out: all spouts, first / later, far contra first / later
@@ -188,14 +216,14 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame) -> None:
                     _stars(ax, k, t.loc[ep], col[ep])
             ax.axhline(0, color="0.6", lw=0.7, ls="--")
             ax.set_xticks(range(4), EPS, fontsize=7.5)
-            ax.set_title(f"{SETS[st]}: {title}", fontsize=8.5)
+            ax.set_title(f"{SETS[st]}: {title}", fontsize=8.5, pad=22)
             if j == 0:
                 ax.set_ylabel("read-out vs " + REFLAB.replace("pre licks ", "pre licks\n", 1)
                               + "\n(mm, + = contralesional)", fontsize=7.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     fig.suptitle("LIKE-FOR-LIKE read-out (no pull slope): each lick's read-out minus that of the animal's " + REFLAB +
-                 ".\nDots = animals (mean of sessions), bar = mean; "
+                 ".\nsmall filled = SESSIONS, open = animal means, shape = animal (circle PS92, square PS93, triangle PS94, diamond PS95), bar = mean of animals; "
                  "text = change vs pre, 95% paired nested bootstrap, * = CI excludes 0 (bold), k/n animals. "
                  "PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
@@ -214,14 +242,14 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame) -> None:
                     _stars(ax, k, t.loc[ep], col[ep])
             ax.axhline(0, color="0.6", lw=0.7, ls="--")
             ax.set_xticks(range(4), EPS, fontsize=7.5)
-            ax.set_title(f"{SETS[st]}: {p.replace('_', ' ')}", fontsize=9)
+            ax.set_title(f"{SETS[st]}: {p.replace('_', ' ')}", fontsize=9, pad=22)
             if j == 0:
                 ax.set_ylabel("read-out vs " + REFLAB.replace("pre licks ", "pre licks\n", 1)
                               + "\n(mm, + = contralesional)", fontsize=7.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     fig.suptitle("LIKE-FOR-LIKE read-out PER SPOUT (canonical order; cued by target, ITI by the previous trial's spout). "
-                 "Reference = " + REFLAB + ".\nDots = animals, bar = "
+                 "Reference = " + REFLAB + ".\nsmall filled = SESSIONS, open = animal means, shape = animal (circle PS92, square PS93, triangle PS94, diamond PS95), bar = "
                  "mean; change vs pre, 95% paired nested bootstrap, * = CI excludes 0 (bold), k/n animals. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
@@ -242,7 +270,9 @@ def main() -> int:
     print("== per animal (rule 8) + nested bootstrap, resid")
     cols = ["scope", "cls", "set", "epoch", "point", "lo", "hi", "n_dir", "n"] + [c for c in T.columns if c.startswith("animal_")]
     print(T[T.measure == "resid"][cols].round(2).to_string(index=False))
-    plot(A, S, T)
+    BT = bin_tests(P)
+    BT.to_csv(il.OUT / f"matched{TAG}_bin_tests.csv", index=False)
+    plot(A, S, T, BT)
     return 0
 
 

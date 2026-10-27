@@ -211,7 +211,7 @@ def plot_session_scatter(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None
                  "lines = per-animal fit over post sessions. The within-animal test with the shared time trend removed "
                  "is in the per-animal recovery-link figure (this pooled r mixes animals and includes the time trend). PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(src / "figures" / f"iti_recovery_link_sessions_{tag}.png", dpi=100)
+    fig.savefig(src / "figures" / f"lick_recovery_link_sessions_{tag}.png", dpi=100)
     plt.close(fig)
 
 
@@ -289,7 +289,7 @@ def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
                  "with 95% nested bootstrap CI\n(animals > sessions; * = CI excludes 0). TOP = ITI licks, BOTTOM = "
                  "cued licks. Behaviour is the same in both rows (cued far-contra licks).", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(src / "figures" / f"iti_recovery_link_pooled_{tag}.png", dpi=100)
+    fig.savefig(src / "figures" / f"lick_recovery_link_pooled_{tag}.png", dpi=100)
     plt.close(fig)
 
 
@@ -338,7 +338,7 @@ def plot_course(G: pd.DataFrame, R: pd.DataFrame, tag: str, ax2: str, z: bool, s
                  f"({rr.loc[('trial', 'detrended'), 'mean_r']:+.2f}, p {rr.loc[('trial', 'detrended'), 'p_perm']:.4f}); "
                  "p = within-animal permutation of behaviour.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.89))
-    fig.savefig(src / "figures" / f"iti_recovery_link_{tag}.png", dpi=100)
+    fig.savefig(src / "figures" / f"lick_recovery_link_{tag}.png", dpi=100)
     plt.close(fig)
 
 

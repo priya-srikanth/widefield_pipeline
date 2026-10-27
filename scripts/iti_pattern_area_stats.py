@@ -8,7 +8,8 @@ paired by animal), nested bootstrap animals > sessions (`_boot`, 2000 draws), tw
 (epoch, kind) within a map family; n_dir = animals whose own mean has the pooled sign. Rule 8: per-animal area means
 are in the CSV. A sign-flip permutation across 4 animals (16 arrangements, min p 0.0625) cannot reach significance, so
 the bootstrap is kept.
-Outputs <E>/iti_licks/pattern_area_stats_{position,spout,spout_iti}.csv and figures/iti_pattern_area_stats_<family>.png.
+Outputs <E>/iti_licks/pattern_area_stats_{position,spout,spout_iti}.csv and figures/lick_pattern_area_stats_position.png (ITI + cued), lick_cued_pattern_area_stats_spout.png,
+lick_iti_pattern_area_stats_spout.png.
 Usage: python scripts/iti_pattern_area_stats.py
 """
 from __future__ import annotations
@@ -27,6 +28,8 @@ from iti_decoder_pattern_stats import _bh, _boot  # noqa: E402
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 MIN_PIX = 50
+FIG_NAME = {"position": "lick_pattern_area_stats_position.png",       # ITI + cued (lick_ names since 10-27)
+            "spout": "lick_cued_pattern_area_stats_spout.png", "spout_iti": "lick_iti_pattern_area_stats_spout.png"}
 
 
 def area_index():
@@ -109,7 +112,7 @@ def plot(T: pd.DataFrame, label: str) -> None:
                  "95% CI excludes 0 after BH q 0.05 over areas x columns AND >= 3 animals share the sign. "
                  "_left = lesioned hemisphere. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.55 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / f"iti_pattern_area_stats_{label}.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / FIG_NAME[label], dpi=100)
     plt.close(fig)
 
 
