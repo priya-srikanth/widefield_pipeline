@@ -66,6 +66,15 @@ read-out / lickclass / perspout panels -- old versions to Supplementary; (3) sca
 null, global-activity confound); (7) first-lick map shape (re-extract all first licks); (8) tell e3 when decoder figures
 are final. Push: `S2/push<NN>.sh` cherry-picks named commits onto origin/main in a temp worktree; pre-push pytest takes
 ~8-11 min (`test_parallel_results_are_ordered` guards fan_out ordering -- sort results).
+**QUEUE after the SVD switch (Priya 10-27 late, in this order):** (a) SVD-basis decoder = primary (chain S2/run_svd.sh,
+env WFIELD_LICK_DECODER=svd; compare with the Allen-area version, then switch page figures); (b) Gaussian-kernel
+same-place reference (width chosen by leave-one-pre-session-out prediction error, floor = landing noise; sensitivity
+0.1-0.4 mm); (c) landing + FaceRhythm reference (kernel on landing + linear FR terms; also + kinematics); (d) same-target
+same-place comparison ('more misses' vs 'each lick read differently'; lower priority but BEFORE the non-linear decoder);
+(e) redo recovery-link (3.4 / 3.41 / 3.42) on the new measure (the behaviour-model figures already are the read-out vs
+aim regression); (f) angle-matched secondary + coordinate family (lateral / sagittal / angle / elevation / reach / xyz);
+(g) non-linear decoder (low priority). Mixed models now: like-for-like read-out, behaviour deficit = angle aim
+(`iti_lmm_figures.py --deficit aim`), epoch model drawn by `mixed_models.plot_epoch`, significant terms bold.
 **Pitfall:** python heredocs in bash turn "
 " in string literals into real newlines -- use Write/Edit for Python.
 
