@@ -52,9 +52,18 @@ OUT = E / "iti_licks"
 # are kept unchanged.
 ROI_VERSION = os.environ.get("WFIELD_ROI_VERSION", "2")      # default = the FINAL ROIs (v1 = 40/40, kept)
 # FINAL (Priya 10-27): v2 = ALM 40 % / tjM1 50 % (45 / 50 considered; ALM 45 % takes in part of whisker M2).
-_ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_sd_split.csv"),
-        "2": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi2", "session_sd_roi2_tj50.csv", "session_sd_split_roi2_tj50.csv")}
-ROI_FRAC, SESS_NAME, SD_NAME, SPLIT_NAME = _ROI[ROI_VERSION]   # SD files live in zscore_check/
+# v3 (Priya 10-27: "can we expand the rim anteriorly? posteriorly it matters more" / "shrink the excluded area"): same
+# fractions as v2, but ROI / AREA AVERAGES use a THINNER rim anteriorly -- pixels anterior of RIM_AP_MIN keep everything
+# except the outer RIM_ANT_PX of the brain mask (instead of the 16-px stat-mask rim); posteriorly unchanged. Measured
+# before the change (6 sessions): the anterior MOs rim has half the lick response but no worse single-lick SNR (1.29 vs
+# 1.13). Per-pixel MAP statistics keep beta_maps.stat_mask() (its rim artefacts are shared across animals).
+RIM_AP_MIN, RIM_ANT_PX = 1.0, 4
+_ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_sd_split.csv", False),
+        "2": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi2", "session_sd_roi2_tj50.csv", "session_sd_split_roi2_tj50.csv",
+              False),
+        "3": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi3", "session_sd_roi3_rimant.csv", "session_sd_split_roi3_rimant.csv",
+              True)}
+ROI_FRAC, SESS_NAME, SD_NAME, SPLIT_NAME, ROI_THIN_ANT_RIM = _ROI[ROI_VERSION]   # SD files live in zscore_check/
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
 LAGS_C = np.round(np.arange(-1.0, 2.5001, 0.05), 3)          # cue-aligned lags (trial first licks)
 LAGS_D = np.round(np.arange(-1.0, 1.0001, 0.05), 3)          # decoding lags (-1..+1 s: binned-decoder sweep, 10-26)
@@ -88,9 +97,17 @@ def lick_table() -> pd.DataFrame:
 
 
 def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dict:
-    """{name: boolean over brain pixels}: every Allen area (stat mask) + ALM / tjM1 per hemisphere (module docstring)."""
+    """{name: boolean over brain pixels}: every Allen area (stat mask) + ALM / tjM1 per hemisphere (module docstring).
+    ROI_THIN_ANT_RIM (v3): pixels anterior of RIM_AP_MIN are kept unless within RIM_ANT_PX of the brain-mask edge."""
     H, W = (int(x) for x in shape)
     r, c = flat // W, flat % W
+    if ROI_THIN_ANT_RIM:
+        from scipy import ndimage
+
+        from wfield_local import beta_maps
+        from wfield_local.allen_register import BREGMA_OFFSET, RESOLUTION
+        thin = ndimage.binary_erosion(beta_maps.brain_mask(), iterations=RIM_ANT_PX).ravel()[flat]
+        pstat = pstat | (thin & ((BREGMA_OFFSET[1] - r) * RESOLUTION > RIM_AP_MIN) & (parea != 0))   # labelled cortex only
     m = {names.get(int(a), str(a)): (parea == a) & pstat for a in sorted(np.unique(parea[pstat])) if a != 0}
     left = np.zeros(len(flat), bool)
     right = np.zeros(len(flat), bool)
@@ -436,7 +453,8 @@ def ramp_draw(plt, F: dict, colors: dict, path) -> None:
     axs.flat[0].set_ylabel("dF/F / animal's pre amplitude at the lick")
     fig.suptitle(f"NEURAL, NO DECODER: dF/F around SELF-INITIATED licks ({F['what']}; no cue / spout move within -2..+0.75 s), "
                  "lick-ONSET aligned, baseline -1.5..-1.0 s; line = mean of animals, band = SEM over animals, each scaled by its pre amplitude "
-                 "at the lick. ALM / tjM1 = anterolateral 40 % of MOs / MOp; _right = contralesional.\n" + SIG_NOTE +
+                 f"at the lick. ALM = anterolateral {ROI_FRAC['ALM']:.0%} of MOs, tjM1 = anterolateral "
+                 f"{ROI_FRAC['tjM1']:.0%} of MOp; _right = contralesional.\n" + SIG_NOTE +
                  " Tests on session PETHs (/ animal's pre amplitude).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(path, dpi=110)
