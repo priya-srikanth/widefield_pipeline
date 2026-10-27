@@ -44,7 +44,9 @@ import numpy as np
 import pandas as pd
 
 #: slope term per model
-SLOPES = {"time": "post:lday", "behaviour": "post:deficit"}
+SLOPES = {"time": "post:lday", "behaviour": "post:deficit", "time_drift": "post:lday"}
+#: time_drift = time model + a linear DRIFT term over days (pre sessions at their negative days), so a slow trend
+#: present before the stroke is estimated and not credited to the stroke (Priya 10-27; use only if it costs no power)
 #: minimum sessions to fit a group (fewer = a run still in progress, or a measure only some sessions carry)
 MIN_PRE, MIN_POST, MIN_ANIMALS = 6, 10, 2
 EPOCHS = ("pre", "acute", "subacute", "chronic")
@@ -190,8 +192,9 @@ def lmm_table(L: pd.DataFrame, by: list[str], models=("time", "behaviour"), valu
                 sl = None
             else:
                 sl = SLOPES[model]
-                r, re = fit_lmm(G, f"y ~ post + {sl}", sl)
-                terms = ["Intercept", "post", sl]
+                drift = " + day" if model == "time_drift" else ""
+                r, re = fit_lmm(G, f"y ~ post + {sl}{drift}", sl)
+                terms = ["Intercept", "post", sl] + (["day"] if drift else [])
             for row in tidy(r, re, terms, len(G), sl):
                 rows.append({"model": model, **dict(zip(by, key)), **row})
     T = pd.DataFrame(rows)

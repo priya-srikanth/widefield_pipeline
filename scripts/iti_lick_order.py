@@ -40,7 +40,7 @@ POS = fl.POS
 ORDER_CAP = 9
 MIN = 8
 SETS = {"iti": "ITI", "trial": "cued"}
-# DECODER SOURCE (Priya 10-27: "let's use the SVD basis"): env WFIELD_LICK_DECODER = "areas" (Allen areas, z-scored by
+# DECODER SOURCE (Priya 10-27: "let's use the SVD basis"; Allen / LocaNMF = basis-robustness checks): env WFIELD_LICK_DECODER = "areas" (Allen areas, z-scored by
 # zscore_check/session_sd.csv; the KEY row until 10-27) or "svd" (the animal's pre-stroke 200-component SVD basis,
 # iti_basis_decoder extraction; each component z-scored by its SD over that session's licks, ITI + cued together)
 import os  # noqa: E402
@@ -84,7 +84,7 @@ def predictions() -> pd.DataFrame:
     from wfield_local import orofacial_cohort as oc
     SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
     names = feature_names()
-    D = wd.load("areas" if SOURCE == "areas" else "svdbasis")
+    D = wd.load({"areas": "areas", "svd": "svdbasis", "locanmf": "locanmf"}[SOURCE])   # basis robustness (Priya 10-27)
     sd_svd = {x: np.vstack([d["iti"][0], d["trial"][0]]).std(0) for x, d in D.items()} if SOURCE != "areas" else {}
     rows = []
     for st in SETS:
