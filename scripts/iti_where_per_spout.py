@@ -73,29 +73,46 @@ def tests(s: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     return pd.DataFrame(rows), pd.DataFrame(per)
 
 
-def plot(T: pd.DataFrame, P: pd.DataFrame, tag: str) -> None:
+def session_changes(s: pd.DataFrame) -> pd.DataFrame:
+    """Per session x spout: value minus its animal's PRE mean for that spout and set (pre sessions included, so their
+    spread is visible)."""
+    out = []
+    for m in MEAS:
+        pre = s[s.epoch == "pre"].groupby(["set", "animal", "pos"])[m].mean().rename("pre_m")
+        x = s.join(pre, on=["set", "animal", "pos"]).dropna(subset=["pre_m", m])
+        out.append(x.assign(measure=m, change=x[m] - x.pre_m)[["set", "animal", "epoch", "label", "pos", "measure",
+                                                                 "change"]])
+    return pd.concat(out, ignore_index=True)
+
+
+def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
+    """3.9 layout: one dot per SESSION (change from its animal's pre mean, all animals pooled), bar = mean +- SEM over
+    sessions, * = paired nested bootstrap (animals > sessions) excluding 0."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    ep4 = ["pre", *EP]
+    col = {"pre": "0.25", **EPC}
     rows = [(st, m) for st in ("trial", "iti") for m in MEAS]
     fig, axs = plt.subplots(len(rows), len(POS), figsize=(2.9 * len(POS), 2.5 * len(rows)), squeeze=False, sharey="row")
     sl = {"trial": "CUED (by target)", "iti": "ITI (by previous spout)"}
+    rng = np.random.default_rng(0)
     for i, (st, m) in enumerate(rows):
         for j, pos in enumerate(POS):
             ax = axs[i, j]
             ax.axhline(0, color="0.6", lw=0.7)
-            for k, ep in enumerate(EP):
+            for k, ep in enumerate(ep4):
+                v = S[(S.set == st) & (S.pos == pos) & (S.measure == m) & (S.epoch == ep)].change.to_numpy()
+                if not len(v):
+                    continue
+                ax.scatter(k + rng.uniform(-0.17, 0.17, len(v)), v, s=8, color=col[ep], alpha=0.45, lw=0)
+                mu, se = v.mean(), v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0.0
+                ax.errorbar(k + 0.3, mu, yerr=se, fmt="o", color="k", ms=4, capsize=2, lw=1.2)
                 t = T[(T.set == st) & (T.pos == pos) & (T.measure == m) & (T.epoch == ep)]
-                pa = P[(P.set == st) & (P.pos == pos) & (P.measure == m) & (P.epoch == ep)]
-                ax.scatter(np.full(len(pa), k) + np.linspace(-0.12, 0.12, max(len(pa), 1))[:len(pa)], pa.change,
-                           s=10, color=EPC[ep], alpha=0.45, lw=0)
-                if len(t) and np.isfinite(t.point.iloc[0]):
-                    r = t.iloc[0]
-                    sig = r.lo > 0 or r.hi < 0
-                    ax.errorbar(k, r.point, yerr=[[r.point - r.lo], [r.hi - r.point]], fmt="o", color=EPC[ep],
-                                mfc=EPC[ep] if sig else "w", ms=6, capsize=2, lw=1.4)
-            ax.set_xticks(range(len(EP)))
-            ax.set_xticklabels(["acu", "sub", "chr"], fontsize=8)
+                if ep != "pre" and len(t) and np.isfinite(t.point.iloc[0]) and (t.lo.iloc[0] > 0 or t.hi.iloc[0] < 0):
+                    ax.text(k, 1.0, "*", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=13)
+            ax.set_xticks(range(len(ep4)))
+            ax.set_xticklabels(["pre", "acu", "sub", "chr"], fontsize=8)
             if i == 0:
                 ax.set_title(pos.replace("_", " "), fontsize=10)
             if j == 0:
@@ -103,9 +120,10 @@ def plot(T: pd.DataFrame, P: pd.DataFrame, tag: str) -> None:
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     fig.suptitle("NEURAL: frozen pre-stroke lick-position decoder PER SPOUT (Allen areas, lags 0..0.2 s"
-                 f"{', features z-scored within session' if tag else ''}). Change vs pre; filled = 95% nested CI "
-                 "(animals > sessions) excludes 0, open = includes 0; dots = animals.\nCued licks grouped by target, "
-                 "ITI licks by the previous trial's spout (fixed before the lick). 'Beyond pull' = decoded minus where "
+                 f"{', features z-scored within session' if tag else ''}). One dot per SESSION = change from its "
+                 "animal's pre mean (all animals pooled; pre sessions show the pre spread); black = mean +- SEM over "
+                 "sessions;\n* = paired nested bootstrap (animals > sessions) excludes 0. Cued licks grouped by target, "
+                 "ITI licks by the previous trial's spout (fixed before the lick).\nOffset = decoded minus where "
                  "the animal's pre-stroke pull toward the middle alone would put the lick.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(il.OUT / "figures" / f"iti_where_per_spout{tag}.png", dpi=95)
@@ -129,7 +147,9 @@ def main() -> int:
     print("\n== cells whose CI excludes 0\n" + sig.round(3).to_string(index=False))
     P.to_csv(il.OUT / f"per_spout{tag}_by_animal.csv", index=False)
     T.to_csv(il.OUT / f"per_spout{tag}_tests.csv", index=False)
-    plot(T, P, tag)
+    S = session_changes(s)
+    S.to_csv(il.OUT / f"per_spout{tag}_by_session.csv", index=False)
+    plot(T, S, tag)
     return 0
 
 
