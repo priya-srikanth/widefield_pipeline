@@ -71,3 +71,45 @@ section. Everything here is PROVISIONAL until you have looked at it.
 3. Haufe maps use unscaled SVD features (z-scoring 200 components per session is not the same as per-area z-scoring);
    the decoder offsets / KEY row use z-scored areas. Say if you want a z-scored map version.
 4. PS95 acute has a single session, so no acute map / pattern for PS95 (shown as n = 3 animals).
+
+---
+
+## AFTERNOON / EVENING RUNNING LIST (10-27, Priya away) -- results, decisions, questions as they come in
+
+### Decisions recorded (DECISIONS.md 2026-10-27)
+- Decoder r and decoder offsets: LATERAL primary; angle (+ polar elevation / reach, + x/y/z) supplementary.
+- Behaviour (recovery-link aim, landing, recovery ranking): ANGLE, as change vs pre (deg), not a ratio.
+- No lick-extension filter (all tracked licks; the 3-D lick table has no lip licks).
+- Pixel maps: max-statistic (FWER) solid contour + BH-FDR & >= 3/4 dashed (FWER vs FDR discussed: FDR = localisation,
+  map-level permutation = whole-map test, max-stat = per-pixel claims / decoder-page comparability).
+- 3.15-3.22: redraw on z-scored features (running; headline changes will be flagged here).
+- Recovery measure: cued angle offset from own pre landing per spout, weighted far contra 3 : far mid 2 : others 1,
+  SIGNED (absolute adds each animal's pre noise floor, ~2x in PS93). Chronic - pre: PS92 -0.5, PS95 -2.4, PS93 -3.0,
+  PS94 -5.7 deg -> ranking PS92 > PS95 > PS93 > PS94 (fraction of acute deficit left: 4 / 15 / 39 / 27 %).
+
+### Results so far (all PROVISIONAL)
+- Far-contra cued read-out vs landing (FINDINGS 4d0b): acutely the code follows the ipsilesional deviation but sits
+  contralesional of an unchanged-decoder reading (beyond pull +0.21 / +0.04 / +0.68 / +0.05 mm); chronically read
+  ipsilesional beyond the pull (-0.15 to -0.35, 4/4).
+- Overcorrection test (iti_overcorrection[_angle].png): chronic ipsilesional read-out is specific to contralesional
+  spouts (far contra -0.27 mm 4/4; close contra -0.11 3/4; others n.s.). Lick-to-lick slope at far contra drops in mm
+  (-0.12, 4/4) but NOT in angle (-0.06, 2/4) -> in angle: shifted offset with intact coupling (fits a downstream
+  correction); in mm: also weaker coupling (fits a degraded code). Not decisive.
+- Polar decoder (iti_where_angle_reach.png): angle offset ITI +4.6 / +2.8 / +3.1 deg (4/4 every epoch), cued +2.7 ->
+  resolved; elevation read steeper-down acutely only (+2.4 ITI, +1.3 cued, 4/4); cued reach read further acutely
+  (+0.16) then shorter (-0.16 subacute and chronic, 4/4). The x/y/z "forward" discrepancy appears as reach, not elevation.
+- Angle vs lateral recovery link (z-scored): angle -0.48 (4/4) vs lateral -0.40 (4/4) -> angle kept for behaviour.
+- Why angle r is noisier: angle is measured from the apparatus (spout-projected) mouth origin -> error ~ offset/extension
+  on short licks; atan2 amplifies lateral noise. Single-view frame share 18-36 %, flat across epochs and lick length.
+
+### Running / queued
+- Whole-map permutation + amplitude-normalised change maps (per-session self-fit maps, 107 sessions) -- drawing.
+- Haemodynamic / artefact checks (415 nm, uncorrected 470, zero-phase filter, edge / vessel, per-area F0; then global
+  state, baseline window) -- background agent.
+- z-scored redraw of 3.15 / 3.19-3.22 -- background agent.
+- Max-stat contour redraws of 3.50-3.53.
+- Then: one page publish; mixed-effects models (sessions in animals) for headline results; per-animal per-spout panels;
+  first-lick read-out; behaviour-only decoder (low). Tell the deck window the decoder figures are final AFTER the publish.
+
+### Questions for Priya (accumulating)
+- (none new yet)
