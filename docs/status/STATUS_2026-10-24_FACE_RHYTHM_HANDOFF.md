@@ -89,7 +89,13 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      v7 (https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv) -- taken over from 5b / c67b with their OK: source now this
      window's scratchpad `kin_page/` (`src_v6.html` = live v6, `convert_fmt.py` -> `index.html`; edit index.html or
      src + rerun). Sections renumbered 1-10 (were 1, 1b, 2, 2b ...), 48 figures N.k, titles, Data / Window / Stats /
-     Script per caption. (3) Imaging page: 5b / c67b converting. Goal page: d4 already in this format.
+     Script per caption. (3) Imaging page v27 (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV) done by 5b / c67b
+     (old -> new map: c67b scratchpad `imaging_fig_map.csv`). Goal page: d4 already in this format. (4) PI DECK
+     (M:/.../Widefield/presentations/PI_overview_kinematics_FR_encoder_2026-10-26.pptx): speaker-note figure citations
+     moved to the new N.k numbers (47 edits; `_source_PI_overview_2026-10-26/edit9.py`, backup
+     `backup_before_fignum_notes.pptx`). Encoding / imaging / kinematics resolved by image file against each page's
+     pre-renumber source; FR by topic (the deck predates two FR reorders, so its letters match no saved FR version).
+     Stale FR null notes (slides 39, 40, 59 "null running") replaced by the final 5.10 result. Slides unchanged.
    * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
