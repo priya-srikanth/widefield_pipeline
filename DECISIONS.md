@@ -22079,3 +22079,10 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   lick table has no lip licks). Angle r is weaker than lateral r because atan2 amplifies tracking noise on short (1.5-3 mm)
   licks; say so in captions. Rejected: per-animal pre-median cut (biased against near spouts), single 3.5 mm cut.
 - Recovery-link r(offset, aim): angle -0.48 (4/4) vs lateral -0.40 (4/4), z-scored decoder, time trend removed.
+- **REVISED same day (Priya 10-27, later): decoder r AND decoder offset comparisons go back to LATERAL as primary** (the
+  decoder's own axis; lateral r is the more consistent r measure, 4/4 every ITI epoch). Angle (and the polar / x-y-z
+  companions) become SUPPLEMENTARY for the decoder figures. BEHAVIOUR (recovery-link aim, landing) stays ANGLE, as change
+  vs pre. Why angle r is noisier: angle is measured from the apparatus (spout-projected) mouth origin, so any offset of the
+  animal's real mouth from it becomes an error of ~offset / extension -- lick-by-lick on short licks -- while it is only a
+  constant for lateral position; plus atan2 amplifies lateral tracking noise on short licks. A trajectory-based angle
+  (direction over the protrusion phase) would remove the origin dependence (not built).
