@@ -200,7 +200,8 @@ def landing_errors(p: pd.DataFrame) -> pd.DataFrame:
     return t.dropna(subset=["err"])[["animal", "epoch", "label", "err"]]
 
 
-def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_lick", landing: bool = False) -> None:
+def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_lick", landing: bool = False,
+               angle: bool = False) -> None:
     """Per LICK: signed decoding error (decoded - actual, lateral) distributions per epoch; POOLED column first (animals
     weighted equally), then per animal. A SHIFTED distribution = bias; a WIDER one = scatter. landing=True adds a
     BEHAVIOUR row below: the cued licks' lateral LANDING error vs the target spout (`landing_errors`).
@@ -211,6 +212,11 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+    if angle:   # ANGLE version: lick angle atan2(lateral, sagittal) in degrees (decoded angle from the two decoded axes)
+        p = p.dropna(subset=["act_sag", "dec_sag"]).copy()
+        p["act_lat"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
+        p["dec_lat"] = np.degrees(np.arctan2(p.dec_lat, p.dec_sag))
+    unit, rng_ = ("deg", 40) if angle else ("mm", 3)
     p["err"] = p.dec_lat - p.act_lat
     p = p.dropna(subset=["err"])
     # CONTROL for the shift: the error a PULL-ONLY decoder would make (decoded = a + b * actual, a, b fit on the animal's
@@ -221,12 +227,12 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
         b_, c_ = np.polyfit(pre_.act_lat, pre_.dec_lat, 1)
         parts_.append(g.assign(pull_err=c_ + (b_ - 1) * g.act_lat))
     p = pd.concat(parts_)
-    xdec = "decoded - actual LATERAL, mm (+ = read more contralesional)"
-    rows = [(f"{'ITI' if st == 'iti' else 'cued'}: NEURAL decoder error", p[p.set == st], xdec, -3, 3)
+    xdec = f"decoded - actual {'ANGLE' if angle else 'LATERAL'}, {unit} (+ = read more contralesional)"
+    rows = [(f"{'ITI' if st == 'iti' else 'cued'}: NEURAL decoder error", p[p.set == st], xdec, -rng_, rng_)
             for st in sets]
     if landing:
         rows.append(("cued: BEHAVIOUR landing shift", landing_errors(p),
-                     "landing - own pre landing at spout (mm, + = contra)", -4, 4))
+                     f"landing - own pre landing at spout ({unit}, + = contra)", -1.33 * rng_, 1.33 * rng_))
     rng = np.random.default_rng(0)
 
     def within(h, ep, v):
@@ -317,11 +323,11 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
             ax.set_xlabel(xlab, fontsize=7.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    beh = (" Bottom row = BEHAVIOUR: lateral landing (3-D, extension peak) minus the animal's pre landing at the same spout."
+    beh = (f" Bottom row = BEHAVIOUR: {'lick angle' if angle else 'lateral landing'} (3-D, extension peak) minus the animal's pre landing at the same spout."
            if landing else "")
-    fig.suptitle("Per-LICK lateral error distributions. NEURAL rows: frozen where-decoder (z-scored Allen areas), decoded - "
+    fig.suptitle(f"Per-LICK {'ANGLE' if angle else 'lateral'} error distributions ({unit}). NEURAL rows: frozen where-decoder (z-scored Allen areas), decoded - "
                  "actual." + beh + "\nA shifted distribution = BIAS, a wider one = SCATTER; dashed = epoch mean. Text = "
-                 "change vs pre in the per-SESSION mean (shift) and SD (width), mm, 95% CI (epoch* = shift significant):\nper animal = session "
+                 "change vs pre in the per-SESSION mean (shift) and SD (width) in axis units, 95% CI (epoch* = shift significant):\nper animal = session "
                  "bootstrap; POOLED = paired nested bootstrap (animals > sessions) + animals changing that way; * = CI "
                  "excludes 0.\nCONTROL (black text; triangles on the x axis = the expected mean): the shift a PULL-ONLY decoder (a + b x actual, fit on pre) "
                  "would show from the changed lick distribution alone.\nNB the decoder error includes its pull toward the pre mean, so a changed lick "
@@ -360,6 +366,8 @@ def main() -> int:
     error_hist()
     error_hist(("iti",), "iti_check_error_per_lick_iti")
     error_hist(("trial",), "cued_check_error_per_lick", landing=True)
+    error_hist(("iti",), "iti_check_error_per_lick_iti_angle", angle=True)
+    error_hist(("trial",), "cued_check_error_per_lick_angle", landing=True, angle=True)
     R0 = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
     p["err"] = p.dec_lat - p.act_lat

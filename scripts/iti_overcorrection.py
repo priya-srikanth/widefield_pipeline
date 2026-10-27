@@ -13,7 +13,9 @@ Per session x spout (>= MIN licks): offset (as 1) and within-session slope; chan
 bootstrap (animals > sessions); per-animal table first (rule 8). Decoder = the KEY-row where-decoder on z-scored Allen
 areas (zscore_check/where_preds_z.csv), cued licks.
 Outputs <E>/iti_licks/overcorrection_{sessions,tests}.csv, figures/iti_overcorrection.png.
-Usage: python scripts/iti_overcorrection.py
+--angle: the same in lick ANGLE (atan2(lateral, sagittal), degrees), the primary behaviour measure (Priya 10-27: "keep
+angle and lateral analyses, but make primary the one that is most consistent").
+Usage: python scripts/iti_overcorrection.py [--angle]
 """
 from __future__ import annotations
 
@@ -34,8 +36,12 @@ POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_co
 MIN = 15
 
 
-def sessions() -> pd.DataFrame:
+def sessions(angle: bool = False) -> pd.DataFrame:
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+    if angle:   # lick ANGLE atan2(lateral, sagittal), degrees; decoded angle from the two decoded axes
+        p = p.dropna(subset=["act_sag", "dec_sag"]).copy()
+        p["act_lat"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
+        p["dec_lat"] = np.degrees(np.arctan2(p.dec_lat, p.dec_sag))
     p = p[(p.set == "trial") & p.pos.isin(POS)].dropna(subset=["act_lat", "dec_lat"])
     rows = []
     for a, g in p.groupby("animal"):
@@ -72,14 +78,15 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
-def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
+def plot(S: pd.DataFrame, T: pd.DataFrame, angle: bool = False) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
-    meas = [("landing", "BEHAVIOUR: landing vs pre at the spout (mm)"),
-            ("beyond", "NEURAL: decoded offset beyond the pre pull (mm)"),
+    u = "deg" if angle else "mm"
+    meas = [("landing", f"BEHAVIOUR: {'angle' if angle else 'landing'} vs pre at the spout ({u})"),
+            ("beyond", f"NEURAL: decoded offset beyond the pre pull ({u})"),
             ("slope", "NEURAL: within-session slope, decoded on landing")]
     fig, axs = plt.subplots(len(meas), len(POS), figsize=(3.0 * len(POS), 2.9 * len(meas) + 1.2), squeeze=False,
                             sharey="row")
@@ -116,13 +123,15 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "\nGrey = animals, black = mean of animals, diamond = pre + change with 95% paired nested bootstrap CI "
                  "(* = excludes 0, bold), k/n = animals changing that way. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.75 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / "iti_overcorrection.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / f"iti_overcorrection{'_angle' if angle else ''}.png", dpi=100)
     plt.close(fig)
 
 
-def main() -> int:
-    S = sessions()
-    S.to_csv(il.OUT / "overcorrection_sessions.csv", index=False)
+def main(argv=None) -> int:
+    angle = "--angle" in (argv if argv is not None else sys.argv[1:])
+    sfx = "_angle" if angle else ""
+    S = sessions(angle)
+    S.to_csv(il.OUT / f"overcorrection{sfx}_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): beyond-pull offset, per spout x epoch (mm; - = read ipsilesional of the landing)")
     print(S.pivot_table(index=["spout", "animal"], columns="epoch", values="beyond").reindex(columns=EPS).round(2)
@@ -131,10 +140,10 @@ def main() -> int:
     print(S.pivot_table(index=["spout", "animal"], columns="epoch", values="slope").reindex(columns=EPS).round(2)
           .to_string())
     T = tests(S)
-    T.to_csv(il.OUT / "overcorrection_tests.csv", index=False)
+    T.to_csv(il.OUT / f"overcorrection{sfx}_tests.csv", index=False)
     print("\n== change vs pre (paired nested bootstrap)")
     print(T.round(3).to_string(index=False))
-    plot(S, T)
+    plot(S, T, angle)
     return 0
 
 
