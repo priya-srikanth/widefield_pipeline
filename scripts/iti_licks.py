@@ -58,11 +58,19 @@ ROI_VERSION = os.environ.get("WFIELD_ROI_VERSION", "2")      # default = the FIN
 # before the change (6 sessions): the anterior MOs rim has half the lick response but no worse single-lick SNR (1.29 vs
 # 1.13). Per-pixel MAP statistics keep beta_maps.stat_mask() (its rim artefacts are shared across animals).
 RIM_AP_MIN, RIM_ANT_PX = 1.0, 4
-_ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_sd_split.csv", False),
+_ROI = {"1": ({"ALM": 0.4, "tjM1": 0.4}, "sessions", "session_sd.csv", "session_sd_split.csv", ""),
         "2": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi2", "session_sd_roi2_tj50.csv", "session_sd_split_roi2_tj50.csv",
-              False),
+              ""),
         "3": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi3", "session_sd_roi3_rimant.csv", "session_sd_split_roi3_rimant.csv",
-              True)}
+              "ant"),
+        # v4 (Priya 10-27: "give the orofacial S1 strip"; "I don't want the front edge slivers - only expand laterally"):
+        # v3 is ABANDONED (front-edge slivers). v4 = the thin rim ONLY at the LATERAL edge: a pixel of the 16-px rim is
+        # kept when it is >= RIM_ANT_PX inside the brain mask AND the mask ends within 16 px LATERALLY (moving away from
+        # the midline along its row) -- i.e. it is rim because of the lateral edge, not the front / back edge -- AND it
+        # lies anterior of RIM_LAT_AP_MIN (the lateral MOp / tjM1 edge and the orofacial S1 strip; posterior rim kept out)
+        "4": ({"ALM": 0.4, "tjM1": 0.5}, "sessions_roi4", "session_sd_roi4_rimlat.csv",
+              "session_sd_split_roi4_rimlat.csv", "lat")}
+RIM_LAT_AP_MIN = -0.5
 ROI_FRAC, SESS_NAME, SD_NAME, SPLIT_NAME, ROI_THIN_ANT_RIM = _ROI[ROI_VERSION]   # SD files live in zscore_check/
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
 LAGS_C = np.round(np.arange(-1.0, 2.5001, 0.05), 3)          # cue-aligned lags (trial first licks)
@@ -98,7 +106,8 @@ def lick_table() -> pd.DataFrame:
 
 def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dict:
     """{name: boolean over brain pixels}: every Allen area (stat mask) + ALM / tjM1 per hemisphere (module docstring).
-    ROI_THIN_ANT_RIM (v3): pixels anterior of RIM_AP_MIN are kept unless within RIM_ANT_PX of the brain-mask edge."""
+    ROI_THIN_ANT_RIM: "lat" (v4) = the 16-px rim is kept at the LATERAL edge (anterior of RIM_LAT_AP_MIN) except the
+    outer RIM_ANT_PX; "ant" (v3, abandoned) = the same anterior of RIM_AP_MIN."""
     H, W = (int(x) for x in shape)
     r, c = flat // W, flat % W
     if ROI_THIN_ANT_RIM:
@@ -106,8 +115,18 @@ def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dic
 
         from wfield_local import beta_maps
         from wfield_local.allen_register import BREGMA_OFFSET, RESOLUTION
-        thin = ndimage.binary_erosion(beta_maps.brain_mask(), iterations=RIM_ANT_PX).ravel()[flat]
-        pstat = pstat | (thin & ((BREGMA_OFFSET[1] - r) * RESOLUTION > RIM_AP_MIN) & (parea != 0))   # labelled cortex only
+        bmask = beta_maps.brain_mask()
+        thin = ndimage.binary_erosion(bmask, iterations=RIM_ANT_PX).ravel()[flat]
+        ap_mm = (BREGMA_OFFSET[1] - r) * RESOLUTION
+        if ROI_THIN_ANT_RIM == "lat":
+            step = beta_maps.STAT_ERODE_PX
+            out_c = np.where(c >= BREGMA_OFFSET[0], c + step, c - step)          # 16 px further from the midline
+            ok_c = (out_c >= 0) & (out_c < W)
+            lat_edge = ~ok_c | ~bmask[r, np.clip(out_c, 0, W - 1)]
+            add = lat_edge & (ap_mm > RIM_LAT_AP_MIN)
+        else:                                                                     # "ant" (v3, abandoned)
+            add = ap_mm > RIM_AP_MIN
+        pstat = pstat | (thin & add & (parea != 0))   # labelled cortex only
     m = {names.get(int(a), str(a)): (parea == a) & pstat for a in sorted(np.unique(parea[pstat])) if a != 0}
     left = np.zeros(len(flat), bool)
     right = np.zeros(len(flat), bool)
