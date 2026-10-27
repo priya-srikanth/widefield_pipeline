@@ -73,8 +73,8 @@ TGT_LAB = {"direction": "lateral tongue-tip position (3-D, mm)",
 def lick_table() -> pd.DataFrame:
     from wfield_local.paths import PathResolver
     p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
-    return pd.read_csv(p, usecols=["session", "context", "lick_uid", "side_ml", "out_ap", "position", "trial_id",
-                                   "reach_mm", "speed_peak"])
+    return pd.read_csv(p, usecols=["session", "context", "lick_uid", "side_ml", "out_ap", "down_dv", "position",
+                                   "trial_id", "reach_mm", "speed_peak"])
 
 
 def roi_masks(parea, pstat, names, flat, shape, frac: float = ROI_FRAC) -> dict:

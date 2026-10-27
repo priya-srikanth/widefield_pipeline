@@ -4,7 +4,7 @@ cued licks are read as being closer ... when there is MORE tjM1 and ALM activity
 The frozen where-decoder (`iti_where_decoder.py`, Allen areas, lags 0..0.2 s from the lick peak, ridge on standardised
 features, fit on ALL of the animal's August pre licks) is linear: decoded = c + sum_i w_i (x_i - mu_i) / sd_i. So the
 change of the mean decoded position from pre to an epoch splits exactly into per-area contributions
-w_i / sd_i * (mean_epoch x_i - mean_pre x_i). Per animal, lick set (ITI / in-trial) and axis (lateral, outward);
+w_i / sd_i * (mean_epoch x_i - mean_pre x_i). Per animal, lick set (ITI / in-trial) and axis (lateral, sagittal);
 mean of animals reported, per-animal table first. Pre is scored with the all-pre fit here (an exact split needs one
 model), so the totals differ slightly from the leave-one-session-out numbers on the page.
 Also writes the decoder weights per area (w / sd, mm per dF/F unit) and the mean feature change, so a sign can be read
@@ -25,7 +25,7 @@ import iti_where_decoder as wd  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["acute", "subacute", "chronic"]
-AXES = {"lat": 0, "out": 1}
+AXES = {"lat": 0, "sag": 3}                  # columns of iti_where_decoder.coords
 
 
 def feature_names() -> list[str]:
@@ -43,7 +43,7 @@ def contributions() -> pd.DataFrame:
     for st in ("iti", "trial"):
         for a in AN:
             S = {x: (d["epoch"], *d[st]) for x, d in D.items() if d["animal"] == a}
-            S = {x: (ep, X[ok], C[ok]) for x, (ep, X, C) in S.items() for ok in [np.isfinite(C[:, :2]).all(1)]
+            S = {x: (ep, X[ok], C[ok]) for x, (ep, X, C) in S.items() for ok in [np.isfinite(C[:, [0, 3]]).all(1)]
                  if ok.sum() >= 20}
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
@@ -71,9 +71,9 @@ def plot(T: pd.DataFrame) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    panels = [("trial", "out", "cued in-trial licks, OUTWARD (- = read closer)"),
+    panels = [("trial", "sag", "cued in-trial licks, SAGITTAL (- = read closer)"),
               ("iti", "lat", "ITI licks, LATERAL (+ = read more contralesional)"),
-              ("trial", "lat", "cued in-trial licks, LATERAL"), ("iti", "out", "ITI licks, OUTWARD")]
+              ("trial", "lat", "cued in-trial licks, LATERAL"), ("iti", "sag", "ITI licks, SAGITTAL")]
     fig, axs = plt.subplots(len(panels), len(EP), figsize=(5.2 * len(EP), 4.2 * len(panels)), squeeze=False)
     for i, (st, ax_, ttl) in enumerate(panels):
         G = T[(T.set == st) & (T.axis == ax_)]
@@ -112,7 +112,7 @@ def main() -> int:
     pd.set_option("display.width", 220)
     tot = T.groupby(["set", "axis", "animal", "epoch"]).contrib.sum().unstack("epoch")[EP]
     print("== per animal (rule 8): total shift of the mean decoded position (mm)\n" + tot.round(2).to_string())
-    for st, ax_ in (("trial", "out"), ("iti", "lat")):
+    for st, ax_ in (("trial", "sag"), ("iti", "lat")):
         G = T[(T.set == st) & (T.axis == ax_) & (T.epoch == "chronic")]
         s = G.groupby("area").agg(contrib=("contrib", "mean"), weight=("weight", "mean"), dx=("dx", "mean"),
                                   n_same=("contrib", lambda v: int((np.sign(v) == np.sign(v.mean())).sum())))

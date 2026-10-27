@@ -49,9 +49,10 @@ def predictions() -> pd.DataFrame:
                 if d["animal"] != a:
                     continue
                 X, C = d[st]
-                ok = np.isfinite(C[:, :2]).all(1)
+                Yc = C[:, [0, 3, 1]]                      # lateral, SAGITTAL extension, outward (wd.coords columns)
+                ok = np.isfinite(Yc).all(1)
                 if ok.sum() >= 20:
-                    S[x] = (d["epoch"], X[ok], C[ok, :2], pos[x][st][ok])
+                    S[x] = (d["epoch"], X[ok], Yc[ok], pos[x][st][ok])
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
                 continue
@@ -60,12 +61,13 @@ def predictions() -> pd.DataFrame:
                 trn = [q for q in pre if q != held]
                 Xt, Yt = np.vstack([S[q][1] for q in trn]), np.vstack([S[q][2] for q in trn])
                 sc = StandardScaler().fit(Xt)
-                fits[held] = (sc, [RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), Yt[:, k]) for k in range(2)])
+                fits[held] = (sc, [RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), Yt[:, k]) for k in range(3)])
             for x, (ep, X, Y, P) in S.items():
                 sc, ms = fits[x if x in pre else None]
                 Pr = np.column_stack([m.predict(sc.transform(X)) for m in ms])
                 rows.append(pd.DataFrame({"set": st, "label": x, "animal": a, "epoch": ep, "pos": P,
-                                          "act_lat": Y[:, 0], "act_out": Y[:, 1], "dec_lat": Pr[:, 0], "dec_out": Pr[:, 1]}))
+                                          "act_lat": Y[:, 0], "act_sag": Y[:, 1], "act_out": Y[:, 2],
+                                          "dec_lat": Pr[:, 0], "dec_sag": Pr[:, 1], "dec_out": Pr[:, 2]}))
     return _groups(pd.concat(rows, ignore_index=True))
 
 
@@ -109,20 +111,20 @@ DELTA_ROWS = (("trial", "pos", "all"), ("trial", "pos", "on"), ("iti", "near_pos
 
 
 def error_change(R: pd.DataFrame) -> pd.DataFrame:
-    """Per session x spout: decoded - actual (lateral, outward) and the actual / decoded means, MINUS the animal's pre
-    value for that spout (pre sessions minus the pre mean too, for the bootstrap). + lateral = contralesional; - outward =
+    """Per session x spout: decoded - actual (lateral, sagittal) and the actual / decoded means, MINUS the animal's pre
+    value for that spout (pre sessions minus the pre mean too, for the bootstrap). + lateral = contralesional; - sagittal =
     decoded closer to the mouth than the lick. Subtracting pre removes the ridge's shrinkage toward the centre."""
     out = []
     for st, gcol, sel in DELTA_ROWS:
         T = R[R.set == st].copy()
         T["spout"] = T[gcol]
         T = T[T.spout.isin(POS)]
-        land = T[T.epoch == "pre"].groupby(["animal", "spout"])[["act_lat", "act_out"]].mean()
+        land = T[T.epoch == "pre"].groupby(["animal", "spout"])[["act_lat", "act_sag"]].mean()
         T = T.join(land, on=["animal", "spout"], rsuffix="_pl")
         if sel == "on":
-            T = T[np.hypot(T.act_lat - T.act_lat_pl, T.act_out - T.act_out_pl) < 0.25]
-        T["e_lat"], T["e_out"] = T.dec_lat - T.act_lat, T.dec_out - T.act_out
-        V = ["e_lat", "e_out", "act_lat", "act_out", "dec_lat", "dec_out"]
+            T = T[np.hypot(T.act_lat - T.act_lat_pl, T.act_sag - T.act_sag_pl) < 0.25]
+        T["e_lat"], T["e_sag"] = T.dec_lat - T.act_lat, T.dec_sag - T.act_sag
+        V = ["e_lat", "e_sag", "act_lat", "act_sag", "dec_lat", "dec_sag"]
         s = T.groupby(["animal", "epoch", "label", "spout"])[V].mean().join(
             T.groupby(["animal", "epoch", "label", "spout"]).size().rename("n")).reset_index()
         s = s[s.n >= 5]
@@ -153,8 +155,8 @@ def plot_delta(R: pd.DataFrame) -> None:
                             sharex=True, sharey=True)
     for i, (st, _g, sel) in enumerate(DELTA_ROWS):
         G = S[(S.set == st) & (S.licks == sel)]
-        ses = G.groupby(["animal", "epoch", "label"])[["d_e_lat", "d_e_out", "d_act_lat", "d_act_out", "d_dec_lat",
-                                                        "d_dec_out"]].mean().reset_index()
+        ses = G.groupby(["animal", "epoch", "label"])[["d_e_lat", "d_e_sag", "d_act_lat", "d_act_sag", "d_dec_lat",
+                                                        "d_dec_sag"]].mean().reset_index()
         pa = ses[ses.epoch.isin(eps)].groupby(["animal", "epoch"]).mean(numeric_only=True)
         per_animal.append(pa.assign(set=st, licks=sel).reset_index())
         for j, ep in enumerate(eps):
@@ -163,25 +165,25 @@ def plot_delta(R: pd.DataFrame) -> None:
             ax.axvline(0, color="0.75", lw=0.7)
             h = G[G.epoch == ep]
             for p in POS:
-                q = h[h.spout == p].groupby("animal")[["d_e_lat", "d_e_out"]].mean()
+                q = h[h.spout == p].groupby("animal")[["d_e_lat", "d_e_sag"]].mean()
                 if q.empty:
                     continue
-                ax.scatter(q.d_e_lat, q.d_e_out, s=12, color=PCOL[p], alpha=0.35, lw=0)
-                ax.scatter(q.d_e_lat.mean(), q.d_e_out.mean(), s=60, color=PCOL[p], ec="k", lw=0.5, zorder=4)
+                ax.scatter(q.d_e_lat, q.d_e_sag, s=12, color=PCOL[p], alpha=0.35, lw=0)
+                ax.scatter(q.d_e_lat.mean(), q.d_e_sag.mean(), s=60, color=PCOL[p], ec="k", lw=0.5, zorder=4)
             ci = {}
-            for ax_ in ("lat", "out"):
+            for ax_ in ("lat", "sag"):
                 post = {a: g[f"d_e_{ax_}"].to_numpy() for a, g in ses[ses.epoch == ep].groupby("animal")}
                 prd = {a: g[f"d_e_{ax_}"].to_numpy() for a, g in ses[ses.epoch == "pre"].groupby("animal")}
                 ci[ax_] = ak.boot_delta(post, prd, np.random.default_rng(0))
-            if ci["lat"] is not None and ci["out"] is not None:
-                ax.errorbar(ci["lat"].point, ci["out"].point, xerr=[[ci["lat"].point - ci["lat"].lo],
+            if ci["lat"] is not None and ci["sag"] is not None:
+                ax.errorbar(ci["lat"].point, ci["sag"].point, xerr=[[ci["lat"].point - ci["lat"].lo],
                                                                     [ci["lat"].hi - ci["lat"].point]],
-                            yerr=[[ci["out"].point - ci["out"].lo], [ci["out"].hi - ci["out"].point]],
+                            yerr=[[ci["sag"].point - ci["sag"].lo], [ci["sag"].hi - ci["sag"].point]],
                             fmt="s", color="k", ms=6, capsize=3, lw=1.4, zorder=6)
                 star = lambda c: "*" if c.lo > 0 or c.hi < 0 else ""  # noqa: E731
-                ax.text(0.03, 0.97, f"lateral {ci['lat'].point:+.2f}{star(ci['lat'])}\noutward {ci['out'].point:+.2f}"
-                        f"{star(ci['out'])} mm", transform=ax.transAxes, va="top", fontsize=8.5)
-                for ax_ in ("lat", "out"):
+                ax.text(0.03, 0.97, f"lateral {ci['lat'].point:+.2f}{star(ci['lat'])}\nsagittal {ci['sag'].point:+.2f}"
+                        f"{star(ci['sag'])} mm", transform=ax.transAxes, va="top", fontsize=8.5)
+                for ax_ in ("lat", "sag"):
                     tests.append(dict(set=st, licks=sel, epoch=ep, axis=ax_, point=ci[ax_].point, lo=ci[ax_].lo,
                                       hi=ci[ax_].hi, n_pos=int((pa.xs(ep, level="epoch")[f"d_e_{ax_}"] > 0).sum()),
                                       n=ci[ax_].n_animals))
@@ -189,7 +191,7 @@ def plot_delta(R: pd.DataFrame) -> None:
             if i == len(DELTA_ROWS) - 1:
                 ax.set_xlabel("change in LATERAL error (mm)\n<- decoded more ipsi | decoded more CONTRA ->", fontsize=8.5)
             if j == 0:
-                ax.set_ylabel("change in OUTWARD error (mm)\n<- decoded closer | decoded further ->", fontsize=8.5)
+                ax.set_ylabel("change in SAGITTAL error (mm)\n<- decoded closer | decoded further ->", fontsize=8.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     hd = [Line2D([], [], marker="o", ls="", color=PCOL[p], mec="k", mew=0.5, label=p.replace("_", " ")) for p in POS]
@@ -205,7 +207,7 @@ def plot_delta(R: pd.DataFrame) -> None:
     plt.close(fig)
     pd.set_option("display.width", 220)
     P = pd.concat(per_animal, ignore_index=True)
-    print("== per animal (rule 8): change vs pre, mm (+ lateral = contra, - outward = closer)")
+    print("== per animal (rule 8): change vs pre, mm (+ lateral = contra, - sagittal = closer)")
     print(P.round(2).to_string(index=False))
     P.to_csv(il.OUT / "where_delta_by_animal.csv", index=False)
     Tt = pd.DataFrame(tests)
@@ -232,7 +234,7 @@ def plot(R: pd.DataFrame) -> None:
                     q = h[h[gcol] == p]
                     if len(q) < 5:
                         continue
-                    A, Dd = q[["act_lat", "act_out"]].to_numpy(), q[["dec_lat", "dec_out"]].to_numpy()
+                    A, Dd = q[["act_lat", "act_sag"]].to_numpy(), q[["dec_lat", "dec_sag"]].to_numpy()
                     _ellipse(ax, A, PCOL[p], "-", filled=True)
                     _ellipse(ax, Dd, PCOL[p], ":")
                     ma, md = A.mean(0), Dd.mean(0)
@@ -248,7 +250,7 @@ def plot(R: pd.DataFrame) -> None:
                 if i == len(rows) - 1:
                     ax.set_xlabel("lateral tip position side_ml (mm)", fontsize=8.5)
                 if j == 0:
-                    ax.set_ylabel("outward tip position out_ap (mm)", fontsize=8.5)
+                    ax.set_ylabel("sagittal extension (mm)", fontsize=8.5)
         from matplotlib.patches import Patch
         hd = [Line2D([], [], marker="o", ls="", color=PCOL[p], label=p.replace("_", " ")) for p in POS]
         hd += [Line2D([], [], marker="o", ls="", mfc="w", mec="k", mew=2, label="open circle = where the licks LANDED (mean)"),
@@ -258,7 +260,7 @@ def plot(R: pd.DataFrame) -> None:
                Line2D([], [], ls=":", color="k", alpha=0.6, label="dotted ellipse = decoded spread (1 SD)")]
         fig.suptitle(f"NEURAL: decoded vs actual lick landing, {'in-trial' if st == 'trial' else 'ITI (self-initiated)'} licks, "
                      f"grouped by {gname}.\nFROZEN pre-stroke decoder (fit once on each animal's August pre licks, never refit; "
-                     "one ridge per axis, Allen-area features, lags 0..0.2 s); per lick, lateral x outward (mm), "
+                     "one ridge per axis, Allen-area features, lags 0..0.2 s); per lick, lateral x sagittal extension (mm), "
                      "+ lateral = contralesional.\nThe decoder shrinks predictions toward the centre even before the stroke, "
                      "so compare each epoch with PRE (change figure: iti_where_delta.png).", fontsize=10.5, y=0.997)
         fig.legend(handles=hd, loc="upper center", ncol=6, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.962))

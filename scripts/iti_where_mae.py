@@ -3,7 +3,7 @@ middle"). Companion to page 3.15 (r).
 
 Same frozen where-decoder and per-lick predictions as 3.15-3.22 (`where_preds.csv`; Allen areas, lags 0..0.2 s, pre
 scored leave-one-session-out). Per session: mean absolute error (MAE) and root-mean-square error (RMSE) of decoded vs
-actual lateral position, outward position, and the 2-D distance. Unlike r, these include EVERYTHING that separates
+actual lateral position, sagittal extension, and the 2-D distance. Unlike r, these include EVERYTHING that separates
 decoded from actual: worse lick-to-lick tracking, a constant offset (3.21 / 3.22) and the decoder's pull toward the
 middle (present before the stroke; it grows when licks land further from the centre, so part of a post-stroke error
 increase can come from where licks land rather than from cortex). One dot per session (all animals pooled), raw mm
@@ -25,13 +25,13 @@ from wfield_local import analysis_kit as ak  # noqa: E402
 
 EP4 = ["pre", "acute", "subacute", "chronic"]
 COL = {"pre": "0.25", "acute": "#e7298a", "subacute": "#d4a017", "chronic": "#1b9e77"}
-TARGETS = {"lat": "LATERAL", "out": "OUTWARD", "2d": "2-D distance"}
+TARGETS = {"lat": "LATERAL", "sag": "SAGITTAL", "2d": "2-D distance"}
 
 
 def sessions(p: pd.DataFrame) -> pd.DataFrame:
-    p = p.dropna(subset=["act_lat", "act_out", "dec_lat", "dec_out"]).copy()
-    p["err_lat"], p["err_out"] = p.dec_lat - p.act_lat, p.dec_out - p.act_out
-    p["err_2d"] = np.hypot(p.err_lat, p.err_out)
+    p = p.dropna(subset=["act_lat", "act_sag", "dec_lat", "dec_sag"]).copy()
+    p["err_lat"], p["err_sag"] = p.dec_lat - p.act_lat, p.dec_sag - p.act_sag
+    p["err_2d"] = np.hypot(p.err_lat, p.err_sag)
     rows = []
     for (st, a, ep, x), g in p.groupby(["set", "animal", "epoch", "label"]):
         r = dict(set=st, animal=a, epoch=ep, label=x, n=len(g))
@@ -107,11 +107,11 @@ def main() -> int:
     S.to_csv(il.OUT / "where_mae_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): MAE (mm) by epoch")
-    print(S.groupby(["set", "animal", "epoch"])[["mae_lat", "mae_out", "mae_2d"]].mean().unstack("epoch")
+    print(S.groupby(["set", "animal", "epoch"])[["mae_lat", "mae_sag", "mae_2d"]].mean().unstack("epoch")
           .reindex(columns=EP4, level=1).round(2).to_string())
     T = tests(S)
     T.to_csv(il.OUT / "where_mae_tests.csv", index=False)
-    print(T[T.measure.isin(["mae_lat", "mae_out", "mae_2d", "rmse_lat"])].round(3).to_string(index=False))
+    print(T[T.measure.isin(["mae_lat", "mae_sag", "mae_2d", "rmse_lat"])].round(3).to_string(index=False))
     plot(S, T)
     return 0
 

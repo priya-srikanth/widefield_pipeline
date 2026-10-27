@@ -4,9 +4,9 @@ position? (ITI using spout position preceding the ITI)").
 Frozen where-decoder per lick (`where_preds.csv`, from `iti_where_scatter.py`). Grouping: in-trial licks by the trial's
 TARGET spout; ITI licks by the PREVIOUS trial's spout (`iti_pos`, fixed before the lick -- unlike the nearest-spout
 grouping of 3.20 / 3.21, which depends on where the lick landed). Per spout, change vs pre:
-  beyond_lat / beyond_out  decoded minus where the animal's pre-stroke pull alone would put the lick (per animal x set x
+  beyond_lat / beyond_sag  decoded minus where the animal's pre-stroke pull alone would put the lick (per animal x set x
                            axis, decoded = a + b * actual fit on pre licks; `iti_where_beyond_pull.py`); + lateral =
-                           contralesional, - outward = closer to the mouth;
+                           contralesional, - sagittal = closer to the mouth;
   r_lat                    per-session r between decoded and actual lateral position within the spout's licks
                            (within-spout range is small, so r is low and spread-sensitive; read the offsets first).
 Cells need >= 15 licks per session x spout. Per-animal table first; paired nested bootstrap (animals > sessions).
@@ -29,24 +29,24 @@ from wfield_local import analysis_kit as ak  # noqa: E402
 POS = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")   # canonical order
 EP = ["acute", "subacute", "chronic"]
 MEAS = {"beyond_lat": "LATERAL offset, mm\n(+ = read contra)",
-        "beyond_out": "OUTWARD offset, mm\n(- = read closer)",
+        "beyond_sag": "SAGITTAL offset, mm\n(- = read closer)",
         "r_lat": "frozen r, lateral\n(within spout)"}
 EPC = {"acute": "#e7298a", "subacute": "#d4a017", "chronic": "#1b9e77"}
 MIN_N = 15
 
 
 def table(p: pd.DataFrame) -> pd.DataFrame:
-    p = p.dropna(subset=["act_lat", "act_out", "dec_lat", "dec_out"]).copy()
+    p = p.dropna(subset=["act_lat", "act_sag", "dec_lat", "dec_sag"]).copy()
     for _key, g in p.groupby(["set", "animal"]):
         pre = g[g.epoch == "pre"]
-        for ax_ in ("lat", "out"):
+        for ax_ in ("lat", "sag"):
             b, c = np.polyfit(pre[f"act_{ax_}"], pre[f"dec_{ax_}"], 1)
             p.loc[g.index, f"beyond_{ax_}"] = g[f"dec_{ax_}"] - (c + b * g[f"act_{ax_}"])
     p = p[p.pos.isin(POS)]
 
     def cell(g):
         r = np.corrcoef(g.dec_lat, g.act_lat)[0, 1] if g.act_lat.std() > 0 else np.nan
-        return pd.Series({"beyond_lat": g.beyond_lat.mean(), "beyond_out": g.beyond_out.mean(), "r_lat": r,
+        return pd.Series({"beyond_lat": g.beyond_lat.mean(), "beyond_sag": g.beyond_sag.mean(), "r_lat": r,
                           "n": len(g)})
     s = p.groupby(["set", "animal", "epoch", "label", "pos"]).apply(cell, include_groups=False).reset_index()
     return s[s.n >= MIN_N]
