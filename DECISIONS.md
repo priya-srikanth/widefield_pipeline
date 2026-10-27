@@ -22110,3 +22110,9 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   (ROI version 2; WFIELD_ROI_VERSION=2, sessions_roi2/). Literature: ALM Guo 2014 / Esmaeili 2021 (AP 2.5, ML 1.5) and tjM1
   Mayrhofer 2019 (AP 1.8, ML 2.6) inside; forelimb M1 (CFA) and whisker M2 (Esmaeili 2021) outside; ALM 45 % rejected
   (takes in part of wM2). Esmaeili's tjM1 targeting point (AP 2.0, ML 2.0) falls in Allen MOs on our registration.
+- ROI MASK FINAL (Priya 10-27 late, v8 = WFIELD_ROI_VERSION 8, sessions_roi8/): ALM 40 % / tjM1 50 % of MOs / MOp, ranked
+  on the stat mask plus (a) the 16-px rim thinned to 4 px along the LATERAL edge (anterior of AP -0.5: lateral MOp / tjM1
+  edge, orofacial S1 strip) and (b) ALM continued toward the front edge to one horizontal line (most anterior row of an
+  8-px front rim), carried laterally to the thin lateral rim, >= 10 px (0.19 mm) from FRP; ALM / tjM1 one connected region
+  each; no PL / FRP / medial front slivers. Per-pixel MAP statistics keep the 16-px stat mask. Rejected: v3 (front
+  slivers), v4 (detached ALM corner), v5 (ALM against FRP), v6 (lost lateral tjM1 / SSp-m), v7 (corner zig-zag).
