@@ -64,3 +64,22 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
   switch the LMM behaviour deficit and the far-contra-angle figures (f0 sessions, recovery link, recovery marker) together.
 - Per-animal change-vs-pre scatter (arrows from pre to epoch mean, landing + read-out, session 95% CIs) + CI markers on
   the 1-SD scatter ellipses (after the helper; `iti_where_scatter.py`).
+
+## E. Priya's calls, 10-27 ~15:40
+1. Section 2 + 3.19-3.22 trial-level SPOUT classifiers -> SVD basis too (consistency). They are currently the JOINT
+   LocaNMF basis (`wfield_local/attempt_coding.py` -> `locanmf_frozen_decoder.frozen_decoder_models`, multinomial
+   logistic). Needs an SVD-basis frozen spout decoder through `frozen_models.load_or_fit` (CLAUDE.md rule 10: frozen
+   pre-stroke decoders are references, stored, never refit per render) + the trial-window SVD features; then
+   attempt_coding / decoder_retention_sessions / precue_class_matched / recovery_timing re-run. LocaNMF kept as the
+   basis check.
+2. YES: copy-link icon next to every figure number (stable #f-<id>).
+3. YES: epoch-model panel paired with every mixed-model figure (as 3.13 / 3.14).
+4. YES: joint 'any post-stroke change' test in the mixed models.
+5. YES: time-model shape comparison (log vs linear vs piecewise) by AIC.
+6. LOW: 2-D (lateral + extension) matched sensitivity (3-D should be better).
+7. LOW: June no-stroke whole-map reference -- only if the June data are good enough.
+8. Behaviour-only decoder from FaceRhythm (+ 3-D kinematics): same targets, compare with the cortical decoder.
+9. Aim axis: FIRST-lick weighted aim = behaviour axis + LMM deficit (DONE in iti_lmm_figures); far-contra first-lick aim
+   beside far-contra-specific neural measures.
+10. Offered: compensation check (first-lick contact rate, licks to first contact, latency vs hit rate; PS95 near-normal
+    hit rate ~day 2 with aim still off) -- awaiting yes.
