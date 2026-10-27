@@ -116,6 +116,9 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
 
 def _stars(ax, x, r, col):
     sig = r.lo > 0 or r.hi < 0
+    lo_, hi_ = ax.get_ylim()
+    if r.hi + 0.12 * (hi_ - lo_) > hi_:                     # keep the label inside the panel
+        ax.set_ylim(lo_, r.hi + 0.15 * (hi_ - lo_))
     ax.text(x, r.hi, f"{r.point:+.2f}{'*' if sig else ''}\n{int(r.n_dir)}/{int(r.n)}", ha="center", va="bottom",
             fontsize=6.5, color=col, fontweight="bold" if sig else "normal")
 
@@ -158,7 +161,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame) -> None:
     panels = [("all spouts", "all", "all spouts, all licks"), ("all spouts", "first", "all spouts, FIRST lick"),
               ("all spouts", "later", "all spouts, later licks"), ("far_contra", "all", "far contra, all licks"),
               ("far_contra", "first", "far contra, FIRST lick"), ("far_contra", "later", "far contra, later licks")]
-    fig, axs = plt.subplots(2, len(panels), figsize=(3.3 * len(panels), 7.6), squeeze=False, sharey="row")
+    fig, axs = plt.subplots(2, len(panels), figsize=(3.3 * len(panels), 7.6), squeeze=False)
     for i, st in enumerate(SETS):
         for j, (scope, cls, title) in enumerate(panels):
             ax = axs[i, j]
@@ -186,7 +189,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame) -> None:
     fig.savefig(il.OUT / "figures" / f"lick_matched{TAG}_readout.png", dpi=100)
     plt.close(fig)
     # 3. per spout
-    fig, axs = plt.subplots(2, 6, figsize=(19, 7.6), squeeze=False, sharey="row")
+    fig, axs = plt.subplots(2, 6, figsize=(19, 7.6), squeeze=False)
     for i, st in enumerate(SETS):
         for j, p in enumerate(POS):
             ax = axs[i, j]
