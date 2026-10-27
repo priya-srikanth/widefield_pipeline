@@ -293,7 +293,7 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
     if xlabel and model.startswith("behaviour"):                  # the caller's deficit (e.g. an angle measure)
         xlab = xlabel
     nrows = int(np.ceil(len(panels) / ncols))
-    fig, ax = plt.subplots(nrows, ncols, figsize=(4.4 * ncols, 3.7 * nrows), squeeze=False)
+    fig, ax = plt.subplots(nrows, ncols, figsize=(4.8 * ncols, 4.3 * nrows), squeeze=False)
     for k, (name, sel) in enumerate(panels):
         a_ = ax.flat[k]
         G, c = L, T[T.model == model]
@@ -323,7 +323,7 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
                 q = c.q.get(t, np.nan) if "q" in c else np.nan
                 txt = f"{label} {v:+.3g} (z {c.z.get(t, np.nan):.1f}" + (f", q {q:.3f}" if np.isfinite(q) else "") + ")"
                 return _bold(txt + "*") if np.isfinite(q) and q < 0.05 else txt
-            stat = f"{_term('post', 'post', step)}, {_term(sl, sl, b)}"
+            stat = f"{_term('post', 'post', step)}\n{_term(sl, sl, b)}"   # one term per line (no overlap)
         else:
             term, icpt = (("lday", "post_level_day1") if model == "time_post"
                           else ("deficit", "post_level_full_recovery"))
@@ -332,7 +332,7 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
             a_.plot(xx, a0 + b * (np.log(xx) if model == "time_post" else xx), "k-", lw=1.5,
                     label="fit" if k == 0 else None)
             stat = f"{icpt} {a0:+.3g} (z {c.z[icpt]:.1f}), {term} {b:+.3g} (z {c.z[term]:.1f})"
-        a_.set_title(f"{name}\n{stat}; re {c.re.iloc[0]}", fontsize=7)
+        a_.set_title(f"{name}\n{stat}\nre {c.re.iloc[0]}", fontsize=6.5)
         a_.axhline(0, color="0.8", lw=0.5)
         a_.set_xlabel(xlab.split(",")[0].split(" (")[0], fontsize=7)    # short per panel; full text once, below
         a_.set_ylabel(ylabel, fontsize=7)

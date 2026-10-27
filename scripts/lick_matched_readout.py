@@ -43,9 +43,50 @@ MIN_FINE = 15
 # any spout with the same deviation from their own spout (first version)
 REF = sys.argv[sys.argv.index("--ref") + 1] if "--ref" in sys.argv else "place"
 TAG = ("" if REF == "pooled" else f"_{REF}") + lo.SRC_TAG      # + decoder source (iti_lick_order.SOURCE)
-REFLAB = {"place": "pre licks (any spout) that landed at the SAME PLACE",
+SIGMAS = (0.05, 0.1, 0.15, 0.2, 0.3, 0.4)   # Gaussian widths tried (mm); chosen by held-out pre-session prediction
+REFLAB = {"gauss": "pre licks (any spout) weighted by a Gaussian on landing distance (SAME PLACE, no bins)",
+          "place": "pre licks (any spout) that landed at the SAME PLACE",
           "spout": "pre licks of the SAME SPOUT with the same landing deviation",
           "pooled": "pre licks (any spout) with the same landing deviation from their spout"}[REF]
+
+
+def _kernel_mean(x_ref: np.ndarray, y_ref: np.ndarray, x: np.ndarray, sigma: float, chunk: int = 4000) -> np.ndarray:
+    """Nadaraya-Watson: Gaussian-weighted mean of y_ref at each x (weights exp(-(x - x_ref)^2 / 2 sigma^2)); NaN where
+    the total weight is < 3 (fewer than ~3 reference licks within ~1 sigma)."""
+    out = np.full(len(x), np.nan)
+    for i in range(0, len(x), chunk):
+        w = np.exp(-0.5 * ((x[i:i + chunk, None] - x_ref[None, :]) / sigma) ** 2)
+        sw = w.sum(1)
+        out[i:i + chunk] = np.where(sw >= 3, (w @ y_ref) / np.maximum(sw, 1e-12), np.nan)
+    return out
+
+
+def gauss_ref(P: pd.DataFrame, sigma: float) -> np.ndarray:
+    """Kernel reference per lick: the animal's PRE licks of the same set (any spout) weighted by landing distance.
+    Pre-session licks use the OTHER pre sessions only (leave-one-session-out), so pre sits at ~0 out of sample."""
+    ref = np.full(len(P), np.nan)
+    for (_st, _a), g in P.groupby(["set", "animal"]):
+        pre = g[g.epoch == "pre"]
+        post = g[g.epoch != "pre"]
+        ref[P.index.get_indexer(post.index)] = _kernel_mean(pre.act.to_numpy(), pre.dec.to_numpy(), post.act.to_numpy(),
+                                                            sigma)
+        for lab, h in pre.groupby("label"):
+            o = pre[pre.label != lab]
+            ref[P.index.get_indexer(h.index)] = _kernel_mean(o.act.to_numpy(), o.dec.to_numpy(), h.act.to_numpy(), sigma)
+    return ref
+
+
+def choose_sigma(P: pd.DataFrame) -> tuple[float, pd.DataFrame]:
+    """Width = the SIGMAS value with the smallest held-out PRE prediction error (leave-one-pre-session-out), pooled over
+    sets and animals -- chosen on pre-stroke data only. Returns (sigma, table of mean squared errors)."""
+    Q = P[P.epoch == "pre"]
+    rows = []
+    for sg in SIGMAS:
+        r = gauss_ref(Q.copy(), sg)
+        e = (Q.dec.to_numpy() - r) ** 2
+        rows.append(dict(sigma=sg, mse=float(np.nanmean(e)), coverage=float(np.isfinite(r).mean())))
+    T = pd.DataFrame(rows)
+    return float(T.loc[T.mse.idxmin(), "sigma"]), T
 
 
 def per_lick() -> pd.DataFrame:
@@ -67,6 +108,14 @@ def per_lick() -> pd.DataFrame:
     pa = P[P.epoch == "pre"].groupby(["set", "animal", "bin_a"], observed=True).dec.agg(["mean", "size"])
     pa = pa[pa["size"] >= MIN_FINE]["mean"]
     P["resid_place"] = P.dec - pa.reindex(pd.MultiIndex.from_arrays([P.set, P.animal, P.bin_a])).to_numpy()
+    if REF == "gauss":
+        sg, cv = choose_sigma(P)
+        print("Gaussian width by held-out pre-session prediction (mse, coverage):")
+        print(cv.round(4).to_string(index=False))
+        print(f"-> sigma = {sg} mm")
+        cv.to_csv(il.OUT / f"matched_gauss{lo.SRC_TAG}_sigma_cv.csv", index=False)
+        P["resid_gauss"] = P.dec - gauss_ref(P, sg)
+        P.attrs["sigma"] = sg
     P["resid"] = P[f"resid_{REF}"]
     P["cls"] = np.where(P.order == 0, "first", "later")
     return P
@@ -74,7 +123,7 @@ def per_lick() -> pd.DataFrame:
 
 def curves(P: pd.DataFrame) -> pd.DataFrame:
     """Read-out vs landing per epoch: absolute place (REF place) or deviation from the spout (pooled / spout)."""
-    x, y, b = ("act", "dec", "bin_a") if REF == "place" else ("dLand", "dDec", "bin")
+    x, y, b = ("act", "dec", "bin_a") if REF in ("place", "gauss") else ("dLand", "dDec", "bin")
     A = P.groupby(["set", "epoch", b, "animal"], observed=True).agg(y=(y, "mean"), n=(y, "size"))
     A = A[A.n >= MIN_BIN].reset_index()
     A["mid"] = [v.mid for v in A[b]]
@@ -117,7 +166,7 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
 def bin_tests(P: pd.DataFrame) -> pd.DataFrame:
     """Per landing bin of the curve figure: session mean of resid in that bin (>= 5 licks), change vs pre by the paired
     nested bootstrap, p from the same draws (analysis_kit.boot_p), BH across bins within set x epoch."""
-    b = "bin_a" if REF == "place" else "bin"
+    b = "bin_a" if REF in ("place", "gauss") else "bin"
     Q = P.dropna(subset=["resid"])
     S = Q.groupby(["set", b, "animal", "label", "epoch"], observed=True).resid.agg(["mean", "size"]).reset_index()
     S = S[S["size"] >= 5]
@@ -185,11 +234,11 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
             for m_ in (bt.mid if len(bt) else []):
                 ax.axvspan(m_ - 0.125, m_ + 0.125, ymin=0.975 - 0.018 * r_i, ymax=0.987 - 0.018 * r_i, color=col[ep],
                            alpha=0.35, lw=0, zorder=0)                  # thin, BEHIND the data and SEM bars
-        ax.set_xlabel("landing, lateral (mm, + = contralesional)" if REF == "place" else
+        ax.set_xlabel("landing, lateral (mm, + = contralesional)" if REF in ("place", "gauss") else
                       "landing deviation from the animal's pre mean at the spout (mm, + = contralesional)", fontsize=8)
-        ax.set_ylabel(("decoded lateral" if REF == "place" else "read-out deviation (decoded")
+        ax.set_ylabel(("decoded lateral" if REF in ("place", "gauss") else "read-out deviation (decoded")
                       + " (mm, + = contralesional)", fontsize=8)
-        ax.set_title(f"{SETS[st]} licks: read-out vs landing{' place' if REF == 'place' else ' deviation'}\n(bins with >= {MIN_BIN} licks per animal; "
+        ax.set_title(f"{SETS[st]} licks: read-out vs landing{' place' if REF in ('place', 'gauss') else ' deviation'}\n(bins with >= {MIN_BIN} licks per animal; "
                      "mean +/- SEM over animals)", fontsize=9)
         ax.legend(handles=epl, fontsize=8, frameon=False, loc="lower right")
         for s_ in ("top", "right"):
