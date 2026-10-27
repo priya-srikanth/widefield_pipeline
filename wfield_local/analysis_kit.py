@@ -247,6 +247,34 @@ def holm(p) -> np.ndarray:
     return out
 
 
+def mixed_epoch(post, pre) -> tuple[float, float, float, float]:
+    """Linear mixed model companion to `boot_delta` (Priya 2026-10-27: mixed-model p in captions / methods, bootstrap on
+    the figures, LMM significance marked beside it). Same inputs (``{animal: session values}`` for one post epoch and
+    for pre); fits ``value ~ post + (1 | animal)`` by REML, sessions as observations. Returns (coef, lo, hi, p) of the
+    post - pre effect (Wald 95% CI), NaNs if the fit fails.
+
+    With 4 animals the random-intercept variance is poorly estimated, so the Wald p is ANTI-conservative relative to
+    the paired nested bootstrap; read it as a second opinion, never instead of the bootstrap and the per-animal count.
+    """
+    import warnings
+
+    import pandas as pd
+    rows = [(a, 0, float(v)) for a, vs in pre.items() if a in post for v in np.asarray(vs, float) if np.isfinite(v)]
+    rows += [(a, 1, float(v)) for a, vs in post.items() if a in pre for v in np.asarray(vs, float) if np.isfinite(v)]
+    df = pd.DataFrame(rows, columns=["animal", "post", "value"])
+    if df.animal.nunique() < 2 or df.post.nunique() < 2:
+        return (np.nan,) * 4
+    try:
+        import statsmodels.formula.api as smf
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            res = smf.mixedlm("value ~ post", df, groups=df["animal"]).fit(reml=True)
+        lo, hi = res.conf_int().loc["post"]
+        return float(res.params["post"]), float(lo), float(hi), float(res.pvalues["post"])
+    except Exception:                                     # singular / non-converged fit: report nothing, not a guess
+        return (np.nan,) * 4
+
+
 def boot_delta_pairs(pairs, rng, n_boot: int = N_BOOT):
     """`boot_delta` for callers holding ``{animal: (post_values, pre_values)}``.
 

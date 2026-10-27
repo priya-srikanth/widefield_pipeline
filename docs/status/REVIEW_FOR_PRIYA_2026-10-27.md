@@ -162,13 +162,27 @@ section. Everything here is PROVISIONAL until you have looked at it.
   ledger). 212 figures, numbering check 0 problems. Pushing all 36 local commits to origin (push45).
 - Deck window NOT told yet: the decoder figures depend on the z-scored-swap answer (question 1).
 
+### Late 10-27 (Priya back): answers and new results
+- ANSWERS: Q1 swap 3.15 / 3.19-3.22 to z-scored (unscaled = supplementary links) -> DONE (page v125). Q4 mixed-model p in
+  captions / methods, bootstrap on figures, and mark LMM significance on figures -> helper analysis_kit.mixed_epoch;
+  dagger marks on 3.71 / 3.72 first; roll-out to the other headline figures queued. Q2 (ellipses) and Q3 (June map
+  reference) answered with recommendations, awaiting her call.
+- CORRECTION: "mixed models agree with the bootstrap on every headline" was too strong -- they disagree on two subacute
+  cells (cued lateral offset: LMM p 0.03, bootstrap n.s.; far-contra cued offset: bootstrap significant, LMM p 0.07).
+  The mixed-model measures map to page figs 3.15 (lateral r), 3.37 / 3.39 / 3.40 (lateral offset ITI + cued), 3.55
+  (far-contra cued offset), 3.63 (ITI response, adopted variant; also 3.24 / 3.25), 3.57 (weighted aim).
+- LICK ORDER (FINDINGS 4d0e, page 3.71 / 3.72): ITI contralesional read-out holds for bout starts AND later bout licks;
+  cued read-out is a first-lick property; later cued licks land closer to target and read less contralesional.
+- FIGURE FIXES: iti_hemo_check_* per-epoch labels (now a 3-row table per panel, --plot-only added);
+  iti_session_pattern_change_* suptitle wrapped (--plot-only added); lick-order legends.
+
 ### Running / queued
 - Nothing running. Open: behaviour-only decoder (low priority); June SVD-basis features if the June map reference is
   wanted; small fix: whole-map change-figure suptitle is clipped at the sides (fix on the next rerun).
 
 ### Questions for Priya (accumulating)
-- Page figures 3.15 / 3.19-3.22: swap to the z-scored versions (unscaled -> supplementary)?
+- [ANSWERED: yes, done] Page figures 3.15 / 3.19-3.22 z-scored swap.
 - Scatter ellipses: 1 SD (now) or SEM?
 - Whole-map test: also add a June no-stroke map reference (needs per-session SVD-basis features for June)?
-- Mixed-model p in captions / methods, bootstrap kept on figures?
+- [ANSWERED: yes + mark LMM on figures] Mixed-model p in captions / methods.
 - When the decoder figures are final (after Q1), tell the deck window (sabatinilab-e3)?

@@ -184,6 +184,18 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
    -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
    far-contra licks (4d0b) is carried by the later, corrective licks.
+4d0e. **Lick ORDER, ITI and cued: the ITI contralesional read-out runs through the whole bout; the cued one is a
+   first-lick property. PROVISIONAL** (10-27 late, `scripts/iti_lick_order.py`, page 3.71 / 3.72; lateral, frozen
+   KEY-row decoder per lick set, z-scored; ITI order = index within the lick bout, gap >= 1 s over all the session's
+   licks; cued order = index after the cue). Offset beyond the pull, change vs pre: ITI bout starts +0.35 / +0.25 / +0.24
+   and later ITI licks +0.29 / +0.21 / +0.25 mm (first - later n.s.); cued first +0.38 / +0.27 / +0.19 vs later +0.15 /
+   +0.03 / -0.05 (first - later +0.22 / +0.24 / +0.24, 4/4) -- reproduces 4d0d. Far contra: ITI bout start carries it
+   (+0.47 / +0.18 / +0.21; later ~0; first - later +0.42 acute 4/4). Continuous order (slope per lick, spout means
+   removed): cued landing moves contralesional (toward the target) with each later lick in every epoch (+0.049 / +0.035
+   / +0.019 mm per lick, 4/4) while the beyond-pull offset falls (-0.030 acute 4/4; far contra -0.082 / -0.049 / -0.049,
+   4/4 each) -- the read-out moves less than the pull predicts as the landing corrects. ITI slope steeper only acutely
+   (-0.036, 4/4); the ITI read-out already falls with bout order pre-stroke (-0.017 mm per lick). Mixed-model check
+   (analysis_kit.mixed_epoch): never misses a bootstrap-significant cell, flags 18 more (mostly 2-3/4 animals).
 4d. **Self-initiated (ITI) licks, no trial / cue / target: PROVISIONAL** (10-26, ENCODING_FINDINGS 8.17,
    `scripts/iti_licks.py`). (i) Executed lick DIRECTION is decoded from cortex as well as before the stroke within each
    session (r ~0.53, unchanged every epoch), but the FROZEN pre-stroke decoder loses ~0.13 r in every epoch (4/4): the

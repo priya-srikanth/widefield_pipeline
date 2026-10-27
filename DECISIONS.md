@@ -22086,3 +22086,15 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   animal's real mouth from it becomes an error of ~offset / extension -- lick-by-lick on short licks -- while it is only a
   constant for lateral position; plus atan2 amplifies lateral tracking noise on short licks. A trajectory-based angle
   (direction over the protrusion phase) would remove the origin dependence (not built).
+
+## 2026-10-27 (late) -- Z-scored features primary for the where-decoder figures; mixed models as a marked second opinion (Priya)
+
+- **Z-scored features are PRIMARY** for page figs 3.15 and 3.19-3.22 (each Allen area z-scored within session with
+  zscore_check/session_sd.csv, as the KEY row). The unscaled-feature versions stay as supplementary links. Priya: "if
+  doesn't change headline results i think so" -> checked (lateral r ITI -25 / -22 / -23 %, cued -19 / -11 / -8 %; ITI
+  read contralesional +0.45 / +0.25 / +0.19 mm, 4/4) -> "ok to swap". The 3.15 error-in-mm panel is still unscaled.
+- **Mixed-effects models**: mixed-model p in captions / methods, the paired nested bootstrap stays on the figures, and
+  figures mark LMM p < 0.05 with a dagger beside the bootstrap's asterisk. One definition: `analysis_kit.mixed_epoch`
+  (value ~ post + (1 | animal), sessions as observations, REML, Wald). It is ANTI-conservative at 4 animals: on the
+  lick-order family it never missed a bootstrap-significant cell and flagged 18 more, several carried by 2-3 of 4
+  animals. So a dagger without an asterisk is not a result; the per-animal count still decides.
