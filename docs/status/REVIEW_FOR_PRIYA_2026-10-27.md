@@ -102,11 +102,18 @@ section. Everything here is PROVISIONAL until you have looked at it.
 - Why angle r is noisier: angle is measured from the apparatus (spout-projected) mouth origin -> error ~ offset/extension
   on short licks; atan2 amplifies lateral noise. Single-view frame share 18-36 %, flat across epochs and lick length.
 
+- Z-SCORED REDRAW of 3.15 / 3.19-3.22 done (commit 8bd5f72; files *_z.png beside the originals). HEADLINES HOLD: no
+  lateral decoder result or cued far-contra result changes sign or significance; same animal counts. Lateral r / pre
+  ITI -0.25 / -0.22 / -0.23 (unscaled -0.22 / -0.19 / -0.20), cued -0.19 / -0.11 / -0.08; per animal within ~0.08.
+  Smaller cells move: ITI 2-D acute becomes significant; ITI reach chronic, cued 2-D / angle subacute lose it (CIs touch
+  0); per-spout cells 33 -> 44 of 108 significant (lost: cued close-contra lateral acute +0.20* -> +0.01; gained mostly
+  acute cued sagittal and ipsi / mid lateral offsets; sign flips only in n.s. cells). -> Proposal: swap the page figures
+  3.15 / 3.19-3.22 to the z-scored versions (unscaled kept as supplementary), captions note the changed cells.
+
 ### Running / queued
 - Whole-map permutation + amplitude-normalised change maps (per-session self-fit maps, 107 sessions) -- drawing.
 - Haemodynamic / artefact checks (415 nm, uncorrected 470, zero-phase filter, edge / vessel, per-area F0; then global
   state, baseline window) -- background agent.
-- z-scored redraw of 3.15 / 3.19-3.22 -- background agent.
 - Max-stat contour redraws of 3.50-3.53.
 - Then: one page publish; mixed-effects models (sessions in animals) for headline results; per-animal per-spout panels;
   first-lick read-out; behaviour-only decoder (low). Tell the deck window the decoder figures are final AFTER the publish.
