@@ -127,6 +127,15 @@ section. Everything here is PROVISIONAL until you have looked at it.
   -> up to ~1/5 of the ACUTE increase may be haemodynamic / motion. PS94 runs during ~50 % of its subacute / chronic
   licks (9 % pre). Figures: iti_hemo_check_{variants,peth,edge_vessel,f0_areas,state_gap}.png.
 
+- MIXED-EFFECTS MODELS (value ~ epoch + (1 | animal), sessions as observations; iti_mixed_models.py,
+  mixed_models.csv): agree with the nested bootstrap on every headline, all p < 0.001 unless noted:
+  ITI lateral r -0.26 / -0.19 / -0.22; cued lateral r -0.21 / -0.10 / -0.07; ITI lateral offset +0.32 / +0.22 / +0.24;
+  cued lateral offset +0.25 / +0.06 (p 0.03; bootstrap n.s.) / -0.03 (n.s.); far-contra cued offset +0.35 / -0.09 (p 0.07;
+  bootstrap significant) / -0.26; ITI response +0.83 / +0.42 / +0.37; aim (weighted signed angle) -14.5 / -5.5 / -2.9 deg.
+  Mixed CIs are narrower than the bootstrap's (4 animals -> random-effect variance poorly estimated -> anti-conservative);
+  the two disagree only on the two borderline subacute cells. Suggest: bootstrap stays on the figures, mixed-model p in
+  captions / methods for a paper.
+
 ### Running / queued
 - Whole-map permutation + amplitude-normalised change maps (per-session self-fit maps, 107 sessions) -- drawing.
 - Max-stat contour redraws of 3.50-3.53.
