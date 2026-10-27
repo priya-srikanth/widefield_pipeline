@@ -24,7 +24,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
-from iti_decoder_pattern_stats import AGREE_MIN, N_BOOT, _bh, _boot, _ridge  # noqa: E402
+from iti_decoder_pattern_stats import AGREE_MIN, N_BOOT, _bh, _boot, _maxstat, _ridge  # noqa: E402
 from iti_decoder_patterns import SPATIAL, pattern  # noqa: E402
 from iti_spout_patterns import AN, EP, POS  # noqa: E402
 
@@ -97,8 +97,10 @@ def test(SM: dict):
                 p = np.minimum(1.0, 2 * np.minimum((B <= 0).mean(0), (B >= 0).mean(0)) + 1 / N_BOOT)
                 sig = _bh(p)
                 agree = (np.sign(am) == np.sign(point)[None, :]).sum(0)
-                res[(sp, ep, kind)] = dict(point=point, sig=sig, agree=agree, n=len(am))
+                smax = _maxstat(B, point)
+                res[(sp, ep, kind)] = dict(point=point, sig=sig, agree=agree, n=len(am), sig_max=smax)
                 rows.append(dict(spout=sp, epoch=ep, kind=kind, n_animals=len(am), frac_sig=float(sig.mean()),
+                                 frac_sig_max=float(smax.mean()),
                                  frac_sig_agree=float((sig & (agree >= min(AGREE_MIN, len(am)))).mean())))
         for a, v in have.items():
             P = v["pre"].mean(0)
@@ -145,9 +147,10 @@ def plot(res: dict, T: pd.DataFrame, st: str = "trial") -> None:
             r = res[key]
             im = ax.imshow(to_img(r["point"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-            ax.contour(to_img(r["sig"].astype(float), 0), levels=[0.5], colors="0.35", linewidths=0.5, linestyles="--")
             ax.contour(to_img((r["sig"] & (r["agree"] >= min(AGREE_MIN, r["n"]))).astype(float), 0), levels=[0.5], colors="k",
-                       linewidths=0.8)
+                       linewidths=0.7, linestyles="--")
+            if "sig_max" in r:
+                ax.contour(to_img(r["sig_max"].astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
             g = T[(T.spout == sp) & (T.epoch == key[1]) & (T.kind == key[2])]
             sim = T[(T.spout == sp) & (T.epoch == key[1]) & (T.kind == "similarity")]
             sub = f"\nsim to pre {sim.r.mean():.2f}" if c in EP[1:] and len(sim) else ""
@@ -158,9 +161,10 @@ def plot(res: dict, T: pd.DataFrame, st: str = "trial") -> None:
     what = ("ITI (self-initiated) licks labelled by the PRECEDING trial's spout" if st == "iti" else "cued licks")
     fig.suptitle(("ITI licks by PRECEDING spout" if st == "iti" else "STATS for the per-spout maps") + " -- NEURAL: per-spout one-vs-rest "
                  f"Haufe maps ({what}), one held-out pattern per "
-                 "SESSION, / animal's pre RMS for the spout, mean of animals.\nBlack outline = pixels whose 95% nested "
+                 "SESSION, / animal's pre RMS for the spout, mean of animals.\nSOLID outline = max-statistic FWER 0.05 "
+                 "(as the decoder page); DASHED = 95% nested "
                  f"bootstrap CI (animals > sessions, {N_BOOT} draws) excludes 0 after BH q 0.05 AND >= 3 animals (of 4) agree in "
-                 "sign (grey dashed = CI only); 'sig %' = that fraction of cortex.\nChange columns = epoch - pre, paired "
+                 "sign; 'sig %' = the dashed fraction of cortex.\nChange columns = epoch - pre, paired "
                  "by animal; sim = r(session-mean epoch map, pre map), mean of animals. ipsi (lesion) = image LEFT. "
                  "PROVISIONAL", fontsize=9)
     fig.savefig(il.OUT / "figures" / f"iti_spout_pattern_stats{'_iti' if st == 'iti' else ''}.png", dpi=95, bbox_inches="tight")

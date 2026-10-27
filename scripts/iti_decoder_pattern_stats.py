@@ -107,6 +107,16 @@ def _bh(p: np.ndarray, q: float = Q) -> np.ndarray:
     return sig
 
 
+def _maxstat(B: np.ndarray, point: np.ndarray, alpha: float = 0.05) -> np.ndarray:
+    """FWER (max-statistic) significance, as the decoder page's Haufe maps: standardise each bootstrap draw per pixel
+    (centred on the bootstrap mean, / bootstrap SD), take the max |t| over pixels per draw, threshold = its (1 - alpha)
+    quantile; a pixel is significant if |point| / SD exceeds it."""
+    sd = B.std(0)
+    sd = np.where(sd > 0, sd, np.inf)
+    tmax = np.abs((B - B.mean(0)) / sd).max(1)
+    return np.abs(point) / sd > np.quantile(tmax, 1 - alpha)
+
+
 def test(SM: dict):
     rng = np.random.default_rng(0)
     res, rows = {}, []
@@ -129,8 +139,9 @@ def test(SM: dict):
                     p = np.minimum(1.0, 2 * np.minimum((B <= 0).mean(0), (B >= 0).mean(0)) + 1 / N_BOOT)
                     sig = _bh(p)
                     agree = (np.sign(am) == np.sign(point)[None, :]).sum(0)
-                    res[(st, ax_, ep, kind)] = dict(point=point, sig=sig, agree=agree, n=len(am))
-                    rows.append(dict(set=st, axis=ax_, epoch=ep, kind=kind, n_animals=len(am),
+                    smax = _maxstat(B, point)
+                    res[(st, ax_, ep, kind)] = dict(point=point, sig=sig, agree=agree, n=len(am), sig_max=smax)
+                    rows.append(dict(set=st, axis=ax_, epoch=ep, kind=kind, n_animals=len(am), frac_sig_max=float(smax.mean()),
                                      frac_sig=float(sig.mean()), frac_sig_agree=float((sig & (agree >= min(AGREE_MIN, len(am)))).mean())))
             for a, v in have.items():                              # within-animal similarity to pre, session bootstrap
                 P = v["pre"].mean(0)
@@ -182,9 +193,9 @@ def plot(res: dict, T: pd.DataFrame) -> None:
                 im = ax.imshow(to_img(r["point"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
                 s_img = to_img((r["sig"] & (r["agree"] >= min(AGREE_MIN, r["n"]))).astype(float), 0)
-                ax.contour(s_img, levels=[0.5], colors="k", linewidths=0.8)
-                ax.contour(to_img(r["sig"].astype(float), 0), levels=[0.5], colors="0.35", linewidths=0.5,
-                           linestyles="--")
+                ax.contour(s_img, levels=[0.5], colors="k", linewidths=0.7, linestyles="--")
+                if "sig_max" in r:
+                    ax.contour(to_img(r["sig_max"].astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
                 g = T[(T.set == st) & (T.axis == ax_) & (T.epoch == key[2]) & (T.kind == key[3])]
                 fs = float(g.frac_sig.iloc[0]) if len(g) else np.nan
                 fa = float(g.frac_sig_agree.iloc[0]) if len(g) else np.nan
@@ -195,8 +206,9 @@ def plot(res: dict, T: pd.DataFrame) -> None:
             fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.01, pad=0.01, label="pattern / animal's pre RMS")
         fig.suptitle(f"STATS for the decoder pattern maps -- NEURAL: Haufe pattern of the {axname[ax_]} decoder, one held-out pattern per "
                      "SESSION (epoch decoder refit leaving the session out), / animal's pre RMS, mean of animals.\n"
-                     f"Black outline = pixels whose 95% nested bootstrap CI (animals > sessions, {N_BOOT} draws) excludes "
-                     "0 after Benjamini-Hochberg q 0.05 over cortex AND >= 3 animals (of 4) agree in sign (grey dashed = CI only). Change columns = "
+                     f"SOLID outline = max-statistic FWER 0.05 over cortex (as the decoder page); DASHED = 95% nested "
+                     f"bootstrap CI (animals > sessions, {N_BOOT} draws) excludes 0 after Benjamini-Hochberg q 0.05 AND >= 3 "
+                     "animals (of 4) agree in sign. Change columns = "
                      "epoch - pre, paired by animal.\nipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL",
                      fontsize=9)
         fig.savefig(il.OUT / "figures" / f"iti_decoder_pattern_stats_{ax_}.png", dpi=105, bbox_inches="tight")
