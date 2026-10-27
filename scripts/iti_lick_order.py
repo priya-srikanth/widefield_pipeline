@@ -47,6 +47,10 @@ import os  # noqa: E402
 
 SOURCE = os.environ.get("WFIELD_LICK_DECODER", "areas")
 SRC_TAG = "" if SOURCE == "areas" else f"_{SOURCE}"
+# frame-level-scaled basis runs get their own outputs ("_svdF", "_locanmfF") so the earlier lick-scaled caches are never
+# reused by mistake (WFIELD_BASIS_SCALE=lick keeps the old lick-window scaling)
+if SOURCE in ("svd", "locanmf") and os.environ.get("WFIELD_BASIS_SCALE", "frame") == "frame":
+    SRC_TAG += "F"
 
 
 def preds_path() -> Path:
@@ -85,7 +89,19 @@ def predictions() -> pd.DataFrame:
     SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
     names = feature_names()
     D = wd.load({"areas": "areas", "svd": "svdbasis", "svdraw": "svdbasis", "locanmf": "locanmf"}[SOURCE])   # basis robustness (Priya 10-27)
-    sd_svd = {x: np.vstack([d["iti"][0], d["trial"][0]]).std(0) for x, d in D.items()} if SOURCE != "areas" else {}
+    # basis scaling: FRAME-level SD of each component (iti_basis_frame_sd.py; like the Allen session_sd) when available --
+    # the lick-window SD (fallback) is inflated by the larger post-stroke lick response (Priya 10-27)
+    sd_svd = {}
+    if SOURCE in ("svd", "locanmf") and SRC_TAG.endswith("F"):
+        fsd = il.OUT / f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}" / "frame_sd.csv"
+        if fsd.exists():
+            F = pd.read_csv(fsd, index_col=0)
+            sd_svd = {x: F.loc[x].to_numpy(float) for x in D if x in F.index}
+            print(f"  {SOURCE}: frame-level SD scaling ({len(sd_svd)} sessions)")
+        missing = [x for x in D if x not in sd_svd]
+        if missing:
+            print(f"  {SOURCE}: LICK-window SD scaling for {len(missing)} sessions (no frame_sd.csv entry)")
+        sd_svd.update({x: np.vstack([D[x]["iti"][0], D[x]["trial"][0]]).std(0) for x in missing})
     rows = []
     for st in SETS:
         for a in AN:
