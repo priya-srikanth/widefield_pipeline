@@ -143,6 +143,32 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    Pattern-map stats (3.50-3.51): held-out per-session Haufe maps, per-pixel nested bootstrap + BH + >= 3/4 sign; change
    maps dominated by one bilateral component (likely the cortex-wide response increase); Allen-area version
    `scripts/iti_pattern_area_stats.py`. Our FDR differs from the decoder page's FWER max-stat (section 14).
+4d0b. **Far-contra CUED licks: the cortical read-out follows the ipsilesional deviation but holds back toward the
+   target acutely, and over-reads it chronically. PROVISIONAL** (10-27, from zscore_check/where_preds_z.csv; per animal,
+   shifts vs the animal's pre far-contra mean; b = the animal's pre pull slope). ACUTE: landing -1.83 / -0.98 / -3.00 /
+   -2.52 mm (PS92-95); decoded -0.97 / -0.47 / -1.06 / -1.50 (raw ratio 0.53 / 0.48 / 0.35 / 0.60); an unchanged decoder
+   would read b x landing = -1.18 / -0.50 / -1.74 / -1.56, so beyond the pull +0.21 / +0.04 / +0.68 / +0.05 (all
+   contralesional; PS94 largest). So the code DOES carry the ipsilesional deviation (decoded moves ipsi, and follows
+   lick-to-lick landing within the spout, slope 0.14-0.50), but sits contralesional of where an unchanged mapping would put
+   the executed lick: the aim read-out is contralesional of the landing. CHRONIC: landing back near pre (-0.10 / -0.26 /
+   -0.89 / -0.16) but decoded -0.41 / -0.41 / -0.81 / -0.25 -> beyond the pull -0.35 / -0.28 / -0.30 / -0.15, ipsilesional
+   in 4/4 (raw ratios 4.2 / 1.6 / 0.9 / 1.6 are unstable because the chronic landing shifts are small; use the
+   beyond-pull values). Earlier "fraction of execution-predicted shift" = decoded / (b x landing), NOT decoded / landing.
+   Interpretation OPEN: a downstream (non-cortical) contralesional correction would make a cortical pattern that reads
+   ipsilesional produce an on-target lick; alternatives = the frozen frame misreads a remapped / weaker far-contra pattern
+   (4d far-contra pattern analysis), or cortex no longer sets lateral aim. Against a single fixed downstream offset: ITI
+   licks are read CONTRALESIONAL chronically (+0.25), so the sign depends on context.
+4d0c. **CONFOUND LEDGER for the larger lick-aligned response (one place; details in 4d).** RULED OUT: (1) smaller
+   baseline F0 -- F0 rose (+11 % acute), response larger in dF (+96 %) than dF/F (+76 %) (`iti_f0_check.py`, page 3.46);
+   (2) bout length / lick overlap -- isolated single licks give the same increase; (3) lick kinematics -- kinematics-
+   adjusted and range-matched responses stay ~2x acute (`iti_licks.py --controls`); (4) face movement -- FaceRhythm-
+   adjusted; (5) lick count -- matched to 40 licks / session; (6) for the decoder results only: response scale (within-
+   session z-scoring). NOT A CONCERN: the drift filter -- the ITI analyses load the ADOPTED non-smearing variant
+   `hemo_meegkit_hpfit` (`combined_encoding.load_imaging`), not the zero-phase original. RUNNING (10-27 evening,
+   `scripts/iti_hemo_check.py`): 415 nm lick-aligned response (haemodynamic / motion), uncorrected 470, original
+   zero-phase SVTcorr (filter sensitivity), edge / vessel pixels (motion), per-area F0; lower priority: global state
+   (running / face) around licks, pre-lick gap matching (baseline window). Also open: PS95's response was already rising
+   across its pre sessions.
 4d. **Self-initiated (ITI) licks, no trial / cue / target: PROVISIONAL** (10-26, ENCODING_FINDINGS 8.17,
    `scripts/iti_licks.py`). (i) Executed lick DIRECTION is decoded from cortex as well as before the stroke within each
    session (r ~0.53, unchanged every epoch), but the FROZEN pre-stroke decoder loses ~0.13 r in every epoch (4/4): the
