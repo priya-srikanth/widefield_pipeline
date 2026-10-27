@@ -98,8 +98,16 @@ def maplevel(L: dict) -> pd.DataFrame:
             an = sorted(obs)
             D = np.mean([obs[a] for a in an])
             Dn = np.mean([null[a] for a in an], axis=0)
-            row = dict(map=k, epoch=ep, n_animals=len(an), d_mean=D,
-                       p_cohort=(np.sum(Dn >= D) + 1) / (N_PERM + 1))
+            # DRIFT FLOOR: the label permutation also detects slow drift (pre sessions precede post ones), so read d
+            # against the distance between each animal's EARLY and LATE pre sessions (split at the median day)
+            dpp = []
+            for a in an:
+                v = L[a][k]
+                o = np.argsort(np.where(v["epoch"] == "pre", v["day"], np.inf))[: int((v["epoch"] == "pre").sum())]
+                if len(o) >= 4:
+                    dpp.append(_dist(v["M"][o[: len(o) // 2], ::STRIDE], v["M"][o[len(o) // 2:], ::STRIDE]))
+            row = dict(map=k, epoch=ep, n_animals=len(an), d_mean=D, d_pre_early_vs_late=float(np.mean(dpp)) if dpp
+                       else np.nan, p_cohort=(np.sum(Dn >= D) + 1) / (N_PERM + 1))
             ps = {}
             for a in an:
                 ps[a] = (np.sum(null[a] >= obs[a]) + 1) / (N_PERM + 1)
@@ -195,10 +203,11 @@ def plot_change(res: dict, keys: list, fam: str, T: pd.DataFrame, to_img, ol) ->
             ax.contour(to_img(r["sig_max"].astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
             sub = ""
             if kind == "change":
-                t = T[(T.map == k) & (T.epoch == ep)]
+                t = T[(T["map"] == k) & (T.epoch == ep)]
                 if len(t):
                     t = t.iloc[0]
-                    sub = (f"\nmap differs: d {t.d_mean:.2f}, p {t.p_cohort:.3f}{'*' if t.sig_bh else ''}, "
+                    sub = (f"\nd {t.d_mean:.2f} (pre early-late {t.d_pre_early_vs_late:.2f}), p {t.p_cohort:.3f}"
+                           f"{'*' if t.sig_bh else ''}, "
                            f"{int(t.n_sig_animals)}/{int(t.n_animals)} animals")
             ax.set_title(f"{'pre (level)' if kind == 'level' else ep + ' - pre'} n={r['n']}, sig {100 * r['frac']:.0f}%"
                          + sub, fontsize=7)
@@ -223,7 +232,7 @@ def plot_similarity(S: pd.DataFrame, keys: list) -> None:
     for i, k in enumerate(keys):
         for j, a in enumerate(AN):
             ax = axs[i, j]
-            g = S[(S.map == k) & (S.animal == a)].sort_values("day")
+            g = S[(S["map"] == k) & (S.animal == a)].sort_values("day")
             ax.axvspan(g.day.min() - 1 if len(g) else -12, 0, color="0.93", zorder=0)
             ax.axvline(0, color="k", lw=0.7, ls="--")
             ax.plot(g.day, g.r_to_pre, "o-", color="k", ms=3, lw=1)
@@ -247,12 +256,12 @@ def plot_maplevel(T: pd.DataFrame) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    maps = [k for f in FAMILIES.values() for k in f if k in set(T.map)]
+    maps = [k for f in FAMILIES.values() for k in f if k in set(T["map"])]
     fig, ax = plt.subplots(figsize=(7.5, 0.3 * len(maps) + 1.8))
     M = np.full((len(maps), 3), np.nan)
     for i, k in enumerate(maps):
         for j, ep in enumerate(EP[1:]):
-            t = T[(T.map == k) & (T.epoch == ep)]
+            t = T[(T["map"] == k) & (T.epoch == ep)]
             if len(t):
                 t = t.iloc[0]
                 M[i, j] = t.d_mean
