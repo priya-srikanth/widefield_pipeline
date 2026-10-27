@@ -143,6 +143,17 @@ section. Everything here is PROVISIONAL until you have looked at it.
   session). Caveat: the lateral negatives sit near the window edge, and the acute response increase is somewhat
   edge-rim weighted (hemo check) -- check the acute far-contra layout against the edge rim before interpreting it.
 
+- *** FIRST LICK vs LATER LICKS (iti_first_lick.py / .png; cued, lateral, z-scored KEY-row decoder; each class vs its
+  own pre mean at the spout): the FIRST post-cue lick (launched before feedback) is read CONTRALESIONAL beyond the pull
+  -- toward the target -- in every epoch: all spouts +0.39 / +0.27 / +0.19 mm (4/4 each); later licks +0.17 (3/4) / +0.03 /
+  -0.06 (n.s.). First - later, change vs pre: +0.22 / +0.24 / +0.25 (4/4 every epoch, all CIs exclude 0). Far contra:
+  first +0.63 acute (4/4) / +0.27 / +0.11 (n.s.); later +0.15 (n.s.) / -0.16 / -0.33 (4/4). The first lick also LANDS
+  further ipsilesional than later licks (all spouts -1.08 vs -0.71 acute). => the "read toward the target" signal lives in
+  the FIRST lick (the aimed launch), and the chronic ipsilesional read-out of far-contra licks is a LATER-lick (corrective
+  / repeated) phenomenon -- it is NOT what the first, aimed lick looks like. Revises the overcorrection reading: the
+  chronic ipsi read-out belongs to the follow-up licks. PS94 first-lick offset is largest (+1.09 acute, +0.35 chronic).
+  Caveat: b (pull slope) fit on all pre cued licks; ~8-14 % of cued licks are first licks.
+
 ### Running / queued
 - Whole-map permutation + amplitude-normalised change maps (per-session self-fit maps, 107 sessions) -- drawing.
 - Max-stat contour redraws of 3.50-3.53.
