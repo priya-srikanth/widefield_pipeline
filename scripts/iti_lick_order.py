@@ -51,6 +51,23 @@ SRC_TAG = "" if SOURCE == "areas" else f"_{SOURCE}"
 # reused by mistake (WFIELD_BASIS_SCALE=lick keeps the old lick-window scaling)
 if SOURCE in ("svd", "locanmf") and os.environ.get("WFIELD_BASIS_SCALE", "frame") == "frame":
     SRC_TAG += "F"
+# MASKED LocaNMF (Priya 10-27: the imaging-map mask excludes the olfactory bulbs + fibre glue; the joint LocaNMF basis was
+# fit before that mask and ~1/3 of its components sit mostly outside it): WFIELD_LOCANMF_MASK=1 drops every component
+# with > MASK_OUT_MAX of its |footprint| outside `beta_maps.brain_mask()` (outputs tagged "M")
+MASK_LOC = SOURCE == "locanmf" and os.environ.get("WFIELD_LOCANMF_MASK") == "1"
+MASK_OUT_MAX = 0.5
+if MASK_LOC:
+    SRC_TAG += "M"
+
+
+def locanmf_inmask(animal: str) -> np.ndarray:
+    """Boolean per joint-LocaNMF component: <= MASK_OUT_MAX of its |footprint| outside the glue / MOB brain mask."""
+    from wfield_local import beta_maps
+    from wfield_local import joint_locanmf as jl
+    b = jl.load(animal, warn_stale=False)
+    A = np.abs(np.nan_to_num(np.asarray(b.A, float))).reshape(-1, b.ncomp)
+    out = A[~beta_maps.brain_mask().ravel()].sum(0) / A.sum(0)
+    return out <= MASK_OUT_MAX
 
 
 def preds_path() -> Path:
@@ -107,6 +124,7 @@ def predictions() -> pd.DataFrame:
             print(f"  {SOURCE}: LICK-window SD scaling for {len(missing)} sessions (no frame_sd.csv entry)")
         sd_svd.update({x: np.vstack([D[x]["iti"][0], D[x]["trial"][0]]).std(0) for x in missing})
     rows = []
+    KEEP: dict = {}
     for st in SETS:
         for a in AN:
             S = {}
@@ -122,7 +140,10 @@ def predictions() -> pd.DataFrame:
                     # svdraw = SVD basis UNSCALED (check: lick-based z-scoring partly divides out the larger post-lick response)
                     sd = (SD.loc[x, names].to_numpy(float) if SOURCE == "areas" else np.ones(X.shape[1]) if SOURCE == "svdraw"
                           else np.where(sd_svd[x] > 0, sd_svd[x], 1))
-                    S[x] = (d["epoch"], X[ok] / sd[None, :], C[ok, 0], idx[ok], pos[ok])
+                    Xs = X[ok] / sd[None, :]
+                    if MASK_LOC:
+                        Xs = Xs[:, KEEP.setdefault(a, locanmf_inmask(a))]
+                    S[x] = (d["epoch"], Xs, C[ok, 0], idx[ok], pos[ok])
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
                 continue
