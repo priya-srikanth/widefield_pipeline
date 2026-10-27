@@ -28,6 +28,11 @@ def epoch_panel(ax, df: pd.DataFrame, val: str, ref: float | None = None, title:
     import matplotlib.pyplot as plt
     cols = plt.get_cmap("tab10")
     am = df.groupby(["animal", "epoch"])[val].mean()
+    sess = df.groupby(["label", "epoch"])[val].mean().reset_index()      # one grey dot per SESSION
+    jit = np.random.default_rng(1)
+    for x, e in enumerate(EPS):
+        v = sess[sess.epoch == e][val].to_numpy(float)
+        ax.scatter(x - 0.18 + jit.uniform(-0.06, 0.06, len(v)), v, s=7, color="0.55", alpha=0.6, zorder=2, lw=0)
     for k, a in enumerate(AN):
         ax.plot(range(4), [am.get((a, e), np.nan) for e in EPS], "o-", color=cols(k), ms=4, lw=1, alpha=0.7, label=a)
     mu = [am.xs(e, level="epoch").mean() if e in am.index.get_level_values("epoch") else np.nan for e in EPS]
@@ -160,36 +165,93 @@ def course(rows: list, title: str, name: str, ref_of: dict) -> None:
 
 
 def error_hist() -> None:
-    """Per LICK: signed decoding error (decoded - actual, lateral) distributions, pre vs acute vs chronic, per animal.
-    A SHIFTED distribution = bias; a WIDER one = scatter."""
+    """Per LICK: signed decoding error (decoded - actual, lateral) distributions per epoch; POOLED column first (animals
+    weighted equally), then per animal. A SHIFTED distribution = bias; a WIDER one = scatter.
+    Stats (session = unit): per session, mean and SD of the signed error. Per animal: change vs pre with a within-animal
+    session bootstrap 95% CI (2000 draws). Pooled: paired nested bootstrap (animals > sessions, `boot_delta`) + the
+    number of animals changing in that direction. * = CI excludes 0."""
     import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
     p["err"] = p.dec_lat - p.act_lat
-    col = {"pre": "0.35", "acute": "#c0392b", "subacute": "#e67e22", "chronic": "#2980b9"}
-    fig, axs = plt.subplots(2, 4, figsize=(17, 6.4), squeeze=False, sharex=True)
+    p = p.dropna(subset=["err"])
+    S = p.groupby(["set", "animal", "epoch", "label"]).err.agg(["mean", "std", "size"]).reset_index()
+    S = S[S["size"] >= 20]
+    rng = np.random.default_rng(0)
+
+    def within(h, ep, v):
+        a_, b_ = h[h.epoch == ep][v].to_numpy(), h[h.epoch == "pre"][v].to_numpy()
+        if len(a_) == 0 or len(b_) == 0:
+            return None
+        bs = [rng.choice(a_, len(a_)).mean() - rng.choice(b_, len(b_)).mean() for _ in range(2000)]
+        return a_.mean() - b_.mean(), np.percentile(bs, 2.5), np.percentile(bs, 97.5)
+
+    def fmt(t):
+        return "" if t is None else f"{t[0]:+.2f} [{t[1]:+.2f},{t[2]:+.2f}]{'*' if t[1] > 0 or t[2] < 0 else ''}"
+    cols = ["POOLED", *AN]
+    fig, axs = plt.subplots(2, len(cols), figsize=(4.1 * len(cols), 7.6), squeeze=False, sharex=True)
     bins = np.linspace(-3, 3, 61)
     for i, st in enumerate(("iti", "trial")):
-        for j, a in enumerate(AN):
+        Ss = S[S.set == st]
+        for j, a in enumerate(cols):
             ax = axs[i, j]
+            lines = []
             for ep in EPS:
-                e = p[(p.set == st) & (p.animal == a) & (p.epoch == ep)].err.dropna().to_numpy()
-                if len(e) < 20:
+                if a == "POOLED":
+                    parts = [p[(p.set == st) & (p.animal == b) & (p.epoch == ep)].err.to_numpy() for b in AN]
+                    parts = [x for x in parts if len(x) >= 20]
+                    if not parts:
+                        continue
+                    e = np.concatenate(parts)
+                    w = np.concatenate([np.full(len(x), 1 / len(x)) for x in parts])
+                else:
+                    e = p[(p.set == st) & (p.animal == a) & (p.epoch == ep)].err.to_numpy()
+                    w = None
+                    if len(e) < 20:
+                        continue
+                mu = np.average(e, weights=w)
+                ax.hist(e, bins=bins, weights=w, density=True, histtype="step", lw=1.6, color=EPOCH_LINE[ep],
+                        label=ep)
+                ax.axvline(mu, color=EPOCH_LINE[ep], lw=0.9, ls="--")
+                if ep == "pre":
                     continue
-                ax.hist(e, bins=bins, density=True, histtype="step", lw=1.4, color=col[ep],
-                        label=f"{ep}: mean {e.mean():+.2f}, SD {e.std():.2f} (n {len(e)})")
-                ax.axvline(e.mean(), color=col[ep], lw=0.8, ls="--")
-            ax.axvline(0, color="k", lw=0.5)
-            ax.legend(fontsize=6.5, frameon=False, loc="upper left")
-            ax.set_title(f"{a}, {'ITI' if st == 'iti' else 'cued'} licks", fontsize=9)
+                if a == "POOLED":
+                    txt = []
+                    for v, nm in (("mean", "shift"), ("std", "width")):
+                        prd = {b: h[v].to_numpy() for b, h in Ss[Ss.epoch == "pre"].groupby("animal")}
+                        post = {b: h[v].to_numpy() for b, h in Ss[Ss.epoch == ep].groupby("animal") if b in prd}
+                        ci = ak.boot_delta(post, prd, np.random.default_rng(0))
+                        am = Ss[Ss.epoch == ep].groupby("animal")[v].mean() - Ss[Ss.epoch == "pre"].groupby("animal")[v].mean()
+                        am = am.dropna()
+                        n_dir = int((am * np.sign(ci.point) > 0).sum())
+                        sig = "*" if ci.lo > 0 or ci.hi < 0 else ""
+                        txt.append(f"{nm} {ci.point:+.2f} [{ci.lo:+.2f},{ci.hi:+.2f}]{sig} {n_dir}/{len(am)}")
+                    lines.append((ep, "; ".join(txt)))
+                else:
+                    h = Ss[Ss.animal == a]
+                    lines.append((ep, f"shift {fmt(within(h, ep, 'mean'))}; width {fmt(within(h, ep, 'std'))}"))
+            for k, (ep, t) in enumerate(lines):
+                ax.text(0.01, 0.99 - 0.065 * k, f"{ep}: {t}", transform=ax.transAxes, fontsize=6.3, va="top",
+                        color=EPOCH_LINE[ep])
+            ax.axvline(0, color="0.5", lw=0.5)
+            ax.set_ylim(0, ax.get_ylim()[1] * 1.35)
+            if j == 0:
+                ax.legend(fontsize=7, frameon=False, loc="center left")
+            ax.set_title(f"{a}{' (animals weighted equally)' if a == 'POOLED' else ''}, "
+                         f"{'ITI' if st == 'iti' else 'cued'} licks", fontsize=9, fontweight="bold" if j == 0 else None)
             if i == 1:
-                ax.set_xlabel("decoded - actual LATERAL position, mm (+ = read more contralesional)", fontsize=8)
+                ax.set_xlabel("decoded - actual LATERAL, mm (+ = read more contralesional)", fontsize=8)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     fig.suptitle("NEURAL: per-LICK decoding error of the frozen where-decoder (z-scored Allen areas; lateral). A shifted "
-                 "distribution = BIAS (predictions displaced), a wider one = SCATTER.\nNB the error includes the decoder's "
-                 "pull toward the pre mean, so a changed lick distribution moves the mean error too; the offset BEYOND "
-                 "the pull (3.21 / 3.37) removes that. PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.91))
+                 "distribution = BIAS (predictions displaced), a wider one = SCATTER. Dashed = epoch mean.\nText = change "
+                 "vs pre in the per-SESSION mean error (shift) and SD (width), mm, 95% CI: per animal = session "
+                 "bootstrap; POOLED = paired nested bootstrap (animals > sessions) + animals changing that way; "
+                 "* = CI excludes 0.\nNB the error includes the decoder's pull toward the pre mean, so a changed lick "
+                 "distribution moves the mean error too; the offset BEYOND the pull (3.21 / 3.37) removes that. "
+                 "PROVISIONAL", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(il.OUT / "figures" / "iti_check_error_per_lick.png", dpi=95)
     plt.close(fig)
 
