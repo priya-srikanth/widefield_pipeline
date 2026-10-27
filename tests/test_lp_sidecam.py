@@ -15,15 +15,25 @@ def test_transform_round_trip_both_sizes():
 
 
 def test_label_follows_the_pixel():
-    """A bright pixel at a labelled position must sit at the transformed label after the image transform."""
-    for cam, size in (("cam3", (800, 600)), ("cam3", (600, 450)), ("cam2", (600, 450))):
-        a = np.zeros(size[::-1], np.uint8)
-        a[150, 700 if size[0] == 800 else 500] = 255
-        mx, my = S.to_model(700 if size[0] == 800 else 500, 150, cam, size[0])
-        out = np.asarray(S.transform_image(Image.fromarray(a), cam))
-        assert out.shape == (S.CROP[3], S.CROP[2]) or not (0 <= mx < S.CROP[2])
-        if 0 <= mx < S.CROP[2]:
-            assert out[int(my), int(mx)] == 255
+    """A bright spot at a raw position lands at the transformed position (flip, crop and the June resize)."""
+    for cam in ("cam2", "cam3"):
+        for size, (xr, yr) in (((800, 600), (650, 250)), ((600, 450), (480, 200)), ((800, 600), (90, 200))):
+            a = np.zeros(size[::-1], np.float32)
+            a[yr - 3:yr + 4, xr - 3:xr + 4] = 255
+            mx, my = S.to_model(float(xr), float(yr), cam, size[0])
+            out = np.asarray(S.transform_image(Image.fromarray(a.astype(np.uint8)), cam), np.float32)
+            assert out.shape == (S.OUT, S.OUT)
+            if not (5 <= mx < S.OUT - 5 and 5 <= my < S.OUT - 5):
+                continue                                   # this test point is outside this camera's crop
+            ys, xs = np.nonzero(out > 0)
+            w = out[ys, xs]
+            assert abs((xs * w).sum() / w.sum() - mx) < 0.6 and abs((ys * w).sum() / w.sum() - my) < 0.6
+
+
+def test_unknown_frame_size_refuses():
+    import pytest
+    with pytest.raises(SystemExit):
+        S.to_model(1.0, 1.0, "cam2", 640)
 
 
 def test_keep_rows_drops_blank_and_single_part():

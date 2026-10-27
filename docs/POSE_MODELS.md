@@ -1021,9 +1021,14 @@ crop: `wfield_local/lp_sidecam.py` (DECISIONS 2026-10-27 evening; June side vide
 
 | id | type | labels | settings | why | where |
 |---|---|---|---|---|---|
-| **LP side pilot** | LP `heatmap`, ResNet-50 | SIDECAM Part A: 228 frames (143 listed + 85 complete extras), 8 sessions, all animals / epochs | LP r4 recipe, 384 x 384 face crop at native resolution, batch 4, 300 epochs, Windows-native, **supervised only** (no temporal loss) | check the pilot before Parts B / C; pre-labels for B / C | `C:/Users/SabatiniLab/lp_stage/lp_side_pilot_20261027/models/side_pilot_heatmap_20261027` |
+| LP side pilot (SUPERSEDED by crop2) | LP `heatmap`, ResNet-50 | SIDECAM Part A: 228 frames (143 listed + 85 complete extras), 8 sessions, all animals / epochs | LP r4 recipe, 384 x 384 face crop at native resolution, batch 4, 300 epochs, Windows-native, **supervised only** (no temporal loss) | check the pilot before Parts B / C; pre-labels for B / C | `C:/Users/SabatiniLab/lp_stage/lp_side_pilot_20261027/models/side_pilot_heatmap_20261027` |
 
 Results: held-out frames (frame split, optimistic) median px nose 1.3 / jaw 2.5 / tongue 2.1 / spout 1.2; on the 188 Part B
 + C targets of 13 UNSEEN sessions, confident nose 99 % / jaw 89 % / tongue 52 % / spout 88 %; QC sheets in
 `DeepLabCut/Widefield/inference_check_20261027_side_pilot/`. Not yet judged by Priya. Next model: O2, temporal loss on
 cropped / flipped side clips, after Parts B / C.
+
+| **LP side crop2** | LP `heatmap`, ResNet-50 | same 228 frames | per-frame-size crop -> 256 px (August native, June 317 -> 256 at August scale), otherwise as the pilot | Priya: prioritise the August crop | `C:/Users/SabatiniLab/lp_stage/lp_side_crop2_20261027/models/side_crop2_heatmap_20261027` |
+
+crop2 vs pilot (DECISIONS 2026-10-27 late evening): same accuracy (held-out within ~1 px; unseen agreement ~2 px), adopted.
+Labelled review clips (single-frame model: judge labels / crop, not smoothness): `inference_check_20261027_side_pilot/clips/`.

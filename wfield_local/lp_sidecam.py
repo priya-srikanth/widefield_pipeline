@@ -11,16 +11,21 @@ flip needs no left / right label swap.
 
 THE TRANSFORM (`to_model` / `to_raw`), applied identically to labels, images and later to videos:
   1. cam3 only: x -> W - 1 - x, W = that frame's own width (pixel centres; PIL FLIP_LEFT_RIGHT does the same).
-  2. crop CROP = (x0, y0, w, h) of the (flipped) frame; model coordinates = (x - x0, y - y0).
-One box for every session and both cameras. Chosen 2026-10-27 from the Part A labels (cam3 flipped): all points fall
-in x 41-199, y 91-320, in BOTH frame sizes. 384 x 384 is a multiple of 128 (LP's resize check), so the model runs at
-native resolution (no resize), and the box keeps >= 41 px to the left of the nose (the image edge in June cam2), ~180 px
-right of the furthest jaw and ~60 px below the lowest tongue.
+  2. crop the square CROPS[W] = (x0, y0, side) of the (flipped) frame and resize it to OUT x OUT (256; a multiple of
+     128, LP's check). Model coordinates = (x - x0 + 0.5) * OUT / side - 0.5 (PIL's pixel-centre resize mapping).
 
-FRAME SIZE IS NOT CONSTANT (found 2026-10-27): the JUNE side videos are 800 x 600, August onward 600 x 450, and the
-face is ~1.2x larger in June (median nose-spout 112-141 px vs 94-112). The crop above still contains every June point;
-the scale difference is left to the network (both sizes are in the pilot). The flip uses each frame's own width --
-flipping June cam3 with 600 put its labels at x < 0.
+ONE CROP PER FRAME SIZE (Priya 2026-10-27: "prioritize the august crop, or design different crops"). The JUNE side
+videos are 800 x 600, August onward 600 x 450, and the face is 1.24x larger in June (June / August median nose-spout
+and nose-jaw distance per animal 1.16-1.29 on both measures, all four animals -- a camera set-up change, not an animal
+difference). So:
+  * AUGUST (W 600) = the primary data (the August-only pre baseline is primary, DECISIONS 2026-10-18): 256 x 256 at
+    NATIVE resolution, (x0, y0) = (0, 50), set from the August points only (Part A labels + the pilot's confident
+    predictions on 13 unseen sessions, cam3 flipped: x 52-185, y 91-275) -> margins 52 left (the frame edge), 71
+    right, 41 top, 41 bottom.
+  * JUNE (W 800): a 317-px square (= 256 x 1.24) resized to 256, so the June face reaches the network at the AUGUST
+    scale; y0 = 62 puts it at August's height (fit on the per-part medians); x0 = 0 rather than the fitted -39 (no
+    padding: a shift is cheap for a CNN, scale is not). June points land at x 33-148, y 54-210 of the 256 box.
+The first pilot (one 384 box for both sizes, no rescaling) is superseded by this one (DECISIONS 2026-10-27).
 
 WHICH ROWS. All-blank rows never reach training (`dlc_train.drop_unlabelled`; under LP's uniform-heatmap rule a
 blank row teaches "everything hidden"). Rows with ONE part only are dropped too: the nose is visible on every listed
@@ -40,7 +45,9 @@ import pandas as pd
 PARTS = ["nose", "jaw", "tongue", "spout"]
 SIDE = ("cam2", "cam3")
 SCORER = "Priya"
-CROP = (0, 32, 384, 384)          # x0, y0, w, h in the (cam3-flipped) frame -- see the module docstring
+#: frame width -> (x0, y0, side) of the square crop in the (cam3-flipped) frame; resized to OUT -- module docstring
+CROPS = {600: (0, 50, 256), 800: (0, 62, 317)}
+OUT = 256
 MIN_PARTS = 2
 
 
@@ -49,27 +56,38 @@ def labelling_project() -> Path:
     return dlc_project.project_dir()
 
 
-def to_model(x, y, cam: str, width: int, crop=CROP):
-    """Raw image coordinates -> model (flipped + cropped) coordinates. Works on scalars or arrays."""
+def crop_for(width: int) -> tuple[int, int, int]:
+    if width not in CROPS:
+        raise SystemExit(f"no side-camera crop for frame width {width} (known: {sorted(CROPS)})")
+    return CROPS[width]
+
+
+def to_model(x, y, cam: str, width: int):
+    """Raw image coordinates -> model (flipped, cropped, resized) coordinates. Scalars or arrays."""
+    x0, y0, side = crop_for(width)
     if cam == "cam3":
         x = width - 1 - x
-    return x - crop[0], y - crop[1]
+    f = OUT / side
+    return (x - x0 + 0.5) * f - 0.5, (y - y0 + 0.5) * f - 0.5
 
 
-def to_raw(x, y, cam: str, width: int, crop=CROP):
+def to_raw(x, y, cam: str, width: int):
     """Inverse of `to_model`: model predictions back onto the raw video frame."""
-    x, y = x + crop[0], y + crop[1]
+    x0, y0, side = crop_for(width)
+    f = side / OUT
+    x, y = (x + 0.5) * f - 0.5 + x0, (y + 0.5) * f - 0.5 + y0
     if cam == "cam3":
         x = width - 1 - x
     return x, y
 
 
-def transform_image(im, cam: str, crop=CROP):
+def transform_image(im, cam: str):
     from PIL import Image
     if cam == "cam3":
         im = im.transpose(Image.FLIP_LEFT_RIGHT)
-    x0, y0, w, h = crop
-    return im.crop((x0, y0, x0 + w, y0 + h))
+    x0, y0, side = crop_for(im.size[0])
+    im = im.crop((x0, y0, x0 + side, y0 + side))
+    return im if side == OUT else im.resize((OUT, OUT), Image.BILINEAR)
 
 
 def read_labels(folder: Path) -> pd.DataFrame:
@@ -113,8 +131,9 @@ def stage(dest: Path, proj: Path | None = None, only: list[str] | None = None) -
             rec = {"path": f"labeled-data/{f.name}/{img}"}
             for p in PARTS:
                 x, y = to_model(r[f"{p}_x"], r[f"{p}_y"], cam, im.size[0])
-                if x == x and not (0 <= x < CROP[2] and 0 <= y < CROP[3]):
-                    raise SystemExit(f"{f.name}/{img}: {p} at model ({x:.0f}, {y:.0f}) is outside the {CROP} crop")
+                if x == x and not (0 <= x < OUT and 0 <= y < OUT):
+                    raise SystemExit(f"{f.name}/{img}: {p} at model ({x:.0f}, {y:.0f}) is outside the "
+                                     f"{crop_for(im.size[0])} crop")
                 rec[f"{p}_x"], rec[f"{p}_y"] = x, y
             rows.append(rec)
         summary.append({"folder": f.name, "kept": len(lab), "dropped_partial": len(partial),

@@ -22135,3 +22135,21 @@ frames (13 sessions never seen): confident (cut 0.6, tongue 0.4) nose 99 %, jaw 
 there: a confident tongue on a PAW (grooming, cam2 08-19), weaker jaw on cam2 June 16_08_37 and 09-17 (0.6-0.67).
 Next: Priya QCs the sheets; then the predictions can PRE-LABEL Parts B / C for the student (to_raw back to the raw
 frame), and the O2 run (temporal loss, unlabelled cropped / flipped side clips) once B / C are in.
+
+**Addendum (2026-10-27, late evening) — side cameras: ONE CROP PER FRAME SIZE (supersedes the single 384 box above).**
+Priya: "prioritize the august crop, or design different crops". Measured: June / August face scale 1.16-1.29 per animal
+(nose-spout and nose-jaw medians, all four animals; median 1.24) -> a camera set-up change. Crops (`lp_sidecam.CROPS`):
+AUGUST (600 x 450, the primary data) 256 x 256 native at (0, 50), set from August points only (Part A labels + the
+pilot's confident predictions on 13 unseen sessions: x 52-185, y 91-275; margins 41-71 px); JUNE (800 x 600) a 317-px
+square at (0, 62) resized to 256 = the August scale, placed at August's height by the per-part medians (x0 0 instead of
+the fitted -39: no padding). Coordinates use PIL's pixel-centre resize mapping; tests pin flip + crop + resize on a
+bright spot. Retrained (same recipe, 256 px; 10 min, peak 1.0 GB): `lp_stage/lp_side_crop2_20261027/models/
+side_crop2_heatmap_20261027`. Versus the 384 pilot: held-out raw-px medians within ~1 px (Aug nose 0.8 / jaw 2.6 /
+tongue 2.0 / spout 1.3), same confident fractions on the 188 unseen targets, both-confident agreement 0.9-2.2 px median
+(2 tongue points > 10 px) -> no accuracy cost, 2.25x fewer pixels on August frames, one face scale. ADOPTED.
+Review clips (`scripts/side_review_clips.py`: 2 trials per position, cue -0.2..+1.5 s, cut in MODEL space from each
+camera's own template, cam2 | flipped cam3 side by side): PS93 0814 / 0821 / 0908 + PS95 0606 (June), all unseen, in
+`DeepLabCut/Widefield/inference_check_20261027_side_pilot/clips/<a>_<d>/labeled_crop2_singleframe.mp4`. The model is
+SINGLE-FRAME, SUPERVISED ONLY (no temporal loss, no context), so the clips judge labels / crop, not smoothness.
+Priya: LP over DLC (cam4 production is LP; temporal loss + context + uniform-heatmap occlusion + multi-view/EKS path are
+LP's; side views lack cam1's tip ambiguity). Next: O2 LP with temporal loss + ctx-semi (cam1 round-2 recipe).
