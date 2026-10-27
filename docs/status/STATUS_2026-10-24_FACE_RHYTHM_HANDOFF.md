@@ -96,6 +96,16 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      `backup_before_fignum_notes.pptx`). Encoding / imaging / kinematics resolved by image file against each page's
      pre-renumber source; FR by topic (the deck predates two FR reorders, so its letters match no saved FR version).
      Stale FR null notes (slides 39, 40, 59 "null running") replaced by the final 5.10 result. Slides unchanged.
+   * 10-27. NUMBERING AUDIT (asked by 07): FR + kinematics pages checked by script (number label = anchor = caption
+     header; no title / alt starting with a number; link text = target; refs exist). Kinematics clean. FR: "as Fig 8d"
+     (pre-renumber; = Fig 8.1) in the session_shape README text -> now names the map file; FR page v34. FINDINGS FR
+     block: 6 stale FR page refs -> N.k (8eaca89). GOAL PAGE REORDER (07, v129: Key -> Supporting -> Supplementary,
+     numbers changed; old -> new `wf_attempt/_goal_page/fig_map_20261027_reorder.csv`): PI deck notes remapped, 28
+     citations, each now "<number> [#f-<fid>]" (stable anchor, registry `_goal_page/fig_ids.csv`) -- `edit10.py`,
+     backup `backup_before_goal_reorder_notes.pptx`; slide 52 now also cites the figure it shows (2.18). OPEN with
+     Priya: slide 4 bullets say within-session refit but the figure is imaging Fig 1.1 FROZEN decoder; slides 4-5 notes
+     say "pooled session means", page says trial-pooled accuracy; provenance (alt text + notes FIGURE SOURCE + csv;
+     visible tag?) not yet applied; 07's decoder figures NOT final (will message).
    * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
