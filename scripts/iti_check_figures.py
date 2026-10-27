@@ -253,10 +253,10 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
             parts_.append(g.assign(pull_err=c_ + (b_ - 1) * g.act))
         p = pd.concat(parts_)
         for st in sets:
-            rows.append((f"{'ITI' if st == 'iti' else 'cued'} {clab.split(' ')[0]}: NEURAL decoder error", p[p.set == st],
+            rows.append((f"{'ITI' if st == 'iti' else 'cued'} {clab.split(' ')[0].lower()}: NEURAL", p[p.set == st],
                          f"decoded - actual {clab}, {unit}", -rng_, rng_))
         if landing:
-            rows.append((f"cued {clab.split(' ')[0]}: BEHAVIOUR landing shift", landing_errors(p),
+            rows.append((f"cued {clab.split(' ')[0].lower()}: BEHAVIOUR", landing_errors(p),
                          f"landing - own pre landing at spout, {clab}, {unit}", -1.33 * rng_, 1.33 * rng_))
     unit = COORDS[coords[0]][2] if len(coords) == 1 else "mm / deg"
     rng = np.random.default_rng(0)
@@ -342,9 +342,7 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
                         fontweight="bold" if sig_ else "normal")
             ax.axvline(0, ymax=0.64, color="0.5", lw=0.5)
             ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
-            if j == 0:
-                ax.legend(fontsize=7, frameon=False, loc="center left")
-            ax.set_title(f"{'POOLED' if a == 'POOLED' else a}: {rlab}", fontsize=8.5,
+            ax.set_title(f"{'POOLED' if a == 'POOLED' else a}: {rlab}", fontsize=8,
                          fontweight="bold" if j == 0 else None)
             ax.set_xlabel(xlab, fontsize=7.5)
             for s_ in ("top", "right"):
@@ -359,6 +357,9 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
                  "would show from the changed lick distribution alone.\nNB the decoder error includes its pull toward the pre mean, so a changed lick "
                  "distribution moves the mean error too; the offset BEYOND the pull (the beyond-pull offset figures) removes that. "
                  "PROVISIONAL", fontsize=9.5)
+    from matplotlib.lines import Line2D             # one LINE legend for the figure (no boxes, never over the data)
+    fig.legend(handles=[Line2D([], [], color=EPOCH_LINE[e], lw=2, label=e) for e in EPS], loc="upper left", ncol=4,
+               fontsize=9, frameon=False)
     _fit(fig)
     fig.savefig(il.OUT / "figures" / f"{name}.png", dpi=95)
     plt.close(fig)
