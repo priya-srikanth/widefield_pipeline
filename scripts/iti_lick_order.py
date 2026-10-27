@@ -84,7 +84,7 @@ def predictions() -> pd.DataFrame:
     from wfield_local import orofacial_cohort as oc
     SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
     names = feature_names()
-    D = wd.load({"areas": "areas", "svd": "svdbasis", "locanmf": "locanmf"}[SOURCE])   # basis robustness (Priya 10-27)
+    D = wd.load({"areas": "areas", "svd": "svdbasis", "svdraw": "svdbasis", "locanmf": "locanmf"}[SOURCE])   # basis robustness (Priya 10-27)
     sd_svd = {x: np.vstack([d["iti"][0], d["trial"][0]]).std(0) for x, d in D.items()} if SOURCE != "areas" else {}
     rows = []
     for st in SETS:
@@ -99,7 +99,9 @@ def predictions() -> pd.DataFrame:
                 pos = np.array([q if q in POS or "_" not in q else oc.pos_key(q, "L") for q in d[f"{st}_pos"].astype(str)])
                 ok = np.isfinite(C[:, 0]) & np.isfinite(idx) & np.isin(pos, POS)
                 if ok.sum() >= 20:
-                    sd = SD.loc[x, names].to_numpy(float) if SOURCE == "areas" else np.where(sd_svd[x] > 0, sd_svd[x], 1)
+                    # svdraw = SVD basis UNSCALED (check: lick-based z-scoring partly divides out the larger post-lick response)
+                    sd = (SD.loc[x, names].to_numpy(float) if SOURCE == "areas" else np.ones(X.shape[1]) if SOURCE == "svdraw"
+                          else np.where(sd_svd[x] > 0, sd_svd[x], 1))
                     S[x] = (d["epoch"], X[ok] / sd[None, :], C[ok, 0], idx[ok], pos[ok])
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:

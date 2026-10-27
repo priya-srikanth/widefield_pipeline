@@ -66,6 +66,29 @@ read-out / lickclass / perspout panels -- old versions to Supplementary; (3) sca
 null, global-activity confound); (7) first-lick map shape (re-extract all first licks); (8) tell e3 when decoder figures
 are final. Push: `S2/push<NN>.sh` cherry-picks named commits onto origin/main in a temp worktree; pre-push pytest takes
 ~8-11 min (`test_parallel_results_are_ordered` guards fan_out ordering -- sort results).
+**00-LATE addendum (10-27 ~15:20) -- READ WITH the queue doc docs/status/SVD_GAUSS_SUPERSEDE_QUEUE_2026-10-27.md:**
+- Page LIVE v135. Decided: PRIMARY = SVD-basis decoder + Gaussian same-place reference (`--ref gauss`, width by held-out
+  pre sessions: 0.1 mm Allen / SVD, 0.15 LocaNMF); Allen + LocaNMF = basis-robustness checks; mixed models (time primary,
+  epoch supplementary; behaviour deficit = weighted signed aim) on the same measures; significant terms bold.
+- BASIS CHECK (same-place gauss, change vs pre): all bases agree ACUTELY (ITI +0.20..+0.46, cued first +0.22..+0.35,
+  4/4); later epochs basis-dependent -- ITI chronic Allen +0.24 (4/4), LocaNMF +0.25 (3/4), SVD +0.14 n.s.; cued first
+  chronic Allen +0.15, LocaNMF 0.00, SVD +0.06. OPEN: SVD features are z-scored by their SD over the session's LICKS
+  (Allen by the SD over all FRAMES) -- the larger post-stroke lick response inflates the lick SD and may divide part of the
+  effect out. Running: `WFIELD_LICK_DECODER=svdraw` (unscaled SVD), log S2/svdraw.log. Next: frame-level SVD SD (needs
+  the session's SVD time courses), then decide the SVD scaling before switching the page.
+- FIRST-LICK weighted aim (recovery_measure_first_vs_all_sessions.csv): split-half reliability 0.98 (all-lick 1.00),
+  r = 0.94 with the all-lick measure, chronic deficit about 2x larger (PS94 -12.1 vs -5.8 deg) -- awaiting Priya's OK to
+  switch the behaviour axis + LMM deficit to it.
+- Drift: `mixed_models` model "time_drift" (time model + linear day term): day-1 step z unchanged, recovery terms trade
+  off with drift -> sensitivity only. Pre-only drift extrapolation: ITI read-out trend is the opposite sign; r trend same
+  sign but wide CI. June-anchored drift supplement queued (June has 3-D landing; NO June FaceRhythm).
+- Approved and queued: x/y/z + angle + elevation + reach Haufe maps (pooled + per spout, epoch and epoch - pre), PIXEL
+  mixed models with TFCE, four covariate references (landing / +kin / +FR / +FR+kin), local-linear vs Gaussian
+  reference, per-animal change-vs-pre scatter, first-lick row on 3.29 (3.60 done in the script).
+- Helper agent running: figdata + --plot-only for every figure script (docs/status/FIGDATA_PLOT_ONLY_2026-10-27.md when
+  done); do not edit the map / check / scatter scripts until it reports.
+- Parallel session loading in `iti_where_decoder.load` (fan_sessions); basis frame ranges cached (basis_frame_range/).
+
 **QUEUE after the SVD switch (Priya 10-27 late, in this order):** (a) SVD-basis decoder = primary (chain S2/run_svd.sh,
 env WFIELD_LICK_DECODER=svd; compare with the Allen-area version, then switch page figures); (b) Gaussian-kernel
 same-place reference (width chosen by leave-one-pre-session-out prediction error, floor = landing noise; sensitivity
