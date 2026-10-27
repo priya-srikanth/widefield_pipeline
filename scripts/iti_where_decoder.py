@@ -69,42 +69,54 @@ def _K():
     return _KC["K"]
 
 
-def load(source: str, sess_dir: Path | None = None) -> dict:
-    """{label: {epoch, animal, iti: (X (n, feat) lags 0..0.2 mean, Y (n, 3)), trial: (...)}} for one feature basis.
-    sess_dir: another folder of `iti_licks.extract` session files (e.g. the June reference, `iti_june_ref.py`)."""
+def _load_one(item):
+    """One session -> (label, record | None). Module-level so `analysis_kit.fan_sessions` can spawn it (the basis
+    branch reads the session's imaging for its frame times, which is the slow part)."""
+    x, source, sess_dir = item
+    sess_dir = Path(sess_dir) if sess_dir else None
     W_d = (il.LAGS_D >= 0.0) & (il.LAGS_D <= 0.2)
+    z = il._load(x, sess_dir)
+    rec = {"epoch": str(z["epoch"]), "animal": str(z["animal"])}
+    if source == "areas":
+        feat = [i for i, c in enumerate(z["cols"]) if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
+        for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
+            rec[st] = (z[kx].astype(float)[:, W_d][:, :, feat].mean(1), z[kt].astype(float))
+            rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
+    else:
+        f = il.OUT / f"basis_{source}" / "sessions" / f"{x}.npz"
+        if not f.exists():
+            return x, None
+        b = np.load(f)
+        from iti_basis_decoder import LAGS as LB
+        from wfield_local import combined_encoding as ce
+        ft = ce.load_imaging(x)[1]                             # same edge rule as iti_basis_decoder.extract
+        wb = (LB >= 0.0) & (LB <= 0.2)
+        for st, kt, kd in (("iti", "iti_t", "iti_side"), ("trial", "tr_t", "tr_side")):
+            t, y = z[kt].astype(float), z[kd].astype(float)
+            keep = (t > ft[0] - LB[0]) & (t < ft[-1] - LB[-1]) & np.isfinite(y)
+            Xb = b[f"{st}_X"].astype(float)[:, wb].mean(1)
+            if Xb.shape[0] != keep.sum() or not np.allclose(b[f"{st}_y"], y[keep]):
+                raise ValueError(f"{x} {source} {st}: basis licks do not line up with the ITI session file")
+            rec[st] = (Xb, t[keep])
+            rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)[keep]   # spout per lick
+    for st in ("iti", "trial"):
+        X, t = rec[st]
+        rec[st] = (X, coords(x, t))
+    return x, rec
+
+
+def load(source: str, sess_dir: Path | None = None, jobs: int | None = None) -> dict:
+    """{label: {epoch, animal, iti: (X (n, feat) lags 0..0.2 mean, Y (n, 3)), trial: (...)}} for one feature basis.
+    sess_dir: another folder of `iti_licks.extract` session files (e.g. the June reference, `iti_june_ref.py`).
+    Sessions load in PARALLEL (analysis_kit.fan_sessions: fan_out + sort, CLAUDE.md rule 6); returned in label order."""
+    from wfield_local import analysis_kit as ak
     labels = sorted(p.stem for p in (sess_dir or il.OUT / "sessions").glob("*.npz"))
-    D = {}
-    for x in labels:
-        z = il._load(x, sess_dir)
-        rec = {"epoch": str(z["epoch"]), "animal": str(z["animal"])}
-        if source == "areas":
-            feat = [i for i, c in enumerate(z["cols"]) if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
-            for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
-                rec[st] = (z[kx].astype(float)[:, W_d][:, :, feat].mean(1), z[kt].astype(float))
-                rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
-        else:
-            f = il.OUT / f"basis_{source}" / "sessions" / f"{x}.npz"
-            if not f.exists():
-                continue
-            b = np.load(f)
-            from iti_basis_decoder import LAGS as LB
-            from wfield_local import combined_encoding as ce
-            ft = ce.load_imaging(x)[1]                             # same edge rule as iti_basis_decoder.extract
-            wb = (LB >= 0.0) & (LB <= 0.2)
-            for st, kt, kd in (("iti", "iti_t", "iti_side"), ("trial", "tr_t", "tr_side")):
-                t, y = z[kt].astype(float), z[kd].astype(float)
-                keep = (t > ft[0] - LB[0]) & (t < ft[-1] - LB[-1]) & np.isfinite(y)
-                Xb = b[f"{st}_X"].astype(float)[:, wb].mean(1)
-                if Xb.shape[0] != keep.sum() or not np.allclose(b[f"{st}_y"], y[keep]):
-                    raise ValueError(f"{x} {source} {st}: basis licks do not line up with the ITI session file")
-                rec[st] = (Xb, t[keep])
-                rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)[keep]   # spout per lick
-        for st in ("iti", "trial"):
-            X, t = rec[st]
-            rec[st] = (X, coords(x, t))
-        D[x] = rec
-    return D
+    items = [(x, source, str(sess_dir) if sess_dir else "") for x in labels]
+    res, fails = ak.fan_sessions(items, _load_one, jobs=jobs, key=lambda it: it[0], label=f"load {source}",
+                                 log=lambda m: None)
+    if fails:
+        raise RuntimeError(f"load({source}) failed for {[f[0][0] for f in fails]}: {fails[0][1]}")
+    return {x: rec for _it, (x, rec) in res if rec is not None}
 
 
 def _vec_r(P: np.ndarray, Y: np.ndarray) -> float:
