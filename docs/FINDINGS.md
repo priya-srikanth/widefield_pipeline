@@ -184,6 +184,14 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
    -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
    far-contra licks (4d0b) is carried by the later, corrective licks.
+4d0f. **Mixed models WITH TIME for the ITI / lick headlines** (10-27 late, `scripts/iti_mixed_models.py`, shared
+   `wfield_local.mixed_models`, random intercept per animal -- the slope / step random effects did not converge). Time
+   model (step at day 1, change per e-fold of days): ITI lateral r -0.21 step, NO recovery (+0.004 n.s.); ITI lateral
+   offset +0.28 step, NO recovery (-0.013 n.s.); cued lateral r -0.21 step, recovers (+0.038 per e-fold); cued offset
+   +0.28, recovers (-0.089); far-contra cued offset +0.38, recovers past 0 (-0.185); ITI response +0.88, recovers
+   (-0.157). Behaviour model (far-contra time to contact): change still present at full behavioural recovery -- ITI
+   offset +0.23, ITI r -0.22, ITI response +0.36, cued r -0.08; cued offset none (-0.02 n.s., tied to the deficit).
+   Offsets carry the pull-slope caveat of 4d0e. PROVISIONAL.
 4d0e. **Lick ORDER, ITI and cued: the ITI contralesional read-out runs through the whole bout; the cued one is a
    first-lick property. PROVISIONAL** (10-27 late, `scripts/iti_lick_order.py`, page 3.71 / 3.72; lateral, frozen
    KEY-row decoder per lick set, z-scored; ITI order = index within the lick bout, gap >= 1 s over all the session's
@@ -195,7 +203,9 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    / +0.019 mm per lick, 4/4) while the beyond-pull offset falls (-0.030 acute 4/4; far contra -0.082 / -0.049 / -0.049,
    4/4 each) -- the read-out moves less than the pull predicts as the landing corrects. ITI slope steeper only acutely
    (-0.036, 4/4); the ITI read-out already falls with bout order pre-stroke (-0.017 mm per lick). Mixed-model check
-   (analysis_kit.mixed_epoch): never misses a bootstrap-significant cell, flags 18 more (mostly 2-3/4 animals).
+   (wfield_local.mixed_models epoch model) agrees with the bootstrap on 124 / 144 cells.
+   CAVEAT (10-27 late): 'beyond the pull' uses the across-spout pre slope (~0.6); with the within-spout slope (0.2-0.3)
+   the cued all-spout first-lick offset is n.s. and the decoded position is flat with lick order -- see the running list.
 4d. **Self-initiated (ITI) licks, no trial / cue / target: PROVISIONAL** (10-26, ENCODING_FINDINGS 8.17,
    `scripts/iti_licks.py`). (i) Executed lick DIRECTION is decoded from cortex as well as before the stroke within each
    session (r ~0.53, unchanged every epoch), but the FROZEN pre-stroke decoder loses ~0.13 r in every epoch (4/4): the

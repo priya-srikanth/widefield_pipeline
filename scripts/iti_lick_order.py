@@ -159,12 +159,27 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
                 if not post:
                     continue
                 ci = ak.boot_delta(post, prd, np.random.default_rng(0))
-                mm = ak.mixed_epoch(post, prd)
                 am = (g[g.epoch == ep].groupby("animal")[col].mean() - pm).dropna()
                 out.append(dict(scope=scope, set=st, measure=col, epoch=ep, level=g[g.epoch == ep][col].mean(),
                                 point=ci.point, lo=ci.lo, hi=ci.hi, n_dir=int((am * np.sign(ci.point) > 0).sum()),
-                                n=len(am), mixed_coef=mm[0], mixed_p=mm[3]))
+                                n=len(am), **_lmm(g, col, ep)))
     return pd.DataFrame(out)
+
+
+_LMM = {}
+
+
+def _lmm(g: pd.DataFrame, col: str, ep: str) -> dict:
+    """Epoch-model mixed fit (wfield_local.mixed_models, the shared definition: y ~ C(epoch), sessions as observations,
+    random-effects ladder per animal) for one session table x measure; cached per (table, measure)."""
+    from wfield_local import mixed_models as mx
+    key = (g.scope.iloc[0], g.set.iloc[0], col)          # one session table per scope x set
+    if key not in _LMM:
+        L = mx.add_time_covariates(g[["label", col]].rename(columns={col: "y"}).dropna())
+        T = mx.lmm_table(L.assign(grp=0), ["grp"], models=("epoch",), print_animals=False)
+        _LMM[key] = {} if T.empty else {t.split("T.")[-1].rstrip("]"): (c, p_) for t, c, p_ in zip(T.term, T.coef, T.p)}
+    c, p_ = _LMM[key].get(ep, (np.nan, np.nan))
+    return {"mixed_coef": c, "mixed_p": p_}
 
 
 def _star(r) -> str:

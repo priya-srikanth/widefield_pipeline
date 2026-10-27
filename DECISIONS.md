@@ -22094,7 +22094,9 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   doesn't change headline results i think so" -> checked (lateral r ITI -25 / -22 / -23 %, cued -19 / -11 / -8 %; ITI
   read contralesional +0.45 / +0.25 / +0.19 mm, 4/4) -> "ok to swap". The 3.15 error-in-mm panel is still unscaled.
 - **Mixed-effects models**: mixed-model p in captions / methods, the paired nested bootstrap stays on the figures, and
-  figures mark LMM p < 0.05 with a dagger beside the bootstrap's asterisk. One definition: `analysis_kit.mixed_epoch`
-  (value ~ post + (1 | animal), sessions as observations, REML, Wald). It is ANTI-conservative at 4 animals: on the
+  figures mark LMM p < 0.05 with a dagger beside the bootstrap's asterisk. One definition: `wfield_local.mixed_models` (the
+  shared module of 10-20; a duplicate `analysis_kit.mixed_epoch` written 10-27 was removed the same night). Figures mark
+  its EPOCH model; the headline table (`scripts/iti_mixed_models.py`) also reports the TIME model (step at day 1 +
+  change per e-fold of days, the primary readout per DECISIONS 10-20 night) and the BEHAVIOUR model. It is ANTI-conservative at 4 animals: on the
   lick-order family it never missed a bootstrap-significant cell and flagged 18 more, several carried by 2-3 of 4
   animals. So a dagger without an asterisk is not a result; the per-animal count still decides.
