@@ -106,6 +106,9 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      Priya: slide 4 bullets say within-session refit but the figure is imaging Fig 1.1 FROZEN decoder; slides 4-5 notes
      say "pooled session means", page says trial-pooled accuracy; provenance (alt text + notes FIGURE SOURCE + csv;
      visible tag?) not yet applied; 07's decoder figures NOT final (will message).
+     AFTER ANY GOAL-PAGE REORDER run `_source_PI_overview_2026-10-26/refresh_goal_numbers.py` (re-runnable; rewrites
+     every "<n> [#f-<fid>]" from `_goal_page/fig_ids.csv`, `--dry-run` to preview). v130 (+5 section-3 figs): slide 54
+     decoder_retention_pooled 3.19 -> 3.21, nothing else cited moved.
    * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
