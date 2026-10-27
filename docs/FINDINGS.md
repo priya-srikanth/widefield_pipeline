@@ -221,6 +221,13 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    0.93 / 0.94, 0.56 / 0.44 -> the spatial contrast across spouts shrinks broadly (PS93 / PS95 most), not only at far
    contra; yet only far contra is READ ipsilesional (far-ipsi offset ~0), so the weaker-copy account alone does not
    explain the offset sign. Usual-spot subset too sparse to test (pre halves missing). OPEN.
+   NOT ELAPSED-TIME DRIFT (10-27 ~02:00, `scripts/iti_where_drift.py`, figure iti_where_drift.png; decoders trained on
+   ONE pre session, z-scored Allen areas, tested on every other session; drift curve = log fit of r on day gap over
+   pre -> pre pairs). Within pre the lateral decoder barely drifts (slope -0.008..-0.035 r per log day; PS95 +0.02).
+   ITI LATERAL r below the drift curve: -0.12 [-0.19, -0.03] acute (3/4), -0.15 subacute, -0.13 [-0.19, -0.07] chronic
+   (4/4; chronic mean gap 39 days); cued lateral -0.16 / -0.09 (4/4), chronic -0.04 n.s.; sagittal ~0 for both.
+   Caveat: the August pre sessions span only 8 days, so chronic gaps are extrapolated (the fitted slope is near flat,
+   so drift would have to accelerate sharply to explain the loss).
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
