@@ -147,7 +147,7 @@ def _days() -> pd.DataFrame:
 
 
 def _aim() -> pd.DataFrame:
-    """Per session: far-contra cued lick angle / animal's pre mean (the 3.37 behaviour)."""
+    """Per session: far-contra cued lick angle change vs the animal's pre mean (deg; the recovery-link behaviour)."""
     return pd.read_csv(il.OUT / "recovery_link_sessions_withpre_angle_z.csv")[["label", "beh"]].drop_duplicates("label")
 
 
@@ -188,51 +188,77 @@ def course(rows: list, title: str, name: str, ref_of: dict) -> None:
     plt.close(fig)
 
 
+COORDS = {   # name: (source, label, unit, histogram half-range)
+    "angle": ("lat_sag", "ANGLE atan2(lateral, sagittal)", "deg", 40),
+    "lateral": ("lat_sag", "LATERAL (x)", "mm", 3),
+    "lat": ("3axis", "LATERAL x", "mm", 3),
+    "fwd": ("3axis", "FORWARD y", "mm", 3),
+    "down": ("3axis", "DOWN z", "mm", 4),
+}
+
+
+def coord_table(coord: str) -> pd.DataFrame:
+    """Per lick: set, animal, label, epoch, pos (canonical spout), act, dec in one coordinate (`COORDS`). Angle and lateral
+    come from the KEY-row where-decoder (lateral + sagittal ridges; angle = atan2 of the two, degrees); lat / fwd / down
+    from the three-axis decoder (`iti_where_3axis.py`, one ridge per axis). All z-scored Allen-area features."""
+    from wfield_local import orofacial_cohort as oc
+    src = COORDS[coord][0]
+    if src == "lat_sag":
+        p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+        if coord == "angle":
+            p = p.dropna(subset=["act_sag", "dec_sag"]).copy()
+            p["act"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
+            p["dec"] = np.degrees(np.arctan2(p.dec_lat, p.dec_sag))
+        else:
+            p["act"], p["dec"] = p.act_lat, p.dec_lat
+    else:
+        p = pd.read_csv(il.OUT / "where_3axis_preds.csv.gz")
+        p["act"], p["dec"] = p[f"act_{coord}"], p[f"dec_{coord}"]
+        p["pos"] = [q if q in oc.POS_ORDER or "_" not in str(q) else oc.pos_key(str(q), "L") for q in p.pos.astype(str)]
+    return p.dropna(subset=["act", "dec"])[["set", "animal", "label", "epoch", "pos", "act", "dec"]]
+
+
 def landing_errors(p: pd.DataFrame) -> pd.DataFrame:
-    """Per CUED lick: lateral LANDING shift = the lick's lateral landing (extension peak, `act_lat` of the decoder table,
-    + = contralesional; the same licks and coordinate the decoder is scored against) minus the animal's PRE mean landing
-    at the same spout. 0 = lands where it landed before the stroke at that spout; - = ipsilesional of it.
-    (Not the closest-approach `lat_err_mm` of the lick table: picking the frame nearest the spout pulls that toward the
-    spout and hides most of the deviation.)"""
-    t = p[p.set == "trial"].dropna(subset=["act_lat", "pos"]).copy()
-    pre = t[t.epoch == "pre"].groupby(["animal", "pos"]).act_lat.mean()
-    t["err"] = t.act_lat - [pre.get((a, q), np.nan) for a, q in zip(t.animal, t.pos)]
+    """Per CUED lick: LANDING shift in the table's coordinate = the lick's landing (extension peak, the coordinate the
+    decoder is scored against; + = contralesional / forward / down) minus the animal's PRE mean landing at the same
+    spout. 0 = lands where it landed before the stroke at that spout. (Not the closest-approach `lat_err_mm` of the lick
+    table: picking the frame nearest the spout pulls that toward the spout and hides most of the deviation.)"""
+    t = p[p.set == "trial"].dropna(subset=["act", "pos"]).copy()
+    pre = t[t.epoch == "pre"].groupby(["animal", "pos"]).act.mean()
+    t["err"] = t.act - [pre.get((a, q), np.nan) for a, q in zip(t.animal, t.pos)]
     return t.dropna(subset=["err"])[["animal", "epoch", "label", "err"]]
 
 
 def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_lick", landing: bool = False,
-               angle: bool = False) -> None:
-    """Per LICK: signed decoding error (decoded - actual, lateral) distributions per epoch; POOLED column first (animals
-    weighted equally), then per animal. A SHIFTED distribution = bias; a WIDER one = scatter. landing=True adds a
-    BEHAVIOUR row below: the cued licks' lateral LANDING error vs the target spout (`landing_errors`).
+               coords: tuple = ("lateral",)) -> None:
+    """Per LICK: signed decoding error (decoded - actual) distributions per epoch, one NEURAL row per (coordinate, lick
+    set) and, with landing=True, one BEHAVIOUR row per coordinate (`landing_errors`); POOLED column first (animals
+    weighted equally), then per animal. A SHIFTED distribution = bias; a WIDER one = scatter.
     Stats (session = unit): per session, mean and SD of the signed error. Per animal: change vs pre with a within-animal
     session bootstrap 95% CI (2000 draws). Pooled: paired nested bootstrap (animals > sessions, `boot_delta`) + the
-    number of animals changing in that direction. * = CI excludes 0."""
+    number of animals changing in that direction. * = CI excludes 0. CONTROL (neural rows): the error a PULL-ONLY decoder
+    (decoded = a + b x actual, a, b fit on the animal's pre licks per lick set) would make; triangles = its mean."""
     import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
-    p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
-    if angle:   # ANGLE version: lick angle atan2(lateral, sagittal) in degrees (decoded angle from the two decoded axes)
-        p = p.dropna(subset=["act_sag", "dec_sag"]).copy()
-        p["act_lat"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
-        p["dec_lat"] = np.degrees(np.arctan2(p.dec_lat, p.dec_sag))
-    unit, rng_ = ("deg", 40) if angle else ("mm", 3)
-    p["err"] = p.dec_lat - p.act_lat
-    p = p.dropna(subset=["err"])
-    # CONTROL for the shift: the error a PULL-ONLY decoder would make (decoded = a + b * actual, a, b fit on the animal's
-    # pre licks per lick set). A changed lick distribution moves this mean too; observed shift minus this = beyond pull
-    parts_ = []
-    for (_st, _a), g in p.groupby(["set", "animal"]):
-        pre_ = g[g.epoch == "pre"]
-        b_, c_ = np.polyfit(pre_.act_lat, pre_.dec_lat, 1)
-        parts_.append(g.assign(pull_err=c_ + (b_ - 1) * g.act_lat))
-    p = pd.concat(parts_)
-    xdec = f"decoded - actual {'ANGLE' if angle else 'LATERAL'}, {unit} (+ = read more contralesional)"
-    rows = [(f"{'ITI' if st == 'iti' else 'cued'}: NEURAL decoder error", p[p.set == st], xdec, -rng_, rng_)
-            for st in sets]
-    if landing:
-        rows.append(("cued: BEHAVIOUR landing shift", landing_errors(p),
-                     f"landing - own pre landing at spout ({unit}, + = contra)", -1.33 * rng_, 1.33 * rng_))
+    rows = []
+    for coord in coords:
+        _src, clab, unit, rng_ = COORDS[coord]
+        p = coord_table(coord)
+        p["err"] = p.dec - p.act
+        parts_ = []
+        for (_st, _a), g in p.groupby(["set", "animal"]):
+            pre_ = g[g.epoch == "pre"]
+            b_, c_ = np.polyfit(pre_.act, pre_.dec, 1)
+            parts_.append(g.assign(pull_err=c_ + (b_ - 1) * g.act))
+        p = pd.concat(parts_)
+        for st in sets:
+            rows.append((f"{'ITI' if st == 'iti' else 'cued'} {clab.split(' ')[0]}: NEURAL decoder error", p[p.set == st],
+                         f"decoded - actual {clab}, {unit}", -rng_, rng_))
+        if landing:
+            rows.append((f"cued {clab.split(' ')[0]}: BEHAVIOUR landing shift", landing_errors(p),
+                         f"landing - own pre landing at spout, {clab}, {unit}", -1.33 * rng_, 1.33 * rng_))
+    unit = COORDS[coords[0]][2] if len(coords) == 1 else "mm / deg"
     rng = np.random.default_rng(0)
 
     def within(h, ep, v):
@@ -318,14 +344,14 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_
             ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
             if j == 0:
                 ax.legend(fontsize=7, frameon=False, loc="center left")
-            ax.set_title(f"{'POOLED (animals equal)' if a == 'POOLED' else a}: {rlab}", fontsize=8.5,
+            ax.set_title(f"{'POOLED' if a == 'POOLED' else a}: {rlab}", fontsize=8.5,
                          fontweight="bold" if j == 0 else None)
             ax.set_xlabel(xlab, fontsize=7.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    beh = (f" Bottom row = BEHAVIOUR: {'lick angle' if angle else 'lateral landing'} (3-D, extension peak) minus the animal's pre landing at the same spout."
+    beh = (" BEHAVIOUR rows: landing in that coordinate (3-D, extension peak) minus the animal's pre landing at the same spout."
            if landing else "")
-    fig.suptitle(f"Per-LICK {'ANGLE' if angle else 'lateral'} error distributions ({unit}). NEURAL rows: frozen where-decoder (z-scored Allen areas), decoded - "
+    fig.suptitle(f"Per-LICK error distributions: {', '.join(COORDS[c][1] + ' (' + COORDS[c][2] + ')' for c in coords)}. NEURAL rows: frozen where-decoder (z-scored Allen areas), decoded - "
                  "actual." + beh + "\nA shifted distribution = BIAS, a wider one = SCATTER; dashed = epoch mean. Text = "
                  "change vs pre in the per-SESSION mean (shift) and SD (width) in axis units, 95% CI (epoch* = shift significant):\nper animal = session "
                  "bootstrap; POOLED = paired nested bootstrap (animals > sessions) + animals changing that way; * = CI "
@@ -366,8 +392,10 @@ def main() -> int:
     error_hist()
     error_hist(("iti",), "iti_check_error_per_lick_iti")
     error_hist(("trial",), "cued_check_error_per_lick", landing=True)
-    error_hist(("iti",), "iti_check_error_per_lick_iti_angle", angle=True)
-    error_hist(("trial",), "cued_check_error_per_lick_angle", landing=True, angle=True)
+    error_hist(("iti",), "iti_check_error_per_lick_iti_angle", coords=("angle",))
+    error_hist(("trial",), "cued_check_error_per_lick_angle", landing=True, coords=("angle",))
+    error_hist(("iti",), "iti_check_error_per_lick_iti_xyz", coords=("lat", "fwd", "down"))
+    error_hist(("trial",), "cued_check_error_per_lick_xyz", landing=True, coords=("lat", "fwd", "down"))
     R0 = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
     p["err"] = p.dec_lat - p.act_lat
@@ -388,9 +416,9 @@ def main() -> int:
     course([("F0 470 (raw fluorescence) / pre", F, "f0_470_rel"),
             ("post-lick response / pre: dF/F vs dF (dF = dF/F x F0)", F, "resp_auc_rel", "resp_dF_rel",
              "dF/F (as on the page)", "dF, raw units"),
-            ("far-contra lick angle / pre (behaviour)", F, "beh")],
+            ("far-contra lick angle, change vs pre (deg; behaviour)", F, "beh")],
            "NEURAL / MEASUREMENT: F0 and the ITI post-lick response per session, with far-contra aim for comparison.",
-           "iti_check_f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 1})
+           "iti_check_f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 0})
     T = pd.read_csv(il.OUT / "where_3axis_sessions.csv")
     T = T[T.set == "iti"]
     course([(f"ITI {ax_}: {lab}", T[T.axis == ax_], v) for ax_ in ("lat", "fwd", "down")
