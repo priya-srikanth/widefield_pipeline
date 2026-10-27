@@ -69,6 +69,19 @@ def _K():
     return _KC["K"]
 
 
+def _frame_range(x: str, ce) -> np.ndarray:
+    """(first, last) imaging frame time of a session -- all the basis branch needs from the imaging (the edge rule).
+    Cached in basis_frame_range/<label>.npy so the full imaging is read once per session, ever."""
+    f = il.OUT / "basis_frame_range" / f"{x}.npy"
+    if f.exists():
+        return np.load(f)
+    ft = ce.load_imaging(x)[1]
+    r = np.array([ft[0], ft[-1]], float)
+    f.parent.mkdir(exist_ok=True)
+    np.save(f, r)
+    return r
+
+
 def _load_one(item):
     """One session -> (label, record | None). Module-level so `analysis_kit.fan_sessions` can spawn it (the basis
     branch reads the session's imaging for its frame times, which is the slow part)."""
@@ -89,7 +102,7 @@ def _load_one(item):
         b = np.load(f)
         from iti_basis_decoder import LAGS as LB
         from wfield_local import combined_encoding as ce
-        ft = ce.load_imaging(x)[1]                             # same edge rule as iti_basis_decoder.extract
+        ft = _frame_range(x, ce)                                # same edge rule as iti_basis_decoder.extract
         wb = (LB >= 0.0) & (LB <= 0.2)
         for st, kt, kd in (("iti", "iti_t", "iti_side"), ("trial", "tr_t", "tr_side")):
             t, y = z[kt].astype(float), z[kd].astype(float)
