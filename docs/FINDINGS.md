@@ -187,6 +187,12 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    4/4 each). Encoder angle atan2(lateral, sagittal): ITI -0.11 / -0.07 / -0.10 (chronic CI excludes 0), in-trial
    -0.09 / -0.05 / -0.04 (chronic n.s., 2/4). The earlier "in-trial angle r ABOVE pre 4/4" used the HORIZONTAL angle
    (lateral vs forward) -> superseded: on the encoder's angle in-trial r returns to ~pre, not above.
+   SPREAD-MATCHED r (10-27 ~01:00, `scripts/iti_where_spread_matched.py [--z]`; each session's licks resampled so their
+   actual-position distribution matches the animal's pre distribution, 0.2 mm bins, 30 draws of half the licks; partial
+   match where a post session never reaches part of the pre range: chronic SD / pre 0.79-0.99 after matching). LATERAL
+   r loss SURVIVES: ITI -0.12 / -0.12 / -0.11 (raw -0.13 / -0.12 / -0.13), cued -0.12 / -0.08 / -0.05, 4/4 in every
+   cell; z-scored the same (ITI chronic -0.13, cued -0.05). Sagittal: ITI chronic -0.05 [-0.09, -0.01] matched (4/4,
+   small), cued ~0 or slightly above pre (z chronic +0.04). -> the lateral loss is not a narrower lick spread.
    SAGITTAL Z-SCORED (Priya 10-26 23:55: "may make most sense" for sagittal; unscaled and z-scored disagree acutely):
    cued sagittal beyond pull acute +0.16 (4/4 read FURTHER: .09 / .08 / .16 / .32) while acute far-contra protrusion is
    actually LOWER; chronic -0.15 (4/4 closer: -.08 / -.05 / -.16 / -.30); per spout z acute further at close contra /
