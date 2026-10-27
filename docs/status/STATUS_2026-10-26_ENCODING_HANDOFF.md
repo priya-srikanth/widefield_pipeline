@@ -39,6 +39,72 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT (10-27 ~15:40) -- READ FIRST; then the queue doc docs/status/SVD_GAUSS_SUPERSEDE_QUEUE_2026-10-27.md
+**Pages:** goal page LIVE v135 (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; source `_goal_page/index.html`, untracked,
+backup M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/). Review page for loose-end figures (not yet on the goal page):
+https://claude.ai/artifact/P4Md3KfTSt3Nqq9hxU2knq (source `_review_1027/`, untracked) -- Priya has not answered its 5
+decisions yet (aim figure on page? TFCE contours replace per-pixel? shape-d replaces heatmap? shape-over-days as
+Supporting? drift table in 3.13 caption?). Figure links: stable `#f-<image stem>` (registry `_goal_page/fig_ids.csv`);
+renumber only via `scripts/goal_page_reorder.py --version vNNN --date ...` (new figures need a UNIQUE placeholder number
++ data-tier first; see scratchpad page_1027f.py). Other windows: e3 (PI deck) waits for "decoder figures final"; 5b
+(imaging page) uses stable ids too.
+
+**Decisions today (DECISIONS.md / queue doc / FINDINGS 4d0-LATE..4d0j):**
+- Offsets: like-for-like SAME-PLACE read-out (each lick vs the animal's pre licks that landed at the same lateral place),
+  Gaussian kernel (`lick_matched_readout.py --ref gauss`, width by held-out pre-session error: 0.1 mm); 'beyond the pull'
+  RETIRED (sign depended on the assumed pull slope). Secondary: per-lick error coding vs pre (same-spout, misdirected).
+- PRIMARY decoder = frozen pre-stroke decoder on the animal's pre-stroke SVD basis (`WFIELD_LICK_DECODER=svd`); Allen +
+  LocaNMF = basis-robustness checks; decoder r and per-session refit decoders to SVD too; section-2 / 3.19-3.22 trial
+  spout classifiers (joint LocaNMF now) -> SVD (needs an SVD frozen spout decoder via frozen_models.load_or_fit).
+- Mixed models: TIME model primary (shared wfield_local/mixed_models.py), epoch model as paired supplementary panel,
+  behaviour-model deficit = FIRST-lick weighted signed aim (`lick_aim_deficit.py`, reliability 0.98); significant terms
+  bold; joint 'any change' test + AIC shape comparison approved (not done); 'time_drift' variant = sensitivity only.
+- Behaviour axis everywhere = first-lick weighted aim; far-contra first-lick aim beside far-contra-specific measures.
+- Figure names lick_ / lick_iti_ / lick_cued_; every figure script to save figdata + --plot-only (helper agent).
+
+**Findings (PROVISIONAL):**
+- ITI licks read contralesional of where they land: robust ACUTELY in all bases (Allen +0.32, LocaNMF +0.46, SVD +0.20,
+  4/4); later epochs basis-dependent (Allen +0.21 / +0.24 4/4; LocaNMF +0.29 / +0.25; SVD lick-scaled +0.07 / +0.14 n.s.;
+  SVD UNSCALED +0.06 / +0.14 n.s. -> lick-window scaling is NOT the explanation; PS93 negative in SVD). Frame-scaled SVD run
+  in progress. Not explained by the larger lick response (attribution has the opposite sign); not previous-target
+  carry-over (strongest after far-IPSI trials).
+- Cued: the acute contralesional read-out comes largely from MORE target-carrying misses (misdirected licks read toward
+  their target, like the rare pre-stroke misses); it tracks aim (~0 / slightly ipsi at pre aim). Cortex changes
+  substantially (lateral r loss, compression, far-contra map replaced acutely, bigger lick response), mostly recovering.
+  First cued lick +0.22..+0.35 acute in all bases; later epochs basis-dependent.
+- Decomposition: ITI = uniform contralesional shift + compression; cued = compression + small uniform ipsi shift; chronic
+  far-contra ipsilesional read-out = compression at the edge.
+- First-lick aim shows ~2x the chronic deficit of the all-lick aim (corrective licks hide it).
+- Mixed models (first-lick aim deficit): at pre aim ITI read-out +0.15, ITI lateral r -0.21 (unrelated to aim); cued r loss
+  fully explained by aim.
+
+**RUNNING at handoff (background bash in session f082ee0c; logs in S2 = scratchpad):**
+- frame-scaled SVD read-out: `WFIELD_LICK_DECODER=svd` iti_lick_order + `lick_matched_readout --ref gauss`, outputs tagged
+  `_svdF` (S2/svdF.log, ends with DONE). Then run LocaNMF frame-scaled the same way (basis_locanmf/frame_sd.csv exists).
+- helper agent: figdata + --plot-only for every figure script -> docs/status/FIGDATA_PLOT_ONLY_2026-10-27.md when done;
+  it edits the map / check / scatter scripts -- do not touch those until it reports.
+
+**TO DO (order; figure ids in the queue doc):** (1) read svdF -> decide SVD scaling; switch page figures to SVD + gauss
+(supersede tables A / B); (2) local-linear vs Gaussian reference (held-out error); (3) four covariate references (landing /
++kin / +FR / +FR+kin; no June FR); (4) same-target same-place; (5) mixed-model pixel maps + x/y/z / angle / elevation /
+reach Haufe maps (after the helper); (6) epoch panels for every LMM figure, joint test, AIC shapes, copy-link icon on the
+page; (7) June SVD projection -> June-anchored drift supplement; (8) recovery link on the new measure; per-animal
+change-vs-pre scatter + CI markers; first-lick row on 3.29; (9) spout classifiers -> SVD; (10) non-linear decoder;
+behaviour-only (FR) decoder; then the compensation check (first-lick contact rate etc.); LOW: 2-D match, June whole-map
+reference. Then FINDINGS + page synthesis with the revised cued wording; tell e3 when decoder figures are final.
+Unpushed local commits since 78e6593d (pushed as 4c2da52f): push with S2/push<NN>.sh.
+
+**PITFALLS (today):**
+- Bash heredocs turn "\n" inside Python string literals into real newlines and some multi-heredoc commands fail to parse
+  -> write Python with the Write / Edit tools; bit us ~15 times.
+- Artifact publish: files must be under the workspace (repo); M: and some scratchpad paths are refused -> copy into
+  `_goal_page/` or `_review_1027/` first.
+- Push: cherry-pick named commits onto origin/main in a temp worktree; pre-push pytest ~8-11 min; the test
+  `test_parallel_results_are_ordered` rejects a fan_out result used without `sorted(` within 14 lines.
+- Never kill a running job (Priya runs kills); never rename on M: (write copies).
+- `lick_order_preds{SRC_TAG}.csv.gz` is reused if present -> change SRC_TAG (e.g. the F suffix) when inputs change.
+- `#figS-N` old-number anchors follow the LAST renumber; quote stable ids.
+
 ### 00-LATE (10-27 evening, Priya back) -- read FIRST (supersedes 00-NIGHT for state / to-dos)
 **Page:** LIVE v130 (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). v129 = REORDER: every section Key ->
 Supporting -> Supplementary, STABLE ids `#f-<image stem>` (registry `_goal_page/fig_ids.csv`), old numbers kept as
