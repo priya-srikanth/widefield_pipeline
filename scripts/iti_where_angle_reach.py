@@ -7,8 +7,8 @@ within session (`zscore_check/session_sd.csv`), trained on August pre licks, pre
   reach   3-D distance of the tongue tip from the mouth at the extension peak (`reach_mm`, the lick table)
   elev    ELEVATION below the axial (horizontal) plane, atan2(down, sqrt(lateral^2 + forward^2)), degrees (Priya 10-27:
           "should we add angle from axial plane"): with angle and reach a full 3-D polar description of each lick
-Per session: r (decoded vs actual) / the animal's pre mean; for angle also on the LONGER licks only (sagittal extension
-above the animal's pre median -- angle is unstable on short licks, where a small lateral error swings atan2); offset
+Per session: r (decoded vs actual) / the animal's pre mean, ALL tracked licks (Priya 10-27: no extension filter; the
+r_ang_long column = licks above the pre median, kept for reference only); offset
 beyond the pre pull (decoded - (a + b x actual), a, b fit on the animal's pre licks) minus pre. Change vs pre: paired
 nested bootstrap; per-animal tables first (rule 8).
 Outputs <E>/iti_licks/where_angle_reach_{preds.csv.gz,sessions.csv,tests.csv}, figures/iti_where_angle_reach.png.
@@ -119,7 +119,7 @@ def plot(S: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
     from iti_check_figures import epoch_panel
-    panels = [("r_ang_long_d", "ANGLE r / pre (longer licks)", 1.0), ("r_ang_d", "ANGLE r / pre (all licks)", 1.0),
+    panels = [("r_ang_d", "ANGLE r / pre", 1.0),
               ("r_elev_d", "ELEVATION r / pre", 1.0), ("r_reach_d", "3-D REACH r / pre", 1.0),
               ("bey_ang_d", "ANGLE offset beyond pre pull (deg)", 0.0),
               ("bey_elev_d", "ELEVATION offset beyond pull (deg)", 0.0),
@@ -129,7 +129,7 @@ def plot(S: pd.DataFrame) -> None:
         g = S[S.set == st]
         for j, (c, lab, ref) in enumerate(panels):
             epoch_panel(axs[i, j], g, c, ref=ref, title=f"{'ITI' if st == 'iti' else 'cued'}: {lab}",
-                        ylab=lab if j in (0, 4) else "")
+                        ylab=lab if j in (0, 3) else "")
     axs[0, 0].legend(fontsize=6.5, frameon=False)
     fig.suptitle("NEURAL: DIRECTION vs EXTENT -- the frozen where-decoder (z-scored Allen areas, lags 0..0.2 s, trained on "
                  "August pre licks) on the lick's 3-D POLAR coordinates: lateral ANGLE (atan2(lateral, sagittal)), ELEVATION below the axial plane (atan2(down, horizontal extent); + = steeper down) and 3-D REACH.\nr / pre: how well cortex "

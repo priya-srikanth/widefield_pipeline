@@ -22066,3 +22066,16 @@ Decided (AskUserQuestion, all recommended options):
   nulls); kernel maps = each group's summed contribution averaged around the event per spout (not single betas).
 - The lick-only model is NOT used for the contest (it absorbs target-related lick-locked activity); descriptive only.
 Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the epoch kernel maps (1.20-1.21).
+
+## 2026-10-27 -- Lick coordinate: ANGLE primary everywhere, with x / y / z and polar (elevation, reach) alongside (Priya)
+
+- **Primary lick coordinate = lateral ANGLE** atan2(lateral, sagittal) (the encoder's exec_angle) for behaviour
+  (recovery link, landing), decoder offsets / per-lick error histograms, AND decoder r ("ensure the decoder r primary
+  matches"; Priya chose angle r primary over the more consistent lateral r, 10-27). Lateral (mm) and sagittal stay as
+  SUPPLEMENTARY figures; x / y / z (lateral, forward, down; `iti_where_3axis.py`) and the polar set (angle, ELEVATION below
+  the axial plane, 3-D reach; `iti_where_angle_reach.py`) are the companions ("if we do angle, then angle and xyz").
+- Behaviour as CHANGE vs pre (degrees / mm), not a ratio: pre angles differ ~2x between animals and acute angles cross 0.
+- NO extension filter on licks ("real licks that fall short should be included"; a 0.5 mm floor removes nothing -- the 3-D
+  lick table has no lip licks). Angle r is weaker than lateral r because atan2 amplifies tracking noise on short (1.5-3 mm)
+  licks; say so in captions. Rejected: per-animal pre-median cut (biased against near spouts), single 3.5 mm cut.
+- Recovery-link r(offset, aim): angle -0.48 (4/4) vs lateral -0.40 (4/4), z-scored decoder, time trend removed.
