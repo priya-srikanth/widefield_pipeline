@@ -12,6 +12,12 @@ section. Everything here is PROVISIONAL until you have looked at it.
    session's lick distribution to pre (ITI -0.11 to -0.12, cued -0.12 -> -0.05, 4/4 every cell); sagittal ~unchanged.
    Retires the "narrower spread" caveat for the lateral loss (matching is partial in PS95 ITI: SD 0.79 of pre).
 
+3. **As aim recovers, the ITI contralesional offset fades -- now 4/4 with the z-scored decoder**
+   (`figures/iti_recovery_link_angle_z.png`, one panel per animal over post-stroke days: black = far-contra cued lick
+   angle / pre, red = decoded ITI lateral offset). Time trend removed: -0.48 (PS92 -0.35, PS93 -0.44, PS94 -0.62, PS95
+   -0.51; p 2e-4). Cued sagittal offset also tracks recovery (-0.57, 4/4): "read further" acutely -> "read closer" as
+   aim returns. PS95 angle course: fast rise to ~0.95 by day 9, ~0.85 days 11-20, ~0.95 later (your "dip").
+
 ## Questions for you
 1. Recovery ranking: by far-contra cued lick ANGLE / pre, chronic PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. You
    rank PS95 best (fast early recovery, dip, then improvement) -- is there a measure you want used for the

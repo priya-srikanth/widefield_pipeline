@@ -207,6 +207,11 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    beyond it (+0.16 n.s.). Lateral-protrusion recovery gives the same. Between animals (n = 4, descriptive): PS94 = least
    recovered AND the most persistent chronic ITI signal (r 0.64 of pre, offset +0.54 mm, lateral error 1.81 x pre);
    the other three are not cleanly ranked (PS93 recovers less than PS95 but has the smaller offset).
+   Z-SCORED decoder (10-27 ~01:10, `iti_recovery_link.py --beh angle --z`, figure iti_recovery_link_angle_z.png): ITI
+   lateral offset vs far-contra angle recovery, time trend removed -0.48 (p 2e-4) with ALL FOUR negative (PS92 -0.35,
+   PS93 -0.44, PS94 -0.62, PS95 -0.51; PS95 was + on the hit-rate measure); ITI lateral error -0.45 (4/4); cued
+   sagittal offset -0.57 (4/4: cued licks read CLOSER as aim recovers, i.e. the acute "read further" fades into the
+   chronic "read closer"); cued lateral -0.42 (3/4, PS95 +0.22). Frozen r: not beyond the time trend.
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued

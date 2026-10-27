@@ -35,8 +35,16 @@ EP = ["acute", "subacute", "chronic"]
 N_PERM = 5000
 
 
-def session_measures(src: Path) -> tuple[pd.DataFrame, str]:
-    p = pd.read_csv(src / "where_preds.csv")
+def _files(src: Path, z: bool) -> tuple[Path, Path]:
+    """(per-lick predictions, per-session decoder r) for unscaled or within-session z-scored features."""
+    if z:
+        return src / "zscore_check" / "where_preds_z.csv", src / "zscore_check" / "where_decoder_z.csv"
+    return src / "where_preds.csv", src / "where_decoder.csv"
+
+
+def session_measures(src: Path, z: bool = False) -> tuple[pd.DataFrame, str]:
+    fp, fd = _files(src, z)
+    p = pd.read_csv(fp)
     ax2 = "sag" if "act_sag" in p.columns else "out"
     p = p.dropna(subset=["act_lat", f"act_{ax2}", "dec_lat", f"dec_{ax2}"])
     parts = []
@@ -46,12 +54,14 @@ def session_measures(src: Path) -> tuple[pd.DataFrame, str]:
             pre = g[g.epoch == "pre"]
             b, c = np.polyfit(pre[f"act_{ax_}"], pre[f"dec_{ax_}"], 1)
             g[f"bey_{ax_}"] = g[f"dec_{ax_}"] - (c + b * g[f"act_{ax_}"])
+        g["mae_lat"] = (g.dec_lat - g.act_lat).abs()
+        g["mae_2d"] = np.hypot(g.dec_lat - g.act_lat, g[f"dec_{ax2}"] - g[f"act_{ax2}"])
         parts.append(g)
-    S = pd.concat(parts).groupby(["set", "animal", "epoch", "label"])[["bey_lat", f"bey_{ax2}"]].mean().reset_index()
-    D = pd.read_csv(src / "where_decoder.csv")
+    S = (pd.concat(parts).groupby(["set", "animal", "epoch", "label"])[["bey_lat", f"bey_{ax2}", "mae_lat", "mae_2d"]]
+         .mean().reset_index())
+    D = pd.read_csv(fd)
     D = D[(D.source == "areas") & (D.target == "lateral")][["set", "label", "r"]].rename(columns={"r": "r_lat"})
-    M = pd.read_csv(src / "where_mae_sessions.csv")[["set", "label", "mae_lat", "mae_2d"]]
-    S = S.merge(D, on=["set", "label"], how="left").merge(M, on=["set", "label"], how="left")
+    S = S.merge(D, on=["set", "label"], how="left")
     meas = ["r_lat", "bey_lat", f"bey_{ax2}", "mae_lat", "mae_2d"]
     pre = S[S.epoch == "pre"].groupby(["set", "animal"])[meas].mean()
     for m in meas:
@@ -89,15 +99,16 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=str(il.OUT))
     ap.add_argument("--beh", choices=("hit", "angle", "lateral"), default="hit")
+    ap.add_argument("--z", action="store_true", help="decoder on within-session Z-SCORED features")
     args = ap.parse_args(argv)
-    src, tag = Path(args.src), args.beh
-    S, ax2 = session_measures(src)
+    src, tag = Path(args.src), args.beh + ("_z" if args.z else "")
+    S, ax2 = session_measures(src, args.z)
     meas = ["r_lat", "bey_lat", f"bey_{ax2}", "mae_lat", "mae_2d"]
     B = series("lick")[["label", "day", "beh"]]
-    if tag != "hit":
-        p = pd.read_csv(src / "where_preds.csv")
+    if args.beh != "hit":
+        p = pd.read_csv(_files(src, args.z)[0])
         p = p[(p.set == "trial") & (p.pos == "far_contra")].dropna(subset=["act_lat", "act_sag"])
-        p["k"] = np.degrees(np.arctan2(p.act_lat, p.act_sag)) if tag == "angle" else p.act_lat
+        p["k"] = np.degrees(np.arctan2(p.act_lat, p.act_sag)) if args.beh == "angle" else p.act_lat
         k = p.groupby(["animal", "epoch", "label"]).k.mean().reset_index()
         k["beh"] = k.k / k.animal.map(k[k.epoch == "pre"].groupby("animal").k.mean())
         B = B[["label", "day"]].merge(k[["label", "beh"]], on="label")
@@ -132,7 +143,53 @@ def main(argv=None) -> int:
     print("\n== within-animal r(measure, behaviour / pre) over post sessions\n" + R.to_string(index=False))
     R.to_csv(src / f"recovery_link_within_{tag}.csv", index=False)
     G.to_csv(src / f"recovery_link_sessions_{tag}.csv", index=False)
+    plot_course(G, R, tag, ax2, args.z, src)
     return 0
+
+
+def plot_course(G: pd.DataFrame, R: pd.DataFrame, tag: str, ax2: str, z: bool, src: Path) -> None:
+    """Per animal over post-stroke days: behaviour (/ pre) and the decoder's lateral offset beyond the pull."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    blab = {"hit": "far-contra hit rate / pre", "angle": "far-contra cued lick ANGLE / pre",
+            "lateral": "far-contra cued lick lateral protrusion / pre"}[tag.replace("_z", "")]
+    zl = " [decoder on Z-SCORED features]" if z else ""
+    fig, axs = plt.subplots(2, 4, figsize=(17, 7.5), sharex="col", squeeze=False)
+    for i, st in enumerate(("iti", "trial")):
+        for j, a in enumerate(AN):
+            ax = axs[i, j]
+            g = G[(G.animal == a) & (G.set == st)].sort_values("day")
+            ax.plot(g.day, g.beh, "o-", color="k", ms=4, lw=1.2, label=blab)
+            ax.axhline(1, color="0.8", lw=0.6)
+            ax.set_ylabel(blab if j == 0 else "", fontsize=8.5)
+            ax2_ = ax.twinx()
+            ax2_.plot(g.day, g.bey_lat, "s-", color="#c0392b", ms=4, lw=1.2, alpha=0.85,
+                      label="decoded lateral offset beyond pre pull (mm, change vs pre)")
+            ax2_.axhline(0, color="#c0392b", lw=0.5, ls=":")
+            if j == 3:
+                ax2_.set_ylabel("lateral offset, mm\n(+ = read contralesional)" + ("\n" + zl.strip() if z else ""),
+                                fontsize=8.5, color="#c0392b")
+            r = R[(R.set == st) & (R.measure == "bey_lat")].set_index("kind")[a]
+            ax.set_title(f"{a}, {'ITI' if st == 'iti' else 'cued'} licks: r {r['raw']:+.2f} "
+                         f"(time trend removed {r['detrended']:+.2f})", fontsize=9)
+            if i == 1:
+                ax.set_xlabel("day after stroke", fontsize=9)
+            for s_ in ("top",):
+                ax.spines[s_].set_visible(False)
+    rr = R[(R.measure == "bey_lat")].set_index(["set", "kind"])
+    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "NEURAL vs BEHAVIOUR, within animal: as far-contra aim "
+                 f"recovers, does the decoder's contralesional reading fade?\nBlack = {blab} (one dot per post-stroke "
+                 "session); red = FROZEN pre-stroke decoder's lateral offset beyond its pre pull (Allen areas, lags "
+                 "0..0.2 s;\n+ = cortex reads the lick more contralesional than it landed)" + zl + ". TOP = ITI licks "
+                 "(different licks from those defining recovery), BOTTOM = cued licks.\nMean within-animal r: ITI "
+                 f"{rr.loc[('iti', 'raw'), 'mean_r']:+.2f} (time trend removed {rr.loc[('iti', 'detrended'), 'mean_r']:+.2f},"
+                 f" p {rr.loc[('iti', 'detrended'), 'p_perm']:.4f}); cued {rr.loc[('trial', 'raw'), 'mean_r']:+.2f} "
+                 f"({rr.loc[('trial', 'detrended'), 'mean_r']:+.2f}, p {rr.loc[('trial', 'detrended'), 'p_perm']:.4f}); "
+                 "p = within-animal permutation of behaviour.", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    fig.savefig(src / "figures" / f"iti_recovery_link_{tag}.png", dpi=100)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
