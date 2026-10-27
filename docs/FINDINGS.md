@@ -128,6 +128,16 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    PRE-REGISTER for the next cohort (direction stated): lesion % -> slower behavioural recovery (+); day 1-3 orofacial
    residual -> lower chronic cortical code on hits (-) and larger chronic residual (+); acute far-contra retention ->
    chronic code (sign open: - here); acute coupling on failed attempts -> recovery speed (open).
+4d0-LATE. **SYNTHESIS, 10-27 late (supersedes the measure in 4d0; conclusions unchanged). PROVISIONAL.** Primary offset
+   measure = SAME-PLACE like-for-like read-out (4d0j; DECISIONS 10-27 late): cortex reads licks CONTRALESIONAL of where
+   they land -- ITI licks in every epoch (+0.31 / +0.21 / +0.24 mm, 4/4 each; mixed model with time: step at day 1, no
+   recovery), cued licks acutely (+0.14, 4/4) and on the FIRST cued lick in every epoch (+0.27 / +0.20 / +0.15, 4/4);
+   cued far contra reads IPSIlesional chronically (-0.28, 4/4). Structure (decomposition 4d0g): ITI = a uniform
+   contralesional shift + compression; cued = compression (lateral-r loss) + a small uniform ipsilesional shift. Not
+   explained by the larger pan-cortical lick response (its decoder prediction has the opposite sign, 4d0i). Misdirected
+   cued licks are read toward their target (normal target coding; whether stronger than pre cannot be decided). Lateral r:
+   ITI -0.21, no recovery; cued -0.21, recovers. 'Beyond the pull' numbers below are RETIRED as primary (sign depended on
+   the assumed pull slope); the lick-order slope result (4d0e) was mechanical (decoded flat with lick order).
 4d0. **SYNTHESIS (Priya 10-27): the cortical lick read-out is SHIFTED after the stroke -- acutely contralesional and
    further out; the distance shift resolves, the contralesional shift lessens but does not resolve, more for ITI than
    cued licks. PROVISIONAL** (page v122 "Where things stand" first row; figs 3.37, 3.39-3.43, 3.48). Frozen decoder,
