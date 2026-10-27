@@ -184,6 +184,17 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
    -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
    far-contra licks (4d0b) is carried by the later, corrective licks.
+4d0i. **LIKE-FOR-LIKE read-out = the primary offset measure (Priya 10-27); response-size attribution. PROVISIONAL**
+   (`scripts/lick_matched_readout.py`, `scripts/lick_gain_prediction.py`). Each lick vs the animal's pre licks with the
+   same landing deviation (no pull slope). ITI, all spouts: +0.23 / +0.16 / +0.22 mm (4/4 each); bout starts +0.26 /
+   +0.20 / +0.20 (4/4); per spout strongest after far-ipsi trials (+0.41 / +0.37 / +0.39, 4/4) and far-mid (+0.21 every
+   epoch). CUED, all spouts: +0.03 / -0.06 / -0.08 (chronic 4/4 ipsi); first lick +0.09 acute (3/4) then ~0; far
+   contra read IPSIlesional every epoch (-0.28 / -0.34 / -0.39, 4/4 each; later licks -0.32 / -0.39 / -0.45) -- the
+   earlier acute 'far-contra read contralesional' (+0.25 to +0.38) was the across-spout pull slope (CORRECTED);
+   close ipsi +0.18 / +0.07 / +0.11. ATTRIBUTION: the response-size change along each animal's pre lick-response
+   pattern, passed through the frozen decoder, predicts -0.08 / -0.07 / -0.05 mm for ITI (PS94 -0.32) and +0.03 for cued
+   chronically -- the OPPOSITE sign to the observed shifts in both sets, so the uniform shifts are not the pan-cortical
+   response change seen through the decoder (which stays a separate, biological result).
 4d0h. **LANDING-MATCHED read-out (no pull slope at all) -- the cleanest test. PROVISIONAL** (10-27 late; per lick,
    landing deviation and decoded deviation from the animal's pre mean at the spout; each post-stroke lick compared with
    the animal's PRE licks that deviated by the same amount (bins -3..-1.5..-1..-0.5..-0.25..0.25..0.5..1..3 mm)). ITI:
