@@ -58,6 +58,29 @@ MASK_LOC = SOURCE == "locanmf" and os.environ.get("WFIELD_LOCANMF_MASK") == "1"
 MASK_OUT_MAX = 0.5
 if MASK_LOC:
     SRC_TAG += "M"
+# ITI LICK FILTER (Priya 10-27: "first-lick ITI (and all ITI) licks require 2 s no licking, and are not close to trial
+# start or stop?" -- they did not: iti_lick_timing_audit.py). WFIELD_ITI_FILTER restricts the ITI set (training AND
+# scoring) using <E>/iti_licks/iti_timing_audit.csv: gap2 = no lick onset in the preceding 2 s; far1 = >= 1 s after the
+# response-window end and >= 1 s before the next spout arrival; gap2far1 = both. Outputs tagged "_<filter>".
+ITI_FILTER = os.environ.get("WFIELD_ITI_FILTER", "")
+if ITI_FILTER:
+    SRC_TAG += f"_{ITI_FILTER}"
+
+
+def iti_keep(label: str, t: np.ndarray) -> np.ndarray:
+    """Boolean per ITI lick (exact peak time t) for ITI_FILTER."""
+    if not ITI_FILTER:
+        return np.ones(len(t), bool)
+    global _AUDIT
+    if _AUDIT is None:
+        _AUDIT = pd.read_csv(il.OUT / "iti_timing_audit.csv").replace(np.inf, 1e9).set_index(["label", "t"])
+    A = _AUDIT.loc[label].reindex(np.asarray(t, float))
+    gap2 = (A.gap >= 2.0).to_numpy()
+    far1 = ((A.since_stop >= 1.0) & (A.to_strobe >= 1.0)).to_numpy()
+    return {"gap2": gap2, "far1": far1, "gap2far1": gap2 & far1}[ITI_FILTER]
+
+
+_AUDIT = None
 
 
 def locanmf_inmask(animal: str) -> np.ndarray:
@@ -144,6 +167,8 @@ def predictions() -> pd.DataFrame:
                 idx = _bout_idx(x, t) if st == "iti" else fl._lick_idx(x, t)
                 pos = np.array([q if q in POS or "_" not in q else oc.pos_key(q, "L") for q in d[f"{st}_pos"].astype(str)])
                 ok = np.isfinite(C[:, 0]) & np.isfinite(idx) & np.isin(pos, POS)
+                if st == "iti":
+                    ok &= iti_keep(x, t)
                 if ok.sum() >= 20:
                     # svdraw = SVD basis UNSCALED (check: lick-based z-scoring partly divides out the larger post-lick response)
                     sd = (SD.loc[x, names].to_numpy(float) if SOURCE in ("areas", "areas_split") else np.ones(X.shape[1]) if SOURCE == "svdraw"
