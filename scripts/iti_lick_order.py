@@ -96,7 +96,11 @@ def predictions() -> pd.DataFrame:
         fsd = il.OUT / f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}" / "frame_sd.csv"
         if fsd.exists():
             F = pd.read_csv(fsd, index_col=0)
-            sd_svd = {x: F.loc[x].to_numpy(float) for x in D if x in F.index}
+            # LocaNMF component counts differ by animal: the CSV is NaN-padded to the largest count
+            sd_svd = {x: F.loc[x].dropna().to_numpy(float) for x in D if x in F.index}
+            bad = [x for x, v in sd_svd.items() if len(v) != D[x]["iti"][0].shape[1]]
+            if bad:
+                raise ValueError(f"frame_sd length != features for {bad[:3]}")
             print(f"  {SOURCE}: frame-level SD scaling ({len(sd_svd)} sessions)")
         missing = [x for x in D if x not in sd_svd]
         if missing:
