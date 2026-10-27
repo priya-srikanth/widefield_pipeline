@@ -39,6 +39,10 @@ section. Everything here is PROVISIONAL until you have looked at it.
    the other spouts stay similar. Sagittal map is bilateral and preserved.
 8. **3.14 now has per-lag significance bars**: ITI lateral below pre at every lag in all three bases and epochs.
 
+9. **F0 check** (FINDINGS 4d): raw baseline fluorescence did not fall after the stroke (+11 % acute, +4 % chronic n.s.),
+   so the larger ITI post-lick dF/F response (3.23-3.25) is not a baseline artefact; in dF units it is slightly larger.
+   415 nm lick-aligned response still not done.
+
 ## Questions for you
 1. Recovery ranking: by far-contra cued lick ANGLE / pre, chronic PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. You
    rank PS95 best (fast early recovery, dip, then improvement) -- is there a measure you want used for the
