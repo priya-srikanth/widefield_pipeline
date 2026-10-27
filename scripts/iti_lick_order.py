@@ -47,6 +47,10 @@ import os  # noqa: E402
 
 SOURCE = os.environ.get("WFIELD_LICK_DECODER", "areas")
 SRC_TAG = "" if SOURCE == "areas" else f"_{SOURCE}"
+# the split basis depends on the ALM / tjM1 ROI version (iti_licks.ROI_VERSION): v2+ outputs get "r<v>" so v1 caches are never
+# reused (lick_order_preds is cached by tag)
+if SOURCE == "areas_split" and il.ROI_VERSION != "1":
+    SRC_TAG += f"r{il.ROI_VERSION}"
 # frame-level-scaled basis runs get their own outputs ("_svdF", "_locanmfF") so the earlier lick-scaled caches are never
 # reused by mistake (WFIELD_BASIS_SCALE=lick keeps the old lick-window scaling)
 if SOURCE in ("svd", "locanmf") and os.environ.get("WFIELD_BASIS_SCALE", "frame") == "frame":
