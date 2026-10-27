@@ -34,7 +34,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
-from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
+from figdata import CHANGE_CMAP, PRE_CMAP, grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 
 AN =["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
@@ -158,9 +158,10 @@ def plot_axis(D: dict) -> None:
     setname = {"iti": "ITI (self-initiated) licks", "trial": "CUED in-trial licks"}
     ax_ = D["axis"]
     cols = COLS
-    fig, axs = plt.subplots(2, len(cols), figsize=(2.9 * len(cols), 6.4), squeeze=False)
+    fig, axs = plt.subplots(2, len(cols), figsize=(2.9 * len(cols) + 1.0, 6.7), squeeze=False, layout="constrained")
     for i, st in enumerate(("iti", "trial")):
         M, lim, sim = D["rows"][st]["M"], D["rows"][st]["lim"], D["rows"][st]["sim"]
+        im_l = im_c = None
         for j, c in enumerate(cols):
             ax = axs[i, j]
             ax.set_xticks([])
@@ -169,19 +170,27 @@ def plot_axis(D: dict) -> None:
                 ax.axis("off")
                 continue
             v, n = M[c]
-            im = ax.imshow(to_img(v), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            if c in EP:                             # epoch LEVELS purple-orange, the change red-blue (Priya 10-27)
+                im_l = ax.imshow(to_img(v), cmap=PRE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
+            else:
+                im_c = ax.imshow(to_img(v), cmap=CHANGE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
             sub = "" if c == "pre" else (f"\nsimilarity to pre {sim[c]:.2f} (noise-corrected)"
                                          if c in EP else "")
             ax.set_title(f"{c} (n={n} animals){sub}", fontsize=8)
             if j == 0:
                 ax.set_ylabel(setname[st], fontsize=9)
-        fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.012, pad=0.01,
-                     label="pattern / animal's pre RMS")
+        if im_l is not None:
+            fig.colorbar(im_l, ax=axs[i, :len(EP)].tolist(), fraction=0.015, pad=0.01,
+                         label="LEVEL: pattern / pre RMS")
+        if im_c is not None:
+            fig.colorbar(im_c, ax=axs[i, len(EP):].tolist(), fraction=0.06, pad=0.02,
+                         label="CHANGE chronic - pre")
     fig.suptitle(f"NEURAL: WHERE cortex carries {axname[ax_]} -- Haufe activation pattern of the lick-position "
                  "decoder (Cov(activity, decoded position) / Var), refit per epoch,\nin each animal's pre-stroke SVD "
                  "basis (200 components, lags 0..0.2 s from the lick peak), mapped to pixels, / the animal's pre "
-                 "pattern RMS, mean of animals. Red = more activity for licks further +; ipsi (lesion) = image LEFT. "
+                 "pattern RMS, mean of animals.\nEpoch LEVEL maps in purple-orange (orange = more activity for licks "
+                 "further +); the chronic - pre CHANGE map in red-blue; one scale per row. ipsi (lesion) = image LEFT. "
                  "Unscaled features. PROVISIONAL", fontsize=9)
     fig.savefig(il.OUT / "figures" / f"lick_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)

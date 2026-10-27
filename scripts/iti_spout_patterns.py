@@ -24,7 +24,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
-from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
+from figdata import CHANGE_CMAP, PRE_CMAP, grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 from iti_decoder_patterns import SPATIAL, pattern  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -104,8 +104,10 @@ def plot(D: dict) -> None:
     import matplotlib.pyplot as plt
     to_img, ol = grid_fns(D["grid"])
     cols = COLS
-    fig, axs = plt.subplots(len(POS), len(cols), figsize=(2.6 * len(cols), 2.3 * len(POS)), squeeze=False)
+    fig, axs = plt.subplots(len(POS), len(cols), figsize=(2.6 * len(cols) + 1.0, 2.35 * len(POS) + 0.8), squeeze=False,
+                            layout="constrained")
     lim = 2.5
+    im_l = im_c = None
     for i, sp in enumerate(POS):
         for j, cname in enumerate(cols):
             ax = axs[i, j]
@@ -115,17 +117,26 @@ def plot(D: dict) -> None:
             if c is None:
                 ax.axis("off")
                 continue
-            im = ax.imshow(to_img(c["map"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            if cname in EP:                         # epoch LEVELS purple-orange, the change red-blue (Priya 10-27)
+                im_l = ax.imshow(to_img(c["map"]), cmap=PRE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
+            else:
+                im_c = ax.imshow(to_img(c["map"]), cmap=CHANGE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
             ttl = f"{cname} (n={c['n']})" + (f"\nsim to pre {c['sim']:.2f}" if cname in EP[1:] else "")
             ax.set_title(ttl, fontsize=7.5)
             if j == 0:
                 ax.set_ylabel(sp.replace("_", " "), fontsize=9)
-    fig.colorbar(im, ax=axs, fraction=0.012, pad=0.01, label="pattern / animal's pre RMS for that spout")
+    if im_l is not None:
+        fig.colorbar(im_l, ax=axs[:, :len(EP)].ravel().tolist(), fraction=0.015, pad=0.01, shrink=0.5,
+                     label="LEVEL: pattern / animal's pre RMS (spout)")
+    if im_c is not None:
+        fig.colorbar(im_c, ax=axs[:, len(EP):].ravel().tolist(), fraction=0.06, pad=0.02, shrink=0.5,
+                     label="CHANGE chronic - pre")
     fig.suptitle("NEURAL: WHERE activity distinguishes each spout's cued licks from the other five's -- Haufe activation "
                  "pattern of a one-vs-rest ridge decoder, refit per epoch\n(each animal's pre-stroke SVD basis, lags "
                  "0..0.2 s from the lick peak), / the animal's pre RMS, mean of animals; sim = noise-corrected similarity to "
-                 "pre (mean of animals). ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL", fontsize=9)
+                 "pre (mean of animals).\nEpoch LEVEL maps in purple-orange; the chronic - pre CHANGE map in red-blue "
+                 "(same +-2.5 scale). ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL", fontsize=9)
     fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 

@@ -32,7 +32,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
-from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
+from figdata import CHANGE_CMAP, CMAP_NOTE, PRE_CMAP, grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 from iti_decoder_pattern_stats import AGREE_MIN, _bh, _boot, _maxstat  # noqa: E402
 from iti_session_patterns import AN, OUT, POS  # noqa: E402
 
@@ -186,8 +186,9 @@ def plot_change(D: dict) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     cols = [("pre", "level"), ("acute", "change"), ("subacute", "change"), ("chronic", "change")]
-    fig, axs = plt.subplots(len(keys), 4, figsize=(11.5, 2.55 * len(keys) + 1.2), squeeze=False)
+    fig, axs = plt.subplots(len(keys), 4, figsize=(12.8, 2.6 * len(keys) + 1.4), squeeze=False, layout="constrained")
     for i, k in enumerate(keys):
+        im_l = im_c = None
         lv = res.get((k, "pre", "level"))
         lim_l = np.nanpercentile(np.abs(lv["point"]), 99) if lv else 1
         chg = [res[(k, e, "change")]["point"] for e, kd in cols[1:] if (k, e, "change") in res]
@@ -200,8 +201,10 @@ def plot_change(D: dict) -> None:
             if r is None:
                 ax.axis("off")
                 continue
-            lim = lim_l if kind == "level" else lim_c
-            ax.imshow(to_img(r["point"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            if kind == "level":                     # pre LEVEL: purple-orange, own scale (Priya 10-27)
+                im_l = ax.imshow(to_img(r["point"]), cmap=PRE_CMAP, vmin=-lim_l, vmax=lim_l, interpolation="nearest")
+            else:
+                im_c = ax.imshow(to_img(r["point"]), cmap=CHANGE_CMAP, vmin=-lim_c, vmax=lim_c, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
             ax.contour(to_img(r["sig"].astype(float), 0), levels=[0.5], colors="k", linewidths=0.7, linestyles="--")
             ax.contour(to_img(r["sig_max"].astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
@@ -217,16 +220,23 @@ def plot_change(D: dict) -> None:
                          + sub, fontsize=7)
             if j == 0:
                 ax.set_ylabel(k.replace("trial/", "cued ").replace("iti/", "ITI ").replace("sp_", ""), fontsize=8.5)
+        if im_l is not None:
+            cb = fig.colorbar(im_l, ax=axs[i, 0], fraction=0.06, pad=0.02)
+            cb.set_label("pre LEVEL (unit RMS)", fontsize=7)
+            cb.ax.tick_params(labelsize=6.5)
+        if im_c is not None:
+            cb = fig.colorbar(im_c, ax=axs[i, 1:].tolist(), fraction=0.02, pad=0.01)
+            cb.set_label("CHANGE epoch - pre", fontsize=7)
+            cb.ax.tick_params(labelsize=6.5)
     import textwrap
     paras = [f"NEURAL: fully per-SESSION Haufe maps ({fam}), each session map scaled to unit RMS (SHAPE only: a "
-             "cortex-wide gain change cannot appear).",
+             f"cortex-wide gain change cannot appear). {CMAP_NOTE[0].upper() + CMAP_NOTE[1:]}; one scale per row for each.",
              "Column 1 = pre map; columns 2-4 = epoch - pre, mean of animals; SOLID = max-statistic FWER 0.05; DASHED = "
              "per-pixel nested bootstrap CI excludes 0 after BH q 0.05 AND >= 3 animals share the sign.",
              "Titles: d = 1 - r(epoch mean map, pre mean map) (whole-map permutation test, session labels permuted within "
              "animal; * = BH over all maps x epochs). ipsi (lesion) = image LEFT. PROVISIONAL"]
     txt = "\n".join(textwrap.fill(q, 125) for q in paras)       # wrapped to the figure width (titles ran off the sides)
     fig.suptitle(txt, fontsize=8.5)
-    fig.tight_layout(rect=(0, 0, 1, 1 - (0.17 * (txt.count(chr(10)) + 1) + 0.25) / fig.get_size_inches()[1]))
     fig.savefig(il.OUT / "figures" / CHANGE_FIG[fam], dpi=95)
     plt.close(fig)
 

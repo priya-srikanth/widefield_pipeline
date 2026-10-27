@@ -76,3 +76,24 @@ def grid_fns(grid: dict):
         g[pix] = v
         return g.reshape(Hh, Ww)[::2, ::2]
     return to_img, grid["ol"]
+
+
+# Map colour convention (Priya 10-27: "make the pre map a different colormap so it's clear they are different"). The pre
+# (and any epoch LEVEL) Haufe map is a SIGNED push-pull map, so it stays diverging and centred on 0 -- but purple-orange,
+# so it cannot be mistaken for an epoch - pre CHANGE map (red-blue). Level maps of one figure share one scale.
+PRE_CMAP = "PuOr_r"
+CHANGE_CMAP = "RdBu_r"
+CMAP_NOTE = "pre map in purple-orange (level); change maps in red-blue"
+
+
+def sym_lim(arrays, q: float = 99) -> float:
+    """Symmetric colour limit: the q-th percentile of |values| over all arrays (NaN ignored); 1 if nothing finite."""
+    import numpy as np
+    v = np.abs(np.concatenate([np.ravel(a) for a in arrays])) if len(arrays) else np.array([])
+    v = v[np.isfinite(v)]
+    return float(np.percentile(v, q)) if v.size else 1.0
+
+
+def levels_name(png: str) -> str:
+    """'<stem>.png' -> '<stem>_levels.png' (the supplementary all-levels figure next to a pre + change figure)."""
+    return f"{Path(png).stem}_levels.png"

@@ -32,7 +32,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
-from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
+from figdata import CHANGE_CMAP, CMAP_NOTE, PRE_CMAP, grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
 from iti_session_pattern_tests import EP, FAMILIES, load  # noqa: E402
 from iti_session_patterns import AN, POS  # noqa: E402
 
@@ -172,8 +172,9 @@ def plot_maps(D: dict) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     keys = [k for k in keys if (k, "pre") in R]
-    fig, axs = plt.subplots(len(keys), 4, figsize=(11.5, 2.55 * len(keys) + 1.4), squeeze=False)
+    fig, axs = plt.subplots(len(keys), 4, figsize=(12.8, 2.6 * len(keys) + 1.4), squeeze=False, layout="constrained")
     for i, k in enumerate(keys):
+        im_l = im_c = None
         chg = [R[(k, e)]["point"] for e in EP[1:] if (k, e) in R]
         lim_c = np.nanpercentile(np.abs(np.concatenate([c.ravel() for c in chg])), 99) if chg else 1
         for j, ep in enumerate(EP):
@@ -184,8 +185,11 @@ def plot_maps(D: dict) -> None:
             if r is None:
                 ax.axis("off")
                 continue
-            lim = np.nanpercentile(np.abs(r["point"]), 99) if ep == "pre" else lim_c
-            ax.imshow(r["point"], cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            if ep == "pre":                         # pre LEVEL: purple-orange, own scale (Priya 10-27)
+                lim = np.nanpercentile(np.abs(r["point"]), 99)
+                im_l = ax.imshow(r["point"], cmap=PRE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
+            else:
+                im_c = ax.imshow(r["point"], cmap=CHANGE_CMAP, vmin=-lim_c, vmax=lim_c, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
             if ep == "pre":
                 ax.set_title(f"pre (level), n={r['n']} animals", fontsize=7.5)
@@ -200,15 +204,22 @@ def plot_maps(D: dict) -> None:
                              fontsize=7)
             if j == 0:
                 ax.set_ylabel(_lab(k), fontsize=8.5)
+        if im_l is not None:
+            cb = fig.colorbar(im_l, ax=axs[i, 0], fraction=0.06, pad=0.02)
+            cb.set_label("pre LEVEL (unit RMS)", fontsize=7)
+            cb.ax.tick_params(labelsize=6.5)
+        if im_c is not None:
+            cb = fig.colorbar(im_c, ax=axs[i, 1:].tolist(), fraction=0.02, pad=0.01)
+            cb.set_label("CHANGE epoch - pre", fontsize=7)
+            cb.ax.tick_params(labelsize=6.5)
     import textwrap
     txt = "\n".join(textwrap.fill(q, 125) for q in [
         f"NEURAL: per-SESSION self-fit Haufe maps ({fam}), unit RMS (SHAPE only). Column 1 = pre map (mean of animals); "
-        "columns 2-4 = epoch - pre, mean of animals.",
+        f"columns 2-4 = epoch - pre, mean of animals. {CMAP_NOTE[0].upper() + CMAP_NOTE[1:]}; one scale per row for each.",
         f"SOLID = TFCE family-wise p < 0.05: per-pixel Welch t per animal (epoch vs pre sessions), summed over animals; null = "
         f"session labels permuted within animal ({n_perm} x), max |TFCE| over cortex. DASHED = also >= 3/4 animals share the "
         "sign. ipsi (lesion) = image LEFT. PROVISIONAL"])
     fig.suptitle(txt, fontsize=8.5)
-    fig.tight_layout(rect=(0, 0, 1, 1 - (0.17 * (txt.count(chr(10)) + 1) + 0.25) / fig.get_size_inches()[1]))
     fig.savefig(il.OUT / "figures" / FIG_NAME[fam], dpi=95)
     plt.close(fig)
 

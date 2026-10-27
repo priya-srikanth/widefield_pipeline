@@ -28,7 +28,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_decoder_patterns as dp  # noqa: E402
 import iti_licks as il  # noqa: E402
-from figdata import grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
+from figdata import (CHANGE_CMAP, CMAP_NOTE, PRE_CMAP, grid_fns, imaging_grid, levels_name, load_fd,  # noqa: E402
+                     plot_only, save_fd, sym_lim)
 import iti_where_decoder as wd  # noqa: E402
 
 AN, EP, AXES = dp.AN, dp.EP, dp.AXES
@@ -165,19 +166,25 @@ def figdata(res: dict, T: pd.DataFrame) -> dict:
     return {ax_: dict(axis=ax_, res={k: v for k, v in res.items() if k[1] == ax_}, T=T, grid=grid) for ax_ in AXES}
 
 
-def plot(D: dict) -> None:
-    """D = one axis's figure data (`figdata`)."""
+def plot(D: dict, levels: bool = False) -> None:
+    """D = one axis's figure data (`figdata`). Main figure: pre LEVEL map (PRE_CMAP, own scale) + acute / subacute /
+    chronic - pre CHANGE maps (CHANGE_CMAP, one scale per row). levels=True: the supplementary <stem>_levels.png with
+    the four epoch LEVEL maps on one scale per row (PRE_CMAP), same outlines."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     res, T, ax_ = D["res"], D["T"], D["axis"]
     to_img, ol = grid_fns(D["grid"])
     axname = {"lat": "LATERAL position (+ = contralesional)", "sag": "SAGITTAL extension (+ = further out)"}
-    cols = [*EP, "acute - pre", "subacute - pre", "chronic - pre"]
-    fig, axs = plt.subplots(2, len(cols), figsize=(2.7 * len(cols), 6.6), squeeze=False)
+    cols = list(EP) if levels else ["pre", "acute - pre", "subacute - pre", "chronic - pre"]
+    fig, axs = plt.subplots(2, len(cols), figsize=(3.0 * len(cols) + 1.2, 6.9), squeeze=False, layout="constrained")
     for i, st in enumerate(("iti", "trial")):
+        # the level scale as before (99th percentile over the four epoch levels of the row); pre in the main figure
+        # gets its own scale, the change columns keep the row's shared level-derived scale
         lim = np.nanpercentile(np.abs(np.concatenate([res[(st, ax_, e, "level")]["point"]
                                                       for e in EP if (st, ax_, e, "level") in res])), 99)
+        lim_pre = sym_lim([res[(st, ax_, "pre", "level")]["point"]]) if (st, ax_, "pre", "level") in res else lim
+        im_l = im_c = None
         for j, c in enumerate(cols):
             ax = axs[i, j]
             ax.set_xticks([])
@@ -187,7 +194,11 @@ def plot(D: dict) -> None:
                 ax.axis("off")
                 continue
             r = res[key]
-            im = ax.imshow(to_img(r["point"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            if key[3] == "level":
+                lv = lim if levels else lim_pre
+                im_l = ax.imshow(to_img(r["point"]), cmap=PRE_CMAP, vmin=-lv, vmax=lv, interpolation="nearest")
+            else:
+                im_c = ax.imshow(to_img(r["point"]), cmap=CHANGE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
             s_img = to_img((r["sig"] & (r["agree"] >= min(AGREE_MIN, r["n"]))).astype(float), 0)
             ax.contour(s_img, levels=[0.5], colors="k", linewidths=0.7, linestyles="--")
@@ -196,26 +207,46 @@ def plot(D: dict) -> None:
             g = T[(T.set == st) & (T.axis == ax_) & (T.epoch == key[2]) & (T.kind == key[3])]
             fs = float(g.frac_sig.iloc[0]) if len(g) else np.nan
             fa = float(g.frac_sig_agree.iloc[0]) if len(g) else np.nan
-            ax.set_title(f"{c} (n={r['n']})\nsig {100 * fs:.0f}% of cortex ({100 * fa:.0f}% also >=3/{r['n']} agree)",
+            name = f"{c} (level)" if key[3] == "level" else c
+            ax.set_title(f"{name} (n={r['n']})\nsig {100 * fs:.0f}% of cortex ({100 * fa:.0f}% also >=3/{r['n']} agree)",
                          fontsize=7.5)
             if j == 0:
                 ax.set_ylabel("ITI licks" if st == "iti" else "cued licks", fontsize=9)
-        fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.01, pad=0.01, label="pattern / animal's pre RMS")
-    fig.suptitle(f"STATS for the decoder pattern maps -- NEURAL: Haufe pattern of the {axname[ax_]} decoder, one held-out pattern per "
-                 "SESSION (epoch decoder refit leaving the session out), / animal's pre RMS, mean of animals.\n"
-                 f"SOLID outline = max-statistic FWER 0.05 over cortex (as the decoder page); DASHED = 95% nested "
-                 f"bootstrap CI (animals > sessions, {N_BOOT} draws) excludes 0 after Benjamini-Hochberg q 0.05 AND >= 3 "
-                 "animals (of 4) agree in sign. Change columns = "
-                 "epoch - pre, paired by animal.\nipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL",
-                 fontsize=9)
-    fig.savefig(il.OUT / "figures" / f"lick_decoder_pattern_stats_{ax_}.png", dpi=105, bbox_inches="tight")
+        if levels:
+            if im_l is not None:
+                fig.colorbar(im_l, ax=axs[i, :].tolist(), fraction=0.02, pad=0.01,
+                             label="epoch LEVEL: pattern / animal's pre RMS")
+        else:
+            if im_l is not None:
+                fig.colorbar(im_l, ax=axs[i, 0], fraction=0.06, pad=0.02, label="pre LEVEL (pattern / pre RMS)")
+            if im_c is not None:
+                fig.colorbar(im_c, ax=axs[i, 1:].tolist(), fraction=0.025, pad=0.01,
+                             label="CHANGE epoch - pre (pattern / pre RMS)")
+    import textwrap
+    head = (f"SUPPLEMENTARY to lick_decoder_pattern_stats_{ax_}.png: epoch LEVEL maps (not changes), one scale per row "
+            "(purple-orange). " if levels else f"STATS for the decoder pattern maps -- {CMAP_NOTE}. ")
+    paras = [head + f"NEURAL: Haufe pattern of the {axname[ax_]} decoder, one held-out pattern per SESSION (epoch decoder "
+             "refit leaving the session out), / animal's pre RMS, mean of animals.",
+             f"SOLID outline = max-statistic FWER 0.05 over cortex (as the decoder page); DASHED = 95% nested bootstrap CI "
+             f"(animals > sessions, {N_BOOT} draws) excludes 0 after Benjamini-Hochberg q 0.05 AND >= 3 animals (of 4) agree "
+             "in sign." + ("" if levels else " Change columns = epoch - pre, paired by animal."),
+             "ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL"]
+    fig.suptitle("\n".join(textwrap.fill(q, 150) for q in paras), fontsize=9)
+    out = f"lick_decoder_pattern_stats_{ax_}.png"
+    fig.savefig(il.OUT / "figures" / (levels_name(out) if levels else out), dpi=105, bbox_inches="tight")
     plt.close(fig)
+
+
+def plot_all(D: dict) -> None:
+    """Main figure + the supplementary all-levels figure."""
+    plot(D)
+    plot(D, levels=True)
 
 
 def main() -> int:
     if plot_only():
         for ax_ in AXES:
-            plot(load_fd(f"lick_decoder_pattern_stats_{ax_}"))
+            plot_all(load_fd(f"lick_decoder_pattern_stats_{ax_}"))
         return 0
     cache = il.OUT / "decoder_pattern_sessions.pkl"
     if cache.exists():
@@ -235,7 +266,7 @@ def main() -> int:
           .round(3).to_string(index=False))
     for ax_, D in figdata(res, T).items():
         save_fd(f"lick_decoder_pattern_stats_{ax_}", D)
-        plot(D)
+        plot_all(D)
     return 0
 
 
