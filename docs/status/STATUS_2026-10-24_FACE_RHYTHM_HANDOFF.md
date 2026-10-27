@@ -118,8 +118,8 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      picture at the end of the notes (page + current number + [#f-id] + link, share original, deck image, crop /
      composite), the same text as alt text, shape name fig:<id>, and `figure_provenance.csv`; 49 pictures / videos,
      46 slides; backup `backup_before_provenance.pptx`. Deck build inputs copied to `_source.../build_inputs/`
-     (crops, enc, fr, img, kin, vid; 191 MB). Imaging numbers from `imaging_fig_ids.csv` (snapshot of imaging v31;
-     re-snapshot if that page renumbers). Not on any page: slides 8-10 (RESTW maps), 32-34 (FR set-up).
+     (crops, enc, fr, img, kin, vid; 191 MB). Imaging numbers from 5b's registry `docs/results_pages/imaging/imaging_fig_ids.csv`
+     (kept current by the imaging page chain). Not on any page: slides 8-10 (RESTW maps), 32-34 (FR set-up).
    * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
