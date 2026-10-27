@@ -185,6 +185,11 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    spout and epoch (-0.16..-0.40, 0/4 further); chronic cued FAR-CONTRA licks read IPSIlesional (-0.24 [-0.35, -0.12],
    0/4 contra; +0.32 acutely); cued far-ipsi frozen r down every epoch (-0.32 / -0.16 / -0.20, 0/4 up). Same with
    z-scored features (chronic ITI far ipsi +0.39, far mid +0.23; cued far contra -0.27).
+   Chronic cued far-contra ipsi reading is NOT the pull correction: far-contra licks at their usual spot (no pull model)
+   -0.22 / -0.46 / -0.17 (PS92 / PS93 / PS95; PS94 has none there), and cued far-ipsi licks show no mirror shift (not a
+   symmetric gain loss). DECODING ERROR in mm (MAE, page 3.15 second panel, `scripts/iti_where_mae.py`; includes the
+   pull and offsets): ITI lateral +0.39 acute / +0.15 subacute (4/4), chronic +0.12 n.s.; outward error stays up
+   chronically for both lick types (ITI +0.09, cued +0.18 mm, 4/4).
    (xii) CORRECTION (10-26): in-trial frozen r is also lower (-0.146 acute -> -0.063 chronic, CI excludes 0), smaller than
    ITI; its time course follows lick accuracy (a target-only reader loses -0.246 -> -0.036; session corr 0.82), so the
    in-trial loss is mostly 'decoder reads the target, licks deviate'; the ITI loss is the remapping.
