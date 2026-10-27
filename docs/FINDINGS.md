@@ -187,6 +187,20 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    4/4 each). Encoder angle atan2(lateral, sagittal): ITI -0.11 / -0.07 / -0.10 (chronic CI excludes 0), in-trial
    -0.09 / -0.05 / -0.04 (chronic n.s., 2/4). The earlier "in-trial angle r ABOVE pre 4/4" used the HORIZONTAL angle
    (lateral vs forward) -> superseded: on the encoder's angle in-trial r returns to ~pre, not above.
+   SAGITTAL Z-SCORED (Priya 10-26 23:55: "may make most sense" for sagittal; unscaled and z-scored disagree acutely):
+   cued sagittal beyond pull acute +0.16 (4/4 read FURTHER: .09 / .08 / .16 / .32) while acute far-contra protrusion is
+   actually LOWER; chronic -0.15 (4/4 closer: -.08 / -.05 / -.16 / -.30); per spout z acute further at close contra /
+   far ipsi / far mid 4/4. Both decoders are contrasts across areas (net / total weight ~0 on both axes), so the
+   scale-sensitivity is per-area, not an overall-amplitude readout.
+   RECOVERY LINK (10-26 late, `scripts/iti_recovery_link.py`; within animal over post sessions, log(day) removed from
+   both; permutation p). Recovery = far-contra cued lick ANGLE / pre (encoder angle; hit rate saturates chronically at
+   ~1.0 in all four). Chronic angle recovery PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. As aim recovers, the ITI
+   contralesional offset fades (-0.53, 4/4 negative, p 2e-4) and ITI lateral error falls (-0.48, 4/4, p 2e-4) -- ITI
+   licks are different licks from the far-contra cued licks that define recovery, so not circular; cued lateral offset
+   -0.46 (3/4, PS95 +0.18; same licks, partly circular). Frozen r tracks the time course (cued +0.60 raw) but not
+   beyond it (+0.16 n.s.). Lateral-protrusion recovery gives the same. Between animals (n = 4, descriptive): PS94 = least
+   recovered AND the most persistent chronic ITI signal (r 0.64 of pre, offset +0.54 mm, lateral error 1.81 x pre);
+   the other three are not cleanly ranked (PS93 recovers less than PS95 but has the smaller offset).
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued
