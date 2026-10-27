@@ -28,7 +28,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
-from iti_decoder_pattern_stats import AGREE_MIN, _bh, _boot  # noqa: E402
+from iti_decoder_pattern_stats import AGREE_MIN, _bh, _boot, _maxstat  # noqa: E402
 from iti_session_patterns import AN, OUT, POS  # noqa: E402
 
 EP = ["pre", "acute", "subacute", "chronic"]
@@ -146,7 +146,8 @@ def change_maps(L: dict, keys: list) -> dict:
                 sig = _bh(p)
                 agree = (np.sign(am) == np.sign(point)[None, :]).sum(0)
                 res[(k, ep, kind)] = dict(point=point, sig=sig & (agree >= min(AGREE_MIN, len(am))), n=len(am),
-                                          frac=float((sig & (agree >= min(AGREE_MIN, len(am)))).mean()))
+                                          frac=float((sig & (agree >= min(AGREE_MIN, len(am)))).mean()),
+                                          sig_max=_maxstat(B, point))
     return res
 
 
@@ -190,7 +191,8 @@ def plot_change(res: dict, keys: list, fam: str, T: pd.DataFrame, to_img, ol) ->
             lim = lim_l if kind == "level" else lim_c
             ax.imshow(to_img(r["point"]), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-            ax.contour(to_img(r["sig"].astype(float), 0), levels=[0.5], colors="k", linewidths=0.8)
+            ax.contour(to_img(r["sig"].astype(float), 0), levels=[0.5], colors="k", linewidths=0.7, linestyles="--")
+            ax.contour(to_img(r["sig_max"].astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
             sub = ""
             if kind == "change":
                 t = T[(T.map == k) & (T.epoch == ep)]
@@ -204,7 +206,7 @@ def plot_change(res: dict, keys: list, fam: str, T: pd.DataFrame, to_img, ol) ->
                 ax.set_ylabel(k.replace("trial/", "cued ").replace("iti/", "ITI ").replace("sp_", ""), fontsize=8.5)
     fig.suptitle(f"NEURAL: fully per-SESSION Haufe maps ({fam}), each session map scaled to unit RMS (SHAPE only: a "
                  "cortex-wide gain change cannot appear).\nColumn 1 = pre map; columns 2-4 = epoch - pre, mean of "
-                 "animals; outline = per-pixel nested bootstrap CI excludes 0 after BH q 0.05 AND >= 3 animals share the "
+                 "animals; SOLID = max-statistic FWER 0.05; DASHED = per-pixel nested bootstrap CI excludes 0 after BH q 0.05 AND >= 3 animals share the "
                  "sign.\n'map differs' = whole-map permutation test: d = 1 - r(epoch mean map, pre mean map), session "
                  "labels permuted within animal; * = BH over all maps x epochs. ipsi (lesion) = image LEFT. PROVISIONAL",
                  fontsize=8.5)
