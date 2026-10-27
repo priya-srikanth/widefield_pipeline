@@ -11,7 +11,7 @@ Per session: r (decoded vs actual) / the animal's pre mean, ALL tracked licks (P
 r_ang_long column = licks above the pre median, kept for reference only); offset
 beyond the pre pull (decoded - (a + b x actual), a, b fit on the animal's pre licks) minus pre. Change vs pre: paired
 nested bootstrap; per-animal tables first (rule 8).
-Outputs <E>/iti_licks/where_angle_reach_{preds.csv.gz,sessions.csv,tests.csv}, figures/iti_where_angle_reach.png.
+Outputs <E>/iti_licks/where_angle_reach_{preds.csv.gz,sessions.csv,tests.csv}, figures/lick_where_angle_reach.png.
 Usage: python scripts/iti_where_angle_reach.py
 """
 from __future__ import annotations
@@ -138,7 +138,7 @@ def plot(S: pd.DataFrame) -> None:
                  "Thin lines = animals, black = mean, grey dots = sessions, diamonds = change vs pre with 95% paired "
                  "nested bootstrap CI (* = excludes 0). PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.8 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / "iti_where_angle_reach.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / "lick_where_angle_reach.png", dpi=100)
     plt.close(fig)
 
 

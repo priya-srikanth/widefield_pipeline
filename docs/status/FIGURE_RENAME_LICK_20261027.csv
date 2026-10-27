@@ -1,0 +1,104 @@
+old_name,new_name,class,script
+cued_check_error_per_lick.png,lick_cued_check_error_per_lick.png,cued,scripts/iti_check_figures.py
+cued_check_error_per_lick_angle.png,lick_cued_check_error_per_lick_angle.png,cued,scripts/iti_check_figures.py
+cued_check_error_per_lick_xyz.png,lick_cued_check_error_per_lick_xyz.png,cued,scripts/iti_check_figures.py
+cued_check_error_sessions.png,lick_cued_check_error_sessions.png,cued,scripts/iti_check_figures.py
+cued_check_rmse_sessions.png,lick_cued_check_rmse_sessions.png,cued,scripts/iti_check_figures.py
+cued_first_lick.png,lick_cued_first_lick.png,cued,scripts/iti_first_lick.py
+cued_misdirected_licks.png,lick_cued_misdirected_licks.png,cued,scripts/cued_misdirected_licks.py
+cued_overcorrection.png,lick_cued_overcorrection.png,cued,scripts/iti_overcorrection.py
+cued_overcorrection_angle.png,lick_cued_overcorrection_angle.png,cued,scripts/iti_overcorrection.py
+cued_spout_animal_panels.png,lick_cued_spout_animal_panels.png,cued,scripts/iti_spout_animal_panels.py
+cued_spout_pattern_stats.png,lick_cued_spout_pattern_stats.png,cued,scripts/iti_spout_pattern_stats.py
+cued_spout_patterns.png,lick_cued_spout_patterns.png,cued,scripts/iti_spout_patterns.py
+iti_recovery_measure.png,lick_cued_recovery_measure.png,cued,scripts/iti_recovery_measure.py
+iti_pattern_area_stats_spout.png,lick_cued_pattern_area_stats_spout.png,cued,scripts/iti_pattern_area_stats.py
+iti_session_cluster_spout_cued.png,lick_cued_session_cluster_spout.png,cued,scripts/iti_session_cluster_tests.py
+iti_session_pattern_change_spout_cued.png,lick_cued_session_pattern_change_spout.png,cued,scripts/iti_session_pattern_tests.py
+iti_session_shape_days_cued.png,lick_cued_session_shape_days.png,cued,scripts/iti_session_cluster_tests.py
+iti_where_scatter_trial.png,lick_cued_where_scatter.png,cued,scripts/iti_where_scatter.py
+iti_where_scatter_trial_z.png,lick_cued_where_scatter_z.png,cued,scripts/iti_where_scatter.py
+iti_area_compare.png,lick_iti_area_compare.png,iti,scripts/iti_area_maps.py
+iti_area_groups.png,lick_iti_area_groups.png,iti,scripts/iti_area_maps.py
+iti_area_maps.png,lick_iti_area_maps.png,iti,scripts/iti_area_maps.py
+iti_area_peth.png,lick_iti_area_peth.png,iti,scripts/iti_area_maps.py
+iti_check_3axis_sessions.png,lick_iti_check_3axis_sessions.png,iti,scripts/iti_check_figures.py
+iti_check_error_per_lick_iti.png,lick_iti_check_error_per_lick.png,iti,scripts/iti_check_figures.py
+iti_check_error_per_lick_iti_angle.png,lick_iti_check_error_per_lick_angle.png,iti,scripts/iti_check_figures.py
+iti_check_error_per_lick_iti_xyz.png,lick_iti_check_error_per_lick_xyz.png,iti,scripts/iti_check_figures.py
+iti_check_error_sessions.png,lick_iti_check_error_sessions.png,iti,scripts/iti_check_figures.py
+iti_check_f0.png,lick_iti_check_f0.png,iti,scripts/iti_check_figures.py
+iti_check_f0_sessions.png,lick_iti_check_f0_sessions.png,iti,scripts/iti_check_figures.py
+iti_check_rmse_sessions.png,lick_iti_check_rmse_sessions.png,iti,scripts/iti_check_figures.py
+iti_face_control.png,lick_iti_face_control.png,iti,scripts/iti_licks.py
+iti_hemo_check_edge_vessel.png,lick_iti_hemo_check_edge_vessel.png,iti,scripts/iti_hemo_check.py
+iti_hemo_check_f0_areas.png,lick_iti_hemo_check_f0_areas.png,iti,scripts/iti_hemo_check.py
+iti_hemo_check_peth.png,lick_iti_hemo_check_peth.png,iti,scripts/iti_hemo_check.py
+iti_hemo_check_state_gap.png,lick_iti_hemo_check_state_gap.png,iti,scripts/iti_hemo_check.py
+iti_hemo_check_variants.png,lick_iti_hemo_check_variants.png,iti,scripts/iti_hemo_check.py
+iti_kinematics_control.png,lick_iti_kinematics_control.png,iti,scripts/iti_licks.py
+iti_lick_rate.png,lick_iti_rate.png,iti,scripts/iti_lick_rate.py
+iti_licks_rois.png,lick_iti_rois.png,iti,scripts/iti_licks.py
+iti_pattern_area_stats_spout_iti.png,lick_iti_pattern_area_stats_spout.png,iti,scripts/iti_pattern_area_stats.py
+iti_ramp_peth.png,lick_iti_ramp_peth.png,iti,scripts/iti_licks.py
+iti_ramp_peth_isolated.png,lick_iti_ramp_peth_isolated.png,iti,scripts/iti_licks.py
+iti_ramp_sessions.png,lick_iti_ramp_sessions.png,iti,scripts/iti_licks.py
+iti_ramp_summary.png,lick_iti_ramp_summary.png,iti,scripts/iti_licks.py
+iti_session_cluster_spout_iti.png,lick_iti_session_cluster_spout.png,iti,scripts/iti_session_cluster_tests.py
+iti_session_pattern_change_spout_iti.png,lick_iti_session_pattern_change_spout.png,iti,scripts/iti_session_pattern_tests.py
+iti_session_shape_days_iti.png,lick_iti_session_shape_days.png,iti,scripts/iti_session_cluster_tests.py
+iti_spout_pattern_stats_iti.png,lick_iti_spout_pattern_stats.png,iti,scripts/iti_spout_pattern_stats.py
+iti_where_scatter_iti.png,lick_iti_where_scatter.png,iti,scripts/iti_where_scatter.py
+iti_where_scatter_iti_z.png,lick_iti_where_scatter_z.png,iti,scripts/iti_where_scatter.py
+iti_basis_decoder.png,lick_basis_decoder.png,both,scripts/iti_basis_decoder.py
+iti_binned_summary.png,lick_binned_summary.png,both,scripts/iti_licks.py
+iti_binned_sweep.png,lick_binned_sweep.png,both,scripts/iti_licks.py
+iti_check_3axis.png,lick_check_3axis.png,both,scripts/iti_check_figures.py
+iti_check_error_per_lick.png,lick_check_error_per_lick.png,both,scripts/iti_check_figures.py
+iti_check_rmse.png,lick_check_rmse.png,both,scripts/iti_check_figures.py
+iti_decoder_contrib.png,lick_decoder_contrib.png,both,scripts/iti_decoder_contrib.py
+iti_decoder_pattern_stats_lat.png,lick_decoder_pattern_stats_lat.png,both,scripts/iti_decoder_pattern_stats.py
+iti_decoder_pattern_stats_sag.png,lick_decoder_pattern_stats_sag.png,both,scripts/iti_decoder_pattern_stats.py
+iti_decoder_patterns_animals_lat.png,lick_decoder_patterns_animals_lat.png,both,scripts/iti_decoder_patterns.py
+iti_decoder_patterns_lat.png,lick_decoder_patterns_lat.png,both,scripts/iti_decoder_patterns.py
+iti_decoder_patterns_sag.png,lick_decoder_patterns_sag.png,both,scripts/iti_decoder_patterns.py
+iti_direction_decoding.png,lick_direction_decoding.png,both,scripts/iti_licks.py
+iti_extension_dist.png,lick_extension_dist.png,both,scripts/iti_extension_dist.py
+iti_frozen_summary.png,lick_frozen_summary.png,both,scripts/iti_licks.py
+iti_frozen_timecourse.png,lick_frozen_timecourse.png,both,scripts/iti_licks.py
+iti_pattern_area_stats_position.png,lick_pattern_area_stats_position.png,both,scripts/iti_pattern_area_stats.py
+iti_recovery_link_angle_z.png,lick_recovery_link_angle_z.png,both,scripts/iti_recovery_link.py
+iti_recovery_link_lateral_z.png,lick_recovery_link_lateral_z.png,both,scripts/iti_recovery_link.py
+iti_recovery_link_pooled_angle_z.png,lick_recovery_link_pooled_angle_z.png,both,scripts/iti_recovery_link.py
+iti_recovery_link_pooled_lateral_z.png,lick_recovery_link_pooled_lateral_z.png,both,scripts/iti_recovery_link.py
+iti_recovery_link_sessions_angle_z.png,lick_recovery_link_sessions_angle_z.png,both,scripts/iti_recovery_link.py
+iti_recovery_link_sessions_lateral_z.png,lick_recovery_link_sessions_lateral_z.png,both,scripts/iti_recovery_link.py
+iti_recovery_marker.png,lick_recovery_marker.png,both,scripts/iti_recovery_marker.py
+iti_session_cluster_position.png,lick_session_cluster_position.png,both,scripts/iti_session_cluster_tests.py
+iti_session_pattern_change_position.png,lick_session_pattern_change_position.png,both,scripts/iti_session_pattern_tests.py
+iti_session_pattern_change_within_spout.png,lick_session_pattern_change_within_spout.png,both,scripts/iti_session_pattern_tests.py
+iti_session_pattern_maplevel.png,lick_session_pattern_maplevel.png,both,scripts/iti_session_pattern_tests.py
+iti_session_pattern_similarity.png,lick_session_pattern_similarity.png,both,scripts/iti_session_pattern_tests.py
+iti_session_shape_d.png,lick_session_shape_d.png,both,scripts/iti_session_cluster_tests.py
+iti_where_angle_reach.png,lick_where_angle_reach.png,both,scripts/iti_where_angle_reach.py
+iti_where_decoder.png,lick_where_decoder.png,both,scripts/iti_where_decoder.py
+iti_where_decoder_bases.png,lick_where_decoder_bases.png,both,scripts/iti_where_decoder.py
+iti_where_decoder_locanmf.png,lick_where_decoder_locanmf.png,both,scripts/iti_where_decoder.py
+iti_where_decoder_svdbasis.png,lick_where_decoder_svdbasis.png,both,scripts/iti_where_decoder.py
+iti_where_decoder_z.png,lick_where_decoder_z.png,both,scripts/iti_where_decoder.py
+iti_where_delta.png,lick_where_delta.png,both,scripts/iti_where_scatter.py
+iti_where_delta_z.png,lick_where_delta_z.png,both,scripts/iti_where_scatter.py
+iti_where_drift.png,lick_where_drift.png,both,scripts/iti_where_drift.py
+iti_where_drift_june.png,lick_where_drift_june.png,both,scripts/iti_where_drift.py
+iti_where_mae.png,lick_where_mae.png,both,scripts/iti_where_mae.py
+iti_where_per_spout.png,lick_where_per_spout.png,both,scripts/iti_where_per_spout.py
+iti_where_per_spout_z.png,lick_where_per_spout_z.png,both,scripts/iti_where_per_spout.py
+iti_check_error_iti_sessions.png,,skipped (stale: older render of iti_check_error_sessions.png; no script writes this name),none
+iti_first_lick.png,,skipped (stale byte-identical duplicate of cued_first_lick.png; no script writes this name),none
+iti_overcorrection.png,,skipped (stale byte-identical duplicate of cued_overcorrection.png; no script writes this name),none
+iti_overcorrection_angle.png,,skipped (stale byte-identical duplicate of cued_overcorrection_angle.png; no script writes this name),none
+iti_spout_animal_panels.png,,skipped (stale byte-identical duplicate of cued_spout_animal_panels.png; no script writes this name),none
+iti_spout_pattern_stats.png,,skipped (stale byte-identical duplicate of cued_spout_pattern_stats.png; no script writes this name),none
+iti_spout_patterns.png,,skipped (stale byte-identical duplicate of cued_spout_patterns.png; no script writes this name),none
+iti_lick_order.png,,skipped (stale byte-identical duplicate of lick_order_iti_cued.png; already has a lick_ name),none
+iti_lick_order_slope.png,,skipped (stale byte-identical duplicate of lick_order_iti_cued_slope.png; already has a lick_ name),none

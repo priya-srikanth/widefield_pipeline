@@ -14,7 +14,7 @@ Read-outs (per session, post-stroke; animal's pre sessions build the references)
   (2) FROZEN DECODER (KEY-row lateral decoder, first_lick_preds): decoded lateral of MIS licks minus decoded lateral of
       same-session LEFT licks with the same landing (landing bins of 0.25 mm) -- 0 = read as a left lick, > 0 = read
       toward the right / target.
-Output <E>/iti_licks/misdirected_{licks,sessions}.csv, figures/cued_misdirected_licks.png.
+Output <E>/iti_licks/misdirected_{licks,sessions}.csv, figures/lick_cued_misdirected_licks.png.
 Usage: python scripts/cued_misdirected_licks.py
 """
 from __future__ import annotations
@@ -162,7 +162,7 @@ def plot(S: pd.DataFrame) -> None:
                  "lateral decoder vs left-target licks with the same landing, same session. Lesion LEFT; far R = "
                  "contralesional. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "cued_misdirected_licks.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / "lick_cued_misdirected_licks.png", dpi=100)
     plt.close(fig)
 
 

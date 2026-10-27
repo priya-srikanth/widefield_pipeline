@@ -12,10 +12,10 @@ Same features and decoder as page 3.9 (per animal ridge trained on AUGUST pre li
 0..0.2 s averaged), in each feature basis available: Allen areas (`<E>/iti_licks/sessions`), joint LocaNMF and the
 pre-stroke SVD basis (`iti_basis_decoder.py` outputs, when present). Reach spread per epoch is printed too (r is
 blind to a mean shift, not to a change in spread).
-Outputs <E>/iti_licks/where_decoder.csv, where_decoder_tests.csv, figures/iti_where_decoder.png (Allen areas, every
-target) + iti_where_decoder_bases.png (lateral, three bases); split 10-26 so the panels are readable.
+Outputs <E>/iti_licks/where_decoder.csv, where_decoder_tests.csv, figures/lick_where_decoder.png (Allen areas, every
+target) + lick_where_decoder_bases.png (lateral, three bases); split 10-26 so the panels are readable.
 Usage: python scripts/iti_where_decoder.py [--plot-only | --z]   (--plot-only redraws from the saved CSVs; --z draws
-iti_where_decoder_z.png + zscore_check/where_decoder_tests_z.csv from the z-scored run of iti_zscore_check.py)
+lick_where_decoder_z.png + zscore_check/where_decoder_tests_z.csv from the z-scored run of iti_zscore_check.py)
 """
 from __future__ import annotations
 
@@ -224,7 +224,7 @@ def _panel(ax, g, tt, colors, rng, title):
 
 
 def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
-    """tag "_z": within-session z-scored features (`iti_zscore_check.py`); writes iti_where_decoder_z.png only (the
+    """tag "_z": within-session z-scored features (`iti_zscore_check.py`); writes lick_where_decoder_z.png only (the
     basis figures need per-component session SDs, which do not exist)."""
     import matplotlib
     matplotlib.use("Agg")
@@ -257,7 +257,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                      "Sagittal = sqrt(forward^2 + down^2); angle = atan2(lateral, sagittal).", fontsize=11)
         fig.tight_layout(rect=(0, 0, 1, 0.88))
         fig.subplots_adjust(top=0.82 if tag else 0.84)      # tight_layout left a large gap under the 5-line suptitle
-        fig.savefig(il.OUT / "figures" / (f"iti_where_decoder{tag}.png" if src == "areas" else f"iti_where_decoder_{src}{tag}.png"),
+        fig.savefig(il.OUT / "figures" / (f"lick_where_decoder{tag}.png" if src == "areas" else f"lick_where_decoder_{src}{tag}.png"),
                     dpi=105)
         plt.close(fig)
     if tag:
@@ -275,7 +275,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                  "licks).\nDots = sessions, r / animal's pre; black = mean +- SEM; * = nested-bootstrap change from pre "
                  "excluding 0. Other targets per basis: where_decoder_tests.csv.", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "iti_where_decoder_bases.png", dpi=105)
+    fig.savefig(il.OUT / "figures" / "lick_where_decoder_bases.png", dpi=105)
     plt.close(fig)
 
 

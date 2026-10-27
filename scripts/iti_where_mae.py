@@ -8,7 +8,7 @@ decoded from actual: worse lick-to-lick tracking, a constant offset (3.21 / 3.22
 middle (present before the stroke; it grows when licks land further from the centre, so part of a post-stroke error
 increase can come from where licks land rather than from cortex). One dot per session (all animals pooled), raw mm
 and divided by the animal's pre mean; black = mean +- SEM over sessions; * = paired nested bootstrap excluding 0.
-Outputs <E>/iti_licks/where_mae_{sessions,tests}.csv, figures/iti_where_mae.png. Usage: python scripts/iti_where_mae.py
+Outputs <E>/iti_licks/where_mae_{sessions,tests}.csv, figures/lick_where_mae.png. Usage: python scripts/iti_where_mae.py
 """
 from __future__ import annotations
 
@@ -98,7 +98,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "(3.15), error INCLUDES the decoder's pull toward the middle and any constant offset,\nso it rises "
                  "when licks land further from the centre even with unchanged cortex.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(il.OUT / "figures" / "iti_where_mae.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / "lick_where_mae.png", dpi=95)
     plt.close(fig)
 
 

@@ -15,8 +15,8 @@ split in two halves (alternating by date) and patterns refit per half; reliabili
 disattenuated similarity = r(epoch, pre) across halves / sqrt(rel_pre * rel_epoch) (1 = same map up to noise).
 Maps are divided by the RMS of the animal's pre pattern (animals equal), then averaged over animals; ipsi = image LEFT.
 Features are NOT z-scored (SVD components share one dF/F scale); the z-scored check is per area (3.21 / KEY row).
-Outputs <E>/iti_licks/decoder_patterns.csv (similarities), figures/iti_decoder_patterns_{lat,sag}.png,
-figures/iti_decoder_patterns_animals_lat.png. Usage: python scripts/iti_decoder_patterns.py
+Outputs <E>/iti_licks/decoder_patterns.csv (similarities), figures/lick_decoder_patterns_{lat,sag}.png,
+figures/lick_decoder_patterns_animals_lat.png. Usage: python scripts/iti_decoder_patterns.py
 """
 from __future__ import annotations
 
@@ -156,7 +156,7 @@ def plot(T: pd.DataFrame, maps: dict) -> None:
                      "basis (200 components, lags 0..0.2 s from the lick peak), mapped to pixels, / the animal's pre "
                      "pattern RMS, mean of animals. Red = more activity for licks further +; ipsi (lesion) = image LEFT. "
                      "Unscaled features. PROVISIONAL", fontsize=9)
-        fig.savefig(il.OUT / "figures" / f"iti_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
+        fig.savefig(il.OUT / "figures" / f"lick_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
         plt.close(fig)
     # per animal, lateral
     fig, axs = plt.subplots(2 * len(AN), len(EP), figsize=(2.6 * len(EP), 2.3 * 2 * len(AN)), squeeze=False)
@@ -182,7 +182,7 @@ def plot(T: pd.DataFrame, maps: dict) -> None:
                     ax.set_ylabel(f"{a}\n{'ITI' if st == 'iti' else 'cued'}", fontsize=8)
     fig.suptitle("Per animal: Haufe pattern of the LATERAL lick-position decoder, refit per epoch (pre-stroke SVD basis), "
                  "/ pre RMS; sim = noise-corrected similarity to pre. ipsi = image LEFT. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / "iti_decoder_patterns_animals_lat.png", dpi=100, bbox_inches="tight")
+    fig.savefig(il.OUT / "figures" / "lick_decoder_patterns_animals_lat.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 

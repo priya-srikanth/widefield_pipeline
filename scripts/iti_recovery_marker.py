@@ -12,7 +12,7 @@ direction ("spread"), and spread + log(day) ("spread+day").
 Per animal Pearson r; summary = mean of animals with a within-animal permutation test (behaviour shuffled across that
 animal's post sessions, N_PERM draws, same shuffle for every statistic of a draw).
 Inputs: <E>/iti_licks/contact_check.csv (`iti_contact_check.py`). Output: <E>/iti_licks/recovery_marker.csv,
-figures/iti_recovery_marker.png.
+figures/lick_recovery_marker.png.
 Usage: python scripts/iti_recovery_marker.py
 """
 from __future__ import annotations
@@ -139,7 +139,7 @@ def main() -> int:
                  "p = within-animal permutation of behaviour.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "iti_recovery_marker.png", dpi=110)
+    fig.savefig(il.OUT / "figures" / "lick_recovery_marker.png", dpi=110)
     plt.close(fig)
     return 0
 

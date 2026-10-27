@@ -3,7 +3,7 @@ threshold used to define 'longer licks' for the angle-decoder r (Priya 10-27: "i
 a single protrusion threshold? show me the protrusion distribution across epochs").
 Threshold candidates drawn: per-animal PRE median (current; one fixed value per animal, applied to every epoch) and one
 cohort-wide value (the pooled pre median). Prints, per animal x epoch, the fraction of licks above each threshold.
-Output figures/iti_extension_dist.png, <E>/iti_licks/extension_thresholds.csv. Usage: python scripts/iti_extension_dist.py
+Output figures/lick_extension_dist.png, <E>/iti_licks/extension_thresholds.csv. Usage: python scripts/iti_extension_dist.py
 """
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def main() -> int:
     fig.suptitle("BEHAVIOUR: lick extension per animal x epoch (3-D, extension peak). Text = % of each epoch's licks above "
                  "the animal's pre median.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / "iti_extension_dist.png", dpi=90)
+    fig.savefig(il.OUT / "figures" / "lick_extension_dist.png", dpi=90)
     T = pd.DataFrame(rows)
     T.to_csv(il.OUT / "extension_thresholds.csv", index=False)
     pd.set_option("display.width", 200)

@@ -6,7 +6,7 @@ Haufe activation pattern (Cov(activity, decoded) / Var), mapped to pixels: where
 licks from the other five's. Per animal, each map / the RMS of that animal's pre map for the spout; mean of animals.
 Similarity to pre per animal x spout x epoch = pixel correlation corrected by split-half reliability (sessions
 alternating by date), as for the position maps.
-Outputs <E>/iti_licks/spout_patterns.csv, figures/cued_spout_patterns.png (rows = spouts in canonical order, columns =
+Outputs <E>/iti_licks/spout_patterns.csv, figures/lick_cued_spout_patterns.png (rows = spouts in canonical order, columns =
 epochs + chronic - pre). Usage: python scripts/iti_spout_patterns.py
 """
 from __future__ import annotations
@@ -119,7 +119,7 @@ def plot(T, maps) -> None:
                  "pattern of a one-vs-rest ridge decoder, refit per epoch\n(each animal's pre-stroke SVD basis, lags "
                  "0..0.2 s from the lick peak), / the animal's pre RMS, mean of animals; sim = noise-corrected similarity to "
                  "pre (mean of animals). ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / "cued_spout_patterns.png", dpi=100, bbox_inches="tight")
+    fig.savefig(il.OUT / "figures" / "lick_cued_spout_patterns.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 

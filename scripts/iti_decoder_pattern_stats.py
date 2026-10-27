@@ -12,7 +12,7 @@ Also per pixel: number of animals whose own mean has the sign of the pooled mean
 animal is flagged by the count, not by the CI). Similarity to pre: per-animal r(epoch session-mean map, pre map) with a
 session-bootstrap 95% CI (within animal), printed per animal.
 Outputs <E>/iti_licks/decoder_pattern_stats.csv (per epoch / axis / set: fraction of mask significant, per-animal
-similarity CI), figures/iti_decoder_pattern_stats_{lat,sag}.png. Usage: python scripts/iti_decoder_pattern_stats.py
+similarity CI), figures/lick_decoder_pattern_stats_{lat,sag}.png. Usage: python scripts/iti_decoder_pattern_stats.py
 """
 from __future__ import annotations
 
@@ -211,7 +211,7 @@ def plot(res: dict, T: pd.DataFrame) -> None:
                      "animals (of 4) agree in sign. Change columns = "
                      "epoch - pre, paired by animal.\nipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL",
                      fontsize=9)
-        fig.savefig(il.OUT / "figures" / f"iti_decoder_pattern_stats_{ax_}.png", dpi=105, bbox_inches="tight")
+        fig.savefig(il.OUT / "figures" / f"lick_decoder_pattern_stats_{ax_}.png", dpi=105, bbox_inches="tight")
         plt.close(fig)
 
 

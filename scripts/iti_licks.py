@@ -17,7 +17,7 @@ target-free in the TASK sense but can still be aimed at the spout present. Two q
      far-contra code is lost, plan / target and execution dissociate.
 ROIs (Priya 10-25: "ALM and tjM1 ... are the anterolateral 1/3 to 1/2 of MOs and MOp"): per hemisphere, the ROI_FRAC most
 anterolateral pixels of MOs (ALM) / MOp (tjM1) on the eroded stat mask, ranked by z(anterior) + z(lateral distance from
-the midline) within the area (Allen grid shared by all sessions; figure iti_licks_rois.png to check placement). _right =
+the midline) within the area (Allen grid shared by all sessions; figure lick_iti_rois.png to check placement). _right =
 contralesional (image right), _left = ipsilesional.
 Signals: Allen-area / ROI means of the adopted hemo-corrected SVD (`combined_encoding.load_imaging`, the encoder's
 targets), slow drift removed (the encoder's slow basis), dF/F x1e3. Lick times on the DAQ clock from the session's
@@ -527,7 +527,7 @@ def plot_direction(DR: pd.DataFrame, FZ: pd.DataFrame) -> None:
                  "sessions +- SEM.\n" + SIG_NOTE + "\nRight: " + FROZEN_TAG + ", applied unchanged to every session (pre "
                  "scored leave-one-session-out).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(OUT / "figures" / "iti_direction_decoding.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_direction_decoding.png", dpi=110)
     plt.close(fig)
 
 
@@ -538,8 +538,8 @@ def ramp_figures(D: dict, RR: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors   # the epoch palette used across the page
-    for kind, iso, fname, what in (("iti_bout", False, "iti_ramp_peth.png", "bout-start ITI licks: no lick for 2 s"),
-                                   ("iti_isolated", True, "iti_ramp_peth_isolated.png",
+    for kind, iso, fname, what in (("iti_bout", False, "lick_iti_ramp_peth.png", "bout-start ITI licks: no lick for 2 s"),
+                                   ("iti_isolated", True, "lick_iti_ramp_peth_isolated.png",
                                     "ISOLATED ITI licks: no lick for 2 s before AND none within 0.75 s after")):
         ramp_figure(plt, D, RR, kind, iso, colors, OUT / "figures" / fname, what)
 
@@ -691,7 +691,7 @@ def roi_figure(label: str) -> None:
     ax.set_title(f"ROIs: ALM (MOs) / tjM1 (MOp) anterolateral {ROI_FRAC:.0%}\nimage left = ipsilesional", fontsize=9)
     ax.axis("off")
     (OUT / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / "figures" / "iti_licks_rois.png", dpi=120, bbox_inches="tight")
+    fig.savefig(OUT / "figures" / "lick_iti_rois.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -829,7 +829,7 @@ def plot_frozen_timecourse(FL: pd.DataFrame) -> None:
                  "sessions leave-one-session-out), applied unchanged to every session. Line = mean over sessions (all animals "
                  "pooled), band = SEM.\n" + SIG_NOTE, fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(OUT / "figures" / "iti_frozen_timecourse.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_frozen_timecourse.png", dpi=110)
     plt.close(fig)
 
 
@@ -867,7 +867,7 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
                  "within animal to its own pre mean. * = change from pre with "
                  "95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.9))
-    fig.savefig(OUT / "figures" / "iti_frozen_summary.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_frozen_summary.png", dpi=110)
     plt.close(fig)
     print("\n== frozen decoder (lags 0..0.2), change vs pre, session-pooled figure tests\n"
           + pd.DataFrame(tests).round(3).to_string(index=False))
@@ -926,7 +926,7 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
                  "each session divided by its animal's PRE amplitude at the lick (within-animal normalised).\n" + SIG_NOTE,
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(OUT / "figures" / "iti_ramp_sessions.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_iti_ramp_sessions.png", dpi=110)
     pd.DataFrame(sig_recs).to_csv(OUT / "sig_bins_3_24.csv", index=False)
     plt.close(fig)
     # AUC readouts (Priya 10-26): response = AUC 0..0.5 s after lick onset (= the first frame the tongue is visible,
@@ -964,7 +964,7 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
                  "-0.4..-0.05 s before it; raw and divided by the animal's PRE response AUC. * = change from pre with 95% "
                  "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
-    fig.savefig(OUT / "figures" / "iti_ramp_summary.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_iti_ramp_summary.png", dpi=110)
     plt.close(fig)
     print("\n== ramp per-session tests (change vs pre)\n" + pd.DataFrame(tests).round(3).to_string(index=False))
 
@@ -1136,7 +1136,7 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
                  "licks inside the animal's pre 10-90 % reach AND speed range. Row 4: as row 2 with post-onset face movement (FaceRhythm lick, right, left factors, 0.1..0.4 s) added to the regression. Row 5: FULL tongue kinematics (3-D lateral / outward / height, reach, peak speed, lick duration, retraction speed) + the same face factors. Jaw kinematics are not in the per-lick tables yet. * = nested-bootstrap change from pre.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.92))
-    fig.savefig(OUT / "figures" / "iti_kinematics_control.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_iti_kinematics_control.png", dpi=110)
     plt.close(fig)
     # figure B: face movement before / after the lick, and build-up adjusted for it
     for roi in CTRL_ROIS:
@@ -1168,7 +1168,7 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
                  "movement (fr_lick, fr_right, fr_left; per-animal fit on PRE licks). * = nested-bootstrap change from pre.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.92))
-    fig.savefig(OUT / "figures" / "iti_face_control.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_iti_face_control.png", dpi=110)
     plt.close(fig)
     # figure C: trial-to-trial (within-spout) variance of the FaceRhythm factors in the cue / first-lick windows
     V = []
@@ -1341,7 +1341,7 @@ def binned_figures(D: dict) -> None:
                  "on PRE r only). Left: pre-stroke leave-one-session-out r; right: chronic r normalised to each animal's pre.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(OUT / "figures" / "iti_binned_sweep.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_binned_sweep.png", dpi=110)
     plt.close(fig)
     # summary at the selected configuration: one dot per session, raw and normalised
     rng = np.random.default_rng(3)
@@ -1370,7 +1370,7 @@ def binned_figures(D: dict) -> None:
                  "actual lateral tongue-tip position.\n(One number per session; dots = sessions, all animals pooled; black = mean +- SEM). * = nested-bootstrap change "
                  "from pre (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.91))
-    fig.savefig(OUT / "figures" / "iti_binned_summary.png", dpi=110)
+    fig.savefig(OUT / "figures" / "lick_binned_summary.png", dpi=110)
     plt.close(fig)
     print("\n== binned decoder at the selected configuration: change vs pre\n" + pd.DataFrame(tests).round(3).to_string(index=False))
 

@@ -9,7 +9,7 @@ q = 0.05 over cortex; outline = significant AND >= 3 animals (of 4) agree in sig
 session-mean epoch map to the pre map with a within-animal session-bootstrap 95% CI.
 --iti: the same for ITI (self-initiated) licks labelled by the PRECEDING trial's spout (`iti_pos`; Priya 10-27: "map
 distinguishing ITI licks based on preceding trial's spout location").
-Outputs <E>/iti_licks/spout_pattern_stats[_iti].csv, figures/cued_spout_pattern_stats.png / iti_spout_pattern_stats_iti.png. Usage:
+Outputs <E>/iti_licks/spout_pattern_stats[_iti].csv, figures/lick_cued_spout_pattern_stats.png / lick_iti_spout_pattern_stats.png. Usage:
 python scripts/iti_spout_pattern_stats.py [--iti]
 """
 from __future__ import annotations
@@ -167,7 +167,7 @@ def plot(res: dict, T: pd.DataFrame, st: str = "trial") -> None:
                  "sign; 'sig %' = the dashed fraction of cortex.\nChange columns = epoch - pre, paired "
                  "by animal; sim = r(session-mean epoch map, pre map), mean of animals. ipsi (lesion) = image LEFT. "
                  "PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / ('iti_spout_pattern_stats_iti.png' if st == 'iti' else 'cued_spout_pattern_stats.png'), dpi=95, bbox_inches="tight")
+    fig.savefig(il.OUT / "figures" / ('lick_iti_spout_pattern_stats.png' if st == 'iti' else 'lick_cued_spout_pattern_stats.png'), dpi=95, bbox_inches="tight")
     plt.close(fig)
 
 

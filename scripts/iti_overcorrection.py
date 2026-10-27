@@ -12,7 +12,7 @@ FINDINGS 4d0b) while the tongue lands near its pre landing. A downstream contral
 Per session x spout (>= MIN licks): offset (as 1) and within-session slope; change vs pre per epoch with the paired nested
 bootstrap (animals > sessions); per-animal table first (rule 8). Decoder = the KEY-row where-decoder on z-scored Allen
 areas (zscore_check/where_preds_z.csv), cued licks.
-Outputs <E>/iti_licks/overcorrection_{sessions,tests}.csv, figures/cued_overcorrection[_angle].png.
+Outputs <E>/iti_licks/overcorrection_{sessions,tests}.csv, figures/lick_cued_overcorrection[_angle].png.
 --angle: the same in lick ANGLE (atan2(lateral, sagittal), degrees), the primary behaviour measure (Priya 10-27: "keep
 angle and lateral analyses, but make primary the one that is most consistent").
 Usage: python scripts/iti_overcorrection.py [--angle]
@@ -123,7 +123,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame, angle: bool = False) -> None:
                  "\nGrey = animals, black = mean of animals, diamond = pre + change with 95% paired nested bootstrap CI "
                  "(* = excludes 0, bold), k/n = animals changing that way. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.75 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / f"cued_overcorrection{'_angle' if angle else ''}.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / f"lick_cued_overcorrection{'_angle' if angle else ''}.png", dpi=100)
     plt.close(fig)
 
 

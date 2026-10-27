@@ -8,7 +8,7 @@ far contra 3, far mid 2, every other spout 1 (renormalised over the spouts prese
 (- = ipsilesional). Recovery = the session's weighted |offset|; per animal x epoch means, and each animal's chronic level
 relative to its acute level (fraction of the acute deficit remaining). Pre sessions are scored the same way (their
 |offset| is the pre noise floor).
-Outputs <E>/iti_licks/recovery_measure_{sessions,animals}.csv, figures/iti_recovery_measure.png.
+Outputs <E>/iti_licks/recovery_measure_{sessions,animals}.csv, figures/lick_cued_recovery_measure.png.
 Usage: python scripts/iti_recovery_measure.py
 """
 from __future__ import annotations
@@ -89,7 +89,7 @@ def main() -> int:
                  "spout, weighted far contra 3 : far mid 2 : others 1 (left), and far contra signed (right).\nOne dot per "
                  "session; pre sessions (left of the dashed line) = the noise floor. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(il.OUT / "figures" / "iti_recovery_measure.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / "lick_cued_recovery_measure.png", dpi=100)
     return 0
 
 

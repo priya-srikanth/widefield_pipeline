@@ -14,8 +14,8 @@ only, as `iti_session_pattern_tests.load`). Per map (cued / ITI x spout one-vs-r
   per animal the share of animals whose own mean change has the pixel's sign is kept (drawn as a dashed >= 3/4 line).
 Shape read-outs DRAWN, not only printed: (1) whole-map distance d per animal + its early-vs-late pre drift floor, per
 spout x epoch (from session_pattern_maplevel.csv); (2) per-session r to the animal's pre map over days, every spout.
-Outputs <E>/iti_licks/session_cluster/{tests.csv, maps.pkl}, figures/iti_session_cluster_<family>.png,
-figures/iti_session_shape_d.png, figures/iti_session_shape_days_<set>.png.
+Outputs <E>/iti_licks/session_cluster/{tests.csv, maps.pkl}, figures/lick_session_cluster_position.png, lick_{cued,iti}_session_cluster_spout.png,
+figures/lick_session_shape_d.png, figures/lick_{cued,iti}_session_shape_days.png.
 Usage: python scripts/iti_session_cluster_tests.py [--plot-only] [--perm N]
 """
 from __future__ import annotations
@@ -36,6 +36,8 @@ N_PERM = 1000
 DH = 0.2            # TFCE step (z units)
 OUTD = il.OUT / "session_cluster"
 FAMS = {"spout_cued": FAMILIES["spout_cued"], "spout_iti": FAMILIES["spout_iti"], "position": FAMILIES["position"]}
+FIG_NAME = {"spout_cued": "lick_cued_session_cluster_spout.png", "spout_iti": "lick_iti_session_cluster_spout.png",
+            "position": "lick_session_cluster_position.png"}       # lick_ names since 10-27 (ITI + cued = no set tag)
 
 
 def _tfce(img: np.ndarray, struct=None) -> np.ndarray:
@@ -201,7 +203,7 @@ def plot_maps(R: dict, fam: str, keys: list, ol, n_perm: int) -> None:
         "sign. ipsi (lesion) = image LEFT. PROVISIONAL"])
     fig.suptitle(txt, fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 1 - (0.17 * (txt.count(chr(10)) + 1) + 0.25) / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / f"iti_session_cluster_{fam}.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / FIG_NAME[fam], dpi=95)
     plt.close(fig)
 
 
@@ -249,7 +251,7 @@ def plot_shape_d() -> None:
                  "over all maps x epochs (bold); k/n = animals with their own p < 0.05. Canonical spout order. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "iti_session_shape_d.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / "lick_session_shape_d.png", dpi=100)
     plt.close(fig)
 
 
@@ -288,7 +290,7 @@ def plot_shape_days() -> None:
                      "per-spout one-vs-rest maps (canonical order);\npre sessions = vs the mean of the OTHER pre sessions; "
                      "dotted = the animal's pre mean (its noise floor). PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
-        fig.savefig(il.OUT / "figures" / f"iti_session_shape_days_{st}.png", dpi=100)
+        fig.savefig(il.OUT / "figures" / f"lick_{st}_session_shape_days.png", dpi=100)
         plt.close(fig)
 
 

@@ -8,7 +8,7 @@ second definition. Normalised to the animal's pre mean.
 Tests: change from pre per epoch (nested bootstrap, per-animal table first); within animal across POST sessions, the
 correlation with far-contra hit rate / pre (`recovery_timing.series`), raw and with log(day) removed (permutation of
 behaviour within animal, as `iti_recovery_marker.py`).
-Outputs <E>/iti_licks/iti_lick_rate.csv, figures/iti_lick_rate.png.
+Outputs <E>/iti_licks/iti_lick_rate.csv, figures/lick_iti_rate.png.
 Usage: python scripts/iti_lick_rate.py [--plot-only]   (--plot-only redraws from the saved CSVs)
 """
 from __future__ import annotations
@@ -167,7 +167,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, C: pd.DataFrame) -> None:
                  "by the animal's pre mean\n(dotted = far-contra hit rate / pre). Bottom: one dot per session; black = mean +- "
                  "SEM; * = nested-bootstrap change from pre.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(il.OUT / "figures" / "iti_lick_rate.png", dpi=110)
+    fig.savefig(il.OUT / "figures" / "lick_iti_rate.png", dpi=110)
     plt.close(fig)
 
 

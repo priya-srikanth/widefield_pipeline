@@ -5,7 +5,7 @@
 Every panel: thin lines = animals (session means per epoch), black = mean of animals, diamonds = mean of animals' pre +
 change vs pre with the paired nested bootstrap 95% CI (animals > sessions, `analysis_kit.boot_delta`; * = CI excludes
 0), and the count of animals changing in the point's direction. Reads the session CSVs; writes
-<E>/iti_licks/figures/iti_check_{rmse,f0,3axis}.png. Usage: python scripts/iti_check_figures.py
+<E>/iti_licks/figures/lick_check_{rmse,3axis}.png (ITI + cued) and lick_iti_check_f0.png (ITI). Usage: python scripts/iti_check_figures.py
 """
 from __future__ import annotations
 
@@ -73,9 +73,10 @@ def _fit(fig) -> None:
 
 
 def _save(fig, name: str, top: float = 0.0) -> None:
+    """name = file stem after lick_ (lick_<both-sets> / lick_iti_<ITI-only>, renamed 10-27 from iti_check_*)."""
     import matplotlib.pyplot as plt
     _fit(fig)
-    fig.savefig(il.OUT / "figures" / f"iti_check_{name}.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / f"lick_{name}.png", dpi=100)
     plt.close(fig)
 
 
@@ -95,7 +96,7 @@ def rmse() -> None:
                  "actual; RMSE^2 = bias^2 + SD^2.\nDecoder on z-scored Allen-area features (lags 0..0.2 s; KEY-row "
                  "decoder). A growing |bias| with flat SD = predictions SHIFTED, not more scattered. PROVISIONAL",
                  fontsize=9.5)
-    _save(fig, "rmse", 0.94)
+    _save(fig, "check_rmse", 0.94)
 
 
 def f0() -> None:
@@ -117,7 +118,7 @@ def f0() -> None:
                  "baseline fluorescence)? F0 = mean of frames_average.npy over the central 60% of the image;\nresponse "
                  "= the ITI-lick response area (orofacial ROIs, the ITI-lick PETH figures). If F0 fell, dF/F would rise with no change in dF: the dF "
                  "panel answers it. PROVISIONAL", fontsize=9.5)
-    _save(fig, "f0", 0.86)
+    _save(fig, "iti_check_f0", 0.86)
 
 
 def three_axis() -> None:
@@ -138,7 +139,7 @@ def three_axis() -> None:
                  "ridge per axis, trained on August pre licks, pre leave-one-session-out).\nSagittal extension ~ |down| "
                  "(r 0.96); forward is nearly independent of it (r -0.05). Offset = decoded - (a + b x actual), a, b fit "
                  "on pre licks. PROVISIONAL", fontsize=9.5)
-    _save(fig, "3axis", 0.95)
+    _save(fig, "check_3axis", 0.95)
 
 
 def _days() -> pd.DataFrame:
@@ -229,7 +230,7 @@ def landing_errors(p: pd.DataFrame) -> pd.DataFrame:
     return t.dropna(subset=["err"])[["animal", "epoch", "label", "err"]]
 
 
-def error_hist(sets: tuple = ("iti", "trial"), name: str = "iti_check_error_per_lick", landing: bool = False,
+def error_hist(sets: tuple = ("iti", "trial"), name: str = "lick_check_error_per_lick", landing: bool = False,
                coords: tuple = ("lateral",)) -> None:
     """Per LICK: signed decoding error (decoded - actual) distributions per epoch, one NEURAL row per (coordinate, lick
     set) and, with landing=True, one BEHAVIOUR row per coordinate (`landing_errors`); POOLED column first (animals
@@ -391,19 +392,19 @@ def main() -> int:
     f0()
     three_axis()
     error_hist()
-    error_hist(("iti",), "iti_check_error_per_lick_iti")
-    error_hist(("trial",), "cued_check_error_per_lick", landing=True)
-    error_hist(("iti",), "iti_check_error_per_lick_iti_angle", coords=("angle",))
-    error_hist(("trial",), "cued_check_error_per_lick_angle", landing=True, coords=("angle",))
-    error_hist(("iti",), "iti_check_error_per_lick_iti_xyz", coords=("lat", "fwd", "down"))
-    error_hist(("trial",), "cued_check_error_per_lick_xyz", landing=True, coords=("lat", "fwd", "down"))
+    error_hist(("iti",), "lick_iti_check_error_per_lick")
+    error_hist(("trial",), "lick_cued_check_error_per_lick", landing=True)
+    error_hist(("iti",), "lick_iti_check_error_per_lick_angle", coords=("angle",))
+    error_hist(("trial",), "lick_cued_check_error_per_lick_angle", landing=True, coords=("angle",))
+    error_hist(("iti",), "lick_iti_check_error_per_lick_xyz", coords=("lat", "fwd", "down"))
+    error_hist(("trial",), "lick_cued_check_error_per_lick_xyz", landing=True, coords=("lat", "fwd", "down"))
     R0 = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
     p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
     p["err"] = p.dec_lat - p.act_lat
     E0 = (p.dropna(subset=["err"]).groupby(["set", "animal", "epoch", "label"]).err
           .agg(shift="mean", width="std", n="size").reset_index())
     E0 = E0[E0.n >= 20]
-    for st, nm, sfx in (("iti", "ITI", "iti_check_rmse"), ("trial", "cued", "cued_check_rmse")):
+    for st, nm, sfx in (("iti", "ITI", "lick_iti_check_rmse"), ("trial", "cued", "lick_cued_check_rmse")):
         R = R0[R0.set == st]
         course([(f"{nm} {'lateral' if ax_ == 'lat' else 'sagittal'} {lab}", R[R.axis == ax_], v)
                 for ax_ in ("lat", "sag") for v, lab in (("bias", "|bias|"), ("sd", "scatter (SD)"))],
@@ -412,27 +413,28 @@ def main() -> int:
         course([(f"{nm} lat SHIFT (mean error, mm; + = contra)", E, "shift"),
                 (f"{nm} lat WIDTH (SD of error, mm)", E, "width")],
                f"NEURAL: per-session summary of the per-lick error histograms ({nm} licks, lateral, z-scored decoder).",
-               "iti_check_error" if st == "iti" else "cued_check_error", {"shift": 0})
+               "lick_iti_check_error" if st == "iti" else "lick_cued_check_error", {"shift": 0})
     F = pd.read_csv(il.OUT / "f0_check.csv").merge(_aim(), on="label", how="left")
     course([("F0 470 (raw fluorescence) / pre", F, "f0_470_rel"),
             ("post-lick response / pre: dF/F vs dF (dF = dF/F x F0)", F, "resp_auc_rel", "resp_dF_rel",
              "dF/F (as on the page)", "dF, raw units"),
             ("far-contra lick angle, change vs pre (deg; behaviour)", F, "beh")],
            "NEURAL / MEASUREMENT: F0 and the ITI post-lick response per session, with far-contra aim for comparison.",
-           "iti_check_f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 0})
+           "lick_iti_check_f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 0})
     T = pd.read_csv(il.OUT / "where_3axis_sessions.csv")
     T = T[T.set == "iti"]
     course([(f"ITI {ax_}: {lab}", T[T.axis == ax_], v) for ax_ in ("lat", "fwd", "down")
             for v, lab in (("r_norm", "r / pre"), ("beyond_d", "offset beyond pull (mm)"))],
-           "NEURAL: frozen where-decoder on three axes per session, ITI licks (z-scored).", "iti_check_3axis",
+           "NEURAL: frozen where-decoder on three axes per session, ITI licks (z-scored).", "lick_iti_check_3axis",
            {"r_norm": 1, "beyond_d": 0})
     sev = f0_severity()
     pd.set_option("display.width", 200)
     print("== does the ITI post-lick response (dF/F / pre) track far-contra aim within animal? (post sessions)")
     print(sev.round(2).to_string(index=False))
-    print("wrote iti_check_{rmse,f0,3axis}[_sessions].png, iti_check_error_per_lick[_iti].png, "
-          "iti_check_error_sessions.png; CUED: cued_check_error_per_lick.png (+ landing row), "
-          "cued_check_{error,rmse}_sessions.png")
+    print("wrote lick_check_{rmse,3axis}.png, lick_iti_check_f0.png, lick_iti_check_{rmse,f0,3axis}_sessions.png, "
+          "lick_check_error_per_lick.png, lick_iti_check_error_per_lick[_angle,_xyz].png, "
+          "lick_iti_check_error_sessions.png; CUED: lick_cued_check_error_per_lick[_angle,_xyz].png (+ landing row), "
+          "lick_cued_check_{error,rmse}_sessions.png")
     return 0
 
 

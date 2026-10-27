@@ -4,12 +4,12 @@ activity maps to look at the whole cortex question? (supplemental figure with VI
 From the saved ITI sessions (`scripts/iti_licks.py`, every Allen area per bout-start ITI lick, >= 2 s without licking):
 per session x area, response AUC (0..0.5 s after lick onset = first frame the tongue is visible) and build-up AUC
 (-0.4..-0.05 s), baseline -1.5..-1.0 s.
-  iti_area_maps.png   change from pre per area in RAW dF/F AUC (acute / subacute / chronic) on the Allen atlas, one colour
+  lick_iti_area_maps.png   change from pre per area in RAW dF/F AUC (acute / subacute / chronic) on the Allen atlas, one colour
                       scale per row; areas whose nested-bootstrap CI (animals > sessions) excludes 0 are outlined (black).
                       (10-26: per-area normalisation by the area's own pre response was dropped -- small caudal areas
                       with near-zero pre responses gave huge ratios of either sign and dominated the maps.)
-  iti_area_peth.png   per-session mean PETH +- SEM (all animals pooled) for non-orofacial areas, both hemispheres.
-  iti_area_groups.png orofacial (ALM, tjM1, MOs, MOp, SSp-m, SSp-n) vs visual + retrosplenial areas: one dot per
+  lick_iti_area_peth.png   per-session mean PETH +- SEM (all animals pooled) for non-orofacial areas, both hemispheres.
+  lick_iti_area_groups.png orofacial (ALM, tjM1, MOs, MOp, SSp-m, SSp-n) vs visual + retrosplenial areas: one dot per
                       session; group-mean AUCs divided by the animal's pre GROUP-mean response AUC.
 Image left = ipsilesional (_left); _right = contralesional.
 Usage: python scripts/iti_area_maps.py
@@ -108,7 +108,7 @@ def main() -> int:
     fig.suptitle("NEURAL, NO DECODER: self-initiated (ITI) licks across the whole cortex -- change from pre per Allen area in raw dF/F "
                  "AUC (x1e3 s); black outline = nested-bootstrap CI excludes 0. Image left = "
                  "ipsilesional.", fontsize=10, wrap=True)
-    fig.savefig(il.OUT / "figures" / "iti_area_maps.png", dpi=110, bbox_inches="tight")
+    fig.savefig(il.OUT / "figures" / "lick_iti_area_maps.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
     # PETHs, non-orofacial areas
     fig, axs = plt.subplots(2, len(PETH_AREAS), figsize=(2.3 * len(PETH_AREAS), 5.5), sharex=True)
@@ -137,7 +137,7 @@ def main() -> int:
     fig.suptitle("NEURAL, NO DECODER: dF/F around self-initiated licks in NON-orofacial areas (per-session mean PETH, all animals "
                  "pooled; band = SEM over sessions; lick onset at 0).", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(il.OUT / "figures" / "iti_area_peth.png", dpi=110)
+    fig.savefig(il.OUT / "figures" / "lick_iti_area_peth.png", dpi=110)
     plt.close(fig)
     # group summary: orofacial vs visual + RSP
     T["group"] = np.where(T.area.str.rsplit("_", n=1).str[0].isin(ORO), "orofacial",
@@ -166,7 +166,7 @@ def main() -> int:
                  "the animal's pre group-mean response AUC; one dot per session; * = nested-bootstrap change from pre; right = "
                  "orofacial minus visual + RSP in the same session).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT / "figures" / "iti_area_groups.png", dpi=110)
+    fig.savefig(il.OUT / "figures" / "lick_iti_area_groups.png", dpi=110)
     plt.close(fig)
     compare(T, peths)
     return 0
@@ -236,7 +236,7 @@ def compare(T: pd.DataFrame, peths: dict) -> None:
     il._headroom([axs[0, 0], axs[1, 0]])                 # y shared per row: raise each row once
     pd.DataFrame(sig_recs).to_csv(il.OUT / "sig_bins_3_31.csv", index=False)
     fig.tight_layout(rect=(0, 0, 1, 0.87))
-    fig.savefig(il.OUT / "figures" / "iti_area_compare.png", dpi=110)
+    fig.savefig(il.OUT / "figures" / "lick_iti_area_compare.png", dpi=110)
     plt.close(fig)
 
 
