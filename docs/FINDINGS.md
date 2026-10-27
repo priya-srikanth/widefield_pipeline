@@ -173,6 +173,20 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    grouped by nearest spout so the within-spout shift is much smaller -- done per lick the pull explains only part of
    it. Mean offsets do not enter r (3.15-3.18). Shared variance only: whether cortex carries the aim or does not
    register the changed movement is not determined.
+   SAGITTAL CHECK (10-26 23:40, decoder re-fit on lateral + SAGITTAL extension sqrt(out_ap^2 + down_dv^2); licks run
+   mostly DOWN, so outward = forward only is not protrusion): ITI lateral unchanged (+0.34 [+0.26, +0.43] / +0.20 /
+   +0.22 [+0.04, +0.44]; z-scored 4/4 every epoch) -> the ITI-contralesional half STANDS. The CUED-CLOSER half is
+   AXIS-DEPENDENT -> REVISED to "closer on the FORWARD axis": cued sagittal beyond the pull +0.03 acute (2/4), -0.20
+   [-0.38, -0.04] subacute (0/4 further), -0.12 [-0.25, +0.04] chronic (1/4); z-scored +0.16 acute (4/4 FURTHER),
+   -0.15 subacute and chronic (0/4 further, CIs exclude 0). So on total extension cued licks read closer only from
+   subacute on. Chronic cued far-contra read ipsilesional also on the sagittal run (-0.24 [-0.35, -0.12], 0/4).
+   Note: the pull shrinks every prediction toward the mean of ALL the animal's pre licks (one decoder; it never sees
+   the spout), not toward the mouth or each spout's mean; pre-stroke landings cluster MEDIAL of the spouts.
+   Sagittal-run frozen r (change vs pre, acute / subacute / chronic): sagittal ITI -0.01 / -0.07 / -0.05, in-trial
+   -0.09 / -0.04 / +0.01 (all n.s.) -> the r loss is LATERAL (ITI -0.13 / -0.12 / -0.13, in-trial -0.15 / -0.08 / -0.06,
+   4/4 each). Encoder angle atan2(lateral, sagittal): ITI -0.11 / -0.07 / -0.10 (chronic CI excludes 0), in-trial
+   -0.09 / -0.05 / -0.04 (chronic n.s., 2/4). The earlier "in-trial angle r ABOVE pre 4/4" used the HORIZONTAL angle
+   (lateral vs forward) -> superseded: on the encoder's angle in-trial r returns to ~pre, not above.
    ROBUST TO WITHIN-SESSION Z-SCORING (10-26 late, `scripts/iti_zscore_check.py`; each area / its frame-wise SD in the
    session, pre and post alike; the traces already have session mean and slow drift removed): ITI lateral beyond the
    pull +0.33 / +0.22 / +0.25 [+0.08, +0.45], 4/4 in EVERY epoch (chronic PS92 .12, PS93 .05, PS94 .55, PS95 .26); cued

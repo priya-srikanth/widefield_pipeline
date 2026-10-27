@@ -49,14 +49,20 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 - **Per spout (3.22; ITI by PREVIOUS trial's spout):** ITI contralesional after every spout acutely, chronically after
   far-ipsi / far-mid trials; cued closer at every spout; chronic cued FAR-CONTRA licks read IPSIlesional (-0.24, 0/4
   contra) -- not the pull: usual-spot -0.22 / -0.46 / -0.17 (PS92 / 93 / 95; PS94 none), no mirror shift at far ipsi.
-  23:10 decomposition (outward version, where_preds.csv, cued far-contra, mean per animal x epoch): ACUTE decoded lies
-  on the TARGET side of a failed (ipsi-landing) lick; CHRONIC landings are back near pre (lateral 1.26 / 1.18 / 1.27 vs
-  pre 1.36 / 1.43 / 1.43, PS94 not recovered) but reached further out (outward 1.16 / 1.39 / 1.08 vs 0.94 / 0.92 /
-  0.88, shallower angle), while the decoded vector keeps roughly the pre DIRECTION (decoded angle 58 / 44 / 48 deg vs
-  pre 49 / 58 / 47) at a SMALLER size (decoded magnitude 1.01 / 0.81 / 1.20 vs 1.36 / 1.26 / 1.48 mm); within-spout
-  lateral r ~0. Reading (interpretation, Priya asked 10-26): cortex issues a scaled-down far-contra command and the
-  lick gets there anyway -> extra gain / strategy outside the dorsal-cortex signal. Proposed tests: projection on the
-  pre far-contra pattern axis (weaker copy vs drift toward mid), jaw per lick on far-contra, same split on sagittal run.
+  23:10 far-contra decomposition -- CORRECTED 23:40 (Priya). Kept: ACUTE cued far-contra decoded is contralesional of
+  the (ipsi-shifted) landing BEYOND the pull in 3/4 (+0.46 / +0.21 / +0.68, PS95 -0.05); CHRONIC read ipsi of the
+  landing (sagittal run: -0.24 [-0.35, -0.12], 0/4 contra); chronic lateral landings near pre (1.26 / 1.18 / 1.27 vs
+  1.36 / 1.43 / 1.43; PS94 0.13 vs 1.02); within-spout lateral r ~0. WITHDRAWN: (a) "decoded on the spout's side" --
+  the decoder never sees the spout, and pre landings cluster MEDIAL of the spout (side_ml is the tongue tip, not the
+  spout); say "contralesional of the landing". (b) the "smaller decoded size" / "acute size jumps" -- size was
+  measured from the MOUTH in lateral x forward (out_ap) only; forward is not protrusion (licks run mostly down): on
+  SAGITTAL extension acute far-contra protrusion is LOWER (4.69 / 4.23 / 4.57 / 4.03 vs pre 4.86 / 4.32 / 5.50 / 5.01).
+  (c) the pull shrinks toward the mean of ALL the animal's pre licks (one decoder, spout unknown; centre lateral -0.11
+  / +0.38 / -0.30 / +0.07, sagittal 4.15 / 3.97 / 4.56 / 4.54 mm), not toward the mouth or each spout's mean -> only
+  beyond-pull per axis is a valid offset. Interpretation open (downstream gain / changed strategy / degraded far-contra
+  pattern); tests: projection on the pre far-contra pattern axis, jaw per lick on far-contra.
+  RECOVERY: PS95 recovered best, PS94 least (Priya); far-contra hit rate saturates chronically (1.03 / 1.00 / 1.01 /
+  1.01) -> use tongue angle / lateral protrusion as the recovery measure (`scripts/iti_recovery_link.py --beh`).
 - **r is unaffected by offsets / pull** (correlation ignores shift + scale); the r loss is a separate finding. Part of
   the lateral r loss is a narrower spread of lick positions (fully: ITI PS92 / PS95, in-trial PS93; not ITI PS93 / PS94).
   Lateral falls more than (horizontal) angle chronically (paired, 4/4 areas). In-trial angle r above pre 4/4.

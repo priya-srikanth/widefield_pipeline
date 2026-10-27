@@ -1273,6 +1273,19 @@ coupling (direction not determined), not more face variability.
   -0.09 chronic n.s. Usual-spot licks give the same answer. RETRACTED (same evening): "all-licks ITI offset follows
   moving licks + pull (+0.56 / +0.26 / +0.18)" -- used the overall ipsi shift, but per-spout grouping makes the
   within-spout shift much smaller. Details in the SIGNED DECODING ERROR and OUTWARD AXIS paragraphs below.
+  SAGITTAL CHECK (10-26 23:40; scripts re-run on lateral + SAGITTAL extension = sqrt(out_ap^2 + down_dv^2), angle =
+  encoder exec_angle; outward-version outputs kept in iti_licks/outward_version_20261026/): ITI lateral beyond pull
+  unchanged (+0.34 / +0.20 / +0.22; z-scored +0.33 / +0.22 / +0.25, 4/4 every epoch). Cued SAGITTAL beyond pull +0.03
+  acute (2/4), -0.20 [-0.38, -0.04] subacute (0/4), -0.12 [-0.25, +0.04] chronic (1/4); z-scored +0.16 [+0.04, +0.29]
+  acute (4/4 further), -0.15 subacute / -0.15 [-0.26, -0.05] chronic (0/4). -> "cued read CLOSER" holds on the forward
+  (out_ap) axis every epoch but on total extension only from subacute (REVISED; KEY wording on the page not yet changed,
+  pending Priya). Chronic cued far-contra lateral -0.24 [-0.35, -0.12] (0/4) stands. MAE sagittal: ITI +0.15 subacute
+  only. Pull centre = mean of ALL the animal's pre licks (one decoder, spout unknown), not each spout's mean; pre
+  landings cluster medial of the spouts; acute far-contra sagittal extension is LOWER than pre (4/4).
+  Sagittal-run frozen r change vs pre: sagittal ITI -0.01 / -0.07 / -0.05, in-trial -0.09 / -0.04 / +0.01 (n.s.);
+  lateral ITI -0.13 / -0.12 / -0.13, in-trial -0.15 / -0.08 / -0.06 (4/4); encoder angle ITI -0.11 / -0.07 / -0.10,
+  in-trial -0.09 / -0.05 / -0.04 (n.s. chronic). The r loss is lateral; "in-trial angle above pre" (horizontal angle)
+  superseded -- on the encoder angle it returns to ~pre.
   Z-SCORE CHECK (10-26 late, `scripts/iti_zscore_check.py` -> iti_licks/zscore_check/; Priya: "z-scored within session
   is ok", not a pre-lick baseline because the ITI carries position information): every area divided by its frame-wise
   SD in the session (after the same drift removal; over all frames, not licks). Beyond-pull ITI lateral +0.33 / +0.22 /
