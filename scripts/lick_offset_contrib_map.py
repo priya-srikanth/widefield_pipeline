@@ -72,10 +72,16 @@ def _grid(a: str):
 
 def spatial(source: str, a: str, keep=None):
     """(B (npix, K), Mt (npix, K), pixel flat indices on the H x W grid) for one animal and basis."""
-    if source == "areas":
+    if source in ("areas", "areas_split"):
         from iti_decoder_contrib import feature_names
         flat, _pstat, M = _grid(a)
         names = feature_names()
+        if source == "areas_split":
+            import iti_where_decoder as wd
+            for src, dst in wd.SPLIT_PAIRS:
+                for h in ("left", "right"):
+                    M[f"{src}_rest_{h}"] = M[f"{src}_{h}"] & ~M[f"{dst}_{h}"]
+            names = wd.split_names([str(c) for c in M if c != "cortex"] + ["cortex"])
         B = np.stack([M[n] for n in names], 1).astype(float)          # indicators over brain pixels
         Mt = B / B.sum(0, keepdims=True)
         return B, Mt, flat

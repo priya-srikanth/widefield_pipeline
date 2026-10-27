@@ -108,7 +108,12 @@ def predictions() -> pd.DataFrame:
     from wfield_local import orofacial_cohort as oc
     SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
     names = feature_names()
-    D = wd.load({"areas": "areas", "svd": "svdbasis", "svdraw": "svdbasis", "locanmf": "locanmf"}[SOURCE])   # basis robustness (Priya 10-27)
+    if SOURCE == "areas_split":                       # ALM / tjM1 split (iti_area_split_sd.py); same frame-SD z-scoring
+        SD = SD.join(pd.read_csv(il.OUT / "zscore_check" / "session_sd_split.csv", index_col=0))
+        x0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
+        names = wd.split_names([str(c) for c in il._load(x0)["cols"]])
+    D = wd.load({"areas": "areas", "areas_split": "areas_split", "svd": "svdbasis", "svdraw": "svdbasis",
+                 "locanmf": "locanmf"}[SOURCE])   # basis robustness (Priya 10-27)
     # basis scaling: FRAME-level SD of each component (iti_basis_frame_sd.py; like the Allen session_sd) when available --
     # the lick-window SD (fallback) is inflated by the larger post-stroke lick response (Priya 10-27)
     sd_svd = {}
@@ -141,7 +146,7 @@ def predictions() -> pd.DataFrame:
                 ok = np.isfinite(C[:, 0]) & np.isfinite(idx) & np.isin(pos, POS)
                 if ok.sum() >= 20:
                     # svdraw = SVD basis UNSCALED (check: lick-based z-scoring partly divides out the larger post-lick response)
-                    sd = (SD.loc[x, names].to_numpy(float) if SOURCE == "areas" else np.ones(X.shape[1]) if SOURCE == "svdraw"
+                    sd = (SD.loc[x, names].to_numpy(float) if SOURCE in ("areas", "areas_split") else np.ones(X.shape[1]) if SOURCE == "svdraw"
                           else np.where(sd_svd[x] > 0, sd_svd[x], 1))
                     Xs = X[ok] / sd[None, :]
                     if MASK_LOC:

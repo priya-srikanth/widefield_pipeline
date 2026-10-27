@@ -82,6 +82,22 @@ def _frame_range(x: str, ce) -> np.ndarray:
     return r
 
 
+SPLIT_PAIRS = (("MOs", "ALM"), ("MOp", "tjM1"))
+
+
+def split_feats(cols: list[str]):
+    """Allen areas with the ALM / tjM1 split (Priya 10-27; iti_area_split_sd.py): column indices kept as they are (every
+    area except cortex / whole MOs / whole MOp; ALM + tjM1 IN) and the (src, sub, hemi) rest areas appended after them."""
+    feat = [i for i, c in enumerate(cols) if c != "cortex" and not c.startswith(("MOs_", "MOp_"))]
+    rest = [(src, dst, h) for src, dst in SPLIT_PAIRS for h in ("left", "right")]
+    return feat, rest
+
+
+def split_names(cols: list[str]) -> list[str]:
+    feat, rest = split_feats(cols)
+    return [cols[i] for i in feat] + [f"{src}_rest_{h}" for src, _d, h in rest]
+
+
 def _load_one(item):
     """One session -> (label, record | None). Module-level so `analysis_kit.fan_sessions` can spawn it (the basis
     branch reads the session's imaging for its frame times, which is the slow part)."""
@@ -94,6 +110,16 @@ def _load_one(item):
         feat = [i for i, c in enumerate(z["cols"]) if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
         for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
             rec[st] = (z[kx].astype(float)[:, W_d][:, :, feat].mean(1), z[kt].astype(float))
+            rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
+    elif source == "areas_split":
+        cols = [str(c) for c in z["cols"]]
+        feat, rest = split_feats(cols)
+        fr = pd.read_csv(il.OUT / "zscore_check" / "session_sd_split.csv", index_col=0).loc[x]
+        for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
+            Xa = z[kx].astype(float)[:, W_d].mean(1)
+            R = [(Xa[:, cols.index(f"{src}_{h}")] - fr[f"f_{dst}_{h}"] * Xa[:, cols.index(f"{dst}_{h}")])
+                 / (1 - fr[f"f_{dst}_{h}"]) for src, dst, h in rest]
+            rec[st] = (np.column_stack([Xa[:, feat], *R]), z[kt].astype(float))
             rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
     else:
         f = il.OUT / f"basis_{source}" / "sessions" / f"{x}.npz"
