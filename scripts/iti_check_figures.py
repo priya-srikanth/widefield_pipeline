@@ -89,12 +89,17 @@ def rmse() -> None:
 def f0() -> None:
     import matplotlib.pyplot as plt
     S = pd.read_csv(il.OUT / "f0_check.csv")
-    panels = (("f0_470_rel", "F0 470 nm (/ animal's pre mean)"), ("f0_415_rel", "F0 415 nm (/ pre)"),
-              ("resp_auc_rel", "post-lick response, dF/F (/ pre)"), ("resp_dF_rel", "post-lick response, dF = "
-                                                                     "dF/F x F0 (/ pre)"))
-    fig, axs = plt.subplots(1, 4, figsize=(17, 4.3), squeeze=False)
+    panels = (("f0_470_rel", "(1) F0 470 nm, raw fluorescence (/ animal's pre mean)"),
+              ("f0_415_rel", "(2) F0 415 nm (/ pre)"),
+              ("resp_auc_rel", "(3) post-lick response in dF/F (/ pre)\n= what the page's response figures show"),
+              ("resp_dF_rel", "(4) post-lick response in dF, raw units (/ pre)\n= (3) x (1), session by session"))
+    fig, axs = plt.subplots(1, 4, figsize=(17, 4.6), squeeze=False)
     for j, (val, lab) in enumerate(panels):
         epoch_panel(axs[0, j], S, val, ref=1.0, title=lab, ylab="/ pre" if j == 0 else "")
+    lo = min(axs[0, 2].get_ylim()[0], axs[0, 3].get_ylim()[0])
+    hi = max(axs[0, 2].get_ylim()[1], axs[0, 3].get_ylim()[1])
+    for j in (2, 3):
+        axs[0, j].set_ylim(lo, hi)                        # (3) and (4) on ONE scale: the gap between them is F0
     axs[0, 0].legend(fontsize=7, frameon=False)
     fig.suptitle("NEURAL / MEASUREMENT: is the larger post-lick response an F0 artefact (dF/F inflated by a fall in "
                  "baseline fluorescence)? F0 = mean of frames_average.npy over the central 60% of the image;\nresponse "
@@ -139,14 +144,21 @@ def course(rows: list, title: str, name: str, ref_of: dict) -> None:
     import matplotlib.pyplot as plt
     D = _days()
     fig, axs = plt.subplots(len(rows), 4, figsize=(17, 2.6 * len(rows)), squeeze=False, sharex="col")
-    for i, (lab, df, val) in enumerate(rows):
+    for i, row in enumerate(rows):
+        lab, df, val = row[:3]
+        val2 = row[3] if len(row) > 3 else None             # optional second measure overlaid in purple
         g0 = df.merge(D, on="label", how="left") if "day" not in df.columns else df
         for j, a in enumerate(AN):
             ax = axs[i, j]
             g = g0[g0.animal == a].groupby(["label", "day", "epoch"])[val].mean().reset_index().sort_values("day")
             ax.axvspan(g.day.min() - 1 if len(g) else -12, 0, color="0.93", zorder=0)
             ax.axvline(0, color="k", lw=0.7, ls="--")
-            ax.plot(g.day, g[val], "o-", color="k", ms=3.5, lw=1)
+            ax.plot(g.day, g[val], "o-", color="k", ms=3.5, lw=1, label=row[4] if len(row) > 4 else None)
+            if val2 is not None:
+                g2 = g0[g0.animal == a].groupby(["label", "day"])[val2].mean().reset_index().sort_values("day")
+                ax.plot(g2.day, g2[val2], "s--", color="#8e44ad", ms=3, lw=1, label=row[5] if len(row) > 5 else val2)
+                if j == 0:
+                    ax.legend(fontsize=7, frameon=False)
             if ref_of.get(val) is not None:
                 ax.axhline(ref_of[val], color="0.6", lw=0.6, ls=":")
             if len(g):
@@ -164,7 +176,7 @@ def course(rows: list, title: str, name: str, ref_of: dict) -> None:
     plt.close(fig)
 
 
-def error_hist() -> None:
+def error_hist(sets: tuple = ("iti", "trial"), name: str = "error_per_lick") -> None:
     """Per LICK: signed decoding error (decoded - actual, lateral) distributions per epoch; POOLED column first (animals
     weighted equally), then per animal. A SHIFTED distribution = bias; a WIDER one = scatter.
     Stats (session = unit): per session, mean and SD of the signed error. Per animal: change vs pre with a within-animal
@@ -190,9 +202,10 @@ def error_hist() -> None:
     def fmt(t):
         return "" if t is None else f"{t[0]:+.2f} [{t[1]:+.2f},{t[2]:+.2f}]{'*' if t[1] > 0 or t[2] < 0 else ''}"
     cols = ["POOLED", *AN]
-    fig, axs = plt.subplots(2, len(cols), figsize=(4.1 * len(cols), 7.6), squeeze=False, sharex=True)
+    fig, axs = plt.subplots(len(sets), len(cols), figsize=(4.1 * len(cols), 1.2 + 3.2 * len(sets)), squeeze=False,
+                            sharex=True)
     bins = np.linspace(-3, 3, 61)
-    for i, st in enumerate(("iti", "trial")):
+    for i, st in enumerate(sets):
         Ss = S[S.set == st]
         for j, a in enumerate(cols):
             ax = axs[i, j]
@@ -240,7 +253,7 @@ def error_hist() -> None:
                 ax.legend(fontsize=7, frameon=False, loc="center left")
             ax.set_title(f"{a}{' (animals weighted equally)' if a == 'POOLED' else ''}, "
                          f"{'ITI' if st == 'iti' else 'cued'} licks", fontsize=9, fontweight="bold" if j == 0 else None)
-            if i == 1:
+            if i == len(sets) - 1:
                 ax.set_xlabel("decoded - actual LATERAL, mm (+ = read more contralesional)", fontsize=8)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
@@ -251,8 +264,8 @@ def error_hist() -> None:
                  "* = CI excludes 0.\nNB the error includes the decoder's pull toward the pre mean, so a changed lick "
                  "distribution moves the mean error too; the offset BEYOND the pull (3.21 / 3.37) removes that. "
                  "PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(il.OUT / "figures" / "iti_check_error_per_lick.png", dpi=95)
+    fig.tight_layout(rect=(0, 0, 1, 0.93 if len(sets) > 1 else 0.86))
+    fig.savefig(il.OUT / "figures" / f"iti_check_{name}.png", dpi=95)
     plt.close(fig)
 
 
@@ -282,14 +295,29 @@ def main() -> int:
     f0()
     three_axis()
     error_hist()
-    R = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
-    R = R[R.set == "iti"]
-    course([(f"ITI {'lateral' if ax_ == 'lat' else 'sagittal'} {lab}", R[R.axis == ax_], v)
-            for ax_ in ("lat", "sag") for v, lab in (("bias", "|bias|"), ("sd", "scatter (SD)"))],
-           "NEURAL: frozen where-decoder error per session, ITI licks (z-scored decoder; mm).", "rmse", {})
+    error_hist(("iti",), "error_per_lick_iti")
+    error_hist(("trial",), "error_per_lick_cued")
+    R0 = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
+    p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+    p["err"] = p.dec_lat - p.act_lat
+    E0 = (p.dropna(subset=["err"]).groupby(["set", "animal", "epoch", "label"]).err
+          .agg(shift="mean", width="std", n="size").reset_index())
+    E0 = E0[E0.n >= 20]
+    for st, nm, sfx in (("iti", "ITI", "rmse"), ("trial", "cued", "rmse_cued")):
+        R = R0[R0.set == st]
+        course([(f"{nm} {'lateral' if ax_ == 'lat' else 'sagittal'} {lab}", R[R.axis == ax_], v)
+                for ax_ in ("lat", "sag") for v, lab in (("bias", "|bias|"), ("sd", "scatter (SD)"))],
+               f"NEURAL: frozen where-decoder error per session, {nm} licks (z-scored decoder; mm).", sfx, {})
+        E = E0[E0.set == st]
+        course([(f"{nm} lat SHIFT (mean error, mm; + = contra)", E, "shift"),
+                (f"{nm} lat WIDTH (SD of error, mm)", E, "width")],
+               f"NEURAL: per-session summary of the per-lick error histograms ({nm} licks, lateral, z-scored decoder).",
+               f"error_{'iti' if st == 'iti' else 'cued'}", {"shift": 0})
     F = pd.read_csv(il.OUT / "f0_check.csv").merge(_aim(), on="label", how="left")
-    course([("F0 470 / pre", F, "f0_470_rel"), ("post-lick response dF/F / pre", F, "resp_auc_rel"),
-            ("post-lick response dF / pre", F, "resp_dF_rel"), ("far-contra lick angle / pre (behaviour)", F, "beh")],
+    course([("F0 470 (raw fluorescence) / pre", F, "f0_470_rel"),
+            ("post-lick response / pre: dF/F vs dF (dF = dF/F x F0)", F, "resp_auc_rel", "resp_dF_rel",
+             "dF/F (as on the page)", "dF, raw units"),
+            ("far-contra lick angle / pre (behaviour)", F, "beh")],
            "NEURAL / MEASUREMENT: F0 and the ITI post-lick response per session, with far-contra aim for comparison.",
            "f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 1})
     T = pd.read_csv(il.OUT / "where_3axis_sessions.csv")
@@ -302,7 +330,8 @@ def main() -> int:
     pd.set_option("display.width", 200)
     print("== does the ITI post-lick response (dF/F / pre) track far-contra aim within animal? (post sessions)")
     print(sev.round(2).to_string(index=False))
-    print("wrote iti_check_{rmse,f0,3axis}[_sessions].png, iti_check_error_per_lick.png")
+    print("wrote iti_check_{rmse,f0,3axis}[_sessions].png, iti_check_error_per_lick[_iti,_cued].png, "
+          "iti_check_error_{iti,cued}_sessions.png, iti_check_rmse_cued_sessions.png")
     return 0
 
 
