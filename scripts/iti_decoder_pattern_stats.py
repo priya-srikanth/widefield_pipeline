@@ -193,7 +193,7 @@ def plot(res: dict, T: pd.DataFrame) -> None:
                 if j == 0:
                     ax.set_ylabel("ITI licks" if st == "iti" else "cued licks", fontsize=9)
             fig.colorbar(im, ax=axs[i, :].tolist(), fraction=0.01, pad=0.01, label="pattern / animal's pre RMS")
-        fig.suptitle(f"STATS for 3.33 -- NEURAL: Haufe pattern of the {axname[ax_]} decoder, one held-out pattern per "
+        fig.suptitle(f"STATS for the decoder pattern maps -- NEURAL: Haufe pattern of the {axname[ax_]} decoder, one held-out pattern per "
                      "SESSION (epoch decoder refit leaving the session out), / animal's pre RMS, mean of animals.\n"
                      f"Black outline = pixels whose 95% nested bootstrap CI (animals > sessions, {N_BOOT} draws) excludes "
                      "0 after Benjamini-Hochberg q 0.05 over cortex AND >= 3 animals (of 4) agree in sign (grey dashed = CI only). Change columns = "

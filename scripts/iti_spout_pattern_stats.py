@@ -156,7 +156,7 @@ def plot(res: dict, T: pd.DataFrame, st: str = "trial") -> None:
                 ax.set_ylabel(sp.replace("_", " "), fontsize=9)
     fig.colorbar(im, ax=axs.ravel().tolist(), fraction=0.008, pad=0.01, label="pattern / animal's pre RMS (spout)")
     what = ("ITI (self-initiated) licks labelled by the PRECEDING trial's spout" if st == "iti" else "cued licks")
-    fig.suptitle(("ITI version of 3.35" if st == "iti" else "STATS for 3.35") + " -- NEURAL: per-spout one-vs-rest "
+    fig.suptitle(("ITI licks by PRECEDING spout" if st == "iti" else "STATS for the per-spout maps") + " -- NEURAL: per-spout one-vs-rest "
                  f"Haufe maps ({what}), one held-out pattern per "
                  "SESSION, / animal's pre RMS for the spout, mean of animals.\nBlack outline = pixels whose 95% nested "
                  f"bootstrap CI (animals > sessions, {N_BOOT} draws) excludes 0 after BH q 0.05 AND >= 3 animals (of 4) agree in "

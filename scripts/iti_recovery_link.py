@@ -2,9 +2,9 @@
 (Priya 10-26: "does PS94, who had the least complete recovery, show the most persistence of the decreased r and
 increased error signal?")
 
-Behaviour (--beh) per session, / the animal's pre mean: "hit" = far-contra hit rate (`recovery_timing.series`;
+Behaviour (--beh) per session: "hit" = far-contra hit rate / the animal's pre mean (`recovery_timing.series`;
 saturates chronically, all animals ~1.0); "angle" = mean tongue angle atan2(lateral, sagittal) (= encoder exec_angle)
-of cued far-contra licks; "lateral" = their mean lateral protrusion (side_ml). The kinematic measures use the same
+of cued far-contra licks and "lateral" = their mean lateral protrusion (side_ml), both as CHANGE vs the pre mean. The kinematic measures use the same
 licks the decoder scores (not independent of r / offsets; read with that in mind).
 Decoder measures per session and lick set (ITI / in-trial), from the where-decoder outputs:
   r_lat      decoded vs actual lateral r / the animal's pre mean (`where_decoder.csv`, Allen areas)
@@ -117,7 +117,9 @@ def main(argv=None) -> int:
         p = p[(p.set == "trial") & (p.pos == "far_contra")].dropna(subset=["act_lat", "act_sag"])
         p["k"] = np.degrees(np.arctan2(p.act_lat, p.act_sag)) if args.beh == "angle" else p.act_lat
         k = p.groupby(["animal", "epoch", "label"]).k.mean().reset_index()
-        k["beh"] = k.k / k.animal.map(k[k.epoch == "pre"].groupby("animal").k.mean())
+        # CHANGE vs pre (deg / mm), not a ratio: pre angles differ ~2x between animals (10-22 deg) and acute angles
+        # cross 0, so a ratio inflates small-pre animals (Priya 10-27). Within-animal r is unchanged by this.
+        k["beh"] = k.k - k.animal.map(k[k.epoch == "pre"].groupby("animal").k.mean())
         B = B[["label", "day"]].merge(k[["label", "beh"]], on="label")
     GA = S.merge(B, on="label", how="inner").dropna(subset=["beh", "day"])   # pre sessions kept for the figures
     G = GA[(GA.epoch != "pre") & (GA.day > 0)].copy()
@@ -157,14 +159,23 @@ def main(argv=None) -> int:
     return 0
 
 
+def _blab(tag: str) -> str:
+    return {"hit": "far-contra hit rate / pre", "angle": "far-contra cued lick angle, change vs pre (deg)",
+            "lateral": "far-contra cued lateral protrusion, change vs pre (mm)"}[tag.replace("_z", "")]
+
+
+def _bref(tag: str) -> float:
+    """Behaviour's pre reference: 1 for the hit-rate ratio, 0 for the angle / lateral changes."""
+    return 1.0 if tag.startswith("hit") else 0.0
+
+
 def plot_session_scatter(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
     """POOLED over animals, one dot per SESSION (pre included): decoder lateral offset vs far-contra aim, colour =
     animal, marker = epoch; a line per animal = its least-squares fit over post sessions."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    blab = {"hit": "far-contra hit rate / pre", "angle": "far-contra cued lick angle / pre",
-            "lateral": "far-contra lateral protrusion / pre"}[tag.replace("_z", "")]
+    blab = _blab(tag)
     cols = plt.get_cmap("tab10")
     mk = {"pre": "o", "acute": "^", "subacute": "s", "chronic": "*"}
     fig, axs = plt.subplots(1, 2, figsize=(14, 5.6), squeeze=False)
@@ -185,7 +196,7 @@ def plot_session_scatter(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None
         post = g[g.epoch != "pre"].dropna(subset=["beh", "bey_lat"])
         r_all = float(np.corrcoef(post.beh, post.bey_lat)[0, 1])
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
-        ax.axvline(1, color="0.7", lw=0.6, ls=":")
+        ax.axvline(_bref(tag), color="0.7", lw=0.6, ls=":")
         for ep, m_ in mk.items():
             ax.scatter([], [], marker=m_, color="0.5", label=ep)
         ax.legend(fontsize=7, frameon=False, ncol=2)
@@ -198,7 +209,7 @@ def plot_session_scatter(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None
     fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED, one dot per SESSION: FROZEN decoder's lateral offset "
                  "beyond its pre pull vs far-contra aim. Colour = animal, marker = epoch (outlined = pre-stroke);\n"
                  "lines = per-animal fit over post sessions. The within-animal test with the shared time trend removed "
-                 "is in 3.37 (this pooled r mixes animals and includes the time trend). PROVISIONAL", fontsize=9.5)
+                 "is in the per-animal recovery-link figure (this pooled r mixes animals and includes the time trend). PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(src / "figures" / f"iti_recovery_link_sessions_{tag}.png", dpi=100)
     plt.close(fig)
@@ -213,8 +224,7 @@ def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
 
     from wfield_local import analysis_kit as ak
     eps = ["pre", *EP]
-    blab = {"hit": "far-contra hit rate / pre", "angle": "far-contra lick angle / pre",
-            "lateral": "far-contra lateral protrusion / pre"}[tag.replace("_z", "")]
+    blab = _blab(tag)
     fig, axs = plt.subplots(2, 3, figsize=(15, 8.2), squeeze=False)
     cols = plt.get_cmap("tab10")
     rows = []
@@ -244,7 +254,7 @@ def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
                 rows.append(dict(set=st, measure=val, epoch=e, point=ci.point, lo=ci.lo, hi=ci.hi,
                                  n_dir=int(((am[val].xs(e, level="epoch") - am[val].xs("pre", level="epoch")) *
                                             np.sign(ci.point) > 0).sum())))
-            ax.axhline(1 if val == "beh" else 0, color="0.7", lw=0.7, ls=":")
+            ax.axhline(_bref(tag) if val == "beh" else 0, color="0.7", lw=0.7, ls=":")
             ax.set_xticks(range(4), eps)
             ax.set_ylabel(lab, fontsize=8.5)
             ax.set_title(f"{'ITI' if st == 'iti' else 'cued'} licks: {'behaviour' if val == 'beh' else 'decoder'}",
@@ -266,7 +276,7 @@ def plot_pooled(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> None:
         ax.plot([], [], "*", color="0.5", ms=10, label="chronic")
         ax.legend(fontsize=7.5, frameon=False)
         ax.axhline(0, color="0.7", lw=0.7, ls=":")
-        ax.axvline(1, color="0.7", lw=0.7, ls=":")
+        ax.axvline(_bref(tag), color="0.7", lw=0.7, ls=":")
         ax.set_xlabel(blab, fontsize=8.5)
         ax.set_ylabel("lateral offset (mm, change vs pre)", fontsize=8.5)
         ax.set_title("per animal, epoch means: aim vs decoder offset", fontsize=9.5)
@@ -289,8 +299,7 @@ def plot_course(G: pd.DataFrame, R: pd.DataFrame, tag: str, ax2: str, z: bool, s
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    blab = {"hit": "far-contra hit rate / pre", "angle": "far-contra cued lick ANGLE / pre",
-            "lateral": "far-contra cued lick lateral protrusion / pre"}[tag.replace("_z", "")]
+    blab = _blab(tag)
     zl = " [decoder on Z-SCORED features]" if z else ""
     fig, axs = plt.subplots(2, 4, figsize=(17, 7.5), sharex="col", squeeze=False)
     for i, st in enumerate(("iti", "trial")):
@@ -298,7 +307,7 @@ def plot_course(G: pd.DataFrame, R: pd.DataFrame, tag: str, ax2: str, z: bool, s
             ax = axs[i, j]
             g = G[(G.animal == a) & (G.set == st)].sort_values("day")
             ax.plot(g.day, g.beh, "o-", color="k", ms=4, lw=1.2, label=blab)
-            ax.axhline(1, color="0.8", lw=0.6)
+            ax.axhline(_bref(tag), color="0.8", lw=0.6)
             ax.set_ylabel(blab if j == 0 else "", fontsize=8.5)
             ax2_ = ax.twinx()
             ax2_.plot(g.day, g.bey_lat, "s-", color="#c0392b", ms=4, lw=1.2, alpha=0.85,
