@@ -134,9 +134,9 @@ def column_change(T: pd.DataFrame, L: dict, seed: int = 0, factors=FACTORS) -> p
         d = T[(T.factor == nm) & T.ok]
         pre0 = {an: np.array([L[(k, nm)] for k in g.key]) for an, g in d[d.epoch == "pre"].groupby("animal")
                 if len(g) >= 2}
-        # "z" (Priya 10-25, as Fig 8d): each animal's sessions divided per column by the SD of its OWN pre sessions, so
-        # the result is the mean over animals of change / own pre-session noise; the SD is floored at a quarter of the
-        # animal's median SD (columns the factor never loads have ~0 SD and would otherwise dominate)
+        # "z" (Priya 10-25, as the per-epoch-fit map epoch_shape_loading_pooled): each animal's sessions divided per column
+        # by the SD of its OWN pre sessions, so the result is the mean over animals of change / own pre-session noise; the SD
+        # is floored at a quarter of the animal's median SD (columns the factor never loads have ~0 SD and would otherwise dominate)
         sd = {an: np.maximum(v.std(0, ddof=1), 0.25 * np.median(v.std(0, ddof=1))) for an, v in pre0.items()}
         for scale in ("raw", "z"):
             div = {an: (sd[an] if scale == "z" else 1.0) for an in pre0}
@@ -278,7 +278,7 @@ sessions - pre sessions), paired animals -> sessions bootstrap per point (`boot_
 Hochberg discovery at FDR .05 over the 1,282 points (large, opaque, black edge; the rest small and faded). Red = more
 loading after the stroke, blue = less; one colour scale for all panels. _z: every session of an
 animal divided per point by the SD of that animal's pre sessions (floored at 1/4 of its median SD) before the same
-test -- each animal's change in units of its own pre-session noise, as Fig 8d.""")
+test -- each animal's change in units of its own pre-session noise, as the per-epoch-fit loading map (epoch_shape_loading_pooled.png).""")
 
 
 def figures(T: pd.DataFrame, S: pd.DataFrame, out: Path, set_name: str) -> None:

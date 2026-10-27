@@ -719,7 +719,7 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     lick_right's loading leaves the contralesional near-midline face for the mouth rim and ipsilesional cheek (PS92 /
     94 / 95; PS93 opposite); it still resembles the R spouts' pre pattern, less strongly. Per-session matching:
     heterogeneous across animals. **PROVISIONAL** (descriptive, one value per animal x epoch) (6c).
-    POOLED within-animal versions (Priya 10-25; FR page Fig 7; `face_rhythm_epoch_shape.py`, `face_rhythm_match.py`).
+    POOLED within-animal versions (Priya 10-25; FR page Figs 8.1, 8.15, 8.17; `face_rhythm_epoch_shape.py`, `face_rhythm_match.py`).
     FACTOR PAIRING (decided 10-25 with Priya, DECISIONS): each per-epoch own fit's factor for a master factor = its BEST
     SPATIAL match (allowed to repeat), not the one-to-one Hungarian assignment -- post-stroke leftward licking is split over
     several own factors, and one-to-one pairing handed lick_left poor partners (PS95 acute a ~12 Hz factor; PS95 subacute
@@ -753,8 +753,8 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     pairing gives sniff_prelick / nose_prelick_slow and nose_steps / lick_far_nose one shared cohort factor each (those
     pairs not separately recovered). **PROVISIONAL**. SIGNIFICANCE (jackknife over animals from the LOAO fits, t with
     3 df -- the only cross-animal test without refitting): NOTHING SURVIVES CORRECTION. Spout-template r changes (FR page
-    Fig 7): uncorrected p .02-.05 in 5 of 36 cells, all q >= .17 (BH over 6 spouts x 3 epochs per factor). Per-point loading
-    (Fig 7b): lick_right 80 / 286 / 217 points p < .05 against 64 expected, 0 at q < .10 (BH over 1,282); lick_left acute
+    Fig 7.7): uncorrected p .02-.05 in 5 of 36 cells, all q >= .17 (BH over 6 spouts x 3 epochs per factor). Per-point loading
+    (Figs 7.8, 7.9): lick_right 80 / 286 / 217 points p < .05 against 64 expected, 0 at q < .10 (BH over 1,282); lick_left acute
     292, q < .10 at 5 points. One number per factor (side-specificity = mean r with own-side spouts minus other side):
     lick_right -.38 / -.33 / -.47 (p .19 / .07 / .07), lick_left -.43 acute (p .04), then -.10 / -.07 (n.s.). LOAO fits
     share 3 / 4 of their data, so 4 / 4 same sign is NOT independent evidence. A powered test needs a session-level null:
@@ -771,12 +771,12 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     cohort fits on lick_left after acute (cohort: recovered by subacute; per session: still changed chronically); the
     cohort permutation null + early-vs-late pre drift fits (O2, submitted 10-25 night: `fitcohortnull` tasks 1-600,
     `fitcohort` tasks 31-40) decide. **lick_left STANDS per session; lick_right PROVISIONAL.**
-    HEADLINE (Priya 10-25; FR page Fig 7): per-point loading change with each animal / its own pre-session SD (floored at
+    HEADLINE (Priya 10-25; FR page Fig 7.1): per-point loading change with each animal / its own pre-session SD (floored at
     1/4 of its median SD), FDR .05 of 1,282 points: lick_right 717 / 760 / 54, lick_left 660 / 208 / 33. SPECTRAL twin
-    (Fig 7b; same test over the 36 frequencies of the matched factor's frequency loading): lick_right loses weight at its
+    (Fig 7.2; same test over the 36 frequencies of the matched factor's frequency loading): lick_right loses weight at its
     6.5-7.3 Hz peak (-2 SD) and gains at 4.6-5.1 and 10.4-11.7 Hz (+2 SD); 5 / 6 / 2 frequencies FDR .05, the 10-12 Hz
     gain persisting chronically. lick_left: mean peak shifts lower acutely (~5 Hz) and flattens, 0 frequencies survive.
-    OTHER TEN FACTORS (same per-session tests; FR page Fig 7e / 7f): the lateral pair changes most and longest; next
+    OTHER TEN FACTORS (same per-session tests; FR page Figs 7.5 / 7.6): the lateral pair changes most and longest; next
     whisk_run acute 407 points, lick_fast_close 334 / 185 / 65, lick_slow_late subacute 322; run_onset_jaw / prep_jaw <= 21
     points and no frequencies (in-data negative control). Spectra: nose_steps acute 33 / 36 frequencies (small tilt toward
     low frequencies), lick_far_nose acute 20 / 36 (loses high-frequency weight). BY-DAY MATCHING redone with best spatial
