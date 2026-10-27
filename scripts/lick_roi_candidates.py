@@ -22,7 +22,9 @@ import figdata  # noqa: E402
 import iti_licks as il  # noqa: E402
 
 AP_ALM, AP_TJ = 1.9, 1.0
-LIT = {"ALM (Guo 2014)": (2.5, 1.5, "k"), "tjM1 (Mayrhofer 2019)": (1.8, 2.6, "g"), "tongue/jaw ICMS (Komiyama 2010)": (2.4, 2.0, "m")}
+ML_ALM_MIN = 1.25        # proposal: ALM lateral of the rostral forelimb area (RFA ~AP +2.0, ML ~1.0)
+LIT = {"ALM (Guo 2014)": (2.5, 1.5, "k"), "tjM1 (Mayrhofer 2019)": (1.8, 2.6, "g"), "tongue/jaw ICMS (Komiyama 2010)": (2.4, 2.0, "m"),
+       "RFA (approx.)": (2.0, 1.0, "b"), "CFA (forelimb M1)": (0.5, 1.25, "c")}
 
 
 def main() -> int:
@@ -51,13 +53,16 @@ def main() -> int:
 
     cands = {}
     for nm, spec in {"v1: 40 % / 40 % anterolateral": ("rank", 0.4, 0.4, 1.0),
-                     "v2: 50 % / 60 % anterolateral": ("rank", 0.5, 0.6, 1.0),
                      f"AP cut: ALM = MOs AP > +{AP_ALM}, tjM1 = MOp AP > +{AP_TJ}": ("ap",),
-                     "AP2: anterior-weighted rank, 60 % / 70 %": ("rank", 0.6, 0.7, 2.0)}.items():
+                     f"PROPOSAL: ALM = MOs AP > +{AP_ALM} & ML > {ML_ALM_MIN}; tjM1 = MOp AP > +{AP_TJ}": ("apml",),
+                     "PROPOSAL over the PRE cued LATERAL map": ("apml",)}.items():
         A = np.zeros(len(flat), bool)
         T = np.zeros(len(flat), bool)
         for h in ("left", "right"):
-            if spec[0] == "ap":
+            if spec[0] == "apml":
+                A |= base[f"MOs_{h}"] & (ap > AP_ALM) & (ml > ML_ALM_MIN)
+                T |= base[f"MOp_{h}"] & (ap > AP_TJ)
+            elif spec[0] == "ap":
                 A |= base[f"MOs_{h}"] & (ap > AP_ALM)
                 T |= base[f"MOp_{h}"] & (ap > AP_TJ)
             else:
@@ -69,6 +74,9 @@ def main() -> int:
     idx = np.array([pos[p] for p in D["grid"]["pix"]])
     v = np.full(len(flat), np.nan)
     v[idx] = D["res"][("iti", "sag", "pre", "level")]["point"]
+    D2 = figdata.load_fd("lick_decoder_pattern_stats_lat")
+    v2 = np.full(len(flat), np.nan)
+    v2[idx] = D2["res"][("trial", "lat", "pre", "level")]["point"]
 
     def img(x):
         g = np.full(H * W, np.nan)
@@ -76,9 +84,10 @@ def main() -> int:
         return g.reshape(H, W)
     mo = img((base["MOs_left"] | base["MOs_right"]).astype(float) + 2 * (base["MOp_left"] | base["MOp_right"]))
     fig, axs = plt.subplots(1, 4, figsize=(20, 5.6), layout="constrained")
-    lim = np.nanpercentile(np.abs(v), 99)
     for ax, (nm, (A, T)) in zip(axs, cands.items()):
-        ax.imshow(img(v), cmap=figdata.PRE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
+        vv = v2 if "LATERAL" in nm else v
+        lv = np.nanpercentile(np.abs(vv), 99)
+        ax.imshow(img(vv), cmap=figdata.PRE_CMAP, vmin=-lv, vmax=lv, interpolation="nearest")
         ax.contour(mo, levels=[0.5, 1.5], colors="0.45", linewidths=0.6)
         ax.contour(img(A.astype(float)), levels=[0.5], colors="k", linewidths=1.6)
         ax.contour(img(T.astype(float)), levels=[0.5], colors="g", linewidths=1.6)
@@ -94,8 +103,8 @@ def main() -> int:
         ax.axis("off")
     fig.suptitle("Candidate ALM (black) / tjM1 (green) ROIs over the PRE ITI sagittal Haufe map (orange = more active for longer "
                  "licks). Grey = Allen MOs / MOp. Circles = literature centres: black ALM AP +2.5 ML 1.5 (Guo 2014), green "
-                 "tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019),\nmagenta tongue/jaw ICMS AP +2.4 ML 2.0 (Komiyama 2010); red + = "
-                 "bregma. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
+                 "tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019),\nmagenta tongue/jaw ICMS AP +2.4 ML 2.0 (Komiyama 2010), blue RFA ~AP +2.0 ML ~1.0 "
+                 "(approx.), cyan CFA (forelimb M1) AP +0.5 ML 1.25; red + = bregma. Last panel: PRE cued lateral map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
     fig.savefig(il.OUT / "figures" / "lick_roi_candidates.png", dpi=95)
     return 0
 
