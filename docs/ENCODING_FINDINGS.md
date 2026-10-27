@@ -1302,6 +1302,15 @@ coupling (direction not determined), not more face variability.
   -.21 / -.00) -> on-target cued licks are read slightly IPSIlesional chronically. In-trial over ALL licks acute +0.54
   (4/4) only because deviated (ipsi) licks are read at their target. Reading: the contralesional reading is an ITI
   result; for cued licks the result is "deviated licks read as on-target". PROVISIONAL.
+  OUTWARD AXIS TOO (10-26 late, page 3.21 = `iti_where_delta.png`, where_delta_by_animal.csv / where_delta_tests.csv;
+  Priya: "the decoder predicts licks are further right and closer than they are"). Change in (decoded - actual) vs pre
+  per spout, both axes. IN-TRIAL licks are read CLOSER than they land: all licks -0.59 acute / -0.47 chronic mm (0/4
+  further), mostly because cued licks reach FURTHER out post-stroke (actual outward +0.3..+0.7 mm, 4/4) and the decoded
+  position does not follow; landing held fixed still -0.30 [-0.43, -0.17] chronic (0/4 further: PS92 -.43, PS93 -.40,
+  PS94 -.21, PS95 -.15). ITI licks: outward only slightly closer (chronic -0.09 [-0.20, -0.01] held fixed). So
+  "further right" = ITI, "closer" = in-trial; neither lick type shows both strongly. Close-far separation of the decoded
+  means is clearer in-trial than ITI because outward is decoded far better in-trial (pre r 0.53-0.58 vs 0.35-0.42 ITI,
+  3.15), likely spout / target-related activity that ITI licks lack. PROVISIONAL.
   DECODED vs ACTUAL LANDING + IPSILESIONAL BIAS (10-26 ~20:00, `scripts/iti_where_scatter.py` -> where_preds.csv (per
   lick), where_bias_sessions.csv; page 3.19 / 3.20; Priya: "is the decoder lateral loss deviated ipsilesionally? but not
   corrected for by the executed ipsilesional tongue deviation?"). Per session: decoded lateral = a + b x actual lateral

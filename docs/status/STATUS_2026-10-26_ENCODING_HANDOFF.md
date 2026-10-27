@@ -18,6 +18,13 @@ cap, so split `files` into batches under ~35 MB. Old images not read in a sessio
 is not what you last saw"): `action: "list", scope: "files"` on the URL first counts as seeing them. Spot-checked 1.37,
 3.7, 3.15-3.20, 3.25 (published byte sizes = local). The steps below are kept as the procedure for the next republish.
 
+**10-26 late (new session):** partial-refit figures now name their model in the image title (`partial_refit.model_label`;
+1.37 also draws landing - target lick kernels = to-do 2 done); 3.19 / 3.20 redrawn (legend clear, symbols spelled out);
+NEW 3.21 = change in decoded - actual position vs pre (`iti_where_delta.png`) -> old 3.21-3.30 are now 3.22-3.31
+(`_goal_page/fig_map.csv`; kinematics control = 3.26). Signed-error / outward results: ENCODING_FINDINGS 8.17.
+Pending Priya: KEY row wording (ITI-only contralesional reading), spread-matched lateral / angle check (angle here =
+horizontal atan2(lat, out), not the encoder's exec_angle), relabel ITI / in-trial rows in 3.15-3.18.
+
 The Artifact tool was switched off in this session from ~14:15, so everything since v103 was LOCAL ONLY until v105.
 - Live: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d = **v103** (12:00). Everything after it exists only locally.
 - **Local source (newest, complete): `C:/Users/SabatiniLab/Github/wf_attempt/_goal_page/index.html`** (+ its 190 PNGs;

@@ -84,6 +84,23 @@ if TE:
     CONTRASTS = TE_CONTRASTS
 
 
+def model_label(run: Path) -> str:
+    """Plain-words name of the frozen model a partial refit was run on (Priya 10-26: every figure must say which partial
+    refit model the data come from); built from the run tag, e.g. gate-attempted_v7g3_t3d_frA_te."""
+    tag = run.name.replace("frozen_encoder_", "")
+    parts = ["frozen pre-stroke encoder (August pre, attempted trials, 3-D tongue)"]
+    if "_frA" in tag:
+        parts.append("+ FaceRhythm (mode A)")
+    if tag.endswith("_te"):
+        design = ("NEW target-vs-execution design: target = spout identity + target-labelled lick kernels, execution = "
+                  "3-D tongue / jaw + FaceRhythm + landing-labelled lick kernels; ITI frames included")
+    elif tag.endswith("_ls"):
+        design = "OLD design + per-spout lick kernels (target vs executed spout-locked templates vs lick kernels)"
+    else:
+        design = "OLD design: target columns vs executed spout-locked templates + within-spout direction"
+    return f"MODEL: {' '.join(parts)}  [run {tag}]\n{design}"
+
+
 def _te_mask(name, vcol, grp):
     gs, pre = TE_SETS[name]
     return np.isin(grp, gs) | np.array([str(v).startswith(pre) for v in vcol]) if pre else np.isin(grp, gs)
@@ -454,11 +471,11 @@ def summarise(run: Path, out: Path) -> None:
                  "CONTRASTS: dark red = target minus its shuffled-label null; light blue = executed minus its shuffled-"
                  "label null; dark blue = executed minus target (whose refit helps more)")
         ax2.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
-        fig.suptitle(f"NEURAL: PARTIAL REFIT, {w} window ({run.name.replace('frozen_encoder_', '')}): one group refit per session "
-                     "(cross-validated), all else frozen;\ngain in held-out R2 over the frozen model, as a change from pre "
+        fig.suptitle(f"NEURAL: PARTIAL REFIT, {w} window: one group refit per session (cross-validated), all else frozen;\n"
+                     f"{model_label(run)}\ngain in held-out R2 over the frozen model, as a change from pre "
                      "(within animal). Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=9)
-        fig.subplots_adjust(left=0.05, right=0.83, top=0.9, bottom=0.07, hspace=0.35)
+        fig.subplots_adjust(left=0.05, right=0.83, top=0.86, bottom=0.07, hspace=0.35)
         fig.savefig(out / "figures" / f"partial_refit_bars_{w}.png", dpi=105)            # supplementary (all sets)
         plt.close(fig)
     # MAIN: epoch lines of the contrasts that carry the claim (Priya 10-25: bars too many to read)
@@ -467,6 +484,7 @@ def summarise(run: Path, out: Path) -> None:
                                             ("lickspout - target", "per-spout lick kernels minus target"),
                                             ("target lick - null", "target-labelled lick kernels (vs null)"),
                                             ("landing lick - null", "landing-labelled lick kernels (vs null)"),
+                                            ("landing lick - target lick", "landing- minus target-labelled lick kernels"),
                                             ("execution - target", "execution minus target"))
            if (B.q == q).any()]
     areas = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]
@@ -481,11 +499,14 @@ def summarise(run: Path, out: Path) -> None:
             if c == 0:
                 ax.set_ylabel(f"{w} window\nrefit gain beyond null\n(change from pre, R2)", fontsize=8.5)
     ffc.lines_legend(fig, ser)
-    fig.suptitle(f"NEURAL: which part of the mapping changed? ({run.name.replace('frozen_encoder_', '')}) Refit ONE part per "
-                 "session (rest frozen);\ngain in held-out R2 beyond its null (block permutation of same-spout runs, 5 "
-                 "draws), as a change from pre\n(within animal; line = mean of animals, band = 95% nested CI animals > "
-                 "sessions). All refit sets: partial_refit_bars_<window>.png.", fontsize=10)
-    fig.subplots_adjust(left=0.09, right=0.99, top=0.83, bottom=0.15, wspace=0.08, hspace=0.25)
+    nulls = ("nulls: target sets = block permutation of the trial spouts;\nlanding / execution sets = landing weights "
+             "circularly shifted along the landed licks; 5 draws each" if TE else
+             "null = block permutation of same-spout runs (5 draws)")
+    fig.suptitle(f"NEURAL: PARTIAL REFIT, which part of the mapping changed? Refit ONE part per session (rest frozen)\n"
+                 f"{model_label(run)}\ngain in held-out R2 beyond its null ({nulls}), as a change from pre\n"
+                 "(within animal; line = mean of animals, band = 95% nested CI animals > sessions). "
+                 "All refit sets: partial_refit_bars_<window>.png.", fontsize=9.5)
+    fig.subplots_adjust(left=0.09, right=0.99, top=0.76, bottom=0.15, wspace=0.08, hspace=0.25)
     fig.savefig(out / "figures" / "partial_refit_lines.png", dpi=110)
     plt.close(fig)
     print("->", out)
