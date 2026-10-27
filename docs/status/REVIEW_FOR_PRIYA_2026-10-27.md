@@ -33,6 +33,11 @@ section. Everything here is PROVISIONAL until you have looked at it.
    0.76-0.90); PS94's ITI map is genuinely different (0.19, reliability 0.99) -- the least-recovered animal remapped.
    PS93 / PS95-ITI pre maps are mostly one-signed (less clear push-pull) -- worth a look.
 
+7. **Per-spout maps across epochs** (`figures/iti_spout_patterns.png`, your "map the decoder weights per position"):
+   crossed maps per spout; FAR CONTRA's map is replaced acutely (sim 0.28-0.42) and returns chronically (0.61-0.97);
+   the other spouts stay similar. Sagittal map is bilateral and preserved.
+8. **3.14 now has per-lag significance bars**: ITI lateral below pre at every lag in all three bases and epochs.
+
 ## Questions for you
 1. Recovery ranking: by far-contra cued lick ANGLE / pre, chronic PS92 1.01, PS93 0.77, PS94 0.13, PS95 0.89. You
    rank PS95 best (fast early recovery, dip, then improvement) -- is there a measure you want used for the
