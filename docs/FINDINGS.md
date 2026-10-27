@@ -184,6 +184,16 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
    -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
    far-contra licks (4d0b) is carried by the later, corrective licks.
+4d0h. **LANDING-MATCHED read-out (no pull slope at all) -- the cleanest test. PROVISIONAL** (10-27 late; per lick,
+   landing deviation and decoded deviation from the animal's pre mean at the spout; each post-stroke lick compared with
+   the animal's PRE licks that deviated by the same amount (bins -3..-1.5..-1..-0.5..-0.25..0.25..0.5..1..3 mm)). ITI:
+   read +0.22 / +0.16 / +0.22 mm more contralesional than equally-deviated pre-stroke licks (4/4 every epoch; CIs exclude
+   0; PS94 / PS95 largest, PS93 ~0), the whole landing->read-out curve shifted up. CUED: the SAME curve as before the
+   stroke (+0.02 / -0.06 n.s.; chronic -0.08, 4/4, slightly ipsi). So cued licks being read 'near the target' while they
+   land ipsilesional is how pre-stroke cortex already read equally deviated licks (it follows ~20 % of a small
+   within-spout deviation, ~35-45 % of a large one); the abnormal read-out is the ITI one. Supersedes the 'beyond the
+   pull' framing of 3.54 / 3.71 for cued licks (all spouts). Far-contra cued first vs later (4d0e) still to be re-run
+   matched.
 4d0g. **Per-spout DECOMPOSITION of the decoded lateral shift (no pull slope assumed). PROVISIONAL** (10-27 late,
    `scripts/iti_decoded_decomposition.py`). Per session, over spouts: dDecoded_s = SHIFT + GAIN x (spout's pre place) +
    TRACK x dLanding_s. ITI: a UNIFORM contralesional SHIFT +0.27 / +0.17 / +0.14 mm (4/4, 3/4, 3/4; with TRACK fixed at

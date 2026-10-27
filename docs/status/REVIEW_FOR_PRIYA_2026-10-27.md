@@ -192,6 +192,10 @@ section. Everything here is PROVISIONAL until you have looked at it.
   compression; cued = compression only (no shift). Figure lick_decoded_decomposition.png -> page after the reorder.
 - MIXED MODELS WITH TIME on the page (v128, 3.73-3.81); reorder of all sections with stable ids running (helper agent).
 
+- LANDING-MATCHED read-out (FINDINGS 4d0h): ITI +0.22 / +0.16 / +0.22 vs equally deviated pre licks (4/4); cued =
+  pre curve (n.s.). PS93 far-ipsi case: no offset in PS93 (cued or ITI), clear in the other three.
+- PAGE v129 REORDERED (Key / Supporting / Supplementary, stable #f-<id> links); other windows (e3, 5b) told.
+
 ### Running / queued
 - Nothing running. Open: behaviour-only decoder (low priority); June SVD-basis features if the June map reference is
   wanted; small fix: whole-map change-figure suptitle is clipped at the sides (fix on the next rerun).
