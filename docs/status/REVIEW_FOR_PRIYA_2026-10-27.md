@@ -136,6 +136,13 @@ section. Everything here is PROVISIONAL until you have looked at it.
   the two disagree only on the two borderline subacute cells. Suggest: bootstrap stays on the figures, mixed-model p in
   captions / methods for a paper.
 
+- PER-ANIMAL far-contra / close-contra maps (iti_spout_animal_panels.png): acute far-contra map is replaced in PS92 /
+  PS93 / PS94 (r to own pre 0.37 / 0.28 / 0.52) by a similar layout in all three -- bilateral medial frontal / midline
+  positive, lateral (incl. the lesioned-side lateral orofacial spot) weaker or negative; close contra kept (0.86-0.90).
+  Chronic far contra back in PS92 / PS94 / PS95 (0.89-0.92), NOT PS93 (0.46; subacute 0.15). PS95 has no acute map (one
+  session). Caveat: the lateral negatives sit near the window edge, and the acute response increase is somewhat
+  edge-rim weighted (hemo check) -- check the acute far-contra layout against the edge rim before interpreting it.
+
 ### Running / queued
 - Whole-map permutation + amplitude-normalised change maps (per-session self-fit maps, 107 sessions) -- drawing.
 - Max-stat contour redraws of 3.50-3.53.
