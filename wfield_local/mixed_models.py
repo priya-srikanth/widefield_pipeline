@@ -249,7 +249,12 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
             a_.plot(xx, pre + step + b * (xx if model == "behaviour" else np.log(xx)), "k-", lw=1.5,
                     label="fit: post" if k == 0 else None)
             a_.axhline(pre, color="k", ls=":", lw=1, label="fit: pre level" if k == 0 else None)
-            stat = f"post {step:+.3g} (z {c.z['post']:.1f}), {sl} {b:+.3g} (z {c.z.get(sl, np.nan):.1f})"
+            # * = FDR q < 0.05 (lmm_table's BH within model x term), so the panel says which terms are significant
+            def _q(t, c=c):
+                q = c.q.get(t, np.nan) if "q" in c else np.nan
+                return f", q {q:.3f}{'*' if q < 0.05 else ''}" if np.isfinite(q) else ""
+            stat = (f"post {step:+.3g} (z {c.z['post']:.1f}{_q('post')}), {sl} {b:+.3g} "
+                    f"(z {c.z.get(sl, np.nan):.1f}{_q(sl)})")
         else:
             term, icpt = (("lday", "post_level_day1") if model == "time_post"
                           else ("deficit", "post_level_full_recovery"))
