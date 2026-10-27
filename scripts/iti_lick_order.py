@@ -15,7 +15,7 @@ Two read-outs:
       bootstrap), and first - later per session.
   (2) lick-order slope: per session, OLS slope of the value on min(order, ORDER_CAP), spout means removed (mm per lick);
       change vs pre. Both for all spouts and far contra.
-Outputs <E>/iti_licks/lick_order_{preds.csv.gz,sessions.csv,tests.csv}, figures/iti_lick_order{,_slope}.png.
+Outputs <E>/iti_licks/lick_order_{preds.csv.gz,sessions.csv,tests.csv}, figures/lick_order_iti_cued{,_slope}.png.
 Usage: python scripts/iti_lick_order.py [--plot-only]
 """
 from __future__ import annotations
@@ -223,7 +223,7 @@ def plot_classes(T: pd.DataFrame) -> None:
                  "lateral, change vs pre,\nfrozen KEY-row decoder per set (z-scored Allen areas); 95% paired nested "
                  "bootstrap CI, * = CI excludes 0 (bold),\n\u2020 = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n animals. + = contralesional. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.05)
-    fig.savefig(il.OUT / "figures" / "iti_lick_order.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / "lick_order_iti_cued.png", dpi=100)
     plt.close(fig)
 
 
@@ -296,7 +296,7 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
                  "* = CI excludes 0 (bold), † = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n "
                  "animals. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.08)
-    fig.savefig(il.OUT / "figures" / "iti_lick_order_slope.png", dpi=100)
+    fig.savefig(il.OUT / "figures" / "lick_order_iti_cued_slope.png", dpi=100)
     plt.close(fig)
 
 

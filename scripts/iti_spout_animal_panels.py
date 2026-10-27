@@ -2,7 +2,7 @@
 spout). From the held-out per-session one-vs-rest maps of `iti_spout_pattern_stats.py` (cache spout_pattern_sessions.pkl,
 cued licks): per animal x spout x epoch, the mean of that epoch's session maps (/ the animal's pre RMS for the spout);
 similarity to the animal's pre map in each title. Rows = animal x spout (far contra, close contra), columns = epochs.
-Output figures/iti_spout_animal_panels.png. Usage: python scripts/iti_spout_animal_panels.py
+Output figures/cued_spout_animal_panels.png (cued licks; renamed 10-27 from iti_..., the ITI-family prefix). Usage: python scripts/iti_spout_animal_panels.py
 """
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def main() -> int:
                  "pixel "
                  "correlation with the animal's own pre map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.55 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / "iti_spout_animal_panels.png", dpi=90)
+    fig.savefig(il.OUT / "figures" / "cued_spout_animal_panels.png", dpi=90)
     return 0
 
 
