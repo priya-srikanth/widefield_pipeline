@@ -49,3 +49,18 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
 - Section 2 and 3.19-3.22: trial-level spout classifiers (frozen pre-stroke position decoder on LocaNMF / Allen
   components, retention by trial class). Not lick-position decoders; switching them is a separate pipeline.
 - Haufe maps (3.8, 3.53-3.56, 3.69-3.76): already in the SVD basis (per-session self-fit maps are primary).
+
+## D. Maps (Priya 10-27 late) -- after the plot-only helper finishes (it edits the map scripts)
+- New per-session self-fit map targets (SVD basis, `iti_session_patterns.py`): x (lateral), y (forward), z (down),
+  lateral ANGLE, ELEVATION (steepness), 3-D REACH; existing lateral / sagittal / within-spout / per-spout kept.
+- Views: pooled per epoch + epoch - pre (shape-only, TFCE contours), and per-spout (one-vs-rest) per epoch + epoch -
+  pre, cued and ITI; whole-map distance vs drift floor; per-animal panels.
+- MIXED MODELS ON MAPS: per pixel, time model (day-1 step map, recovery-per-e-fold map) and behaviour model (aim-deficit
+  map), animal fixed intercepts solved for all pixels at once (descriptive per mixed_models.py), significance by
+  session-label permutation (pre/post within animal for the step; post days within animal for recovery) + TFCE.
+- June no-stroke reference: project June sessions onto each animal's pre-stroke SVD basis (also needed for the drift
+  figures 3.40 / 3.47); then a June-anchored drift-adjusted time model as a supplementary version of each LMM figure.
+- Behaviour axis: compute first-lick weighted signed aim + split-half reliability vs the all-lick version; if adopted,
+  switch the LMM behaviour deficit and the far-contra-angle figures (f0 sessions, recovery link, recovery marker) together.
+- Per-animal change-vs-pre scatter (arrows from pre to epoch mean, landing + read-out, session 95% CIs) + CI markers on
+  the 1-SD scatter ellipses (after the helper; `iti_where_scatter.py`).
