@@ -35,6 +35,11 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-27 ~23:50) ALM / tjM1 rows (task #2): cheap figures implemented + merged (e87ba04f; plan / cost table
+  docs/status/ALM_TJM1_ROWS_PLAN_20261027.md): 22.3 / 22.4 (FR direction), 2.2 / 2.6 residual panels, 18.5 (+ _split
+  companions of 18.6 / 18.9), 0.13. Regenerating on M: now (run_alm_rows.sh). Checks: block-sum area R2 vs exact <= 0.0008;
+  ALM + MOs_rest reproduce MOs within 0.05 (x1e3 dF/F). Example FR-A lick chronic residual z: tjM1 contra 2.72 [1.60,
+  3.83] ~ MOp contra 2.76; ALM contra 1.29 ~ MOs contra 1.31.
 - (10-27 ~23:10) QUEUE 1 DONE: page v141 = masked joint LocaNMF in 11.5-11.7 (ITI lateral -22 / -17 / -20 %, 4/4
   each; cued -20 / -11 / -8 %; same picture as unmasked) + SVD wording in 12.1.
 - (10-27 22:40) Page v140 published: ROI v8 + split basis everywhere; changed results listed in FINDINGS 4d0-V8.
@@ -48,6 +53,13 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   page SOURCE files committed (PNGs excluded).
 
 ## Questions for Priya
+- (ALM rows, 10-27 ~23:50) Encoder / FR area rows use the v8 ALM / tjM1 ROIs INTERSECTED with the encoder's 16-px stat
+  mask (the mask every existing encoder area value uses), so ALM + MOs_rest = MOs exactly; ~11 % of v8 ALM / tjM1 pixels
+  (thin lateral rim + ALM front line) fall outside it. Keep (consistent with existing rows), or include the rim where
+  the source has those pixels (FaceRhythm block maps; one-line change)? On the stat mask ALM = 0.38 of MOs, tjM1 = 0.47 of MOp.
+- (ALM rows) EXPENSIVE, not done (need refits): 0.3 / 0.4 / 0.9-0.11 frozen Musall R2 (basis reruns ~1 h, or exact area
+  reruns ~2-2.5 h per frame); 21.4 / 21.11 FaceRhythm trial-vs-PETH (O2 rerun, ~5 h collection); 2.2 / 2.6 Layer-2 panels
+  (~19 min frA; ~15 h for the random-split ref). Which, if any?
 - ANSWERED 10-27 late: first-lick aim -> yes (primary); pixel stats -> FWER max-stat (yes). 
 - ANSWERED: 5c-bis + z-scored map check -> "yes do both" (queued as 5c-bis / 5c-ter).
 - (carried over) The SVD_GAUSS_SUPERSEDE_QUEUE "SVD basis = primary" plan is superseded by tonight's split-basis decision
