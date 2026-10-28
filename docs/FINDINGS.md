@@ -496,6 +496,23 @@ Also running / queued: per-session vs frozen self-fit in the same windows (`scri
 the scoring caveat), then a second pass in the narrow every-lick window (+/-0.2 s, the refit window) as a secondary
 per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to confirm).
 
+### 0b. Lick-evoked activity and the hemispheric balance (10-28; goal page 12.17-12.18, 14.7-14.22) -- PROVISIONAL
+
+- **Lick-evoked activity is LARGER after the stroke, in both hemispheres.** Cued licks: larger at every target in every
+  epoch (response AUC 0-1 s), EXCEPT far-contra targets acutely -- the response reaches about the pre peak but decays
+  sooner, so over 0-1 s it is, if anything, lower (0.5-1.0 s below pre in 3-4/4 animals; survives lick-vigour and landing
+  regression). ITI licks: larger acutely across most of cortex; chronically mainly orofacial motor cortex (contralesional
+  tjM1). PROVISIONAL.
+- **The hemispheric BALANCE tracks the decoder's read-out OFFSET -- not the tongue's ipsilesional deviation.**
+  Behaviour: acutely the tongue lands ipsilesional of the target (aim deficit). Read-out offset: the frozen decoder reads
+  each lick as more contralesional than where it landed. Balance: at a fixed lick angle, post-stroke licks carry
+  relatively more ipsilesional-hemisphere activity; the pre-stroke mapping reads that as a more contralesional lick, and
+  sessions with a bigger balance shift have a bigger offset (within-animal r -0.76 to -0.95 for cued licks, 4/4; 3/4 for
+  ITI; partly mechanical since the decoder reads the same features). The behavioural link is separate and weaker: pre-stroke
+  the balance tracks lick angle (each hemisphere larger for licks toward the opposite side), post-stroke ~30% flatter
+  (PS94/PS95 every epoch, 3/4 chronically). By target, the contra/ipsi ratio rises mostly for FAR spouts (far ring 4/4,
+  close ring ~0). OPEN (running 10-28): balance-blind decoder, per-hemisphere imaging control, non-orofacial balance.
+
 ## 1. Behaviour and orofacial kinematics (cam4)
 
 *Owner 5b; detail [OROFACIAL_FINDINGS.md](OROFACIAL_FINDINGS.md) (its status table, v36, is authoritative). cam4 = LP
