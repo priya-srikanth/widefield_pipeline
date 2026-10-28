@@ -128,6 +128,19 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    PRE-REGISTER for the next cohort (direction stated): lesion % -> slower behavioural recovery (+); day 1-3 orofacial
    residual -> lower chronic cortical code on hits (-) and larger chronic residual (+); acute far-contra retention ->
    chronic code (sign open: - here); acute coupling on failed attempts -> recovery speed (open).
+4d0-DAY. **10-28 daytime additions (page v147-v166; handoff 00-COMPACT-12). PROVISIONAL.** (1) LICK-LOCKED ACTIVITY
+   (section 14): ITI bout-start response larger acutely across cortex (41 areas) and reverting by chronic (5 areas: tjM1
+   both sides, contralesional MOp-rest, SSp-m); FIRST CUED lick response larger in every epoch and still in 35 areas
+   chronically (tjM1 contra +5.0 / +5.9 / +5.4 x1e3 dF/F*s); cue response unchanged acutely, up subacute / chronic.
+   Far-contra target trials: acute lick response NOT up, acute cue response LOWER (ALM contra -3.4, 27 areas), both up
+   chronically. Window (0-0.3 .. 0-1.5 s, peak) does not change the cued effect; the chronic ITI effect grows with longer
+   windows (0.53 -> 1.01 of pre). (2) OFFSET CONTRIBUTION MAPS: offset totals agree across bases, decoder weights share
+   the broad lateral structure but agree only modestly in detail (ITI weight-map r 0.13-0.39; cued contributions ~0) --
+   not an area-level attribution. (3) NON-LINEAR decoder: cued offset larger (+0.06 / +0.08 / +0.05 mm, 4/4; subacute
+   +0.11 vs linear +0.03), partly kernel shrinkage on unfamiliar post-stroke patterns (extra offset ~2x larger where few
+   pre licks landed); same-target and per-lick-order versions running. (4) Decoded vs actual position per spout (13.7):
+   cued far-spout read-out follows the landing about half way; ITI read-out stays near pre while landings move
+   ipsilesional.
 4d0-NIGHT. **Overnight 10-28 controls (page v146; docs/status/OVERNIGHT_20261027.md). PROVISIONAL.** ITI offset
    ROBUST: same-target same-place +0.26 / +0.24 mm acute / chronic (4/4); covariates (kinematics + FaceRhythm) explain
    5-7 %; non-linear (RBF kernel ridge) decoder: same offset and same r loss; angle offset patterned (uniform part ~0),

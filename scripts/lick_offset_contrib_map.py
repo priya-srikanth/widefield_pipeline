@@ -447,11 +447,15 @@ def plot_vs_lateral(F: dict) -> None:
     plt.close(fig)
 
 
-TAGS = [("areas", "Allen areas"), ("areas_splitr8", "Allen, ALM / tjM1 split"), ("locanmfF", "LocaNMF"), ("locanmfFM", "LocaNMF, glue / MOB comps dropped"),
+# unmasked LocaNMF ("locanmfF") dropped from the figure (Priya 10-28: superseded by the masked basis)
+TAGS = [("areas", "Allen areas"), ("areas_splitr8", "Allen, ALM / tjM1 split"), ("locanmfFM", "LocaNMF, glue / MOB comps dropped"),
         ("svdF", "pre-stroke SVD")]
 
 
 def plot():
+    global _MASK
+    from wfield_local import beta_maps
+    _MASK = np.asarray(beta_maps.brain_mask(), bool)
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -463,6 +467,9 @@ def plot():
             Z = np.load(OUT / f"maps_{t}.npz")
             ims = {ep: [Z[f"{st}|{a}|{ep}"] for a in AN if f"{st}|{a}|{ep}" in Z] for ep in [*EP, "w"]}
             mean = {ep: np.nanmean(np.stack(v), 0) for ep, v in ims.items() if v}
+            # drawn maps masked to the brain mask (Priya 10-28: kept LocaNMF footprints extend past it, e.g. the bulbs;
+            # 2-3 % of |contribution|) -- the offset / global / pattern numbers are unchanged (computed on all pixels)
+            mean = {ep: np.where(_MASK, m_, np.nan) for ep, m_ in mean.items()}
             lim = np.nanpercentile(np.abs(np.stack([mean[e] for e in EP if e in mean])), 99.5)
             for j, ep in enumerate(EP):
                 ax = axs[i, j]
@@ -482,7 +489,8 @@ def plot():
         fig.suptitle(f"NEURAL: where the same-place read-out offset comes from, {stlab}. Contribution per pixel = decoder "
                      "weight x activity change vs pre licks landing at the same place (Gaussian, 0.1 mm);\nsums to the "
                      "offset. Global = a uniform cortex-wide change x the summed weight; pattern = the rest. Mean of "
-                     "animals; ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
+                     "animals; ipsi (lesion) = image LEFT; drawn inside the brain mask.\nThe OFFSET is the same in every basis, "
+                     "its spatial attribution is not (ridge weights are not unique). PROVISIONAL", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.94))
         fig.savefig(FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_contrib_map.png", dpi=90)
         plt.close(fig)
