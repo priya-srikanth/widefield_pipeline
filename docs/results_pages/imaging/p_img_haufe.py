@@ -145,9 +145,9 @@ sec = (
     "the six positions are coupled: read a far-contra drop and a near-position gain as one event. The reference-free "
     "response maps of section 7 are the deficit measure; these say where each position&rsquo;s signal sits. "
     "<b>Not the same maps as the encoding page&rsquo;s Haufe figures</b> "
-    '(<a href="https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#f-iti_decoder_patterns_lat" target="_blank">Figs 15.11&ndash;15.13</a>): '
+    '(<a href="https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#f-iti_decoder_patterns_lat" target="_blank">lick-position activation maps</a>, <a href="https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#f-cued_spout_patterns" target="_blank">per-spout maps</a>): '
     "those decode continuous lick POSITION (lateral / sagittal, 3-D tongue) with a ridge, lick-locked (0&ndash;0.2 s), "
-    "on each animal&rsquo;s pre-stroke 200-component basis, refit per epoch; 15.13 is one-vs-rest per spout on cued "
+    "on each animal&rsquo;s pre-stroke 200-component basis, refit per epoch; the per-spout maps are one-vs-rest per spout on cued "
     "licks, without the mean-reference coupling of these maps.</p>\n"
     '<div class="take">After the cue, far contra and far middle lose their pre-stroke maps acutely and flip sign '
     "&mdash; their trials become less active than the average trial over both hemispheres "
