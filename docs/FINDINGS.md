@@ -128,6 +128,21 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    PRE-REGISTER for the next cohort (direction stated): lesion % -> slower behavioural recovery (+); day 1-3 orofacial
    residual -> lower chronic cortical code on hits (-) and larger chronic residual (+); acute far-contra retention ->
    chronic code (sign open: - here); acute coupling on failed attempts -> recovery speed (open).
+4d0-V8. **SYNTHESIS on ROI v8 + Allen areas WITH the ALM / tjM1 split (all decoders; DECISIONS 10-27 late), Gaussian
+   same-place like-for-like reference; supersedes the numbers in 4d0-LATE / 4d0 / 4d0b. PROVISIONAL** (page v140; v2 -> v8
+   in docs/status/V2_VS_V8_SPLIT_20261027.md). HOLDS: cortex reads licks CONTRALESIONAL of where they land -- ITI every
+   epoch +0.37 / +0.23 / +0.28 mm (4/4 each); cued acute +0.16 (4/4), first cued lick +0.31 / +0.22 / +0.15; cued far
+   contra acute +0.22 (4/4) = cued licks read AHEAD of the failing (ipsilesional) movement acutely, now without any pull
+   slope; cued far contra chronic -0.27 (4/4, ipsilesional). Lateral frozen r: ITI -26 / -22 / -24 % (4/4), cued -20 / -12
+   (4/4) / -8 % (n.s., 3/4). CHANGED vs v139: (1) "read further OUT acutely" is GONE -- cued down +0.20 -> +0.03 n.s.;
+   cued read CLOSER subacute (-0.25) and chronic (-0.13), 4/4; cued reach like-for-like acute n.s., -0.27 / -0.14 later
+   (4/4); (2) ITI SAGITTAL r now lost subacute / chronic (-13 / -11 %, 4/4; n.s. in plain Allen -> basis-dependent);
+   (3) cued LATER licks also read contralesional acutely (+0.14, 4/4; was first lick only); (4) no response remains at
+   pre aim in any area (16.12); (5) the pull-based details of 4d0 / 4d0b (60 % expected from the pull; read/landing ratios
+   0.35-0.60) are obsolete with the measure. REFIT DECODERS (lick_refit_decoders.py, page 10.2b): position is still
+   decodable post-stroke -- lateral ITI frozen -0.16 / -0.14 / -0.15 vs epoch refit (vs pre with matched training n)
+   -0.07 [-0.10, -0.04] (3/3) / -0.04 n.s. / -0.02 n.s.; cued acute frozen -0.16 vs refit -0.08 (3/3); angle same. So
+   after the acute epoch the code is intact but the frozen read-out no longer fits it; acutely a smaller real loss remains.
 4d0-LATE. **SYNTHESIS, 10-27 late (supersedes the measure in 4d0; conclusions unchanged). PROVISIONAL.** Primary offset
    measure = SAME-PLACE like-for-like read-out (4d0j; DECISIONS 10-27 late): cortex reads licks CONTRALESIONAL of where
    they land -- ITI licks in every epoch (+0.31 / +0.21 / +0.24 mm, 4/4 each; mixed model with time: step at day 1, no
