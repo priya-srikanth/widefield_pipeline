@@ -1,5 +1,9 @@
 # Supersede queue: SVD-basis decoder + Gaussian same-place read-out as PRIMARY (Priya, 10-27 late)
 
+**SUPERSEDED for the basis (10-27 later): Priya chose Allen areas WITH the ALM / tjM1 split as the primary basis
+("use split bases, for consistency"); sections A / B are done on that basis (page v140). Gaussian reference = primary (kept).
+Parts C / D carry over -> docs/status/OVERNIGHT_20261027.md queue item 5.**
+
 Decision: every primary decoder result on the goal page uses the frozen pre-stroke decoder on the animal's pre-stroke
 200-component SVD basis (`WFIELD_LICK_DECODER=svd`; per-session refit decoders on the same basis), and every offset uses
 the Gaussian same-place like-for-like reference (`scripts/lick_matched_readout.py --ref gauss`; width chosen on

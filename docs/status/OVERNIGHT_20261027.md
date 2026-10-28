@@ -11,6 +11,18 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
    table -> implement cheap ones, prove no M: writes) -> merge -> run -> captions -> publish.
 3. Anything the helper costs as expensive (re-extraction) -> WAIT for Priya (listed under Questions).
 4. Housekeeping that needs no decision: handoff + FINDINGS kept current; commit each step.
+5. EARLIER APPROVED BACKLOG (handoff 00-LATE + SVD_GAUSS queue part C / D; on the split basis + Gaussian reference
+   decided tonight), in this order:
+   5a. Four COVARIATE references for the like-for-like offset: landing only (= current) / + kinematics (reach,
+       extension, peak speed, elevation) / + FaceRhythm factors around the lick / + FR + kinematics (Gaussian kernel on
+       landing + linear covariate terms fit on pre licks; same session tests + mixed models).
+   5b. SAME-TARGET same-place check ("more misses" vs "each lick read differently").
+   5c. New per-session Haufe MAP targets (SVD basis, iti_session_patterns / lick_session_level_maps): x, y, z, angle,
+       elevation, reach; pooled + per spout; epoch and epoch - pre; per-animal panels.
+   5d. Per-animal change-vs-pre scatter; first-lick row on the lick-order / per-spout figure (old 3.29).
+   5e. PIXEL mixed models on maps with TFCE (time model step + recovery maps, behaviour model aim map; session-label
+       permutation) -- heaviest, last.
+   5f. LOW: non-linear decoder; behaviour-only decoder.
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
@@ -25,4 +37,8 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   page SOURCE files committed (PNGs excluded).
 
 ## Questions for Priya
-- (none yet)
+- (carried over) FIRST-LICK weighted aim as the behaviour axis + LMM deficit? (split-half 0.98, r 0.94 with all-lick,
+  chronic deficit ~2x larger) -- awaiting your OK.
+- (carried over) Pixel map stats: switch to the decoder page's FWER max-stat for consistency? z-scored pattern-map check?
+- (carried over) The SVD_GAUSS_SUPERSEDE_QUEUE "SVD basis = primary" plan is superseded by tonight's split-basis decision
+  (marked in that doc); its controls (5a-5f) carry over on the split basis.
