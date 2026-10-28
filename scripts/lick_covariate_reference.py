@@ -34,7 +34,8 @@ keep_mask, the video mask), which removes ~96 % of ITI lick peaks. Here the fact
 inside the trial windows the values are identical to the frozen encoder's (25 Hz trial samples); outside them the FR
 projection's 5 Hz session samples are used (a slower, smoother face read-out in the ITI -- caveat). `fr_in_mask` records
 which licks the frozen mask would have kept. (NB the stored `bout_fr` of the ITI session files interpolates ACROSS the
-blanked ITI stretches -- iti_licks.extract fr_at uses only finite frames -- so it is not an ITI face measurement either.)
+blanked ITI stretches -- iti_licks.extract fr_at uses only finite frames -- so it is not an ITI face measurement either;
+since 10-28 the loader here is the shared `iti_licks.fr_unblanked`, which the ITI controls now use too.)
 How much of the offset each covariate set explains: explained = landing-only resid - covariate resid (= beta . Z
 residual, per lick), its change vs pre with the same session test, and share = 1 - change(ref) / change(landing).
 Session tests as lick_matched_readout: session means (>= MIN licks), change vs pre = paired nested bootstrap
@@ -88,15 +89,8 @@ def _kin_table() -> pd.DataFrame:
 def _match(side: np.ndarray, act: np.ndarray) -> np.ndarray:
     """Row of each prediction in the session file: the predictions are the session's licks in file order with some
     dropped (iti_lick_order.predictions `ok`), so an ordered subsequence match on the exact landing value recovers them.
-    -1 = unmatched."""
-    out, j = np.full(len(act), -1), 0
-    for i, v in enumerate(act):
-        while j < len(side) and side[j] != v:
-            j += 1
-        if j < len(side):
-            out[i] = j
-            j += 1
-    return out
+    -1 = unmatched. (= iti_licks.subseq_match, the shared definition.)"""
+    return il.subseq_match(side, act)
 
 
 def _acts(label: str) -> dict:
@@ -113,7 +107,6 @@ def _session_cov(label: str) -> pd.DataFrame:
     peak), the kinematics, the FR factors, fr_in_mask."""
     from wfield_local import config
     from wfield_local import face_rhythm_outputs as fro
-    from wfield_local import frozen_encoder as fe
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
@@ -130,8 +123,6 @@ def _session_cov(label: str) -> pd.DataFrame:
                                                          np.hypot(K.side_ml.to_numpy(float), K.out_ap.to_numpy(float))))},
                       index=A.daq_peak_s.to_numpy(float)[K.lick_uid.to_numpy(int)])
     kt = kt[~kt.index.duplicated()]
-    ce = fe._ce()
-    fdir = fro.factor_dir(rv, set_name=os.environ["COMBINED_ENCODING_FR"])
     out = []
     for st, (tk, sk) in {"iti": ("iti_t", "iti_side"), "trial": ("tr_t", "tr_side")}.items():
         act = np.asarray(acts.get(st, []), float)
@@ -144,9 +135,9 @@ def _session_cov(label: str) -> pd.DataFrame:
                                                                              "side_k"]].to_numpy()
         try:
             grid = (np.nan_to_num(t)[:, None] + FR_WIN[None, :]).ravel()
-            sig = fro.fr_signals(an, date, rv, grid, fdir=fdir, absolute=ce._fr_absolute(), blank=False)
-            for v in FR:
-                V = np.asarray(sig[v][1], float).reshape(len(t), len(FR_WIN))
+            FU = il.fr_unblanked(an, date, grid, rv)     # the shared UNBLANKED loader (rule 9; 10-28)
+            for j, v in enumerate(FR):
+                V = FU[:, j].reshape(len(t), len(FR_WIN))
                 ok = np.isfinite(V).sum(1) >= len(FR_WIN) / 2
                 R[v] = np.where(ok & np.isfinite(t), np.nanmean(np.where(np.isfinite(V), V, np.nan), 1), np.nan)
             R["fr_in_mask"] = fro.keep_mask(an, date, rv, np.nan_to_num(t))

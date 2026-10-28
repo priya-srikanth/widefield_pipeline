@@ -33,7 +33,9 @@ ALL THE ESTIMATORS ARE LINEAR, so per lick the baseline-subtracted response AUC 
   (f) F0 per Allen area: mean of `frames_average_atlas` (raw counts, both channels) over each area's stat-mask pixels,
       plus the whole-frame central-60 % mean of iti_f0_check; change vs pre per area.
   (g) global state: treadmill speed (DAQ, `behavior_events.session_speed`) in -1..+1 s around each lick and in the
-      baseline window; FaceRhythm |factor| in the same windows (the npz's bout_fr).
+      baseline window. (FaceRhythm is NOT read here -- an earlier line said "the npz's bout_fr", but no code used it, and
+      that field interpolates across the frozen encoder's blanked ITI anyway (10-28); the ITI face control is
+      iti_licks.controls, on the UNBLANKED read-out `iti_licks.fr_unblanked`.)
   (h) baseline / gap match: each post session's licks re-weighted so its no-lick GAP distribution (bins 2-3, 3-5, 5-10,
       10-20, >= 20 s) matches its animal's pooled pre distribution; response recomputed.
 

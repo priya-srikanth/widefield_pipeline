@@ -68,7 +68,6 @@ def _session_beh(label: str) -> pd.DataFrame:
     fr_in_mask. Kinematics joined on lick_uid -> exact DAQ peak time (as iti_where_decoder.coords)."""
     from wfield_local import config
     from wfield_local import face_rhythm_outputs as fro
-    from wfield_local import frozen_encoder as fe
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
@@ -80,8 +79,6 @@ def _session_beh(label: str) -> pd.DataFrame:
     K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid")
     kt = pd.DataFrame({c: K[c].to_numpy(float) for c in KIN}, index=A.daq_peak_s.to_numpy(float)[K.lick_uid.to_numpy(int)])
     kt = kt[~kt.index.duplicated()]
-    ce = fe._ce()
-    fdir = fro.factor_dir(rv, set_name=os.environ["COMBINED_ENCODING_FR"])
     out = []
     for st, tk in (("iti", "iti_t"), ("trial", "tr_t")):
         t = d[tk].astype(float)
@@ -89,9 +86,9 @@ def _session_beh(label: str) -> pd.DataFrame:
         R[KIN] = kt.reindex(t)[KIN].to_numpy()
         try:
             grid = (t[:, None] + FR_GRID[None, :]).ravel()
-            sig = fro.fr_signals(an, date, rv, grid, fdir=fdir, absolute=ce._fr_absolute(), blank=False)
-            for v in il.FR_KEEP:
-                V = np.asarray(sig[v][1], float).reshape(len(t), len(FR_GRID))
+            FU = il.fr_unblanked(an, date, grid, rv)     # the shared UNBLANKED loader (rule 9; 10-28)
+            for j, v in enumerate(il.FR_KEEP):
+                V = FU[:, j].reshape(len(t), len(FR_GRID))
                 for w, (lo_, hi_) in WINS.items():
                     W = V[:, (FR_GRID >= lo_) & (FR_GRID <= hi_)]
                     ok = np.isfinite(W).sum(1) >= W.shape[1] / 2

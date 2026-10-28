@@ -359,6 +359,9 @@ def extract(item) -> dict:
         tr = tr.iloc[np.sort(np.random.default_rng(0).choice(len(tr), N_TRIAL_MAX, replace=False))]
     # CONTROLS (Priya 10-26): FaceRhythm factors around each bout start (pre-lick face movement) and per trial in the
     # cue / first-lick windows (trial-to-trial variance of the lick factor, Fig 1.16); 3-D reach / speed per bout start
+    # !! 10-28: `bout_fr` below is NOT an ITI face measurement -- frozen_encoder._fr_columns BLANKS FaceRhythm outside
+    # strobe .. trial end and fr_at interpolates ACROSS those gaps. Kept in the session files as the legacy value; the
+    # controls read the UNBLANKED factors from `fr_unblanked` (cache fr_unblanked/<label>.npz, `fr_unblanked_session`).
     from wfield_local import frozen_encoder as fe
     from wfield_local.paths import PathResolver as _PR
     try:
@@ -393,6 +396,138 @@ def extract(item) -> dict:
         tr_X=_sample(R, ft, tr.daq_peak_s.to_numpy(float), LAGS_D).astype(f16), tr_side=tr.side_ml.to_numpy(float),
         tr_pos=tr.position.to_numpy(dtype=str), tr_t=tr.daq_peak_s.to_numpy(float))
     return {"label": label, "n_bout": int(bout.sum()), "n_iti": len(di), "n_first": len(fl), "clock_med_s": clock}
+
+
+# ------------------------------------------------------------------------------------------------ UNBLANKED FaceRhythm
+# (10-28, Priya "redo"). The frozen encoder models in-trial frames only, so `frozen_encoder._fr_columns` blanks the FR
+# factors outside position strobe .. trial end (`face_rhythm_outputs.keep_mask`); the session files' `bout_fr` then
+# np.interp'd ACROSS the blanked ITI stretches (only a few % of bout-start samples are inside unblanked frames), i.e.
+# it was interpolation, not measurement. ONE definition of the face read-out at arbitrary DAQ times (rule 9; also used
+# by lick_covariate_reference (5a) and lick_behaviour_decoder): `fr_signals(..., blank=False)` -- inside the trial
+# windows identical to the frozen encoder's values (checked: r = 0.999999 on PS92_0812, |diff| < 1e-2 SD at the 99th
+# pct.), outside them the FR projection's session samples (5 Hz in the ITI: a slower, smoother face read-out -- caveat).
+FRU_DIR = "fr_unblanked"          # <OUT_W>/fr_unblanked/<label>.npz (small; plot / controls stay fast)
+FRU_VERSION = 1
+
+
+def fr_unblanked(an: str, date: str, t, rv=None) -> np.ndarray:
+    """(len(t), len(FR_KEEP)) FaceRhythm master factors (frozen-encoder set COMBINED_ENCODING_FR, grouping
+    COMBINED_ENCODING_FR_GROUPS, the encoder's absolute flag) at DAQ times t, NOT blanked outside the trial windows.
+    NaN where the projection has no sample within fr_signals' max_gap. Raises FileNotFoundError without a projection."""
+    from wfield_local import face_rhythm_outputs as fro
+    from wfield_local import frozen_encoder as fe
+    from wfield_local.paths import PathResolver
+    rv = rv or PathResolver()
+    fdir = fro.factor_dir(rv, set_name=os.environ["COMBINED_ENCODING_FR"])
+    sig = fro.fr_signals(an, date, rv, np.asarray(t, float), fdir=fdir, absolute=fe._ce()._fr_absolute(), blank=False)
+    return np.column_stack([np.asarray(sig[v][1], float) for v in FR_KEEP])
+
+
+def _fru_key() -> str:
+    from wfield_local import frozen_encoder as fe
+    return (f"v{FRU_VERSION}|{os.environ.get('COMBINED_ENCODING_FR')}|{os.environ.get('COMBINED_ENCODING_FR_GROUPS')}"
+            f"|abs={fe._ce()._fr_absolute()}|{','.join(FR_KEEP)}")
+
+
+def subseq_match(ref: np.ndarray, val: np.ndarray) -> np.ndarray:
+    """Row of each value of `val` in `ref` by an ORDERED subsequence match on exact equality (val = ref with some rows
+    dropped, same order); -1 = unmatched."""
+    out, j = np.full(len(val), -1), 0
+    for i, v in enumerate(val):
+        while j < len(ref) and ref[j] != v:
+            j += 1
+        if j < len(ref):
+            out[i] = j
+            j += 1
+    return out
+
+
+def _first_lick_times(label: str, first_rt: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(cue_s, first lick onset) of the session file's first-lick rows, rebuilt with extract's rule (engaged trials,
+    first behaviour lick onset in cue .. stop) and matched to the stored first_rt (exact; NaN where unmatched)."""
+    B = _behaviour(label)
+    T = B.trials
+    bo = np.sort(np.asarray(B.lick_on_s, float)[np.isfinite(B.lick_on_s)])
+    Eg = T[T.engaged & np.isfinite(T.cue_s)]
+    cc, ff = [], []
+    for c, s in zip(Eg.cue_s.to_numpy(float), Eg.stop_s.to_numpy(float)):
+        s = s if np.isfinite(s) else c + 3.5
+        j = np.searchsorted(bo, c)
+        if j < len(bo) and bo[j] <= s:
+            cc.append(c); ff.append(bo[j])
+    cc, ff = np.asarray(cc, float), np.asarray(ff, float)
+    m = subseq_match(ff - cc, np.asarray(first_rt, float))
+    ok = m >= 0
+    return np.where(ok, cc[np.maximum(m, 0)] if len(cc) else np.nan, np.nan), \
+        np.where(ok, ff[np.maximum(m, 0)] if len(ff) else np.nan, np.nan)
+
+
+def fr_unblanked_session(label: str) -> dict:
+    """One session (module-level for spawn) -> <OUT_W>/fr_unblanked/<label>.npz: the UNBLANKED FR factors at the session
+    file's bout starts (bout_t + LAGS_P) and first-lick cue / lick windows (LAGS_FRC / LAGS_FRL), plus the frozen
+    encoder's keep mask at every sample (`*_in_mask`: True = the old blanked value was a measurement there too).
+    Cached; recomputed when the key (FR set / grouping / version) or the session file's bout_t changes."""
+    from wfield_local import config
+    from wfield_local import face_rhythm_outputs as fro
+    from wfield_local.paths import PathResolver
+    f = OUT_W / FRU_DIR / f"{label}.npz"
+    d = np.load(OUT / SESS_NAME / f"{label}.npz", allow_pickle=False)     # lazy: only bout_t / first_rt are read
+    bt = np.asarray(d["bout_t"], float)
+    if f.exists():
+        z = np.load(f, allow_pickle=False)
+        if str(z["key"]) == _fru_key() and np.array_equal(z["bout_t"], bt):
+            return {"label": label, "cached": True}
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    rv = PathResolver()
+    rt = np.asarray(d["first_rt"], float)
+    cue, fl = _first_lick_times(label, rt) if len(rt) else (np.zeros(0), np.zeros(0))
+    grids = [(bt[:, None] + LAGS_P[None, :]), (cue[:, None] + LAGS_FRC[None, :]), (fl[:, None] + LAGS_FRL[None, :])]
+    tt = np.concatenate([g.ravel() for g in grids])
+    fin = np.isfinite(tt)
+    F = np.full((len(tt), len(FR_KEEP)), np.nan)
+    km = np.zeros(len(tt), bool)
+    has = True
+    try:
+        F[fin] = fr_unblanked(an, date, tt[fin], rv)
+        km[fin] = fro.keep_mask(an, date, rv, tt[fin])
+    except FileNotFoundError as ex:                      # no FaceRhythm projection: NaN (as extract's placeholder)
+        print(f"  {label}: no FaceRhythm ({ex})", flush=True)
+        has = False
+    out, i0 = {}, 0
+    for name, g in zip(("bout", "first_cue", "first_lick"), grids):
+        n = g.size
+        out[f"{name}_fr"] = F[i0:i0 + n].reshape(*g.shape, len(FR_KEEP)).astype(np.float32)
+        out[f"{name}_in_mask"] = km[i0:i0 + n].reshape(g.shape)
+        i0 += n
+    f.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(f, key=_fru_key(), bout_t=bt, fr_names=np.array(FR_KEEP), has_fr=has,
+                        first_matched=np.isfinite(fl), **out)
+    return {"label": label, "cached": False, "has_fr": has, "n_bout": len(bt), "n_first": len(rt),
+            "first_matched": int(np.isfinite(fl).sum())}
+
+
+def attach_fr_unblanked(D: dict, jobs: int | None = None) -> dict:
+    """Compute (fan-out, cached) and attach the unblanked FR to every loaded session dict: bout_fr_ub, bout_fr_in_mask,
+    first_fr_cue_ub / first_fr_lick_ub (+ _in_mask), first_matched. The legacy interpolated arrays (bout_fr,
+    first_fr_cue, first_fr_lick) stay as they are, for the old-vs-new comparison."""
+    from wfield_local import analysis_kit as ak
+    labs = sorted(D)
+    got, fail = ak.fan_sessions(labs, fr_unblanked_session, jobs=jobs, label="fr_unblanked")
+    if fail:
+        raise RuntimeError(f"fr_unblanked failed for {len(fail)} sessions: {fail[:5]}")
+    nnew = sum(not r.get("cached") for _it, r in got)
+    print(f"[fr_unblanked] {len(labs)} sessions ({nnew} computed, {len(labs) - nnew} cached) -> {OUT_W / FRU_DIR}",
+          flush=True)
+    for x in labs:
+        z = np.load(OUT_W / FRU_DIR / f"{x}.npz", allow_pickle=False)
+        d = D[x]
+        if list(z["fr_names"]) != list(d["fr_names"]):
+            raise RuntimeError(f"{x}: fr_unblanked factor order {list(z['fr_names'])} != session {list(d['fr_names'])}")
+        d["bout_fr_ub"], d["bout_fr_in_mask"] = z["bout_fr"], z["bout_in_mask"]
+        d["first_fr_cue_ub"], d["first_fr_cue_in_mask"] = z["first_cue_fr"], z["first_cue_in_mask"]
+        d["first_fr_lick_ub"], d["first_fr_lick_in_mask"] = z["first_lick_fr"], z["first_lick_in_mask"]
+        d["first_matched"] = z["first_matched"]
+    return D
 
 
 # ------------------------------------------------------------------------------------------------ summaries
@@ -1405,9 +1540,12 @@ def _per_lick(d: dict, roi: str, w=(0.1, 0.4)) -> np.ndarray:
     return P[:, (LAGS_P >= w[0]) & (LAGS_P <= w[1])].mean(1)
 
 
-def _per_lick_fr(d: dict, k: int, w) -> np.ndarray:
+def _per_lick_fr(d: dict, k: int, w, key: str = "bout_fr_ub") -> np.ndarray:
+    """Per bout-start (gap >= GAP_MAIN) baseline-subtracted mean of FR factor k in window w. key = "bout_fr_ub" (the
+    UNBLANKED face read-out, `attach_fr_unblanked`; 10-28) or "bout_fr" (the legacy values interpolated across the
+    blanked ITI -- old-vs-new comparison only)."""
     m = d["bout_gap"] >= GAP_MAIN
-    F = d["bout_fr"][m].astype(float)[:, :, k]
+    F = d[key][m].astype(float)[:, :, k]
     F = F - np.nanmean(F[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1])], 1, keepdims=True)
     return np.nanmean(F[:, (LAGS_P >= w[0]) & (LAGS_P <= w[1])], 1)
 
@@ -1444,12 +1582,41 @@ def _more_kin(label: str, t_on: np.ndarray) -> pd.DataFrame:
     return out
 
 
-def controls(D: dict, RR: pd.DataFrame) -> None:
+def _pre_adjust(L: pd.DataFrame, y: str, cols: list, min_n: int) -> np.ndarray:
+    """y minus the per-animal PRE-lick linear fit on cols (+ the pre intercept); NaN for animals with < min_n complete pre
+    licks or rows with a missing covariate."""
+    adj = np.full(len(L), np.nan)
+    if not cols:
+        return adj
+    for _a, g in L.groupby("animal"):
+        pre = g[g.epoch == "pre"].dropna(subset=[y, *cols])
+        if len(pre) < min_n:
+            continue
+        Xp = np.column_stack([np.ones(len(pre)), *[pre[c] for c in cols]])
+        beta = np.linalg.lstsq(Xp, pre[y].to_numpy(), rcond=None)[0]
+        ok = g[cols].notna().all(1)
+        Xg = np.column_stack([np.ones(ok.sum()), *[g[c][ok] for c in cols]])
+        adj[g.index[ok]] = g[y][ok].to_numpy() - Xg @ beta + beta[0]
+    return adj
+
+
+# FR quantities of the two control figures compared old (interpolated across the blanked ITI) vs new (unblanked)
+_FR_ADJ = ("adjfr", "adjfull", "earlyadj")
+# fr_lick_variance (page 3.4) inputs: the in-trial cue / first-lick windows. "legacy" = the session files' first_fr_*
+# (frozen-encoder FR, interpolated where blanked), "unblanked" = the shared loader. FRVAR_FIG = the one the figure uses.
+FRVAR_SRC = {"legacy": "", "unblanked": "_ub"}
+FRVAR_FIG = "legacy"
+
+
+def controls(D: dict, RR: pd.DataFrame, jobs: int | None = None) -> None:
     """Kinematics / face / FR-variance controls: compute every regression + test, save one figdata file per figure,
-    then draw (`controls_plot` redraws them from the figdata alone)."""
+    then draw (`controls_plot` redraws them from the figdata alone). FaceRhythm = the UNBLANKED read-out
+    (`attach_fr_unblanked`, 10-28); the legacy interpolated values are carried as *_interp columns and written to
+    controls_fr_interp_vs_unblanked{,_tests}.csv for the old-vs-new comparison."""
     from figdata import save_fd
     rng = np.random.default_rng(2)
     D = {x: d for x, d in D.items() if (d["bout_gap"] >= GAP_MAIN).sum() >= 10 and "bout_reach" in d}
+    attach_fr_unblanked(D, jobs)
     pa = RR[(RR.kind == "iti_bout") & (RR.epoch == "pre")].groupby(["roi", "animal"]).amp.mean()
     # per-lick table
     L = []
@@ -1467,8 +1634,21 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
         for k, v in enumerate(names):
             base[f"{v}_pre"] = _per_lick_fr(d, k, (-0.6, -0.2))
             base[f"{v}_post"] = _per_lick_fr(d, k, (0.1, 0.4))
+            base[f"{v}_pre_interp"] = _per_lick_fr(d, k, (-0.6, -0.2), "bout_fr")
+            base[f"{v}_post_interp"] = _per_lick_fr(d, k, (0.1, 0.4), "bout_fr")
+        # share of each window's samples inside the frozen encoder's keep mask (= where the legacy value was measured)
+        im = d["bout_fr_in_mask"][m]
+        for wn, (w0, w1) in (("base", BASE), ("pre", (-0.6, -0.2)), ("post", (0.1, 0.4))):
+            base[f"inmask_{wn}"] = im[:, (LAGS_P >= w0) & (LAGS_P <= w1)].mean(1)
         L.append(base)
     L = pd.concat(L, ignore_index=True)
+    print("\n== FaceRhythm at bout-start ITI licks: share of window samples inside the frozen encoder's keep mask "
+          "(the legacy bout_fr was a measurement only there), per animal x epoch\n"
+          + L.groupby(["animal", "epoch"])[["inmask_base", "inmask_pre", "inmask_post"]].mean().unstack()
+          .reindex(columns=EP4, level=1).round(3).to_string())
+    fin = {v: np.isfinite(L[f"{v}_pre"]) & np.isfinite(L[f"{v}_post"]) for v in FR_KEEP}
+    print("   licks with a finite UNBLANKED FR value (pre and post windows), per factor: "
+          + ", ".join(f"{v} {fin[v].mean():.3f}" for v in FR_KEEP), flush=True)
     # z-scores of kinematics / face within animal, against the animal's PRE licks
     for c in ["reach", "speed", "side_ml", "out_ap", "down_dv", "dur_ms", "retract", *[c for c in L if c.startswith("fr_")]]:
         mu = L[L.epoch == "pre"].groupby("animal")[c].mean()
@@ -1494,36 +1674,16 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
         L[f"matched_{roi}"] = np.where(matched, L[f"amp_{roi}"], np.nan)
     # (1b) the same regression with post-onset FACE movement added (Priya 10-26: "add FR adjustment"): reach + speed +
     # FaceRhythm lick / right / left factors in the response window (0.1..0.4 s), per animal on PRE licks
-    fcols = [c for c in ("z_fr_lick_post", "z_fr_right_post", "z_fr_left_post") if c in L]
-    for roi in CTRL_ROIS:
-        adj = np.full(len(L), np.nan)
-        cols = ["z_reach", "z_speed", *fcols]
-        for _a, g in L.groupby("animal"):
-            pre = g[g.epoch == "pre"].dropna(subset=[f"amp_{roi}", *cols])
-            if len(pre) < 30:
-                continue
-            Xp = np.column_stack([np.ones(len(pre)), *[pre[c] for c in cols]])
-            beta = np.linalg.lstsq(Xp, pre[f"amp_{roi}"].to_numpy(), rcond=None)[0]
-            ok = g[cols].notna().all(1)
-            Xg = np.column_stack([np.ones(ok.sum()), *[g[c][ok] for c in cols]])
-            adj[g.index[ok]] = g[f"amp_{roi}"][ok].to_numpy() - Xg @ beta + beta[0]
-        L[f"adjfr_{roi}"] = adj
-    # (1c) FULL tongue kinematics (3-D position, reach, speed, duration, retraction) + post-onset face, per animal on PRE
-    full = ["z_reach", "z_speed", "z_side_ml", "z_out_ap", "z_down_dv", "z_dur_ms", "z_retract", *fcols]
-    for roi in CTRL_ROIS:
-        adj = np.full(len(L), np.nan)
-        for _a, g in L.groupby("animal"):
-            pre = g[g.epoch == "pre"].dropna(subset=[f"amp_{roi}", *full])
-            if len(pre) < 60:
-                continue
-            Xp = np.column_stack([np.ones(len(pre)), *[pre[c] for c in full]])
-            beta = np.linalg.lstsq(Xp, pre[f"amp_{roi}"].to_numpy(), rcond=None)[0]
-            ok = g[full].notna().all(1)
-            Xg = np.column_stack([np.ones(ok.sum()), *[g[c][ok] for c in full]])
-            adj[g.index[ok]] = g[f"amp_{roi}"][ok].to_numpy() - Xg @ beta + beta[0]
-        L[f"adjfull_{roi}"] = adj
+    # (1c) FULL tongue kinematics (3-D position, reach, speed, duration, retraction) + post-onset face, per animal on PRE.
+    # Both with the UNBLANKED face (canonical columns) and the legacy interpolated one (*_interp, comparison only).
+    kin_full = ["z_reach", "z_speed", "z_side_ml", "z_out_ap", "z_down_dv", "z_dur_ms", "z_retract"]
+    for sfx in ("", "_interp"):
+        fcols = [c for c in (f"z_fr_lick_post{sfx}", f"z_fr_right_post{sfx}", f"z_fr_left_post{sfx}") if c in L]
+        for roi in CTRL_ROIS:
+            L[f"adjfr{sfx}_{roi}"] = _pre_adjust(L, f"amp_{roi}", ["z_reach", "z_speed", *fcols], 30)
+            L[f"adjfull{sfx}_{roi}"] = _pre_adjust(L, f"amp_{roi}", [*kin_full, *fcols], 60)
     S = L.groupby(["label", "animal", "epoch"]).mean(numeric_only=True).reset_index()
-    S.to_csv(OUT / "controls_sessions.csv", index=False)
+    S.drop(columns=[c for c in S if "_interp" in c]).to_csv(OUT_W / "controls_sessions.csv", index=False)
     print("\n== per animal (rule 8): 3-D reach (mm) / peak speed of bout-start ITI licks, session means\n"
           + S.pivot_table(index="animal", columns="epoch", values=["reach", "speed"]).reindex(columns=EP4, level=1)
           .round(2).to_string())
@@ -1555,21 +1715,12 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
                    "adj_full")
     save_fd("lick_iti_kinematics_control", {"panels": A, "off": [(0, 4), (0, 5)]})
     # figure B: face movement before / after the lick, and build-up adjusted for it
-    for roi in CTRL_ROIS:
-        adj = np.full(len(L), np.nan)
-        cols = [c for c in ("z_fr_lick_pre", "z_fr_right_pre", "z_fr_left_pre") if c in L]
-        for _a, g in L.groupby("animal"):
-            pre = g[g.epoch == "pre"].dropna(subset=[f"early_{roi}", *cols])
-            if len(pre) < 30 or not cols:
-                continue
-            Xp = np.column_stack([np.ones(len(pre)), *[pre[c] for c in cols]])
-            beta = np.linalg.lstsq(Xp, pre[f"early_{roi}"].to_numpy(), rcond=None)[0]
-            ok = g[cols].notna().all(1)
-            Xg = np.column_stack([np.ones(ok.sum()), *[g[c][ok] for c in cols]])
-            adj[g.index[ok]] = g[f"early_{roi}"][ok].to_numpy() - Xg @ beta + beta[0]
-        L[f"earlyadj_{roi}"] = adj
+    for sfx in ("", "_interp"):
+        cols = [c for c in (f"z_fr_lick_pre{sfx}", f"z_fr_right_pre{sfx}", f"z_fr_left_pre{sfx}") if c in L]
+        for roi in CTRL_ROIS:
+            L[f"earlyadj{sfx}_{roi}"] = _pre_adjust(L, f"early_{roi}", cols, 30)
     S = L.groupby(["label", "animal", "epoch"]).mean(numeric_only=True).reset_index()
-    S.to_csv(OUT / "controls_sessions.csv", index=False)
+    S.drop(columns=[c for c in S if "_interp" in c]).to_csv(OUT_W / "controls_sessions.csv", index=False)
     B = []
     fr_items = [(f"z_{v}_pre", f"{v} BEFORE the lick (-0.6..-0.2 s), z", 0) for v in FR_KEEP if f"z_{v}_pre" in S]
     B += panel_row([(0, c) for c in range(len(fr_items))], fr_items, "face_pre")
@@ -1585,22 +1736,30 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
         if "first_fr_cue" not in d or not len(d["first_rt"]):
             continue
         pos = d["first_pos"]
-        for wname, key in (("cue", "first_fr_cue"), ("lick", "first_fr_lick")):
-            A_ = d[key].astype(float)
-            for k, v in enumerate(d["fr_names"]):
-                Y = A_[:, :, k]
-                if np.isnan(Y).all():
-                    continue
-                R = Y - np.nanmean(Y, 0, keepdims=True)
-                W_ = Y.copy()
-                for q in np.unique(pos):
-                    m = pos == q
-                    W_[m] = Y[m] - np.nanmean(Y[m], 0, keepdims=True)
-                V.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "window": wname, "factor": v,
-                          "var_within": float(np.nanvar(W_)), "var_total": float(np.nanvar(R)),
-                          "mean": float(np.nanmean(Y))})
-    V = pd.DataFrame(V)
-    V.to_csv(OUT / "fr_variance_sessions.csv", index=False)
+        for src, sfx in FRVAR_SRC.items():
+            for wname, key in (("cue", "first_fr_cue"), ("lick", "first_fr_lick")):
+                A_ = d[key + sfx].astype(float)
+                inm = float(d[key + "_in_mask"].mean()) if d[key + "_in_mask"].size else np.nan
+                for k, v in enumerate(d["fr_names"]):
+                    Y = A_[:, :, k]
+                    if np.isnan(Y).all():
+                        continue
+                    R = Y - np.nanmean(Y, 0, keepdims=True)
+                    W_ = Y.copy()
+                    for q in np.unique(pos):
+                        m = pos == q
+                        W_[m] = Y[m] - np.nanmean(Y[m], 0, keepdims=True)
+                    V.append({"src": src, "label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]),
+                              "window": wname, "factor": v, "var_within": float(np.nanvar(W_)),
+                              "var_total": float(np.nanvar(R)), "mean": float(np.nanmean(Y)), "in_mask": inm,
+                              "matched": float(np.mean(d["first_matched"])) if len(d["first_matched"]) else np.nan})
+    VA = pd.DataFrame(V)
+    print("\n== first-lick cue / lick windows (fr_lick_variance): share of samples inside the frozen encoder's keep mask, "
+          "per animal x epoch (first-lick rows re-matched to the session file: "
+          f"{VA.matched.mean():.4f})\n" + VA[VA.src == FRVAR_FIG].groupby(["window", "animal", "epoch"]).in_mask.mean()
+          .unstack().reindex(columns=EP4).round(4).to_string())
+    V = VA[VA.src == FRVAR_FIG].drop(columns=["src", "in_mask", "matched"])
+    V.to_csv(OUT_W / "fr_variance_sessions.csv", index=False)
     C, offC = [], []
     for i, wname in enumerate(("cue", "lick")):
         for j, (fac, val) in enumerate((("fr_lick", "var_within"), ("fr_lick", "var_total"), ("fr_lick", "mean"),
@@ -1617,8 +1776,61 @@ def controls(D: dict, RR: pd.DataFrame) -> None:
     save_fd("fr_lick_variance", {"panels": C, "off": offC})
     controls_plot()
     T = pd.DataFrame(tests)
-    T.to_csv(OUT / "controls_tests.csv", index=False)
+    T.to_csv(OUT_W / "controls_tests.csv", index=False)
     print("\n== controls: change vs pre (nested bootstrap animals > sessions)\n" + T.round(3).to_string(index=False))
+    fr_compare(L, S, VA)
+
+
+def fr_compare(L: pd.DataFrame, S: pd.DataFrame, VA: pd.DataFrame) -> None:
+    """OLD (legacy bout_fr / first_fr_*: interpolated across the blanked ITI) vs NEW (unblanked) FaceRhythm, for every FR
+    quantity of figures 14.6 / 14.7 / 3.4: per animal x epoch (mean of session means; rule 8) and the pooled
+    change-vs-pre test (the figures' dots_compute; its bootstrap is seeded independently of the jitter rng).
+    -> <OUT_W>/controls_fr_interp_vs_unblanked.csv, controls_fr_interp_vs_unblanked_tests.csv."""
+    rng = np.random.default_rng(2)
+    q = [(f"z_{v}_{w}", f"z_{v}_{w}_interp") for v in FR_KEEP for w in ("pre", "post")]
+    q += [(f"{a}_{r}", f"{a}_interp_{r}") for a in _FR_ADJ for r in CTRL_ROIS]
+    rows, tests = [], []
+    for new, old in q:
+        for (an, ep), g in S.groupby(["animal", "epoch"]):
+            rows.append({"figure": "14.7 face" if new.startswith(("z_", "earlyadj")) else "14.6 kinematics",
+                         "quantity": new, "animal": an, "epoch": ep, "old_interp": g[old].mean(), "new_unblanked": g[new].mean(),
+                         "n_sessions_old": int(g[old].notna().sum()), "n_sessions_new": int(g[new].notna().sum())})
+        for src, col in (("old_interp", old), ("new_unblanked", new)):
+            for r_ in dots_compute(S, col, rng)["tests"]:
+                tests.append({"quantity": new, "src": src, **{k: v for k, v in r_.items() if k != "value"}})
+    for fac in ("fr_lick", "fr_right"):
+        for wname in ("cue", "lick"):
+            for val in ("var_within", "var_total", "mean"):
+                T_ = {}
+                for src in FRVAR_SRC:
+                    Tq = VA[(VA.src == src) & (VA.window == wname) & (VA.factor == fac)].copy()
+                    if Tq.empty:
+                        continue
+                    Tq["norm"] = _norm_to_pre(Tq, val)
+                    T_[src] = Tq
+                    for r_ in dots_compute(Tq, "norm", rng)["tests"]:
+                        tests.append({"quantity": f"frvar_{wname}_{fac}_{val}", "src": src,
+                                      **{k: v for k, v in r_.items() if k != "value"}})
+                if len(T_) == 2:
+                    a_, b_ = (T_[s].groupby(["animal", "epoch"]).norm.mean() for s in ("legacy", "unblanked"))
+                    for (an, ep), v in a_.items():
+                        rows.append({"figure": "3.4 fr variance", "quantity": f"frvar_{wname}_{fac}_{val}", "animal": an,
+                                     "epoch": ep, "old_interp": v, "new_unblanked": b_.get((an, ep), np.nan)})
+    C = pd.DataFrame(rows)
+    C.to_csv(OUT_W / "controls_fr_interp_vs_unblanked.csv", index=False)
+    TT = pd.DataFrame(tests)
+    TT.to_csv(OUT_W / "controls_fr_interp_vs_unblanked_tests.csv", index=False)
+    W = TT.pivot_table(index=["quantity", "epoch"], columns="src", values=["delta", "lo", "hi"])
+    W.columns = [f"{b}_{a}" for a, b in W.columns]
+    W = W.reset_index()
+    for s in ("old_interp", "new_unblanked"):
+        if f"lo_{s}" in W:
+            W[f"sig_{s}"] = (W[f"lo_{s}"] > 0) | (W[f"hi_{s}"] < 0)
+    print("\n== FaceRhythm OLD (interpolated) vs NEW (unblanked): change vs pre, pooled nested bootstrap\n"
+          + W.round(3).to_string(index=False))
+    print("\n== per animal (rule 8), old -> new, mean of session means\n"
+          + C.pivot_table(index=["quantity", "animal"], columns="epoch", values=["old_interp", "new_unblanked"])
+          .round(3).to_string(), flush=True)
 
 
 CTRL_FIGS = {   # figdata stem: (grid, figsize, tight rect, ylabels {(row, col): text}, suptitle)
@@ -1627,12 +1839,14 @@ CTRL_FIGS = {   # figdata stem: (grid, figsize, tight rect, ylabels {(row, col):
         "NEURAL + LICK: does the larger post-onset response to self-initiated licks follow bigger / faster licks? Row 1: "
         "3-D reach and peak speed of the same bout-start ITI licks (one dot per session). Row 2: post-onset response "
         "after regressing out reach + speed (per-animal fit on PRE licks; residual + pre intercept). Row 3: only post "
-        "licks inside the animal's pre 10-90 % reach AND speed range. Row 4: as row 2 with post-onset face movement (FaceRhythm lick, right, left factors, 0.1..0.4 s) added to the regression. Row 5: FULL tongue kinematics (3-D lateral / outward / height, reach, peak speed, lick duration, retraction speed) + the same face factors. Jaw kinematics are not in the per-lick tables yet. * = nested-bootstrap change from pre."),
+        "licks inside the animal's pre 10-90 % reach AND speed range. Row 4: as row 2 with post-onset face movement (FaceRhythm lick, right, left factors, 0.1..0.4 s) added to the regression. Row 5: FULL tongue kinematics (3-D lateral / outward / height, reach, peak speed, lick duration, retraction speed) + the same face factors. Jaw kinematics are not in the per-lick tables yet. Face = FaceRhythm read UNBLANKED in the ITI (10-28; previously interpolated across the encoder's blanked ITI). * = nested-bootstrap change from pre."),
     "lick_iti_face_control": (
         (3, 6), (21, 11), (0.01, 0, 0.99, 0.92), {(2, 0): "/ animal's pre amplitude"},
         "NEURAL + FACE: face movement (FaceRhythm master factors, z vs each animal's pre licks) before and after "
         "self-initiated licks, one dot per session; row 3: the early build-up after regressing out pre-lick face "
-        "movement (fr_lick, fr_right, fr_left; per-animal fit on PRE licks). * = nested-bootstrap change from pre."),
+        "movement (fr_lick, fr_right, fr_left; per-animal fit on PRE licks). FaceRhythm read UNBLANKED in the ITI (the "
+        "projection's 5 Hz session samples; before 10-28 these values were interpolated across the encoder's blanked "
+        "ITI). * = nested-bootstrap change from pre."),
     "fr_lick_variance": (
         (2, 4), (16, 8), (0.01, 0, 0.99, 0.91), {},
         "FACE: trial-to-trial variability of the FaceRhythm lick factor in the encoder's cue (0..1.5 s) and first-lick "
@@ -1666,7 +1880,8 @@ def controls_plot(only: tuple = tuple(CTRL_FIGS)) -> None:
             axs[i, j].set_ylabel(t)
         fig.suptitle(title, fontsize=9.5, wrap=True)
         fig.tight_layout(rect=rect)
-        fig.savefig(OUT / "figures" / f"{stem}.png", dpi=110)
+        (OUT_W / "figures").mkdir(parents=True, exist_ok=True)
+        fig.savefig(OUT_W / "figures" / f"{stem}.png", dpi=110)
         plt.close(fig)
 
 
@@ -1896,7 +2111,8 @@ def main(argv=None) -> int:
             binned_plot()
         return 0
     assert_writable(OUT)
-    (OUT / SESS_NAME).mkdir(parents=True, exist_ok=True)
+    if not (OUT / SESS_NAME).is_dir():                  # (no mkdir call when it exists: the dev write guard refuses any)
+        (OUT / SESS_NAME).mkdir(parents=True, exist_ok=True)
     run = E / "frozen_encoder_gate-attempted_v7g3_t3d_frA" / "joint" / "sessions"
     labels = sorted(a.labels or (p.stem for p in run.glob("*.json")))
     labels = [x for x in labels if x[-4:] >= "0801"]
@@ -1918,7 +2134,7 @@ def main(argv=None) -> int:
         return 0
     if a.controls:
         D = {x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}
-        controls(D, pd.read_csv(OUT / "ramp_sessions.csv"))
+        controls(D, pd.read_csv(OUT / "ramp_sessions.csv"), jobs=a.jobs)
         return 0
     if a.key:
         D = {x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}
