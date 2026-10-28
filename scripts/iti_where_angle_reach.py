@@ -37,6 +37,9 @@ from wfield_local import analysis_kit as ak  # noqa: E402
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["acute", "subacute", "chronic"]
 EPS = ["pre", *EP]
+# optional callable(set, animal, {label: (epoch, X scaled, Y (ang, reach, elev, sag), pos)}, {held-out pre label | None:
+# (scaler, [ridge per coordinate])}): lick_offset_contrib_map.py --coord angle reach (the frozen fit + scaled features)
+CONTRIB_HOOK = None
 
 
 def predictions() -> pd.DataFrame:
@@ -69,6 +72,8 @@ def predictions() -> pd.DataFrame:
                 sc = StandardScaler().fit(Xt)
                 fits[held] = (sc, [RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), Yt[:, k])
                                    for k in range(3)])
+            if CONTRIB_HOOK is not None:
+                CONTRIB_HOOK(st, a, S, fits)
             for x, (ep, X, Y, P) in S.items():
                 sc, ms = fits[x if x in pre else None]
                 Pr = np.column_stack([m.predict(sc.transform(X)) for m in ms])
