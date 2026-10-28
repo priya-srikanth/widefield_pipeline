@@ -127,7 +127,9 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
             for _a, h in g.groupby("animal"):
                 am = h.groupby("epoch")[term].mean().reindex(EPS)
                 ax.plot(range(4), am, "-", color="0.75", lw=0.8)
-            lv = g.groupby("epoch")[term].mean().reindex(EPS)
+            # MEAN OF ANIMALS (the quantity the printed change tests), not a flat mean over sessions (Priya 10-28 caught
+            # dots and text disagreeing)
+            lv = g.groupby(["epoch", "animal"])[term].mean().groupby("epoch").mean().reindex(EPS)
             ax.plot(range(4), lv, "o", color="k", ms=0)
             for k, ep in enumerate(EPS):
                 ax.plot(k, lv[ep], "o", color=col[ep], ms=7, mec="k", mew=0.5)

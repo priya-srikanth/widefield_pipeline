@@ -160,12 +160,18 @@ def plot(D: dict) -> None:
         for r_ in axs[:, j]:
             for s_ in ("top", "right"):
                 r_.spines[s_].set_visible(False)
-    axs[0, 0].legend(fontsize=7, frameon=False, loc="center left")
+    # one figure-level legend of the SHAPES (colour = epoch) above the panels, never on the data (Priya 10-28)
+    from matplotlib.lines import Line2D
+    fig.legend([Line2D([], [], ls="", marker=m_, mfc="0.7", mec="k", ms=7) for m_ in "oDs"],
+               ["left-target licks", "far-R (contralesional) licks landing LEFT", "far-R licks on target"],
+               loc="upper center", bbox_to_anchor=(0.5, 0.905), ncol=3, fontsize=8, frameon=False,
+               title="shape = lick group; colour = epoch (pre black, acute pink, subacute gold, chronic green)",
+               title_fontsize=8)
     fig.suptitle("MISDIRECTED far-contra (far R) cued licks that land LEFT: left-lick or right-lick cortex? Row 1: score on "
                  "the animal's pre templates (left-target vs on-target far-R licks, Allen areas + ALM / tjM1 split, z-scored);\nrow 2: frozen "
                  "lateral decoder vs left-target licks with the same landing, same session. Lesion LEFT; far R = "
                  "contralesional. PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
     fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=100)
     plt.close(fig)
 
