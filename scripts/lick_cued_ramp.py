@@ -13,6 +13,9 @@ Sessions with >= MIN_N first licks; per-spout cells >= MIN_SPOUT licks.
   (-0.4..-0.05 s) overlaps the CUE response -- not a self-paced build-up. Baselines: lick-aligned -1.5..-1.0 s before the
   lick (before the cue for reaction times < 1 s, the large majority); cue-aligned -1.0..-0.5 s before the cue (the spout has
   been in place ~2-3 s).
+Also (Priya 10-28): row 3 of each PETH figure = difference from the animal's own pre curve (/ its pre peak); a masked
+RATIO-to-pre supplement; a response-WINDOW sensitivity (0..0.3 / 0..0.5 / 0..1.0 / 0..1.5 s, peak) for cued and ITI licks;
+the ITI bout starts on the same -2..+3 s window (lick_iti_ramp_wide.png, validated against the stored bout_peth).
 Figures (figdata + --plot-only):
   lick_cued_ramp_sessions.png         lick-aligned per-session PETH -2..+3 s, mean +- SEM over sessions; row 2 / the
                                       animal's PRE response AUC; per-bin tests (sig bars, -2..+3 s)
@@ -57,7 +60,9 @@ def wide_session(label: str) -> dict:
     f = il.OUT_W / WIDE / f"{label}.npz"
     if f.exists():
         z = np.load(f)
-        return {"label": label, "cached": True, "n": int(len(z["pos"])), "maxdiff": float(z["maxdiff"])}
+        if "iti" in z.files:                              # files from before the ITI arrays (10-28) are rebuilt
+            return {"label": label, "cached": True, "n": int(len(z["pos"])), "maxdiff": float(z["maxdiff"]),
+                    "maxdiff_iti": float(z["maxdiff_iti"])}
     from wfield_local import combined_encoding as ce
     d = il._load(label)
     cue, fl = il._first_lick_times(label, d["first_rt"])
@@ -84,11 +89,18 @@ def wide_session(label: str) -> dict:
         X[out] = np.nan                                   # no clamped values at the recording edges
         return X.astype(np.float16)
 
+    # ITI bout starts (Priya 10-28: the longer response windows for the ITI figures too): every stored bout start, with
+    # its gap and following-lick count so the figure applies the same selection as 14.1 (gap >= GAP_MAIN)
+    bt = np.asarray(d["bout_t"], float)
+    bchk = il._sample(R, ft, bt, il.LAGS_P)
+    maxdiff_iti = float(np.nanmax(np.abs(bchk - np.asarray(d["bout_peth"], float)))) if len(bt) else np.nan
     f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, lick=samp(fl[ok]), cue=samp(cue[ok]), pos=np.asarray(d["first_pos"], str)[ok],
-                        cols=np.array(cols), lags=LAGS_W, maxdiff=maxdiff, scale=scale, n_unmatched=int((~ok).sum()))
-    return {"label": label, "cached": False, "n": int(ok.sum()), "maxdiff": maxdiff, "scale": scale,
-            "n_unmatched": int((~ok).sum())}
+                        iti=samp(bt), iti_gap=np.asarray(d["bout_gap"], float), iti_nfol=np.asarray(d["bout_nfol"]),
+                        cols=np.array(cols), lags=LAGS_W, maxdiff=maxdiff, maxdiff_iti=maxdiff_iti, scale=scale,
+                        n_unmatched=int((~ok).sum()))
+    return {"label": label, "cached": False, "n": int(ok.sum()), "maxdiff": maxdiff, "maxdiff_iti": maxdiff_iti,
+            "scale": scale, "n_unmatched": int((~ok).sum())}
 
 
 def extract(jobs: int | None) -> None:
@@ -97,6 +109,7 @@ def extract(jobs: int | None) -> None:
     res, fails = ak.fan_sessions(labs, wide_session, jobs=jobs)
     V = pd.DataFrame([v for _x, v in res])
     print(V.to_string(index=False))
+    print(f"== validation ITI: max |re-sampled - stored bout_peth| = {V.maxdiff_iti.max():.4f}")
     print(f"== validation: max |re-sampled - stored first_peth| = {V.maxdiff.max():.4f} (dF/F x1e3; traces span up to "
           f"{V.get('scale', pd.Series([np.nan])).max():.1f}); unmatched first licks {int(V.get('n_unmatched', pd.Series([0])).sum())}")
     if fails:
@@ -104,6 +117,15 @@ def extract(jobs: int | None) -> None:
 
 
 # ------------------------------------------------------------------------------------------------------------ COMPUTE
+# three trace sets: cued first lick (lick-aligned), the same trials cue-aligned, ITI bout starts (gap >= GAP_MAIN, as 14.1)
+TSETS = {"cued": ("lick", BASE_L, "time from first cued lick onset (s)"),
+         "cue": ("cue", BASE_C, "time from cue (s)"),
+         "iti": ("iti", BASE_L, "time from ITI bout-start lick onset (s)")}
+# response-window sensitivity (Priya 10-28: "add a longer 0-1.5 also"); peak = max of the session PETH in 0..1.5 s
+WINDOWS = ((0.0, 0.3), (0.0, 0.5), (0.0, 1.0), (0.0, 1.5))
+RATIO_MIN = 0.2       # masked ratio: shown only where the pre curve is >= 20 % of its peak
+
+
 def _auc(v: np.ndarray, lags: np.ndarray, t0: float, t1: float) -> float:
     m = (lags >= t0 - 1e-9) & (lags <= t1 + 1e-9)
     return float(np.trapezoid(v[m], lags[m]))
@@ -116,9 +138,13 @@ def _sessions() -> dict:
         if not f.exists():
             raise SystemExit(f"missing {f}: run --extract first")
         z = np.load(f)
+        if "iti" not in z.files:
+            raise SystemExit(f"{f} predates the ITI arrays: re-run --extract")
         d = il._load(x)
+        keep = z["iti_gap"] >= il.GAP_MAIN
         D[x] = {"lick": z["lick"].astype(float), "cue": z["cue"].astype(float), "pos": z["pos"],
-                "cols": list(z["cols"]), "animal": str(d["animal"]), "epoch": str(d["epoch"])}
+                "iti": z["iti"].astype(float)[keep], "cols": list(z["cols"]), "animal": str(d["animal"]),
+                "epoch": str(d["epoch"])}
     return D
 
 
@@ -137,36 +163,101 @@ def _pe(D: dict, key: str, base: tuple, rois: list, pos: str | None = None, min_
     return pd.DataFrame(rows)
 
 
+def _pre_curve(PE: pd.DataFrame) -> dict:
+    """{(roi, animal): the animal's mean PRE session curve} (raw, baseline-subtracted)."""
+    pre = PE[PE.epoch == "pre"]
+    return {k: np.nanmean(np.stack(g.peth.to_numpy()), 0) for k, g in pre.groupby(["roi", "animal"])}
+
+
 def _curves(PE: pd.DataFrame, den: dict, rois: list, test: bool = True) -> tuple[dict, list]:
+    """Rows: 0 raw; 1 / the animal's pre response AUC (0..0.5 s); 2 DIFFERENCE from the animal's own pre curve, in units
+    of that pre curve's peak (0..1.5 s) -- the per-time change the significance bars test (Priya 10-28)."""
+    pc = _pre_curve(PE) if len(PE) else {}
+    pk = {k: np.nanmax(v[(LAGS_W >= 0) & (LAGS_W <= 1.5)]) for k, v in pc.items()}
     panels, recs = {}, []
     for j, roi in enumerate(rois):
-        for i, norm in enumerate((False, True)):
+        for i in range(3):
             long, curves = [], []
             for ep in il.EP4:
                 t = PE[(PE.roi == roi) & (PE.epoch == ep)] if len(PE) else PE
                 if t.empty:
                     continue
                 M = np.stack(t.peth.to_numpy())
-                if norm:
+                if i == 1:
                     M = M / np.array([den.get((roi, a), np.nan) for a in t.animal])[:, None]
+                elif i == 2:
+                    M = np.stack([(m_ - pc.get((roi, a), np.nan)) / pk.get((roi, a), np.nan)
+                                  for m_, a in zip(M, t.animal)])
                 mu = np.nanmean(M, 0)
                 se = np.nanstd(M, 0, ddof=1) / np.sqrt(np.isfinite(M[:, 0]).sum())
                 curves.append((ep, mu, se, len(t)))
                 long += [pd.DataFrame({"label": x, "animal": a, "epoch": ep, "lag": LAGS_W, "v": m_})
                          for x, a, m_ in zip(t.label, t.animal, M)]
             S = il.sig_compute(pd.concat(long, ignore_index=True).dropna(), value="v",
-                               tag={"roi": roi, "normalised": norm}) if (long and test) else None
+                               tag={"roi": roi, "row": i}) if (long and test and i < 2) else None
             if S is not None:
                 recs += S["recs"]
-            panels[(i, j)] = {"roi": roi, "norm": norm, "curves": curves, "sig": S}
+            panels[(i, j)] = {"roi": roi, "row": i, "curves": curves, "sig": S}
+        # row 2 carries row 1's bins (same per-bin test: a change vs pre)
+        panels[(2, j)]["sig"] = panels[(1, j)]["sig"]
     return panels, recs
+
+
+def _ratio(PE: pd.DataFrame, rois: list) -> dict:
+    """Masked RATIO to pre per time (supplement): mean over animals of (epoch curve / pre curve), each animal's curves its
+    session means; shown only where that animal's pre curve >= RATIO_MIN x its peak (near-zero pre would blow up)."""
+    pc = _pre_curve(PE)
+    out = {}
+    for roi in rois:
+        for ep in il.EP4[1:]:
+            R = []
+            for a, g in PE[(PE.roi == roi) & (PE.epoch == ep)].groupby("animal"):
+                if (roi, a) not in pc:
+                    continue
+                pre = pc[(roi, a)]
+                pk = np.nanmax(pre[(LAGS_W >= 0) & (LAGS_W <= 1.5)])
+                r = np.nanmean(np.stack(g.peth.to_numpy()), 0) / pre
+                R.append(np.where(pre >= RATIO_MIN * pk, r, np.nan))
+            if R:
+                R = np.asarray(R)
+                n = np.isfinite(R).sum(0)
+                mu = np.where(n == len(R), np.nanmean(R, 0), np.nan)   # every animal (no composition steps)
+                se = np.where(n == len(R), np.nanstd(R, 0, ddof=1) / np.sqrt(np.maximum(n, 1)), np.nan)
+                out[(roi, ep)] = (mu, se, len(R))
+    return out
+
+
+def _windows(PE: pd.DataFrame, rng) -> tuple[dict, list]:
+    """Response-window sensitivity: per session AUC over each window (and the 0..1.5 s peak), / the animal's pre mean of
+    the same measure; nested-bootstrap change vs pre (il.dots_compute)."""
+    rows = []
+    for _, r in PE.iterrows():
+        v = r.peth
+        rec = {"label": r.label, "animal": r.animal, "epoch": r.epoch, "roi": r.roi}
+        for t0, t1 in WINDOWS:
+            rec[f"auc_{t0:g}_{t1:g}"] = _auc(v, LAGS_W, t0, t1)
+        rec["peak"] = float(np.nanmax(v[(LAGS_W >= 0) & (LAGS_W <= 1.5)]))
+        rows.append(rec)
+    T0 = pd.DataFrame(rows)
+    vals = [f"auc_{t0:g}_{t1:g}" for t0, t1 in WINDOWS] + ["peak"]
+    for v in vals:
+        pre = T0[T0.epoch == "pre"].groupby(["roi", "animal"])[v].mean()
+        T0[v + "_n"] = T0[v] / np.array([pre.get((r_, a_), np.nan) for r_, a_ in zip(T0.roi, T0.animal)])
+    panels, tests = {}, []
+    for j, roi in enumerate(ROIS):
+        T = T0[T0.roi == roi]
+        for i, v in enumerate(vals):
+            S = il.dots_compute(T, v + "_n", rng)
+            panels[(i, j)] = S
+            tests += [{"roi": roi, **r_} for r_ in S["tests"]]
+    return {"panels": panels, "vals": vals}, tests
 
 
 def compute() -> dict:
     import iti_lick_order as lo
     D = _sessions()
-    PL = _pe(D, "lick", BASE_L, ROIS)
-    PC = _pe(D, "cue", BASE_C, ROIS)
+    PE = {k: _pe(D, key, base, ROIS) for k, (key, base, _x) in TSETS.items()}
+    PL, PC = PE["cued"], PE["cue"]
     rows = []
     for (_i, a), (_j, c) in zip(PL.iterrows(), PC.iterrows()):
         assert a.label == c.label and a.roi == c.roi
@@ -179,8 +270,11 @@ def compute() -> dict:
     T0["resp_auc_n"] = T0.resp_auc / np.array([dr.get((r_, a_), np.nan) for r_, a_ in zip(T0.roi, T0.animal)])
     T0["cue_auc_n"] = T0.cue_auc / np.array([dc.get((r_, a_), np.nan) for r_, a_ in zip(T0.roi, T0.animal)])
     T0.to_csv(il.OUT_W / "cued_ramp_auc_sessions.csv", index=False)
+    pi = PE["iti"]
+    di = {(r_, a_): _auc(np.nanmean(np.stack(g.peth.to_numpy()), 0), LAGS_W, 0.0, 0.5)
+          for (r_, a_), g in pi[pi.epoch == "pre"].groupby(["roi", "animal"])}
     pd.set_option("display.width", 220)
-    print("== per animal (rule 8): lick response AUC / pre, contralesional tjM1 + SSp-m")
+    print("== per animal (rule 8): cued lick response AUC / pre, contralesional tjM1 + SSp-m")
     print(T0[T0.roi.isin(["tjM1_right", "SSp-m_right"])].pivot_table(index=["roi", "animal"], columns="epoch",
                                                                      values="resp_auc_n").reindex(columns=il.EP4)
           .round(2).to_string())
@@ -195,52 +289,68 @@ def compute() -> dict:
     TS = pd.DataFrame(tests)
     TS.to_csv(il.OUT_W / "cued_ramp_session_tests.csv", index=False)
     print("== change vs pre (nested bootstrap)\n" + TS.round(3).to_string(index=False))
-    lick, rl = _curves(PL, dr.to_dict(), ROIS)
-    cue, rc = _curves(PC, dc.to_dict(), ROIS)
-    pd.DataFrame(rl + rc).to_csv(il.OUT_W / "sig_bins_cued_ramp.csv", index=False)
-    # SUPPLEMENT per spout: normalised by the animal's pre response AUC over ALL spouts (one scale across spouts)
+    sess, recs = {}, []
+    for k, den in (("cued", dr.to_dict()), ("cue", dc.to_dict()), ("iti", di)):
+        sess[k], r_ = _curves(PE[k], den, ROIS)
+        recs += [{"set": k, **x} for x in r_]
+    pd.DataFrame(recs).to_csv(il.OUT_W / "sig_bins_cued_ramp.csv", index=False)
+    ratio = {k: _ratio(PE[k], ROIS) for k in TSETS}
+    win, wt = {}, []
+    for k in ("cued", "iti"):
+        win[k], t_ = _windows(PE[k], np.random.default_rng(2))
+        wt += [{"set": k, **x} for x in t_]
+    WT = pd.DataFrame(wt)
+    WT.to_csv(il.OUT_W / "ramp_window_tests.csv", index=False)
+    print("== response-window sensitivity (change vs pre of value / animal's pre), contralesional tjM1\n"
+          + WT[WT.roi == "tjM1_right"].round(3).to_string(index=False))
     spout = {}
     for key, base, den in (("lick", BASE_L, dr.to_dict()), ("cue", BASE_C, dc.to_dict())):
         for p in lo.POS:
             P_ = _pe(D, key, base, SPOUT_ROIS, pos=p, min_n=MIN_SPOUT)
             pan, _ = _curves(P_, den, SPOUT_ROIS, test=False)
             spout[(key, p)] = {j: pan[(1, j)] for j in range(len(SPOUT_ROIS))}
-    return dict(lick=lick, cue=cue, summary=sp_, spout=spout, pos=list(lo.POS))
+    return dict(sess=sess, ratio=ratio, win=win, summary=sp_, spout=spout, pos=list(lo.POS))
 
 
 # -------------------------------------------------------------------------------------------------------------- PLOTS
+ROWLAB = {0: "dF/F x1e3 (baseline-subtracted)", 2: "minus the animal's PRE curve\n(/ its pre peak)"}
+
+
 def _draw_sessions(F: dict, xlab: str, title: str, path: Path, nlab: str) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
-    fig, axs = plt.subplots(2, len(ROIS), figsize=(23, 7.8), sharex=True)
+    fig, axs = plt.subplots(3, len(ROIS), figsize=(23, 11), sharex=True)
     for j, _roi in enumerate(ROIS):
-        for i in (0, 1):
+        for i in (0, 1, 2):
             ax = axs[i, j]
             p = F[(i, j)]
             for ep, mu, se, n in p["curves"]:
+                if i == 2 and ep == "pre":
+                    continue
                 ax.plot(LAGS_W, mu, color=colors[ep], lw=2, label=f"{ep} ({n})")
                 ax.fill_between(LAGS_W, mu - se, mu + se, color=colors[ep], alpha=0.12, lw=0)
             if p["sig"] is not None:
                 il.sig_draw(ax, p["sig"], colors)
                 il._headroom([ax])
             ax.axvline(0, color="0.6", lw=0.6)
-            ax.axhline(0, color="0.8", lw=0.6)
+            ax.axhline(0, color="0.5" if i == 2 else "0.8", lw=0.8 if i == 2 else 0.6, ls="--" if i == 2 else "-")
             ax.set_xlim(-2, 3)
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
             if i == 0:
                 ax.set_title(p["roi"], fontsize=9)
             if j == 0:
-                ax.set_ylabel("dF/F x1e3 (baseline-subtracted)" if not p["norm"] else nlab)
-            if i == 1:
+                ax.set_ylabel(ROWLAB.get(i, nlab), fontsize=8.5)
+            if i == 2:
                 ax.set_xlabel(xlab)
     axs[0, 0].legend(fontsize=7, frameon=False, loc="upper left")
-    fig.suptitle(title + "\n" + il.SIG_NOTE, fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(path, dpi=110)
+    fig.suptitle(title + "\nRow 3 = DIFFERENCE from each animal's own pre curve, in units of that pre curve's peak (0..1.5 s); "
+                 "0 = no change. " + il.SIG_NOTE.replace("\n", " "), fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(path, dpi=105)
     plt.close(fig)
 
 
@@ -277,6 +387,70 @@ def _draw_spout(F: dict, key: str, xlab: str, title: str, path: Path, nlab: str)
     plt.close(fig)
 
 
+def _draw_ratio(F: dict, path: Path) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    fig, axs = plt.subplots(len(TSETS), len(ROIS), figsize=(23, 10), sharex=True)
+    for i, k in enumerate(TSETS):
+        for j, roi in enumerate(ROIS):
+            ax = axs[i, j]
+            for ep in il.EP4[1:]:
+                if (roi, ep) in F["ratio"][k]:
+                    mu, se, n = F["ratio"][k][(roi, ep)]
+                    ax.plot(LAGS_W, mu, color=colors[ep], lw=2, label=f"{ep} ({n} animals)")
+                    ax.fill_between(LAGS_W, mu - se, mu + se, color=colors[ep], alpha=0.12, lw=0)
+            ax.axhline(1, color="0.5", lw=0.8, ls="--")
+            ax.axvline(0, color="0.6", lw=0.6)
+            ax.set_xlim(-2, 3)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            if i == 0:
+                ax.set_title(roi, fontsize=9)
+            if j == 0:
+                ax.set_ylabel(f"{k.upper()}: epoch / pre", fontsize=9)
+            if i == len(TSETS) - 1:
+                ax.set_xlabel("time (s)", fontsize=8)
+    axs[0, 0].legend(fontsize=7, frameon=False)
+    fig.suptitle("SUPPLEMENT, NEURAL: RATIO to pre per time point (mean over animals of epoch curve / that animal's pre curve), "
+                 f"shown only where EVERY animal's pre curve is >= {RATIO_MIN:.0%} of its peak (elsewhere undefined). x = time from the first lick (cued, ITI) or the cue.\n"
+                 "Flat = the whole response scaled by one factor; a slope or bump = the SHAPE changed. Rows: first cued "
+                 "lick, cue-aligned, ITI bout start. Descriptive.", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(path, dpi=100)
+    plt.close(fig)
+
+
+def _draw_windows(F: dict, k: str, path: Path) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    W = F["win"][k]
+    fig, axs = plt.subplots(len(W["vals"]), len(ROIS), figsize=(21, 15))
+    for j, roi in enumerate(ROIS):
+        for i, v in enumerate(W["vals"]):
+            ax = axs[i, j]
+            ax.axhline(1, color="0.7", lw=0.8, ls="--")
+            il.dots_draw(ax, W["panels"][(i, j)], colors)
+            if i == 0:
+                ax.set_title(roi, fontsize=9)
+            if j == 0:
+                lab = "peak 0..1.5 s" if v == "peak" else f"AUC {v.split('_')[1]}..{v.split('_')[2]} s"
+                ax.set_ylabel(lab + "\n/ animal's pre", fontsize=8.5)
+    what = "FIRST CUED lick (lick-aligned; windows after the lick overlap the cue response)" if k == "cued" else \
+        "ITI bout-start lick (as 14.1)"
+    fig.suptitle(f"RESPONSE-WINDOW SENSITIVITY, {what}: response AUC over 0..0.3 / 0..0.5 (the published window) / 0..1.0 / "
+                 "0..1.5 s and the peak (0..1.5 s), each / the animal's pre mean of the same measure;\none dot per session, "
+                 "black = mean +- SEM, * = nested-bootstrap change from pre (95% CI excludes 0).", fontsize=9.5)
+    fig.tight_layout(rect=(0.01, 0, 0.99, 0.94))
+    fig.savefig(path, dpi=100)
+    plt.close(fig)
+
+
 def plot(F: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -284,17 +458,25 @@ def plot(F: dict) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     out = il.OUT_W / "figures"
-    _draw_sessions(F["lick"], "time from first cued lick onset (s)",
+    _draw_sessions(F["sess"]["cued"], TSETS["cued"][2],
                    "NEURAL, NO DECODER: dF/F around the FIRST CUED lick of each engaged trial (cued version of 14.1 / 14.3), "
                    "lick-ONSET aligned, -2..+3 s, baseline -1.5..-1.0 s; per-session PETH, line = mean over sessions, band = "
                    "SEM.\nCAUTION: the cue comes ~0.2-0.5 s before this lick, so activity just before 0 is mostly the CUE "
-                   "response, not a self-paced build-up. Top raw; bottom / the animal's PRE response AUC.",
+                   "response. Row 2 / the animal's PRE response AUC (0..0.5 s).",
                    out / "lick_cued_ramp_sessions.png", "/ animal's pre response AUC")
-    _draw_sessions(F["cue"], "time from cue (s)",
+    _draw_sessions(F["sess"]["cue"], TSETS["cue"][2],
                    "NEURAL, NO DECODER: dF/F around the CUE of engaged trials with a first lick (cue-aligned, -2..+3 s; "
                    "baseline -1.0..-0.5 s before the cue); the first lick follows ~0.2-0.5 s after the cue.\nPer-session "
-                   "PETH, line = mean over sessions, band = SEM. Top raw; bottom / the animal's PRE cue-response AUC.",
+                   "PETH, line = mean over sessions, band = SEM. Row 2 / the animal's PRE cue-response AUC (0..0.5 s).",
                    out / "lick_cued_ramp_cue_sessions.png", "/ animal's pre cue-response AUC")
+    _draw_sessions(F["sess"]["iti"], TSETS["iti"][2],
+                   "NEURAL, NO DECODER: dF/F around SELF-INITIATED ITI licks (bout start, no lick for >= 2 s; as 14.1) on the "
+                   "longer -2..+3 s window, baseline -1.5..-1.0 s; per-session PETH, line = mean over sessions, band = SEM.\n"
+                   "Row 2 / the animal's PRE response AUC (0..0.5 s). Later licks of the bout fall inside the window (14.5 = "
+                   "isolated licks).", out / "lick_iti_ramp_wide.png", "/ animal's pre response AUC")
+    _draw_ratio(F, out / "lick_ramp_ratio.png")
+    for k in ("cued", "iti"):
+        _draw_windows(F, k, out / f"lick_ramp_windows_{k}.png")
     _draw_spout(F, "lick", "time from first cued lick (s)",
                 "SUPPLEMENT, NEURAL: first cued lick PER SPOUT (target), lick-onset aligned (-2..+3 s, baseline -1.5..-1.0 s), "
                 "/ the animal's PRE response AUC over all spouts (one scale across spouts); line = mean over sessions "

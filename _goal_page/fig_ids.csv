@@ -116,27 +116,27 @@ iti_where_per_spout_z,13.3,"Lick-position decoder per spout: ITI licks read cont
 iti_ramp_peth,14.3,"dF/F around self-initiated ITI licks: weaker build-up chronically, larger post-lick response after stroke",supporting
 iti_ramp_summary,14.4,"Post-lick response and pre-lick build-up AUCs (dF/F) by session: response up, build-up down chronically",supporting
 iti_ramp_peth_isolated,14.5,"dF/F around isolated ITI licks: larger post-lick response persists, not a longer bout",supporting
-iti_kinematics_control,14.9,ITI lick tongue kinematics and face movement regressed out: the larger post-lick response is not explained by movement,supporting
-iti_face_control,14.10,FaceRhythm around ITI licks and face-regressed build-up: weaker chronic build-up not less face movement,supporting
-iti_area_maps,14.11,"ITI-lick dF/F response and build-up by Allen area: acute increase global, chronic orofacial only",supporting
-iti_area_peth,14.12,dF/F around self-initiated ITI licks in non-orofacial areas: all respond more acutely,supporting
-iti_area_compare,14.13,"dF/F around ITI licks, orofacial ROIs vs control areas: chronic larger response also in controls",supporting
-iti_area_groups,14.14,"ITI-lick dF/F, orofacial vs visual+RSP areas by session: chronic build-up weaker only orofacially",supporting
+iti_kinematics_control,14.12,ITI lick tongue kinematics and face movement regressed out: the larger post-lick response is not explained by movement,supporting
+iti_face_control,14.13,FaceRhythm around ITI licks and face-regressed build-up: weaker chronic build-up not less face movement,supporting
+iti_area_maps,14.14,"ITI-lick dF/F response and build-up by Allen area: acute increase global, chronic orofacial only",supporting
+iti_area_peth,14.15,dF/F around self-initiated ITI licks in non-orofacial areas: all respond more acutely,supporting
+iti_area_compare,14.16,"dF/F around ITI licks, orofacial ROIs vs control areas: chronic larger response also in controls",supporting
+iti_area_groups,14.17,"ITI-lick dF/F, orofacial vs visual+RSP areas by session: chronic build-up weaker only orofacially",supporting
 iti_where_drift,10.7,The lateral r loss is not elapsed-time drift,supporting
 iti_recovery_link_angle_z,16.4,"As aim recovers, the contralesional reading of self-initiated licks fades (like-for-like offset, 4/4)",supporting
 iti_recovery_link_sessions_angle_z,16.5,"Pooled, one dot per session: worse aim, more contralesional reading (companion to Fig 16.4)",supporting
 iti_where_drift_june,10.8,Drift check with the June no-stroke reference: the ITI lateral loss is smaller but still beyond drift (extends Fig 10.7),supporting
 iti_check_error_sessions,12.8,ITI decoding error shift and width per session,supporting
 cued_check_error_sessions,12.9,Cued decoding error shift and width per session,supporting
-iti_check_f0,14.15,The larger post-lick response is not an F0 artefact,supporting
-iti_check_f0_sessions,14.16,F0 and the post-lick response per session,supporting
+iti_check_f0,14.18,The larger post-lick response is not an F0 artefact,supporting
+iti_check_f0_sessions,14.19,F0 and the post-lick response per session,supporting
 iti_check_3axis,11.1,"Three axes (lateral, forward, down): reproduces the lateral result; cued licks read less far forward than same-place pre licks in every epoch",supporting
 iti_check_3axis_sessions,11.2,Three-axis decoder per session (ITI licks),supporting
 cued_first_lick,13.4,The FIRST cued lick is read toward the target in every epoch; later licks only acutely,supporting
 cued_overcorrection,13.5,Chronic ipsilesional read-out is specific to the contralesional spouts (lateral) (cued licks),supporting
 iti_recovery_measure,16.6,Behavioural recovery measure: FIRST-lick weighted angle offset from each spout's pre landing,supporting
-iti_hemo_check_edge_vessel,14.17,Edge and vessel pixels: the acute increase is somewhat rim-weighted; vessels unchanged,supporting
-iti_hemo_check_state_gap,14.18,Running around licks and matched pre-lick gaps: the increase is unchanged,supporting
+iti_hemo_check_edge_vessel,14.20,Edge and vessel pixels: the acute increase is somewhat rim-weighted; vessels unchanged,supporting
+iti_hemo_check_state_gap,14.21,Running around licks and matched pre-lick gaps: the increase is unchanged,supporting
 iti_session_pattern_change_position,15.6,"Shape-only change maps for lateral and sagittal position, TFCE",supporting
 iti_session_pattern_change_within_spout,15.7,"Shape-only change maps WITHIN spout (executed direction, target fixed)",supporting
 lmm_time_lickclass,16.7,First vs later licks over days (like-for-like read-out and landing),supporting
@@ -266,3 +266,6 @@ lick_position_per_spout,13.7,"Decoded and actual lick position per spout, per ep
 lick_cued_ramp_sessions,14.6,Cued: dF/F around the first cued lick - the post-lick response is larger after the stroke too,supporting
 lick_cued_ramp_cue_sessions,14.7,"Cued, cue-aligned: the cue response grows subacutely and chronically, not acutely",supporting
 lick_cued_ramp_summary,14.8,Cued first-lick AUCs by session: lick response up in every epoch; cue response up subacute / chronic,supporting
+lick_ramp_windows,14.9,"Response-window sensitivity: the larger lick response holds for 0-0.3, 0-0.5, 0-1.0, 0-1.5 s and the peak (cued and ITI)",supplementary
+lick_ramp_ratio,14.10,Ratio to pre per time point: cued responses scaled ~1.3-1.5- across the response; the acute cue-aligned ratio rises late,supplementary
+lick_cued_ramp_perspout,14.11,Cued lick and cue responses per spout (supplement),supplementary
