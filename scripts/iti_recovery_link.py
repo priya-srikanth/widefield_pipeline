@@ -252,11 +252,13 @@ def plot_session_scatter(D: dict) -> None:
                      "(between + within animal)", fontsize=9.5)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED, one dot per SESSION: FROZEN decoder's lateral offset "
-                 f"like-for-like (same-place) offset vs {_bname(tag)}. Colour = animal, marker = epoch (outlined = pre-stroke);\n"
-                 "lines = per-animal fit over post sessions. The within-animal test with the shared time trend removed "
-                 "is in the per-animal recovery-link figure (this pooled r mixes animals and includes the time trend). PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    # three short lines: the first line overflowed the figure once the behaviour name got longer (first-lick aim, 10-28)
+    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED, one dot per SESSION: FROZEN decoder's lateral "
+                 f"like-for-like (same-place) offset\nvs {_bname(tag)}. Colour = animal, marker = epoch (outlined = "
+                 "pre-stroke); lines = per-animal fit over post sessions.\nThe within-animal test with the shared time trend "
+                 "removed is in the per-animal recovery-link figure (this pooled r mixes animals and includes the time "
+                 "trend). PROVISIONAL", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
     fig.savefig(src / "figures" / f"lick_recovery_link_sessions_{tag}.png", dpi=100)
     plt.close(fig)
 
