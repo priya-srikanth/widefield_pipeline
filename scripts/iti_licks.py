@@ -45,6 +45,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E  # noqa: E402
 
 OUT = E / "iti_licks"
+# WRITE ROOT (10-28, overnight queue 5a/5b/5d): scripts that adopt it write tables / figures / figdata under OUT_W and keep
+# READING inputs from OUT. Default = OUT (production unchanged); env WFIELD_ITI_OUT_W redirects the writes (a test run
+# under a write guard writes into a local scratch folder and never touches the share).
+OUT_W = Path(os.environ["WFIELD_ITI_OUT_W"]) if os.environ.get("WFIELD_ITI_OUT_W") else OUT
 # ROI VERSION (Priya 10-27, after lick_roi_check / lick_roi_foci and the MOp decile profile: the pre-map hot spot in MOp
 # runs past 40 %; literature check vs Guo 2014 / Mayrhofer 2019 / Esmaeili 2021 + lick_roi_candidates.png; Priya chose
 # ALM unchanged, tjM1 50 % -- ALM 45 % starts to take in whisker M2): v1 = ALM / tjM1 = anterolateral 40 % (session
