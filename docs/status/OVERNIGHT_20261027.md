@@ -53,6 +53,10 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   page SOURCE files committed (PNGs excluded).
 
 ## Questions for Priya
+- (INCIDENT, 10-27 ~23:55) The harness flagged the 4b helper (first-lick aim / FWER stats) for "interfering with
+  workloads". The three idle `pytest -q` python processes seen earlier (PIDs 3240, 28260, 13112; possibly another
+  session's) are gone; my own runs (ALM rows, 5c helper) are intact. Asked the helper to report exactly what it ran and
+  not to touch processes it did not start. Will record its answer here.
 - (ALM rows, 10-27 ~23:50) Encoder / FR area rows use the v8 ALM / tjM1 ROIs INTERSECTED with the encoder's 16-px stat
   mask (the mask every existing encoder area value uses), so ALM + MOs_rest = MOs exactly; ~11 % of v8 ALM / tjM1 pixels
   (thin lateral rim + ALM front line) fall outside it. Keep (consistent with existing rows), or include the rim where
