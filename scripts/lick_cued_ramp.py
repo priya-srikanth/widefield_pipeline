@@ -131,6 +131,35 @@ def _auc(v: np.ndarray, lags: np.ndarray, t0: float, t1: float) -> float:
     return float(np.trapezoid(v[m], lags[m]))
 
 
+_LT = None
+
+
+def bout_prev_pos(label: str, bout_t: np.ndarray) -> np.ndarray:
+    """PREVIOUS trial's spout of each stored ITI bout start (the stored `bout_pos` is the trial-WINDOW label, = the
+    UPCOMING trial for 'lead' licks). Rebuilt exactly as `iti_licks.extract` builds prev_pos (lick table joined to the
+    session's licks_all.csv by lick_uid; tail -> trial_id, lead -> trial_id - 1), matched on the exact onset time."""
+    global _LT
+    from wfield_local import config
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    if _LT is None:
+        _LT = il.lick_table()
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    K = _LT[_LT.session == f"{an}_{date}"].copy()
+    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
+                    usecols=["context", "segment", "daq_on_s"])
+    uid = K.lick_uid.to_numpy(int)
+    K["daq_on_s"] = A.daq_on_s.to_numpy(float)[uid]
+    T = il._behaviour(label).trials
+    seg = A.segment.astype(str).to_numpy()[uid]
+    pot = dict(zip(T.trial_id.to_numpy(), T.pos.astype(str).to_numpy()))
+    prev = np.where(seg == "lead", K.trial_id.to_numpy() - 1, K.trial_id.to_numpy())
+    K["prev_pos"] = [pot.get(t_, "") for t_ in prev]
+    m = dict(zip(K.daq_on_s.to_numpy(float), K.prev_pos))
+    return np.array([m.get(float(t), "") for t in bout_t], dtype=object)
+
+
 def _sessions() -> dict:
     D = {}
     for x in il.labels():
@@ -142,16 +171,20 @@ def _sessions() -> dict:
             raise SystemExit(f"{f} predates the ITI arrays: re-run --extract")
         d = il._load(x)
         keep = z["iti_gap"] >= il.GAP_MAIN
+        ipos = bout_prev_pos(x, np.asarray(d["bout_t"], float))
         D[x] = {"lick": z["lick"].astype(float), "cue": z["cue"].astype(float), "pos": z["pos"],
-                "iti": z["iti"].astype(float)[keep], "cols": list(z["cols"]), "animal": str(d["animal"]),
-                "epoch": str(d["epoch"])}
+                "iti": z["iti"].astype(float)[keep], "iti_pos": ipos[keep], "cols": list(z["cols"]),
+                "animal": str(d["animal"]), "epoch": str(d["epoch"])}
+    n = sum(len(d["iti_pos"]) for d in D.values())
+    print(f"== ITI bout starts with a previous-trial spout: "
+          f"{sum((d['iti_pos'] != '').sum() for d in D.values())} / {n}")
     return D
 
 
 def _pe(D: dict, key: str, base: tuple, rois: list, pos: str | None = None, min_n: int = MIN_N) -> pd.DataFrame:
     rows = []
     for x, d in D.items():
-        P = d[key] if pos is None else d[key][d["pos"] == pos]
+        P = d[key] if pos is None else d[key][d["iti_pos" if key == "iti" else "pos"] == pos]
         if len(P) < min_n:
             continue
         P = P - np.nanmean(P[:, (LAGS_W >= base[0]) & (LAGS_W <= base[1]), :], 1, keepdims=True)
@@ -304,7 +337,7 @@ def compute() -> dict:
     print("== response-window sensitivity (change vs pre of value / animal's pre), contralesional tjM1\n"
           + WT[WT.roi == "tjM1_right"].round(3).to_string(index=False))
     spout = {}
-    for key, base, den in (("lick", BASE_L, dr.to_dict()), ("cue", BASE_C, dc.to_dict())):
+    for key, base, den in (("lick", BASE_L, dr.to_dict()), ("cue", BASE_C, dc.to_dict()), ("iti", BASE_L, di)):
         for p in lo.POS:
             P_ = _pe(D, key, base, SPOUT_ROIS, pos=p, min_n=MIN_SPOUT)
             pan, _ = _curves(P_, den, SPOUT_ROIS, test=False)
@@ -486,6 +519,11 @@ def plot(F: dict) -> None:
                 "SUPPLEMENT, NEURAL: CUE-aligned per spout (-2..+3 s, baseline -1.0..-0.5 s), / the animal's PRE "
                 "cue-response AUC over all spouts; line = mean over sessions, band = SEM. Descriptive (no tests).",
                 out / "lick_cued_ramp_cue_perspout.png", "/ pre cue AUC")
+    _draw_spout(F, "iti", "time from ITI bout-start lick onset (s)",
+                "SUPPLEMENT, NEURAL: ITI bout-start licks (no lick for >= 2 s) by the PREVIOUS trial's spout (the spout is "
+                "retracted in the ITI), lick-onset aligned (-2..+3 s, baseline -1.5..-1.0 s), / the animal's PRE ITI response "
+                f"AUC over all spouts; line = mean over sessions (>= {MIN_SPOUT} licks), band = SEM. Descriptive (no tests).",
+                out / "lick_iti_ramp_perspout.png", "/ pre response AUC")
     fig, axs = plt.subplots(len(SPEC), len(ROIS), figsize=(21, 15))
     for j, roi in enumerate(ROIS):
         for i, (_val, ylab) in enumerate(SPEC):

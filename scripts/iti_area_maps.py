@@ -16,6 +16,7 @@ Image left = ipsilesional (_left); _right = contralesional.
 FIGURE DATA (Priya 10-27): each figure's drawn numbers are saved to <OUT>/figdata/<figure stem>.pkl (the area image +
 names + outline for the maps); `--plot-only` redraws from those files alone (no session load, no bootstrap).
 Usage: python scripts/iti_area_maps.py [--compare] [--plot-only]
+       python scripts/iti_area_maps.py --split [--spout far_contra] [--plot-only]   (ALM / tjM1 separate; one previous spout)
 """
 from __future__ import annotations
 
@@ -58,6 +59,108 @@ def session_table(D: dict) -> tuple[pd.DataFrame, dict]:
     d_ = np.where(np.abs(d_) > 0, d_, np.nan)
     T["resp_n"], T["build_n"] = T.resp / d_, T.build / d_
     return T, peths
+
+
+def split_image(label: str) -> tuple[np.ndarray, list]:
+    """Allen area image with ALM / tjM1 painted inside MOs / MOp (the v8 ROIs on the stat mask, `iti_licks.roi_masks`)
+    and the remaining parent pixels renamed MOs_rest / MOp_rest (Priya 10-28: "ALM / tjM1 separate here")."""
+    from frozen_area_maps import area_image
+
+    from wfield_local import combined_encoding as ce
+    img, nm = area_image(label)
+    _V, _ft, _Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
+    M = il.roi_masks(parea, pstat, names, flat, shape)
+    nm = list(nm)
+    flat_img = img.ravel().copy()
+    for src, dst in il.SPLIT_PAIRS:
+        for h in il.HEMIS:
+            par = nm.index(f"{src}_{h}")
+            nm[par] = f"{src}_rest_{h}"
+            nm.append(f"{dst}_{h}")
+            sub = np.zeros(flat_img.shape, bool)
+            sub[flat[M[f"{dst}_{h}"]]] = True
+            flat_img[sub & (flat_img == par)] = len(nm) - 1
+    return flat_img.reshape(img.shape), nm
+
+
+def session_table_split(D: dict, spout: str | None = None, min_n: int = 10) -> pd.DataFrame:
+    """As session_table, with MOs / MOp replaced by ALM + MOs_rest and tjM1 + MOp_rest (`iti_licks.with_rest`, exact);
+    spout = only bout starts whose PREVIOUS trial was at that spout (`lick_cued_ramp.bout_prev_pos`)."""
+    from lick_cued_ramp import bout_prev_pos
+    rows = []
+    for x, d in D.items():
+        m = d["bout_gap"] >= il.GAP_MAIN
+        if spout is not None:
+            m &= bout_prev_pos(x, np.asarray(d["bout_t"], float)) == spout
+        if m.sum() < min_n:
+            continue
+        P = d["bout_peth"][m].astype(float)
+        P = P - P[:, (il.LAGS_P >= il.BASE[0]) & (il.LAGS_P <= il.BASE[1]), :].mean(1, keepdims=True)
+        mu, cols = il.with_rest(P.mean(0), d["cols"], x, basis="split")
+        for j, c in enumerate(cols):
+            if c == "cortex" or c.rsplit("_", 1)[0] in ("MOs", "MOp"):
+                continue
+            rows.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "area": str(c),
+                         "resp": il._auc(mu[:, j], 0.0, 0.5), "build": il._auc(mu[:, j], -0.4, -0.05), "n": int(m.sum())})
+    return pd.DataFrame(rows)
+
+
+def split_maps(spout: str | None = None) -> None:
+    """lick_iti_area_maps_split[_<spout>].png: the 14.14 map with ALM / tjM1 / MOs_rest / MOp_rest areas; with spout,
+    ITI bout starts after a trial at that spout only (>= 5 per session)."""
+    from frozen_area_maps import outline
+    labels = il.labels()
+    D = {x: il._load(x) for x in labels}
+    T = session_table_split(D, spout, min_n=10 if spout is None else 5)
+    tag = "" if spout is None else f"_{spout.replace('_', '')}"
+    T.to_csv(il.OUT / f"area_auc_sessions_split{tag}.csv", index=False)
+    C = pd.concat([changes(T, "resp"), changes(T, "build")])
+    C.to_csv(il.OUT / f"area_auc_changes_split{tag}.csv", index=False)
+    print("== per animal (rule 8), response AUC, ALM / tjM1 / rest\n" + T[T.area.str.contains("ALM|tjM1|rest")]
+          .pivot_table(index=["area", "animal"], columns="epoch", values="resp").reindex(columns=il.EP4).round(1)
+          .to_string())
+    print(C[C.sig].sort_values(["value", "epoch", "delta"]).round(3).to_string(index=False))
+    img, nm = split_image(labels[0])
+    rows = []
+    for val, ttl in (("resp", "response AUC 0..0.5 s"), ("build", "build-up AUC -0.4..-0.05 s")):
+        c = C[C.value == val]
+        lim = np.nanpercentile(np.abs(c.delta), 98) or 1.0
+        pans = []
+        for ep in il.EP4[1:]:
+            ce_ = c[c.epoch == ep].set_index("area")
+            pans.append((ep, ce_.delta.to_dict(), list(ce_.index[ce_.sig]), int(ce_.sig.sum())))
+        rows.append((ttl, lim, pans))
+    what = "all bout starts" if spout is None else f"bout starts after a {spout.replace('_', '-')} trial (previous spout)"
+    save_fd(f"lick_iti_area_maps_split{tag}", {"img": img, "nm": nm, "ol": outline(img), "rows": rows, "what": what})
+    draw_maps(f"lick_iti_area_maps_split{tag}")
+
+
+def draw_maps(stem: str) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from frozen_area_maps import paint
+    F = load_fd(stem)
+    img, nm, ol = F["img"], F["nm"], F["ol"]
+    fig, axs = plt.subplots(2, 3, figsize=(14, 9))
+    for i, (ttl, lim, pans) in enumerate(F["rows"]):
+        for j, (ep, delta, sig_areas, n_sig) in enumerate(pans):
+            ax = axs[i, j]
+            im = ax.imshow(paint(img, nm, delta), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+            ok = np.isfinite(paint(img, nm, {a: 1.0 for a in sig_areas}))
+            edge = np.zeros(img.shape, bool)
+            edge[:-1] |= ok[:-1] != ok[1:]
+            edge[:, :-1] |= ok[:, :-1] != ok[:, 1:]
+            ax.imshow(np.where(edge, 1.0, np.nan), cmap="Greys", vmin=0, vmax=1, interpolation="nearest")
+            ax.set_title(f"{ttl}\n{ep} - pre ({n_sig} areas significant)", fontsize=9)
+            ax.axis("off")
+        fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F AUC (x1e3 s)")
+    fig.suptitle(f"NEURAL, NO DECODER: self-initiated (ITI) licks, {F.get('what', 'all bout starts')} -- change from pre per "
+                 "area in raw dF/F AUC (x1e3 s), with ALM / tjM1 separate from the rest of MOs / MOp (ROI v8); black outline "
+                 "= nested-bootstrap CI excludes 0. Image left = ipsilesional.", fontsize=10, wrap=True)
+    fig.savefig(il.OUT / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
+    plt.close(fig)
 
 
 def changes(T: pd.DataFrame, val: str) -> pd.DataFrame:
@@ -307,6 +410,13 @@ def compare_draw(F: dict) -> None:
 
 
 if __name__ == "__main__":
+    if "--split" in sys.argv:                            # ALM / tjM1 split maps; --spout <pos> for one previous spout
+        sp_ = sys.argv[sys.argv.index("--spout") + 1] if "--spout" in sys.argv else None
+        if plot_only():
+            draw_maps("lick_iti_area_maps_split" + ("" if sp_ is None else f"_{sp_.replace('_', '')}"))
+        else:
+            split_maps(sp_)
+        raise SystemExit(0)
     if plot_only():                                      # redraw from figdata only
         draw_all(("compare",) if "--compare" in sys.argv else ("maps", "peth", "groups", "compare"))
         raise SystemExit(0)
