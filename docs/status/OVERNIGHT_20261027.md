@@ -11,6 +11,9 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
    table -> implement cheap ones, prove no M: writes) -> merge -> run -> captions -> publish.
 3. Anything the helper costs as expensive (re-extraction) -> WAIT for Priya (listed under Questions).
 4. Housekeeping that needs no decision: handoff + FINDINGS kept current; commit each step.
+4b. NEW (Priya decided 10-27 late, DECISIONS): (i) behaviour axis = FIRST-LICK weighted aim (all-lick = sensitivity):
+    switch recovery measure / recovery link / mixed-model behaviour model / lmm figures; old vs new side by side;
+    (ii) pixel map stats -> FWER max-statistic (pattern_stats / spout_pattern_stats / pattern_area_stats).
 5. EARLIER APPROVED BACKLOG (handoff 00-LATE + SVD_GAUSS queue part C / D; on the split basis + Gaussian reference
    decided tonight), in this order:
    5a. Four COVARIATE references for the like-for-like offset: landing only (= current) / + kinematics (reach,
@@ -37,8 +40,9 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   page SOURCE files committed (PNGs excluded).
 
 ## Questions for Priya
-- (carried over) FIRST-LICK weighted aim as the behaviour axis + LMM deficit? (split-half 0.98, r 0.94 with all-lick,
-  chronic deficit ~2x larger) -- awaiting your OK.
-- (carried over) Pixel map stats: switch to the decoder page's FWER max-stat for consistency? z-scored pattern-map check?
+- ANSWERED 10-27 late: first-lick aim -> yes (primary); pixel stats -> FWER max-stat (yes). Still open: z-scored
+  pattern-map check (2b)?
+- 5c-bis offer: angle (and reach) OFFSET-CONTRIBUTION maps with the Gaussian reference (where the extra contralesional
+  angle reading comes from; cheap, angle preds cached) -- add?
 - (carried over) The SVD_GAUSS_SUPERSEDE_QUEUE "SVD basis = primary" plan is superseded by tonight's split-basis decision
   (marked in that doc); its controls (5a-5f) carry over on the split basis.

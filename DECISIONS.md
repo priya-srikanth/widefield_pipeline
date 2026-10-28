@@ -22155,3 +22155,13 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
 - 10-27 late, REVISED by Priya: "ok gaussian" (confirmed when asked) -> the like-for-like reference is the GAUSSIAN
   weighted mean (primary; licks beyond the pre range get no reference, ~1 %); LOCAL-LINEAR with the edge line carried out
   = supplementary edge check (identical epoch effects on lateral and angle). Supersedes the "local linear it is" line above.
+
+## 2026-10-27 (late) -- Behaviour axis = FIRST-LICK weighted aim; pixel map stats = FWER max-statistic (Priya)
+- Priya, asked whether the FIRST-LICK weighted aim should be the behaviour axis + LMM deficit: "i think so? what do you
+  think?" -> recommended yes (first lick = the aimed movement before spout feedback; split-half 0.98 vs 1.00; r 0.94 with
+  the all-lick measure; chronic deficit ~2x larger, PS94 -12.1 vs -5.8 deg) -> PRIMARY = first-lick weighted aim;
+  all-lick weighted aim = sensitivity row. Affects recovery measure / recovery link / mixed-model behaviour model / lmm
+  figures; old vs new reported side by side.
+- Priya: "2 a yes" -> per-pixel map statistics use the decoder page's FWER MAX-STATISTIC (permutation max over pixels,
+  as iti_session_cluster_tests) instead of per-pixel BH-FDR + >= 3/4 sign (iti_decoder_pattern_stats,
+  iti_spout_pattern_stats, iti_pattern_area_stats); ">= 3 animals agree" stays as an outline only.
