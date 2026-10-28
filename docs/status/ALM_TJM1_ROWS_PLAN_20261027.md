@@ -74,3 +74,31 @@ sessions (one per animal): r = 1.000; residual max |difference| 0.15 x1e3 dF/F (
 22.3, 22.4 (layout changed to 4 x 2 + split rows), 2.2 (4th panel), 2.6 (split panels), 18.5 (split rows), 0.13 (2
 predictor columns). 18.6 / 18.9 keep their figures (Allen); `residual_roi_by_spout_{cue,lick}_raw_split.png` are new
 companions (swap in or add). Not changed: 0.3, 0.4, 0.9, 0.10, 0.11, 21.4, 21.11 (class c).
+
+## Step 3 (10-28) -- class c, options 1 and 3 (Priya 10-28: "yes let's redo musall", "can definitely do the frA panel")
+Stat mask kept (Priya 10-28). Code in this branch; run script `scratchpad/mu/run.sh` (not yet run on the share).
+- **Frozen claims (0.3, 0.4, 0.9-0.11), cheapest route WITH the area-run alphas held.** `frozen_encoder.musall_moments`
+  saves a FRAME moment too (mus_<w>_frame_{E,S}); new flags `--fit-from` (reuse another run's pre statistics / templates /
+  basis, read only; refuses if the saved run tag differs from the environment), `--alphas-from` (hold another run's alphas
+  per animal x variant), `--predict` (subset), `--out-root`; `_predict_spatial` now checks the column layout. Re-runs:
+  `frozen_encoder_<frame>_basis_pixmusall` (NEW folders). ROI R2 = 1 - w'Ew / w'Sw: `encoder_split_rows.musall_rows`.
+  `frozen_claims.py`: MOs (area run) + the 8 split rows after their parents on a grey band, per-animal tables, the trend
+  CSVs get the motor rows (figure 0.11 stays cortex).
+- **Why the alphas are held:** the basis runs' alpha search (summed over basis targets) picked different alphas from the
+  area runs in MORE cells than noted above, noFR too: FR-A joint PS92 / PS94, no_exec_within PS92 / PS94, no_target PS92,
+  no_movement PS93; noFR no_exec_locked PS92, no_movement PS93, no_spout PS92 / PS95 (FR-A basis has no no_exec_locked).
+  Effect on the CORTEX numbers already saved by both runs (all 107 sessions): per-session unique R2 differs up to 0.051
+  (FR-A exec_within, avg), epoch - pre per animal up to 0.026 (avg) / 0.0025 (frame); noFR <= 0.0023 / 0.0015. Holding the
+  alphas removes this: re-run cortex = area run to 1.5e-14.
+- **Validation (guarded dry run, PS92 + PS93 x pre / acute / chronic, both frames, all 7 variants):** basis-route R2 vs the
+  area run's MOs / MOp / SSp-m (each hemisphere): max |d| 0.006 (avg), 0.002 (frame / trial). Plotted unique R2 per session:
+  contest (frame) <= 0.0016 (typical |value| 0.01, p90 0.05); trend (frame, spout) <= 0.0014 (0.04 / 0.11); PETH trial
+  <= 0.0020 (0.05 / 0.31), avg <= 0.0039 (0.06 / 0.21); epoch - pre deltas <= 0.0027 (median |delta| ~0.015). The
+  residual difference = the out-of-basis variance + whole-trial-only moments. Re-run vs the existing basis runs where
+  alphas agree: evoked / moments bit-identical.
+- **Layer 2 with ROI targets:** `allsession_encoder --roi-targets [--post-from <tag>] [--out-root]`: the 8 ROI means appended
+  as extra targets (`session_design(extra_targets=)`, `encoder_split_rows.roi_targets`); Allen statistics kept from the
+  saved runs (X'X checked: 0 difference), kappa chosen on the Allen targets only. Dry run PS93: every Allen row of
+  allsession_changes_by_session.csv identical (max |d| 0), kappa unchanged. `specificity_control.py` (`--out`, `--layer2`
+  may be a path): "LAYER 2 by ROI" panel, `layer2_split_boot.csv`, split Layer 2 map panel; all existing CSVs identical.
+- Runtime estimate for run.sh: ~1-1.5 h wall (three parallel tracks of 4 workers, ~18 GB RAM peak).

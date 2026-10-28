@@ -21,8 +21,13 @@ NO REFIT -- two per-pixel quantities already on disk are re-aggregated over the 
          area-target run, so it is the area run's value on the basis-projected data. Checked against the area run
          (specificity_control sessions.csv, 7 areas x 2 windows x 4 sessions, one per animal): r = 1.000, residual
          max |difference| 0.15 x1e3 dF/F (median 0.02 noFR, 0.05 FR-A; FR-A's basis run picked lick alpha 1e4 vs 1e3).
-Not covered (only area-mean traces were saved -> a refit is needed; see the plan doc): frozen Musall R2 (claims figures),
-per-session trial / PETH R2 (`fr_trial_peth`), Layer 2 (`allsession_encoder`).
+  MUSALL frozen Musall R2 (claims figures 0.3 / 0.4 / 0.9-0.11), from the basis runs RE-RUN with FROZEN_PIX_MUSALL=1
+         (`<run>_basis_pixmusall`: per session x variant x window the target-space second moments of the frame / trial /
+         avg segments, `frozen_encoder.musall_moments`): ROI R2 = 1 - w'Ew / w'Sw (`musall_rows`). Validation against
+         the area run's MOs / MOp / SSp-m / cortex values: docs/status/ALM_TJM1_ROWS_PLAN_20261027.md.
+  ROI TARGETS  Layer 2 (`allsession_encoder --roi-targets`): the ROI means as extra encoder targets (`roi_targets`).
+Not covered (only area-mean traces were saved -> a refit is needed; see the plan doc): per-session trial / PETH R2
+(`fr_trial_peth`).
 """
 from __future__ import annotations
 
@@ -71,6 +76,24 @@ def masks() -> dict:
     return out
 
 
+def area_mask(area: str) -> np.ndarray:
+    """Boolean over brain pixels for a split ROI / parent (`masks`) or any Allen area on the stat mask (the encoder's
+    area target: `frozen_encoder.session_design` averages Ub over (parea == code) & pstat)."""
+    m = masks()
+    if area in m:
+        return m[area]
+    _flat, parea, names, _shape, pstat = grid()
+    code = {v: k for k, v in names.items()}
+    return (parea == code[area]) & pstat
+
+
+def roi_targets(areas=tuple(SPLIT_AREAS)) -> dict:
+    """{"names", "P"}: ROI-mean weights over the STAT pixels (columns sum to 1), the `spatial` / extra-target form
+    `frozen_encoder.session_design` takes -- Ub[pstat].T @ P = each ROI's mean, i.e. the area-target definition."""
+    pstat = grid()[4]
+    return {"names": list(areas), "P": np.stack([area_mask(a)[pstat] / area_mask(a)[pstat].sum() for a in areas], 1)}
+
+
 def pixel_share() -> dict:
     """{split area: its share of its parent's pixels} (for pixel-weighted checks / labels)."""
     m = masks()
@@ -113,10 +136,7 @@ def basis_weights(basis_run: str, animal: str, areas=tuple(SPLIT_AREAS)) -> np.n
     pixels x K, orthonormal columns), for evoked arrays whose last target is the cortex mean."""
     import pickle
     P = np.asarray(pickle.loads((Path(basis_run) / "fit" / f"spatial_{animal}.pkl").read_bytes())["P"], np.float64)
-    pstat = grid()[4]
-    m = masks()
-    w = np.stack([m[a][pstat] / m[a][pstat].sum() for a in areas], 1)          # (stat pixels, areas)
-    return P.T @ w
+    return P.T @ roi_targets(areas)["P"]                                          # (K, areas)
 
 
 def basis_evoked(basis_run: str, variant: str, label: str, animal: str) -> tuple:
@@ -158,6 +178,43 @@ def residual_rows(run: Path, labels, variant: str = "joint", by_spout: bool = Fa
     if by_spout:
         return pd.DataFrame(rows, columns=["label", "animal", "epoch", "window", "spout", "area", "residual"])
     return pd.DataFrame(rows)
+
+
+def musall_rows(pix_run, variant: str, measure: str = "frame", areas=tuple(SPLIT_AREAS), fit_run=None):
+    """Split-row counterpart of `frozen_fr_compare.session_r2` (label, animal, epoch, window, area, r2): the frozen Musall
+    R2 (measure frame | trial | avg) of each ROI mean, from a FROZEN_PIX_MUSALL basis run ``pix_run`` (npz keys
+    mus_<window>_<measure>_<E|S>, targets = K basis components + the cortex mean): R2 = 1 - w'Ew / w'Sw, w = the ROI's
+    basis weights (`basis_weights`, cortex entry 0). An area named "cortex" uses the cortex target itself. ``fit_run`` =
+    the folder holding fit/spatial_<animal>.pkl (default ``pix_run``; a --fit-from re-run keeps the basis in its source)."""
+    import json
+
+    import pandas as pd
+
+    from frozen_fr_compare import WINDOWS
+    sess = Path(pix_run) / variant / "sessions"
+    fit_run = str(fit_run or pix_run)
+    rows = []
+    for js in sorted(sess.glob("*.json")):
+        m = json.loads(js.read_text(encoding="utf-8"))
+        z = np.load(js.with_suffix(".npz"))
+        K = len(m["targets"]) - 1
+        if m["targets"][-1] != "cortex":
+            raise ValueError(f"{js}: last target is not the cortex mean")
+        roi = [a for a in areas if a != "cortex"]
+        W = np.zeros((K + 1, len(areas)))
+        if roi:
+            W[:K, [areas.index(a) for a in roi]] = basis_weights(fit_run, m["animal"], tuple(roi))
+        if "cortex" in areas:
+            W[K, areas.index("cortex")] = 1.0
+        for w in WINDOWS:
+            kE, kS = f"mus_{w}_{measure}_E", f"mus_{w}_{measure}_S"
+            if kE not in z.files:
+                raise KeyError(f"{js.with_suffix('.npz')}: no {kE} (not a FROZEN_PIX_MUSALL run with the {measure} moment)")
+            Em, Sm = z[kE].astype(np.float64), z[kS].astype(np.float64)
+            sse, sst = np.einsum("ka,kl,la->a", W, Em, W), np.einsum("ka,kl,la->a", W, Sm, W)
+            rows += [{"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "window": w, "area": a,
+                      "r2": float(1.0 - sse[i] / max(sst[i], 1e-12))} for i, a in enumerate(areas)]
+    return pd.DataFrame(rows, columns=["label", "animal", "epoch", "window", "area", "r2"])
 
 
 def split_image(img: np.ndarray, nm: list) -> tuple:

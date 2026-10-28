@@ -10,8 +10,13 @@ changed mapping everywhere. Three tests, all within animal, nested bootstrap ani
   2. LAYER 2 BY AREA (`allsession_encoder` combined fit, change_ref, epoch minus pre_late = beyond pre-stroke drift),
      orofacial vs control and the contrast.
 
+  ALM / tjM1 / MOs_rest / MOp_rest rows: residual from the run's basis twin (encoder_split_rows); Layer 2 when --layer2 is
+     a run with the ROI targets (`allsession_encoder --roi-targets`, e.g. allsession_encoder_v7g3_t3d_frA_roi): an extra
+     "LAYER 2 by ROI" panel + layer2_split_boot.csv + a split Layer 2 map panel (Priya 10-28).
 Usage: python scripts/specificity_control.py [--tag gate-attempted_v7g3_t3d_frA] [--layer2 allsession_encoder_v7g3_t3d_frA]
-Output: <E>/specificity_control/<tag>/{sessions.csv, boot.csv, layer2_boot.csv, figures/*.png}
+       [--out DIR]
+Output: <E>/specificity_control/<tag>/{sessions.csv, boot.csv, layer2_boot.csv, [split_boot.csv, layer2_split_boot.csv],
+        figures/*.png}
 """
 from __future__ import annotations
 
@@ -103,9 +108,11 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
     ap.add_argument("--layer2", default="allsession_encoder_v7g3_t3d_frA")
     ap.add_argument("--reuse", action="store_true", help="reuse sessions.csv (figures / tables only)")
+    ap.add_argument("--out", default=None, help="output folder (default <E>/specificity_control/<tag>)")
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
-    out = E / "specificity_control" / a.tag
+    out = Path(a.out) if a.out else E / "specificity_control" / a.tag
+    l2dir = Path(a.layer2) if Path(a.layer2).is_absolute() else E / a.layer2       # absolute: a dry-run folder
     (out / "figures").mkdir(parents=True, exist_ok=True)
     if a.reuse and (out / "sessions.csv").exists():
         T = pd.read_csv(out / "sessions.csv")
@@ -131,7 +138,7 @@ def main(argv=None) -> int:
     A.to_csv(out / "area_boot.csv", index=False)
 
     # LAYER 2 by area
-    L = pd.read_csv(E / a.layer2 / "allsession_changes_by_session.csv")
+    L = pd.read_csv(l2dir / "allsession_changes_by_session.csv")
     L = L[L.fit == "combined"].copy()
     L["change_ref"] = L["change_ref"] / 1e3                 # stored x1e3 -> R2 fraction
     LG = []
@@ -159,11 +166,24 @@ def main(argv=None) -> int:
     LA = ffc.boot(L, "change_ref", ref_epoch="pre_late", epochs=["chronic"], keys=("area",))
 
     # ALM / tjM1 / MOs_rest / MOp_rest (Priya 10-27): per-ROI residual next to the whole MOp / MOs, both windows, every
-    # post epoch (Layer 2 has area means only -> no split rows there; docs/status/ALM_TJM1_ROWS_PLAN_20261027.md)
+    # post epoch (docs/status/ALM_TJM1_ROWS_PLAN_20261027.md)
     import encoder_split_rows as esr
-    SR = [x for x in ("MOp_right", "MOp_left", "tjM1_right", "tjM1_left", "MOp_rest_right", "MOp_rest_left", "MOs_right",
-                      "MOs_left", "ALM_right", "ALM_left", "MOs_rest_right", "MOs_rest_left") if x in set(T.area)]
+    SR0 = ("MOp_right", "MOp_left", "tjM1_right", "tjM1_left", "MOp_rest_right", "MOp_rest_left", "MOs_right", "MOs_left",
+           "ALM_right", "ALM_left", "MOs_rest_right", "MOs_rest_left")
+    SR = [x for x in SR0 if x in set(T.area)]
     has_split = any(x in esr.SPLIT_AREAS for x in SR)
+    # ... and in LAYER 2 when the all-session run has the ROI targets (`allsession_encoder --roi-targets`, Priya 10-28:
+    # "can definitely do the frA panel"); not in any GROUP, so the group values are unchanged
+    SRL = [x for x in SR0 if x in set(L.area)]
+    l2_split = any(x in esr.SPLIT_AREAS for x in SRL)
+    if l2_split:
+        LBS = ffc.boot(L[L.area.isin(SRL)], "change_ref", ref_epoch="pre_late", keys=("area",))
+        LBS.to_csv(out / "layer2_split_boot.csv", index=False)
+        perLS = L[L.area.isin(SRL)].groupby(["area", "animal", "epoch"]).change_ref.mean().unstack("epoch")
+        print("\n== per animal (rule 8): Layer 2 change_ref (R2), MOp / MOs and their split ROIs\n"
+              + perLS.reindex(columns=["pre_late", "acute", "subacute", "chronic"]).round(4).to_string())
+        print("\n== Layer 2 split ROIs, epoch - pre_late (nested bootstrap)\n" + LBS[LBS.epoch != "pre_late_split"][
+            ["area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
     if has_split:
         BS = pd.concat([ffc.boot(T[T.area.isin(SR) & (T.window == w)], "residual_z").assign(frame=w) for w in WINDOWS],
                        ignore_index=True)
@@ -177,7 +197,8 @@ def main(argv=None) -> int:
     # FIGURE 1: group bars
     gl = ["orofacial contra", "orofacial ipsi", "control", "orofacial - control"]
     ffc.COL.update({"residual_z": "#d95f02"})
-    fig, axs = plt.subplots(3 + has_split, 1, figsize=(13, 11 + 3.6 * has_split))
+    nx = has_split + l2_split                            # extra panels: residual by ROI, Layer 2 by ROI
+    fig, axs = plt.subplots(3 + nx, 1, figsize=(13, 11 + 3.6 * nx))
     for ax, w in zip(axs[:2], WINDOWS):
         Bw = B[(B.window == w) & B.q.isin(["residual_z"])].rename(columns={"q": "frame"})
         ffc.bars(ax, Bw, ["residual_z"], gl, "change from pre (pre-SD units)",
@@ -196,11 +217,19 @@ def main(argv=None) -> int:
                  "RESIDUAL by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask; ALM / tjM1 / rests from "
                  "the frozen run's basis twin)")
         axs[3].legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+    if l2_split:
+        ffc.ALAB.update({x: esr.side_label(x) for x in SRL})
+        LBSp = LBS.copy()
+        LBSp["frame"] = "layer2"
+        LBSp["epoch"] = LBSp.epoch.replace({"pre_late_split": "pre_split"})
+        ffc.bars(axs[3 + has_split], LBSp, ["layer2"], SRL, "change_ref minus pre_late (R2)",
+                 f"LAYER 2 by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask, as extra targets of "
+                 f"{l2dir.name})")
     fig.suptitle(f"NEURAL: is the chronic change SPECIFIC to orofacial cortex? Frozen frame ({a.tag}); orofacial = SSp-m, "
                  "SSp-n, MOp, MOs; control = visual, retrosplenial, SSp trunk / lower limb.\nBars = mean of animals; "
                  "whisker 95 % nested CI; * excludes 0; dots = animals; grey band = pre split-half range. contra = right.",
                  fontsize=9.5)
-    fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (11 + 3.6 * has_split), bottom=0.05, hspace=0.45)
+    fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (11 + 3.6 * nx), bottom=0.05, hspace=0.45)
     fig.savefig(out / "figures" / "specificity_groups.png", dpi=105)
     plt.close(fig)
 
@@ -209,8 +238,8 @@ def main(argv=None) -> int:
     ol = outline(img)
     # split panels (10-27): MOs / MOp painted as ALM + MOs_rest / tjM1 + MOp_rest, on the colour scale of the Allen panel
     # of the same window (one scale per pair)
-    img_s, nm_s = esr.split_image(img, nm) if has_split else (None, None)
-    ol_s = outline(img_s) if has_split else None
+    img_s, nm_s = esr.split_image(img, nm) if (has_split or l2_split) else (None, None)
+    ol_s = outline(img_s) if (has_split or l2_split) else None
     panels = []
     for w in WINDOWS:
         for q, lab in (("residual_z", "residual"),):
@@ -221,6 +250,9 @@ def main(argv=None) -> int:
                                img_s, nm_s, ol_s, len(panels) - 1))
     s = LA[LA.epoch == "chronic"].set_index("area")
     panels.append(("Layer 2 change beyond drift", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "R2", img, nm, ol, None))
+    if l2_split:
+        panels.append(("Layer 2: ALM / tjM1 split", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "R2", img_s, nm_s, ol_s,
+                       len(panels) - 1))
     fig, axs = plt.subplots(1, len(panels), figsize=(3.3 * len(panels), 4.2))
     lims = []
     for ax, (title, vals, sig, unit, img_, nm_, ol_, same) in zip(axs, panels):
@@ -241,8 +273,8 @@ def main(argv=None) -> int:
     fig.suptitle("NEURAL: CHRONIC minus pre by Allen area (frozen frame). Black outline = area whose 95 % nested CI "
                  "excludes 0 (uncorrected, 41 areas). Image left = ipsilesional."
                  + ("\n'split' panels: MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8), same scale as the panel "
-                    "to their left." if has_split else ""), fontsize=9)
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.8 if has_split else 0.84, bottom=0.08, wspace=0.05)
+                    "to their left." if (has_split or l2_split) else ""), fontsize=9)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.8 if (has_split or l2_split) else 0.84, bottom=0.08, wspace=0.05)
     fig.savefig(out / "figures" / "specificity_area_maps.png", dpi=110)
     plt.close(fig)
     print("->", out)
