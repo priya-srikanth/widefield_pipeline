@@ -53,6 +53,19 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
   "tracebacks in:" line): track A = iti_licks main/key/controls/binned, check_figures, area_maps, hemo (+summarise), f0;
   track B = split decoder (all + gap2 / far1 / gap2far1, gauss read-out), plain Allen (lick_order, gauss, decomposition,
   where_decoder); then offset maps (areas, split), mixed models, filter compare, lmm figures.
+- **10-27 late decisions (DECISIONS.md):** split basis EVERYWHERE ("use split bases, for consistency"); 'beyond the
+  pull' -> like-for-like offset everywhere ("yes replace beyond pull"); like-for-like reference = LOCAL-LINEAR ("ok local
+  linear it is"; lateral + angle tie with Gaussian, Gaussian = supplement). A helper is coding split + beyond-pull in an
+  isolated WORKTREE (no M: writes) and writes scratchpad run_v8split.sh -> merge after waves 2/3, then run it.
+- **TODO after the split merge (Priya: "fix the code base so we don't need the v1 folder"):** ~18 scripts list labels
+  from `il.OUT / "sessions"` (v1): add `iti_licks.labels()` (stems of OUT/SESS_NAME, fail loudly if empty / < 107) and
+  replace every call site (iti_area_maps x2, iti_area_split_sd, iti_contact_check, iti_decoder_contrib, iti_hemo_check,
+  iti_lick_order, iti_lick_rate, iti_lick_timing_audit, figdata.imaging_grid, iti_where_decoder.load, iti_zscore_check.sds,
+  iti_basis_decoder, lick_session_level_maps, iti_pattern_area_stats, lick_roi_*, lick_offset_contrib_map -- re-grep);
+  retire / convert iti_nmatch_check (hard-codes sessions_v3). Then v1 `sessions/` can join the delete list.
+- **Duplicate run:** the stopped run_v8wave2.sh waiter survived TaskStop (orphan PID 7444) and started a DUPLICATE wave 2
+  at 20:52 when V8REDO_DONE appeared; Priya asked to `taskkill /PID 7444 /T /F`. Harmless for results (split pass redoes
+  all) but costs CPU. Pitfall: TaskStop does not kill a Git-Bash script's subshell tree -- stop waiters by PID tree.
 - **PAGE-FIGURE AUDIT (helper, all 235 page images; map in scratchpad audit_map.txt):** pattern maps 15.x unaffected
   (SVD basis; lick times identical in v8 files); sections 0-9 / 17-22 unaffected (encoder stat mask). STALE + not in
   waves 1/2 -> WAVE 3 (scratchpad run_v8wave3.sh, logs rr8/w3_*, ends V8WAVE3_DONE): plain --ref place / spout / pooled
