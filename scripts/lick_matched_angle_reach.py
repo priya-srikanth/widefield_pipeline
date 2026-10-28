@@ -1,5 +1,6 @@
-"""LIKE-FOR-LIKE read-out on ANGLE and 3-D REACH (and, in the table only, elevation and lateral / forward / down) with the
-LOCAL-LINEAR reference (Priya 10-27 late: "for the angle decoder, should we use gaussian smoother like for like licks
+"""LIKE-FOR-LIKE read-out on ANGLE and 3-D REACH (and, in the table only, elevation and lateral / forward / down).
+REFERENCE: GAUSSIAN weighted mean = PRIMARY (Priya 10-27 late "ok gaussian", confirmed); LOCAL-LINEAR with the edge line
+carried out = the edge check shown beside it (scope "loclin"). History: first written local-linear only (Priya 10-27 late: "for the angle decoder, should we use gaussian smoother like for like licks
 also?" -> local-linear with the edge line carried out ("can we use the same linear strategy for the edges?", "why can't
 we decode outside pre reach? isn't that what the local linear is for" -> "sounds good"); plot angle + reach, the rest in
 the table ("sagittal, elevation, reach, xyz ... may be too much")). Replaces 'offset beyond the pre pull' (bey_*) of
@@ -8,7 +9,7 @@ iti_where_angle_reach.py, whose answer depended on the assumed pull slope.
 Per lick: resid = decoded - reference(actual), reference = the animal's PRE licks of the same set (any spout) by a
 Gaussian-weighted local line on the actual value (`likeforlike.py`; pre licks leave-one-pre-session-out; width by
 held-out pre error). + = read more contralesional (angle) / longer (reach) than pre licks that went to the same place.
-Session means of resid: ALL licks (primary) and licks INSIDE the pre range (sensitivity); change vs pre = paired nested
+Session means of resid per reference (gauss: licks beyond the pre range / weight < 3 get none; loclin: every lick); change vs pre = paired nested
 bootstrap (iti_check_figures.epoch_compute); per-animal values first (rule 8). Also: share of licks beyond the pre
 range per epoch, and the epoch effect with the reference refit on resampled pre sessions.
 Inputs <E>/iti_licks/where_angle_reach_preds.csv.gz (iti_where_angle_reach.py) and where_3axis_preds.csv.gz
@@ -43,7 +44,7 @@ AXES = {"angle": ("where_angle_reach_preds.csv.gz", "act_ang", "dec_ang", DEG, "
         "lateral_3axis": ("where_3axis_preds.csv.gz", "act_lat", "dec_lat", MM, "mm", False),
         "forward": ("where_3axis_preds.csv.gz", "act_fwd", "dec_fwd", MM, "mm", False),
         "down": ("where_3axis_preds.csv.gz", "act_down", "dec_down", MM, "mm", False)}
-SCOPES = ("all", "inside pre range")
+SCOPES = ("gauss", "loclin")      # reference: Gaussian weighted mean (PRIMARY) | local-linear edge check
 
 
 def compute() -> dict:
@@ -53,15 +54,18 @@ def compute() -> dict:
         if fn not in cache:
             cache[fn] = pd.read_csv(il.pred_file(fn))           # basis-specific cache name (il.PRED_TAG)
         P = cache[fn].dropna(subset=[x, y]).reset_index(drop=True)
-        sg, cv = lfl.choose(P, x, y, sigmas)
-        cvs.append(cv.assign(axis=ax, chosen=sg))
-        R = lfl.ref_table(P, x, y, sg)
-        P = P.assign(resid=P[y] - R.ref, beyond=R.beyond)
-        print(f"[{ax}] local-linear sigma = {sg} {unit}", flush=True)
-        cov.append(lfl.coverage(P, P.beyond.to_numpy()).assign(axis=ax))
-        rbs.append(lfl.boot_reference(P, x, y, sg).assign(axis=ax))
+        sgs = {}
         for scope in SCOPES:
-            Q = P if scope == "all" else P[(P.beyond == 0) | (P.epoch == "pre")]
+            sgs[scope], cv = lfl.choose(P, x, y, sigmas, {"gauss": "nw", "loclin": "loclin"}[scope])
+        cvs.append(cv.assign(axis=ax, chosen_gauss=sgs["gauss"], chosen_loclin=sgs["loclin"]))
+        Rg = lfl.ref_table(P, x, y, sgs["gauss"], "nw")
+        Rl = lfl.ref_table(P, x, y, sgs["loclin"], "loclin")
+        P = P.assign(resid_gauss=P[y] - Rg.ref, resid_loclin=P[y] - Rl.ref, beyond=Rl.beyond)
+        print(f"[{ax}] sigma gauss {sgs['gauss']}, loclin {sgs['loclin']} {unit}", flush=True)
+        cov.append(lfl.coverage(P, P.beyond.to_numpy()).assign(axis=ax))
+        rbs.append(lfl.boot_reference(P, x, y, sgs["loclin"]).assign(axis=ax))
+        for scope in SCOPES:
+            Q = P.assign(resid=P[f"resid_{scope}"])
             S = Q.groupby(["set", "animal", "label", "epoch"]).agg(resid=("resid", "mean"), n=("resid", "size"))
             S = S[S.n >= MIN].reset_index().assign(axis=ax, scope=scope, unit=unit)
             sess.append(S)
@@ -88,7 +92,7 @@ def compute() -> dict:
     print(out["coverage"].round(3).to_string(index=False))
     print("== epoch effect, reference refit on resampled pre sessions")
     print(out["refboot"].round(3).to_string(index=False))
-    sig = {a: float(out["sigma_cv"][out["sigma_cv"].axis == a].chosen.iloc[0]) for a in AXES}
+    sig = {a: float(out["sigma_cv"][out["sigma_cv"].axis == a].chosen_gauss.iloc[0]) for a in AXES}
     C = out["coverage"]
     cov_txt = {(r.axis, r.set, r.epoch): r.share_beyond for r in C.itertuples()}
     return {"panels": panels, "sigma": sig, "coverage": cov_txt}
@@ -111,13 +115,13 @@ def plot(F: dict) -> None:
                 continue
             unit = AXES[ax_][4]
             cv = ", ".join(f"{e[:3]} {F['coverage'].get((ax_, st, e), np.nan):.0%}" for e in EP)
-            epoch_draw(a, P, ref=0.0, title=f"{SETS[st]}: {ax_.upper()}, {'ALL licks' if sc == 'all' else 'inside pre range'}"
-                       + (f"\nbeyond pre range: {cv}" if sc == "all" else ""),
+            epoch_draw(a, P, ref=0.0, title=f"{SETS[st]}: {ax_.upper()}, {'GAUSSIAN reference' if sc == 'gauss' else 'local-linear (edge check)'}"
+                       + (f"\nbeyond pre range (no Gaussian ref.): {cv}" if sc == "gauss" else ""),
                        ylab=f"read-out vs pre licks at the same {ax_} ({unit})" if j % 2 == 0 else "")
-    fig.suptitle("LIKE-FOR-LIKE read-out on ANGLE and 3-D REACH (local-linear reference; no pull slope): each lick's decoded "
+    fig.suptitle("LIKE-FOR-LIKE read-out on ANGLE and 3-D REACH (Gaussian same-place reference; no pull slope): each lick's decoded "
                  "value minus what the animal's PRE licks that went to the same place were read as.\n+ = read more "
-                 "contralesional (angle) / longer (reach). Beyond the pre range the edge line is carried out; right panel "
-                 "of each pair = licks inside the pre range only.\nwidth: " +
+                 "contralesional (angle) / longer (reach). Right panel of each pair = LOCAL-LINEAR reference (edge line "
+                 "carried beyond the pre range, every lick scored) = edge check.\nGaussian width: " +
                  ", ".join(f"{a} {F['sigma'][a]:g} {AXES[a][4]}" for a in ("angle", "reach")) +
                  " (held-out pre error). Dots = sessions, lines = animals, change vs pre = 95 % paired nested bootstrap, "
                  "k/n animals. PROVISIONAL", fontsize=9)
