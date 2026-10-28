@@ -22126,3 +22126,15 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
 - Why not LocaNMF (Priya earlier: "if LocaNMF is better, let's use it"): it is not better here; the joint LocaNMF basis
   is pre-stroke only and ~1/3 of its components sit mostly on glue / MOB.
 - Priya named the figure where tjM1's chronic build-up "lost significance": `lick_iti_ramp_summary` (ramp_session_tests.csv).
+
+## 2026-10-27 (late) -- Like-for-like read-out: LOCAL-LINEAR reference, edge line carried out; angle + reach get it (Priya)
+- Priya: "for the angle decoder, should we use gaussian smoother like for like licks also?", "can we use the same linear
+  strategy for the edges?", "why can't we decode outside pre reach? isn't that what the local linear is for" -> plan
+  accepted ("sounds good"); "sagittal, elevation, reach, xyz - should these be binned as well? may be too much".
+- Reference = Gaussian-weighted LOCAL LINE (decoded vs actual) through the animal's pre licks, read off at the lick's
+  actual value (`scripts/likeforlike.py`); beyond the pre range (0.5-99.5 % of pre values) the edge line is carried out,
+  so EVERY lick gets a reference. Reported on all licks (primary) and inside-range licks (sensitivity); share beyond the
+  range per epoch; epoch effect with the reference refit on resampled pre sessions (edge-slope uncertainty). Width and the
+  local-linear vs weighted-mean choice by held-out pre error (table shown).
+- Lateral: `lick_matched_readout.py --ref loclin`. Angle + 3-D reach (plotted), elevation / lateral / forward / down (table
+  only): `lick_matched_angle_reach.py`; replaces 'offset beyond the pre pull' (bey_*) of iti_where_angle_reach.

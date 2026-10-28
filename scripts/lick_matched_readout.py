@@ -12,7 +12,11 @@ Session means of resid (all spouts / per spout / first vs later lick), change vs
 (analysis_kit.boot_delta), per-animal table first (rule 8). Pre sessions sit near 0 by construction (their own curve);
 their spread is the noise level.
 Outputs <E>/iti_licks/matched_{sessions,tests}.csv, figures/lick_matched_{curves,readout,perspout}.png.
-Usage: python scripts/lick_matched_readout.py [--ref place|spout|pooled]   (default place; see REF)
+--ref loclin (10-27 late, Priya "sounds good"): LOCAL-LINEAR Gaussian reference with the edge line carried beyond the pre
+range (scripts/likeforlike.py): every lick gets a reference, `beyond` flags licks outside the pre range; extra scope
+"all spouts, inside pre range" (sensitivity), matched_loclin*_coverage.csv (share beyond per epoch) and
+matched_loclin*_refboot.csv (epoch effect over references refit on resampled pre sessions).
+Usage: python scripts/lick_matched_readout.py [--ref place|spout|pooled|gauss|loclin]   (default place; see REF)
 """
 from __future__ import annotations
 
@@ -25,6 +29,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_lick_order as lo  # noqa: E402
+import likeforlike as lfl  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -44,7 +49,11 @@ MIN_FINE = 15
 REF = sys.argv[sys.argv.index("--ref") + 1] if "--ref" in sys.argv else "place"
 TAG = ("" if REF == "pooled" else f"_{REF}") + lo.SRC_TAG      # + decoder source (iti_lick_order.SOURCE)
 SIGMAS = (0.05, 0.1, 0.15, 0.2, 0.3, 0.4)   # Gaussian widths tried (mm); chosen by held-out pre-session prediction
-REFLAB = {"gauss": "pre licks (any spout) weighted by a Gaussian on landing distance (SAME PLACE, no bins)",
+PLACE_REFS = ("place", "gauss", "loclin")      # references on the absolute landing place (not deviation from the spout)
+INSIDE = "all spouts, inside pre range"
+REFLAB = {"loclin": "pre licks (any spout) by a Gaussian-weighted LOCAL LINE on landing (SAME PLACE; edge line carried "
+                    "beyond the pre range)",
+          "gauss": "pre licks (any spout) weighted by a Gaussian on landing distance (SAME PLACE, no bins)",
           "place": "pre licks (any spout) that landed at the SAME PLACE",
           "spout": "pre licks of the SAME SPOUT with the same landing deviation",
           "pooled": "pre licks (any spout) with the same landing deviation from their spout"}[REF]
@@ -116,6 +125,15 @@ def per_lick() -> pd.DataFrame:
         cv.to_csv(il.OUT / f"matched_gauss{lo.SRC_TAG}_sigma_cv.csv", index=False)
         P["resid_gauss"] = P.dec - gauss_ref(P, sg)
         P.attrs["sigma"] = sg
+    if REF == "loclin":
+        sg, cv = lfl.choose(P, "act", "dec", SIGMAS)
+        print("local-linear vs weighted-mean reference, held-out pre error:")
+        print(cv.round(4).to_string(index=False))
+        print(f"-> local-linear sigma = {sg} mm")
+        cv.to_csv(il.OUT / f"matched_loclin{lo.SRC_TAG}_sigma_cv.csv", index=False)
+        R = lfl.ref_table(P, "act", "dec", sg)
+        P["resid_loclin"], P["beyond"] = P.dec - R.ref, R.beyond
+        P.attrs["sigma"] = sg
     P["resid"] = P[f"resid_{REF}"]
     P["cls"] = np.where(P.order == 0, "first", "later")
     return P
@@ -123,7 +141,7 @@ def per_lick() -> pd.DataFrame:
 
 def curves(P: pd.DataFrame) -> pd.DataFrame:
     """Read-out vs landing per epoch: absolute place (REF place) or deviation from the spout (pooled / spout)."""
-    x, y, b = ("act", "dec", "bin_a") if REF in ("place", "gauss") else ("dLand", "dDec", "bin")
+    x, y, b = ("act", "dec", "bin_a") if REF in PLACE_REFS else ("dLand", "dDec", "bin")
     A = P.groupby(["set", "epoch", b, "animal"], observed=True).agg(y=(y, "mean"), n=(y, "size"))
     A = A[A.n >= MIN_BIN].reset_index()
     A["mid"] = [v.mid for v in A[b]]
@@ -136,6 +154,9 @@ def sessions(P: pd.DataFrame) -> pd.DataFrame:
     cells = [("all spouts", "all", Q)] + [(p, "all", Q[Q.pos == p]) for p in POS] + \
             [("all spouts", c, Q[Q.cls == c]) for c in ("first", "later")] + \
             [(p, c, Q[(Q.pos == p) & (Q.cls == c)]) for p in POS for c in ("first", "later")]
+    if REF == "loclin":                     # sensitivity: post licks inside the pre landing range only
+        Qi = Q[(Q.beyond == 0) | (Q.epoch == "pre")]
+        cells += [(INSIDE, "all", Qi)] + [(INSIDE, c, Qi[Qi.cls == c]) for c in ("first", "later")]
     for scope, cls, g in cells:
         for (st, a, lab, ep), h in g.groupby(["set", "animal", "label", "epoch"]):
             if len(h) >= MIN:
@@ -166,7 +187,7 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
 def bin_tests(P: pd.DataFrame) -> pd.DataFrame:
     """Per landing bin of the curve figure: session mean of resid in that bin (>= 5 licks), change vs pre by the paired
     nested bootstrap, p from the same draws (analysis_kit.boot_p), BH across bins within set x epoch."""
-    b = "bin_a" if REF in ("place", "gauss") else "bin"
+    b = "bin_a" if REF in PLACE_REFS else "bin"
     Q = P.dropna(subset=["resid"])
     S = Q.groupby(["set", b, "animal", "label", "epoch"], observed=True).resid.agg(["mean", "size"]).reset_index()
     S = S[S["size"] >= 5]
@@ -234,11 +255,11 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
             for m_ in (bt.mid if len(bt) else []):
                 ax.axvspan(m_ - 0.125, m_ + 0.125, ymin=0.975 - 0.018 * r_i, ymax=0.987 - 0.018 * r_i, color=col[ep],
                            alpha=0.35, lw=0, zorder=0)                  # thin, BEHIND the data and SEM bars
-        ax.set_xlabel("landing, lateral (mm, + = contralesional)" if REF in ("place", "gauss") else
+        ax.set_xlabel("landing, lateral (mm, + = contralesional)" if REF in PLACE_REFS else
                       "landing deviation from the animal's pre mean at the spout (mm, + = contralesional)", fontsize=8)
-        ax.set_ylabel(("decoded lateral" if REF in ("place", "gauss") else "read-out deviation (decoded")
+        ax.set_ylabel(("decoded lateral" if REF in PLACE_REFS else "read-out deviation (decoded")
                       + " (mm, + = contralesional)", fontsize=8)
-        ax.set_title(f"{SETS[st]} licks: read-out vs landing{' place' if REF in ('place', 'gauss') else ' deviation'}\n(bins with >= {MIN_BIN} licks per animal; "
+        ax.set_title(f"{SETS[st]} licks: read-out vs landing{' place' if REF in PLACE_REFS else ' deviation'}\n(bins with >= {MIN_BIN} licks per animal; "
                      "mean +/- SEM over animals)", fontsize=9)
         ax.legend(handles=epl, fontsize=8, frameon=False, loc="lower right")
         for s_ in ("top", "right"):
@@ -253,6 +274,8 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
     panels = [("all spouts", "all", "all spouts, all licks"), ("all spouts", "first", "all spouts, FIRST lick"),
               ("all spouts", "later", "all spouts, later licks"), ("far_contra", "all", "far contra, all licks"),
               ("far_contra", "first", "far contra, FIRST lick"), ("far_contra", "later", "far contra, later licks")]
+    if REF == "loclin":
+        panels.insert(1, (INSIDE, "all", "all spouts, INSIDE the pre range\n(no extrapolated reference)"))
     fig, axs = plt.subplots(2, len(panels), figsize=(3.3 * len(panels), 7.6), squeeze=False)
     for i, st in enumerate(SETS):
         for j, (scope, cls, title) in enumerate(panels):
@@ -322,6 +345,15 @@ def main() -> int:
     print(T[T.measure == "resid"][cols].round(2).to_string(index=False))
     BT = bin_tests(P)
     BT.to_csv(il.OUT / f"matched{TAG}_bin_tests.csv", index=False)
+    if REF == "loclin":
+        C = lfl.coverage(P, P.beyond.to_numpy())
+        C.to_csv(il.OUT / f"matched{TAG}_coverage.csv", index=False)
+        print("== share of licks beyond the pre landing range (median mm beyond):")
+        print(C.round(3).to_string(index=False))
+        RB = lfl.boot_reference(P, "act", "dec", P.attrs["sigma"])
+        RB.to_csv(il.OUT / f"matched{TAG}_refboot.csv", index=False)
+        print("== epoch effect with the reference refit on resampled pre sessions (2.5-97.5 %):")
+        print(RB.round(3).to_string(index=False))
     plot(A, S, T, BT)
     return 0
 
