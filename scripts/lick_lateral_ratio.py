@@ -36,7 +36,7 @@ SIDES = ["side_ipsi", "side_mid", "side_contra"]       # close + far of one side
 SETS = {"cued": ("lick", cr.BASE_SPOUT, "time from first cued lick (s)", "first cued lick, by TARGET spout"),
         "cue": ("cue", cr.BASE_C, "time from cue (s)", "cue-aligned, by target spout"),
         "iti": ("iti", cr.BASE_SPOUT, "time from ITI bout-start lick (s)", "ITI bout start, by PREVIOUS trial's spout")}
-WINDOWS = ((0.0, 0.5), (0.0, 1.0))
+WINDOWS = ((0.0, 1.0), (0.0, 0.5))      # first = primary figures (0..1.0 s default since 10-28 evening)
 RATIO_MIN = 0.2
 MIN_TRACE_ANIMALS = 2    # traces: mean over the animals defined at a lag (dotted where fewer than all)
 EP = ["acute", "subacute", "chronic"]

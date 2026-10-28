@@ -55,11 +55,16 @@ BASE_RESP = il.BASE_RESP              # response-SIZE AUCs (14.10, 14.11); PETH 
 ROIS = il.KEY_ROIS
 SPOUT_ROIS = ["ALM_right", "tjM1_right", "SSp-m_right", "cortex"]
 WIDE = "cued_wide"
-SPEC = (("resp_auc", "lick response AUC 0..0.5 s\n(dF/F x1e3 * s; baseline -1.0..-0.5 s)"),
-        ("resp_auc_n", "lick response AUC / animal's pre\n(baseline -1.0..-0.5 s)"),
+RESP_W = (0.0, 1.0)                   # response-size AUC window (Priya 10-28 evening: "0-1 s should be default now")
+SPEC = (("resp_auc", "lick response AUC 0..1.0 s\n(dF/F x1e3 * s; baseline -1.0..-0.5 s)"),
+        ("resp_auc_n", "lick response AUC 0..1.0 s / animal's pre\n(baseline -1.0..-0.5 s)"),
         ("pre_auc", "pre-lick window AUC -0.4..-0.05 s\n(CUE-contaminated; baseline -1.5..-1.0 s)"),
-        ("cue_auc", "cue response AUC 0..0.5 s after cue"),
-        ("cue_auc_n", "cue response AUC\n/ animal's pre cue AUC"))
+        ("cue_auc", "cue response AUC 0..1.0 s after cue"),
+        ("cue_auc_n", "cue response AUC 0..1.0 s\n/ animal's pre cue AUC"))
+SPEC_ITI = (("resp_auc", "response AUC 0..1.0 s (dF/F x1e3 * s)\nbaseline -1.0..-0.5 s"),
+            ("resp_auc_n", "response AUC 0..1.0 s / animal's pre\n(baseline -1.0..-0.5 s)"),
+            ("build_auc", "build-up AUC -0.4..-0.05 s\n(baseline -1.5..-1.0 s)"),
+            ("build_auc_n", "build-up AUC / animal's pre\n0..0.5 s response AUC"))
 
 
 # ------------------------------------------------------------------------------------------------------------ EXTRACT
@@ -342,18 +347,45 @@ def compute() -> dict:
     for (_i, a), (_j, c) in zip(PL.iterrows(), PC.iterrows()):
         assert a.label == c.label and a.roi == c.roi
         # response size on BASE_RESP (Priya 10-28); the pre-lick window stays on BASE_L (build-up rule)
+        # response / cue AUC over RESP_W (0..1.0 s since 10-28 evening, Priya: "0-1 s should be default now"); the
+        # 0..0.5 s values are kept beside them (*_05) and still scale the PETH curves (14.5 / 14.6 row 2)
         rows.append({"label": a.label, "animal": a.animal, "epoch": a.epoch, "roi": a.roi, "n": a.n,
-                     "resp_auc": _auc(a.peth - np.nanmean(a.peth[br]), LAGS_W, 0.0, 0.5),
+                     "resp_auc": _auc(a.peth - np.nanmean(a.peth[br]), LAGS_W, *RESP_W),
+                     "resp_auc_05": _auc(a.peth - np.nanmean(a.peth[br]), LAGS_W, 0.0, 0.5),
                      "resp_auc_b15": _auc(a.peth, LAGS_W, 0.0, 0.5), "pre_auc": _auc(a.peth, LAGS_W, -0.4, -0.05),
-                     "cue_auc": _auc(c.peth, LAGS_W, 0.0, 0.5)})
+                     "cue_auc": _auc(c.peth, LAGS_W, *RESP_W), "cue_auc_05": _auc(c.peth, LAGS_W, 0.0, 0.5)})
     T0 = pd.DataFrame(rows)
-    # the PETH curves (14.5 / 14.6 row 2) keep BASE_L, so they are scaled by the pre response AUC under BASE_L
+    # the PETH curves (14.5 / 14.6 row 2) keep BASE_L and the 0..0.5 s scale
     dr = T0[T0.epoch == "pre"].groupby(["roi", "animal"]).resp_auc_b15.mean()
     drr = T0[T0.epoch == "pre"].groupby(["roi", "animal"]).resp_auc.mean()
-    dc = T0[T0.epoch == "pre"].groupby(["roi", "animal"]).cue_auc.mean()
+    dc = T0[T0.epoch == "pre"].groupby(["roi", "animal"]).cue_auc_05.mean()
+    dcw = T0[T0.epoch == "pre"].groupby(["roi", "animal"]).cue_auc.mean()
     T0["resp_auc_n"] = T0.resp_auc / np.array([drr.get((r_, a_), np.nan) for r_, a_ in zip(T0.roi, T0.animal)])
-    T0["cue_auc_n"] = T0.cue_auc / np.array([dc.get((r_, a_), np.nan) for r_, a_ in zip(T0.roi, T0.animal)])
+    T0["cue_auc_n"] = T0.cue_auc / np.array([dcw.get((r_, a_), np.nan) for r_, a_ in zip(T0.roi, T0.animal)])
     T0.to_csv(il.OUT_W / "cued_ramp_auc_sessions.csv", index=False)
+    # ITI summary on the wide traces (the stored ITI PETHs end at +0.75 s, too short for 0..1.0 s): response over RESP_W
+    # (baseline BASE_RESP, / the animal's pre response over RESP_W) and the build-up exactly as 14.10 (baseline BASE_L,
+    # AUC -0.4..-0.05 s, / the pre 0..0.5 s response AUC under BASE_L)
+    ri = []
+    for _i, a in PE["iti"].iterrows():
+        ri.append({"label": a.label, "animal": a.animal, "epoch": a.epoch, "roi": a.roi,
+                   "resp_auc": _auc(a.peth - np.nanmean(a.peth[br]), LAGS_W, *RESP_W),
+                   "resp_auc_b15": _auc(a.peth, LAGS_W, 0.0, 0.5), "build_auc": _auc(a.peth, LAGS_W, -0.4, -0.05)})
+    TI = pd.DataFrame(ri)
+    pre_i = TI[TI.epoch == "pre"].groupby(["roi", "animal"])
+    ki = list(zip(TI.roi, TI.animal))
+    TI["resp_auc_n"] = TI.resp_auc / np.array([pre_i.resp_auc.mean().get(k, np.nan) for k in ki])
+    TI["build_auc_n"] = TI.build_auc / np.array([pre_i.resp_auc_b15.mean().get(k, np.nan) for k in ki])
+    TI.to_csv(il.OUT_W / "iti_ramp_auc_sessions_wide.csv", index=False)
+    rng_i = np.random.default_rng(3)
+    tests_i, sp_i = [], {}
+    for j, roi in enumerate(ROIS):
+        for i, (val, _yl) in enumerate(SPEC_ITI):
+            S_ = il.dots_compute(TI[TI.roi == roi], val, rng_i)
+            sp_i[(i, j)] = S_
+            tests_i += [{"roi": roi, **r_} for r_ in S_["tests"]]
+    pd.DataFrame(tests_i).to_csv(il.OUT_W / "iti_ramp_session_tests_wide.csv", index=False)
+    print("== ITI summary (response 0..1.0 s), change vs pre\n" + pd.DataFrame(tests_i).round(3).to_string(index=False))
     pi = PE["iti"]
     di = {(r_, a_): _auc(np.nanmean(np.stack(g.peth.to_numpy()), 0), LAGS_W, 0.0, 0.5)
           for (r_, a_), g in pi[pi.epoch == "pre"].groupby(["roi", "animal"])}
@@ -407,7 +439,8 @@ def compute() -> dict:
     print("== per-spout response AUC 0..0.5 s / the animal's pre AUC AT THAT SPOUT, change vs pre (* = CI excludes 0)\n"
           + AT.pivot_table(index=["set", "roi", "spout", "window"], columns="epoch", values="cell", aggfunc="first")
           .reindex(columns=il.EP4[1:]).to_string())
-    return dict(sess=sess, ratio=ratio, win=win, summary=sp_, spout=spout, pos=list(lo.POS), auc_tests=AT)
+    return dict(sess=sess, ratio=ratio, win=win, summary=sp_, spout=spout, pos=list(lo.POS), auc_tests=AT,
+                summary_iti=sp_i)
 
 
 def _draw_spout_windows(F: dict, key: str, what: str, path: Path) -> None:
@@ -686,13 +719,32 @@ def plot(F: dict) -> None:
             if j == 0:
                 ax.set_ylabel(ylab, fontsize=8)
     fig.suptitle("NEURAL, NO DECODER: FIRST CUED lick, per-session dF/F AUCs (cued version of 14.4; one dot per session, all "
-                 "animals pooled; black = mean +- SEM over sessions). Lick response = AUC 0..0.5 s after lick onset;\npre-lick "
-                 "window = AUC -0.4..-0.05 s before it (overlaps the CUE response); cue response = AUC 0..0.5 s after the cue. "
+                 "animals pooled; black = mean +- SEM over sessions). Lick response = AUC 0..1.0 s after lick onset (default since 10-28);\npre-lick "
+                 "window = AUC -0.4..-0.05 s before it (overlaps the CUE response); cue response = AUC 0..1.0 s after the cue. "
                  "Baselines (10-28): lick response -1.0..-0.5 s, pre-lick window -1.5..-1.0 s before the lick, cue -1.0..-0.5 s before the cue. "
                  "* = change from pre with 95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.94))
     fig.savefig(out / "lick_cued_ramp_summary.png", dpi=110)
     plt.close(fig)
+    if "summary_iti" in F:      # ITI AUC summary on the wide traces (14.10 with the 0..1.0 s response window)
+        fig, axs = plt.subplots(len(SPEC_ITI), len(ROIS), figsize=(21, 12.5))
+        for j, roi in enumerate(ROIS):
+            for i, (_val, ylab) in enumerate(SPEC_ITI):
+                ax = axs[i, j]
+                ax.axhline(0, color="0.8", lw=0.6)
+                il.dots_draw(ax, F["summary_iti"][(i, j)], colors)
+                if i == 0:
+                    ax.set_title(roi, fontsize=9)
+                if j == 0:
+                    ax.set_ylabel(ylab, fontsize=8)
+        fig.suptitle("NEURAL, NO DECODER: self-initiated ITI licks (bout start, no lick for >= 2 s), per-session dF/F AUCs (one "
+                     "dot per session, all animals pooled; black = mean +- SEM over sessions). Response = AUC 0..1.0 s after lick "
+                     "onset (baseline -1.0..-0.5 s; default since 10-28);\nbuild-up = AUC -0.4..-0.05 s before it (baseline "
+                     "-1.5..-1.0 s), / the animal's pre 0..0.5 s response AUC (as before). * = change from pre with 95% "
+                     "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5)
+        fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
+        fig.savefig(out / "lick_iti_ramp_summary_wide.png", dpi=110)
+        plt.close(fig)
 
 
 BASE_ALT = (-1.0, -0.5)

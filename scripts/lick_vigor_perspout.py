@@ -248,7 +248,7 @@ def plot(F: dict) -> None:
                      "the lateral tip position; per animal, linear fit on PRE licks only (as 14.13);\none common lick set (licks "
                      "with every covariate) for all three. _right = contralesional. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-        fig.savefig(il.OUT_W / "figures" / ("lick_vigor_perspout.png" if wn == "0-0.5" else f"lick_vigor_perspout_{wn}.png"), dpi=100)
+        fig.savefig(il.OUT_W / "figures" / ("lick_vigor_perspout.png" if wn == "0-1" else f"lick_vigor_perspout_{wn}.png"), dpi=100)
         plt.close(fig)
 
 

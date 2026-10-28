@@ -22224,3 +22224,10 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
 - Contra/ipsi ratio pooled BY SIDE (close + far; Priya "pool ipsi / mid / contra"; all-spouts pooling demoted -- it
   averages opposite-side ratios): the post-stroke shift toward the contralesional hemisphere is a contra-side effect
   (cued tjM1 +0.24 / +0.22 / +0.22, 4/4 acute; SSp-n +0.44 / +0.40 / +0.45); ipsi-side ~unchanged (except ALM).
+- 0..1.0 s is the DEFAULT response-AUC window (Priya 10-28 evening): ratio (14.9-14.11), vigour (14.8) primary figures
+  0..1.0 s; cued/cue/ITI AUC summaries recomputed (ITI from the wide traces -- stored ITI PETHs end at +0.75 s).
+- 14.9 split (Priya: "a million figures"): KEY = ratio by spout side (0..1 s); 14.10 per spout (supp; far > close on every
+  side, far ipsi shifts / close ipsi not); 14.11 side traces + 0..0.5 s (supp).
+- Balance vs lick angle LMM (14.12, `scripts/lick_balance_angle_lmm.py`): pre, balance tracks lick angle in every pair;
+  post, cued tracking ~30% flatter (4/4) and, at the same angle, shifted toward the ipsilesional hemisphere -- reconciles
+  14.9 (by target) with 12.17 (at fixed landing). ITI: the two balance measures disagree.
