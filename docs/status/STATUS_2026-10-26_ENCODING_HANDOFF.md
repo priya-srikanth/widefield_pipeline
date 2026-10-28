@@ -147,6 +147,15 @@ RUNNING / PENDING at compaction:
     STILL RUNNING / TODO: items 2 (ITI per-spout traces), 3 (animal-averaged 14.7), 4 (14.15 pre-cue restw + key), 5
     (per-spout table), 7 (Priya synthesis -> Where things stand), 9 (orofacial AUC vs recovery + LMM), 10b (baseline
     sensitivity rerun with iso).
+15. (10-28 ~08:30) Importance detail (11.12): ITI like-for-like offset with any block dropped changes by <= +-0.04 mm
+    (full +0.39 / +0.24 / +0.29; extremes MOp_rest -0.039 acute, ALM+tjM1+SSp-m+n ipsi +0.032 acute, full block
+    bilateral -0.033 / -0.037) -> the ITI offset is not carried by any single area or block. Cued offset moves more (up to
+    +0.10 with the ipsi block acute; full +0.17), consistent with target composition. Priya asked why the SVD per-area
+    weights look more 'biological' than the area basis: SVD = smooth high-variance components (implicit smoothness prior,
+    orthogonal, well-determined weights); area basis = ~45 collinear z-scored features (ridge shares weight arbitrarily;
+    small edge areas can get large coefs); AND per-area SUM of a smooth pixel map grows with area size (MOs / ALM big).
+    PROPOSED (not yet approved): basis-comparable 'effective weight' per area = decoder change for a 1-SD fluctuation of the
+    area mean (saved weights x per-session area SD), redraw 11.11 column 4.
 8. Open questions for Priya: none blocking; key-figure suggestions all done.
 
 ### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
