@@ -256,7 +256,7 @@ lick_matched_loclin_perspout,13.6 supp,Local-linear like-for-like reference (sup
 lick_refit_decoders,10.2b,Decoders refit per epoch and per session still decode lick position,supporting
 lick_sametarget_place,12.15,"Same target, same place: cued offset mostly target composition; ITI offset survives",supporting
 lick_covref_offset,12.16,Same-place offset survives kinematic and FaceRhythm covariates,supplementary
-lick_matched_gauss_animal_change,12.18,Like-for-like offset per animal,supplementary
+lick_matched_gauss_animal_change,12.19,Like-for-like offset per animal,supplementary
 lick_session_pixel_lmm_time,15.21,Per-pixel time model on per-session level maps,supplementary
 lick_session_pixel_lmm_behaviour,15.22,Per-pixel behaviour model on per-session level maps,supplementary
 lick_nonlinear_decoder,11.18,A non-linear read-out does not recover the post-stroke loss or remove the ITI offset,supplementary
@@ -282,3 +282,4 @@ lick_lateral_ratio_side_traces,14.12,Contra / ipsi ratio by side over time,suppl
 lick_balance_angle,14.13,"Hemispheric balance vs lick angle, pre vs post",supporting
 lick_balance_reference,12.17,Hemispheric balance vs the offset,supplementary
 lick_balance_order,14.14,Hemispheric balance over lick order,supplementary
+lick_balance_offset,12.18,Session balance vs read-out offset,supporting

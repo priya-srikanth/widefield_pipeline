@@ -103,7 +103,26 @@ def split_image(label: str) -> tuple[np.ndarray, list]:
             sub = np.zeros(flat_img.shape, bool)
             sub[flat[M[f"{dst}_{h}"]]] = True
             flat_img[sub & (flat_img == par)] = len(nm) - 1
-    return flat_img.reshape(img.shape), nm
+    return trim_rest(flat_img.reshape(img.shape), nm), nm
+
+
+def trim_rest(img: np.ndarray, nm: list) -> np.ndarray:
+    """The ROI v8 ALM / tjM1 masks thin the LATERAL rim, so a jagged sliver of MOs / MOp lateral to them stays in
+    MOs_rest / MOp_rest; blank those slivers in the DISPLAY (morphological opening of each rest area, main body kept;
+    Priya 10-28: "take out the jagged slivers at the edges"). The rest-area VALUES still include the rim pixels.
+    Idempotent, so draw time applies it to images saved before 10-28 evening."""
+    from scipy import ndimage
+    out = img.copy()
+    for k, n in enumerate(nm):
+        if "_rest_" in n:
+            m = out == k
+            keep = ndimage.binary_opening(m, iterations=4)
+            lab, nlab = ndimage.label(keep)
+            if nlab > 1:
+                sizes = ndimage.sum(keep, lab, range(1, nlab + 1))
+                keep = lab == (1 + int(np.argmax(sizes)))
+            out[m & ~keep] = -1
+    return out
 
 
 def session_table_split(D: dict, spout: str | None = None, min_n: int = 10, cued: bool = False) -> pd.DataFrame:
@@ -203,7 +222,10 @@ def draw_maps(stem: str) -> None:
     import matplotlib.pyplot as plt
     from frozen_area_maps import paint
     F = load_fd(stem)
-    img, nm, ol = F["img"], F["nm"], F["ol"]
+    from frozen_area_maps import outline
+    nm = F["nm"]
+    img = trim_rest(F["img"], nm)
+    ol = outline(img)
     nr = len(F["rows"])
     fig, axs = plt.subplots(nr, 3, figsize=(14, 4.5 * nr), squeeze=False)
     for i, (ttl, lim, pans) in enumerate(F["rows"]):
@@ -211,7 +233,7 @@ def draw_maps(stem: str) -> None:
             ax = axs[i, j]
             im = ax.imshow(paint(img, nm, delta), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-            _sig_halo(ax, paint(img, nm, {a: 1.0 for a in sig_areas}))
+            _sig_halo(ax, img, nm, sig_areas, list(delta))
             ax.set_title(f"{ttl}\n{ep} - pre ({n_sig} areas significant)", fontsize=9)
             ax.axis("off")
         fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F AUC (x1e3 s)")
@@ -245,7 +267,10 @@ def draw_levels(stem: str) -> None:
     F = load_fd(stem)
     if "levels" not in F:
         return
-    img, nm, ol = F["img"], F["nm"], F["ol"]
+    from frozen_area_maps import outline
+    nm = F["nm"]
+    img = trim_rest(F["img"], nm)
+    ol = outline(img)
     nr = len(F["levels"])
     fig, axs = plt.subplots(nr, 4, figsize=(18, 4.5 * nr), squeeze=False)
     for i, (ttl, lim, pans) in enumerate(F["levels"]):
@@ -264,14 +289,22 @@ def draw_levels(stem: str) -> None:
     plt.close(fig)
 
 
-def _sig_halo(ax, sig_img: np.ndarray) -> None:
-    """Outline the significant areas (finite pixels of sig_img) with a thick BLACK line on a WHITE halo (Priya 10-28:
-    "outline with halo black line significant areas"), visible on both ends of the diverging colour map."""
+def _sig_halo(ax, img: np.ndarray, nm: list, sig_areas, shown_areas) -> None:
+    """Significant areas: EACH outlined on its own (a black line on a wider white stroke, so neighbouring significant
+    areas no longer merge into one outline); non-significant areas FADED (white veil), so in vs out is unambiguous
+    (Priya 10-28: "outline with halo black line significant areas"; "hard to tell what's in vs outside")."""
     from matplotlib import patheffects
-    ok = np.isfinite(sig_img).astype(float)
-    if ok.any():   # vector contour: a black line on a wider white stroke (a pixel halo is invisible at this resolution)
-        ax.contour(ok, levels=[0.5], colors="k", linewidths=1.6,
-                   path_effects=[patheffects.withStroke(linewidth=4.2, foreground="white")])
+    sig = set(sig_areas)
+    veil = np.zeros(img.shape, bool)
+    for i, n in enumerate(nm):
+        if n in shown_areas and n not in sig:
+            veil |= img == i
+    if veil.any():
+        ax.imshow(np.where(veil, 1.0, np.nan), cmap="Greys_r", vmin=0, vmax=1, alpha=0.55, interpolation="nearest")
+    for i, n in enumerate(nm):
+        if n in sig and (img == i).any():
+            ax.contour((img == i).astype(float), levels=[0.5], colors="k", linewidths=1.3,
+                       path_effects=[patheffects.withStroke(linewidth=3.6, foreground="white")])
 
 
 def changes(T: pd.DataFrame, val: str) -> pd.DataFrame:
@@ -374,7 +407,7 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
                 M = paint(img, nm, delta)
                 im = ax.imshow(M, cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-                _sig_halo(ax, paint(img, nm, {a: 1.0 for a in sig_areas}))
+                _sig_halo(ax, img, nm, sig_areas, list(delta))
                 ax.set_title(f"{ttl}\n{ep} - pre ({n_sig} areas significant)", fontsize=9)
                 ax.axis("off")
             fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F AUC (x1e3 s)")
