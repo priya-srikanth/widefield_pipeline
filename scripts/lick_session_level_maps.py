@@ -61,10 +61,22 @@ Outputs <E>/iti_licks/session_levels/{patterns.pkl (A vectors per session), test
 first_lick_counts.csv (incl. far1), heldout_comparison.csv}; figures/lick_session_levels_{lat,sag,within_spout}.png,
 lick_{cued,iti}_session_levels_spout.png, lick_session_change_amp_{lat,sag,within_spout,spout_cued,spout_iti}.png;
 figure data figdata/<figure stem>.pkl. --plot-only redraws from the figure data alone; --reuse-tests rebuilds tables +
-figures from tests.pkl. Usage: python scripts/lick_session_level_maps.py [--plot-only | --reuse-tests] [--perm N]
+figures from tests.pkl.
+Z-SCORED VARIANT (Priya 10-27 late "yes do both", OVERNIGHT 5c-ter: are the ITI maps' cortex-wide components real or a
+scale effect of the unscaled SVD features?): env WFIELD_MAP_SCALE=frame divides each SVD component of every session by
+its frame-wise SD in that session (<E>/iti_licks/basis_svdbasis/frame_sd.csv, `iti_basis_frame_sd.py`; 107 sessions x
+200 components). Everything else is identical: the per-session decoder standardises its features (StandardScaler), so
+yhat, the fit share and the MIN_FIT drops are unchanged and the patterns transform EXACTLY as A_z = A / sd, B_z = B / sd
+(per session; checked numerically). So the variant reuses the unscaled pattern cache (session_levels/patterns_gap2_enc.pkl,
+read only) and rescales before mapping to pixels (W @ A_z), normalising and testing as above. Outputs go to
+<E>/iti_licks/session_levels_z/ and every figure / figure-data stem gets "_z" (nothing unscaled is overwritten).
+The side-by-side comparison is `lick_session_levels_scale_compare.py`.
+Usage: [WFIELD_MAP_SCALE=frame] python scripts/lick_session_level_maps.py [--plot-only | --reuse-tests] [--perm N]
+       [--jobs N]
 """
 from __future__ import annotations
 
+import os
 import pickle
 import sys
 import textwrap
@@ -89,7 +101,13 @@ N_PERM = 1000
 MIN_FIT = 0.05                        # session map kept only if in-sample var(yhat) / var(y) >= this (see docstring)
 DROPPED: list = []
 GAP_FIRST = 2.0                       # ITI first lick: no lick onset in the preceding 2 s
-OUTD = il.OUT / "session_levels"
+SCALE = os.environ.get("WFIELD_MAP_SCALE", "")       # "" = unscaled SVD features (canonical) | "frame" (module docstring)
+if SCALE not in ("", "frame"):
+    raise ValueError(f"WFIELD_MAP_SCALE={SCALE!r}: expected frame or unset")
+ZS = "_z" if SCALE else ""                           # output tag of the scaled variant
+BASE_OUTD = il.OUT / "session_levels"                # the unscaled run (its pattern cache serves both)
+OUTD = il.OUT / f"session_levels{ZS}"
+FIG = il.OUT / "figures"
 SETLAB = {"iti": "ITI", "trial": "cued"}
 TGLAB = {"lat": "LATERAL position", "sag": "SAGITTAL extension", "wlat": "WITHIN-SPOUT lateral"}
 SIGN = {"lat": "positive (orange / red) = more active for licks landing more CONTRALESIONAL",
@@ -102,6 +120,17 @@ LEVEL_FIG = {"lat": "lick_session_levels_lat.png", "sag": "lick_session_levels_s
 CHANGE_FIG = {"lat": "lick_session_change_amp_lat.png", "sag": "lick_session_change_amp_sag.png",
               "wlat": "lick_session_change_amp_within_spout.png", "sp_trial": "lick_session_change_amp_spout_cued.png",
               "sp_iti": "lick_session_change_amp_spout_iti.png"}
+
+
+def ztag(name: str, zs: str = ZS) -> str:
+    """Figure / figure-data name of the scaled variant: 'a.png' -> 'a_z.png' (unchanged for the unscaled run)."""
+    p = Path(name)
+    return f"{p.stem}{zs}{p.suffix}"
+
+
+LEVEL_FIG0, CHANGE_FIG0 = dict(LEVEL_FIG), dict(CHANGE_FIG)      # untagged names (the comparison reads both variants)
+LEVEL_FIG = {k: ztag(v) for k, v in LEVEL_FIG0.items()}
+CHANGE_FIG = {k: ztag(v) for k, v in CHANGE_FIG0.items()}
 
 
 def fam_keys(fam: str) -> list[str]:
@@ -205,9 +234,13 @@ def _session(x: str):
 
 
 def patterns(jobs: int) -> dict:
-    f = OUTD / "patterns_gap2_enc.pkl"           # ITI first = gap >= 2 s (the 1 s bout-rule version: patterns.pkl)
-    if f.exists():
-        return pickle.loads(f.read_bytes())
+    # ITI first = gap >= 2 s (the 1 s bout-rule version: patterns.pkl). The UNSCALED patterns serve both variants (the
+    # scaled one rescales them in build_maps): read from the unscaled folder; a scaled run that has to compute them writes
+    # its own copy (never into the unscaled folder)
+    f = OUTD / "patterns_gap2_enc.pkl"
+    for g in (BASE_OUTD / f.name, f):
+        if g.exists():
+            return pickle.loads(g.read_bytes())
     from wfield_local import analysis_kit as ak
     labels = il.labels()
     res, fails = ak.fan_sessions(labels, _session, jobs=jobs, label="session pattern", log=lambda m: print(m[:110],
@@ -219,12 +252,32 @@ def patterns(jobs: int) -> dict:
     return P
 
 
+def frame_scale(labels) -> dict:
+    """{label: 1 / frame SD per SVD component} for WFIELD_MAP_SCALE=frame (iti_basis_frame_sd.py); None unscaled.
+    Fails loudly on a missing session or a non-positive SD."""
+    if not SCALE:
+        return {x: None for x in labels}
+    F = pd.read_csv(il.OUT / "basis_svdbasis" / "frame_sd.csv", index_col=0)
+    miss = sorted(set(labels) - set(F.index))
+    if miss:
+        raise SystemExit(f"frame_sd.csv lacks {len(miss)} session(s): {miss[:5]}")
+    V = F.loc[list(labels)].to_numpy(float)
+    if not (np.isfinite(V) & (V > 0)).all():
+        raise SystemExit("frame_sd.csv: non-positive or missing SD")
+    return {x: 1.0 / F.loc[x].to_numpy(float) for x in labels}
+
+
 def build_maps(P: dict, sel: np.ndarray) -> dict:
-    """{animal: {key: {label, epoch, day, n, M (sessions, drawn pixels) / animal's pre RMS of the all-lick map}}}."""
+    """{animal: {key: {label, epoch, day, n, M (sessions, drawn pixels) / animal's pre RMS of the all-lick map}}}.
+    Scaled variant: each session's A and B divided by its frame SD per component first (module docstring)."""
     from iti_decoder_patterns import SPATIAL
     from recovery_timing import series
     s = series("lick")
     days = dict(zip(s.label, s.day))
+    inv = frame_scale(sorted(P))
+
+    def sc(x, v):
+        return v if inv[x] is None else v * inv[x]
     out = {}
     for a in AN:
         labs = sorted(x for x in P if P[x]["animal"] == a)
@@ -238,8 +291,8 @@ def build_maps(P: dict, sel: np.ndarray) -> dict:
             DROPPED.extend((a, k, x, P[x]["epoch"]) for x in labs if k in P[x]["A"] and P[x]["fit"][k] < MIN_FIT)
             if not ls:
                 continue
-            M = (W @ np.column_stack([P[x]["A"][k] for x in ls]).astype(np.float32)).T.astype(np.float64)
-            E = (W @ np.column_stack([P[x]["B"][k] for x in ls]).astype(np.float32)).T.astype(np.float64)
+            M = (W @ np.column_stack([sc(x, P[x]["A"][k]) for x in ls]).astype(np.float32)).T.astype(np.float64)
+            E = (W @ np.column_stack([sc(x, P[x]["B"][k]) for x in ls]).astype(np.float32)).T.astype(np.float64)
             raw[k] = (ls, M, E)
         out[a] = {}
         for k in [k for k in keys if k in raw]:
@@ -416,8 +469,10 @@ def _head(fam: str, change: bool, n_perm: int) -> str:
         test = (f"SOLID = TFCE FWER 0.05 vs 0: per animal mean map / within-animal session SD pooled over all animals, "
                 f"summed; every animal with >= 1 session counts; null = sign-flip of each SESSION map ({n_perm}x, max |TFCE|); DASHED = also >= 3 animals share the sign. Title: n sessions / animals, % cortex "
                 "significant, global share = (cortex mean)^2 / mean square.")
+    scl = (" Z-SCORED FEATURES: each SVD component / its session frame-wise SD (iti_basis_frame_sd) before mapping."
+           if SCALE else "")
     paras = [f"NEURAL: per-SESSION self-fit Haufe {'CHANGE' if change else 'LEVEL'} maps -- {what}. Mean of animals; "
-             f"{unit}.", test,
+             f"{unit}.{scl}", test,
              f"SIGN: {SIGN[tg]}. ipsi (lesion) = image LEFT. PROVISIONAL"]
     return "\n".join(textwrap.fill(q, 150) for q in paras)
 
@@ -456,7 +511,7 @@ def plot_levels(D: dict) -> None:
             cb.set_label("LEVEL / pre RMS", fontsize=7)
             cb.ax.tick_params(labelsize=6.5)
     fig.suptitle(_head(fam, False, n_perm), fontsize=8)
-    fig.savefig(il.OUT / "figures" / LEVEL_FIG[fam], dpi=95)
+    fig.savefig(FIG / LEVEL_FIG[fam], dpi=95)
     plt.close(fig)
 
 
@@ -508,7 +563,7 @@ def plot_change(D: dict) -> None:
             cb.set_label("CHANGE / pre RMS", fontsize=7)
             cb.ax.tick_params(labelsize=6.5)
     fig.suptitle(_head(fam, True, n_perm), fontsize=8)
-    fig.savefig(il.OUT / "figures" / CHANGE_FIG[fam], dpi=95)
+    fig.savefig(FIG / CHANGE_FIG[fam], dpi=95)
     plt.close(fig)
 
 
@@ -531,7 +586,7 @@ def main() -> int:
         return 0
     import time
     n_perm = int(sys.argv[sys.argv.index("--perm") + 1]) if "--perm" in sys.argv else N_PERM
-    jobs = 20
+    jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 20
     OUTD.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     P = patterns(jobs)
