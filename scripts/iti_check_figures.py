@@ -1,7 +1,8 @@
 """Figures for three checks that were table-only (Priya 10-27: "figure?"):
   rmse   the where-decoder's error split into |bias| and scatter (SD) per session (`iti_where_rmse_split.py`)
   f0     baseline fluorescence F0 (470, 415 nm) and the post-lick response in dF/F vs dF units (`iti_f0_check.py`)
-  3axis  the where-decoder on lateral / forward / down axes: r / pre and offset beyond the pre pull (`iti_where_3axis.py`)
+  3axis  the where-decoder on lateral / forward / down axes: r / pre and the like-for-like (same-place) offset
+         (`iti_where_3axis.py`; replaced 'offset beyond the pre pull' 10-27 late)
 Every panel: thin lines = animals (session means per epoch), black = mean of animals, diamonds = mean of animals' pre +
 change vs pre with the paired nested bootstrap 95% CI (animals > sessions, `analysis_kit.boot_delta`; * = CI excludes
 0), and the count of animals changing in the point's direction. Reads the session CSVs; writes
@@ -21,6 +22,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import likeforlike as lfl  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
@@ -126,7 +128,7 @@ def rmse() -> dict:
                            f"{'LATERAL' if ax_ == 'lat' else 'SAGITTAL'}: {lab}", "z-scored decoder, mm"))
     return dict(kind="grid", name="lick_check_rmse", shape=(len(rows), 3), figsize=(13, 3.3 * len(rows)), panels=panels,
                 suptitle="NEURAL: why does the frozen where-decoder's error grow after the stroke? Per session, error = decoded - "
-                "actual; RMSE^2 = bias^2 + SD^2.\nDecoder on z-scored Allen-area features (lags 0..0.2 s; KEY-row "
+                "actual; RMSE^2 = bias^2 + SD^2.\nDecoder on z-scored " + il.basis_label() + " features (lags 0..0.2 s; KEY-row "
                 "decoder). A growing |bias| with flat SD = predictions SHIFTED, not more scattered. PROVISIONAL")
 
 
@@ -149,18 +151,18 @@ def three_axis() -> dict:
     axes = (("lat", "LATERAL (+ = contralesional)"), ("fwd", "FORWARD (+ = further forward)"),
             ("down", "DOWN (+ = further down)"))
     P = []
-    for i, (st, val, lab) in enumerate((("iti", "r_norm", "r / animal's pre"), ("iti", "beyond_d", "offset beyond pre "
-                                        "pull, mm (change vs pre)"), ("trial", "r_norm", "r / animal's pre"),
-                                        ("trial", "beyond_d", "offset beyond pre pull, mm (change vs pre)"))):
+    lfl_lab = "like-for-like offset (same place),\nmm (change vs pre)"
+    for i, (st, val, lab) in enumerate((("iti", "r_norm", "r / animal's pre"), ("iti", "lfl_d", lfl_lab),
+                                        ("trial", "r_norm", "r / animal's pre"), ("trial", "lfl_d", lfl_lab))):
         for j, (ax_, an_) in enumerate(axes):
             g = S[(S.set == st) & (S.axis == ax_)]
             P.append((i, j, epoch_compute(g, val), 1.0 if val == "r_norm" else 0.0,
                       f"{'ITI' if st == 'iti' else 'cued'} licks, {an_}", lab if j == 0 else ""))
     return dict(kind="grid", name="lick_check_3axis", shape=(4, 3), figsize=(14, 13.5), panels=P,
-                suptitle="NEURAL: the frozen where-decoder on all THREE axes (z-scored Allen-area features, lags 0..0.2 s; one "
-                "ridge per axis, trained on August pre licks, pre leave-one-session-out).\nSagittal extension ~ |down| "
-                "(r 0.96); forward is nearly independent of it (r -0.05). Offset = decoded - (a + b x actual), a, b fit "
-                "on pre licks. PROVISIONAL")
+                suptitle=f"NEURAL: the frozen where-decoder on all THREE axes (z-scored {il.basis_label()} features, lags "
+                "0..0.2 s; one ridge per axis, trained on August pre licks, pre leave-one-session-out).\nSagittal extension "
+                "~ |down| (r 0.96); forward is nearly independent of it (r -0.05). Like-for-like offset = decoded - the "
+                f"animal's pre licks that landed at the same place on that axis ({lfl.REF_LAB}). PROVISIONAL")
 
 
 def _days() -> pd.DataFrame:
@@ -240,7 +242,7 @@ def coord_table(coord: str) -> pd.DataFrame:
     from wfield_local import orofacial_cohort as oc
     src = COORDS[coord][0]
     if src == "lat_sag":
-        p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+        p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
         if coord == "angle":
             p = p.dropna(subset=["act_sag", "dec_sag"]).copy()
             p["act"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
@@ -248,7 +250,7 @@ def coord_table(coord: str) -> pd.DataFrame:
         else:
             p["act"], p["dec"] = p.act_lat, p.dec_lat
     else:
-        p = pd.read_csv(il.OUT / "where_3axis_preds.csv.gz")
+        p = pd.read_csv(il.pred_file("where_3axis_preds.csv.gz"))
         p["act"], p["dec"] = p[f"act_{coord}"], p[f"dec_{coord}"]
         p["pos"] = [q if q in oc.POS_ORDER or "_" not in str(q) else oc.pos_key(str(q), "L") for q in p.pos.astype(str)]
     return p.dropna(subset=["act", "dec"])[["set", "animal", "label", "epoch", "pos", "act", "dec"]]
@@ -365,13 +367,13 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "lick_check_error_per
             panels.append(dict(i=i, j=j, a=a, rlab=rlab, xlab=xlab, x0=x0, x1=x1, hists=hists, tris=tris, lines=lines))
     beh = (" BEHAVIOUR rows: landing in that coordinate (3-D, extension peak) minus the animal's pre landing at the same spout."
            if landing else "")
-    title = (f"Per-LICK error distributions: {', '.join(COORDS[c][1] + ' (' + COORDS[c][2] + ')' for c in coords)}. NEURAL rows: frozen where-decoder (z-scored Allen areas), decoded - "
+    title = (f"Per-LICK error distributions: {', '.join(COORDS[c][1] + ' (' + COORDS[c][2] + ')' for c in coords)}. NEURAL rows: frozen where-decoder (z-scored {il.basis_label()}), decoded - "
              "actual." + beh + "\nA shifted distribution = BIAS, a wider one = SCATTER; dashed = epoch mean. Text = "
              "change vs pre in the per-SESSION mean (shift) and SD (width) in axis units, 95% CI (epoch* = shift significant):\nper animal = session "
              "bootstrap; POOLED = paired nested bootstrap (animals > sessions) + animals changing that way; * = CI "
              "excludes 0.\nCONTROL (black text; triangles on the x axis = the expected mean): the shift a PULL-ONLY decoder (a + b x actual, fit on pre) "
              "would show from the changed lick distribution alone.\nNB the decoder error includes its pull toward the pre mean, so a changed lick "
-             "distribution moves the mean error too; the offset BEYOND the pull (the beyond-pull offset figures) removes that. "
+             "distribution moves the mean error too; the like-for-like (same-place) offset figures remove that. "
              "PROVISIONAL")
     return dict(kind="hist", name=name, nrows=len(rows), ncols=len(cols), panels=panels, suptitle=title)
 
@@ -458,7 +460,7 @@ def compute_all():
     yield error_hist(("iti",), "lick_iti_check_error_per_lick_xyz", coords=("lat", "fwd", "down"))
     yield error_hist(("trial",), "lick_cued_check_error_per_lick_xyz", landing=True, coords=("lat", "fwd", "down"))
     R0 = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
-    p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+    p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
     p["err"] = p.dec_lat - p.act_lat
     E0 = (p.dropna(subset=["err"]).groupby(["set", "animal", "epoch", "label"]).err
           .agg(shift="mean", width="std", n="size").reset_index())
@@ -483,12 +485,13 @@ def compute_all():
     T = pd.read_csv(il.OUT / "where_3axis_sessions.csv")
     T = T[T.set == "iti"]
     yield course([(f"ITI {ax_}: {lab}", T[T.axis == ax_], v) for ax_ in ("lat", "fwd", "down")
-                  for v, lab in (("r_norm", "r / pre"), ("beyond_d", "offset beyond pull (mm)"))],
+                  for v, lab in (("r_norm", "r / pre"), ("lfl_d", "like-for-like offset, same place (mm)"))],
                  "NEURAL: frozen where-decoder on three axes per session, ITI licks (z-scored).", "lick_iti_check_3axis",
-                 {"r_norm": 1, "beyond_d": 0})
+                 {"r_norm": 1, "lfl_d": 0})
 
 
 def main() -> int:
+    il.split_only("iti_check_figures")
     if plot_only():                                   # redraw from figdata only: no CSV, no bootstrap
         for stem in STEMS:
             draw(load_fd(stem))

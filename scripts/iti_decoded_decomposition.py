@@ -14,7 +14,8 @@ OLS over the spouts:  dDec_s = SHIFT + GAIN * x_s + TRACK * dLand_s
 Variants: without TRACK (shift + gain only) and with TRACK fixed at the animal's pre within-spout slope, to show what the
 free TRACK term trades against. Pre sessions (decoded leave-one-session-out) give the noise level of each term; change vs
 pre = paired nested bootstrap (analysis_kit.boot_delta), per-animal table first (rule 8).
-Input: lick_order_preds.csv.gz (KEY-row lateral decoder per set, z-scored Allen areas). Outputs <E>/iti_licks/
+Input: iti_lick_order.preds_path() (KEY-row lateral decoder per set, z-scored Allen areas with the ALM / tjM1 split by
+default since 10-27 late; outputs tagged iti_lick_order.SRC_TAG, "" = split). Outputs <E>/iti_licks/
 decomposition_{sessions,tests}.csv, figures/lick_decoded_decomposition.png.
 Usage: python scripts/iti_decoded_decomposition.py
 """

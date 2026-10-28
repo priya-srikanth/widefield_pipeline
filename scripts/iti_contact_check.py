@@ -4,7 +4,7 @@ recover)? (handoff 10-26 B(i): "in-trial recovery may ride on spout contact".)
 Each lick's DAQ `contact` flag from the session's licks_all.csv (joined on the exact DAQ peak time, which
 `scripts/iti_licks.py` stores as iti_t / tr_t). The frozen decoder is the one of `iti_nmatch_check.py` / page 3.9:
 trained per animal on ALL its pre-stroke licks of the set (pre sessions leave-one-session-out), lags 0..0.2 s, all Allen
-areas; it is then SCORED on contact and no-contact licks separately (r per session, sessions with >= MIN_N licks of the
+areas (with the ALM / tjM1 split since 10-27 late: iti_licks.area_features); it is then SCORED on contact and no-contact licks separately (r per session, sessions with >= MIN_N licks of the
 subset). ITI licks touch the spout too (it is still approaching or leaving at the window edges), so both sets are split.
 Writes <E>/iti_licks/contact_check.csv; prints the per-animal table (rule 8) and nested-bootstrap changes from pre.
 Usage: python scripts/iti_contact_check.py
@@ -39,12 +39,13 @@ def contact_of(label: str, t: np.ndarray) -> np.ndarray:
 
 
 def main() -> int:
+    il.split_only("iti_contact_check")   # outputs not basis-tagged: split basis only (10-27 late)
     from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
 
     from wfield_local import analysis_kit as ak
     W = (il.LAGS_D >= 0.0) & (il.LAGS_D <= 0.2)
-    labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = sorted(p.stem for p in (il.OUT / il.SESS_NAME).glob("*.npz"))
     D = {x: il._load(x) for x in labels}
     out = []
     for st, kx, ky, kt in (("iti", "iti_X", "iti_side", "iti_t"), ("trial", "tr_X", "tr_side", "tr_t")):
@@ -53,9 +54,7 @@ def main() -> int:
             pre = [x for x, d in S.items() if str(d["epoch"]) == "pre"]
             if len(pre) < 3:
                 continue
-            feat = [i for i, c in enumerate(next(iter(S.values()))["cols"])
-                    if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
-            X = {x: S[x][kx].astype(float)[:, W][:, :, feat].mean(1) for x in S}
+            X = {x: il.area_features(S[x][kx].astype(float)[:, W].mean(1), S[x]["cols"], x) for x in S}
             fits = {}
             for held in [*pre, None]:
                 trn = [q for q in pre if q != held]

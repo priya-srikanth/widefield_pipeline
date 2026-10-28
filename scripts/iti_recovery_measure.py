@@ -35,7 +35,7 @@ def compute() -> pd.DataFrame:
     """Per-session recovery measures (+ day after stroke); writes the session / animal tables and prints the ranking."""
     from iti_check_figures import _days
 
-    p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+    p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
     p = p[(p.set == "trial") & p.pos.isin(POS)].dropna(subset=["act_lat", "act_sag"])
     p["ang"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
     ref = p[p.epoch == "pre"].groupby(["animal", "pos"]).ang.mean()

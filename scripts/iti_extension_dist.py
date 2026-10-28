@@ -30,7 +30,7 @@ FIG = "lick_extension_dist"
 def compute() -> dict:
     """Figure data: per (set, measure, animal) the animal's pre median and each epoch's samples (epochs with >= 20 licks);
     the cohort pre medians; the histogram range top per measure; the threshold table rows."""
-    P = pd.read_csv(il.OUT / "where_angle_reach_preds.csv.gz")
+    P = pd.read_csv(il.pred_file("where_angle_reach_preds.csv.gz"))
     cohort = {v: P[P.epoch == "pre"][v].median() for v in ("act_sag", "act_reach")}
     top = {v: float(np.nanpercentile(P[v], 99.5)) for v in ("act_sag", "act_reach")}
     rows, cells = [], {}

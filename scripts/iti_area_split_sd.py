@@ -6,8 +6,10 @@ MOp -> tjM1 + MOp_rest (disjoint). The session files hold the MOs and ALM means,
   rest = (mean_MOs - f * mean_ALM) / (1 - f),   f = n_ALM / n_MOs pixels in that session's masks.
 This script writes, per session, f for the four pairs and the FRAME-level SD of the two rest areas per hemisphere (same
 masks, drift removal and x1e3 as `iti_zscore_check.session_sd`) -> <E>/iti_licks/zscore_check/session_sd_split.csv.
-Used by `iti_where_decoder` source "areas_split" and `iti_lick_order` (WFIELD_LICK_DECODER=areas_split).
-Usage: python scripts/iti_area_split_sd.py [--jobs 8]
+Used by EVERY Allen-area decoder since 10-27 late (Priya: "use split bases, for consistency"; iti_licks.area_features /
+area_sd, iti_where_decoder.area_basis). --june: the same for the June reference sessions (`iti_june_ref.py`) ->
+june_ref/<SPLIT_NAME> (the drift check's June decoders need their f and rest SDs).
+Usage: python scripts/iti_area_split_sd.py [--jobs 8] [--june]
 """
 from __future__ import annotations
 
@@ -47,17 +49,29 @@ def one(item) -> dict:
     return {"label": label, "row": out}
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--jobs", type=int, default=8)
-    a = ap.parse_args()
+def table(labels: list[str], jobs: int) -> pd.DataFrame:
+    """f + rest-area frame SDs for `labels` (fanned over sessions)."""
     from wfield_local import analysis_kit as ak
-    labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
-    got, fail = ak.fan_sessions([(x,) for x in labels], one, jobs=a.jobs, label="split sd")
+    got, fail = ak.fan_sessions([(x,) for x in labels], one, jobs=jobs, label="split sd")
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)
-    S = pd.DataFrame({r["label"]: r["row"] for _it, r in got}).T.sort_index()
-    S.to_csv(F)
+    return pd.DataFrame({r["label"]: r["row"] for _it, r in got}).T.sort_index()
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--jobs", type=int, default=8)
+    ap.add_argument("--june", action="store_true", help="the June reference sessions (june_ref/) instead")
+    a = ap.parse_args(argv)
+    if a.june:
+        from iti_june_ref import JUNE
+        out, sess = JUNE / il.SPLIT_NAME, JUNE / il.SESS_NAME
+    else:
+        out, sess = F, il.OUT / il.SESS_NAME
+    from wfield_local.writeguard import assert_writable
+    assert_writable(out)
+    S = table(sorted(p.stem for p in sess.glob("*.npz")), a.jobs)
+    S.to_csv(out)
     print(S.describe().round(3).to_string())
     return 0
 

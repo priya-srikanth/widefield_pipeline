@@ -51,7 +51,7 @@ def compute() -> dict:
     cache, cvs, sess, cov, rbs, tests, panels = {}, [], [], [], [], [], {}
     for ax, (fn, x, y, sigmas, unit, shown) in AXES.items():
         if fn not in cache:
-            cache[fn] = pd.read_csv(il.OUT / fn)
+            cache[fn] = pd.read_csv(il.pred_file(fn))           # basis-specific cache name (il.PRED_TAG)
         P = cache[fn].dropna(subset=[x, y]).reset_index(drop=True)
         sg, cv = lfl.choose(P, x, y, sigmas)
         cvs.append(cv.assign(axis=ax, chosen=sg))
@@ -127,6 +127,7 @@ def plot(F: dict) -> None:
 
 
 def main() -> int:
+    il.split_only("lick_matched_angle_reach")   # outputs not basis-tagged: split basis only (10-27 late)
     if plot_only():
         plot(load_fd(STEM))
         return 0

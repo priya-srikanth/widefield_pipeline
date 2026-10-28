@@ -9,7 +9,9 @@ Sources (per animal, all fixed BEFORE the stroke; DECISIONS 2026-08-12 asks for 
             adopted SVTcorr (`Basis.project`), the in-fit pre sessions too, so all sessions share one preprocessing
   svdbasis  the animal's pre-stroke shared spatial basis of the encoder pixel run (`frozen_encoder_<tag>/fit/
             spatial_<animal>.pkl`, 200 variance-weighted components pooled over its pre sessions)
-  areas     the saved Allen-area features of `scripts/iti_licks.py` (reference; same licks)
+  areas_split  the saved Allen-area features of `scripts/iti_licks.py` WITH the ALM / tjM1 split (PRIMARY since 10-27 late,
+               Priya "use split bases, for consistency"; iti_licks.area_features)
+  areas        the same without the split (plain Allen areas: whole MOs / MOp, ALM / tjM1 out) -- robustness row
 Same licks (`<E>/iti_licks/sessions/*.npz`: ITI and in-trial post-cue licks, 3-D lateral direction), same decoder:
 ridge per animal trained on its AUGUST pre-stroke licks of the set, pre sessions leave-one-session-out, features =
 activity averaged over lags 0..0.2 s from the lick peak (and per lag for the time course).
@@ -39,6 +41,7 @@ AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 LAGS = np.round(np.arange(-0.5, 0.5001, 0.05), 3)
 WIN = (LAGS >= 0.0) & (LAGS <= 0.2)
+AREAS = {"areas_split": "split", "areas": "plain"}     # Allen-area rows: source -> basis (both always; split = primary)
 SPATIAL = il.E / "frozen_encoder_gate-attempted_v7g3_t3d_frA_te_basis" / "fit"
 
 
@@ -90,17 +93,18 @@ def decode(source: str) -> pd.DataFrame:
     """Frozen decoder r per session (lags 0..0.2 averaged) and per lag; same recipe as page 3.9."""
     from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
-    sd = il.OUT / f"basis_{source}" / "sessions" if source != "areas" else None
-    labels = sorted(p.stem for p in (sd or il.OUT / "sessions").glob("*.npz"))
+    sd = il.OUT / f"basis_{source}" / "sessions" if source not in AREAS else None
+    labels = sorted(p.stem for p in (sd or il.OUT / il.SESS_NAME).glob("*.npz"))
     D = {}
     for x in labels:
-        if source == "areas":
+        if source in AREAS:                    # Allen areas, split or plain (il.area_features, per lag)
             z = il._load(x)
-            feat = [i for i, c in enumerate(z["cols"]) if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
             li = np.isin(np.round(il.LAGS_D, 3), LAGS)
             D[x] = {"epoch": str(z["epoch"]), "animal": str(z["animal"]),
-                    "iti": (z["iti_X"].astype(float)[:, li][:, :, feat], z["iti_side"].astype(float)),
-                    "trial": (z["tr_X"].astype(float)[:, li][:, :, feat], z["tr_side"].astype(float))}
+                    "iti": (il.area_features(z["iti_X"].astype(float)[:, li], z["cols"], x, basis=AREAS[source]),
+                            z["iti_side"].astype(float)),
+                    "trial": (il.area_features(z["tr_X"].astype(float)[:, li], z["cols"], x, basis=AREAS[source]),
+                              z["tr_side"].astype(float))}
         else:
             z = np.load(sd / f"{x}.npz")
             D[x] = {"epoch": str(z["epoch"]), "animal": str(z["animal"]),
@@ -131,7 +135,7 @@ def decode(source: str) -> pd.DataFrame:
 
 def summarise(sources) -> None:
     from wfield_local import analysis_kit as ak
-    R = pd.concat([decode(s) for s in ["areas", *sources]], ignore_index=True)
+    R = pd.concat([decode(s) for s in [*AREAS, *sources]], ignore_index=True)
     R.to_csv(il.OUT / "basis_decoder.csv", index=False)
     W = R[R.lag == "0-0.2"].copy()
     pre = W[W.epoch == "pre"].groupby(["source", "set", "animal"]).r.mean()
@@ -152,7 +156,7 @@ def summarise(sources) -> None:
     T = pd.DataFrame(rows)
     T.to_csv(il.OUT / "basis_decoder_tests.csv", index=False)
     print("\n" + T[T.value == "r"].round(3).to_string(index=False))
-    srcs = ["areas", *sources]
+    srcs = [*AREAS, *sources]
     TC = R[R.lag != "0-0.2"].astype({"lag": float})
     sig_recs, cells = [], {}
     for src in srcs:
@@ -183,8 +187,8 @@ def plot(D: dict) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     srcs = D["srcs"]
-    lab = {"areas": "Allen areas (primary)", "locanmf": "joint LocaNMF (pre-stroke footprints)",
-           "svdbasis": "pre-stroke SVD basis (200 comps)"}
+    lab = {"areas_split": "Allen areas + ALM / tjM1 split (primary)", "areas": "Allen areas, plain (no split)",
+           "locanmf": "joint LocaNMF (pre-stroke footprints)", "svdbasis": "pre-stroke SVD basis (200 comps)"}
     fig, axs = plt.subplots(2, len(srcs), figsize=(4.6 * len(srcs), 7.5), sharey=True, squeeze=False)
     for j, src in enumerate(srcs):
         for i, st in enumerate(("iti", "trial")):
@@ -207,7 +211,7 @@ def plot(D: dict) -> None:
                 ax.set_xlabel("lag from lick peak (s)", fontsize=8.5)
     axs[0, 0].legend(fontsize=7, frameon=False)
     il._headroom([axs[0, 0]])                              # y is shared: raise once
-    fig.suptitle("NEURAL: the FROZEN pre-stroke decoder (fit once on pre licks, never refit) of lateral tongue-tip position in three SPATIAL bases (same licks, same decoder; "
+    fig.suptitle(f"NEURAL: the FROZEN pre-stroke decoder (fit once on pre licks, never refit) of lateral tongue-tip position in {len(srcs)} SPATIAL bases (same licks, same decoder; "
                  "per animal, trained on August pre licks, pre leave-one-session-out). Title numbers = change from pre "
                  "normalised to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.\n" + il.SIG_NOTE,
                  fontsize=9.5, wrap=True)
@@ -229,7 +233,7 @@ def main(argv=None) -> int:
         plot(load_fd(FIG))
         return 0
     if not a.summarise:
-        labels = a.labels or sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+        labels = a.labels or sorted(p.stem for p in (il.OUT / il.SESS_NAME).glob("*.npz"))
         items = [(x, s) for s in a.sources for x in labels
                  if not (il.OUT / f"basis_{s}" / "sessions" / f"{x}.npz").exists()]
         print(f"{len(items)} session x source items", flush=True)

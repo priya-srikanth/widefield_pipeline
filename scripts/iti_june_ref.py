@@ -6,7 +6,9 @@ spans only the 8-day August pre span and chronic gaps are extrapolated. June 6-8
 animal; 3-D lick positions exist for all) are ~60 days before August, about the chronic gap, with no lesion between.
 They are extracted with the SAME `iti_licks.extract` (same ROIs, drift removal, lick windows) into a SEPARATE folder
 <E>/iti_licks/june_ref/sessions, so no August-baseline consumer (which globs <E>/iti_licks/sessions) can pick them up,
-plus their frame-wise area SDs (as `iti_zscore_check.session_sd`) -> june_ref/session_sd.csv.
+plus their frame-wise area SDs (as `iti_zscore_check.session_sd`) -> june_ref/<SD_NAME>, and the ALM / tjM1 split
+table (f + rest-area SDs, as `iti_area_split_sd.py`) -> june_ref/<SPLIT_NAME> (10-27 late: every area decoder uses the
+split basis, the June drift decoders included).
 They are a REFERENCE ONLY: never in a training set, never in the pre baseline. Caveat: June is earlier in training (licks
 and engagement differ), so June -> August drift includes learning, not elapsed time alone (conservative for the test).
 Usage: python scripts/iti_june_ref.py [--jobs 3]
@@ -46,7 +48,10 @@ def main(argv=None) -> int:
         print(f"  !! sd {it[0]}: {err}", flush=True)
     S = pd.DataFrame({r["label"]: r["sd"] for _it, r in got}).T.sort_index()
     S.to_csv(JUNE / il.SD_NAME)
-    print(f"[june_ref] {len(have)} sessions, SDs for {len(S)} -> {JUNE}")
+    from iti_area_split_sd import table
+    SP = table(have, a.jobs)
+    SP.to_csv(JUNE / il.SPLIT_NAME)
+    print(f"[june_ref] {len(have)} sessions, SDs for {len(S)}, split table for {len(SP)} -> {JUNE}")
     return 0
 
 

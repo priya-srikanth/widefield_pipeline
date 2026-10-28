@@ -82,15 +82,13 @@ def _grid(a: str):
 def spatial(source: str, a: str, keep=None):
     """(B (npix, K), Mt (npix, K), pixel flat indices on the H x W grid) for one animal and basis."""
     if source in ("areas", "areas_split"):
-        from iti_decoder_contrib import feature_names
         flat, _pstat, M = _grid(a)
-        names = feature_names()
-        if source == "areas_split":
-            import iti_where_decoder as wd
-            for src, dst in wd.SPLIT_PAIRS:
-                for h in ("left", "right"):
-                    M[f"{src}_rest_{h}"] = M[f"{src}_{h}"] & ~M[f"{dst}_{h}"]
-            names = wd.split_names([str(c) for c in M if c != "cortex"] + ["cortex"])
+        basis = "split" if source == "areas_split" else "plain"
+        cols = [str(c) for c in il._load(sorted(p.stem for p in (il.OUT / il.SESS_NAME).glob(f"{a}_*.npz"))[0])["cols"]]
+        if basis == "split":
+            for src, dst, h in il._rest_list():
+                M[f"{src}_rest_{h}"] = M[f"{src}_{h}"] & ~M[f"{dst}_{h}"]
+        names = il.area_names(cols, basis)                            # the decoder's feature order (il.area_features)
         B = np.stack([M[n] for n in names], 1).astype(float)          # indicators over brain pixels
         Mt = B / B.sum(0, keepdims=True)
         return B, Mt, flat
@@ -144,7 +142,7 @@ def compute():
             wimg[pix] = w
             maps[(st, a, "w")] = wimg.reshape(H, W).astype(np.float32)
             g = P[(P.set == st) & (P.animal == a)]
-            rows.append(dict(source=lo.SRC_TAG.lstrip("_") or "areas", set=st, animal=a, epoch=ep,
+            rows.append(dict(source=lo.KEY_TAG.lstrip("_") or "areas", set=st, animal=a, epoch=ep,
                              offset=float(beta @ dh), check=float(c.sum()), global_part=glob,
                              pattern_part=float(c.sum()) - glob, readout_change=float(full[ep] - full["pre"]),
                              heldout_ref_term=float(full[ep] - full["pre"] - beta @ dh), w_sum=float(w.sum()), dx_mean=float(dx.mean()),
@@ -152,7 +150,7 @@ def compute():
                              n_ep=sum(e == ep for e, _v, _f in sess.values()),
                              loso_dec_change=float(g[g.epoch == ep].dec.mean() - g[g.epoch == "pre"].dec.mean())))
     OUT.mkdir(exist_ok=True)
-    tag = lo.SRC_TAG.lstrip("_") or "areas"
+    tag = lo.KEY_TAG.lstrip("_") or "areas"          # basis key (KEY_TAG: "areas" = plain, "areas_splitr8" = split)
     np.savez_compressed(OUT / f"maps_{tag}.npz", **{"|".join(k): v for k, v in maps.items()})
     R = pd.DataFrame(rows)
     R.to_csv(OUT / f"summary_{tag}.csv", index=False)       # one file per basis: runs go in parallel

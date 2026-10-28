@@ -98,6 +98,21 @@ RIM_FRONT_PX = 8
 FRP_GAP_PX = 10           # 0.19 mm
 RIM_LAT_AP_MIN = -0.5
 ROI_FRAC, SESS_NAME, SD_NAME, SPLIT_NAME, ROI_THIN_ANT_RIM = _ROI[ROI_VERSION]   # SD files live in zscore_check/
+# AREA BASIS of every decoder on the ITI session files (Priya 10-27 late: "use split bases, for consistency"; DECISIONS
+# 2026-10-27 late). "split" (DEFAULT) = Allen areas with the ALM / tjM1 split: every area except cortex and whole MOs /
+# MOp, ALM + tjM1 IN, plus per hemisphere the disjoint rests MOs_rest = (MOs - f ALM) / (1 - f) and MOp_rest (f = the
+# ROI's pixel share of its parent area in that session, zscore_check/<SPLIT_NAME>, `iti_area_split_sd.py`). "plain" =
+# the earlier Allen set (whole MOs / MOp, ALM / tjM1 out) -- robustness row only. Env WFIELD_AREA_BASIS = split | plain.
+# NAMING: canonical (untagged) outputs = split, so page figure stems stay; plain runs tag every output BASIS_TAG
+# ("_plain"). Per-lick prediction CACHES always carry PRED_TAG ("_splitr8" / "_plainr8"; `pred_file`) so a cache of one
+# basis (or ROI version) can never be read as the other -- the untagged caches of before 10-27 late are plain.
+AREA_BASIS = os.environ.get("WFIELD_AREA_BASIS", "split")
+if AREA_BASIS not in ("split", "plain"):
+    raise ValueError(f"WFIELD_AREA_BASIS={AREA_BASIS!r}: expected split or plain")
+BASIS_TAG = "" if AREA_BASIS == "split" else "_plain"
+PRED_TAG = f"_{AREA_BASIS}r{ROI_VERSION}"
+SPLIT_PAIRS = (("MOs", "ALM"), ("MOp", "tjM1"))           # (parent area, anterolateral sub-ROI)
+HEMIS = ("left", "right")
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
 LAGS_C = np.round(np.arange(-1.0, 2.5001, 0.05), 3)          # cue-aligned lags (trial first licks)
 LAGS_D = np.round(np.arange(-1.0, 1.0001, 0.05), 3)          # decoding lags (-1..+1 s: binned-decoder sweep, 10-26)
@@ -384,6 +399,106 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
     return {k: z[k] for k in z.files}
 
 
+# ------------------------------------------------------------------------------------------------ area basis (10-27 late)
+# ONE definition of the decoder's Allen-area features (rule 9): every decoder on the ITI session files builds them here.
+def tagged(name: str, tag: str | None = None) -> str:
+    """`name` with `tag` (default BASIS_TAG) inserted before its first suffix: 'a.csv.gz' -> 'a_plain.csv.gz'."""
+    tag = BASIS_TAG if tag is None else tag
+    stem, dot, ext = name.partition(".")
+    return f"{stem}{tag}{dot}{ext}"
+
+
+def pred_file(rel: str) -> Path:
+    """Per-lick prediction cache under OUT (relative path), named by basis + ROI version (PRED_TAG)."""
+    p = Path(rel)
+    return OUT / p.parent / tagged(p.name, PRED_TAG)
+
+
+def _sd_dir(sess_dir: Path | str | None) -> Path:
+    """Folder of the SD / split tables for a session folder: OUT/zscore_check for the August sessions, the session
+    folder's parent for a separate reference set (June: june_ref/<SD_NAME>, june_ref/<SPLIT_NAME>, `iti_june_ref.py`)."""
+    if not sess_dir or Path(sess_dir) == OUT / SESS_NAME:
+        return OUT / "zscore_check"
+    return Path(sess_dir).parent
+
+
+_TAB: dict = {}
+
+
+def _table(f: Path) -> pd.DataFrame:
+    if f not in _TAB:
+        _TAB[f] = pd.read_csv(f, index_col=0)
+    return _TAB[f]
+
+
+def split_table(sess_dir: Path | str | None = None) -> pd.DataFrame:
+    """Per session: f_<ROI>_<hemi> (ROI pixel share of its parent area) + frame SD of the rest areas (iti_area_split_sd)."""
+    return _table(_sd_dir(sess_dir) / SPLIT_NAME)
+
+
+def with_rest(X: np.ndarray, cols, label: str, sess_dir: Path | str | None = None, basis: str | None = None
+              ) -> tuple[np.ndarray, list[str]]:
+    """X (..., len(cols)) -> (X with the rest areas appended on the last axis, their names) in the split basis; X and
+    cols unchanged in the plain basis. rest = (parent - f sub) / (1 - f): exact, since both are pixel means over masks
+    with sub inside parent. Linear, so it commutes with averaging over lags."""
+    cols = [str(c) for c in cols]
+    if (basis or AREA_BASIS) == "plain":
+        return X, cols
+    fr = split_table(sess_dir).loc[label]
+    R = [(X[..., cols.index(f"{src}_{h}")] - fr[f"f_{dst}_{h}"] * X[..., cols.index(f"{dst}_{h}")]) / (1 - fr[f"f_{dst}_{h}"])
+         for src, dst, h in _rest_list()]
+    return np.concatenate([X, np.stack(R, -1)], -1), cols + [f"{src}_rest_{h}" for src, _d, h in _rest_list()]
+
+
+def _rest_list() -> list:
+    """(parent, sub-ROI, hemisphere) of the rest areas, in feature order."""
+    return [(src, dst, h) for src, dst in SPLIT_PAIRS for h in HEMIS]
+
+
+def area_index(names, basis: str | None = None) -> list[int]:
+    """Decoder columns among `names` (session cols, + rests in the split basis), in order. plain: every area but cortex,
+    ALM / tjM1 out (they overlap MOs / MOp). split: every area but cortex and whole MOs / MOp; ALM, tjM1 and the rests in."""
+    if (basis or AREA_BASIS) == "plain":
+        return [i for i, c in enumerate(names) if c != "cortex" and "_rest_" not in c and not c.startswith(("ALM", "tjM1"))]
+    return [i for i, c in enumerate(names) if c != "cortex" and ("_rest_" in c or not c.startswith(("MOs_", "MOp_")))]
+
+
+def area_names(cols, basis: str | None = None) -> list[str]:
+    """Feature names of the decoder basis for session columns `cols` (same order as `area_features`)."""
+    cols = [str(c) for c in cols]
+    names = cols if (basis or AREA_BASIS) == "plain" else cols + [f"{src}_rest_{h}" for src, _d, h in _rest_list()]
+    return [names[i] for i in area_index(names, basis)]
+
+
+def area_features(X: np.ndarray, cols, label: str, sess_dir: Path | str | None = None, basis: str | None = None
+                  ) -> np.ndarray:
+    """X (..., len(cols)) of one session -> its decoder features (..., n_features) in the basis (`area_names` order)."""
+    Xf, names = with_rest(X, cols, label, sess_dir, basis)
+    return Xf[..., area_index(names, basis)]
+
+
+def area_sd(sess_dir: Path | str | None = None, basis: str | None = None) -> pd.DataFrame:
+    """Frame-level SD per session x area (iti_zscore_check.session_sd; + the rest areas' SD in the split basis): the
+    z-scoring of every KEY-row decoder. Index = session label; select columns with `area_names`."""
+    S = _table(_sd_dir(sess_dir) / SD_NAME)
+    if (basis or AREA_BASIS) == "split":
+        sp = split_table(sess_dir)
+        S = S.join(sp[[c for c in sp.columns if not c.startswith("f_")]])
+    return S
+
+
+def split_only(script: str) -> None:
+    """Guard for scripts whose outputs are NOT basis-tagged: refuse a plain-basis run (it would overwrite the canonical
+    split-basis files). Plain Allen areas = robustness rows of the decoder scripts that tag their outputs."""
+    if AREA_BASIS != "split":
+        raise SystemExit(f"{script}: outputs are not basis-tagged; run it in the split basis (unset WFIELD_AREA_BASIS)")
+
+
+def basis_label(basis: str | None = None) -> str:
+    """Figure wording for the area basis."""
+    return "Allen areas + ALM / tjM1 split" if (basis or AREA_BASIS) == "split" else "Allen areas (plain, no ALM / tjM1 split)"
+
+
 def _bout(d: dict, gap: float, isolated: bool = False) -> np.ndarray:
     """Bout-start ITI PETHs whose preceding no-lick gap is >= gap s; isolated = no lick FOLLOWING within 0.75 s."""
     m = d["bout_gap"] >= gap
@@ -430,7 +545,7 @@ def _within(side: np.ndarray, pos: np.ndarray) -> np.ndarray:
     return w
 
 
-def decode_session(d: dict, rng) -> list[dict]:
+def decode_session(d: dict, rng, label: str) -> list[dict]:
     rows = []
     ni, nt = len(d["iti_side"]), len(d["tr_side"])
     if ni < 50:
@@ -438,14 +553,14 @@ def decode_session(d: dict, rng) -> list[dict]:
     sub = np.sort(rng.choice(nt, ni, replace=False)) if nt >= ni else np.arange(nt)
     sets = {"iti": (d["iti_X"].astype(float), d["iti_side"], d["iti_pos"], d["iti_t"]),
             "trial": (d["tr_X"].astype(float)[sub], d["tr_side"][sub], d["tr_pos"][sub], d["tr_t"][sub])}
-    feat = [i for i, c in enumerate(d["cols"]) if c not in ("cortex",) and not c.startswith(("ALM", "tjM1"))]
     for sname, (X, side, pos, t) in sets.items():
+        X = area_features(X, d["cols"], label)                  # area basis (AREA_BASIS; split by default, 10-27 late)
         for target, y in (("direction", side), ("relative", _within(side, pos))):
             for li, lag in enumerate(LAGS_D):
                 if abs(lag) > LAGS_D_SHOW + 1e-9:
                     continue
                 rows.append({"set": sname, "target": target, "lag": float(lag), "n": len(y),
-                             "r": _cv_r(X[:, li, feat], y, t)})
+                             "r": _cv_r(X[:, li], y, t)})
     return rows
 
 
@@ -461,12 +576,10 @@ def frozen_decode(D: dict) -> pd.DataFrame:
         pre = [x for x, d in S.items() if str(d["epoch"]) == "pre"]
         if len(pre) < 3:
             continue
-        feat = [i for i, c in enumerate(next(iter(S.values()))["cols"]) if c != "cortex" and not c.startswith(("ALM", "tjM1"))]
-
-        def xy(x, tg, S=S, feat=feat):
+        def xy(x, tg, S=S):
             d = S[x]
             y = d["iti_side"] if tg == "direction" else _within(d["iti_side"], d["iti_pos"])   # iti_pos = PREVIOUS trial spout
-            return d["iti_X"].astype(float)[:, w][:, :, feat].mean(1), y
+            return area_features(d["iti_X"].astype(float)[:, w].mean(1), d["cols"], x), y
         for tg in ("direction", "relative"):
             for x in S:
                 trn = [p_ for p_ in pre if p_ != x]
@@ -637,8 +750,8 @@ def plot_direction(DR: pd.DataFrame, FZ: pd.DataFrame) -> None:
     (re-running the per-bin tests); `--plot-only` redraws it from figdata/lick_direction_decoding.pkl alone."""
     from figdata import save_fd
     F = direction_compute(DR, FZ)
-    pd.DataFrame(F["sig_recs"]).to_csv(OUT / "sig_bins_3_7.csv", index=False)
-    save_fd("lick_direction_decoding", F)
+    pd.DataFrame(F["sig_recs"]).to_csv(OUT / tagged("sig_bins_3_7.csv"), index=False)
+    save_fd(tagged("lick_direction_decoding"), F)
     direction_draw(F)
 
 
@@ -712,7 +825,7 @@ def direction_draw(F: dict) -> None:
                  "sessions +- SEM.\n" + SIG_NOTE + "\nRight: " + FROZEN_TAG + ", applied unchanged to every session (pre "
                  "scored leave-one-session-out).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(OUT / "figures" / "lick_direction_decoding.png", dpi=110)
+    fig.savefig(OUT / "figures" / tagged("lick_direction_decoding.png"), dpi=110)
     plt.close(fig)
 
 
@@ -814,10 +927,10 @@ def summarise(labels: list[str]) -> None:
     rng = np.random.default_rng(0)
     dr = []
     for x, d in D.items():
-        for r_ in decode_session(d, rng):
+        for r_ in decode_session(d, rng, x):
             dr.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), **r_})
     DR = pd.DataFrame(dr)
-    DR.to_csv(OUT / "decode_sessions.csv", index=False)
+    DR.to_csv(OUT / tagged("decode_sessions.csv"), index=False)
     if DR.empty:
         print("no session with >= 50 ITI licks")
         return
@@ -837,11 +950,11 @@ def summarise(labels: list[str]) -> None:
             db.append({"set": s_, "target": tg, "epoch": ep, "n_animals": len(com),
                        "pre": float(np.mean([ref[a].mean() for a in com])), "delta": iv.point, "lo": iv.lo, "hi": iv.hi})
     DB = pd.DataFrame(db)
-    DB.to_csv(OUT / "decode_change.csv", index=False)
+    DB.to_csv(OUT / tagged("decode_change.csv"), index=False)
     print("\n== decoding change vs pre (nested bootstrap)\n" + DB.round(3).to_string(index=False))
     FZ = frozen_decode(D)
     plot_direction(DR, FZ)
-    FZ.to_csv(OUT / "decode_frozen_sessions.csv", index=False)
+    FZ.to_csv(OUT / tagged("decode_frozen_sessions.csv"), index=False)
     if not FZ.empty:
         print("\n== per animal (rule 8): FROZEN pre-ITI decoder, r per epoch (pre = leave-one-session-out)\n"
               + FZ.pivot_table(index=["target", "animal"], columns="epoch", values="r").reindex(columns=EP4).round(2)
@@ -856,7 +969,7 @@ def summarise(labels: list[str]) -> None:
                     iv = ak.boot_delta({a: post[a] for a in com}, {a: ref[a] for a in com}, np.random.default_rng(0))
                     fb.append({"target": tg, "epoch": ep, "n_animals": len(com), "delta": iv.point, "lo": iv.lo,
                                "hi": iv.hi})
-        pd.DataFrame(fb).to_csv(OUT / "decode_frozen_change.csv", index=False)
+        pd.DataFrame(fb).to_csv(OUT / tagged("decode_frozen_change.csv"), index=False)
         print("\n== frozen decoder change vs pre\n" + pd.DataFrame(fb).round(3).to_string(index=False))
     json.dump({"n_sessions": len(D)}, open(OUT / "summary.json", "w"))
     print("->", OUT)
@@ -922,11 +1035,10 @@ def frozen_decode_lags(D: dict, set_name: str) -> pd.DataFrame:
         pre = [x for x, d in S.items() if str(d["epoch"]) == "pre"]
         if len(pre) < 3:
             continue
-        feat = [i for i, c in enumerate(next(iter(S.values()))["cols"]) if c != "cortex" and not c.startswith(("ALM", "tjM1"))]
         Y = {tg: {x: (S[x][ky] if tg == "direction" else _within(S[x][ky], S[x][kp])) for x in S}
              for tg in ("direction", "relative")}
         for li, lag in enumerate(LAGS_D):
-            X = {x: S[x][kx][:, li, :][:, feat].astype(float) for x in S}
+            X = {x: area_features(S[x][kx][:, li, :].astype(float), S[x]["cols"], x) for x in S}
             for tg in ("direction", "relative"):
                 fits = {}
                 for held in [*pre, None]:
@@ -1030,9 +1142,9 @@ def plot_frozen_timecourse(FL: pd.DataFrame) -> None:
                     curves.append((ep, m.index.to_numpy(), m.to_numpy(), (m - se).to_numpy(), (m + se).to_numpy(),
                                    t[t.epoch == ep].label.nunique()))
             panels[(tg, st)] = {"sig": S, "curves": curves}
-    pd.DataFrame(sig_recs).to_csv(OUT / "sig_bins_3_8.csv", index=False)
+    pd.DataFrame(sig_recs).to_csv(OUT / tagged("sig_bins_3_8.csv"), index=False)
     F = {"panels": panels}
-    save_fd("lick_frozen_timecourse", F)
+    save_fd(tagged("lick_frozen_timecourse"), F)
     frozen_tc_draw(F)
 
 
@@ -1069,7 +1181,7 @@ def frozen_tc_draw(F: dict) -> None:
                  "sessions leave-one-session-out), applied unchanged to every session. Line = mean over sessions (all animals "
                  "pooled), band = SEM.\n" + SIG_NOTE, fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(OUT / "figures" / "lick_frozen_timecourse.png", dpi=110)
+    fig.savefig(OUT / "figures" / tagged("lick_frozen_timecourse.png"), dpi=110)
     plt.close(fig)
 
 
@@ -1085,7 +1197,7 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
     rng = np.random.default_rng(1)
     # ---- 3.7: frozen decoder time courses + session summaries
     FL = pd.concat([frozen_decode_lags(D, "iti"), frozen_decode_lags(D, "trial")])
-    FL.to_csv(OUT / "decode_frozen_lags_sessions.csv", index=False)
+    FL.to_csv(OUT / tagged("decode_frozen_lags_sessions.csv"), index=False)
     plot_frozen_timecourse(FL)
     W = FL[(FL.lag >= 0.0) & (FL.lag <= 0.2)].groupby(["label", "animal", "epoch", "set", "target"]).r.mean().reset_index()
     tests, panels = [], {}
@@ -1097,8 +1209,8 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
             panels[(i, j)] = (st, tg, S)
             for r_ in S["tests"]:
                 tests.append({"set": st, "target": tg, **r_})
-    pd.DataFrame(tests).to_csv(OUT / "decode_frozen_session_tests.csv", index=False)
-    save_fd("lick_frozen_summary", {"panels": panels})
+    pd.DataFrame(tests).to_csv(OUT / tagged("decode_frozen_session_tests.csv"), index=False)
+    save_fd(tagged("lick_frozen_summary"), {"panels": panels})
     print("\n== frozen decoder (lags 0..0.2), change vs pre, session-pooled figure tests\n"
           + pd.DataFrame(tests).round(3).to_string(index=False))
     # ---- 3.8: per-session PETH mean +- SEM, raw and normalised; amplitude-free summaries
@@ -1178,9 +1290,9 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     if "lick_frozen_timecourse" in only:
-        frozen_tc_draw(load_fd("lick_frozen_timecourse"))
+        frozen_tc_draw(load_fd(tagged("lick_frozen_timecourse")))
     if "lick_frozen_summary" in only:
-        F = load_fd("lick_frozen_summary")
+        F = load_fd(tagged("lick_frozen_summary"))
         fig, axs = plt.subplots(2, 4, figsize=(17, 8))
         for (i, j), (st, tg, S) in sorted(F["panels"].items(), key=lambda kv: (kv[0][1], kv[0][0])):
             ax = axs[i, j]
@@ -1196,7 +1308,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "within animal to its own pre mean. * = change from pre with "
                      "95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.9))
-        fig.savefig(OUT / "figures" / "lick_frozen_summary.png", dpi=110)
+        fig.savefig(OUT / "figures" / tagged("lick_frozen_summary.png"), dpi=110)
         plt.close(fig)
     if "lick_iti_ramp_sessions" in only:
         F = load_fd("lick_iti_ramp_sessions")
@@ -1542,12 +1654,16 @@ BIN_WIDTHS = (0.1, 0.25, 0.5)
 OROFACIAL = ("ALM", "tjM1", "MOs", "MOp", "SSp-m", "SSp-n", "SSp-un", "SSs", "SSp-bfd")
 
 
-def feature_sets(cols) -> dict:
-    cols = list(cols)
-    allf = [i for i, c in enumerate(cols) if c != "cortex" and not c.startswith(("ALM", "tjM1"))]
-    oro = [i for i, c in enumerate(cols) if c.rsplit("_", 1)[0] in OROFACIAL]
-    vis = [i for i, c in enumerate(cols) if c.startswith(("VIS", "RSP"))]
-    return {"all areas": allf, "orofacial": oro, "visual + RSP": vis}
+def feature_sets(names) -> dict:
+    """Column indices per feature set among `names` = `with_rest` names (session cols, + the rest areas in the split
+    basis). "all areas" = the decoder basis (`area_index`). "orofacial": plain = ALM, tjM1, MOs, MOp (overlapping) +
+    the orofacial S1 areas, as before 10-27 late; split = ALM, tjM1, MOs_rest, MOp_rest + the same S1 areas (disjoint)."""
+    names = list(names)
+    split = any("_rest_" in c for c in names)
+    oro_set = (set(OROFACIAL) - {"MOs", "MOp"}) | {"MOs_rest", "MOp_rest"} if split else set(OROFACIAL)
+    oro = [i for i, c in enumerate(names) if c.rsplit("_", 1)[0] in oro_set]
+    vis = [i for i, c in enumerate(names) if c.startswith(("VIS", "RSP"))]
+    return {"all areas": area_index(names), "orofacial": oro, "visual + RSP": vis}
 
 
 def _binned(X: np.ndarray, win, bw) -> np.ndarray | None:
@@ -1575,11 +1691,12 @@ def binned_frozen(D: dict, set_name: str) -> pd.DataFrame:
         pre = [x for x, d in S.items() if str(d["epoch"]) == "pre"]
         if len(pre) < 3:
             continue
-        fsets = feature_sets(next(iter(S.values()))["cols"])
+        full = {x: with_rest(S[x][kx].astype(float), S[x]["cols"], x) for x in S}     # + rest areas (split basis)
+        fsets = feature_sets(next(iter(full.values()))[1])
         for fname, feat in fsets.items():
             if not feat:
                 continue
-            Xs = {x: S[x][kx].astype(float)[:, :, feat] for x in S}
+            Xs = {x: full[x][0][:, :, feat] for x in S}
             for win in BIN_WINDOWS:
                 for bw in BIN_WIDTHS:
                     if bw > (win[1] - win[0]) + 1e-9:
@@ -1610,13 +1727,13 @@ def binned_figures(D: dict) -> None:
     then draw (`binned_plot` redraws them from the figdata alone)."""
     from figdata import save_fd
     B = pd.concat([binned_frozen(D, "iti"), binned_frozen(D, "trial")])
-    B.to_csv(OUT / "decode_binned_sessions.csv", index=False)
+    B.to_csv(OUT / tagged("decode_binned_sessions.csv"), index=False)
     B["config"] = B.window + " s / " + B.bin.map("{:g}".format) + " s bins"
     # selection on PRE only: mean over animals of each animal's mean pre (LOSO) r
     pre = B[B.epoch == "pre"].groupby(["set", "features", "target", "config", "animal"]).r.mean() \
         .groupby(["set", "features", "target", "config"]).mean().rename("pre_r").reset_index()
     best = pre.loc[pre.groupby(["set", "features", "target"]).pre_r.idxmax()]
-    best.to_csv(OUT / "decode_binned_selected.csv", index=False)
+    best.to_csv(OUT / tagged("decode_binned_selected.csv"), index=False)
     print("\n== binned decoder: configuration selected on PRE leave-one-session-out r\n" + best.round(3).to_string(index=False))
     # sweep figure: pre r and chronic normalised r per config
     norm = B.copy()
@@ -1635,7 +1752,7 @@ def binned_figures(D: dict) -> None:
         mats.append(M)
     boxes = [(cfgs.index(r_.config), rowsk.index((r_.set, r_.features))) for _i, r_ in best[best.target == "direction"].iterrows()
              if (r_.set, r_.features) in rowsk]
-    save_fd("lick_binned_sweep", {"mats": mats, "cfgs": cfgs, "rowsk": rowsk, "boxes": boxes})
+    save_fd(tagged("lick_binned_sweep"), {"mats": mats, "cfgs": cfgs, "rowsk": rowsk, "boxes": boxes})
     # summary at the selected configuration: one dot per session, raw and normalised
     rng = np.random.default_rng(3)
     tests, panels = [], {}
@@ -1651,8 +1768,8 @@ def binned_figures(D: dict) -> None:
         for S_ in panels[j][3]:
             for r_ in S_["tests"]:
                 tests.append({"set": st, "features": f, "config": cfg, **r_})
-    pd.DataFrame(tests).to_csv(OUT / "decode_binned_tests.csv", index=False)
-    save_fd("lick_binned_summary", {"panels": panels})
+    pd.DataFrame(tests).to_csv(OUT / tagged("decode_binned_tests.csv"), index=False)
+    save_fd(tagged("lick_binned_summary"), {"panels": panels})
     binned_plot()
     print("\n== binned decoder at the selected configuration: change vs pre\n" + pd.DataFrame(tests).round(3).to_string(index=False))
 
@@ -1665,7 +1782,7 @@ def binned_plot() -> None:
     from figdata import load_fd
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
-    F = load_fd("lick_binned_sweep")
+    F = load_fd(tagged("lick_binned_sweep"))
     cfgs, rowsk = F["cfgs"], F["rowsk"]
     fig, axs = plt.subplots(1, 2, figsize=(18, 6))
     for ax, M, (val, ttl, cmap) in zip(axs, F["mats"], (("pre_r", "pre-stroke r (leave-one-session-out)", "viridis"),
@@ -1688,9 +1805,9 @@ def binned_plot() -> None:
                  "on PRE r only). Left: pre-stroke leave-one-session-out r; right: chronic r normalised to each animal's pre.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(OUT / "figures" / "lick_binned_sweep.png", dpi=110)
+    fig.savefig(OUT / "figures" / tagged("lick_binned_sweep.png"), dpi=110)
     plt.close(fig)
-    F = load_fd("lick_binned_summary")
+    F = load_fd(tagged("lick_binned_summary"))
     fig, axs = plt.subplots(2, 6, figsize=(22, 8))
     for j in range(6):
         p = F["panels"].get(j)
@@ -1711,7 +1828,7 @@ def binned_plot() -> None:
                  "actual lateral tongue-tip position.\n(One number per session; dots = sessions, all animals pooled; black = mean +- SEM). * = nested-bootstrap change "
                  "from pre (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.91))
-    fig.savefig(OUT / "figures" / "lick_binned_summary.png", dpi=110)
+    fig.savefig(OUT / "figures" / tagged("lick_binned_summary.png"), dpi=110)
     plt.close(fig)
 
 
@@ -1744,7 +1861,7 @@ def main(argv=None) -> int:
             ramp_figures(None, None, plot_only=True)
         if alls or fam["dir"]:
             from figdata import load_fd
-            direction_draw(load_fd("lick_direction_decoding"))
+            direction_draw(load_fd(tagged("lick_direction_decoding")))
         if alls or fam["key"] or fam["tc"]:
             key_figures_plot(KEY_STEMS if (alls or fam["key"]) else ("lick_frozen_timecourse",))
         if alls or fam["ctrl"]:
@@ -1765,10 +1882,10 @@ def main(argv=None) -> int:
                      pd.read_csv(OUT / "ramp_sessions.csv"))
         return 0
     if a.plot_direction:
-        plot_direction(pd.read_csv(OUT / "decode_sessions.csv"), pd.read_csv(OUT / "decode_frozen_sessions.csv"))
+        plot_direction(pd.read_csv(OUT / tagged("decode_sessions.csv")), pd.read_csv(OUT / tagged("decode_frozen_sessions.csv")))
         return 0
     if a.plot_frozen_tc:
-        plot_frozen_timecourse(pd.read_csv(OUT / "decode_frozen_lags_sessions.csv"))
+        plot_frozen_timecourse(pd.read_csv(OUT / tagged("decode_frozen_lags_sessions.csv")))
         return 0
     if a.binned:
         binned_figures({x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()})

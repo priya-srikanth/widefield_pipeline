@@ -15,14 +15,31 @@ the frozen decoder read for the animal's PRE licks that landed at x:
 Pre licks are scored leave-one-pre-session-out (their own session never enters their reference), as in the Gaussian
 version. Width sigma: smallest held-out pre prediction error, chosen on pre-stroke data only.
 The reference is evaluated on a grid (step sigma / 5) inside [lo, hi] and interpolated; it is smooth on that scale.
+
+THE SHARED OFFSET (Priya 10-27 late: "yes replace beyond pull"): `offset(P, x, y, sigmas)` is the like-for-like same-place
+offset every former 'offset beyond the pull' column now uses (lick order, per spout, first lick, overcorrection, recovery
+link, 3-axis, ...): resid = decoded - reference(actual), the reference from the animal's PRE licks of the same set (pre
+licks leave-one-pre-session-out), sigma chosen once per call by held-out pre error (table printed). Reference method:
+env WFIELD_LFL_REF = "gauss" (DEFAULT; Priya 10-27 late, "ok gaussian": Gaussian-weighted MEAN, likeforlike method "nw";
+NaN beyond the pre range and where the weight is < 3, as lick_matched_readout --ref gauss) | "loclin" (local line, edge
+line carried out: every lick gets a reference).
 """
 from __future__ import annotations
+
+import os
 
 import numpy as np
 import pandas as pd
 
 Q_EDGE = (0.5, 99.5)       # pre range = these percentiles of the pre actual values
 SLOPE_RIDGE = 0.1          # slope shrinkage: local x-variance floor = (SLOPE_RIDGE * sigma)^2 (a lone lick -> flat line)
+REF = os.environ.get("WFIELD_LFL_REF", "gauss")
+if REF not in ("gauss", "loclin"):
+    raise ValueError(f"WFIELD_LFL_REF={REF!r}: expected gauss or loclin")
+METHOD = {"gauss": "nw", "loclin": "loclin"}[REF]
+REF_LAB = {"gauss": "Gaussian-weighted pre reference", "loclin": "local-linear pre reference"}[REF]
+SIGMA_MM = (0.05, 0.1, 0.15, 0.2, 0.3, 0.4)         # widths tried, mm (lateral / sagittal / reach / x-y-z)
+SIGMA_DEG = (2.0, 3.0, 5.0, 7.5, 10.0, 15.0)        # widths tried, degrees (angle / elevation)
 
 
 def _ll_grid(xr: np.ndarray, yr: np.ndarray, g: np.ndarray, sigma: float) -> tuple[np.ndarray, np.ndarray]:
@@ -81,9 +98,9 @@ def ref_table(P: pd.DataFrame, x: str, y: str, sigma: float, method: str = "locl
     return pd.DataFrame({"ref": ref, "beyond": bey}, index=P.index)
 
 
-def choose(P: pd.DataFrame, x: str, y: str, sigmas) -> tuple[float, pd.DataFrame]:
+def choose(P: pd.DataFrame, x: str, y: str, sigmas, method: str = "loclin") -> tuple[float, pd.DataFrame]:
     """Held-out PRE prediction error per method x sigma, on the pre licks BOTH methods cover (inside the pre range, NW
-    weight >= 3). Returns (local-linear sigma with the smallest error, table)."""
+    weight >= 3). Returns (sigma of `method` with the smallest error, table)."""
     Q = P[P.epoch == "pre"]
     R = {}
     for sg in sigmas:
@@ -97,8 +114,27 @@ def choose(P: pd.DataFrame, x: str, y: str, sigmas) -> tuple[float, pd.DataFrame
             rows.append(dict(method=m, sigma=sg, mse_common=float(np.nanmean(e[com])), mse_all=float(np.nanmean(e)),
                              coverage=float(np.isfinite(R[(m, sg)]).mean())))
     T = pd.DataFrame(rows)
-    L = T[T.method == "loclin"]
+    L = T[T.method == method]
     return float(L.loc[L.mse_common.idxmin(), "sigma"]), T
+
+
+def offset(P: pd.DataFrame, x: str, y: str, sigmas, what: str = "", method: str | None = None
+           ) -> tuple[np.ndarray, np.ndarray]:
+    """THE like-for-like offset per lick (module docstring): (resid = y - reference(x), outside = signed distance beyond
+    the animal's pre range, 0 inside). P needs set, animal, label, epoch, x, y (any index). Sigma by held-out pre error
+    for the method (env WFIELD_LFL_REF), table printed; + = read more toward + of the coordinate than same-place pre."""
+    method = method or METHOD
+    Q = P.reset_index(drop=True)
+    ok = np.isfinite(Q[x].to_numpy(float)) & np.isfinite(Q[y].to_numpy(float))
+    Qo = Q[ok].reset_index(drop=True)
+    sg, cv = choose(Qo, x, y, sigmas, method)
+    print(f"[like-for-like {what or y}] reference {method} ({REF}), held-out pre error per method x sigma:\n"
+          + cv.round(4).to_string(index=False) + f"\n-> sigma = {sg}", flush=True)
+    R = ref_table(Qo, x, y, sg, method)
+    res, out = np.full(len(Q), np.nan), np.full(len(Q), np.nan)
+    res[ok] = Qo[y].to_numpy(float) - R.ref.to_numpy()
+    out[ok] = R.beyond.to_numpy()
+    return res, out
 
 
 def _effect(P: pd.DataFrame, r: np.ndarray, sel: np.ndarray) -> dict:

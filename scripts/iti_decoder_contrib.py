@@ -34,9 +34,9 @@ AXES = {"lat": 0, "sag": 3}                  # columns of iti_where_decoder.coor
 
 
 def feature_names() -> list[str]:
-    x = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
-    z = il._load(x)
-    return [str(c) for c in z["cols"] if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
+    """Decoder feature names in the area basis (il.AREA_BASIS; split by default since 10-27 late: ALM, tjM1 and the
+    MOs / MOp rest areas instead of whole MOs / MOp). Kept as a name for its importers; = iti_where_decoder.area_meta."""
+    return wd.area_meta()[0]
 
 
 def contributions() -> pd.DataFrame:
@@ -118,21 +118,21 @@ def plot(D: dict) -> None:
             ax.set_xlabel("contribution to the decoded shift (mm)", fontsize=8)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    fig.suptitle("NEURAL: which areas move the FROZEN pre-stroke decoder's lick position (Allen areas, lags 0..0.2 s). "
+    fig.suptitle(f"NEURAL: which areas move the FROZEN pre-stroke decoder's lick position ({il.basis_label()}, lags 0..0.2 s). "
                  "Contribution = the area's pre-stroke decoder weight x its change in mean activity (epoch - pre);\n"
                  "bars = mean of animals, dots = animals; the 14 areas with the largest chronic contribution per row; "
                  "contributions sum to the shift of the mean decoded position.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=95)
+    fig.savefig(il.OUT / "figures" / il.tagged(f"{FIG}.png"), dpi=95)
     plt.close(fig)
 
 
 def main() -> int:
     if plot_only():                                       # redraw from the figure data alone
-        plot(load_fd(FIG))
+        plot(load_fd(il.tagged(FIG)))
         return 0
     T = contributions()
-    T.to_csv(il.OUT / "decoder_contrib.csv", index=False)
+    T.to_csv(il.OUT / il.tagged("decoder_contrib.csv"), index=False)
     pd.set_option("display.width", 220)
     tot = T.groupby(["set", "axis", "animal", "epoch"]).contrib.sum().unstack("epoch")[EP]
     print("== per animal (rule 8): total shift of the mean decoded position (mm)\n" + tot.round(2).to_string())
@@ -143,7 +143,7 @@ def main() -> int:
         print(f"\n== {st} {ax_}, chronic: top areas (mean of animals; weight in mm per dF/F unit)")
         print(s.reindex(s.contrib.abs().sort_values(ascending=False).index).head(12).round(3).to_string())
     D = figure_data(T)
-    save_fd(FIG, D)
+    save_fd(il.tagged(FIG), D)
     plot(D)
     return 0
 

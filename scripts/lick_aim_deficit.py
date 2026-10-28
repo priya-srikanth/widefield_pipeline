@@ -47,10 +47,10 @@ def _fc(g: pd.DataFrame, min_n: int) -> float:
 
 def compute() -> pd.DataFrame:
     from wfield_local import epochs
-    p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
+    p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
     p = p[(p.set == "trial") & p.pos.isin(POS)].dropna(subset=["act_lat", "act_sag"]).copy()
     p["ang"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
-    F = pd.read_csv(il.OUT / "first_lick_preds.csv.gz")[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
+    F = pd.read_csv(il.pred_file("first_lick_preds.csv.gz"))[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
     p["k"], F["k"] = p.act_lat.round(6), F.act.round(6)
     p = p.merge(F[["label", "k", "lick_idx"]], on=["label", "k"], how="left")
     p["animal"] = p.label.str[:4]
