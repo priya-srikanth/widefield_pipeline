@@ -16,7 +16,7 @@ Image left = ipsilesional (_left); _right = contralesional.
 FIGURE DATA (Priya 10-27): each figure's drawn numbers are saved to <OUT>/figdata/<figure stem>.pkl (the area image +
 names + outline for the maps); `--plot-only` redraws from those files alone (no session load, no bootstrap).
 Usage: python scripts/iti_area_maps.py [--compare] [--plot-only]
-       python scripts/iti_area_maps.py --split [--spout far_contra] [--plot-only]   (ALM / tjM1 separate; one previous spout)
+       python scripts/iti_area_maps.py --split [--cued] [--spout far_contra] [--plot-only]   (ALM / tjM1 separate; one previous spout)
 """
 from __future__ import annotations
 
@@ -83,46 +83,69 @@ def split_image(label: str) -> tuple[np.ndarray, list]:
     return flat_img.reshape(img.shape), nm
 
 
-def session_table_split(D: dict, spout: str | None = None, min_n: int = 10) -> pd.DataFrame:
-    """As session_table, with MOs / MOp replaced by ALM + MOs_rest and tjM1 + MOp_rest (`iti_licks.with_rest`, exact);
-    spout = only bout starts whose PREVIOUS trial was at that spout (`lick_cued_ramp.bout_prev_pos`)."""
-    from lick_cued_ramp import bout_prev_pos
+def session_table_split(D: dict, spout: str | None = None, min_n: int = 10, cued: bool = False) -> pd.DataFrame:
+    """As session_table, with MOs / MOp replaced by ALM + MOs_rest and tjM1 + MOp_rest (`iti_licks.with_rest`, exact).
+    ITI: bout starts (gap >= GAP_MAIN); spout = only those whose PREVIOUS trial was at that spout
+    (`lick_cued_ramp.bout_prev_pos`). cued (Priya 10-28 "cued-lick version of 14.14"): the FIRST post-cue lick of each
+    engaged trial (`first_peth`, onset-aligned; same baseline) + the cue response (`first_cue`, 0..0.5 s after the cue,
+    baseline -1.0..-0.5 s); spout = target spout (`first_pos`)."""
+    from lick_cued_ramp import BASE_C, bout_prev_pos
     rows = []
     for x, d in D.items():
-        m = d["bout_gap"] >= il.GAP_MAIN
-        if spout is not None:
-            m &= bout_prev_pos(x, np.asarray(d["bout_t"], float)) == spout
+        if cued:
+            m = np.ones(len(d["first_rt"]), bool)
+            if spout is not None:
+                m &= np.asarray(d["first_pos"], str) == spout
+        else:
+            m = d["bout_gap"] >= il.GAP_MAIN
+            if spout is not None:
+                m &= bout_prev_pos(x, np.asarray(d["bout_t"], float)) == spout
         if m.sum() < min_n:
             continue
-        P = d["bout_peth"][m].astype(float)
+        P = d["first_peth" if cued else "bout_peth"][m].astype(float)
         P = P - P[:, (il.LAGS_P >= il.BASE[0]) & (il.LAGS_P <= il.BASE[1]), :].mean(1, keepdims=True)
         mu, cols = il.with_rest(P.mean(0), d["cols"], x, basis="split")
+        if cued:
+            Q = d["first_cue"][m].astype(float)
+            Q = Q - Q[:, (il.LAGS_C >= BASE_C[0]) & (il.LAGS_C <= BASE_C[1]), :].mean(1, keepdims=True)
+            mc, _ = il.with_rest(Q.mean(0), d["cols"], x, basis="split")
         for j, c in enumerate(cols):
             if c == "cortex" or c.rsplit("_", 1)[0] in ("MOs", "MOp"):
                 continue
-            rows.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "area": str(c),
-                         "resp": il._auc(mu[:, j], 0.0, 0.5), "build": il._auc(mu[:, j], -0.4, -0.05), "n": int(m.sum())})
+            r = {"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "area": str(c),
+                 "resp": il._auc(mu[:, j], 0.0, 0.5), "build": il._auc(mu[:, j], -0.4, -0.05), "n": int(m.sum())}
+            if cued:
+                sel = (il.LAGS_C >= -1e-9) & (il.LAGS_C <= 0.5 + 1e-9)
+                r["cue"] = float(np.trapezoid(mc[sel, j], il.LAGS_C[sel]))
+            rows.append(r)
     return pd.DataFrame(rows)
 
 
-def split_maps(spout: str | None = None) -> None:
-    """lick_iti_area_maps_split[_<spout>].png: the 14.14 map with ALM / tjM1 / MOs_rest / MOp_rest areas; with spout,
-    ITI bout starts after a trial at that spout only (>= 5 per session)."""
+def split_maps(spout: str | None = None, cued: bool = False) -> None:
+    """lick_{iti,cued}_area_maps_split[_<spout>].png: the 14.14 map with ALM / tjM1 / MOs_rest / MOp_rest areas; spout =
+    ITI bout starts after a trial at that spout / cued first licks to that target (>= 5 per session)."""
     from frozen_area_maps import outline
     labels = il.labels()
     D = {x: il._load(x) for x in labels}
-    T = session_table_split(D, spout, min_n=10 if spout is None else 5)
-    tag = "" if spout is None else f"_{spout.replace('_', '')}"
-    T.to_csv(il.OUT / f"area_auc_sessions_split{tag}.csv", index=False)
-    C = pd.concat([changes(T, "resp"), changes(T, "build")])
-    C.to_csv(il.OUT / f"area_auc_changes_split{tag}.csv", index=False)
+    T = session_table_split(D, spout, min_n=10 if spout is None else 5, cued=cued)
+    kind = "cued" if cued else "iti"
+    tag = "" if spout is None else "_" + spout.replace("_", "")
+    stem = f"lick_{kind}_area_maps_split{tag}"
+    ctag = "_cued" if cued else ""
+    T.to_csv(il.OUT / f"area_auc_sessions_split{ctag}{tag}.csv", index=False)
+    vals = [("resp", "lick response AUC 0..0.5 s" if cued else "response AUC 0..0.5 s"),
+            ("build", "pre-lick AUC -0.4..-0.05 s (overlaps the CUE)" if cued else "build-up AUC -0.4..-0.05 s")]
+    if cued:
+        vals.append(("cue", "cue response AUC 0..0.5 s after the cue"))
+    C = pd.concat([changes(T, v) for v, _t in vals])
+    C.to_csv(il.OUT / f"area_auc_changes_split{ctag}{tag}.csv", index=False)
     print("== per animal (rule 8), response AUC, ALM / tjM1 / rest\n" + T[T.area.str.contains("ALM|tjM1|rest")]
           .pivot_table(index=["area", "animal"], columns="epoch", values="resp").reindex(columns=il.EP4).round(1)
           .to_string())
     print(C[C.sig].sort_values(["value", "epoch", "delta"]).round(3).to_string(index=False))
     img, nm = split_image(labels[0])
     rows = []
-    for val, ttl in (("resp", "response AUC 0..0.5 s"), ("build", "build-up AUC -0.4..-0.05 s")):
+    for val, ttl in vals:
         c = C[C.value == val]
         lim = np.nanpercentile(np.abs(c.delta), 98) or 1.0
         pans = []
@@ -130,9 +153,14 @@ def split_maps(spout: str | None = None) -> None:
             ce_ = c[c.epoch == ep].set_index("area")
             pans.append((ep, ce_.delta.to_dict(), list(ce_.index[ce_.sig]), int(ce_.sig.sum())))
         rows.append((ttl, lim, pans))
-    what = "all bout starts" if spout is None else f"bout starts after a {spout.replace('_', '-')} trial (previous spout)"
-    save_fd(f"lick_iti_area_maps_split{tag}", {"img": img, "nm": nm, "ol": outline(img), "rows": rows, "what": what})
-    draw_maps(f"lick_iti_area_maps_split{tag}")
+    sp = "" if spout is None else spout.replace("_", "-")
+    if cued:
+        what = "CUED licks: first post-cue lick of each engaged trial" + (f", {sp} target only" if sp else "")
+    else:
+        what = "self-initiated (ITI) licks, " + (f"bout starts after a {sp} trial (previous spout)" if sp
+                                                 else "all bout starts")
+    save_fd(stem, {"img": img, "nm": nm, "ol": outline(img), "rows": rows, "what": what})
+    draw_maps(stem)
 
 
 def draw_maps(stem: str) -> None:
@@ -142,7 +170,8 @@ def draw_maps(stem: str) -> None:
     from frozen_area_maps import paint
     F = load_fd(stem)
     img, nm, ol = F["img"], F["nm"], F["ol"]
-    fig, axs = plt.subplots(2, 3, figsize=(14, 9))
+    nr = len(F["rows"])
+    fig, axs = plt.subplots(nr, 3, figsize=(14, 4.5 * nr), squeeze=False)
     for i, (ttl, lim, pans) in enumerate(F["rows"]):
         for j, (ep, delta, sig_areas, n_sig) in enumerate(pans):
             ax = axs[i, j]
@@ -156,9 +185,10 @@ def draw_maps(stem: str) -> None:
             ax.set_title(f"{ttl}\n{ep} - pre ({n_sig} areas significant)", fontsize=9)
             ax.axis("off")
         fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F AUC (x1e3 s)")
-    fig.suptitle(f"NEURAL, NO DECODER: self-initiated (ITI) licks, {F.get('what', 'all bout starts')} -- change from pre per "
-                 "area in raw dF/F AUC (x1e3 s), with ALM / tjM1 separate from the rest of MOs / MOp (ROI v8); black outline "
-                 "= nested-bootstrap CI excludes 0. Image left = ipsilesional.", fontsize=10, wrap=True)
+    what = F.get("what", "self-initiated (ITI) licks, all bout starts")
+    fig.suptitle(f"NEURAL, NO DECODER: {what} -- change from pre per area in raw dF/F AUC (x1e3 s), with ALM / tjM1 separate "
+                 "from the rest of MOs / MOp (ROI v8); black outline = nested-bootstrap CI excludes 0. Image left = "
+                 "ipsilesional.", fontsize=10, wrap=True)
     fig.savefig(il.OUT / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -412,10 +442,11 @@ def compare_draw(F: dict) -> None:
 if __name__ == "__main__":
     if "--split" in sys.argv:                            # ALM / tjM1 split maps; --spout <pos> for one previous spout
         sp_ = sys.argv[sys.argv.index("--spout") + 1] if "--spout" in sys.argv else None
+        cu_ = "--cued" in sys.argv                       # first cued lick instead of ITI bout starts
         if plot_only():
-            draw_maps("lick_iti_area_maps_split" + ("" if sp_ is None else f"_{sp_.replace('_', '')}"))
+            draw_maps(f"lick_{'cued' if cu_ else 'iti'}_area_maps_split" + ("" if sp_ is None else "_" + sp_.replace("_", "")))
         else:
-            split_maps(sp_)
+            split_maps(sp_, cued=cu_)
         raise SystemExit(0)
     if plot_only():                                      # redraw from figdata only
         draw_all(("compare",) if "--compare" in sys.argv else ("maps", "peth", "groups", "compare"))
