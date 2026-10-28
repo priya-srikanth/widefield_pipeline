@@ -107,9 +107,10 @@ def split_image(label: str) -> tuple[np.ndarray, list]:
 
 
 def trim_rest(img: np.ndarray, nm: list) -> np.ndarray:
-    """The ROI v8 ALM / tjM1 masks thin the LATERAL rim, so a jagged sliver of MOs / MOp lateral to them stays in
-    MOs_rest / MOp_rest; blank those slivers in the DISPLAY (morphological opening of each rest area, main body kept;
-    Priya 10-28: "take out the jagged slivers at the edges"). The rest-area VALUES still include the rim pixels.
+    """The map paints the full ATLAS area, but the ROI v8 masks exclude an edge rim from every area mean; lateral to
+    ALM / tjM1 that rim showed up as a jagged MOs / MOp-rest sliver (checked 10-28: 134-159 atlas pixels per parent
+    lateral to the sub-ROI, NONE used in any value). Blank them in the DISPLAY (morphological opening of each rest
+    area, main body kept; Priya 10-28: "take out the jagged slivers at the edges").
     Idempotent, so draw time applies it to images saved before 10-28 evening."""
     from scipy import ndimage
     out = img.copy()
