@@ -124,6 +124,19 @@ RUNNING / PENDING at compaction:
     licks landing where few pre licks landed (lowest tercile +0.08 / +0.12 / +0.06 vs highest +0.04 / +0.06 / +0.03 mm,
     acute / sub / chronic) -> part kernel shrinkage, not all. 11.15 caption: cued offset LARGER non-linear (+0.06 / +0.08
     / +0.05 mm, 4/4), subacute +0.11 [0.001, 0.22] 3/4 where linear is +0.03; angle +2.2 deg subacute 4/4.
+13. (10-28 ~07:45) DONE: 11.11 main 4th column = decoder weight PER AREA (sum of pixel weights), per-pixel weights as
+    supplement images; unmasked LocaNMF row removed; non-linear 12.2 / 13.2 as 2nd images of 12.2 / 13.2; 11.15 caption
+    corrected (cued offset larger non-linear, partly shrinkage, same-target +0.055 acute -> still composition).
+    RUNNING: (a) SVD first-50-component maps (task bpkvm2wd3: WFIELD_LICK_DECODER=svd WFIELD_CONTRIB_KMAX=50
+    lick_offset_contrib_map.py, then --plot-only) -> new rows 'SVD first 50 components' + 'SVD summed per Allen area
+    (ALM/tjM1)' (Priya asked for both) -> copy lick_{iti,cued}_offset_contrib_map.png, caption: share of the offset in
+    components 1-50 (summary_svdF_k50.csv share_of_offset; exact for an orthonormal basis), publish. (b) Drop-one-area
+    importance scripts/lick_area_importance.py: first run (task btyd4o8fp) uses the OLD groups -> RERUN after it
+    finishes (groups now incl. ALM+tjM1, SSp-m+n, ALM+tjM1+SSp-m+n, MOs_rest, MOp_rest, VIS, RSP each ipsi / contra /
+    bilateral; Priya 10-28) -> new figure in section 11 after 11.11 (lick_area_importance.png) via goal_page_insert.
+    Priya: the SVD per-area weights look as expected for ALM / tjM1 (strong frontal weights, opposite signs across
+    hemispheres); LocaNMF maps look vessel-contaminated (queued idea: vessel-share per component + refit without them,
+    not yet approved).
 8. Open questions for Priya: none blocking; key-figure suggestions all done.
 
 ### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
