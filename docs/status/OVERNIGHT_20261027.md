@@ -44,7 +44,7 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   4/4 -> 3/4; with the ALL-lick aim the key-ROI response left at pre aim is +0.19 (p 0.03) while first-lick gives +0.05
   n.s. (16.12 says so). CORRECTION: angle-vs-lateral contribution maps r = 0.90-0.95 (mean maps), 0.72-0.99 per animal
   (PS93 ITI 0.72-0.78) -- not 0.92-0.98 (that was PS94 only).
-- Known cosmetic issue: 16.5 session-scatter title cut off on the left (iti_recovery_link.py plot) -- fix queued.
+- 16.5 session-scatter title fixed (09d2ee0e), page v143.
 - (10-28 ~01:30) 5c-ter DONE (4 animals): z-scored level maps confirm -- the cortex-wide SVD component's loading in the
   session patterns is 5-13x a typical component UNSCALED but 0.1-1.75x in its own units (median per animal x epoch;
   highest PS95 ITI pre 1.75, PS94 ITI subacute 1.56 / first-lick 1.63) -> the large cortex-wide parts of the unscaled
