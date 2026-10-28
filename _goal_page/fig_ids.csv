@@ -236,9 +236,9 @@ lick_iti_session_shape_days,15.15,"Map similarity to pre over days, every spout,
 lick_cued_aim_deficit_compare,16.10,Aim deficit per session: first-lick weighted vs first-lick far contra vs all licks,supplementary
 lick_iti_filter_compare,12.14,"ITI read-out on stricter ITI lick sets: 2 s quiet, ≥ 1 s from trial edges, both",supplementary
 lick_matched_angle_reach,11.10,"Like-for-like offset on angle and 3-D reach: ITI licks read more contralesional in angle in every epoch (4/4); reach not shifted for ITI licks, read shorter for cued licks after the acute epoch",supplementary
-lick_offset_contrib_angle,11.13,"Where the angle read-out offset comes from: patterned cortex, not a uniform cortex-wide change (ITI +5.7 / +3.0 / +3.5°, 4/4)",supplementary
-lick_offset_contrib_reach,11.14,"Where the reach read-out offset comes from: cued licks read shorter after the acute epoch (4/4), mostly patterned; ITI small",supplementary
-lick_offset_contrib_angle_vs_lateral,11.15,Angle and lateral offsets come from the same cortex: contribution maps r 0.90–0.95 (mean of animals),supplementary
+lick_offset_contrib_angle,11.15,"Where the angle read-out offset comes from: patterned cortex, not a uniform cortex-wide change (ITI +5.7 / +3.0 / +3.5°, 4/4)",supplementary
+lick_offset_contrib_reach,11.16,"Where the reach read-out offset comes from: cued licks read shorter after the acute epoch (4/4), mostly patterned; ITI small",supplementary
+lick_offset_contrib_angle_vs_lateral,11.17,Angle and lateral offsets come from the same cortex: contribution maps r 0.90–0.95 (mean of animals),supplementary
 lick_matched_gauss_readout,12.1,"Cortex reads licks contralesional of where they land: ITI licks in every epoch, cued licks acutely and on the first lick",key
 lick_matched_gauss_curves,12.2,"Decoded position against landing place, before and after the stroke",key
 lick_matched_gauss_perspout,13.6,Like-for-like read-out per spout: ITI licks read contralesional after the ipsi and mid spouts; cued far-contra licks ipsilesional chronically,supporting
@@ -260,8 +260,8 @@ lick_covref_offset,12.16,Same-place offset survives kinematic and FaceRhythm cov
 lick_matched_gauss_animal_change,12.17,Like-for-like offset per animal,supplementary
 lick_session_pixel_lmm_time,15.21,Per-pixel time model on per-session level maps,supplementary
 lick_session_pixel_lmm_behaviour,15.22,Per-pixel behaviour model on per-session level maps,supplementary
-lick_nonlinear_decoder,11.16,A non-linear read-out does not recover the post-stroke loss or remove the ITI offset,supplementary
-lick_behaviour_decoder,11.17,Behaviour-only decoder: face predicts lick position as well as cortex pre-stroke; only the cortical ITI read-out is lost,supporting
+lick_nonlinear_decoder,11.18,A non-linear read-out does not recover the post-stroke loss or remove the ITI offset,supplementary
+lick_behaviour_decoder,11.19,Behaviour-only decoder: face predicts lick position as well as cortex pre-stroke; only the cortical ITI read-out is lost,supporting
 lick_position_per_spout,13.7,"Decoded and actual lick position per spout, per epoch",supporting
 lick_cued_ramp_sessions,14.4,Cued: dF/F around the first cued lick - the post-lick response is larger after the stroke too,key
 lick_cued_ramp_cue_sessions,14.5,"Cued, cue-aligned: the cue response grows subacutely and chronically, not acutely",key
@@ -272,3 +272,5 @@ lick_cued_ramp_perspout,14.6,Cued lick and cue responses per spout (supplement),
 lick_cued_area_maps_split,14.15,"Cued licks across the whole cortex, ALM / tjM1 split",supporting
 lick_offset_contrib_lateral,11.11,Where the lateral read-out offset comes from,supplementary
 lick_area_importance,11.12,Drop-one-area importance of the lateral decoder,supplementary
+lick_decoder_weight_1sd,11.13,Decoder weight per +1 SD of each area,supplementary
+lick_offset_where,11.14,"Where the offset is carried, per area",supplementary

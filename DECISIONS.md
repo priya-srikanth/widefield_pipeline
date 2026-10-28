@@ -22165,3 +22165,18 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
 - Priya: "2 a yes" -> per-pixel map statistics use the decoder page's FWER MAX-STATISTIC (permutation max over pixels,
   as iti_session_cluster_tests) instead of per-pixel BH-FDR + >= 3/4 sign (iti_decoder_pattern_stats,
   iti_spout_pattern_stats, iti_pattern_area_stats); ">= 3 animals agree" stays as an outline only.
+
+## 2026-10-28 (late morning) -- decoder weights / contributions on ONE physical scale; previous-spout cache
+
+- **11.x weight / contribution maps were per feature-SD.** Every frozen lick decoder z-scores its features by their
+  per-session frame SD, so `lick_offset_contrib_map`'s w = M'beta and dx = B dh are per feature-SD: exact in the Allen
+  basis (one area = one feature), MIXED across SVD / LocaNMF components (different SDs). Totals were always exact.
+  `scripts/lick_offset_where.py` puts every basis on pixel dF/F (one reference SD per feature = the animal's pre-session
+  mean; sum still exact for any positive reference, asserted; units checked by rebuilding one pre session's features
+  from the imaging, SD ratio 0.999-1.002 in every basis x animal). New page figs 11.13 (decoder weight per +1 SD of
+  each area: bases AGREE on an ipsi-minus-contra SSp-n / tjM1 / ALM pattern, SSp-m opposite; ALM / tjM1 ~1/3-1/2 of
+  SSp-n per SD) and 11.14 (offset carried per area: ITI spread with no consistent locus; cued acute in ipsilesional
+  SSp-n + tjM1). Use these, not 11.11's per-area column, to compare bases.
+- **`bout_prev_pos` cache.** The ITI session files predate the stored previous-trial spout; the rebuild loads each
+  session's behaviour off the share (~46 s x 107 sessions per job). `lick_cued_ramp.py --prev-cache` builds
+  `<OUT_W>/bout_prev_pos.csv` once (8 workers); `bout_prev_pos` reads it, falling back to the rebuild.

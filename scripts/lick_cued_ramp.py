@@ -134,7 +134,44 @@ def _auc(v: np.ndarray, lags: np.ndarray, t0: float, t1: float) -> float:
 _LT = None
 
 
+PREV_CACHE = "bout_prev_pos.csv"     # derived: label, bout_t, prev_pos (built once by --prev-cache, 8 workers)
+_PC = None
+
+
 def bout_prev_pos(label: str, bout_t: np.ndarray) -> np.ndarray:
+    """PREVIOUS trial's spout of each stored ITI bout start, from the derived cache (PREV_CACHE) when it covers the
+    session -- the rebuild loads the session's behaviour off the share (~46 s per session; 10-28: three jobs x 107
+    sessions spent ~80 min each on it). Falls back to the rebuild."""
+    global _PC
+    if _PC is None:
+        f = il.OUT_W / PREV_CACHE
+        _PC = {x: dict(zip(g.bout_t.to_numpy(float), g.prev_pos.fillna("").astype(str)))
+               for x, g in pd.read_csv(f).groupby("label")} if f.exists() else {}
+    if label in _PC:
+        m = _PC[label]
+        return np.array([m.get(float(t), "") for t in bout_t], dtype=object)
+    return _bout_prev_pos_raw(label, bout_t)
+
+
+def _prev_worker(label: str) -> dict:
+    t = np.asarray(il._load(label)["bout_t"], float)
+    return {"label": label, "bout_t": t, "prev_pos": _bout_prev_pos_raw(label, t)}
+
+
+def prev_cache(jobs: int) -> None:
+    """Build PREV_CACHE for every session in parallel (rule 6). bout_t is stored with repr precision (exact match)."""
+    from wfield_local import analysis_kit as ak
+    res, fails = ak.fan_sessions(il.labels(), _prev_worker, jobs=jobs)
+    if fails:
+        raise SystemExit(f"{len(fails)} sessions failed: {fails}")
+    C = pd.concat([pd.DataFrame({"label": v["label"], "bout_t": v["bout_t"], "prev_pos": v["prev_pos"]})
+                   for _x, v in res], ignore_index=True)
+    C.to_csv(il.OUT_W / PREV_CACHE, index=False, float_format="%.17g")
+    print(f"== {PREV_CACHE}: {len(C)} bout starts, {C.label.nunique()} sessions, "
+          f"unlabelled {(C.prev_pos.fillna('') == '').mean():.3f}")
+
+
+def _bout_prev_pos_raw(label: str, bout_t: np.ndarray) -> np.ndarray:
     """PREVIOUS trial's spout of each stored ITI bout start (the stored `bout_pos` is the trial-WINDOW label, = the
     UPCOMING trial for 'lead' licks). Rebuilt exactly as `iti_licks.extract` builds prev_pos (lick table joined to the
     session's licks_all.csv by lick_uid; tail -> trial_id, lead -> trial_id - 1), matched on the exact onset time."""
@@ -634,6 +671,9 @@ def main() -> int:
             draw_baseline_sens(load_fd("lick_ramp_baseline_sens"))
         else:
             baseline_sens()
+        return 0
+    if "--prev-cache" in sys.argv:
+        prev_cache(int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8)
         return 0
     if "--extract" in sys.argv:
         jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 6
