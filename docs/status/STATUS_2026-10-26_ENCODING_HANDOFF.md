@@ -137,6 +137,16 @@ RUNNING / PENDING at compaction:
     Priya: the SVD per-area weights look as expected for ALM / tjM1 (strong frontal weights, opposite signs across
     hemispheres); LocaNMF maps look vessel-contaminated (queued idea: vessel-share per component + refit without them,
     not yet approved).
+14. (10-28 ~08:20) DONE: Musall + Layer 2 run (MU_DONE): figures 0.3/0.4/0.9/0.10/0.11 (frozen_claims_*.png) and 2.2/2.6
+    (spec_groups.png / spec_area_maps.png <- specificity_control/.../figures/specificity_*.png) published v172 with notes;
+    Layer 2 chronic tjM1 +0.075/+0.073 (largest motor area), ALM +0.05, orofacial = control (+0.053 / +0.052).
+    PENDING: a detailed read of the Musall split rows (claims_contest / claims_peth: ALM tracks MOs r~0.9, tjM1 contra differs
+    from MOp r 0.09 PETH) -> proper caption numbers. 10.6 published (ITI rate vs aim r +0.56, detrended +0.26 p 0.03).
+    Importance figure = NEW 11.12 (section 11 renumbered: angle 11.13, reach 11.14, angle-vs-lateral 11.15, NON-LINEAR
+    11.16, behaviour-only 11.17): redundant coding; only SSp-n alone and the ALM+tjM1+SSp-m+n block matter (-0.062 r ITI).
+    STILL RUNNING / TODO: items 2 (ITI per-spout traces), 3 (animal-averaged 14.7), 4 (14.15 pre-cue restw + key), 5
+    (per-spout table), 7 (Priya synthesis -> Where things stand), 9 (orofacial AUC vs recovery + LMM), 10b (baseline
+    sensitivity rerun with iso).
 8. Open questions for Priya: none blocking; key-figure suggestions all done.
 
 ### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
