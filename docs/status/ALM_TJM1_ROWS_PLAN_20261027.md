@@ -57,3 +57,20 @@ sessions (one per animal): r = 1.000; residual max |difference| 0.15 x1e3 dF/F (
 - `residual_roi.py`: split rows tested with the SAME Bonferroni count (Allen areas only); pooled figure gets one split
   row per window; per-spout figures get `*_split.png` companions; the Allen figures keep their scale / counts.
 - `early_predictors.py`: `resid_day1_{cue,lick}_almtjm1` predictor columns.
+
+## Tests (10-27, every output redirected to a worktree scratch folder; inputs read from M:)
+- Old rows unchanged vs the share: fr_direction areas.csv / bootstrap.csv max |diff| 0; specificity (both frames)
+  sessions / boot / area_boot / layer2_boot <= 4e-6 (CSV float round trip); residual_roi pooled + by-spout <= 7e-7;
+  early_predictors table / rho <= 2e-7. The noFR specificity run reproduces the share's layer2_boot exactly with
+  `--layer2 allsession_encoder_v7g3_t3d_ref` (so that is the flag in the run script).
+- Additivity, PS94, residual (noFR), all sessions x windows: pixel-share weighted (ALM 0.382 / tjM1 0.470 of the parent
+  on the stat mask) parts vs the existing MOs / MOp row: max |diff| 0.07 x1e3 dF/F, r = 1.000 (basis vs area source).
+  FR block rows: SST-weighted parts reproduce the parent R2 exactly; SSE sums add to 0.
+- M: untouched: 7,084 files under the output folders listed before / after; 1 changed
+  (`iti_licks/figdata/lick_basis_decoder.pkl`, 22:31:41) = the main session's run_maskloc.sh (rr8/mk_basis.log 22:31:42),
+  not touched by these scripts.
+
+## Page figures whose captions need new numbers after the run
+22.3, 22.4 (layout changed to 4 x 2 + split rows), 2.2 (4th panel), 2.6 (split panels), 18.5 (split rows), 0.13 (2
+predictor columns). 18.6 / 18.9 keep their figures (Allen); `residual_roi_by_spout_{cue,lick}_raw_split.png` are new
+companions (swap in or add). Not changed: 0.3, 0.4, 0.9, 0.10, 0.11, 21.4, 21.11 (class c).
