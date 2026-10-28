@@ -205,3 +205,11 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   included vs the stat mask: max |difference| in any epoch change 0.001 (median |change| 0.003), animal sign counts
   identical in 143/144 cells (tjM1_right lick pos_side acute 2/4 -> 1/4, both n.s. scale). -> keep the stat mask.
 - 10.6 (iti_lick_rate: pooled + over-days + vs aim) running.
+- (10-28 06:37) ITI FaceRhythm controls REDONE on UNBLANKED FaceRhythm (Priya "redo"; helper fr, merged 6e934c93, run on
+  M: 462 s). 14.9 (kinematics + face) slightly stronger, 14.10 (face) conclusions hold; 3.4 unaffected (inputs 98.6-100 %
+  real). Old vs new: controls_fr_interp_vs_unblanked*.csv. The helper found the shared write guard
+  ($S/f5/guard/sitecustomize.py) never loaded (SyntaxError, invalid \U escape, swallowed by site) -- the cause of
+  last night's junk files; fixed copy in $S/fr/guard. Musall helper told to verify / report M: writes.
+- (10-28) Page v159-160: cued versions of the lick-response figures (14.6-14.8), section 14 renumbered; first cued lick
+  response larger every epoch (tjM1 contra +0.42 / +0.43 / +0.38 of pre AUC), cue response up subacute / chronic only.
+  Wider -2..+3 s re-sampled traces + per-spout supplement running (lick_cued_ramp.py --extract, validated vs stored).
