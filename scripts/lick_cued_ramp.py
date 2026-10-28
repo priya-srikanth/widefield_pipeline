@@ -146,7 +146,7 @@ def bout_prev_pos(label: str, bout_t: np.ndarray) -> np.ndarray:
     if _PC is None:
         f = il.OUT_W / PREV_CACHE
         _PC = {x: dict(zip(g.bout_t.to_numpy(float), g.prev_pos.fillna("").astype(str)))
-               for x, g in pd.read_csv(f).groupby("label")} if f.exists() else {}
+               for x, g in pd.read_csv(f, float_precision="round_trip").groupby("label")} if f.exists() else {}
     if label in _PC:
         m = _PC[label]
         return np.array([m.get(float(t), "") for t in bout_t], dtype=object)
@@ -658,7 +658,8 @@ def draw_baseline_sens(F: dict) -> None:
     fig.suptitle("BASELINE SENSITIVITY: change vs pre (each value / the animal's pre mean under the same baseline), 95% paired "
                  "nested-bootstrap CI; circle = baseline -1.5..-1.0 s before the lick (published), square = -1.0..-0.5 s; "
                  "filled = CI excludes 0.\nCaveats: -1.0..-0.5 s can subtract part of a slow ITI build-up; for cued licks it "
-                 "overlaps the cue when the reaction time is > 0.5 s. Lick-aligned: ITI bout starts (>= 2 s gap), ISOLATED ITI licks (iti_iso: no lick 0.05..0.75 s after; later licks can still fall in 0.75..1.5 s), first cued "
+                 "overlaps the cue when the reaction time is > 0.5 s.\nLick-aligned: ITI bout starts (>= 2 s gap), ISOLATED "
+                 "ITI licks (iti_iso: no lick 0.05..0.75 s after; later licks can still fall in 0.75..1.5 s), first cued "
                  "licks.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     fig.savefig(il.OUT_W / "figures" / "lick_ramp_baseline_sens.png", dpi=95)

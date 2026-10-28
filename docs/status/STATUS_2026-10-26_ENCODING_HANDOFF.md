@@ -156,7 +156,25 @@ RUNNING / PENDING at compaction:
     small edge areas can get large coefs); AND per-area SUM of a smooth pixel map grows with area size (MOs / ALM big).
     PROPOSED (not yet approved): basis-comparable 'effective weight' per area = decoder change for a 1-SD fluctuation of the
     area mean (saved weights x per-session area SD), redraw 11.11 column 4.
-8. Open questions for Priya: none blocking; key-figure suggestions all done.
+16. (10-28 ~09:30, page v176, commits 6ab8fded+) DONE:
+    - EFFECTIVE WEIGHT + WHERE (Priya "decoder per 1 SD map"; "where carries the offset, ITI + cued, Allen / LocaNMF /
+      SVD"): scripts/lick_offset_where.py -> NEW 11.13 (lick_decoder_weight_1sd.png) + 11.14 (lick_{iti,cued}_offset_where_
+      maps.png, lick_offset_where_bars.png); section 11 renumbered (angle 11.15 ... behaviour-only 11.19). FINDING: the 11.x
+      weight / contribution maps were per feature-SD (features z-scored per session) -> exact for Allen, MIXED for SVD /
+      LocaNMF (11.11 caption now says so; DECISIONS 10-28 late morning). On pixel dF/F (unit check 0.999-1.002) the bases
+      AGREE on weights: ipsi-minus-contra SSp-n / tjM1 / ALM, SSp-m opposite; ALM/tjM1 ~1/3-1/2 of SSp-n per SD. WHERE:
+      ITI offset spread, no consistent locus; cued acute in ipsi SSp-n (+0.11-0.17) + ipsi tjM1 (+0.06-0.13).
+      Needs terms_<tag>.csv (re-ran lick_offset_contrib_map for areas_split + locanmf mask; maps/summary unchanged).
+    - bout_prev_pos CACHE: <OUT_W>/bout_prev_pos.csv (lick_cued_ramp.py --prev-cache, 8 workers, 18 min; read with
+      float_precision="round_trip" -- the default parser missed 15 %). Section-14 jobs now ~2.5 min instead of ~2 h.
+    - Section 14: 14.2 NEW animal-averaged ITI PETH (replaces old 14.7 iti_ramp_peth); 14.7 per-spout + ITI by previous
+      spout image + per-spout cued table in caption (far contra: cued lick response NOT up acutely, up chronically; ITI
+      licks after far-contra trials: largest acute rise); 14.8 = cued area maps, now KEY (was 14.15); 14.11 window figure +
+      baseline-sensitivity image (conclusions baseline-independent; iti_iso 0-1.5 s under -1..-0.5 unstable).
+    STILL TODO: 14.8 pre-cue row (needs restw confirmation from Priya); item 7 synthesis -> Where things stand / FINDINGS
+    (per-spout table now supports (b): far-contra target the exception acutely); item 9 orofacial AUC vs recovery + LMM;
+    Musall split-row caption numbers (item 14).
+8. Open questions for Priya: restw baseline for the 14.8 pre-cue row (yes / no).
 
 ### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
 decisions, questions for Priya). Page v145 live (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Done overnight:

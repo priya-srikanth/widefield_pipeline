@@ -91,7 +91,7 @@ iti_ramp_sessions,14.1,"dF/F around self-initiated ITI licks, session-pooled: la
 iti_recovery_link_pooled_angle_z,16.3,Pooled per epoch: the ITI like-for-like offset stays contralesional in every epoch (4/4); cued returns to pre (summary of Fig 16.4),key
 iti_check_error_per_lick_iti,12.3,"ITI licks: the decoding error is SHIFTED contralesionally, not wider",key
 cued_check_error_per_lick,12.4,Cued licks: cortex reads them contralesional while the tongue lands ipsilesional,key
-iti_hemo_check_variants,14.2,"The larger lick response in four signal variants: 415 nm rises only acutely, and little",key
+iti_hemo_check_variants,14.3,"The larger lick response in four signal variants: 415 nm rises only acutely, and little",key
 iti_session_pattern_maplevel,15.3,Whole-map shape test on fully per-session decoder maps: distance from the pre map per spout,key
 iti_session_pattern_change_spout_cued,15.4,"Shape-only change maps per spout (cued licks), per-session maps, TFCE",key
 cued_spout_animal_panels,15.5,Per-animal far-contra and close-contra maps (cued licks),key
@@ -113,12 +113,11 @@ iti_where_scatter_trial_z,12.5,"Decoded vs actual landing of in-trial licks by t
 iti_where_scatter_iti_z,12.6,"Decoded vs actual landing of ITI licks by nearest spout and epoch, frozen pre-stroke decoder",supporting
 iti_where_delta_z,12.7,Change in the decoder’s lick position error vs pre: ITI licks read contralesional,supporting
 iti_where_per_spout_z,13.3,"Lick-position decoder per spout: ITI licks read contralesional, chronic cued far-contra licks read ipsilesional",supporting
-iti_ramp_peth,14.7,"dF/F around self-initiated ITI licks: weaker build-up chronically, larger post-lick response after stroke",supporting
-iti_ramp_summary,14.8,"Post-lick response and pre-lick build-up AUCs (dF/F) by session: response up, build-up down chronically",supporting
-iti_ramp_peth_isolated,14.3,"dF/F around isolated ITI licks: larger post-lick response persists, not a longer bout",key
-iti_kinematics_control,14.12,ITI lick tongue kinematics and face movement regressed out: the larger post-lick response is not explained by movement,supporting
-iti_face_control,14.13,FaceRhythm around ITI licks and face-regressed build-up: weaker chronic build-up not less face movement,supporting
-iti_area_maps,14.14,"ITI-lick dF/F response and build-up by Allen area: acute increase global, chronic orofacial only",supporting
+iti_ramp_summary,14.9,"Post-lick response and pre-lick build-up AUCs (dF/F) by session: response up, build-up down chronically",supporting
+iti_ramp_peth_isolated,14.4,"dF/F around isolated ITI licks: larger post-lick response persists, not a longer bout",key
+iti_kinematics_control,14.13,ITI lick tongue kinematics and face movement regressed out: the larger post-lick response is not explained by movement,supporting
+iti_face_control,14.14,FaceRhythm around ITI licks and face-regressed build-up: weaker chronic build-up not less face movement,supporting
+iti_area_maps,14.15,"ITI-lick dF/F response and build-up by Allen area: acute increase global, chronic orofacial only",supporting
 iti_area_peth,14.16,dF/F around self-initiated ITI licks in non-orofacial areas: all respond more acutely,supporting
 iti_area_compare,14.17,"dF/F around ITI licks, orofacial ROIs vs control areas: chronic larger response also in controls",supporting
 iti_area_groups,14.18,"ITI-lick dF/F, orofacial vs visual+RSP areas by session: chronic build-up weaker only orofacially",supporting
@@ -263,14 +262,15 @@ lick_session_pixel_lmm_behaviour,15.22,Per-pixel behaviour model on per-session 
 lick_nonlinear_decoder,11.18,A non-linear read-out does not recover the post-stroke loss or remove the ITI offset,supplementary
 lick_behaviour_decoder,11.19,Behaviour-only decoder: face predicts lick position as well as cortex pre-stroke; only the cortical ITI read-out is lost,supporting
 lick_position_per_spout,13.7,"Decoded and actual lick position per spout, per epoch",supporting
-lick_cued_ramp_sessions,14.4,Cued: dF/F around the first cued lick - the post-lick response is larger after the stroke too,key
-lick_cued_ramp_cue_sessions,14.5,"Cued, cue-aligned: the cue response grows subacutely and chronically, not acutely",key
-lick_cued_ramp_summary,14.9,Cued first-lick AUCs by session: lick response up in every epoch; cue response up subacute / chronic,supporting
-lick_ramp_windows,14.10,"Response-window sensitivity: the larger lick response holds for 0-0.3, 0-0.5, 0-1.0, 0-1.5 s and the peak (cued and ITI)",supplementary
-lick_ramp_ratio,14.11,Ratio to pre per time point: cued responses scaled ~1.3-1.5- across the response; the acute cue-aligned ratio rises late,supplementary
-lick_cued_ramp_perspout,14.6,Cued lick and cue responses per spout (supplement),key
-lick_cued_area_maps_split,14.15,"Cued licks across the whole cortex, ALM / tjM1 split",supporting
+lick_cued_ramp_sessions,14.5,Cued: dF/F around the first cued lick - the post-lick response is larger after the stroke too,key
+lick_cued_ramp_cue_sessions,14.6,"Cued, cue-aligned: the cue response grows subacutely and chronically, not acutely",key
+lick_cued_ramp_summary,14.10,Cued first-lick AUCs by session: lick response up in every epoch; cue response up subacute / chronic,supporting
+lick_ramp_windows,14.11,"Response-window sensitivity: the larger lick response holds for 0-0.3, 0-0.5, 0-1.0, 0-1.5 s and the peak (cued and ITI)",supplementary
+lick_ramp_ratio,14.12,Ratio to pre per time point: cued responses scaled ~1.3-1.5- across the response; the acute cue-aligned ratio rises late,supplementary
+lick_cued_ramp_perspout,14.7,Cued lick and cue responses per spout (supplement),key
+lick_cued_area_maps_split,14.8,"Cued licks across the whole cortex, ALM / tjM1 split",key
 lick_offset_contrib_lateral,11.11,Where the lateral read-out offset comes from,supplementary
 lick_area_importance,11.12,Drop-one-area importance of the lateral decoder,supplementary
 lick_decoder_weight_1sd,11.13,Decoder weight per +1 SD of each area,supplementary
 lick_offset_where,11.14,"Where the offset is carried, per area",supplementary
+iti_ramp_animals,14.2,"ITI lick PETH, animal-averaged",supporting
