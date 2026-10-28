@@ -305,8 +305,9 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
             ax.set_xticks(range(4), EPS, fontsize=7.5)
             ax.set_title(f"{SETS[st]}: {title}", fontsize=8.5, pad=22)
             if j == 0:
-                ax.set_ylabel("read-out vs " + REFLAB.replace("pre licks ", "pre licks\n", 1)
-                              + "\n(mm, + = contralesional)", fontsize=7.5)
+                # short label (the reference is spelled out in the suptitle): the long one ran across rows (Priya 10-28)
+                ax.set_ylabel(("read-out vs pre licks\nat the same place" if REF in PLACE_REFS else
+                               "read-out vs pre licks") + "\n(mm, + = contralesional)", fontsize=8)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     fig.suptitle("LIKE-FOR-LIKE read-out (no pull slope): each lick's read-out minus that of the animal's " + REFLAB +

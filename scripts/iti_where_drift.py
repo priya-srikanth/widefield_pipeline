@@ -150,8 +150,37 @@ def plot(F: dict) -> None:
     import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
-    fig, axs = plt.subplots(4, 4, figsize=(16, 13), squeeze=False, sharex=True)
+    fig, axs = plt.subplots(4, 5, figsize=(20, 13), squeeze=False, sharex=True)
+    marks = dict(zip(AN, "osD^"))
     for i, (st, ax_) in enumerate([("iti", "lat"), ("trial", "lat"), ("iti", "sag"), ("trial", "sag")]):
+        # POOLED, PRE-NORMALISED (Priya 10-28): each animal's r / its mean pre (pre -> pre pair) r, drift fit scaled the
+        # same; black dashed = mean of the animals' scaled fits on a common gap axis
+        axp = axs[i, 4]
+        xg = np.linspace(0, ses.gap.max(), 200)
+        curves = []
+        for a in AN:
+            g = ses[(ses.set == st) & (ses.axis == ax_) & (ses.animal == a)]
+            pre_m = g[g.epoch == "pre"].r.mean()
+            if not np.isfinite(pre_m) or not len(g):
+                continue
+            for ep in [*ref_eps, *EP]:
+                h = g[g.epoch == ep]
+                axp.scatter(h.gap, h.r / pre_m, s=11, color=colors.get(ep, "#8e44ad"), marker=marks[a], alpha=0.7, lw=0)
+            if (st, ax_, a) in fits:
+                xx, yy, _mx = fits[(st, ax_, a)]
+                b_ = (yy[-1] - yy[0]) / np.log1p(xx[-1])            # the fit is c + b log(1 + gap)
+                curves.append((yy[0] + b_ * np.log1p(xg)) / pre_m)
+        if curves:
+            axp.plot(xg, np.mean(curves, axis=0), "k--", lw=1.4)
+        axp.axhline(1, color="0.8", lw=0.6)
+        tt = T.set_index(["set", "axis", "epoch"])
+        axp.set_title(f"POOLED {'ITI' if st == 'iti' else 'cued'} {'LATERAL' if ax_ == 'lat' else 'SAGITTAL'}, r / pre\n"
+                      "beyond drift vs pre: " + ", ".join(
+                          f"{e[:3]} {tt.loc[(st, ax_, e), 'point']:+.2f}" + ("*" if tt.loc[(st, ax_, e), 'lo'] > 0 or
+                                                                            tt.loc[(st, ax_, e), 'hi'] < 0 else "")
+                          for e in EP if (st, ax_, e) in tt.index), fontsize=8.5)
+        if i == 3:
+            axp.set_xlabel("days between training and test session", fontsize=8)
         for j, a in enumerate(AN):
             ax = axs[i, j]
             g = ses[(ses.set == st) & (ses.axis == ax_) & (ses.animal == a)]
@@ -171,6 +200,10 @@ def plot(F: dict) -> None:
             if i == 3:
                 ax.set_xlabel("days between training and test session", fontsize=8)
     axs[0, 0].legend(fontsize=7, frameon=False)
+    from matplotlib.lines import Line2D
+    axs[0, 4].legend([Line2D([], [], ls="", marker=marks[a], color="0.4") for a in AN] +
+                     [Line2D([], [], color="k", ls="--")], [*AN, "mean scaled drift fit"], fontsize=7, frameon=False,
+                     loc="lower left")
     t = T.set_index(["set", "axis", "epoch"])
     jl = (" JUNE no-stroke reference added (diamonds: August pre <-> June pairs, ~60 d), fit on pre + June pairs, so "
           "chronic gaps are within the reference range.\n") if june else ""
