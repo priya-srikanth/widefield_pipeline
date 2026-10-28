@@ -74,11 +74,11 @@ RESULTS today (PROVISIONAL; FINDINGS 0b + "Where things stand" KEY group):
   days 0.23 (non-oro -0.19; shuffle null <= -0.12); 3/4 held-out animals; leave-one-session-out 0.63 vs 0.48 (animal
   unknown); with animal known days wins 0.83. Same-session link survives nonlinear time (per-animal splines p 0.006); no
   next-session prediction (14.16).
-RUNNING at compaction: scripts/lick_area_unique_maps.py (task b7j0bpp5y; log S2/areauniq.log) = Priya's actual "Musall-
-style" request: per area + blocks (orofacial, orofacial+MO, non-orofacial) ALONE and UNIQUE (full - without) for pre r and
-acute / chronic offset -> figures lick_area_unique_maps_{iti,cued}.png; add to section 11 next to 11.12 (importance) via
-goal_page_insert, caption with block numbers (per animal first), publish, commit. Keep 14.15 (balance task/movement maps)
-unless Priya says drop it.
+DONE after this note (page v199, 5ddf82a1): NEW 11.13 = decoder ALONE / UNIQUE maps (scripts/lick_area_unique_maps.py;
+Priya's actual "Musall-style" request): orofacial block alone ~full (ITI r 0.59 vs 0.62), unique +0.062 ITI (4/4) / +0.036
+cued; non-orofacial block alone ALSO decodes (0.53 / 0.71 -- adjacent S1 areas) and shows the offset -> code + offset
+redundant across sensorimotor cortex; section 11 renumbered (weight-1sd 11.14 ... behaviour-only 11.20). Nothing running.
+Keep 14.15 (balance task/movement maps) unless Priya says drop it.
 TODO / open: two tiny edge fragments may remain on the per-spout residual-ROI maps (check vs masks); residual_roi maps
 still use the merged outline style; 14.8 pre-cue row (restw) still awaiting Priya; Musall split-row caption numbers;
 orofacial area AUC vs recovery LMM (old item 9) partly superseded by the balance-recovery analysis.
