@@ -9,10 +9,13 @@ animal random effects (ladder: intercept + step + slope -> intercept + step -> i
                                        far-contra time to contact, the earlier default)
 Figures (mx.plot_fits: session values vs day / deficit, coloured by animal, fitted fixed effects), one per group x model,
 <E>/iti_licks/figures/lmm_{time,behaviour}_<group>.png:
-  readout     decoder r (lateral, sagittal, angle) / the animal's pre mean and lateral offset beyond the pull, ITI + cued
+  readout     decoder r (lateral, sagittal, angle) / the animal's pre mean and the like-for-like (same-place) read-out,
+              ITI + cued
   response    ITI post-lick response / pre adopted response: key_mean, cortex, key ROIs (adopted), key_mean at 415 nm
-  lickclass   first vs later licks (beyond the pull, landing), first - later, lick-order slopes; all spouts + far contra
-  perspout    cued beyond-pull offset at far contra and close contra
+  lickclass   first vs later licks (like-for-like read-out, landing), lick-order slopes; all spouts + far contra
+  perspout    like-for-like read-out per spout, cued + ITI
+Decoder basis = iti_lick_order.SOURCE (Allen + ALM / tjM1 split by default since 10-27 late; its outputs are untagged, so
+the figure stems are unchanged; plain Allen areas write *_plain).
   behaviour   cued lick angle offset from own pre landing -- TIME model only (indexing a behavioural measure by
               behavioural recovery is circular)
 Session values come from the producing scripts' session tables via the readers in scripts/iti_mixed_models.py.

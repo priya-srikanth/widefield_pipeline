@@ -9,7 +9,9 @@ licks_all.csv row = lick_uid via the exact DAQ peak time stored by `iti_licks.py
             positions after scaling each axis by the animal's pre-stroke SD (1 = perfect, 0 = none)
   angle / reach   polar cross-check: atan2(side_ml, out_ap) (deg) and reach_mm
 Same features and decoder as page 3.9 (per animal ridge trained on AUGUST pre licks, pre leave-one-session-out, lags
-0..0.2 s averaged), in each feature basis available: Allen areas (`<E>/iti_licks/sessions`), joint LocaNMF and the
+0..0.2 s averaged), in each feature basis available: Allen areas (`<E>/iti_licks/<SESS_NAME>`; WITH the ALM / tjM1 split by
+default since 10-27 late -- `area_basis` / iti_licks.area_features; WFIELD_AREA_BASIS=plain = the earlier set, outputs
+tagged _plain), joint LocaNMF and the
 pre-stroke SVD basis (`iti_basis_decoder.py` outputs, when present). Reach spread per epoch is printed too (r is
 blind to a mean shift, not to a change in spread).
 Outputs <E>/iti_licks/where_decoder.csv, where_decoder_tests.csv, figures/lick_where_decoder.png (Allen areas, every
@@ -32,7 +34,13 @@ AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 TARGETS = ("lateral", "sagittal", "2-D", "angle", "reach")         # outward is also scored (where_decoder.csv)
 SOURCES = ("areas", "locanmf", "svdbasis")
-LAB = {"areas": "Allen areas", "locanmf": "joint LocaNMF", "svdbasis": "pre-stroke SVD basis"}
+# "areas" = Allen areas in the AREA BASIS (il.AREA_BASIS: split by default, Priya 10-27 late "use split bases, for
+# consistency"; plain with WFIELD_AREA_BASIS=plain -> every output tagged il.BASIS_TAG). "areas_split" / "areas_plain"
+# name a basis explicitly (iti_lick_order SOURCE, the basis summary). The source column of where_decoder*.csv stays
+# "areas", so its readers (mixed models, recovery link, z check) follow the basis of the run.
+LAB = {"areas": il.basis_label(), "locanmf": "joint LocaNMF", "svdbasis": "pre-stroke SVD basis",
+       "areas_split": il.basis_label("split"), "areas_plain": il.basis_label("plain")}
+AREA_SOURCES = {"areas": None, "areas_split": "split", "areas_plain": "plain"}     # source -> basis (None = il.AREA_BASIS)
 ZHEAD = "Z-SCORED FEATURES (each area / its frame-wise SD in the session, pre and post alike; iti_zscore_check.py)\n"
 
 
@@ -82,20 +90,34 @@ def _frame_range(x: str, ce) -> np.ndarray:
     return r
 
 
-SPLIT_PAIRS = (("MOs", "ALM"), ("MOp", "tjM1"))
-
-
-def split_feats(cols: list[str]):
-    """Allen areas with the ALM / tjM1 split (Priya 10-27; iti_area_split_sd.py): column indices kept as they are (every
-    area except cortex / whole MOs / whole MOp; ALM + tjM1 IN) and the (src, sub, hemi) rest areas appended after them."""
-    feat = [i for i, c in enumerate(cols) if c != "cortex" and not c.startswith(("MOs_", "MOp_"))]
-    rest = [(src, dst, h) for src, dst in SPLIT_PAIRS for h in ("left", "right")]
-    return feat, rest
+SPLIT_PAIRS = il.SPLIT_PAIRS          # the split itself lives in iti_licks (with_rest / area_features): one definition
 
 
 def split_names(cols: list[str]) -> list[str]:
-    feat, rest = split_feats(cols)
-    return [cols[i] for i in feat] + [f"{src}_rest_{h}" for src, _d, h in rest]
+    """Feature names of the split basis (= il.area_names(cols, "split"))."""
+    return il.area_names(cols, "split")
+
+
+def sess_labels(sess_dir: Path | None = None) -> list[str]:
+    """Session labels of an ITI session folder (default: the current ROI version's, il.SESS_NAME)."""
+    return sorted(p.stem for p in (Path(sess_dir) if sess_dir else il.OUT / il.SESS_NAME).glob("*.npz"))
+
+
+def area_basis(sess_dir: Path | None = None, jobs: int | None = None, basis: str | None = None):
+    """THE shared loader of the Allen-area decoders (Priya 10-27 late: split basis everywhere). Returns (D, names, SD):
+    D      `load` of the basis -- per session: iti / trial = (X lags 0..0.2 s mean, coords), epoch, animal, *_pos
+    names  the basis's feature names (il.area_names; split: ALM, tjM1 + MOs_rest / MOp_rest per hemisphere)
+    SD     frame-level SD per session x feature, columns = names (il.area_sd: zscore_check/<SD_NAME> + <SPLIT_NAME>; for a
+           reference folder its parent's tables, e.g. june_ref/). X / SD.loc[label] = the KEY-row z-scored features.
+    basis None = il.AREA_BASIS (env WFIELD_AREA_BASIS)."""
+    src = {None: "areas", "split": "areas_split", "plain": "areas_plain"}[basis]
+    return (load(src, sess_dir, jobs), *area_meta(sess_dir, basis))
+
+
+def area_meta(sess_dir: Path | None = None, basis: str | None = None) -> tuple[list[str], pd.DataFrame]:
+    """(names, SD) of `area_basis` without loading the sessions."""
+    names = il.area_names(il._load(sess_labels(sess_dir)[0], sess_dir)["cols"], basis)
+    return names, il.area_sd(sess_dir, basis)[names]
 
 
 def _load_one(item):
@@ -106,20 +128,10 @@ def _load_one(item):
     W_d = (il.LAGS_D >= 0.0) & (il.LAGS_D <= 0.2)
     z = il._load(x, sess_dir)
     rec = {"epoch": str(z["epoch"]), "animal": str(z["animal"])}
-    if source == "areas":
-        feat = [i for i, c in enumerate(z["cols"]) if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
-        for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
-            rec[st] = (z[kx].astype(float)[:, W_d][:, :, feat].mean(1), z[kt].astype(float))
-            rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
-    elif source == "areas_split":
-        cols = [str(c) for c in z["cols"]]
-        feat, rest = split_feats(cols)
-        fr = pd.read_csv(il.OUT / "zscore_check" / il.SPLIT_NAME, index_col=0).loc[x]
+    if source in AREA_SOURCES:                          # Allen areas: lag-average, then the basis (il.area_features)
         for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
             Xa = z[kx].astype(float)[:, W_d].mean(1)
-            R = [(Xa[:, cols.index(f"{src}_{h}")] - fr[f"f_{dst}_{h}"] * Xa[:, cols.index(f"{dst}_{h}")])
-                 / (1 - fr[f"f_{dst}_{h}"]) for src, dst, h in rest]
-            rec[st] = (np.column_stack([Xa[:, feat], *R]), z[kt].astype(float))
+            rec[st] = (il.area_features(Xa, z["cols"], x, sess_dir, AREA_SOURCES[source]), z[kt].astype(float))
             rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
     else:
         f = il.OUT / f"basis_{source}" / "sessions" / f"{x}.npz"
@@ -149,7 +161,7 @@ def load(source: str, sess_dir: Path | None = None, jobs: int | None = None) -> 
     sess_dir: another folder of `iti_licks.extract` session files (e.g. the June reference, `iti_june_ref.py`).
     Sessions load in PARALLEL (analysis_kit.fan_sessions: fan_out + sort, CLAUDE.md rule 6); returned in label order."""
     from wfield_local import analysis_kit as ak
-    labels = sorted(p.stem for p in (sess_dir or il.OUT / "sessions").glob("*.npz"))
+    labels = sess_labels(sess_dir)
     items = [(x, source, str(sess_dir) if sess_dir else "") for x in labels]
     res, fails = ak.fan_sessions(items, _load_one, jobs=jobs, key=lambda it: it[0], label=f"load {source}",
                                  log=lambda m: None)
@@ -214,7 +226,7 @@ def main() -> int:
 
     srcs =[s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{s}" / "sessions").exists()]
     R = pd.concat([decode(s) for s in srcs], ignore_index=True)
-    R.to_csv(il.OUT / "where_decoder.csv", index=False)
+    R.to_csv(il.OUT / il.tagged("where_decoder.csv"), index=False)
     pre = R[R.epoch == "pre"].groupby(["source", "set", "target", "animal"]).r.mean()
     R["r_norm"] = R.r / [pre.get(k, np.nan) for k in zip(R.source, R.set, R.target, R.animal)]
     pd.set_option("display.width", 220)
@@ -222,7 +234,7 @@ def main() -> int:
         .median().unstack("epoch")
     print("== lick spread per session (median over sessions, mm)\n" + sp.round(3).to_string())
     T = tests(R)
-    T.to_csv(il.OUT / "where_decoder_tests.csv", index=False)
+    T.to_csv(il.OUT / il.tagged("where_decoder_tests.csv"), index=False)
     print(T[(T.value == "r_norm")].round(3).to_string(index=False))
     plot(R, T)
     return 0
@@ -308,8 +320,8 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                      "Sagittal = sqrt(forward^2 + down^2); angle = atan2(lateral, sagittal).", fontsize=11)
         fig.tight_layout(rect=(0, 0, 1, 0.88))
         fig.subplots_adjust(top=0.82 if tag else 0.84)      # tight_layout left a large gap under the 5-line suptitle
-        fig.savefig(il.OUT / "figures" / (f"lick_where_decoder{tag}.png" if src == "areas" else f"lick_where_decoder_{src}{tag}.png"),
-                    dpi=105)
+        fig.savefig(il.OUT / "figures" / il.tagged(f"lick_where_decoder{tag}.png" if src == "areas"
+                                                   else f"lick_where_decoder_{src}{tag}.png"), dpi=105)
         plt.close(fig)
     if tag:
         return
@@ -326,19 +338,20 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                  "licks).\nDots = sessions, r / animal's pre; black = mean +- SEM; * = nested-bootstrap change from pre "
                  "excluding 0. Other targets per basis: where_decoder_tests.csv.", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "lick_where_decoder_bases.png", dpi=105)
+    fig.savefig(il.OUT / "figures" / il.tagged("lick_where_decoder_bases.png"), dpi=105)
     plt.close(fig)
 
 
 if __name__ == "__main__":
     if "--z" in sys.argv:                    # redraw from the z-scored run (iti_zscore_check.py); Allen areas only
         Z = il.OUT / "zscore_check"
-        Rz = pd.read_csv(Z / "where_decoder_z.csv")
+        Rz = pd.read_csv(Z / il.tagged("where_decoder_z.csv"))
         Tz = tests(Rz)
-        Tz.to_csv(Z / "where_decoder_tests_z.csv", index=False)
+        Tz.to_csv(Z / il.tagged("where_decoder_tests_z.csv"), index=False)
         plot(Rz, Tz, "_z")
         raise SystemExit(0)
     if "--plot-only" in sys.argv:
-        plot(pd.read_csv(il.OUT / "where_decoder.csv"), pd.read_csv(il.OUT / "where_decoder_tests.csv"))
+        plot(pd.read_csv(il.OUT / il.tagged("where_decoder.csv")),
+             pd.read_csv(il.OUT / il.tagged("where_decoder_tests.csv")))
         raise SystemExit(0)
     raise SystemExit(main())

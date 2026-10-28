@@ -51,8 +51,9 @@ def matched_r(act: np.ndarray, dec: np.ndarray, pre_act: np.ndarray, rng) -> tup
 
 
 def main(argv=None) -> int:
+    il.split_only("iti_where_spread_matched")   # outputs not basis-tagged: split basis only (10-27 late)
     z = "--z" in (argv if argv is not None else sys.argv[1:])
-    fp = il.OUT / "zscore_check" / "where_preds_z.csv" if z else il.OUT / "where_preds.csv"
+    fp = il.pred_file("zscore_check/where_preds_z.csv") if z else il.pred_file("where_preds.csv")
     p = pd.read_csv(fp)
     rng = np.random.default_rng(0)
     rows = []

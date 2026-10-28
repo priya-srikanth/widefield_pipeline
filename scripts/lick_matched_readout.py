@@ -1,7 +1,9 @@
 """LIKE-FOR-LIKE (landing-matched) lick read-out -- the PRIMARY offset measure from 10-27 (Priya: "let's do the
 like-for-like lick analysis"; replaces 'offset beyond the pull', whose answer depended on which pull slope was assumed).
 
-Per lick (frozen KEY-row lateral decoder per lick set, z-scored Allen areas; `lick_order_preds.csv.gz`):
+Per lick (frozen KEY-row lateral decoder per lick set, z-scored Allen areas -- with the ALM / tjM1 split by default since
+10-27 late, iti_lick_order.SOURCE; `iti_lick_order.preds_path()`; outputs tagged iti_lick_order.SRC_TAG = "" for the
+canonical split basis, "_plain" for plain Allen areas):
   dLand = landing - the animal's PRE mean landing at the spout (cued: target spout; ITI: previous trial's spout)
   dDec  = decoded - the animal's PRE mean decoded position at the same spout
   REF   = the animal's PRE curve: mean dDec of its pre licks (all spouts, same lick set) in landing-deviation bins

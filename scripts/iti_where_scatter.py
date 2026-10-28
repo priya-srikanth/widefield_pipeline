@@ -2,7 +2,7 @@
 lick positions for given spout positions per epoch per position").
 
 Same frozen decoder as page 3.15 (`iti_where_decoder.py`): per animal, ridge on the animal's AUGUST pre licks (Allen-area
-activity averaged over lags 0..0.2 s from the lick peak), one decoder per axis -- LATERAL (side_ml) and OUTWARD (out_ap),
+activity -- ALM / tjM1 split basis since 10-27 late -- averaged over lags 0..0.2 s from the lick peak), one decoder per axis -- LATERAL (side_ml) and OUTWARD (out_ap),
 mm, mouth-relative 3-D tip at the lick peak. Pre sessions are scored leave-one-session-out, post sessions with the full
 pre fit. Decoding is PER LICK; the page's r is computed per session over its licks. 2-D, not 3-D: height is not decoded
 (the six spouts differ in lateral x outward only).
@@ -14,7 +14,8 @@ Groups:
 Per panel, per spout: actual mean (open circle) and decoded mean (filled) with an arrow actual -> decoded and 1-SD
 ellipses (actual solid, decoded dashed). Ridge predictions are SHRUNK toward the mean, so decoded points sit closer to
 the centre even pre-stroke: read each epoch against the pre column, not against the actual points.
-Outputs <E>/iti_licks/where_preds.csv (one row per lick), figures/lick_{cued,iti}_where_scatter.png.
+Outputs <E>/iti_licks/where_preds<PRED_TAG>.csv (one row per lick; basis-specific cache name, il.pred_file),
+figures/lick_{cued,iti}_where_scatter.png.
 Usage: python scripts/iti_where_scatter.py [--z] [--plot-only]   (--plot-only: redraw from <E>/iti_licks/figdata/
 <figure stem>.pkl only; --z: within-session z-scored predictions of
 iti_zscore_check.py -> figures/*_z.png, tables in zscore_check/ with a _z suffix)
@@ -239,7 +240,7 @@ def plot_delta(F: dict) -> None:
     hd += [Line2D([], [], marker="o", ls="", color="0.6", alpha=0.4, label="each animal"),
            Line2D([], [], marker="s", ls="-", color="k", label="all spouts, 95% nested CI (* excludes 0)")]
     fig.suptitle(ZHEAD * bool(tag) + "NEURAL: how the decoded lick position moved relative to the real one, vs PRE. "
-                 "FROZEN pre-stroke decoder (Allen areas, lags 0..0.2 s).\nPer spout: (decoded - actual) in the epoch minus "
+                 f"FROZEN pre-stroke decoder ({il.basis_label()}, lags 0..0.2 s).\nPer spout: (decoded - actual) in the epoch minus "
                  "the same in pre (removes the decoder's pre-stroke shrinkage toward the centre). 0,0 = same error as "
                  "before the stroke.", fontsize=10, y=0.995)
     fig.legend(handles=hd, loc="upper center", ncol=8, fontsize=8.5, frameon=False,
@@ -317,7 +318,7 @@ def plot(F: dict) -> None:
            Line2D([], [], ls=":", color="k", alpha=0.6, label="dotted ellipse = decoded spread (1 SD)")]
     fig.suptitle(ZHEAD * bool(tag) + f"NEURAL: decoded vs actual lick landing, {'in-trial' if st == 'trial' else 'ITI (self-initiated)'} licks, "
                  f"grouped by {gname}.\nFROZEN pre-stroke decoder (fit once on each animal's August pre licks, never refit; "
-                 "one ridge per axis, Allen-area features, lags 0..0.2 s); per lick, lateral x sagittal extension (mm), "
+                 f"one ridge per axis, {il.basis_label()} features, lags 0..0.2 s); per lick, lateral x sagittal extension (mm), "
                  "+ lateral = contralesional.\nThe decoder shrinks predictions toward the centre even before the stroke, "
                  f"so compare each epoch with PRE (change figure: lick_where_delta{tag}.png).", fontsize=10.5, y=0.997)
     fig.legend(handles=hd, loc="upper center", ncol=6, fontsize=9, frameon=False,
@@ -328,6 +329,7 @@ def plot(F: dict) -> None:
 
 
 def main() -> int:
+    il.split_only("iti_where_scatter")   # outputs not basis-tagged: split basis only (10-27 late)
     tag = "_z" if "--z" in sys.argv else ""   # --z: z-scored predictions from iti_zscore_check.py -> *_z figures / tables
     if plot_only():                           # redraw from figdata only: no data, no bootstrap
         for st, _gc, _gn in SCATTER_SETS:
@@ -335,10 +337,10 @@ def main() -> int:
         plot_delta(load_fd(f"lick_where_delta{tag}"))
         return 0
     if tag:
-        R = _groups(pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv"))
+        R = _groups(pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv")))
     else:
         R = predictions()
-        R.to_csv(il.OUT / "where_preds.csv", index=False)
+        R.to_csv(il.pred_file("where_preds.csv"), index=False)   # basis-specific name (il.PRED_TAG)
         pd.set_option("display.width", 200)
         print("== licks per set / epoch / animal (rule 8)")
         print(R.groupby(["set", "animal", "epoch"]).size().unstack("epoch").reindex(columns=EP).to_string())

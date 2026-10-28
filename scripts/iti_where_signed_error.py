@@ -5,17 +5,23 @@
    "on pre landing" = licks within 0.25 mm of the animal's pre landing mean for that spout (actual position held
    fixed, so the decoder's pull toward the middle for off-centre licks cannot make the shift).
 Usage: python scripts/iti_where_signed_error.py <iti_licks dir>; writes where_signed_error_tests.csv there.
+Predictions: <dir>/where_preds<PRED_TAG>.csv (basis-specific name, iti_licks.pred_file; split basis by default).
 """
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from wfield_local import analysis_kit as ak
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import iti_licks as il  # noqa: E402
 
+from wfield_local import analysis_kit as ak  # noqa: E402
+
+il.split_only("iti_where_signed_error")      # outputs not basis-tagged: split basis only (10-27 late)
 E = sys.argv[1]
 pd.set_option("display.width", 220)
-p = pd.read_csv(f"{E}/where_preds.csv")
+p = pd.read_csv(Path(E) / il.tagged("where_preds.csv", il.PRED_TAG))
 p["spout"] = np.where(p["set"] == "trial", p["pos"], p["near_pos"])
 p = p.dropna(subset=["act_lat", "dec_lat", "spout"])
 p["err"] = p.dec_lat - p.act_lat

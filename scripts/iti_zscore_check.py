@@ -7,11 +7,15 @@ decoder. A session-wide SCALE change can (F0 / expression, or the post-stroke ri
 frozen linear readout then moves decoded means toward or away from its centre. Here every area is divided by its
 frame-wise SD in that session (all frames after the same drift removal; NOT over licks, which would force every
 session's mean lick feature to 0 and erase offsets by construction), in pre training and post scoring alike, and
-the r, beyond-pull and per-area readouts are rerun.
+the r, like-for-like offset and per-area readouts are rerun.
+AREA BASIS (Priya 10-27 late: "use split bases, for consistency"): Allen areas WITH the ALM / tjM1 split by default
+(iti_where_decoder.area_basis; the rest areas' frame SDs come from iti_area_split_sd.py); WFIELD_AREA_BASIS=plain = the
+earlier set, outputs tagged _plain.
 
 Steps: (1) per-session area SDs -> <E>/iti_licks/zscore_check/session_sd.csv (fanned over sessions, cached);
 (2) same decoders with scaled features -> r per target (`iti_where_decoder.decode` logic) and per-lick predictions
-(`iti_where_scatter.predictions`) -> beyond-pull offsets, side by side with the unscaled run.
+(`iti_where_scatter.predictions`) -> zscore_check/where_preds_z<PRED_TAG>.csv (basis-specific cache name) ->
+like-for-like offsets (iti_where_beyond_pull.py --z, converted 10-27 late), side by side with the unscaled run.
 Usage: python scripts/iti_zscore_check.py [--jobs 4]
 """
 from __future__ import annotations
@@ -50,7 +54,7 @@ def sds(jobs: int) -> pd.DataFrame:
     if f.exists():
         return pd.read_csv(f, index_col=0)
     from wfield_local import analysis_kit as ak
-    labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = sorted(p.stem for p in (il.OUT / il.SESS_NAME).glob("*.npz"))
     got, fail = ak.fan_sessions([(x,) for x in labels], session_sd, jobs=jobs, label="sd")
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)
@@ -64,18 +68,17 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args()
     OUTZ.mkdir(parents=True, exist_ok=True)
-    S = sds(a.jobs)
+    sds(a.jobs)                                    # computes + caches the plain areas' frame SDs when absent
     import iti_where_beyond_pull as bp
     import iti_where_decoder as wd
     import iti_where_scatter as ws
-    from iti_decoder_contrib import feature_names
-    names = feature_names()
     load0 = wd.load
+    names, SDb = wd.area_meta()                 # basis feature names + frame SDs (split: + the rest areas SDs)
 
     def load_z(source):
         D = load0(source)
         for x, d in D.items():
-            sd = S.loc[x, names].to_numpy(float)
+            sd = SDb.loc[x, names].to_numpy(float)
             for st in ("iti", "trial"):
                 X, C = d[st]
                 d[st] = (X / sd[None, :], C)
@@ -85,8 +88,8 @@ def main() -> int:
     pd.set_option("display.width", 220)
     # (a) r per target, scaled vs unscaled
     Rz = wd.decode("areas")
-    Rz.to_csv(OUTZ / "where_decoder_z.csv", index=False)
-    R0 = pd.read_csv(il.OUT / "where_decoder.csv")
+    Rz.to_csv(OUTZ / il.tagged("where_decoder_z.csv"), index=False)
+    R0 = pd.read_csv(il.OUT / il.tagged("where_decoder.csv"))
     R0 = R0[R0.source == "areas"]
     rows = []
     for tag, R in (("unscaled", R0), ("z-scored", Rz)):
@@ -95,16 +98,11 @@ def main() -> int:
         rows.append(ch.groupby(["set", "target"]).mean().assign(version=tag))
     print("== frozen r, normalised change vs pre (mean of animals)")
     print(pd.concat(rows).reset_index().set_index(["set", "target", "version"]).sort_index().round(3).to_string())
-    # (b) per-lick predictions with scaled features -> beyond-pull offsets
+    # (b) per-lick predictions with scaled features -> like-for-like offsets (was beyond-pull; 10-27 late)
     P = ws.predictions()
-    P.to_csv(OUTZ / "where_preds_z.csv", index=False)
-    saved = il.OUT
-    try:
-        il.OUT = OUTZ                                     # beyond-pull reads <OUT>/where_preds.csv
-        P.to_csv(OUTZ / "where_preds.csv", index=False)
-        bp.main()
-    finally:
-        il.OUT = saved
+    P.to_csv(il.pred_file("zscore_check/where_preds_z.csv"), index=False)
+    if il.AREA_BASIS == "split":                          # its outputs are not basis-tagged
+        bp.main(z=True)
     return 0
 
 

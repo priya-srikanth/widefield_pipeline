@@ -25,7 +25,10 @@ import figdata  # noqa: E402
 import iti_licks as il  # noqa: E402
 
 REFTAG = "gauss"           # like-for-like reference (gauss | loclin: Priya to choose, 10-27 late)
-BASIS = "areas_splitr8"     # Allen + ALM 40 % / tjM1 50 % split (ROI v8, final)
+# decoder basis: Allen + ALM 40 % / tjM1 50 % split (ROI v8, final) -- the canonical basis since 10-27 late, so its
+# like-for-like outputs are UNTAGGED (iti_lick_order.SRC_TAG ""); its prediction cache keeps the basis tag (KEY_TAG)
+BASIS = ""
+PRED_KEY = f"areas_splitr{il.ROI_VERSION}"
 SETS = [("", "all ITI licks (primary)"), ("_gap2", "2 s quiet before"), ("_far1", ">= 1 s from window end and spout arrival"),
         ("_gap2far1", "both")]
 EP = ["acute", "subacute", "chronic"]
@@ -36,9 +39,9 @@ STEM = "lick_iti_filter_compare"
 def compute() -> dict:
     rows = []
     for tag, lab in SETS:
-        T = pd.read_csv(il.OUT / f"matched_{REFTAG}_{BASIS}{tag}_tests.csv")
+        T = pd.read_csv(il.OUT / f"matched_{REFTAG}{BASIS}{tag}_tests.csv")
         T = T[(T.scope == "all spouts") & (T.measure == "resid") & (T.set == "iti") & (T.cls == "all") & T.epoch.isin(EP)]
-        P = pd.read_csv(il.OUT / f"lick_order_preds_{BASIS}{tag}.csv.gz", usecols=["set", "epoch", "label"])
+        P = pd.read_csv(il.OUT / f"lick_order_preds_{PRED_KEY}{tag}.csv.gz", usecols=["set", "epoch", "label"])
         n = P[P.set == "iti"].groupby("epoch").size()
         for _, r in T.iterrows():
             rows.append(dict(set=lab, epoch=r.epoch, point=r.point, lo=r.lo, hi=r.hi, n_dir=r.n_dir, n=r.n,

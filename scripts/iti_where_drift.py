@@ -8,7 +8,8 @@ Per animal x lick set x axis (lateral, sagittal): fit r = a + b * log(1 + gap) o
 pre -> post pair, residual = r - drift prediction at its gap (extrapolated beyond the pre range for chronic gaps, which
 the log fit makes conservative-to-neutral; reported separately). Per post session: mean residual over its training
 sessions; change per epoch = nested bootstrap of those residuals (pre->pre residuals as the reference).
-Features = Allen areas, lags 0..0.2 s (as 3.15), z-scored within session (`zscore_check/session_sd.csv`).
+Features = Allen areas with the ALM / tjM1 split (every area decoder since 10-27 late; iti_where_decoder.area_basis),
+lags 0..0.2 s (as 3.15), z-scored within session (frame-level SDs; June: june_ref/ SD + split tables, iti_june_ref.py).
 --june (Priya 10-27): add the June 6-8 pre sessions (`iti_june_ref.py`, a separate folder; never in the August
 baseline) as a NO-STROKE LONG-GAP reference: pairs August pre <-> June (both directions; ~60 days, about the chronic
 gap). The drift curve is then fit on pre -> pre AND June pairs, so chronic gaps are interpolated, not extrapolated; the
@@ -48,17 +49,15 @@ def _day(label: str) -> int:
 def pairs(june: bool = False) -> pd.DataFrame:
     from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
-    from iti_decoder_contrib import feature_names
-    S = pd.read_csv(il.OUT / "zscore_check" / il.SD_NAME, index_col=0)
-    names = feature_names()
-    D = wd.load("areas")
+    # Allen areas in the basis (split by default, Priya 10-27 late) + frame SDs: the shared loader
+    D, names, S = wd.area_basis()
     if june:
         from iti_june_ref import JUNE
-        DJ = wd.load("areas", JUNE / il.SESS_NAME)
+        DJ, _nj, SJ = wd.area_basis(JUNE / il.SESS_NAME)     # June: its own SD / split tables (june_ref/)
         for d in DJ.values():
             d["epoch"] = "june"
         D = {**D, **DJ}
-        S = pd.concat([S, pd.read_csv(JUNE / il.SD_NAME, index_col=0)])
+        S = pd.concat([S, SJ])
     rows = []
     for st in ("iti", "trial"):
         for a in AN:
@@ -176,7 +175,7 @@ def plot(F: dict) -> None:
     jl = (" JUNE no-stroke reference added (diamonds: August pre <-> June pairs, ~60 d), fit on pre + June pairs, so "
           "chronic gaps are within the reference range.\n") if june else ""
     fig.suptitle(jl + "NEURAL: is the frozen decoder's post-stroke r loss more than elapsed-time DRIFT? Decoders trained on ONE "
-                 "pre session (z-scored Allen areas, lags 0..0.2 s), tested on every other session; dashed = log fit to "
+                 f"pre session (z-scored {il.basis_label()}, lags 0..0.2 s), tested on every other session; dashed = log fit to "
                  "pre -> pre pairs\n(dotted = largest pre gap; beyond it the fit is extrapolated). Change in r beyond "
                  "the drift curve vs pre, chronic: ITI lateral "
                  f"{t.loc[('iti', 'lat', 'chronic'), 'point']:+.3f} [{t.loc[('iti', 'lat', 'chronic'), 'lo']:+.3f}, "
@@ -189,6 +188,7 @@ def plot(F: dict) -> None:
 
 
 def main(argv=None) -> int:
+    il.split_only("iti_where_drift")   # outputs not basis-tagged: split basis only (10-27 late)
     argv = argv if argv is not None else sys.argv[1:]
     june = "--june" in argv
     stem = f"lick_where_drift{'_june' if june else ''}"
