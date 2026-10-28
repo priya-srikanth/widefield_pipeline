@@ -35,6 +35,13 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~01:10) 4b RUN DONE (16 steps, 0 errors). Held-out decoder-pattern map stats, FWER max-stat vs old bootstrap
+  BH (% of cortex significant): NOT uniformly stricter on 4 animals. ITI LATERAL CHANGE maps ~0 in every epoch (0.1 /
+  6.9 / 0.0 %; old FDR 0 / 0 / 0) -> the ITI lateral pattern does not significantly change shape; ITI lateral LEVEL maps
+  19 / 1 / 25 / 20 % (pre / acute / sub / chronic). CUED LATERAL CHANGE 78 / 26 / 78 % (old 87 / 50 / 32 %) -> cued
+  lateral pattern changes acutely AND chronically (chronic stronger than before). Cued sagittal change 0 / 0 / 84 % (old
+  0 / 0 / 16 %). ITI sagittal change 38 / 0.2 / 89 %. Captions 15.17-15.20 need these (decoder_pattern_stats.csv,
+  spout_pattern_stats*.csv).
 - (10-28 ~00:45) 5c-bis DONE (4 animals; offset_contrib/*_angle_* / *_reach_*, figures lick_offset_contrib_{angle,
   reach,angle_vs_lateral}.png). ANGLE same-place offset = almost entirely PATTERNED: ITI +5.7 / +3.0 / +3.5 deg (mean of
   animals; uniform cortex-wide part -0.10 / -0.03 / -0.29 deg, i.e. ~0); 4/4 positive every ITI epoch (PS92 2.5 / 3.5 /
