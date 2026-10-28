@@ -81,10 +81,10 @@ def recovery_measure(col: str = "weighted_signed") -> pd.DataFrame:
     return m.rename(columns={col: "value"})[COLS]
 
 
-def matched(scope: str = "all spouts", cls: str = "all", st: str = "iti", ref: str = "gauss") -> pd.DataFrame:
+def matched(scope: str = "all spouts", cls: str = "all", st: str = "iti", ref: str = "loclin") -> pd.DataFrame:
     """Like-for-like read-out per session (scripts/lick_matched_readout.py; PRIMARY offset measure from 10-27): resid =
-    decoded minus the animal's pre licks that landed at the same place (ref gauss = Gaussian same-place reference; was the
-    binned 'place'; loclin = local-linear, pending Priya's choice 10-27 late), mm, + = contralesional. Decoder
+    decoded minus the animal's pre licks that landed at the same place (ref loclin = local-linear same-place reference, Priya
+    10-27 late "ok local linear it is"; was the binned 'place'), mm, + = contralesional. Decoder
     source follows iti_lick_order.SOURCE (env WFIELD_LICK_DECODER)."""
     import iti_lick_order as lo
     tag = ("" if ref == "pooled" else f"_{ref}") + lo.SRC_TAG
