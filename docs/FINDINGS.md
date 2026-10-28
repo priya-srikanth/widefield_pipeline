@@ -133,16 +133,16 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    5-7 %; non-linear (RBF kernel ridge) decoder: same offset and same r loss; angle offset patterned (uniform part ~0),
    same cortex as lateral (maps r 0.90-0.95). Behaviour-only decoder (FaceRhythm + reach / speed): ITI r unchanged
    post-stroke vs cortex -21..-27 % -> the ITI change is cortical. CUED offset mostly TARGET COMPOSITION (same-target
-   +0.01 n.s., 2/4): post-stroke misses read toward their target as pre misses were (wording of "read ahead" pending
-   Priya). Maps: ITI cortex-wide components = variance effect (z-scored check); FWER: ITI lateral pattern shape unchanged,
+   +0.01 n.s., 2/4): post-stroke misses read toward their target as pre misses were (10-28, Priya OK: re-worded everywhere --
+   the cued offset is NORMAL TARGET CODING of more misses, not a changed read-out; first cued lick +0.31 -> +0.05 n.s.). Maps: ITI cortex-wide components = variance effect (z-scored check); FWER: ITI lateral pattern shape unchanged,
    cued lateral pattern changes acutely + chronically; pixel LMM: cued lateral map drops, partly returns, stays changed at
    full behavioural recovery; far-contra maps scale with first-lick aim deficit.
 4d0-V8. **SYNTHESIS on ROI v8 + Allen areas WITH the ALM / tjM1 split (all decoders; DECISIONS 10-27 late), Gaussian
    same-place like-for-like reference; supersedes the numbers in 4d0-LATE / 4d0 / 4d0b. PROVISIONAL** (page v140; v2 -> v8
    in docs/status/V2_VS_V8_SPLIT_20261027.md). HOLDS: cortex reads licks CONTRALESIONAL of where they land -- ITI every
    epoch +0.37 / +0.23 / +0.28 mm (4/4 each); cued acute +0.16 (4/4), first cued lick +0.31 / +0.22 / +0.15; cued far
-   contra acute +0.22 (4/4) = cued licks read AHEAD of the failing (ipsilesional) movement acutely, now without any pull
-   slope; cued far contra chronic -0.27 (4/4, ipsilesional). Lateral frozen r: ITI -26 / -22 / -24 % (4/4), cued -20 / -12
+   contra acute +0.22 (4/4) [10-28: TARGET COMPOSITION, not "read ahead of the failing movement" -- same-target
+   reference +0.01 n.s., 4d0-NIGHT]; cued far contra chronic -0.27 (4/4, ipsilesional). Lateral frozen r: ITI -26 / -22 / -24 % (4/4), cued -20 / -12
    (4/4) / -8 % (n.s., 3/4). CHANGED vs v139: (1) "read further OUT acutely" is GONE -- cued down +0.20 -> +0.03 n.s.;
    cued read CLOSER subacute (-0.25) and chronic (-0.13), 4/4; cued reach like-for-like acute n.s., -0.27 / -0.14 later
    (4/4); (2) ITI SAGITTAL r now lost subacute / chronic (-13 / -11 %, 4/4; n.s. in plain Allen -> basis-dependent);
@@ -170,7 +170,7 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    reverses to CLOSER chronically (-0.14, 3/4); cued forward -0.22 -> -0.17 every epoch (4/4). Per-lick error: shift,
    width unchanged (ITI +0.89 / +0.48 / +0.43, 4/4); ~60 % of the acute cued shift is expected from the pull alone
    (control +0.28 of +0.47). Behaviour on the same cued licks: landing vs own pre landing at the spout -0.53 mm acute
-   (4/4; far contra -1 to -3 mm) -> read AHEAD of the failing movement. Tracks recovery within animal (3.37). ITI lateral r
+   (4/4; far contra -1 to -3 mm) [10-28: read like pre misses of the same target, 4d0-NIGHT]. Tracks recovery within animal (3.37). ITI lateral r
    loss beyond drift with the JUNE no-stroke reference: -0.08 [-0.15, -0.02] chronic, 4/4 (August-only fit -0.13; the 8-day
    curve under-predicted 64-day drift in PS92 / PS95). Landing measure note: the lick table's closest-approach `lat_err_mm`
    hides most of the deviation (frame chosen nearest the spout); use extension-peak landing vs own pre landing.
