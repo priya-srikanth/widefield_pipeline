@@ -1350,8 +1350,9 @@ def frozen_tc_draw(F: dict) -> None:
     plt.close(fig)
 
 
-KEY_SPEC = (("resp_auc", "response AUC 0..0.5 s (dF/F x1e3 * s)"), ("resp_auc_n", "response AUC / animal's pre response AUC"),
-            ("build_auc", "build-up AUC -0.4..-0.05 s before tongue visible"),
+KEY_SPEC = (("resp_auc", "response AUC 0..0.5 s (dF/F x1e3 * s)\nbaseline -1.0..-0.5 s"),
+            ("resp_auc_n", "response AUC / animal's pre response AUC\n(baseline -1.0..-0.5 s)"),
+            ("build_auc", "build-up AUC -0.4..-0.05 s before tongue visible\n(baseline -1.5..-1.0 s)"),
             ("build_auc_n", "build-up AUC / animal's pre response AUC"))
 
 
@@ -1379,19 +1380,7 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
     print("\n== frozen decoder (lags 0..0.2), change vs pre, session-pooled figure tests\n"
           + pd.DataFrame(tests).round(3).to_string(index=False))
     # ---- 3.8: per-session PETH mean +- SEM, raw and normalised; amplitude-free summaries
-    rows = []
-    for x, d in D.items():
-        P = _bout(d, GAP_MAIN)
-        if len(P) < 10:
-            continue
-        P = P.astype(float)
-        P = P - P[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1]), :].mean(1, keepdims=True)
-        m = P.mean(0)
-        for roi in KEY_ROIS:
-            if roi in list(d["cols"]):
-                rows.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "roi": roi,
-                             "peth": m[:, list(d["cols"]).index(roi)]})
-    PE = pd.DataFrame(rows)
+    PE = _ramp_pe(D)
     pa = RR[(RR.kind == "iti_bout") & (RR.epoch == "pre")].groupby(["roi", "animal"]).amp.mean()
     shown = (LAGS_P >= -1.5) & (LAGS_P <= 0.75)
     sig_recs, rp = [], {}
@@ -1416,18 +1405,50 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
             rp[(i, j)] = {"roi": roi, "norm": norm, "curves": curves, "sig": S}
     save_fd("lick_iti_ramp_sessions", {"lags": LAGS_P, "panels": rp, "rois": list(KEY_ROIS)})
     pd.DataFrame(sig_recs).to_csv(OUT / "sig_bins_3_24.csv", index=False)
-    # AUC readouts (Priya 10-26): response = AUC 0..0.5 s after lick onset (= the first frame the tongue is visible,
-    # cam4 `on_frame`); build-up = AUC -0.4..-0.05 s BEFORE the tongue is visible. dF/F x1e3 * s; normalised versions
-    # divide by the animal's PRE response AUC (one scale for both rows, pre response = 1)
+    ramp_auc_summary(PE)
+    key_figures_plot(only=("lick_iti_ramp_sessions", "lick_frozen_summary"))
+
+
+BASE_RESP = (-1.0, -0.5)   # response-size AUCs only (Priya 10-28); the PETH curves / build-up keep BASE (-1.5..-1.0 s)
+
+
+def _ramp_pe(D: dict) -> pd.DataFrame:
+    """Per-session mean PETH of bout-start ITI licks (gap >= GAP_MAIN, >= 10 licks), baseline BASE, per KEY ROI."""
+    rows = []
+    for x, d in D.items():
+        P = _bout(d, GAP_MAIN)
+        if len(P) < 10:
+            continue
+        P = P.astype(float)
+        P = P - P[:, (LAGS_P >= BASE[0]) & (LAGS_P <= BASE[1]), :].mean(1, keepdims=True)
+        m = P.mean(0)
+        for roi in KEY_ROIS:
+            if roi in list(d["cols"]):
+                rows.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "roi": roi,
+                             "peth": m[:, list(d["cols"]).index(roi)]})
+    return pd.DataFrame(rows)
+
+
+def ramp_auc_summary(PE: pd.DataFrame) -> None:
+    """14.9 AUC readouts (Priya 10-26): response = AUC 0..0.5 s after lick onset (= the first frame the tongue is
+    visible, cam4 `on_frame`); build-up = AUC -0.4..-0.05 s BEFORE it. dF/F x1e3 * s. 10-28 (Priya: response sizes on
+    -1.0..-0.5 s, build-up stays on -1.5..-1.0 s): the RESPONSE AUC uses baseline BASE_RESP and is normalised by the
+    animal's pre response AUC under BASE_RESP; the BUILD-UP AUC keeps BASE and its normalisation (the pre response AUC
+    under BASE), so the build-up rows are unchanged. Own rng (seed 11) so `--ramp-summary` alone gives the same draws."""
+    from figdata import save_fd
+    rng = np.random.default_rng(11)
+    br = (LAGS_P >= BASE_RESP[0]) & (LAGS_P <= BASE_RESP[1])
     rows = []
     for _i, r_ in PE.iterrows():
         v = r_.peth
         rows.append({"label": r_.label, "animal": r_.animal, "epoch": r_.epoch, "roi": r_.roi,
-                     "resp_auc": _auc(v, 0.0, 0.5), "build_auc": _auc(v, -0.4, -0.05)})
+                     "resp_auc": _auc(v - v[br].mean(), 0.0, 0.5), "resp_auc_b15": _auc(v, 0.0, 0.5),
+                     "build_auc": _auc(v, -0.4, -0.05)})
     T0 = pd.DataFrame(rows)
-    den = T0[T0.epoch == "pre"].groupby(["roi", "animal"]).resp_auc.mean()
-    d_ = np.array([den.get((r_, a_), np.nan) for r_, a_ in zip(T0.roi, T0.animal)])
-    T0["resp_auc_n"], T0["build_auc_n"] = T0.resp_auc / d_, T0.build_auc / d_
+    pre = T0[T0.epoch == "pre"].groupby(["roi", "animal"])
+    key = list(zip(T0.roi, T0.animal))
+    T0["resp_auc_n"] = T0.resp_auc / np.array([pre.resp_auc.mean().get(k, np.nan) for k in key])
+    T0["build_auc_n"] = T0.build_auc / np.array([pre.resp_auc_b15.mean().get(k, np.nan) for k in key])
     T0.to_csv(OUT / "ramp_auc_sessions.csv", index=False)
     tests, sp_ = [], {}
     for j, roi in enumerate(KEY_ROIS):
@@ -1439,7 +1460,7 @@ def key_figures(D: dict, RR: pd.DataFrame) -> None:
                 tests.append({"roi": roi, **r_})
     pd.DataFrame(tests).to_csv(OUT / "ramp_session_tests.csv", index=False)
     save_fd("lick_iti_ramp_summary", {"panels": sp_, "rois": list(KEY_ROIS), "spec": KEY_SPEC})
-    key_figures_plot(only=("lick_iti_ramp_sessions", "lick_frozen_summary", "lick_iti_ramp_summary"))
+    key_figures_plot(only=("lick_iti_ramp_summary",))
     print("\n== ramp per-session tests (change vs pre)\n" + pd.DataFrame(tests).round(3).to_string(index=False))
 
 
@@ -1523,7 +1544,8 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                     ax.set_ylabel(ylab, fontsize=8)
         fig.suptitle("NEURAL, NO DECODER: self-initiated licks, per-session dF/F AUCs (one dot per session, all animals pooled; black = mean +- SEM "
                      "over sessions). Response = AUC 0..0.5 s after lick onset (first frame the tongue is visible); build-up = AUC "
-                     "-0.4..-0.05 s before it; raw and divided by the animal's PRE response AUC. * = change from pre with 95% "
+                     "-0.4..-0.05 s before it; raw and divided by the animal's PRE response AUC. Baselines (10-28): response "
+                     "-1.0..-0.5 s, build-up -1.5..-1.0 s before the lick. * = change from pre with 95% "
                      "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
         fig.savefig(OUT / "figures" / "lick_iti_ramp_summary.png", dpi=110)
@@ -1660,17 +1682,13 @@ def controls(D: dict, RR: pd.DataFrame, jobs: int | None = None) -> None:
         L[f"z_{c}"] = (L[c] - L.animal.map(mu)) / L.animal.map(sd)
     # (1) kinematics-adjusted and range-matched post-onset response
     for roi in CTRL_ROIS:
-        adj = np.full(len(L), np.nan)
+        # residual + pre intercept, per animal on PRE licks (one definition: _pre_adjust; audit 10-28: identical output)
+        adj = _pre_adjust(L, f"amp_{roi}", ["z_reach", "z_speed"], 30)
         matched = np.zeros(len(L), bool)
         for _a, g in L.groupby("animal"):
             pre = g[(g.epoch == "pre")].dropna(subset=[f"amp_{roi}", "z_reach", "z_speed"])
             if len(pre) < 30:
                 continue
-            Xp = np.column_stack([np.ones(len(pre)), pre.z_reach, pre.z_speed])
-            beta = np.linalg.lstsq(Xp, pre[f"amp_{roi}"].to_numpy(), rcond=None)[0]
-            ok = g[["z_reach", "z_speed"]].notna().all(1)
-            Xg = np.column_stack([np.ones(ok.sum()), g.z_reach[ok], g.z_speed[ok]])
-            adj[g.index[ok]] = g[f"amp_{roi}"][ok].to_numpy() - Xg @ beta + beta[0]   # residual + pre intercept
             lo_r, hi_r = np.nanpercentile(pre.reach, [10, 90])
             lo_s, hi_s = np.nanpercentile(pre.speed, [10, 90])
             matched[g.index] = ((g.reach >= lo_r) & (g.reach <= hi_r) & (g.speed >= lo_s) & (g.speed <= hi_s)).to_numpy()
@@ -2088,6 +2106,7 @@ def main(argv=None) -> int:
     ap.add_argument("--key", action="store_true", help="only the KEY figures, from saved sessions + ramp_sessions.csv")
     ap.add_argument("--controls", action="store_true", help="only the kinematics / face / FR-variance controls")
     ap.add_argument("--binned", action="store_true", help="only the binned frozen-decoder sweep + summary")
+    ap.add_argument("--ramp-summary", action="store_true", help="only the 14.9 AUC summary (ramp_auc_summary)")
     ap.add_argument("--plot-direction", action="store_true", help="redraw page 3.7 from the saved CSVs")
     ap.add_argument("--plot-frozen-tc", action="store_true", help="redraw page 3.8 from decode_frozen_lags_sessions.csv")
     ap.add_argument("--ramp", action="store_true", help="redraw pages 3.16 / 3.19 (ITI-lick PETHs)")
@@ -2132,6 +2151,9 @@ def main(argv=None) -> int:
         return 0
     if a.plot_frozen_tc:
         plot_frozen_timecourse(pd.read_csv(OUT / tagged("decode_frozen_lags_sessions.csv")))
+        return 0
+    if a.ramp_summary:
+        ramp_auc_summary(_ramp_pe({x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}))
         return 0
     if a.binned:
         binned_figures({x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()})

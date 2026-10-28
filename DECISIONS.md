@@ -22193,3 +22193,19 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   "none"; the far-contra acute CUE-response drop is carried by PS92 and PS93 only.
 - 13.2 columns 1-2 (landing, decoded vs lick order): per-order bars, same test with order as the bin
   (`lick_order_sig_bins[_nonlinear].csv`). Chronic landing deficit confined to the first cued licks (orders 0-2).
+
+## 2026-10-28 (late afternoon) — response baseline, vigour control, regression audit, per-spout windows (page v179-v180)
+- Baselines (Priya 10-28): response-SIZE AUCs use -1.0..-0.5 s before the lick (14.7 per spout, 14.10 ITI, 14.11 cued,
+  14.12 windows; `iti_licks.BASE_RESP`, `--ramp-summary`); PETH curves and the build-up keep -1.5..-1.0 s. ITI tjM1 contra
+  chronic response +0.53 -> +0.94; cortex chronic now significant (+0.50).
+- Lick-vigour control per spout (`scripts/lick_vigor_perspout.py`, 14.8): vigour and vigour+landing change nothing pooled.
+- Regression AUDIT (independent subagent, 10-28): 14.14 controls, 12.16 covariate reference, 14.8 vigour all correct --
+  correct lick matching, injected effects removed exactly, adjustment = mean(dz).beta to machine precision. Nulls are real:
+  covariates explain 2-40% of pre variance and per-animal adjustments have opposite signs. Caveats on the page: 12.16
+  kinematics add ~0 held-out R2 beyond landing (uninformative null); PS92 ITI offset 73% explained by FaceRhythm; ITI
+  post-onset face is 5 Hz session samples only; '+landing' slope is between-spout. PS93 3-D: pre far-ipsi lands more
+  lateral than close-ipsi (possible offset; pose to-do). Inline reach+speed adjustment folded into `_pre_adjust` (identical).
+- Per-spout windows (Priya: "0-1 s"): acute cued far-contra response reaches the pre peak but decays sooner -- 0.5-1.0 s
+  below pre in 3/4 animals (SSp-m -0.45*, cortex -0.36*, tjM1 -0.41 n.s.). ITI ratios for windows past 0.5 s are not
+  interpretable (pre AUC ~0).
+- Section 14 renamed "Lick-evoked responses, ITI and cued, and confounds" (id itiresp unchanged).
