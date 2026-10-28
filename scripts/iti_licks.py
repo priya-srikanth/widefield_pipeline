@@ -843,7 +843,7 @@ def direction_draw(F: dict) -> None:
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
     _headroom([axs[0, 0]])                              # y is shared: raise once
-    axs[0, 0].legend(fontsize=8, frameon=False, loc="lower right")
+    axs[0, 0].legend(fontsize=8, frameon=False, loc="upper left")   # top-left is empty (curves low at negative lags)
     axs[0, 0].set_ylabel("r, decoded vs actual\nlateral position", fontsize=9)
     axs[1, 0].set_ylabel("r, decoded vs actual\nlateral position (relative)", fontsize=9)
     fig.suptitle("NEURAL: decoding each lick's lateral tongue-tip position (3-D, mm) from cortical area activity; y = r between "
