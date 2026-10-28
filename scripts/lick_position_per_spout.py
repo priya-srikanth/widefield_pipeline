@@ -95,13 +95,57 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def plot_by_epoch(F: dict) -> None:
+    """Second layout (Priya 10-28): epochs together in one panel; DECODED in one column, ACTUAL in the other."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    col = {"pre": "k", **EPOCH_LINE}
+    A = F["A"]
+    POS = lo.POS
+    x = np.arange(len(POS))
+    fig, axs = plt.subplots(2, 2, figsize=(15, 9), sharey="row", squeeze=False)
+    for i, st in enumerate(SETS):
+        g = A[A.set == st]
+        M = g.groupby(["epoch", "pos"])[["act", "dec"]].agg(["mean", "sem"])
+        for j, (v, lab, mk) in enumerate((("dec", "DECODED", "o"), ("act", "ACTUAL landing", "s"))):
+            ax = axs[i, j]
+            for k, ep in enumerate(EP):
+                if ep not in M.index.get_level_values(0):
+                    continue
+                m = M.loc[ep].reindex(POS)
+                ax.errorbar(x + (k - 1.5) * 0.14, m[(v, "mean")], yerr=m[(v, "sem")], fmt=mk, color=col[ep], ms=7,
+                            capsize=2, lw=1.4, label=ep, mfc=col[ep] if v == "dec" else "white", mew=1.5)
+            ax.axhline(0, color="0.8", lw=0.6)
+            for b in x[:-1] + 0.5:                         # spouts are separate: thin dividers, no connecting lines
+                ax.axvline(b, color="0.93", lw=0.8, zorder=0)
+            ax.set_xticks(x, [p.replace("_", "\n") for p in POS], fontsize=8.5)
+            ax.set_title(f"{SETS[st]}: {lab} lateral position", fontsize=10)
+            if j == 0:
+                ax.set_ylabel("lateral position (mm, + = contralesional)", fontsize=9)
+            if i == 0 and j == 0:
+                ax.legend(fontsize=8, frameon=False, loc="upper left", ncol=4)
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+    fig.suptitle("Lateral lick position PER SPOUT, epochs side by side: DECODED (left; frozen pre-stroke KEY-row decoder, its "
+                 "shrunken scale) and ACTUAL landing (right); mean +/- SEM over animals. PROVISIONAL", fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.savefig(il.OUT_W / "figures" / "lick_position_per_spout_byepoch.png", dpi=100)
+    plt.close(fig)
+
+
 def main() -> int:
     if plot_only():
-        plot(load_fd("lick_position_per_spout"))
+        F = load_fd("lick_position_per_spout")
+        plot(F)
+        plot_by_epoch(F)
         return 0
     F = compute()
     save_fd("lick_position_per_spout", F)
     plot(F)
+    plot_by_epoch(F)
     return 0
 
 
