@@ -230,6 +230,26 @@ def compute():
     R = _save(tag, rows, maps, terms)
     print(os.environ.get("WFIELD_LICK_DECODER"), tag)
     print(R.round(3).to_string())
+    # FIRST-K COMPONENT MAPS (Priya 10-28, SVD looks patchy): WFIELD_CONTRIB_KMAX=K rebuilds the maps from the first K
+    # spatial components only. EXACT for an orthonormal basis (SVD: B = P, Mt = P): sum_p (P_K b_K)(P_K dh_K) = b_K . dh_K,
+    # the part of the SAME offset carried by components 1..K (no cross terms, no refit); summary column share_of_offset.
+    kmax = int(os.environ.get("WFIELD_CONTRIB_KMAX", "0"))
+    if kmax and source == "svd":
+        rows_k, maps_k = [], {}
+        for (st, a), (beta, sess) in sorted(ACC.items()):
+            B, Mt, pix = spatial(source, a, None)
+            K = min(kmax, len(beta))
+            sk = {x: (e, v[:K], f) for x, (e, v, f) in sess.items()}
+            g = P[(P.set == st) & (P.animal == a)]
+            r_, m_, _t = decompose(st, a, beta[:K], sk, B[:, :K], Mt[:, :K], pix, None,
+                                   lambda ep, g=g: float(g[g.epoch == ep].dec.mean() - g[g.epoch == "pre"].dec.mean()))
+            full = {(r["set"], r["epoch"]): r["offset"] for r in rows if r["animal"] == a and r["set"] == st}
+            rows_k += [dict(source=f"{tag}_k{kmax}", **r, share_of_offset=r["offset"] / full[(st, r["epoch"])]
+                            if full.get((st, r["epoch"])) else np.nan) for r in r_]
+            maps_k.update(m_)
+        Rk = _save(f"{tag}_k{kmax}", rows_k, maps_k, [])
+        print(f"== first {kmax} components: offset and share of the full offset")
+        print(Rk.groupby(["set", "epoch"])[["offset", "share_of_offset"]].mean().round(3).to_string())
     return R
 
 
@@ -449,7 +469,7 @@ def plot_vs_lateral(F: dict) -> None:
 
 # unmasked LocaNMF ("locanmfF") dropped from the figure (Priya 10-28: superseded by the masked basis)
 TAGS = [("areas", "Allen areas"), ("areas_splitr8", "Allen, ALM / tjM1 split"), ("locanmfFM", "LocaNMF, glue / MOB comps dropped"),
-        ("svdF", "pre-stroke SVD")]
+        ("svdF", "pre-stroke SVD"), ("svdF_k50", "pre-stroke SVD, first 50 components")]
 
 
 def plot():
