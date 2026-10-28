@@ -35,6 +35,12 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~03:00) 5e merged (0fa918d7; scripts/lick_session_pixel_lmm.py) and running (run_5e.sh, 1000 permutations,
+  ~20 min). Per-pixel TIME model (animal + post + post x log days) and BEHAVIOUR model (animal + post + post x
+  first-lick aim deficit) on the per-session level maps; t per pixel, TFCE, FWER via max |TFCE| (shared _fwer);
+  dashed = + >= 3 animals' own coefficient same sign. 20-permutation preview: cued lateral step negative over 91 % of
+  cortex, recovery positive (returning) 65 %; ITI lateral: no term significant (all licks); per-animal agreement with the
+  pooled step: cued 0.72-0.94, ITI 0.23 / 0.69 / 0.85 / -0.31 (PS95 opposite). Numbers final after the full run.
 - (10-28 ~02:35) 5a / 5b / 5d run DONE on M: (0 errors); PAGE v144: new 12.15 same-target same-place (supporting),
   12.16 covariate references, 12.17 per-animal offset (supplementary), 13.6 gains the ITI first-lick row. Cued
   "read ahead" wording in 12.1 / status rows / FINDINGS NOT changed yet (question below). 5e (pixel mixed models) helper running.
