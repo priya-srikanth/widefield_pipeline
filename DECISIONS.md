@@ -22138,3 +22138,13 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   local-linear vs weighted-mean choice by held-out pre error (table shown).
 - Lateral: `lick_matched_readout.py --ref loclin`. Angle + 3-D reach (plotted), elevation / lateral / forward / down (table
   only): `lick_matched_angle_reach.py`; replaces 'offset beyond the pre pull' (bey_*) of iti_where_angle_reach.
+
+## 2026-10-27 (late) -- Split basis EVERYWHERE; 'beyond the pull' replaced by the like-for-like offset (Priya)
+- Priya: "use split bases, for consistency" -> every decoder on Allen areas from the ITI session files (frozen /
+  key / binned in iti_licks, the z-scored where-decoder family, basis summary, angle / reach, 3-axis, first lick, drift,
+  ...) uses Allen areas with the ALM / tjM1 split (ROI v8). Plain Allen = robustness row only.
+- Priya: "yes replace beyond pull" -> every 'offset beyond the pre pull' column (lick_order, per_spout, first_lick,
+  overcorrection, recovery_link, 3axis / check_figures, mixed-model off_* measures) becomes the like-for-like same-place
+  offset (likeforlike.py; reference gauss or loclin -- Priya's choice pending the angle result; Gaussian until then).
+- Gaussian vs local-linear: lateral held-out pre error 0.2312 vs 0.2314 (tie), epoch results identical to 2 decimals;
+  decision deferred to the angle comparison (Priya 10-27 late: "why is local linear decided?" -- it was not).
