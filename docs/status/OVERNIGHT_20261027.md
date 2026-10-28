@@ -35,6 +35,11 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~01:30) 5c-ter DONE (4 animals): z-scored level maps confirm -- the cortex-wide SVD component's loading in the
+  session patterns is 5-13x a typical component UNSCALED but 0.1-1.75x in its own units (median per animal x epoch;
+  highest PS95 ITI pre 1.75, PS94 ITI subacute 1.56 / first-lick 1.63) -> the large cortex-wide parts of the unscaled
+  ITI maps are mainly a VARIANCE effect. Page 15.2 gets the caveat. Page pass for v142 (ALM rows, 4b, 5c) running
+  (helper editing the local page only; I review + publish).
 - (10-28 ~01:10) 4b RUN DONE (16 steps, 0 errors). Held-out decoder-pattern map stats, FWER max-stat vs old bootstrap
   BH (% of cortex significant): NOT uniformly stricter on 4 animals. ITI LATERAL CHANGE maps ~0 in every epoch (0.1 /
   6.9 / 0.0 %; old FDR 0 / 0 / 0) -> the ITI lateral pattern does not significantly change shape; ITI lateral LEVEL maps
