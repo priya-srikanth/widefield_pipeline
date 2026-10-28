@@ -75,8 +75,8 @@ def main() -> int:
     load0 = wd.load
     names, SDb = wd.area_meta()                 # basis feature names + frame SDs (split: + the rest areas SDs)
 
-    def load_z(source):
-        D = load0(source)
+    def load_z(source, *a, **k):
+        D = load0(source, *a, **k)
         for x, d in D.items():
             sd = SDb.loc[x, names].to_numpy(float)
             for st in ("iti", "trial"):
@@ -84,10 +84,13 @@ def main() -> int:
                 d[st] = (X / sd[None, :], C)
         return D
 
-    wd.load = load_z
+    wd.load = load_z                            # restored below: in-process callers must not inherit the z-scoring
+    try:
+        Rz = wd.decode("areas")                 # (a) r per target, scaled vs unscaled
+        P = ws.predictions()                    # (b) per-lick predictions with scaled features
+    finally:
+        wd.load = load0
     pd.set_option("display.width", 220)
-    # (a) r per target, scaled vs unscaled
-    Rz = wd.decode("areas")
     Rz.to_csv(OUTZ / il.tagged("where_decoder_z.csv"), index=False)
     R0 = pd.read_csv(il.OUT / il.tagged("where_decoder.csv"))
     R0 = R0[R0.source == "areas"]
@@ -98,8 +101,7 @@ def main() -> int:
         rows.append(ch.groupby(["set", "target"]).mean().assign(version=tag))
     print("== frozen r, normalised change vs pre (mean of animals)")
     print(pd.concat(rows).reset_index().set_index(["set", "target", "version"]).sort_index().round(3).to_string())
-    # (b) per-lick predictions with scaled features -> like-for-like offsets (was beyond-pull; 10-27 late)
-    P = ws.predictions()
+    # (b) -> like-for-like offsets (was beyond-pull; 10-27 late)
     P.to_csv(il.pred_file("zscore_check/where_preds_z.csv"), index=False)
     if il.AREA_BASIS == "split":                          # its outputs are not basis-tagged
         bp.main(z=True)
