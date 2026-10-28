@@ -422,10 +422,13 @@ def heldout_comparison(T: pd.DataFrame) -> pd.DataFrame:
     for st in SETS:
         for ep in EP:
             h = H[(H.set == st) & (H.epoch == ep)]
+            # iti_decoder_pattern_stats since 10-27 late: frac_sig = permutation FWER max-stat, frac_sig_fdr = the old
+            # bootstrap BH, frac_sig_maxboot = the old bootstrap max-stat (before: frac_sig = BH, frac_sig_max)
+            new = "frac_sig_fdr" in h
             row = dict(set=SETLAB[st], epoch=ep,
                        heldout_n_animals=float(h.n_animals.iloc[0]) if len(h) else np.nan,
-                       heldout_fwer_maxstat=float(h.frac_sig_max.iloc[0]) if len(h) else np.nan,
-                       heldout_bh=float(h.frac_sig.iloc[0]) if len(h) else np.nan)
+                       heldout_fwer_maxstat=float(h["frac_sig" if new else "frac_sig_max"].iloc[0]) if len(h) else np.nan,
+                       heldout_bh=float(h["frac_sig_fdr" if new else "frac_sig"].iloc[0]) if len(h) else np.nan)
             for sub in SUBS:
                 t = T[(T.key == f"{st}/{sub}/lat") & (T.epoch == ep) & (T.kind == "level")]
                 row[f"session_{sub}_tfce"] = float(t.frac_sig.iloc[0]) if len(t) else np.nan
