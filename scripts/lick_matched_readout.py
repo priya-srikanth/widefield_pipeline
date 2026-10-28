@@ -397,7 +397,7 @@ def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
 
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     animals = sorted(S.animal.unique())
-    fig, axs = plt.subplots(len(ANIMAL_ROWS), 3, figsize=(13, 3.3 * len(ANIMAL_ROWS)), squeeze=False, sharey="row")
+    fig, axs = plt.subplots(len(ANIMAL_ROWS), 3, figsize=(15, 3.4 * len(ANIMAL_ROWS)), squeeze=False, sharey="row")
     rng = np.random.default_rng(0)
     for i, (st, cls, rlab) in enumerate(ANIMAL_ROWS):
         g = S[(S.set == st) & (S.scope == "all spouts") & (S.cls == cls)]
@@ -422,12 +422,19 @@ def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
             if len(t):
                 r = t.iloc[0]
                 sig = r.lo > 0 or r.hi < 0
+                kp = len(animals) + 0.3                        # POOLED column (Priya 10-28): mean of animals + 95% CI
+                ax.axvline(len(animals) - 0.35, color="0.85", lw=0.8)
+                ax.errorbar(kp, r.point, yerr=[[r.point - r.lo], [r.hi - r.point]], fmt="o", color="k", ms=7,
+                            mfc=c if sig else "white", mec="k", capsize=3, lw=1.6, zorder=4)
+                ax.text(kp, 1.01, f"{r.point:+.2f}{'*' if sig else ''}\n{int(r.n_dir)}/{int(r.n)}", ha="center",
+                        va="bottom", fontsize=6.8, color="k", fontweight="bold" if sig else "normal",
+                        transform=ax.get_xaxis_transform(), clip_on=False)
                 ax.text(0.99, 0.02, f"mean of animals {r.point:+.2f} [{r.lo:+.2f}, {r.hi:+.2f}]{'*' if sig else ''}, "
                         f"{int(r.n_dir)}/{int(r.n)}", transform=ax.transAxes, ha="right", va="bottom", fontsize=7,
                         fontweight="bold" if sig else "normal")
             ax.axhline(0, color="0.5", lw=0.7, ls="--")
-            ax.set_xticks(range(len(animals)), animals, fontsize=8)
-            ax.set_xlim(-0.6, len(animals) - 0.4)
+            ax.set_xticks([*range(len(animals)), len(animals) + 0.3], [*animals, "POOLED\n(mean, 95% CI)"], fontsize=8)
+            ax.set_xlim(-0.6, len(animals) + 0.8)
             ax.set_title(f"{rlab}: {ep} - pre", fontsize=9, pad=24, color=c)
             if j == 0:
                 ax.set_ylabel("session offset - animal's pre mean\n(mm, + = contralesional)", fontsize=8)
@@ -435,7 +442,7 @@ def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
                 ax.spines[s_].set_visible(False)
     fig.suptitle("LIKE-FOR-LIKE offset PER ANIMAL, change vs pre (reference = " + REFLAB + ").\nsmall dots = post "
                  "SESSIONS minus the animal's pre mean, open marker = the animal's change (text: value, n sessions), grey "
-                 "bar = +/- 1 SD of the animal's PRE sessions (noise level);\nbottom right = mean of animals, 95% paired "
+                 "bar = +/- 1 SD of the animal's PRE sessions (noise level);\nright column / bottom right = POOLED: mean of animals, 95% paired "
                  "nested bootstrap CI, * = excludes 0, k/n animals. PROVISIONAL", fontsize=9.5)
     lo._layout(fig, bottom=0.01)
     fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_animal_change.png", dpi=100)
