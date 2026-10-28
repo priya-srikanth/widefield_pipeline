@@ -35,6 +35,15 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~03:20) 5e DONE (1000 permutations, 0 errors), PAGE v145: 15.21 (time) / 15.22 (behaviour) + per-spout
+  supplements. % of cortex FWER (sign): CUED LATERAL step -94 %, recovery +59 % (returning), aim slope 2 %, change at
+  full behavioural recovery -92 % -> the cued lateral map drops, partly returns, and stays changed even where aim has
+  recovered; it does not track the aim deficit. ITI LATERAL: nothing anywhere (first lick: -43 % at full recovery).
+  FAR CONTRA: step +78 % cued / +100 % ITI, recovery -75 / -77 % (returning), aim slope +73 / +58 % -> far-contra maps
+  scale with the aim deficit. ITI close contra / ipsi: aim slope -86 / -84 %, change at full recovery +93 / +91 %.
+  Caveats: sessions as observations (fixed effects), serial correlation not modelled, slow drift can read as recovery.
+- (10-28 ~03:20) 5f (non-linear decoder + behaviour-only decoder from FaceRhythm unblanked + non-target kinematics)
+  helper started.
 - (10-28 ~03:00) 5e merged (0fa918d7; scripts/lick_session_pixel_lmm.py) and running (run_5e.sh, 1000 permutations,
   ~20 min). Per-pixel TIME model (animal + post + post x log days) and BEHAVIOUR model (animal + post + post x
   first-lick aim deficit) on the per-session level maps; t per pixel, TFCE, FWER via max |TFCE| (shared _fwer);

@@ -258,3 +258,5 @@ lick_refit_decoders,10.2b,Decoders refit per epoch and per session still decode 
 lick_sametarget_place,12.15,"Same target, same place: cued offset mostly target composition; ITI offset survives",supporting
 lick_covref_offset,12.16,"Same-place offset survives kinematic and FaceRhythm covariates",supplementary
 lick_matched_gauss_animal_change,12.17,"Like-for-like offset per animal",supplementary
+lick_session_pixel_lmm_time,15.21,"Per-pixel time model on per-session level maps",supplementary
+lick_session_pixel_lmm_behaviour,15.22,"Per-pixel behaviour model on per-session level maps",supplementary
