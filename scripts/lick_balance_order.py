@@ -33,7 +33,10 @@ PAIRS = [*lbr.PAIRS, "orofacial"]
 CAP = lo.ORDER_CAP
 MIN_CELL = 20                          # licks per animal x epoch x order cell
 SETS = {"trial": "CUED (order after the cue)", "iti": "ITI (order within the bout)"}
-REFS = {"spout": "vs the animal's pre mean at the SPOUT", "angle": "at the same LICK ANGLE (vs the pre balance-angle fit)"}
+REFS = {"spout": "vs the animal's pre mean at the SPOUT",
+        "angord": "at the same LICK ANGLE and ORDER\n(vs the pre balance-angle fit at that order)",
+        "angle": "at the same LICK ANGLE\n(one pre fit over all orders)"}
+MAIN = ("spout", "angord")                # main figure rows; "angle" = the older angle-only version (collapsed)
 
 
 def licks() -> pd.DataFrame:
@@ -63,6 +66,15 @@ def licks() -> pd.DataFrame:
                 g[f"angle|{a}"] = g[b] - (k0 + k1 * g.angle)
             else:
                 g[f"angle|{a}"] = np.nan
+            # angle AND lick order (Priya 10-28: "same lick angle, but at same lick number -- how can we control for
+            # that"): a separate pre line of balance on angle at EACH lick order (>= MIN_CELL pre licks with an angle
+            # spread), so pre = 0 at every order and angle and a post value = the difference at the same angle AND order
+            g[f"angord|{a}"] = np.nan
+            for k_, pk in pre[ok].groupby("ord_c"):
+                if len(pk) >= MIN_CELL and pk.angle.std() > 0:
+                    s1, s0 = np.polyfit(pk.angle, pk[b], 1)
+                    m_ = g.ord_c == k_
+                    g.loc[m_, f"angord|{a}"] = g.loc[m_, b] - (s0 + s1 * g.loc[m_, "angle"])
         out.append(g)
     return pd.concat(out, ignore_index=True)
 
@@ -106,7 +118,11 @@ def plot(F: dict) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = {"pre": "k", **EPOCH_LINE}
-    rows = [(st, r) for st in SETS for r in REFS]
+    for refs, fname in ((MAIN, "lick_balance_order.png"), (("angle",), "lick_balance_order_angleonly.png")):
+        _plot_one(F, [(st, r) for st in SETS for r in refs], fname, col, Line2D, plt)
+
+
+def _plot_one(F, rows, fname, col, Line2D, plt) -> None:
     fig, axs = plt.subplots(len(rows), len(PAIRS), figsize=(24, 4.2 * len(rows)), squeeze=False)
     for i, (st, r) in enumerate(rows):
         for j, a in enumerate(PAIRS):
@@ -131,11 +147,11 @@ def plot(F: dict) -> None:
                loc="lower center", ncol=4, fontsize=9.5, frameon=False)
     fig.suptitle("Hemispheric BALANCE (contralesional minus ipsilesional activity in the decoder's 0..0.2 s window; + = more "
                  "contralesional) over LICK ORDER, by epoch; mean +- SEM over animals.\nRows: cued / ITI x reference (vs the "
-                 "animal's pre mean at the spout; at the same lick angle). Bars above the curves: orders where that epoch "
+                 "animal's pre mean at the spout; at the same lick angle AND order = 0 for pre by construction). Bars above the curves: orders where that epoch "
                  "differs from pre (paired nested bootstrap animals > sessions, BH-FDR across the 10 orders); cells < 20 licks per animal dropped. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0.03, 1, 0.94))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_order.png", dpi=95)
+    fig.savefig(il.OUT_W / "figures" / fname, dpi=95)
     plt.close(fig)
 
 

@@ -22242,3 +22242,7 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   noisy (per-spout CI width as tjM1; ALM alone tightest) -- the areas co-vary. Later licks in 14.13: cued later licks
   overshoot contralesionally chronically (3/4) while first licks stay ipsilesional. New 14.14 balance over lick order
   (`scripts/lick_balance_order.py`; cells < 20 licks dropped after a 5-lick PS95 artefact).
+- AUC maps (14.15 cued, 14.22 ITI) on the 0..1.0 s response window (from the long traces; build-up unchanged), sig
+  areas outlined black on a white halo (vector contour), per-epoch LEVEL maps collapsed. With 0..1 s the far-contra
+  acute cued lick response is, if anything, lower (early decay) and fewer all-target areas are significant acutely
+  (18 vs 39). 14.14 rows 2/4 now use a per-order pre balance-angle fit (pre = 0 by construction); angle-only collapsed.

@@ -38,6 +38,27 @@ GROUP_ROWS = (("resp_n", "response AUC / pre"), ("build_n", "build-up AUC / pre 
 GROUP_COLS = ("orofacial", "visual + RSP", "orofacial - visual + RSP")
 
 
+RESP_W = (0.0, 1.0)      # response AUC window (0..1.0 s default since 10-28 evening; 0..0.5 s before)
+
+
+def _wide(x: str) -> dict:
+    """The long -2..+3 s traces of `lick_cued_ramp` (cued_wide/<label>.npz; same area columns as the session file,
+    validated there): the stored PETHs end at +0.75 s, too short for the 0..1.0 s response window."""
+    import lick_cued_ramp as cr
+    z = np.load(il.OUT_W / cr.WIDE / f"{x}.npz")
+    return {k: z[k] for k in ("lick", "cue", "pos", "iti", "cols")}
+
+
+def _resp_wide(X: np.ndarray, base: tuple) -> np.ndarray:
+    """(licks, LAGS_W, areas) -> session-mean response AUC over RESP_W per area, after the per-lick baseline `base`."""
+    import lick_cued_ramp as cr
+    X = X.astype(float)
+    X = X - np.nanmean(X[:, (cr.LAGS_W >= base[0]) & (cr.LAGS_W <= base[1]), :], 1, keepdims=True)
+    mu = np.nanmean(X, 0)
+    w = (cr.LAGS_W >= RESP_W[0]) & (cr.LAGS_W <= RESP_W[1])
+    return np.trapezoid(mu[w], cr.LAGS_W[w], axis=0)
+
+
 def session_table(D: dict) -> tuple[pd.DataFrame, dict]:
     rows, peths = [], {}
     for x, d in D.items():
@@ -47,11 +68,13 @@ def session_table(D: dict) -> tuple[pd.DataFrame, dict]:
         P = d["bout_peth"][m].astype(float)
         P = P - P[:, (il.LAGS_P >= il.BASE[0]) & (il.LAGS_P <= il.BASE[1]), :].mean(1, keepdims=True)
         mu = P.mean(0)                                    # (lags, areas)
+        rw = _resp_wide(_wide(x)["iti"][m], il.BASE_RESP)   # response 0..1.0 s, baseline -1.0..-0.5 s
         for j, c in enumerate(d["cols"]):
             if c == "cortex":
                 continue
             rows.append({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "area": str(c),
-                         "resp": il._auc(mu[:, j], 0.0, 0.5), "build": il._auc(mu[:, j], -0.4, -0.05)})
+                         "resp": rw[j], "resp_05": il._auc(mu[:, j], 0.0, 0.5),
+                         "build": il._auc(mu[:, j], -0.4, -0.05)})
             peths[(x, str(c))] = mu[:, j]
     T = pd.DataFrame(rows)
     den = T[T.epoch == "pre"].groupby(["area", "animal"]).resp.mean()
@@ -104,19 +127,29 @@ def session_table_split(D: dict, spout: str | None = None, min_n: int = 10, cued
             continue
         P = d["first_peth" if cued else "bout_peth"][m].astype(float)
         P = P - P[:, (il.LAGS_P >= il.BASE[0]) & (il.LAGS_P <= il.BASE[1]), :].mean(1, keepdims=True)
-        mu, cols = il.with_rest(P.mean(0), d["cols"], x, basis="split")
+        mu, cols = il.with_rest(P.mean(0), d["cols"], x, basis="split")      # build-up / pre-lick window (unchanged)
+        # response (and cue) AUC over RESP_W = 0..1.0 s from the long traces, response baseline -1.0..-0.5 s (10-28)
+        Wd = _wide(x)
         if cued:
-            Q = d["first_cue"][m].astype(float)
-            Q = Q - Q[:, (il.LAGS_C >= BASE_C[0]) & (il.LAGS_C <= BASE_C[1]), :].mean(1, keepdims=True)
-            mc, _ = il.with_rest(Q.mean(0), d["cols"], x, basis="split")
+            mw = np.ones(len(Wd["pos"]), bool) if spout is None else np.asarray(Wd["pos"], str) == spout
+            if mw.sum() < min_n:
+                continue
+            rw = _resp_wide(Wd["lick"][mw], il.BASE_RESP)
+            cw = _resp_wide(Wd["cue"][mw], BASE_C)
+            rw, _ = il.with_rest(rw[None, :], d["cols"], x, basis="split")
+            cw, _ = il.with_rest(cw[None, :], d["cols"], x, basis="split")
+            rw, cw = rw[0], cw[0]
+        else:
+            rw, _ = il.with_rest(_resp_wide(Wd["iti"][m], il.BASE_RESP)[None, :], d["cols"], x, basis="split")
+            rw = rw[0]
         for j, c in enumerate(cols):
             if c == "cortex" or c.rsplit("_", 1)[0] in ("MOs", "MOp"):
                 continue
             r = {"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "area": str(c),
-                 "resp": il._auc(mu[:, j], 0.0, 0.5), "build": il._auc(mu[:, j], -0.4, -0.05), "n": int(m.sum())}
+                 "resp": rw[j], "resp_05": il._auc(mu[:, j], 0.0, 0.5), "build": il._auc(mu[:, j], -0.4, -0.05),
+                 "n": int(m.sum())}
             if cued:
-                sel = (il.LAGS_C >= -1e-9) & (il.LAGS_C <= 0.5 + 1e-9)
-                r["cue"] = float(np.trapezoid(mc[sel, j], il.LAGS_C[sel]))
+                r["cue"] = cw[j]
             rows.append(r)
     return pd.DataFrame(rows)
 
@@ -133,10 +166,10 @@ def split_maps(spout: str | None = None, cued: bool = False) -> None:
     stem = f"lick_{kind}_area_maps_split{tag}"
     ctag = "_cued" if cued else ""
     T.to_csv(il.OUT / f"area_auc_sessions_split{ctag}{tag}.csv", index=False)
-    vals = [("resp", "lick response AUC 0..0.5 s" if cued else "response AUC 0..0.5 s"),
+    vals = [("resp", "lick response AUC 0..1.0 s" if cued else "response AUC 0..1.0 s"),
             ("build", "pre-lick AUC -0.4..-0.05 s (overlaps the CUE)" if cued else "build-up AUC -0.4..-0.05 s")]
     if cued:
-        vals.append(("cue", "cue response AUC 0..0.5 s after the cue"))
+        vals.append(("cue", "cue response AUC 0..1.0 s after the cue"))
     C = pd.concat([changes(T, v) for v, _t in vals])
     C.to_csv(il.OUT / f"area_auc_changes_split{ctag}{tag}.csv", index=False)
     print("== per animal (rule 8), response AUC, ALM / tjM1 / rest\n" + T[T.area.str.contains("ALM|tjM1|rest")]
@@ -159,8 +192,9 @@ def split_maps(spout: str | None = None, cued: bool = False) -> None:
     else:
         what = "self-initiated (ITI) licks, " + (f"bout starts after a {sp} trial (previous spout)" if sp
                                                  else "all bout starts")
-    save_fd(stem, {"img": img, "nm": nm, "ol": outline(img), "rows": rows, "what": what})
+    save_fd(stem, {"img": img, "nm": nm, "ol": outline(img), "rows": rows, "what": what, "levels": _levels(T, vals)})
     draw_maps(stem)
+    draw_levels(stem)
 
 
 def draw_maps(stem: str) -> None:
@@ -177,20 +211,67 @@ def draw_maps(stem: str) -> None:
             ax = axs[i, j]
             im = ax.imshow(paint(img, nm, delta), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-            ok = np.isfinite(paint(img, nm, {a: 1.0 for a in sig_areas}))
-            edge = np.zeros(img.shape, bool)
-            edge[:-1] |= ok[:-1] != ok[1:]
-            edge[:, :-1] |= ok[:, :-1] != ok[:, 1:]
-            ax.imshow(np.where(edge, 1.0, np.nan), cmap="Greys", vmin=0, vmax=1, interpolation="nearest")
+            _sig_halo(ax, paint(img, nm, {a: 1.0 for a in sig_areas}))
             ax.set_title(f"{ttl}\n{ep} - pre ({n_sig} areas significant)", fontsize=9)
             ax.axis("off")
         fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F AUC (x1e3 s)")
     what = F.get("what", "self-initiated (ITI) licks, all bout starts")
     fig.suptitle(f"NEURAL, NO DECODER: {what} -- change from pre per area in raw dF/F AUC (x1e3 s), with ALM / tjM1 separate "
-                 "from the rest of MOs / MOp (ROI v8); black outline = nested-bootstrap CI excludes 0. Image left = "
+                 "from the rest of MOs / MOp (ROI v8); black outline on a white halo = nested-bootstrap CI excludes 0. Image left = "
                  "ipsilesional.", fontsize=10, wrap=True)
     fig.savefig(il.OUT / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
+
+
+def _levels(T: pd.DataFrame, vals) -> list:
+    """Per-epoch LEVEL maps (Priya 10-28: "collapsible supplementals of the per-epoch responses, not the deltas"): per
+    value, per epoch (pre, acute, subacute, chronic), area -> mean over animals of the animal's session mean; one colour
+    limit per value (98th percentile of |level| over all epochs)."""
+    out = []
+    for val, ttl in vals:
+        L = T.groupby(["area", "epoch", "animal"])[val].mean().groupby(["area", "epoch"]).mean()
+        lim = np.nanpercentile(np.abs(L.to_numpy()), 98) or 1.0
+        out.append((ttl, lim, [(ep, L.xs(ep, level="epoch").to_dict() if ep in L.index.get_level_values("epoch")
+                                else {}) for ep in il.EP4]))
+    return out
+
+
+def draw_levels(stem: str) -> None:
+    """<stem>_levels.png from figdata <stem> (key "levels"): rows = values, columns = pre / acute / subacute / chronic."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from frozen_area_maps import paint
+    F = load_fd(stem)
+    if "levels" not in F:
+        return
+    img, nm, ol = F["img"], F["nm"], F["ol"]
+    nr = len(F["levels"])
+    fig, axs = plt.subplots(nr, 4, figsize=(18, 4.5 * nr), squeeze=False)
+    for i, (ttl, lim, pans) in enumerate(F["levels"]):
+        for j, (ep, lev) in enumerate(pans):
+            ax = axs[i, j]
+            im = ax.imshow(paint(img, nm, lev), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
+            ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+            ax.set_title(f"{ttl}\n{ep}", fontsize=9)
+            ax.axis("off")
+        fig.colorbar(im, ax=axs[i, :], fraction=0.015, pad=0.01).set_label("dF/F AUC (x1e3 s)")
+    what = F.get("what", "self-initiated (ITI) licks, all bout starts")
+    fig.suptitle(f"NEURAL, NO DECODER: {what} -- per-epoch LEVEL per area (mean over animals of each animal's session mean; "
+                 "not the change from pre), raw dF/F AUC (x1e3 s); one colour scale per row. Image left = ipsilesional. "
+                 "Descriptive.", fontsize=10, wrap=True)
+    fig.savefig(il.OUT / "figures" / f"{stem}_levels.png", dpi=100, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _sig_halo(ax, sig_img: np.ndarray) -> None:
+    """Outline the significant areas (finite pixels of sig_img) with a thick BLACK line on a WHITE halo (Priya 10-28:
+    "outline with halo black line significant areas"), visible on both ends of the diverging colour map."""
+    from matplotlib import patheffects
+    ok = np.isfinite(sig_img).astype(float)
+    if ok.any():   # vector contour: a black line on a wider white stroke (a pixel halo is invisible at this resolution)
+        ax.contour(ok, levels=[0.5], colors="k", linewidths=1.6,
+                   path_effects=[patheffects.withStroke(linewidth=4.2, foreground="white")])
 
 
 def changes(T: pd.DataFrame, val: str) -> pd.DataFrame:
@@ -222,7 +303,8 @@ def main() -> int:
     img, nm = area_image(labels[0])
     # ---- maps: per row the colour limit, per panel the area -> change dict + the significant areas
     rows = []
-    for val, ttl in (("resp", "response AUC 0..0.5 s"), ("build", "build-up AUC -0.4..-0.05 s")):
+    vals = (("resp", "response AUC 0..1.0 s"), ("build", "build-up AUC -0.4..-0.05 s"))
+    for val, ttl in vals:
         c = C[C.value == val]
         lim = np.nanpercentile(np.abs(c.delta), 98) or 1.0
         pans = []
@@ -230,7 +312,7 @@ def main() -> int:
             ce_ = c[c.epoch == ep].set_index("area")
             pans.append((ep, ce_.delta.to_dict(), list(ce_.index[ce_.sig]), int(ce_.sig.sum())))
         rows.append((ttl, lim, pans))
-    save_fd("lick_iti_area_maps", {"img": img, "nm": nm, "ol": outline(img), "rows": rows})
+    save_fd("lick_iti_area_maps", {"img": img, "nm": nm, "ol": outline(img), "rows": rows, "levels": _levels(T, vals)})
     # ---- PETHs, non-orofacial areas
     pp = {}
     for j, base in enumerate(PETH_AREAS):
@@ -282,6 +364,7 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     if "maps" in only:
+        draw_levels("lick_iti_area_maps")
         F = load_fd("lick_iti_area_maps")
         img, nm, ol = F["img"], F["nm"], F["ol"]
         fig, axs = plt.subplots(2, 3, figsize=(14, 9))
@@ -291,17 +374,12 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
                 M = paint(img, nm, delta)
                 im = ax.imshow(M, cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-                sig = paint(img, nm, {a: 1.0 for a in sig_areas})
-                sig_edge = np.zeros(img.shape, bool)
-                ok = np.isfinite(sig)
-                sig_edge[:-1] |= ok[:-1] != ok[1:]
-                sig_edge[:, :-1] |= ok[:, :-1] != ok[:, 1:]
-                ax.imshow(np.where(sig_edge, 1.0, np.nan), cmap="Greys", vmin=0, vmax=1, interpolation="nearest")
+                _sig_halo(ax, paint(img, nm, {a: 1.0 for a in sig_areas}))
                 ax.set_title(f"{ttl}\n{ep} - pre ({n_sig} areas significant)", fontsize=9)
                 ax.axis("off")
             fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F AUC (x1e3 s)")
         fig.suptitle("NEURAL, NO DECODER: self-initiated (ITI) licks across the whole cortex -- change from pre per Allen area in raw dF/F "
-                     "AUC (x1e3 s); black outline = nested-bootstrap CI excludes 0. Image left = "
+                     "AUC (x1e3 s); black outline on a white halo = nested-bootstrap CI excludes 0. Image left = "
                      "ipsilesional.", fontsize=10, wrap=True)
         fig.savefig(il.OUT / "figures" / "lick_iti_area_maps.png", dpi=110, bbox_inches="tight")
         plt.close(fig)
@@ -445,6 +523,7 @@ if __name__ == "__main__":
         cu_ = "--cued" in sys.argv                       # first cued lick instead of ITI bout starts
         if plot_only():
             draw_maps(f"lick_{'cued' if cu_ else 'iti'}_area_maps_split" + ("" if sp_ is None else "_" + sp_.replace("_", "")))
+            draw_levels(f"lick_{'cued' if cu_ else 'iti'}_area_maps_split" + ("" if sp_ is None else "_" + sp_.replace("_", "")))
         else:
             split_maps(sp_, cued=cu_)
         raise SystemExit(0)
