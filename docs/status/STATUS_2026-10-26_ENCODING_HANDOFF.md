@@ -39,6 +39,52 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-13 (10-28 ~15:45) -- READ FIRST (then 00-COMPACT-12 for env / tools / older items)
+Session f082ee0c, worktree C:/Users/SabatiniLab/Github/wf_attempt, branch analysis/attempt-coding (commits through 01a944f1+).
+Page LIVE v198 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Env as 00-COMPACT-12. Page edits: scripts/goal_page_insert.py
+(insert + renumber; fix the "CHECK plain mention" lines by hand); the Artifact `edits` option is REFUSED here (file-edit hook)
+-> edit _goal_page/index.html with a .py script, then publish with files={...}. Bash heredocs with "\n" inside Python strings
+corrupt files (happened ~6x today) -> use the Write / Edit tools for code. Backgrounded `( ... ) &` subshells LOSE
+non-exported shell vars (logs went to "/x.log") -> literal absolute log paths.
+DECISIONS today (all in docs/DECISIONS.md 2026-10-28 afternoon / evening / late):
+- Response-AUC window = 0..1.0 s for ITI AND cued (Priya: one window, easier to defend); 0..0.5 s secondary. Response
+  baseline -1.0..-0.5 s; PETH curves + build-up keep -1.5..-1.0 s. ITI 0..1 s AUCs come from the wide cued_wide traces
+  (stored ITI PETHs end at +0.75 s).
+- Contra/ipsi ratio figures: PER-SPOUT = KEY (14.9; far ipsi shifts, close ipsi not); by side = supporting (14.10); close vs
+  far ring (14.11; far-close test per epoch); side traces collapsed (14.12). All-spouts pooling demoted (averages
+  opposite-side ratios). Traces: mean over animals defined at each lag, dotted where < 4.
+- Orofacial pool = ALM + tjM1 + SSp-m + SSp-n (SSp-un in NEITHER pool: intermediate, adding it worsens the fit).
+- Area maps: each significant area outlined on its own (black on white halo), non-sig faded, the MOs/MOp edge strip
+  lateral to ALM/tjM1 blanked -- it was a DISPLAY artefact (those pixels are in no ROI mean; checked) ->
+  iti_area_maps.trim_rest, also used by encoder_split_rows.split_image (lick_offset_where / contrib / residual_roi redrawn).
+RESULTS today (PROVISIONAL; FINDINGS 0b + "Where things stand" KEY group):
+- Lick-evoked activity larger post-stroke in both hemispheres; cued far-contra acute = early decay (0.5-1.0 s below pre,
+  survives vigour + landing regression, 14.8). Regression audit: all covariate adjustments correct; nulls real (12.16, 14.8,
+  14.19 captions).
+- HEMISPHERIC BALANCE (X_right - X_left, decoder 0..0.2 s window): pre-stroke tracks lick angle (each hemisphere favours
+  contraversive licks); post ~30% flatter (2-3/4) + shifted ipsilesional at the same angle; per lick order: acute
+  ipsilesional at every early lick, chronic overshoot contralesional licks 1-6 (14.13 / 14.14, angle+order reference).
+  Session balance tracks the read-out offset (12.18, cued r -0.76..-0.95 4/4); ONLY orofacial balance carries it
+  (12.19 head-to-head; non-oro adds nothing). Balance-blind decoders (12.20): offset unchanged with global / orofacial-pair
+  / non-oro differences removed -> offset carried by the orofacial PATTERN, balance tracks but is not its sole carrier;
+  VIS+RSP-only decoder r 0.15. Imaging control (14.17): F0 / 415 nm do not explain the subacute/chronic shift.
+  Musall-style task vs movement maps of the balance (14.15, area + SVD pixel): lateral orofacial only; cued = spout,
+  ITI = movement; acutely movement share halves.
+- IMPORTANT (Priya): cued orofacial balance predicts an UNSEEN animal's recovery (far-contra first-lick aim) cvR2 0.50 vs
+  days 0.23 (non-oro -0.19; shuffle null <= -0.12); 3/4 held-out animals; leave-one-session-out 0.63 vs 0.48 (animal
+  unknown); with animal known days wins 0.83. Same-session link survives nonlinear time (per-animal splines p 0.006); no
+  next-session prediction (14.16).
+RUNNING at compaction: scripts/lick_area_unique_maps.py (task b7j0bpp5y; log S2/areauniq.log) = Priya's actual "Musall-
+style" request: per area + blocks (orofacial, orofacial+MO, non-orofacial) ALONE and UNIQUE (full - without) for pre r and
+acute / chronic offset -> figures lick_area_unique_maps_{iti,cued}.png; add to section 11 next to 11.12 (importance) via
+goal_page_insert, caption with block numbers (per animal first), publish, commit. Keep 14.15 (balance task/movement maps)
+unless Priya says drop it.
+TODO / open: two tiny edge fragments may remain on the per-spout residual-ROI maps (check vs masks); residual_roi maps
+still use the merged outline style; 14.8 pre-cue row (restw) still awaiting Priya; Musall split-row caption numbers;
+orofacial area AUC vs recovery LMM (old item 9) partly superseded by the balance-recovery analysis.
+New scripts today: lick_vigor_perspout, lick_lateral_ratio, lick_balance_{reference,angle_lmm,order,offset_lmm,regions,
+maps,maps_svd,recovery,blind_decoder,imaging_control}, lick_area_unique_maps.
+
 ### 00-COMPACT-12 (10-28 ~07:20) -- READ FIRST. Session f082ee0c, branch analysis/attempt-coding in worktree
 C:/Users/SabatiniLab/Github/wf_attempt (commits through 3483a064+). Page LIVE v165+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
 (source _goal_page/index.html, committed). Running log + decisions: docs/status/OVERNIGHT_20261027.md (10-28 morning
