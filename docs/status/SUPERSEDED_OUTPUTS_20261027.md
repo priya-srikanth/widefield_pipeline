@@ -20,7 +20,9 @@ All paths are derived outputs (reproducible from code + inputs), under
 | `sessions_roi2/` | 1.4 GB | v2 (ALM 40 / tjM1 50, 16-px rim; env-fixed) | once v8 is the default and its redo is checked |
 | DELETED `roi2_envfix_20261027/` | 2.7 GB | v2 env-fix work dir + backup of the defective v2 files | now (fixed files are in sessions_roi2/) |
 | `roi_v1_backup_20261027/` | 2.0 GB | copies of the v1 (40/40) CSVs / figures / figdata before the v2 redo | after the v8 numbers are on the page and checked against it |
-| `sessions/` | (large) | v1 (40/40) session files | keep while v1 is the reference for any published number; then optional |
+| `sessions/` | (large) | v1 (40/40) session files | **DO NOT DELETE**: ~20 scripts take their session LABEL list from this folder (data from SESS_NAME); fix those first |
+| `roi_v2_backup_20261027/` | 270 MB | v2 csv / csv.gz copies (v2 vs v8 comparison) | after the v8 numbers are on the page |
+| `lick_order_preds.csv.gz` (untagged), `*_areas_splitr2*`, `june_ref/sessions/`, `june_ref/session_sd.csv` | | pre-v8 caches no longer read (plain cache now `_r8`) | after the v8 page publish |
 | DELETED `zscore_check/session_sd_roi2.csv` | 4 B | empty file from the failed first v2 run | now |
 | DELETED `zscore_check/session_sd_split_roi2.csv` | | v2 split SDs with ALM 50 / tjM1 60 (never used) | now |
 | DELETED `zscore_check/session_sd_split_roi2_alm50_tj60_unused.csv` | | copy of the same | now |
