@@ -519,8 +519,10 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   trajectory's SHAPE; the balance adds HOW FAR the animal recovers (mostly flags PS94, least recovered). Survives
   nonlinear time models (per-animal splines +0.68 deg/unit, p 0.006); does NOT predict next-session improvement; ITI
   balance does not do it. 4 animals -> a strong hint, not a demonstrated biomarker. PROVISIONAL. (goal page 14.16)
-- Controls 10-28: global-balance-blind decoder leaves the offset unchanged (12.20; the orofacial PAIR differences remain
-  readable -- pair-specific removal running); per-hemisphere imaging control: F0 / 415 nm do not explain the
+- Controls 10-28: balance-blind decoders leave the offset unchanged -- global balance removed, ORofacial pair
+  differences zeroed (ITI +0.38/+0.22/+0.27, pre r 0.59), or non-orofacial zeroed (12.20): the offset is carried by the
+  pattern across orofacial areas, not by a left/right difference, so the balance TRACKS the offset without being its
+  sole carrier; orofacial-only decoder reproduces most of the ITI offset; VIS+RSP-only barely decodes (r 0.15); per-hemisphere imaging control: F0 / 415 nm do not explain the
   subacute / chronic balance shift (14.17; part of the acute shift in PS92 / PS93 could be F0); head-to-head: orofacial
   balance predicts the offset, non-orofacial adds nothing (12.19).
 
