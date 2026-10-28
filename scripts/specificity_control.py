@@ -52,7 +52,13 @@ def session_rows(run: Path, variant: str = "joint") -> pd.DataFrame:
                 d, f = ev[parts.index("data"), ai] * 1e3, ev[parts.index("full"), ai] * 1e3
                 rows.append({"animal": m["animal"], "label": m["label"], "epoch": m["epoch"], "window": w, "area": ar,
                              "data": d, "full": f, "residual": d - f})
-    return pd.DataFrame(rows)
+    T = pd.DataFrame(rows)
+    # ALM / tjM1 / MOs_rest / MOp_rest rows (Priya 10-27): same quantity from the run's BASIS twin over the ROI v8 masks
+    # (encoder_split_rows; the area run saved area means only). Not in any GROUP, so every group value is unchanged.
+    if Path(f"{run}_basis").is_dir():
+        import encoder_split_rows as esr
+        T = pd.concat([T, esr.residual_rows(run, list(T.label.unique()), variant)], ignore_index=True)
+    return T
 
 
 def add_measures(T: pd.DataFrame) -> pd.DataFrame:
@@ -152,10 +158,26 @@ def main(argv=None) -> int:
           + LB[LB.epoch != "pre_late_split"][["area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
     LA = ffc.boot(L, "change_ref", ref_epoch="pre_late", epochs=["chronic"], keys=("area",))
 
+    # ALM / tjM1 / MOs_rest / MOp_rest (Priya 10-27): per-ROI residual next to the whole MOp / MOs, both windows, every
+    # post epoch (Layer 2 has area means only -> no split rows there; docs/status/ALM_TJM1_ROWS_PLAN_20261027.md)
+    import encoder_split_rows as esr
+    SR = [x for x in ("MOp_right", "MOp_left", "tjM1_right", "tjM1_left", "MOp_rest_right", "MOp_rest_left", "MOs_right",
+                      "MOs_left", "ALM_right", "ALM_left", "MOs_rest_right", "MOs_rest_left") if x in set(T.area)]
+    has_split = any(x in esr.SPLIT_AREAS for x in SR)
+    if has_split:
+        BS = pd.concat([ffc.boot(T[T.area.isin(SR) & (T.window == w)], "residual_z").assign(frame=w) for w in WINDOWS],
+                       ignore_index=True)
+        BS.to_csv(out / "split_boot.csv", index=False)
+        perS = T[T.area.isin(SR)].groupby(["window", "area", "animal", "epoch"]).residual_z.mean().unstack("epoch")
+        print("\n== per animal (rule 8): residual in pre-SD units, MOp / MOs and their split ROIs\n"
+              + perS.reindex(columns=EP4).round(2).to_string())
+        print("\n== split ROIs, epoch - pre (nested bootstrap)\n" + BS[BS.epoch.isin(["acute", "subacute", "chronic"])][
+            ["window", "area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(3).to_string(index=False))
+
     # FIGURE 1: group bars
     gl = ["orofacial contra", "orofacial ipsi", "control", "orofacial - control"]
     ffc.COL.update({"residual_z": "#d95f02"})
-    fig, axs = plt.subplots(3, 1, figsize=(13, 11))
+    fig, axs = plt.subplots(3 + has_split, 1, figsize=(13, 11 + 3.6 * has_split))
     for ax, w in zip(axs[:2], WINDOWS):
         Bw = B[(B.window == w) & B.q.isin(["residual_z"])].rename(columns={"q": "frame"})
         ffc.bars(ax, Bw, ["residual_z"], gl, "change from pre (pre-SD units)",
@@ -167,31 +189,47 @@ def main(argv=None) -> int:
     ffc.COL["layer2"] = "#1b9e77"
     ffc.bars(axs[2], LBp, ["layer2"], gl, "change_ref minus pre_late (R2)",
              "LAYER 2: mapping change beyond pre-stroke drift, by area group")
+    if has_split:
+        ffc.ALAB.update({x: esr.side_label(x) for x in SR})
+        ffc.COL.update({"cue": "#e6ab02", "lick": "#d95f02"})
+        ffc.bars(axs[3], BS, list(WINDOWS), SR, "change from pre (pre-SD units)",
+                 "RESIDUAL by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask; ALM / tjM1 / rests from "
+                 "the frozen run's basis twin)")
+        axs[3].legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
     fig.suptitle(f"NEURAL: is the chronic change SPECIFIC to orofacial cortex? Frozen frame ({a.tag}); orofacial = SSp-m, "
                  "SSp-n, MOp, MOs; control = visual, retrosplenial, SSp trunk / lower limb.\nBars = mean of animals; "
                  "whisker 95 % nested CI; * excludes 0; dots = animals; grey band = pre split-half range. contra = right.",
                  fontsize=9.5)
-    fig.subplots_adjust(left=0.07, right=0.86, top=0.91, bottom=0.05, hspace=0.45)
+    fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (11 + 3.6 * has_split), bottom=0.05, hspace=0.45)
     fig.savefig(out / "figures" / "specificity_groups.png", dpi=105)
     plt.close(fig)
 
     # FIGURE 2: area maps (chronic - pre)
     img, nm = area_image(T.label.iloc[0])
     ol = outline(img)
+    # split panels (10-27): MOs / MOp painted as ALM + MOs_rest / tjM1 + MOp_rest, on the colour scale of the Allen panel
+    # of the same window (one scale per pair)
+    img_s, nm_s = esr.split_image(img, nm) if has_split else (None, None)
+    ol_s = outline(img_s) if has_split else None
     panels = []
     for w in WINDOWS:
         for q, lab in (("residual_z", "residual"),):
             s = A[(A.q == q) & (A.window == w) & (A.epoch == "chronic")].set_index("area")
-            panels.append((f"{lab}, {w}", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "pre-SD units"))
+            panels.append((f"{lab}, {w}", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "pre-SD units", img, nm, ol, None))
+            if has_split:
+                panels.append((f"{lab}, {w}: ALM / tjM1 split", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "pre-SD units",
+                               img_s, nm_s, ol_s, len(panels) - 1))
     s = LA[LA.epoch == "chronic"].set_index("area")
-    panels.append(("Layer 2 change beyond drift", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "R2"))
+    panels.append(("Layer 2 change beyond drift", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "R2", img, nm, ol, None))
     fig, axs = plt.subplots(1, len(panels), figsize=(3.3 * len(panels), 4.2))
-    for ax, (title, vals, sig, unit) in zip(axs, panels):
-        M = paint(img, nm, vals)
-        lim = np.nanpercentile(np.abs(M), 98) or 1.0
+    lims = []
+    for ax, (title, vals, sig, unit, img_, nm_, ol_, same) in zip(axs, panels):
+        M = paint(img_, nm_, vals)
+        lim = lims[same] if same is not None else (np.nanpercentile(np.abs(M), 98) or 1.0)
+        lims.append(lim)
         im = ax.imshow(M, cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
-        ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
-        sg = paint(img, nm, {k: 1.0 for k, v in sig.items() if v})
+        ax.imshow(ol_, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
+        sg = paint(img_, nm_, {k: 1.0 for k, v in sig.items() if v})
         if np.isfinite(sg).any():
             ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)  # halo
             ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
@@ -201,8 +239,10 @@ def main(argv=None) -> int:
         cb.set_label(unit, fontsize=7)
         cb.ax.tick_params(labelsize=6)
     fig.suptitle("NEURAL: CHRONIC minus pre by Allen area (frozen frame). Black outline = area whose 95 % nested CI "
-                 "excludes 0 (uncorrected, 41 areas). Image left = ipsilesional.", fontsize=9)
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.84, bottom=0.08, wspace=0.05)
+                 "excludes 0 (uncorrected, 41 areas). Image left = ipsilesional."
+                 + ("\n'split' panels: MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8), same scale as the panel "
+                    "to their left." if has_split else ""), fontsize=9)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.8 if has_split else 0.84, bottom=0.08, wspace=0.05)
     fig.savefig(out / "figures" / "specificity_area_maps.png", dpi=110)
     plt.close(fig)
     print("->", out)
