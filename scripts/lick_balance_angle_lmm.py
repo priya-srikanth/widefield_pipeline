@@ -147,7 +147,7 @@ def plot(F: dict) -> None:
                 y = f"{meas}_{a}"
                 for ep in il.EP4:
                     h = G[G.epoch == ep]
-                    ax.plot(h.angle, h[y], "o", color=col[ep], ms=2.5, alpha=0.45, mec="none")
+                    ax.plot(h.angle, h[y], "o", color=col[ep], ms=2.5, alpha=0.18, mec="none")
                 # one fit line per epoch (Priya 10-28: "a slope for each epoch"), from y ~ angle * C(epoch)
                 me = M[(M.set == st) & (M.measure == meas) & (M.pair == a) & M.model.isin(EP)].set_index("model")
                 if len(me) and np.isfinite(me.slope_pre.iloc[0]):
@@ -156,12 +156,12 @@ def plot(F: dict) -> None:
                     # intercepts are not stored; the pre line goes through the pre group mean, epochs = pre + shift
                     pre = G[G.post == 0]
                     b0 = np.nanmean(pre[y]) - sp0 * (np.nanmean(pre.angle) - mu)
-                    ax.plot(x, b0 + sp0 * (x - mu), color="k", lw=2.2)
+                    ax.plot(x, b0 + sp0 * (x - mu), color="k", lw=1.7, zorder=4)
                     for ep in EP:
                         if ep in me.index:
                             r = me.loc[ep]
                             ax.plot(x, b0 + r.shift_post_same_angle + (sp0 + r.slope_change_post) * (x - mu),
-                                    color=col[ep], lw=1.8, ls="--")
+                                    color=col[ep], lw=1.4, ls="--", zorder=4)
                     sc = " / ".join(_b(me.slope_change_post.get(e, np.nan), me.p_slope_change.get(e, np.nan), "+.3f")
                                     for e in EP)
                     sh = " / ".join(_b(me.shift_post_same_angle.get(e, np.nan), me.p_shift.get(e, np.nan), "+.2f")
@@ -177,8 +177,8 @@ def plot(F: dict) -> None:
                 if j == 0:
                     ax.set_ylabel(f"{'CUED first lick' if st == 'cued' else 'ITI bout start'}\n{lab}", fontsize=8)
         fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4]
-                   + [Line2D([], [], color="k", lw=2.2, label="pre fit")]
-                   + [Line2D([], [], color=col[e], lw=1.8, ls="--", label=f"{e} fit") for e in EP],
+                   + [Line2D([], [], color="k", lw=1.7, label="pre fit")]
+                   + [Line2D([], [], color=col[e], lw=1.4, ls="--", label=f"{e} fit") for e in EP],
                    loc="lower center", ncol=8, fontsize=9, frameon=False)
         fig.suptitle(f"Hemispheric balance vs lick angle by epoch ({meas}): one point per session x spout (cued: target; "
                      "ITI: previous trial's spout); mixed model y ~ angle * epoch + (1 | animal), sessions x spouts as "
