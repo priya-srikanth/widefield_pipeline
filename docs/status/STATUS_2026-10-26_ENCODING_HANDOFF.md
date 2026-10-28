@@ -105,6 +105,25 @@ RUNNING / PENDING at compaction:
     pre-cue row (Priya agreed in principle; confirm restw before running).
     10b. Priya: "add the 0-1.5 check" -> --baseline-sens now also has ISOLATED ITI licks (iti_iso); RERUN it after the
     first run (task bm8akbebt, without iso) finishes: python scripts/lick_cued_ramp.py --baseline-sens.
+11. Page v166: NEW 11.11 = LATERAL offset contribution maps (lick_{iti,cued}_offset_contrib_map.png, all bases);
+    section 11 renumbered (angle 11.12, reach 11.13, angle-vs-lateral 11.14, NON-LINEAR 11.15, behaviour-only 11.16).
+    Priya: DROP the unmasked LocaNMF row (lick_offset_contrib_map.py TAGS: remove 'locanmfF', keep locanmfFM) and
+    redraw --plot-only; mask the drawn maps to the atlas/brain (LocaNMF |contribution| outside the atlas is only 2-3 %, the
+    'olfactory bulb' look is footprints of kept components extending past the mask). BASES DISAGREE on WHERE: mean-of-
+    animal contribution maps, area-sum r split-areas vs SVD 0.08 / 0.09 (ITI acute / chronic), vs masked LocaNMF 0.36 /
+    0.36, SVD vs LocaNMF 0.20 / 0.03 (cued -0.23..0.42) although the OFFSET totals agree (ITI +0.39 / +0.34 / +0.40 acute).
+    -> say in 11.11-11.14 captions + FINDINGS: the offset is basis-robust, its spatial attribution is NOT (ridge weights
+    are not unique with correlated features; each basis spreads them differently). Pixel-level 'where' = the per-session
+    pattern maps (section 15), not these.
+12. Non-linear decoder follow-ups (Priya "sure do the 11.14 run and caption correction" = now 11.15): table
+    lick_order_preds_nonlinear.csv.gz built by scripts/lick_nonlinear_preds.py (linear column reproduces KEY dec, max
+    0.03 mm); WFIELD_LICK_DECODER=nonlinear runs of lick_matched_readout --ref gauss, iti_lick_order, lick_same_target_place
+    (task b1p5excn3, S2/run_nl.sh, logs S2/mk/nl_*.log) -> add NON-LINEAR versions of 12.2 (lick_matched_gauss_nonlinear_
+    curves.png) and 13.2 (lick_order_iti_cued_slope_nonlinear.png) next to their linear figures; same-target result
+    (sametarget_*_nonlinear) into the 11.15 caption. Shrinkage check DONE: cued extra non-linear offset is ~2x larger for
+    licks landing where few pre licks landed (lowest tercile +0.08 / +0.12 / +0.06 vs highest +0.04 / +0.06 / +0.03 mm,
+    acute / sub / chronic) -> part kernel shrinkage, not all. 11.15 caption: cued offset LARGER non-linear (+0.06 / +0.08
+    / +0.05 mm, 4/4), subacute +0.11 [0.001, 0.22] 3/4 where linear is +0.03; angle +2.2 deg subacute 4/4.
 8. Open questions for Priya: none blocking; key-figure suggestions all done.
 
 ### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
