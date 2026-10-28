@@ -18,7 +18,12 @@ Outputs <E>/iti_licks/matched_{sessions,tests}.csv, figures/lick_matched_{curves
 range (scripts/likeforlike.py): every lick gets a reference, `beyond` flags licks outside the pre range; extra scope
 "all spouts, inside pre range" (sensitivity), matched_loclin*_coverage.csv (share beyond per epoch) and
 matched_loclin*_refboot.csv (epoch effect over references refit on resampled pre sessions).
-Usage: python scripts/lick_matched_readout.py [--ref place|spout|pooled|gauss|loclin]   (default place; see REF)
+10-28 (overnight queue 5d, approved backlog): per-spout figure gains an ITI FIRST-lick row (bout start); new figure
+figures/lick_matched<TAG>_animal_change.png (per-animal change vs pre with session spread, `plot_animal`); figure data
+figdata/lick_matched<TAG>.pkl (--plot-only redraws every figure from it). Writes go to iti_licks.OUT_W (= OUT unless
+WFIELD_ITI_OUT_W redirects them); --animals PS94[,PS95] restricts a test run.
+Usage: python scripts/lick_matched_readout.py [--ref place|spout|pooled|gauss|loclin] [--plot-only] [--animals A,B]
+       (default place; see REF)
 """
 from __future__ import annotations
 
@@ -50,6 +55,11 @@ MIN_FINE = 15
 # any spout with the same deviation from their own spout (first version)
 REF = sys.argv[sys.argv.index("--ref") + 1] if "--ref" in sys.argv else "place"
 TAG = ("" if REF == "pooled" else f"_{REF}") + lo.SRC_TAG      # + decoder source (iti_lick_order.SOURCE)
+ANIMALS = sys.argv[sys.argv.index("--animals") + 1].split(",") if "--animals" in sys.argv else None
+# --figs curves,readout,perspout,animal: draw only these (default all) -- a rerun that adds the per-spout row / the
+# per-animal figure need not re-render the other page figures
+FIGS = set(sys.argv[sys.argv.index("--figs") + 1].split(",")) if "--figs" in sys.argv else \
+    {"curves", "readout", "perspout", "animal"}
 SIGMAS = (0.05, 0.1, 0.15, 0.2, 0.3, 0.4)   # Gaussian widths tried (mm); chosen by held-out pre-session prediction
 PLACE_REFS = ("place", "gauss", "loclin")      # references on the absolute landing place (not deviation from the spout)
 INSIDE = "all spouts, inside pre range"
@@ -102,6 +112,8 @@ def choose_sigma(P: pd.DataFrame) -> tuple[float, pd.DataFrame]:
 
 def per_lick() -> pd.DataFrame:
     P = pd.read_csv(lo.preds_path())
+    if ANIMALS:                                        # test runs on a subset (the pre references are per animal)
+        P = P[P.animal.isin(ANIMALS)].reset_index(drop=True)
     ref = P[P.epoch == "pre"].groupby(["set", "animal", "pos"])[["act", "dec"]].mean()
     P = P.join(ref, on=["set", "animal", "pos"], rsuffix="_ref")
     P["dLand"], P["dDec"] = P.act - P.act_ref, P.dec - P.dec_ref
@@ -124,7 +136,7 @@ def per_lick() -> pd.DataFrame:
         print("Gaussian width by held-out pre-session prediction (mse, coverage):")
         print(cv.round(4).to_string(index=False))
         print(f"-> sigma = {sg} mm")
-        cv.to_csv(il.OUT / f"matched_gauss{lo.SRC_TAG}_sigma_cv.csv", index=False)
+        cv.to_csv(il.OUT_W / f"matched_gauss{lo.SRC_TAG}_sigma_cv.csv", index=False)
         P["resid_gauss"] = P.dec - gauss_ref(P, sg)
         P.attrs["sigma"] = sg
     if REF == "loclin":
@@ -132,7 +144,7 @@ def per_lick() -> pd.DataFrame:
         print("local-linear vs weighted-mean reference, held-out pre error:")
         print(cv.round(4).to_string(index=False))
         print(f"-> local-linear sigma = {sg} mm")
-        cv.to_csv(il.OUT / f"matched_loclin{lo.SRC_TAG}_sigma_cv.csv", index=False)
+        cv.to_csv(il.OUT_W / f"matched_loclin{lo.SRC_TAG}_sigma_cv.csv", index=False)
         R = lfl.ref_table(P, "act", "dec", sg)
         P["resid_loclin"], P["beyond"] = P.dec - R.ref, R.beyond
         P.attrs["sigma"] = sg
@@ -202,7 +214,7 @@ def bin_tests(P: pd.DataFrame) -> pd.DataFrame:
                 continue
             ci, draws = ak.boot_delta(post, prd, np.random.default_rng(0), draws=True)
             rows.append(dict(set=st, epoch=ep, mid=bb.mid, point=ci.point, p=ak.boot_p(draws), n=len(post)))
-    T = pd.DataFrame(rows)
+    T = pd.DataFrame(rows, columns=["set", "epoch", "mid", "point", "p", "n"])    # empty with < 3 animals (test runs)
     T["sig"] = False
     for _k, idx in T.groupby(["set", "epoch"]).groups.items():
         T.loc[idx, "sig"] = ak.bh(T.loc[idx, "p"].to_numpy())
@@ -270,7 +282,8 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                  "lateral decoder).\nA curve shifted UP = read more contralesional than " + REFLAB + ".\nBars at the top = bins whose change vs pre survives BH (paired nested bootstrap; rows acute / subacute / chronic). PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.85))
-    fig.savefig(il.OUT / "figures" / f"lick_matched{TAG}_curves.png", dpi=100)
+    if "curves" in FIGS:
+        fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_curves.png", dpi=100)
     plt.close(fig)
     # 2. pooled read-out: all spouts, first / later, far contra first / later
     panels = [("all spouts", "all", "all spouts, all licks"), ("all spouts", "first", "all spouts, FIRST lick"),
@@ -301,10 +314,15 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                  "text = change vs pre, 95% paired nested bootstrap, * = CI excludes 0 (bold), k/n animals. "
                  "PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / f"lick_matched{TAG}_readout.png", dpi=100)
+    if "readout" in FIGS:
+        fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_readout.png", dpi=100)
     plt.close(fig)
     # 3. per spout
-    rows = [("iti", "all", "ITI"), ("trial", "all", "cued"), ("trial", "first", "cued, FIRST lick")]   # Priya 10-27
+    # Priya 10-27 (cued first-lick row); ITI FIRST-lick row added 10-28 (overnight queue 5d): ITI order 0 = the start of
+    # a lick bout (no lick for >= 1 s, iti_lick_order._bout_idx), the self-initiated launch -- as meaningful as the cued
+    # first lick, and >= MIN per spout per session in every animal
+    rows = [("iti", "all", "ITI"), ("iti", "first", "ITI, FIRST lick (bout start)"), ("trial", "all", "cued"),
+            ("trial", "first", "cued, FIRST lick")]
     fig, axs = plt.subplots(len(rows), 6, figsize=(19, 3.8 * len(rows)), squeeze=False)
     for i, (st, cls_, rlab) in enumerate(rows):
         for j, p in enumerate(POS):
@@ -318,9 +336,10 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
             ax.axhline(0, color="0.6", lw=0.7, ls="--")
             ax.set_xticks(range(4), EPS, fontsize=7.5)
             ax.set_title(f"{rlab}: {p.replace('_', ' ')}", fontsize=9, pad=22)
-            if j == 0:
-                ax.set_ylabel("read-out vs " + REFLAB.replace("pre licks ", "pre licks\n", 1)
-                              + "\n(mm, + = contralesional)", fontsize=7.5)
+            if j == 0:                                   # short label (4 rows since 10-28; reference named in the title)
+                ax.set_ylabel(("read-out vs pre licks\nat the same place" if REF in PLACE_REFS else
+                               "read-out vs pre licks\nwith the same deviation") + "\n(mm, + = contralesional)",
+                              fontsize=7.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     fig.suptitle("LIKE-FOR-LIKE read-out PER SPOUT (canonical order; cued by target, ITI by the previous trial's spout). "
@@ -328,35 +347,108 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                  "mean; change vs pre, 95% paired nested bootstrap, * = CI excludes 0 (bold), k/n animals. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / f"lick_matched{TAG}_perspout.png", dpi=100)
+    if "perspout" in FIGS:
+        fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_perspout.png", dpi=100)
+    plt.close(fig)
+
+
+ANIMAL_ROWS = [("iti", "all", "ITI, all licks"), ("iti", "first", "ITI, FIRST lick (bout start)"),
+               ("trial", "all", "cued, all licks"), ("trial", "first", "cued, FIRST lick")]
+
+
+def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
+    """PER-ANIMAL change vs pre (overnight queue 5d, approved backlog): for each animal, every post session's offset
+    minus the animal's pre mean (small dots), the animal's change (open marker = mean of its session values - pre mean,
+    the quantity the paired bootstrap averages over animals) and its PRE spread (grey bar = +/- 1 SD of its pre session
+    values around 0: the noise level an epoch value has to clear). Pre sessions sit near 0 by construction (leave-one-
+    session-out), so a pre-vs-epoch scatter would be a vertical line; the change with session spread is the clearer view."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    animals = sorted(S.animal.unique())
+    fig, axs = plt.subplots(len(ANIMAL_ROWS), 3, figsize=(13, 3.3 * len(ANIMAL_ROWS)), squeeze=False, sharey="row")
+    rng = np.random.default_rng(0)
+    for i, (st, cls, rlab) in enumerate(ANIMAL_ROWS):
+        g = S[(S.set == st) & (S.scope == "all spouts") & (S.cls == cls)]
+        pre = g[g.epoch == "pre"].groupby("animal").resid.agg(["mean", "std"])
+        for j, ep in enumerate(EP):
+            ax = axs[i, j]
+            c = EPOCH_LINE[ep]
+            for k, a in enumerate(animals):
+                if a not in pre.index:
+                    continue
+                sd = pre.loc[a, "std"] if np.isfinite(pre.loc[a, "std"]) else 0.0
+                ax.add_patch(plt.Rectangle((k - 0.3, -sd), 0.6, 2 * sd, color="0.85", lw=0, zorder=0))
+                h = g[(g.epoch == ep) & (g.animal == a)].resid.to_numpy() - pre.loc[a, "mean"]
+                if not len(h):
+                    continue
+                mk = ANIMAL_MARKER.get(a, "o")
+                ax.plot(k + rng.uniform(-0.18, 0.18, len(h)), h, mk, color=c, ms=3.5, alpha=0.5, mew=0)
+                ax.plot(k, h.mean(), mk, mfc="none", mec=c, mew=1.6, ms=10)
+                ax.text(k, 1.01, f"{h.mean():+.2f}\n(n={len(h)})", ha="center", va="bottom", fontsize=6.8, color=c,
+                        transform=ax.get_xaxis_transform(), clip_on=False)
+            t = T[(T.set == st) & (T.scope == "all spouts") & (T.cls == cls) & (T.measure == "resid") & (T.epoch == ep)]
+            if len(t):
+                r = t.iloc[0]
+                sig = r.lo > 0 or r.hi < 0
+                ax.text(0.99, 0.02, f"mean of animals {r.point:+.2f} [{r.lo:+.2f}, {r.hi:+.2f}]{'*' if sig else ''}, "
+                        f"{int(r.n_dir)}/{int(r.n)}", transform=ax.transAxes, ha="right", va="bottom", fontsize=7,
+                        fontweight="bold" if sig else "normal")
+            ax.axhline(0, color="0.5", lw=0.7, ls="--")
+            ax.set_xticks(range(len(animals)), animals, fontsize=8)
+            ax.set_xlim(-0.6, len(animals) - 0.4)
+            ax.set_title(f"{rlab}: {ep} - pre", fontsize=9, pad=24, color=c)
+            if j == 0:
+                ax.set_ylabel("session offset - animal's pre mean\n(mm, + = contralesional)", fontsize=8)
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+    fig.suptitle("LIKE-FOR-LIKE offset PER ANIMAL, change vs pre (reference = " + REFLAB + ").\nsmall dots = post "
+                 "SESSIONS minus the animal's pre mean, open marker = the animal's change (text: value, n sessions), grey "
+                 "bar = +/- 1 SD of the animal's PRE sessions (noise level);\nbottom right = mean of animals, 95% paired "
+                 "nested bootstrap CI, * = excludes 0, k/n animals. PROVISIONAL", fontsize=9.5)
+    lo._layout(fig, bottom=0.01)
+    fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_animal_change.png", dpi=100)
     plt.close(fig)
 
 
 def main() -> int:
+    from figdata import load_fd, plot_only, save_fd
+    if plot_only():                                    # figdata convention (10-28): redraw from the saved figure data
+        D = load_fd(f"lick_matched{TAG}")
+        plot(D["A"], D["S"], D["T"], D["BT"])
+        if "animal" in FIGS:
+            plot_animal(D["S"], D["T"])
+        return 0
+    (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)
     P = per_lick()
     print("share of licks with a reference bin, by set x epoch:")
     print(P.groupby(["set", "epoch"]).resid.apply(lambda s: s.notna().mean()).round(3).unstack().to_string())
     A = curves(P)
     S = sessions(P)
-    S.to_csv(il.OUT / f"matched{TAG}_sessions.csv", index=False)
+    S.to_csv(il.OUT_W / f"matched{TAG}_sessions.csv", index=False)
     T = tests(S)
-    T.to_csv(il.OUT / f"matched{TAG}_tests.csv", index=False)
+    T.to_csv(il.OUT_W / f"matched{TAG}_tests.csv", index=False)
     pd.set_option("display.width", 250)
     print("== per animal (rule 8) + nested bootstrap, resid")
     cols = ["scope", "cls", "set", "epoch", "point", "lo", "hi", "n_dir", "n"] + [c for c in T.columns if c.startswith("animal_")]
     print(T[T.measure == "resid"][cols].round(2).to_string(index=False))
     BT = bin_tests(P)
-    BT.to_csv(il.OUT / f"matched{TAG}_bin_tests.csv", index=False)
+    BT.to_csv(il.OUT_W / f"matched{TAG}_bin_tests.csv", index=False)
     if REF == "loclin":
         C = lfl.coverage(P, P.beyond.to_numpy())
-        C.to_csv(il.OUT / f"matched{TAG}_coverage.csv", index=False)
+        C.to_csv(il.OUT_W / f"matched{TAG}_coverage.csv", index=False)
         print("== share of licks beyond the pre landing range (median mm beyond):")
         print(C.round(3).to_string(index=False))
         RB = lfl.boot_reference(P, "act", "dec", P.attrs["sigma"])
-        RB.to_csv(il.OUT / f"matched{TAG}_refboot.csv", index=False)
+        RB.to_csv(il.OUT_W / f"matched{TAG}_refboot.csv", index=False)
         print("== epoch effect with the reference refit on resampled pre sessions (2.5-97.5 %):")
         print(RB.round(3).to_string(index=False))
+    save_fd(f"lick_matched{TAG}", dict(A=A, S=S, T=T, BT=BT))
     plot(A, S, T, BT)
+    if "animal" in FIGS:
+        plot_animal(S, T)
     return 0
 
 

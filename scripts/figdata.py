@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
-FIGDATA = il.OUT / "figdata"
+FIGDATA = il.OUT_W / "figdata"        # = il.OUT/figdata unless WFIELD_ITI_OUT_W redirects the writes (iti_licks.OUT_W)
 
 
 def plot_only() -> bool:
