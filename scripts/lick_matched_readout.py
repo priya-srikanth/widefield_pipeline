@@ -153,8 +153,25 @@ def per_lick() -> pd.DataFrame:
     return P
 
 
+CURVE_GRID = np.round(np.arange(-3.0, 3.001, 0.05), 3)   # landing grid of the smoothed curves (mm)
+CURVE_MIN_W = 10.0     # Gaussian weight (~licks within ~1 sigma) an animal x epoch needs at a grid point to be drawn
+
+
 def curves(P: pd.DataFrame) -> pd.DataFrame:
-    """Read-out vs landing per epoch: absolute place (REF place) or deviation from the spout (pooled / spout)."""
+    """Read-out vs landing per epoch: absolute place (REF place) or deviation from the spout (pooled / spout).
+    REF gauss (Priya 10-28 "there aren't discrete bins anymore right?"): Gaussian-SMOOTHED curves with the offset's own
+    sigma on CURVE_GRID (column smooth=True), no display bins; the significance strip keeps 0.25-mm bins."""
+    if REF == "gauss" and "sigma" in P.attrs:
+        sg, rows = P.attrs["sigma"], []
+        for (st, ep, a), g in P.groupby(["set", "epoch", "animal"]):
+            x_, y_ = g.act.to_numpy(float), g.dec.to_numpy(float)
+            ok = np.isfinite(x_) & np.isfinite(y_)
+            w = np.exp(-0.5 * ((CURVE_GRID[:, None] - x_[None, ok]) / sg) ** 2)
+            sw = w.sum(1)
+            yy = np.where(sw >= CURVE_MIN_W, (w @ y_[ok]) / np.maximum(sw, 1e-12), np.nan)
+            rows += [dict(set=st, epoch=ep, animal=a, mid=m, y=v, n=s, smooth=True, sigma=sg)
+                     for m, v, s in zip(CURVE_GRID, yy, sw) if np.isfinite(v)]
+        return pd.DataFrame(rows)
     x, y, b = ("act", "dec", "bin_a") if REF in PLACE_REFS else ("dLand", "dDec", "bin")
     A = P.groupby(["set", "epoch", b, "animal"], observed=True).agg(y=(y, "mean"), n=(y, "size"))
     A = A[A.n >= MIN_BIN].reset_index()
@@ -254,13 +271,22 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
     col = {"pre": "k", **EPOCH_LINE}
     epl = [Line2D([], [], color=col[e], lw=2, marker="o", label=e) for e in EPS]
     # 1. curves
-    fig, axs = plt.subplots(1, 2, figsize=(12, 5), squeeze=False)
+    fig, axs = plt.subplots(1, 2, figsize=(13, 5.4), squeeze=False)
     for j, st in enumerate(SETS):
         ax = axs[0, j]
+        smooth = "smooth" in A.columns
         for ep in EPS:
             q = A[(A.set == st) & (A.epoch == ep)].groupby("mid").y
-            mu, se = q.mean(), q.sem()
-            ax.errorbar(mu.index.astype(float), mu, yerr=se, fmt="o-", color=col[ep], ms=4, capsize=2, lw=1.3, zorder=3)
+            mu, se, nn = q.mean(), q.sem(), q.count()
+            if smooth:   # Gaussian-smoothed: solid + SEM band where all 4 animals contribute; thin dashed where 3
+                # (an animal entering / leaving the mean makes a step, so the 3-animal stretches are marked as such)
+                m4 = mu.where(nn >= 4)
+                ax.plot(mu.index.to_numpy(float), mu.where(nn >= 3), color=col[ep], lw=0.9, ls="--", zorder=3)
+                ax.plot(m4.index.to_numpy(float), m4, color=col[ep], lw=2.0, zorder=4)
+                ax.fill_between(m4.index.to_numpy(float), m4 - se, m4 + se, color=col[ep], alpha=0.08, lw=0, zorder=2)
+            else:
+                ax.errorbar(mu.index.astype(float), mu, yerr=se, fmt="o-", color=col[ep], ms=4, capsize=2, lw=1.3,
+                            zorder=3)
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.axvline(0, color="0.7", lw=0.6, ls=":")
         # significance strip: one row per post epoch, translucent bar over bins whose change vs pre survives BH
@@ -273,8 +299,10 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                       "landing deviation from the animal's pre mean at the spout (mm, + = contralesional)", fontsize=8)
         ax.set_ylabel(("decoded lateral" if REF in PLACE_REFS else "read-out deviation (decoded")
                       + " (mm, + = contralesional)", fontsize=8)
-        ax.set_title(f"{SETS[st]} licks: read-out vs landing{' place' if REF in PLACE_REFS else ' deviation'}\n(bins with >= {MIN_BIN} licks per animal; "
-                     "mean +/- SEM over animals)", fontsize=9)
+        ax.set_title(f"{SETS[st]} licks: read-out vs landing{' place' if REF in PLACE_REFS else ' deviation'}\n" +
+                     (f"(Gaussian-smoothed, sigma {A['sigma'].iloc[0]:g} mm; mean +/- SEM of 4 animals;\n"
+                      "dashed = only 3 animals there)" if smooth else
+                      f"(bins with >= {MIN_BIN} licks per animal; mean +/- SEM over animals)"), fontsize=9)
         ax.legend(handles=epl, fontsize=8, frameon=False, loc="lower right")
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)

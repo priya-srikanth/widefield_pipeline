@@ -192,3 +192,16 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
 - ANSWERED: 5c-bis + z-scored map check -> "yes do both" (queued as 5c-bis / 5c-ter).
 - (carried over) The SVD_GAUSS_SUPERSEDE_QUEUE "SVD basis = primary" plan is superseded by tonight's split-basis decision
   (marked in that doc); its controls (5a-5f) carry over on the split basis.
+
+## 10-28 morning (Priya reviewing the page)
+- Page v147-v150: key-figure sidebar label; 10.3 legend moved (the frozen decoder IS the right column); 10.5 x = far-contra
+  FIRST-lick aim + pooled column (in-trial +0.63 4/4 p 0.0002, detrended +0.21 p 0.09; ITI +0.06; hit-rate / weighted-aim
+  sensitivities in recovery_marker_beh_compare.csv); 10.7 / 10.8 pooled pre-normalised column; 12.1 short y label;
+  12.2 Gaussian-smoothed curves (sigma 0.1 mm, solid = 4 animals, dashed = 3; dropouts = PS93 ipsi end, PS94 contra end
+  post-stroke = no landings there), tests unchanged (verified identical); 12.15 panel titles say what 'covered' means.
+- DELETED (Priya "ok to all"): iti_licks/sessions/ (v1, 107 npz, 1.4 GB), superseded_split_20261027/ (153 MB).
+  Kept roi_v2_backup_20261027/ ~1 week.
+- RIM CHECK (scripts/checks/rim_check_alm_tjm1.py): ALM / tjM1 rows of 22.3 / 22.4 with the thin rim + ALM front line
+  included vs the stat mask: max |difference| in any epoch change 0.001 (median |change| 0.003), animal sign counts
+  identical in 143/144 cells (tjM1_right lick pos_side acute 2/4 -> 1/4, both n.s. scale). -> keep the stat mask.
+- 10.6 (iti_lick_rate: pooled + over-days + vs aim) running.

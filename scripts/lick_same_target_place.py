@@ -47,8 +47,11 @@ POS = lo.POS
 STEM = f"lick_sametarget_place{lo.SRC_TAG}"
 MIN = 8
 VALS = ("any_all", "any_cov", "tt", "tt_minus")
-VLAB = {"any_all": "ANY spout, same place\n(all licks; published)", "any_cov": "ANY spout, same place\n(covered licks)",
-        "tt": "SAME TARGET, same place\n(covered licks)", "tt_minus": "same target - any spout\n(covered licks)"}
+# panel titles say what "covered" means (Priya 10-28 asked): licks that HAVE a same-target same-place pre reference
+VLAB = {"any_all": "1. vs pre licks of ANY spout, same place\n(all licks = published 12.1)",
+        "any_cov": "2. vs ANY spout, same place, only licks\nwith a same-target reference ('covered')",
+        "tt": "3. vs pre licks of the SAME TARGET,\nsame place (same licks as 2)",
+        "tt_minus": "4. = 3 minus 2: what also matching the\ntarget removes (- = target composition)"}
 
 
 def per_lick(animals: list[str] | None) -> tuple[pd.DataFrame, dict]:
