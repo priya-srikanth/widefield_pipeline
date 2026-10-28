@@ -22209,3 +22209,8 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   below pre in 3/4 animals (SSp-m -0.45*, cortex -0.36*, tjM1 -0.41 n.s.). ITI ratios for windows past 0.5 s are not
   interpretable (pre AUC ~0).
 - Section 14 renamed "Lick-evoked responses, ITI and cued, and confounds" (id itiresp unchanged).
+- Contra/ipsi response ratio per spout (Priya 10-28; `scripts/lick_lateral_ratio.py`, page 14.9): pre, each hemisphere
+  responds more to licks toward the opposite side (all pairs, 4/4 animals; SSp-n up to ~2.4x). Post, far-contra cued
+  licks lose much of their ipsilesional-hemisphere dominance (tjM1 log2 +0.54 / +0.32 / +0.32, 4/4 every epoch).
+  Caveat: executed direction (acute far-contra licks land ipsilesional); landing-matched version is the next check.
+  Mixed-model p-values use sessions as observations (anti-conservative at n=4).
