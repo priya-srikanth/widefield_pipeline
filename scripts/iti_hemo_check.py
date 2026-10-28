@@ -763,7 +763,7 @@ def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local.writeguard import assert_writable
     assert_writable(HC)
-    labels = a.labels or sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = a.labels or il.labels()
     if a.plot_only:
         assert_writable(il.OUT / "figures")
         plot_only(labels)

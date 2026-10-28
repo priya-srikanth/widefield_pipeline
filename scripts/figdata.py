@@ -59,7 +59,7 @@ def imaging_grid() -> dict:
     from frozen_area_maps import area_image, outline
 
     from wfield_local import combined_encoding as ce
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
+    lab0 = il.labels()[0]
     _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(lab0)
     img, _ = area_image(lab0)
     return dict(pix=np.asarray(flat[pstat]), shape=tuple(int(x) for x in shape), ol=outline(img)[::2, ::2])

@@ -42,7 +42,7 @@ def main() -> int:
     from wfield_local import combined_encoding as ce
     from wfield_local.allen_register import BREGMA_OFFSET as BO
     from wfield_local.allen_register import RESOLUTION as RES
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
+    lab0 = il.labels()[0]
     _V, _ft, _Ub, flat, parea, names, shape, pstat = ce.load_imaging(lab0)
     H, W = shape
     r, c = flat // W, flat % W

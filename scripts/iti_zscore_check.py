@@ -54,7 +54,7 @@ def sds(jobs: int) -> pd.DataFrame:
     if f.exists():
         return pd.read_csv(f, index_col=0)
     from wfield_local import analysis_kit as ak
-    labels = sorted(p.stem for p in (il.OUT / il.SESS_NAME).glob("*.npz"))
+    labels = il.labels()
     got, fail = ak.fan_sessions([(x,) for x in labels], session_sd, jobs=jobs, label="sd")
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)

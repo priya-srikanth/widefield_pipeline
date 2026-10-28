@@ -72,7 +72,7 @@ def _grid(a: str):
     """flat brain-pixel indices, stat mask over them, area masks over them (one pre session of the animal)."""
     from iti_licks import roi_masks
     from wfield_local import combined_encoding as ce
-    lab = sorted(p.stem for p in (il.OUT / "sessions").glob(f"{a}_*.npz"))[0]
+    lab = il.labels(f"{a}_*")[0]
     _V, _ft, _Ub, flat, parea, names, shape, pstat = ce.load_imaging(lab)
     if tuple(int(s) for s in shape) != (H, W):
         raise ValueError(f"{a}: imaging grid {shape} != {(H, W)}")
@@ -84,7 +84,7 @@ def spatial(source: str, a: str, keep=None):
     if source in ("areas", "areas_split"):
         flat, _pstat, M = _grid(a)
         basis = "split" if source == "areas_split" else "plain"
-        cols = [str(c) for c in il._load(sorted(p.stem for p in (il.OUT / il.SESS_NAME).glob(f"{a}_*.npz"))[0])["cols"]]
+        cols = [str(c) for c in il._load(il.labels(f"{a}_*")[0])["cols"]]
         if basis == "split":
             for src, dst, h in il._rest_list():
                 M[f"{src}_rest_{h}"] = M[f"{src}_{h}"] & ~M[f"{dst}_{h}"]

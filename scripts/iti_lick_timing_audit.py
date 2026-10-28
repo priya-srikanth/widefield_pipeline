@@ -71,7 +71,7 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=8)
     a = ap.parse_args()
     from wfield_local import analysis_kit as ak
-    labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = il.labels()
     got, fail = ak.fan_sessions([(x,) for x in labels], one, jobs=a.jobs, label="audit", log=lambda m: None)
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)

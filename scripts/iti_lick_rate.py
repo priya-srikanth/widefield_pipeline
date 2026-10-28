@@ -61,7 +61,7 @@ def _resid(y, d):
 
 def main() -> int:
     from wfield_local import analysis_kit as ak
-    labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = il.labels()
     R = pd.DataFrame([session_row(x) for x in labels])
     VALS = ("rate", "rate_nocontact", "per_trial", "share_contact")
     for v in VALS:

@@ -233,7 +233,7 @@ def main(argv=None) -> int:
         plot(load_fd(FIG))
         return 0
     if not a.summarise:
-        labels = a.labels or sorted(p.stem for p in (il.OUT / il.SESS_NAME).glob("*.npz"))
+        labels = a.labels or il.labels()
         items = [(x, s) for s in a.sources for x in labels
                  if not (il.OUT / f"basis_{s}" / "sessions" / f"{x}.npz").exists()]
         print(f"{len(items)} session x source items", flush=True)

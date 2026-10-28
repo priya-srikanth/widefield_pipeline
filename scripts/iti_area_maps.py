@@ -79,7 +79,7 @@ def changes(T: pd.DataFrame, val: str) -> pd.DataFrame:
 def main() -> int:
     """Compute every statistic, save the four figdata files, then draw (`draw_all` = the --plot-only path)."""
     from frozen_area_maps import area_image, outline
-    labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = il.labels()
     D = {x: il._load(x) for x in labels}
     T, peths = session_table(D)
     T.to_csv(il.OUT / "area_auc_sessions.csv", index=False)
@@ -311,7 +311,7 @@ if __name__ == "__main__":
         draw_all(("compare",) if "--compare" in sys.argv else ("maps", "peth", "groups", "compare"))
         raise SystemExit(0)
     if "--compare" in sys.argv:                          # only the comparison figure
-        labels_ = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+        labels_ = il.labels()
         compare(*session_table({x: il._load(x) for x in labels_}))
         raise SystemExit(0)
     raise SystemExit(main())

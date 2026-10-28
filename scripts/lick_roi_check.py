@@ -30,7 +30,7 @@ def main() -> int:
     import matplotlib.pyplot as plt
 
     from wfield_local import combined_encoding as ce
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
+    lab0 = il.labels()[0]
     _V, _ft, _Ub, flat, parea, names, shape, pstat = ce.load_imaging(lab0)
     M = il.roi_masks(parea, pstat, names, flat, shape)
     H, W = shape

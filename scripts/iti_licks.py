@@ -487,6 +487,28 @@ def area_sd(sess_dir: Path | str | None = None, basis: str | None = None) -> pd.
     return S
 
 
+def run_labels() -> list[str]:
+    """August+ session labels of the frozen encoder run = the sessions every ITI extraction covers."""
+    run = E / "frozen_encoder_gate-attempted_v7g3_t3d_frA" / "joint" / "sessions"
+    return [x for x in sorted(p.stem for p in run.glob("*.json")) if x[-4:] >= "0801"]
+
+
+def labels(pattern: str = "*", sess_dir: Path | None = None, complete: bool = True) -> list[str]:
+    """THE session-label list for ITI-lick consumers (Priya 10-27 late: "fix the code base so we don't need the v1
+    folder"): stems of the CURRENT ROI version's session files (OUT / SESS_NAME), never the v1 `sessions/` folder, which
+    ~18 scripts used to glob for labels. Fails loudly on an empty folder, and -- for the default folder and pattern -- on
+    an extraction missing any session of the frozen run (a silent drop would shrink every downstream table)."""
+    d = Path(sess_dir) if sess_dir else OUT / SESS_NAME
+    got = sorted(p.stem for p in d.glob(f"{pattern}.npz"))
+    if not got:
+        raise FileNotFoundError(f"no session files matching {pattern}.npz in {d}")
+    if complete and sess_dir is None and pattern == "*":
+        miss = sorted(set(run_labels()) - set(got))
+        if miss:
+            raise RuntimeError(f"{d}: {len(miss)} session(s) of the frozen run not extracted: {miss[:5]}")
+    return got
+
+
 def split_only(script: str) -> None:
     """Guard for scripts whose outputs are NOT basis-tagged: refuse a plain-basis run (it would overwrite the canonical
     split-basis files). Plain Allen areas = robustness rows of the decoder scripts that tag their outputs."""

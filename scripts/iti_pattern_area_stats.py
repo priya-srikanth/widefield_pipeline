@@ -37,7 +37,7 @@ FIG_NAME = {"position": "lick_pattern_area_stats_position.png",       # ITI + cu
 def area_index():
     """(area name per stat pixel, names kept) on the shared Allen grid, in the order of the pattern maps' pixels."""
     from wfield_local import combined_encoding as ce
-    lab0 = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))[0]
+    lab0 = il.labels()[0]
     _V, _ft, _Ub, _flat, parea, names, _shape, pstat = ce.load_imaging(lab0)
     a = np.array([names.get(int(x), "") for x in parea[pstat]])
     keep = [n for n in sorted(set(a)) if n and (a == n).sum() >= MIN_PIX]

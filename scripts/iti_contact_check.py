@@ -45,7 +45,7 @@ def main() -> int:
 
     from wfield_local import analysis_kit as ak
     W = (il.LAGS_D >= 0.0) & (il.LAGS_D <= 0.2)
-    labels = sorted(p.stem for p in (il.OUT / il.SESS_NAME).glob("*.npz"))
+    labels = il.labels()
     D = {x: il._load(x) for x in labels}
     out = []
     for st, kx, ky, kt in (("iti", "iti_X", "iti_side", "iti_t"), ("trial", "tr_X", "tr_side", "tr_t")):

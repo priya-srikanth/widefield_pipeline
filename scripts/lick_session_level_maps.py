@@ -209,7 +209,7 @@ def patterns(jobs: int) -> dict:
     if f.exists():
         return pickle.loads(f.read_bytes())
     from wfield_local import analysis_kit as ak
-    labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = il.labels()
     res, fails = ak.fan_sessions(labels, _session, jobs=jobs, label="session pattern", log=lambda m: print(m[:110],
                                                                                                          flush=True))
     if fails:
