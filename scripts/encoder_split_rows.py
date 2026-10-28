@@ -232,4 +232,6 @@ def split_image(img: np.ndarray, nm: list) -> tuple:
             nm2 += [f"{dst}_{h}", f"{src}_rest_{h}"]
             img2[par & g] = len(nm2) - 2
             img2[par & ~g] = len(nm2) - 1
-    return img2.reshape(img.shape), nm2
+    # the edge rim lateral to ALM / tjM1 is in no ROI mean; blank that sliver (Priya 10-28: "fix the sliver in all maps")
+    from iti_area_maps import trim_rest
+    return trim_rest(img2.reshape(img.shape), nm2), nm2
