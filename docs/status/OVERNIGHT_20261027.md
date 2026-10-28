@@ -35,6 +35,14 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~00:45) 5c-bis DONE (4 animals; offset_contrib/*_angle_* / *_reach_*, figures lick_offset_contrib_{angle,
+  reach,angle_vs_lateral}.png). ANGLE same-place offset = almost entirely PATTERNED: ITI +5.7 / +3.0 / +3.5 deg (mean of
+  animals; uniform cortex-wide part -0.10 / -0.03 / -0.29 deg, i.e. ~0); 4/4 positive every ITI epoch (PS92 2.5 / 3.5 /
+  1.9, PS93 1.8 / 0.5 / 1.0, PS94 7.1 / 4.5 / 5.8, PS95 11.3 / 3.6 / 5.3); cued +2.6 acute (4/4), +1.2 subacute, ~0
+  chronic. REACH: read SHORTER, mostly patterned, cued subacute -0.28 mm (4/4), chronic -0.15 (4/4); ITI small. The
+  uniform part being ~0 matches the lateral result: no global-gain artefact in the angle offset either.
+- (10-28 ~00:45) 5c-ter first run FAILED at its last step: the held-out comparison read a pattern-stats column that 4b
+  renamed (frac_sig_max -> frac_sig = FWER). Reader fixed to accept both (5b217bce); levels_z rerunning (run_5c_levels.sh).
 - (10-28 ~00:30) 4b merged (b7af100d) + running (run_4b.sh, ~30-45 min). (i) FIRST-LICK weighted aim (WFIELD_AIM, default
   first; all-lick tagged _aimall). Per animal chronic - pre, all-lick -> first-lick: PS92 -0.5 -> -2.2, PS93 -3.0 ->
   -6.7, PS94 -5.7 -> -11.8, PS95 -2.4 -> -4.3 deg; deficit left after acute 4/39/27/15 % -> 14/54/48/24 %; ranking
