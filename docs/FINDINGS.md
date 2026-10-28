@@ -518,7 +518,10 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   <= -0.12 (p < 0.0005). Lower error than the calendar in 3/4 held-out animals (PS95 the exception). The calendar gets each
   trajectory's SHAPE; the balance adds HOW FAR the animal recovers (mostly flags PS94, least recovered). Survives
   nonlinear time models (per-animal splines +0.68 deg/unit, p 0.006); does NOT predict next-session improvement; ITI
-  balance does not do it. 4 animals -> a strong hint, not a demonstrated biomarker. PROVISIONAL. (goal page 14.16)
+  balance does not do it. Bounds: WITHIN an animal days alone already explains 0.70-0.81 and balance adds little (PS94
+  0.70 -> 0.80, PS92 0.80 -> 0.83); leave-one-SESSION-out (76 sessions, pooled) balance 0.63 vs days 0.48 with the animal
+  unknown, but days wins (0.83; days + balance 0.86) once the animal is known -> the value is placing an animal you have
+  no history for. 4 animals -> a strong hint, not a demonstrated biomarker. PROVISIONAL. (goal page 14.16)
 - Controls 10-28: balance-blind decoders leave the offset unchanged -- global balance removed, ORofacial pair
   differences zeroed (ITI +0.38/+0.22/+0.27, pre r 0.59), or non-orofacial zeroed (12.20): the offset is carried by the
   pattern across orofacial areas, not by a left/right difference, so the balance TRACKS the offset without being its

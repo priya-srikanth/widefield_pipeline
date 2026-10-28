@@ -159,8 +159,8 @@ def plot(F: dict) -> None:
                     ax.plot(np.full(4, xi + (j - 0.5) * 0.38), q[q.group == g][c], "k.", ms=4)
             ax.axhline(0, color="k", lw=0.6)
             ax.set_xticks(x, BLOCKS, fontsize=8)
-            ax.set_title(f"BLOCKS: {ttl} (bars = mean, dots = animals)", fontsize=9)
-            ax.legend(fontsize=7, frameon=False)
+            ax.set_title(f"BLOCKS: {ttl}\n(bars = mean, dots = animals)", fontsize=9)
+            ax.legend(fontsize=7, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=2)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
         fu = F["full"][F["full"]["set"] == st]
