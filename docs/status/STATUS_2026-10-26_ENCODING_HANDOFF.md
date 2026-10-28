@@ -103,6 +103,8 @@ RUNNING / PENDING at compaction:
     (also on ISOLATED ITI licks, to tell a slower decay from more licks); pre-cue level needs the RESTW baseline (Priya:
     an in-trial baseline already carries the pre-cue state) -> per-session pass with the restw mask, then the 14.15
     pre-cue row (Priya agreed in principle; confirm restw before running).
+    10b. Priya: "add the 0-1.5 check" -> --baseline-sens now also has ISOLATED ITI licks (iti_iso); RERUN it after the
+    first run (task bm8akbebt, without iso) finishes: python scripts/lick_cued_ramp.py --baseline-sens.
 8. Open questions for Priya: none blocking; key-figure suggestions all done.
 
 ### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
