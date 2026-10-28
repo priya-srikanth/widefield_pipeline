@@ -22152,3 +22152,6 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   carried out, every lick scored; inside-range-only = sensitivity). Gaussian weighted mean = supplementary check. Basis:
   lateral held-out error 0.2314 vs 0.2312, angle (sigma 2 deg) 41.60 vs 41.57; epoch effects identical (angle within
   0.1 deg on all vs inside-range licks); share of acute licks beyond the pre range <= 8 %.
+- 10-27 late, REVISED by Priya: "ok gaussian" (confirmed when asked) -> the like-for-like reference is the GAUSSIAN
+  weighted mean (primary; licks beyond the pre range get no reference, ~1 %); LOCAL-LINEAR with the edge line carried out
+  = supplementary edge check (identical epoch effects on lateral and angle). Supersedes the "local linear it is" line above.

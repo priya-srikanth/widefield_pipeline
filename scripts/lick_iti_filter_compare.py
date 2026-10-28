@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import figdata  # noqa: E402
 import iti_licks as il  # noqa: E402
 
-REFTAG = "loclin"          # like-for-like reference: LOCAL-LINEAR (Priya 10-27 late "ok local linear it is"); gauss = option
+REFTAG = "gauss"           # like-for-like reference: GAUSSIAN (Priya 10-27 late "ok gaussian", confirmed); loclin = supplement
 BASIS = "areas_splitr8"     # Allen + ALM 40 % / tjM1 50 % split (ROI v8, final)
 SETS = [("", "all ITI licks (primary)"), ("_gap2", "2 s quiet before"), ("_far1", ">= 1 s from window end and spout arrival"),
         ("_gap2far1", "both")]
