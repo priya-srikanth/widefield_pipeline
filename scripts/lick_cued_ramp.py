@@ -174,6 +174,7 @@ def _sessions() -> dict:
         ipos = bout_prev_pos(x, np.asarray(d["bout_t"], float))
         D[x] = {"lick": z["lick"].astype(float), "cue": z["cue"].astype(float), "pos": z["pos"],
                 "iti": z["iti"].astype(float)[keep], "iti_pos": ipos[keep], "cols": list(z["cols"]),
+                "iti_iso": z["iti"].astype(float)[keep & (np.asarray(z["iti_nfol"]) == 0)],
                 "animal": str(d["animal"]), "epoch": str(d["epoch"])}
     n = sum(len(d["iti_pos"]) for d in D.values())
     print(f"== ITI bout starts with a previous-trial spout: "
@@ -558,7 +559,7 @@ def baseline_sens() -> None:
     from wfield_local import analysis_kit as ak
     D = _sessions()
     rows = []
-    for k, key in (("iti", "iti"), ("cued", "lick")):
+    for k, key in (("iti", "iti"), ("iti_iso", "iti_iso"), ("cued", "lick")):   # iti_iso = no lick 0.05..0.75 s after
         for bname, base in (("-1.5..-1.0 (published)", BASE_L), ("-1.0..-0.5", BASE_ALT)):
             PE = _pe(D, key, base, SENS_ROIS)
             for v, t0, t1, _lab in SENS_VALS:
@@ -592,8 +593,8 @@ def draw_baseline_sens(F: dict) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     T = F["T"]
-    sets = ("iti", "cued")
-    fig, axs = plt.subplots(len(sets) * len(SENS_VALS), len(SENS_ROIS), figsize=(16, 17), squeeze=False)
+    sets = ("iti", "iti_iso", "cued")
+    fig, axs = plt.subplots(len(sets) * len(SENS_VALS), len(SENS_ROIS), figsize=(16, 25), squeeze=False)
     bl = list(dict.fromkeys(T.baseline))
     for si, st in enumerate(sets):
         for vi, (v, _t0, _t1, lab) in enumerate(SENS_VALS):
@@ -620,7 +621,7 @@ def draw_baseline_sens(F: dict) -> None:
     fig.suptitle("BASELINE SENSITIVITY: change vs pre (each value / the animal's pre mean under the same baseline), 95% paired "
                  "nested-bootstrap CI; circle = baseline -1.5..-1.0 s before the lick (published), square = -1.0..-0.5 s; "
                  "filled = CI excludes 0.\nCaveats: -1.0..-0.5 s can subtract part of a slow ITI build-up; for cued licks it "
-                 "overlaps the cue when the reaction time is > 0.5 s. Lick-aligned, ITI bout starts (>= 2 s gap) and first cued "
+                 "overlaps the cue when the reaction time is > 0.5 s. Lick-aligned: ITI bout starts (>= 2 s gap), ISOLATED ITI licks (iti_iso: no lick 0.05..0.75 s after; later licks can still fall in 0.75..1.5 s), first cued "
                  "licks.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     fig.savefig(il.OUT_W / "figures" / "lick_ramp_baseline_sens.png", dpi=95)
