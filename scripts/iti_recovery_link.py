@@ -4,7 +4,10 @@ increased error signal?")
 
 Behaviour (--beh) per session: "hit" = far-contra hit rate / the animal's pre mean (`recovery_timing.series`;
 saturates chronically, all animals ~1.0); "angle" = mean tongue angle atan2(lateral, sagittal) (= encoder exec_angle)
-of cued far-contra licks and "lateral" = their mean lateral protrusion (side_ml), both as CHANGE vs the pre mean. The kinematic measures use the same
+of cued far-contra licks and "lateral" = their mean lateral protrusion (side_ml), both as CHANGE vs the pre mean;
+"aim" = THE behaviour axis (DECISIONS 2026-10-27 late): the session's weighted signed aim (far contra 3 : far mid 2 :
+others 1; `iti_recovery_measure.py`), FIRST post-cue lick by default, as CHANGE vs the animal's pre mean (deg); with env
+WFIELD_AIM=all the all-lick sensitivity, outputs tagged "aimall" instead of "aim". The kinematic measures use the same
 licks the decoder scores (not independent of r / offsets; read with that in mind).
 Decoder measures per session and lick set (ITI / in-trial), from the where-decoder outputs:
   r_lat      decoded vs actual lateral r / the animal's pre mean (`where_decoder.csv`, Allen areas)
@@ -20,7 +23,7 @@ Two levels:
 Figure data (figdata.py convention): <DIR>/figdata/lick_recovery_link{,_pooled,_sessions}_<tag>.pkl (tag = beh + "_z"
 if --z) hold everything each figure draws (session table, within-animal r table, the pooled nested-bootstrap CIs, the
 per-animal fit lines); `--plot-only` redraws the three figures from those files alone (no permutation, no bootstrap).
-Usage: python scripts/iti_recovery_link.py [--src DIR] [--beh hit|angle|lateral] [--z] [--plot-only]
+Usage: [WFIELD_AIM=all] python scripts/iti_recovery_link.py [--src DIR] [--beh hit|angle|lateral|aim] [--z] [--plot-only]
        (DIR default <E>/iti_licks; output written there)
 """
 from __future__ import annotations
@@ -34,6 +37,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import iti_recovery_measure as rm  # noqa: E402
 import likeforlike as lfl  # noqa: E402
 from figdata import load_fd, save_fd  # noqa: E402
 from recovery_timing import series  # noqa: E402
@@ -106,12 +110,13 @@ def within(G: pd.DataFrame, meas: list[str], beh: dict) -> dict:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=str(il.OUT))
-    ap.add_argument("--beh", choices=("hit", "angle", "lateral"), default="hit")
+    ap.add_argument("--beh", choices=("hit", "angle", "lateral", "aim"), default="hit")
     ap.add_argument("--z", action="store_true", help="decoder on within-session Z-SCORED features")
     ap.add_argument("--plot-only", action="store_true", help="redraw the three figures from the figure data alone")
     args = ap.parse_args(argv)
     il.split_only("iti_recovery_link")
-    src, tag = Path(args.src), args.beh + ("_z" if args.z else "")
+    beh_tag = ("aim" if rm.AIM == "first" else "aimall") if args.beh == "aim" else args.beh
+    src, tag = Path(args.src), beh_tag + ("_z" if args.z else "")
     fdroot = src / "figdata"
     if args.plot_only:                                    # no permutation, no bootstrap: figdata only
         plot_course(load_fd(f"lick_recovery_link_{tag}", fdroot))
@@ -121,7 +126,12 @@ def main(argv=None) -> int:
     S, ax2 = session_measures(src, args.z)
     meas = ["r_lat", "lfl_lat", f"lfl_{ax2}", "mae_lat", "mae_2d"]
     B = series("lick")[["label", "day", "beh"]]
-    if args.beh != "hit":
+    if args.beh == "aim":                                  # THE behaviour axis (iti_recovery_measure; rule 9)
+        k = pd.read_csv(rm.sessions_csv())[["animal", "epoch", "label", "weighted_signed"]].rename(
+            columns={"weighted_signed": "k"})
+        k["beh"] = k.k - k.animal.map(k[k.epoch == "pre"].groupby("animal").k.mean())
+        B = B[["label", "day"]].merge(k[["label", "beh"]], on="label")
+    elif args.beh != "hit":
         p = pd.read_csv(_files(src, args.z)[0])
         p = p[(p.set == "trial") & (p.pos == "far_contra")].dropna(subset=["act_lat", "act_sag"])
         p["k"] = np.degrees(np.arctan2(p.act_lat, p.act_sag)) if args.beh == "angle" else p.act_lat
@@ -135,7 +145,7 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 220)
     # BETWEEN animals (descriptive)
     bb = G.drop_duplicates("label").groupby(["animal", "epoch"]).beh.mean().unstack()[EP]
-    print("== far-contra hit rate / pre (behaviour), per animal\n" + bb.round(2).to_string())
+    print(f"== behaviour ({_blab(tag)}), per animal\n" + bb.round(2).to_string())
     for st in ("trial", "iti"):
         T = G[G.set == st].groupby(["animal", "epoch"])[meas].mean().unstack("epoch")
         T = T.reindex(columns=EP, level=1)
@@ -171,8 +181,16 @@ def main(argv=None) -> int:
     return 0
 
 
+def _bname(tag: str) -> str:
+    """Short behaviour name for the figure titles."""
+    return {"aim": "first-lick weighted aim", "aimall": "all-lick weighted aim"}.get(tag.replace("_z", ""),
+                                                                                    "far-contra aim")
+
+
 def _blab(tag: str) -> str:
     return {"hit": "far-contra hit rate / pre", "angle": "far-contra cued lick angle, change vs pre (deg)",
+            "aim": "weighted aim, FIRST cued lick, change vs pre (deg)",
+            "aimall": "weighted aim, all cued licks, change vs pre (deg)",
             "lateral": "far-contra cued lateral protrusion, change vs pre (mm)"}[tag.replace("_z", "")]
 
 
@@ -235,7 +253,7 @@ def plot_session_scatter(D: dict) -> None:
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED, one dot per SESSION: FROZEN decoder's lateral offset "
-                 "like-for-like (same-place) offset vs far-contra aim. Colour = animal, marker = epoch (outlined = pre-stroke);\n"
+                 f"like-for-like (same-place) offset vs {_bname(tag)}. Colour = animal, marker = epoch (outlined = pre-stroke);\n"
                  "lines = per-animal fit over post sessions. The within-animal test with the shared time trend removed "
                  "is in the per-animal recovery-link figure (this pooled r mixes animals and includes the time trend). PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
@@ -328,11 +346,12 @@ def plot_pooled(D: dict) -> None:
         ax.set_title("per animal, epoch means: aim vs decoder offset", fontsize=9.5)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED per epoch (pre included): far-contra aim and the "
+    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + f"POOLED per epoch (pre included): {_bname(tag)} and the "
                  "FROZEN pre-stroke decoder's lateral like-for-like offset (same place).\nThin lines = animals (session "
                  "means per epoch); black line = mean of animals; diamonds = mean of animals' pre + change vs pre "
                  "with 95% nested bootstrap CI\n(animals > sessions; * = CI excludes 0). TOP = ITI licks, BOTTOM = "
-                 "cued licks. Behaviour is the same in both rows (cued far-contra licks).", fontsize=9.5)
+                 "cued licks. Behaviour is the same in both rows ("
+                 + ("cued licks" if tag.startswith("aim") else "cued far-contra licks") + ").", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(src / "figures" / f"lick_recovery_link_pooled_{tag}.png", dpi=100)
     plt.close(fig)
@@ -375,7 +394,7 @@ def plot_course(D: dict) -> None:
             for s_ in ("top",):
                 ax.spines[s_].set_visible(False)
     rr = R[(R.measure == "lfl_lat")].set_index(["set", "kind"])
-    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "NEURAL vs BEHAVIOUR, within animal: as far-contra aim "
+    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + f"NEURAL vs BEHAVIOUR, within animal: as {_bname(tag)} "
                  f"recovers, does the decoder's contralesional reading fade?\nBlack = {blab} (one dot per session; grey = PRE-STROKE "
                  "sessions, the reference); red = FROZEN pre-stroke decoder's lateral like-for-like offset (same place) (" + il.basis_label() + ", lags "
                  "0..0.2 s;\n+ = cortex reads the lick more contralesional than it landed)" + zl + ". TOP = ITI licks "

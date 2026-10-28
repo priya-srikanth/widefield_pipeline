@@ -16,6 +16,10 @@ only, as `iti_session_pattern_tests.load`). Per map (cued / ITI x spout one-vs-r
              (smooth maps from 200 SVD components), which the per-pixel max-statistic of Figs 3.50-3.53 / 3.67 ignores
              -> more power at the same family-wise error.
   per animal the share of animals whose own mean change has the pixel's sign is kept (drawn as a dashed >= 3/4 line).
+SHARED MACHINERY (rule 9; DECISIONS 2026-10-27 late "pixel map stats = FWER max-statistic"): `change_z` / `level_z`,
+`test_one` / `test_level` (+ `test_cell` for one fan-out over both) and `max_fwer` are imported by
+iti_decoder_pattern_stats / iti_spout_pattern_stats (pixels) and iti_pattern_area_stats (areas) with stat "max" =
+the plain max-|z| FWER over the tested elements (no TFCE); `drawn_index` = the drawn-pixel family used by all of them.
 Shape read-outs DRAWN, not only printed: (1) whole-map distance d per animal + its early-vs-late pre drift floor, per
 spout x epoch (from session_pattern_maplevel.csv); (2) per-session r to the animal's pre map over days, every spout.
 Outputs <E>/iti_licks/session_cluster/{tests.csv, maps.pkl}, figures/lick_session_cluster_{position,within_spout}.png,
@@ -122,8 +126,21 @@ def _img_fn(idx_img: np.ndarray):
     return img
 
 
-def _fwer(z: np.ndarray, null_z, img, n_perm: int):
-    """TFCE of z (on the image) and the max-|TFCE| familywise p per pixel against n_perm null draws of z."""
+def max_fwer(z: np.ndarray, null_z, n_perm: int) -> np.ndarray:
+    """THE max-statistic FWER p (DECISIONS 2026-10-27 late: every per-pixel / per-area map statistic): per element
+    (pixel or area) the share of n_perm null draws whose max |z| over ALL elements reaches the element's |z|,
+    (count + 1) / (n_perm + 1). null_z() returns one null draw of z (same shape)."""
+    mx = np.sort([np.nanmax(np.abs(null_z())) for _ in range(n_perm)])
+    a = np.abs(np.asarray(z, float))
+    cnt = n_perm - np.searchsorted(mx, np.nan_to_num(a, nan=np.inf), side="left")
+    return np.where(np.isfinite(a), (cnt + 1) / (n_perm + 1), np.nan)
+
+
+def _fwer(z: np.ndarray, null_z, img, n_perm: int, stat: str = "tfce"):
+    """TFCE of z (on the image) and the max-|TFCE| familywise p per pixel against n_perm null draws of z.
+    stat="max": no TFCE -- (z, max-|z| FWER p) on the elements as given (`max_fwer`; img only reshapes)."""
+    if stat == "max":
+        return img(z), img(max_fwer(z, null_z, n_perm))
     T = _tfce(img(z))
     mx = np.empty(n_perm)
     for i in range(n_perm):
@@ -133,11 +150,14 @@ def _fwer(z: np.ndarray, null_z, img, n_perm: int):
 
 
 def test_one(item):
-    """CHANGE test: (key, epoch, {animal: (pre (n0, pix), epoch (n1, pix))}, image index, n_perm) -> result dict.
+    """CHANGE test: (key, epoch, {animal: (pre (n0, pix), epoch (n1, pix))}, image index, n_perm[, stat]) -> result dict.
+    stat "tfce" (default) = max-|TFCE| FWER on the image; "max" = max-|z| FWER over the elements (pixels / areas; pass a
+    1-D index np.arange(n) to get vectors back).
     Statistic `change_z`; null = session labels permuted within each animal (same permutation for every pixel; s_pooled
     recomputed per draw); max-|TFCE| FWER. Every animal with >= 1 pre and >= 1 epoch session contributes. The SD floor
     (10th percentile over pixels of the observed s_pooled) is fixed across draws. Module-level (spawn)."""
-    key, ep, data, idx_img, n_perm = item
+    key, ep, data, idx_img, n_perm, *opt = item
+    stat = opt[0] if opt else "tfce"
     import zlib
     rng = np.random.default_rng(zlib.crc32(f"{key}|{ep}".encode()))   # stable across processes (not hash())
     an = sorted(data)
@@ -145,32 +165,49 @@ def test_one(item):
     floor = float(np.quantile(pooled_sd([g for a in an for g in data[a]]), 0.1))
     z = change_z(data, floor=floor)
     T, p = _fwer(z, lambda: change_z(data, {a: rng.permutation(len(data[a][0]) + len(data[a][1])) for a in an}, floor),
-                 img, n_perm)
+                 img, n_perm, stat)
     chg = np.vstack([data[a][1].mean(0) - data[a][0].mean(0) for a in an])
     agree = (np.sign(chg) == np.sign(chg.mean(0))[None, :]).sum(0)
-    return dict(key=key, epoch=ep, kind="change", n=len(an), point=img(chg.mean(0)), z=img(z), tfce=T, p=p,
+    return dict(key=key, epoch=ep, kind="change", stat=stat, n=len(an), point=img(chg.mean(0)), z=img(z), tfce=T, p=p,
                 agree=img(agree.astype(float)), n_sess=sum(len(d[0]) + len(d[1]) for d in data.values()),
                 n_sess_animal={a: (len(data[a][0]), len(data[a][1])) for a in an})
 
 
 def test_level(item):
-    """LEVEL test (is the epoch map != 0): (key, epoch, {animal: (n >= 1, pix)}, image index, n_perm) -> result dict.
+    """LEVEL test (is the epoch map != 0): (key, epoch, {animal: (n >= 1, pix)}, image index, n_perm[, stat]) -> result
+    dict (stat as `test_one`).
     Statistic `level_z`; null = sign-flip of each whole SESSION map, independently within each animal (valid with one
     session: a self-fit Haufe map flips sign with its target, so a no-information session is symmetric about 0;
     s_pooled recomputed per draw); max-|TFCE| FWER. Module-level (spawn)."""
-    key, ep, data, idx_img, n_perm = item
+    key, ep, data, idx_img, n_perm, *opt = item
+    stat = opt[0] if opt else "tfce"
     import zlib
     rng = np.random.default_rng(zlib.crc32(f"{key}|{ep}|level".encode()))
     an = sorted(data)
     img = _img_fn(idx_img)
     floor = float(np.quantile(pooled_sd([data[a] for a in an]), 0.1))
     z = level_z(data, floor=floor)
-    T, p = _fwer(z, lambda: level_z(data, {a: rng.choice([-1.0, 1.0], len(data[a])) for a in an}, floor), img, n_perm)
+    T, p = _fwer(z, lambda: level_z(data, {a: rng.choice([-1.0, 1.0], len(data[a])) for a in an}, floor), img, n_perm,
+                 stat)
     am = np.vstack([data[a].mean(0) for a in an])
     agree = (np.sign(am) == np.sign(am.mean(0))[None, :]).sum(0)
-    return dict(key=key, epoch=ep, kind="level", n=len(an), point=img(am.mean(0)), z=img(z), tfce=T, p=p,
+    return dict(key=key, epoch=ep, kind="level", stat=stat, n=len(an), point=img(am.mean(0)), z=img(z), tfce=T, p=p,
                 agree=img(agree.astype(float)), n_sess=sum(len(v) for v in data.values()),
                 n_sess_animal={a: len(data[a]) for a in an})
+
+
+def test_cell(item):
+    """Dispatcher for one fan_out over mixed cells: (kind, item) -> `test_level` (kind "level") or `test_one` (else).
+    Module-level (spawn)."""
+    kind, it = item
+    return test_level(it) if kind == "level" else test_one(it)
+
+
+def drawn_index(to_img, npix: int) -> np.ndarray:
+    """Indices (into the npix stat-mask pixels) of the pixels DRAWN on the half-resolution image (every 2nd row /
+    column): the family over which the map FWER is taken, in every map family (rule 9)."""
+    g = to_img(np.arange(npix, dtype=float))
+    return g[np.isfinite(g)].astype(int)
 
 
 def print_counts(R: dict, title: str) -> None:
@@ -195,7 +232,7 @@ def run(n_perm: int) -> dict:
     npix = next(iter(next(iter(L.values())).values()))["M"].shape[1]
     g = to_img(np.arange(npix, dtype=float))
     ok = np.isfinite(g)
-    sel = g[ok].astype(int)                               # only the pixels drawn on the (every 2nd row / column) image
+    sel = drawn_index(to_img, npix)                       # only the pixels drawn on the (every 2nd row / column) image
     idx_img = np.full(g.shape, -1)
     idx_img[ok] = np.arange(ok.sum())
     items = []

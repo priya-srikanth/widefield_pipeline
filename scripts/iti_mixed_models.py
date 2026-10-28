@@ -2,7 +2,9 @@
 nested in animals ... for any headline result" -> "yes").
 
 Per measure, the SHARED models of wfield_local.mixed_models (time: y ~ post + post:lday; behaviour: y ~ post +
-post:deficit, deficit = far-contra time to contact; epoch: y ~ C(epoch)), sessions as observations, random-effects
+post:deficit, deficit = the cued licks' weighted signed AIM, pre - session in degrees, FIRST lick by default --
+DECISIONS 2026-10-27 late; WFIELD_AIM=all = the all-lick sensitivity, outputs tagged _aimall; it was far-contra time to
+contact before; epoch: y ~ C(epoch)), sessions as observations, random-effects
 ladder per animal (10-27 late: was an epoch-only random-intercept model written here -- replaced, rule 9). Reported: each post epoch's coefficient (change vs pre), 95 % Wald CI and p, beside the
 paired nested bootstrap used on the page (boot_delta) for the same session values. With 4 animals the random-effect
 variance is poorly estimated, so the Wald p is anti-conservative relative to the bootstrap; both are shown, and the
@@ -14,8 +16,9 @@ basis by default since 10-27 late, iti_licks.AREA_BASIS -- unless stated):
                               change vs pre (recovery_link_sessions_withpre_angle_z, column lfl_lat)
   off_farcontra_cued          far-contra cued like-for-like offset (overcorrection_sessions.csv, column lfl)
   resp_key                    ITI post-lick response, key ROIs, / the animal's pre (hemo_check, adopted variant)
-  aim_weighted                behaviour: weighted signed angle offset from own pre landing (recovery_measure_sessions)
-Output <E>/iti_licks/mixed_models.csv. Usage: python scripts/iti_mixed_models.py
+  aim_weighted                behaviour: weighted signed angle offset from own pre landing, WFIELD_AIM lick set
+                              (iti_recovery_measure.sessions_csv: first lick = PRIMARY, all licks = sensitivity)
+Output <E>/iti_licks/mixed_models<basis tag><aim tag>.csv (+ _boot). Usage: [WFIELD_AIM=all] python scripts/iti_mixed_models.py
 """
 from __future__ import annotations
 
@@ -27,6 +30,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import iti_recovery_measure as rm  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -80,8 +84,9 @@ def lick_order(scope: str, st: str, col: str) -> pd.DataFrame:
 
 
 def recovery_measure(col: str = "weighted_signed") -> pd.DataFrame:
-    """recovery_measure_sessions.csv (behaviour: cued lick angle offset from own pre landing, degrees)."""
-    m = pd.read_csv(il.OUT / "recovery_measure_sessions.csv")   # behaviour only: no decoder, no basis tag
+    """recovery_measure_sessions<aim tag>.csv (behaviour: cued lick angle offset from own pre landing, degrees; lick set
+    = WFIELD_AIM, first lick by default)."""
+    m = pd.read_csv(rm.sessions_csv())   # behaviour only: no decoder, no basis tag
     return m.rename(columns={col: "value"})[COLS]
 
 
@@ -107,16 +112,21 @@ def measures() -> dict:
 
 def main() -> int:
     """Shared models (wfield_local.mixed_models; DECISIONS 2026-10-20 night: mixed models with time are the PRIMARY
-    readout, epochs descriptive): time (y ~ post + post:lday), behaviour (y ~ post + post:deficit, deficit = far-contra
-    time to contact) and epoch (y ~ C(epoch)), random-effects ladder per animal; the paired nested bootstrap per epoch
+    readout, epochs descriptive): time (y ~ post + post:lday), behaviour (y ~ post + post:deficit, deficit = weighted
+    signed aim, pre - session, WFIELD_AIM lick set) and epoch (y ~ C(epoch)), random-effects ladder per animal; the paired nested bootstrap per epoch
     alongside for the page figures."""
     from wfield_local import mixed_models as mx
     M = measures()
     L = pd.concat([d.assign(measure=nm) for nm, d in M.items()], ignore_index=True).rename(columns={"value": "y"})
     L = mx.add_time_covariates(L.dropna(subset=["y"]))
-    L = mx.add_deficit(L, mx.deficit(il.OUT.parent / "qc"))
-    T = mx.lmm_table(L, ["measure"], models=("time", "behaviour", "epoch"), fdr_by=())
-    T.to_csv(il.OUT / il.tagged("mixed_models.csv"), index=False)
+    L = mx.add_deficit(L, rm.aim_deficit())
+    # the aim measure is not fitted against the aim deficit (deficit = pre - aim: slope -1 by construction); fitted apart
+    # so the behaviour model's FDR family holds only the real measures
+    T = pd.concat([mx.lmm_table(L, ["measure"], models=("time",), fdr_by=()),
+                   mx.lmm_table(L[L.measure != "aim_weighted"], ["measure"], models=("behaviour",), fdr_by=(),
+                                print_animals=False),
+                   mx.lmm_table(L, ["measure"], models=("epoch",), fdr_by=(), print_animals=False)], ignore_index=True)
+    T.assign(aim_licks=rm.AIM).to_csv(il.OUT / il.tagged("mixed_models.csv", il.BASIS_TAG + rm.AIM_TAG), index=False)
     pd.set_option("display.width", 240)
     print(mx.summary_table(T, ["measure"]).to_string())
     rows = []
@@ -130,7 +140,8 @@ def main() -> int:
                   ).dropna()
             rows.append(dict(measure=nm, epoch=ep, boot_point=ci.point, boot_lo=ci.lo, boot_hi=ci.hi,
                              n_dir=int((am * np.sign(ci.point) > 0).sum()), n_animals=len(am)))
-    pd.DataFrame(rows).to_csv(il.OUT / il.tagged("mixed_models_boot.csv"), index=False)
+    pd.DataFrame(rows).assign(aim_licks=rm.AIM).to_csv(il.OUT / il.tagged("mixed_models_boot.csv", il.BASIS_TAG + rm.AIM_TAG),
+                                                       index=False)
     return 0
 
 

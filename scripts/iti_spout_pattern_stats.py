@@ -4,15 +4,18 @@ Same construction as `iti_decoder_pattern_stats.py`, for the one-vs-rest spout d
 (cued licks, the animal's pre-stroke SVD basis, lags 0..0.2 s): each SESSION gets a held-out pattern (the epoch's
 one-vs-rest ridge decoder refit leaving that session out, applied to the session's licks, A_s = Cov(X_s, yhat_s) /
 Var(yhat_s)), mapped to pixels and divided by the RMS of the animal's pooled pre map for that spout (as 3.35).
-Per pixel, nested bootstrap (animals > sessions): level (epoch map) and change (epoch - pre, paired by animal), BH
-q = 0.05 over cortex; outline = significant AND >= 3 animals (of 4) agree in sign. Per animal x spout: similarity of the
-session-mean epoch map to the pre map with a within-animal session-bootstrap 95% CI.
+SIGNIFICANCE (DECISIONS 2026-10-27 late): the FWER max-statistic of `iti_decoder_pattern_stats.py` (shared machinery of
+`iti_session_cluster_tests.py`: change_z / level_z, session-label permutation within animal for change, session
+sign-flip for level, max |z| over the drawn cortex pixels per spout x epoch x kind; the level-test caveat for held-out
+patterns applies). SOLID = FWER p < 0.05; DASHED = also >= 3 animals (of 4) agree in sign (outline only). The OLD per-
+pixel nested bootstrap + BH q 0.05 is kept in the CSV (frac_sig_fdr*, frac_sig_maxboot) for comparison. Per animal x
+spout: similarity of the session-mean epoch map to the pre map with a within-animal session-bootstrap 95% CI.
 --iti: the same for ITI (self-initiated) licks labelled by the PRECEDING trial's spout (`iti_pos`; Priya 10-27: "map
 distinguishing ITI licks based on preceding trial's spout location").
 Outputs <E>/iti_licks/spout_pattern_stats[_iti].csv, figures/lick_cued_spout_pattern_stats.png / lick_iti_spout_pattern_stats.png. Usage:
-python scripts/iti_spout_pattern_stats.py [--iti] [--plot-only]
+python scripts/iti_spout_pattern_stats.py [--iti] [--plot-only] [--perm N]
 Figure data: figdata/lick_{cued,iti}_spout_pattern_stats.pkl (test results, stats table, imaging grid, set); --plot-only
-redraws from it alone (no bootstrap).
+redraws from it alone (no tests). The CSV records the method (column `method`).
 """
 from __future__ import annotations
 
@@ -28,7 +31,8 @@ import iti_licks as il  # noqa: E402
 from figdata import (CHANGE_CMAP, CMAP_NOTE, PRE_CMAP, grid_fns, imaging_grid, levels_name, load_fd,  # noqa: E402
                      plot_only, save_fd, sym_lim)
 import iti_where_decoder as wd  # noqa: E402
-from iti_decoder_pattern_stats import AGREE_MIN, N_BOOT, _bh, _boot, _maxstat, _ridge  # noqa: E402
+from iti_decoder_pattern_stats import (AGREE_MIN, N_BOOT, N_PERM, _ridge, fwer_maps, merge_fwer,  # noqa: E402
+                                       method_text, n_perm_arg, old_fdr)
 from iti_decoder_patterns import SPATIAL, pattern  # noqa: E402
 from iti_spout_patterns import AN, EP, POS  # noqa: E402
 
@@ -83,9 +87,9 @@ def session_maps(st: str = "trial"):
     return out
 
 
-def test(SM: dict):
+def test(SM: dict, n_perm: int = N_PERM, st: str = "trial"):
     rng = np.random.default_rng(0)
-    res, rows = {}, []
+    res, cells, rows, meta = {}, {}, [], {}
     for sp in POS:
         have = {a: SM[(a, sp)] for a in AN if (a, sp) in SM and "pre" in SM[(a, sp)]}
         pre = {a: v["pre"] for a, v in have.items()}
@@ -95,17 +99,13 @@ def test(SM: dict):
                 if kind == "change" and ep == "pre":
                     continue
                 ref = pre if kind == "change" else None
-                am = np.vstack([lvl[a].mean(0) - (ref[a].mean(0) if ref else 0) for a in sorted(lvl)])
-                point = am.mean(0)
-                B = _boot(lvl, rng, ref)
-                p = np.minimum(1.0, 2 * np.minimum((B <= 0).mean(0), (B >= 0).mean(0)) + 1 / N_BOOT)
-                sig = _bh(p)
-                agree = (np.sign(am) == np.sign(point)[None, :]).sum(0)
-                smax = _maxstat(B, point)
-                res[(sp, ep, kind)] = dict(point=point, sig=sig, agree=agree, n=len(am), sig_max=smax)
-                rows.append(dict(spout=sp, epoch=ep, kind=kind, n_animals=len(am), frac_sig=float(sig.mean()),
-                                 frac_sig_max=float(smax.mean()),
-                                 frac_sig_agree=float((sig & (agree >= min(AGREE_MIN, len(am)))).mean())))
+                o = old_fdr(lvl, rng, ref)
+                agree = (np.sign(o["am"]) == np.sign(o["point"])[None, :]).sum(0)
+                ck = (sp, ep, kind)
+                res[ck] = dict(point=o["point"], agree=agree, n=len(o["am"]), sig_fdr=o["sig_fdr"],
+                               sig_max=o["sig_maxboot"])
+                cells[ck] = {a: (pre[a], lvl[a]) for a in lvl} if kind == "change" else dict(lvl)
+                meta[ck] = dict(spout=sp, epoch=ep, kind=kind, n_animals=len(o["am"]))
         for a, v in have.items():
             P = v["pre"].mean(0)
             for ep in EP[1:]:
@@ -115,7 +115,12 @@ def test(SM: dict):
                 bs = [np.corrcoef(M[rng.integers(0, len(M), len(M))].mean(0), P)[0, 1] for _ in range(200)]
                 rows.append(dict(spout=sp, epoch=ep, kind="similarity", animal=a, r=float(np.corrcoef(M.mean(0), P)[0, 1]),
                                  lo=float(np.percentile(bs, 2.5)), hi=float(np.percentile(bs, 97.5))))
-    return res, pd.DataFrame(rows)
+    from iti_session_cluster_tests import drawn_index
+    npix = len(next(iter(res.values()))["point"])
+    sel = drawn_index(grid_fns(imaging_grid())[0], npix)
+    summ = merge_fwer(res, fwer_maps(cells, n_perm, f"spout_pattern_{st}", sel, npix), sel)
+    stat_rows = [dict(**meta[ck], method=method_text(n_perm), n_perm=n_perm, **summ[ck]) for ck in res]
+    return res, pd.DataFrame(stat_rows + rows)
 
 
 def fig_name(st: str) -> str:
@@ -130,6 +135,7 @@ def plot(D: dict, levels: bool = False) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     res, T, st = D["res"], D["T"], D["st"]
+    fw = "method" in D                                  # FWER max-statistic figure data (10-27 late)
     to_img, ol = grid_fns(D["grid"])
     cols = list(EP) if levels else ["pre", "acute - pre", "subacute - pre", "chronic - pre"]
     fig, axs = plt.subplots(len(POS), len(cols), figsize=(2.75 * len(cols) + 1.4, 2.5 * len(POS) + 1.2), squeeze=False,
@@ -154,15 +160,18 @@ def plot(D: dict, levels: bool = False) -> None:
             else:
                 im_c = ax.imshow(to_img(r["point"]), cmap=CHANGE_CMAP, vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+            # FWER figure data: solid = r["sig"] (max-statistic FWER); older figure data: solid = bootstrap max-stat
+            solid = r["sig"] if fw else r.get("sig_max", np.zeros_like(r["sig"]))
             ax.contour(to_img((r["sig"] & (r["agree"] >= min(AGREE_MIN, r["n"]))).astype(float), 0), levels=[0.5], colors="k",
                        linewidths=0.7, linestyles="--")
-            if "sig_max" in r:
-                ax.contour(to_img(r["sig_max"].astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
+            ax.contour(to_img(solid.astype(float), 0), levels=[0.5], colors="k", linewidths=1.3)
             g = T[(T.spout == sp) & (T.epoch == key[1]) & (T.kind == key[2])]
             sim = T[(T.spout == sp) & (T.epoch == key[1]) & (T.kind == "similarity")]
             sub = f"\nsim to pre {sim.r.mean():.2f}" if key[1] in EP[1:] and len(sim) else ""
             name = f"{c} (level)" if key[2] == "level" else c
-            ax.set_title(f"{name} (n={r['n']}) sig {100 * float(g.frac_sig_agree.iloc[0]):.0f}%{sub}", fontsize=7)
+            ax.set_title(f"{name} (n={r['n']}) {'FWER ' if fw else ''}sig {100 * float(g.frac_sig.iloc[0]):.0f}% "
+                         f"({100 * float(g.frac_sig_agree.iloc[0]):.0f}% >=3/{r['n']}){sub}" if fw else
+                         f"{name} (n={r['n']}) sig {100 * float(g.frac_sig_agree.iloc[0]):.0f}%{sub}", fontsize=7)
             if j == 0:
                 ax.set_ylabel(sp.replace("_", " "), fontsize=9)
     if levels:
@@ -183,9 +192,12 @@ def plot(D: dict, levels: bool = False) -> None:
             + f" -- {CMAP_NOTE}. ")
     paras = [head + f"NEURAL: per-spout one-vs-rest Haufe maps ({what}), one held-out pattern per SESSION, / animal's pre "
              "RMS for the spout, mean of animals.",
-             f"SOLID outline = max-statistic FWER 0.05 (as the decoder page); DASHED = 95% nested bootstrap CI (animals > "
-             f"sessions, {N_BOOT} draws) excludes 0 after BH q 0.05 AND >= 3 animals (of 4) agree in sign; 'sig %' = the "
-             "dashed fraction of cortex.",
+             (f"SOLID outline = FWER p < 0.05 by the {D['method']}; DASHED = also >= 3 animals (of 4) agree in sign; "
+              "'sig %' = solid fraction of cortex (dashed fraction in brackets). Old per-pixel BH-FDR kept in the CSV."
+              if fw else
+              f"SOLID outline = max-statistic FWER 0.05 (as the decoder page); DASHED = 95% nested bootstrap CI (animals > "
+              f"sessions, {N_BOOT} draws) excludes 0 after BH q 0.05 AND >= 3 animals (of 4) agree in sign; 'sig %' = the "
+              "dashed fraction of cortex."),
              ("" if levels else "Change columns = epoch - pre, paired by animal; ")
              + "sim = r(session-mean epoch map, pre map), mean of animals. ipsi (lesion) = image LEFT. PROVISIONAL"]
     fig.suptitle("\n".join(textwrap.fill(q, 120) for q in paras), fontsize=9)
@@ -212,7 +224,8 @@ def main(argv=None) -> int:
     else:
         SM = session_maps(st)
         cache.write_bytes(pickle.dumps(SM, protocol=pickle.HIGHEST_PROTOCOL))
-    res, T = test(SM)
+    n_perm = n_perm_arg()
+    res, T = test(SM, n_perm, st)
     T.to_csv(il.OUT / f"spout_pattern_stats{sfx}.csv", index=False)
     pd.set_option("display.width", 220)
     sim = T[T.kind == "similarity"]
@@ -220,10 +233,11 @@ def main(argv=None) -> int:
     print(sim.assign(s=sim.apply(lambda r: f"{r.r:.2f} [{r.lo:.2f},{r.hi:.2f}]", axis=1))
           .pivot_table(index=["spout", "animal"], columns="epoch", values="s", aggfunc="first")
           .reindex(columns=EP[1:]).to_string())
-    print("\n== fraction of cortex significant (BH q 0.05), and also >= 3 animals same sign")
-    print(T[T.kind != "similarity"][["spout", "epoch", "kind", "n_animals", "frac_sig", "frac_sig_agree"]]
-          .round(3).to_string(index=False))
-    D = dict(res=res, T=T, st=st, grid=imaging_grid())
+    print(f"\n== fraction of cortex significant: FWER max-statistic ({n_perm} permutations; frac_sig_agree = also >= 3 "
+          "animals same sign) beside the OLD per-pixel bootstrap BH q 0.05 (frac_sig_fdr*)")
+    print(T[T.kind != "similarity"][["spout", "epoch", "kind", "n_animals", "frac_sig", "frac_sig_agree", "min_p_fwer",
+                                     "frac_sig_fdr", "frac_sig_fdr_agree"]].round(3).to_string(index=False))
+    D = dict(res=res, T=T, st=st, grid=imaging_grid(), method=method_text(n_perm))
     save_fd(fig_name(st), D)
     plot_all(D)
     return 0
