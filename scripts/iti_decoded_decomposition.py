@@ -116,7 +116,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
             if ep not in A.index.get_level_values(0):
                 continue
             q = A.loc[ep]
-            ax.errorbar(np.arange(6) + (EPS.index(ep) - 1.5) * 0.08, q.mean(), yerr=q.sem(), fmt="o-", color=col[ep],
+            ax.errorbar(np.arange(6) + (EPS.index(ep) - 1.5) * 0.08, q.mean(), yerr=q.sem(), fmt="o", color=col[ep],
                         ms=4, lw=1.3, capsize=2)
         # LANDING change per spout, dashed, same colours (Priya 10-28: does the decoded position shift at all?)
         land = [f"dLand_{p}" for p in POS]
@@ -124,12 +124,12 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
             L = g.groupby(["epoch", "animal"])[land].mean()
             for ep in EP:
                 if ep in L.index.get_level_values(0):
-                    ax.plot(np.arange(6) + (EPS.index(ep) - 1.5) * 0.08, L.loc[ep].mean(), "--", color=col[ep], lw=1.1,
-                            marker="x", ms=4, alpha=0.8)
+                    ax.plot(np.arange(6) + (EPS.index(ep) - 1.5) * 0.08, L.loc[ep].mean(), "x", color=col[ep], mew=1.6,
+                            ms=6, alpha=0.9)
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.set_xticks(range(6), [p.replace("_", "\n") for p in POS], fontsize=7.5)
         ax.set_ylabel("change vs pre (mm, + = contra)", fontsize=8)
-        ax.set_title(f"{SETS[st]}: DECODED (solid, +/- SEM) and LANDING (dashed x)\nchange per spout vs pre, mean of "
+        ax.set_title(f"{SETS[st]}: DECODED (dots +/- SEM) and LANDING (x)\nchange per spout vs pre, mean of "
                      "animals" + ("; ITI spout = previous trial's" if st == "iti" else ""), fontsize=8.5)
         for j, term in enumerate(TERMS):
             ax = axs[i, 1 + j]

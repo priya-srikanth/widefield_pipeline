@@ -156,7 +156,7 @@ iti_decoder_pattern_stats_lat,15.17,Per-pixel statistics for the lateral-positio
 iti_decoder_pattern_stats_sag,15.18,Per-pixel statistics for the sagittal pattern maps (Fig 15.11),supplementary
 cued_spout_pattern_stats,15.19,Per-pixel statistics for the per-spout maps (Fig 15.13): far contra changes most acutely (cued licks),supplementary
 iti_spout_pattern_stats_iti,15.20,"Per-spout maps for ITI licks, by the preceding trial's spout (supplementary)",supplementary
-cued_overcorrection_angle,13.9,Overcorrection check in lick angle (supplementary) (cued licks),supplementary
+cued_overcorrection_angle,13.10,Overcorrection check in lick angle (supplementary) (cued licks),supplementary
 iti_where_angle_reach,11.9,"Lick read-out in 3-D polar coordinates: angle, elevation, reach (supplementary)",supplementary
 iti_check_error_per_lick_iti_angle,12.10,"Per-lick decoding error in ANGLE, ITI licks (supplementary)",supplementary
 cued_check_error_per_lick_angle,12.11,"Per-lick decoding error and landing in ANGLE, cued licks (supplementary)",supplementary
@@ -229,8 +229,8 @@ fr_direction_maps_lick,22.6,"FaceRhythm direction vs directionless pixel maps, p
 lick_matched_place_readout,12.2 supp,"Cortex reads licks contralesional of where they land: ITI licks in every epoch, cued licks acutely and on the first lick",supplementary
 lick_matched_place_curves,12.2 supp,"Decoded position against landing place, before and after the stroke",supplementary
 lick_matched_place_perspout,13.6 supp,"Like-for-like read-out per spout (cued by target, ITI by the previous spout)",supplementary
-lick_decoded_decomposition,13.7,Per-spout decomposition of the decoded shift: ITI = uniform contralesional shift + compression; cued = compression,supporting
-cued_misdirected_licks,13.8,Misdirected far-right cued licks: read near where they land with a pull toward the target; the whole pattern looks like a right trial (secondary: error coding),supporting
+lick_decoded_decomposition,13.8,Per-spout decomposition of the decoded shift: ITI = uniform contralesional shift + compression; cued = compression,supporting
+cued_misdirected_licks,13.9,Misdirected far-right cued licks: read near where they land with a pull toward the target; the whole pattern looks like a right trial (secondary: error coding),supporting
 lick_cued_session_shape_days,15.14,"Map similarity to pre over days, every spout, cued licks",supplementary
 lick_iti_session_shape_days,15.15,"Map similarity to pre over days, every spout, ITI licks by previous spout",supplementary
 lick_cued_aim_deficit_compare,16.10,Aim deficit per session: first-lick weighted vs first-lick far contra vs all licks,supplementary
@@ -256,9 +256,10 @@ lick_matched_loclin_curves,12.2 supp,Local-linear like-for-like reference (suppl
 lick_matched_loclin_perspout,13.6 supp,Local-linear like-for-like reference (supplementary block),supplementary
 lick_refit_decoders,10.2b,Decoders refit per epoch and per session still decode lick position,supporting
 lick_sametarget_place,12.15,"Same target, same place: cued offset mostly target composition; ITI offset survives",supporting
-lick_covref_offset,12.16,"Same-place offset survives kinematic and FaceRhythm covariates",supplementary
-lick_matched_gauss_animal_change,12.17,"Like-for-like offset per animal",supplementary
-lick_session_pixel_lmm_time,15.21,"Per-pixel time model on per-session level maps",supplementary
-lick_session_pixel_lmm_behaviour,15.22,"Per-pixel behaviour model on per-session level maps",supplementary
-lick_nonlinear_decoder,11.14,"A non-linear read-out does not recover the post-stroke loss or remove the ITI offset",supplementary
-lick_behaviour_decoder,11.15,"Behaviour-only decoder: face predicts lick position as well as cortex pre-stroke; only the cortical ITI read-out is lost",supporting
+lick_covref_offset,12.16,Same-place offset survives kinematic and FaceRhythm covariates,supplementary
+lick_matched_gauss_animal_change,12.17,Like-for-like offset per animal,supplementary
+lick_session_pixel_lmm_time,15.21,Per-pixel time model on per-session level maps,supplementary
+lick_session_pixel_lmm_behaviour,15.22,Per-pixel behaviour model on per-session level maps,supplementary
+lick_nonlinear_decoder,11.14,A non-linear read-out does not recover the post-stroke loss or remove the ITI offset,supplementary
+lick_behaviour_decoder,11.15,Behaviour-only decoder: face predicts lick position as well as cortex pre-stroke; only the cortical ITI read-out is lost,supporting
+lick_position_per_spout,13.7,"Decoded and actual lick position per spout, per epoch",supporting
