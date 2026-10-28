@@ -32,6 +32,7 @@ import lick_cued_ramp as cr  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 PAIRS = ["ALM", "tjM1", "SSp-m", "SSp-n"]
+SIDES = ["side_ipsi", "side_mid", "side_contra"]       # close + far of one side (spout names end in _ipsi/_mid/_contra)
 SETS = {"cued": ("lick", cr.BASE_SPOUT, "time from first cued lick (s)", "first cued lick, by TARGET spout"),
         "cue": ("cue", cr.BASE_C, "time from cue (s)", "cue-aligned, by target spout"),
         "iti": ("iti", cr.BASE_SPOUT, "time from ITI bout-start lick (s)", "ITI bout start, by PREVIOUS trial's spout")}
@@ -51,9 +52,15 @@ def _session_curves(D: dict) -> pd.DataFrame:
             X = d[key]
             pos = d["iti_pos"] if key == "iti" else d["pos"]
             # "pooled" = every lick of the set, spouts not separated (Priya 10-28: "pooled across-spout ratio traces")
-            for p in [*lo.POS, "pooled"]:
-                P = X if p == "pooled" else X[pos == p]
-                if len(P) < (cr.MIN_N if p == "pooled" else cr.MIN_SPOUT):
+            # SIDE groups (Priya 10-28: "pool ipsi / mid / contra"): close + far of one side together
+            for p in [*lo.POS, *SIDES, "pooled"]:
+                if p == "pooled":
+                    P = X
+                elif p in SIDES:
+                    P = X[np.isin(pos, [q for q in lo.POS if q.endswith(p.split("_")[1])])]
+                else:
+                    P = X[pos == p]
+                if len(P) < (cr.MIN_SPOUT if p in lo.POS else cr.MIN_N):
                     continue
                 P = P - np.nanmean(P[:, (L >= base[0]) & (L <= base[1]), :], 1, keepdims=True)
                 m = np.nanmean(P, 0)
@@ -134,7 +141,8 @@ def compute() -> dict:
                       + g[g.epoch == "pre"].pivot_table(index="animal", columns="spout", values=v)
                       .reindex(columns=list(lo.POS)).round(2).to_string())
             Gall = g.dropna(subset=[v]).rename(columns={v: "y"})
-            G = Gall[Gall.spout != "pooled"]                  # per-spout rows: models and the spout mean "all"
+            G = Gall[Gall.spout.isin(lo.POS)]                 # per-spout rows: models and the spout mean "all"
+            GS = Gall[Gall.spout.isin(SIDES)]
             pre = G[G.epoch == "pre"]
             try:
                 lr, p_, k = _lr("y ~ C(spout)", "y ~ 1", pre)
@@ -143,9 +151,13 @@ def compute() -> dict:
                 models.append({"set": st, "pair": a, "window": v, "test": "spout x epoch", "lr": lr, "p": p_, "df": k})
                 lr, p_, k = _lr("y ~ C(spout) + C(epoch)", "y ~ C(spout)", G)
                 models.append({"set": st, "pair": a, "window": v, "test": "epoch (all spouts)", "lr": lr, "p": p_, "df": k})
+                lr, p_, k = _lr("y ~ C(spout)", "y ~ 1", GS[GS.epoch == "pre"])
+                models.append({"set": st, "pair": a, "window": v, "test": "pre: side effect", "lr": lr, "p": p_, "df": k})
+                lr, p_, k = _lr("y ~ C(spout) * C(epoch)", "y ~ C(spout) + C(epoch)", GS)
+                models.append({"set": st, "pair": a, "window": v, "test": "side x epoch", "lr": lr, "p": p_, "df": k})
             except Exception as ex:                     # a fit that does not converge is reported, not hidden
                 models.append({"set": st, "pair": a, "window": v, "test": f"FAILED {ex}", "lr": np.nan, "p": np.nan})
-            for p in [*lo.POS, "all", "pooled"]:
+            for p in [*lo.POS, "all", *SIDES, "pooled"]:
                 h = G if p == "all" else Gall[Gall.spout == p]
                 if p == "all":   # one value per session: mean over its spouts
                     h = h.groupby(["label", "animal", "epoch"]).y.mean().reset_index()
@@ -261,6 +273,88 @@ def plot(F: dict) -> None:
         plt.close(fig)
 
 
+SIDE_LAB = {"side_ipsi": "ipsi spouts\n(close + far)", "side_mid": "mid spouts\n(close + far)",
+            "side_contra": "contra spouts\n(close + far)"}
+
+
+def plot_sides(F: dict) -> None:
+    """Side groups (close + far of one side; Priya 10-28): traces per set (rows = pairs, columns = sides) and the AUC
+    ratio per set x pair with x = side."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    col = {"pre": "k", **EPOCH_LINE}
+    T, M = F["T"], F["M"]
+    out = il.OUT_W / "figures"
+    leg = [Line2D([], [], color=col[e], lw=2.2, label=e) for e in il.EP4]
+    for st, (_k, base, xl, what) in SETS.items():
+        fig, axs = plt.subplots(len(PAIRS), len(SIDES), figsize=(14, 12), sharex=True, sharey="row", squeeze=False)
+        for r, a in enumerate(PAIRS):
+            for c, sd in enumerate(SIDES):
+                ax = axs[r, c]
+                for ep in il.EP4:
+                    if (st, a, sd, ep) in F["tr"]:
+                        _plot_trace(ax, F["tr"][(st, a, sd, ep)], col[ep])
+                ax.axhline(1, color="0.5", lw=0.8, ls="--")
+                ax.axvline(0, color="0.6", lw=0.6)
+                ax.set_xlim(-0.5, 2)
+                ax.set_yscale("log", base=2)
+                for sp in ("top", "right"):
+                    ax.spines[sp].set_visible(False)
+                if r == 0:
+                    ax.set_title(SIDE_LAB[sd].replace("\n", " "), fontsize=10)
+                if c == 0:
+                    ax.set_ylabel(f"{a}: contra / ipsi\n(log; 1 = equal)", fontsize=9)
+                if r == len(PAIRS) - 1:
+                    ax.set_xlabel(xl, fontsize=8.5)
+        fig.legend(handles=leg, loc="lower center", ncol=4, fontsize=9.5, frameon=False)
+        fig.suptitle(f"NEURAL: CONTRALESIONAL / IPSILESIONAL dF/F ratio over time, {what}, spouts POOLED BY SIDE (close + far; "
+                     f"baseline {base[0]:g}..{base[1]:g} s).\nPer animal (mean contra curve) / (mean ipsi curve), shown where the "
+                     f"ipsi curve is >= {RATIO_MIN:.0%} of its peak; mean over the animals defined (solid = all, dotted = 2-3), "
+                     "band = SEM over animals. Descriptive. PROVISIONAL", fontsize=9.5)
+        fig.tight_layout(rect=(0, 0.04, 1, 0.93))
+        fig.savefig(out / f"lick_lateral_ratio_side_traces_{st}.png", dpi=100)
+        plt.close(fig)
+    for w0, w1 in WINDOWS:
+        v = f"logr_{w0:g}-{w1:g}"
+        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(18, 11.5), sharey="row", squeeze=False)
+        for r, st in enumerate(SETS):
+            for c, a in enumerate(PAIRS):
+                ax = axs[r, c]
+                t = T[(T.set == st) & (T.pair == a) & (T.window == v)]
+                for k, ep in enumerate(il.EP4):
+                    q = t[t.epoch == ep].set_index("spout").reindex(SIDES)
+                    x = np.arange(len(SIDES)) + (k - 1.5) * 0.15
+                    ax.errorbar(x, q.level, yerr=q.level_se, fmt="o", color=col[ep], ms=5, capsize=1.5, lw=1)
+                    if ep != "pre":
+                        for xx, (_s, row) in zip(x, q.iterrows()):
+                            if row.get("sig") is True:
+                                ax.text(xx, row.level + (row.level_se if np.isfinite(row.level_se) else 0), "*",
+                                        color=col[ep], ha="center", va="bottom", fontsize=12, fontweight="bold")
+                ax.axhline(0, color="0.6", lw=0.7, ls="--")
+                ax.set_xticks(range(len(SIDES)), [SIDE_LAB[s] for s in SIDES], fontsize=8)
+                for sp in ("top", "right"):
+                    ax.spines[sp].set_visible(False)
+                m = M[(M.set == st) & (M.pair == a) & (M.window == v)].set_index("test")
+                ps, pi = m.p.get("pre: side effect", np.nan), m.p.get("side x epoch", np.nan)
+                ax.set_title(f"{a}, {st}\npre side effect p = {ps:.2g}; side x epoch p = {pi:.2g}", fontsize=8.5)
+                if c == 0:
+                    ax.set_ylabel(f"{SETS[st][3]}\nlog2(contra / ipsi AUC), {w0:g}..{w1:g} s", fontsize=8)
+        fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4],
+                   loc="lower center", ncol=4, fontsize=9.5, frameon=False)
+        fig.suptitle(f"NEURAL: contralesional / ipsilesional response ratio, spouts POOLED BY SIDE (close + far): log2 of the "
+                     f"per-session AUC ratio {w0:g}..{w1:g} s, mean +- SEM over animals; * = change vs pre, 95% paired nested "
+                     "bootstrap CI excludes 0.\nTitles: mixed models with sessions as observations (anti-conservative at "
+                     "n = 4 animals): side effect in PRE sessions; side x epoch interaction. PROVISIONAL", fontsize=9.5)
+        fig.tight_layout(rect=(0, 0.04, 1, 0.92))
+        fig.savefig(out / ("lick_lateral_ratio_side_auc.png" if (w0, w1) == WINDOWS[0]
+                           else f"lick_lateral_ratio_side_auc_{w0:g}-{w1:g}.png"), dpi=100)
+        plt.close(fig)
+
+
 def plot_pooled(F: dict) -> None:
     """Pooled across spouts (every lick of the set): contra / ipsi traces per set x pair, and the AUC ratio per pair."""
     import matplotlib
@@ -337,11 +431,13 @@ def main() -> int:
     if plot_only():
         plot(load_fd("lick_lateral_ratio"))
         plot_pooled(load_fd("lick_lateral_ratio"))
+        plot_sides(load_fd("lick_lateral_ratio"))
         return 0
     F = compute()
     save_fd("lick_lateral_ratio", F)
     plot(F)
     plot_pooled(F)
+    plot_sides(F)
     return 0
 
 

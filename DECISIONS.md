@@ -22221,3 +22221,6 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   `scripts/lick_balance_reference.py`): ~35-50% of the ITI offset explained, one mean-balance number nearly as good as
   four, SSp-n most, ALM ~none -- partly circular (decoder reads the same features); direction at fixed landing looks
   opposite to 14.9's target-based ratio, not yet reconciled.
+- Contra/ipsi ratio pooled BY SIDE (close + far; Priya "pool ipsi / mid / contra"; all-spouts pooling demoted -- it
+  averages opposite-side ratios): the post-stroke shift toward the contralesional hemisphere is a contra-side effect
+  (cued tjM1 +0.24 / +0.22 / +0.22, 4/4 acute; SSp-n +0.44 / +0.40 / +0.45); ipsi-side ~unchanged (except ALM).
