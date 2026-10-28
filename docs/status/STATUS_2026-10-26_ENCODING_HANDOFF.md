@@ -53,6 +53,16 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
   "tracebacks in:" line): track A = iti_licks main/key/controls/binned, check_figures, area_maps, hemo (+summarise), f0;
   track B = split decoder (all + gap2 / far1 / gap2far1, gauss read-out), plain Allen (lick_order, gauss, decomposition,
   where_decoder); then offset maps (areas, split), mixed models, filter compare, lmm figures.
+- **WAVE 2 queued:** scratchpad run_v8wave2.sh (waits for V8REDO_DONE; logs rr8/w2_*.log; ends V8WAVE2_DONE). Helper
+  audit (10-27): iti_zscore_check was NOT in wave 1 -> every `_z` page figure was still on v1 numbers (where_decoder_z /
+  where_preds_z dated 10-26); wave 2 runs zscore_check -> where_decoder --z -> scatter / per_spout / rmse / spread /
+  overcorrection / recovery_measure / recovery_link (angle_z, lateral_z, hit), june_ref (june_ref/ held v1 only) -> drift
+  --june, basis --summarise, decoder_contrib, farcontra, 3axis, drift, angle_reach (+extension_dist), first_lick (+misdirected,
+  aim_deficit), contact_check (+recovery_marker), gain_prediction, ROI-mask figures; then check_figures / mixed models / lmm
+  AGAIN (wave 1 ran them on stale inputs). Deleted 2 stale caches first (first_lick_preds, where_angle_reach_preds; copies in
+  roi_v2_backup). NOT affected (helper): decoder / spout / session pattern maps + level maps (lick times / SVD / stat-mask
+  only). Known: iti_nmatch_check hard-codes sessions_v3 (not on page; left); ~20 scripts list labels from v1 `sessions/`
+  (same 107 files; harmless today).
 - **Second wave (audit by a helper):** every other script whose outputs depend on the v8 session files / SDs / area
   features (Haufe pattern maps, spout patterns, session level maps, ...) -- run after the first wave, then compare v2 vs v8,
   re-tier + publish page, tell e3 / 5b.
