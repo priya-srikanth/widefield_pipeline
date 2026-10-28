@@ -39,6 +39,27 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-10 (10-27 ~22:40) -- READ FIRST
+- **Goal page v140 PUBLISHED** (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d): ROI v8 + split basis everywhere,
+  90 PNGs refreshed, sections 10-16 captions re-derived from v8 CSVs (page helper + 8 section helpers; pre-edit copy
+  scratchpad pg8/index_before_v8.html; changed-PNG list pg8/changed_pngs.txt); 12.1/12.2/13.6 = Gaussian like-for-like
+  (place + local-linear in collapsible supplements); NEW 11.10 lick_matched_angle_reach; NEW 10.2b lick_refit_decoders;
+  section 15 re-tier (15.1 / 15.2 = per-session LEVEL maps Key; change maps 15.8-15.10 Supporting; epoch-decoder +
+  held-out maps Supplementary; renumbered); 16.12 recomputed; "What changed 10-27" note at the top of section 10.
+  `_goal_page/` is git-EXCLUDED (.git/info/exclude) -- not committed, by design.
+- **Results that CHANGED direction / significance vs v139 (tell Priya; update FINDINGS):** ITI sagittal r now lost
+  subacute / chronic (-13 / -11 %, 4/4; n.s. in plain); cued lateral r chronic n.s. (-8 %, 3/4); "read further OUT
+  acutely" GONE (cued down +0.20 -> +0.03 n.s.; cued read CLOSER subacute -0.25 / chronic -0.13, 4/4); cued reach
+  like-for-like acute n.s., -0.27 subacute / -0.14 chronic (4/4); cued LATER licks now contralesional acutely (+0.14,
+  4/4); 16.12 response at pre aim n.s. everywhere; 11.5 lag bars hold only for split. Full list in the page helper report
+  (this conversation) -- not yet in FINDINGS.md.
+- **Open to Priya:** 11.5 LocaNMF column is the UNMASKED joint LocaNMF (DECISIONS names masked as robustness) -- add masked?
+  SVD-basis like-for-like is weaker (ITI only acute significant). FINDINGS 4d0 / 4d0b ("read ahead of the failing
+  movement") need the like-for-like numbers (cued acute +0.16 4/4; far contra +0.22 4/4; pull-based 60 % / ratio
+  details obsolete).
+- **Next:** FINDINGS.md update; tell e3 / 5b (v140); ALM / tjM1 rows in encoder / FR area figures; delete v1 sessions/ +
+  v2 backup + superseded_split (ask Priya).
+
 ### 00-COMPACT-9 (10-27 ~21:30) -- READ FIRST, then 8
 - **Merged** the split-basis + like-for-like branch (147575c6; helper commits 4785cff3, 0918aab1). Switches:
   WFIELD_AREA_BASIS = split (default) | plain (iti_licks.AREA_BASIS; helpers il.area_features / area_sd / split_table /
