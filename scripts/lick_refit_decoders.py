@@ -50,7 +50,8 @@ ALPHAS = np.logspace(-1, 5, 13)
 
 
 def load_z() -> dict:
-    """Session -> {epoch, animal, iti / trial: (X z-scored, Y)}; Y columns lateral, sagittal, angle, reach."""
+    """Session -> {epoch, animal, iti / trial: (X z-scored, Y), iti_idx / trial_idx}; Y columns lateral, sagittal,
+    angle, reach; *_idx = the kept licks' rows in the session file (licks with every coordinate finite)."""
     names, SDb = wd.area_meta()
     D = wd.load("areas")
     out = {}
@@ -62,6 +63,7 @@ def load_z() -> dict:
             ok = np.isfinite(C).all(1)
             Y = np.column_stack([C[ok, 0], C[ok, 3], np.degrees(np.arctan2(C[ok, 0], C[ok, 3])), C[ok, 2]])
             rec[st] = (X[ok] / sd[None, :], Y)
+            rec[f"{st}_idx"] = np.flatnonzero(ok)       # row of each kept lick in the session file (iti_t / tr_t order)
         out[x] = rec
     return out
 
