@@ -22214,3 +22214,10 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   licks lose much of their ipsilesional-hemisphere dominance (tjM1 log2 +0.54 / +0.32 / +0.32, 4/4 every epoch).
   Caveat: executed direction (acute far-contra licks land ipsilesional); landing-matched version is the next check.
   Mixed-model p-values use sessions as observations (anti-conservative at n=4).
+- (evening) Per-spout window figures (14.7); vigour regression redone for 0-1.0 / 0.5-1.0 s (14.8; every window in pre
+  0-0.5 s AUC units): the acute far-contra early decay survives vigour + landing (tjM1 0.5-1.0 s -0.60*, 4/4 animals).
+  Contra/ipsi ratio pooled over spouts (14.9): post-stroke balance moves toward the contralesional hemisphere in every
+  set. Traces now average the animals defined at each lag (dotted where < 4). Balance-vs-offset regression (12.17,
+  `scripts/lick_balance_reference.py`): ~35-50% of the ITI offset explained, one mean-balance number nearly as good as
+  four, SSp-n most, ALM ~none -- partly circular (decoder reads the same features); direction at fixed landing looks
+  opposite to 14.9's target-based ratio, not yet reconciled.

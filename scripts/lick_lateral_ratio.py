@@ -7,8 +7,8 @@ s), the same trials cue-aligned (baseline -1.0..-0.5 s before the cue), ITI bout
 (baseline -1.0..-0.5 s). Pairs: ALM, tjM1, SSp-m, SSp-n, each X_right (contralesional) / X_left (ipsilesional), raw dF/F
 (the same units in both hemispheres).
   TRACES: per animal x epoch x spout, the session-mean contra curve / the session-mean ipsi curve, shown only where the
-          ipsi curve is >= RATIO_MIN of its 0..1.5 s peak (near-zero denominators blow up); mean over animals where every
-          animal is defined. Descriptive.
+          ipsi curve is >= RATIO_MIN of its 0..1.5 s peak (near-zero denominators blow up); mean over the animals defined at
+          each lag (>= MIN_TRACE_ANIMALS; dotted where fewer than all). Descriptive.
   AUC RATIO: per session x spout (>= MIN_SPOUT licks), log2(contra AUC / ipsi AUC) over 0..0.5 s (and 0..1.0 s); NaN if
           either AUC <= 0 (counted). 0 = equal, +1 = contra twice ipsi.
   (1) spout effect: pre sessions, mixed model logr ~ C(spout) + (1|animal) vs logr ~ 1 + (1|animal), likelihood ratio
@@ -37,6 +37,7 @@ SETS = {"cued": ("lick", cr.BASE_SPOUT, "time from first cued lick (s)", "first 
         "iti": ("iti", cr.BASE_SPOUT, "time from ITI bout-start lick (s)", "ITI bout start, by PREVIOUS trial's spout")}
 WINDOWS = ((0.0, 0.5), (0.0, 1.0))
 RATIO_MIN = 0.2
+MIN_TRACE_ANIMALS = 2    # traces: mean over the animals defined at a lag (dotted where fewer than all)
 EP = ["acute", "subacute", "chronic"]
 L = cr.LAGS_W
 
@@ -49,9 +50,10 @@ def _session_curves(D: dict) -> pd.DataFrame:
         for st, (key, base, _xl, _t) in SETS.items():
             X = d[key]
             pos = d["iti_pos"] if key == "iti" else d["pos"]
-            for p in lo.POS:
-                P = X[pos == p]
-                if len(P) < cr.MIN_SPOUT:
+            # "pooled" = every lick of the set, spouts not separated (Priya 10-28: "pooled across-spout ratio traces")
+            for p in [*lo.POS, "pooled"]:
+                P = X if p == "pooled" else X[pos == p]
+                if len(P) < (cr.MIN_N if p == "pooled" else cr.MIN_SPOUT):
                     continue
                 P = P - np.nanmean(P[:, (L >= base[0]) & (L <= base[1]), :], 1, keepdims=True)
                 m = np.nanmean(P, 0)
@@ -71,12 +73,27 @@ def _traces(C: pd.DataFrame) -> dict:
             i = np.nanmean(np.stack(h.ipsi.to_numpy()), 0)
             pk = np.nanmax(i[(L >= 0) & (L <= 1.5)])
             R.append(np.where(i >= RATIO_MIN * pk, c / i, np.nan))
-        R = np.asarray(R)
-        n = np.isfinite(R).sum(0)
-        mu = np.where(n == len(R), np.nanmean(R, 0), np.nan)
-        se = np.where(n == len(R), np.nanstd(R, 0, ddof=1) / np.sqrt(np.maximum(n, 1)), np.nan) if len(R) > 1 else mu * np.nan
-        out[(st, a, p, ep)] = (mu, se, len(R))
+        out[(st, a, p, ep)] = np.asarray(R)            # animals x lags (NaN where that animal's ipsi curve is masked)
     return out
+
+
+def _trace_stats(R: np.ndarray, min_animals: int = MIN_TRACE_ANIMALS):
+    """Mean over the animals defined at each lag (>= min_animals), SEM, and the count (Priya 10-28: "don't have to have
+    every animal defined; dotted line where < 4")."""
+    n = np.isfinite(R).sum(0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        mu = np.where(n >= min_animals, np.nanmean(R, 0), np.nan)
+        se = np.where(n >= 2, np.nanstd(R, 0, ddof=1) / np.sqrt(np.maximum(n, 1)), np.nan)
+    return mu, se, n
+
+
+def _plot_trace(ax, R: np.ndarray, color) -> None:
+    """Solid where every animal of the group is defined, dotted where fewer (but >= MIN_TRACE_ANIMALS)."""
+    mu, se, n = _trace_stats(R)
+    full = n == len(R)
+    ax.plot(L, np.where(full, mu, np.nan), color=color, lw=1.9)
+    ax.plot(L, np.where(~full, mu, np.nan), color=color, lw=1.4, ls=":")
+    ax.fill_between(L, mu - se, mu + se, color=color, alpha=0.12, lw=0)
 
 
 def _lr(full: str, red: str, df: pd.DataFrame) -> tuple[float, float, int]:
@@ -116,7 +133,8 @@ def compute() -> dict:
                 print(f"-- per animal (rule 8) PRE log2(contra/ipsi) {st} {a} {v}\n"
                       + g[g.epoch == "pre"].pivot_table(index="animal", columns="spout", values=v)
                       .reindex(columns=list(lo.POS)).round(2).to_string())
-            G = g.dropna(subset=[v]).rename(columns={v: "y"})
+            Gall = g.dropna(subset=[v]).rename(columns={v: "y"})
+            G = Gall[Gall.spout != "pooled"]                  # per-spout rows: models and the spout mean "all"
             pre = G[G.epoch == "pre"]
             try:
                 lr, p_, k = _lr("y ~ C(spout)", "y ~ 1", pre)
@@ -127,8 +145,8 @@ def compute() -> dict:
                 models.append({"set": st, "pair": a, "window": v, "test": "epoch (all spouts)", "lr": lr, "p": p_, "df": k})
             except Exception as ex:                     # a fit that does not converge is reported, not hidden
                 models.append({"set": st, "pair": a, "window": v, "test": f"FAILED {ex}", "lr": np.nan, "p": np.nan})
-            for p in [*lo.POS, "all"]:
-                h = G if p == "all" else G[G.spout == p]
+            for p in [*lo.POS, "all", "pooled"]:
+                h = G if p == "all" else Gall[Gall.spout == p]
                 if p == "all":   # one value per session: mean over its spouts
                     h = h.groupby(["label", "animal", "epoch"]).y.mean().reset_index()
                 ref = {an: t.y.to_numpy() for an, t in h[h.epoch == "pre"].groupby("animal")}
@@ -179,9 +197,7 @@ def plot(F: dict) -> None:
                 for ep in il.EP4:
                     if (st, a, p, ep) not in F["tr"]:
                         continue
-                    mu, se, n = F["tr"][(st, a, p, ep)]
-                    ax.plot(L, mu, color=col[ep], lw=1.8)
-                    ax.fill_between(L, mu - se, mu + se, color=col[ep], alpha=0.12, lw=0)
+                    _plot_trace(ax, F["tr"][(st, a, p, ep)], col[ep])
                 ax.axhline(1, color="0.5", lw=0.8, ls="--")
                 ax.axvline(0, color="0.6", lw=0.6)
                 ax.set_xlim(-0.5, 2)
@@ -198,59 +214,134 @@ def plot(F: dict) -> None:
                    fontsize=9.5, frameon=False)
         fig.suptitle(f"NEURAL: CONTRALESIONAL / IPSILESIONAL dF/F ratio over time, {what}, per spout (baseline "
                      f"{base[0]:g}..{base[1]:g} s); per animal (mean contra curve) / (mean ipsi curve), shown only where the "
-                     f"ipsi curve is >= {RATIO_MIN:.0%} of its 0..1.5 s peak;\nline = mean over animals where every animal is "
-                     "defined, band = SEM over animals. Descriptive; tests on the AUC ratio in lick_lateral_ratio_auc.png. "
+                     f"ipsi curve is >= {RATIO_MIN:.0%} of its 0..1.5 s peak;\nline = mean over the animals defined at each lag "
+                     "(solid = all animals, dotted = 2-3 animals), band = SEM over animals. Descriptive; tests on the AUC ratio in lick_lateral_ratio_auc.png. "
                      "PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
         fig.savefig(out / f"lick_lateral_ratio_traces_{st}.png", dpi=95)
         plt.close(fig)
     # AUC summary: rows = sets, columns = pairs; x = spouts, one marker per epoch
-    v = "logr_0-0.5"
-    fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(21, 12.5), squeeze=False)
-    for r, st in enumerate(SETS):
+    for w0, w1 in WINDOWS:
+        v, wl = f"logr_{w0:g}-{w1:g}", f"{w0:g}..{w1:g} s"
+        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(21, 12.5), squeeze=False)
+        for r, st in enumerate(SETS):
+            for c, a in enumerate(PAIRS):
+                ax = axs[r, c]
+                t = T[(T.set == st) & (T.pair == a) & (T.window == v)]
+                xs = [*pos, "all"]
+                for k, ep in enumerate(il.EP4):
+                    q = t[t.epoch == ep].set_index("spout").reindex(xs)
+                    x = np.arange(len(xs)) + (k - 1.5) * 0.17
+                    ax.errorbar(x, q.level, yerr=q.level_se, fmt="o", color=col[ep], ms=4.5, capsize=1.5, lw=1)
+                    if ep != "pre":
+                        for xx, (_s, row) in zip(x, q.iterrows()):
+                            if row.get("sig") is True:
+                                ax.text(xx, row.level + (row.level_se if np.isfinite(row.level_se) else 0), "*",
+                                        color=col[ep], ha="center", va="bottom", fontsize=11, fontweight="bold")
+                ax.axhline(0, color="0.6", lw=0.7, ls="--")
+                ax.axvline(len(pos) - 0.5, color="0.85", lw=0.8)
+                ax.set_xticks(range(len(xs)), [s.replace("_", "\n") for s in xs], fontsize=7.5)
+                for sp in ("top", "right"):
+                    ax.spines[sp].set_visible(False)
+                m = M[(M.set == st) & (M.pair == a) & (M.window == v)].set_index("test")
+                pz = {k_: m.p.get(k_, np.nan) for k_ in ("pre: spout effect", "spout x epoch", "epoch (all spouts)")}
+                ax.set_title(f"{a}, {st}\npre spout effect p = {pz['pre: spout effect']:.2g}; spout x epoch p = "
+                             f"{pz['spout x epoch']:.2g}; epoch p = {pz['epoch (all spouts)']:.2g}", fontsize=8.5)
+                if c == 0:
+                    ax.set_ylabel(f"{SETS[st][3]}\nlog2(contra AUC / ipsi AUC), {wl}\n(0 = equal; +1 = contra 2x)", fontsize=8)
+        fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4], loc="lower center",
+                   ncol=4, fontsize=9.5, frameon=False)
+        fig.suptitle(f"NEURAL: contralesional / ipsilesional response ratio per spout and epoch: log2 of the AUC ratio {wl} "
+                     "(per session, spouts with >= 5 licks), mean +- SEM over animals; 'all' = each session's mean over spouts.\n"
+                     "* = change vs pre at that spout, 95% paired nested bootstrap CI excludes 0. Titles: mixed models (random "
+                     "intercept per animal, ML, likelihood ratio): (1) spout effect in PRE sessions; (2) spout x epoch "
+                     "interaction; epoch main effect. PROVISIONAL", fontsize=9.5)
+        fig.tight_layout(rect=(0, 0.04, 1, 0.93))
+        fig.savefig(out / ("lick_lateral_ratio_auc.png" if (w0, w1) == WINDOWS[0] else f"lick_lateral_ratio_auc_{w0:g}-{w1:g}.png"), dpi=100)
+        plt.close(fig)
+
+
+def plot_pooled(F: dict) -> None:
+    """Pooled across spouts (every lick of the set): contra / ipsi traces per set x pair, and the AUC ratio per pair."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    col = {"pre": "k", **EPOCH_LINE}
+    T = F["T"]
+    out = il.OUT_W / "figures"
+    fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(19, 11), sharey=True, squeeze=False)
+    for r, (st, (_k, base, xl, what)) in enumerate(SETS.items()):
         for c, a in enumerate(PAIRS):
             ax = axs[r, c]
-            t = T[(T.set == st) & (T.pair == a) & (T.window == v)]
-            xs = [*pos, "all"]
+            for ep in il.EP4:
+                if (st, a, "pooled", ep) in F["tr"]:
+                    _plot_trace(ax, F["tr"][(st, a, "pooled", ep)], col[ep])
+            ax.axhline(1, color="0.5", lw=0.8, ls="--")
+            ax.axvline(0, color="0.6", lw=0.6)
+            ax.set_xlim(-0.5, 2)
+            ax.set_yscale("log", base=2)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            if r == 0:
+                ax.set_title(f"{a}: contralesional / ipsilesional", fontsize=10)
+            if c == 0:
+                ax.set_ylabel(f"{what.split(',')[0]}\n(baseline {base[0]:g}..{base[1]:g} s)\ncontra / ipsi (log; 1 = equal)",
+                              fontsize=8.5)
+            ax.set_xlabel(xl, fontsize=8)
+    fig.legend(handles=[Line2D([], [], color=col[e], lw=2.2, label=e) for e in il.EP4], loc="lower center", ncol=4,
+               fontsize=9.5, frameon=False)
+    fig.suptitle("NEURAL: CONTRALESIONAL / IPSILESIONAL dF/F ratio over time, POOLED over spouts (every lick of the set): rows "
+                 "= first cued lick, cue, ITI bout start (no lick for >= 2 s).\nPer animal (mean contra curve) / (mean ipsi "
+                 f"curve), shown only where the ipsi curve is >= {RATIO_MIN:.0%} of its 0..1.5 s peak; mean over the animals defined (solid = all, dotted = 2-3), band "
+                 "= SEM over animals. Descriptive. PROVISIONAL", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
+    fig.savefig(out / "lick_lateral_ratio_pooled_traces.png", dpi=100)
+    plt.close(fig)
+    fig, axs = plt.subplots(len(WINDOWS), len(SETS), figsize=(17, 9), squeeze=False)
+    for r, (w0, w1) in enumerate(WINDOWS):
+        v = f"logr_{w0:g}-{w1:g}"
+        for c, st in enumerate(SETS):
+            ax = axs[r, c]
+            t = T[(T.set == st) & (T.window == v) & (T.spout == "pooled")]
             for k, ep in enumerate(il.EP4):
-                q = t[t.epoch == ep].set_index("spout").reindex(xs)
-                x = np.arange(len(xs)) + (k - 1.5) * 0.17
-                ax.errorbar(x, q.level, yerr=q.level_se, fmt="o", color=col[ep], ms=4.5, capsize=1.5, lw=1)
+                q = t[t.epoch == ep].set_index("pair").reindex(PAIRS)
+                x = np.arange(len(PAIRS)) + (k - 1.5) * 0.17
+                ax.errorbar(x, q.level, yerr=q.level_se, fmt="o", color=col[ep], ms=5, capsize=1.5, lw=1)
                 if ep != "pre":
                     for xx, (_s, row) in zip(x, q.iterrows()):
                         if row.get("sig") is True:
                             ax.text(xx, row.level + (row.level_se if np.isfinite(row.level_se) else 0), "*",
-                                    color=col[ep], ha="center", va="bottom", fontsize=11, fontweight="bold")
+                                    color=col[ep], ha="center", va="bottom", fontsize=12, fontweight="bold")
             ax.axhline(0, color="0.6", lw=0.7, ls="--")
-            ax.axvline(len(pos) - 0.5, color="0.85", lw=0.8)
-            ax.set_xticks(range(len(xs)), [s.replace("_", "\n") for s in xs], fontsize=7.5)
+            ax.set_xticks(range(len(PAIRS)), PAIRS)
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
-            m = M[(M.set == st) & (M.pair == a) & (M.window == v)].set_index("test")
-            pz = {k_: m.p.get(k_, np.nan) for k_ in ("pre: spout effect", "spout x epoch", "epoch (all spouts)")}
-            ax.set_title(f"{a}, {st}\npre spout effect p = {pz['pre: spout effect']:.2g}; spout x epoch p = "
-                         f"{pz['spout x epoch']:.2g}; epoch p = {pz['epoch (all spouts)']:.2g}", fontsize=8.5)
+            if r == 0:
+                ax.set_title(SETS[st][3].split(",")[0], fontsize=10)
             if c == 0:
-                ax.set_ylabel(f"{SETS[st][3]}\nlog2(contra AUC / ipsi AUC), 0..0.5 s\n(0 = equal; +1 = contra 2x)", fontsize=8)
+                ax.set_ylabel(f"log2(contra AUC / ipsi AUC), {w0:g}..{w1:g} s\n(0 = equal; +1 = contra 2x)", fontsize=8.5)
     fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4], loc="lower center",
                ncol=4, fontsize=9.5, frameon=False)
-    fig.suptitle("NEURAL: contralesional / ipsilesional response ratio per spout and epoch: log2 of the AUC ratio 0..0.5 s "
-                 "(per session, spouts with >= 5 licks), mean +- SEM over animals; 'all' = each session's mean over spouts.\n"
-                 "* = change vs pre at that spout, 95% paired nested bootstrap CI excludes 0. Titles: mixed models (random "
-                 "intercept per animal, ML, likelihood ratio): (1) spout effect in PRE sessions; (2) spout x epoch "
-                 "interaction; epoch main effect. PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-    fig.savefig(out / "lick_lateral_ratio_auc.png", dpi=100)
+    fig.suptitle("NEURAL: contralesional / ipsilesional response ratio POOLED over spouts: log2 of the per-session AUC ratio, "
+                 "mean +- SEM over animals; * = change vs pre, 95% paired nested bootstrap CI (animals > sessions) excludes 0."
+                 "\nColumns: first cued lick, cue, ITI bout start (>= 2 s without licking). PROVISIONAL", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.92))
+    fig.savefig(out / "lick_lateral_ratio_pooled_auc.png", dpi=100)
     plt.close(fig)
 
 
 def main() -> int:
     if plot_only():
         plot(load_fd("lick_lateral_ratio"))
+        plot_pooled(load_fd("lick_lateral_ratio"))
         return 0
     F = compute()
     save_fd("lick_lateral_ratio", F)
     plot(F)
+    plot_pooled(F)
     return 0
 
 

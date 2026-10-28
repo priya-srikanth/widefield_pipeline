@@ -39,6 +39,9 @@ ROIS = cr.SPOUT_ROIS
 VIG = ["reach", "speed", "out_ap", "down_dv", "dur_ms", "retract"]
 MODELS = {"none": [], "vigour": VIG, "vigour+landing": [*VIG, "side_ml"]}
 MIN_PRE = 30
+# response windows (Priya 10-28: longer AUC; "did you re-do the vigor regression"): 0..0.5, 0..1.0, late 0.5..1.0 s
+VWIN = ((0.0, 0.5), (0.0, 1.0), (0.5, 1.0))
+RW = [(r, f"{w0:g}-{w1:g}") for w0, w1 in VWIN for r in ROIS]
 EP = ["acute", "subacute", "chronic"]
 
 
@@ -99,10 +102,10 @@ def _kin(label: str, t: np.ndarray, exact: bool) -> pd.DataFrame:
     return out
 
 
-def _auc(X: np.ndarray) -> np.ndarray:
-    """(licks, lags, rois) -> per-lick AUC 0..0.5 s after baseline (BASE) subtraction."""
+def _auc(X: np.ndarray, w0: float, w1: float) -> np.ndarray:
+    """(licks, lags, rois) -> per-lick AUC w0..w1 s after baseline (BASE) subtraction."""
     X = X - np.nanmean(X[:, (cr.LAGS_W >= BASE[0]) & (cr.LAGS_W <= BASE[1]), :], 1, keepdims=True)
-    w = (cr.LAGS_W >= 0.0) & (cr.LAGS_W <= 0.5)
+    w = (cr.LAGS_W >= w0) & (cr.LAGS_W <= w1)
     return np.trapezoid(X[:, w, :], cr.LAGS_W[w], axis=1)
 
 
@@ -124,10 +127,11 @@ def lick_table() -> pd.DataFrame:
                 raise ValueError(f"{x} {st}: {len(X)} traces vs {len(t)} lick times")
             if not len(X):
                 continue
-            A = _auc(X[:, :, ri])
             L = pd.DataFrame({"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "set": st, "pos": pos})
-            for k, r in enumerate(ROIS):
-                L[f"auc_{r}"] = A[:, k]
+            for w0, w1 in VWIN:
+                A = _auc(X[:, :, ri], w0, w1)
+                for k, r in enumerate(ROIS):
+                    L[f"auc_{r}@{w0:g}-{w1:g}"] = A[:, k]
             kin = _kin(x, t, exact)
             rows.append(pd.concat([L, kin], axis=1))
     return pd.concat(rows, ignore_index=True)
@@ -145,17 +149,19 @@ def compute() -> dict:
     for _st, G in L.groupby("set"):
         G = G.copy()
         # scale: the animal's mean PRE AUC over all spouts (14.7's scale), and z-scores vs the animal's pre licks
-        for r in ROIS:
-            G[f"y_{r}"] = G[f"auc_{r}"] / G.animal.map(G[G.epoch == "pre"].groupby("animal")[f"auc_{r}"].mean())
+        # every window in units of the animal's pre 0..0.5 s AUC (a later window's own pre AUC can be ~0 for ITI licks)
+        for r, w in RW:
+            G[f"y_{r}@{w}"] = G[f"auc_{r}@{w}"] / G.animal.map(G[G.epoch == "pre"].groupby("animal")[f"auc_{r}@0-0.5"].mean())
         for c in [*VIG, "side_ml"]:
             mu = G[G.epoch == "pre"].groupby("animal")[c].mean()
             sd = G[G.epoch == "pre"].groupby("animal")[c].std()
             G[f"z_{c}"] = (G[c] - G.animal.map(mu)) / G.animal.map(sd)
         full = G[[f"z_{c}" for c in MODELS["vigour+landing"]]].notna().all(1)
         G = G[full].reset_index(drop=True)                  # one common lick set for all three models
-        for r in ROIS:
+        for r, w in RW:
             for m, cols in MODELS.items():
-                G[f"{m}|{r}"] = G[f"y_{r}"] if not cols else il._pre_adjust(G, f"y_{r}", [f"z_{c}" for c in cols], MIN_PRE)
+                y = f"y_{r}@{w}"
+                G[f"{m}|{r}@{w}"] = G[y] if not cols else il._pre_adjust(G, y, [f"z_{c}" for c in cols], MIN_PRE)
         out.append(G)
     L = pd.concat(out, ignore_index=True)
     L.to_csv(il.OUT_W / "vigor_perspout_licks.csv", index=False)
@@ -167,9 +173,9 @@ def compute() -> dict:
         n = G.groupby("label").size()
         S = G[G.label.isin(n[n >= cr.MIN_SPOUT].index)].groupby(["label", "animal", "epoch"]).mean(numeric_only=True)\
             .reset_index()
-        for r in ROIS:
+        for r, w in RW:
             for m in MODELS:
-                v = f"{m}|{r}"
+                v = f"{m}|{r}@{w}"
                 ref = {a: g[v].dropna().to_numpy() for a, g in S[S.epoch == "pre"].groupby("animal")}
                 for ep in EP:
                     post = {a: g[v].dropna().to_numpy() for a, g in S[S.epoch == ep].groupby("animal")}
@@ -178,17 +184,17 @@ def compute() -> dict:
                         continue
                     iv = ak.boot_delta({a: post[a] for a in com}, {a: ref[a] for a in com}, np.random.default_rng(0))
                     pa = {a: post[a].mean() - ref[a].mean() for a in com}
-                    tests.append({"set": st, "spout": p, "roi": r, "model": m, "epoch": ep, "delta": iv.point,
+                    tests.append({"set": st, "spout": p, "roi": r, "window": w, "model": m, "epoch": ep, "delta": iv.point,
                                   "lo": iv.lo, "hi": iv.hi, "sig": bool(iv.lo > 0 or iv.hi < 0), "n_animals": len(com),
                                   **{f"d_{a}": pa.get(a, np.nan) for a in ("PS92", "PS93", "PS94", "PS95")}})
     T = pd.DataFrame(tests)
     T.to_csv(il.OUT_W / "vigor_perspout_tests.csv", index=False)
     T["cell"] = [f"{d:+.2f}{'*' if s else ''}" for d, s in zip(T.delta, T.sig)]
     print("== change vs pre at the spout (units of the animal's all-spout pre AUC), none / vigour / vigour+landing")
-    print(T[T.roi.isin(["tjM1_right", "SSp-m_right"])].pivot_table(index=["set", "roi", "spout"], columns=["epoch", "model"],
+    print(T[T.roi.isin(["tjM1_right", "SSp-m_right"])].pivot_table(index=["set", "roi", "spout", "window"], columns=["epoch", "model"],
           values="cell", aggfunc="first").reindex(columns=EP, level=0).reindex(columns=list(MODELS), level=1).to_string())
     print("== per animal (rule 8), far contra, tjM1_right")
-    print(T[(T.spout == "far_contra") & (T.roi == "tjM1_right")][["set", "model", "epoch", "d_PS92", "d_PS93", "d_PS94",
+    print(T[(T.spout == "far_contra") & (T.roi == "tjM1_right")][["set", "window", "model", "epoch", "d_PS92", "d_PS93", "d_PS94",
                                                                      "d_PS95"]].round(2).to_string(index=False))
     return {"T": T}
 
@@ -206,41 +212,44 @@ def plot(F: dict) -> None:
 
     import iti_lick_order as lo
     T = F["T"]
+    if "window" not in T:
+        T = T.assign(window="0-0.5")
     pos = list(lo.POS)
-    rows = [(st, r) for st in ("cued", "iti") for r in PROIS]
-    fig, axs = plt.subplots(len(rows), len(EP), figsize=(18, 13), sharey="row", squeeze=False)
-    for i, (st, r) in enumerate(rows):
-        for j, ep in enumerate(EP):
-            ax = axs[i, j]
-            for k, m in enumerate(MODELS):
-                t = T[(T.set == st) & (T.roi == r) & (T.epoch == ep) & (T.model == m)].set_index("spout").reindex(pos)
-                x = np.arange(len(pos)) + (k - 1) * 0.22
-                ax.errorbar(x, t.delta, yerr=[t.delta - t.lo, t.hi - t.delta], fmt="none", ecolor=MCOL[m], capsize=2)
-                sig = t.sig.fillna(False).astype(bool).to_numpy()
-                ax.plot(x[sig], t.delta[sig], "o", color=MCOL[m], ms=6, zorder=3)
-                ax.plot(x[~sig], t.delta[~sig], "o", mec=MCOL[m], mfc="white", ms=6, zorder=3)
-            ax.axhline(0, color="0.6", lw=0.7, ls="--")
-            ax.set_xticks(range(len(pos)), [p.replace("_", "\n") for p in pos], fontsize=8)
-            for sp in ("top", "right"):
-                ax.spines[sp].set_visible(False)
-            if i == 0:
-                ax.set_title(ep, fontsize=11)
-            if j == 0:
-                what = "CUED first lick (target spout)" if st == "cued" else "ITI bout start (PREVIOUS trial's spout)"
-                ax.set_ylabel(f"{what}\n{r}: epoch MINUS pre at the spout\n(0 = no change; units = animal's pre AUC)",
-                              fontsize=8.5)
-    fig.legend(handles=[Line2D([], [], color=MCOL[m], marker="o", lw=0, label={"none": "unadjusted",
-               "vigour": "vigour regressed out", "vigour+landing": "vigour + landing regressed out"}[m]) for m in MODELS]
-               + [Line2D([], [], color="0.4", marker="o", mfc="white", lw=0, label="hollow = CI includes 0")],
-               loc="lower center", ncol=4, fontsize=9.5, frameon=False)
-    fig.suptitle("LICK-VIGOUR CONTROL for the per-spout responses (14.7): response AUC 0..0.5 s after lick onset (baseline "
-                 "-1.0..-0.5 s), epoch MINUS pre AT THAT SPOUT (0 = no change; 1 = one whole pre response, all-spout average), mean of animals with 95% paired nested bootstrap CI.\nVigour = "
-                 "3-D reach, peak speed, outward and height of the tip, lick duration, retraction speed; + landing = also "
-                 "the lateral tip position; per animal, linear fit on PRE licks only (as 14.13);\none common lick set (licks "
-                 "with every covariate) for all three. _right = contralesional. PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-    fig.savefig(il.OUT_W / "figures" / "lick_vigor_perspout.png", dpi=100)
-    plt.close(fig)
+    for wn in [f"{w0:g}-{w1:g}" for w0, w1 in VWIN]:
+        rows = [(st, r) for st in ("cued", "iti") for r in PROIS]
+        fig, axs = plt.subplots(len(rows), len(EP), figsize=(18, 13), sharey="row", squeeze=False)
+        for i, (st, r) in enumerate(rows):
+            for j, ep in enumerate(EP):
+                ax = axs[i, j]
+                for k, m in enumerate(MODELS):
+                    t = T[(T.set == st) & (T.roi == r) & (T.window == wn) & (T.epoch == ep) & (T.model == m)].set_index("spout").reindex(pos)
+                    x = np.arange(len(pos)) + (k - 1) * 0.22
+                    ax.errorbar(x, t.delta, yerr=[t.delta - t.lo, t.hi - t.delta], fmt="none", ecolor=MCOL[m], capsize=2)
+                    sig = t.sig.fillna(False).astype(bool).to_numpy()
+                    ax.plot(x[sig], t.delta[sig], "o", color=MCOL[m], ms=6, zorder=3)
+                    ax.plot(x[~sig], t.delta[~sig], "o", mec=MCOL[m], mfc="white", ms=6, zorder=3)
+                ax.axhline(0, color="0.6", lw=0.7, ls="--")
+                ax.set_xticks(range(len(pos)), [p.replace("_", "\n") for p in pos], fontsize=8)
+                for sp in ("top", "right"):
+                    ax.spines[sp].set_visible(False)
+                if i == 0:
+                    ax.set_title(ep, fontsize=11)
+                if j == 0:
+                    what = "CUED first lick (target spout)" if st == "cued" else "ITI bout start (PREVIOUS trial's spout)"
+                    ax.set_ylabel(f"{what}\n{r}: epoch MINUS pre at the spout\n(0 = no change; units = animal's pre AUC)",
+                                  fontsize=8.5)
+        fig.legend(handles=[Line2D([], [], color=MCOL[m], marker="o", lw=0, label={"none": "unadjusted",
+                   "vigour": "vigour regressed out", "vigour+landing": "vigour + landing regressed out"}[m]) for m in MODELS]
+                   + [Line2D([], [], color="0.4", marker="o", mfc="white", lw=0, label="hollow = CI includes 0")],
+                   loc="lower center", ncol=4, fontsize=9.5, frameon=False)
+        fig.suptitle(f"LICK-VIGOUR CONTROL for the per-spout responses (14.7): response AUC {wn.replace('-', '..')} s after lick onset, in units of the pre 0..0.5 s AUC (baseline "
+                     "-1.0..-0.5 s), epoch MINUS pre AT THAT SPOUT (0 = no change; 1 = one whole pre response, all-spout average), mean of animals with 95% paired nested bootstrap CI.\nVigour = "
+                     "3-D reach, peak speed, outward and height of the tip, lick duration, retraction speed; + landing = also "
+                     "the lateral tip position; per animal, linear fit on PRE licks only (as 14.13);\none common lick set (licks "
+                     "with every covariate) for all three. _right = contralesional. PROVISIONAL", fontsize=9.5)
+        fig.tight_layout(rect=(0, 0.04, 1, 0.93))
+        fig.savefig(il.OUT_W / "figures" / ("lick_vigor_perspout.png" if wn == "0-0.5" else f"lick_vigor_perspout_{wn}.png"), dpi=100)
+        plt.close(fig)
 
 
 def main() -> int:

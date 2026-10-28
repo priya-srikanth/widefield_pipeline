@@ -407,7 +407,51 @@ def compute() -> dict:
     print("== per-spout response AUC 0..0.5 s / the animal's pre AUC AT THAT SPOUT, change vs pre (* = CI excludes 0)\n"
           + AT.pivot_table(index=["set", "roi", "spout", "window"], columns="epoch", values="cell", aggfunc="first")
           .reindex(columns=il.EP4[1:]).to_string())
-    return dict(sess=sess, ratio=ratio, win=win, summary=sp_, spout=spout, pos=list(lo.POS))
+    return dict(sess=sess, ratio=ratio, win=win, summary=sp_, spout=spout, pos=list(lo.POS), auc_tests=AT)
+
+
+def _draw_spout_windows(F: dict, key: str, what: str, path: Path) -> None:
+    """Per-spout AUC change vs pre at the spout (AUC / the animal's pre AUC at that spout), rows = SPOUT_WINDOWS,
+    columns = SPOUT_ROIS, x = spout, one marker per epoch with its 95% CI; hollow = CI includes 0 (Priya 10-28: "where is
+    the longer window AUC")."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    AT, pos = F["auc_tests"], F["pos"]
+    wins = [f"{w0:g}-{w1:g}" for w0, w1 in SPOUT_WINDOWS]
+    fig, axs = plt.subplots(len(wins), len(SPOUT_ROIS), figsize=(20, 11), sharey="row", squeeze=False)
+    for r, w in enumerate(wins):
+        for c, roi in enumerate(SPOUT_ROIS):
+            ax = axs[r, c]
+            t = AT[(AT.set == key) & (AT.roi == roi) & (AT.window == w)]
+            for k, ep in enumerate(il.EP4[1:]):
+                q = t[t.epoch == ep].set_index("spout").reindex(pos)
+                x = np.arange(len(pos)) + (k - 1) * 0.2
+                ax.errorbar(x, q.delta, yerr=[q.delta - q.lo, q.hi - q.delta], fmt="none", ecolor=colors[ep], capsize=2)
+                sg = q.sig.fillna(False).astype(bool).to_numpy()
+                ax.plot(x[sg], q.delta[sg], "o", color=colors[ep], ms=5.5, zorder=3)
+                ax.plot(x[~sg], q.delta[~sg], "o", mec=colors[ep], mfc="white", ms=5.5, zorder=3)
+            ax.axhline(0, color="0.6", lw=0.7, ls="--")
+            ax.set_xticks(range(len(pos)), [p.replace("_", "\n") for p in pos], fontsize=8)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            if r == 0:
+                ax.set_title(roi, fontsize=10)
+            if c == 0:
+                ax.set_ylabel(f"AUC {w.replace('-', '..')} s\nchange vs pre at the spout\n(/ pre AUC at that spout; 0 = no "
+                              "change)", fontsize=8.5)
+    fig.legend(handles=[Line2D([], [], color=colors[e], marker="o", lw=0, label=e) for e in il.EP4[1:]]
+               + [Line2D([], [], color="0.4", marker="o", mfc="white", lw=0, label="hollow = CI includes 0")],
+               loc="lower center", ncol=4, fontsize=9.5, frameon=False)
+    fig.suptitle(f"PER-SPOUT response size by WINDOW, {what} (baseline -1.0..-0.5 s): per session AUC / the animal's mean "
+                 "PRE AUC at the same spout, change vs pre, mean of animals with 95% paired nested bootstrap CI.\nRows: "
+                 "0..0.5 s, 0..1.0 s, and the late part 0.5..1.0 s alone. _right = contralesional. PROVISIONAL", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
+    fig.savefig(path, dpi=100)
+    plt.close(fig)
 
 
 def _spout_auc_tests(PE: pd.DataFrame, key: str, p: str) -> list[dict]:
@@ -628,6 +672,9 @@ def plot(F: dict) -> None:
                 "retracted in the ITI), lick-onset aligned (-2..+3 s, baseline -1.0..-0.5 s), / the animal's PRE ITI response "
                 f"AUC over all spouts; line = mean over sessions (>= {MIN_SPOUT} licks), band = SEM.",
                 out / "lick_iti_ramp_perspout.png", "/ pre response AUC")
+    if "auc_tests" in F:     # figdata from before 10-28 evening lacks the per-spout window tests
+        _draw_spout_windows(F, "lick", "first cued lick by TARGET spout", out / "lick_cued_perspout_windows.png")
+        _draw_spout_windows(F, "cue", "cue-aligned by target spout", out / "lick_cue_perspout_windows.png")
     fig, axs = plt.subplots(len(SPEC), len(ROIS), figsize=(21, 15))
     for j, roi in enumerate(ROIS):
         for i, (_val, ylab) in enumerate(SPEC):
