@@ -35,6 +35,16 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~00:15) 5c-bis / 5c-ter merged (24767177, a4d7307a) and running on M: (run_5c.sh, ~35 min). PS94 test results
+  (full 4-animal numbers follow): ANGLE offset is mostly PATTERNED -- ITI chronic 5.78 deg = 0.82 global + 4.96 pattern
+  (uniform part ~14 %); angle and lateral contribution maps correlate r 0.92-0.98 -> the angle offset comes from the same
+  cortex as the lateral one. Single-area terms cancel (collinear), so read maps, not single areas.
+  Z-SCORED MAP CHECK (all 4 animals): the large cortex-wide components of the unscaled ITI level maps do NOT survive
+  scaling (global share 0.1-0.9 -> <= 0.07); the cortex-wide SVD component's coupling to the lick target is typical in
+  its own units (0.1-1.1x RMS; exceptions PS95 ITI pre 1.75, PS94 ITI subacute 1.56) -> its dominance of the unscaled
+  ITI maps is a VARIANCE (scale) effect, not a specific cortex-wide lick signal. Caveat: z-scoring up-weights
+  low-variance high-frequency components, so a ~0 global share is partly built in; the feature-space loading test is the
+  real evidence. -> page 15.2 claim "ITI maps carry large cortex-wide components" needs the caveat.
 - (10-27 ~23:50) ALM / tjM1 rows (task #2): cheap figures implemented + merged (e87ba04f; plan / cost table
   docs/status/ALM_TJM1_ROWS_PLAN_20261027.md): 22.3 / 22.4 (FR direction), 2.2 / 2.6 residual panels, 18.5 (+ _split
   companions of 18.6 / 18.9), 0.13. Regenerating on M: now (run_alm_rows.sh). Checks: block-sum area R2 vs exact <= 0.0008;
