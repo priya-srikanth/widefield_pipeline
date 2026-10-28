@@ -383,7 +383,11 @@ def extract(item) -> dict:
     np.savez_compressed(
         f, cols=np.array(cols), epoch=epochs.epoch_of(label), animal=an, clock_med_s=clock,
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
-        bout_pos=iti.position.to_numpy(dtype=str)[bout], bout_nfol=nfol[bout], bout_t=to[bout],
+        # bout_pos = the trial-WINDOW label (the UPCOMING trial for 'lead' licks) -- NOT a spout to group by; use
+        # bout_prev_pos = the PREVIOUS trial's spout, the rule of iti_pos (10-28; files before then lack it:
+        # lick_cued_ramp.bout_prev_pos rebuilds it from the lick tables)
+        bout_pos=iti.position.to_numpy(dtype=str)[bout], bout_prev_pos=iti.prev_pos.to_numpy(dtype=str)[bout],
+        bout_nfol=nfol[bout], bout_t=to[bout],
         bout_reach=iti.reach_mm.to_numpy(float)[bout], bout_speed=iti.speed_peak.to_numpy(float)[bout],
         bout_fr=fr_at(to[bout], LAGS_P), fr_names=np.array(FR_KEEP),
         first_fr_cue=fr_at(fl - rt, LAGS_FRC) if len(fl) else np.zeros((0, len(LAGS_FRC), len(FR_KEEP)), np.float32),
