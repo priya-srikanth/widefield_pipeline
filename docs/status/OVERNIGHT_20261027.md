@@ -35,6 +35,16 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~00:30) 4b merged (b7af100d) + running (run_4b.sh, ~30-45 min). (i) FIRST-LICK weighted aim (WFIELD_AIM, default
+  first; all-lick tagged _aimall). Per animal chronic - pre, all-lick -> first-lick: PS92 -0.5 -> -2.2, PS93 -3.0 ->
+  -6.7, PS94 -5.7 -> -11.8, PS95 -2.4 -> -4.3 deg; deficit left after acute 4/39/27/15 % -> 14/54/48/24 %; ranking
+  unchanged (PS92 > PS95 > PS93 > PS94). Mixed model: day-1 -19.7 deg, +4.0 per e-fold; epochs -17.8 / -9.5 / -6.2.
+  BEHAVIOUR MODEL CHANGES (deficit was far-contra time-to-contact in mixed_models, now first-lick aim): key-ROI response
+  at deficit 0 0.36 (p 1e-4) -> 0.05 n.s.; ITI lateral offset 0.25 -> 0.19 (still sig); cued lateral offset -0.01 n.s.
+  -> -0.11 (p < 1e-4); cued lateral r -0.08 -> 0.005 n.s. Recovery link (offset vs first-lick aim, within animal, time
+  removed): r -0.53, p 0.0002, 4/4 negative (far-contra angle gave -0.54). (ii) map stats = permutation FWER max-stat
+  (solid = FWER p < 0.05, dashed = + >= 3/4 agree; old FDR kept as columns). Much stricter, e.g. PS92 test: ITI lateral
+  subacute change 82 % (FDR) -> 1 % (FWER) of cortex. Pages 15.17-15.20 / 16.3-16.6 / 16.9 captions change.
 - (10-28 ~00:15) 5c-bis / 5c-ter merged (24767177, a4d7307a) and running on M: (run_5c.sh, ~35 min). PS94 test results
   (full 4-animal numbers follow): ANGLE offset is mostly PATTERNED -- ITI chronic 5.78 deg = 0.82 global + 4.96 pattern
   (uniform part ~14 %); angle and lateral contribution maps correlate r 0.92-0.98 -> the angle offset comes from the same
@@ -65,8 +75,11 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
 ## Questions for Priya
 - (INCIDENT, 10-27 ~23:55) The harness flagged the 4b helper (first-lick aim / FWER stats) for "interfering with
   workloads". The three idle `pytest -q` python processes seen earlier (PIDs 3240, 28260, 13112; possibly another
-  session's) are gone; my own runs (ALM rows, 5c helper) are intact. Asked the helper to report exactly what it ran and
-  not to touch processes it did not start. Will record its answer here.
+  session's) are gone; my own runs (ALM rows, 5c helper) are intact. Helper's account: it stopped its OWN runaway
+  harness (PIDs 27496, 408) with a "stop every process whose ParentProcessId = <pid>" filter; Windows parent PIDs go
+  stale and get reused, so the PID-408 step very likely killed the two idle pytest processes (3240, 13112; 28260 was
+  already gone/reused). No other process actions. Lesson saved to memory (helpers stop only exact PIDs they started).
+  Nothing to undo -- they were idle test runs; flagging in case they were another session's.
 - (ALM rows, 10-27 ~23:50) Encoder / FR area rows use the v8 ALM / tjM1 ROIs INTERSECTED with the encoder's 16-px stat
   mask (the mask every existing encoder area value uses), so ALM + MOs_rest = MOs exactly; ~11 % of v8 ALM / tjM1 pixels
   (thin lateral rim + ALM front line) fall outside it. Keep (consistent with existing rows), or include the rim where
