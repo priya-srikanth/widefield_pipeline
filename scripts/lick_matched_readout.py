@@ -306,7 +306,8 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
         ax.legend(handles=epl, fontsize=8, frameon=False, loc="lower right")
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    fig.suptitle("LIKE-FOR-LIKE: decoded position for a given landing, before and after the stroke (frozen KEY-row "
+    fig.suptitle("LIKE-FOR-LIKE: decoded position for a given landing, before and after the stroke (frozen "
+                 + ("NON-LINEAR (RBF kernel ridge)" if lo.SOURCE == "nonlinear" else "KEY-row") + " "
                  "lateral decoder).\nA curve shifted UP = read more contralesional than " + REFLAB + ".\nBars at the top = bins whose change vs pre survives BH (paired nested bootstrap; rows acute / subacute / chronic). PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.85))

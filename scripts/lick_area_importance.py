@@ -32,7 +32,12 @@ EP = ["pre", "acute", "subacute", "chronic"]
 SIGMA = 0.1
 
 
-COMBOS = {"ALM+tjM1": ("ALM", "tjM1"), "SSp-m+n": ("SSp-m", "SSp-n"), "ALM+tjM1+SSp-m+n": ("ALM", "tjM1", "SSp-m", "SSp-n")}
+COMBOS = {"ALM+tjM1": ("ALM", "tjM1"), "SSp-m+n": ("SSp-m", "SSp-n"), "ALM+tjM1+SSp-m+n": ("ALM", "tjM1", "SSp-m", "SSp-n"),
+          "MOs_rest": ("MOs_rest",), "MOp_rest": ("MOp_rest",), "VIS": ("VIS",), "RSP": ("RSP",)}   # + per side (10-28)
+
+
+def _fam(base: str) -> str:
+    return "VIS" if base.startswith("VIS") else "RSP" if base.startswith("RSP") else base
 
 
 def groups(names: list[str]) -> dict:
@@ -45,7 +50,7 @@ def groups(names: list[str]) -> dict:
         g.setdefault(base, []).append(i)
     for cname, parts in COMBOS.items():
         for side, sides in (("ipsi (left)", ("left",)), ("contra (right)", ("right",)), ("bilateral", ("left", "right"))):
-            g[f"{cname} {side}"] = [i for i, n in enumerate(names) if n.rsplit("_", 1)[0] in parts
+            g[f"{cname} {side}"] = [i for i, n in enumerate(names) if _fam(n.rsplit("_", 1)[0]) in parts
                                     and n.rsplit("_", 1)[1] in sides]
     return {"(none)": [], **g}
 

@@ -113,7 +113,8 @@ def locanmf_inmask(animal: str) -> np.ndarray:
     return out <= MASK_OUT_MAX
 
 
-DEC_LAB = {"areas_split": "Allen areas + ALM / tjM1 split", "areas": "Allen areas, plain"}.get(SOURCE, SOURCE)
+DEC_LAB = {"areas_split": "Allen areas + ALM / tjM1 split", "areas": "Allen areas, plain",
+           "nonlinear": "NON-LINEAR RBF kernel ridge on Allen areas + ALM / tjM1 split (lick_nonlinear_preds)"}.get(SOURCE, SOURCE)
 CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scaled, act, order, pos)}, {held-out pre label | None: (scaler, ridge)})
 
 

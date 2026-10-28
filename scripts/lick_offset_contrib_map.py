@@ -486,14 +486,30 @@ def plot():
     _IMG, _NM = split_image(il.labels()[0])                 # Allen areas with ALM / tjM1 / rest (ROI v8)
     for st, stlab in (("iti", "ITI licks"), ("trial", "cued licks")):
         wpix = {}
-        fig, axs = plt.subplots(len(tags), 4, figsize=(15, 3.6 * len(tags)), squeeze=False)
-        for i, (t, lab) in enumerate(tags):
+        # + a row with the SVD maps PROJECTED onto the Allen areas with ALM / tjM1 (Priya 10-28): per area, the sum of
+        # the pixel contributions (same units as the area-basis rows' area totals) and of the pixel weights
+        rows_ = list(tags) + [("svdF@areas", "pre-stroke SVD, summed per Allen area (ALM / tjM1 split)")]             if any(t == "svdF" for t, _l in tags) else list(tags)
+        fig, axs = plt.subplots(len(rows_), 4, figsize=(15, 3.6 * len(rows_)), squeeze=False)
+        for i, (t, lab) in enumerate(rows_):
+            proj = t.endswith("@areas")
+            t = t.replace("@areas", "")
             Z = np.load(OUT / f"maps_{t}.npz")
             ims = {ep: [Z[f"{st}|{a}|{ep}"] for a in AN if f"{st}|{a}|{ep}" in Z] for ep in [*EP, "w"]}
             mean = {ep: np.nanmean(np.stack(v), 0) for ep, v in ims.items() if v}
             # drawn maps masked to the brain mask (Priya 10-28: kept LocaNMF footprints extend past it, e.g. the bulbs;
             # 2-3 % of |contribution|) -- the offset / global / pattern numbers are unchanged (computed on all pixels)
             mean = {ep: np.where(_MASK, m_, np.nan) for ep, m_ in mean.items()}
+            if proj:                                        # per-area SUM painted on the area (incl. the weights)
+                pm = {}
+                for ep, m_ in mean.items():
+                    A_ = np.full(_IMG.shape, np.nan)
+                    v_ = np.where(np.isfinite(m_), m_, 0)
+                    for k_ in range(len(_NM)):
+                        sel = _IMG == k_
+                        if sel.any():
+                            A_[sel] = v_[sel].sum()
+                    pm[ep] = np.where(_MASK, A_, np.nan)
+                mean = pm
             lim = np.nanpercentile(np.abs(np.stack([mean[e] for e in EP if e in mean])), 99.5)
             for j, ep in enumerate(EP):
                 ax = axs[i, j]
@@ -503,7 +519,8 @@ def plot():
                     ax.set_title(f"{lab}: {ep} - pre\noffset {r.offset.mean():+.2f} mm (global {r.global_part.mean():+.2f}, "
                                  f"pattern {r.pattern_part.mean():+.2f})", fontsize=8)
                 ax.axis("off")
-            plt.colorbar(im, ax=axs[i, 2], fraction=0.04, label="mm per pixel (+ = contralesional)")
+            plt.colorbar(im, ax=axs[i, 2], fraction=0.04,
+                         label=("mm per AREA (sum)" if proj else "mm per pixel") + " (+ = contralesional)")
             # 4th column: decoder WEIGHT PER AREA (Priya 10-28: "not weight per pixel; keep that supplemental") = the sum
             # of the pixel weights over each area (ALM / tjM1 / rest split, ROI v8) = the decoder's change for a uniform +1
             # change of that area (= the area's coefficient in the area basis); comparable across bases
@@ -513,7 +530,10 @@ def plot():
                 if sel.any():
                     Wa[sel] = np.nansum(np.where(np.isfinite(mean["w"]), mean["w"], 0)[sel])
             Wa = np.where(_MASK, Wa, np.nan)
-            wpix[t] = mean["w"]
+            if proj:                                        # already per-area sums in the projected row
+                Wa = mean["w"]
+            if not proj:
+                wpix[t] = mean["w"]
             ax = axs[i, 3]
             wl = np.nanpercentile(np.abs(Wa), 99.5)
             im = ax.imshow(Wa, cmap="PuOr_r", vmin=-wl, vmax=wl, interpolation="nearest")
