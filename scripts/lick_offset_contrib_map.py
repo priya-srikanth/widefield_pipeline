@@ -461,7 +461,11 @@ def plot():
     import matplotlib.pyplot as plt
     tags = [(t, lab) for t, lab in TAGS if (OUT / f"maps_{t}.npz").exists()]
     R = pd.concat([pd.read_csv(OUT / f"summary_{t}.csv") for t, _lab in tags], ignore_index=True)   # lateral only
+    global _IMG, _NM
+    from iti_area_maps import split_image
+    _IMG, _NM = split_image(il.labels()[0])                 # Allen areas with ALM / tjM1 / rest (ROI v8)
     for st, stlab in (("iti", "ITI licks"), ("trial", "cued licks")):
+        wpix = {}
         fig, axs = plt.subplots(len(tags), 4, figsize=(15, 3.6 * len(tags)), squeeze=False)
         for i, (t, lab) in enumerate(tags):
             Z = np.load(OUT / f"maps_{t}.npz")
@@ -480,19 +484,45 @@ def plot():
                                  f"pattern {r.pattern_part.mean():+.2f})", fontsize=8)
                 ax.axis("off")
             plt.colorbar(im, ax=axs[i, 2], fraction=0.04, label="mm per pixel (+ = contralesional)")
+            # 4th column: decoder WEIGHT PER AREA (Priya 10-28: "not weight per pixel; keep that supplemental") = the sum
+            # of the pixel weights over each area (ALM / tjM1 / rest split, ROI v8) = the decoder's change for a uniform +1
+            # change of that area (= the area's coefficient in the area basis); comparable across bases
+            Wa = np.full(_IMG.shape, np.nan)
+            for k_ in range(len(_NM)):
+                sel = _IMG == k_
+                if sel.any():
+                    Wa[sel] = np.nansum(np.where(np.isfinite(mean["w"]), mean["w"], 0)[sel])
+            Wa = np.where(_MASK, Wa, np.nan)
+            wpix[t] = mean["w"]
             ax = axs[i, 3]
-            wl = np.nanpercentile(np.abs(mean["w"]), 99.5)
-            im = ax.imshow(mean["w"], cmap="PuOr_r", vmin=-wl, vmax=wl, interpolation="nearest")
-            ax.set_title(f"{lab}: decoder weight per pixel (pre fit)", fontsize=8)
+            wl = np.nanpercentile(np.abs(Wa), 99.5)
+            im = ax.imshow(Wa, cmap="PuOr_r", vmin=-wl, vmax=wl, interpolation="nearest")
+            ax.set_title(f"{lab}: decoder weight PER AREA (pre fit)", fontsize=8)
             ax.axis("off")
-            plt.colorbar(im, ax=ax, fraction=0.04)
+            plt.colorbar(im, ax=ax, fraction=0.04, label="mm per unit area activity")
         fig.suptitle(f"NEURAL: where the same-place read-out offset comes from, {stlab}. Contribution per pixel = decoder "
                      "weight x activity change vs pre licks landing at the same place (Gaussian, 0.1 mm);\nsums to the "
                      "offset. Global = a uniform cortex-wide change x the summed weight; pattern = the rest. Mean of "
-                     "animals; ipsi (lesion) = image LEFT; drawn inside the brain mask.\nThe OFFSET is the same in every basis, "
-                     "its spatial attribution is not (ridge weights are not unique). PROVISIONAL", fontsize=9)
-        fig.tight_layout(rect=(0, 0, 1, 0.94))
+                     "animals; ipsi (lesion) = image LEFT; drawn inside the brain mask. Right column = decoder weight per AREA "
+                     "(sum of its pixel weights).\nThe offset totals agree across bases; the weights share the broad lateral "
+                     "structure but differ in detail (ridge weights are not unique). PROVISIONAL", fontsize=9)
+        fig.tight_layout(rect=(0, 0, 1, 0.93))
         fig.savefig(FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_contrib_map.png", dpi=90)
+        plt.close(fig)
+        # SUPPLEMENT: the per-pixel weights (the former 4th column)
+        fig, axs = plt.subplots(1, len(wpix), figsize=(4.2 * len(wpix), 4.2), squeeze=False)
+        for j, (t, lab) in enumerate([x for x in tags if x[0] in wpix]):
+            w_ = np.where(_MASK, wpix[t], np.nan)
+            wl = np.nanpercentile(np.abs(w_), 99.5)
+            im = axs[0, j].imshow(w_, cmap="PuOr_r", vmin=-wl, vmax=wl, interpolation="nearest")
+            axs[0, j].set_title(f"{lab}:\ndecoder weight per PIXEL", fontsize=8)
+            axs[0, j].axis("off")
+            plt.colorbar(im, ax=axs[0, j], fraction=0.04)
+        fig.suptitle(f"SUPPLEMENT: per-pixel decoder weights, {stlab} (mean of animals; a large area with a solid coefficient "
+                     "looks pale because its weight is spread over many pixels -- see the per-area weights in the main figure)",
+                     fontsize=9)
+        fig.tight_layout(rect=(0, 0, 1, 0.88))
+        fig.savefig(FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_contrib_pixelweight.png", dpi=90)
         plt.close(fig)
 
 
