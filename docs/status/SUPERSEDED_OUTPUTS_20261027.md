@@ -42,3 +42,9 @@ All paths are derived outputs (reproducible from code + inputs), under
 ## Figures
 | `figures/` PNGs whose stem is not on the goal page and not produced by a current script (e.g. `iti_*` names renamed to `lick_*` on 10-27) | after a page audit (list with `grep src= _goal_page/index.html`) |
 | `_goal_page/` local PNGs no longer referenced by index.html | after the v8 publish |
+
+## Split-basis redo (10-27 late)
+| Path (under E) | What | Delete when |
+|---|---|---|
+| `superseded_split_20261027/` | pre-split caches (plain where_preds*, first_lick / angle_reach / 3axis preds), `*_areas_split*` outputs (split now untagged), `where_beyond_pull_*` (list: scratchpad rr8/ws_moved.txt) | after the split numbers are on the page |
+| `sessions/` (v1) | no longer read by any script after 3ab92858 (labels from il.labels()) | after the split run passes (ask Priya: 1.x GB) |
