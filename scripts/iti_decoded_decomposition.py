@@ -105,31 +105,33 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = {"pre": "k", **EPOCH_LINE}
     POS = lo.POS
-    fig, axs = plt.subplots(2, 4, figsize=(19, 8.4), squeeze=False)
+    fig, axs = plt.subplots(2, 4, figsize=(22, 8.4), squeeze=False, gridspec_kw={"width_ratios": [1.8, 1, 1, 1]})
     lab = {"shift": "SHIFT: uniform read-out shift (mm)", "gain": "GAIN: change in read-out spread (mm / mm)",
            "track": "TRACK: share of landing change followed"}
     for i, st in enumerate(SETS):
         g = S[S.set == st]
         ax = axs[i, 0]
-        A = g.groupby(["epoch", "animal"])[[f"dDec_{p}" for p in POS]].mean()
-        for ep in EPS:
+        # post epochs only (pre = 0 by construction); 13.7's convention (Priya 10-28): DECODED filled circles, ACTUAL
+        # landing open squares, both mean +/- SEM over animals; spouts separate (dividers, no connecting lines)
+        land = [f"dLand_{p}" for p in POS]
+        has_land = all(c_ in g.columns for c_ in land)
+        A = g.groupby(["epoch", "animal"])[[f"dDec_{p}" for p in POS] + (land if has_land else [])].mean()
+        for k, ep in enumerate(EP):
             if ep not in A.index.get_level_values(0):
                 continue
             q = A.loc[ep]
-            ax.errorbar(np.arange(6) + (EPS.index(ep) - 1.5) * 0.08, q.mean(), yerr=q.sem(), fmt="o", color=col[ep],
-                        ms=4, lw=1.3, capsize=2)
-        # LANDING change per spout, dashed, same colours (Priya 10-28: does the decoded position shift at all?)
-        land = [f"dLand_{p}" for p in POS]
-        if all(c_ in g.columns for c_ in land):
-            L = g.groupby(["epoch", "animal"])[land].mean()
-            for ep in EP:
-                if ep in L.index.get_level_values(0):
-                    ax.plot(np.arange(6) + (EPS.index(ep) - 1.5) * 0.08, L.loc[ep].mean(), "x", color=col[ep], mew=1.6,
-                            ms=6, alpha=0.9)
+            base = np.arange(6) + (k - 1) * 0.26
+            ax.errorbar(base - 0.05, q[[f"dDec_{p}" for p in POS]].mean(), yerr=q[[f"dDec_{p}" for p in POS]].sem(),
+                        fmt="o", color=col[ep], ms=5, lw=1.2, capsize=1.5)
+            if has_land:
+                ax.errorbar(base + 0.05, q[land].mean(), yerr=q[land].sem(), fmt="s", color=col[ep], mfc="white",
+                            mew=1.3, ms=5, lw=1.0, capsize=1.5)
+        for b in np.arange(5) + 0.5:
+            ax.axvline(b, color="0.92", lw=0.8, zorder=0)
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.set_xticks(range(6), [p.replace("_", "\n") for p in POS], fontsize=7.5)
         ax.set_ylabel("change vs pre (mm, + = contra)", fontsize=8)
-        ax.set_title(f"{SETS[st]}: DECODED (dots +/- SEM) and LANDING (x)\nchange per spout vs pre, mean of "
+        ax.set_title(f"{SETS[st]}: DECODED (filled) and ACTUAL landing (open) change\nper spout vs pre, mean +/- SEM of "
                      "animals" + ("; ITI spout = previous trial's" if st == "iti" else ""), fontsize=8.5)
         for j, term in enumerate(TERMS):
             ax = axs[i, 1 + j]
