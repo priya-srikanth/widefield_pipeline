@@ -7,7 +7,7 @@ Sets (WFIELD_ITI_FILTER in iti_lick_order; the frozen decoder is refit and resco
   gap2       no lick onset in the preceding 2 s
   far1       >= 1 s after the response-window end and >= 1 s before the next spout arrival
   gap2far1   both
-Read-out = like-for-like same-place Gaussian (lick_matched_readout.py --ref gauss), change vs pre, nested bootstrap;
+Read-out = like-for-like same-place LOCAL-LINEAR reference (lick_matched_readout.py --ref loclin; 10-27 late), change vs pre, nested bootstrap;
 dots = animals (ANIMAL_MARKER); k/n = animals with the cohort sign. Decoder basis: BASIS (tag).
 Output figures/lick_iti_filter_compare.png (figdata figdata/lick_iti_filter_compare.pkl; --plot-only redraws).
 Usage: python scripts/lick_iti_filter_compare.py [--plot-only]
@@ -35,7 +35,7 @@ STEM = "lick_iti_filter_compare"
 def compute() -> dict:
     rows = []
     for tag, lab in SETS:
-        T = pd.read_csv(il.OUT / f"matched_gauss_{BASIS}{tag}_tests.csv")
+        T = pd.read_csv(il.OUT / f"matched_loclin_{BASIS}{tag}_tests.csv")
         T = T[(T.scope == "all spouts") & (T.measure == "resid") & (T.set == "iti") & (T.cls == "all") & T.epoch.isin(EP)]
         P = pd.read_csv(il.OUT / f"lick_order_preds_{BASIS}{tag}.csv.gz", usecols=["set", "epoch", "label"])
         n = P[P.set == "iti"].groupby("epoch").size()
