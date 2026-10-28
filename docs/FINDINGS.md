@@ -512,6 +512,17 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   the balance tracks lick angle (each hemisphere larger for licks toward the opposite side), post-stroke ~30% flatter
   (PS94/PS95 every epoch, 3/4 chronically). By target, the contra/ipsi ratio rises mostly for FAR spouts (far ring 4/4,
   close ring ~0). OPEN (running 10-28): balance-blind decoder, per-hemisphere imaging control, non-orofacial balance.
+- **IMPORTANT (Priya 10-28): cued-lick ORofacial balance estimates how far an UNSEEN animal has recovered, ~2x better
+  than days since the stroke; only orofacial balance does this.** Held-out-animal cvR2 of the far-contra first-lick aim:
+  orofacial balance (same angle & order) 0.50 vs days 0.23 vs non-orofacial balance -0.19; within-animal shuffle null
+  <= -0.12 (p < 0.0005). Lower error than the calendar in 3/4 held-out animals (PS95 the exception). The calendar gets each
+  trajectory's SHAPE; the balance adds HOW FAR the animal recovers (mostly flags PS94, least recovered). Survives
+  nonlinear time models (per-animal splines +0.68 deg/unit, p 0.006); does NOT predict next-session improvement; ITI
+  balance does not do it. 4 animals -> a strong hint, not a demonstrated biomarker. PROVISIONAL. (goal page 14.16)
+- Controls 10-28: global-balance-blind decoder leaves the offset unchanged (12.20; the orofacial PAIR differences remain
+  readable -- pair-specific removal running); per-hemisphere imaging control: F0 / 415 nm do not explain the
+  subacute / chronic balance shift (14.17; part of the acute shift in PS92 / PS93 could be F0); head-to-head: orofacial
+  balance predicts the offset, non-orofacial adds nothing (12.19).
 
 ## 1. Behaviour and orofacial kinematics (cam4)
 
