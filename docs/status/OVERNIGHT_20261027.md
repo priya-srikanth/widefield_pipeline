@@ -3,6 +3,22 @@
 Priya (10-27 late, going to sleep): "proceed and keep a running list of results, findings, decisions or questions you
 need me for". Newest entries at the bottom of each section. Goal page: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
 
+## MORNING SUMMARY (10-28 ~04:20) -- read this first
+Queue 1-5 DONE; page v146 live. Headline results overnight (all PROVISIONAL, details below):
+1. The ITI contralesional read-out offset is robust: survives same-target matching (+0.26 / +0.24 mm, 4/4), kinematic +
+   FaceRhythm covariates (5-7 % explained), a non-linear decoder (unchanged), and is almost entirely PATTERNED for angle
+   too (uniform part ~0). The face / tongue decoder does NOT lose ITI position information post-stroke while cortex loses
+   21-27 % -> the ITI change is cortical.
+2. The CUED offset ("read ahead of the failing movement") is mostly target composition: against pre licks of the same
+   target that landed in the same place it is +0.01 n.s. -> needs your OK to re-word (question below).
+3. Refit decoders (evening): post-acute the code is still decodable; the frozen read-out moved.
+4. Maps: ITI "cortex-wide components" are mostly a variance effect (z-scored check); FWER map stats: ITI lateral pattern
+   does not change shape; cued lateral pattern changes acutely and chronically; pixel mixed models: cued lateral map
+   drops, partly returns, stays changed at full behavioural recovery; far-contra maps scale with the aim deficit.
+5. First-lick aim (behaviour axis) doubles the measured chronic deficit, ranking unchanged.
+Questions for you: junk files to delete by hand (incident 2); cued wording; ITI FaceRhythm controls redo; ALM / tjM1
+ROI-mask choice + which expensive refits; z-scored map check follow-ups none.
+
 ## Queue (in order)
 1. Masked-LocaNMF swap (Priya "swap masked locanmf"): basis + where decoders rerunning (scratchpad run_maskloc.sh) ->
    update page 11.5-11.7 figures + captions (and 12.1 LocaNMF sensitivity line if it changes) -> publish v141 together
@@ -35,6 +51,8 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~04:15) 5f run DONE (0 errors) = dry-run numbers; PAGE v146: 11.14 non-linear decoder (supplementary), 11.15
+  behaviour-only decoder (supporting). QUEUE COMPLETE.
 - (10-28 ~03:50) 5f merged (3be5c189) + running (run_5f.sh, ~21 min). Full-cohort dry-run answers: (1) NON-LINEAR
   decoder (RBF kernel ridge, nested CV) is 0.01-0.04 r better on held-out pre but loses the same fraction post-stroke
   (ITI lateral r/pre -0.22 / -0.19 / -0.21 vs linear -0.26 / -0.22 / -0.24) and the ITI offset is unchanged (+0.35 /

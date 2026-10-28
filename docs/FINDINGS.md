@@ -128,6 +128,15 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    PRE-REGISTER for the next cohort (direction stated): lesion % -> slower behavioural recovery (+); day 1-3 orofacial
    residual -> lower chronic cortical code on hits (-) and larger chronic residual (+); acute far-contra retention ->
    chronic code (sign open: - here); acute coupling on failed attempts -> recovery speed (open).
+4d0-NIGHT. **Overnight 10-28 controls (page v146; docs/status/OVERNIGHT_20261027.md). PROVISIONAL.** ITI offset
+   ROBUST: same-target same-place +0.26 / +0.24 mm acute / chronic (4/4); covariates (kinematics + FaceRhythm) explain
+   5-7 %; non-linear (RBF kernel ridge) decoder: same offset and same r loss; angle offset patterned (uniform part ~0),
+   same cortex as lateral (maps r 0.90-0.95). Behaviour-only decoder (FaceRhythm + reach / speed): ITI r unchanged
+   post-stroke vs cortex -21..-27 % -> the ITI change is cortical. CUED offset mostly TARGET COMPOSITION (same-target
+   +0.01 n.s., 2/4): post-stroke misses read toward their target as pre misses were (wording of "read ahead" pending
+   Priya). Maps: ITI cortex-wide components = variance effect (z-scored check); FWER: ITI lateral pattern shape unchanged,
+   cued lateral pattern changes acutely + chronically; pixel LMM: cued lateral map drops, partly returns, stays changed at
+   full behavioural recovery; far-contra maps scale with first-lick aim deficit.
 4d0-V8. **SYNTHESIS on ROI v8 + Allen areas WITH the ALM / tjM1 split (all decoders; DECISIONS 10-27 late), Gaussian
    same-place like-for-like reference; supersedes the numbers in 4d0-LATE / 4d0 / 4d0b. PROVISIONAL** (page v140; v2 -> v8
    in docs/status/V2_VS_V8_SPLIT_20261027.md). HOLDS: cortex reads licks CONTRALESIONAL of where they land -- ITI every

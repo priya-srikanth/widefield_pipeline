@@ -260,3 +260,5 @@ lick_covref_offset,12.16,"Same-place offset survives kinematic and FaceRhythm co
 lick_matched_gauss_animal_change,12.17,"Like-for-like offset per animal",supplementary
 lick_session_pixel_lmm_time,15.21,"Per-pixel time model on per-session level maps",supplementary
 lick_session_pixel_lmm_behaviour,15.22,"Per-pixel behaviour model on per-session level maps",supplementary
+lick_nonlinear_decoder,11.14,"A non-linear read-out does not recover the post-stroke loss or remove the ITI offset",supplementary
+lick_behaviour_decoder,11.15,"Behaviour-only decoder: face predicts lick position as well as cortex pre-stroke; only the cortical ITI read-out is lost",supporting
