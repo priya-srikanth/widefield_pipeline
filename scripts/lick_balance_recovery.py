@@ -87,6 +87,10 @@ def plot(F: dict) -> None:
                                                ("predictive", "d_aim", "change in aim to the NEXT session (deg)"))):
             ax = axs[i, j]
             g = S[S.set == st]
+            pre = F.get("pre")
+            if model == "concurrent" and pre is not None:      # pre sessions, left-out reference (not in any fit)
+                p_ = pre[pre.set == st]
+                ax.plot(p_.oro_bal, p_.aim, "o", color="0.82", mec="0.6", mew=0.4, ms=6, zorder=0)
             for (ep, a_), h in g.groupby(["epoch", "animal"]):
                 ax.plot(h.r_orofacial, h[yv], ANIMAL_MARKER.get(a_, "o"), color=EPOCH_LINE[ep], ms=6, mec="k", mew=0.3)
             m = M[(M.set == st) & (M.group == "orofacial") & (M.model == model)]
@@ -110,7 +114,7 @@ def plot(F: dict) -> None:
     h += [Line2D([], [], color="0.3", marker=ANIMAL_MARKER.get(x, "o"), lw=0, label=x) for x in ("PS92", "PS93", "PS94", "PS95")]
     fig.legend(handles=h, loc="lower center", ncol=7, fontsize=9, frameon=False)
     fig.suptitle("Does the orofacial hemispheric balance predict RECOVERY (far-contra first-lick aim)? One point per "
-                 "post-stroke session. Mixed models with log(day) and a random intercept per animal (sessions as "
+                 "post-stroke session (grey = pre sessions, left-out reference, not fitted). Mixed models with log(day) and a random intercept per animal (sessions as "
                  "observations, anti-conservative):\nleft = concurrent (aim ~ balance), right = predictive (next-session "
                  "aim change ~ this session's balance + current aim). Within-animal slope bold when p < 0.05. PROVISIONAL",
                  fontsize=9.5)
@@ -119,12 +123,25 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def _pre_cloud() -> pd.DataFrame | None:
+    """Pre sessions' orofacial balance (scored leave-one-pre-session-out) and aim, from lick_recovery_markers (Priya 10-28:
+    "add pre references as grey cloud"); None if that script has not run."""
+    f = il.OUT_W / "recmark_sessions.csv"
+    if not f.exists():
+        return None
+    R = pd.read_csv(f, usecols=["set", "label", "epoch", "oro_bal", "aim"])
+    return R[R.epoch == "pre"].dropna()
+
+
 def main() -> int:
     if plot_only():
-        plot(load_fd("lick_balance_recovery"))
+        F = load_fd("lick_balance_recovery")
+        F["pre"] = _pre_cloud()
+        plot(F)
         return 0
     F = compute()
     save_fd("lick_balance_recovery", F)
+    F["pre"] = _pre_cloud()
     plot(F)
     return 0
 

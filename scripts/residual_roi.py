@@ -73,6 +73,14 @@ def add_split_z(T: pd.DataFrame, run: Path) -> pd.DataFrame:
     return T
 
 
+def _only_tested(img: np.ndarray, nm: list, tested) -> np.ndarray:
+    """Blank (display only) atlas areas with no value in this analysis -- frontal pole, AUDd / AUDpo right, VISp left (no
+    ROI) -- whose outlines otherwise showed as dotted 'edge fragments' along the frontal and lateral edges (checked 10-28:
+    the only disconnected pieces of TESTED areas are 10 single pixels)."""
+    drop = [k for k, n in enumerate(nm) if n not in set(tested)]
+    return np.where(np.isin(img, drop), -1, img)
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -80,6 +88,7 @@ def main(argv=None) -> int:
 
     import frozen_fr_compare as ffc
     from frozen_area_maps import area_image, outline, paint
+    from iti_area_maps import _sig_halo
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v7g3_t3d")
     ap.add_argument("--by-spout", action="store_true", help="per-spout version (Fig 10, 10c-10g counterparts)")
@@ -109,10 +118,10 @@ def main(argv=None) -> int:
         print("== MOs / MOp and their split ROIs (raw x1e3; point [CI], p_bonf, animals with the same sign)")
         print(sp_[["window", "epoch", "area", "point", "lo", "hi", "p_bonf", "n_same", "n"]].round(3).to_string(index=False))
     img, nm = area_image(T.label.iloc[0])
-    ol = outline(img)
     split = bool(B.area.isin(esr.SPLIT_AREAS).any())
     img_s, nm_s = esr.split_image(img, nm) if split else (img, nm)
-    ol_s = outline(img_s)
+    img, img_s = _only_tested(img, nm, B.area), _only_tested(img_s, nm_s, B.area)
+    ol, ol_s = outline(img), outline(img_s)
     # rows: per window the Allen areas, then (split) the same test with MOs / MOp drawn as ALM + MOs_rest / tjM1 +
     # MOp_rest (Priya 10-27), on the same colour scale
     rows_ = [(w, kind) for w in WINDOWS for kind in (("allen", "split") if split else ("allen",))]
@@ -127,10 +136,7 @@ def main(argv=None) -> int:
                 s = Bw[Bw.epoch == ep].set_index("area")
                 im = ax.imshow(paint(im_, nm_, s.point.to_dict()), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
                 ax.imshow(ol_, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
-                sg = paint(im_, nm_, {k: 1.0 for k, v in (s.p_bonf < 0.05).items() if v})
-                if np.isfinite(sg).any():
-                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)  # halo
-                    ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
+                _sig_halo(ax, im_, nm_, s.index[s.p_bonf < 0.05], s.index)   # each sig area outlined, rest faded
                 if kind == "allen":
                     s = s[~s.index.isin(esr.SPLIT_AREAS)]
                     up = int(((s.p_bonf < 0.05) & (s.point > 0)).sum())
@@ -140,11 +146,11 @@ def main(argv=None) -> int:
                     s = s[s.index.isin(esr.SPLIT_AREAS)]
                     ax.set_title(f"{w}, {ep}: ALM / tjM1 split\n{int((s.p_bonf < 0.05).sum())} / {len(s)} split ROIs "
                                  "significant", fontsize=8.5)
-                ax.set_xticks([]); ax.set_yticks([])
+                ax.axis("off")
             cb = fig.colorbar(im, ax=list(axs[i]), fraction=0.025, pad=0.02)
             cb.set_label(f"residual change ({unit})", fontsize=7)
         fig.suptitle(f"NEURAL: frozen-encoder RESIDUAL by ALLEN AREA, all 6 spouts pooled, epoch minus pre, mean of 4 animals "
-                     f"({a.tag}).\nBlack outline = area significant after Bonferroni over areas (nested bootstrap animals > "
+                     f"({a.tag}).\nBlack outline (white halo) = each area significant after Bonferroni over areas, others faded (nested bootstrap animals > "
                      "sessions). ROI counterpart of Fig 10b. Image left = ipsilesional."
                      + ("\n'split' rows: MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8), Bonferroni over the "
                         "Allen areas." if split else ""), fontsize=9)
@@ -163,6 +169,7 @@ def by_spout(tag: str) -> int:
 
     import frozen_fr_compare as ffc
     from frozen_area_maps import area_image, outline, paint
+    from iti_area_maps import _sig_halo
     out = E / "specificity_control" / tag
     cache = out / "sessions_by_spout.csv"
     run = E / f"frozen_encoder_{tag}"
@@ -187,12 +194,15 @@ def by_spout(tag: str) -> int:
     print("== far contra (Fig 10 counterpart)\n" + fc[["window", "epoch", "area", "point", "n_same", "n"]]
           .sort_values(["window", "epoch", "point"]).round(1).to_string(index=False))
     img, nm = area_image(T.label.iloc[0])
+    img_full = img
+    img = _only_tested(img_full, nm, B.area)
     ol = outline(img)
     # COMPANION '_split' figures (Priya 10-27): the same test with MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest, on
     # the Allen figure's colour scale; the Allen figures (scale, counts) are computed on the Allen rows only, as before
     kinds = [("allen", img, nm, ol, "")]
     if (~allen).any():
-        img_s, nm_s = esr.split_image(img, nm)
+        img_s, nm_s = esr.split_image(img_full, nm)
+        img_s = _only_tested(img_s, nm_s, B.area)
         kinds.append(("split", img_s, nm_s, outline(img_s), "_split"))
     for w in WINDOWS:
         for q, unit in (("residual", "x1e3 dF/F"), ("residual_z", "pre-SD units")):
@@ -208,19 +218,16 @@ def by_spout(tag: str) -> int:
                         im = ax.imshow(paint(im_, nm_, s_.point.to_dict()), cmap="RdBu_r", vmin=-lim, vmax=lim,
                                        interpolation="nearest")
                         ax.imshow(ol_, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
-                        sg = paint(im_, nm_, {k: 1.0 for k, v in (s_.p_bonf < 0.05).items() if v})
-                        if np.isfinite(sg).any():
-                            ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)  # halo
-                            ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
+                        _sig_halo(ax, im_, nm_, s_.index[s_.p_bonf < 0.05], s_.index)
                         s_ = s_[s_.index.isin(esr.SPLIT_AREAS) == (kind == "split")]
                         up, dn = int(((s_.p_bonf < .05) & (s_.point > 0)).sum()), int(((s_.p_bonf < .05) & (s_.point < 0)).sum())
                         ax.set_title(f"{sp.replace('_', ' ')}, {ep}\n{up} up / {dn} down"
                                      + (" (split ROIs)" if kind == "split" else ""), fontsize=7.5)
-                        ax.set_xticks([]); ax.set_yticks([])
+                        ax.axis("off")
                 cb = fig.colorbar(im, cax=fig.add_axes([0.915, 0.25, 0.012, 0.5]))   # own axes: never over a panel
                 cb.set_label(f"residual change ({unit})", fontsize=7)
                 fig.suptitle(f"NEURAL: frozen-encoder RESIDUAL by ALLEN AREA, PER SPOUT, {w} window, epoch minus pre, mean of 4 "
-                             f"animals ({tag}).\nBlack = area significant after Bonferroni over areas (nested bootstrap animals > "
+                             f"animals ({tag}).\nBlack outline = each area significant after Bonferroni over areas, others faded (nested bootstrap animals > "
                              "sessions); one colour scale. ROI counterpart of Figs 10 / 10c-10g. Image left = ipsilesional."
                              + ("\nMOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8); Bonferroni over the Allen "
                                 "areas; scale of the Allen figure." if kind == "split" else ""), fontsize=8.5)
