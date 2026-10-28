@@ -39,6 +39,60 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-12 (10-28 ~07:20) -- READ FIRST. Session f082ee0c, branch analysis/attempt-coding in worktree
+C:/Users/SabatiniLab/Github/wf_attempt (commits through 3483a064+). Page LIVE v165+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
+(source _goal_page/index.html, committed). Running log + decisions: docs/status/OVERNIGHT_20261027.md (10-28 morning
+section) + docs/DECISIONS.md "2026-10-28". Run env: source S2/rr2/frozenenv.sh; PYTHONPATH="wf_attempt;wf_attempt/scripts";
+python C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe; WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache.
+Use the Write/Edit tools (or a .py file) for Python patches -- bash heredocs with nested quotes / "\n" broke 4x today.
+Page edits that insert / move figures: scripts/goal_page_insert.py (insert + renumber section, links, fig_ids; prints
+plain-text mentions to fix by hand -- earlier insertions shifted "Statistics as 14.x" etc. by hand).
+
+DONE 10-28 (Priya reviewing the page live, many small requests):
+- Key figure 1 = scripts/key_figure.py (A behaviour = far-contra FIRST-lick aim; B/C frozen vs epoch-refit decoders + old
+  far-contra code on hits; D ITI like-for-like offset any-spout + same-target). Key figure 2 = Fig 13.2 (lick order).
+  "Where things stand" bottom line rewritten 10-28. Cued "read ahead of the failing movement" RETIRED = target
+  composition (12.15), page + FINDINGS re-worded.
+- 10.3 legend; 10.5 x = far-contra first-lick aim + pooled; 10.7/10.8 pooled pre-normalised column; 12.1 y label; 12.2
+  Gaussian-smoothed curves (solid 4 animals, dashed 3); 12.15 panel titles; 12.17 pooled column; 13.7 NEW decoded vs
+  actual position per spout (absolute; epochs-together + per-epoch images); 13.8 (decomposition) dots = mean of animals
+  (were flat session mean), left column decoded (filled) vs landing (open) change; 13.9 legend; section 13 renumbered.
+- ITI FaceRhythm controls on UNBLANKED FR (helper fr; 14.12/14.13 captions updated; old vs new CSVs). Shared write guard
+  S2/f5/guard/sitecustomize.py is BROKEN (SyntaxError, never loaded) -- use S2/fr/guard or S2/mu/guard (fixed).
+- Section 14 (lick-locked activity): cued versions (scripts/lick_cued_ramp.py: --extract re-samples -2..+3 s traces per
+  session into iti_licks/cued_wide/<label>.npz, validated vs stored; first cued lick lick-/cue-aligned, ITI bout starts;
+  row 3 = difference from the animal's own pre curve; window sensitivity 0-0.3/0.5/1.0/1.5 + peak; masked ratio; per
+  spout). KEY block now 14.1 ITI (-2..+3), 14.2, 14.3 isolated, 14.4 cued lick, 14.5 cue, 14.6 per spout. 14.14 ITI area
+  maps with ALM/tjM1 split + far-contra previous-spout version; 14.15 NEW cued area maps (all + far-contra target).
+  iti_licks.extract now saves bout_prev_pos (bout_pos = window label, never used; no analysis affected).
+- Deleted on M: iti_licks/sessions (v1) + superseded_split_20261027 (Priya OK); roi_v2_backup kept ~1 week.
+- Rim check (ALM/tjM1 rim): no difference -> stat mask kept (scripts/checks/rim_check_alm_tjm1.py).
+
+RUNNING / PENDING at compaction:
+1. Musall + Layer 2 frA (helper mu code merged b6809c27; run S2/mu/run.sh with W=wf_attempt, task b4jttvnw8, ~1.25-1.5 h
+   from ~06:55; logs S2/mu/run_*.log, ends MU_DONE). Then update captions 0.3, 0.4, 0.9, 0.10 (claims_*.csv) and 2.2 / 2.6
+   (specificity_control/gate-attempted_v7g3_t3d_frA, layer2_split_boot.csv); copy PNGs, publish.
+2. ITI per-spout traces by PREVIOUS spout (lick_cued_ramp.py compute, PID 29604 started 06:56, log S2/mk/wide_compute3.log)
+   -> lick_iti_ramp_perspout.png -> add as 3rd image of 14.6 (+ caption).
+3. 14.7 replacement: scripts/lick_iti_ramp_animals.py (animal-averaged ITI PETH -2..+3 s, RAMP_ROIS) running (task
+   b5mfm6g95) -> put right after 14.1 as SUPPLEMENT, drop the old 14.7 (iti_ramp_peth) figure; renumber with goal_page_insert.
+4. 14.15 (cued area maps) -> Priya: "include a pre-cue also" (add row: pre-cue AUC -0.5..0 s before the cue on first_cue,
+   cue-aligned baseline -1.0..-0.5; scripts/iti_area_maps.py session_table_split cued branch) and "14.15 is KEY" (move into
+   the section-14 key block after the per-spout figure, tier key, renumber).
+5. Per-spout cued lick-response table (task b27ty861g; per spout tjM1_right / cortex change vs pre) -> to answer Priya's
+   reading below.
+6. 10.6 (scripts/iti_lick_rate.py, pooled + over days + vs first-lick aim) PID 18132 running since 05:43 (5000-perm x 2
+   behaviour axes); when done copy lick_iti_rate.png, update 10.6 caption (numbers in iti_lick_rate_recovery.csv,
+   behaviour column fc_aim vs hit), publish.
+7. Priya's synthesis to CHECK then write into "Where things stand" + FINDINGS: (a) lick-aligned activity rises
+   dramatically across cortex acutely; ITI: decreases with time (14.14: 41 areas acute -> 5 chronic: tjM1, MOp-rest contra,
+   SSp-m), cued: persists chronically (14.15: 35 areas chronic); (b) cued: mostly from close spouts, least far spouts
+   (verify with item 5; far-contra target acute lick response NOT up, n.s.); (c) "less orofacial activity acutely, above
+   pre subacute-chronic" = true for far-contra target trials (acute cue response LOWER, ALM contra -3.4, 27 areas down;
+   lick response n.s.), NOT for all cued trials (acute lick response up +5.0 tjM1 contra). Cue response: unchanged
+   acutely, up subacute/chronic.
+8. Open questions for Priya: none blocking; key-figure suggestions all done.
+
 ### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
 decisions, questions for Priya). Page v145 live (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Done overnight:
 masked LocaNMF (v141), ALM / tjM1 rows in encoder / FR figures (cheap ones; expensive refits = question), first-lick aim
