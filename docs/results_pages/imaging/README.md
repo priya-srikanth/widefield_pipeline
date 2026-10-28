@@ -1,7 +1,7 @@
 # Imaging results page — source and rebuild
 
-Published page: https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (v34, 2026-10-27: v27 = section.position figure
-numbers, figure titles, full-method captions; v28-29 add section 14, the Haufe decoder maps; v30 maps its encoding-page cross-reference to that page's 10-27 renumbering (3.33-3.35 -> 3.64-3.66, linked by stable id; v31 -> 3.69-3.71 after its v130 insertions; v34 -> 15.6-15.8 after its v136 section split); v32 = stable figure ids; v33 = section 1 holds only the refit decoder (frozen pre-cue figure moved to 2.1, refit by-position Figs 1.1-1.2 added); format rule in `docs/templates/README.md`).
+Published page: https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (v35, 2026-10-27: v27 = section.position figure
+numbers, figure titles, full-method captions; v28-29 add section 14, the Haufe decoder maps; v30 maps its encoding-page cross-reference to that page's 10-27 renumbering (3.33-3.35 -> 3.64-3.66, linked by stable id; v31 -> 3.69-3.71 after its v130 insertions; v34 -> 15.6-15.8 after its v136 section split; v35 -> 15.11-15.13 (its v140)); v32 = stable figure ids; v33 = section 1 holds only the refit decoder (frozen pre-cue figure moved to 2.1, refit by-position Figs 1.1-1.2 added); format rule in `docs/templates/README.md`).
 
 **The figure PNGs are not in git** (83 files, ~188 MB). The full source, PNGs included, is on the share at
 `M:/MICROSCOPE/Priya/Widefield/imaging_page_src/` (`imaging_page/` = exactly what is published). This folder holds
@@ -26,7 +26,7 @@ python p_img_s1refit.py    # section 1 = refit decoder only (5r figures in, froz
 Checked 2026-10-26 (through p_img_titles): this chain reproduces the published `imaging_page/imaging_results.html` byte for byte.
 `fig2_attempt_decoder.png` and `fig2b_attempt_decoder_epochs.png` are on the published artifact but not in the local
 PNG folder; publish with `files` for the changed PNGs only, so they are kept. To publish, copy the result next to the PNGs in `imaging_page_src/imaging_page/` and publish that HTML to the URL above.
-The share copy of `imaging_page/imaging_results.html` is still v27 (not overwritten); the repo copy here is current (v34).
+The share copy of `imaging_page/imaging_results.html` is still v27 (not overwritten); the repo copy here is current (v35).
 
 ## Linking to a figure (2026-10-27)
 
