@@ -123,7 +123,7 @@ iti_area_peth,14.9,dF/F around self-initiated ITI licks in non-orofacial areas: 
 iti_area_compare,14.10,"dF/F around ITI licks, orofacial ROIs vs control areas: chronic larger response also in controls",supporting
 iti_area_groups,14.11,"ITI-lick dF/F, orofacial vs visual+RSP areas by session: chronic build-up weaker only orofacially",supporting
 iti_where_drift,10.7,The lateral r loss is not elapsed-time drift,supporting
-iti_recovery_link_angle_z,16.4,"As far-contra aim recovers, the contralesional reading of self-initiated licks fades (like-for-like offset, 4/4)",supporting
+iti_recovery_link_angle_z,16.4,"As aim recovers, the contralesional reading of self-initiated licks fades (like-for-like offset, 4/4)",supporting
 iti_recovery_link_sessions_angle_z,16.5,"Pooled, one dot per session: worse aim, more contralesional reading (companion to Fig 16.4)",supporting
 iti_where_drift_june,10.8,Drift check with the June no-stroke reference: the ITI lateral loss is smaller but still beyond drift (extends Fig 10.7),supporting
 iti_check_error_sessions,12.8,ITI decoding error shift and width per session,supporting
@@ -134,7 +134,7 @@ iti_check_3axis,11.1,"Three axes (lateral, forward, down): reproduces the latera
 iti_check_3axis_sessions,11.2,Three-axis decoder per session (ITI licks),supporting
 cued_first_lick,13.4,The FIRST cued lick is read toward the target in every epoch; later licks only acutely,supporting
 cued_overcorrection,13.5,Chronic ipsilesional read-out is specific to the contralesional spouts (lateral) (cued licks),supporting
-iti_recovery_measure,16.6,Behavioural recovery measure: weighted angle offset from each spout's pre landing,supporting
+iti_recovery_measure,16.6,Behavioural recovery measure: FIRST-lick weighted angle offset from each spout's pre landing,supporting
 iti_hemo_check_edge_vessel,14.14,Edge and vessel pixels: the acute increase is somewhat rim-weighted; vessels unchanged,supporting
 iti_hemo_check_state_gap,14.15,Running around licks and matched pre-lick gaps: the increase is unchanged,supporting
 iti_session_pattern_change_position,15.6,"Shape-only change maps for lateral and sagittal position, TFCE",supporting
@@ -180,9 +180,13 @@ fig12p_residual_trend_pooled,18.3,"Far-contra frozen pre-stroke encoder residual
 fig7_residual_far_contra_16px,18.4,"Frozen pre-stroke encoder residual maps, far contra, 16 px bins: all lick-window bins increase",supporting
 residual_roi_pooled,18.5,"Frozen pre-stroke encoder residual by Allen area, all spouts pooled: every significant area increases",supporting
 residual_roi_spout_lick,18.6,"Frozen pre-stroke encoder residual by Allen area per spout, lick window: far-contra chronic orofacial increase",supporting
+residual_roi_spout_lick_split,18.6 supp,"Frozen pre-stroke encoder residual per spout, lick window, ALM / tjM1 split rows (raw)",supplementary
+residual_roi_spout_lick_z_split,18.6 supp,"Frozen pre-stroke encoder residual per spout, lick window, ALM / tjM1 split rows (pre-SD units)",supplementary
 fig8_residual_per_animal_cue,18.7,"Frozen pre-stroke encoder residual per animal, cue window: chronic bins only in PS92, PS94",supporting
 fig12_residual_trend_lick,18.8,"SSp-m far-contra frozen pre-stroke encoder residual by day vs pre-stroke trend, lick window",supporting
 residual_roi_spout_cue,18.9,"Frozen pre-stroke encoder residual by Allen area per spout, cue window: acute areas, few chronic",supplementary
+residual_roi_spout_cue_split,18.9 supp,"Frozen pre-stroke encoder residual per spout, cue window, ALM / tjM1 split rows (raw)",supplementary
+residual_roi_spout_cue_z_split,18.9 supp,"Frozen pre-stroke encoder residual per spout, cue window, ALM / tjM1 split rows (pre-SD units)",supplementary
 fig7d_residual_perspout_cue_32px,18.10,"Frozen pre-stroke encoder residual per spout, cue window, 32 px: mostly acute close-spout bins",supplementary
 fig7d_residual_perspout_lick_32px,18.11,"Frozen pre-stroke encoder residual per spout, lick window, 32 px: chronic largest for far ipsi",supplementary
 fig7c_residual_allspouts_16px,18.12,"Frozen pre-stroke encoder residual maps, all spouts pooled, 16 px bins: all lick-window bins increase",supplementary
@@ -232,15 +236,22 @@ lick_iti_session_shape_days,15.15,"Map similarity to pre over days, every spout,
 lick_cued_aim_deficit_compare,16.10,Aim deficit per session: first-lick weighted vs first-lick far contra vs all licks,supplementary
 lick_iti_filter_compare,12.14,"ITI read-out on stricter ITI lick sets: 2 s quiet, ≥ 1 s from trial edges, both",supplementary
 lick_matched_angle_reach,11.10,"Like-for-like offset on angle and 3-D reach: ITI licks read more contralesional in angle in every epoch (4/4); reach not shifted for ITI licks, read shorter for cued licks after the acute epoch",supplementary
+lick_offset_contrib_angle,11.11,"Where the angle read-out offset comes from: patterned cortex, not a uniform cortex-wide change (ITI +5.7 / +3.0 / +3.5°, 4/4)",supplementary
+lick_offset_contrib_reach,11.12,"Where the reach read-out offset comes from: cued licks read shorter after the acute epoch (4/4), mostly patterned; ITI small",supplementary
+lick_offset_contrib_angle_vs_lateral,11.13,Angle and lateral offsets come from the same cortex: contribution maps r 0.90–0.95 (mean of animals),supplementary
 lick_matched_gauss_readout,12.1,"Cortex reads licks contralesional of where they land: ITI licks in every epoch, cued licks acutely and on the first lick",key
 lick_matched_gauss_curves,12.2,"Decoded position against landing place, before and after the stroke",key
 lick_matched_gauss_perspout,13.6,Like-for-like read-out per spout: ITI licks read contralesional after the ipsi and mid spouts; cued far-contra licks ipsilesional chronically,supporting
 lick_session_levels_lat,15.1,"Per-session level maps, amplitude kept: the crossed lateral map and the bilateral sagittal map are present at every epoch; after the stroke the lateral maps gain a widespread negative component (cued: mostly PS93; ITI first licks: 4/4)",key
-lick_cued_session_levels_spout,15.2,"Per-session per-spout level maps, amplitude kept: the cued far-contra map loses its pre layout acutely in 4/4 and returns in 3/4 (not PS93); ITI maps carry large cortex-wide components",key
+lick_cued_session_levels_spout,15.2,"Per-session per-spout level maps, amplitude kept: the cued far-contra map loses its pre layout acutely in 4/4 and returns in 3/4 (not PS93); ITI maps carry large cortex-wide components in unscaled features (mostly a variance effect: not seen with z-scored features)",key
+lick_session_levels_scale_compare_global,15.2 supp,Unscaled vs z-scored features: the cortex-wide share of the level maps collapses with z-scoring (scale effect),supplementary
+lick_session_levels_scale_compare_lat,15.2 supp,"Lateral level maps, unscaled vs z-scored features",supplementary
+lick_session_levels_scale_compare_spout_iti,15.2 supp,"Per-spout level maps, ITI licks, unscaled vs z-scored features",supplementary
+lick_session_levels_scale_compare_spout_cued,15.2 supp,"Per-spout level maps, cued licks, unscaled vs z-scored features",supplementary
 lick_session_change_amp_lat,15.8,"Per-session change maps with amplitude kept, lateral / sagittal: the cued lateral map shifts negative over 94–97% of cortex at every epoch, mostly a cortex-wide shift; the sagittal map grows",supporting
 lick_session_change_amp_spout_cued,15.9,"Per-session change maps per spout with amplitude kept: the largest changes are one-sign, cortex-wide (ITI far contra acute, close mid / close ipsi chronic); cued far contra changes only medially",supporting
 lick_session_levels_within_spout,15.10,"Within-spout (executed-direction) maps with amplitude kept: after the stroke the cued map becomes a cortex-wide negative (81–99% of cortex, 4/4)",supporting
 lick_matched_loclin_readout,12.2 supp,Local-linear like-for-like reference (supplementary block),supplementary
 lick_matched_loclin_curves,12.2 supp,Local-linear like-for-like reference (supplementary block),supplementary
 lick_matched_loclin_perspout,13.6 supp,Local-linear like-for-like reference (supplementary block),supplementary
-lick_refit_decoders,10.2b,"Decoders refit per epoch and per session still decode lick position",supporting
+lick_refit_decoders,10.2b,Decoders refit per epoch and per session still decode lick position,supporting
