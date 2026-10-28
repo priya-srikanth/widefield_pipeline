@@ -36,7 +36,10 @@ from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 GROUPS = {"orofacial": ["ALM", "tjM1", "SSp-m", "SSp-n"], "visual": ["VISam", "VISpm", "VISa", "VISrl"],
           "RSP": ["RSPd", "RSPagl", "RSPv"], "barrel": ["SSp-bfd"], "limb/trunk": ["SSp-ul", "SSp-ll", "SSp-tr"],
-          "ACAd": ["ACAd"]}
+          "ACAd": ["ACAd"],
+          # SSp-un (unassigned S1, between SSp-n / SSp-m and the barrel field): in NEITHER pool; tested on its own and
+          # added to the orofacial pool as a sensitivity check (Priya 10-28: "is SSp-un in non-orofacial? should it be?")
+          "SSp-un": ["SSp-un"], "orofacial+SSp-un": ["ALM", "tjM1", "SSp-m", "SSp-n", "SSp-un"]}
 CONTROLS = ["visual", "RSP", "barrel", "limb/trunk", "ACAd"]
 ALLG = [*GROUPS, "non-orofacial"]
 MIN_CELL = 20
