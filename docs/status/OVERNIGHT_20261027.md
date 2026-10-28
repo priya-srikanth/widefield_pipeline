@@ -35,6 +35,19 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~02:15) 5a / 5b / 5d merged (7cf26245; scripts lick_covariate_reference.py, lick_same_target_place.py,
+  lick_matched_readout additions) and running on M: (run_5abd.sh, ~10 min). Full-cohort results (guarded dry run):
+  5a COVARIATES explain almost none of the offset: ITI +0.357 / +0.230 / +0.275 (landing only) -> +0.331 / +0.218 /
+  +0.256 with FaceRhythm + kinematics (5-7 % explained; still 4/4); cued acute +0.161 -> +0.162. FR does carry pre-stroke
+  information (cuts held-out pre error up to 15 % ITI / 29 % cued), it just does not explain the post-stroke offset.
+  5b SAME-TARGET same place -- IMPORTANT: the CUED offset is mostly TARGET COMPOSITION: acute +0.165 (all) / +0.139
+  (covered licks) -> +0.007 [-0.04, +0.06] 2/4 against pre licks of the SAME target; cued first lick +0.31 -> +0.05 n.s.
+  i.e. post-stroke cued misses are read toward their target just as pre-stroke misses of that target were; the "read
+  ahead of the failing movement" offset reflects more misses, not a changed read-out per lick. The ITI offset mostly
+  SURVIVES: acute +0.34 -> +0.26 [0.05, 0.47] 4/4, chronic +0.27 -> +0.24 [0.11, 0.39] 4/4 (ITI "target" = previous
+  trial's spout). Coverage 86-99 % (PS94 cued acute 66 %).
+  5d ITI FIRST lick per spout: positive every spout x epoch; acute +0.25..+0.54 (4/4 each), chronic +0.23..+0.37 (4/4 except
+  close ipsi 3/4 n.s.). New per-animal change figure (lick_matched_gauss_animal_change.png).
 - (10-28 ~01:50) PAGE v142 PUBLISHED (b9d94cd5): ALM / tjM1 rows (0.13, 2.2, 2.6, 18.5 + split supplements under 18.6 /
   18.9, 22.3, 22.4); first-lick aim (16.3-16.6, 16.9, 16.11-16.12); FWER map stats (15.1, 15.17-15.20); new 11.11-11.13
   angle / reach offset-contribution maps; 15.2 caveat + scale-compare supplements. DIRECTION / SIGNIFICANCE CHANGES vs
@@ -103,6 +116,15 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   page SOURCE files committed (PNGs excluded).
 
 ## Questions for Priya
+- (10-28, 5a helper) bout_fr / first_fr in the ITI session files are NOT real ITI face measurements: the frozen encoder
+  blanks FaceRhythm outside spout strobe -> trial end (only 2-3 % of ITI lick peaks inside), and iti_licks.extract's
+  fr_at interpolates across the blanked gaps. 5a reads FR unblanked instead (5 Hz session samples in the ITI). The
+  existing ITI FR controls in iti_licks (--controls; page 3.4 fr_lick_variance and the FR rows of the controls figure)
+  use the interpolated values -> redo them with unblanked FR? (recommend yes; cheap)
+- (10-28, 5b) Wording: the cued "read ahead of the failing movement" (FINDINGS 4d0-V8, page 12.1 / status row) is mostly
+  target composition (misses read toward their target as pre misses were; same-target offset +0.01 n.s.). OK to
+  re-word page + FINDINGS to: cued licks are read like pre-stroke licks to the same target that landed in the same place
+  (normal target coding); the ITI offset is the one that is a changed read-out (survives same-target, 4/4)?
 - (INCIDENT, 10-27 ~23:55) The harness flagged the 4b helper (first-lick aim / FWER stats) for "interfering with
   workloads". The three idle `pytest -q` python processes seen earlier (PIDs 3240, 28260, 13112; possibly another
   session's) are gone; my own runs (ALM rows, 5c helper) are intact. Helper's account: it stopped its OWN runaway
