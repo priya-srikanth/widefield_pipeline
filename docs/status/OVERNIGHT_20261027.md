@@ -22,6 +22,12 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
    5b. SAME-TARGET same-place check ("more misses" vs "each lick read differently").
    5c. New per-session Haufe MAP targets (SVD basis, iti_session_patterns / lick_session_level_maps): x, y, z, angle,
        elevation, reach; pooled + per spout; epoch and epoch - pre; per-animal panels.
+   5c-bis. (Priya "yes do both", 10-27 late) ANGLE (+ reach) OFFSET-CONTRIBUTION maps, Gaussian reference
+       (lick_offset_contrib_map.py logic on the angle decoder): where the extra contralesional angle reading comes from;
+       uniform cortex-wide part vs patterned part. Supplementary.
+   5c-ter. (same) Z-SCORED pattern-map check: per-session level maps (lateral + per spout) with each SVD component
+       divided by its session frame SD (iti_basis_frame_sd), side by side with the unscaled maps -> are the ITI
+       cortex-wide components real or a scale effect? Supplementary.
    5d. Per-animal change-vs-pre scatter; first-lick row on the lick-order / per-spout figure (old 3.29).
    5e. PIXEL mixed models on maps with TFCE (time model step + recovery maps, behaviour model aim map; session-label
        permutation) -- heaviest, last.
@@ -42,9 +48,7 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   page SOURCE files committed (PNGs excluded).
 
 ## Questions for Priya
-- ANSWERED 10-27 late: first-lick aim -> yes (primary); pixel stats -> FWER max-stat (yes). Still open: z-scored
-  pattern-map check (2b)?
-- 5c-bis offer: angle (and reach) OFFSET-CONTRIBUTION maps with the Gaussian reference (where the extra contralesional
-  angle reading comes from; cheap, angle preds cached) -- add?
+- ANSWERED 10-27 late: first-lick aim -> yes (primary); pixel stats -> FWER max-stat (yes). 
+- ANSWERED: 5c-bis + z-scored map check -> "yes do both" (queued as 5c-bis / 5c-ter).
 - (carried over) The SVD_GAUSS_SUPERSEDE_QUEUE "SVD basis = primary" plan is superseded by tonight's split-basis decision
   (marked in that doc); its controls (5a-5f) carry over on the split basis.
