@@ -161,7 +161,7 @@ def compute():
     return R
 
 
-TAGS = [("areas", "Allen areas"), ("areas_splitr2", "Allen, ALM / tjM1 split"), ("locanmfF", "LocaNMF"), ("locanmfFM", "LocaNMF, glue / MOB comps dropped"),
+TAGS = [("areas", "Allen areas"), ("areas_splitr8", "Allen, ALM / tjM1 split"), ("locanmfF", "LocaNMF"), ("locanmfFM", "LocaNMF, glue / MOB comps dropped"),
         ("svdF", "pre-stroke SVD")]
 
 

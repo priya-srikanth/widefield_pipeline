@@ -101,7 +101,10 @@ CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scal
 
 
 def preds_path() -> Path:
-    return il.OUT / f"lick_order_preds{SRC_TAG}.csv.gz"
+    # plain Allen areas: outputs stay untagged (canonical = the current ROI version) but the per-lick prediction CACHE is
+    # tagged by ROI version from v8 on (the v8 lateral rim changes the area features; a v1 / v2 cache must never be reused)
+    roi = f"_r{il.ROI_VERSION}" if SOURCE == "areas" and il.ROI_VERSION not in ("1", "2") else ""
+    return il.OUT / f"lick_order_preds{SRC_TAG}{roi}.csv.gz"
 VALS = ("landing", "decoded", "beyond")
 VLAB = {"landing": "landing vs pre at the spout (BEHAVIOUR)", "decoded": "decoded position vs pre at the spout (NEURAL)",
         "beyond": "offset beyond the pull (NEURAL)"}

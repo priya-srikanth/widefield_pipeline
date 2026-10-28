@@ -22116,3 +22116,13 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   8-px front rim), carried laterally to the thin lateral rim, >= 10 px (0.19 mm) from FRP; ALM / tjM1 one connected region
   each; no PL / FRP / medial front slivers. Per-pixel MAP statistics keep the 16-px stat mask. Rejected: v3 (front
   slivers), v4 (detached ALM corner), v5 (ALM against FRP), v6 (lost lateral tjM1 / SSp-m), v7 (corner zig-zag).
+
+## 2026-10-27 (late) -- Lick decoder basis: Allen areas with the ALM / tjM1 split is PRIMARY (Priya)
+- Priya, asked "which basis is primary (I recommend Allen with the ALM/tjM1 split)": "I agree".
+- PRIMARY = `WFIELD_LICK_DECODER=areas_split` on ROI v8 (outputs tagged `areas_splitr8`). Robustness rows: plain Allen
+  areas (untagged), masked LocaNMF (`locanmfFM`, glue / MOB components dropped), SVD (`svdF`). Held-out pre lateral r ITI /
+  cued (v2 ROIs): split 0.625 / 0.768, Allen 0.622 / 0.767, LocaNMF masked 0.622 / 0.761, LocaNMF 0.608 / 0.754, SVD
+  0.597 / 0.736 -- the split basis is at least as good as the others, and its features are named areas.
+- Why not LocaNMF (Priya earlier: "if LocaNMF is better, let's use it"): it is not better here; the joint LocaNMF basis
+  is pre-stroke only and ~1/3 of its components sit mostly on glue / MOB.
+- Priya named the figure where tjM1's chronic build-up "lost significance": `lick_iti_ramp_summary` (ramp_session_tests.csv).
