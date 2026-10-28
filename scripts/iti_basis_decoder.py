@@ -33,6 +33,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import iti_where_decoder as wd  # noqa: E402
 from figdata import load_fd, save_fd  # noqa: E402
 
 FIG = "lick_basis_decoder"
@@ -93,7 +94,7 @@ def decode(source: str) -> pd.DataFrame:
     """Frozen decoder r per session (lags 0..0.2 averaged) and per lag; same recipe as page 3.9."""
     from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
-    sd = il.OUT / f"basis_{source}" / "sessions" if source not in AREAS else None
+    sd = il.OUT / f"basis_{wd.basis_dir(source)}" / "sessions" if source not in AREAS else None
     labels = sorted(p.stem for p in (sd or il.OUT / il.SESS_NAME).glob("*.npz"))
     D = {}
     for x in labels:
@@ -107,8 +108,10 @@ def decode(source: str) -> pd.DataFrame:
                               z["tr_side"].astype(float))}
         else:
             z = np.load(sd / f"{x}.npz")
+            k = wd.locanmf_keep(str(z["animal"])) if source == "locanmfM" else slice(None)   # masked LocaNMF
             D[x] = {"epoch": str(z["epoch"]), "animal": str(z["animal"]),
-                    "iti": (z["iti_X"].astype(float), z["iti_y"]), "trial": (z["trial_X"].astype(float), z["trial_y"])}
+                    "iti": (z["iti_X"].astype(float)[..., k], z["iti_y"]),
+                    "trial": (z["trial_X"].astype(float)[..., k], z["trial_y"])}
     rows = []
     for st in ("iti", "trial"):
         for a in AN:
@@ -188,7 +191,8 @@ def plot(D: dict) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     srcs = D["srcs"]
     lab = {"areas_split": "Allen areas + ALM / tjM1 split (primary)", "areas": "Allen areas, plain (no split)",
-           "locanmf": "joint LocaNMF (pre-stroke footprints)", "svdbasis": "pre-stroke SVD basis (200 comps)"}
+           "locanmf": "joint LocaNMF (pre-stroke footprints, unmasked)",
+           "locanmfM": "joint LocaNMF, glue / MOB comps dropped", "svdbasis": "pre-stroke SVD basis (200 comps)"}
     fig, axs = plt.subplots(2, len(srcs), figsize=(4.6 * len(srcs), 7.5), sharey=True, squeeze=False)
     for j, src in enumerate(srcs):
         for i, st in enumerate(("iti", "trial")):
@@ -242,7 +246,8 @@ def main(argv=None) -> int:
             print(f"  !! {it}: {err}", flush=True)
         if a.labels:
             return 0
-    summarise(a.sources)
+    # the figure / tests use the MASKED LocaNMF (Priya 10-27 late "swap masked locanmf"); extraction is the same files
+    summarise(["locanmfM" if s == "locanmf" else s for s in a.sources])
     return 0
 
 

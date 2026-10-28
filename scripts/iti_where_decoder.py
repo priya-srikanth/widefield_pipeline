@@ -33,12 +33,15 @@ import iti_licks as il  # noqa: E402
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 TARGETS = ("lateral", "sagittal", "2-D", "angle", "reach")         # outward is also scored (where_decoder.csv)
-SOURCES = ("areas", "locanmf", "svdbasis")
+SOURCES = ("areas", "locanmfM", "svdbasis")
+# LocaNMF robustness row = MASKED joint LocaNMF (Priya 10-27 late "swap masked locanmf"): components with > half their
+# |footprint| outside the glue / olfactory-bulb brain mask dropped (locanmf_keep); same basis files as "locanmf"
 # "areas" = Allen areas in the AREA BASIS (il.AREA_BASIS: split by default, Priya 10-27 late "use split bases, for
 # consistency"; plain with WFIELD_AREA_BASIS=plain -> every output tagged il.BASIS_TAG). "areas_split" / "areas_plain"
 # name a basis explicitly (iti_lick_order SOURCE, the basis summary). The source column of where_decoder*.csv stays
 # "areas", so its readers (mixed models, recovery link, z check) follow the basis of the run.
-LAB = {"areas": il.basis_label(), "locanmf": "joint LocaNMF", "svdbasis": "pre-stroke SVD basis",
+LAB = {"areas": il.basis_label(), "locanmf": "joint LocaNMF (unmasked)",
+       "locanmfM": "joint LocaNMF, glue / MOB comps dropped", "svdbasis": "pre-stroke SVD basis",
        "areas_split": il.basis_label("split"), "areas_plain": il.basis_label("plain")}
 AREA_SOURCES = {"areas": None, "areas_split": "split", "areas_plain": "plain"}     # source -> basis (None = il.AREA_BASIS)
 ZHEAD = "Z-SCORED FEATURES (each area / its frame-wise SD in the session, pre and post alike; iti_zscore_check.py)\n"
@@ -120,6 +123,27 @@ def area_meta(sess_dir: Path | None = None, basis: str | None = None) -> tuple[l
     return names, il.area_sd(sess_dir, basis)[names]
 
 
+MASK_OUT_MAX = 0.5
+_KEEP = {}
+
+
+def basis_dir(source: str) -> str:
+    """Basis-file folder name of a decoder source (the masked LocaNMF reuses the LocaNMF projections)."""
+    return "locanmf" if source == "locanmfM" else source
+
+
+def locanmf_keep(animal: str) -> np.ndarray:
+    """Boolean per joint-LocaNMF component: <= MASK_OUT_MAX of its |footprint| outside `beta_maps.brain_mask()` (the
+    imaging-map mask that excludes fibre glue and the olfactory bulbs). Shared by every masked-LocaNMF decoder."""
+    if animal not in _KEEP:
+        from wfield_local import beta_maps
+        from wfield_local import joint_locanmf as jl
+        b = jl.load(animal, warn_stale=False)
+        A = np.abs(np.nan_to_num(np.asarray(b.A, float))).reshape(-1, b.ncomp)
+        _KEEP[animal] = A[~beta_maps.brain_mask().ravel()].sum(0) / A.sum(0) <= MASK_OUT_MAX
+    return _KEEP[animal]
+
+
 def _load_one(item):
     """One session -> (label, record | None). Module-level so `analysis_kit.fan_sessions` can spawn it (the basis
     branch reads the session's imaging for its frame times, which is the slow part)."""
@@ -134,9 +158,10 @@ def _load_one(item):
             rec[st] = (il.area_features(Xa, z["cols"], x, sess_dir, AREA_SOURCES[source]), z[kt].astype(float))
             rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
     else:
-        f = il.OUT / f"basis_{source}" / "sessions" / f"{x}.npz"
+        f = il.OUT / f"basis_{basis_dir(source)}" / "sessions" / f"{x}.npz"
         if not f.exists():
             return x, None
+        keepc = locanmf_keep(str(z["animal"])) if source == "locanmfM" else None
         b = np.load(f)
         from iti_basis_decoder import LAGS as LB
         from wfield_local import combined_encoding as ce
@@ -148,7 +173,7 @@ def _load_one(item):
             Xb = b[f"{st}_X"].astype(float)[:, wb].mean(1)
             if Xb.shape[0] != keep.sum() or not np.allclose(b[f"{st}_y"], y[keep]):
                 raise ValueError(f"{x} {source} {st}: basis licks do not line up with the ITI session file")
-            rec[st] = (Xb, t[keep])
+            rec[st] = (Xb if keepc is None else Xb[:, keepc], t[keep])
             rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)[keep]   # spout per lick
     for st in ("iti", "trial"):
         X, t = rec[st]
@@ -224,7 +249,7 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
 
-    srcs =[s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{s}" / "sessions").exists()]
+    srcs =[s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{basis_dir(s)}" / "sessions").exists()]
     R = pd.concat([decode(s) for s in srcs], ignore_index=True)
     R.to_csv(il.OUT / il.tagged("where_decoder.csv"), index=False)
     pre = R[R.epoch == "pre"].groupby(["source", "set", "target", "animal"]).r.mean()
