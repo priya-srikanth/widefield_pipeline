@@ -495,18 +495,21 @@ def _draw_spout(F: dict, key: str, xlab: str, title: str, path: Path, nlab: str)
             ax.set_xlim(-2, 3)
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
-            if r == 0:
-                ax.set_title(p.replace("_", " "), fontsize=10)
+            if r == 0:   # session counts per epoch in the column title (they differ by spout), not a legend on the data
+                ns = " / ".join(str(n) for _e, _m, _s, n in F["spout"][(key, p)][r]["curves"])
+                ax.set_title(f"{p.replace('_', ' ')}\nsessions {ns}", fontsize=9.5)
             if c == 0:
                 ax.set_ylabel(f"{roi}\n{nlab}", fontsize=8)
             if r == len(SPOUT_ROIS) - 1:
                 ax.set_xlabel(xlab, fontsize=8)
-            if r == 0 and c == 0:
-                ax.legend(fontsize=6.5, frameon=False, loc="lower left")
     il._headroom(axs[:, 0])   # rows share y: raise each row once
+    from matplotlib.lines import Line2D
+    fig.legend(handles=[Line2D([], [], color=colors[e], lw=2.2, label=e) for e in il.EP4], loc="lower center", ncol=4,
+               fontsize=9, frameon=False, title="epoch (column titles: sessions pre / acute / subacute / chronic)",
+               title_fontsize=8.5)
     fig.suptitle(title + "\n" + il.SIG_NOTE.replace("\n", " ") + " Tested per spout against the animal's pre curve at "
                  "that spout.", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.tight_layout(rect=(0, 0.06, 1, 0.92))
     fig.savefig(path, dpi=100)
     plt.close(fig)
 
