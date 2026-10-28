@@ -469,7 +469,7 @@ def plot_vs_lateral(F: dict) -> None:
 
 # unmasked LocaNMF ("locanmfF") dropped from the figure (Priya 10-28: superseded by the masked basis)
 TAGS = [("areas", "Allen areas"), ("areas_splitr8", "Allen, ALM / tjM1 split"), ("locanmfFM", "LocaNMF, glue / MOB comps dropped"),
-        ("svdF", "pre-stroke SVD"), ("svdF_k50", "pre-stroke SVD, first 50 components")]
+        ("svdF", "pre-stroke SVD"), ("svdF_k50", "SVD, first 50 comps")]
 
 
 def plot():
@@ -488,7 +488,7 @@ def plot():
         wpix = {}
         # + a row with the SVD maps PROJECTED onto the Allen areas with ALM / tjM1 (Priya 10-28): per area, the sum of
         # the pixel contributions (same units as the area-basis rows' area totals) and of the pixel weights
-        rows_ = list(tags) + [("svdF@areas", "pre-stroke SVD, summed per Allen area (ALM / tjM1 split)")]             if any(t == "svdF" for t, _l in tags) else list(tags)
+        rows_ = list(tags) + [("svdF@areas", "SVD summed per area")]             if any(t == "svdF" for t, _l in tags) else list(tags)
         fig, axs = plt.subplots(len(rows_), 4, figsize=(15, 3.6 * len(rows_)), squeeze=False)
         for i, (t, lab) in enumerate(rows_):
             proj = t.endswith("@areas")
