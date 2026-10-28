@@ -22180,3 +22180,16 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
 - **`bout_prev_pos` cache.** The ITI session files predate the stored previous-trial spout; the rebuild loads each
   session's behaviour off the share (~46 s x 107 sessions per job). `lick_cued_ramp.py --prev-cache` builds
   `<OUT_W>/bout_prev_pos.csv` once (8 workers); `bout_prev_pos` reads it, falling back to the rebuild.
+
+## 2026-10-28 (afternoon) — per-spout stats, per-spout baseline, per-order bars (page v177)
+- Per-spout figures (14.7: cued lick, cue, ITI by previous spout) now carry the 14.1 per-bin test, each spout tested
+  against the animal's pre curve AT THAT SPOUT; plus a per-spout AUC table (0-0.5 s / pre AUC at that spout,
+  `perspout_auc_tests.csv`). Priya 10-28: lick-aligned per-spout figures use baseline -1.0..-0.5 s (BASE_SPOUT), and
+  the all-spout normaliser is recomputed under that baseline. 14.1-14.4 still use -1.5..-1.0 s (asked Priya whether to
+  switch the response figures; recommended keeping -1.5..-1.0 for build-up figures since -1.0..-0.5 lies inside the
+  chronic build-up difference).
+- Reading corrected: ITI licks after far-contra trials are NOT the largest once each spout is scaled to its own pre
+  (tjM1 acute +1.70 vs close contra +1.89); cued far contra acute is split by animal (PS92/93 down, PS94/95 up), not
+  "none"; the far-contra acute CUE-response drop is carried by PS92 and PS93 only.
+- 13.2 columns 1-2 (landing, decoded vs lick order): per-order bars, same test with order as the bin
+  (`lick_order_sig_bins[_nonlinear].csv`). Chronic landing deficit confined to the first cued licks (orders 0-2).

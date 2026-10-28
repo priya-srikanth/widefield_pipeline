@@ -357,6 +357,7 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = {"pre": "k", **EPOCH_LINE}
     fig, axs = plt.subplots(2, 5, figsize=(21, 8.6), squeeze=False)
+    sig_recs = []
     for i, st in enumerate(SETS):
         for j, val in enumerate(VALS):
             ax = axs[i, j]
@@ -368,6 +369,14 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
                 mu, se = q.mean(), q.sem()
                 ax.plot(mu.index, mu, "o-", color=col[ep], ms=3.5, lw=1.4)
                 ax.fill_between(mu.index, mu - se, mu + se, color=col[ep], alpha=0.15, lw=0)
+            if val in ("landing", "decoded"):
+                # per lick order, each epoch vs pre (Priya 10-28): the 14.1 per-bin test with order as the bin
+                L = (g.dropna(subset=[val]).groupby(["label", "animal", "epoch", "ord_c"])[val].mean().reset_index()
+                     .rename(columns={"ord_c": "lag"}))
+                S_ = il.sig_compute(L, value=val, tag={"set": st, "measure": val})
+                sig_recs.extend(S_["recs"])
+                il.sig_draw(ax, S_, col)
+                il._headroom([ax])
             ax.axhline(0, color="0.7", lw=0.6, ls=":")
             ax.set_xticks(range(ORDER_CAP + 1), [*map(str, range(ORDER_CAP)), f"{ORDER_CAP}+"])
             ax.set_xlabel("lick order (0 = " + ("bout start)" if st == "iti" else "first post-cue lick)"), fontsize=8)
@@ -408,9 +417,15 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
                  f"order after the cue); frozen KEY-row decoder per set ({DEC_LAB}).\nSlope = per-session OLS of the value on "
                  f"min(order, {ORDER_CAP}), spout means removed; 95% paired nested bootstrap CI of the change vs pre, "
                  "* = CI excludes 0 (bold), † = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n "
-                 "animals. PROVISIONAL", fontsize=9.5)
+                 "animals.\nColumns 1-2: bars above the curves = lick orders where that epoch differs from pre (paired nested "
+                 "bootstrap animals > sessions per order, BH-FDR q = 0.05 across the 10 orders), one row per epoch in its "
+                 "colour. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.08)
     fig.savefig(il.OUT / "figures" / f"lick_order_iti_cued_slope{SRC_TAG}.png", dpi=100)
+    R = pd.DataFrame(sig_recs)
+    R.to_csv(il.OUT / f"lick_order_sig_bins{SRC_TAG}.csv", index=False)
+    print("== per-order tests (landing / decoded vs pre), significant orders:\n"
+          + R[R.sig_bh].groupby(["set", "measure", "epoch"]).lag.apply(lambda s: list(s.astype(int))).to_string())
     plt.close(fig)
 
 

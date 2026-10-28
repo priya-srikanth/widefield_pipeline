@@ -24,7 +24,10 @@ Figures (figdata + --plot-only):
   lick_cued_ramp_perspout.png         SUPPLEMENT: lick-aligned, per spout (columns) x key ROI (rows), / the animal's
                                       pre response AUC (all spouts), mean +- SEM over sessions
   lick_cued_ramp_cue_perspout.png     the same cue-aligned
-Outputs <E>/iti_licks/cued_ramp_auc_sessions.csv, cued_ramp_session_tests.csv, sig_bins_cued_ramp.csv.
+  lick_iti_ramp_perspout.png          ITI bout starts by the PREVIOUS trial's spout
+  (per-spout figures: per-bin sig bars as 14.1, tested against the animal's pre curve at that spout; 10-28)
+Outputs <E>/iti_licks/cued_ramp_auc_sessions.csv, cued_ramp_session_tests.csv, sig_bins_cued_ramp.csv,
+sig_bins_perspout.csv, perspout_auc_tests.csv (per-spout AUC 0..0.5 s / pre at that spout, change vs pre).
 Usage: python scripts/lick_cued_ramp.py --extract [--jobs N]; python scripts/lick_cued_ramp.py [--plot-only]
 """
 from __future__ import annotations
@@ -44,6 +47,7 @@ MIN_SPOUT = 5
 LAGS_W = np.round(np.arange(-2.0, 3.0001, 0.05), 3)
 BASE_L = il.BASE                      # lick-aligned baseline (s from lick), as the ITI figures
 BASE_C = (-1.0, -0.5)                 # cue-aligned baseline (s from cue)
+BASE_SPOUT = (-1.0, -0.5)             # per-spout lick-aligned figures, cued AND ITI (Priya 10-28: "use -1 to -0.5 s")
 ROIS = il.KEY_ROIS
 SPOUT_ROIS = ["ALM_right", "tjM1_right", "SSp-m_right", "cortex"]
 WIDE = "cued_wide"
@@ -374,13 +378,57 @@ def compute() -> dict:
     WT.to_csv(il.OUT_W / "ramp_window_tests.csv", index=False)
     print("== response-window sensitivity (change vs pre of value / animal's pre), contralesional tjM1\n"
           + WT[WT.roi == "tjM1_right"].round(3).to_string(index=False))
-    spout = {}
-    for key, base, den in (("lick", BASE_L, dr.to_dict()), ("cue", BASE_C, dc.to_dict()), ("iti", BASE_L, di)):
+    spout, srecs, auc_t = {}, [], []
+    for key, base in (("lick", BASE_SPOUT), ("cue", BASE_C), ("iti", BASE_SPOUT)):
+        # normaliser = the animal's pre response AUC over ALL spouts under the SAME baseline
+        pa = _pe(D, key, base, SPOUT_ROIS)
+        den = {(r_, a_): _auc(np.nanmean(np.stack(g.peth.to_numpy()), 0), LAGS_W, 0.0, 0.5)
+               for (r_, a_), g in pa[pa.epoch == "pre"].groupby(["roi", "animal"])}
         for p in lo.POS:
             P_ = _pe(D, key, base, SPOUT_ROIS, pos=p, min_n=MIN_SPOUT)
-            pan, _ = _curves(P_, den, SPOUT_ROIS, test=False)
+            # per-bin tests as 14.1 (Priya 10-28: "significance for the per-spout figures")
+            pan, r_ = _curves(P_, den, SPOUT_ROIS)
+            srecs += [{"set": key, "spout": p, **x} for x in r_ if x.get("row") == 1]
             spout[(key, p)] = {j: pan[(1, j)] for j in range(len(SPOUT_ROIS))}
+            auc_t += _spout_auc_tests(P_, key, p)
+    pd.DataFrame(srecs).to_csv(il.OUT_W / "sig_bins_perspout.csv", index=False)
+    AT = pd.DataFrame(auc_t)
+    AT.to_csv(il.OUT_W / "perspout_auc_tests.csv", index=False)
+    print("== per-spout response AUC 0..0.5 s / the animal's pre AUC AT THAT SPOUT, change vs pre (* = CI excludes 0)\n"
+          + AT.pivot_table(index=["set", "roi", "spout"], columns="epoch", values="cell", aggfunc="first")
+          .reindex(columns=il.EP4[1:]).to_string())
     return dict(sess=sess, ratio=ratio, win=win, summary=sp_, spout=spout, pos=list(lo.POS))
+
+
+def _spout_auc_tests(PE: pd.DataFrame, key: str, p: str) -> list[dict]:
+    """Per spout: response AUC (0..0.5 s after the lick / cue) / the animal's mean PRE AUC AT THAT SPOUT; change vs pre per
+    epoch, `analysis_kit.boot_delta` (paired animals > sessions), animals with both pre and that epoch, >= 3 required.
+    Prints the per-animal table first (rule 8)."""
+    from wfield_local import analysis_kit as ak
+    if PE.empty:
+        return []
+    PE = PE.assign(auc=[_auc(v, LAGS_W, 0.0, 0.5) for v in PE.peth])
+    out = []
+    for roi in SPOUT_ROIS:
+        g = PE[PE.roi == roi]
+        pre = g[g.epoch == "pre"].groupby("animal").auc.mean()
+        g = g[g.animal.isin(pre.index)].copy()
+        g["r"] = g.auc / g.animal.map(pre)
+        if roi == "tjM1_right":
+            print(f"-- {key} {p} {roi}: per animal AUC / pre at this spout\n"
+                  + g.pivot_table(index="animal", columns="epoch", values="r").reindex(columns=il.EP4).round(2).to_string())
+        ref = {a: t.r.to_numpy() for a, t in g[g.epoch == "pre"].groupby("animal")}
+        for ep in il.EP4[1:]:
+            post = {a: t.r.to_numpy() for a, t in g[g.epoch == ep].groupby("animal")}
+            com = sorted(set(post) & set(ref))
+            if len(com) < 3:
+                continue
+            iv = ak.boot_delta({a: post[a] for a in com}, {a: ref[a] for a in com}, np.random.default_rng(0))
+            sig = bool(iv.lo > 0 or iv.hi < 0)
+            out.append({"set": key, "spout": p, "roi": roi, "epoch": ep, "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
+                        "sig": sig, "n_animals": len(com),
+                        "cell": f"{iv.point:+.2f}{'*' if sig else ''} [{iv.lo:+.2f},{iv.hi:+.2f}] ({len(com)})"})
+    return out
 
 
 # -------------------------------------------------------------------------------------------------------------- PLOTS
@@ -439,6 +487,9 @@ def _draw_spout(F: dict, key: str, xlab: str, title: str, path: Path, nlab: str)
             for ep, mu, se, n in F["spout"][(key, p)][r]["curves"]:
                 ax.plot(LAGS_W, mu, color=colors[ep], lw=1.8, label=f"{ep} ({n})")
                 ax.fill_between(LAGS_W, mu - se, mu + se, color=colors[ep], alpha=0.12, lw=0)
+            S = F["spout"][(key, p)][r].get("sig")
+            if S is not None:
+                il.sig_draw(ax, S, colors)
             ax.axvline(0, color="0.6", lw=0.6)
             ax.axhline(0, color="0.8", lw=0.6)
             ax.set_xlim(-2, 3)
@@ -451,9 +502,11 @@ def _draw_spout(F: dict, key: str, xlab: str, title: str, path: Path, nlab: str)
             if r == len(SPOUT_ROIS) - 1:
                 ax.set_xlabel(xlab, fontsize=8)
             if r == 0 and c == 0:
-                ax.legend(fontsize=6.5, frameon=False, loc="upper left")
-    fig.suptitle(title, fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+                ax.legend(fontsize=6.5, frameon=False, loc="lower left")
+    il._headroom(axs[:, 0])   # rows share y: raise each row once
+    fig.suptitle(title + "\n" + il.SIG_NOTE.replace("\n", " ") + " Tested per spout against the animal's pre curve at "
+                 "that spout.", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(path, dpi=100)
     plt.close(fig)
 
@@ -549,18 +602,18 @@ def plot(F: dict) -> None:
     for k in ("cued", "iti"):
         _draw_windows(F, k, out / f"lick_ramp_windows_{k}.png")
     _draw_spout(F, "lick", "time from first cued lick (s)",
-                "SUPPLEMENT, NEURAL: first cued lick PER SPOUT (target), lick-onset aligned (-2..+3 s, baseline -1.5..-1.0 s), "
+                "SUPPLEMENT, NEURAL: first cued lick PER SPOUT (target), lick-onset aligned (-2..+3 s, baseline -1.0..-0.5 s), "
                 "/ the animal's PRE response AUC over all spouts (one scale across spouts); line = mean over sessions "
-                f"(>= {MIN_SPOUT} licks of that spout), band = SEM; _right = contralesional. Descriptive (no tests).",
+                f"(>= {MIN_SPOUT} licks of that spout), band = SEM; _right = contralesional.",
                 out / "lick_cued_ramp_perspout.png", "/ pre response AUC")
     _draw_spout(F, "cue", "time from cue (s)",
                 "SUPPLEMENT, NEURAL: CUE-aligned per spout (-2..+3 s, baseline -1.0..-0.5 s), / the animal's PRE "
-                "cue-response AUC over all spouts; line = mean over sessions, band = SEM. Descriptive (no tests).",
+                "cue-response AUC over all spouts; line = mean over sessions, band = SEM.",
                 out / "lick_cued_ramp_cue_perspout.png", "/ pre cue AUC")
     _draw_spout(F, "iti", "time from ITI bout-start lick onset (s)",
                 "SUPPLEMENT, NEURAL: ITI bout-start licks (no lick for >= 2 s) by the PREVIOUS trial's spout (the spout is "
-                "retracted in the ITI), lick-onset aligned (-2..+3 s, baseline -1.5..-1.0 s), / the animal's PRE ITI response "
-                f"AUC over all spouts; line = mean over sessions (>= {MIN_SPOUT} licks), band = SEM. Descriptive (no tests).",
+                "retracted in the ITI), lick-onset aligned (-2..+3 s, baseline -1.0..-0.5 s), / the animal's PRE ITI response "
+                f"AUC over all spouts; line = mean over sessions (>= {MIN_SPOUT} licks), band = SEM.",
                 out / "lick_iti_ramp_perspout.png", "/ pre response AUC")
     fig, axs = plt.subplots(len(SPEC), len(ROIS), figsize=(21, 15))
     for j, roi in enumerate(ROIS):
