@@ -35,6 +35,14 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~03:50) 5f merged (3be5c189) + running (run_5f.sh, ~21 min). Full-cohort dry-run answers: (1) NON-LINEAR
+  decoder (RBF kernel ridge, nested CV) is 0.01-0.04 r better on held-out pre but loses the same fraction post-stroke
+  (ITI lateral r/pre -0.22 / -0.19 / -0.21 vs linear -0.26 / -0.22 / -0.24) and the ITI offset is unchanged (+0.35 /
+  +0.25 / +0.29 mm, 4/4) -> loss + offset are not a linear-read-out artefact. (2) BEHAVIOUR-ONLY decoder (FaceRhythm 5
+  factors x 3 windows unblanked + reach + peak speed; no lateral / angle / landing / elevation): matches or beats cortex
+  pre-stroke for ITI (lateral 0.67 vs 0.62), cortex adds a unique +0.05-0.09 r (4/4); post-stroke the BEHAVIOUR decoder
+  of ITI licks barely changes (-0.06 / -0.01 / -0.06 n.s.) while cortex loses -0.27 / -0.21 / -0.24 (4/4) -> the ITI
+  read-out loss is CORTICAL, not a loss of position information in the movement. Cued: both drop acutely.
 - (10-28 ~03:20) 5e DONE (1000 permutations, 0 errors), PAGE v145: 15.21 (time) / 15.22 (behaviour) + per-spout
   supplements. % of cortex FWER (sign): CUED LATERAL step -94 %, recovery +59 % (returning), aim slope 2 %, change at
   full behavioural recovery -92 % -> the cued lateral map drops, partly returns, and stays changed even where aim has
@@ -134,6 +142,11 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   page SOURCE files committed (PNGs excluded).
 
 ## Questions for Priya
+- (INCIDENT 2, 10-28 ~00:36) The 5f helper's first guard self-test ran with a BROKEN guard and created 3 junk files:
+  `M:/MICROSCOPE/Priya/__f5_guard_test.txt` (0 B), `M:/MICROSCOPE/Priya/__f5x/` (empty folder), and
+  `N:/__f5.npy` (144 B of zeros, at the ROOT of the standby share -- outside your folder). Nothing else touched. The
+  safety check blocked the helper's delete (needs a person); I did NOT delete them. Please delete by hand, e.g.
+  `del "M:\MICROSCOPE\Priya\__f5_guard_test.txt"`, `rmdir "M:\MICROSCOPE\Priya\__f5x"`, `del "N:\__f5.npy"`.
 - (10-28, 5a helper) bout_fr / first_fr in the ITI session files are NOT real ITI face measurements: the frozen encoder
   blanks FaceRhythm outside spout strobe -> trial end (only 2-3 % of ITI lick peaks inside), and iti_licks.extract's
   fr_at interpolates across the blanked gaps. 5a reads FR unblanked instead (5 Hz session samples in the ITI). The
