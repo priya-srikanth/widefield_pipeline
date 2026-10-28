@@ -29,6 +29,8 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-27 ~23:10) QUEUE 1 DONE: page v141 = masked joint LocaNMF in 11.5-11.7 (ITI lateral -22 / -17 / -20 %, 4/4
+  each; cued -20 / -11 / -8 %; same picture as unmasked) + SVD wording in 12.1.
 - (10-27 22:40) Page v140 published: ROI v8 + split basis everywhere; changed results listed in FINDINGS 4d0-V8.
 - (10-27 late) Cued lateral r chronic "4/4 -> n.s. 3/4": not a real change -- PS93 (-10 %) and PS94 (-21 %) carry it in
   v2 and v8; PS92 / PS95 sit at pre (-0.2 / -0.05 % in v2, +0.8 / -0.3 % in v8). Honest reading in both: recovers in
