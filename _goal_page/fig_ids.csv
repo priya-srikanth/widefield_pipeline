@@ -255,3 +255,6 @@ lick_matched_loclin_readout,12.2 supp,Local-linear like-for-like reference (supp
 lick_matched_loclin_curves,12.2 supp,Local-linear like-for-like reference (supplementary block),supplementary
 lick_matched_loclin_perspout,13.6 supp,Local-linear like-for-like reference (supplementary block),supplementary
 lick_refit_decoders,10.2b,Decoders refit per epoch and per session still decode lick position,supporting
+lick_sametarget_place,12.15,"Same target, same place: cued offset mostly target composition; ITI offset survives",supporting
+lick_covref_offset,12.16,"Same-place offset survives kinematic and FaceRhythm covariates",supplementary
+lick_matched_gauss_animal_change,12.17,"Like-for-like offset per animal",supplementary

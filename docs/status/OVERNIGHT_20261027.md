@@ -35,6 +35,9 @@ need me for". Newest entries at the bottom of each section. Goal page: https://c
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
+- (10-28 ~02:35) 5a / 5b / 5d run DONE on M: (0 errors); PAGE v144: new 12.15 same-target same-place (supporting),
+  12.16 covariate references, 12.17 per-animal offset (supplementary), 13.6 gains the ITI first-lick row. Cued
+  "read ahead" wording in 12.1 / status rows / FINDINGS NOT changed yet (question below). 5e (pixel mixed models) helper running.
 - (10-28 ~02:15) 5a / 5b / 5d merged (7cf26245; scripts lick_covariate_reference.py, lick_same_target_place.py,
   lick_matched_readout additions) and running on M: (run_5abd.sh, ~10 min). Full-cohort results (guarded dry run):
   5a COVARIATES explain almost none of the offset: ITI +0.357 / +0.230 / +0.275 (landing only) -> +0.331 / +0.218 /
