@@ -543,7 +543,97 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+BASE_ALT = (-1.0, -0.5)
+SENS_ROIS = ["ALM_right", "tjM1_right", "SSp-m_right", "cortex"]
+SENS_VALS = (("resp05", 0.0, 0.5, "response AUC 0..0.5 s"), ("resp15", 0.0, 1.5, "response AUC 0..1.5 s"),
+             ("build", -0.4, -0.05, "build-up AUC -0.4..-0.05 s"))
+
+
+def baseline_sens() -> None:
+    """BASELINE SENSITIVITY (Priya 10-28: keep the current baselines, add -1..-0.5 s as a check): lick-aligned ITI bout
+    starts and first cued licks, baseline -1.5..-1.0 (published) vs -1.0..-0.5 s before the lick; per session AUCs /
+    the animal's pre mean of the same measure under the same baseline; change vs pre, paired nested bootstrap.
+    Caveats drawn in the figure: -1.0..-0.5 can eat into a slow ITI build-up, and for cued licks it overlaps the cue when
+    the reaction time is > 0.5 s. Outputs ramp_baseline_sens.csv, figures/lick_ramp_baseline_sens.png (+ figdata)."""
+    from wfield_local import analysis_kit as ak
+    D = _sessions()
+    rows = []
+    for k, key in (("iti", "iti"), ("cued", "lick")):
+        for bname, base in (("-1.5..-1.0 (published)", BASE_L), ("-1.0..-0.5", BASE_ALT)):
+            PE = _pe(D, key, base, SENS_ROIS)
+            for v, t0, t1, _lab in SENS_VALS:
+                PE[v] = [_auc(p, LAGS_W, t0, t1) for p in PE.peth]
+            for roi, g in PE.groupby("roi"):
+                for v, _t0, _t1, _lab in SENS_VALS:
+                    pre = g[g.epoch == "pre"].groupby("animal")[v].mean()
+                    ref = {a: g[(g.animal == a) & (g.epoch == "pre")][v].to_numpy() / pre[a] for a in pre.index}
+                    for ep in il.EP4[1:]:
+                        post = {a: g[(g.animal == a) & (g.epoch == ep)][v].to_numpy() / pre[a] for a in pre.index}
+                        com = [a for a in pre.index if len(post[a]) and len(ref[a])]
+                        if len(com) < 3:
+                            continue
+                        iv = ak.boot_delta({a: post[a] for a in com}, {a: ref[a] for a in com}, np.random.default_rng(0))
+                        am = {a: float(post[a].mean() - ref[a].mean()) for a in com}
+                        rows.append(dict(set=k, baseline=bname, roi=roi, value=v, epoch=ep, delta=iv.point, lo=iv.lo,
+                                         hi=iv.hi, n_dir=sum(np.sign(x) == np.sign(iv.point) for x in am.values()),
+                                         n=len(com)))
+    T = pd.DataFrame(rows)
+    T.to_csv(il.OUT_W / "ramp_baseline_sens.csv", index=False)
+    pd.set_option("display.width", 220)
+    print(T[T.roi == "tjM1_right"].round(3).to_string(index=False))
+    save_fd("lick_ramp_baseline_sens", {"T": T})
+    draw_baseline_sens({"T": T})
+
+
+def draw_baseline_sens(F: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    T = F["T"]
+    sets = ("iti", "cued")
+    fig, axs = plt.subplots(len(sets) * len(SENS_VALS), len(SENS_ROIS), figsize=(16, 17), squeeze=False)
+    bl = list(dict.fromkeys(T.baseline))
+    for si, st in enumerate(sets):
+        for vi, (v, _t0, _t1, lab) in enumerate(SENS_VALS):
+            for j, roi in enumerate(SENS_ROIS):
+                ax = axs[si * len(SENS_VALS) + vi, j]
+                for e, ep in enumerate(il.EP4[1:]):
+                    for b, bn in enumerate(bl):
+                        r = T[(T.set == st) & (T.value == v) & (T.roi == roi) & (T.epoch == ep) & (T.baseline == bn)]
+                        if r.empty:
+                            continue
+                        r = r.iloc[0]
+                        x = e + (b - 0.5) * 0.3
+                        sig = r.lo > 0 or r.hi < 0
+                        ax.errorbar(x, r.delta, yerr=[[r.delta - r.lo], [r.hi - r.delta]], fmt="o" if b == 0 else "s",
+                                    color=colors[ep], mfc=colors[ep] if sig else "white", ms=6, capsize=2)
+                ax.axhline(0, color="0.6", lw=0.7, ls="--")
+                ax.set_xticks(range(3), ["acute", "sub", "chronic"], fontsize=8)
+                for s_ in ("top", "right"):
+                    ax.spines[s_].set_visible(False)
+                if si == 0 and vi == 0:
+                    ax.set_title(roi, fontsize=9)
+                if j == 0:
+                    ax.set_ylabel(f"{st.upper()}: {lab}\nchange vs pre (/ pre)", fontsize=8)
+    fig.suptitle("BASELINE SENSITIVITY: change vs pre (each value / the animal's pre mean under the same baseline), 95% paired "
+                 "nested-bootstrap CI; circle = baseline -1.5..-1.0 s before the lick (published), square = -1.0..-0.5 s; "
+                 "filled = CI excludes 0.\nCaveats: -1.0..-0.5 s can subtract part of a slow ITI build-up; for cued licks it "
+                 "overlaps the cue when the reaction time is > 0.5 s. Lick-aligned, ITI bout starts (>= 2 s gap) and first cued "
+                 "licks.", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(il.OUT_W / "figures" / "lick_ramp_baseline_sens.png", dpi=95)
+    plt.close(fig)
+
+
 def main() -> int:
+    if "--baseline-sens" in sys.argv:
+        if plot_only():
+            draw_baseline_sens(load_fd("lick_ramp_baseline_sens"))
+        else:
+            baseline_sens()
+        return 0
     if "--extract" in sys.argv:
         jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 6
         extract(jobs)

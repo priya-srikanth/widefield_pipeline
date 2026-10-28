@@ -97,6 +97,12 @@ RUNNING / PENDING at compaction:
    ITI bout starts AND the first cued lick (lick response, cue response) vs the far-contra first-lick aim, within animal
    (scatter + r, log(day) removed) + LMM (response ~ aim deficit + log(day) + (1|animal), as iti_mixed_models behaviour
    model); sources area_auc_sessions_split*.csv / cued_ramp_auc_sessions.csv, aim = recovery_measure_sessions.csv.
+10. Baseline sensitivity (Priya OK 10-28: keep current baselines, add -1.0..-0.5 s as a check): lick_cued_ramp.py
+    --baseline-sens (task bm8akbebt) -> ramp_baseline_sens.csv + figures/lick_ramp_baseline_sens.png -> add as an image /
+    caption note of the window-sensitivity figure (14.10). Recovery analysis (item 9): AUC 0-0.5 s primary + 0-1.5 s
+    (also on ISOLATED ITI licks, to tell a slower decay from more licks); pre-cue level needs the RESTW baseline (Priya:
+    an in-trial baseline already carries the pre-cue state) -> per-session pass with the restw mask, then the 14.15
+    pre-cue row (Priya agreed in principle; confirm restw before running).
 8. Open questions for Priya: none blocking; key-figure suggestions all done.
 
 ### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
