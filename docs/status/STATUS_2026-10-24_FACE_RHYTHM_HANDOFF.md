@@ -132,6 +132,8 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      ALL four page registries (ambiguous fids resolved by the page named before the citation) -- run it, then
      edit11.py, after any page reorder.
      GOAL PAGE v136 (23 topical sections, every number changed): refresh 47 numbers + edit11, all ids resolved.
+     GOAL PAGE v140 (07: ROI v8, split-Allen decoder basis): refresh dry run 0 changes; only iti_* / cued_* images
+     re-rendered (not in the deck); the deck's goal-page originals unchanged since 10-26 19:15. Decoder slides still wait.
    * 10-26 AFTERNOON. PERMUTATION NULL SCORED: all 600 / 600 files on the share (Priya copied the
      last 4 chronic halves late afternoon) = 100 permutations per epoch; rescored, unchanged except chronic lick_right
      142 map points (was 144 at n = 96). `python scripts/face_rhythm_cohort_null.py` (19 s). lick_right beyond the null at EVERY epoch on
