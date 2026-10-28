@@ -35,7 +35,7 @@ import iti_lick_order as lo  # noqa: E402
 import lick_balance_reference as lbr  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
-PAIRS = lbr.PAIRS
+PAIRS = [*lbr.PAIRS, "orofacial"]       # + the four pooled (Priya 10-28)
 SETMAP = {"trial": "cued", "iti": "iti"}
 MIN_LICKS = 5
 EP = ["acute", "subacute", "chronic"]
@@ -53,17 +53,22 @@ def points() -> pd.DataFrame:
     B = pd.concat([v for _it, v in res], ignore_index=True)
     P = P.merge(B, on=["set", "label", "k"], how="left", validate="one_to_one")
     P["angle"] = np.degrees(np.arcsin(np.clip(P.side_k / P.reach_mm, -1, 1)))
-    P = P[P.order == 0]                    # first cued lick / ITI bout start (the licks of 14.9)
-    print("lick angle finite on", f"{P.angle.notna().mean():.3f}", "of first / bout-start licks")
-    g = P.groupby(["set", "label", "animal", "epoch", "pos"])
+    print("lick angle finite on", f"{P.angle.notna().mean():.3f}", "of licks")
+    # first cued lick / ITI bout start (the licks of 14.9) AND the LATER licks of the same trials / bouts (order >= 1;
+    # Priya 10-28: "add a 'later licks' that excludes lick 1"; decoder-window balance only -- the response-ratio AUC of
+    # a later lick would overlap the next lick)
+    P["cls"] = np.where(P.order == 0, "", " later")
+    g = P.groupby(["set", "cls", "label", "animal", "epoch", "pos"])
     S = g[["angle", *lbr.BAL]].mean().join(g.size().rename("n")).reset_index()
     S = S[S.n >= MIN_LICKS]
-    S["set"] = S.set.map(SETMAP)
+    S["set"] = S.set.map(SETMAP) + S.cls
+    S = S.drop(columns="cls")
     R = pd.read_csv(il.OUT_W / "lateral_ratio_sessions.csv")
     R = R[R.spout.isin(lo.POS)].pivot_table(index=["set", "label", "spout"], columns="pair", values="logr_0-1")
     R.columns = [f"resp_{c}" for c in R.columns]
     S = S.merge(R.reset_index().rename(columns={"spout": "pos"}), on=["set", "label", "pos"], how="left")
-    S = S.rename(columns={f"bal_{a}": f"dec_{a}" for a in PAIRS})
+    S = S.rename(columns={f"bal_{a}": f"dec_{a}" for a in lbr.PAIRS})
+    S["dec_orofacial"] = S[[f"dec_{a}" for a in lbr.PAIRS]].mean(1)   # = the mean of the four pair balances
     S["post"] = (S.epoch != "pre").astype(int)
     return S
 
@@ -83,6 +88,8 @@ def compute() -> dict:
             for a in PAIRS:
                 y = f"{meas}_{a}"
                 G = G0.dropna(subset=["angle", y]).rename(columns={y: "y"})
+                if G.empty:                              # later licks have no response-ratio measure
+                    continue
                 G["ac"] = G.angle - mu
                 for (animal, ep), h in G.groupby(["animal", "epoch"]):      # rule 8: per animal x EPOCH OLS
                     if len(h) >= 6 and h.ac.std() > 0:
@@ -119,6 +126,10 @@ def compute() -> dict:
     return {"S": S, "M": M, "A": A}
 
 
+ROWLAB = {"cued": "CUED first lick", "cued later": "CUED LATER licks\n(order >= 1)", "iti": "ITI bout start",
+          "iti later": "ITI LATER licks\n(order >= 1 in the bout)"}
+
+
 def _b(v: float, p: float, fmt: str) -> str:
     """Value as text, BOLD (mathtext) when p < 0.05 (Priya 10-28: "bold significance in the titles")."""
     if not np.isfinite(v):
@@ -138,8 +149,9 @@ def plot(F: dict) -> None:
     S, M = F["S"], F["M"]
     for meas, lab in (("dec", "decoder-window balance X_right - X_left (x1e3 dF/F)"),
                       ("resp", "response ratio log2(contra / ipsi AUC 0..1.0 s)")):
-        fig, axs = plt.subplots(2, len(PAIRS), figsize=(20, 9.5), squeeze=False)
-        for i, st in enumerate(("cued", "iti")):
+        sets = ("cued", "cued later", "iti", "iti later") if meas == "dec" else ("cued", "iti")
+        fig, axs = plt.subplots(len(sets), len(PAIRS), figsize=(24, 4.75 * len(sets)), squeeze=False)
+        for i, st in enumerate(sets):
             G = S[S.set == st]
             mu = G[G.epoch == "pre"].angle.mean()
             for j, a in enumerate(PAIRS):
@@ -172,10 +184,10 @@ def plot(F: dict) -> None:
                 ax.axvline(0, color="0.8", lw=0.6)
                 for sp in ("top", "right"):
                     ax.spines[sp].set_visible(False)
-                if i == 1:
+                if i == len(sets) - 1:
                     ax.set_xlabel("lick angle from midline (deg, + = contralesional)", fontsize=8.5)
                 if j == 0:
-                    ax.set_ylabel(f"{'CUED first lick' if st == 'cued' else 'ITI bout start'}\n{lab}", fontsize=8)
+                    ax.set_ylabel(f"{ROWLAB[st]}\n{lab}", fontsize=8)
         fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4]
                    + [Line2D([], [], color="k", lw=1.7, label="pre fit")]
                    + [Line2D([], [], color=col[e], lw=1.4, ls="--", label=f"{e} fit") for e in EP],

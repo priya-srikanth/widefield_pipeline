@@ -31,7 +31,8 @@ import iti_licks as il  # noqa: E402
 import lick_cued_ramp as cr  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
-PAIRS = ["ALM", "tjM1", "SSp-m", "SSp-n"]
+OROFACIAL = ["ALM", "tjM1", "SSp-m", "SSp-n"]
+PAIRS = [*OROFACIAL, "orofacial"]   # + the four pooled (Priya 10-28: "pool orofacial sensorimotor -- less noisy?")
 RINGS = ["ring_close", "ring_far"]                     # mean over the ring's three spouts per session (not lick-pooled)
 SIDES = ["side_ipsi", "side_mid", "side_contra"]       # close + far of one side (spout names end in _ipsi/_mid/_contra)
 SETS = {"cued": ("lick", cr.BASE_SPOUT, "time from first cued lick (s)", "first cued lick, by TARGET spout"),
@@ -66,9 +67,14 @@ def _session_curves(D: dict) -> pd.DataFrame:
                 P = P - np.nanmean(P[:, (L >= base[0]) & (L <= base[1]), :], 1, keepdims=True)
                 m = np.nanmean(P, 0)
                 for a in PAIRS:
-                    c, i = d["cols"].index(f"{a}_right"), d["cols"].index(f"{a}_left")
+                    if a == "orofacial":   # pooled orofacial sensorimotor: mean of the four areas' curves per hemisphere
+                        c = [d["cols"].index(f"{q}_right") for q in OROFACIAL]
+                        i = [d["cols"].index(f"{q}_left") for q in OROFACIAL]
+                        mc, mi = m[:, c].mean(1), m[:, i].mean(1)
+                    else:
+                        mc, mi = m[:, d["cols"].index(f"{a}_right")], m[:, d["cols"].index(f"{a}_left")]
                     rows.append({"label": x, "animal": d["animal"], "epoch": d["epoch"], "set": st, "spout": p,
-                                 "pair": a, "n": len(P), "contra": m[:, c], "ipsi": m[:, i]})
+                                 "pair": a, "n": len(P), "contra": mc, "ipsi": mi})
     return pd.DataFrame(rows)
 
 
@@ -163,10 +169,14 @@ def compute() -> dict:
                 models.append({"set": st, "pair": a, "window": v, "test": "distance x epoch", "lr": lr, "p": p_, "df": k})
             except Exception as ex:                     # a fit that does not converge is reported, not hidden
                 models.append({"set": st, "pair": a, "window": v, "test": f"FAILED {ex}", "lr": np.nan, "p": np.nan})
-            for p in [*lo.POS, "all", *SIDES, *RINGS, "pooled"]:
+            for p in [*lo.POS, "all", *SIDES, *RINGS, "ring_diff", "pooled"]:
                 if p in ("all", *RINGS):   # one value per session: mean over its spouts (of the ring)
                     h = G if p == "all" else G[G.spout.str.startswith(p.split("_")[1])]
                     h = h.groupby(["label", "animal", "epoch"]).y.mean().reset_index()
+                elif p == "ring_diff":     # far ring minus close ring per session: does far shift MORE than close?
+                    rg = G.assign(ring=np.where(G.spout.str.startswith("far"), "far", "close")) \
+                        .groupby(["label", "animal", "epoch", "ring"]).y.mean().unstack("ring")
+                    h = (rg["far"] - rg["close"]).rename("y").dropna().reset_index()
                 else:
                     h = Gall[Gall.spout == p]
                 ref = {an: t.y.to_numpy() for an, t in h[h.epoch == "pre"].groupby("animal")}
@@ -210,7 +220,7 @@ def plot(F: dict) -> None:
     pos, T, M = F["pos"], F["T"], F["M"]
     out = il.OUT_W / "figures"
     for st, (_k, base, xl, what) in SETS.items():
-        fig, axs = plt.subplots(len(PAIRS), len(pos), figsize=(22, 12), sharex=True, sharey="row")
+        fig, axs = plt.subplots(len(PAIRS), len(pos), figsize=(22, 14), sharex=True, sharey="row")
         for r, a in enumerate(PAIRS):
             for c, p in enumerate(pos):
                 ax = axs[r, c]
@@ -243,7 +253,7 @@ def plot(F: dict) -> None:
     # AUC summary: rows = sets, columns = pairs; x = spouts, one marker per epoch
     for w0, w1 in WINDOWS:
         v, wl = f"logr_{w0:g}-{w1:g}", f"{w0:g}..{w1:g} s"
-        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(21, 12.5), squeeze=False)
+        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(26, 12.5), squeeze=False)
         for r, st in enumerate(SETS):
             for c, a in enumerate(PAIRS):
                 ax = axs[r, c]
@@ -299,7 +309,7 @@ def plot_sides(F: dict) -> None:
     out = il.OUT_W / "figures"
     leg = [Line2D([], [], color=col[e], lw=2.2, label=e) for e in il.EP4]
     for st, (_k, base, xl, what) in SETS.items():
-        fig, axs = plt.subplots(len(PAIRS), len(SIDES), figsize=(14, 12), sharex=True, sharey="row", squeeze=False)
+        fig, axs = plt.subplots(len(PAIRS), len(SIDES), figsize=(14, 14), sharex=True, sharey="row", squeeze=False)
         for r, a in enumerate(PAIRS):
             for c, sd in enumerate(SIDES):
                 ax = axs[r, c]
@@ -328,7 +338,7 @@ def plot_sides(F: dict) -> None:
         plt.close(fig)
     for w0, w1 in WINDOWS:
         v = f"logr_{w0:g}-{w1:g}"
-        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(18, 11.5), sharey="row", squeeze=False)
+        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(22, 11.5), sharey="row", squeeze=False)
         for r, st in enumerate(SETS):
             for c, a in enumerate(PAIRS):
                 ax = axs[r, c]
@@ -375,7 +385,7 @@ def plot_rings(F: dict) -> None:
     T, M = F["T"], F["M"]
     for w0, w1 in WINDOWS:
         v = f"logr_{w0:g}-{w1:g}"
-        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(17, 11), sharey="row", squeeze=False)
+        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(21, 11), sharey="row", squeeze=False)
         for r, st in enumerate(SETS):
             for c, a in enumerate(PAIRS):
                 ax = axs[r, c]
@@ -387,13 +397,35 @@ def plot_rings(F: dict) -> None:
                     sg = q.sig.fillna(False).astype(bool).to_numpy()
                     ax.plot(x[sg], q.delta[sg], "o", color=col[ep], ms=6, zorder=3)
                     ax.plot(x[~sg], q.delta[~sg], "o", mec=col[ep], mfc="white", ms=6, zorder=3)
+                    for xx, (_s, row) in zip(x, q.iterrows()):   # * = change vs pre, CI excludes 0
+                        if row.get("sig") is True:
+                            ax.text(xx, row.hi, "*", color=col[ep], ha="center", va="bottom", fontsize=12,
+                                    fontweight="bold")
+                # far minus close per epoch (session difference, paired nested bootstrap vs pre)
+                dd = t[(t.spout == "ring_diff")].set_index("epoch")
+                txt = []
+                for ep in EP:
+                    if ep in dd.index and np.isfinite(dd.loc[ep, "delta"]):
+                        r_ = dd.loc[ep]
+                        s_ = f"{r_.delta:+.2f}"
+                        txt.append(rf"$\mathbf{{{s_}}}$*" if r_.sig is True else s_)
+                    else:
+                        txt.append("n/a")
+                ax.text(0.5, 0.97, "far - close, a / s / c: " + " / ".join(txt), transform=ax.transAxes, ha="center",
+                        va="top", fontsize=8)
                 ax.axhline(0, color="0.6", lw=0.7, ls="--")
                 ax.set_xticks(range(len(RINGS)), ["close ring\n(3 spouts)", "far ring\n(3 spouts)"])
                 ax.set_xlim(-0.6, 1.6)
+                lo_, hi_ = ax.get_ylim()
+                ax.set_ylim(lo_, hi_ + 0.18 * (hi_ - lo_))
                 for sp in ("top", "right"):
                     ax.spines[sp].set_visible(False)
                 m = M[(M.set == st) & (M.pair == a) & (M.window == v)].set_index("test")
-                ax.set_title(f"{a}, {st}: distance x epoch p = {m.p.get('distance x epoch', np.nan):.2g}", fontsize=9)
+                pd_ = m.p.get("distance x epoch", np.nan)
+                ps = "< 1e-10" if np.isfinite(pd_) and pd_ < 1e-10 else f"= {pd_:.2g}"
+                ttl = f"distance x epoch p {ps}"
+                ax.set_title(f"{a}, {st}: " + (rf"$\mathbf{{{ttl.replace(' ', '~')}}}$" if pd_ < 0.05 else ttl),
+                             fontsize=9)
                 if c == 0:
                     ax.set_ylabel(f"{SETS[st][3]}\nchange in log2(contra / ipsi), {w0:g}..{w1:g} s", fontsize=8)
         fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in EP]
@@ -420,7 +452,7 @@ def plot_pooled(F: dict) -> None:
     col = {"pre": "k", **EPOCH_LINE}
     T = F["T"]
     out = il.OUT_W / "figures"
-    fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(19, 11), sharey=True, squeeze=False)
+    fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(23, 11), sharey=True, squeeze=False)
     for r, (st, (_k, base, xl, what)) in enumerate(SETS.items()):
         for c, a in enumerate(PAIRS):
             ax = axs[r, c]

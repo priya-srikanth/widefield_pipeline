@@ -22237,3 +22237,8 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   close vs far ring = supplementary (14.11, new: far ring shifts 4/4, close ring ~0), traces collapsed (toggle).
 - Balance vs lick angle per epoch (14.13): flatter in every epoch (tjM1 +0.011 / +0.007 / +0.009 per deg), ipsilesional
   shift at the same angle largest acutely; per animal the flattening is PS94 / PS95 acutely, 3/4 chronically.
+- (late) 14.11 significance: * on ring changes, far-minus-close per epoch (nested bootstrap) in-panel, bold p in titles.
+  Orofacial POOL (ALM + tjM1 + SSp-m + SSp-n per hemisphere) added to the ratio and balance figures: only modestly less
+  noisy (per-spout CI width as tjM1; ALM alone tightest) -- the areas co-vary. Later licks in 14.13: cued later licks
+  overshoot contralesionally chronically (3/4) while first licks stay ipsilesional. New 14.14 balance over lick order
+  (`scripts/lick_balance_order.py`; cells < 20 licks dropped after a 5-lick PS95 artefact).
