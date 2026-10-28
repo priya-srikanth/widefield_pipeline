@@ -32,6 +32,7 @@ import lick_cued_ramp as cr  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 PAIRS = ["ALM", "tjM1", "SSp-m", "SSp-n"]
+RINGS = ["ring_close", "ring_far"]                     # mean over the ring's three spouts per session (not lick-pooled)
 SIDES = ["side_ipsi", "side_mid", "side_contra"]       # close + far of one side (spout names end in _ipsi/_mid/_contra)
 SETS = {"cued": ("lick", cr.BASE_SPOUT, "time from first cued lick (s)", "first cued lick, by TARGET spout"),
         "cue": ("cue", cr.BASE_C, "time from cue (s)", "cue-aligned, by target spout"),
@@ -155,12 +156,19 @@ def compute() -> dict:
                 models.append({"set": st, "pair": a, "window": v, "test": "pre: side effect", "lr": lr, "p": p_, "df": k})
                 lr, p_, k = _lr("y ~ C(spout) * C(epoch)", "y ~ C(spout) + C(epoch)", GS)
                 models.append({"set": st, "pair": a, "window": v, "test": "side x epoch", "lr": lr, "p": p_, "df": k})
+                # DISTANCE (Priya 10-28: "secondary close vs far pooled figure"): does the post-stroke change differ
+                # between the far and the close ring, beyond each spout's own level? per-spout rows, spout fixed
+                GD = G.assign(far=G.spout.str.startswith("far").astype(int))
+                lr, p_, k = _lr("y ~ C(spout) + C(epoch) * far", "y ~ C(spout) + C(epoch)", GD)
+                models.append({"set": st, "pair": a, "window": v, "test": "distance x epoch", "lr": lr, "p": p_, "df": k})
             except Exception as ex:                     # a fit that does not converge is reported, not hidden
                 models.append({"set": st, "pair": a, "window": v, "test": f"FAILED {ex}", "lr": np.nan, "p": np.nan})
-            for p in [*lo.POS, "all", *SIDES, "pooled"]:
-                h = G if p == "all" else Gall[Gall.spout == p]
-                if p == "all":   # one value per session: mean over its spouts
+            for p in [*lo.POS, "all", *SIDES, *RINGS, "pooled"]:
+                if p in ("all", *RINGS):   # one value per session: mean over its spouts (of the ring)
+                    h = G if p == "all" else G[G.spout.str.startswith(p.split("_")[1])]
                     h = h.groupby(["label", "animal", "epoch"]).y.mean().reset_index()
+                else:
+                    h = Gall[Gall.spout == p]
                 ref = {an: t.y.to_numpy() for an, t in h[h.epoch == "pre"].groupby("animal")}
                 lev = {an: t.y.mean() for an, t in h[h.epoch == "pre"].groupby("animal")}
                 tests.append({"set": st, "pair": a, "window": v, "spout": p, "epoch": "pre",
@@ -355,6 +363,52 @@ def plot_sides(F: dict) -> None:
         plt.close(fig)
 
 
+def plot_rings(F: dict) -> None:
+    """Close vs far ring (each session's mean over the ring's three spouts): CHANGE vs pre per epoch with 95% CI (the ring
+    LEVEL averages opposite-side ratios, so only the change is drawn); titles = distance x epoch LR test."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as col
+    T, M = F["T"], F["M"]
+    for w0, w1 in WINDOWS:
+        v = f"logr_{w0:g}-{w1:g}"
+        fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(17, 11), sharey="row", squeeze=False)
+        for r, st in enumerate(SETS):
+            for c, a in enumerate(PAIRS):
+                ax = axs[r, c]
+                t = T[(T.set == st) & (T.pair == a) & (T.window == v)]
+                for k, ep in enumerate(EP):
+                    q = t[t.epoch == ep].set_index("spout").reindex(RINGS)
+                    x = np.arange(len(RINGS)) + (k - 1) * 0.18
+                    ax.errorbar(x, q.delta, yerr=[q.delta - q.lo, q.hi - q.delta], fmt="none", ecolor=col[ep], capsize=2)
+                    sg = q.sig.fillna(False).astype(bool).to_numpy()
+                    ax.plot(x[sg], q.delta[sg], "o", color=col[ep], ms=6, zorder=3)
+                    ax.plot(x[~sg], q.delta[~sg], "o", mec=col[ep], mfc="white", ms=6, zorder=3)
+                ax.axhline(0, color="0.6", lw=0.7, ls="--")
+                ax.set_xticks(range(len(RINGS)), ["close ring\n(3 spouts)", "far ring\n(3 spouts)"])
+                ax.set_xlim(-0.6, 1.6)
+                for sp in ("top", "right"):
+                    ax.spines[sp].set_visible(False)
+                m = M[(M.set == st) & (M.pair == a) & (M.window == v)].set_index("test")
+                ax.set_title(f"{a}, {st}: distance x epoch p = {m.p.get('distance x epoch', np.nan):.2g}", fontsize=9)
+                if c == 0:
+                    ax.set_ylabel(f"{SETS[st][3]}\nchange in log2(contra / ipsi), {w0:g}..{w1:g} s", fontsize=8)
+        fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in EP]
+                   + [Line2D([], [], color="0.4", marker="o", mfc="white", lw=0, label="hollow = CI includes 0")],
+                   loc="lower center", ncol=4, fontsize=9.5, frameon=False)
+        fig.suptitle(f"Contra / ipsi ratio, CLOSE vs FAR ring: change vs pre of log2(contra / ipsi AUC {w0:g}..{w1:g} s), "
+                     "each session's mean over the ring's three spouts (ipsi, mid, contra); mean of animals, 95% paired "
+                     "nested bootstrap CI.\nTitles: mixed model on per-spout rows, y ~ spout + epoch * far vs y ~ spout + "
+                     "epoch (sessions as observations; anti-conservative). PROVISIONAL", fontsize=9.5)
+        fig.tight_layout(rect=(0, 0.05, 1, 0.92))
+        fig.savefig(il.OUT_W / "figures" / ("lick_lateral_ratio_rings.png" if (w0, w1) == WINDOWS[0]
+                                            else f"lick_lateral_ratio_rings_{w0:g}-{w1:g}.png"), dpi=100)
+        plt.close(fig)
+
+
 def plot_pooled(F: dict) -> None:
     """Pooled across spouts (every lick of the set): contra / ipsi traces per set x pair, and the AUC ratio per pair."""
     import matplotlib
@@ -432,12 +486,14 @@ def main() -> int:
         plot(load_fd("lick_lateral_ratio"))
         plot_pooled(load_fd("lick_lateral_ratio"))
         plot_sides(load_fd("lick_lateral_ratio"))
+        plot_rings(load_fd("lick_lateral_ratio"))
         return 0
     F = compute()
     save_fd("lick_lateral_ratio", F)
     plot(F)
     plot_pooled(F)
     plot_sides(F)
+    plot_rings(F)
     return 0
 
 

@@ -22231,3 +22231,9 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
 - Balance vs lick angle LMM (14.12, `scripts/lick_balance_angle_lmm.py`): pre, balance tracks lick angle in every pair;
   post, cued tracking ~30% flatter (4/4) and, at the same angle, shifted toward the ipsilesional hemisphere -- reconciles
   14.9 (by target) with 12.17 (at fixed landing). ITI: the two balance measures disagree.
+- Window decision (Priya 10-28 late): 0..1.0 s is the response window for BOTH ITI and cued (one window is easier to
+  justify); 0..0.5 s stays as the secondary (it matches the ITI kinetics). Conclusions are the same in both windows.
+- Ratio figures reordered: per-spout = KEY (14.9; far ipsi shifts, close ipsi does not), by side = supporting (14.10),
+  close vs far ring = supplementary (14.11, new: far ring shifts 4/4, close ring ~0), traces collapsed (toggle).
+- Balance vs lick angle per epoch (14.13): flatter in every epoch (tjM1 +0.011 / +0.007 / +0.009 per deg), ipsilesional
+  shift at the same angle largest acutely; per animal the flattening is PS94 / PS95 acutely, 3/4 chronically.

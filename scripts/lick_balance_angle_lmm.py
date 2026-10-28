@@ -84,11 +84,11 @@ def compute() -> dict:
                 y = f"{meas}_{a}"
                 G = G0.dropna(subset=["angle", y]).rename(columns={y: "y"})
                 G["ac"] = G.angle - mu
-                for (animal, post), h in G.groupby(["animal", "post"]):     # rule 8: per animal x period OLS
+                for (animal, ep), h in G.groupby(["animal", "epoch"]):      # rule 8: per animal x EPOCH OLS
                     if len(h) >= 6 and h.ac.std() > 0:
                         b = np.polyfit(h.ac, h.y, 1)
-                        an.append({"set": st, "measure": meas, "pair": a, "animal": animal, "post": post,
-                                   "slope": b[0], "at_mean_angle": b[1], "n": len(h)})
+                        an.append({"set": st, "measure": meas, "pair": a, "animal": animal, "epoch": ep,
+                                   "post": int(ep != "pre"), "slope": b[0], "at_mean_angle": b[1], "n": len(h)})
                 try:
                     f = _fit(G, "y ~ ac * post")
                     fe, p_ = f.fe_params, f.pvalues
@@ -112,11 +112,19 @@ def compute() -> dict:
     M.to_csv(il.OUT_W / "balance_angle_lmm.csv", index=False)
     A.to_csv(il.OUT_W / "balance_angle_animals.csv", index=False)
     pd.set_option("display.width", 230)
-    print("== per animal (rule 8): OLS slope (per deg) and value at the pre-mean angle, pre (0) vs post (1)")
-    print(A.pivot_table(index=["set", "measure", "pair", "animal"], columns="post",
-                        values=["slope", "at_mean_angle"]).round(4).to_string())
+    print("== per animal (rule 8): OLS slope (per deg) and value at the pre-mean angle, per epoch")
+    print(A.pivot_table(index=["set", "measure", "pair", "animal"], columns="epoch",
+                        values=["slope", "at_mean_angle"]).reindex(columns=il.EP4, level=1).round(4).to_string())
     print("== mixed models\n" + M.round(4).to_string(index=False))
     return {"S": S, "M": M, "A": A}
+
+
+def _b(v: float, p: float, fmt: str) -> str:
+    """Value as text, BOLD (mathtext) when p < 0.05 (Priya 10-28: "bold significance in the titles")."""
+    if not np.isfinite(v):
+        return "n/a"
+    s = format(v, fmt)
+    return rf"$\mathbf{{{s}}}$" if np.isfinite(p) and p < 0.05 else s
 
 
 def plot(F: dict) -> None:
@@ -140,19 +148,26 @@ def plot(F: dict) -> None:
                 for ep in il.EP4:
                     h = G[G.epoch == ep]
                     ax.plot(h.angle, h[y], "o", color=col[ep], ms=2.5, alpha=0.45, mec="none")
-                m = M[(M.set == st) & (M.measure == meas) & (M.pair == a) & (M.model == "post")]
-                if len(m) and np.isfinite(m.slope_pre.iloc[0]):
-                    r = m.iloc[0]
+                # one fit line per epoch (Priya 10-28: "a slope for each epoch"), from y ~ angle * C(epoch)
+                me = M[(M.set == st) & (M.measure == meas) & (M.pair == a) & M.model.isin(EP)].set_index("model")
+                if len(me) and np.isfinite(me.slope_pre.iloc[0]):
+                    sp0 = me.slope_pre.iloc[0]
                     x = np.linspace(np.nanpercentile(G.angle, 2), np.nanpercentile(G.angle, 98), 50)
-                    # intercepts from the fixed effects are not stored; draw the slopes through the group means
+                    # intercepts are not stored; the pre line goes through the pre group mean, epochs = pre + shift
                     pre = G[G.post == 0]
-                    b0 = np.nanmean(pre[y]) - r.slope_pre * (np.nanmean(pre.angle) - mu)
-                    ax.plot(x, b0 + r.slope_pre * (x - mu), color="k", lw=2)
-                    ax.plot(x, b0 + r.shift_post_same_angle + (r.slope_pre + r.slope_change_post) * (x - mu),
-                            color="#d95f02", lw=2, ls="--")
-                    ax.set_title(f"{a}, {st}: pre slope {r.slope_pre:+.3f}/deg (p {r.p_slope_pre:.1g})\n"
-                                 f"post: slope change {r.slope_change_post:+.3f} (p {r.p_slope_change:.1g}), shift at "
-                                 f"same angle {r.shift_post_same_angle:+.2f} (p {r.p_shift:.1g})", fontsize=8)
+                    b0 = np.nanmean(pre[y]) - sp0 * (np.nanmean(pre.angle) - mu)
+                    ax.plot(x, b0 + sp0 * (x - mu), color="k", lw=2.2)
+                    for ep in EP:
+                        if ep in me.index:
+                            r = me.loc[ep]
+                            ax.plot(x, b0 + r.shift_post_same_angle + (sp0 + r.slope_change_post) * (x - mu),
+                                    color=col[ep], lw=1.8, ls="--")
+                    sc = " / ".join(_b(me.slope_change_post.get(e, np.nan), me.p_slope_change.get(e, np.nan), "+.3f")
+                                    for e in EP)
+                    sh = " / ".join(_b(me.shift_post_same_angle.get(e, np.nan), me.p_shift.get(e, np.nan), "+.2f")
+                                    for e in EP)
+                    ax.set_title(f"{a}, {st}: pre slope {_b(sp0, me.p_slope_pre.iloc[0], '+.3f')} per deg\n"
+                                 f"slope change a/s/c {sc}\nshift at same angle a/s/c {sh}", fontsize=8)
                 ax.axhline(0, color="0.8", lw=0.6)
                 ax.axvline(0, color="0.8", lw=0.6)
                 for sp in ("top", "right"):
@@ -162,13 +177,14 @@ def plot(F: dict) -> None:
                 if j == 0:
                     ax.set_ylabel(f"{'CUED first lick' if st == 'cued' else 'ITI bout start'}\n{lab}", fontsize=8)
         fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4]
-                   + [Line2D([], [], color="k", lw=2, label="pre fit"),
-                      Line2D([], [], color="#d95f02", lw=2, ls="--", label="post fit")],
-                   loc="lower center", ncol=6, fontsize=9, frameon=False)
-        fig.suptitle(f"Hemispheric balance vs lick angle, pre vs post ({meas}): one point per session x spout (cued: target; "
-                     "ITI: previous trial's spout); mixed model y ~ angle * post + (1 | animal), sessions x spouts as "
-                     "observations\n(anti-conservative at 4 animals; per-animal slopes in balance_angle_animals.csv). "
-                     "'shift at same angle' = post minus pre at the pre-mean angle. PROVISIONAL", fontsize=9.5)
+                   + [Line2D([], [], color="k", lw=2.2, label="pre fit")]
+                   + [Line2D([], [], color=col[e], lw=1.8, ls="--", label=f"{e} fit") for e in EP],
+                   loc="lower center", ncol=8, fontsize=9, frameon=False)
+        fig.suptitle(f"Hemispheric balance vs lick angle by epoch ({meas}): one point per session x spout (cued: target; "
+                     "ITI: previous trial's spout); mixed model y ~ angle * epoch + (1 | animal), sessions x spouts as "
+                     "observations\n(anti-conservative at 4 animals; per-animal x epoch slopes in balance_angle_animals.csv). "
+                     "Titles: a/s/c = acute / subacute / chronic vs pre; BOLD = p < 0.05; 'shift at same angle' = epoch "
+                     "minus pre at the pre-mean angle. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.92))
         fig.savefig(il.OUT_W / "figures" / f"lick_balance_angle_{meas}.png", dpi=100)
         plt.close(fig)
