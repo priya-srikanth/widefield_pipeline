@@ -55,7 +55,8 @@ NEW / CHANGED on the page this stretch:
   0.10 / 0.11 (claims_contest / claims_peth / claims_trend_levels; the old "tjM1 r 0.09" note could not be traced and was
   not used; per-animal r tjM1 contra vs MOp contra movement PETH -0.16).
 - FINDINGS 0b + "Where things stand" recovery row have the bounds (within-animal days 0.70-0.81; LOSO animal-known days wins).
-RUNNING at handoff: scripts/lick_recovery_markers.py full run (task b7rvq4dsk; log S2/recmark.log) adding (a) FAIR pre-fit
+DONE after this note (page v205): fair weights fail across animals (cued LOAO -0.08; own-animal 0.04; plain average 0.50); ITI recovery axis: ITI licks shift ipsilesionally and recover (mean angle -12.6 / -6.0 / -3.8 deg, r with cued aim 0.77-0.95), but only SSp-n first-after-quiet balance predicts it in an unseen animal (0.32 vs days 0.17) -> 14.17 caption + ITI-axis supplement. Nothing running.
+(was) RUNNING at handoff: scripts/lick_recovery_markers.py full run (task b7rvq4dsk; log S2/recmark.log) adding (a) FAIR pre-fit
 weighted balance oro_balwx (weights from the OTHER animals' pre licks) and (b) ITI's own recovery axis (iti_ang = session
 mean ITI lick angle vs pre, iti_ang90 = contralesional 90th pct; new figure lick_recovery_markers_iti_axis.png). When it
 ends: read recmark_cv.csv (y column: aim / iti_ang / iti_ang90), copy lick_recovery_markers_{cv,size,areas,iti_axis}.png +

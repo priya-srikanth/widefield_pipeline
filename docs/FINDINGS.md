@@ -535,7 +535,9 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   largest responses acutely at the worst aim, then shrink; PS92 / PS93: responses grow over recovery). SSp-n balance
   tracks within animals (r ~0.9) but not across (0.04; z-scoring does not fix it). Cued FIRST lick only: weak (0.06, one
   lick per trial). ITI all licks: none; ITI first lick after >= 2 s quiet: balance 0.29 (shuffle p 0.006; SSp-n 0.43,
-  z 0.52), 3/4 animals, no epoch-out gain. PROVISIONAL.
+  z 0.52), 3/4 animals, no epoch-out gain. Pre-fit weighted balance does not transfer across animals (fair weights
+  -0.08). ITI licks have their own recovery: mean ITI angle -12.6 / -6.0 / -3.8 deg vs pre (r with cued aim 0.77-0.95);
+  only SSp-n first-after-quiet balance predicts it in an unseen animal (0.32 vs days 0.17). PROVISIONAL.
 - Pre-cue LEVEL vs restw 10-28 (14.20; restw approved by Priya): far-contra target acute, contralesional ALM / tjM1 /
   SSp-m / SSp-n RAISED before the cue (+4.5 to +5.5 x1e3 dF/F, 4/4, PS94 ~0); chronic all spouts ALM / tjM1 contra
   +1.5 / +1.7 (4/4) and a posterior VIS / RSP / SSp-tr / bfd decrease (partly a rest-level rise). PROVISIONAL.
