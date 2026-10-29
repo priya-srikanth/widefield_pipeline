@@ -8,7 +8,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - [ ] **Code-change wording with bounds**: cued 'unchanged within ~10 deg'; ITI 'not re-mapped beyond ~10-15 deg; small acute rotation-like change (~6-9 deg) beyond 2-month drift + lasting gain loss along the pre axis' -- OK? (Re-run on docked-spout ITI licks if docked becomes primary.)
 - [ ] **ITI primary set = docked-spout licks?** Offsets hold docked; the ITI BALANCE + its recovery tracking are moving-spout results. Make docked the primary ITI set (offsets), and treat moving-spout licks as their own category (possibly spout-driven)? Re-word the ITI-balance marker claims?
 - [x] **Representational-change wording**: YES -- offset + gain / precision loss, re-map OPEN (applied page v242, FINDINGS); noise-matched transfer + power check RUNNING.
-- [ ] **ENL licks next?** Behaviour answered (aim deficit present pre-cue). Neural options: (1) ITI balance / decoder offset on ENL licks (stationary spout, unrewarded; clean bout starts >= 1 s after arrival), (3) target code without reward. Also: cue-to-lick level per region (mean level / fixed window latency-matched / pre-lick), and which earlier figure showed the chronic "dip".
+- [x] **ENL licks next?** YES (Priya 10-29 evening): balance + decoder offset + target code on ENLv licks (timed from spout arrival, window sweep), cue-to-lick level; name them ENLv, not ITI.
 - [ ] **Hypothesis line (3)**: the contralesional-share rise is not orofacial-specific (VISpm / RSPd rise too) -> reword?
 - [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
@@ -92,9 +92,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
-(nothing running)
+- ENLv licks: balance, decoder offset, target code; window after spout arrival swept (0.5-1.5, 1-2, >=1, >=1.5 s; bout starts vs all) -> enlv_licks/
+- Cue-to-lick: mean level cue->lick (+ latency-matched), AUC-to-threshold test (AUC at lick / slope / level vs latency), fixed pre-lick windows, chronic pre-cue dip (raw vs restw vs rest level) -> cue_to_lick/
+
+## 7. ENLv + cue-to-lick results (figure links added as they report)
+(none yet)
 
 ## 6. Log
+- 10-29 evening: Priya: run ENLv (naming) balance / offset / target code + cue-to-lick level, AUC threshold, pre-lick window; chronic dip = decreased chronic pre-cue dF/F in cue-aligned area traces. 2 helpers started (4 workers each).
 - 10-29 evening: ENL lick audit reported -> page v248 (14.21), FINDINGS. Priya reviewing pre-cue maps / traces (14.20); items 1-5 + overnight controls not yet reviewed.
 - 10-29: noise-matched null + power reported -> page v247, FINDINGS. All helpers done; nothing running.
 - 10-29: docked-spout ITI rerun reported -> page v246 (+ hypothesis line qualified), FINDINGS. Helper added ITI_SUBSET_FILTERS hooks (iti_licks.py, iti_lick_order.py, lick_matched_readout.py, lick_balance_subsets.py); outputs in itifilter_*/.
