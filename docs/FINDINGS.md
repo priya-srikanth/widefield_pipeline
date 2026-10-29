@@ -614,7 +614,9 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   +0.2 s; pre-lick windows do not track recovery, post window does (4/4, p < 0.001). Pre-stroke there is no direction
   information beyond the spout before the lick -> plan untestable at area level. Reading: the persistent ITI shift is
   post-ONSET (execution or self-generated tongue / mouth feedback; NO spout contact on ITI licks -- Priya), not
-  preparatory. scripts/lick_iti_prelick.py. PROVISIONAL.
+  preparatory. GCaMP6s CAVEAT: fluorescence lags spiking by ~0.1-0.2 s, so a step at 0-0.1 s after onset is compatible
+  with a late motor command (~0.1-0.2 s before onset) as well as early feedback -- timing alone cannot separate them.
+  scripts/lick_iti_prelick.py. PROVISIONAL.
 - **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
   upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
   beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with

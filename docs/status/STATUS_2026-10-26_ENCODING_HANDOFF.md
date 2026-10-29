@@ -65,6 +65,20 @@ undetermined, probably not ACAd-specific (link lives on the sagittal-sinus strip
 SSp-n; registration ruled out) -> not a grant candidate region. Grant discussion with Priya (chemogenetics): balance =
 secondary readout next to behaviour, measured off-drug and without the manipulated area; priority SSp-m/n both
 hemispheres, contra tjM1, ALM lower; bilateral arm as specificity control; VIS/RSP as control region.
+TO-DO (Priya 10-29) 'REVVING UP' to far-contra: anecdotally post-stroke animals take much longer to start the first lick
+to far-contra, sometimes starting after the spout leaves. Plan: (A) behaviour -- cue -> first-lick-onset and -> first
+contact latency distributions / hazard per spout x epoch, share of trials whose first lick starts after the spout
+leaves (DAQ spout-move strobe); (B) kinematics between cue and first lick -- jaw onsets without tongue (incomplete
+licks, cam1 jaw re-onset), sub-threshold tongue protrusions, FaceRhythm lick-vigour ramp; slow single ramp vs repeated
+aborted attempts; (C) speed-accuracy: within session x spout, does a longer rev-up give better aim?; (D) neural --
+cue- and first-lick-aligned ALM / tjM1 / SSp-m / SSp-n traces by latency quartile (ramp slope vs delayed start, to a
+common level?), late (after-spout-left) licks vs normal / ITI licks; (E) does the raised pre-cue contralesional level
+(14.21) predict latency?; (F) rev-up duration as a recovery marker vs the balance. Reuse: attempt-based deficit / time
+to contact (10-21 encoding handoff), jaw onsets + re-onset (10-21 pose handoff), iti_licks first-lick times.
+TIMING CAVEAT (Priya): GCaMP6s is slow (rise ~0.1-0.2 s, decay ~0.5-1 s; widefield smoother still) -- fluorescence
+lags spikes, so a rise at -0.2 s means activity earlier; a step at 0-0.1 s after lick onset cannot separate a late
+motor command from early self-generated feedback; post-lick decay leaks into the next window. Read every timing claim
+(ITI pre-lick, rev-up ramps) with this; consider a deconvolution sensitivity check.
 ENL angle decode DONE (scripts/lick_enl_angle_decode.py; 14.21 supplement; FINDINGS 0b): weak, mostly spout; tiny
 within-spout part partly trial history; acute contralesional offset +1.55 deg 4/4, not sustained. OPEN: route its
 pre decoders through frozen_models.load_or_fit (rule 10).
