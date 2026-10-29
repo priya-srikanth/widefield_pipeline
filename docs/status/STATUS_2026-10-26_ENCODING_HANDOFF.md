@@ -61,7 +61,15 @@ balance follows the lick's direction r 0.3-0.5 incl. PRE (normal code); pre-lick
 Biology hypothesis discussed with Priya: impairment = loss of normal between-hemisphere balance of orofacial cortex for a
 movement (ipsilesional cortex over-responds acutely), recovery = re-balancing (not restoring size); evidence now favours
 the balance as a post-movement STATE / readout rather than a pre-movement cause.
-RUNNING at this note: (1) task bxa9t3iuo: WFIELD_BAL_KIN=1 sessions + primary (test 2: reference on angle + reach + speed
+DONE after this note (page v216, 80f43e3e; NOTHING RUNNING): kinematics-matched balance -- cued survives (0.63), ITI
+cross-animal fails; MO-rest adds nothing; acute excess of cued first licks = 1500-lick random cap in iti_licks.extract
+(N_TRIAL_MAX), not behaviour (session_pace_table.py) -- 'first-lick count tracks recovery' WITHDRAWN; balance explains ~65%
+of the cued acute decoder offset but 5-15% of the ITI offset -> for ITI the decoder offset (0.39 unseen animal) is the
+better marker. Page decluttered (goal_page_declutter.py: 110 figures collapsed IN PLACE, numbers unchanged, links open
+them; 171 open). NEXT candidates: (i) re-extract cued first licks WITHOUT the 1500 cap (more precise cued marker);
+(ii) per-area decomposition of the ITI decoder offset beyond the balance (within-hemisphere pattern); (iii) 'Biology in
+brief' section (list proposed to Priya, awaiting OK); (iv) collapse supporting figures not referenced from WTS.
+(was) RUNNING at this note: (1) task bxa9t3iuo: WFIELD_BAL_KIN=1 sessions + primary (test 2: reference on angle + reach + speed
 + elevation; outputs *_kin), then WFIELD_BAL_MO=1 full subsets (MOs_rest / MOp_rest added; balsub_*_mo) -- logs
 S2/balsub_kin.log, recprim_kin.log, balsub_mo.log; (2) helper agent: scripts/session_pace_table.py -> session_pace.csv /
 figures/session_pace.png (why acute sessions have MORE first post-cue licks: PS92 128/196/120/122 ... pre/acute/sub/chronic).
