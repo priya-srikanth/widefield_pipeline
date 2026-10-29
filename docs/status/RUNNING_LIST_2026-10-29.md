@@ -61,8 +61,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - PRE-CUE TARGET TEST: before the cue the target code is DEGRADED but NOT re-aimed at the landing spout (deviated
   trials look like same-session hits pre-cue; landing signature only after the cue); acute row flattens, close ipsi as
   much as far contra.
-  PRE-STROKE same pattern (34 deviated trials, thin): pre-cue ns, lick target -0.38 / landing +0.13 -> post-stroke =
-  the normal error signature, more frequent.
+  PRE-STROKE same pattern (34 deviated trials, thin; standard output, animal-weighted): pre-cue ns, lick target -0.28
+  [-0.52, 0.00] / landing +0.16 [0.00, 0.32] (borderline) -> post-stroke looks like the normal error signature, more frequent.
 
 ## 4. Conclusions (current reading)
 - Pre-cue: target representation weaker but unbiased; the error emerges after the cue (execution / post-cue).
@@ -74,10 +74,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
-- Pre-stroke class-matched as a standard output + figure (lick_enl_target_test.py; also fixes offtarget x labels)
 - Rev-up: late-lick shares on the engaged set; jaw ramping (FR prep-jaw factor + LP jaw motion energy)
 
 ## 6. Log
+- 10-29 morning: pre-stroke class-matched now standard (--classmatched-only; new figure; offtarget labels fixed) -> page v238; deleted my superseded scratch enl_target/classmatched_pre_sessions.csv.
 - 10-29 morning: C/I by spout x epoch reported -> page v237 (14.18 supp), FINDINGS.
 - 10-29 morning: Priya decided items 1-5 (above); hypothesis line + FINDINGS updated; 3 helpers started.
 - 10-29 morning: deleted revup/sessions/PS92_0806/0807/0809/0812/0821.pkl (approved; superseded derived caches).

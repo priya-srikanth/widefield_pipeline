@@ -24,7 +24,9 @@ PART A  FROZEN PRE-STROKE POSITION DECODER (the repo's one reference, rule 10), 
         bin lateral < contra) is paired with the nearest on-target far_contra trial of the same session in trial order;
         per session mean of [decoded as far_contra], [decoded as the off trial's landing bin] (for the matched on-target
         trial: decoded as that same bin = its base rate), p_true; off - matched on, boot_delta (failed vs hit style,
-        as precue_class_matched.py).
+        as precue_class_matched.py). Epochs pre (a LEVEL test, LOSO predictions; few deviated trials), acute,
+        subacute, chronic and post (= the three post epochs pooled, never pre). Session rule >= 2 deviated and >= 2
+        on-target trials (min_off 2, primary); min_off 1 = sensitivity (column min_off in both class-matched tables).
    A3   confusion matrix (rows target, cols decoded; per-session row shares, mean of sessions; canonical order) per
         animal x epoch; epoch - pre (softmax_neural_vs_lick.boot_change, Bonferroni / 36); far_contra mean decoded
         lateral; accuracy per spout and overall per session -> boot_delta.
@@ -55,8 +57,10 @@ DECODABILITY (D): per session accuracy (A, B) and ridge raw r (C) -> change vs p
 Outputs <OUT_W>/enl_target/: timing.csv.gz (label, trial_id, cue_s, strobe_s), ridge_trials.csv.gz, cls_trials.csv.gz,
 precue_trials.csv.gz, cls_tracking.csv, tracking.csv, tracking_pooled.csv, tracking_shrink.csv, gains.csv, offtarget.csv, classmatched_sessions.csv,
 classmatched.csv, confusion.csv, confusion_change.csv, lateral.csv, accuracy_sessions.csv, decodability_tests.csv;
-figures <OUT_W>/figures/lick_enl_target_{tracking,confusion,offtarget,decodability}.png.
-Usage: python scripts/lick_enl_target_test.py [--jobs 8] [--plot-only]
+figures <OUT_W>/figures/lick_enl_target_{tracking,confusion,offtarget,classmatched_epochs,decodability}.png.
+Usage: python scripts/lick_enl_target_test.py [--jobs 8] [--plot-only | --classmatched-only]
+--classmatched-only recomputes classmatched_sessions.csv / classmatched.csv from the saved precue_trials.csv.gz +
+cls_trials.csv.gz (frozen-model outputs; nothing refitted) and redraws; --plot-only redraws every figure.
 """
 from __future__ import annotations
 
@@ -81,6 +85,7 @@ VARIANTS = ((1.0, "2s"), (0.5, "2s"))
 SETTLE_GAP = 2.0
 MIN_CELL = 3
 MIN_OFF = 5
+CM_MIN_OFF = (2, 1)  # class-matched session rule: >= this many deviated trials (primary 2; 1 = sensitivity), >= 2 on
 SEED = 0
 
 
@@ -265,14 +270,16 @@ def offtarget(T: pd.DataFrame, tag: dict, exec_cols=("exec_land", "exec_traj")) 
     return rows
 
 
-def class_matched(T: pd.DataFrame, ex: str) -> pd.DataFrame:
-    """Post far_contra-target trials landing ipsilesionally vs the nearest on-target trial (trial order) per session."""
-    J = T[(T.spout == "far_contra") & T[ex].isin(SP) & (T.epoch != "pre") & T.trial_id.notna()]
+def class_matched(T: pd.DataFrame, ex: str, min_off: int = 2) -> pd.DataFrame:
+    """far_contra-target trials landing ipsilesionally vs the nearest on-target trial (trial order) per session, every
+    epoch INCLUDING pre (10-29: pre is the reference level; pre deviated far_contra trials are few). A session enters
+    with >= min_off deviated and >= 2 on-target trials (primary min_off 2; 1 = sensitivity, CM_MIN_OFF)."""
+    J = T[(T.spout == "far_contra") & T[ex].isin(SP) & T.trial_id.notna()]
     rows = []
     for (a, ep, lab), g in J.groupby(["animal", "epoch", "label"]):
         lat = g[ex].map(LAT)
         off, on = g[lat < 1].sort_values("trial_id"), g[g[ex] == "far_contra"].sort_values("trial_id")
-        if len(off) < 2 or len(on) < 2:
+        if len(off) < min_off or len(on) < 2:
             continue
         j = np.abs(off.trial_id.to_numpy()[:, None] - on.trial_id.to_numpy()[None]).argmin(1)
         m = on.iloc[j]
@@ -382,23 +389,79 @@ def cls_tracking(T: pd.DataFrame, ex: str, tag: dict) -> list:
 def cm_tests(CS: pd.DataFrame, tag: dict) -> list:
     from wfield_local import analysis_kit as ak
     rows = []
-    rng = np.random.default_rng(SEED)
+    # pre (added 10-29) draws from its OWN stream so the post-epoch CIs keep the draws they were published with
+    rng, rng_pre = np.random.default_rng(SEED), np.random.default_rng([SEED, 1])
     for key in ("dec_target", "dec_landing", "p_true", "lat", "p_landing"):
         if f"off_{key}" not in CS:
             continue
-        for ep in POST + ["post"]:
-            g = CS if ep == "post" else CS[CS.epoch == ep]
+        for ep in EP + ["post"]:
+            # 'post' pools the three post epochs only (pre is its own LEVEL row, never pooled into post)
+            g = CS[CS.epoch != "pre"] if ep == "post" else CS[CS.epoch == ep]
             off = {a: h[f"off_{key}"].dropna().tolist() for a, h in g.groupby("animal")}
             on = {a: h[f"on_{key}"].dropna().tolist() for a, h in g.groupby("animal")}
-            ci = ak.boot_delta(off, on, rng)
+            ci = ak.boot_delta(off, on, rng_pre if ep == "pre" else rng)
             per = {a: float(np.mean(off[a]) - np.mean(on[a])) for a in sorted(off) if off[a] and on[a]}
             rows.append({**tag, "value": key, "epoch": ep, "off_minus_on": None if ci is None else ci.point,
                          "lo": None if ci is None else ci.lo, "hi": None if ci is None else ci.hi,
                          "n_animals": len(per), "n_neg": int(sum(v < 0 for v in per.values())),
+                         **{f"n_off_{a}": int(g.loc[g.animal == a, "n_off"].sum()) for a in AN},
+                         **{f"n_sess_{a}": int((g.animal == a).sum()) for a in AN},
                          **{f"d_{a}": per.get(a, np.nan) for a in AN},
                          **{f"off_{a}": float(np.mean(off[a])) if off.get(a) else np.nan for a in AN},
                          **{f"on_{a}": float(np.mean(on[a])) if on.get(a) else np.nan for a in AN}})
     return rows
+
+
+def classmatched_all(PT: dict, RT: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """A2 for every source / window / subset / exec / session rule. PT = {window: frozen position-decoder trial table}
+    (precue_trials), RT = {W: own-classifier trial table} (cls_trials). Read-only on the models: both tables already hold
+    the frozen decoders' outputs. Returns (classmatched_sessions, classmatched)."""
+    jobs = []
+    for w, D in PT.items():
+        for sub, X in (subsets(D, 1.0) if w == "precue" else (("all", D),)):
+            for ex in ("exec_land", "exec_traj"):
+                jobs.append(({"source": "frozen_position", "window": w, "subset": sub}, X, ex))
+    for W, R in RT.items():
+        for sub, X in subsets(R, W):
+            for ex in ("exec_land", "exec_ang"):
+                jobs.append(({"source": "enl_spout", "window": f"{W:.1f}", "subset": sub}, X, ex))
+    CMs, CMt = [], []
+    for tag, X, ex in jobs:
+        if ex not in X:
+            continue
+        for mo in CM_MIN_OFF:
+            cs = class_matched(X, ex, mo)
+            if len(cs):
+                t = {**tag, "exec": ex, "min_off": mo}
+                CMs.append(cs.assign(**t))
+                CMt += cm_tests(cs, t)
+    return pd.concat(CMs, ignore_index=True), pd.DataFrame(CMt)
+
+
+def classmatched_only() -> None:
+    """--classmatched-only: recompute classmatched_sessions.csv / classmatched.csv from the saved trial tables
+    (precue_trials.csv.gz, cls_trials.csv.gz; frozen-model outputs, nothing refitted) and redraw. Without cls_trials the
+    existing enl_spout rows are kept and only the frozen_position rows replaced."""
+    P = pd.read_csv(OUT / "precue_trials.csv.gz")
+    PT = {w: P[P.window == w].reset_index(drop=True) for w in ("precue", "cue", "lick")}
+    RT = {}
+    if (OUT / "cls_trials.csv.gz").exists():
+        C = pd.read_csv(OUT / "cls_trials.csv.gz")
+        RT = {float(W): g.reset_index(drop=True) for W, g in C.groupby("window_s")}
+    CMs, CMt = classmatched_all(PT, RT)
+    if not RT:
+        print("!! cls_trials.csv.gz missing: enl_spout class-matched rows KEPT from the previous run", flush=True)
+        def keep(new: pd.DataFrame, f: str) -> pd.DataFrame:
+            old = pd.read_csv(OUT / f)
+            return pd.concat([new, old[old.source != "frozen_position"]], ignore_index=True)
+        CMs, CMt = keep(CMs, "classmatched_sessions.csv"), keep(CMt, "classmatched.csv")
+    CMs.to_csv(OUT / "classmatched_sessions.csv", index=False)
+    CMt.to_csv(OUT / "classmatched.csv", index=False)
+    t = CMt[(CMt.value.isin(["dec_target", "dec_landing"])) & (CMt.exec == "exec_land") & (CMt.subset == "all")]
+    cols = ["source", "window", "min_off", "value", "epoch", "off_minus_on", "lo", "hi", "n_animals", "n_neg"] + \
+        [f"n_off_{a}" for a in AN]
+    print("\n== CLASS-MATCHED (all trials, exec_land)\n" + t[cols].round(3).to_string(index=False))
+    figures()
 
 
 def confusion(T: pd.DataFrame, tag: dict, prob: bool) -> tuple[list, list]:
@@ -578,8 +641,68 @@ def _fill(t: str, w: int) -> str:
     return "\n".join(textwrap.fill(x, w) for x in t.split("\n"))
 
 
+def _fig_classmatched_epochs(CM: pd.DataFrame, col: dict, mk: dict) -> None:
+    """lick_enl_target_classmatched_epochs.png: frozen position decoder, class-matched deviated - matched hit for read as
+    target / read as landing, windows precue / cue / lick x epochs pre..chronic; primary rule (black + animals) and the
+    >= 1 deviated sensitivity (grey hollow); n deviated trials per animal under each epoch."""
+    import matplotlib.pyplot as plt
+    c = CM[(CM.source == "frozen_position") & (CM.subset == "all") & (CM.exec == "exec_land")]
+    vals = (("dec_target", "read as TARGET (far contra)"), ("dec_landing", "read as the LANDING bin"))
+    wins = ("precue", "cue", "lick")
+    fig, ax = plt.subplots(2, 3, figsize=(16, 9.2), sharey=True)
+    for i, (v, vt) in enumerate(vals):
+        for j, w in enumerate(wins):
+            a_ = ax[i, j]
+            ticks = []
+            for e_i, ep in enumerate(EP):
+                rr = {mo: c[(c.window.astype(str) == w) & (c.value == v) & (c.epoch == ep) & (c.min_off == mo)]
+                      for mo in CM_MIN_OFF}
+                lab = [ep]
+                for mo, dx in zip(CM_MIN_OFF, (-0.12, 0.18)):
+                    if not len(rr[mo]):
+                        lab.append(f"n>={mo}: -")
+                        continue
+                    r = rr[mo].iloc[0]
+                    lab.append(f"n>={mo}: " + "/".join(str(int(r.get(f"n_off_{a}", 0) or 0)) for a in AN))
+                    if pd.isna(r.off_minus_on):
+                        continue
+                    prim = mo == CM_MIN_OFF[0]
+                    a_.errorbar(e_i + dx, r.off_minus_on, yerr=_yerr(r.off_minus_on, r.lo, r.hi), fmt="o", ms=7,
+                                color="k" if prim else "0.55", mfc="k" if prim else "none", capsize=3, zorder=3,
+                                label=f"pooled, sessions with >= {mo} deviated" if (i, j, e_i) == (0, 0, 1) else None)
+                    if prim:
+                        for ia, a in enumerate(AN):
+                            d = r.get(f"d_{a}")
+                            if d is not None and np.isfinite(d):
+                                a_.plot(e_i + dx - 0.2 + 0.05 * ia, d, mk[a], color=col[a], ms=5, alpha=0.9)
+                ticks.append("\n".join(lab))
+            a_.axhline(0, color="0.5", lw=0.8)
+            a_.axvspan(-0.5, 0.5, color="0.93", zorder=0)
+            a_.set_xlim(-0.5, len(EP) - 0.5)
+            a_.set_xticks(range(len(EP)), ticks, fontsize=7.5)
+            a_.set_title(f"{w} window: {vt}, deviated - matched hit", fontsize=9)
+            if j == 0:
+                a_.set_ylabel(f"{v}: deviated - matched hit\n(share of trials)")
+    from matplotlib.lines import Line2D
+    h, l_ = ax[0, 0].get_legend_handles_labels()
+    h += [Line2D([], [], ls="", marker=mk[a], color=col[a]) for a in AN]
+    l_ += [f"{a} (primary rule)" for a in AN]
+    fig.legend(h, l_, fontsize=8, loc="lower center", ncol=len(h), frameon=False)
+    fig.suptitle("Class-matched test by epoch, frozen pre-stroke POSITION decoder (pre = its LOSO predictions): far contra "
+                 "TARGET trials whose 3-D landing bin is ipsilesional of far contra (deviated) minus the nearest on-target "
+                 "far contra trial of the same session (matched hit), all trials. Black = pooled with 95% CI (nested animals "
+                 "-> sessions bootstrap of off - on; sessions with >= 2 deviated and >= 2 on-target trials), colour = per "
+                 "animal; grey hollow = sensitivity with >= 1 deviated trial. Under each epoch: deviated trials per animal "
+                 f"({'/'.join(AN)}) under each rule. Shaded pre = the pre-stroke LEVEL; few pre deviated trials.", fontsize=10)
+    _wrap_titles(fig, sup_width=170)
+    fig.tight_layout(rect=(0, 0.035, 1, 1))
+    fig.savefig(FIG / "lick_enl_target_classmatched_epochs.png", dpi=110)
+    plt.close(fig)
+
+
 def figures() -> None:
     import matplotlib.pyplot as plt
+    import matplotlib.transforms as mtrans
     from wfield_local import config
     col = {a: config.animal_color().get(a) for a in AN}
     mk = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
@@ -662,6 +785,8 @@ def figures() -> None:
     # 3 off-target far contra: decoded as target vs executed, by window; class-matched
     OT = pd.read_csv(OUT / "offtarget.csv")
     CM = pd.read_csv(OUT / "classmatched.csv")
+    if "min_off" not in CM:
+        CM["min_off"] = CM_MIN_OFF[0]
     fig, ax = plt.subplots(1, 3, figsize=(17, 4.8))
     o = OT[(OT.source == "frozen_position") & (OT.subset == "all") & (OT.exec == "exec_land") & (OT.target == "far_contra")]
     for j, w in enumerate(("precue", "cue", "lick")):
@@ -673,14 +798,17 @@ def figures() -> None:
             for _, r in g.iterrows():
                 ax[0].plot(x - 0.2, r.off_decoded_target, mk[r.animal], color="k", ms=3)
                 ax[0].plot(x + 0.2, r.off_decoded_executed, mk[r.animal], color="k", ms=3)
-    ax[0].set_xticks([j * 5 + e for j in range(3) for e in range(4)], [f"{w}\n{ep[:3]}" for w in ("precue", "cue", "lick")
-                                                                       for ep in EP], fontsize=7)
+    ax[0].set_xticks([j * 5 + e for j in range(3) for e in range(4)], [ep[:3] for _w in range(3) for ep in EP], fontsize=7)
+    tr = mtrans.blended_transform_factory(ax[0].transData, ax[0].transAxes)
+    for j, w in enumerate(("precue", "cue", "lick")):
+        ax[0].text(j * 5 + 1.5, -0.09, f"{w} window", transform=tr, ha="center", va="top", fontsize=8)
     ax[0].axhline(1 / 6, color="0.5", ls=":")
     ax[0].set_title("frozen position decoder, far contra TARGET trials whose licks land elsewhere (3-D landing):\nshare "
                     f"decoded as target vs as executed bin (animals with >= {MIN_OFF} such trials)", fontsize=8)
     ax[0].legend(fontsize=7)
     for k, (src, wv) in enumerate((("frozen_position", "precue"), ("enl_spout", "1.0"))):
-        c = CM[(CM.source == src) & (CM.window.astype(str) == wv) & (CM.subset == "all") & (CM.exec == "exec_land")]
+        c = CM[(CM.source == src) & (CM.window.astype(str) == wv) & (CM.subset == "all") & (CM.exec == "exec_land") &
+               (CM.min_off == CM_MIN_OFF[0])]
         vals = ["dec_target", "dec_landing", "p_true"]
         for i, v in enumerate(vals):
             for e_i, ep in enumerate(POST + ["post"]):
@@ -694,8 +822,12 @@ def figures() -> None:
                 for a in AN:
                     ax[k + 1].plot(x + 0.15, r[f"d_{a}"], mk[a], color=col[a], ms=4)
         ax[k + 1].axhline(0, color="0.5")
+        # epoch on the tick, the read-out once per group underneath (the stacked "value\nepoch" ticks overlapped)
         ax[k + 1].set_xticks([i * 5 + e for i in range(3) for e in range(4)],
-                             [f"{v}\n{ep[:3]}" for v in vals for ep in POST + ["post"]], fontsize=7)
+                             [ep[:3] for _v in vals for ep in POST + ["post"]], fontsize=7)
+        tr = mtrans.blended_transform_factory(ax[k + 1].transData, ax[k + 1].transAxes)
+        for i, v in enumerate(vals):
+            ax[k + 1].text(i * 5 + 1.5, -0.09, v, transform=tr, ha="center", va="top", fontsize=8)
         ax[k + 1].set_title(f"{src} pre-cue: far contra trials landing IPSILESIONALLY minus the nearest on-target trial\n"
                             "(same session; dec_landing on the matched trial = its rate of being read as that bin)",
                             fontsize=8)
@@ -703,6 +835,7 @@ def figures() -> None:
     fig.tight_layout()
     fig.savefig(FIG / "lick_enl_target_offtarget.png", dpi=110)
     plt.close(fig)
+    _fig_classmatched_epochs(CM, col, mk)
     # 4 decodability
     DT = pd.read_csv(OUT / "decodability_tests.csv")
     fig, ax = plt.subplots(1, 3, figsize=(15, 4.4))
@@ -744,6 +877,9 @@ def main() -> int:
     if "--plot-only" in sys.argv:
         figures()
         return 0
+    if "--classmatched-only" in sys.argv:
+        classmatched_only()
+        return 0
     il.split_only("lick_enl_target_test.py")
     jobs = min(int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8, 8)
     T, names = ead.prepare(pd.read_csv(ead.TRIALS))
@@ -753,26 +889,22 @@ def main() -> int:
     # ---- A: frozen position decoder
     PT = precue_trials(TM)
     pd.concat(PT.values(), ignore_index=True).to_csv(OUT / "precue_trials.csv.gz", index=False, float_format="%.5g")
-    OTr, CMs, CMt, CFl, CFc, ACC, CT = [], [], [], [], [], [], []
+    OTr, CFl, CFc, ACC, CT = [], [], [], [], []
     for w, D in PT.items():
         for sub, X in subsets(D, 1.0) if w == "precue" else (("all", D),):
             tag = {"source": "frozen_position", "window": w, "subset": sub}
             OTr += offtarget(X, tag)
             for ex in ("exec_land", "exec_traj"):
                 CT += cls_tracking(X, ex, tag)
-                cs = class_matched(X, ex)
-                if len(cs):
-                    CMs.append(cs.assign(**tag, exec=ex))
-                    CMt += cm_tests(cs, {**tag, "exec": ex})
             if w == "precue":
                 lv, ch = confusion(X, tag, prob=False); CFl += lv; CFc += ch
             ACC += accuracy_sessions(X, tag, ridge=False)
     # ---- B + C: own classifier and ridge
     TRK, TRP, GN = [], [], []
-    RT = []
+    RT = {}
     for W, lf in VARIANTS:
         R = attach(model_trials(T, names, W, lf), TM)
-        RT.append(R)
+        RT[W] = R
         G = gains(R).assign(window_s=W, lickfree=lf)
         GN.append(G)
         for sub, X in subsets(R, W):
@@ -780,24 +912,21 @@ def main() -> int:
             OTr += offtarget(X, tag, ("exec_land", "exec_traj", "exec_ang"))
             for ex in ("exec_land", "exec_ang"):
                 CT += cls_tracking(X, ex, tag)
-                cs = class_matched(X, ex)
-                if len(cs):
-                    CMs.append(cs.assign(**tag, exec=ex))
-                    CMt += cm_tests(cs, {**tag, "exec": ex})
             lv, ch = confusion(X, tag, prob=True); CFl += lv; CFc += ch
             ACC += accuracy_sessions(X, tag, ridge=False)
             ACC += accuracy_sessions(X, {**tag, "source": "ridge"}, ridge=True)
             a_, p_ = tracking(X, G, {"window_s": W, "lickfree": lf, "subset": sub})
             TRK += a_; TRP += p_
-    pd.concat(RT, ignore_index=True).to_csv(OUT / "cls_trials.csv.gz", index=False, float_format="%.5g")
+    pd.concat(RT.values(), ignore_index=True).to_csv(OUT / "cls_trials.csv.gz", index=False, float_format="%.5g")
     GN = pd.concat(GN, ignore_index=True); GN.to_csv(OUT / "gains.csv", index=False)
     TRK, TRP = pd.DataFrame(TRK), pd.DataFrame(TRP)
     TRK.to_csv(OUT / "tracking.csv", index=False); TRP.to_csv(OUT / "tracking_pooled.csv", index=False)
     SH = shrink_decomposition(TRK, GN); SH.to_csv(OUT / "tracking_shrink.csv", index=False)
     print("\n== SHRINK vs TRACK (sensitivity)\n" + SH.round(2).to_string(index=False))
     OTr = pd.DataFrame(OTr); OTr.to_csv(OUT / "offtarget.csv", index=False)
-    pd.concat(CMs, ignore_index=True).to_csv(OUT / "classmatched_sessions.csv", index=False)
-    CMt = pd.DataFrame(CMt); CMt.to_csv(OUT / "classmatched.csv", index=False)
+    CMs, CMt = classmatched_all(PT, RT)
+    CMs.to_csv(OUT / "classmatched_sessions.csv", index=False)
+    CMt.to_csv(OUT / "classmatched.csv", index=False)
     CT = pd.DataFrame(CT); CT.to_csv(OUT / "cls_tracking.csv", index=False)
     pd.DataFrame(CFl).to_csv(OUT / "confusion.csv", index=False)
     pd.DataFrame(CFc).to_csv(OUT / "confusion_change.csv", index=False)
