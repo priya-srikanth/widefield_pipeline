@@ -8,6 +8,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - [ ] **Code-change wording with bounds**: cued 'unchanged within ~10 deg'; ITI 'not re-mapped beyond ~10-15 deg; small acute rotation-like change (~6-9 deg) beyond 2-month drift + lasting gain loss along the pre axis' -- OK? (Re-run on docked-spout ITI licks if docked becomes primary.)
 - [ ] **ITI primary set = docked-spout licks?** Offsets hold docked; the ITI BALANCE + its recovery tracking are moving-spout results. Make docked the primary ITI set (offsets), and treat moving-spout licks as their own category (possibly spout-driven)? Re-word the ITI-balance marker claims?
 - [x] **Representational-change wording**: YES -- offset + gain / precision loss, re-map OPEN (applied page v242, FINDINGS); noise-matched transfer + power check RUNNING.
+- [ ] **ENL licks next?** Behaviour answered (aim deficit present pre-cue). Neural options: (1) ITI balance / decoder offset on ENL licks (stationary spout, unrewarded; clean bout starts >= 1 s after arrival), (3) target code without reward. Also: cue-to-lick level per region (mean level / fixed window latency-matched / pre-lick), and which earlier figure showed the chronic "dip".
 - [ ] **Hypothesis line (3)**: the contralesional-share rise is not orofacial-specific (VISpm / RSPd rise too) -> reword?
 - [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
@@ -48,6 +49,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.18 supp | Coordination between hemispheres (noise corr, lead, lick vs rest, recovery) | lick_interhemispheric.py |
 | 14.18 supp | ITI results on docked-spout licks (vs moving, size-matched) | iti_dock_audit.py, lick_iti_dock_compare.py |
 | 14.18 supp | Noise-matched null + rotation power for the code-change test | lick_code_noisematch.py |
+| 14.21 area | ENL lick audit (counts, task logic, aim, contact) | enl_lick_audit.py |
 | 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
@@ -76,6 +78,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   PRE-STROKE same pattern (34 deviated trials, thin; standard output, animal-weighted): pre-cue ns, lick target -0.28
   [-0.52, 0.00] / landing +0.16 [0.00, 0.32] (borderline) -> post-stroke looks like the normal error signature, more frequent.
 
+- ENL LICKS: plentiful (no cell < 20 except PS95 acute 1 session); acute far-contra ENL aim error = cued (-25.9 vs -25.4 deg) -> far-contra aim deficit does not need the cue. Non-contact ENL licks can fall inside the pre-cue level window.
+
 ## 4. Conclusions (current reading)
 - ITI: the lasting PATTERN offset holds on docked-spout licks; the ITI hemispheric BALANCE + recovery tracking come from moving-spout licks.
 - Lick-direction code CHANGES: cued = transient contralesional offset; ITI = persistent offset + lower gain / precision beyond June drift, orofacial (ipsilesional chronically). Re-map: open (low power).
@@ -91,6 +95,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 (nothing running)
 
 ## 6. Log
+- 10-29 evening: ENL lick audit reported -> page v248 (14.21), FINDINGS. Priya reviewing pre-cue maps / traces (14.20); items 1-5 + overnight controls not yet reviewed.
 - 10-29: noise-matched null + power reported -> page v247, FINDINGS. All helpers done; nothing running.
 - 10-29: docked-spout ITI rerun reported -> page v246 (+ hypothesis line qualified), FINDINGS. Helper added ITI_SUBSET_FILTERS hooks (iti_licks.py, iti_lick_order.py, lick_matched_readout.py, lick_balance_subsets.py); outputs in itifilter_*/.
 - 10-29: item 3 (interhemispheric) reported -> page v245, FINDINGS (global coupling rise, no lead). Deleted the helper's superseded test outputs interhemi_rest/PS92_0806.npz (2-s attempt, 0 windows) + interhemi_sessions_test.csv.gz.

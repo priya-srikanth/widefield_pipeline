@@ -781,6 +781,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
 - Pre-cue LEVEL vs restw 10-28 (14.20; restw approved by Priya): far-contra target acute, contralesional ALM / tjM1 /
   SSp-m / SSp-n RAISED before the cue (+4.5 to +5.5 x1e3 dF/F, 4/4, PS94 ~0); chronic all spouts ALM / tjM1 contra
   +1.5 / +1.7 (4/4) and a posterior VIS / RSP / SSp-tr / bfd decrease (partly a rest-level rise). PROVISIONAL.
+  Caveat (10-29 ENL audit): non-contact ENL licks occur up to the cue on 10-37% of ENL trials, so the pre-cue window is not
+  movement-free; the acute far-contra raise needs an ENL-lick / movement check before it is read as preparatory.
+- ENL lick audit 10-29 (page 14.21, scripts/enl_lick_audit.py, enl_licks/): ENL licks (strobe <= onset < cue; spout
+  stationary, no cue, no reward) are plentiful (107 sessions; no animal x epoch x spout cell < 20; thin only PS95 acute =
+  1 session). Only CONTACT licks reset the pre-cue timer; none abort the trial. Excluded from the ITI and cued decoder sets
+  (in the frozen encoder). Acute far-contra ENL aim error = cued (pooled -25.9 vs -25.4 deg; per animal -26.6 / -13.0 /
+  -30.6 / -34.3 vs -22.2 / -15.5 / -32.5 / -31.3), contact 0.15 vs 0.13, recovers alongside cued -> the far-contra aim
+  deficit does not need the cue. Caveats: selected set (trials with an ENL lick fall to 0.11-0.54 acutely); spout-arrival
+  overlap (PS94 / PS95); chronic ENL vs cued differ in PS94 / PS95 (untested). Neural ENL-lick analyses not run. PROVISIONAL.
 - Decoder area attribution 10-28 (11.13 alone / unique, 11.14 nested blocks + Shapley): the orofacial group (+SSs) carries
   ~40% of the code (Shapley pre r 0.27 of 0.62 ITI, 0.29 of 0.77 cued) and of the ITI offset (0.15 of 0.37 mm acute);
   the rest is spread and redundant (no block necessary). SSs alone decodes but adds nothing uniquely (a copy of the
