@@ -98,6 +98,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - (low priority) Stopped-trial regional traces across epochs (vs miss_working, hit; restw + raw; example trials) -> stopped_traces/ (2 workers)
 - Updates sent: ENLv primary = onset >= 1 s after arrival (+ >= 0 s and first-ENLv-lick versions, arrival-corrected); chronic dip = NON-restw traces.
 
+- QUEUED (lowest priority; start when a helper finishes): arrival -> cue orofacial traces (-0.5 s before arrival .. +0.5 s after cue), pooled + per spout, restw; (A) 3-anchor broken axis: arrival | last ENLv lick | cue, no-ENLv-lick trials as own line, n per segment; (B) trial heatmaps sorted by arrival->cue time with ENLv lick + cue ticks, 2-3 areas, far contra + pooled.
+- Updates sent: ENLv arrival correction by REGRESSION (not lick-free subtraction); cue excluded from ENLv windows (contact vs non-contact; licks < 2 s before cue reported); stopped helper adds jaw-no-lick vs stopped-no-jaw.
+
 ## 7. ENLv + cue-to-lick results (figure links added as they report)
 (none yet)
 
