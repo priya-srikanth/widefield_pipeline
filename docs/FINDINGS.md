@@ -578,6 +578,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   asymmetry does (partialling either leaves ~0.47); shares most variance with MOs-rest / SSp-n (all confounds together
   0.18, p 0.065); pixel maps = broad medial-frontal pattern peaking on the sinus in PS92 / PS95. Not a grant candidate
   region on this evidence. scripts/lick_acad_midline_control.py. PROVISIONAL.
+- **Raw vs angle-referenced balance reconciled (10-29, scratch raw_spout_balance.py, cued first licks, pool ALM/tjM1/
+  SSp-m/SSp-n/SSs, log2 contra/ipsi of post responses):** PRE the raw balance is high for ipsilesional-spout licks (+0.4
+  to +0.6) and low for contralesional ones (-0.5 to -0.8) -> each hemisphere responds more to licks toward the OPPOSITE
+  side (same layout as the SSp-n decoder weights). ACUTE far-contra raw balance rises toward 0 (PS92 -0.04, PS93 -0.40,
+  PS94 +0.13, PS95 +0.18; Priya's 'looks like far-mid') because those licks LAND ipsilesionally (-11 / 0 / -28 / -13 deg);
+  relative to pre licks of the SAME landed angle it is LOWER (referenced -0.18 / -0.47 / -0.94 / -0.14) -> the
+  activity looks like a lick further contralesional than the one made = the decoder's contralesional offset. Same
+  imbalance, two references. Sign conventions differ across analyses (balance + = contralesional hemisphere larger;
+  angle + = contralesional side; aim - = ipsilesional; offset + = read contralesional) -- check each before comparing.
 - **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
   upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
   beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
