@@ -1218,7 +1218,7 @@ def main(argv=None) -> int:
     ap.add_argument("--variant", default=None, choices=("lick", "working"),
                     help="render only this trial class")
     args = ap.parse_args(argv)
-    out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
+    out = args.output or (Path(PathResolver().root("cohort_out")) / "grant_figures")
     from wfield_local import lp_licks
     out = lp_licks.output_dir(out)            # LP_licks renders -> grant_figures/LP_licks/...
     print(f"lick source: {lp_licks.lick_source()} -> {out}", flush=True)

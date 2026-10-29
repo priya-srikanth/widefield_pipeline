@@ -117,7 +117,7 @@ def session_vessels(s):
     left, right, _groups = hemisphere_masks(allen_dir)
     if favg.shape[1:] != left.shape or left.sum() < MIN_PX or right.sum() < MIN_PX:
         return None
-    out = {"label": s["label"], "animal": s["label"][:4], "date": s["label"].split("_")[-1]}
+    out = {"label": s["label"], "animal": s["label"].split("_")[0], "date": s["label"].split("_")[-1]}
     for ch, nm in CHANNELS.items():
         for side, m in (("left", left), ("right", right)):
             out[f"dark_{nm}_{side}"] = _dark_contrast(favg[ch], m)
@@ -142,7 +142,7 @@ KEYS = [("dark_415_LR", "415 vessel DEPTH (p90)  L/R"),
 def collect(animals=None):
     sessions = config.load_sessions()
     if animals:
-        sessions = [x for x in sessions if x["label"][:4] in set(animals)]
+        sessions = [x for x in sessions if x["label"].split("_")[0] in set(animals)]
     rows = []
     for s in sessions:
         try:

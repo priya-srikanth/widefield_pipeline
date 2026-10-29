@@ -1853,7 +1853,7 @@ def default_out():
     """
     from wfield_local.paths import PathResolver
 
-    return Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    return Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
 
 
 def main(argv=None) -> int:

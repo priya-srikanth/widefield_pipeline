@@ -189,7 +189,7 @@ def run_reference_native(cfg, out, func):
     ref_T = load_allen_landmarks(str(ref["landmarks"]))["transform"]   # the ONE CCF transform
     h, w = ref_native.shape
     mask = cv2.erode((ref_native > np.percentile(ref_native, 30)).astype(np.uint8), np.ones((9, 9), np.uint8))
-    refp = _prep(ref_native); mb = mask.astype(bool)
+    refp = _prep(ref_native); mb = mask.astype(bool)  # noqa: F841
 
     results, warped = {}, {}
     for sid, s in sessions.items():
@@ -197,6 +197,15 @@ def run_reference_native(cfg, out, func):
         if sid == ref_id:
             w2x3 = np.eye(2, 3, dtype=np.float32); ncc = 1.0; method = "reference"; mov_in_ref = ref_native
         else:
+            if mov.shape != (h, w):
+                # A DIFFERENT FRAME SIZE IS RESIZED (stretched) onto the reference below. Right for a binning
+                # change over the same field of view; WRONG for a different camera ROI, which is a crop of a
+                # different region -- cohort2 10-29 PS118 / PS120 / PS121 (docs/EXPERIMENT_ERRORS.md). Such a
+                # session needs the frame EMBEDDED at its ROI offset, not stretched; see
+                # docs/NEW_COHORT_2026-10-29.md "Variable imaging ROI".
+                print(f"[{sid}] WARNING: frame {mov.shape} != reference {(h, w)} -> RESIZED to the reference. "
+                      f"If this session used a different camera ROI (not binning), this registration is WRONG.",
+                      flush=True)
             w2x3, ncc, method = _register_to_reference_native(mov, ref_native, mask)
             movr = cv2.resize(mov, (w, h), interpolation=cv2.INTER_AREA) if mov.shape != (h, w) else mov
             mov_in_ref = cv2.warpAffine(movr, w2x3, (w, h), flags=cv2.INTER_LINEAR)

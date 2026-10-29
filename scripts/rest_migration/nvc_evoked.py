@@ -303,7 +303,7 @@ def main(argv=None) -> int:
     from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     animals = a.animals or ["PS92", "PS93", "PS94", "PS95"]
     rows, curves, tvec = [], defaultdict(list), None
 

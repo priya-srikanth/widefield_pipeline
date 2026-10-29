@@ -95,7 +95,7 @@ def main(argv=None) -> int:
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.concat([prev, pd.DataFrame([r for _lab, r in got])], ignore_index=True).sort_values("label")
-    D["animal"] = D.label.str[:4]
+    D["animal"] = D.label.str.split("_").str[0]
     D["set"] = ["pre" if x[5:] <= "0814" else "post" for x in D.label]
     D["epoch"] = D.label.map(epochs.epoch_of)
     D.to_csv(Path(out) / name, index=False, float_format="%.4g")

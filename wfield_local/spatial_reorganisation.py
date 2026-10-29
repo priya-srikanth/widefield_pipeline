@@ -91,7 +91,7 @@ def _area_matrix_uncached(s, align="cue", source="roi", post_all_trials=True):
     X, y, g, Xn, yn, reg = _trial_features(s, _args(source=source, align=align, post_s=2.0))
     # post-stroke: fold the NO-LICK trials back in (see the note above)
     if (post_all_trials
-            and config.session_phase(s["label"][:4], s["label"].split("_")[-1]) == "post"
+            and config.session_phase(s["label"].split("_")[0], s["label"].split("_")[-1]) == "post"
             and len(yn)):
         X = np.vstack([X, Xn])
         y = np.concatenate([y, yn])
@@ -227,7 +227,7 @@ def session_geometry(s, align="cue", source="roi", post_all_trials=True):
         return None
     A, y, g, areas = got
     labels = [c for c in DISPLAY_ORDER if (y == c).sum() >= MIN_TRIALS_PER_POS]
-    out = {"label": s["label"], "animal": s["label"][:4], "date": s["label"].split("_")[-1],
+    out = {"label": s["label"], "animal": s["label"].split("_")[0], "date": s["label"].split("_")[-1],
            "align": align, "areas": areas,
            "positions": [POSITION_NAMES[c] for c in labels],
            "pattern": {POSITION_NAMES[c]: A[y == c].mean(axis=0).tolist() for c in labels}}
@@ -407,7 +407,7 @@ def plot(rows, summ, out_dir, align="cue"):
 def _plot_chunk(cols, POS, out_dir, align, part, n_parts):
     """One figure for up to MAX_COLS_PER_FIG sessions. Part n of m is stated on the figure."""
     fig, axes = plt.subplots(2, len(cols), figsize=(4.4 * len(cols), 8.6), squeeze=False)
-    for k, (a, lab, rec) in enumerate(cols):
+    for k, (a, lab, rec) in enumerate(cols):  # noqa: B007
         v = rec["convergence"]["post"][lab]
         b = v["pre_band"]
         ax = axes[0][k]

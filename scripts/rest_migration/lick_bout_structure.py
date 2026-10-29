@@ -217,7 +217,7 @@ def main(argv=None) -> int:
 
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     # `analysis_kit.curated_sessions` is this filter, once. IT PRESERVES `load_sessions`
     # ORDER on purpose -- that list is NOT sorted, and the pools below are iterated into a
     # seeded RNG, so quietly sorting here would move published CIs.

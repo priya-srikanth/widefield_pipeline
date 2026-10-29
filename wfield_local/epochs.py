@@ -312,7 +312,7 @@ def boundaries_path() -> Path | None:
     if override:
         return Path(override)
     try:
-        return Path(config.resolver().root("labcams")) / BOUNDARIES_FILE
+        return Path(config.resolver().root("cohort_out")) / BOUNDARIES_FILE
     except Exception:                                             # noqa: BLE001
         return None                # no resolver on this box -> stored spec, not a crash
 

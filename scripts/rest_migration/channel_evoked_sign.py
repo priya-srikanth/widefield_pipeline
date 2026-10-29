@@ -112,7 +112,7 @@ def main(argv=None) -> int:
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
     by_animal: dict[str, list] = {}
     for s in config.load_sessions():

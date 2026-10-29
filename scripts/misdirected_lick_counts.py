@@ -40,7 +40,7 @@ def main(argv=None) -> int:
     rows = []
     for s in ak.curated_sessions():
         lab = s["label"]
-        animal, date = lab[:4], "2026" + lab[5:]
+        animal, date = lab.split("_")[0], "2026" + lab[5:]
         ep = epochs.epoch_of(lab)
         if ep not in ("pre", "acute", "subacute", "chronic") or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM):
             continue

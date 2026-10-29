@@ -63,7 +63,7 @@ EPOCH_FIGS = [
 
 def epoch_fig_dir(rv=None):
     """Where `epoch_grant_figures` writes. ONE definition of the path, shared by both writers."""
-    return Path((rv or PathResolver()).root("labcams")) / "grant_figures" / "epoch"
+    return Path((rv or PathResolver()).root("cohort_out")) / "grant_figures" / "epoch"
 
 
 # split-out cross-session per-animal figures, one full-size slide each (file stem, title, subtitle).

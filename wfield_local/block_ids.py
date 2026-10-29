@@ -93,7 +93,7 @@ def _behavior_dir(s):
     for cand in config.load_sessions():
         if cand["label"] == s["label"] and cand.get("behavior_trials"):
             return Path(cand["behavior_trials"]).parent
-    animal = s["label"][:4]
+    animal = s["label"].split("_")[0]
     m = _re.search(rf"{animal}_(\d{{8}})_", str(s.get("h5") or "")) or \
         _re.search(r"[/\\](\d{8})[/\\]", str(s.get("h5") or s.get("mc") or ""))
     if not m:

@@ -59,6 +59,62 @@ _SIGNATURE = (("imaging", "E:/labcams_data"), ("analysis_desktop", "C:/Users/Sab
               ("analysis", "M:/MICROSCOPE/Priya"), ("mac", "/Volumes/Priya"))
 
 
+# --------------------------------------------------------------------------- cohorts
+# ONE COHORT IS ACTIVE AT A TIME (configs/cohorts.yaml, 2026-10-29). It lives here, below `config`, because the
+# resolver needs it: a cohort's cohort-level OUTPUTS go in their own subfolder, so cohort2's deck, epoch file,
+# frozen models and cohort figures can never overwrite cohort1's. Per-session data roots are animal-keyed and
+# are not scoped.
+COHORT_ENV = "WIDEFIELD_COHORT"
+
+#: Logical roots whose contents are COHORT-LEVEL outputs: the active cohort's `output_subdir` is appended.
+COHORT_SCOPED_ROOTS = ("figures_working", "cue_analysis_out", "behavior_out", "orofacial")
+
+#: Virtual root for cohort-level outputs that historically sat at the TOP of the labcams tree (the deck,
+#: epoch_boundaries.json, frozen_models/, joint_bases/, grant_figures/). = `labcams` for cohort1 (unchanged),
+#: `labcams/<output_subdir>` otherwise. `labcams` itself stays unscoped: it is also the SESSION data root.
+COHORT_OUT = "cohort_out"
+
+
+def cohorts() -> dict:
+    """configs/cohorts.yaml as a dict (`default`, `cohorts`)."""
+    with open(CONFIG_DIR / "cohorts.yaml", encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+def active_cohort() -> str:
+    """Name of the active cohort: ``WIDEFIELD_COHORT``, else cohorts.yaml `default` (cohort1)."""
+    cfg = cohorts()
+    name = os.environ.get(COHORT_ENV, "").strip() or cfg["default"]
+    if name not in cfg["cohorts"]:
+        raise ValueError(f"{COHORT_ENV}={name!r} is not a cohort in configs/cohorts.yaml "
+                         f"(known: {', '.join(cfg['cohorts'])})")
+    return name
+
+
+def cohort_spec(name: str | None = None) -> dict:
+    """One cohort's block from cohorts.yaml (the active one by default), with `name` added."""
+    name = name or active_cohort()
+    return dict(cohorts()["cohorts"][name], name=name)
+
+
+def cohort_for_date(yyyymmdd: str) -> str | None:
+    """The cohort whose [first, last] acquisition range holds ``yyyymmdd`` (None if no cohort does)."""
+    d = int(str(yyyymmdd))
+    hits = [n for n, c in cohorts()["cohorts"].items()
+            if int(c["first"]) <= d and (c.get("last") is None or d <= int(c["last"]))]
+    if len(hits) > 1:
+        raise ValueError(f"{yyyymmdd} is in more than one cohort's date range: {hits} (configs/cohorts.yaml)")
+    return hits[0] if hits else None
+
+
+def cohort_of_animal(animal: str) -> str | None:
+    """The cohort an animal belongs to, from cohorts.yaml `animals` lists (None if in none)."""
+    for n, c in cohorts()["cohorts"].items():
+        if animal in (c.get("animals") or []):
+            return n
+    return None
+
+
 def detect_machine() -> str:
     """Resolve the current machine: env override, else on-disk signature, else 'analysis'."""
     env = os.environ.get("WIDEFIELD_MACHINE")
@@ -93,7 +149,7 @@ class PathResolver:
                 self._candidates[name] = [str(mount)]
 
     def root_names(self) -> list[str]:
-        return list(self._candidates)
+        return list(self._candidates) + [COHORT_OUT]
 
     #: A logical root may be overridden per machine by ``WIDEFIELD_<ROOT_NAME_UPPERCASED>``.
     #: ``figures_working`` -> ``WIDEFIELD_FIGURES_WORKING``, which is the variable
@@ -127,6 +183,18 @@ class PathResolver:
         env override is the supported way to correct it -- so it has to work everywhere, not in the
         orchestrator alone.
         """
+        if name == COHORT_OUT:
+            return self._scoped(self.root("labcams"))
+        base = self._root_unscoped(name)
+        return self._scoped(base) if name in COHORT_SCOPED_ROOTS else base
+
+    @staticmethod
+    def _scoped(base: str) -> str:
+        """`base` + the active cohort's output_subdir (unchanged for cohort1, whose subdir is "")."""
+        sub = (cohort_spec().get("output_subdir") or "").strip("/")
+        return f"{base.rstrip('/')}/{sub}" if sub else base
+
+    def _root_unscoped(self, name: str) -> str:
         if name not in self._candidates:
             raise KeyError(f"Unknown logical root {name!r}. Known: {self.root_names()}")
         override = os.environ.get(self.env_var(name))

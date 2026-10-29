@@ -246,6 +246,8 @@ def main(argv=None) -> int:
                          f"(files >= {HASH_READBACK_MAX >> 30} GB stay size-only)")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
+    if str(args.date).isdigit() and len(str(args.date)) == 8:
+        config.use_cohort_for_dates([args.date])           # this night's cohort (configs/cohorts.yaml)
     return run(args.date, PathResolver(machine=args.machine), animals=config.normalize_animals(args.only),
                do_copy=not args.skip_copy, do_dropframe=not args.skip_dropframe,
                do_align=not args.skip_align, do_events=not args.skip_events,

@@ -184,6 +184,10 @@ def main(argv=None) -> int:
     if not dates:
         print(f"[nightly] no dates resolved from {args.dates} on machine={rv.machine}")
         return 1
+    # COHORT (configs/cohorts.yaml, 2026-10-29): the dates pick it -- 20261029 onward is cohort2 -- and it is
+    # exported as WIDEFIELD_COHORT, so every step below (and its subprocesses) sees only that cohort's animals
+    # and writes cohort-level outputs to that cohort's folders. Refuses a date range spanning two cohorts.
+    config.use_cohort_for_dates(dates)
     mach = ["--machine", args.machine] if args.machine else []
     only = ["--only", *args.only] if args.only else []
 

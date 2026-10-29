@@ -149,7 +149,7 @@ def session_licks(rv, run: str, lab: str, bdir, dev: float) -> pd.DataFrame | No
     for _, t in B.trials[B.trials.engaged].iterrows():
         eng |= (ft >= t.strobe_s) & (ft <= t.stop_s)
     X = (X - X[eng].mean(0)) / X[eng].std(0)
-    L = lick_table(rv, run, lab[:4], "2026" + lab[5:], B)
+    L = lick_table(rv, run, lab.split("_")[0], "2026" + lab[5:], B)
     FF = lick_features(X, ft, L.on_s.to_numpy())
     F, Fq, Fe = FF["evoked"], FF["pre"], FF["early"]
     tgt = B.target_angle or {}
@@ -316,13 +316,13 @@ def main(argv=None) -> int:
         for _, t in B.trials[B.trials.engaged].iterrows():
             eng_frames |= (ft >= t.strobe_s) & (ft <= t.stop_s)
         X = (X - X[eng_frames].mean(0)) / X[eng_frames].std(0)
-        L = lick_table(rv, a.run, lab[:4], "2026" + lab[5:], B)
+        L = lick_table(rv, a.run, lab.split("_")[0], "2026" + lab[5:], B)
         F = lick_features(X, ft, L.on_s.to_numpy())
         D = decode_session(L, F, B.target_angle or {}, a.dev)
         if D.empty:
             print(f"{lab}: too few licks -- skipped", flush=True)
             continue
-        D = D.assign(label=lab, animal=lab[:4], epoch=ep)
+        D = D.assign(label=lab, animal=lab.split("_")[0], epoch=ep)
         parts.append(D)
         m = D[(D.kind == "misdirected") & (D.feat == "evoked")]
         print(f"{lab} {ep}: misdirected {len(m)}, P(far_contra) {m.p_far_contra.mean():.2f}", flush=True)
@@ -361,7 +361,7 @@ def main_templates(a, rv, out, bdir) -> int:
                 print(f"{lab}: no bundle inputs -- skipped", flush=True)
                 continue
             L.to_pickle(cf)
-        Ls[lab], meta[lab] = L, {"animal": lab[:4], "epoch": ep}
+        Ls[lab], meta[lab] = L, {"animal": lab.split("_")[0], "epoch": ep}
         print(f"{lab} {ep}: contacted {int((L.kind == 'contacted').sum())}, misdirected "
               f"{int((L.kind == 'misdirected').sum())}", flush=True)
     # window 'evoked' = lick-evoked (post - pre, primary); 'pre' = the 100 ms BEFORE onset (trial context control)

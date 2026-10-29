@@ -46,7 +46,7 @@ def main():
     for it, err in fail:
         print("FAILED", it, err)
     D = pd.DataFrame([r for _, rr in got for r in rr])
-    D["animal"], D["epoch"] = D.label.str[:4], D.label.map(epochs.epoch_of)
+    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(epochs.epoch_of)
     D.to_csv(sys.argv[2] if len(sys.argv) > 2 else "contact_dev_check.csv", index=False, float_format="%.4g")
     pd.set_option("display.width", 220)
     order = ["pre", "acute", "subacute", "chronic"]

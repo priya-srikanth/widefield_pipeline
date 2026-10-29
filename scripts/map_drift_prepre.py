@@ -143,7 +143,7 @@ def main(argv=None) -> int:
     aligns = a.aligns or (["precue"] if a.arm == "enl1s" else ["precue", "cue", "lick"])
     from wfield_local import lp_licks
     # a non-default arm must sit under its tag directory (LP_licks, DAQ_ENL1s) or writeguard refuses it
-    out_dir = a.out or Path(PathResolver().root("labcams")) / "grant_figures" / "map_drift_prepre"
+    out_dir = a.out or Path(PathResolver().root("cohort_out")) / "grant_figures" / "map_drift_prepre"
     tag = lp_licks.output_tag()
     out_dir = out_dir / (tag or "contact") if tag is None or f"/{tag.lower()}/" not in out_dir.as_posix().lower() + "/" else out_dir
     assert_writable(out_dir)

@@ -119,7 +119,7 @@ def main(argv=None) -> int:
     C = C[C.label.isin(set(ak.curated_labels()))].copy()
     C.insert(1, "arm", C["align"])          # NOT C.align: that is DataFrame.align (a method)
     C.insert(3, "variant", "gate lick, orth, contrast")
-    C.insert(5, "animal", C.label.str[:4])
+    C.insert(5, "animal", C.label.str.split("_").str[0])
     C.insert(6, "epoch", [epochs.epoch_of(x) for x in C.label])
     C.insert(7, "day", [epochs.days_since_stroke(x) for x in C.label])
     C["baseline"] = f"directions refitted on pre from {pf} (August); pre rows leave-one-out"

@@ -1,5 +1,11 @@
 # Nightly runbook — ANALYSIS (behavior DLC GPU) computer
 
+> **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (two Thy1-GCaMP6s, two RiboL1-GCaMP8s).**
+> Analysed separately from PS92-95 (cohort1) and never pooled with them. Read
+> [`docs/NEW_COHORT_2026-10-29.md`](../docs/NEW_COHORT_2026-10-29.md) before running anything: the nightly picks the cohort from
+> the date, hand runs need `WIDEFIELD_COHORT=cohort2`, and cross-registration waits for a reference session.
+
+
 MICROSCOPE mounts as **`M:`** here (`net use M: \\research.files.med.harvard.edu\Neurobio`); local
 staging on **`D:`** (`D:\camera`, `D:\behavior_logs`). Env:
 `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; repo is `pip install -e .` (no PYTHONPATH).

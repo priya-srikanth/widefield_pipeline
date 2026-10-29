@@ -1,0 +1,46 @@
+# COHORTS -- which animals belong together (added 2026-10-29, Priya: "ensure the repo is aware to expect a new
+# cohort and does not lump these with PS92-95").
+#
+# ONE COHORT IS ACTIVE AT A TIME. Every pooled analysis (curated / pre-stroke sets, joint bases, frozen
+# decoders, epoch boundaries, the deck, cohort figures) sees ONLY the active cohort's animals and sessions,
+# so PS92-95 and the new mice can never be pooled by accident. Chosen by, in order:
+#   1. WIDEFIELD_COHORT=<name> in the environment (set it by hand to analyse an older cohort);
+#   2. the NIGHTLY entry points (nightly, preprocess, camera_nightly, nightly_figs, await_locanmf) pick the
+#      cohort whose [first, last] date range holds the night they were given, and export WIDEFIELD_COHORT so
+#      every subprocess inherits it -- so `python -m wfield_local.nightly 20261029` is cohort2 with no flag;
+#   3. otherwise `default` below -- cohort1, so every existing PS92-95 analysis, script and test behaves
+#      exactly as before this file existed.
+#
+# Per cohort:
+#   animals_file / sessions_file  configs/-relative; same format as the original animals.yaml / sessions.yaml.
+#   output_subdir   cohort-level OUTPUTS go in this subfolder of figures_working, analysis_figures
+#                   (cue_analysis_out), behavior_summary (behavior_out), LP_analysis (orofacial) and of the
+#                   labcams top level (logical root `cohort_out`: deck, epoch_boundaries.json, frozen_models,
+#                   joint_bases, grant_figures). "" = the top level, i.e. cohort1's existing locations.
+#                   Per-SESSION data (labcams/<date>/<session>/..., DAQ, cameras, alignment templates, xday)
+#                   is animal-keyed and stays where it always was.
+#   first / last    YYYYMMDD acquisition range (inclusive; last null = still running). Used only to pick
+#                   the cohort for a nightly date.
+#   animals         must match the keys of animals_file (checked by tests/test_cohorts.py).
+
+default: cohort1
+
+cohorts:
+  cohort1:
+    description: "PS92-95: Thy1-GCaMP6s, VLS stroke 2026-08-16/17, imaging complete 2026-10-07"
+    animals: [PS92, PS93, PS94, PS95]
+    animals_file: animals.yaml
+    sessions_file: sessions.yaml
+    output_subdir: ""
+    first: 20260601
+    last: 20261028        # imaging ended ~10-06; 10-08/10-09 were PILOT sessions (docs/PILOT_TEST_SESSIONS.md),
+                          #   which are not registered and are filtered out of discovery by the animals list
+
+  cohort2:
+    description: "PS118, PS120-122: two Thy1-GCaMP6s + two VGLUT1-Cre x RiboL1-GCaMP8s, 470 nm; same task; VLS stroke later"
+    animals: [PS118, PS120, PS121, PS122]
+    animals_file: cohort2/animals.yaml
+    sessions_file: cohort2/sessions.yaml
+    output_subdir: cohort2
+    first: 20261029
+    last: null

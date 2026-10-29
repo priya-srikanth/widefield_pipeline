@@ -82,7 +82,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
-    epoch = Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    epoch = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
     out_dir = a.out or epoch / "per_animal_tables"
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

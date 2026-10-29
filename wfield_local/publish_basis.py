@@ -45,7 +45,7 @@ def sha256(p: Path) -> str:
 
 
 def server_root():
-    return Path(config.resolver().root("labcams")) / "joint_bases"
+    return Path(config.resolver().root("cohort_out")) / "joint_bases"
 
 
 def local_bases():
@@ -64,7 +64,7 @@ def local_bases():
 
 
 def frozen_root():
-    return Path(config.resolver().root("labcams")) / "frozen_models"
+    return Path(config.resolver().root("cohort_out")) / "frozen_models"
 
 
 def local_frozen():

@@ -477,7 +477,7 @@ def figures(out: Path, D: pd.DataFrame, Tt: pd.DataFrame, maps: dict) -> None:
             per_an = {}
             for lab, v in maps.items():
                 if v["epoch"] == ep and kind in v["maps"]:
-                    per_an.setdefault(lab[:4], []).append(v)
+                    per_an.setdefault(lab.split("_")[0], []).append(v)
             if not per_an:
                 continue
             imgs = []
@@ -569,14 +569,14 @@ def figures_stats(out: Path, maps: dict, q: float = 0.05) -> None:
     figs = out.parents[1] / "figures" / "within_spout" / out.name      # results, not qc (Priya 10-21)
     figs.mkdir(parents=True, exist_ok=True)
     sh = next(iter(maps.values()))["shape"]
-    animals = sorted({lab[:4] for lab in maps})
+    animals = sorted({lab.split("_")[0] for lab in maps})
     rows = []
     for kind in ("within_mean", "between_mean", "dir_mean", "mid_mean"):
         fig, ax = plt.subplots(len(animals), len(EPOCHS), figsize=(2.6 * len(EPOCHS), 2.5 * len(animals)), squeeze=False)
         for i, an in enumerate(animals):
             S, flat = {}, None
             for lab, v in maps.items():
-                if lab[:4] == an and kind in v["maps"]:
+                if lab.split("_")[0] == an and kind in v["maps"]:
                     S.setdefault(v["epoch"], []).append(v["maps"][kind])
                     flat = v["flat"]
             S = {e: np.stack(x) * 10 for e, x in S.items()}        # dF per 10 deg
@@ -628,7 +628,7 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
             if kind in v["maps"] and tuple(v["shape"]) == sh:
                 img = np.full(sh[0] * sh[1], np.nan, np.float32)
                 img[v["flat"]] = v["maps"][kind] * 10 * 1e3          # x1e-3 dF per 10 deg
-                by.setdefault(v["epoch"], {}).setdefault(lab[:4], []).append(np.nan_to_num(img.reshape(sh)))
+                by.setdefault(v["epoch"], {}).setdefault(lab.split("_")[0], []).append(np.nan_to_num(img.reshape(sh)))
         eps = [e for e in EPOCHS if e in by]
         if "pre" not in eps:
             continue
@@ -756,7 +756,7 @@ def finish(out, labels) -> int:
     D = pd.concat([pd.read_csv(out / "sessions" / f"{x}.csv") for x in have], ignore_index=True)
     Tt = pd.concat([pd.read_csv(out / "sessions" / f"{x}_terc.csv") for x in have], ignore_index=True)
     for X in (D, Tt):
-        X["animal"] = X.label.str[:4]
+        X["animal"] = X.label.str.split("_").str[0]
         X["epoch"] = X.label.map(epochs.epoch_of)
     D.to_csv(out / "within_spout_deviation.csv", index=False, float_format="%.6g")
     Tt.to_csv(out / "terciles.csv", index=False, float_format="%.6g")
@@ -770,7 +770,7 @@ def finish(out, labels) -> int:
     dmf = [f for f in dmf if f.exists() and f.stat().st_size > 5]
     if dmf:
         DM = pd.concat([pd.read_csv(f) for f in dmf], ignore_index=True)
-        DM["animal"], DM["epoch"] = DM.label.str[:4], DM.label.map(epochs.epoch_of)
+        DM["animal"], DM["epoch"] = DM.label.str.split("_").str[0], DM.label.map(epochs.epoch_of)
         DM.to_csv(out / "dirmid.csv", index=False, float_format="%.6g")
         report_dirmid(DM, D)
     figures(out, D[D.spouts == "all"] if "spouts" in D else D, Tt, maps)

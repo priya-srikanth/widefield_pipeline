@@ -202,7 +202,7 @@ def main(argv=None) -> int:
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = Path(rv.root("labcams")) / "enl_fr_removed_decode"
+    out = Path(rv.root("cohort_out")) / "enl_fr_removed_decode"
     assert_writable(out)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     os.environ["ENL_FR_OUT"] = str(out)

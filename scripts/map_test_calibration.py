@@ -131,7 +131,7 @@ def run(store, tag, a, CONF_LABELS, parallel, PathResolver, assert_writable) -> 
     D = pd.DataFrame([r for _, r in res]).sort_values(["comparison", "position", "norm"])
     from wfield_local import lp_licks
     # LP_licks / matched-ENL runs write under their own tag (grant_figures/LP_licks/epoch/results)
-    out = lp_licks.output_dir(Path(PathResolver().root("labcams")) / "grant_figures" / "epoch") / "results"
+    out = lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch") / "results"
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     f = out / (f"map_test_calibration_{a.align}_{a.variant}.csv" if a.family == "beta"

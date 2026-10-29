@@ -147,7 +147,7 @@ def region_breakdown(mask):
 
 def mask_dir(out_dir=None):
     from wfield_local.paths import PathResolver
-    return Path(out_dir) if out_dir else Path(PathResolver().root("labcams")) / "grant_figures"
+    return Path(out_dir) if out_dir else Path(PathResolver().root("cohort_out")) / "grant_figures"
 
 
 def mask_path(key, out_dir=None):

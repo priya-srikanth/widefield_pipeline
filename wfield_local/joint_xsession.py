@@ -84,7 +84,7 @@ from wfield_local.locanmf_frozen_decoder import (
     write_animal_confusion_grid,
     write_session_confusions,
 )
-from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
+from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached  # noqa: F401
 
 BASIS = "joint"
 
@@ -230,7 +230,7 @@ def main(argv=None) -> int:
              else set(config.curated_dates()))
     # default from SESSIONS, not config.animals(): SESSIONS already honours WIDEFIELD_ONLY_ANIMALS,
     # so `nightly_figs --only PS93` scopes this step through the environment like every other one.
-    animals = config.normalize_animals(args.animals) or sorted({s["label"][:4] for s in SESSIONS})
+    animals = config.normalize_animals(args.animals) or sorted({s["label"].split("_")[0] for s in SESSIONS})
 
     rc = 0
     # THE UNIT IS (animal, alignment) -- 12 of them, not 4. `make_spec` keys on the alignment as

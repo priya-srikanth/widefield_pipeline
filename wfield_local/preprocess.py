@@ -59,7 +59,9 @@ DAT_RE = re.compile(r"pco_edge_run\d+_\d+_(2_\d+_\d+)_uint16\.dat$", re.I)
 # a normal alternating 415/470 session whose movie header wrote the wrong channel count -- is WARNED
 # about, not silently dropped by discovery (PS92 8/28). Groups: (channels, H, W).
 DAT_ANY_RE = re.compile(r"pco_edge_run\d+_\d+_(\d+)_(\d+)_(\d+)_uint16\.dat$", re.I)
-ANIMAL_RE = re.compile(r"(PS9\d)")
+# ANY PSnnn id (was PS9\d until 2026-10-29, which silently skipped cohort2's PS118 / PS120-122). WHICH animals are
+# processed is decided by the active cohort's animals list (`_in_cohort`), not by this pattern.
+ANIMAL_RE = re.compile(r"(PS\d+)")
 
 
 # --------------------------------------------------------------------------- discovery
@@ -122,7 +124,7 @@ def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
         am = ANIMAL_RE.search(sd.name) or ANIMAL_RE.search(str(dat))
         animal = am.group(1) if am else None
         daq = _match_daq(h5s, animal, yyyymmdd)
-        out.append(dict(animal=animal, mmdd=yyyymmdd[4:], sess=sd.name, sess_dir=str(sd),
+        out.append(dict(animal=animal, mmdd=yyyymmdd[4:], yyyymmdd=yyyymmdd, sess=sd.name, sess_dir=str(sd),
                         raw_dat=str(dat), daq_h5=(str(daq) if daq else None),
                         dims=dims, n_dats=len(group)))
     out.sort(key=lambda s: (s["animal"] or "", s["sess"]))
@@ -289,7 +291,7 @@ def discover_processed_sessions(yyyymmdd: str, rv: PathResolver) -> list[dict]:
         m = re.search(r"_(2_\d+_\d+)_uint16", fms[0].name)
         animal = ANIMAL_RE.search(sd.name).group(1)
         daq = _match_daq(h5s, animal, yyyymmdd)
-        out.append(dict(animal=animal, mmdd=yyyymmdd[4:], sess=sd.name, sess_dir=str(sd),
+        out.append(dict(animal=animal, mmdd=yyyymmdd[4:], yyyymmdd=yyyymmdd, sess=sd.name, sess_dir=str(sd),
                         raw_dat=None, daq_h5=(str(daq) if daq else None),
                         dims=(m.group(1) if m else "?"), n_dats=0))
     out.sort(key=lambda s: (s["animal"] or "", s["sess"]))
@@ -297,13 +299,24 @@ def discover_processed_sessions(yyyymmdd: str, rv: PathResolver) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- reference
-def reference_for(animal: str, params: dict, rv: PathResolver) -> tuple[str, str, str]:
-    """(ref_date, ref_results_dir, ref_landmarks_json) for an animal's cross-reg reference.
+def reference_for(animal: str, params: dict, rv: PathResolver) -> tuple[str, str, str] | None:
+    """(ref_date, ref_results_dir, ref_landmarks_json) for an animal's cross-reg reference, or None.
 
     The reference session directory is derived from ``sessions.yaml``'s ``reference_date``
     (6/6) entry; the landmark version comes from ``animals.yaml reference_landmarks``.
+
+    PER ANIMAL since 2026-10-29: an animal's own ``reference_date`` in animals.yaml wins over the cohort1
+    default in defaults.yaml. A key that is PRESENT and null (cohort2 until Priya picks a large-ROI session
+    and clicks its landmarks) returns None and the caller SKIPS cross-registration, loudly -- a new animal
+    has no reference on its first nights, and that must not abort the night for every other animal.
     """
-    ref_date = str(params["reference_date"])
+    meta = config.animals().get(animal) or {}
+    if "reference_date" in meta and not meta["reference_date"]:
+        print(f"[xreg] {animal}: no reference_date chosen yet (animals.yaml) -> cross-registration SKIPPED. "
+              f"Pick a reference session, click its landmarks, set reference_date + reference_landmarks, "
+              f"then re-run preprocess for these dates.", flush=True)
+        return None
+    ref_date = str(meta.get("reference_date") or params["reference_date"])
     raw = config._load("sessions.yaml")["sessions"]
     entry = (raw.get(animal) or {}).get(ref_date)
     if not entry:
@@ -349,7 +362,10 @@ def refresh_xall(animals: list[str], params: dict, rv: PathResolver, dry_run: bo
     min_mmdd = str(params.get("xall_min_date", "0605"))
     all_sessions = _sessions_registered_and_on_disk(rv)
     for animal in animals:
-        ref_date, ref_results, ref_landmarks = reference_for(animal, params, rv)
+        ref = reference_for(animal, params, rv)
+        if ref is None:
+            continue
+        ref_date, ref_results, ref_landmarks = ref
         sess = {}
         for s in all_sessions:
             a, mmdd = s["label"].split("_")
@@ -558,7 +574,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     thing to have to get right at midnight.
     """
     animal, mmdd, sess, dims = s["animal"], s["mmdd"], s["sess"], s["dims"]
-    yyyymmdd = f"2026{mmdd}"  # imaging cohort is 2026; keep in sync with the date arg
+    yyyymmdd = s.get("yyyymmdd") or f"{config.cohort_year()}{mmdd}"   # from discovery (was hardcoded 2026)
     mc = f"{s['sess_dir']}/motion_corrected"
     binp = f"{mc}/motioncorrect_{dims}_uint16.bin"
     results = f"{mc}/wfield_local_results"
@@ -617,7 +633,16 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     _run(qc_cmd, dry_run)
 
     # 3 cross-register to the animal's reference (6/6) -> emit allen_aligned_affine8v1
-    ref_date, ref_results, ref_landmarks = reference_for(animal, params, rv)
+    ref = reference_for(animal, params, rv)
+    if ref is not None:
+        _cross_register(animal, mmdd, mc, results, svd, ref, rv, dry_run)
+
+    _finish_session(s, params, rv, dry_run, redo, animal, mmdd, sess, yyyymmdd, mc, binp, results, svd, mqc)
+
+
+def _cross_register(animal, mmdd, mc, results, svd, ref, rv, dry_run) -> None:
+    """Step 3 of `preprocess_session`: register this session to the animal's reference."""
+    ref_date, ref_results, ref_landmarks = ref
     ref_func = config.defaults(session=f"{animal}_{ref_date}")["preprocess"]["svd"]["functional_channel"]
     # Per-session func_channel: a swapped session (e.g. PS92 8/28, fc=0) must still register against
     # the reference's OWN 470 channel (fc=1), not read the reference's 415 slot -- a cross-channel
@@ -637,6 +662,9 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
             json.dump(cfg, fh, indent=2)
     _run(["wfield_local.cross_day_align", cfg_path], dry_run)
 
+
+def _finish_session(s, params, rv, dry_run, redo, animal, mmdd, sess, yyyymmdd, mc, binp, results, svd, mqc):
+    """Steps 3b-5 of `preprocess_session` (hemo variant, push, cleanup)."""
     # 3b build the ADOPTED hemodynamic/drift-removal variant beside the originals.
     #
     # The SVD writes only the zerophase SVTcorr (that IS what `wfield.hemodynamic_correction`
@@ -707,6 +735,23 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     print(f"################ {animal} {sess} DONE ################", flush=True)
 
 
+def _in_cohort(sessions: list[dict], date: str) -> list[dict]:
+    """Keep only the ACTIVE cohort's animals (configs/cohorts.yaml); say what was dropped and why.
+
+    With ANIMAL_RE now matching any PSnnn, discovery also sees pilot sessions (PS104 0805, PS121 1009 --
+    docs/PILOT_TEST_SESSIONS.md) and could see another cohort's animal; neither may be preprocessed into this
+    cohort's run. An unparseable folder (animal None) is kept, as before, so it still fails loudly downstream.
+    """
+    mine = set(config.animals())
+    keep = [s for s in sessions if s["animal"] is None or s["animal"] in mine]
+    for s in sessions:
+        if s not in keep:
+            print(f"[preprocess] {date}: {s['sess']} -- {s['animal']} is not in the active cohort "
+                  f"{config.cohort()} ({', '.join(mine)}) -> SKIPPED. Cohort of {s['animal']}: "
+                  f"{config.cohort_of(s['animal']) or 'none (pilot / unregistered)'}.", flush=True)
+    return keep
+
+
 # --------------------------------------------------------------------------- main
 def _raw_root_label(args, rv: PathResolver) -> str:
     """Where raw was looked for, for LOG LINES only: `--raw-root` if given, else the machine's
@@ -748,7 +793,7 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
             print(f"     {s['animal']}: {integ['frames']} frames (odd) -- last 415/470 pair is "
                   f"incomplete, which is where the recording stopped. Normal.", flush=True)
         usable.append(s)
-    sessions = usable
+    sessions = _in_cohort(usable, date)
     if args.skip_preprocess:
         # MERGE, do not fall back only when raw discovery is empty. Ownership of a night can be SPLIT
         # across the two boxes (8/12: this box preprocessed PS92+PS93, the imaging box PS94+PS95), so
@@ -756,7 +801,7 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
         # refreshed xall/maps for that ONE animal and silently skipped the other three. Downstream
         # steps should run on everything PROCESSED for the date, wherever the raw happens to live.
         have = {s["animal"] for s in sessions}
-        extra = [s for s in discover_processed_sessions(date, rv) if s["animal"] not in have]
+        extra = [s for s in _in_cohort(discover_processed_sessions(date, rv), date) if s["animal"] not in have]
         if extra:
             print(f"[preprocess] {date}: +{len(extra)} PROCESSED session(s) from MICROSCOPE whose raw "
                   f"is not on {_raw_root_label(args, rv)} ({', '.join(sorted(s['animal'] for s in extra))})"
@@ -855,6 +900,7 @@ def main(argv=None) -> int:
         print(f"[preprocess] no dates resolved from {args.dates} "
               f"(under {args.raw_root or rv.root('raw_labcams')})")
         return 1
+    config.use_cohort_for_dates(dates)                  # cohorts.yaml: the dates' cohort, unless WIDEFIELD_COHORT is set
     args.only = config.normalize_animals(args.only)   # None => all animals
 
     all_animals = set()

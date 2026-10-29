@@ -22153,3 +22153,28 @@ camera's own template, cam2 | flipped cam3 side by side): PS93 0814 / 0821 / 090
 SINGLE-FRAME, SUPERVISED ONLY (no temporal loss, no context), so the clips judge labels / crop, not smoothness.
 Priya: LP over DLC (cam4 production is LP; temporal loss + context + uniform-heatmap occlusion + multi-view/EKS path are
 LP's; side views lack cam1's tip ambiguity). Next: O2 LP with temporal loss + ctx-semi (cam1 round-2 recipe).
+
+## 2026-10-29 -- A second cohort is analysed SEPARATELY: one active cohort at a time (Priya)
+
+Imaging of cohort2 (PS118, PS120, PS121, PS122) started 2026-10-29. Priya: the repo must expect it and "not lump these
+with PS92-95"; analysis starts fresh on the new mice. Two of the four are Thy1-GCaMP6s and two VGLUT1-Cre x
+RiboL1-GCaMP8s, all at 470 nm, so `genotype` per animal is the label pooled results are also split by.
+
+**Decision.** `configs/cohorts.yaml` registers cohorts; each has its own animals / sessions files and date range, and
+exactly ONE is active (`WIDEFIELD_COHORT`, else the nightly's date, else `default: cohort1`). Every pooled set (curated /
+pre-stroke dates, frozen-model training sets, joint bases, epoch boundaries, deck) is built from the active cohort
+only, so a cross-cohort pool cannot be formed by accident. Cohort-level outputs go to `<root>/cohort2/` (logical root
+`cohort_out` for the labcams top level); per-session data, being animal-keyed, is not moved.
+
+**Why not one animals.yaml with a cohort tag.** Pooling is implicit in ~40 modules (`config.animals()`,
+`load_sessions()`, `curated_dates()` are cohort-wide by construction, and `stroke_cutoff()` is the EARLIEST lesion
+across all animals). A tag would need every one of them to filter, and the first that did not would pool silently.
+Switching the files means every existing call is already correct for whichever cohort is active, and cohort1's
+behaviour, paths and frozen-model specs are byte-for-byte unchanged by default (tests/test_cohorts.py).
+
+**Found while doing it.** Preprocessing discovered animals with `PS9\d` (PS118-122 would have been skipped silently);
+~130 sites took `label[:4]` as the animal (`PS118_1029` -> `PS11`); `preprocess_session` hardcoded the year 2026;
+cross-registration aborted the whole night for an animal without a reference session; and `cross_day_align` stretches
+a frame of a different size onto the reference, which is wrong for a different camera ROI (cohort2 10-29 PS118 /
+PS120 / PS121, docs/EXPERIMENT_ERRORS.md) -- now a WARNING, fix pending. MMDD keys will break at the 2027 year
+boundary for cohort2: open. Full list, per-machine steps and open items: docs/NEW_COHORT_2026-10-29.md.

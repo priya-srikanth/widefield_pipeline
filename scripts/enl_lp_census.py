@@ -79,7 +79,7 @@ def main(argv=None) -> int:
     for it, err in fail:
         print("FAILED", it, err)
     T = pd.DataFrame([r for _, rr in got for r in rr])
-    T["animal"] = T.label.str[:4]
+    T["animal"] = T.label.str.split("_").str[0]
     T["baseline"] = np.where(T.epoch != "pre", "post", np.where(T.label.str[-4:] >= "0801", "pre_aug", "pre_june"))
     out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
     assert_writable(out)

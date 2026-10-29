@@ -196,7 +196,7 @@ def _frame(rows, arm, align, variant, baseline):
     D.insert(1, "arm", arm)
     D.insert(2, "align", align)
     D.insert(3, "variant", variant)
-    D.insert(5, "animal", D.label.str[:4])
+    D.insert(5, "animal", D.label.str.split("_").str[0])
     D.insert(6, "epoch", [epochs.epoch_of(x) for x in D.label])
     D.insert(7, "day", [epochs.days_since_stroke(x) for x in D.label])
     D["baseline"] = baseline
@@ -265,7 +265,7 @@ def main(argv=None) -> int:
         C = C[C.label.isin(cur) & ~((C.pre_in_sample) & (C.label.str[5:9] < "0806"))].copy()
         C.insert(1, "arm", C["align"])          # NOT C.align: that is DataFrame.align (a method)
         C.insert(3, "variant", "gate lick, orth, contrast")
-        C.insert(5, "animal", C.label.str[:4])
+        C.insert(5, "animal", C.label.str.split("_").str[0])
         C.insert(6, "epoch", [epochs.epoch_of(x) for x in C.label])
         C.insert(7, "day", [epochs.days_since_stroke(x) for x in C.label])
         C["baseline"] = "directions fitted on ALL pre (June + August); pre rows in-sample; August pre rows only"

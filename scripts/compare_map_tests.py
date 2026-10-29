@@ -16,7 +16,7 @@ import pandas as pd
 def main() -> int:
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
-    root = Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    root = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
     old_dir, new_dir = root / "archive_rawdF_tests_20261021" / "data", root / "data"
     rows = []
     for f in sorted(old_dir.glob("*_stats.csv")):

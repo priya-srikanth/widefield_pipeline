@@ -233,7 +233,7 @@ def main(argv=None):
         out_dir = Path(a.out)
     else:
         from wfield_local.paths import PathResolver
-        out_dir = Path(PathResolver().root("labcams")) / "chronic_stability"
+        out_dir = Path(PathResolver().root("cohort_out")) / "chronic_stability"
     out_dir.mkdir(parents=True, exist_ok=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)

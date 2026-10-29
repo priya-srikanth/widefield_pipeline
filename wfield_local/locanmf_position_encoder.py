@@ -30,10 +30,10 @@ from sklearn.model_selection import GroupKFold
 from collections import defaultdict
 
 from wfield_local import config
-from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
+from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR  # noqa: F401
 from wfield_local.locanmf_position_decoder import _trial_features, _build_signal
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER, _load_daq_events
-from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues
+from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues  # noqa: F401
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 
@@ -283,7 +283,7 @@ def fig_ev_by_position(labels, out, tag):
     """Total (whole-cortex) held-out explained variance per spout position, per session: how much
     better the encoder predicts each position's trials than the grand mean (R^2 restricted to that
     position's held-out trials, summed over all components). High = that position is distinctly encoded."""
-    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)  # noqa: F841
     fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
     summary = {}
     for i, lab in enumerate(labels):
@@ -293,7 +293,7 @@ def fig_ev_by_position(labels, out, tag):
         # that created ev_per_position folded in fig_ev_by_position_animal and the EV matrix and
         # missed this one, which is exactly how a duplicate outlives the fix to its twin.
         ev = ev_per_position(lab)
-        ax.bar(x + (i - (len(labels) - 1) / 2) * w, ev, w, label=lab[:4])
+        ax.bar(x + (i - (len(labels) - 1) / 2) * w, ev, w, label=lab.split("_")[0])
         for k in range(6):                      # a position the animal never visited: say so
             if not np.isfinite(ev[k]):
                 ax.text(x[k] + (i - (len(labels) - 1) / 2) * w, 0, "n/a", rotation=90,
@@ -335,7 +335,7 @@ def fig_ev_ceiling_by_position(labels, out, tag):
             ceil.append(betw / max(tot, 1e-12)); cap.append(1 - ((X[m] - pred[m]) ** 2).sum() / max(tot, 1e-12))
         ceil = np.array(ceil); ratio = np.where(ceil > 0.05, np.array(cap) / ceil, np.nan)
         x = np.arange(6) + (i - (len(labels) - 1) / 2) * w
-        axes[0].bar(x, ceil, w, label=lab[:4]); axes[1].bar(x, ratio, w, label=lab[:4])
+        axes[0].bar(x, ceil, w, label=lab.split("_")[0]); axes[1].bar(x, ratio, w, label=lab.split("_")[0])
     for ax, t in [(axes[0], "noise ceiling (explainable var) per position"),
                   (axes[1], "captured / ceiling per position (1 = all explainable captured)")]:
         ax.set_xticks(range(6)); ax.set_xticklabels(posn, rotation=45, ha="right", fontsize=8)
@@ -535,7 +535,7 @@ def fig_region_feve_pooled(res, out, floor=0.02):
     explainable signal. Regions sorted by pooled explainable variance; SSp red / MO blue x-labels."""
     by = defaultdict(list)
     for lab in res:
-        by[lab[:4]].append(lab)
+        by[lab.split("_")[0]].append(lab)
     animals = sorted(by); regs = _feve_regions(res, floor)
     # REFUSE BEFORE PLOTTING, not after. The degenerate check used to sit below the
     # figure build, so an empty axis died inside imshow with "Invalid shape (0,) for
@@ -567,7 +567,7 @@ def fig_region_feve_sessions(res, out, floor=0.02):
     session-to-session stability of each region's ceiling-normalized encoding within an animal."""
     by = defaultdict(list)
     for lab in res:
-        by[lab[:4]].append(lab)
+        by[lab.split("_")[0]].append(lab)
     animals = sorted(by); regs = _feve_regions(res, floor)
     # REFUSE BEFORE PLOTTING, not after. The degenerate check used to sit below the
     # figure build, so an empty axis died inside imshow with "Invalid shape (0,) for
@@ -583,7 +583,7 @@ def fig_region_feve_sessions(res, out, floor=0.02):
     if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_sessions.png"):
         return None
     labs = [l for a in animals for l in sorted(by[a], key=lambda x: x[-4:])]
-    rows = [f"{l[:4]} {l[-4:-2]}/{l[-2:]}" for l in labs]
+    rows = [f"{l.split('_')[0]} {l[-4:-2]}/{l[-2:]}" for l in labs]
     M = np.array([_feve_pct(res[l], regs, floor) for l in labs])
     fig, ax = plt.subplots(figsize=(max(12, 0.30 * len(regs)), 0.42 * len(labs) + 2.6))
     _feve_heatmap(ax, M, rows, regs, fig)
@@ -605,7 +605,7 @@ def fig_quiet_drift(labels, out, tag):
     for lab in labels:
         s = _sess(lab); sig, _ = _build_signal(s, "locanmf"); T = sig.shape[1]
         pooled = _quiet_baseline_local(s, sig).mean(0)
-        ax.plot(np.arange(T) / FS / 60, pooled, label=f"{lab[:4]} ({T / FS / 60:.0f}min)")
+        ax.plot(np.arange(T) / FS / 60, pooled, label=f"{lab.split('_')[0]} ({T / FS / 60:.0f}min)")
     ax.set_xlabel("session time (min)"); ax.set_ylabel("pooled quiet (rest) baseline (dF/F)")
     ax.axhline(0, color="k", lw=0.5); ax.legend(fontsize=8)
     ax.set_title(f"Time-local quiet baseline drift over session ({tag}) — small in dF/F; time-local tracks any residual")
@@ -719,7 +719,7 @@ def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
 def fig_ev_by_position_animal(animal, labels, out):
     """Per-position held-out EV for ONE animal across its sessions — one graph, sessions distinguished by
     colour (grouped bars), labelled by date. The per-animal-across-sessions view of fig_ev_by_position."""
-    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)  # noqa: F841
     fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
         ev = ev_per_position(lab)          # one implementation, shared with fig_ev_matrix
@@ -802,7 +802,7 @@ def main() -> int:
     # per-animal EV-per-position across the pooled sessions (one graph/animal, sessions by colour)
     by_animal = {}
     for lab in all_labs:
-        by_animal.setdefault(lab[:4], []).append(lab)
+        by_animal.setdefault(lab.split("_")[0], []).append(lab)
     # THE EV MATRIX HAD NO CALLER. It was written, the deck renders it `if exists()`, and nothing
     # in the repo produced it -- so the slide was served by a PNG from 2026-08-19 and would have
     # gone on aging silently, because "figure missing" and "figure stale" look identical to a deck

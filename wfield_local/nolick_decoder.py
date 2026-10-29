@@ -128,7 +128,7 @@ def response_window_for(s, default=DEFAULT_RESPONSE_WINDOW_S):
 
     from wfield_local import daq_trials
 
-    animal = s["label"][:4]
+    animal = s["label"].split("_")[0]
     try:
         for cand in config.load_sessions():
             if cand["label"] == s["label"] and cand.get("behavior_trials"):
@@ -500,7 +500,7 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
                 res[nm] = na.evaluate_arm(E["y"][m], pred_e[m], n_perm=n_perm)
         res["engaged_rt_median_s"] = med
 
-    an = s["label"][:4]
+    an = s["label"].split("_")[0]
     if an in ATTEMPT_CONFOUNDED:
         res["attempt_confounded"] = ATTEMPT_CONFOUNDED[an]
     if verbose:
@@ -547,7 +547,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
             f"source={source!r} is fitted per session. Use source='roi', or pass a joint basis "
             f"(joint_locanmf.load) whose footprints are frozen and days projected onto them.")
     dates = set(dates or config.curated_dates())
-    labs = [s for s in SESSIONS if s["label"][:4] == animal and s["label"][-4:] in dates]
+    labs = [s for s in SESSIONS if s["label"].split("_")[0] == animal and s["label"][-4:] in dates]
     args = _args(source=source, align=align, post_s=post_s)
     # max_rt is the ENGAGED cut and is deliberately variable: 2.0 s is the decoder's convention,
     # `None` means "use this session's own response window", which is what the task calls a response.

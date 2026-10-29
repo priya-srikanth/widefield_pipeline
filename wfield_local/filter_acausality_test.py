@@ -389,7 +389,7 @@ def _summary(rows, modes):
 
     # per animal, because the cohort is NOT uniform and an average would hide that
     print("\n=== per animal, pre-cue (chance 0.167) ===")
-    animals = sorted({r["label"][:4] for r in rows})
+    animals = sorted({r["label"].split("_")[0] for r in rows})
     print("{:6s} {:>4s}".format("", "n") + "".join("{:>13s}".format(m) for m in modes))
     for a in animals:
         rr = [r for r in rows if r["label"].startswith(a)]
@@ -431,9 +431,9 @@ def main(argv=None) -> int:
     else:
         dates = (set(config.expand_dates(args.from_dates, width=4)) if args.from_dates
                  else set(config.curated_dates()))
-        only = config.normalize_animals(args.animals) or sorted({x["label"][:4] for x in SESSIONS})
+        only = config.normalize_animals(args.animals) or sorted({x["label"].split("_")[0] for x in SESSIONS})
         labs = [x["label"] for x in SESSIONS
-                if x["label"][:4] in set(only) and x["label"][-4:] in dates]
+                if x["label"].split("_")[0] in set(only) and x["label"][-4:] in dates]
     print("[filter_test] {} sessions x {} modes: {}".format(len(labs), len(modes), modes), flush=True)
 
     # FANNED OUT OVER CORES (CLAUDE.md ground rule 6). This is the most I/O-heavy per-session loop

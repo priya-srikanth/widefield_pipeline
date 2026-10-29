@@ -53,7 +53,7 @@ def compute() -> pd.DataFrame:
     F = pd.read_csv(il.OUT / "first_lick_preds.csv.gz")[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
     p["k"], F["k"] = p.act_lat.round(6), F.act.round(6)
     p = p.merge(F[["label", "k", "lick_idx"]], on=["label", "k"], how="left")
-    p["animal"] = p.label.str[:4]
+    p["animal"] = p.label.str.split("_").str[0]
     pre = p[p.epoch == "pre"].groupby(["animal", "pos"]).ang.mean()
     p["off"] = p.ang - pre.reindex(pd.MultiIndex.from_arrays([p.animal, p.pos])).to_numpy()
     rng = np.random.default_rng(0)

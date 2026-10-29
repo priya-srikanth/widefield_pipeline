@@ -67,7 +67,7 @@ def decoder_table() -> pd.DataFrame:
     from wfield_local import epochs
     from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
-    d = Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    d = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
     lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in ak.curated_labels(order="sorted")}
     out = []
     for tag in ("unmatched", "matched"):
@@ -84,7 +84,7 @@ def epoch_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
     """(families with LOO pre rows, CD rows) in the long format, from the `*_sessions_long.csv` files."""
     from wfield_local import orofacial_cohort as oc
     from wfield_local.paths import PathResolver
-    d = Path(PathResolver().root("labcams")) / "grant_figures" / "epoch" / "data"
+    d = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch" / "data"
     fs = sorted(d.glob("*_sessions_long.csv"))
     if not fs:
         return pd.DataFrame(), pd.DataFrame()

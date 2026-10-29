@@ -232,8 +232,8 @@ def movement(fdir: Path, home: np.ndarray, freqs: np.ndarray, midline_x: float |
     S = pd.DataFrame(rows)
     epoch_of = {lab: _epoch(lab) for lab in labels}
     maps = {"midline_x": mid, "ipsi_mask": ipsi, "band": band, "measure": measure}
-    for a in sorted({lab[:4] for lab in labels}):
-        idx = {ep: [i for i, lab in enumerate(labels) if lab[:4] == a and epoch_of[lab] == ep]
+    for a in sorted({lab.split("_")[0] for lab in labels}):
+        idx = {ep: [i for i, lab in enumerate(labels) if lab.split("_")[0] == a and epoch_of[lab] == ep]
                for ep in ("pre", "acute", "subacute", "chronic")}
         if not idx["pre"]:
             continue
@@ -260,7 +260,7 @@ def session_table(fdir: Path, names: list[str], home: np.ndarray, freqs: np.ndar
     for p in parts[1:]:
         if len(p):
             S = S.merge(p, on="label", how="outer")
-    S.insert(1, "animal", S.label.str[:4])
+    S.insert(1, "animal", S.label.str.split("_").str[0])
     S.insert(2, "epoch", [_epoch(x) for x in S.label])
     S.insert(3, "day", [_day(x) for x in S.label])
     return S.sort_values(["animal", "label"]).reset_index(drop=True)

@@ -1,0 +1,76 @@
+# COHORT 2 per-animal metadata (PS118, PS120, PS121, PS122) -- started imaging 2026-10-29.
+# Same schema as configs/animals.yaml (cohort1, PS92-95); read that file's header for what each field means.
+# NOT pooled with cohort1: see configs/cohorts.yaml. docs/NEW_COHORT_2026-10-29.md = what to do per machine.
+#
+# MIXED GENOTYPES IN ONE COHORT (Priya 2026-10-29): two Thy1-GCaMP6s, two VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s
+# (soma-localised GCaMP8s; first tested on PS121, docs/PILOT_TEST_SESSIONS.md). Both imaged at 470 nm (+ 415).
+# `genotype` is the label to group or split by; any pooled result must be checked per genotype, since the two
+# indicators differ in kinetics and spatial spread. WHICH TWO ARE WHICH IS NOT RECORDED YET -- fill in
+# `genotype` below (and DOB / sex) before the first cross-animal analysis.
+#
+# STILL TO FILL IN (each null is a fact nobody has entered, not a default):
+#   reference_date      the session each animal's other sessions are cross-registered to (cohort1 used 6/6).
+#                       null -> preprocessing SKIPS cross-registration (motion / SVD / push still run) and says
+#                       so; once Priya has clicked dorsal_cortex_landmarks_<reference_landmarks>.json on the
+#                       chosen session, set both and re-run `python -m wfield_local.preprocess <dates>`
+#                       (motion and SVD are skipped as already done; cross-registration then runs).
+#   stroke_date         YYYYMMDD of the VLS lesion, once induced. null = every session is pre-stroke.
+#   epochs              seed boundaries, filled after the lesion (see animals.yaml cohort1 header).
+
+animals:
+  PS118:
+    color: "tab:purple"
+    sex: null
+    date_of_birth: null
+    genotype: "TBD: Thy1-GCaMP6s or VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s"
+    indicator_nm: 470
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"          # planned (same as cohort1); confirm
+    reference_date: null
+    reference_landmarks: null
+    exclude: []
+
+  PS120:
+    color: "tab:brown"
+    sex: null
+    date_of_birth: null
+    genotype: "TBD: Thy1-GCaMP6s or VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s"
+    indicator_nm: 470
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"
+    reference_date: null
+    reference_landmarks: null
+    exclude: []
+
+  PS121:
+    color: "tab:pink"
+    sex: null
+    date_of_birth: null
+    genotype: "TBD: Thy1-GCaMP6s or VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s"   # the 10-09 pilot PS121 was RiboL1-GCaMP8s
+    indicator_nm: 470
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"
+    reference_date: null
+    reference_landmarks: null
+    exclude: []
+
+  PS122:
+    color: "tab:olive"
+    sex: null
+    date_of_birth: null
+    genotype: "TBD: Thy1-GCaMP6s or VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s"
+    indicator_nm: 470
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"
+    reference_date: null
+    reference_landmarks: null
+    exclude: []
+
+date_policy:
+  # Cohort1's early-June / 8-5 exclusions do NOT carry over (they were dates of THAT cohort's sessions).
+  # Add this cohort's own noisy / training days here as they are identified.
+  cross_session_exclude: []

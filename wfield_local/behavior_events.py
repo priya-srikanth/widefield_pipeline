@@ -335,6 +335,8 @@ def main(argv=None) -> int:
     ap.add_argument("--machine", default=None)
     args = ap.parse_args(argv)
     from wfield_local.paths import PathResolver
+    if args.date and str(args.date).isdigit() and len(str(args.date)) == 8:
+        config.use_cohort_for_dates([args.date])           # this night's cohort (configs/cohorts.yaml)
     return run(args.date, PathResolver(machine=args.machine),
                animals=config.normalize_animals(args.only), force=args.force)
 

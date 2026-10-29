@@ -37,7 +37,7 @@ def add_z(D: pd.DataFrame) -> pd.DataFrame:
     if "resp_sd" not in D or "lat_sd" not in D:
         return D
     from wfield_local import epochs
-    an = D.label.str[:4]
+    an = D.label.str.split("_").str[0]
     pre = D.label.map(epochs.epoch_of) == "pre"
     keys = ["spouts", "area", "variant"]
     ref = D[pre].assign(_an=an[pre]).groupby(["_an", *keys])[["lat_sd", "resp_sd"]].median()
@@ -123,7 +123,7 @@ def pixel_z_factors(D: pd.DataFrame) -> dict:
     var = D.variant if "variant" in D else pd.Series("mean", index=D.index)
     P = D[(sp == "all") & (var == "mean") & (D.area == "cortex") & (D.label.map(epochs.epoch_of) == "pre")]
     out = {}
-    for an, g in P.groupby(P.label.str[:4]):
+    for an, g in P.groupby(P.label.str.split("_").str[0]):
         r = float(g.lat_sd.median() / g.resp_sd.median())
         if np.isfinite(r) and r > 0:
             out[an] = r
@@ -147,12 +147,12 @@ def pixel_maps(folder: Path, labels: list, figs: Path, zf: dict | None = None) -
                 continue
             z = np.load(f)
             keys = list(z["keys"])
-            if kind not in keys or (zf is not None and lab[:4] not in zf):
+            if kind not in keys or (zf is not None and lab.split("_")[0] not in zf):
                 continue
-            Y.append(z["maps"][keys.index(kind)] * (zf[lab[:4]] if zf else 10 * 1e3))
+            Y.append(z["maps"][keys.index(kind)] * (zf[lab.split("_")[0]] if zf else 10 * 1e3))
             flat, sh = z["flat"], tuple(z["shape"])
             d = epochs.days_since_stroke(lab)
-            meta.append((lab[:4], float(d > 0), np.log(max(d, 1)) if d > 0 else 0.0, epochs.epoch_of(lab)))
+            meta.append((lab.split("_")[0], float(d > 0), np.log(max(d, 1)) if d > 0 else 0.0, epochs.epoch_of(lab)))
         if not Y:
             continue
         Y = np.stack(Y)

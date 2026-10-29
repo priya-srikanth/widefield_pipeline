@@ -43,7 +43,7 @@ def main(argv=None) -> int:
     from wfield_local import epoch_figures as ef
     from wfield_local.paths import PathResolver
 
-    d = a.dir or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    d = a.dir or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     bundles = sorted(d.glob("*_bundle.npz"))
     if a.only:
         bundles = [b for b in bundles if a.only in b.name]

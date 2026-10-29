@@ -267,7 +267,7 @@ def _per_day_inproc(date, out, only):
                                                       fig_rolling_laterality, fig_top_components)
     labs = _avail(date)
     if only:   # _avail reads the import-time SESSIONS, so filter the in-process figs explicitly
-        labs = [l for l in labs if l[:4] in set(only)]
+        labs = [l for l in labs if l.split("_")[0] in set(only)]
     log(f"{date} sessions: {labs}")
     for desc, fn in (("rolling_cue", lambda: fig_rolling_cue(labs, Path(out), date)),
                      ("temporal_dynamics", lambda: fig_temporal_dynamics(labs, Path(out))),
@@ -502,6 +502,9 @@ def main():
                          "encode/cross-mouse/RSA subprocesses via WIDEFIELD_ONLY_ANIMALS + the in-process figs")
     args = ap.parse_args()
 
+    # COHORT: SESSIONS was loaded at import, so the cohort must be chosen BEFORE this process starts --
+    # `nightly` exports WIDEFIELD_COHORT; a hand run on cohort2 needs `$env:WIDEFIELD_COHORT="cohort2"` first.
+    log(f"cohort: {config.cohort()} ({', '.join(config.animals())})")
     out = args.output or _default_out()
     Path(out).mkdir(parents=True, exist_ok=True)
     log(f"figure working dir: {out}")
@@ -595,7 +598,7 @@ def main():
         by_animal = {}
         for d in from_list:
             for lab in _avail(d):
-                by_animal.setdefault(lab[:4], []).append(lab)
+                by_animal.setdefault(lab.split("_")[0], []).append(lab)
         for a, labs in sorted(by_animal.items()):
             log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=lambda x: x[-4:]), Path(out)).name)
     except Exception as ex:
@@ -625,7 +628,7 @@ def main():
             # having is an arm the nightly maintains; otherwise it silently becomes an orphan.
             for al in ("cue", "precue", "lick"):
                 dec, enc = {}, {}
-                for a in sorted({s["label"][:4] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
+                for a in sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
                     if only and a not in set(only):
                         continue
                     # POOLED = pre + post, never the raw date list. `from_list` is a cohort-wide DATE
@@ -1007,7 +1010,7 @@ def main():
             try:
                 from wfield_local.epoch_figures import stale_sidecars
                 _stale_csv = stale_sidecars(
-                    Path(config.resolver().root("labcams")) / "grant_figures" / "epoch")
+                    Path(config.resolver().root("cohort_out")) / "grant_figures" / "epoch")
                 if _stale_csv:
                     log(f"== {len(_stale_csv)} value CSVs are OLDER than their figure -- another "
                         f"machine rendered from a stale checkout; re-render to refresh: "
@@ -1018,7 +1021,7 @@ def main():
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
     # and that is exactly the run whose failure list is worth having on disk.
-    deck_out = Path(config.resolver().root("labcams")) / "spout_position_analysis_summary.pptx"
+    deck_out = Path(config.resolver().root("cohort_out")) / "spout_position_analysis_summary.pptx"
     try:
         from wfield_local.locanmf_analysis_deck import (
             DeckFromFailedRun,

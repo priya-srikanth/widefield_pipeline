@@ -277,7 +277,7 @@ def _delta_rest_figure(store, pooled, order, mask):
     print("  frames, so a frame-weighted baseline drifts toward the near positions' rest.")
     print("  If it does NOT grow, `restw` is correct-but-INERT and that is the honest verdict.")
 
-    d = __import__("pathlib").Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    d = __import__("pathlib").Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
     out = ef.map_grid(
         cells, d, name="epoch_15d_delta_rest_flatpool_minus_restw",
         title="DELTA-REST: frame-weighted (flatpool) MINUS position-weighted (restw) baseline",

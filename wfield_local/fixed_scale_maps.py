@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import argparse
 import glob
-import json
+import json  # noqa: F401
 from pathlib import Path
 
 import matplotlib
@@ -113,7 +113,7 @@ def animal_maps(animal, align="cue", max_post=None, post_s=2.0):
     pre_dates = set(config.curated_dates())
     pre_maps, post = {}, {}
     for s in config.load_sessions():
-        if s["label"][:4] != animal:
+        if s["label"].split("_")[0] != animal:
             continue
         date = s["label"].split("_")[-1]
         phase = config.session_phase(animal, date)

@@ -118,7 +118,7 @@ def main(argv=None) -> int:
     dirs = a.dirs
     if dirs is None:
         from wfield_local.paths import PathResolver
-        labcams = pathlib.Path(PathResolver().root("labcams"))
+        labcams = pathlib.Path(PathResolver().root("cohort_out"))   # = labcams for cohort1 (cohorts.yaml)
         # CURATED SETS for the family side; every root the deck reads for the pattern side.
         dirs = [labcams / "grant_figures", labcams / "grant_figures" / "epoch"]
         _ALL_ROOTS = dirs + [labcams / "locanmf_lick_pooled" / "cue_analysis"]

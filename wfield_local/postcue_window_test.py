@@ -92,8 +92,8 @@ def main(argv=None) -> int:
 
     dates = (set(config.expand_dates(a.from_dates, width=4)) if a.from_dates
              else set(config.curated_dates()))
-    only = config.normalize_animals(a.animals) or sorted({x["label"][:4] for x in SESSIONS})
-    labs = [x["label"] for x in SESSIONS if x["label"][:4] in set(only) and x["label"][-4:] in dates]
+    only = config.normalize_animals(a.animals) or sorted({x["label"].split("_")[0] for x in SESSIONS})
+    labs = [x["label"] for x in SESSIONS if x["label"].split("_")[0] in set(only) and x["label"][-4:] in dates]
     names = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     print(f"[window-test] {len(labs)} sessions x {len(a.windows)} windows, align={a.align}, "
           f"variant={a.variant}", flush=True)
@@ -125,13 +125,13 @@ def main(argv=None) -> int:
 
     print(f"\n=== overall accuracy by animal (chance {1/6:.3f}) ===")
     print(f"{'animal':8s}" + "".join(f"{w:>9.1f}s" for w in a.windows))
-    for an in sorted({l[:4] for l in rows}):
+    for an in sorted({l.split("_")[0] for l in rows}):
         rr = [v for l, v in rows.items() if l.startswith(an)]
         print(f"{an:8s}" + "".join(
             f"{np.nanmean([x[w]['acc'] for x in rr if w in x]):>10.3f}" for w in a.windows))
 
     print("\n=== PER-POSITION recall — does a longer window rescue the LATE positions? ===")
-    for an in sorted({l[:4] for l in rows}):
+    for an in sorted({l.split("_")[0] for l in rows}):
         rr = [v for l, v in rows.items() if l.startswith(an)]
         print(f"  {an}")
         print(f"    {'position':12s}" + "".join(f"{w:>9.1f}s" for w in a.windows) + "     delta")

@@ -483,7 +483,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     """
     src = Path(src)
     grant_dir = Path(grant_dir) if grant_dir is not None else (
-        Path(PathResolver().root("labcams")) / "grant_figures")
+        Path(PathResolver().root("cohort_out")) / "grant_figures")
     # phase="all" IS LOAD-BEARING. curated_dates() defaults to phase="pre" (stroke-aware since
     # 2026-08-17), so the bare call returns 0606-0814 and SILENTLY DROPS EVERY POST-STROKE DATE.
     # The comment that used to sit here said a hand-run deck covers the same dates as the nightly.
@@ -1599,7 +1599,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 _methods = ("",) if _kind == "engagement" else _G9_METHODS[_w]
                 for _m in _methods:
                     _found = []
-                    for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
+                    for _an in sorted({s_["label"].split("_")[0] for s_ in config.load_sessions()}):
                         _f = src / (f"coding_{_kind}_{_w}_{_an}.png" if not _m else
                                     f"coding_{_kind}_{_w}_{_m}_{_an}.png")
                         if _f.exists():
@@ -1681,7 +1681,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "at the partner.")),
             ):
                 for _cls, _clsn in _SESS_CLS:
-                    for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
+                    for _an in sorted({s_["label"].split("_")[0] for s_ in config.load_sessions()}):
                         _f = src / f"coding_{_kind}_{_w}_{_m}_{_cls}_{_an}.png"
                         if not _f.exists():
                             continue
@@ -1795,7 +1795,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # as an unplaced kind.
         _kind, _tag = ("rtsplit", "EARLY vs LATE rewarded trials")
         for _w in ("ENL", "cue", "lick"):
-            for _an in sorted({s_["label"][:4] for s_ in config.load_sessions()}):
+            for _an in sorted({s_["label"].split("_")[0] for s_ in config.load_sessions()}):
                 _f = src / f"coding_{_kind}_{_w}_{_an}.png"
                 if not _f.exists():
                     continue
@@ -1874,7 +1874,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             # days -- exactly the ones the recovery story is about -- were written every night and
             # shown nowhere. The colour limit is shared across ALL parts and the PRE row is repeated
             # on each, so the pages are directly comparable to one another.
-            for _an in sorted({p.name.split("_")[3] for p in src.glob(f"fixed_scale_maps_*_{_al}.png")}):
+            for _an in sorted({p.name.split('_')[3] for p in src.glob(f"fixed_scale_maps_*_{_al}.png")}):
                 _pages = [src / f"fixed_scale_maps_{_an}_{_al}.png"]
                 _pages += sorted(src.glob(f"fixed_scale_maps_{_an}_{_al}__p*.png"),
                                  key=lambda q: int(q.stem.rsplit("__p", 1)[1]))
@@ -2262,7 +2262,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
-    out = args.out or (Path(rv.root("labcams")) / "spout_position_analysis_summary.pptx")
+    out = args.out or (Path(rv.root("cohort_out")) / "spout_position_analysis_summary.pptx")
     summary = build_analysis_deck(src, out, allow_missing=args.allow_missing,
                                   run_start=args.run_start)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "

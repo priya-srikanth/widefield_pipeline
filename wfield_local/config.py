@@ -13,11 +13,13 @@ from pathlib import Path
 
 import yaml
 
+from wfield_local import paths as _paths
 from wfield_local.paths import PathResolver
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs"
 
-# The cohort is a single 2026 season, so MMDD <-> YYYYMMDD conversion just (un)prepends the year.
+# MMDD <-> YYYYMMDD conversion (un)prepends the ACTIVE cohort's year (the year of its first session; see
+# `cohort_year`). COHORT_YEAR is cohort1's, kept for callers that import it.
 COHORT_YEAR = "2026"
 
 # Per-field implicit root for a session entry's relative paths (see configs/sessions.yaml).
@@ -35,9 +37,66 @@ _ROOT_PREFIX = re.compile(r"^(?P<root>[a-z_]{3,}):(?P<rel>.+)$")
 
 
 @functools.lru_cache(maxsize=None)
-def _load(name):
-    with open(CONFIG_DIR / name, encoding="utf-8") as fh:
+def _load_file(relpath):
+    with open(CONFIG_DIR / relpath, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
+
+
+#: The per-COHORT config files (configs/cohorts.yaml). `_load("animals.yaml")` / `_load("sessions.yaml")`
+#: return the ACTIVE cohort's file -- cohort1's are the original configs/animals.yaml + sessions.yaml.
+_COHORT_FILES = {"animals.yaml": "animals_file", "sessions.yaml": "sessions_file"}
+
+
+def _load(name):
+    """A configs/ YAML; animals.yaml and sessions.yaml resolve to the ACTIVE cohort's files."""
+    if name in _COHORT_FILES:
+        name = _paths.cohort_spec()[_COHORT_FILES[name]]
+    return _load_file(name)
+
+
+# --------------------------------------------------------------------------- cohorts (configs/cohorts.yaml)
+def cohort() -> str:
+    """The ACTIVE cohort's name (``WIDEFIELD_COHORT``, else cohorts.yaml `default` = cohort1).
+
+    Every animal / session / pooled set in this module is the active cohort's ONLY: cohort1 (PS92-95) and
+    cohort2 (PS118, PS120-122) are never pooled. To analyse another cohort set ``WIDEFIELD_COHORT``.
+    """
+    return _paths.active_cohort()
+
+
+def cohort_year() -> str:
+    """YYYY prepended to the active cohort's MMDD keys = the year of its first session."""
+    return str(_paths.cohort_spec()["first"])[:4]
+
+
+def cohort_of(animal: str) -> str | None:
+    """Which cohort an animal belongs to (cohorts.yaml), whichever cohort is active."""
+    return _paths.cohort_of_animal(animal)
+
+
+def use_cohort_for_dates(dates, explicit: str | None = None) -> str:
+    """Make the cohort that holds ``dates`` (YYYYMMDD) active, in-process AND for subprocesses.
+
+    For the NIGHTLY entry points: `nightly 20261029` must run as cohort2 with no flag. An explicit
+    ``WIDEFIELD_COHORT`` (or ``explicit``) wins, so a hand run on an older cohort still works. Refuses a date
+    list that spans two cohorts, and a date no cohort claims (register the cohort in cohorts.yaml first).
+    """
+    if explicit or os.environ.get(_paths.COHORT_ENV, "").strip():
+        name = explicit or os.environ[_paths.COHORT_ENV].strip()
+    else:
+        found = {d: _paths.cohort_for_date(d) for d in (str(x) for x in dates)}
+        names = set(found.values())
+        if None in names:
+            raise SystemExit(f"[cohort] no cohort in configs/cohorts.yaml covers "
+                             f"{sorted(d for d, n in found.items() if n is None)}; add it there first")
+        if len(names) > 1:
+            raise SystemExit(f"[cohort] these dates span cohorts {sorted(names)}: {found}. "
+                             f"Run each cohort separately, or set {_paths.COHORT_ENV}.")
+        name = names.pop() if names else _paths.active_cohort()
+    os.environ[_paths.COHORT_ENV] = name
+    _paths.active_cohort()                       # validates the name
+    print(f"[cohort] active cohort = {name} ({_paths.cohort_spec(name).get('description', '')})", flush=True)
+    return name
 
 
 @functools.lru_cache(maxsize=None)
@@ -432,12 +491,13 @@ def _split_tokens(spec) -> list[str]:
     return out
 
 
-def _to8(d, year: str = COHORT_YEAR) -> str:
+def _to8(d, year: str | None = None) -> str:
     """Normalize a date token to YYYYMMDD (accepts MMDD by prepending the cohort year).
 
     Rejects tokens of the wrong length or with an out-of-range month/day, so typos like `2026`
     (meant as a year) fail loudly instead of silently becoming `20262026`."""
     s = str(d)
+    year = year or cohort_year()
     if s.isdigit() and len(s) in (4, 8):
         eight = s if len(s) == 8 else f"{year}{s}"
         mm, dd = int(eight[4:6]), int(eight[6:8])
@@ -536,7 +596,7 @@ def load_sessions(machine: str | None = None, animals=None, dates=None) -> list[
     for animal in raw:
         if aset and animal not in aset:
             continue
-        for date, e in raw[animal].items():
+        for date, e in (raw[animal] or {}).items():   # an animal with no sessions yet is a bare header
             date = str(date)
             if dset and date not in dset:
                 continue

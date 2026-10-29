@@ -110,7 +110,7 @@ def _session_amplitudes(s, align="cue", source="roi", post_all_trials=True):
     X, y, _g, Xn, yn, reg = trial_features_cached(s, _args(source=source, align=align, post_s=2.0))
     # post-stroke: fold the NO-LICK trials back in (see the note above)
     if (post_all_trials
-            and config.session_phase(s["label"][:4], s["label"].split("_")[-1]) == "post"
+            and config.session_phase(s["label"].split("_")[0], s["label"].split("_")[-1]) == "post"
             and len(yn)):
         X = np.vstack([X, Xn])
         y = np.concatenate([y, yn])
@@ -156,7 +156,7 @@ def _session_amplitudes(s, align="cue", source="roi", post_all_trials=True):
             den = abs(l) + abs(r)
             rl[pname][base] = float((r - l) / den) if den > 1e-12 else float("nan")
 
-    out = {"label": s["label"], "animal": s["label"][:4], "date": s["label"].split("_")[-1],
+    out = {"label": s["label"], "animal": s["label"].split("_")[0], "date": s["label"].split("_")[-1],
            "align": align, "n_per_position": npos,
            "amplitude": amp, "share": share, "rl_index": rl}
     # headline scalars: the sensorimotor group, which is the claim being tested
@@ -302,7 +302,7 @@ def plot(rows, summ, out_dir, align="cue"):
                     ax.plot(i, v, "o", ms=10, color="tab:red", markeredgecolor="k", zorder=4)
                     ax.text(i, v, f"  z{z:+.1f}", fontsize=6.5, va="center",
                             color=("firebrick" if e.get("outside", {}).get(d) else "dimgrey"))
-                for d, v in (e.get("small_lesion") or {}).items():
+                for d, v in (e.get("small_lesion") or {}).items():  # noqa: B007
                     ax.plot(i + 0.18, v, "s", ms=7, color="grey", markeredgecolor="k", zorder=3)
             if qty == "rl_sensorimotor":
                 ax.axhline(0, color="k", lw=1, ls=":")

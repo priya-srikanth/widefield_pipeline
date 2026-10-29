@@ -341,7 +341,7 @@ def main() -> int:
         from pathlib import Path
 
         from wfield_local.paths import PathResolver
-        p = Path(a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+        p = Path(a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
                            / "epoch_15j_rest_baseline_epoch_drift.csv"))
         if not p.exists():
             print(f"!! no table at {p} -- run once WITHOUT --replot first.")
@@ -416,7 +416,7 @@ def main() -> int:
     from pathlib import Path
 
     from wfield_local.paths import PathResolver
-    out = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    out = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
                     / "epoch_15j_rest_baseline_epoch_drift.csv")
     with open(out, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))

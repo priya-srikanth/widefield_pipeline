@@ -42,8 +42,11 @@ from wfield_local import config
 from wfield_local.paths import PathResolver
 
 REPO = Path(__file__).resolve().parents[1]
-SESSIONS_YAML = REPO / "configs" / "sessions.yaml"
-ANIMALS_ALL = ["PS92", "PS93", "PS94", "PS95"]
+# The ACTIVE COHORT's sessions file and animals (configs/cohorts.yaml; the date picks the cohort in `main`).
+# Was configs/sessions.yaml + a hardcoded PS92-95 list until 2026-10-29, which would have registered cohort2's
+# mice into cohort1's file -- or, with the list, never looked for them at all.
+def _sessions_yaml() -> Path:
+    return REPO / "configs" / config._paths.cohort_spec()["sessions_file"]
 
 
 def _stamp() -> str:
@@ -202,6 +205,7 @@ def insert_session_entry(text: str, animal: str, mmdd: str, mc: str, h5: str,
 def register(entries: list[dict], dry: bool) -> list[str]:
     """Insert each entry into sessions.yaml (skips ones already registered / missing an h5). Returns the
     list of ``PSxx_mmdd`` labels newly written."""
+    SESSIONS_YAML = _sessions_yaml()
     text = SESSIONS_YAML.read_text(encoding="utf-8")
     written = []
     for e in entries:
@@ -252,7 +256,7 @@ def run_locanmf(entry: dict, dry: bool) -> bool:
 
 def commit_push(labels: list[str], no_push: bool, dry: bool) -> None:
     msg = f"sessions.yaml: auto-register {', '.join(labels)} (await_locanmf)"
-    if _run(["git", "add", str(SESSIONS_YAML)], dry) or _run(["git", "commit", "-m", msg], dry):
+    if _run(["git", "add", str(_sessions_yaml())], dry) or _run(["git", "commit", "-m", msg], dry):
         log("  !! git add/commit failed"); return
     if no_push:
         log("  committed locally (--no-push)"); return
@@ -331,11 +335,12 @@ def main(argv=None) -> int:
     _ensure_conda_prefix()   # so the git pre-push hook can find pytest even when launched detached
     rv = PathResolver(machine=args.machine)
     d = args.date if len(args.date) == 8 else None
-    if d is None:                               # accept MMDD -> assume the imaging cohort year 2026
-        d = f"2026{args.date}" if len(args.date) == 4 else args.date
+    if d is None:                               # accept MMDD -> the active cohort's year
+        d = f"{config.cohort_year()}{args.date}" if len(args.date) == 4 else args.date
     if len(d) != 8 or not d.isdigit():
         ap.error(f"date must be MMDD or YYYYMMDD, got {args.date!r}")
-    animals = config.normalize_animals(args.animals) or ANIMALS_ALL
+    config.use_cohort_for_dates([d])            # cohorts.yaml: this night's cohort (or WIDEFIELD_COHORT)
+    animals = config.normalize_animals(args.animals) or list(config.animals())
 
     log(f"awaiting LocaNMF inputs for {d}, animals={animals}, every {args.interval_min:g} min"
         + (" [DRY-RUN]" if args.dry_run else ""))

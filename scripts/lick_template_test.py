@@ -70,7 +70,7 @@ def session_design(label: str) -> dict:
         raise RuntimeError(f"{label}: executed bins frame {frame!r} (needs the calibrated 3-D environment)")
     shared = np.hstack([R["cue"], R["arrival"], R["licks"]])
     blocks = {"tgt": R["lick_bin_tgt"], "exec": R["lick_bin_exec"]}
-    return {"label": label, "animal": label[:4], "epoch": epochs.epoch_of(label), "Y": Y[rows], "areas": anames,
+    return {"label": label, "animal": label.split("_")[0], "epoch": epochs.epoch_of(label), "Y": Y[rows], "areas": anames,
             "shared": shared[rows], "cat": np.hstack([R["pos_enl"], R["pos_cue"]])[rows], "tgt": blocks["tgt"][rows], "exec": blocks["exec"][rows],
             "lickwin": (d <= 0.2)[rows], "agree": float(np.mean(tl[tl != ""] == el[tl != ""]))}
 
@@ -144,7 +144,7 @@ def pass1_one(label: str) -> str:
 def template_for(label: str, pre: list):
     """The animal's mean pre-stroke template, without `label` itself; areas aligned by atlas name."""
     d = Path(os.environ[OUT_ENV]) / "sessions"
-    srcs = [k for k in pre if k[:4] == label[:4] and k != label and (d / f"{k}_tmpl.npz").exists()]
+    srcs = [k for k in pre if k[:4] == label.split('_')[0] and k != label and (d / f"{k}_tmpl.npz").exists()]
     if not srcs:
         return None, None
     Z = {k: np.load(d / f"{k}_tmpl.npz") for k in srcs}

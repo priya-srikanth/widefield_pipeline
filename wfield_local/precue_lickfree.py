@@ -351,7 +351,7 @@ def main(argv=None) -> int:
     # 1 h 47 m of the nightly at `--source locanmf`, the largest item outside section G and grant.
     # The FIGURE is still per animal, so the rows are regrouped after the fan-out.
     units = [(s["label"], args.source) for s in SESSIONS
-             if s["label"][:4] in set(only) and s["label"][-4:] in dates]
+             if s["label"].split("_")[0] in set(only) and s["label"][-4:] in dates]
     got, failures = parallel.fan_out(units, _analyse_one, jobs=args.jobs, label="session")
     for (lab, _src), err in failures:
         print(f"  !! {lab}: {err}", flush=True)
@@ -359,7 +359,7 @@ def main(argv=None) -> int:
     by_animal = {}
     for (lab, _src), r in got:
         if r:
-            by_animal.setdefault(lab[:4], []).append((lab, r))
+            by_animal.setdefault(lab.split("_")[0], []).append((lab, r))
 
     summary = {}
     for an in only:

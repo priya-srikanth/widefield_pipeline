@@ -145,7 +145,7 @@ def _epoch_dir():
     correct on either box rather than correct on the one it was written on.
     """
     from wfield_local.paths import PathResolver
-    return Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    return Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
 
 
 def lick_gap_s(period_start_smp, period_stop_smp, lick_onsets_smp, fs):

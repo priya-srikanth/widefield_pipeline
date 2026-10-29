@@ -27,7 +27,7 @@ def session_latency(label: str) -> pd.DataFrame:
     oc._repo_on_path()
     import scripts.pose_kinematics_demo as D
     rv = PathResolver()
-    a, d = label[:4], "2026" + label[5:]
+    a, d = label.split("_")[0], "2026" + label[5:]
     b = TW.trial_bounds(a, d, rv)
     pos = dict(zip(b.trial_id.astype(int), [oc.pos_key(p, "L") for p in b.pos_name]))
     stop = dict(zip(b.trial_id.astype(int), (b.stop_s - b.cue_s).to_numpy(float) * 1000))
@@ -71,7 +71,7 @@ def main(argv=None) -> int:
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.concat([r for _l, r in got], ignore_index=True)
-    D["animal"], D["epoch"] = D.label.str[:4], D.label.map(epochs.epoch_of)
+    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(epochs.epoch_of)
     D.to_csv(out / "first_lick_latency.csv", index=False, float_format="%.1f")
     rows = []
     for (an, ep, p), g in D.groupby(["animal", "epoch", "pos"]):

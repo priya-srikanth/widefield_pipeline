@@ -88,7 +88,7 @@ def session_dynamics(s, source="roi"):
         return None
 
     sd = sig.std(axis=1)
-    out = {"label": s["label"], "animal": s["label"][:4], "date": s["label"].split("_")[-1],
+    out = {"label": s["label"], "animal": s["label"].split("_")[0], "date": s["label"].split("_")[-1],
            "source": source, "n_frames": int(sig.shape[1]),
            "sd_left": float(np.median(sd[left])), "sd_right": float(np.median(sd[right])),
            "n_left": int(left.sum()), "n_right": int(right.sum())}
@@ -140,7 +140,7 @@ def session_dynamics(s, source="roi"):
 def collect(animals=None, source="roi"):
     sessions = config.load_sessions()
     if animals:
-        sessions = [x for x in sessions if x["label"][:4] in set(animals)]
+        sessions = [x for x in sessions if x["label"].split("_")[0] in set(animals)]
     rows = []
     for s in sessions:
         try:

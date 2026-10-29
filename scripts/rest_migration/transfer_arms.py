@@ -148,7 +148,7 @@ def main() -> int:
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args()
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
     animals = a.animals or sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"] in want})

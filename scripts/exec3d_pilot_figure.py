@@ -32,7 +32,7 @@ def _lick_table(E: Path) -> pd.DataFrame:
                 for a_, g in sub.groupby("area"):
                     r = g.set_index("model").r2
                     if set(NEED) <= set(r.index):
-                        rows.append({"mode": m, "label": lab, "animal": lab[:4], "epoch": epochs.epoch_of(lab),
+                        rows.append({"mode": m, "label": lab, "animal": lab.split("_")[0], "epoch": epochs.epoch_of(lab),
                                      "area": area, "sub": a_, "u_target": r["nokin:target+exec"] - r["nokin:exec"],
                                      "u_exec": r["nokin:target+exec"] - r["nokin:target"]})
     D = pd.DataFrame(rows)

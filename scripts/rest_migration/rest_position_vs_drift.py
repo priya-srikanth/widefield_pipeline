@@ -203,7 +203,7 @@ def main() -> int:
         for q in am:
             cells[(an, anat[q])] = am[q] - grand
     if cells:
-        d = __import__("pathlib").Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+        d = __import__("pathlib").Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
         out = ef.map_grid(
             cells, d, name="epoch_15x_REST_by_position_by_animal",
             title="REST activity by spout position, per animal -- does the baseline carry position?",

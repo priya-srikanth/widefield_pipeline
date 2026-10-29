@@ -689,7 +689,7 @@ def exec_bins(B: Behaviour, weights: bool = False):
     calib = os.environ.get(BINS_CALIB_ENV)
     if B.exec_xyz is not None and calib and B.session:
         C = pd.read_csv(calib)
-        C = C[C.animal == B.session[:4]]
+        C = C[C.animal == B.session.split("_")[0]]
         C = C[C.calib_for == (B.session if (C.calib_for == B.session).any() else "default")]
         if C.empty:
             raise FileNotFoundError(f"{BINS_CALIB_ENV}: no calibration for {B.session} in {calib}")

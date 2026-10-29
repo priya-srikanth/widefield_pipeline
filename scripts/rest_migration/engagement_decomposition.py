@@ -274,7 +274,7 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     animals = a.animals
     raw = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     lab_of = dict(zip(DISPLAY_ORDER,

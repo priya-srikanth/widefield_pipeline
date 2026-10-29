@@ -315,7 +315,7 @@ def main() -> int:
         print("!! PRECUE ALIGNMENT: dropping the `precue` FAMILY -- its baseline lies inside the "
               f"feature window. Families are {a.families}, and 'all families agree' below means "
               f"ALL {len(a.families)}, not three.")
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     stored = None
     if a.from_csv:

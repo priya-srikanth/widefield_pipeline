@@ -609,7 +609,7 @@ def main() -> int:
                     help="verify that atlas '_left' is the ANIMAL'S left and exit. Reads the "
                          "saved vectors; costs nothing.")
     a = ap.parse_args()
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     if a.hemisphere_check:
         return 0 if hemisphere_check(out_dir, a.align, a.tag) else 1

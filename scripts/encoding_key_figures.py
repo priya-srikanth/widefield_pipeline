@@ -97,7 +97,7 @@ def landing_zones(E: Path, figs: Path) -> None:
         lab = js["label"]
         for t, w in sw.items():
             for z, v in w.items():
-                rows.append({"label": lab, "animal": lab[:4], "epoch": epochs.epoch_of(lab), "target": t, "zone": z,
+                rows.append({"label": lab, "animal": lab.split("_")[0], "epoch": epochs.epoch_of(lab), "target": t, "zone": z,
                              "w": v})
     if not rows:
         print("  landing_zones: no 3-D contest sessions with soft weights yet -- skipped")

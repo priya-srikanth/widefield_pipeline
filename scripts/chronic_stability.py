@@ -292,11 +292,11 @@ def main(argv=None) -> int:
     ap.add_argument("--data", default=None, help="epoch figure data dir (default <labcams>/grant_figures/epoch/data)")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    data_dir = Path(a.data) if a.data else Path(rv.root("labcams")) / "grant_figures" / "epoch" / "data"
-    out_dir = Path(a.out) if a.out else Path(rv.root("labcams")) / "chronic_stability"
+    data_dir = Path(a.data) if a.data else Path(rv.root("cohort_out")) / "grant_figures" / "epoch" / "data"
+    out_dir = Path(a.out) if a.out else Path(rv.root("cohort_out")) / "chronic_stability"
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    boundaries = json.load(open(Path(rv.root("labcams")) / "epoch_boundaries.json"))["boundaries"]
+    boundaries = json.load(open(Path(rv.root("cohort_out")) / "epoch_boundaries.json"))["boundaries"]
 
     labs = _labels()
     series, pre_vals, pre_src = build_series(data_dir, labs)

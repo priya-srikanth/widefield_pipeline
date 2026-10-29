@@ -32,7 +32,7 @@ from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.locanmf_position_decoder import _trial_features, _build_signal, is_engaged
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER, _load_daq_events
-from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues
+from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues  # noqa: F401
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 from wfield_local.figgrid import blank_unused, grid_shape
@@ -46,7 +46,7 @@ def _sess(label):
 
 
 def _avail(date):
-    return sorted([s["label"] for s in SESSIONS if s["label"].endswith(date)], key=lambda l: l[:4])
+    return sorted([s["label"] for s in SESSIONS if s["label"].endswith(date)], key=lambda l: l.split("_")[0])
 
 
 def _args(align="lick", post_s=2.0, baseline="none", bins=1):
@@ -157,7 +157,7 @@ def fig_region_groups(labels, out):
     for i, (gname, c) in enumerate(zip(["all", "SSp only", "MO only"], ["#34495e", "#c0392b", "#2980b9"])):
         ax.bar(x + (i - 1) * w, [acc[l][i] for l in labels], w, label=gname, color=c)
     ax.axhline(1 / 6, color="grey", ls="--", lw=1, label="chance")
-    ax.set_xticks(x); ax.set_xticklabels([l[:4] + " " + l[-4:-2] + "/" + l[-2:] for l in labels], fontsize=8, rotation=20)
+    ax.set_xticks(x); ax.set_xticklabels([l.split("_")[0] + " " + l[-4:-2] + "/" + l[-2:] for l in labels], fontsize=8, rotation=20)
     ax.set_ylim(0, 1); ax.set_ylabel("decoding accuracy"); ax.set_title("Accuracy by feature set (first-lick 2s, block-CV)")
     ax.legend(fontsize=9)
     ax = axes[1]; Mmean = np.mean([share[l] for l in labels], 0); x = np.arange(6); bottom = np.zeros(6)
@@ -178,7 +178,7 @@ def fig_window_sweep(labels, out, wins=(0.5, 1.0, 2.0, 3.5, 5.0)):
         for w in wins:
             X, y, g, _, _, _ = _trial_features(s, _args("cue", w))
             row.append(_bcv_acc(X, y, g))
-        an = lab[:4]; ls = "-" if lab.endswith("0603") else "--"
+        an = lab.split("_")[0]; ls = "-" if lab.endswith("0603") else "--"
         ax.plot(wins, row, ls, marker="o", color=colors.get(an, "k"), label=f"{an} {lab[-4:-2]}/{lab[-2:]}")
     ax.axvline(2.0, color="grey", ls=":", lw=1.2); ax.axhline(1 / 6, color="k", ls="--", lw=0.8)
     ax.set_xlabel("post-cue window length (s)"); ax.set_ylabel("decoding accuracy (block-CV)")
@@ -299,20 +299,20 @@ def fig_temporal_dynamics(labels, out):
         for o in offs:
             ok = (fl + o >= 0) & (fl + o + win <= T)
             accs.append(_bcv_acc(np.array([sig[:, f + o:f + o + win].mean(1) for f in fl[ok]]), y[ok], g[ok]))
-        ax.plot(offs / FS, accs, marker="o", ms=3, color=colors.get(label[:4], "k"), label=label[:4])
+        ax.plot(offs / FS, accs, marker="o", ms=3, color=colors.get(label.split("_")[0], "k"), label=label.split("_")[0])
         allv += [a for a in accs if a == a]
         ok = (fl >= 0) & (fl + nbin * binlen <= T)
         Xmb = np.array([np.concatenate([sig[:, f + bi * binlen:f + (bi + 1) * binlen].mean(1) for bi in range(nbin)]) for f in fl[ok]])
         Xmean = np.array([sig[:, f:f + nbin * binlen].mean(1) for f in fl[ok]])
-        mb[label[:4]] = (_bcv_acc(Xmean, y[ok], g[ok]), _bcv_acc(Xmb, y[ok], g[ok]))
+        mb[label.split("_")[0]] = (_bcv_acc(Xmean, y[ok], g[ok]), _bcv_acc(Xmb, y[ok], g[ok]))
     ax.axvline(0, color="k", lw=1); ax.axvline(-0.16, color="grey", ls=":", lw=1); ax.axhline(1 / 6, color="k", ls="--", lw=0.8)
     ax.set_xlabel("time from first lick (s)"); ax.set_ylabel("accuracy (0.5s window, block-CV)")
     ax.set_ylim(max(0.0, min([1 / 6] + allv) - 0.05), min(1.0, max([1 / 6] + allv) + 0.05))
     ax.legend(fontsize=9); ax.set_title("Sliding-window decoding: when is position information present?")
     ax = axes[1]; x = np.arange(len(labels)); w = 0.35
-    ax.bar(x - w / 2, [mb[l[:4]][0] for l in labels], w, label="single 2s mean", color="#888")
-    ax.bar(x + w / 2, [mb[l[:4]][1] for l in labels], w, label="8x0.25s temporal bins", color="#d62728")
-    ax.axhline(1 / 6, color="k", ls="--", lw=0.8); ax.set_xticks(x); ax.set_xticklabels([l[:4] for l in labels])
+    ax.bar(x - w / 2, [mb[l.split("_")[0]][0] for l in labels], w, label="single 2s mean", color="#888")
+    ax.bar(x + w / 2, [mb[l.split("_")[0]][1] for l in labels], w, label="8x0.25s temporal bins", color="#d62728")
+    ax.axhline(1 / 6, color="k", ls="--", lw=0.8); ax.set_xticks(x); ax.set_xticklabels([l.split("_")[0] for l in labels])
     ax.set_ylim(0, 1); ax.set_ylabel("accuracy (block-CV)"); ax.legend(fontsize=9); ax.set_title("Does temporal profile beat the window-mean?")
     dtag = sorted({l[-4:] for l in labels})[0]
     dlab = "/".join(sorted({l[-4:-2] + "/" + l[-2:] for l in labels}))
@@ -358,7 +358,7 @@ def fig_rolling_cue(labels, out, tag):
         for o in offs:
             ok = (cfk + o >= 0) & (cfk + o + win <= T)
             accs.append(_bcv_acc(np.array([sig[:, c + o:c + o + win].mean(1) for c in cfk[ok]]), y[ok], g[ok]))
-        ax.plot(offs / FS, accs, marker="o", ms=3, color=cols.get(lab[:4], "k"), label=f"{lab[:4]} (n={len(y)})")
+        ax.plot(offs / FS, accs, marker="o", ms=3, color=cols.get(lab.split('_')[0], "k"), label=f"{lab.split('_')[0]} (n={len(y)})")
         allv += [a for a in accs if a == a]
     ax.axvspan(-3.0, 0, color="grey", alpha=0.08); ax.axvline(0, color="k", lw=1.2); ax.axhline(1 / 6, color="k", ls="--", lw=0.8)
     ax.set_xlabel("time from cue (s)"); ax.set_ylabel("decoding accuracy (0.5s window, block-CV)")
@@ -407,8 +407,8 @@ def fig_rolling_laterality(labels, out, tag):
             ok = (cfk + o >= 0) & (cfk + o + win <= T)
             X = np.array([sig[:, c + o:c + o + win].mean(1) for c in cfk[ok]])
             al.append(_bcv_acc(X, ylat[ok], g[ok])); a6.append(_bcv_acc(X, y6[ok], g[ok]))
-        ax.plot(offs / FS, al, marker="o", ms=3, color=cols.get(lab[:4], "k"), label=f"{lab[:4]} laterality")
-        ax.plot(offs / FS, a6, ls="--", lw=1, color=cols.get(lab[:4], "k"), alpha=0.7)
+        ax.plot(offs / FS, al, marker="o", ms=3, color=cols.get(lab.split('_')[0], "k"), label=f"{lab.split('_')[0]} laterality")
+        ax.plot(offs / FS, a6, ls="--", lw=1, color=cols.get(lab.split("_")[0], "k"), alpha=0.7)
         allv += [a for a in al + a6 if a == a]
     ax.axvline(0, color="k", lw=1.2); ax.axhline(1 / 3, color="purple", ls=":", lw=1); ax.axhline(1 / 6, color="k", ls="--", lw=0.8)
     ax.set_xlabel("time from cue (s)"); ax.set_ylabel("decoding accuracy (0.5s window, block-CV)")
@@ -498,7 +498,7 @@ def fig_v1_vs_v2_alignment(labels, out, tag):
         v1a.append(accs[0]); v2a.append(accs[1])
     fig, ax = plt.subplots(figsize=(9, 5)); x = np.arange(len(labels)); w = 0.38
     ax.bar(x - w / 2, v1a, w, label="ROI v1", color="#888"); ax.bar(x + w / 2, v2a, w, label="ROI v2", color="#2980b9")
-    ax.axhline(1 / 6, color="k", ls="--", lw=0.8); ax.set_xticks(x); ax.set_xticklabels([l[:4] for l in labels])
+    ax.axhline(1 / 6, color="k", ls="--", lw=0.8); ax.set_xticks(x); ax.set_xticklabels([l.split("_")[0] for l in labels])
     ax.set_ylim(0, 0.8); ax.set_ylabel("decoding accuracy (block-CV)"); ax.legend(fontsize=9)
     ax.set_title(f"{tag} ROI decoder: v1 vs v2 Allen alignment (first-lick 2s, identical trials)")
     fig.tight_layout(); p = out / f"locanmf_decoder_v1_vs_v2_alignment_{tag}.png"; fig.savefig(p, dpi=130); plt.close(fig)

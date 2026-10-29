@@ -1926,6 +1926,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     if not args.date and not args.cohort:
         ap.error("give a YYYYMMDD date, --cohort, or both")
+    if args.date and str(args.date).isdigit() and len(str(args.date)) == 8:
+        config.use_cohort_for_dates([args.date])           # this night's cohort (configs/cohorts.yaml)
     return run(args.date, PathResolver(machine=args.machine),
                animals=config.normalize_animals(args.only),
                cohort=args.cohort, from_spec=args.from_spec or ("curated" if args.cohort else None),

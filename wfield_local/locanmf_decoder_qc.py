@@ -23,9 +23,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import LogisticRegression  # noqa: F401
+from sklearn.preprocessing import StandardScaler  # noqa: F401
+from sklearn.pipeline import make_pipeline  # noqa: F401
 from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import accuracy_score
@@ -113,7 +113,7 @@ def run(labels, out):
     ax.bar(x + w / 2, accs_qc, w, label="QC-filtered", color="#27ae60")
     for i, (nd, nt) in enumerate(drop):
         ax.text(i, max(accs_all[i], accs_qc[i]) + 0.02, f"-{nd}/{nt}", ha="center", fontsize=9)
-    ax.axhline(1 / 6, color="k", ls="--", lw=0.8); ax.set_xticks(x); ax.set_xticklabels([l[:4] for l in labels])
+    ax.axhline(1 / 6, color="k", ls="--", lw=0.8); ax.set_xticks(x); ax.set_xticklabels([l.split("_")[0] for l in labels])
     ax.set_ylim(0, 1); ax.set_ylabel("decoding accuracy (block-CV)"); ax.legend(fontsize=9)
     ax.set_title("QC filter (drop edge/tiny components): does removing 'junk' change decoding?")
     fig2.tight_layout(); p2 = out / "locanmf_qc_filter_comparison.png"; fig2.savefig(p2, dpi=130); plt.close(fig2)

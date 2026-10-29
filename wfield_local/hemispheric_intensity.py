@@ -160,7 +160,7 @@ def session_ratios(s, min_px=200):
     if favg.shape[1:] != _l.shape:
         raise ValueError(f"{s['label']}: mean image {favg.shape[1:]} does not match atlas "
                          f"{_l.shape} -- wrong grid")
-    out = {"label": s["label"], "animal": s["label"][:4], "date": s["label"].split("_")[-1]}
+    out = {"label": s["label"], "animal": s["label"].split("_")[0], "date": s["label"].split("_")[-1]}
     for g, (ml, mr) in groups.items():
         if ml.sum() < min_px or mr.sum() < min_px:
             out[g] = None
@@ -183,7 +183,7 @@ def session_ratios(s, min_px=200):
 def collect(animals=None):
     sessions = config.load_sessions()
     if animals:
-        sessions = [s for s in sessions if s["label"][:4] in set(animals)]
+        sessions = [s for s in sessions if s["label"].split("_")[0] in set(animals)]
     rows = []
     for s in sessions:
         try:
@@ -257,12 +257,12 @@ def plot(rows, out_dir, group="all"):
             y = np.array([r[group][key] for r in sub], float)
             pre_m = np.array([p == "pre" for p in phases])
             if pre_m.sum() >= 3:
-                mu, sd = np.nanmean(y[pre_m]), np.nanstd(y[pre_m], ddof=1)
+                mu, sd = np.nanmean(y[pre_m]), np.nanstd(y[pre_m], ddof=1)  # noqa: F841
                 ax.axhspan(y[pre_m].min(), y[pre_m].max(), color="tab:blue", alpha=0.15,
                            label="pre-stroke range")
                 ax.axhline(mu, color="tab:blue", lw=1.2)
             colours = {"pre": "tab:blue", "post": "tab:red", "excluded": "grey"}
-            for i, (xi, yi, ph) in enumerate(zip(x, y, phases)):
+            for i, (xi, yi, ph) in enumerate(zip(x, y, phases)):  # noqa: B007
                 ax.plot(xi, yi, "o", ms=7, color=colours.get(ph, "k"),
                         markeredgecolor="k", lw=0.4, zorder=3)
             ax.plot(x, y, "-", color="k", lw=0.7, alpha=0.4, zorder=1)

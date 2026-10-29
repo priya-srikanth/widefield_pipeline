@@ -974,11 +974,11 @@ def main(argv=None) -> int:
     # NOTHING ON THE SHARE IS MOVED OR DELETED (ground rule 0/1). The existing copies under
     # `channel_comparison` stay as the historical record; new runs simply also write the pooled
     # pair where the deck can see it.
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "channel_comparison")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "channel_comparison")
     out_dir.mkdir(parents=True, exist_ok=True)
     # `--out` ALONE STILL SENDS BOTH TO ONE PLACE, so every existing hermetic invocation -- tests,
     # a scratch run -- behaves exactly as before. Only the DEFAULT changed.
-    epoch_dir = a.epoch_out or a.out or (Path(PathResolver().root("labcams"))
+    epoch_dir = a.epoch_out or a.out or (Path(PathResolver().root("cohort_out"))
                                          / "grant_figures" / "epoch")
     epoch_dir.mkdir(parents=True, exist_ok=True)
     sessions = {x["label"]: x for x in config.load_sessions()}

@@ -1,5 +1,11 @@
 # widefield_pipeline
 
+> **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (two Thy1-GCaMP6s, two RiboL1-GCaMP8s).**
+> Analysed separately from PS92-95 (cohort1) and never pooled with them. Read
+> [`docs/NEW_COHORT_2026-10-29.md`](docs/NEW_COHORT_2026-10-29.md) before running anything: the nightly picks the cohort from
+> the date, hand runs need `WIDEFIELD_COHORT=cohort2`, and cross-registration waits for a reference session.
+
+
 Widefield calcium-imaging **preprocessing + LocaNMF spout-position decode/encode analysis** for the
 Sabatini-lab VLS-stroke study (mice PS92/PS93/PS94/PS95). Carved out of `Widefield_DAQ_recorder`
 (which keeps the live DAQ-recorder GUI + camera acquisition) on 2026-08-08.

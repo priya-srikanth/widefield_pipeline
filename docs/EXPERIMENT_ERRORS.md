@@ -6,6 +6,48 @@ Acquisition and rig problems that constrain what can be analysed, and what we de
 
 Newest first. Each entry: what happened → what it costs → what we do → what is still open.
 
+**COHORT 2 (PS118, PS120-122, from 2026-10-29) entries are marked `[cohort2]`.** Cohort set-up:
+`configs/cohorts.yaml`, [`NEW_COHORT_2026-10-29.md`](NEW_COHORT_2026-10-29.md).
+
+---
+
+## 2026-10-29 [cohort2] — PS118 / PS120 / PS121: smaller imaging ROI on day 1; PS122 onward use the larger fixed ROI
+
+**What happened.** On the first cohort-2 day, PS118, PS120 and PS121 were imaged with the SAME camera ROI as
+PS92-95. That ROI was a bit smaller than Priya wanted, so it was enlarged before PS122, and the larger ROI
+is held fixed from PS122 2026-10-29 onward for every animal (Priya, 2026-10-29).
+
+**What it costs.** Those three 10-29 sessions have a different frame size (the H x W in the raw `.dat` name,
+`pco_edge_run..._2_<H>_<W>_uint16.dat`) and field of view from every later session of the same animal.
+Per-session preprocessing reads the dims from the file name, so motion / SVD / maps run. Anything that
+assumes one frame size per animal does not: cross-day registration, cross-session pixel maps, joint bases.
+
+**What we do.** (1) Do NOT use a 10-29 session as the cross-registration REFERENCE for PS118 / PS120 / PS121.
+Pick a later, large-ROI session (`reference_date` in `configs/cohort2/animals.yaml`). (2) The small-ROI
+sessions are registered into the reference frame like any other session; check that their registration QC
+(`xday/<animal>_<mmdd>`) covers the cortex, and that the cropped edge is masked, before pooling them.
+(3) If they cannot be registered cleanly, exclude 10-29 for those three animals from POOLED sets via
+`exclude` in `configs/cohort2/animals.yaml`, keeping their per-session figures.
+
+**Still open.** Measure the two ROIs (H x W and offset) from the raw headers once the data are uploaded, and
+write them here.
+
+## 2026-10-29 [cohort2] — bottom behaviour camera (cam1) nudged between PS118 / PS120 / PS121 and PS122
+
+**What happened.** The bottom (cam1, view from below) behaviour camera was adjusted slightly between the
+first three animals and PS122 on 2026-10-29 (Priya, 2026-10-29).
+
+**What it costs.** cam1 geometry differs between those sessions: pixel coordinates (pose, mouth / spout
+positions, crops) and any 3-D reconstruction that uses cam1 extrinsics are not comparable across the
+change without a recalibration. 2-D readouts within one session are unaffected.
+
+**What we do.** Treat cam1 for 10-29 PS118 / PS120 / PS121 as its own camera geometry. Do not apply a
+calibration taken after the change to those sessions. Priya is taking a new calibration (ChArUco) video soon.
+Record its date here, and decide then whether the three earlier sessions need their own calibration or are
+excluded from 3-D.
+
+**Still open.** Calibration video date; whether the change also moved the cam1 crop / mouth reference.
+
 ---
 
 ## 2026-09-17 — PS95: 12:40 session acquired under the wrong prefix `PS94` (relabeled; inert)

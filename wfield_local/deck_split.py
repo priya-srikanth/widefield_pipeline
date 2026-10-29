@@ -187,7 +187,7 @@ def main(argv=None) -> int:
     deck = a.deck
     if deck is None:
         from wfield_local.paths import PathResolver
-        deck = pathlib.Path(PathResolver().root("labcams")) / "spout_position_analysis_summary.pptx"
+        deck = pathlib.Path(PathResolver().root("cohort_out")) / "spout_position_analysis_summary.pptx"
 
     if a.report:
         import collections

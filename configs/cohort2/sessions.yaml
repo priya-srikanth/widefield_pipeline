@@ -1,0 +1,12 @@
+# COHORT 2 widefield imaging sessions (PS118, PS120-122), from 2026-10-29. Same format as configs/sessions.yaml
+# (cohort1); entries are added by `wfield_local.await_locanmf` on the analysis box as each night lands.
+# Keyed animal -> date (MMDD, QUOTED). An animal header with no dates under it is valid (no sessions yet).
+#
+# YEAR: keys are MMDD with the year taken from the date range in configs/cohorts.yaml. This cohort will cross
+# into 2027, when MMDD keys would sort January before October -- see docs/NEW_COHORT_2026-10-29.md
+# "Before 2027-01-01". Do not register a 2027 session until that is resolved.
+sessions:
+  PS118:
+  PS120:
+  PS121:
+  PS122:

@@ -76,7 +76,7 @@ def server_basis_dir():
     whose existence you have checked is not a verified copy).
     """
     try:
-        return Path(config.resolver().root("labcams")) / "joint_bases"
+        return Path(config.resolver().root("cohort_out")) / "joint_bases"
     except Exception:                              # noqa: BLE001
         return None
 

@@ -518,7 +518,7 @@ def run(align="cue", variant="working", out_dir=None, from_csv=None) -> dict:
     from wfield_local.paths import PathResolver
 
     out_dir = Path(out_dir) if out_dir else (
-        Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+        Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     made, summaries = [], {}
     for matched in (False, True):
         tag = "matched" if matched else "unmatched"

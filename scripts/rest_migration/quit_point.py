@@ -287,7 +287,7 @@ def main(argv=None) -> int:
 
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     if a.horizon_min is not None:
         print(f"COMMON HORIZON {a.horizon_min:.0f} min: sessions shorter than this are DROPPED "
               f"and the rest are TRUNCATED, so every session contributes equal observation time.")

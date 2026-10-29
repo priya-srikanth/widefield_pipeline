@@ -31,7 +31,7 @@ for d in ("behaviour", "target_vs_execution"):
 A = pd.read_csv(f"{Q}/trial_attempts.csv")
 A["epoch"] = A.label.map(epochs.epoch_of)
 W = pd.read_csv(f"{Q}/trial_attempts_sessions.csv")
-W["animal"], W["epoch"] = W.label.str[:4], W.label.map(epochs.epoch_of)
+W["animal"], W["epoch"] = W.label.str.split("_").str[0], W.label.map(epochs.epoch_of)
 fig, ax = plt.subplots(3, 4, figsize=(14, 9), sharey="row")
 for r, pos in enumerate(("far_contra", "far_mid")):
     for c, an in enumerate(AN):

@@ -48,9 +48,9 @@ for lab in labels:
         k = f"spout_{pos}"
         if k in m:
             img = np.full(shape[0] * shape[1], np.nan, np.float32)
-            img[z["flat"]] = (m[k] * sg * zs[(lab[:4], pos)] if Z     # z: pre-SD activity per pre-SD deviation
+            img[z["flat"]] = (m[k] * sg * zs[(lab.split("_")[0], pos)] if Z     # z: pre-SD activity per pre-SD deviation
                               else m[k] * sg * 10 * 1e3)                # x1e-3 dF per 10 deg toward the mouse's left
-            acc.setdefault((lab[:4], pos, epochs.epoch_of(lab)), []).append(img.reshape(shape))
+            acc.setdefault((lab.split("_")[0], pos, epochs.epoch_of(lab)), []).append(img.reshape(shape))
 mean = {k: np.nanmean(v, 0) for k, v in acc.items()}
 animals = sorted({k[0] for k in mean})
 if Z:                                                           # POOLED, animals weighted equally

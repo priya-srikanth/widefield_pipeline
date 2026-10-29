@@ -35,7 +35,7 @@ CAMS = ("cam1", "cam2", "cam3", "cam4")
 
 
 def _out(rv, label=None) -> Path:
-    d = Path(rv.root("labcams")) / "null_potent"
+    d = Path(rv.root("cohort_out")) / "null_potent"
     if label:
         d = d / label
     d.mkdir(parents=True, exist_ok=True)

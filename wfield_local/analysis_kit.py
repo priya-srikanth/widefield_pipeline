@@ -301,7 +301,7 @@ def curated_ids() -> set:
     """The curated cohort as ``{"PSxx_YYYYMMDD", ...}`` -- the id the pose / video outputs use (Priya 10-20: "we can stop
     processing sessions that will not be part of analysis"; scripts default to it, ``--all`` overrides)."""
     from wfield_local import config
-    return {f"{lab[:4]}_{config._to8(lab[5:])}" for lab in curated_labels()}
+    return {f"{lab.split('_')[0]}_{config._to8(lab[5:])}" for lab in curated_labels()}
 
 
 # ---------------------------------------------------------------------------------------------

@@ -324,15 +324,15 @@ def cmd_match(a) -> int:
         ep = epochs.epoch_of(lab)
         if ep not in ("pre", "acute", "subacute", "chronic") or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM):
             continue
-        sd = oo.session_dir(rv, run, lab[:4], "2026" + lab[5:])
-        keep, _ = oc.engagement_keep(lab[:4], "2026" + lab[5:], sd)
+        sd = oo.session_dir(rv, run, lab.split("_")[0], "2026" + lab[5:])
+        keep, _ = oc.engagement_keep(lab.split("_")[0], "2026" + lab[5:], sd)
         L = pd.read_csv(sd / "licks.csv")
         if keep is not None:
             L = L[L.trial_id.isin(keep)]
         ok = (~L.peak_interp.astype(bool)) & (L.protrusion_px >= ce.MIN_REACH_PX) & np.isfinite(L.peak_angle_deg)
         n[lab] = int(ok.sum())
     S = pd.Series(n)
-    tgt = {lab: int(a.frac * S[S.index.str[:4] == lab[:4]].min()) for lab in S.index}
+    tgt = {lab: int(a.frac * S[S.index.str[:4] == lab.split("_")[0]].min()) for lab in S.index}
     (d / "match.json").write_text(json.dumps(tgt, indent=1), encoding="utf-8")
     for an in sorted({x[:4] for x in S.index}):
         s = S[S.index.str[:4] == an]

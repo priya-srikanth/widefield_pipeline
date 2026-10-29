@@ -75,7 +75,7 @@ def main(argv=None) -> int:
     D.to_csv(folder / "spout_reliability_slopes.csv", index=False, float_format="%.4g")
     pd.set_option("display.width", 230)
     order = ["pre", "acute", "subacute", "chronic"]
-    rel = R.assign(animal=R.label.str[:4], epoch=R.label.map(epochs.epoch_of))
+    rel = R.assign(animal=R.label.str.split("_").str[0], epoch=R.label.map(epochs.epoch_of))
     print("=== per-spout reliability of the within-spout deviation (Spearman-Brown, session medians)")
     print(rel.groupby(["spouts", "animal", "epoch"]).rel.median().unstack("epoch").reindex(columns=order).round(2)
           .to_string())

@@ -161,7 +161,7 @@ def server_dir():
     publishing is a separate, byte-verified act.
     """
     try:
-        return Path(config.resolver().root("labcams")) / "frozen_models"
+        return Path(config.resolver().root("cohort_out")) / "frozen_models"
     except Exception:                                    # noqa: BLE001
         return None
 

@@ -69,7 +69,7 @@ def session_trials(label: str) -> pd.DataFrame:
     from wfield_local.paths import PathResolver
     from scripts.first_lick_latency import session_latency
     rv = PathResolver()
-    a, d = label[:4], "2026" + label[5:]
+    a, d = label.split("_")[0], "2026" + label[5:]
     sd = oo.session_dir(rv, oc.RUN, a, d)
     T = session_latency(label)
     stop = dict(zip(T.trial_id, T.stop_ms))
@@ -149,7 +149,7 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
     W = S.pivot_table(index="label", columns="pos", values=[c for c in S.columns if c not in ("label", "pos")])
     W.columns = [f"{m}_{p}" for m, p in W.columns]
     W = W.reset_index()
-    an, pre = W.label.str[:4], W.label.map(_is_aug_pre)
+    an, pre = W.label.str.split("_").str[0], W.label.map(_is_aug_pre)
     for p in sorted({c[len("angle_mean_"):] for c in W.columns if c.startswith("angle_mean_")}):
         for col, out, f in ((f"angle_mean_{p}", f"lateral_bias_{p}", lambda x, r: x - r),
                             (f"angle_sd_{p}", f"lateral_scatter_{p}", lambda x, r: x / r)):
@@ -183,11 +183,11 @@ def main(argv=None) -> int:
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.concat([r for _l, r in got], ignore_index=True)
-    D["animal"], D["epoch"] = D.label.str[:4], D.label.map(epochs.epoch_of)
+    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(epochs.epoch_of)
     D["day"] = D.label.map(epochs.days_since_stroke)
     D.to_csv(out / "trial_attempts.csv", index=False, float_format="%.1f")
     W = session_summary(D)
-    W.insert(1, "animal", W.label.str[:4])
+    W.insert(1, "animal", W.label.str.split("_").str[0])
     W.insert(2, "epoch", W.label.map(epochs.epoch_of))
     W.insert(3, "day", W.label.map(epochs.days_since_stroke))
     W.to_csv(out / "trial_attempts_sessions.csv", index=False, float_format="%.4g")
@@ -206,7 +206,7 @@ def main(argv=None) -> int:
         P = WA.melt(id_vars="label")
         P = P[P.variable.str.startswith(m + "_")]
         P["pos"] = P.variable.str[len(m) + 1:]
-        P["animal"], P["epoch"] = P.label.str[:4], P.label.map(epochs.epoch_of)
+        P["animal"], P["epoch"] = P.label.str.split("_").str[0], P.label.map(epochs.epoch_of)
         t = P.pivot_table(index=["animal", "epoch"], columns="pos", values="value")
         t = t.reindex(columns=[p for p in oc.POS_ORDER if p in t.columns])
         t = t.iloc[sorted(range(len(t)), key=lambda i: (t.index[i][0], order.get(t.index[i][1], 9)))]

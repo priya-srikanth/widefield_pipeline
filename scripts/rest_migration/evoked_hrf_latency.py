@@ -154,7 +154,7 @@ def main(argv=None) -> int:
     from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     if a.from_csv:
         q_in = fl.find_sidecar_for(out_dir, "epoch_22_evoked_hrf_latency", ".csv")

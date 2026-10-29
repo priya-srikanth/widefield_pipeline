@@ -78,7 +78,7 @@ def main(argv=None) -> int:
             keep.append(lab)
     R = pd.DataFrame(rows, columns=["label", "frac3d", "spouts"])
     print(R.to_string(index=False))
-    print(R.assign(animal=R.label.str[:4], kept=R.label.isin(keep)).groupby("animal").kept.agg(["sum", "count"]))
+    print(R.assign(animal=R.label.str.split("_").str[0], kept=R.label.isin(keep)).groupby("animal").kept.agg(["sum", "count"]))
     (W / f"labels_3d_{tag}.txt").write_text(" ".join(keep))
     print(len(keep), "sessions ->", W / f"labels_3d_{tag}.txt")
     return 0
