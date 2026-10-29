@@ -2,11 +2,12 @@
 # Same schema as configs/animals.yaml (cohort1, PS92-95); read that file's header for what each field means.
 # NOT pooled with cohort1: see configs/cohorts.yaml. docs/NEW_COHORT_2026-10-29.md = what to do per machine.
 #
-# MIXED GENOTYPES IN ONE COHORT (Priya 2026-10-29): two Thy1-GCaMP6s, two VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s
-# (soma-localised GCaMP8s; first tested on PS121, docs/PILOT_TEST_SESSIONS.md). Both imaged at 470 nm (+ 415).
+# MIXED GENOTYPES IN ONE COHORT (Priya 2026-10-29): two Thy1-GCaMP6s, two VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s
+# (soma-localised jGCaMP8s; first tested on PS121, docs/PILOT_TEST_SESSIONS.md). Both imaged at 470 nm (+ 415).
 # `genotype` is the label to group or split by; any pooled result must be checked per genotype, since the two
-# indicators differ in kinetics and spatial spread. WHICH TWO ARE WHICH IS NOT RECORDED YET -- fill in
-# `genotype` below (and DOB / sex) before the first cross-animal analysis.
+# indicators differ in kinetics and spatial spread. Thy1-GCaMP6s GP4.3: PS118, PS120 (DOB 2026-08-03);
+# VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s: PS121, PS122 (DOB 2026-01-29) (Priya 2026-10-29).
+# Sex: PS118, PS120 male; PS121, PS122 female.
 #
 # STILL TO FILL IN (each null is a fact nobody has entered, not a default):
 #   reference_date      the session each animal's other sessions are cross-registered to (cohort1 used 6/6).
@@ -20,9 +21,9 @@
 animals:
   PS118:
     color: "tab:purple"
-    sex: null
-    date_of_birth: null
-    genotype: "TBD: Thy1-GCaMP6s or VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s"
+    sex: M
+    date_of_birth: 2026-08-03
+    genotype: "Thy1-GCaMP6s GP4.3"
     indicator_nm: 470
     characteristics: {}
     stroke_date: null
@@ -33,9 +34,9 @@ animals:
 
   PS120:
     color: "tab:brown"
-    sex: null
-    date_of_birth: null
-    genotype: "TBD: Thy1-GCaMP6s or VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s"
+    sex: M
+    date_of_birth: 2026-08-03
+    genotype: "Thy1-GCaMP6s GP4.3"
     indicator_nm: 470
     characteristics: {}
     stroke_date: null
@@ -46,9 +47,9 @@ animals:
 
   PS121:
     color: "tab:pink"
-    sex: null
-    date_of_birth: null
-    genotype: "TBD: Thy1-GCaMP6s or VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s"   # the 10-09 pilot PS121 was RiboL1-GCaMP8s
+    sex: F
+    date_of_birth: 2026-01-29
+    genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
     indicator_nm: 470
     characteristics: {}
     stroke_date: null
@@ -59,9 +60,9 @@ animals:
 
   PS122:
     color: "tab:olive"
-    sex: null
-    date_of_birth: null
-    genotype: "TBD: Thy1-GCaMP6s or VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s"
+    sex: F
+    date_of_birth: 2026-01-29
+    genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
     indicator_nm: 470
     characteristics: {}
     stroke_date: null

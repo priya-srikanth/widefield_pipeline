@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-> **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (two Thy1-GCaMP6s, two RiboL1-GCaMP8s).**
+> **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (PS118/120 Thy1-GCaMP6s, PS121/122 RiboL1-jGCaMP8s).**
 > Analysed separately from PS92-95 (cohort1) and never pooled with them. Read
 > [`docs/NEW_COHORT_2026-10-29.md`](docs/NEW_COHORT_2026-10-29.md) before running anything: the nightly picks the cohort from
 > the date, hand runs need `WIDEFIELD_COHORT=cohort2`, and cross-registration waits for a reference session.

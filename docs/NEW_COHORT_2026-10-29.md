@@ -10,13 +10,13 @@ and what is still open.
 
 | animal | genotype | indicator | notes |
 |---|---|---|---|
-| PS118 | TBD | 470 nm (+415) | 10-29: small ROI, cam1 position A |
-| PS120 | TBD | 470 nm (+415) | 10-29: small ROI, cam1 position A |
-| PS121 | TBD | 470 nm (+415) | 10-29: small ROI, cam1 position A; the 10-09 pilot PS121 was RiboL1-GCaMP8s |
-| PS122 | TBD | 470 nm (+415) | larger ROI (kept for everyone from here on), cam1 position B |
+| PS118 | Thy1-GCaMP6s GP4.3 (DOB 2026-08-03, M) | 470 nm (+415) | 10-29: small ROI, cam1 position A |
+| PS120 | Thy1-GCaMP6s GP4.3 (DOB 2026-08-03, M) | 470 nm (+415) | 10-29: small ROI, cam1 position A |
+| PS121 | VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s (DOB 2026-01-29, F) | 470 nm (+415) | 10-29: small ROI, cam1 position A; the 10-09 pilot PS121 was RiboL1-GCaMP8s |
+| PS122 | VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s (DOB 2026-01-29, F) | 470 nm (+415) | larger ROI (kept for everyone from here on), cam1 position B |
 
-Two are **Thy1-GCaMP6s** and two are **VGLUT1-IRES-Cre x LSL-RiboL1-GCaMP8s** (soma-localised GCaMP8s).
-Which is which still has to be entered in `configs/cohort2/animals.yaml` (`genotype`). Two indicators in one
+PS118 / PS120 are **Thy1-GCaMP6s GP4.3**; PS121 / PS122 are **VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s**
+(soma-localised jGCaMP8s); recorded as `genotype` in `configs/cohort2/animals.yaml`. Two indicators in one
 cohort means every pooled result must also be shown split by `genotype`. Same task as cohort1 (one moving
 spout, 6 positions, 4 cameras); a VLS stroke comes later (`stroke_date` null until then).
 
@@ -80,7 +80,7 @@ unset it or set `cohort1`.
 
 ## To do before cohort2 can be analysed across sessions
 
-1. **Genotype, sex, DOB** for each mouse in `configs/cohort2/animals.yaml`.
+1. ~~Genotype, sex, DOB~~ entered 10-29 (`configs/cohort2/animals.yaml`).
 2. **Reference session per mouse.** Pick one session per animal on the **large, fixed ROI**. For PS118 /
    PS120 / PS121 that means NOT 10-29 (see below). Click `dorsal_cortex_landmarks_<v>.json` on it, then set
    `reference_date` (MMDD) and `reference_landmarks` (`<v>`) in `configs/cohort2/animals.yaml`. Then re-run
