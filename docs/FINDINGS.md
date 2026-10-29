@@ -528,7 +528,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   sole carrier; orofacial-only decoder reproduces most of the ITI offset; VIS+RSP-only barely decodes (r 0.15); per-hemisphere imaging control: F0 / 415 nm do not explain the
   subacute / chronic balance shift (14.18; part of the acute shift in PS92 / PS93 could be F0); head-to-head: orofacial
   balance predicts the offset, non-orofacial adds nothing (12.19).
-- **Recovery markers 10-28 (14.17): BALANCE tracks recovery, response SIZE does not.** Cued orofacial balance (contra -
+- **PRIMARY recovery marker (10-28 late, page 14.16; DECISIONS 10-28 late night):** balance of ALM + tjM1 + SSp-m + SSp-n
+  + SSs as an angle-matched GAIN RATIO 0.1-0.5 s after the FIRST lick (cued: first post-cue lick; ITI: first lick after
+  >= 2 s quiet). Unseen-animal cvR2: cued 0.70 vs days 0.23 (r 0.71/0.82/0.94/0.75; within-animal p 0.001, splines p
+  0.002); ITI vs ITI's own angle axis 0.42 vs 0.17 (r 0.58/0.80/0.91/0.10 -- PS95 no); window confirmed on held-out
+  animals (0.69), pool from 63 subsets with selection cross-validated (SSs drives ITI). No next-session prediction; within
+  a known animal days already 0.75 (balance + days 0.76). PROVISIONAL.
+- **Recovery markers 10-28 (now 14.18): BALANCE tracks recovery, response SIZE does not.** Cued orofacial balance (contra -
   ipsi): leave-one-animal-out cvR2 0.50 (z-scored per area 0.53; ALM 0.61, SSp-m 0.60, tjM1 0.52 alone), leave-one-EPOCH-
   out 0.41 vs days 0.23; same sign 4/4. Orofacial SIZE (mean of both sides), contra or ipsi alone, and the 0-1 s response /
   cue AUC all fail (LOAO -0.28 to -0.70; epoch-out to -1.23): their sign FLIPS with lesion severity (PS94 / PS95, 3 mW:

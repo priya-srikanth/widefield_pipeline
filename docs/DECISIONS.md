@@ -1,4 +1,8 @@
 ## 2026-10-28 (late night) -- balance definition for recovery markers (Priya)
+- PRIMARY marker FIXED (Priya "proceed with the model including SSs"; "what's the harm in 0-0.5"): gain ratio 0.1..0.5 s
+  after the first lick, pool ALM + tjM1 + SSp-m + SSp-n + SSs, both cued and ITI (one window: 0.1-0.5 best for both,
+  0.70 / 0.42; every window from 0.1 s ~equal for ITI; the first 0.1 s carries nothing). scripts/lick_recovery_primary.py,
+  page 14.16 (KEY); the all-lick raw 0-0.2 s balance figures (14.17-14.19) kept, marked as the earlier definition.
 - Recovery-marker balance is measured on the FIRST POST-CUE LICK (cued) and the FIRST ITI LICK AFTER >= 2 s QUIET (ITI),
   not on all licks (Priya: "we'll use first iti lick after quiet and first post cue lick based windows").
 - Cued window CONFIRMED on held-out animals (scripts/lick_balance_nested.py; window chosen on 3 animals, tested on the

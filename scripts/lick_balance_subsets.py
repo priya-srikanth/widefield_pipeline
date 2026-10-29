@@ -36,6 +36,8 @@ import lick_recovery_markers as lrm  # noqa: E402
 
 AREAS = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs", "SSp-un"]
 DEFS = {"ratio_020_035": ("bs", 0.2, 0.35), "ratio_010_020": ("bs", 0.1, 0.2),
+        # Priya 10-28: "for ITI we may want it shifted sooner? what's the harm in 0-0.5"
+        "ratio_000_050": ("bs", 0.0, 0.5), "ratio_010_035": ("bs", 0.1, 0.35), "ratio_010_050": ("bs", 0.1, 0.5),
         "raw_010_020": ("raw", 0.1, 0.2), "raw_075_100": ("raw", 0.75, 1.0)}
 SETS = {"trial_1": lrm.C1SET, "trial": "cued", "iti_q": lrm.QSET, "iti": "ITI"}
 TARGET = {lrm.C1SET: "aim", "cued": "aim", lrm.QSET: "iti_ang", "ITI": "iti_ang"}
@@ -157,8 +159,10 @@ def main() -> int:
             per_an = {a: np.corrcoef(x[grp == a], y[grp == a])[0, 1] for a in np.unique(grp)}
             L.append({"set": st, "def": dn, "subset": sub, "n_areas": sub.count("+") + 1, "loao": bn._loao_r2(x, y, grp),
                       "days": r_days, **{f"r_{a}": v for a, v in per_an.items()}})
+        pool = "ALM+tjM1+SSp-m+SSp-n+SSs"
+        ratio_keys = [f"{dn}:{pool}" for dn in DEFS if dn.startswith("ratio")]
         for fam, kk in [(f"subsets | {dn}", [k for k in keys if k.startswith(dn + ":")]) for dn in DEFS] + \
-                       [("subsets x definitions", keys)]:
+                       [("subsets x definitions", keys), ("WINDOW only, pool oro+SSs (ratio)", ratio_keys)]:
             C = G[kk]
             C = C.loc[:, C.notna().mean() >= 0.9]
             X = C.to_numpy(float)
