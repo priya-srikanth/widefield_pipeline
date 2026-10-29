@@ -625,6 +625,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   preparatory. GCaMP6s CAVEAT: fluorescence lags spiking by ~0.1-0.2 s, so a step at 0-0.1 s after onset is compatible
   with a late motor command (~0.1-0.2 s before onset) as well as early feedback -- timing alone cannot separate them.
   scripts/lick_iti_prelick.py. PROVISIONAL.
+- **'Revving up' to far-contra (10-29, behaviour; 14.21 area supplement; scripts/revup_behaviour.py):** acute far-contra
+  median latency +556 ms (vs other spouts +470, 4/4), contact +766 ms, no-lick +0.27; near pre by subacute, chronic 43 ms
+  faster than pre (4/4). PS92 / PS93 = whole distribution later (slowed initiation); PS94 / PS95 = bimodal (normal or
+  failure to initiate; far-mid affected too). Delay = mostly cue -> first movement WAIT (+190 ms) > movement -> lick
+  (+129 ms); aborted attempts before the first lick do not increase; no long vigour ramp; aborted (no-contact) licks rise
+  AFTER initiation (+0.74 / trial). First licks after the spout left (5.7-10.7% acute) are at/below the ITI chance rate
+  -> spontaneous, not delayed responses. Latency tracks aim within animals (r -0.72 to -0.92, p < 0.001). PROVISIONAL.
 - **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
   upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
   beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
