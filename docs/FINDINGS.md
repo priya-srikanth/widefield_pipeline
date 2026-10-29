@@ -644,7 +644,14 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (4/4); beyond June intercept +0.20/+0.09/+0.14 and slope -0.09 (4/4). Post-trained decoders read pre licks as well as
   their own epoch (post->pre ~ post->post) -> argues against a wholly NEW code only: post licks are less decodable even
   within epoch, so a noisier shifted code (or a partial rotation) gives the same; the pre ITI axis drifts as much June ->
-  Aug without a stroke, so axis overlap has little power. Noise-matched transfer + rotation power check running.
+  Aug without a stroke, so axis overlap has little power.
+  NOISE-MATCHED NULL + POWER (scripts/lick_code_noisematch.py): cued transfer sits on a noise-matched unrotated null;
+  rotations >= ~10 deg pooled (15-25 per animal) excluded; nothing beyond June. ITI (all, far1): both transfer
+  directions BELOW the null every post epoch, 4/4 (~17 deg acute, ~12 sub / chronic) but June also below (~8-11 deg);
+  beyond June only acute post->pre (-0.054, 4/4; ~6-9 deg) and subspace overlap; frozen slope drops beyond June every
+  epoch (gain / projection loss). Asymmetry = the null's. Axis cosine needs 20-40 deg (unusable for ITI). Proposed
+  reading: cued unchanged within ~10 deg; ITI not re-mapped beyond ~10-15 deg, small acute rotation-like change beyond
+  2-month drift + lasting gain loss. (Pending Priya's discussion.)
   Where: ITI excess over ceiling in orofacial cortex bilateral acutely, IPSILESIONAL chronically (SSp-n, SSs, tjM1,
   SSp-m); non-orofacial change = June-level drift. Caveats: PS95 one acute session; PS94 cued acute 16 % retained; area
   terms point estimates. PROVISIONAL.

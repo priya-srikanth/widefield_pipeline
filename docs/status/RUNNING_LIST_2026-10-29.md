@@ -5,6 +5,7 @@ you need from me, as well as updating handoff intermittently"). Page: https://cl
 Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions). All PROVISIONAL, n = 4.
 
 ## 1. Decisions needed from Priya
+- [ ] **Code-change wording with bounds**: cued 'unchanged within ~10 deg'; ITI 'not re-mapped beyond ~10-15 deg; small acute rotation-like change (~6-9 deg) beyond 2-month drift + lasting gain loss along the pre axis' -- OK? (Re-run on docked-spout ITI licks if docked becomes primary.)
 - [ ] **ITI primary set = docked-spout licks?** Offsets hold docked; the ITI BALANCE + its recovery tracking are moving-spout results. Make docked the primary ITI set (offsets), and treat moving-spout licks as their own category (possibly spout-driven)? Re-word the ITI-balance marker claims?
 - [x] **Representational-change wording**: YES -- offset + gain / precision loss, re-map OPEN (applied page v242, FINDINGS); noise-matched transfer + power check RUNNING.
 - [ ] **Hypothesis line (3)**: the contralesional-share rise is not orofacial-specific (VISpm / RSPd rise too) -> reword?
@@ -46,6 +47,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.18 supp | Correction licks after a miss | lick_correction.py |
 | 14.18 supp | Coordination between hemispheres (noise corr, lead, lick vs rest, recovery) | lick_interhemispheric.py |
 | 14.18 supp | ITI results on docked-spout licks (vs moving, size-matched) | iti_dock_audit.py, lick_iti_dock_compare.py |
+| 14.18 supp | Noise-matched null + rotation power for the code-change test | lick_code_noisematch.py |
 | 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
@@ -86,9 +88,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
-- Noise-matched transfer + rotation power check for the code-subspace test (Priya 10-29)
+(nothing running)
 
 ## 6. Log
+- 10-29: noise-matched null + power reported -> page v247, FINDINGS. All helpers done; nothing running.
 - 10-29: docked-spout ITI rerun reported -> page v246 (+ hypothesis line qualified), FINDINGS. Helper added ITI_SUBSET_FILTERS hooks (iti_licks.py, iti_lick_order.py, lick_matched_readout.py, lick_balance_subsets.py); outputs in itifilter_*/.
 - 10-29: item 3 (interhemispheric) reported -> page v245, FINDINGS (global coupling rise, no lead). Deleted the helper's superseded test outputs interhemi_rest/PS92_0806.npz (2-s attempt, 0 windows) + interhemi_sessions_test.csv.gz.
 - 10-29: item 4 (correction licks) reported -> page v243, FINDINGS (no cortical error-feedback signal found).
