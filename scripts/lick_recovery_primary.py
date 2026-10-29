@@ -42,6 +42,27 @@ REFMETHOD = os.environ.get("WFIELD_BAL_REFMETHOD", "line")
 INSIDE = os.environ.get("WFIELD_BAL_INSIDE", "") == "1"
 SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "") + ("_kin" if os.environ.get("WFIELD_BAL_KIN", "") == "1" else "") + ("_full" if os.environ.get("WFIELD_BAL_FULL", "") == "1" else "")
 
+# DISPLAY convention for the balance (Priya 10-29), shared by the balance figure scripts. Stored values / CSVs keep the
+# HEMISPHERIC sign (marker = log2 contra gain - log2 ipsi gain; + = contralesional larger). On the key figures it is shown
+# as IMPLIED DIRECTION = -balance, so it reads like lick angle, aim and the decoder offset: in the pre-stroke code each
+# hemisphere responds more to licks toward the opposite side, so a lower contra/ipsi balance looks like a more
+# contralesional lick (+ = read contralesional, as the decoder's like-for-like offset). DISPLAY ONLY: flip plotted values,
+# reference lines, slopes and r's drawn from them; cvR2 / p do not flip. WFIELD_BAL_DISPLAY=hemisphere = the old look.
+BAL_DISPLAY = os.environ.get("WFIELD_BAL_DISPLAY", "direction")
+if BAL_DISPLAY not in ("direction", "hemisphere"):
+    raise SystemExit(f"WFIELD_BAL_DISPLAY must be 'direction' or 'hemisphere', not {BAL_DISPLAY!r}")
+BAL_SIGN = -1.0 if BAL_DISPLAY == "direction" else 1.0
+BAL_SHORT = "implied direction" if BAL_DISPLAY == "direction" else "balance"
+BAL_LABEL = ("implied direction (+ = activity looks like a more contralesional lick)\n= -(contralesional - ipsilesional "
+             "balance)" if BAL_DISPLAY == "direction" else
+             "hemispheric balance: log2(contra gain) - log2(ipsi gain)\n(+ = contralesional hemisphere larger)")
+
+
+def bal_disp(v):
+    """Balance (hemispheric sign, as stored) -> the value to PLOT under BAL_DISPLAY. Also use it on anything drawn from
+    the balance with the balance's sign: a slope / r against it (not on cvR2 or p)."""
+    return BAL_SIGN * v
+
 
 def marker(S: pd.DataFrame, dn: str) -> pd.Series:
     g = []
@@ -136,21 +157,22 @@ def plot(F: dict) -> None:
         G = T[T.panel == pn]
         ax = axs[0, j]
         pre = G[G.epoch == "pre"]
-        ax.plot(pre.marker, pre.y, "o", color="0.82", mec="0.6", mew=0.4, ms=6, zorder=0)
+        ax.plot(bal_disp(pre.marker), pre.y, "o", color="0.82", mec="0.6", mew=0.4, ms=6, zorder=0)
         for (ep, a_), h in G[G.epoch != "pre"].groupby(["epoch", "animal"]):
-            ax.plot(h.marker, h.y, ANIMAL_MARKER.get(a_, "o"), color=EPOCH_LINE[ep], ms=6.5, mec="k", mew=0.3)
+            ax.plot(bal_disp(h.marker), h.y, ANIMAL_MARKER.get(a_, "o"), color=EPOCH_LINE[ep], ms=6.5, mec="k", mew=0.3)
         r = ANr[ANr.panel == pn].set_index("animal")
-        ttl = f"{pn}\nper-animal r " + " / ".join(f"{r.r.get(a, np.nan):+.2f}" for a in AN)
+        ttl = f"{pn}\nper-animal r " + " / ".join(f"{bal_disp(r.r.get(a, np.nan)):+.2f}" for a in AN)
         for name in ("concurrent, log(day)", "concurrent, per-animal spline", "predictive (next-session change)"):
             m = M[(M.panel == pn) & (M.model == name)]
             if len(m) and "p" in m and np.isfinite(m.p.iloc[0]):
-                s_ = f"{name}: {m.slope.iloc[0]:+.1f}, p {m.p.iloc[0]:.2g}"
+                s_ = f"{name}: {bal_disp(m.slope.iloc[0]):+.1f}, p {m.p.iloc[0]:.2g}"
                 ttl += "\n" + (rf"$\mathbf{{{s_.replace(' ', '~')}}}$" if m.p.iloc[0] < 0.05 else s_)
         ax.set_title(ttl, fontsize=8)
         ax.axhline(0, color="0.7", lw=0.6)
         ax.axvline(0, color="0.7", lw=0.6)
         w0, w1 = (int(x) / 100 for x in dn.split("_")[1:])
-        ax.set_xlabel(f"balance gain ratio, oro + SSs ({w0:g}-{w1:g} s after the first lick; log2, vs pre)", fontsize=8)
+        ax.set_xlabel(f"{BAL_LABEL.replace(chr(10), ' ')}\ngain ratio, oro + SSs ({w0:g}-{w1:g} s after the first lick; "
+                      "log2, vs pre)", fontsize=7.5)
         ax.set_ylabel(yl, fontsize=8.5)
         ax = axs[1, j]
         c = CV[(CV.panel == pn)].set_index("pred")
@@ -162,7 +184,7 @@ def plot(F: dict) -> None:
             vd = [cd.loao, cd.loblk, np.nan, cd.loso_unknown, cd.loso_known]
             x = np.arange(len(labs))
             ax.bar(x - 0.2, vd, width=0.38, color="0.6", label="days since stroke")
-            ax.bar(x + 0.2, vm, width=0.38, color="#C44E52", label="balance (oro + SSs)")
+            ax.bar(x + 0.2, vm, width=0.38, color="#C44E52", label=f"{BAL_SHORT} (oro + SSs)")
             ax.plot([0.2], [cm.null95], "k_", ms=14, mew=1.5)
             ax.text(0.2, max(cm.loao, 0) + 0.04, f"p {cm.p_shuffle:.2g}", ha="center", fontsize=7.5)
             ax.set_xticks(x, labs, fontsize=7.5)
@@ -177,11 +199,13 @@ def plot(F: dict) -> None:
     h += [Line2D([], [], color=EPOCH_LINE[e], marker="o", lw=0, label=e) for e in ("acute", "subacute", "chronic")]
     h += [Line2D([], [], color="0.3", marker=ANIMAL_MARKER.get(a, "o"), lw=0, label=a) for a in AN]
     fig.legend(handles=h, loc="lower center", ncol=8, fontsize=8.5, frameon=False)
+    shown = ("\nShown as " + BAL_LABEL.replace("\n", " ") + "; slopes and r are vs the value shown"
+             if BAL_DISPLAY == "direction" else "")
     fig.suptitle("PRIMARY recovery marker: hemispheric balance (contralesional vs ipsilesional, angle-matched gain ratio) "
                  "of orofacial cortex + SSs after the FIRST lick (cued: first post-cue lick; ITI: first lick after >= 2 s "
-                 "quiet).\nTop: one point per session, grey = pre (not fitted), mixed models with log(day) (bold p < 0.05). "
-                 "Bottom: cross-validated R² vs days since stroke. PROVISIONAL", fontsize=10)
-    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
+                 f"quiet).{shown}\nTop: one point per session, grey = pre (not fitted), mixed models with log(day) (bold "
+                 "p < 0.05). Bottom: cross-validated R² vs days since stroke. PROVISIONAL", fontsize=10)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.91 if shown else 0.93))
     fig.savefig(il.OUT_W / "figures" / f"lick_recovery_primary{SFX}.png", dpi=95)
     plt.close(fig)
 

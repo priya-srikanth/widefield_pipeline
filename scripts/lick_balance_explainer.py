@@ -123,24 +123,26 @@ def plot(F: dict) -> None:
     top = max(S.loc[S.label.isin(list(ex.values())), ["gain_c", "gain_i"]].to_numpy().max(), 1.2)
     for xi, lb in zip(x, ex.values(), strict=True):
         b = S.loc[S.label == lb, "balance"].iloc[0]
-        ax.text(xi, top * 1.12, f"balance\n{b:+.2f}", ha="center", fontsize=9, fontweight="bold")
+        ax.text(xi, top * 1.12, f"{'implied dir.' if rp.BAL_DISPLAY == 'direction' else 'balance'}\n{rp.bal_disp(b):+.2f}",
+                ha="center", fontsize=9, fontweight="bold")
     ax.axhline(1, color="k", lw=0.8, ls="--")
     ax.set_xticks(x, [f"{ep}\n{lb}" for ep, lb in ex.items()], fontsize=8)
     ax.set_ylim(0, top * 1.35)
-    ax.set_title("step 3-4: gain = sum observed / sum predicted\nbalance = log2(contra gain) - log2(ipsi gain)", fontsize=10)
+    ax.set_title("step 3-4: gain = sum observed / sum predicted\nbalance = log2(contra gain) - log2(ipsi gain)"
+                 + ("\nshown as implied direction = -balance" if rp.BAL_DISPLAY == "direction" else ""), fontsize=10)
     ax.legend(fontsize=7.5, frameon=False, loc="lower right")
     ax = axs[3]
-    ax.plot(S.day, S.balance, "k-", lw=0.8, alpha=0.5)
+    ax.plot(S.day, rp.bal_disp(S.balance), "k-", lw=0.8, alpha=0.5)
     for ep, h in S.groupby("epoch"):
-        ax.plot(h.day, h.balance, "o", color="0.75" if ep == "pre" else EPOCH_LINE[ep], ms=6, label=ep)
+        ax.plot(h.day, rp.bal_disp(h.balance), "o", color="0.75" if ep == "pre" else EPOCH_LINE[ep], ms=6, label=ep)
     ax.axhline(0, color="0.6", lw=0.6)
     ax.axvline(0, color="0.6", lw=0.6, ls=":")
     ax.set_xlabel("day relative to stroke", fontsize=9)
-    ax.set_ylabel("balance (log2 contra gain / ipsi gain)", fontsize=9)
+    ax.set_ylabel(rp.BAL_LABEL, fontsize=8.5)
     ax2 = ax.twinx()
     ax2.plot(S.day, S.aim, "s--", color="#8172B3", ms=4, lw=0.8, alpha=0.8, label="far-contra first-lick aim")
     ax2.set_ylabel("far-contra first-lick aim (deg vs pre)", fontsize=9, color="#8172B3")
-    ax.set_title(f"{EXAMPLE_ANIMAL}: balance per session over recovery (grey = pre, left-out)\nand the behavioural "
+    ax.set_title(f"{EXAMPLE_ANIMAL}: {rp.BAL_SHORT} per session over recovery (grey = pre, left-out)\nand the behavioural "
                  "recovery axis it tracks", fontsize=10)
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
@@ -153,8 +155,12 @@ def plot(F: dict) -> None:
                  "angle predict (reference line).  3: gain = observed / predicted, summed over the session's licks, per "
                  "hemisphere.\n4: balance = log2(contra gain) - log2(ipsi gain); 0 = same contra / ipsi relation as before the "
                  "stroke, < 0 = contralesional relatively weaker.  Display: one pooled line per hemisphere = the sum of the "
-                 f"analysis' per-area lines (gain difference {float(d.max()):.2f}). PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.84))
+                 f"analysis' per-area lines (gain difference {float(d.max()):.2f}). PROVISIONAL"
+                 + ("\n5: shown as implied direction = -(contra - ipsi); + = looks like a more contralesional lick (in the "
+                    "pre-stroke code each hemisphere responds more to licks toward the opposite side, so a weaker "
+                    "contralesional balance reads like a more contralesional lick; same sign as lick angle, aim and the "
+                    "decoder offset)" if rp.BAL_DISPLAY == "direction" else ""), fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.81 if rp.BAL_DISPLAY == "direction" else 0.84))
     fig.savefig(il.OUT_W / "figures" / "lick_balance_explainer.png", dpi=95)
     plt.close(fig)
 

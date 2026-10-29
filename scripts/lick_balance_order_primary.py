@@ -6,7 +6,9 @@ response 0.1..0.5 s after the lick minus -1..-0.5 s, prediction = the animal's P
 orders; the 1500-lick cap applies, random); ITI = every ITI lick. Cells with < MIN_N licks dropped.
 Per animal x epoch mean over sessions, then mean of animals; per order, epoch vs pre: nested bootstrap animals >
 sessions (analysis_kit.boot_delta), BH-FDR over orders. Outputs <OUT_W>/balorder_primary.csv; figure
-lick_balance_order_primary.png.
+lick_balance_order_primary.png. The figure shows the balance under lick_recovery_primary.BAL_DISPLAY (default: implied
+direction = -balance, Priya 10-29; the CSV keeps the hemispheric sign). --plot-only redraws from balorder_primary.csv
+(no bootstrap, CSV untouched).
 """
 from __future__ import annotations
 
@@ -18,6 +20,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import plot_only  # noqa: E402
+from lick_recovery_primary import BAL_DISPLAY, BAL_LABEL, bal_disp  # noqa: E402
 
 MIN_N = 10
 EPS = ["pre", "acute", "subacute", "chronic"]
@@ -25,18 +29,22 @@ SETS = ["cued", "ITI"]
 
 
 def main() -> int:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    from wfield_local import analysis_kit as ak
-    from wfield_local.orofacial_cohort import EPOCH_LINE
     O = pd.read_csv(il.OUT_W / "balsub_order.csv")
     O = O[O.set.isin(SETS) & (O.n >= MIN_N)].copy()
     ok = (O.obs_c > 0) & (O.pred_c > 0) & (O.obs_i > 0) & (O.pred_i > 0)
     O["bal"] = np.where(ok, np.log2(O.obs_c.clip(lower=1e-12) / O.pred_c.clip(lower=1e-12))
                         - np.log2(O.obs_i.clip(lower=1e-12) / O.pred_i.clip(lower=1e-12)), np.nan)
     O = O.dropna(subset=["bal"])
+    if plot_only():                                      # redraw from the stored table: no bootstrap, CSV untouched
+        R = pd.read_csv(il.OUT_W / "balorder_primary.csv")
+    else:
+        R = _stats(O)
+    _plot(O, R)
+    return 0
+
+
+def _stats(O: pd.DataFrame) -> pd.DataFrame:
+    from wfield_local import analysis_kit as ak
     rng = np.random.default_rng(0)
     rows = []
     for (st, o), g in O.groupby(["set", "ord_c"]):
@@ -69,7 +77,18 @@ def main() -> int:
     pd.set_option("display.width", 220)
     print("== per animal: epoch minus pre balance by lick order (rule 8)\n" + R.set_index(["set", "epoch", "ord_c"])[
         [c for c in R.columns if c.startswith("d_")] + ["delta", "lo", "hi", "sig"]].round(3).to_string())
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5.4), sharey=True)
+    return R
+
+
+def _plot(O: pd.DataFrame, R: pd.DataFrame) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    O = O.assign(bal=bal_disp(O.bal))                    # DISPLAY sign only (lick_recovery_primary.BAL_DISPLAY)
+    R = R.assign(sig=R.sig.astype(str).str.lower().isin(["true", "1"]))
+    fig, axs = plt.subplots(1, 2, figsize=(15, 5.6), sharey=True)
     for j, st in enumerate(SETS):
         ax = axs[j]
         g = O[O.set == st]
@@ -84,26 +103,26 @@ def main() -> int:
             ax.plot(m.index, m.values, "o-", color="0.35" if ep == "pre" else EPOCH_LINE[ep], lw=2, ms=4, label=ep)
             if ep != "pre":
                 s_ = R[(R.set == st) & (R.epoch == ep) & R.sig]
-                y0 = ax.get_ylim()[0] if False else None
                 for _, r in s_.iterrows():
                     ax.plot(r.ord_c, m.get(r.ord_c, np.nan), "o", mfc="none", mec="k", ms=10, mew=1.2)
-                del y0
         ax.axhline(0, color="k", lw=0.6)
         ax.set_xticks(range(10), [str(k) for k in range(9)] + ["9+"])
-        ax.set_ylim(-1.2, 0.8)
+        ax.set_ylim(*sorted(bal_disp(np.array([-1.2, 0.8]))))
         ax.set_xlabel("lick order (0 = first post-cue lick / ITI bout start)" if st == "cued" else "lick order within the ITI bout")
-        ax.set_title(f"{st} licks: primary balance by lick order (mean of animals; thin = animals;\nringed = epoch differs "
+        what = "balance" if BAL_DISPLAY == "hemisphere" else "implied direction"
+        ax.set_title(f"{st} licks: primary {what} by lick order (mean of animals; thin = animals;\nringed = epoch differs "
                      "from pre, nested bootstrap, BH over orders)", fontsize=9.5)
         ax.legend(fontsize=8, frameon=False)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    axs[0].set_ylabel("balance: log2(contra gain) - log2(ipsi gain)\n(0 = as pre at the same angle & order)")
+    axs[0].set_ylabel(BAL_LABEL + "\n(0 = as pre at the same angle & order)", fontsize=8.5)
+    shown = "\nShown as " + BAL_LABEL.replace("\n", " ") if BAL_DISPLAY == "direction" else ""
     fig.suptitle("Hemispheric BALANCE over lick order, PRIMARY definition (gain ratio, ALM + tjM1 + SSp-m + SSp-n + SSs, "
-                 "0.1-0.5 s after each lick, referenced to pre licks at the same angle AND order). PROVISIONAL", fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+                 "0.1-0.5 s after each lick, referenced to pre licks at the same angle AND order). PROVISIONAL" + shown,
+                 fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.91))
     fig.savefig(il.OUT_W / "figures" / "lick_balance_order_primary.png", dpi=95)
     plt.close(fig)
-    return 0
 
 
 if __name__ == "__main__":
