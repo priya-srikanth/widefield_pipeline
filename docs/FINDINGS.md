@@ -596,6 +596,12 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   4/4), decoder keeps a contralesional offset beyond landing error (+0.36/+0.24/+0.25 mm), still tracks recovery
   (LOAO 0.32-0.37) -> ITI = genuine state shift. Caveat: pre w likely inflated (angle noise), post w lower -> a small
   cued state shift may remain, not separable. scripts/lick_balance_target_model.py. PROVISIONAL.
+  KEY POINT (Priya 10-29, record): at the SAME landed angle the target matters LESS after the stroke -- the target
+  effect falls from 1.0-1.45x the angle effect pre to 0.25-1.06x acutely (baltarget_matched.csv), and acute far-contra
+  licks look somewhat MORE like where they landed than the pre model predicts (mix-reference acute +0.41). If anything
+  cortex tracks the ACTUAL lick more after the stroke, not less -- the opposite of a stronger target / plan signal.
+  Framing (Priya): post-stroke cued off-target licks look like pre-stroke off-target licks to the same target landing
+  at the same place; such errors are just far more frequent (and larger) after the stroke.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT CONTACT to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
