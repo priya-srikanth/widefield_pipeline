@@ -16,6 +16,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
       lead with the ITI balance / decoder offset as the mechanistic marker?
 - [ ] **Delete 5 superseded cache files** (revup/sessions/PS92_0806/0807/0809/0812/0821 .pkl, from an aborted first run,
       onset-only lick rule, read by nothing)? Waiting until the imaging helper (same folder) finishes.
+- [ ] **Late licks after the spout left: spontaneous or delayed responses?** Behaviour (all canonical trials): at the ITI
+      chance rate. Neural (engagement-gated, 48 trials): cued-size, cued-shaped responses. The two used different
+      engagement gates; most behaviour 'after-left' trials are in the sated tail. Which engagement definition should be
+      the reference for this question? (I can re-run the behaviour shares on the engaged set.)
 - [ ] **Movement-null plan encoding model (Musall-style)**: worth building given pre-cue aim beyond history/face is ~0
       at area level? (nested: spout, history, non-directional movement, directional face, upcoming deviation)
 
@@ -31,6 +35,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.21 supp | ENL lick-angle decode | lick_enl_angle_decode.py |
 | 14.21 supp | ENL follow-ups (history test, offset explore) | lick_enl_offset_explore.py |
 | 14.21 area | Revving up: survival, delay decomposition, phase shares, FR vigour, recovery | revup_behaviour.py |
+| 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
 - ACAd left/right link: undetermined, not ACAd-specific (lives on the sinus strip; shares variance with MOs / SSp-n).
@@ -48,6 +53,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - REVVING UP (behaviour): acute far-contra delay = mostly a quiet WAIT then a normal lick (or none), not aborted
   attempts; late licks after the spout left are at the ITI chance rate; latency tracks aim (r -0.72 to -0.92).
 
+- REVVING UP (neural): slow first licks = delayed start, not a slower ramp (same rise, same level at the lick);
+  acute far-contra slow trials overshoot (3/4); engaged late licks look like delayed cued licks.
+
 ## 4. Conclusions (current reading)
 - Cued licks: the balance shift and decoder offset largely re-describe the landing error (target code); the cued
   balance is a valid state readout but not an independent mechanism.
@@ -58,10 +66,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 
 ## 5. Running (will be added above when they report)
 - lick_enl_target_test.py — pre-cue target vs landing (softmax, precue) + gain-normalised tracking.
-- revup_neural.py — traces by latency; late licks vs ITI licks; pre-cue level vs latency.
 
 ## 6. Log
 - 10-29 ~00:45: rev-up behaviour reported -> page, FINDINGS, list.
+- 10-29 ~01:15: rev-up neural reported -> page, FINDINGS, list.
 - 10-29 ~01:00: page v232 published. The artifact hit its 512-file cap: removed 75 published images the page no longer
   references (old iti_* duplicates, superseded variants; local copies kept in _goal_page/), added the rev-up figures.
 - 10-29 night: list created (commit after d13f51f5).

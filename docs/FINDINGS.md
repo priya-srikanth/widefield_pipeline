@@ -632,6 +632,12 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (+129 ms); aborted attempts before the first lick do not increase; no long vigour ramp; aborted (no-contact) licks rise
   AFTER initiation (+0.74 / trial). First licks after the spout left (5.7-10.7% acute) are at/below the ITI chance rate
   -> spontaneous, not delayed responses. Latency tracks aim within animals (r -0.72 to -0.92, p < 0.001). PROVISIONAL.
+  NEURAL (scripts/revup_neural.py): slow first licks = DELAYED START, not slower ramp -- lick-aligned latency quartiles
+  overlap (same rise, same level at the lick; deconvolution unchanged); acute far-contra slow trials OVERSHOOT
+  (contralesional ALM/tjM1/SSp-m/SSp-n, 3/4); shape conclusions rest on PS92/PS93 (only ones with slow trials). Higher
+  pre-cue level -> slower lick in PS92/PS93 in every epoch incl. pre (pre-existing). Engaged late first licks (48)
+  look like DELAYED CUED licks (cued-size response, cued-like shape) -- conflicts with the behaviour chance-rate result
+  (whose after-left trials are mostly disengaged sated-tail trials) -> reconcile engagement definitions.
 - **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
   upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
   beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
