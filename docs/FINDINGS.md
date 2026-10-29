@@ -663,6 +663,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (control 0.01), already before lick k and after hits (next-command information); no post-stroke increase; the acute
   contra-ipsi miss-hit rise (+9.5, 4/4) is an ipsilesional DROP, decays with log day, not robust to deconvolution.
   GCaMP overlap of lick k+1's command limits all of this. PROVISIONAL.
+- **INTERHEMISPHERIC COORDINATION (10-29, Priya item 3; scripts/lick_interhemispheric.py):** noise correlation between
+  hemispheres rises post-stroke (ITI pool +0.17 sub / chronic, 4/4) but equally in VISpm / RSPd and at docked rest
+  (+0.21 chronic) -> GLOBAL, not lick- or orofacial-specific (lick minus rest ~0 or negative). No measurable lead (peak
+  lag ~0, changes < 1 frame); cross-correlation shape tilts contralesional-earlier (+0.03-0.04, 4/4; lick-specific only
+  acutely); Granger direction moves contralesional but as much at rest (global; gain / SNR-sensitive). More tilt goes
+  with WORSE aim (cued r -0.44, 4/4; also at rest) -- hint only (many tests). GCaMP6s: shape, not lead. PROVISIONAL.
+  Suggested next: partial out the hemispheric balance before Granger / asymmetry; global-signal-removed noise corr.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT LICK ONSET to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
