@@ -571,6 +571,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (cued r 0.94/0.84/0.84/0.69) but SSp-ul, SSp-un, MO-rest, SSp-m, tjM1, ACAd close behind -> a BROAD sensorimotor
   left/right imbalance, strongest in SSp-n; (3) FaceRhythm face movement partialled: unchanged -> not facial reafference.
   Hypothesis wording updated: 'broad sensorimotor hemispheric difference, strongest in SSp-n'. PROVISIONAL.
+- **Contact vs miss (10-29):** the primary balance is as large or larger on first licks that MISS the spout (acute PS94
+  -1.08 vs -0.67) and tracks recovery as well (cross-animal 0.66 both) -> not mainly touch reafference; on STRICT misses
+  (no contact within 0.5 s) the recovery link fails in PS92 / PS95 -> a partial touch / reward contribution to the link
+  is not excluded. scripts/lick_balance_contact.py. PROVISIONAL.
+- **Lesion size vs phenotype (10-29, n=4 descriptive):** tissue loss PS93 55 ~ PS92 53 > PS94 32 > PS95 18 %, but
+  behavioural severity PS94 > PS95 > PS92 > PS93 (acute aim -39 / -31 / -27 / -21 deg; Priya: PS94 most severe, PS95
+  least); more tissue loss -> smaller deficit (PS92/93 lesioned twice) -> lesion LOCATION likely matters. Acute bilateral
+  response increase and acute balance follow behavioural severity (PS94 largest); chronic response growth follows tissue
+  loss / re-lesioning (PS92/93). lesion_component.csv. PROVISIONAL.
 - **Trial by trial (10-28 late):** the balance AFTER the first post-cue lick follows that lick's direction within a
   session and target (r 0.3-0.5) -- equally BEFORE the stroke (normal hemispheric direction code); the balance BEFORE the
   lick (-0.5..0 s) predicts nothing (r ~ 0, all epochs). No evidence a pre-movement imbalance causes the error; the
