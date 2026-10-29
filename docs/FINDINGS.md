@@ -622,13 +622,16 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (headline for recovery staging); ITI decoder offset + ITI SSp-n left/right difference + the contralesional-share rise =
   the mechanistic markers. (5) movement-null plan encoding model DEFERRED.
   C/I BY SPOUT AND EPOCH (10-29, Priya: "C/I increased after stroke then back to pre? but for the most impaired licks
-  it increases over recovery?"; scratch preview, LOSO script running -> scripts/lick_ci_spout_epoch.py). The answer
+  it increases over recovery?"; scripts/lick_ci_spout_epoch.py, pre LOSO, page 14.18 supplement). The answer
   depends on the reference, HEMISPHERE sign (+ = C/I up):
   RAW C/I vs pre at the SAME SPOUT (relative to the target): UP after the stroke, largest at far contra, partly falls
   but stays above pre -- cued far contra +0.58 / +0.34 / +0.35 (4/4 each epoch), far ipsi rises late +0.01 / +0.25 /
   +0.28; ITI after far-contra trials +0.42 / +0.28 / +0.27 (4/4, 3/4, 4/4).
   RELATIVE TO WHERE THE LICK LANDED (pre angle line): DOWN acutely at every spout and returns to pre -- cued far
-  contra -0.27 / -0.03 / +0.11, ITI after far contra -0.59 / -0.13 / -0.05 (PS94 carries much of the acute).
+  contra -0.27 [-0.61, -0.02] / -0.03 / +0.11, ITI after far contra -0.60 [-1.34, -0.12] / -0.13 / -0.05 (PS94 carries
+  the size of the acute; PS95 one acute session); all spouts cued -0.36 (4/4) / -0.12 / -0.03; most negative and
+  persistent at close / far ipsi (cued close ipsi chronic -0.40, 4/4; ITI far ipsi chronic -0.43, 4/4). Target frame,
+  other five spouts also drift up later (cued +0.04 / +0.13 / +0.14).
   SAME TARGET AND SAME LANDING (matched error, above): ~0 acutely, then rises ABOVE pre (+0.13 / +0.16, 4/4).
   So "up, then back" is the landing-referenced view; in the target view C/I stays raised; at matched target + landing it
   climbs over recovery. ITI licks after far-contra trials ARE the most ipsilesionally deviated (acute -29.7 deg vs

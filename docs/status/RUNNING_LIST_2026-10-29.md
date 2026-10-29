@@ -36,6 +36,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.21 supp | ENL follow-ups (history test, offset explore) | lick_enl_offset_explore.py |
 | 14.21 area | Revving up: survival, delay decomposition, phase shares, FR vigour, recovery | revup_behaviour.py |
 | 14.21 supp | Pre-cue target vs landing (frozen decoder softmax, class-matched, confusion, decodability, tracking) | lick_enl_target_test.py |
+| 14.18 supp | C/I by spout x epoch, target vs landed frame | lick_ci_spout_epoch.py |
 | 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
@@ -73,11 +74,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
-- C/I by spout x epoch, LOSO + figure (scripts/lick_ci_spout_epoch.py)
 - Pre-stroke class-matched as a standard output + figure (lick_enl_target_test.py; also fixes offtarget x labels)
 - Rev-up: late-lick shares on the engaged set; jaw ramping (FR prep-jaw factor + LP jaw motion energy)
 
 ## 6. Log
+- 10-29 morning: C/I by spout x epoch reported -> page v237 (14.18 supp), FINDINGS.
 - 10-29 morning: Priya decided items 1-5 (above); hypothesis line + FINDINGS updated; 3 helpers started.
 - 10-29 morning: deleted revup/sessions/PS92_0806/0807/0809/0812/0821.pkl (approved; superseded derived caches).
 - 10-29 morning: class-matched pre-cue test re-run incl. PRE-STROKE (Priya) -> same pattern; FINDINGS, page v235.
