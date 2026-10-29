@@ -5,8 +5,8 @@ you need from me, as well as updating handoff intermittently"). Page: https://cl
 Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions). All PROVISIONAL, n = 4.
 
 ## 1. Decisions needed from Priya
-- [ ] **Pre-cue softmax test**: if the frozen decoder's pre-cue (ENL) per-trial probabilities do not exist yet, generating
-      them (`attempt_coding --aligns precue`) needs your OK (run time will be stated here when known).
+- [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
+      precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
 - [ ] **Wording "consequence of the errors"**: narrow it (FINDINGS / hypothesis) to "the cued imbalance comes after the lick
       and is redundant with the error; causal role for recovery untested"? (asked 10-29, no answer yet)
 - [ ] **Hypothesis update**: cued balance/offset = landing error seen through a target code; the persistent signals are
