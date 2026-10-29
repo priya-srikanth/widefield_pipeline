@@ -14,7 +14,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
       WTS / Biology-in-brief hypothesis line accordingly?
 - [ ] **Primary marker framing**: keep the cued balance as the headline recovery marker (valid as a state readout) or
       lead with the ITI balance / decoder offset as the mechanistic marker?
-- [ ] **Delete 5 superseded cache files** (revup/sessions/PS92_0806/0807/0809/0812/0821 .pkl, from an aborted first run,
+- [x] **Delete 5 superseded cache files** -- DONE 10-29 (Priya approved; derived, read by nothing) (revup/sessions/PS92_0806/0807/0809/0812/0821 .pkl, from an aborted first run,
       onset-only lick rule, read by nothing)? Waiting until the imaging helper (same folder) finishes.
 - [ ] **Late licks after the spout left: spontaneous or delayed responses?** Behaviour (all canonical trials): at the ITI
       chance rate. Neural (engagement-gated, 48 trials): cued-size, cued-shaped responses. The two used different
@@ -76,6 +76,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 (nothing running)
 
 ## 6. Log
+- 10-29 morning: deleted revup/sessions/PS92_0806/0807/0809/0812/0821.pkl (approved; superseded derived caches).
 - 10-29 morning: class-matched pre-cue test re-run incl. PRE-STROKE (Priya) -> same pattern; FINDINGS, page v235.
 - 10-29 ~00:45: rev-up behaviour reported -> page, FINDINGS, list.
 - 10-29 ~01:45: handoff updated; nothing running. Side effect noted: attempt_coding_pp/run.json was overwritten by
