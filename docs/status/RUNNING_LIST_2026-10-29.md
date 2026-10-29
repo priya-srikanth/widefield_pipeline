@@ -38,6 +38,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.21 supp | Pre-cue target vs landing (frozen decoder softmax, class-matched, confusion, decodability, tracking) | lick_enl_target_test.py |
 | 14.18 supp | C/I by spout x epoch, target vs landed frame | lick_ci_spout_epoch.py |
 | 14.21 area | Revving up follow-up: jaw (no ramp), late licks vs corrected chance | revup_followup.py |
+| 14.18 supp | Same code or re-mapped (transfer asymmetry, axes vs June drift, areas) | lick_code_subspace.py |
 | 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
@@ -67,6 +68,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   [-0.52, 0.00] / landing +0.16 [0.00, 0.32] (borderline) -> post-stroke looks like the normal error signature, more frequent.
 
 ## 4. Conclusions (current reading)
+- Lick-direction code is NOT re-mapped: same pattern, cued = transient offset; ITI = persistent offset + lower gain beyond June drift, in orofacial cortex (ipsilesional chronically).
 - Pre-cue: target representation weaker but unbiased; the error emerges after the cue (execution / post-cue).
 - Cued licks: the balance shift and decoder offset largely re-describe the landing error (target code); the cued
   balance is a valid state readout but not an independent mechanism.
@@ -77,12 +79,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 
 ## 5. Running (will be added above when they report)
 - (Priya 10-29: 'go ahead w 1-5') (1) per-area, per-hemisphere direction tuning on matched licks + (5) matched pixel maps of the ITI offset / contralesional-share rise (lick_area_tuning.py, lick_matched_pixel_maps.py)
-- (2) pre vs post lick-direction code: axis / subspace overlap vs ceiling + drift floor, transfer asymmetry (lick_code_subspace.py)
 - (3) interhemispheric coupling + lead around licks vs docked rest (lick_interhemispheric.py)
 - (4) correction licks after a miss: behaviour + error signal by hemisphere (lick_correction.py)
 - ITI offset headlines restricted to DOCKED-spout licks (dock -> next trial_start; Priya 10-29). Current primary ITI set = every ITI lick incl. retraction / outbound travel; far1 filter ~ docked (offset held: +0.25 / +0.25 / +0.34 mm).
 
 ## 6. Log
+- 10-29: item 2 (code subspace) reported -> page v240, FINDINGS. New frozen kind lick_code in the LOCAL store (not published to the shared store).
 - 10-29: 4 more helpers started for Priya's items 1-5 (max 4 workers each; shared box).
 - 10-29: Priya asked that ITI offset results be based on docked-spout licks -> helper started.
 - 10-29 morning: rev-up follow-up reported (jaw: no ramp; late licks above corrected chance; neural set = 'attempted' gate) -> page v239, FINDINGS. All helpers done.

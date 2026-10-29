@@ -636,6 +636,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   So "up, then back" is the landing-referenced view; in the target view C/I stays raised; at matched target + landing it
   climbs over recovery. ITI licks after far-contra trials ARE the most ipsilesionally deviated (acute -29.7 deg vs
   -8 to -17 deg after other spouts, 4/4; -13.4 / -9.8 later) and follow the same pattern as cued far-contra licks.
+- **SAME CODE OR RE-MAPPED? (10-29, Priya item 2; scripts/lick_code_subspace.py; page 14.18 supplement):** NO RE-MAP.
+  Matched licks, frozen basis, new frozen kind lick_code; drift floor = June 6-8 no-stroke sessions (~60 d before Aug).
+  Cued: pre->post intercept +0.16 [0.08, 0.23] mm acute 4/4, +0.08 sub 4/4, +0.04 chronic ns; r / slope unchanged;
+  nothing beyond June. ITI (all and far1): r -0.20/-0.15/-0.16, slope -0.11/-0.12/-0.12, intercept +0.28/+0.18/+0.22 mm
+  (4/4); beyond June intercept +0.20/+0.09/+0.14 and slope -0.09 (4/4). Post-trained decoders read pre licks as well as
+  their own epoch (post->pre ~ post->post) -> the post code lies inside the pre code (offset + lower gain, not remap).
+  Where: ITI excess over ceiling in orofacial cortex bilateral acutely, IPSILESIONAL chronically (SSp-n, SSs, tjM1,
+  SSp-m); non-orofacial change = June-level drift. Caveats: PS95 one acute session; PS94 cued acute 16 % retained; area
+  terms point estimates. PROVISIONAL.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT LICK ONSET to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
