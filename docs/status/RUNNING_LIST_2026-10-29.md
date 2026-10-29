@@ -76,9 +76,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
+- (Priya 10-29: 'go ahead w 1-5') (1) per-area, per-hemisphere direction tuning on matched licks + (5) matched pixel maps of the ITI offset / contralesional-share rise (lick_area_tuning.py, lick_matched_pixel_maps.py)
+- (2) pre vs post lick-direction code: axis / subspace overlap vs ceiling + drift floor, transfer asymmetry (lick_code_subspace.py)
+- (3) interhemispheric coupling + lead around licks vs docked rest (lick_interhemispheric.py)
+- (4) correction licks after a miss: behaviour + error signal by hemisphere (lick_correction.py)
 - ITI offset headlines restricted to DOCKED-spout licks (dock -> next trial_start; Priya 10-29). Current primary ITI set = every ITI lick incl. retraction / outbound travel; far1 filter ~ docked (offset held: +0.25 / +0.25 / +0.34 mm).
 
 ## 6. Log
+- 10-29: 4 more helpers started for Priya's items 1-5 (max 4 workers each; shared box).
 - 10-29: Priya asked that ITI offset results be based on docked-spout licks -> helper started.
 - 10-29 morning: rev-up follow-up reported (jaw: no ramp; late licks above corrected chance; neural set = 'attempted' gate) -> page v239, FINDINGS. All helpers done.
 - 10-29 morning: pre-stroke class-matched now standard (--classmatched-only; new figure; offtarget labels fixed) -> page v238; deleted my superseded scratch enl_target/classmatched_pre_sessions.csv.
