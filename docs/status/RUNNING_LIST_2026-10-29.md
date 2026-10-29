@@ -75,6 +75,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 
 ## 6. Log
 - 10-29 ~00:45: rev-up behaviour reported -> page, FINDINGS, list.
+- 10-29 ~01:45: handoff updated; nothing running. Side effect noted: attempt_coding_pp/run.json was overwritten by
+  the precue run and rewritten by the helper to list lick + cue + precue (original backed up in the session scratchpad).
+  Minor: lick_enl_target_offtarget.png panels 2-3 have overlapping x labels (cosmetic).
 - 10-29 ~01:40: pre-cue target test reported (precue attempt_coding outputs generated, approved) -> page, FINDINGS, list.
 - 10-29 ~01:15: rev-up neural reported -> page, FINDINGS, list.
 - 10-29 ~01:00: page v232 published. The artifact hit its 512-file cap: removed 75 published images the page no longer
