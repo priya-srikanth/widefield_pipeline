@@ -39,7 +39,29 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-16 (10-29 ~01:30) -- READ FIRST (then -15 for the balance definition / controls, -12 for env)
+### 00-COMPACT-17 (10-29 ~03:00) -- READ FIRST (then -16 / -15 for the balance definition and decomposition, -12 env)
+Same session / worktree / branch; page LIVE v223 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; last commit adf258ee+.
+DONE this stretch (all on the page + FINDINGS 0b):
+- 'Biology in brief' section at the top (7 cards, hypothesis line). 14.18 primary image = UNCAPPED first licks
+  (lick_recovery_primary_full.png; capped version collapsed under it).
+- SSp-n checks (lick_sspn_checks.py; 12.17 supplement): decoder WITHOUT SSp-n still tracks recovery but weaker (largest
+  single contributor, not necessary); WEIGHT-FREE left/right difference: SSp-n #1-2 of 21 areas but SSp-ul, SSp-un,
+  MO-rest, SSp-m, tjM1, ACAd close -> 'broad sensorimotor left/right imbalance, strongest in SSp-n' (hypothesis wording
+  updated in WTS, Biology in brief, FINDINGS); FaceRhythm partialled: unchanged. ACAd = midline strip -> needs vessel /
+  registration check before being called.
+- Contact vs miss (lick_balance_contact.py; 14.18 supplement): balance as large or larger on MISS licks, tracks recovery
+  as well (0.66 both) -> not mainly touch; strict misses lose the link in PS92/95.
+- Imaging control on the primary balance (lick_balance_imaging_control_primary.py; first image of the imaging-control
+  figure): F0 asymmetry wrong sign for an artefact; 415 nm flat; partialling F0 leaves cued 0.42 / ITI 0.27 cvR2.
+- SEVERITY CORRECTED (Priya): phenotype PS94 most severe, PS95 least; histology tissue loss PS93 55 ~ PS92 53 > PS94 32 >
+  PS95 18 % (PS92/93 lesioned twice). Response-size wording now by LESION GROUP; WTS row 'Lesion size vs phenotype':
+  acute bilateral increase + acute balance follow behavioural severity (PS94), chronic growth follows tissue loss.
+RUNNING at this note: helper agent -> scripts/lick_enl_angle_decode.py (Priya: "decode lick angle from ENL?": pre-cue
+lick-free window -> upcoming first-lick angle, raw and BEYOND the spout; frozen post-stroke read-out + offset); outputs
+<OUT_W>/enl_angle_decode*.csv, figures/lick_enl_angle_decode.png -> report, add to page (section 14 near 14.21 pre-cue).
+NEXT: vessel / registration control for the ACAd difference; cued-hit balance for the strict-miss subset question.
+
+### 00-COMPACT-16 (10-29 ~01:30) -- (previous)
 Same session / worktree / branch; page LIVE v218+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. NOTHING RUNNING.
 HYPOTHESIS (updated with Priya): FINDINGS 0b "HYPOTHESIS (updated 10-29)" + the WTS row of the same name.
 NEW this stretch:
