@@ -47,7 +47,44 @@ N_NULL = 200
 # "angle" (default, asin(side / reach), deg) or "lateral" (side_k, mm: the landing's sideways position). Outputs of a
 # non-default reference carry the suffix _<ref>.
 REF = os.environ.get("WFIELD_BAL_REF", "angle")
-SFX = "" if REF == "angle" else f"_{REF}"
+# REFERENCE METHOD (env WFIELD_BAL_REFMETHOD; Priya 10-28 "still using lick angle gaussian?"): "line" (default, the pre
+# straight line on the covariate) or "gauss" (as the decoder's like-for-like offset: Gaussian-weighted mean of the pre
+# licks of the same animal x set x order at the same LATERAL landing place, sigma GAUSS_SIGMA mm; pre sessions
+# leave-one-session-out; NaN where the summed weight < GAUSS_MINW, i.e. no same-place pre licks -- no extrapolation).
+REFMETHOD = os.environ.get("WFIELD_BAL_REFMETHOD", "line")
+GAUSS_SIGMA, GAUSS_MINW = 0.1, 2.0
+# INSIDE-RANGE control (env WFIELD_BAL_INSIDE=1; 10-28: acute licks fall beyond the pre angle range, where the line
+# is EXTRAPOLATED): post-stroke licks outside the animal's pre 2.5..97.5 % range of the covariate (per set) are dropped.
+INSIDE = os.environ.get("WFIELD_BAL_INSIDE", "") == "1"
+SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "")
+
+
+def _residuals_gauss(P: pd.DataFrame, vs: list[str]) -> pd.DataFrame:
+    """value - Gaussian-weighted mean of the same-animal x set x order PRE licks at the same lateral place (side_k, mm)."""
+    out = []
+    for (_st, _an, _o), g in P.groupby(["set", "animal", "ord_c"]):
+        g = g.copy()
+        pre = g[g.epoch == "pre"].dropna(subset=["side_k"])
+        V = pre[vs].to_numpy(float)
+        xp = pre.side_k.to_numpy(float)
+        labp = pre.label.to_numpy()
+        res = np.full((len(g), len(vs)), np.nan)
+        for lab in g.label.unique():
+            ix = np.flatnonzero((g.label == lab).to_numpy())
+            x = g.side_k.to_numpy(float)[ix]
+            keep = labp != lab                                       # pre sessions: leave own session out
+            if not keep.any():
+                continue
+            Wt = np.exp(-0.5 * ((x[:, None] - xp[None, keep]) / GAUSS_SIGMA) ** 2)
+            Vk = V[keep]
+            okv = np.isfinite(Vk)
+            num = Wt @ np.where(okv, Vk, 0.0)
+            den = Wt @ okv.astype(float)
+            ref = np.where(den >= GAUSS_MINW, num / np.maximum(den, 1e-12), np.nan)
+            res[ix] = g[vs].to_numpy(float)[ix] - ref
+        g[[f"res_{v}" for v in vs]] = res
+        out.append(g)
+    return pd.concat(out, ignore_index=True)
 
 
 def _wm(lo_, hi_):
@@ -106,10 +143,21 @@ def sessions() -> pd.DataFrame:
                                 how="left", validate="one_to_one")
     Q = Q[Q.gap >= il.GAP_MAIN].assign(set="iti_q").drop(columns="gap")
     Q1 = P[(P.set == "trial") & (P.order == 0)].assign(set="trial_1")
-    P = lrm._residuals(pd.concat([P, Q, Q1], ignore_index=True), vs)
+    P = pd.concat([P, Q, Q1], ignore_index=True)
+    P = _residuals_gauss(P, vs) if REFMETHOD == "gauss" else lrm._residuals(P, vs)
+    if INSIDE:
+        rng_ = P[P.epoch == "pre"].groupby(["set", "animal"]).angle.quantile([0.025, 0.975]).unstack()
+        key = pd.MultiIndex.from_arrays([P.set, P.animal])
+        lo_ = rng_[0.025].reindex(key).to_numpy(float)
+        hi_ = rng_[0.975].reindex(key).to_numpy(float)
+        out_ = (P.epoch != "pre").to_numpy() & ((P.angle.to_numpy() < lo_) | (P.angle.to_numpy() > hi_))
+        print(f"== inside-range control: dropping {int(out_.sum())} of {int((P.epoch != 'pre').sum())} post licks",
+              flush=True)
+        print(P.assign(out=out_)[P.epoch != "pre"].groupby(["set", "epoch"]).out.mean().round(3).to_string(), flush=True)
+        P = P[~out_].copy()
     rows = []
     for (st, lab, an, ep), g in P.groupby(["set", "label", "animal", "epoch"]):
-        rec = {"set": SETS[st], "label": lab, "animal": an, "epoch": ep}
+        rec = {"set": SETS[st], "label": lab, "animal": an, "epoch": ep, "n_licks": len(g)}
         for dn in DEFS:
             for a in AREAS:
                 if dn.startswith("ratio"):

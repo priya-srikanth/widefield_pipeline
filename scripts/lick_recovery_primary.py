@@ -38,7 +38,9 @@ PANELS = [(lrm.C1SET, CUED_WIN, "aim", "far-contra first-lick aim (deg vs pre)")
           (lrm.QSET, ITI_WIN, "aim", "far-contra first-lick aim (deg vs pre)")]
 AN = lrm.AN
 REF = os.environ.get("WFIELD_BAL_REF", "angle")         # pre-line covariate (lick_balance_subsets.REF)
-SFX = "" if REF == "angle" else f"_{REF}"
+REFMETHOD = os.environ.get("WFIELD_BAL_REFMETHOD", "line")
+INSIDE = os.environ.get("WFIELD_BAL_INSIDE", "") == "1"
+SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "")
 
 
 def marker(S: pd.DataFrame, dn: str) -> pd.Series:
@@ -58,10 +60,10 @@ def compute() -> dict:
         t = S[S.set == st].copy()
         rows.append(pd.DataFrame({"panel": f"{st} -> {yv}", "set": st, "def": dn, "yname": yv, "label": t.label,
                                   "animal": t.animal, "epoch": t.epoch, "day": t.day, "y": t[yv],
-                                  "marker": marker(t, dn)}))
+                                  "marker": marker(t, dn), "n_licks": t.get("n_licks", np.nan)}))
     T = pd.concat(rows, ignore_index=True)
     T.to_csv(il.OUT_W / f"recprim_sessions{SFX}.csv", index=False)
-    M, CV, ANr = [], [], []
+    M, CV, ANr, LC = [], [], [], []
     for pn, G in T.groupby("panel", sort=False):
         post = G[(G.epoch != "pre") & (G.day > 0)].dropna(subset=["y", "marker"]).sort_values(["animal", "day"]).copy()
         post["logday"] = np.log(post.day)
@@ -84,7 +86,31 @@ def compute() -> dict:
                 M.append({"panel": pn, "model": f"{name} FAILED {ex}", "n": len(data)})
         F = lrm.models(G[["set", "label", "animal", "epoch", "day"]].assign(aim=G.y, marker=G.marker))
         CV.append(F["CV"].assign(panel=pn))
+        # LICK COUNT (Priya 10-28 "how do we account for variable lick number"): the gain is a ratio of sums over the
+        # same licks, so counts cancel in the value; here: does the count track the marker or the recovery axis, and do
+        # a minimum count / count weighting change the cross-animal result?
+        if post.n_licks.notna().any():
+            import lick_balance_nested as bn
+            x, y, grp, n = post.marker.to_numpy(), post.y.to_numpy(), post.animal.to_numpy(), post.n_licks.to_numpy(float)
+            m20 = n >= 20
+            pred = np.full(len(y), np.nan)
+            for a_ in np.unique(grp):                    # count-weighted leave-one-animal-out OLS
+                te = grp == a_
+                Xw = np.column_stack([np.ones((~te).sum()), x[~te]]) * np.sqrt(n[~te])[:, None]
+                b = np.linalg.lstsq(Xw, y[~te] * np.sqrt(n[~te]), rcond=None)[0]
+                pred[te] = b[0] + b[1] * x[te]
+            LC.append({"panel": pn, "n_median": float(np.median(n)), "n_min": float(n.min()),
+                       "n_lt20": int((~m20).sum()),
+                       "r_n_marker_within": float(np.nanmean([np.corrcoef(n[grp == a], x[grp == a])[0, 1]
+                                                              for a in np.unique(grp)])),
+                       "r_n_y_within": float(np.nanmean([np.corrcoef(n[grp == a], y[grp == a])[0, 1] for a in np.unique(grp)])),
+                       "loao_all": bn._loao_r2(x, y, grp),
+                       "loao_min20": bn._loao_r2(x[m20], y[m20], grp[m20]) if m20.sum() > 20 else np.nan,
+                       "loao_count_weighted": 1 - np.sum((y - pred) ** 2) / np.sum((y - y.mean()) ** 2)})
     M, CV, ANr = pd.DataFrame(M), pd.concat(CV, ignore_index=True), pd.DataFrame(ANr)
+    LC = pd.DataFrame(LC)
+    LC.to_csv(il.OUT_W / f"recprim_lickcount{SFX}.csv", index=False)
+    print("== lick count per session (counts cancel in the gain; checks)\n" + LC.round(3).to_string(index=False))
     M.to_csv(il.OUT_W / f"recprim_models{SFX}.csv", index=False)
     CV.to_csv(il.OUT_W / f"recprim_cv{SFX}.csv", index=False)
     pd.set_option("display.width", 220)
