@@ -65,6 +65,9 @@ undetermined, probably not ACAd-specific (link lives on the sagittal-sinus strip
 SSp-n; registration ruled out) -> not a grant candidate region. Grant discussion with Priya (chemogenetics): balance =
 secondary readout next to behaviour, measured off-drug and without the manipulated area; priority SSp-m/n both
 hemispheres, contra tjM1, ALM lower; bilateral arm as specificity control; VIS/RSP as control region.
+ENL angle decode DONE (scripts/lick_enl_angle_decode.py; 14.21 supplement; FINDINGS 0b): weak, mostly spout; tiny
+within-spout part partly trial history; acute contralesional offset +1.55 deg 4/4, not sustained. OPEN: route its
+pre decoders through frozen_models.load_or_fit (rule 10).
 
 ### 00-COMPACT-16 (10-29 ~01:30) -- (previous)
 Same session / worktree / branch; page LIVE v218+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. NOTHING RUNNING.

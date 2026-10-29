@@ -578,6 +578,12 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   asymmetry does (partialling either leaves ~0.47); shares most variance with MOs-rest / SSp-n (all confounds together
   0.18, p 0.065); pixel maps = broad medial-frontal pattern peaking on the sinus in PS92 / PS95. Not a grant candidate
   region on this evidence. scripts/lick_acad_midline_control.py. PROVISIONAL.
+- **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
+  upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
+  beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
+  previous-trial controls) -> not yet an aim / plan signal. Frozen all-pre decoder post-stroke: raw r -0.17 acute (4/4),
+  recovered chronic; like-for-like offset +1.55 deg contralesional acute (4/4), gone by subacute. Decoders refit in
+  memory from the fixed August pre set (rule 10 store not used yet). scripts/lick_enl_angle_decode.py. PROVISIONAL.
 - **Contact vs miss (10-29):** the primary balance is as large or larger on first licks that MISS the spout (acute PS94
   -1.08 vs -0.67) and tracks recovery as well (cross-animal 0.66 both) -> not mainly touch reafference; on STRICT misses
   (no contact within 0.5 s) the recovery link fails in PS92 / PS95 -> a partial touch / reward contribution to the link
