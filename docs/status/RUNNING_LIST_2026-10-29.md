@@ -5,7 +5,7 @@ you need from me, as well as updating handoff intermittently"). Page: https://cl
 Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions). All PROVISIONAL, n = 4.
 
 ## 1. Decisions needed from Priya
-- [ ] **Representational-change wording** (Priya 10-29: 'no re-map' too strong; discuss): frame as offset + gain / precision loss, re-map open? Run noise-matched transfer + power check first?
+- [x] **Representational-change wording**: YES -- offset + gain / precision loss, re-map OPEN (applied page v242, FINDINGS); noise-matched transfer + power check RUNNING.
 - [ ] **Hypothesis line (3)**: the contralesional-share rise is not orofacial-specific (VISpm / RSPd rise too) -> reword?
 - [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
@@ -71,7 +71,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   [-0.52, 0.00] / landing +0.16 [0.00, 0.32] (borderline) -> post-stroke looks like the normal error signature, more frequent.
 
 ## 4. Conclusions (current reading)
-- Lick-direction code is NOT re-mapped: same pattern, cued = transient offset; ITI = persistent offset + lower gain beyond June drift, in orofacial cortex (ipsilesional chronically).
+- Lick-direction code CHANGES: cued = transient contralesional offset; ITI = persistent offset + lower gain / precision beyond June drift, orofacial (ipsilesional chronically). Re-map: open (low power).
 - Pre-cue: target representation weaker but unbiased; the error emerges after the cue (execution / post-cue).
 - Cued licks: the balance shift and decoder offset largely re-describe the landing error (target code); the cued
   balance is a valid state readout but not an independent mechanism.
@@ -81,11 +81,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
+- Noise-matched transfer + rotation power check for the code-subspace test (Priya 10-29)
 - (3) interhemispheric coupling + lead around licks vs docked rest (lick_interhemispheric.py)
 - (4) correction licks after a miss: behaviour + error signal by hemisphere (lick_correction.py)
 - ITI offset headlines restricted to DOCKED-spout licks (dock -> next trial_start; Priya 10-29). Current primary ITI set = every ITI lick incl. retraction / outbound travel; far1 filter ~ docked (offset held: +0.25 / +0.25 / +0.34 mm).
 
 ## 6. Log
+- 10-29: Priya: representational-change wording softened (re-map open); noise-matched transfer + power check started.
 - 10-29: items 1 + 5 reported (area tuning, matched pixel maps) -> page v241, FINDINGS. Priya flagged 'no re-map' as too strong -> wording pending discussion.
 - 10-29: item 2 (code subspace) reported -> page v240, FINDINGS. New frozen kind lick_code in the LOCAL store (not published to the shared store).
 - 10-29: 4 more helpers started for Priya's items 1-5 (max 4 workers each; shared box).
