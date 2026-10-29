@@ -307,7 +307,7 @@ def plot(L: pd.DataFrame, N: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
     sets = list(TARGET)
     fig, axs = plt.subplots(2, len(sets), figsize=(5.2 * len(sets), 10), squeeze=False)
-    cl = dict(zip(DEFS, ["#4C72B0", "#64B5CD", "#C44E52", "#DD8452"], strict=True))
+    cl = dict(zip(DEFS, ["#4C72B0", "#64B5CD", "#C44E52", "#DD8452", "#8172B3", "#55A868", "#937860", "#DA8BC3"]))
     for j, st in enumerate(sets):
         ax = axs[0, j]
         t = L[L.set == st]

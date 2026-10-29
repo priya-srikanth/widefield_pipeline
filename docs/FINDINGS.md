@@ -537,6 +537,12 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   angle range (line extrapolated); with only in-range licks cued holds (0.53 vs days 0.23) but ITI cross-animal does not
   (0.07; within-animal link remains 3/4). Gaussian same-place reference worse (cued 0.37); lateral reference equivalent;
   lick count cancels (min-20 / weighted unchanged). Tracks the decoder offset (cued r -0.58..-0.92, 4/4). PROVISIONAL.
+- **Controls 10-29:** kinematics-matched reference (angle + reach + speed + elevation): cued 0.63 survives, ITI
+  cross-animal fails (-0.26; within-animal intact). MOs-rest / MOp-rest add nothing (0.70 -> 0.70). The acute excess of
+  cued first licks was the 1500-lick random cap in iti_licks.extract (shorter acute bouts), NOT behaviour (engaged trials /
+  tracked first licks flat or lower acutely; session_pace.csv) -- the earlier "first-lick count tracks recovery" is
+  WITHDRAWN. Balance explains ~65% of the cued acute decoder offset but only 5-15% of the persistent ITI offset; for ITI
+  the decoder offset (0.39) is the better recovery marker. PROVISIONAL.
 - **Trial by trial (10-28 late):** the balance AFTER the first post-cue lick follows that lick's direction within a
   session and target (r 0.3-0.5) -- equally BEFORE the stroke (normal hemispheric direction code); the balance BEFORE the
   lick (-0.5..0 s) predicts nothing (r ~ 0, all epochs). No evidence a pre-movement imbalance causes the error; the
