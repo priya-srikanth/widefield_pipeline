@@ -602,6 +602,11 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   cortex tracks the ACTUAL lick more after the stroke, not less -- the opposite of a stronger target / plan signal.
   Framing (Priya): post-stroke cued off-target licks look like pre-stroke off-target licks to the same target landing
   at the same place; such errors are just far more frequent (and larger) after the stroke.
+  TESTED (scripts/lick_balance_matched_error.py, no extrapolation: post licks inside the pre range for their spout vs
+  pre licks to the same spout at the same angle): CUED acute within-spout balance +0.02 [-0.07, 0.09] and decoder
+  offset -0.04 mm (ns) -> framing HOLDS acutely (target-blind reference on the same licks -0.15, 4/4); subacute /
+  chronic within-spout balance +0.13 / +0.16 (4/4) with decoder ~0. ITI: within-spout balance acute -0.18 (4/4),
+  decoder +0.29 / +0.19 / +0.22 mm (4/4, CIs exclude 0) -> genuine ITI state shift.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT CONTACT to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
