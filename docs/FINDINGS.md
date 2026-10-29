@@ -541,7 +541,9 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   session and target (r 0.3-0.5) -- equally BEFORE the stroke (normal hemispheric direction code); the balance BEFORE the
   lick (-0.5..0 s) predicts nothing (r ~ 0, all epochs). No evidence a pre-movement imbalance causes the error; the
   stroke shifts the post-lick code across sessions (a state). Pre-cue at the far-contra target: contralesional orofacial
-  cortex SUSTAINED raised acutely (not a ramp; 14.20). PROVISIONAL.
+  cortex SUSTAINED raised acutely (not a ramp; 14.20). The balance is only PART of the post-stroke direction change: ~35-50%
+  of the ITI offset (12.17), balance-blind decoders keep the offset (12.20), and for ITI the decoder offset is the better
+  recovery marker (0.39 vs balance 0.07 in-range) -> the change lives in the orofacial PATTERN; balance = its simplest summary. PROVISIONAL.
 - **Recovery markers 10-28 (earlier definition; now a collapsed supplement of 14.17): BALANCE tracks recovery, response SIZE does not.** Cued orofacial balance (contra -
   ipsi): leave-one-animal-out cvR2 0.50 (z-scored per area 0.53; ALM 0.61, SSp-m 0.60, tjM1 0.52 alone), leave-one-EPOCH-
   out 0.41 vs days 0.23; same sign 4/4. Orofacial SIZE (mean of both sides), contra or ipsi alone, and the 0-1 s response /
