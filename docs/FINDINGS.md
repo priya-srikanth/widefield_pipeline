@@ -636,6 +636,9 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   decoded angle barely moves (-0.19, ns) while execution moves -12.9 deg (4/4) -> ENL reads the target; the offset is
   the aim deficit seen through a target-reading decoder (execution term +1.97 / +1.35 / +0.95, 4/4); not far-contra
   specific, not a session baseline shift; F0 part in PS92 only. Same lesson as the cued post-lick balance.
+  CAVEAT (10-29): decoder compressed (decoded spread ~1/5-1/2 of actual); at FAR-CONTRA the pre-cue read-out moves
+  ipsilesional acutely in 3/4 (PS92 -5.0 deg = ~full tracking given its gain; PS93 -1.8, PS94 -2.2; PS95 +0.2) ->
+  'pre-cue target representation unchanged' NOT established; next: gain-normalised tracking + frozen spout classifier.
 - **Contact vs miss (10-29):** the primary balance is as large or larger on first licks that MISS the spout (acute PS94
   -1.08 vs -0.67) and tracks recovery as well (cross-animal 0.66 both) -> not mainly touch reafference; on STRICT misses
   (no contact within 0.5 s) the recovery link fails in PS92 / PS95 -> a partial touch / reward contribution to the link
