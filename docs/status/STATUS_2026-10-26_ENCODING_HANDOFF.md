@@ -59,7 +59,12 @@ DONE this stretch (all on the page + FINDINGS 0b):
 RUNNING at this note: helper agent -> scripts/lick_enl_angle_decode.py (Priya: "decode lick angle from ENL?": pre-cue
 lick-free window -> upcoming first-lick angle, raw and BEYOND the spout; frozen post-stroke read-out + offset); outputs
 <OUT_W>/enl_angle_decode*.csv, figures/lick_enl_angle_decode.png -> report, add to page (section 14 near 14.21 pre-cue).
-NEXT: vessel / registration control for the ACAd difference; cued-hit balance for the strict-miss subset question.
+NEXT: cued-hit balance for the strict-miss subset question.
+ADDED 10-29 (later): ACAd midline control DONE (scripts/lick_acad_midline_control.py; 12.17 supplement; FINDINGS 0b):
+undetermined, probably not ACAd-specific (link lives on the sagittal-sinus strip, shares variance with MOs-rest /
+SSp-n; registration ruled out) -> not a grant candidate region. Grant discussion with Priya (chemogenetics): balance =
+secondary readout next to behaviour, measured off-drug and without the manipulated area; priority SSp-m/n both
+hemispheres, contra tjM1, ALM lower; bilateral arm as specificity control; VIS/RSP as control region.
 
 ### 00-COMPACT-16 (10-29 ~01:30) -- (previous)
 Same session / worktree / branch; page LIVE v218+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. NOTHING RUNNING.

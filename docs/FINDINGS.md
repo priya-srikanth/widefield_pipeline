@@ -571,6 +571,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (cued r 0.94/0.84/0.84/0.69) but SSp-ul, SSp-un, MO-rest, SSp-m, tjM1, ACAd close behind -> a BROAD sensorimotor
   left/right imbalance, strongest in SSp-n; (3) FaceRhythm face movement partialled: unchanged -> not facial reafference.
   Hypothesis wording updated: 'broad sensorimotor hemispheric difference, strongest in SSp-n'. PROVISIONAL.
+- **ACAd midline control (10-29, 12.17 supplement):** ACAd's weight-free left/right link (ITI -> ITI angle r 0.59) is
+  UNDETERMINED, probably not ACAd-specific cortex: it weakens away from the midline (>=0.1 mm 0.48, >=0.2 mm 0.38 ns)
+  and the <0.1 mm strip over the sagittal sinus alone carries it (0.57); registration ruled out (sinus within 7-15 um
+  across sessions, <=3% of d variance; offset-shifted masks unchanged); 415 nm d does not track recovery but F0
+  asymmetry does (partialling either leaves ~0.47); shares most variance with MOs-rest / SSp-n (all confounds together
+  0.18, p 0.065); pixel maps = broad medial-frontal pattern peaking on the sinus in PS92 / PS95. Not a grant candidate
+  region on this evidence. scripts/lick_acad_midline_control.py. PROVISIONAL.
 - **Contact vs miss (10-29):** the primary balance is as large or larger on first licks that MISS the spout (acute PS94
   -1.08 vs -0.67) and tracks recovery as well (cross-animal 0.66 both) -> not mainly touch reafference; on STRICT misses
   (no contact within 0.5 s) the recovery link fails in PS92 / PS95 -> a partial touch / reward contribution to the link
