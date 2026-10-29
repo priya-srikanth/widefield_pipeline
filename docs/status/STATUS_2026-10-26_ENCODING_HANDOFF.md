@@ -39,7 +39,32 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-13 (10-28 ~15:45) -- READ FIRST (then 00-COMPACT-12 for env / tools / older items)
+### 00-COMPACT-14 (10-28 ~20:30) -- READ FIRST (then 00-COMPACT-13 for the balance results, 00-COMPACT-12 for env)
+Same session / worktree / branch; page LIVE v204 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Same page-edit rules
+(goal_page_insert + fix "CHECK plain mention" by hand; Artifact `edits` refused -> edit file, publish with files={...}).
+Decisions: docs/DECISIONS.md "2026-10-28 (night)". Findings: FINDINGS 0b (recovery markers, pre-cue, attribution).
+NEW / CHANGED on the page this stretch:
+- 11.13 legend fixed; NEW 11.14 nested blocks + ladder + Shapley (scripts/lick_block_compare.py; main image =
+  WFIELD_BLOCK_VARIANT=oroSSs, SSs in the orofacial group; 6-group split = supplement). oro+SSs ~40% of code and ITI offset.
+- 14.16 grey pre cloud; NEW 14.17 KEY recovery markers (scripts/lick_recovery_markers.py): balance tracks recovery
+  (cued LOAO 0.50, epoch-out 0.41 vs days 0.23), SIZE / AUC do not (sign flips with lesion severity PS94/95 vs PS92/93);
+  per-area supplement incl. z-scored balance; ITI first-after-quiet balance 0.29. NEW 14.20 pre-cue level vs restw
+  (scripts/lick_precue_restw.py, helper-built, validated vs cued_wide traces).
+- 18.5-18.9 residual-ROI maps: per-area outlines, untested areas blanked (the 'fragments'), no frames.
+- Non-linear decoder supplements on 12.1 / 12.15 / 12.21 / 13.1 / 13.6. Musall split-row sentences on 0.3 / 0.4 / 0.9 /
+  0.10 / 0.11 (claims_contest / claims_peth / claims_trend_levels; the old "tjM1 r 0.09" note could not be traced and was
+  not used; per-animal r tjM1 contra vs MOp contra movement PETH -0.16).
+- FINDINGS 0b + "Where things stand" recovery row have the bounds (within-animal days 0.70-0.81; LOSO animal-known days wins).
+RUNNING at handoff: scripts/lick_recovery_markers.py full run (task b7rvq4dsk; log S2/recmark.log) adding (a) FAIR pre-fit
+weighted balance oro_balwx (weights from the OTHER animals' pre licks) and (b) ITI's own recovery axis (iti_ang = session
+mean ITI lick angle vs pre, iti_ang90 = contralesional 90th pct; new figure lick_recovery_markers_iti_axis.png). When it
+ends: read recmark_cv.csv (y column: aim / iti_ang / iti_ang90), copy lick_recovery_markers_{cv,size,areas,iti_axis}.png +
+lick_balance_recovery.png to _goal_page, add the ITI-axis image as a supplement of 14.17 and the oro_balwx numbers to its
+caption, publish, commit. Priya: the ITI axis "asks a different question" -- say so in the caption.
+OPEN: PS93 acute MOp / MOp-rest movement-PETH values +0.43..+0.92 (0.4 caption) -- check for an R2 artefact; the
+--models-only path of lick_recovery_markers does not know the ITI axes (run the full script).
+
+### 00-COMPACT-13 (10-28 ~15:45) -- (previous)
 Session f082ee0c, worktree C:/Users/SabatiniLab/Github/wf_attempt, branch analysis/attempt-coding (commits through 01a944f1+).
 Page LIVE v198 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Env as 00-COMPACT-12. Page edits: scripts/goal_page_insert.py
 (insert + renumber; fix the "CHECK plain mention" lines by hand); the Artifact `edits` option is REFUSED here (file-edit hook)

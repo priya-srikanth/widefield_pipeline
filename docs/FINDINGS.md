@@ -526,8 +526,23 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   differences zeroed (ITI +0.38/+0.22/+0.27, pre r 0.59), or non-orofacial zeroed (12.20): the offset is carried by the
   pattern across orofacial areas, not by a left/right difference, so the balance TRACKS the offset without being its
   sole carrier; orofacial-only decoder reproduces most of the ITI offset; VIS+RSP-only barely decodes (r 0.15); per-hemisphere imaging control: F0 / 415 nm do not explain the
-  subacute / chronic balance shift (14.17; part of the acute shift in PS92 / PS93 could be F0); head-to-head: orofacial
+  subacute / chronic balance shift (14.18; part of the acute shift in PS92 / PS93 could be F0); head-to-head: orofacial
   balance predicts the offset, non-orofacial adds nothing (12.19).
+- **Recovery markers 10-28 (14.17): BALANCE tracks recovery, response SIZE does not.** Cued orofacial balance (contra -
+  ipsi): leave-one-animal-out cvR2 0.50 (z-scored per area 0.53; ALM 0.61, SSp-m 0.60, tjM1 0.52 alone), leave-one-EPOCH-
+  out 0.41 vs days 0.23; same sign 4/4. Orofacial SIZE (mean of both sides), contra or ipsi alone, and the 0-1 s response /
+  cue AUC all fail (LOAO -0.28 to -0.70; epoch-out to -1.23): their sign FLIPS with lesion severity (PS94 / PS95, 3 mW:
+  largest responses acutely at the worst aim, then shrink; PS92 / PS93: responses grow over recovery). SSp-n balance
+  tracks within animals (r ~0.9) but not across (0.04; z-scoring does not fix it). Cued FIRST lick only: weak (0.06, one
+  lick per trial). ITI all licks: none; ITI first lick after >= 2 s quiet: balance 0.29 (shuffle p 0.006; SSp-n 0.43,
+  z 0.52), 3/4 animals, no epoch-out gain. PROVISIONAL.
+- Pre-cue LEVEL vs restw 10-28 (14.20; restw approved by Priya): far-contra target acute, contralesional ALM / tjM1 /
+  SSp-m / SSp-n RAISED before the cue (+4.5 to +5.5 x1e3 dF/F, 4/4, PS94 ~0); chronic all spouts ALM / tjM1 contra
+  +1.5 / +1.7 (4/4) and a posterior VIS / RSP / SSp-tr / bfd decrease (partly a rest-level rise). PROVISIONAL.
+- Decoder area attribution 10-28 (11.13 alone / unique, 11.14 nested blocks + Shapley): the orofacial group (+SSs) carries
+  ~40% of the code (Shapley pre r 0.27 of 0.62 ITI, 0.29 of 0.77 cued) and of the ITI offset (0.15 of 0.37 mm acute);
+  the rest is spread and redundant (no block necessary). SSs alone decodes but adds nothing uniquely (a copy of the
+  orofacial signal). PROVISIONAL.
 
 ## 1. Behaviour and orofacial kinematics (cam4)
 
