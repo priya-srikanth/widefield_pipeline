@@ -379,9 +379,15 @@ def plot(D: dict) -> None:
         vmax = np.nanpercentile(np.abs(np.concatenate([x[np.isfinite(x)] for x in [*diff.values(), *mirr.values()]])),
                                 99)
         pre = np.mean([maps[(st, an, "pre_resp")] for an in AN if (st, an, "pre_resp") in maps], 0)
-        fig, axs = plt.subplots(len(POST), 3, figsize=(14, 4.0 * len(POST)), squeeze=False)
+        # dedicated colour-bar column (and a spacer before the PRE panel) so bars never sit on the panel titles
+        fig = plt.figure(figsize=(15, 4.2 * len(POST)))
+        gs = fig.add_gridspec(len(POST), 5, width_ratios=[1, 1, 0.045, 0.35, 1], wspace=0.08, hspace=0.35)
+        axs = np.array([[fig.add_subplot(gs[i, 0]), fig.add_subplot(gs[i, 1]), fig.add_subplot(gs[i, 4])]
+                        for i in range(len(POST))])
         for i, ep in enumerate(POST):
             if ep not in pooled:
+                for ax in axs[i]:
+                    ax.axis("off")
                 continue
             for j, (img, kind, ttl) in enumerate(((diff[ep], "diff", "post - pre at matched spout + angle"),
                                                   (mirr[ep], "mirror", "MIRRORED: contra pixel - mirrored ipsi pixel"))):
@@ -393,23 +399,25 @@ def plot(D: dict) -> None:
                     ax.contour(k.astype(float), levels=[0.5], colors="k", linewidths=1.0)
                 srow = D["sig"][(D["sig"].set == st) & (D["sig"].epoch == ep) & (D["sig"]["map"] == kind)]
                 ax.set_title(_wrap(f"{ep.upper()} (n = {pooled[ep][1]} animals): {ttl}\n"
-                                   f"pixel test: {srow.label.iloc[0] if len(srow) else '-'}", 60), fontsize=7.5)
+                                   f"pixel test: {srow.label.iloc[0] if len(srow) else '-'}", 48), fontsize=7.5)
                 ax.axis("off")
-            fig.colorbar(im, ax=axs[i, :2], fraction=0.02, pad=0.01).set_label("dF/F x1e3 (+ = larger after)", fontsize=8)
+            cax = fig.add_subplot(gs[i, 2])
+            fig.colorbar(im, cax=cax).set_label("dF/F x1e3 (+ = larger after)", fontsize=8)
             ax = axs[i, 2]
             if i == 0:
                 imp = ax.imshow(np.where(m_all, _full(F, pre), np.nan), cmap="magma", interpolation="nearest")
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.5, interpolation="nearest")
                 ax.set_title("PRE response, kept licks (mean of animals)\nfor scale; own colour scale", fontsize=7.5)
-                fig.colorbar(imp, ax=ax, fraction=0.04, pad=0.01).set_label("dF/F x1e3", fontsize=8)
+                pcax = ax.inset_axes([1.03, 0.1, 0.04, 0.8])
+                fig.colorbar(imp, cax=pcax).set_label("dF/F x1e3", fontsize=8)
             ax.axis("off")
         fig.suptitle(_wrap(f"{SETS[st]}: PIXEL map of the post-lick response (0.1-0.5 s minus -1..-0.5 s from the lick peak) "
                            "of post-stroke licks minus PRE licks to the SAME spout landing at the SAME angle (pre within-"
                            "spout line per pixel, pre LOSO; only licks inside the pre angle range of their spout). Mean "
                            "of animal change maps; one colour scale across epochs and both map types. Image LEFT = "
                            "ipsilesional. Contour = calibrated nested-bootstrap max-stat test (supporting only; areas "
-                           "are the a priori test). PROVISIONAL", 160), fontsize=9)
-        fig.tight_layout(rect=(0, 0, 1, 0.92))
+                           "are the a priori test). PROVISIONAL", 160), fontsize=9, y=0.995)
+        fig.subplots_adjust(left=0.02, right=0.95, bottom=0.02, top=0.9)
         fig.savefig(FIG / f"lick_matched_pixel_{st}.png", dpi=90)
         plt.close(fig)
         # per animal (rule 8): mirrored map per animal x epoch, same scale
