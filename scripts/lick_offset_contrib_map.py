@@ -63,6 +63,9 @@ AN = ["PS92", "PS93", "PS94", "PS95"]
 SETS = {"iti": "ITI", "trial": "cued"}
 H, W = 540, 640
 ACC: dict = {}
+SESS_TERMS: list = []                 # session-level per-feature terms (compute, lateral)
+PER_LICK: list = []                   # per-lick dh (lateral; 10-29 trial-by-trial SSp-n term): (set, animal, dict)
+CUR: list = [None, None]              # (set, animal) of the session_dh call in progress
 MIN_REF = 8                      # licks with a reference per session
 # polar coordinate -> (ridge index in iti_where_angle_reach.predictions, actual col, decoded col, likeforlike sigmas, unit)
 POLAR = {"angle": (0, "act_ang", "dec_ang", "SIGMA_DEG", "deg"),
@@ -96,6 +99,11 @@ def session_dh(S: dict, dec, sigma: float, nw: bool = False) -> dict:
         Kn = K[ok] / K[ok].sum(1, keepdims=True)
         dh = X[ok] - Kn @ Xp[ref]
         full = dec(x, X[ok]) - Kn @ dp[ref]                # = the like-for-like read-out (held-out pre reference)
+        if CUR[0] is not None and not nw:
+            rest = S[x][3:]
+            PER_LICK.append((CUR[0], CUR[1], {"label": x, "epoch": ep, "act": act[ok], "dh": dh.astype(np.float32),
+                                              "readout": full, "order": rest[0][ok] if len(rest) > 0 else None,
+                                              "pos": rest[1][ok] if len(rest) > 1 else None}))
         sess[x] = (ep, dh.mean(0), float(full.mean()))
     return sess
 
@@ -107,7 +115,9 @@ def _hook(st, a, S, fits):
     def dec(x, X):
         s_, m_ = fits[x if x in fits else None]
         return m_.predict(s_.transform(X))
+    CUR[:] = [st, a]
     ACC[(st, a)] = (m.coef_ / sc.scale_, session_dh(S, dec, SIGMA))
+    CUR[:] = [None, None]
 
 
 def _polar_hook(st, a, S, fits):
@@ -227,7 +237,27 @@ def compute():
         rows += [dict(source=tag, **r) for r in r_]
         maps.update(m_)
         terms += t_
+        # SESSION-level per-feature terms beta_k * dh_k (10-29, Priya "prioritize the ITI per-area decomposition"):
+        # which part of the offset tracks recovery session by session (lick_offset_terms_recovery.py)
+        names = feature_names(source, a) or [f"c{k}" for k in range(len(beta))]
+        SESS_TERMS.extend(dict(set=st, animal=a, label=x, epoch=e, readout=f_, feature=n, beta=float(b_), dh=float(d_),
+                               term=float(b_ * d_)) for x, (e, v, f_) in sess.items()
+                          for n, b_, d_ in zip(names, beta, v))
     R = _save(tag, rows, maps, terms)
+    pd.DataFrame(SESS_TERMS).to_csv(OUT / f"terms_sessions_{tag}.csv", index=False)
+    # PER-LICK SSp-n difference term and total term (trial-by-trial analysis, lick_offset_terms_trial.py)
+    pl = []
+    for st, a, d in PER_LICK:
+        beta = ACC[(st, a)][0]
+        names = feature_names(source, a) or []
+        ir, il_ = names.index("SSp-n_right"), names.index("SSp-n_left")
+        dh = d["dh"].astype(float)
+        pl.append(pd.DataFrame({"set": st, "animal": a, "label": d["label"], "epoch": d["epoch"], "act": d["act"],
+                                "order": d["order"], "pos": d["pos"], "readout": d["readout"], "total": dh @ beta,
+                                "ssp_n_diff": 0.5 * (beta[ir] - beta[il_]) * (dh[:, ir] - dh[:, il_]),
+                                "ssp_n_sum": 0.5 * (beta[ir] + beta[il_]) * (dh[:, ir] + dh[:, il_])}))
+    if pl:
+        pd.concat(pl, ignore_index=True).to_csv(OUT / f"terms_licks_{tag}.csv.gz", index=False)
     print(os.environ.get("WFIELD_LICK_DECODER"), tag)
     print(R.round(3).to_string())
     # FIRST-K COMPONENT MAPS (Priya 10-28, SVD looks patchy): WFIELD_CONTRIB_KMAX=K rebuilds the maps from the first K

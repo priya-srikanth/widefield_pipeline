@@ -63,10 +63,13 @@ KIN_COVS = ["angle", "reach_mm", "speed_peak", "elev_deg"]
 # MO-rest candidates (env WFIELD_BAL_MO=1; Priya 10-28 "MOp / MOs rest weren't worth including?"): MOs_rest and MOp_rest
 # added to the areas; definitions limited to the primary + two references to keep the 255-subset search tractable.
 MO = os.environ.get("WFIELD_BAL_MO", "") == "1"
+# FULL first-lick set (env WFIELD_BAL_FULL=1; Priya 10-29 "do the re-extraction"): the cued first-lick set ('trial_1')
+# from lick_firstlick_extract.py (every first post-cue lick, ~3x the capped set) instead of the decoder's capped licks.
+FULL = os.environ.get("WFIELD_BAL_FULL", "") == "1"
 if MO:
     AREAS = [*AREAS, "MOs_rest", "MOp_rest"]
     DEFS = {k: DEFS[k] for k in ("ratio_010_050", "ratio_020_035", "raw_010_020")}
-SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "") + ("_kin" if KIN else "") + ("_mo" if MO else "")
+SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "") + ("_kin" if KIN else "") + ("_mo" if MO else "") + ("_full" if FULL else "")
 
 
 def _residuals_multi(P: pd.DataFrame, vs: list[str], covs: list[str]) -> pd.DataFrame:
@@ -165,6 +168,29 @@ def _session(label: str) -> pd.DataFrame:
     return pd.concat(out, ignore_index=True)
 
 
+def _full_session(label: str) -> pd.DataFrame:
+    """Every first post-cue lick of a session from <OUT_W>/firstlick_full (no 1500 cap), the same features as _session."""
+    f = il.OUT_W / "firstlick_full" / f"{label}.npz"
+    if not f.exists():
+        return pd.DataFrame()
+    z = np.load(f, allow_pickle=True)
+    X = z["X"].astype(float)
+    cx = list(z["cols"])
+    if MO:
+        X, cx = il.with_rest(X, cx, label, basis="split")
+    base_m = _wm(*il.BASE_RESP)
+    R = {"set": "trial_1", "label": label, "animal": str(z["animal"]), "epoch": str(z["epoch"]), "pos": z["pos"],
+         "order": 0, "ord_c": 0, "side_k": z["side_ml"], "reach_mm": z["reach_mm"], "speed_peak": z["speed_peak"],
+         "elev_deg": z["elev_deg"]}
+    for a in AREAS:
+        for side, h in (("c", "right"), ("i", "left")):
+            tr = X[:, :, cx.index(f"{a}_{h}")]
+            base = tr[:, base_m].mean(1)
+            for dn, (kind, lo_, hi_) in DEFS.items():
+                R[f"{dn}|{a}|{side}"] = tr[:, _wm(lo_, hi_)].mean(1) - (base if kind == "bs" else 0)
+    return pd.DataFrame(R)
+
+
 def sessions() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
@@ -190,7 +216,18 @@ def sessions() -> pd.DataFrame:
     Q = P[P.set == "iti"].merge(pd.concat([v for _i, v in gres], ignore_index=True), on=["set", "label", "k"],
                                 how="left", validate="one_to_one")
     Q = Q[Q.gap >= il.GAP_MAIN].assign(set="iti_q").drop(columns="gap")
-    Q1 = P[(P.set == "trial") & (P.order == 0)].assign(set="trial_1")
+    if FULL:                                               # every first post-cue lick (lick_firstlick_extract.py)
+        labs = sorted(P[P.set == "trial"].label.unique())
+        fres, ffail = ak.fan_sessions(labs, _full_session)
+        if ffail:
+            raise RuntimeError(f"full first-lick load failed: {ffail[:5]}")
+        Q1 = pd.concat([v for _i, v in fres], ignore_index=True)
+        Q1["angle"] = (np.degrees(np.arcsin(np.clip(Q1.side_k / Q1.reach_mm, -1, 1))) if REF == "angle"
+                       else Q1.side_k.astype(float))
+        print(f"== FULL first-lick set: {len(Q1)} licks (capped set: "
+              f"{int(((P.set == 'trial') & (P.order == 0)).sum())})", flush=True)
+    else:
+        Q1 = P[(P.set == "trial") & (P.order == 0)].assign(set="trial_1")
     P = pd.concat([P, Q, Q1], ignore_index=True)
     P = (_residuals_gauss(P, vs) if REFMETHOD == "gauss" else _residuals_multi(P, vs, KIN_COVS) if KIN
          else lrm._residuals(P, vs))
@@ -204,6 +241,20 @@ def sessions() -> pd.DataFrame:
               flush=True)
         print(P.assign(out=out_)[P.epoch != "pre"].groupby(["set", "epoch"]).out.mean().round(3).to_string(), flush=True)
         P = P[~out_].copy()
+    # PER LICK ORDER sums for the primary definition and pool (Priya 10-29: rebuild 'balance over lick order' with the
+    # updated balance): per set x session x lick order, sum of observed / predicted contra and ipsi over the pool areas
+    prim, pool = "ratio_010_050", ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs"]
+    if prim in DEFS:
+        orows = []
+        for (st, lab, an, ep, o), g in P.groupby(["set", "label", "animal", "epoch", "ord_c"]):
+            rec = {"set": SETS[st], "label": lab, "animal": an, "epoch": ep, "ord_c": o, "n": len(g)}
+            for s in ("c", "i"):
+                ob = g[[f"{prim}|{a}|{s}" for a in pool]].sum(1)
+                rs = g[[f"res_{prim}|{a}|{s}" for a in pool]].sum(1)
+                ok = ob.notna() & rs.notna()
+                rec[f"obs_{s}"], rec[f"pred_{s}"] = ob[ok].sum(), (ob[ok] - rs[ok]).sum()
+            orows.append(rec)
+        pd.DataFrame(orows).to_csv(il.OUT_W / f"balsub_order{SFX}.csv", index=False)
     rows = []
     for (st, lab, an, ep), g in P.groupby(["set", "label", "animal", "epoch"]):
         rec = {"set": SETS[st], "label": lab, "animal": an, "epoch": ep, "n_licks": len(g)}
