@@ -561,7 +561,7 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   relative to contralesional at the same lick direction) that places unseen animals for cued licks. Both are
   POST-MOVEMENT STATE measures (no pre-lick predictive signal, no next-session forecast; the calendar tracks a known
   animal). Recovery = re-balancing toward the pre-stroke hemispheric relation, complete for cued (goal-directed) licks,
-  incomplete for spontaneous licks. Response SIZE is a severity-dependent time course, not recovery. Open alternatives:
+  incomplete for spontaneous licks. Response SIZE follows a time course that differs between lesion groups (PS92/93 re-lesioned, larger striatal loss: grows; PS94/95 single lesion, smaller loss: largest acutely; PS95 least severe), not recovery. Open alternatives:
   the balance as altered SENSORY reafference (SSp-n / SSs are sensory; cued licks have spout contact, ITI none) vs a motor
   command; state / arousal (contralesional VIS tracks ITI recovery). Next tests: cued hit vs miss (contact) balance;
   SSp-n vs SSp-m sensory mapping; a perturbation.
@@ -575,7 +575,7 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
 - **Recovery markers 10-28 (earlier definition; now a collapsed supplement of 14.17): BALANCE tracks recovery, response SIZE does not.** Cued orofacial balance (contra -
   ipsi): leave-one-animal-out cvR2 0.50 (z-scored per area 0.53; ALM 0.61, SSp-m 0.60, tjM1 0.52 alone), leave-one-EPOCH-
   out 0.41 vs days 0.23; same sign 4/4. Orofacial SIZE (mean of both sides), contra or ipsi alone, and the 0-1 s response /
-  cue AUC all fail (LOAO -0.28 to -0.70; epoch-out to -1.23): their sign FLIPS with lesion severity (PS94 / PS95, 3 mW:
+  cue AUC all fail (LOAO -0.28 to -0.70; epoch-out to -1.23): their sign FLIPS between LESION GROUPS (corrected 10-29: PS94 / PS95 = single 3 mW lesion, SMALLER loss, PS95 least severe; PS92 / PS93 = re-lesioned, larger loss) (PS94 / PS95:
   largest responses acutely at the worst aim, then shrink; PS92 / PS93: responses grow over recovery). SSp-n balance
   tracks within animals (r ~0.9) but not across (0.04; z-scoring does not fix it). Cued FIRST lick only: weak (0.06, one
   lick per trial). ITI all licks: none; ITI first lick after >= 2 s quiet: balance 0.29 (shuffle p 0.006; SSp-n 0.43,
