@@ -580,6 +580,10 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   least); more tissue loss -> smaller deficit (PS92/93 lesioned twice) -> lesion LOCATION likely matters. Acute bilateral
   response increase and acute balance follow behavioural severity (PS94 largest); chronic response growth follows tissue
   loss / re-lesioning (PS92/93). lesion_component.csv. PROVISIONAL.
+- **Imaging control, primary balance (10-29):** F0 asymmetry drops acutely (PS92/93) -- wrong sign for an artefact
+  (undoing F0 enlarges the shift); 415 nm balance ~0 and unshifted; F0 shares the time course (partialling it out:
+  cued acute -0.23, recovery cvR2 0.42 cued / 0.27 ITI, both within-animal p < 0.02). Not an imaging artefact.
+  scripts/lick_balance_imaging_control_primary.py. PROVISIONAL.
 - **Trial by trial (10-28 late):** the balance AFTER the first post-cue lick follows that lick's direction within a
   session and target (r 0.3-0.5) -- equally BEFORE the stroke (normal hemispheric direction code); the balance BEFORE the
   lick (-0.5..0 s) predicts nothing (r ~ 0, all epochs). No evidence a pre-movement imbalance causes the error; the
