@@ -65,6 +65,9 @@ undetermined, probably not ACAd-specific (link lives on the sagittal-sinus strip
 SSp-n; registration ruled out) -> not a grant candidate region. Grant discussion with Priya (chemogenetics): balance =
 secondary readout next to behaviour, measured off-drug and without the manipulated area; priority SSp-m/n both
 hemispheres, contra tjM1, ALM lower; bilateral arm as specificity control; VIS/RSP as control region.
+GRANT NOTE (Priya 10-29): cued within-spout balance rises ABOVE pre over weeks (contralesional hemisphere gains
+relative weight, independent of landing; FINDINGS 0b matched-error entry) -> chronic contralesional silencing tests
+whether that extra share supports the recovered behaviour.
 TO-DO (Priya 10-29) 'REVVING UP' to far-contra: anecdotally post-stroke animals take much longer to start the first lick
 to far-contra, sometimes starting after the spout leaves. Plan: (A) behaviour -- cue -> first-lick-onset and -> first
 contact latency distributions / hazard per spout x epoch, share of trials whose first lick starts after the spout

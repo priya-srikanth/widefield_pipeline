@@ -607,6 +607,14 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   offset -0.04 mm (ns) -> framing HOLDS acutely (target-blind reference on the same licks -0.15, 4/4); subacute /
   chronic within-spout balance +0.13 / +0.16 (4/4) with decoder ~0. ITI: within-spout balance acute -0.18 (4/4),
   decoder +0.29 / +0.19 / +0.22 mm (4/4, CIs exclude 0) -> genuine ITI state shift.
+  CUED WITHIN-SPOUT BALANCE RISES ABOVE PRE (per animal pre / acute / subacute / chronic: PS92 0 / +0.06 / +0.17 /
+  +0.06, PS93 0 / -0.10 / +0.07 / +0.18, PS94 0 / +0.08 / +0.20 / +0.27, PS95 -0.01 / +0.03 / +0.06 / +0.13): an
+  overshoot, not a return; tracks cued aim within animals r -0.15 / 0.85 / 0.81 / 0.46 but not beyond log(day)
+  (p 0.76). ITI within-spout balance tracks the ITI angle (r 0.53 / 0.74 / 0.61 / 0.23, p 0.005).
+  NOTE (Priya 10-29, keep for the grant): the contralesional hemisphere gains relative weight over weeks, independent
+  of where the lick lands -- fits gradual reorganisation, the intact hemisphere taking on a larger share, more than a
+  direct correlate of aim. Silencing contralesional cortex in the CHRONIC phase would test whether that extra share
+  supports the recovered behaviour.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT LICK ONSET to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
