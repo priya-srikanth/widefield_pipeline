@@ -629,8 +629,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
   beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
   previous-trial controls) -> not yet an aim / plan signal. Frozen all-pre decoder post-stroke: raw r -0.17 acute (4/4),
-  recovered chronic; like-for-like offset +1.55 deg contralesional acute (4/4), gone by subacute. Decoders refit in
-  memory from the fixed August pre set (rule 10 store not used yet). scripts/lick_enl_angle_decode.py. PROVISIONAL.
+  recovered chronic; like-for-like offset +1.55 deg contralesional acute (4/4), gone by subacute. Pre decoders now via
+  frozen_models.load_or_fit (rule 10; results identical). scripts/lick_enl_angle_decode.py. PROVISIONAL.
+  FOLLOW-UPS (scripts/lick_enl_offset_explore.py): within-spout ENL signal over trial history 2/4, over history +
+  pre-cue FaceRhythm 1/4 (PS94) -> no robust pre-cue aim signal. The acute +1.55 deg offset: at the same TARGET the
+  decoded angle barely moves (-0.19, ns) while execution moves -12.9 deg (4/4) -> ENL reads the target; the offset is
+  the aim deficit seen through a target-reading decoder (execution term +1.97 / +1.35 / +0.95, 4/4); not far-contra
+  specific, not a session baseline shift; F0 part in PS92 only. Same lesson as the cued post-lick balance.
 - **Contact vs miss (10-29):** the primary balance is as large or larger on first licks that MISS the spout (acute PS94
   -1.08 vs -0.67) and tracks recovery as well (cross-animal 0.66 both) -> not mainly touch reafference; on STRICT misses
   (no contact within 0.5 s) the recovery link fails in PS92 / PS95 -> a partial touch / reward contribution to the link

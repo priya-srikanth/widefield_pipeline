@@ -31,6 +31,9 @@ Outputs <OUT_W>/enl_angle_decode_trials.csv.gz, enl_angle_decode_pre.csv, enl_an
 enl_angle_decode_epochs.csv, enl_angle_decode_tests.csv, enl_angle_decode_coefs.csv, figures/lick_enl_angle_decode.png.
 Usage: python scripts/lick_enl_angle_decode.py [--extract-only] [--jobs N] [--nshuf 200] [--plot-only] [--controls --nshuf 50]
   --controls: time-trend / previous-spout / previous-angle checks of the pre beyond-spout r -> enl_angle_decode_controls.csv
+RULE 10 (10-29): the all-pre raw / beyond decoders AND their leave-one-pre-session-out siblings (the pre rows) are frozen
+references (`frozen_fits` -> frozen_models.load_or_fit, kind `enl_angle`); the permutation nulls refit in memory (they
+score nothing post-stroke). Follow-ups (nested history test, offset exploration): scripts/lick_enl_offset_explore.py.
 """
 from __future__ import annotations
 
@@ -168,14 +171,52 @@ def _r(a, b) -> float:
     return float(np.corrcoef(a[ok], b[ok])[0, 1]) if ok.sum() > 3 and np.std(a[ok]) > 0 and np.std(b[ok]) > 0 else np.nan
 
 
-def loso(X, y, sess, cell, pos) -> dict:
-    """Leave-one-session-out on pre trials: raw / spout-only / beyond predictions."""
+def _digest(*arrs) -> str:
+    import hashlib
+    h = hashlib.sha1()
+    for a in arrs:
+        a = np.asarray(a)
+        h.update("|".join(a.astype(str)).encode() if a.dtype.kind in "OUS" else
+                 np.ascontiguousarray(a.astype(np.float64)).tobytes())
+    return h.hexdigest()
+
+
+def frozen_fits(a: str, W: float, lf: str, X, y, sess, cell, variant: str = "") -> dict:
+    """RULE 10 (CLAUDE.md, docs/FROZEN_MODELS.md section 7): the animal's all-pre raw + beyond-spout ridges and their
+    leave-one-pre-session-out siblings, through `frozen_models.load_or_fit` (fitted once, then read back verbatim).
+    Identity = animal + kind `enl_angle` + window / lick-free rule / feature variant + the sorted PRE labels with their
+    data signatures. The spec cannot see the trial-level inputs (kinematic matching, lick-free selection), so the payload
+    carries a SHA-1 of (X, y) and a mismatch on a hit is reported loudly (the stored reference is still used)."""
+    from wfield_local import frozen_models as fm
+    labs = sorted(set(np.asarray(sess, str)))
+    Xr, yr = _resid(X, cell), _resid(y, cell)
+    dig = _digest(X, y, np.asarray(cell, str))
+    spec = fm.make_spec(a, "enl_angle", align=f"enl_w{W:g}_lf{lf}{variant}", source=f"areas_split_r{il.ROI_VERSION}",
+                        train_labels=labs, post_s=W, n_features=X.shape[1])
+
+    def fit():
+        loso_ = {s: (_fit(X[sess != s], y[sess != s]), _fit(Xr[sess != s], yr[sess != s])) for s in labs}
+        return {"raw": _fit(X, y), "beyond": _fit(Xr, yr), "loso": loso_, "xy_sha1": dig}
+    P, status = fm.load_or_fit(spec, fit, meta={"script": "lick_enl_angle_decode.py", "n_trials": int(len(y)),
+                                                "variant": variant or "base"})
+    print(f"[frozen] {a} enl_angle W={W:g} lf={lf}{variant}: {status}", flush=True)
+    if P.get("xy_sha1") != dig:
+        print(f"[frozen] !! {a} W={W:g} lf={lf}{variant}: the stored model was trained on DIFFERENT trial data than "
+              "today's selection (same pre sessions) -- the stored reference is used; refreeze if today's is right",
+              flush=True)
+    return P
+
+
+def loso(X, y, sess, cell, pos, fits: dict | None = None) -> dict:
+    """Leave-one-session-out on pre trials: raw / spout-only / beyond predictions. fits = the frozen LOSO models
+    {held-out label: (raw, beyond)} (frozen_fits) for the real data; None = refit (the permutation nulls)."""
     Xr, yr = _resid(X, cell), _resid(y, cell)
     p_raw, p_sp, p_bey = (np.full(len(y), np.nan) for _ in range(3))
     for s in np.unique(sess):
         te, tr = sess == s, sess != s
-        p_raw[te] = _pred(_fit(X[tr], y[tr]), X[te])
-        p_bey[te] = _pred(_fit(Xr[tr], yr[tr]), Xr[te])
+        m_raw, m_bey = fits[s] if fits is not None else (_fit(X[tr], y[tr]), _fit(Xr[tr], yr[tr]))
+        p_raw[te] = _pred(m_raw, X[te])
+        p_bey[te] = _pred(m_bey, Xr[te])
         mu = pd.Series(y[tr]).groupby(pos[tr]).mean()
         p_sp[te] = mu.reindex(pos[te]).to_numpy(float)
     return {"raw": p_raw, "spout": p_sp, "beyond": p_bey, "yr": yr}
@@ -214,7 +255,8 @@ def run_variant(T: pd.DataFrame, W: float, lf: str, nshuf: int, names: list) -> 
         X, y = Pr[fc].to_numpy(float), Pr.angle.to_numpy(float)
         sess, pos = Pr.label.to_numpy(str), Pr.pos.to_numpy(str)
         cell = np.char.add(np.char.add(sess, "|"), pos)
-        P = loso(X, y, sess, cell, pos)
+        FZ = frozen_fits(a, W, lf, X, y, sess, cell)
+        P = loso(X, y, sess, cell, pos, fits=FZ["loso"])
         sc = scores(P, y, cell)
         null = {k: [] for k in ("r_raw", "r_partial", "r_beyond")}
         for _ in range(nshuf):
@@ -232,8 +274,7 @@ def run_variant(T: pd.DataFrame, W: float, lf: str, nshuf: int, names: list) -> 
             row[f"p_{k}"] = float((1 + np.sum(v >= sc[k])) / (1 + len(v))) if len(v) else np.nan
         pre_rows.append(row)
         # frozen all-pre decoders -> every session (pre rows keep their LOSO predictions)
-        Xr_pre, yr_pre = _resid(X, cell), P["yr"]
-        M_raw, M_bey = _fit(X, y), _fit(Xr_pre, yr_pre)
+        M_raw, M_bey = FZ["raw"], FZ["beyond"]
         for kind, M in (("raw", M_raw), ("beyond", M_bey)):
             coef_rows += [{"animal": a, "window_s": W, "lickfree": lf, "model": kind, "feature": n, "coef_std": c,
                            "alpha": float(M[1].alpha_)} for n, c in zip(names, M[1].coef_)]
@@ -407,6 +448,13 @@ def controls(T: pd.DataFrame, names: list, nshuf: int) -> pd.DataFrame:
     return R
 
 
+def prepare(T: pd.DataFrame) -> tuple[pd.DataFrame, list]:
+    """Trial table -> (with pos as str and the first-lick angle, feature names). + angle = toward + side_ml (contra)."""
+    T["pos"] = T.pos.astype(str)
+    T["angle"] = np.degrees(np.arcsin(np.clip(T.side_ml / T.reach_mm, -1, 1)))
+    return T, [c[4:] for c in T.columns if c.startswith("w10:")]
+
+
 def main() -> int:
     from wfield_local import writeguard
     writeguard.assert_writable(OUT / "enl_angle_decode_pre.csv")
@@ -416,9 +464,7 @@ def main() -> int:
     T = extract(jobs) if (not TRIALS.exists() or "--extract" in sys.argv) else pd.read_csv(TRIALS)
     if "--extract-only" in sys.argv:
         return 0
-    T["pos"] = T.pos.astype(str)
-    T["angle"] = np.degrees(np.arcsin(np.clip(T.side_ml / T.reach_mm, -1, 1)))
-    names = [c[4:] for c in T.columns if c.startswith("w10:")]
+    T, names = prepare(T)
     if "--plot-only" in sys.argv:
         PRE, SS, TS = (pd.read_csv(OUT / f"enl_angle_decode_{k}.csv") for k in ("pre", "sessions", "tests"))
         figure(PRE, SS, TS, 1.0, "2s")
