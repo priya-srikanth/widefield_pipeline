@@ -37,6 +37,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.21 area | Revving up: survival, delay decomposition, phase shares, FR vigour, recovery | revup_behaviour.py |
 | 14.21 supp | Pre-cue target vs landing (frozen decoder softmax, class-matched, confusion, decodability, tracking) | lick_enl_target_test.py |
 | 14.18 supp | C/I by spout x epoch, target vs landed frame | lick_ci_spout_epoch.py |
+| 14.21 area | Revving up follow-up: jaw (no ramp), late licks vs corrected chance | revup_followup.py |
 | 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
@@ -53,7 +54,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   'pre-cue target representation unchanged' is NOT established (far-contra moves ipsilesional in 3/4).
 
 - REVVING UP (behaviour): acute far-contra delay = mostly a quiet WAIT then a normal lick (or none), not aborted
-  attempts; late licks after the spout left are at the ITI chance rate; latency tracks aim (r -0.72 to -0.92).
+  attempts; NO jaw ramp (jaw quiet, then abrupt normal opening); late licks after the spout left ABOVE corrected chance
+  (delayed / spout-triggered; earlier 'chance rate' claim retracted); latency tracks aim (r -0.72 to -0.92).
 
 - REVVING UP (neural): slow first licks = delayed start, not a slower ramp (same rise, same level at the lick);
   acute far-contra slow trials overshoot (3/4); engaged late licks look like delayed cued licks.
@@ -74,9 +76,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
-- Rev-up: late-lick shares on the engaged set; jaw ramping (FR prep-jaw factor + LP jaw motion energy)
+(nothing running)
 
 ## 6. Log
+- 10-29 morning: rev-up follow-up reported (jaw: no ramp; late licks above corrected chance; neural set = 'attempted' gate) -> page v239, FINDINGS. All helpers done.
 - 10-29 morning: pre-stroke class-matched now standard (--classmatched-only; new figure; offtarget labels fixed) -> page v238; deleted my superseded scratch enl_target/classmatched_pre_sessions.csv.
 - 10-29 morning: C/I by spout x epoch reported -> page v237 (14.18 supp), FINDINGS.
 - 10-29 morning: Priya decided items 1-5 (above); hypothesis line + FINDINGS updated; 3 helpers started.

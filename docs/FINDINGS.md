@@ -651,14 +651,25 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   faster than pre (4/4). PS92 / PS93 = whole distribution later (slowed initiation); PS94 / PS95 = bimodal (normal or
   failure to initiate; far-mid affected too). Delay = mostly cue -> first movement WAIT (+190 ms) > movement -> lick
   (+129 ms); aborted attempts before the first lick do not increase; no long vigour ramp; aborted (no-contact) licks rise
-  AFTER initiation (+0.74 / trial). First licks after the spout left (5.7-10.7% acute) are at/below the ITI chance rate
-  -> spontaneous, not delayed responses. Latency tracks aim within animals (r -0.72 to -0.92, p < 0.001). PROVISIONAL.
+  AFTER initiation (+0.74 / trial). First licks after the spout left (5.7-10.7% acute): [CORRECTED below -- the
+  'at/below ITI chance' comparison used a ~10x too-high chance rate]. Latency tracks aim within animals (r -0.72 to -0.92, p < 0.001). PROVISIONAL.
   NEURAL (scripts/revup_neural.py): slow first licks = DELAYED START, not slower ramp -- lick-aligned latency quartiles
   overlap (same rise, same level at the lick; deconvolution unchanged); acute far-contra slow trials OVERSHOOT
   (contralesional ALM/tjM1/SSp-m/SSp-n, 3/4); shape conclusions rest on PS92/PS93 (only ones with slow trials). Higher
   pre-cue level -> slower lick in PS92/PS93 in every epoch incl. pre (pre-existing). Engaged late first licks (48)
   look like DELAYED CUED licks (cued-size response, cued-like shape) -- conflicts with the behaviour chance-rate result
   (whose after-left trials are mostly disengaged sated-tail trials) -> reconcile engagement definitions.
+  FOLLOW-UP (10-29, scripts/revup_followup.py; page panel after rev-up NEURAL): JAW -- no ramp: cam4 jaw motion energy
+  and displacement flat until ~-0.2 s then an abrupt normal opening in every latency quartile / epoch incl. acute
+  far-contra slow trials (wait late vs early -0.10 [-0.37, 0.17]; slope slowest - fastest vs pre -2.6 [-16, 11] px/s);
+  slightly more background jitter during acute slow waits (+0.40 [0.11, 0.65], 3/4); slow trials open LESS at lick
+  onset (-6.7 px, 4/4); FR prep-jaw factor LOWER in long waits (-1.03). -> rev-up = a WAIT, not a ramp. LATE LICKS --
+  the behaviour chance rate (all-ITI bout starts) was ~10x too high; against the same no-lick trials' own rate > 1.5 s
+  after the spout left, first licks within 1 s of the spout leaving are above chance in 4/4 acutely (excess +0.12
+  [0.04, 0.22]; far contra +0.15 [0.03, 0.29]) but also pre (+0.25) -> delayed or spout-triggered responses, not chance
+  licks. GATES: the reference (canonical, sated tail out) is what revup_behaviour used; revup_neural used the
+  'attempted' gate (OROFACIAL_GATE=attempted from frozenenv; 200 no-lick trials) -> its 48 late licks are a selected
+  subset, too thin to test (+0.11 [-0.02, 0.30]). PROVISIONAL.
 - **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
   upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
   beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
