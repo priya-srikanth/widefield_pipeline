@@ -658,6 +658,11 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   cue (-0.21 / +0.13) and lick (-0.24 / +0.18) windows show the landing signature 4/4; acute accuracy -0.12 (4/4),
   far-contra AND close-ipsi diagonals drop alike, no off-diagonal cell grows (row flattens); ridge 'tracking' = PS92 +
   regression to the mean. Deviation becomes visible in cortex only after the cue. F12 applies (spout present).
+  PRE-STROKE SAME PATTERN (10-29, Priya "what about pre stroke"; scratch rerun of class_matched incl. pre,
+  enl_target/classmatched_pre_sessions.csv): only 34 deviated pre far-contra trials (PS92 1 / PS93 17 / PS94 12 /
+  PS95 4) -> thin. Pre-cue target +0.06 [-0.13, 0.56], landing 0.00 (ns); cue -0.17 / +0.04 (ns); LICK -0.38
+  [-0.63, -0.14] / +0.13 [0.00, 0.23]. Pre-stroke errors also look like hits before the cue and show the landing
+  signature only at the lick -> the post-stroke pattern is the normal error signature, made more frequent.
 - **Contact vs miss (10-29):** the primary balance is as large or larger on first licks that MISS the spout (acute PS94
   -1.08 vs -0.67) and tracks recovery as well (cross-animal 0.66 both) -> not mainly touch reafference; on STRICT misses
   (no contact within 0.5 s) the recovery link fails in PS92 / PS95 -> a partial touch / reward contribution to the link

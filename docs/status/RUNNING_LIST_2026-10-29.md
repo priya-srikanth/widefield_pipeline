@@ -60,6 +60,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - PRE-CUE TARGET TEST: before the cue the target code is DEGRADED but NOT re-aimed at the landing spout (deviated
   trials look like same-session hits pre-cue; landing signature only after the cue); acute row flattens, close ipsi as
   much as far contra.
+  PRE-STROKE same pattern (34 deviated trials, thin): pre-cue ns, lick target -0.38 / landing +0.13 -> post-stroke =
+  the normal error signature, more frequent.
 
 ## 4. Conclusions (current reading)
 - Pre-cue: target representation weaker but unbiased; the error emerges after the cue (execution / post-cue).
@@ -74,6 +76,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 (nothing running)
 
 ## 6. Log
+- 10-29 morning: class-matched pre-cue test re-run incl. PRE-STROKE (Priya) -> same pattern; FINDINGS, page v235.
 - 10-29 ~00:45: rev-up behaviour reported -> page, FINDINGS, list.
 - 10-29 ~01:45: handoff updated; nothing running. Side effect noted: attempt_coding_pp/run.json was overwritten by
   the precue run and rewritten by the helper to list lick + cue + precue (original backed up in the session scratchpad).
