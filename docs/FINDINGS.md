@@ -543,6 +543,28 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   tracked first licks flat or lower acutely; session_pace.csv) -- the earlier "first-lick count tracks recovery" is
   WITHDRAWN. Balance explains ~65% of the cued acute decoder offset but only 5-15% of the persistent ITI offset; for ITI
   the decoder offset (0.39) is the better recovery marker. PROVISIONAL.
+- **Decoder-offset decomposition (10-29, page 12.17):** the linear decoder's like-for-like offset splits EXACTLY into
+  per-area left/right DIFFERENCE and SHARED parts. ITI offset is ~70-75% hemispheric difference (acute +0.29 of +0.39,
+  chronic +0.20 of +0.29), carried by orofacial + SSs and concentrated in the SSp-n difference (+0.34 / +0.20); other
+  cortex nets ~0 (RSP/VIS shared terms cancel). The SSp-n difference term tracks recovery WITHIN every animal for ITI and
+  cued licks (r -0.45..-0.94, 4/4, mixed p < 0.001), the shared parts do not; it does not transfer across animals
+  (per-animal decoder scales; rescaling does not help) -- a pre-stroke-referenced, within-animal marker (Priya: fine
+  for now). Cued offset ~0 chronically, so its SSp-n signal is the acute -> chronic course. Trial level: dominated by
+  decoder shrinkage (present pre-stroke) -- uninformative about cause. PROVISIONAL.
+- **Primary balance by lick order (page 14.14):** cued acute ~-0.35 at every order 0-4, ~0 chronic (the raw balance's
+  chronic overshoot is gone); ITI only the acute bout start (-0.28). Uncapped first licks (~476 / session vs ~138):
+  within-animal r 0.77/0.87/0.94/0.74, unseen animal 0.65. PROVISIONAL.
+- **HYPOTHESIS (updated 10-29, with Priya):** after the ipsilesional VLS lesion, the orofacial cortical code for lick
+  direction SHIFTS toward the contralesional reading (frozen-decoder offset), persistently for self-initiated licks. The
+  recovery-relevant part of the shift is a HEMISPHERIC difference concentrated in SSp-n (nose / upper-lip S1) as the
+  pre-stroke code weights it, plus a broader orofacial + SSs gain imbalance (ipsilesional cortex over-responds acutely
+  relative to contralesional at the same lick direction) that places unseen animals for cued licks. Both are
+  POST-MOVEMENT STATE measures (no pre-lick predictive signal, no next-session forecast; the calendar tracks a known
+  animal). Recovery = re-balancing toward the pre-stroke hemispheric relation, complete for cued (goal-directed) licks,
+  incomplete for spontaneous licks. Response SIZE is a severity-dependent time course, not recovery. Open alternatives:
+  the balance as altered SENSORY reafference (SSp-n / SSs are sensory; cued licks have spout contact, ITI none) vs a motor
+  command; state / arousal (contralesional VIS tracks ITI recovery). Next tests: cued hit vs miss (contact) balance;
+  SSp-n vs SSp-m sensory mapping; a perturbation.
 - **Trial by trial (10-28 late):** the balance AFTER the first post-cue lick follows that lick's direction within a
   session and target (r 0.3-0.5) -- equally BEFORE the stroke (normal hemispheric direction code); the balance BEFORE the
   lick (-0.5..0 s) predicts nothing (r ~ 0, all epochs). No evidence a pre-movement imbalance causes the error; the

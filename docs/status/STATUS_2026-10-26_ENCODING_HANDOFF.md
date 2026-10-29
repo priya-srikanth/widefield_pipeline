@@ -39,7 +39,32 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-15 (10-29 ~00:30) -- READ FIRST (then 00-COMPACT-14 / -13 for earlier balance work, -12 for env)
+### 00-COMPACT-16 (10-29 ~01:30) -- READ FIRST (then -15 for the balance definition / controls, -12 for env)
+Same session / worktree / branch; page LIVE v218+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. NOTHING RUNNING.
+HYPOTHESIS (updated with Priya): FINDINGS 0b "HYPOTHESIS (updated 10-29)" + the WTS row of the same name.
+NEW this stretch:
+- 12.17 KEY = exact decomposition of the decoder's like-for-like offset into per-area left/right DIFFERENCE and SHARED
+  parts (lick_offset_contrib_map.py now saves terms_sessions_<tag>.csv + terms_licks_<tag>.csv.gz; analysis
+  lick_offset_terms_recovery.py -> offterm_*.csv). ITI offset ~70-75% hemispheric difference, SSp-n difference +0.34 /
+  +0.20 (acute / chronic); SSp-n term tracks recovery within every animal (4/4, ITI + cued), not across animals
+  (per-animal decoder scale). Old 12.18 (balance-explains-offset) and 12.20 (regions) collapsed in place.
+- 14.14 = PRIMARY balance by lick order (lick_balance_order_primary.py, from balsub_order.csv written by
+  lick_balance_subsets.py): cued acute ~-0.35 at orders 0-4, chronic ~0 (raw overshoot gone); raw order figure collapsed.
+- Uncapped cued first licks: lick_firstlick_extract.py -> <OUT_W>/firstlick_full/<label>.npz (every first post-cue
+  lick, ~476 / session vs ~138 in the capped decoder set; identical values on shared licks; shared session files NOT
+  changed); WFIELD_BAL_FULL=1 in lick_balance_subsets / lick_recovery_primary (outputs *_full): within-animal r
+  0.77/0.87/0.94/0.74, unseen animal 0.65. Not yet the page default (14.18 still capped; full in its robustness (vii)).
+- Session pace (session_pace_table.py): acute excess of first licks = 1500-lick cap (N_TRIAL_MAX) x shorter bouts.
+- Trial-by-trial (balance and SSp-n term): dominated by the normal direction code / decoder shrinkage (present pre) ->
+  uninformative about cause; pre-lick balance predicts nothing.
+- Page: section 12 and 14 renumbered by the inserts (refs fixed by script: collapsed-fig summaries regenerated from
+  inner fnum; retired-group numbers kept as historical). Collapsed figures keep their <figure> tags -> renumber() counts
+  them; after any insert, re-sync the collapsed summaries (see scratchpad page_fixrefs.py logic) .
+OPEN / NEXT: (1) cued HIT vs MISS (contact) balance -- sensory-reafference vs motor test; (2) make the uncapped first-lick
+set the 14.18 default?; (3) redo the imaging control (14.19, F0 / 415) on the primary balance; (4) 'Biology in brief'
+section (list awaiting Priya); (5) collapse WTS-unreferenced supporting figures.
+
+### 00-COMPACT-15 (10-29 ~00:30) -- (previous)
 Same session / worktree / branch; page LIVE v213+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Decisions:
 DECISIONS "2026-10-28 (late night)"; findings FINDINGS 0b (PRIMARY marker block + trial-by-trial).
 PRIMARY BALANCE (fixed): angle-matched GAIN RATIO, log2(contra obs/pred) - log2(ipsi obs/pred), summed over the session's
