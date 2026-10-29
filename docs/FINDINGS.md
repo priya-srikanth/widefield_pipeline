@@ -656,6 +656,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (-0.18, 4/4; SSs, SSp-n); lasting piece MOp outside tjM1 (-0.13 chronic; far1 -0.14, 4/4) -> the lasting ITI DECODER
   offset is not a hemispheric level difference (it is a pattern offset, cf. code subspace). Pixel maps localise the
   same (cued chronic: anterolateral frontal / SSp-n + posterior-medial; ITI acute: lateral S1 / SSs). PROVISIONAL.
+- **CORRECTION LICKS (10-29, Priya item 4; scripts/lick_correction.py):** behaviour -- the miss-minus-hit correction at
+  matched error (step_b, controlling the previous lick's error) is NEGATIVE pre (-4.1 deg: misses repeat) and rises
+  post-stroke +4.9 / +2.3 / +3.1 deg (4/4), later licks; yet after a far-contra miss the next lick hits ~10 % acutely
+  (51 % pre). Neural -- no evidence of an error signal that predicts the correction: activity adds 0.02-0.04 cvR2
+  (control 0.01), already before lick k and after hits (next-command information); no post-stroke increase; the acute
+  contra-ipsi miss-hit rise (+9.5, 4/4) is an ipsilesional DROP, decays with log day, not robust to deconvolution.
+  GCaMP overlap of lick k+1's command limits all of this. PROVISIONAL.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT LICK ONSET to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s

@@ -42,6 +42,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.21 area | Revving up follow-up: jaw (no ramp), late licks vs corrected chance | revup_followup.py |
 | 14.18 supp | Same code or re-mapped (transfer asymmetry, axes vs June drift, areas) | lick_code_subspace.py |
 | 14.18 supp | Per-area tuning + matched pixel maps | lick_area_tuning.py, lick_matched_pixel_maps.py |
+| 14.18 supp | Correction licks after a miss | lick_correction.py |
 | 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
@@ -83,10 +84,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 ## 5. Running (will be added above when they report)
 - Noise-matched transfer + rotation power check for the code-subspace test (Priya 10-29)
 - (3) interhemispheric coupling + lead around licks vs docked rest (lick_interhemispheric.py)
-- (4) correction licks after a miss: behaviour + error signal by hemisphere (lick_correction.py)
 - ITI offset headlines restricted to DOCKED-spout licks (dock -> next trial_start; Priya 10-29). Current primary ITI set = every ITI lick incl. retraction / outbound travel; far1 filter ~ docked (offset held: +0.25 / +0.25 / +0.34 mm).
 
 ## 6. Log
+- 10-29: item 4 (correction licks) reported -> page v243, FINDINGS (no cortical error-feedback signal found).
 - 10-29: Priya: representational-change wording softened (re-map open); noise-matched transfer + power check started.
 - 10-29: items 1 + 5 reported (area tuning, matched pixel maps) -> page v241, FINDINGS. Priya flagged 'no re-map' as too strong -> wording pending discussion.
 - 10-29: item 2 (code subspace) reported -> page v240, FINDINGS. New frozen kind lick_code in the LOCAL store (not published to the shared store).
