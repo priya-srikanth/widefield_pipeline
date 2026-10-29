@@ -65,6 +65,20 @@ undetermined, probably not ACAd-specific (link lives on the sagittal-sinus strip
 SSp-n; registration ruled out) -> not a grant candidate region. Grant discussion with Priya (chemogenetics): balance =
 secondary readout next to behaviour, measured off-drug and without the manipulated area; priority SSp-m/n both
 hemispheres, contra tjM1, ALM lower; bilateral arm as specificity control; VIS/RSP as control region.
+RUNNING at 10-29 night (helpers; integrate into page + FINDINGS + commit when they report):
+(1) scripts/lick_enl_target_test.py -- pre-cue target vs landing: FIRST the existing frozen-decoder softmax
+    (attempt_coding pp_<spout>, align precue) off-target target-vs-executed + trial coupling, side by side with
+    ENCODING_FINDINGS 8.2 / page Fig 6.10 (lick / cue windows); then gain-normalised ridge tracking, spout settled >= 2 s.
+    If precue attempt_coding outputs do not exist it reports run time and does NOT launch (ask Priya).
+(2) scripts/revup_behaviour.py -- latency / hazard incl. first licks after the spout left (searched into the ITI with
+    video licks), rev-up kinematics (jaw onsets, incomplete licks, FR vigour), tracking vs recovery; per-trial table
+    OUT_W/revup/revup_trials.csv.gz.
+(3) scripts/revup_neural.py -- traces by latency quartile (ramp slope vs delayed start vs level), late licks vs ITI
+    licks, pre-cue level vs latency, GCaMP6s deconvolution sensitivity.
+DONE 10-29 night: target model (14.18 supp), matched error (14.18 supp; cued within-spout balance overshoots pre;
+grant note), ITI pre-lick (12.17 supp; lick-onset-locked; no ITI spout contact), ENL follow-ups (14.21 supp; CAVEAT:
+'pre-cue reads the target' NOT established -- decoder compression, far-contra moves in 3/4), implied-direction display
+(WFIELD_BAL_DISPLAY) + sign box, ACAd control (not ACAd-specific). Page v231.
 GRANT NOTE (Priya 10-29): cued within-spout balance rises ABOVE pre over weeks (contralesional hemisphere gains
 relative weight, independent of landing; FINDINGS 0b matched-error entry) -> chronic contralesional silencing tests
 whether that extra share supports the recovered behaviour.
