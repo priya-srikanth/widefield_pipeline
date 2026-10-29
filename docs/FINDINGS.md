@@ -645,6 +645,14 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   Where: ITI excess over ceiling in orofacial cortex bilateral acutely, IPSILESIONAL chronically (SSp-n, SSs, tjM1,
   SSp-m); non-orofacial change = June-level drift. Caveats: PS95 one acute session; PS94 cued acute 16 % retained; area
   terms point estimates. PROVISIONAL.
+- **PER-AREA TUNING + MATCHED PIXEL MAPS (10-29, Priya items 1 + 5; lick_area_tuning.py, lick_matched_pixel_maps.py):**
+  cued contralesional-share rise (pool +0.13 / +0.16, 4/4) = both hemispheres above pre with the ipsilesional excess
+  fading faster, plus chronically FLATTER contralesional tuning (depth -0.56, 4/4) -> offset + broader tuning, NOT gain.
+  Strongest SSp-n (+0.30 chronic) / SSs / ALM / tjM1, MOp ~0, BUT VISpm +0.37 and RSPd +0.20 rise too (4/4) -> broad
+  hemispheric re-weighting, NOT orofacial-specific (qualifies the hypothesis line (3)). ITI share deficit acute only
+  (-0.18, 4/4; SSs, SSp-n); lasting piece MOp outside tjM1 (-0.13 chronic; far1 -0.14, 4/4) -> the lasting ITI DECODER
+  offset is not a hemispheric level difference (it is a pattern offset, cf. code subspace). Pixel maps localise the
+  same (cued chronic: anterolateral frontal / SSp-n + posterior-medial; ITI acute: lateral S1 / SSs). PROVISIONAL.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT LICK ONSET to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s

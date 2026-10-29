@@ -5,6 +5,8 @@ you need from me, as well as updating handoff intermittently"). Page: https://cl
 Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions). All PROVISIONAL, n = 4.
 
 ## 1. Decisions needed from Priya
+- [ ] **Representational-change wording** (Priya 10-29: 'no re-map' too strong; discuss): frame as offset + gain / precision loss, re-map open? Run noise-matched transfer + power check first?
+- [ ] **Hypothesis line (3)**: the contralesional-share rise is not orofacial-specific (VISpm / RSPd rise too) -> reword?
 - [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
 - [x] (YES 10-29 morning, done) **Wording "consequence of the errors"**: narrow it (FINDINGS / hypothesis) to "the cued imbalance comes after the lick
@@ -39,6 +41,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.18 supp | C/I by spout x epoch, target vs landed frame | lick_ci_spout_epoch.py |
 | 14.21 area | Revving up follow-up: jaw (no ramp), late licks vs corrected chance | revup_followup.py |
 | 14.18 supp | Same code or re-mapped (transfer asymmetry, axes vs June drift, areas) | lick_code_subspace.py |
+| 14.18 supp | Per-area tuning + matched pixel maps | lick_area_tuning.py, lick_matched_pixel_maps.py |
 | 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
@@ -78,12 +81,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
-- (Priya 10-29: 'go ahead w 1-5') (1) per-area, per-hemisphere direction tuning on matched licks + (5) matched pixel maps of the ITI offset / contralesional-share rise (lick_area_tuning.py, lick_matched_pixel_maps.py)
 - (3) interhemispheric coupling + lead around licks vs docked rest (lick_interhemispheric.py)
 - (4) correction licks after a miss: behaviour + error signal by hemisphere (lick_correction.py)
 - ITI offset headlines restricted to DOCKED-spout licks (dock -> next trial_start; Priya 10-29). Current primary ITI set = every ITI lick incl. retraction / outbound travel; far1 filter ~ docked (offset held: +0.25 / +0.25 / +0.34 mm).
 
 ## 6. Log
+- 10-29: items 1 + 5 reported (area tuning, matched pixel maps) -> page v241, FINDINGS. Priya flagged 'no re-map' as too strong -> wording pending discussion.
 - 10-29: item 2 (code subspace) reported -> page v240, FINDINGS. New frozen kind lick_code in the LOCAL store (not published to the shared store).
 - 10-29: 4 more helpers started for Priya's items 1-5 (max 4 workers each; shared box).
 - 10-29: Priya asked that ITI offset results be based on docked-spout licks -> helper started.
