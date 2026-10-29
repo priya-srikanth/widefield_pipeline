@@ -95,6 +95,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - ENLv licks: balance, decoder offset, target code; window after spout arrival swept (0.5-1.5, 1-2, >=1, >=1.5 s; bout starts vs all) -> enlv_licks/
 - Cue-to-lick: mean level cue->lick (+ latency-matched), AUC-to-threshold test (AUC at lick / slope / level vs latency), fixed pre-lick windows, chronic pre-cue dip (raw vs restw vs rest level) -> cue_to_lick/
 
+- (low priority) Stopped-trial regional traces across epochs (vs miss_working, hit; restw + raw; example trials) -> stopped_traces/ (2 workers)
+- Updates sent: ENLv primary = onset >= 1 s after arrival (+ >= 0 s and first-ENLv-lick versions, arrival-corrected); chronic dip = NON-restw traces.
+
 ## 7. ENLv + cue-to-lick results (figure links added as they report)
 (none yet)
 
