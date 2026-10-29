@@ -7,20 +7,20 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 ## 1. Decisions needed from Priya
 - [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
-- [ ] **Wording "consequence of the errors"**: narrow it (FINDINGS / hypothesis) to "the cued imbalance comes after the lick
+- [x] (YES 10-29 morning, done) **Wording "consequence of the errors"**: narrow it (FINDINGS / hypothesis) to "the cued imbalance comes after the lick
       and is redundant with the error; causal role for recovery untested"? (asked 10-29, no answer yet)
-- [ ] **Hypothesis update**: cued balance/offset = landing error seen through a target code; the persistent signals are
+- [x] (YES, without minimising the ITI offset + contralesional-share rise; done, page v236) **Hypothesis update**: cued balance/offset = landing error seen through a target code; the persistent signals are
       the ITI post-onset contralesional shift and the slow rise of the contralesional share on cued licks. Update the
       WTS / Biology-in-brief hypothesis line accordingly?
-- [ ] **Primary marker framing**: keep the cued balance as the headline recovery marker (valid as a state readout) or
+- [x] (cued = state readout; ITI offset + ITI SSp-n difference + share rise = mechanistic) **Primary marker framing**: keep the cued balance as the headline recovery marker (valid as a state readout) or
       lead with the ITI balance / decoder offset as the mechanistic marker?
 - [x] **Delete 5 superseded cache files** -- DONE 10-29 (Priya approved; derived, read by nothing) (revup/sessions/PS92_0806/0807/0809/0812/0821 .pkl, from an aborted first run,
       onset-only lick rule, read by nothing)? Waiting until the imaging helper (same folder) finishes.
-- [ ] **Late licks after the spout left: spontaneous or delayed responses?** Behaviour (all canonical trials): at the ITI
+- [x] (standard engagement gate = reference; helper re-running behaviour shares) **Late licks after the spout left: spontaneous or delayed responses?** Behaviour (all canonical trials): at the ITI
       chance rate. Neural (engagement-gated, 48 trials): cued-size, cued-shaped responses. The two used different
       engagement gates; most behaviour 'after-left' trials are in the sated tail. Which engagement definition should be
       the reference for this question? (I can re-run the behaviour shares on the engaged set.)
-- [ ] **Movement-null plan encoding model (Musall-style)**: worth building given pre-cue aim beyond history/face is ~0
+- [x] (DEFERRED) **Movement-null plan encoding model (Musall-style)**: worth building given pre-cue aim beyond history/face is ~0
       at area level? (nested: spout, history, non-directional movement, directional face, upcoming deviation)
 
 ## 2. Figures added tonight (page section, file)
@@ -73,9 +73,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
-(nothing running)
+- C/I by spout x epoch, LOSO + figure (scripts/lick_ci_spout_epoch.py)
+- Pre-stroke class-matched as a standard output + figure (lick_enl_target_test.py; also fixes offtarget x labels)
+- Rev-up: late-lick shares on the engaged set; jaw ramping (FR prep-jaw factor + LP jaw motion energy)
 
 ## 6. Log
+- 10-29 morning: Priya decided items 1-5 (above); hypothesis line + FINDINGS updated; 3 helpers started.
 - 10-29 morning: deleted revup/sessions/PS92_0806/0807/0809/0812/0821.pkl (approved; superseded derived caches).
 - 10-29 morning: class-matched pre-cue test re-run incl. PRE-STROKE (Priya) -> same pattern; FINDINGS, page v235.
 - 10-29 ~00:45: rev-up behaviour reported -> page, FINDINGS, list.

@@ -615,6 +615,24 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   of where the lick lands -- fits gradual reorganisation, the intact hemisphere taking on a larger share, more than a
   direct correlate of aim. Silencing contralesional cortex in the CHRONIC phase would test whether that extra share
   supports the recovered behaviour.
+  DECIDED (Priya 10-29 morning): (1) WORDING -- the cued imbalance is REDUNDANT with the landing error and appears
+  after the lick; whether it drives the deficit or recovery is UNTESTED (not "a consequence of the errors"). (2)
+  HYPOTHESIS updated (page Biology in brief) without minimising the persistent signals: the ITI contralesional offset
+  and the slow rise of the contralesional share are co-headline. (3) MARKERS: cued balance = sensitive state readout
+  (headline for recovery staging); ITI decoder offset + ITI SSp-n left/right difference + the contralesional-share rise =
+  the mechanistic markers. (5) movement-null plan encoding model DEFERRED.
+  C/I BY SPOUT AND EPOCH (10-29, Priya: "C/I increased after stroke then back to pre? but for the most impaired licks
+  it increases over recovery?"; scratch preview, LOSO script running -> scripts/lick_ci_spout_epoch.py). The answer
+  depends on the reference, HEMISPHERE sign (+ = C/I up):
+  RAW C/I vs pre at the SAME SPOUT (relative to the target): UP after the stroke, largest at far contra, partly falls
+  but stays above pre -- cued far contra +0.58 / +0.34 / +0.35 (4/4 each epoch), far ipsi rises late +0.01 / +0.25 /
+  +0.28; ITI after far-contra trials +0.42 / +0.28 / +0.27 (4/4, 3/4, 4/4).
+  RELATIVE TO WHERE THE LICK LANDED (pre angle line): DOWN acutely at every spout and returns to pre -- cued far
+  contra -0.27 / -0.03 / +0.11, ITI after far contra -0.59 / -0.13 / -0.05 (PS94 carries much of the acute).
+  SAME TARGET AND SAME LANDING (matched error, above): ~0 acutely, then rises ABOVE pre (+0.13 / +0.16, 4/4).
+  So "up, then back" is the landing-referenced view; in the target view C/I stays raised; at matched target + landing it
+  climbs over recovery. ITI licks after far-contra trials ARE the most ipsilesionally deviated (acute -29.7 deg vs
+  -8 to -17 deg after other spouts, 4/4; -13.4 / -9.8 later) and follow the same pattern as cued far-contra licks.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT LICK ONSET to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
