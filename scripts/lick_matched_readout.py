@@ -112,6 +112,11 @@ def choose_sigma(P: pd.DataFrame) -> tuple[float, pd.DataFrame]:
 
 def per_lick() -> pd.DataFrame:
     P = pd.read_csv(lo.preds_path())
+    if il.ITI_SUBSET:                                  # docked-spout etc. subset of the frozen predictions (10-29)
+        keep = il.iti_subset_keep(P)
+        print(f"ITI subset filter {il.ITI_SUBSET}: keeping {int(keep[(P.set == 'iti').to_numpy()].sum())} of "
+              f"{int((P.set == 'iti').sum())} ITI licks", flush=True)
+        P = P[keep].reset_index(drop=True)
     if ANIMALS:                                        # test runs on a subset (the pre references are per animal)
         P = P[P.animal.isin(ANIMALS)].reset_index(drop=True)
     ref = P[P.epoch == "pre"].groupby(["set", "animal", "pos"])[["act", "dec"]].mean()

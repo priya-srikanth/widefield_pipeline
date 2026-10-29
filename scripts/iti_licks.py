@@ -49,6 +49,33 @@ OUT = E / "iti_licks"
 # READING inputs from OUT. Default = OUT (production unchanged); env WFIELD_ITI_OUT_W redirects the writes (a test run
 # under a write guard writes into a local scratch folder and never touches the share).
 OUT_W = Path(os.environ["WFIELD_ITI_OUT_W"]) if os.environ.get("WFIELD_ITI_OUT_W") else OUT
+# SUBSET ITI FILTERS (Priya 10-29: ITI offset results on licks made while the spout is DOCKED). Unlike gap2 / far1
+# (iti_lick_order: decoder REFIT on the filtered set, outputs tagged "_<filter>"), these keep the FROZEN all-ITI decoder
+# (rule 10: lick_order_preds cache unchanged) and only drop ITI rows downstream (`iti_subset_keep`, flags from
+# iti_dock_audit.py). Their outputs keep the untagged file names inside their own folder <OUT>/itifilter_<filter>/
+# (OUT_W is redirected there unless WFIELD_ITI_OUT_W is set), so a primary output can never be overwritten.
+ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n")
+ITI_SUBSET = os.environ.get("WFIELD_ITI_FILTER", "") if os.environ.get("WFIELD_ITI_FILTER", "") in ITI_SUBSET_FILTERS else ""
+if ITI_SUBSET and not os.environ.get("WFIELD_ITI_OUT_W"):
+    OUT_W = OUT / f"itifilter_{ITI_SUBSET}"
+_DOCK_AUDIT = None
+
+
+def iti_subset_keep(df: pd.DataFrame) -> np.ndarray:
+    """Boolean per row of a per-lick table for ITI_SUBSET: rows of set 'iti' are kept only if flagged in
+    <OUT>/iti_dock_audit.csv (key label x k, k = the row's index within (set, label) of the frozen prediction cache);
+    other sets are kept. `k` is taken from the table or, if absent, as the cumcount within (set, label) -- valid only for
+    a table in prediction-cache order. All True when no subset filter is active."""
+    if not ITI_SUBSET:
+        return np.ones(len(df), bool)
+    global _DOCK_AUDIT
+    if _DOCK_AUDIT is None:
+        A = pd.read_csv(OUT / "iti_dock_audit.csv", usecols=["label", "k", ITI_SUBSET])
+        _DOCK_AUDIT = A.set_index(["label", "k"])[ITI_SUBSET].astype(bool)
+    k = df["k"] if "k" in df else df.groupby(["set", "label"]).cumcount()
+    iti = (df["set"] == "iti").to_numpy()
+    flag = _DOCK_AUDIT.reindex(pd.MultiIndex.from_arrays([df["label"], k])).fillna(False).to_numpy(bool)
+    return ~iti | flag
 # ROI VERSION (Priya 10-27, after lick_roi_check / lick_roi_foci and the MOp decile profile: the pre-map hot spot in MOp
 # runs past 40 %; literature check vs Guo 2014 / Mayrhofer 2019 / Esmaeili 2021 + lick_roi_candidates.png; Priya chose
 # ALM unchanged, tjM1 50 % -- ALM 45 % starts to take in whisker M2): v1 = ALM / tjM1 = anterolateral 40 % (session

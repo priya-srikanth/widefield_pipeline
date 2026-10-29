@@ -77,7 +77,10 @@ if MASK_LOC:
 # start or stop?" -- they did not: iti_lick_timing_audit.py). WFIELD_ITI_FILTER restricts the ITI set (training AND
 # scoring) using <E>/iti_licks/iti_timing_audit.csv: gap2 = no lick onset in the preceding 2 s; far1 = >= 1 s after the
 # response-window end and >= 1 s before the next spout arrival; gap2far1 = both. Outputs tagged "_<filter>".
-ITI_FILTER = os.environ.get("WFIELD_ITI_FILTER", "")
+# SUBSET filters (iti_licks.ITI_SUBSET_FILTERS: dock, dock01, gap2dock, far1s; 10-29) are NOT applied here: the frozen
+# all-ITI decoder and its prediction cache are reused unchanged, rows are dropped downstream (iti_licks.iti_subset_keep)
+# and outputs go to <OUT>/itifilter_<filter>/ (iti_licks.OUT_W) -- so no tag here.
+ITI_FILTER = "" if il.ITI_SUBSET else os.environ.get("WFIELD_ITI_FILTER", "")
 if ITI_FILTER:
     SRC_TAG += f"_{ITI_FILTER}"
 # KEY_TAG = the basis-specific tag built above (cache name, basis key); SRC_TAG = the OUTPUT tag: the canonical split basis

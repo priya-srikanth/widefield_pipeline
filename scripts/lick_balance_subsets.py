@@ -197,6 +197,9 @@ def sessions() -> pd.DataFrame:
     P["k"] = P.groupby(["set", "label"]).cumcount()
     C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k", "speed_peak", "elev_deg"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
+    if il.ITI_SUBSET:                                      # docked-spout etc. subset (10-29); k = cache index, kept
+        P = P[il.iti_subset_keep(P)].reset_index(drop=True)
+        print(f"ITI subset filter {il.ITI_SUBSET}: {int((P.set == 'iti').sum())} ITI licks kept", flush=True)
     res, fail = ak.fan_sessions(sorted(P.label.unique()), _session)
     if fail:
         raise RuntimeError(f"failed: {fail[:5]}")

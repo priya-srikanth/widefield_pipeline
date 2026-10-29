@@ -670,6 +670,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   acutely); Granger direction moves contralesional but as much at rest (global; gain / SNR-sensitive). More tilt goes
   with WORSE aim (cued r -0.44, 4/4; also at rest) -- hint only (many tests). GCaMP6s: shape, not lead. PROVISIONAL.
   Suggested next: partial out the hemispheric balance before Granger / asymmetry; global-signal-removed noise corr.
+- **DOCKED-SPOUT ITI LICKS (10-29, Priya: ITI offset results should use docked-spout licks; iti_dock_audit.py,
+  lick_iti_dock_compare.py, page 14.18 supp):** docked (dock -> next trial_start) = 35 % of ITI licks. HOLD: same-place
+  offset +0.30 / +0.22 / +0.29 mm, matched-error offset +0.22 / +0.18 / +0.22, SSp-n L/R term +0.26 / +0.23 / +0.20
+  (3-4/4, CIs exclude 0). LOST: primary ITI balance (acute -0.11 ns vs -0.34), within-spout balance, C/I landed frame,
+  ITI-balance recovery tracking (LOAO -0.11 vs 0.42); SSp-n tracking weakened. Moving-spout licks subsampled to the
+  docked count reproduce everything -> not power. => The lasting ITI PATTERN offset is a docked-spout result; the ITI
+  hemispheric BALANCE and its recovery link come from licks while the spout moves (retraction / outbound) -- possibly
+  spout-driven licks. Earlier ITI-balance claims (0b: ITI balance deficit 4/4, LOAO 0.32-0.37 tracking, matched-error
+  ITI within-spout balance) are MOVING-SPOUT results. PROVISIONAL.
 - **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
   frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
   cohort effect) and steps up AT LICK ONSET to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
