@@ -145,9 +145,12 @@ def sessions() -> pd.DataFrame:
     return S
 
 
-def compute() -> dict:
-    S = sessions()
-    S.to_csv(il.OUT_W / "balvar_sessions.csv", index=False)
+def compute(models_only: bool = False) -> dict:
+    if models_only:                                    # re-fit the models on the saved session table
+        S = pd.read_csv(il.OUT_W / "balvar_sessions.csv")
+    else:
+        S = sessions()
+        S.to_csv(il.OUT_W / "balvar_sessions.csv", index=False)
     # self-check: diff of the current window (raw 0..0.2) ~ the published balance (window differs slightly: 0..0.2 incl.)
     chk = S[["set", "label", f"diff:raw{_bl(0.0, 0.1)}|oro", f"diff:raw{_bl(0.1, 0.2)}|oro"]].merge(
         pd.read_csv(il.OUT_W / "recmark_sessions.csv", usecols=["set", "label", "oro_bal"]), on=["set", "label"])
@@ -170,7 +173,7 @@ def compute() -> dict:
     F["M"].to_csv(il.OUT_W / "balvar_models.csv", index=False)
     pd.set_option("display.width", 240)
     top = F["CV"].sort_values("loao", ascending=False).groupby(["set", "y"]).head(8)
-    print("== best LOAO per set x target\n" + top[["set", "y", "pred", "loao", "p_shuffle", "loeo", "loso_unknown"]]
+    print("== best LOAO per set x target\n" + top[["set", "y", "pred", "loao", "p_shuffle", "loblk", "loso_unknown"]]
           .round(3).to_string(index=False))
     print("== per animal r, top predictors (rule 8)\n" + F["AN"].merge(top[["set", "y", "pred"]], on=["set", "y", "pred"])
           .pivot_table(index=["set", "y", "pred"], columns="animal", values="r").round(2).to_string())
@@ -243,7 +246,7 @@ def main() -> int:
     if plot_only():
         plot(load_fd("lick_balance_variants"))
         return 0
-    F = compute()
+    F = compute(models_only="--models-only" in sys.argv)
     save_fd("lick_balance_variants", F)
     plot(F)
     return 0

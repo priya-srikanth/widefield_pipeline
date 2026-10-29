@@ -260,6 +260,33 @@ def cv_r2(g: pd.DataFrame, cols: list[str], by: str, animal_known: bool = False)
     return 1 - np.sum((y - pred) ** 2) / np.sum((y - y.mean()) ** 2), pred
 
 
+N_BLOCKS, GAP = 4, 1
+
+
+def cv_blocked(g: pd.DataFrame, cols: list[str]) -> float:
+    """WITHIN-ANIMAL BLOCKED cvR2 (Priya 10-28: replaces leave-one-epoch-out, which tested extrapolation to an aim range
+    the model never saw). Each animal's sessions, in day order, are cut into N_BLOCKS contiguous blocks; each block is
+    held out in turn, its GAP neighbouring sessions on each side are dropped from training, and the model is fit on the
+    rest (that animal's other sessions + the other animals) WITH animal intercepts. Pooled SSE / SST around the mean."""
+    g = g.sort_values(["animal", "day"]).reset_index(drop=True)
+    pos = g.groupby("animal").cumcount().to_numpy()
+    n_a = g.groupby("animal").animal.transform("size").to_numpy()
+    blk = np.floor(pos * N_BLOCKS / n_a).astype(int)
+    y = g.aim.to_numpy()
+    X = np.column_stack([g[cols].to_numpy(float), pd.get_dummies(g.animal, drop_first=True).to_numpy(float)])
+    pred = np.full(len(g), np.nan)
+    an = g.animal.to_numpy()
+    for a in np.unique(an):
+        for b in range(N_BLOCKS):
+            te = (an == a) & (blk == b)
+            if not te.any():
+                continue
+            lo_, hi_ = pos[te].min() - GAP, pos[te].max() + GAP
+            excl = (an == a) & (pos >= lo_) & (pos <= hi_)
+            pred[te] = _ols_pred(X[~excl], y[~excl], X[te])
+    return 1 - np.nansum((y - pred) ** 2) / np.sum((y - y.mean()) ** 2)
+
+
 def models(S: pd.DataFrame) -> dict:
     import statsmodels.formula.api as smf
     preds = [c for c in S.columns if c not in ("set", "label", "animal", "epoch", "day", "aim", "logday", *YAX)]
@@ -300,10 +327,10 @@ def models(S: pd.DataFrame) -> dict:
                         "null95": np.quantile(null, 0.95) if len(null) else np.nan,
                         "p_shuffle": (1 + np.sum(null >= r_loao)) / (1 + len(null)) if len(null) else np.nan,
                         "loso_unknown": cv_r2(g, [v], "sess")[0],
-                        # leave-one-EPOCH-out (all animals' sessions of that epoch held out; tests extrapolation to an
-                        # unseen recovery stage -- e.g. acute is predicted from subacute + chronic only)
-                        "loeo": cv_r2(g, [v], "epoch")[0],
-                        "loeo_days_same_sessions": cv_r2(g, ["days"], "epoch")[0],
+                        # within-animal BLOCKED (replaces leave-one-epoch-out, Priya 10-28; cv_blocked)
+                        "loblk": cv_blocked(g, [v]),
+                        "loblk_days_same_sessions": cv_blocked(g, ["days"]),
+                        "loblk_plus_days": cv_blocked(g, ["days", v]) if v != "days" else np.nan,
                         "loso_known": cv_r2(g, [v], "sess", animal_known=True)[0],
                         "loso_known_plus_days": cv_r2(g, ["days", v], "sess", animal_known=True)[0] if v != "days"
                         else np.nan,
@@ -377,7 +404,7 @@ def plot(F: dict) -> None:
         ax.legend(fontsize=7, frameon=False, loc="upper right")
         ax = axs[i, 1]
         w = 0.21
-        for j, (col, lab, cl) in enumerate((("loeo", "leave-one-EPOCH-out (animal unknown)", "#64B5CD"),
+        for j, (col, lab, cl) in enumerate((("loblk", "within-animal blocked (4 blocks, 1-session gap)", "#64B5CD"),
                                             ("loso_unknown", "leave-one-session-out, animal unknown", "#DD8452"),
                                             ("loso_known", "leave-one-session-out, animal known", "#55A868"),
                                             ("loso_known_plus_days", "... animal known + days", "#8172B3"))):
@@ -385,7 +412,7 @@ def plot(F: dict) -> None:
         ax.axhline(0, color="k", lw=0.6)
         ax.set_ylim(-0.6, 1)
         ax.set_xticks(x, [lab for _, lab in ks], rotation=35, ha="right", fontsize=8)
-        ax.set_title(f"{st}: leave-one-EPOCH-out and leave-one-SESSION-out cvR²", fontsize=10)
+        ax.set_title(f"{st}: within-animal BLOCKED and leave-one-SESSION-out cvR²", fontsize=10)
         ax.legend(fontsize=7, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.32), ncol=2)
         ax = axs[i, 2]
         sel = [k for k in ("oro_bal", "oro_size", "auc_both") if k in c.index]
@@ -544,7 +571,7 @@ def main() -> int:
         F.update(models(F["S"]))
         for k, f in (("M", "recmark_models"), ("CV", "recmark_cv"), ("CVA", "recmark_cv_animals")):
             F[k].to_csv(il.OUT_W / f"{f}.csv", index=False)
-        print(F["CV"][["set", "pred", "loao", "loeo", "loeo_days_same_sessions", "loso_unknown"]].round(3).to_string(index=False))
+        print(F["CV"][["set", "pred", "loao", "loblk", "loblk_days_same_sessions", "loso_unknown"]].round(3).to_string(index=False))
         save_fd("lick_recovery_markers", F)
         plot(F)
         return 0

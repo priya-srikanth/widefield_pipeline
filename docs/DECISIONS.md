@@ -1,3 +1,14 @@
+## 2026-10-28 (late night) -- balance definition for recovery markers (Priya)
+- Recovery-marker balance is measured on the FIRST POST-CUE LICK (cued) and the FIRST ITI LICK AFTER >= 2 s QUIET (ITI),
+  not on all licks (Priya: "we'll use first iti lick after quiet and first post cue lick based windows").
+- Cued window CONFIRMED on held-out animals (scripts/lick_balance_nested.py; window chosen on 3 animals, tested on the
+  4th): first-post-cue-lick gain ratio 0.2..0.35 s, chosen in 4/4 folds, nested LOAO 0.69 (null p 0.005; days 0.23).
+  ITI: no window survives the held-out selection on its own (timing families <= 0.11); 'any definition' 0.22 vs days
+  0.17 (p 0.01). Area subsets: scripts/lick_balance_subsets.py (running at this note).
+- Leave-one-EPOCH-out dropped as a criterion (Priya: tests extrapolation to an unseen aim range, 3 unequal folds);
+  replaced by within-animal BLOCKED CV (4 contiguous blocks per animal, 1-session gap, animal intercepts;
+  lick_recovery_markers.cv_blocked).
+
 ## 2026-10-28 (night) -- recovery markers, Shapley grouping, pre-cue reference (Priya)
 - Pre-cue LEVEL is referenced to RESTW (Priya "3. yes"): position-weighted flat rest median, restdock05, engagement-gated,
   docked=False as the other restw consumers (scripts/lick_precue_restw.py; 0/107 fallbacks). Standalone figure 14.20,

@@ -122,7 +122,7 @@ def compute() -> dict:
           + O[O.epoch != "pre"].groupby(["set", "epoch"])[["frac_outside", "frac_central"]].mean().round(3).to_string())
     print("== A. per animal r with iti_ang (rule 8)\n" + FA["AN"].pivot_table(index=["set", "pred"], columns="animal",
                                                                                values="r").round(2).to_string())
-    print("== A. models\n" + FA["CV"][["set", "pred", "loao", "p_shuffle", "loeo", "loso_unknown", "loso_known"]]
+    print("== A. models\n" + FA["CV"][["set", "pred", "loao", "p_shuffle", "loblk", "loso_unknown", "loso_known"]]
           .merge(FA["M"][["set", "pred", "slope", "p"]], on=["set", "pred"], how="left").round(3).to_string(index=False))
     # B: where -- per feature, within-animal partial r with iti_ang (log day removed), per animal
     S = P.groupby(["set", "label", "animal", "epoch"])[[f"res_{f}" for f in feats]].mean().reset_index()
@@ -164,7 +164,6 @@ def compute() -> dict:
         grp = G.animal.to_numpy()
         ep = G.epoch.to_numpy()
         r_loao, pred = _ridge_cv(X, y, grp)
-        r_loeo, _ = _ridge_cv(X, y, ep, inner=grp)
         ld = np.log(G.day.to_numpy())[:, None]
         r_days = 1 - np.sum((y - _ols_cv(ld, y, grp)) ** 2) / np.sum((y - y.mean()) ** 2)
         null = []
@@ -176,7 +175,7 @@ def compute() -> dict:
             null.append(_ridge_cv(Xs, y, grp)[0])
         null = np.asarray(null)
         mae = {a: float(np.mean(np.abs(y[grp == a] - pred[grp == a]))) for a in np.unique(grp)}
-        L.append({"set": st, "n": len(y), "n_features": X.shape[1], "loao": r_loao, "loeo": r_loeo, "loao_days": r_days,
+        L.append({"set": st, "n": len(y), "n_features": X.shape[1], "loao": r_loao, "loao_days": r_days,
                   "null95": float(np.quantile(null, 0.95)), "p_shuffle": float((1 + np.sum(null >= r_loao)) / (1 + len(null))),
                   **{f"mae_{a}": v for a, v in mae.items()}})
     L = pd.DataFrame(L)
@@ -279,9 +278,9 @@ def plot(F: dict) -> None:
         lr = L[L.set == st]
         if len(lr):
             r = lr.iloc[0]
-            ax.bar([0, 1, 2], [r.loao_days, r.loao, r.loeo], color=["0.55", "#8172B3", "#64B5CD"])
+            ax.bar([0, 1], [r.loao_days, r.loao], color=["0.55", "#8172B3"])
             ax.plot([1], [r.null95], "k_", ms=18, mew=1.5)
-            ax.set_xticks([0, 1, 2], ["days\n(LOAO)", "learned\n(LOAO)", "learned\n(epoch-out)"], fontsize=8)
+            ax.set_xticks([0, 1], ["days\n(LOAO)", "learned\n(LOAO)"], fontsize=8)
             ax.set_title(f"{st}: learned recovery direction, ridge on {int(r.n_features)} features\nLOAO {r.loao:.2f} "
                          f"(shuffle p {r.p_shuffle:.2g}; bar = null 95%)", fontsize=8.5)
         ax.axhline(0, color="k", lw=0.6)
