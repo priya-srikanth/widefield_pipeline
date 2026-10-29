@@ -587,6 +587,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   activity looks like a lick further contralesional than the one made = the decoder's contralesional offset. Same
   imbalance, two references. Sign conventions differ across analyses (balance + = contralesional hemisphere larger;
   angle + = contralesional side; aim - = ipsilesional; offset + = read contralesional) -- check each before comparing.
+- **TARGET vs EXECUTED (10-29, 14.18 supplement, IMPORTANT CAVEAT to the cued marker):** pre, the post-lick response
+  (contra - ipsi, primary pool) is predicted better by the TARGET spout than by the landed angle (4/4; target weight w
+  0.80/0.92/0.92/0.76; within-spout angle slope 12-35% of across-spout). A target-aware reference removes the cued
+  acute balance deficit (-0.34 -> +0.01) and the decoder's cued offset (+0.30 -> -0.05 mm), and the target-aware cued
+  balance no longer predicts recovery across animals (LOAO 0.70 -> -0.40) -> the CUED marker is largely the landing
+  error seen through a target component. ITI: no consistent target component; balance deficit survives (-0.32 acute,
+  4/4), decoder keeps a contralesional offset beyond landing error (+0.36/+0.24/+0.25 mm), still tracks recovery
+  (LOAO 0.32-0.37) -> ITI = genuine state shift. Caveat: pre w likely inflated (angle noise), post w lower -> a small
+  cued state shift may remain, not separable. scripts/lick_balance_target_model.py. PROVISIONAL.
 - **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
   upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
   beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
