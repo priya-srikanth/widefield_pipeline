@@ -56,7 +56,52 @@ GAUSS_SIGMA, GAUSS_MINW = 0.1, 2.0
 # INSIDE-RANGE control (env WFIELD_BAL_INSIDE=1; 10-28: acute licks fall beyond the pre angle range, where the line
 # is EXTRAPOLATED): post-stroke licks outside the animal's pre 2.5..97.5 % range of the covariate (per set) are dropped.
 INSIDE = os.environ.get("WFIELD_BAL_INSIDE", "") == "1"
-SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "")
+# KINEMATICS-MATCHED reference (env WFIELD_BAL_KIN=1; 10-28 test 2: is the balance just altered execution?): the pre
+# reference is a multiple regression on lick angle + 3-D reach + peak tongue speed + elevation instead of angle alone.
+KIN = os.environ.get("WFIELD_BAL_KIN", "") == "1"
+KIN_COVS = ["angle", "reach_mm", "speed_peak", "elev_deg"]
+# MO-rest candidates (env WFIELD_BAL_MO=1; Priya 10-28 "MOp / MOs rest weren't worth including?"): MOs_rest and MOp_rest
+# added to the areas; definitions limited to the primary + two references to keep the 255-subset search tractable.
+MO = os.environ.get("WFIELD_BAL_MO", "") == "1"
+if MO:
+    AREAS = [*AREAS, "MOs_rest", "MOp_rest"]
+    DEFS = {k: DEFS[k] for k in ("ratio_010_050", "ratio_020_035", "raw_010_020")}
+SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "") + ("_kin" if KIN else "") + ("_mo" if MO else "")
+
+
+def _residuals_multi(P: pd.DataFrame, vs: list[str], covs: list[str]) -> pd.DataFrame:
+    """As lrm._residuals with a MULTIPLE regression on `covs` (per animal x set x lick order, pre licks; pre sessions
+    leave-one-session-out). Licks with a missing covariate get NaN."""
+    out = []
+    for (_st, _an), g in P.groupby(["set", "animal"]):
+        g = g.copy()
+        res = np.full((len(g), len(vs)), np.nan)
+        okc = g[covs].notna().all(1).to_numpy()
+        for _o, go in g.groupby("ord_c"):
+            ix = np.flatnonzero(g.index.isin(go.index))
+            pre = go[(go.epoch == "pre") & go[covs].notna().all(1)]
+            if len(pre) < max(lbg.MIN_CELL, 3 * len(covs)):
+                continue
+            Xall = np.column_stack([np.ones(len(go)), go[covs].to_numpy(float)])
+            V = go[vs].to_numpy(float)
+            for lab in [None, *pre.label.unique()]:
+                tr = pre[pre.label != lab] if lab else pre
+                if len(tr) < max(lbg.MIN_CELL, 3 * len(covs)):
+                    continue
+                Xt = np.column_stack([np.ones(len(tr)), tr[covs].to_numpy(float)])
+                Vt = tr[vs].to_numpy(float)
+                B = np.full((Xt.shape[1], len(vs)), np.nan)
+                for j in range(len(vs)):
+                    okv = np.isfinite(Vt[:, j])
+                    if okv.sum() > Xt.shape[1] + 2:
+                        B[:, j] = np.linalg.lstsq(Xt[okv], Vt[okv, j], rcond=None)[0]
+                sel = (go.label == lab).to_numpy() if lab else (go.epoch != "pre").to_numpy()
+                rows = ix[sel]
+                res[rows] = V[sel] - Xall[sel] @ B
+        res[~okc] = np.nan
+        g[[f"res_{v}" for v in vs]] = res
+        out.append(g)
+    return pd.concat(out, ignore_index=True)
 
 
 def _residuals_gauss(P: pd.DataFrame, vs: list[str]) -> pd.DataFrame:
@@ -105,10 +150,13 @@ def _session(label: str) -> pd.DataFrame:
         m = il.subseq_match(d[sk].astype(float), act)
         ok, mm = m >= 0, np.maximum(m, 0)
         X = d[xk].astype(float)
+        cx = cols
+        if MO:                                              # MOs_rest / MOp_rest (exact, iti_licks.with_rest)
+            X, cx = il.with_rest(X, cols, label, basis="split")
         R = {"set": st, "label": label, "k": np.arange(len(act))}
         for a in AREAS:
             for side, h in (("c", "right"), ("i", "left")):
-                tr = X[:, :, cols.index(f"{a}_{h}")]
+                tr = X[:, :, cx.index(f"{a}_{h}")]
                 base = tr[:, base_m].mean(1)
                 for dn, (kind, lo_, hi_) in DEFS.items():
                     v = tr[:, _wm(lo_, hi_)].mean(1) - (base if kind == "bs" else 0)
@@ -121,7 +169,7 @@ def sessions() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k"])
+    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k", "speed_peak", "elev_deg"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     res, fail = ak.fan_sessions(sorted(P.label.unique()), _session)
     if fail:
@@ -144,7 +192,8 @@ def sessions() -> pd.DataFrame:
     Q = Q[Q.gap >= il.GAP_MAIN].assign(set="iti_q").drop(columns="gap")
     Q1 = P[(P.set == "trial") & (P.order == 0)].assign(set="trial_1")
     P = pd.concat([P, Q, Q1], ignore_index=True)
-    P = _residuals_gauss(P, vs) if REFMETHOD == "gauss" else lrm._residuals(P, vs)
+    P = (_residuals_gauss(P, vs) if REFMETHOD == "gauss" else _residuals_multi(P, vs, KIN_COVS) if KIN
+         else lrm._residuals(P, vs))
     if INSIDE:
         rng_ = P[P.epoch == "pre"].groupby(["set", "animal"]).angle.quantile([0.025, 0.975]).unstack()
         key = pd.MultiIndex.from_arrays([P.set, P.animal])

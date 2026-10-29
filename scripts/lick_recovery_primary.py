@@ -40,7 +40,7 @@ AN = lrm.AN
 REF = os.environ.get("WFIELD_BAL_REF", "angle")         # pre-line covariate (lick_balance_subsets.REF)
 REFMETHOD = os.environ.get("WFIELD_BAL_REFMETHOD", "line")
 INSIDE = os.environ.get("WFIELD_BAL_INSIDE", "") == "1"
-SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "")
+SFX = ("" if REF == "angle" else f"_{REF}") + ("" if REFMETHOD == "line" else f"_{REFMETHOD}") + ("_inside" if INSIDE else "") + ("_kin" if os.environ.get("WFIELD_BAL_KIN", "") == "1" else "")
 
 
 def marker(S: pd.DataFrame, dn: str) -> pd.Series:

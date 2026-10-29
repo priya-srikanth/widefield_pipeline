@@ -537,6 +537,11 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   angle range (line extrapolated); with only in-range licks cued holds (0.53 vs days 0.23) but ITI cross-animal does not
   (0.07; within-animal link remains 3/4). Gaussian same-place reference worse (cued 0.37); lateral reference equivalent;
   lick count cancels (min-20 / weighted unchanged). Tracks the decoder offset (cued r -0.58..-0.92, 4/4). PROVISIONAL.
+- **Trial by trial (10-28 late):** the balance AFTER the first post-cue lick follows that lick's direction within a
+  session and target (r 0.3-0.5) -- equally BEFORE the stroke (normal hemispheric direction code); the balance BEFORE the
+  lick (-0.5..0 s) predicts nothing (r ~ 0, all epochs). No evidence a pre-movement imbalance causes the error; the
+  stroke shifts the post-lick code across sessions (a state). Pre-cue at the far-contra target: contralesional orofacial
+  cortex SUSTAINED raised acutely (not a ramp; 14.20). PROVISIONAL.
 - **Recovery markers 10-28 (earlier definition; now a collapsed supplement of 14.17): BALANCE tracks recovery, response SIZE does not.** Cued orofacial balance (contra -
   ipsi): leave-one-animal-out cvR2 0.50 (z-scored per area 0.53; ALM 0.61, SSp-m 0.60, tjM1 0.52 alone), leave-one-EPOCH-
   out 0.41 vs days 0.23; same sign 4/4. Orofacial SIZE (mean of both sides), contra or ipsi alone, and the 0-1 s response /

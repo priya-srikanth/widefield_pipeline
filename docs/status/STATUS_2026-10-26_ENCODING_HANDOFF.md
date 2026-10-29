@@ -39,7 +39,39 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-14 (10-28 ~20:30) -- READ FIRST (then 00-COMPACT-13 for the balance results, 00-COMPACT-12 for env)
+### 00-COMPACT-15 (10-29 ~00:30) -- READ FIRST (then 00-COMPACT-14 / -13 for earlier balance work, -12 for env)
+Same session / worktree / branch; page LIVE v213+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Decisions:
+DECISIONS "2026-10-28 (late night)"; findings FINDINGS 0b (PRIMARY marker block + trial-by-trial).
+PRIMARY BALANCE (fixed): angle-matched GAIN RATIO, log2(contra obs/pred) - log2(ipsi obs/pred), summed over the session's
+licks and ALM + tjM1 + SSp-m + SSp-n + SSs, response 0.1..0.5 s after the FIRST lick minus -1..-0.5 s; cued = first
+post-cue lick, ITI = first lick after >= 2 s quiet; pred = animal's PRE straight line on lick angle per area x hemisphere
+x lick order (pre sessions leave-one-session-out). Code: scripts/lick_balance_subsets.py (per-lick features + session
+sums; env WFIELD_BAL_REF=lateral, WFIELD_BAL_REFMETHOD=gauss, WFIELD_BAL_INSIDE=1, WFIELD_BAL_KIN=1, WFIELD_BAL_MO=1 ->
+suffixed outputs; --sessions-only), scripts/lick_recovery_primary.py (models + figure; same env suffixes).
+PAGE: 14.16 = HOW THE BALANCE IS CALCULATED (method box + area map + PS94 worked example, lick_balance_explainer.py);
+14.17 = PRIMARY marker (KEY) with supplements: window/subset selection (lick_balance_nested.py, lick_balance_subsets.py),
+trial-by-trial (lick_balance_trial.py), and the RETIRED earlier definition (old 14.18-14.20 folded into one collapsed
+supplement, anchors kept). 12.18 first image = primary balance vs decoder offset (lick_balance_offset_primary.py).
+14.14 / 14.15 relabelled as the RAW per-lick hemispheric difference. 14.20 = pre-cue level vs restw + traces
+(lick_precue_restw.py, lick_precue_restw_traces.py; sustained acute raise at far contra, not a ramp).
+RESULTS: cued unseen-animal R2 0.70 (days 0.23); 0.53 with only in-pre-range licks (no extrapolation); ITI 0.42 (days 0.17)
+but 0.07 without extrapolation (within-animal link remains 3/4); Gaussian ref worse; lateral ref equivalent; lick count
+cancels; equal area weights equivalent; tracks decoder offset (cued r -0.58..-0.92 4/4). Trial by trial: post-lick
+balance follows the lick's direction r 0.3-0.5 incl. PRE (normal code); pre-lick balance r ~ 0 -> no pre-movement cause.
+Biology hypothesis discussed with Priya: impairment = loss of normal between-hemisphere balance of orofacial cortex for a
+movement (ipsilesional cortex over-responds acutely), recovery = re-balancing (not restoring size); evidence now favours
+the balance as a post-movement STATE / readout rather than a pre-movement cause.
+RUNNING at this note: (1) task bxa9t3iuo: WFIELD_BAL_KIN=1 sessions + primary (test 2: reference on angle + reach + speed
++ elevation; outputs *_kin), then WFIELD_BAL_MO=1 full subsets (MOs_rest / MOp_rest added; balsub_*_mo) -- logs
+S2/balsub_kin.log, recprim_kin.log, balsub_mo.log; (2) helper agent: scripts/session_pace_table.py -> session_pace.csv /
+figures/session_pace.png (why acute sessions have MORE first post-cue licks: PS92 128/196/120/122 ... pre/acute/sub/chronic).
+-> report both, add kin result to 14.17 robustness + WTS row, MO result to the subset supplement.
+PENDING with Priya: (a) PAGE DECLUTTER plan (281 figures; proposal: per section, collapse all 'supplementary' tier and
+method-only 'supporting' figures into one 'More figures' details; keep KEY + biology-relevant visible) -- awaiting her OK;
+(b) WTS figure-number references elsewhere may be stale after the section-14 renumbering (links are fine; check
+plain-text numbers); (c) spout-contact covariate for test 2 not available in covref (would need pose contact table).
+
+### 00-COMPACT-14 (10-28 ~20:30) -- (previous)
 Same session / worktree / branch; page LIVE v204 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Same page-edit rules
 (goal_page_insert + fix "CHECK plain mention" by hand; Artifact `edits` refused -> edit file, publish with files={...}).
 Decisions: docs/DECISIONS.md "2026-10-28 (night)". Findings: FINDINGS 0b (recovery markers, pre-cue, attribution).
