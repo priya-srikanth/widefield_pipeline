@@ -73,7 +73,32 @@ def plot(F: dict) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
     P, lines, S, ex, chk = F["P"], F["lines"], F["S"], F["ex"], F["chk"]
-    fig, axs = plt.subplots(1, 4, figsize=(22, 5.6), gridspec_kw={"width_ratios": [1, 1, 0.8, 1.2]})
+    fig, axs0 = plt.subplots(1, 5, figsize=(27, 5.8), gridspec_kw={"width_ratios": [0.95, 1, 1, 0.8, 1.2]})
+    # step 0: the areas pooled, on the Allen map (image left = ipsilesional)
+    from frozen_area_maps import outline
+    from iti_area_maps import split_image
+    img, nm = split_image(il.labels()[0])
+    rgb = np.ones((*img.shape, 3))
+    rgb[img < 0] = 1.0
+    for k, n in enumerate(nm):
+        base = n.rsplit("_", 1)[0]
+        if base in rp.POOL:
+            rgb[img == k] = (0.77, 0.31, 0.32) if n.endswith("_right") else (0.30, 0.45, 0.69)
+        elif (img == k).any():
+            rgb[img == k] = (0.93, 0.93, 0.93)
+    ax = axs0[0]
+    ax.imshow(rgb, interpolation="nearest")
+    ax.imshow(np.where(outline(img) > 0, 0.0, np.nan), cmap="Greys_r", vmin=0, vmax=1, interpolation="nearest")
+    for a in rp.POOL:
+        for side in ("left", "right"):
+            if f"{a}_{side}" in nm:
+                yy, xx = np.nonzero(img == nm.index(f"{a}_{side}"))
+                if len(yy):
+                    ax.text(xx.mean(), yy.mean(), a, ha="center", va="center", fontsize=7, color="w", fontweight="bold")
+    ax.set_title("step 0: the 5 pooled areas (ALM, tjM1, SSp-m, SSp-n, SSs)\nblue = ipsilesional (lesion side, image left), "
+                 "red = contralesional", fontsize=9.5)
+    ax.axis("off")
+    axs = axs0[1:]
     xs = np.linspace(P.angle.quantile(0.01), P.angle.quantile(0.99), 50)
     for j, (s, lab) in enumerate((("c", "CONTRALESIONAL"), ("i", "IPSILESIONAL"))):
         ax = axs[j]
