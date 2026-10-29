@@ -596,6 +596,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   4/4), decoder keeps a contralesional offset beyond landing error (+0.36/+0.24/+0.25 mm), still tracks recovery
   (LOAO 0.32-0.37) -> ITI = genuine state shift. Caveat: pre w likely inflated (angle noise), post w lower -> a small
   cued state shift may remain, not separable. scripts/lick_balance_target_model.py. PROVISIONAL.
+- **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
+  frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
+  cohort effect) and steps up AT CONTACT to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
+  acutely (tongue protrusion / interpolation) and only at the lick chronically; chronic balance imbalance only from
+  +0.2 s; pre-lick windows do not track recovery, post window does (4/4, p < 0.001). Pre-stroke there is no direction
+  information beyond the spout before the lick -> plan untestable at area level. Reading: the persistent ITI shift is
+  post-contact (reafference / execution), not preparatory. scripts/lick_iti_prelick.py. PROVISIONAL.
 - **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
   upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
   beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
