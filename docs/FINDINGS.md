@@ -565,6 +565,12 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   the balance as altered SENSORY reafference (SSp-n / SSs are sensory; cued licks have spout contact, ITI none) vs a motor
   command; state / arousal (contralesional VIS tracks ITI recovery). Next tests: cued hit vs miss (contact) balance;
   SSp-n vs SSp-m sensory mapping; a perturbation.
+- **Is SSp-n special? (10-29, 12.17 supplement)** (1) decoder refit WITHOUT SSp-n: offset still tracks recovery within
+  animals but weaker (ITI mean r -0.48 -> -0.38; -> cued aim -0.28 -> -0.15; cued -0.72 -> -0.69) -- largest single
+  contributor, not necessary; (2) WEIGHT-FREE same-place left/right difference per area: SSp-n #1-2 of 21 for every target
+  (cued r 0.94/0.84/0.84/0.69) but SSp-ul, SSp-un, MO-rest, SSp-m, tjM1, ACAd close behind -> a BROAD sensorimotor
+  left/right imbalance, strongest in SSp-n; (3) FaceRhythm face movement partialled: unchanged -> not facial reafference.
+  Hypothesis wording updated: 'broad sensorimotor hemispheric difference, strongest in SSp-n'. PROVISIONAL.
 - **Trial by trial (10-28 late):** the balance AFTER the first post-cue lick follows that lick's direction within a
   session and target (r 0.3-0.5) -- equally BEFORE the stroke (normal hemispheric direction code); the balance BEFORE the
   lick (-0.5..0 s) predicts nothing (r ~ 0, all epochs). No evidence a pre-movement imbalance causes the error; the
