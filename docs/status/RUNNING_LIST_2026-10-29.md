@@ -62,4 +62,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 
 ## 6. Log
 - 10-29 ~00:45: rev-up behaviour reported -> page, FINDINGS, list.
+- 10-29 ~01:00: page v232 published. The artifact hit its 512-file cap: removed 75 published images the page no longer
+  references (old iti_* duplicates, superseded variants; local copies kept in _goal_page/), added the rev-up figures.
 - 10-29 night: list created (commit after d13f51f5).
