@@ -1,0 +1,59 @@
+# Running list — 2026-10-29 night (encoding / balance arm)
+
+Kept up to date as helpers report (Priya 10-29: "keep a running list of figures, findings, conclusions, and decisions
+you need from me, as well as updating handoff intermittently"). Page: https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
+Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions). All PROVISIONAL, n = 4.
+
+## 1. Decisions needed from Priya
+- [ ] **Pre-cue softmax test**: if the frozen decoder's pre-cue (ENL) per-trial probabilities do not exist yet, generating
+      them (`attempt_coding --aligns precue`) needs your OK (run time will be stated here when known).
+- [ ] **Wording "consequence of the errors"**: narrow it (FINDINGS / hypothesis) to "the cued imbalance comes after the lick
+      and is redundant with the error; causal role for recovery untested"? (asked 10-29, no answer yet)
+- [ ] **Hypothesis update**: cued balance/offset = landing error seen through a target code; the persistent signals are
+      the ITI post-onset contralesional shift and the slow rise of the contralesional share on cued licks. Update the
+      WTS / Biology-in-brief hypothesis line accordingly?
+- [ ] **Primary marker framing**: keep the cued balance as the headline recovery marker (valid as a state readout) or
+      lead with the ITI balance / decoder offset as the mechanistic marker?
+- [ ] **Movement-null plan encoding model (Musall-style)**: worth building given pre-cue aim beyond history/face is ~0
+      at area level? (nested: spout, history, non-directional movement, directional face, upcoming deviation)
+
+## 2. Figures added tonight (page section, file)
+| page | figure | script |
+|---|---|---|
+| top | Sign-conventions box | — |
+| 12.19, 14.14, 14.17, 14.18 | key balance figures now in IMPLIED DIRECTION (display only; `WFIELD_BAL_DISPLAY=hemisphere` restores) | lick_recovery_primary.py etc. |
+| 12.17 supp | ACAd midline / vessel / registration control | lick_acad_midline_control.py |
+| 12.17 supp | ITI pre-lick time course | lick_iti_prelick.py |
+| 14.18 supp | Target vs executed model | lick_balance_target_model.py |
+| 14.18 supp | Same target, same landing place (matched error) | lick_balance_matched_error.py |
+| 14.21 supp | ENL lick-angle decode | lick_enl_angle_decode.py |
+| 14.21 supp | ENL follow-ups (history test, offset explore) | lick_enl_offset_explore.py |
+
+## 3. Findings (one line each; details in FINDINGS 0b)
+- ACAd left/right link: undetermined, not ACAd-specific (lives on the sinus strip; shares variance with MOs / SSp-n).
+- ENL predicts lick angle weakly, mostly via the spout; within-spout part not robust beyond trial history + face.
+- Cued post-lick activity carries a large TARGET component pre-stroke (w 0.76-0.92); target-aware reference removes the
+  acute cued balance deficit and the cued decoder offset; target-aware cued balance no longer predicts recovery.
+- At matched landed angle the target matters LESS after the stroke (cortex tracks the actual lick more).
+- Same target + same landing place, no extrapolation: cued acute balance +0.02, decoder -0.04 mm (= pre-stroke);
+  ITI decoder +0.29 / +0.19 / +0.22 mm (4/4) -> genuine ITI state shift.
+- Cued within-spout balance rises ABOVE pre over weeks (contralesional hemisphere gains share; not beyond log day).
+- ITI contralesional reading / imbalance appears at lick onset (no ITI spout contact), not preparatory; GCaMP6s caveat.
+- ENL acute +1.55 deg offset: mostly the aim deficit through a target-reading decoder, BUT decoder compression means
+  'pre-cue target representation unchanged' is NOT established (far-contra moves ipsilesional in 3/4).
+
+## 4. Conclusions (current reading)
+- Cued licks: the balance shift and decoder offset largely re-describe the landing error (target code); the cued
+  balance is a valid state readout but not an independent mechanism.
+- Persistent, behaviour-independent signals: (a) ITI post-onset contralesional shift (tracks recovery); (b) slow rise
+  of the contralesional hemisphere's share on cued licks (reorganisation?).
+- Grant: chronic contralesional silencing tests whether the extra share supports recovered behaviour; SSp-m/n both
+  hemispheres first; ACAd dropped.
+
+## 5. Running (will be added above when they report)
+- lick_enl_target_test.py — pre-cue target vs landing (softmax, precue) + gain-normalised tracking.
+- revup_behaviour.py — latency / hazard incl. first licks after the spout left; rev-up kinematics.
+- revup_neural.py — traces by latency; late licks vs ITI licks; pre-cue level vs latency.
+
+## 6. Log
+- 10-29 night: list created (commit after d13f51f5).
