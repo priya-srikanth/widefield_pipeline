@@ -35,6 +35,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.21 supp | ENL lick-angle decode | lick_enl_angle_decode.py |
 | 14.21 supp | ENL follow-ups (history test, offset explore) | lick_enl_offset_explore.py |
 | 14.21 area | Revving up: survival, delay decomposition, phase shares, FR vigour, recovery | revup_behaviour.py |
+| 14.21 supp | Pre-cue target vs landing (frozen decoder softmax, class-matched, confusion, decodability, tracking) | lick_enl_target_test.py |
 | 14.21 area | Revving up NEURAL: quartile traces, slow-only contrasts, late vs normal vs spontaneous, pre-cue vs latency | revup_neural.py |
 
 ## 3. Findings (one line each; details in FINDINGS 0b)
@@ -56,7 +57,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - REVVING UP (neural): slow first licks = delayed start, not a slower ramp (same rise, same level at the lick);
   acute far-contra slow trials overshoot (3/4); engaged late licks look like delayed cued licks.
 
+- PRE-CUE TARGET TEST: before the cue the target code is DEGRADED but NOT re-aimed at the landing spout (deviated
+  trials look like same-session hits pre-cue; landing signature only after the cue); acute row flattens, close ipsi as
+  much as far contra.
+
 ## 4. Conclusions (current reading)
+- Pre-cue: target representation weaker but unbiased; the error emerges after the cue (execution / post-cue).
 - Cued licks: the balance shift and decoder offset largely re-describe the landing error (target code); the cued
   balance is a valid state readout but not an independent mechanism.
 - Persistent, behaviour-independent signals: (a) ITI post-onset contralesional shift (tracks recovery); (b) slow rise
@@ -65,10 +71,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
-- lick_enl_target_test.py — pre-cue target vs landing (softmax, precue) + gain-normalised tracking.
+(nothing running)
 
 ## 6. Log
 - 10-29 ~00:45: rev-up behaviour reported -> page, FINDINGS, list.
+- 10-29 ~01:40: pre-cue target test reported (precue attempt_coding outputs generated, approved) -> page, FINDINGS, list.
 - 10-29 ~01:15: rev-up neural reported -> page, FINDINGS, list.
 - 10-29 ~01:00: page v232 published. The artifact hit its 512-file cap: removed 75 published images the page no longer
   references (old iti_* duplicates, superseded variants; local copies kept in _goal_page/), added the rev-up figures.

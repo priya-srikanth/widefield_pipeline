@@ -652,6 +652,12 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   CAVEAT (10-29): decoder compressed (decoded spread ~1/5-1/2 of actual); at FAR-CONTRA the pre-cue read-out moves
   ipsilesional acutely in 3/4 (PS92 -5.0 deg = ~full tracking given its gain; PS93 -1.8, PS94 -2.2; PS95 +0.2) ->
   'pre-cue target representation unchanged' NOT established; next: gain-normalised tracking + frozen spout classifier.
+  RESOLVED (10-29, scripts/lick_enl_target_test.py; frozen position decoder pre-cue softmax, attempt_coding precue
+  generated 10-29): before the cue the target code is DEGRADED but NOT re-aimed -- class-matched within session,
+  deviated far-contra trials look like same-session hits pre-cue (target -0.07 [-0.19, 0.05], landing +0.04 ns) while
+  cue (-0.21 / +0.13) and lick (-0.24 / +0.18) windows show the landing signature 4/4; acute accuracy -0.12 (4/4),
+  far-contra AND close-ipsi diagonals drop alike, no off-diagonal cell grows (row flattens); ridge 'tracking' = PS92 +
+  regression to the mean. Deviation becomes visible in cortex only after the cue. F12 applies (spout present).
 - **Contact vs miss (10-29):** the primary balance is as large or larger on first licks that MISS the spout (acute PS94
   -1.08 vs -0.67) and tracks recovery as well (cross-animal 0.66 both) -> not mainly touch reafference; on STRICT misses
   (no contact within 0.5 s) the recovery link fails in PS92 / PS95 -> a partial touch / reward contribution to the link
