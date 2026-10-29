@@ -20,6 +20,7 @@ Outputs <OUT_W>/balsub_sessions.csv, balsub_loao.csv, balsub_nested.csv; figure 
 from __future__ import annotations
 
 import itertools
+import os
 import sys
 from pathlib import Path
 
@@ -42,6 +43,11 @@ DEFS = {"ratio_020_035": ("bs", 0.2, 0.35), "ratio_010_020": ("bs", 0.1, 0.2),
 SETS = {"trial_1": lrm.C1SET, "trial": "cued", "iti_q": lrm.QSET, "iti": "ITI"}
 TARGET = {lrm.C1SET: "aim", "cued": "aim", lrm.QSET: "iti_ang", "ITI": "iti_ang"}
 N_NULL = 200
+# REFERENCE covariate for the pre line (env WFIELD_BAL_REF; Priya 10-28 "is angle better than lateral distance"):
+# "angle" (default, asin(side / reach), deg) or "lateral" (side_k, mm: the landing's sideways position). Outputs of a
+# non-default reference carry the suffix _<ref>.
+REF = os.environ.get("WFIELD_BAL_REF", "angle")
+SFX = "" if REF == "angle" else f"_{REF}"
 
 
 def _wm(lo_, hi_):
@@ -85,7 +91,8 @@ def sessions() -> pd.DataFrame:
         raise RuntimeError(f"failed: {fail[:5]}")
     P = P.merge(pd.concat([v for _i, v in res], ignore_index=True), on=["set", "label", "k"], how="left",
                 validate="one_to_one")
-    P["angle"] = np.degrees(np.arcsin(np.clip(P.side_k / P.reach_mm, -1, 1)))
+    P["angle"] = (np.degrees(np.arcsin(np.clip(P.side_k / P.reach_mm, -1, 1))) if REF == "angle"
+                  else P.side_k.astype(float))         # column name kept: lrm._residuals fits on 'angle'
     P["ord_c"] = np.minimum(P.order, lbg.CAP)
     vs = []
     for dn in DEFS:
@@ -141,7 +148,9 @@ def subset_values(S: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> int:
     S = sessions()
-    S.to_csv(il.OUT_W / "balsub_sessions.csv", index=False)
+    S.to_csv(il.OUT_W / f"balsub_sessions{SFX}.csv", index=False)
+    if "--sessions-only" in sys.argv:
+        return 0
     V = subset_values(S)
     keys = [c for c in V.columns if ":" in c]
     rng = np.random.default_rng(0)
@@ -182,8 +191,8 @@ def main() -> int:
             print(f"[{st}] {fam}: nested {r:.3f} (days {r_days:.3f}, null95 {N[-1]['null95']:.3f}, p {N[-1]['p_null']:.3g})"
                   f"\n    {N[-1]['chosen']}", flush=True)
     L, N = pd.DataFrame(L), pd.DataFrame(N)
-    L.to_csv(il.OUT_W / "balsub_loao.csv", index=False)
-    N.to_csv(il.OUT_W / "balsub_nested.csv", index=False)
+    L.to_csv(il.OUT_W / f"balsub_loao{SFX}.csv", index=False)
+    N.to_csv(il.OUT_W / f"balsub_nested{SFX}.csv", index=False)
     pd.set_option("display.width", 230)
     print("== top subsets per set x definition (LOAO; per-animal r = rule 8)")
     print(L.sort_values("loao", ascending=False).groupby(["set", "def"]).head(4).round(3).to_string(index=False))
@@ -242,7 +251,7 @@ def plot(L: pd.DataFrame, N: pd.DataFrame) -> None:
                  "definition) CHOSEN on 3 animals and tested on the 4th, bar = null 95% from repeating the selection on "
                  "shuffled sessions. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_subsets.png", dpi=90)
+    fig.savefig(il.OUT_W / "figures" / f"lick_balance_subsets{SFX}.png", dpi=90)
     plt.close(fig)
 
 

@@ -18,6 +18,7 @@ Outputs <OUT_W>/recprim_sessions.csv, recprim_models.csv, recprim_cv.csv; figure
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -36,6 +37,8 @@ PANELS = [(lrm.C1SET, CUED_WIN, "aim", "far-contra first-lick aim (deg vs pre)")
           (lrm.QSET, ITI_WIN, "iti_ang", "ITI lick angle vs pre (deg)"),
           (lrm.QSET, ITI_WIN, "aim", "far-contra first-lick aim (deg vs pre)")]
 AN = lrm.AN
+REF = os.environ.get("WFIELD_BAL_REF", "angle")         # pre-line covariate (lick_balance_subsets.REF)
+SFX = "" if REF == "angle" else f"_{REF}"
 
 
 def marker(S: pd.DataFrame, dn: str) -> pd.Series:
@@ -49,7 +52,7 @@ def marker(S: pd.DataFrame, dn: str) -> pd.Series:
 
 def compute() -> dict:
     import statsmodels.formula.api as smf
-    S = pd.read_csv(il.OUT_W / "balsub_sessions.csv")
+    S = pd.read_csv(il.OUT_W / f"balsub_sessions{SFX}.csv")
     rows = []
     for st, dn, yv, _yl in PANELS:
         t = S[S.set == st].copy()
@@ -57,7 +60,7 @@ def compute() -> dict:
                                   "animal": t.animal, "epoch": t.epoch, "day": t.day, "y": t[yv],
                                   "marker": marker(t, dn)}))
     T = pd.concat(rows, ignore_index=True)
-    T.to_csv(il.OUT_W / "recprim_sessions.csv", index=False)
+    T.to_csv(il.OUT_W / f"recprim_sessions{SFX}.csv", index=False)
     M, CV, ANr = [], [], []
     for pn, G in T.groupby("panel", sort=False):
         post = G[(G.epoch != "pre") & (G.day > 0)].dropna(subset=["y", "marker"]).sort_values(["animal", "day"]).copy()
@@ -82,8 +85,8 @@ def compute() -> dict:
         F = lrm.models(G[["set", "label", "animal", "epoch", "day"]].assign(aim=G.y, marker=G.marker))
         CV.append(F["CV"].assign(panel=pn))
     M, CV, ANr = pd.DataFrame(M), pd.concat(CV, ignore_index=True), pd.DataFrame(ANr)
-    M.to_csv(il.OUT_W / "recprim_models.csv", index=False)
-    CV.to_csv(il.OUT_W / "recprim_cv.csv", index=False)
+    M.to_csv(il.OUT_W / f"recprim_models{SFX}.csv", index=False)
+    CV.to_csv(il.OUT_W / f"recprim_cv{SFX}.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): r of marker / of log(day) with the recovery axis\n"
           + ANr.pivot_table(index="panel", columns="animal", values=["r", "r_days"], sort=False).round(2).to_string())
@@ -153,16 +156,16 @@ def plot(F: dict) -> None:
                  "quiet).\nTop: one point per session, grey = pre (not fitted), mixed models with log(day) (bold p < 0.05). "
                  "Bottom: cross-validated R² vs days since stroke. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-    fig.savefig(il.OUT_W / "figures" / "lick_recovery_primary.png", dpi=95)
+    fig.savefig(il.OUT_W / "figures" / f"lick_recovery_primary{SFX}.png", dpi=95)
     plt.close(fig)
 
 
 def main() -> int:
     if plot_only():
-        plot(load_fd("lick_recovery_primary"))
+        plot(load_fd(f"lick_recovery_primary{SFX}"))
         return 0
     F = compute()
-    save_fd("lick_recovery_primary", F)
+    save_fd(f"lick_recovery_primary{SFX}", F)
     plot(F)
     return 0
 
