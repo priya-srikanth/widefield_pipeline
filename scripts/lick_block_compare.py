@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import itertools
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -36,21 +37,41 @@ import lick_area_importance as lai  # noqa: E402
 import lick_refit_decoders as rd  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
-GROUPS = {
-    "oro": ("ALM", "tjM1", "SSp-m", "SSp-n"),
-    "bf+un": ("SSp-bfd", "SSp-un"),
-    "MO-rest": ("MOs_rest", "MOp_rest"),
-    "body": ("SSp-ul", "SSp-ll", "SSp-tr"),
-    "SSs": ("SSs",),
-    "other": None,                     # every remaining area
-}
+# VARIANT (env WFIELD_BLOCK_VARIANT, read at import so spawned workers see it): "" = 6 groups with SSs on its own (11.14);
+# "oroSSs" = SSs folded into the orofacial group (Priya 10-28: "redo Shapley and include SSs in the orofacial
+# sensorimotor group"; S2 has a mouth representation and carried no unique information), 5 groups.
+VARIANT = os.environ.get("WFIELD_BLOCK_VARIANT", "")
+if VARIANT == "oroSSs":
+    GROUPS = {
+        "oro+SSs": ("ALM", "tjM1", "SSp-m", "SSp-n", "SSs"),
+        "bf+un": ("SSp-bfd", "SSp-un"),
+        "MO-rest": ("MOs_rest", "MOp_rest"),
+        "body": ("SSp-ul", "SSp-ll", "SSp-tr"),
+        "other": None,
+    }
+    BLOCKS = {
+        "oro+SSs": ("oro+SSs",),
+        "+bf+un": ("oro+SSs", "bf+un"),
+        "sensorimotor": ("oro+SSs", "bf+un", "MO-rest", "body"),
+    }
+else:
+    GROUPS = {
+        "oro": ("ALM", "tjM1", "SSp-m", "SSp-n"),
+        "bf+un": ("SSp-bfd", "SSp-un"),
+        "MO-rest": ("MOs_rest", "MOp_rest"),
+        "body": ("SSp-ul", "SSp-ll", "SSp-tr"),
+        "SSs": ("SSs",),
+        "other": None,                     # every remaining area
+    }
+    BLOCKS = {                             # nested, as sets of groups
+        "orofacial": ("oro",),
+        "oro+bf+un": ("oro", "bf+un"),
+        "sensorimotor": ("oro", "bf+un", "MO-rest", "body"),
+        "+SSs": ("oro", "bf+un", "MO-rest", "body", "SSs"),
+    }
 GN = list(GROUPS)
-BLOCKS = {                             # nested, as sets of groups
-    "orofacial": ("oro",),
-    "oro+bf+un": ("oro", "bf+un"),
-    "sensorimotor": ("oro", "bf+un", "MO-rest", "body"),
-    "+SSs": ("oro", "bf+un", "MO-rest", "body", "SSs"),
-}
+SFX = f"_{VARIANT}" if VARIANT else ""
+N_AREAS = 24
 MEAS = [("pre_r", "pre held-out r"), ("off_acute", "acute offset change (mm)"), ("off_chronic", "chronic offset change (mm)")]
 COLS = [("full", "full"), ("without", "without block"), ("alone", "block alone"),
         ("uniq_block", "full - without\n(unique to block)"), ("uniq_rest", "full - alone\n(unique to rest)")]
@@ -116,7 +137,7 @@ def compute() -> dict:
     assert not fail, f"failed units: {fail}"
     R = pd.DataFrame([r for _item, rows in res for r in rows])
     R = R.sort_values(["set", "animal", "combo", "label"]).reset_index(drop=True)
-    R.to_csv(il.OUT_W / "block_lattice_sessions.csv", index=False)
+    R.to_csv(il.OUT_W / f"block_lattice_sessions{SFX}.csv", index=False)
     V = _values(R)
     full = _key(GN)
     rest = {b: _key([g for g in GN if g not in gs]) for b, gs in BLOCKS.items()}
@@ -129,7 +150,7 @@ def compute() -> dict:
                 out.append(dict(set=st, block=b, animal=an, measure=m, full=f, without=wo, alone=al, uniq_block=f - wo,
                                 uniq_rest=f - al))
     Q = pd.DataFrame(out)
-    Q.to_csv(il.OUT_W / "block_compare_summary.csv", index=False)
+    Q.to_csv(il.OUT_W / f"block_compare_summary{SFX}.csv", index=False)
     # Shapley over the 6 groups
     n = len(GN)
     sh = []
@@ -144,7 +165,7 @@ def compute() -> dict:
                           * (v((*c, g)) - v(c)) for k in range(n) for c in itertools.combinations(others, k))
                 sh.append(dict(set=st, animal=an, measure=m, group=g, shapley=phi, full=v(GN)))
     SH = pd.DataFrame(sh)
-    SH.to_csv(il.OUT_W / "block_shapley.csv", index=False)
+    SH.to_csv(il.OUT_W / f"block_shapley{SFX}.csv", index=False)
     chk = SH.groupby(["set", "animal", "measure"]).agg(s=("shapley", "sum"), f=("full", "first"))
     assert np.allclose(chk.s, chk.f, atol=1e-9), "Shapley shares do not sum to the full value"
     pd.set_option("display.width", 230)
@@ -195,17 +216,20 @@ def plot(F: dict) -> None:
     fig.legend(loc="lower center", ncol=5, fontsize=8, frameon=False)
     fig.suptitle("Nested blocks, frozen lateral lick decoder: full vs without vs alone; unique to block = full - without; "
                  "unique to rest of cortex = full - alone.\norofacial = ALM, tjM1, SSp-m, -n; oro+bf+un = + SSp-bfd, -un; "
-                 "sensorimotor = + MOs-rest, MOp-rest, SSp-ul, -ll, -tr; +SSs = + SSs (full = 24 areas). Bars = mean, "
+                 "sensorimotor = + MOs-rest, MOp-rest, SSp-ul, -ll, -tr; +SSs = + SSs (full = 24 areas)."
+                 + (" VARIANT oroSSs: SSs inside the orofacial group (oro+SSs; +bf+un; sensorimotor)." if VARIANT else "")
+                 + " Bars = mean, "
                  "dots = animals, n/4 = animals > 0. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.06, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_block_compare.png", dpi=95)
+    fig.savefig(il.OUT_W / "figures" / f"lick_block_compare{SFX}.png", dpi=95)
     plt.close(fig)
     # 2) ladder + Shapley
-    steps = [("orofacial", BLOCKS["orofacial"]), ("oro+bf+un", BLOCKS["oro+bf+un"]),
-             ("sensorimotor", BLOCKS["sensorimotor"]), ("+SSs", BLOCKS["+SSs"]), ("all cortex", tuple(GN))]
-    xl = [f"{s}\n({sum(len(GROUPS[g]) if GROUPS[g] else 24 - sum(len(a) for a in GROUPS.values() if a) for g in gs)})"
-          for s, gs in steps]
-    gcol = dict(zip(GN, ["#C44E52", "#DD8452", "#8172B3", "#937860", "#DA8BC3", "#8C8C8C"], strict=True))
+    steps = [*BLOCKS.items(), ("all cortex", tuple(GN))]
+    n_named = sum(len(a) for a in GROUPS.values() if a)
+    xl = [f"{s}\n({sum(len(GROUPS[g]) if GROUPS[g] else N_AREAS - n_named for g in gs)})" for s, gs in steps]
+    pal = {"oro": "#C44E52", "oro+SSs": "#C44E52", "bf+un": "#DD8452", "MO-rest": "#8172B3", "body": "#937860",
+           "SSs": "#DA8BC3", "other": "#8C8C8C"}
+    gcol = {g: pal[g] for g in GN}
     fig, axs = plt.subplots(2, 4, figsize=(21, 9.5), gridspec_kw={"width_ratios": [1, 1, 1.1, 1.1]})
     for i, st in enumerate(rd.SETS):
         v = V[V["set"] == st]
@@ -252,22 +276,22 @@ def plot(F: dict) -> None:
         for ax in axs[i]:
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    fig.suptitle("Frozen lateral lick decoder refit on every combination of 6 disjoint area groups. LADDER: decoders built up "
+    fig.suptitle(f"Frozen lateral lick decoder refit on every combination of {len(GN)} disjoint area groups. LADDER: decoders built up "
                  "block by block (black) and the full decoder with the same blocks removed (blue); thin = animals.\n"
                  "SHAPLEY: each group's average gain over all orders of adding groups (shares sum exactly to the full "
-                 "decoder; bars = mean, dots = animals). oro = ALM, tjM1, SSp-m, -n; bf+un = SSp-bfd, -un; MO-rest = "
+                 "decoder; bars = mean, dots = animals). " + ("oro+SSs = ALM, tjM1, SSp-m, -n, SSs" if VARIANT else "oro = ALM, tjM1, SSp-m, -n") + "; bf+un = SSp-bfd, -un; MO-rest = "
                  "MOs-rest, MOp-rest; body = SSp-ul, -ll, -tr; other = ACAd, PL, RSP, VIS. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_block_ladder_shapley.png", dpi=95)
+    fig.savefig(il.OUT_W / "figures" / f"lick_block_ladder_shapley{SFX}.png", dpi=95)
     plt.close(fig)
 
 
 def main() -> int:
     if plot_only():
-        plot(load_fd("lick_block_compare"))
+        plot(load_fd(f"lick_block_compare{SFX}"))
         return 0
     F = compute()
-    save_fd("lick_block_compare", F)
+    save_fd(f"lick_block_compare{SFX}", F)
     plot(F)
     return 0
 

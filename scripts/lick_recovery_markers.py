@@ -50,12 +50,14 @@ ORO = ["ALM", "tjM1", "SSp-m", "SSp-n"]
 CTRL = {g: lbg.GROUPS[g] for g in lbg.CONTROLS}
 AN = ["PS92", "PS93", "PS94", "PS95"]
 QSET = "ITI first after quiet"
+YAX = ("iti_ang", "iti_ang90")
 C1SET = "cued first lick"
 SETS3 = ("cued", C1SET, "ITI", QSET)
 N_SHUF = 2000
 # predictors shown in the summary figure (column, label)
 KEY = [("days", "days since stroke"), ("oro_bal", "oro BALANCE"), ("oro_balz", "oro balance, z-scored avg"),
-       ("oro_balw", "oro balance, pre-fit weights"), ("oro_size", "oro SIZE (both sides)"),
+       ("oro_balw", "oro balance, pre-fit weights (own animal)"),
+       ("oro_balwx", "oro balance, pre-fit weights (other animals)"), ("oro_size", "oro SIZE (both sides)"),
        ("oro_contra", "oro contra"), ("oro_ipsi", "oro ipsi"), ("non_bal", "non-oro balance"), ("non_size", "non-oro size"),
        ("auc_both", "AUC 0-1 s, both"), ("auc_contra", "AUC contra"), ("auc_ipsi", "AUC ipsi"),
        ("cue_both", "cue AUC, both")]
@@ -171,7 +173,31 @@ def sessions() -> pd.DataFrame:
         Xp = np.column_stack([np.ones(len(pre)), pre[bcols].to_numpy()])
         coef = np.linalg.lstsq(Xp, pre.angle.to_numpy(), rcond=None)[0]
         P.loc[g.index, "oro_balw"] = g[bcols].to_numpy() @ coef[1:]
-    vs += ["oro_balz", "oro_balw", *[f"{a}_balz" for a in ORO]]
+    # FAIR pre-fit weights for the cross-animal test (Priya 10-28 "do the pre-fit weighted balance"): per lick set and
+    # animal, OLS of lick angle on the four per-area Z-SCORED balances over the OTHER animals' pre licks (z puts the
+    # animals on one scale); the frozen weights are applied to this animal's licks. The animal's own data never enter
+    # its weights, so leave-one-animal-out stays clean.
+    P["oro_balwx"] = np.nan
+    zcols = [f"{a}_balz" for a in ORO]
+    for st_ in P.set.unique():
+        Ps = P[P.set == st_]
+        for an in Ps.animal.unique():
+            tr = Ps[(Ps.animal != an) & (Ps.epoch == "pre")].dropna(subset=[*zcols, "angle"])
+            Xt = np.column_stack([np.ones(len(tr)), tr[zcols].to_numpy()])
+            cw = np.linalg.lstsq(Xt, tr.angle.to_numpy(), rcond=None)[0]
+            idx = Ps.index[Ps.animal == an]
+            P.loc[idx, "oro_balwx"] = P.loc[idx, zcols].to_numpy() @ cw[1:]
+    vs += ["oro_balz", "oro_balw", "oro_balwx", *[f"{a}_balz" for a in ORO]]
+    # ITI RECOVERY AXIS of its own (Priya 10-28; a different question from the cued aim): per session the ITI lick
+    # angle vs the animal's pre sessions, signed so that NEGATIVE = ipsilesional like the aim (sign taken from pre
+    # far-contra cued licks): iti_ang = session mean, iti_ang90 = how far contralesionally ITI licks reach (90th pct).
+    sgn = float(np.sign(P[(P.set == "trial") & (P.epoch == "pre") & (P.pos == "far_contra")].angle.mean()))
+    It = P[P.set == "iti"].assign(sa=lambda d: sgn * d.angle)
+    Ia = It.groupby(["label", "animal", "epoch"]).sa.agg(iti_ang="mean", iti_ang90=lambda s: np.nanpercentile(s, 90))
+    Ia = Ia.reset_index()
+    for c in ("iti_ang", "iti_ang90"):
+        Ia[c] = Ia[c] - Ia.animal.map(Ia[Ia.epoch == "pre"].groupby("animal")[c].mean())
+    ITI_AX = Ia[["label", "iti_ang", "iti_ang90"]]
     gres, gfail = ak.fan_sessions(sorted(P[P.set == "iti"].label.unique()), _gaps)
     if gfail:
         raise RuntimeError(f"gaps failed for {len(gfail)} sessions: {gfail[:5]}")
@@ -211,6 +237,7 @@ def sessions() -> pd.DataFrame:
     S = S.merge(pd.concat(parts, ignore_index=True), on=["set", "label"], how="left")
     A = pd.read_csv(il.OUT_W / "aim_deficit_sessions.csv", usecols=["label", "day", "farcontra_first"])
     S = S.merge(A, on="label", how="left").rename(columns={"farcontra_first": "aim"})
+    S = S.merge(ITI_AX, on="label", how="left")
     return S
 
 
@@ -235,7 +262,7 @@ def cv_r2(g: pd.DataFrame, cols: list[str], by: str, animal_known: bool = False)
 
 def models(S: pd.DataFrame) -> dict:
     import statsmodels.formula.api as smf
-    preds = [c for c in S.columns if c not in ("set", "label", "animal", "epoch", "day", "aim", "logday")]
+    preds = [c for c in S.columns if c not in ("set", "label", "animal", "epoch", "day", "aim", "logday", *YAX)]
     rng = np.random.default_rng(0)
     rows, cvr, cva, an = [], [], [], []
     for st, G in S[(S.epoch != "pre") & (S.day > 0)].groupby("set"):
@@ -298,6 +325,13 @@ def compute() -> dict:
     dmax = float(np.nanmax(np.abs(chk.oro_bal - chk.r_orofacial)))
     print(f"== self-check: oro_bal vs balrec r_orofacial, {len(chk)} sessions, max |diff| = {dmax:.2e}")
     F = models(S)
+    # the ITI recovery axes (ITI lick sets only); the cued-aim results keep y = "aim"
+    for k in ("M", "CV", "CVA", "AN"):
+        F[k]["y"] = "aim"
+    for yax in YAX:
+        Fi = models(S[S.set.isin(["ITI", QSET])].assign(aim=lambda d, yax=yax: d[yax]))
+        for k in ("M", "CV", "CVA", "AN"):
+            F[k] = pd.concat([F[k], Fi[k].assign(y=yax)], ignore_index=True)
     F["M"].to_csv(il.OUT_W / "recmark_models.csv", index=False)
     F["CV"].to_csv(il.OUT_W / "recmark_cv.csv", index=False)
     F["CVA"].to_csv(il.OUT_W / "recmark_cv_animals.csv", index=False)
@@ -318,7 +352,8 @@ def plot(F: dict) -> None:
     from matplotlib.lines import Line2D
 
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
-    CV, CVA, M, S = F["CV"], F["CVA"], F["M"], F["S"]
+    YY = {k: (F[k][F[k].y == "aim"] if "y" in F[k] else F[k]) for k in ("CV", "CVA", "M", "AN")}
+    CV, CVA, M, S = YY["CV"], YY["CVA"], YY["M"], F["S"]
     fig_dir = il.OUT_W / "figures"
     # 1) cross-validated summary
     fig, axs = plt.subplots(4, 3, figsize=(20, 20), gridspec_kw={"width_ratios": [1.25, 1.25, 0.9]})
@@ -378,7 +413,7 @@ def plot(F: dict) -> None:
     plt.close(fig)
     # 2) scatter: size vs aim and balance vs aim, with the pre cloud
     fig, axs = plt.subplots(4, 3, figsize=(18, 20.5))
-    AN_ = F["AN"]
+    AN_ = YY["AN"]
     for i, st in enumerate(SETS3):
         for j, (k, lab) in enumerate((("oro_bal", "orofacial BALANCE (contra - ipsi)"),
                                       ("oro_size", "orofacial SIZE (mean of both sides)"),
@@ -444,6 +479,59 @@ def plot(F: dict) -> None:
                  "unseen animal? Decoder-window measures at the same lick angle & order. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(fig_dir / "lick_recovery_markers_areas.png", dpi=95)
+    plt.close(fig)
+    # 4) ITI's own recovery axes (ITI lick sets): LOAO per measure + balance vs axis scatter with the pre cloud
+    if "y" not in F["CV"] or not F["CV"].y.isin(YAX).any():
+        return
+    CVy, ANy, My = F["CV"], F["AN"], F["M"]
+    ylab = {"iti_ang": "mean ITI lick angle vs pre (deg; - = ipsilesional)",
+            "iti_ang90": "contralesional reach of ITI licks, 90th pct angle vs pre (deg)"}
+    fig, axs = plt.subplots(len(YAX), 3, figsize=(21, 6.5 * len(YAX)), gridspec_kw={"width_ratios": [1.2, 1.2, 1]})
+    for i, yax in enumerate(YAX):
+        for j, st in enumerate(("ITI", QSET)):
+            ax = axs[i, j]
+            c = CVy[(CVy.y == yax) & (CVy.set == st)].set_index("pred")
+            ks = [(k, lab) for k, lab in KEY if k in c.index]
+            x = np.arange(len(ks))
+            v = [c.loc[k, "loao"] for k, _ in ks]
+            ax.bar(x, v, color=["0.55" if k == "days" else "#C44E52" if "bal" in k else "#4C72B0" for k, _ in ks])
+            ax.plot(x, [c.loc[k, "null95"] for k, _ in ks], "k_", ms=14, mew=1.5)
+            for xi, (k, _) in enumerate(ks):
+                p = c.loc[k, "p_shuffle"]
+                if np.isfinite(p):
+                    ax.text(xi, max(v[xi], 0) + 0.03, f"p {p:.3g}", ha="center", fontsize=6.5,
+                            fontweight="bold" if p < 0.05 and v[xi] > 0 else "normal")
+            ax.axhline(0, color="k", lw=0.6)
+            ax.set_ylim(max(min(-0.6, np.nanmin(v) - 0.05), -1.5), 1)
+            ax.set_xticks(x, [lab for _, lab in ks], rotation=35, ha="right", fontsize=8)
+            ax.set_title(f"{st} balance etc. -> {yax}: leave-one-ANIMAL-out cvR²", fontsize=10)
+        ax = axs[i, 2]
+        g = S[S.set == QSET]
+        pre = g[g.epoch == "pre"]
+        ax.plot(pre.oro_bal, pre[yax], "o", color="0.82", mec="0.6", mew=0.4, ms=6, zorder=0)
+        for (ep, a_), h in g[g.epoch != "pre"].groupby(["epoch", "animal"]):
+            ax.plot(h.oro_bal, h[yax], ANIMAL_MARKER.get(a_, "o"), color=EPOCH_LINE[ep], ms=6, mec="k", mew=0.3)
+        r = ANy[(ANy.y == yax) & (ANy.set == QSET) & (ANy.pred == "oro_bal")].set_index("animal").r
+        rd_ = ANy[(ANy.y == yax) & (ANy.set == QSET) & (ANy.pred == "days")].set_index("animal").r
+        m = My[(My.y == yax) & (My.set == QSET) & (My.pred == "oro_bal")]
+        ttl = (f"{QSET}: orofacial balance vs {yax}\nper-animal r " + " / ".join(f"{r.get(x_, np.nan):+.2f}" for x_ in AN)
+               + "\n(days vs axis: " + " / ".join(f"{rd_.get(x_, np.nan):+.2f}" for x_ in AN) + ")")
+        if len(m) and "p" in m and np.isfinite(m.p.iloc[0]):
+            ttl += f"; within-animal slope p {m.p.iloc[0]:.2g}"
+        ax.set_title(ttl, fontsize=8.5)
+        ax.axhline(0, color="0.7", lw=0.6)
+        ax.axvline(0, color="0.7", lw=0.6)
+        ax.set_xlabel("orofacial balance vs pre (first ITI lick after quiet)", fontsize=8.5)
+        ax.set_ylabel(ylab[yax], fontsize=8.5)
+        for a_ in axs[i]:
+            for s_ in ("top", "right"):
+                a_.spines[s_].set_visible(False)
+    fig.suptitle("ITI licks against an ITI RECOVERY AXIS of their own (a different question from the cued aim): per session, "
+                 "the ITI lick angle vs the animal's pre sessions (mean; and the 90th percentile toward contralesional).\n"
+                 "Same measures and cross-validation as the cued figure; grey = pre sessions (not fitted). PROVISIONAL",
+                 fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(fig_dir / "lick_recovery_markers_iti_axis.png", dpi=95)
     plt.close(fig)
 
 
