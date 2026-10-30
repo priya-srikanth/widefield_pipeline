@@ -107,7 +107,33 @@ VARIANTS = {
     "meegkit_2band": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", slow_band_s=300.0,
                           note="CANDIDATE: meegkit_hpfit + its own 415->470 coefficient for the slow band "
                                "(>= 300 s cosine projection; removes the early-session bleaching residual)"),
+    # CANDIDATES (2026-10-30, NOT adopted; docs/COHORT2_QC_2026-10-29.md §0f-0g). The 415 frame of every pair is
+    # exposed 16 ms (one camera frame) BEFORE its 470 partner, and every variant above regresses them as if
+    # simultaneous: the measured 415->470 phase is exactly a 16 ms delay (+58 deg at the ~10 Hz heartbeat), so the
+    # fast-band fit is attenuated by cos(360 f 0.016). `iso_shift` advances 415 by half a pair-sample (an exact,
+    # amplitude-preserving Fourier fractional delay) so it is sampled at the 470 time. `fit_band` replaces the 0.1 Hz
+    # high-pass used for the coefficient fit with a band-pass: 1-8 Hz, or the cardiac band, where the 415<->470
+    # coupling is hemodynamic only (no neural signal can bias the coefficient).
+    "meegkit_hpfit_lag": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", iso_shift=True,
+                              note="CANDIDATE: meegkit_hpfit with 415 advanced 16 ms to the 470 frame time"),
+    "meegkit_lag_fit1to8": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", iso_shift=True,
+                                fit_band=(1.0, 8.0),
+                                note="CANDIDATE: lag-fixed 415, coefficient fitted on 1-8 Hz"),
+    "meegkit_lag_fitheart": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", iso_shift=True,
+                                 fit_band=(8.0, 13.5),
+                                 note="CANDIDATE: lag-fixed 415, coefficient fitted on the cardiac band (8-13.5 Hz)"),
 }
+
+
+def _advance_half_sample(x, pad=1024):
+    """Rows of ``x`` (components x time) advanced by HALF a sample: an exact band-limited fractional delay
+    (multiply each frequency by exp(+i*pi*k/n)), so amplitudes are untouched -- unlike a 2-tap average, which halves
+    the 10 Hz heartbeat. Reflect-padded to keep the circular FFT from wrapping the session ends into each other."""
+    n = x.shape[1]
+    xp = np.pad(x, ((0, 0), (pad, pad)), mode="reflect", reflect_type="odd")    # slope-continuous ends
+    k = np.fft.rfftfreq(xp.shape[1])
+    y = np.fft.irfft(np.fft.rfft(xp, axis=1) * np.exp(1j * np.pi * k)[None, :], n=xp.shape[1], axis=1)
+    return y[:, pad:pad + n]
 
 
 def _slow_projection(x, fs, min_period_s):
@@ -265,6 +291,9 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
 
+    if (VARIANTS[variant].get("iso_shift") or VARIANTS[variant].get("fit_band")) and not refit_t:
+        raise ValueError(f"variant {variant!r} changes the fit (lag shift / fit band), so the saved T does not apply -- "
+                         f"refit_t=True is required")
     global _MEEGKIT_FELL_BACK
     _MEEGKIT_FELL_BACK = False
     res = Path(session["mc"]) / "wfield_local_results"
@@ -277,6 +306,8 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
             raise ValueError("bad_pairs needs refit_t=True (the saved T was fitted on the unmasked traces)")
         n_bad = int(np.asarray(bad_pairs, bool)[:a.shape[1]].sum())
         a, b = _interp_pairs(a, bad_pairs), _interp_pairs(b, bad_pairs)
+    if VARIANTS[variant].get("iso_shift"):
+        b = _advance_half_sample(b)        # 415 sampled at the 470 frame time (16 ms later)
 
     spec = VARIANTS[variant]
     mask, mask_frac = None, None
@@ -302,7 +333,11 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     if fit_drift:
         # Separate traces for the COEFFICIENT FIT. `remove_drift` keys off the variant, so build these
         # with the high-pass directly rather than inventing a pseudo-variant.
-        bh, ah = butter(2, HP / (FS / 2), btype="highpass")
+        if spec.get("fit_band"):
+            lo, hi = spec["fit_band"]
+            bh, ah = butter(2, [lo / (FS / 2), hi / (FS / 2)], btype="band")
+        else:
+            bh, ah = butter(2, HP / (FS / 2), btype="highpass")
         a_fit, b_fit = _finish(filtfilt(bh, ah, a, padlen=50), filtfilt(bh, ah, b, padlen=50))
 
     a = remove_drift(a, variant, mask, win_s, order)
@@ -346,7 +381,8 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
             "meegkit_order": (MEEGKIT_ORDER if order is None else int(order))
                              if spec["drift"] == "meegkit" else None,
             "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": func,
-            "slow_band_s": slow_s, "bad_pairs_interpolated": n_bad if bad_pairs is not None else None,
+            "slow_band_s": slow_s, "iso_shift_16ms": bool(spec.get("iso_shift")),
+            "fit_band": spec.get("fit_band"), "bad_pairs_interpolated": n_bad if bad_pairs is not None else None,
             "meegkit_fallback": ("per_component" if _MEEGKIT_FELL_BACK else None),
             "note": spec["note"], "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if verbose:
