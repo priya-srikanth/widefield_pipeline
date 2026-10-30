@@ -38,6 +38,11 @@ GCaMP6s CAVEAT: fluorescence lags spikes ~0.1-0.2 s and decays over ~0.5-1 s (wi
       activity from ~0.5 s before it. Short windows (median L ~0.2 s) sit on the RISING edge of the cue response.
 Outputs: <OUT_W>/cue_to_lick/ c2l_trials.csv.gz, c2l_A_*.csv, c2l_B_*.csv, c2l_C_*.csv; figures/ lick_cue_to_lick_*.png;
 figdata/<stem>.pkl (redraw with --plot-only). Usage: python scripts/lick_cue_to_lick.py [--jobs 4] [--plot-only]
+[--rest-variant restnl]
+RESTnl VARIANT (`--rest-variant restnl`, default restw unchanged): per-trial cache sessions_restnl/ (CURRENT engaged gate,
+y = trace - the LICK-FREE rest level, scripts/restnl.py); every output (csv, figdata, png) gets the suffix _restnl.
+Own-pre-cue quantities (mean_own, AUC_own, lev_own, slope_end, B) do not depend on the rest level at all; under restnl
+they move only through the trial set (current gate) and the sessions without a RESTnl level (left out).
 """
 from __future__ import annotations
 
@@ -49,8 +54,32 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import figdata as _fd  # noqa: E402
 import lick_cue_to_lick_extract as cx  # noqa: E402
-from figdata import load_fd, plot_only, save_fd  # noqa: E402
+import restnl  # noqa: E402
+from figdata import plot_only  # noqa: E402
+
+SFX = ""                        # "_restnl" under --rest-variant restnl (set in main; every output name carries it)
+
+
+def save_fd(stem, obj, root=None):
+    return _fd.save_fd(stem + SFX, obj, root)
+
+
+def load_fd(stem, root=None):
+    return _fd.load_fd(stem + SFX, root)
+
+
+def _o(name: str) -> str:
+    """Output file name with the variant suffix before the extension(s)."""
+    if not SFX:
+        return name
+    stem, dot, ext = name.partition(".")
+    return f"{stem}{SFX}{dot}{ext}"
+
+
+def _rl(txt: str) -> str:
+    return restnl.relabel(txt) + " Trials = CURRENT engaged gate." if SFX else txt
 
 OUT = cx.OUT
 FIGS = OUT / "figures"
@@ -96,7 +125,15 @@ def deconv(X: np.ndarray, tau: float, axis: int = 1) -> np.ndarray:
 # ------------------------------------------------------------------------------------------------ per-session trial table
 def session_trials(label: str) -> dict | None:
     """Per-trial scalars (long over columns) + template partial sums, for both taus. Module-level (fan_sessions)."""
-    z = np.load(cx.SESS / f"{label}.npz")
+    return _session_trials(label, cx.SESS)
+
+
+def session_trials_restnl(label: str) -> dict | None:
+    return _session_trials(label, cx.SESS_NL)
+
+
+def _session_trials(label: str, sess) -> dict | None:
+    z = np.load(sess / f"{label}.npz")
     if not bool(z["restw_ok"]):
         return None
     an, ep = str(z["animal"]), str(z["epoch"])
@@ -152,10 +189,10 @@ def session_trials(label: str) -> dict | None:
             "n_never": int((phase == "never").sum())}
 
 
-def build(jobs: int) -> tuple[pd.DataFrame, dict, pd.DataFrame]:
+def build(jobs: int, var: str = "restw") -> tuple[pd.DataFrame, dict, pd.DataFrame]:
     from wfield_local import analysis_kit as ak
-    labs = cx.extract(jobs)
-    res, fails = ak.fan_sessions(labs, session_trials, jobs=min(jobs, 4))
+    labs = cx.extract(jobs, var)
+    res, fails = ak.fan_sessions(labs, session_trials_restnl if var == "restnl" else session_trials, jobs=min(jobs, 4))
     if fails:
         raise SystemExit(f"{len(fails)} sessions failed: {fails}")
     res = [v for _x, v in res if v is not None]
@@ -265,18 +302,18 @@ def task_A(T: pd.DataFrame, rng) -> dict:
         S = per_session(T0, q)
         S["cmp"] = ""
         PA = animal_table(S)
-        PA.to_csv(OUT / f"c2l_A_{q}_per_animal.csv")
+        PA.to_csv(OUT / _o(f"c2l_A_{q}_per_animal.csv"))
         rows += deltas(S, {"measure": q, "match": "raw"}, rng)
         Mt = matched(T0, q)
-        Mt.to_csv(OUT / f"c2l_A_{q}_matched_sessions.csv.gz", index=False)
+        Mt.to_csv(OUT / _o(f"c2l_A_{q}_matched_sessions.csv.gz"), index=False)
         rows += deltas(Mt, {"measure": q, "match": "latency-matched"}, rng, cmp_col=True)
         PM = Mt.groupby(["col", "pos", "animal", "cmp", "epoch"]).v.mean().unstack(["cmp", "epoch"])
-        PM.to_csv(OUT / f"c2l_A_{q}_matched_per_animal.csv")
+        PM.to_csv(OUT / _o(f"c2l_A_{q}_matched_per_animal.csv"))
         ov = Mt[Mt.pos != "all"].groupby(["pos", "animal", "cmp"]).overlap.first().unstack("cmp").reindex(index=POS, level=0)
-        ov.to_csv(OUT / "c2l_A_latency_overlap.csv")
+        ov.to_csv(OUT / _o("c2l_A_latency_overlap.csv"))
         out[q] = {"S": S, "M": Mt}
     D = pd.DataFrame(rows)
-    D.to_csv(OUT / "c2l_A_changes.csv", index=False)
+    D.to_csv(OUT / _o("c2l_A_changes.csv"), index=False)
     return {"D": D, "sess": {q: v["S"] for q, v in out.items()}, "match": {q: v["M"] for q, v in out.items()}}
 
 
@@ -289,15 +326,15 @@ def task_C(T: pd.DataFrame, rng) -> dict:
             S["cmp"] = ""
             nm = q + ("" if drop else "_all")
             sess[nm] = S
-            animal_table(S).to_csv(OUT / f"c2l_C_{nm}_per_animal.csv")
+            animal_table(S).to_csv(OUT / _o(f"c2l_C_{nm}_per_animal.csv"))
             rows += deltas(S, {"measure": nm, "window": f"-{wl}..0 s", "drop_precue": drop}, rng)
         t1 = T0[T0.col == COLS[0]]
         k = t1.assign(kept=t1.lat >= wl).groupby(["animal", "epoch", "pos"]).kept.mean()
         keep.append(k.rename(q))
     D = pd.DataFrame(rows)
-    D.to_csv(OUT / "c2l_C_changes.csv", index=False)
+    D.to_csv(OUT / _o("c2l_C_changes.csv"), index=False)
     K = pd.concat(keep, axis=1).reset_index()
-    K.to_csv(OUT / "c2l_C_kept_fraction.csv", index=False)
+    K.to_csv(OUT / _o("c2l_C_kept_fraction.csv"), index=False)
     return {"D": D, "sess": sess, "kept": K}
 
 
@@ -326,10 +363,10 @@ def task_B(T: pd.DataFrame, rng) -> dict:
                 r[f"m_{q}"] = float(h[q].mean())
             rec.append(r)
     B = pd.DataFrame(rec)
-    B.to_csv(OUT / "c2l_B_session_slopes.csv.gz", index=False)
+    B.to_csv(OUT / _o("c2l_B_session_slopes.csv.gz"), index=False)
     # per animal (rule 8) + pooled levels / changes
     PA = B.groupby(["tau", "cls", "col", "animal", "epoch"])[[f"b_{q}" for q in BQ + ["AUC_tpl", "lev_tpl"]]].mean()
-    PA.to_csv(OUT / "c2l_B_slopes_per_animal.csv")
+    PA.to_csv(OUT / _o("c2l_B_slopes_per_animal.csv"))
     lev, chg = [], []
     for (tau, cl, col), g in B.groupby(["tau", "cls", "col"], sort=True):
         for q in BQ + ["AUC_tpl", "lev_tpl"]:
@@ -353,8 +390,8 @@ def task_B(T: pd.DataFrame, rng) -> dict:
                     chg.append({"tau": tau, "cls": cl, "col": col, "q": q, "epoch": E, "delta": iv.point, "lo": iv.lo,
                                 "hi": iv.hi, "n_animals": iv.n_animals, "sig": iv.excludes_zero})
     LV, CH = pd.DataFrame(lev), pd.DataFrame(chg)
-    LV.to_csv(OUT / "c2l_B_slopes_levels.csv", index=False)
-    CH.to_csv(OUT / "c2l_B_slopes_changes.csv", index=False)
+    LV.to_csv(OUT / _o("c2l_B_slopes_levels.csv"), index=False)
+    CH.to_csv(OUT / _o("c2l_B_slopes_changes.csv"), index=False)
     # exponents from latency-binned means (sessions pooled per animal x epoch x class)
     ex, bins = [], []
     for (tau, col, an, ep), g in T.groupby(["tau", "col", "animal", "epoch"], sort=True):
@@ -372,8 +409,8 @@ def task_B(T: pd.DataFrame, rng) -> dict:
                 ex.append({"tau": tau, "col": col, "animal": an, "epoch": ep, "cls": cl, "q": q, "beta": beta,
                            "n_bins": int(ok.sum()), "n_bins_all": len(bm)})
     EX, BM = pd.DataFrame(ex), pd.DataFrame(bins)
-    EX.to_csv(OUT / "c2l_B_exponents_per_animal.csv", index=False)
-    BM.to_csv(OUT / "c2l_B_binned_means.csv.gz", index=False)
+    EX.to_csv(OUT / _o("c2l_B_exponents_per_animal.csv"), index=False)
+    BM.to_csv(OUT / _o("c2l_B_binned_means.csv.gz"), index=False)
     # acute (and later) far-contra trials on the PRE relation
     onpre = []
     for (tau, col, an), g in T.groupby(["tau", "col", "animal"], sort=True):
@@ -394,7 +431,7 @@ def task_B(T: pd.DataFrame, rng) -> dict:
                                           "q_mean": float(h[q][m].mean()), "pre_lat_p95": float(pr.lat.quantile(0.95)),
                                           "pre_lat_max": float(pr.lat.max()), "pre_b": a1, "pre_a": a0})
     OP = pd.DataFrame(onpre)
-    OP.to_csv(OUT / "c2l_B_onpre_sessions.csv", index=False)
+    OP.to_csv(OUT / _o("c2l_B_onpre_sessions.csv"), index=False)
     opl = []
     for (tau, col, ref, q, ep, spd), g in OP.groupby(["tau", "col", "ref", "q", "epoch", "speed"], sort=True):
         d = {a: list(x.res) for a, x in g.groupby("animal", sort=True)}
@@ -405,7 +442,7 @@ def task_B(T: pd.DataFrame, rng) -> dict:
         opl.append({"tau": tau, "col": col, "ref": ref, "q": q, "epoch": ep, "speed": spd, "res": iv.point, "lo": iv.lo,
                     "hi": iv.hi, "n_animals": iv.n_animals, "n_trials": int(g.n.sum()), **{f"r_{a}": v for a, v in per.items()}})
     OPL = pd.DataFrame(opl)
-    OPL.to_csv(OUT / "c2l_B_onpre_summary.csv", index=False)
+    OPL.to_csv(OUT / _o("c2l_B_onpre_summary.csv"), index=False)
     return {"LV": LV, "CH": CH, "EX": EX, "BM": BM, "OP": OP, "OPL": OPL}
 
 
@@ -502,9 +539,9 @@ def draw_dotgrid(stem: str) -> None:
                 ax.set_ylabel(f"{a}\n{F['ylab']}", fontsize=7)
     hs = [plt.Line2D([], [], color=c, marker="o", ms=3, lw=0.6, label=an) for an, c in sorted(acol.items())]
     fig.legend(handles=hs, loc="outside lower center", ncol=len(hs), fontsize=7, frameon=False)
-    fig.suptitle(_wrap(F["title"], fw, 9), fontsize=9)
+    fig.suptitle(_wrap(_rl(F["title"]), fw, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -628,7 +665,7 @@ def draw_B_pre(stem: str) -> None:
                  "template (trials not yet licked by t + 0.3 s) at that latency." + (
                      f" DECONVOLVED trace s = y + {F['tau']} dy/dt." if F["tau"] else " Raw GCaMP6s dF/F (slow, lagged)."),
                  fw, 8), fontsize=8)
-    fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -671,7 +708,7 @@ def draw_B_exp(stem: str) -> None:
                  f"; bins with positive means only) against the model predictions (dotted). Dots = animals, bar = mean. "
                  f"Pre-stroke latencies span only ~0.1-0.4 s, so exponents are noisy." + (
                      f" DECONVOLVED (tau {F['tau']} s)." if F["tau"] else " Raw GCaMP6s dF/F."), fw, 8), fontsize=8)
-    fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -714,7 +751,7 @@ def draw_B_onpre(stem: str) -> None:
                  "post-stroke epochs, far-contra trials. Baselines: own pre-cue level (-0.5..0 s) or session RESTW (row "
                  "label). Pre latencies rarely exceed ~0.5 s, so slow-trial comparisons extrapolate the pre relation "
                  "(c2l_B_onpre_summary.csv).", fw, 8), fontsize=8)
-    fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -809,9 +846,11 @@ def draw_threshold_simple(src: str = "lick_cue_to_lick_B_farcontra_on_pre",
         "NEURAL, contralesional ALM, tjM1, SSp-m, SSp-n POOLED (mean of the four areas per animal x latency bin), "
         "baseline = the trial's own pre-cue level (-0.5..0 s), raw GCaMP6s dF/F (slow, lagged). Thin black = pre per "
         "animal, thick = mean of animals (bins >= 3 animals); dotted = models scaled through the pre curve at its median "
-        "latency. CAVEAT: pre-stroke latencies sit at ~0.1-0.6 s, so the grey region (and every slow-trial comparison) extrapolates the pre relation. PROVISIONAL, n = 4 mice.", 13.5, 9), fontsize=9)
+        "latency. CAVEAT: pre-stroke latencies sit at ~0.1-0.6 s, so the grey region (and every slow-trial comparison) extrapolates the pre relation. PROVISIONAL, n = 4 mice."
+        + (" Trials = CURRENT engaged gate, sessions with a RESTnl level (rest-independent quantity)." if SFX else ""),
+        13.5, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{out}.png", dpi=120, bbox_inches="tight")
+    fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -851,20 +890,21 @@ def draw_A_simple(src: str = "lick_cue_to_lick_A_level_contra", out: str = "lick
             if i == 0:
                 ax.set_title(a, fontsize=10, pad=14)
             if j == 0:
-                ax.set_ylabel(f"{pl.upper()}\nchange vs pre, mean cue->lick\nabove RESTW (dF/F x1e3)", fontsize=8)
+                ax.set_ylabel(restnl.relabel(f"{pl.upper()}\nchange vs pre, mean cue->lick\nabove RESTW (dF/F x1e3)")
+                              if SFX else f"{pl.upper()}\nchange vs pre, mean cue->lick\nabove RESTW (dF/F x1e3)", fontsize=8)
     hs = [plt.Line2D([], [], color=c, marker="o", ls="", ms=4, label=an) for an, c in sorted(acol.items())]
     hs += [plt.Line2D([], [], color="0.3", marker="s", ls="", ms=6, label="contralesional (filled)"),
            plt.Line2D([], [], color="0.3", marker="s", mfc="white", ls="", ms=6, label="ipsilesional (open)")]
     fig.legend(handles=hs, loc="outside lower center", ncol=len(hs), fontsize=8, frameon=False)
-    fig.suptitle(_wrap(
+    fig.suptitle(_wrap(_rl(
         "NEURAL, baseline = session RESTW: change from pre of the mean dF/F from the cue to the first lick (ENGAGED "
         "trials with an in-window first lick), orofacial areas; contralesional (left of each pair, filled) and "
         "ipsilesional (right, open). Dots = per-animal change (colour = animal); square + bar = paired nested bootstrap "
         "point and 95% CI (analysis_kit.boot_delta, animals > sessions); * = CI excludes 0, (*) = significant but fewer "
         "than 3 animals share the sign. Not latency-matched (slower post-stroke licks lengthen the window). "
-        "PROVISIONAL, n = 4 mice.", 12, 9), fontsize=9)
+        "PROVISIONAL, n = 4 mice."), 12, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{out}.png", dpi=120, bbox_inches="tight")
+    fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -880,8 +920,11 @@ DOT_STEMS = ([f"lick_cue_to_lick_A_level_{h}" for h in ("contra", "ipsi")]
 
 
 def main() -> int:
+    global SFX
     from wfield_local import parallel
     parallel.pin_blas()
+    var = restnl.variant()
+    SFX = restnl.SFX if var == "restnl" else ""
     if plot_only():
         for s in DOT_STEMS:
             draw_dotgrid(s)
@@ -894,10 +937,10 @@ def main() -> int:
         draw_simple()
         return 0
     jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 4
-    T, TPL, meta = build(jobs)
+    T, TPL, meta = build(jobs, var)
     OUT.mkdir(parents=True, exist_ok=True)
-    meta.to_csv(OUT / "c2l_sessions.csv", index=False)
-    T[T.tau == 0].to_csv(OUT / "c2l_trials.csv.gz", index=False)
+    meta.to_csv(OUT / _o("c2l_sessions.csv"), index=False)
+    T[T.tau == 0].to_csv(OUT / _o("c2l_trials.csv.gz"), index=False)
     print(f"== {meta.label.nunique()} sessions (restw_ok); in-window trials {meta.n_inw.sum()}, late {meta.n_late.sum()}, "
           f"never {meta.n_never.sum()}")
     nt = T[(T.tau == 0) & (T.col == COLS[0])]

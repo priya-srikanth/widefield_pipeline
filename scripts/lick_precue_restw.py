@@ -27,7 +27,12 @@ excludes 0, no multiple-comparison correction -- as `iti_area_maps.changes` (the
 Outputs (under iti_licks.OUT_W): precue_restw/<label>.npz (per-session cache), precue_restw_sessions[_<spout>].csv,
 precue_restw_changes[_<spout>].csv, precue_restw_session_notes.csv, figures/lick_cued_precue_restw_maps[_farcontra].png
 (+ _levels.png), figdata/<stem>.pkl.
-Usage: python scripts/lick_precue_restw.py [--jobs N] [--plot-only]
+RESTnl VARIANT (Priya 10-29, `--rest-variant restnl`; default restw = everything above, unchanged): the baseline is the
+LICK-FREE rest level of `scripts/restnl.py` (restw_strict_check strict_w50; sessions without it left out), the trial set
+is the CURRENT engaged gate (the behaviour table now; the precue_restw cache holds an older gate in 86 / 107 sessions).
+Cache <OUT_W>/precue_restnl/<label>.npz (field `restw` = the RESTnl level there, `restw_old` = RESTW for comparison);
+every output file name gets the suffix _restnl.
+Usage: python scripts/lick_precue_restw.py [--jobs N] [--plot-only] [--rest-variant restnl]
 """
 from __future__ import annotations
 
@@ -39,6 +44,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import restnl  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 CACHE = "precue_restw"
@@ -52,7 +58,20 @@ KEY = ["ALM", "tjM1", "SSp-m", "SSp-n"]
 
 def session_worker(label: str) -> dict:
     """One session (module-level for spawn) -> <OUT_W>/precue_restw/<label>.npz; returns the notes."""
-    f = il.OUT_W / CACHE / f"{label}.npz"
+    return _session(label, "restw")
+
+
+def session_worker_restnl(label: str) -> dict:
+    """RESTnl variant (module-level for spawn) -> <OUT_W>/precue_restnl/<label>.npz (current engaged gate)."""
+    return _session(label, "restnl")
+
+
+def _cache(var: str) -> str:
+    return CACHE if var == "restw" else "precue_restnl"
+
+
+def _session(label: str, var: str) -> dict:
+    f = il.OUT_W / _cache(var) / f"{label}.npz"
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
@@ -73,19 +92,29 @@ def session_worker(label: str) -> dict:
     R -= Q @ (Q.T @ R)
     R *= 1e3
     Rs, cs = il.with_rest(R, cols, label, basis="split")    # (T, cols + 4 rest areas)
-    # restw on the whole-session area series
-    s = next(x for x in config.load_sessions() if x["label"] == label)
-    per, info = rest_frames_by_position(s, Rs.shape[0], docked=False, engaged_only=True)
-    if info.get("error"):
-        raise RuntimeError(f"{label}: no rest mask ({info['error']})")
-    base, used = restw_from_frames(Rs.T, per, label=label)
-    ok = base is not None
-    n_rest = int(sum(len(v) for v in per.values()))
-    if not ok:                                                 # loud fallback: unweighted rest median, flagged
-        idx = np.concatenate([np.asarray(v) for v in per.values()]) if per else np.array([], int)
-        idx = idx[idx < Rs.shape[0]]
-        base = np.median(Rs[idx], 0)[:, None] if idx.size else np.full((Rs.shape[1], 1), np.nan)
-    base = base[:, 0]
+    extra = {}
+    if var == "restnl":                                        # the lick-free level (restw_strict_check, strict_w50)
+        base, ok = restnl.level(label, cs)
+        old = np.load(il.OUT_W / CACHE / f"{label}.npz")
+        if [str(c) for c in old["cols"]] != cs:
+            raise ValueError(f"{label}: columns differ from the precue_restw cache")
+        used, n_rest = old["used"], int(old["n_rest"])
+        extra = {"restw_old": np.asarray(old["restw"], float), "restw_old_ok": bool(old["restw_ok"]),
+                 "n_eng_old": len(old["pos"])}
+    else:
+        # restw on the whole-session area series
+        s = next(x for x in config.load_sessions() if x["label"] == label)
+        per, info = rest_frames_by_position(s, Rs.shape[0], docked=False, engaged_only=True)
+        if info.get("error"):
+            raise RuntimeError(f"{label}: no rest mask ({info['error']})")
+        base, used = restw_from_frames(Rs.T, per, label=label)
+        ok = base is not None
+        n_rest = int(sum(len(v) for v in per.values()))
+        if not ok:                                             # loud fallback: unweighted rest median, flagged
+            idx = np.concatenate([np.asarray(v) for v in per.values()]) if per else np.array([], int)
+            idx = idx[idx < Rs.shape[0]]
+            base = np.median(Rs[idx], 0)[:, None] if idx.size else np.full((Rs.shape[1], 1), np.nan)
+        base = base[:, 0]
     # engaged trials
     B = il._behaviour(label)
     T = B.trials
@@ -115,15 +144,15 @@ def session_worker(label: str) -> dict:
     f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, version=VERSION, cols=np.array(cs), restw=base, restw_ok=ok, used=np.array(used, int),
                         n_rest=n_rest, p10=p10, p05=p05, pos=np.asarray(Eg.pos.astype(str).to_numpy(), str), f10=f10, f05=f05,
-                        maxdiff=maxdiff, animal=str(d["animal"]), epoch=str(d["epoch"]))
+                        maxdiff=maxdiff, animal=str(d["animal"]), epoch=str(d["epoch"]), **extra)
     return {"label": label, "cached": False, "restw_ok": ok, "n_pos": len(used), "maxdiff": maxdiff}
 
 
-def session_tables(labels: list) -> tuple[dict, pd.DataFrame]:
+def session_tables(labels: list, var: str = "restw") -> tuple[dict, pd.DataFrame]:
     """{spout or None: per-session x area table}, notes."""
     out, notes = {None: [], "far_contra": []}, []
     for x in labels:
-        z = np.load(il.OUT_W / CACHE / f"{x}.npz")
+        z = np.load(il.OUT_W / _cache(var) / f"{x}.npz")
         cs = [str(c) for c in z["cols"]]
         ok = bool(z["restw_ok"])
         pos = z["pos"].astype(str)
@@ -154,18 +183,19 @@ def per_animal(T: pd.DataFrame, val: str) -> pd.DataFrame:
     return P
 
 
-def run(spout: str | None, T: pd.DataFrame) -> None:
+def run(spout: str | None, T: pd.DataFrame, sfx: str = "") -> None:
     import iti_area_maps as iam
     from frozen_area_maps import outline
     tag = "" if spout is None else "_" + spout.replace("_", "")
     T = T[T.restw_ok]
-    T.to_csv(il.OUT_W / f"precue_restw_sessions{tag}.csv", index=False)
+    T.to_csv(il.OUT_W / f"precue_restw_sessions{tag}{sfx}.csv", index=False)
     pa = per_animal(T, "precue")
-    pa.to_csv(il.OUT_W / f"precue_restw_per_animal{tag}.csv")
+    pa.to_csv(il.OUT_W / f"precue_restw_per_animal{tag}{sfx}.csv")
     keyrows = pa[pa.index.get_level_values("area").str.rsplit("_", n=1).str[0].isin(KEY)]
-    print(f"== per animal (rule 8), PRE-CUE LEVEL -1..0 s above restw{tag}\n" + keyrows.round(2).to_string())
+    print(f"== per animal (rule 8), PRE-CUE LEVEL -1..0 s above {'RESTnl' if sfx else 'restw'}{tag}\n"
+          + keyrows.round(2).to_string())
     C = pd.concat([iam.changes(T, v) for v, _t in VALS])
-    C.to_csv(il.OUT_W / f"precue_restw_changes{tag}.csv", index=False)
+    C.to_csv(il.OUT_W / f"precue_restw_changes{tag}{sfx}.csv", index=False)
     print(C[C.sig].sort_values(["value", "epoch", "delta"]).round(3).to_string(index=False))
     labels = sorted(T.label.unique())
     img, nm = iam.split_image(labels[0])
@@ -179,9 +209,9 @@ def run(spout: str | None, T: pd.DataFrame) -> None:
             pans.append((ep, ce_.delta.to_dict(), list(ce_.index[ce_.sig]), int(ce_.sig.sum())))
         rows.append((ttl, lim, pans))
     what = "CUED trials, all engaged trials" + ("" if spout is None else f", {spout.replace('_', '-')} target only")
-    stem = f"lick_cued_precue_restw_maps{tag}"
+    stem = f"lick_cued_precue_restw_maps{tag}{sfx}"
     save_fd(stem, {"img": img, "nm": nm, "ol": outline(img), "rows": rows, "what": what,
-                   "levels": iam._levels(T, VALS)})
+                   "levels": iam._levels(T, VALS), "sfx": sfx})
     draw(stem)
 
 
@@ -192,6 +222,9 @@ def draw(stem: str) -> None:
     import matplotlib.pyplot as plt
     from frozen_area_maps import outline, paint
     F = load_fd(stem)
+    sfx = F.get("sfx", "")
+    rl = restnl.relabel if sfx else (lambda t: t)
+    base = stem[:-len(sfx)] if sfx else stem
     nm = F["nm"]
     img = iam.trim_rest(F["img"], nm)
     ol = outline(img)
@@ -206,12 +239,13 @@ def draw(stem: str) -> None:
             im = ax.imshow(paint(img, nm, delta), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
             iam._sig_halo(ax, img, nm, sig_areas, list(delta))
-            ax.set_title(f"{ttl}\n{ep} - pre ({n_sig} areas significant)", fontsize=9)
+            ax.set_title(rl(f"{ttl}\n{ep} - pre ({n_sig} areas significant)"), fontsize=9)
             ax.axis("off")
-        fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label("change in dF/F above restw (x1e3)")
-    fig.suptitle(f"NEURAL, NO DECODER: {F['what']} -- change from pre per area in the PRE-CUE LEVEL; {note}; ALM / tjM1 "
+        fig.colorbar(im, ax=axs[i, :], fraction=0.02, pad=0.01).set_label(rl("change in dF/F above restw (x1e3)"))
+    fig.suptitle(rl(f"NEURAL, NO DECODER: {F['what']} -- change from pre per area in the PRE-CUE LEVEL; {note}; ALM / tjM1 "
                  "separate from the rest of MOs / MOp (ROI v8); black outline on a white halo = nested-bootstrap CI "
-                 "excludes 0. Image left = ipsilesional.", fontsize=10, wrap=True)
+                 "excludes 0. Image left = ipsilesional." + (" Trials = CURRENT engaged gate." if sfx else "")),
+                 fontsize=10, wrap=True)
     fig.savefig(il.OUT_W / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
     nr = len(F["levels"])
@@ -221,23 +255,23 @@ def draw(stem: str) -> None:
             ax = axs[i, j]
             im = ax.imshow(paint(img, nm, lev), cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
             ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
-            ax.set_title(f"{ttl}\n{ep}", fontsize=9)
+            ax.set_title(rl(f"{ttl}\n{ep}"), fontsize=9)
             ax.axis("off")
-        fig.colorbar(im, ax=axs[i, :], fraction=0.015, pad=0.01).set_label("dF/F above restw (x1e3)")
-    fig.suptitle(f"NEURAL, NO DECODER: {F['what']} -- per-epoch PRE-CUE LEVEL per area (mean over animals of each "
+        fig.colorbar(im, ax=axs[i, :], fraction=0.015, pad=0.01).set_label(rl("dF/F above restw (x1e3)"))
+    fig.suptitle(rl(f"NEURAL, NO DECODER: {F['what']} -- per-epoch PRE-CUE LEVEL per area (mean over animals of each "
                  f"animal's session mean; not the change from pre); {note}; one colour scale per row. Image left = "
-                 "ipsilesional. Descriptive.", fontsize=10, wrap=True)
-    fig.savefig(il.OUT_W / "figures" / f"{stem}_levels.png", dpi=100, bbox_inches="tight")
+                 "ipsilesional. Descriptive." + (" Trials = CURRENT engaged gate." if sfx else "")), fontsize=10, wrap=True)
+    fig.savefig(il.OUT_W / "figures" / f"{base}_levels{sfx}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
-def sanity(T: pd.DataFrame, notes: pd.DataFrame) -> None:
+def sanity(T: pd.DataFrame, notes: pd.DataFrame, sfx: str = "") -> None:
     print(f"== restw fallback sessions: {int((~notes.restw_ok).sum())}/{len(notes)} "
           f"{list(notes.label[~notes.restw_ok])}")
     print(f"== validation vs cued_wide cue traces: max |diff| = {notes.maxdiff_vs_cued_wide.max():.4f} "
           f"(NaN sessions {int(notes.maxdiff_vs_cued_wide.isna().sum())})")
     f = il.OUT / "area_auc_sessions_split_cued.csv"
-    if f.exists():
+    if f.exists() and not sfx:
         A = pd.read_csv(f)[["label", "area", "cue"]]
         J = T[T.restw_ok].merge(A, on=["label", "area"])
         r1 = np.corrcoef(J.precue, J.cue)[0, 1]
@@ -251,20 +285,23 @@ def sanity(T: pd.DataFrame, notes: pd.DataFrame) -> None:
 
 def main() -> int:
     from wfield_local import analysis_kit as ak
+    var = restnl.variant()
+    sfx = restnl.SFX if var == "restnl" else ""
     if plot_only():
         for st in ("lick_cued_precue_restw_maps", "lick_cued_precue_restw_maps_farcontra"):
-            draw(st)
+            draw(st + sfx)
         return 0
     jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8
     labs = il.labels()
-    res, fails = ak.fan_sessions(labs, session_worker, jobs=min(jobs, 8))
+    worker = session_worker_restnl if var == "restnl" else session_worker
+    res, fails = ak.fan_sessions(labs, worker, jobs=min(jobs, 4 if var == "restnl" else 8))
     if fails:
         raise SystemExit(f"{len(fails)} sessions failed: {fails}")
-    Ts, notes = session_tables(labs)
-    notes.to_csv(il.OUT_W / "precue_restw_session_notes.csv", index=False)
-    sanity(Ts[None], notes)
-    run(None, Ts[None])
-    run("far_contra", Ts["far_contra"])
+    Ts, notes = session_tables(labs, var)
+    notes.to_csv(il.OUT_W / f"precue_restw_session_notes{sfx}.csv", index=False)
+    sanity(Ts[None], notes, sfx)
+    run(None, Ts[None], sfx)
+    run("far_contra", Ts["far_contra"], sfx)
     return 0
 
 

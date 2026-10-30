@@ -17,7 +17,11 @@ lick_cue_to_lick_extract.py):
 Change vs pre per animal (rule 8 table first), then analysis_kit.boot_delta. Identity: d_raw = d_rel + d_restw.
 Outputs (<OUT_W>/cue_to_lick/): c2l_D_sessions.csv, c2l_D_per_animal.csv, c2l_D_changes.csv; figures/
 lick_cue_to_lick_D_raw_traces.png (the non-restw cue-aligned traces), lick_cue_to_lick_D_decomposition.png; figdata.
-Usage: python scripts/lick_cue_to_lick_precue.py [--plot-only]   (needs lick_cue_to_lick_extract.py's cache)
+Usage: python scripts/lick_cue_to_lick_precue.py [--plot-only] [--rest-variant restnl]   (needs lick_cue_to_lick_extract.py's
+cache)
+RESTnl VARIANT (`--rest-variant restnl`, default restw unchanged): the per-trial cache sessions_restnl/ (CURRENT engaged
+gate), 'restw' column = the LICK-FREE rest level (scripts/restnl.py), rel = raw - RESTnl; sessions without a RESTnl level
+left out; every output name gets the suffix _restnl.
 """
 from __future__ import annotations
 
@@ -29,8 +33,30 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import figdata as _fd  # noqa: E402
 import lick_cue_to_lick_extract as cx  # noqa: E402
-from figdata import load_fd, plot_only, save_fd  # noqa: E402
+import restnl  # noqa: E402
+from figdata import plot_only  # noqa: E402
+
+SFX = ""                        # "_restnl" under --rest-variant restnl (set in main)
+VAR = "restw"
+
+
+def save_fd(stem, obj, root=None):
+    return _fd.save_fd(stem + SFX, obj, root)
+
+
+def load_fd(stem, root=None):
+    return _fd.load_fd(stem + SFX, root)
+
+
+def _o(name: str) -> str:
+    stem, dot, ext = name.partition(".")
+    return f"{stem}{SFX}{dot}{ext}"
+
+
+def _rl(txt: str) -> str:
+    return restnl.relabel(txt) + " Trials = CURRENT engaged gate." if SFX else txt
 
 OUT = cx.OUT
 FIGS = OUT / "figures"
@@ -54,7 +80,7 @@ def sessions() -> tuple[pd.DataFrame, dict]:
     rows, tr = [], {}
     tsel = _w(TL[0], TL[-1])
     for x in il.labels():
-        z = np.load(cx.SESS / f"{x}.npz")
+        z = np.load(cx.sess_dir(VAR) / f"{x}.npz")
         if not bool(z["restw_ok"]):
             continue
         an, ep = str(z["animal"]), str(z["epoch"])
@@ -153,12 +179,12 @@ def draw_traces(stem: str) -> None:
             vis[-1].set_xlabel("time from cue (s)")
     h, lab = axs[0, 0].get_legend_handles_labels()   # one figure legend below the panels (was inside ALM contra)
     fig.legend(h, lab, loc="outside lower center", fontsize=8, frameon=False, ncol=4)
-    fig.suptitle(_wrap("NEURAL, NO BASELINE (non-restw version of Fig 14.21): cue-aligned area traces of ENGAGED trials, all "
+    fig.suptitle(_wrap(_rl("NEURAL, NO BASELINE (non-restw version of Fig 14.21): cue-aligned area traces of ENGAGED trials, all "
                  "spouts; the drift basis incl. the constant is removed, so 0 = the area's SESSION MEAN. Dashed = the "
                  "epoch's mean RESTW level in the same units (rest sits below the session mean). Per animal x epoch mean "
                  "over sessions, mean of animals, shade = SEM over animals. Grey = -1..0 s pre-cue window. "
-                 f"n: {F['nlab']}. PROVISIONAL.", 11, 9), fontsize=9)
-    fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
+                 f"n: {F['nlab']}. PROVISIONAL."), 11, 9), fontsize=9)
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -202,13 +228,13 @@ def draw_decomp(stem: str) -> None:
                 ax.set_ylabel(c.replace("_right", "\ncontra").replace("_left", "\nipsi"), fontsize=7)
     hs = [plt.Line2D([], [], color=v, marker="o", ls="", ms=4, label=a) for a, v in sorted(acol.items())]
     fig.legend(handles=hs, loc="outside lower center", ncol=4, fontsize=7, frameon=False)
-    fig.suptitle(_wrap("NEURAL, change from PRE per animal (dots) of the pre-cue components, ENGAGED trials, all spouts "
+    fig.suptitle(_wrap(_rl("NEURAL, change from PRE per animal (dots) of the pre-cue components, ENGAGED trials, all spouts "
                  "(dF/F x1e3; first four columns share one scale per row): raw pre-cue level with NO baseline (0 = "
                  "session mean) = (pre-cue minus RESTW) + RESTW; in-trial shape = what a -1..-0.5 s in-trial baseline "
                  "shows; F0 = raw 470 nm fluorescence (% of the animal's pre). Bar = mean of animals; * = paired nested "
                  "bootstrap CI excludes 0 (analysis_kit.boot_delta), (*) = fewer than 3 animals share the sign. "
-                 "PROVISIONAL, n = 4.", 2.2 * len(COMP), 8), fontsize=8)
-    fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
+                 "PROVISIONAL, n = 4."), 2.2 * len(COMP), 8), fontsize=8)
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -248,7 +274,7 @@ def draw_decomp_simple(src: str = "lick_cue_to_lick_D_decomposition", out: str =
             ax.set_xlim(-0.5, len(POST) - 0.5)
             ax.tick_params(labelsize=7)
             if i == 0:
-                ax.set_title(CLAB[k], fontsize=8.5, pad=14)
+                ax.set_title(_rl(CLAB[k]).replace(" Trials = CURRENT engaged gate.", ""), fontsize=8.5, pad=14)
             if j == 0:
                 nm = c.replace("_right", " contra") + ("\n[reference]" if c.split("_")[0] in cx.REF else "")
                 ax.set_ylabel(f"{nm}\nchange vs pre", fontsize=8)
@@ -259,21 +285,25 @@ def draw_decomp_simple(src: str = "lick_cue_to_lick_D_decomposition", out: str =
     f0s = ", ".join(f"{c.split('_')[0]} {f0.loc[c, 'delta']:+.1f}%{' *' if f0.loc[c, 'sig'] else ''}"
                     for c in SIMPLE_ROWS if c in f0.index)
     nsig = int(f0.sig.sum()) if len(f0) else 0
-    fig.suptitle(_wrap(
-        "In the contralesional orofacial areas the pre-cue 'dip' seen without a baseline is the RESTW level falling; "
-        "pre-cue minus RESTW is unchanged or slightly UP chronically. The reference areas SSp-bfd / VISp instead fall "
-        "relative to RESTW. Change from PRE of the raw pre-cue level (-1..0 s, NO baseline, 0 = session mean) = "
+    head = F.get("head") or ("In the contralesional orofacial areas the pre-cue 'dip' seen without a baseline is the RESTW "
+                             "level falling; pre-cue minus RESTW is unchanged or slightly UP chronically. The reference "
+                             "areas SSp-bfd / VISp instead fall relative to RESTW. ")
+    fig.suptitle(_wrap(head + _rl(
+        "Change from PRE of the raw pre-cue level (-1..0 s, NO baseline, 0 = session mean) = "
         "(pre-cue minus RESTW, the Fig 14.21 quantity) + RESTW level, contralesional areas, ENGAGED trials, all spouts "
         "(dF/F x1e3; one scale per row). Raw F0 (470 nm) chronic change: " + f0s
         + (" (all n.s.)" if nsig == 0 else "") + ". NEURAL; dots = per-animal change (colour = animal), square + bar = "
         "paired nested bootstrap point and 95% CI (analysis_kit.boot_delta); * = CI excludes 0, (*) = fewer than 3 "
-        "animals share the sign. PROVISIONAL, n = 4.", 8.4, 8.5), fontsize=8.5)
+        "animals share the sign. PROVISIONAL, n = 4."), 8.4, 8.5), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{out}.png", dpi=120, bbox_inches="tight")
+    fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
 def main() -> int:
+    global SFX, VAR
+    VAR = restnl.variant()
+    SFX = restnl.SFX if VAR == "restnl" else ""
     if plot_only():
         draw_traces("lick_cue_to_lick_D_raw_traces")
         draw_decomp("lick_cue_to_lick_D_decomposition")
@@ -283,15 +313,15 @@ def main() -> int:
     S, tr = sessions()
     OUT.mkdir(parents=True, exist_ok=True)
     FIGS.mkdir(parents=True, exist_ok=True)
-    S.to_csv(OUT / "c2l_D_sessions.csv", index=False)
+    S.to_csv(OUT / _o("c2l_D_sessions.csv"), index=False)
     # sanity: rel vs the precue_restw session table (all spouts)
-    C = pd.read_csv(il.OUT_W / "precue_restw_sessions.csv")
+    C = pd.read_csv(il.OUT_W / f"precue_restw_sessions{SFX}.csv")
     J = C.merge(S[S.pos == "all"][["label", "col", "rel"]], left_on=["label", "area"], right_on=["label", "col"])
     print(f"== sanity: rel vs precue_restw_sessions.csv precue: max |diff| {(J.rel - J.precue).abs().max():.2e} "
           f"over {len(J)} rows")
     # per animal (rule 8): epoch means then change vs pre
     A = S.groupby(["pos", "col", "animal", "epoch"])[COMP + ["raw_m2_m1", "raw_m05_0", "F0"]].mean()
-    A.to_csv(OUT / "c2l_D_per_animal.csv")
+    A.to_csv(OUT / _o("c2l_D_per_animal.csv"))
     a = A.xs("all", level="pos")
     pre = a.xs("pre", level="epoch")
     rows = []
@@ -300,7 +330,7 @@ def main() -> int:
         d["epoch"] = ep
         rows.append(d.reset_index())
     DA = pd.concat(rows, ignore_index=True)
-    DA.to_csv(OUT / "c2l_D_per_animal_change_all.csv", index=False)
+    DA.to_csv(OUT / _o("c2l_D_per_animal_change_all.csv"), index=False)
     key = [f"{x}_{h}" for x in cx.AREAS for h in ("right", "left") if f"{x}_{h}" in cx.COLS]
     pd.set_option("display.width", 250)
     print("== per animal (rule 8): CHRONIC minus pre, all spouts (dF/F x1e3; F0pct in %)")
@@ -308,7 +338,7 @@ def main() -> int:
                                                                          "F0pct"]]
     print(s.round(2).to_string())
     D = changes(S)
-    D.to_csv(OUT / "c2l_D_changes.csv", index=False)
+    D.to_csv(OUT / _o("c2l_D_changes.csv"), index=False)
     print("== boot_delta, all spouts\n" + D[(D.pos == "all") & D.comp.isin(COMP)].pivot_table(
         index="col", columns=["epoch", "comp"], values="delta").reindex(columns=POST, level=0).reindex(key).round(2).to_string())
     print("== significant (CI excl 0), all spouts\n" + D[(D.pos == "all") & D.sig & D.comp.isin(COMP)][

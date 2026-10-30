@@ -31,7 +31,11 @@ concentrated in few sessions; an animal enters an epoch with >= MIN_N trials); t
 animals; solid = all 4 animals contribute, dotted = fewer. Pre = August-only (il.labels()).
 
 Outputs under <il.OUT>/stopped_traces/: sessions/<label>.npz, counts_*.csv, levels_per_animal.csv, figdata/*.pkl,
-figures/*.png.   Usage: python scripts/stopped_trial_traces.py [--jobs 2] [--plot-only]
+figures/*.png.   Usage: python scripts/stopped_trial_traces.py [--jobs 2] [--plot-only] [--rest-variant restnl]
+RESTnl VARIANT (`--rest-variant restnl`, default restw unchanged; no re-extraction -- the session files hold RAW traces):
+the rest-referenced versions subtract the LICK-FREE rest level (scripts/restnl.py) instead of RESTW, and only sessions
+with a RESTnl level are used (raw columns too, so raw and RESTnl share trials). Figure stems '..._restw' become
+'..._restnl', other outputs get the suffix _restnl; the raw-only trace figures are not redrawn (baseline-free).
 """
 from __future__ import annotations
 
@@ -43,8 +47,45 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import figdata as _fd  # noqa: E402
 import iti_licks as il  # noqa: E402
-from figdata import load_fd, plot_only, save_fd  # noqa: E402
+import restnl  # noqa: E402
+from figdata import plot_only  # noqa: E402
+
+SFX = ""                        # "_restnl" under --rest-variant restnl (set in main)
+
+
+def _stem(stem: str) -> str:
+    if not SFX:
+        return stem
+    return stem.replace("_restw", SFX) if "_restw" in stem else stem + SFX
+
+
+def _o(name: str) -> str:
+    stem, dot, ext = name.partition(".")
+    return f"{_stem(stem)}{dot}{ext}"
+
+
+def save_fd(stem, obj, root=None):
+    if isinstance(obj, dict):
+        obj = {**obj, "sfx": SFX}
+    return _fd.save_fd(_stem(stem), obj, root)
+
+
+def load_fd(stem, root=None):
+    return _fd.load_fd(_stem(stem), root)
+
+
+def _rl(F, txt: str) -> str:
+    return restnl.relabel(txt) if F.get("sfx") else txt
+
+
+def _lev(label: str, z) -> tuple[np.ndarray, bool]:
+    """(rest level per column of the session file, ok) for the active variant."""
+    if not SFX:
+        return z["restw"], bool(z["restw_ok"])
+    lev, ok = restnl.level(label, [str(c) for c in z["cols"]])
+    return lev, ok and bool(z["restw_ok"])
 
 OUTD = il.OUT / "stopped_traces"
 SESS = OUTD / "sessions"
@@ -215,7 +256,7 @@ def trial_table(labels: list) -> pd.DataFrame:
     for x in labels:
         z = np.load(SESS / f"{x}.npz")
         S = pd.DataFrame({k[2:]: z[k] for k in z.files if k.startswith("t_")})
-        S["label"], S["animal"], S["epoch"], S["restw_ok"] = x, str(z["animal"]), str(z["epoch"]), bool(z["restw_ok"])
+        S["label"], S["animal"], S["epoch"], S["restw_ok"] = x, str(z["animal"]), str(z["epoch"]), _lev(x, z)[1]
         rows.append(S)
     D = pd.concat(rows, ignore_index=True)
     jaw = D.cls.isin(["incomplete", "jaw_only"])
@@ -264,7 +305,8 @@ def pool(labels: list, klass: str, align: str, k: int, base: str, min_n: int) ->
     cols = None
     for x in labels:
         z = np.load(SESS / f"{x}.npz")
-        if not bool(z["restw_ok"]):
+        rw, ok = _lev(x, z)
+        if not ok:
             continue
         key = f"{klass}__{align}"
         if key not in z.files:
@@ -277,7 +319,7 @@ def pool(labels: list, klass: str, align: str, k: int, base: str, min_n: int) ->
         if n.max() == 0:
             continue
         if base == "restw":
-            Y = Y - z["restw"][None, :]
+            Y = Y - rw[None, :]
         W = n[:, None] * np.where(np.isfinite(Y), 1.0, 0.0)
         a = acc.setdefault((str(z["epoch"]), str(z["animal"])), [np.zeros_like(Y), np.zeros_like(Y), 0])
         a[0] += np.nan_to_num(Y) * W
@@ -343,7 +385,8 @@ def draw_class(stem: str) -> None:
             for ep, (mu, se, n, na) in F["S"].items():
                 _curve(ax, lags, mu[:, q], se[:, q], n[:, q], EPOCH_LINE[ep], f"{ep} ({len(na)} an, {sum(na.values())} tr)")
             if j == 0:
-                ax.set_ylabel("dF/F x1e3 above restw" if F["base"] == "restw" else "dF/F x1e3 (raw)", fontsize=7.5)
+                ax.set_ylabel(_rl(F, "dF/F x1e3 above restw") if F["base"] == "restw" else "dF/F x1e3 (raw)",
+                              fontsize=7.5)
             ax.set_xlim(lags[0], lags[-1])
     for ax in axs[-1]:
         ax.set_xlabel(ALIGN_TXT[F["align"]], fontsize=8)
@@ -351,7 +394,7 @@ def draw_class(stem: str) -> None:
     fig.legend(h, lab, fontsize=7.5, frameon=False, loc="outside lower center", ncol=len(h))
     fig.suptitle(textwrap.fill(_title(F, f"class = {CLS_TXT[F['klass']].upper()}, colour = epoch"), 150), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}.png", dpi=105, bbox_inches="tight")
+    fig.savefig(FIGS / f"{_stem(stem)}.png", dpi=105, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -359,7 +402,7 @@ def _title(F, what):
     base = ("baseline = minus the session's RESTW level (as the pre-cue maps)" if F["base"] == "restw"
             else "RAW dF/F x1e3 (drift-removed, no per-trial or rest baseline)")
     spout = "all spouts pooled" if F["set"] == "all" else f"{F['set']} spout only"
-    return (f"NEURAL: {F['align']}-aligned area traces, {what}; {spout}; {base}. {CLASS_DEF}. Per animal x epoch "
+    return _rl(F, f"NEURAL: {F['align']}-aligned area traces, {what}; {spout}; {base}. {CLASS_DEF}. Per animal x epoch "
             f"trial-weighted mean over sessions (>= {F['min_n']} trials), mean over animals, shade = SEM over animals; "
             f"solid = all 4 animals, dotted = fewer. Pre = August only. PROVISIONAL n = 4. Late-session confound: "
             f"miss_working always precedes stopped within a session.")
@@ -384,7 +427,8 @@ def draw_compare(stem: str) -> None:
                 if i == 0:
                     ax.set_title(f"{hl}\n{ep}", fontsize=8.5)
                 if e == 0 and j == 0:
-                    ax.set_ylabel(f"{a}\n" + ("above restw" if F["base"] == "restw" else "raw dF/F x1e3"), fontsize=7.5)
+                    ax.set_ylabel(f"{a}\n" + (_rl(F, "above restw") if F["base"] == "restw" else "raw dF/F x1e3"),
+                                  fontsize=7.5)
                 elif e == 0:
                     ax.set_ylabel(a, fontsize=7.5)
                 if c not in cols:
@@ -418,7 +462,7 @@ def draw_compare(stem: str) -> None:
     fig.suptitle(textwrap.fill(_title(F, "colour = trial class: " + ", ".join(CLS_TXT[k] for k in F["classes"])), 230),
                  fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
+    fig.savefig(FIGS / f"{_stem(stem)}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -451,13 +495,13 @@ def draw_examples(stem: str) -> None:
             if r == len(il.EP4) - 1:
                 ax.set_xlabel("time from cue (s)", fontsize=7)
     if im is not None:
-        fig.colorbar(im, ax=axs, shrink=0.5, label="dF/F x1e3 above restw")
-    fig.suptitle(textwrap.fill(f"NEURAL: single STOPPED trials, {F['animal']} -- areas x time, cue-aligned, baseline = minus the "
+        fig.colorbar(im, ax=axs, shrink=0.5, label=_rl(F, "dF/F x1e3 above restw"))
+    fig.suptitle(textwrap.fill(_rl(F, f"NEURAL: single STOPPED trials, {F['animal']} -- areas x time, cue-aligned, baseline = minus the "
                  f"session's RESTW level; trials evenly spaced through that animal x epoch's stopped trials "
                  f"(n stopped per epoch: {F['n']}). One colour scale (98th pct |value|). stopped = no lick in the "
-                 f"response window, inside the terminal engagement collapse (enl_states).", 170), fontsize=8.5)
+                 f"response window, inside the terminal engagement collapse (enl_states)."), 170), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
+    fig.savefig(FIGS / f"{_stem(stem)}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -468,6 +512,12 @@ COMPARE = {"stopped_vs_working_hit": ("success", "working", "stopped"),
 
 
 def stems() -> list:
+    if SFX:   # RESTnl: only the rest-referenced figures (raw ones do not depend on the rest level)
+        return [(k, s) for k, s in _stems() if not s.endswith("_raw") and "_raw_" not in s]
+    return _stems()
+
+
+def _stems() -> list:
     out = []
     for c in CLASS_FIGS:
         for al in ("cue", "arrival") + (("jaw",) if c in JAW_CLASSES else ()):
@@ -486,7 +536,7 @@ def stems() -> list:
 
 def compute(labels: list) -> None:
     D = trial_table(labels)
-    D.to_csv(OUTD / "trial_classes.csv.gz", index=False)
+    D.to_csv(OUTD / _o("trial_classes.csv.gz"), index=False)
     C = counts(D)
     pd.set_option("display.width", 200)
     print("== rule 8: per animal x epoch TRIAL COUNTS, all spouts (restw_ok sessions)\n" + C["all"].to_string())
@@ -498,11 +548,11 @@ def compute(labels: list) -> None:
     print("\n== jaw_nolick: state (working / stopped) x reference gate (canonical)\n" + C["jaw_canonical"].to_string())
     print("\n== jaw_nolick by spout\n" + C["jaw_pos"].to_string())
     for k in ("all", "far_contra"):
-        C[k].to_csv(OUTD / f"counts_{k}.csv")
-    C["frac"].to_csv(OUTD / "counts_session_position_median.csv")
-    C["nolick_cls"].to_csv(OUTD / "counts_nolick_cls_by_state.csv")
-    C["jaw_canonical"].to_csv(OUTD / "counts_jaw_nolick_canonical.csv")
-    C["jaw_pos"].to_csv(OUTD / "counts_jaw_nolick_by_pos.csv")
+        C[k].to_csv(OUTD / _o(f"counts_{k}.csv"))
+    C["frac"].to_csv(OUTD / _o("counts_session_position_median.csv"))
+    C["nolick_cls"].to_csv(OUTD / _o("counts_nolick_cls_by_state.csv"))
+    C["jaw_canonical"].to_csv(OUTD / _o("counts_jaw_nolick_canonical.csv"))
+    C["jaw_pos"].to_csv(OUTD / _o("counts_jaw_nolick_by_pos.csv"))
     match = pd.DataFrame([{"label": x, "n_unmatched": int(np.load(SESS / f"{x}.npz")["n_unmatched"]),
                            "pos_agree": float(np.load(SESS / f"{x}.npz")["pos_agree"])} for x in labels])
     print(f"\n== DAQ-state rows unmatched to the imaging trial table: {match.n_unmatched.sum()} total; trial_attempts "
@@ -530,7 +580,7 @@ def compute(labels: list) -> None:
                     rec.append({"class": c, "epoch": ep, "animal": an, "area": a, "n": nt,
                                 "pre_m1_0": np.nanmean(Y[wp, q]), "post_0_1": np.nanmean(Y[w, q])})
     L = pd.DataFrame(rec)
-    L.to_csv(OUTD / "levels_per_animal.csv", index=False)
+    L.to_csv(OUTD / _o("levels_per_animal.csv"), index=False)
     for a in ("ALM_right", "tjM1_right"):
         T = L[L.area == a].pivot_table(index=["animal", "epoch"], columns="class", values="post_0_1").reindex(
             columns=["success", "working", "stopped", "jaw_nolick", "stopped_nojaw"])
@@ -568,13 +618,14 @@ def compute(labels: list) -> None:
                 pool_ = []
                 for x in labs:
                     z = np.load(SESS / f"{x}.npz")
-                    if str(z["epoch"]) != ep or not bool(z["restw_ok"]) or len(z["stopped_tid"]) == 0:
+                    rw, ok = _lev(x, z)
+                    if str(z["epoch"]) != ep or not ok or len(z["stopped_tid"]) == 0:
                         continue
                     tid = z["t_trial_id"]
                     for i, t in enumerate(z["stopped_tid"]):
                         r = int(np.where(tid == t)[0][0])
                         pool_.append({"label": x, "tid": int(t), "pos": str(z["t_pos"][r]), "frac": float(z["t_frac"][r]),
-                                      "X": z["stopped_X"][i].astype(np.float64) - z["restw"][None, :]})
+                                      "X": z["stopped_X"][i].astype(np.float64) - rw[None, :]})
                 nn[ep] = len(pool_)
                 if pool_:
                     idx = np.unique(np.linspace(0, len(pool_) - 1, min(4, len(pool_))).round().astype(int))
@@ -605,7 +656,8 @@ def precue_levels(labels: list) -> pd.DataFrame:
     acc = {}
     for x in labels:
         z = np.load(SESS / f"{x}.npz")
-        if not bool(z["restw_ok"]):
+        rw, ok = _lev(x, z)
+        if not ok:
             continue
         cols = [str(c) for c in z["cols"]]
         an, ep = str(z["animal"]), str(z["epoch"])
@@ -618,7 +670,7 @@ def precue_levels(labels: list) -> pd.DataFrame:
             for q, col in enumerate(cols):
                 a = acc.setdefault((an, ep, c, col), [0.0, 0.0, 0])
                 a[0] += n * raw[q]
-                a[1] += n * (raw[q] - z["restw"][q])
+                a[1] += n * (raw[q] - rw[q])
                 a[2] += n
     rows = []
     for (an, ep, c, col), (sr, sw, n) in acc.items():
@@ -652,7 +704,7 @@ def movement_precue(labels: list) -> pd.DataFrame:
     """Pre-cue movement per trial class from qc/jaw_onsets.csv: treadmill -1..0 s (tread_pre_mm_s, DAQ, all spouts) and
     the 3-D jaw / nose pre-cue displacement (jaw3d_rest_mm / nose3d_rest_mm = 95th pct over -500..0 ms; side spouts only,
     blank at close/far centre). Per animal x epoch x class: median over trials (restw_ok sessions)."""
-    D = pd.read_csv(OUTD / "trial_classes.csv.gz", low_memory=False)
+    D = pd.read_csv(OUTD / _o("trial_classes.csv.gz"), low_memory=False)
     D = D[D.restw_ok.astype(str).str.lower().eq("true") & D.label.isin(labels)]
     J = pd.read_csv(il.OUT.parent / "qc" / "jaw_onsets.csv", low_memory=False,
                     usecols=["session", "trial_id", "tread_pre_mm_s", "jaw3d_rest_mm", "nose3d_rest_mm"])
@@ -676,9 +728,9 @@ def levels(labels: list) -> None:
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 40)
     L = precue_levels(labels)
-    L.to_csv(OUTD / "precue_levels_per_animal_all_areas.csv", index=False, float_format="%.3f")
+    L.to_csv(OUTD / _o("precue_levels_per_animal_all_areas.csv"), index=False, float_format="%.3f")
     CI = contra_minus_ipsi(L)
-    CI.to_csv(OUTD / "precue_levels_contra_minus_ipsi.csv", index=False, float_format="%.3f")
+    CI.to_csv(OUTD / _o("precue_levels_contra_minus_ipsi.csv"), index=False, float_format="%.3f")
     key = ["ALM", "tjM1", "SSp-m", "SSp-n", "MOs_rest", "MOp_rest", "SSp-bfd", "VISp"]
     for base in ("restw", "raw"):
         for c in ("stopped", "working", "success"):
@@ -701,7 +753,7 @@ def levels(labels: list) -> None:
         W["base"] = base
         out.append(W)
     W = pd.concat(out, ignore_index=True)
-    W.to_csv(OUTD / "precue_levels_within_animal_deltas.csv", index=False, float_format="%.3f")
+    W.to_csv(OUTD / _o("precue_levels_within_animal_deltas.csv"), index=False, float_format="%.3f")
     S = (W.groupby(["base", "class", "area", "hemi", "pair"]).delta
          .agg(n_animals="size", mean="mean", n_pos=lambda d: int((d > 0).sum()),
               animals=lambda d: "", per_animal=lambda d: "").reset_index())
@@ -709,7 +761,7 @@ def levels(labels: list) -> None:
         lambda g: " ".join(f"{a}:{v:+.1f}" for a, v in zip(g.animal, g.delta)), include_groups=False)
     S["per_animal"] = per.reindex(pd.MultiIndex.from_frame(S[["base", "class", "area", "hemi", "pair"]])).to_numpy()
     S = S.drop(columns="animals")
-    S.to_csv(OUTD / "precue_levels_within_animal_summary.csv", index=False, float_format="%.3f")
+    S.to_csv(OUTD / _o("precue_levels_within_animal_summary.csv"), index=False, float_format="%.3f")
     for base in ("restw", "raw"):
         sel = S[(S.base == base) & S.area.isin(["ALM", "tjM1", "SSp-m"]) & S.hemi.isin(["right", "R-L"])
                 & S.pair.isin(["acute-pre", "subacute-pre", "chronic-pre", "chronic-acute", "subacute-acute",
@@ -718,7 +770,7 @@ def levels(labels: list) -> None:
         print(f"\n== WITHIN-ANIMAL pre-cue change, {base}: animals present in BOTH epochs only (per animal listed)\n"
               + sel.drop(columns="base").round(2).to_string(index=False))
     Mv = movement_precue(labels)
-    Mv.to_csv(OUTD / "precue_movement_by_class.csv", index=False, float_format="%.3f")
+    Mv.to_csv(OUTD / _o("precue_movement_by_class.csv"), index=False, float_format="%.3f")
     T = Mv[Mv["class"].isin(["stopped", "working", "success"])].pivot_table(
         index=["animal", "epoch"], columns="class", values=["tread_pre_mm_s", "frac_running_pre", "jaw3d_rest_mm",
                                                             "nose3d_rest_mm"])
@@ -766,14 +818,14 @@ def draw_levels(stem: str) -> None:
     hs = [plt.Line2D([], [], color="0.45", lw=0.8, marker=m, ms=3.5, label=an) for an, m in mk.items()]
     hs += [plt.Line2D([], [], color=CLS_COL[c], lw=2.0, label=f"mean, {CLS_TXT[c]}") for c in cls]
     fig.legend(handles=hs, fontsize=7, frameon=False, loc="outside lower center", ncol=len(hs))   # was over ALM data
-    fig.suptitle(textwrap.fill(
+    fig.suptitle(textwrap.fill(_rl(F,
         "NEURAL: pre-cue (-1..0 s) level per animal (grey, markers = animal) and mean of the animals present (colour), "
         "all spouts pooled, trial-weighted over sessions. Rows: hit / miss_working / stopped x (contralesional, above "
         "restw) / (contra minus ipsi, above restw) / (contralesional, RAW dF/F x1e3). RESTW is the engagement-gated "
         "WORKING-period rest, so for stopped (quit-period) trials it is a cross-state reference. Animal sets differ "
         "between epochs for stopped (PS92 acute only; PS95 no acute): compare within animals. " + CLASS_DEF
-        + ". PROVISIONAL n = 4.", 200), fontsize=8.5)
-    fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
+        + ". PROVISIONAL n = 4."), 200), fontsize=8.5)
+    fig.savefig(FIGS / f"{_stem(stem)}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
     # movement
     fig, axs = plt.subplots(1, 4, figsize=(14, 3.2), squeeze=False)
@@ -796,12 +848,14 @@ def draw_levels(stem: str) -> None:
     fig.suptitle("BEHAVIOUR: pre-cue movement by trial class per animal (markers: PS92 o, PS93 s, PS94 ^, PS95 D); "
                  "qc/jaw_onsets.csv tread_pre_mm_s / jaw3d_rest_mm / nose3d_rest_mm (3-D: side spouts only)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(FIGS / f"{stem}_movement.png", dpi=100, bbox_inches="tight")
+    fig.savefig(FIGS / f"{_stem(stem)}_movement.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
 def main() -> int:
+    global SFX
     from wfield_local import analysis_kit as ak
+    SFX = restnl.SFX if restnl.variant() == "restnl" else ""
     if plot_only():
         for kind, stem in stems():
             draw(kind, stem)
@@ -809,6 +863,11 @@ def main() -> int:
         return 0
     if "--levels" in sys.argv:
         levels(il.labels())
+        return 0
+    if SFX:   # no re-extraction: the session files hold raw traces
+        labs = il.labels()
+        compute(labs)
+        levels(labs)
         return 0
     jobs = min(int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 2, 2)
     labs = il.labels()

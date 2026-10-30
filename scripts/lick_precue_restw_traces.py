@@ -18,7 +18,10 @@ DEFINITION (per session x area x lag, -2..+3 s around the cue on the 0.05 s grid
 Sanity: the -1..0 s mean of these traces is compared with precue_restw_sessions[_farcontra].csv (max |diff| printed).
 Outputs (under iti_licks.OUT_W): precue_restw_traces/<label>.npz, precue_restw_traces_levels_per_animal[_farcontra].csv,
 figures/lick_cued_precue_restw_traces[_farcontra][_change].png, figdata/<stem>.pkl. AUGUST-only pre (il.labels()).
-Usage: python scripts/lick_precue_restw_traces.py [--jobs N] [--plot-only]
+RESTnl VARIANT (`--rest-variant restnl`, default restw unchanged): the same traces minus the LICK-FREE rest level and on
+the CURRENT engaged gate, both read from <OUT_W>/precue_restnl/<label>.npz (lick_precue_restw.py --rest-variant restnl);
+cache precue_restnl_traces/, every output file name with the suffix _restnl.
+Usage: python scripts/lick_precue_restw_traces.py [--jobs N] [--plot-only] [--rest-variant restnl]
 """
 from __future__ import annotations
 
@@ -30,6 +33,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import restnl  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 CACHE = "precue_restw_traces"
@@ -47,13 +51,29 @@ N_AN = 4
 
 def session_worker(label: str) -> dict:
     """One session (module-level for spawn) -> <OUT_W>/precue_restw_traces/<label>.npz."""
-    f = il.OUT_W / CACHE / f"{label}.npz"
+    return _session(label, CACHE, SRC)
+
+
+def session_worker_restnl(label: str) -> dict:
+    """RESTnl variant -> <OUT_W>/precue_restnl_traces/<label>.npz (baseline + trial set of precue_restnl)."""
+    return _session(label, CACHE_NL, SRC_NL)
+
+
+CACHE_NL, SRC_NL = "precue_restnl_traces", "precue_restnl"
+
+
+def _cache(var: str) -> str:
+    return CACHE if var == "restw" else CACHE_NL
+
+
+def _session(label: str, cache: str, srcd: str) -> dict:
+    f = il.OUT_W / cache / f"{label}.npz"
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
-    src = np.load(il.OUT_W / SRC / f"{label}.npz")
+    src = np.load(il.OUT_W / srcd / f"{label}.npz")
     d = il._load(label)
     # == lick_precue_restw.session_worker's trace construction
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -75,7 +95,7 @@ def session_worker(label: str) -> dict:
     cue = Eg.cue_s.to_numpy(float)
     pos = np.asarray(Eg.pos.astype(str).to_numpy(), str)
     if not np.array_equal(pos, src["pos"].astype(str)):
-        raise ValueError(f"{label}: engaged trials differ from the precue_restw cache")
+        raise ValueError(f"{label}: engaged trials differ from the {srcd} cache")
     X = il._sample(Rs, ft, cue, LAGS).astype(np.float64)
     out = (cue[:, None] + LAGS[None, :] < ft[0]) | (cue[:, None] + LAGS[None, :] > ft[-1])
     X[out] = np.nan
@@ -101,11 +121,11 @@ def session_worker(label: str) -> dict:
     return {"label": label, "cached": False}
 
 
-def long_table(labels: list, key: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def long_table(labels: list, key: str, var: str = "restw") -> tuple[pd.DataFrame, pd.DataFrame]:
     """Session x area x lag rows (restw_ok sessions, plotted areas only) + per-session first-lick medians."""
     rows, rts = [], []
     for x in labels:
-        z = np.load(il.OUT_W / CACHE / f"{x}.npz")
+        z = np.load(il.OUT_W / _cache(var) / f"{x}.npz")
         if not bool(z["restw_ok"]):
             continue
         A = z[key]
@@ -145,14 +165,15 @@ def curves(t: pd.DataFrame, change: bool) -> dict:
     return out
 
 
-def sanity(labels: list) -> None:
+def sanity(labels: list, var: str = "restw") -> None:
+    sfx = restnl.SFX if var == "restnl" else ""
     for sp, _mn, tag in SETS:
         key = "all" if sp is None else "far"
-        L, _ = long_table(labels, key)
+        L, _ = long_table(labels, key, var)
         w = (L.lag >= WIN[0] - 1e-9) & (L.lag <= WIN[1] + 1e-9)
         G = L[w].groupby(["label", "area", "hemi"]).v.mean().reset_index()
         G["area"] = G.area + "_" + G.hemi
-        C = pd.read_csv(il.OUT_W / f"precue_restw_sessions{tag}.csv")
+        C = pd.read_csv(il.OUT_W / f"precue_restw_sessions{tag}{sfx}.csv")
         J = C.merge(G[["label", "area", "v"]], on=["label", "area"])
         d = (J.v - J.precue).abs()
         print(f"== sanity{tag or ' (all spouts)'}: -1..0 s mean of the traces vs precue_restw_sessions{tag}.csv: "
@@ -160,10 +181,11 @@ def sanity(labels: list) -> None:
               f"for plotted areas {C[C.area.isin(G.area.unique())].shape[0]})")
 
 
-def compute(labels: list) -> None:
+def compute(labels: list, var: str = "restw") -> None:
+    sfx = restnl.SFX if var == "restnl" else ""
     for sp, _mn, tag in SETS:
         key = "all" if sp is None else "far"
-        L, RT = long_table(labels, key)
+        L, RT = long_table(labels, key, var)
         # rule 8 table: per animal x epoch level at -2..-1 and -0.5..0 s (contra + ipsi key areas)
         rec = []
         for (a, h), g in L.groupby(["area", "hemi"]):
@@ -172,11 +194,12 @@ def compute(labels: list) -> None:
                 for (an, ep), v in s.groupby(["animal", "epoch"]).mean().items():
                     rec.append({"area": f"{a}_{h}", "animal": an, "epoch": ep, "window": nm, "v": v})
         PA = pd.DataFrame(rec).pivot_table(index=["area", "animal"], columns=["window", "epoch"], values="v")
-        PA.to_csv(il.OUT_W / f"precue_restw_traces_levels_per_animal{tag}.csv")
+        PA.to_csv(il.OUT_W / f"precue_restw_traces_levels_per_animal{tag}{sfx}.csv")
         ks = [f"{a}_right" for a in AREAS[:4]]
         sub = PA.loc[PA.index.get_level_values("area").isin(ks)]
         cols = [(w, e) for w in ("lvl_m2_m1", "lvl_m05_0") for e in ("pre", "acute") if (w, e) in sub.columns]
-        print(f"== per animal (rule 8){tag}: level above restw (dF/F x1e3), contralesional key areas\n"
+        print(f"== per animal (rule 8){tag}{sfx}: level above {'RESTnl' if sfx else 'restw'} (dF/F x1e3), contralesional "
+              "key areas\n"
               + sub[cols].round(2).to_string())
         rt = RT.groupby(["animal", "epoch"]).rt.median().groupby("epoch").median().to_dict()   # per-epoch tick
         rt_pa = RT.groupby(["epoch", "animal"]).rt.median().unstack().round(3)
@@ -190,13 +213,13 @@ def compute(labels: list) -> None:
                     S = il.sig_compute(g.rename(columns={"v": "val"}), value="val", tag={"area": a, "hemi": h})
                     sig[(a, h)] = S
                     recs += S["recs"]
-            stem = STEM + tag + ("_change" if change else "")
+            stem = STEM + tag + ("_change" if change else "") + sfx
             if change:
-                pd.DataFrame(recs).to_csv(il.OUT_W / f"precue_restw_traces_sigbins{tag}.csv", index=False)
+                pd.DataFrame(recs).to_csv(il.OUT_W / f"precue_restw_traces_sigbins{tag}{sfx}.csv", index=False)
             n_sess = L.groupby("epoch").label.nunique().to_dict()
             n_an = L.groupby("epoch").animal.nunique().to_dict()
             save_fd(stem, {"pan": pan, "sig": sig, "rt": rt, "change": change, "tag": tag, "n_sess": n_sess,
-                           "n_an": n_an})
+                           "n_an": n_an, "sfx": sfx})
             draw(stem)
 
 
@@ -207,6 +230,7 @@ def draw(stem: str) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     F = load_fd(stem)
     ch = F["change"]
+    rl = restnl.relabel if F.get("sfx") else (lambda t: t)
     fig, axs = plt.subplots(len(AREAS), 2, figsize=(11, 2.3 * len(AREAS)), sharex=True, squeeze=False,
                             layout="constrained")
     for i, a in enumerate(AREAS):
@@ -235,7 +259,7 @@ def draw(stem: str) -> None:
             ax.set_title(f"{a} {hl}" + ("  [reference]" if a in REF else ""), fontsize=9)
             ax.set_xlim(LAGS[0], LAGS[-1])
             if j == 0:
-                ax.set_ylabel("change from pre\n(dF/F x1e3)" if ch else "dF/F x1e3\nabove restw", fontsize=8)
+                ax.set_ylabel("change from pre\n(dF/F x1e3)" if ch else rl("dF/F x1e3\nabove restw"), fontsize=8)
             ax.tick_params(labelsize=7)
     for ax in axs[-1]:
         ax.set_xlabel("time from cue (s)", fontsize=8)
@@ -248,7 +272,8 @@ def draw(stem: str) -> None:
             if ch else "level above the session's RESTW baseline (position-weighted flat rest median, restdock05, "
             "engagement-gated); per animal x epoch mean over sessions, then mean over animals, shade = SEM over animals")
     import textwrap
-    fig.suptitle(textwrap.fill(f"NEURAL: cue-aligned area traces minus RESTW, ENGAGED trials, {what} -- {body}. Solid = all 4 "
+    body = rl(body) + (" Trials = CURRENT engaged gate" if F.get("sfx") else "")
+    fig.suptitle(textwrap.fill(rl("NEURAL: cue-aligned area traces minus RESTW") + f", ENGAGED trials, {what} -- {body}. Solid = all 4 "
                  f"animals contribute, dotted = fewer. Grey = -1..0 s window of the pre-cue maps; ticks at the bottom = "
                  f"median first-lick latency per epoch. Rows = areas (ALM / tjM1 split from MOs / MOp, ROI v8; last four "
                  f"= references; VISp has a contralesional ROI only). n: {ns}.", 150), fontsize=9)
@@ -259,18 +284,21 @@ def draw(stem: str) -> None:
 
 def main() -> int:
     from wfield_local import analysis_kit as ak
+    var = restnl.variant()
+    sfx = restnl.SFX if var == "restnl" else ""
     if plot_only():
         for _sp, _mn, tag in SETS:
             for c in ("", "_change"):
-                draw(STEM + tag + c)
+                draw(STEM + tag + c + sfx)
         return 0
     jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8
     labs = il.labels()
-    _res, fails = ak.fan_sessions(labs, session_worker, jobs=min(jobs, 8))
+    worker = session_worker_restnl if var == "restnl" else session_worker
+    _res, fails = ak.fan_sessions(labs, worker, jobs=min(jobs, 4 if var == "restnl" else 8))
     if fails:
         raise SystemExit(f"{len(fails)} sessions failed: {fails}")
-    sanity(labs)
-    compute(labs)
+    sanity(labs, var)
+    compute(labs, var)
     return 0
 
 

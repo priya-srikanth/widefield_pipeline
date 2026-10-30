@@ -26,7 +26,10 @@ AGGREGATION (figure A): per animal x epoch, mean over that animal's trials (pool
 where all 4 animals contribute, dotted where fewer.
 
 Outputs under <il.OUT>/arrival_to_cue/: sessions/<label>.npz, counts_per_animal.csv, figdata/*.pkl, figures/*.png.
-Usage: python scripts/arrival_to_cue_traces.py [--jobs 2] [--plot-only] [--only L1,L2]
+Usage: python scripts/arrival_to_cue_traces.py [--jobs 2] [--plot-only] [--only L1,L2] [--rest-variant restnl]
+RESTnl VARIANT (`--rest-variant restnl`, default restw unchanged; no re-extraction, the trial set is already the current
+gate): every stored trace (trace - RESTW) is shifted by + RESTW - RESTnl per session x area (exact), RESTnl = the LICK-FREE
+rest level of scripts/restnl.py; sessions without a RESTnl level are left out; every output name gets the suffix _restnl.
 """
 from __future__ import annotations
 
@@ -38,8 +41,29 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import figdata as _fd  # noqa: E402
 import iti_licks as il  # noqa: E402
-from figdata import load_fd, plot_only, save_fd  # noqa: E402
+import restnl  # noqa: E402
+from figdata import plot_only  # noqa: E402
+
+SFX = ""                        # "_restnl" under --rest-variant restnl (set in main)
+
+
+def save_fd(stem, obj, root=None):
+    return _fd.save_fd(stem + SFX, obj, root)
+
+
+def load_fd(stem, root=None):
+    return _fd.load_fd(stem + SFX, root)
+
+
+def _o(name: str) -> str:
+    stem, dot, ext = name.partition(".")
+    return f"{stem}{SFX}{dot}{ext}"
+
+
+def _rl(txt: str) -> str:
+    return restnl.relabel(txt) if SFX else txt
 
 OUTD = il.OUT / "arrival_to_cue"
 SESS = OUTD / "sessions"
@@ -70,6 +94,8 @@ N_AN = 4
 HM_ROWS = 1200
 BASE_TXT = "minus the session RESTW level (precue_restw cache)"
 TRIAL_TXT = "ENGAGED trials (standard engagement gate), restw_ok sessions, pre = August only"
+BASE_NL = f"minus the session's lick-free rest level ({restnl.DEF})"
+TRIAL_NL = "ENGAGED trials (current engagement gate), sessions with a RESTnl level, pre = August only"
 
 
 # ------------------------------------------------------------------------------------------------ per session
@@ -166,12 +192,23 @@ def load_all(labels: list) -> dict:
         z = np.load(SESS / f"{x}.npz")
         if not bool(z["restw_ok"]):
             continue
+        shift = None
+        if SFX:   # stored = trace - RESTW -> trace - RESTnl
+            nl, ok = restnl.level(x, COLS)
+            if not ok:
+                continue
+            src = np.load(il.OUT_W / "precue_restw" / f"{x}.npz")
+            sc = [str(c) for c in src["cols"]]
+            shift = np.asarray(src["restw"], float)[[sc.index(c) for c in COLS]] - nl
         D = pd.DataFrame({k[2:]: z[k] for k in z.files if k.startswith("t_")})
         D["label"], D["animal"], D["epoch"] = x, str(z["animal"]), str(z["epoch"])
         metas.append(D)
         licks.append(pd.DataFrame({"tr": z["lk_tr"] + off, "t": z["lk_t"], "contact": z["lk_contact"]}))
         for k in X:
-            X[k].append(z[k])
+            v = z[k].astype(np.float32)
+            if shift is not None:
+                v = v + (shift[[COLS.index(c) for c in HM_COLS]] if k == "Xh" else shift)[None, None, :].astype(np.float32)
+            X[k].append(v)
         off += len(D)
     D = pd.concat(metas, ignore_index=True)
     D["enl"] = D.n_enl > 0
@@ -273,7 +310,7 @@ def compute(labels: list) -> None:
     D = A["D"]
     C = counts(A)
     OUTD.mkdir(parents=True, exist_ok=True)
-    C.to_csv(OUTD / "counts_per_animal.csv", index=False)
+    C.to_csv(OUTD / _o("counts_per_animal.csv"), index=False)
     pd.set_option("display.width", 250)
     print("== per animal x epoch counts (rule 8), ENGAGED trials, restw_ok sessions\n" + C.to_string(index=False))
     allm = np.ones(len(D), bool)
@@ -310,7 +347,7 @@ def compute(labels: list) -> None:
                                 "v": v[COLS.index(c)]})
     W = pd.DataFrame(rec).pivot_table(index=["area", "seg", "grp", "animal"], columns="epoch", values="v")
     W = W.reindex(columns=[e for e in il.EP4 if e in W.columns]).round(2)
-    W.to_csv(OUTD / "window_levels_per_animal.csv")
+    W.to_csv(OUTD / _o("window_levels_per_animal.csv"))
     print("== window levels (dF/F x1e3 above restw) per animal\n" + W.to_string())
 
 
@@ -367,6 +404,8 @@ def _head(fig, title: str, fs: float, handles=None, labels=None, ncol: int = 4) 
     bbox_inches='tight' keep a large blank band; pre-wrapping fixes that and the gap under the title.)"""
     import textwrap
     W, H = fig.get_size_inches()
+    if SFX:
+        title = _rl(title.replace(BASE_TXT, BASE_NL).replace(TRIAL_TXT, TRIAL_NL))
     txt = textwrap.fill(title, max(40, int(W * 72 / (0.6 * fs))))
     pad = 0.08 / H
     fig.suptitle(txt, fontsize=fs, y=1 - pad, va="top")
@@ -400,7 +439,7 @@ def draw_pooled(stem: str) -> None:
                 _seg_curves(ax, s, P["enl"][s], ci, show_n=True)
             for ax, s in zip(A2, seg2):
                 _seg_curves(ax, s, P["none"][s], ci, show_n=True)
-            A3[0].set_ylabel(f"{a} {hl}" + (" [ref]" if a in REF else "") + "\ndF/F x1e3 - restw", fontsize=7)
+            A3[0].set_ylabel(f"{a} {hl}" + (" [ref]" if a in REF else "") + _rl("\ndF/F x1e3 - restw"), fontsize=7)
             A3[1].text(0.5, 1.22, f"{a} {hl}: trials WITH ENLv licks", transform=A3[1].transAxes, ha="center",
                        fontsize=7.5, weight="bold")
             A2[0].text(1.05, 1.22, "trials with NO ENLv lick", transform=A2[0].transAxes, ha="center", fontsize=7.5,
@@ -424,7 +463,7 @@ def draw_pooled(stem: str) -> None:
         9, h, lb)
     outer.update(top=top - 0.45 / fig.get_size_inches()[1])   # room for the bold block headers above row 0
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -458,7 +497,7 @@ def draw_spout(stem: str) -> None:
             axs[len(axs) // 2].text(0.5 if len(axs) == 3 else 1.0, 1.07, ntxt, transform=axs[len(axs) // 2].transAxes,
                                     ha="center", va="bottom", fontsize=6, color="0.25")
             if j == 0:
-                axs[0].set_ylabel("dF/F x1e3 - restw", fontsize=7)
+                axs[0].set_ylabel(_rl("dF/F x1e3 - restw"), fontsize=7)
             if i == len(areas) - 1:
                 for ax, s in zip(axs, segs):
                     ax.set_xlabel(SEG_TXT[s], fontsize=6.5)
@@ -476,7 +515,7 @@ def draw_spout(stem: str) -> None:
         f"'n a/b/c/d' = trials per epoch (pre, acute, subacute, chronic; '(k an)' = only k animals).", 9, h, lb)
     outer.update(top=top - 0.4 / fig.get_size_inches()[1])
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -526,11 +565,11 @@ def draw_heat(stem: str) -> None:
                 ax.set_ylabel("trials sorted by wait (arrival -> cue)", fontsize=7)
             if i == len(HM_COLS) - 1:
                 ax.set_xlabel("time from spout arrival (s)", fontsize=7)
-        fig.colorbar(im, ax=list(axs[i]), fraction=0.012, pad=0.01).set_label("dF/F x1e3 - restw", fontsize=7)
+        fig.colorbar(im, ax=list(axs[i]), fraction=0.012, pad=0.01).set_label(_rl("dF/F x1e3 - restw"), fontsize=7)
     h, lb = axs[0, 0].get_legend_handles_labels()   # one figure legend under the panels (was over PS92 pre data)
     fig.legend(h, lb, fontsize=8, markerscale=4, frameon=False, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 0.0))
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -544,7 +583,12 @@ def stems() -> list:
 def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
+    global SFX
     from wfield_local import analysis_kit as ak
+    SFX = restnl.SFX if restnl.variant() == "restnl" else ""
+    if SFX and not plot_only():   # no re-extraction: shift the stored restw-referenced traces
+        compute(il.labels())
+        return 0
     if plot_only():
         for kind, stem in stems():
             {"pooled": draw_pooled, "spout": draw_spout, "heat": draw_heat}[kind](stem)
