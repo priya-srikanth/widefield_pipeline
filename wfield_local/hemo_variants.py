@@ -236,12 +236,30 @@ def refit_T(U, a, b, chunk=20000):
     return np.linalg.pinv(UtU) @ UtUrc, rc
 
 
-def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None, func=FUNC):
+def _interp_pairs(x, bad):
+    """(K, T) traces with the ``bad`` pair columns replaced by linear interpolation from their good neighbours."""
+    bad = np.asarray(bad, bool)[:x.shape[1]]
+    if not bad.any():
+        return x
+    i = np.arange(x.shape[1])
+    x = x.copy()
+    for k in range(x.shape[0]):
+        x[k, bad] = np.interp(i[bad], i[~bad], x[k, ~bad])
+    return x
+
+
+def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None, func=FUNC,
+            bad_pairs=None):
     """(SVTcorr, T, rcoeffs, meta) for one session under one variant. Reads only; writes nothing.
 
     ``func`` is the functional (470) channel index; the isosbestic (415) is the other slot. Defaults
     to the cohort FUNC=1, but must be 0 for a session whose labcams channels came out swapped (e.g.
-    PS92 8/28, saved mislabeled single-channel then rescued at exposure offset 1)."""
+    PS92 8/28, saved mislabeled single-channel then rescued at exposure offset 1).
+
+    ``bad_pairs`` (bool per pair, optional): pairs whose frames are interpolated over in BOTH channels before the
+    fit and the output -- frames that carry the other LED's image (scripts/cohort2_qc/swap_scan.py, 2026-10-30;
+    one such frame per ~10^4 dominated the RiboL1 coefficient fit). Requires ``refit_t=True``: the saved T was
+    fitted with them in."""
     from wfield_local.filter_acausality_test import MASK_SPEC, fit_mask
     from wfield_local.locanmf_crossanimal_dff import _frames as _fr
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
@@ -253,6 +271,12 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     svt = np.load(res / "SVT.npy")
     a = svt[:, func::2].astype(np.float64)
     b = svt[:, (func + 1) % 2::2].astype(np.float64)
+    n_bad = 0
+    if bad_pairs is not None:
+        if not refit_t:
+            raise ValueError("bad_pairs needs refit_t=True (the saved T was fitted on the unmasked traces)")
+        n_bad = int(np.asarray(bad_pairs, bool)[:a.shape[1]].sum())
+        a, b = _interp_pairs(a, bad_pairs), _interp_pairs(b, bad_pairs)
 
     spec = VARIANTS[variant]
     mask, mask_frac = None, None
@@ -322,7 +346,7 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
             "meegkit_order": (MEEGKIT_ORDER if order is None else int(order))
                              if spec["drift"] == "meegkit" else None,
             "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": func,
-            "slow_band_s": slow_s,
+            "slow_band_s": slow_s, "bad_pairs_interpolated": n_bad if bad_pairs is not None else None,
             "meegkit_fallback": ("per_component" if _MEEGKIT_FELL_BACK else None),
             "note": spec["note"], "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if verbose:
@@ -331,19 +355,22 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     return c, T, rc, meta
 
 
-def out_dir(session, variant, refit_t=True) -> Path:
-    """`hemo_<variant>[_refitT]` beside the originals. NEVER a bare SVTcorr.npy."""
+def out_dir(session, variant, refit_t=True, tag: str = "") -> Path:
+    """`hemo_<variant>[_refitT][<tag>]` beside the originals. NEVER a bare SVTcorr.npy."""
     return (Path(session["mc"]) / "wfield_local_results"
-            / f"hemo_{variant}{'_refitT' if refit_t else ''}")
+            / f"hemo_{variant}{'_refitT' if refit_t else ''}{tag}")
 
 
-def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, func=FUNC) -> Path:
+def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, func=FUNC, bad_pairs=None,
+          tag: str = "") -> Path:
     """Compute and persist to the labelled subdirectory. Refuses to touch the original files."""
     from wfield_local import writeguard
 
-    d = out_dir(session, variant, refit_t)
+    if bad_pairs is not None and not tag:
+        raise ValueError("a bad_pairs build needs its own tag (e.g. '_swapmask'), never the plain variant dir")
+    d = out_dir(session, variant, refit_t, tag)
     writeguard.assert_writable(d)
-    c, T, rc, meta = compute(session, variant, refit_t, win_s, verbose, func=func)
+    c, T, rc, meta = compute(session, variant, refit_t, win_s, verbose, func=func, bad_pairs=bad_pairs)
     tmp = d.with_name(d.name + f".{os.getpid()}.tmp")
     tmp.mkdir(parents=True, exist_ok=True)
     np.save(tmp / "SVTcorr.npy", c)
