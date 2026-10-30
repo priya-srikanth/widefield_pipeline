@@ -10,6 +10,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - [x] **Representational-change wording**: YES -- offset + gain / precision loss, re-map OPEN (applied page v242, FINDINGS); noise-matched transfer + power check RUNNING.
 - [x] **ENL licks next?** YES (Priya 10-29 evening): balance + decoder offset + target code on ENLv licks (timed from spout arrival, window sweep), cue-to-lick level; name them ENLv, not ITI.
 - [ ] **Reference for pre-cue levels**: restw vs session mean give opposite signs chronically in orofacial areas (rest falls relative to the session mean). Report the chronic contra ALM / tjM1 pre-cue rise as "relative to rest" only?
+- [ ] **Check (mine, low)**: precue_restw cache engaged-trial counts differ slightly from the current engagement gate (381 vs 364, 473 vs 472 in 2 sessions) -> audit all sessions; the restw LEVEL itself is unaffected.
 - [ ] **Hypothesis line (3)**: the contralesional-share rise is not orofacial-specific (VISpm / RSPd rise too) -> reword?
 - [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
@@ -95,17 +96,18 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 ## 5. Running (will be added above when they report)
 - ENLv licks: balance, decoder offset, target code; window after spout arrival swept (0.5-1.5, 1-2, >=1, >=1.5 s; bout starts vs all) -> enlv_licks/
 
-- Arrival -> cue traces (A three anchors, B sorted heatmaps) -> arrival_to_cue/ (2 workers)
 - Updates sent: ENLv primary = onset >= 1 s after arrival (+ >= 0 s and first-ENLv-lick versions, arrival-corrected); chronic dip = NON-restw traces.
 
 - Updates sent: ENLv arrival correction by REGRESSION (not lick-free subtraction); cue excluded from ENLv windows (contact vs non-contact; licks < 2 s before cue reported); stopped helper adds jaw-no-lick vs stopped-no-jaw.
 
 ## 7. ENLv + cue-to-lick + trace results (figure links added as they report)
+- ARRIVAL -> CUE (page v251, 14.21 "Spout arrival -> cue" panel; M:/.../iti_licks/arrival_to_cue/figures/): far-contra ENLv contact drops acutely 4/4 (no timer restart); last-ENLv-lick response larger acutely (contra tjM1 / SSp-n 4/4); chronic contra tjM1 cue response larger 4/4. Possible follow-ups: anchor on last CONTACT lick; per-animal panels.
 - CUE TO LICK (page v250, 14.21 "Cue to lick" panel; M:/.../iti_licks/cue_to_lick/figures/): accumulate-to-bound rejected (fixed level / delayed start); restw rise = sustained pre-cue raise; chronic raw dip in orofacial = rest level drop vs session mean; non-orofacial dip real.
 - STOPPED FOLLOW-UP (page v250): restw-unit rise mostly a restw fall; raw only PS93; mostly bilateral; same in hit / miss_working.
 - STOPPED TRIALS (page v249, 14.21 "Stopped trials" panel; figures M:/.../iti_licks/stopped_traces/figures/): no cue response, flat raised level; 3 animals per epoch; jaw-onset transient global; contra tjM1 / SSp-m pre-cue rise over recovery within animals (contra-specific? follow-up running).
 
 ## 6. Log
+- 10-29 evening: arrival -> cue traces reported -> page v251, FINDINGS. Only ENLv still running.
 - 10-29 evening: cue-to-lick + stopped follow-up reported -> page v250, FINDINGS.
 - 10-29 evening: stopped-trial traces reported -> page v249, FINDINGS; follow-up (contra-ipsi) sent; arrival->cue helper started.
 - 10-29 evening: Priya: run ENLv (naming) balance / offset / target code + cue-to-lick level, AUC threshold, pre-lick window; chronic dip = decreased chronic pre-cue dF/F in cue-aligned area traces. 2 helpers started (4 workers each).

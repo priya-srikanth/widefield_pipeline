@@ -810,6 +810,12 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   session mean (4/4), removed by restw; F0 not the cause chronically; non-orofacial (bfd, VISp, MOs_rest ipsi) dip is a
   real pre-cue decrease. CAVEAT for 14.20: the chronic contra ALM / tjM1 pre-cue rise is relative to rest, not absolute
   (dF/F is session-mean centred). PROVISIONAL.
+- Arrival -> cue traces 10-29 (page 14.21, scripts/arrival_to_cue_traces.py, arrival_to_cue/): three anchors (arrival |
+  last ENLv lick | cue) + wait-sorted heatmaps. Far-contra ENLv contact drops acutely 4/4 (e.g. PS94 0.61 -> 0.00), so those
+  licks do not restart the timer (short acute far-contra waits). Response to the last ENLv lick larger acutely than pre in
+  contra tjM1 / SSp-n (4/4; lick count / bouts differ); contra tjM1 cue response larger chronically (4/4); last 0.5 s
+  before the cue near rest. Long waits = PS92 / PS93 only. Open check: precue_restw cache engaged counts differ slightly
+  from the current engagement gate (2/2 sessions checked: 381 vs 364, 473 vs 472). DESCRIPTIVE.
 - Decoder area attribution 10-28 (11.13 alone / unique, 11.14 nested blocks + Shapley): the orofacial group (+SSs) carries
   ~40% of the code (Shapley pre r 0.27 of 0.62 ITI, 0.29 of 0.77 cued) and of the ITI offset (0.15 of 0.37 mm acute);
   the rest is spread and redundant (no block necessary). SSs alone decodes but adds nothing uniquely (a copy of the
