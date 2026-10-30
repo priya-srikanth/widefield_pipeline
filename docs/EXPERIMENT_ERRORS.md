@@ -827,6 +827,11 @@ for those sessions cover the trials WITH video only.
     either keep PS122's ROI fixed across days, or crop every PS122 frame to a fixed central 460-row band
     (record which rows) — but the CCF-alignment route is preferred and avoids the issue entirely.
 * **Not a problem for:** this cohort's planned analyses, which are per-session SVD/hemo + atlas-aligned maps.
+* **Reconciled with the entries above (later 10-29).** Intentional (Priya): 509x480 is the new, larger ROI, fixed for
+  EVERY animal from PS122 10-29 on; the 460-row frames are PS118 / PS120 / PS121 on 10-29 only. Within-animal
+  cross-day registration places a different-ROI frame at its offset at native scale (`cross_day_align`,
+  `_register_different_roi`, with a coverage mask), so those three sessions can be registered to a 509-row
+  master alignment session; it no longer stretches them. The atlas route below still applies to everything after that.
 
 ## Conventions for this log
 
