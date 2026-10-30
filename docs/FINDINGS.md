@@ -1313,6 +1313,19 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
     lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit
     claim (WITHDRAWN 10-24).
+14. **CURBD pilot (10-30): region -> region currents fitted to encoding residuals are NOT STABLE, so no pre vs chronic
+    comparison was made.** PS94 only (n = 1 animal), pre 0807 / 0811 / 0812; 18 regions (SSp-n, SSp-m, SSs, SSp-ul,
+    tjM1, ALM, MOp_rest, MOs_rest, RSPd x 2 hemispheres; ROI v8 on the stat mask) x 4 spatial units; input = held-out
+    residuals of the per-session encoder's full design refitted on the unit traces, 10.4 Hz, reset to data every 2 s.
+    Fit: pVar 0.27 train / 0.21-0.25 held-out half, against 0.15 for a J = 0 decay model and < 0 for hold-at-reset.
+    Stability of the off-diagonal mean |current| matrix (gate stated beforehand in
+    `docs/status/CURBD_PILOT_PREREG_20261030.md`): seeds r 0.51 (needed 0.8), halves 0.38 (0.7), sessions 0.29 (0.7),
+    pair-specific halves 0.06 (0.5); the one-unit-per-region variant fails the same way (0.51 / 0.22 / 0.40). A weaker
+    initial J (g 0-1, exploratory) does not fix the halves (0.18-0.24). EXPLORATORY comparator: a heavily ridged VAR(1)
+    on the same data gives region matrices with r 0.84-0.97 across halves and sessions, but the matrix depends on the
+    ridge strength (weak ridge vs heavy: r 0.07-0.21) and explains ~6 % of the one-step change. CURBD's chronic session
+    (0910) was prepped but NOT fitted. Code `scripts/curbd_pilot.py`, `wfield_local/curbd_core.py` (port of
+    rajanlab/CURBD, **GPL-3.0**); outputs `<E>/curbd_pilot/` (figures 1-3, tables/). **NOT ESTABLISHED / PILOT.**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
