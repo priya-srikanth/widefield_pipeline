@@ -109,7 +109,10 @@ def main() -> int:
             ax.errorbar(k + 0.32, r["mean"], yerr=[[r["mean"] - r.lo], [r.hi - r["mean"]]], fmt="o", ms=7,
                         color=ECOL[ep], capsize=3, lw=1.8)
             if r.sig:
-                ax.text(k + 0.32, r.hi + 1.5, "**" if r.sig_bonf else "*", ha="center", color=ECOL[ep], fontsize=12)
+                # Priya 10-30 figure rule: stars in a fixed band at the TOP of the panel (x = data, y = axes fraction),
+                # never on the data or the pre / 0 line (same rule as wfield_local/sig_marks.star_top)
+                ax.text(k + 0.32, 0.97, "**" if r.sig_bonf else "*", transform=ax.get_xaxis_transform(), ha="center",
+                        va="top", color=ECOL[ep], fontsize=14, fontweight="bold")
         ax.axhline(0, color="0.6", lw=0.8)
         ax.set_xticks(range(4))
         ax.set_xticklabels(["pre", "acute", "subac", "chron"], fontsize=8.5)
@@ -117,6 +120,8 @@ def main() -> int:
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     axs[0].set_ylabel("first-lick aim offset, change vs own pre\n(deg; + = contralesional)")
+    lo_, hi_ = axs[0].get_ylim()                         # sharey: one range; the top band holds the stars, no data
+    axs[0].set_ylim(lo_, hi_ + 0.14 * (hi_ - lo_))
     hs = [plt.Line2D([], [], marker="o", ls="", color=COL[a], label=a) for a in AN]
     fig.legend(handles=hs, loc="lower center", ncol=4, frameon=False, fontsize=9)
     fig.suptitle("Aim offset by spout (3-D angle of the FIRST cued lick minus the animal's pre landing at that spout), "
