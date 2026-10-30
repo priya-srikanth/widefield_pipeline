@@ -689,15 +689,20 @@ def _sel(D, **kw):
 
 
 def epoch_panel(ax, S, B, m, sel, color="k", row=0, off=0.0, label=None, animals=True, holm=None):
-    """Per-animal session means per epoch (thin lines) + pooled level and 95 % CI (thick); star (top band) where the
-    epoch's change vs pre meets the pre-registered criterion (CI excludes 0 AND >= 3/4 animals same sign)."""
+    """SESSIONS (Priya 10-30: one open marker per session, marker = animal, small deterministic jitter) + pooled level
+    and 95 % CI (thick); star (top band) where the epoch's change vs pre meets the pre-registered criterion (CI excludes
+    0 AND >= 3/4 animals same sign)."""
     from wfield_local.orofacial_cohort import ANIMAL_MARKER
     x = np.arange(len(EPS)) + off
     s = _sel(S, **sel)
     if animals:
+        rng = np.random.default_rng(7)
         for an, h in s.groupby("animal"):
-            mu = h.groupby("epoch")[m].mean().reindex(EPS)
-            ax.plot(x, mu, color=color, lw=0.7, alpha=0.45, marker=ANIMAL_MARKER.get(an, "o"), ms=3.5, mfc="none")
+            v = h.groupby(["epoch", "label"])[m].mean().dropna()
+            xi = np.array([x[EPS.index(e)] for e in v.index.get_level_values(0)], float)
+            xi = xi + rng.uniform(-0.05, 0.05, len(xi)) + 0.09
+            ax.plot(xi, v.to_numpy(float), ls="none", color=color, alpha=0.45, marker=ANIMAL_MARKER.get(an, "o"),
+                    ms=3.2, mfc="none", mew=0.7, zorder=2)
     b = _sel(B[B.metric == m], **sel).set_index("epoch").reindex(EPS)
     ax.errorbar(x, b.level, yerr=[b.level - b.level_lo, b.level_hi - b.level], color=color, lw=2.2, marker="o",
                 ms=5, capsize=3, label=label, zorder=4)
@@ -743,7 +748,7 @@ def fig_primary(D):
     th = D["cal"].get("theta_sp")
     fig.suptitle(_wrap(f"Fig 1. Within-lick correction at the FAR-CONTRA spout (cued post-cue licks, all orders and "
                        f"outcomes; PS92-95, August pre). Thick = pooled session level with 95 % nested bootstrap CI; "
-                       f"thin = animals (o PS92, s PS93, ^ PS94, D PS95). Top-band * = change vs pre (CI excludes 0 "
+                       f"open markers = SESSIONS (o PS92, s PS93, ^ PS94, D PS95). Top-band * = change vs pre (CI excludes 0 "
                        f"AND >= 3/4 animals same sign); ** = also Holm over the 9 primary tests. Angles + = "
                        f"contralesional. CSM threshold {th} mm/s speed-peak prominence (noise-calibrated on August "
                        f"pre). Dotted = pre level.", 175), fontsize=9.5)
@@ -768,12 +773,14 @@ def fig_spouts(D):
             ax.errorbar(x, b.delta, yerr=[b.delta - b.delta_lo, b.delta_hi - b.delta], fmt="o", color=EPOCH_LINE[ep],
                         ms=6, lw=1.8, capsize=2.5, label=ep, zorder=4)
             s = S[(S.context == "cued") & (S.order == "any") & (S.outcome == "any") & S.group.isin(POS)]
-            for an, h in s.groupby("animal"):
+            rng = np.random.default_rng(7 + j)
+            for an, h in s.groupby("animal"):                    # sessions: each post session minus its animal's pre
                 pre = h[h.epoch == "pre"].groupby("group")[m].mean()
-                cur = h[h.epoch == ep].groupby("group")[m].mean()
-                d = (cur - pre).reindex(POS)
-                ax.plot(x + 0.06, d, ls="none", marker=ANIMAL_MARKER[an], mfc="none", mec=EPOCH_LINE[ep], ms=3.5,
-                        alpha=0.7)
+                cur = h[h.epoch == ep].set_index("group")[m]
+                d = (cur - pre.reindex(cur.index)).dropna()
+                xi = np.array([POS.index(g) for g in d.index], float) + off + 0.06 + rng.uniform(-0.03, 0.03, len(d))
+                ax.plot(xi, d.to_numpy(float), ls="none", marker=ANIMAL_MARKER[an], mfc="none", mec=EPOCH_LINE[ep],
+                        ms=3, alpha=0.5, mew=0.7)
             for i, p in enumerate(POS):
                 if p in b.index and b.loc[p, "change"] == 1:
                     star_top(ax, x[i], "*", EPOCH_LINE[ep], row=j)
@@ -784,7 +791,7 @@ def fig_spouts(D):
     reserve_headroom(fig)
     h_, l_ = axs[0, 0].get_legend_handles_labels()
     fig.legend(h_, l_, loc="outside lower center", ncol=3, fontsize=9, frameon=False,
-               title="epoch (pooled change vs August pre, 95 % CI; open markers = animals)", title_fontsize=9)
+               title="epoch (pooled change vs August pre, 95 % CI; open markers = sessions minus own pre)", title_fontsize=9)
     fig.suptitle(_wrap("Fig 2. Per spout (canonical order), cued post-cue licks, all orders / outcomes. Top-band * "
                        "(one row per epoch, epoch colour) = change vs pre by the pre-registered criterion. Angles + = "
                        "contralesional; correction + = endpoint more contralesional than launch.", 170), fontsize=9.5)
@@ -811,7 +818,7 @@ def fig_split(D):
     h_, l_ = axs[0, 0].get_legend_handles_labels()
     fig.legend(h_, l_, loc="outside lower center", ncol=2, fontsize=9, frameon=False)
     fig.suptitle(_wrap("Fig 3. Far-contra spout split by lick order (FIRST post-cue lick vs LATER licks) and outcome "
-                       "(HIT = the lick contacted the spout). Thick = pooled (95 % CI), thin = animals; top-band * "
+                       "(HIT = the lick contacted the spout). Thick = pooled (95 % CI), open markers = sessions; top-band * "
                        "(row per outcome, its colour) = change vs pre (CI excludes 0 AND >= 3/4 same sign).", 170),
                  fontsize=9.5)
     return fig
@@ -878,6 +885,39 @@ def fig_paths(D):
     return fig
 
 
+def fig_paths_pooled(D):
+    """Fig 5b (Priya 10-30): Fig 5 pooled -- per epoch and far spout, the mean over ANIMALS of each animal's mean
+    path (animals equally weighted), thin = animals."""
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    P = D["PATH"]
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5.6), layout="constrained", sharey=True)
+    for c, pos in enumerate(["far_ipsi", "far_mid", "far_contra"]):
+        ax = axs[c]
+        for ep in EPS:
+            h = P[(P.epoch == ep) & (P.pos == pos)]
+            if not len(h):
+                continue
+            ML, R = np.stack(h.ml.to_numpy()), np.stack(h.r.to_numpy())
+            for i in range(len(h)):
+                ax.plot(ML[i], R[i], color=EPOCH_LINE[ep], lw=0.6, alpha=0.3)
+            ml, rr = ML.mean(0), R.mean(0)
+            ax.plot(ml, rr, color=EPOCH_LINE[ep], lw=2.6, label=f"{ep} ({len(h)} animals, {int(h.n.sum())} licks)")
+            ax.plot(ml[0], rr[0], "o", color=EPOCH_LINE[ep], ms=5)
+        ax.axvline(0, color="0.8", lw=0.6)
+        ax.set_title(pos.replace("_", " "), fontsize=11)
+        ax.set_xlabel("ml (mm; + = contralesional)", fontsize=9)
+        ax.legend(fontsize=8, frameon=False, loc="lower left")
+        ax.tick_params(labelsize=8)
+    axs[0].set_ylabel("distance from the mouth zero (mm)", fontsize=9)
+    fig.suptitle(_wrap("Fig 5b. POOLED mean tongue path (first tracked frame = dot -> extension peak), cued post-cue "
+                       "licks at the three FAR spouts: thick = mean of the four animals' mean paths (animals equally "
+                       "weighted), thin = animals. Paths shift ipsilesionally from the launch and stay roughly "
+                       "parallel: the bias is set at launch, not corrected inside the lick.", 150), fontsize=10)
+    return fig
+
+
 def fig_neural(D):
     import matplotlib.pyplot as plt
 
@@ -934,7 +974,7 @@ def fig_neural(D):
                        "correction licks? Row 1: per-session OLS coefficient of the CSM flag (or |correction|) on the "
                        "lick-evoked response (0-0.2 s minus -0.2..-0.1 s) with launch / endpoint angle, reach, speed, "
                        "contact, order, spout and the NEXT lick's angle / contact / interval as covariates. Row 2: mean "
-                       "responses. Pooled 95 % CI + animals; top-band * = change vs pre (CI excludes 0 AND >= 3/4).",
+                       "responses. Pooled 95 % CI + sessions; top-band * = change vs pre (CI excludes 0 AND >= 3/4).",
                        175), fontsize=9.5)
     return fig
 
@@ -948,7 +988,7 @@ def cmd_plot() -> None:
     FIGS.mkdir(parents=True, exist_ok=True)
     figs = {"wlc_fig1_primary_far_contra": fig_primary, "wlc_fig2_per_spout": fig_spouts,
             "wlc_fig3_order_outcome": fig_split, "wlc_fig4_secondary_tracking": fig_secondary,
-            "wlc_fig5_mean_paths": fig_paths}
+            "wlc_fig5_mean_paths": fig_paths, "wlc_fig5b_mean_paths_pooled": fig_paths_pooled}
     if D.get("FN") is not None:
         figs["wlc_fig6_neural"] = fig_neural
     for name, fn in figs.items():
