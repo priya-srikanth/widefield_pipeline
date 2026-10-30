@@ -796,7 +796,20 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (mostly incomplete licks) small cue bump; jaw-onset transient ~0.3 s in every area incl. references (broad, movement).
   Priya's observation: stopped contra tjM1 / SSp-m / ALM pre-cue level rises over recovery within animals (tjM1 PS94 5.1 /
   8.8 / 11.6, PS93 6.0 / 6.4 / 7.8; chronic > pre in 3/3); ipsi ALM also rises in PS94 / PS95 -> contra specificity
-  untested (contra-ipsi follow-up running). Late-session confound; restw is a cross-state reference. DESCRIPTIVE.
+  untested. FOLLOW-UP: the restw-unit rise (pre->chronic 3/3: ALM +3.9, tjM1 +6.5, SSp-m +7.4) is mostly a FALL of the
+  restw reference; raw dF/F shows it only in PS93 (pre = 1 session); contra-ipsi < 1 unit except PS93 (mostly bilateral);
+  the same chronic restw-unit rise is in hit + miss_working (4/4) -> general level change vs rest, not stopped-specific.
+  No consistent chronic rise in quit-period movement. Late-session confound. DESCRIPTIVE.
+- Cue to lick 10-29 (page 14.21, scripts/lick_cue_to_lick*.py, cue_to_lick/): (A) mean level cue->lick minus restw:
+  contra ALM / tjM1 up every post epoch 4/4 (~+2-3), latency-matched too; above the trial's own pre-cue level acute far
+  contra ~-2 n.s. -> the restw rise is the sustained pre-cue raise. (B) accumulate-to-bound REJECTED (level at lick flat /
+  slightly rising with latency, slope ~ 1/latency, pre and every epoch); fixed level crossing / delayed start fit; AUC rise
+  with latency is mostly the cue-locked response; acute far-contra slow trials = flat wait then normal rise to a normal
+  level (delayed start). Pre latencies only ~0.1-0.6 s. (C) fixed pre-lick windows after the cue keep few trials
+  (effectively PS92 / PS93). (D) chronic raw pre-cue "dip" in orofacial areas = drop of the restw level relative to the
+  session mean (4/4), removed by restw; F0 not the cause chronically; non-orofacial (bfd, VISp, MOs_rest ipsi) dip is a
+  real pre-cue decrease. CAVEAT for 14.20: the chronic contra ALM / tjM1 pre-cue rise is relative to rest, not absolute
+  (dF/F is session-mean centred). PROVISIONAL.
 - Decoder area attribution 10-28 (11.13 alone / unique, 11.14 nested blocks + Shapley): the orofacial group (+SSs) carries
   ~40% of the code (Shapley pre r 0.27 of 0.62 ITI, 0.29 of 0.77 cued) and of the ITI offset (0.15 of 0.37 mm acute);
   the rest is spread and redundant (no block necessary). SSs alone decodes but adds nothing uniquely (a copy of the
