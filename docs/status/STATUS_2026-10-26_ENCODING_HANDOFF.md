@@ -63,13 +63,20 @@ FIGURE DEFAULTS (Priya 10-30; memory results-page-conventions + docs/templates/R
 animal (PS92 o, PS93 s, PS94 ^, PS95 D), colour = epoch (EPOCH_LINE); pooled = FILLED epoch-colour marker; June grey; NO
 figure numbers inside images (panel letters OK); NO connecting lines between epochs; distributions = faint session curves
 + thick pooled, each epoch's own 50 % / 95 % marked.
+UNREVIEWED BY PRIYA (she said 10-30 late: keep these in the handoff until she reads them):
+- My answer to her 10-30 figure review (fixes applied in page v292): Bollu signatures = S21a; no-gap result bolded (S24b,
+  FINDINGS §0 4b); P(pre) explained in S22a; hit rate worsens within sessions, aim does not (S24a); the two pink acute dots
+  in S24b panel A = close vs far mid (now split open/filled); S2 / S11 / S16 were always text-only; S3 overlaps the offset
+  analyses (recommend collapsing); S25 gate failed.
+- My answer 'why area pools, not SVD within ALM / tjM1' (item 1 below) -> Priya then said RUN IT (10-30 late; in progress).
 OPEN (Priya to decide; asked, no answer yet):
 1. **NEW 10-30: pixel / SVD version of S25** -- Priya asked why area pools rather than SVD within ALM / tjM1 (Allen masks).
    Answer given: my choice (trial counts, hemisphere comparability), not principled; area averaging may cancel a spatial
    pattern. Proposed add-on prereg: mirrored ALM + tjM1 masks per hemisphere, SVTcorr projected on masked U_atlas, top
    components; one FROZEN decoder per animal x hemisphere trained on pooled August pre sessions (load_or_fit), scored on
    post; same pre gate (>= 3/4 animals, within-spout CV vs shuffle); post-contact window as positive control. Limits either
-   way: launch noise 5-8 deg / lick, GCaMP6s over a 250 ms window. Awaiting go.
+   way: launch noise 5-8 deg / lick, GCaMP6s over a 250 ms window. GO given 10-30 late -> prereg
+   docs/status/PRELICK_SVD_TUNING_PREREG_20261030.md + scripts/prelick_svd_tuning.py (helper).
 2. Figures for text-only S2 / S11 / S16? 3. Collapse S3 into the offset section? 4. Publish reembed frozen refs (local
    store, kind `reembed`) to MICROSCOPE? 5. New re-embedding prereg with spout-resolving label-free alignment?
 6. Cohort-2 design (longer pre baseline; perturbation arm) -- viral lead time means decide soon.
