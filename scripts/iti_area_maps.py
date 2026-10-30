@@ -38,6 +38,7 @@ GROUP_ROWS = (("resp_n", "response AUC / pre"), ("build_n", "build-up AUC / pre 
 GROUP_COLS = ("orofacial", "visual + RSP", "orofacial - visual + RSP")
 
 
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 RESP_W = (0.0, 1.0)      # response AUC window (0..1.0 s default since 10-28 evening; 0..0.5 s before)
 
 
@@ -45,7 +46,7 @@ def _wide(x: str) -> dict:
     """The long -2..+3 s traces of `lick_cued_ramp` (cued_wide/<label>.npz; same area columns as the session file,
     validated there): the stored PETHs end at +0.75 s, too short for the 0..1.0 s response window."""
     import lick_cued_ramp as cr
-    z = np.load(il.OUT_W / cr.WIDE / f"{x}.npz")
+    z = np.load(cr.RIN / cr.WIDE / f"{x}.npz")
     return {k: z[k] for k in ("lick", "cue", "pos", "iti", "cols")}
 
 
@@ -179,19 +180,19 @@ def split_maps(spout: str | None = None, cued: bool = False) -> None:
     ITI bout starts after a trial at that spout / cued first licks to that target (>= 5 per session)."""
     from frozen_area_maps import outline
     labels = il.labels()
-    D = {x: il._load(x) for x in labels}
+    D = {x: il.subset_bouts(il._load(x), x) for x in labels}
     T = session_table_split(D, spout, min_n=10 if spout is None else 5, cued=cued)
     kind = "cued" if cued else "iti"
     tag = "" if spout is None else "_" + spout.replace("_", "")
     stem = f"lick_{kind}_area_maps_split{tag}"
     ctag = "_cued" if cued else ""
-    T.to_csv(il.OUT / f"area_auc_sessions_split{ctag}{tag}.csv", index=False)
+    T.to_csv(WOUT / f"area_auc_sessions_split{ctag}{tag}.csv", index=False)
     vals = [("resp", "lick response AUC 0..1.0 s" if cued else "response AUC 0..1.0 s"),
             ("build", "pre-lick AUC -0.4..-0.05 s (overlaps the CUE)" if cued else "build-up AUC -0.4..-0.05 s")]
     if cued:
         vals.append(("cue", "cue response AUC 0..1.0 s after the cue"))
     C = pd.concat([changes(T, v) for v, _t in vals])
-    C.to_csv(il.OUT / f"area_auc_changes_split{ctag}{tag}.csv", index=False)
+    C.to_csv(WOUT / f"area_auc_changes_split{ctag}{tag}.csv", index=False)
     print("== per animal (rule 8), response AUC, ALM / tjM1 / rest\n" + T[T.area.str.contains("ALM|tjM1|rest")]
           .pivot_table(index=["area", "animal"], columns="epoch", values="resp").reindex(columns=il.EP4).round(1)
           .to_string())
@@ -242,7 +243,7 @@ def draw_maps(stem: str) -> None:
     fig.suptitle(f"NEURAL, NO DECODER: {what} -- change from pre per area in raw dF/F AUC (x1e3 s), with ALM / tjM1 separate "
                  "from the rest of MOs / MOp (ROI v8); black outline on a white halo = nested-bootstrap CI excludes 0. Image left = "
                  "ipsilesional.", fontsize=10, wrap=True)
-    fig.savefig(il.OUT / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
+    fig.savefig(WOUT / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -286,7 +287,7 @@ def draw_levels(stem: str) -> None:
     fig.suptitle(f"NEURAL, NO DECODER: {what} -- per-epoch LEVEL per area (mean over animals of each animal's session mean; "
                  "not the change from pre), raw dF/F AUC (x1e3 s); one colour scale per row. Image left = ipsilesional. "
                  "Descriptive.", fontsize=10, wrap=True)
-    fig.savefig(il.OUT / "figures" / f"{stem}_levels.png", dpi=100, bbox_inches="tight")
+    fig.savefig(WOUT / "figures" / f"{stem}_levels.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -328,11 +329,11 @@ def main() -> int:
     """Compute every statistic, save the four figdata files, then draw (`draw_all` = the --plot-only path)."""
     from frozen_area_maps import area_image, outline
     labels = il.labels()
-    D = {x: il._load(x) for x in labels}
+    D = {x: il.subset_bouts(il._load(x), x) for x in labels}
     T, peths = session_table(D)
-    T.to_csv(il.OUT / "area_auc_sessions.csv", index=False)
+    T.to_csv(WOUT / "area_auc_sessions.csv", index=False)
     C = pd.concat([changes(T, "resp"), changes(T, "build")])
-    C.to_csv(il.OUT / "area_auc_changes.csv", index=False)
+    C.to_csv(WOUT / "area_auc_changes.csv", index=False)
     print(C[C.sig].sort_values(["value", "epoch", "delta"]).round(3).to_string(index=False))
     img, nm = area_image(labels[0])
     # ---- maps: per row the colour limit, per panel the area -> change dict + the significant areas
@@ -381,7 +382,7 @@ def main() -> int:
             gp[(i, j)] = S
             for r_ in S["tests"]:
                 tests.append({"group": g, **r_})
-    pd.DataFrame(tests).to_csv(il.OUT / "area_group_tests.csv", index=False)
+    pd.DataFrame(tests).to_csv(WOUT / "area_group_tests.csv", index=False)
     print(pd.DataFrame(tests).round(3).to_string(index=False))
     save_fd("lick_iti_area_groups", {"panels": gp})
     compare(T, peths, draw=False)
@@ -415,7 +416,7 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
         fig.suptitle("NEURAL, NO DECODER: self-initiated (ITI) licks across the whole cortex -- change from pre per Allen area in raw dF/F "
                      "AUC (x1e3 s); black outline on a white halo = nested-bootstrap CI excludes 0. Image left = "
                      "ipsilesional.", fontsize=10, wrap=True)
-        fig.savefig(il.OUT / "figures" / "lick_iti_area_maps.png", dpi=110, bbox_inches="tight")
+        fig.savefig(WOUT / "figures" / "lick_iti_area_maps.png", dpi=110, bbox_inches="tight")
         plt.close(fig)
     if "peth" in only:
         F = load_fd("lick_iti_area_peth")
@@ -440,7 +441,7 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
         fig.suptitle("NEURAL, NO DECODER: dF/F around self-initiated licks in NON-orofacial areas (per-session mean PETH, all animals "
                      "pooled; band = SEM over sessions; lick onset at 0).", fontsize=9.5)
         fig.tight_layout(rect=(0, 0, 1, 0.93))
-        fig.savefig(il.OUT / "figures" / "lick_iti_area_peth.png", dpi=110)
+        fig.savefig(WOUT / "figures" / "lick_iti_area_peth.png", dpi=110)
         plt.close(fig)
     if "groups" in only:
         F = load_fd("lick_iti_area_groups")
@@ -454,7 +455,7 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
                      "the animal's pre group-mean response AUC; one dot per session; * = nested-bootstrap change from pre; right = "
                      "orofacial minus visual + RSP in the same session).", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0, 0, 1, 0.92))
-        fig.savefig(il.OUT / "figures" / "lick_iti_area_groups.png", dpi=110)
+        fig.savefig(WOUT / "figures" / "lick_iti_area_groups.png", dpi=110)
         plt.close(fig)
     if "compare" in only:
         compare_draw(load_fd("lick_iti_area_compare"))
@@ -498,7 +499,7 @@ def compare(T: pd.DataFrame, peths: dict, draw: bool = True) -> None:
                 S = il.sig_compute(pd.concat(long[norm], ignore_index=True), value="v", tag={"area": ar, "normalised": norm})
                 sig_recs += S["recs"]
             panels[(i, j)] = {"curves": curves[i], "sig": S}
-    pd.DataFrame(sig_recs).to_csv(il.OUT / "sig_bins_3_31.csv", index=False)
+    pd.DataFrame(sig_recs).to_csv(WOUT / "sig_bins_3_31.csv", index=False)
     F = {"lags": il.LAGS_P, "areas": list(COMPARE), "panels": panels}
     save_fd("lick_iti_area_compare", F)
     if draw:
@@ -547,7 +548,7 @@ def compare_draw(F: dict) -> None:
                  wrap=True)
     il._headroom([axs[0, 0], axs[1, 0]])                 # y shared per row: raise each row once
     fig.tight_layout(rect=(0, 0, 1, 0.87))
-    fig.savefig(il.OUT / "figures" / "lick_iti_area_compare.png", dpi=110)
+    fig.savefig(WOUT / "figures" / "lick_iti_area_compare.png", dpi=110)
     plt.close(fig)
 
 
@@ -566,6 +567,6 @@ if __name__ == "__main__":
         raise SystemExit(0)
     if "--compare" in sys.argv:                          # only the comparison figure
         labels_ = il.labels()
-        compare(*session_table({x: il._load(x) for x in labels_}))
+        compare(*session_table({x: il.subset_bouts(il._load(x), x) for x in labels_}))
         raise SystemExit(0)
     raise SystemExit(main())

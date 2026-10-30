@@ -81,6 +81,9 @@ if MASK_LOC:
 # all-ITI decoder and its prediction cache are reused unchanged, rows are dropped downstream (iti_licks.iti_subset_keep)
 # and outputs go to <OUT>/itifilter_<filter>/ (iti_licks.OUT_W) -- so no tag here.
 ITI_FILTER = "" if il.ITI_SUBSET else os.environ.get("WFIELD_ITI_FILTER", "")
+# WRITE ROOT for tables / figures: il.OUT (unchanged) unless a SUBSET filter is active, then il.OUT_W (= the filter's own
+# folder, or WFIELD_ITI_OUT_W) -- 10-29 late: before this a subset run wrote untagged files into il.OUT (primary names)
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT
 if ITI_FILTER:
     SRC_TAG += f"_{ITI_FILTER}"
 # KEY_TAG = the basis-specific tag built above (cache name, basis key); SRC_TAG = the OUTPUT tag: the canonical split basis
@@ -340,7 +343,7 @@ def plot_classes(T: pd.DataFrame) -> None:
                  "lateral, change vs pre,\nfrozen KEY-row decoder per set (z-scored " + DEC_LAB + f"; like-for-like = vs pre licks at the same place, {lfl.REF_LAB}); 95% paired nested "
                  "bootstrap CI, * = CI excludes 0 (bold),\n\u2020 = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n animals. + = contralesional. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.05)
-    fig.savefig(il.OUT / "figures" / f"lick_order_iti_cued{SRC_TAG}.png", dpi=100)
+    fig.savefig(WOUT / "figures" / f"lick_order_iti_cued{SRC_TAG}.png", dpi=100)
     plt.close(fig)
 
 
@@ -424,9 +427,9 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
                  "bootstrap animals > sessions per order, BH-FDR q = 0.05 across the 10 orders), one row per epoch in its "
                  "colour. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.08)
-    fig.savefig(il.OUT / "figures" / f"lick_order_iti_cued_slope{SRC_TAG}.png", dpi=100)
+    fig.savefig(WOUT / "figures" / f"lick_order_iti_cued_slope{SRC_TAG}.png", dpi=100)
     R = pd.DataFrame(sig_recs)
-    R.to_csv(il.OUT / f"lick_order_sig_bins{SRC_TAG}.csv", index=False)
+    R.to_csv(WOUT / f"lick_order_sig_bins{SRC_TAG}.csv", index=False)
     print("== per-order tests (landing / decoded vs pre), significant orders:\n"
           + R[R.sig_bh].groupby(["set", "measure", "epoch"]).lag.apply(lambda s: list(s.astype(int))).to_string())
     plt.close(fig)
@@ -439,11 +442,17 @@ def main() -> int:
     else:
         P = predictions()
         P.to_csv(f, index=False)
+    if il.ITI_SUBSET:                                  # docked-spout etc. subset of the frozen predictions (cache order)
+        keep = il.iti_subset_keep(P)
+        print(f"ITI subset filter {il.ITI_SUBSET}: keeping {int(keep[(P.set == 'iti').to_numpy()].sum())} of "
+              f"{int((P.set == 'iti').sum())} ITI licks", flush=True)
+        P = P[keep].reset_index(drop=True)
+        (WOUT / "figures").mkdir(parents=True, exist_ok=True)
     P = per_lick(P)
     print("share first (order 0) by set x epoch:\n",
           P.groupby(["set", "epoch"]).order.apply(lambda s: (s == 0).mean()).round(3).unstack().to_string())
     S = sessions(P)
-    S.to_csv(il.OUT / f"lick_order_sessions{SRC_TAG}.csv", index=False)
+    S.to_csv(WOUT / f"lick_order_sessions{SRC_TAG}.csv", index=False)
     pd.set_option("display.width", 240)
     print("== per animal (rule 8): like-for-like offset (same place), first / later / slope")
     for scope in ("all spouts", "far contra"):
@@ -452,7 +461,7 @@ def main() -> int:
             print(S[S.scope == scope].pivot_table(index=["set", "animal"], columns="epoch", values=m)
                   .reindex(columns=EPS).round(3).to_string())
     T = tests(S)
-    T.to_csv(il.OUT / f"lick_order_tests{SRC_TAG}.csv", index=False)
+    T.to_csv(WOUT / f"lick_order_tests{SRC_TAG}.csv", index=False)
     print(T[T.epoch != "pre"].round(3).to_string(index=False))
     plot_classes(T)
     plot_slope(P, T)

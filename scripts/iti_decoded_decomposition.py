@@ -33,6 +33,7 @@ import iti_lick_order as lo  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder
 EP = ["acute", "subacute", "chronic"]
 EPS = ["pre", *EP]
 MIN = 8
@@ -167,14 +168,15 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "landing change the read-out follows.\n95% paired nested bootstrap of the change vs pre, * = CI excludes "
                  "0 (bold), k/n animals. Frozen KEY-row decoder per set. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.87))
-    fig.savefig(il.OUT / "figures" / f"lick_decoded_decomposition{lo.SRC_TAG}.png", dpi=100)
+    fig.savefig(WOUT / "figures" / f"lick_decoded_decomposition{lo.SRC_TAG}.png", dpi=100)
     plt.close(fig)
 
 
 def main() -> int:
-    P = pd.read_csv(lo.preds_path())
+    P = il.subset_preds(pd.read_csv(lo.preds_path()))
     S = sessions(P)
-    S.to_csv(il.OUT / f"decomposition_sessions{lo.SRC_TAG}.csv", index=False)
+    (WOUT / "figures").mkdir(parents=True, exist_ok=True)
+    S.to_csv(WOUT / f"decomposition_sessions{lo.SRC_TAG}.csv", index=False)
     pd.set_option("display.width", 230)
     print("== per animal (rule 8): shift / gain / track by epoch")
     for st in SETS:
@@ -185,7 +187,7 @@ def main() -> int:
     print("x vs dLand correlation (median per set x epoch):")
     print(S.groupby(["set", "epoch"]).corr_x_dLand.median().round(2).unstack().to_string())
     T = tests(S)
-    T.to_csv(il.OUT / f"decomposition_tests{lo.SRC_TAG}.csv", index=False)
+    T.to_csv(WOUT / f"decomposition_tests{lo.SRC_TAG}.csv", index=False)
     print(T[T.epoch != "pre"].round(3).to_string(index=False))
     plot(S, T)
     return 0

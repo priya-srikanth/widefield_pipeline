@@ -41,6 +41,8 @@ def main() -> int:
     for j, (panel, oset, lab) in enumerate(PAIRS):
         ax = axs[0, j]
         for sfx, ver in (("", "all licks"), ("_inside", "inside pre range")):
+            if il.ITI_SUBSET and not (il.OUT_W / f"recprim_sessions{sfx}.csv").exists():
+                continue                                # subset run without that sensitivity table (10-29)
             S = pd.read_csv(il.OUT_W / f"recprim_sessions{sfx}.csv")
             S = S[S.panel == panel][["label", "animal", "epoch", "day", "marker"]]
             G = S.merge(B[B.set == oset][["label", "offset"]], on="label")
@@ -64,6 +66,8 @@ def main() -> int:
         R = R0 if PO else pd.DataFrame(rows)
         ttl = lab
         for ver in ("all licks", "inside pre range"):
+            if not ((R.panel == lab) & (R.version == ver)).any():
+                continue                                # (subset run without the inside-range table)
             q = R[(R.panel == lab) & (R.version == ver)].iloc[0]
             s_ = f"{ver}: slope {bal_disp(q.slope):+.2f} mm per log2 unit, p {q.p:.2g}"
             ttl += ("\n" + (rf"$\mathbf{{{s_.replace(' ', '~')}}}$" if q.p < 0.05 else s_)

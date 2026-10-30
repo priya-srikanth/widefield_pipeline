@@ -38,12 +38,15 @@ EP = ["acute", "subacute", "chronic"]
 
 
 COLS = ["animal", "epoch", "label", "value"]
+# decoder session tables are read from the subset folder in a subset run (dock, ...: iti_dock_where_preds,
+# iti_lick_order, lick_matched_readout write there); il.OUT otherwise (unchanged)
+RIN = il.OUT_W if il.ITI_SUBSET else il.OUT
 
 
 # --- session-level readers, one per producing table (shared with scripts/iti_lmm_figures.py; one row per session) ---
 def where_r(st: str, target: str = "lateral") -> pd.DataFrame:
     """Decoder r (Allen areas, z-scored features) for lick set `st` (iti / trial) / the animal's pre mean."""
-    d = pd.read_csv(il.OUT / "zscore_check" / il.tagged("where_decoder_z.csv"))
+    d = pd.read_csv(RIN / "zscore_check" / il.tagged("where_decoder_z.csv"))
     g = d[(d.source == "areas") & (d.target == target) & (d.set == st)].copy()
     g["value"] = g.r / g.animal.map(g[g.epoch == "pre"].groupby("animal").r.mean())
     return g[COLS]
@@ -77,7 +80,7 @@ def lick_order(scope: str, st: str, col: str) -> pd.DataFrame:
     """lick_order_sessions<SRC_TAG>.csv (scripts/iti_lick_order.py; split basis = untagged) column `col` for scope (all
     spouts / far contra) x set."""
     import iti_lick_order as lo_
-    lo = pd.read_csv(il.OUT / f"lick_order_sessions{lo_.SRC_TAG}.csv")
+    lo = pd.read_csv(RIN / f"lick_order_sessions{lo_.SRC_TAG}.csv")
     if col not in lo.columns:
         return pd.DataFrame(columns=COLS)
     return lo[(lo.scope == scope) & (lo.set == st)].rename(columns={col: "value"})[COLS]
@@ -97,7 +100,7 @@ def matched(scope: str = "all spouts", cls: str = "all", st: str = "iti", ref: s
     source follows iti_lick_order.SOURCE (env WFIELD_LICK_DECODER)."""
     import iti_lick_order as lo
     tag = ("" if ref == "pooled" else f"_{ref}") + lo.SRC_TAG
-    S = pd.read_csv(il.OUT / f"matched{tag}_sessions.csv")
+    S = pd.read_csv(RIN / f"matched{tag}_sessions.csv")
     S = S[(S.scope == scope) & (S.cls == cls) & (S.set == st)]
     return S.rename(columns={"resid": "value"})[["animal", "epoch", "label", "value"]]
 

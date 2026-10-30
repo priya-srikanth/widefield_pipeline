@@ -55,6 +55,9 @@ BASE_RESP = il.BASE_RESP              # response-SIZE AUCs (14.10, 14.11); PETH 
 ROIS = il.KEY_ROIS
 SPOUT_ROIS = ["ALM_right", "tjM1_right", "SSp-m_right", "cortex"]
 WIDE = "cued_wide"
+# READ root for the derived caches (cued_wide/, bout_prev_pos.csv): OUT_W as before, but il.OUT in a SUBSET run (dock,
+# ...; 10-29), whose OUT_W is the subset's own output folder (the caches are not subset-specific)
+RIN = il.OUT if il.ITI_SUBSET else il.OUT_W
 RESP_W = (0.0, 1.0)                   # response-size AUC window (Priya 10-28 evening: "0-1 s should be default now")
 SPEC = (("resp_auc", "lick response AUC 0..1.0 s\n(dF/F x1e3 * s; baseline -1.0..-0.5 s)"),
         ("resp_auc_n", "lick response AUC 0..1.0 s / animal's pre\n(baseline -1.0..-0.5 s)"),
@@ -157,7 +160,7 @@ def bout_prev_pos(label: str, bout_t: np.ndarray) -> np.ndarray:
     sessions spent ~80 min each on it). Falls back to the rebuild."""
     global _PC
     if _PC is None:
-        f = il.OUT_W / PREV_CACHE
+        f = RIN / PREV_CACHE
         _PC = {x: dict(zip(g.bout_t.to_numpy(float), g.prev_pos.fillna("").astype(str)))
                for x, g in pd.read_csv(f, float_precision="round_trip").groupby("label")} if f.exists() else {}
     if label in _PC:
@@ -213,7 +216,7 @@ def _bout_prev_pos_raw(label: str, bout_t: np.ndarray) -> np.ndarray:
 def _sessions() -> dict:
     D = {}
     for x in il.labels():
-        f = il.OUT_W / WIDE / f"{x}.npz"
+        f = RIN / WIDE / f"{x}.npz"
         if not f.exists():
             raise SystemExit(f"missing {f}: run --extract first")
         z = np.load(f)
@@ -221,6 +224,8 @@ def _sessions() -> dict:
             raise SystemExit(f"{f} predates the ITI arrays: re-run --extract")
         d = il._load(x)
         keep = z["iti_gap"] >= il.GAP_MAIN
+        if il.ITI_SUBSET:                               # docked-spout etc. subset of the bout starts (10-29)
+            keep &= il.bout_subset_keep(x, d["bout_t"])
         ipos = bout_prev_pos(x, np.asarray(d["bout_t"], float))
         D[x] = {"lick": z["lick"].astype(float), "cue": z["cue"].astype(float), "pos": z["pos"],
                 "iti": z["iti"].astype(float)[keep], "iti_pos": ipos[keep], "cols": list(z["cols"]),

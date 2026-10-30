@@ -30,6 +30,7 @@ from wfield_local import analysis_kit as ak  # noqa: E402
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EPS = ["pre", "acute", "subacute", "chronic"]
 
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 
 def epoch_compute(df: pd.DataFrame, val: str) -> dict:
     """Everything one epoch panel draws (session dots with their jitter, animal lines, mean of animals, pre SEM, the
@@ -112,7 +113,7 @@ def grid_draw(F: dict) -> None:
     axs[0, 0].legend(fontsize=7, frameon=False)
     fig.suptitle(F["suptitle"], fontsize=9.5)
     _fit(fig)
-    fig.savefig(il.OUT / "figures" / f"{F['name']}.png", dpi=100)
+    fig.savefig(WOUT / "figures" / f"{F['name']}.png", dpi=100)
     plt.close(fig)
 
 
@@ -222,7 +223,7 @@ def course_draw(F: dict) -> None:
             ax.spines[s_].set_visible(False)
     fig.suptitle(F["suptitle"], fontsize=9.5)
     _fit(fig)
-    fig.savefig(il.OUT / "figures" / f"{F['name']}.png", dpi=95)
+    fig.savefig(WOUT / "figures" / f"{F['name']}.png", dpi=95)
     plt.close(fig)
 
 
@@ -408,7 +409,7 @@ def hist_draw(F: dict) -> None:
     fig.legend(handles=[Line2D([], [], color=EPOCH_LINE[e], lw=2, label=e) for e in EPS], loc="upper left", ncol=4,
                fontsize=9, frameon=False)
     _fit(fig)
-    fig.savefig(il.OUT / "figures" / f"{F['name']}.png", dpi=95)
+    fig.savefig(WOUT / "figures" / f"{F['name']}.png", dpi=95)
     plt.close(fig)
 
 
@@ -444,6 +445,20 @@ def draw(F: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     {"grid": grid_draw, "course": course_draw, "hist": hist_draw}[F["kind"]](F)
+
+
+def compute_subset():
+    """ITI subset run (il.ITI_SUBSET, e.g. docked-spout licks): only the two ITI error figures (per-lick histograms and
+    the per-session shift / width), from the subset's where cache (il.pred_file -> iti_dock_where_preds.py copy)."""
+    yield error_hist(("iti",), "lick_iti_check_error_per_lick")
+    p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
+    p["err"] = p.dec_lat - p.act_lat
+    E = (p[p.set == "iti"].dropna(subset=["err"]).groupby(["set", "animal", "epoch", "label"]).err
+         .agg(shift="mean", width="std", n="size").reset_index())
+    E = E[E.n >= 20]
+    yield course([("ITI lat SHIFT (mean error, mm; + = contra)", E, "shift"), ("ITI lat WIDTH (SD of error, mm)", E, "width")],
+                 "NEURAL: per-session summary of the per-lick error histograms (ITI licks, lateral, z-scored decoder).",
+                 "lick_iti_check_error", {"shift": 0})
 
 
 def compute_all():
@@ -496,6 +511,12 @@ def main() -> int:
         for stem in STEMS:
             draw(load_fd(stem))
         print(f"redrew {len(STEMS)} figures from {il.OUT / 'figdata'}")
+        return 0
+    if il.ITI_SUBSET:
+        (WOUT / "figures").mkdir(parents=True, exist_ok=True)
+        for F in compute_subset():
+            save_fd(F["name"], F)
+            draw(F)
         return 0
     for F in compute_all():
         save_fd(F["name"], F)

@@ -30,7 +30,7 @@ SETS = {"trial": "CUED (by target spout)", "iti": "ITI (by previous trial's spou
 
 
 def compute() -> dict:
-    P = pd.read_csv(lo.preds_path(), usecols=["set", "animal", "label", "epoch", "pos", "act", "dec"])
+    P = il.subset_preds(pd.read_csv(lo.preds_path(), usecols=["set", "animal", "label", "epoch", "pos", "act", "dec"]))
     P = P[P.pos.isin(lo.POS)]
     S = P.groupby(["set", "animal", "label", "epoch", "pos"]).agg(act=("act", "mean"), dec=("dec", "mean"),
                                                                   n=("act", "size")).reset_index()

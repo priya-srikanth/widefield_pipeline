@@ -231,13 +231,17 @@ def plot(T: pd.DataFrame, Q: pd.DataFrame, MAIN=MAIN, name="balblind_offset", ti
 def main() -> int:
     pd.set_option("display.width", 240)
     fp = il.OUT_W / "balblind_preds.csv.gz"
-    if fp.exists() and "--rerun" not in sys.argv:
+    if il.ITI_SUBSET:                # subset run (dock, ...; 10-29): the cached refits of the full set, ITI rows subset
+        P = pd.read_csv(fp if fp.exists() else il.OUT / "balblind_preds.csv.gz")
+        P = pd.concat([il.subset_preds(g.reset_index(drop=True), v) for v, g in P.groupby("variant", sort=False)],
+                      ignore_index=True)
+    elif fp.exists() and "--rerun" not in sys.argv:
         P = pd.read_csv(fp)
     else:
         P = predictions()
         P.to_csv(fp, index=False)
     # the orig variant must reproduce the cached KEY-row predictions exactly
-    C = pd.read_csv(lo.preds_path())
+    C = il.subset_preds(pd.read_csv(lo.preds_path()))
     O = P[P.variant == "orig"].reset_index(drop=True)
     same = len(C) == len(O) and np.allclose(C.dec.to_numpy(), O.dec.to_numpy(), atol=1e-8)
     print(f"orig vs cached {lo.preds_path().name}: n {len(O)} / {len(C)}, identical decoded: {same}"

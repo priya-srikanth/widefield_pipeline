@@ -130,8 +130,9 @@ def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
                  "ITI licks by the previous trial's spout (fixed before the lick).\nLike-for-like offset = decoded minus "
                  f"the animal's pre licks that landed at the same place ({lfl.REF_LAB}).", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(il.OUT / "figures" / f"lick_where_per_spout{tag}.png", dpi=95)
+    fig.savefig(WOUT / "figures" / f"lick_where_per_spout{tag}.png", dpi=95)
     plt.close(fig)
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 
 
 def main() -> int:
@@ -154,10 +155,10 @@ def main() -> int:
           .reindex(POS, level=2).round(2).to_string())
     sig = T[(T.lo > 0) | (T.hi < 0)]
     print("\n== cells whose CI excludes 0\n" + sig.round(3).to_string(index=False))
-    P.to_csv(il.OUT / f"per_spout{tag}_by_animal.csv", index=False)
-    T.to_csv(il.OUT / f"per_spout{tag}_tests.csv", index=False)
+    P.to_csv(WOUT / f"per_spout{tag}_by_animal.csv", index=False)
+    T.to_csv(WOUT / f"per_spout{tag}_tests.csv", index=False)
     S = session_changes(s)
-    S.to_csv(il.OUT / f"per_spout{tag}_by_session.csv", index=False)
+    S.to_csv(WOUT / f"per_spout{tag}_by_session.csv", index=False)
     save_fd(f"lick_where_per_spout{tag}", dict(T=T, S=S, tag=tag))
     plot(T, S, tag)
     return 0

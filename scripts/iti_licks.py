@@ -76,6 +76,52 @@ def iti_subset_keep(df: pd.DataFrame) -> np.ndarray:
     iti = (df["set"] == "iti").to_numpy()
     flag = _DOCK_AUDIT.reindex(pd.MultiIndex.from_arrays([df["label"], k])).fillna(False).to_numpy(bool)
     return ~iti | flag
+
+
+_BOUT_AUDIT = None
+BOUT_TOL_S = 0.003      # a stored bout start (session file bout_t = DAQ onset) matches an audited lick onset within 3 ms
+
+
+def bout_subset_keep(label: str, bout_t: np.ndarray) -> np.ndarray:
+    """Boolean per stored ITI BOUT START (session file bout_t, lick onset on the DAQ clock) for ITI_SUBSET: True when it
+    matches (within BOUT_TOL_S) an onset of iti_dock_audit.csv that carries the flag; bout starts the audit does not hold
+    (no 3-D lick in the decoder cache; ~1 % of bout starts) are dropped. All True when no subset filter is active."""
+    bout_t = np.asarray(bout_t, float)
+    if not ITI_SUBSET:
+        return np.ones(len(bout_t), bool)
+    global _BOUT_AUDIT
+    if _BOUT_AUDIT is None:
+        A = pd.read_csv(OUT / "iti_dock_audit.csv", usecols=["label", "onset", ITI_SUBSET]).dropna(subset=["onset"])
+        _BOUT_AUDIT = {x: (g.sort_values("onset").onset.to_numpy(float), g.sort_values("onset")[ITI_SUBSET].to_numpy(bool))
+                       for x, g in A.groupby("label")}
+    if label not in _BOUT_AUDIT or not len(bout_t):
+        return np.zeros(len(bout_t), bool)
+    on, fl = _BOUT_AUDIT[label]
+    j = np.clip(np.searchsorted(on, bout_t), 1, max(len(on) - 1, 1)) if len(on) > 1 else np.zeros(len(bout_t), int)
+    jl = np.maximum(j - 1, 0)
+    near = np.where(np.abs(on[j] - bout_t) <= np.abs(on[jl] - bout_t), j, jl)
+    return (np.abs(on[near] - bout_t) <= BOUT_TOL_S) & fl[near]
+
+
+def subset_bouts(d: dict, label: str) -> dict:
+    """A session dict (`_load`) whose bout starts outside ITI_SUBSET get bout_gap = -inf, so every `bout_gap >= gap`
+    gate drops them (same object when no subset filter is active)."""
+    if not ITI_SUBSET or "bout_t" not in d:
+        return d
+    d = dict(d)
+    d["bout_gap"] = np.where(bout_subset_keep(label, d["bout_t"]), np.asarray(d["bout_gap"], float), -np.inf)
+    return d
+
+
+def subset_preds(P: pd.DataFrame, what: str = "") -> pd.DataFrame:
+    """The frozen per-lick prediction cache (lick_order_preds, cache order) with ITI_SUBSET applied; P unchanged (same
+    object) when no subset filter is active. Apply BEFORE any other row filter (k = cumcount in cache order)."""
+    if not ITI_SUBSET:
+        return P
+    keep = iti_subset_keep(P)
+    print(f"ITI subset filter {ITI_SUBSET}{' (' + what + ')' if what else ''}: keeping "
+          f"{int(keep[(P.set == 'iti').to_numpy()].sum())} of {int((P.set == 'iti').sum())} ITI licks", flush=True)
+    return P[keep].reset_index(drop=True)
 # ROI VERSION (Priya 10-27, after lick_roi_check / lick_roi_foci and the MOp decile profile: the pre-map hot spot in MOp
 # runs past 40 %; literature check vs Guo 2014 / Mayrhofer 2019 / Esmaeili 2021 + lick_roi_candidates.png; Priya chose
 # ALM unchanged, tjM1 50 % -- ALM 45 % starts to take in whisker M2): v1 = ALM / tjM1 = anterolateral 40 % (session
@@ -581,6 +627,10 @@ def tagged(name: str, tag: str | None = None) -> str:
 def pred_file(rel: str) -> Path:
     """Per-lick prediction cache under OUT (relative path), named by basis + ROI version (PRED_TAG)."""
     p = Path(rel)
+    if ITI_SUBSET:                  # subset run: the filtered copy (iti_dock_where_preds.py) when it exists
+        q = OUT_W / p.parent / tagged(p.name, PRED_TAG)
+        if q.exists():
+            return q
     return OUT / p.parent / tagged(p.name, PRED_TAG)
 
 

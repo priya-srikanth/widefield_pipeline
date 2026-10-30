@@ -114,6 +114,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - STOPPED TRIALS (page v249, Fig 14.21 S11 #s14-21-11; figures M:/.../iti_licks/stopped_traces/figures/): no cue response, flat raised level; 3 animals per epoch; jaw-onset transient global; contra tjM1 / SSp-m pre-cue rise over recovery within animals (contra-specific? follow-up running).
 
 ## 6. Log
+- 10-29 late: docked ITI swapped into 39 main figure images (page v270); DIFFERENT ones kept all-ITI with notes. RESTnl level family swapped (v269). Pre-lick re-run (v268). Simplified pixel / tuning / interhemi / correction (v267).
 - 10-29 late: Priya: docked = primary ITI (helper: docked versions of main ITI figures + verdicts); no-lick rest (RESTnl) for level results (helper re-rendering 14.21 family); ACAd 12.17 S2 off page; pixel-map epochs / tuning dots / interhemi simple / correction relabel helper; combined like-for-like figure on page (v264). Code-change wording: discuss evidence.
 - 10-29 late: restw check reported -> Fig 14.21 S14 (v262); Priya: too many figures -> 39 secondary + 3 crowded-bar figures cut from page (docs/CUT_FIGURES.md); crowded-bar scan of the whole page running.
 - 10-29 evening: ENLv curves + gain, figure clean-up -> page v258; pre-lick window helper started.

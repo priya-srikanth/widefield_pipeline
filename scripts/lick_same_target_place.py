@@ -55,7 +55,7 @@ VLAB = {"any_all": "1. vs pre licks of ANY spout, same place\n(all licks = publi
 
 
 def per_lick(animals: list[str] | None) -> tuple[pd.DataFrame, dict]:
-    P = pd.read_csv(lo.preds_path())
+    P = il.subset_preds(pd.read_csv(lo.preds_path()))
     if animals:
         P = P[P.animal.isin(animals)]
     P = P[np.isfinite(P[["act", "dec"]].to_numpy(float)).all(1)].reset_index(drop=True)

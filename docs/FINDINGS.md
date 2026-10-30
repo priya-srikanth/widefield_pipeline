@@ -832,6 +832,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   session mean (4/4), removed by restw; F0 not the cause chronically; non-orofacial (bfd, VISp, MOs_rest ipsi) dip is a
   real pre-cue decrease. CAVEAT for Fig 14.21: the chronic contra ALM / tjM1 pre-cue rise is relative to rest, not absolute
   (dF/F is session-mean centred). PROVISIONAL.
+- DOCKED-SPOUT ITI = PRIMARY ITI SET 10-29 (Priya): 39 main ITI figure images swapped to docked versions (itidock_main/,
+  scripts/iti_dock_page_figures.py, iti_dock_where_preds.py; default-off WFIELD_ITI_FILTER hooks in 14 scripts). SAME on docked:
+  like-for-like offset (+0.31/+0.21/+0.28), same-target offset, per-lick error shift, balance-blind decoders, lick order,
+  lateral r loss (larger), offset-vs-aim detrended (-0.38, 4/4). WEAKER-SAME: curves, per-spout, decomposition, response
+  increase (subacute lost), LMMs. NOT on docked (kept all-ITI with a caption note): ITI hemispheric balance + recovery
+  tracking (14.18), balance-offset link (12.19), bout-start balance (14.14), SSp-n-term ITI tracking (12.17, 2/4),
+  per-animal offset-vs-aim slopes (16.5), chronic build-up decrease (14.22). PROVISIONAL.
 - RESTnl BASELINE ADOPTED 10-29 (Priya): level family (Fig 14.21, S1, S2, S11-S13) re-rendered on the lick-free rest + current
   engaged gate (scripts/restnl.py, --rest-variant restnl in 7 scripts; *_restnl outputs; restw kept as sensitivity). Chronic
   pre-cue rise larger and 4/4 in all key areas, both hemispheres (contra tjM1 +5.2, SSp-m +4.8, SSp-n +3.2, ALM +2.9; ipsi tjM1

@@ -39,6 +39,7 @@ import iti_recovery_measure as rm  # noqa: E402
 
 from wfield_local import mixed_models as mx  # noqa: E402
 
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 SET = {"iti": "ITI licks", "trial": "cued licks"}
 MM = "mm, + = contralesional"
 RATIO = "/ animal's pre mean, 1 = pre"
@@ -153,16 +154,16 @@ def run_group(name: str, dfc: dict) -> pd.DataFrame:
     T["title"] = T.measure.map(lambda m: titles[m].replace("\n", " "))
     pd.set_option("display.width", 240)
     print(mx.summary_table(T, ["measure"]).to_string())
-    od = il.OUT / "lmm_figures"
+    od = WOUT / "lmm_figures"
     od.mkdir(parents=True, exist_ok=True)
     T.to_csv(od / f"lmm_{name}{lo_tag()}.csv", index=False)
     panels = [(titles[m], {"measure": m}) for m in titles]
     for model in models:
         if model == "epoch":                    # supplementary per-epoch view of the same mixed model
-            mx.plot_epoch(L, T, panels, il.OUT / "figures" / f"lmm_epoch_{name}{lo_tag()}.png", title=title,
+            mx.plot_epoch(L, T, panels, WOUT / "figures" / f"lmm_epoch_{name}{lo_tag()}.png", title=title,
                           ylabel="session value (units in panel title)", ncols=ncols)
             continue
-        mx.plot_fits(L, T, panels, model, il.OUT / "figures" / f"lmm_{model}_{name}{lo_tag()}.png", title=title,
+        mx.plot_fits(L, T, panels, model, WOUT / "figures" / f"lmm_{model}_{name}{lo_tag()}.png", title=title,
                      ylabel="session value (units in panel title)", ncols=ncols, xlabel=XLAB[DEFICIT])
     return T
 
