@@ -201,6 +201,23 @@ Cohort 1 cannot answer these by imaging alone; cohort 2 can if decided before th
   - first pre-stroke, then in the chronic phase, scored on launch angle, corrections and hit rate;
   - if the chronic deficit returns only with cortex silenced, cortex carries the compensation;
   - Thy1-GCaMP6s and RiboL1 lines do not carry ChR2; pharmacology or a viral approach would be needed.
+- **Perturbation logic (Priya 10-30): any node perturbed has an effect on its own, so the test must be an effect that
+  is UNIQUELY post-stroke.**
+  - Use DIRECTION, not magnitude. Pre-stroke, right (contralesional) ALM / tjM1 inhibition should impair LEFTWARD
+    (contraversive) licks. "Contralesional takeover" predicts that after recovery it ALSO impairs RIGHTWARD
+    (far-contra) licks. That is a new, opposite-direction effect absent pre-stroke (difference-in-differences:
+    direction x epoch).
+  - Activation (Priya): on its own, right-cortex activation should push licks ipsilesionally (more deviation). If
+    instead it improves far-contra aim post-stroke, or speeds recovery, that is uniquely post-stroke and favours the
+    takeover routes. Literature tension: in cortical stroke, chronic contralesional homotopic excitation SUPPRESSED
+    repair and recovery (Bice 2022 eLife), so a benefit here would be a subcortical-stroke-specific result.
+  - Within-animal designs suit n = 4. (a) Acute probe trials, perturbation on / off interleaved, pre vs post, scored on
+    launch angle by spout. (b) Chemogenetics (hM3Dq / hM4Di, DCZ vs vehicle on alternate days, pre and chronic):
+    whole-session, no light. A recovery-RATE test (repeated activation in the subacute window) needs a sham group,
+    and 2 vs 2 would be descriptive only.
+  - Practical: 470 nm widefield excitation activates ChR2, and red-shifted opsins are also partly blue-sensitive, so
+    optogenetic sessions would be unimaged, or the probe chemogenetic. Viral expression needs ~3 weeks before the
+    stroke, which constrains the cohort-2 timeline.
 - **Histology for the subcortical account:** TH in SNc / striatum, VM / VAL thalamus and lateral SC gliosis or neuron
   loss, lesion extent mapped to the corticostriatal input zone; also on cohort 1 if tissue allows.
 - **Pre-registration:** carry the cohort-1 claims (balance tracks recovery; larger lick responses; partial remapping;
