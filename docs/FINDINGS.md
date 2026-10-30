@@ -714,6 +714,38 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   The global-controlled 'all pairs' mean is ~constant by construction (not a readout). Recovery: 15 / 120 within-animal
   tests p < 0.05 (~6 expected), 4 also 4/4; rest orofacial coupling vs far-contra aim r -0.49 4/4 (more coupling with
   worse aim) is the only rest hit with all animals agreeing -> hint only. PROVISIONAL (n = 4).
+- **LICK VIGOUR CONTROL OF THE LICK-STATE COUPLING RISE (10-30; scripts/coupling_vigour_sm.py -> iti_licks/coupling_vigour/):**
+  same events / code as cross_area, residual design + per-event movement (3-D reach, peak speed, lick duration, cam4
+  protrusion, lick count +-0.5 / +-1 s, FaceRhythm 5 factors; cued also trial jaw |deflection| and 3-D landing error);
+  'old' design reproduces xa_sessions exactly; control = same covariates row-permuted (same sessions; PS95 ITI-dock pre
+  has only 2 sessions with enough events for the movement design). Coverage: every event matched to licks_all / 3-D
+  reach; speed 90-99 %, FR ~100 %, jaw 91-100 % (cued); ITI licks have no jaw or landing error. Movement explains ~27 %
+  (cued) / ~33 % (ITI dock) of the orofacial-pool window-mean variance pre (permuted ~3-4 %). RESULT (raw, slow, change vs
+  pre, acute / sub / chronic): CUED orofacial network SURVIVES: +0.17 / +0.09 / +0.19 permuted -> +0.13 / +0.08 / +0.19
+  movement (4/4, 3/4, 4/4); ITI DOCKED absolute rise mostly ABSORBED: +0.25 / +0.22 / +0.25 (4/4) -> +0.05 / +0.10 / +0.17
+  (2/4, 4/4, 3/4; CIs include 0). Orofacial-minus-other-areas survives in both (ITI dock +0.30 / +0.20 / +0.29, cued
+  +0.20 / +0.17 / +0.25, 3-4/4) because movement also lowers the other areas' covariance. Global-controlled: unchanged
+  (nothing in ITI dock either way; cued acute oro +0.08 4/4 only with movement). MOVEMENT VARIABILITY does NOT rise:
+  within-spout SDs of reach, duration, protrusion, lick count FALL post (cued 4/4 for duration all epochs), only jaw
+  (cued acute +20 % of pre SD, 4/4) and peak speed (subacute +11 %, 4/4) rise. What rises in the ITI is the COUPLING of
+  orofacial cortex to movement (R2 of movement on the oro pool +0.27 acute 4/4, +0.12 subacute 4/4, +0.06 chronic). =>
+  The cued-lick orofacial coupling rise is not a vigour artefact; the ITI-docked one is largely shared movement-linked
+  variance (movement-to-cortex coupling is stronger after the stroke, not movement more variable). Linear covariates
+  only; FR in the ITI is 5 Hz; jaw is per trial. PROVISIONAL (n = 4).
+- **SENSORY -> MOTOR COUPLING KINETICS (10-30, Priya "sensory-motor coupling kinetics, inter or intrahemispheric";
+  scripts/coupling_vigour_sm.py -> iti_licks/sensorimotor_kinetics/):** S = SSp-n / SSp-m / SSs / SSp-ul, M = tjM1 / ALM /
+  MOp_rest / MOs_rest; groups Sc->Mc, Si->Mi, Sc->Mi, Si->Mc (16 pairs each); residuals (lick sets movement-partialled),
+  deconvolved tau 0.6, xcorr asymmetry (+ = S earlier) and Granger S->M minus M->S. PRE: Granger S->M > M->S in every
+  group / state (+0.01-0.02 cued, +0.03-0.07 ITI dock, +0.04-0.08 rest); xcorr ~symmetric. POST: the S-earlier side
+  WEAKENS in all four groups and all three states, from acute on: asymmetry -0.02 to -0.07 (mostly 4/4 every epoch;
+  cued subacute / chronic Si->Mc -0.047 / -0.044 4/4), Granger direction -0.02 to -0.07 in ITI dock and rest (3-4/4;
+  cued small, mostly ns) -- carried by LOWER S->M gain (rest -0.03 to -0.05, M->S unchanged). Intra = inter (difference
+  ~0); hemisphere contrast: only Granger at rest / ITI-dock chronic, where ipsilesional Si->Mi loses MORE than Sc->Mc
+  (+0.02, 4/4) -- hint. GLOBAL SIGNAL REMOVED: asymmetry change survives acute / subacute (4/4), fades chronic; the
+  Granger loss VANISHES (rest ~0; cued even +0.01) -> the Granger change rides on the global mode that rises at rest.
+  Same with the published (non-movement) design. READING: post-stroke a sensory-led component of S-M covariation is
+  reduced everywhere, bilaterally and at rest -> state-wide, not lick- or lesion-side-specific; GCaMP6s and any change
+  in relative S vs M signal / kinetics can shift these shape metrics, so this is SHAPE, not lag. PROVISIONAL (n = 4).
 - **DOCKED-SPOUT ITI LICKS (10-29, Priya: ITI offset results should use docked-spout licks; iti_dock_audit.py,
   lick_iti_dock_compare.py, page 14.18 supp):** docked (dock -> next trial_start) = 35 % of ITI licks. HOLD: same-place
   offset +0.30 / +0.22 / +0.29 mm, matched-error offset +0.22 / +0.18 / +0.22, SSp-n L/R term +0.26 / +0.23 / +0.20
