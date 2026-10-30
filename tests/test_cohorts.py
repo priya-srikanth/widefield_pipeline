@@ -78,3 +78,16 @@ def test_no_reference_yet_skips_cross_registration(cohort):
     cohort("cohort2")
     params = config.defaults()["preprocess"]
     assert preprocess.reference_for("PS118", params, PathResolver(machine="analysis")) is None
+
+
+def test_await_locanmf_registers_into_the_active_cohorts_file(cohort):
+    import yaml
+    from wfield_local import await_locanmf as aw
+    cohort("cohort2")
+    path = aw._sessions_yaml()
+    assert path.as_posix().endswith("configs/cohort2/sessions.yaml")
+    text = aw.insert_session_entry(path.read_text(encoding="utf-8"), "PS118", "1029",
+                                   "20261029/PS118_20261029_120000/motion_corrected",
+                                   "20261029/PS118_20261029_120001.h5", "B", None)
+    raw = yaml.safe_load(text)["sessions"]
+    assert set(raw["PS118"]) == {"1029"} and raw["PS120"] is None    # bare headers stay valid

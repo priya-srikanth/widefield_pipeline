@@ -54,6 +54,9 @@ def _load(name):
     return _load_file(name)
 
 
+_load.cache_clear = _load_file.cache_clear   # callers (await_locanmf) re-read sessions.yaml after registering
+
+
 # --------------------------------------------------------------------------- cohorts (configs/cohorts.yaml)
 def cohort() -> str:
     """The ACTIVE cohort's name (``WIDEFIELD_COHORT``, else cohorts.yaml `default` = cohort1).

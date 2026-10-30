@@ -49,6 +49,9 @@ def _sessions_yaml() -> Path:
     return REPO / "configs" / config._paths.cohort_spec()["sessions_file"]
 
 
+SESSIONS_YAML = REPO / "configs" / "sessions.yaml"   # cohort1's file, kept for readers; registration uses _sessions_yaml()
+
+
 def _stamp() -> str:
     return time.strftime("%H:%M:%S")
 
