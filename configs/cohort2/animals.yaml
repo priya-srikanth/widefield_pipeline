@@ -10,11 +10,12 @@
 # Sex: PS118, PS120 male; PS121, PS122 female.
 #
 # STILL TO FILL IN (each null is a fact nobody has entered, not a default):
-#   reference_date      the session each animal's other sessions are cross-registered to (cohort1 used 6/6).
-#                       null -> preprocessing SKIPS cross-registration (motion / SVD / push still run) and says
-#                       so; once Priya has clicked dorsal_cortex_landmarks_<reference_landmarks>.json on the
-#                       chosen session, set both and re-run `python -m wfield_local.preprocess <dates>`
-#                       (motion and SVD are skipped as already done; cross-registration then runs).
+#   reference_date      OVERRIDE of the cohort's master alignment session (configs/cohorts.yaml cohort2
+#   reference_landmarks reference_date / reference_landmarks) for this animal only; null = use the cohort's.
+#                       Until a reference is set AND its landmarks are clicked, preprocessing SKIPS
+#                       cross-registration (motion / SVD / push still run) and says what is missing; then re-run
+#                       `python -m wfield_local.preprocess <dates>` (motion and SVD are skipped as done).
+#                       `python -m wfield_local.alignment_reference` shows the state per animal.
 #   stroke_date         YYYYMMDD of the VLS lesion, once induced. null = every session is pre-stroke.
 #   epochs              seed boundaries, filled after the lesion (see animals.yaml cohort1 header).
 
@@ -28,7 +29,7 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"          # planned (same as cohort1); confirm
-    reference_date: null
+    reference_date: null          # null = the cohort's master alignment session
     reference_landmarks: null
     exclude: []
 
@@ -41,7 +42,7 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null
+    reference_date: null          # null = the cohort's master alignment session
     reference_landmarks: null
     exclude: []
 
@@ -54,7 +55,7 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null
+    reference_date: null          # null = the cohort's master alignment session
     reference_landmarks: null
     exclude: []
 
@@ -71,7 +72,7 @@ animals:
     characteristics: {camera_roi_height_2026_10_29: 509}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null
+    reference_date: null          # null = the cohort's master alignment session
     reference_landmarks: null
     exclude: []
 

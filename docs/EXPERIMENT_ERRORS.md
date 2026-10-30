@@ -22,15 +22,15 @@ is held fixed from PS122 2026-10-29 onward for every animal (Priya, 2026-10-29).
 Per-session preprocessing reads the dims from the file name, so motion / SVD / maps run. Anything that
 assumes one frame size per animal does not: cross-day registration, cross-session pixel maps, joint bases.
 
-**What we do.** (1) Do NOT use a 10-29 session as the cross-registration REFERENCE for PS118 / PS120 / PS121.
-Pick a later, large-ROI session (`reference_date` in `configs/cohort2/animals.yaml`). (2) The small-ROI
-sessions are registered into the reference frame like any other session; check that their registration QC
-(`xday/<animal>_<mmdd>`) covers the cortex, and that the cropped edge is masked, before pooling them.
-(3) If they cannot be registered cleanly, exclude 10-29 for those three animals from POOLED sets via
-`exclude` in `configs/cohort2/animals.yaml`, keeping their per-session figures.
+**What we do.** (1) Do NOT use a 10-29 session as the master alignment session (`reference_date` in
+`configs/cohorts.yaml`). (2) `cross_day_align` now PLACES a different-ROI frame at its offset at native scale
+instead of stretching it (2026-10-29; it keeps the old stretch only if that matches better), and records which
+reference pixels it covered (`roi_coverage_atlas.npy`). The same fix applies to cohort1's 06-01 to 06-03
+frames, which were stretched before; they are outside every pooled set. (3) Check the 10-29 registration QC
+(`xday/<animal>_1029`). If a session does not register cleanly, exclude it from POOLED sets with
+`exclude: ["1029"]` for that animal in `configs/cohort2/animals.yaml`.
 
-**Still open.** Measure the two ROIs (H x W and offset) from the raw headers once the data are uploaded, and
-write them here.
+**Still open.** Write the two frame sizes here once the data are uploaded (`alignment_reference --sessions` lists them).
 
 ## 2026-10-29 [cohort2] — bottom behaviour camera (cam1) nudged between PS118 / PS120 / PS121 and PS122
 

@@ -219,7 +219,7 @@ def _behaviour_records():
     for an in config.animals():
         pre, by_day = [], {}
         for mmdd, day in _sessions(an):
-            d = root / an / f"2026{mmdd}"
+            d = root / an / config.date8(mmdd)
             files = sorted(d.glob("*_trials.csv")) if d.exists() else []
             if not files:
                 continue

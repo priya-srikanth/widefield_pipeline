@@ -301,7 +301,7 @@ def main(argv=None) -> int:
     items = []
     for s in ak.curated_sessions(order="sorted"):
         an = config.animal_of(s["label"])
-        date = "2026" + s["label"].split("_")[-1]
+        date = config.date8(s["label"].split("_")[-1])
         sd = oo.session_dir(rv, a.run, an, date)
         ep = epochs.epoch_of(s["label"])
         if a.baseline == "late" and ep == "pre" and date[4:8] < oc.LATE_PRE_FROM:

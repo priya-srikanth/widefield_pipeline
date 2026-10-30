@@ -113,7 +113,7 @@ def fit_mask(s, n_frames, csmp, cue, pre_s=TRIAL_PRE_S, post_s=TRIAL_POST_S,
     from wfield_local import behavior_events, config
 
     animal, mmdd = s["label"].split("_")
-    ev = behavior_events.get_or_compute(config.resolver(), animal, f"2026{mmdd}")
+    ev = behavior_events.get_or_compute(config.resolver(), animal, config.date8(mmdd))
     mask = np.ones(n_frames, bool)
 
     # 1. drop every trial window: strobe - pre_s  ->  cue + post_s

@@ -1039,7 +1039,7 @@ def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    animal, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    animal, date = config.animal_of(label), config.date8(label.split("_")[-1])
     imaging = load_imaging(label)
     out = {"label": label, "imaging": imaging, "behaviour": load_behaviour(animal, date, rv),
            "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label), "video": None, "fr": None}
@@ -1085,7 +1085,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     """``inputs`` (from `session_inputs`) = run without touching the share (O2); None = load everything here."""
     from wfield_local import config
     animal = config.animal_of(label)
-    date = "2026" + label.split("_")[-1]
+    date = config.date8(label.split("_")[-1])
     rng = np.random.default_rng(seed)
     if inputs is None:
         from wfield_local import epochs
@@ -1773,7 +1773,7 @@ def sessions_available() -> list[str]:
     out = []
     for s in ak.curated_sessions(order="sorted"):
         a = config.animal_of(s["label"])
-        date = "2026" + s["label"].split("_")[-1]
+        date = config.date8(s["label"].split("_")[-1])
         if (oo.session_dir(rv, _run(), a, date) / "manifest.json").exists() and s.get("regime") == "B":
             out.append(s["label"])
     return out
@@ -1820,7 +1820,7 @@ def main(argv=None) -> int:
 
         def _has(x):
             an = _cfg.animal_of(x)
-            d = session_dir(rv_, f"{an}:2026{x.split('_')[-1]}:full")[2]
+            d = session_dir(rv_, f"{an}:{_cfg.date8(x)}:full")[2]
             return all((d / f"video_motion_{c}.npz").exists() for c in a.video.split(","))
         labels = [x for x in labels if _has(x)]
         print(f"video run ({a.video}): {len(labels)} sessions with motion energy")
@@ -1828,7 +1828,7 @@ def main(argv=None) -> int:
         from wfield_local import config as _cfg
         from wfield_local import face_rhythm_outputs as fro
         fd = fro.factor_dir(PathResolver(), set_name=a.fr)
-        labels = [x for x in labels if fro.session_keys(fd, _cfg.animal_of(x), "2026" + x.split("_")[-1])]
+        labels = [x for x in labels if fro.session_keys(fd, _cfg.animal_of(x), _cfg.date8(x.split("_")[-1]))]
         print(f"fr run ({a.fr}): {len(labels)} sessions with FaceRhythm projections")
     if a.skip_done:
         d = out_dir(PathResolver(), a.order) / "sessions"

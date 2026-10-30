@@ -54,7 +54,8 @@ python -m wfield_local.nightly 20261029      # -> "[cohort] active cohort = coho
 
 Motion correction, SVD, the hemo variant, the push to MICROSCOPE, maps and photobleach all run.
 **Cross-registration is SKIPPED** for every cohort2 mouse until it has a reference (below). The log
-says `[xreg] PSxxx: no reference_date chosen yet ... SKIPPED` and the night carries on; that is expected.
+says `[xreg] PSxxx: no master alignment session (reference_date) chosen yet -> cross-registration SKIPPED`
+and the night carries on; that is expected.
 
 **Analysis / behaviour computer, as before:**
 
@@ -81,34 +82,44 @@ unset it or set `cohort1`.
 ## To do before cohort2 can be analysed across sessions
 
 1. ~~Genotype, sex, DOB~~ entered 10-29 (`configs/cohort2/animals.yaml`).
-2. **Reference session per mouse.** Pick one session per animal on the **large, fixed ROI**. For PS118 /
-   PS120 / PS121 that means NOT 10-29 (see below). Click `dorsal_cortex_landmarks_<v>.json` on it, then set
-   `reference_date` (MMDD) and `reference_landmarks` (`<v>`) in `configs/cohort2/animals.yaml`. Then re-run
-   `python -m wfield_local.preprocess <dates>` on the imaging box. Motion and SVD are skipped as already
-   done, and cross-registration runs.
-3. **Variable imaging ROI (Priya 2026-10-29: "will need to be considered when aligning across sessions").**
-   PS118 / PS120 / PS121 on 10-29 used the old, smaller ROI, and PS122 plus every later session use the
-   larger one. `cross_day_align` currently RESIZES (stretches) a frame of a different size onto the
-   reference. That is right for a binning change and **wrong for a different ROI**, which is a crop of a
-   different region. It now prints a WARNING when it does this. Before any 10-29 small-ROI session is
-   registered:
-   * read each session's ROI (size and offset on the sensor) from the raw / camera settings;
-   * change `_register_to_reference_native` and the warp in `run_reference_native` (`wfield_local/cross_day_align.py`) to
-     EMBED the frame at its ROI offset in the reference frame, not resize it, and mask the area outside it;
-   * check each registration QC image (`xday/<animal>_<mmdd>`) before pooling.
-
-   If that is not worth it for one day, exclude 10-29 for those three animals from pooled sets
-   (`exclude: ["1029"]` in `configs/cohort2/animals.yaml`), keeping their per-session figures.
+2. **Master alignment session (the cross-registration reference).** Choose ONE date for the whole cohort,
+   on the large, fixed ROI (not 10-29). Each mouse's own session of that day becomes its reference.
+   * See every session with its frame size:
+     `python -m wfield_local.alignment_reference --cohort cohort2 --sessions`
+   * Set `reference_date: "<MMDD>"` in **`configs/cohorts.yaml`** under cohort2. `reference_landmarks` is
+     already `v1`. A different date for one mouse goes in that mouse's `reference_date` in
+     `configs/cohort2/animals.yaml`.
+   * Click the landmarks. `python -m wfield_local.alignment_reference --cohort cohort2` prints the GUI command
+     per mouse (`python -m wfield_local.allen_register "<.dat>"`). Run it on the imaging box, where the raw .dat
+     is. The GUI reads the frame size from the file name, so any ROI works. Type `v1` in the label box and
+     Save.
+   * Re-run `python -m wfield_local.preprocess <dates>` on the imaging box. It copies the landmark file to
+     MICROSCOPE, builds the reference session's Allen dir (`apply_allen_transform`, which was a manual step for
+     cohort1), and registers every other session. Motion and SVD are skipped as already done.
+     `alignment_reference` then shows `landmarks on MICROSCOPE: yes` and `reference Allen dir: yes`.
+3. **Variable imaging ROI: handled (2026-10-29).** `cross_day_align` used to stretch a frame of a different
+   size onto the reference. Every size mismatch here is a different ROI, not binning: cohort1 06-01 to 06-03,
+   and cohort2 10-29 PS118 / PS120 / PS121. Such a frame is now PLACED at its offset at native scale, using a
+   masked phase correlation plus the usual rotation refine, and the old stretch is kept only where it matches
+   better.
+   * Measured on cohort1: PS94 / PS95 06-03 NCC 0.94 -> 0.99 and 06-01 0.27-0.40 -> 0.48-0.64. PS92 06-02 /
+     06-03 register poorly either way and keep the stretch.
+   * The pixels a smaller ROI did not see are ZERO in its warped U and means, and are recorded as
+     `roi_coverage_atlas.npy` in its Allen dir (plus `*_roi_coverage_in_ccf.npy` in `xday/`). Anything that
+     pools such a session pixel-wise or by area must mask by that file.
+   * Check each registration QC image (`xday/<animal>_<mmdd>`) before pooling.
 4. **cam1 (bottom camera) moved between [PS118, PS120, PS121] and [PS122] on 10-29**, and a new calibration
    video is coming. Do not use a calibration taken after the change for the three earlier sessions. See
    `docs/EXPERIMENT_ERRORS.md`.
 5. **This cohort's noisy / training days** go in `date_policy.cross_session_exclude` in
    `configs/cohort2/animals.yaml`. cohort1's June exclusions deliberately do not carry over.
-6. **Before 2027-01-01: the year.** Sessions are keyed by MMDD, and cohort2's year is taken from its
-   first session (2026). A January 2027 session would sort and compare before October 2026. Phase,
-   curation and stroke cutoffs are all string comparisons on MMDD. Fix this before registering any 2027
-   session, for example by keying cohort2 by YYYYMMDD and making the date helpers width-aware, or by
-   starting a new cohort block at the new year.
+6. **The year: handled (2026-10-29).** Session keys stay MMDD, and the year comes from the cohort's `first`
+   date. For cohort2, 1029-1231 is 2026 and January onward is 2027 (`config.date8`). Phase, curation, stroke
+   cutoffs, session order and every `YYYYMMDD` path built from a label use it.
+   * `load_sessions` checks each registered session against the date in its own folder path, so a cohort that
+     outgrows one year fails loudly.
+   * Remaining caveat: analysis code that sorts labels as plain strings would put January before October.
+     Sort with `config.date_key`.
 
 ## Open question (Priya 2026-10-29): PS121 / PS122 415 "dimmed a TON" — raise 415 LED next time, or usable as is?
 
@@ -175,3 +186,11 @@ Reasoning:
   in ~130 places.
 * `cross_day_align`: a WARNING when a frame is resized onto the reference.
 * `tests/test_cohorts.py` pins all of the above.
+* Later on 10-29 (Priya):
+  * `cross_day_align._register_different_roi`: a different camera ROI is placed at its offset, with coverage masks.
+  * `config.date8` / `date_key`: years come from the cohort's `first` date, and are checked against each session's path.
+  * Hardcoded `"2026" + mmdd` replaced in ~25 sites.
+  * A cohort master alignment session (`cohorts.yaml reference_date`).
+  * Preprocess builds the reference's Allen dir and copies its landmarks to MICROSCOPE.
+  * New `wfield_local/alignment_reference.py`.
+  * New tests in `tests/test_cross_day_roi.py`, plus more cases in `tests/test_cohorts.py`.

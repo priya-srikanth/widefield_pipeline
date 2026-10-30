@@ -676,7 +676,7 @@ def only() -> tuple:
 # ------------------------------------------------------------------ 1. behaviour
 def _position_metrics(animal, mmdd):
     """{position: (hit_rate, ci_lo, ci_hi, n_engaged)} from the behaviour per-session CSV."""
-    root = Path(PathResolver().root("behavior_out")) / "sessions" / animal / f"2026{mmdd}"
+    root = Path(PathResolver().root("behavior_out")) / "sessions" / animal / config.date8(mmdd)
     if not root.exists():
         return {}
     files = sorted(root.glob("*position_metrics.csv"))

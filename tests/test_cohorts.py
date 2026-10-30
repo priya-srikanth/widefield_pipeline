@@ -91,3 +91,51 @@ def test_await_locanmf_registers_into_the_active_cohorts_file(cohort):
                                    "20261029/PS118_20261029_120001.h5", "B", None)
     raw = yaml.safe_load(text)["sessions"]
     assert set(raw["PS118"]) == {"1029"} and raw["PS120"] is None    # bare headers stay valid
+
+
+def test_year_rolls_over_for_cohort2_and_not_for_cohort1(cohort):
+    cohort(None)
+    assert config.date8("0806") == "20260806" and config.date8("PS92_1005") == "20261005"
+    assert [s["label"] for s in config.load_sessions()][:3] == ["PS94_0601", "PS95_0601", "PS92_0602"]   # cohort1 order unchanged
+    cohort("cohort2")
+    assert config.date8("1105") == "20261105"
+    assert config.date8("0105") == "20270105"                                      # January is the NEXT year
+    assert config._to8("0105") == "20270105"
+    assert sorted(["0105", "1103", "1230"], key=config.date_key) == ["1103", "1230", "0105"]
+
+
+def test_session_paths_must_agree_with_the_inferred_year(cohort):
+    cohort("cohort2")
+    with pytest.raises(ValueError, match="dated 20260105"):
+        config._check_year("PS118", "0105", {"mc": "20260105/PS118_20260105_1/motion_corrected"})
+    config._check_year("PS118", "0105", {"mc": "20270105/PS118_20270105_1/motion_corrected"})
+
+
+def test_stroke_phase_is_year_aware(cohort, monkeypatch):
+    cohort("cohort2")
+    a = dict(config.animals())
+    a["PS118"] = dict(a["PS118"], stroke_date=20261215)
+    monkeypatch.setattr(config, "animals", lambda: a)
+    assert config.session_phase("PS118", "1201") == "pre"
+    assert config.session_phase("PS118", "0110") == "post"                        # 2027-01-10 is AFTER 2026-12-15
+
+
+def test_master_alignment_session_applies_to_every_animal_unless_overridden(cohort, monkeypatch):
+    from wfield_local import preprocess
+    cohort("cohort2")
+    spec = dict(paths.cohort_spec(), reference_date="1105", reference_landmarks="v1")
+    monkeypatch.setattr(paths, "cohort_spec", lambda name=None: spec)
+    params = config.defaults()["preprocess"]
+    assert preprocess.reference_spec("PS118", params) == ("1105", "v1", True)
+    a = dict(config.animals()); a["PS121"] = dict(a["PS121"], reference_date="1112")
+    monkeypatch.setattr(config, "animals", lambda: a)
+    assert preprocess.reference_spec("PS121", params)[0] == "1112"          # per-animal override wins
+    assert preprocess.reference_spec("PS118", params)[0] == "1105"
+
+
+def test_cohort1_reference_is_unchanged(cohort):
+    from wfield_local import preprocess
+    cohort(None)
+    params = config.defaults()["preprocess"]
+    assert preprocess.reference_spec("PS94", params) == ("0606", "v1", False)
+    assert preprocess.reference_spec("PS92", params) == ("0606", "v2", False)

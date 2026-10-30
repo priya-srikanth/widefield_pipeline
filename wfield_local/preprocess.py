@@ -299,35 +299,111 @@ def discover_processed_sessions(yyyymmdd: str, rv: PathResolver) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- reference
+def reference_spec(animal: str, params: dict) -> tuple[str | None, str | None, bool]:
+    """(reference MMDD, landmark version, explicit) for an animal.
+
+    ORDER: the animal's own ``reference_date`` / ``reference_landmarks`` (its animals.yaml), else the COHORT'S
+    MASTER alignment session (``reference_date`` / ``reference_landmarks`` in configs/cohorts.yaml -- one date for
+    every animal of the cohort, each animal's own session of that date), else cohort1's default in defaults.yaml.
+    ``explicit`` is True when the cohort or animal declares the keys (cohort2): then a missing value SKIPS
+    cross-registration instead of falling back to cohort1's 6/6.
+    """
+    meta = config.animals().get(animal) or {}
+    coh = config._paths.cohort_spec()
+    explicit = "reference_date" in meta or "reference_date" in coh
+    ref = meta.get("reference_date") or coh.get("reference_date")
+    lm = meta.get("reference_landmarks") or coh.get("reference_landmarks")
+    if not explicit:
+        ref = ref or params["reference_date"]
+    ref = str(ref).zfill(4)[-4:] if ref else None          # accept MMDD or YYYYMMDD
+    return ref, (str(lm) if lm else None), explicit
+
+
+def _reference_reldir(animal: str, ref_date: str, rv: PathResolver) -> str | None:
+    """labcams-relative session dir (``YYYYMMDD/<animal>_YYYYMMDD_hhmmss``) of the reference session.
+
+    From sessions.yaml when registered; otherwise found ON DISK -- a new animal's reference is not registered
+    until its Allen dir exists (await_locanmf waits for U_atlas.npy), and that dir is built FROM the reference,
+    so requiring registration first would deadlock.
+    """
+    entry = (config._load("sessions.yaml")["sessions"].get(animal) or {}).get(ref_date)
+    if entry:
+        return str(entry["mc"]).rsplit("/motion_corrected", 1)[0]
+    d8 = config.date8(ref_date)
+    hits = sorted(Path(rv.root("labcams"), d8).glob(f"{animal}_{d8}_*/motion_corrected/wfield_local_results"))
+    return f"{d8}/{hits[0].parents[1].name}" if hits else None
+
+
+def _fetch_landmarks(ref_reldir: str, name: str, dst: str, rv: PathResolver) -> bool:
+    """Copy landmarks clicked on the LOCAL raw (allen_register saves beside the .dat) onto MICROSCOPE."""
+    if Path(dst).exists():
+        return True
+    for root in ("raw_labcams", "standby_labcams"):
+        try:
+            src = Path(rv.root(root), ref_reldir, "raw_widefield_data", name)
+        except (RuntimeError, FileNotFoundError, KeyError):
+            continue
+        if src.exists():
+            writeguard.assert_writable(dst)
+            Path(dst).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            print(f"[xreg] copied landmarks {src} -> {dst}", flush=True)
+            return True
+    return False
+
+
 def reference_for(animal: str, params: dict, rv: PathResolver) -> tuple[str, str, str] | None:
     """(ref_date, ref_results_dir, ref_landmarks_json) for an animal's cross-reg reference, or None.
 
-    The reference session directory is derived from ``sessions.yaml``'s ``reference_date``
-    (6/6) entry; the landmark version comes from ``animals.yaml reference_landmarks``.
+    Which session: `reference_spec` (animal override, else the cohort's master alignment session, else cohort1's
+    6/6). The landmark file is ``<session>/raw_widefield_data/dorsal_cortex_landmarks_<version>.json`` on
+    MICROSCOPE (copied there from the local raw if that is where it was clicked).
 
-    PER ANIMAL since 2026-10-29: an animal's own ``reference_date`` in animals.yaml wins over the cohort1
-    default in defaults.yaml. A key that is PRESENT and null (cohort2 until Priya picks a large-ROI session
-    and clicks its landmarks) returns None and the caller SKIPS cross-registration, loudly -- a new animal
-    has no reference on its first nights, and that must not abort the night for every other animal.
+    For a cohort that declares its reference (cohort2) anything not in place yet -- no date chosen, session not on
+    MICROSCOPE, landmarks not clicked -- returns None and the caller SKIPS cross-registration, saying exactly what is
+    missing: a new animal has no reference on its first nights, and that must not abort the night for every other
+    animal. Cohort1 keeps its hard failures.
     """
-    meta = config.animals().get(animal) or {}
-    if "reference_date" in meta and not meta["reference_date"]:
-        print(f"[xreg] {animal}: no reference_date chosen yet (animals.yaml) -> cross-registration SKIPPED. "
-              f"Pick a reference session, click its landmarks, set reference_date + reference_landmarks, "
-              f"then re-run preprocess for these dates.", flush=True)
+    ref_date, lm, explicit = reference_spec(animal, params)
+
+    def skip(why):
+        print(f"[xreg] {animal}: {why} -> cross-registration SKIPPED (docs/NEW_COHORT_2026-10-29.md 'reference'; "
+              f"`python -m wfield_local.alignment_reference` shows what is missing).", flush=True)
         return None
-    ref_date = str(meta.get("reference_date") or params["reference_date"])
-    raw = config._load("sessions.yaml")["sessions"]
-    entry = (raw.get(animal) or {}).get(ref_date)
-    if not entry:
+
+    if not ref_date:
+        return skip("no master alignment session (reference_date) chosen yet")
+    ref_reldir = _reference_reldir(animal, ref_date, rv)
+    if not ref_reldir:
+        if explicit:
+            return skip(f"reference session {ref_date} not found on MICROSCOPE")
         raise SystemExit(f"[preprocess] no reference {ref_date} session for {animal} in sessions.yaml")
-    ref_reldir = str(entry["mc"]).rsplit("/motion_corrected", 1)[0]      # "20260606/PS92_..."
-    lm = (config.animals().get(animal) or {}).get("reference_landmarks")
     if not lm:
+        if explicit:
+            return skip("reference_landmarks (the landmark file's version label) not set")
         raise SystemExit(f"[preprocess] no reference_landmarks for {animal} in animals.yaml")
     results = rv.resolve("labcams", f"{ref_reldir}/motion_corrected/wfield_local_results")
-    landmarks = rv.resolve("labcams", f"{ref_reldir}/raw_widefield_data/dorsal_cortex_landmarks_{lm}.json")
+    name = f"dorsal_cortex_landmarks_{lm}.json"
+    landmarks = rv.resolve("labcams", f"{ref_reldir}/raw_widefield_data/{name}")
+    if explicit and not _fetch_landmarks(ref_reldir, name, landmarks, rv):
+        return skip(f"landmarks not clicked yet: no {name} for the {ref_date} session")
     return ref_date, results, landmarks
+
+
+def ensure_reference_allen_dir(animal: str, ref, rv: PathResolver, dry_run: bool, redo: bool = False) -> None:
+    """Build the REFERENCE session's own Allen dir from its landmarks, if it does not exist yet.
+
+    Every other session's Allen dir is emitted by cross_day_align in the reference's CCF; the reference's own was
+    made BY HAND for cohort1 (`apply_allen_transform`, wfield_local/README.md section 3). Automated 2026-10-29 for
+    cohort2, so clicking the landmarks is the only manual step. Never overwrites an existing dir unless --redo.
+    """
+    ref_date, ref_results, ref_landmarks = ref
+    out = Path(ref_results) / str(config.defaults()["locanmf"]["allen_dir_name"])
+    if (out / "U_atlas.npy").exists() and not redo:
+        return
+    print(f"[xreg] {animal}: building the reference {ref_date} Allen dir from {Path(ref_landmarks).name}", flush=True)
+    _run(["wfield_local.apply_allen_transform", ref_results, "--landmarks", ref_landmarks, "--output", str(out)],
+         dry_run)
 
 
 # --------------------------------------------------------------------------- xall (all-days QC)
@@ -447,7 +523,7 @@ def _maps_commands(session: dict, params: dict, rv: PathResolver,
     mp = params["maps"]
     tag = mp["tag"]
     animal, mmdd, sess = session["animal"], session["mmdd"], session["sess"]
-    yyyymmdd = f"2026{mmdd}"
+    yyyymmdd = config.date8(mmdd)
     lab = f"{animal}_{mmdd}_{tag}"
 
     mc = rv.resolve("labcams", f"{yyyymmdd}/{sess}/motion_corrected")
@@ -635,6 +711,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     # 3 cross-register to the animal's reference (6/6) -> emit allen_aligned_affine8v1
     ref = reference_for(animal, params, rv)
     if ref is not None:
+        ensure_reference_allen_dir(animal, ref, rv, dry_run, redo)
         _cross_register(animal, mmdd, mc, results, svd, ref, rv, dry_run)
 
     _finish_session(s, params, rv, dry_run, redo, animal, mmdd, sess, yyyymmdd, mc, binp, results, svd, mqc)

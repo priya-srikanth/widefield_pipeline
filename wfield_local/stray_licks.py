@@ -121,7 +121,7 @@ def session_job(item) -> dict:
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
     label, cen_json = item
-    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    an, date = config.animal_of(label), config.date8(label.split("_")[-1])
     cen = {k: np.asarray(v) for k, v in json.loads(cen_json).items()}
     V, ft, Ub, _flat, parea, names, _shape, pstat = ce.load_imaging(label)
     areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})

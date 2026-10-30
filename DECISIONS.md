@@ -22178,3 +22178,26 @@ cross-registration aborted the whole night for an animal without a reference ses
 a frame of a different size onto the reference, which is wrong for a different camera ROI (cohort2 10-29 PS118 /
 PS120 / PS121, docs/EXPERIMENT_ERRORS.md) -- now a WARNING, fix pending. MMDD keys will break at the 2027 year
 boundary for cohort2: open. Full list, per-machine steps and open items: docs/NEW_COHORT_2026-10-29.md.
+
+## 2026-10-29 (later) -- Different camera ROIs are PLACED, not stretched; dates carry the year; a cohort master alignment session (Priya)
+
+**ROI.** `cross_day_align` resized any frame of a different size onto its reference. A header-only survey found every
+mismatch in the study is a different ROI, not binning (aspect ratios differ): cohort1 PS94 / PS95 06-01 540x640 and 06-03
+462x464, PS92 06-02 487x480 and 06-03 477x464, all against 460x480 references; and cohort2 10-29 PS118 / PS120 / PS121.
+Now `_register_different_roi` finds the offset by MASKED phase correlation at native scale, with the same keep-best
+euclidean refine, and the stretch is kept only where it scores higher. Measured: PS94 / PS95 06-03 NCC 0.94 -> 0.99,
+06-01 0.27-0.40 -> 0.48-0.64; PS92 06-02 / 06-03 0.69 / 0.78 placed vs 0.77 / 0.79 stretched. An affine refine lowered
+all four tested, so scale is not the explanation; those two register poorly either way and keep the stretch. Uncovered
+pixels are zero and recorded (`roi_coverage_atlas.npy`). The cohort1 June sessions are outside every pooled set and are
+not re-registered automatically, so no published number changes.
+
+**Year.** MMDD keys + a fixed 2026 broke at New Year for cohort2. `config.date8` takes the year from the cohort's
+`first` date (an earlier MMDD is the next year), every comparison / sort in config goes through it, ~25 hardcoded
+`"2026" + mmdd` sites now call it, and `load_sessions` checks it against each session's own dated path. Labels stay
+MMDD, so nothing downstream renames; a cohort must span less than a year (enforced).
+
+**Master alignment session.** `configs/cohorts.yaml` `reference_date` / `reference_landmarks` per cohort: one date
+whose session is every animal's reference, overridable per animal. Preprocess finds the reference on disk (it cannot
+wait for registration, which needs the reference's Allen dir), copies the landmarks from the local raw to MICROSCOPE,
+and builds the reference's Allen dir itself (manual for cohort1). `python -m wfield_local.alignment_reference` shows the
+state and the GUI command per animal. The GUI (`allen_register`) already handled any frame size.

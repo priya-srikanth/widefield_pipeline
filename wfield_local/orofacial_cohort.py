@@ -612,7 +612,7 @@ def collect(rv, run: str = RUN, jobs: int | None = None):
     items = []
     for s in ak.curated_sessions(order="sorted"):
         a = config.animal_of(s["label"])
-        date = "2026" + s["label"].split("_")[-1]
+        date = config.date8(s["label"].split("_")[-1])
         sd = oo.session_dir(rv, run, a, date)
         if (sd / "manifest.json").exists():
             items.append((sd, a, date, epochs.epoch_of(s["label"]), epochs.days_since_stroke(s["label"]), lat[a]))

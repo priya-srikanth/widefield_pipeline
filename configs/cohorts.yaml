@@ -19,8 +19,11 @@
 #                   joint_bases, grant_figures). "" = the top level, i.e. cohort1's existing locations.
 #                   Per-SESSION data (labcams/<date>/<session>/..., DAQ, cameras, alignment templates, xday)
 #                   is animal-keyed and stays where it always was.
-#   first / last    YYYYMMDD acquisition range (inclusive; last null = still running). Used only to pick
-#                   the cohort for a nightly date.
+#   first / last    YYYYMMDD acquisition range (inclusive; last null = still running). Picks the cohort for
+#                   a nightly date, and gives the YEAR of the cohort's MMDD dates (config.date8): an MMDD before
+#                   `first`'s rolls over to the next year, so a cohort must span less than a year.
+#   reference_date / reference_landmarks   the cohort's MASTER ALIGNMENT session (see cohort2); cohort1 has none
+#                   (its 6/6 references are in defaults.yaml + animals.yaml).
 #   animals         must match the keys of animals_file (checked by tests/test_cohorts.py).
 
 default: cohort1
@@ -44,3 +47,11 @@ cohorts:
     output_subdir: cohort2
     first: 20261029
     last: null
+    # MASTER ALIGNMENT SESSION (Priya 2026-10-29): the date whose session, for EVERY cohort2 animal, is that
+    # animal's cross-registration reference (each animal's own session of that day; vasculature is per animal).
+    # Pick a day on the large, fixed ROI (NOT 10-29 -- PS118/120/121 had the small ROI then). Then click each
+    # animal's landmarks on that session with the GUI and save them under the label below:
+    #   python -m wfield_local.alignment_reference        # per animal: session, .dat, GUI command, what is missing
+    # A per-animal reference_date / reference_landmarks in cohort2/animals.yaml overrides these for that animal.
+    reference_date: null        # MMDD, e.g. "1105"
+    reference_landmarks: v1     # file label: dorsal_cortex_landmarks_<this>.json (type it in the GUI's label box)

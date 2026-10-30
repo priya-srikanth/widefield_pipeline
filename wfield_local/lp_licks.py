@@ -208,10 +208,10 @@ def _attempts(rv=None) -> pd.DataFrame:
 def _inputs(label: str, rv):
     """(session dir, cam4 licks_all, cam1 events) paths for one session."""
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
+    from wfield_local import config, orofacial_outputs as oo
     an, d = label.split("_")
-    sd = oo.session_dir(rv, oc.RUN, an, "2026" + d)
-    return sd, sd / "licks_all.csv", Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_2026{d}_events.csv"
+    sd = oo.session_dir(rv, oc.RUN, an, config.date8(d))
+    return sd, sd / "licks_all.csv", Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{config.date8(d)}_events.csv"
 
 
 _TIMES: dict = {}

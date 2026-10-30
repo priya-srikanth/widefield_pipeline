@@ -188,7 +188,7 @@ def collect(rv, run: str, jobs: int | None, baseline: str, cache: Path) -> list:
     items = []
     for s_ in ak.curated_sessions(order="sorted"):
         a = config.animal_of(s_["label"])
-        date = "2026" + s_["label"].split("_")[-1]
+        date = config.date8(s_["label"].split("_")[-1])
         ep = epochs.epoch_of(s_["label"])
         if baseline == "late" and ep == "pre" and date[4:8] < oc.LATE_PRE_FROM:
             continue

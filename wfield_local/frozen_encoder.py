@@ -522,7 +522,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    animal, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    animal, date = config.animal_of(label), config.date8(label.split("_")[-1])
     V, ft, Ub, _flat, parea, names, _shape, pstat = ce.load_imaging(label)
     try:
         B = ce.load_behaviour(animal, date, rv)

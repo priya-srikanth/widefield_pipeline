@@ -179,6 +179,58 @@ def _register_to_reference_native(mov, ref, mask):
     return best_w, best_ncc, best_name
 
 
+def _register_different_roi(mov, ref, mask):
+    """Register a session whose frame is a DIFFERENT CAMERA ROI from the reference's (2026-10-29).
+
+    The old path RESIZED such a frame onto the reference grid and fitted only a translation / rotation. That is
+    right for a binning change over one field of view and wrong for an ROI change, which is a crop of a different
+    region at the SAME pixel scale -- every size mismatch in this study is the latter: cohort1 June 1-3
+    (540x640, 462x464, 487x480, 477x464 against 460x480 references) and cohort2 10-29 PS118 / PS120 / PS121.
+    Here the frame keeps its scale: a MASKED phase correlation (each image masked to its own valid area, so the
+    zero padding carries no signal) finds where the ROI sits relative to the reference, then the same keep-best
+    euclidean ECC refinement as `_register_to_reference_native` runs on the overlap.
+
+    Returns (cv2 2x3 session->reference, ncc on the overlap, method, coverage) -- `coverage` is the boolean
+    reference-grid mask of pixels the session's ROI actually saw. Use the 2x3 with
+    ``cv2.warpAffine(img, w2x3, (w, h))`` exactly as for an equal-size session.
+    """
+    h, w = ref.shape
+    hm, wm = mov.shape
+    H, W = max(h, hm), max(w, wm)
+    refp, movp = _prep(ref), _prep(mov)
+    mb = mask.astype(bool)
+    R = np.zeros((H, W), np.float32); R[:h, :w] = refp
+    Rm = np.zeros((H, W), bool); Rm[:h, :w] = mb
+    M = np.zeros((H, W), np.float32); M[:hm, :wm] = movp
+    Mm = np.zeros((H, W), bool); Mm[:hm, :wm] = True
+    res = phase_cross_correlation(R, M, reference_mask=Rm, moving_mask=Mm, overlap_ratio=0.3)
+    sh = np.asarray(res[0] if isinstance(res, tuple) else res, float)
+
+    def place(w2x3):
+        cov = cv2.warpAffine(np.ones((hm, wm), np.float32), w2x3, (w, h), flags=cv2.INTER_NEAREST) > 0.5
+        mp = cv2.warpAffine(movp, w2x3, (w, h), flags=cv2.INTER_LINEAR)
+        m = mb & cv2.erode(cov.astype(np.uint8), np.ones((9, 9), np.uint8)).astype(bool)
+        return cov, mp, m
+
+    best_w = np.array([[1, 0, sh[1]], [0, 1, sh[0]]], np.float32)   # same tx = col, ty = row convention
+    cov, mp, m = place(best_w)
+    if m.sum() < 1000:
+        raise ValueError(f"ROI overlap with the reference is only {int(m.sum())} px -- not registrable")
+    best_ncc, best_name = _ncc(mp, refp, m), "roi-maskedphasecorr"
+    try:
+        crit = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 2000, 1e-7)
+        _, we = cv2.findTransformECC(refp, mp, np.eye(2, 3, dtype=np.float32), cv2.MOTION_EUCLIDEAN, crit,
+                                     m.astype(np.uint8), 5)
+        comp = (np.vstack([we, [0, 0, 1]]) @ np.vstack([best_w, [0, 0, 1]]))[:2].astype(np.float32)
+        cov2, mp2, m2 = place(comp)
+        nc = _ncc(mp2, refp, m2)
+        if nc > best_ncc + 1e-4:
+            best_w, best_ncc, best_name, cov = comp, nc, "roi-maskedphasecorr+euclidean", cov2
+    except cv2.error:
+        pass
+    return best_w, best_ncc, best_name, cov
+
+
 def run_reference_native(cfg, out, func):
     """Reference-native cross-day mode: register every session's vasculature to ONE
     reference session in its native frame, then apply the reference's single Allen
@@ -191,39 +243,67 @@ def run_reference_native(cfg, out, func):
     mask = cv2.erode((ref_native > np.percentile(ref_native, 30)).astype(np.uint8), np.ones((9, 9), np.uint8))
     refp = _prep(ref_native); mb = mask.astype(bool)  # noqa: F841
 
+    # A frame of a DIFFERENT SIZE is a different camera ROI (every case in this study is: cohort1 June 1-3, cohort2
+    # 10-29), so by default it is PLACED at its offset at native scale (`_register_different_roi`), not stretched.
+    # cfg "roi_mode": "resize" restores the old stretch, for a genuine BINNING change over the same field of view.
+    roi_mode = cfg.get("roi_mode", "embed")
     results, warped = {}, {}
     for sid, s in sessions.items():
         mov = _mean470(s["results"], int(s.get("func_channel", func)))
+        roi = mov.shape != (h, w) and roi_mode == "embed"
+        cov = None
         if sid == ref_id:
             w2x3 = np.eye(2, 3, dtype=np.float32); ncc = 1.0; method = "reference"; mov_in_ref = ref_native
+        elif roi:
+            # KEEP-BEST against the old stretch, measured not assumed: on cohort1's June frames placement wins
+            # clearly for PS94 / PS95 (06-03 NCC 0.94 -> 0.99, 06-01 0.27-0.40 -> 0.48-0.64) but not for PS92 06-02 /
+            # 06-03 (0.69 / 0.78 placed vs 0.77 / 0.79 stretched; an affine refine made both worse) -- those two
+            # register poorly either way and are outside every pooled set. Taking the better of the two means no
+            # session registers worse than before this change.
+            w2x3, ncc, method, cov = _register_different_roi(mov, ref_native, mask)
+            w_old, ncc_old, m_old = _register_to_reference_native(mov, ref_native, mask)
+            if ncc_old > ncc:
+                roi, cov, w2x3, ncc, method = False, None, w_old, ncc_old, f"stretch-{m_old}"
+                print(f"[{sid}] frame {mov.shape} != reference {(h, w)}: the old STRETCH registers better "
+                      f"(NCC {ncc_old:.3f}) than placing the ROI -- kept the stretch", flush=True)
+                mov_in_ref = cv2.warpAffine(cv2.resize(mov, (w, h), interpolation=cv2.INTER_AREA), w2x3, (w, h),
+                                            flags=cv2.INTER_LINEAR)
+            else:
+                mov_in_ref = cv2.warpAffine(mov, w2x3, (w, h), flags=cv2.INTER_LINEAR)
+                print(f"[{sid}] frame {mov.shape} != reference {(h, w)}: different ROI -> placed at native scale "
+                      f"(NCC {ncc:.3f} vs {ncc_old:.3f} stretched); covers {cov[mask.astype(bool)].mean():.0%} of "
+                      f"the reference brain mask", flush=True)
         else:
-            if mov.shape != (h, w):
-                # A DIFFERENT FRAME SIZE IS RESIZED (stretched) onto the reference below. Right for a binning
-                # change over the same field of view; WRONG for a different camera ROI, which is a crop of a
-                # different region -- cohort2 10-29 PS118 / PS120 / PS121 (docs/EXPERIMENT_ERRORS.md). Such a
-                # session needs the frame EMBEDDED at its ROI offset, not stretched; see
-                # docs/NEW_COHORT_2026-10-29.md "Variable imaging ROI".
-                print(f"[{sid}] WARNING: frame {mov.shape} != reference {(h, w)} -> RESIZED to the reference. "
-                      f"If this session used a different camera ROI (not binning), this registration is WRONG.",
-                      flush=True)
             w2x3, ncc, method = _register_to_reference_native(mov, ref_native, mask)
             movr = cv2.resize(mov, (w, h), interpolation=cv2.INTER_AREA) if mov.shape != (h, w) else mov
             mov_in_ref = cv2.warpAffine(movr, w2x3, (w, h), flags=cv2.INTER_LINEAR)
+
+        def to_ref(img, roi=roi, w2x3=w2x3):
+            """One native image of this session onto the reference grid (the same rule as its mean)."""
+            if not roi and img.shape != (h, w):
+                img = cv2.resize(img, (w, h), interpolation=cv2.INTER_AREA)
+            return cv2.warpAffine(img, w2x3, (w, h), flags=cv2.INTER_LINEAR)
+
         warped[sid] = mov_in_ref
         ccf = _warp_native_to_ccf(mov_in_ref, ref_T)
         np.save(out / f"{sid}_mean470_in_ref_native.npy", mov_in_ref.astype(np.float32))
         np.save(out / f"{sid}_mean470_in_ccf.npy", ccf.astype(np.float32))
         results[sid] = {"results": s["results"], "method": method, "ncc_to_ref": float(ncc),
-                        "session_to_ref_2x3": np.asarray(w2x3).tolist()}
+                        "session_to_ref_2x3": np.asarray(w2x3).tolist(), "frame_shape": list(mov.shape)}
+        if cov is not None:
+            # where the session's ROI saw cortex, on the reference grid and in CCF: pixels outside are ZERO in the
+            # warped U / means below, i.e. MISSING, not silent. Anything pooling this session must mask by it.
+            cov_ccf = _warp_native_to_ccf(cov.astype(np.float32), ref_T) > 0.5
+            np.save(out / f"{sid}_roi_coverage_in_ref_native.npy", cov)
+            np.save(out / f"{sid}_roi_coverage_in_ccf.npy", cov_ccf)
+            results[sid].update(roi_differs=True,
+                                roi_coverage_of_ref_mask=float(cov[mask.astype(bool)].mean()))
         print(f"[{sid}] reference-native: {method}  NCC->ref {ncc:.3f}", flush=True)
         if warp_u:
             U = np.load(Path(s["results"]) / "U.npy")
             Ux = np.empty((*DIMS, U.shape[2]), np.float32)
             for k in range(U.shape[2]):
-                uk = U[..., k]
-                if uk.shape != (h, w):
-                    uk = cv2.resize(uk, (w, h), interpolation=cv2.INTER_AREA)
-                Ux[..., k] = _warp_native_to_ccf(cv2.warpAffine(uk, w2x3, (w, h), flags=cv2.INTER_LINEAR), ref_T)
+                Ux[..., k] = _warp_native_to_ccf(to_ref(U[..., k]), ref_T)
             np.save(out / f"{sid}_U_xday.npy", Ux)
             if sid != ref_id:
                 # assemble a LocaNMF/maps-ready allen dir in the REFERENCE's CCF for
@@ -236,17 +316,18 @@ def run_reference_native(cfg, out, func):
                 fa = np.load(Path(s["results"]) / "frames_average.npy")  # (2,H,W) raw mean
                 fax = np.empty((fa.shape[0], *DIMS), np.float32)
                 for c in range(fa.shape[0]):
-                    ck = fa[c]
-                    if ck.shape != (h, w):
-                        ck = cv2.resize(ck, (w, h), interpolation=cv2.INTER_AREA)
-                    fax[c] = _warp_native_to_ccf(cv2.warpAffine(ck, w2x3, (w, h), flags=cv2.INTER_LINEAR), ref_T)
+                    fax[c] = _warp_native_to_ccf(to_ref(fa[c].astype(np.float32)), ref_T)
                 np.save(ad / "frames_average_atlas.npy", fax)
+                if cov is not None:
+                    np.save(ad / "roi_coverage_atlas.npy", cov_ccf)   # pixels this session's ROI saw (CCF grid)
                 for fn in ("allen_area_atlas_native_grid.npy", "allen_brain_mask_native_grid.npy", "allen_area_names.json"):
                     src = ref_allen / fn
                     if src.exists():
                         shutil.copy2(src, ad / fn)
                 (ad / "cross_day_allen_summary.json").write_text(json.dumps(
                     {"session": sid, "reference": ref_id, "ncc_to_ref": float(ncc),
+                     "roi_differs": cov is not None,
+                     "roi_coverage_of_ref_mask": (float(cov[mask.astype(bool)].mean()) if cov is not None else 1.0),
                      "note": "U + frames_average warped to reference CCF via session->ref "
                              "(native phase-corr) + reference Allen transform; atlas/mask from reference."},
                     indent=2))

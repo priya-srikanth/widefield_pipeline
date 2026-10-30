@@ -414,8 +414,8 @@ def spec_for(animal: str) -> dict | None:
 
 
 def _date(mmdd: str) -> dt.date:
-    """MMDD in the study year. The cohort is a single 2026 season; `config` stores MMDD throughout."""
-    return dt.date(2026, int(mmdd[:2]), int(mmdd[2:]))
+    """MMDD as a date in the active cohort's year (`config.date8`: rolls over at New Year for cohort2)."""
+    return dt.datetime.strptime(config.date8(mmdd), "%Y%m%d").date()
 
 
 def days_since_stroke(label: str) -> int | None:

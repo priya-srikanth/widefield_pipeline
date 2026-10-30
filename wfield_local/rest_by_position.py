@@ -132,7 +132,7 @@ def _apply_docked(session, rest, cs, codes, ts, sync):
     from wfield_local.spout_behavior import discover_sessions
 
     an, mmdd = session["label"].split("_")[0], session["label"].split("_")[1]
-    cands = discover_sessions(config.resolver(), f"2026{mmdd}", [an])
+    cands = discover_sessions(config.resolver(), config.date8(mmdd), [an])
     dm, source = docked_mask_any(cands[0] if cands else None, sync, cs, codes, ts, rest.shape[0])
     if dm is None:
         return None, False

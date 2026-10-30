@@ -186,7 +186,7 @@ def by_animal_day(fs_img=FS_IMG):
         for s in [x for x in SESSIONS if x["label"] in want]:
             lab = s["label"]
             mmdd = lab.split("_")[-1]
-            ev = be.get_or_compute(rv, an, "2026" + mmdd)
+            ev = be.get_or_compute(rv, an, config.date8(mmdd))
             if not ev:
                 continue
             try:

@@ -72,6 +72,30 @@ def cohort_year() -> str:
     return str(_paths.cohort_spec()["first"])[:4]
 
 
+def date8(d) -> str:
+    """YYYYMMDD for a session date in the ACTIVE cohort: MMDD, a label (``PS118_0105``) or YYYYMMDD.
+
+    THE YEAR (2026-10-29). Session keys and labels are MMDD; the year is not stored in them. A cohort's sessions
+    run from its `first` date (cohorts.yaml) for less than a year, so an MMDD on or after `first`'s MMDD is in
+    `first`'s year and an earlier MMDD is in the NEXT year: cohort2 (first 20261029) maps 1105 -> 20261105 and
+    0105 -> 20270105. `load_sessions` checks every registered session against the YYYYMMDD in its own paths, so a
+    cohort that outgrows one year fails loudly instead of silently colliding. Compare and sort dates through this
+    (or `date_key`), never as MMDD strings: "0105" < "1029" is wrong for cohort2.
+    """
+    s = str(d).split("_")[-1]
+    if len(s) == 8 and s.isdigit():
+        return s
+    if not (len(s) == 4 and s.isdigit()):
+        raise ValueError(f"bad session date {d!r} (want MMDD, YYYYMMDD or a label)")
+    first = str(_paths.cohort_spec()["first"])
+    y = int(first[:4]) + (0 if s >= first[4:] else 1)
+    return f"{y}{s}"
+
+
+#: Sort / compare key for MMDD dates and labels in the active cohort (= `date8`).
+date_key = date8
+
+
 def cohort_of(animal: str) -> str | None:
     """Which cohort an animal belongs to (cohorts.yaml), whichever cohort is active."""
     return _paths.cohort_of_animal(animal)
@@ -273,19 +297,20 @@ def curated_dates(machine: str | None = None, phase: str = "pre") -> list[str]:
     list and its accessor were deleted on 2026-08-13.
     """
     exclude = set(date_policy().get("cross_session_exclude", []))
-    registered = sorted({s["label"].split("_")[1] for s in load_sessions(machine)})
+    registered = sorted({s["label"].split("_")[1] for s in load_sessions(machine)}, key=date_key)
     dates = [d for d in registered if d not in exclude]
     pf = pre_from()
     cut = stroke_cutoff()
+    K = date_key                          # year-aware compare (cohort2 crosses New Year)
     if pf:                                    # opt-in late-baseline mode: drop the early pre dates everywhere
-        dates = [d for d in dates if d >= pf or (cut is not None and d > cut)]
+        dates = [d for d in dates if K(d) >= K(pf) or (cut is not None and K(d) > K(cut))]
     if cut is None:                       # whole cohort still pre-stroke: unchanged behaviour
         return dates
     if phase == "all":
         return dates
     if phase == "post":
-        return [d for d in dates if d > cut]
-    return [d for d in dates if d <= cut]
+        return [d for d in dates if K(d) > K(cut)]
+    return [d for d in dates if K(d) <= K(cut)]
 
 
 def stroke_date(animal: str) -> str | None:
@@ -352,7 +377,7 @@ def stroke_cutoff() -> str | None:
     `stroke_date(animal)` directly.
     """
     ds = [d for d in (stroke_date(a) for a in animals()) if d]
-    return min(ds) if ds else None
+    return min(ds, key=date_key) if ds else None
 
 
 def animal_excluded_dates(animal: str) -> set[str]:
@@ -396,9 +421,9 @@ def session_phase(animal: str, date: str) -> str:
     if date in animal_excluded_dates(animal):
         return "excluded"
     sd = stroke_date(animal)
-    ph = "pre" if sd is None or date <= sd else "post"
+    ph = "pre" if sd is None or date_key(date) <= date_key(sd) else "post"
     pf = pre_from()
-    if ph == "pre" and pf and date < pf:       # opt-in late-baseline mode (WIDEFIELD_PRE_FROM)
+    if ph == "pre" and pf and date_key(date) < date_key(pf):   # opt-in late-baseline mode (WIDEFIELD_PRE_FROM)
         return "excluded"
     return ph
 
@@ -500,9 +525,8 @@ def _to8(d, year: str | None = None) -> str:
     Rejects tokens of the wrong length or with an out-of-range month/day, so typos like `2026`
     (meant as a year) fail loudly instead of silently becoming `20262026`."""
     s = str(d)
-    year = year or cohort_year()
     if s.isdigit() and len(s) in (4, 8):
-        eight = s if len(s) == 8 else f"{year}{s}"
+        eight = s if len(s) == 8 else (f"{year}{s}" if year else date8(s))   # cohort year, incl. New Year rollover
         mm, dd = int(eight[4:6]), int(eight[6:8])
         if 1 <= mm <= 12 and 1 <= dd <= 31:
             return eight
@@ -603,14 +627,27 @@ def load_sessions(machine: str | None = None, animals=None, dates=None) -> list[
             date = str(date)
             if dset and date not in dset:
                 continue
+            _check_year(animal, date, e)
             entry = dict(label=f"{animal}_{date}",
                          mc=rp("mc", e["mc"]), h5=rp("h5", e["h5"]),
                          regime=e.get("regime"), fmdir=rp("fmdir", e.get("fmdir")))
             if e.get("behavior_trials"):
                 entry["behavior_trials"] = rp("behavior_trials", e["behavior_trials"])
             rows.append((date, animal, entry))
-    rows.sort(key=lambda r: (r[0], r[1]))   # (date, animal)
+    rows.sort(key=lambda r: (date_key(r[0]), r[1]))   # (date incl. year, animal)
     return [entry for _, _, entry in rows]
+
+
+def _check_year(animal: str, mmdd: str, entry: dict) -> None:
+    """The year `date8` infers must match the YYYYMMDD in the session's own paths (mc / h5 start with it)."""
+    want = date8(mmdd)
+    for field in ("mc", "h5"):
+        m = re.match(r"^(?:[a-z_]{3,}:)?(\d{8})/", str(entry.get(field) or ""))
+        if m and m.group(1) != want:
+            raise ValueError(
+                f"{animal} {mmdd}: its {field} path is dated {m.group(1)} but the cohort's date rule gives {want} "
+                f"(cohorts.yaml `first`). The cohort spans more than a year, or the entry is mis-dated -- MMDD keys "
+                f"cannot tell the two years apart; split the cohort or fix the entry.")
 
 
 # NB there is deliberately NO `cross_session_dates()` any more. It returned the hand-maintained

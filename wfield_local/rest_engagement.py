@@ -158,7 +158,7 @@ def _responded_per_cue(session, cue_samples, response_window_s=None):
 
     lab = session["label"]
     an, mmdd = lab.split("_")[0], lab.split("_")[1]
-    ev = be.get_or_compute(config.resolver(), an, f"2026{mmdd}")
+    ev = be.get_or_compute(config.resolver(), an, config.date8(mmdd))
     if ev is None:
         return None
     fs = float(ev["fs"])
