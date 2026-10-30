@@ -638,7 +638,7 @@ def _run(args: list, dry_run: bool) -> None:
 
 
 def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
-                       redo: bool = False) -> None:
+                       redo: bool = False, redo_svd: bool = False) -> None:
     """motion(fixed) -> SVD -> cross-register to reference -> push LocaNMF inputs to MICROSCOPE.
 
     ``redo`` recomputes the three steps that are otherwise skipped whenever their output
@@ -658,6 +658,9 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     print(f"\n################ {animal} {sess} (dims {dims}) ################", flush=True)
     if redo:
         print("[redo] recomputing steps whose outputs already exist", flush=True)
+    elif redo_svd:
+        print("[redo-svd] keeping the motion-corrected bin; recomputing SVD (+ swap repair) and the hemo variant",
+              flush=True)
     if s["daq_h5"] is None:
         raise SystemExit(f"[preprocess] {animal} {sess}: no matching DAQ .h5 found")
 
@@ -689,7 +692,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
               "--mode", params["motion_mode"], "--relabel-on-the-fly"], dry_run)
 
     # 2 SVD (functional channel = 470)
-    if Path(f"{results}/SVTcorr.npy").exists() and not dry_run and not redo:
+    if Path(f"{results}/SVTcorr.npy").exists() and not dry_run and not redo and not redo_svd:
         print("[skip] SVTcorr exists", flush=True)
     else:
         _run(["wfield_local.run_wfield_local", binp, "--output", results,
@@ -714,7 +717,9 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
         ensure_reference_allen_dir(animal, ref, rv, dry_run, redo)
         _cross_register(animal, mmdd, mc, results, svd, ref, rv, dry_run)
 
-    _finish_session(s, params, rv, dry_run, redo, animal, mmdd, sess, yyyymmdd, mc, binp, results, svd, mqc)
+    # the hemo variant is built from the SVT, so a fresh SVD must rebuild it too
+    _finish_session(s, params, rv, dry_run, redo or redo_svd, animal, mmdd, sess, yyyymmdd, mc, binp, results, svd,
+                    mqc)
 
 
 def _cross_register(animal, mmdd, mc, results, svd, ref, rv, dry_run) -> None:
@@ -914,7 +919,7 @@ def _process_date(date: str, args, rv: PathResolver, params: dict) -> set:
             # so overrides never reached the per-session steps. Non-overridden sessions are unchanged.
             sp = config.defaults(session=f"{s['animal']}_{s['mmdd']}")["preprocess"]
             preprocess_session(s, sp, rv, args.dry_run,
-                               redo=getattr(args, 'redo', False))
+                               redo=getattr(args, 'redo', False), redo_svd=getattr(args, 'redo_svd', False))
 
     # cue/lick/quiet activity maps (AFTER the push loop so the GPU-box LocaNMF push stays first)
     if not args.skip_maps:
@@ -956,6 +961,10 @@ def main(argv=None) -> int:
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     ap.add_argument("--redo", action="store_true",
                     help="recompute motion correction, SVD and the hemo variant even when their outputs already exist (default: skip). Needed to recover a session preprocessed from a bad upload.")
+    ap.add_argument("--redo-svd", action="store_true",
+                    help="keep the motion-corrected bin but recompute the SVD (now with the default other-LED frame "
+                         "repair, wfield_local.swap_repair) and the hemo variant. Use to re-run sessions processed "
+                         "before 2026-10-30 (e.g. cohort2 10-29) without redoing motion correction.")
     ap.add_argument("--allow-incomplete-raw", action="store_true",
                     help="process a .dat that is not a whole number of frames (default: skip it)")
     ap.add_argument("--raw-root", default=None,

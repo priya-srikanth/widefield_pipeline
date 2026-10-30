@@ -69,6 +69,12 @@ def main() -> int:
     parser.add_argument("--baseline-chunk-size", type=int, default=256)
     parser.add_argument("--skip-correction", action="store_true")
     parser.add_argument(
+        "--no-swap-repair",
+        action="store_true",
+        help="Do NOT detect / repair frames that carry the other LED's light before the SVD "
+        "(wfield_local.swap_repair; default ON since 2026-10-30, docs/COHORT2_QC_2026-10-29.md).",
+    )
+    parser.add_argument(
         "--freq-highpass",
         type=float,
         default=0.1,
@@ -106,9 +112,30 @@ def main() -> int:
         frames_average = _mean_by_chunks(dat, args.baseline_chunk_size)
         np.save(frames_average_path, frames_average)
 
+    swap_summary = None
+    dat_svd = dat
+    if dat.shape[1] == 2 and not args.no_swap_repair:
+        # OTHER-LED FRAMES ARE REPAIRED BEFORE THE SVD (wfield_local.swap_repair). Detection needs the RAW
+        # per-channel mean, which is kept as frames_average_raw.npy so a re-run never detects against an
+        # already-corrected mean; frames_average.npy becomes the mean of the repaired movie.
+        from wfield_local import swap_repair
+        raw_avg_path = args.output / "frames_average_raw.npy"
+        if raw_avg_path.exists():
+            frames_average_raw = np.load(raw_avg_path)
+        else:
+            frames_average_raw = frames_average
+            np.save(raw_avg_path, frames_average_raw)
+        print("Detecting other-LED (swapped / partial / dual-exposure) frames...", flush=True)
+        plan = swap_repair.detect(dat, frames_average_raw, func=args.functional_channel)
+        swap_summary = swap_repair.save(plan, args.output)
+        print(f"[swap_repair] {swap_summary}", flush=True)
+        dat_svd = swap_repair.RepairedDat(dat, plan)
+        frames_average = swap_repair.corrected_average(dat, dat_svd, frames_average_raw)
+        np.save(frames_average_path, frames_average)
+
     print("Running approximate_svd...", flush=True)
     U, SVT = approximate_svd(
-        dat,
+        dat_svd,
         frames_average,
         k=args.k,
         nframes_per_bin=args.nframes_per_bin,
@@ -130,6 +157,7 @@ def main() -> int:
         "nframes_per_bin": args.nframes_per_bin,
         "nframes_per_chunk": args.nframes_per_chunk,
         "baseline_chunk_size": args.baseline_chunk_size,
+        "swap_repair": swap_summary,
     }
 
     if not args.skip_correction and dat.shape[1] == 2:
