@@ -33,9 +33,10 @@ SESS = {"PS118": ("PS118_20261029_112630", "PS118_20261029_114909.h5"),
 FUNC, ISO = 1, 0
 
 
-def detect(res: Path) -> dict:
+def detect(res: Path, func: int = FUNC) -> dict:
+    iso = 1 - func
     fa = np.load(res / "frames_average.npy")
-    brain = binary_erosion(fa[FUNC] > 0.45 * fa[FUNC].max(), iterations=4)
+    brain = binary_erosion(fa[func] > 0.45 * fa[func].max(), iterations=4)
     U = np.load(res / "U.npy")
     K = U.shape[-1]
     Ub = np.nan_to_num(U.reshape(-1, K)[brain.reshape(-1)]).astype(np.float64)
@@ -44,7 +45,7 @@ def detect(res: Path) -> dict:
     svt = np.load(res / "SVT.npy", mmap_mode="r")
     n = svt.shape[1] // 2
     hits = {}
-    for ch, nm in ((ISO, "415"), (FUNC, "470")):
+    for ch, nm in ((iso, "415"), (func, "470")):
         S = np.asarray(svt[:, ch::2], np.float64)[:, :n]
         E = S - median_filter(S, size=(1, 11), mode="nearest")
         hits[f"bright_{nm}"] = np.abs(um @ E) > 0.05
