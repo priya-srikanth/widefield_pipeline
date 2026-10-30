@@ -778,19 +778,19 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   z 0.52), 3/4 animals, no epoch-out gain. Pre-fit weighted balance does not transfer across animals (fair weights
   -0.08). ITI licks have their own recovery: mean ITI angle -12.6 / -6.0 / -3.8 deg vs pre (r with cued aim 0.77-0.95);
   only SSp-n first-after-quiet balance predicts it in an unseen animal (0.32 vs days 0.17). PROVISIONAL.
-- Pre-cue LEVEL vs restw 10-28 (14.20; restw approved by Priya): far-contra target acute, contralesional ALM / tjM1 /
+- Pre-cue LEVEL vs restw 10-28 (page Fig 14.21; restw approved by Priya): far-contra target acute, contralesional ALM / tjM1 /
   SSp-m / SSp-n RAISED before the cue (+4.5 to +5.5 x1e3 dF/F, 4/4, PS94 ~0); chronic all spouts ALM / tjM1 contra
   +1.5 / +1.7 (4/4) and a posterior VIS / RSP / SSp-tr / bfd decrease (partly a rest-level rise). PROVISIONAL.
   Caveat (10-29 ENL audit): non-contact ENL licks occur up to the cue on 10-37% of ENL trials, so the pre-cue window is not
   movement-free; the acute far-contra raise needs an ENL-lick / movement check before it is read as preparatory.
-- ENL lick audit 10-29 (page 14.21, scripts/enl_lick_audit.py, enl_licks/): ENL licks (strobe <= onset < cue; spout
+- ENL lick audit 10-29 (page Fig 14.21 S9, scripts/enl_lick_audit.py, enl_licks/): ENL licks (strobe <= onset < cue; spout
   stationary, no cue, no reward) are plentiful (107 sessions; no animal x epoch x spout cell < 20; thin only PS95 acute =
   1 session). Only CONTACT licks reset the pre-cue timer; none abort the trial. Excluded from the ITI and cued decoder sets
   (in the frozen encoder). Acute far-contra ENL aim error = cued (pooled -25.9 vs -25.4 deg; per animal -26.6 / -13.0 /
   -30.6 / -34.3 vs -22.2 / -15.5 / -32.5 / -31.3), contact 0.15 vs 0.13, recovers alongside cued -> the far-contra aim
   deficit does not need the cue. Caveats: selected set (trials with an ENL lick fall to 0.11-0.54 acutely); spout-arrival
   overlap (PS94 / PS95); chronic ENL vs cued differ in PS94 / PS95 (untested). PROVISIONAL.
-- ENLv licks NEURAL 10-29 (page 14.21, scripts/lick_enlv_*.py, enlv_licks/): primary = onset >= 1 s after spout arrival,
+- ENLv licks NEURAL 10-29 (page Fig 14.21 S10, scripts/lick_enlv_*.py, enlv_licks/): primary = onset >= 1 s after spout arrival,
   window ends before the cue (bout starts alongside; all-lick balance unstable); 21-variant sweep incl. arrival regression,
   contact-only, first lick: offsets robust. Decoder offset (frozen pre ITI reader, local store) same-place +0.20 / +0.16 /
   +0.12 mm (4/4, ~half ITI); matched target + landing (bout starts) +0.22 (3/4) / +0.13 / +0.16 -> does NOT vanish (cued
@@ -798,7 +798,7 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   acute -0.24 (4/4) -> -0.08 n.s. target-aware; chronic within-spout +0.14 (4/4) = the CUED pattern; pre ENLv post-lick
   activity carries a target component (w 0.59-0.90). Reading for discussion: ENLv = cued-like target-coded balance + ITI-like
   persistent decoder offset. First ENLv lick: largest offset but mostly < 0.5 s after arrival. PROVISIONAL.
-- Stopped-trial traces 10-29 (page 14.21, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
+- Stopped-trial traces 10-29 (page Fig 14.21 S11, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
   lick) trials have NO cue-evoked response in any area / epoch, only a flat level above restw (~4-12 x1e3); miss_working a
   small cue bump. Stopped reaches only 3 animals per epoch (animal set changes; PS93 pre 40 trials). Engaged jaw-no-lick
   (mostly incomplete licks) small cue bump; jaw-onset transient ~0.3 s in every area incl. references (broad, movement).
@@ -808,7 +808,7 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   restw reference; raw dF/F shows it only in PS93 (pre = 1 session); contra-ipsi < 1 unit except PS93 (mostly bilateral);
   the same chronic restw-unit rise is in hit + miss_working (4/4) -> general level change vs rest, not stopped-specific.
   No consistent chronic rise in quit-period movement. Late-session confound. DESCRIPTIVE.
-- Cue to lick 10-29 (page 14.21, scripts/lick_cue_to_lick*.py, cue_to_lick/): (A) mean level cue->lick minus restw:
+- Cue to lick 10-29 (page Fig 14.21 S12, scripts/lick_cue_to_lick*.py, cue_to_lick/): (A) mean level cue->lick minus restw:
   contra ALM / tjM1 up every post epoch 4/4 (~+2-3), latency-matched too; above the trial's own pre-cue level acute far
   contra ~-2 n.s. -> the restw rise is the sustained pre-cue raise. (B) accumulate-to-bound REJECTED (level at lick flat /
   slightly rising with latency, slope ~ 1/latency, pre and every epoch); fixed level crossing / delayed start fit; AUC rise
@@ -816,9 +816,9 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   level (delayed start). Pre latencies only ~0.1-0.6 s. (C) fixed pre-lick windows after the cue keep few trials
   (effectively PS92 / PS93). (D) chronic raw pre-cue "dip" in orofacial areas = drop of the restw level relative to the
   session mean (4/4), removed by restw; F0 not the cause chronically; non-orofacial (bfd, VISp, MOs_rest ipsi) dip is a
-  real pre-cue decrease. CAVEAT for 14.20: the chronic contra ALM / tjM1 pre-cue rise is relative to rest, not absolute
+  real pre-cue decrease. CAVEAT for Fig 14.21: the chronic contra ALM / tjM1 pre-cue rise is relative to rest, not absolute
   (dF/F is session-mean centred). PROVISIONAL.
-- Arrival -> cue traces 10-29 (page 14.21, scripts/arrival_to_cue_traces.py, arrival_to_cue/): three anchors (arrival |
+- Arrival -> cue traces 10-29 (page Fig 14.21 S13, scripts/arrival_to_cue_traces.py, arrival_to_cue/): three anchors (arrival |
   last ENLv lick | cue) + wait-sorted heatmaps. Far-contra ENLv contact drops acutely 4/4 (e.g. PS94 0.61 -> 0.00), so those
   licks do not restart the timer (short acute far-contra waits). Response to the last ENLv lick larger acutely than pre in
   contra tjM1 / SSp-n (4/4; lick count / bouts differ); contra tjM1 cue response larger chronically (4/4); last 0.5 s
