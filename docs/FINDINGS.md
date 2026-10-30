@@ -790,6 +790,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   -30.6 / -34.3 vs -22.2 / -15.5 / -32.5 / -31.3), contact 0.15 vs 0.13, recovers alongside cued -> the far-contra aim
   deficit does not need the cue. Caveats: selected set (trials with an ENL lick fall to 0.11-0.54 acutely); spout-arrival
   overlap (PS94 / PS95); chronic ENL vs cued differ in PS94 / PS95 (untested). Neural ENL-lick analyses not run. PROVISIONAL.
+- Stopped-trial traces 10-29 (page 14.21, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
+  lick) trials have NO cue-evoked response in any area / epoch, only a flat level above restw (~4-12 x1e3); miss_working a
+  small cue bump. Stopped reaches only 3 animals per epoch (animal set changes; PS93 pre 40 trials). Engaged jaw-no-lick
+  (mostly incomplete licks) small cue bump; jaw-onset transient ~0.3 s in every area incl. references (broad, movement).
+  Priya's observation: stopped contra tjM1 / SSp-m / ALM pre-cue level rises over recovery within animals (tjM1 PS94 5.1 /
+  8.8 / 11.6, PS93 6.0 / 6.4 / 7.8; chronic > pre in 3/3); ipsi ALM also rises in PS94 / PS95 -> contra specificity
+  untested (contra-ipsi follow-up running). Late-session confound; restw is a cross-state reference. DESCRIPTIVE.
 - Decoder area attribution 10-28 (11.13 alone / unique, 11.14 nested blocks + Shapley): the orofacial group (+SSs) carries
   ~40% of the code (Shapley pre r 0.27 of 0.62 ITI, 0.29 of 0.77 cued) and of the ITI offset (0.15 of 0.37 mm acute);
   the rest is spread and redundant (no block necessary). SSs alone decodes but adds nothing uniquely (a copy of the
