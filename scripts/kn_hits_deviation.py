@@ -118,11 +118,18 @@ def build() -> dict:
             if len(x):
                 v.append(np.random.default_rng(1).choice(x, 400, replace=len(x) < 400))
         D[ep] = np.concatenate(v) if v else np.array([])
+    # D per session (Priya 10-30): each session's d2/k values (>= 30 scored hits)
+    Dsess = [(lab, g.animal.iloc[0], g.epoch.iloc[0], np.sort(g.d2k.dropna().to_numpy()))
+             for lab, g in T.groupby("label") if g.d2k.notna().sum() >= 30]
     k_typ = 8
     from scipy.stats import chi2
     thr = chi2.ppf(0.95, k_typ) / k_typ
     n = T.groupby(["animal", "epoch"]).size().unstack().reindex(columns=EPS)
-    F = {"A": A, "bA": bA, "B": B, "bB": bB, "C": C, "bC": bC, "Cf": Cf, "bCf": bCf, "D": D, "thr": thr, "n": n}
+    # recovery-score day courses, all four animals (session table of the pre-registered analysis)
+    R = pd.read_csv(OUT / "sessions.csv")[["label", "animal", "epoch", "day", "hit", "hit_fc", "aim_fc", "norm",
+                                           "norm_fc"]]
+    F = {"A": A, "bA": bA, "B": B, "bB": bB, "C": C, "bC": bC, "Cf": Cf, "bCf": bCf, "D": D, "Dsess": Dsess,
+         "thr": thr, "n": n, "R": R}
     FD.mkdir(parents=True, exist_ok=True)
     with open(FD / "kn_hits_deviation.pkl", "wb") as fh:
         pickle.dump(F, fh)
@@ -192,25 +199,112 @@ def plot(F: dict) -> None:
         fig.colorbar(im, ax=ax, shrink=0.8, label="z (pre SD units)")
     # D
     ax = fig.add_subplot(gs[1, 0:2])
-    cols = {"pre": "0.3", "acute": "#c0392b", "subacute": "#e67e22", "chronic": "#2471a3"}
-    for e in EPS:
-        x = np.sort(F["D"][e])
-        if len(x):
-            ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=cols[e], lw=2, label=e)
-    ax.axvline(F["thr"], color="k", ls=":", lw=1)
-    ax.text(F["thr"], 0.04, "  pre 95 % contour (k = 8)", fontsize=8.5, va="bottom")
-    ax.set_xscale("log")
-    ax.set_xlim(0.2, 30)
-    ax.set_xlabel("distance of each successful lick from the animal's pre-stroke licks at that spout (d2 / k, log)")
-    ax.set_ylabel("cumulative fraction of hits")
-    ax.set_title("D. Distribution of the deviation on hits (animals equally weighted)", fontsize=11, loc="left")
-    ax.legend(fontsize=9, frameon=False, loc="lower right")
+    _ecdf_panel(ax, F, sessions=True)
+    ax.set_title("D. Distribution of the deviation on hits (thin = sessions, thick = epoch, animals equally weighted)",
+                 fontsize=11, loc="left")
     fig.suptitle("Successful licks stay less normal after the stroke: compensation score on HITS across epochs "
                  "(PS92-95, August pre; first post-cue lick). n = 4, PROVISIONAL", fontsize=12)
     FIG.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIG / "kn_fig5_hits_deviation.png", dpi=150)
     plt.close(fig)
     print("wrote", FIG / "kn_fig5_hits_deviation.png")
+    plot_sessions_ecdf(F)
+    plot_recovery_score(F)
+
+
+def _ecdf_panel(ax, F, sessions=True, only=None):
+    """ECDF of d2/k on hits: thin per-session curves + thick pooled curve per epoch, EPOCH_LINE colours (defaults)."""
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    if sessions:
+        for _lab, an, ep, x in F["Dsess"]:
+            if only is not None and an != only:
+                continue
+            ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=EPOCH_LINE[ep], lw=0.6, alpha=0.35)
+    if only is None:
+        for e in EPS:
+            x = np.sort(F["D"][e])
+            if len(x):
+                ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=EPOCH_LINE[e], lw=2.6, label=e)
+    ax.axvline(F["thr"], color="0.3", ls=":", lw=1)
+    ax.text(F["thr"], 0.04, "  pre 95 % contour", fontsize=8, va="bottom")
+    ax.set_xscale("log")
+    ax.set_xlim(0.2, 30)
+    ax.set_ylim(0, 1.0)
+    ax.set_xlabel("distance from the animal's pre-stroke licks at that spout (d2 / k, log)", fontsize=9)
+    ax.set_ylabel("cumulative fraction of hits", fontsize=9)
+    if only is None:
+        ax.legend(fontsize=9, frameon=False, loc="lower right")
+
+
+def plot_sessions_ecdf(F: dict) -> None:
+    """Per-session version of panel D (Priya 10-30): one panel per animal, each session a curve in its epoch colour."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    fig, axs = plt.subplots(1, 4, figsize=(17, 4.6), sharey=True, constrained_layout=True)
+    for ax, a in zip(axs, AN):
+        for _lab, an, ep, x in F["Dsess"]:
+            if an == a:
+                ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=EPOCH_LINE[ep], lw=1.1, alpha=0.75)
+        ax.axvline(F["thr"], color="0.3", ls=":", lw=1)
+        ax.set_xscale("log")
+        ax.set_xlim(0.2, 30)
+        ax.set_ylim(0, 1)
+        ax.set_title(a, fontsize=11)
+        ax.set_xlabel("d2 / k from own pre licks at that spout (log)", fontsize=9)
+    axs[0].set_ylabel("cumulative fraction of hits", fontsize=9)
+    hl = [Line2D([], [], color=EPOCH_LINE[e], lw=2, label=e) for e in EPS]
+    fig.legend(handles=hl, loc="outside lower center", ncol=4, fontsize=9, frameon=False)
+    fig.suptitle("Deviation of successful licks, ONE CURVE PER SESSION (colour = epoch; dotted = pre 95 % contour). "
+                 "n = 4, PROVISIONAL", fontsize=11)
+    fig.savefig(FIG / "kn_fig5d_sessions.png", dpi=150)
+    plt.close(fig)
+    print("wrote", FIG / "kn_fig5d_sessions.png")
+
+
+def plot_recovery_score(F: dict) -> None:
+    """Recovery scores, ALL FOUR ANIMALS per panel (Priya 10-30): hit rate, the prior far-contra aim offset, and the
+    multivariate normality of hits (all spouts / far contra). Sessions = open markers, shape = animal, colour = epoch;
+    thin grey line joins each animal's sessions."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    R = F["R"].sort_values(["animal", "day"])
+    panels = [("hit", "A. hit rate (engaged, all spouts)", (0, 1.02)),
+              ("aim_fc", "B. far-contra aim (deg vs own pre; - = ipsilesional)\nPRIOR measure: one feature, all trials",
+               None),
+              ("norm", "C. kinematic normality of HITS, all spouts\n(fraction inside the pre 95 % range; 7-9 features)",
+               (0, 1.02)),
+              ("norm_fc", "D. kinematic normality of HITS, far contra", (0, 1.02))]
+    fig, axs = plt.subplots(1, 4, figsize=(19, 4.8), constrained_layout=True)
+    for ax, (col, ttl, yl) in zip(axs, panels):
+        for a in AN:
+            g = R[(R.animal == a)].dropna(subset=[col])
+            ax.plot(g.day, g[col], color="0.75", lw=0.8, zorder=1)
+            ax.scatter(g.day, g[col], s=22, marker=ANIMAL_MARKER[a], facecolors="none",
+                       edgecolors=[EPOCH_LINE.get(e, "0.5") for e in g.epoch], linewidths=1.0, zorder=2)
+        pre = R[R.epoch == "pre"].groupby("animal")[col].mean().mean()
+        ax.axhline(pre if col != "aim_fc" else 0, color="0.4", ls=":", lw=0.9)
+        ax.axvline(0, color="0.85", lw=0.8)
+        if yl:
+            ax.set_ylim(*yl)
+        ax.set_title(ttl, fontsize=10, loc="left")
+        ax.set_xlabel("days from stroke", fontsize=9)
+    hl = [Line2D([], [], ls="none", marker=ANIMAL_MARKER[a], mfc="none", mec="0.3", label=a) for a in AN]
+    hl += [Line2D([], [], ls="none", marker="o", mfc="none", mec=EPOCH_LINE[e], label=e) for e in EPS]
+    fig.legend(handles=hl, loc="outside lower center", ncol=8, fontsize=9, frameon=False)
+    fig.suptitle("Recovery scores, all four animals (sessions: shape = animal, colour = epoch; dotted = pre level). "
+                 "Hit rate and far-contra aim recover; the movement of SUCCESSFUL licks stays less normal. n = 4, "
+                 "PROVISIONAL", fontsize=11)
+    fig.savefig(FIG / "kn_fig6_recovery_scores.png", dpi=150)
+    plt.close(fig)
+    print("wrote", FIG / "kn_fig6_recovery_scores.png")
 
 
 def main() -> None:
