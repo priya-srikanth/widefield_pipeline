@@ -668,6 +668,95 @@ def _recovery_simple(plt, qs: dict) -> None:
     plt.close(fig)
 
 
+SIMPLE_PAIRS = [("oro", "orofacial\npool"), ("VISpm", "VISpm\n(control)"), ("RSPd", "RSPd\n(control)")]
+SIMPLE_CTX = [("cued", "CUED licks"), ("rest", "DOCKED QUIET REST (no licks)"),
+              ("cued-rest", "LICK-SPECIFIC: cued licks minus rest")]
+
+
+def plot_simple() -> None:
+    """ONE figure, key points only (Priya 10-29): interhemispheric noise correlation (same 1-s window, w1, raw), change
+    vs pre, orofacial pool vs control pairs, during cued licks / at docked rest / lick minus rest; per-animal dots,
+    standard epoch colours; plus one small panel for the recovery link. From the saved tables only."""
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    with open(FIGD / "lick_interhemi_tables.pkl", "rb") as fh:
+        D = pickle.load(fh)
+    T, Rc = D["T"], D["Rc"]
+    t = T[(T.metric == "nc_win") & (T.tau == 0) & (T.win == "w1")]
+    fig = plt.figure(figsize=(16, 5.6), layout="constrained")
+    gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 0.8])
+    axs = [fig.add_subplot(gs[0, k]) for k in range(3)]
+    for ax in axs[1:]:
+        ax.sharey(axs[0])
+    x = np.arange(len(SIMPLE_PAIRS))
+    for ax, (st, ttl) in zip(axs, SIMPLE_CTX):
+        ax.axvspan(0.5, len(SIMPLE_PAIRS) - 0.5, color="0.94", zorder=0)
+        for k, ep in enumerate(EPS[1:]):
+            for xi, (p, _l) in zip(x, SIMPLE_PAIRS):
+                r = t[(t.set == st) & (t.pair == p) & (t.epoch == ep)]
+                if r.empty:
+                    continue
+                r = r.iloc[0]
+                xx = xi + (k - 1) * 0.26
+                pa = [float(v) for v in str(r.per_animal).split()]
+                if len(pa) != len(AN):              # names are not stored; only draw when all four are present
+                    pa = []
+                for an, v in zip(AN, pa):            # boot_delta per-animal list is over sorted animals (all 4 here)
+                    ax.plot(xx - 0.07, v, ANIMAL_MARKER[an], mfc="none", mec=EPOCH_LINE[ep], ms=4, alpha=0.75)
+                ax.errorbar(xx + 0.05, r.delta, yerr=[[r.delta - r.lo], [r.hi - r.delta]], fmt="o",
+                            color=EPOCH_LINE[ep], ms=5.5, lw=1.6)
+        ax.axhline(0, color="k", lw=0.6)
+        ax.set_xticks(x, [lb for _p, lb in SIMPLE_PAIRS], fontsize=8.5)
+        ax.set_xlim(-0.5, len(SIMPLE_PAIRS) - 0.5)
+        ax.set_title(ttl, fontsize=9.5)
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+    axs[0].set_ylabel("change vs pre in interhemispheric noise correlation\n(contra vs ipsi homotopic, Fisher z; "
+                      "+ = more coupled)", fontsize=8.5)
+    # recovery link: pooled within-animal partial r (| log day) of the orofacial-pool coupling with cued far-contra aim
+    # and with the cued contralesional share, during cued licks and at rest
+    ax = fig.add_subplot(gs[0, 3])
+    rows = [(st, tg) for st in ("cued", "rest") for tg in ("aim", "share")]
+    q = Rc[(Rc.pair == "oro") & (Rc.metric == "nc_win") & (Rc.tau == 0) & (Rc.win == "w1")]
+    for i, (st, tg) in enumerate(rows):
+        r = q[(q.set == st) & (q.target == tg)]
+        if r.empty:
+            continue
+        r = r.iloc[0]
+        for an in AN:
+            ax.plot(r[f"r_{an}"], i, ANIMAL_MARKER[an], mfc="none", mec="0.35", ms=5)
+        ax.plot(r.r_pooled_within, i, "|", color="k", ms=16, mew=2.2)
+        ax.text(0.98, i + 0.28, f"r = {r.r_pooled_within:+.2f}, p = {r.p_perm:.2f}", fontsize=7.5, ha="right",
+                transform=ax.get_yaxis_transform())
+    ax.axvline(0, color="k", lw=0.6)
+    ax.set_xlim(-0.75, 0.75)
+    ax.set_ylim(len(rows) - 0.4, -0.6)
+    ax.set_yticks(range(len(rows)), [f"{'cued' if st == 'cued' else 'rest'} coupling\nvs {'far-contra aim' if tg == 'aim' else 'contra share'}"
+                                     for st, tg in rows], fontsize=8)
+    ax.set_xlabel("within-animal partial r (| log day), post sessions", fontsize=8)
+    ax.set_title("RECOVERY LINK (orofacial pool)", fontsize=9.5)
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
+    hd = [Line2D([], [], marker="o", ls="-", color=EPOCH_LINE[ep], ms=5.5) for ep in EPS[1:]]
+    hd += [Line2D([], [], marker=ANIMAL_MARKER[a], ls="", mfc="none", color="0.4", ms=5) for a in AN]
+    hd += [Line2D([], [], marker="|", ls="", color="k", ms=12, mew=2)]
+    fig.legend(hd, [f"{ep} - pre (pooled, 95% CI)" for ep in EPS[1:]] + AN + ["pooled within-animal r"],
+               loc="outside lower center", ncol=8, fontsize=8.5, frameon=False)
+    pre = t[(t.set == "cued") & (t.pair == "oro")].pre_level.iloc[0]
+    fig.suptitle(_wrap("Interhemispheric coupling over recovery: trial-to-trial (noise) correlation between homotopic "
+                       "contra- and ipsilesional areas (residuals after the spout / angle mean; the same -0.5..+0.5 s "
+                       "window for licks and rest). At quiet REST coupling rises in the orofacial pool AND in the "
+                       "control areas (controls from acute on); during cued licks the orofacial rise (chronic) is no "
+                       "larger than at rest, and lick minus rest is flat (orofacial) or falls (controls) -> a GLOBAL, "
+                       "state-wide increase, not a lick- or orofacial-specific one. Orofacial pre level z = "
+                       f"{pre:.2f} (r = {np.tanh(pre):.2f}). Grey band = control areas. Right: the orofacial coupling "
+                       "does not track behavioural recovery. PROVISIONAL (n = 4)", 200), fontsize=9.5)
+    fig.savefig(FIGS / "lick_interhemi_simple.png", dpi=120)
+    plt.close(fig)
+
+
 # ------------------------------------------------------------------------------------------------ main
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -675,13 +764,18 @@ def main() -> None:
     ap.add_argument("--extract-rest", action="store_true")
     ap.add_argument("--summarise", action="store_true", help="from interhemi_sessions.csv.gz")
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--simple-only", action="store_true", help="only lick_interhemi_simple.png, from saved tables")
     ap.add_argument("--labels", nargs="*")
     a = ap.parse_args()
     from wfield_local import analysis_kit as ak
     jobs = min(a.jobs, 4)
     t0 = time.time()
+    if a.simple_only:
+        plot_simple()
+        return
     if a.plot_only:
         plot_all()
+        plot_simple()
         return
     labs = a.labels or il.labels()
     if a.extract_rest:
@@ -721,6 +815,7 @@ def main() -> None:
     summarise(S)
     figures_compute()
     plot_all()
+    plot_simple()
     print(f"total {time.time() - t0:.0f} s", flush=True)
 
 

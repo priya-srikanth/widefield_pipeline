@@ -84,3 +84,7 @@ Each supplement keeps its key figure(s); these secondary views were removed from
 | lick_recovery_markers_iti_axis.png | Fig 14.18 S16 | ITI licks on their own recovery axis, cvR2 |
 | lick_enlv_compare.png | Fig 14.21 S10 | ENLv vs cued vs ITI (all / docked / moving) offsets and balance, replaced by lick_like_for_like_all |
 | lick_iti_dock_compare.png | Fig 14.18 S11 | ITI results on docked vs all / moving licks (docked versions of the main ITI figures coming) |
+| lick_matched_pixel_trial.png / _iti.png | Fig 14.18 S8 | replaced by *_epochs.png (raw pre / acute / subacute / chronic + change maps) |
+| lick_area_tuning_decomp_simple.png | Fig 14.18 S8 | replaced by lick_area_tuning_decomp_dots.png |
+| lick_interhemi_noisecorr.png, lick_interhemi_recovery_simple.png | Fig 14.18 S10 | replaced by lick_interhemi_simple.png (orofacial vs VISpm / RSPd, cued vs rest, recovery link) |
+| lick_correction_behaviour.png (full, relabelled) | Fig 14.18 S9 | replaced by lick_correction_behaviour_compact.png (pre vs chronic, all spouts + far contra) |

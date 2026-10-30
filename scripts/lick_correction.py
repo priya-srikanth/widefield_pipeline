@@ -647,6 +647,38 @@ def _epoch_panel(ax, B: pd.DataFrame, S: pd.DataFrame | None, val: str, sel: dic
     ax.tick_params(labelsize=7)
 
 
+XLAB = ("lick k landed this far IPSILESIONAL of the target (deg)\n(target - landed; + = ipsilesional miss, "
+        "- = contralesional miss)")
+YLAB = "next lick's shift, angle_k+1 - angle_k\n(deg; + = moved contralesional)"
+
+
+def _curve_panel(ax, C: pd.DataFrame, gn: str, ep: str, eps: list, marker: dict, ecol: dict) -> None:
+    """Binned next-lick shift vs lick k's landing error (hit solid, miss dashed); per-animal thin grey, mean thick."""
+    for e in eps:
+        g = C[(C.group == gn) & (C.epoch == e) & (C.n >= 3)]
+        for ms, ls, lab in ((0, "-", "lick k HIT"), (1, "--", "lick k MISS")):
+            h = g[g.miss == ms]
+            for an, ha in h.groupby("animal"):
+                ax.plot(ha.x, ha.y, ls=ls, color="0.75", lw=0.6, marker=marker[an], ms=2.5)
+            mu = h.groupby("x").y.mean()
+            mu = mu[h.groupby("x").animal.nunique() >= 3]
+            ax.plot(mu.index, mu.values, ls=ls, color=ecol[e], lw=2.2, label=f"{e}: {lab} (mean of animals)")
+    ax.plot([-40, 40], [-40, 40], color="0.8", lw=1.0, zorder=0)
+    ax.axhline(0, color="0.6", lw=0.5)
+    ax.axvline(0, color="0.6", lw=0.5)
+    ax.set_xlim(-40, 40)
+    ax.set_ylim(-30, 40)
+    ax.text(-38, 38, "grey diagonal, slope 1 = next lick returns\nfully to the target (also what independent\n"
+            "licks scattered around the target give);\nslope 0 = next lick repeats lick k", fontsize=6.5,
+            va="top", ha="left", color="0.3")
+    ax.text(38, -28, "e.g. x = +10: lick k landed 10 deg IPSI of\ntarget; y = +10: next lick moved 10 deg\n"
+            "CONTRA, i.e. back onto the target", fontsize=6.5, ha="right", va="bottom", color="0.3")
+    ax.set_title(f"{ep.upper()}, {'all spouts' if gn == 'all' else 'far contra spout'}", fontsize=9)
+    ax.set_xlabel(XLAB, fontsize=7)
+    ax.set_ylabel(YLAB, fontsize=7)
+    ax.tick_params(labelsize=7)
+
+
 def plot(FB: dict, FN: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -657,28 +689,10 @@ def plot(FB: dict, FN: dict) -> None:
     S, B, C = FB["S"], FB["B"], FB["C"]
     GCOL = {"far contra": ("far_contra", "#b2182b"), "other 5 spouts": ("other5", "#2166ac")}
     # ---------- figure 1: behaviour
-    fig, axs = plt.subplots(4, 4, figsize=(15, 15), layout="constrained")
+    fig, axs = plt.subplots(4, 4, figsize=(15, 15.6), layout="constrained")
     for r, gn in enumerate(["all", "far_contra"]):
         for c, ep in enumerate(EPS):
-            ax = axs[r, c]
-            g = C[(C.group == gn) & (C.epoch == ep) & (C.n >= 3)]
-            for ms, ls, lab in ((0, "-", "lick k HIT"), (1, "--", "lick k MISS")):
-                h = g[g.miss == ms]
-                for an, ha in h.groupby("animal"):
-                    ax.plot(ha.x, ha.y, ls=ls, color="0.7", lw=0.6, marker=ANIMAL_MARKER[an], ms=2.5)
-                mu = h.groupby("x").y.mean()
-                mu = mu[h.groupby("x").animal.nunique() >= 3]
-                ax.plot(mu.index, mu.values, ls=ls, color=EPOCH_LINE[ep], lw=2, label=lab + " (mean of animals)")
-            ax.plot([-40, 40], [-40, 40], color="0.85", lw=0.8, zorder=0)
-            ax.axhline(0, color="0.6", lw=0.5)
-            ax.axvline(0, color="0.6", lw=0.5)
-            ax.set_xlim(-40, 40)
-            ax.set_ylim(-30, 40)
-            ax.set_title(_wrap(f"{ep}, {'all spouts' if gn == 'all' else 'far contra spout'}: next-lick angle change "
-                               f"vs lick k's error (toward target = +x)", 48), fontsize=8)
-            ax.set_xlabel("-e_k = target - landed angle of lick k (deg)", fontsize=7)
-            ax.set_ylabel("angle_k+1 - angle_k (deg, + = contralesional)", fontsize=7)
-            ax.tick_params(labelsize=7)
+            _curve_panel(axs[r, c], C, gn, ep, [ep], ANIMAL_MARKER, EPOCH_LINE)
     lines = {k: ({"group": v[0]}, v[1]) for k, v in GCOL.items()}
     for c, (m, yl, tt) in enumerate([("g_hit", "gain (1 = back on target line)", "1-3. correction GAIN after a HIT"),
                                      ("g_miss", "gain", "1-4. correction GAIN after a MISS"),
@@ -699,10 +713,27 @@ def plot(FB: dict, FN: dict) -> None:
                        "(1-5..1-10) are the feedback-specific measures.", 170), fontsize=9)
     h1, l1 = axs[0, 0].get_legend_handles_labels()
     h2, l2 = axs[2, 0].get_legend_handles_labels()
-    fig.legend(h1 + h2, ["rows 1-2: " + x.replace(" (mean of animals)", "") + " (mean of animals; colour = epoch)"
+    fig.legend(h1 + h2, ["rows 1-2: " + x.split(": ", 1)[1].replace(" (mean of animals)", "") + " (mean of animals; colour = epoch)"
                          for x in l1] + [f"rows 3-4: {x}" for x in l2], loc="outside lower center", ncol=4, fontsize=8,
                frameon=False)
     fig.savefig(FIGS / "lick_correction_behaviour.png", dpi=110)
+    plt.close(fig)
+    # ---------- figure 1b: COMPACT curves (Priya 10-29): pre vs chronic only, all spouts + far contra
+    fig, axs = plt.subplots(1, 4, figsize=(17, 5.4), layout="constrained")
+    for c, (gn, ep) in enumerate([("all", "pre"), ("all", "chronic"), ("far_contra", "pre"), ("far_contra", "chronic")]):
+        _curve_panel(axs[c], C, gn, ep, [ep], ANIMAL_MARKER, EPOCH_LINE)
+    h1, l1 = axs[0].get_legend_handles_labels()
+    h3, l3 = axs[1].get_legend_handles_labels()
+    fig.legend(h1 + h3, l1 + l3,
+               loc="outside lower center", ncol=4, fontsize=9, frameon=False)
+    fig.suptitle(_wrap("Next-lick correction, cued post-cue licks (pairs k -> k+1 within a trial, ILI <= 0.35 s), PRE vs "
+                       "CHRONIC. x = how far lick k landed IPSILESIONAL of the target (+) or contralesional (-); y = how "
+                       "far the next lick moved (+ = contralesional). Points on the grey diagonal (slope 1) = the next "
+                       "lick returns fully to the target, which is also what independent licks scattered around the "
+                       "target give; slope 0 = the next lick repeats lick k. Solid = lick k contacted the spout (HIT), "
+                       "dashed = MISS; thick = mean of animals (bins with >= 3 animals), thin grey = animals. Acute / "
+                       "subacute panels: lick_correction_behaviour.png. PROVISIONAL (n = 4).", 190), fontsize=9.5)
+    fig.savefig(FIGS / "lick_correction_behaviour_compact.png", dpi=110)
     plt.close(fig)
     # ---------- figure 2: per spout x epoch
     fig, axs = plt.subplots(2, 2, figsize=(14, 11), layout="constrained")

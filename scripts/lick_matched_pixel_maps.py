@@ -36,6 +36,8 @@ pixmatch_sig.csv; figdata/lick_matched_pixel_maps.pkl (maps, per animal); figure
 .png, lick_matched_pixel_animals_{cued,iti}.png, lick_matched_pixel_areas.png. Per-session c / U cache: LOCAL --cache
 folder (default the session scratch dir), never on M:.
 Usage: python scripts/lick_matched_pixel_maps.py [--cache DIR] [--jobs 4] | --plot-only
+       --epochs [--plot-only]: per-epoch RAW maps + change maps -> lick_matched_pixel_{trial,iti}_epochs.png
+       (figdata lick_matched_pixel_maps_epochs.pkl; rebuilt from the local cache, needs the main figdata)
 """
 from __future__ import annotations
 
@@ -483,8 +485,135 @@ def plot(D: dict) -> None:
     plt.close(fig)
 
 
+# ------------------------------------------------------------------------------------------------ per-epoch raw maps
+# Priya 10-29: show the RAW per-epoch response maps (kept licks, as the PRE panel) next to the change maps. The main
+# figdata holds only the PRE mean response, so the per-epoch means are rebuilt from the local SVD cache with the SAME
+# kept-lick / spout / MIN_LICKS rules (_stats + session_maps), fanned per session, and saved under their own stem.
+EP_STEM = "lick_matched_pixel_maps_epochs"
+EP_SETS = ["trial", "iti"]
+
+
+def _stats_one(item) -> tuple:
+    """(label, lick rows of that label, cache) -> the _stats entries of one session (module-level for spawn)."""
+    lab, g, cache = item
+    ST, _val, _W = _stats(g, Path(cache))
+    return ST
+
+
+def epoch_maps(cache: Path, jobs: int) -> dict:
+    from wfield_local import analysis_kit as ak
+    L = _lick_table()
+    L = L[L.set.isin(EP_SETS)]
+    items = [(lab, g, str(cache)) for lab, g in L.groupby("label")]
+    res, fail = ak.fan_sessions(items, _stats_one, jobs=jobs, key=lambda it: it[0])
+    if fail:
+        raise RuntimeError(f"stats failed: {fail[:3]}")
+    ST = {}
+    for _k, v in res:
+        ST.update(v)
+    SM = session_maps(L, ST)
+    del ST
+    out, nses = {}, {}
+    for st in EP_SETS:
+        for an in AN:
+            for ep in EPS:
+                v = [x for (s2, _l), x in SM.items() if s2 == st and x[5] == an and x[4] == ep]
+                if v:
+                    out[(st, an, ep)] = np.mean([x[2] for x in v], 0).astype(np.float32)    # kept-lick mean response
+                    nses[(st, an, ep)] = len(v)
+    return {"resp": out, "n_sess": nses}
+
+
+def plot_epochs(D: dict, E: dict) -> None:
+    """Per set: row 1 = RAW kept-lick response pre / acute / subacute / chronic (one magma scale); rows 2-3 = the change
+    maps of the main figure (post - pre at matched spout + angle; mirrored contra - ipsi), one RdBu scale."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from frozen_area_maps import outline
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    F, maps, ol = D["F"], D["maps"], outline(D["img"])
+    m_all, m_mir = D["masks"]["all"], D["masks"]["mirror"]
+    for st in EP_SETS:
+        raw, nan_ = {}, {}
+        for ep in EPS:
+            v = [E["resp"][(st, an, ep)] for an in AN if (st, an, ep) in E["resp"]]
+            if v:
+                raw[ep] = np.where(m_all, _full(F, np.mean(v, 0)), np.nan)
+                nan_[ep] = len(v)
+        if not raw:
+            continue
+        pooled = {}
+        for ep in POST:
+            v = [maps[(st, an, ep)] for an in AN if (st, an, ep) in maps]
+            if v:
+                pooled[ep] = (np.mean(v, 0), len(v))
+        diff = {ep: np.where(m_all, _full(F, v), np.nan) for ep, (v, _n) in pooled.items()}
+        mirr = {ep: np.where(m_mir, _mirror_full(F, v), np.nan) for ep, (v, _n) in pooled.items()}
+        rvals = np.concatenate([x[np.isfinite(x)] for x in raw.values()])
+        rlo, rhi = np.nanpercentile(rvals, 1), np.nanpercentile(rvals, 99)
+        vmax = np.nanpercentile(np.abs(np.concatenate([x[np.isfinite(x)] for x in [*diff.values(), *mirr.values()]])),
+                                99)
+        fig = plt.figure(figsize=(15.5, 12.4))
+        gs = fig.add_gridspec(3, 5, width_ratios=[1, 1, 1, 1, 0.05], wspace=0.06, hspace=0.28)
+        rows = [("raw", raw, "RAW response, kept licks"),
+                ("diff", diff, "CHANGE: post - pre at matched\nspout + angle"),
+                ("mirror", mirr, "MIRRORED change: contra pixel -\nmirrored ipsi pixel")]
+        for i, (kind, dd, rt) in enumerate(rows):
+            im = None
+            for j, ep in enumerate(EPS):
+                ax = fig.add_subplot(gs[i, j])
+                ax.axis("off")
+                if ep not in dd:
+                    if kind != "raw" and ep == "pre":
+                        ax.text(0.5, 0.5, "pre = reference\n(change maps are\npost - pre)", ha="center", va="center",
+                                fontsize=9, color="0.4", transform=ax.transAxes)
+                    continue
+                if kind == "raw":
+                    im = ax.imshow(dd[ep], cmap="magma", vmin=rlo, vmax=rhi, interpolation="nearest")
+                    n = nan_[ep]
+                else:
+                    im = ax.imshow(dd[ep], cmap="RdBu_r", vmin=-vmax, vmax=vmax, interpolation="nearest")
+                    k = D["contours"].get((st, ep, kind))
+                    if k is not None and k.any():
+                        ax.contour(k.astype(float), levels=[0.5], colors="k", linewidths=0.9)
+                    n = pooled[ep][1]
+                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.5, interpolation="nearest")
+                ax.set_title(f"{ep.upper()} (n = {n} animals)\n{rt}", fontsize=8.5, color=EPOCH_LINE[ep])
+            cax = fig.add_subplot(gs[i, 4])
+            fig.colorbar(im, cax=cax).set_label("dF/F x1e3" if kind == "raw" else "dF/F x1e3\n(+ = larger after)",
+                                                fontsize=8)
+        fig.suptitle(_wrap(f"{SETS[st]}: per-epoch RAW post-lick response maps (0.1-0.5 s minus -1..-0.5 s from the lick "
+                           "peak; mean of animals of the session means over kept licks = licks inside the pre angle "
+                           "range of their spout) on ONE colour scale (row 1), then the matched change maps (rows 2-3, "
+                           "one scale; contour = calibrated nested-bootstrap max-stat test, supporting only). NB raw "
+                           "epoch minus raw pre is not exactly row 2: row 2 subtracts the pre prediction at each lick's "
+                           "own spout + landed angle. Image LEFT = ipsilesional. PROVISIONAL", 175), fontsize=9.5,
+                     y=0.995)
+        fig.subplots_adjust(left=0.01, right=0.95, bottom=0.01, top=0.9)
+        fig.savefig(FIG / f"lick_matched_pixel_{st}_epochs.png", dpi=90)
+        plt.close(fig)
+
+
 def main() -> int:
     from figdata import load_fd, save_fd
+    if "--epochs" in sys.argv:              # per-epoch raw maps (+ change maps), new files only
+        ap = argparse.ArgumentParser()
+        ap.add_argument("--epochs", action="store_true")
+        ap.add_argument("--plot-only", action="store_true")
+        ap.add_argument("--cache", default=str(DEFAULT_CACHE))
+        ap.add_argument("--jobs", type=int, default=4)
+        a = ap.parse_args()
+        t0 = time.time()
+        if a.plot_only:
+            E = load_fd(EP_STEM)
+        else:
+            E = epoch_maps(Path(a.cache), min(a.jobs, 4))
+            save_fd(EP_STEM, E)
+        plot_epochs(load_fd(STEM), E)
+        print(f"epochs done in {time.time() - t0:.0f} s")
+        return 0
     ap = argparse.ArgumentParser()
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--cache", default=str(DEFAULT_CACHE))

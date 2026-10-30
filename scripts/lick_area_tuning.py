@@ -380,6 +380,68 @@ def plot_decomp(T: pd.DataFrame, simple: bool = False) -> None:
     plt.close(fig)
 
 
+# _dots variant (Priya 10-29: decomp_simple too busy, colours off-standard): key areas only, three terms, cued + ITI
+# rows, standard epoch colours (orofacial_cohort.EPOCH_LINE), per-animal dots + pooled 95% CI.  Plotting only.
+DOT_AREAS = [("ALM", "c"), ("tjM1", "c"), ("SSp-m", "c"), ("SSp-n", "c"), ("VISpm", "c")]
+DOT_TERMS = [("rshift", "c", "OFFSET / LEVEL (contra hemisphere)",
+              "change in level vs pre at matched\nspout + angle (fraction of pre-predicted)"),
+             ("lratio", "c-i", "CONTRA SHARE (contra - ipsi)",
+              "change in log2(post / pre-predicted),\ncontra - ipsi (+ = contra gains)"),
+             ("depth1", "c", "TUNING DEPTH (contra hemisphere)",
+              "change in tuning depth (g - 1)\n(+ steeper / gain, - flatter / broader)")]
+
+
+def plot_decomp_dots(T: pd.DataFrame) -> None:
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    sets = [s for s in SIMPLE_SETS if s in set(T.set)]
+    fig, axs = plt.subplots(len(sets), len(DOT_TERMS), figsize=(4.6 * len(DOT_TERMS), 3.7 * len(sets) + 1.6),
+                            squeeze=False, layout="constrained")
+    x = np.arange(len(DOT_AREAS))
+    for i, st in enumerate(sets):
+        for j, (met, hk, ttl, yl) in enumerate(DOT_TERMS):
+            ax = axs[i, j]
+            ax.axvspan(len(DOT_AREAS) - 1.5, len(DOT_AREAS) - 0.5, color="0.93", zorder=0)
+            for k, ep in enumerate(POST):
+                for xi, (a, _h) in zip(x, DOT_AREAS):
+                    r = T[(T.set == st) & (T.metric == met) & (T.area == a) & (T.hemi == hk) & (T.epoch == ep)]
+                    if r.empty or not np.isfinite(r.point.iloc[0]):
+                        continue
+                    r = r.iloc[0]
+                    xx = xi + (k - 1) * 0.26
+                    for an in AN:
+                        v = r.get(f"d_{an}", np.nan)
+                        if np.isfinite(v):
+                            ax.plot(xx - 0.07, v, ANIMAL_MARKER[an], mfc="none", mec=EPOCH_LINE[ep], ms=4, alpha=0.75)
+                    ax.errorbar(xx + 0.05, r.point, yerr=[[r.point - r.lo], [r.hi - r.point]], fmt="o",
+                                color=EPOCH_LINE[ep], ms=5.5, lw=1.6, capsize=0)
+                    if int(r.n_animals) < 4:
+                        ax.text(xx + 0.05, r.hi, f"n={int(r.n_animals)}", fontsize=6, ha="center", va="bottom",
+                                color=EPOCH_LINE[ep])
+            ax.axhline(0, color="k", lw=0.6)
+            ax.set_xticks(x, [a if a != "VISpm" else "VISpm\n(control)" for a, _h in DOT_AREAS], fontsize=8.5)
+            ax.set_xlim(-0.5, len(DOT_AREAS) - 0.5)
+            ax.tick_params(axis="y", labelsize=8)
+            ax.set_ylabel(yl, fontsize=8)
+            ax.set_title(f"{'CUED first lick' if st == 'trial' else 'ITI first lick after quiet'}: {ttl}",
+                         fontsize=9)
+            _clean(ax)
+    hd = [Line2D([], [], marker="o", ls="-", color=EPOCH_LINE[ep], ms=5.5) for ep in POST]
+    hd += [Line2D([], [], marker=ANIMAL_MARKER[a], ls="", mfc="none", color="0.4", ms=5) for a in AN]
+    fig.legend(hd, [f"{ep} - pre (pooled, 95% CI)" for ep in POST] + [f"{a}" for a in AN],
+               loc="outside lower center", ncol=7, fontsize=8.5, frameon=False)
+    fig.suptitle(_wrap("Matched-lick tuning change vs pre per area (licks to the same spout landing at the same angle as "
+                       "pre; contralesional hemisphere unless stated). A pure additive OFFSET moves the level with depth "
+                       "~0; a GAIN moves level and depth together; BROADER tuning = depth < 0. Filled = pooled change "
+                       "(paired nested bootstrap 95% CI); open = animals; 0 = pre. VISpm (grey) = non-orofacial control; "
+                       "n = animals when < 4 (ratio terms undefined where the pre response < 3 dF/F x1e3). PROVISIONAL "
+                       "(n = 4)", 170), fontsize=9.5)
+    fig.savefig(FIG / "lick_area_tuning_decomp_dots.png", dpi=100)
+    plt.close(fig)
+
+
 RAW = [("slope", "c", "raw SLOPE, contralesional (per 10 deg)"), ("slope", "i", "raw SLOPE, ipsilesional"),
        ("off_ref", "c", "raw OFFSET at the pre mean angle, contra"), ("off_ref", "i", "raw OFFSET, ipsi"),
        ("shift", "c-i", "matched additive SHIFT, contra - ipsi\n(dF/F x1e3)")]
@@ -413,12 +475,18 @@ def plot_all() -> None:
         plot_curves(M, st)
     plot_decomp(T)
     plot_decomp(T, simple=True)
+    plot_decomp_dots(T)
     plot_raw(T)
 
 
 def main() -> int:
     t0 = time.time()
     FIG.mkdir(parents=True, exist_ok=True)
+    if "--dots-only" in sys.argv:
+        import matplotlib
+        matplotlib.use("Agg")
+        plot_decomp_dots(pd.read_csv(OUT / "areatune_tests.csv"))
+        return 0
     if "--plot-only" not in sys.argv:
         if "--reuse-licks" in sys.argv:
             L = pd.read_csv(OUT / "areatune_licks.csv.gz")
