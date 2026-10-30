@@ -39,7 +39,42 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-17 (10-29 ~03:00) -- READ FIRST (then -16 / -15 for the balance definition and decomposition, -12 env)
+### 00-COMPACT-18 (10-30 ~late night) -- READ FIRST (then the running list; -17 for the 10-29 state)
+Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Page LIVE **v292**
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (local source `_goal_page/index.html`, images gitignored -> publish via the
+`files` map; supplement anchors `id="s14-18-N"`). Last commits ccfae557 (page/figure review fixes + FINDINGS 4.23 + S25),
+8aa75cab (running list). **NOTHING RUNNING.** Running list = `docs/status/RUNNING_LIST_2026-10-29.md` (10-30 entries at the end).
+DONE 10-30 (each pre-registered, Outcome section filled; FINDINGS §4 items; page 14.18 supplements):
+- ITPC / coherence (4.17): ITPC rise restates the larger lick response; GCaMP6s kinetics caveat (LTI deconvolution leaves
+  ITPC / coherence unchanged by construction) -> S19 DEMOTED (Priya OK). CCA gate failed; no DLAG.
+- Direction-information timing S vs M (4.18, S20; DIRECTION_INFO_LAG_PREREG): pre motor leads ~23 ms; chronic ~10 ms, 4/4.
+- Literature deep dive: `docs/RECOVERY_MECHANISMS_LIT_20261030.md` (predictions vs results table; pathway routes A-D,
+  route D 'ALM -> bilateral premotor' UNVERIFIED (Priya asked it as a question); ranked analyses; cohort-2 perturbation
+  logic: direction x epoch interaction, contralesional activation, ~3-week viral lead time).
+- Kinematic normality (4.19, S22a-e): hits still less normal chronically (-0.10, 4/4; PS94 most); median deviation raised,
+  95th pct back; recovery-score figure all 4 animals (`scripts/kn_hits_deviation.py`).
+- Re-embedding (4.20, S23): alignment failed gate G1 -> NOT ESTABLISHED; half the chronic frozen-refit gap is drift-sized.
+- Within-lick correction (4.21, S21a-d): 'the brain fixes the LAUNCH command itself rather than adding feedback
+  corrections' (Priya likes this wording); pre-stroke CSM validation reproduces Bollu 2021 (S21a).
+- Learned compensation (4.22, S24): no within-session learning (gains overnight), no ITI carry-over; hit rate FALLS within
+  post sessions; ITI bias = cued landing error (NO gap -- Priya: important; FINDINGS §0 4b note).
+- Pre-launch hemispheric tuning (4.23, S25): gate failed 0/4 at AREA level; contraversive pattern only post-contact.
+FIGURE DEFAULTS (Priya 10-30; memory results-page-conventions + docs/templates/README.md): sessions = OPEN markers, shape =
+animal (PS92 o, PS93 s, PS94 ^, PS95 D), colour = epoch (EPOCH_LINE); pooled = FILLED epoch-colour marker; June grey; NO
+figure numbers inside images (panel letters OK); NO connecting lines between epochs; distributions = faint session curves
++ thick pooled, each epoch's own 50 % / 95 % marked.
+OPEN (Priya to decide; asked, no answer yet):
+1. **NEW 10-30: pixel / SVD version of S25** -- Priya asked why area pools rather than SVD within ALM / tjM1 (Allen masks).
+   Answer given: my choice (trial counts, hemisphere comparability), not principled; area averaging may cancel a spatial
+   pattern. Proposed add-on prereg: mirrored ALM + tjM1 masks per hemisphere, SVTcorr projected on masked U_atlas, top
+   components; one FROZEN decoder per animal x hemisphere trained on pooled August pre sessions (load_or_fit), scored on
+   post; same pre gate (>= 3/4 animals, within-spout CV vs shuffle); post-contact window as positive control. Limits either
+   way: launch noise 5-8 deg / lick, GCaMP6s over a 250 ms window. Awaiting go.
+2. Figures for text-only S2 / S11 / S16? 3. Collapse S3 into the offset section? 4. Publish reembed frozen refs (local
+   store, kind `reembed`) to MICROSCOPE? 5. New re-embedding prereg with spout-resolving label-free alignment?
+6. Cohort-2 design (longer pre baseline; perturbation arm) -- viral lead time means decide soon.
+
+### 00-COMPACT-17 (10-29 ~03:00) -- (previous; then -16 / -15 for the balance definition and decomposition, -12 env)
 Same session / worktree / branch; page LIVE v223 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; last commit adf258ee+.
 DONE this stretch (all on the page + FINDINGS 0b):
 - 'Biology in brief' section at the top (7 cards, hypothesis line). 14.18 primary image = UNCAPPED first licks
