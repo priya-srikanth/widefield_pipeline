@@ -1326,6 +1326,19 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     ridge strength (weak ridge vs heavy: r 0.07-0.21) and explains ~6 % of the one-step change. CURBD's chronic session
     (0910) was prepped but NOT fitted. Code `scripts/curbd_pilot.py`, `wfield_local/curbd_core.py` (port of
     rajanlab/CURBD, **GPL-3.0**); outputs `<E>/curbd_pilot/` (figures 1-3, tables/). **NOT ESTABLISHED / PILOT.**
+15. **Region-level ridge MVAR (10-30, follow-up of 14): cross-region terms predict held-out, but the region matrix is
+    NOT stable enough in enough animals (gate 2/4, needed 3), so NO pre vs post comparison was made.** Same 18-region
+    residual data as 14 (one unit per region), 31 August pre sessions, all four animals. Lag 1-3 bins and ridge chosen
+    by nested contiguous-block CV (whole trials, no lag crosses a trial); readout W = lag-summed coefficients.
+    Prediction: full MVAR beats each region's own past (AR-only, own CV) in 31/31 sessions and 5/5 held-out folds;
+    gain .010-.025 R2 = 9-15 % of the one-step CHANGE variance (median per animal). Stability (gate written beforehand,
+    `docs/status/MVAR_PREREG_20261030.md`): PS92 and PS94 pass every criterion; PS93 fails only on one session
+    (0814 halves r .28; median .87, sessions .84); PS95 fails (halves median .64, sessions .39). Global-removed and
+    deconvolved (tau 0.6) variants: 1/4 and 2/4. CV picks p = 3 (top of range) and near-OLS ridge everywhere; the
+    ridge-robustness criterion therefore tested a flat region; a heavy ridge (as in 14's comparator) gives a different
+    matrix (r .25-.37). The S18 Granger result (`coupling_vigour_sm.py`) is NOT tested or supported by this. Script
+    `scripts/mvar_regions.py`; outputs `<E>/mvar/` (figures 1-2, tables/). **NOT ESTABLISHED (gate failed; PROVISIONAL
+    n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
