@@ -6,6 +6,8 @@ sessions bootstrap, 95 %). Dots = sessions, coloured by animal. A cell needs >= 
 
   angle_change_pooled.png     cam4 executed peak angle (+ = ipsi), change by position x epoch  (pooled twin of
                               `orofacial_cohort` angle_tuning, which is per animal)
+  angle_change_pooled_contra.png  the same signed + = CONTRALESIONAL (goal-page convention, Priya 10-30); re-seeded,
+                              so every number is the + = ipsi one negated. `--angle-only` draws just these two.
   pose3d_change_pooled.png    3-D per-session medians (`pose3d_kinematics` sessions.csv): midline error toward ipsi,
                               miss distance, reach, peak speed, widest jaw opening, by position x epoch; jaw FAR_DIR /
                               CLOSE_DIR
@@ -97,21 +99,28 @@ def _legend(fig):
     fig.legend(handles=h, loc="lower center", ncol=7, fontsize=7, frameon=False)
 
 
-def fig_angle(out: Path, rng) -> pd.DataFrame:
+def fig_angle(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
+    from wfield_local import config
     from wfield_local.paths import PathResolver
     Pm = pd.read_csv(Path(PathResolver().root("orofacial")) / V36 / "cohort" / "tables" / "prepost" / "position_metrics.csv")
+    side = "ipsi"
+    if contra:      # the table is + = image right = ipsi for a LEFT lesion; flip per animal from its lesion side
+        lat = {a: str((v or {}).get("stroke_laterality", "L")) for a, v in config.animals().items()}
+        Pm = Pm.assign(peak_angle_deg=Pm.peak_angle_deg * Pm.animal.map(lambda a: -1.0 if lat.get(a, "L") == "L" else 1.0))
+        side = "contra"
     P = pooled_change(Pm, "peak_angle_deg", "pos", POS_CAM4, rng)
     d = _sessions_minus_pre(Pm, "peak_angle_deg", "pos")
     fig, axs = plt.subplots(1, 6, figsize=(15, 3.6), sharey=True)
     for j, p in enumerate(POS_CAM4):
-        _panel(axs[j], d[d.pos == p], P, p, "executed angle, change vs own pre\n(deg; + = ipsi)" if j == 0 else None, rng)
+        _panel(axs[j], d[d.pos == p], P, p, f"executed angle, change vs own pre\n(deg; + = {side}lesional)" if j == 0
+               else None, rng)
         axs[j].set_title(p.replace("_", " "), fontsize=9)
     fig.suptitle("cam4 executed peak lick angle, POOLED: each session minus its animal's August pre mean (all post-cue "
                  "licks, per-position median); * = 95 % CI excludes 0", fontsize=9)
     _legend(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.94))
-    fig.savefig(out / "angle_change_pooled.png", dpi=130)
+    fig.savefig(out / ("angle_change_pooled_contra.png" if contra else "angle_change_pooled.png"), dpi=130)
     plt.close(fig)
     return P
 
@@ -410,6 +419,7 @@ def main(argv=None) -> int:
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--angle-only", action="store_true", help="only the two cam4 angle figures (+ = ipsi and + = contra)")
     a = ap.parse_args(argv)
     out = a.out or Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "figures" / "pooled"
     assert_writable(out)
@@ -419,6 +429,11 @@ def main(argv=None) -> int:
     matplotlib.use("Agg")
     A = fig_angle(out, rng)
     A.to_csv(out / "angle_change_pooled.csv", index=False)
+    Ac = fig_angle(out, np.random.default_rng(20261025), contra=True)      # re-seeded: same draws, numbers negated
+    Ac.to_csv(out / "angle_change_pooled_contra.csv", index=False)
+    if a.angle_only:
+        print(Ac[["group", "epoch", "PS92", "PS93", "PS94", "PS95", "est", "lo", "hi"]].round(2).to_string(index=False))
+        return 0
     B = fig_3d(out, rng)
     B.to_csv(out / "pose3d_change_pooled.csv", index=False)
     C = fig_cue(out)

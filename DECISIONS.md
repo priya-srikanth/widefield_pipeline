@@ -22201,3 +22201,14 @@ whose session is every animal's reference, overridable per animal. Preprocess fi
 wait for registration, which needs the reference's Allen dir), copies the landmarks from the local raw to MICROSCOPE,
 and builds the reference's Allen dir itself (manual for cohort1). `python -m wfield_local.alignment_reference` shows the
 state and the GUI command per animal. The GUI (`allen_register`) already handled any frame size.
+
+## 2026-10-30 -- Lick ANGLES are signed + = CONTRALESIONAL on the kinematics page, as on the encoder goal page (Priya)
+Priya (10-29/30, relayed by the encoding window): the kinematics page should read in one sign convention with the encoder
+goal page, + = contralesional. `orofacial_cohort.fig_angle_tuning(..., contra=True)` -> `angle_tuning_contra.png` and
+`scripts/kinematics_pooled_figs.py` -> `angle_change_pooled_contra.png/.csv` (`--angle-only`; re-seeded, so every pooled
+number is the + = ipsi one negated: far contra acute -29.1 [-40.2, -16.3]). The flip is per animal from
+`stroke_laterality` (all four lesions are left). The + = ipsi figures and tables are KEPT (not deleted); the underlying
+tables (`position_metrics.csv`, image sign + = image right) are unchanged. Kinematics page v10 uses the contra versions
+for Figs 3.1 / 3.6 and adds the first-lick aim figures (1.4 pooled, 1.5 per animal; `scripts/lick_cued_aim_by_spout.py`,
+encoding window, + = contra). STILL + = ipsi on that page, labelled on every axis: section 2 angle / lateral rows, the 3-D
+midline-angle figures (3.2-3.5, 3.7, 9.x) and the section 4 paths -- convert when those figures are next rendered.

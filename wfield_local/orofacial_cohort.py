@@ -864,9 +864,15 @@ def fig_mismatch(Pm, lat, path, title):
                        "lick; epoch mean +- SEM over sessions")
 
 
-def fig_angle_tuning(Pm: pd.DataFrame, lat: dict, path: Path, title: str) -> None:
+def fig_angle_tuning(Pm: pd.DataFrame, lat: dict, path: Path, title: str, contra: bool = False) -> None:
+    """``contra``: draw both angles signed + = CONTRALESIONAL (the encoder goal page's convention, Priya 10-30) instead
+    of the table's + = image right (= ipsi for the left lesions here); flipped per animal from its lesion side."""
     ecol = EPOCH_LINE
     animals = sorted(Pm.animal.unique())
+    if contra:
+        sg = Pm.animal.map(lambda a: -1.0 if lat.get(a, "L") == "L" else 1.0)
+        Pm = Pm.assign(spout_angle_deg=Pm.spout_angle_deg * sg, peak_angle_deg=Pm.peak_angle_deg * sg)
+    side = "contra" if contra else "ipsi"
     plt = _plt()
     fig, axs = plt.subplots(1, len(animals), figsize=(3.6 * len(animals), 4.0), squeeze=False)
     for ax, a in zip(axs[0], animals):
@@ -888,13 +894,14 @@ def fig_angle_tuning(Pm: pd.DataFrame, lat: dict, path: Path, title: str) -> Non
         ax.plot([-50, 50], [-50, 50], color="0.85", lw=0.8, zorder=0)
         ax.set_xlim(-50, 50)
         ax.set_title(a, fontsize=9)
-        ax.set_xlabel("spout angle (deg; + = ipsi)", fontsize=7.5)
+        ax.set_xlabel(f"spout angle (deg; + = {side}lesional)", fontsize=7.5)
         ax.legend(fontsize=6.5, frameon=False)
         ax.tick_params(labelsize=7)
-    axs[0][0].set_ylabel("executed peak tongue angle (deg)", fontsize=8)
+    axs[0][0].set_ylabel(f"executed peak tongue angle (deg; + = {side}lesional)", fontsize=8)
     fig.suptitle(title + "\nexecuted vs target angle, licks: ALL POST-CUE licks: per-position median (measured peaks), "
                  "epoch mean +- SEM over "
-                 "sessions\nfar = solid, close = dashed; grey = identity; left = contra positions, right = ipsi",
+                 "sessions\nfar = solid, close = dashed; grey = identity; "
+                 + ("left = ipsi positions, right = contra" if contra else "left = contra positions, right = ipsi"),
                  fontsize=9)
     _save(plt, fig, path)
 
@@ -1949,6 +1956,7 @@ def main(argv=None) -> int:
     fig_by_position(Pm, lat, figs / "by_position.png", t)
     fig_mismatch(Pm, lat, figs / "mismatch.png", t)
     fig_angle_tuning(Pm, lat, figs / "angle_tuning.png", t)
+    fig_angle_tuning(Pm, lat, figs / "angle_tuning_contra.png", t, contra=True)      # + = contralesional (goal page)
     for name, ms in POS_GROUPS.items():
         fig_epochs_by_position(Pm, lat, ms, figs / f"epochs_by_position_{name}.png", t)
         fig_timecourse_by_position(Pm, ms, figs / f"timecourse_by_position_{name}.png", t)
