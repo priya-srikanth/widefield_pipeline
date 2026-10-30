@@ -803,7 +803,11 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   + offset +0.35 / +0.22 / +0.27 mm; CUED slope -0.11 / -0.10 / -0.11 (4/4, 3/4, 3/4), offset only acute (+0.17) -> the cued
   change is mostly a FLATTER read-out; ENLv first lick >= 1 s: mostly offset (+0.33 / +0.21 / +0.22) + modest gain loss.
   Edge check: pre curves not compressed at the contra end (cued pre local slope 0.49-0.93 vs post 0.18-0.25) -> activity
-  differs; at the ipsi end the pre curve is flat (decoder floor). Untested: noisier post landing measurement (dilution). Balance (bout starts)
+  differs; at the ipsi end the pre curve is flat (decoder floor). Untested: noisier post landing measurement (dilution).
+  ALL LICK TYPES (lick_like_for_like_all.png): ITI first-after-quiet and cued FIRST lick also read contralesional every
+  epoch (offset +0.30/+0.19/+0.23; +0.16/+0.13/+0.08 mm, 4/4); cued first: no gain loss. Far-contra chronic ipsilesional
+  reading is in LATER cued licks: 1st +0.11 n.s., 2nd-3rd -0.21 (4/4), 4th+ -0.38 (4/4), growing with time since stroke,
+  with or without contact. Confound: lick order ~ time in trial / repeated contact. Balance (bout starts)
   acute -0.24 (4/4) -> -0.08 n.s. target-aware; chronic within-spout +0.14 (4/4) = the CUED pattern; pre ENLv post-lick
   activity carries a target component (w 0.59-0.90). Working description (Priya OK 10-29): ENLv = cued-like target-coded balance + ITI-like
   persistent decoder offset. First ENLv lick: largest offset but mostly < 0.5 s after arrival. PROVISIONAL.

@@ -68,3 +68,4 @@ Each supplement keeps its key figure(s); these secondary views were removed from
 | lick_cue_to_lick_B_pre_models.png (32 panels) | Fig 14.21 S12 | full threshold test per area x hemisphere (replaced by lick_cue_to_lick_threshold_simple.png, pooled contra orofacial) |
 | lick_cue_to_lick_A_level_contra.png (8 areas x 7 spouts) | Fig 14.21 S12 | replaced by lick_cue_to_lick_A_level_simple.png (4 areas, all spouts + far contra) |
 | lick_cue_to_lick_D_decomposition.png (16 x 5) | Fig 14.21 S12 | replaced by lick_cue_to_lick_D_simple.png (6 areas x 3 columns) |
+| lick_enlv_curves.png, lick_enlv_curves_gain.png | Fig 14.21 S10 | replaced by lick_like_for_like_all.png (all six lick sets + gain/offset) |

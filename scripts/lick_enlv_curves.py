@@ -32,7 +32,13 @@ cancels it unless the activity differs.
 Outputs <OUT_W>/enlv_licks/: curves_counts.csv, curves_coverage.csv, curves_bin_tests.csv, curves_gain_sessions.csv,
 curves_gain_tests.csv, curves_edge.csv; figures/lick_enlv_curves.png (lateral place), lick_enlv_curves_angle.png,
 lick_enlv_curves_gain.png; figdata/lick_enlv_curves.pkl.
-Usage: python scripts/lick_enlv_curves.py [--plot-only]
+10-29 (Priya, ALL lick types in one figure): two more sets, each with its own pre same-set reference -- iti_q = ITI FIRST
+lick after >= 2 s quiet (lick_recovery_markers.QSET / _gaps; the primary ITI set) and trial_1 = cued FIRST post-cue lick
+(order 0, lick_matched_readout cls 'first'); rows ADDED to every CSV above (existing sets' values unchanged: all tests are
+per set). figures/lick_like_for_like_all.png (ITI all, ITI 1st after quiet, cued all, cued 1st, ENLv a, ENLv b with their
+Fig 12.2 readers + gain / offset change), figdata/lick_like_for_like_all.pkl. Far-contra end of the cued curves:
+curves_farcontra_sessions.csv / curves_farcontra_tests.csv (resid by post-cue lick order and spout contact).
+Usage: python scripts/lick_enlv_curves.py [--plot-only [--all-only]]
 """
 from __future__ import annotations
 
@@ -65,7 +71,15 @@ PANELS = {"iti|iti": ("iti", "iti", "ITI licks"), "trial|trial": ("trial", "tria
           "enlv_a|iti": ("enlv_a", "iti", "ENLv (a) FIRST lick / trial >= 1 s"),
           "enlv_b|iti": ("enlv_b", "iti", "ENLv (b) BOUT starts >= 1 s"),
           "enlv_a|enlv": ("enlv_a", "enlv", "ENLv (a) FIRST lick / trial >= 1 s"),
-          "enlv_b|enlv": ("enlv_b", "enlv", "ENLv (b) BOUT starts >= 1 s")}
+          "enlv_b|enlv": ("enlv_b", "enlv", "ENLv (b) BOUT starts >= 1 s"),
+          "iti_q|iti": ("iti_q", "iti", "ITI FIRST lick after >= 2 s quiet"),
+          "trial_1|trial": ("trial_1", "trial", "cued FIRST lick (post-cue order 1)")}
+# the combined like-for-like figure (Priya 10-29): every lick set with its Fig 12.2 reader
+ALL_PANELS = ["iti|iti", "iti_q|iti", "trial|trial", "trial_1|trial", "enlv_a|iti", "enlv_b|iti"]
+SHORT = {"iti|iti": "ITI all", "iti_q|iti": "ITI 1st\nafter quiet", "trial|trial": "cued all", "trial_1|trial": "cued 1st",
+         "enlv_a|iti": "ENLv (a)", "enlv_b|iti": "ENLv (b)"}
+FC_BAND = (1.1, 1.9)     # far-contralesional landing band (mm) of the far-contra-end check
+ORD_CLS = {"1st": (0, 0), "2nd-3rd": (1, 2), "4th+": (3, 999)}
 RLAB = {"iti": "frozen pre ITI reader", "trial": "frozen pre cued reader", "enlv": "frozen pre ENLv reader"}
 # axis -> (column, sigma, grid, bins, unit, label)
 AXES = {"lat": ("act", 0.1, np.round(np.arange(-3.0, 3.001, 0.05), 3), lmr.FINE, "mm", "landing, lateral place"),
@@ -100,16 +114,52 @@ def _angle_iti_cued(P: pd.DataFrame) -> np.ndarray:
     return out
 
 
+def _iti_gaps(P: pd.DataFrame) -> pd.DataFrame:
+    """Time since the previous lick ONSET per ITI row (lick_recovery_markers._gaps, the QSET definition: rows keyed by
+    k = cumcount within set x label of the full KEY cache, as in lick_iti_prelick.lick_set). Session licks_all files only."""
+    import lick_recovery_markers as lrm
+    from wfield_local import analysis_kit as ak
+    res, fail = ak.fan_sessions(sorted(P[P.set == "iti"].label.unique()), lrm._gaps, jobs=4)
+    if fail:
+        raise RuntimeError(f"gaps failed: {fail[:5]}")
+    return pd.concat([v for _i, v in res], ignore_index=True)
+
+
+def _contact(label: str) -> pd.DataFrame:
+    """Cued licks of one session -> licks_all `contact` (DAQ spout-contact inside the cam4 lick; lick_balance_contact's
+    definition), matched on the exact DAQ peak time t of covref_covariates. Module-level for spawn."""
+    from wfield_local import config
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "t"])
+    C = C[(C.label == label) & (C.set == "trial")]
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_peak_s", "contact"])
+    A = A[np.isfinite(A.daq_peak_s)].drop_duplicates("daq_peak_s").set_index("daq_peak_s").contact
+    return C.assign(contact=A.reindex(C.t.to_numpy(float)).to_numpy()).drop(columns="t")
+
+
 def load() -> pd.DataFrame:
-    """One long per-lick frame: panel, set, reader, animal, label, epoch, pos, act (lateral mm), ang (deg), dec."""
+    """One long per-lick frame: panel, set, reader, animal, label, epoch, pos, act (lateral mm), ang (deg), dec, order, k.
+    10-29 (Priya, combined figure): + iti_q = ITI FIRST lick after >= il.GAP_MAIN (2 s) quiet (lick_recovery_markers.QSET,
+    the primary ITI set) and trial_1 = cued FIRST post-cue lick (order 0, lick_matched_readout cls 'first'), each read by
+    its own Fig 12.2 reader (ITI / cued) and each with its OWN pre same-set reference (new sets; existing ones unchanged)."""
     P = pd.read_csv(lo.preds_path())
+    P["k"] = P.groupby(["set", "label"]).cumcount()       # covref_covariates key (before any subset)
+    P = P.merge(_iti_gaps(P), on=["set", "label", "k"], how="left", validate="one_to_one")
     if il.ITI_SUBSET:                         # same subset hook as lick_matched_readout.per_lick (off by default)
         P = P[il.iti_subset_keep(P)].reset_index(drop=True)
     P["ang"] = _angle_iti_cued(P)
     miss = P.ang.isna().groupby(P.set).mean()
     print("ITI / cued rows without a matched 3-D angle (share):", miss.round(4).to_dict(), flush=True)
-    parts = [P.assign(reader=P.set, panel=P.set + "|" + P.set)[["panel", "set", "reader", "animal", "label", "epoch",
-                                                                   "pos", "act", "ang", "dec"]]]
+    keep = ["panel", "set", "reader", "animal", "label", "epoch", "pos", "act", "ang", "dec", "order", "k"]
+    parts = [P.assign(reader=P.set, panel=P.set + "|" + P.set)[keep]]
+    q = P[(P.set == "iti") & (P.gap >= il.GAP_MAIN)]
+    print(f"ITI first-after-quiet (gap >= {il.GAP_MAIN} s): {len(q)} of {int((P.set == 'iti').sum())} ITI rows; "
+          f"no gap matched: {int(P[P.set == 'iti'].gap.isna().sum())}", flush=True)
+    parts.append(q.assign(set="iti_q", reader="iti", panel="iti_q|iti")[keep])
+    parts.append(P[(P.set == "trial") & (P.order == 0)].assign(set="trial_1", reader="trial", panel="trial_1|trial")[keep])
     L = pd.read_csv(OUT / "enlv_table.csv.gz")
     L = L.sort_values(["label", "trial_id", "daq_on_s"]).reset_index(drop=True)
     L["ang"] = L.angle
@@ -119,8 +169,7 @@ def load() -> pd.DataFrame:
     for st, m in sel.items():
         g = L[m & L.pos.isin(POS) & np.isfinite(L.act) & np.isfinite(L.ang)]
         for r in ("iti", "enlv"):
-            parts.append(g.assign(set=st, reader=r, panel=f"{st}|{r}", dec=g[f"dec_{r}"])[
-                ["panel", "set", "reader", "animal", "label", "epoch", "pos", "act", "ang", "dec"]])
+            parts.append(g.assign(set=st, reader=r, panel=f"{st}|{r}", dec=g[f"dec_{r}"], order=np.nan, k=-1)[keep])
     Q = pd.concat(parts, ignore_index=True)
     return Q[np.isfinite(Q.act) & np.isfinite(Q.dec)].reset_index(drop=True)
 
@@ -267,6 +316,58 @@ def edge(A: pd.DataFrame, AL: pd.DataFrame, ax: str) -> pd.DataFrame:
             rows.append(dict(axis=ax, panel=pn, animal=a, epoch=ep, zone=zone, diff=d.mean() if len(d) else np.nan,
                              pre_local_slope=sl(p_), ep_local_slope=sl(e_)))
     return pd.DataFrame(rows)
+
+
+# ================================================================================================ far-contra end
+def farcontra(Q: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Far-contralesional end of the cued curves (Priya 10-29): resid = decoded - the animal's PRE Gaussian reference
+    (lick_matched_readout.gauss_ref, sigma 0.1 mm, pre leave-one-session-out). Reference 'cued all' = all pre cued licks
+    (= matched_gauss_tests, where cls 'first' is a subset of the cued-all resid); 'own 1st' = pre FIRST licks only (= the
+    trial_1 curve panel). Scopes: spout far_contra; landing in FC_BAND. Split by post-cue lick order (ORD_CLS) and by
+    spout contact (licks_all `contact`). Session means (>= lmr.MIN licks), change vs pre per animal, then boot_delta."""
+    from wfield_local import analysis_kit as ak
+    sg = AXES["lat"][1]
+    res, fail = ak.fan_sessions(sorted(Q[Q.panel == "trial|trial"].label.unique()), _contact, jobs=4)
+    if fail:
+        raise RuntimeError(f"contact failed: {fail[:5]}")
+    K = pd.concat([v for _i, v in res], ignore_index=True)
+    K["contact"] = K.contact.map({True: 1.0, False: 0.0, "True": 1.0, "False": 0.0})
+    D = {}
+    for ref, pn in (("cued all", "trial|trial"), ("own 1st", "trial_1|trial")):
+        T = Q[Q.panel == pn].reset_index(drop=True)
+        T["resid"] = T.dec - lmr.gauss_ref(T, sg)
+        D[ref] = T.merge(K[["label", "k", "contact"]], on=["label", "k"], how="left", validate="many_to_one")
+    print("cued rows without a contact value (share):", round(float(D["cued all"].contact.isna().mean()), 4), flush=True)
+    srows = []
+    for ref, T in D.items():
+        for scope, ms in (("spout far_contra", T.pos == "far_contra"),
+                          (f"landing {FC_BAND[0]}..{FC_BAND[1]} mm", T.act.between(*FC_BAND))):
+            for cls, (o0, o1) in ({"all": (0, 999), **ORD_CLS} if ref == "cued all" else {"1st": (0, 0)}).items():
+                for ct, mc in (("all", True), ("contact", T.contact == 1), ("miss", T.contact == 0)):
+                    g = T[ms & T.order.between(o0, o1) & mc & np.isfinite(T.resid)]
+                    for (a, lab, ep), h in g.groupby(["animal", "label", "epoch"]):
+                        srows.append(dict(ref=ref, scope=scope, cls=cls, contact=ct, animal=a, label=lab, epoch=ep,
+                                          n=len(h), resid=h.resid.mean(), act=h.act.mean()))
+    S = pd.DataFrame(srows)
+    S = S[S.n >= lmr.MIN]
+    out = []
+    for (ref, scope, cls, ct), g in S.groupby(["ref", "scope", "cls", "contact"], sort=False):
+        pre = g[g.epoch == "pre"]
+        prd = {a: h.resid.to_numpy() for a, h in pre.groupby("animal")}
+        for ep in POST:
+            po = g[g.epoch == ep]
+            am = (po.groupby("animal").resid.mean() - pre.groupby("animal").resid.mean()).dropna()
+            r = dict(ref=ref, scope=scope, cls=cls, contact=ct, epoch=ep, n=len(am),
+                     **{f"animal_{a}": am.get(a, np.nan) for a in AN},
+                     **{f"nlick_{a}": int(po[po.animal == a].n.sum()) for a in AN},
+                     **{f"nlickpre_{a}": int(pre[pre.animal == a].n.sum()) for a in AN})
+            post = {a: h.resid.to_numpy() for a, h in po.groupby("animal") if a in prd}
+            if len(post) >= 2:
+                ci = ak.boot_delta(post, prd, np.random.default_rng(0))
+                if ci is not None:
+                    r.update(point=ci.point, lo=ci.lo, hi=ci.hi, n_dir=int((am * np.sign(ci.point) > 0).sum()))
+            out.append(r)
+    return S, pd.DataFrame(out)
 
 
 # ================================================================================================ figures
@@ -438,11 +539,119 @@ def fig_gain(D: dict) -> None:
     plt.close(fig)
 
 
+def fig_all(D: dict) -> None:
+    """lick_like_for_like_all.png (Priya 10-29): every lick set in one figure -- like-for-like curves (lateral place) with
+    BH bars, and a gain / offset change summary (per-animal dots + paired nested bootstrap)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    col = {"pre": "k", **EPOCH_LINE}
+    A, BT, GT = D["A"]["lat"], D["BT"]["lat"], D["GT"]
+    _c, sg, _g, _e, unit, xlab = AXES["lat"]
+    fig = plt.figure(figsize=(27, 13.5))
+    gs = fig.add_gridspec(2, 6, height_ratios=[1.0, 0.8], left=0.045, right=0.99, top=0.875, bottom=0.075, hspace=0.55,
+                          wspace=0.22)
+    axs = [fig.add_subplot(gs[0, j]) for j in range(6)]
+    ylim = [np.inf, -np.inf]
+    for j, pn in enumerate(ALL_PANELS):
+        ax = axs[j]
+        _st, rd, plab = PANELS[pn]
+        for ep in EPS:
+            q = A[(A.set == pn) & (A.epoch == ep)].groupby("mid").y
+            mu, se, nn = q.mean(), q.sem(), q.count()
+            m4 = mu.where(nn >= 4)
+            x = mu.index.to_numpy(float)
+            ax.plot(x, mu.where(nn >= 3), color=col[ep], lw=0.9, ls="--", zorder=3)
+            ax.plot(x, m4, color=col[ep], lw=2.0, zorder=4)
+            ax.fill_between(x, m4 - se, m4 + se, color=col[ep], alpha=0.08, lw=0, zorder=2)
+            ok = mu.where(nn >= 3).dropna()
+            if len(ok):
+                ylim = [min(ylim[0], ok.min()), max(ylim[1], ok.max())]
+        hw = BT["width"].iloc[0] / 2 if len(BT) else 0
+        for r_i, ep in enumerate(POST):
+            for m_ in BT[(BT.set == pn) & (BT.epoch == ep) & BT.sig].mid:
+                ax.axvspan(m_ - hw, m_ + hw, ymin=0.975 - 0.018 * r_i, ymax=0.987 - 0.018 * r_i, color=col[ep],
+                           alpha=0.35, lw=0, zorder=0)
+        ax.axhline(0, color="0.7", lw=0.6, ls=":")
+        ax.axvline(0, color="0.7", lw=0.6, ls=":")
+        nsig = {ep: int(((BT.set == pn) & (BT.epoch == ep) & BT.sig).sum()) for ep in POST}
+        ntest = {ep: int(((BT.set == pn) & (BT.epoch == ep)).sum()) for ep in POST}
+        ax.set_title(f"NEURAL: {plab}\nreader: {RLAB[rd]}\nBH bins (sig/tested) " +
+                     ", ".join(f"{e[:3]} {nsig[e]}/{ntest[e]}" for e in POST), fontsize=8.5, pad=6)
+        ax.set_xlabel(f"{xlab} ({unit}, + = contralesional)", fontsize=8)
+        if j == 0:
+            ax.set_ylabel("decoded lateral (mm, + = contralesional)", fontsize=8.5)
+        ax.tick_params(labelsize=7.5)
+        _sty(ax)
+    for ax in axs:
+        if np.isfinite(ylim[0]):
+            ax.set_ylim(ylim[0] - 0.1, ylim[1] + 0.25)
+        ax.set_xlim(-3, 3)
+    # ---- gain / offset change vs pre (lateral place)
+    for k_, (meas, ttl) in enumerate((("slope", "GAIN change vs pre (slope of decoded on landing, mm/mm)"),
+                                      ("offset", "OFFSET change vs pre (decoded at the shared-range centre, mm)"))):
+        ax = fig.add_subplot(gs[1, 3 * k_:3 * k_ + 3])
+        g = GT[(GT.axis == "lat") & (GT.measure == meas)]
+        for i, pn in enumerate(ALL_PANELS):
+            h = g[g.panel == pn].set_index("epoch")
+            for e_i, ep in enumerate(POST):
+                if ep not in h.index:
+                    continue
+                r, x0, c = h.loc[ep], i * 4 + e_i, EPOCH_LINE[ep]
+                for q, a in enumerate(AN):
+                    v = r.get(f"animal_{a}", np.nan)
+                    if np.isfinite(v):
+                        ax.plot(x0 - 0.3 + 0.12 * q, v, ANIMAL_MARKER[a], mfc="none", mec=c, ms=5.5, mew=1.1, zorder=3)
+                if np.isfinite(r.get("point", np.nan)):
+                    sig = r.lo > 0 or r.hi < 0
+                    ax.errorbar(x0 + 0.3, r.point, yerr=[[r.point - r.lo], [r.hi - r.point]], fmt="o", color="k",
+                                mfc=c if sig else "white", ms=5.5, capsize=2.5, zorder=4)
+                    ax.text(x0 + 0.05, 1.005, f"{r.point:+.2f}{'*' if sig else ''}\n{int(r.n_dir)}/{int(r.n)}",
+                            transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=6.3,
+                            fontweight="bold" if sig else "normal", color=c)
+            if i:
+                ax.axvline(i * 4 - 1.5, color="0.85", lw=0.8)
+        ax.axhline(0, color="0.6", lw=0.7, ls="--")
+        ax.set_xticks([i * 4 + 1 for i in range(len(ALL_PANELS))], [SHORT[p] for p in ALL_PANELS], fontsize=8)
+        ax.set_xticks([i * 4 + e for i in range(len(ALL_PANELS)) for e in range(3)], minor=True)
+        ax.tick_params(axis="x", which="major", length=0, pad=4)
+        ax.set_xlim(-0.8, 4 * len(ALL_PANELS) - 1.2)
+        ax.set_title(f"NEURAL: {ttl}\neach set: acute / subacute / chronic (colour); open = animals, black = 95% paired "
+                     "nested bootstrap (* = excludes 0), number above = point, k/n animals", fontsize=8.5, pad=30)
+        ax.set_ylabel("change vs pre (mm/mm)" if meas == "slope" else "change vs pre (mm)", fontsize=8.5)
+        _sty(ax)
+    h1 = [Line2D([], [], color=col[e], lw=2, label=e) for e in EPS]
+    h2 = [Line2D([], [], color="0.3", lw=2, label="mean of 4 animals (+/- SEM)"),
+          Line2D([], [], color="0.3", lw=0.9, ls="--", label="only 3 animals")]
+    h3 = [Line2D([], [], ls="", marker=ANIMAL_MARKER[a], mfc="none", mec="0.3", label=a) for a in AN]
+    fig.legend(handles=h1 + h2 + h3, loc="upper center", bbox_to_anchor=(0.5, 0.945), ncol=len(h1 + h2 + h3),
+               fontsize=8.5, frameon=False)
+    fig.suptitle("NEURAL, LIKE-FOR-LIKE, ALL LICK TYPES: decoded lateral position vs actual lateral landing place per "
+                 "epoch, each lick set read by its Fig 12.2 frozen pre reader (ITI reader for ITI and ENLv licks, cued "
+                 "reader for cued licks; pre = held-out sessions).\n"
+                 f"Gaussian-smoothed (sigma {sg:g} mm) per animal x epoch where the weight >= 10 licks; mean +/- SEM over "
+                 "animals. A curve shifted UP = read more contralesional than pre licks of the SAME set that landed at the "
+                 "same place. Bars at the top of each panel = 0.25-mm landing bins whose change vs pre survives BH\n"
+                 "(resid vs the animal's own pre same-set Gaussian reference; session means, >= 5 licks per bin, >= 3 "
+                 "animals; rows acute / subacute / chronic). ITI 1st after quiet = first ITI lick >= 2 s after the "
+                 "previous lick (the primary ITI set); cued 1st = first post-cue lick of each trial; ENLv (a) = first ENLv "
+                 "lick / trial >= 1 s after spout\narrival, (b) = ENLv bout starts (>= 1 s since any lick) >= 1 s after "
+                 "arrival, windows ending before the cue. Bottom: per session OLS of decoded on landing over the range "
+                 "SHARED by pre and that epoch (2.5-97.5 % of each), slope = gain, value at the range centre = offset. "
+                 "n = 4 mice, PROVISIONAL", fontsize=9.5, y=0.995)
+    fig.savefig(FIG / "lick_like_for_like_all.png", dpi=100)
+    plt.close(fig)
+
+
 def draw(D: dict) -> None:
     FIG.mkdir(parents=True, exist_ok=True)
     fig_curves(D, "lat")
     fig_curves(D, "ang")
     fig_gain(D)
+    fig_all(D)
 
 
 # ================================================================================================ main
@@ -492,13 +701,29 @@ def run() -> dict:
                                                            ep_slope=("ep_local_slope", "mean"),
                                                            n=("diff", "count")).unstack("zone")
     print(ez.round(3).to_string())
-    D = dict(A=A, BT=BT, GT=GT, R=R, E=E, C=C, CV=CV)
+    print("== licks per NEW set x animal x epoch (iti_q, trial_1) and ENLv sets (rule 8):")
+    print(Q[Q.reader.isin(["iti", "trial"])].groupby(["panel", "animal", "epoch"]).size().unstack("epoch")
+          .reindex(columns=EPS).to_string())
+    FS, FT = farcontra(Q)
+    FS.to_csv(OUT / "curves_farcontra_sessions.csv", index=False)
+    FT.to_csv(OUT / "curves_farcontra_tests.csv", index=False)
+    ac = [f"animal_{a}" for a in AN]
+    nc = [f"nlick_{a}" for a in AN]
+    print("== FAR-CONTRA END, cued: resid change vs pre per animal (rule 8) + licks per animal, then bootstrap")
+    print(FT[["ref", "scope", "cls", "contact", "epoch", *ac, *nc, "point", "lo", "hi", "n_dir", "n"]].round(3)
+          .to_string(index=False))
+    D = dict(A=A, BT=BT, GT=GT, R=R, E=E, C=C, CV=CV, FT=FT)
     figdata.save_fd(STEM, D, root=FD)
+    figdata.save_fd("lick_like_for_like_all", dict(A={"lat": A["lat"]}, BT={"lat": BT["lat"]}, GT=GT), root=FD)
     print(f"analysis {time.time() - t0:.0f} s", flush=True)
     return D
 
 
 def main() -> int:
+    if figdata.plot_only() and "--all-only" in sys.argv:       # just the combined figure, from its own figdata
+        FIG.mkdir(parents=True, exist_ok=True)
+        fig_all(figdata.load_fd("lick_like_for_like_all", root=FD))
+        return 0
     D = figdata.load_fd(STEM, root=FD) if figdata.plot_only() else run()
     draw(D)
     return 0
