@@ -18,7 +18,10 @@ of |all-trial cue response|), so the panels compare. Plus a 4-session summary (a
 from pathlib import Path
 
 import numpy as np
-from scipy.ndimage import binary_erosion
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent))
+from brainmask import brain_mask  # noqa: E402
 
 FS = 31.23
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/labcams/20261029")
@@ -69,7 +72,7 @@ def session(animal):
     first = np.searchsorted(csmp, ls[j[has]])
     fa = np.load(res / "frames_average.npy")
     H, W = fa.shape[1:]
-    brain = binary_erosion(fa[1] > 0.45 * fa[1].max(), iterations=4)
+    brain = brain_mask(fa)                         # dark-relative cut; keeps the dim anterior cortex
     U = np.nan_to_num(np.load(res / "U.npy"))
     U = U.reshape(-1, U.shape[-1])
     C = np.load(res / VARIANT / "SVTcorr.npy", mmap_mode="r")
