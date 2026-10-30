@@ -843,7 +843,8 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   engaged gate (scripts/restnl.py, --rest-variant restnl in 7 scripts; *_restnl outputs; restw kept as sensitivity). Chronic
   pre-cue rise larger and 4/4 in all key areas, both hemispheres (contra tjM1 +5.2, SSp-m +4.8, SSp-n +3.2, ALM +2.9; ipsi tjM1
   +4.1, SSp-m +4.5) -> bilateral; tjM1 leads every epoch; acute far-contra raise holds (tjM1 +7.4, 4/4); chronic non-orofacial
-  falls (RSP / VIS / bfd) and the reference-area part of the dip decomposition were restw artefacts (gone). Cue-to-lick level
+  falls mostly restw artefacts (significant falls 20 -> 4 areas; some posterior / RSP still fall) and the reference-area part
+  of the dip decomposition is n.s. Cue-to-lick level
   larger (tjM1 chronic +6.3, 4/4); far-contra ALM acute loses significance (+2.7 n.s., 4/4). Stopped: rest-referenced rise is
   ~76-83% the reference falling. Threshold test unchanged (own pre-cue reference). Caveat: PS93 pre = 2 sessions. PROVISIONAL.
 - ITI PRE-LICK RE-RUN 10-29 (Fig 12.17 S3; windows end >= 0.1 s before lick onset, + jaw-onset windows; jaw leads 52-120 ms):
