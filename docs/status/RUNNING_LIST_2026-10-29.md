@@ -6,13 +6,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 
 ## 1. Decisions needed from Priya
 - [ ] **Code-change wording with bounds**: cued 'unchanged within ~10 deg'; ITI 'not re-mapped beyond ~10-15 deg; small acute rotation-like change (~6-9 deg) beyond 2-month drift + lasting gain loss along the pre axis' -- OK? (Re-run on docked-spout ITI licks if docked becomes primary.)
-- [ ] **ITI primary set = docked-spout licks?** Offsets hold docked; the ITI BALANCE + its recovery tracking are moving-spout results. Make docked the primary ITI set (offsets), and treat moving-spout licks as their own category (possibly spout-driven)? Re-word the ITI-balance marker claims?
+- [x] (YES, Priya 10-29 late: replace main ITI figures with docked versions where they support the same conclusions; helper running) **ITI primary set = docked-spout licks?** Offsets hold docked; the ITI BALANCE + its recovery tracking are moving-spout results. Make docked the primary ITI set (offsets), and treat moving-spout licks as their own category (possibly spout-driven)? Re-word the ITI-balance marker claims?
 - [x] **Representational-change wording**: YES -- offset + gain / precision loss, re-map OPEN (applied page v242, FINDINGS); noise-matched transfer + power check RUNNING.
 - [x] **ENL licks next?** YES (Priya 10-29 evening): balance + decoder offset + target code on ENLv licks (timed from spout arrival, window sweep), cue-to-lick level; name them ENLv, not ITI.
 - [ ] **Reference for pre-cue levels**: restw vs session mean give opposite signs chronically in orofacial areas (rest falls relative to the session mean). Report the chronic contra ALM / tjM1 pre-cue rise as "relative to rest" only?
 - [ ] **Check (mine, low; in restw check)**: precue_restw cache engaged-trial counts differ slightly from the current engagement gate (381 vs 364, 473 vs 472 in 2 sessions) -> audit all sessions; the restw LEVEL itself is unaffected.
 - [x] (YES, Priya 10-29) **ENLv reading**: "ENLv = cued-like target-coded balance + ITI-like persistent decoder offset (~half size)" OK as the working description? Bearing on decision ITI primary set: the offset is present on all uncued lick types (docked, moving, ENLv); the balance loss on docked licks may reflect no target rather than no motion.
-- [ ] **Baseline: keep restw (conservative lower bound) or switch level results to strict lick-free rest?** strict makes the rises 1-4x larger (tjM1 most) but keeps only 17-35% of pre rest in PS92-94; also re-extract pre-cue levels on the current engaged-trial gate (86/107 sessions differ)?
+- [x] (Priya 10-29 late: use the no-lick rest; level family being re-rendered as RESTnl + current engaged gate) **Baseline: keep restw (conservative lower bound) or switch level results to strict lick-free rest?** strict makes the rises 1-4x larger (tjM1 most) but keeps only 17-35% of pre rest in PS92-94; also re-extract pre-cue levels on the current engaged-trial gate (86/107 sessions differ)?
 - [ ] **Hypothesis line (3)**: the contralesional-share rise is not orofacial-specific (VISpm / RSPd rise too) -> reword?
 - [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
@@ -114,6 +114,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - STOPPED TRIALS (page v249, Fig 14.21 S11 #s14-21-11; figures M:/.../iti_licks/stopped_traces/figures/): no cue response, flat raised level; 3 animals per epoch; jaw-onset transient global; contra tjM1 / SSp-m pre-cue rise over recovery within animals (contra-specific? follow-up running).
 
 ## 6. Log
+- 10-29 late: Priya: docked = primary ITI (helper: docked versions of main ITI figures + verdicts); no-lick rest (RESTnl) for level results (helper re-rendering 14.21 family); ACAd 12.17 S2 off page; pixel-map epochs / tuning dots / interhemi simple / correction relabel helper; combined like-for-like figure on page (v264). Code-change wording: discuss evidence.
 - 10-29 late: restw check reported -> Fig 14.21 S14 (v262); Priya: too many figures -> 39 secondary + 3 crowded-bar figures cut from page (docs/CUT_FIGURES.md); crowded-bar scan of the whole page running.
 - 10-29 evening: ENLv curves + gain, figure clean-up -> page v258; pre-lick window helper started.
 - 10-29 evening: Priya approved the ENLv working description; page v255: click-to-zoom now also on supplement images (was figure images only); ENLv curves helper started.
