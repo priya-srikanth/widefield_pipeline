@@ -43,10 +43,16 @@ deficient direction is rightward, driven by the LEFT VLS -> left SNr -> LEFT lat
 | E. (left cortex, for contrast) left ALM PT -> left lSC / brainstem, bypassing the left striatum | direct contraversive drive | the IPSILESIONAL hemisphere gains weight; the balance should shift ipsilesionally | the chronic within-spout balance shifts the OTHER way (contralesional), so this route is not the main signature |
 | Null: reafference / state | ipsilesional landings touch a different part of the tongue / mouth, plus arousal | the asymmetry is contact- / landing-locked, strongest in SSp | partly excluded: as large on misses, FaceRhythm partialled out; but the cued balance is largely the landing error (10-29), and the imbalance is strongest in SSp-n |
 
-**Route D has a direct anatomical basis (Priya 10-30): ALM projects directly to brainstem premotor neurons on BOTH
-sides.** (Exact citation to add.) So right ALM already reaches the premotor neurons for rightward licks without crossing
-the damaged BG-SC loop. Recovery through D would then be **strengthening of an existing, normally weak ipsiversive
-pathway, not new wiring**. That is Makin & Krakauer's "potentiation of latent circuits", and it predicts that the
+**Route D anatomy: NOT VERIFIED (Priya 10-30 asked whether ALM projects directly to bilateral brainstem premotor
+neurons; this was a question, wrongly recorded as fact at first).** What is established: ALM medulla-projecting PT
+neurons (lower L5b) branch extensively in the medullary reticular nuclei (Economo 2018 Nature 563:79). Tongue and jaw
+premotor neurons sit intermingled in that reticular formation, on both sides (Stanek 2014 eLife 3:e02511; orofacial
+premotor atlas in Allen CCF, PMC8137149). A 2025 brainstem-map preprint overlays ALM axons on the lick-premotor regions
+(bioRxiv 10.1101/2025.01.27.635041; laterality not checked). NOT found: a study showing MONOSYNAPTIC ALM input onto
+identified tongue / jaw premotor neurons, and the ipsi vs contra split. To settle it: Allen Connectivity Atlas ALM / MOs
+injections (projection density in ipsi vs contra IRt / PCRt / MdV), or the preprint's figures. IF the projection is
+bilateral, recovery through D would be **strengthening of an existing, normally weak ipsiversive pathway, not new
+wiring**. That is Makin & Krakauer's "potentiation of latent circuits", and it predicts that the
 contralesional code is a re-weighting of the old one (re-embedding test, 2.3). Sharpened predictions: the contralesional
 shift sits in ALM (and tjM1) BEFORE launch, is coupled trial-by-trial to rightward launch angle and jaw steering, and is
 largest for far-contra targets. Cohort 2 causal test: silence the right ALM -> medulla projection (retrograde Cre from
