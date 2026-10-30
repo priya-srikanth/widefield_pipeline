@@ -297,34 +297,39 @@ def plot_curves(M: pd.DataFrame, st: str) -> None:
                 ax.set_xlabel("pre mean angle of spout (deg,\n+ = contralesional)", fontsize=7)
             ax.tick_params(labelsize=7)
             _clean(ax)
-    axs[0, 0].legend(fontsize=7, frameon=False)
+    hd, lb = axs[0, 0].get_legend_handles_labels()
+    fig.legend(hd, lb, loc="lower center", ncol=len(lb), fontsize=8, frameon=False)
     fig.suptitle(_wrap(f"{SETS[st]}: post-lick response (0.1-0.5 s minus -1..-0.5 s) by spout, kept licks only (inside "
                        "the pre angle range for their spout); spouts placed at the animal's PRE mean angle; mean over "
                        "animals of animal means. Canonical spouts left to right = ipsilesional to contralesional. "
                        "PROVISIONAL", 170), fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0.035, 1, 0.93))
     fig.savefig(FIG / f"lick_area_tuning_curves_{st}.png", dpi=90)
     plt.close(fig)
 
 
-def _bars(ax, T: pd.DataFrame, st: str, met: str, hk: str, areas: list[str]) -> None:
+def _bars(ax, T: pd.DataFrame, st: str, met: str, hk: str, areas: list[str], big: bool = False) -> None:
     t = T[(T.set == st) & (T.metric == met) & (T.hemi == hk)]
     x = np.arange(len(areas))
     for k, ep in enumerate(POST):
         e = t[t.epoch == ep].set_index("area").reindex(areas)
         xx = x + (k - 1) * 0.25
-        ax.errorbar(xx, e.point, yerr=[e.point - e.lo, e.hi - e.point], fmt="o", color=COL[ep], ms=4, capsize=2,
-                    label=ep)
+        ax.errorbar(xx, e.point, yerr=[e.point - e.lo, e.hi - e.point], fmt="o", color=COL[ep],
+                    ms=5 if big else 4, capsize=2, label=ep)
         for an in AN:
             if f"d_{an}" in e:
-                ax.plot(xx + 0.06, e[f"d_{an}"], MK[an], mfc="none", color=COL[ep], ms=2.5, alpha=0.6, lw=0)
+                ax.plot(xx + 0.06, e[f"d_{an}"], MK[an], mfc="none", color=COL[ep], ms=3.5 if big else 2.5,
+                        alpha=0.6, lw=0)
         for xi, (_, r) in zip(xx, e.iterrows()):
             if np.isfinite(r.point):
                 ax.text(xi, r.hi, f"{int(r.n_same_sign)}", ha="center", va="bottom",
-                        fontsize=5.5, color=COL[ep])
+                        fontsize=7.5 if big else 5.5, color=COL[ep])
     ax.axhline(0, color="k", lw=0.5)
-    ax.set_xticks(x, areas, rotation=45, ha="right", fontsize=7)
-    ax.tick_params(axis="y", labelsize=7)
+    if big:
+        for xb in x[:-1] + 0.5:
+            ax.axvline(xb, color="0.9", lw=0.6, zorder=0)
+    ax.set_xticks(x, areas, rotation=45 if not big else 30, ha="right", fontsize=9 if big else 7)
+    ax.tick_params(axis="y", labelsize=8.5 if big else 7)
     _clean(ax)
 
 
@@ -338,23 +343,40 @@ DECOMP = [("lratio", "c-i", "SHARE: d log2(post/pre-predicted), contra - ipsi\n(
           ("depth1", "i", "TUNING DEPTH, ipsilesional\n(same as left)")]
 
 
-def plot_decomp(T: pd.DataFrame) -> None:
+def _fig_legend(fig, ax) -> None:
+    """One legend for the figure, below the panels (never over data)."""
+    from matplotlib.lines import Line2D
+    hd, lb = ax.get_legend_handles_labels()
+    hd = list(hd) + [Line2D([], [], marker=MK[a], ls="", mfc="none", color="0.4", ms=5) for a in AN]
+    lb = list(lb) + [f"{a} (open)" for a in AN]
+    fig.legend(hd, lb, loc="lower center", ncol=len(lb), fontsize=8.5, frameon=False)
+
+
+# _simple variants: cued + ITI-after-quiet rows only (far1 subset dropped), the orofacial areas + POOL + one
+# control (VISpm), bigger markers / fonts.  Plotting-only selection of the same test table.
+SIMPLE_AREAS = ["POOL", "ALM", "tjM1", "SSp-m", "SSp-n", "SSs", "VISpm"]
+SIMPLE_SETS = ["trial", "iti"]
+
+
+def plot_decomp(T: pd.DataFrame, simple: bool = False) -> None:
     import matplotlib.pyplot as plt
-    sets = [s for s in SETS if s in set(T.set)]
-    fig, axs = plt.subplots(len(sets), len(DECOMP), figsize=(4.6 * len(DECOMP), 3.9 * len(sets)), squeeze=False)
+    sets = [s for s in SETS if s in set(T.set) and (not simple or s in SIMPLE_SETS)]
+    areas = [a for a in ALLA if a in SIMPLE_AREAS] if simple else ALLA
+    w, h = (5.4, 4.6) if simple else (4.6, 3.9)
+    fig, axs = plt.subplots(len(sets), len(DECOMP), figsize=(w * len(DECOMP), h * len(sets)), squeeze=False)
     for i, st in enumerate(sets):
         for j, (met, hk, ttl) in enumerate(DECOMP):
             ax = axs[i, j]
-            _bars(ax, T, st, met, hk, ALLA)
-            ax.set_title(_wrap(f"{SETS[st]}\n{ttl}", 62), fontsize=7.5)
-    axs[0, 0].legend(fontsize=7, frameon=False)
+            _bars(ax, T, st, met, hk, areas, big=simple)
+            ax.set_title(_wrap(f"{SETS[st]}\n{ttl}", 62), fontsize=8.5 if simple else 7.5)
+    _fig_legend(fig, axs[0, 0])
     fig.suptitle(_wrap("Change vs pre of the matched-lick tuning per area (licks inside the pre angle range of their spout; "
                        "reference = the animal's PRE within-spout line, pre LOSO). Gain = LEVEL and DEPTH move together; "
                        "additive offset = LEVEL moves, DEPTH ~0; broader tuning = DEPTH < 0. Filled = pooled change, 95% "
                        "paired nested bootstrap; open = animals; number = animals with the pooled sign. Hemisphere: c = "
                        "contralesional (image right), i = ipsilesional. PROVISIONAL", 200), fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(FIG / "lick_area_tuning_decomp.png", dpi=90)
+    fig.tight_layout(rect=(0, 0.04 if simple else 0.03, 1, 0.92 if simple else 0.94))
+    fig.savefig(FIG / f"lick_area_tuning_decomp{'_simple' if simple else ''}.png", dpi=90)
     plt.close(fig)
 
 
@@ -372,12 +394,12 @@ def plot_raw(T: pd.DataFrame) -> None:
             ax = axs[i, j]
             _bars(ax, T, st, met, hk, ALLA)
             ax.set_title(_wrap(f"{SETS[st]}\n{ttl}", 62), fontsize=7.5)
-    axs[0, 0].legend(fontsize=7, frameon=False)
+    _fig_legend(fig, axs[0, 0])
     fig.suptitle(_wrap("Raw tuning lines per session (OLS of the response on lick angle over the kept licks; angle + = "
                        "contralesional): change vs pre of the SLOPE (gain) and the OFFSET at the animal's pre mean angle "
                        "(shift), dF/F x1e3. Note: raw slope mixes target and landed angle. PROVISIONAL", 200),
                  fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.tight_layout(rect=(0, 0.03, 1, 0.94))
     fig.savefig(FIG / "lick_area_tuning_raw.png", dpi=90)
     plt.close(fig)
 
@@ -390,6 +412,7 @@ def plot_all() -> None:
     for st in SETS:
         plot_curves(M, st)
     plot_decomp(T)
+    plot_decomp(T, simple=True)
     plot_raw(T)
 
 

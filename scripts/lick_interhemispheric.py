@@ -509,7 +509,7 @@ def plot_all() -> None:
     T, A = D["T"], D["A"]
     FIGS.mkdir(parents=True, exist_ok=True)
     # 1 noise correlation
-    fig, axs = plt.subplots(3, 5, figsize=(17, 10), sharey="row")
+    fig, axs = plt.subplots(3, 5, figsize=(17, 10), sharey="row", layout="constrained")
     for j, st in enumerate(SETS):
         if st in LICK_SETS:
             _delta_panel(axs[0, j], T, st, "nc_post", 0.0, f"{st}: post-lick (0.1-0.5 s minus -1..-0.5 s) noise corr, change")
@@ -518,47 +518,53 @@ def plot_all() -> None:
             axs[0, j].axis("off")
             axs[1, j].axis("off")
         _delta_panel(axs[2, j], T, st, "nc_win", 0.0, f"{st}: 1-s window (-0.5..+0.5 s) mean, noise corr, change", "w1")
-    axs[0, 0].legend(fontsize=7)
+    # legend in the empty rest panel (rest has no lick-locked rows), never on top of data
+    axs[0, 4].legend(*axs[0, 0].get_legend_handles_labels(), loc="center", fontsize=9, title="change vs pre",
+                     frameon=False)
     fig.suptitle(_wrap("Interhemispheric trial-to-trial (noise) correlation of residual responses (spout + angle mean "
                        "removed per session; Fisher z); change vs August pre, paired nested bootstrap 95% CI, * excludes 0; "
                        "bottom row = the same 1-s window on lick sets and on docked quiet rest (one pseudo-event per rest "
                        "period)", 160), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(FIGS / "lick_interhemi_noisecorr.png", dpi=130)
     plt.close(fig)
     # 2 lead measures (lick sets + rest + lick-rest), raw and deconvolved
     for tau in TAUS:
-        fig, axs = plt.subplots(3, 5, figsize=(17, 10))
+        fig, axs = plt.subplots(3, 5, figsize=(17, 10.5), layout="constrained")
         for j, st in enumerate(SETS):
             _delta_panel(axs[0, j], T, st, "asym", tau, f"{st}: xcorr asymmetry (+ = contra leads), change")
             _delta_panel(axs[1, j], T, st, "gc_dir", tau, f"{st}: Granger direction (+ = contra predicts ipsi more), change")
             _delta_panel(axs[2, j], T, st, "cc0", tau, f"{st}: zero-lag within-event coupling, change")
-        axs[0, 0].legend(fontsize=7)
+        fig.legend(*axs[0, 0].get_legend_handles_labels(), loc="outside lower center", ncol=3, fontsize=9,
+                   frameon=False, title="change vs pre (* = CI excludes 0)", title_fontsize=9)
         fig.suptitle(_wrap(f"Within-event coupling and lead, tau = {tau} s ({'raw' if not tau else 'deconvolved s = x + tau dx/dt'}); "
                            "change vs August pre; GCaMP6s: lags < 0.1-0.2 s are not neural timing", 160), fontsize=9)
-        fig.tight_layout(rect=(0, 0, 1, 0.94))
         fig.savefig(FIGS / f"lick_interhemi_lead_tau{tau:.1f}.png", dpi=130)
         plt.close(fig)
     # 3 lick-specific (lick - rest)
-    fig, axs = plt.subplots(3, 4, figsize=(15, 10))
+    fig, axs = plt.subplots(3, 4, figsize=(15, 10.5), layout="constrained")
     for j, st in enumerate(LICK_SETS):
         _delta_panel(axs[0, j], T, f"{st}-rest", "nc_win", 0.0, f"{st} minus rest: 1-s window noise corr change")
         _delta_panel(axs[1, j], T, f"{st}-rest", "cc0", 0.0, f"{st} minus rest: zero-lag within-event coupling change")
         _delta_panel(axs[2, j], T, f"{st}-rest", "asym", 0.6, f"{st} minus rest: xcorr asymmetry change (tau 0.6)")
-    axs[0, 0].legend(fontsize=7)
+    fig.legend(*axs[0, 0].get_legend_handles_labels(), loc="outside lower center", ncol=3, fontsize=9, frameon=False,
+               title="change vs pre (* = CI excludes 0)", title_fontsize=9)
     fig.suptitle(_wrap("LICK-SPECIFIC change: per session (lick metric - docked-rest metric, both on the same 1-s window "
                        "code), change vs pre", 150), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(FIGS / "lick_interhemi_lickspecific.png", dpi=130)
     plt.close(fig)
     # 4 per-animal trajectories for the orofacial pool
     ms = [("nc_post", 0.0, None), ("nc_win", 0.0, "w1"), ("cc0", 0.0, "w1"), ("asym", 0.0, None), ("asym", 0.6, None),
           ("gc_dir", 0.6, None)]
-    fig, axs = plt.subplots(len(ms), 5, figsize=(17, 2.4 * len(ms)), sharex=True)
+    fig, axs = plt.subplots(len(ms), 5, figsize=(17, 2.5 * len(ms)), sharex=True, layout="constrained")
+    empty = []
     for i, (m, tau, win) in enumerate(ms):
         for j, st in enumerate(SETS):
             ax = axs[i, j]
             q = A[(A.set == st) & (A.pair == "oro") & (A.tau == tau) & (A.win == (win or _win(st)))]
+            if q[m].notna().sum() == 0:      # e.g. rest has no post-lick window: no data, use the slot for the legend
+                ax.axis("off")
+                empty.append((ax, f"{st}: no {m}"))
+                continue
             for a in AN:
                 v = q[q.animal == a].set_index("epoch").reindex(EPS)[m]
                 ax.plot(range(4), v, "o-", ms=3, label=a)
@@ -566,10 +572,14 @@ def plot_all() -> None:
             ax.set_title(f"{st}: {m} tau {tau} ({win or _win(st)})", fontsize=8)
             ax.set_xticks(range(4))
             ax.set_xticklabels(EPS, fontsize=7)
-    axs[0, 0].legend(fontsize=6)
+    if empty:
+        empty[0][0].legend(*axs[0, 0].get_legend_handles_labels(), loc="center", fontsize=9, frameon=False,
+                           title=f"animal\n({empty[0][1]})")
+    else:
+        fig.legend(*axs[0, 0].get_legend_handles_labels(), loc="outside lower center", ncol=4, fontsize=9,
+                   frameon=False)
     fig.suptitle(_wrap("Orofacial pool (ALM+tjM1+SSp-m+SSp-n+SSs) contra vs ipsi: per-animal epoch means (session means; "
                        "noise corr in Fisher z)", 150), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(FIGS / "lick_interhemi_oro_animals.png", dpi=120)
     plt.close(fig)
     # 5 cross-correlation curves (oro, pooled over sessions per epoch, animal-weighted)
@@ -578,7 +588,7 @@ def plot_all() -> None:
         with open(f, "rb") as fh:
             CG = pickle.load(fh)
         C, grp = CG["curves"], CG["groups"]
-        fig, axs = plt.subplots(len(TAUS), 5, figsize=(17, 8), sharex=True)
+        fig, axs = plt.subplots(len(TAUS), 5, figsize=(17, 8.5), sharex=True, layout="constrained")
         for i, tau in enumerate(TAUS):
             for j, st in enumerate(SETS):
                 ax = axs[i, j]
@@ -592,34 +602,69 @@ def plot_all() -> None:
                         ax.plot(L, np.mean(cs, 0), color=COL[ep], label=ep)
                 ax.axvline(0, color="k", lw=0.4)
                 ax.set_title(f"{st} tau {tau} ({w})", fontsize=8)
-        axs[0, 0].legend(fontsize=7)
         axs[-1, 2].set_xlabel("lag (s); + = contralesional leads")
+        fig.legend(*axs[0, 0].get_legend_handles_labels(), loc="outside lower center", ncol=4, fontsize=9,
+                   frameon=False)
         fig.suptitle(_wrap("Orofacial pool: within-event cross-correlation of residual traces corr(c(t), i(t+L)), "
                            "mean over animals of session means", 150), fontsize=9)
-        fig.tight_layout(rect=(0, 0, 1, 0.95))
         fig.savefig(FIGS / "lick_interhemi_xcorr.png", dpi=130)
         plt.close(fig)
     # 6 recovery
     Rc = D["Rc"]
-    fig, axs = plt.subplots(2, 1, figsize=(15, 8))
+    fig, axs = plt.subplots(2, 1, figsize=(16, 9), layout="constrained")
+    qs = {}
     for ax, tgt in zip(axs, ("aim", "share")):
         q = Rc[(Rc.target == tgt) & (Rc.pair == "oro") & (Rc.win == Rc.set.map(_win))
                & (((Rc.tau == 0) & Rc.metric.isin(["nc_post", "nc_pre", "nc_win", "cc0"]))
                   | ((Rc.tau == 0.6) & Rc.metric.isin(["asym", "gc_dir"])))]
         q = q.reset_index(drop=True)
+        qs[tgt] = q
         for k, a in enumerate(AN):
             ax.scatter(np.arange(len(q)) + (k - 1.5) * 0.12, q[f"r_{a}"], s=12, label=a)
         ax.scatter(np.arange(len(q)), q.r_pooled_within, marker="_", s=200, color="k", label="pooled within")
         ax.set_xticks(range(len(q)))
-        ax.set_xticklabels([f"{s}\n{m}" for s, m in zip(q.set, q.metric)], fontsize=6, rotation=90)
+        ax.set_xticklabels([f"{s} {m}" for s, m in zip(q.set, q.metric)], fontsize=7, rotation=90)
+        ax.set_xlim(-0.7, len(q) - 0.3)
+        for xb in np.flatnonzero(q.set.to_numpy()[1:] != q.set.to_numpy()[:-1]) + 0.5:   # separate the event sets
+            ax.axvline(xb, color="0.85", lw=0.6, zorder=0)
         ax.axhline(0, color="k", lw=0.4)
         ax.set_ylabel(f"partial r with {tgt}\n(| log day)")
-    axs[0].legend(fontsize=7, ncol=5)
+    fig.legend(*axs[0].get_legend_handles_labels(), loc="outside lower center", fontsize=8, ncol=5, frameon=False)
     fig.suptitle(_wrap("Orofacial pool coupling metrics vs recovery, within animal (post sessions, log(day) partialled): "
                        "aim = far-contra cued aim (deg, - = ipsilesional); share = cued matched-error within-spout balance",
                        150), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(FIGS / "lick_interhemi_recovery.png", dpi=130)
+    plt.close(fig)
+    _recovery_simple(plt, qs)
+
+
+def _recovery_simple(plt, qs: dict) -> None:
+    """Readable summary of figure 6: pooled within-animal partial r as a set x metric heatmap (same numbers)."""
+    fig, axs = plt.subplots(1, 2, figsize=(13, 5.2), layout="constrained")
+    for ax, (tgt, q) in zip(axs, qs.items()):
+        sets = list(dict.fromkeys(q.set))
+        mets = list(dict.fromkeys(q.metric))
+
+        def piv(col, q=q, sets=sets, mets=mets):
+            return q.pivot_table(index="set", columns="metric", values=col).reindex(index=sets, columns=mets)
+        R, P, N, NA = piv("r_pooled_within"), piv("p_perm"), piv("n_same_sign"), piv("n_animals")
+        im = ax.imshow(R.to_numpy(float), cmap="RdBu_r", vmin=-0.4, vmax=0.4, aspect="auto")
+        for i in range(len(sets)):
+            for j in range(len(mets)):
+                r = R.iloc[i, j]
+                if np.isfinite(r):
+                    star = "*" if P.iloc[i, j] < 0.05 else ""
+                    ax.text(j, i, f"{r:+.2f}{star}\n{int(N.iloc[i, j])}/{int(NA.iloc[i, j])}", ha="center",
+                            va="center", fontsize=8)
+        ax.set_xticks(range(len(mets)), mets, fontsize=9)
+        ax.set_yticks(range(len(sets)), sets, fontsize=9)
+        ax.set_title(f"partial r with {tgt} (| log day), pooled within animal", fontsize=10)
+        fig.colorbar(im, ax=ax, fraction=0.05).set_label("pooled within-animal r")
+    fig.suptitle(_wrap("SIMPLE VIEW of the recovery figure: orofacial-pool coupling metric vs recovery, within animal "
+                       "(post sessions, log(day) partialled). Cell = pooled within-animal r; * = permutation p < 0.05 "
+                       "(uncorrected); k/n = animals with the same sign. aim = far-contra cued aim; share = cued "
+                       "matched-error within-spout balance. Blank = metric not defined for that set.", 130), fontsize=9)
+    fig.savefig(FIGS / "lick_interhemi_recovery_simple.png", dpi=130)
     plt.close(fig)
 
 

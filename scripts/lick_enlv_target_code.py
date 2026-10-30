@@ -145,7 +145,6 @@ def plot(F: dict) -> None:
     ax.set_xticks(range(len(models)), models)
     ax.set_title("PRE cvR2 of d = contra - ipsi post-lick response\n(leave-one-pre-session-out; bar = mean, markers = "
                  "animals)", fontsize=9)
-    ax.legend(fontsize=7, frameon=False)
     # (b) target weight w per animal, y = c, i, d
     ax = axs[0, 1]
     W = F["W"]
@@ -177,8 +176,6 @@ def plot(F: dict) -> None:
         ax.set_xticks(range(3), EPS[1:])
         ax.set_title(f"balance change vs pre, {pos}: angle (target-blind) vs both / mix (target-aware) reference\n"
                      "(+ = contralesional hemisphere larger; 95% nested bootstrap)", fontsize=9)
-        if pos == "all":
-            ax.legend(fontsize=6, frameon=False, ncol=1)
     # (e) decoder w_dec
     ax = axs[1, 1]
     D, Dr = F["D"], F["Dref"]
@@ -211,7 +208,6 @@ def plot(F: dict) -> None:
                 color=SETCOL[st], lw=2.2, label=SETLAB[st])
     ax.axhline(0, color="0.6", lw=0.6)
     ax.set_xticks(range(4), EPS)
-    ax.legend(fontsize=7, frameon=False)
     ax.set_title("target effect on d at the SAME landed angle (5-deg bins)\nper deg of target (thin = animals, thick = "
                  "mean)", fontsize=9)
     for ax in axs.flat:
@@ -223,7 +219,15 @@ def plot(F: dict) -> None:
         "(lick_balance_target_model, same functions). Post-lick primary pool (ALM, tjM1, SSp-m, SSp-n, SSs) 0.1-0.45 s. "
         "Decoders = frozen pre-stroke readers (ITI, cued) and the frozen ENLv-trained decoder. PROVISIONAL", 220),
         fontsize=9.5)
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    hl = [Patch(color=SETCOL[st], label=SETLAB[st]) for st in sets]
+    hl += [Line2D([], [], ls="", marker=mk_, color="0.3", mfc="none", label=f"{a}") for a, mk_ in MK.items()]
+    hl += [Line2D([], [], ls="", marker=mk_, color="0.3", label=f"(c, d) {m}") for m, mk_ in
+           zip(("bal_angle", "bal_both", "bal_mix"), ("o", "s", "^"))]
+    fig.legend(handles=hl, loc="upper center", ncol=len(hl), fontsize=8.5, frameon=False, columnspacing=1.2)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
+    bo._header(fig, 2)
     fig.savefig(bo.FIG / "lick_enlv_target.png", dpi=90)
     plt.close(fig)
 

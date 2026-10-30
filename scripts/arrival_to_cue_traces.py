@@ -358,6 +358,23 @@ def _seg_curves(ax, seg, res, ci, show_n=False):
     ax.set_xticks(SEG_TICKS[seg])
     if show_n:
         ax.set_title("n " + "/".join(ns), fontsize=5, color="0.25", pad=2)
+    return "/".join(ns)
+
+
+def _head(fig, title: str, fs: float, handles=None, labels=None, ncol: int = 4) -> float:
+    """Suptitle pre-wrapped to the figure width + an optional legend row under it, both pinned to the top; returns the
+    figure fraction where the panels may start. (A `wrap=True` suptitle reports a bogus bounding box that made
+    bbox_inches='tight' keep a large blank band; pre-wrapping fixes that and the gap under the title.)"""
+    import textwrap
+    W, H = fig.get_size_inches()
+    txt = textwrap.fill(title, max(40, int(W * 72 / (0.6 * fs))))
+    pad = 0.08 / H
+    fig.suptitle(txt, fontsize=fs, y=1 - pad, va="top")
+    y = 1 - pad - (txt.count("\n") + 1) * fs * 1.3 / 72 / H
+    if handles:
+        fig.legend(handles, labels, fontsize=9, frameon=False, ncol=ncol, loc="upper center", bbox_to_anchor=(0.5, y))
+        y -= 0.32 / H
+    return y
 
 
 def _ratio(segs):
@@ -369,7 +386,8 @@ def draw_pooled(stem: str) -> None:
     F = load_fd(stem, FIGD)
     P = F["pan"]
     fig = plt.figure(figsize=(22, 2.25 * len(AREAS) + 1.6))
-    outer = fig.add_gridspec(len(AREAS), 2, wspace=0.12, hspace=0.55)
+    outer = fig.add_gridspec(len(AREAS), 2, wspace=0.12, hspace=0.55, bottom=0.6 / fig.get_size_inches()[1],
+                             left=0.04, right=0.99)
     seg3, seg2 = ("arr", "last", "cue"), ("arr", "cue")
     for i, a in enumerate(AREAS):
         row_axes = []
@@ -396,15 +414,15 @@ def draw_pooled(stem: str) -> None:
         for ax in row_axes:
             ax.set_ylim(lo, hi)
     h, lb = fig.axes[0].get_legend_handles_labels()
-    fig.legend(h, lb, fontsize=9, frameon=False, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 0.995))
-    fig.suptitle(
+    top = _head(fig,
         f"NEURAL: arrival -> cue area traces, {BASE_TXT}; {TRIAL_TXT}; all spouts pooled ({F['n_trials']} trials, "
         f"{F['n_sess']} sessions). Three anchors (axis breaks //): arrival (masked from the first ENLv lick / cue), last "
         f"ENLv lick (masked before the previous ENLv lick and from the cue), cue (masked before the last ENLv lick, or "
         f"before arrival). Per animal x epoch mean over trials (>= {MIN_N} trials per sample), then mean over animals; "
         f"shade = SEM over animals; solid = 4 animals, dotted = fewer. 'n a/b/c/d' above each segment = trials "
         f"per epoch (pre, acute, subacute, chronic; '(k an)' = only k animals). GCaMP6s: decay ~1 s, so a segment carries the previous event's tail.",
-        fontsize=9, wrap=True, y=1.03)
+        9, h, lb)
+    outer.update(top=top - 0.45 / fig.get_size_inches()[1])   # room for the bold block headers above row 0
     FIGS.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
@@ -417,16 +435,28 @@ def draw_spout(stem: str) -> None:
     segs = ("arr", "last", "cue") if grp == "enl" else ("arr", "cue")
     areas = ["ALM", "tjM1", "SSp-m", "SSp-n"]
     fig = plt.figure(figsize=(26 if grp == "enl" else 20, 2.4 * len(areas) + 1.4))
-    outer = fig.add_gridspec(len(areas), len(POS6), wspace=0.14, hspace=0.6)
+    outer = fig.add_gridspec(len(areas), len(POS6), wspace=0.14, hspace=0.62, bottom=0.6 / fig.get_size_inches()[1],
+                             left=0.04, right=0.99)
     for i, a in enumerate(areas):
         ci = COLS.index(f"{a}_right")
         row_axes = []
         for j, p in enumerate(POS6):
             axs = _block(fig, outer[i, j], segs, _ratio(segs))
-            for ax, s in zip(axs, segs):
-                _seg_curves(ax, s, P[p][s], ci, show_n=True)
-            axs[len(axs) // 2].text(0.5 if len(axs) == 3 else 1.0, 1.25, f"{p.replace('_', '-')}: {a} contra (R)",
-                                    transform=axs[len(axs) // 2].transAxes, ha="center", fontsize=7.5, weight="bold")
+            ns = [_seg_curves(ax, s, P[p][s], ci) for ax, s in zip(axs, segs)]
+            # trial counts once per block (the per-segment labels collided on the narrow segments); per segment
+            # only where the segments' counts differ
+            ntxt = "n " + ns[0]
+            if len(set(ns)) > 1:
+                try:
+                    dv = max(abs(int(x) - int(y)) for o in ns[1:] for x, y in zip(ns[0].split("/"), o.split("/")))
+                    ntxt += f" (other segments within {dv} trials)"
+                except ValueError:   # '(k an)' suffixes: fall back to listing every segment
+                    ntxt = "  ".join(f"{s} n {n}" for s, n in zip(segs, ns))
+            axs[len(axs) // 2].text(0.5 if len(axs) == 3 else 1.0, 1.2, f"{p.replace('_', '-')}: {a} contra (R)",
+                                    transform=axs[len(axs) // 2].transAxes, ha="center", va="bottom", fontsize=7.5,
+                                    weight="bold")
+            axs[len(axs) // 2].text(0.5 if len(axs) == 3 else 1.0, 1.07, ntxt, transform=axs[len(axs) // 2].transAxes,
+                                    ha="center", va="bottom", fontsize=6, color="0.25")
             if j == 0:
                 axs[0].set_ylabel("dF/F x1e3 - restw", fontsize=7)
             if i == len(areas) - 1:
@@ -438,13 +468,13 @@ def draw_spout(stem: str) -> None:
         for ax in row_axes:
             ax.set_ylim(lo, hi)
     h, lb = fig.axes[0].get_legend_handles_labels()
-    fig.legend(h, lb, fontsize=9, frameon=False, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 0.995))
     what = "trials WITH ENLv licks" if grp == "enl" else "trials with NO ENLv lick (no last-lick segment)"
-    fig.suptitle(
+    top = _head(fig,
         f"NEURAL: arrival -> cue traces PER TARGET SPOUT, contralesional (right) orofacial areas, {what}; {BASE_TXT}; "
         f"{TRIAL_TXT}. Segments and masks as the pooled figure; per animal x epoch mean over trials (>= {MIN_N_POS} "
         f"trials per sample), mean over animals, shade = SEM over animals; solid = 4 animals, dotted = fewer. "
-        f"'n a/b/c/d' = trials per epoch (pre, acute, subacute, chronic; '(k an)' = only k animals).", fontsize=9, wrap=True, y=1.03)
+        f"'n a/b/c/d' = trials per epoch (pre, acute, subacute, chronic; '(k an)' = only k animals).", 9, h, lb)
+    outer.update(top=top - 0.4 / fig.get_size_inches()[1])
     FIGS.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
@@ -457,6 +487,15 @@ def draw_heat(stem: str) -> None:
     eps = [e for e in il.EP4 if e in P]
     fig, axs = plt.subplots(len(HM_COLS), len(eps), figsize=(4.2 * len(eps) + 1.0, 3.6 * len(HM_COLS) + 1.2),
                             squeeze=False)
+    fig.subplots_adjust(hspace=0.38, bottom=0.75 / fig.get_size_inches()[1])   # 2-line titles clear the row above
+    # title + top margin BEFORE the colorbars: a later subplots_adjust moves the panels under the colorbars
+    who = F["an"] or "all 4 animals pooled (trials concatenated)"
+    sp = "far-contra target only" if F["sp"] else "all spouts"
+    top = _head(fig, f"NEURAL: single-trial traces from arrival to cue, {who}, {sp}; {BASE_TXT}; {TRIAL_TXT}. Rows sorted by "
+                 f"wait (cue - arrival); dots = ENLv licks (black = contact, restarts the timer; orange = no contact); "
+                 f"green tick = cue; grey = after cue + 0.5 s or outside the recording. Colour scale per area row "
+                 f"(98th pct of |value|). Panels with > {HM_ROWS} trials show {HM_ROWS} rows evenly spaced in wait order.", 9)
+    fig.subplots_adjust(top=top - 0.45 / fig.get_size_inches()[1])
     for i, c in enumerate(HM_COLS):
         allv = np.concatenate([P[e]["H"][:, :, i].astype(np.float32).ravel() for e in eps])
         vm = float(np.nanpercentile(np.abs(allv), 98)) if np.isfinite(allv).any() else 1.0
@@ -488,13 +527,8 @@ def draw_heat(stem: str) -> None:
             if i == len(HM_COLS) - 1:
                 ax.set_xlabel("time from spout arrival (s)", fontsize=7)
         fig.colorbar(im, ax=list(axs[i]), fraction=0.012, pad=0.01).set_label("dF/F x1e3 - restw", fontsize=7)
-    axs[0, 0].legend(fontsize=6, loc="lower right", markerscale=4, frameon=True)
-    who = F["an"] or "all 4 animals pooled (trials concatenated)"
-    sp = "far-contra target only" if F["sp"] else "all spouts"
-    fig.suptitle(f"NEURAL: single-trial traces from arrival to cue, {who}, {sp}; {BASE_TXT}; {TRIAL_TXT}. Rows sorted by "
-                 f"wait (cue - arrival); dots = ENLv licks (black = contact, restarts the timer; orange = no contact); "
-                 f"green tick = cue; grey = after cue + 0.5 s or outside the recording. Colour scale per area row "
-                 f"(98th pct of |value|). Panels with > {HM_ROWS} trials show {HM_ROWS} rows evenly spaced in wait order.", fontsize=9, wrap=True, y=1.0)
+    h, lb = axs[0, 0].get_legend_handles_labels()   # one figure legend under the panels (was over PS92 pre data)
+    fig.legend(h, lb, fontsize=8, markerscale=4, frameon=False, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 0.0))
     FIGS.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)

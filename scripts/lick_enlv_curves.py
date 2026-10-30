@@ -1,0 +1,508 @@
+"""ENLv lick CURVES: decoded lateral position vs actual landing (lateral place AND 3-D angle) per epoch, in the form of
+page Fig 12.2 (lick_matched_gauss_curves.png, `lick_matched_readout.py --ref gauss`), with ITI and cued alongside
+(Priya 10-29: "landing or angle" curves for ENLv licks). PLUS (Priya 10-29, addition): GAIN vs OFFSET of the decoded-vs-
+landing relation per animal x epoch, and an edge-compression check.
+
+ENLv = ENL-violation lick (cam4 licks_all context ``pre_cue``: strobe <= onset < cue; spout stationary, no cue, no reward).
+NEVER call them ITI. Two event sets, both with onset >= 1.0 s after spout ARRIVAL (strobe) and the lick-aligned window
+ending before the measured cue (peak + 0.5 s < cue, lick_enlv_balance_offset.VARIANTS cue_end):
+  enlv_a  the FIRST ENLv lick of each trial among the licks >= 1 s after arrival (that first lick must have a 3-D
+          landing and clear the cue rule; a later lick is never substituted)
+  enlv_b  the first lick of each ENLv BOUT (clean_start: >= 1 s since any lick) >= 1 s after arrival
+          (= lick_enlv_balance_offset BOUTS, `select(L, "on1_clean")`)
+READERS (frozen, rule 10; values read from enlv_table.csv.gz, nothing refitted): the frozen pre ITI decoder (dec_iti; the
+reader of the Fig 12.2 ITI curves, verified bit-identical to lick_order_preds) = PRIMARY row; the frozen pre ENLv decoder
+(dec_enlv, trained on the primary pre ENLv licks) = second row. ITI / cued panels = the Fig 12.2 inputs
+(lick_order_preds_areas_splitr8: ITI reader on ITI licks, cued reader on cued licks). Pre sessions are always scored by
+their held-out sibling.
+CURVES: lick_matched_readout.curves (Gaussian-smoothed mean decoded position on a landing grid, sigma 0.1 mm for lateral
+place; 2.0 deg for angle = the angle sigma chosen in lick_matched_angle_reach), per animal x epoch where the Gaussian weight
+>= 10 licks, then mean +/- SEM over animals, solid = 4 animals, dashed = 3. Bars on top: lick_matched_readout.bin_tests
+(resid = decoded - the animal's PRE same-set Gaussian reference (pre LOSO), session means per 0.25-mm / 5-deg landing bin
+with >= 5 licks, change vs pre by analysis_kit.boot_delta, BH within set x epoch; >= 3 animals per bin).
+ANGLE = degrees(arcsin(lateral / 3-D reach)) for every set (enl_lick_audit's definition); for ITI / cued the 3-D reach is
+taken from where_angle_reach_preds (same lick rows, matched on the lateral landing in order within the session).
+GAIN (Priya 10-29 addition): per panel x animal x post epoch, the landing range shared by pre and that epoch
+(intersection of their 2.5-97.5 % landing quantiles; no extrapolation), centre = its midpoint; per SESSION (>= 8 licks in
+range) an OLS line decoded ~ landing -> SLOPE (gain) and value at the centre (offset); change vs pre = per-animal table
+first (rule 8), then analysis_kit.boot_delta. RESIDUAL: (epoch curve - pre curve) minus the gain + offset prediction from
+the animal's pooled-lick lines, on the curve grid inside the shared range. EDGE check: local slope (gradient) of the
+smoothed curves per epoch -- the decoder's own compression shows in the PRE (held-out) curve; a same-place comparison
+cancels it unless the activity differs.
+Outputs <OUT_W>/enlv_licks/: curves_counts.csv, curves_coverage.csv, curves_bin_tests.csv, curves_gain_sessions.csv,
+curves_gain_tests.csv, curves_edge.csv; figures/lick_enlv_curves.png (lateral place), lick_enlv_curves_angle.png,
+lick_enlv_curves_gain.png; figdata/lick_enlv_curves.pkl.
+Usage: python scripts/lick_enlv_curves.py [--plot-only]
+"""
+from __future__ import annotations
+
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import figdata  # noqa: E402
+import iti_licks as il  # noqa: E402
+import iti_lick_order as lo  # noqa: E402
+import lick_enlv_balance_offset as bo  # noqa: E402
+import lick_matched_readout as lmr  # noqa: E402
+
+lmr.REF = "gauss"            # the Fig 12.2 form (Gaussian curves, same-place bins); this script never writes lmr outputs
+
+OUT = bo.OUT
+FIG = OUT / "figures"
+FD = OUT / "figdata"
+STEM = "lick_enlv_curves"
+AN = bo.AN
+EPS = bo.EPS
+POST = bo.POST
+POS = bo.POS
+# panel key -> (lick set, reader, label)
+PANELS = {"iti|iti": ("iti", "iti", "ITI licks"), "trial|trial": ("trial", "trial", "cued licks"),
+          "enlv_a|iti": ("enlv_a", "iti", "ENLv (a) FIRST lick / trial >= 1 s"),
+          "enlv_b|iti": ("enlv_b", "iti", "ENLv (b) BOUT starts >= 1 s"),
+          "enlv_a|enlv": ("enlv_a", "enlv", "ENLv (a) FIRST lick / trial >= 1 s"),
+          "enlv_b|enlv": ("enlv_b", "enlv", "ENLv (b) BOUT starts >= 1 s")}
+RLAB = {"iti": "frozen pre ITI reader", "trial": "frozen pre cued reader", "enlv": "frozen pre ENLv reader"}
+# axis -> (column, sigma, grid, bins, unit, label)
+AXES = {"lat": ("act", 0.1, np.round(np.arange(-3.0, 3.001, 0.05), 3), lmr.FINE, "mm", "landing, lateral place"),
+        "ang": ("ang", 2.0, np.round(np.arange(-60.0, 60.001, 1.0), 3), np.arange(-60.0, 60.01, 5.0), "deg",
+                "landing, 3-D angle")}
+MIN_G = 8           # licks per session inside the shared range for a session line
+QR = (2.5, 97.5)    # landing quantiles defining each epoch's range
+
+
+# ================================================================================================ inputs
+def _angle_iti_cued(P: pd.DataFrame) -> np.ndarray:
+    """3-D angle (arcsin(lateral / reach), deg) per lick_order_preds row, from where_angle_reach_preds (same session lick
+    stream, a superset of rows): matched in order within set x session on the lateral landing (lateral = sag x tan(ang))."""
+    W = pd.read_csv(il.pred_file("where_angle_reach_preds.csv.gz"))
+    W["lat"] = np.round(W.act_sag * np.tan(np.deg2rad(W.act_ang)), 3)
+    W["ang"] = np.degrees(np.arcsin(np.clip(W.lat / W.act_reach, -1, 1)))
+    out = np.full(len(P), np.nan)
+    wg = {k: (g.lat.to_numpy(), g.ang.to_numpy()) for k, g in W.groupby(["set", "label"], sort=False)}
+    for k, g in P.groupby(["set", "label"], sort=False):
+        if k not in wg:
+            continue
+        wl, wa = wg[k]
+        pv = np.round(g.act.to_numpy(float), 3)
+        res, j = np.full(len(pv), np.nan), 0
+        for i, v in enumerate(pv):
+            while j < len(wl) and wl[j] != v:
+                j += 1
+            if j < len(wl):
+                res[i] = wa[j]
+                j += 1
+        out[P.index.get_indexer(g.index)] = res
+    return out
+
+
+def load() -> pd.DataFrame:
+    """One long per-lick frame: panel, set, reader, animal, label, epoch, pos, act (lateral mm), ang (deg), dec."""
+    P = pd.read_csv(lo.preds_path())
+    if il.ITI_SUBSET:                         # same subset hook as lick_matched_readout.per_lick (off by default)
+        P = P[il.iti_subset_keep(P)].reset_index(drop=True)
+    P["ang"] = _angle_iti_cued(P)
+    miss = P.ang.isna().groupby(P.set).mean()
+    print("ITI / cued rows without a matched 3-D angle (share):", miss.round(4).to_dict(), flush=True)
+    parts = [P.assign(reader=P.set, panel=P.set + "|" + P.set)[["panel", "set", "reader", "animal", "label", "epoch",
+                                                                   "pos", "act", "ang", "dec"]]]
+    L = pd.read_csv(OUT / "enlv_table.csv.gz")
+    L = L.sort_values(["label", "trial_id", "daq_on_s"]).reset_index(drop=True)
+    L["ang"] = L.angle
+    cand = L.t_from_strobe >= 1.0
+    first = cand & (L[cand].groupby(["label", "trial_id"]).cumcount() == 0).reindex(L.index, fill_value=False)
+    sel = {"enlv_a": first & (L.peak_to_cue > 0.5), "enlv_b": bo.select(L, "on1_clean")}
+    for st, m in sel.items():
+        g = L[m & L.pos.isin(POS) & np.isfinite(L.act) & np.isfinite(L.ang)]
+        for r in ("iti", "enlv"):
+            parts.append(g.assign(set=st, reader=r, panel=f"{st}|{r}", dec=g[f"dec_{r}"])[
+                ["panel", "set", "reader", "animal", "label", "epoch", "pos", "act", "ang", "dec"]])
+    Q = pd.concat(parts, ignore_index=True)
+    return Q[np.isfinite(Q.act) & np.isfinite(Q.dec)].reset_index(drop=True)
+
+
+# ================================================================================================ curves + bin tests
+def curves(Q: pd.DataFrame, ax: str) -> pd.DataFrame:
+    col, sg, grid, *_ = AXES[ax]
+    P = Q.dropna(subset=[col]).assign(set=Q.panel, act=Q[col])[["set", "epoch", "animal", "label", "act", "dec"]]
+    P.attrs["sigma"] = sg
+    keep = lmr.CURVE_GRID
+    try:
+        lmr.CURVE_GRID = grid
+        return lmr.curves(P)
+    finally:
+        lmr.CURVE_GRID = keep
+
+
+def bins(Q: pd.DataFrame, ax: str) -> pd.DataFrame:
+    col, sg, _grid, edges, *_ = AXES[ax]
+    P = Q.dropna(subset=[col]).assign(set=Q.panel, act=Q[col])[["set", "epoch", "animal", "label", "act", "dec"]]
+    P = P.reset_index(drop=True)
+    P["resid"] = P.dec - lmr.gauss_ref(P, sg)
+    P["bin_a"] = pd.cut(P.act, edges)
+    T = lmr.bin_tests(P)
+    T["axis"] = ax
+    T["width"] = float(np.diff(edges)[0])
+    return T
+
+
+def counts(Q: pd.DataFrame) -> pd.DataFrame:
+    g = Q[Q.reader.isin(["iti", "trial"])].groupby(["set", "animal", "epoch"])
+    C = g.agg(n_licks=("dec", "size"), n_sessions=("label", "nunique")).reset_index()
+    C["licks_per_session"] = (C.n_licks / C.n_sessions).round(1)
+    return C
+
+
+def coverage(A: pd.DataFrame, ax: str) -> pd.DataFrame:
+    """Where each animal x epoch is drawn (Gaussian weight >= 10) and where 4 / 3 animals contribute."""
+    rows = []
+    for (pn, ep), g in A.groupby(["set", "epoch"]):
+        for a, h in g.groupby("animal"):
+            rows.append(dict(axis=ax, panel=pn, epoch=ep, who=a, lo=h.mid.min(), hi=h.mid.max(), n_pts=len(h)))
+        nn = g.groupby("mid").animal.nunique()
+        for k in (4, 3):
+            m = nn[nn >= k]
+            rows.append(dict(axis=ax, panel=pn, epoch=ep, who=f">={k} animals", lo=m.index.min() if len(m) else np.nan,
+                             hi=m.index.max() if len(m) else np.nan, n_pts=len(m)))
+    return pd.DataFrame(rows)
+
+
+# ================================================================================================ gain vs offset
+def _line(x, y):
+    if len(x) < MIN_G or np.std(x) == 0:
+        return np.nan, np.nan
+    b1, b0 = np.polyfit(x, y, 1)
+    return b1, b0
+
+
+def gain(Q: pd.DataFrame, ax: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Session lines (slope, value at the shared-range centre) per panel x animal x post epoch, and the animal's
+    pooled-lick lines (for the residual)."""
+    col = AXES[ax][0]
+    srows, arows = [], []
+    for (pn, a), g in Q.dropna(subset=[col]).groupby(["panel", "animal"]):
+        pre = g[g.epoch == "pre"]
+        if pre.label.nunique() < 2:
+            continue
+        for ep in POST:
+            po = g[g.epoch == ep]
+            if len(po) < MIN_G:
+                continue
+            lo_ = max(np.percentile(pre[col], QR[0]), np.percentile(po[col], QR[0]))
+            hi_ = min(np.percentile(pre[col], QR[1]), np.percentile(po[col], QR[1]))
+            if hi_ <= lo_:
+                continue
+            c = 0.5 * (lo_ + hi_)
+            for kind, h in (("pre", pre), (ep, po)):
+                h = h[(h[col] >= lo_) & (h[col] <= hi_)]
+                b1, b0 = _line(h[col].to_numpy(float), h.dec.to_numpy(float))
+                arows.append(dict(axis=ax, panel=pn, animal=a, comp=ep, epoch=kind, lo=lo_, hi=hi_, centre=c, n=len(h),
+                                  slope=b1, offset=b0 + b1 * c if np.isfinite(b1) else np.nan))
+                for lab, s in h.groupby("label"):
+                    b1, b0 = _line(s[col].to_numpy(float), s.dec.to_numpy(float))
+                    if np.isfinite(b1):
+                        srows.append(dict(axis=ax, panel=pn, animal=a, comp=ep, epoch=kind, label=lab, n=len(s),
+                                          lo=lo_, hi=hi_, centre=c, slope=b1, offset=b0 + b1 * c))
+    return pd.DataFrame(srows), pd.DataFrame(arows)
+
+
+def gain_tests(S: pd.DataFrame) -> pd.DataFrame:
+    from wfield_local import analysis_kit as ak
+    out = []
+    for (axn, pn, ep), g in S.groupby(["axis", "panel", "comp"]):
+        for val in ("slope", "offset"):
+            prd = {a: h[val].to_numpy() for a, h in g[g.epoch == "pre"].groupby("animal")}
+            post = {a: h[val].to_numpy() for a, h in g[g.epoch == ep].groupby("animal") if a in prd}
+            am = (g[g.epoch == ep].groupby("animal")[val].mean() - g[g.epoch == "pre"].groupby("animal")[val].mean())
+            am = am.dropna()
+            pm = g[g.epoch == "pre"].groupby("animal")[val].mean()
+            r = dict(axis=axn, panel=pn, epoch=ep, measure=val, pre_mean=pm.mean(), n=len(am),
+                     **{f"animal_{a}": v for a, v in am.items()},
+                     **{f"nsess_{a}": int((g[(g.epoch == ep) & (g.animal == a)]).shape[0]) for a in am.index})
+            if len(post) >= 2:
+                ci = ak.boot_delta(post, prd, np.random.default_rng(0))
+                if ci is not None:
+                    r.update(point=ci.point, lo=ci.lo, hi=ci.hi, n_dir=int((am * np.sign(ci.point) > 0).sum()))
+            out.append(r)
+    return pd.DataFrame(out)
+
+
+def residuals(A: pd.DataFrame, AL: pd.DataFrame, ax: str) -> pd.DataFrame:
+    """(epoch curve - pre curve) and that minus the gain + offset prediction (and minus the offset alone), per animal on
+    the curve grid inside the shared range."""
+    rows = []
+    for (pn, a, ep), g in AL.groupby(["panel", "animal", "comp"]):
+        pr, po = g[g.epoch == "pre"].iloc[0], g[g.epoch == ep].iloc[0]
+        cp = A[(A.set == pn) & (A.animal == a) & (A.epoch == "pre")].set_index("mid").y
+        ce = A[(A.set == pn) & (A.animal == a) & (A.epoch == ep)].set_index("mid").y
+        d = (ce - cp).dropna()
+        d = d[(d.index >= pr.lo) & (d.index <= pr.hi)]
+        if not len(d) or not (np.isfinite(po.slope) and np.isfinite(pr.slope)):
+            continue
+        x = d.index.to_numpy(float)
+        pred = (po.offset - pr.offset) + (po.slope - pr.slope) * (x - pr.centre)
+        rows += [dict(axis=ax, panel=pn, animal=a, epoch=ep, mid=m, diff=v, resid_gain=v - p, resid_offset=v - (po.offset - pr.offset))
+                 for m, v, p in zip(x, d.to_numpy(float), pred)]
+    return pd.DataFrame(rows)
+
+
+def edge(A: pd.DataFrame, AL: pd.DataFrame, ax: str) -> pd.DataFrame:
+    """Per panel x animal x post epoch: mean (epoch - pre) curve difference in the LOWER and UPPER 20 % of the shared
+    range and in the middle 60 %, plus the PRE curve's local slope in those thirds (the decoder's own edge compression)."""
+    rows = []
+    for (pn, a, ep), g in AL.groupby(["panel", "animal", "comp"]):
+        pr = g[g.epoch == "pre"].iloc[0]
+        cp = A[(A.set == pn) & (A.animal == a) & (A.epoch == "pre")].set_index("mid").y
+        ce = A[(A.set == pn) & (A.animal == a) & (A.epoch == ep)].set_index("mid").y
+        w = pr.hi - pr.lo
+        for zone, (z0, z1) in {"low": (pr.lo, pr.lo + 0.2 * w), "mid": (pr.lo + 0.2 * w, pr.hi - 0.2 * w),
+                               "high": (pr.hi - 0.2 * w, pr.hi)}.items():
+            p_, e_ = cp[(cp.index >= z0) & (cp.index <= z1)], ce[(ce.index >= z0) & (ce.index <= z1)]
+            d = (e_ - p_).dropna()
+            sl = lambda s: np.polyfit(s.index.to_numpy(float), s.to_numpy(float), 1)[0] if len(s) >= 3 else np.nan  # noqa: E731
+            rows.append(dict(axis=ax, panel=pn, animal=a, epoch=ep, zone=zone, diff=d.mean() if len(d) else np.nan,
+                             pre_local_slope=sl(p_), ep_local_slope=sl(e_)))
+    return pd.DataFrame(rows)
+
+
+# ================================================================================================ figures
+def _sty(ax):
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
+
+
+def fig_curves(D: dict, ax_name: str) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    col = {"pre": "k", **EPOCH_LINE}
+    A, BT = D["A"][ax_name], D["BT"][ax_name]
+    _c, sg, _g, _e, unit, xlab = AXES[ax_name]
+    layout = [["iti|iti", "trial|trial", "enlv_a|iti", "enlv_b|iti"], [None, None, "enlv_a|enlv", "enlv_b|enlv"]]
+    fig, axs = plt.subplots(2, 4, figsize=(21, 10.5), squeeze=False)
+    epl = [Line2D([], [], color=col[e], lw=2, label=e) for e in EPS]
+    ylim = [np.inf, -np.inf]
+    for i, row in enumerate(layout):
+        for j, pn in enumerate(row):
+            ax = axs[i, j]
+            if pn is None:
+                ax.axis("off")
+                ax.text(0.5, 0.5, "the frozen ENLv reader is applied\nto ENLv licks only\n(ITI / cued panels: top row)",
+                        ha="center", va="center", fontsize=9, color="0.4", transform=ax.transAxes)
+                continue
+            st, rd, plab = PANELS[pn]
+            for ep in EPS:
+                q = A[(A.set == pn) & (A.epoch == ep)].groupby("mid").y
+                mu, se, nn = q.mean(), q.sem(), q.count()
+                m4 = mu.where(nn >= 4)
+                x = mu.index.to_numpy(float)
+                ax.plot(x, mu.where(nn >= 3), color=col[ep], lw=0.9, ls="--", zorder=3)
+                ax.plot(x, m4, color=col[ep], lw=2.0, zorder=4)
+                ax.fill_between(x, m4 - se, m4 + se, color=col[ep], alpha=0.08, lw=0, zorder=2)
+                ok = mu.where(nn >= 3).dropna()
+                if len(ok):
+                    ylim = [min(ylim[0], ok.min()), max(ylim[1], ok.max())]
+            hw = BT["width"].iloc[0] / 2 if len(BT) else 0
+            for r_i, ep in enumerate(POST):
+                bt = BT[(BT.set == pn) & (BT.epoch == ep) & BT.sig] if len(BT) else BT
+                for m_ in bt.mid:
+                    ax.axvspan(m_ - hw, m_ + hw, ymin=0.975 - 0.018 * r_i, ymax=0.987 - 0.018 * r_i, color=col[ep],
+                               alpha=0.35, lw=0, zorder=0)
+            ax.axhline(0, color="0.7", lw=0.6, ls=":")
+            ax.axvline(0, color="0.7", lw=0.6, ls=":")
+            nsig = {ep: int(((BT.set == pn) & (BT.epoch == ep) & BT.sig).sum()) if len(BT) else 0 for ep in POST}
+            ntest = {ep: int(((BT.set == pn) & (BT.epoch == ep)).sum()) if len(BT) else 0 for ep in POST}
+            ax.set_title(f"NEURAL: {plab}\nreader: {RLAB[rd]}\nBH bins (sig/tested) " +
+                         ", ".join(f"{e[:3]} {nsig[e]}/{ntest[e]}" for e in POST), fontsize=8.5)
+            ax.set_xlabel(f"{xlab} ({unit}, + = contralesional)", fontsize=8)
+            if j == 0 or (i == 1 and j == 2):
+                ax.set_ylabel("decoded lateral (mm, + = contralesional)", fontsize=8)
+            ax.legend(handles=epl, fontsize=7, frameon=False, loc="lower right")
+            _sty(ax)
+    for ax in axs.ravel():
+        if ax.axison and np.isfinite(ylim[0]):
+            ax.set_ylim(ylim[0] - 0.1, ylim[1] + 0.25)
+    xr = {"lat": (-3, 3), "ang": (-60, 60)}[ax_name]
+    for ax in axs.ravel():
+        if ax.axison:
+            ax.set_xlim(*xr)
+    fig.suptitle(f"NEURAL, LIKE-FOR-LIKE: decoded lateral position vs actual {xlab} per epoch -- ITI, cued and ENLv licks "
+                 f"(frozen KEY-row lateral decoders; pre = held-out sessions).\nGaussian-smoothed, sigma {sg:g} {unit}; "
+                 "per animal x epoch where the Gaussian weight >= 10 licks; mean +/- SEM of 4 animals, dashed = only 3 "
+                 "animals. A curve shifted UP = read more contralesional than pre licks that landed at the same place.\n"
+                 "ENLv (a) = first ENLv lick of each trial among licks >= 1 s after spout arrival; (b) = ENLv bout starts "
+                 "(>= 1 s since any lick) >= 1 s after arrival; both windows end before the cue. Bars at the top = landing "
+                 "bins whose change vs pre survives BH\n(paired nested bootstrap on session means, >= 5 licks per bin, >= 3 "
+                 "animals; rows acute / subacute / chronic). Top row = ITI reader for ITI and ENLv licks (cued panel: cued "
+                 "reader, as Fig 12.2); bottom = ENLv reader. n = 4 mice, PROVISIONAL", fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(FIG / f"{STEM}{'' if ax_name == 'lat' else '_angle'}.png", dpi=100)
+    plt.close(fig)
+
+
+GAIN_ROWS = ["iti|iti", "trial|trial", "enlv_a|iti", "enlv_b|iti", "enlv_a|enlv", "enlv_b|enlv"]
+
+
+def fig_gain(D: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    GT, R, A = D["GT"], D["R"], D["A"]
+    cols = [("lat", "slope"), ("lat", "offset"), ("lat", "resid"), ("lat", "local"), ("ang", "slope"), ("ang", "offset"),
+            ("ang", "resid")]
+    fig, axs = plt.subplots(len(GAIN_ROWS), len(cols), figsize=(27, 3.3 * len(GAIN_ROWS)), squeeze=False)
+    for i, pn in enumerate(GAIN_ROWS):
+        st, rd, plab = PANELS[pn]
+        for j, (axn, kind) in enumerate(cols):
+            ax = axs[i, j]
+            unit = AXES[axn][4]
+            if kind in ("slope", "offset"):
+                g = GT[(GT.axis == axn) & (GT.panel == pn) & (GT.measure == kind)].set_index("epoch")
+                for k, ep in enumerate(POST):
+                    if ep not in g.index:
+                        continue
+                    r = g.loc[ep]
+                    c = EPOCH_LINE[ep]
+                    for q, a in enumerate(AN):
+                        v = r.get(f"animal_{a}", np.nan)
+                        if np.isfinite(v):
+                            ax.plot(k - 0.15 + 0.1 * q, v, ANIMAL_MARKER[a], mfc="none", mec=c, ms=6, mew=1.2)
+                    if np.isfinite(r.get("point", np.nan)):
+                        sig = r.lo > 0 or r.hi < 0
+                        ax.errorbar(k + 0.3, r.point, yerr=[[r.point - r.lo], [r.hi - r.point]], fmt="o", color="k",
+                                    mfc=c if sig else "white", ms=6, capsize=3)
+                        ax.text(k + 0.3, 1.01, f"{r.point:+.2f}{'*' if sig else ''}\n{int(r.n_dir)}/{int(r.n)}",
+                                transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=6.5,
+                                fontweight="bold" if sig else "normal")
+                ax.axhline(0, color="0.6", lw=0.7, ls="--")
+                ax.set_xticks(range(3), POST, fontsize=7.5)
+                ax.set_xlim(-0.5, 2.7)
+                ttl = (f"GAIN change vs pre\n(slope, mm/{unit})" if kind == "slope" else
+                       "OFFSET change vs pre\n(value at shared-range centre, mm)")
+                ax.set_title(f"{'lateral' if axn == 'lat' else 'angle'}: {ttl}", fontsize=8, pad=20)
+            elif kind == "resid":
+                g = R[(R.axis == axn) & (R.panel == pn)]
+                for ep in POST:
+                    h = g[g.epoch == ep]
+                    if h.empty:
+                        continue
+                    c = EPOCH_LINE[ep]
+                    for v, ls, lw in (("diff", ":", 1.0), ("resid_offset", "--", 1.0), ("resid_gain", "-", 1.8)):
+                        q = h.groupby("mid")[v]
+                        mu, nn = q.mean(), q.count()
+                        ax.plot(mu.index.to_numpy(float), mu.where(nn >= 3), color=c, ls=ls, lw=lw)
+                ax.axhline(0, color="0.6", lw=0.7)
+                ax.set_title(f"{'lateral' if axn == 'lat' else 'angle'}: epoch - pre curve (dotted), minus offset "
+                             "(dashed),\nminus gain + offset (solid); mean of >= 3 animals", fontsize=7.5)
+                ax.set_xlabel(f"landing ({unit})", fontsize=7.5)
+            else:                                        # local slope of the smoothed curves (edge compression)
+                g = A["lat"][A["lat"].set == pn]
+                for ep in EPS:
+                    sl = []
+                    for _a, h in g[g.epoch == ep].groupby("animal"):
+                        h = h.sort_values("mid")
+                        s = pd.Series(np.gradient(h.y.to_numpy(float), h.mid.to_numpy(float)), index=h.mid.to_numpy())
+                        gap = np.r_[False, np.diff(h.mid.to_numpy()) > 0.051]
+                        s[gap] = np.nan
+                        sl.append(s.rolling(11, center=True, min_periods=7).mean())   # ~0.5 mm
+                    if not sl:
+                        continue
+                    M = pd.concat(sl, axis=1)
+                    mu = M.mean(1).where(M.count(1) >= 3)
+                    ax.plot(mu.index.to_numpy(float), mu, color={"pre": "k", **EPOCH_LINE}[ep], lw=1.5)
+                ax.axhline(0, color="0.6", lw=0.7)
+                ax.set_xlim(-3, 3)
+                ax.set_title("lateral: LOCAL slope of the smoothed curve\n(d decoded / d landing, ~0.5-mm running mean; pre = held-out = the "
+                             "decoder's own compression)", fontsize=7.5)
+                ax.set_xlabel("landing (mm)", fontsize=7.5)
+            if j == 0:
+                ax.set_ylabel(f"{plab}\n{RLAB[rd]}", fontsize=8)
+            _sty(ax)
+    fig.suptitle("NEURAL: GAIN vs OFFSET of decoded lateral position on landing (lateral place, angle), per animal x "
+                 "epoch, over the landing range SHARED by pre and that epoch (2.5-97.5 % of each; no extrapolation).\n"
+                 "Session OLS lines (>= 8 licks in range): slope = gain, value at the range centre = offset; open markers "
+                 "= animals (circle PS92, square PS93, triangle PS94, diamond PS95), black = change vs pre, 95% paired "
+                 "nested bootstrap, * = excludes 0, k/n animals.\nResidual columns: if gain + offset describe the change, "
+                 "the solid line is flat at 0 across the range (both ends). n = 4 mice, PROVISIONAL", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.955))
+    fig.savefig(FIG / f"{STEM}_gain.png", dpi=100)
+    plt.close(fig)
+
+
+def draw(D: dict) -> None:
+    FIG.mkdir(parents=True, exist_ok=True)
+    fig_curves(D, "lat")
+    fig_curves(D, "ang")
+    fig_gain(D)
+
+
+# ================================================================================================ main
+def run() -> dict:
+    t0 = time.time()
+    Q = load()
+    pd.set_option("display.width", 250)
+    pd.set_option("display.max_rows", 500)
+    C = counts(Q)
+    C.to_csv(OUT / "curves_counts.csv", index=False)
+    print("== licks per set x animal x epoch (rule 8):")
+    print(C.pivot_table(index=["set", "animal"], columns="epoch", values=["n_licks", "n_sessions"])
+          .reindex(columns=EPS, level=1).to_string())
+    A, BT, CV, GS, GT, R, E = {}, {}, [], [], [], [], []
+    for ax in AXES:
+        A[ax] = curves(Q, ax)
+        BT[ax] = bins(Q, ax)
+        CV.append(coverage(A[ax], ax))
+        S, AL = gain(Q, ax)
+        GS.append(S)
+        R.append(residuals(A[ax], AL, ax))
+        E.append(edge(A[ax], AL, ax))
+        print(f"  axis {ax} done ({time.time() - t0:.0f} s)", flush=True)
+    GS = pd.concat(GS, ignore_index=True)
+    GT = gain_tests(GS)
+    CV, R, E = (pd.concat(x, ignore_index=True) for x in (CV, R, E))
+    BTa = pd.concat(BT.values(), ignore_index=True)
+    for df, f in ((CV, "curves_coverage"), (BTa, "curves_bin_tests"), (GS, "curves_gain_sessions"),
+                  (GT, "curves_gain_tests"), (E, "curves_edge")):
+        df.to_csv(OUT / f"{f}.csv", index=False)
+    print("== curve coverage (drawn x range per animal x epoch; >=4 / >=3 animals):")
+    print(CV.round(2).to_string(index=False))
+    print("== BH landing bins (sig / tested):")
+    print(BTa.groupby(["axis", "set", "epoch"]).agg(sig=("sig", "sum"), tested=("sig", "size"))
+          .reset_index().to_string(index=False))
+    print(BTa[BTa.sig].round(3).to_string(index=False))
+    acols = [c for c in GT.columns if c.startswith("animal_") or c.startswith("nsess_")]
+    print("== GAIN / OFFSET: per-animal change vs pre (rule 8), then the paired nested bootstrap:")
+    print(GT[["axis", "panel", "epoch", "measure", "pre_mean", *acols]].round(3).to_string(index=False))
+    print(GT[["axis", "panel", "epoch", "measure", "point", "lo", "hi", "n_dir", "n"]].round(3).to_string(index=False))
+    print("== residual RMS over the shared range (mean over animals): diff / minus offset / minus gain + offset")
+    rr = R.groupby(["axis", "panel", "epoch", "animal"])[["diff", "resid_offset", "resid_gain"]].apply(
+        lambda d: np.sqrt((d ** 2).mean())).groupby(["axis", "panel", "epoch"]).mean()
+    print(rr.round(3).to_string())
+    print("== edge check: (epoch - pre) curve difference by zone, mean over animals (n = animals with a value)")
+    ez = E.groupby(["axis", "panel", "epoch", "zone"]).agg(diff=("diff", "mean"), pre_slope=("pre_local_slope", "mean"),
+                                                           ep_slope=("ep_local_slope", "mean"),
+                                                           n=("diff", "count")).unstack("zone")
+    print(ez.round(3).to_string())
+    D = dict(A=A, BT=BT, GT=GT, R=R, E=E, C=C, CV=CV)
+    figdata.save_fd(STEM, D, root=FD)
+    print(f"analysis {time.time() - t0:.0f} s", flush=True)
+    return D
+
+
+def main() -> int:
+    D = figdata.load_fd(STEM, root=FD) if figdata.plot_only() else run()
+    draw(D)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -102,9 +102,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 
 - RESTW check: strict rest (exclude all cam4 licks incl. non-contact, buffer [0.5, 2.0]; + buffer-only and jaw-motion variants) vs restw per area x epoch; how 14.20 / acute far-contra / cue-to-lick levels move; engaged-count audit -> restw_check/
 
-- ENLv decoded-vs-landing curves (Fig 12.2 style, place + angle): first ENLv lick >= 1 s after arrival; first bout-start lick >= 1 s; ITI + ENLv readers; beside ITI / cued -> enlv_licks/figures/lick_enlv_curves*
+- ITI pre-lick re-run with windows ending >= 0.1 s (and 0.15 s) before lick onset, + jaw-onset variant (Priya) -> iti_licks/ (old fig kept as lick_iti_prelick_v1.png)
 
 ## 7. ENLv + cue-to-lick + trace results (figure links added as they report)
+- ENLv CURVES + GAIN (page v258, Fig 14.21 S10, lick_enlv_curves*.png): ENLv curves sit above pre like ITI; cued change mostly flatter read-out (gain -0.11), ITI gain + offset, ENLv mostly offset.
+- FIGURE CLEAN-UP (page v258): legends / titles off data in ~60 figures (plotting only); ENL audit heatmaps removed; simplified: area tuning decomp, interhemi recovery, ENLv sweep; area_tuning_raw cut from page. Open: lick_matched_pixel_areas, lick_correction_prediction, lick_enlv_target panel 2, lick_enl_offset_explore panels 3-6, 8 (cut / simplify?).
 - ENLv NEURAL (page v252, Fig 14.21 S10 #s14-21-10; M:/.../iti_licks/enlv_licks/figures/lick_enlv_compare.png, _target, _perspout, _sweep, _first_later, _arrival): offset persists at matched error (~half ITI, PS92 ~0); balance target-coded (cued pattern, chronic within-spout +0.14 4/4).
 - ARRIVAL -> CUE (page v251, Fig 14.21 S13 #s14-21-13; M:/.../iti_licks/arrival_to_cue/figures/): far-contra ENLv contact drops acutely 4/4 (no timer restart); last-ENLv-lick response larger acutely (contra tjM1 / SSp-n 4/4); chronic contra tjM1 cue response larger 4/4. Possible follow-ups: anchor on last CONTACT lick; per-animal panels.
 - CUE TO LICK (page v250, Fig 14.21 S12 #s14-21-12; M:/.../iti_licks/cue_to_lick/figures/): accumulate-to-bound rejected (fixed level / delayed start); restw rise = sustained pre-cue raise; chronic raw dip in orofacial = rest level drop vs session mean; non-orofacial dip real.
@@ -112,6 +114,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - STOPPED TRIALS (page v249, Fig 14.21 S11 #s14-21-11; figures M:/.../iti_licks/stopped_traces/figures/): no cue response, flat raised level; 3 animals per epoch; jaw-onset transient global; contra tjM1 / SSp-m pre-cue rise over recovery within animals (contra-specific? follow-up running).
 
 ## 6. Log
+- 10-29 evening: ENLv curves + gain, figure clean-up -> page v258; pre-lick window helper started.
 - 10-29 evening: Priya approved the ENLv working description; page v255: click-to-zoom now also on supplement images (was figure images only); ENLv curves helper started.
 - 10-29 evening: page v253: supplements to Figs 12.17 / 14.18 / 14.21 numbered (S1..) with anchors #s<fig>-<n>; stale 14.20 refs fixed.
 - 10-29 evening: ENLv neural reported -> page v252, FINDINGS. Only the restw check running.

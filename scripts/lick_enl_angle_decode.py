@@ -351,7 +351,6 @@ def figure(PRE: pd.DataFrame, SS: pd.DataFrame, TS: pd.DataFrame, W: float, lf: 
     ax[0].axhline(0, color="0.5", lw=0.6)
     ax[0].set_ylabel("held-out r (pre, leave-one-session-out)")
     ax[0].set_title("1. pre-stroke: ENL predicts first-lick angle?\n(black tick = 95th pct of shuffle null)", fontsize=9)
-    ax[0].legend(fontsize=7)
     for k_i, (val, ttl) in enumerate((("r_raw", "2. frozen decoder r (raw angle)"),
                                       ("r_beyond", "3. frozen beyond-spout r"),
                                       ("offset", "4. like-for-like offset (deg)\n+ = read toward + side_ml"))):
@@ -374,11 +373,12 @@ def figure(PRE: pd.DataFrame, SS: pd.DataFrame, TS: pd.DataFrame, W: float, lf: 
         a_.set_title(ttl + "\n(d, p = change vs pre, paired nested bootstrap)", fontsize=9, pad=4)
         lo_, hi_ = a_.get_ylim()
         a_.set_ylim(lo_, hi_ + 0.18 * (hi_ - lo_))
-    ax[1].legend(fontsize=7)
+    h_, l_ = ax[0].get_legend_handles_labels()
+    fig.legend(h_, l_, loc="lower center", ncol=len(l_), fontsize=9, frameon=False)
     fig.suptitle(f"ENL ({-W:g}..{W_END:g} s before cue; no lick in the {('last ' + format(W, 'g')) if lf == 'W' else 'last 2'} s) "
                  "-> angle of the first post-cue lick. Ridge on Allen areas (ALM/tjM1 split), per animal; post = frozen "
                  "all-pre decoder. PROVISIONAL", fontsize=10)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     out = OUT / "figures" / "lick_enl_angle_decode.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=110)

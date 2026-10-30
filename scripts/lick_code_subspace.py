@@ -799,12 +799,12 @@ def figures():
             ax.axhline(0, color="0.5", lw=0.6)
             ax.set_title(W(f"{SETS[st]}: decoded vs actual {met}" + (" (mm at y = 0; + = read contralesional)"
                                                                          if met == "intercept" else ""), 55), fontsize=9)
-            if i == 0 and j == 0:
-                ax.legend(fontsize=7, frameon=False)
+    hd, lb = axs[0, 0].get_legend_handles_labels()
+    fig.legend(hd, lb, loc="lower center", ncol=len(lb), fontsize=8, frameon=False)
     fig.suptitle(W("Transfer asymmetry: pre-trained (frozen) -> post vs post-trained -> pre vs within-epoch. Bars = mean "
                    "over animals, markers = animals; matched licks. Re-map = low transfer both ways with intact within; "
                    "offset / gain = high r with shifted intercept / slope.", 150), fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.tight_layout(rect=(0, 0.035, 1, 0.94))
     fig.savefig(FIG / "lick_code_subspace_transfer.png", dpi=130)
     plt.close(fig)
 
@@ -830,12 +830,12 @@ def figures():
             ax.set_title(W(f"{a} {SETS[st]}: m_pre {d['m'] * 30:+.3f} / 30 d", 45), fontsize=8.5)
             ax.set_xlabel("|day gap|", fontsize=8)
             ax.set_ylabel("per-session axis cosine", fontsize=8)
-            if j == 0 and k == 0:
-                ax.legend(fontsize=6.5, frameon=False)
+    hd, lb = axs[0, 0].get_legend_handles_labels()
+    fig.legend(hd, lb, loc="lower center", ncol=len(lb), fontsize=8, frameon=False)
     fig.suptitle(W("Drift vs re-organisation: pairwise cosine of per-session encoding axes (common lick subsample) vs "
                    "elapsed days. Red = the animal's pre-stroke drift line; dotted = longest pre-pre gap (beyond it the "
                    "line is extrapolated).", 150), fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.tight_layout(rect=(0, 0.035, 1, 0.94))
     fig.savefig(FIG / "lick_code_subspace_drift.png", dpi=130)
     plt.close(fig)
 

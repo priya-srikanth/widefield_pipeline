@@ -498,7 +498,7 @@ def plot() -> None:
         ax.set_xticks(range(len(MODELS)), MODELS, fontsize=8)
         ax.set_ylabel("pre cvR2 (leave-one-pre-session-out)")
         ax.set_title(f"{nm} 1: pre model of d = c - i per lick\n(c = contralesional hemi, + = contra stronger)", fontsize=9)
-        ax.legend(fontsize=7)
+        # legends: one figure legend below the panels (they sat on the data)
         ax = axs[i, 1]
         for j, y in enumerate(YS):
             u = W[(W.set == st) & (W.y == y)]
@@ -536,7 +536,7 @@ def plot() -> None:
         ax.set_ylabel("session balance log2 gain (c - i)\n+ = contralesional hemi stronger than ref")
         ax.set_title(f"{nm} 3: balance vs PRE prediction; red = angle only (primary-like),\nblue = angle + target "
                      "levels, green = a*target + b*angle", fontsize=9)
-        ax.legend(fontsize=7)
+        # (legend below the figure)
         ax = axs[i, 4]
         h = Dd[Dd.set == st]
         for _, r in h.iterrows():
@@ -557,9 +557,9 @@ def plot() -> None:
                         if a == "PS92" else None)
         ax.axhline(0, color="0.7", lw=0.6)
         ax.set_xticks(range(4), EPS)
-        ax.set_title(f"{nm} 7: 13.8-style balance decomposition per session over spouts\ndDIR = SHIFT + GAIN x + TRACK "
-                     "dLand; DIR = -balance in deg, + = looks more contralesional", fontsize=9)
-        ax.legend(fontsize=7)
+        ax.set_title(f"{nm} 7: 13.8-style balance decomposition per session\nover spouts; dDIR = SHIFT + GAIN x + "
+                     "TRACK dLand;\nDIR = -balance in deg, + = looks more contralesional", fontsize=9)
+        # (legend below the figure)
     for ax in axs.ravel():
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
@@ -567,7 +567,15 @@ def plot() -> None:
                  "the lick minus -1..-0.5 s). Angle + = CONTRALESIONAL; c = contralesional hemisphere, i = ipsilesional; "
                  "balance + = contralesional hemisphere stronger; pre = August pre sessions. Symbols = animals. "
                  "PROVISIONAL", fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    from matplotlib.lines import Line2D
+    hd = ([Line2D([], [], marker=ANIMAL_MARKER[a], ls="", color="k", ms=6) for a in AN]
+          + [Line2D([], [], marker="o", ls="", color=c, ms=6) for c in ("#C44E52", "#4C72B0", "#55A868")]
+          + [Line2D([], [], marker="o", ls="", color=c, ms=6) for c in ("#8172B2", "#CCB974")]
+          + [Line2D([], [], marker="o", ls="", color=col[ep], ms=6) for ep in EPS])
+    lb = (list(AN) + [f"panel 3: ref = {r}" for r in REFS] + ["panel 7: SHIFT (deg)", "panel 7: TRACK x 10"]
+          + [f"panel 5: {ep}" for ep in EPS])
+    fig.legend(hd, lb, loc="lower center", ncol=len(lb), fontsize=9, frameon=False)
+    fig.tight_layout(rect=(0, 0.035, 1, 0.95))
     (OUT / "figures").mkdir(exist_ok=True)
     fig.savefig(OUT / "figures" / "lick_balance_target_model.png", dpi=85)
     plt.close(fig)

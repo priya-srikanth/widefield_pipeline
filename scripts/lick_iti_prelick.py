@@ -551,8 +551,6 @@ def plot() -> None:
             ax.set_title(f"{src.upper()}-aligned: {lab}\nchange vs pre, 95% paired nested bootstrap (dots: CI excl. 0)",
                          fontsize=8.5)
             ax.set_xlabel(f"time from lick {src} (s; 0.1 s bins at their sample mean)", fontsize=8)
-            if j == 0:
-                ax.legend(fontsize=8, frameon=False)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     # row 3: windows
@@ -570,7 +568,7 @@ def plot() -> None:
     ax.axhline(0, color="0.6", lw=0.7)
     ax.set_xticks(range(len(wins)), [w.replace("_", "\n") for w in wins], fontsize=7)
     ax.set_title("PRE held-out r (decoded vs lateral landing), onset-aligned\none marker per animal", fontsize=8.5)
-    ax.legend(fontsize=7.5, frameon=False)
+    hd_dec, lb_dec = ax.get_legend_handles_labels()
     for j, (m, lab) in enumerate((("frozen|readout", "frozen offset (mm)"), ("frozen|diff_SSp-n", "SSp-n difference (mm)"),
                                   ("bal_bs|ratio", "balance gain ratio (log2; bs)"))):
         ax = axs[2, j + 1]
@@ -593,7 +591,11 @@ def plot() -> None:
                  "Rows 1-2: sliding 0.1 s bins (onset-aligned: bout-start subset, baseline -1.5..-1.0 s, blue; "
                  "peak-aligned: all licks, baseline -1.0..-0.5 s); grey = last 0.15 s (tongue already moving). "
                  "Row 3: fixed windows. PROVISIONAL", fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    # one legend below the panels (the per-panel legends sat on the CI shading / markers)
+    hd_ep, lb_ep = axs[0, 0].get_legend_handles_labels()
+    fig.legend(list(hd_ep) + list(hd_dec), list(lb_ep) + [f"row 3 panel 1: {s}" for s in lb_dec],
+               loc="lower center", ncol=len(lb_ep) + len(lb_dec), fontsize=9, frameon=False)
+    fig.tight_layout(rect=(0, 0.03, 1, 0.94))
     FIG.mkdir(exist_ok=True)
     fig.savefig(FIG / "lick_iti_prelick.png", dpi=90)
     plt.close(fig)

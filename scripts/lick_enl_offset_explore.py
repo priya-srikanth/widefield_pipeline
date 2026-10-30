@@ -604,7 +604,8 @@ def figure_a(R: pd.DataFrame, A: pd.DataFrame) -> None:
     ax[0].set_ylabel("held-out delta R2 (%) of the within-spout angle deviation")
     ax[0].set_title("1. does ENL add beyond trial history (and pre-cue face)?\n(black tick = 95th pct, ENL rows permuted "
                     "within session x spout)", fontsize=9)
-    ax[0].legend(fontsize=7)
+    lo_, hi_ = ax[0].get_ylim()
+    ax[0].set_ylim(lo_, hi_ + 0.2 * (hi_ - lo_))
     for a in AN:
         r = g[(g.animal == a) & (g.model == mods[0])]
         if len(r):
@@ -627,12 +628,18 @@ def figure_a(R: pd.DataFrame, A: pd.DataFrame) -> None:
         ax[2].set_yticks(y, order, fontsize=7)
         ax[2].invert_yaxis()
         ax[2].axvline(0, color="0.5", lw=0.6)
-        ax[2].legend(fontsize=7)
         ax[2].set_xlabel("held-out delta R2 (%), bar = mean of animals, dots = animals")
         ax[2].set_title("3. which areas (left + right pair): top 14 by drop-one loss", fontsize=9)
     fig.suptitle("NEURAL / BEHAVIOUR: is the within-spout ENL -> first-lick angle signal more than trial history and "
                  "face movement? Pre-stroke, ENL -1..-0.1 s, no lick in the last 2 s; per animal. PROVISIONAL", fontsize=10)
-    fig.tight_layout()
+    from matplotlib.lines import Line2D
+    hd = {}
+    for a_ in (ax[0], ax[2]):
+        for h_, l_ in zip(*a_.get_legend_handles_labels()):
+            hd.setdefault(l_, h_)
+    hd["panel 3: o = drop, x = alone (animals)"] = Line2D([], [], ls="", marker="x", color="0.3")
+    fig.legend(list(hd.values()), list(hd.keys()), loc="lower center", ncol=len(hd), fontsize=9, frameon=False)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     FIG.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIG / "lick_enl_history_test.png", dpi=100)
     plt.close(fig)
@@ -659,7 +666,6 @@ def figure_b(SS, V, trk, L, SP, PP, G7=None) -> None:
     t = trk[trk.measure == "offset"]
     a_.set_title("1. session offset; within-animal r with recovery:\n" + "; ".join(
         f"{r.y}: {_rs(r)} (p {r.p_within:.2g})" for _k, r in t.iterrows()), fontsize=8)
-    a_.legend(fontsize=7)
     # 2. by spout
     a_ = ax[0, 1]
     s = SP[SP.epoch == "acute"].set_index("pos").reindex(POS_ORDER)
@@ -687,7 +693,6 @@ def figure_b(SS, V, trk, L, SP, PP, G7=None) -> None:
     tot = PP[PP.epoch == "acute"].groupby("animal")[["difference", "shared"]].sum()
     a_.set_title(f"3. acute offset by area pair (deg; sum = offset)\nall pairs: difference {tot.difference.mean():+.2f} "
                  f"[{', '.join(f'{v:+.2f}' for v in tot.difference)}], shared {tot.shared.mean():+.2f}", fontsize=8)
-    a_.legend(fontsize=7)
     # 4. variants
     a_ = ax[1, 0]
     v = V[V.epoch == "acute"].reset_index(drop=True)
@@ -755,10 +760,15 @@ def figure_b(SS, V, trk, L, SP, PP, G7=None) -> None:
         a_.set_ylabel("acute - pre like-for-like offset at the spout (deg)")
         a_.set_title("8. per animal x spout, acute: offset vs aim shift\nr per animal "
                      + ", ".join(f"{v:+.2f}" for v in rr), fontsize=8)
-        a_.legend(fontsize=7)
     fig.suptitle("NEURAL: the acute contralesional ENL angle offset (frozen all-pre decoder, ENL -1..-0.1 s, no lick in "
                  "the last 2 s): recovery, spout, areas, baseline shift, imaging. + = contralesional. PROVISIONAL", fontsize=10)
-    fig.tight_layout()
+    hd = {}
+    for a_ in (ax[0, 0], ax[0, 2]):
+        for h_, l_ in zip(*a_.get_legend_handles_labels()):
+            hd.setdefault(l_, h_)
+    fig.legend(list(hd.values()), [k if k in AN else f"panel 3: {k}" for k in hd],
+               loc="lower center", ncol=len(hd), fontsize=9, frameon=False)
+    fig.tight_layout(rect=(0, 0.035, 1, 1), h_pad=3.0)
     FIG.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIG / "lick_enl_offset_explore.png", dpi=100)
     plt.close(fig)

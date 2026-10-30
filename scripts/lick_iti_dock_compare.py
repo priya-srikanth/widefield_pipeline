@@ -255,13 +255,14 @@ def plot(F: dict) -> None:
                 for a in AN:
                     ax.plot(x[e] + 0.04, g.loc[ep, a], ANIMAL_MARKER[a], mfc="none", mec=COL[k], ms=3.5, alpha=0.7)
                 sig = "*" if g.loc[ep, "lo"] > 0 or g.loc[ep, "hi"] < 0 else ""
-                ax.text(x[e], g.loc[ep, "hi"], f"{g.loc[ep, 'point']:+.2f}{sig}\n{int(g.loc[ep, 'n_dir'])}/"
-                        f"{int(g.loc[ep, 'n'])}\nn={int(g.loc[ep, 'n_licks'])}", ha="center", va="bottom", fontsize=5.5,
-                        color=COL[k])
+                # one vertical line per point (the 3-line horizontal stacks overlapped their neighbours)
+                ax.text(x[e], g.loc[ep, "hi"], f" {g.loc[ep, 'point']:+.2f}{sig}  {int(g.loc[ep, 'n_dir'])}/"
+                        f"{int(g.loc[ep, 'n'])}  n={int(g.loc[ep, 'n_licks'])}", ha="center", va="bottom", fontsize=6.5,
+                        rotation=90, color=COL[k])
         ax.axhline(0, color="0.6", lw=0.7)
         ax.set_xticks(range(len(EP)), EP)
         lo_, hi_ = ax.get_ylim()
-        ax.set_ylim(lo_, hi_ + 0.25 * (hi_ - lo_))
+        ax.set_ylim(lo_, hi_ + 0.55 * (hi_ - lo_))
         ax.set_title(f"{q}\nchange vs pre", fontsize=9)
         for s in ("top", "right"):
             ax.spines[s].set_visible(False)

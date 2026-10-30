@@ -529,6 +529,23 @@ def _style(ax):
     ax.axhline(0, color="0.7", lw=0.6, zorder=0)
 
 
+def _header(fig, n_title: int = 2) -> None:
+    """Place suptitle, the figure legend (if any) and the top of the panels in INCHES from the top edge, after
+    tight_layout, so the header has no dead band (tight_layout's rect left 1-2 in of empty space). Plotting only."""
+    H = fig.get_figheight()
+    y = 0.08
+    if fig._suptitle is not None:
+        fig._suptitle.set_y(1 - y / H)
+        fig._suptitle.set_va("top")
+        y += 0.16 * (fig._suptitle.get_text().count("\n") + 1) + 0.06
+    for lg in fig.legends:
+        lg.set_bbox_to_anchor((0.5, 1 - y / H), transform=fig.transFigure)
+        lg.set_loc("upper center")
+        y += 0.2 * -(-len(lg.get_texts()) // max(lg._ncols, 1)) + 0.12
+    hs = fig.subplotpars.hspace
+    fig.subplots_adjust(top=1 - (y + 0.17 * n_title + 0.08) / H, hspace=max(hs, 0.38))
+
+
 def fig_arrival(F: dict) -> None:
     import matplotlib.pyplot as plt
     K, FR, R, lk = F["K"], F["FR"], F["rows"], ex.LAGS_K
@@ -543,29 +560,29 @@ def fig_arrival(F: dict) -> None:
             axs[0, j].plot(lk, kc["pool_i"], color=col[ep], lw=1.0, ls="--", label=f"{ep} ipsi pool")
             axs[1, j].plot(lk, lkk["pool_c"], color=col[ep], lw=1.4)
             axs[1, j].plot(lk, lkk["pool_i"], color=col[ep], lw=1.0, ls="--")
-            if (a, ep) in FR:
+        ntr = []
+        for ep in EPS:
+            if (a, ep) in K and (a, ep) in FR:
                 tr, n, nt = FR[(a, ep)]
                 ok = n >= 5
-                axs[2, j].plot(ex.LAGS_A[ok], tr["pool_c"][ok], color=col[ep], lw=1.4, label=f"{ep} (n={nt} trials)")
+                axs[2, j].plot(ex.LAGS_A[ok], tr["pool_c"][ok], color=col[ep], lw=1.4)
                 axs[2, j].plot(ex.LAGS_A[ok], tr["pool_i"][ok], color=col[ep], lw=1.0, ls="--")
+                ntr.append(f"{ep[:3]} {nt}")
         for ax in axs[:3, j]:
             for x in (1.0, 1.5):
                 ax.axvline(x, color="k", lw=0.6, ls=":")
             _style(ax)
-        axs[0, j].set_title(f"{a}: ARRIVAL kernel (regression, pre-strobe = 0)\nsolid contra / dashed ipsi pool",
-                            fontsize=9)
+        axs[0, j].set_title(f"{a}: ARRIVAL kernel (regression, pre-strobe = 0)", fontsize=9)
         axs[1, j].set_title(f"{a}: LICK-ONSET kernel (same fit)", fontsize=9)
-        axs[2, j].set_title(f"{a}: lick-free trials, strobe-aligned\n(check; samples after the cue masked)", fontsize=9)
-        axs[2, j].legend(fontsize=6.5, frameon=False)
-        axs[0, j].legend(fontsize=6, frameon=False, ncol=2)
+        axs[2, j].set_title(f"{a}: lick-free trials, strobe-aligned (after-cue masked)\nn trials: " + ", ".join(ntr),
+                            fontsize=9)
         h = F["onsets"].get(a)
         if h is not None:
-            axs[3, j].hist(np.clip(h["all"], 0, 6), bins=np.arange(0, 6.01, 0.1), color="0.6", label="all ENLv licks")
+            axs[3, j].hist(np.clip(h["all"], 0, 6), bins=np.arange(0, 6.01, 0.1), color="0.6")
             ax2 = axs[3, j].twinx()
             ax2.hist(np.clip(h["first"], 0, 6), bins=np.arange(0, 6.01, 0.1), histtype="step", color="#C44E52",
-                     lw=1.4, label="first ENLv lick / trial")
-            ax2.legend(fontsize=7, frameon=False, loc="upper right")
-            axs[3, j].legend(fontsize=7, frameon=False, loc="upper center")
+                     lw=1.4)
+            ax2.tick_params(axis="y", colors="#C44E52")
         axs[3, j].axvline(1.0, color="k", lw=0.8)
         axs[3, j].set_title(f"{a}: BEHAVIOUR onset time from arrival (s; clipped at 6)", fontsize=9)
         axs[3, j].set_xlabel("time since spout arrival (strobe) / lick onset (s)")
@@ -585,8 +602,18 @@ def fig_arrival(F: dict) -> None:
                                "no cue kernel; the kernel's late level is weakly identified -- it trades off against the "
                                "intercept); row 3: model-free strobe-aligned mean on lick-free trials (thin pre-stroke "
                                "in PS92 / PS93). Pooled ALM + tjM1 + SSp-m + SSp-n + SSs per hemisphere, pre-strobe "
-                               "-1..-0.5 s = 0; dotted = 1.0 / 1.5 s. " + txt + ". PROVISIONAL", 210), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+                               "-1..-0.5 s = 0; dotted = 1.0 / 1.5 s. " + txt + ". PROVISIONAL", 210), fontsize=9,
+                 y=0.995)
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    hl = [Line2D([], [], color=col[ep], lw=2, label=ep) for ep in EPS]
+    hl += [Line2D([], [], color="0.3", lw=1.4, label="solid = contra pool"),
+           Line2D([], [], color="0.3", lw=1.0, ls="--", label="dashed = ipsi pool"),
+           Patch(color="0.6", label="row 4: all ENLv licks (left axis)"),
+           Line2D([], [], color="#C44E52", lw=1.4, label="row 4: first ENLv lick / trial (right axis)")]
+    fig.legend(handles=hl, loc="upper center", bbox_to_anchor=(0.5, 0.935), ncol=len(hl), fontsize=9, frameon=False)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    _header(fig, 1)
     fig.savefig(FIG / "lick_enlv_arrival.png", dpi=90)
     plt.close(fig)
 
@@ -597,13 +624,13 @@ SRC_COL = {"cued": "#555555", "ITI all": "#1f78b4", "ITI docked": "#1b9e77", "IT
            "ENLv bout starts (trial reader)": "#bf812d", "ENLv bout starts (enlv reader)": "#54278f"}
 
 
-def fig_compare(C: pd.DataFrame) -> None:
+def fig_compare(C: pd.DataFrame, keep: tuple | None = None, name: str = "lick_enlv_compare.png") -> None:
     import matplotlib.pyplot as plt
     qs = list(dict.fromkeys(C.quantity))
-    fig, axs = plt.subplots(2, 4, figsize=(26, 10.5), squeeze=False)
+    fig, axs = plt.subplots(2, 4, figsize=(20 if keep else 26, 10.5), squeeze=False)
     for ax, q in zip(axs.flat, qs):
         G = C[C.quantity == q]
-        srcs = [s for s in SRC_COL if s in set(G.source)]
+        srcs = [s for s in SRC_COL if s in set(G.source) and (keep is None or s in keep)]
         w = 0.8 / len(srcs)
         for k, s in enumerate(srcs):
             g = G[G.source == s].set_index("epoch").reindex(POST)
@@ -619,17 +646,26 @@ def fig_compare(C: pd.DataFrame) -> None:
         ax.set_xticks(range(3), POST)
         _style(ax)
         ax.set_title(f"{q}\nchange vs pre", fontsize=9)
-    axs.flat[0].legend(fontsize=7, frameon=False)
+    hd = {}
+    for ax in axs.flat:
+        for h_, l_ in zip(*ax.get_legend_handles_labels()):
+            hd.setdefault(l_, h_)
+    hd = {s: hd[s] for s in SRC_COL if s in hd}
+    fig.legend(list(hd.values()), list(hd.keys()), loc="upper center", bbox_to_anchor=(0.5, 0.925),
+               ncol=min(len(hd), 6), fontsize=9, frameon=False)
     fig.suptitle(textwrap.fill(
+        ("SIMPLIFIED (cued, ITI all, ENLv on the ITI reader / for balance; all sources = lick_enlv_compare). "
+         if keep else "") +
         "NEURAL: ENLv licks (PRIMARY: onset >= 1.0 s after spout arrival, window ends before the cue; spout stationary, "
         "no cue, no reward) vs cued first licks and ITI licks (all / docked spout / moving spout). Offsets: frozen "
         "pre-stroke decoders -- ITI reader (= the ITI numbers' decoder), cued reader, ENLv-trained; references = each "
         "set's own pre licks. Balance + = contralesional hemisphere larger; offset + = read contralesional. Points = "
         "change vs pre, 95% paired nested bootstrap; open markers = animals (o PS92, s PS93, ^ PS94, D PS95); k/n = "
         "animals with the pooled sign. ENLv per-lick sets differ from ITI (all licks, not first-after-quiet) for the "
-        "balance -- see enlv_tests for bout starts. PROVISIONAL", 220), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(FIG / "lick_enlv_compare.png", dpi=90)
+        "balance -- see enlv_tests for bout starts. PROVISIONAL", 220), fontsize=9, y=0.995)
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    _header(fig, 2)
+    fig.savefig(FIG / name, dpi=90)
     plt.close(fig)
 
 
@@ -658,11 +694,13 @@ def fig_perspout(TS: pd.DataFrame, AS: pd.DataFrame) -> None:
         ax.set_xticks(x, POS, rotation=25, fontsize=8)
         _style(ax)
         ax.set_title(lab + "\nchange vs pre", fontsize=9)
-    axs.flat[0].legend(fontsize=7, frameon=False)
+    h_, l_ = axs.flat[0].get_legend_handles_labels()
+    fig.legend(h_, l_, loc="upper center", bbox_to_anchor=(0.5, 0.955), ncol=len(l_), fontsize=9, frameon=False)
     fig.suptitle("NEURAL / BEHAVIOUR per spout, ENLv PRIMARY (onset >= 1.0 s after arrival, window before the cue). "
                  "Spout = the trial's spout in place. Lines = pooled change vs pre (95% nested bootstrap), small markers "
-                 "= animals; '<3' = fewer than 3 animals share the sign. PROVISIONAL", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+                 "= animals; '<3' = fewer than 3 animals share the sign. PROVISIONAL", fontsize=9, y=0.995)
+    fig.tight_layout(rect=(0, 0, 1, 0.91))
+    _header(fig, 2)
     fig.savefig(FIG / "lick_enlv_perspout.png", dpi=90)
     plt.close(fig)
 
@@ -673,14 +711,20 @@ SWEEP_M = [("bal_all", "primary balance\n(angle ref.)"), ("bal_spout", "within-s
            ("lerr", "BEHAVIOUR landing\nerror (deg)")]
 
 
-def fig_sweep(T: pd.DataFrame) -> None:
+SWEEP_SIMPLE_V = ["on1", "on1_clean", "on0", "on1_corr", "on1_contact", "on1_noncontact", "on1_nocuerule"]
+SWEEP_SIMPLE_M = ["bal_all", "d_raw_ci_spmean", "off_iti", "lerr"]
+
+
+def fig_sweep(T: pd.DataFrame, vs: list | None = None, mm: list | None = None,
+              name: str = "lick_enlv_sweep.png") -> None:
     import matplotlib.pyplot as plt
-    vs = list(VARIANTS)
-    fig, axs = plt.subplots(1, len(SWEEP_M), figsize=(3.6 * len(SWEEP_M), 0.36 * len(vs) + 2.5), sharey=True,
-                            squeeze=False)
+    vs = list(VARIANTS) if vs is None else vs
+    sm = SWEEP_M if mm is None else [x for x in SWEEP_M if x[0] in mm]
+    fig, axs = plt.subplots(1, len(sm), figsize=(3.6 * len(sm) + (1.5 if mm else 0), 0.36 * len(vs) + 2.5),
+                            sharey=True, squeeze=False)
     col = {"acute": "#C44E52", "subacute": "#DD8452", "chronic": "#4C72B0"}
     y = np.arange(len(vs))[::-1]
-    for ax, (m, lab) in zip(axs.flat, SWEEP_M):
+    for ax, (m, lab) in zip(axs.flat, sm):
         for k, ep in enumerate(POST):
             t = T[(T.measure == m) & (T.epoch == ep)].set_index("variant").reindex(vs)
             yy = y + (k - 1) * 0.25
@@ -694,18 +738,25 @@ def fig_sweep(T: pd.DataFrame) -> None:
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     axs[0, 0].set_yticks(y, [VLAB[v] for v in vs], fontsize=7.5)
-    axs[0, 0].legend(fontsize=7, frameon=False, loc="lower left")
-    fig.suptitle("NEURAL / BEHAVIOUR: ENLv SENSITIVITY table (change vs pre; 95% nested bootstrap; small markers = "
-                 "animals). Highlight = PRIMARY (onset >= 1.0 s after arrival). Raw signals unless 'arrival-corrected' "
-                 "(per-session arrival + lick ridge regression, pre-cue frames). PROVISIONAL", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(FIG / "lick_enlv_sweep.png", dpi=90)
+    h_, l_ = axs[0, 0].get_legend_handles_labels()
+    H = fig.get_size_inches()[1]
+    fig.legend(h_, l_, loc="upper center", bbox_to_anchor=(0.5, 1 - 0.55 / H), ncol=len(l_), fontsize=9,
+               frameon=False)
+    sup = ("NEURAL / BEHAVIOUR: ENLv SENSITIVITY table (change vs pre; 95% nested bootstrap; small markers = "
+           "animals). Highlight = PRIMARY (onset >= 1.0 s after arrival). Raw signals unless 'arrival-corrected' "
+           "(per-session arrival + lick ridge regression, pre-cue frames). PROVISIONAL")
+    if mm:
+        sup = "SIMPLIFIED (key variants / measures; full table = lick_enlv_sweep). " + sup
+    fig.suptitle(textwrap.fill(sup, 150 if mm else 250), fontsize=9, y=1 - 0.08 / H)
+    fig.tight_layout(rect=(0, 0, 1, 1 - (1.15 if mm else 0.9) / H))
+    _header(fig, 2)
+    fig.savefig(FIG / name, dpi=90)
     plt.close(fig)
 
 
-def fig_firstlater(T: pd.DataFrame) -> None:
+def fig_firstlater(T: pd.DataFrame, vs: list | None = None, name: str = "lick_enlv_first_later.png") -> None:
     import matplotlib.pyplot as plt
-    vs = ["first", "later", "first_corr", "later_corr", "first_on1", "later_on1"]
+    vs = ["first", "later", "first_corr", "later_corr", "first_on1", "later_on1"] if vs is None else vs
     ms = [("aim_err", "BEHAVIOUR aim error vs pre cued (deg)"), ("off_iti", "same-place offset, ITI reader (mm)"),
           ("off_enlv", "same-place offset, ENLv decoder (mm)"), ("bal_all", "primary balance (angle ref.)"),
           ("d_raw_ci_spmean", "raw C/I vs pre (mean over spouts)")]
@@ -724,12 +775,19 @@ def fig_firstlater(T: pd.DataFrame) -> None:
         ax.set_xticks(range(3), POST)
         _style(ax)
         ax.set_title(lab + "\nchange vs pre", fontsize=9)
-    axs.flat[0].legend(fontsize=6.5, frameon=False)
-    fig.suptitle("NEURAL / BEHAVIOUR: FIRST ENLv lick of the trial vs LATER ENLv licks (any time / arrival-corrected / "
-                 "both restricted to onset >= 1 s, which separates a first-lick effect from a time-since-arrival "
-                 "effect). Windows end before the cue. PROVISIONAL", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(FIG / "lick_enlv_first_later.png", dpi=90)
+    h_, l_ = axs.flat[0].get_legend_handles_labels()
+    fig.legend(h_, l_, loc="upper center", bbox_to_anchor=(0.5, 0.955), ncol=len(l_), fontsize=9, frameon=False)
+    sup = ("NEURAL / BEHAVIOUR: FIRST ENLv lick of the trial vs LATER ENLv licks (any time / arrival-corrected / "
+           "both restricted to onset >= 1 s, which separates a first-lick effect from a time-since-arrival "
+           "effect). Windows end before the cue. PROVISIONAL")
+    if len(vs) < 6:
+        sup = ("SIMPLIFIED: first vs later ENLv licks, both onset >= 1 s after arrival (separates a first-lick effect "
+               "from a time-since-arrival effect); all six variants = lick_enlv_first_later. Windows end before the "
+               "cue. PROVISIONAL")
+    fig.suptitle(sup, fontsize=9, y=0.995)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    _header(fig, 2)
+    fig.savefig(FIG / name, dpi=90)
     plt.close(fig)
 
 
@@ -739,9 +797,12 @@ def draw(F: dict) -> None:
     FIG.mkdir(parents=True, exist_ok=True)
     fig_arrival(F["arrival"])
     fig_compare(F["compare"])
+    fig_compare(F["compare"], ("cued", "ITI all", "ENLv", "ENLv (iti reader)"), "lick_enlv_compare_simple.png")
     fig_perspout(F["TS"], F["AS"])
     fig_sweep(F["T"])
+    fig_sweep(F["T"], SWEEP_SIMPLE_V, SWEEP_SIMPLE_M, "lick_enlv_sweep_simple.png")
     fig_firstlater(F["T"])
+    fig_firstlater(F["T"], ["first_on1", "later_on1"], "lick_enlv_first_later_simple.png")
 
 
 # ================================================================================================ main

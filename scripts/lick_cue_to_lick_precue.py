@@ -112,12 +112,19 @@ def changes(S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def _wrap(txt: str, fig_w: float, fs: float) -> str:
+    """Pre-wrap a suptitle to the figure width so constrained layout reserves exactly its height."""
+    import textwrap
+    return textwrap.fill(txt, max(40, int(fig_w * 72 / (0.55 * fs))))
+
+
 def draw_traces(stem: str) -> None:
     import matplotlib.pyplot as plt
     from wfield_local.orofacial_cohort import EPOCH_LINE
     F = load_fd(stem, FDR)
     areas = cx.AREAS
-    fig, axs = plt.subplots(len(areas), 2, figsize=(11, 2.2 * len(areas)), sharex=True, squeeze=False)
+    fig, axs = plt.subplots(len(areas), 2, figsize=(11, 2.2 * len(areas)), sharex=True, squeeze=False,
+                            layout="constrained")
     for i, a in enumerate(areas):
         for j, (h, hl) in enumerate(cx.HEMI):
             ax = axs[i, j]
@@ -139,13 +146,18 @@ def draw_traces(stem: str) -> None:
                 ax.set_ylabel("dF/F x1e3\n(0 = session mean)", fontsize=8)
     for ax in axs[-1]:
         ax.set_xlabel("time from cue (s)")
-    axs[0, 0].legend(fontsize=7, frameon=False, ncol=4)
-    fig.suptitle("NEURAL, NO BASELINE (non-restw version of Fig 14.21): cue-aligned area traces of ENGAGED trials, all "
+    for j in range(axs.shape[1]):   # a hidden bottom panel leaves its column without x tick labels: label the last shown
+        vis = [ax for ax in axs[:, j] if ax.get_visible()]
+        if vis:
+            vis[-1].tick_params(labelbottom=True)
+            vis[-1].set_xlabel("time from cue (s)")
+    h, lab = axs[0, 0].get_legend_handles_labels()   # one figure legend below the panels (was inside ALM contra)
+    fig.legend(h, lab, loc="outside lower center", fontsize=8, frameon=False, ncol=4)
+    fig.suptitle(_wrap("NEURAL, NO BASELINE (non-restw version of Fig 14.21): cue-aligned area traces of ENGAGED trials, all "
                  "spouts; the drift basis incl. the constant is removed, so 0 = the area's SESSION MEAN. Dashed = the "
                  "epoch's mean RESTW level in the same units (rest sits below the session mean). Per animal x epoch mean "
                  "over sessions, mean of animals, shade = SEM over animals. Grey = -1..0 s pre-cue window. "
-                 f"n: {F['nlab']}. PROVISIONAL.", fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.965))
+                 f"n: {F['nlab']}. PROVISIONAL.", 11, 9), fontsize=9)
     fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -156,7 +168,8 @@ def draw_decomp(stem: str) -> None:
     F = load_fd(stem, FDR)
     PA, D, acol = F["PA"], F["D"], F["acol"]
     cols = [c for c in F["cols"]]
-    fig, axs = plt.subplots(len(cols), len(COMP), figsize=(2.2 * len(COMP), 1.45 * len(cols)), squeeze=False)
+    fig, axs = plt.subplots(len(cols), len(COMP), figsize=(2.2 * len(COMP), 1.45 * len(cols)), squeeze=False,
+                            layout="constrained")
     for i, c in enumerate(cols):
         rowv = []
         for k in COMP[:4]:
@@ -177,25 +190,24 @@ def draw_decomp(stem: str) -> None:
                 ax.scatter(range(len(POST)), mu, marker="_", s=180, c=[EPOCH_LINE[e] for e in POST], lw=2.2, zorder=4)
                 for _q, r in D[(D.col == c) & (D.comp == k)].iterrows():
                     if r.sig:
-                        ax.text(POST.index(r.epoch), 0.9, "*" if not r.flag_lt3 else "(*)", ha="center", fontsize=9,
-                                transform=ax.get_xaxis_transform(), color=EPOCH_LINE[r.epoch])
+                        ax.text(POST.index(r.epoch), 1.0, "*" if not r.flag_lt3 else "(*)", ha="center", va="bottom", fontsize=9,
+                                transform=ax.get_xaxis_transform(), color=EPOCH_LINE[r.epoch], clip_on=False)
                 if k != "F0pct":
                     ax.set_ylim(-lim, lim)
                 ax.set_xticks(range(len(POST)), [e[:3] for e in POST], fontsize=6)
                 ax.tick_params(labelsize=6)
             if i == 0:
-                ax.set_title(CLAB[k], fontsize=7)
+                ax.set_title(CLAB[k], fontsize=7, pad=12)
             if j == 0:
                 ax.set_ylabel(c.replace("_right", "\ncontra").replace("_left", "\nipsi"), fontsize=7)
     hs = [plt.Line2D([], [], color=v, marker="o", ls="", ms=4, label=a) for a, v in sorted(acol.items())]
-    fig.legend(handles=hs, loc="lower center", ncol=4, fontsize=7, frameon=False)
-    fig.suptitle("NEURAL, change from PRE per animal (dots) of the pre-cue components, ENGAGED trials, all spouts "
+    fig.legend(handles=hs, loc="outside lower center", ncol=4, fontsize=7, frameon=False)
+    fig.suptitle(_wrap("NEURAL, change from PRE per animal (dots) of the pre-cue components, ENGAGED trials, all spouts "
                  "(dF/F x1e3; first four columns share one scale per row): raw pre-cue level with NO baseline (0 = "
                  "session mean) = (pre-cue minus RESTW) + RESTW; in-trial shape = what a -1..-0.5 s in-trial baseline "
                  "shows; F0 = raw 470 nm fluorescence (% of the animal's pre). Bar = mean of animals; * = paired nested "
                  "bootstrap CI excludes 0 (analysis_kit.boot_delta), (*) = fewer than 3 animals share the sign. "
-                 "PROVISIONAL, n = 4.", fontsize=8, wrap=True)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.95))
+                 "PROVISIONAL, n = 4.", 2.2 * len(COMP), 8), fontsize=8)
     fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 

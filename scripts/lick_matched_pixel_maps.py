@@ -380,7 +380,8 @@ def plot(D: dict) -> None:
                                 99)
         pre = np.mean([maps[(st, an, "pre_resp")] for an in AN if (st, an, "pre_resp") in maps], 0)
         # dedicated colour-bar column (and a spacer before the PRE panel) so bars never sit on the panel titles
-        fig = plt.figure(figsize=(15, 4.2 * len(POST)))
+        fig_h = 4.2 * len(POST) + 1.3   # extra headroom so the wrapped suptitle clears the panel titles
+        fig = plt.figure(figsize=(15, fig_h))
         gs = fig.add_gridspec(len(POST), 5, width_ratios=[1, 1, 0.045, 0.35, 1], wspace=0.08, hspace=0.35)
         axs = np.array([[fig.add_subplot(gs[i, 0]), fig.add_subplot(gs[i, 1]), fig.add_subplot(gs[i, 4])]
                         for i in range(len(POST))])
@@ -417,7 +418,7 @@ def plot(D: dict) -> None:
                            "of animal change maps; one colour scale across epochs and both map types. Image LEFT = "
                            "ipsilesional. Contour = calibrated nested-bootstrap max-stat test (supporting only; areas "
                            "are the a priori test). PROVISIONAL", 160), fontsize=9, y=0.995)
-        fig.subplots_adjust(left=0.02, right=0.95, bottom=0.02, top=0.9)
+        fig.subplots_adjust(left=0.02, right=0.95, bottom=0.02, top=1 - 1.75 / fig_h)
         fig.savefig(FIG / f"lick_matched_pixel_{st}.png", dpi=90)
         plt.close(fig)
         # per animal (rule 8): mirrored map per animal x epoch, same scale
@@ -469,11 +470,15 @@ def plot(D: dict) -> None:
             ax.set_title(_wrap(f"{SETS[st]}\n{ttl}", 60), fontsize=7.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    axs[0, 0].legend(fontsize=7, frameon=False)
+    from matplotlib.lines import Line2D
+    hd, lb = axs[0, 0].get_legend_handles_labels()
+    hd = list(hd) + [Line2D([], [], marker=MK[a], ls="", mfc="none", color="0.4", ms=5) for a in AN]
+    lb = list(lb) + [f"{a} (open)" for a in AN]
+    fig.legend(hd, lb, loc="lower center", ncol=len(lb), fontsize=8.5, frameon=False)
     fig.suptitle(_wrap("A priori AREA test on the matched pixel maps: ROI-weighted mean of the session map (post - pre at "
                        "matched spout + angle), change vs pre; filled = paired nested bootstrap 95% CI, open = animals. "
                        "Hemisphere: c = contralesional. PROVISIONAL", 170), fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0.03, 1, 0.93))
     fig.savefig(FIG / "lick_matched_pixel_areas.png", dpi=90)
     plt.close(fig)
 

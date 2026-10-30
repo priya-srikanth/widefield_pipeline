@@ -558,9 +558,25 @@ def _suptitle(fig, text: str) -> float:
     import textwrap
     w = max(60, min(150, int(fig.get_figwidth() * 14)))
     txt = textwrap.fill(text, w)
-    n = txt.count("\n") + 1
     fig.suptitle(txt, fontsize=9, y=0.995, va="top")
-    return max(0.5, 1.0 - (0.14 * n + 0.1) / fig.get_figheight())
+    # tight_layout (matplotlib >= 3.3) reserves the suptitle's own box; reserving it again left an empty band
+    return 1.0
+
+
+def _fig_legend(fig, handles, ncol: int | None = None, fontsize: float = 9) -> float:
+    """ONE figure-level legend below the panels (never on data); returns the bottom for tight_layout's rect."""
+    ncol = ncol or len(handles)
+    fig.legend(handles=handles, loc="lower center", ncol=ncol, fontsize=fontsize, frameon=False,
+               bbox_to_anchor=(0.5, 0.0))
+    return ((-(-len(handles) // ncol)) * fontsize * 1.6 + 8) / 72 / fig.get_figheight()
+
+
+def _ep_an_handles(animals):
+    import matplotlib.pyplot as plt
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    return ([plt.Line2D([], [], ls="", marker="s", color=EPOCH_LINE[e], label=e) for e in EP] +
+            [plt.Line2D([], [], ls="", marker=ANIMAL_MARKER.get(a, "o"), mfc="white", mec="k", label=a)
+             for a in animals])
 
 
 def _gcol(groups):
@@ -591,14 +607,21 @@ def draw_traces(CV: dict, cls: str, h: str, hl: str, tau: float, groups: list, s
                 ax.set_xlim(*xl)
                 ax.tick_params(labelsize=6)
                 if i == 0:
-                    ax.set_title(f"{ep} -- {'cue' if side == 0 else 'first lick'}-aligned", fontsize=8)
+                    # n animals per group in the column title (the per-panel legends sat on the traces)
+                    ns = [f"{g} {CV[(cls, ep, g)][2]}" for g in groups
+                          if CV.get((cls, ep, g)) is not None and CV[(cls, ep, g)][2] < 4]
+                    ax.set_title(f"{ep} -- {'cue' if side == 0 else 'first lick'}-aligned"
+                                 + (f"\n(n animals < 4: {', '.join(ns)})" if ns else "\n(all groups 4 animals)"),
+                                 fontsize=8)
                 if i == len(rows) - 1:
                     ax.set_xlabel(f"time from {'cue' if side == 0 else 'first lick'} (s)", fontsize=7)
                 if k == 0:
                     ax.set_ylabel(f"{a}{'  [control]' if a in CTRL else ''}\n" + ("deconv " if tau else "")
                                   + "dF/F x1e3 - restw", fontsize=7)
-            if i == 0:
-                axs[0, k].legend(fontsize=5, frameon=False, loc="upper right")
+    bot = _fig_legend(fig, [plt.Line2D([], [], color=col[g], lw=1.6,
+                                       label=g + (" (first lick after the trial stop)" if g == "late" else ""))
+                            for g in groups] +
+                      [plt.Line2D([], [], color="0.3", lw=1.2, ls=":", label="dotted = < 4 animals")], fontsize=10)
     # share y within a row
     for i in range(len(rows)):
         lo = min(ax.get_ylim()[0] for ax in axs[i])
@@ -610,10 +633,10 @@ def draw_traces(CV: dict, cls: str, h: str, hl: str, tau: float, groups: list, s
            "stop, spout gone; red)" if scheme == "quartile" else "FIXED latency bins (s) + late")
     top = _suptitle(fig, f"NEURAL: {hl} cortex, {what}: area traces above RESTW by first-lick latency group -- {grp}. Left four "
                  f"columns cue-aligned (into the ITI), right four first-lick-aligned. Session mean per group -> animal mean "
-                 f"-> mean of animals (legend: group (n animals); dotted < 4 animals)."
+                 f"-> mean of animals (dotted = < 4 animals; their n in the column title)."
                  + (f" DECONVOLVED: s = x + {tau} dx/dt (first-order inverse GCaMP kernel)." if tau else
                     " GCaMP6s: lags spikes ~0.1-0.2 s and decays ~0.5-1 s -- compare slopes / shapes, not onsets."))
-    fig.tight_layout(rect=(0, 0, 1, top))
+    fig.tight_layout(rect=(0, bot, 1, top))
     stem = f"revup_neural_traces_{scheme}_{cls}_{h}" + (f"_deconv{tau}" if tau else "")
     fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
@@ -659,10 +682,56 @@ def draw_metrics(D: pd.DataFrame, TS: pd.DataFrame) -> None:
                      "ramp in slow trials (C_slope in Q4 - Q1 is confounded: Q1's own lick response falls in 0..0.5 s; read it on the slow-only contrast). t_half = lick-aligned time of the 50 % crossing: < 0 = earlier relative to the "
                      "lick (slow ramp), ~0 = same shape shifted (delayed start)."
                      + (f" DECONVOLVED tau = {tau} s." if tau else " Raw dF/F."))
-        fig.tight_layout(rect=(0, 0, 1, top))
+        hd = _ep_an_handles(sorted(D.animal.dropna().unique())) + \
+            [plt.Line2D([], [], color="0.3", lw=1.5, marker="_", ms=8, label="boot_ci (animals > sessions)")]
+        bot = _fig_legend(fig, hd, fontsize=10)
+        fig.tight_layout(rect=(0, bot, 1, top), h_pad=1.5)
         fig.savefig(FIGS / f"revup_neural_{CT[ct][1]}{'_deconv' + str(tau) if tau else ''}.png", dpi=100,
                     bbox_inches="tight")
         plt.close(fig)
+    _draw_metrics_simple(D, TS)
+
+
+def _draw_metrics_simple(D: pd.DataFrame, TS: pd.DataFrame) -> None:
+    """SIMPLE view of the slow-only contrast (raw dF/F): far-contra trials, contralesional key areas only, one panel per
+    metric, larger markers -- the same D / TS numbers as revup_neural_slowonly_contrasts.png (which keeps ipsi, the
+    other five spouts and the deconvolved variants)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    tau, ct, cls = 0.0, "gt1-0.5to1", "far_contra"
+    areas = [f"{a}_right" for a in KEY]
+    fig, axs = plt.subplots(1, len(TEST_METRICS), figsize=(4.4 * len(TEST_METRICS), 4.4), squeeze=False)
+    for i, m in enumerate(TEST_METRICS):
+        ax = axs[0, i]
+        ax.axhline(0, color="0.5", lw=0.7)
+        s = D[(D.tau == tau) & (D.cls == cls) & (D.metric == m) & (D.contrast == ct)]
+        P = s.groupby(["area", "epoch", "animal"]).d.mean()
+        for ai, a in enumerate(areas):
+            for e_i, ep in enumerate(EP):
+                x0 = ai * 5 + e_i
+                if (a, ep) in P.index.droplevel("animal"):
+                    for an, v in P.xs((a, ep), level=("area", "epoch")).items():
+                        ax.scatter(x0, v, color=EPOCH_LINE[ep], marker=ANIMAL_MARKER.get(an, "o"), s=24, zorder=3)
+                t = TS[(TS.tau == tau) & (TS.cls == cls) & (TS.metric == m) & (TS.contrast == ct)
+                       & (TS.area == a) & (TS.epoch == ep)]
+                if len(t) and np.isfinite(t.level.iloc[0]):
+                    ax.plot([x0 + 0.35] * 2, [t.level_lo.iloc[0], t.level_hi.iloc[0]], color=EPOCH_LINE[ep], lw=1.8)
+                    ax.plot(x0 + 0.35, t.level.iloc[0], "_", color=EPOCH_LINE[ep], ms=10)
+        ax.set_xticks([ai * 5 + 1.5 for ai in range(len(areas))])
+        ax.set_xticklabels(KEY, fontsize=9)
+        ax.set_title(m, fontsize=11)
+    hd = _ep_an_handles(sorted(D.animal.dropna().unique())) + \
+        [plt.Line2D([], [], color="0.3", lw=1.8, marker="_", ms=10, label="boot_ci (animals > sessions)")]
+    bot = _fig_legend(fig, hd, fontsize=10)
+    top = _suptitle(fig, "NEURAL (simple): slow-only latency contrast (>1.0 s minus 0.5-1.0 s first-lick bins, per session) "
+                    "of the ramp metrics, FAR-CONTRA trials, CONTRALESIONAL key areas, raw dF/F. L_level ~0 = common "
+                    "threshold; L_slope / C_slope < 0 = slower ramp in slow trials; t_half < 0 = earlier 50 % crossing "
+                    "(slow ramp), ~0 = same shape shifted. Full set: revup_neural_slowonly_contrasts.png.")
+    fig.tight_layout(rect=(0, bot, 1, top))
+    fig.savefig(FIGS / "revup_neural_slowonly_contrasts_simple.png", dpi=100, bbox_inches="tight")
+    plt.close(fig)
 
 
 def draw_late(CV: dict, LC: pd.DataFrame) -> None:
@@ -672,7 +741,7 @@ def draw_late(CV: dict, LC: pd.DataFrame) -> None:
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     areas = [f"{a}_{h}" for a in AREAS for h, _ in HEMI if f"{a}_{h}" in COLS]
     eps = [e for e in EP if ("all", e, "late") in CV]
-    fig, axs = plt.subplots(len(eps) + 1, len(areas), figsize=(2.0 * len(areas), 2.3 * (len(eps) + 1)), squeeze=False)
+    fig, axs = plt.subplots(len(eps) + 1, len(areas), figsize=(2.0 * len(areas), 2.4 * (len(eps) + 1)), squeeze=False)
     cc = {"in_window": "k", "late": "#d62728", "spont": "#1f77b4"}
     for r, ep in enumerate(eps):
         for j, a in enumerate(areas):
@@ -688,24 +757,32 @@ def draw_late(CV: dict, LC: pd.DataFrame) -> None:
             if r == 0:
                 ax.set_title(a.replace("_right", " contra").replace("_left", " ipsi"), fontsize=8)
             if j == 0:
-                ax.set_ylabel(f"{ep}\ndF/F x1e3 - restw", fontsize=7)
-                ax.legend(fontsize=5, frameon=False)
-    # bottom row: shape correlations per session
-    ax = axs[-1, 0]
+                # n animals per group moved from a legend on the traces into the row label
+                nn = "/".join(str(CV[("all", ep, g)][2]) if CV.get(("all", ep, g)) is not None else "-"
+                              for g in ("in_window", "late", "spont"))
+                ax.set_ylabel(f"{ep}  (n win/late/spont {nn})\ndF/F x1e3 - restw", fontsize=7)
+    # bottom row: shape correlations per session -- one wider panel (was 1 of 13 tiny axes) + its legend beside it
+    gs = axs[-1, 0].get_gridspec()
+    for a_ in axs[-1]:
+        a_.remove()
+    ax = fig.add_subplot(gs[-1, 0:3])
+    lax = fig.add_subplot(gs[-1, 3:6])
+    lax.axis("off")
     s = LC[LC.tau == 0.0].groupby(["label", "animal", "epoch"])[["r_late_normal", "r_late_spont", "r_normal_spont"]].first()
     for k, c in enumerate(["r_late_normal", "r_late_spont", "r_normal_spont"]):
         for (lab, an, ep), v in s[c].items():
             ax.scatter(k + np.random.default_rng(hash(lab) % 2**32).uniform(-0.15, 0.15), v, color=EPOCH_LINE[ep],
                        marker=ANIMAL_MARKER.get(an, "o"), s=12)
     ax.set_xticks([0, 1, 2])
-    ax.set_xticklabels(["late~normal", "late~spont", "normal~spont"], fontsize=6, rotation=20)
-    ax.set_ylabel("shape r (-1.5..+1 s)", fontsize=7)
-    ax.tick_params(labelsize=6)
-    for ax in axs[-1, 1:]:
-        ax.axis("off")
+    ax.set_xticklabels(["late ~ normal", "late ~ spont", "normal ~ spont"], fontsize=8)
+    ax.set_ylabel("per-session shape r\n(-1.5..+1 s)", fontsize=8)
+    ax.tick_params(labelsize=7)
+    lax.legend(handles=[plt.Line2D([], [], color=cc[g], lw=1.6, label=f"trace: {g}") for g in cc] +
+               _ep_an_handles(sorted(LC.animal.dropna().unique())), loc="center left", ncol=2, fontsize=9,
+               frameon=False, title="traces (rows 1-4) / shape r markers (bottom)", title_fontsize=9)
     top = _suptitle(fig, "NEURAL: LATE first licks (first lick after the trial stop, spout gone) vs NORMAL first licks (in-window, all "
                  "spouts) vs SPONTANEOUS ITI bout starts (>= 2 s quiet), first-lick-aligned, above RESTW. Sessions with >= 2 "
-                 "late licks enter the late curve; mean of animal means (legend n = animals). Bottom: per-session shape "
+                 "late licks enter the late curve; mean of animal means (row label: n animals in_window / late / spont). Bottom: per-session shape "
                  "correlation over key areas x hemispheres (-1.5..+1 s, colour = epoch, marker = animal).")
     fig.tight_layout(rect=(0, 0, 1, top))
     fig.savefig(FIGS / "revup_neural_late_vs_normal_vs_spont.png", dpi=100, bbox_inches="tight")
@@ -738,7 +815,9 @@ def draw_precue(R: pd.DataFrame) -> None:
                  "within session x spout (trials with a first lick, in-window or late; >= 8 trials), Fisher-z mean per "
                  "animal (markers) x epoch (colour); bar = mean of animals. Spouts in canonical order. > 0 = higher "
                  "pre-cue level -> slower first lick.")
-    fig.tight_layout(rect=(0, 0, 1, top))
+    bot = _fig_legend(fig, _ep_an_handles(sorted(R.animal.dropna().unique())) +
+                      [plt.Line2D([], [], color="0.3", lw=1.5, label="bar = mean of animals")], fontsize=10)
+    fig.tight_layout(rect=(0, bot, 1, top))
     fig.savefig(FIGS / "revup_neural_precue_vs_latency.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 

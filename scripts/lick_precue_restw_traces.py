@@ -207,7 +207,8 @@ def draw(stem: str) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     F = load_fd(stem)
     ch = F["change"]
-    fig, axs = plt.subplots(len(AREAS), 2, figsize=(11, 2.3 * len(AREAS)), sharex=True, squeeze=False)
+    fig, axs = plt.subplots(len(AREAS), 2, figsize=(11, 2.3 * len(AREAS)), sharex=True, squeeze=False,
+                            layout="constrained")
     for i, a in enumerate(AREAS):
         for j, (h, hl) in enumerate(HEMI):
             ax = axs[i, j]
@@ -215,8 +216,10 @@ def draw(stem: str) -> None:
             ax.axvline(0, color="0.3", lw=0.8)
             ax.axhline(0, color="0.5", lw=0.6, ls="-")
             if (a, h) not in F["pan"]:
-                ax.text(0.5, 0.5, "no ROI in this hemisphere", transform=ax.transAxes, ha="center", fontsize=8); ax.set_yticks([])
+                ax.text(0.5, 0.5, "no ROI in this hemisphere", transform=ax.transAxes, ha="center", fontsize=8)
+                ax.set_yticks([])
                 ax.set_title(f"{a} {hl}", fontsize=9)
+                ax.tick_params(labelsize=7)
                 continue
             for ep, (mu, se, n) in F["pan"][(a, h)].items():
                 c = EPOCH_LINE[ep]
@@ -235,8 +238,8 @@ def draw(stem: str) -> None:
                 ax.set_ylabel("change from pre\n(dF/F x1e3)" if ch else "dF/F x1e3\nabove restw", fontsize=8)
             ax.tick_params(labelsize=7)
     for ax in axs[-1]:
-        ax.set_xlabel("time from cue (s)")
-    axs[0, 0].legend(fontsize=7, frameon=False, ncol=4, loc="upper left")
+        ax.set_xlabel("time from cue (s)", fontsize=8)
+    fig.legend(*axs[0, 0].get_legend_handles_labels(), loc="outside lower center", fontsize=9, frameon=False, ncol=4)
     what = "far-contra target trials only" if F["tag"] else "all spouts"
     ns = ", ".join(f"{e} {F['n_an'].get(e, 0)} animals / {F['n_sess'].get(e, 0)} sessions" for e in il.EP4)
     body = ("CHANGE from each animal's own pre curve (epoch minus pre per animal, mean over animals, shade = SEM over "
@@ -244,11 +247,11 @@ def draw(stem: str) -> None:
             "sessions per bin, BH-FDR q = 0.05 over the bins of each curve; iti_licks.sig_compute)"
             if ch else "level above the session's RESTW baseline (position-weighted flat rest median, restdock05, "
             "engagement-gated); per animal x epoch mean over sessions, then mean over animals, shade = SEM over animals")
-    fig.suptitle(f"NEURAL: cue-aligned area traces minus RESTW, ENGAGED trials, {what} -- {body}. Solid = all 4 "
+    import textwrap
+    fig.suptitle(textwrap.fill(f"NEURAL: cue-aligned area traces minus RESTW, ENGAGED trials, {what} -- {body}. Solid = all 4 "
                  f"animals contribute, dotted = fewer. Grey = -1..0 s window of the pre-cue maps; ticks at the bottom = "
                  f"median first-lick latency per epoch. Rows = areas (ALM / tjM1 split from MOs / MOp, ROI v8; last four "
-                 f"= references; VISp has a contralesional ROI only). n: {ns}.", fontsize=9, wrap=True, y=1.0)
-    fig.tight_layout(rect=(0, 0, 1, 0.975))
+                 f"= references; VISp has a contralesional ROI only). n: {ns}.", 150), fontsize=9)
     (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)
     fig.savefig(il.OUT_W / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)

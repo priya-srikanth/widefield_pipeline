@@ -546,8 +546,9 @@ def plot() -> None:
     S = pd.read_csv(SESS_CSV)
     Z = np.load(PIX_NPZ, allow_pickle=True)
     TR["mean_r"] = TR[[f"r_{a}" for a in AN]].mean(1)
-    fig = plt.figure(figsize=(22, 22))
-    gs = fig.add_gridspec(4, 6, height_ratios=[1.05, 1.0, 1.1, 0.8], hspace=0.75, wspace=0.45)
+    fig = plt.figure(figsize=(22, 18))
+    gs = fig.add_gridspec(4, 6, height_ratios=[1.05, 1.0, 1.1, 0.8], hspace=0.6, wspace=0.45,
+                          top=0.95, bottom=0.07)
     t = TR[(TR.set == "iti") & (TR.y == "iti_ang")]
     pan = [("1 midline distance", [f"d_neu[{v}]" for v in VARIANTS], "1  ACAd d by distance from the Allen midline"),
            ("2 vessel / haemodynamic", ["d_h415[all]", "d_h415[d>=0.2]", "d_r470[all]", "f0asym_470[all]",
@@ -615,16 +616,16 @@ def plot() -> None:
         ax.set_ylabel("pixel r with ITI lick angle\n(mean over ACAd rows)", fontsize=8)
         ax.set_title(f"Fig 6{'ab'[j]}. medio-lateral profile of the pixel r, {'adopted' if ch == 'neu' else 'raw 415 nm'}",
                      fontsize=9)
-        ax.legend(fontsize=7, ncol=5)
+        ax.legend(fontsize=7.5, ncol=5, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.2))
     gi = G[G.set == "iti"].set_index("animal")
     txt = "Fig 6c. registration size (ITI, post)\n" + "\n".join(
         f"{a}: SD d {r.sd_d:.3f}; d per px {r.median_d_per_px:+.4f};\n   SD offset {r.sd_offset_px:.2f} px -> "
         f"SD predicted {r.sd_reg_pred:.4f}\n   partial r|logday: ACAd {r['partial_r_logday|d_neu[all]']:+.2f}, "
         f"SSp-n {r['partial_r_logday|chk2_SSp-n']:+.2f}" for a, r in gi.iterrows())
-    fig.text(0.86, 0.06, txt, fontsize=7.5, family="monospace", va="bottom")
+    fig.text(0.80, 0.06, txt, fontsize=7.5, family="monospace", va="bottom")
     off = S.drop_duplicates("label").groupby(["animal", S.epoch.eq("pre").map({True: "pre", False: "post"})])[
         "valley_off_470"].agg(["mean", "std"]).round(2)
-    fig.text(0.01, 0.005, "Sinus-valley offset from the Allen midline (px, 1 px = 0.0194 mm), mean / SD:  " + "; ".join(
+    fig.text(0.01, 0.0, "Sinus-valley offset from the Allen midline (px, 1 px = 0.0194 mm), mean / SD:  " + "; ".join(
         f"{a} {e} {r['mean']:+.2f}/{r['std']:.2f}" for (a, e), r in off.iterrows()), fontsize=8)
     fig.suptitle("Is the ACAd left/right lick-response link to recovery real cortex? Weight-free same-place d = dh_right - "
                  "dh_left (check 2), ITI licks -> ITI lick-angle axis. PROVISIONAL", fontsize=12)

@@ -739,19 +739,20 @@ def figures() -> None:
                          fontsize=9)
             if k == 0:
                 a_.set_ylabel("tracking = d(decoded / gain) / d(actual angle)\n0 = target (blue), 1 = execution (red)")
-    ax[0, 0].legend(fontsize=7, ncol=2)
+    h_, l_ = ax[0, 0].get_legend_handles_labels()
+    fig.legend(h_, l_, fontsize=9, loc="lower center", ncol=len(h_), frameon=False)
     fig.suptitle("Gain-normalised tracking of the frozen ENL ridge angle read-out (W 1.0 s, no lick 2 s; gain = pre held-out "
                  "slope ACROSS spouts). + angle = contralesional. Hollow = ill-conditioned (|d actual| < 5 deg or its CI "
                  "spans 0); clipped to [-3, 4]", fontsize=10)
     _wrap_titles(fig)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(FIG / "lick_enl_target_tracking.png", dpi=110)
     plt.close(fig)
     # 2 confusion pre vs acute (mean of animals) + change
     CF, CC = pd.read_csv(OUT / "confusion.csv"), pd.read_csv(OUT / "confusion_change.csv")
-    fig, ax = plt.subplots(2, 4, figsize=(17, 8.6))
-    for i, (src, ttl) in enumerate((("frozen_position", "frozen pre-stroke POSITION decoder (LocaNMF), argmax"),
-                                    ("enl_spout", "own ENL area classifier (enl_spout), mean probability"))):
+    fig, ax = plt.subplots(2, 4, figsize=(17, 10))
+    for i, (src, ttl) in enumerate((("frozen_position", "frozen POSITION decoder, argmax"),
+                                    ("enl_spout", "ENL area classifier, mean prob."))):
         c = CF[(CF.source == src) & (CF.subset == "all") & (CF.window.astype(str).isin(["precue", "1.0"]))]
         for k, ep in enumerate(("pre", "acute", "chronic")):
             M = c[c.epoch == ep].groupby(["target", "decoded"]).share.mean().unstack().reindex(index=SP, columns=SP)
@@ -760,7 +761,7 @@ def figures() -> None:
             for r in range(6):
                 for cc in range(6):
                     a_.text(cc, r, f"{M.iloc[r, cc]:.2f}", ha="center", va="center", fontsize=6.5, color="w")
-            a_.set_title(f"{ttl}\n{ep}: mean of animals (rows = target)", fontsize=8)
+            a_.set_title(f"{ttl}\n{ep}: mean of animals", fontsize=9)
             a_.set_xticks(range(6), LAB); a_.set_yticks(range(6), LAB)
         d = CC[(CC.source == src) & (CC.subset == "all") & (CC.window.astype(str).isin(["precue", "1.0"])) &
                (CC.epoch == "acute")]
@@ -774,12 +775,16 @@ def figures() -> None:
                 a_.text(cc, r, f"{M.iloc[r, cc]:+.2f}\n{N.iloc[r, cc]}/4", ha="center", va="center", fontsize=6)
                 if S.iloc[r, cc]:
                     a_.add_patch(plt.Rectangle((cc - .5, r - .5), 1, 1, fill=False, ec="k", lw=2))
-        a_.set_title("acute - pre (boxed = Bonferroni / 36)", fontsize=8)
+        a_.set_title(f"{ttl}\nacute - pre (boxed = Bonferroni / 36)", fontsize=9)
         a_.set_xticks(range(6), LAB); a_.set_yticks(range(6), LAB)
-    fig.suptitle("PRE-CUE (ENL, 1 s) spout confusion, rows = target, cols = decoded; canonical order close ipsi..far contra "
-                 "(ipsi = ipsilesional). Chance 1/6", fontsize=10)
+    for a_ in ax.flat:
+        a_.set_xlabel("decoded", fontsize=8, labelpad=1)
+        a_.set_ylabel("target", fontsize=8, labelpad=1)
+    fig.suptitle("PRE-CUE (ENL, 1 s) spout confusion, rows = target, cols = decoded; top row = frozen pre-stroke POSITION "
+                 "decoder (LocaNMF, argmax); bottom row = own ENL area classifier (enl_spout, mean probability); "
+                 "canonical order close ipsi..far contra (ipsi = ipsilesional). Chance 1/6", fontsize=10)
     _wrap_titles(fig)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.95), h_pad=2.5)
     fig.savefig(FIG / "lick_enl_target_confusion.png", dpi=110)
     plt.close(fig)
     # 3 off-target far contra: decoded as target vs executed, by window; class-matched
@@ -857,9 +862,11 @@ def figures() -> None:
         ax[k].axhline(0, color="0.5")
         ax[k].set_xticks(range(3), POST)
         ax[k].set_title(f"{ttl}: change vs pre\n(paired nested bootstrap; colour = animals)", fontsize=9)
-        ax[k].legend(fontsize=7)
+    h_, l_ = ax[0].get_legend_handles_labels()
+    fig.legend(h_, ["all trials", "settled trials"] if l_ == ["all", "settled"] else l_, fontsize=9,
+               loc="lower center", ncol=len(h_), frameon=False)
     _wrap_titles(fig)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(FIG / "lick_enl_target_decodability.png", dpi=110)
     plt.close(fig)
     print(f"== figures in {FIG}")

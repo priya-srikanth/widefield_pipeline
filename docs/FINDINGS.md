@@ -799,7 +799,11 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   -0.17 / -0.27, CI excludes 0 chronic: far-contra licks that reach the spout read slightly ipsilesional). SAME in cued
   licks (Priya 10-29): cued far-contra chronic -0.27 [-0.39, -0.14] 4/4; Fig 12.2 furthest contra landings below pre. With
   ipsilesional landings reading contralesional, this looks like a flatter read-out (lower gain), not decoder edge
-  compression (a same-place comparison cancels the decoder's own compression); gain / offset decomposition running. Balance (bout starts)
+  compression. GAIN/OFFSET (10-29, scripts/lick_enlv_curves.py, Fig 14.21 S10 curves): ITI slope -0.12 / -0.11 / -0.12 (4/4)
+  + offset +0.35 / +0.22 / +0.27 mm; CUED slope -0.11 / -0.10 / -0.11 (4/4, 3/4, 3/4), offset only acute (+0.17) -> the cued
+  change is mostly a FLATTER read-out; ENLv first lick >= 1 s: mostly offset (+0.33 / +0.21 / +0.22) + modest gain loss.
+  Edge check: pre curves not compressed at the contra end (cued pre local slope 0.49-0.93 vs post 0.18-0.25) -> activity
+  differs; at the ipsi end the pre curve is flat (decoder floor). Untested: noisier post landing measurement (dilution). Balance (bout starts)
   acute -0.24 (4/4) -> -0.08 n.s. target-aware; chronic within-spout +0.14 (4/4) = the CUED pattern; pre ENLv post-lick
   activity carries a target component (w 0.59-0.90). Working description (Priya OK 10-29): ENLv = cued-like target-coded balance + ITI-like
   persistent decoder offset. First ENLv lick: largest offset but mostly < 0.5 s after arrival. PROVISIONAL.

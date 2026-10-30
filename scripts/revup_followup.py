@@ -473,8 +473,11 @@ def plots() -> None:
                         ax.set_title(e)
                     if j == 0:
                         ax.set_ylabel(f"{c}\n{yl}", fontsize=8)
-                    if j == 3 or (r % len(meas) == 0):
-                        ax.legend(fontsize=6, frameon=False)
+                    # ONE legend per (spout class, epoch) -- on the top row of each block, in the corner the traces
+                    # leave empty (lick-aligned: flat before the lick -> upper left; cue-aligned: decayed by 2-3 s ->
+                    # upper right). Was also drawn on every chronic panel, over the prep-jaw traces.
+                    if r % len(meas) == 0:
+                        ax.legend(fontsize=7, frameon=False, loc="upper left" if align == "L" else "upper right")
                     if align == "L":
                         ax.set_xlim(-1.5, 0.3)
                     else:
@@ -512,52 +515,62 @@ def plots() -> None:
         ax.set_xticks([1.5, 6.5])
         ax.set_xticklabels(["other five", "far_contra"])
         ax.set_title(f"{m}\n[{cn}]", fontsize=9)
-    axs.flat[0].legend(handles=[plt.Line2D([], [], marker="o", ls="", color=EC[e], label=e) for e in EP4],
-                       fontsize=7, frameon=False)
+    bot = rb._leg_below(fig, [plt.Line2D([], [], marker="o", ls="", color=EC[e], label=f"{e} (pooled, boot CI)")
+                              for e in EP4] + [plt.Line2D([], [], marker="o", ls="", ms=4, color="0.5",
+                                                          label="per-animal mean")], fontsize=9)
     top = rb._sup(fig, "Fig J3. Jaw 'revving' metrics, session contrasts: pooled level (nested boot CI, colours = epochs) "
                        "+ per-animal means (grey). gt1-0.5to1 = first lick >1 s minus 0.5-1 s (both wait >= 0.5 s); "
                        "Q4 jaw_rev = slowest-quartile wait ME minus that trial's pre-cue ME (>0 = revving, <=0 = quiet "
                        "wait); Q4-Q1 = slowest minus fastest quartile, lick-aligned. BEHAVIOUR", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, top))
+    fig.tight_layout(rect=(0, bot, 1, top))
     fig.savefig(FIG / "revup_jaw_metrics.png", dpi=110)
     plt.close(fig)
     # (A) late licks vs chance, per gate
     L = pickle.loads((FD / "revup_late_engaged.pkl").read_bytes())["late"]
     L = L[L.cls == "all"]
     AN = sorted(L.animal.unique())
-    fig, axs = plt.subplots(2, len(GATES), figsize=(4.2 * len(GATES), 7.4), sharey="row")
     rows = (("obs_given_nolick", "exp_given_nolick", "P(first lick after spout left\n| no lick in window)",
-             "ITI-rate chance", 1.0),
+             "black line = chance", 1.0),
             ("early_obs", "early_exp_plateau", "P(first lick within 1 s of spout\nleaving | no lick in window)",
-             "plateau chance (same trials, 1.5 s+)", 0.6))
-    for r, (ob, ex, yl, chl, ymax) in enumerate(rows):
-        for k, gate in enumerate(GATES):
-            ax = axs[r, k]
-            for j, a in enumerate(AN):
-                for jj, e in enumerate(EP4):
-                    g = L[(L.gate == gate) & (L.animal == a) & (L.epoch == e)]
-                    if not len(g):
-                        continue
-                    g = g.iloc[0]
-                    x = j * 5 + jj
-                    ax.bar(x, g[ob], color=EC[e], width=0.8)
-                    ax.plot([x - 0.4, x + 0.4], [g[ex]] * 2, color="k", lw=1.2)
-                    ax.text(x, -0.02 * ymax, f"{int(g.n_nolick)}", ha="center", va="top", fontsize=5)
-            ax.set_xticks([j * 5 + 1.5 for j in range(len(AN))])
-            ax.set_xticklabels(AN)
-            ax.set_title(f"gate: {gate}", fontsize=9)
-            ax.set_ylim(-0.08 * ymax, ymax)
-        axs[r, 0].set_ylabel(yl, fontsize=8)
-        axs[r, 0].legend(handles=[plt.Rectangle((0, 0), 1, 1, color=EC[e], label=e) for e in EP4] +
-                         [plt.Line2D([], [], color="k", label=chl)], fontsize=7, frameon=False)
-    top = rb._sup(fig, "Fig A1. Late first licks (after the spout left) on trials with no lick in the window, per animal x "
-                       "epoch, all spouts; numbers = such trials. Top: any time before the next strobe vs the ITI bout-start "
-                       "chance (ITIs mostly follow licked trials -> high rate). Bottom: within 1 s of the spout leaving vs "
-                       "the plateau hazard of the SAME trials 1.5 s on (spontaneous licking with the spout gone). "
-                       "'neural' = revup_neural's trial set (= the attempted gate). BEHAVIOUR", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, top))
-    fig.savefig(FIG / "revup_late_engaged.png", dpi=110)
-    plt.close(fig)
+             "plateau chance", 0.6))
+    # full figure = all four trial gates (sensitivity); _simple = the canonical gate only (the reporting set)
+    for gates, stem in ((GATES, "revup_late_engaged"), (["canonical"], "revup_late_engaged_simple")):
+        fig, axs = plt.subplots(2, len(gates), figsize=(max(4.6 * len(gates), 7.5), 8.0), sharey="row",
+                                squeeze=False)
+        for r, (ob, ex, yl, _chl, ymax) in enumerate(rows):
+            for k, gate in enumerate(gates):
+                ax = axs[r, k]
+                for j, a in enumerate(AN):
+                    for jj, e in enumerate(EP4):
+                        g = L[(L.gate == gate) & (L.animal == a) & (L.epoch == e)]
+                        if not len(g):
+                            continue
+                        g = g.iloc[0]
+                        x = j * 5 + jj
+                        ax.bar(x, g[ob], color=EC[e], width=0.8)
+                        ax.plot([x - 0.4, x + 0.4], [g[ex]] * 2, color="k", lw=1.4)
+                        ax.text(x, -0.02 * ymax, f"{int(g.n_nolick)}", ha="center", va="top",
+                                fontsize=6 if len(gates) > 1 else 8)
+                ax.set_xticks([j * 5 + 1.5 for j in range(len(AN))])
+                ax.set_xticklabels(AN)
+                ax.tick_params(axis="x", pad=12)
+                ax.set_title(f"gate: {gate}", fontsize=10)
+                ax.set_ylim(-0.1 * ymax, ymax)
+            axs[r, 0].set_ylabel(yl, fontsize=9)
+        bot = rb._leg_below(fig, [plt.Rectangle((0, 0), 1, 1, color=EC[e], label=e) for e in EP4] +
+                            [plt.Line2D([], [], color="k", lw=1.4, label="top: ITI-rate chance"),
+                             plt.Line2D([], [], color="k", lw=1.4, label="bottom: plateau chance (same trials, 1.5 s+)")],
+                            ncol=6 if len(gates) > 1 else 3, fontsize=9)
+        top = rb._sup(fig, "Fig A1" + (" (simple, canonical gate)" if len(gates) == 1 else "") + ". Late first licks "
+                      "(after the spout left) on trials with no lick in the window, per animal x epoch, all spouts; numbers "
+                      "under bars = such trials. Top: any time before the next strobe vs the ITI bout-start chance (ITIs "
+                      "mostly follow licked trials -> high rate). Bottom: within 1 s of the spout leaving vs the plateau "
+                      "hazard of the SAME trials 1.5 s on (spontaneous licking with the spout gone)."
+                      + (" 'neural' = revup_neural's trial set (= the attempted gate)." if len(gates) > 1 else "")
+                      + " BEHAVIOUR", fontsize=9)
+        fig.tight_layout(rect=(0, bot, 1, top), h_pad=1.5)
+        fig.savefig(FIG / f"{stem}.png", dpi=110)
+        plt.close(fig)
 
 
 def main(argv=None) -> int:

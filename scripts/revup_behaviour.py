@@ -505,7 +505,26 @@ def _sup(fig, text: str, fontsize: float = 9) -> float:
     w = min(150, int(fig.get_figwidth() * 13.5 * 9 / fontsize))
     lines = [ln for para in text.split("\n") for ln in textwrap.wrap(para, w)]
     fig.suptitle("\n".join(lines), fontsize=fontsize)
-    return 1 - (len(lines) * fontsize * 1.45 + 10) / 72 / fig.get_figheight()
+    # tight_layout (matplotlib >= 3.3) already reserves the suptitle's own box, so reserving its height again here left a
+    # large empty band between the title and the panels (figure-legibility pass, 10-29): return the full height.
+    return 1.0
+
+
+def _leg_below(fig, handles, ncol: int | None = None, fontsize: float = 8) -> float:
+    """ONE figure-level legend centred below the panels (never on top of data); returns the bottom of the axes area for
+    tight_layout(rect=(0, bottom, 1, top))."""
+    ncol = ncol or len(handles)
+    fig.legend(handles=handles, loc="lower center", ncol=ncol, fontsize=fontsize, frameon=False,
+               bbox_to_anchor=(0.5, 0.0))
+    nrow = -(-len(handles) // ncol)
+    return (nrow * fontsize * 1.6 + 8) / 72 / fig.get_figheight()
+
+
+def _grp_labels(ax, groups=(("other five", 1.5), ("far_contra", 6.2))) -> None:
+    """Group names under the epoch tick labels of a two-group (other / far_contra) bar panel (x = data, y = axes)."""
+    tr = ax.get_xaxis_transform()
+    for nm, x in groups:
+        ax.text(x, -0.17, nm, transform=tr, ha="center", va="top", fontsize=9, fontweight="bold")
 
 
 def _ep_col():
@@ -541,15 +560,17 @@ def plots() -> None:
                 ax.set_ylabel(f"{p}\nP(no lick yet)")
             if i == len(POS) - 1:
                 ax.set_xlabel("time from cue (s)")
-    axs[0, -1].legend(fontsize=7, frameon=False)
+    bot = _leg_below(fig, [plt.Line2D([], [], color=EC[e], lw=1.6, label=e) for e in EP4], fontsize=9)
     top = _sup(fig, "Fig R1. First-lick survival after the cue (Kaplan-Meier; cam4 video licks, NOT censored at the window;"
                  "\ncensored at the next trial's position strobe). Dotted = end of the 3.5-s response window (the spout"
                  " leaves ~0.2 s later). Canonical engaged trials. BEHAVIOUR", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, top))
+    fig.tight_layout(rect=(0, bot, 1, top))
     fig.savefig(FIG / "revup_survival.png", dpi=120)
     plt.close(fig)
     # Fig 2: phase shares per animal x epoch, per spout
-    fig, axs = plt.subplots(1, len(POS), figsize=(3.0 * len(POS), 3.6), sharey=True)
+    # 2 x 3 grid (was 1 x 6 at 3 in per panel: 16 bars per panel, unreadable tick labels)
+    fig, axs = plt.subplots(2, 3, figsize=(15, 7.6), sharey=True)
+    axs = axs.ravel()
     for i, p in enumerate(POS):
         ax = axs[i]
         xs, labs = [], []
@@ -561,31 +582,63 @@ def plots() -> None:
                     bot = 0.0
                     for ph in PHASES:
                         v = float(g[f"sh_{ph}"].iloc[0])
-                        ax.bar(x, v, bottom=bot, color=PH_COL[ph], width=0.85, edgecolor="white", lw=0.5,
-                               label=ph if (i == 0 and a == AN[0] and e == "pre") else None)
+                        ax.bar(x, v, bottom=bot, color=PH_COL[ph], width=0.85, edgecolor="white", lw=0.5)
                         bot += v
                     xs.append(x)
                     labs.append(e[:3])
                 x += 1
             x += 0.8
         ax.set_xticks(xs)
-        ax.set_xticklabels(labs, rotation=90, fontsize=6)
-        ax.set_title(p, fontsize=9)
+        ax.set_xticklabels(labs, rotation=90, fontsize=8)
+        ax.set_title(p, fontsize=11)
         for k, a in enumerate(AN):
-            ax.text(k * 4.8 + 1.5, 1.02, a, ha="center", fontsize=7)
-        ax.set_ylim(0, 1.08)
+            ax.text(k * 4.8 + 1.5, 1.02, a, ha="center", fontsize=9)
+        ax.set_ylim(0, 1.09)
     axs[0].set_ylabel("share of trials")
-    axs[0].legend(fontsize=7, loc="lower left", frameon=True)
+    axs[3].set_ylabel("share of trials")
+    bot = _leg_below(fig, [plt.Rectangle((0, 0), 1, 1, color=PH_COL[ph], label=ph) for ph in PHASES], fontsize=10)
     top = _sup(fig, "Fig R2. Where the first post-cue lick falls: response window / after the window with the spout still "
                  "there\n / after the spout left (ITI, before the next strobe) / never. Per animal x epoch. BEHAVIOUR",
-                 fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, top))
+                 fontsize=10)
+    fig.tight_layout(rect=(0, bot, 1, top))
     fig.savefig(FIG / "revup_phase_shares.png", dpi=120)
+    plt.close(fig)
+    # Fig 2 SIMPLE: only the three NON-window phases (the window share is 1 minus their sum), per spout x epoch:
+    # bar = mean of the animals' cell shares (display only), markers = the animals. Same revup_cells.csv numbers.
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER
+    # late_spout is ~0 in every cell (max 0.011), so it is left out of the simple view (it stays in the full figure)
+    fig, axs = plt.subplots(1, 2, figsize=(13, 4.6), sharey=True)
+    for k, ph in enumerate(("after_left", "none")):
+        ax = axs[k]
+        for i, p in enumerate(POS):
+            for jj, e in enumerate(EP4):
+                g = cells[(cells.pos == p) & (cells.epoch == e)]
+                if not len(g):
+                    continue
+                x = i * 5 + jj
+                v = g[f"sh_{ph}"].to_numpy(float)
+                ax.bar(x, np.nanmean(v), color=EC[e], width=0.8)
+                for an, vv in zip(g.animal, v):
+                    ax.scatter(x, vv, s=16, color="white", edgecolor="k", lw=0.7, marker=ANIMAL_MARKER.get(an, "o"),
+                               zorder=3)
+        ax.set_xticks([i * 5 + 1.5 for i in range(len(POS))])
+        ax.set_xticklabels([p.replace("_", "\n") for p in POS], fontsize=9)
+        ax.set_title({"after_left": "first lick after the spout left (ITI)",
+                      "none": "no lick before the next trial"}[ph], fontsize=11)
+    axs[0].set_ylabel("share of trials (mean of animals)")
+    hd = [plt.Rectangle((0, 0), 1, 1, color=EC[e], label=e) for e in EP4] + \
+         [plt.Line2D([], [], ls="", marker=ANIMAL_MARKER.get(a, "o"), mfc="white", mec="k", label=a) for a in AN]
+    bot = _leg_below(fig, hd, fontsize=9)
+    top = _sup(fig, "Fig R2 (simple). Share of first post-cue licks that fall OUTSIDE the response window, by spout x epoch "
+                 "(the rest fall in the window; 'after the window, spout still there' is <= 1.1 % in every cell and not drawn). Bar = mean "
+                 "of animals, markers = animals. BEHAVIOUR", fontsize=10)
+    fig.tight_layout(rect=(0, bot, 1, top))
+    fig.savefig(FIG / "revup_phase_shares_simple.png", dpi=120)
     plt.close(fig)
     # Fig 3: decomposition of latency (wait + revup) and rev-up classes, far_contra vs others
     C = T[T.canonical.astype(str).str.lower().eq("true") & np.isfinite(T.lat_ms)].copy()
     C["grp"] = np.where(C.pos == "far_contra", "far_contra", "other")
-    fig, axs = plt.subplots(2, len(AN), figsize=(3.4 * len(AN), 6.4))
+    fig, axs = plt.subplots(2, len(AN), figsize=(3.6 * len(AN), 7.6))
     for j, a in enumerate(AN):
         ax = axs[0, j]
         x = 0
@@ -597,20 +650,19 @@ def plots() -> None:
                     x += 1
                     continue
                 w, r = np.nanmedian(g.wait_ms), np.nanmedian(g.revup_ms)
-                ax.bar(x, w, color="#bdbdbd", edgecolor="white", label="cue -> first movement" if x == 0 else None)
-                ax.bar(x, r, bottom=w, color="#e8a33d", edgecolor="white",
-                       label="first movement -> lick" if x == 0 else None)
+                ax.bar(x, w, color="#bdbdbd", edgecolor="white")
+                ax.bar(x, r, bottom=w, color="#e8a33d", edgecolor="white")
                 ax.plot(x, np.nanmedian(g.lat_ms), "k_", ms=12)
                 xt.append(x)
-                xl.append(f"{grp[:3]}\n{e[:3]}")
+                xl.append(e[:3])
                 x += 1
             x += 0.7
         ax.set_xticks(xt)
-        ax.set_xticklabels(xl, fontsize=6)
+        ax.set_xticklabels(xl, fontsize=8)
+        _grp_labels(ax)
         ax.set_title(a)
         if j == 0:
-            ax.set_ylabel("median ms (black = median latency)")
-            ax.legend(fontsize=6, frameon=False)
+            ax.set_ylabel("median ms\n(black = median latency)")
         ax = axs[1, j]
         x = 0
         xt, xl = [], []
@@ -623,31 +675,35 @@ def plots() -> None:
                 bot = 0
                 for c in CLASSES:
                     v = float((g.revup_class == c).mean())
-                    ax.bar(x, v, bottom=bot, color=CL_COL[c], edgecolor="white",
-                           label=c if (j == 0 and bot == 0 and x == 0) or (j == 0 and x == 0) else None)
+                    ax.bar(x, v, bottom=bot, color=CL_COL[c], edgecolor="white")
                     bot += v
-                ax.text(x, 1.01, str(len(g)), ha="center", fontsize=5)
+                ax.text(x, 1.01, str(len(g)), ha="center", fontsize=7)
                 xt.append(x)
-                xl.append(f"{grp[:3]}\n{e[:3]}")
+                xl.append(e[:3])
                 x += 1
             x += 0.7
         ax.set_xticks(xt)
-        ax.set_xticklabels(xl, fontsize=6)
-        ax.set_ylim(0, 1.08)
+        ax.set_xticklabels(xl, fontsize=8)
+        _grp_labels(ax)
+        ax.set_ylim(0, 1.1)
         if j == 0:
-            ax.set_ylabel("LATE trials (> pre p90): class share")
-            ax.legend(fontsize=6, frameon=False, loc="lower left")
+            ax.set_ylabel("LATE trials (> pre p90):\nclass share")
+    hd = [plt.Rectangle((0, 0), 1, 1, color="#bdbdbd", label="top: cue -> first movement"),
+          plt.Rectangle((0, 0), 1, 1, color="#e8a33d", label="top: first movement -> lick"),
+          plt.Line2D([], [], color="k", marker="_", ls="", ms=12, label="top: median latency")] + \
+         [plt.Rectangle((0, 0), 1, 1, color=CL_COL[c], label=f"bottom: {c}") for c in CLASSES]
+    bot = _leg_below(fig, hd, ncol=4, fontsize=8)
     top = _sup(fig, "Fig R3. What fills the delay.\nTop: median cue -> first movement (jaw / cam1 opening / FR lick vigour "
                  "z>3) and first movement -> first lick.\nBottom: late trials classed wait / ramp (>= 300 ms "
                  "movement before the lick) / aborted (>= 2 cam1-only openings). n above bars. BEHAVIOUR", fontsize=8)
-    fig.tight_layout(rect=(0, 0, 1, top))
+    fig.tight_layout(rect=(0, bot, 1, top), h_pad=2.0)
     fig.savefig(FIG / "revup_decomposition.png", dpi=120)
     plt.close(fig)
     # Fig 4: FR vigour lick-aligned + cue-aligned, far_contra, per animal, pre vs post epochs, late trials of each
     Z = np.load(REV / "revup_fr.npz")
     Tall = T
     can = Tall.canonical.astype(str).str.lower().eq("true").to_numpy()
-    fig, axs = plt.subplots(2, len(AN), figsize=(3.4 * len(AN), 5.6), sharey="row")
+    fig, axs = plt.subplots(2, len(AN), figsize=(3.6 * len(AN), 7.4), sharey="row")
     for j, a in enumerate(AN):
         for e in EP4:
             m = can & (Tall.animal.to_numpy() == a) & (Tall.pos.to_numpy() == "far_contra") & \
@@ -664,16 +720,18 @@ def plots() -> None:
         axs[0, j].set_title(f"{a} far_contra")
         axs[0, j].axvline(0, color="k", lw=0.6)
         axs[1, j].axvline(0, color="k", lw=0.6)
-        axs[0, j].legend(fontsize=6, frameon=False)
-        axs[1, j].legend(fontsize=6, frameon=False)
         axs[0, j].set_xlabel("time from cue (s)")
         axs[1, j].set_xlabel("time from first lick (s)")
+        # per-panel n's kept, but in a legend BELOW the panel (they sat on the traces)
+        for r in (0, 1):
+            axs[r, j].legend(fontsize=7, frameon=False, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.22),
+                             handlelength=1.2, columnspacing=0.8)
     axs[0, 0].set_ylabel("FR lick vigour (z vs pre-cue)")
     axs[1, 0].set_ylabel("FR lick vigour, trials with\nlatency > 600 ms (z)")
     top = _sup(fig, "Fig R4. FaceRhythm non-directional lick vigour (sum of the six lick factors, unblanked) at far_contra:\n"
                  "top cue-aligned (licked trials), bottom aligned to the first lick of slow trials -- a ramp would rise "
                  "well before 0. BEHAVIOUR", fontsize=8)
-    fig.tight_layout(rect=(0, 0, 1, top))
+    fig.tight_layout(rect=(0, 0, 1, top), h_pad=1.0)
     fig.savefig(FIG / "revup_fr_vigour.png", dpi=120)
     plt.close(fig)
     # Fig 5: recovery tracking
@@ -691,10 +749,11 @@ def plots() -> None:
             ax.plot(g[c], g.aim, "o", ms=5, color=acol.get(a, "k"), label=a)
         ax.set_xlabel(nm, fontsize=8)
         ax.set_ylabel("aim (deg; 0 = pre landing)")
-    axs[0].legend(fontsize=7, frameon=False)
+    bot = _leg_below(fig, [plt.Line2D([], [], ls="", marker="o", color=acol.get(a, "k"), label=a)
+                           for a in sorted(G.animal.unique())], fontsize=9)
     top = _sup(fig, "Fig R5. Does the far-contra delay track recovery?\npost-stroke sessions; aim = far-contra first-cued-lick"
                  " aim vs pre. Within-animal tests in revup_track.csv. BEHAVIOUR", fontsize=8)
-    fig.tight_layout(rect=(0, 0, 1, top))
+    fig.tight_layout(rect=(0, bot, 1, top))
     fig.savefig(FIG / "revup_recovery.png", dpi=120)
     plt.close(fig)
 

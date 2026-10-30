@@ -657,7 +657,7 @@ def plot(FB: dict, FN: dict) -> None:
     S, B, C = FB["S"], FB["B"], FB["C"]
     GCOL = {"far contra": ("far_contra", "#b2182b"), "other 5 spouts": ("other5", "#2166ac")}
     # ---------- figure 1: behaviour
-    fig, axs = plt.subplots(4, 4, figsize=(15, 14))
+    fig, axs = plt.subplots(4, 4, figsize=(15, 15), layout="constrained")
     for r, gn in enumerate(["all", "far_contra"]):
         for c, ep in enumerate(EPS):
             ax = axs[r, c]
@@ -679,8 +679,6 @@ def plot(FB: dict, FN: dict) -> None:
             ax.set_xlabel("-e_k = target - landed angle of lick k (deg)", fontsize=7)
             ax.set_ylabel("angle_k+1 - angle_k (deg, + = contralesional)", fontsize=7)
             ax.tick_params(labelsize=7)
-            if r == 0 and c == 0:
-                ax.legend(fontsize=6, loc="upper left")
     lines = {k: ({"group": v[0]}, v[1]) for k, v in GCOL.items()}
     for c, (m, yl, tt) in enumerate([("g_hit", "gain (1 = back on target line)", "1-3. correction GAIN after a HIT"),
                                      ("g_miss", "gain", "1-4. correction GAIN after a MISS"),
@@ -690,8 +688,6 @@ def plot(FB: dict, FN: dict) -> None:
                                                                     "error-matched bins")]):
         _epoch_panel(axs[2, c], B[(B.metric == m) & (B.order == "any")], S[S.order == "any"], m, {}, lines,
                      f"{tt}; all lick orders", yl)
-        if c == 0:
-            axs[2, c].legend(fontsize=6)
     for c, (m, on) in enumerate([("step", "first"), ("step", "later"), ("xcorr", "first"), ("xcorr", "later")]):
         _epoch_panel(axs[3, c], B[(B.metric == m) & (B.order == on)], S[S.order == on], m, {}, lines,
                      f"1-{7 + c}. {m} after a miss, lick k = {'FIRST lick' if on == 'first' else 'LATER licks'}",
@@ -701,12 +697,16 @@ def plot(FB: dict, FN: dict) -> None:
                        "* = epoch differs from pre (paired boot_delta); open markers = animals (o PS92, s PS93, ^ "
                        "PS94, D PS95). Gain alone includes regression to the mean; the MISS-minus-HIT contrasts "
                        "(1-5..1-10) are the feedback-specific measures.", 170), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    h1, l1 = axs[0, 0].get_legend_handles_labels()
+    h2, l2 = axs[2, 0].get_legend_handles_labels()
+    fig.legend(h1 + h2, ["rows 1-2: " + x.replace(" (mean of animals)", "") + " (mean of animals; colour = epoch)"
+                         for x in l1] + [f"rows 3-4: {x}" for x in l2], loc="outside lower center", ncol=4, fontsize=8,
+               frameon=False)
     fig.savefig(FIGS / "lick_correction_behaviour.png", dpi=110)
     plt.close(fig)
     # ---------- figure 2: per spout x epoch
-    fig, axs = plt.subplots(1, 4, figsize=(17, 4.2))
-    for ax, m, tt in zip(axs, ["miss_rate", "g_miss", "step", "xcorr"],
+    fig, axs = plt.subplots(2, 2, figsize=(14, 11), layout="constrained")
+    for ax, m, tt in zip(axs.ravel(), ["miss_rate", "g_miss", "step", "xcorr"],
                          ["2-1. miss rate of lick k", "2-2. gain after a MISS", "2-3. extra step after a miss (deg)",
                           "2-4. extra correction, error-matched (deg)"]):
         b = B[(B.metric == m) & (B.order == "any") & B.group.isin(POS)]
@@ -725,20 +725,19 @@ def plot(FB: dict, FN: dict) -> None:
                     t = f"{v:.2f}"
                     if j > 0 and np.isfinite(Dl.iloc[i, j]):
                         t += f"\nd{Dl.iloc[i, j]:+.2f}{'*' if sig.iloc[i, j] == 1 else ''} ({int(npos.iloc[i, j])}+)"
-                    ax.text(j, i, t, ha="center", va="center", fontsize=6)
-        ax.set_xticks(range(len(EPS)), EPS, fontsize=7)
-        ax.set_yticks(range(len(POS)), [p.replace("_", " ") for p in POS], fontsize=7)
-        ax.set_title(_wrap(tt, 40), fontsize=8)
-        plt.colorbar(im, ax=ax, fraction=0.04)
+                    ax.text(j, i, t, ha="center", va="center", fontsize=9)
+        ax.set_xticks(range(len(EPS)), EPS, fontsize=9)
+        ax.set_yticks(range(len(POS)), [p.replace("_", " ") for p in POS], fontsize=9)
+        ax.set_title(_wrap(tt, 60), fontsize=10)
+        plt.colorbar(im, ax=ax, fraction=0.05)
     fig.suptitle(_wrap("Fig 2. Correction by SPOUT x EPOCH (all lick orders; pooled session level; d = change vs pre, "
-                       "* CI excludes 0, (n+) animals with a positive change)", 160), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+                       "* CI excludes 0, (n+) animals with a positive change)", 120), fontsize=10)
     fig.savefig(FIGS / "lick_correction_spouts.png", dpi=110)
     plt.close(fig)
     # ---------- figure 3: error signal
     BG = FN["BG"].rename(columns={})
     GL = FN["GL"]
-    fig, axs = plt.subplots(3, 4, figsize=(16, 11))
+    fig, axs = plt.subplots(3, 4, figsize=(17, 12.5), layout="constrained")
     hl = {"contra hemisphere": ("|c", "#b2182b"), "ipsi hemisphere": ("|i", "#2166ac")}
     for r, tau in enumerate(TAUS):
         for c, w in enumerate(WINS):
@@ -748,8 +747,6 @@ def plot(FB: dict, FN: dict) -> None:
                          .rename(columns={"gamma": "v"}), "v", {}, ln,
                          f"3-{r * 4 + c + 1}. {'raw dF/F' if not tau else f'deconvolved tau {tau}'}: MISS - HIT "
                          f"after lick k, window {w.split('_')[1]} s, orofacial pool", "gamma (dF/F x1e3)")
-            if r == 0 and c == 0:
-                axs[r, c].legend(fontsize=6)
     w = "w1_0.1-0.2"
     for c, ep in enumerate(EPS):
         ax = axs[2, c]
@@ -759,24 +756,25 @@ def plot(FB: dict, FN: dict) -> None:
             bb = b.set_index("feat").reindex([f"{a}{sfx}" for a in names])
             xx = np.arange(len(names)) + (j - 0.5) * 0.35
             ax.bar(xx, bb.level, width=0.33, color=col, alpha=0.7, label=hn)
-            ax.errorbar(xx, bb.level, yerr=[bb.level - bb.level_lo, bb.level_hi - bb.level], fmt="none", ecolor="k",
-                        lw=0.7)
+            ax.errorbar(xx, bb.level, yerr=[bb.level - bb.level_lo, bb.level_hi - bb.level], fmt="none", ecolor=col,
+                        lw=0.8, capsize=1.5)
         ax.axhline(0, color="0.5", lw=0.6)
-        ax.set_xticks(range(len(names)), names, fontsize=7, rotation=45)
+        ax.set_xticks(range(len(names)), names, fontsize=8, rotation=45)
+        ax.grid(axis="y", color="0.92", lw=0.5)
         ax.set_title(_wrap(f"3-{9 + c}. {ep}: MISS - HIT per area, window 0.1-0.2 s, raw", 48), fontsize=8)
         ax.tick_params(labelsize=7)
-        if c == 0:
-            ax.legend(fontsize=6)
+    hh, ll = axs[0, 0].get_legend_handles_labels()
+    fig.legend(hh, ll, loc="outside lower center", ncol=3, fontsize=8, frameon=False,
+               title="rows 1-2 lines; row 3 bars use the same hemisphere colours", title_fontsize=8)
     fig.suptitle(_wrap("Fig 3. ERROR SIGNAL -- activity after a MISSED lick k minus a HIT at matched angles of BOTH "
                        "lick k and k+1 (plus reach, k+1 contact, ILI, order, spout, pre-lick level; per-session OLS "
                        "coefficient). Pool = ALM + tjM1 + SSp-m + SSp-n + SSs per hemisphere. Bars = pooled session "
                        "level with 95% nested bootstrap CI; * = differs from pre.", 170), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
     fig.savefig(FIGS / "lick_correction_error_signal.png", dpi=110)
     plt.close(fig)
     # ---------- figure 4: prediction
     BD, DL = FN["BD"], FN["DL"]
-    fig, axs = plt.subplots(3, 4, figsize=(16, 11))
+    fig, axs = plt.subplots(3, 4, figsize=(18, 13), layout="constrained")
     scol = {"both hemispheres": ("both", "k"), "contra": ("contra", "#b2182b"), "ipsi": ("ipsi", "#2166ac"),
             "control RSPd/VISp": ("control", "0.6")}
     for r, w in enumerate(PRED_WINS):
@@ -786,14 +784,13 @@ def plot(FB: dict, FN: dict) -> None:
                          DL[(DL.tau == 0) & (DL.win == w) & (DL.subset == sub)].rename(columns={"dR2": "v"}), "v",
                          {}, ln, f"4-{r * 4 + c + 1}. window {w.split('_')[1]} s rel. lick k: dcvR2 of the "
                                  f"correction, {sub} pairs", "dcvR2 (neural added)")
-            if r == 0 and c == 0:
-                axs[r, c].legend(fontsize=6)
+    hh, ll = axs[0, 0].get_legend_handles_labels()
+    fig.legend(hh, ll, loc="outside lower center", ncol=4, fontsize=8, frameon=False)
     fig.suptitle(_wrap("Fig 4. Does activity around lick k predict the next lick's correction beyond lick k's angle, "
                        "error and contact? Cross-validated within session (5-fold by trial); neural = area level "
                        "change residualised on lick k's angle / reach / spout; dcvR2 = gain over the behavioural "
                        "baseline. Windows after lick k already contain lick k+1's command (calcium lag), so HIT pairs "
                        "measure next-command information; MISS - HIT is the error-specific part.", 170), fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
     fig.savefig(FIGS / "lick_correction_prediction.png", dpi=110)
     plt.close(fig)
     print("figures written", flush=True)

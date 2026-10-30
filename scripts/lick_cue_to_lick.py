@@ -453,14 +453,24 @@ def _acol():
     return {a: ac.get(a, "0.5") for a in ("PS92", "PS93", "PS94", "PS95")}
 
 
+def _wrap(txt: str, fig_w: float, fs: float) -> str:
+    """Pre-wrap a suptitle to the figure width (chars ~ width / (0.55 * fontsize)). Constrained layout then reserves
+    exactly the title's height: no overlap with the panels and no blank band under it (tight_layout's fixed rect
+    left either one or the other depending on the figure height)."""
+    import textwrap
+    return textwrap.fill(txt, max(40, int(fig_w * 72 / (0.55 * fs))))
+
+
 def draw_dotgrid(stem: str) -> None:
     """Rows = areas (one hemisphere), columns = spouts (canonical order + all); x = epoch; per-animal dots + mean."""
     import matplotlib.pyplot as plt
+    from matplotlib.transforms import blended_transform_factory
     from wfield_local.orofacial_cohort import EPOCH_LINE
     F = load_fd(stem, FDR)
     PA, D, acol = F["PA"], F["D"], F["acol"]
     areas = [a for a in cx.AREAS if f"{a}_{F['hemi']}" in COLS]
-    fig, axs = plt.subplots(len(areas), len(SPOUTS), figsize=(2.0 * len(SPOUTS), 1.7 * len(areas)), squeeze=False)
+    fw = 2.0 * len(SPOUTS)
+    fig, axs = plt.subplots(len(areas), len(SPOUTS), figsize=(fw, 1.7 * len(areas)), squeeze=False, layout="constrained")
     for i, a in enumerate(areas):
         col = f"{a}_{F['hemi']}"
         sub = PA.xs(col, level="col") if col in PA.index.get_level_values("col") else None
@@ -477,22 +487,22 @@ def draw_dotgrid(stem: str) -> None:
                 mu = t.reindex(columns=EP).mean(0)
                 ax.scatter(range(len(EP)), mu, marker="_", s=180, c=[EPOCH_LINE[e] for e in EP], lw=2.2, zorder=4)
                 dd = D[(D.col == col) & (D.pos == p)]
+                tr = blended_transform_factory(ax.transData, ax.transAxes)
                 for _k, r in dd.iterrows():
                     x = EP.index(r.epoch)
-                    if r.sig:
-                        ax.text(x, lim * 0.92, "*" if not r.flag_lt3 else "(*)", ha="center", fontsize=9,
-                                color=EPOCH_LINE[r.epoch])
+                    if r.sig:   # above the axes, so a star never sits on a data line
+                        ax.text(x, 1.0, "*" if not r.flag_lt3 else "(*)", ha="center", va="bottom", fontsize=9,
+                                color=EPOCH_LINE[r.epoch], transform=tr, clip_on=False)
             ax.set_ylim(-lim if F.get("sym", True) else min(0, -0.1 * lim), lim)
             ax.set_xticks(range(len(EP)), [e[:3] for e in EP], fontsize=6)
             ax.tick_params(labelsize=6)
             if i == 0:
-                ax.set_title(p.replace("_", " "), fontsize=8)
+                ax.set_title(p.replace("_", " "), fontsize=8, pad=12)
             if j == 0:
                 ax.set_ylabel(f"{a}\n{F['ylab']}", fontsize=7)
     hs = [plt.Line2D([], [], color=c, marker="o", ms=3, lw=0.6, label=an) for an, c in sorted(acol.items())]
-    fig.legend(handles=hs, loc="lower center", ncol=len(hs), fontsize=7, frameon=False)
-    fig.suptitle(F["title"], fontsize=9, wrap=True)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.95))
+    fig.legend(handles=hs, loc="outside lower center", ncol=len(hs), fontsize=7, frameon=False)
+    fig.suptitle(_wrap(F["title"], fw, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
@@ -573,7 +583,8 @@ def draw_B_pre(stem: str) -> None:
     F = load_fd(stem, FDR)
     BM, cols, acol = F["BM"], F["cols"], F["acol"]
     qs = ["AUC_own", "lev_own", "slope_end", "mean_own"]
-    fig, axs = plt.subplots(len(qs), len(cols), figsize=(2.3 * len(cols), 2.2 * len(qs)), squeeze=False)
+    fw = 2.3 * len(cols)
+    fig, axs = plt.subplots(len(qs), len(cols), figsize=(fw, 2.2 * len(qs)), squeeze=False, layout="constrained")
     mc = {"M1 accumulate-to-bound": "tab:red", "M2 fixed level": "tab:blue", "M3 delayed start": "tab:purple"}
     for j, col in enumerate(cols):
         b = BM[(BM.col == col) & (BM.epoch == "pre")]
@@ -608,16 +619,15 @@ def draw_B_pre(stem: str) -> None:
     h, lab = axs[0, 0].get_legend_handles_labels()
     h2, l2 = axs[1, 0].get_legend_handles_labels()
     keep = dict(zip(lab + l2, h + h2))
-    fig.legend(keep.values(), keep.keys(), loc="lower center", ncol=5, fontsize=7, frameon=False)
-    fig.suptitle("NEURAL, PRE-STROKE, baseline = the trial's own pre-cue level (-0.5..0 s; restw cancels): quantity vs "
+    fig.legend(keep.values(), keep.keys(), loc="outside lower center", ncol=5, fontsize=7, frameon=False)
+    fig.suptitle(_wrap("NEURAL, PRE-STROKE, baseline = the trial's own pre-cue level (-0.5..0 s; restw cancels): quantity vs "
                  "first-lick latency, latency-binned means (all spouts; sessions pooled per animal, bins >= 5 trials), "
                  "coloured = animals, black = mean of animals (bins with >= 3 animals). Dotted = model predictions scaled "
                  "through the black curve at the median latency: M1 accumulate-to-bound (AUC fixed), M2 fixed level "
                  "crossing (level fixed), M3 delayed start with a fixed trajectory; dashed green = M4, the cue-locked "
                  "template (trials not yet licked by t + 0.3 s) at that latency." + (
                      f" DECONVOLVED trace s = y + {F['tau']} dy/dt." if F["tau"] else " Raw GCaMP6s dF/F (slow, lagged)."),
-                 fontsize=8, wrap=True)
-    fig.tight_layout(rect=(0, 0.04, 1, 0.92))
+                 fw, 8), fontsize=8)
     fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -629,7 +639,9 @@ def draw_B_exp(stem: str) -> None:
     EX, cols, acol = F["EX"], F["cols"], F["acol"]
     qs = list(PRED)
     mc = {"M1 accumulate-to-bound": "tab:red", "M2 fixed level": "tab:blue", "M3 delayed start": "tab:purple"}
-    fig, axs = plt.subplots(len(qs), len(cols), figsize=(2.1 * len(cols), 2.0 * len(qs)), squeeze=False, sharey="row")
+    fw = 2.1 * len(cols)
+    fig, axs = plt.subplots(len(qs), len(cols), figsize=(fw, 2.0 * len(qs)), squeeze=False, sharey="row",
+                            layout="constrained")
     for j, col in enumerate(cols):
         for i, q in enumerate(qs):
             ax = axs[i, j]
@@ -653,13 +665,12 @@ def draw_B_exp(stem: str) -> None:
             if j == 0:
                 ax.set_ylabel(f"exponent beta\n{QLAB[q].splitlines()[0]}", fontsize=7)
     h, lab = axs[0, 0].get_legend_handles_labels()
-    fig.legend(h, lab, loc="lower center", ncol=5, fontsize=7, frameon=False)
-    fig.suptitle(f"NEURAL, baseline = own pre-cue level: latency EXPONENT beta (quantity ~ latency^beta; log-log slope of "
+    fig.legend(h, lab, loc="outside lower center", ncol=5, fontsize=7, frameon=False)
+    fig.suptitle(_wrap(f"NEURAL, baseline = own pre-cue level: latency EXPONENT beta (quantity ~ latency^beta; log-log slope of "
                  f"latency-binned means, per animal x epoch, {'all spouts' if F['cls'] == 'all' else 'far-contra trials'}"
                  f"; bins with positive means only) against the model predictions (dotted). Dots = animals, bar = mean. "
                  f"Pre-stroke latencies span only ~0.1-0.4 s, so exponents are noisy." + (
-                     f" DECONVOLVED (tau {F['tau']} s)." if F["tau"] else " Raw GCaMP6s dF/F."), fontsize=8, wrap=True)
-    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
+                     f" DECONVOLVED (tau {F['tau']} s)." if F["tau"] else " Raw GCaMP6s dF/F."), fw, 8), fontsize=8)
     fig.savefig(FIGS / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -673,8 +684,9 @@ def draw_B_onpre(stem: str) -> None:
     ylab = {"lev_own": "level at lick above own pre", "AUC_own": "AUC cue->lick above own pre",
             "lev_rw": "level at lick above RESTW"}
     ans = sorted(acol)
-    fig, axs = plt.subplots(len(qs) * len(cols), len(ans), figsize=(2.4 * len(ans), 1.9 * len(qs) * len(cols)),
-                            squeeze=False)
+    fw = 2.4 * len(ans)
+    fig, axs = plt.subplots(len(qs) * len(cols), len(ans), figsize=(fw, 1.9 * len(qs) * len(cols)),
+                            squeeze=False, layout="constrained")
     for ci, col in enumerate(cols):
         for qi, q in enumerate(qs):
             i = ci * len(qs) + qi
@@ -696,13 +708,12 @@ def draw_B_onpre(stem: str) -> None:
                 if i == len(axs) - 1:
                     ax.set_xlabel("first-lick latency (s, log)", fontsize=7)
     h, lab = axs[0, 0].get_legend_handles_labels()
-    fig.legend(h, lab, loc="lower center", ncol=4, fontsize=7, frameon=False)
-    fig.suptitle("NEURAL, contralesional key areas: do slow post-stroke FAR-CONTRA first licks sit on the PRE-stroke "
+    fig.legend(h, lab, loc="outside lower center", ncol=4, fontsize=7, frameon=False)
+    fig.suptitle(_wrap("NEURAL, contralesional key areas: do slow post-stroke FAR-CONTRA first licks sit on the PRE-stroke "
                  "latency relation? Latency-binned means (bins >= 5 trials) per animal: black = pre, all spouts; colours = "
                  "post-stroke epochs, far-contra trials. Baselines: own pre-cue level (-0.5..0 s) or session RESTW (row "
                  "label). Pre latencies rarely exceed ~0.5 s, so slow-trial comparisons extrapolate the pre relation "
-                 "(c2l_B_onpre_summary.csv).", fontsize=8, wrap=True)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.96))
+                 "(c2l_B_onpre_summary.csv).", fw, 8), fontsize=8)
     fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 

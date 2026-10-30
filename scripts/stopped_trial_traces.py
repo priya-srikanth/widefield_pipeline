@@ -326,7 +326,8 @@ def draw_class(stem: str) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     F = load_fd(stem, FIGD)
     lags, cols = ALIGN[F["align"]], F["cols"]
-    fig, axs = plt.subplots(len(AREAS), 2, figsize=(10, 2.1 * len(AREAS)), sharex=True, squeeze=False)
+    fig, axs = plt.subplots(len(AREAS), 2, figsize=(10, 2.1 * len(AREAS)), sharex=True, squeeze=False,
+                            layout="constrained")
     for i, a in enumerate(AREAS):
         for j, (h, hl) in enumerate(HEMI):
             ax = axs[i, j]
@@ -346,10 +347,9 @@ def draw_class(stem: str) -> None:
             ax.set_xlim(lags[0], lags[-1])
     for ax in axs[-1]:
         ax.set_xlabel(ALIGN_TXT[F["align"]], fontsize=8)
-    axs[0, 0].legend(fontsize=6.5, frameon=False, loc="upper left")
-    fig.suptitle(textwrap.fill(_title(F, f"class = {CLS_TXT[F['klass']].upper()}, colour = epoch"), 150), fontsize=8.5,
-                 y=1.0)
-    fig.tight_layout(rect=(0, 0, 1, 0.965))
+    h, lab = axs[0, 0].get_legend_handles_labels()   # one figure legend under the panels (was over ALM contra data)
+    fig.legend(h, lab, fontsize=7.5, frameon=False, loc="outside lower center", ncol=len(h))
+    fig.suptitle(textwrap.fill(_title(F, f"class = {CLS_TXT[F['klass']].upper()}, colour = epoch"), 150), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGS / f"{stem}.png", dpi=105, bbox_inches="tight")
     plt.close(fig)
@@ -371,7 +371,8 @@ def draw_compare(stem: str) -> None:
     F = load_fd(stem, FIGD)
     lags, cols = ALIGN[F["align"]], F["cols"]
     ncol = 2 * len(il.EP4)
-    fig, axs = plt.subplots(len(AREAS), ncol, figsize=(2.3 * ncol, 1.75 * len(AREAS)), sharex=True, squeeze=False)
+    fig, axs = plt.subplots(len(AREAS), ncol, figsize=(2.3 * ncol, 1.75 * len(AREAS)), sharex=True, squeeze=False,
+                            layout="constrained")
     for i, a in enumerate(AREAS):
         for j, (h, hl) in enumerate(HEMI):
             c = f"{a}_{h}"
@@ -395,10 +396,10 @@ def draw_compare(stem: str) -> None:
                         continue
                     mu, se, n, na = F["S"][k][ep]
                     lab = f"{CLS_TXT[k]} ({len(na)} an, {sum(na.values())} tr)" if (i == 0 and j == 0) else None
+                    if lab:   # trial counts differ per epoch: legend label carries the epoch
+                        lab = f"{ep}: {lab}"
                     _curve(ax, lags, mu[:, q], se[:, q], n[:, q], CLS_COL[k], lab)
                 ax.set_xlim(lags[0], lags[-1])
-                if i == 0 and j == 0:
-                    ax.legend(fontsize=5.5, frameon=False, loc="upper left")
         # share y within a row
         ys = [ax.get_ylim() for ax in axs[i]]
         lo, hi = min(y[0] for y in ys), max(y[1] for y in ys)
@@ -406,9 +407,16 @@ def draw_compare(stem: str) -> None:
             ax.set_ylim(lo, hi)
     for ax in axs[-1]:
         ax.set_xlabel(ALIGN_TXT[F["align"]].split(";")[0], fontsize=7)
+    # one figure legend under the panels (the per-epoch legends sat over the traces of the first four panels);
+    # legend columns = epochs (pre..chronic), rows = classes, each with its animal / trial counts
+    h, lab = [], []
+    for e in range(len(il.EP4)):
+        hh, ll = axs[0, e].get_legend_handles_labels()
+        h += hh
+        lab += ll
+    fig.legend(h, lab, fontsize=7, frameon=False, loc="outside lower center", ncol=len(il.EP4))
     fig.suptitle(textwrap.fill(_title(F, "colour = trial class: " + ", ".join(CLS_TXT[k] for k in F["classes"])), 230),
-                 fontsize=9, y=1.0)
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
+                 fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
@@ -419,7 +427,8 @@ def draw_examples(stem: str) -> None:
     F = load_fd(stem, FIGD)
     ex = F["ex"]
     ncol = max([len(v) for v in ex.values()] + [1])
-    fig, axs = plt.subplots(len(il.EP4), ncol, figsize=(3.4 * ncol, 3.0 * len(il.EP4)), squeeze=False)
+    fig, axs = plt.subplots(len(il.EP4), ncol, figsize=(3.4 * ncol, 3.0 * len(il.EP4)), squeeze=False,
+                            layout="constrained")   # titles clear the tick labels of the row above
     vals = np.concatenate([e["X"].ravel() for v in ex.values() for e in v] or [np.zeros(1)])
     vm = float(np.nanpercentile(np.abs(vals), 98)) if np.isfinite(vals).any() else 1.0
     im = None
@@ -731,7 +740,7 @@ def draw_levels(stem: str) -> None:
     cls = ("success", "working", "stopped")
     mk = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
     fig, axs = plt.subplots(len(rows) * len(cls), len(areas), figsize=(2.6 * len(areas), 1.9 * len(rows) * len(cls)),
-                            sharex=True, squeeze=False)
+                            sharex=True, squeeze=False, layout="constrained")
     x = np.arange(len(il.EP4))
     for r, (base, hemi, hl) in enumerate(rows):
         D = CI if hemi == "R-L" else L[L.hemi == hemi]
@@ -754,15 +763,16 @@ def draw_levels(stem: str) -> None:
     for ax in axs[-1]:
         ax.set_xticks(x)
         ax.set_xticklabels(il.EP4, fontsize=7, rotation=30)
-    axs[0, 0].legend(fontsize=6, frameon=False, ncol=2)
+    hs = [plt.Line2D([], [], color="0.45", lw=0.8, marker=m, ms=3.5, label=an) for an, m in mk.items()]
+    hs += [plt.Line2D([], [], color=CLS_COL[c], lw=2.0, label=f"mean, {CLS_TXT[c]}") for c in cls]
+    fig.legend(handles=hs, fontsize=7, frameon=False, loc="outside lower center", ncol=len(hs))   # was over ALM data
     fig.suptitle(textwrap.fill(
         "NEURAL: pre-cue (-1..0 s) level per animal (grey, markers = animal) and mean of the animals present (colour), "
         "all spouts pooled, trial-weighted over sessions. Rows: hit / miss_working / stopped x (contralesional, above "
         "restw) / (contra minus ipsi, above restw) / (contralesional, RAW dF/F x1e3). RESTW is the engagement-gated "
         "WORKING-period rest, so for stopped (quit-period) trials it is a cross-state reference. Animal sets differ "
         "between epochs for stopped (PS92 acute only; PS95 no acute): compare within animals. " + CLASS_DEF
-        + ". PROVISIONAL n = 4.", 200), fontsize=8.5, y=1.0)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+        + ". PROVISIONAL n = 4.", 200), fontsize=8.5)
     fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
     # movement

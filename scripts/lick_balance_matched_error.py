@@ -166,10 +166,10 @@ def plot() -> None:
         ax.set_xticks(np.arange(len(k)), EPS)
         ax.set_ylim(0, 1.02)
         ax.set_title("fraction of licks KEPT\n(landed inside the pre range for their spout)", fontsize=8.5)
-        ax.legend(fontsize=7, frameon=False)
+        ax.legend(fontsize=7, frameon=False, loc="lower right")
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    axs[0, 0].legend(fontsize=7, frameon=False)
+    axs[0, 0].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0), borderaxespad=0.2)
     fig.suptitle("Post-stroke licks vs PRE-stroke licks to the SAME target landing at the SAME place (only licks inside "
                  "the pre range for their spout: no extrapolation). Balance + = contralesional hemisphere larger "
                  "(hemispheric sign); offset + = read contralesional. PROVISIONAL", fontsize=10)

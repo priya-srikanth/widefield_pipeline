@@ -255,31 +255,13 @@ def figure(S, Pp):
     import matplotlib.pyplot as plt
     from wfield_local.orofacial_cohort import EPOCH_LINE, POS_ORDER
     sp = list(POS_ORDER)
-    rows = [(a, e) for a in AN for e in EP]
-    fig, axs = plt.subplots(1, 4, figsize=(19, 7.5), gridspec_kw={"width_ratios": [1.1, 1.1, 1, 1]})
-    for k, (col, ttl, fmt) in enumerate([("n_enl_3d_img", "ENL licks with 3-D angle, IMAGING sessions (n)", "{:.0f}"),
-                                         ("frac_trials_enl", "fraction of trials with >= 1 ENL lick (all sessions)", "{:.2f}")]):
-        ax = axs[k]
-        M = np.array([[S[(S.animal == a) & (S.epoch == e) & (S.spout == p)][col].sum() if col.startswith("n_")
-                       else S[(S.animal == a) & (S.epoch == e) & (S.spout == p)][col].mean() for p in sp] for a, e in rows])
-        show = np.log10(M + 1) if col.startswith("n_") else M
-        ax.imshow(show, cmap="Blues", aspect="auto", vmin=0)
-        for i in range(M.shape[0]):
-            for j in range(M.shape[1]):
-                v = M[i, j]
-                thin = col.startswith("n_") and v < THIN
-                ax.text(j, i, fmt.format(v) if np.isfinite(v) else "-", ha="center", va="center", fontsize=6.5,
-                        color="#b2182b" if thin else ("w" if show[i, j] > 0.6 * np.nanmax(show) else "k"),
-                        fontweight="bold" if thin else "normal")
-        ax.set_xticks(range(len(sp)), [p.replace("_", "\n") for p in sp], fontsize=7)
-        ax.set_yticks(range(len(rows)), [f"{a} {e}" for a, e in rows], fontsize=7)
-        for i in range(1, len(AN)):
-            ax.axhline(i * len(EP) - 0.5, color="k", lw=1)
-        ax.set_title(ttl + ("\n(red bold = < %d licks)" % THIN if col.startswith("n_") else ""), fontsize=8)
+    # The two count / fraction-of-trials heatmaps were removed from the figure (Priya 10-29: "get rid of the ENL
+    # heatmap"); the counts stay in enl_audit_animal.csv / enl_audit_pooled.csv.
+    fig, axs = plt.subplots(1, 2, figsize=(13, 6.2))
     for k, (col, ref, ttl, yl) in enumerate([("aim_err_enl", "aim_err_cued",
                                               "aim error vs PRE cued mean angle at the spout", "deg (+ = contralesional)"),
                                              ("contact_enl", "contact_cued", "spout-contact rate", "fraction of licks")]):
-        ax = axs[2 + k]
+        ax = axs[k]
         x = np.arange(len(sp))
         for i, e in enumerate(EP):
             Q = S[(S.epoch == e) & (S.spout != "all")]
@@ -296,11 +278,11 @@ def figure(S, Pp):
         ax.set_xticks(x, [p.replace("_", "\n") for p in sp], fontsize=7)
         ax.set_ylabel(yl, fontsize=8)
         ax.set_title(ttl + "\no = ENL (animal mean), x = cued same epoch, dots = animals", fontsize=8)
-        if k == 1:
-            ax.legend(fontsize=6, ncol=2, loc="lower left")
     fig.suptitle("ENL (pre-cue, spout stationary, no cue, no reward) lick audit -- PS92-95, pre = August; "
                  "ENL licks are EXCLUDED from the ITI and cued decoder lick sets", fontsize=9)
-    fig.tight_layout()
+    h_, l_ = axs[0].get_legend_handles_labels()
+    fig.legend(h_, l_, loc="lower center", ncol=len(l_), fontsize=8, frameon=False)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
     f = OUT / "figures" / "enl_lick_audit.png"
     f.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(f, dpi=130)
