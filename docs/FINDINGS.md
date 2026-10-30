@@ -1410,6 +1410,19 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     (+0.076, 4/4), so roughly half of the chronic gap is drift-sized. Next (new prereg): an alignment with spout-resolving
     but target-free correspondence (kinematics-binned or ITI trajectories, or stable-area anchors) that passes G1 first.
     Frozen references in the local store only (kind `reembed`; publishing = Priya's call). **NOT ESTABLISHED.**
+21. **Within-lick corrections do NOT carry recovery (10-30; Bollu 2021 style; pre-registered,
+    `docs/status/WITHIN_LICK_CORRECTION_PREREG_20261030.md`; `scripts/within_lick_correction.py` ->
+    `within_lick_correction/`).** 250 Hz 3-D tongue (outward phase ~7-8 frames): launch angle (first 12 ms) vs endpoint
+    (extension peak), each vs the animal's pre hit pattern; corrective submovements (CSMs) = extra speed peaks above a
+    noise-calibrated 50 mm/s threshold (false rate 5 % vs real 15.6 % pre). Pre-stroke the Bollu signatures hold (CSMs
+    .28-.33 at far side spouts vs .04-.08 close; cued .16 vs ITI .10). Far contra, cued: LAUNCH error -25.7 deg acute,
+    -7.0 subacute (4/4, Holm), chronic -3.2 n.s.; the ENDPOINT follows the launch (chronic -3.5, 4/4); within-lick
+    correction unchanged in every epoch (chronic -0.4 [-3.1, +2.4]); CSM share FALLS (-0.13 / -0.15 / -0.14, 3-4/4; not
+    noise, not only slower licks) and missed later licks lose their pre-stroke in-lick re-aim (+10.9 deg pre; -8.0 acute,
+    -5.0 subacute, 4/4). -> **Recovery is restored LAUNCH aim, not added correction; licks become simpler, not more
+    corrected.** Neural: the larger acute lick response is the same on clean licks (+21 vs +18 all licks; carried in 0 /
+    168 cells); CSM licks evoke LESS than matched CSM-free licks post-stroke (-10.7 chronic, 4/4; not in deconvolved).
+    Caveats: 250 Hz resolves only >= ~20 ms submovements; launch noise 5-8 deg per lick. **PROVISIONAL (n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
