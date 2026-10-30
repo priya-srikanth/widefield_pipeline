@@ -43,3 +43,21 @@ CV choice = sensitivity. PRIMARY readouts, from W[target, source]:
 SPECIFICITY control: `R->M` (mean of the 4 RSPd -> motor entries) and `dir R<->M`, same treatment; a sensory-specific
 loss should exceed the RSPd one. Per-animal table first (rule 8), then `analysis_kit.boot_delta` per post epoch.
 Interpretation rule: a change is reported as a change only if the CI excludes 0 AND >= 3 / 4 animals share its sign.
+
+## Outcome (appended after the fits, 2026-10-30)
+
+**GATE FAILED on the primary (raw): 0 / 4 animals pass -> no pre vs post fits** (the `fixed` command refuses).
+31 August pre sessions x 3 modes, 265 s wall (4 workers); gate 4 s.
+* Prediction passes everywhere (gain > 0 in 31/31 sessions, 5/5 folds): raw gain .006-.019 R2 = 5-11 % of the one-step
+  change variance (PS92 .066, PS93 .057, PS94 .111, PS95 .051).
+* raw, per animal (PS92 / PS93 / PS94 / PS95): halves median .87 / .62 / .57 / .71, worst session .79 / .26 / .28 / .32;
+  sessions .62 / .83 / .67 / .68; ridge >= .95; pair-specific halves .87 / .92 / .59 / .75. Pooling made the raw matrix
+  LESS reproducible than the 18-region one (2/4 there).
+* Sensitivities (not gated): **gsr 4/4 pass** (halves .91 / .90 / .75 / .80, sessions .75 / .80 / .75 / .76);
+  dec 2/4 (PS94, PS95).
+* CV again picks p = 8, the TOP of the extended range, in every session and mode, and near-OLS ridge (1e-5 to 2e-4;
+  grid edge in 1-2 sessions per mode). The lagged dependence keeps lengthening with the allowed range: lag-summed W is
+  dominated by slow, long-memory structure, which is what GCaMP6s + 3-frame means would produce.
+* Readout noise floor (raw, pre): the split-half SD of one session's S->M intra (.013) EXCEEDS the between-session SD
+  (.009); dir intra .020 vs .026; dir inter .020 vs .043. A single session's primary readout is mostly estimation noise.
+Tables `<mvar_pooled>/tables/` (gate_sessions, gate_animals, readout_halves); figure `figures/pooled_gate.png`.

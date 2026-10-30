@@ -1339,6 +1339,15 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     matrix (r .25-.37). The S18 Granger result (`coupling_vigour_sm.py`) is NOT tested or supported by this. Script
     `scripts/mvar_regions.py`; outputs `<E>/mvar/` (figures 1-2, tables/). **NOT ESTABLISHED (gate failed; PROVISIONAL
     n = 4).**
+16. **Pooled sensory / motor MVAR (10-30, follow-up of 15): FAILED its gate on raw (0/4), so again NO pre vs post.**
+    Six nodes (sensory, motor, RSPd x hemisphere), lags up to 8 bins (~0.8 s), same data and CV as 15, gate written
+    beforehand (`docs/status/MVAR_POOLED_PREREG_20261030.md`). Predicts held-out in 31/31 sessions (5-11 % of change
+    variance) but the 6 x 6 matrix is less reproducible than the 18-region one (halves median .57-.87, worst sessions
+    .26-.32 in three animals). Global-removed variant passes 4/4 (sensitivity only, not gated). CV again chooses the
+    longest lag allowed (p = 8) everywhere, and one session's S->M estimate has split-half noise larger than the spread
+    between sessions. Directed-influence models of these area traces are not usable at the session level; the S18
+    Granger / xcorr result stands alone. Script `scripts/mvar_pooled.py`; outputs `<E>/mvar_pooled/`. **NOT ESTABLISHED
+    (gate failed; PROVISIONAL n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
