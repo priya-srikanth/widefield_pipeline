@@ -19,3 +19,49 @@ unless noted.
 | revup_neural_slowonly_contrasts.png (full) | Fig 14.21 S7 | slow-only contrasts, 10 areas x 4 epochs x 4 animals x 8 panels (replaced by `_simple`) | slow-trial contrast in a non-key area | scripts/revup_neural.py; revup/revup_neural_tests.csv |
 | revup_late_engaged.png (full) | Fig 14.21 S8 | late licks after the spout left under 4 engagement gates (replaced by `_simple`, canonical gate) | late-lick share under the other gates | scripts/revup_followup.py; revup/revup_late_engaged*.csv |
 | revup_neural_precue_vs_latency.png | Fig 14.21 S7 | pre-cue level vs first-lick latency, 6 spouts x 4 epochs x 4 animals x 10 areas (mostly rho ~ +/-0.1, no spout pattern) | "does pre-cue activity predict latency?" | scripts/revup_neural.py; revup/revup_precue_latency*.csv |
+
+## 2026-10-29 late: secondary figures cut (Priya: "we've added way too many figures - keep the ones that show important points")
+
+Each supplement keeps its key figure(s); these secondary views were removed from the page (files, scripts, CSVs kept; the scripts are named in each supplement's caption).
+
+| figure (PNG) | was on page |
+|---|---|
+| lick_ci_spout_epoch_farcontra.png | Fig 14.18 S5 |
+| lick_code_subspace_axes.png | Fig 14.18 S6 |
+| lick_code_subspace_areas.png | Fig 14.18 S6 |
+| lick_code_power.png | Fig 14.18 S7 |
+| lick_area_tuning_curves_trial.png | Fig 14.18 S8 |
+| lick_area_tuning_curves_iti.png | Fig 14.18 S8 |
+| lick_matched_pixel_animals_trial.png | Fig 14.18 S8 |
+| lick_matched_pixel_animals_iti.png | Fig 14.18 S8 |
+| lick_interhemi_lickspecific.png | Fig 14.18 S10 |
+| lick_interhemi_lead_tau0.6.png | Fig 14.18 S10 |
+| lick_interhemi_xcorr.png | Fig 14.18 S10 |
+| lick_interhemi_oro_animals.png | Fig 14.18 S10 |
+| lick_cued_precue_restw_traces_farcontra_change.png | Fig 14.21 S2 |
+| lick_cued_precue_restw_traces_change.png | Fig 14.21 S2 |
+| lick_enl_target_offtarget.png | Fig 14.21 S5 |
+| lick_enl_target_decodability.png | Fig 14.21 S5 |
+| lick_enl_target_tracking.png | Fig 14.21 S5 |
+| revup_phase_shares_simple.png | Fig 14.21 S6 |
+| revup_fr_vigour.png | Fig 14.21 S6 |
+| revup_recovery.png | Fig 14.21 S6 |
+| revup_neural_slowonly_contrasts_simple.png | Fig 14.21 S7 |
+| revup_jaw_metrics.png | Fig 14.21 S8 |
+| revup_jaw_traces_cue.png | Fig 14.21 S8 |
+| lick_enlv_perspout.png | Fig 14.21 S10 |
+| lick_enlv_sweep_simple.png | Fig 14.21 S10 |
+| lick_enlv_first_later.png | Fig 14.21 S10 |
+| lick_enlv_arrival.png | Fig 14.21 S10 |
+| lick_enlv_curves_angle.png | Fig 14.21 S10 |
+| stopped_class_stopped_cue_restw.png | Fig 14.21 S11 |
+| stopped_compare_jaw_vs_nojaw_cue_restw.png | Fig 14.21 S11 |
+| stopped_compare_jaw_aligned_jaw_restw.png | Fig 14.21 S11 |
+| stopped_examples_PS93.png | Fig 14.21 S11 |
+| lick_cue_to_lick_A_level_own_contra.png | Fig 14.21 S12 |
+| lick_cue_to_lick_B_farcontra_on_pre.png | Fig 14.21 S12 |
+| lick_cue_to_lick_C_w03_contra.png | Fig 14.21 S12 |
+| lick_cue_to_lick_D_raw_traces.png | Fig 14.21 S12 |
+| arrival_to_cue_per_spout_enl.png | Fig 14.21 S13 |
+| arrival_to_cue_heatmap_PS92_all.png | Fig 14.21 S13 |
+| arrival_to_cue_heatmap_pooled_far_contra.png | Fig 14.21 S13 |

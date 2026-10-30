@@ -827,6 +827,13 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   session mean (4/4), removed by restw; F0 not the cause chronically; non-orofacial (bfd, VISp, MOs_rest ipsi) dip is a
   real pre-cue decrease. CAVEAT for Fig 14.21: the chronic contra ALM / tjM1 pre-cue rise is relative to rest, not absolute
   (dF/F is session-mean centred). PROVISIONAL.
+- RESTW check 10-29 (Fig 14.21 S14, scripts/restw_strict_check.py, restw_check/): restw rest contains many NON-contact licks
+  (13-57/min, most pre-stroke); a strict lick-free rest (all cam4 licks, [0.5, 2.0] s; strict_w50) shifts by epoch (contra
+  tjM1 chronic -3.66, ALM -1.72, 4/4; bilateral, cortex-wide) -> restw is NOT epoch-neutral, but conservatively: chronic
+  contra pre-cue rise ALM 1.53 -> 3.00, tjM1 1.73 -> 5.31; acute far-contra raise tjM1 5.50 -> 7.35; cue-to-lick tjM1
+  chronic 2.89 -> 6.39; all keep sign + significance. Contra-ipsi contrasts little affected; ALM vs tjM1 ordering is
+  baseline-dependent. Pre-cue cache engaged counts differ from the current gate in 86/107 sessions (chronic result
+  unchanged, acute +0.4 n.s.). PROVISIONAL.
 - Arrival -> cue traces 10-29 (page Fig 14.21 S13, scripts/arrival_to_cue_traces.py, arrival_to_cue/): three anchors (arrival |
   last ENLv lick | cue) + wait-sorted heatmaps. Far-contra ENLv contact drops acutely 4/4 (e.g. PS94 0.61 -> 0.00), so those
   licks do not restart the timer (short acute far-contra waits). Response to the last ENLv lick larger acutely than pre in

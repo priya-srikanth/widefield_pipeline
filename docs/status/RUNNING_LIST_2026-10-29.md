@@ -12,6 +12,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - [ ] **Reference for pre-cue levels**: restw vs session mean give opposite signs chronically in orofacial areas (rest falls relative to the session mean). Report the chronic contra ALM / tjM1 pre-cue rise as "relative to rest" only?
 - [ ] **Check (mine, low; in restw check)**: precue_restw cache engaged-trial counts differ slightly from the current engagement gate (381 vs 364, 473 vs 472 in 2 sessions) -> audit all sessions; the restw LEVEL itself is unaffected.
 - [x] (YES, Priya 10-29) **ENLv reading**: "ENLv = cued-like target-coded balance + ITI-like persistent decoder offset (~half size)" OK as the working description? Bearing on decision ITI primary set: the offset is present on all uncued lick types (docked, moving, ENLv); the balance loss on docked licks may reflect no target rather than no motion.
+- [ ] **Baseline: keep restw (conservative lower bound) or switch level results to strict lick-free rest?** strict makes the rises 1-4x larger (tjM1 most) but keeps only 17-35% of pre rest in PS92-94; also re-extract pre-cue levels on the current engaged-trial gate (86/107 sessions differ)?
 - [ ] **Hypothesis line (3)**: the contralesional-share rise is not orofacial-specific (VISpm / RSPd rise too) -> reword?
 - [x] **Pre-cue softmax test**: APPROVED 10-29 -- generate the pre-cue per-trial probabilities (`attempt_coding --aligns
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
@@ -100,7 +101,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 
 - Updates sent: ENLv arrival correction by REGRESSION (not lick-free subtraction); cue excluded from ENLv windows (contact vs non-contact; licks < 2 s before cue reported); stopped helper adds jaw-no-lick vs stopped-no-jaw.
 
-- RESTW check: strict rest (exclude all cam4 licks incl. non-contact, buffer [0.5, 2.0]; + buffer-only and jaw-motion variants) vs restw per area x epoch; how 14.20 / acute far-contra / cue-to-lick levels move; engaged-count audit -> restw_check/
 
 - ITI pre-lick re-run with windows ending >= 0.1 s (and 0.15 s) before lick onset, + jaw-onset variant (Priya) -> iti_licks/ (old fig kept as lick_iti_prelick_v1.png)
 
@@ -114,6 +114,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - STOPPED TRIALS (page v249, Fig 14.21 S11 #s14-21-11; figures M:/.../iti_licks/stopped_traces/figures/): no cue response, flat raised level; 3 animals per epoch; jaw-onset transient global; contra tjM1 / SSp-m pre-cue rise over recovery within animals (contra-specific? follow-up running).
 
 ## 6. Log
+- 10-29 late: restw check reported -> Fig 14.21 S14 (v262); Priya: too many figures -> 39 secondary + 3 crowded-bar figures cut from page (docs/CUT_FIGURES.md); crowded-bar scan of the whole page running.
 - 10-29 evening: ENLv curves + gain, figure clean-up -> page v258; pre-lick window helper started.
 - 10-29 evening: Priya approved the ENLv working description; page v255: click-to-zoom now also on supplement images (was figure images only); ENLv curves helper started.
 - 10-29 evening: page v253: supplements to Figs 12.17 / 14.18 / 14.21 numbered (S1..) with anchors #s<fig>-<n>; stale 14.20 refs fixed.
