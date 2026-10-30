@@ -150,3 +150,88 @@ count); per-session pixel offsets removed by centring but per-session gain diffe
 
 ## Outcome
 (empty -- filled after the run, gate result first)
+
+### Outcome (2026-10-30, run after this design was fixed and committed as 27bdef52; `prelick_svd_tuning.py extract / fit / refit / summarise`)
+Outputs: `.../imaging_encoding/prelick_svd_tuning/` (`features/<label>.npz`, `extract_summary.csv`, `loso_pre.csv`,
+`perm_null.csv`, `gate.csv`, `gate.json`, `frozen_status.csv`, `sessions_frozen.csv`, `sessions_refit.csv`,
+`sessions_long.csv`, `per_animal.csv`, `noise_floor.csv`, `boot.csv`, `primary_holm.csv`, `weights/`,
+`figures/pst_primary.png`, `pst_secondary.png`, `pst_weights_POST.png`, `figdata/prelick_svd_tuning.pkl`, `run_log.txt`,
+`summarise_log.txt`). 107 sessions (31 August pre: PS92 8, PS93 7, PS94 8, PS95 8; 16 acute, 17 subacute, 43 chronic);
+first cued licks per session median 331 (125-559). The V-space projection reproduces the area analysis's ALM PRE values
+(max |diff| 6e-4 against a per-lick SD of 5-17). Frozen: 64 `prelaunch_svd` models `frozen-new` in the LOCAL store
+`C:/Users/SabatiniLab/frozen_models` (existing, with decoder / encoder / enl / lick / reembed / state; not published); the
+frozen-LOSO r equals the permutation-path r to 5e-9. Run time ~5 min (extract 0.9, fit 1.6, refit 1.1, summarise ~1).
+
+#### Gate (August pre, pooled LOSO, K = 10): PASSED NOMINALLY (3 / 4); positive control (POST) FAILED (2 / 4)
+| animal | PRE c (right) r_LOSO / p | PRE i (left) r_LOSO / p | POST c r / p | POST i r / p | pre sessions |
+|---|---|---|---|---|---|
+| PS92 | -0.033 / 0.84 | -0.076 / 0.96 | -0.010 / 0.61 | +0.016 / 0.30 | 8 |
+| PS93 | +0.016 / 0.31 | **+0.054 / 0.015** | **+0.069 / 0.005** | **+0.093 / 0.005** | 7 |
+| PS94 | +0.025 / 0.18 | **+0.050 / 0.020** | -0.014 / 0.71 | +0.038 / 0.075 | 8 |
+| PS95 | +0.037 / 0.065 | **+0.045 / 0.035** | **+0.118 / 0.005** | **+0.125 / 0.005** | 8 |
+
+Null 95th percentiles 0.035-0.054. **PRE: 3 / 4 animals pass, every time through the IPSILESIONAL (left) hemisphere**,
+with r = 0.045-0.054 (about 0.25 % of the within-spout angle variance). It is fragile. With Bonferroni x 2 over
+hemispheres 2 / 4 pass (PS95 p = 0.035 > 0.025). The sensitivity K values give 2 / 4 (K = 5: PS93, PS94) and 1 / 4
+(K = 20: PS94). **POST positive control at K = 10: 2 / 4 (PS93, PS95, both hemispheres p = 0.005) -> FAILED.** It
+reaches 3 / 4 at K = 5 and K = 20 (PS94 left added). As fixed above, the gate decision uses K = 10. **So the method is
+underpowered at these trial counts: it does not reliably recover even the post-contact signal.** The nominal PRE pass
+should therefore not be read as a demonstrated pre-launch pattern. Pooled pre levels: PRE c +0.011 [-0.024, 0.037],
+i +0.017 [-0.046, 0.063]; POST c +0.040 [-0.014, 0.100], i +0.067 [0.021, 0.115]. Per-session noise floor (SD of the
+held-out pre r): 0.025-0.074. Inner-CV alpha sits at a grid EDGE (0.1 or 1e5) in nearly every cell. In other words
+the choice is between ~OLS and ~maximal shrinkage, as expected when the signal is near the noise.
+
+#### Primary (PRE window, K = 10, frozen r; confirmatory by the letter of the gate, but see above): per-animal session means pre / acute / subacute / chronic
+| animal | P1 r_c (right) | P2 r_i (left) | P3 D = r_c - r_i | n sessions |
+|---|---|---|---|---|
+| PS92 | -.033 / +.012 / +.014 / -.006 | -.076 / +.019 / -.021 / -.036 | +.043 / -.008 / +.035 / +.030 | 8 / 5 / 2 / 12 |
+| PS93 | +.016 / +.063 / +.025 / +.034 | +.054 / +.100 / +.043 / +.016 | -.038 / -.037 / -.019 / +.017 | 7 / 4 / 3 / 12 |
+| PS94 | +.025 / +.003 / +.033 / -.011 | +.050 / +.037 / +.029 / -.003 | -.025 / -.034 / +.005 / -.008 | 8 / 6 / 5 / 8 |
+| PS95 | +.037 / -.083 / +.034 / +.005 | +.045 / -.105 / +.034 / -.001 | -.008 / +.022 / -.000 / +.007 | 8 / 1 / 7 / 11 |
+
+boot_delta vs August pre: P1 acute -0.012 [-0.088, +0.057], subacute +0.015 [-0.015, +0.052], chronic -0.006 [-0.043,
++0.031]. P2 -0.005 [-0.104, +0.081] / +0.003 [-0.034, +0.044] / -0.024 [-0.064, +0.023]. P3 -0.007 [-0.049, +0.029] /
++0.012 [-0.015, +0.040] / +0.019 [-0.014, +0.049] (3 / 4 positive). **No change in any primary cell**: Holm within
+epoch p >= 0.78, Holm over 9 p = 1.0, and none meets the CI + 3 / 4 criterion. NOT ESTABLISHED. Every point estimate
+is smaller than the per-session noise floor. PS95 acute has a single session.
+
+#### Pixels vs the MOTOR area pool (same pooled-pre LOSO pipeline, 1 feature)
+Pre r_LOSO, animal means: PRE pixels c +0.011 / i +0.018 vs pool +0.012 / -0.013; POST pixels +0.041 / +0.069 vs pool
++0.004 / +0.007. Pool permutation passes: PRE 1 / 8 hemispheres (PS95 c, p = 0.050), POST 3 / 8 (PS93 c, PS95 c,
+PS95 i). **Pooling sessions alone does not create a pre-launch readout from the area mean.** The pixels add a small one
+in the ipsilesional hemisphere of three animals (PRE) and a clearer one after contact (POST, two animals robustly).
+Spatial pattern therefore matters somewhat: averaging over ALM + tjM1 does cancel part of what pixels carry, most
+visibly POST. The weight maps (F, normalised per hemisphere) show mixed-sign lobes within ALM / tjM1 rather than one
+area-wide sign, which is consistent with cancellation. They are noisy and differ between animals (descriptive).
+
+#### Secondary (descriptive, no correction)
+* Refit r (within-session CV) is NEGATIVELY BIASED as a level. The MOTOR-pool refit sits at -0.07 to -0.11 in every
+  epoch, and pixel refit at -0.04 to +0.02. The cause is concatenating fold predictions with a fold-wise intercept when
+  there is almost no signal (the same `_cv_r` form as the area decode). Read refit only as a change: pixel PRE subacute
+  c -0.038 [-0.077, -0.000] and i -0.035 [-0.058, -0.009], 4 / 4 each. Both are below the noise floor, and chronic is
+  not changed (c -0.017, i -0.027 [-0.054, 0.000]). Not read as a change.
+* MOTOR pool, frozen PRE: c chronic -0.027 [-0.054, -0.000] (4 / 4); D acute -0.045 [-0.085, -0.007] (3 / 4) and
+  chronic -0.040 [-0.077, -0.007] (4 / 4). These start from a pre level indistinguishable from 0 (c +0.012, D +0.026,
+  CIs include 0) and are below the per-session noise floor. They are counted against many uncorrected cells.
+  PROVISIONAL at most; not a loss of a code that was never shown to exist pre-stroke.
+* Pixels K = 5, POST, ipsilesional chronic -0.062 [-0.116, -0.012], 4 / 4 (the POST readout is the one with a pre
+  level: +0.075). A post-contact decline in the left hemisphere is consistent with the area analysis's flattening POST
+  D trend. One cell of many, NOT ESTABLISHED.
+
+#### Reading
+Replacing area means with ALM + tjM1 pixels and pooling the pre sessions gives, at best, a marginal pre-launch
+readout of the within-spout launch angle. It reaches r ~0.05 in the ipsilesional (left) hemisphere of 3 / 4 animals
+and does not survive a hemisphere correction or the K sensitivity. The pre-registered positive control (POST) fails
+at K = 10. **So the honest summary is "not resolvable", now at pixel level as well as area level**, not "a pre-launch
+pattern exists". No primary cell changes after the stroke. Routes A / B / D (right hemisphere gains) and E (left
+gains) are both NOT supported, and power is low (noise floor 0.03-0.07 against effects < 0.03). Pixels beat the
+area pool mostly AFTER contact, so spatial cancellation is real but does not uncover a pre-launch command. n = 4,
+GCaMP6s; PROVISIONAL.
+
+#### Deviations (2026-10-30, dated; the design above is unchanged)
+1. Weight maps are drawn normalised per hemisphere (w / max |w|). The inner-CV alpha differs between hemispheres (0.1 vs
+   1e5), so absolute weights are not comparable. This changes the figure only.
+2. Refit r: run as pre-registered; its negative level bias was found after the run (see Secondary). No null was added.
+3. The smoke test (PS92, 4 sessions) wrote its frozen models to a throwaway scratchpad store
+   (`WIDEFIELD_FROZEN_MODEL_DIR`), never to the reference store; its features and outputs were in the scratchpad as well.
+4. The secondary figure shows refit r for pixels only (the pool refit is biased; its numbers are in `boot.csv`).

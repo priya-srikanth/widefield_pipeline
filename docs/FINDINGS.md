@@ -1452,6 +1452,13 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     flattening (+0.35, 4/4) = the known post-lick contralesional-share rise, not launch tuning. -> widefield area signals
     cannot separate the pathway routes (contralesional takeover vs ipsilesional bypass); needs perturbation (cohort 2).
     **NOT ESTABLISHED.**
+    PIXEL add-on (Priya 10-30; `docs/status/PRELICK_SVD_TUNING_PREREG_20261030.md`, `scripts/prelick_svd_tuning.py`; page
+    S25b): ALM + tjM1 pixels per hemisphere (PCA K = 10), pooled August pre sessions (LOSO), frozen decoders. PRE gate
+    nominal 3/4 (all IPSILESIONAL hemisphere, r ~0.05; 2/4 Bonferroni x2, 2/4 K = 5, 1/4 K = 20) but POST positive control
+    FAILED (2/4) -> underpowered, no demonstrated pre-launch pattern. No post-stroke change (Holm p >= 0.78). Area pool
+    through the same pooled pipeline: nothing PRE -> pixels recover a little more (esp. post-contact; averaging cancels
+    some spatial pattern). Still NOT ESTABLISHED; perturbation needed. Open check: within-session CV r (`_cv_r` form,
+    fold-wise intercepts) is negatively biased near zero signal -- also affects the area decode's r_ex levels.
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 

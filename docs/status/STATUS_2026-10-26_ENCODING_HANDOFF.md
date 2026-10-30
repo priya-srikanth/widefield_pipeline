@@ -77,6 +77,8 @@ OPEN (Priya to decide; asked, no answer yet):
    post; same pre gate (>= 3/4 animals, within-spout CV vs shuffle); post-contact window as positive control. Limits either
    way: launch noise 5-8 deg / lick, GCaMP6s over a 250 ms window. GO given 10-30 late -> prereg
    docs/status/PRELICK_SVD_TUNING_PREREG_20261030.md + scripts/prelick_svd_tuning.py (helper).
+   DONE 10-30 late: POST positive control FAILED (2/4), PRE nominal 3/4 ipsilesional-only r ~0.05 -> NOT ESTABLISHED;
+   no post change; FINDINGS 4.23 addendum, page S25b (v293). UNREVIEWED by Priya. Open check: `_cv_r` negative bias.
 2. Figures for text-only S2 / S11 / S16? 3. Collapse S3 into the offset section? 4. Publish reembed frozen refs (local
    store, kind `reembed`) to MICROSCOPE? 5. New re-embedding prereg with spout-resolving label-free alignment?
 6. Cohort-2 design (longer pre baseline; perturbation arm) -- viral lead time means decide soon.
