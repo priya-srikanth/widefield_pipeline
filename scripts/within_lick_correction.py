@@ -692,17 +692,22 @@ def epoch_panel(ax, S, B, m, sel, color="k", row=0, off=0.0, label=None, animals
     """SESSIONS (Priya 10-30: one open marker per session, marker = animal, small deterministic jitter) + pooled level
     and 95 % CI (thick); star (top band) where the epoch's change vs pre meets the pre-registered criterion (CI excludes
     0 AND >= 3/4 animals same sign)."""
-    from wfield_local.orofacial_cohort import ANIMAL_MARKER
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     x = np.arange(len(EPS)) + off
     s = _sel(S, **sel)
     if animals:
+        # Priya 10-30: marker shape = animal, colour = the usual EPOCH colour (single-series panels); in panels with
+        # several series (hit / miss, hemispheres, sets) the series colour is kept so the series stay distinguishable
         rng = np.random.default_rng(7)
+        single = color == "k"
         for an, h in s.groupby("animal"):
             v = h.groupby(["epoch", "label"])[m].mean().dropna()
-            xi = np.array([x[EPS.index(e)] for e in v.index.get_level_values(0)], float)
+            ep_of = v.index.get_level_values(0)
+            xi = np.array([x[EPS.index(e)] for e in ep_of], float)
             xi = xi + rng.uniform(-0.05, 0.05, len(xi)) + 0.09
-            ax.plot(xi, v.to_numpy(float), ls="none", color=color, alpha=0.45, marker=ANIMAL_MARKER.get(an, "o"),
-                    ms=3.2, mfc="none", mew=0.7, zorder=2)
+            cs = [EPOCH_LINE[e] for e in ep_of] if single else [color] * len(xi)
+            ax.scatter(xi, v.to_numpy(float), s=11, facecolors="none", edgecolors=cs, alpha=0.6,
+                       marker=ANIMAL_MARKER.get(an, "o"), linewidths=0.8, zorder=2)
     b = _sel(B[B.metric == m], **sel).set_index("epoch").reindex(EPS)
     ax.errorbar(x, b.level, yerr=[b.level - b.level_lo, b.level_hi - b.level], color=color, lw=2.2, marker="o",
                 ms=5, capsize=3, label=label, zorder=4)
@@ -748,7 +753,7 @@ def fig_primary(D):
     th = D["cal"].get("theta_sp")
     fig.suptitle(_wrap(f"Fig 1. Within-lick correction at the FAR-CONTRA spout (cued post-cue licks, all orders and "
                        f"outcomes; PS92-95, August pre). Thick = pooled session level with 95 % nested bootstrap CI; "
-                       f"open markers = SESSIONS (o PS92, s PS93, ^ PS94, D PS95). Top-band * = change vs pre (CI excludes 0 "
+                       f"open markers = SESSIONS (shape = animal: o PS92, s PS93, ^ PS94, D PS95; colour = epoch). Top-band * = change vs pre (CI excludes 0 "
                        f"AND >= 3/4 animals same sign); ** = also Holm over the 9 primary tests. Angles + = "
                        f"contralesional. CSM threshold {th} mm/s speed-peak prominence (noise-calibrated on August "
                        f"pre). Dotted = pre level.", 175), fontsize=9.5)

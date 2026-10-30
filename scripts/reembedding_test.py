@@ -614,7 +614,10 @@ def draw_decoders(F: dict, path: Path, fam: str = "") -> None:
     A, lev = F["A"], F["lev"]
     eps = [e for e in EPS if (A.epoch == e).any()]
     cols = [f"{fam}{c}" for c in ("i", "ii", "iii")]
-    # SESSIONS (Priya 10-30): one marker per session, colour = animal; older figdata lacks V -> session CSV
+    # SESSIONS (Priya 10-30): one open marker per session, SHAPE = animal, COLOUR = the usual epoch colour (June = grey);
+    # older figdata lacks V -> session CSV
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    ecol = {**EPOCH_LINE, "june": "0.55"}
     V = F.get("V")
     if V is None:
         V = pd.read_csv(OUT / "reembed_sessions.csv")
@@ -625,12 +628,13 @@ def draw_decoders(F: dict, path: Path, fam: str = "") -> None:
         for ia, a in enumerate(AN):
             g = V[(V.animal == a) & V.epoch.isin(eps)].dropna(subset=[col])
             x = np.array([eps.index(e) for e in g.epoch], float) - 0.2 + 0.08 * ia + rng.uniform(-0.02, 0.02, len(g))
-            ax.plot(x, g[col].to_numpy(float), "o", color=ACOL[a], ms=3.2, alpha=0.6, mfc="none", mew=0.8, label=a)
+            ax.scatter(x, g[col].to_numpy(float), s=13, marker=ANIMAL_MARKER[a], facecolors="none",
+                       edgecolors=[ecol[e] for e in g.epoch], linewidths=0.8, alpha=0.7)
         for j, ep in enumerate(eps):
             v = lev.get((col, ep))
             if v:
-                ax.errorbar(j + 0.18, v[0], yerr=[[v[0] - v[1]], [v[2] - v[0]]], fmt="s", color="k", ms=6, capsize=3,
-                            zorder=5)
+                ax.errorbar(j + 0.18, v[0], yerr=[[v[0] - v[1]], [v[2] - v[0]]], fmt="o", color=ecol[ep], mfc=ecol[ep],
+                            mec="k", ms=7, capsize=3, zorder=5)
         ax.axhline(0, color="0.7", lw=0.8, ls=":")
         T = F["T"]
         for j, ep in enumerate(eps):
@@ -641,11 +645,15 @@ def draw_decoders(F: dict, path: Path, fam: str = "") -> None:
         ax.set_title(DEC[k_] if k_ != "ii" else "(ii) aligned (CCA, label-free)", fontsize=10)
     axs[0].set_ylabel("spout decoding, balanced accuracy\nabove chance" if fam != "s_" else "r (decoded vs landing)")
     _reserve(fig)
-    fig.legend(*axs[0].get_legend_handles_labels(), loc="lower center", ncol=5, fontsize=8, frameon=False,
+    from matplotlib.lines import Line2D
+    hl = [Line2D([], [], ls="none", marker=ANIMAL_MARKER[a], mfc="none", mec="0.3", label=a) for a in AN]
+    hl += [Line2D([], [], ls="none", marker="o", color=ecol[e], mec="k", label=("June" if e == "june" else e) +
+                  " (pooled)") for e in eps]
+    fig.legend(handles=hl, loc="lower center", ncol=len(hl), fontsize=8, frameon=False,
                bbox_to_anchor=(0.5, -0.01))
     fam_txt = {"": "first-lick window", "c_": "cue window", "s_": "landing side_ml (ridge r)"}[fam]
     fig.suptitle(f"Re-embedding test: three decoders on each session ({fam_txt}; kinematics-matched first licks)\n"
-                 "open circles = sessions (colour = animal); black = pooled level (boot_ci); * = change vs pre->pre (boot_delta, CI excl. 0, "
+                 "open markers = sessions (shape = animal, colour = epoch); filled = pooled level (boot_ci); * = change vs pre->pre (boot_delta, CI excl. 0, "
                  ">= 3/4 animals)", fontsize=9)
     fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(path, dpi=150, bbox_inches="tight")
