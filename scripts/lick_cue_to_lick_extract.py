@@ -31,7 +31,7 @@ import restnl  # noqa: E402
 
 OUT = il.OUT_W / "cue_to_lick"
 SESS = OUT / "sessions"
-SESS_NL = OUT / "sessions_restnl"
+SESS_NL = OUT / restnl.cache("sessions_restnl")   # per RESTnl rule (strict = sessions_restnl, wr = _wr)
 VERSION = 1
 DT = 0.025
 LAGS_C = np.round(np.arange(-3.0, 4.0 + 1e-9, DT), 4)
@@ -145,7 +145,7 @@ def session_worker_restnl(label: str) -> dict:
         if int(z["version"]) == VERSION:
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
-    src = np.load(il.OUT_W / "precue_restnl" / f"{label}.npz")
+    src = np.load(il.OUT_W / restnl.cache("precue_restnl") / f"{label}.npz")
     old = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
     d = il._load(label)
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)

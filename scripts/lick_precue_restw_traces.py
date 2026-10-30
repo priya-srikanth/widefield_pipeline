@@ -59,7 +59,7 @@ def session_worker_restnl(label: str) -> dict:
     return _session(label, CACHE_NL, SRC_NL)
 
 
-CACHE_NL, SRC_NL = "precue_restnl_traces", "precue_restnl"
+CACHE_NL, SRC_NL = restnl.cache("precue_restnl_traces"), restnl.cache("precue_restnl")   # per RESTnl rule
 
 
 def _cache(var: str) -> str:

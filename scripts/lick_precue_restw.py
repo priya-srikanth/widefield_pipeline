@@ -67,7 +67,7 @@ def session_worker_restnl(label: str) -> dict:
 
 
 def _cache(var: str) -> str:
-    return CACHE if var == "restw" else "precue_restnl"
+    return CACHE if var == "restw" else restnl.cache("precue_restnl")   # strict rule = precue_restnl, wr = _wr
 
 
 def _session(label: str, var: str) -> dict:
