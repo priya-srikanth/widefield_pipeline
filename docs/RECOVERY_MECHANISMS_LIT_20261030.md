@@ -43,6 +43,15 @@ deficient direction is rightward, driven by the LEFT VLS -> left SNr -> LEFT lat
 | E. (left cortex, for contrast) left ALM PT -> left lSC / brainstem, bypassing the left striatum | direct contraversive drive | the IPSILESIONAL hemisphere gains weight; the balance should shift ipsilesionally | the chronic within-spout balance shifts the OTHER way (contralesional), so this route is not the main signature |
 | Null: reafference / state | ipsilesional landings touch a different part of the tongue / mouth, plus arousal | the asymmetry is contact- / landing-locked, strongest in SSp | partly excluded: as large on misses, FaceRhythm partialled out; but the cued balance is largely the landing error (10-29), and the imbalance is strongest in SSp-n |
 
+**Route D has a direct anatomical basis (Priya 10-30): ALM projects directly to brainstem premotor neurons on BOTH
+sides.** (Exact citation to add.) So right ALM already reaches the premotor neurons for rightward licks without crossing
+the damaged BG-SC loop. Recovery through D would then be **strengthening of an existing, normally weak ipsiversive
+pathway, not new wiring**. That is Makin & Krakauer's "potentiation of latent circuits", and it predicts that the
+contralesional code is a re-weighting of the old one (re-embedding test, 2.3). Sharpened predictions: the contralesional
+shift sits in ALM (and tjM1) BEFORE launch, is coupled trial-by-trial to rightward launch angle and jaw steering, and is
+largest for far-contra targets. Cohort 2 causal test: silence the right ALM -> medulla projection (retrograde Cre from
+the medulla + inhibitory DREADD in right ALM) before vs after recovery.
+
 **Discriminating analyses (cohort 1, cortical side only):**
 - Per hemisphere, the within-spout slope of PRE-launch activity on launch angle (ipsiversive vs contraversive tuning)
   by epoch. A-D predict the right hemisphere gains IPSIVERSIVE (rightward) tuning chronically. Post-contact-only
