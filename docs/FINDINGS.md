@@ -652,6 +652,11 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   epoch (gain / projection loss). Asymmetry = the null's. Axis cosine needs 20-40 deg (unusable for ITI). Proposed
   reading: cued unchanged within ~10 deg; ITI not re-mapped beyond ~10-15 deg, small acute rotation-like change beyond
   2-month drift + lasting gain loss. (Pending Priya's discussion.)
+  ENLv + ALL-TYPES SUMMARY 10-29 (lick_code_rotation_summary.png, Fig 14.18 S7): vs the noise-matched null (NOT June:
+  Priya: June->Aug not a clean no-stroke reference, room move + other rig): cued first at the null (0-11 deg); ITI all below
+  4/4 (~12-17 deg); ENLv forward at the null, backward -0.05 (~10 deg, at the detection limit); ENLv axis cosine / subspace
+  below the null 4/4 (implied ~30-37 deg, detectable only >17-43 deg). ENLv offset +0.50/+0.33/+0.23 mm (4/4), gain -0.09
+  chronic. Below the null = more than added noise, not necessarily rotation.
   Where: ITI excess over ceiling in orofacial cortex bilateral acutely, IPSILESIONAL chronically (SSp-n, SSs, tjM1,
   SSp-m); non-orofacial change = June-level drift. Caveats: PS95 one acute session; PS94 cued acute 16 % retained; area
   terms point estimates. PROVISIONAL.

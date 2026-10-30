@@ -57,13 +57,17 @@ matching (secondary).
 Per-animal tables FIRST (rule 8), pooled after. Per-session loads: analysis_kit.fan_sessions (<= 4 workers).
 Outputs <OUT_W>/lick_code_subspace/*.csv (+ licks_cache.pkl, figdata/*.pkl); figures <OUT_W>/figures/
 lick_code_subspace_{axes,transfer,drift,areas}.png.
+ENLv LICKS (Priya 10-29): LICK_CODE_FAMILY=enlv -> sets enlv_on1 (primary) / enlv_bout (bout starts), epochs acute /
+subacute / chronic (no June ENLv), every output file name suffixed _enlv (see FAMILY below).
 Usage: python scripts/lick_code_subspace.py [--jobs 4] [--reload]      (compute + figures)
+       LICK_CODE_FAMILY=enlv python scripts/lick_code_subspace.py [--jobs 4]   (ENLv licks)
        python scripts/lick_code_subspace.py --plot-only                (redraw from figdata)
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import pickle
 import sys
 import textwrap
@@ -94,9 +98,28 @@ K_SUB = 2
 OUT = il.OUT_W / "lick_code_subspace"
 FIGD = OUT / "figdata"
 FIG = il.OUT_W / "figures"
-CACHE = OUT / "licks_cache.pkl"
 ALPHAS = np.logspace(-1, 5, 13)
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
+# LICK FAMILY (env LICK_CODE_FAMILY, read at import so spawned workers inherit it). "" = cued + ITI (the published run,
+# file names unchanged). "enlv" = ENLv licks (Priya 10-29; ENL-violation: cam4 pre_cue licks, spout stationary at the
+# trial's position, no cue / reward; NEVER called ITI): enlv_on1 = PRIMARY (onset >= 1 s after spout arrival, lick window
+# ends before the cue, lick_enlv_balance_offset.select 'on1'), enlv_bout = its bout starts ('on1_clean': clean_start,
+# >= 1 s since any lick). Same features (lick_enlv_extract Xdec = the 0..0.2 s decoder window, area_features / area SD),
+# y = 3-D side_ml, spout = the trial's position. No June ENLv extraction -> epochs acute / subacute / chronic only.
+# Every output file gets the suffix _enlv (nothing of the cued / ITI run is overwritten); frozen decoders kind
+# 'lick_code', align = the set name.
+FAMILY = os.environ.get("LICK_CODE_FAMILY", "")
+if FAMILY not in ("", "enlv"):
+    raise SystemExit(f"LICK_CODE_FAMILY={FAMILY!r}: use '' or 'enlv'")
+SFX = f"_{FAMILY}" if FAMILY else ""
+if FAMILY == "enlv":
+    EP = ["acute", "subacute", "chronic"]
+    EPS = ["pre", *EP]
+    SETS = {"enlv_on1": "ENLv licks (onset >= 1 s after arrival)",
+            "enlv_bout": "ENLv bout starts (>= 1 s since any lick)"}
+    SET_COL = {"enlv_on1": "#7570b3", "enlv_bout": "#8c2d04"}
+    ENLV_VARIANT = {"enlv_on1": "on1", "enlv_bout": "on1_clean"}
+CACHE = OUT / f"licks_cache{SFX}.pkl"
 
 
 def W(s: str, n: int = 95) -> str:
@@ -178,11 +201,64 @@ def _session(item):
     return pd.concat(out_rows, ignore_index=True), np.vstack(out_X), names
 
 
+def _enlv_session(label: str):
+    """label -> (lick_uid, z-scored decoder features (n, F), names): lick_enlv_extract sessions/<label>.npz Xdec (raw,
+    0..0.2 s after the lick peak) in the split area basis / the session's frame SD -- exactly lick_enlv_balance_offset.table
+    (which builds the frozen ENLv readers). Module-level for fan_sessions."""
+    import iti_where_decoder as wd
+    import lick_enlv_extract as ex
+    names, SD = wd.area_meta(basis="split")
+    z = np.load(ex.SESS / f"{label}.npz")
+    cols = [str(c) for c in z["cols"]]
+    Xd = il.area_features(z["Xdec"].astype(float), cols, label) / SD.loc[label, names].to_numpy(float)[None, :]
+    return z["lick_uid"].astype(int), Xd, list(names)
+
+
+def _load_enlv(jobs: int):
+    """ENLv lick sets in the load() format (L rows: set, animal, label, epoch, day, pos, order, t, y; X features)."""
+    import lick_enlv_balance_offset as bo
+
+    from wfield_local.epochs import days_since_stroke
+    T = pd.read_csv(bo.OUT / "enlv_table.csv.gz")
+    for c in ("first", "clean_start", "contact"):
+        T[c] = T[c].astype(bool)
+    labs = sorted(T.label.unique())
+    res, fails = ak.fan_sessions(labs, _enlv_session, jobs=jobs, key=lambda s: s, label="lick_code_subspace enlv load")
+    if fails:
+        raise RuntimeError(f"failed sessions: {[f[0] for f in fails][:5]} {fails[0][1]}")
+    feats = dict(res)
+    Ls, Xs, names = [], [], None
+    for st, v in ENLV_VARIANT.items():
+        m = bo.select(T, v) & np.isfinite(T.act) & T.pos.isin(POS)
+        for lab, g in T[m].groupby("label", sort=True):
+            uid, Xd, names = feats[lab]
+            row = pd.Series(np.arange(len(uid)), index=uid).reindex(g.lick_uid.to_numpy(int)).to_numpy()
+            if np.isnan(row.astype(float)).any():
+                raise RuntimeError(f"{lab}: ENLv lick_uid missing from sessions/{lab}.npz")
+            Xg = Xd[row.astype(int)]
+            ok = np.isfinite(Xg).all(1)
+            g = g[ok]
+            day = days_since_stroke(lab)
+            Ls.append(pd.DataFrame({"set": st, "animal": g.animal.to_numpy(), "label": lab, "epoch": g.epoch.to_numpy(),
+                                    "day": day if day is not None else np.nan, "pos": g.pos.to_numpy(),
+                                    "order": g["rank"].to_numpy(float), "t": g.peak.to_numpy(float),
+                                    "y": g.act.to_numpy(float)}))
+            Xs.append(Xg[ok])
+    L = pd.concat(Ls, ignore_index=True)
+    X = np.vstack(Xs)
+    OUT.mkdir(parents=True, exist_ok=True)
+    with open(CACHE, "wb") as f:
+        pickle.dump({"L": L, "X": X, "names": list(names)}, f)
+    return L, X, list(names)
+
+
 def load(jobs: int, reload: bool = False):
     if CACHE.exists() and not reload:
         with open(CACHE, "rb") as f:
             c = pickle.load(f)
         return c["L"], c["X"], c["names"]
+    if FAMILY == "enlv":
+        return _load_enlv(jobs)
     import iti_where_decoder as wd
     labs = [(x, "") for x in wd.sess_labels(None)] + [(x, str(JUNE_DIR)) for x in wd.sess_labels(JUNE_DIR)]
     res, fails = ak.fan_sessions(labs, _session, jobs=jobs, key=lambda s: s[0], label="lick_code_subspace load")
@@ -639,8 +715,8 @@ def june_contrasts() -> pd.DataFrame:
     """POST epoch vs the JUNE no-stroke reference (both scored against the same August pre): is the post change beyond
     ~2 months of no-stroke drift? Session-level axis measures (session_axes.csv) and pre->X transfer metrics
     (transfer_sessions.csv, matched licks), boot_delta(post sessions, June sessions), animal-paired. From the CSVs."""
-    S = pd.read_csv(OUT / "session_axes.csv")
-    T = pd.read_csv(OUT / "transfer_sessions.csv")
+    S = pd.read_csv(OUT / f"session_axes{SFX}.csv")
+    T = pd.read_csv(OUT / f"transfer_sessions{SFX}.csv")
     T = T[(T.licks == "matched") & (T.direction == "pre->post")].rename(columns={"test_epoch": "epoch"})
     out = []
     for src, tab, cols in (("session_axis", S, ["cos", "gain"]), ("pre->X transfer", T, ["r", "slope", "intercept"])):
@@ -663,7 +739,7 @@ def june_contrasts() -> pd.DataFrame:
                                 "n_same_sign": int(sum(np.sign(v) == np.sign(pt) for v in d.values())), "n": len(d),
                                 **{f"d_{a}": d.get(a, np.nan) for a in AN}})
     J = pd.DataFrame(out)
-    J.to_csv(OUT / "vs_june_tests.csv", index=False)
+    J.to_csv(OUT / f"vs_june_tests{SFX}.csv", index=False)
     print("\n== POST vs JUNE no-stroke reference (boot_delta, animal-paired)")
     print(J.round(3).to_string(index=False))
     return J
@@ -676,27 +752,28 @@ def run(jobs: int, reload: bool):
     E_, S_, TM, TR, DRIFT, RET = compute(L, X, names)
     OUT.mkdir(parents=True, exist_ok=True)
     FIGD.mkdir(parents=True, exist_ok=True)
-    RET.to_csv(OUT / "retained.csv", index=False)
-    E_.to_csv(OUT / "epoch_axes_animals.csv", index=False)
-    S_.to_csv(OUT / "session_axes.csv", index=False)
-    TR.to_csv(OUT / "transfer_sessions.csv", index=False)
+    RET.to_csv(OUT / f"retained{SFX}.csv", index=False)
+    E_.to_csv(OUT / f"epoch_axes_animals{SFX}.csv", index=False)
+    S_.to_csv(OUT / f"session_axes{SFX}.csv", index=False)
+    TR.to_csv(OUT / f"transfer_sessions{SFX}.csv", index=False)
     TA = transfer_animals(TR)
-    TA.to_csv(OUT / "transfer_animals.csv", index=False)
+    TA.to_csv(OUT / f"transfer_animals{SFX}.csv", index=False)
     TT = transfer_tests(TR)
-    TT.to_csv(OUT / "transfer_tests.csv", index=False)
+    TT.to_csv(OUT / f"transfer_tests{SFX}.csv", index=False)
     SP = pooled_session(S_, ["cos", "gain", "cos_floor", "drift_resid"])
-    SP.to_csv(OUT / "session_axes_tests.csv", index=False)
+    SP.to_csv(OUT / f"session_axes_tests{SFX}.csv", index=False)
     A, AP = area_tables(TM, names)
-    A.to_csv(OUT / "area_terms_animals.csv", index=False)
-    AP.to_csv(OUT / "area_terms_pooled.csv", index=False)
+    A.to_csv(OUT / f"area_terms_animals{SFX}.csv", index=False)
+    AP.to_csv(OUT / f"area_terms_pooled{SFX}.csv", index=False)
     D = pd.DataFrame([{"set": st, "animal": a, "m_pre": d["m"], "c0_pre": d["c0"], "gap_max_pre": d["gap_max_pre"],
                        "n_pairs_pre": len(d["pairs_pre"])} for (st, a), d in DRIFT.items()])
-    D.to_csv(OUT / "drift_lines.csv", index=False)
-    with open(FIGD / "lick_code_subspace.pkl", "wb") as f:
+    D.to_csv(OUT / f"drift_lines{SFX}.csv", index=False)
+    with open(FIGD / f"lick_code_subspace{SFX}.pkl", "wb") as f:
         pickle.dump({"E": E_, "S": S_, "SP": SP, "TR": TR, "TA": TA, "TT": TT, "A": A, "AP": AP, "DRIFT": DRIFT,
                      "names": names}, f)
     report(E_, SP, TA, TT, AP, D, RET)
-    june_contrasts()
+    if "june" in EP:
+        june_contrasts()
     figures()
     print(f"total runtime {time.time() - t0:.0f} s", flush=True)
 
@@ -733,7 +810,7 @@ def figures():
     import matplotlib.pyplot as plt
     from wfield_local.epoch_figures import EPOCH_GREY as _EG
     EPOCH_GREY = {**_EG, "june": "#6baed6"}
-    with open(FIGD / "lick_code_subspace.pkl", "rb") as f:
+    with open(FIGD / f"lick_code_subspace{SFX}.pkl", "rb") as f:
         F = pickle.load(f)
     E_, TA, DRIFT, AP, S_ = F["E"], F["TA"], F["DRIFT"], F["AP"], F["S"]
     FIG.mkdir(parents=True, exist_ok=True)
@@ -742,7 +819,7 @@ def figures():
     # ---- axes figure
     meas = [("enc", "encoding axis cosine (pre vs post)"), ("gain", "gain along the pre axis (1 = unchanged)"),
             ("sub", "6-spout class-mean subspace overlap (k = 2)"), ("ridge", "ridge decoder-weight cosine")]
-    fig, axs = plt.subplots(len(meas), 3, figsize=(15, 3.3 * len(meas)), squeeze=False)
+    fig, axs = plt.subplots(len(meas), len(SETS), figsize=(5 * len(SETS), 3.3 * len(meas)), squeeze=False)
     m = E_[E_.licks == "matched"]
     for j, st in enumerate(SETS):
         for i, (kk, lab) in enumerate(meas):
@@ -775,13 +852,13 @@ def figures():
                    "slope per mm of lateral lick position (session fixed effects); gain = post slope along the pre axis.",
                    150), fontsize=10)
     fig.tight_layout(rect=(0, 0.04, 1, 0.94))
-    fig.savefig(FIG / "lick_code_subspace_axes.png", dpi=130)
+    fig.savefig(FIG / f"lick_code_subspace_axes{SFX}.png", dpi=130)
     plt.close(fig)
 
     # ---- transfer figure
     dirs = [("prepre", "pre->pre (LOSO)", "#c9c9c9"), ("prepost", "pre->post (frozen)", "#2c7fb8"),
             ("postpre", "post->pre", "#e08214"), ("postpost", "post->post (within)", "#4d4d4d")]
-    fig, axs = plt.subplots(3, 3, figsize=(15, 10), squeeze=False)
+    fig, axs = plt.subplots(3, len(SETS), figsize=(5 * len(SETS), 10), squeeze=False)
     T = TA[TA.licks == "matched"]
     for j, st in enumerate(SETS):
         for i, met in enumerate(("r", "slope", "intercept")):
@@ -792,7 +869,7 @@ def figures():
                     h = g[g.epoch == ep]
                     xx = x0[ep] - 0.3 + 0.2 * k
                     v = h[f"{met}_{dk}"].to_numpy(float)
-                    ax.bar(xx, np.nanmean(v), 0.18, color=col, edgecolor="k", lw=0.5, label=dl if ep == "acute" else None)
+                    ax.bar(xx, np.nanmean(v), 0.18, color=col, edgecolor="k", lw=0.5, label=dl if ep == EP[0] else None)
                     for a, vv in zip(h.animal, v):
                         ax.plot(xx, vv, MARK[a], color="w", mec="k", ms=4)
             ax.set_xticks(range(len(EP)), EP)
@@ -805,11 +882,11 @@ def figures():
                    "over animals, markers = animals; matched licks. Re-map = low transfer both ways with intact within; "
                    "offset / gain = high r with shifted intercept / slope.", 150), fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))
-    fig.savefig(FIG / "lick_code_subspace_transfer.png", dpi=130)
+    fig.savefig(FIG / f"lick_code_subspace_transfer{SFX}.png", dpi=130)
     plt.close(fig)
 
     # ---- drift figure
-    fig, axs = plt.subplots(3, 4, figsize=(16, 10), squeeze=False)
+    fig, axs = plt.subplots(len(SETS), 4, figsize=(16, 3.4 * len(SETS)), squeeze=False)
     for j, st in enumerate(SETS):
         for k, a in enumerate(AN):
             ax = axs[j, k]
@@ -836,11 +913,11 @@ def figures():
                    "elapsed days. Red = the animal's pre-stroke drift line; dotted = longest pre-pre gap (beyond it the "
                    "line is extrapolated).", 150), fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))
-    fig.savefig(FIG / "lick_code_subspace_drift.png", dpi=130)
+    fig.savefig(FIG / f"lick_code_subspace_drift{SFX}.png", dpi=130)
     plt.close(fig)
 
     # ---- areas figure: excess term per area x hemisphere
-    fig, axs = plt.subplots(3, 1, figsize=(15, 11), squeeze=False)
+    fig, axs = plt.subplots(len(SETS), 1, figsize=(15, 3.7 * len(SETS)), squeeze=False)
     feats = sorted(AP.feature.unique(), key=lambda n: (n.rsplit("_", 1)[0], n.rsplit("_", 1)[1]))
     areas = sorted({f.rsplit("_", 1)[0] for f in feats})
     for j, st in enumerate(SETS):
@@ -862,7 +939,7 @@ def figures():
         fig.colorbar(im, ax=ax, fraction=0.02)
     fig.suptitle(W("Where does the encoding-axis change live? Mean over animals, matched licks.", 150), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(FIG / "lick_code_subspace_areas.png", dpi=130)
+    fig.savefig(FIG / f"lick_code_subspace_areas{SFX}.png", dpi=130)
     plt.close(fig)
     _ = S_
     print("figures written", flush=True)

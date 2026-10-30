@@ -55,6 +55,8 @@ TESTS.
     theta_June + delta vs theta_June (grid), post structure.
 Outputs <OUT_W>/lick_code_noisematch/*.csv + figdata/noisematch.pkl; figures <OUT_W>/figures/lick_code_noisematch.png,
 lick_code_power.png. Reads lick_code_subspace/licks_cache.pkl (run lick_code_subspace.py first); writes nothing there.
+ENLv LICKS (Priya 10-29): LICK_CODE_FAMILY=enlv (run lick_code_subspace.py with it first) -> sets enlv_on1 /
+enlv_bout, epochs acute / subacute / chronic, every output file suffixed _enlv (lick_code_subspace.FAMILY).
 Usage: python scripts/lick_code_noisematch.py [--jobs 4]      (compute + figures)
        python scripts/lick_code_noisematch.py --plot-only
 """
@@ -75,7 +77,7 @@ import lick_code_subspace as lcs  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
-AN, EP, POS, SETS, W = lcs.AN, lcs.EP, lcs.POS, lcs.SETS, lcs.W
+AN, EP, POS, SETS, W, SFX = lcs.AN, lcs.EP, lcs.POS, lcs.SETS, lcs.W, lcs.SFX   # LICK_CODE_FAMILY=enlv -> ENLv
 THETAS = [0, 10, 20, 30, 45, 60, 90]
 N_REP = 6           # pre units per session (subsample + noise permutation + rotation direction)
 R_SUB = 4           # subsamples per real post session (and reps averaged per null pseudo-session)
@@ -467,8 +469,8 @@ def run(jobs):
     S = pd.concat([v[1] for _k, v in res], ignore_index=True)
     OUT.mkdir(parents=True, exist_ok=True)
     FIGD.mkdir(parents=True, exist_ok=True)
-    U.to_csv(OUT / "units.csv", index=False)
-    S.to_csv(OUT / "sigma_animals.csv", index=False)
+    U.to_csv(OUT / f"units{SFX}.csv", index=False)
+    S.to_csv(OUT / f"sigma_animals{SFX}.csv", index=False)
     print(f"cells done in {time.time() - t0:.0f} s", flush=True)
     finish(U, S)
     print(f"total runtime {time.time() - t0:.0f} s", flush=True)
@@ -480,8 +482,8 @@ def finish(U, S):
     for name, D in (("noisematch_animals", PA), ("noisematch_pooled", PP), ("power_animals", PW),
                     ("power_pooled", PWP), ("equiv_rotation", EQ), ("theta80", T80), ("power_beyond_june", BJ),
                     ("deficit_vs_june", VJ)):
-        D.to_csv(OUT / f"{name}.csv", index=False)
-    with open(FIGD / "noisematch.pkl", "wb") as f:
+        D.to_csv(OUT / f"{name}{SFX}.csv", index=False)
+    with open(FIGD / f"noisematch{SFX}.pkl", "wb") as f:
         pickle.dump({"S": S, "PA": PA, "PP": PP, "PW": PW, "PWP": PWP, "EQ": EQ, "T80": T80, "BJ": BJ, "VJ": VJ}, f)
     report(S, PA, PP, T80, EQ, BJ)
     print("\n== DEFICIT (real session minus its epoch's noise-matched null mean): post epoch vs June (boot_delta)")
@@ -554,7 +556,7 @@ def figures():
 
     from wfield_local.epoch_figures import EPOCH_GREY as _EG
     EG = {**_EG, "june": "#6baed6"}
-    with open(FIGD / "noisematch.pkl", "rb") as f:
+    with open(FIGD / f"noisematch{SFX}.pkl", "rb") as f:
         F = pickle.load(f)
     PA, PWP, T80, EQ = F["PA"], F["PWP"], F["T80"], F["EQ"]
     FIG.mkdir(parents=True, exist_ok=True)
@@ -593,7 +595,7 @@ def figures():
                    "axis cosine BELOW green; a noisier but unrotated code predicts real ~ green. Bars = mean over "
                    "animals, lines join each animal's null and real.", 170), fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))
-    fig.savefig(FIG / "lick_code_noisematch.png", dpi=120)
+    fig.savefig(FIG / f"lick_code_noisematch{SFX}.png", dpi=120)
     plt.close(fig)
 
     # ---- power figure
@@ -628,7 +630,7 @@ def figures():
                 for _, r in h.iterrows():
                     if r.animal == "pooled":
                         ax.plot(x0[ep] + off, r.theta_eq, "_", color=mc, ms=18, mew=2.5,
-                                label=f"{met} pooled" if ep == "june" else None)
+                                label=f"{met} pooled" if ep == EP[0] else None)
                     else:
                         ax.plot(x0[ep] + off + 0.05 * (AN.index(r.animal) - 1.5), r.theta_eq, lcs.MARK[r.animal],
                                 color="w", mec=mc, ms=5)
@@ -653,7 +655,7 @@ def figures():
                    "June / post transfer expressed as the injected rotation giving the same mean r.", 170),
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))
-    fig.savefig(FIG / "lick_code_power.png", dpi=120)
+    fig.savefig(FIG / f"lick_code_power{SFX}.png", dpi=120)
     plt.close(fig)
     print("figures written", flush=True)
 
@@ -667,7 +669,7 @@ def main():
     if il.ITI_SUBSET or il.AREA_BASIS != "split":
         raise SystemExit("run without WFIELD_ITI_FILTER / with the split basis")
     if a.tables_only:
-        finish(pd.read_csv(OUT / "units.csv"), pd.read_csv(OUT / "sigma_animals.csv"))
+        finish(pd.read_csv(OUT / f"units{SFX}.csv"), pd.read_csv(OUT / f"sigma_animals{SFX}.csv"))
         return
     if a.plot_only:
         figures()
