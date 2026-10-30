@@ -1398,6 +1398,18 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     response undetermined. No readout passes as following normality. The pre-vs-post classifier separates every post
     session (incl. drift) -> not used. Caveats: no no-stroke drift reference; few acute far-contra hits; permutation p
     ignores autocorrelation. **PROVISIONAL (n = 4).**
+20. **Re-embedding test: is the chronic spout code the old code re-embedded, or a new code? (10-30; Gallego 2020 /
+    Degenhart 2020; pre-registered, `docs/status/REEMBEDDING_PREREG_20261030.md`; `scripts/reembedding_test.py` ->
+    `reembedding/`). UNINFORMATIVE: the alignment failed its gate.** Spout decoding (6 classes) from k = 10 PCs of 45
+    areas, cued first licks matched to the pre kinematic range; (i) frozen pre decoder, (ii) frozen decoder after a
+    label-free CCA alignment on spout-pooled time-locked trajectories, (iii) same-session refit. **Gate G1 failed**: on
+    pre -> pre the alignment recovers only 0.29-0.45 of the frozen performance (needed >= 0.7), because spout-pooled
+    trajectories pin the shared dimensions but not the spout dimensions. So the index cannot separate re-embedding from a
+    new code. Descriptive only: the frozen-to-refit gap grows chronically (+0.18, 4/4; PS95 small) and the alignment
+    closes none of it (index 0.12 [-0.33, 0.58]); the June no-stroke reference (~60 d before pre) also opens a gap
+    (+0.076, 4/4), so roughly half of the chronic gap is drift-sized. Next (new prereg): an alignment with spout-resolving
+    but target-free correspondence (kinematics-binned or ITI trajectories, or stable-area anchors) that passes G1 first.
+    Frozen references in the local store only (kind `reembed`; publishing = Priya's call). **NOT ESTABLISHED.**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
