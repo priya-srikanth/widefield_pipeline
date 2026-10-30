@@ -27,6 +27,19 @@ corrections, with a changed jaw / tongue pattern. Dorsal cortex follows this str
 a shifted balance, a re-weighted spout code, and these changes LAST into the chronic phase. Whether cortex is NEEDED for the recovered behaviour, or only reports it, is
 not decidable from imaging. That needs a perturbation (section 3).
 
+## 1a. Outcome of analyses 2.1-2.3 (10-30 night; FINDINGS 4.19-4.21; page 14.18 S21-S23)
+- **2.1 Corrections hypothesis REJECTED.** Recovery restores the feedforward LAUNCH aim (-26 deg acute -> -3 deg chronic,
+  n.s.). Within-lick correction does not change, and corrective submovements become RARER (-0.14). The larger lick
+  response is the same on clean licks. So the working model's "biased launch fixed by corrections" is wrong: the
+  compensation is in the launch command itself (re-aimed feed-forward), with simpler licks.
+- **2.2** Hit rate returns fully. Successful licks are still less normal chronically (-0.10, 4/4; mostly PS94).
+  Restitution is as fast as task success but plateaus below pre. The frozen far-contra code on hits follows success.
+- **2.3** Uninformative: the label-free alignment failed its pre-stroke gate. About half of the chronic frozen-refit gap
+  is drift-sized (June reference).
+- Implication for 1b: whichever route restores rightward licks must act on the LAUNCH (feed-forward command) within
+  ~1-2 weeks, consistent with a pre-launch command route (D, or A / B), not a feedback / correction route (Bollu-type
+  ALM corrections, or collicular touch-guided re-aiming).
+
 ## 1b. How could more contralesional (right) cortical activity restore contralesional (rightward) licks? (Priya 10-30)
 
 Starting fact: each hemisphere's ALM / tjM1 natively drives CONTRAVERSIVE licks (Guo 2014; Li 2015; Mayrhofer 2019),
