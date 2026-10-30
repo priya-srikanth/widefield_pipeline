@@ -718,6 +718,161 @@ def draw_B_onpre(stem: str) -> None:
     plt.close(fig)
 
 
+# ------------------------------------------------------------------ SIMPLE page versions (Priya 10-29: "S12 is WAY too
+# many panels"). Plotting only, from the saved figure data; no new statistics (CIs / stars / residuals are the saved ones).
+MCOL = {"M1 accumulate-to-bound": "tab:red", "M2 fixed level": "tab:blue", "M3 delayed start": "tab:purple"}
+PRE_RANGE = (0.1, 0.6)          # where pre-stroke first-lick latencies sit (beyond it, the pre relation is extrapolated)
+
+
+def draw_threshold_simple(src: str = "lick_cue_to_lick_B_farcontra_on_pre",
+                          out: str = "lick_cue_to_lick_threshold_simple") -> None:
+    """Contralesional ALM / tjM1 / SSp-m / SSp-n POOLED (per animal x epoch x class x latency bin: mean of the four
+    areas' saved binned means; then mean of animals, bins with >= 3 animals). Level at lick, AUC, ramp slope vs latency."""
+    import matplotlib.pyplot as plt
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    F = load_fd(src, FDR)
+    BM, cols = F["BM"], F["cols"]
+    qs = ["lev_own", "AUC_own", "slope_end"]
+    b = BM[(BM.tau == 0) & BM.col.isin(cols)]
+    P = b.groupby(["animal", "epoch", "cls", "bin"]).agg(lat=("lat", "median"), nc=("col", "nunique"),
+                                                         **{q: (q, "mean") for q in qs}).reset_index()
+    P = P[P.nc == len(cols)]    # a pooled bin needs all four areas
+
+    def cohort(ep, cl, q):
+        g = P[(P.epoch == ep) & (P.cls == cl)].groupby("bin").agg(lat=("lat", "median"), v=(q, "mean"),
+                                                                  n=("animal", "nunique"))
+        return g[g.n >= 3]
+    ylab = {"lev_own": "(a) LEVEL AT THE LICK\nabove own pre-cue (dF/F x1e3)",
+            "AUC_own": "(b) AUC cue -> lick above own pre\n(dF/F x1e3 * s)",
+            "slope_end": "(c) ramp slope cue -> lick\n(level / latency, per s; log)"}
+    xlo, xhi = 0.07, 3.0
+    fig, axs = plt.subplots(1, len(qs), figsize=(13.5, 4.6), layout="constrained")
+    for ax, q in zip(axs, qs):
+        ax.axvspan(PRE_RANGE[1], xhi, color="0.93", zorder=0, lw=0)
+        ax.axhline(0, color="0.7", lw=0.5)
+        for _an, g in P[(P.epoch == "pre") & (P.cls == "all")].groupby("animal"):
+            v = g[q].where(g[q] > 0) if q == "slope_end" else g[q]
+            ax.plot(g.lat, v, "-", color="k", lw=0.7, alpha=0.3)
+        for ep in POST:
+            c = cohort(ep, "all", q)
+            ax.plot(c.lat, c.v, "-o", color=EPOCH_LINE[ep], lw=1.4, ms=3, label=f"{ep}, all spouts")
+        fc = P[(P.epoch == "acute") & (P.cls == "far_contra")]
+        ax.plot(fc.lat, fc[q].where(fc[q] > 0) if q == "slope_end" else fc[q], "o", mfc="none",
+                mec=EPOCH_LINE["acute"], ms=3.5, mew=0.6, alpha=0.6, label="acute far contra, per animal")
+        c = cohort("acute", "far_contra", q)
+        ax.plot(c.lat, c.v, "--o", color=EPOCH_LINE["acute"], mfc="white", lw=1.6, ms=4.5,
+                label="acute far contra, mean")
+        pm = cohort("pre", "all", q)
+        ax.plot(pm.lat, pm.v, "-o", color="k", lw=2.4, ms=4, label="pre-stroke, all spouts", zorder=5)
+        if len(pm) and np.isfinite(pm.v).any():   # model predictions scaled through the pre curve at its median latency
+            k = int(np.argmin(np.abs(np.log(pm.lat) - np.log(pm.lat.median()))))
+            L0, V0 = pm.lat.iloc[k], pm.v.iloc[k]
+            xx = np.geomspace(xlo, xhi, 50)
+            for m, be in PRED[q].items():
+                ax.plot(xx, V0 * (xx / L0) ** be, color=MCOL[m], lw=1.3, ls=":", label=m)
+        ax.set_xscale("log")
+        ax.set_xlim(xlo, xhi)
+        if q == "slope_end":
+            ax.set_yscale("log")
+        ax.set_xticks([0.1, 0.2, 0.5, 1, 2], ["0.1", "0.2", "0.5", "1", "2"])
+        ax.set_xlabel("first-lick latency (s, log)", fontsize=8)
+        ax.set_ylabel(ylab[q], fontsize=8)
+        ax.tick_params(labelsize=7)
+        ax.set_title("predicted exponent (quantity ~ latency^b): " + ", ".join(
+            f"{m.split()[0]} {be:+d}" for m, be in PRED[q].items()), fontsize=7.5)
+        ax.text(0.98, 0.98, "beyond pre\nlatency range", transform=ax.transAxes, ha="right", va="top", fontsize=7,
+                color="0.4")
+    for ax, q in zip(axs, qs):   # the extended M1 curve can run off scale: keep the data's range
+        d = np.concatenate([ln.get_ydata() for ln in ax.lines if ln.get_linestyle() != ":"
+                            and len(np.atleast_1d(ln.get_ydata())) > 2]).astype(float)
+        d = d[np.isfinite(d)]
+        if q == "slope_end":
+            d = d[d > 0]
+            ax.set_ylim(d.min() / 1.6, d.max() * 1.6)
+        elif d.size:
+            pad = 0.12 * (d.max() - d.min())
+            ax.set_ylim(min(0, d.min()) - pad, d.max() + 2.2 * pad)
+    h, lab = axs[0].get_legend_handles_labels()
+    fig.legend(h, lab, loc="outside lower center", ncol=4, fontsize=8, frameon=False)
+    O = F["OPL"]
+    o = O[(O.tau == 0) & (O.ref == "all") & (O.epoch == "acute") & (O.speed == "slow>0.5") & O.col.isin(cols)]
+    def _rs(q):
+        r = o[o.q == q].set_index("col").reindex(cols)
+        return ", ".join(f"{c.split('_')[0]} {v.res:+.1f}{'*' if v.lo > 0 or v.hi < 0 else ''}" for c, v in r.iterrows())
+    fig.suptitle(_wrap(
+        "Cue -> first lick is NOT accumulation to a bound (M1): the LEVEL AT THE LICK does not fall with latency (a; M1 "
+        "predicts 1/latency) and the ramp slope falls ~1/latency, not 1/latency^2 (c). The AUC stays small and flat "
+        "instead of growing with latency (b), which also fails M2 (a ramp from the cue to a fixed level); a DELAYED START "
+        "of a fixed trajectory (M3) fits all three. Slow acute far-contra licks reach the pre level at the lick but "
+        "with LESS area (residual from each area's own pre relation, acute far contra > 0.5 s, level: " + _rs("lev_own")
+        + "; AUC: " + _rs("AUC_own") + "; * = CI excludes 0, c2l_B_onpre_summary.csv). "
+        "NEURAL, contralesional ALM, tjM1, SSp-m, SSp-n POOLED (mean of the four areas per animal x latency bin), "
+        "baseline = the trial's own pre-cue level (-0.5..0 s), raw GCaMP6s dF/F (slow, lagged). Thin black = pre per "
+        "animal, thick = mean of animals (bins >= 3 animals); dotted = models scaled through the pre curve at its median "
+        "latency. CAVEAT: pre-stroke latencies sit at ~0.1-0.6 s, so the grey region (and every slow-trial comparison) extrapolates the pre relation. PROVISIONAL, n = 4 mice.", 13.5, 9), fontsize=9)
+    FIGS.mkdir(parents=True, exist_ok=True)
+    fig.savefig(FIGS / f"{out}.png", dpi=120, bbox_inches="tight")
+    plt.close(fig)
+
+
+def draw_A_simple(src: str = "lick_cue_to_lick_A_level_contra", out: str = "lick_cue_to_lick_A_level_simple") -> None:
+    """Change vs pre of the mean cue->lick level (above RESTW): key areas x {all spouts, far contra}; contra filled,
+    ipsi open; per-animal dots, saved boot_delta point + CI, stars."""
+    import matplotlib.pyplot as plt
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    F = load_fd(src, FDR)
+    D, acol = F["D"], F["acol"]
+    ans = sorted(acol)
+    rows = [("all", "all spouts"), ("far_contra", "far contra only")]
+    fig, axs = plt.subplots(len(rows), len(KEY), figsize=(12, 6.4), sharey="row", squeeze=False, layout="constrained")
+    for i, (p, pl) in enumerate(rows):
+        for j, a in enumerate(KEY):
+            ax = axs[i, j]
+            ax.axhline(0, color="0.6", lw=0.6)
+            for h, off, filled in (("right", -0.17, True), ("left", 0.17, False)):
+                dd = D[(D.col == f"{a}_{h}") & (D.pos == p)].set_index("epoch").reindex(POST)
+                for x, (E, r) in enumerate(dd.iterrows()):
+                    if not np.isfinite(r.delta):
+                        continue
+                    xc = x + off
+                    for k, an in enumerate(ans):
+                        v = r.get(f"d_{an}")
+                        if v is not None and np.isfinite(v):
+                            ax.plot(xc + 0.035 * (k - 1.5), v, "o", ms=3.2, color=acol[an],
+                                    mfc=acol[an] if filled else "none", mew=0.8, alpha=0.85)
+                    ax.errorbar(xc, r.delta, yerr=[[r.delta - r.lo], [r.hi - r.delta]], fmt="s", ms=6, capsize=3,
+                                color=EPOCH_LINE[E], mfc=EPOCH_LINE[E] if filled else "white", mew=1.4, lw=1.4, zorder=4)
+                    if r.sig:
+                        ax.text(xc, 1.0, "*" if not r.flag_lt3 else "(*)", ha="center", va="bottom", fontsize=11,
+                                color=EPOCH_LINE[E], transform=ax.get_xaxis_transform(), clip_on=False)
+            ax.set_xticks(range(len(POST)), POST, fontsize=7)
+            ax.set_xlim(-0.55, len(POST) - 0.45)
+            ax.tick_params(labelsize=7)
+            if i == 0:
+                ax.set_title(a, fontsize=10, pad=14)
+            if j == 0:
+                ax.set_ylabel(f"{pl.upper()}\nchange vs pre, mean cue->lick\nabove RESTW (dF/F x1e3)", fontsize=8)
+    hs = [plt.Line2D([], [], color=c, marker="o", ls="", ms=4, label=an) for an, c in sorted(acol.items())]
+    hs += [plt.Line2D([], [], color="0.3", marker="s", ls="", ms=6, label="contralesional (filled)"),
+           plt.Line2D([], [], color="0.3", marker="s", mfc="white", ls="", ms=6, label="ipsilesional (open)")]
+    fig.legend(handles=hs, loc="outside lower center", ncol=len(hs), fontsize=8, frameon=False)
+    fig.suptitle(_wrap(
+        "NEURAL, baseline = session RESTW: change from pre of the mean dF/F from the cue to the first lick (ENGAGED "
+        "trials with an in-window first lick), orofacial areas; contralesional (left of each pair, filled) and "
+        "ipsilesional (right, open). Dots = per-animal change (colour = animal); square + bar = paired nested bootstrap "
+        "point and 95% CI (analysis_kit.boot_delta, animals > sessions); * = CI excludes 0, (*) = significant but fewer "
+        "than 3 animals share the sign. Not latency-matched (slower post-stroke licks lengthen the window). "
+        "PROVISIONAL, n = 4 mice.", 12, 9), fontsize=9)
+    FIGS.mkdir(parents=True, exist_ok=True)
+    fig.savefig(FIGS / f"{out}.png", dpi=120, bbox_inches="tight")
+    plt.close(fig)
+
+
+def draw_simple() -> None:
+    draw_threshold_simple()
+    draw_A_simple()
+
+
 DOT_STEMS = ([f"lick_cue_to_lick_A_level_{h}" for h in ("contra", "ipsi")]
              + [f"lick_cue_to_lick_A_level_own_{h}" for h in ("contra", "ipsi")]
              + [f"lick_cue_to_lick_A_level_matched_{E}_{h}" for E in POST for h in ("contra", "ipsi")]
@@ -736,6 +891,7 @@ def main() -> int:
             for cl in ("all", "far_contra"):
                 draw_B_exp(f"lick_cue_to_lick_B_exponents_{cl}{tg}")
         draw_B_onpre("lick_cue_to_lick_B_farcontra_on_pre")
+        draw_simple()
         return 0
     jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 4
     T, TPL, meta = build(jobs)
@@ -755,6 +911,7 @@ def main() -> int:
     FIGS.mkdir(parents=True, exist_ok=True)
     figs_AC(A, C)
     figs_B(T, TPL, B)
+    draw_simple()
     return 0
 
 

@@ -212,10 +212,72 @@ def draw_decomp(stem: str) -> None:
     plt.close(fig)
 
 
+SIMPLE_ROWS = ["tjM1_right", "SSp-m_right", "SSp-n_right", "ALM_right", "SSp-bfd_right", "VISp_right"]
+SIMPLE_COMP = ["raw", "restw", "rel"]
+
+
+def draw_decomp_simple(src: str = "lick_cue_to_lick_D_decomposition", out: str = "lick_cue_to_lick_D_simple") -> None:
+    """Page version of the decomposition (Priya 10-29, 'too many panels'): contralesional rows, three components
+    (raw = rel + restw); saved per-animal changes and the saved boot_delta point / CI / stars; F0 quoted in the title."""
+    import matplotlib.pyplot as plt
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    F = load_fd(src, FDR)
+    PA, D, acol = F["PA"], F["D"], F["acol"]
+    rows = [c for c in SIMPLE_ROWS if c in F["cols"]]
+    fig, axs = plt.subplots(len(rows), len(SIMPLE_COMP), figsize=(8.4, 1.75 * len(rows) + 0.6), squeeze=False,
+                            sharey="row", layout="constrained")
+    for i, c in enumerate(rows):
+        for j, k in enumerate(SIMPLE_COMP):
+            ax = axs[i, j]
+            ax.axhline(0, color="0.6", lw=0.6)
+            if (c, k) in PA.index:
+                t = PA.loc[(c, k)].reindex(columns=POST)
+                for a_i, (an, r) in enumerate(t.iterrows()):
+                    ax.plot(np.arange(len(POST)) - 0.12 + 0.03 * (a_i - 1.5), r.to_numpy(float), "o", ms=3.2,
+                            color=acol.get(an, "0.5"), alpha=0.9)
+            dd = D[(D.col == c) & (D.comp == k)].set_index("epoch").reindex(POST)
+            for x, (E, r) in enumerate(dd.iterrows()):
+                if not np.isfinite(r.delta):
+                    continue
+                ax.errorbar(x + 0.12, r.delta, yerr=[[r.delta - r.lo], [r.hi - r.delta]], fmt="s", ms=5.5, capsize=3,
+                            color=EPOCH_LINE[E], lw=1.4, zorder=4)
+                if r.sig:
+                    ax.text(x + 0.12, 1.0, "*" if not r.flag_lt3 else "(*)", ha="center", va="bottom", fontsize=10,
+                            color=EPOCH_LINE[E], transform=ax.get_xaxis_transform(), clip_on=False)
+            ax.set_xticks(range(len(POST)), POST, fontsize=7)
+            ax.set_xlim(-0.5, len(POST) - 0.5)
+            ax.tick_params(labelsize=7)
+            if i == 0:
+                ax.set_title(CLAB[k], fontsize=8.5, pad=14)
+            if j == 0:
+                nm = c.replace("_right", " contra") + ("\n[reference]" if c.split("_")[0] in cx.REF else "")
+                ax.set_ylabel(f"{nm}\nchange vs pre", fontsize=8)
+    hs = [plt.Line2D([], [], color=v, marker="o", ls="", ms=4, label=a) for a, v in sorted(acol.items())]
+    hs += [plt.Line2D([], [], color=EPOCH_LINE[e], marker="s", ls="-", ms=5, label=f"{e}: mean + 95% CI") for e in POST]
+    fig.legend(handles=hs, loc="outside lower center", ncol=4, fontsize=7.5, frameon=False)
+    f0 = D[(D.comp == "F0pct") & (D.epoch == "chronic") & D.col.isin(SIMPLE_ROWS)].set_index("col")
+    f0s = ", ".join(f"{c.split('_')[0]} {f0.loc[c, 'delta']:+.1f}%{' *' if f0.loc[c, 'sig'] else ''}"
+                    for c in SIMPLE_ROWS if c in f0.index)
+    nsig = int(f0.sig.sum()) if len(f0) else 0
+    fig.suptitle(_wrap(
+        "In the contralesional orofacial areas the pre-cue 'dip' seen without a baseline is the RESTW level falling; "
+        "pre-cue minus RESTW is unchanged or slightly UP chronically. The reference areas SSp-bfd / VISp instead fall "
+        "relative to RESTW. Change from PRE of the raw pre-cue level (-1..0 s, NO baseline, 0 = session mean) = "
+        "(pre-cue minus RESTW, the Fig 14.21 quantity) + RESTW level, contralesional areas, ENGAGED trials, all spouts "
+        "(dF/F x1e3; one scale per row). Raw F0 (470 nm) chronic change: " + f0s
+        + (" (all n.s.)" if nsig == 0 else "") + ". NEURAL; dots = per-animal change (colour = animal), square + bar = "
+        "paired nested bootstrap point and 95% CI (analysis_kit.boot_delta); * = CI excludes 0, (*) = fewer than 3 "
+        "animals share the sign. PROVISIONAL, n = 4.", 8.4, 8.5), fontsize=8.5)
+    FIGS.mkdir(parents=True, exist_ok=True)
+    fig.savefig(FIGS / f"{out}.png", dpi=120, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> int:
     if plot_only():
         draw_traces("lick_cue_to_lick_D_raw_traces")
         draw_decomp("lick_cue_to_lick_D_decomposition")
+        draw_decomp_simple()
         return 0
     from lick_cue_to_lick import _acol
     S, tr = sessions()
@@ -277,6 +339,7 @@ def main() -> int:
     PA = PA.pivot_table(index=["col", "comp", "animal"], columns="epoch", values="v")
     save_fd("lick_cue_to_lick_D_decomposition", {"PA": PA, "D": D[D.pos == "all"], "acol": _acol(), "cols": key}, FDR)
     draw_decomp("lick_cue_to_lick_D_decomposition")
+    draw_decomp_simple()
     return 0
 
 

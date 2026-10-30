@@ -820,7 +820,8 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
 - Cue to lick 10-29 (page Fig 14.21 S12, scripts/lick_cue_to_lick*.py, cue_to_lick/): (A) mean level cue->lick minus restw:
   contra ALM / tjM1 up every post epoch 4/4 (~+2-3), latency-matched too; above the trial's own pre-cue level acute far
   contra ~-2 n.s. -> the restw rise is the sustained pre-cue raise. (B) accumulate-to-bound REJECTED (level at lick flat /
-  slightly rising with latency, slope ~ 1/latency, pre and every epoch); fixed level crossing / delayed start fit; AUC rise
+  slightly rising with latency, slope ~ 1/latency, pre and every epoch); a DELAYED START (M3) fits all three (fixed level M2
+  fails the AUC above own pre-cue, which stays small and flat; corrected 10-29); AUC rise
   with latency is mostly the cue-locked response; acute far-contra slow trials = flat wait then normal rise to a normal
   level (delayed start). Pre latencies only ~0.1-0.6 s. (C) fixed pre-lick windows after the cue keep few trials
   (effectively PS92 / PS93). (D) chronic raw pre-cue "dip" in orofacial areas = drop of the restw level relative to the

@@ -65,3 +65,6 @@ Each supplement keeps its key figure(s); these secondary views were removed from
 | arrival_to_cue_per_spout_enl.png | Fig 14.21 S13 |
 | arrival_to_cue_heatmap_PS92_all.png | Fig 14.21 S13 |
 | arrival_to_cue_heatmap_pooled_far_contra.png | Fig 14.21 S13 |
+| lick_cue_to_lick_B_pre_models.png (32 panels) | Fig 14.21 S12 | full threshold test per area x hemisphere (replaced by lick_cue_to_lick_threshold_simple.png, pooled contra orofacial) |
+| lick_cue_to_lick_A_level_contra.png (8 areas x 7 spouts) | Fig 14.21 S12 | replaced by lick_cue_to_lick_A_level_simple.png (4 areas, all spouts + far contra) |
+| lick_cue_to_lick_D_decomposition.png (16 x 5) | Fig 14.21 S12 | replaced by lick_cue_to_lick_D_simple.png (6 areas x 3 columns) |
