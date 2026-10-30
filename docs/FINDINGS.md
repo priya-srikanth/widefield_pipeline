@@ -796,7 +796,10 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   +0.12 mm (4/4, ~half ITI); matched target + landing (bout starts) +0.22 (3/4) / +0.13 / +0.16 -> does NOT vanish (cued
   does). PS92 ~0 on bout starts (pooled leans on PS93-95). Per spout: largest at far mid (4/4); far contra depends on the
   lick set (all licks +0.11 / -0.03 / -0.09; bout starts +0.34 / +0.15 / +0.19, PS94 / PS95; contact-only subacute / chronic
-  -0.17 / -0.27, CI excludes 0 chronic: far-contra licks that reach the spout read slightly ipsilesional; unexplained). Balance (bout starts)
+  -0.17 / -0.27, CI excludes 0 chronic: far-contra licks that reach the spout read slightly ipsilesional). SAME in cued
+  licks (Priya 10-29): cued far-contra chronic -0.27 [-0.39, -0.14] 4/4; Fig 12.2 furthest contra landings below pre. With
+  ipsilesional landings reading contralesional, this looks like a flatter read-out (lower gain), not decoder edge
+  compression (a same-place comparison cancels the decoder's own compression); gain / offset decomposition running. Balance (bout starts)
   acute -0.24 (4/4) -> -0.08 n.s. target-aware; chronic within-spout +0.14 (4/4) = the CUED pattern; pre ENLv post-lick
   activity carries a target component (w 0.59-0.90). Working description (Priya OK 10-29): ENLv = cued-like target-coded balance + ITI-like
   persistent decoder offset. First ENLv lick: largest offset but mostly < 0.5 s after arrival. PROVISIONAL.
