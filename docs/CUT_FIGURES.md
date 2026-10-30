@@ -101,3 +101,6 @@ Each supplement keeps its key figure(s); these secondary views were removed from
 | lick_area_importance.png | see caption |
 | fr_direction_areas_cue.png | see caption |
 | fr_direction_areas_lick.png | see caption |
+| frozen_musall_cue/lick, frozen_claims_contest_cue/lick, frozen_claims_peth_cue/lick (.png) | Fig 0.2/0.8, 0.3/0.9, 0.4/0.10 | replaced by *_simple.png (key areas; note SSp-n absent from saved tables; unique-R2 table has only cortex / SSp-m / MOp) |
+| partial_refit_bars_cue.png | Fig 1.12 | image removed; numbers in caption + partial_refit_cue_numbers.md |
+| lick_correction_spouts.png (4 heatmaps) | Fig 14.18 S9 | replaced by lick_correction_spouts_dots.png |
