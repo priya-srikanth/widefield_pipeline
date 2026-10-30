@@ -19,10 +19,19 @@ Granger (S18).
 | Kim 2023 Nature 613:103 | PFC-M1 slow-oscillation coupling in sleep; shared-over-total variance | PFC-M1 coupling up as skill stabilises | yes (sleep) |
 | Lemke 2024 Curr Biol 34:1831 | feature-specific information transfer (M1 <-> striatum) | direction of MOVEMENT-SPECIFIC information flow reverses with learning; raw co-activation / total transfer miss it | yes, directed |
 
-Priya also recalls a 2026 bioRxiv preprint on SENSORY-MOTOR concordance: not yet identified. Candidate found but not read
-(bioRxiv rate-limited): 'Posterior parietal cortex guides sensorimotor associative learning by linking sensation to distal
-action', 10.64898/2026.04.19.719425 (cortex-wide imaging; search snippet says somatosensory-motor co-fluctuations rise with
-learning in a touch -> delayed-lick task) [unverified].
+**THE 2026 sensory-motor preprint (Priya sent the PDF 10-30): Heimbuch, Khanna, Novik, Morecraft, Ganguly, "Shared
+somatosensory-motor neural population dynamics track motor recovery after stroke", bioRxiv 10.64898/2026.02.10.705199.**
+3 macaques, M1 hand/arm lesion; 64-ch arrays in PMd and Area 2; reach-to-grasp. Method: **DLAG** (Gokcen 2022, two-area
+GPFA) on single trials, 2-s epochs centred on pellet touch, 20 ms bins, sqrt, demeaned by trial average per unit, z-scored;
+5 cross-area factors (CFs) + 5 within-area factors (WFs) per area, fixed for cross-session comparison; low spiking-band
+power used across recovery (unit identity changes). Readouts per session: CF Gaussian-process **timescale tau**; CF
+**delay** (direction); **stereotypy** = per-trial r of the single-trial CF trace vs the leave-one-out mean of the other
+trials (kinematically matched trials, +-0.1 s, time-warped), session median (Guo 2021 metric); **velocity consistency** =
+|dCF/dt - mean| at reach / touch / retract. Results: recovered animals: CFs explain little variance (PMd 2-6 %, Area 2
+7-26 %) but decode wrist speed better than WFs (R2 0.19-0.77), CF tau longer than WF tau (162 vs 117 / 39 ms), PMd leads
+Area 2. Over recovery CF tau lengthens (LME t = 2.3) and CF stereotypy / consistency rise with performance (rho -0.38 /
+0.29, 3 animals; LME on the 2 animals with a recovery curve); **WFs do not track recovery**. Caveats they state: n = 3
+(2 with a recovery curve), correct trials only, sensory feedback vs coordination not separated.
 
 ## Methods (general)
 Communication subspace / reduced-rank regression (Semedo 2019 Neuron); CCA (Veuthey 2020); DLAG / mDLAG (delayed shared
@@ -41,6 +50,15 @@ cortex-wide correlation rise at rest after stroke**, so our S17 rest result is e
 global mode / haemodynamics) and needs those controls before it is framed.
 
 ## Options for this dataset (ranked)
+0. **Heimbuch-style analysis on our data (added 10-30 after reading the preprint).** Two "areas" = sensory and motor groups
+   per hemisphere; population dims = the 4 spatial sub-units per region already built by `curbd_pilot.prep` ("multi":
+   16 per group) or pixel PCs per group. Epochs +-1 s around the first contact lick (their pellet touch), 33 ms bins (or
+   the 3-frame 10 Hz bins). Readouts per session: CF vs WF stereotypy (leave-one-out template r; model-light, can also be
+   run on CCA components first), CF delay (S vs M lead; compare S18), CF tau (CAVEAT: GCaMP6s decay sets a floor on
+   tau, so deconvolve and read tau changes only within animal), CF vs WF decoding of tongue kinematics (3-D tongue
+   speed / angle, our analogue of wrist speed). Test: does CF (not WF) stereotypy track hit rate / far-contra aim across
+   recovery, per animal. DLAG reference code is MATLAB (Gokcen); a Python port would need checking / writing (no pip
+   installs into the shared env). Stability gate written first, as for MVAR.
 1. **Lick-locked CCA / reduced-rank regression between sensory and motor groups** (Veuthey / Semedo): per session,
    cross-validated canonical correlation (or RRR predictive R2 and dimension) of sensory -> motor, on pixel PCs within
    each group or on the area traces; single-trial cross-area latents vs lick latency / aim. Static (no lag model), so it
