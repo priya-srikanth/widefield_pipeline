@@ -682,6 +682,35 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   acutely); Granger direction moves contralesional but as much at rest (global; gain / SNR-sensitive). More tilt goes
   with WORSE aim (cued r -0.44, 4/4; also at rest) -- hint only (many tests). GCaMP6s: shape, not lead. PROVISIONAL.
   Suggested next: partial out the hemispheric balance before Granger / asymmetry; global-signal-removed noise corr.
+  FOLLOW-UPS (10-30, scripts/interhemi_crossarea.py -> iti_licks/interhemi_followup/; raw variant reproduces
+  lick_interhemispheric exactly): GLOBAL REMOVED (partial corr given the mean of all OTHER areas, leave-pair-out) --
+  the orofacial interhemispheric rise SHRINKS to ~0 during licks (ITI all w2 sub / chronic +0.17 -> +0.07 / +0.05, CIs
+  touch 0; cued -0.07 / -0.03) and halves at rest (chronic +0.21 -> +0.11, 4/4), while the CONTROL pairs keep rising
+  (RSPd / VISpm at rest chronic +0.25 / +0.20, 4/4; cued w2 +0.16 / +0.17, 4/4) -> part of the rise is the global mode,
+  and what survives is NOT orofacial-specific (controls >= orofacial). xcorr TILT survives partialling the per-event
+  hemispheric balance AND the global signal on lick sets (cued w2 acute +0.039 -> +0.032 bal / +0.034 gsr / +0.027 both,
+  all 4/4; ITI dock chronic +0.040 -> +0.039 / +0.051 / +0.047, 4/4); still absent at rest. Session-level adjustment for
+  the log SD ratio contra/ipsi or the cued contralesional share (slope within animal x epoch) leaves it unchanged.
+  GRANGER shift: balance partialling changes nothing; global removal REDUCES the rest shift (chronic +0.044 -> +0.011,
+  CI incl. 0; acute +0.055 -> +0.030, 4/4) but INCREASES the acute ITI-docked shift (+0.021 -> +0.062, 4/4) -> after
+  GSR the Granger change looks more lick-set than rest, but values are tiny and variant-sensitive. Tilt <-> worse aim
+  survives both controls (cued w2 within-animal r -0.44 raw, -0.38 bal, -0.35 gsr, 4/4; p <= 0.002; 112 recovery tests run).
+  GCaMP6s caveat unchanged (shape, not lead). PROVISIONAL.
+- **CROSS-AREA CORRELATION STRUCTURE (10-30, Priya "synchronization / correlation across areas pre vs post?";
+  scripts/interhemi_crossarea.py -> iti_licks/cross_area/):** 45 areas, noise correlation of the residual (spout +
+  angle mean removed) 1-s window mean across events, plus within-window ('fast') correlation; raw and global-controlled
+  (partial | mean of other 43 areas). REST: everything rises (all pairs z +0.16 / +0.12 / +0.19 acute / sub / chronic,
+  4/4 each; ipsi = contra; PC1 variance fraction +0.07, 4/4) -> a GLOBAL synchrony increase at quiet rest from acute
+  on; with the global mode controlled the orofacial network still gains relative to other areas (+0.14 / +0.10 / +0.12,
+  4/4 every epoch) and homotopic pairs gain chronically (+0.11, 4/4). LICKS (ITI docked, cued): NO global rise (all
+  pairs, PC1 ns) but the orofacial / frontal-lateral network covaries MORE (raw ITI-dock +0.25 every epoch 4/4; cued
+  +0.18 / +0.09 / +0.19 4/4) while posterior sensory pairs fall -> lick-state change is network-specific, rest change is
+  global. No ipsi- vs contralesional hemisphere difference anywhere. CONFOUND NOT YET TESTED: the residual model does
+  not remove trial-to-trial lick vigour / kinematics, which drive exactly the orofacial areas -- a post-stroke rise in
+  movement variability would produce the lick-state orofacial rise (add reach / speed / lick count to the design next).
+  The global-controlled 'all pairs' mean is ~constant by construction (not a readout). Recovery: 15 / 120 within-animal
+  tests p < 0.05 (~6 expected), 4 also 4/4; rest orofacial coupling vs far-contra aim r -0.49 4/4 (more coupling with
+  worse aim) is the only rest hit with all animals agreeing -> hint only. PROVISIONAL (n = 4).
 - **DOCKED-SPOUT ITI LICKS (10-29, Priya: ITI offset results should use docked-spout licks; iti_dock_audit.py,
   lick_iti_dock_compare.py, page 14.18 supp):** docked (dock -> next trial_start) = 35 % of ITI licks. HOLD: same-place
   offset +0.30 / +0.22 / +0.29 mm, matched-error offset +0.22 / +0.18 / +0.22, SSp-n L/R term +0.26 / +0.23 / +0.20
@@ -852,6 +881,23 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   of the dip decomposition is n.s. Cue-to-lick level
   larger (tjM1 chronic +6.3, 4/4); far-contra ALM acute loses significance (+2.7 n.s., 4/4). Stopped: rest-referenced rise is
   ~76-83% the reference falling. Threshold test unchanged (own pre-cue reference). Caveat: PS93 pre = 2 sessions. PROVISIONAL.
+- RESTnl RULE -> RESCUE VARIANT s20_f50_wr 10-30 (scripts/restnl.py default; strict kept as `--restnl-rule strict` ->
+  *_restnl_strict outputs; sweep scripts/restnl_rescue.py): same mask and 2.0 s post-lick buffer, >= 50 frames per
+  position, but the per-position medians are averaged over the positions present (>= 4 of 6) instead of requiring all 6.
+  107 / 107 sessions (was 97; PS93 pre 2 -> 7, PS92 pre 6 -> 8). All *_restnl level-family outputs re-rendered (same names;
+  per-session caches in new *_wr dirs, strict caches untouched). Headlines unchanged in sign, significance and 4/4:
+  H1 chronic contra pre-cue tjM1 5.24 -> 5.21, ALM 2.93 -> 3.11, SSp-m 4.78 -> 4.44, SSp-n 3.20 -> 2.61; H2 acute
+  far-contra tjM1 7.38 -> 7.44, ALM 6.09 -> 6.40, SSp-m 7.26 -> 7.06, SSp-n 7.22 -> 6.50; H3 chronic cue-to-lick (raw) tjM1
+  6.34 -> 6.39, ALM 3.93 -> 4.29, SSp-m 5.65 -> 5.42, SSp-n 2.88 -> 2.47 (still n.s., 3/4). Only PS92 / PS93 move (PS93's
+  SSp-n / SSp-m shrink most with 5 more pre sessions). PROVISIONAL.
+- FIG 0.12 + FAR-CONTRA AIM 10-30 (Priya: "can 0.12 include the far contra lick angle index?"; scripts/recovery_timing.py
+  --aim [--plot-only] -> attempt_coding/figures/recovery_timing_pooled_day_lick_aim.png, panel B = far-contra first-lick
+  3-D aim, change vs own August pre, deg, + = contralesional; panel A reproduces 0.12 exactly). Aim drops to -32 deg
+  (pooled, day 1; 4/4 ipsilesional) and recovers on the HIT-RATE time course (t1/2 aim 3.1-5.4 d vs hit rate 3.9-7.9 d;
+  ~70% back by day 9-12 when hit rate is 0.8-0.95) but PLATEAUS SHORT like the code: chronic -5 to -6 deg pooled (95% CI
+  below 0 in every day bin to day 51, upper ends -0.1 to -1.4 deg late); recovered fraction of the acute deficit at chronic: aim 0.84 / 0.76 / 0.55 / 0.90
+  (PS92-95), hit rate 1.0 in 4/4, code on hits 0.67 / 0.50 / 0.23 / n.a. (PS95 no acute code). Residual chronic aim is
+  mostly PS94 (-14 to -18 deg; also lowest code); PS92 / PS93 / PS95 within ~0-5 deg. PROVISIONAL, n = 4.
 - ITI PRE-LICK RE-RUN 10-29 (Fig 12.17 S3; windows end >= 0.1 s before lick onset, + jaw-onset windows; jaw leads 52-120 ms):
   decoder offset flat pre-lick (+0.14/+0.12/+0.15 ns, mostly PS94), steps up post (4/4) -- unchanged; SSp-n L/R difference
   above 0 pre-lick acutely / subacutely (+0.21-0.24, 3-4/4; also before jaw opening), ~tonic, mostly PS94 -> NOT a movement
