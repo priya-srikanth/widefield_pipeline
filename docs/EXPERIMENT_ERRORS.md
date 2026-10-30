@@ -807,6 +807,27 @@ for those sessions cover the trials WITH video only.
 * **Not done.** Re-referencing to a body landmark (resting jaw or nose): both can change after the stroke (Priya 10-19).
   The spout "mouth zero" stays the reference.
 
+## 2026-10-29 — PS122 (cohort2): camera ROI 49 rows taller than the rest — `2_509_480` vs `2_460_480`
+
+* **What.** On cohort2's first session (2026-10-29), PS122 was recorded at a different camera ROI: the
+  labcams `.dat` is `pco_edge_..._2_509_480_uint16.dat` — **509 image rows** (width 480 unchanged) — while
+  PS118/PS120/PS121 that day, and all of cohort1, are **460** rows. 49 extra rows / a different sensor crop.
+  (Confirm whether this ROI was intentional; if so, keep it consistent for PS122 going forward.)
+* **How it was found.** `preprocess 20261029` discovery printed `PS122 ... dims=2_509_480`.
+* **Cost — and how to analyze it.**
+  * **Per-session processing is UNAFFECTED.** Motion correction, relabel, SVD, hemo, and native cue/lick
+    maps all read H×W from the `.dat` filename, so PS122 processes correctly at 509×480. Nothing assumes 460.
+  * **Cross-session / cross-animal SPATIAL work must go through Allen/CCF alignment**, which resamples each
+    session onto the fixed 540×640 atlas grid and so normalizes the size difference. **Do NOT** stack or
+    pixel-register PS122 with 460-row sessions in native space (the frames are different shapes and the brain
+    sits at different rows). This only matters once alignment is set up (deferred as of 2026-10-29).
+  * Reference landmarks for PS122 are picked in its own 509-row frame — the per-session affine handles it; no
+    special step needed for the atlas path.
+  * If native-space consistency is ever required (e.g. a within-animal cross-day native template for PS122),
+    either keep PS122's ROI fixed across days, or crop every PS122 frame to a fixed central 460-row band
+    (record which rows) — but the CCF-alignment route is preferred and avoids the issue entirely.
+* **Not a problem for:** this cohort's planned analyses, which are per-session SVD/hemo + atlas-aligned maps.
+
 ## Conventions for this log
 
 * Add the entry when the incident is found, not when it is resolved — a known-but-unfixed problem that

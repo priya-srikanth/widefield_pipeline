@@ -64,7 +64,11 @@ animals:
     date_of_birth: 2026-01-29
     genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
     indicator_nm: 470
-    characteristics: {}
+    # camera_roi_height: 2026-10-29 session recorded at 509 image rows (dims 2_509_480) vs the
+    # cohort's usual 460 (2_460_480). Per-session processing is unaffected (dims read from the .dat
+    # name); cross-session SPATIAL work must go through Allen/CCF alignment, not native pixel stacking.
+    # See docs/EXPERIMENT_ERRORS.md (2026-10-29 PS122 ROI). Confirm/keep the ROI consistent going forward.
+    characteristics: {camera_roi_height_2026_10_29: 509}
     stroke_date: null
     stroke_laterality: "L"
     reference_date: null
