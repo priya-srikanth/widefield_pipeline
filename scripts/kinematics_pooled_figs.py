@@ -29,6 +29,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local.sig_marks import reserve_headroom, star_top
+
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 EPOCHS = ("acute", "subacute", "chronic")
 POS_CAM4 = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")
@@ -84,7 +86,7 @@ def _panel(ax, d: pd.DataFrame, P: pd.DataFrame, g, ylabel: str | None, rng):
             est, lo, hi = r.est.iloc[0], r.lo.iloc[0], r.hi.iloc[0]
             ax.errorbar(k, est, yerr=[[est - lo], [hi - est]], fmt="o", color=ECOL[e], ms=6, capsize=3, lw=1.6, zorder=5)
             if lo > 0 or hi < 0:
-                ax.text(k, hi, "*", ha="center", va="bottom", fontsize=11, color=ECOL[e])
+                star_top(ax, k, "*", ECOL[e])       # top band, clear of the data and the 0 line (Priya 10-30)
     ax.axhline(0, color="0.6", lw=0.8)
     ax.set_xticks(range(len(EPOCHS)), [e[:4] for e in EPOCHS], fontsize=7)
     ax.tick_params(labelsize=7)
@@ -119,6 +121,7 @@ def fig_angle(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     fig.suptitle("cam4 executed peak lick angle, POOLED: each session minus its animal's August pre mean (all post-cue "
                  "licks, per-position median); * = 95 % CI excludes 0", fontsize=9)
     _legend(fig)
+    reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.94))
     fig.savefig(out / ("angle_change_pooled_contra.png" if contra else "angle_change_pooled.png"), dpi=130)
     plt.close(fig)
@@ -161,6 +164,7 @@ def fig_3d(out: Path, rng) -> pd.DataFrame:
     fig.suptitle("3-D tongue / jaw, POOLED: each session minus its animal's August pre mean (per-session medians of "
                  "trial licks); * = 95 % CI excludes 0", fontsize=10)
     _legend(fig)
+    reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.03, 1, 0.97))
     fig.savefig(out / "pose3d_change_pooled.png", dpi=120)
     plt.close(fig)

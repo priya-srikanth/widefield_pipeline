@@ -23,6 +23,9 @@ goal-question page, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Conventi
   per-animal ones (Priya 10-25 evening; reverses the earlier per-animal-first rule), headline figure first.
   Change maps: diverging RdBu_r (red = more), one colour scale for all panels of a figure, significant points large and
   outlined with the rest faded.
+- **Significance stars go in a band at the TOP of each panel** (Priya 10-30, all figures): visible at a glance, never on
+  data points, error bars or the horizontal pre / 0 line. Use `wfield_local.sig_marks.star_top` + `reserve_headroom`
+  (or `orofacial_cohort._mark_rows` / `_tidy`), not `ax.text(x, ci_hi + pad, "*")`.
 - Section tags point to the FINDINGS section the result lives in.
 - **"Where things stand" table at the top cites its evidence** (Priya 10-25): a "figures" column right after the result,
   each cell linking the supporting figures (`<a href="#fig7b">7b</a>`), or the section when only a table supports it.
