@@ -589,7 +589,8 @@ def fig_data(R: dict, D: pd.DataFrame, X: dict) -> dict:
             iv = ak.boot_ci(g.groupby("animal")[col].apply(list).to_dict(), np.random.default_rng(SEED)) \
                 if len(g) else None
             lev[(col, ep)] = None if iv is None else (_pt(iv), _lo(iv), _hi(iv))
-    fd = {"A": A, "T": T, "lev": lev, "gate": R["gate"], "areas": {k_: v for k_, v in R["areas"].items() if k_ != "S"},
+    fd = {"A": A, "T": T, "lev": lev, "V": V[["animal", "label", "epoch", "i", "ii", "iii", "c_i", "c_ii", "c_iii",
+                                                "s_i", "s_ii", "s_iii"]], "gate": R["gate"],"areas": {k_: v for k_, v in R["areas"].items() if k_ != "S"},
           "areaS": R["areas"]["S"][["animal", "epoch", "contra", "oro", "oro_contra", "oro_ipsi"]],
           "A_all": R["all"]["A"], "T_all": R["all"]["T"]}
     try:
@@ -613,11 +614,18 @@ def draw_decoders(F: dict, path: Path, fam: str = "") -> None:
     A, lev = F["A"], F["lev"]
     eps = [e for e in EPS if (A.epoch == e).any()]
     cols = [f"{fam}{c}" for c in ("i", "ii", "iii")]
+    # SESSIONS (Priya 10-30): one marker per session, colour = animal; older figdata lacks V -> session CSV
+    V = F.get("V")
+    if V is None:
+        V = pd.read_csv(OUT / "reembed_sessions.csv")
+        V = V[V.licks == "matched"]
     fig, axs = plt.subplots(1, 3, figsize=(12, 4.2), sharey=True)
+    rng = np.random.default_rng(SEED)
     for ax, col, k_ in zip(axs, cols, ("i", "ii", "iii")):
-        for a in AN:
-            g = A[A.animal == a].set_index("epoch").reindex(eps)
-            ax.plot(range(len(eps)), g[col].to_numpy(float), "-o", color=ACOL[a], lw=1, ms=4, alpha=0.8, label=a)
+        for ia, a in enumerate(AN):
+            g = V[(V.animal == a) & V.epoch.isin(eps)].dropna(subset=[col])
+            x = np.array([eps.index(e) for e in g.epoch], float) - 0.2 + 0.08 * ia + rng.uniform(-0.02, 0.02, len(g))
+            ax.plot(x, g[col].to_numpy(float), "o", color=ACOL[a], ms=3.2, alpha=0.6, mfc="none", mew=0.8, label=a)
         for j, ep in enumerate(eps):
             v = lev.get((col, ep))
             if v:
@@ -637,7 +645,7 @@ def draw_decoders(F: dict, path: Path, fam: str = "") -> None:
                bbox_to_anchor=(0.5, -0.01))
     fam_txt = {"": "first-lick window", "c_": "cue window", "s_": "landing side_ml (ridge r)"}[fam]
     fig.suptitle(f"Re-embedding test: three decoders on each session ({fam_txt}; kinematics-matched first licks)\n"
-                 "lines = animals; black = pooled level (boot_ci); * = change vs pre->pre (boot_delta, CI excl. 0, "
+                 "open circles = sessions (colour = animal); black = pooled level (boot_ci); * = change vs pre->pre (boot_delta, CI excl. 0, "
                  ">= 3/4 animals)", fontsize=9)
     fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(path, dpi=150, bbox_inches="tight")
