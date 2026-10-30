@@ -106,6 +106,41 @@ C / D.
 8. **Control for S20 (information timing).** Re-align to jaw opening instead of tongue onset. If the motor-first lead
    disappears, it was movement timing, not cortical order.
 
+**Priya 10-30 follow-up.** Interested in 3 (re-embedding) and 6 (error / trial-to-trial; if the temporal resolution
+allows). Item 4 is effectively DONE: the kinematics-matched reference (angle + reach + speed + elevation) leaves the cued
+link (0.63), and the target-aware reference removes it (LOAO 0.70 -> -0.40), so the cued balance-recovery link is largely
+the movement (landing error). The movement-independent signals are the ITI offset and the slow contralesional-share
+rise. Item 5 dropped: VLS input zones are known (Hunnicutt 2016 projectome) and coincide with the orofacial pool we
+already contrast with other cortex.
+Resolution for 6: trial t -> t+1 adjustment is at trial scale (fine for GCaMP6s). Within-trial miss -> correction
+(~150 ms between licks) needs lick-kernel deconvolution (the encoding model) or first-lick-only contrasts. Reward is
+auto-delivered on most trials regardless of licking, so the error signal available is contact / no contact and the
+landing error, not reward omission.
+
+**Why do cued licks recover but ITI licks do not? (hypotheses, Priya 10-30)** Facts: chronically the cued decoder offset
+and lateral r recover, the ITI ones do not (mixed models, 4d0f); the ITI pre-lick build-up is weaker chronically;
+in-trial no-contact licks recover, ITI no-contact licks do not (so contact is not the cause).
+1. **BG and self-initiated vs externally cued action.** The basal ganglia are needed most for self-paced initiation
+   ("when to move", Klaus 2019). In Parkinson's, externally cued movement is relatively spared (paradoxical kinesia).
+   A VLS lesion should leave a lasting deficit in self-initiated licks, while cue-triggered licks can use cue-driven
+   routes (sensory -> cortex / thalamus / SC). Fits the weaker ITI pre-lick ramp.
+2. **Compensation is learned through feedback, and only cued licks get it.** Cued licks have a target, contact and
+   reward context; ITI licks have no target and no outcome, so error-driven relearning (cortex-dependent, Kawai 2015)
+   never reaches them. ITI licks then show the uncompensated, still-biased default output: the human "capacity vs
+   performance" / spontaneous-use gap.
+3. **Goal-directed corrections.** Cue-evoked licks to far targets recruit ALM-dependent corrections (Bollu 2021); ITI
+   licks rarely do. A correction-based compensation would appear only in cued licks.
+4. **State / arousal.** The cue raises engagement and cortical gain; ITI licks occur in lower states (contralesional
+   VIS tracks ITI recovery).
+5. **Measurement.** The ITI reference has no target component, so the cued marker can recover by the target term while
+   the ITI one cannot. Partly checked: the target-aware analysis keeps a genuine ITI shift.
+Discriminating tests: (a) ITI licks just before the expected cue (anticipatory, goal-like) vs early-ITI licks: 1 and 2
+predict anticipatory licks behave like cued; (b) ITI lick aim behaviourally (landing vs the pre distribution at the
+docked spout) -- is there a behavioural capacity-vs-performance gap or only a cortical one; (c) the pre-lick ramp
+(MOs / ALM) as the initiation signature, cued vs ITI, by epoch; (d) correction frequency cued vs ITI (2.1);
+(e) within-session: do ITI licks right after a rewarded far-contra trial look more "cued-like" (carry-over of the
+compensated mode)?
+
 **Stop / do not do:** phase, coherence, MVAR, LFADS-style dynamics (indicator kinetics); proportional-recovery or
 baseline-vs-change correlations (Hope 2019 coupling artefact); any across-animal predictor claim (n = 4, rank order
 only); naive cross-lagged session analyses (Hamaker 2015; Harris "nonsense correlations": use detrended residuals and
