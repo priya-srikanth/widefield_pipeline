@@ -1363,7 +1363,7 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     outputs `iti_licks/sm_coherence_cca/`. Controls (addendum): movement regression leaves the 1.5-4 Hz ITPC rise
     intact (remaining share ~1.1), behavioural variability does not explain it (and does not clearly fall); response SNR
     (near-restatement) absorbs ~half the sensory and most of the motor rise -> a larger lick response relative to trial noise,
-    not more stereotyped licking. Page 14.18 S19. **PROVISIONAL (n = 4).**
+    not more stereotyped licking. Page 14.18 S19 (demoted 10-30). **PROVISIONAL (n = 4).**
     **CAVEAT (Priya 10-30, GCaMP6s kinetics): treat the phase measures as an amplitude / consistency readout of the
     lick-evoked calcium transient, not as oscillatory phase-locking (no Ramanathan / Khanna LFO analogue).** With
     tau ~0.6 s the indicator passes ~17 % (1.5 Hz) to ~7 % (4 Hz) of the underlying amplitude; in a +-1 s Hann window the
