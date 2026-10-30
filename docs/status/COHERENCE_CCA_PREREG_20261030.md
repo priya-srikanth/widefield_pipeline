@@ -106,3 +106,19 @@ families) 44 s wall (4 workers), gate 1 s; then 76 post sessions coherence famil
 Tables `<iti_licks>/sm_coherence_cca/tables/` (sessions, gate_animals, gate_animals_all, gate_measures, tests_boot_delta,
 recovery_partial_r); figures `figures/fig1_gate.png`, `fig2_change_vs_pre.png`, `fig3_example_pre_vs_chronic.png`
 (figure data in `figdata/`).
+
+## Addendum: ITPC controls (design written BEFORE running, 2026-10-30 late)
+Priya 10-30: less interested in how reproducible the lick response is per se (behaviour shows that), but a regression
+showing whether the ITPC rise is explained by behaviour / response size is useful. Cued first licks, S8M8, evoked.
+1. **Event-level kinematic regression.** Per session, regress each event's group trace (S, M; all 41 samples) on the
+   per-event movement covariates of `scripts/coupling_vigour_sm.py` (same set and coverage rules as 14.18 S17: 3-D reach,
+   peak speed, lick duration, protrusion, lick count +-0.5 / +-1 s, FaceRhythm factors, jaw amplitude, landing error) plus
+   spout dummies; keep spout means + residual (i.e. remove only the movement-explained part), recompute ITPC (same 30-event
+   subsampling, 50 draws). Control: the same with covariate rows permuted within spout.
+2. **Session-level adjustment.** Per session: neural SNR in each band (power of the event-mean trace / mean power of
+   the event deviations, same taper / FFT) and behavioural variability (mean over covariates of the within-spout SD,
+   each covariate z-scored on the animal's pre sessions). Within animal, ITPC_session ~ epoch + log SNR (and, separately,
+   + behavioural variability); report the epoch effects with and without each covariate (per-animal table first, then
+   boot_delta on the adjusted values = residual + epoch effect).
+Read-out: the share of the pre -> chronic 1.5-4 Hz ITPC change that remains after (1), after SNR, and after behavioural
+variability. Behavioural variability change itself is reported (for the behaviour reading).
