@@ -19,13 +19,44 @@ Companion: `docs/CROSS_AREA_METHODS_LIT_20261030.md` (cross-area methods; all fa
 | Unilateral ALM silencing is rescued by the other hemisphere (Li 2016 Nature); balance-recovery / vicariation models (Di Pino 2014 [partial]); contralesional excitation blocks repair (Bice 2022 eLife); 2025 preprint: contralesional activity = compensatory use, not recovery [unverified authors] | hemispheric balance shifts; may be compensation rather than mechanism | orofacial balance tracks how far each animal recovers (FINDINGS 0b) | **needs the kinematics control (2.4)** before it is a mechanism |
 | Subcortical stroke in humans: bilateral over-activation that falls with recovery and is larger in worse patients (Ward 2003 Brain); diaschisis (Carrera & Tononi 2014 Brain) | larger responses early, shrinking with recovery; changes in cortex that projects to the lesion | residual excess largest day 1, shrinks with recovery, tracks the deficit (mostly PS94) (FINDINGS 0 item 3) | consistent; the corticostriatal-input map (2.5) is the subcortical-specific test |
 | Remapping is mostly potentiation of existing circuits, not new territory (Makin & Krakauer 2023 eLife); remapped areas can be causally necessary (Castro-Alamancos & Borrell 1995) | the "remapped" code is re-weighting inside old territory | code partly remapped, not restored; position package shifts contralesionally (FINDINGS 0 items 3-4) | **re-embedding vs new pattern not yet tested (2.3)** |
-| Capsular (subcortical) stroke: slower recovery, no lasting ipsilesional cortical reorganisation (2025 preprint [unverified authors]); cortex + striatum become more reliable / aligned with recovery (Guo 2021 Cell Rep) | little cortical reorganisation; recovery may be elsewhere | no evidence cortex leads behavioural recovery; chronic mapping change ~ cortex-wide, drift-like (FINDINGS 0 item 4e, 3) | consistent with **recovery largely outside dorsal cortex**; we cannot see it |
+| Capsular (subcortical) stroke: slower recovery, no lasting ipsilesional cortical reorganisation (2025 preprint [unverified authors]); cortex + striatum become more reliable / aligned with recovery (Guo 2021 Cell Rep) | little cortical reorganisation; recovery may be elsewhere | LASTING chronic cortical change: spout code remapped (self-fit better; partial refit specific in contralesional SSp-m, 4/4), cued within-spout balance above pre toward the contralesional hemisphere (4/4), orofacial-specific cue-window residual and pre-cue rise persist; part of the cortex-wide change may be drift; cortex does not lead behavioural recovery (FINDINGS 0, 0b, 3-4) | **CONTRAST, not agreement (Priya 10-30)**: a striatal lesion leaves cortical output intact, unlike a capsular one, and our lasting change is largely contralesional / bilateral, whereas the preprint reports no lasting IPSILESIONAL reorganisation |
 
 **Working model to test.** Losing left VLS removes the subcortical drive and the stored kinematics for contralesional
 licks. Success returns within ~2 weeks through a COMPENSATORY strategy: a biased launch fixed by later licks and
 corrections, with a changed jaw / tongue pattern. Dorsal cortex follows this strategy: larger bilateral lick responses,
-a shifted balance, a re-weighted spout code. Whether cortex is NEEDED for the recovered behaviour, or only reports it, is
+a shifted balance, a re-weighted spout code, and these changes LAST into the chronic phase. Whether cortex is NEEDED for the recovered behaviour, or only reports it, is
 not decidable from imaging. That needs a perturbation (section 3).
+
+## 1b. How could more contralesional (right) cortical activity restore contralesional (rightward) licks? (Priya 10-30)
+
+Starting fact: each hemisphere's ALM / tjM1 natively drives CONTRAVERSIVE licks (Guo 2014; Li 2015; Mayrhofer 2019),
+so right cortex natively drives LEFTWARD (ipsilesional) licks, and pre-stroke each hemisphere is larger for licks toward
+the opposite side (FINDINGS 0b). Right-cortex dominance on rightward licks therefore needs an ipsiversive route. The
+deficient direction is rightward, driven by the LEFT VLS -> left SNr -> LEFT lateral SC chain (Lee 2020; Lee & Sabatini 2021).
+
+| Route from right ALM / tjM1 | How it would push the tongue right | Prediction in our data | Plausibility |
+|---|---|---|---|
+| A. Crossed IT corticostriatal -> spared LEFT VLS | re-drives the lesioned striatum's remnant (18-55 % of CP area lost) -> left SNr -> left lSC | right-cortex activity gains trial-wise prediction of rightward launch angle; effect depends on spared VLS (not testable at n = 4) | IT neurons project bilaterally; the remnant may be too small |
+| B. Ipsilateral corticostriatal -> RIGHT VLS iSPNs | iSPNs suppress the right lSC and release the left lSC through collicular competition (Lee & Sabatini 2021) -> rightward | same as A for cortex; would need indirect-pathway recruitment (not visible to us) | plausible; right dSPNs would push the other way, so the net effect is uncertain |
+| C. Right ALM PT -> right lateral SC | topographic ALM -> SC (Thomas 2023) | as written it drives LEFTWARD licks and strengthens the right SC against the left | **disfavoured** unless it targets SC GABAergic cells |
+| D. Right PT -> brainstem (IRt / tongue-jaw premotor, which is bilaterally organised; Stanek 2014) | an ipsilateral corticobulbar "detour" around the damaged BG-SC loop (cf. 2025 preprint: contralesional -> brainstem projections support recovery [authors unverified]) | right-cortex activity on rightward licks becomes coupled to the kinematics (launch angle, jaw lateral steering, tongue-jaw lag), BEFORE launch | **most consistent** with "cortex-wide excess tracks the deficit" and with compensation; testable now on the cortical side |
+| E. (left cortex, for contrast) left ALM PT -> left lSC / brainstem, bypassing the left striatum | direct contraversive drive | the IPSILESIONAL hemisphere gains weight; the balance should shift ipsilesionally | the chronic within-spout balance shifts the OTHER way (contralesional), so this route is not the main signature |
+| Null: reafference / state | ipsilesional landings touch a different part of the tongue / mouth, plus arousal | the asymmetry is contact- / landing-locked, strongest in SSp | partly excluded: as large on misses, FaceRhythm partialled out; but the cued balance is largely the landing error (10-29), and the imbalance is strongest in SSp-n |
+
+**Discriminating analyses (cohort 1, cortical side only):**
+- Per hemisphere, the within-spout slope of PRE-launch activity on launch angle (ipsiversive vs contraversive tuning)
+  by epoch. A-D predict the right hemisphere gains IPSIVERSIVE (rightward) tuning chronically. Post-contact-only
+  asymmetry = feedback / reafference.
+- Area split: ALM / tjM1 (PT-rich output) vs SSp-n / SSp-m (sensory). A command route predicts the shift in motor areas.
+- Jaw / tongue-jaw coupling (D): does right-cortex activity predict jaw lateral steering on rightward licks chronically?
+- Corrections (Bollu): is the right-hemisphere increment carried by correction licks?
+- Anatomy prior: Allen projection density from right ALM / tjM1 to left vs right CP (VLS), left vs right lateral SC, and
+  bilateral IRt / PCRt, to rank A-D by axonal plausibility.
+
+**Causal (cohort 2):** unilateral inactivation of right vs left ALM / tjM1 before and after the stroke (does right-cortex
+silencing impair RIGHTWARD licks only after recovery?), then projection-specific silencing. For example, retrograde Cre
+from left CP, right CP, left lateral SC or the medulla, with inhibitory DREADDs in right ALM / tjM1, to separate A / B /
+C / D.
 
 ## 2. Analyses on cohort 1 (ranked by value for the biological question)
 
