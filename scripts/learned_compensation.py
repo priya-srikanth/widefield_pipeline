@@ -721,35 +721,49 @@ def fig1_daycourse(fd: dict) -> None:
     from wfield_local import orofacial_cohort as oc
     S, P1 = fd["t1"]["S"], fd["t1"]["P1"]
     S = S[S.period.isin(["pre", "window"])]
-    fig, axs = plt.subplots(2, 4, figsize=(13, 6.2), sharex=True)
+    # Priya 10-30: SESSION ORDER on x (each session a block: early | mid | late third, 1 unit wide, gaps between blocks)
+    # so within-session and between-session segments are both readable; EVERY consecutive session pair is joined
+    # (dashed = next day, dotted = > 1 day apart). _ = P1 kept for the figdata contract.
+    _ = P1
+    fig, axs = plt.subplots(2, 4, figsize=(17, 6.6))
+    W3, GAP = (0.0, 0.5, 1.0), 0.8
     for row, (nm, yl) in enumerate((("eL", "far-contra first-lick launch error e_L (deg)"),
                                     ("hit", "far-contra hit rate (engaged)"))):
         for c, an in enumerate(AN):
             ax = axs[row, c]
-            g = S[(S.animal == an)].dropna(subset=[f"early_{nm}"])
-            for r in g.itertuples():
+            g = S[(S.animal == an)].dropna(subset=[f"early_{nm}"]).sort_values("day").reset_index(drop=True)
+            prev, ticks, tl, x0_post = None, [], [], None
+            for k, r in enumerate(g.itertuples()):
                 col = oc.EPOCH_LINE[r.epoch]
-                xs = [r.day - 0.3, r.day, r.day + 0.3]
+                x0 = k * (1.0 + GAP)
+                if x0_post is None and r.day > 0:
+                    x0_post = x0 - GAP / 2
+                xs = [x0 + w for w in W3]
                 ys = [getattr(r, f"early_{nm}"), getattr(r, f"mid_{nm}"), getattr(r, f"late_{nm}")]
-                ax.plot(xs, ys, "-", color=col, lw=1.1)
+                ax.plot(xs, ys, "-", color=col, lw=1.3)
                 ax.plot(xs, ys, ls="", marker=oc.ANIMAL_MARKER[an], mfc="none", mec=col, ms=4.5, mew=1.0)
-            pa = P1[(P1.animal == an)]
-            gi = g.set_index("label")
-            for pr in pa.itertuples():
-                if pr.label_d in gi.index and pr.label_d1 in gi.index:
-                    a, b = gi.loc[pr.label_d], gi.loc[pr.label_d1]
-                    ax.plot([a.day + 0.3, b.day - 0.3], [a[f"late_{nm}"], b[f"early_{nm}"]], "--", color="0.55", lw=0.8)
+                if prev is not None:
+                    gap_d = r.day - prev[2]
+                    ax.plot([prev[0], xs[0]], [prev[1], ys[0]], "--" if gap_d == 1 else ":", color="0.55",
+                            lw=0.9 if gap_d == 1 else 0.8)
+                prev = (xs[-1], ys[-1], r.day)
+                ticks.append(x0 + 0.5)
+                tl.append(f"{int(r.day)}")
             if nm == "eL":
                 ax.axhline(0, color="0.7", lw=0.6)
-            ax.axvline(0, color="0.8", lw=0.6, ls=":")
+            if x0_post is not None:
+                ax.axvline(x0_post, color="0.6", lw=0.8)
+            ax.set_xticks(ticks)
+            ax.set_xticklabels(tl, fontsize=6.5, rotation=90)
             if row == 0:
                 ax.set_title(an)
             if c == 0:
                 ax.set_ylabel(yl)
             if row == 1:
-                ax.set_xlabel("day from stroke (each session: early | mid | late third)")
-    fig.suptitle("Fig LC1. T1 within-session gain and overnight change, far contra (August pre + post days 1-14); "
-                 "solid = within session, dashed = overnight (consecutive days)", fontsize=9)
+                ax.set_xlabel("sessions in order (label = day from stroke; grey line = stroke)", fontsize=8)
+    fig.suptitle("T1 within-session change and change between sessions, far contra (August pre + post days 1-14): each "
+                 "session = early | mid | late third (solid); dashed = to the next day, dotted = to a session > 1 day "
+                 "later", fontsize=9)
     _legend_animals_epochs(fig)
     fig.tight_layout(rect=(0, 0.05, 1, 0.96))
     _save(fig, "lc_fig1_t1_daycourse")
@@ -801,7 +815,7 @@ def fig2_t1_summary(fd: dict) -> None:
     for ax, (df, m, st, ttl) in zip(axs, specs):
         _summary_panel(ax, df, m, L, ["pre", "window"], "period", B, {"metric": m, "set": st}, ttl,
                        "hit-rate units" if "hit" in m else "deg")
-    fig.suptitle("Fig LC2. T1 learning signature, far contra cued first lick: within-session W, overnight O, day step S "
+    fig.suptitle("T1 learning signature, far contra cued first lick: within-session W, overnight O, day step S "
                  "(points = sessions / overnight pairs; * = boot_delta change vs pre, CI excl. 0 and >= 3/4)",
                  fontsize=9)
     _legend_animals_epochs(fig)
@@ -841,7 +855,7 @@ def fig3_t2_phases(fd: dict) -> None:
     axs[0].relim()
     axs[0].autoscale(axis="y")
     axs[0].set_ylabel("ITI launch angle - pre ITI (same prev spout, phase), deg")
-    fig.suptitle("Fig LC3. T2 ITI launch angle by cycle phase after a far-contra (colour) vs other-spout (grey) trial; "
+    fig.suptitle("T2 ITI launch angle by cycle phase after a far-contra (colour) vs other-spout (grey) trial; "
                  "open = animal means, filled = pooled sessions (95 % CI); dashed = cued far-contra e_L", fontsize=9)
     _legend_animals_epochs(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.93))
@@ -859,7 +873,7 @@ def fig4_t2_summary(fd: dict) -> None:
     for ax, (m, ttl) in zip(axs, (("C2", "C2 carry-over contrast"), ("FC_retract", "d after FC, retract"),
                                   ("FC_docked", "d after FC, docked"), ("cued_fc_eL", "cued far-contra e_L"))):
         _summary_panel(ax, W, m, L, EPS, "period", B, {"metric": m}, ttl)
-    fig.suptitle("Fig LC4. T2 carry-over: C2 = [d(FC,retract) - d(FC,docked)] - [d(O5,retract) - d(O5,docked)] (+ = "
+    fig.suptitle("T2 carry-over: C2 = [d(FC,retract) - d(FC,docked)] - [d(O5,retract) - d(O5,docked)] (+ = "
                  "early-ITI re-aim after far-contra trials); * = change vs pre", fontsize=9)
     _legend_animals_epochs(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.93))
@@ -888,7 +902,7 @@ def fig5_t2_time(fd: dict) -> None:
         ax.set_xlabel("time since the previous trial's stop (s)")
         ax.legend(fontsize=6, loc="lower right", frameon=False)
     axs[0].set_ylabel("ITI launch angle - pre ITI (same prev spout, bin), deg")
-    fig.suptitle("Fig LC5. T2 (descriptive) ITI launch angle vs time since the trial stop, 0.5 s bins", fontsize=9)
+    fig.suptitle("T2 (descriptive) ITI launch angle vs time since the trial stop, 0.5 s bins", fontsize=9)
     _legend_animals_epochs(fig)
     fig.tight_layout(rect=(0, 0.08, 1, 0.93))
     _save(fig, "lc_fig5_t2_time")
@@ -906,14 +920,20 @@ def fig6_t3(fd: dict) -> None:
     # A: ITI landing angle vs the previous spout's angle (pooled per spout), pre vs each epoch
     ax = fig.add_subplot(gs[0, 0:2])
     ph = phi[POS].mean()
+    # close and far spouts share an angle, so they are drawn as two series (Priya 10-30: "two pink dots"):
+    # FAR = filled markers / solid line, CLOSE = open markers / dashed line, small x offset
     for ep in EPS:
         lv = L[L.epoch == ep].set_index("metric")
-        y = np.array([lv.level.get(f"m_{p}", np.nan) for p in POS])
-        lo = np.array([lv.lo.get(f"m_{p}", np.nan) for p in POS])
-        hi = np.array([lv.hi.get(f"m_{p}", np.nan) for p in POS])
-        o = np.argsort(ph.to_numpy())
-        ax.errorbar(ph.to_numpy()[o], y[o], yerr=[(y - lo)[o], (hi - y)[o]], fmt="-o", color=oc.EPOCH_LINE[ep], lw=2,
-                    ms=5, capsize=0, label=ep)
+        for ring, dx, ls_, mf in (("close", -1.2, "--", "none"), ("far", 1.2, "-", None)):
+            ps = [p for p in POS if p.startswith(ring)]
+            xx = ph[ps].to_numpy() + dx
+            y = np.array([lv.level.get(f"m_{p}", np.nan) for p in ps])
+            lo = np.array([lv.lo.get(f"m_{p}", np.nan) for p in ps])
+            hi = np.array([lv.hi.get(f"m_{p}", np.nan) for p in ps])
+            o = np.argsort(xx)
+            ax.errorbar(xx[o], y[o], yerr=[(y - lo)[o], (hi - y)[o]], fmt="o", ls=ls_, color=oc.EPOCH_LINE[ep],
+                        mfc=mf if mf else oc.EPOCH_LINE[ep], lw=1.8, ms=5, capsize=0,
+                        label=f"{ep}, {ring} spouts")
     lim = [ph.min() - 5, ph.max() + 5]
     ax.plot(lim, lim, ":", color="0.6", lw=0.8)
     ax.text(lim[1], lim[1], " identity", fontsize=6, color="0.5", va="bottom")
@@ -924,7 +944,7 @@ def fig6_t3(fd: dict) -> None:
     ax.set_xlabel("previous trial's spout angle (deg, + = contralesional)")
     ax.set_ylabel("docked ITI landing angle theta_E (deg)")
     ax.set_title("A. docked ITI licks vs where the last spout was (pooled sessions, 95 % CI)", fontsize=8, pad=12)
-    ax.legend(fontsize=7, frameon=False, loc="upper left")
+    ax.legend(fontsize=6.5, frameon=False, loc="upper left", ncol=2)
     # B: D per previous spout, canonical order
     ax = fig.add_subplot(gs[0, 2:4])
     x = np.arange(len(POS))
@@ -955,7 +975,7 @@ def fig6_t3(fd: dict) -> None:
                                   ("GAP", "GAP = D_off - cued e_E"), ("gain", "gain on prev-spout angle"))):
         ax = fig.add_subplot(gs[1, j])
         _summary_panel(ax, S2, m, L2, EPS, "period", B, {"metric": m}, ttl, "deg / deg" if m == "gain" else "deg")
-    fig.suptitle("Fig LC6. T3 docked ITI aim relative to the previous trial's spout (capacity vs performance); "
+    fig.suptitle("T3 docked ITI aim relative to the previous trial's spout (capacity vs performance); "
                  "* = boot_delta change vs pre (CI excl. 0 and >= 3/4)", fontsize=9)
     _legend_animals_epochs(fig)
     fig.tight_layout(rect=(0, 0.05, 1, 0.95))

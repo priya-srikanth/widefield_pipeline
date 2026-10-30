@@ -121,6 +121,10 @@ def build() -> dict:
     # D per session (Priya 10-30): each session's d2/k values (>= 30 scored hits)
     Dsess = [(lab, g.animal.iloc[0], g.epoch.iloc[0], np.sort(g.d2k.dropna().to_numpy()))
              for lab, g in T.groupby("label") if g.d2k.notna().sum() >= 30]
+    # per-session median (50 %) and 95th percentile of d2/k, with boot_delta vs pre (Priya 10-30)
+    Q = pd.DataFrame([{"label": lab, "animal": an, "epoch": ep, "q50": float(np.percentile(x, 50)),
+                       "q95": float(np.percentile(x, 95))} for lab, an, ep, x in Dsess])
+    bQ = {q: _boot(Q, q, rng) for q in ("q50", "q95")}
     k_typ = 8
     from scipy.stats import chi2
     thr = chi2.ppf(0.95, k_typ) / k_typ
@@ -129,7 +133,7 @@ def build() -> dict:
     R = pd.read_csv(OUT / "sessions.csv")[["label", "animal", "epoch", "day", "hit", "hit_fc", "aim_fc", "norm",
                                            "norm_fc"]]
     F = {"A": A, "bA": bA, "B": B, "bB": bB, "C": C, "bC": bC, "Cf": Cf, "bCf": bCf, "D": D, "Dsess": Dsess,
-         "thr": thr, "n": n, "R": R}
+         "thr": thr, "n": n, "R": R, "Q": Q, "bQ": bQ}
     FD.mkdir(parents=True, exist_ok=True)
     with open(FD / "kn_hits_deviation.pkl", "wb") as fh:
         pickle.dump(F, fh)
@@ -153,10 +157,15 @@ def plot(F: dict) -> None:
     # A
     ax = fig.add_subplot(gs[0, 0])
     A = F["A"]
-    for a in AN:
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    for j, a in enumerate(AN):                    # defaults: shape = animal, colour = epoch, no line between epochs
         if a in A.index:
-            ax.plot(range(4), A.loc[a].to_numpy(float), "-", marker=kn.MK[a], color=kn.ACOL[a], lw=1.2, ms=6, label=a)
-    ax.plot(range(4), A.mean(0).to_numpy(float), "-o", color="k", lw=2.6, ms=7, label="mean of animals")
+            for i, e in enumerate(EPS):
+                ax.plot(i - 0.15 + 0.06 * j, A.loc[a, e], ls="none", marker=kn.MK[a], mfc="none", mec=EPOCH_LINE[e],
+                        mew=1.1, ms=6, label=a if i == 0 else None)
+    for i, e in enumerate(EPS):
+        ax.plot(i + 0.2, A.mean(0)[e], "o", color=EPOCH_LINE[e], mec="k", ms=8,
+                label="mean of animals" if i == 0 else None)
     ax.set_xticks(range(4), EPS)
     ax.set_ylim(0.15, 1.12)
     ax.set_ylabel("fraction of successful licks inside\nthe pre-stroke 95 % range")
@@ -200,7 +209,7 @@ def plot(F: dict) -> None:
     # D
     ax = fig.add_subplot(gs[1, 0:2])
     _ecdf_panel(ax, F, sessions=True)
-    ax.set_title("D. Distribution of the deviation on hits (thin = sessions, thick = epoch, animals equally weighted)",
+    ax.set_title("D. Distribution of the deviation on hits (thin = sessions, thick = epoch; dashed = epoch median, dotted = epoch 95 %; * = median changed vs pre)",
                  fontsize=11, loc="left")
     fig.suptitle("Successful licks stay less normal after the stroke: compensation score on HITS across epochs "
                  "(PS92-95, August pre; first post-cue lick). n = 4, PROVISIONAL", fontsize=12)
@@ -219,14 +228,26 @@ def _ecdf_panel(ax, F, sessions=True, only=None):
         for _lab, an, ep, x in F["Dsess"]:
             if only is not None and an != only:
                 continue
-            ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=EPOCH_LINE[ep], lw=0.6, alpha=0.35)
+            ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=EPOCH_LINE[ep], lw=0.5, alpha=0.12)
     if only is None:
+        bQ = F.get("bQ", {})
         for e in EPS:
             x = np.sort(F["D"][e])
-            if len(x):
-                ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=EPOCH_LINE[e], lw=2.6, label=e)
-    ax.axvline(F["thr"], color="0.3", ls=":", lw=1)
-    ax.text(F["thr"], 0.04, "  pre 95 % contour", fontsize=8, va="bottom")
+            if not len(x):
+                continue
+            # each epoch's own median (dashed) and 95th percentile (dotted), marked on the curve (Priya 10-30)
+            q50, q95 = np.percentile(x, 50), np.percentile(x, 95)
+            st = ""
+            if e != "pre":
+                st = "".join(s for s, q in (("*", "q50"), ("*", "q95")) if _sig(bQ.get(q, {}).get(e)))[:1]
+            ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=EPOCH_LINE[e], lw=2.6,
+                    label=f"{e}: median {q50:.2f}, 95 % {q95:.1f}{(' ' + st) if st else ''}")
+            ax.plot([q50, q50], [0, 0.5], ls="--", color=EPOCH_LINE[e], lw=1.1)
+            ax.plot([q95, q95], [0, 0.95], ls=":", color=EPOCH_LINE[e], lw=1.3)
+        ax.axhline(0.5, color="0.85", lw=0.6)
+        ax.axhline(0.95, color="0.85", lw=0.6)
+    ax.axvline(F["thr"], color="0.3", ls="-.", lw=0.9)
+    ax.text(F["thr"], 0.02, "  pre 95 % contour (chi2)", fontsize=8, va="bottom")
     ax.set_xscale("log")
     ax.set_xlim(0.2, 30)
     ax.set_ylim(0, 1.0)
@@ -237,29 +258,46 @@ def _ecdf_panel(ax, F, sessions=True, only=None):
 
 
 def plot_sessions_ecdf(F: dict) -> None:
-    """Per-session version of panel D (Priya 10-30): one panel per animal, each session a curve in its epoch colour."""
+    """Per-session summary of panel D (Priya 10-30: the per-session ECDFs were hard to read): each session's MEDIAN and
+    95th-PERCENTILE deviation of successful licks, by epoch. Sessions = open markers (shape = animal, colour = epoch);
+    filled = mean of animals; * (top band) = boot_delta vs pre, CI excludes 0 AND >= 3/4 animals."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
-    from wfield_local.orofacial_cohort import EPOCH_LINE
-    fig, axs = plt.subplots(1, 4, figsize=(17, 4.6), sharey=True, constrained_layout=True)
-    for ax, a in zip(axs, AN):
-        for _lab, an, ep, x in F["Dsess"]:
-            if an == a:
-                ax.plot(x, np.arange(1, len(x) + 1) / len(x), color=EPOCH_LINE[ep], lw=1.1, alpha=0.75)
-        ax.axvline(F["thr"], color="0.3", ls=":", lw=1)
-        ax.set_xscale("log")
-        ax.set_xlim(0.2, 30)
-        ax.set_ylim(0, 1)
-        ax.set_title(a, fontsize=11)
-        ax.set_xlabel("d2 / k from own pre licks at that spout (log)", fontsize=9)
-    axs[0].set_ylabel("cumulative fraction of hits", fontsize=9)
-    hl = [Line2D([], [], color=EPOCH_LINE[e], lw=2, label=e) for e in EPS]
-    fig.legend(handles=hl, loc="outside lower center", ncol=4, fontsize=9, frameon=False)
-    fig.suptitle("Deviation of successful licks, ONE CURVE PER SESSION (colour = epoch; dotted = pre 95 % contour). "
-                 "n = 4, PROVISIONAL", fontsize=11)
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    Q, bQ = F["Q"], F["bQ"]
+    fig, axs = plt.subplots(1, 2, figsize=(11, 4.8), constrained_layout=True)
+    for ax, (q, ttl) in zip(axs, (("q50", "median deviation of a session's hits"),
+                                  ("q95", "95th-percentile deviation of a session's hits"))):
+        rng = np.random.default_rng(3)
+        for i, e in enumerate(EPS):
+            g = Q[Q.epoch == e]
+            for j, a in enumerate(AN):
+                v = g[g.animal == a][q].to_numpy(float)
+                xs = i - 0.18 + 0.09 * j + rng.uniform(-0.02, 0.02, len(v))
+                ax.scatter(xs, v, s=16, marker=ANIMAL_MARKER[a], facecolors="none", edgecolors=EPOCH_LINE[e],
+                           linewidths=0.9, alpha=0.75)
+            m = g.groupby("animal")[q].mean().mean()
+            ax.plot(i + 0.28, m, "o", color=EPOCH_LINE[e], mec="k", ms=8, zorder=5)
+            if e != "pre" and _sig(bQ[q].get(e)):
+                ax.text(i, 0.97, "*", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=14,
+                        fontweight="bold")
+        ax.axhline(F["thr"], color="0.3", ls="-.", lw=0.9)
+        ax.set_yscale("log")
+        lo, hi = ax.get_ylim()
+        ax.set_ylim(lo, hi * 1.6)                                     # top band for stars
+        ax.set_xticks(range(len(EPS)), EPS)
+        ax.set_ylabel("d2 / k from own pre licks at that spout (log)", fontsize=9)
+        ax.set_title(ttl, fontsize=10)
+    hl = [Line2D([], [], ls="none", marker=ANIMAL_MARKER[a], mfc="none", mec="0.3", label=a) for a in AN]
+    hl += [Line2D([], [], ls="none", marker="o", color=EPOCH_LINE[e], mec="k", label=f"{e} (mean of animals)")
+           for e in EPS]
+    hl += [Line2D([], [], color="0.3", ls="-.", label="pre 95 % contour")]
+    fig.legend(handles=hl, loc="outside lower center", ncol=5, fontsize=8.5, frameon=False)
+    fig.suptitle("How far successful licks are from pre-stroke, per SESSION: the median lick and the most deviant 5 %. "
+                 "n = 4, PROVISIONAL", fontsize=10.5)
     fig.savefig(FIG / "kn_fig5d_sessions.png", dpi=150)
     plt.close(fig)
     print("wrote", FIG / "kn_fig5d_sessions.png")

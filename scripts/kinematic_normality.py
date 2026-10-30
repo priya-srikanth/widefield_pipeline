@@ -522,6 +522,7 @@ CCOL = {"bal": "#8e44ad", "iti_off": "#16a085", "ret_hit": "#b03a2e", "tjm1": "#
 
 
 def draw(F: dict) -> None:
+    from wfield_local.orofacial_cohort import EPOCH_LINE
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -573,7 +574,7 @@ def draw(F: dict) -> None:
              Line2D([], [], color="0.4", marker="o", mfc="none", ls="", label="open = no acute deficit (not fitted)")])
     axs[0, 3].legend(handles=h0, fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1.0))
     axs[1, 3].legend(handles=h1, fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1.0))
-    fig.suptitle("Fig 1. Recovery per animal on a common scale (fraction of the acute deficit recovered): task success, "
+    fig.suptitle("Recovery per animal on a common scale (fraction of the acute deficit recovered): task success, "
                  "kinematic normality (hits; pre-stroke 95 % contour) and existing cortical readouts.\nLines = "
                  "exponential fits y = a - (a - b) exp(-d / tau); values clipped to the axis. n = 4, PROVISIONAL",
                  fontsize=10.5)
@@ -594,12 +595,13 @@ def draw(F: dict) -> None:
             means = []
             for j, an in enumerate(AN):
                 v = g[g.animal == an][m].dropna().to_numpy()
-                if len(v):
+                if len(v):                       # Priya 10-30: shape = animal, colour = EPOCH (open markers)
                     xs = i + (j - 1.5) * 0.09 + np.random.default_rng(10 * i + j).uniform(-0.025, 0.025, len(v))
-                    ax.scatter(xs, v, marker=MK[an], s=18, color=ACOL[an], alpha=0.7, edgecolor="k", lw=0.3, zorder=4)
+                    ax.scatter(xs, v, marker=MK[an], s=18, facecolors="none", edgecolors=EPOCH_LINE[ep], alpha=0.75,
+                               lw=0.9, zorder=4)
                     means.append(v.mean())
             if means:
-                ax.plot([i - 0.32, i + 0.32], [np.mean(means)] * 2, color="k", lw=2.2, zorder=5)
+                ax.plot([i - 0.32, i + 0.32], [np.mean(means)] * 2, color=EPOCH_LINE[ep], lw=2.6, zorder=5)
             r = ET[(ET.measure == m) & (ET.epoch == ep)]
             if len(r) and bool(r.change.iloc[0]):
                 _star_top(ax, i)
@@ -609,10 +611,10 @@ def draw(F: dict) -> None:
         _clean(ax)
     axs[0].set_ylabel("session value")
     _reserve(fig)
-    fig.legend(handles=[Line2D([], [], marker=MK[a], color=ACOL[a], ls="", label=a) for a in AN]
-               + [Line2D([], [], color="k", lw=2.2, label="mean of animals")], loc="lower center", ncol=5,
-               fontsize=8.5, frameon=False)
-    fig.suptitle("Fig 2. Kinematic normality by epoch (one dot per session; pre = leave-one-session-out). * (top band) = "
+    fig.legend(handles=[Line2D([], [], marker=MK[a], mfc="none", mec="0.3", ls="", label=a) for a in AN]
+               + [Line2D([], [], color=EPOCH_LINE[e], lw=2.6, label=f"{e} (mean of animals)") for e in EP4],
+               loc="lower center", ncol=8, fontsize=8.5, frameon=False)
+    fig.suptitle("Kinematic normality by epoch (one dot per session; pre = leave-one-session-out). * (top band) = "
                  "boot_delta vs August pre, 95 % CI excludes 0 AND >= 3/4 animals same sign", fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.92))
     fig.savefig(_w(FIG / "kn_fig2_normality_by_epoch.png"), dpi=120)
@@ -647,7 +649,7 @@ def draw(F: dict) -> None:
     axs[1].legend(handles=[Line2D([], [], marker=MK[a], color=ACOL[a], label=a) for a in AN]
                   + [Line2D([], [], marker="o", color="0.4", mfc="none", ls="", label="no acute deficit (flag)")],
                   fontsize=8.5, frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
-    fig.suptitle("Fig 3. Per-animal exponential fits: half-recovery day and asymptote, 95 % CI by resampling post "
+    fig.suptitle("Per-animal exponential fits: half-recovery day and asymptote, 95 % CI by resampling post "
                  "sessions (values beyond the axis are clipped)", fontsize=10.5)
     fig.tight_layout(rect=(0, 0, 0.9, 0.94))
     fig.savefig(_w(FIG / "kn_fig3_halftimes_asymptotes.png"), dpi=120)
@@ -685,7 +687,7 @@ def draw(F: dict) -> None:
                                label="r(cortex, normality | hit rate)")]
                + [Line2D([], [], marker=MK[a], color="0.5", ls="", label=a) for a in AN],
                loc="lower center", ncol=6, fontsize=8.5, frameon=False)
-    fig.suptitle("Fig 4. Does each cortical readout track task SUCCESS or kinematic NORMALITY?\nWithin-animal partial "
+    fig.suptitle("Does each cortical readout track task SUCCESS or kinematic NORMALITY?\nWithin-animal partial "
                  "correlations over post sessions; pooled = mean Fisher z, within-animal permutation p", fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 0.86, 0.93))
     fig.savefig(_w(FIG / "kn_fig4_success_vs_normality.png"), dpi=120)

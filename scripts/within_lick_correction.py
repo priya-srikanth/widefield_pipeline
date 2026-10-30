@@ -709,8 +709,15 @@ def epoch_panel(ax, S, B, m, sel, color="k", row=0, off=0.0, label=None, animals
             ax.scatter(xi, v.to_numpy(float), s=11, facecolors="none", edgecolors=cs, alpha=0.6,
                        marker=ANIMAL_MARKER.get(an, "o"), linewidths=0.8, zorder=2)
     b = _sel(B[B.metric == m], **sel).set_index("epoch").reindex(EPS)
-    ax.errorbar(x, b.level, yerr=[b.level - b.level_lo, b.level_hi - b.level], color=color, lw=2.2, marker="o",
-                ms=5, capsize=3, label=label, zorder=4)
+    # pooled level + 95 % CI, NO connecting line between epochs (Priya 10-30); epoch colour in single-series panels
+    for i, ep in enumerate(EPS):
+        if ep not in b.index or not np.isfinite(b.loc[ep, "level"]):
+            continue
+        c_ = EPOCH_LINE[ep] if color == "k" else color
+        lv = b.loc[ep]
+        ax.errorbar(x[i] - 0.06, lv.level, yerr=[[lv.level - lv.level_lo], [lv.level_hi - lv.level]], color=c_,
+                    mfc=c_, mec="k" if color == "k" else c_, ls="none", lw=2.2, marker="o", ms=6, capsize=3,
+                    label=label if i == 0 else None, zorder=4)
     for i, ep in enumerate(EPS[1:], start=1):
         if ep in b.index and b.loc[ep, "change"] == 1:
             txt = "*"
@@ -734,12 +741,12 @@ def fig_primary(D):
     import matplotlib.pyplot as plt
     S, B, H = D["S"], D["B"], D["H"]
     sel = {"context": "cued", "group": "far_contra", "order": "any", "outcome": "any"}
-    panels = [("e_L", "1a. LAUNCH error e_L (deg; - = ipsilesional of the pre hit pattern) -- P1", True),
-              ("e_E", "1b. ENDPOINT error e_E at the extension peak (deg)", False),
-              ("corr", "1c. WITHIN-LICK correction e_E - e_L (deg; + = toward the far-contra target) -- P2", True),
-              ("csm_share", "1d. share of licks with >= 1 corrective submovement (CSM) -- P3", True),
-              ("csm_false", "1e. noise control: share a noise surrogate gains a CSM (same threshold)", False),
-              ("g_w", "1f. within-lick GAIN (slope of correction on -launch error; 1 = full return)", False)]
+    panels = [("e_L", "A. LAUNCH error e_L (deg; - = ipsilesional of the pre hit pattern) -- P1", True),
+              ("e_E", "B. ENDPOINT error e_E at the extension peak (deg)", False),
+              ("corr", "C. WITHIN-LICK correction e_E - e_L (deg; + = toward the far-contra target) -- P2", True),
+              ("csm_share", "D. share of licks with >= 1 corrective submovement (CSM) -- P3", True),
+              ("csm_false", "E. noise control: share a noise surrogate gains a CSM (same threshold)", False),
+              ("g_w", "F. within-lick GAIN (slope of correction on -launch error; 1 = full return)", False)]
     fig, axs = plt.subplots(2, 3, figsize=(15, 9.4), layout="constrained")
     for ax, (m, tt, prim) in zip(axs.ravel(), panels):
         epoch_panel(ax, S, B, m, sel, holm=H if prim else None)
@@ -751,8 +758,8 @@ def fig_primary(D):
     axs[1, 1].sharey(axs[1, 0])
     reserve_headroom(fig)
     th = D["cal"].get("theta_sp")
-    fig.suptitle(_wrap(f"Fig 1. Within-lick correction at the FAR-CONTRA spout (cued post-cue licks, all orders and "
-                       f"outcomes; PS92-95, August pre). Thick = pooled session level with 95 % nested bootstrap CI; "
+    fig.suptitle(_wrap(f"Within-lick correction at the FAR-CONTRA spout (cued post-cue licks, all orders and "
+                       f"outcomes; PS92-95, August pre). Filled = pooled session level with 95 % nested bootstrap CI; "
                        f"open markers = SESSIONS (shape = animal: o PS92, s PS93, ^ PS94, D PS95; colour = epoch). Top-band * = change vs pre (CI excludes 0 "
                        f"AND >= 3/4 animals same sign); ** = also Holm over the 9 primary tests. Angles + = "
                        f"contralesional. CSM threshold {th} mm/s speed-peak prominence (noise-calibrated on August "
@@ -765,8 +772,8 @@ def fig_spouts(D):
 
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     S, B = D["S"], D["B"]
-    mets = [("e_L", "2a. launch error e_L, change vs pre (deg)"), ("corr", "2b. within-lick correction, change vs pre "
-            "(deg)"), ("csm_share", "2c. CSM share, change vs pre"), ("e_E", "2d. endpoint error e_E, change vs pre "
+    mets = [("e_L", "A. launch error e_L, change vs pre (deg)"), ("corr", "B. within-lick correction, change vs pre "
+            "(deg)"), ("csm_share", "C. CSM share, change vs pre"), ("e_E", "D. endpoint error e_E, change vs pre "
                                                                          "(deg)")]
     fig, axs = plt.subplots(2, 2, figsize=(15, 9.6), layout="constrained")
     for ax, (m, tt) in zip(axs.ravel(), mets):
@@ -797,7 +804,7 @@ def fig_spouts(D):
     h_, l_ = axs[0, 0].get_legend_handles_labels()
     fig.legend(h_, l_, loc="outside lower center", ncol=3, fontsize=9, frameon=False,
                title="epoch (pooled change vs August pre, 95 % CI; open markers = sessions minus own pre)", title_fontsize=9)
-    fig.suptitle(_wrap("Fig 2. Per spout (canonical order), cued post-cue licks, all orders / outcomes. Top-band * "
+    fig.suptitle(_wrap("Per spout (canonical order), cued post-cue licks, all orders / outcomes. Top-band * "
                        "(one row per epoch, epoch colour) = change vs pre by the pre-registered criterion. Angles + = "
                        "contralesional; correction + = endpoint more contralesional than launch.", 170), fontsize=9.5)
     return fig
@@ -818,12 +825,12 @@ def fig_split(D):
                                                                           f"{'yes' if oc_ == 'hit' else 'no'})")
             if m != "csm_share":
                 ax.axhline(0, color="0.5", lw=0.7)
-            ax.set_title(f"3{'abcdef'[r * 3 + c]}. far contra, {on.upper()} licks: {tt}", fontsize=9.5)
+            ax.set_title(f"{'ABCDEF'[r * 3 + c]}. far contra, {on.upper()} licks: {tt}", fontsize=9.5)
     reserve_headroom(fig)
     h_, l_ = axs[0, 0].get_legend_handles_labels()
     fig.legend(h_, l_, loc="outside lower center", ncol=2, fontsize=9, frameon=False)
-    fig.suptitle(_wrap("Fig 3. Far-contra spout split by lick order (FIRST post-cue lick vs LATER licks) and outcome "
-                       "(HIT = the lick contacted the spout). Thick = pooled (95 % CI), open markers = sessions; top-band * "
+    fig.suptitle(_wrap("Far-contra spout split by lick order (FIRST post-cue lick vs LATER licks) and outcome "
+                       "(HIT = the lick contacted the spout). Filled = pooled (95 % CI), open markers = sessions; top-band * "
                        "(row per outcome, its colour) = change vs pre (CI excludes 0 AND >= 3/4 same sign).", 170),
                  fontsize=9.5)
     return fig
@@ -835,11 +842,11 @@ def fig_secondary(D):
     cols = {"far contra": ({"context": "cued", "group": "far_contra"}, "#b2182b"),
             "other 5 spouts": ({"context": "cued", "group": "other5"}, "#2166ac"),
             "ITI licks": ({"context": "iti", "group": "iti"}, "0.4")}
-    mets = [("curv", "4a. path curvature (path / chord, onset -> peak)"), ("prot_ms", "4b. protrusion duration (ms)"),
-            ("hyp_mm", "4c. hypometria (mm past (+) / short of (-) the spout)"),
-            ("speed_peak", "4d. peak tip speed (mm/s)"), ("csm_lat_share", "4e. lateral-velocity CSM share"),
-            ("csm_share", "4f. CSM share (cued vs ITI)"), ("full_cov", "4g. tracking: share of licks fully tracked"),
-            ("single_share", "4h. tracking: share of single-camera frames")]
+    mets = [("curv", "A. path curvature (path / chord, onset -> peak)"), ("prot_ms", "B. protrusion duration (ms)"),
+            ("hyp_mm", "C. hypometria (mm past (+) / short of (-) the spout)"),
+            ("speed_peak", "D. peak tip speed (mm/s)"), ("csm_lat_share", "E. lateral-velocity CSM share"),
+            ("csm_share", "F. CSM share (cued vs ITI)"), ("full_cov", "G. tracking: share of licks fully tracked"),
+            ("single_share", "H. tracking: share of single-camera frames")]
     fig, axs = plt.subplots(2, 4, figsize=(19, 9.4), layout="constrained")
     for ax, (m, tt) in zip(axs.ravel(), mets):
         for j, (nm, (sel, col)) in enumerate(cols.items()):
@@ -853,7 +860,7 @@ def fig_secondary(D):
     reserve_headroom(fig)
     h_, l_ = axs[0, 0].get_legend_handles_labels()
     fig.legend(h_, l_, loc="outside lower center", ncol=3, fontsize=9, frameon=False)
-    fig.suptitle(_wrap("Fig 4. Secondary kinematics and tracking controls (all orders / outcomes). Thick = pooled "
+    fig.suptitle(_wrap("Secondary kinematics and tracking controls (all orders / outcomes). Filled = pooled "
                        "(95 % CI), thin = animals; top-band * (row per line) = change vs pre (CI excludes 0 AND >= 3/4 "
                        "same sign).", 170), fontsize=9.5)
     return fig
@@ -883,10 +890,55 @@ def fig_paths(D):
                 ax.set_ylabel("distance from the mouth zero (mm)", fontsize=8)
             if r == 2:
                 ax.set_xlabel("ml (mm; + = contralesional)", fontsize=8)
-    fig.suptitle(_wrap("Fig 5. Mean tongue path from the first tracked frame (dot) to the extension peak, cued post-cue "
+    fig.suptitle(_wrap("Mean tongue path from the first tracked frame (dot) to the extension peak, cued post-cue "
                        "licks at the three FAR spouts, per animal and epoch (11 time-normalised points, SG-smoothed). "
                        "A launch bias that is corrected inside the lick bends the path toward + ml late; a straight "
                        "biased path means no within-lick correction.", 170), fontsize=9.5)
+    return fig
+
+
+def fig_pre_signatures(D):
+    """PRE-STROKE validation of the CSM measure against Bollu et al. 2021 (Priya 10-30: "what figure is this"):
+    CSM share per spout (more at FAR targets) and cued vs ITI licks (more for cue-evoked licks), August pre sessions;
+    noise-surrogate false rate alongside."""
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER
+    S = D["S"]
+    P = S[(S.epoch == "pre") & (S.order == "any") & (S.outcome == "any")]
+    fig, axs = plt.subplots(1, 2, figsize=(13, 4.6), layout="constrained", gridspec_kw={"width_ratios": [3, 1.3]})
+    ax = axs[0]
+    rng = np.random.default_rng(5)
+    q = P[(P.context == "cued") & P.group.isin(POS)]
+    for j, an in enumerate(AN):
+        h = q[q.animal == an]
+        for m, col in (("csm_share", "k"), ("csm_false", "0.6")):
+            xs = np.array([POS.index(g) for g in h.group], float) - 0.2 + 0.08 * j + (0.0 if m == "csm_share" else 0.4)
+            ax.scatter(xs + rng.uniform(-0.02, 0.02, len(xs)), h[m], s=14, marker=ANIMAL_MARKER[an], facecolors="none",
+                       edgecolors=col, linewidths=0.8, alpha=0.75)
+    for i, p in enumerate(POS):
+        for m, col, dx in (("csm_share", "k", 0.15), ("csm_false", "0.6", 0.55)):
+            v = q[q.group == p].groupby("animal")[m].mean().mean()
+            ax.plot(i + dx, v, "o", color=col, mec="k", ms=7, zorder=5)
+    ax.set_xticks(np.arange(len(POS)) + 0.2, [p.replace("_", "\n") for p in POS], fontsize=9)
+    ax.set_ylabel("share of licks with >= 1 corrective submovement", fontsize=9)
+    ax.set_title("A. Pre-stroke, cued licks by spout: black = real licks, grey = noise surrogate (false rate)",
+                 fontsize=10, loc="left")
+    ax = axs[1]
+    for k, (ctx, grp) in enumerate((("cued", "all"), ("iti", "iti"))):
+        h = P[(P.context == ctx) & (P.group == grp)]
+        for j, an in enumerate(AN):
+            g = h[h.animal == an]
+            ax.scatter(k - 0.15 + 0.07 * j + rng.uniform(-0.02, 0.02, len(g)), g.csm_share, s=14,
+                       marker=ANIMAL_MARKER[an], facecolors="none", edgecolors="k", linewidths=0.8, alpha=0.75)
+        ax.plot(k + 0.25, h.groupby("animal").csm_share.mean().mean(), "o", color="k", ms=7, zorder=5)
+    ax.set_xticks([0, 1], ["cued licks", "ITI licks"])
+    ax.set_xlim(-0.5, 1.6)
+    ax.set_title("B. Pre-stroke, cued vs ITI", fontsize=10, loc="left")
+    fig.suptitle(_wrap("Validation of the corrective-submovement measure on PRE-STROKE licks (August; open markers = "
+                       "sessions, shape = animal; filled = mean of animals): as in Bollu et al. 2021, corrections are "
+                       "more frequent at FAR spouts and for cue-evoked licks, and well above the noise-surrogate rate.",
+                       150), fontsize=10)
     return fig
 
 
@@ -916,7 +968,7 @@ def fig_paths_pooled(D):
         ax.legend(fontsize=8, frameon=False, loc="lower left")
         ax.tick_params(labelsize=8)
     axs[0].set_ylabel("distance from the mouth zero (mm)", fontsize=9)
-    fig.suptitle(_wrap("Fig 5b. POOLED mean tongue path (first tracked frame = dot -> extension peak), cued post-cue "
+    fig.suptitle(_wrap("POOLED mean tongue path (first tracked frame = dot -> extension peak), cued post-cue "
                        "licks at the three FAR spouts: thick = mean of the four animals' mean paths (animals equally "
                        "weighted), thin = animals. Paths shift ipsilesionally from the launch and stay roughly "
                        "parallel: the bias is set at launch, not corrected inside the lick.", 150), fontsize=10)
@@ -932,10 +984,10 @@ def fig_neural(D):
     fig, axs = plt.subplots(2, 3, figsize=(16, 9.6), layout="constrained")
     hc = {"contralesional (right)": ("|c", "#b2182b"), "ipsilesional (left)": ("|i", "#2166ac")}
     base = {"tau": 0.0, "win": "w0.0-0.2"}
-    for c, (sub, term, tt) in enumerate([("all", "gamma_csm", "6a. CSM - CSM-free lick response at matched "
+    for c, (sub, term, tt) in enumerate([("all", "gamma_csm", "A. CSM - CSM-free lick response at matched "
                                                               "kinematics, all licks"),
-                                         ("first", "gamma_csm", "6b. same, FIRST licks only (no preceding lick)"),
-                                         ("all", "gamma_corr", "6c. response per 10 deg of |within-lick correction|")]):
+                                         ("first", "gamma_csm", "B. same, FIRST licks only (no preceding lick)"),
+                                         ("all", "gamma_corr", "C. response per 10 deg of |within-lick correction|")]):
         ax = axs[0, c]
         for j, (nm, (sfx, col)) in enumerate(hc.items()):
             sel = {**base, "subset": sub, "term": term, "feat": f"POOL{sfx}"}
@@ -951,7 +1003,7 @@ def fig_neural(D):
                         row=j, off=(j - 1) * 0.12, label={"resp_all": "all scorable licks",
                                                           "resp_clean": "clean licks (no CSM, |corr| < 10 deg)",
                                                           "resp_csm": "CSM licks"}[st])
-        ax.set_title(f"6{'de'[c]}. mean lick response, {hn} orofacial pool (raw, 0-0.2 s)", fontsize=9.5)
+        ax.set_title(f"{'DE'[c]}. mean lick response, {hn} orofacial pool (raw, 0-0.2 s)", fontsize=9.5)
         ax.set_ylabel("dF/F x1e3", fontsize=8)
     ax = axs[1, 2]
     W = FN["W"]
@@ -967,7 +1019,7 @@ def fig_neural(D):
     ax.axvline(0, color="0.85", lw=0.6)
     ax.set_xlabel("change vs pre, ALL licks (dF/F x1e3)", fontsize=8)
     ax.set_ylabel("change vs pre, CLEAN licks", fontsize=8)
-    ax.set_title(_wrap("6f. each area x hemisphere: on the diagonal = the rise is NOT carried by correction licks; "
+    ax.set_title(_wrap("F. each area x hemisphere: on the diagonal = the rise is NOT carried by correction licks; "
                        "near 0 on y = carried", 50), fontsize=9.5)
     ax.legend(fontsize=8, frameon=False, loc="upper left")
     _ = ANIMAL_MARKER
@@ -975,7 +1027,7 @@ def fig_neural(D):
     h1, l1 = axs[0, 0].get_legend_handles_labels()
     h2, l2 = axs[1, 0].get_legend_handles_labels()
     fig.legend(h1 + h2, l1 + l2, loc="outside lower center", ncol=5, fontsize=9, frameon=False)
-    fig.suptitle(_wrap("Fig 6. NEURAL (imaging sessions): is the larger post-stroke lick response carried by "
+    fig.suptitle(_wrap("NEURAL (imaging sessions): is the larger post-stroke lick response carried by "
                        "correction licks? Row 1: per-session OLS coefficient of the CSM flag (or |correction|) on the "
                        "lick-evoked response (0-0.2 s minus -0.2..-0.1 s) with launch / endpoint angle, reach, speed, "
                        "contact, order, spout and the NEXT lick's angle / contact / interval as covariates. Row 2: mean "
@@ -993,7 +1045,8 @@ def cmd_plot() -> None:
     FIGS.mkdir(parents=True, exist_ok=True)
     figs = {"wlc_fig1_primary_far_contra": fig_primary, "wlc_fig2_per_spout": fig_spouts,
             "wlc_fig3_order_outcome": fig_split, "wlc_fig4_secondary_tracking": fig_secondary,
-            "wlc_fig5_mean_paths": fig_paths, "wlc_fig5b_mean_paths_pooled": fig_paths_pooled}
+            "wlc_fig5_mean_paths": fig_paths, "wlc_fig5b_mean_paths_pooled": fig_paths_pooled,
+            "wlc_fig0_pre_signatures": fig_pre_signatures}
     if D.get("FN") is not None:
         figs["wlc_fig6_neural"] = fig_neural
     for name, fn in figs.items():

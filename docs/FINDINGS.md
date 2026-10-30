@@ -89,6 +89,9 @@ or slow drift cannot be decided without a time-matched no-stroke reference.
    term in the frozen frame (contra SSp-m target unique +0.010 / +0.011, 4/4). The lick-kernel PARTIAL refit (with
    permutation nulls) is still running. Block-permutation nulls DONE 10-26 (same numbers as the single shift). Failed attempts keep distance, lose side (4.9).
 4b. **Recovery = behavioural compensation with PARTIAL cortical recovery, not restoration (10-25 night; key point).**
+   **NOTE (Priya 10-30, important; 4.22): the residual ipsilesional bias is the SAME in cued and spontaneous (ITI) licks**
+   (ITI landing vs pre after the same previous spout -7.5 deg chronic vs cued first-lick landing -6.8 deg; gap -0.7 n.s.):
+   no capacity-vs-performance gap, so the cortical ITI persistence does not reflect a deficit that cued licks overcome.
    Judge recovery PER SUCCESSFUL TRIAL, not per epoch: acutely ~92 % of far-contra trials are failed attempts, which carry
    no far-contra code (decoder retention ~0 in every window, 4.9 / page 7e) and no trial-by-trial coupling (4.6), so
    epoch-level "cortical recovery" is partly just hits becoming common again (composition). On hits:
@@ -1440,6 +1443,15 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     licks; the cortical ITI persistence (offset) sits on a real behavioural bias that cued licks share, not one cued
     licks overcome. Caveats: PS95 has 1-2 pre ITI sessions; the hit rate falls within post sessions despite the gate.
     **PROVISIONAL (n = 4).**
+23. **Pre-launch hemispheric tuning to the launch angle: NOT MEASURABLE (10-30; pre-registered,
+    `docs/status/PRELICK_HEMISPHERE_TUNING_PREREG_20261030.md`; `scripts/prelick_hemisphere_tuning.py`).** Cued first licks
+    (no lick in the prior 1 s), per hemisphere orofacial-pool slope on the WITHIN-spout launch angle, pre-launch
+    -0.30..-0.05 s and post-contact +0.05..+0.30 s. Gate failed: 0/4 animals pre-launch, 1/4 post-contact (|partial r|
+    ~0.04; per-session noise 0.24-0.58 ~ between-session spread). The contraversive pattern exists only post-contact
+    (D -0.55, 4/4). No post-stroke change in either window / hemisphere (all Holm p >= 0.59). Later-lick total-angle
+    flattening (+0.35, 4/4) = the known post-lick contralesional-share rise, not launch tuning. -> widefield area signals
+    cannot separate the pathway routes (contralesional takeover vs ipsilesional bypass); needs perturbation (cohort 2).
+    **NOT ESTABLISHED.**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
