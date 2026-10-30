@@ -1386,7 +1386,7 @@ bootstrap unless stated; LICK DATA = behaviour only.*
 19. **Restitution vs compensation: kinematic normality of successful licks (10-30; SRRR / Levin 2009; pre-registered,
     `docs/status/KINEMATIC_NORMALITY_PREREG_20261030.md`; `scripts/kinematic_normality.py` -> `kinematic_normality/`).**
     Per hit trial, first post-cue lick, Mahalanobis distance (Ledoit-Wolf) from the animal's August-pre licks at the same
-    spout on 7-9 features (launch / sagittal angle, reach, peak speed, landing lateral error, closest approach, latency,
+    spout on 7-9 features (lick angle at the extension peak, sagittal angle, reach, peak speed, landing lateral error, closest approach, latency,
     jaw onset lead, jaw lateral steering at side spouts); normality = fraction of hits inside the pre 95 % contour (pre
     scored leave-one-session-out: .89-.92). **Chronically hit rate is back (+0.03, 4/4) but successful licks are still
     less normal: -0.10 [-0.22, -0.03], 4/4** (PS92 -.03, PS93 -.05, PS94 -.27, PS95 -.06; far contra -0.10, 4/4) ->
@@ -1397,7 +1397,11 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     balance leans toward normality (PS94 asymptote 0.75 vs normality 0.56; 2/4, undetermined); ITI offset and contra tjM1
     response undetermined. No readout passes as following normality. The pre-vs-post classifier separates every post
     session (incl. drift) -> not used. Caveats: no no-stroke drift reference; few acute far-contra hits; permutation p
-    ignores autocorrelation. **PROVISIONAL (n = 4).**
+    ignores autocorrelation. WHICH features (10-30, `scripts/kn_hits_deviation.py`, page 14.18 S22c; z vs own pre hits at
+    the spout, lateral + = contralesional): chronic hits at all spouts still land IPSILESIONALLY (lick angle -0.89 SD,
+    landing lateral error -1.00 SD, 4/4) and are faster / longer (latency -0.34, speed +0.15, reach +0.39 SD, 4/4); far
+    contra: closest approach +0.70 SD, jaw lateral -1.78 SD acutely only -> residual aim deficit compensated by vigour
+    and reach. **PROVISIONAL (n = 4).**
 20. **Re-embedding test: is the chronic spout code the old code re-embedded, or a new code? (10-30; Gallego 2020 /
     Degenhart 2020; pre-registered, `docs/status/REEMBEDDING_PREREG_20261030.md`; `scripts/reembedding_test.py` ->
     `reembedding/`). UNINFORMATIVE: the alignment failed its gate.** Spout decoding (6 classes) from k = 10 PCs of 45
