@@ -695,10 +695,61 @@ def plot_example() -> None:
     plt.close(fig)
 
 
+def itpc_data() -> pd.DataFrame:
+    """Per-session ITPC levels (raw and null), cued, S8M8, evoked, tau 0, full session."""
+    rows = []
+    for f in sorted((OUT / "tables" / "per_session").glob("*.pkl")):
+        d = pd.read_pickle(f)
+        d = d[(d.set == "cued") & (d.pairing == "S8M8") & (d.version == "evoked") & (d.tau == 0) & (d.part == "full")
+              & (d.kind == "coh")]
+        cols = [c for c in d.columns if c.startswith("itpc")]
+        if len(d):
+            rows.append(d[["label", "animal", "epoch"] + cols].iloc[[0]])
+    return pd.concat(rows, ignore_index=True)
+
+
+def plot_itpc() -> None:
+    """Fig 4: lick-locked phase consistency (ITPC) LEVELS per animal by epoch, with the random-phase null."""
+    import matplotlib.pyplot as plt
+    f = FIGD / "fig4_itpc_levels.pkl"
+    if f.exists():
+        D = pd.read_pickle(f)
+    else:
+        D = itpc_data()
+        D.to_pickle(f)
+    acol = {"PS92": "tab:blue", "PS93": "tab:orange", "PS94": "tab:green", "PS95": "tab:purple"}
+    panels = [("itpcS_low", "sensory, 0.5-1.5 Hz"), ("itpcS_delta", "sensory, 1.5-4 Hz"),
+              ("itpcM_low", "motor, 0.5-1.5 Hz"), ("itpcM_delta", "motor, 1.5-4 Hz")]
+    fig, axs = plt.subplots(1, 4, figsize=(15, 3.9), layout="constrained", sharey=True)
+    x = np.arange(len(EPS))
+    for ax, (m, title) in zip(axs, panels):
+        for a in AN:
+            g = D[D.animal == a].groupby("epoch")
+            mu = g[m].mean().reindex(EPS)
+            ax.plot(x, mu.values, "-o", color=acol[a], ms=5, lw=1.4, label=a)
+            for k, ep in enumerate(EPS):
+                v = D[(D.animal == a) & (D.epoch == ep)][m]
+                ax.plot(np.full(len(v), k) + (AN.index(a) - 1.5) * 0.06, v, ".", color=acol[a], ms=3, alpha=0.35)
+        nl = D.groupby("epoch")[f"{m}_null"].mean().reindex(EPS)
+        ax.plot(x, nl.values, "--", color="0.5", lw=1.2, label="random-phase null")
+        ax.set_xticks(x, EPS)
+        ax.set_title(title, fontsize=10)
+        ax.set_ylim(0, 1)
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+    axs[0].set_ylabel("ITPC (phase consistency\nacross cued first licks)")
+    axs[-1].legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+    fig.suptitle("Lick-locked phase consistency, 8 sensory / 8 motor areas, cued first licks, -1..+1 s: lines = animal "
+                 "epoch means, dots = sessions (30-event subsamples, 50 draws)", fontsize=9.5)
+    fig.savefig(FIGS / "fig4_itpc_levels.png", dpi=150)
+    plt.close(fig)
+
+
 def plot() -> None:
     plot_gate()
     plot_change()
     plot_example()
+    plot_itpc()
     print("figures ->", FIGS)
 
 
