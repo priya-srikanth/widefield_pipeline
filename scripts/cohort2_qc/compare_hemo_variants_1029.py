@@ -60,7 +60,7 @@ def main():
         ff = first_lick_frames(s)
         fa = np.load(res / "frames_average.npy")
         H, W = fa.shape[1:]
-        br = brain_mask(fa)
+        br = brain_mask(fa, res=res)
         U = np.nan_to_num(np.load(res / "U.npy"))
         Ub = U.reshape(-1, U.shape[-1])[br.reshape(-1)]
         del U

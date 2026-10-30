@@ -132,6 +132,12 @@ def main() -> int:
         dat_svd = swap_repair.RepairedDat(dat, plan)
         frames_average = swap_repair.corrected_average(dat, dat_svd, frames_average_raw)
         np.save(frames_average_path, frames_average)
+    elif dat.shape[1] == 2:
+        # No repair: the clip mask (swap_repair.save_clip) still has to exist, at the cost of one extra read.
+        from wfield_local import swap_repair
+        print("Counting clipped pixels (no swap repair)...", flush=True)
+        swap_summary = swap_repair.save_clip(swap_repair.clip_counts(dat), len(dat), args.output)
+        print(f"[clip] {swap_summary}", flush=True)
 
     print("Running approximate_svd...", flush=True)
     U, SVT = approximate_svd(

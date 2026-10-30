@@ -320,12 +320,30 @@ def run_reference_native(cfg, out, func):
                 np.save(ad / "frames_average_atlas.npy", fax)
                 if cov is not None:
                     np.save(ad / "roi_coverage_atlas.npy", cov_ccf)   # pixels this session's ROI saw (CCF grid)
-                for fn in ("allen_area_atlas_native_grid.npy", "allen_brain_mask_native_grid.npy", "allen_area_names.json"):
+                for fn in ("allen_area_atlas_native_grid.npy", "allen_area_names.json"):
                     src = ref_allen / fn
                     if src.exists():
                         shutil.copy2(src, ad / fn)
+                # BRAIN MASK = the reference's UNCLIPPED mask minus THIS session's saturated pixels (2026-10-30,
+                # wfield_local.swap_repair CLIPPED PIXELS). Copying the reference's final mask would carry the
+                # reference's clipping here and miss this session's own (470 power differs day to day).
+                n_clip = 0
+                src = ref_allen / "allen_brain_mask_unclipped_native_grid.npy"
+                if not src.exists():
+                    src = ref_allen / "allen_brain_mask_native_grid.npy"
+                if src.exists():
+                    bm = np.load(src).astype(bool)
+                    cp = Path(s["results"]) / "clip_mask.npy"
+                    if cp.exists():
+                        clip = _warp_native_to_ccf(to_ref(np.load(cp).astype(np.float32)), ref_T) > 0
+                        np.save(ad / "allen_brain_mask_unclipped_native_grid.npy", bm.astype(np.uint8))
+                        np.save(ad / "allen_clip_mask_native_grid.npy", clip.astype(np.uint8))
+                        n_clip = int((bm & clip).sum())
+                        bm &= ~clip
+                    np.save(ad / "allen_brain_mask_native_grid.npy", bm.astype(np.uint8))
                 (ad / "cross_day_allen_summary.json").write_text(json.dumps(
                     {"session": sid, "reference": ref_id, "ncc_to_ref": float(ncc),
+                     "clipped_pixels_removed_from_brain_mask": n_clip,
                      "roi_differs": cov is not None,
                      "roi_coverage_of_ref_mask": (float(cov[mask.astype(bool)].mean()) if cov is not None else 1.0),
                      "note": "U + frames_average warped to reference CCF via session->ref "

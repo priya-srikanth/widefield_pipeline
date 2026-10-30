@@ -61,6 +61,22 @@ def test_summary_counts():
     assert s["pairs_exchanged"] == 1 and s["frames_interpolated"] == 3 and s["bad_415_slot"] == 3
 
 
+def test_clip_mask_flags_persistent_saturation_only(tmp_path):
+    mov, _t, fa = _movie(2.0)
+    mov[:, 1, 120:130, 120:130] = 65535          # in-brain hotspot saturated throughout (the sinus case)
+    mov[10:12, 1, 2, 2] = 65535                  # one off-brain pixel clipped on 2 / 500 frames (< 1%): not masked
+    plan = sr.detect(mov, fa, func=1, verbose=False)
+    found = {(int(t), int(c)) for t, c in zip(*np.nonzero(plan["bad"]))}
+    assert found == {(100, 0), (200, 0), (200, 1), (300, 1), (400, 0)}   # detection unaffected
+    assert np.array_equal(plan["clip_count"], sr.clip_counts(mov))
+    s = sr.save(plan, tmp_path)
+    m = np.load(tmp_path / "clip_mask.npy").astype(bool)
+    exp = np.zeros(m.shape, bool)
+    exp[120:130, 120:130] = True
+    assert np.array_equal(m, exp) and s["clip_pixels_masked"] == 100
+    assert s["clip_max_frame_frac_470_slot"] == 1.0 and s["clip_max_frame_frac_415_slot"] == 0.0
+
+
 def test_approximate_svd_runs_on_repaired_view():
     from wfield.decomposition import approximate_svd
     mov, truth, fa = _movie(2.0, T=500, H=128, W=128)

@@ -57,7 +57,7 @@ def load(animal):
     cf, pos = cf[ok], pos[ok]
     feat = C[:, cf[:, None] + np.arange(0, 31)].mean(2) - C[:, cf[:, None] + np.arange(-31, 0)].mean(2)   # K x trials
     fa = np.load(res / "frames_average.npy")
-    br = brain_mask(fa)
+    br = brain_mask(fa, res=res)
     U = np.nan_to_num(np.load(res / "U.npy"))
     Ub = U.reshape(-1, U.shape[-1])[br.reshape(-1)].astype(np.float64)
     return dict(feat=feat, pos=pos, Ub=Ub, br=br, shape=fa.shape[1:])

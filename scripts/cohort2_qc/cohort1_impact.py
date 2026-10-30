@@ -62,7 +62,7 @@ def main():
         if not (res / NEW / "SVTcorr.npy").is_file():
             hv.write(s, "meegkit_hpfit_lag", refit_t=True, func=func, bad_pairs=bad, tag="_swapmask", verbose=False)
         fa = np.load(res / "frames_average.npy")
-        br = brain_mask(fa, func)
+        br = brain_mask(fa, func, res=res)
         U = np.nan_to_num(np.load(res / "U.npy"))
         Ub = U.reshape(-1, U.shape[-1])[br.reshape(-1)]
         del U

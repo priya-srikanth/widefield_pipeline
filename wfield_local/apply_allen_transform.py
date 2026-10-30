@@ -76,6 +76,34 @@ def _warp_npz_images(path: Path, transform, output: Path, dims) -> str:
     return str(out_path)
 
 
+def _remove_clipped(results: Path, transform, dims, atlas, brain_mask, output: Path) -> dict | None:
+    """Take camera-saturated pixels out of the brain mask (2026-10-30; wfield_local.swap_repair, CLIPPED PIXELS).
+
+    ``clip_mask.npy`` is on native camera pixels; it is warped like every other image and any warped value > 0
+    counts (bilinear, so the edge grows by <= 1 px -- conservative). The mask WITHOUT the removal is kept as
+    ``allen_brain_mask_unclipped_native_grid.npy`` for describing the cut, and the per-area fraction removed is
+    returned for the summary, so a region-level result over the sinus can say how much of the area it lost."""
+    path = results / "clip_mask.npy"
+    if not path.exists():
+        return None
+    clip = _warp_image(np.load(path).astype(np.float32), transform, dims) > 0
+    bm = np.asarray(brain_mask).astype(bool)
+    np.save(output / "allen_brain_mask_unclipped_native_grid.npy", bm.astype(np.uint8))
+    np.save(output / "allen_clip_mask_native_grid.npy", clip.astype(np.uint8))
+    per_area = {}
+    a = np.asarray(atlas)
+    for v in np.unique(a[bm & clip]):
+        if v == 0 or not np.isfinite(v):
+            continue
+        inside = bm & (a == v)
+        per_area[str(int(v))] = round(float((inside & clip).sum() / max(inside.sum(), 1)), 4)
+    n = int((bm & clip).sum())
+    print(f"[clip] removed {n} saturated pixels ({100 * n / max(bm.sum(), 1):.2f}% of brain) from the brain mask; "
+          f"area fraction removed by atlas id: {per_area}", flush=True)
+    return {"mask": bm & ~clip, "pixels": n, "pct_of_brain": float(100 * n / max(bm.sum(), 1)),
+            "fraction_of_area_by_atlas_id": per_area}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Warp wfield outputs into Allen landmark space.")
     parser.add_argument("results", type=Path, help="Folder containing wfield outputs")
@@ -130,15 +158,20 @@ def main() -> int:
         # when T is near-identity (e.g. a full-FOV recording already at the
         # reference pose); for a non-identity transform it shifts the overlay.
         atlas, area_names, brain_mask = atlas_from_landmarks_file(str(args.landmarks), dims=list(dims), do_transform=False)
+        clip_info = _remove_clipped(args.results, transform, dims, atlas, brain_mask, output)
+        if clip_info is not None:
+            brain_mask = clip_info.pop("mask")
         np.save(output / "allen_area_atlas_native_grid.npy", atlas.astype(np.float32))
         np.save(output / "allen_brain_mask_native_grid.npy", brain_mask.astype(np.uint8))
         (output / "allen_area_names.json").write_text(
             json.dumps(list(area_names), indent=2), encoding="utf-8"
         )
     except Exception as exc:
+        clip_info = None
         print(f"Could not generate Allen atlas masks: {exc}", flush=True)
 
     summary = {
+        "clipped_pixels_removed_from_brain_mask": clip_info,
         "results": str(args.results),
         "landmarks": str(args.landmarks),
         "output": str(output),

@@ -72,7 +72,7 @@ def session(animal):
     first = np.searchsorted(csmp, ls[j[has]])
     fa = np.load(res / "frames_average.npy")
     H, W = fa.shape[1:]
-    brain = brain_mask(fa)                         # dark-relative cut; keeps the dim anterior cortex
+    brain = brain_mask(fa, res=res)                         # dark-relative cut; keeps the dim anterior cortex
     U = np.nan_to_num(np.load(res / "U.npy"))
     U = U.reshape(-1, U.shape[-1])
     C = np.load(res / VARIANT / "SVTcorr.npy", mmap_mode="r")

@@ -32,7 +32,7 @@ def traces(s, func):
     res = Path(s["mc"]) / "wfield_local_results"
     fa = np.load(res / "frames_average.npy")
     H, W = fa.shape[1:]
-    br = brain_mask(fa, func)
+    br = brain_mask(fa, func, res=res)
     U = np.nan_to_num(np.load(res / "U.npy"))
     Ub = U.reshape(-1, U.shape[-1])[br.reshape(-1)].astype(np.float64)
     del U

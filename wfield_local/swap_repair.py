@@ -28,6 +28,13 @@ REPAIR (`RepairedDat`, a read-only view; the .bin on disk is never touched):
 
 The view has no ``filename`` attribute on purpose: wfield `approximate_svd` then reads it through ``dat[a:b]`` slices
 (both the binning and the projection pass) instead of re-opening the raw file.
+
+CLIPPED PIXELS (2026-10-30). The same pass counts, per channel and FULL-RESOLUTION pixel, the frames at the camera
+ceiling (>= CLIP_CEIL). From cohort2 on, 470 power is set for ALM and the parietal midline (over the sinus) is
+allowed to saturate (Priya 10-30). A clipped pixel's 470 trace is flat while its 415 still moves, so the hemo
+correction there manufactures signal. `clip_mask` = pixels clipped in > CLIP_FRAC of either channel's frames; it is
+saved as ``clip_mask.npy`` and `apply_allen_transform` removes it (warped) from ``allen_brain_mask_native_grid.npy``,
+the mask every downstream analysis uses. Counting here costs nothing extra; a separate pass would re-read the movie.
 """
 from __future__ import annotations
 
@@ -45,6 +52,8 @@ Z = 8.0
 STRONG = 0.5               # strongest-band beta above this: an unambiguous swap, no isolation test
 ISOLATE = 0.4              # weak candidate kept only if both neighbours' beta < ISOLATE x its own
 CHUNK = 2000
+CLIP_CEIL = 65500          # within 35 counts of the uint16 ceiling counts as clipped (same as saturation_check.py)
+CLIP_FRAC = 0.01           # pixel masked if clipped in > 1% of a channel's frames
 
 
 def _ds(x: np.ndarray) -> np.ndarray:
@@ -90,15 +99,20 @@ def detect(dat, frames_average, func: int = 1, verbose: bool = True) -> dict:
     brain = _brain_ds(frames_average, func)
     edges = np.linspace(0, brain.shape[0], NB + 1).astype(int)
     coef = np.full((T, 2, NB, 2), np.nan, np.float32)
+    clip = np.zeros((2,) + tuple(dat.shape[2:]), np.int32)
     for s in range(0, T, CHUNK):
         e = min(s + CHUNK, T)
         lo, hi = max(0, s - WIN), min(T, e + WIN)
-        X = np.maximum(_ds(np.asarray(dat[lo:hi])), 1.0)              # (n, 2, h, w)
+        raw = np.asarray(dat[lo:hi])
+        X = np.maximum(_ds(raw), 1.0)                                 # (n, 2, h, w)
         n = len(X)
         pad = np.pad(X, ((WIN, WIN), (0, 0), (0, 0), (0, 0)), mode="edge")
         own = np.median(np.stack([pad[WIN + k:WIN + k + n] for k in range(-WIN, WIN + 1) if k != 0]), 0)
         oth = np.median(np.stack([pad[WIN + k:WIN + k + n] for k in range(-2, 3)]), 0)[:, ::-1]
         i0, i1 = s - lo, e - lo
+        for c in (0, 1):                                              # per channel: halves the bool temporary
+            clip[c] += (raw[i0:i1, c] >= CLIP_CEIL).sum(0, dtype=np.int32)
+        del raw
         for c in (0, 1):
             d = X[i0:i1, c] / own[i0:i1, c] - 1
             P = oth[i0:i1, c] / own[i0:i1, c] - 1
@@ -128,7 +142,33 @@ def detect(dat, frames_average, func: int = 1, verbose: bool = True) -> dict:
     dual = bad & (np.nanmedian(alpha, 2) > 0.5)
     exchange = full[:, 0] & full[:, 1]
     return dict(alpha=alpha, beta=beta, bad_band=bad_band, bad=bad, full=full, dual=dual, exchange=exchange,
-                fa_ds=fa_ds, brain_ds=brain, func=np.array(func))
+                fa_ds=fa_ds, brain_ds=brain, func=np.array(func), clip_count=clip)
+
+
+def clip_counts(dat) -> np.ndarray:
+    """(2, H, W) frames at the ceiling per channel, for a run WITHOUT swap repair (a full extra read of the movie)."""
+    T = len(dat)
+    clip = np.zeros((2,) + tuple(dat.shape[2:]), np.int32)
+    for s in range(0, T, CHUNK):
+        raw = np.asarray(dat[s:min(s + CHUNK, T)])
+        for c in (0, 1):
+            clip[c] += (raw[:, c] >= CLIP_CEIL).sum(0, dtype=np.int32)
+    return clip
+
+
+def clip_mask(clip_count: np.ndarray, T: int) -> np.ndarray:
+    """(H, W) bool: clipped in > CLIP_FRAC of either channel's frames."""
+    return (np.asarray(clip_count) / max(T, 1) > CLIP_FRAC).any(0)
+
+
+def save_clip(clip_count: np.ndarray, T: int, out_dir: Path) -> dict:
+    """Write clip_mask.npy (uint8, native pixels) and return its summary."""
+    m = clip_mask(clip_count, T)
+    np.save(Path(out_dir) / "clip_mask.npy", m.astype(np.uint8))
+    frac = np.asarray(clip_count) / max(T, 1)
+    return {"clip_pixels_masked": int(m.sum()), "clip_pct_of_fov": float(100 * m.mean()),
+            "clip_max_frame_frac_415_slot": float(frac[0].max()), "clip_max_frame_frac_470_slot": float(frac[1].max()),
+            "clip_params": {"ceil": CLIP_CEIL, "frac": CLIP_FRAC}}
 
 
 class RepairedDat:
@@ -194,6 +234,8 @@ def summary(plan: dict) -> dict:
 def save(plan: dict, out_dir: Path) -> dict:
     out_dir = Path(out_dir)
     s = summary(plan)
+    if "clip_count" in plan:
+        s.update(save_clip(plan["clip_count"], plan["bad"].shape[0], out_dir))
     np.savez_compressed(out_dir / "swap_repair.npz", **{k: v for k, v in plan.items() if isinstance(v, np.ndarray)})
     (out_dir / "swap_repair.json").write_text(json.dumps(s, indent=2))
     return s
