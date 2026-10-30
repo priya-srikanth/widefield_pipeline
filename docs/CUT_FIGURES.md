@@ -70,3 +70,17 @@ Each supplement keeps its key figure(s); these secondary views were removed from
 | lick_cue_to_lick_D_decomposition.png (16 x 5) | Fig 14.21 S12 | replaced by lick_cue_to_lick_D_simple.png (6 areas x 3 columns) |
 | lick_enlv_curves.png, lick_enlv_curves_gain.png | Fig 14.21 S10 | replaced by lick_like_for_like_all.png (all six lick sets + gain/offset) |
 | lick_acad_midline_control.png (whole supplement 12.17 S2, NON-PAGE SUPPLEMENTAL, Priya 10-29) | Fig 12.17 S2 | is the ACAd left/right result real cortex? midline-distance, vessel, registration, neighbour controls: undetermined, not ACAd-specific (sinus strip; shares variance with MOs / SSp-n) | scripts/lick_acad_midline_control.py |
+
+## 2026-10-29 late: crowded-bar scan of the whole page (many thin bars; key numbers stay in the captions)
+
+| figure (PNG) | was on page | what it shows |
+|---|---|---|
+| lick_recovery_markers_cv.png | Fig 14.18 S14 | LOAO / blocked cvR2 grids for the retired balance definition |
+| lick_balance_variants.png | Fig 14.18 S14 | cvR2 across balance definitions |
+| lick_recovery_markers_areas.png | Fig 14.18 S15 | per-area contra / ipsi / size / balance cvR2 |
+| lick_offset_where_bars.png | Fig 11.16 | offset carried per area family x side x basis |
+| lick_sspn_checks.png | Fig 12.17 S1 | is SSp-n special: refit without SSp-n, weight-free area comparison, face |
+| lick_balance_contact.png | Fig 14.18 S2 | contact vs miss first licks (balance not mainly touch reafference) |
+| lick_recovery_markers_iti_axis.png | Fig 14.18 S16 | ITI licks on their own recovery axis, cvR2 |
+| lick_enlv_compare.png | Fig 14.21 S10 | ENLv vs cued vs ITI (all / docked / moving) offsets and balance, replaced by lick_like_for_like_all |
+| lick_iti_dock_compare.png | Fig 14.18 S11 | ITI results on docked vs all / moving licks (docked versions of the main ITI figures coming) |
