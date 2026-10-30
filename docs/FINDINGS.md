@@ -1360,7 +1360,10 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     ITI docked licks unchanged. Reading: post-stroke cued-lick responses are MORE phase-locked to the lick, without extra
     trial-specific S-M coherence -- not a Guo-style coherence loss. Recovery tracking 5/24 tests p < .05 (1.2 expected;
     e.g. sensory delta ITPC vs far-contra hit rate partial r +0.34, 4/4): hints. Script `scripts/sm_coherence_cca.py`;
-    outputs `iti_licks/sm_coherence_cca/`. **PROVISIONAL (n = 4).**
+    outputs `iti_licks/sm_coherence_cca/`. Controls (addendum): movement regression leaves the 1.5-4 Hz ITPC rise
+    intact (remaining share ~1.1), behavioural variability does not explain it (and does not clearly fall); response SNR
+    (near-restatement) absorbs ~half the sensory and most of the motor rise -> a larger lick response relative to trial noise,
+    not more stereotyped licking. Page 14.18 S19. **PROVISIONAL (n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 

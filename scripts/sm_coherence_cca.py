@@ -36,10 +36,13 @@ DEVIATIONS (forced; recorded in the doc):
     python scripts/sm_coherence_cca.py gate
     python scripts/sm_coherence_cca.py summarise      # refuses unless a measure passed the gate
     python scripts/sm_coherence_cca.py plot | --plot-only
+    python scripts/sm_coherence_cca.py ctrl-run [--labels ...] [--jobs 4]   # ITPC controls (addendum); frozen env
+    python scripts/sm_coherence_cca.py ctrl-summarise                       # then plot -> fig5_itpc_controls.png
 """
 from __future__ import annotations
 
 import argparse
+import os
 import pickle
 import sys
 import textwrap
@@ -745,18 +748,398 @@ def plot_itpc() -> None:
     plt.close(fig)
 
 
+# ------------------------------------------------------------------------------------------------ ITPC controls
+# Addendum of the prereg doc (design written before running): is the post-stroke ITPC rise explained by movement /
+# response size? Cued first licks, S8M8, evoked, tau 0, full session. Covariates, coverage rule and the movement design
+# are coupling_vigour_sm's (14.18 S17): session_kin + mov_columns + its eligibility rule.
+CTRL = TAB / "ctrl_per_session"
+CTRL_VERSIONS = ("raw", "kin", "perm")
+ITPC_M = ["itpcS_delta", "itpcM_delta", "itpcS_low", "itpcM_low"]
+ADJ = ("raw", "snr", "bvar")
+
+
+def _cv():
+    import coupling_vigour_sm as cv
+    return cv
+
+
+def _snr(Y: np.ndarray, ev: np.ndarray) -> dict:
+    """Band SNR of traces Y[ev]: power of the event-mean spectrum / mean power of the event deviations (same detrend /
+    taper / FFT as the ITPC; all linear, so the spectrum of the mean = the mean of the spectra)."""
+    F = _spec(Y[ev])
+    mu = F.mean(0)
+    pm, pd_ = np.abs(mu) ** 2, (np.abs(F - mu) ** 2).mean(0)
+    return {b: float(pm[ix].mean() / pd_[ix].mean()) for b, ix in BIX.items()}
+
+
+def _within_spout_perm(pos: np.ndarray, rng) -> np.ndarray:
+    perm = np.arange(len(pos))
+    for s in np.unique(pos):
+        ix = np.where(pos == s)[0]
+        perm[ix] = rng.permutation(ix)
+    return perm
+
+
+def ctrl_work(item):
+    """One session: ITPC of the S / M group means raw, kinematics-regressed and permuted-kinematics control; band SNR;
+    the per-event covariates (for behavioural variability in ctrl-summarise)."""
+    label, meta, dock_t, _f = item
+    cv = _cv()
+    from wfield_local import config, epochs
+    seed = int(label[2:4]) * 10000 + int(label[-4:])
+    an, ep = config.animal_of(label), epochs.epoch_of(label)
+    arr = _arrays(label, meta, dock_t)
+    if "cued" not in arr or len(arr["cued"][0]) < MIN_N:
+        return None
+    Z, pos, names = arr["cued"]
+    n = len(Z)
+    times = cv._event_times(label, meta, dock_t)["cued"]
+    if len(times) != n:
+        raise RuntimeError(f"{label} cued: {len(times)} event times vs {n} events")
+    Kd = cv.session_kin(label, {"cued": times})["cued"]
+    Zm, used = cv.mov_columns(Kd)
+    Dp = lih._design(pos, None, n)
+    # eligibility = coupling_vigour_sm's rule, whose base design is spout + angle (Dp + 1 column)
+    ok = bool(Zm.shape[1]) and n >= max(MIN_N, 3 * (Dp.shape[1] + 1 + Zm.shape[1]))
+    ix = {nm: i for i, nm in enumerate(names)}
+    sa, ma = PAIRINGS["S8M8"]
+    s0, m0 = Z[..., [ix[a] for a in sa]].mean(-1), Z[..., [ix[a] for a in ma]].mean(-1)
+    tr = {"raw": (s0, m0)}
+    r2 = {}
+    if ok:
+        perm = _within_spout_perm(pos, np.random.default_rng([seed, 7]))
+        e0 = {g: lih._resid(Y, Dp) for g, Y in (("S", s0), ("M", m0))}
+        for v, Zc in (("kin", Zm), ("perm", Zm[perm])):
+            D = np.c_[Dp, Zc]
+            out = []
+            for g, Y in (("S", s0), ("M", m0)):
+                b = np.linalg.lstsq(D, Y, rcond=None)[0]
+                Yr = Y - Zc @ b[Dp.shape[1]:]                      # keep spout means + residual
+                out.append(Yr)
+                e1 = lih._resid(Yr, Dp)
+                r2[f"r2_{v}_{g}"] = float(1 - (e1 ** 2).sum() / (e0[g] ** 2).sum())
+            tr[v] = tuple(out)
+    allev = np.arange(n)
+    base = {"label": label, "animal": an, "epoch": ep, "n": n, "mov_ok": ok, "n_mov_cols": int(Zm.shape[1]),
+            "used": ",".join(used), "matched": float(Kd.matched.mean()),
+            **{f"cov_{c}": float(np.isfinite(Kd[c]).mean()) for c in cv.KIN}, **r2}
+    rows = []
+    for v, (s, m) in tr.items():
+        # the same seed as session_work's (cued, S8M8, evoked, tau 0, full) draw: raw reproduces the published value and
+        # the three versions share their subsamples / null phases
+        sp = coherence(s, m, allev, N_SUB, np.random.default_rng([seed, 0, 0, 0, 0, 0]))
+        rows.append({**base, "version": v, **{k: x for k, x in _bands(sp).items() if k.startswith("itpc")}})
+    rs = np.random.default_rng([seed, 0, 0, 0, 0, 0, 1])
+    sub = [rs.choice(allev, N_SUB, replace=False) for _ in range(N_DRAW)]
+    for g, Y in (("S", s0), ("M", m0)):
+        for b, x in _snr(Y, allev).items():
+            rows[0][f"snr{g}_{b}"] = x
+        for b in BANDS:
+            rows[0][f"snr30{g}_{b}"] = float(np.mean([_snr(Y, e)[b] for e in sub]))
+    K = Kd.copy()
+    K.insert(0, "pos", pos)
+    return {"rows": pd.DataFrame(rows), "kin": K}
+
+
+def ctrl_run(labs, jobs) -> None:
+    from wfield_local import analysis_kit as ak
+    from wfield_local import writeguard
+    if "COMBINED_ENCODING_FR" not in os.environ:
+        sys.exit("run under the frozen env (rr2/frozenenv.sh): COMBINED_ENCODING_FR unset (FaceRhythm covariates)")
+    writeguard.assert_writable(OUT)
+    CTRL.mkdir(parents=True, exist_ok=True)
+    todo = [x for x in labs if not (CTRL / f"{x}.pkl").exists()]
+    print(f"ctrl-run: {len(labs)} sessions, {len(todo)} to fit", flush=True)
+    t0 = time.time()
+    res, fail = ak.fan_sessions(_meta_items(todo, {"ctrl"}), ctrl_work, jobs=min(jobs, 4), key=lambda it: it[0])
+    for it, d in res:
+        if d is not None:
+            with open(CTRL / f"{it[0]}.pkl", "wb") as fh:
+                pickle.dump(d, fh)
+    if fail:
+        print("FAILED:", [str(f[0]) for f in fail], flush=True)
+    print(f"ctrl sessions done {time.time() - t0:.0f} s", flush=True)
+
+
+def _bvar(K: pd.DataFrame) -> pd.DataFrame:
+    """Behavioural variability per session: mean over covariates of the within-spout SD (spout dummies removed, the
+    coupling_vigour_sm wsd definition) of each covariate z-scored on the animal's pooled pre events. Covariate set per
+    animal fixed = those with >= MIN_COV coverage in every one of its sessions (so the mean is over the same set)."""
+    cv = _cv()
+    out = []
+    for a, g in K.groupby("animal"):
+        cov = g.groupby("label")[cv.KIN].agg(lambda v: np.isfinite(v).mean())
+        keep = [c for c in cv.KIN if (cov[c] >= cv.MIN_COV).all()]
+        pre = g[g.epoch == "pre"]
+        mu, sd = pre[keep].mean(), pre[keep].std(ddof=1)
+        keep = [c for c in keep if np.isfinite(sd[c]) and sd[c] > 0]
+        for lab, q in g.groupby("label"):
+            Dp = lih._design(q.pos.to_numpy(str), None, len(q))
+            w = {}
+            for c in keep:
+                v = ((q[c] - mu[c]) / sd[c]).to_numpy(float)
+                f = np.isfinite(v)
+                if f.sum() < 10:
+                    continue
+                rr = v[f] - Dp[f] @ np.linalg.lstsq(Dp[f], v[f], rcond=None)[0]
+                w[c] = float(np.sqrt((rr ** 2).sum() / max(f.sum() - Dp.shape[1], 1)))
+            out.append({"label": lab, "animal": a, "epoch": q.epoch.iloc[0], "bvar": float(np.mean(list(w.values()))),
+                        "n_cov": len(w), "covs": ",".join(w), **{f"wsdz_{c}": x for c, x in w.items()}})
+    return pd.DataFrame(out)
+
+
+def _adjust(S: pd.DataFrame, m: str, x: str) -> tuple[pd.Series, dict]:
+    """Within animal OLS m ~ epoch dummies (pre = reference) + x; returns (adjusted m = m - b (x - mean x), i.e.
+    residual + epoch effect, per-animal {b, epoch coefficients})."""
+    adj, info = pd.Series(np.nan, index=S.index), {}
+    for a, g in S.dropna(subset=[m, x]).groupby("animal"):
+        eps = [e for e in EPS[1:] if (g.epoch == e).any()]
+        D = np.column_stack([np.ones(len(g))] + [(g.epoch == e).to_numpy(float) for e in eps] + [g[x].to_numpy(float)])
+        b = np.linalg.lstsq(D, g[m].to_numpy(float), rcond=None)[0]
+        adj[g.index] = g[m] - b[-1] * (g[x] - g[x].mean())
+        info[a] = {"slope": float(b[-1]), **{f"eff_{e}": float(b[1 + k]) for k, e in enumerate(eps)}}
+    return adj, info
+
+
+def _share(T: pd.DataFrame, ref: str, alt: str, m: str, ep: str = "chronic") -> dict:
+    """Share of the pre -> ep change remaining: alt / ref, per animal (d_<animal>) and pooled (boot_delta point)."""
+    a_ = T[(T.metric == m) & (T.epoch == ep)].set_index("variant")
+    if ref not in a_.index or alt not in a_.index:
+        return {}
+    r, q = a_.loc[ref], a_.loc[alt]
+    out = {"metric": m, "epoch": ep, "ref": ref, "alt": alt, "ref_delta": r.delta, "alt_delta": q.delta,
+           "share_pooled": q.delta / r.delta}
+    for a in AN:
+        out[f"share_{a}"] = q[f"d_{a}"] / r[f"d_{a}"]
+    return out
+
+
+def ctrl_summarise() -> None:
+    cv = _cv()
+    files = sorted(CTRL.glob("*.pkl"))
+    R, K = [], []
+    for f in files:
+        with open(f, "rb") as fh:
+            d = pickle.load(fh)
+        R.append(d["rows"])
+        k = d["kin"]
+        r0 = d["rows"].iloc[0]
+        K.append(k.assign(label=r0.label, animal=r0.animal, epoch=r0.epoch))
+    R = pd.concat(R, ignore_index=True)
+    K = pd.concat(K, ignore_index=True)
+    for m in ITPC_M:
+        R[f"{m}_d"] = R[m] - R[f"{m}_null"]
+    R.to_csv(TAB / "ctrl_sessions.csv.gz", index=False)
+    pd.set_option("display.width", 250)
+    raw = R[R.version == "raw"].set_index("label")
+    # check: raw reproduces the published per-session values
+    P = pd.read_csv(TAB / "summary_sessions.csv.gz")
+    P = P[(P.set == "cued") & (P.pairing == "S8M8") & (P.metric == "itpcS_delta_d")].set_index("label").value
+    dd = (raw.itpcS_delta_d - P.reindex(raw.index)).abs()
+    print(f"\nraw vs published itpcS_delta_d: max |diff| {dd.max():.2e} over {dd.notna().sum()} sessions", flush=True)
+    # coverage
+    ccols = ["matched", "mov_ok"] + [f"cov_{c}" for c in cv.KIN]
+    CA = raw.groupby(["animal", "epoch"])[ccols + ["n"]].mean().reindex(EPS, level="epoch").round(3)
+    CA.to_csv(TAB / "ctrl_coverage.csv")
+    print("\n=== COVERAGE (cued; fraction of events with each covariate; mov_ok = movement design used)\n"
+          + CA.to_string(), flush=True)
+    print(f"sessions {len(raw)}, mov_ok {int(raw.mov_ok.sum())}; covariate columns used (median) "
+          f"{raw.n_mov_cols.median():.0f}", flush=True)
+    # behavioural variability
+    B = _bvar(K)
+    B.to_csv(TAB / "ctrl_behav_var_sessions.csv", index=False)
+    print("\n=== PER-ANIMAL behavioural variability (mean within-spout SD, pre-z units)\n"
+          + B.groupby(["animal", "epoch"]).bvar.mean().unstack().reindex(columns=EPS).round(3).to_string(), flush=True)
+    # wide session table: raw / kin / perm ITPC (minus null) + SNR + bvar
+    W = raw[["animal", "epoch", "n"] + [f"{m}_d" for m in ITPC_M]
+            + [c for c in raw.columns if c.startswith(("snr", "r2_"))]].reset_index()
+    for v in ("kin", "perm"):
+        q = R[R.version == v].set_index("label")[[f"{m}_d" for m in ITPC_M]]
+        W = W.merge(q.add_suffix(f"_{v}"), left_on="label", right_index=True, how="left")
+    W = W.merge(B[["label", "bvar"]], on="label", how="left")
+    eff = []
+    for m in ITPC_M:
+        g_, b_ = m[4], m.split("_")[1]
+        W[f"lsnr_{m}"] = np.log(W[f"snr{g_}_{b_}"])
+        y = f"{m}_d"
+        W[f"{y}_raw"] = W[y]
+        for tag, x in (("snr", f"lsnr_{m}"), ("bvar", "bvar")):
+            W[f"{y}_{tag}"], info = _adjust(W, y, x)
+            for a, i in info.items():
+                eff.append({"metric": m, "covariate": tag, "animal": a, **i})
+        _, info0 = _adjust(W.assign(_z=0.0), y, "_z")
+        for a, i in info0.items():
+            eff.append({"metric": m, "covariate": "none", "animal": a, **i})
+    W.to_csv(TAB / "ctrl_wide_sessions.csv.gz", index=False)
+    E = pd.DataFrame(eff)
+    E.to_csv(TAB / "ctrl_epoch_effects_animal.csv", index=False)
+    # per-animal tables FIRST (rule 8)
+    for m in ITPC_M:
+        y = f"{m}_d"
+        T_ = pd.concat({v: W.groupby(["animal", "epoch"])[c].mean().unstack().reindex(columns=EPS)
+                        for v, c in (("raw", y), ("kin", f"{y}_kin"), ("perm", f"{y}_perm"))}, names=["version"])
+        print(f"\n=== PER-ANIMAL {m} (ITPC minus null), raw / kinematics-regressed / permuted control\n"
+              + T_.round(3).to_string(), flush=True)
+        q = E[E.metric == m].pivot_table(index="animal", columns="covariate", values=["eff_chronic", "slope"])
+        print(f"--- {m}: within-animal OLS chronic epoch effect (none / + log SNR / + behav var) and slope\n"
+              + q.round(3).to_string(), flush=True)
+    print("\n=== PER-ANIMAL log SNR (raw traces, all events)\n"
+          + W.groupby(["animal", "epoch"])[[f"lsnr_{m}" for m in ITPC_M]].mean().unstack().round(2).to_string())
+    print("\n=== PER-ANIMAL movement R2 of the group traces (event deviations, spout means removed)\n"
+          + W.groupby(["animal", "epoch"])[[c for c in W.columns if c.startswith("r2_")]].mean().round(3).to_string())
+    # bootstrap: raw (all sessions), raw on the kin-eligible sessions, kin, perm, snr-adjusted, bvar-adjusted
+    L = []
+    for m in ITPC_M:
+        y = f"{m}_d"
+        okk = W[f"{y}_kin"].notna()
+        for var, col, mask in (("raw", y, None), ("raw_kinset", y, okk), ("kin", f"{y}_kin", okk),
+                               ("perm", f"{y}_perm", okk), ("snr", f"{y}_snr", None), ("bvar", f"{y}_bvar", None)):
+            q = W if mask is None else W[mask]
+            L.append(q[["label", "animal", "epoch"]].assign(metric=m, variant=var, value=q[col].to_numpy()))
+    for x in ["bvar"] + [f"lsnr_{m}" for m in ITPC_M]:
+        L.append(W[["label", "animal", "epoch"]].assign(metric=x, variant="level", value=W[x].to_numpy()))
+    L = pd.concat(L, ignore_index=True)
+    WW = L.pivot_table(index=["label", "animal", "epoch", "variant"], columns="metric", values="value").reset_index()
+    WW.columns.name = None
+    T = ihc._tests(WW, ["variant"], ITPC_M + ["bvar"] + [f"lsnr_{m}" for m in ITPC_M], np.random.default_rng(0))
+    T.to_csv(TAB / "ctrl_tests_boot_delta.csv", index=False)
+    print("\n=== boot_delta vs August pre (change = CI excl. 0 AND >= 3/4 same sign)\n"
+          + T[["variant", "metric", "epoch", "delta", "lo", "hi", "n_same_sign", "excl0"] + [f"d_{a}" for a in AN]]
+          .round(4).to_string(index=False), flush=True)
+    SH = pd.DataFrame([s for m in ITPC_M for ref, alt in (("raw_kinset", "kin"), ("raw_kinset", "perm"), ("raw", "snr"),
+                                                          ("raw", "bvar")) for s in [_share(T, ref, alt, m)] if s])
+    SH.to_csv(TAB / "ctrl_share_remaining.csv", index=False)
+    print("\n=== SHARE of the pre -> chronic change remaining (alt / ref; per animal and pooled)\n"
+          + SH.round(3).to_string(index=False), flush=True)
+    FIGD.mkdir(parents=True, exist_ok=True)
+    with open(FIGD / "fig5_itpc_controls.pkl", "wb") as fh:
+        pickle.dump({"W": W, "T": T, "SH": SH, "B": B, "E": E}, fh)
+
+
+CTRL_COL = {"raw": "k", "kin": "#d95f02", "perm": "0.6", "snr": "#1b9e77", "bvar": "#7570b3"}
+CTRL_LAB = {"raw": "raw", "kin": "kinematics regressed (per event)", "perm": "permuted-kinematics control",
+            "snr": "adjusted for log SNR (per session)", "bvar": "adjusted for behavioural variability (per session)"}
+ITPC_LAB = {"itpcS_delta": "sensory, 1.5-4 Hz", "itpcM_delta": "motor, 1.5-4 Hz", "itpcS_low": "sensory, 0.5-1.5 Hz",
+            "itpcM_low": "motor, 0.5-1.5 Hz"}
+
+
+def plot_ctrl() -> None:
+    """Fig 5: ITPC controls (addendum). Row 1 per-animal ITPC levels by epoch, raw / kinematics-regressed / permuted;
+    row 2 change vs pre raw / SNR-adjusted / behavioural-variability-adjusted; row 3 behavioural variability and SNR."""
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER
+    f = FIGD / "fig5_itpc_controls.pkl"
+    if not f.exists():
+        return
+    with open(f, "rb") as fh:
+        D = pickle.load(fh)
+    W, T = D["W"], D["T"]
+    fig, axs = plt.subplots(3, 4, figsize=(17, 11.5), layout="constrained")
+    x = np.arange(len(EPS))
+    off = {"raw": -0.18, "kin": 0.0, "perm": 0.18}
+    for j, m in enumerate(ITPC_M):
+        ax = axs[0, j]
+        y = f"{m}_d"
+        for v, c in (("raw", y), ("kin", f"{y}_kin"), ("perm", f"{y}_perm")):
+            A_ = W.groupby(["animal", "epoch"])[c].mean().unstack().reindex(columns=EPS)
+            for a in AN:
+                if a in A_.index:
+                    ax.plot(x + off[v], A_.loc[a].values, ANIMAL_MARKER[a], color=CTRL_COL[v], mfc="none", ms=4.5,
+                            alpha=0.8)
+            ax.plot(x + off[v], A_.mean(0).values, "-", color=CTRL_COL[v], lw=2)
+        ax.set_xticks(x, EPS)
+        ax.set_title(f"A{j + 1}  ITPC, {ITPC_LAB[m]}", fontsize=9.5, loc="left")
+        if j == 0:
+            ax.set_ylabel("ITPC minus random-phase null\n(animal epoch means; line = mean of animals)", fontsize=8.5)
+        ax = axs[1, j]
+        eps = EPS[1:]
+        offs = {"raw": -0.2, "snr": 0.0, "bvar": 0.2}
+        for k, ep in enumerate(eps):
+            for v in ADJ:
+                r = T[(T.variant == v) & (T.metric == m) & (T.epoch == ep)]
+                if r.empty:
+                    continue
+                r = r.iloc[0]
+                xx = k + offs[v]
+                dv = [r[f"d_{a}"] for a in AN if np.isfinite(r[f"d_{a}"])]
+                ax.plot(np.full(len(dv), xx - 0.06), dv, "o", color="0.65", ms=3)
+                okk = r.excl0 and r.n_same_sign >= 3
+                ax.errorbar(xx + 0.03, r.delta, yerr=[[r.delta - r.lo], [r.hi - r.delta]], fmt="s", color=CTRL_COL[v],
+                            mfc=CTRL_COL[v] if okk else "w", ms=6, lw=1.4)
+        ax.axhline(0, color="k", lw=0.6)
+        ax.set_xticks(range(len(eps)), eps)
+        ax.set_xlim(-0.5, len(eps) - 0.5)
+        ax.set_title(f"B{j + 1}  change vs pre, {ITPC_LAB[m]}", fontsize=9.5, loc="left")
+        if j == 0:
+            ax.set_ylabel("change in ITPC minus null vs pre\n(square = boot_delta 95% CI; grey = animals)",
+                          fontsize=8.5)
+    # row 3: behavioural variability, log SNR (1.5-4 Hz, S and M), movement R2
+    B = D["B"]
+    ax = axs[2, 0]
+    A_ = B.groupby(["animal", "epoch"]).bvar.mean().unstack().reindex(columns=EPS)
+    for a in AN:
+        ax.plot(x, A_.loc[a].values, "-" + ANIMAL_MARKER[a], color="0.3", mfc="none", ms=5, lw=1)
+    ax.plot(x, A_.mean(0).values, "-", color="k", lw=2.2)
+    ax.set_xticks(x, EPS)
+    ax.set_ylabel("mean within-spout SD of the covariates\n(z units of the animal's pre events)", fontsize=8.5)
+    ax.set_title("C1  behavioural variability", fontsize=9.5, loc="left")
+    for j, m in enumerate(("itpcS_delta", "itpcM_delta")):
+        ax = axs[2, 1 + j]
+        A_ = W.groupby(["animal", "epoch"])[f"lsnr_{m}"].mean().unstack().reindex(columns=EPS)
+        for a in AN:
+            ax.plot(x, A_.loc[a].values, "-" + ANIMAL_MARKER[a], color="0.3", mfc="none", ms=5, lw=1)
+        ax.plot(x, A_.mean(0).values, "-", color="k", lw=2.2)
+        ax.set_xticks(x, EPS)
+        ax.set_ylabel("log SNR (event-mean power /\nmean deviation power)", fontsize=8.5)
+        ax.set_title(f"C{2 + j}  response SNR, {ITPC_LAB[m]}", fontsize=9.5, loc="left")
+    ax = axs[2, 3]
+    for k, c in enumerate(("r2_kin_S", "r2_kin_M")):
+        A_ = W.groupby(["animal", "epoch"])[c].mean().unstack().reindex(columns=EPS)
+        Ap = W.groupby(["animal", "epoch"])[c.replace("kin", "perm")].mean().unstack().reindex(columns=EPS)
+        ls = "-" if k == 0 else "--"
+        ax.plot(x, A_.mean(0).values, ls, color=CTRL_COL["kin"], lw=2)
+        ax.plot(x, Ap.mean(0).values, ls, color=CTRL_COL["perm"], lw=2)
+        for a in AN:
+            ax.plot(x + (k - 0.5) * 0.12, A_.loc[a].values, ANIMAL_MARKER[a], color=CTRL_COL["kin"], mfc="none", ms=4)
+    ax.set_xticks(x, EPS)
+    ax.set_ylabel("variance of the event traces explained\nby the covariates (spout means removed)", fontsize=8.5)
+    ax.set_title("C4  movement R2 (solid S, dashed M)", fontsize=9.5, loc="left")
+    for ax in axs.ravel():
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+    hd = [Line2D([], [], color=CTRL_COL[v], lw=2, marker="s" if v in ("snr", "bvar") else None) for v in
+          ("raw", "kin", "perm", "snr", "bvar")]
+    hd += [Line2D([], [], marker=ANIMAL_MARKER[a], ls="", color="0.3", mfc="none", ms=6) for a in AN]
+    fig.legend(hd, [CTRL_LAB[v] for v in ("raw", "kin", "perm", "snr", "bvar")] + AN, loc="outside lower center",
+               ncol=5, fontsize=8.5, frameon=False)
+    fig.suptitle(_wrap("ITPC controls (pre-specified addendum): CUED first licks, 8 sensory / 8 motor areas, evoked. "
+                       "A: ITPC with per-event movement covariates (3-D reach, peak speed, lick duration, protrusion, "
+                       "lick counts, FaceRhythm factors, jaw amplitude, landing error) regressed out within session "
+                       "(spout means kept) and with the covariate rows permuted within spout. B: within-animal "
+                       "adjustment of the session ITPC for log response SNR or behavioural variability (filled square = "
+                       "CI excludes 0 and >= 3/4 animals share the sign). C: the session covariates. PROVISIONAL, "
+                       "n = 4 animals."), fontsize=9.5)
+    FIGS.mkdir(parents=True, exist_ok=True)
+    fig.savefig(FIGS / "fig5_itpc_controls.png", dpi=140)
+    plt.close(fig)
+
+
 def plot() -> None:
     plot_gate()
     plot_change()
     plot_example()
     plot_itpc()
+    plot_ctrl()
     print("figures ->", FIGS)
 
 
 # ------------------------------------------------------------------------------------------------ main
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", nargs="?", choices=["run", "gate", "summarise", "plot"], default="plot")
+    ap.add_argument("cmd", nargs="?", choices=["run", "gate", "summarise", "plot", "ctrl-run",
+                                                     "ctrl-summarise"], default="plot")
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--all", action="store_true", help="all curated sessions, only the families that passed the gate")
     ap.add_argument("--jobs", type=int, default=4)
@@ -779,6 +1162,10 @@ def main() -> None:
         gate()
     elif a.cmd == "summarise":
         summarise()
+    elif a.cmd == "ctrl-run":
+        ctrl_run(a.labels or labels(pre_only=False), a.jobs)
+    elif a.cmd == "ctrl-summarise":
+        ctrl_summarise()
     print(f"[{a.cmd}] wall {time.time() - t0:.0f} s")
 
 

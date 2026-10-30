@@ -122,3 +122,40 @@ showing whether the ITPC rise is explained by behaviour / response size is usefu
    boot_delta on the adjusted values = residual + epoch effect).
 Read-out: the share of the pre -> chronic 1.5-4 Hz ITPC change that remains after (1), after SNR, and after behavioural
 variability. Behavioural variability change itself is reported (for the behaviour reading).
+
+### Addendum outcome (2026-10-30)
+Code: `sm_coherence_cca.py ctrl-run` (107 curated sessions, 4 workers, 54 s, frozen env for the FaceRhythm factors) /
+`ctrl-summarise` / `plot` -> `figures/fig5_itpc_controls.png` (figdata `fig5_itpc_controls.pkl`). Tables `tables/ctrl_*`
+(sessions, wide_sessions, coverage, behav_var_sessions, epoch_effects_animal, tests_boot_delta, share_remaining); logs
+`ctrl_run.log`, `ctrl_summarise.log`. Values = ITPC minus random-phase null; the raw version reproduces the published
+session values exactly (max |diff| 8e-17; same seeds, so raw / kin / perm share their subsamples).
+* **Coverage**: movement design usable in 107 / 107 sessions (16 columns: 14 covariates + 2 missingness indicators);
+  events matched to a 3-D lick 100 %; every covariate >= 90 % per animal x epoch (lowest speed_peak .90, jaw_amp .91).
+  Covariates explain 21-42 % of the event-to-event variance of the S / M traces (permuted control 2-7 %).
+* **Share of the pre -> chronic change remaining** (alt / raw; pooled = boot_delta points; per animal PS92 / 93 / 94 / 95):
+  | | sensory 1.5-4 Hz (raw +.165 [.083, .228], 4/4) | motor 1.5-4 Hz (raw +.095 [.028, .147], 4/4) |
+  |---|---|---|
+  | kinematics regressed | **1.11** (+.183 [.099, .244], 4/4); 1.14 / 1.06 / 1.06 / 1.52 | **1.08** (+.102 [.044, .157], 4/4); 1.13 / 1.02 / .87 / (PS95 raw ~0) |
+  | permuted control | 1.03; 1.05 / 1.02 / .99 / 1.17 | 1.03; 1.05 / 1.01 / .93 / - |
+  | + log SNR | **.51** (+.085 [.028, .143], 4/4); .51 / .75 / .37 / .04 | **.26** (+.025 [-.040, .098], 2/4); .32 / .87 / -.35 / - |
+  | + behavioural variability | **1.01** (+.166 [.097, .223], 4/4); 1.08 / 1.02 / .85 / 1.49 | **.92** (+.087 [.022, .154], 4/4); 1.09 / 1.06 / .37 / - |
+  PS95's chronic change is ~0 in raw (S +.041, M +.001), so its ratios are not meaningful. Low band: kin .86 (S) / .96 (M),
+  bvar .93 / .89, log SNR -.05 / .13 (the low-band rise is fully absorbed by SNR).
+* **Behavioural variability does NOT fall consistently**: mean within-spout SD (pre-z units) chronic -.038 [-.091, +.025]
+  (3/4 down; PS92 -.03, PS93 -.08, PS94 -.09, PS95 +.05); acute -.040 (PS95-driven, -.14); subacute ~0. Its within-animal
+  slope on ITPC has no consistent sign.
+* **Log SNR rises** (S 1.5-4 Hz chronic +.83 [.51, 1.10], M +.83 [.52, 1.12], both 4/4). Caveat: SNR (event-mean power /
+  deviation power) and ITPC are both measures of how consistent the event response is relative to its trial-to-trial
+  variability, so "explained by SNR" is close to a restatement, not a mechanism: it says the ITPC rise goes with a larger
+  lick-locked response relative to trial noise, not with more variable / different movements. Sensitivity (not
+  pre-specified): SNR on the same 30-event subsamples as the ITPC leaves even less (S chronic per animal .061 / .118 /
+  -.026 / -.003, M .007 / .102 / -.131 / -.035).
+* **Reading (PROVISIONAL, n = 4):** the ITPC rise is NOT explained by lick kinematics (regressing them out per event
+  slightly increases it) and NOT by behavioural variability (which does not fall consistently); it goes together with a
+  larger response SNR, which accounts for about half (sensory) to most (motor) of it.
+* Deviations / choices: the movement design is [spout dummies + movement columns] without the 3-D lick angle (the
+  addendum lists spout dummies only; S17's "old" design had the angle); eligibility = S17's rule with its base-design
+  column count; permutation within spout (addendum) rather than S17's global permutation; behavioural variability uses,
+  per animal, the covariates with >= 50 % coverage in every session (all 14 here), z-scored on the animal's pooled pre
+  events; SNR on all events of the session (as written). `plot --plot-only` re-rendered figs 1-4 from their unchanged
+  figdata.
