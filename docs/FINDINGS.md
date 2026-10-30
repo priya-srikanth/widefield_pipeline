@@ -1364,6 +1364,14 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     intact (remaining share ~1.1), behavioural variability does not explain it (and does not clearly fall); response SNR
     (near-restatement) absorbs ~half the sensory and most of the motor rise -> a larger lick response relative to trial noise,
     not more stereotyped licking. Page 14.18 S19. **PROVISIONAL (n = 4).**
+    **CAVEAT (Priya 10-30, GCaMP6s kinetics): treat the phase measures as an amplitude / consistency readout of the
+    lick-evoked calcium transient, not as oscillatory phase-locking (no Ramanathan / Khanna LFO analogue).** With
+    tau ~0.6 s the indicator passes ~17 % (1.5 Hz) to ~7 % (4 Hz) of the underlying amplitude; in a +-1 s Hann window the
+    1.5-4 Hz content is mostly the transient's onset edge, so the ITPC rise mostly restates the larger cued lick
+    response (section 0b) relative to non-calcium noise. The pre-registered deconvolved sensitivity (tau 0.6) reproduces
+    every number (e.g. sensory 1.5-4 Hz chronic +.18 / +.22 / +.22 / +.04 raw vs +.17 / +.22 / +.23 / +.06), but that is
+    NOT a test: an exponential deconvolution is a linear filter that multiplies every event's Fourier coefficient by the
+    same factor, so ITPC and coherence are invariant to it by construction (up to edge effects). Not a coupling result.
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 

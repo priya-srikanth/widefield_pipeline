@@ -159,3 +159,14 @@ session values exactly (max |diff| 8e-17; same seeds, so raw / kin / perm share 
   per animal, the covariates with >= 50 % coverage in every session (all 14 here), z-scored on the animal's pooled pre
   events; SNR on all events of the session (as written). `plot --plot-only` re-rendered figs 1-4 from their unchanged
   figdata.
+
+## Addendum: GCaMP6s kinetics caveat (2026-10-30, after Priya's comment)
+The deconvolved (tau 0.6) rows were computed by `run` but never summarised. Pre -> chronic, cued, S8M8, evoked, value
+minus null, per animal PS92 / 93 / 94 / 95: ITPC S 1.5-4 Hz raw +.179 / +.220 / +.219 / +.041, deconvolved +.173 / +.221 /
++.229 / +.057; ITPC M 1.5-4 Hz raw +.136 / +.148 / +.094 / +.001, deconv +.128 / +.154 / +.099 / +.016; coherence low raw
+-.057 / -.140 / -.130 / -.021, deconv -.067 / -.164 / -.145 / -.030. The agreement is EXPECTED and uninformative: a
+linear time-invariant deconvolution scales and phase-shifts each frequency identically on every event, so ITPC and
+coherence are unchanged by it except for window-edge effects. The indicator low-pass (tau 0.6 s: |H| ~.17 at 1.5 Hz,
+~.07 at 4 Hz) and the 2-s window mean the 1.5-4 Hz phase is set by the shape / onset edge of the slow lick-evoked
+transient relative to non-calcium noise. Reading fixed: the phase measures are a consistency / amplitude readout of the
+evoked transient (already shown in time-domain amplitude, FINDINGS 0b), not oscillatory phase-locking.
