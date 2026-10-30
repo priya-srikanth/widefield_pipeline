@@ -110,6 +110,41 @@ unset it or set `cohort1`.
    session, for example by keying cohort2 by YYYYMMDD and making the date helpers width-aware, or by
    starting a new cohort block at the new year.
 
+## Open question (Priya 2026-10-29): PS121 / PS122 415 "dimmed a TON" — raise 415 LED next time, or usable as is?
+
+**Answer: usable as is; do NOT raise the 415 LED.** The perceived dimming is a *within-session fade
+(bleaching)*, not a low light level. Raising 415 power would not meaningfully help the correction and
+would make the fade worse.
+
+Measured on 2026-10-29 (sampled raw frames, brain-ROI mean; PCO ~0.46 e-/count; offset = darkest-corner
+mean = electronic dark level; shot-noise ΔF/F = 100/√(photoelectrons)):
+
+| session | 470 func | 415 iso − offset | 415 / offset | shot-noise ΔF/F (1 px,1 frame) | 415 start→end |
+|---|---|---|---|---|---|
+| PS118 Thy1 | 25493 | 23962 | 18× | 0.95% | −24% |
+| PS120 Thy1 (dim) | 16348 | 14769 | 11× | 1.21% | −43% |
+| PS121 RiboL1 | 32922 | **30598** | **22×** | **0.84%** | **−34%** |
+| PS122 RiboL1 | 29904 | **30690** | **24×** | **0.84%** | +4% |
+
+Reasoning:
+* **415 is not photon-starved in the RiboL1 mice — it is the brightest of the cohort** (~30,600 counts
+  over offset, 22–24× the camera floor, ~49% of 16-bit range → no saturation). Its single-pixel
+  shot-noise ΔF/F floor (~0.84%) is the *best* of the four. More 415 power buys negligible SNR.
+* **What actually varies is bleaching, and it is differential between the two channels** — exactly what
+  a scalar isosbestic regression handles worst. PS121: 415 fades −34% (470 rises +18%). PS122: 470 fades
+  −41% while 415 is flat (+4%). A single 415→470 coefficient cannot match both baseline and dynamics when
+  the two channels drift apart.
+* **The lever for this is software, not the LED.** It is detrended in `hemo_variants` (adopted
+  `meegkit_hpfit`), and the candidate `meegkit_2band` (slow_band_s=300) adds a second 415→470 coefficient
+  for the slow band specifically to absorb this differential drift. Decision gated on inspecting
+  PS121/PS122 `hemo_*/SVTcorr.npy` after this run (to-do #4 below).
+* If you want to reduce bleaching *at acquisition*, the knob is **total light dose** (session length, LED
+  duty / exposure), not 415 amplitude — and if anything 415 has enough headroom that it could be turned
+  *down* without hurting SNR. Only raise 415 if a future animal's 415 drops toward the camera floor
+  (say < ~5× offset) or the SVTcorr shows injected 415 shot noise; neither is the case here.
+
+(Verify once hemo finishes: a clean `SVTcorr` with no 415-shaped residual confirms "usable as is".)
+
 ## Things that are NOT cohort-aware yet (check before relying on them for cohort2)
 
 * `scripts/` one-off analyses that hardcode `PS92`-`PS95` or cohort1 dates (e.g. `scripts/deck_claim_audit.py`,
