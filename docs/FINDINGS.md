@@ -1372,6 +1372,17 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     every number (e.g. sensory 1.5-4 Hz chronic +.18 / +.22 / +.22 / +.04 raw vs +.17 / +.22 / +.23 / +.06), but that is
     NOT a test: an exponential deconvolution is a linear filter that multiplies every event's Fourier coefficient by the
     same factor, so ITPC and coherence are invariant to it by construction (up to edge effects). Not a coupling result.
+18. **Sensory vs motor timing of lick-ANGLE information (10-30; Lemke 2024 style; pre-registered,
+    `docs/status/DIRECTION_INFO_LAG_PREREG_20261030.md`).** Per 0.05-s bin, CV ridge decode of the executed first-lick angle
+    from 8 sensory vs 8 motor areas; half-max lag dL50 = L50_M - L50_S (+ = sensory first) and an amplitude-invariant
+    curve-shape lag. Gate 3/4 (PS92 noisy halves). **Pre-stroke, motor information leads sensory by ~23 ms (4/4, both
+    readouts).** Post-stroke the lead shrinks (dL50 +29 / +11 / +14 ms acute / sub / chronic, 4/4 each), but the shape
+    lag confirms it only chronically (+12 ms, 4/4) -> **chronic motor lead ~23 -> ~10 ms**, mainly because sensory
+    information arrives earlier (L50_S -31 to -38 ms every epoch, 4/4). Peak information rises in both groups
+    chronically (+.07). Within-spout angle, hemisphere pairings and ITI docked fail the gate (not read). Caveats:
+    sub-bin effects; calcium / haemodynamic timing; total angle includes the target; jaw leads tongue by 52-120 ms
+    (movement-locked activity may set the motor-first crossing); information timing, not influence. Page 14.18 S20.
+    **PROVISIONAL (n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
