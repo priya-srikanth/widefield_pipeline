@@ -620,7 +620,7 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   HYPOTHESIS updated (page Biology in brief) without minimising the persistent signals: the ITI contralesional offset
   and the slow rise of the contralesional share are co-headline. (3) MARKERS: cued balance = sensitive state readout
   (headline for recovery staging); ITI decoder offset + ITI SSp-n left/right difference + the contralesional-share rise =
-  the mechanistic markers. (5) movement-null plan encoding model DEFERRED.
+  the mechanistic markers. (5) movement-null plan encoding model DEFERRED (built 10-30 as maps from existing outputs: section 4, 12c).
   C/I BY SPOUT AND EPOCH (10-29, Priya: "C/I increased after stroke then back to pre? but for the most impaired licks
   it increases over recovery?"; scripts/lick_ci_spout_epoch.py, pre LOSO, page 14.18 supplement). The answer
   depends on the reference, HEMISPHERE sign (+ = C/I up):
@@ -1209,6 +1209,25 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     Musall-layout alone models; page Figs 1t-1uf). **STANDS** at area level (pixel version queued). **Caveat for every
     mean target map:** PS94's target-unique R2 is ~10x the other animals' (cue PETH contra SSp-m .37 vs .004-.029), so mean
     maps are PS94-weighted (tests count animals); cause under test (block-aligned state vs tracking vs tuning).
+12c. **(10-30) MOVEMENT-NULL PLAN MAPS (FINDINGS 0b item (5), built; Musall unique, no refit).** The target (spout
+    identity) entered LAST after every movement group of the frozen encoder (non-directional lick vigour / timing, nose,
+    running, spout-locked lick template, within-spout tongue / jaw direction, the upcoming lick's angle via lick kernels
+    -0.5..+2 s, and in FR-A all FaceRhythm factors). Pixel maps from the existing FROZEN_PIX_MUSALL basis twins (107
+    sessions, frame R2, cue 0-1.5 s / lick -0.1-1.0 s). NO lick-history regressor exists in this model (not added).
+    Pre level is SMALL (contra SSp-n 0.015 cue / 0.021 lick, ALM 0.010 / 0.012, tjM1 0.013 / 0.017, FR-A) and PS94-heavy
+    (PS94 0.04-0.07 vs <= 0.015 in the others). Change: only DECREASES, no bin increases anywhere -- FR-A target cue
+    63 / 11 / 89 of 514 16-px bins down (acute / subacute / chronic), lick 81 / 7 / 91; noFR 123 / 45 / 111 and 367 /
+    44 / 140; spout unique (target + executed spout part) 0-21 bins down, none chronic. By area (FR-A, contra): ALM cue
+    -0.013 acute / -0.009 chronic (0/4 up, CIs exclude 0), SSp-n lick -0.018 acute (0/4) / -0.011 chronic (1/4, ns),
+    tjM1 lick -0.012 acute (0/4) / -0.007 chronic (ns); SSp-m chronic ~0 (+0.005 cue, 3/4). CAVEAT: the CONTROL RSPd
+    also falls chronically (cue -0.006, lick -0.008, 0/4 up) and whole cortex too -> the drop is NOT orofacial-specific;
+    read it as "the plan term beyond movement does not RE-EMERGE after the stroke", not as a localised loss. Subacute
+    is closest to pre (dip-recover-dip pattern). Script `scripts/movement_null_plan_maps.py` (outputs
+    `<E>/movement_null_plan/`). **PROVISIONAL** (n = 4; PS94-weighted mean maps).
+    TASK-A COMPANION (10-30): SSp-n / ALM / tjM1 now in the frozen Musall table (`scripts/frozen_fr_musall_v2.py` ->
+    musall_change_v2.csv; Figs 0.2 / 0.8 v2 = `frozen_musall_<w>_simple_v2.png`): chronic spout-unique contralesional
+    shift (contra - ipsi, FR-A) holds in tjM1 (cue +0.012 [0.001, 0.023], lick +0.020 [0.004, 0.037], 4/4) as in SSp-m;
+    not detectable in SSp-n (+0.008 / +0.014, 3/4, ns) or ALM (~0). **PROVISIONAL.**
 13. **Not established / withdrawn here:** pre-stroke target-over-executed lead (SUSPENDED, 2.4); pooled toward-midline
     within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
     lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit

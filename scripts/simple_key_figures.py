@@ -14,7 +14,10 @@ saved `n_up` / `n`. Marker: filled circle = contralesional (right, lesion left),
 whole cortex, diamond = contra - ipsi. Colour = epoch (lick_enlv_curves / orofacial_cohort.EPOCH_LINE).
 ALM / tjM1 rows exist only in the claims CSVs (FROZEN_PIX_MUSALL basis re-runs); musall_change.csv has cortex, SSp-m and
 MOp only, and no saved table has SSp-n for these encoder quantities -- the simple figures say so rather than substitute.
-Usage: python scripts/simple_key_figures.py [--copy-to _goal_page]
+  frozen_musall_<w>_simple_v2.png      <- frozen_fr_compare/musall_change_v2.csv (scripts/frozen_fr_musall_v2.py, 10-30):
+                                          adds SSp-n (area run) and ALM / tjM1 (basis twin), target + spout, both frames;
+                                          plotted rows saved as frozen_musall_<w>_simple_v2_data.csv.
+Usage: python scripts/simple_key_figures.py [--only-v2] [--copy-to _goal_page]
 """
 from __future__ import annotations
 
@@ -134,6 +137,58 @@ def fig_musall(plt, w: str, claim: str) -> Path:
                "(musall_change.csv). Source: scripts/frozen_fr_musall.py.")
     fig.subplots_adjust(left=0.07, right=0.99, top=0.76, bottom=0.2, wspace=0.18)
     p = FIG_FC / f"frozen_musall_{w}_simple.png"
+    fig.savefig(p, dpi=130)
+    plt.close(fig)
+    return p
+
+
+V2_AREAS = [("cortex", "cortex")] + [(f"{b}_{s}", b) for b in ("SSp-m", "SSp-n", "ALM", "tjM1", "MOp")
+                                     for s in ("right", "left", "c-i")]
+
+
+def fig_musall_v2(plt, w: str, claim: str) -> Path:
+    """v2 of fig_musall (Priya 10-30: add SSp-n, ALM, tjM1): musall_change_v2.csv (scripts/frozen_fr_musall_v2.py, a
+    re-summary of the saved per-session outputs; ALM / tjM1 from the FROZEN_PIX_MUSALL basis twin). Rows = target /
+    spout unique, columns = frame (frozen / frozen + FaceRhythm), chronic - pre. The plotted rows are saved beside the PNG."""
+    B = pd.read_csv(FC / "musall_change_v2.csv")
+    B = B[(B.window == w) & (B.epoch == "chronic") & B.area.isin([a for a, _ in V2_AREAS])]
+    fig, axs = plt.subplots(2, 2, figsize=(15, 8.4), sharey="row")
+    used = []
+    for i, (q, lab) in enumerate([("target", "position (target) unique R²"),
+                                  ("spout", "spout unique R² (target + executed spout part)")]):
+        rr = []
+        for j, (fr, frl) in enumerate([("noFR", "frozen model"), ("FR-A", "frozen + FaceRhythm")]):
+            b = B[(B.q == q) & (B.frame == fr)]
+            used.append(b)
+            items, x, prev = [], 0.0, None
+            for a, nm in V2_AREAS:
+                if prev is not None and nm != prev:
+                    x += 0.6
+                items.append((x, a, nm, "chronic"))
+                prev, x = nm, x + 1
+            rr.append(dot_panel(axs[i, j], b, items, f"({'abcd'[2 * i + j]}) {lab}, chronic - pre; {frl}",
+                                "change from pre (R²)" if j == 0 else None))
+            ax = axs[i, j]
+            ax.set_xticklabels(["" if a == "cortex" else {"contra": "c", "ipsi": "i", "contra-ipsi": "c-i"}[_side(a)]
+                                for _x, a, _n, _e in items], fontsize=7.5)
+            for x0, a, nm, _ep in items:                 # area name once per group, under its three ticks
+                if a == "cortex" or a.endswith("_right"):
+                    ax.text(x0 + (0 if a == "cortex" else 1), -0.075 if a != "cortex" else -0.03, nm,
+                            transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=8.5)
+                if a.endswith("_right") and a.startswith(("ALM", "tjM1")):
+                    ax.axvspan(x0 - 0.45, x0 + 2.45, color="#f0f0f0", zorder=-1, lw=0)
+        set_range(axs[i], rr)
+    pd.concat(used).to_csv(FIG_FC / f"frozen_musall_{w}_simple_v2_data.csv", index=False)
+    fig.suptitle(f"{_wrap(claim, 150)}\nFrozen pre-stroke encoder, {WLAB[w]}, chronic epoch. PROVISIONAL, n = 4",
+                 fontsize=10)
+    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); grey dots = animals; "
+               "* CI excludes 0; k/n = animals above 0. Filled = contralesional, open = ipsilesional, square = cortex, "
+               "diamond = contra - ipsi (ticks: c = contra, i = ipsi, c-i). cortex / SSp-m / SSp-n / MOp: area run (Allen area on the stat mask); ALM / tjM1 "
+               "(grey band): ROI v8 on the stat mask from the FROZEN_PIX_MUSALL basis twin (same route as the claims "
+               "figures; checked per session on SSp-m / SSp-n / MOp: r >= 0.987, median |diff| <= 0.0004, worst single session 0.13). "
+               "Source: scripts/frozen_fr_musall_v2.py -> musall_change_v2.csv.")
+    fig.subplots_adjust(left=0.05, right=0.995, top=0.86, bottom=0.12, wspace=0.05, hspace=0.55)
+    p = FIG_FC / f"frozen_musall_{w}_simple_v2.png"
     fig.savefig(p, dpi=130)
     plt.close(fig)
     return p
@@ -292,13 +347,31 @@ CLAIMS = {
 }
 
 
+CLAIMS_V2 = {
+    "cue": "Target unique R² does not rise chronically in any key area (contralesional ALM 0/4 up in both frames); spout unique shifts "
+           "contralesionally in SSp-m and tjM1 (contra - ipsi 4/4 with FaceRhythm), not detectably in SSp-n or ALM",
+    "lick": "Lick window: target unique stays below pre chronically (contralesional ALM, SSp-n, tjM1 1/4 up); spout unique shifts "
+            "contralesionally in SSp-m and tjM1 (contra - ipsi 4/4 with FaceRhythm), not detectably in SSp-n or ALM",
+}
+
+
 def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     out = []
+    if "--only-v2" in sys.argv:                  # the v2 figures alone (leaves every other output untouched)
+        out = [fig_musall_v2(plt, w, CLAIMS_V2[w]) for w in ("cue", "lick")]
+        print("\n".join(str(p) for p in out))
+        if "--copy-to" in sys.argv:
+            dst = Path(sys.argv[sys.argv.index("--copy-to") + 1])
+            for p in out:
+                shutil.copy2(p, dst / p.name)
+        return 0
     for w in ("cue", "lick"):
         out.append(fig_musall(plt, w, CLAIMS[("musall", w)]))
+        if (FC / "musall_change_v2.csv").exists():
+            out.append(fig_musall_v2(plt, w, CLAIMS_V2[w]))
         out.append(fig_contest(plt, w, CLAIMS[("contest", w)]))
         out.append(fig_peth(plt, w, CLAIMS[("peth", w)]))
     out.append(fig_lick_dots(plt))
