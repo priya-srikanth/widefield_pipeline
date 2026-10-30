@@ -638,6 +638,9 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   -8 to -17 deg after other spouts, 4/4; -13.4 / -9.8 later) and follow the same pattern as cued far-contra licks.
 - **HOW DOES THE LICK-DIRECTION CODE CHANGE? (10-29, Priya item 2; scripts/lick_code_subspace.py; page 14.18 supp):**
   REPRESENTATIONAL CHANGE = contralesional offset + lower gain / precision; RE-MAP OPEN (Priya 10-29: 'no re-map' too strong).
+  WORDING APPROVED (Priya 10-30): "No lick type shows a code rotation beyond ~10-17 deg (power-limited). Uncued (ITI,
+  ENLv) licks show a lasting contralesional offset and a loss of gain; cued first licks show a small offset and no gain
+  change." June-drift comparison NOT used (room move + other rig between June and August).
   Matched licks, frozen basis, new frozen kind lick_code; drift floor = June 6-8 no-stroke sessions (~60 d before Aug).
   Cued: pre->post intercept +0.16 [0.08, 0.23] mm acute 4/4, +0.08 sub 4/4, +0.04 chronic ns; r / slope unchanged;
   nothing beyond June. ITI (all and far1): r -0.20/-0.15/-0.16, slope -0.11/-0.12/-0.12, intercept +0.28/+0.18/+0.22 mm
