@@ -20,6 +20,8 @@ Figures write to E: and were copied to N: `…/labcams/cohort2/_tmp_qc_figures_2
 | `fit_vs_output_demo.py` | acausal high-pass (fit) vs polynomial detrend (output) | `fit_vs_output_demo.png` |
 
 | `channel_drift.py` (10-30) | DAQ-correct per-channel levels/fades; corrected slow band split into 470 vs T·415 parts; reads M: | `cohort2_channel_drift.png` |
+| `iso_check.py` (10-30) | is 415 isosbestic for RiboL1? end-of-session 415, heartbeat coherence, cue/lick-locked 415 vs 470, maps | `cohort2_iso_check.png` |
+| `swapped_frames.py` (10-30) | frames carrying the OTHER LED's image; hemo slope before/after; slope by session third | printed table (doc §0b) |
 | `slowband_behaviour.py` (10-30) | is the slow band spout position / engagement? (shift null) | `cohort2_slowband_behaviour.csv` |
 
 **2026-10-30: the RAW-.dat parts of `iso_snr`, `usability_qc`, `stage_traces`, `processing_stages` and `slow_is_bleach`
