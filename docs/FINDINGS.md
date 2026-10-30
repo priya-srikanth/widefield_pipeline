@@ -832,6 +832,11 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   session mean (4/4), removed by restw; F0 not the cause chronically; non-orofacial (bfd, VISp, MOs_rest ipsi) dip is a
   real pre-cue decrease. CAVEAT for Fig 14.21: the chronic contra ALM / tjM1 pre-cue rise is relative to rest, not absolute
   (dF/F is session-mean centred). PROVISIONAL.
+- ITI PRE-LICK RE-RUN 10-29 (Fig 12.17 S3; windows end >= 0.1 s before lick onset, + jaw-onset windows; jaw leads 52-120 ms):
+  decoder offset flat pre-lick (+0.14/+0.12/+0.15 ns, mostly PS94), steps up post (4/4) -- unchanged; SSp-n L/R difference
+  above 0 pre-lick acutely / subacutely (+0.21-0.24, 3-4/4; also before jaw opening), ~tonic, mostly PS94 -> NOT a movement
+  artefact; acute baseline-subtracted balance build-up remains (4/4); recovery tracking none pre-lick; direction beyond spout
+  ~0 pre-lick. Revised: offset + recovery link post-onset; SSp-n difference / acute balance have a tonic pre-lick part. PROVISIONAL.
 - RESTW check 10-29 (Fig 14.21 S14, scripts/restw_strict_check.py, restw_check/): restw rest contains many NON-contact licks
   (13-57/min, most pre-stroke); a strict lick-free rest (all cam4 licks, [0.5, 2.0] s; strict_w50) shifts by epoch (contra
   tjM1 chronic -3.66, ALM -1.72, 4/4; bilateral, cortex-wide) -> restw is NOT epoch-neutral, but conservatively: chronic

@@ -57,7 +57,38 @@ Outputs <OUT_W>/iti_prelick_licks.csv.gz (lick set), iti_prelick_sessions.csv (w
   iti_prelick_decode_r.csv (pre held-out r per animal), iti_prelick_tests.csv (change vs pre), iti_prelick_animals.csv
   (per-animal epoch change), iti_prelick_track.csv (recovery tracking), iti_prelick_timecourse_sessions.csv,
   iti_prelick_timecourse_tests.csv; figure figures/lick_iti_prelick.png.
-Usage: python scripts/lick_iti_prelick.py [--plot-only]      (--plot-only redraws from the CSVs)
+
+10-29 LATE -- WINDOW LIMIT (Priya: "we probably need to use a window that ends at least ~0.1 s before the lick onset").
+  The v1 "pre 0.2..0" window and the sliding bins next to 0 overlap tongue protrusion. --window-limit L (default 0.1 s):
+  every PRE window ends >= L s before the lick ONSET (no sample later than -L; both edges inclusive, so -0.3..-0.1 holds
+  the samples -0.30 .. -0.10). Windows are referenced PER LICK to the DAQ lick onset (peak-aligned traces: the lags are
+  shifted by that lick's onset - peak, ~-30 ms) or to the cam4 JAW-OPENING onset:
+    pre_100_050 -1.0..-0.5, pre_050_020 -0.5..-0.2 (v1's), pre_050_015 -0.5..-0.15, pre_030_010 -0.3..-0.1,
+    pre_025_015 -0.25..-0.15 (from lick onset); jaw_050_010 / jaw_030_010 / jaw_030_015 = -0.5..-0.1 / -0.3..-0.1 /
+    -0.3..-0.15 from the jaw-opening onset; windows ending later than -L are dropped (L = 0.15 keeps the -0.15 ones).
+  Reference only (NOT pre-lick): str_020_000 -0.2..0 (v1's pre_020_000; STRADDLES onset), dec_000_020, post_010_050.
+  Imaging is 31.23 Hz per channel and the traces are linearly interpolated, so a sample at -0.10 s carries the frame
+  after it (<= 32 ms later): the L = 0.1 windows can hold imaging up to ~-0.07 s; the -0.15 windows up to ~-0.12 s.
+  bs (baseline-subtracted) per lick: NaN where the window's first sample lies before the baseline's end.
+  Licks without a feature value in a window (no jaw onset, no onset time) are left out of that window.
+  Sliding bins: unchanged (0.1 s = 2 samples), reported by their LAST sample; a bin counts as pre-lick only if its last
+  sample is <= -L from onset (peak-aligned: <= -L - the median onset lag).
+JAW ONSET (cam4 v36 cleaned jaw_y, + = opening; windows.npz frame DAQ times, nearest frame within 6 ms on a 4 ms grid;
+  NOT at close_mid -- chin hidden, as jaw_onsets.py): jaw_kinematics' rule (threshold max(4 SD, 4 px), >= 5 of 8 frames)
+  on the OPENING deflection only, baseline -1.0..-0.6 s and detect -0.6..+0.05 s from the DAQ lick onset; onset = the
+  first suprathreshold frame of the first passing window; an onset on the first detect frame (already opening) is
+  CENSORED and not used. Also the video TONGUE onset (licks_all rise_start_ms, through the trial's frame clock).
+  cam1 is not used (its LP jaw is only in the trial windows).
+FROZEN DECODER (10-29 late, RULE 10): now READ from the frozen store -- frozen_models.load_or_fit, kind ``lick_reader``,
+  align ``iti`` (frozen by lick_enlv_extract.py --readers and verified there against the 12.17 cache to 4e-16); a miss
+  raises instead of fitting (this script writes nothing outside iti_licks/). The CHECK below still compares it with the
+  cached 12.17 predictions. The per-window decoder (b) remains an exploratory in-memory fit (not a pre-stroke reference
+  that post data are scored in -- each window's own pre-trained read-out).
+New outputs (L = 0.1): iti_prelick_w01_{licks.csv.gz, sessions, decode_r, tests, animals, track, timecourse_sessions,
+  timecourse_tests, jaw}.csv; figure figures/lick_iti_prelick.png (v1 copied to lick_iti_prelick_v1.png). Other L:
+  iti_prelick_w<L>_* and lick_iti_prelick_w<L>.png. --window-limit none = v1 exactly (v1 windows, v1 file names; the
+  figure goes to lick_iti_prelick_v1.png).
+Usage: python scripts/lick_iti_prelick.py [--plot-only] [--window-limit 0.1|0.15|none] [--jobs 4]
 """
 from __future__ import annotations
 
@@ -79,9 +110,47 @@ AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["acute", "subacute", "chronic"]
 POOL = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs"]
 ORO = set(POOL)
-WINS = [("pre_100_050", -1.0, -0.5), ("pre_050_020", -0.5, -0.2), ("pre_020_000", -0.2, 0.0),
-        ("dec_000_020", 0.0, 0.2), ("post_010_050", 0.1, 0.5)]
+WINS_V1 = [("pre_100_050", -1.0, -0.5), ("pre_050_020", -0.5, -0.2), ("pre_020_000", -0.2, 0.0),
+           ("dec_000_020", 0.0, 0.2), ("post_010_050", 0.1, 0.5)]
+# (name, lo, hi, reference, group): reference "lag" = fixed lags of the alignment (upper edge exclusive, as v1; dec
+# inclusive), "onset" / "jaw" = per lick from the DAQ lick onset / the cam4 jaw-opening onset, both edges inclusive
+WINS_NEW = [("pre_100_050", -1.0, -0.5, "onset", "pre"), ("pre_050_020", -0.5, -0.2, "onset", "pre"),
+            ("pre_050_015", -0.5, -0.15, "onset", "pre"), ("pre_030_010", -0.3, -0.1, "onset", "pre"),
+            ("pre_025_015", -0.25, -0.15, "onset", "pre"),
+            ("jaw_050_010", -0.5, -0.1, "jaw", "jaw"), ("jaw_030_010", -0.3, -0.1, "jaw", "jaw"),
+            ("jaw_030_015", -0.3, -0.15, "jaw", "jaw"),
+            ("str_020_000", -0.2, 0.0, "lag", "straddle"), ("dec_000_020", 0.0, 0.2, "lag", "post"),
+            ("post_010_050", 0.1, 0.5, "lag", "post")]
+WLAB = {"pre_100_050": "-1.0..-0.5\nonset", "pre_050_020": "-0.5..-0.2\nonset", "pre_050_015": "-0.5..-0.15\nonset",
+        "pre_030_010": "-0.3..-0.1\nonset", "pre_025_015": "-0.25..-0.15\nonset", "jaw_050_010": "-0.5..-0.1\nJAW",
+        "jaw_030_010": "-0.3..-0.1\nJAW", "jaw_030_015": "-0.3..-0.15\nJAW", "str_020_000": "-0.2..0\nSTRADDLES",
+        "dec_000_020": "0..0.2\n(post)", "post_010_050": "0.1..0.5\n(post)", "pre_020_000": "-0.2..0\n(straddles)"}
+LIMIT: float | None = 0.1           # set by configure(); None = v1
+WINS: list = []
+TAG = ""
+FIGNAME = "lick_iti_prelick.png"
 SRC = {"peak": (il.LAGS_D, il.BASE_RESP), "onset": (il.LAGS_P, il.BASE)}
+JAW_BASE = (-1.0, -0.6)             # s from the DAQ lick onset
+JAW_DET = (-0.6, 0.05)
+JAW_DT = 0.004
+JAW_HIDDEN = ("close_mid",)          # cam4 chin hidden (jaw_onsets.py masks close_center)
+
+
+def configure(limit: float | None) -> None:
+    """Set the window set + output names for a window limit (None = v1)."""
+    global LIMIT, WINS, TAG, FIGNAME
+    LIMIT = limit
+    if limit is None:
+        WINS = [(n, lo_, hi_, "lag", "v1") for n, lo_, hi_ in WINS_V1]
+        TAG, FIGNAME = "", "lick_iti_prelick_v1.png"
+        return
+    WINS = [w for w in WINS_NEW if w[4] not in ("pre", "jaw") or w[2] <= -limit + 1e-9]
+    TAG = "w" + f"{limit:g}".replace("0.", "0")
+    FIGNAME = "lick_iti_prelick.png" if abs(limit - 0.1) < 1e-9 else f"lick_iti_prelick_{TAG}.png"
+
+
+def fn(stem: str) -> Path:
+    return OUT / (f"iti_prelick_{TAG}_{stem}" if TAG else f"iti_prelick_{stem}")
 SUBSETS = ("all", "clean")
 SIGMA = ocm.SIGMA
 MIN_CELL = 20                     # = lick_balance_regions.MIN_CELL (pre licks for a pre line)
@@ -90,6 +159,7 @@ TC_HI = 0.6
 OUT = il.OUT_W
 FIG = OUT / "figures"
 COMP = ["total", "diff_all", "sum_all", "diff_SSp-n", "diff_oro_noSSpn", "sum_oro", "other", "unpaired"]
+JOBS = 4                          # task cap: at most 4 workers
 
 
 # ------------------------------------------------------------------------------------------------------- lick set
@@ -99,7 +169,7 @@ def lick_set() -> pd.DataFrame:
     P = P[P.set == "iti"].copy()
     C = pd.read_csv(OUT / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "t", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
-    res, fail = ak.fan_sessions(sorted(P.label.unique()), lrm._gaps)
+    res, fail = ak.fan_sessions(sorted(P.label.unique()), lrm._gaps, jobs=JOBS)
     if fail:
         raise RuntimeError(f"gaps failed: {fail[:5]}")
     G = pd.concat([v for _i, v in res], ignore_index=True)
@@ -123,7 +193,7 @@ def _one(item):
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    label, tq = item
+    label, tq, pos_q = item
     tq = np.asarray(tq, float)
     d = il._load(label)
     it = d["iti_t"].astype(float)
@@ -134,9 +204,13 @@ def _one(item):
     Xp = np.full((len(tq), len(il.LAGS_D), len(d["cols"])), np.nan, np.float32)
     Xp[okp] = d["iti_X"][rows[okp]].astype(np.float32)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    sd = oo.session_dir(PathResolver(), oc.RUN, an, date)
+    A = pd.read_csv(sd / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s", "trial_id", "rise_start_ms"])
     A = A[np.isfinite(A.daq_on_s)].drop_duplicates("daq_peak_s")
-    on = A.set_index("daq_peak_s").daq_on_s.reindex(tq).to_numpy(float)
+    A = A.set_index("daq_peak_s").reindex(tq)
+    on = A.daq_on_s.to_numpy(float)
+    jaw = jaw_and_tongue(sd, on, np.asarray(pos_q).astype(str), A.trial_id.to_numpy(float),
+                         A.rise_start_ms.to_numpy(float))
     bt = d["bout_t"].astype(float)
     Xo = np.full((len(tq), len(il.LAGS_P), len(d["cols"])), np.nan, np.float32)
     oko = np.zeros(len(tq), bool)
@@ -146,7 +220,70 @@ def _one(item):
         rb = ob[jb]
         oko = np.isfinite(on) & (np.abs(bt[rb] - on) < 1e-9)
         Xo[oko] = d["bout_peth"][rb[oko]].astype(np.float32)
-    return {"Xp": Xp, "Xo": Xo, "okp": okp, "oko": oko, "on": on, "cols": [str(c) for c in d["cols"]]}
+    return {"Xp": Xp, "Xo": Xo, "okp": okp, "oko": oko, "on": on, "cols": [str(c) for c in d["cols"]], **jaw}
+
+
+def jaw_and_tongue(sd: Path, on: np.ndarray, pos: np.ndarray, trial_id: np.ndarray, rise_ms: np.ndarray) -> dict:
+    """Per lick (DAQ onset `on`): cam4 jaw-OPENING onset (DAQ s; jaw_kinematics' threshold + density rule, opening only)
+    and the video tongue onset (licks_all rise_start_ms through the trial's frame clock), see the module docstring."""
+    from wfield_local import jaw_kinematics as jk
+    p = jk._resolve(None)
+    n = len(on)
+    out = {"jaw_on": np.full(n, np.nan), "jaw_state": np.full(n, "", dtype=object), "tongue_on": np.full(n, np.nan)}
+    w = np.load(sd / "windows.npz")
+    t = w["ix_daq_s"].astype(float)
+    y = np.load(sd / "clean.npz")["jaw_y"].astype(float)
+    tid, tms = w["ix_trial_id"].astype(float), w["ix_t_ms"].astype(float)
+    o = np.argsort(t, kind="stable")
+    ts, ys = t[o], y[o]
+    rel = np.round(np.arange(JAW_BASE[0], JAW_DET[1] + 1e-9, JAW_DT), 4)
+    t_ms = rel * 1000.0
+    W, K = max(1, int(p["window_n"])), max(1, int(np.ceil(p["density_thr"] * p["window_n"])))
+    det = (rel >= JAW_DET[0] - 1e-9) & (rel <= JAW_DET[1] + 1e-9)
+    idx_det = np.flatnonzero(det)
+    for i in range(n):
+        if not np.isfinite(on[i]):
+            out["jaw_state"][i] = "no_onset"
+            continue
+        if pos[i] in JAW_HIDDEN:
+            out["jaw_state"][i] = "hidden"
+            continue
+        g = on[i] + rel
+        j = np.clip(np.searchsorted(ts, g), 1, len(ts) - 1)
+        j = np.where(np.abs(ts[j - 1] - g) < np.abs(ts[j] - g), j - 1, j)
+        yw = np.where(np.abs(ts[j] - g) <= 0.006, ys[j], np.nan)
+        bm, bsd = jk._compute_jaw_baseline(yw, t_ms, baseline_win_ms=(JAW_BASE[0] * 1000, JAW_BASE[1] * 1000))
+        if not (np.isfinite(bm) and np.isfinite(bsd) and bsd > 0) or np.isfinite(yw[det]).mean() < 0.5:
+            out["jaw_state"][i] = "no_data"
+            continue
+        thr, _ = jk._compute_jaw_threshold(bsd, sd_mult=p["sd_mult"], min_px=p["min_px"])
+        s = (np.isfinite(yw[idx_det]) & ((yw[idx_det] - bm) > thr)).astype(int)
+        passing = np.convolve(s, np.ones(W, int), mode="valid") >= K
+        if not passing.any():
+            out["jaw_state"][i] = "none"
+            continue
+        f0 = int(np.flatnonzero(passing)[0])
+        k = f0 + int(np.flatnonzero(s[f0:f0 + W])[0])
+        if k == 0:
+            out["jaw_state"][i] = "censored"
+            continue
+        out["jaw_on"][i] = on[i] + rel[idx_det[k]]
+        out["jaw_state"][i] = "onset"
+    # video tongue onset: the lick's own trial frame clock (ix_t_ms -> ix_daq_s)
+    ok = np.isfinite(trial_id) & np.isfinite(rise_ms)
+    if ok.any():
+        for tr in np.unique(trial_id[ok]):
+            m = tid == tr
+            if m.sum() < 2:
+                continue
+            tt, dd = tms[m], t[m]
+            oo_ = np.argsort(tt, kind="stable")
+            sel = ok & (trial_id == tr)
+            r = rise_ms[sel]
+            v = np.interp(r, tt[oo_], dd[oo_])
+            v[(r < tt.min()) | (r > tt.max())] = np.nan
+            out["tongue_on"][sel] = v
+    return out
 
 
 # ------------------------------------------------------------------------------------------------------- helpers
@@ -154,17 +291,44 @@ def wmask(lags: np.ndarray, lo_: float, hi_: float, incl: bool = False) -> np.nd
     return (lags >= lo_ - 1e-9) & ((lags <= hi_ + 1e-9) if incl or hi_ >= lags.max() - 1e-9 else (lags < hi_ - 1e-9))
 
 
-def frozen_fits() -> dict:
-    """{animal: (S keys, fits)} of the 12.17 ITI decoder (lo.predictions through CONTRIB_HOOK)."""
-    F = {}
+def _no_fit():
+    raise RuntimeError("frozen lick_reader/iti not in the store -- run lick_enlv_extract.py --readers first; this script "
+                       "never fits a frozen reference")
 
-    def hook(st, a, S, fits):
-        if st == "iti":
-            F[a] = (set(S), fits)
-    lo.CONTRIB_HOOK = hook
-    Pf = lo.predictions()
-    lo.CONTRIB_HOOK = None
-    return F, Pf
+
+def frozen_fits() -> dict:
+    """{animal: (labels the 12.17 decoder scores, fits)}: the 12.17 ITI decoder READ from the frozen store (RULE 10;
+    kind lick_reader, align iti -- lick_enlv_extract.freeze's spec). A miss raises (nothing is fitted or written)."""
+    import hashlib
+
+    import iti_where_decoder as wd
+    import lick_enlv_extract as lee
+
+    from wfield_local import epochs
+    from wfield_local import frozen_models as fm
+    names, SD = wd.area_meta(basis="split")
+    pre = [x for x in il.labels() if str(epochs.epoch_of(x)) == "pre"]
+    res, fail = ak.fan_sessions([(x, "areas_split", "") for x in pre], wd._load_one, jobs=JOBS, key=lambda it: it[0],
+                                label="reader load", log=lambda m: None)
+    if fail:
+        raise RuntimeError(f"reader load failed: {fail[:2]}")
+    D = {x: rec for _it, (x, rec) in res if rec is not None}
+    P = pd.read_csv(lo.preds_path(), usecols=["set", "animal", "label"])
+    F = {}
+    for a in AN:
+        S = lee.reader_training(a, "iti", D, names, SD)
+        labs = sorted(S)
+        dig = hashlib.sha1(b"".join(np.ascontiguousarray(S[x][0]).tobytes() + np.ascontiguousarray(S[x][1]).tobytes()
+                                    for x in labs)).hexdigest()
+        spec = fm.make_spec(a, "lick_reader", align="iti", source=f"areas_split_r{il.ROI_VERSION}", train_labels=labs,
+                            post_s=0.2, n_features=S[labs[0]][0].shape[1])
+        if fm.find(spec)[0] is None:
+            _no_fit()
+        Pz, status = fm.load_or_fit(spec, _no_fit)
+        print(f"[frozen] {a} lick_reader iti: {status}; training data {'IDENTICAL' if Pz.get('xy_sha1') == dig else '!! DIFFERENT'}",
+              flush=True)
+        F[a] = (set(P[(P.set == "iti") & (P.animal == a)].label), Pz["fits"])
+    return F
 
 
 def fit_window(Zpre: dict, ypre: dict) -> dict:
@@ -265,32 +429,58 @@ def balance_sessions(M: pd.DataFrame, vals: dict, kind: str) -> pd.DataFrame:
 
 
 # ------------------------------------------------------------------------------------------------------- compute
+def win_values(A: np.ndarray, lags: np.ndarray, lo_: float, hi_: float, ref: str, incl: bool, off: np.ndarray | None,
+               base_hi: float | None = None) -> np.ndarray:
+    """(n, cols) window mean of A (n, lags, cols). ref 'lag' = fixed lags (v1's .mean(1), bit-identical); 'onset' /
+    'jaw' = per lick, lags - off in [lo, hi] (both inclusive). base_hi: NaN for licks whose first window sample lies
+    before it (bs would subtract a baseline that overlaps / follows the window)."""
+    if ref == "lag":
+        return A[:, wmask(lags, lo_, hi_, incl)].mean(1)
+    r = lags[None, :] - off[:, None]
+    M = (r >= lo_ - 1e-9) & (r <= hi_ + 1e-9)
+    cnt = M.sum(1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        v = np.where(M[:, :, None], A, 0.0).sum(1) / cnt[:, None]
+    bad = cnt == 0
+    if base_hi is not None:
+        first = np.where(M.any(1), lags[np.argmax(M, 1)], np.nan)
+        bad |= ~(first >= base_hi - 1e-9)
+    v[bad] = np.nan
+    return v
+
+
 def compute() -> None:
     import iti_where_decoder as wd
     Q, acts = lick_set()
-    items = [(lab, tuple(g.t.to_numpy(float))) for lab, g in Q.groupby("label", sort=True)]
-    res, fail = ak.fan_sessions(items, _one, key=lambda it: it[0])
+    items = [(lab, tuple(g.t.to_numpy(float)), tuple(g.pos.astype(str))) for lab, g in Q.groupby("label", sort=True)]
+    res, fail = ak.fan_sessions(items, _one, key=lambda it: it[0], jobs=JOBS, label="prelick load")
     if fail:
         raise RuntimeError(f"session load failed: {[f[0] if isinstance(f, tuple) else f for f in fail][:5]}")
     T = {it[0]: v for it, v in res}
     COLS = T[items[0][0]]["cols"]
-    Q["ok_peak"] = np.concatenate([T[lab]["okp"] for lab, _ in items])
-    Q["ok_onset"] = np.concatenate([T[lab]["oko"] for lab, _ in items])
-    Q["t_onset"] = np.concatenate([T[lab]["on"] for lab, _ in items])
+    Q["ok_peak"] = np.concatenate([T[lab]["okp"] for lab, *_ in items])
+    Q["ok_onset"] = np.concatenate([T[lab]["oko"] for lab, *_ in items])
+    Q["t_onset"] = np.concatenate([T[lab]["on"] for lab, *_ in items])
+    Q["t_jaw"] = np.concatenate([T[lab]["jaw_on"] for lab, *_ in items])
+    Q["jaw_state"] = np.concatenate([T[lab]["jaw_state"] for lab, *_ in items])
+    Q["t_tongue"] = np.concatenate([T[lab]["tongue_on"] for lab, *_ in items])
+    Q["jaw_lead"] = Q.t_onset - Q.t_jaw                       # s the jaw opens before the DAQ lick onset
+    Q["tongue_lead"] = Q.t_onset - Q.t_tongue                 # s the video tongue starts before the DAQ lick onset
     print(f"== QSET licks: {len(Q)}; peak-matched {Q.ok_peak.mean():.3f}; onset (bout-start) matched {Q.ok_onset.mean():.3f}; "
           f"clean {Q.clean.mean():.3f}; peak - onset ms median {np.nanmedian((Q.t - Q.t_onset) * 1000):.1f}", flush=True)
     print(Q.groupby(["animal", "epoch"]).agg(n=("k", "size"), onset=("ok_onset", "mean"), clean=("clean", "mean"))
           .round(2).unstack("epoch").to_string(), flush=True)
-    Q.drop(columns=[c for c in ("gap",) if c in Q]).to_csv(OUT / "iti_prelick_licks.csv.gz", index=False)
+    jaw_report(Q)
+    Q.drop(columns=[c for c in ("gap",) if c in Q]).to_csv(fn("licks.csv.gz"), index=False)
     names, SD = wd.area_meta()
-    F, Pf = frozen_fits()
+    F = frozen_fits()
     # z-scored decoder features over all lags, per source x label
     Z, X = {}, {}
     for src in SRC:
         key = "Xp" if src == "peak" else "Xo"
-        X[src] = {lab: T[lab][key] for lab, _ in items}
+        X[src] = {lab: T[lab][key] for lab, *_ in items}
         Z[src] = {lab: (il.area_features(X[src][lab].astype(float), COLS, lab) /
-                        SD.loc[lab, names].to_numpy(float)[None, None, :]).astype(np.float32) for lab, _ in items}
+                        SD.loc[lab, names].to_numpy(float)[None, None, :]).astype(np.float32) for lab, *_ in items}
     # CHECK: the frozen decoder on dec_000_020 / peak reproduces the cached predictions
     m = wmask(il.LAGS_D, 0.0, 0.2, incl=True)
     d1, d0 = [], []
@@ -310,6 +500,7 @@ def compute() -> None:
     SESS, RR, TC = [], [], []
     for src, (lags, base) in SRC.items():
         okcol = "ok_peak" if src == "peak" else "ok_onset"
+        t_al = "t" if src == "peak" else "t_onset"
         bm = wmask(lags, *base)
         bins = [(round(b, 3), round(b + 0.1, 3)) for b in np.arange(lags[0], TC_HI - 0.1 + 1e-9, 0.05)]
         for sub in SUBSETS:
@@ -321,25 +512,34 @@ def compute() -> None:
                     meta[lab] = Q.iloc[ix[sel[ix]]]
             labs = sorted(pos_in)
             M = Q[sel]
+            offs = {lab: {"onset": (meta[lab].t_onset - meta[lab][t_al]).to_numpy(float),
+                          "jaw": (meta[lab].t_jaw - meta[lab][t_al]).to_numpy(float)} for lab in labs}
 
-            def windows_of(lo_, hi_, incl=False, lags=lags, src=src, pos_in=pos_in, labs=labs):
-                w = wmask(lags, lo_, hi_, incl)
-                return ({lab: Z[src][lab][pos_in[lab]][:, w].mean(1) for lab in labs},
-                        {lab: X[src][lab][pos_in[lab]][:, w].mean(1) for lab in labs})
+            def windows_of(lo_, hi_, ref, incl=False, bsb=None, lags=lags, src=src, pos_in=pos_in, labs=labs, offs=offs):
+                return ({lab: win_values(Z[src][lab][pos_in[lab]], lags, lo_, hi_, ref, incl, offs[lab].get(ref))
+                         for lab in labs},
+                        {lab: win_values(X[src][lab][pos_in[lab]], lags, lo_, hi_, ref, incl, offs[lab].get(ref), bsb)
+                         for lab in labs})
             Xb = {lab: X[src][lab][pos_in[lab]][:, bm].mean(1) for lab in labs}
-            specs = [(n, lo_, hi_, n == "dec_000_020", "win") for n, lo_, hi_ in WINS] + \
-                    [(f"tc_{b0:+.2f}", b0, b1, False, "tc") for b0, b1 in bins]
-            for wname, lo_, hi_, incl, kind in specs:
-                if lo_ < lags[0] - 1e-9:
+            specs = [(n, lo_, hi_, n == "dec_000_020", "win", ref) for n, lo_, hi_, ref, _g in WINS] + \
+                    [(f"tc_{b0:+.2f}", b0, b1, False, "tc", "lag") for b0, b1 in bins]
+            for wname, lo_, hi_, incl, kind, ref in specs:
+                if ref == "lag" and lo_ < lags[0] - 1e-9:
                     continue
-                Zw, Xw = windows_of(lo_, hi_, incl)
-                rows = {lab: {"source": src, "subset": sub, "window": wname, "w_lo": lo_, "w_hi": hi_, "label": lab,
-                              "animal": meta[lab].animal.iloc[0], "epoch": meta[lab].epoch.iloc[0], "n": len(meta[lab])}
+                Zw, Xw = windows_of(lo_, hi_, ref, incl)
+                Xw_bs = windows_of(lo_, hi_, ref, incl, base[1])[1] if ref != "lag" else Xw
+                keep = {lab: np.isfinite(Zw[lab]).all(1) for lab in labs}
+                rows = {lab: {"source": src, "subset": sub, "window": wname, "w_lo": lo_, "w_hi": hi_, "w_ref": ref,
+                              "label": lab, "animal": meta[lab].animal.iloc[0], "epoch": meta[lab].epoch.iloc[0],
+                              "n": len(meta[lab]), "n_win": int(keep[lab].sum())}
                         for lab in labs}
+                labs_d = [lab for lab in labs if keep[lab].any()]
+                Zd = {lab: Zw[lab][keep[lab]] for lab in labs_d}
+                md = {lab: meta[lab][keep[lab]] for lab in labs_d}
                 # ---- decoders
                 for dname in (("frozen", "window") if kind == "win" else ("frozen",)):
                     for a in AN:
-                        la = [lab for lab in labs if rows[lab]["animal"] == a]
+                        la = [lab for lab in labs_d if rows[lab]["animal"] == a]
                         if dname == "frozen":
                             if a not in F:
                                 continue
@@ -347,7 +547,7 @@ def compute() -> None:
                             fits = F[a][1]
                         else:
                             pre = [lab for lab in la if rows[lab]["epoch"] == "pre"]
-                            fits = fit_window({x: Zw[x] for x in pre}, {x: meta[x].act.to_numpy(float) for x in pre})
+                            fits = fit_window({x: Zd[x] for x in pre}, {x: md[x].act.to_numpy(float) for x in pre})
                             if not fits:
                                 continue
                             la = [lab for lab in la if rows[lab]["epoch"] != "pre" or lab in fits]
@@ -359,15 +559,15 @@ def compute() -> None:
                         def dec(x, Xs, fits=fits):
                             s_, m_ = fits[x if x in fits else None]
                             return m_.predict(s_.transform(Xs))
-                        S = {x: (rows[x]["epoch"], Zw[x], meta[x].act.to_numpy(float)) for x in la}
+                        S = {x: (rows[x]["epoch"], Zd[x], md[x].act.to_numpy(float)) for x in la}
                         sess = ocm.session_dh(S, dec, SIGMA)
                         for x, (_e, dh, ro) in sess.items():
                             sp = split_terms(beta, dh, names)
                             rows[x].update({f"{dname}|readout": ro, **{f"{dname}|{k}": v for k, v in sp.items()}})
                         if kind == "win":                          # pre held-out r
                             pre = [x for x in la if rows[x]["epoch"] == "pre"]
-                            dv = np.concatenate([dec(x, Zw[x]) for x in pre])
-                            mm = pd.concat([meta[x] for x in pre])
+                            dv = np.concatenate([dec(x, Zd[x]) for x in pre])
+                            mm = pd.concat([md[x] for x in pre])
                             yv, av, pv = mm.act.to_numpy(float), mm.angle.to_numpy(float), mm.pos.to_numpy()
                             dvb = dv - pd.Series(dv).groupby(pv).transform("mean").to_numpy()
                             yvb = yv - pd.Series(yv).groupby(pv).transform("mean").to_numpy()
@@ -376,16 +576,17 @@ def compute() -> None:
                                        "n_pre": len(dv), "n_pre_sess": len(pre), "r_lateral": np.corrcoef(dv, yv)[0, 1],
                                        "r_angle": np.corrcoef(dv[oka], av[oka])[0, 1],
                                        "r_beyond_spout": np.corrcoef(dvb, yvb)[0, 1]})
-                # ---- balance
+                # ---- balance (all licks; rows without a window value are NaN and not fitted / averaged)
                 Mw = pd.concat([meta[lab] for lab in labs], ignore_index=True)
                 for bk in ("raw", "bs"):
-                    if bk == "bs" and lo_ < base[1] - 1e-9:        # window overlaps / precedes the baseline
+                    if bk == "bs" and ref == "lag" and lo_ < base[1] - 1e-9:   # window overlaps / precedes the baseline
                         continue
+                    Xs_ = Xw_bs if bk == "bs" else Xw
                     vals = {}
                     for i, a in enumerate(POOL):
-                        vc = np.concatenate([Xw[lab][:, ci["c"][i]] - (Xb[lab][:, ci["c"][i]] if bk == "bs" else 0)
+                        vc = np.concatenate([Xs_[lab][:, ci["c"][i]] - (Xb[lab][:, ci["c"][i]] if bk == "bs" else 0)
                                              for lab in labs])
-                        vi = np.concatenate([Xw[lab][:, ci["i"][i]] - (Xb[lab][:, ci["i"][i]] if bk == "bs" else 0)
+                        vi = np.concatenate([Xs_[lab][:, ci["i"][i]] - (Xb[lab][:, ci["i"][i]] if bk == "bs" else 0)
                                              for lab in labs])
                         vals[a] = (vc, vi)
                     B = balance_sessions(Mw, vals, bk)
@@ -393,14 +594,14 @@ def compute() -> None:
                         rows[r.label][f"bal_{bk}|diff"] = r.bal_diff
                         if bk == "bs":
                             rows[r.label]["bal_bs|ratio"] = r.bal_ratio
-                        rows[r.label]["n_bal"] = r.n_bal
+                        rows[r.label][f"n_bal_{bk}"] = r.n_bal
                 (SESS if kind == "win" else TC).extend(rows.values())
             print(f"   {src} / {sub}: {len(labs)} sessions, {len(M)} licks", flush=True)
     S = pd.DataFrame(SESS)
     TCs = pd.DataFrame(TC)
-    S.to_csv(OUT / "iti_prelick_sessions.csv", index=False)
-    TCs.to_csv(OUT / "iti_prelick_timecourse_sessions.csv", index=False)
-    pd.DataFrame(RR).to_csv(OUT / "iti_prelick_decode_r.csv", index=False)
+    S.to_csv(fn("sessions.csv"), index=False)
+    TCs.to_csv(fn("timecourse_sessions.csv"), index=False)
+    pd.DataFrame(RR).to_csv(fn("decode_r.csv"), index=False)
     # CHECK vs the primary marker (post_010_050 bs ratio, peak, all) -- lick_recovery_primary.marker on balsub_sessions
     try:
         import lick_recovery_primary as lrp
@@ -414,6 +615,27 @@ def compute() -> None:
     except Exception as ex:                                        # noqa: BLE001
         print(f"== CHECK vs primary marker failed: {ex}")
     tests(S, TCs)
+
+
+def jaw_report(Q: pd.DataFrame) -> None:
+    """Per animal x epoch: jaw-opening and video-tongue lead before the DAQ lick onset (rule 8 table) -> <tag>_jaw.csv."""
+    g = Q.groupby(["animal", "epoch"], sort=False)
+    J = pd.DataFrame({
+        "n": g.size(),
+        "frac_jaw_onset": g.jaw_state.apply(lambda s: (s == "onset").mean()),
+        "frac_censored": g.jaw_state.apply(lambda s: (s == "censored").mean()),
+        "frac_none": g.jaw_state.apply(lambda s: (s == "none").mean()),
+        "frac_hidden_or_nodata": g.jaw_state.apply(lambda s: s.isin(["hidden", "no_data", "no_onset"]).mean()),
+        "jaw_lead_med_ms": g.jaw_lead.median() * 1000, "jaw_lead_q25_ms": g.jaw_lead.quantile(0.25) * 1000,
+        "jaw_lead_q75_ms": g.jaw_lead.quantile(0.75) * 1000,
+        "tongue_lead_med_ms": g.tongue_lead.median() * 1000, "n_tongue": g.tongue_lead.count(),
+        "peak_minus_onset_med_ms": g.apply(lambda h: np.nanmedian(h.t - h.t_onset) * 1000),
+    }).reset_index()
+    J["epoch"] = pd.Categorical(J.epoch, ["pre", *EP])
+    J = J.sort_values(["animal", "epoch"])
+    J.to_csv(fn("jaw.csv"), index=False)
+    print("== JAW: cam4 jaw-opening onset before the DAQ lick onset, per animal x epoch (lead > 0 = jaw first)")
+    print(J.round(3).to_string(index=False), flush=True)
 
 
 def measures(S: pd.DataFrame) -> list[str]:
@@ -445,8 +667,8 @@ def tests(S: pd.DataFrame, TCs: pd.DataFrame) -> None:
                             "n_dir": int((np.sign(am) == np.sign(iv.point)).sum()), "pre_level": float(pm.mean()),
                             "n_ratio_nan": int(g[c].isna().sum()) if c.endswith("ratio") else 0})
     Tt, A = pd.DataFrame(out), pd.DataFrame(anim)
-    Tt.to_csv(OUT / "iti_prelick_tests.csv", index=False)
-    A.to_csv(OUT / "iti_prelick_animals.csv", index=False)
+    Tt.to_csv(fn("tests.csv"), index=False)
+    A.to_csv(fn("animals.csv"), index=False)
     # recovery tracking (within animal), per source x subset x window
     trk = []
     for (src, sub, w), g in S.groupby(["source", "subset", "window"], sort=False):
@@ -454,7 +676,7 @@ def tests(S: pd.DataFrame, TCs: pd.DataFrame) -> None:
         t = ssc._track(g.assign(set="iti"), cols, f"{src}|{sub}|{w}")
         trk.append(t.assign(source=src, subset=sub, window=w))
     TR = pd.concat(trk, ignore_index=True)
-    TR.to_csv(OUT / "iti_prelick_track.csv", index=False)
+    TR.to_csv(fn("track.csv"), index=False)
     # time course: change vs pre per bin (boot_delta_columns; sessions with a NaN bin dropped per measure)
     rows = []
     for (src, sub), g in TCs.groupby(["source", "subset"], sort=False):
@@ -478,11 +700,12 @@ def tests(S: pd.DataFrame, TCs: pd.DataFrame) -> None:
                 am = np.array([post[a].mean(0) - pre[a].mean(0) for a in sorted(post)])
                 for k, w in enumerate(wins_c):
                     rows.append({"source": src, "subset": sub, "measure": c, "epoch": ep, "bin_lo": float(w[3:]),
-                                 "bin_mid": float(w[3:]) + 0.025, "point": pt[k], "lo": lo_[k], "hi": hi_[k],
+                                 "bin_mid": float(w[3:]) + 0.025, "bin_last": round(float(w[3:]) + 0.05, 3),
+                                 "point": pt[k], "lo": lo_[k], "hi": hi_[k],
                                  "n_animals": na, "n_dir": int((np.sign(am[:, k]) == np.sign(pt[k])).sum()),
                                  **{f"chg_{a}": v for a, v in zip(sorted(post), am[:, k])}})
     TT = pd.DataFrame(rows)
-    TT.to_csv(OUT / "iti_prelick_timecourse_tests.csv", index=False)
+    TT.to_csv(fn("timecourse_tests.csv"), index=False)
     report()
 
 
@@ -490,11 +713,14 @@ def tests(S: pd.DataFrame, TCs: pd.DataFrame) -> None:
 def report() -> None:
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 40)
-    R = pd.read_csv(OUT / "iti_prelick_decode_r.csv")
-    A = pd.read_csv(OUT / "iti_prelick_animals.csv")
-    Tt = pd.read_csv(OUT / "iti_prelick_tests.csv")
-    TR = pd.read_csv(OUT / "iti_prelick_track.csv")
-    TT = pd.read_csv(OUT / "iti_prelick_timecourse_tests.csv")
+    R = pd.read_csv(fn("decode_r.csv"))
+    A = pd.read_csv(fn("animals.csv"))
+    Tt = pd.read_csv(fn("tests.csv"))
+    TR = pd.read_csv(fn("track.csv"))
+    TT = pd.read_csv(fn("timecourse_tests.csv"))
+    if LIMIT is not None and fn("jaw.csv").exists():
+        print("== JAW lead before the DAQ lick onset (ms), per animal x epoch")
+        print(pd.read_csv(fn("jaw.csv")).round(3).to_string(index=False))
     print("== PRE held-out r per animal (rule 8)")
     print(R.pivot_table(index=["source", "subset", "decoder", "window"], columns="animal",
                         values=["r_lateral", "r_beyond_spout"], sort=False).round(2).to_string())
@@ -511,10 +737,28 @@ def report() -> None:
                   .round(3).to_string(index=False))
     print("== recovery tracking (per-animal r; p_within = MixedLM within-animal slope)")
     print(TR[TR.measure.isin(key)].round(3).to_string(index=False))
-    print("== time course: bins whose CI excludes 0 (frozen readout, SSp-n diff, balance diff)")
     s = TT[((TT.lo > 0) | (TT.hi < 0)) & TT.measure.isin(["frozen|readout", "frozen|diff_SSp-n", "bal_raw|diff",
                                                           "bal_bs|diff"])]
-    print(s.groupby(["source", "subset", "measure", "epoch"]).bin_lo.apply(lambda v: list(np.round(v, 2))).to_string())
+    if LIMIT is None:
+        print("== time course: bins whose CI excludes 0 (frozen readout, SSp-n diff, balance diff)")
+        print(s.groupby(["source", "subset", "measure", "epoch"]).bin_lo.apply(lambda v: list(np.round(v, 2))).to_string())
+        return
+    lim = tc_limit()
+    s = s.assign(pre_lick=s.bin_last <= s.source.map(lim) + 1e-9)
+    print(f"== time course: bins whose CI excludes 0, by their LAST sample; PRE-LICK = last sample <= {lim} "
+          "(onset / peak time)")
+    for flag, h in s.groupby("pre_lick"):
+        print(f"  -- {'PRE-LICK (fully before the limit)' if flag else 'within the limit / after the lick'}")
+        print(h.groupby(["source", "subset", "measure", "epoch"]).bin_last.apply(lambda v: list(np.round(v, 2)))
+              .to_string())
+
+
+def tc_limit() -> dict:
+    """Per source: the latest sliding-bin sample that is >= LIMIT before the lick ONSET (peak-aligned: minus the median
+    onset -> peak lag, rounded down to the 0.05 s grid)."""
+    L = pd.read_csv(fn("licks.csv.gz"), usecols=["t", "t_onset"])
+    q = float(np.nanmedian(L.t - L.t_onset))
+    return {"onset": round(-LIMIT, 3), "peak": float(np.floor((-LIMIT - q) / 0.05 + 1e-9) * 0.05).__round__(3)}
 
 
 def plot() -> None:
@@ -523,86 +767,133 @@ def plot() -> None:
     import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
-    TT = pd.read_csv(OUT / "iti_prelick_timecourse_tests.csv")
-    Tt = pd.read_csv(OUT / "iti_prelick_tests.csv")
-    R = pd.read_csv(OUT / "iti_prelick_decode_r.csv")
+    TT = pd.read_csv(fn("timecourse_tests.csv"))
+    Tt = pd.read_csv(fn("tests.csv"))
+    R = pd.read_csv(fn("decode_r.csv"))
+    v1 = LIMIT is None
+    lim = None if v1 else tc_limit()
     tcm = [("frozen|readout", "frozen decoder: like-for-like offset (mm)"),
            ("frozen|diff_SSp-n", "  of which SSp-n left/right DIFFERENCE (mm)"),
            ("bal_raw|diff", "balance, raw level: contra - ipsi vs pre line"),
            ("bal_bs|diff", "balance, minus baseline: contra - ipsi vs pre line")]
-    fig, axs = plt.subplots(3, 4, figsize=(21, 13.5))
+    fig = plt.figure(figsize=(22, 15.5))
+    gs = fig.add_gridspec(3, 20, left=0.035, right=0.99, top=0.9, bottom=0.135, hspace=0.42, wspace=3.0,
+                          height_ratios=(1, 1, 1.1))
     for i, src in enumerate(("onset", "peak")):
         for j, (m, lab) in enumerate(tcm):
-            ax = axs[i, j]
+            ax = fig.add_subplot(gs[i, 5 * j:5 * j + 5])
+            xcol = "bin_mid" if v1 or "bin_last" not in TT else "bin_last"
             for ep in EP:
                 t = TT[(TT.source == src) & (TT.subset == "all") & (TT.measure == m) & (TT.epoch == ep)]
                 if t.empty:
                     continue
-                ax.plot(t.bin_mid, t.point, color=EPOCH_LINE[ep], lw=2, label=ep)
-                ax.fill_between(t.bin_mid, t.lo, t.hi, color=EPOCH_LINE[ep], alpha=0.15, lw=0)
+                ax.plot(t[xcol], t.point, color=EPOCH_LINE[ep], lw=2, label=ep)
+                ax.fill_between(t[xcol], t.lo, t.hi, color=EPOCH_LINE[ep], alpha=0.15, lw=0)
                 sig = (t.lo > 0) | (t.hi < 0)
-                ax.plot(t.bin_mid[sig], t.point[sig], "o", color=EPOCH_LINE[ep], ms=4)
+                ax.plot(t[xcol][sig], t.point[sig], "o", color=EPOCH_LINE[ep], ms=4)
             ax.axhline(0, color="0.6", lw=0.7)
             ax.axvline(0, color="k", lw=0.8)
-            ax.axvspan(-0.15, 0, color="0.85", alpha=0.6, lw=0)
+            if v1:
+                ax.axvspan(-0.15, 0, color="0.85", alpha=0.6, lw=0)
+            else:
+                ax.axvspan(lim[src] + 0.001, 0, color="0.8", alpha=0.6, lw=0)
             base = SRC[src][1]
             if m == "bal_bs|diff":
                 ax.axvspan(*base, color="#cfe3f0", alpha=0.5, lw=0)
             ax.set_title(f"{src.upper()}-aligned: {lab}\nchange vs pre, 95% paired nested bootstrap (dots: CI excl. 0)",
                          fontsize=8.5)
-            ax.set_xlabel(f"time from lick {src} (s; 0.1 s bins at their sample mean)", fontsize=8)
+            ax.set_xlabel(f"time from lick {src} (s; 0.1 s bins at their sample mean)" if v1 else
+                          f"time from lick {src} (s; 0.1 s bin plotted at its LAST sample)", fontsize=8)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    # row 3: windows
-    wins = [w for w, _a, _b in WINS]
-    ax = axs[2, 0]
+    # row 3: windows (onset-aligned, all licks of that alignment)
+    wins = [w[0] for w in WINS]
+    grp = [w[4] for w in WINS]
+    x0 = np.arange(len(wins))
+
+    def deco(ax):
+        ax.axhline(0, color="0.6", lw=0.7)
+        ax.set_xticks(x0, [WLAB.get(w, w).replace("\n", " ") for w in wins], fontsize=7, rotation=90)
+        for k in range(1, len(wins)):
+            if grp[k] != grp[k - 1]:
+                ax.axvline(k - 0.5, color="0.75", lw=0.8, ls="--")
+        for k, g in enumerate(grp):
+            if g in ("straddle", "post") or (v1 and wins[k] == "pre_020_000"):
+                ax.axvspan(k - 0.5, k + 0.5, color="0.92", lw=0, zorder=0)
+        for s_ in ("top", "right"):
+            ax.spines[s_].set_visible(False)
+    ax = fig.add_subplot(gs[2, 0:4])
+    rcol = "r_lateral" if v1 else "r_beyond_spout"
     for k, (dname, mk) in enumerate((("frozen", "o"), ("window", "s"))):
         r = R[(R.source == "onset") & (R.subset == "all") & (R.decoder == dname)]
+        col = "#7b3294" if dname == "frozen" else "#2c7fb8"
         for a, h in r.groupby("animal"):
             h = h.set_index("window").reindex(wins)
-            ax.plot(np.arange(len(wins)) + (k - 0.5) * 0.2, h.r_lateral, mk, color="#7b3294" if dname == "frozen"
-                    else "#2c7fb8", mfc="none" if a in ("PS93", "PS95") else None, ms=6)
-        mu = r.groupby("window").r_lateral.mean().reindex(wins)
-        ax.plot(np.arange(len(wins)) + (k - 0.5) * 0.2, mu, "-", color="#7b3294" if dname == "frozen" else "#2c7fb8",
-                lw=1.5, label=f"{dname} decoder (mean of animals)")
-    ax.axhline(0, color="0.6", lw=0.7)
-    ax.set_xticks(range(len(wins)), [w.replace("_", "\n") for w in wins], fontsize=7)
-    ax.set_title("PRE held-out r (decoded vs lateral landing), onset-aligned\none marker per animal", fontsize=8.5)
+            ax.plot(x0 + (k - 0.5) * 0.2, h[rcol], mk, color=col, mfc="none" if a in ("PS93", "PS95") else None, ms=5)
+        mu = r.groupby("window")[rcol].mean().reindex(wins)
+        ax.plot(x0 + (k - 0.5) * 0.2, mu, "-", color=col, lw=1.5, label=f"{dname} decoder (mean of animals)")
+    deco(ax)
+    ax.set_title(("PRE held-out r, decoded vs lateral landing" if v1 else "PRE held-out r BEYOND the spout\n(per-spout "
+                  "pre means removed)") + ", onset-aligned\none marker per animal (open = PS93 / PS95)", fontsize=8.5)
     hd_dec, lb_dec = ax.get_legend_handles_labels()
-    for j, (m, lab) in enumerate((("frozen|readout", "frozen offset (mm)"), ("frozen|diff_SSp-n", "SSp-n difference (mm)"),
-                                  ("bal_bs|ratio", "balance gain ratio (log2; bs)"))):
-        ax = axs[2, j + 1]
+    panels = ([("frozen|readout", "frozen offset (mm)"), ("frozen|diff_SSp-n", "SSp-n difference (mm)"),
+               ("bal_bs|ratio", "balance gain ratio (log2; bs)")] if v1 else
+              [("frozen|readout", "frozen offset (mm)"), ("frozen|diff_SSp-n", "SSp-n difference (mm)"),
+               ("bal_raw|diff", "balance raw diff"), ("bal_bs|diff", "balance diff, minus baseline")])
+    width = 16 // len(panels)
+    for j, (m, lab) in enumerate(panels):
+        ax = fig.add_subplot(gs[2, 4 + j * width:4 + (j + 1) * width])
         for k, ep in enumerate(EP):
             t = Tt[(Tt.source == "onset") & (Tt.subset == "all") & (Tt.measure == m) & (Tt.epoch == ep)].set_index(
                 "window").reindex(wins)
-            x = np.arange(len(wins)) + (k - 1) * 0.22
+            x = x0 + (k - 1) * 0.22
             ax.errorbar(x, t.point, yerr=[t.point - t.lo, t.hi - t.point], fmt="o", color=EPOCH_LINE[ep], capsize=2,
-                        label=ep)
+                        ms=4, label=ep)
             for xx, (_w, r) in zip(x, t.iterrows()):
                 if np.isfinite(r.point):
-                    ax.text(xx, r.hi, f"{int(r.n_dir)}/{int(r.n_animals)}", ha="center", va="bottom", fontsize=6)
-        ax.axhline(0, color="0.6", lw=0.7)
-        ax.set_xticks(range(len(wins)), [w.replace("_", "\n") for w in wins], fontsize=7)
-        ax.set_title(f"onset-aligned windows: {lab}, change vs pre\n(k/n = animals with the sign of the mean)", fontsize=8.5)
-        for s_ in ("top", "right"):
-            ax.spines[s_].set_visible(False)
+                    ax.text(xx, r.hi, f"{int(r.n_dir)}/{int(r.n_animals)}", ha="center", va="bottom", fontsize=5.5)
+        deco(ax)
+        ax.set_title(f"onset-aligned windows: {lab}\nchange vs pre (k/n = animals with the sign of the mean)", fontsize=8.5)
+    if v1:
+        sub = ("Rows 1-2: sliding 0.1 s bins (onset-aligned: bout-start subset, baseline -1.5..-1.0 s, blue; peak-aligned: "
+               "all licks, baseline -1.0..-0.5 s); grey = last 0.15 s (tongue already moving). Row 3: fixed windows. "
+               "PROVISIONAL")
+    else:
+        J = pd.read_csv(fn("jaw.csv")) if fn("jaw.csv").exists() else None
+        jt = "" if J is None else (f"; cam4 jaw opening leads the DAQ lick onset by a median "
+                                   f"{np.nanmin(J.jaw_lead_med_ms):.0f}-{np.nanmax(J.jaw_lead_med_ms):.0f} ms "
+                                   "(animal x epoch)")
+        sub = (f"WINDOW LIMIT {LIMIT:g} s: every PRE window ends >= {LIMIT:g} s before the lick ONSET (per lick; JAW windows: "
+               f"before the cam4 jaw-opening onset){jt}. Grey columns = reference windows that straddle / follow onset.\n"
+               f"Rows 1-2: sliding 0.1 s bins at their LAST sample; grey = bins holding data later than {LIMIT:g} s before "
+               "onset (onset-aligned: bout-start subset, baseline -1.5..-1.0 s, blue; peak-aligned: all licks, baseline "
+               "-1.0..-0.5 s). Imaging 31 Hz, interpolated: a sample carries up to 1 frame (32 ms) later. PROVISIONAL")
     fig.suptitle("BEFORE the lick: frozen pre-stroke lateral decoder (12.17) and hemispheric balance (ALM, tjM1, SSp-m, SSp-n, "
                  "SSs; contra = right) around SPONTANEOUS ITI licks (first lick after >= 2 s quiet). + = contralesional.\n"
-                 "Rows 1-2: sliding 0.1 s bins (onset-aligned: bout-start subset, baseline -1.5..-1.0 s, blue; "
-                 "peak-aligned: all licks, baseline -1.0..-0.5 s); grey = last 0.15 s (tongue already moving). "
-                 "Row 3: fixed windows. PROVISIONAL", fontsize=10)
+                 + sub, fontsize=9.5)
     # one legend below the panels (the per-panel legends sat on the CI shading / markers)
-    hd_ep, lb_ep = axs[0, 0].get_legend_handles_labels()
+    hd_ep, lb_ep = fig.axes[0].get_legend_handles_labels()
     fig.legend(list(hd_ep) + list(hd_dec), list(lb_ep) + [f"row 3 panel 1: {s}" for s in lb_dec],
                loc="lower center", ncol=len(lb_ep) + len(lb_dec), fontsize=9, frameon=False)
-    fig.tight_layout(rect=(0, 0.03, 1, 0.94))
     FIG.mkdir(exist_ok=True)
-    fig.savefig(FIG / "lick_iti_prelick.png", dpi=90)
+    fig.savefig(FIG / FIGNAME, dpi=90)
     plt.close(fig)
+    print(f"figure -> {FIG / FIGNAME}")
 
 
 def main() -> int:
-    if "--plot-only" not in sys.argv:
+    import argparse
+    global JOBS
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--window-limit", default="0.1", help="s before lick onset every pre window must end by; 'none' = v1")
+    ap.add_argument("--jobs", type=int, default=4)
+    a = ap.parse_args()
+    JOBS = max(1, min(a.jobs, 4))
+    configure(None if a.window_limit.lower() == "none" else float(a.window_limit))
+    print(f"== window limit {LIMIT}; windows {[w[0] for w in WINS]}; outputs {fn('*.csv').name}; figure {FIGNAME}",
+          flush=True)
+    if not a.plot_only:
         compute()
     else:
         report()
