@@ -47,7 +47,7 @@ learned adaptation, not restored capacity. Caveats: (a) the ITI persistence is s
 lateral r). ITI licks have no target, so S21 did not score their launch error; behavioural ITI aim vs the pre ITI licks at
 the same docked spout position still needs to be shown. (b) Within animal the ITI offset does partly fade as cued aim
 recovers (r -0.53, 4/4), so the persistence is partial, not total.
-Tests of "learned, context-specific compensation": (1) within-session improvement of far-contra launch aim with partial
+**OUTCOME 10-30 (FINDINGS 4.22): NOT supported.** No within-session learning or overnight loss (gains come between sessions: spontaneous-recovery pattern); ITI licks after far-contra trials carry no re-aimed launch; the ITI bias is behavioural but matches the cued landing error (no capacity-vs-performance gap). The ITI cortical persistence therefore does not show a deficit that cued licks overcome. Tests of "learned, context-specific compensation": (1) within-session improvement of far-contra launch aim with partial
 overnight loss in the subacute window (learning signature, vs day-step biological recovery); (2) generalisation: ITI licks
 soon after a cued far-contra trial vs late in the ITI (carry-over of the re-aimed command); (3) behavioural ITI aim at
 the docked position (capacity vs performance gap); (4) the pre-lick build-up, cued vs ITI (the command the re-aim would

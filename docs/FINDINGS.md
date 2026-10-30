@@ -1427,6 +1427,19 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     corrected.** Neural: the larger acute lick response is the same on clean licks (+21 vs +18 all licks; carried in 0 /
     168 cells); CSM licks evoke LESS than matched CSM-free licks post-stroke (-10.7 chronic, 4/4; not in deconvolved).
     Caveats: 250 Hz resolves only >= ~20 ms submovements; launch noise 5-8 deg per lick. **PROVISIONAL (n = 4).**
+22. **"Learned, context-specific compensation" NOT supported by behaviour (10-30; pre-registered,
+    `docs/status/LEARNED_COMPENSATION_PREREG_20261030.md`; `scripts/learned_compensation.py` -> `learned_compensation/`).**
+    T1 (post days 1-14, far contra): no within-session improvement of launch error (W -1.6 [-5.1, +2.1] deg) and no
+    overnight loss; gains come BETWEEN sessions (overnight +5.8 deg toward the target, mixed model; day step +3.3, 4/4)
+    -> the spontaneous-recovery pattern (cannot be told from offline consolidation). T2: ITI licks after a far-contra
+    trial do NOT carry a re-aimed launch (contrast -5.9 subacute, 4/4, wrong sign; they track the cued deficit acutely).
+    T3: the ITI ipsilesional bias IS behavioural (docked ITI landing vs pre after the same previous spout: chronic -7.5
+    [-14.1, -1.0], 4/4; PS94 -11.0, PS95 -5.8) but the same size as the cued first-lick landing error at the same spouts
+    (GAP -0.7 n.s.; cued landing -6.8 chronic) -> no capacity-vs-performance gap; gain on the previous spout's angle
+    falls (0.23 -> ~0.18). Reading: recovery looks like spontaneous between-day improvement shared by cued and ITI
+    licks; the cortical ITI persistence (offset) sits on a real behavioural bias that cued licks share, not one cued
+    licks overcome. Caveats: PS95 has 1-2 pre ITI sessions; the hit rate falls within post sessions despite the gate.
+    **PROVISIONAL (n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
