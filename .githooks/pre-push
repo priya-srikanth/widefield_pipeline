@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# widefield_pipeline pre-push — run the test suite before a push reaches main.
+# widefield_pipeline pre-push — run the tests a push touches before it reaches main.
 #
 # Both machines push main directly and rebase (CLAUDE.md rule 4), so a broken push blocks the
-# OTHER machine's rebase — that is what this gate is for, and it is why it runs the WHOLE
-# suite rather than a fast subset.
+# OTHER machine's rebase — that is what this gate is for. It ran the WHOLE suite until 2026-10-30;
+# it now runs only the test files the push touches (see below), and the whole suite for shared config.
 #
 # IT TAKES ~11 MINUTES (3,235 tests, measured 2026-10-19; ~2.5 min at 2,400 tests on 2026-09-22). This comment said "~2 s" until
 # then, which was true when the hook was written in August and had not been rechecked since.
@@ -22,16 +22,50 @@ cd "$(git rev-parse --show-toplevel)"
 # does, drop this block). ANY other file, a new branch, or a range git cannot resolve runs the full suite.
 # The suite now takes ~11 min (3,235 tests, 2026-10-19), and about half of the pushes are handoff / doc updates.
 docs_only=1
+full=0
+changed=""
 zero=0000000000000000000000000000000000000000
 while read -r _lref lsha _rref rsha; do
   [ "$lsha" = "$zero" ] && continue                               # a branch delete changes nothing
-  if [ "$rsha" = "$zero" ]; then docs_only=0; break; fi           # new remote branch: no base to diff
-  files=$(git diff --name-only "$rsha" "$lsha" 2>/dev/null) || { docs_only=0; break; }
-  if [ -n "$(printf '%s\n' "$files" | grep -v '\.md$' | grep -v '^$' || true)" ]; then docs_only=0; break; fi
+  if [ "$rsha" = "$zero" ]; then docs_only=0; full=1; break; fi   # new remote branch: no base to diff
+  files=$(git diff --name-only "$rsha" "$lsha" 2>/dev/null) || { docs_only=0; full=1; break; }
+  changed="$changed"$'\n'"$files"
+  if [ -n "$(printf '%s\n' "$files" | grep -v '\.md$' | grep -v '^$' || true)" ]; then docs_only=0; fi
 done
 if [ "$docs_only" = 1 ]; then
   echo "pre-push: only .md files changed -- tests skipped" >&2
   exit 0
+fi
+
+# ONLY THE TESTS THE PUSH TOUCHES (Priya, 2026-10-30: "can we test only the ones we change"; the full suite had
+# passed 15 min). Selected: changed test files, plus every test file that imports a changed .py module (by its
+# stem: `wfield_local.<m>`, `from wfield_local import ... <m>`, `import <m>` / `from <m> import` for scripts on
+# sys.path, or `<m>.py` loaded by path). Indirect imports are NOT followed -- a change to a helper that a test
+# reaches only through another module is not tested here. Full suite: configs/, conftest.py, pyproject.toml, the
+# hooks, a new branch, or WIDEFIELD_PREPUSH_FULL=1 (run it that way after a change to shared code).
+[ "${WIDEFIELD_PREPUSH_FULL:-0}" = 1 ] && full=1
+changed=$(printf '%s\n' "$changed" | grep -v '^$' | sort -u || true)
+if printf '%s\n' "$changed" | grep -qE '^(configs/|conftest\.py$|tests/conftest\.py$|pyproject\.toml$|\.githooks/)'; then
+  full=1
+fi
+targets=""
+if [ "$full" = 0 ]; then
+  for f in $(printf '%s\n' "$changed" | grep '\.py$' || true); do
+    if [[ "$f" == tests/* ]]; then
+      [ -f "$f" ] && targets="$targets"$'\n'"$f"
+      continue
+    fi
+    m=$(basename "$f" .py)
+    [ "$m" = "__init__" ] && continue
+    hits=$(grep -rlE "wfield_local\.$m\b|from wfield_local import .*\b$m\b|^\s*(from|import) $m\b|\b$m\.py\b" \
+           tests --include='*.py' 2>/dev/null || true)
+    [ -n "$hits" ] && targets="$targets"$'\n'"$hits"
+  done
+  targets=$(printf '%s\n' "$targets" | grep -v '^$' | sort -u || true)
+  if [ -z "$targets" ]; then
+    echo "pre-push: no test imports a changed file -- tests skipped (WIDEFIELD_PREPUSH_FULL=1 for the suite)" >&2
+    exit 0
+  fi
 fi
 
 . .githooks/_find_python.sh
@@ -48,5 +82,12 @@ EOF
   exit 1
 fi
 
-echo "pre-push: pytest -q [$PY] — about 11 minutes…" >&2
-"$PY" -m pytest -q
+if [ "$full" = 1 ]; then
+  echo "pre-push: FULL pytest -q [$PY] — 15+ minutes…" >&2
+  "$PY" -m pytest -q
+else
+  echo "pre-push: pytest on $(printf '%s\n' "$targets" | wc -l | tr -d ' ') test file(s) touched by this push:" >&2
+  printf '  %s\n' $targets >&2
+  # shellcheck disable=SC2086
+  "$PY" -m pytest -q $targets
+fi
