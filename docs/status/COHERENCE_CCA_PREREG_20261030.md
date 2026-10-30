@@ -65,3 +65,44 @@ stereotypy tracks performance, within-block PC stereotypy does not.
 Go to DLAG only if CCA passes the gate in >= 3 / 4 animals (a cross-area subspace is reliably present at session level).
 DLAG would add per-factor timescale and S-vs-M delay; the reference implementation is MATLAB (Gokcen et al.), so it needs
 a port / separate env (no installs into the shared env) -- costed and brought to Priya before running.
+
+## Outcome (appended after the fits, 2026-10-30)
+
+**GATE: coherence / ITPC PASS (6 / 6 measures, >= 3 / 4 animals); CCA FAILS (1 / 4 animals) -> no CCA / stereotypy
+pre vs post, and the DLAG criterion is NOT met.** Script `scripts/sm_coherence_cca.py`. 31 August pre sessions (both
+families) 44 s wall (4 workers), gate 1 s; then 76 post sessions coherence family only 37 s; summarise 25 s; plots 13 s.
+* Gate, per animal (PS92 / PS93 / PS94 / PS95), cued, S8M8, tau 0. Signal: every measure above its null in 100 % of pre
+  sessions in every animal (CCA also above the null 95th percentile in 100 %; median 8 / 8 canonical pairs above null).
+  Reliability = split-half SD / between-session SD (< 1 passes):
+  coh low .79 / .50 / .46 / .50 (4/4); coh delta **1.15** / .71 / .86 / .42 (3/4); ITPC S low .61 / .54 / .68 / .54;
+  ITPC S delta .93 / .42 / .19 / .66; ITPC M low .92 / .76 / .44 / .75; ITPC M delta .97 / .60 / .33 / .44 (all 4/4);
+  **CCA CC1 - null 1.55 / 2.09 / 1.45 / .66 (1/4)**. Weight stability |cos| S .97 / .99 / .99 / .94, M .97 / .99 / .99 / .96
+  (passes everywhere).
+* Why CCA fails: held-out CC1 is at ceiling (pre mean .984 / .991 / .983 / .977, CC2 ~ .96; null ~ 0 on the ttt version),
+  so the between-session SD is tiny (.006-.010) and smaller than the split-half SD (.007-.014): a session's CC1 is mostly
+  estimation noise. The S and M CC1 projections are near-identical traces (example figure) -- the shared S/M subspace is
+  dominated by a common, cortex-wide component at widefield resolution, not a specific sensory-motor channel.
+  (Not gated, context: on the EVOKED version CC1 passes 4/4; on ITI docked licks ttt 2/4.)
+* Pre vs post (cued, S8M8, coherence family; per-animal tables printed first, `tables/summary_sessions.csv.gz`):
+  coherence minus shuffled-pair null, LOW band: subacute -.074 [-.122, -.022], chronic -.087 [-.138, -.032], 4/4 animals
+  down both (PS92 / 93 / 94 / 95 chronic -.057 / -.140 / -.130 / -.021); acute -.021 (n.s.). DELTA band: no change
+  (all CIs span 0). ITPC rises from subacute: S delta +.114 / +.165 (4/4), S low +.060 / +.057 (4/4), M low +.045 /
+  +.044 (4/4), M delta +.085 (3/4) / +.095 (4/4; PS95 ~0). Acute: nothing.
+  **Read with care:** raw evoked low-band coherence did NOT fall (pre .89-.94 -> chronic .92-.96); the drop in
+  coherence-minus-null comes from the NULL rising (.36 -> .46-.54), i.e. more of the S-M coherence is the shared
+  event-locked response, consistent with the ITPC rise. So the result is "post-stroke lick responses are more
+  phase-locked in both groups, with no extra trial-specific S-M coherence", not a Guo-style coherence loss.
+  ITI docked licks: no change in any coherence / ITPC measure (all CIs span 0, <= 2-3/4 same sign).
+* Recovery tracking (within-animal partial r | log day, post sessions, targets far-contra aim and far-contra hit rate):
+  5 / 24 tests p < 0.05 (1.2 expected), all cued: coh delta x aim +.27 (4/4 sign), coh low x hit -.25 (3/4), ITPC M low x
+  hit +.25 (3/4), ITPC S delta x hit +.34 (4/4), ITPC S low x hit +.35 (3/4). Uncorrected, PROVISIONAL.
+* Deviations (forced, decided before the gate was read): stereotypy is computed on EVOKED traces projected with the
+  version's cross-fitted weights (on ttt data the leave-one-out spout mean is -x_i / (k-1), r = -1); ITPC null = random
+  phases on the same subsamples (spec gave none); "exceeds its null" = value minus null mean > 0 (95th-percentile CCA
+  version tabled, identical outcome); split-half SD = MVAR definition sqrt(mean d^2 / 2) (the SD of a half-session
+  estimate, conservative); halves with < 30 events use N = min(30, n_half) per draw; recovery uses
+  `interhemi_crossarea._recovery` (on `_recov_targets`: aim + far-contra hit rate). Example animal PS92 fixed in code
+  before the fits (most pre sessions).
+Tables `<iti_licks>/sm_coherence_cca/tables/` (sessions, gate_animals, gate_animals_all, gate_measures, tests_boot_delta,
+recovery_partial_r); figures `figures/fig1_gate.png`, `fig2_change_vs_pre.png`, `fig3_example_pre_vs_chronic.png`
+(figure data in `figdata/`).

@@ -1348,6 +1348,19 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     between sessions. Directed-influence models of these area traces are not usable at the session level; the S18
     Granger / xcorr result stands alone. Script `scripts/mvar_pooled.py`; outputs `<E>/mvar_pooled/`. **NOT ESTABLISHED
     (gate failed; PROVISIONAL n = 4).**
+17. **Sensory-motor coherence vs CCA on cued first licks (10-30; Guo 2021 / Heimbuch 2026 style; pre-registered,
+    `docs/status/COHERENCE_CCA_PREREG_20261030.md`).** 8 sensory vs 8 motor areas (both hemispheres), -1..+1 s.
+    **CCA fails the gate (1/4)**: held-out CC1 ~0.98 (CC2 ~0.96) in every session, the S and M projections are nearly the
+    same trace (a cortex-wide shared component, not a specific S-M channel), and one session's CC1 is mostly estimation
+    noise (split-half SD > between-session SD in 3/4). So no CCA / stereotypy comparison and **the DLAG criterion is not
+    met**. **Coherence / phase locking pass (4/4, delta coherence 3/4).** Raw S-M coherence stays ~0.9 pre to post;
+    coherence beyond the shuffled-event null falls in the 0.5-1.5 Hz band (subacute -0.074, chronic -0.087, 4/4) because
+    the null rises, i.e. more of the coherence is the shared lick-locked response; lick-locked phase consistency (ITPC)
+    rises from subacute in both groups (sensory 1.5-4 Hz +0.11 / +0.17, others +0.04-0.10, mostly 4/4); acute unchanged;
+    ITI docked licks unchanged. Reading: post-stroke cued-lick responses are MORE phase-locked to the lick, without extra
+    trial-specific S-M coherence -- not a Guo-style coherence loss. Recovery tracking 5/24 tests p < .05 (1.2 expected;
+    e.g. sensory delta ITPC vs far-contra hit rate partial r +0.34, 4/4): hints. Script `scripts/sm_coherence_cca.py`;
+    outputs `iti_licks/sm_coherence_cca/`. **PROVISIONAL (n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
