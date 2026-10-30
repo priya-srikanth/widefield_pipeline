@@ -127,6 +127,12 @@ unset it or set `cohort1`.
 (bleaching)*, not a low light level. Raising 415 power would not meaningfully help the correction and
 would make the fade worse.
 
+> **CORRECTION 2026-10-30:** the table below sampled the raw .dat with fixed parity; the LED parity flips
+> ~every 25 s, so its 470 / 415 columns and fades are MIXES of both channels. DAQ-correct values are in
+> `docs/COHORT2_QC_2026-10-29.md` §0: 415 bleaches in every mouse (−16 / −40 / −29 / −34%), and in RiboL1 470 is
+> ~2x brighter than 415 (PS121 42.8k vs 20.0k). The answer (usable as is, don't raise 415) is unchanged: 415 is
+> 13-18x dark, shot floor ~1%.
+
 Measured on 2026-10-29 (sampled raw frames, brain-ROI mean; PCO ~0.46 e-/count; offset = darkest-corner
 mean = electronic dark level; shot-noise ΔF/F = 100/√(photoelectrons)):
 

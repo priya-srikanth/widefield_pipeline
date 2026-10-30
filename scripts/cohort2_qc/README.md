@@ -19,4 +19,12 @@ Figures write to E: and were copied to N: `…/labcams/cohort2/_tmp_qc_figures_2
 | `processing_stages.py` | full `meegkit_hpfit` cascade (raw→SVD+dF/F→HP→detrend→corrected) | `cohort2_processing_stages.png` |
 | `fit_vs_output_demo.py` | acausal high-pass (fit) vs polynomial detrend (output) | `fit_vs_output_demo.png` |
 
+| `channel_drift.py` (10-30) | DAQ-correct per-channel levels/fades; corrected slow band split into 470 vs T·415 parts; reads M: | `cohort2_channel_drift.png` |
+| `slowband_behaviour.py` (10-30) | is the slow band spout position / engagement? (shift null) | `cohort2_slowband_behaviour.csv` |
+
+**2026-10-30: the RAW-.dat parts of `iso_snr`, `usability_qc`, `stage_traces`, `processing_stages` and `slow_is_bleach`
+are channel-MIXED** (they assume fixed even/odd 415/470 parity; on 10-29 it flips ~every 25 s). Channel identity must
+come from the DAQ frame map (`*_cleanpairs_frame_map.npz`) or from `frames_average` / `SVT` / `photobleach`. The two
+10-30 scripts do that and run on the analysis box from the MICROSCOPE push (`locanmf` env).
+
 Session paths and the 2_H_W dims are hardcoded for this session; adapt for later cohort2 dates.
