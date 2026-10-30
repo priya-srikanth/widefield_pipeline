@@ -40,6 +40,19 @@ not decidable from imaging. That needs a perturbation (section 3).
   ~1-2 weeks, consistent with a pre-launch command route (D, or A / B), not a feedback / correction route (Bollu-type
   ALM corrections, or collicular touch-guided re-aiming).
 
+**Priya 10-30: the ITI persistence adds to the compensation argument.** The deficit is still present, and the animal
+learns to overcome it for cued licks. Combined with 2.1, the cued compensation is a re-aimed feed-forward LAUNCH that is
+context-specific (cued, goal-directed) and does not generalise to self-initiated licks. That is the signature of a
+learned adaptation, not restored capacity. Caveats: (a) the ITI persistence is so far a CORTICAL readout (decoder offset,
+lateral r). ITI licks have no target, so S21 did not score their launch error; behavioural ITI aim vs the pre ITI licks at
+the same docked spout position still needs to be shown. (b) Within animal the ITI offset does partly fade as cued aim
+recovers (r -0.53, 4/4), so the persistence is partial, not total.
+Tests of "learned, context-specific compensation": (1) within-session improvement of far-contra launch aim with partial
+overnight loss in the subacute window (learning signature, vs day-step biological recovery); (2) generalisation: ITI licks
+soon after a cued far-contra trial vs late in the ITI (carry-over of the re-aimed command); (3) behavioural ITI aim at
+the docked position (capacity vs performance gap); (4) the pre-lick build-up, cued vs ITI (the command the re-aim would
+live in).
+
 ## 1b. How could more contralesional (right) cortical activity restore contralesional (rightward) licks? (Priya 10-30)
 
 Starting fact: each hemisphere's ALM / tjM1 natively drives CONTRAVERSIVE licks (Guo 2014; Li 2015; Mayrhofer 2019),
