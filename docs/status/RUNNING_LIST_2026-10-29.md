@@ -151,3 +151,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - 10-29 ~01:00: page v232 published. The artifact hit its 512-file cap: removed 75 published images the page no longer
   references (old iti_* duplicates, superseded variants; local copies kept in _goal_page/), added the rev-up figures.
 - 10-29 night: list created (commit after d13f51f5).
+- 10-30: page v275 -- every supplement now numbered Fig X Sn (#s<fig>-<n>; 17 more figures); Fig 0.13 early predictors cut (CUT_FIGURES). RESTnl rescue sweep done: adopt s20_f50_wr (renormalised weights, same 2.0 s buffer / 50-frame floor; all 107 sessions, PS93 pre 7; headlines unchanged). Helpers started: (a) RESTnl wr adoption + re-render + Fig 0.12 far-contra aim line; (b) encoder SSp-n/ALM/tjM1 tables + movement-null Musall maps; (c) interhemispheric follow-ups (global-signal removed, balance partialled) + cross-area correlation pre vs post.

@@ -104,3 +104,9 @@ Each supplement keeps its key figure(s); these secondary views were removed from
 | frozen_musall_cue/lick, frozen_claims_contest_cue/lick, frozen_claims_peth_cue/lick (.png) | Fig 0.2/0.8, 0.3/0.9, 0.4/0.10 | replaced by *_simple.png (key areas; note SSp-n absent from saved tables; unique-R2 table has only cortex / SSp-m / MOp) |
 | partial_refit_bars_cue.png | Fig 1.12 | image removed; numbers in caption + partial_refit_cue_numbers.md |
 | lick_correction_spouts.png (4 heatmaps) | Fig 14.18 S9 | replaced by lick_correction_spouts_dots.png |
+
+## 2026-10-30
+
+| figure (PNG) | was on page | what it shows | answers questions like | script / data |
+|---|---|---|---|---|
+| early_predictors.png | Fig 0.13 (Priya: "not useful") | early features (lesion %, day-1 residuals, acute retention, coupling) vs chronic outcomes, Spearman per animal, n=4; only lesion size orders recovery speed perfectly | "does lesion size / day-1 signal predict recovery?" | scripts/early_predictors.py |
