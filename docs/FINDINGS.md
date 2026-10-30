@@ -1383,6 +1383,21 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     sub-bin effects; calcium / haemodynamic timing; total angle includes the target; jaw leads tongue by 52-120 ms
     (movement-locked activity may set the motor-first crossing); information timing, not influence. Page 14.18 S20.
     **PROVISIONAL (n = 4).**
+19. **Restitution vs compensation: kinematic normality of successful licks (10-30; SRRR / Levin 2009; pre-registered,
+    `docs/status/KINEMATIC_NORMALITY_PREREG_20261030.md`; `scripts/kinematic_normality.py` -> `kinematic_normality/`).**
+    Per hit trial, first post-cue lick, Mahalanobis distance (Ledoit-Wolf) from the animal's August-pre licks at the same
+    spout on 7-9 features (launch / sagittal angle, reach, peak speed, landing lateral error, closest approach, latency,
+    jaw onset lead, jaw lateral steering at side spouts); normality = fraction of hits inside the pre 95 % contour (pre
+    scored leave-one-session-out: .89-.92). **Chronically hit rate is back (+0.03, 4/4) but successful licks are still
+    less normal: -0.10 [-0.22, -0.03], 4/4** (PS92 -.03, PS93 -.05, PS94 -.27, PS95 -.06; far contra -0.10, 4/4) ->
+    recovery = fast but INCOMPLETE restitution + compensation, mostly PS94. Normality recovers about as fast as hit rate
+    (half-times PS93 3.6 vs 4.7 d, PS94 2.7 vs 4.1 d; PS92 slower 8.8 vs 4.9) but levels off below pre (asymptote 0.99 /
+    0.87 / 0.56 / unresolved) -- not the expected slow kinematic course. Cortical readouts: the frozen far-contra code on
+    hits follows task SUCCESS session to session (partial r +0.46, p .001, 3/4) while plateauing at 0.3-0.7 of pre; cued
+    balance leans toward normality (PS94 asymptote 0.75 vs normality 0.56; 2/4, undetermined); ITI offset and contra tjM1
+    response undetermined. No readout passes as following normality. The pre-vs-post classifier separates every post
+    session (incl. drift) -> not used. Caveats: no no-stroke drift reference; few acute far-contra hits; permutation p
+    ignores autocorrelation. **PROVISIONAL (n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
