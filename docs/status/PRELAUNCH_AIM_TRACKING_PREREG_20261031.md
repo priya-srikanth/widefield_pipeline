@@ -344,3 +344,189 @@ reference. NOTE: ENL's angle is the 3-D first-lick angle (arcsin side_ml / reach
 
 ## Deviations
 (none yet)
+
+### Outcome (2026-10-31; run after this design was fixed and committed as 0a5b1c7f; `prelaunch_aim_tracking.py extract / fit / summarise`)
+Outputs are in `.../imaging_encoding/prelaunch_aim_tracking/`:
+* `features/<label>.npz` (1.5 GB) and `extract_summary.csv`;
+* `fit/<animal>_{preds_<arm>.csv.gz, gate.csv, refit.csv, log.txt}`;
+* `gate.csv` / `gate.json` / `gate_all.csv`, `calibration.csv`, `frozen_status.csv`;
+* `per_animal.csv`, `primary_holm.csv`, `likeforlike_offset.csv`;
+* `secondary_pooled.csv` / `secondary_per_animal.csv`, `perbin_decomposition.csv`, `dose_control.csv`,
+  `history_regression.csv`, `refit_sessions.csv`, `rt_baseline_overlap.csv`;
+* `figures/pat_primary.png`, `figures/pat_secondary.png`, `figdata/prelaunch_aim_tracking.pkl`, logs.
+
+Data:
+* 107 sessions (31 August pre).
+* Licks per animal pre / acute / subacute / chronic:
+  * CUED: PS92 1625/1339/365/2335; PS93 2751/1024/924/4239; PS94 3178/1656/1961/3620; PS95 3611/433/1937/3695.
+  * ITI: PS92 923/626/205/1267; PS93 1637/568/417/1581; PS94 1366/347/688/1131; PS95 160/28/128/763.
+  * Jaw-referenced cued: 75-91 % of the cued licks.
+* Allen features reproduce S25's area traces to < 7e-5 (SD ~17).
+* Joint-LocaNMF variance captured 0.964-0.984 per session.
+* Frozen: 412 `prelaunch_aim` models in the LOCAL store `C:\Users\SabatiniLab\frozen_models`. That store existed and
+  held the decoder / encoder / enl / lick / prelaunch(_svd) / reembed / state kinds; it was printed before fitting.
+  373 were frozen-new; 39 were frozen-hit (the PS95 re-run after a crash). No SPEC-CHANGED and no data-hash mismatch.
+  The smoke test (PS92, 20 permutations) used a scratchpad store.
+* Run time: extract 7.9 min (4 workers), fit ~19 min (4 animals in parallel) + 10 min PS95 re-run, summarise ~3 min.
+
+#### Gate (August pre; pooled LOSO r vs 200 within-session permutations): CUED Allen PASSED 3/4; ITI FAILED; positive control PASSED (cued)
+| arm / features (PRE -0.50..-0.05 s) | r PS92 / PS93 / PS94 / PS95 | p | pass |
+|---|---|---|---|
+| **CUED Allen (primary)** | .041 / .098 / .091 / .078 | .055 / .005 / .005 / .005 | **3/4** |
+| CUED SVD K20 | .051 / -.018 / .100 / .002 | .050 / .56 / .005 / .21 | 2/4 |
+| CUED LocaNMF | .048 / .058 / .094 / .037 | .095 / .005 / .005 / .035 | 3/4 |
+| **ITI Allen (primary)** | -.053 / .064 / .093 / .026 | .89 / .005 / .010 / .30 | **2/4 -> FAILED** |
+| ITI SVD K20 / LocaNMF | | | 2/4, 1/4 |
+| CUED JAW-referenced Allen / SVD / LocaNMF | | | 1/4, 2/4, 2/4 |
+| POST +0.05..+0.30, CUED Allen / SVD / LocaNMF | .38-.46 | all .005 | 4/4 each |
+| POST, ITI Allen / SVD / LocaNMF | .10-.68 | | 3/4, 4/4, 3/4 |
+
+* The pre-launch gate passes for CUED only, and **the across-spout information is tiny: r 0.04-0.10.** For comparison
+  the post-contact window gives 0.38-0.46, and the pre-cue ENL raw r was 0.30-0.50.
+* Within-spout partial r (cued Allen PRE): -.015 / .037 / .040 / .064 (p .67 / .05 / .035 / .01).
+* **Calibration b_sp (cued Allen PRE): 0.14 / 0.09 / 0.034 / 0.025** (all CIs > 0). So the decoder moves 0.025-0.14 deg
+  per degree of angle across targets. b_all is 0.020-0.036.
+* ITI b_sp: PS92 -0.04 and PS95 -0.38 have no calibration; PS93 0.05 and PS94 0.07 do. **The ITI primary therefore
+  rests on 2 animals.**
+* The single-bin decoders explain the small r. The BASE bins (-0.80..-0.50 s, raw levels = the sustained target code)
+  give r 0.07-0.25. The **baseline-subtracted pre-launch bins give -0.02..+0.11**. The r rises again only in the last
+  bin before tongue onset (-0.05..0 s, outside PRE: 0.10-0.26) and after onset (0.25-0.46).
+* So the pre-launch CHANGE carries almost no across-target angle information. The no-baseline variant (levels) has
+  r 0.13-0.26.
+
+#### Primary (Allen PRE; TI = Δ(decoded / b_sp) / Δexecuted at the same target; Holm over 6)
+Per-animal (cued), pre / acute / subacute / chronic:
+| animal | d_dec* (deg-equiv.) | d_exe (deg) | per-animal TI acute / subacute / chronic |
+|---|---|---|---|
+| PS92 | -3.0 / +13.2 / -10.2 / -1.4 | 0.1 / -10.1 / -4.8 / +3.3 | -1.59 / +1.50 / +0.48 |
+| PS93 | 0.3 / -19.0 / -3.9 / -12.3 | 0.0 / -12.7 / -9.6 / -7.1 | +1.52 / +0.43 / +1.77 |
+| PS94 | -0.3 / +24.7 / +10.2 / +16.4 | 0.0 / -15.0 / -9.3 / -10.0 | -1.65 / -1.12 / -1.67 |
+| PS95 | 0.1 / +10.4 / -17.4 / -11.8 | 0.0 / -12.3 / -9.0 / -4.8 | -0.83 / +1.94 / +2.48 |
+
+ITI is calibrated only for PS93 and PS94: acute TI -0.77 / +0.97; chronic +0.26 / +0.97.
+
+| arm, epoch | Δ decoded* [95 % CI] | Δ executed [CI] | TI [CI] | p (TI=0), Holm | p (TI=1) |
+|---|---|---|---|---|---|
+| CUED acute | +8.0 [-10.0, 23.8] | -12.5 [-14.6, -10.6] | **-0.64 [-1.84, 0.81]** | .37, 1.0 | **.020** |
+| CUED subacute | -4.6 [-17.1, 6.4] | -8.2 [-10.2, -5.8] | 0.56 [-0.72, 2.22] | .42, 1.0 | .57 |
+| CUED chronic | -1.6 [-13.8, 11.8] | -4.7 [-9.0, 0.6] | not estimable | .80, 1.0 | .70 |
+| ITI acute (2 animals, gate failed) | -4.1 [-34.1, 19.3] | -19.9 [-24.2, -15.6] | 0.21 [-1.13, 1.48] | .81, 1.0 | .22 |
+| ITI subacute | +9.5 [-7.5, 23.3] | -16.8 [-20.0, -12.8] | -0.57 [-1.62, 0.42] | .26, 1.0 | .001 |
+| ITI chronic | -11.3 [-32.0, 6.6] | -15.1 [-21.9, -8.2] | 0.75 [-0.62, 1.86] | .25, 1.0 | .60 |
+
+* **No primary cell shows tracking** (Holm p = 1.0 everywhere; per-animal signs are mixed, 2-3/4).
+* Raw (un-normalised) decoded change, cued acute: +0.41 deg [-1.06, 1.98], against -12.5 deg executed. This is the
+  same picture as pre-cue ENL (-0.19 vs -12.9).
+* Like-for-like offset: cued acute +0.81 [-0.60, 2.49]; ITI ns.
+* Full tracking (TI = 1) is rejected for CUED acute (p .02) and ITI subacute (p .001).
+* **Formally (prereg 7) the result is INCONCLUSIVE.**
+  * The "downstream" reading needs an upper bound < 0.5 in both arms. Cued acute reaches 0.81, and the ITI gate failed.
+  * Because b_sp is tiny (0.025-0.14), the normalised index is extremely noisy: a ±1-deg raw decoded change maps to
+    ±7-40 deg-equivalent.
+
+#### Positive control (POST +0.05..+0.30 s): PASSED in the cued arm
+* Cued Allen POST: TI 0.28 [0.15, 0.43] acute and 0.48 [0.33, 0.64] subacute (4/4, p < .001). Chronic is not estimable.
+* With landing theta_E: 0.28 [0.14, 0.48] / 0.50 [0.33, 0.69].
+* SVD POST: 0.32 / 0.78. LocaNMF POST: 0.19 [-0.04, 0.39] / 0.19.
+* Far contra POST: 0.63 [0.53, 0.74] acute and 1.00 [0.68, 1.70] subacute (4/4).
+* ITI POST: 0.37 [-0.20, 0.77] (3 animals, ns). ITI far contra POST: 0.76 [0.34, 1.41] acute (3/3).
+* So the method does see cortex follow the executed angle, but only after the tongue moves (partial tracking, ~0.3-0.6;
+  ~0.6-1.0 at far contra).
+
+#### Dynamics and jaw (descriptive)
+* Single-bin decoders, cued acute:
+  * the BASE bins (raw target-code level, calibrated 4/4) do not track: TI -0.20 to -0.32, CI upper 0.13-0.46;
+  * the baseline-subtracted pre-launch bins are calibrated in only 1-3 animals (no usable information);
+  * tracking appears only AFTER tongue onset: +0.125 .. +0.275 s, TI 0.29-0.36, CIs exclude 0, 4/4.
+* ITI: after onset, +0.075 .. +0.175 s, TI 0.75-1.02 (3-4/4).
+* **JAW-referenced (cued):** the pre-jaw bins do not track. The +0.025 s bin after jaw onset reads opposite
+  (TI -0.85 [-1.57, -0.33], 4/4). Tracking appears from +0.125 s after jaw onset (TI 0.32-0.41, 4/4).
+  * The jaw-referenced PRE decoder (gate 1/4) is calibrated in 1 animal only.
+  * The tongue decoder scored on the same licks gives TI -0.58 [-1.76, 0.85].
+* The per-bin decomposition of the primary decoder's change is noise-dominated (every bin CI includes 0, except an ITI
+  -0.075 bin built on 2 animals).
+* -> No pre-movement tracking. The executed angle enters cortex after tongue / jaw movement, consistent with
+  reafference / feedback.
+
+#### Sensitivities and confounds (descriptive, uncorrected)
+* **Window end -0.10 s, other feature sets, per hemisphere:**
+  * Window end -0.10 s: calibrated in 1 cued / 2 ITI animals only.
+  * SVD K20/K10/K40 and LocaNMF PRE: no tracking with >= 3 calibrated animals.
+  * Several 1-2-animal cells give TI ~ -1 to -2, i.e. the decoded angle moves contralesionally. These are not
+    interpretable.
+* **No baseline (levels; the version with real information, r 0.13-0.26):**
+  * cued acute TI -0.21 [-0.87, 0.30], p(TI=1) < .001, 3/4;
+  * ITI acute 0.02 [-0.42, 0.49], p(TI=1) < .001 (3 animals).
+  * These are the only pre-launch cells whose upper bound is < 0.5. They are a sensitivity, not the primary, but they
+    match the ENL pre-cue answer: the target code level does not follow the deviated launch.
+* **Far contra, pre-launch (cued):** Δ decoded* +1.6 [-21.8, 20.9] vs executed -26.4, TI -0.06 [-0.76, 0.90],
+  p(TI=1) .03.
+* **History** (target x previous-spout cells): cued acute TI -0.53 [-2.18, 1.42]. In the lick-level regression the
+  previous-lick angle coefficient is ~0 (|b| <= 0.2).
+* **FACE:**
+  * The FaceRhythm-only decoder reads launch angle in the pre-launch window far better than cortex (cued r 0.44-0.52)
+    and tracks acutely: TI 0.49 [0.24, 0.80], 4/4.
+  * The cortical decoder with features residualised on the face factors has NO calibration in any animal.
+  * So the small pre-launch cortical angle signal is not separable from face movement.
+  * Caveat: FaceRhythm is smoothed and ITI FR is ~5 Hz, so movement onset can leak into -0.05 s.
+* **RT (requested prominently): BASE overlaps the cue response in PS92 / PS93 only.**
+  * Pre RT > 0.5 s (cue inside or before the end of BASE): 36 % / 43 %; acute 46 % / 54 %; chronic 20 % / 23 %.
+  * RT > 0.8 s (BASE entirely post-cue): 22 % / 31 % pre.
+  * PS94 / PS95: <= 4 % pre (10 % / 7 % acute).
+  * Cued RT terciles (pre cut points; calibration from all licks): no tercile tracks. TI acute -1.07 / -0.85 / +0.07,
+    numerators ns. One subacute tercile-3 cell has TI 1.36 [0.07, 3.37], p .03, 4/4. It is isolated and uncorrected.
+* **Dose control:** cell-level slopes of Δ decoded* on Δ executed have mixed signs in every epoch (cued acute
+  -0.31 / +0.46 / -0.35 / +0.90), with large mixed intercepts. There is no consistent tracking slope.
+* **ITI filters** (gap >= 2 s, dock01, since_stop >= 1.5 s; 2 calibrated animals): no consistent tracking. One
+  since_stop chronic cell has TI 1.57 [0.25, 3.09] (2 animals).
+* **Cued decoder applied to ITI:** TI -0.67 [-3.61, 1.83], ns.
+* **Within-session refit r** (biased): pre 0.007-0.115 cued, with no consistent change.
+
+#### Reading
+* Before the tongue (and jaw) moves, the across-target launch-angle readout of widefield cortex does NOT measurably
+  follow the stroke-deviated launch at the same target:
+  * cued acute raw decoded change +0.4 deg vs executed -12.5 deg;
+  * full tracking rejected acutely (p .02);
+  * the same at far contra;
+  * the level-based (no-baseline) variant bounds tracking below 0.3 acutely.
+* That variant is the same pattern as the pre-cue ENL result.
+* The cortex follows the executed angle only AFTER movement onset: post-contact TI ~0.3-0.5 (cued), ~0.6-1.0 at far
+  contra; single bins from +0.1 s after tongue onset / +0.125 s after jaw onset.
+* The pre-registered primary is still **NOT ESTABLISHED / INCONCLUSIVE**, for three reasons:
+  1. the pre-launch change carries almost no across-target angle information pre-stroke (r 0.04-0.10, b_sp 0.025-0.14),
+     so the index CIs are wide (cued acute up to 0.81);
+  2. the ITI gate failed (2/4; ITI primary on 2 animals);
+  3. what little pre-launch angle information exists is shared with face movement.
+* So "the aim error is set downstream of what widefield cortex shows" is the better-supported reading (CUED arm,
+  sensitivity level). "Cortex carries the re-aimed command pre-launch" has no support. But the primary test cannot
+  exclude partial tracking.
+* n = 4, GCaMP6s. PROVISIONAL.
+
+#### Notes requested at commit (coordinator, 10-31)
+1. The joint LocaNMF basis of each animal was fitted (08-15) on pre sessions June 06-08 + Aug 06-14, which are also the
+   LOSO held-out sessions here. The fit is label-free (spatial footprints only), so no angle information leaks, but the
+   held-out pre sessions are not unseen by the basis. Feature set (c) is secondary in any case.
+2. RT and BASE: reported above (`rt_baseline_overlap.csv`); RT terciles are in `secondary_pooled.csv`.
+
+### Deviations (2026-10-31, dated; the design above is unchanged)
+1. **PCA in the inner alpha loop**: the outer-fold (training sessions) PCA and scaler are reused inside the inner
+   leave-one-session-out alpha search, not refitted per inner fold (label-free; prereg 2(b) said "inside every outer
+   fold"). PCA is computed via the n x n Gram matrix (exact).
+2. **Lick subsets keep the full-set calibration**: far contra, RT terciles, ITI filters and the tongue-on-jaw-licks
+   subset use b_sp from the arm's full lick set, because a one-target subset has no across-target slope. History cells
+   compute b_sp across target x previous-spout cells.
+3. **ITI subsets are scored, not refitted**: gap >= 2 s, dock01 and since_stop >= 1.5 s use the primary frozen decoder
+   restricted to those licks.
+4. **Face residualisation** is fitted once on all pre licks with FaceRhythm (label-free OLS of neural features on the
+   face features) and frozen with the decoder.
+5. **Smoke-test fix**: PS95 crashed on a session with zero ITI licks (SVD feature reshape) and was re-run after the fix.
+   The models already frozen were read back (frozen-hit); no fitted model changed.
+6. **Bootstrap draws**: TI CIs use `boot_delta_columns` draws (same draws as `boot_delta`). Per-animal TI is undefined
+   (NaN) for uncalibrated animals, which are excluded from pooled TI (ITI: PS92 and PS95).
+7. **Missing diagnostics row**: PS92_0812 has no row in `extract_summary.csv`. It was extracted in a timing test before
+   the fanned run, and its features are identical. Its joint-LocaNMF variance-captured value is therefore not listed.
+8. **Figure F** uses sessions with >= 3 far-contra licks (the secondary table uses >= 10 per session).
+9. **Output names**: per-lick predictions are in `fit/<animal>_preds_<arm>.csv.gz` (not `lick_table.csv.gz` /
+   `licks_pred.csv.gz`). Session and tracking tables are `per_animal.csv`, `primary_holm.csv` and `secondary_*.csv`
+   (no separate `sessions.csv` / `tracking.csv`).
+10. **Dose control**: the b_all-normalised TI sensitivity was not computed. b_all is reported in `calibration.csv`.

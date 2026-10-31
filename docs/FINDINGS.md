@@ -1459,6 +1459,18 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     through the same pooled pipeline: nothing PRE -> pixels recover a little more (esp. post-contact; averaging cancels
     some spatial pattern). Still NOT ESTABLISHED; perturbation needed. Open check: within-session CV r (`_cv_r` form,
     fold-wise intercepts) is negatively biased near zero signal -- also affects the area decode's r_ex levels.
+24. **Pre-launch AIM TRACKING with a frozen across-spout decoder: no tracking; INCONCLUSIVE by the prereg rule (10-31;
+    `docs/status/PRELAUNCH_AIM_TRACKING_PREREG_20261031.md`; `scripts/prelaunch_aim_tracking.py`; page S26).** Stroke supplies
+    the variation (launch -12.5 deg acute at the same target). Allen 0.05-s bins -0.50..-0.05 s from tongue emergence,
+    pooled August pre, frozen. Gate: cued 3/4 (r .04-.10), ITI FAILED 2/4; calibration tiny (0.03-0.14 deg/deg). Tracking
+    index (0 = target only, 1 = follows aim): cued acute -0.64 [-1.84, 0.81] (raw decoded +0.4 deg vs -12.5 executed; full
+    tracking rejected p .02), subacute 0.56 [-0.72, 2.22], chronic not estimable; Holm p = 1.0 all; per-animal signs mixed.
+    Positive control post-contact: cued 0.28 / 0.48 (4/4), far contra 0.63 -> cortex follows the EXECUTED angle only after
+    the tongue moves (per-bin from +0.125 s; nothing before jaw onset). No-baseline sensitivity: acute -0.21 / 0.02, upper
+    bounds < 0.5 (target-only reading; sensitivity only). SVD / LocaNMF / -0.10 s end / per hemisphere: no tracking.
+    FACE CONFOUND: FaceRhythm pre-launch decodes angle r 0.44-0.52 and TRACKS acutely 0.49 [0.24, 0.80] (4/4); neural
+    features residualised on face calibrate in no animal. -> no cortical pre-launch aim signal visible in widefield; the
+    face already moves in the deviated direction before launch. NOT ESTABLISHED.
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 

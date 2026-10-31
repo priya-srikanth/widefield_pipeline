@@ -79,7 +79,8 @@ OPEN (Priya to decide; asked, no answer yet):
    docs/status/PRELICK_SVD_TUNING_PREREG_20261030.md + scripts/prelick_svd_tuning.py (helper).
    DONE 10-30 late: POST positive control FAILED (2/4), PRE nominal 3/4 ipsilesional-only r ~0.05 -> NOT ESTABLISHED;
    no post change; FINDINGS 4.23 addendum, page S25b (v293). UNREVIEWED by Priya. Open check: `_cv_r` negative bias.
-1b. **RUNNING 10-31: pre-launch AIM-TRACKING test** (Priya GO): frozen across-spout angle decoder (pooled August pre) in
+1b. **DONE 10-31 (FINDINGS 4.24, page S26 v294; UNREVIEWED): no pre-launch tracking, inconclusive by rule; post-contact
+   tracks; FaceRhythm pre-launch tracks the deviated launch (0.49, 4/4).** Was: pre-launch AIM-TRACKING test (Priya GO): frozen across-spout angle decoder (pooled August pre) in
    the pre-launch window (0.05 s bins, -0.50..-0.05 s) -- at the same target, does the decoded angle follow the deviated
    launch (aim in cortex) or stay at the target (as pre-cue did)? CUED + ITI (docked, pre-lick, dynamic) arms; Allen /
    whole-brain SVD / LocaNMF. Two-stage helper (prereg first, I commit, then run). Context given to Priya (UNREVIEWED):
