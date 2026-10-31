@@ -72,7 +72,7 @@ def load(day):
 CAM4 = Path("M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/20261029/PS122/cam4_2026-10-29T19_27_54")
 
 
-def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0):
+def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0, cam=CAM4, tpl=None, title="PS122 10-29"):
     """470 movie | cam4 face video, real time at FS/step fps (low res), with the scrolling cortex trace.
 
     Camera frames are placed by DAQ time: pair -> DAQ sample (frame map) and camera timestamp -> DAQ seconds (a
@@ -84,21 +84,23 @@ def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from wfield_local import camera_sync
-    tpl = camera_sync.build_template(str(d["h5"]), str(CAM4) + ".csv")
+    if tpl is None:                               # no saved template: fit one in memory (never written)
+        tpl = camera_sync.build_template(str(d["h5"]), str(cam) + ".csv")
     print(f"cam4 template: resid {tpl['resid_ms_rms']:.2f} ms rms, quality_ok {tpl['quality_ok']}, "
           f"drops {tpl['n_frame_drops']}", flush=True)
     if not tpl["quality_ok"]:
         raise SystemExit("cam4 template failed quality_ok -- not rendering a misaligned video")
-    ts = np.loadtxt(str(CAM4) + ".csv", delimiter=",", dtype=np.int64, usecols=1)
+    ts = np.loadtxt(str(cam) + ".csv", delimiter=",", dtype=np.int64, usecols=1)
     fs = float(tpl["fs_daq"])
     pairs = np.arange(a, b, step)
     daq_s = d["csmp"][pairs] / fs
     cam_s = (daq_s - float(tpl["intercept_daqSec"])) / float(tpl["slope_daqSec_per_camSec"])
     rows = np.clip(np.searchsorted(ts, cam_s * 1e9), 0, len(ts) - 1)
-    cap = cv2.VideoCapture(str(CAM4) + ".avi")                       # read-only
+    cap = cv2.VideoCapture(str(cam) + ".avi")                       # read-only
     cap.set(cv2.CAP_PROP_POS_FRAMES, int(rows[0]))
     pos = int(rows[0])
-    b470 = np.nanmedian(movie(d, a, a + 15, 1), 0)
+    func = int(d.get("func", 1))
+    b470 = np.nanmedian(movie(d, a, a + 15, func), 0)
     base = slice(a, a + 15)
     fig = plt.figure(figsize=(9.6, 5.6), dpi=70)
     gs = fig.add_gridspec(2, 2, height_ratios=[2.2, 1])
@@ -128,7 +130,7 @@ def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0):
         for i, p in enumerate(pairs):
             j = (p - a) % CH
             if j == 0:
-                m470 = movie(d, p, min(b, p + CH), 1) - b470
+                m470 = movie(d, p, min(b, p + CH), func) - b470
             while pos < rows[i]:                      # skip (grab is cheap; no decode-to-array)
                 cap.grab()
                 pos += 1
@@ -144,7 +146,7 @@ def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0):
             h1.set_data(m470[j])
             cur.set_xdata([p / FS / 60] * 2)
             near = np.any((p - ev >= 0) & (p - ev < 8))
-            sup.set_text(f"PS122 10-29   {p / FS / 60:.3f} min" + ("    ** EVENT **" if near else ""))
+            sup.set_text(f"{title}   {p / FS / 60:.3f} min" + ("    ** EVENT **" if near else ""))
             sup.set_color("r" if near else "k")
             fig.canvas.draw()
             w.append_data(np.asarray(fig.canvas.buffer_rgba())[..., :3])
