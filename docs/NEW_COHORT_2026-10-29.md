@@ -11,7 +11,7 @@ and what is still open.
 | animal | genotype | indicator | notes |
 |---|---|---|---|
 | PS118 | Thy1-GCaMP6s GP4.3 (DOB 2026-08-03, M) | 470 nm (+415) | 10-29: small ROI, cam1 position A |
-| PS120 | Thy1-GCaMP6s GP4.3 (DOB 2026-08-03, M) | 470 nm (+415) | 10-29: small ROI, cam1 position A |
+| PS120 | Thy1-GCaMP6s GP4.3 (DOB 2026-08-03, M) | 470 nm (+415) | 10-29: small ROI, cam1 position A. **Behaves like a GCaMP-negative (WT) mouse on 10-29 AND 10-30** (Priya agrees, 10-31; QC doc §0h): no task-evoked calcium, 88% of 470 shared with 415. Not for neural analysis; use as the blood-flow / motion null. Genotype to re-check. |
 | PS121 | VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s (DOB 2026-01-29, F) | 470 nm (+415) | 10-29: small ROI, cam1 position A; the 10-09 pilot PS121 was RiboL1-GCaMP8s |
 | PS122 | VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s (DOB 2026-01-29, F) | 470 nm (+415) | larger ROI (kept for everyone from here on), cam1 position B |
 
