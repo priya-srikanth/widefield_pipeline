@@ -79,6 +79,12 @@ OPEN (Priya to decide; asked, no answer yet):
    docs/status/PRELICK_SVD_TUNING_PREREG_20261030.md + scripts/prelick_svd_tuning.py (helper).
    DONE 10-30 late: POST positive control FAILED (2/4), PRE nominal 3/4 ipsilesional-only r ~0.05 -> NOT ESTABLISHED;
    no post change; FINDINGS 4.23 addendum, page S25b (v293). UNREVIEWED by Priya. Open check: `_cv_r` negative bias.
+1b. **RUNNING 10-31: pre-launch AIM-TRACKING test** (Priya GO): frozen across-spout angle decoder (pooled August pre) in
+   the pre-launch window (0.05 s bins, -0.50..-0.05 s) -- at the same target, does the decoded angle follow the deviated
+   launch (aim in cortex) or stay at the target (as pre-cue did)? CUED + ITI (docked, pre-lick, dynamic) arms; Allen /
+   whole-brain SVD / LocaNMF. Two-stage helper (prereg first, I commit, then run). Context given to Priya (UNREVIEWED):
+   within-spout angle IS decodable weakly AFTER contact (4d0g slope +0.17-0.23 4/4; S25 slopes D -0.55 4/4; pixel POST
+   2/4), never before launch; across-spout angle decodes but mostly as spout identity.
 2. Figures for text-only S2 / S11 / S16? 3. Collapse S3 into the offset section? 4. Publish reembed frozen refs (local
    store, kind `reembed`) to MICROSCOPE? 5. New re-embedding prereg with spout-resolving label-free alignment?
 6. Cohort-2 design (longer pre baseline; perturbation arm) -- viral lead time means decide soon.
