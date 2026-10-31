@@ -795,3 +795,33 @@ min), 13 censored at the trial cap (task completed).
    (PS92 none).
 7. Figures: KM censor ticks are now placed on the step value; the t1 KM figure from the main run had the same
    placement error (ticks floating between steps) and was redrawn.
+8. **10-31, after seeing the capped result, Priya chose to report P5t uncapped with bounds; the capped P5t stays the
+   pre-registered Holm test (p .70); the uncapped one is reported outside the Holm family.** The same applies to
+   MINUTES (Priya, same day): the capped 90-min P5 stays the pre-registered Holm test (p .18); uncapped minutes are
+   reported outside the family.
+   * **Lower bound:** every censored end (T / W / U / 120-min / trial-cap) counted as the quit; the raw per-session
+     value, `boot_delta`.
+   * **Censoring-aware:** Kaplan-Meier restricted mean (primary reading: Q, H = quit; everything else censored) up to
+     a per-animal common horizon tau, which is the smaller of the pre and post groups' largest observations.
+   * The KM statistic cannot reduce by a mean, so its bootstrap is a separate function (`_rmst_delta`). It uses the
+     same animals -> sessions draw order, on its own rng stream (SEED + 2), so no earlier CI moved; this was verified,
+     and both families are unchanged.
+   * PS92 / PS93 pre values are time-censored lower bounds.
+   * **Uncapped minutes are confounded:** pre sessions ran to ~150 min, post stopped at 120 min / 100 per spout. The
+     lower bound carries that confound in full. The KM restricted mean removes it, because it compares pre and post
+     only up to tau (~100-123 min).
+
+   Results, early post minus pre (per animal PS92 / 93 / 94 / 95):
+
+   | measure | lower bound | KM restricted mean |
+   |---|---|---|
+   | minutes | -27.4 [-41.4, -12.1], 4/4 (-33 / -41 / -12 / -23) | -15.1 [-25.4, -5.6], 4/4 (-15.5 / -17.2 / -5.9 / -22.0; tau 120 / 121 / 106 / 121) |
+   | trials (all) | -69 [-151, +8], 3/4 (PS92 +18) | -77 [-144, -20], 4/4 (-39 / -82 / -41 / -145) |
+   | responded trials | -146 [-214, -81], 4/4 | -103 [-171, -38], 4/4 |
+
+   * Acute alone (KM): minutes -6 n.s., because PS95's single acute session is censored at 120 (+21).
+   * Subacute (KM): minutes -10 n.s., trials -56 n.s.
+   * Chronic (KM): ~0 for all three.
+   * Reading: once censoring and the session-length policy are handled, post animals quit ~15 min / ~75 trials
+     sooner in the early post period (4/4 each), and back near pre chronically. The capped P5 / P5t missed this
+     because the 90-min / 300-trial caps sat below most quit times.

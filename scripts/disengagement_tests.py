@@ -1496,6 +1496,61 @@ def _test4b_session(s):
                 q_bout_s=float(np.mean([b - a for a, b in rb])) if rb else 0.0)
 
 
+def _rmst(x, e, tau):
+    """Kaplan-Meier restricted mean of x up to tau (e = 1 event, 0 censored)."""
+    o = np.argsort(x)
+    x, e = np.asarray(x, float)[o], np.asarray(e, int)[o]
+    t_prev, s, area, at = 0.0, 1.0, 0.0, len(x)
+    for xi, ei in zip(x, e):
+        if xi >= tau:
+            break
+        if ei:
+            area += s * (xi - t_prev)
+            t_prev = xi
+            s *= (at - 1) / at
+        at -= 1
+    return area + s * (tau - t_prev)
+
+
+def _rmst_delta(S, col, rng, cells=("early", "acute", "subacute", "chronic"), n_boot=None):
+    """KM restricted-mean difference (post cell - pre) per animal, averaged over animals, with the animals ->
+    sessions resample. A KM statistic cannot go through `analysis_kit.boot_delta` (which reduces by MEAN), so this is
+    the same draw ORDER (sorted animals; draw animals, then sessions within each arm) with a KM reduction -- the
+    `matrix_bootstrap` exception documented in analysis_kit, not a ninth copy of the mean bootstrap."""
+    from wfield_local import analysis_kit as ak
+    n_boot = n_boot or ak.N_BOOT
+    out = {}
+    for c in cells:
+        post_m = S.epoch.isin(("acute", "subacute")) if c == "early" else (S.epoch == c)
+        arms = {}
+        for a in sorted(ANIMALS):
+            P = S[(S.animal == a) & (S.epoch == "pre")]
+            Q = S[(S.animal == a) & post_m]
+            if len(P) and len(Q):
+                tau = min(P[col].max(), Q[col].max())
+                arms[a] = (P[col].to_numpy(float), P.ev_primary.to_numpy(int), Q[col].to_numpy(float),
+                           Q.ev_primary.to_numpy(int), float(tau))
+        if not arms:
+            out[c] = dict(iv=None, p=np.nan, per={}, per_tau={})
+            continue
+        per = {a: _rmst(v[2], v[3], v[4]) - _rmst(v[0], v[1], v[4]) for a, v in arms.items()}
+        an = sorted(arms)
+        draws = []
+        for _ in range(n_boot):
+            d = []
+            for a in (an[i] for i in rng.integers(0, len(an), len(an))):
+                px, pe, qx, qe, tau = arms[a]
+                i1 = rng.integers(0, len(px), len(px))
+                i2 = rng.integers(0, len(qx), len(qx))
+                d.append(_rmst(qx[i2], qe[i2], tau) - _rmst(px[i1], pe[i1], tau))
+            draws.append(float(np.mean(d)))
+        dr = np.asarray(draws)
+        iv = ak.Interval(float(np.mean(list(per.values()))), float(np.percentile(dr, 2.5)),
+                         float(np.percentile(dr, 97.5)), len(an))
+        out[c] = dict(iv=iv, p=ak.boot_p(dr), per=per, per_tau={a: (per[a], arms[a][4]) for a in an})
+    return out
+
+
 def _paired(df, a, b, rng):
     from wfield_local import analysis_kit as ak
     d = df[np.isfinite(df[a]) & np.isfinite(df[b])]
@@ -1572,7 +1627,21 @@ def addendum():
                     at -= 1
                 km[(an, ep, scale, rd)] = dict(x=np.array(xs), y=np.array(ys), xmax=float(x.max()),
                                                 cens=[(xi, cl) for xi, ei, cl in zip(x, e, g.cls.to_numpy()[o]) if not ei])
-    FD["a2"] = dict(S=S, P5=P5, P5t=P5t, sens=P5s, km=km)
+    # UNCAPPED with bounds (Priya 10-31, AFTER seeing the capped results; outside the Holm families):
+    #   lower bound = every censored end treated as the quit (the raw value; = _delta on the column)
+    #   censoring-aware = KM restricted mean to a per-animal tau (primary reading: Q, H = quit; T/W/U/120-min/
+    #   trial-cap censored), tau = the smallest of the two groups' largest observations, so both groups are observed
+    #   to tau and the pre long-session policy cannot inflate pre.
+    unc = {}
+    rng_u = np.random.default_rng(SEED + 2)        # own stream: adding this block must not move any earlier CI
+    for col in ("t_min", "n_tr", "n_resp"):
+        _print_animal_table(f"UNCAPPED lower bound ({col})", S, col)
+        unc[col] = dict(lower=_delta(S, col, rng_u), km=_rmst_delta(S, col, rng_u))
+        print(f"-- KM restricted mean ({col}), per animal [tau]:", flush=True)
+        for c, v in unc[col]["km"].items():
+            print(f"   {c}: " + "; ".join(f"{a} {d:+.1f} [tau {t:.0f}]" for a, (d, t) in v["per_tau"].items()),
+                  flush=True)
+    FD["a2"] = dict(S=S, P5=P5, P5t=P5t, sens=P5s, km=km, unc=unc)
 
     # ---------------- A3iii exact 80-min horizon
     h = []
@@ -1816,10 +1885,32 @@ def plot_addendum(FD=None):
     ax[1, 1].set_title(f"P5t trials (Holm p = {fam.loc['P5t', 'p_holm']:.3g}, family A)", fontsize=10)
     _delta_panel(ax[1, 2], FD["a2"]["sens"]["responded trials"], "change vs pre, responded trials")
     ax[1, 2].set_title("responded trials to quit-or-end (uncapped, secondary)", fontsize=10)
-    fig.suptitle("BEHAVIOUR -- engagement before the quit in minutes (top) and trials (bottom), pre vs post",
-                 fontsize=12)
+    fig.suptitle("BEHAVIOUR -- engagement before the quit, CAPPED (pre-registered P5 / P5t), pre vs post", fontsize=12)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.05, 1, 0.95))
+    _save(fig, "a2_time_trials_capped")
+
+    # UNCAPPED with bounds (Priya 10-31, after the capped results; outside the Holm families)
+    S2 = FD["a2"]["S"].copy()
+    S2["cens"] = (S2.ev_primary == 0)
+    U = FD["a2"]["unc"]
+    fig, ax = plt.subplots(3, 3, figsize=(16, 13))
+    for r, (col, lab) in enumerate((("t_min", "minutes"), ("n_tr", "trials (all)"), ("n_resp", "responded trials"))):
+        _epoch_scatter(ax[r, 0], S2, col, f"{lab} to quit (or session end)", cens_col="cens")
+        ax[r, 0].set_title(f"{lab}, uncapped (arrow = censored end; PS92 / PS93 pre = time-censored)", fontsize=9)
+        _delta_panel(ax[r, 1], U[col]["lower"], f"change vs own pre, {lab}")
+        ax[r, 1].set_title("LOWER BOUND: every censored end counted as the quit", fontsize=9)
+        _delta_panel(ax[r, 2], U[col]["km"], f"KM restricted-mean change, {lab}")
+        ax[r, 2].set_title("CENSORING-AWARE: KM restricted mean to a per-animal common horizon", fontsize=9)
+    for r in range(3):
+        lo_, hi_ = ax[r, 0].get_ylim()
+        ax[r, 0].set_ylim(lo_, hi_ + 0.08 * (hi_ - lo_))            # room for the censoring arrows
+    fig.suptitle("BEHAVIOUR -- time and trials to the quit, UNCAPPED, with censoring bounds (outside the Holm families)\n"
+                 "Uncapped minutes are confounded: pre sessions ran to ~150 min, post stopped at 120 min / 100 per spout. "
+                 "The KM restricted mean\ncompares pre and post only up to the shorter group's longest observation "
+                 "(per animal), which removes that confound.", fontsize=10)
+    _legend_animals(fig)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     _save(fig, "a2_time_trials_to_quit")
 
     S = FD["a2"]["S"]

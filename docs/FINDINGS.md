@@ -902,6 +902,10 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   orofacial < reference running effect (4/4), running lowers engaged responding (-0.11, 4/4) -> generic disengagement.
   Licks / responded trial vs own pre per spout: acute far contra ~1/3 (4/4); chronic far contra +0.23 log2 (Holm .018, 4/4,
   cam4) but not in DAQ contacts (-0.01). Session-end classes for Priya: disengagement/tables/a0_end_class.csv.
+  UNCAPPED time / trials to quit (Priya 10-31, after the capped result; outside Holm): KM restricted mean to a per-animal
+  common horizon, early post -15.1 min [-25.4, -5.6] 4/4, -77 trials [-144, -20] 4/4, responded -103 4/4; chronic ~0.
+  Lower bound (censored ends = quits): -27.4 min, -69 trials (3/4), -146 responded. -> animals DO quit sooner early post
+  (~15 min / ~75 trials), recovered chronically; the 90-min / 300-trial caps sat below most quits.
 - CAVEAT 10-31 to the next line: the raised stopped-trial level is largely RUNNING (disengagement tests P4, post hoc).
 - Stopped-trial traces 10-29 (page Fig 14.21 S11, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
   lick) trials have NO cue-evoked response in any area / epoch, only a flat level above restw (~4-12 x1e3); miss_working a
