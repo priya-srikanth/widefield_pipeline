@@ -402,3 +402,260 @@ Reading:
 
 ## Deviations
 (none yet)
+
+### Outcome (2026-10-31; run after this design was committed as e49114c2; `face_prelaunch_aim.py extract / fit / summarise / offset`)
+Outputs under `.../imaging_encoding/face_prelaunch_aim/`:
+* `features/<label>.npz` (107 sessions), `extract_summary.csv`;
+* `fit/<animal>_{preds_<arm>.csv.gz, gate.csv, within.csv, log.txt}`;
+* `gate.csv` / `gate_all.csv`, `within_spout.csv`, `calibration.csv`, `frozen_status.csv`;
+* `per_animal.csv`, `tracking.csv`, `primary_holm.csv` (families A, B), `perbin.csv`, `recovery.csv`;
+* `offset/`: `reproduction.csv`, `planted.csv`, `per_animal.csv`, `pooled.csv` (family D), `sessions.csv`,
+  `variant_notes.csv`, `preds_<variant>.csv.gz`, `offset_log.txt`;
+* `figures/fpa_primary.png`, `fpa_secondary.png`, `fpa_offset.png`; `figdata/face_prelaunch_aim.pkl`.
+
+Run facts:
+* Frozen: 1352 decoders + the beyond-jaw regressions + 40 Q5 regressions / refit decoders, all kind `face_aim`, in
+  the LOCAL store `C:\Users\SabatiniLab\frozen_models`.
+  * The store was printed before any fit; it already held decoder / encoder / enl / lick / prelaunch / reembed /
+    state.
+  * All models are frozen-new. No SPEC-CHANGED, no hash mismatch.
+* Smoke test: PS93, scratch store, 5-20 permutations.
+* Times: extract 2.8 min (4 workers); fit 25-28 min per animal (4 in parallel); Q5 24.8 min.
+* Face coverage in the PRE window: FR and points finite in ~100 % of licks (PS92_0908 0.5 % missing); cam4 jaw
+  93-99 % cued, 98-100 % ITI / jaw-referenced (section 0).
+* Pairing check: 3-D jaw dv vs cam4 jaw opening r -0.990 to -1.000 in every session. 3-D dv is essentially the cam4 y
+  view, so JAW3D adds mainly the ml axis.
+
+#### Gates (August pre; pooled LOSO r vs 200 within-session permutations; pass = p < .05 in >= 3/4)
+| decoder | CUED PRE | CUED PRE10 | CUED POST | pre-JAW | ITI PRE | ITI PRE10 | ITI POST |
+|---|---|---|---|---|---|---|---|
+| **PTS** (points PCs) | 4/4, r .10-.27 | 3/4, .04-.14 | 4/4, .56-.60 | 4/4, **.04-.14** | 4/4, .24-.30 | 3/4, .10-.15 | 4/4, .38-.85 |
+| **JAW** (cam4) | **2/4 FAILED**, .01-.24 | 2/4 | 4/4, .28-.73 | 1/4 | 3/4 | 1/4 | 3/3 |
+| FRall (leak-exposed) | 4/4, .46-.53 | 4/4, .43-.52 | 4/4, .47-.53 | 4/4, .47-.55 | 4/4, .17-.78 | 4/4 | 4/4 |
+| FR side (left + right) | 4/4, .44-.52 | 4/4 | 4/4 | 4/4, .44-.55 | 4/4 | 4/4 | 4/4 |
+| NOSE | 3/4, .00-.20 | 3/4 | 4/4 | 2/4 | 4/4 | 2/4 | 3/3 |
+| JAW3D | 3/4, .03-.28 | 3/4 | 4/4 | 2/4 | 3/3 | 1/3 | 3/3 |
+| PTS beyond jaw | 4/4, .09-.28 | 4/4 | 3/4 | 4/4, .04-.12 | 2/4 | 3/4 | 2/3 |
+| FR beyond jaw | 4/4, .43-.55 | 4/4 | 2/4 | 4/4 | 4/4 | 4/4 | 3/3 |
+
+* **The positive controls (POST windows) pass for every primary family.**
+* JAW is **not calibrated across spouts in PS93 / PS95** (b_sp -0.001 / 0.003, cued PRE). The chin is covered at
+  close / centre spouts.
+* **FaceRhythm reads the pre-launch angle at the same r whatever the window**: PRE, PRE10, and even 0.05-0.50 s
+  **before JAW onset** (.47-.55). The timing-valid points read little there: pre-jaw r .04-.14, against .56-.60 in
+  POST.
+
+#### Primary family A (tongue-referenced PRE; TI numerator, Holm over 6)
+| cell | TI [95 % CI] | Δdecoded* (deg-eq.) [CI] | Δexecuted | same sign | Holm p | gate | tracking |
+|---|---|---|---|---|---|---|---|
+| A1 CUED PTS acute | 0.39 [-0.30, 1.18] | -4.9 [-13.5, 3.9] | -12.5 | 2/4 | 1.0 | pass | no |
+| A2 CUED PTS subacute | 0.19 [-0.46, 1.26] | -1.6 [-7.7, 4.3] | -8.2 | 2/4 | 1.0 | pass | no |
+| A3 CUED JAW acute | 0.37 (2 calibrated) | -4.8 [-20.9, 10.2] | -12.9 | 1/2 | 1.0 | **failed** | no |
+| A4 CUED JAW subacute | 0.70 (2 calibrated) | -5.5 [-14.8, 4.5] | -7.9 | 1/2 | 1.0 | failed | no |
+| A5 ITI PTS acute | **0.68 [0.13, 1.39]** | -13.4 [-24.3, -2.5] | -19.6 | 3/4 | **.087** | pass | no (Holm) |
+| A6 ITI PTS subacute | 0.88 [0.01, 4.08] | -8.6 [-15.5, -0.8] | -9.8 | 4/4 | .178 | pass | no (Holm) |
+
+Per animal, CUED PTS PRE, d_dec* acute / subacute (d_exe acute / subacute):
+* PS92 -11.3 / -10.3 (-10.1 / -4.8);
+* PS93 +5.7 / +1.7 (-12.7 / -9.6);
+* PS94 +0.5 / +2.0 (-15.0 / -9.3);
+* PS95 -15.1 / 0.0 (-12.3 / -9.0; b_sp 0.036).
+
+ITI PTS PRE acute: PS92 -26.0, PS93 -0.4, PS94 -15.6, PS95 -5.5 (d_exe -15.1 / -18.3 / -22.1 / -28.2; PS95 acute =
+28 licks in 1 session).
+
+**No family-A cell meets the tracking criterion.**
+* The only nominal cells, A5 / A6 (ITI points), vanish when the last 0.05-s bin is dropped: ITI PTS PRE10 TI 0.18
+  [-0.29, 0.65] acute (2/4), 0.19 subacute.
+* That bin holds jaw opening (the jaw leads the tongue by 52-120 ms; secondary figure panel E).
+
+**The FaceRhythm replication tracks, as in S26.**
+* FRall CUED PRE: acute 0.52 [0.31, 0.79], 4/4; subacute 0.55 [0.21, 0.99]. S26's 5-group decoder gave 0.49
+  [0.25, 0.80].
+* It also tracks in PRE10, 0.56 [0.34, 0.84]; in the **pre-JAW window**, 0.49 [0.33, 0.73], 4/4; with the jaw
+  partialled, 0.54 [0.27, 0.78]; and in ITI, 0.56 [0.03, 1.18] (3 calibrated, 2/3 same sign).
+* The signal sits in the **side (left / right lick) factors**: FR side PRE acute 0.58 [0.39, 0.87], 4/4. The single
+  "other" factors and the lick-amount / close / far groups give unstable, mostly non-tracking indices.
+
+#### Primary family B (pre-JAW window; Holm over 4)
+| cell | TI [CI] | calibrated | same sign | Holm p | gate | tracking |
+|---|---|---|---|---|---|---|
+| B1 PTS acute | -0.08 [-0.78, 1.02] | 3 | 2/3 | 1.0 | pass (r .04-.14) | no |
+| B2 PTS subacute | 0.19 [-0.97, 2.07] | 3 | 2/3 | 1.0 | pass | no |
+| B3 JAW acute | -0.97 (PS94 only) | 1 | 1/1 | .001 (see note) | **failed (1/4)** | no |
+| B4 JAW subacute | -0.94 (PS94 only) | 1 | 1/1 | .001 (see note) | failed | no |
+
+Note: B3 / B4 rest on ONE calibrated animal with a failed gate. Their bootstrap p has no between-animal resampling and
+is not interpretable (rule 8).
+
+#### Q2 timing (single-bin decoders, acute; bins with >= 3 calibrated animals)
+* **Points (timing-valid):**
+  * information is ~0 from -0.48 to -0.18 s before tongue onset (r .02-.09); it rises at -0.13 / -0.08 s;
+  * tracking only from **+0.025 s after tongue onset**: TI 0.51 [0.3, 0.8], 4/4;
+  * jaw-referenced: r .01-.10 before jaw onset, tracking only from **+0.075 s after jaw onset**: TI 0.39 [0.2, 0.7],
+    4/4.
+* **ITI points** track from -0.075 s (3/4) and -0.025 s (4/4), the bins in which the jaw opens.
+* **FaceRhythm:**
+  * information ramps up from ~-0.4 s;
+  * tracking from **-0.225 s before tongue onset AND -0.225 s before jaw onset** (TI ~0.5-0.7, 4/4);
+  * this lies inside the filter's half-width (±0.35 s), and the ramp has the kernel's shape.
+* JAW: uncalibrated in most pre-onset bins; tracks from +0.025 s after tongue onset, 0.70 [0.2, 1.4], 4/4.
+* **Reading Q2: EXECUTION, not a plan.**
+  * The timing-valid face measures carry the deviated angle only from jaw opening on.
+  * No family-B cell and no pre-jaw single bin meets the plan-like criterion.
+  * FaceRhythm's earlier tracking is what its acausal filter predicts from the launch itself, so it is not evidence of
+    a pre-movement signal.
+  * Not excludable: FR's spectral power could see small rhythmic pre-movements that 40-ms point displacements miss.
+    Nothing timing-valid shows any.
+
+#### Q1 reading
+* Before jaw opening, no timing-valid face measure (points, cam4 jaw, nose, 3-D jaw) tracks the deviated launch.
+* What the S26 face decoder read is carried by FaceRhythm's left / right lick factors:
+  * their pre-launch values lie within the filter support of the launch;
+  * they track equally well before jaw onset and with the jaw partialled;
+  * this is the pattern expected if they read the launch itself through the acausal spectrogram.
+* **So "what in the face" has no measurable answer before the movement starts.** From jaw opening on, the whole-face
+  points and the jaw carry the deviated angle (execution).
+* Jaw lateral steering cannot be tested as a pre-launch carrier: JAW failed its gate and is uncalibrated in 2/4
+  animals.
+* PROVISIONAL, n = 4.
+
+#### Q3 recovery (secondary; per-animal r over post sessions of face d_dec* with launch d_exe; MixedLM with log day)
+* CUED FRall: r -.51 / +.59 / +.68 / +.77 (3/4 positive). The within-animal slope given log(day) is NEGATIVE (-0.41,
+  p < .001). So the positive r reflect the shared recovery trend; beyond it, session-to-session coupling is not
+  positive.
+* CUED PTS: +.53 / -.41 / +.52 / -.67 (2/4).
+* ITI PTS: +.67 / -.09 / +.42 / +.27 (3/4); slope +0.49, p .020.
+* ITI FRall: 4/4 positive, slope ns.
+* Chronic TI is not estimable (Δexecuted CI includes 0).
+* Criterion "same time course" (r > 0 in >= 3/4 AND positive within-animal slope, p < .05): **met only for ITI PTS
+  PRE, which is the jaw-opening bin** (PRE10 does not track).
+* So the face is not shown to be a pre-launch behavioural marker of the deficit. It follows the executed deviation.
+
+#### Q4 within-spout (pre-stroke; within-cell decoder vs 200 within-cell permutations)
+| family | CUED PRE | CUED PRE10 | pre-JAW | ITI PRE | ITI PRE10 | CUED POST (control) |
+|---|---|---|---|---|---|---|
+| PTS | 3/4 (r -.01-.14) | **0/4** | **0/4** | 2/4 | 1/4 | 4/4 (.29-.43) |
+| JAW | 2/4 | 3/4 (Bonferroni 1/4) | 1/4 | 1/4 | 1/4 | 3/4 |
+| JAW3D | 3/4 | 4/4 (.07-.13) | **0/4** | 2/3 | 1/3 | 4/4 |
+| NOSE | 2/4 | 0/4 | 0/4 | 1/4 | 0/4 | 4/4 |
+| FRall (leak-exposed) | 4/4 (.14-.39) | 4/4 | 4/4 (.12-.40) | 3/4 | 3/4 | 4/4 |
+
+The rule needs a timing-valid family in PRE10 AND pre-jaw. **Not met.**
+* JAW3D passes PRE10 (4/4) but fails pre-jaw (0/4). Its within-spout information starts with jaw opening, which can
+  begin inside PRE10 for long jaw leads.
+* Points fail both windows.
+* FR passes everywhere, but is leak-exposed.
+* Within-spout launch angle is therefore not visible in the face before the jaw moves, as for cortex (S25 / S25b).
+
+#### Q5 -- face partialled out of cortex: the decoder OFFSET
+* **Reproduction check PASSED**:
+  * recomputed predictions = the `lick_order_preds` cache (max |Δ| 4e-16);
+  * per-lick read-outs = `terms_licks` (239,040 / 239,040; max |Δ| 4e-15);
+  * headlines reproduced: docked ITI same-place +0.298 / +0.216 / +0.290; cued matched-error -0.035 / -0.033 / -0.019.
+* **Planted-signal control PASSED**: >= 98 % of a planted face-driven offset is removed by partialling (A), in every
+  measure x epoch.
+
+Per animal (variant A_FR; change vs pre, mm; before -> after):
+| measure | epoch | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|---|
+| ITI docked same-place | acute | .22 -> -.07 | .10 -> .09 | .43 -> .55 | .45 -> .38 |
+| | subacute | .30 -> .01 | -.02 -> .03 | .44 -> .39 | .15 -> .27 |
+| | chronic | .17 -> .02 | .08 -> .09 | .60 -> .65 | .31 -> .18 |
+| CUED matched-error | acute | -.13 -> -.18 | .02 -> .26 | -.07 -> .27 | .04 -> .38 |
+| | subacute | -.01 -> -.06 | .07 -> .25 | -.14 -> .03 | -.05 -> .14 |
+| | chronic | .01 -> .11 | .00 -> -.02 | -.11 -> .22 | .02 -> .04 |
+
+Family D (variant A: FR 11 traces, pre-fit regression; Holm over 6):
+| cell | before | after [95 % CI] | after - before [CI] | Holm p | retained [CI] | after same sign |
+|---|---|---|---|---|---|---|
+| D1 ITI docked same-place acute | +0.298 | +0.234 [-0.005, 0.479] | -0.065 [-0.22, 0.07] | .81 | 0.78 [-0.03, 1.22] | 3/4 |
+| D2 subacute | +0.216 | +0.173 [0.015, 0.355] | -0.042 [-0.21, 0.11] | .81 | 0.80 [0.08, 2.28] | 4/4 |
+| D3 chronic | +0.290 | +0.237 [0.038, 0.520] | -0.054 [-0.15, 0.04] | .80 | 0.82 [0.25, 1.11] | 4/4 |
+| D4 CUED matched-error acute | -0.035 | +0.183 [-0.058, 0.359] | +0.218 [0.04, 0.35] | .051 | n/a (no offset before) | 1/4 |
+| D5 subacute | -0.033 | +0.090 [-0.027, 0.219] | +0.123 [0.01, 0.22] | .155 | n/a | 1/4 |
+| D6 chronic | -0.019 | +0.086 [-0.006, 0.188] | +0.105 [-0.01, 0.25] | .352 | n/a | 1/4 |
+
+* **No family-D cell changes significantly after Holm.**
+* The docked ITI offset keeps ~80 % of its size (point estimates). It stays > 0 with the CI excluding 0 subacute and
+  chronic; acute, the CI just touches 0.
+* By the fixed rule the result is **"partial"**, neither "survives" nor "face-carried": the retained-fraction lower
+  bounds are -0.03 / 0.08 / 0.25, below 0.5.
+* The pooled change (-0.04 to -0.07 mm, ns) agrees with the prediction "unchanged", **but PS92 does not**: its docked
+  ITI offset falls to ~0 in every epoch, while PS94 / PS95 keep theirs.
+* The cued matched-error offset was ≈ 0 before partialling. After it, PS93-95 become positive (acute +0.18, Holm
+  .051; only 1/4 animals keep the sign they had before). In other words, the pre-fit face model predicts an
+  ipsilesional decoded change for post-stroke cued licks, and removing it leaves a contralesional residual. Not a
+  significant cell.
+
+Variants and sensitivities (docked ITI same-place unless stated):
+* **(B) decoder refit on face-residualised pre features**: the offset shrinks more.
+  * After: +0.08 / +0.07 / +0.14 mm (acute CI includes 0; chronic [0.01, 0.31]).
+  * After - before: -0.22 [-0.39, -0.07] acute; -0.15 [-0.23, -0.08] chronic.
+  * Retained 0.25-0.47.
+* **(C) per-session regression**: after +0.18 / +0.11 / +0.15; retained 0.51-0.59; chronic after CI [0.03, 0.31].
+* **5-group FR** (check 3's set): retained 0.87-0.97.
+* **FR + points**: retained 0.74-0.82.
+* **FR + jaw**: the offset GROWS (retained 1.13-1.61). Jaw covariates are missing for 8-24 % of cued and 2-6 % of ITI
+  licks, which are left uncorrected.
+
+**Reading Q5:**
+* With the pre-registered primary (A), partialling the face leaves most of the docked ITI offset (~80 %, change ns).
+  At cohort level the offset is not a face-movement artefact under a frozen linear face model.
+* The equivalence bound (retained lower CI >= 0.5) is not met, so "unchanged" is NOT established. Formally the result
+  is "partial".
+* Two cautions:
+  1. In PS92 the offset is fully face-predictable.
+  2. A decoder retrained without face-predictable variance (B) carries a smaller offset (25-47 % retained). So part of
+     what the frozen decoder reads after the stroke is face-linked variance.
+* PROVISIONAL, n = 4; GCaMP6s lag; linear partialling only.
+
+#### Overall
+* The face does not show the deviated aim before movement starts.
+  * The S26 face result is reproduced (FR TI ~0.5), but it rides on FaceRhythm's acausal lick-side factors and is
+    present equally before jaw onset.
+  * The timing-valid measures track only from jaw opening.
+  * **Execution, not plan. NOT ESTABLISHED as a pre-launch signal; PROVISIONAL.**
+* Within-spout launch angle is not visible in the face before the jaw moves.
+* The decoder's docked ITI offset mostly survives face partialling at cohort level (~80 % retained, change ns). It is
+  face-predictable in PS92, and it shrinks with a face-blind refit (B). PROVISIONAL, n = 4.
+
+### Deviations (2026-10-31, dated; the design above is unchanged)
+1. **Q5 code is in a helper module**, `scripts/face_offset_partial.py`, called by `face_prelaunch_aim.py offset`.
+   * It must set `WFIELD_ITI_FILTER=dock` and redirect `iti_licks.OUT_W` before the offset scripts are imported.
+   * Their own outputs are never written.
+2. **Frozen `source` names end in "-x"** (`<family>-x`, `reg-<name>-x`).
+   * `frozen_models.siblings` globs by prefix, so "PTS" matched "PTS_bj..." and raised a false SPEC-CHANGED in the
+     first smoke test.
+   * That scratch store was discarded; the production store never saw the old names.
+3. **S26 reproduction row**: S26's `face:PRE` rows are read from S26's `secondary_pooled.csv` (the same frozen model),
+   not re-scored. FRall (bin means + 6 "other" factors) gives acute 0.52 vs S26's 0.49.
+4. **Permutation gates**:
+   * run for the 14 gated families x {PRE, PRE10, POST} (CUED, ITI) and PRE (jaw arm);
+   * single "other" factors, drop-one-group, FACEALL and PREnb have r only;
+   * the jaw arm has no POST / PRE10 decoders (pre-jaw = its PRE).
+5. **Beyond-jaw regressions** are frozen as separate `face_aim` models (`reg-*`), not inside the decoder payload.
+6. **Not computed**, to be added if wanted:
+   * the dose control (cell-level slope with intercept);
+   * the lick-level history regression;
+   * the like-for-like intersection lick set.
+   Far-contra rows were computed (`tracking.csv`, analysis far_contra): CUED PTS PRE acute TI 0.99 [0.30, 1.88] 4/4
+   and FRall 0.60 [0.50, 0.72] 4/4, both in the tongue-referenced PRE window, which includes the jaw-opening bin.
+7. **Q5 face covariates**:
+   * window means of 10-ms samples over [-0.2, 0) and [0, 0.2) s from the lick PEAK (the decoder's anchor);
+   * licks without face covariates are left uncorrected (counts in `variant_notes.csv`: FR 0-39 per animal x set;
+     FR + jaw 420-9,542).
+8. **Variant C**: sessions with < 3 x n_covariates face licks fall back to the animal's LOSO pre regression (1
+   session).
+9. **Planted-signal control**:
+   * the component is planted along the frozen decoder's weight direction;
+   * its face loading = the post - pre mean face change, scaled per animal to the published acute same-place offset
+     (ITI 0.298, cued 0.164);
+   * the control's partialling is refitted on the planted data (not frozen).
+10. **Figures**:
+    * pooled TI markers are drawn only with >= 3 calibrated animals;
+    * per-bin curves only for bins with >= 3 calibrated animals;
+    * the Q3 scatter shows calibrated animals only.
+11. **Q3** also reports the `recmark` aim / iti_ang axes for every PRE decoder of PTS / JAW / FRall / beyond-jaw
+    (`recovery.csv`).
+12. **Mesh-region split of the points PCs** was not run (decision 2 default).
