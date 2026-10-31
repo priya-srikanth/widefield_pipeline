@@ -100,8 +100,10 @@ def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0, cam=CAM4, tpl=None, 
     cap.set(cv2.CAP_PROP_POS_FRAMES, int(rows[0]))
     pos = int(rows[0])
     func = int(d.get("func", 1))
-    b470 = np.nanmedian(movie(d, a, a + 15, func), 0)
-    base = slice(a, a + 15)
+    # baseline = median over the WHOLE window. It was the first 0.5 s until 10-31: PS94 08-25's window began mid-run,
+    # the baseline sat up to +16% above the window median over limb cortex, and running rendered BLUE there.
+    b470 = np.nanmedian(np.concatenate([movie(d, p, min(b, p + 300), func)[::4] for p in range(a, b, 300)]), 0)
+    base = slice(a, b)
     fig = plt.figure(figsize=(9.6, 5.6), dpi=70)
     gs = fig.add_gridspec(2, 2, height_ratios=[2.2, 1])
     a1, a2, a3 = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]), fig.add_subplot(gs[1, :])
@@ -120,7 +122,11 @@ def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0, cam=CAM4, tpl=None, 
         a3.axvline(f / FS / 60, ymin=0, ymax=0.06, color="k", lw=0.5)
     for f in d["cues"][(d["cues"] >= a) & (d["cues"] < b)]:
         a3.axvline(f / FS / 60, color="tab:orange", lw=0.7, alpha=0.6)
-    a3.set_xlabel("session time (min, pair clock)   ticks = licks, orange = cues")
+    for r0, r1 in d.get("run", []):                 # running bouts (pair clock), when the caller supplies them
+        if r1 > a and r0 < b:
+            a3.axvspan(max(r0, a) / FS / 60, min(r1, b) / FS / 60, color="tab:blue", alpha=0.15, lw=0)
+    a3.set_xlabel("session time (min, pair clock)   ticks = licks, orange = cues"
+                  + (", blue band = running" if "run" in d else ""))
     a3.legend(fontsize=7, loc="upper left")
     cur = a3.axvline(t[0] / 60, color="r", lw=1)
     sup = fig.suptitle("", fontsize=10)
