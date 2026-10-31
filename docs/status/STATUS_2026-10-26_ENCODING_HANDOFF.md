@@ -86,7 +86,7 @@ OPEN (Priya to decide; asked, no answer yet):
    whole-brain SVD / LocaNMF. Two-stage helper (prereg first, I commit, then run). Context given to Priya (UNREVIEWED):
    within-spout angle IS decodable weakly AFTER contact (4d0g slope +0.17-0.23 4/4; S25 slopes D -0.55 4/4; pixel POST
    2/4), never before launch; across-spout angle decodes but mostly as spout identity.
-1c. **RUNNING 10-31: FaceRhythm pre-launch aim follow-up** (Priya GO; prereg docs/status/FACE_PRELAUNCH_AIM_PREREG_20261031.md
+1c. **DONE 10-31 (FINDINGS 4.25, page S27; UNREVIEWED): face tracks aim only after movement starts; ITI offset after FR partialling retained 0.78-0.82 (PARTIAL; PS92 face-carried, PS94/95 kept). Open from prereg deviations: dose control, lick-level history regression, intersection lick set not computed.** Was: FaceRhythm pre-launch aim follow-up (Priya GO; prereg docs/status/FACE_PRELAUNCH_AIM_PREREG_20261031.md
    expected, script scripts/face_prelaunch_aim.py): which face factor / jaw measure carries the pre-launch angle + deviation,
    timing vs jaw onset, recovery time course, within-spout pre, and Q5 = FR partialled out of cortex -> does the frozen-DECODER
    OFFSET change? (Answer given to Priya, UNREVIEWED: FR partialling was done for the SSp-n L/R term (unchanged) and inside

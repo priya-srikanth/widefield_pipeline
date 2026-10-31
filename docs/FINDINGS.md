@@ -1476,6 +1476,17 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     (half-height +/-0.28-0.34 s), so EVERY pre-launch FR bin (and part of the baseline) contains movement from at / after
     tongue onset. The FR tracking (0.49) may be the launch smeared backwards in time -> NOT a pre-launch face result
     until the timing-valid measures (face-point PCs, cam4 jaw) confirm it (face follow-up prereg 10-31).
+25. **Face pre-launch aim follow-up: the face tracks the deviated aim only ONCE THE MOVEMENT STARTS; the ITI decoder
+    offset is only PARTLY face-carried (10-31; `docs/status/FACE_PRELAUNCH_AIM_PREREG_20261031.md`;
+    `scripts/face_prelaunch_aim.py`, `scripts/face_offset_partial.py`; page S27).** Timing-valid face measures (point
+    PCs 25 Hz, cam4 jaw 250 Hz): no tracking before launch (cued points 0.39 / 0.19, CIs incl. 0; ITI points acute 0.68
+    [0.13, 1.39] Holm p .09, gone (0.18) without the last 0.05-s bin = jaw opening; nothing before jaw onset); points track
+    from +0.025 s after tongue onset. FaceRhythm reproduces S26 (0.52, 4/4) but equally before jaw onset -> filter leak.
+    Within-spout pre-launch angle not readable from face points (0/4). Q5 offset, FR (11 traces) regressed out of cortex
+    on pre licks, frozen (before reproduces published to 0.001 mm; planted offset >= 98 % removed): docked ITI +0.30/+0.22/
+    +0.29 -> +0.23/+0.17/+0.24 (retained 0.78-0.82, lower bounds < 0.5 -> PARTIAL); PS92 -> ~0 every epoch, PS94/PS95 kept,
+    PS93 small throughout. Variants: 5 groups 0.87-0.97, per-session 0.51-0.59, decoder refit 25-47 % retained. Cued
+    matched-error ~0 -> +0.18 acute after partialling (Holm .051, mixed signs; not interpreted). **PROVISIONAL (n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
