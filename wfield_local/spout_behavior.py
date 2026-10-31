@@ -1558,15 +1558,29 @@ def _curated_mmdds(available) -> list[str]:
     dates with no registered imaging session, and those should still be plotted."""
     cs = set(config.curated_dates())
     exclude = set(config.date_policy().get("cross_session_exclude", []))
+    if not cs:
+        # No imaging-registered session in this cohort yet (a behavior-only cohort before the LocaNMF
+        # stage has registered anything in sessions.yaml -- cohort2's state on its first nights): there
+        # is no curated anchor to key the 'onward' window on, so the curated set is every available
+        # date (already cohort-scoped by `_curated_dates`) minus the excluded ones.
+        return sorted(d for d in available if d not in exclude)
     aug_start = min((d for d in cs if d >= "0800"), default="9999")
     return sorted(d for d in available if (d in cs or d >= aug_start) and d not in exclude)
 
 
 def _curated_dates(rv: PathResolver) -> list[str]:
-    """``_curated_mmdds`` over the dates actually present in the behavior-log root on MICROSCOPE."""
-    avail = {mo.group(1)[4:] for p in discover_sessions(rv, None, None)
-             if (mo := re.match(r"PS\d+_(\d{8})", p.name))}
-    return _curated_mmdds(avail)
+    """Curated behavior dates (full YYYYMMDD) for the ACTIVE cohort, present in the behavior-log root.
+
+    Returns YYYYMMDD, not MMDD: the behavior-log root is FLAT (every cohort), and cohort2 crosses the
+    new year, so the year must be carried -- "0105" vs "1029" cannot be compared as MMDD (see
+    `config.date8`). Available sessions are first scoped to this cohort by full date
+    (`config.cohort_span`), then the MMDD curation policy (`_curated_mmdds`) decides which days to keep;
+    the full dated names that pass come back."""
+    first8, last8 = config.cohort_span()
+    avail8 = sorted({mo.group(1) for p in discover_sessions(rv, None, None)
+                     if (mo := re.match(r"PS\d+_(\d{8})", p.name)) and first8 <= mo.group(1) <= last8})
+    keep = set(_curated_mmdds({d[4:] for d in avail8}))
+    return [d for d in avail8 if d[4:] in keep]
 
 
 def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = False):
@@ -1574,8 +1588,10 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     sessions = []
     for p in discover_sessions(rv, None, animals):
         mo = re.match(r"PS\d+_(\d{8})", p.name)
-        mmdd = mo.group(1)[4:] if mo else None
-        if dates is None or (mmdd in dates):
+        d8 = mo.group(1) if mo else None
+        # `dates` may be full YYYYMMDD (the curated set, year carried) or MMDD (an explicit --from
+        # range); accept either so both callers resolve the same sessions.
+        if dates is None or (d8 is not None and (d8 in dates or d8[4:] in dates)):
             sessions.append(p)
     params = config.defaults()["behavior"]
     rows = [r for r in (session_row(s, params, rv=rv) for s in sessions) if r]

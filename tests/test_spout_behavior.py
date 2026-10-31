@@ -25,6 +25,28 @@ def test_curated_mmdds_includes_future_onward_dates():
     assert sb._curated_mmdds({"0606", "0807"}) == ["0606", "0807"]
 
 
+def test_curated_mmdds_falls_back_to_all_available_when_nothing_registered(monkeypatch):
+    # a behavior-only cohort before the LocaNMF stage registers anything (cohort2's first nights):
+    # curated_dates() is empty, so every available date minus the exclusions is curated.
+    monkeypatch.setattr(config, "curated_dates", lambda *a, **k: [])
+    monkeypatch.setattr(config, "date_policy", lambda: {"cross_session_exclude": ["1031"]})
+    assert sb._curated_mmdds({"1030", "1029", "1031"}) == ["1029", "1030"]
+
+
+def test_curated_dates_scopes_to_active_cohort_and_keeps_year(monkeypatch):
+    # the behavior-log root is flat (all cohorts); scope to the active cohort by full YYYYMMDD and
+    # return the year-bearing dates -- never bare MMDD, which cannot order a cross-year cohort.
+    import types
+    names = ["PS92_20260606_x", "PS118_20261029_x", "PS120_20261030_x", "PS118_20271101_x"]
+    monkeypatch.setattr(sb, "discover_sessions",
+                        lambda *a, **k: [types.SimpleNamespace(name=n) for n in names])
+    monkeypatch.setattr(config, "cohort_span", lambda: ("20261029", "20261231"))
+    monkeypatch.setattr(config, "curated_dates", lambda *a, **k: [])
+    monkeypatch.setattr(config, "date_policy", lambda: {})
+    # cohort1's 0606 (before first) and the 2027 date (after last) are out; full YYYYMMDD comes back
+    assert sb._curated_dates(rv=None) == ["20261029", "20261030"]
+
+
 def _trial(tid, pos_idx, *, hit, free_trial=0, free_delivered=0):
     resp = 1 if hit else 0
     return {

@@ -72,6 +72,16 @@ def cohort_year() -> str:
     return str(_paths.cohort_spec()["first"])[:4]
 
 
+def cohort_span() -> tuple[str, str]:
+    """(first, last) YYYYMMDD of the ACTIVE cohort; an open-ended `last` (null) becomes '99999999'.
+
+    For scoping the FLAT shares (behavior logs, cameras) by full date: a session belongs to this
+    cohort iff ``first <= its YYYYMMDD <= last``. Compare YYYYMMDD here, never MMDD -- the shares hold
+    every cohort and two cohorts can share an MMDD in different years (see `date8`)."""
+    spec = _paths.cohort_spec()
+    return str(spec["first"]), str(spec.get("last") or "99999999")
+
+
 def date8(d) -> str:
     """YYYYMMDD for a session date in the ACTIVE cohort: MMDD, a label (``PS118_0105``) or YYYYMMDD.
 
