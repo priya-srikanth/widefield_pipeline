@@ -494,3 +494,173 @@ and DAQ contacts). Acute far contra is lowest (LP ~3 vs pre ~8.5).
     collected rate at every trial >= 5 min into a session and before any quit, all August pre sessions.
 13. P3 / P4 figures pool epochs, so they use an animal-shape legend with a black pooled marker (no epoch colour).
     "+" marks a secondary cell whose 95 % CI excludes 0; "*" marks only a Holm-significant primary.
+
+---
+
+## ADDENDUM 10-31 (follow-up) — PRE-REGISTERED BEFORE ANY OF ITS ANALYSES WAS RUN
+
+Priya's follow-up of 10-31 (asks 1-3) and her hypothesis for Test 4b. Stage 1 = this section only. Stage 2 appends
+"Addendum outcome" and dated deviations below it. Outputs go to the same `disengagement/` folder (figdata stem
+`disengagement_addendum`). All earlier rules still apply.
+
+### A0. DATA-COLLECTION LIMIT: how pre-stroke sessions ended (Priya, 10-31)
+
+Priya's account of the recordings:
+* (a) Pre-stroke she often STOPPED a session by hand when the animal quit. A pre session with no detected quit may
+  therefore END AT the quit, with the quit tail cut off; its "session end" is then effectively the quit point, not
+  censoring.
+* (b) PS92 and PS93 were very licky (many ENL violations) and were usually stopped FOR TIME, so their pre session
+  ends are genuinely time-censored.
+* (c) From cohort 2 on she lets animals run to the quit.
+
+**Every result in this file that uses a pre "session end" must say which reading it uses.**
+
+**END CLASSIFICATION RULE** (fixed now; it uses only the logs and the last trials, never an outcome measure):
+
+| class | rule | count of 32 August pre |
+|---|---|---|
+| Q detected quit | `session_quit` finds the terminal non-recovering collapse | 11 (PS93 1, PS94 4, PS95 6) |
+| W water limit | `water_limit_reached` in events.csv | 1 (PS95_0809) |
+| T stopped by rule / for time (censored) | `max_duration_reached` or `target_trials_reached` with no detected quit; OR a manual stop (no rule event) with the reference spouts still responding (last 5 reference trials >= 0.8 responded, no trailing reference miss); PS92_0812 (crash + concat) is T | 16 |
+| H likely hand-stopped AT a quit | manual stop, no detected quit, and the end is collapsing: last 5 reference trials <= 0.4 responded, OR >= 2 trailing reference misses, OR last 12 trials (all spouts) <= 0.5 responded | 2 (PS92_0809: ref 0.2, 2 trailing misses, all-spout 0.08; PS94_0807: ref 0.2, 4 trailing misses) |
+| U unknown | manual stop, none of the above | 2 (PS92_0806: stopped at 83 min, ref 0.8, all-spout 0.58; PS95_0813: ref 0.6, 1 trailing miss) |
+
+Fit with Priya's account: PS92 / PS93 pre ends are T except PS92_0809 (H) and PS92_0806 (U). That matches (b)
+"stopped for time", with one PS92 session that looks hand-stopped at a collapse. The same rule is applied to post
+sessions for symmetry (post mostly end by rule: target trials / max duration).
+
+**Readings:**
+* PRIMARY: Q and H are events (quit at quit onset / session end); T, W and U are censored.
+* Bounds: (i) U also an event (end = quit); (ii) H also censored (end = censored).
+* Both bounds are run for every addendum survival result.
+* Uncertainty: the H / U split rests on the last 5-12 trials of a session and can misclassify a slow animal near its
+  end. That is why U exists and both readings are reported.
+
+**Consequence for earlier numbers:**
+* P1's per-session value (water at quit-or-end) does not depend on the reading; its INTERPRETATION does.
+* PS92 / PS93 pre values are time-censored LOWER BOUNDS (T), so their pre water / time is at least what is shown.
+* Where pre is H or Q the value is the quit itself.
+
+### A1. Licks per responded trial, normalised to each animal's own pre (ask 1)
+
+* Per session x spout: log2(value / that animal x spout's August-pre mean), with both sources:
+  * cam4 LP: `orofacial_cohort` `licks_per_resp`;
+  * DAQ: contacts in the task window on responded trials before the quit.
+* Canonical spout order; epochs. Per-animal table (animal x spout x epoch means) printed first.
+* Descriptive except ONE pre-specified contrast, **P8: chronic far-contra log2 ratio, cam4 LP source**, chronic vs
+  pre (`boot_delta`; each pre session's own log2 ratio, so pre is ~0 by construction).
+* Rule: P8 > 0 (Holm in family A, >= 3/4 animals) means far-contra responded trials carry more licks chronically
+  than the same animal's pre. DAQ is the sensitivity.
+* Figure: BEHAVIOUR, log2 ratio by spout and epoch, sessions as open markers, pooled filled, 0 line, both sources
+  side by side.
+
+### A2. Time to quitting, and water, as survival (ask 2)
+
+* Time = minutes from the session's first cue to quit onset (Q / H events) or to session end (censored).
+* Kaplan-Meier per animal x epoch, in MINUTES and in collected WATER, under the primary reading. The two bounds are
+  drawn as dashed curves. Censored ends are ticked and coloured by class (T / W / U).
+* **P5 (primary, family A): restricted engaged time min(time to quit-or-end, 90 min), early post (acute + subacute)
+  minus pre, `boot_delta`.**
+  * Why 90 min: post sessions end by rule at ~95-125 min, so a 90-min restriction compares equal observation windows
+    and removes the pre long-session policy confound that the unrestricted value carries.
+  * Every session except two is observed to 90 min; the two censored before 90 (PS92_0806 U at 83 min, PS94_0807 H
+    at 83 min) enter as their observed value under the primary reading and as 90 min under bound (ii).
+  * Secondary cells: acute, subacute, chronic. Unrestricted time to quit-or-end is descriptive, with PS92 / PS93 pre
+    marked as time-censored lower bounds on the figure.
+  * Rule: P5 < 0 (Holm, >= 3/4) means post animals stop working sooner within a common 90-min window.
+* P1 (water) is NOT re-tested. It is re-reported under the three readings and with the exact 80-min horizon (A3iii).
+* **Family A (Holm): {P5, P6, P8}.** P1 stays in the original family.
+
+### A3. Open items (ask 3)
+
+**(i) Running-regressed cortical level — P6 (primary, family A).**
+* Within each session: per-trial pre-cue level (detrended construction, minus RESTnl, each area) regressed on running
+  over the 2 s pre-cue window (mean speed and running fraction) plus the mean speed of the preceding 10 s, with a
+  QUIT-PERIOD INDICATOR in the same regression. The running coefficients are then estimated within state rather than
+  absorbing the state difference. Fit on all trials of the session.
+* Residual level = level minus the fitted running terms only. Then quit period [quit, +10 min] minus time-matched
+  engaged controls (same animal, same epoch), all quits pooled, exactly as P4. Global = `cortex`; areas secondary.
+* Rule:
+  * P6 < 0 (Holm, >= 3/4) confirms the post-hoc "still disengaged cortex sits below engaged".
+  * P6 > 0 means the still-trial result was a selection artefact and a raised level survives running removal.
+  * Null means no level difference once running is removed.
+* Sensitivity: the regression fitted on engaged trials only.
+
+**(ii) RESTW-reference sensitivity of P4, P6 and the still-trial measures.**
+* RESTW level per area from `iti_licks/precue_restw/<label>.npz` (`restw`, `restw_ok`; 107 files).
+* Descriptive: same sign and >= 3/4 means reference-robust.
+
+**(iii) Exact 80-min horizon.**
+* Re-detect quits with `precue_engagement_states.engagement_gate` on each record CUT at 80 min, as `quit_point
+  --horizon-min 80` does. Sessions shorter than 80 min are dropped.
+* Water at quit-or-80 and time at quit-or-80, early post minus pre. Sensitivity only; replaces the approximation of
+  deviation 7.
+
+### A4. TEST 4b — is quit-period running SELF-ACTIVATION to get back to licking? (Priya's hypothesis)
+
+The alternative is that running is a generic disengaged / exploratory state.
+* Running bouts: 1-s bins with mean speed > 3 mm/s, >= 2 s consecutive (gaps < 1 s merged).
+* Still periods: >= 2 s with every bin < 3 mm/s.
+* All within the quit period (quit onset to session end), unless stated.
+* Pooled over epochs (all quits; pre quits = PS93 1, PS94 4, PS95 6, PS92 0), with a post-only cell reported beside.
+
+**(1) RE-ENGAGEMENT — P7a.**
+* For each running bout and each still period in a quit period, take the NEXT trial whose cue falls after the period
+  ends, and ask whether it was responded (DAQ lick in the 3.5 s window).
+* Still periods are matched to bouts: same session, the still period nearest in time with duration >= the bout's.
+* Per session: P(responded | after running) minus P(responded | after still); `boot_delta(run, still)` paired within
+  animal; per-animal table first.
+* Secondary: the same with "any DAQ lick within 30 s of the period end", and a discrete-time hazard of the first
+  responded trial after the period.
+
+**(2) GAIN — P7b.**
+* Trials whose preceding 10 s (before the cue) contained >= 1 s of running vs trials whose preceding 10 s were fully
+  still.
+* Response probability (P7b), within QUIT periods, paired within animal.
+* Secondary: the same within ENGAGED periods (so the contrast is not just state); first-lick latency and the global /
+  orofacial cue response on the same split.
+
+**(3) SPECIFICITY — P7c.**
+* Per session, the z-scored (within-session SD) pre-cue level of each area regressed on pre-cue running speed (all
+  trials).
+* Orofacial excess = mean beta over ALM, tjM1, SSp-m, SSp-n (both hemispheres) minus mean beta over VISpm and RSPd
+  (both hemispheres).
+* P7c: excess > 0 over sessions, `boot_delta(orofacial betas, reference betas)` paired within animal.
+* Secondary: is the excess larger post than pre (`boot_delta`, early post vs pre; descriptive)?
+
+**(4) STROKE-SPECIFIC — descriptive only.**
+* Running fraction, bout rate and bout duration in quit periods: post quits vs the only pre quits (PS94 n = 4,
+  PS95 n = 6; PS93 n = 1, PS92 none).
+* At most 2-3 animals, so it cannot pass the 3/4 rule.
+
+**Family B (Holm, its own): {P7a, P7b, P7c}.**
+
+**Decision rule (Priya's, fixed in advance):**
+* SELF-ACTIVATION requires (P7a OR P7b) Holm-significant AND positive in >= 3/4 animals, AND P7c Holm-significant
+  and positive (orofacial excess).
+* Otherwise GENERIC disengagement. Two named partial outcomes:
+  * "running precedes re-engagement without an orofacial-specific activation": (1) or (2) passes, (3) does not;
+  * "running activates orofacial cortex preferentially but does not bring licking back": (3) passes, (1) and (2) do
+    not.
+* Limits:
+  * Quit-period responded trials are rare, so P7a / P7b may be thin; per-animal counts of periods and trials are
+    printed first, and a session needs >= 3 run and >= 3 still periods.
+  * Running and re-engagement can share a cause (a general arousal fluctuation); this design cannot separate
+    "running causes re-engagement" from "both follow arousal". No pupil.
+
+### A5. Figures planned (addendum)
+* BEHAVIOUR: normalised licks per responded trial (A1).
+* BEHAVIOUR: KM in minutes and in water per animal, primary reading + bounds (A2).
+* BEHAVIOUR: restricted engaged time by epoch + deltas (P5).
+* NEURAL: running-regressed quit-period level, global + areas, with RESTnl and RESTW versions (P6, A3ii).
+* BEHAVIOUR: 80-min horizon re-detection (A3iii).
+* BEHAVIOUR + NEURAL: Test 4b (re-engagement after run vs still; gain; orofacial-vs-reference running betas; pre vs
+  post quit running).
+* Figure defaults as before.
+
+### A6. Decisions for Priya
+1. The END CLASSIFICATION rule (A0) and its thresholds, especially whether PS92_0809 (H) and PS92_0806 / PS95_0813 (U)
+   are read correctly. Default: as above, bounds always shown.
+2. Restriction horizon for P5 = 90 min. Default 90 (the latest time nearly every session is observed).
+3. Test 4b pooled over epochs (all quits) with a post-only cell beside it. Default pooled; pre has only PS94 / PS95
+   quits.
