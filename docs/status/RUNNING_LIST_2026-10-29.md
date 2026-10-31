@@ -171,3 +171,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - 10-31: Priya GO on FaceRhythm pre-launch follow-up (Q1 which face part, Q2 timing vs jaw, Q3 recovery, Q4 within-spout pre, Q5 FR-partialled decoder offset). Two-stage helper (prereg first).
 - 10-31: face pre-launch follow-up DONE (FINDINGS 4.25, page S27, commit 9b2df881 + this): no timing-valid pre-launch face tracking (FR tracking = filter leak); docked ITI offset after FR partialling 0.23/0.17/0.24 vs 0.30/0.22/0.29 (PARTIAL; PS92 face-carried). Offset figure tick labels shortened.
 - 10-31: Priya GO on disengagement tests 1-4 (satiety, frustration / reward-rate threshold, fatigue, state); helper stage 1 (prereg) running. Per-animal compensation profile table proposed, not yet answered.
+- 10-31: disengagement tests DONE (page S28, FINDINGS): P1 satiety rejected (-290 ul at quit, 4/4), P2 / P3 n.s., P4 level rise = running; still level below engaged (post hoc).

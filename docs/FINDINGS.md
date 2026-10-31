@@ -883,6 +883,17 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   acute -0.24 (4/4) -> -0.08 n.s. target-aware; chronic within-spout +0.14 (4/4) = the CUED pattern; pre ENLv post-lick
   activity carries a target component (w 0.59-0.90). Working description (Priya OK 10-29): ENLv = cued-like target-coded balance + ITI-like
   persistent decoder offset. First ENLv lick: largest offset but mostly < 0.5 s after arrival. PROVISIONAL.
+- **DISENGAGEMENT tests 1-4 (10-31, pre-registered `docs/status/DISENGAGEMENT_PREREG_20261031.md`, `scripts/disengagement_tests.py`,
+  page S28):** quitting sooner post-stroke is clear only in PS92 / PS93 (pre quits 0/8, 1/8; PS94 / PS95 4/8, 6/8). Holm over
+  P1-P4, primary epoch early post. P1 SATIETY: collected water at quit / session end early post -290 ul [-428, -154], Holm
+  .001, 4/4 (acute -327, subacute -210, chronic -53 n.s.), slower accrual, weight -5 % -> NOT satiety at the old level; the
+  quit threshold moved (motivation / malaise vs lowered set-point undecided). P2 FRUSTRATION (far-contra block lapses)
+  +0.037 n.s.; giving-up rate mixed. P3 FATIGUE n.s. (bouts shorten before quits, tongue does not slow). P4 STATE: global
+  pre-cue level quit minus time-matched engaged +3.65 [+1.85, +5.30], Holm .001, 4/4 -- BUT running rises 4/4 and on
+  still pre-cue windows the level is BELOW engaged, -7.2 [-10.3, -4.3], 4/4 (post hoc). Cue response falls at, not before,
+  the quit; no prodrome in cortex / face / running. No pupil. Open: RESTW sensitivity, running-regressed level, exact
+  80-min horizon re-run. **PROVISIONAL (n = 4).**
+- CAVEAT 10-31 to the next line: the raised stopped-trial level is largely RUNNING (disengagement tests P4, post hoc).
 - Stopped-trial traces 10-29 (page Fig 14.21 S11, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
   lick) trials have NO cue-evoked response in any area / epoch, only a flat level above restw (~4-12 x1e3); miss_working a
   small cue bump. Stopped reaches only 3 animals per epoch (animal set changes; PS93 pre 40 trials). Engaged jaw-no-lick

@@ -341,8 +341,156 @@ carry an upward tick (lower bound).
 
 ## Outcome
 
-*(stage 2 — not yet run)*
+**Stage 2 run 2026-10-31** (`scripts/disengagement_tests.py`; outputs
+`<v36>/imaging_encoding/disengagement/{sessions,tables,figdata,figures}`). 108 sessions behaviour, 107 imaging
+(PS93_0813 has no imaging input row). PROVISIONAL, n = 4. Per-animal tables are in the run log and `tables/`.
+
+### Primary family (Holm over P1-P4)
+
+| test | estimate [95 % CI] | Holm p | per animal (PS92 / 93 / 94 / 95) | verdict vs rule |
+|---|---|---|---|---|
+| P1 collected water at quit-or-end, early post - pre | **-290 µl [-428, -154]** | **0.001** | -160 / -349 / -259 / -392 (4/4 < 0) | **SURVIVES: not the same satiety point** |
+| P2 lapse after far-contra block - after other block, early post - pre | +0.037 [-0.014, +0.092] | 0.27 | +0.059 / +0.023 / +0.013 / +0.054 (4/4 > 0, small) | not supported |
+| P3 within-bout deceleration, prodrome - time-matched control, ms | -5.6 [-15.2, +3.6] | 0.27 | -8.9 / +2.0 / +1.4 / -17.0 (2/2 split) | null: no fatigue prodrome |
+| P4 global pre-cue level (RESTnl), quit period - time-matched control | **+3.65 [+1.85, +5.30]** | **0.001** | +2.1 / +3.5 / +5.1 / +3.9 (4/4 > 0) | survives as tested, **but it is running (post hoc, Test 4)** |
+
+### Test 1 — satiety: quitting is NOT satiety at the pre-stroke water level
+
+Mean collected water at quit-or-end, µl (PS95 acute = 1 censored session):
+
+| animal | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| PS92 | 712 | 561 | 532 | 644 |
+| PS93 | 1010 | 564 | 796 | 960 |
+| PS94 | 988 | 538 | 957 | 1050 |
+| PS95 | 1160 | 908 | 753 | 1020 |
+
+* Early post -290 µl, 4/4 animals. Acute -327 [-476, -178] (4/4), subacute -210 [-382, -45] (4/4), chronic -53 n.s.
+  (back near pre).
+* The shortfall holds where pre has real quits (PS94 4/8 and PS95 6/8 pre quits), not only through the censoring
+  argument.
+* Collected water ACCRUES SLOWER acutely: -2.1 µl/min [-3.9, -0.3]; 3/4 animals, PS92 +0.4. Satiety would then predict
+  LATER quits, but the quits come earlier.
+* Body weight is lower after the stroke: -4.8 % of August pre in the early post period [-6.3, -3.3], 4/4, and -5.7 %
+  chronically. Lighter, if anything thirstier, animals quit after LESS water.
+* Sensitivities:
+  * Delivered water: early -180 [-329, -24]; acute alone n.s.
+  * **80-min common horizon is WEAKER: early -105 [-232, +15], 3/4 (PS92 +24).** Inside the first 80 min the water
+    collected differs less, because most post quits fall at 70-100 min.
+* **Reading (PROVISIONAL):** post-stroke animals stop after collecting ~30 % less water than they took without
+  quitting pre, while gaining water more slowly and weighing less. Satiety at an unchanged set-point does not
+  explain the quit. Per the rule, the threshold moved. This test cannot separate malaise / motivation from a lowered
+  satiety set-point.
+
+### Test 2 — frustration / reward rate: not supported; threshold test inconclusive
+
+* P2: 4/4 positive but small, CI spans 0.
+* Acute cell 4/4 positive (+0.002 to +0.085); subacute and chronic ~0 or negative. The 2.0 s scoring gives the same
+  picture.
+* Lapses rise acutely after EVERY non-reference block: after a far-contra block 0.10-0.18 vs pre 0.003-0.10; after
+  other blocks 0.07-0.14 vs pre 0.007-0.024. This is general disengagement, not specific to failure runs.
+* Quit-triggered far-contra exposure (16 trials before the quit, minus that session's schedule): no consistent sign.
+  Quits do not follow far-contra runs.
+* Lapse logistic (descriptive):
+  * The far-contra exposure coefficient is NEGATIVE in every acute cell (-0.5 to -0.8).
+  * Recent contra failures are positive acutely (+0.3 to +1.4), but those are endogenous.
+  * Local reward rate is negative almost everywhere, including pre (circular).
+* **Foraging threshold:** each animal's post-stroke giving-up rates against its pre-stroke working distribution:
+
+  | animal | share of post quits at / above the pre 5th percentile | median pre percentile |
+  |---|---|---|
+  | PS92 | 0.8 | 74 |
+  | PS93 | 1.0 | 41 |
+  | PS94 | 0.5 | 4.5 |
+  | PS95 | 0.5 | 4.3 |
+
+  Two animals quit while earning at rates they worked through pre; two sit at their pre floor. **Mixed, so no
+  conclusion per the rule**; PS92 / PS93 point to a moved threshold.
+
+### Test 3 — motor fatigue: no motor slowing before the quit
+
+* P3 null (2/2).
+* Rate-matched controls: -3.5 n.s. Any-epoch controls: -2.0 n.s.
+* Within-bout ILI is SHORTER before the quit: -6.1 ms [-11.2, -1.1], 4/4.
+* Licks per bout are fewer: -1.5 [-2.9, -0.1], 3/4 (PS92 +0.2); the trajectories show them falling over the last
+  ~10 min.
+* First-lick latency n.s.
+* Caveat: shorter bouts end before their late, slower intervals, so a shorter median ILI can be bout length rather
+  than a faster tongue.
+* **Reading (per the rule): the prodrome is disengagement (shorter bouts / fewer licks), not a slower tongue;**
+  fatigue is not the terminator.
+
+### Test 4 — the state: active (running), not quiescent; cortex does not disengage before the stop
+
+* **Movement:**
+  * Running is up in the quit period, 4/4: speed +2.1 mm/s [+1.3, +3.3], running fraction +0.17 [+0.10, +0.28].
+  * FaceRhythm "other" factors n.s. (2/4); all factors n.s.
+  * Per the rule: **active disengagement (doing something else: running)**, not quiescent / low-arousal.
+* **Cortex:**
+  * P4 +3.65 (4/4), any-epoch controls +5.6 (4/4). Bilateral in every orofacial area, 4/4: contra tjM1 / ALM / SSp-m /
+    SSp-n +3.8 / +2.7 / +5.3 / +5.0, ipsi +3.4 / +2.6 / +5.8 / +5.4. VISpm / RSPd are 3/4 (PS92 negative), n.s.
+  * The no-basis within-session version is n.s.: +2.5, 3/4, PS95 -3.5.
+  * **POST HOC (deviation 6):** on pre-cue windows with NO running the sign REVERSES: -7.2 [-10.3, -4.3], 4/4
+    (-11.2 / -5.4 / -8.4 / -4.0). It is the same with no pre-cue lick as well (-7.3, 4/4).
+  * **So the raised quit-period level of the stopped-trial traces is the running that comes with the quit. When the
+    animal is still, the disengaged cortex sits BELOW its engaged, time-matched level.**
+  * Trial-to-trial SD of the pre-cue level is up +9.3 [+6.3, +12.4], 4/4, and 0.01-0.05 Hz global power is up 4/4
+    although evoked responses stop. Both are likely helped by running bouts; not read alone.
+* **Before the quit:**
+  * The cue response does not decline: prodrome -0.7 n.s., 2/4. The trajectory is flat until the quit, then drops at
+    once.
+  * Pre-cue level, running and face are unchanged in the 10 min before.
+  * Per the rule: **cortex loses the cue response together with the behavioural stop, not before it.**
+* No pupil measure exists, so arousal is not claimed.
+
+### Synthesis (PROVISIONAL, n = 4)
+
+After the stroke, animals stop working after less water than they collected without stopping before, while
+thirstier (lower weight) and while earning water more slowly. Satiety at the old set-point is excluded.
+
+* Failure runs at the deficit spout do not trigger the quit.
+* No motor slowing precedes it: bouts shorten, the rhythm does not slow.
+* Two of four animals quit while still earning at rates they worked through pre-stroke.
+* The quit state is ACTIVE: the animal runs. The raised cortical level seen on stopped trials is that running; still
+  disengaged cortex is lower than engaged.
+
+The data favour a moved quitting threshold (motivation / malaise / state) over satiety, frustration or fatigue as
+the terminator. It is back near pre chronically (P1 chronic n.s.).
+
+**Licks per responded trial (descriptive figure):** chronic is higher than pre at every spout in both sources (cam4 LP
+and DAQ contacts). Acute far contra is lowest (LP ~3 vs pre ~8.5).
 
 ## Deviations
 
-*(dated entries appended in stage 2)*
+**2026-10-31 (stage 2).** All were decided before the primary numbers were read, except 6.
+1. **P4 construction.** The prereg made the no-extra-basis trace primary with RESTnl as reference. RESTnl's level
+   exists only for the 600-s-detrended construction (`restw_strict_check` builds it on that trace), so subtracting it
+   from a no-basis trace mixes constructions. PRIMARY therefore uses the detrended trace (RESTnl-consistent, = the
+   stopped-trial-traces construction). The no-basis trace is the sensitivity, referenced within session to its own
+   engaged pre-cue level of the first 30 min, as a difference against controls. The basis can absorb part of a
+   10-min step, so the primary is if anything conservative.
+2. RESTW sensitivity not run (RESTnl is the adopted reference); open.
+3. ROI v8 has no `VISp_left` (blanked edge area), so **VISpm** (both hemispheres) replaces VISp as the visual
+   reference. RSP = RSPd.
+4. PS93_0813 has no imaging-input row (`KeyError` in the split table), so it is dropped from the Test 4 imaging
+   measures only. It has no FaceRhythm video either (known).
+5. Water volumes: DAQ deliveries equal the events.csv reward rows in 99/108 sessions, and the volume sum then equals
+   the GUI `water_ul` to < 1 %. In the 9 mismatches (incl. PS92_0812 concat, PS95_0827) each delivery takes the
+   session's mean nominal volume.
+6. **POST HOC (exploratory, labelled on the figure):** `level_still` (pre-cue windows with every 1-s treadmill bin
+   < 3 mm/s) and `level_quiet` (also no DAQ lick in the 2 s before the cue). Added AFTER seeing running up 4/4,
+   because locomotion raises widefield dF/F globally. Not in the Holm family. It reverses the reading of P4. It
+   needed a behaviour re-extract (`BEH_VERSION` 2: + `n_pre2`). All primary numbers were identical after it.
+7. The 80-min horizon sensitivity counts a quit only if onset <= 80 min. It does not re-run the detector on the
+   truncated record (`quit_point --horizon-min` does), so it is an approximation.
+8. Bout measures use the post-cue licks inside the task window only (bout gap 0.5 s; deceleration on bouts >= 6 licks,
+   last-third minus first-third median ILI). Prodrome ILI = mean of per-trial medians (trials >= 4 licks).
+9. Trajectory bins (5 min) require each control to be engaged through the END of that bin. The quit period uses
+   [quit, quit + 10 min] cut at session end, needing >= 5 min.
+10. FaceRhythm "between trials" excludes [cue - 0.5, cue + 4 s] and lossy samples, in 10-s bins.
+11. Lapse logistic: sklearn, effectively unpenalised (C = 1e6), standardised covariates, cells with >= 10 lapses and
+    >= 10 non-lapses.
+12. The giving-up rate is also computed for pre quits (drawn, descriptive). The pre working distribution = 5-min
+    collected rate at every trial >= 5 min into a session and before any quit, all August pre sessions.
+13. P3 / P4 figures pool epochs, so they use an animal-shape legend with a black pooled marker (no epoch colour).
+    "+" marks a secondary cell whose 95 % CI excludes 0; "*" marks only a Holm-significant primary.

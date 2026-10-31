@@ -91,7 +91,7 @@ OPEN (Priya to decide; asked, no answer yet):
    timing vs jaw onset, recovery time course, within-spout pre, and Q5 = FR partialled out of cortex -> does the frozen-DECODER
    OFFSET change? (Answer given to Priya, UNREVIEWED: FR partialling was done for the SSp-n L/R term (unchanged) and inside
    the frozen encoder, but NOT on the decoder offset itself.)
-1d. **RUNNING 10-31: disengagement tests 1-4** (Priya GO): 1 satiety (water before quit), 2 frustration / local reward
+1d. **DONE 10-31 (FINDINGS 0b disengagement line, page S28; UNREVIEWED): not satiety (stop after -290 ul less water, 4/4), not frustration, not fatigue; quit state = running, still cortex BELOW engaged (post hoc). Primary epoch early post chosen by me (unreviewed). Open: RESTW sensitivity, running-regressed level, exact 80-min horizon.** Was: disengagement tests 1-4 (Priya GO): 1 satiety (water before quit), 2 frustration / local reward
    rate threshold, 3 motor fatigue predicting the quit, 4 state of the quit period (face / running / cortical pre-cue level +
    slow fluctuations; pupil availability check). Two-stage helper; prereg docs/status/DISENGAGEMENT_PREREG_20261031.md,
    script scripts/disengagement_tests.py, outputs E/disengagement/. Plus a licks-per-responded-trial figure (claim had none).
