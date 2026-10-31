@@ -91,6 +91,14 @@ OPEN (Priya to decide; asked, no answer yet):
    timing vs jaw onset, recovery time course, within-spout pre, and Q5 = FR partialled out of cortex -> does the frozen-DECODER
    OFFSET change? (Answer given to Priya, UNREVIEWED: FR partialling was done for the SSp-n L/R term (unchanged) and inside
    the frozen encoder, but NOT on the decoder offset itself.)
+1d. **RUNNING 10-31: disengagement tests 1-4** (Priya GO): 1 satiety (water before quit), 2 frustration / local reward
+   rate threshold, 3 motor fatigue predicting the quit, 4 state of the quit period (face / running / cortical pre-cue level +
+   slow fluctuations; pupil availability check). Two-stage helper; prereg docs/status/DISENGAGEMENT_PREREG_20261031.md,
+   script scripts/disengagement_tests.py, outputs E/disengagement/. Plus a licks-per-responded-trial figure (claim had none).
+   UNREVIEWED answers given 10-31: differential compensation (lesion-group pattern, PS94 least recovered, PS92 offset
+   face-carried; per-animal profile table proposed, no answer yet); neural correlate of recovery (orofacial post-lick
+   balance: cued marker largely landing error via target; ITI shift genuine within-animal, partial; post-movement state,
+   no lead); figure sources for "compensate not restore" (S21, FR 5d / items 2,4,6, OROFACIAL item 7).
 2. Figures for text-only S2 / S11 / S16? 3. Collapse S3 into the offset section? 4. Publish reembed frozen refs (local
    store, kind `reembed`) to MICROSCOPE? 5. New re-embedding prereg with spout-resolving label-free alignment?
 6. Cohort-2 design (longer pre baseline; perturbation arm) -- viral lead time means decide soon.
