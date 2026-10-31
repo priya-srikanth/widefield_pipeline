@@ -1471,6 +1471,11 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     FACE CONFOUND: FaceRhythm pre-launch decodes angle r 0.44-0.52 and TRACKS acutely 0.49 [0.24, 0.80] (4/4); neural
     features residualised on face calibrate in no animal. -> no cortical pre-launch aim signal visible in widefield; the
     face already moves in the deviated direction before launch. NOT ESTABLISHED.
+    CAVEAT (10-31, found while pre-registering the face follow-up): FaceRhythm factors are VQT outputs with centred Hann
+    filters of length Q(f)/f (Q 4 -> 20 over 1-60 Hz); at the lick frequencies (5.8-8.2 Hz) they reach +/-0.56-0.69 s
+    (half-height +/-0.28-0.34 s), so EVERY pre-launch FR bin (and part of the baseline) contains movement from at / after
+    tongue onset. The FR tracking (0.49) may be the launch smeared backwards in time -> NOT a pre-launch face result
+    until the timing-valid measures (face-point PCs, cam4 jaw) confirm it (face follow-up prereg 10-31).
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
