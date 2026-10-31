@@ -893,6 +893,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   still pre-cue windows the level is BELOW engaged, -7.2 [-10.3, -4.3], 4/4 (post hoc). Cue response falls at, not before,
   the quit; no prodrome in cortex / face / running. No pupil. Open: RESTW sensitivity, running-regressed level, exact
   80-min horizon re-run. **PROVISIONAL (n = 4).**
+  ADDENDUM 10-31 (pre-registered A0-A7, page S28d2-g): P1's water shortfall is partly SESSION LENGTH (pre ran to ~150 min,
+  post stopped at 100 trials / spout or 120 min): exact 80-min re-detection -105 ul [-225, +10], 3/4 -> satiety NOT rejected
+  on equal-length data. Minutes to quit (capped 90) -5.6 [-14.3, +0.7] Holm .18 (80-min: -4.5, 4/4); trials capped 300 null;
+  responded trials to quit-or-end -146, 4/4. P6 running-regressed quit-period level -7.8 [-11.3, -4.2], Holm .001, 4/4
+  (RESTW -7.4) = CONFIRMS still disengaged cortex below engaged; mainly RSPd / VISpm (+ ALM), orofacial ~0. Test 4b
+  (Priya: running = self-activation of orofacial cortex?) NOT supported: no re-engagement / response gain after running,
+  orofacial < reference running effect (4/4), running lowers engaged responding (-0.11, 4/4) -> generic disengagement.
+  Licks / responded trial vs own pre per spout: acute far contra ~1/3 (4/4); chronic far contra +0.23 log2 (Holm .018, 4/4,
+  cam4) but not in DAQ contacts (-0.01). Session-end classes for Priya: disengagement/tables/a0_end_class.csv.
 - CAVEAT 10-31 to the next line: the raised stopped-trial level is largely RUNNING (disengagement tests P4, post hoc).
 - Stopped-trial traces 10-29 (page Fig 14.21 S11, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
   lick) trials have NO cue-evoked response in any area / epoch, only a flat level above restw (~4-12 x1e3); miss_working a

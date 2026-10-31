@@ -664,3 +664,134 @@ The alternative is that running is a generic disengaged / exploratory state.
 2. Restriction horizon for P5 = 90 min. Default 90 (the latest time nearly every session is observed).
 3. Test 4b pooled over epochs (all quits) with a post-only cell beside it. Default pooled; pre has only PS94 / PS95
    quits.
+
+### A7 (10-31, added before P5 results were seen) — counting in TRIALS
+
+Priya, 10-31: the post-stroke stopping rule was 100 trials PER SPOUT or 120 min, whichever came first. Written after
+the addendum code existed but BEFORE `addendum` was run, so no P5 / A2 number had been seen. The only data looked at
+was the trial-count distribution, to choose the cap:
+
+| | trials per session (min / median / max) |
+|---|---|
+| pre | 225 / 550 / 871 |
+| acute | 452 / 600 / 720 |
+| subacute | 268 / 600 / 691 |
+| chronic | 270 / 530 / 600 |
+
+Every PS92 session is time-censored at 225-443 trials: a licky animal with many ENL violations, so trials are slow.
+
+1. **TRIALS TO QUIT** = trials from the first cue to quit onset (or session end). Counted as ALL trials (primary), and
+   RESPONDED trials (secondary).
+   * **Common cap = 300 trials.** The post trial cap (600) is not reached by PS92 in any session, and 300 is the
+     largest round cap that nearly every censored session reaches.
+   * Five sessions are censored below 300: PS92_0812 (225, crash + concat), PS92_0826 (268), PS92_0929 (272),
+     PS92_1002 (270), PS92_1006 (285). They enter at their observed count (a lower bound) in the primary reading and
+     at 300 in the bound.
+   * The A0 classes and readings apply unchanged.
+2. **Post-session end classes**, from the logs. Each post session end is classified as follows; the class goes into
+   the session-class table (`tables/a0_end_class.csv`, column `post_end`) with the per-spout counts:
+   * **quit**: a detected quit.
+   * **trial-cap**: `target_trials_reached`, or every spout >= 100 trials. Censored at the trial cap ("task
+     completed").
+   * **120-min limit**: `max_duration_reached`, or a manual stop at >= 118 min. Time-censored.
+   * **other**: anything else.
+
+   "quit" can co-occur with an end by rule; the quit wins and the stop rule is recorded beside it.
+3. **P5 is reported in minutes AND trials side by side.** Kaplan-Meier also in trials.
+   * **P5t (trials to quit, capped at 300, early post minus pre) is a CO-PRIMARY. Family A becomes Holm over FOUR:
+     {P5 (minutes), P5t (trials), P6, P8}.** Same rule as P5 (< 0, Holm, >= 3/4).
+   * Decided now because the post stopping rule is trial-based and pre / post sessions differ in trial pace.
+     Minutes and trials can disagree; both are reported and neither overrides the other.
+4. **Per-spout trial progress** at the quit (or end): the fraction of 100 trials reached per spout, canonical order,
+   by epoch. Descriptive.
+
+### Addendum outcome (run 2026-10-31)
+
+`scripts/disengagement_tests.py addendum` (`plot-addendum` redraws from `figdata/disengagement_addendum.pkl`). Tables
+in `disengagement/tables/`: `a0_end_class.csv` (per-session class + post end + per-spout counts, FOR PRIYA'S REVIEW),
+`a2_time_water.csv`, `a3iii_h80.csv`, `a1_log2_*`, `a3_*_pairs.csv`, `t4b_*`, `addendum_families.csv`,
+`addendum_all_contrasts.csv`. PROVISIONAL, n = 4.
+
+**A0.** August pre ends: Q 11, T 16, H 2 (PS92_0809, PS94_0807), U 2 (PS92_0806, PS95_0813), W 1. Every PS92 and PS93 pre
+session is T except PS92_0809 (H), PS92_0806 (U) and PS93_0814 (Q). Post ends (76 sessions): 37 quit (the session then
+stopped at the trial cap in 30, at 120 min in 5, other 2), 26 censored at the 120-min limit (incl. manual stops >= 118
+min), 13 censored at the trial cap (task completed).
+
+**Family A (Holm over 4):**
+
+| test | estimate [95 % CI] | Holm p | per animal (PS92 / 93 / 94 / 95) | verdict |
+|---|---|---|---|---|
+| P5 minutes engaged, capped at 90, early post - pre | -5.6 [-14.3, +0.7] | 0.18 | -0.6 / -3.2 / -1.6 / -17.2 (4/4 < 0, mostly small) | not significant |
+| P5t trials, capped at 300 | -1.3 [-8.5, +7.1] | 0.70 | +4.8 / 0 / -6.8 / -3.4 | null: the cap is too low (most quits come after 300 trials) |
+| P6 running-regressed quit-period level | **-7.8 [-11.3, -4.2]** | **0.001** | -11.7 / -5.1 / -10.0 / -4.3 (4/4) | **CONFIRMS: still disengaged cortex sits below engaged** |
+| P8 chronic far-contra licks / responded, log2 vs own pre (LP) | **+0.23 [+0.04, +0.50]** | **0.018** | +0.08 / +0.13 / +0.06 / +0.63 (4/4) | survives (LP source only) |
+
+**A1 (licks per responded trial, own-pre normalised).**
+* Acute: below pre at every spout. Far contra is lowest: LP log2 -1.45 to -1.85, i.e. ~1/3 of pre.
+* Subacute / chronic: above pre at most spouts. Chronic close mid +0.17 to +0.74, far mid -0.29 to +0.90 (LP).
+* P8 (LP) 4/4 positive but small except PS95.
+* **DAQ far contra chronic: -0.01 n.s. (PS94 -0.78)** — the chronic far-contra excess is in video licks, not in
+  spout contacts.
+
+**A2 / A7 (time, water, trials).**
+* Uncapped time to quit-or-end: early -27 min, 4/4. This is policy-confounded: pre sessions ran to 150 min and PS92 /
+  PS93 pre are time-censored lower bounds.
+* Within a common 90-min window: P5 is not significant. Most sessions in every epoch reach 90 min engaged; PS95
+  subacute (-20 min) and PS94 acute (-6) carry it.
+* Exact 80-min horizon: -4.5 min [-9.7, -0.8], 4/4 negative (sensitivity).
+* Trials: P5t null at the 300 cap. Uncapped trials: early -69 n.s.; subacute -90 [-177, -20], 4/4.
+* Responded trials to quit: early -146 [-214, -84], 4/4. This includes the motor deficit (unanswered far-contra
+  trials), so it is not a pure engagement measure.
+* Per-spout progress at the quit is even across spouts in every epoch. The quit is not selective for any spout, and
+  post sessions mostly end below 100 per spout.
+* **Reading:** in a common window, time engaged is only modestly shorter after the stroke. Most of the "quit faster"
+  impression in minutes comes from the longer pre sessions. **The robust difference is in water: P1 -290 µl.**
+* P1 re-read:
+  * Under A0, PS92 / PS93 pre water values are lower bounds (T), so their shortfall is conservative.
+  * PS94 / PS95 have exact pre quits and show the same shortfall.
+  * The exact 80-min horizon gives -105 µl [-225, +10] (3/4 negative; PS92 +22), i.e. weaker within 80 min, as
+    before.
+
+**A3.**
+* (i) P6 confirms the still-trial result with a proper regression: -7.8 global, 4/4. Engaged-only fit -10.9, 4/4.
+* Per area (running-regressed):
+  * the drop is in posterior / medial cortex: VISpm -6.9 / -7.5, RSPd -11.0 / -10.4, 4/4 each;
+  * plus ALM: -2.6 contra, -2.4 ipsi, 4/4;
+  * tjM1, SSp-m and SSp-n are ~0 (PS92 positive, others small negative).
+* So the disengaged state, net of running, is a lower level mostly OUTSIDE the orofacial areas.
+* (ii) RESTW gives the same picture: raw +4.0 (4/4), running-regressed -7.4 (4/4), still -6.1 (4/4).
+* (iii) The exact 80-min re-detection finds few quits inside 80 min (pre 2 / 30, early post 11 / 33). Results above.
+
+**Test 4b (family B, Holm over 3):**
+
+| test | result | Holm p | per animal |
+|---|---|---|---|
+| P7a re-engagement after run - after still | -0.011 [-0.048, +0.032] | 0.93 | ~0 in all |
+| P7b response after running in prior 10 s - after still, quit periods | -0.018 [-0.068, +0.028] | 0.93 | 3/4 < 0 |
+| P7c orofacial - reference running beta | -0.17 [-0.36, +0.02] | 0.23 | 4/4 NEGATIVE |
+
+* Running raises reference cortex (VISpm / RSPd) MORE than orofacial cortex, i.e. the opposite of the
+  self-activation prediction.
+* Within ENGAGED periods, running before the cue LOWERS the chance of responding: -0.23 [-0.37, -0.08] in quit
+  sessions; -0.11 [-0.20, -0.03] over all sessions, 4/4. It also lengthens latency (+0.27 s).
+* The orofacial-minus-reference excess is less negative post than pre (+0.09, 4/4, CI just includes 0).
+* Running in quit periods is no higher post than in the PS93 / PS94 / PS95 pre quits (running fraction pre
+  0.14-0.28, post 0.06-0.33).
+* **Verdict (Priya's rule): GENERIC DISENGAGEMENT. Neither partial outcome holds.** Running does not bring licking
+  back, competes with it when engaged, and does not preferentially activate orofacial cortex.
+
+### Addendum deviations (2026-10-31)
+
+1. A7 was added after the addendum code existed and before it was run. The trial cap (300) was chosen from the
+   trial-count distribution only.
+2. The 4b "any DAQ lick within 30 s" and discrete-time hazard secondaries were not run: lick times are not in the
+   per-session cache, and the primary uses responded trials.
+3. The 4b matched still window = a still stretch of the bout's duration, ending >= 5 s before its still period ends
+   (otherwise a still period's end is by definition a running onset), nearest in time to the bout. Next trial within
+   60 s.
+4. P6's 10-s speed term covers [cue - 12, cue - 2] s (the 10 s before the 2-s pre-cue window).
+5. P7c uses all trials of each session with finite pre-cue speed and levels (>= 30), slope of z-level on speed.
+6. 4b descriptive (4) is drawn per session by epoch (pooled marker per epoch); pre = PS93 1, PS94 4, PS95 6 quits
+   (PS92 none).
+7. Figures: KM censor ticks are now placed on the step value; the t1 KM figure from the main run had the same
+   placement error (ticks floating between steps) and was redrawn.

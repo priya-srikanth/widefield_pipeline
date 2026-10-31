@@ -1086,7 +1086,7 @@ def plot(FD=None):
             ax[i].step(np.append(k["x"], xm), np.append(k["y"], k["y"][-1]), where="post", color=EL[ep], lw=1.6,
                        label=ep)
             if k["cens_x"].size:
-                yv = np.interp(k["cens_x"], k["x"], k["y"], right=k["y"][-1])
+                yv = k["y"][np.searchsorted(k["x"], k["cens_x"], side="right") - 1]   # step value, not linear
                 ax[i].scatter(k["cens_x"], yv, marker="|", color=EL[ep], s=40)
         ax[i].set_title(an, fontsize=10)
         ax[i].set_xlabel("cumulative collected water, µl")
@@ -1238,12 +1238,691 @@ def plot(FD=None):
     _save(fig, "licks_per_responded_trial")
 
 
+# =============================================================================================== ADDENDUM 10-31
+# Pre-registered in the prereg's "ADDENDUM 10-31 (follow-up)" (A0-A6) BEFORE it was run. Family A (Holm) = {P5, P6,
+# P8}; family B (Holm) = {P7a, P7b, P7c}. Uses only the per-session caches written by `extract`.
+OROF = ("tjM1_right", "ALM_right", "SSp-m_right", "SSp-n_right", "tjM1_left", "ALM_left", "SSp-m_left", "SSp-n_left")
+REFC = ("VISpm_right", "VISpm_left", "RSPd_right", "RSPd_left")
+CAP_S = 5400.0                           # P5 restriction (90 min)
+H80_S = 4800.0
+CAP_TR = 300                             # A7 common trial cap
+POS_ORDER_CANON = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")
+UNCANON = {v: k for k, v in CANON.items()}
+
+
+def end_class(s) -> dict:
+    """A0 rule: Q detected quit | W water limit | T rule / time | H hand-stopped at a collapse | U unknown."""
+    T = s["trials"]
+    R = T[T.pos.isin(REF)]
+    last5 = float(R.tail(5).hit.mean()) if len(R) else np.nan
+    trail = 0
+    for h in R.hit.to_numpy()[::-1]:
+        if h:
+            break
+        trail += 1
+    all12 = float(T.tail(12).hit.mean())
+    term = s["term"] or ""
+    manual = not any(x in term for x in ("max_duration_reached", "target_trials_reached", "water_limit_reached"))
+    if not s["censored"]:
+        c = "Q"
+    elif "water_limit_reached" in term:
+        c = "W"
+    elif not manual or s["label"] == "PS92_0812":
+        c = "T"
+    elif (last5 <= 0.4) or (trail >= 2) or (all12 <= 0.5):
+        c = "H"
+    elif last5 >= 0.8 and trail == 0:
+        c = "T"
+    else:
+        c = "U"
+    # A7: post-session end class from the logs (100 per spout or 120 min, whichever first)
+    per = T.pos.value_counts()
+    capped = ("target_trials_reached" in term) or (len(per) == 6 and int(per.min()) >= 100)
+    timed = ("max_duration_reached" in term) or (manual and s["dur"] >= 118 * 60)
+    stop = "trial-cap" if capped else ("120-min limit" if timed else "other")
+    post_end = ("quit" if not s["censored"] else stop) if s["epoch"] != "pre" else ""
+    return dict(label=s["label"], animal=s["animal"], epoch=s["epoch"], end_class=c, post_end=post_end,
+                stop_rule=stop, manual_stop=int(manual),
+                term=term or "manual", dur_min=round(s["dur"] / 60, 1),
+                quit_min=round(s["quit_t"] / 60, 1) if not s["censored"] else np.nan,
+                n_trials=len(T), ref_last5=round(last5, 2), trailing_ref_miss=trail, all_last12=round(all12, 2),
+                **{f"n_{p}": int(per.get(p, 0)) for p in CANON.values()})
+
+
+def _redetect(T, cut_s):
+    """Quit onset on the record cut at cut_s (the `quit_point --horizon-min` logic; detector unchanged)."""
+    from wfield_local.precue_engagement_states import engagement_gate
+    C = T[T.t <= cut_s]
+    if len(C) < 10:
+        return None
+    ne = np.asarray(engagement_gate(C.order.to_numpy(), C.hit2.astype(bool).to_numpy(),
+                                    np.array([UNCANON.get(p, p) for p in C.pos])), bool)
+    if not ne.any():
+        return dict(censored=True, k=len(C))
+    k = len(ne)
+    while k > 0 and ne[k - 1]:
+        k -= 1
+    if k == 0 or k >= len(C):
+        return None
+    return dict(censored=False, k=k, t=float(C.t.iloc[k]))
+
+
+def _run_bins(sess):
+    r = sess["run"]
+    return (r["mean"], r["frac"]) if "t" in r else (None, None)
+
+
+def _bin_mean(arr, a, b):
+    if arr is None:
+        return np.nan
+    i0, i1 = int(max(np.floor(a), 0)), int(max(np.floor(b), 0))
+    x = arr[i0:i1]
+    x = x[np.isfinite(x)]
+    return float(x.mean()) if x.size else np.nan
+
+
+def _prep_imaging(B, I):
+    """Per-trial arrays for P6 / RESTW / P7c, stored into I[label]."""
+    import iti_licks as il
+    for lab, im in I.items():
+        s = B.get(lab)
+        if s is None:
+            continue
+        cue_t = im["cue_s"] - im["cue_s"][0]
+        sp, fr = _run_bins(s)
+        sp2 = np.array([_bin_mean(sp, c - 2, c) for c in cue_t])
+        fr2 = np.array([_bin_mean(fr, c - 2, c) for c in cue_t])
+        sp10 = np.array([_bin_mean(sp, c - 12, c - 2) for c in cue_t])
+        q = (cue_t >= s["quit_t"]) if not s["censored"] else np.zeros(cue_t.size, bool)
+        lev = im["pre_b"] - im["lev"][None, :] if bool(im["lev_ok"]) else np.full_like(im["pre_b"], np.nan)
+        im["lev_nl"] = lev
+        im["sp2"], im["q"] = sp2, q
+        # RESTW reference
+        try:
+            z = np.load(il.OUT / "precue_restw" / f"{lab}.npz")
+            cs = [str(c) for c in z["cols"]]
+            rw = np.array([float(z["restw"][cs.index(a)]) if a in cs else np.nan for a in AREAS])
+            ok = bool(np.asarray(z["restw_ok"]).all()) if np.asarray(z["restw_ok"]).size else False
+            im["lev_rw"] = im["pre_b"] - rw[None, :] if ok or np.isfinite(rw).all() else np.full_like(lev, np.nan)
+        except Exception:                                              # noqa: BLE001
+            im["lev_rw"] = np.full_like(lev, np.nan)
+        for src, dst in (("lev_nl", "res_nl"), ("lev_rw", "res_rw")):
+            Y = im[src]
+            Xr = np.column_stack([sp2, fr2, sp10])
+            ok = np.isfinite(Xr).all(1) & np.isfinite(Y[:, 0])
+            res = np.full_like(Y, np.nan)
+            res_e = np.full_like(Y, np.nan)
+            if ok.sum() >= 20:
+                X = np.column_stack([np.ones(ok.sum()), Xr[ok], q[ok].astype(float)])
+                bta = np.linalg.lstsq(X, Y[ok], rcond=None)[0]
+                res[ok] = Y[ok] - Xr[ok] @ bta[1:4]
+                eg = ok & ~q
+                if eg.sum() >= 20:
+                    Xe = np.column_stack([np.ones(eg.sum()), Xr[eg]])
+                    be_ = np.linalg.lstsq(Xe, Y[eg], rcond=None)[0]
+                    res_e[ok] = Y[ok] - Xr[ok] @ be_[1:4]
+            im[dst] = res
+            im[dst + "_eng"] = res_e
+        # P7c: z-scored level vs pre-cue speed, per area
+        ok = np.isfinite(sp2) & np.isfinite(im["pre_b"]).all(1)
+        if ok.sum() >= 30 and np.std(sp2[ok]) > 0:
+            Z = (im["pre_b"][ok] - im["pre_b"][ok].mean(0)) / im["pre_b"][ok].std(0)
+            x = (sp2[ok] - sp2[ok].mean())
+            im["run_beta"] = (x @ Z) / (x @ x)
+        else:
+            im["run_beta"] = np.full(len(AREAS), np.nan)
+
+
+def _arr_val(I, lab, name, a, b, area=0, still=None):
+    im = I.get(lab)
+    if im is None or name not in im:
+        return np.nan
+    cue_t = im["cue_s"] - im["cue_s"][0]
+    m = (cue_t >= a) & (cue_t < b)
+    if still is not None:
+        m &= np.isfinite(im["sp2"]) & (im["sp2"] < 3.0)
+    x = im[name][m, area]
+    x = x[np.isfinite(x)]
+    return float(x.mean()) if x.size >= MIN_TRIALS_WIN else np.nan
+
+
+def _pairs_arr(B, I, name, area=0, still=None, same_epoch=True):
+    rows = []
+    for lab, sq in B.items():
+        if sq["censored"]:
+            continue
+        a, b = sq["quit_t"], min(sq["quit_t"] + WIN_S, sq["dur"])
+        if b - a < 300.0:
+            continue
+        vq = _arr_val(I, lab, name, a, b, area, still)
+        if not np.isfinite(vq):
+            continue
+        cv = [v for lc, sc in B.items() if lc != lab and sc["animal"] == sq["animal"]
+              and (not same_epoch or sc["epoch"] == sq["epoch"]) and _engaged_through(sc, b)
+              for v in [_arr_val(I, lc, name, a, b, area, still)] if np.isfinite(v)]
+        if cv:
+            rows.append(dict(label=lab, animal=sq["animal"], epoch=sq["epoch"], quit=vq, control=float(np.mean(cv)),
+                             n_ctrl=len(cv), diff=vq - float(np.mean(cv))))
+    return pd.DataFrame(rows)
+
+
+def _periods(binary, min_len=2):
+    """[(start, end)) runs of True in a 1-s bin boolean array, length >= min_len."""
+    out, i, n = [], 0, binary.size
+    while i < n:
+        if binary[i]:
+            j = i
+            while j < n and binary[j]:
+                j += 1
+            if j - i >= min_len:
+                out.append((i, j))
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def _test4b_session(s):
+    """P7a / P7b / descriptive running for one session's quit period."""
+    sp, _fr = _run_bins(s)
+    if sp is None or s["censored"]:
+        return None
+    T = s["trials"]
+    tq, te = s["quit_t"], s["dur"]
+    fin = np.isfinite(sp)
+    run = fin & (sp > 3.0)
+    still = fin & (sp <= 3.0)
+    lo, hi = int(np.ceil(tq)), int(min(np.floor(te), sp.size))
+    if hi - lo < 120:
+        return None
+    rb = [(a + lo, b + lo) for a, b in _periods(run[lo:hi])]
+    sb = [(a + lo, b + lo) for a, b in _periods(still[lo:hi])]
+    cue = T.t.to_numpy(float)
+    hit = T.hit.to_numpy(int)
+
+    def nxt(t_end):
+        j = np.searchsorted(cue, t_end, side="left")
+        return int(hit[j]) if j < cue.size and cue[j] - t_end <= 60.0 else None
+    after_run, after_still = [], []
+    for a, b in rb:
+        d = b - a
+        r = nxt(b)
+        if r is None:
+            continue
+        # matched still window: duration d inside a still period, ending >= 5 s before that period ends, nearest in time
+        best = None
+        for sa, sbb in sb:
+            if sbb - sa >= d + 5:
+                end = min(max(sa + d, a), sbb - 5)          # as close to the bout as the still period allows
+                dist = abs(end - b)
+                if best is None or dist < best[0]:
+                    best = (dist, end)
+        if best is None:
+            continue
+        rs = nxt(best[1])
+        if rs is None:
+            continue
+        after_run.append(r)
+        after_still.append(rs)
+    # P7b: trials by their preceding 10 s
+    pr_q, ps_q, pr_e, ps_e, lat_r, lat_s = [], [], [], [], [], []
+    for c, h, la in zip(cue, hit, T.lat.to_numpy(float)):
+        k0, k1 = int(np.floor(c - 10)), int(np.floor(c))
+        if k0 < 0 or k1 > sp.size:
+            continue
+        w = sp[k0:k1]
+        if not np.isfinite(w).all():
+            continue
+        isr, iss = (w > 3.0).sum() >= 1, (w <= 3.0).all()
+        inq = c >= tq
+        if isr:
+            (pr_q if inq else pr_e).append(h)
+            if not inq and h:
+                lat_r.append(la)
+        elif iss:
+            (ps_q if inq else ps_e).append(h)
+            if not inq and h:
+                lat_s.append(la)
+    durq = (hi - lo) / 60.0
+    return dict(label=s["label"], animal=s["animal"], epoch=s["epoch"], n_runbouts=len(rb), n_pairs=len(after_run),
+                p_after_run=np.mean(after_run) if len(after_run) >= 3 else np.nan,
+                p_after_still=np.mean(after_still) if len(after_run) >= 3 else np.nan,
+                n_q_run=len(pr_q), n_q_still=len(ps_q),
+                pq_run=np.mean(pr_q) if len(pr_q) >= 3 else np.nan, pq_still=np.mean(ps_q) if len(ps_q) >= 3 else np.nan,
+                pe_run=np.mean(pr_e) if len(pr_e) >= 3 else np.nan, pe_still=np.mean(ps_e) if len(ps_e) >= 3 else np.nan,
+                late_run=np.median(lat_r) if len(lat_r) >= 3 else np.nan,
+                late_still=np.median(lat_s) if len(lat_s) >= 3 else np.nan,
+                q_runfrac=float(run[lo:hi].mean()), q_bouts_per_min=len(rb) / durq,
+                q_bout_s=float(np.mean([b - a for a, b in rb])) if rb else 0.0)
+
+
+def _paired(df, a, b, rng):
+    from wfield_local import analysis_kit as ak
+    d = df[np.isfinite(df[a]) & np.isfinite(df[b])]
+    x = {an: d.loc[d.animal == an, a].tolist() for an in ANIMALS if (d.animal == an).any()}
+    y = {an: d.loc[d.animal == an, b].tolist() for an in ANIMALS if (d.animal == an).any()}
+    iv, dr = ak.boot_delta(x, y, rng, draws=True)
+    per = {an: float(np.mean(x[an]) - np.mean(y[an])) for an in x}
+    return dict(iv=iv, p=ak.boot_p(dr) if iv is not None else np.nan, per=per, n={an: len(v) for an, v in x.items()})
+
+
+def addendum():
+    from wfield_local import analysis_kit as ak
+    B, I = _load_all()
+    rng = np.random.default_rng(SEED + 1)
+    FD = {}
+
+    # ---------------- A0
+    A0 = pd.DataFrame([end_class(B[k]) for k in sorted(B)])
+    A0.to_csv(TAB / "a0_end_class.csv", index=False)
+    print("\n=== A0 END CLASS per animal x epoch (counts) ===")
+    print(pd.crosstab([A0.animal, A0.epoch], A0.end_class).to_string(), flush=True)
+    print(A0[A0.epoch == "pre"].to_string(index=False), flush=True)
+    cls = dict(zip(A0.label, A0.end_class))
+
+    # ---------------- A2: time / water survival + P5
+    rows = []
+    for lab, s in B.items():
+        T = s["trials"]
+        c = cls[lab]
+        t_end = s["quit_t"] if c == "Q" else s["dur"]
+        k = s["quit_idx"] if c == "Q" else len(T)
+        w = T.iloc[:k].coll.sum()
+        ev = {"primary": c in ("Q", "H"), "b_i": c in ("Q", "H", "U"), "b_ii": c == "Q"}
+        cap = {"primary": min(t_end, CAP_S), "b_i": min(t_end, CAP_S),
+               "b_ii": (CAP_S if (c in ("H", "U") and t_end < CAP_S) else min(t_end, CAP_S))}
+        n_tr = int(k)
+        n_resp = int(T.iloc[:k].hit.sum())
+        short = (c != "Q") and n_tr < CAP_TR                       # censored below the trial cap
+        prog = T.iloc[:k].pos.value_counts()
+        rows.append(dict(label=lab, animal=s["animal"], epoch=s["epoch"], cls=c, t_min=t_end / 60, water=w,
+                         n_tr=n_tr, n_resp=n_resp,
+                         ev_primary=int(ev["primary"]), ev_b_i=int(ev["b_i"]), ev_b_ii=int(ev["b_ii"]),
+                         cap90_primary=cap["primary"] / 60, cap90_b_i=cap["b_i"] / 60, cap90_b_ii=cap["b_ii"] / 60,
+                         cap300_primary=min(n_tr, CAP_TR), cap300_bound=(CAP_TR if short else min(n_tr, CAP_TR)),
+                         **{f"prog_{p}": float(prog.get(p, 0)) / 100.0 for p in CANON.values()}))
+    S = pd.DataFrame(rows)
+    S.to_csv(TAB / "a2_time_water.csv", index=False)
+    _print_animal_table("A2 time to quit-or-end, min (PS92/PS93 pre = time-censored lower bounds)", S, "t_min")
+    _print_animal_table("A2 P5 engaged time capped at 90 min (primary reading)", S, "cap90_primary")
+    _print_animal_table("A7 trials to quit-or-end (all trials)", S, "n_tr")
+    _print_animal_table("A7 P5t trials capped at 300 (primary reading)", S, "cap300_primary")
+    _print_animal_table("A7 responded trials to quit-or-end", S, "n_resp")
+    P5 = _delta(S, "cap90_primary", rng)
+    P5t = _delta(S, "cap300_primary", rng)
+    P5s = {"b_i": _delta(S, "cap90_b_i", rng), "b_ii": _delta(S, "cap90_b_ii", rng), "uncapped": _delta(S, "t_min", rng),
+           "trials bound": _delta(S, "cap300_bound", rng), "trials uncapped": _delta(S, "n_tr", rng),
+           "responded trials": _delta(S, "n_resp", rng)}
+    print("\n=== A7 per-spout progress at quit-or-end (fraction of 100), animal x epoch means ===")
+    print(S.groupby(["animal", "epoch"])[[f"prog_{p}" for p in POS_ORDER_CANON]].mean().round(2).to_string(), flush=True)
+    km = {}
+    for (an, ep), g in S.groupby(["animal", "epoch"]):
+        for scale in ("t_min", "water", "n_tr"):
+            for rd in ("primary", "b_i", "b_ii"):
+                x = g[scale].to_numpy(float)
+                e = g[f"ev_{rd}"].to_numpy(int)
+                o = np.argsort(x)
+                x, e = x[o], e[o]
+                sv, at, xs, ys = 1.0, len(x), [0.0], [1.0]
+                for xi, ei in zip(x, e):
+                    if ei:
+                        sv *= (at - 1) / at
+                        xs.append(xi)
+                        ys.append(sv)
+                    at -= 1
+                km[(an, ep, scale, rd)] = dict(x=np.array(xs), y=np.array(ys), xmax=float(x.max()),
+                                                cens=[(xi, cl) for xi, ei, cl in zip(x, e, g.cls.to_numpy()[o]) if not ei])
+    FD["a2"] = dict(S=S, P5=P5, P5t=P5t, sens=P5s, km=km)
+
+    # ---------------- A3iii exact 80-min horizon
+    h = []
+    for lab, s in B.items():
+        if s["dur"] < H80_S:
+            continue
+        T = s["trials"]
+        q = _redetect(T, H80_S)
+        if q is None:
+            continue
+        if q["censored"]:
+            h.append(dict(label=lab, animal=s["animal"], epoch=s["epoch"], quit80=0, t80=H80_S / 60,
+                          w80=T[T.t <= H80_S].coll.sum()))
+        else:
+            h.append(dict(label=lab, animal=s["animal"], epoch=s["epoch"], quit80=1, t80=q["t"] / 60,
+                          w80=T.iloc[:q["k"]].coll.sum()))
+    H = pd.DataFrame(h)
+    H.to_csv(TAB / "a3iii_h80.csv", index=False)
+    print("\n=== A3iii quits re-detected on records cut at 80 min (quits / sessions) ===")
+    print(H.groupby(["animal", "epoch"]).quit80.agg(["sum", "count"]).unstack().to_string(), flush=True)
+    _print_animal_table("A3iii water at quit-or-80 min", H, "w80")
+    _print_animal_table("A3iii time at quit-or-80 min", H, "t80")
+    FD["a3iii"] = dict(H=H, water=_delta(H, "w80", rng), time=_delta(H, "t80", rng))
+
+    # ---------------- A1 normalised licks per responded trial
+    from figdata import load_fd
+    LPR = load_fd("disengagement", root=FDIR)["lpr"]
+    A1 = {}
+    for src in ("lp", "daq"):
+        D = LPR[src].copy()
+        base = D[D.epoch == "pre"].groupby(["animal", "pos"]).licks_per_resp.mean()
+        D["log2r"] = [np.log2(v / base.get((a, p), np.nan)) if v > 0 else np.nan
+                      for v, a, p in zip(D.licks_per_resp, D.animal, D.pos)]
+        A1[src] = D
+        tab = D.groupby(["animal", "pos", "epoch"]).log2r.mean().unstack("epoch").reindex(columns=list(EPS))
+        print(f"\n=== A1 per-animal log2(licks per responded / own pre), source {src} ===")
+        print(tab.round(2).to_string(), flush=True)
+        tab.to_csv(TAB / f"a1_log2_licks_per_resp_{src}.csv")
+    fc = A1["lp"][A1["lp"].pos == "far_contra"]
+    P8 = _delta(fc, "log2r", rng, cells=("chronic",))["chronic"]
+    P8daq = _delta(A1["daq"][A1["daq"].pos == "far_contra"], "log2r", rng, cells=("chronic",))["chronic"]
+    FD["a1"] = dict(A1=A1, P8=P8, P8daq=P8daq)
+
+    # ---------------- A3i / A3ii running-regressed level + RESTW
+    _prep_imaging(B, I)
+    a3 = {}
+    print("\n=== A3i/ii quit period - time-matched control (global 'cortex') ===")
+    for name, still in (("res_nl", None), ("res_nl_eng", None), ("lev_rw", None), ("res_rw", None),
+                        ("lev_rw", True), ("lev_nl", None), ("lev_nl", True)):
+        key = name + ("_still" if still else "")
+        P = _pairs_arr(B, I, name, 0, still)
+        P.to_csv(TAB / f"a3_{key}_pairs.csv", index=False)
+        if len(P):
+            g = P.groupby("animal").agg(n=("diff", "size"), diff=("diff", "mean"))
+            print(f"-- {key}\n{g.round(3).to_string()}", flush=True)
+        a3[key] = dict(P=P, test=_pair_test(P, rng))
+    a3["areas"] = {a: _pair_test(_pairs_arr(B, I, "res_nl", ai), rng) for ai, a in enumerate(AREAS) if ai}
+    FD["a3"] = a3
+
+    # ---------------- Test 4b
+    R4 = pd.DataFrame([r for r in (_test4b_session(B[k]) for k in sorted(B)) if r is not None])
+    R4.to_csv(TAB / "t4b_sessions.csv", index=False)
+    print("\n=== TEST 4b per-animal (quit sessions; pooled over epochs) ===")
+    print(R4.groupby("animal")[["n_runbouts", "n_pairs", "p_after_run", "p_after_still", "n_q_run", "n_q_still",
+                                "pq_run", "pq_still", "pe_run", "pe_still"]].mean().round(3).to_string(), flush=True)
+    print(R4.groupby(["animal", "epoch"])[["q_runfrac", "q_bouts_per_min", "q_bout_s"]].mean().round(3).to_string())
+    P7a = _paired(R4, "p_after_run", "p_after_still", rng)
+    P7b = _paired(R4, "pq_run", "pq_still", rng)
+    post = R4[R4.epoch != "pre"]
+    sec4b = {"P7a post-only": _paired(post, "p_after_run", "p_after_still", rng),
+             "P7b post-only": _paired(post, "pq_run", "pq_still", rng),
+             "gain engaged": _paired(R4, "pe_run", "pe_still", rng),
+             "latency engaged": _paired(R4, "late_run", "late_still", rng)}
+    # engaged-period gain over ALL sessions (not only quit sessions)
+    eg = []
+    for lab in sorted(B):
+        s = B[lab]
+        sp, _ = _run_bins(s)
+        if sp is None:
+            continue
+        T = s["trials"]
+        k = len(T) if s["censored"] else s["quit_idx"]
+        pr, ps = [], []
+        for c, hh in zip(T.t.to_numpy(float)[:k], T.hit.to_numpy(int)[:k]):
+            k0, k1 = int(np.floor(c - 10)), int(np.floor(c))
+            if k0 < 0 or k1 > sp.size or not np.isfinite(sp[k0:k1]).all():
+                continue
+            w = sp[k0:k1]
+            if (w > 3.0).sum() >= 1:
+                pr.append(hh)
+            elif (w <= 3.0).all():
+                ps.append(hh)
+        eg.append(dict(label=lab, animal=s["animal"], epoch=s["epoch"],
+                       p_run=np.mean(pr) if len(pr) >= 3 else np.nan, p_still=np.mean(ps) if len(ps) >= 3 else np.nan))
+    EG = pd.DataFrame(eg)
+    sec4b["gain engaged, all sessions"] = _paired(EG, "p_run", "p_still", rng)
+    bet = []
+    for lab, im in I.items():
+        if lab in B and np.isfinite(im.get("run_beta", np.array([np.nan]))).all():
+            rb = im["run_beta"]
+            bet.append(dict(label=lab, animal=B[lab]["animal"], epoch=B[lab]["epoch"],
+                            orof=float(np.mean([rb[AREAS.index(a)] for a in OROF])),
+                            ref=float(np.mean([rb[AREAS.index(a)] for a in REFC])),
+                            **{f"b_{a}": float(rb[i]) for i, a in enumerate(AREAS)}))
+    BE = pd.DataFrame(bet)
+    BE["excess"] = BE.orof - BE.ref
+    BE.to_csv(TAB / "t4b_running_betas.csv", index=False)
+    _print_animal_table("4b P7c orofacial - reference running beta (z per mm/s)", BE, "excess")
+    P7c = _paired(BE, "orof", "ref", rng)
+    sec4b["P7c excess early post - pre"] = _delta(BE, "excess", rng, cells=("early",))["early"]
+    FD["t4b"] = dict(R4=R4, EG=EG, BE=BE, P7a=P7a, P7b=P7b, P7c=P7c, sec=sec4b)
+
+    # ---------------- families
+    fams = {}
+    for fname, items in (("A", {"P5": P5["early"], "P5t": P5t["early"], "P6": a3["res_nl"]["test"], "P8": P8}),
+                         ("B", {"P7a": P7a, "P7b": P7b, "P7c": P7c})):
+        ps = np.array([v["p"] for v in items.values()], float)
+        ph = ak.holm(np.where(np.isfinite(ps), ps, 1.0))
+        rows = []
+        for (k, v), pholm in zip(items.items(), ph):
+            iv = v["iv"]
+            rows.append(dict(family=fname, test=k, point=iv.point if iv else np.nan, lo=iv.lo if iv else np.nan,
+                             hi=iv.hi if iv else np.nan, p=v["p"], p_holm=pholm,
+                             animals_pos=sum(x > 0 for x in v["per"].values()),
+                             animals_neg=sum(x < 0 for x in v["per"].values()),
+                             per_animal="; ".join(f"{a} {x:+.3g}" for a, x in v["per"].items())))
+        fams[fname] = pd.DataFrame(rows)
+        print(f"\n=== ADDENDUM FAMILY {fname} (Holm) ===\n{fams[fname].to_string(index=False)}", flush=True)
+    FAM = pd.concat(fams.values())
+    FAM.to_csv(TAB / "addendum_families.csv", index=False)
+    FD["fam"] = FAM
+    sec = []
+    for nm, v in ([(f"P5 {c}", P5[c]) for c in P5] + [(f"P5t {c}", P5t[c]) for c in P5t] + [(f"P5 {r} {c}", P5s[r][c]) for r in P5s for c in P5s[r]]
+                  + [(f"h80 water {c}", FD["a3iii"]["water"][c]) for c in FD["a3iii"]["water"]]
+                  + [(f"h80 time {c}", FD["a3iii"]["time"][c]) for c in FD["a3iii"]["time"]]
+                  + [("P8 DAQ far-contra chronic", P8daq)]
+                  + [(f"A3 {k}", d["test"]) for k, d in a3.items() if k != "areas"]
+                  + [(f"A3 area {a}", t) for a, t in a3["areas"].items()]
+                  + list(sec4b.items())):
+        iv = v["iv"]
+        sec.append(dict(measure=nm, point=iv.point if iv else np.nan, lo=iv.lo if iv else np.nan,
+                        hi=iv.hi if iv else np.nan, p=v["p"],
+                        per_animal="; ".join(f"{a} {x:+.3g}" for a, x in v["per"].items())))
+    SEC = pd.DataFrame(sec)
+    SEC.to_csv(TAB / "addendum_all_contrasts.csv", index=False)
+    print("\n=== ADDENDUM ALL CONTRASTS ===")
+    print(SEC.to_string(index=False, float_format=lambda x: f"{x:.3g}"), flush=True)
+    FD["sec"] = SEC
+    from figdata import save_fd
+    save_fd("disengagement_addendum", FD, root=FDIR)
+    return FD
+
+
+def plot_addendum(FD=None):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    if FD is None:
+        from figdata import load_fd
+        FD = load_fd("disengagement_addendum", root=FDIR)
+    EL, AM, POS = _style()
+    fam = FD["fam"].set_index("test")
+
+    # A1
+    fig, ax = plt.subplots(1, 2, figsize=(16, 5.2), sharey=True)
+    for axi, (src, title) in zip(ax, (("lp", "cam4 LP licks"), ("daq", "DAQ spout contacts"))):
+        D = FD["a1"]["A1"][src]
+        for pi, p in enumerate(POS):
+            for ei, ep in enumerate(EPS):
+                g = D[(D.pos == p) & (D.epoch == ep)]
+                x0 = pi + (ei - 1.5) * 0.2
+                for j, an in enumerate(ANIMALS):
+                    v = g[g.animal == an].log2r.to_numpy(float)
+                    axi.scatter(x0 - 0.06 + 0.03 * j + np.zeros(v.size), v, marker=AM[an], facecolors="none",
+                                edgecolors=EL[ep], s=12, lw=0.7, alpha=0.8)
+                if len(g):
+                    axi.scatter([x0 + 0.07], [np.nanmean(g.log2r)], marker="o", color=EL[ep], s=40, zorder=5)
+        axi.axhline(0, color="0.5", lw=0.8)
+        axi.set_xticks(range(len(POS)))
+        axi.set_xticklabels([p.replace("_", "\n") for p in POS])
+        axi.set_title(title, fontsize=10)
+    ax[0].set_ylabel("log2(licks per responded trial / own August-pre mean, same spout)")
+    p8 = fam.loc["P8"]
+    fig.suptitle(f"BEHAVIOUR -- licks per responded trial relative to each animal's own pre, per spout "
+                 f"(P8 chronic far contra, LP: {p8.point:+.2f} [{p8.lo:+.2f}, {p8.hi:+.2f}], Holm p = {p8.p_holm:.3g})",
+                 fontsize=11)
+    _legend_animals(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.93))
+    _save(fig, "a1_licks_per_resp_normalised")
+
+    # A2 KM
+    fig, ax = plt.subplots(3, 4, figsize=(17, 11.5))
+    style = {"primary": "-", "b_i": ":", "b_ii": "--"}
+    cm = {"T": "|", "W": "x", "U": "+", "H": "|"}
+    for row, scale, xl in ((0, "t_min", "minutes from first cue"), (1, "water", "collected water, µl"),
+                           (2, "n_tr", "trials from first cue")):
+        for i, an in enumerate(ANIMALS):
+            a_ = ax[row, i]
+            for ep in EPS:
+                for rd, ls in style.items():
+                    k = FD["a2"]["km"].get((an, ep, scale, rd))
+                    if k is None:
+                        continue
+                    a_.step(np.append(k["x"], k["xmax"]), np.append(k["y"], k["y"][-1]), where="post", color=EL[ep],
+                            lw=1.6 if rd == "primary" else 0.9, ls=ls)
+                    if rd == "primary":
+                        for xc, cl in k["cens"]:
+                            yv = float(k["y"][np.searchsorted(k["x"], xc, side="right") - 1])   # step value
+                            a_.scatter([xc], [yv], marker=cm.get(cl, "|"), color=EL[ep], s=45, zorder=4)
+            a_.set_ylim(-0.03, 1.12)
+            a_.set_xlabel(xl)
+            if row == 0:
+                a_.set_title(an + ("  (pre = time-censored lower bounds)" if an in ("PS92", "PS93") else ""), fontsize=9)
+        ax[row, 0].set_ylabel("fraction not yet quit")
+    from matplotlib.lines import Line2D
+    h = [Line2D([], [], color=EL[e], label=e) for e in EPS] + \
+        [Line2D([], [], color="k", ls=ls, label={"primary": "primary reading (Q, H = quit)",
+                                                 "b_i": "bound: U also quit", "b_ii": "bound: H censored"}[rd])
+         for rd, ls in style.items()] + \
+        [Line2D([], [], color="k", marker=m, ls="", label=lab) for m, lab in (("|", "censored: time / rule (T)"),
+                                                                              ("x", "water limit (W)"),
+                                                                              ("+", "unknown (U)"))]
+    fig.legend(handles=h, loc="lower center", ncol=5, frameon=False, fontsize=8)
+    fig.suptitle("BEHAVIOUR -- Kaplan-Meier of the quit in minutes (top), collected water (middle) and trials (bottom); "
+                 "pre-session ends classified per A0", fontsize=11)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.96))
+    _save(fig, "a2_km_time_water_trials")
+
+    fig, ax = plt.subplots(2, 3, figsize=(16, 9.2))
+    _epoch_scatter(ax[0, 0], FD["a2"]["S"], "cap90_primary", "engaged minutes, capped at 90")
+    ax[0, 0].set_title("time to quit (or end), capped at 90 min", fontsize=10)
+    _delta_panel(ax[0, 1], FD["a2"]["P5"], "change vs own August pre, min", primary_cell="early",
+                 p_holm=fam.loc["P5", "p_holm"])
+    ax[0, 1].set_title(f"P5 minutes (Holm p = {fam.loc['P5', 'p_holm']:.3g}, family A)", fontsize=10)
+    _delta_panel(ax[0, 2], FD["a3iii"]["time"], "change vs pre, min")
+    ax[0, 2].set_title("exact 80-min horizon: minutes to quit-or-80", fontsize=10)
+    _epoch_scatter(ax[1, 0], FD["a2"]["S"], "cap300_primary", "trials to quit (or end), capped at 300")
+    ax[1, 0].set_title("trials to quit (or end), capped at 300", fontsize=10)
+    _delta_panel(ax[1, 1], FD["a2"]["P5t"], "change vs own August pre, trials", primary_cell="early",
+                 p_holm=fam.loc["P5t", "p_holm"])
+    ax[1, 1].set_title(f"P5t trials (Holm p = {fam.loc['P5t', 'p_holm']:.3g}, family A)", fontsize=10)
+    _delta_panel(ax[1, 2], FD["a2"]["sens"]["responded trials"], "change vs pre, responded trials")
+    ax[1, 2].set_title("responded trials to quit-or-end (uncapped, secondary)", fontsize=10)
+    fig.suptitle("BEHAVIOUR -- engagement before the quit in minutes (top) and trials (bottom), pre vs post",
+                 fontsize=12)
+    _legend_animals(fig)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.95))
+    _save(fig, "a2_time_trials_to_quit")
+
+    S = FD["a2"]["S"]
+    fig, ax = plt.subplots(1, 1, figsize=(13, 4.8))
+    for pi, p in enumerate(POS):
+        for ei, ep in enumerate(EPS):
+            g = S[S.epoch == ep]
+            x0 = pi + (ei - 1.5) * 0.2
+            for j, an in enumerate(ANIMALS):
+                v = g.loc[g.animal == an, f"prog_{p}"].to_numpy(float)
+                ax.scatter(x0 - 0.06 + 0.03 * j + np.zeros(v.size), v, marker=AM[an], facecolors="none",
+                           edgecolors=EL[ep], s=12, lw=0.7, alpha=0.8)
+            ax.scatter([x0 + 0.07], [g[f"prog_{p}"].mean()], marker="o", color=EL[ep], s=40, zorder=5)
+    ax.axhline(1.0, color="0.5", lw=0.8, ls=":")
+    ax.set_xticks(range(len(POS)))
+    ax.set_xticklabels([p.replace("_", "\n") for p in POS])
+    ax.set_ylabel("trials done at quit (or end) / 100")
+    ax.set_title("BEHAVIOUR -- per-spout trial progress at the quit (dotted = the post-stroke 100-per-spout stop rule)",
+                 fontsize=11)
+    _legend_animals(fig)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    _save(fig, "a7_spout_progress")
+
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4.8))
+    _epoch_scatter(ax[0], FD["a3iii"]["H"], "w80", "collected water at quit-or-80 min, µl")
+    ax[0].set_title("water, exact 80-min horizon", fontsize=10)
+    _delta_panel(ax[1], FD["a3iii"]["water"], "change vs own pre, µl")
+    ax[1].set_title("sensitivity of P1 (not tested)", fontsize=10)
+    fig.suptitle("BEHAVIOUR -- P1 with quits re-detected on records cut at 80 min", fontsize=12)
+    _legend_animals(fig)
+    fig.tight_layout(rect=(0, 0.08, 1, 0.92))
+    _save(fig, "a3iii_h80_water")
+
+    # A3 neural
+    a3 = FD["a3"]
+    fig, ax = plt.subplots(1, 2, figsize=(16, 5.2), gridspec_kw=dict(width_ratios=[1, 1.4]))
+    _pair_panel(ax[0], [("running-\nregressed\n(P6)", a3["res_nl"]["test"], None),
+                        ("regr. on\nengaged only", a3["res_nl_eng"]["test"], None),
+                        ("raw level\nRESTnl (=P4)", a3["lev_nl"]["test"], None),
+                        ("still only\nRESTnl", a3["lev_nl_still"]["test"], None),
+                        ("raw level\nRESTW", a3["lev_rw"]["test"], None),
+                        ("running-\nregressed\nRESTW", a3["res_rw"]["test"], None),
+                        ("still only\nRESTW", a3["lev_rw_still"]["test"], None)],
+                "quit period - time-matched control", primary_holm=fam.loc["P6", "p_holm"])
+    ax[0].set_title(f"global pre-cue level (P6 Holm p = {fam.loc['P6', 'p_holm']:.3g}, family A)", fontsize=10)
+    _pair_panel(ax[1], [(a.replace("_right", "\ncontra").replace("_left", "\nipsi"), t, None)
+                        for a, t in a3["areas"].items()], "quit period - control, running-regressed (RESTnl)")
+    ax[1].set_title("running-regressed level per area (contra = right hemisphere)", fontsize=10)
+    fig.suptitle("NEURAL -- cortical pre-cue level in the quit period after regressing out running", fontsize=12)
+    _legend_animals(fig, epochs=False)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.93))
+    _save(fig, "a3_running_regressed_level")
+
+    # 4b
+    t = FD["t4b"]
+    fig, ax = plt.subplots(2, 2, figsize=(14, 9))
+    _pair_panel(ax[0, 0], [("P7a next trial\nafter run - still", t["P7a"], None),
+                           ("post quits\nonly", t["sec"]["P7a post-only"], None)],
+                "difference in P(next trial responded)", primary_holm=fam.loc["P7a", "p_holm"])
+    ax[0, 0].set_title(f"(1) re-engagement in quit periods (P7a Holm p = {fam.loc['P7a', 'p_holm']:.3g})", fontsize=10)
+    _pair_panel(ax[0, 1], [("P7b quit\nperiods", t["P7b"], None), ("post quits\nonly", t["sec"]["P7b post-only"], None),
+                           ("engaged,\nquit sessions", t["sec"]["gain engaged"], None),
+                           ("engaged,\nall sessions", t["sec"]["gain engaged, all sessions"], None)],
+                "P(responded | run in prior 10 s) - P(.. | still)", primary_holm=fam.loc["P7b", "p_holm"])
+    ax[0, 1].set_title(f"(2) gain after running (P7b Holm p = {fam.loc['P7b', 'p_holm']:.3g})", fontsize=10)
+    BE = t["BE"]
+    ar = list(OROF) + list(REFC)
+    for i, a in enumerate(ar):
+        for j, an in enumerate(ANIMALS):
+            v = BE.loc[BE.animal == an, f"b_{a}"].mean()
+            ax[1, 0].scatter(i - 0.2 + 0.13 * j, v, marker=AM[an], facecolors="none",
+                             edgecolors="#b2182b" if a in OROF else "#2166ac", s=28)
+    ax[1, 0].axhline(0, color="0.6", lw=0.8)
+    ax[1, 0].axvline(len(OROF) - 0.5, color="0.7", lw=0.8, ls=":")
+    ax[1, 0].set_xticks(range(len(ar)))
+    ax[1, 0].set_xticklabels([a.replace("_right", "\ncontra").replace("_left", "\nipsi") for a in ar], fontsize=7)
+    ax[1, 0].set_ylabel("running beta (z level per mm/s), animal means")
+    pc = fam.loc["P7c"]
+    ax[1, 0].set_title(f"(3) orofacial (red) vs reference (blue): P7c {pc.point:+.3f} [{pc.lo:+.3f}, {pc.hi:+.3f}], "
+                       f"Holm p = {pc.p_holm:.3g}", fontsize=9)
+    R4 = t["R4"]
+    _epoch_scatter(ax[1, 1], R4, "q_runfrac", "fraction of quit period running")
+    ax[1, 1].set_title("(4) running in quit periods by epoch (pre = PS93 1, PS94 4, PS95 6 quits)", fontsize=9)
+    fig.suptitle("BEHAVIOUR + NEURAL -- Test 4b: is quit-period running self-activation to get back to licking?",
+                 fontsize=12)
+    _legend_animals(fig)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.95))
+    _save(fig, "t4b_self_activation")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("mode", nargs="?", default="all", choices=("extract", "analyse", "plot", "all"))
+    ap.add_argument("mode", nargs="?", default="all",
+                    choices=("extract", "analyse", "plot", "all", "addendum", "plot-addendum"))
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args(argv)
+    if a.mode == "plot-addendum":
+        plot_addendum()
+        return 0
+    if a.mode == "addendum":
+        plot_addendum(addendum())
+        return 0
     if a.plot_only or a.mode == "plot":
         plot()
         return 0
