@@ -15,7 +15,11 @@ SESSION (shared by its cue and lick rows): GCaMP6s and 8s amplitudes differ ~3x,
 the RiboL1 rows. Sessions without a DAQ .h5 on the share are listed and skipped.
 
     conda activate locanmf
-    python scripts/cohort2_qc/spout_maps.py 20261029 [20261030]
+    python scripts/cohort2_qc/spout_maps.py 20261029 [20261030] [--uniform]
+
+--uniform (Priya 10-31): ONE colour scale for every animal and session (99th percentile of |dF/F| pooled over all
+sessions' cue + lick spout maps), and one shared scale for the spout-specific RMS column. Written as
+cohort2_spout_maps_<dates>_uniform.png; RiboL1 rows then look faint by design.
 """
 import argparse
 import json
@@ -91,6 +95,7 @@ def one(item):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dates", nargs="+")
+    ap.add_argument("--uniform", action="store_true", help="one colour scale across all animals and sessions")
     a = ap.parse_args()
     from wfield_local.parallel import fan_out
     from wfield_local.writeguard import assert_writable
@@ -112,9 +117,11 @@ def main():
     ncol = len(ORDER) + 2
     fig, ax = plt.subplots(2 * len(R), ncol, figsize=(2.3 * ncol, 2.5 * 2 * len(R)))
     summary = []
+    pooled = np.concatenate([np.abs(r["maps"][k]).ravel() for r in R for k in ("cue", "lick")])
+    ulim = float(np.nanpercentile(pooled, 99))
     for i, r in enumerate(R):
         H, W = r["shape"]
-        lim = np.nanpercentile(np.abs(np.concatenate([r["maps"]["cue"], r["maps"]["lick"]])), 99)
+        lim = ulim if a.uniform else np.nanpercentile(np.abs(np.concatenate([r["maps"]["cue"], r["maps"]["lick"]])), 99)
         for j, kind in enumerate(("cue", "lick")):
             M = r["maps"][kind]
             mu = np.nanmean(M, 0)
@@ -138,11 +145,11 @@ def main():
             summary.append(dict(session=r["label"], kind=kind, n_trials=r["n_trials"], n_with_lick=r["n_hit"],
                                 peak_all_spouts_pct=float(np.nanpercentile(np.abs(mu), 99)),
                                 spout_specific_share=share))
+    scl = (f"ONE scale for all animals and sessions (±{ulim:.2f}%)" if a.uniform else "one scale per session")
     fig.suptitle("cohort2 per-spout maps (re-run data, hemo_meegkit_hpfit): cue 0-1 s and first lick 0-0.5 s, both "
-                 "minus pre-cue 1 s; one scale per session; last column = spout-specific RMS (0 to half the scale)",
-                 fontsize=10)
-    fig.tight_layout()
-    tag = "_".join(d[4:] for d in a.dates)
+                 f"minus pre-cue 1 s; {scl}; last column = spout-specific RMS (0 to half the scale)", fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.985))
+    tag = "_".join(d[4:] for d in a.dates) + ("_uniform" if a.uniform else "")
     fig.savefig(OUT / f"cohort2_spout_maps_{tag}.png", dpi=80)
     (OUT / f"cohort2_spout_maps_{tag}.json").write_text(json.dumps(summary, indent=1))
     for s_ in summary:
