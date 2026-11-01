@@ -175,3 +175,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - 10-31: Priya follow-up: licks/responded trial normalised per animal x spout; water AND minutes to quit with hand-stop / time-censoring classification (pre often hand-stopped at quit; PS92/93 stopped for time); running-regressed level, RESTW, exact 80-min horizon. Helper stage 1 (addendum) running.
 - 10-31: disengagement addendum DONE (page S28d2-g): satiety rejection weakened (session length); running-regressed quit level -7.8 4/4; self-activation not supported; normalised licks figure.
 - 10-31: uncapped time / trials to quit (Priya): KM early post -15 min, -77 trials, 4/4; chronic ~0. Page S28e updated.
+- 11-01: freed C: (Priya OK): stale wfield_cache versions (newest per session kept) + old Claude temp 404 GB (docs/status/DELETED_LOCAL_2026-11-01.txt); local cam4 / cam1 LP copies 15.9 GB (DELETED_LOCAL_LP_2026-11-01.txt; 2 local-only ckpts archived to M: first).

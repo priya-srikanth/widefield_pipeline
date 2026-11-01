@@ -1013,3 +1013,9 @@ far_R trial-averaged distance falls ~85 % (time with the tongue out), tongue-out
 left-side incomplete licks are pre-stroke behaviour (DAQ contact far_L 0.39), not a cam1 side flip. `apparatus_mouth`
 uses the per-session PnP pose (cam1 cleaning origin = PnP mouth + constant 30-32 px, the rod edge). Details:
 `docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md` §4a.
+
+**2026-11-01 local cleanup (Priya: cam4 / cam1 models settled).** Local copies under `C:/Users/SabatiniLab/lp_stage/` and
+`lp_clips/` are deleted (list: `docs/status/DELETED_LOCAL_LP_2026-11-01.txt`). Production models stay on M:
+(`o2/lp_r4_prod_20261015`, `o2/lp_train_20261016`, `o2/lp_cam1_ctx_prod_20261019`, `o2/lp_train_cam1_r2_20261018`,
+`lightning-pose/cam4-2026-10-13`). The two checkpoints with no other copy (LP r4 ctx-sup Windows, LP r3 Windows copy) are
+in `lightning-pose/_archived_local_models_20261101/`. Paths above that point at `lp_stage/` no longer exist locally.
