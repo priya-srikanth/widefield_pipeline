@@ -888,7 +888,8 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   P1-P4, primary epoch early post. P1 SATIETY: collected water at quit / session end early post -290 ul [-428, -154], Holm
   .001, 4/4 (acute -327, subacute -210, chronic -53 n.s.), slower accrual, weight -5 % -> NOT satiety at the old level; the
   quit threshold moved (motivation / malaise vs lowered set-point undecided). P2 FRUSTRATION (far-contra block lapses)
-  +0.037 n.s.; giving-up rate mixed. P3 FATIGUE n.s. (bouts shorten before quits, tongue does not slow). P4 STATE: global
+  +0.037 n.s.; giving-up rate mixed. P3 FATIGUE n.s. (bouts shorten before quits, tongue does not slow). NB 11-01: P2 / P3 test only
+  failure-SPECIFIC lapses and within-bout lick interval; broader frustration / fatigue is NOT ruled out. P4 STATE: global
   pre-cue level quit minus time-matched engaged +3.65 [+1.85, +5.30], Holm .001, 4/4 -- BUT running rises 4/4 and on
   still pre-cue windows the level is BELOW engaged, -7.2 [-10.3, -4.3], 4/4 (post hoc). Cue response falls at, not before,
   the quit; no prodrome in cortex / face / running. No pupil. Open: RESTW sensitivity, running-regressed level, exact
