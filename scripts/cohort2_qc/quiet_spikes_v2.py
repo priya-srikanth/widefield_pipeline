@@ -50,6 +50,7 @@ AMPS, N_INJ, INJ_GAP_S, HIT_S = (1.0, 2.0, 3.0, 4.0, 6.0), 40, 3.0, 0.25
 INJ_COLS = ["orofacial_left", "orofacial_right", "limb_left", "limb_right"]
 KS = np.round(np.arange(2.0, 10.01, 0.5), 2)
 SHOW = INJ_COLS
+KNOTE = ["median of the leave-one-animal-out choices"]          # set in summarise(); titles say how k was set
 AREA_SHOW = ["SSp-m_left", "SSp-m_right", "tjM1_left", "tjM1_right", "ALM_left", "ALM_right", "SSp-n_left",
              "SSp-n_right", "SSp-ul_left", "SSp-ul_right", "SSp-ll_left", "SSp-ll_right"]
 
@@ -281,8 +282,8 @@ def threshold_figure(R, I, A, ks):
     ax[1, 0].legend(fontsize=7, title="polarity", title_fontsize=7)
     ax[2, 0].legend(fontsize=6, ncol=2)
     fig.suptitle("Choosing the event threshold: event rate by polarity, session-level ROC AUC (pre vs acute), and "
-                 "recovery of injected GCaMP6s-shaped events (engaged quiet frames, August sessions). Grey line = k "
-                 "chosen leave-one-animal-out (positive events, bilateral group).", fontsize=8, wrap=True)
+                 "recovery of injected GCaMP6s-shaped events (engaged quiet frames, August sessions). Grey line = the k "
+                 f"used ({ks['orofacial']:g}; {KNOTE[0]}).", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(V2 / "threshold_choice.png", dpi=110)
 
@@ -359,8 +360,7 @@ def pooled_figure(S, T, ks):
     ax[0, 0].legend(handles=handles, fontsize=7, loc="upper left")
     sig_marks.reserve_headroom(fig)
     fig.suptitle(f"Quiet-period cortical events (no lick / running within 1.5 s; spout may be out), height > k x the "
-                 f"animal's pre-stroke robust SD (k orofacial {ks['orofacial']:g}, limb {ks['limb']:g}, chosen "
-                 "leave-one-animal-out); engaged part of the session, August pre. Open markers = sessions "
+                 f"animal's pre-stroke robust SD (k orofacial {ks['orofacial']:g}, limb {ks['limb']:g}; {KNOTE[0]}); engaged part of the session, August pre. Open markers = sessions "
                  "(shape = animal, colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI; "
                  "stars = LMM epoch vs pre, FDR.", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
@@ -392,6 +392,8 @@ def summarise(k_user=None):
     for g in ("orofacial", "limb"):
         ch = LO[(LO.column == g) & (LO.kind == "pos")].k_chosen
         ks[g] = float(k_user if k_user is not None else ch.median())
+    KNOTE[0] = ("common k for both groups, Priya 11-01" if k_user is not None
+                else "median of the leave-one-animal-out choices")
     print(f"\nchosen k (median of the leave-one-animal-out choices, positive events): {ks}"
           + (" [user override]" if k_user is not None else ""))
     threshold_figure(R, I, A, ks)
