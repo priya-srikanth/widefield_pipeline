@@ -47,7 +47,7 @@ def columns():
     return cols + [f"{g}_{h}" for g in GROUPS for h in ("left", "right")] + list(GROUPS) + ["cortex"]
 
 
-def session_traces(label):
+def session_traces(label, detrend=True):
     """One session -> (X cols x T detrended dF/F %, ft, fs_img, rest mask, engaged mask, quit_s). Shared with
     quiet_spikes_fr.py (the FaceRhythm-regressed pass) so both passes read the identical traces and rest frames."""
     from scipy.ndimage import median_filter
@@ -72,7 +72,8 @@ def session_traces(label):
     X = 100 * (np.asarray(W, np.float64) @ V.T.astype(np.float64))                # cols x T, dF/F %
     fs_img = 1.0 / np.median(np.diff(ft))
     w = int(round(DETREND_S * fs_img)) | 1
-    X = X - median_filter(X, (1, w), mode="nearest")
+    if detrend:                              # detrend=False: raw dF/F % (quiet_spikes_v2 injects synthetic events first)
+        X = X - median_filter(X, (1, w), mode="nearest")
     T = X.shape[1]
     from wfield_local.analysis_kit import session_behavior
     animal, mmdd = label.split("_")

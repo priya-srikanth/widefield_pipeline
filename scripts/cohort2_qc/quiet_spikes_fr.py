@@ -35,6 +35,7 @@ bootstrap CI (`analysis_kit.boot_ci`), sessions as open markers (shape = animal,
     python scripts/cohort2_qc/quiet_spikes_fr.py [--jobs 6] [--summarise]
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -46,7 +47,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))       # repo root
 from quiet_area_spikes import (CAND_SD, DETREND_S, EP, K_SD, MAX_HW_S, MIN_HW_FR, OUT,  # noqa: E402
                                columns, mad, session_traces)
 
-FR_OUT = OUT / "fr_regressed"
+#: QS_FR_BASIS=frozen (default): the frozen master set's projections + its frozen point PCA, as above.
+#: QS_FR_BASIS=own (Priya 11-01: "we have the FR factors per-session - can we regress on those too?"): each session's OWN
+#: rank-12 FaceRhythm fit (`<set>/own/<key>.npz`, `fitsession`), projected here on that session's whole 5 Hz spectrogram
+#: exactly as `project` does for the master (rows / animal scale, NNLS, x the FR normaliser D = absolute), plus a PCA of
+#: that session's OWN point displacements (20 PCs, 25 Hz) -- so a movement that only exists post-stroke is in the model.
+#: Env var, not an argument: spawned workers re-import this module.
+BASIS = os.environ.get("QS_FR_BASIS", "frozen")
+FR_OUT = OUT / ("fr_regressed" if BASIS == "frozen" else f"fr_regressed_{BASIS}")
 LAGS_S = (-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3)
 N_FOLD, ALPHAS = 10, (1e1, 1e2, 1e3, 1e4, 1e5)
 MOVE_PCTL, MOVE_WIN_S = 90.0, 0.3
@@ -68,21 +76,84 @@ def _hp(x, w):
     return y
 
 
+def own_series(label):
+    """Session's OWN FR fit projected on its 5 Hz spectrogram (absolute) + its own 20-PC point PCA at 25 Hz, cached in
+    FR_OUT/own_series (the spectrogram read is 5-9 GB per session). -> (t5, W5 abs, t25, pcs25)."""
+    cache = FR_OUT / "own_series" / f"{label}.npz"
+    if cache.exists():
+        z = np.load(cache)
+        return z["t5"], z["W5"], z["t25"], z["P25"]
+    from wfield_local import face_rhythm_outputs as fro
+    from wfield_local.face_rhythm.factors import cp, files as ff
+    sd = fro.factor_dir()
+    animal, mmdd = label.split("_")
+    keys = [f.stem for f in fro.session_keys(sd, animal, f"2026{mmdd}")]
+    if not keys:
+        raise FileNotFoundError(f"no FaceRhythm task for {label}")
+    _, _, scales, M = ff.load_master(sd)
+    s = float(scales[animal])
+    pr = ff.load_plan(sd)["params"]
+    freqs = M["freqs"].astype(np.float64)
+    fr_norm, fr_ex = float(pr.get("vqt_norm", 0.95)), float(pr.get("one_over_f", 0.5))
+    od = ff.out_dir(sd)
+    frt = ff._sidecar_module("face_rhythm_timing")
+    T5, W5, T25, P25 = [], [], [], []
+    for key in keys:
+        zo = np.load(sd / "own" / f"{key}.npz")
+        A, B = zo["A_own"].astype(np.float64), zo["B_own"].astype(np.float64)
+        tm = frt.load(od.parent, key)
+        t5 = ff.npz_small(od / f"{key}_session.npz", ("t_daq_s",))["t_daq_s"].astype(float)
+        if tm is not None:
+            t5 = tm["t5"][:len(t5)].astype(float)
+        Ss = ff.npz_memmap(od / f"{key}_session.npz", "spec")
+        Ws, _, _, Ds = cp.project_rows(cp._scaled(Ss, s), A, B,
+                                       row_fn=lambda x: cp.normaliser(x * s, freqs, fr_norm, fr_ex))
+        Ws = Ws * Ds[:, None]
+        if tm is not None:
+            Ws[frt.lossy(tm["drop5"][:len(t5)])] = np.nan
+        T5.append(t5[:len(Ws)])
+        W5.append(Ws)
+        D = ff.npz_memmap(od / f"{key}_points.npz", "disp")             # (n, P, 2) 25 Hz displacements
+        t25 = tm["t25"][:len(D)].astype(float) if tm is not None else             ff.npz_small(od / f"{key}_points.npz", ("t_daq_s",))["t_daq_s"].astype(float)
+        X = np.asarray(D[::5], np.float32).reshape(-1, D.shape[1] * D.shape[2])
+        X = X[np.isfinite(X).all(1)]
+        mu = X.mean(0)
+        comps = np.linalg.svd(X - mu, full_matrices=False)[2][:20]
+        pcs = np.full((len(D), 20), np.nan, np.float32)
+        for c0 in range(0, len(D), 20000):
+            pcs[c0:c0 + 20000] = (np.asarray(D[c0:c0 + 20000], np.float32).reshape(-1, X.shape[1]) - mu) @ comps.T
+        if tm is not None:
+            pcs[frt.lossy(tm["drop25"][:len(pcs)])] = np.nan
+        T25.append(t25)
+        P25.append(pcs)
+    out = dict(t5=np.concatenate(T5), W5=np.concatenate(W5), t25=np.concatenate(T25), P25=np.concatenate(P25))
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(cache, **out)
+    return out["t5"], out["W5"], out["t25"], out["P25"]
+
+
 def face_regressors(label, ft, w):
-    """(R frames x k design before lags, speed frames) from the cam4 FaceRhythm projection."""
+    """(R frames x k design before lags, speed frames) from the cam4 FaceRhythm projection (BASIS: frozen / own)."""
     from wfield_local import face_rhythm_outputs as fro
     animal, mmdd = label.split("_")
-    files = fro.session_keys(fro.factor_dir(), animal, f"2026{mmdd}")
-    if not files:
-        raise FileNotFoundError(f"no FaceRhythm projection for {label}")
-    t, Wf = fro.combined_series(files, "factors", absolute=True)
-    F = fro.to_frames(t, Wf, ft, max_gap_s=0.5)
-    ts, P = [], []
-    for f in files:
-        z = np.load(f)
-        ts.append(z["points_t_daq_s"].astype(float))
-        P.append(z["points_pc"].astype(float))
-    tp, P = np.concatenate(ts), np.concatenate(P)
+    if BASIS == "own":
+        t5, W5, tp, P = own_series(label)
+        ok5 = np.isfinite(t5) & np.isfinite(W5).all(1)
+        o5 = np.argsort(t5[ok5], kind="stable")
+        F = fro.to_frames(t5[ok5][o5], W5[ok5][o5], ft, max_gap_s=0.5)
+        tp, P = tp.astype(float), P.astype(float)
+    else:
+        files = fro.session_keys(fro.factor_dir(), animal, f"2026{mmdd}")
+        if not files:
+            raise FileNotFoundError(f"no FaceRhythm projection for {label}")
+        t, Wf = fro.combined_series(files, "factors", absolute=True)
+        F = fro.to_frames(t, Wf, ft, max_gap_s=0.5)
+        ts, P = [], []
+        for f in files:
+            z = np.load(f)
+            ts.append(z["points_t_daq_s"].astype(float))
+            P.append(z["points_pc"].astype(float))
+        tp, P = np.concatenate(ts), np.concatenate(P)
     ok = np.isfinite(tp) & np.isfinite(P).all(1)
     tp, P = tp[ok], P[ok]
     o = np.argsort(tp, kind="stable")
