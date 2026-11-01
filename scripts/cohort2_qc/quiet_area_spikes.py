@@ -47,11 +47,9 @@ def columns():
     return cols + [f"{g}_{h}" for g in GROUPS for h in ("left", "right")] + list(GROUPS) + ["cortex"]
 
 
-def extract(label):
-    """One session -> quiet-frame fluctuation traces (n_cols, n_quiet) + run edges. Module-level for spawn."""
-    f = OUT / "sessions" / f"{label}.npz"
-    if f.exists():
-        return label
+def session_traces(label):
+    """One session -> (X cols x T detrended dF/F %, ft, fs_img, rest mask, engaged mask, quit_s). Shared with
+    quiet_spikes_fr.py (the FaceRhythm-regressed pass) so both passes read the identical traces and rest frames."""
     from scipy.ndimage import median_filter
     from iti_licks import roi_masks
     from wfield_local import combined_encoding as ce
@@ -76,7 +74,6 @@ def extract(label):
     w = int(round(DETREND_S * fs_img)) | 1
     X = X - median_filter(X, (1, w), mode="nearest")
     T = X.shape[1]
-    from scipy.signal import find_peaks
     from wfield_local.analysis_kit import session_behavior
     animal, mmdd = label.split("_")
     z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
@@ -96,7 +93,21 @@ def extract(label):
         if k < len(bh.cue_samples):
             quit_s = bh.cue_samples[k] / bh.sample_rate
             engaged = ft < quit_s
-    mad = lambda Y: 1.4826 * np.median(np.abs(Y - np.median(Y, 1, keepdims=True)), 1)  # noqa: E731
+    return X, ft, fs_img, rest, engaged, quit_s
+
+
+def mad(Y):
+    """Robust SD per row (1.4826 x MAD)."""
+    return 1.4826 * np.median(np.abs(Y - np.median(Y, 1, keepdims=True)), 1)
+
+
+def extract(label):
+    """One session -> candidate rest spikes per column (see the module docstring). Module-level for spawn."""
+    f = OUT / "sessions" / f"{label}.npz"
+    if f.exists():
+        return label
+    from scipy.signal import find_peaks
+    X, ft, fs_img, rest, engaged, quit_s = session_traces(label)
     sd_rest = mad(X[:, rest]) if rest.any() else np.full(len(X), np.nan)
     sd_eng = mad(X[:, rest & engaged]) if (rest & engaged).any() else np.full(len(X), np.nan)
     cols = columns()
@@ -113,7 +124,7 @@ def extract(label):
     f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, cand=np.array(C, float).reshape(-1, 5), sd_rest=sd_rest, sd_eng=sd_eng, fs=fs_img,
                         cols=np.array(cols), n_rest=int(rest.sum()), n_rest_eng=int((rest & engaged).sum()),
-                        engaged_frame=engaged.astype(np.uint8)[::1], quit_s=quit_s, total_min=T / fs_img / 60)
+                        engaged_frame=engaged.astype(np.uint8)[::1], quit_s=quit_s, total_min=X.shape[1] / fs_img / 60)
     return label
 
 
