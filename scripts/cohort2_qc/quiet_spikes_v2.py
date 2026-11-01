@@ -103,13 +103,11 @@ def detect(y, ok, fs):
     return pk[keep], h[keep]
 
 
-def extract(label):
-    f = V2 / "sessions" / f"{label}.npz"
-    if f.exists():
-        return label
+def busy_frames(label, ft, fs):
+    """(busy = within BUF_S of a DAQ contact lick or a running bout, badw = within BAD_S of a swapped pair) on frames ft.
+    Shared with quiet_fluct.py so every quiet analysis uses the identical frames."""
     from wfield_local import config
-    Xr, ft, fs, rest, engaged, quit_s = session_traces(label, detrend=False)
-    T = Xr.shape[1]
+    T = len(ft)
     animal, mmdd = label.split("_")
     z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
     fsd = float(z["fs"])
@@ -125,6 +123,16 @@ def extract(label):
         b = np.load(sw)["bad"][:T].astype(bool)
         bad[:len(b)] = b
     badw = np.convolve(bad.astype(float), np.ones(2 * int(BAD_S * fs) + 1), "same") > 0
+    return busy, badw
+
+
+def extract(label):
+    f = V2 / "sessions" / f"{label}.npz"
+    if f.exists():
+        return label
+    Xr, ft, fs, rest, engaged, quit_s = session_traces(label, detrend=False)
+    T = Xr.shape[1]
+    busy, badw = busy_frames(label, ft, fs)
     finite = np.isfinite(Xr).all(0)
     quiet = ~busy & ~badw & finite
     qe = quiet & engaged
