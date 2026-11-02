@@ -294,3 +294,25 @@ lick_recovery_primary,14.18,PRIMARY recovery marker,key
 lick_balance_explainer,14.17,How the balance is calculated,key
 lick_offset_terms,12.17,Offset decomposition,key
 lick_balance_order_primary,14.14,Primary balance by order,supporting
+q_fr,23.1,Brief quiet-period events in orofacial cortex rise ~5x acutely after regressing out face movement,key
+q_eta_maps_fr,23.2,Movement-corrected event-triggered maps: acute orofacial events recruit less lateral cortex - mostly WHICH events occur,key
+q_sync,23.3,"Acutely, quiet orofacial cortex is more synchronised - more so on the lesioned side",key
+q_stillness,23.4,The rise holds at matched face stillness and is largest when the face is still,key
+q_task_outcome,23.5,"A pre-cue orofacial event goes with a weaker position code on that trial, acute / subacute only - not with failed attempts",key
+q_examples,23.6,Example traces with the +/-4 x SD thresholds,supporting
+q_selection,23.7,"Selection control: events WITHOUT face movement, height-matched - already local before the stroke",supporting
+q_quit_map,23.8,Pre-stroke: the same event type in engaged quiet and in the quit period,supporting
+q_spectrum,23.9,Quiet-period power spectrum: the acute orofacial increase peaks at 2-3 Hz,supporting
+q_sdmaps,23.10,Per-pixel quiet SD grows over most of dorsal cortex; acutely the lateral somatosensory hotspots are the exception,supporting
+q_hemo415,23.11,Haemodynamics excluded: the 415 nm channel shows none of the changes,supporting
+q_breathing,23.12,Breathing (interim): breathing-band coherence low and unchanged; regressing a breathing proxy out leaves the rate rise,supporting
+q_hemi_amp,23.13,No ipsilesional bias in the event rate; not interictal; rate follows the recovery time course,supporting
+q_recovery_link,23.14,Every quiet measure returns toward pre with recovery; none tracks behaviour beyond the shared time course,supporting
+q_task_rates,23.15,The events also rise in pre-cue and inter-trial windows,supporting
+q_lick_lfo,23.16,Lick-locked low-frequency activity does not fall (no Ramanathan-type task LFO loss),supporting
+q_fr_detail,23.17,"Raw vs face-regressed rates, movement at events, face-model R2",supplementary
+q_threshold,23.18,How the event threshold was chosen,supplementary
+q_steinmetz,23.19,Interictal criteria (Steinmetz 2017) not met,supplementary
+q_width,23.20,"Event shape on the raw trace: narrower, all in the decay",supplementary
+q_decay_fr,23.21,"After movement correction, orofacial events do not decay faster acutely",supplementary
+q_effort,23.22,"No trial-level sign of extra body effort (running, limb cortex) on failed attempts",supplementary
