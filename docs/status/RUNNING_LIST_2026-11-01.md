@@ -171,3 +171,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   frames in 5 of 7 August pre sessions (0807, 0809-0812; 16-36 frames) and in 0828 -> its baseline there is the mean of the
   other 4-5 positions; PS92 drops one position in 0811 / 0812 / 0826. Per-position RESTnl counts in the npz cache
   (C:/Users/SabatiniLab/.widefield_session_cache_restnl/, nfr_pos / positions_used).
+- 08:00 IMAGING PAGE v45: 12.1 correction note appended (only line changed). Verified: models fit in memory per full run (--from-csv redraw reuses scores); published run used --perm 200 (min p = 1/201). Script line in caption still lacks --perm 200 (left).
