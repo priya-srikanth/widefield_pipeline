@@ -186,3 +186,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 08:40 quiet window published goal v309 (23.5, 23.6, 23.11, 23.12, 23.15 on LP-lick quiet frames; 23.16 later). Merged locally. Live goal = v309.
 - quiet window published goal v310 (23.16 lick LFO on LP lick onsets). Merged locally. Live goal = v310.
 - quiet window published goal v311 (section 23 ~5x -> ~7x in h2 / take / 23.1 / status row; 23.16 LP composition; LP-lick switch for section 23 complete). Merged locally. Live goal = v311.
+- RESTNL POSITION COVERAGE CHECK DONE (RESTNL_POSITION_COVERAGE_20261102.md; outputs G/restnl_position_coverage_check/):
+  NO HEADLINE CHANGES. Counts (pre-cue rise 4/4, cue loss 4/4, LP lick loss 3/4) hold under imputation, wr25, and fixed
+  position sets; pooled far-contra acute values move <= .023. Only effect: PS93 pre-cue ratio understated under wr
+  (7.1 1.17 -> 1.24; 7.5 1.24 -> ~1.33). PS93 subacute/chronic cells near 1 fragile (do not read direction). PS94 low
+  chronic is NOT a coverage effect. RECOMMEND keep rule wr at 50 frames primary; imputation as the one sensitivity; caveat
+  sentence on PS93 pre-cue amplitude (wording in doc). Script committed on analysis/restnl-maps.
