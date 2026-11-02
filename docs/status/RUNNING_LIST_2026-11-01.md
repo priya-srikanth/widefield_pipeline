@@ -51,3 +51,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   PS94); bin-to-bin spread is mostly noise, no epoch dependence (0.41 vs 0.36e-3), quit period already gated out; a
   time-local lick-free baseline would mostly add noise. Caveat: near-zero cells (acute far contra) carry ~+-0.5e-3
   baseline uncertainty. -> launching the RESTnl map implementation on a branch off widefield_pipeline main.
+- 00:20 launched RESTnl map implementation + renders: new worktree C:/Users/SabatiniLab/Github/wf_restnl (branch
+  analysis/restnl-maps off widefield_pipeline main 7272d0be); new module wfield_local/restnl_mask.py, derived 'restnl'
+  reference outside the cache key, outputs in NEW folders (epoch_restnl etc.), August-only pre; ~3-4 h. Results doc
+  RESTNL_MAPS_20261101.md. Imaging page update after (RESTnl primary, REST collapsed supplement).
