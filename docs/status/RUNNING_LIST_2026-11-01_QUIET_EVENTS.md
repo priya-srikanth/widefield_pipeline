@@ -34,6 +34,7 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 | T15 deficit ordering (n = 4) | DONE 11-01 | no ordering: acute rate vs half-recovery day / lesion % rho -0.20 each; PS93 (smallest lesion, fastest recovery) has the LARGEST acute rate (x7.8) | same figure (bottom right) |
 | T16 lick-locked LFO vs quiet (Ramanathan) | RUNNING (agent) | -- | `V2\lick_lfo\` |
 | T17 literature search + citation check | DONE 11-01 | 3 corrections (eLife 90080 = two-photon, local; circuit = VLS -> SNr -> VM/Pf -> tjM1 + SNr -> brainstem, ALM via Guo 2017; Allegra Mascaro = combined therapy); precedents to add (Bauer 2014 subcortical connectivity, Cullins & Connor 2024 orofacial maps, Ahmed 2017 licking); counter-literature (Branscheidt 2022, Zeiger 2021, Sarasso lacunar, Panzeri 2025); epileptiform caveat (Steinmetz location / rate overlap) | text: FINDINGS 8 'LITERATURE UPDATE 11-01 late' |
+| T19 Steinmetz criteria (waveform, refractoriness, polarity, symmetry) | QUEUED (after current runs) | -- | -- |
 | T18 k-choice bias | NOTE | acute contrast optimistic (k picked on pre vs acute); subacute / chronic unbiased | -- |
 
 ## Running interpretation (update as tests land)
