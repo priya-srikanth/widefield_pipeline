@@ -172,3 +172,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   other 4-5 positions; PS92 drops one position in 0811 / 0812 / 0826. Per-position RESTnl counts in the npz cache
   (C:/Users/SabatiniLab/.widefield_session_cache_restnl/, nfr_pos / positions_used).
 - 08:00 IMAGING PAGE v45: 12.1 correction note appended (only line changed). Verified: models fit in memory per full run (--from-csv redraw reuses scores); published run used --perm 200 (min p = 1/201). Script line in caption still lacks --perm 200 (left).
+- 08:20 12.1 LICK-FREE SENSITIVITY (June+Aug pre; driver wf_restdec rest_frozen_decoder_nl.py; stored frozen models
+  kind rest_frozen; figs G/rest_frozen_decoder_restnl/{rest_allpre,restnl_allpre}/; --compare stage crashed only because
+  the Aug-pre CSVs do not exist -- figures + per-animal tables written). REST reproduction = page (acute .28, chronic .54).
+  RESTnl, pre acc (sessions p<.05): PS92 .220 vs null .168 (2/9) [REST .383, 11/11]; PS93 .294 (8/9) [.402]; PS94 .358
+  (10/10) [.470]; PS95 .358 (11/11) [.355]. Retained acute / chronic: PS93 -.10 / .51, PS94 .14 / .18, PS95 .10 / .34
+  (PS92 pre at chance -> retained meaningless). Pooled flat retained acute .18, subacute .46, chronic .40 (page .28/.36/.54);
+  delta acute -.140 [-.211, -.043], chronic -.100 [-.176, -.021], all CIs exclude 0.
+  CONCLUSION CHANGE (provisional, sensitivity only): the rest position code is PARTLY LICK-ADJACENT -- pre accuracy falls
+  .403 -> .311 pooled once video licks are removed, and PS92 has essentially no lick-free rest code. In the 3 animals with a
+  lick-free code it still falls acutely and only partly recovers; the qualitative 12.1 claim holds in 3/4, carried by
+  PS93-95. Not on the page (June+Aug pre breaks the Aug-only rule) -> ask Priya whether to add as 12.1b.
