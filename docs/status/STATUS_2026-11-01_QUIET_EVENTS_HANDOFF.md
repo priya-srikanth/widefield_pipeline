@@ -13,8 +13,9 @@
 > movement correction in orofacial cortex; no trial-level 'body effort' on failed attempts (effort analysis). Rate tracks
 > recovery mostly via the shared time course (T14). TASK: events rise in pre-cue / ITI windows too (T12); a pre-cue event
 > goes with a weaker frozen-decoder position code on that trial acute / subacute (4/4) but does not predict a failed
-> far-contra attempt beyond time-in-session (T13). OPEN and decisive: T9 breathing (respiration looks faster post-stroke,
-> Priya), T10 haemodynamics, T16 (Ramanathan), T21-T22; T13 follow-up: decoder trained without the event frames.
+> far-contra attempt beyond time-in-session (T13). Haemodynamics excluded (T10); task-locked ITPC unchanged (T16); every quiet measure
+> tracks the recovery time course, none beyond it. OPEN and decisive: T9 breathing (respiration looks faster post-stroke,
+> Priya); T21-T22; T13 follow-up: decoder trained without the event frames.
 >
 > **Pending actions:** (1) DONE 11-01: page Fig 15.7 replaced by the movement-corrected map (imaging page v40); (2) when agents report, merge into the running list, this handoff,
 > FINDINGS 3.Q; (3) then move section 15 to the encoding page (Priya: recommended there; decide with her) with all results;
@@ -105,13 +106,13 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 | T7 | within engaged quiet: event rate vs face stillness (per session, binned face speed) | STATE contribution | rate rises with stillness -> state adds | DONE: rise persists at matched stillness, largest when still |
 | T8 | per-animal ipsi vs contra comparison of the rate / SD increase (direct, not by eye from 15.6) | CIRCUIT (ipsilesional) vs global | CIRCUIT: ipsi > contra in >= 3/4 | DONE: no ipsi bias (orofacial +0.02 n.s.; limb contra > ipsi acute) -- running list |
 | T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTEFACT (breathing) | coherence high / tracks respiration -> artefact | RUNNING 11-01 (agent; `quiet_breathing.py`, `V2/breathing/`) |
-| T10 | haemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTEFACT (haemodynamic) | events absent in 415 -> neural | RUNNING 11-01 (agent; `quiet_hemo_check.py`, `V2/hemo415/`) |
+| T10 | haemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTEFACT (haemodynamic) | events absent in 415 -> neural | DONE: excluded (415 unchanged, no event-locked 415) |
 | T11 | amplitude distribution; count of events > 10 % dF/F and cortex-wide synchronous events (Steinmetz 2017 interictal shape) | ARTEFACT / epileptiform | none -> not interictal | DONE: not interictal (big events rarer acutely, less limb co-occurrence) -- running list |
 | T12 | events in pre-cue / ITI (task) windows, not only quiet | relevance | -- | DONE: rise in every task window 4/4 |
 | T13 | pre-cue event on a trial -> failed far-contra attempt / weaker pre-cue position code on that trial | CIRCUIT-noise mechanism for the deficit | events predict failure | DONE: not failure (beyond time-in-session), but weaker position code acute/sub 4/4 |
 | T14 | within animal, event rate vs far-contra recovery with log-day removed (as `iti_recovery_link.py`) | link to recovery | negative relation | DONE: r -0.75 raw, -0.23 detrended (p .048, 2/4) |
 | T15 | rate tracks each animal's deficit (PS93 largest acute rate; PS94 least recovered); pre-register orderings for cohort2 | CIRCUIT vs STATE / ARTEFACT | -- | DONE: no ordering (rho -0.20) |
-| T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | RUNNING 11-01 (agent; `quiet_lick_lfo.py`) |
+| T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | DONE: task-locked ITPC unchanged acutely, evoked LFO up -- no dissociation |
 | T17 | (DONE 11-01, see end of section 6) literature: targeted PubMed search (striatal / capsular stroke + widefield GCaMP / cortical recordings); verify the *(memory)* citations (Allegra Mascaro 2019, Levin 2009, Nudo 1996, Lee-Wang-Sabatini 2020) | context | -- | DONE 11-01 |
 | T19 | Steinmetz criteria explicitly: waveform (rise / decay vs their ~150 ms interictal shape), refractoriness (inter-event interval distribution, 0.5-1 s gap), positive-only vs both polarities, bilateral symmetry, per animal incl. PS93 (cortical injury) | ARTEFACT / epileptiform (T17 caveat: location + rate overlap) | none of the criteria met -> not interictal | DONE: not interictal |
 | T20 | SYNCHRONISATION index (low / high frequency power, e.g. 1-4 Hz / 8-15 Hz) in quiet and pre-cue frames, orofacial vs control areas, ipsi vs contra, by epoch | Priya's original hypothesis: REDUCED tonic thalamocortical drive -> synchronised cortex (Poulet 2012) | more synchronised acutely, strongest orofacial (and ipsilesional if via the loop) | TO DO (added 11-01) |
