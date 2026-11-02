@@ -25,6 +25,7 @@ PAIRS = {"PS92": ("0811", "0820", "0828"), "PS93": ("0811", "0820"), "PS94": ("0
 SHOW = [("orofacial_left", "orofacial ipsi"), ("orofacial_right", "orofacial contra"), ("limb_left", "limb ipsi"),
         ("limb_right", "limb contra")]
 K, WIN_S, OFF = 4.0, 60.0, 6.0
+SEARCH = "middle"                                  # window search: "middle" third (Fig 23.6) | "intask" (movie)
 
 
 def one(label):
@@ -37,6 +38,12 @@ def one(label):
     T, n = X.shape[1], int(WIN_S * fs)
     cs = np.r_[0, np.cumsum(qe)]
     starts = np.arange(T // 3, 2 * T // 3 - n, int(fs))
+    if SEARCH == "intask":                         # movie (Priya 11-02: a FULLY quiet pre window): anywhere in the task,
+        from wfield_local import trial_windows as TW   # the window ending before the session's last cue
+        an, md = label.split("_")
+        lastcue = np.nanmax(TW.trial_bounds(an, f"2026{md}").cue_s.to_numpy(float))
+        starts = np.arange(0, T - n, max(int(fs) // 4, 1))
+        starts = starts[ft[starts + n] < lastcue]
     a = int(starts[np.argmax(cs[starts + n] - cs[starts])])
     cols = columns()
     b0, b1 = int(round(BASE_S[0] * fs)), int(round(BASE_S[1] * fs))

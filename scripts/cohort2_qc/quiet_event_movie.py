@@ -68,8 +68,10 @@ def session(label, clip_s, window="example"):
     # window="example": the Fig 23.6 60-s window (most engaged quiet in the middle third), then its CLIP_S sub-window
     # with the most quiet; window="session": the same rule applied directly at CLIP_S (the CLIP_S of the middle third
     # with the most engaged quiet) -- used when the 60-s example window is mostly licking (pre-stroke).
-    if window == "session":
+    if window in ("session", "intask"):
         QX.WIN_S = clip_s
+    if window == "intask":                                     # the most-quiet CLIP_S anywhere in the task (11-02)
+        QX.SEARCH = "intask"
     d = one(label)                                            # window traces, quiet mask, events, licks
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     fs = 1.0 / np.median(np.diff(ft))
@@ -190,7 +192,7 @@ def main():
     ap.add_argument("--post", default="PS92_0820")
     ap.add_argument("--clip", type=float, default=15.0)
     ap.add_argument("--play", type=float, default=0.5)
-    ap.add_argument("--window", choices=["example", "session"], default="example",
+    ap.add_argument("--window", choices=["example", "session", "intask"], default="example",
                     help="example = inside the Fig 23.6 60-s windows; session = most-quiet CLIP_S of the middle third")
     ap.add_argument("--lim", type=float, default=None, help="colour limit, dF/F %% (default: 99.5th pct of |both|)")
     a = ap.parse_args()
@@ -202,7 +204,7 @@ def main():
     lim = float(np.round(lim, 1))
     # poster = the acute clip's first UP orofacial event after 1 s (else mid-clip)
     poster = min([p for p, h, *_ in Q["ev"] if p > Q["fs"] and h > 0] or [Q["n"] // 2])
-    path = OUTD / (f"{a.pre}_vs_{a.post}_quiet" + ("_session" if a.window == "session" else "") + ".mp4")
+    path = OUTD / (f"{a.pre}_vs_{a.post}_quiet" + ("" if a.window == "example" else "_" + a.window) + ".mp4")
     render(P, Q, path, a.play, lim, poster)
     rows = [dict(label=D["label"], window=a.window, window_start_daq_s=D["t_win0"], clip_offset_in_window_s=D["s0_s"],
                  clip_start_daq_s=D["t_clip0"], clip_s=a.clip, frames=D["n"], quiet_frac=float(D["quiet"].mean()),
