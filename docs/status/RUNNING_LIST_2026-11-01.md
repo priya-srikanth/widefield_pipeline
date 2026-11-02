@@ -26,6 +26,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   RECOMMEND yes (rule 10). Would change epoch acc figures slightly everywhere -> discuss before re-rendering page figures.
 - [ ] Section 7 takeaway "-55 / -48 / -38 / +2 %" (ipsi-hemisphere change, LP lick map, from 10-21 numbers): the 10-24
   render behind Fig 7.19 gives -55 / -49 / -38 / -9 % (PS95 -9 %, not +2 %). Headline-adjacent -> NOT edited; update it?
+- [ ] Rest decoder 12.1 lick-free: August-only pre RESTnl is TOO THIN for PS92 / PS93 (frozen training pool far contra
+  PS93 9 periods, PS92 far ipsi 25) -> not fitted. Options (REST_DECODER_NL_20261102.md section 7, worktree wf_restdec):
+  (1) June+Aug pre as sensitivity [RUNNING as a labelled sensitivity, cheap]; (2) Aug-only PS94/PS95 per animal, no pooled
+  claim; (3) drop thin positions (loses PS93 far contra); (4) shorter cam4 post-lick buffer; (5) fit anyway (no).
+- [ ] 12.1 caption: says 50 permutations, code uses 200; its pre-stroke models are refit in memory each render (rule 10).
+  Correct the caption (append note)?
 - [ ] LP ENL window: 1.5 s looks better than 1.0 s (enough trials everywhere; pooled pre accuracy .42 -> .48; same acute
   loss 4/4). 2.0 s keeps trials selectively where the deficit is -> sensitivity only. Which as primary for the LP arm?
 
@@ -149,3 +155,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   row; Pending line. Fig 2.4 caption untouched. RECONCILED PS94 lick: -38 % = ipsi-hemisphere mean change; .72 = whole-
   mask RMS ratio all pre; .67 = same, August pre (gate no effect). Only the two v43 "not reconciled" flags were replaced.
 - 06:30 launched helper: rest decoder 12.1 on lick-free (RESTnl) rest, new worktree/branch analysis/rest-decoder-nl, frame counts first, default byte-identical, new *_restnl folders, doc REST_DECODER_NL_20261102.md.
+- 07:20 REST DECODER 12.1 LICK-FREE (helper; worktree wf_restdec, branch analysis/rest-decoder-nl 7c53214a): option added
+  (default byte-identical, SHA-checked on real sessions); counts done, NOT fitted under Aug-only pre (fairness gate >= 30
+  periods/position fails PS92/PS93). FINDING from counts alone: pre-stroke, 97 % of PS93's far-contra "rest" periods lie
+  within [-0.5, +2.0] s of a video or DAQ lick (14 / 542 survive); PS92 keeps 30 %, PS94 36 %, PS95 89 %. So 12.1's pre rest
+  code for PS92/PS93 is built mostly next to licks the DAQ never registered (its lick-gap matching uses DAQ licks only).
+  CONCLUSION AT RISK (not yet tested): 12.1's rest code. Launched June+Aug pre sensitivity (REST reproduction + RESTnl).
