@@ -148,3 +148,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   pre-cue 1 s, .04 subacute/chronic; pre-cue RESTnl chronic below pre 1/4 -> 2/4, PS94 1.02 -> .98); Where-things-stand
   row; Pending line. Fig 2.4 caption untouched. RECONCILED PS94 lick: -38 % = ipsi-hemisphere mean change; .72 = whole-
   mask RMS ratio all pre; .67 = same, August pre (gate no effect). Only the two v43 "not reconciled" flags were replaced.
+- 06:30 launched helper: rest decoder 12.1 on lick-free (RESTnl) rest, new worktree/branch analysis/rest-decoder-nl, frame counts first, default byte-identical, new *_restnl folders, doc REST_DECODER_NL_20261102.md.

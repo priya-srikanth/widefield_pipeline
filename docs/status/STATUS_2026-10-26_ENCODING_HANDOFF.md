@@ -57,6 +57,11 @@ page or replace headline results" -> ADD only. RUNNING (helpers): imaging-page R
 ARM render (new worktree, branch analysis/lp-final, doc LP_FINAL_ARM_20261102.md there). On their reports: commit their
 work (helpers never commit), log in the running list, then add LP-final figures to the pages (add only). Two decisions
 for Priya at the top of the running list (prm cache digest on main; flat RESTnl for PS94 late).
+**11-02 06:30 update:** imaging page LIVE v44 (v43 RESTnl twins 7.xb/8.xb; v44 Final LP arm block #lpfinal Figs 2.5-2.8);
+page source committed on analysis/restnl-maps (wf_restnl). Goal page LIVE v308 (quiet window), merged locally. Final LP arm
+committed on analysis/lp-final (wf_lpfinal, 5822cbad): no headline change. Fig 2.4 caption error (decoder refit in memory,
+not the stored DAQ model) -> correction note WAITS for Priya. RUNNING: rest decoder 12.1 lick-free (helper, branch
+analysis/rest-decoder-nl). Decisions for Priya: top of RUNNING_LIST_2026-11-01.md.
 
 ### 00-COMPACT-18 (10-30 ~late night) -- (previous; then the running list; -17 for the 10-29 state)
 Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Page LIVE **v292**
