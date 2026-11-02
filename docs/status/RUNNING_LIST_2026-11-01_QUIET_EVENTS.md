@@ -23,8 +23,10 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 **Overnight log (appended as things land):**
 - 22:25 running: T9 breathing (re-extraction 56/107), T21, T22 (+T20 noise floor), T13 follow-up, ITPC composition control.
 - 22:30 Priya: move the section to the ENCODING page (goal-question page Fnpn2KHknMwh3r13xADH7d); messaged sabatinilab-34 (likely the encoding window) to coordinate. Plan: one appended self-contained section, built on the live version, after T9 / T21 / T22 / T13-followup land.
+- 22:35 encoding window (sabatinilab-34) confirmed: section 23 before 'Pending', Fig 23.k, lick tags, files map; it flagged an LP-lick quiet-frame sensitivity check -> I took it (agent, `quiet_lp_sensitivity.py`, `V2/lp_quiet/`).
+- 22:50 PUBLISHED encoding page v304: new section 23 'Quiet-period cortical state' (22 figures: key 23.1 rate, 23.2 movement-corrected maps, 23.3 synchronisation, 23.4 stillness, 23.5 pre-cue event -> position code; supporting / supplementary 23.6-23.22 incl. 415, breathing (interim), Steinmetz, recovery link, lick LFO, effort) + a status-table row. Version + fig_ids rows sent to the encoding window.
 
-**Page changes tonight:** (none yet; planned: new section on the ENCODING page with all results + figures; imaging-page section 15 -> pointer)
+**Page changes tonight:** encoding page v304 = NEW section 23 (all quiet-period results, 22 figures; https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#quiet-state). Imaging-page section 15 -> pointer: pending. Section 23 will be updated as breathing / T21 / T22 / T13-followup / LP-lick results land.
 
 ## Decisions needed from Priya
 

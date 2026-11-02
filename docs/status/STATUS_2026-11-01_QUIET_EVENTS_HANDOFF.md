@@ -18,7 +18,7 @@
 > Priya); T21-T22; T13 follow-up: decoder trained without the event frames.
 >
 > **Pending actions:** (1) DONE 11-01: page Fig 15.7 replaced by the movement-corrected map (imaging page v40); (2) when agents report, merge into the running list, this handoff,
-> FINDINGS 3.Q; (3) MOVE section 15 to the encoding page -- AUTHORISED by Priya 11-01 22:30 ('communicate if needed with encoding window'); messaged sabatinilab-34; one appended self-contained section built on the live page, imaging section 15 -> pointer;
+> FINDINGS 3.Q; (3) DONE 22:50: section 23 on the encoding page (v304; built from scratchpad/encpage/index.html = live page + section; figures q_*.png via files map; encoding window sabatinilab-34 merges it into its local source -- do NOT edit wf_attempt/_goal_page/index.html; before any update re-read the live page and send 34 the new version). TODO: imaging section 15 -> pointer;
 > (4) T21, T22.
 >
 > **Literature framing (FINDINGS 8):** tongue reaching as a precision model of post-stroke motor control (Bollu 2021 etc.,
