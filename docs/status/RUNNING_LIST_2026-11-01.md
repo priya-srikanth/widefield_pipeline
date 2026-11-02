@@ -30,3 +30,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 23:10 launched: (a) 14.21 main caption -> RESTnl numbers + S7 rev-up traces RESTnl variant (revup_neural.py
   --rest-variant restnl; RESTW kept collapsed); (b) read-only map shortcut check -> RESTNL_MAP_SHORTCUT_CHECK_20261101.md.
   Gate check still running.
+- 23:20 Priya: "keep old baseline as supplemental. flat restnl, as long as that's appropriate (no need for further
+  within-session drift or artifact correction). august only i suppose." -> added a drift check to the shortcut helper
+  (spread of the time-local REST across bins vs map effect sizes; by epoch / session position); flat RESTnl for maps
+  only if it passes, else time-local lick-free (decision would come back to Priya).
