@@ -77,3 +77,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   results" -> final LP arm re-render APPROVED; RULE for tonight: ADD new versions only; nothing removed from the page and
   no headline result replaced without discussion (new versions go next to / below, old kept visible).
 - 01:20 goal page PUBLISHED v305 (14.21 main + S7 RESTnl; section 23 merged; nothing on the live page lost, verified block by block). Told the quiet window.
+- 01:35 quiet window v306 (section 23: ipsi > contra synchronisation WITHDRAWN -- non-calcium 7-11 Hz peak; quiet frames being re-run with DAQ + LP licks overnight); merged locally (commit below). Live = v306.
