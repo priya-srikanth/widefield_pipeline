@@ -20,12 +20,11 @@
 > onsets + DAQ contacts with no LP lick within 0.1 s. Hit classes and the engaged / quit gate stay contact-based. PS93_0813 has
 > no video (DAQ only). Effort analysis is not lick-locked (unchanged).
 >
-> **RUNNING at handoff (07:15):** part 2 (scratchpad/run_lp_chain2.sh; log scratchpad/lpchain2/): task_events + breathing DONE,
-> hemo415 running (examples done); part 3 (run_lp_chain3.sh; lpchain3/): lick LFO extract + summary running, then
-> --composition, then state_response. Example traces re-render (shorter markers, shared y-scale, blue cue ticks) running.
-> All on QS_LICK_SOURCE=daq+lp. If interrupted: re-run the same driver (per-session caches skip done sessions).
+> **STATE 11-02 08:05:** nothing running. LP re-run COMPLETE; encoding page v311 = every section-23 figure on LP licks
+> (v309 23.5/6/11/12/15, v310 23.16, v311 composition + T21 + ~7x titles). PI deck PI_overview_2026-11-02.pptx built (agent; build
+> scripts in presentations/_source_PI_overview_2026-11-02/; movie script scripts/cohort2_qc/quiet_event_movie.py).
 >
-> **NEXT:** (1) when parts 2 / 3 finish, swap the still-DAQ section-23 figures to the v2_quiet_lp versions: 23.5 (T13
+> **NEXT:** (1) DONE 11-02 (v309-v311): swap the still-DAQ section-23 figures to the v2_quiet_lp versions: 23.5 (T13
 > outcome, v2_quiet_lp/task_events/t13_precue_event_vs_outcome.png), 23.6 (examples, v2_quiet_lp/quiet_event_example_traces.png),
 > 23.11 (415, v2_quiet_lp/hemo415/), 23.12 (breathing, v2_quiet_lp/breathing/), 23.15 (task rates), 23.16 (lick LFO,
 > v2_quiet_lp/lick_lfo/), and add T21 / composition numbers on LP licks; update captions + retag '[licks: DAQ contact + LP
