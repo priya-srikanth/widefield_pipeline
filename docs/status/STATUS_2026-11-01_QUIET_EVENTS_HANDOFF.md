@@ -16,8 +16,7 @@
 > far-contra attempt beyond time-in-session (T13). OPEN and decisive: T9 breathing (respiration looks faster post-stroke,
 > Priya), T10 haemodynamics, T16 (Ramanathan), T21-T22; T13 follow-up: decoder trained without the event frames.
 >
-> **Pending actions:** (1) replace page Fig 15.7 (imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v38) with
-> `v2_quiet/eta_fr/quiet_eta_maps_fr.png` + caption; (2) when agents report, merge into the running list, this handoff,
+> **Pending actions:** (1) DONE 11-01: page Fig 15.7 replaced by the movement-corrected map (imaging page v40); (2) when agents report, merge into the running list, this handoff,
 > FINDINGS 3.Q; (3) then move section 15 to the encoding page (Priya: recommended there; decide with her) with all results;
 > (4) T21, T22.
 >
