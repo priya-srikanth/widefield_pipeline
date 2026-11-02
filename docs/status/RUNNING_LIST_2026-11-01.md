@@ -106,3 +106,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   windows -- PS94 flips .92/.82 -> 1.17/1.13 (RAW agrees with RESTnl); (2) PS94 chronic far contra ~.9 -> ~.71, most
   likely the flat-baseline shift (decision above), not cortex; (3) June->Aug pre drift significant in more bins
   (contact 216 vs 67) -- acute changes still exceed drift. Two new decisions above (cache digest; PS94 flat).
+- 03:05 launched (helpers): (a) imaging page -- ADD RESTnl maps next to the REST versions (b-suffix figs, both visible,
+  nothing removed; publish from the full live read); (b) FINAL LP ARM render in a new worktree/branch analysis/lp-final
+  (gate option + RESTnl combined; LP licks + LP gate + Aug-only pre; ENL 1.0/1.5(/2.0) s with trial counts first;
+  LP-trained frozen decoders alongside DAQ-trained; new *_LPfinal folders; plan in LP_FINAL_ARM_20261102.md; <=4 workers).
