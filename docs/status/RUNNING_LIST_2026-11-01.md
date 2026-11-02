@@ -37,3 +37,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 23:35 quiet-events window (sabatinilab-a8) will add imaging section 15 to the GOAL page as section 23 (id quiet-state,
   before 'Pending'), publishing from the live version. I hold publishes ~45 min; after their publish I must merge their
   section into _goal_page/index.html before my next publish (re-read live). Asked them to tag lick source + note RESTnl.
+- 23:55 GATE CHECK DONE (GATE_LP_CHECK_20261101.md): no LP-gate re-run needed for maps / Haufe / S28 quits; stopped class
+  borderline (optional sensitivity); DAQ-arm pre-cue windows 17-25 % contain an LP lick in every epoch -> level caveat,
+  not a stroke effect; LP_licks ENL arm is the one to cite. CONCLUSION CHANGE: none; adds caveat to imaging 1.1 / 2.1 / 7.x
+  DAQ pre-cue figures (caption note to add).
+- 23:55 quiet window published section 23 on the goal page = v304 (built on my v303). MUST merge their section (source
+  in their scratchpad .../782a4a7a-.../scratchpad/encpage/index.html; fig_ids rows fig_ids_rows.csv) into
+  _goal_page/index.html after my 14.21/S7 helper finishes, before my next publish. They are running the quiet-frame LP
+  sensitivity themselves (do not duplicate).

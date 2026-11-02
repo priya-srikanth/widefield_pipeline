@@ -1603,3 +1603,10 @@ Paxinos plates: `wfield_local/histology_map/`.
   FaceRhythm (cam1-3).
 
 - 11-01 CHECK: the 10-29 line "far-contra ALM acute loses significance (+2.7 n.s.)" does not match the current rescue-rule c2l_A_changes_restnl.csv (far-contra ALM_right acute +3.3, significant, 4/4); likely the strict variant or another panel. Unresolved. Acute far-contra pre-cue raise on RESTnl is NOT orofacial-specific (reference areas rise as much; page 14.21 / S2).
+- GATE vs LP ATTEMPTS 11-01 (docs/status/GATE_LP_CHECK_20261101.md, scripts/gate_lp_check.py): the DAQ-contact engagement
+  gate rarely gates out trials with an LP attempt (pre 0.5 %, acute / subacute ~3 %; not far-contra driven) -> working-trial
+  maps / Haufe and the S28 quit tests are NOT affected (quit shift under an LP rule acute +0.40 min [-0.06, +1.15]; one
+  chronic quit lost). Stopped class: 2.5 % pre -> 4.9 % acute -> 7.0 % chronic hold an LP attempt (borderline; sensitivity
+  re-run optional). DAQ-arm pre-cue "lick-free" windows contain an LP lick in 17-25 % (2 s) / 10-18 % (1 s) of trials in
+  EVERY epoch (no epoch change): DAQ-arm ENL = contact-free, not tongue-free -> cite the LP_licks ENL arm for any
+  "not lick-driven" claim. PROVISIONAL.
