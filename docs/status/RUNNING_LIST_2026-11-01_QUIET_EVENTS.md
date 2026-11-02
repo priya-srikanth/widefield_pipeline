@@ -22,8 +22,9 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 
 **Overnight log (appended as things land):**
 - 22:25 running: T9 breathing (re-extraction 56/107), T21, T22 (+T20 noise floor), T13 follow-up, ITPC composition control.
+- 22:30 Priya: move the section to the ENCODING page (goal-question page Fnpn2KHknMwh3r13xADH7d); messaged sabatinilab-34 (likely the encoding window) to coordinate. Plan: one appended self-contained section, built on the live version, after T9 / T21 / T22 / T13-followup land.
 
-**Page changes tonight:** (none yet; planned: add T1 / T7 / T20 / T12-13 / T10 / recovery figures to section 15)
+**Page changes tonight:** (none yet; planned: new section on the ENCODING page with all results + figures; imaging-page section 15 -> pointer)
 
 ## Decisions needed from Priya
 

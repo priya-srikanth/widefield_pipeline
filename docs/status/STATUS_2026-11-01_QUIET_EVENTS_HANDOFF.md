@@ -18,7 +18,7 @@
 > Priya); T21-T22; T13 follow-up: decoder trained without the event frames.
 >
 > **Pending actions:** (1) DONE 11-01: page Fig 15.7 replaced by the movement-corrected map (imaging page v40); (2) when agents report, merge into the running list, this handoff,
-> FINDINGS 3.Q; (3) then move section 15 to the encoding page (Priya: recommended there; decide with her) with all results;
+> FINDINGS 3.Q; (3) MOVE section 15 to the encoding page -- AUTHORISED by Priya 11-01 22:30 ('communicate if needed with encoding window'); messaged sabatinilab-34; one appended self-contained section built on the live page, imaging section 15 -> pointer;
 > (4) T21, T22.
 >
 > **Literature framing (FINDINGS 8):** tongue reaching as a precision model of post-stroke motor control (Bollu 2021 etc.,
