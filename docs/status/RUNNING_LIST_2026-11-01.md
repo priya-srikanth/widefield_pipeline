@@ -32,6 +32,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   claim; (3) drop thin positions (loses PS93 far contra); (4) shorter cam4 post-lick buffer; (5) fit anyway (no).
 - [ ] 12.1 caption: says 50 permutations, code uses 200; its pre-stroke models are refit in memory each render (rule 10).
   Correct the caption (append note)?
+- [ ] Fig 2.4 under stored frozen DAQ decoder: re-render (acute far contra pooled .314 -> .260; PS92 .27 -> .15; still
+  4/4 below pre) or keep current labelled "LP-trained in memory"? (Correction note on 2.4 still awaiting Priya.)
+- [ ] Move the remaining in-memory "frozen" fits to the store too (5c frozen-vs-refit column, grant_figures 5b
+  confusions)? In the LP arm these are LP-trained while acc is now DAQ-trained. RECOMMEND yes.
+- [ ] frozen_models.siblings() logs false SPEC-CHANGED (ignores window length / lick source). Fix?
 - [ ] LP ENL window: 1.5 s looks better than 1.0 s (enough trials everywhere; pooled pre accuracy .42 -> .48; same acute
   loss 4/4). 2.0 s keeps trials selectively where the deficit is -> sensitivity only. Which as primary for the LP arm?
 
@@ -192,3 +197,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   (7.1 1.17 -> 1.24; 7.5 1.24 -> ~1.33). PS93 subacute/chronic cells near 1 fragile (do not read direction). PS94 low
   chronic is NOT a coverage effect. RECOMMEND keep rule wr at 50 frames primary; imputation as the one sensitivity; caveat
   sentence on PS93 pre-cue amplitude (wording in doc). Script committed on analysis/restnl-maps.
+- FROZEN DEFAULT DONE (worktree wf_frozendef, branch analysis/frozen-default = rest-decoder-nl + merge lp-final d966e80b +
+  1d0fc040; FROZEN_DEFAULT_20261102.md there). Epoch acc family + 12.1 now load_or_fit by default (opt-outs
+  WIDEFIELD_EPOCH_FROZEN=0 / WIDEFIELD_REST_FROZEN=0); 28 new epoch_decoder models in C:/Users/SabatiniLab/frozen_models.
+  Stored == in-memory bit for bit where the training set is the same (DAQ 2 s, ENL1s, LP LP-trained, 12.1). Pre-existing
+  drift vs current page renders (reproduced by the in-memory path, so not this change): DAQ 2 s bars <= .024 (subacute
+  far mid ENL ** -> *), ENL1s <= .009, LP <= .007, 12.1 retained .28 / .54 unchanged. REAL CHANGE: LP arm now loads the
+  DAQ-trained model -> Fig 2.4 lick-window acute far contra pooled .314 -> .260 (decision above). Renders in
+  G/frozen_default_20261102/. Not on the page.
