@@ -34,6 +34,7 @@ bootstrap CI in the epoch colour, stars (LMM epoch vs pre, FDR) in the top band.
     python scripts/cohort2_qc/quiet_spikes_v2.py [--jobs 6] [--summarise] [--k 5]
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -44,7 +45,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import DETREND_S, EP, EVENTS, MAX_HW_S, MIN_HW_FR, OUT, columns, mad, session_traces  # noqa: E402
 
-V2 = OUT / "v2_quiet"
+# LICK SOURCE for QUIET frames (Priya 11-01: "replace all contact-based with LP-lick based where appropriate"). "daq" = DAQ
+# spout-contact licks only (the original v2 definition); "daq+lp" = also LP video licks (cam4 + cam1-only, lp_licks.py), so
+# non-contact tongue movements -- 73-99 % of acute far-contra licks -- cannot sit inside "quiet" frames. Set by env var so
+# spawned workers inherit it; each source writes to its own output root, so the two never mix.
+LICK_SOURCE = os.environ.get("QS_LICK_SOURCE", "daq")
+if LICK_SOURCE not in ("daq", "daq+lp"):
+    raise ValueError(f"QS_LICK_SOURCE must be daq or daq+lp, not {LICK_SOURCE!r}")
+V2 = OUT / ("v2_quiet" if LICK_SOURCE == "daq" else "v2_quiet_lp")
 BUF_S, BASE_S, MERGE_S, BAD_S = 1.5, (1.0, 0.2), 0.3, 0.5
 AMPS, N_INJ, INJ_GAP_S, HIT_S = (1.0, 2.0, 3.0, 4.0, 6.0), 40, 3.0, 0.25
 INJ_COLS = ["orofacial_left", "orofacial_right", "limb_left", "limb_right"]
@@ -105,7 +113,7 @@ def detect(y, ok, fs):
 
 
 def busy_frames(label, ft, fs):
-    """(busy = within BUF_S of a DAQ contact lick or a running bout, badw = within BAD_S of a swapped pair) on frames ft.
+    """(busy = within BUF_S of a lick (DAQ contact; + LP video licks when QS_LICK_SOURCE=daq+lp) or a running bout, badw = within BAD_S of a swapped pair) on frames ft.
     Shared with quiet_fluct.py so every quiet analysis uses the identical frames."""
     from wfield_local import config
     T = len(ft)
@@ -113,7 +121,11 @@ def busy_frames(label, ft, fs):
     z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
     fsd = float(z["fs"])
     busy = np.zeros(T, bool)
-    for x in z["lick_onsets"] / fsd:
+    licks = z["lick_onsets"] / fsd
+    if LICK_SOURCE == "daq+lp":
+        from lp_licks import lick_times
+        licks = np.r_[licks, lick_times(label)]
+    for x in licks:
         busy[np.searchsorted(ft, x - BUF_S):np.searchsorted(ft, x + BUF_S)] = True
     for r0, r1 in np.c_[z["running_starts"], z["running_stops"]] / fsd:
         busy[np.searchsorted(ft, r0 - BUF_S):np.searchsorted(ft, r1 + BUF_S)] = True

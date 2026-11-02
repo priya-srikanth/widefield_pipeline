@@ -32,10 +32,10 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from quiet_area_spikes import EP, OUT, columns, session_traces  # noqa: E402
+from quiet_area_spikes import EP, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames, detrend  # noqa: E402
 
-FL = OUT / "v2_quiet" / "fluct"
+FL = V2 / "fluct"                                           # follows QS_LICK_SOURCE (quiet_spikes_v2.V2)
 K_EVT = 4.0
 SEG_S, LAG_S = 4.0, (-1.0, 2.0)
 MAP_LAGS_S = (-0.3, 0.0, 0.2, 0.5, 1.0)
