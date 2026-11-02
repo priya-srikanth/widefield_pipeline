@@ -16,6 +16,16 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   appropriate". RECOMMEND: keep flat primary (contrasts unaffected), caveat stated in the 15r caption, and add a
   time-local lick-free sensitivity before quoting any PS94 late AMPLITUDE. Or: switch maps to time-local lick-free.
 - [ ] Imaging page: RESTnl maps ADDED next to the REST ones (nothing removed). Which should be the headline?
+- [ ] CAPTION ERROR on imaging Fig 2.4 (and the LP 1.0 s ENL comparison): caption says "frozen decoder trained on DAQ-contact
+  trials", but the epoch acc family refits its pre-stroke decoder IN MEMORY on the current arm's (LP-gated) pre trials
+  (grant_confusion.py `_pipe().fit(XE[e_pre], YE[e_pre])`; WIDEFIELD_LP_FROZEN never reaches it). So those figures were
+  effectively LP-trained and not stored-frozen (breaks CLAUDE.md rule 10). Numbers barely move: final DAQ- vs LP-trained
+  acute cells differ <= .05. Plan: APPEND a correction note to those captions (no removal); please confirm wording.
+  Figs 5.1/5.2 (attempt classes) are a different script -- not checked yet.
+- [ ] Make the stored-frozen epoch decoders (opt-in WIDEFIELD_EPOCH_FROZEN=1, branch analysis/lp-final) the default?
+  RECOMMEND yes (rule 10). Would change epoch acc figures slightly everywhere -> discuss before re-rendering page figures.
+- [ ] LP ENL window: 1.5 s looks better than 1.0 s (enough trials everywhere; pooled pre accuracy .42 -> .48; same acute
+  loss 4/4). 2.0 s keeps trials selectively where the deficit is -> sensitivity only. Which as primary for the LP arm?
 
 ## 1b. Decisions taken by "ok" on 11-01 (my recommendations in RESTNL_ROLLOUT_PLAN_20261101.md; Priya said ok)
 - RESTnl primary; old baselines (RESTW on the goal page, time-local REST on the imaging page) kept as collapsed sensitivity.
@@ -110,3 +120,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   nothing removed; publish from the full live read); (b) FINAL LP ARM render in a new worktree/branch analysis/lp-final
   (gate option + RESTnl combined; LP licks + LP gate + Aug-only pre; ENL 1.0/1.5(/2.0) s with trial counts first;
   LP-trained frozen decoders alongside DAQ-trained; new *_LPfinal folders; plan in LP_FINAL_ARM_20261102.md; <=4 workers).
+- 05:20 FINAL LP ARM DONE (helper; worktree wf_lpfinal, branch analysis/lp-final = restnl-maps + gate cherry-pick 3544e4b9
+  + 5822cbad; doc LP_FINAL_ARM_20261102.md there). 88 figures in NEW folders G/LPfinal/... and imaging_encoding/
+  attempt_maps_LPfinal_{restnl,rest}; tables G/LPfinal/compare/. 3 h 54 min, <= 4 workers. NO HEADLINE CHANGES: maps vs
+  current LP versions within .01 (cue RESTnl acute .52 pooled, 4/4 below pre; lick 3/4; drift within .015; attempt maps
+  same). ENL far-contra acute loss 4/4 at 1.0 / 1.5 / 2.0 s, DAQ- and LP-trained alike (diff <= .05 acute). August pre
+  makes PS92/PS93 pre accuracy slightly higher -> per-animal drops slightly larger than the page. FOUND: page 2.4 / LP 1.0 s
+  ENL decoders were refit in memory on LP pre trials, not the stored DAQ model the caption names (decision above).
+  ENL keep rate far contra: 1.0 s >= .94, 1.5 s >= .79, 2.0 s down to .53 (PS92/93 acute/subacute).
+  Not done: 14m beta maps, 5c/5cr, cue/lick-window decoders 2.3/2.4, ENL maps at 1.5/2.0 s, page-style open markers.
+  NEXT: after the imaging-page RESTnl helper reports, ADD LP-final figures (+ caption correction note) to the imaging page.
