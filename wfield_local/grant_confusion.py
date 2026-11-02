@@ -255,6 +255,28 @@ def fig_confusion_pre_post(out_dir):
     return made[0] if len(made) == 1 else (made or None)
 class _Stored(Exception):
     """Raised to skip the LocaNMF recompute when the stored per-class confusions covered it."""
+
+
+def _5b_sidecar(side, path):
+    """Long table of 5b's counts: one row per (animal, session, panel, true position), one column per predicted
+    position, plus a `decoder` row per recomputed animal (store / memory). Data only; nothing reads it back."""
+    import pandas as pd
+
+    rows = []
+    for an, lab, panel, C in side:
+        if isinstance(C, str):
+            rows.append({"animal": an, "session": lab, "panel": panel, "true": C})
+            continue
+        if C is None:
+            continue
+        for i, t in enumerate(CONF_LABELS):
+            rows.append({"animal": an, "session": lab, "panel": panel, "true": t,
+                         **{q: float(C[i, j]) for j, q in enumerate(CONF_LABELS)}})
+    if not rows:
+        return None
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_csv(path, index=False)
+    return path
 def fig_confusion_pre_post_working(out_dir):
     """5b: figure 5 with the post-stroke TERMINAL QUIT PERIOD removed.
 
@@ -322,6 +344,7 @@ def fig_confusion_pre_post_working(out_dir):
                                  gridspec_kw={"hspace": 0.42})
         drew = False
         stored = []                # animals served from coding_direction.json rather than recomputed
+        side = []                  # (animal, session, panel, counts) for the data sidecar
         for ri, an in enumerate(ANIMALS):
             # STORED CLASSES FIRST; the LocaNMF recompute is the fallback, not the default.
             mats = _from_json(an, _disp)
@@ -341,7 +364,12 @@ def fig_confusion_pre_post_working(out_dir):
                 XU, YU, GU = bd["XU"], bd["YU"], bd["GU"]
                 pre_i, e_pre, not_eng = bd["pre_i"], bd["e_pre"], bd["not_eng"]
                 u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
-                clf = _pipe().fit(XE[e_pre], YE[e_pre])
+                # THE STORED EPOCH DECODER (11-02, Priya: "yes cache all frozen decoders"): the same bundle, rows and
+                # estimator as the acc family's `epoch_decoder`, so the full and LOSO fits here ARE that stored model
+                # (bit for bit on the DAQ arm). Opt-out WIDEFIELD_EPOCH_FROZEN=0 refits in memory as before.
+                # (named `frozen`, not `stored`: `stored` above is the list of animals served from the JSON)
+                frozen = _stored_epoch_decoder(an, align, bd, tag="5b")
+                clf = frozen["full"] if frozen else _pipe().fit(XE[e_pre], YE[e_pre])
                 name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
 
                 def conf(X, y, clf=clf, name=name):
@@ -369,7 +397,8 @@ def fig_confusion_pre_post_working(out_dir):
                     te = e_pre & (GE == i)
                     if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
                         continue
-                    c1 = conf(XE[te], YE[te], clf=_pipe().fit(XE[tr], YE[tr]))
+                    m_i = (frozen["loso"].get(bd["kept"][i]) if frozen else None) or _pipe().fit(XE[tr], YE[tr])
+                    c1 = conf(XE[te], YE[te], clf=m_i)
                     Cpre = c1 if Cpre is None else Cpre + c1
                 mats["pre"] = Cpre
                 pe, pu = ~e_pre, (~u_pre if len(u_pre) else np.zeros(0, bool))
@@ -380,11 +409,22 @@ def fig_confusion_pre_post_working(out_dir):
                 Xw = np.vstack([XE[pe]] + ([XU[pw]] if len(u_pre) and pw.any() else []))
                 yw = np.concatenate([YE[pe]] + ([YU[pw]] if len(u_pre) and pw.any() else []))
                 mats["post_working"] = conf(Xw, yw)
+                # DATA SIDECAR ONLY (11-02): the post_working panel split by session, so a render can be compared cell
+                # by cell and read per epoch. Drawing is unchanged; these sum to `post_working`.
+                for i, lab in enumerate(bd["kept"]):
+                    if i in pre_i:
+                        continue
+                    mu_s = ((GU == i) & ~not_eng) if len(GU) else np.zeros(0, bool)
+                    Xs = np.vstack([XE[GE == i]] + ([XU[mu_s]] if mu_s.any() else []))
+                    ys = np.concatenate([YE[GE == i]] + ([YU[mu_s]] if mu_s.any() else []))
+                    side.append((an, lab, "post_working_session", conf(Xs, ys)))
+                side.append((an, "", "decoder", "memory" if frozen is None else "store"))
             except _Stored:
                 pass                       # the stored per-class matrices are already in `mats`
             except Exception as ex:                                       # noqa: BLE001
                 print(f"  !! 5b {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
                 mats = mats or {}
+            side += [(an, "", key, mats.get(key)) for key, _t in PANELS]
             for ci, (key, ptitle) in enumerate(PANELS):
                 ax = axes[ri][ci]
                 C = mats.get(key)
@@ -443,6 +483,7 @@ def fig_confusion_pre_post_working(out_dir):
                   + (f" -- coding_direction.json LAGS the config by {len(lag)} session(s): "
                      f"{', '.join(lag)}; re-run position_coding_directions" if lag else
                      " -- coding_direction.json is current"), flush=True)
+        _5b_sidecar(side, Path(out_dir) / "data" / f"grant_5b_confusion_working_{align}.csv")
         _footer(fig)
         p = Path(out_dir) / f"grant_5b_confusion_working_{align}.png"
         _save(fig, p, dpi=200, bbox_inches="tight")
@@ -571,8 +612,12 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
 #: before 11-02 was LP-trained -- `WIDEFIELD_LP_FROZEN` never reached this family. Kind "epoch_decoder" (never
 #: collides with `locanmf_frozen_decoder`'s "decoder" specs); payload {"full": all-pre model, "loso": {pre label:
 #: model}}, the same two fits as the in-memory path, so where the training set is the same a store-and-load run
-#: reproduces the in-memory one exactly (docs/status/FROZEN_DEFAULT_20261102.md). NOT covered (still in memory):
-#: `_collect_5c` modes refit / paired / paired_matched (their frozen column) and `grant_figures` 5b confusions.
+#: reproduces the in-memory one exactly (docs/status/FROZEN_DEFAULT_20261102.md). SINCE 11-02 (later; Priya: "yes cache
+#: all frozen decoders") the SAME stored model also serves the frozen column of `_collect_5c` mode "paired" (families 5r /
+#: 5ro, `recovery_trajectory`) and the 5b confusions (`fig_confusion_pre_post_working`), so all of them score with the
+#: model the acc family uses, DAQ- or LP-trained alike (docs/status/FROZEN_ALL_20261102.md). Still in memory, by design
+#: or as listed there: mode "refit" (no frozen column), mode "paired_matched" (a size-matched random pre subset per
+#: scored session, `_matched_frozen`).
 EPOCH_FROZEN_ENV = "WIDEFIELD_EPOCH_FROZEN"
 EPOCH_FROZEN_OFF = ("0", "false", "no", "off")
 
@@ -584,12 +629,14 @@ def epoch_frozen_on() -> bool:
     return os.environ.get(EPOCH_FROZEN_ENV, "").strip().lower() not in EPOCH_FROZEN_OFF
 
 
-def _stored_epoch_decoder(an, align, bd):
-    """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when opted out."""
+def _stored_epoch_decoder(an, align, bd, tag="5c"):
+    """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when opted out.
+
+    ``tag`` only labels the log line (5c / 5r / 5b): every caller gets the same spec, hence the same stored model."""
     import os
 
     if not epoch_frozen_on():
-        print(f"  [5c] {an} {align}: {EPOCH_FROZEN_ENV}=0 -> pre-stroke decoder fitted IN MEMORY (not stored)",
+        print(f"  [{tag}] {an} {align}: {EPOCH_FROZEN_ENV}=0 -> pre-stroke decoder fitted IN MEMORY (not stored)",
               flush=True)
         return None
     from wfield_local import frozen_models
@@ -618,7 +665,7 @@ def _stored_epoch_decoder(an, align, bd):
 
     payload, status = frozen_models.load_or_fit(
         spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()), "n_pre_sessions": len(pre_i)})
-    print(f"  [5c] {an} {align}: epoch_decoder {frozen_models._slug(spec)} {status} "
+    print(f"  [{tag}] {an} {align}: epoch_decoder {frozen_models._slug(spec)} {status} "
           f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
     return payload
 
@@ -680,7 +727,12 @@ def _collect_5c(align, variant="working", mode="frozen"):
             kept, pre_i, e_pre = bd["kept"], bd["pre_i"], bd["e_pre"]
             not_eng, BE_all, BU_all = bd["not_eng"], bd["BE"], bd["BU"]
 
-            stored = _stored_epoch_decoder(an, align, bd) if mode == "frozen" else None
+            # THE FROZEN COLUMN IS THE STORED MODEL in "frozen" AND "paired" (11-02): the same full / LOSO fits as the
+            # in-memory line below (same rows), so the DAQ arm is unchanged bit for bit and the LP arm's paired frozen
+            # column is the acc family's model (DAQ-trained by default, LP-trained with WIDEFIELD_LP_FROZEN=lp).
+            # "refit" has no frozen column; "paired_matched" replaces both models with `_matched_frozen` draws.
+            stored = (_stored_epoch_decoder(an, align, bd, tag="5c" if mode == "frozen" else "5r")
+                      if mode in ("frozen", "paired") else None)
             clf = stored["full"] if stored else _pipe().fit(XE[e_pre], YE[e_pre])
 
             def rec(X, y, blk, model, pool=None):

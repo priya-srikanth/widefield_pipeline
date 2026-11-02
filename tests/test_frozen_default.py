@@ -115,9 +115,221 @@ def test_collect_5c_frozen_mode_uses_the_store():
     """The acc family's collector asks the store in mode "frozen" and only falls back to a fit when opted out."""
     from wfield_local import grant_confusion
     src = inspect.getsource(grant_confusion._collect_5c)
-    assert 'stored = _stored_epoch_decoder(an, align, bd) if mode == "frozen" else None' in src
+    assert 'if mode in ("frozen", "paired") else None)' in src
     assert 'clf = stored["full"] if stored else _pipe().fit(XE[e_pre], YE[e_pre])' in src
     assert 'stored["loso"].get(kept[i]) if stored else None' in src
+
+
+# ------------------------------------------------------------------------------- 5c paired (5r / 5ro) and 5b (11-02)
+def _full_bundle(seed=0, n_sess=4, n_per=60, n_feat=12, n_post=2):
+    """A `_pooled_bundle`-shaped dict: engaged rows (E) for n_sess pre + n_post post sessions, unengaged rows (U) for
+    the post sessions with half of them in the terminal quit period."""
+    rng = np.random.default_rng(seed)
+    kept = [f"PS92_08{10 + i:02d}" for i in range(n_sess)] + [f"PS92_09{1 + i:02d}" for i in range(n_post)]
+    GE = np.repeat(np.arange(len(kept)), n_per)
+    YE = np.tile(np.arange(6), len(GE) // 6 + 1)[:len(GE)]
+    W = rng.normal(size=(1, n_feat))
+    XE = rng.normal(size=(len(GE), n_feat)) + 0.8 * YE[:, None] * W
+    GU = np.repeat(np.arange(n_sess, len(kept)), 12)
+    YU = np.tile(np.arange(6), len(GU) // 6 + 1)[:len(GU)]
+    XU = rng.normal(size=(len(GU), n_feat)) + 0.3 * YU[:, None] * W
+    pre_i = set(range(n_sess))
+    return {"XE": XE, "YE": YE, "GE": GE, "XU": XU, "YU": YU, "GU": GU, "kept": kept, "pre_i": pre_i,
+            "e_pre": np.isin(GE, list(pre_i)), "not_eng": np.arange(len(GU)) % 2 == 1,
+            "BE": GE * 100 + np.arange(len(GE)) // 6, "BU": 10000 + GU * 100 + np.arange(len(GU)) // 6,
+            "basis_id": "testbasis000"}
+
+
+def _collect(gc, monkeypatch, mode, variant="working", seed=5):
+    bd = _full_bundle(seed=seed)
+    monkeypatch.setattr(gc, "ANIMALS", ("PS92",))
+    monkeypatch.setattr(gc, "_pooled_bundle", lambda an, align: bd)
+    return gc._collect_5c.__wrapped__("cue", variant, mode)
+
+
+def _same_records(a, b):
+    assert a[1] == b[1]
+    for an in a[0]:
+        pa, pb = a[0][an][0], b[0][an][0]
+        for ra, rb in (zip(pa, pb) if isinstance(pa, list) else [(pa, pb)]):
+            for x, y in zip(ra, rb):
+                np.testing.assert_array_equal(x, y)
+        assert sorted(a[0][an][1]) == sorted(b[0][an][1])
+        for d in a[0][an][1]:
+            for x, y in zip(a[0][an][1][d], b[0][an][1][d]):
+                np.testing.assert_array_equal(x, y)
+
+
+@pytest.mark.parametrize("variant", ["working", "lick"])
+def test_collect_5c_paired_stored_equals_in_memory(daq_env, variant):
+    """Mode "paired" (5r / 5ro / recovery_trajectory) asks the store, and its records -- frozen AND refit columns,
+    pre LOSO list and every post day -- equal the opt-out in-memory records EXACTLY."""
+    from wfield_local import frozen_models
+    from wfield_local import grant_confusion as gc
+    rec = _Recorder()
+    daq_env.setattr(frozen_models, "load_or_fit", rec)
+    got = _collect(gc, daq_env, "paired", variant)
+    assert len(rec.calls) == 1 and rec.calls[0]["spec"]["kind"] == "epoch_decoder"
+    assert "lick_source" not in rec.calls[0]["spec"]
+    daq_env.setenv("WIDEFIELD_EPOCH_FROZEN", "0")
+    ref = _collect(gc, daq_env, "paired", variant)
+    assert len(rec.calls) == 1                                       # the opt-out never reached the store
+    assert got[0]["PS92"][1], "no post-stroke day was scored"
+    _same_records(got, ref)
+    some = next(iter(got[0]["PS92"][1].values()))
+    assert some[1].ndim == 2 and some[1].shape[1] == 2               # (frozen, refit) columns
+
+
+def test_collect_5c_frozen_column_of_paired_is_the_frozen_mode(daq_env):
+    """The paired frozen column IS mode "frozen" (same stored model), so 5r and acc can never disagree on it."""
+    from wfield_local import frozen_models
+    from wfield_local import grant_confusion as gc
+    daq_env.setattr(frozen_models, "load_or_fit", _Recorder())
+    fz = _collect(gc, daq_env, "frozen")
+    pr = _collect(gc, daq_env, "paired")
+    for d, (y, p, b) in fz[0]["PS92"][1].items():
+        yp, pp, bp = pr[0]["PS92"][1][d]
+        np.testing.assert_array_equal(y, yp)
+        np.testing.assert_array_equal(b, bp)
+        np.testing.assert_array_equal(p, pp[:, 0])
+
+
+@pytest.mark.parametrize("mode", ["refit", "paired_matched"])
+def test_collect_5c_refit_and_matched_do_not_ask_the_store(daq_env, mode):
+    """No frozen column (refit) / a per-session size-matched draw (paired_matched): in memory by design."""
+    from wfield_local import frozen_models
+    from wfield_local import grant_confusion as gc
+    rec = _Recorder()
+    daq_env.setattr(frozen_models, "load_or_fit", rec)
+    _collect(gc, daq_env, mode)
+    assert rec.calls == []
+
+
+def _render_5b(gc, monkeypatch, out):
+    bd = _full_bundle(seed=11)
+    monkeypatch.setattr(gc, "ANIMALS", ("PS92",))
+    monkeypatch.setattr(gc, "_pooled_bundle", lambda an, align: bd)
+    monkeypatch.setattr(gc, "_fig_root", lambda: Path(out) / "no_such_root")   # no coding_direction.json -> recompute
+    gc.fig_confusion_pre_post_working(out)
+    import pandas as pd
+    return {al: pd.read_csv(Path(out) / "data" / f"grant_5b_confusion_working_{al}.csv") for al in ("precue", "cue")}
+
+
+def test_5b_stored_equals_in_memory(daq_env, tmp_path):
+    """5b's pre (LOSO) / post_all / post_working counts, and the per-session split, are identical under the stored
+    default and the opt-out; the default reaches the store once per (animal, window) with the acc family's spec."""
+    from wfield_local import frozen_models
+    from wfield_local import grant_confusion as gc
+    rec = _Recorder()
+    daq_env.setattr(frozen_models, "load_or_fit", rec)
+    got = _render_5b(gc, daq_env, tmp_path / "stored")
+    assert [c["spec"]["align"] for c in rec.calls] == ["precue", "cue"]
+    assert all(c["spec"]["kind"] == "epoch_decoder" and "lick_source" not in c["spec"] for c in rec.calls)
+    daq_env.setenv("WIDEFIELD_EPOCH_FROZEN", "0")
+    ref = _render_5b(gc, daq_env, tmp_path / "memory")
+    assert len(rec.calls) == 2
+    for al in ("precue", "cue"):
+        a = got[al][got[al].panel != "decoder"].reset_index(drop=True)
+        b = ref[al][ref[al].panel != "decoder"].reset_index(drop=True)
+        assert set(a.panel) == {"pre", "post_all", "post_working", "post_working_session"}
+        import pandas as pd
+        pd.testing.assert_frame_equal(a, b, check_exact=True)
+        assert got[al][got[al].panel == "decoder"]["true"].tolist() == ["store"]
+        assert ref[al][ref[al].panel == "decoder"]["true"].tolist() == ["memory"]
+        # the per-session split sums to the drawn post_working panel
+        lab = list(gc.CONF_LABELS)
+        ps = a[a.panel == "post_working_session"].groupby("true", sort=False)[lab].sum()
+        pw = a[a.panel == "post_working"].set_index("true")[lab]
+        np.testing.assert_array_equal(ps.loc[pw.index].to_numpy(), pw.to_numpy())
+
+
+def test_5b_uses_the_stored_epoch_decoder():
+    from wfield_local import grant_confusion as gc
+    src = inspect.getsource(gc.fig_confusion_pre_post_working)
+    assert 'frozen = _stored_epoch_decoder(an, align, bd, tag="5b")' in src
+    assert 'clf = frozen["full"] if frozen else _pipe().fit(XE[e_pre], YE[e_pre])' in src
+    assert 'frozen["loso"].get(bd["kept"][i]) if frozen else None) or _pipe().fit(XE[tr], YE[tr])' in src
+
+
+@pytest.mark.parametrize("lp_frozen", [None, "lp"])
+def test_lp_arm_spec_is_daq_trained_by_default_and_lp_trained_on_request(daq_env, lp_frozen):
+    """Under WIDEFIELD_LICK_SOURCE=lp the 5r / 5b frozen model is the acc family's: the DAQ-trained spec (no
+    lick_source; training set = every pre session of the animal) by default, the LP-trained one (lick_source=lp, the
+    LP-kept pre sessions) with WIDEFIELD_LP_FROZEN=lp. The two specs never share an id."""
+    from wfield_local import config, frozen_models
+    from wfield_local import grant_confusion as gc
+    specs = {}
+    for lf in (None, "lp"):
+        rec = _Recorder()
+        daq_env.setattr(frozen_models, "load_or_fit", rec)
+        daq_env.setenv("WIDEFIELD_LICK_SOURCE", "lp")
+        if lf:
+            daq_env.setenv("WIDEFIELD_LP_FROZEN", lf)
+        else:
+            daq_env.delenv("WIDEFIELD_LP_FROZEN", raising=False)
+        _collect(gc, daq_env, "paired")
+        specs[lf] = rec.calls[0]["spec"]
+    s = specs[lp_frozen]
+    if lp_frozen is None:
+        assert "lick_source" not in s
+        assert s["train_labels"] == sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == "PS92")
+    else:
+        assert s["lick_source"] == "lp"
+        assert s["train_labels"] == sorted(_full_bundle()["kept"][i] for i in range(4))
+    assert frozen_models.spec_id(specs[None]) != frozen_models.spec_id(specs["lp"])
+
+
+# ------------------------------------------------------------------------------------- siblings() grouping (11-02)
+def _put(root, spec, stamp):
+    import json
+    from wfield_local import frozen_models
+    d = Path(root) / spec["animal"] / frozen_models._slug(spec)
+    d.mkdir(parents=True)
+    (d / "manifest.json").write_text(json.dumps({"spec": spec, "frozen_utc": stamp}), encoding="utf-8")
+    return d
+
+
+def _spec(**kw):
+    s = {"freeze_version": 1, "animal": "PS92", "kind": "epoch_decoder", "align": "precue", "source": "locanmf",
+         "basis_id": None, "post_s": 2.0, "zscore": True, "alpha": None, "n_features": 10,
+         "train_labels": ["PS92_0810", "PS92_0811"], "train_sigs": {}}
+    s.update(kw)
+    return s
+
+
+def test_siblings_group_by_window_and_lick_source(daq_env, tmp_path):
+    """A 1.0 s model, a 2.0 s model and an LP-trained model of the same kind / align / source are NOT each other's
+    siblings (no false SPEC-CHANGED); a changed training set at the same window and source still is."""
+    from wfield_local import frozen_models
+    daq_env.setenv("WIDEFIELD_FROZEN_MODEL_DIR", str(tmp_path))
+    daq_env.setattr(frozen_models, "server_dir", lambda: None)
+    s2 = _spec()
+    s1 = _spec(post_s=1.0)
+    slp = _spec(post_s=1.0, lick_source="lp")
+    s2b = _spec(train_labels=["PS92_0810", "PS92_0811", "PS92_0812"])
+    for i, s in enumerate((s2, s1, slp)):
+        _put(tmp_path, s, f"2026-11-02T0{i}:00:00")
+    names = lambda sp: [r["dir"].name for r in frozen_models.siblings(sp)]       # noqa: E731
+    assert names(s2) == [frozen_models._slug(s2)]
+    assert names(s1) == [frozen_models._slug(s1)]
+    assert names(slp) == [frozen_models._slug(slp)]
+    assert names(s2b) == [frozen_models._slug(s2)]                    # same window / source: still a sibling
+    # the ids themselves are unchanged by the grouping and all differ
+    assert len({frozen_models.spec_id(s) for s in (s2, s1, slp, s2b)}) == 4
+
+
+def test_load_or_fit_status_new_across_window_changed_within(daq_env, tmp_path):
+    from wfield_local import frozen_models
+    daq_env.setenv("WIDEFIELD_FROZEN_MODEL_DIR", str(tmp_path))
+    daq_env.setattr(frozen_models, "server_dir", lambda: None)
+    _put(tmp_path, _spec(), "2026-11-02T00:00:00")
+    logs = []
+    _p, st = frozen_models.load_or_fit(_spec(post_s=1.0), lambda: {"m": 1}, log=logs.append)
+    assert st == frozen_models.STATUS_NEW and not any("DIFFERENT" in x for x in logs)
+    _p, st = frozen_models.load_or_fit(_spec(train_labels=["PS92_0810"]), lambda: {"m": 2}, log=logs.append)
+    assert st == frozen_models.STATUS_SPEC_CHANGED
+    _p, st = frozen_models.load_or_fit(_spec(post_s=1.0), lambda: {"m": 3}, log=logs.append)
+    assert st == frozen_models.STATUS_HIT and _p == {"m": 1}
 
 
 # ------------------------------------------------------------------------------------------------ rest decoder 12.1

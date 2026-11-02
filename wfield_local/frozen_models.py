@@ -261,13 +261,21 @@ def find(spec):
 
 
 def siblings(spec):
-    """Every stored model for the same (animal, kind, align, source), newest last.
+    """Every stored model for the same (animal, kind, align, source, post_s, lick_source), newest last.
 
     What makes a SPEC CHANGE visible. Without this, a changed pre-stroke set is indistinguishable
     from a first run -- both simply find nothing -- and the reference would move with no one
     noticing, which is the failure this module exists to prevent.
+
+    WINDOW AND LICK SOURCE ARE PART OF THE GROUP (11-02). The directory prefix carries only kind / align / source, so a
+    1.0 s ENL model and the 2.0 s one, or the LP-trained model and the DAQ-trained one, used to be each other's
+    "siblings": the first fit of either reported SPEC-CHANGED ("11 sessions -> 11", nothing added or removed) although
+    they are different references by design, and `refreeze` would have retired the other one. They are now compared on
+    the manifest's `post_s` / `lick_source` as well (a DAQ spec has no `lick_source`; a manifest without `post_s` stays
+    a sibling). Warning / supersede scope only: no spec, spec_id or stored model changes.
     """
     prefix = _slug(spec).rsplit("_", 1)[0] + "_"
+    want_post, want_src = spec.get("post_s"), spec.get("lick_source")
     out = []
     seen = set()
     for root, origin in _roots():
@@ -283,6 +291,10 @@ def siblings(spec):
                 m = json.loads((p / "manifest.json").read_text())
             except Exception:                            # noqa: BLE001
                 continue                                 # a half-copied model is not a candidate
+            ms = m.get("spec", {}) or {}
+            if ms.get("lick_source") != want_src or ("post_s" in ms and want_post is not None
+                                                     and float(ms["post_s"]) != float(want_post)):
+                continue                                 # another window / lick source: a different reference
             seen.add(p.name)
             out.append({"dir": p, "origin": origin, "frozen_utc": m.get("frozen_utc", ""),
                         "spec": m.get("spec", {}), "meta": m.get("meta", {})})

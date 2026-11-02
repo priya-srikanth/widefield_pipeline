@@ -1,7 +1,7 @@
 """Compare the data CSVs of two renders (docs/status/FROZEN_DEFAULT_20261102.md): the stored-frozen default against the
 current (in-memory) renders, cell by cell, exact.
 
-    python scripts/frozen_default_compare.py epoch <current epoch dir> <new epoch dir> [--tag NAME] [--out DIR]
+    python scripts/frozen_default_compare.py epoch <current epoch dir> <new epoch dir> [--glob PAT] [--tag NAME] [--out DIR]
     python scripts/frozen_default_compare.py rest  <current sessions.csv> <new sessions.csv> [--tag NAME] [--out DIR]
 
 epoch: every `epoch_acc*.csv` the two `data/` folders share (bars + CIs, deltas, per-animal `_sessions`, `_meta`).
@@ -53,17 +53,21 @@ def _cmp_frames(a: pd.DataFrame, b: pd.DataFrame, keys):
     return n_cells, n_diff, mx, rows
 
 
-def compare_epoch(cur: Path, new: Path):
+def compare_epoch(cur: Path, new: Path, pattern: str = "epoch_acc*.csv"):
     cd, nd = Path(cur) / "data", Path(new) / "data"
-    names = sorted({p.name for p in cd.glob("epoch_acc*.csv")} & {p.name for p in nd.glob("epoch_acc*.csv")})
-    only_cur = sorted({p.name for p in cd.glob("epoch_acc*.csv")} - {p.name for p in nd.glob("epoch_acc*.csv")})
+    names = sorted({p.name for p in cd.glob(pattern)} & {p.name for p in nd.glob(pattern)})
+    only_cur = sorted({p.name for p in cd.glob(pattern)} ^ {p.name for p in nd.glob(pattern)})
     summ, cells = [], []
     for nm in names:
         a, b = pd.read_csv(cd / nm), pd.read_csv(nd / nm)
         # `_sessions` has ONE ROW PER SESSION and no session label, so (epoch, position, animal) is not a key: compare
         # those rows in file order (the renderer writes them in a fixed order), never by a merge that cross-joins them.
+        # 5b (`grant_5b_*`) is a long table in a fixed order with a `decoder` provenance row (store / memory) that is
+        # EXPECTED to differ between a stored and an opt-out render, so it is dropped before comparing.
+        if nm.startswith("grant_5b_"):
+            a, b = a[a.panel != "decoder"].reset_index(drop=True), b[b.panel != "decoder"].reset_index(drop=True)
         keys = (["kind", "key"] if nm.endswith("_meta.csv") else
-                [] if nm.endswith("_sessions.csv") else ["epoch", "position"])
+                [] if (nm.endswith("_sessions.csv") or nm.startswith("grant_5b_")) else ["epoch", "position"])
         got = _cmp_frames(a, b, keys)
         if got is None:
             summ.append({"file": nm, "cells": np.nan, "differ": "shape", "max_abs": np.nan})
@@ -108,11 +112,13 @@ def main(argv=None) -> int:
     ap.add_argument("new", type=Path)
     ap.add_argument("--tag", default="compare")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--glob", default="epoch_acc*.csv",
+                    help="data CSVs to compare (epoch mode): e.g. 'epoch_5r*.csv' for 5r / 5ro, 'grant_5b_*.csv' for 5b")
     a = ap.parse_args(argv)
     if a.what == "epoch":
-        summ, cells, only_cur = compare_epoch(a.cur, a.new)
+        summ, cells, only_cur = compare_epoch(a.cur, a.new, a.glob)
         if only_cur:
-            print(f"  (not in the new render: {only_cur})")
+            print(f"  (in only one of the two renders: {only_cur})")
     else:
         summ, cells, tb = compare_rest(a.cur, a.new)
         print(tb.round(3).to_string(index=False))
