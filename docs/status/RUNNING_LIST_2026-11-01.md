@@ -55,3 +55,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   analysis/restnl-maps off widefield_pipeline main 7272d0be); new module wfield_local/restnl_mask.py, derived 'restnl'
   reference outside the cache key, outputs in NEW folders (epoch_restnl etc.), August-only pre; ~3-4 h. Results doc
   RESTNL_MAPS_20261101.md. Imaging page update after (RESTnl primary, REST collapsed supplement).
+- 00:40 Priya: "1 or 1.5 s no-LP-lick decoders?" + "the encoding page may already have a version" -> YES, exists:
+  LP 1.0 s ENL arm (10-24, ENCODING_FINDINGS "matched 1.0 s"): DAQ 1 s vs LP 1 s decoding within .03 everywhere;
+  acute far contra .21 [.12,.29] 4/4; ENL far-contra MAP increase 9.9 % -> 4.4 % of bins under LP (part was non-contact
+  licking). Not on the imaging page yet. QUEUED after maps: LP 1.5 s (+2 s if trials allow) with LP gate + LP-trained
+  frozen decoders (DAQ-trained alongside); add the LP 1.0 s decoders to imaging page next to 2.1 / 2.2.
+- 00:40 Priya: "LP gate anyway for consistency?" -> recommended YES for the LP arm (DAQ arms unchanged). Launched: LP-
+  inclusive gate as an OPTION (WIDEFIELD_GATE_SOURCE=lp; default byte-identical, pinned test; no renders) ->
+  LP_GATE_OPTION_20261101.md.
+## DECISION FOR PRIYA (morning): full "final LP arm" re-render (LP licks + LP gate + RESTnl + August pre, each family
+   once in final form; several hours, cold caches)? Not started overnight.
