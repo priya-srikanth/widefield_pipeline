@@ -42,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
-from quiet_spikes_v2 import V2, busy_frames, detect, detrend  # noqa: E402
+from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames, detect, detrend  # noqa: E402
 
 TE = V2 / "task_events"
 K = 4.0
@@ -68,7 +68,11 @@ def near_frames(label, ft, buf):
     z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
     fsd = float(z["fs"])
     m = np.zeros(len(ft), bool)
-    for x in z["lick_onsets"] / fsd:
+    licks = z["lick_onsets"] / fsd
+    if LICK_SOURCE == "daq+lp":                       # Priya 11-01: LP video licks too (same switch as busy_frames)
+        from lp_licks import lick_times
+        licks = np.r_[licks, lick_times(label)]
+    for x in licks:
         m[np.searchsorted(ft, x - buf):np.searchsorted(ft, x + buf)] = True
     for r0, r1 in np.c_[z["running_starts"], z["running_stops"]] / fsd:
         m[np.searchsorted(ft, r0 - buf):np.searchsorted(ft, r1 + buf)] = True

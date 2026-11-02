@@ -41,10 +41,13 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 - 00:58 LP chain finished (108 sessions; PS93_0813 no face video).
 - 01:00 T13 follow-up (not contamination), LP sensitivity (survives, larger), T21 (state explains a minority) landed.
 - 01:10 PUBLISHED encoding page v308: 15 figures of section 23 swapped to LP-based quiet frames with new numbers; lick-source note; 23.5 caption with the T13 follow-up. Version sent to 34.
+- 01:20 STARTED LP re-run part 2 (scratchpad/run_lp_chain2.sh): task windows / T13 (quiet_task_events.py now adds LP licks to its pre-cue / ITI masks), breathing, 415, example traces -> v2_quiet_lp/. Left on DAQ licks for Priya to decide: lick-LOCKED analyses (lick LFO / ITPC, state response, effort) align to DAQ contact licks -- switching them to LP lick onsets changes WHICH licks are analysed (incl. non-contact), not just the quiet mask; T13 follow-up (decoder windows already use LP licks).
 
 **Page changes tonight:** encoding page v304 (new section 23) -> v306 (Fig 23.3 corrected, 23.16 composition) -> v307 (23.12 breathing final) -> v308 (LP-based quiet frames for 15 figures; 23.5 T13 follow-up) = NEW section 23 (all quiet-period results, 22 figures; https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#quiet-state). Imaging page v41: section 15 now opens with a MOVED note linking to section 23 (figures kept, no longer updated). Section 23 will be updated as breathing / T21 / T22 / T13-followup / LP-lick results land.
 
 ## Decisions needed from Priya
+
+* **Lick-LOCKED analyses (lick LFO / ITPC, state response T21, effort):** keep aligning to DAQ contact licks, or switch to LP lick onsets (would add non-contact licks to the analysed set)? Left on DAQ overnight.
 
 * **Lick source for QUIET frames** -- RESOLVED 11-02: LP-based frames are now primary on the page (section 23, v308); the effect survives and grows. Original note: an inherited default from the imaging page's canonical DAQ events, not a choice. Acutely 73-99 % of far-contra licks are non-contact, so contact-only quiet frames can contain tongue movements and inflate the acute rate. Proposal: make DAQ + LP (+ jaw) the PRIMARY quiet definition once quiet_lp_sensitivity.py lands; swap section 23's headline figures if the effect survives; flag at the top here if it shrinks.
   Related (encoding window, wf_attempt docs/status/GATE_LP_CHECK_20261101.md): the DAQ-contact ENGAGEMENT gate rarely misses LP attempt trials (pre 0.5 %, acute ~3 %), so the engaged / quit split is fine; that does NOT cover non-contact licks INSIDE quiet frames -- that is what quiet_lp_sensitivity.py tests.
