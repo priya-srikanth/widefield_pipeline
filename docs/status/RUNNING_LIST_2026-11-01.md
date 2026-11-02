@@ -161,3 +161,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   within [-0.5, +2.0] s of a video or DAQ lick (14 / 542 survive); PS92 keeps 30 %, PS94 36 %, PS95 89 %. So 12.1's pre rest
   code for PS92/PS93 is built mostly next to licks the DAQ never registered (its lick-gap matching uses DAQ licks only).
   CONCLUSION AT RISK (not yet tested): 12.1's rest code. Launched June+Aug pre sensitivity (REST reproduction + RESTnl).
+- 07:45 Priya: "add correction note" (12.1) -> helper appending it (permutations 200 not 50; models refit each render;
+  PS92/PS93 lick-adjacent rest caveat). Priya: "we should cache frozen decoders as we always do" -> helper making the stored
+  frozen path the DEFAULT for the epoch acc family and 12.1 (branch analysis/frozen-default, worktree wf_frozendef; verify
+  identical numbers where the training set is unchanged). 12.1 REST reproduction with the new driver (June+Aug pre): chronic
+  retained 0.54 = page. Priya asked why the RESTnl NORMALISATION works if PS92/PS93 fail the decoder: the baseline needs a
+  per-session mean (rule wr: >= 50 FRAMES at >= 4 of 6 positions, equal-weight mean over the positions present); the decoder
+  needs >= 30 independent labelled PERIODS per position for training. CAVEAT FOUND: PS93 far contra is below 50 lick-free
+  frames in 5 of 7 August pre sessions (0807, 0809-0812; 16-36 frames) and in 0828 -> its baseline there is the mean of the
+  other 4-5 positions; PS92 drops one position in 0811 / 0812 / 0826. Per-position RESTnl counts in the npz cache
+  (C:/Users/SabatiniLab/.widefield_session_cache_restnl/, nfr_pos / positions_used).
