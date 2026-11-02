@@ -662,7 +662,7 @@ windows (4/4; pre-cue LMM +0.45, ~0.7x the quiet rise). A pre-cue event does NOT
 time-in-session is controlled (only PS95), but DOES go with a WEAKER frozen pre-stroke decoder position code on that
 trial, only acute / subacute (-0.013, 4/4; hits only -0.020, 4/4; pre and chronic null) -- a candidate link between the
 orofacial state change and the acute coding loss; caveat: the event lies inside the decoder window (feature contamination
-not excluded). (i) CHECKS (11-01): haemodynamics excluded -- 415 nm unchanged in SD / 1-4 Hz / event rate, no event-locked 415 response (T10); lick-locked 1-4 Hz ITPC unchanged acutely and evoked low-frequency amplitude up (T16: no Ramanathan-type task LFO loss); every quiet measure returns toward pre with behavioural recovery (4/4) but none tracks behaviour beyond the shared time course. Breathing (T9) pending.
+not excluded). (i) CHECKS (11-01): haemodynamics excluded -- 415 nm unchanged in SD / 1-4 Hz / event rate, no event-locked 415 response (T10); lick-locked 1-4 Hz ITPC unchanged acutely and evoked low-frequency amplitude up (T16: no Ramanathan-type task LFO loss; beyond the shared time course, cued-lick ITPC tracks far-contra recovery positively in 3/4, r +0.28, while quiet power runs negatively); every quiet measure returns toward pre with behavioural recovery (4/4) but none tracks behaviour beyond the shared time course. Breathing (T9) pending.
 
 ## 4. Encoding model and the goal question
 
