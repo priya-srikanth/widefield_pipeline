@@ -14,9 +14,9 @@ left = ipsilesional on brain maps.
 
 | job | command | output | state |
 |---|---|---|---|
-| quit-period state (cortex + face, quit vs engaged quiet) | `python scripts/cohort2_qc/quiet_quit_state.py --jobs 6` (background, log `scratchpad/quit_state.log`) | `labcams/cohort1_quiet_spikes/v2_quiet/quit_state/` (`sessions/*.npz`, `quit_state_sessions.csv`) | 98 / 108 sessions at handoff; summary prints at the end. If interrupted: re-run the same command (cached per session), or `--summarise` |
+| (DONE 11-01) quit-period state (cortex + face, quit vs engaged quiet) | `python scripts/cohort2_qc/quiet_quit_state.py --jobs 6` (background, log `scratchpad/quit_state.log`) | `labcams/cohort1_quiet_spikes/v2_quiet/quit_state/` (`sessions/*.npz`, `quit_state_sessions.csv`) | finished 108 / 108; result in 3.8 |
 
-Nothing else is running. Kill only the exact PID if needed (never by name / parent).
+Nothing is running. Kill only the exact PID if needed (never by name / parent).
 
 Environment for every script here: `set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache`; python =
 `C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe`; FaceRhythm basis = `QS_FR_BASIS=own` (the scripts set it as
@@ -57,9 +57,13 @@ default; it is inherited by spawn workers).
    height-matched -0.045), all DECAY (-0.033 s, ~18 %), RISE unchanged; 3 / 4 animals (PS94 pre already narrowest).
    Threshold-free ACF half-time unchanged -> the trace is not faster overall; events end sooner, consistent with an
    oscillatory 2-3 Hz component rather than sharper bursts.
-8. **Quit period (first session only, PS93 08-20 acute)**: quit vs engaged quiet = face speed 0.55x, face moving 0.27x,
-   orofacial 1-4 Hz power ~4x, 0.5-1 Hz ~1.7x -> drowsy / slow-wave-like, pending all sessions. Priya: the animals do
-   not look asleep by eye closure (head-fixed mice can be in NREM with eyes open, so this does not exclude it).
+8. **Quit period vs engaged quiet (all sessions, `quiet_quit_state.py`)**: the pre-stroke QUIT period already has the
+   acute signature in orofacial cortex -- orofacial 1-4 Hz power 3.4-5.4x engaged quiet (every epoch ~3x) while cortex-wide
+   1-4 Hz power is LOWER (0.6x) and 0.5-1 Hz 0.5x, face stiller (pre face-moving 0.3-0.5x in PS93 / PS94; PS95 ~1). Not
+   cortex-wide slow-wave sleep; an orofacial-local low-frequency state of disengagement. AND engaged-quiet face speed
+   halves acutely in 4/4 (1242 -> 812, 825 -> 492, 1947 -> 965, 1192 -> 593). Reading: acute engaged quiet resembles the
+   pre-stroke disengaged state. Sparse: pre sessions with >= 60 s quit quiet = 0 / 1 / 4 / 6 (PS92-95). Priya: animals
+   do not look asleep by eye closure. Confounds: quit is late in session (time / satiety / bleaching).
 
 ## 4. Open tests (priority order; discussed with Priya 11-01)
 
@@ -75,7 +79,8 @@ default; it is inherited by spawn workers).
 3. **Up vs down event maps**: same local footprint -> local excitability oscillation (fits 2-3 Hz + faster decay).
 4. **Breathing check (open since 10-31)**: 2-3 Hz = mouse resting respiration. Coherence of quiet orofacial trace with
    the FaceRhythm breathing / sniff factors, pre vs acute.
-5. **State**: finish quit-period run (section 1); then within engaged quiet, does acute event rate rise with face
+5. **State**: (quit run DONE, result 3.8) compare the pre-stroke QUIT-period event map with the acute engaged map (same
+   local footprint?); then within engaged quiet, does acute event rate rise with face
    stillness? A cortex-wide state change would not explain a map confined to orofacial cortex, but can add to it.
 6. **Behaviour link**: (a) do the same events occur in pre-cue / ITI windows; (b) does a pre-cue event predict a failed
    far-contra attempt or a weaker pre-cue position code on that trial; (c) within animal, event rate vs far-contra

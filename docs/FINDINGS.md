@@ -624,6 +624,21 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
     amplitude), not results. All three arms complete 10-25. **PROVISIONAL** (June includes learning; June ~3 sessions
     per animal) until the remaining references / windows / arms render.
 
+**3.Q Quiet-period cortical events (11-01; handoff `docs/status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md`, imaging
+page section 15). PROVISIONAL, n = 4.** Quiet = no lick / running within 1.5 s, engaged; events = height > 4 x the
+animal's pre robust SD, both polarities (k chosen to separate pre vs acute: acute contrast optimistic). (a) Face-regressed
+ORofacial events ~3.8-4.1 /min pre -> 15.5 / 32.1 / 19.8 / 20.9 acute (4/4), LMM x5.1 / x2.5 / x1.4 acute / sub /
+chronic; raw x4.1. (b) Pre 43-73 % of events coincide with face movement, acute at chance (4/4). (c) Power rises most at
+2-3 Hz; quiet SD up over most of cortex, acutely except the lateral barrel / limb hotspots. (d) Acute orofacial events are
+LOCAL to anterolateral orofacial cortex (ALM / tjM1 / SSp-m) bilaterally, recruiting significantly less lateral SSp than
+pre-stroke events (selection control pending: pre events are mostly movement-locked). (e) Acute events decay ~18 % faster,
+rise unchanged; the trace's ACF is unchanged (oscillatory component, not sharper bursts). (f) STATE: engaged-quiet face
+speed roughly halves acutely in 4/4 (pre -> acute 1242 -> 812, 825 -> 492, 1947 -> 965, 1192 -> 593); and the
+pre-stroke QUIT period already shows the same orofacial signature -- orofacial 1-4 Hz power 3.4-5.4x engaged quiet
+while cortex-wide 1-4 Hz power is LOWER (0.6x) and the face stiller (sparse: 11 pre sessions with >= 60 s of quit quiet,
+none in PS92). So the acute engaged state resembles the pre-stroke disengaged state in orofacial cortex, and it is not
+cortex-wide slow-wave sleep. Limb also up after regression but acute only in PS93 / PS95.
+
 ## 4. Encoding model and the goal question
 
 *Owner d4; detail [ENCODING_FINDINGS.md](ENCODING_FINDINGS.md) (section numbers below), results page
@@ -974,6 +989,53 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
 coronal section (lower = more striatum lost), mean over sections after exclusions (10-21): PS93 45.0 %, PS92 46.7 %
 (most severe), PS94 67.7 %, PS95 81.9 % (mildest). **STANDS** (5-7 sections per animal). Stroke-extent schematic on
 Paxinos plates: `wfield_local/histology_map/`.
+
+## 8. Context in the field: our results against the stroke literature (11-01; all arms may edit)
+
+*Priya 11-01: what supports, conflicts with, or is new relative to preclinical and clinical stroke work. Draft from one session's searches (abstracts); extend as papers are read. Same table as the quiet-events handoff section 6.*
+
+Citations checked by web search on 11-01 unless marked *(memory)*; abstracts only, not full texts. Our results =
+FINDINGS.md sections 0-5 plus this arm.
+
+| our result | prior literature | verdict |
+|---|---|---|
+| Behaviour recovers by COMPENSATION (success back; contralesional licks use a changed pattern) | Established in human kinematics and rodent reaching (Levin / Kleim / Wolf definitions; Whishaw rat reaching) *(memory)* | SUPPORTS; orofacial / licking version in mouse new |
+| LARGER task responses (ITI lick ~2x acute; chronic residual beyond the pre mapping), widespread, largest day 1, shrinking with recovery, persisting in the least recovered (PS94) | Human fMRI: task overactivation decreasing with recovery (Ward et al. 2003 Brain); meta-analysis: more contralesional M1, bilateral PMv, SMA, decreasing with time (Rehme et al. 2012 NeuroImage). Rodent widefield after CORTICAL stroke: activation spreads and refocuses with rehab (Allegra Mascaro et al. 2019) *(memory)* | STRONGLY SUPPORTS the human picture incl. time course and deficit link; new as rodent calcium after a striatal lesion |
+| (same) | Rat INTERNAL-CAPSULE stroke, multi-unit in M1 / RFA / S1, weeks 5-8: task firing slightly REDUCED, population pattern PRESERVED (Cettina, Nudo, Bundy et al. 2025 bioRxiv) | CONFLICTS (see below) |
+| CONTRALESIONAL > ipsilesional residual; contralesional shift of decoded lick position | Contralesional recruitment = most consistent fMRI finding (Rehme 2012). Orofacial: swallowing recovery tracks pharyngeal-cortex expansion in the UNAFFECTED hemisphere (Hamdy et al. 1998 Gastroenterology) | SUPPORTS direction; decoded-position shift is a new measure |
+| LARGER QUIET FLUCTUATIONS (2-3 Hz, both signs, ~5x acute, recovering; faster decay) | Human EEG: more delta after stroke, contralesional delta prognostic of poor recovery; sleep-like slow waves / OFF-periods in awake cortex after cortico-subcortical lesions (Sarasso et al. 2020 Brain) | CONSISTENT with human; new in rodents after a subcortical lesion |
+| (same) | Rat: reach-locked low-frequency oscillations in perilesional M1 WEAKENED after stroke, their return tracks recovery (Ramanathan et al. 2018 Nat Med). Rodent widefield cortical stroke: connectivity lost then partly restored (eLife 2024, 90080) | TENSION (movement-locked vs quiet; test 4.7) |
+| ACUTE ENCODING LOSS = the changed movement (frozen encoder predicts the far-contra drop from the lick) | No study found that asks whether the pre-stroke mapping already predicts the change from altered behaviour | NEW, conceptually important |
+| CHRONIC REMAPPING (same movement, different response; self-fit better; target and executed coding remapped) | Reorganisation is classic after CORTICAL lesions (Winship & Murphy 2008 J Neurosci; Latifi et al. 2020 Cereb Cortex; Nudo 1996 *(memory)*); after CAPSULAR stroke: no reorganisation (Cettina 2025) | NEW for remote cortex after a subcortical lesion; tension with capsular result; drift caveat |
+| Failed attempts (no-contact licks) lose side coding and trial-by-trial coupling; first cued lick read toward target; coupling returns on hits; code plateaus ~3/4; cortex does not lead recovery | No direct precedent found | NEW |
+| Lesion size orders recovery speed | Expected | SUPPORTS |
+| Acute orofacial quiet events LOCAL to anterolateral orofacial cortex (15.7) | Fits the VLS -> SNr -> VM/VAL -> ALM / tjM1 loop anatomy (Lee, Wang & Sabatini 2020) as a hypothesis; no stroke precedent found | NEW (pending test 4.1) |
+
+**The conflict to take seriously (Cettina et al. 2025).** Differences that likely explain much of it: internal capsule
+(corticospinal fibres) vs VLS (basal-ganglia loop node, whose loss should change thalamocortical drive); weeks 5-8
+post-plateau vs our largest effects acute / subacute; ipsilesional only vs our bilateral / contralesional effects;
+multi-unit spikes in 3 areas vs widefield calcium over dorsal cortex. Their "pattern preserved" agrees with parts of
+ours (3 / 4 animals keep the lateral read-out map; PS94 remapped). The real tension is our chronic residual vs their
+chronic ipsilesional spiking.
+
+**Brand new, as far as found:** (1) longitudinal whole-dorsal-cortex calcium after a STRIATAL stroke in an orofacial
+task; (2) separating movement change from mapping change with frozen pre-stroke models; (3) behaviour fully back while
+the code on hits plateaus ~70-77 %; (4) failed attempts as directed movements without a matching cortical spout
+signal; (5) self-initiated vs cued read-outs diverge; (6) quiet-period fluctuation increase as a rodent counterpart of
+human post-stroke delta / local sleep after a subcortical lesion, with a local orofacial footprint.
+
+**Reviewer caveats from this literature:** neurovascular coupling (human overactivation was questioned on this; our 415
+nm / F0 checks address it, FINDINGS 4d0c); the lesion is not purely subcortical (PS93 anterior motor cortex injury;
+DLS involvement in some); drift vs remapping without a no-stroke reference; n = 4.
+
+Sources: Cettina et al. 2025 https://pmc.ncbi.nlm.nih.gov/articles/PMC12637610/ ; Ward et al. 2003
+https://discovery.ucl.ac.uk/id/eprint/10102084/ ; Rehme et al. 2012 https://pmc.ncbi.nlm.nih.gov/articles/PMC3630767 ;
+Hamdy et al. 1998 https://orca.cardiff.ac.uk/id/eprint/33926/ ; Sarasso et al. 2020 https://pubmed.ncbi.nlm.nih.gov/33188680/ ;
+Ramanathan et al. 2018 https://neatlabs.ucsd.edu/pubs/2018/Ramanathan2018.pdf ; photothrombotic widefield / assemblies
+https://elifesciences.org/articles/90080v1 ; Winship & Murphy 2008 https://www.jneurosci.org/content/28/26/6592 ; Latifi
+et al. 2020 https://pmc.ncbi.nlm.nih.gov/articles/PMC8257065 ; EEG delta commentary
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5133428/ . Still to verify: Allegra Mascaro 2019, Levin 2009, Nudo 1996,
+Lee, Wang & Sabatini 2020 details; a targeted PubMed search for striatal / capsular stroke + widefield GCaMP.
 
 ## 7. Open questions and withdrawn claims (index)
 
