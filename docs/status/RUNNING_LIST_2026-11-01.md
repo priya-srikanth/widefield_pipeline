@@ -34,3 +34,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   within-session drift or artifact correction). august only i suppose." -> added a drift check to the shortcut helper
   (spread of the time-local REST across bins vs map effect sizes; by epoch / session position); flat RESTnl for maps
   only if it passes, else time-local lick-free (decision would come back to Priya).
+- 23:35 quiet-events window (sabatinilab-a8) will add imaging section 15 to the GOAL page as section 23 (id quiet-state,
+  before 'Pending'), publishing from the live version. I hold publishes ~45 min; after their publish I must merge their
+  section into _goal_page/index.html before my next publish (re-read live). Asked them to tag lick source + note RESTnl.
