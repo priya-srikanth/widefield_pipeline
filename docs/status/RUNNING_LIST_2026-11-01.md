@@ -6,7 +6,16 @@ Pages: goal https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d ; imaging https://
 Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVISIONAL, n = 4.
 
 ## 1. Decisions needed from Priya
-- [ ] (filled as they arise)
+- [ ] PRM map-cache digest (affects MAIN too): commit 8e77bd0a (10-29, f"2026{mmdd}" -> config.date8) moved the prm
+  map-cache digest, so the ~33 GB warm map caches are unreachable from main; next 15r / drift render on main = full
+  rebuild (~1.5 h, +33 GB). Opt-in WIDEFIELD_PRM_LEGACY_DATE8=1 (branch analysis/restnl-maps 00f1e2c2) hashes as before
+  (bit-identical cache names; refuses cohort-2 dates). RECOMMEND: adopt on main for cohort 1. Or: accept one rebuild.
+- [ ] Flat RESTnl for PS94 late epochs: all-session addendum (RESTNL_MAP_SHORTCUT_CHECK) finds PS94 subacute/chronic
+  sessions drift upward within session; flat shifts the far-contra map by a median 20-40 % there (all positions
+  together; between-position contrasts unaffected). Pre/acute fine (2.8 % / 5.2 %). Your condition was "flat as long as
+  appropriate". RECOMMEND: keep flat primary (contrasts unaffected), caveat stated in the 15r caption, and add a
+  time-local lick-free sensitivity before quoting any PS94 late AMPLITUDE. Or: switch maps to time-local lick-free.
+- [ ] Imaging page: RESTnl maps ADDED next to the REST ones (nothing removed). Which should be the headline?
 
 ## 1b. Decisions taken by "ok" on 11-01 (my recommendations in RESTNL_ROLLOUT_PLAN_20261101.md; Priya said ok)
 - RESTnl primary; old baselines (RESTW on the goal page, time-local REST on the imaging page) kept as collapsed sensitivity.
@@ -88,3 +97,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - NEXT (after the RESTnl map helper finishes; box capacity): FINAL LP ARM render in wf_attempt with
   WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_GATE_SOURCE=lp, August-only pre; ENL 1.0 / 1.5 (/2.0 if trials allow) s; LP-trained
   frozen decoders as sensitivity; RESTnl derived reference (port restnl_mask from wf_restnl). ADD to pages only.
+- 02:55 RESTNL MAPS DONE (helper; RESTNL_MAPS_20261101.md; code commit 00f1e2c2 on analysis/restnl-maps, docs 2f3f6c1f):
+  7 pooled 15r + 7 per-animal + 7 drift + 18 attempt maps in NEW folders (G/epoch_restnl, G/LP_licks/epoch_restnl,
+  G/DAQ_ENL1s/epoch_restnl, G/map_drift_prepre_restnl/*, imaging_encoding/attempt_maps_restnl). Validation: frame counts
+  = restw_check 107/107; shortcut sessions reproduce exactly. CONCLUSIONS (page REST all-pre -> RESTnl Aug-only, far
+  contra acute/pre): cue maps still 4/4 (contact .48->.53, LP .48->.52); LP lick 3/4 unchanged; attempt maps reading
+  unchanged. CHANGED: (1) pre-cue far-contra rise 3/4 -> 4/4 in contact (7.1, 1.44->1.80) and ENL1s (7.5, 1.67->2.04)
+  windows -- PS94 flips .92/.82 -> 1.17/1.13 (RAW agrees with RESTnl); (2) PS94 chronic far contra ~.9 -> ~.71, most
+  likely the flat-baseline shift (decision above), not cortex; (3) June->Aug pre drift significant in more bins
+  (contact 216 vs 67) -- acute changes still exceed drift. Two new decisions above (cache digest; PS94 flat).
