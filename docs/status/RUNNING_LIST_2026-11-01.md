@@ -205,3 +205,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   far mid ENL ** -> *), ENL1s <= .009, LP <= .007, 12.1 retained .28 / .54 unchanged. REAL CHANGE: LP arm now loads the
   DAQ-trained model -> Fig 2.4 lick-window acute far contra pooled .314 -> .260 (decision above). Renders in
   G/frozen_default_20261102/. Not on the page.
+
+### 11-02 (late morning): Priya's decisions on the frozen-default items
+- **"cache all frozen decoders": yes.** Helper converting the remaining in-memory frozen fits on analysis/frozen-default: the 5c refit / paired / paired_matched frozen column, the 5b confusions, and any other pre-stroke reference fit per render (inventory to come). Write-up: docs/status/FROZEN_ALL_20261102.md (wf_frozendef).
+- **siblings() false SPEC-CHANGED: fix, yes.** The same helper adds post_s and lick_source to the sibling grouping (warning only; no spec_id change).
+- **Both trainings in the LP arm: yes** ("a version of both daq contact and lp lick-based"). The pre-cue arm already has both (imaging Figs 2.5-2.8). Lick window: helper adds Fig 2.4b (stored DAQ-trained, acute far contra pooled .26) and a CORRECTION note on Fig 2.4 (in memory = LP-trained, reproduced exactly by the stored LP-trained model). Add-only; nothing removed.
