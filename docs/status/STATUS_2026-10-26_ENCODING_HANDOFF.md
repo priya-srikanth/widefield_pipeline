@@ -50,6 +50,13 @@ captions on RESTnl (the acute far-contra pre-cue raise is NOT orofacial-specific
 wr rule, rest decoder 12.1 lick-free first). Running: engagement-gate vs LP-attempt check -> GATE_LP_CHECK_20261101.md.
 Rules unchanged (helpers: exact PIDs only, never commit; <= 4 workers; another session commits on widefield_pipeline main ->
 branch off main for renderer code, never rebase / force-push).
+**11-02 03:05 update:** goal page live v306 (quiet window). DONE: gate check, LP gate option (dea1de5f), 14.21 + S7 on
+RESTnl, RESTnl MAPS (branch analysis/restnl-maps 00f1e2c2 in worktree wf_restnl; results RESTNL_MAPS_20261101.md; pre-cue
+far-contra rise now 4/4; PS94 late flat-baseline caveat). Priya 11-01: "ensure we discuss before you take anything off the
+page or replace headline results" -> ADD only. RUNNING (helpers): imaging-page RESTnl additions (b-suffix figs); FINAL LP
+ARM render (new worktree, branch analysis/lp-final, doc LP_FINAL_ARM_20261102.md there). On their reports: commit their
+work (helpers never commit), log in the running list, then add LP-final figures to the pages (add only). Two decisions
+for Priya at the top of the running list (prm cache digest on main; flat RESTnl for PS94 late).
 
 ### 00-COMPACT-18 (10-30 ~late night) -- (previous; then the running list; -17 for the 10-29 state)
 Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Page LIVE **v292**
