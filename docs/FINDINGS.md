@@ -39,11 +39,10 @@ cortex-wide and grows with time -- not concentrated in orofacial cortex; whether
 or slow drift cannot be decided without a time-matched no-stroke reference.
 
 **Where things stand, quiet-period state (11-01, claim 3.Q; handoff STATUS_2026-11-01_QUIET_EVENTS_HANDOFF):** in quiet
-periods, ACUTELY ORofacial CORTEX IS MORE SYNCHRONISED -- MORE SO ON THE LESIONED SIDE, WITH RELATIVELY LESS FAST ACTIVITY
-THERE -- and a normally rare, local, non-movement 2-3 Hz event type (common pre-stroke only when the animal disengages)
+periods, acutely orofacial 1-4 Hz power rises (no lesion-side bias; the earlier 'more so on the lesioned side' is
+WITHDRAWN, T22) and a normally rare, local, non-movement 2-3 Hz event type (common pre-stroke only when the animal disengages)
 becomes ~5x more frequent while the animal is engaged; not face movement, not interictal; breathing / haemodynamic checks
-pending. Consistent with Priya's original hypothesis of reduced thalamocortical drive to ipsilesional orofacial cortex
-(PROVISIONAL; noise-floor and literature caveats in 3.Q).
+pending. No laterality support for Priya's reduced-thalamocortical-drive hypothesis after T22 (PROVISIONAL; 3.Q).
 
 1. **Behaviour changed, and recovery is compensation, not restoration.** Acute global slowing + far-contra-graded deficit,
    licks aimed ipsilesionally from launch, jaw stops steering, far-contra trials attempted but failed in 3 / 4 (1.1-1.8,
@@ -648,16 +647,7 @@ speed roughly halves acutely in 4/4 (pre -> acute 1242 -> 812, 825 -> 492, 1947 
 pre-stroke QUIT period already shows the same orofacial signature -- orofacial 1-4 Hz power 3.4-5.4x engaged quiet
 while cortex-wide 1-4 Hz power is LOWER (0.6x) and the face stiller (sparse: 11 pre sessions with >= 60 s of quit quiet,
 none in PS92). So the acute engaged state resembles the pre-stroke disengaged state in orofacial cortex, and it is not
-cortex-wide slow-wave sleep. Limb also up after regression but acute only in PS93 / PS95. (g) **ACUTELY,
-ORofacial CORTEX IS MORE SYNCHRONISED, MORE SO ON THE LESIONED SIDE, WITH RELATIVELY LESS FAST ACTIVITY THERE** (T20,
-11-01, Priya: record in where-things-stand): quiet synchronisation index log10(PSD 1-4 / 8-15 Hz) orofacial +0.59 acute
-(q < .001) > whole cortex +0.39 > limb +0.15 n.s.; orofacial ipsilesional - contralesional +0.13 (q 1e-4; 4/4 animals,
-pre ~0), subacute +0.09; 8-15 Hz power lower ipsilesionally in 4/4; chronically the cortex-wide index rises more than the
-orofacial one. This is the laterality predicted by Priya's original hypothesis (VLS stroke -> less thalamocortical drive
-to ipsilesional orofacial motor cortex), which the event rate did not show. Caveats: 8-15 Hz with GCaMP6s is near the noise
-floor (F0 / brightness check T22 pending); the reduced-drive reading rests on barrel-cortex literature (Poulet 2012,
-Crochet & Petersen 2006) while in ALM VM/VAL silencing collapses activity (Guo 2017), so it is a hypothesis, not a
-mechanism. (h) TASK WINDOWS (T12/T13, 11-01): the events also rise acutely in pre-cue and ITI
+cortex-wide slow-wave sleep. Limb also up after regression but acute only in PS93 / PS95. (g) **CORRECTED 11-01 23:10 -- the ipsilesional synchronisation is WITHDRAWN.** T20 found a quiet synchronisation index log10(PSD 1-4 / 8-15 Hz) rise (orofacial +0.59 acute) with ipsi > contra (+0.13, 4/4), but T22 shows the 8-15 Hz denominator is dominated by a NON-CALCIUM 7-11 Hz peak (equally in 415 nm and raw 470; cardiac / brain motion) that is lower on the lesioned side; with a fast band avoiding it the laterality holds in only 2/4 and limb shifts the same way. What STANDS: orofacial 1-4 Hz power rises acutely (415 unchanged in that band, T10) with NO ipsilesional bias (T8), and ipsilesional orofacial F0 does not drop (T22). Priya's reduced-thalamic-drive hypothesis therefore has no laterality support from these data (handoff section 7). (h) TASK WINDOWS (T12/T13, 11-01): the events also rise acutely in pre-cue and ITI
 windows (4/4; pre-cue LMM +0.45, ~0.7x the quiet rise). A pre-cue event does NOT predict a failed far-contra attempt once
 time-in-session is controlled (only PS95), but DOES go with a WEAKER frozen pre-stroke decoder position code on that
 trial, only acute / subacute (-0.013, 4/4; hits only -0.020, 4/4; pre and chronic null) -- a candidate link between the

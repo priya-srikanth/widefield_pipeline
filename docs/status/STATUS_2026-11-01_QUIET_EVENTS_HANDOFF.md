@@ -4,8 +4,8 @@
 > [`RUNNING_LIST_2026-11-01_QUIET_EVENTS.md`](RUNNING_LIST_2026-11-01_QUIET_EVENTS.md) (Priya is away; keep it updated and commit
 > each time). Section 4 = all tests (T1-T22); section 7 = Priya's reduced-thalamic-drive hypothesis + citation check + T20.
 >
-> **Current reading (PROVISIONAL, n = 4):** acutely, in quiet periods, ORofacial CORTEX IS MORE SYNCHRONISED -- MORE SO ON THE
-> LESIONED SIDE, with relatively less fast activity there (T20; FINDINGS 3.Q g + section 0). A pre-existing, local,
+> **Current reading (PROVISIONAL, n = 4):** acutely, in quiet periods, orofacial 1-4 Hz power rises with NO lesion-side bias
+> (the T20 'ipsilesional synchronisation' was WITHDRAWN 23:10 -- non-calcium 7-11 Hz peak, T22). A pre-existing, local,
 > non-movement 2-3 Hz event type -- rare in pre-stroke engaged quiet, x8-60 more frequent when the animal disengages, same map
 > in both states -- becomes common while engaged (T1, T4); the rise holds at matched face stillness and is largest when the
 > face is still (T7); bilateral (no ipsi bias in rate / amplitude; onset timing cannot exclude callosal spread at 31 Hz; T2,
@@ -270,3 +270,5 @@ whole-cortex synchronisation rises more than orofacial (orofacial - cortex -0.27
 synchronised and MORE SO IPSILESIONALLY: the laterality the reduced-drive hypothesis predicts, which the event rate (T8)
 did not show. Caveat: 8-15 Hz with GCaMP6s is near the noise floor, so the index can rise from slow power alone and the
 ipsi fast-power drop may partly reflect hemisphere brightness / noise differences (T22 checks F0).
+
+T22 (11-01 23:10, commit 972954e3): no ipsilesional F0 drop; the T20 ipsi > contra synchronisation comes from a non-calcium 7-11 Hz peak (415 nm, lower ipsilesionally) -> WITHDRAWN. Section 7's hypothesis loses its laterality support.

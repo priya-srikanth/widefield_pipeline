@@ -123,6 +123,8 @@ def busy_frames(label, ft, fs):
     busy = np.zeros(T, bool)
     licks = z["lick_onsets"] / fsd
     if LICK_SOURCE == "daq+lp":
+        # LP licks cover the WHOLE session (licks_all; video_windows() are per-trial index spans, not tracking coverage --
+        # LP licks exist after the last trial window too). No video (PS93_0813): lick_times() is empty -> DAQ-only, warned.
         from lp_licks import lick_times
         licks = np.r_[licks, lick_times(label)]
     for x in licks:
