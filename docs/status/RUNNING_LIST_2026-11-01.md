@@ -139,3 +139,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   near-zero pre-miss map -> read as "not lower").
   UNRESOLVED: PS94 REST lick-window far contra = -38 % (~.62) in the 7.19 caption vs .72 in RESTNL_MAPS table; flagged in
   the 7.19b caption + Pending, to reconcile.
+- 05:50 launched helper: ADD compact "Final LP arm (11-02)" block to imaging page (ENL 1.0/1.5 s decoders DAQ- vs LP-trained, per-animal + trial-count tables, section-7 pointer that LP-final maps reproduce 7.xb within .01, Pending items) + reconcile PS94 7.19 REST number. Fig 2.4 correction NOT applied (waits for Priya).
