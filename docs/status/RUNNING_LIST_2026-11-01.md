@@ -78,3 +78,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   no headline result replaced without discussion (new versions go next to / below, old kept visible).
 - 01:20 goal page PUBLISHED v305 (14.21 main + S7 RESTnl; section 23 merged; nothing on the live page lost, verified block by block). Told the quiet window.
 - 01:35 quiet window v306 (section 23: ipsi > contra synchronisation WITHDRAWN -- non-calcium 7-11 Hz peak; quiet frames being re-run with DAQ + LP licks overnight); merged locally (commit below). Live = v306.
+- 02:00 LP GATE OPTION DONE + committed (dea1de5f; LP_GATE_OPTION_20261101.md): WIDEFIELD_GATE_SOURCE=lp (response =
+  own response OR DAQ contact OR LP hit/incomplete; jaw_only / no_try do not count); default byte-identical (18 tests);
+  map caches stay warm (hook lines excluded from the digest), frozen ids unchanged; outputs go to *_gateLP folders.
+  FINDING: the LP arm's imaging gate was ALREADY LP-based (shared lick loader) -> 0 trials flip there; under the switch
+  only the rest-baseline gates, S28 quit and no-LP-verdict cues change. Trials flipped pooled: pre 0.07 %, acute 0.5 %,
+  subacute 0.9 %, chronic 0.5 %; 12 / 108 quits later, one lost (PS94_0921). Note: ruff per-file ignore added for
+  precue_engagement_states F401 (removing the import would cold-start all map caches).
+- NEXT (after the RESTnl map helper finishes; box capacity): FINAL LP ARM render in wf_attempt with
+  WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_GATE_SOURCE=lp, August-only pre; ENL 1.0 / 1.5 (/2.0 if trials allow) s; LP-trained
+  frozen decoders as sensitivity; RESTnl derived reference (port restnl_mask from wf_restnl). ADD to pages only.
