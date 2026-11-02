@@ -501,14 +501,267 @@ def summarise():
     (LL / "README.txt").write_text(__doc__)
 
 
+# ------------------------------------------------------------------------------------- trial-composition control
+# Priya 11-01 (via coordinator): is the within-animal ITPC <-> far-contra recovery link TRIAL COMPOSITION? Poor sessions
+# hold more failed / deviated far-contra licks, which could lower lick-locked consistency mechanically. Recompute cued
+# ITPC / PPC / evoked amplitude on (a) HIT trials (trial_attempts.csv cls == hit, matched by label + trial_id), (b)
+# non-far-contra spouts, (c) hits at non-far-contra spouts (plus all trials as the reference), each N-MATCHED: the same
+# number of licks in every session of an animal (the animal's minimum over sessions with >= MIN_EV, floor MIN_EV),
+# mean over N_DRAW random subsamples; then the within-animal link (raw and log(day)-detrended, N_PERM permutations)
+# and the epoch LMM per subset. Outputs lick_lfo/composition/.
+COMP = LL / "composition"
+COMP_NOTE = ("T16 trial-composition control (scripts/cohort2_qc/quiet_lick_lfo.py --composition). Cued-lick ITPC / PPC / "
+             "evoked amplitude (orofacial, 1-4 Hz) recomputed on all / HIT (trial_attempts cls == hit, label + "
+             "trial_id) / non-far-contra / hit & non-far-contra cued first licks, each session subsampled to the "
+             "animal's minimum count (>= 15; mean of 20 draws); within-animal link with far-contra hit rate (raw and "
+             "log(day)-detrended, 5000 within-animal permutations) and the epoch / time LMM per subset.\n"
+             "NB cued first licks are DAQ CONTACT licks inside the response window, so ~100 % are already hit trials: "
+             "failed attempts never enter the cued set.\n")
+ATTEMPTS = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/"
+                "trial_attempts.csv")
+POS_MAP = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra", "far_L": "far_ipsi",
+           "far_center": "far_mid", "far_R": "far_contra"}
+SUBSETS = ("all", "hit", "nonfc", "hit_nonfc")
+SUB_LAB = {"all": "all cued first licks", "hit": "(a) HIT trials only", "nonfc": "(b) non-far-contra spouts",
+           "hit_nonfc": "(c) hits at non-far-contra spouts"}
+N_DRAW = 20
+
+
+def cued_trials(label):
+    """Cached cued-lick times -> (trial_id, pos name) of the trial window each falls in (module-level for spawn)."""
+    from wfield_local import trial_windows as TW
+    d = np.load(LL / "sessions" / f"{label}.npz")
+    t = d["cued_t"]
+    animal, mmdd = label.split("_")
+    tb = TW.trial_bounds(animal, f"2026{mmdd}")
+    cue = tb.cue_s.to_numpy(float)
+    stop = tb.stop_s.to_numpy(float)
+    stop = np.where(np.isfinite(stop), stop, cue + RESP_FALLBACK)
+    c2 = np.where(np.isfinite(cue), cue, np.inf)
+    j = np.searchsorted(c2, t, side="right") - 1          # last cue at / before the lick (cues are increasing)
+    ok = (j >= 0) & (t <= stop[np.clip(j, 0, None)])
+    tid = np.where(ok, tb.trial_id.to_numpy()[np.clip(j, 0, None)], -1)
+    pos = np.where(ok, tb.pos_name.astype(str).to_numpy()[np.clip(j, 0, None)], "")
+    return label, tid.astype(int), np.array([POS_MAP.get(p, p) for p in pos])
+
+
+def _subsample_measures(d, ci, sel, n, rng):
+    """Mean over N_DRAW subsamples of n cued licks (from mask sel) of evoked / ITPC / PPC."""
+    x_all = d["cued_bp"][:, :, ci].astype(float)
+    ph_all = d["cued_ph"][:, :, ci].astype(float)
+    lags = d["lags_s"]
+    tw = (lags >= ITPC_WIN[0]) & (lags <= ITPC_WIN[1])
+    idx = np.flatnonzero(sel)
+    out = []
+    for _ in range(N_DRAW):
+        k = rng.choice(idx, n, replace=False)
+        m = x_all[k].mean(0)
+        R = np.abs(np.exp(1j * ph_all[k][:, tw]).mean(0))
+        out.append((m.max() - m.min(), R.mean(), ((n * R ** 2 - 1) / (n - 1)).mean()))
+    return np.mean(out, 0)
+
+
+def composition(jobs):
+    import pandas as pd
+    from wfield_local import epochs
+    from wfield_local import mixed_models as mm
+    from wfield_local.analysis_kit import fan_sessions
+    pd.set_option("display.width", 240)
+    pd.set_option("display.max_columns", 40)
+    COMP.mkdir(parents=True, exist_ok=True)
+    labels = []
+    for f in sorted((LL / "sessions").glob("*.npz")):
+        ep = epochs.epoch_of(f.stem)
+        if ep is not None and not (ep == "pre" and f.stem[-4:] < "0806"):
+            labels.append(f.stem)
+    res, fail = fan_sessions(labels, cued_trials, jobs=jobs, label="session")
+    if fail:
+        raise SystemExit(f"failed: {fail}")
+    TR = {lab: v[1:] for lab, v in res}                    # fan_sessions -> [(label, (label, tid, pos)), ...]
+    A = pd.read_csv(ATTEMPTS, usecols=["label", "trial_id", "pos", "cls"])
+    A = A.set_index(["label", "trial_id"])
+    ci = TRACE_COLS.index("orofacial")
+    rows, sels = [], {}
+    for lab in labels:
+        tid, pos = TR[lab]
+        key = list(zip([lab] * len(tid), tid))
+        cls = A.cls.reindex(key).to_numpy(dtype=object)
+        apos = A.pos.reindex(key).to_numpy(dtype=object)
+        known = pd.notna(apos) & (pos != "")
+        agree = float(np.mean(apos[known] == pos[known])) if known.any() else np.nan
+        hit = cls == "hit"
+        nonfc = (pos != "far_contra") & (pos != "")
+        sels[lab] = {"all": tid >= 0, "hit": hit, "nonfc": nonfc, "hit_nonfc": hit & nonfc}
+        rows.append(dict(label=lab, n_cued=len(tid), n_matched_trial=int((tid >= 0).sum()),
+                         n_in_attempts=int(pd.notna(cls).sum()), pos_agree=agree,
+                         **{f"n_{s}": int(v.sum()) for s, v in sels[lab].items()},
+                         frac_hit=float(np.mean(hit[pd.notna(cls)])) if pd.notna(cls).any() else np.nan))
+    M = pd.DataFrame(rows)
+    M["animal"], M["epoch"] = M.label.str[:4], M.label.map(epochs.epoch_of)
+    M.to_csv(COMP / "composition_counts.csv", index=False)
+    print("== join check: trial_attempts position agreement (median %.4f, min %.4f); cued licks in attempts %.3f"
+          % (M.pos_agree.median(), M.pos_agree.min(), (M.n_in_attempts / M.n_cued).median()))
+    print("== cued licks that are HIT trials (fraction), per animal x epoch\n"
+          + M.pivot_table(index="animal", columns="epoch", values="frac_hit").reindex(columns=EP).round(3).to_string())
+    # n per animal x subset = the animal's minimum over sessions with >= MIN_EV (floor MIN_EV)
+    nmatch = {}
+    for an, g in M.groupby("animal"):
+        for s in SUBSETS:
+            v = g[f"n_{s}"].to_numpy()
+            nmatch[an, s] = int(max(MIN_EV, v[v >= MIN_EV].min())) if (v >= MIN_EV).any() else MIN_EV
+    print("== n-matched licks per session (animal x subset)\n"
+          + pd.Series(nmatch).unstack().reindex(columns=list(SUBSETS)).to_string())
+    S0 = pd.read_csv(LL / "lick_lfo_sessions.csv")
+    S0 = S0[(S0.column == "orofacial") & (S0.kind == "cued")].set_index("label")
+    out = []
+    for lab in labels:
+        d = dict(np.load(LL / "sessions" / f"{lab}.npz"))
+        rng = np.random.default_rng(int.from_bytes(lab.encode(), "little") % (2 ** 32))
+        for s in SUBSETS:
+            sel, n = sels[lab][s], nmatch[lab[:4], s]
+            r = dict(label=lab, subset=s, n_avail=int(sel.sum()), n_used=n)
+            if sel.sum() >= n:
+                r["evoked"], r["itpc"], r["ppc"] = _subsample_measures(d, ci, sel, n, rng)
+            out.append(r)
+    S = pd.DataFrame(out)
+    S["animal"], S["epoch"] = S.label.str[:4], S.label.map(epochs.epoch_of)
+    S["day"] = S.label.map(epochs.days_since_stroke).astype(float)
+    S["farcontra_hit"] = S.label.map(S0.farcontra_hit)
+    for m in ("evoked", "itpc", "ppc"):
+        pre = S[S.epoch == "pre"].groupby(["animal", "subset"])[m].median()
+        S[f"{m}_rel"] = S[m].to_numpy() / pre.reindex(pd.MultiIndex.from_frame(S[["animal", "subset"]])).to_numpy()
+    S.to_csv(COMP / "composition_sessions.csv", index=False)
+    print("\n== RULE 8: per animal x epoch, n-matched cued ITPC / animal's pre median (sessions with enough licks)")
+    for s in SUBSETS:
+        G = S[S.subset == s]
+        t = G.groupby(["animal", "epoch"]).itpc_rel.mean().unstack().reindex(columns=EP)
+        t["n_sess"] = G.dropna(subset=["itpc"]).groupby("animal").size()
+        print(f"-- {SUB_LAB[s]}\n" + t.round(3).to_string())
+    print("\n== per animal x epoch, n-matched evoked amplitude / pre")
+    for s in SUBSETS:
+        t = S[S.subset == s].groupby(["animal", "epoch"]).evoked_rel.mean().unstack().reindex(columns=EP)
+        print(f"-- {SUB_LAB[s]}\n" + t.round(3).to_string())
+    # epoch LMM per subset
+    L = []
+    for s in SUBSETS:
+        G = S[S.subset == s]
+        for m in ("evoked", "itpc", "ppc"):
+            y = np.log10(G[f"{m}_rel"].to_numpy(float)) if m == "evoked" else G[m].to_numpy(float)
+            L.append(G[["label"]].assign(subset=s, measure=m, y=y))
+    L = mm.add_time_covariates(pd.concat(L), august_pre=True)
+    L = L[np.isfinite(L.y)]
+    T = mm.lmm_table(L, ["measure", "subset"], models=("epoch", "time"), print_animals=False, fdr_by=("measure",))
+    T.to_csv(COMP / "composition_lmm.csv", index=False)
+    show = T[(T.term != "pre_level")]
+    print("\n== LMM (epoch: vs August pre; time: post + log day), n-matched cued licks, orofacial")
+    print(show[["model", "measure", "subset", "term", "coef", "se", "p", "q", "n"]].round(4).to_string(index=False))
+    # within-animal recovery link per subset
+    prng = np.random.default_rng(0)
+    R, keep = [], {}
+    P = S[(S.epoch != "pre") & (S.day > 0)]
+    for s in SUBSETS:
+        for m in ("itpc", "ppc", "evoked_rel"):
+            for detr in (False, True):
+                per, data = {}, {}
+                for an, g in P[P.subset == s].groupby("animal"):
+                    g = g.dropna(subset=[m, "farcontra_hit"])
+                    if len(g) < 5:
+                        continue
+                    b, y = g.farcontra_hit.to_numpy(float), g[m].to_numpy(float)
+                    if detr:
+                        dd = np.log(g.day.to_numpy(float))
+                        b, y = _resid(b, dd), _resid(y, dd)
+                    per[an], data[an] = float(np.corrcoef(b, y)[0, 1]), (b, y)
+                if not per:
+                    continue
+                obs = float(np.mean(list(per.values())))
+                null = np.array([np.mean([np.corrcoef(prng.permutation(b), y)[0, 1] for b, y in data.values()])
+                                 for _ in range(N_PERM)])
+                R.append(dict(subset=s, measure=m, detrended_logday=detr, mean_r=obs,
+                              p_perm=float((np.sum(np.abs(null) >= abs(obs)) + 1) / (N_PERM + 1)),
+                              n_pos=sum(v > 0 for v in per.values()), n_animals=len(per),
+                              **{f"r_{a}": v for a, v in per.items()}, **{f"n_{a}": len(data[a][0]) for a in data}))
+                if m == "itpc" and detr:
+                    keep[s] = (data, per, obs, R[-1]["p_perm"])
+    R = pd.DataFrame(R)
+    R.to_csv(COMP / "composition_recovery_link.csv", index=False)
+    print("\n== within-animal link with far-contra hit rate (post sessions), n-matched\n" + R.round(3).to_string(index=False))
+    composition_figure(S, T, keep)
+    (COMP / "README.txt").write_text(COMP_NOTE)
+
+
+def composition_figure(S, T, keep):
+    import matplotlib
+    import matplotlib.ticker
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local import sig_marks
+    from wfield_local.analysis_kit import boot_ci
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    colr = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
+    fig, ax = plt.subplots(2, len(SUBSETS), figsize=(4.2 * len(SUBSETS) + 1.2, 8.4))
+    rng = np.random.default_rng(0)
+    for j, s in enumerate(SUBSETS):
+        a, G = ax[0, j], S[S.subset == s]
+        for x, ep in enumerate(EP):
+            B = G[G.epoch == ep]
+            for an, A_ in B.groupby("animal"):
+                a.scatter(x + rng.uniform(-0.18, 0.18, len(A_)), A_.itpc_rel, marker=ANIMAL_MARKER[an],
+                          facecolors="none", edgecolors=EPOCH_LINE[ep], s=18, lw=0.8, alpha=0.8)
+            ci = boot_ci({an: list(A_.itpc_rel.dropna()) for an, A_ in B.groupby("animal")
+                          if A_.itpc_rel.notna().any()}, rng)
+            if ci is not None:
+                a.errorbar(x + 0.32, ci.point, yerr=[[ci.point - ci.lo], [ci.hi - ci.point]], fmt="o",
+                           color=EPOCH_LINE[ep], mfc=EPOCH_LINE[ep], ms=6, capsize=3, lw=1.6, zorder=5)
+            t = T[(T.model == "epoch") & (T.measure == "itpc") & (T.subset == s) & (T.term == f"C(epoch)[T.{ep}]")]
+            if x > 0 and len(t) and t.q.iloc[0] < 0.05:
+                q = t.q.iloc[0]
+                sig_marks.star_top(a, x, "***" if q < 0.001 else "**" if q < 0.01 else "*", color=EPOCH_LINE[ep])
+        a.axhline(1, color="0.6", lw=0.8, ls="--")
+        a.set_xticks(range(len(EP)), EP, fontsize=8)
+        a.set_title(f"{SUB_LAB[s]}\nn-matched cued-lick ITPC 0-0.5 s / pre", fontsize=8.5)
+        b = ax[1, j]
+        if s in keep:
+            data, per, obs, p = keep[s]
+            for an, (bb, yy) in data.items():
+                b.scatter(bb, yy, marker=ANIMAL_MARKER[an], facecolors="none", edgecolors=colr[an], s=20, label=an)
+            txt = ", ".join(f"{an} {v:+.2f}" for an, v in per.items())
+            b.set_title(f"within-animal r (log day removed):\n{txt}\nmean {obs:+.2f}, permutation p = {p:.3f}",
+                        fontsize=8)
+        b.axhline(0, color="0.8", lw=0.6)
+        b.axvline(0, color="0.8", lw=0.6)
+        b.set_xlabel("far-contra hit rate, log(day) removed", fontsize=8)
+        if j == 0:
+            b.set_ylabel("ITPC, log(day) removed", fontsize=8)
+    handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
+    ax[0, -1].legend(handles=handles, fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False,
+                     title="animal (colour = epoch)", title_fontsize=7)
+    ax[1, -1].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False, title="animal")
+    sig_marks.reserve_headroom(fig)
+    fig.suptitle("T16 trial-composition control: is the cued-lick ITPC <-> far-contra recovery link driven by which "
+                 "trials a session contains? Orofacial cortex (bilateral), 1-4 Hz.\nEach session subsampled to the "
+                 "same number of licks (the animal's minimum over sessions, >= 15; mean of 20 draws). Top: ITPC / "
+                 "animal's August-pre median; open markers = sessions (shape = animal, colour = epoch), filled = pooled "
+                 "mean + nested bootstrap 95% CI, stars = LMM vs pre (FDR). Bottom: post sessions, both axes with "
+                 "log(day) regressed out within animal; p = 5000 within-animal permutations.", fontsize=8.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.0, h_pad=2.0)
+    fig.savefig(COMP / "composition_itpc_recovery.png", dpi=110)
+    plt.close(fig)
+    print("wrote", COMP / "composition_itpc_recovery.png")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--summarise", action="store_true")
+    ap.add_argument("--composition", action="store_true", help="trial-composition control (from the session cache)")
     ap.add_argument("--only", nargs="*")
     a = ap.parse_args()
     if a.jobs > 5:
         raise SystemExit("--jobs 5 max on this shared box (coordinator 11-01)")
+    if a.composition:
+        composition(a.jobs)
+        return
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.parallel import fan_out
