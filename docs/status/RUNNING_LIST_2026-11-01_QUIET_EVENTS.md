@@ -42,8 +42,9 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 | T17 literature search + citation check | DONE 11-01 | 3 corrections (eLife 90080 = two-photon, local; circuit = VLS -> SNr -> VM/Pf -> tjM1 + SNr -> brainstem, ALM via Guo 2017; Allegra Mascaro = combined therapy); precedents to add (Bauer 2014 subcortical connectivity, Cullins & Connor 2024 orofacial maps, Ahmed 2017 licking); counter-literature (Branscheidt 2022, Zeiger 2021, Sarasso lacunar, Panzeri 2025); epileptiform caveat (Steinmetz location / rate overlap) | text: FINDINGS 8 'LITERATURE UPDATE 11-01 late' |
 | T19 Steinmetz criteria (waveform, refractoriness, polarity, symmetry) | DONE 11-01 | NOT interictal: acute up/down ratio ~1 (0.7-1.0; interictal = positive only), no refractory gap (IEI 0.3-0.5 s at or above Poisson), heights 2.4-3.1 %; matches only rate (0.10-0.18 Hz) and bilateral symmetry, shared with pre-stroke events | `V2\steinmetz_check\quiet_steinmetz_check.png` |
 | T20 synchronisation index (Priya's reduced-drive hypothesis) | DONE 11-01 | acute orofacial sync +0.59 log10 (q < .001) > whole cortex +0.39 > limb +0.15 n.s.; orofacial IPSI > CONTRA +0.13 (q 1e-4, 4/4), 8-15 Hz lower ipsilesionally 4/4 -> the ipsilesional laterality T8 lacked; chronic: cortex-wide sync rises more than orofacial. Caveat: 8-15 Hz near GCaMP6s noise floor | `V2\sync_index\quiet_sync_index.png` |
-| T21 pre-lick slow power -> lick response size (pre sessions) | TO DO | -- | -- |
-| T22 per-area F0 minus 415 part, ipsi vs contra | TO DO | -- | -- |
+| T21 pre-lick slow power -> lick response size (pre sessions) | RUNNING (agent, started 22:35; `quiet_state_response.py`) | -- | `V2\state_response\` |
+| T22 per-area F0 (470 / 415) ipsi vs contra + noise-floor check of T20 | RUNNING (agent, started 22:35; `quiet_f0_noise.py`) | -- | `V20_noise\` |
+| T13 follow-up: decoder with event frames excluded (contamination vs weaker plan) | RUNNING (agent, started 22:35; `quiet_task_events_followup.py`) | -- | `V2	ask_events_followup\` |
 | T18 k-choice bias | NOTE | acute contrast optimistic (k picked on pre vs acute); subacute / chronic unbiased | -- |
 
 ## Running interpretation (update as tests land)
@@ -78,4 +79,4 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 Agents report back when their own processes finish; if one does not, run that script's `--summarise` (per-session caches are on
 the share). Layout rule for every figure (Priya 11-01): panel titles must not overlap, legends must not cover data.
 
-NEXT (queued, start after T9 unless Priya says otherwise): T21 pre-lick slow power -> lick response; T22 F0 ipsi vs contra; T13 follow-up (decoder without event frames); move section 15 to the encoding page.
+STARTED 22:35: T21, T22 (+ T20 noise-floor check), T13 follow-up (agents). NEXT after T9: move section 15 to the encoding page.
