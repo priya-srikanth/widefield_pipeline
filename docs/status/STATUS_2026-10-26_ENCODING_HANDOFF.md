@@ -40,7 +40,7 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
 ### 00-COMPACT-19 (11-01 ~23:00, Priya asleep, autonomous) -- READ FIRST, then docs/status/RUNNING_LIST_2026-11-01.md
-Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Goal page LIVE **v303**; imaging page (repo
+Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Goal page LIVE **v305** (section 23 = quiet window, merge their updates before publishing); imaging page (repo
 widefield_pipeline main, source docs/results_pages/imaging/, publish from repo HTML; must READ the live version first) LIVE
 **v39**. Today: C: disk cleanup (lists docs/status/DELETED_LOCAL_*_2026-11-01.txt); lick-source tags on every figure title
 (both pages; tables docs/status/GOAL_PAGE_LICK_SOURCE_20261101.tsv, imaging provenance/lick_source.tsv); 14.21 S1/S2/S11-S13
