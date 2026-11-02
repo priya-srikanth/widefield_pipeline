@@ -23,7 +23,7 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 | T4 pre quit-period vs pre engaged map | RUNNING (same pass) | -- | `V2\eta_split\T4_up_still_pre_eng_vs_pre_quit.png` |
 | T5 event shape | DONE 11-01 | acute events ~10 % narrower, all decay (-18 %), rise unchanged, ACF unchanged (3/4) -> oscillation, not sharper bursts | `V2\width\quiet_event_width.png` |
 | T6 quit-period state | DONE 11-01 | pre-stroke QUIT already has orofacial 1-4 Hz x3.4-5.4 with cortex-wide 1-4 Hz LOWER, face stiller; engaged-quiet face speed halves acutely 4/4 | csv `V2\quit_state\quit_state_sessions.csv` (no figure yet) |
-| T7 rate vs face stillness within engaged quiet | QUEUED (after T1-T4 frees CPU) | -- | -- |
+| T7 rate vs face stillness within engaged quiet | RUNNING (`quiet_stillness.py`, 2 + 4 workers incl. a reverse-order helper) | -- | `V2stillnessquiet_stillness.png` |
 | T8 ipsi vs contra rate change | DONE 11-01 | NO ipsilesional bias: orofacial ipsi - contra vs pre +0.02 acute (n.s.; 3/4 slightly ipsi, PS92 contra); limb CONTRA > ipsi acutely (-0.11, q .01; PS92 / PS94) | `V2\hemi_amp_recovery\quiet_hemi_amp_recovery.png` (top left, middle) |
 | T9 breathing coherence | RUNNING (agent) | -- | `V2\breathing\` |
 | T10 415 nm / uncorrected 470 | RUNNING (agent) | -- | `V2\hemo415\` |
