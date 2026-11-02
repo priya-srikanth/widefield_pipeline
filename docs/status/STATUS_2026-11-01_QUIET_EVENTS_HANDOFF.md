@@ -14,8 +14,7 @@
 > recovery mostly via the shared time course (T14). TASK: events rise in pre-cue / ITI windows too (T12); a pre-cue event
 > goes with a weaker frozen-decoder position code on that trial acute / subacute (4/4) but does not predict a failed
 > far-contra attempt beyond time-in-session (T13). Haemodynamics excluded (T10); task-locked ITPC unchanged (T16); every quiet measure
-> tracks the recovery time course, none beyond it. OPEN and decisive: T9 breathing (respiration looks faster post-stroke,
-> Priya); T21-T22; T13 follow-up: decoder trained without the event frames.
+> tracks the recovery time course, none beyond it. Breathing not supported (T9). T21-T22; T13 follow-up: decoder trained without the event frames.
 >
 > **Pending actions:** (1) DONE 11-01: page Fig 15.7 replaced by the movement-corrected map (imaging page v40); (2) when agents report, merge into the running list, this handoff,
 > FINDINGS 3.Q; (3) DONE 22:50: section 23 on the encoding page (v304; built from scratchpad/encpage/index.html = live page + section; figures q_*.png via files map; encoding window sabatinilab-34 merges it into its local source -- do NOT edit wf_attempt/_goal_page/index.html; before any update re-read the live page and send 34 the new version). imaging section 15 carries a MOVED note (v41);
@@ -105,7 +104,7 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 | T6 | quit-period vs engaged quiet: cortex bands, face speed | STATE | -- | DONE: pre quit already has the orofacial 1-4 Hz signature, cortex-wide lower; engaged-quiet face speed halves acutely 4/4 (3.8) |
 | T7 | within engaged quiet: event rate vs face stillness (per session, binned face speed) | STATE contribution | rate rises with stillness -> state adds | DONE: rise persists at matched stillness, largest when still |
 | T8 | per-animal ipsi vs contra comparison of the rate / SD increase (direct, not by eye from 15.6) | CIRCUIT (ipsilesional) vs global | CIRCUIT: ipsi > contra in >= 3/4 | DONE: no ipsi bias (orofacial +0.02 n.s.; limb contra > ipsi acute) -- running list |
-| T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTEFACT (breathing) | coherence high / tracks respiration -> artefact | RUNNING 11-01 (agent; `quiet_breathing.py`, `V2/breathing/`) |
+| T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTEFACT (breathing) | coherence high / tracks respiration -> artefact | DONE: not supported (low, unchanged coherence; no tracking; regression leaves the rise) |
 | T10 | haemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTEFACT (haemodynamic) | events absent in 415 -> neural | DONE: excluded (415 unchanged, no event-locked 415) |
 | T11 | amplitude distribution; count of events > 10 % dF/F and cortex-wide synchronous events (Steinmetz 2017 interictal shape) | ARTEFACT / epileptiform | none -> not interictal | DONE: not interictal (big events rarer acutely, less limb co-occurrence) -- running list |
 | T12 | events in pre-cue / ITI (task) windows, not only quiet | relevance | -- | DONE: rise in every task window 4/4 |

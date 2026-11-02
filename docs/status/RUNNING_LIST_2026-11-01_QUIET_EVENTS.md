@@ -19,7 +19,7 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
    reduced-drive hypothesis has no laterality support from these data.
 5. NEW: events are not quiet-specific (rise in pre-cue / ITI, T12); a pre-cue event goes with a weaker frozen-decoder position code
    acute / subacute (T13b, 4/4) but does not predict failed far-contra attempts beyond time-in-session (T13a).
-6. Artefacts: epileptiform excluded (T11, T19), haemodynamics excluded (T10); breathing pending (interim: does not explain it).
+6. Artefacts: epileptiform excluded (T11, T19), haemodynamics excluded (T10), breathing not supported (T9 final; video proxy).
 7. Recovery: all quiet measures follow the recovery time course, none beyond it; cued-lick ITPC tracks recovery beyond the time course in 3/4 (survives the composition control).
 
 **Overnight log (appended as things land):**
@@ -33,6 +33,7 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 - 23:15 STARTED the LP re-run chain (QS_LICK_SOURCE=daq+lp -> v2_quiet_lp/): v2 extract + k=4 -> face regression -> fluct / width / quit -> movement-corrected maps / selection / stillness -> sync / Steinmetz / laterality-recovery / recovery link. Driver scratchpad/run_lp_chain.sh, logs scratchpad/lpchain/. Agent-owned scripts (task events, lick LFO, state response, breathing) get the switch after their agents finish.
 - 23:40 ITPC composition control (agent, commit 7217a326): the cued-ITPC recovery link is NOT composition -- n-matched, hits only +0.27, without far-contra +0.37 (p .001), hits at other spouts +0.38; PS95 opposite throughout (cued first licks are contact licks, so failed attempts were never in the set).
 - 23:42 PUBLISHED encoding page v306 (on 34's v305): section 23 h2 / take / Fig 23.3 / status row corrected (ipsilesional synchronisation withdrawn); Fig 23.16 composition result. Version sent to 34.
+- 23:50 T9 breathing FINAL (agent): does not explain the increase (details in the T9 row).
 
 **Page changes tonight:** encoding page v304 -> v306 (Fig 23.3 corrected, 23.16 composition) = NEW section 23 (all quiet-period results, 22 figures; https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#quiet-state). Imaging page v41: section 15 now opens with a MOVED note linking to section 23 (figures kept, no longer updated). Section 23 will be updated as breathing / T21 / T22 / T13-followup / LP-lick results land.
 
@@ -64,7 +65,7 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 | T6 quit-period state | DONE 11-01 | pre-stroke QUIT already has orofacial 1-4 Hz x3.4-5.4 with cortex-wide 1-4 Hz LOWER, face stiller; engaged-quiet face speed halves acutely 4/4 | csv `V2\quit_state\quit_state_sessions.csv` (no figure yet) |
 | T7 rate vs face stillness within engaged quiet | DONE 11-01 | acute engaged quiet is STILLER (time at < 0.5 x pre face speed 16 % -> 34 %) BUT the rise holds at MATCHED stillness in every bin, 4/4: epoch effect log10 rate +0.98 (stillest) / +0.95 / +0.60 / +0.48 / +0.32 (most active), all q < .001; subacute and chronic too. And the rise is LARGEST when still: acute rate in the stillest bin 20-33 /min vs 7-14 when most active, whereas pre rates are flat or lower when still (raw events include movement-linked ones). -> a stiller face explains only a small part; after the stroke, stillness itself comes with many events (as in pre-stroke disengagement) | `V2\stillness\quiet_stillness.png` |
 | T8 ipsi vs contra rate change | DONE 11-01 | NO ipsilesional bias: orofacial ipsi - contra vs pre +0.02 acute (n.s.; 3/4 slightly ipsi, PS92 contra); limb CONTRA > ipsi acutely (-0.11, q .01; PS92 / PS94) | `V2\hemi_amp_recovery\quiet_hemi_amp_recovery.png` (top left, middle) |
-| T9 breathing coherence | RUNNING (agent) -- KEY (Priya 11-01: respiration looks FASTER post-stroke): respiration rate by epoch, cortical peak frequency tracking respiration, coherence at the respiration frequency, and the CORRECTION (respiration regressed out, then 1-4 Hz power + event rate recomputed) | -- | `V2\breathing\` |
+| T9 breathing coherence | DONE 11-01 (agent; commit d2a0e89b) | BREATHING DOES NOT EXPLAIN IT: respiration proxy = the face-point PC with the most prominent 1-5 Hz peak (no FaceRhythm factor carries resting breathing). Proxy frequency acute +0.30 Hz (3/4 up, q .33 -- Priya's 'faster breathing' direction, not significant); orofacial coherence with the proxy low (< 0.1) and unchanged (acute +0.010, q .94); the cortical peak moves DOWN to ~3 Hz acutely (-1.0 Hz, q 1e-4) and does not track the proxy across sessions (slope -0.03 Hz/Hz); regressing the proxy out leaves the increase (1-4 Hz power +0.48 -> +0.48; event rate +0.61 -> +0.66 log10, ipsi / contra alike). Caveat: video proxy = weak respiration sensor; face-invisible breathing-locked brain motion not excluded | `V2\breathing\quiet_breathing.png` |
 | T10 415 nm / uncorrected 470 | DONE 11-01 (agent; commit 1f419ede) | HAEMODYNAMICS EXCLUDED: 415 nm shows no post-stroke change in quiet SD, 1-4 Hz, 0.5-1 Hz power or own-threshold event rate (orofacial LMM all q > 0.6); at corrected-470 events the 415 response is ~1-2 % of the 470 amplitude; uncorrected 470 shows the same increases, smaller (its pre baseline carries haemodynamic variance). Caveat: 415 1-4 Hz power ~x2 in PS92 (every epoch) and x1.6 acute PS95 -> a component common to both wavelengths (breathing / brain motion?) may contribute there; T9 | `V2\hemo415\quiet_hemo_check.png` |
 | T11 amplitude / epileptiform | DONE 11-01 | NOT interictal-like: median heights 2.4-3.1 %; events > 10 % dF/F < 1 % of events and RARER acutely (0.05-0.14 % vs 0.5-0.9 % pre); orofacial events SHARE limb events less acutely (pre .14-.40 -> acute .07-.25) = more local, not cortex-wide. Exception: PS94 chronic has 11 events > 10 % (1.5 %) -- look at them | same figure (top right, bottom left) |
 | T12 events in pre-cue / ITI windows | DONE 11-01 (agent; commit c92eda61) | events are NOT quiet-specific: they rise acutely in EVERY task window, 4/4. Pre-cue (spout in place, before cue; frames > 0.5 s from licks / running) pre 2.7-6.1 /min -> acute x2.1-5.7 (LMM +0.45 log10, q 1e-4; sub +0.26, chronic +0.21 n.s.); ITI acute +0.58 (x2.8-9.0); quiet +0.61. Pre-cue rise ~0.7x the quiet rise (log ratio -0.16, q .054); ITI rise ~ quiet rise | `V2\task_events\t12_task_window_event_rates.png` |
@@ -86,7 +87,8 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
   non-movement event type, with only a small further narrowing of its lateral recruitment. Pre-stroke this one event type
   is rare in engaged quiet and x8-60 more frequent in the quit period (same map in both states); acutely it becomes
   common while engaged (rate approaching pre-quit levels). The "event changed" reading is weak; the "event became common" reading is strong.
-* ARTEFACT: epileptiform ruled out (T11, T19); haemodynamics ruled out (T10). Breathing (T9) pending -- the last one.
+* ARTEFACT: epileptiform ruled out (T11, T19); haemodynamics ruled out (T10); breathing not supported (T9, within a
+  video proxy's reach).
 * CIRCUIT: no ipsilesional bias in rate (T8), amplitude (T2), 1-4 Hz power, F0 (T22) or -- after T22 -- synchronisation;
   onset timing cannot separate a common driver from callosal spread at 31 Hz. Priya's reduced-thalamic-drive hypothesis is NOT refuted: dF/F cannot see tonic level, and
   the acute effects (bigger slow fluctuations, bigger evoked responses) are what a less-driven, synchronised cortex shows
@@ -109,7 +111,6 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 
 | what | who | state |
 |---|---|---|
-| T9 breathing (KEY: respiration rate, frequency tracking, correction) | agent | summary step after re-run |
 Agents report back when their own processes finish; if one does not, run that script's `--summarise` (per-session caches are on
 the share). Layout rule for every figure (Priya 11-01): panel titles must not overlap, legends must not cover data.
 
