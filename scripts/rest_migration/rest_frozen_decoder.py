@@ -135,6 +135,88 @@ def _fit_frozen(X, y):
     return m
 
 
+#: THE STORED PATH IS THE DEFAULT (11-02, Priya: "we should cache frozen decoders as we always do"; CLAUDE.md rule 10).
+#: Every PRE-STROKE model this script scores with -- the full model for post-stroke sessions and one leave-one-session-
+#: out model per pre-stroke session -- comes from `frozen_models.load_or_fit` (kind `rest_frozen`), never from an
+#: in-memory refit per render. OPT-OUT: WIDEFIELD_REST_FROZEN=0 (false / no / off) refits in memory exactly as before
+#: 11-02, for reproducing an old render. The size-MATCHED (`--match-train`) and within-session REFIT arms are per-session
+#: controls, not pre-stroke references, and stay in memory (as in `rest_frozen_decoder_nl`).
+REST_FROZEN_ENV = "WIDEFIELD_REST_FROZEN"
+REST_FROZEN_OFF = ("0", "false", "no", "off")
+
+
+def rest_frozen_on() -> bool:
+    """True unless WIDEFIELD_REST_FROZEN opts out (unset / empty / anything else = the stored default)."""
+    import os
+
+    return os.environ.get(REST_FROZEN_ENV, "").strip().lower() not in REST_FROZEN_OFF
+
+
+def rest_frozen_align(bins, match_duration, match_lickgap, pct, gate, min_periods, min_per_class, variant):
+    """The spec's ``align``: everything that changes WHICH pre-stroke rows train the model and is not already in the
+    spec. For the page run (4 bins, duration + lick-gap matched at 10 %, engagement gate, 40 / 5 minimums,
+    restdock05) this is EXACTLY `rest_frozen_decoder_nl`'s ``rest-rest-b4-dur10-gap10-gate``, so the two scripts share
+    one stored model per animal instead of freezing two references for the same data."""
+    s = (f"rest-rest-b{bins}-" + (f"dur{pct:g}" if match_duration else "durall") + "-"
+         + (f"gap{pct:g}" if match_lickgap else "gapall") + "-" + ("gate" if gate else "nogate"))
+    if (int(min_periods), int(min_per_class)) != (40, 5):
+        s += f"-min{int(min_periods)}x{int(min_per_class)}"
+    if variant != "restdock05":
+        s += f"-{variant}"
+    return s
+
+
+def frozen_rest_payload(an, basis_id, data, pre_labs, windows, *, bins, pct, gate, min_periods, min_per_class,
+                        variant):
+    """``(payload, status, spec)``: {"windows", "full", "loso": {pre label: model or None}} via `load_or_fit`.
+
+    ``data`` = {label: (epoch, X, y, g, dur, gap, lick_hz)} as `main` builds it; ``windows`` = (lo_s, hi_s, glo, ghi),
+    None where that matching is off. The fit is the in-memory path's, model for model: the same `_fit_frozen`, the
+    same rows (duration window, then lick-gap window, as `main` applies them) and the same `_usable` gate (a pool that
+    fails it stores None, and `main` skips that session before it asks for the model). Rows are pooled in SORTED
+    label order, as `rest_frozen_decoder_nl.frozen_payload` does, so a model either script freezes is the same model.
+    """
+    from wfield_local import frozen_models as fm
+
+    lo_s, hi_s, glo, ghi = windows
+    labs = sorted(pre_labs)
+    nfeat = int(data[labs[0]][1].shape[1])
+    align = rest_frozen_align(bins, lo_s is not None, glo is not None, pct, gate, min_periods, min_per_class,
+                              variant)
+    spec = fm.make_spec(an, "rest_frozen", align=align, source=f"joint_{basis_id}", train_labels=labs,
+                        basis_id=basis_id, n_features=nfeat, post_s=0.0, zscore=True, alpha=0.1)
+
+    def pool(keep):
+        X = np.concatenate([data[k][1] for k in keep])
+        y = np.concatenate([data[k][2] for k in keep])
+        if lo_s is not None:
+            dt = np.concatenate([data[k][4] for k in keep])
+            m = (dt >= lo_s) & (dt <= hi_s)
+            X, y = X[m], y[m]
+        else:
+            m = np.ones(len(y), bool)
+        if glo is not None:
+            gt = np.concatenate([data[k][5] for k in keep])[m]
+            m2 = (gt >= glo) & (gt <= ghi)
+            X, y = X[m2], y[m2]
+        return X, y
+
+    def fit():
+        res = {"windows": tuple(None if v is None else float(v) for v in windows), "full": None, "loso": {}}
+        X, y = pool(labs)
+        if _usable(y, min_periods, min_per_class)[0]:
+            res["full"] = _fit_frozen(X, y)
+        for k in labs:
+            Xk, yk = pool([x for x in labs if x != k])
+            res["loso"][k] = _fit_frozen(Xk, yk) if _usable(yk, min_periods, min_per_class)[0] else None
+        return res
+
+    payload, status = fm.load_or_fit(spec, fit, meta={
+        "mask": "rest", "variant": variant, "windows": [None if v is None else float(v) for v in windows],
+        "script": "scripts/rest_migration/rest_frozen_decoder.py"})
+    return payload, status, spec
+
+
 def _epoch_dir():
     """The shared `grant_figures/epoch` directory every other epoch figure writes to.
 
@@ -735,6 +817,7 @@ def main() -> int:
     cidx = {c: i for i, c in enumerate(CODES)}
     conf = {e: np.zeros((len(CODES), len(CODES)), np.int64) for e in epochs.EPOCHS}
     n_skipped = 0
+    frozen_log = []
 
     if a.from_csv:
         from wfield_local import analysis_kit as ak
@@ -841,6 +924,20 @@ def main() -> int:
             print(f"  lick-gap window from PRE: [{glo:.2f}, {ghi:.2f}] s "
                   f"({a.duration_pct}-{100 - a.duration_pct} pct of {len(pre_gap)} pre periods)")
 
+        # THE PRE-STROKE MODELS COME FROM THE FROZEN STORE (default since 11-02; `frozen_rest_payload`).
+        payload = None
+        if rest_frozen_on():
+            payload, fstatus, fspec = frozen_rest_payload(
+                an, str(basis.basis_id), data, pre_labs, (lo_s, hi_s, glo, ghi), bins=a.bins, pct=a.duration_pct,
+                gate=not a.no_engagement_gate, min_periods=a.min_periods, min_per_class=a.min_per_class,
+                variant=variant)
+            from wfield_local import frozen_models as _fm
+            frozen_log.append({"animal": an, "status": fstatus, "model": _fm._slug(fspec),
+                               "n_pre": len(pre_labs), "pre_labels": " ".join(sorted(pre_labs))})
+            print(f"  frozen pre-stroke models: {_fm._slug(fspec)} {fstatus}", flush=True)
+        else:
+            print(f"  {REST_FROZEN_ENV}=0: pre-stroke models fitted IN MEMORY (not stored)", flush=True)
+
         for lab, (ep, X, y, g, dur, gap, lick_hz) in data.items():
             train = training_pool(pre_labs, lab)
             Xt = np.concatenate([data[k][1] for k in train])
@@ -874,7 +971,13 @@ def main() -> int:
             if m_test.sum() < a.min_periods:
                 skipped.append(f"{lab}: only {int(m_test.sum())} periods in trained classes")
                 continue
-            model = _fit_frozen(Xt, yt)
+            model = None
+            if payload is not None:
+                model = payload["loso"].get(lab) if ep == "pre" else payload["full"]
+                if model is None:
+                    print(f"  !! {lab}: no stored frozen model; fitted in memory", flush=True)
+            if model is None:
+                model = _fit_frozen(Xt, yt)
             pred = model.predict(X[m_test])
             acc, ncls = _balanced_accuracy(y[m_test], pred)
             chance = 1.0 / ncls
@@ -1101,6 +1204,14 @@ def main() -> int:
             w.writerows(per_session)
         print(f"\nwrote {cp}\nwrote {sp}")
         print(f"wrote {_save_meta(a.out, stem, n_skipped)}")
+        if frozen_log:
+            # WHICH STORED MODEL scored each animal (id + load_or_fit status), beside the tables it produced.
+            fz = fl.sidecar_for(a.out, stem, "_frozen.csv")
+            with open(fz, "w", newline="", encoding="utf-8") as fh:
+                w = _csv.DictWriter(fh, fieldnames=list(frozen_log[0]))
+                w.writeheader()
+                w.writerows(frozen_log)
+            print(f"wrote {fz}")
     fp = _plot(rows, per_session, order, a.out, variant, stem, n_skipped)
     print(f"wrote {fp}")
     cf = _confusion(conf, order, a.out, variant, stem, CODES)

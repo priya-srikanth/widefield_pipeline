@@ -561,22 +561,36 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     return pred
 
 
-#: OPT-IN (lp-final, 11-02): freeze the epoch 5c / acc decoders through `frozen_models` instead of fitting them in
-#: memory on every render. Unset (default) = unchanged. "1" = store / load. Under WIDEFIELD_LICK_SOURCE=lp this means
+#: THE DEFAULT since 11-02 (Priya: "we should cache frozen decoders as we always do"; CLAUDE.md rule 10). The epoch
+#: 5c / acc decoders (mode "frozen") go through `frozen_models` instead of being fitted in memory on every render; the
+#: lp-final branch introduced this as an opt-in (=1). OPT-OUT: WIDEFIELD_EPOCH_FROZEN=0 (also false / no / off) fits
+#: in memory exactly as before, for reproducing an old render. Under WIDEFIELD_LICK_SOURCE=lp the store serves
 #: the DAQ-TRAINED models (fitted by a DAQ-source run at the same window and pre set; the LP run refuses to fit them,
 #: `frozen_models.load_or_fit`), or with WIDEFIELD_LP_FROZEN=lp the LP-TRAINED ones (the spec gains lick_source=lp).
-#: WHY: the in-memory fit trains on the CURRENT arm's pre-stroke trials, so every LP-arm acc / 5c figure to date was
-#: LP-trained -- `WIDEFIELD_LP_FROZEN` never reached this family. Kind "epoch_decoder" (never collides with
-#: `locanmf_frozen_decoder`'s "decoder" specs); payload {"full": all-pre model, "loso": {pre label: model}}, the
-#: same two fits as the in-memory path, so a store-and-load run reproduces it exactly.
+#: WHY: the in-memory fit trains on the CURRENT arm's pre-stroke trials, so every LP-arm acc / 5c figure rendered
+#: before 11-02 was LP-trained -- `WIDEFIELD_LP_FROZEN` never reached this family. Kind "epoch_decoder" (never
+#: collides with `locanmf_frozen_decoder`'s "decoder" specs); payload {"full": all-pre model, "loso": {pre label:
+#: model}}, the same two fits as the in-memory path, so where the training set is the same a store-and-load run
+#: reproduces the in-memory one exactly (docs/status/FROZEN_DEFAULT_20261102.md). NOT covered (still in memory):
+#: `_collect_5c` modes refit / paired / paired_matched (their frozen column) and `grant_figures` 5b confusions.
 EPOCH_FROZEN_ENV = "WIDEFIELD_EPOCH_FROZEN"
+EPOCH_FROZEN_OFF = ("0", "false", "no", "off")
+
+
+def epoch_frozen_on() -> bool:
+    """True unless WIDEFIELD_EPOCH_FROZEN opts out (unset / empty / anything else = the stored default)."""
+    import os
+
+    return os.environ.get(EPOCH_FROZEN_ENV, "").strip().lower() not in EPOCH_FROZEN_OFF
 
 
 def _stored_epoch_decoder(an, align, bd):
-    """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when the option is off."""
+    """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when opted out."""
     import os
 
-    if os.environ.get(EPOCH_FROZEN_ENV, "").strip() not in ("1", "true", "yes"):
+    if not epoch_frozen_on():
+        print(f"  [5c] {an} {align}: {EPOCH_FROZEN_ENV}=0 -> pre-stroke decoder fitted IN MEMORY (not stored)",
+              flush=True)
         return None
     from wfield_local import frozen_models
     from wfield_local.locanmf_frozen_decoder import _pipe

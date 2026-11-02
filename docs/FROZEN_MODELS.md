@@ -217,6 +217,15 @@ and reused."* Any decoder that scores post-stroke data against a pre-stroke refe
 |---|---|---|---|
 | position (cue / lick / precue; roi and joint bases) | `locanmf_position_decoder`, `pooled_frozen_*` | `decoder` / `encoder` | 2026-08/09 |
 | behavioural STATE (quiet / running / licking) | `locomotor_decoder.frozen_state_models` | `state` | **2026-10-15** |
+| epoch acc / 5c position decoder (imaging page 2.x; `_collect_5c` mode `frozen`) | `grant_confusion._stored_epoch_decoder` | `epoch_decoder` | opt-in 11-02 (lp-final), **default 11-02** (`frozen-default`) |
+| docked REST position decoder (imaging page 12.1) | `rest_frozen_decoder.frozen_rest_payload` (+ `rest_frozen_decoder_nl.frozen_payload`, same spec for the page flags) | `rest_frozen` | **default 11-02** |
+
+The last two were refitted in memory on every render until 11-02 (Priya 11-02: *"we should cache frozen decoders as we
+always do"*). Opt-outs, for reproducing an old render only: `WIDEFIELD_EPOCH_FROZEN=0`, `WIDEFIELD_REST_FROZEN=0`.
+Under `WIDEFIELD_LICK_SOURCE=lp` the epoch family now LOADS the DAQ-trained model (it refuses to fit one); before 11-02
+its in-memory fit was LP-trained. Verification and per-animal effects: `docs/status/FROZEN_DEFAULT_20261102.md`.
+Still in memory (not covered): `_collect_5c` modes refit / paired / paired_matched (their frozen column, families 5r /
+frozen-vs-refit) and `grant_figures` 5b confusions.
 
 The state decoder was refitted in memory on every render until 2026-10-15, so when PS92 0812 re-entered its
 pre-stroke set (after the split-session fixes, `docs/EXPERIMENT_ERRORS.md`) every post-stroke state score moved
