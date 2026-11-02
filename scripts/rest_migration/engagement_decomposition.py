@@ -113,6 +113,16 @@ def session_trials(s, resp_s):
                          cum_licks=float(np.searchsorted(licks, cs[k])),
                          elapsed_s=float(cs[k] - cs[0]) / sr,
                          latency_s=(float(post[0] - cs[k]) / sr if post.size else np.nan)))
+    # WIDEFIELD_GATE_SOURCE=lp (2026-11-01, `wfield_local/gate_source.py`): a SEPARATE `gate_hit` column = this row's
+    # hit OR a DAQ contact OR an LP attempt within `resp_s` -- what `quit_point.session_quit` scores the gate on. ADDED
+    # ONLY UNDER THE SWITCH, so the default rows are unchanged; `hit` itself (hit rates, sharpness) never moves.
+    from wfield_local import gate_source
+    if gate_source.is_lp() and rows:
+        order = np.array([r["order"] for r in rows])
+        gh = gate_source.gate_responded(s["label"], order, np.array([bool(r["hit"]) for r in rows]), resp_s,
+                                        cue["cue_samples"], cue["sample_rate_hz"])
+        for r, g in zip(rows, gh):
+            r["gate_hit"] = int(g)
     return rows
 
 

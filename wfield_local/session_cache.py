@@ -186,6 +186,14 @@ def cached(session, kind, compute, params=None, verbose=True):
     from wfield_local import lp_licks
     if lp_licks.is_lp():
         kind = f"{kind}-{lp_licks.cache_tag()}"
+    # LP-INCLUSIVE GATE (WIDEFIELD_GATE_SOURCE=lp, 2026-11-01; `gate_source` docstring): same pattern, its own tag,
+    # added ONLY when the switch is on, so every existing DAQ / LP_licks key is unchanged. ONE exemption: trial features
+    # (`tf-*`, `locanmf_position_decoder.feature_cache_kind`) are built before any gate is applied (`_trial_features`
+    # never calls engagement_gate; the gate is applied downstream on its indices), so they stay shared and warm.
+    # Every other kind is tagged -- a gate-free kind is recomputed once under the tag: time, never correctness.
+    from wfield_local import gate_source
+    if gate_source.is_lp() and not kind.startswith("tf-"):
+        kind = f"{kind}-{gate_source.cache_tag()}"
     lab = session["label"]
     sig = session_signature(session, params)
     fp = CACHE_DIR / f"{lab}__{kind}__{sig}.pkl"

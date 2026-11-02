@@ -722,6 +722,8 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     codes, cat, _blk, _rt_s, _cue_f, _pre_gate = nd.categorize(s, args)
     codes = np.asarray(codes)
     responded = np.array([c in ("engaged", "late_rewarded") for c in cat], bool)
+    from wfield_local import gate_source  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    responded = gate_source.gate_responded(s["label"], np.arange(codes.size), responded)  # [gate-source hook]
     is_ref = np.isin(codes, list(reference_positions))
 
     eng = np.ones(codes.size, bool)

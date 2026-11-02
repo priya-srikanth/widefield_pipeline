@@ -254,6 +254,8 @@ def categorize(s, args, with_licks=False):
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
     from wfield_local.precue_engagement_states import engagement_gate
     responded = np.array([c == "engaged" or c == "late_rewarded" for c in cat], bool)
+    from wfield_local import gate_source  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    responded = gate_source.gate_responded(s["label"], np.arange(len(codes)), responded)  # [gate-source hook]
     #: Reference positions in CODE space, from the same names the rest of the pipeline gates on.
     #: Derived here rather than imported from `poststroke_compare` (which imports this module).
     ref_codes = tuple(c for c, nm in POSITION_NAMES.items()

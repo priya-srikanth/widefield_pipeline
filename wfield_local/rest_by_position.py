@@ -180,6 +180,9 @@ def _engaged_trials(session, cue_samples, codes, fs=5000.0):
         w = int(float(rw) * fs)
         cs = np.asarray(cue_samples, np.int64)
         responded = np.array([bool(np.any((lo >= c) & (lo < c + w))) for c in cs], bool)
+        from wfield_local import gate_source as _gs  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+        _lab = session["label"]  # [gate-source hook]
+        responded = _gs.gate_responded(_lab, np.arange(n), responded, float(rw), cs, fs)  # [gate-source hook]
         pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)])
         # POLARITY: `engagement_gate` returns True for NOT-ENGAGED -- `beta_maps._quit_mask` binds
         # it as `ne` and returns it as the QUIT mask. Inverting here gives ENGAGED. Getting this

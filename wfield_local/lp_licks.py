@@ -34,6 +34,11 @@ are offset in some sessions.
 
 The DAQ path is untouched when the switch is unset. Results go to separate LP_licks outputs and cache keys
 (`spec_token`), so LP and DAQ numbers can never be served for each other.
+
+ENGAGEMENT GATE: a separate switch, WIDEFIELD_GATE_SOURCE=lp (11-01, `wfield_local/gate_source.py`), makes the engaged /
+working / stopped gate and the S28 quit count DAQ contact OR an LP attempt as a response. NB under this module's
+WIDEFIELD_LICK_SOURCE=lp alone, the imaging gate and the S28 quit are already LP-only (they read this train), while the
+rest-baseline gates stay DAQ-only; see that module. Its runs get a "_gateLP" output tag here.
 """
 from __future__ import annotations
 
@@ -142,8 +147,13 @@ def output_tag() -> str | None:
     "DAQ_ENL<w>s" (DAQ source with a non-default ENL window); None for the default DAQ run."""
     w = enl_window_s()
     if is_lp():
-        return "LP_licks" if w == LP_ENL_WINDOW_S else f"LP_licks_ENL{w:g}s"
-    return None if w is None else f"DAQ_ENL{w:g}s"
+        tag = "LP_licks" if w == LP_ENL_WINDOW_S else f"LP_licks_ENL{w:g}s"
+    else:
+        tag = None if w is None else f"DAQ_ENL{w:g}s"
+    from wfield_local import gate_source
+    if gate_source.is_lp():             # LP-inclusive gate: its own folder, never the plain LP_licks / default one
+        tag = f"{tag or 'DAQ'}_gateLP"
+    return tag
 
 
 def output_dir(default: Path) -> Path:
@@ -165,7 +175,11 @@ def stamp(fig) -> None:
         return
     w = enl_window_s()
     txt = (("LP licks: video lick (cam4 + cam1) attempts, gate = hit / incomplete within max_rt; lick-aligned = LP "
-            "onset; ") if is_lp() else "DAQ contact licks; ") + f"ENL lick-free window {w:g} s"
+            "onset; ") if is_lp() else "DAQ contact licks; ") + (f"ENL lick-free window {w:g} s" if w is not None
+                                                                  else "ENL lick-free window 2 s")
+    from wfield_local import gate_source
+    if gate_source.is_lp():
+        txt += "; engagement gate / quit = DAQ contact OR LP attempt"
     fig.text(0.995, 0.002, txt, ha="right", va="bottom", fontsize=6, color="#8a2be2")
 
 
