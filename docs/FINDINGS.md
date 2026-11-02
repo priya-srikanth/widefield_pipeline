@@ -630,8 +630,12 @@ animal's pre robust SD, both polarities (k chosen to separate pre vs acute: acut
 ORofacial events ~3.8-4.1 /min pre -> 15.5 / 32.1 / 19.8 / 20.9 acute (4/4), LMM x5.1 / x2.5 / x1.4 acute / sub /
 chronic; raw x4.1. (b) Pre 43-73 % of events coincide with face movement, acute at chance (4/4). (c) Power rises most at
 2-3 Hz; quiet SD up over most of cortex, acutely except the lateral barrel / limb hotspots. (d) Acute orofacial events are
-LOCAL to anterolateral orofacial cortex (ALM / tjM1 / SSp-m) bilaterally, recruiting significantly less lateral SSp than
-pre-stroke events (selection control pending: pre events are mostly movement-locked). (e) Acute events decay ~18 % faster,
+LOCAL to anterolateral orofacial cortex (ALM / tjM1 / SSp-m) bilaterally -- but this is MOSTLY SELECTION (T1, 11-01):
+pre-stroke events without face movement are already local; the pre lateral spread came from movement events; acutely the
+still events multiply x3-12 vs movement events ~x2; after movement + height matching only a small further narrowing remains
+(4/4). They are the event type of pre-stroke disengaged periods (T4), bilateral and simultaneous (onset lag within +/-5 ms,
+no ipsilesional bias in rate or amplitude; T2, T8), and not interictal (T11, T19). Running list:
+docs/status/RUNNING_LIST_2026-11-01_QUIET_EVENTS.md. (e) Acute events decay ~18 % faster,
 rise unchanged; the trace's ACF is unchanged (oscillatory component, not sharper bursts). (f) STATE: engaged-quiet face
 speed roughly halves acutely in 4/4 (pre -> acute 1242 -> 812, 825 -> 492, 1947 -> 965, 1192 -> 593); and the
 pre-stroke QUIT period already shows the same orofacial signature -- orofacial 1-4 Hz power 3.4-5.4x engaged quiet
@@ -1073,8 +1077,14 @@ restored, propagation patterns (https://pmc.ncbi.nlm.nih.gov/articles/PMC8159272
 (Neuropharmacology 39:788) verified as cited.
 ADD -- precedents (soften "new"): Bauer et al. 2014 NeuroImage (mouse tMCAO, SUBCORTICAL-only infarcts reduce lateral-cortex
 homotopic connectivity; resting, no task; https://pmc.ncbi.nlm.nih.gov/articles/PMC4332714); Cullins & Connor 2024 Front
-Neurol (striatum-centred rat MCAO: ipsilesional TONGUE map shrinks, intact-hemisphere JAW map enlarges with infarct size;
-https://pmc.ncbi.nlm.nih.gov/articles/PMC10987714/) -> supports contralesional shift + remapping in the orofacial system;
+Neurol (rat tMCAO, striatum-centred, often into cortex, ~1/3 subcortical; ICMS maps at 8 weeks under anaesthesia;
+https://pmc.ncbi.nlm.nih.gov/articles/PMC10987714/) -- ONLY PARTLY AGREES (Priya 11-01, after reading it): ipsilesional
+TONGUE map shrinks (aged rats only; young p .057; more with larger infarcts) whereas our ipsilesional orofacial cortex is
+NOT reduced (chronic lick responses larger there too; lateral read-out map kept in 3/4); intact-hemisphere change is JAW
+only (tongue unchanged) and function tracks the INFARCTED hemisphere, intact-hemisphere maps do not correlate with function,
+whereas our contralesional changes are the larger ones (we do not separate tongue vs jaw cortex, nor show which hemisphere
+tracks function). Different measure (ICMS output efficacy vs calcium activity in behaviour), lesions and ages. Shared only:
+some intact-hemisphere change;
 Ahmed et al. 2017 JCBFM (lick efficiency down after striatal-only MCAO to day 40, compensatory drinking clusters;
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5305038/); Fanciullacci 2017 (human subcortical stroke: more delta over the
 affected hemisphere); Gloor 1977 (delta from white-matter / thalamic deafferentation); Carmichael & Chesselet 2002 (rat:
@@ -1084,7 +1094,9 @@ anchor for failed attempts lacking a spout code. No study found that records ALM
 that uses a frozen pre-stroke encoder: both still look new.
 ADD -- counter-literature a reviewer would cite: Branscheidt et al. 2022 J Neurophysiol (human SUBCORTICAL stroke, 1 year:
 no recovery-related cortical resting-connectivity change; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8896990/); Zeiger
-et al. 2021 Nat Commun (potentiation of pre-existing circuits, not remapping; https://pmc.ncbi.nlm.nih.gov/articles/PMC8233353);
+et al. 2021 Nat Commun (potentiation of pre-existing circuits, not remapping; https://pmc.ncbi.nlm.nih.gov/articles/PMC8233353) --
+COMPATIBLE, largely semantics (Priya 11-01): our chronic change is a RE-WEIGHTED mapping within the same areas (3/4 keep the
+read-out map's pattern), not territorial remapping -> say 're-weighted mapping', not 'remapping';
 Sarasso 2020 caveat: off-periods ABSENT with unilateral LACUNAR subcortical lesions (ours are larger, some with cortex / DLS);
 Panzeri et al. 2025 bioRxiv (contralesional widefield activity reflects intact-paw compensatory use); Ramanathan 2018 /
 Khanna 2021 Cell (task-locked < 4 Hz activity DOWN, our quiet 2-3 Hz UP: T16 tests the dissociation); Facchin 2020

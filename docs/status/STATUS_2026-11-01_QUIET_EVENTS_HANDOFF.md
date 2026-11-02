@@ -14,7 +14,7 @@ left = ipsilesional on brain maps.
 
 | job | command | output | state |
 |---|---|---|---|
-| T1-T4 event-map split (movement x height x polarity x state) + per-event ipsi / contra timing | `python scripts/cohort2_qc/quiet_eta_split.py --jobs 5` (log `scratchpad/eta_split.log`) | `v2_quiet/eta_split/` (sessions npz, spread / ipsi-contra csv, T1 / T3 / T4 map figures) | RUNNING (started ~21:00); cached per session, re-run or `--summarise` |
+| (DONE) T1-T4 event-map split | `quiet_eta_split.py` | `v2_quiet/eta_split/` | finished 107 / 107 |
 | (DONE) quit-period state | `quiet_quit_state.py` | `v2_quiet/quit_state/` | finished 108 / 108; result 3.8 |
 
  Kill only the exact PID if needed (never by name / parent).
@@ -76,10 +76,10 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 
 | # | test | separates | prediction | status |
 |---|---|---|---|---|
-| T1 | 15.7 selection control: event maps split by face movement (with / without, +/-0.3 s) AND height-matched (4-6 / 6-9 / > 9 x pre SD), pre vs acute | SELECTION vs changed event | same maps -> stroke made non-movement events common; acute still more local -> event changed | RUNNING 11-01 (`quiet_eta_split.py`, outputs `v2_quiet/eta_split/`) |
-| T2 | ipsi vs contra orofacial amplitude and onset lag per event (31 Hz, ~32 ms) | CIRCUIT (ipsilesional thalamic projection: ipsi first / larger) vs STATE (simultaneous, symmetric) | CIRCUIT: ipsi leads / larger acutely | RUNNING 11-01 (same pass) |
-| T3 | up vs down event maps | local oscillation vs discrete bursts | same local footprint -> excitability oscillation | RUNNING 11-01 (same pass) |
-| T4 | pre-stroke QUIT-period event map vs acute ENGAGED map | STATE (acute = pre disengaged state) | same local footprint -> state-like | RUNNING 11-01 (same pass; pre quit data sparse) |
+| T1 | 15.7 selection control: event maps split by face movement (with / without, +/-0.3 s) AND height-matched (4-6 / 6-9 / > 9 x pre SD), pre vs acute | SELECTION vs changed event | same maps -> stroke made non-movement events common; acute still more local -> event changed | DONE 11-01: mostly selection (running list) |
+| T2 | ipsi vs contra orofacial amplitude and onset lag per event (31 Hz, ~32 ms) | CIRCUIT (ipsilesional thalamic projection: ipsi first / larger) vs STATE (simultaneous, symmetric) | CIRCUIT: ipsi leads / larger acutely | DONE: simultaneous, symmetric |
+| T3 | up vs down event maps | local oscillation vs discrete bursts | same local footprint -> excitability oscillation | DONE: same structure, weaker |
+| T4 | pre-stroke QUIT-period event map vs acute ENGAGED map | STATE (acute = pre disengaged state) | same local footprint -> state-like | DONE: same map, more local |
 | T5 | event width / rise / decay, ACF half-time | thalamic bursts (faster rise) vs oscillation (faster decay) vs drowsiness (slower) | -- | DONE: decay ~18 % faster, rise unchanged, ACF unchanged -> oscillation (3.7) |
 | T6 | quit-period vs engaged quiet: cortex bands, face speed | STATE | -- | DONE: pre quit already has the orofacial 1-4 Hz signature, cortex-wide lower; engaged-quiet face speed halves acutely 4/4 (3.8) |
 | T7 | within engaged quiet: event rate vs face stillness (per session, binned face speed) | STATE contribution | rate rises with stillness -> state adds | RUNNING 11-01 (`quiet_stillness.py`, `V2/stillness/`) |
@@ -93,7 +93,7 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 | T15 | rate tracks each animal's deficit (PS93 largest acute rate; PS94 least recovered); pre-register orderings for cohort2 | CIRCUIT vs STATE / ARTEFACT | -- | DONE: no ordering (rho -0.20) |
 | T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | RUNNING 11-01 (agent; `quiet_lick_lfo.py`) |
 | T17 | (DONE 11-01, see end of section 6) literature: targeted PubMed search (striatal / capsular stroke + widefield GCaMP / cortical recordings); verify the *(memory)* citations (Allegra Mascaro 2019, Levin 2009, Nudo 1996, Lee-Wang-Sabatini 2020) | context | -- | DONE 11-01 |
-| T19 | Steinmetz criteria explicitly: waveform (rise / decay vs their ~150 ms interictal shape), refractoriness (inter-event interval distribution, 0.5-1 s gap), positive-only vs both polarities, bilateral symmetry, per animal incl. PS93 (cortical injury) | ARTEFACT / epileptiform (T17 caveat: location + rate overlap) | none of the criteria met -> not interictal | TO DO (added 11-01 after T17) |
+| T19 | Steinmetz criteria explicitly: waveform (rise / decay vs their ~150 ms interictal shape), refractoriness (inter-event interval distribution, 0.5-1 s gap), positive-only vs both polarities, bilateral symmetry, per animal incl. PS93 (cortical injury) | ARTEFACT / epileptiform (T17 caveat: location + rate overlap) | none of the criteria met -> not interictal | DONE: not interictal |
 | T18 | k-choice bias: report subacute / chronic (not used to pick k) as the unbiased contrasts; held-out-animal k already LOAO | statistics | -- | NOTE (reported in 15.1 caption) |
 
 ## 5. Files
@@ -175,8 +175,14 @@ restored, propagation patterns (https://pmc.ncbi.nlm.nih.gov/articles/PMC8159272
 (Neuropharmacology 39:788) verified as cited.
 ADD -- precedents (soften "new"): Bauer et al. 2014 NeuroImage (mouse tMCAO, SUBCORTICAL-only infarcts reduce lateral-cortex
 homotopic connectivity; resting, no task; https://pmc.ncbi.nlm.nih.gov/articles/PMC4332714); Cullins & Connor 2024 Front
-Neurol (striatum-centred rat MCAO: ipsilesional TONGUE map shrinks, intact-hemisphere JAW map enlarges with infarct size;
-https://pmc.ncbi.nlm.nih.gov/articles/PMC10987714/) -> supports contralesional shift + remapping in the orofacial system;
+Neurol (rat tMCAO, striatum-centred, often into cortex, ~1/3 subcortical; ICMS maps at 8 weeks under anaesthesia;
+https://pmc.ncbi.nlm.nih.gov/articles/PMC10987714/) -- ONLY PARTLY AGREES (Priya 11-01, after reading it): ipsilesional
+TONGUE map shrinks (aged rats only; young p .057; more with larger infarcts) whereas our ipsilesional orofacial cortex is
+NOT reduced (chronic lick responses larger there too; lateral read-out map kept in 3/4); intact-hemisphere change is JAW
+only (tongue unchanged) and function tracks the INFARCTED hemisphere, intact-hemisphere maps do not correlate with function,
+whereas our contralesional changes are the larger ones (we do not separate tongue vs jaw cortex, nor show which hemisphere
+tracks function). Different measure (ICMS output efficacy vs calcium activity in behaviour), lesions and ages. Shared only:
+some intact-hemisphere change;
 Ahmed et al. 2017 JCBFM (lick efficiency down after striatal-only MCAO to day 40, compensatory drinking clusters;
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5305038/); Fanciullacci 2017 (human subcortical stroke: more delta over the
 affected hemisphere); Gloor 1977 (delta from white-matter / thalamic deafferentation); Carmichael & Chesselet 2002 (rat:
@@ -186,7 +192,9 @@ anchor for failed attempts lacking a spout code. No study found that records ALM
 that uses a frozen pre-stroke encoder: both still look new.
 ADD -- counter-literature a reviewer would cite: Branscheidt et al. 2022 J Neurophysiol (human SUBCORTICAL stroke, 1 year:
 no recovery-related cortical resting-connectivity change; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8896990/); Zeiger
-et al. 2021 Nat Commun (potentiation of pre-existing circuits, not remapping; https://pmc.ncbi.nlm.nih.gov/articles/PMC8233353);
+et al. 2021 Nat Commun (potentiation of pre-existing circuits, not remapping; https://pmc.ncbi.nlm.nih.gov/articles/PMC8233353) --
+COMPATIBLE, largely semantics (Priya 11-01): our chronic change is a RE-WEIGHTED mapping within the same areas (3/4 keep the
+read-out map's pattern), not territorial remapping -> say 're-weighted mapping', not 'remapping';
 Sarasso 2020 caveat: off-periods ABSENT with unilateral LACUNAR subcortical lesions (ours are larger, some with cortex / DLS);
 Panzeri et al. 2025 bioRxiv (contralesional widefield activity reflects intact-paw compensatory use); Ramanathan 2018 /
 Khanna 2021 Cell (task-locked < 4 Hz activity DOWN, our quiet 2-3 Hz UP: T16 tests the dissociation); Facchin 2020
