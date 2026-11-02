@@ -12,8 +12,10 @@ pre).
     run >= 4 s, averaged over segments. Per animal: each epoch's median PSD over sessions / the animal's pre median.
 (2) MAP: per pixel SD of the quiet frames after a LINEAR 2-s moving-average high-pass (linear so it commutes with the
     SVD: pixel variance = diag(U C U'), C = covariance of the high-passed temporal components over quiet frames; the
-    event analyses' 2-s running MEDIAN is not linear). Per animal: log2(epoch median SD map / pre median SD map); pooled =
-    mean over animals. Shared Allen grid, eroded stat mask (the encoder's inputs).
+    event analyses' 2-s running MEDIAN is not linear). Per animal: mean log2 SD over the epoch's sessions minus the pre
+    sessions' (geometric-mean ratio); pooled = mean over animals. Shared Allen grid. Significance outlines (11-01):
+    bootstrap with a max-statistic family-wise threshold on 8x8 bins of the eroded stat mask -- pooled animals ->
+    sessions (beta_maps.significance_contour), per animal sessions only (fig_maps docstring).
 (3) EVENT-TRIGGERED: v2 events at k = 4 (height above the preceding 1.0-0.2 s > 4 x the animal's August-pre robust SD),
     engaged quiet, in the bilateral ORofacial or LIMB group, POSITIVE and NEGATIVE separately; average of the 2-s-median-
     detrended area traces and of the pixel movie (high-passed as in (2)) from -1 to +2 s around the peak.
@@ -192,33 +194,102 @@ def fig_spectrum(D):
     return B
 
 
+N_BOOT = 2000
+
+
+def draw_outline(a, full):
+    """Significance outline as on the epoch maps (epoch_figures): black line over a white halo."""
+    a.contour(full.astype(float), levels=[0.5], colors="white", linewidths=2.8, alpha=0.85)
+    a.contour(full.astype(float), levels=[0.5], colors="black", linewidths=1.6)
+
+
+def session_boot_sig(pre_maps, post_maps, mask, n_boot=N_BOOT, alpha=0.05, seed=0):
+    """ONE animal: where mean(post) - mean(pre) differs from 0, sessions resampled within each epoch.
+
+    beta_maps.hierarchical_bootstrap_significance with its outer (animal) level absent -- it needs >= 2 animals -- and
+    the same pieces: 8x mask-aware downsample, SE from the bootstrap, max-statistic family-wise threshold. Returns
+    (full-res mask or None, n significant bins, n bins), or None with < 2 sessions on either side.
+    """
+    from wfield_local import beta_maps as bm
+    if len(pre_maps) < 2 or len(post_maps) < 2:
+        return None
+    p = [bm.downsample(m, bm.MUSALL_DOWNSAMPLE, mask)[0] for m in pre_maps]
+    q = [bm.downsample(m, bm.MUSALL_DOWNSAMPLE, mask)[0] for m in post_maps]
+    sm = bm.downsample(pre_maps[0], bm.MUSALL_DOWNSAMPLE, mask)[1]
+    rng = np.random.default_rng(seed)
+    obs = np.mean(q, 0) - np.mean(p, 0)
+    boot = np.stack([np.mean([q[i] for i in rng.integers(0, len(q), len(q))], 0)
+                     - np.mean([p[i] for i in rng.integers(0, len(p), len(p))], 0) for _ in range(n_boot)])
+    se = boot.std(0, ddof=1)
+    ok = sm & (se > 0)
+    md = np.abs((boot[:, ok] - obs[ok]) / se[ok]).max(1)
+    z = float(np.percentile(md, 100 * (1 - alpha)))
+    sig = ok & (np.abs(obs) > z * se)
+    full = bm.upsample_mask(sig) if sig.any() else None
+    if full is not None and bm.edge_enrichment(full) > bm.EDGE_ENRICHMENT_MAX:
+        full = None                                                     # rim artefact, suppressed as in beta_maps
+    return full, int(sig.sum()), int(ok.sum())
+
+
 def fig_maps(D):
+    """Per-pixel quiet SD: pre level, then log2(epoch / pre) with significance outlines (Priya 11-01).
+
+    The image is the GEOMETRIC mean (mean of log2 session SD) so it is the quantity the test sees. Outlines: pooled row
+    = beta_maps.significance_contour, nested animals -> sessions bootstrap (animals present in both epochs), max-stat
+    family-wise threshold, eroded stat mask, rim-concentrated results suppressed; per-animal rows = the same with
+    sessions as the only level (session_boot_sig; needs >= 2 sessions per epoch).
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import pandas as pd
+    from wfield_local import beta_maps as bm
     k0 = next(iter(D))
     flat, shape, parea = D[k0]["flat"], tuple(D[k0]["shape"]), D[k0]["parea"]
     if any(len(d["flat"]) != len(flat) or not np.array_equal(d["flat"], flat) for d in D.values()):
         raise SystemExit("sessions are not on one pixel grid -- cannot pool maps")
     edges = area_edges(parea, flat, shape)
     animals = sorted({k[:4] for k in D})
+    onpix = np.zeros(int(np.prod(shape)), bool)
+    onpix[flat] = True
+    mask = bm.stat_mask() & onpix.reshape(shape)
+    L = {(an, ep): [to_img(np.log2(np.maximum(d["sdpix"], 1e-6)), flat, shape) for k, d in sorted(D.items())
+                    if k.startswith(an) and d["epoch"] == ep] for an in animals for ep in EP}
     pre = {an: np.nanmedian([d["sdpix"] for k, d in D.items() if k.startswith(an) and d["epoch"] == "pre"], 0)
            for an in animals}
-    fig, ax = plt.subplots(len(animals) + 1, 4, figsize=(13, 3.0 * (len(animals) + 1)))
-    vmax = 1.0
+    # spacer column between pre and the ratio columns so the pre colorbar has room
+    fig = plt.figure(figsize=(15, 3.0 * (len(animals) + 1)))
+    gs = fig.add_gridspec(len(animals) + 1, 6, width_ratios=[1, 0.42, 1, 1, 1, 0.06], wspace=0.05, hspace=0.12, top=0.94)
+    rows, im = [], None
     for i, an in enumerate(animals + ["pooled"]):
         for j, ep in enumerate(EP):
-            a = ax[i, j]
+            a = fig.add_subplot(gs[i, 0 if j == 0 else j + 1])
             if ep == "pre":
                 v = pre[an] if an != "pooled" else np.nanmean([pre[x] for x in animals], 0)
                 im0 = a.imshow(to_img(v, flat, shape), cmap="viridis", vmin=0, vmax=np.nanpercentile(v, 99))
-                fig.colorbar(im0, ax=a, fraction=0.04, label="SD, dF/F %")
+                cax = a.inset_axes([1.04, 0.1, 0.05, 0.8])
+                fig.colorbar(im0, cax=cax).set_label("SD, dF/F %", fontsize=8)
+                cax.tick_params(labelsize=7)
             else:
-                def ratio(x, ep=ep):
-                    P = [d["sdpix"] for k, d in D.items() if k.startswith(x) and d["epoch"] == ep]
-                    return np.log2(np.nanmedian(P, 0) / pre[x]) if P else np.full(len(flat), np.nan)
-                v = ratio(an) if an != "pooled" else np.nanmean([ratio(x) for x in animals], 0)
-                im = a.imshow(to_img(v, flat, shape), cmap="RdBu_r", vmin=-vmax, vmax=vmax)
+                ans = [an] if an != "pooled" else [x for x in animals if L[(x, ep)] and L[(x, "pre")]]
+                per = [np.mean(L[(x, ep)], 0) - np.mean(L[(x, "pre")], 0) for x in ans if L[(x, ep)]]
+                v = np.mean(per, 0) if per else np.full(shape, np.nan)
+                im = a.imshow(v, cmap="RdBu_r", vmin=-1, vmax=1)
+                if an == "pooled":
+                    full, lab = bm.significance_contour({x: L[(x, "pre")] for x in ans}, {x: L[(x, ep)] for x in ans},
+                                                        method="nested", n_boot=N_BOOT, mask=mask, normalise=False)
+                    nsig = (bm.significance_contour.last or {}).get("sig_bins", 0) if full is not None else 0
+                    note = lab
+                else:
+                    got = session_boot_sig(L[(an, "pre")], L[(an, ep)], mask)
+                    full, nsig, _ = got if got else (None, 0, 0)
+                    note = ("" if got else f"< 2 sessions in {ep} or pre: not tested")
+                    if not got:
+                        a.text(0.5, 0.02, "not tested (1 session)", transform=a.transAxes, ha="center", fontsize=7,
+                               color="0.3")
+                if full is not None:
+                    draw_outline(a, full)
+                rows.append(dict(row=an, epoch=ep, n_animals=len(ans), sig_bins=nsig, note=note))
             a.imshow(np.where(edges, 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5)
             a.set_xticks([])
             a.set_yticks([])
@@ -226,10 +297,14 @@ def fig_maps(D):
                 a.set_title("pre: SD" if ep == "pre" else f"{ep}: log2(SD / pre)", fontsize=9)
             if j == 0:
                 a.set_ylabel(an, fontsize=9)
-    fig.colorbar(im, ax=ax[:, 1:].ravel().tolist(), fraction=0.02, label="log2(SD / animal's pre SD)")
+    fig.colorbar(im, cax=fig.add_subplot(gs[:, 5])).set_label("log2(SD / animal's pre SD)", fontsize=9)
     fig.suptitle("Where quiet-period fluctuations grow: per-pixel SD (linear 2-s high-pass) over quiet engaged frames; "
-                 "per animal median over sessions; ipsilesional = image left; Allen area edges", fontsize=9)
+                 "ratio = geometric mean over sessions vs the animal's pre; ipsilesional = image left; Allen area edges.\n"
+                 "Black outline = change significant (bootstrap, max-statistic family-wise p < 0.05 over 8x8-px bins, "
+                 "eroded mask): pooled = animals -> sessions; per animal = sessions.", fontsize=9, y=0.995)
     fig.savefig(FL / "quiet_sd_maps.png", dpi=110, bbox_inches="tight")
+    pd.DataFrame(rows).to_csv(FL / "quiet_sd_maps_significance.csv", index=False)
+    print(pd.DataFrame(rows).to_string())
 
 
 def fig_eta(D):
@@ -267,32 +342,56 @@ def fig_eta(D):
                  "(sessions with >= 3 events)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(FL / "quiet_eta_traces.png", dpi=110)
-    # maps: orofacial UP and limb UP, pre vs acute, at MAP_LAGS_S
-    fig, ax = plt.subplots(4, len(mlags), figsize=(2.6 * len(mlags), 10.5))
-    r = 0
+    # maps: orofacial UP and limb UP -- pre, acute, and DELTA acute - pre (Priya 11-01) -- at MAP_LAGS_S
+    import pandas as pd
+    from wfield_local import beta_maps as bm
+    onpix = np.zeros(int(np.prod(shape)), bool)
+    onpix[flat] = True
+    smask = bm.stat_mask() & onpix.reshape(shape)
+    fig, ax = plt.subplots(6, len(mlags), figsize=(2.6 * len(mlags), 15.5))
+    r, sig_rows = 0, []
     for key in ("orofacial_pos", "limb_pos"):
-        for ep in ("pre", "acute"):
-            per = []
-            for an in animals:
-                Z = [d[f"etamap_{key}"] for k, d in D.items()
-                     if k.startswith(an) and d["epoch"] == ep and d[f"n_{key}"] >= 3]
-                if Z:
-                    per.append(np.nanmean(Z, 0))
-            M = np.mean(per, 0) if per else np.full((len(mlags), len(flat)), np.nan)
-            v = np.nanpercentile(np.abs(M), 99)
+        S = {ep: {an: [d[f"etamap_{key}"] for k, d in sorted(D.items())
+                       if k.startswith(an) and d["epoch"] == ep and d[f"n_{key}"] >= 3] for an in animals}
+             for ep in ("pre", "acute")}
+        both = [an for an in animals if S["pre"][an] and S["acute"][an]]
+        M = {ep: np.mean([np.nanmean(S[ep][an], 0) for an in animals if S[ep][an]], 0) for ep in ("pre", "acute")}
+        M["delta"] = np.mean([np.nanmean(S["acute"][an], 0) - np.nanmean(S["pre"][an], 0) for an in both], 0)
+        v = np.nanpercentile(np.abs(np.r_[M["pre"].ravel(), M["acute"].ravel()]), 99)
+        vd = np.nanpercentile(np.abs(M["delta"]), 99)
+        for ep in ("pre", "acute", "delta"):
             for j in range(len(mlags)):
-                im = ax[r, j].imshow(to_img(M[j], flat, shape), cmap="RdBu_r", vmin=-v, vmax=v)
-                ax[r, j].imshow(np.where(edges, 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5)
-                ax[r, j].set_xticks([])
-                ax[r, j].set_yticks([])
+                a = ax[r, j]
+                im = a.imshow(to_img(M[ep][j], flat, shape), cmap="RdBu_r", vmin=-(vd if ep == "delta" else v),
+                              vmax=vd if ep == "delta" else v)
+                if ep == "delta":
+                    pre_j = {an: [to_img(m[j], flat, shape) for m in S["pre"][an]] for an in both}
+                    ac_j = {an: [to_img(m[j], flat, shape) for m in S["acute"][an]] for an in both}
+                    full, lab = bm.significance_contour(pre_j, ac_j, method="nested", n_boot=N_BOOT, mask=smask,
+                                                        normalise=False)
+                    if full is not None:
+                        draw_outline(a, full)
+                    sig_rows.append(dict(trigger=key, lag_s=round(float(mlags[j]), 2), n_animals=len(both),
+                                         test=lab))
+                a.imshow(np.where(edges, 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5)
+                a.set_xticks([])
+                a.set_yticks([])
                 if r == 0:
-                    ax[r, j].set_title(f"{mlags[j]:+.1f} s", fontsize=9)
-            ax[r, 0].set_ylabel(f"{key.replace('_pos', ' UP')}\n{ep} ({len(per)} an.)", fontsize=8)
-            fig.colorbar(im, ax=ax[r, :].tolist(), fraction=0.02, label="dF/F %")
+                    a.set_title(f"{mlags[j]:+.1f} s", fontsize=9)
+            n_an = len(both) if ep == "delta" else sum(bool(S[ep][an]) for an in animals)
+            lab_ep = "DELTA acute - pre" if ep == "delta" else ep
+            ax[r, 0].set_ylabel(f"{key.replace('_pos', ' UP')}\n{lab_ep} ({n_an} an.)", fontsize=8,
+                                fontweight="bold" if ep == "delta" else "normal")
+            fig.colorbar(im, ax=ax[r, :].tolist(), fraction=0.02, label="dF/F %" if ep != "delta" else "delta dF/F %")
             r += 1
-    fig.suptitle("Event-triggered average maps (high-passed movie), mean of animal means; ipsilesional = image left",
-                 fontsize=9)
+    fig.suptitle("Event-triggered average maps (high-passed movie, positive events > 4 x pre SD), mean of animal means; "
+                 "ipsilesional = image left.\nDELTA = acute - pre within animal (own colour scale); black outline = "
+                 "significant (nested animals -> sessions bootstrap, max-statistic family-wise p < 0.05, 8x8-px bins, "
+                 "eroded mask)", fontsize=9)
+    fig.subplots_adjust(top=0.93)
     fig.savefig(FL / "quiet_eta_maps.png", dpi=110, bbox_inches="tight")
+    pd.DataFrame(sig_rows).to_csv(FL / "quiet_eta_maps_significance.csv", index=False)
+    print(pd.DataFrame(sig_rows).to_string())
 
 
 def summarise():
