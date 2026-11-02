@@ -33,8 +33,8 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 | T9 breathing coherence | RUNNING (agent) -- KEY (Priya 11-01: respiration looks FASTER post-stroke): respiration rate by epoch, cortical peak frequency tracking respiration, coherence at the respiration frequency, and the CORRECTION (respiration regressed out, then 1-4 Hz power + event rate recomputed) | -- | `V2\breathing\` |
 | T10 415 nm / uncorrected 470 | RUNNING (agent) | -- | `V2\hemo415\` |
 | T11 amplitude / epileptiform | DONE 11-01 | NOT interictal-like: median heights 2.4-3.1 %; events > 10 % dF/F < 1 % of events and RARER acutely (0.05-0.14 % vs 0.5-0.9 % pre); orofacial events SHARE limb events less acutely (pre .14-.40 -> acute .07-.25) = more local, not cortex-wide. Exception: PS94 chronic has 11 events > 10 % (1.5 %) -- look at them | same figure (top right, bottom left) |
-| T12 events in pre-cue / ITI windows | RUNNING (agent) | -- | `V2\task_events\` |
-| T13 pre-cue event -> failed attempt / weaker code | RUNNING (agent) | -- | `V2\task_events\` |
+| T12 events in pre-cue / ITI windows | DONE 11-01 (agent; commit c92eda61) | events are NOT quiet-specific: they rise acutely in EVERY task window, 4/4. Pre-cue (spout in place, before cue; frames > 0.5 s from licks / running) pre 2.7-6.1 /min -> acute x2.1-5.7 (LMM +0.45 log10, q 1e-4; sub +0.26, chronic +0.21 n.s.); ITI acute +0.58 (x2.8-9.0); quiet +0.61. Pre-cue rise ~0.7x the quiet rise (log ratio -0.16, q .054); ITI rise ~ quiet rise | `V2\task_events\t12_task_window_event_rates.png` |
+| T13 pre-cue event -> failed attempt / weaker code | DONE 11-01 (agent) | (a) a pre-cue orofacial event does NOT reliably predict a FAILED far-contra attempt once time-in-session is controlled (strict +0.0095, p .11; only PS95 +0.041; acute alone null because ~95 % fail); a small event -> miss link exists for all spouts EVEN PRE-STROKE (strict +0.010, p .001) = general, not a stroke mechanism. (b) a pre-cue event DOES go with a WEAKER frozen-decoder position code on that trial ONLY after the stroke while there is a deficit: acute + subacute strict -0.013 (p .001), negative 4/4 (PS92 -.012, PS93 -.006, PS94 -.014, PS95 -.025); hits only -0.020 (4/4); pre +0.004 n.s., chronic +0.005 n.s.; p_true 0.23-0.26 with an event vs 0.31-0.32 without (chance .167). Caveat: the event sits inside the decoder's window, so direct feature contamination is not excluded; time control by quartile only | `V2\task_events\t13_precue_event_vs_outcome.png` |
 | T14 rate vs far-contra recovery (within animal) | DONE 11-01 | rate falls as behaviour recovers: r -0.75 raw (4/4, p < .001); beyond the shared time course -0.23 (p .048; PS93 -0.58, PS95 -0.49, PS92 +0.17, PS94 -0.03) -> mostly the common time course | same figure (bottom middle) |
 | T15 deficit ordering (n = 4) | DONE 11-01 | no ordering: acute rate vs half-recovery day / lesion % rho -0.20 each; PS93 (smallest lesion, fastest recovery) has the LARGEST acute rate (x7.8) | same figure (bottom right) |
 | T16 lick-locked LFO vs quiet (Ramanathan) | RUNNING (agent) | -- | `V2\lick_lfo\` |
@@ -62,6 +62,9 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
   matched stillness (every bin, 4/4) and is largest when the face is still: after the stroke, stillness goes with many
   orofacial events, as it does pre-stroke only when disengaged. A shift in state composition is a minor part.
 * RECOVERY: rate tracks recovery mostly via the shared time course (T14); no between-animal ordering (T15).
+* TASK (T12, T13): the events also rise in pre-cue and ITI windows (4/4). A pre-cue event does not predict a failed
+  far-contra attempt beyond time-in-session, but goes with a weaker frozen-decoder position code on that trial only
+  acute / subacute (4/4) -- candidate link between the state change and the coding loss (contamination caveat).
 * LITERATURE (Priya 11-01): Zeiger 2021 (potentiation, not remapping) is compatible -- use "re-weighted mapping", not
   "remapping"; Cullins & Connor 2024 only partly agrees (see FINDINGS 8).
 
@@ -71,7 +74,6 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 |---|---|---|
 | T9 breathing (KEY: respiration rate, frequency tracking, correction) | agent | summary step after re-run |
 | T10 415 nm / uncorrected 470 | agent | extraction ~80 / 107 |
-| T12 / T13 task-window events -> outcome | agent | summary step (interim figure t13_precue_event_vs_outcome.png exists) |
 | T16 lick-locked low-frequency (Ramanathan) | agent | extraction ~106 / 107 |
 | movement-corrected map re-render (colour bars) | me | running |
 Agents report back when their own processes finish; if one does not, run that script's `--summarise` (per-session caches are on

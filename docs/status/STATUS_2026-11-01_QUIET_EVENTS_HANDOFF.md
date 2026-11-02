@@ -11,8 +11,10 @@
 > face is still (T7); bilateral (no ipsi bias in rate / amplitude; onset timing cannot exclude callosal spread at 31 Hz; T2,
 > T8); not interictal (T11, T19); 15.7 difference = mostly selection (T1); the raw-trace faster decay (T5) does NOT survive
 > movement correction in orofacial cortex; no trial-level 'body effort' on failed attempts (effort analysis). Rate tracks
-> recovery mostly via the shared time course (T14). OPEN and decisive: T9 breathing (respiration looks faster post-stroke,
-> Priya), T10 haemodynamics, T13 (do pre-cue events predict failed attempts?), T16 (Ramanathan), T21-T22.
+> recovery mostly via the shared time course (T14). TASK: events rise in pre-cue / ITI windows too (T12); a pre-cue event
+> goes with a weaker frozen-decoder position code on that trial acute / subacute (4/4) but does not predict a failed
+> far-contra attempt beyond time-in-session (T13). OPEN and decisive: T9 breathing (respiration looks faster post-stroke,
+> Priya), T10 haemodynamics, T16 (Ramanathan), T21-T22; T13 follow-up: decoder trained without the event frames.
 >
 > **Pending actions:** (1) replace page Fig 15.7 (imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v38) with
 > `v2_quiet/eta_fr/quiet_eta_maps_fr.png` + caption; (2) when agents report, merge into the running list, this handoff,
@@ -106,8 +108,8 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 | T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTEFACT (breathing) | coherence high / tracks respiration -> artefact | RUNNING 11-01 (agent; `quiet_breathing.py`, `V2/breathing/`) |
 | T10 | haemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTEFACT (haemodynamic) | events absent in 415 -> neural | RUNNING 11-01 (agent; `quiet_hemo_check.py`, `V2/hemo415/`) |
 | T11 | amplitude distribution; count of events > 10 % dF/F and cortex-wide synchronous events (Steinmetz 2017 interictal shape) | ARTEFACT / epileptiform | none -> not interictal | DONE: not interictal (big events rarer acutely, less limb co-occurrence) -- running list |
-| T12 | events in pre-cue / ITI (task) windows, not only quiet | relevance | -- | RUNNING 11-01 (agent; `quiet_task_events.py`) |
-| T13 | pre-cue event on a trial -> failed far-contra attempt / weaker pre-cue position code on that trial | CIRCUIT-noise mechanism for the deficit | events predict failure | RUNNING 11-01 (agent; same script) |
+| T12 | events in pre-cue / ITI (task) windows, not only quiet | relevance | -- | DONE: rise in every task window 4/4 |
+| T13 | pre-cue event on a trial -> failed far-contra attempt / weaker pre-cue position code on that trial | CIRCUIT-noise mechanism for the deficit | events predict failure | DONE: not failure (beyond time-in-session), but weaker position code acute/sub 4/4 |
 | T14 | within animal, event rate vs far-contra recovery with log-day removed (as `iti_recovery_link.py`) | link to recovery | negative relation | DONE: r -0.75 raw, -0.23 detrended (p .048, 2/4) |
 | T15 | rate tracks each animal's deficit (PS93 largest acute rate; PS94 least recovered); pre-register orderings for cohort2 | CIRCUIT vs STATE / ARTEFACT | -- | DONE: no ordering (rho -0.20) |
 | T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | RUNNING 11-01 (agent; `quiet_lick_lfo.py`) |

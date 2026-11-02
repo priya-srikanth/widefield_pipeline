@@ -657,7 +657,12 @@ orofacial one. This is the laterality predicted by Priya's original hypothesis (
 to ipsilesional orofacial motor cortex), which the event rate did not show. Caveats: 8-15 Hz with GCaMP6s is near the noise
 floor (F0 / brightness check T22 pending); the reduced-drive reading rests on barrel-cortex literature (Poulet 2012,
 Crochet & Petersen 2006) while in ALM VM/VAL silencing collapses activity (Guo 2017), so it is a hypothesis, not a
-mechanism.
+mechanism. (h) TASK WINDOWS (T12/T13, 11-01): the events also rise acutely in pre-cue and ITI
+windows (4/4; pre-cue LMM +0.45, ~0.7x the quiet rise). A pre-cue event does NOT predict a failed far-contra attempt once
+time-in-session is controlled (only PS95), but DOES go with a WEAKER frozen pre-stroke decoder position code on that
+trial, only acute / subacute (-0.013, 4/4; hits only -0.020, 4/4; pre and chronic null) -- a candidate link between the
+orofacial state change and the acute coding loss; caveat: the event lies inside the decoder window (feature contamination
+not excluded).
 
 ## 4. Encoding model and the goal question
 
