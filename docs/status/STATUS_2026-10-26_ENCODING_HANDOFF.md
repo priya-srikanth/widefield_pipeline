@@ -39,7 +39,19 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-18 (10-30 ~late night) -- READ FIRST (then the running list; -17 for the 10-29 state)
+### 00-COMPACT-19 (11-01 ~23:00, Priya asleep, autonomous) -- READ FIRST, then docs/status/RUNNING_LIST_2026-11-01.md
+Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Goal page LIVE **v303**; imaging page (repo
+widefield_pipeline main, source docs/results_pages/imaging/, publish from repo HTML; must READ the live version first) LIVE
+**v39**. Today: C: disk cleanup (lists docs/status/DELETED_LOCAL_*_2026-11-01.txt); lick-source tags on every figure title
+(both pages; tables docs/status/GOAL_PAGE_LICK_SOURCE_20261101.tsv, imaging provenance/lick_source.tsv); 14.21 S1/S2/S11-S13
+captions on RESTnl (the acute far-contra pre-cue raise is NOT orofacial-specific under RESTnl); S12 stars in the panel
+(wfield_local/sig_marks.star_top + reserve_headroom now also in this branch). Plans: RESTNL_ROLLOUT_PLAN_20261101.md (Priya
+"ok" to my recommendations: RESTnl primary, old baselines collapsed sensitivity, flat RESTnl for maps, August-only pre,
+wr rule, rest decoder 12.1 lick-free first). Running: engagement-gate vs LP-attempt check -> GATE_LP_CHECK_20261101.md.
+Rules unchanged (helpers: exact PIDs only, never commit; <= 4 workers; another session commits on widefield_pipeline main ->
+branch off main for renderer code, never rebase / force-push).
+
+### 00-COMPACT-18 (10-30 ~late night) -- (previous; then the running list; -17 for the 10-29 state)
 Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Page LIVE **v292**
 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (local source `_goal_page/index.html`, images gitignored -> publish via the
 `files` map; supplement anchors `id="s14-18-N"`). Last commits ccfae557 (page/figure review fixes + FINDINGS 4.23 + S25),
