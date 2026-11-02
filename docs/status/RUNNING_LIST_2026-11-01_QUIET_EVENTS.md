@@ -24,7 +24,7 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 | 15.7 MOVEMENT-CORRECTED maps + decay (Priya 11-01: replace the page map; regress movement from all) | RUNNING (`quiet_eta_fr.py`, forward 5 + reverse 4 workers, ~3 min / session) | -- | `V2\eta_fr\quiet_eta_maps_fr.png`, `V2\eta_fr\quiet_eta_decay_fr.png` |
 | T5 event shape | DONE 11-01 | acute events ~10 % narrower, all decay (-18 %), rise unchanged, ACF unchanged (3/4) -> oscillation, not sharper bursts | `V2\width\quiet_event_width.png` |
 | T6 quit-period state | DONE 11-01 | pre-stroke QUIT already has orofacial 1-4 Hz x3.4-5.4 with cortex-wide 1-4 Hz LOWER, face stiller; engaged-quiet face speed halves acutely 4/4 | csv `V2\quit_state\quit_state_sessions.csv` (no figure yet) |
-| T7 rate vs face stillness within engaged quiet | RUNNING (`quiet_stillness.py`, 2 + 4 workers incl. a reverse-order helper) | -- | `V2stillnessquiet_stillness.png` |
+| T7 rate vs face stillness within engaged quiet | DONE 11-01 | acute engaged quiet is STILLER (time at < 0.5 x pre face speed 16 % -> 34 %) BUT the rise holds at MATCHED stillness in every bin, 4/4: epoch effect log10 rate +0.98 (stillest) / +0.95 / +0.60 / +0.48 / +0.32 (most active), all q < .001; subacute and chronic too. And the rise is LARGEST when still: acute rate in the stillest bin 20-33 /min vs 7-14 when most active, whereas pre rates are flat or lower when still (raw events include movement-linked ones). -> a stiller face explains only a small part; after the stroke, stillness itself comes with many events (as in pre-stroke disengagement) | `V2\stillness\quiet_stillness.png` |
 | T8 ipsi vs contra rate change | DONE 11-01 | NO ipsilesional bias: orofacial ipsi - contra vs pre +0.02 acute (n.s.; 3/4 slightly ipsi, PS92 contra); limb CONTRA > ipsi acutely (-0.11, q .01; PS92 / PS94) | `V2\hemi_amp_recovery\quiet_hemi_amp_recovery.png` (top left, middle) |
 | T9 breathing coherence | RUNNING (agent) | -- | `V2\breathing\` |
 | T10 415 nm / uncorrected 470 | RUNNING (agent) | -- | `V2\hemo415\` |
@@ -47,8 +47,9 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 * ARTEFACT: epileptiform ruled out (T11, T19). Breathing (T9) and haemodynamics (T10) pending.
 * CIRCUIT: no ipsilesional bias in rate (T8) or onset / amplitude (T2): bilateral, simultaneous -> a common driver (state,
   or bilateral thalamic / brainstem input), not a strictly ipsilesional loop.
-* STATE: T4 + T6 -- acute engaged quiet looks like pre-stroke disengagement in orofacial cortex (face stiller 4/4, events
-  of the disengaged type). T7 (rate vs stillness within session) pending.
+* STATE: T4 + T6 + T7 -- acute engaged quiet is stiller (more time at low face speed), but the rate rise persists at
+  matched stillness (every bin, 4/4) and is largest when the face is still: after the stroke, stillness goes with many
+  orofacial events, as it does pre-stroke only when disengaged. A shift in state composition is a minor part.
 * RECOVERY: rate tracks recovery mostly via the shared time course (T14); no between-animal ordering (T15).
 * LITERATURE (Priya 11-01): Zeiger 2021 (potentiation, not remapping) is compatible -- use "re-weighted mapping", not
   "remapping"; Cullins & Connor 2024 only partly agrees (see FINDINGS 8).
