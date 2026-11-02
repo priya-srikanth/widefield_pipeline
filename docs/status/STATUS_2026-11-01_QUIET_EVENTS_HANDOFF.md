@@ -77,7 +77,7 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 | # | test | separates | prediction | status |
 |---|---|---|---|---|
 | T1 | 15.7 selection control: event maps split by face movement (with / without, +/-0.3 s) AND height-matched (4-6 / 6-9 / > 9 x pre SD), pre vs acute | SELECTION vs changed event | same maps -> stroke made non-movement events common; acute still more local -> event changed | DONE 11-01: mostly selection (running list) |
-| T2 | ipsi vs contra orofacial amplitude and onset lag per event (31 Hz, ~32 ms) | CIRCUIT (ipsilesional thalamic projection: ipsi first / larger) vs STATE (simultaneous, symmetric) | CIRCUIT: ipsi leads / larger acutely | DONE: simultaneous, symmetric |
+| T2 | ipsi vs contra orofacial amplitude and onset lag per event (31 Hz, ~32 ms) | CIRCUIT (ipsilesional thalamic projection: ipsi first / larger) vs STATE (simultaneous, symmetric) | CIRCUIT: ipsi leads / larger acutely | DONE: no amplitude asymmetry; onset within +/-5 ms but 31 Hz + GCaMP6s cannot resolve 5-10 ms callosal delays, so callosal spread from one side is NOT excluded |
 | T3 | up vs down event maps | local oscillation vs discrete bursts | same local footprint -> excitability oscillation | DONE: same structure, weaker |
 | T4 | pre-stroke QUIT-period event map vs acute ENGAGED map | STATE (acute = pre disengaged state) | same local footprint -> state-like | DONE: same map, more local |
 | T5 | event width / rise / decay, ACF half-time | thalamic bursts (faster rise) vs oscillation (faster decay) vs drowsiness (slower) | -- | DONE: decay ~18 % faster, rise unchanged, ACF unchanged -> oscillation (3.7) |
@@ -94,6 +94,9 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 | T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | RUNNING 11-01 (agent; `quiet_lick_lfo.py`) |
 | T17 | (DONE 11-01, see end of section 6) literature: targeted PubMed search (striatal / capsular stroke + widefield GCaMP / cortical recordings); verify the *(memory)* citations (Allegra Mascaro 2019, Levin 2009, Nudo 1996, Lee-Wang-Sabatini 2020) | context | -- | DONE 11-01 |
 | T19 | Steinmetz criteria explicitly: waveform (rise / decay vs their ~150 ms interictal shape), refractoriness (inter-event interval distribution, 0.5-1 s gap), positive-only vs both polarities, bilateral symmetry, per animal incl. PS93 (cortical injury) | ARTEFACT / epileptiform (T17 caveat: location + rate overlap) | none of the criteria met -> not interictal | DONE: not interictal |
+| T20 | SYNCHRONISATION index (low / high frequency power, e.g. 1-4 Hz / 8-15 Hz) in quiet and pre-cue frames, orofacial vs control areas, ipsi vs contra, by epoch | Priya's original hypothesis: REDUCED tonic thalamocortical drive -> synchronised cortex (Poulet 2012) | more synchronised acutely, strongest orofacial (and ipsilesional if via the loop) | TO DO (added 11-01) |
+| T21 | within PRE sessions: does pre-lick slow power (1-4 Hz, -1..0 s) predict the lick-evoked response size? | is the acute ~2x lick response a consequence of a synchronised state (evoked responses are larger in quiet wakefulness, Crochet & Petersen 2006) rather than more drive | yes -> state explains part of the larger response | TO DO |
+| T22 | per-area F0 (470 minus the 415-predicted haemodynamic part), ipsi vs contra orofacial vs control areas | tonic level (the only measure close to it; weak) | reduced drive -> relative ipsi orofacial F0 drop | TO DO |
 | T18 | k-choice bias: report subacute / chronic (not used to pick k) as the unbiased contrasts; held-out-animal k already LOAO | statistics | -- | NOTE (reported in 15.1 caption) |
 
 ## 5. Files
@@ -213,3 +216,14 @@ primates). Framing consequence: ground homology in control principles and cortic
 (reach models share the limitation); brainstem premotor networks are a candidate compensation site; the SNr -> brainstem
 route makes the frozen-encoder movement-vs-mapping separation essential.
 
+## 7. Priya's original hypothesis (11-01): VLS stroke -> less thalamocortical drive -> LOWER ipsilesional orofacial activity
+
+Why it did not show as a decrease, and why it may still be right: (1) widefield dF/F is relative -- tonic level appears only
+in F0, which rose ~11 % acutely (uniform, 415 similar; confounded by blood / light), so a tonic decrease is largely
+unmeasurable here; (2) the acute effects we see -- larger 2-3 Hz quiet fluctuations, larger lick-evoked responses, engaged
+quiet resembling pre-stroke disengagement -- are what a LESS thalamically driven (synchronised, quiet-wakefulness-like)
+cortex shows (Poulet et al. 2012 thalamic control of cortical state; Crochet & Petersen 2006 larger evoked responses in
+quiet wakefulness; both from memory, verify); (3) a whole-VLS lesion removes direct AND indirect pathways with opposing net
+effects on SNr, and SPNs fire little at rest, so the clearest loss is the phasic, lick-locked SNr pause (timing / gain), not
+mean drive. Against: the fluctuation increase is not ipsilesional (T8). Tests T20-T22; direct VM measurement in a future
+cohort would settle it.

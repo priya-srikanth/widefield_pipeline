@@ -633,8 +633,8 @@ chronic; raw x4.1. (b) Pre 43-73 % of events coincide with face movement, acute 
 LOCAL to anterolateral orofacial cortex (ALM / tjM1 / SSp-m) bilaterally -- but this is MOSTLY SELECTION (T1, 11-01):
 pre-stroke events without face movement are already local; the pre lateral spread came from movement events; acutely the
 still events multiply x3-12 vs movement events ~x2; after movement + height matching only a small further narrowing remains
-(4/4). Pre-stroke the same event type (same map) is rare in engaged quiet (0.1-0.5 /min) and x8-60 more frequent in the quit period; acutely it reaches 2-6 /min while engaged (T4; the rise persists at matched face stillness in every bin, 4/4, and is largest when the face is still -- T7: a stiller face is a minor part); bilateral and simultaneous (onset lag within +/-5 ms,
-no ipsilesional bias in rate or amplitude; T2, T8), and not interictal (T11, T19). Running list:
+(4/4). Pre-stroke the same event type (same map) is rare in engaged quiet (0.1-0.5 /min) and x8-60 more frequent in the quit period; acutely it reaches 2-6 /min while engaged (T4; the rise persists at matched face stillness in every bin, 4/4, and is largest when the face is still -- T7: a stiller face is a minor part); bilateral (no ipsilesional bias in rate or amplitude; onset lag within +/-5 ms, which at 31 Hz
+cannot exclude callosal spread; T2, T8), and not interictal (T11, T19). Running list:
 docs/status/RUNNING_LIST_2026-11-01_QUIET_EVENTS.md. (e) Acute events decay ~18 % faster,
 rise unchanged; the trace's ACF is unchanged (oscillatory component, not sharper bursts). (f) STATE: engaged-quiet face
 speed roughly halves acutely in 4/4 (pre -> acute 1242 -> 812, 825 -> 492, 1947 -> 965, 1192 -> 593); and the

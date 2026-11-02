@@ -18,7 +18,7 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 | base: event rate | DONE 11-01 | face-regressed orofacial events x5.1 acute, x2.5 sub, x1.4 chronic, 4/4 | `V2\fr_regressed_own\quiet_events_face_regressed.png` (page 15.1) |
 | base: maps | DONE 11-01 | quiet SD up over most of cortex; acute orofacial events local to anterolateral orofacial cortex | `V2\fluct\quiet_sd_maps.png` (15.6), `V2\fluct\quiet_eta_maps.png` (15.7) |
 | T1 selection control (movement x height) | DONE 11-01 | MOSTLY SELECTION: pre-stroke still (no face movement) events are ALREADY local to anterolateral orofacial cortex; the pre lateral spread came from movement events. Acute still events x3-12 (46->553, 151->1060, 125->1251, 274->382) vs movement events ~x2. Residual after movement + height matching: acute still events less lateral lead-in (-0.3 s) and less lateral recruitment at +0.2 s (significant); spread 0.41/0.35/0.58/0.40 -> 0.34/0.31/0.29/0.37 (4/4, small except PS94); chronic spread ABOVE pre (PS92 1.00, PS93 0.63) | `V2\eta_split\T1_up_still_pre_vs_acute.png`, `T1_up_move_pre_vs_acute.png` |
-| T2 ipsi vs contra onset / amplitude per event | DONE 11-01 | bilateral SIMULTANEOUS: onset lag ipsi - contra within +/-5 ms every animal x epoch (frame 32 ms); log2 amplitude ratio within +/-0.2, no consistent sign -> common driver, not ipsilesional-first | `V2\eta_split\events_ipsi_contra.csv` |
+| T2 ipsi vs contra onset / amplitude per event | DONE 11-01 | onset lag ipsi - contra within +/-5 ms every animal x epoch, log2 amplitude ratio within +/-0.2, no consistent sign. CORRECTED 11-01: 31 Hz + GCaMP6s cannot resolve 5-10 ms callosal delays, so this does NOT show a common driver -- an ipsilesional origin spreading via callosum is not excluded; only the amplitude symmetry stands | `V2\eta_split\events_ipsi_contra.csv` |
 | T3 up vs down maps | DONE 11-01 | down events: same still-vs-move split (still spread 0.62-0.72), acute slightly more local in 2/4 -- same structure, weaker | `V2\eta_split\T3_down_still_pre_vs_acute.png` |
 | T4 pre quit-period vs pre engaged map | DONE 11-01 (revised after Priya's question) | pre QUIT and pre ENGAGED still events have the SAME map (delta: only a few bins; the lower spread index 0.22-0.25 vs 0.35-0.58 is not a map difference) -> ONE event type whose RATE depends on state: still-event rate pre engaged 0.13 / 0.43 / 0.50 /min (PS93-95) vs pre quit 8.4 / 10.5 / 3.9 (x8-60); acute engaged 2.0-5.7 (approaching pre quit), acute quit 14-24; movement events are NOT more frequent in quit. Map similarity is consistent with a state-like change but does not identify state (T7 tests that). Pre quit sparse (PS92 none) and late in session | `V2\eta_split\T4_up_still_pre_eng_vs_pre_quit.png` |
 | 15.7 MOVEMENT-CORRECTED maps + decay (Priya 11-01: replace the page map; regress movement from all) | RUNNING (`quiet_eta_fr.py`, forward 5 + reverse 4 workers, ~3 min / session) | -- | `V2\eta_fr\quiet_eta_maps_fr.png`, `V2\eta_fr\quiet_eta_decay_fr.png` |
@@ -36,6 +36,9 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 | T16 lick-locked LFO vs quiet (Ramanathan) | RUNNING (agent) | -- | `V2\lick_lfo\` |
 | T17 literature search + citation check | DONE 11-01 | 3 corrections (eLife 90080 = two-photon, local; circuit = VLS -> SNr -> VM/Pf -> tjM1 + SNr -> brainstem, ALM via Guo 2017; Allegra Mascaro = combined therapy); precedents to add (Bauer 2014 subcortical connectivity, Cullins & Connor 2024 orofacial maps, Ahmed 2017 licking); counter-literature (Branscheidt 2022, Zeiger 2021, Sarasso lacunar, Panzeri 2025); epileptiform caveat (Steinmetz location / rate overlap) | text: FINDINGS 8 'LITERATURE UPDATE 11-01 late' |
 | T19 Steinmetz criteria (waveform, refractoriness, polarity, symmetry) | DONE 11-01 | NOT interictal: acute up/down ratio ~1 (0.7-1.0; interictal = positive only), no refractory gap (IEI 0.3-0.5 s at or above Poisson), heights 2.4-3.1 %; matches only rate (0.10-0.18 Hz) and bilateral symmetry, shared with pre-stroke events | `V2\steinmetz_check\quiet_steinmetz_check.png` |
+| T20 synchronisation index (Priya's reduced-drive hypothesis) | TO DO | -- | -- |
+| T21 pre-lick slow power -> lick response size (pre sessions) | TO DO | -- | -- |
+| T22 per-area F0 minus 415 part, ipsi vs contra | TO DO | -- | -- |
 | T18 k-choice bias | NOTE | acute contrast optimistic (k picked on pre vs acute); subacute / chronic unbiased | -- |
 
 ## Running interpretation (update as tests land)
@@ -45,8 +48,10 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
   is rare in engaged quiet and x8-60 more frequent in the quit period (same map in both states); acutely it becomes
   common while engaged (rate approaching pre-quit levels). The "event changed" reading is weak; the "event became common" reading is strong.
 * ARTEFACT: epileptiform ruled out (T11, T19). Breathing (T9) and haemodynamics (T10) pending.
-* CIRCUIT: no ipsilesional bias in rate (T8) or onset / amplitude (T2): bilateral, simultaneous -> a common driver (state,
-  or bilateral thalamic / brainstem input), not a strictly ipsilesional loop.
+* CIRCUIT: no ipsilesional bias in rate (T8) or amplitude (T2); onset timing cannot separate a common driver from
+  callosal spread at 31 Hz. Priya's reduced-thalamic-drive hypothesis is NOT refuted: dF/F cannot see tonic level, and
+  the acute effects (bigger slow fluctuations, bigger evoked responses) are what a less-driven, synchronised cortex shows
+  (handoff section 7; tests T20-T22).
 * STATE: T4 + T6 + T7 -- acute engaged quiet is stiller (more time at low face speed), but the rate rise persists at
   matched stillness (every bin, 4/4) and is largest when the face is still: after the stroke, stillness goes with many
   orofacial events, as it does pre-stroke only when disengaged. A shift in state composition is a minor part.
