@@ -130,3 +130,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   ENL keep rate far contra: 1.0 s >= .94, 1.5 s >= .79, 2.0 s down to .53 (PS92/93 acute/subacute).
   Not done: 14m beta maps, 5c/5cr, cue/lick-window decoders 2.3/2.4, ENL maps at 1.5/2.0 s, page-style open markers.
   NEXT: after the imaging-page RESTnl helper reports, ADD LP-final figures (+ caption correction note) to the imaging page.
+- 05:35 quiet window published goal v307 (23.12 breathing caption) + v308 (15 section-23 figs on LP-based quiet frames, DAQ contact + LP video; rest marked DAQ-only; 23.5 T13 follow-up). Merged locally. Live goal = v308.
