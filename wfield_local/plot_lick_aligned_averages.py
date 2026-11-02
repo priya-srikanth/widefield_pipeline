@@ -46,7 +46,11 @@ def _load_daq_events(
     thresh_lower: float,
     lockout_s: tuple[float, float],
     refractory_s: float,
+    allow_lp: bool = True,
 ) -> dict:
+    """``allow_lp=False`` always returns the DAQ CONTACT train, whatever WIDEFIELD_LICK_SOURCE says. Used by the
+    LP-inclusive engagement gate (`lp_licks.gate_responded`), which ORs DAQ contact with LP attempts and so needs the
+    contact train even inside an LP_licks render. Default True = unchanged behaviour."""
     with daq_io.open_daq(h5_path) as f:
         sr, created_at = daq_io.session_attrs(f)
         lick = daq_io.analog_channel(f, lick_channel)
@@ -59,7 +63,7 @@ def _load_daq_events(
     pco = daq_io.rising_edges(bits[:, idx["pco_exposure"]])
     codes_at_strobe = daq_io.strobe_codes(bits, names, strobe)
     lp_drop = None
-    if lick_channel == "lick_analog":
+    if lick_channel == "lick_analog" and allow_lp:
         # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): THE shared DAQ lick loader, so every imaging consumer --
         # including the ~25 that call this directly rather than through `_trial_features` -- gets the video lick
         # train under the LP source, never a silent DAQ one. `lp_licks.session_lp` is the one definition.

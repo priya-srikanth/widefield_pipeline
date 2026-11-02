@@ -42,11 +42,16 @@ def map_jobs() -> int:
 
 
 def code_digest(*objs) -> str:
-    """sha1 of the SOURCE of each function / module given (order-sensitive)."""
+    """sha1 of the SOURCE of each function / module given (order-sensitive).
+
+    Lines carrying `gate_source.HOOK_MARK` are dropped first: the WIDEFIELD_GATE_SOURCE hooks are the identity when the
+    switch is off, and under the switch the session-cache kind carries `gate_source.cache_tag()` instead -- so adding
+    them leaves every existing digest (and every warm map cache) unchanged. See the `gate_source` docstring."""
+    from wfield_local.gate_source import strip_hooks
     h = hashlib.sha1()
     for o in objs:
         try:
-            src = inspect.getsource(o)
+            src = strip_hooks(inspect.getsource(o))
         except (OSError, TypeError):
             src = repr(o)
         h.update(src.encode())

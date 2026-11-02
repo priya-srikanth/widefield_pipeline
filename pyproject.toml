@@ -106,3 +106,9 @@ select = ["F", "B", "W605", "PLE", "E9"]
 
 # B905: passing `strict=` to `zip` is a 3.10+ API preference, not a defect. 195 call sites.
 ignore = ["B905"]
+
+[tool.ruff.lint.per-file-ignores]
+# precue_engagement_states' unused `_trial_features` import is pre-existing. Removing it (or adding `# noqa`) changes the
+# module SOURCE, and map_collect.code_digest hashes that source into every map-cache key -> ~33 GB of map caches go
+# cold. Ignored here instead, which leaves the digest unchanged (2026-11-01, LP gate option commit).
+"wfield_local/precue_engagement_states.py" = ["F401"]
