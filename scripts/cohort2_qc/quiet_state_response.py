@@ -40,11 +40,11 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from quiet_area_spikes import EP, EVENTS, OUT, columns, session_traces  # noqa: E402
+from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_lick_lfo import BAND, KIND_LAB, KINDS, bandpass, interp_bad, lick_events  # noqa: E402
-from quiet_spikes_v2 import busy_frames  # noqa: E402
+from quiet_spikes_v2 import V2, busy_frames  # noqa: E402
 
-SR = OUT / "v2_quiet" / "state_response"
+SR = V2 / "state_response"                                  # follows QS_LICK_SOURCE
 COLS = ["orofacial", "orofacial_left", "orofacial_right", "cortex"]
 CLAB = {"orofacial": "orofacial (bilateral)", "orofacial_left": "orofacial IPSI", "orofacial_right": "orofacial CONTRA",
         "cortex": "whole cortex"}

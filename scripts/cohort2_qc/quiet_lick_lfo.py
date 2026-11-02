@@ -41,11 +41,11 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from quiet_area_spikes import EP, EVENTS, OUT, columns, session_traces  # noqa: E402
+from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_fluct import FL, TRACE_COLS  # noqa: E402
-from quiet_spikes_v2 import busy_frames  # noqa: E402
+from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames  # noqa: E402
 
-LL = OUT / "v2_quiet" / "lick_lfo"
+LL = V2 / "lick_lfo"                                        # follows QS_LICK_SOURCE
 BAND = (1.0, 4.0)
 WIN = (-0.5, 1.5)
 ITPC_WIN = (0.0, 0.5)
@@ -81,11 +81,21 @@ def interp_bad(X, bad):
 
 
 def lick_events(label, ft, engaged_until):
-    """(cued first-lick onsets, ITI bout-start onsets) in s on the DAQ clock, engaged part only."""
+    """(cued first-lick onsets, ITI bout-start onsets) in s on the DAQ clock, engaged part only. Lick source follows
+    QS_LICK_SOURCE: DAQ contact licks, or (daq+lp) LP video onsets plus DAQ contacts without an LP lick within 0.1 s."""
     from wfield_local import trial_windows as TW
     animal, mmdd = label.split("_")
     z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
     lk = np.sort(z["lick_onsets"] / float(z["fs"]))
+    if LICK_SOURCE == "daq+lp":
+        # Priya 11-02: lick-locked analyses use LP video lick onsets (cam4 + cam1-only, incl. non-contact licks); DAQ
+        # contacts with no LP lick within 0.1 s are kept (no video / missed detections).
+        from lp_licks import lick_times
+        lp = np.sort(lick_times(label))
+        if len(lp):
+            j = np.clip(np.searchsorted(lp, lk), 1, len(lp) - 1)
+            dmin = np.minimum(np.abs(lk - lp[j - 1]), np.abs(lk - lp[j]))
+            lk = np.sort(np.r_[lp, lk[dmin > 0.1]])
     tb = TW.trial_bounds(animal, f"2026{mmdd}")
     cue = tb.cue_s.to_numpy(float)
     stop = tb.stop_s.to_numpy(float)
