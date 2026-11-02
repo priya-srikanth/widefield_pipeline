@@ -195,11 +195,16 @@ def cache_dir() -> Path:
     """OWN directory beside the session cache (never inside it)."""
     from wfield_local import session_cache
     c = Path(session_cache.CACHE_DIR)
+    from wfield_local import gate_source as _gs  # [gate-source hook] LP-inclusive rest gate (11-02, lp-final)
+    if _gs.is_lp():  # [gate-source hook] its own baselines, so a gate-LP build never prunes / reads the default ones
+        return c.with_name(c.name + "_restnl_" + _gs.cache_tag())  # [gate-source hook]
     return c.with_name(c.name + "_restnl")
 
 
 def _code() -> str:
     src = inspect.getsource(sys.modules[__name__])
+    from wfield_local.gate_source import strip_hooks  # [gate-source hook] marked lines leave the digest unchanged
+    src = strip_hooks(src)  # [gate-source hook]
     return hashlib.sha1(src.encode()).hexdigest()[:12]
 
 

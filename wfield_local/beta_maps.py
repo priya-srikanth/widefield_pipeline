@@ -328,6 +328,8 @@ def _quit_mask(session, idx_e, idx_n, y, yn):
     pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in
                     np.concatenate([np.asarray(y), np.asarray(yn)])])
     o = np.argsort(order, kind="stable")
+    from wfield_local import gate_source  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    responded[o] = gate_source.gate_responded(session["label"], order[o], responded[o])  # [gate-source hook]
     ne = engagement_gate(order[o], responded[o], pos[o])
     by_idx = {int(k): bool(b) for k, b in zip(order[o], ne)}
     return np.array([by_idx.get(int(k), False) for k in idx_n], bool)

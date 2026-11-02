@@ -110,9 +110,13 @@ def session_class_maps(label, align, post_s=None, rest_variant="rest"):
         if base is None:
             return {}
         sig = np.asarray(v) - np.asarray(base)
+        # the time-local REST baseline is built on the ENGAGED rest frames (rest_engagement), so it moves with
+        # WIDEFIELD_GATE_SOURCE -- and `tf-*` kinds are exempt from the gate tag; key it here (unchanged by default)
+        from wfield_local import gate_source
+        gk = f":{gate_source.cache_tag()}" if gate_source.is_lp() else ""
         X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
             s, a, signal=sig, feat_region=np.arange(v.shape[0]),
-            signal_key=f"svt:rank{v.shape[0]}:restlocal{REST_BASELINE_BINS}", with_indices=True)
+            signal_key=f"svt:rank{v.shape[0]}:restlocal{REST_BASELINE_BINS}{gk}", with_indices=True)
     X, y, Xn, yn = np.asarray(X), np.asarray(y), np.asarray(Xn), np.asarray(yn)
     K = u.shape[1]
     if b_nl is not None:                      # flat baseline: the same (K,) vector off every bin of every trial
@@ -241,6 +245,14 @@ def hemisphere_table(od, align, animals):
     return pd.DataFrame(rows)
 
 
+def _run_text() -> str:
+    """Lick source, gate and baseline of this run, for the title (lp-final 11-02: every title names all three)."""
+    from wfield_local import config, gate_source, lp_licks
+    return (f"licks: {'LP video (cam4 + cam1)' if lp_licks.is_lp() else 'DAQ contact'}; trial classes: LP video "
+            f"attempts; gate: {'DAQ contact OR LP attempt' if gate_source.is_lp() else 'as lick source'}; pre: "
+            f"{'August only' if config.pre_from() else 'June + August'}")
+
+
 def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), rest_variant="rest"):
     """Per spout: one figure per animal-set, rows = animals (+ mean of animal means), columns = SHOW (epoch x class);
     one absolute version (shared symmetric scale per row) and one minus that animal's pre-stroke hits."""
@@ -298,15 +310,16 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), re
             if rest_variant == "restnl":
                 what = ("RESTnl-referenced dF, minus pre-stroke hits" if diff else "RESTnl-referenced dF")
                 fig.suptitle(f"{P}, {align} window: {what}. RESTnl = lick-free rest, flat (rest licks excluded: DAQ "
-                             f"contact + cam4 LP video, [-0.5, +2.0] s); trial classes: LP video attempts; pre = August "
-                             f"only\n(image left = ipsilesional; mean = mean of animal means, >= 2 animals; per-row "
+                             f"contact + cam4 LP video, [-0.5, +2.0] s); {_run_text()}"
+                             f"\n(image left = ipsilesional; mean = mean of animal means, >= 2 animals; per-row "
                              f"symmetric 99th-pct scale)", fontsize=8)
                 fig.tight_layout(rect=(0, 0, 1, 0.93))
             else:
-                what = "minus pre-stroke hits" if diff else "rest-referenced dF"
-                fig.suptitle(f"{P}, {align} window: {what} (image left = ipsilesional; mean = mean of animal means, "
-                             f">= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)
-                fig.tight_layout(rect=(0, 0, 1, 0.95))
+                what = ("REST-referenced dF (time-local rest), minus pre-stroke hits" if diff
+                        else "REST-referenced dF (time-local rest)")
+                fig.suptitle(f"{P}, {align} window: {what}; {_run_text()}\n(image left = ipsilesional; mean = mean "
+                             f"of animal means, >= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)
+                fig.tight_layout(rect=(0, 0, 1, 0.93))
             sfx = "" if rest_variant == "rest" else f"_{rest_variant}"
             fn = fd / f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}{sfx}.png"
             fig.savefig(fn, dpi=130)

@@ -65,6 +65,10 @@ def engaged_by_cue(session, cue_samples, codes, response_window_s=None):
     if responded is None or len(responded) != n:
         return np.ones(n, bool), "gate unavailable (no lick/response data) -- UNGATED"
     order = np.arange(n)
+    from wfield_local import gate_source as _gs  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    if _gs.is_lp():  # [gate-source hook] DAQ contact | LP attempt within the session's response window
+        _w = response_window_s or _response_window_s(session)  # [gate-source hook]
+        responded = _gs.gate_responded(session["label"], order, responded, _w, cue_samples)  # [gate-source hook]
     pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)[:n]])
     not_eng = engagement_gate(order, np.asarray(responded, bool), pos)
     eng = ~np.asarray(not_eng, bool)

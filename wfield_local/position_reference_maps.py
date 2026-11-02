@@ -620,9 +620,12 @@ def _raw_maps_code() -> str:
             rest_by_position, precue_engagement_states)
     if not os.environ.get(LEGACY_DATE8_ENV):
         return map_collect.code_digest(*objs)
+    from wfield_local.gate_source import strip_hooks  # [gate-source hook] (inside _raw_maps_code, not digested)
     h = hashlib.sha1()
     for o in objs:
-        src = inspect.getsource(o)
+        # hook lines dropped exactly as `map_collect.code_digest` drops them (the gate option, 11-01, added marked
+        # lines to rest_by_position / rest_engagement; without this the pin no longer reproduced the 10-25 digest)
+        src = strip_hooks(inspect.getsource(o))
         if o in (rest_by_position, rest_engagement):
             src = src.replace("config.date8(mmdd)", 'f"2026{mmdd}"')
         h.update(src.encode())
