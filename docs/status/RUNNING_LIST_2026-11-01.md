@@ -131,3 +131,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   Not done: 14m beta maps, 5c/5cr, cue/lick-window decoders 2.3/2.4, ENL maps at 1.5/2.0 s, page-style open markers.
   NEXT: after the imaging-page RESTnl helper reports, ADD LP-final figures (+ caption correction note) to the imaging page.
 - 05:35 quiet window published goal v307 (23.12 breathing caption) + v308 (15 section-23 figs on LP-based quiet frames, DAQ contact + LP video; rest marked DAQ-only; 23.5 T13 follow-up). Merged locally. Live goal = v308.
+- 05:45 IMAGING PAGE v43 PUBLISHED (helper; v42 = first 10 images only, page text unchanged; 64 MB publish cap): RESTnl
+  twins 7.1b-7.11b, 7.16b-7.20b, 8.1b, 8.2b directly after each REST figure; all 620 original lines present in order, 18
+  got only an appended pointer "RESTnl version: Fig X.Yb, directly below"; new "Where things stand" row; section-7 summary
+  block (REST -> RESTnl per-animal table); Pending item listing the open decisions. Source committed on analysis/restnl-maps.
+  8.1b (RESTnl, failed far-contra attempts vs pre hits) lower in 3/4 (not PS95); vs pre misses lower 2/4 (PS93 4.79 from a
+  near-zero pre-miss map -> read as "not lower").
+  UNRESOLVED: PS94 REST lick-window far contra = -38 % (~.62) in the 7.19 caption vs .72 in RESTNL_MAPS table; flagged in
+  the 7.19b caption + Pending, to reconcile.
