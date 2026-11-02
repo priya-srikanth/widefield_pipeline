@@ -189,14 +189,15 @@ def fig_maps(D):
             n_an = len(both) if ep == "delta" else sum(bool(S[ep][an]) for an in animals)
             ax[r, 0].set_ylabel(f"{g} UP\n{'DELTA acute - pre' if ep == 'delta' else ep} ({n_an} an.)", fontsize=8,
                                 fontweight="bold" if ep == "delta" else "normal")
-            fig.colorbar(im, ax=ax[r, :].tolist(), fraction=0.02, label="delta dF/F %" if ep == "delta" else "dF/F %")
+            cax = ax[r, -1].inset_axes([1.06, 0.1, 0.05, 0.8])
+            fig.colorbar(im, cax=cax).set_label("delta dF/F %" if ep == "delta" else "dF/F %", fontsize=8)
             r += 1
     fig.suptitle("MOVEMENT-CORRECTED event-triggered maps: face movement (FaceRhythm) regressed out of every pixel and "
                  "of the event-detection trace; positive events > 4 x pre SD of the residual, engaged quiet; mean of "
                  "animal means; ipsilesional = image left.\nDELTA = acute - pre within animal (own colour scale); black "
                  "outline = significant (nested animals -> sessions bootstrap, max-statistic family-wise p < 0.05, "
                  "8x8-px bins, eroded mask)", fontsize=9)
-    fig.subplots_adjust(top=0.93)
+    fig.subplots_adjust(top=0.93, right=0.9)
     fig.savefig(OUTF / "quiet_eta_maps_fr.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
     import pandas as pd

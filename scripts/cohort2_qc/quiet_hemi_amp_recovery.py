@@ -160,7 +160,7 @@ def figure(L, T8, S11, H11, G14, T14, D15):
     import matplotlib.pyplot as plt
     from wfield_local import sig_marks
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
-    fig, ax = plt.subplots(2, 3, figsize=(15, 8.5))
+    fig, ax = plt.subplots(2, 3, figsize=(17, 10))
     animals = sorted(L.animal.unique())
     for j, g in enumerate(("orofacial", "limb")):
         a = ax[0, j]
@@ -178,7 +178,7 @@ def figure(L, T8, S11, H11, G14, T14, D15):
         a.axhline(0, color="0.5", lw=0.8)
         a.set_xticks(range(3))
         a.set_xticklabels(EP[1:])
-        a.set_title(f"T8 {g}: change vs pre, log10(rate + 0.2)\nfilled = ipsilesional, open = contralesional; "
+        a.set_title(f"T8 {g}: change vs pre, log10(rate + 0.2)\nfilled = ipsilesional, open = contralesional\n"
                     "stars = ipsi - contra vs pre (LMM, FDR)", fontsize=8)
     a = ax[0, 2]
     for ep in EP:
@@ -191,7 +191,7 @@ def figure(L, T8, S11, H11, G14, T14, D15):
     a.set_xlabel("orofacial UP event height, dF/F %")
     a.set_title("T11 height distribution (engaged quiet, k = 4); dashed = 10 %,\nthe size of GCaMP6 interictal events "
                 "(Steinmetz 2017)", fontsize=8)
-    a.legend(fontsize=7)
+    a.legend(fontsize=7, loc="upper center", bbox_to_anchor=(0.5, -0.16), ncol=2, frameon=False)
     a = ax[1, 0]
     for k, ep in enumerate(EP):
         G = S11[S11.epoch == ep]
@@ -200,8 +200,8 @@ def figure(L, T8, S11, H11, G14, T14, D15):
                    mfc="none", mec=EPOCH_LINE[ep], ms=4)
     a.set_xticks(range(4))
     a.set_xticklabels(EP)
-    a.set_ylabel("share of orofacial UP events with a limb event within 0.1 s")
-    a.set_title("T11 synchrony proxy (cortex-wide events would be shared)", fontsize=8)
+    a.set_ylabel("share of orofacial UP events with a limb event\nwithin 0.1 s")
+    a.set_title("T11 synchrony proxy\n(cortex-wide events would be shared)", fontsize=8)
     a = ax[1, 1]
     for an, g in G14.groupby("animal"):
         a.plot(g.beh, g.rate_rel, ANIMAL_MARKER[an], mfc="none", mec="k", ms=6, label=an)
@@ -212,7 +212,7 @@ def figure(L, T8, S11, H11, G14, T14, D15):
     a.set_title(f"T14 post sessions: within-animal r raw {t.loc['raw', 'mean_r']:+.2f} (p {t.loc['raw', 'p_perm']:.3f}),"
                 f"\nlog-day removed {t.loc['detrended', 'mean_r']:+.2f} (p {t.loc['detrended', 'p_perm']:.3f})",
                 fontsize=8)
-    a.legend(fontsize=7)
+    a.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
     a = ax[1, 2]
     for an, r in D15.iterrows():
         a.plot(r.half_recovery_day, r.acute_rate_x_pre, ANIMAL_MARKER[an], mfc="none", mec="k", ms=9)
@@ -221,10 +221,12 @@ def figure(L, T8, S11, H11, G14, T14, D15):
     a.set_xlabel("half-recovery day (far-contra hit rate)")
     a.set_ylabel("acute orofacial event rate / pre")
     a.set_title("T15 per animal (n = 4, descriptive)", fontsize=8)
+    a.set_xlim(a.get_xlim()[0] - 0.3, a.get_xlim()[1] + 0.8)
+    a.set_ylim(a.get_ylim()[0], a.get_ylim()[1] + 0.4)
     sig_marks.reserve_headroom(fig)
     fig.suptitle("Quiet-period events: T8 ipsilesional vs contralesional, T11 amplitude / epileptiform check, T14-T15 link "
                  "to recovery (cohort1; face-regressed or raw v2 events > 4 x pre SD, engaged quiet)", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=3.0, h_pad=3.0)
     fig.savefig(OUT / "quiet_hemi_amp_recovery.png", dpi=110)
     print("wrote", OUT / "quiet_hemi_amp_recovery.png")
 

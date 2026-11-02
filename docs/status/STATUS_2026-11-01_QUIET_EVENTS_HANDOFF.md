@@ -1,5 +1,29 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> **RESUME HERE (updated 11-01 ~22:05, before compaction).** Live status, every test's result and figure links:
+> [`RUNNING_LIST_2026-11-01_QUIET_EVENTS.md`](RUNNING_LIST_2026-11-01_QUIET_EVENTS.md) (Priya is away; keep it updated and commit
+> each time). Section 4 = all tests (T1-T22); section 7 = Priya's reduced-thalamic-drive hypothesis + citation check + T20.
+>
+> **Current reading (PROVISIONAL, n = 4):** acutely, in quiet periods, ORofacial CORTEX IS MORE SYNCHRONISED -- MORE SO ON THE
+> LESIONED SIDE, with relatively less fast activity there (T20; FINDINGS 3.Q g + section 0). A pre-existing, local,
+> non-movement 2-3 Hz event type -- rare in pre-stroke engaged quiet, x8-60 more frequent when the animal disengages, same map
+> in both states -- becomes common while engaged (T1, T4); the rise holds at matched face stillness and is largest when the
+> face is still (T7); bilateral (no ipsi bias in rate / amplitude; onset timing cannot exclude callosal spread at 31 Hz; T2,
+> T8); not interictal (T11, T19); 15.7 difference = mostly selection (T1); the raw-trace faster decay (T5) does NOT survive
+> movement correction in orofacial cortex; no trial-level 'body effort' on failed attempts (effort analysis). Rate tracks
+> recovery mostly via the shared time course (T14). OPEN and decisive: T9 breathing (respiration looks faster post-stroke,
+> Priya), T10 haemodynamics, T13 (do pre-cue events predict failed attempts?), T16 (Ramanathan), T21-T22.
+>
+> **Pending actions:** (1) replace page Fig 15.7 (imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v38) with
+> `v2_quiet/eta_fr/quiet_eta_maps_fr.png` + caption; (2) when agents report, merge into the running list, this handoff,
+> FINDINGS 3.Q; (3) then move section 15 to the encoding page (Priya: recommended there; decide with her) with all results;
+> (4) T21, T22.
+>
+> **Literature framing (FINDINGS 8):** tongue reaching as a precision model of post-stroke motor control (Bollu 2021 etc.,
+> cautions incl. descending anatomy); corrections from the T17 agent (eLife 90080, circuit = VLS -> SNr -> VM/Pf -> tjM1 +
+> SNr -> brainstem, Allegra Mascaro combined therapy); Zeiger 2021 compatible ('re-weighted mapping', not 'remapping');
+> Cullins & Connor 2024 only partly agrees.
+
 **START HERE for the quiet-period events arm.** Resume from section 4 (open tests, in priority order). Results live on
 the imaging page section 15 (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v38) and in
 [`docs/COHORT2_QC_2026-10-29.md`](../COHORT2_QC_2026-10-29.md) (quiet-event bullets, 10-31 .. 11-01). Section 6 = how
@@ -10,18 +34,13 @@ left = ipsilesional on brain maps.
 
 ---
 
-## 1. What is running (11-01 ~20:45)
+## 1. What is running (11-01 ~22:05)
 
-| job | command | output | state |
-|---|---|---|---|
-| (DONE) T1-T4 event-map split | `quiet_eta_split.py` | `v2_quiet/eta_split/` | finished 107 / 107 |
-| (DONE) quit-period state | `quiet_quit_state.py` | `v2_quiet/quit_state/` | finished 108 / 108; result 3.8 |
-
- Kill only the exact PID if needed (never by name / parent).
-
-Environment for every script here: `set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache`; python =
-`C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe`; FaceRhythm basis = `QS_FR_BASIS=own` (the scripts set it as
-default; it is inherited by spawn workers).
+See the running list's "Still running" table (single source). Scripts started by me 11-01 (all done except the re-render):
+`quiet_eta_split.py` (T1-T4), `quiet_stillness.py` (T7), `quiet_hemi_amp_recovery.py` (T8, T11, T14, T15),
+`quiet_steinmetz_check.py` (T19), `quiet_sync_index.py` (T20), `quiet_eta_fr.py` (movement-corrected 15.7 + decay),
+`attempt_effort.py` (effort by trial outcome). Agents' scripts: `quiet_breathing.py` (T9), `quiet_hemo_check.py` (T10),
+`quiet_task_events.py` (T12/T13), `quiet_lick_lfo.py` (T16). Nothing kills by name; exact PIDs only.
 
 ## 2. Definitions (one place; every quiet script uses these)
 

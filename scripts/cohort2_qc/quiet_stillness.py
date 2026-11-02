@@ -119,7 +119,7 @@ def figure(S, R, lab):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
-    fig, ax = plt.subplots(1, 2, figsize=(12, 4.6))
+    fig, ax = plt.subplots(1, 2, figsize=(14, 4.8))
     for ep in EP:
         G = S[S.epoch == ep]
         A = G.groupby(["animal", "bin"]).rate.median().unstack()
@@ -132,8 +132,8 @@ def figure(S, R, lab):
     ax[0].set_xticklabels(lab)
     ax[0].set_xlabel("face speed / animal's pre median (left = stillest)")
     ax[0].set_ylabel("orofacial events / min (raw, up + down, > 4 x pre SD)")
-    ax[0].legend(fontsize=7)
-    ax[0].set_title("T7 event rate by face stillness, engaged quiet (markers = animals, line = mean)", fontsize=8)
+    ax[0].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    ax[0].set_title("T7 event rate by face stillness, engaged quiet\n(markers = animals, line = mean)", fontsize=8)
     T = S.assign(share=S.minutes / S.groupby("label").minutes.transform("sum"))
     for ep in EP:
         m = T[T.epoch == ep].groupby("bin").share.median()
@@ -142,7 +142,7 @@ def figure(S, R, lab):
     ax[1].set_xticklabels(lab)
     ax[1].set_xlabel("face speed / animal's pre median")
     ax[1].set_ylabel("share of engaged-quiet time")
-    ax[1].legend(fontsize=7)
+    ax[1].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
     ax[1].set_title("time spent at each stillness level", fontsize=8)
     fig.suptitle("T7: is the acute rise in quiet orofacial events explained by a stiller face? (cohort1)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
