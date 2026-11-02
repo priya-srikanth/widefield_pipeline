@@ -118,6 +118,9 @@ def drift_figure(store, align, variant, reference, out_dir, arm):
                  "their own RESTnl baselines. PS93_0813 (no cam4 licks) has no RESTnl column.")
     gate = {"contact": "trial gate DAQ contact", "lp": "trial gate LP video licks",
             "enl1s": "trial gate DAQ contact, ENL 1 s"}.get(arm, f"arm {arm}")
+    from wfield_local import gate_source
+    if gate_source.is_lp():                     # LP-inclusive engagement gate (lp-final, 11-02)
+        gate += "; engagement gate DAQ contact OR LP attempt"
     p = ef.map_grid(
         cells, out_dir, name=name,
         title=f"Map DRIFT without a stroke (June -> August pre) beside the stroke changes -- {reftxt}, "

@@ -559,6 +559,56 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
         pred = pred.copy()
         pred[np.isin(y, thin)] = REFIT_UNAVAILABLE
     return pred
+
+
+#: OPT-IN (lp-final, 11-02): freeze the epoch 5c / acc decoders through `frozen_models` instead of fitting them in
+#: memory on every render. Unset (default) = unchanged. "1" = store / load. Under WIDEFIELD_LICK_SOURCE=lp this means
+#: the DAQ-TRAINED models (fitted by a DAQ-source run at the same window and pre set; the LP run refuses to fit them,
+#: `frozen_models.load_or_fit`), or with WIDEFIELD_LP_FROZEN=lp the LP-TRAINED ones (the spec gains lick_source=lp).
+#: WHY: the in-memory fit trains on the CURRENT arm's pre-stroke trials, so every LP-arm acc / 5c figure to date was
+#: LP-trained -- `WIDEFIELD_LP_FROZEN` never reached this family. Kind "epoch_decoder" (never collides with
+#: `locanmf_frozen_decoder`'s "decoder" specs); payload {"full": all-pre model, "loso": {pre label: model}}, the
+#: same two fits as the in-memory path, so a store-and-load run reproduces it exactly.
+EPOCH_FROZEN_ENV = "WIDEFIELD_EPOCH_FROZEN"
+
+
+def _stored_epoch_decoder(an, align, bd):
+    """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when the option is off."""
+    import os
+
+    if os.environ.get(EPOCH_FROZEN_ENV, "").strip() not in ("1", "true", "yes"):
+        return None
+    from wfield_local import frozen_models
+    from wfield_local.locanmf_frozen_decoder import _pipe
+
+    XE, YE, GE, kept = bd["XE"], bd["YE"], bd["GE"], bd["kept"]
+    pre_i = sorted(bd["pre_i"])
+    e_pre = bd["e_pre"]
+    train = [kept[i] for i in pre_i]
+    from wfield_local import config, lp_licks
+    if lp_licks.is_lp() and os.environ.get(frozen_models.LP_FROZEN_ENV, "").strip().lower() != "lp":
+        # DAQ-TRAINED model scored in the LP arm: its training set is the DAQ arm's (every pre session of the animal),
+        # not the LP-kept list -- a pre session without video (PS93_0813) is in the DAQ fit but cannot be pooled here.
+        train = [x for x in config.phase_labels("pre") if config.animal_of(x) == an]
+    spec = frozen_models.make_spec(an, "epoch_decoder", align=align, source="locanmf",
+                                   train_labels=train, post_s=2.0,
+                                   basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]))
+
+    def _fit():
+        loso = {}
+        for i in pre_i:
+            tr = e_pre & (GE != i)
+            if len(np.unique(YE[tr])) >= 2:
+                loso[kept[i]] = _pipe().fit(XE[tr], YE[tr])
+        return {"full": _pipe().fit(XE[e_pre], YE[e_pre]), "loso": loso}
+
+    payload, status = frozen_models.load_or_fit(
+        spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()), "n_pre_sessions": len(pre_i)})
+    print(f"  [5c] {an} {align}: epoch_decoder {frozen_models._slug(spec)} {status} "
+          f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+    return payload
+
+
 @lru_cache(maxsize=24)
 def _collect_5c(align, variant="working", mode="frozen"):
     """{animal: (pre-stroke LOSO record, {day: record})} plus the sorted day list.
@@ -616,7 +666,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
             kept, pre_i, e_pre = bd["kept"], bd["pre_i"], bd["e_pre"]
             not_eng, BE_all, BU_all = bd["not_eng"], bd["BE"], bd["BU"]
 
-            clf = _pipe().fit(XE[e_pre], YE[e_pre])
+            stored = _stored_epoch_decoder(an, align, bd) if mode == "frozen" else None
+            clf = stored["full"] if stored else _pipe().fit(XE[e_pre], YE[e_pre])
 
             def rec(X, y, blk, model, pool=None):
                 """One record, with `mode` deciding whose prediction fills column(s) of y_pred.
@@ -698,8 +749,10 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 bte = np.concatenate([BE_all[me_te]] + ([BU_all[mu_te]] if mu_te.any() else []))
                 if len(yte) < 5 or len(np.unique(YE[tr])) < 2:
                     continue
-                r = rec(Xte, yte, bte, _pipe().fit(XE[tr], YE[tr]),
-                        pool=(XE[tr], YE[tr], BE_all[tr]))
+                m_i = (stored["loso"].get(kept[i]) if stored else None) or _pipe().fit(XE[tr], YE[tr])
+                if stored and kept[i] not in stored["loso"]:
+                    print(f"  !! 5c {an}: no stored LOSO model for {kept[i]}; fitted in memory", flush=True)
+                r = rec(Xte, yte, bte, m_i, pool=(XE[tr], YE[tr], BE_all[tr]))
                 if r is None:
                     continue
                 pre_recs.append(r)

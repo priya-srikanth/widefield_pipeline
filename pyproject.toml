@@ -112,3 +112,7 @@ ignore = ["B905"]
 # module SOURCE, and map_collect.code_digest hashes that source into every map-cache key -> ~33 GB of map caches go
 # cold. Ignored here instead, which leaves the digest unchanged (2026-11-01, LP gate option commit).
 "wfield_local/precue_engagement_states.py" = ["F401"]
+# grant_confusion's B023 (`rec` reads loop variable `an`) is pre-existing and benign: `rec` is defined and called inside the
+# same iteration. Ignored here rather than with `# noqa` so the module source (and any digest over it) does not move
+# (2026-11-02, LP final arm commit).
+"wfield_local/grant_confusion.py" = ["B023"]

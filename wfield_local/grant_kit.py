@@ -798,6 +798,7 @@ def _pooled_bundle(an, align):
               "YE": YE, "YU": YU,
               "BE": BE_all, "BU": BU_all,
               "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
+              "basis_id": getattr(basis, "basis_id", None),     # for the frozen epoch decoders (lp-final)
               "e_pre": np.isin(np.asarray(GE), list(pre_i))}
     _BUNDLE_CACHE[key] = bundle
     return bundle
