@@ -6,6 +6,25 @@ section 4 (what each test separates and predicts). Figures live under
 `M:\MICROSCOPE\Priya\Widefield\labcams\cohort1_quiet_spikes\v2_quiet\` (abbreviated `V2\` below); page figures =
 imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 
+## OVERNIGHT 11-01 -> 11-02 (Priya asleep from ~22:25; read this first)
+
+**Conclusions that CHANGED today (vs this morning's section 15):**
+1. Fig 15.7's "acute events are more local" is MOSTLY SELECTION (T1): the stroke multiplies a pre-existing local non-movement
+   event type; only a small narrowing remains after matching. Page 15.7 now shows the movement-corrected map (v40).
+2. "Acute events decay faster" (T5) does NOT survive movement correction in orofacial cortex (limb: 2/4).
+3. "Bilateral simultaneous onset -> common driver" (T2) withdrawn: 31 Hz cannot resolve callosal delays.
+4. NEW: acute orofacial quiet SYNCHRONISATION, ipsilesional > contralesional (T20, 4/4) -- fits Priya's reduced-drive hypothesis;
+   the barrel-cortex literature behind that reading holds only partly (handoff section 7).
+5. NEW: events are not quiet-specific (rise in pre-cue / ITI, T12); a pre-cue event goes with a weaker frozen-decoder position code
+   acute / subacute (T13b, 4/4) but does not predict failed far-contra attempts beyond time-in-session (T13a).
+6. Artefacts: epileptiform excluded (T11, T19), haemodynamics excluded (T10); breathing pending (interim: does not explain it).
+7. Recovery: all quiet measures follow the recovery time course, none beyond it; cued-lick ITPC link flagged as possible composition.
+
+**Overnight log (appended as things land):**
+- 22:25 running: T9 breathing (re-extraction 56/107), T21, T22 (+T20 noise floor), T13 follow-up, ITPC composition control.
+
+**Page changes tonight:** (none yet; planned: add T1 / T7 / T20 / T12-13 / T10 / recovery figures to section 15)
+
 ## Decisions needed from Priya
 
 * **Page**: Fig 15.7 replaced with the movement-corrected map (v40, done 11-01).
