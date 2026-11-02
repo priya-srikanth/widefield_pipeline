@@ -2,7 +2,7 @@
 
 Priya 11-01: "do you have an updated set of example traces with the +- thresholds". Same sessions as
 quiet_spikes_examples.py (v1), drawn with exactly what quiet_spikes_v2.py counts at the common k = 4: the trace the
-detector sees (dF/F % minus its 2-s running median), QUIET frames shaded (no DAQ contact lick / running within 1.5 s
+detector sees (dF/F % minus its 2-s running median), QUIET frames shaded (no lick -- DAQ contact, or LP video under QS_LICK_SOURCE=daq+lp -- / running within 1.5 s
 before or after; spout may be out; no swapped pair within 0.5 s), and every event = a peak whose height above the median
 of the preceding 1.0 .. 0.2 s exceeds 4 x the animal's August-pre robust SD, positive (up) or negative (down). Each event
 is drawn as a bar from its baseline to its peak, so the bar length is the height the threshold was applied to. Window =
@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EVENTS, columns, session_traces  # noqa: E402
-from quiet_spikes_v2 import BASE_S, V2, busy_frames, detect, detrend  # noqa: E402
+from quiet_spikes_v2 import BASE_S, LICK_SOURCE, V2, busy_frames, detect, detrend  # noqa: E402
 
 PAIRS = {"PS92": ("0811", "0820", "0828"), "PS93": ("0811", "0820"), "PS94": ("0811", "0819"), "PS95": ("0811", "0818")}
 SHOW = [("orofacial_left", "orofacial ipsi"), ("orofacial_right", "orofacial contra"), ("limb_left", "limb ipsi"),
@@ -55,8 +55,12 @@ def one(label):
     from wfield_local import trial_windows as TW
     tb = TW.trial_bounds(animal, f"2026{mmdd}")
     spout = np.c_[np.where(np.isfinite(tb.strobe_s), tb.strobe_s, tb.cue_s - 0.5), tb.stop_s].astype(float)
+    lp = np.array([])
+    if LICK_SOURCE == "daq+lp":                    # LP video licks (incl. non-contact) also define the quiet frames
+        from lp_licks import lick_times
+        lp = np.asarray(lick_times(label), float)
     return dict(label=label, t=ft[a:a + n] - ft[a], t0=ft[a], X=X[[cols.index(c) for c, _ in SHOW], a:a + n],
-                quiet=qe[a:a + n], ev=ev, licks=z["lick_onsets"] / fsd,
+                quiet=qe[a:a + n], ev=ev, licks=z["lick_onsets"] / fsd, lp=lp,
                 run=np.c_[z["running_starts"], z["running_stops"]] / fsd, spout=spout, cues=tb.cue_s.to_numpy(float))
 
 
@@ -110,6 +114,9 @@ def main():
         lk = d["licks"] - d["t0"]
         lk = lk[(lk >= 0) & (lk <= t[-1])]
         a.plot(lk, np.full(len(lk), ybot + 0.8), "|", color="tab:red", ms=6)
+        lp = d["lp"] - d["t0"]
+        lp = lp[(lp >= 0) & (lp <= t[-1])]
+        a.plot(lp, np.full(len(lp), ybot + 1.6), "|", color="tab:orange", ms=6)
         for r0, r1 in d["run"] - d["t0"]:
             if r1 > 0 and r0 < t[-1]:
                 a.plot([max(r0, 0), min(r1, t[-1])], [ybot + 0.55] * 2, color="tab:green", lw=3)
@@ -128,7 +135,7 @@ def main():
                  "before or after; spout may be out). Black triangles = events (height above the median of the preceding "
                  "1.0-0.2 s beyond the threshold), pointing down onto an UP peak from above / up onto a DOWN trough from "
                  "below. Bottom: blue ticks = cues, dark bar = spout "
-                 "out, red = contact licks, green = running.", fontsize=8.5, wrap=True)
+                 "out, red = DAQ contact licks" + (", orange = LP video licks" if LICK_SOURCE == "daq+lp" else "") + ", green = running.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     out = V2 / "quiet_event_example_traces.png"
     fig.savefig(out, dpi=110)

@@ -45,6 +45,7 @@ from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_fluct import FL, TRACE_COLS  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames  # noqa: E402
 
+LICK_LABEL = "LP video (+ unmatched DAQ contact) lick" if LICK_SOURCE == "daq+lp" else "DAQ lick"
 LL = V2 / "lick_lfo"                                        # follows QS_LICK_SOURCE
 BAND = (1.0, 4.0)
 WIN = (-0.5, 1.5)
@@ -374,7 +375,7 @@ def fig_epochs(S, T):
     sig_marks.reserve_headroom(fig)
     fig.suptitle("T16: lick-locked 1-4 Hz activity vs quiet-period 1-4 Hz power, orofacial cortex (bilateral), same "
                  "sessions. Each value / the animal's August-pre median (log axis; dashed = pre).\nBand-pass 1-4 Hz "
-                 "zero-phase on the whole session; window -0.5..+1.5 s around DAQ lick onset; ITPC = Hilbert phase "
+                 "zero-phase on the whole session; window -0.5..+1.5 s around " + LICK_LABEL + " onset; ITPC = Hilbert phase "
                  "consistency over 0-0.5 s; induced = single-trial power after removing the trial average. Open "
                  "markers = sessions (shape = animal, colour = epoch); filled = pooled mean, nested animal -> session "
                  "bootstrap 95% CI; stars = mixed model, epoch vs August pre, FDR q.", fontsize=8.5, wrap=True)
@@ -425,7 +426,7 @@ def fig_traces():
         ax[2 * i, 0].set_ylabel(f"{kind}: 1-4 Hz band-passed\ndF/F % (trial mean)", fontsize=8)
         ax[2 * i + 1, 0].set_ylabel(f"{kind}: ITPC", fontsize=8)
     for a in ax[-1]:
-        a.set_xlabel("s from DAQ lick onset")
+        a.set_xlabel(f"s from {LICK_LABEL} onset")
     ax[0, -1].legend(fontsize=7.5, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False, title="epoch")
     fig.suptitle("Lick-locked 1-4 Hz activity in orofacial cortex (bilateral) per animal: mean over sessions of each "
                  "session's trial-averaged band-passed response (rows 1, 3) and inter-trial phase coherence (rows 2, "
