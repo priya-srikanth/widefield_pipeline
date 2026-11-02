@@ -271,3 +271,10 @@ did not show. Caveat: 8-15 Hz with GCaMP6s is near the noise floor, so the index
 ipsi fast-power drop may partly reflect hemisphere brightness / noise differences (T22 checks F0).
 
 T22 (11-01 23:10, commit 972954e3): no ipsilesional F0 drop; the T20 ipsi > contra synchronisation comes from a non-calcium 7-11 Hz peak (415 nm, lower ipsilesionally) -> WITHDRAWN. Section 7's hypothesis loses its laterality support.
+
+## 8. Overnight 11-01 -> 11-02 (state at ~01:10)
+
+* Section 23 lives on the ENCODING page (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#quiet-state), now v308. Source of my edits: scratchpad/encpage/index.html (= live page + my section); the encoding window (sabatinilab-34) merges section 23 into its local wf_attempt/_goal_page/index.html -- never edit that file; before each update re-read the live page and send 34 the new version.
+* LP-based quiet frames are PRIMARY: QS_LICK_SOURCE=daq+lp -> v2_quiet_lp/ (driver scratchpad/run_lp_chain.sh; lp_licks.py loader, b51213d3). Not yet re-run with LP: examples (23.6), task windows / T13 (23.5, 23.15), lick LFO (23.16), breathing (23.12), 415 (23.11), effort (23.22), state response (T21) -- marked DAQ-only on the page.
+* Done tonight: T9 breathing (not supported), T10, T13 follow-up (not contamination), T16 + composition, T21, T22 (laterality WITHDRAWN), LP sensitivity + LP chain. Details: running list.
+* Next: re-run the DAQ-only items with QS_LICK_SOURCE=daq+lp (their scripts take the switch via quiet_spikes_v2.busy_frames where they use it; task_events / lick_lfo / state_response need checking), then swap those figures.
