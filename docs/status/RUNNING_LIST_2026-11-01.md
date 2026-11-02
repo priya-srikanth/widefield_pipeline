@@ -183,3 +183,4 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   .403 -> .311 pooled once video licks are removed, and PS92 has essentially no lick-free rest code. In the 3 animals with a
   lick-free code it still falls acutely and only partly recovers; the qualitative 12.1 claim holds in 3/4, carried by
   PS93-95. Not on the page (June+Aug pre breaks the Aug-only rule) -> ask Priya whether to add as 12.1b.
+- 08:40 quiet window published goal v309 (23.5, 23.6, 23.11, 23.12, 23.15 on LP-lick quiet frames; 23.16 later). Merged locally. Live goal = v309.
