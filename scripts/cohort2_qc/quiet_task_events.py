@@ -1,0 +1,595 @@
+"""Quiet-event detector inside TASK windows (T12) and pre-cue events vs the trial's outcome / position code (T13)
+(cohort1 PS92-95, 2026-11-01; docs/status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md section 4).
+
+T12 -- do the brief orofacial events that rise ~5x in QUIET periods also occur inside the task? Same traces and detector as
+quiet_spikes_v2 (quiet_area_spikes.session_traces, dF/F % minus a 2-s running median; quiet_spikes_v2.detect: height above
+the median of the preceding 1.0-0.2 s, half-width 1.5 frames .. 0.5 s, merged within 0.3 s, both polarities; threshold
+k = 4 x the animal's AUGUST-pre robust SD from the v2 quiet sessions, quiet_fluct.animal_sd). Detection masks:
+  PRE-CUE  frames in [spout strobe, cue) of each trial (wfield_local.trial_windows.trial_bounds; the strobe is sent once
+           the spout has arrived), with no DAQ contact lick / running bout within 0.5 s and no swapped pair within 0.5 s
+  ITI      frames in [trial stop, next trial's strobe), same exclusions
+  QUIET    the v2 rule (no lick / running within 1.5 s), recomputed here from the same pass as the reference
+Rates = events / min of mask frames, ENGAGED part of the session only (trial cue before the session's quit, as v2).
+PRE-CUE events are also split by whether the frame is itself a v2 QUIET frame, so "task-window events" are not just the
+quiet events that happen to fall in a pre-cue window.
+
+T13 -- does a pre-cue orofacial event on a trial predict (a) a failed far-contra attempt (video attempt classes,
+LP run imaging_encoding/qc/trial_attempts.csv: hit / incomplete / no_try / jaw_only; also all-spout hit vs miss) and
+(b) a weaker pre-cue position code (attempt_coding trials_precue_<animal>.csv.gz: per-trial p_true of the stored frozen
+pre-stroke decoder on the 2-s pre-cue ENL window)? Trial event flag = any event (orofacial ipsi OR contra, either
+polarity, > 4 x pre SD) in the trial's clean pre-cue window ("ev_pre"); for (b) also restricted to the 2 s before the cue
+= the decoder's window ("ev_enl"). Trials: engagement-gated (trial_attempts `canonical`), >= 1.0 s of clean pre-cue
+frames (>= 1.0 s inside the last 2 s for ev_enl). WITHIN-SESSION, SPOUT-MATCHED: strata = session x spout; effect =
+EXCESS = mean over event trials of (outcome - its stratum mean), i.e. event trials vs the other trials of the same
+spout in the same session; p = permutation of the event flags within strata (N_PERM). STRICT strata add the
+within-session trial-order quartile and a clean-time bin (events and misses both rise late in the session and with the
+lick-free time available), reported as excess_strict / p_strict and used for the figure's stars. Pooled per epoch: conditional
+logistic regression (statsmodels ConditionalLogit, groups = session x spout) outcome ~ event + log(clean pre-cue s).
+Per-animal x epoch tables first (CLAUDE.md rule 8).
+
+OUTPUT M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes/v2_quiet/task_events/
+
+    set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
+    python scripts/cohort2_qc/quiet_task_events.py [--jobs 3] [--summarise] [--only PS92_0811 ...]
+"""
+import argparse
+import sys
+from pathlib import Path
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
+from quiet_spikes_v2 import V2, busy_frames, detect, detrend  # noqa: E402
+
+TE = V2 / "task_events"
+K = 4.0
+TASK_BUF_S = 0.5
+COLS = ["orofacial_left", "orofacial_right", "orofacial", "limb_left", "limb_right"]
+TRIAL_COLS = ("orofacial_left", "orofacial_right")       # T13 event flag: either hemisphere
+WIN = {0: "precue", 1: "iti", 2: "quiet"}
+MIN_CLEAN_S = 1.0
+ENL_S = 2.0
+CLEAN_BINS = (0, 1.5, 2.0, 2.5, 99)
+N_PERM = 2000
+ANIMALS = ("PS92", "PS93", "PS94", "PS95")
+LP = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+LESION_NAME = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra",
+               "far_L": "far_ipsi", "far_center": "far_mid", "far_R": "far_contra"}
+HEMI = {"orofacial_left": "orofacial ipsilesional", "orofacial_right": "orofacial contralesional",
+        "orofacial": "orofacial bilateral", "limb_left": "limb ipsilesional", "limb_right": "limb contralesional"}
+
+
+def near_frames(label, ft, buf):
+    """Frames within `buf` s of a DAQ contact lick onset or a running bout."""
+    animal, mmdd = label.split("_")
+    z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
+    fsd = float(z["fs"])
+    m = np.zeros(len(ft), bool)
+    for x in z["lick_onsets"] / fsd:
+        m[np.searchsorted(ft, x - buf):np.searchsorted(ft, x + buf)] = True
+    for r0, r1 in np.c_[z["running_starts"], z["running_stops"]] / fsd:
+        m[np.searchsorted(ft, r0 - buf):np.searchsorted(ft, r1 + buf)] = True
+    return m
+
+
+def extract(label):
+    """One session (spawn worker): events in pre-cue / ITI / quiet masks + per-trial clean-frame bookkeeping."""
+    f = TE / "sessions" / f"{label}.npz"
+    if f.exists():
+        return label
+    from wfield_local import trial_windows as TW
+    Xr, ft, fs, _rest, engaged, quit_s = session_traces(label, detrend=False)
+    X = detrend(Xr, fs)
+    T = X.shape[1]
+    busy15, badw = busy_frames(label, ft, fs)
+    near = near_frames(label, ft, TASK_BUF_S)
+    finite = np.isfinite(X).all(0)
+    quiet = ~busy15 & ~badw & finite
+    animal, mmdd = label.split("_")
+    tb = TW.trial_bounds(animal, f"2026{mmdd}")
+    cue = tb.cue_s.to_numpy(float)
+    strobe = tb.strobe_s.to_numpy(float)
+    stop = tb.stop_s.to_numpy(float)
+    n = len(tb)
+    prev_stop = np.r_[-np.inf, stop[:-1]]
+    # pre-cue start = the strobe (spout arrived); must follow the previous trial's stop and precede the cue
+    start = np.where(np.isfinite(strobe) & (strobe < cue) & (strobe >= prev_stop), strobe, np.nan)
+    tri_pre = np.full(T, -1, int)
+    tri_iti = np.full(T, -1, int)
+    for i in range(n):
+        if np.isfinite(start[i]):
+            tri_pre[np.searchsorted(ft, start[i]):np.searchsorted(ft, cue[i])] = i
+        if i + 1 < n and np.isfinite(start[i + 1]) and np.isfinite(stop[i]) and start[i + 1] > stop[i]:
+            tri_iti[np.searchsorted(ft, stop[i]):np.searchsorted(ft, start[i + 1])] = i
+    clean = ~near & ~badw & finite
+    ok_pre = (tri_pre >= 0) & clean
+    ok_iti = (tri_iti >= 0) & clean
+    cols = columns()
+    ev = []
+    for c in COLS:
+        ci = cols.index(c)
+        if not np.isfinite(X[ci]).all():
+            continue
+        for code, ok in ((0, ok_pre), (1, ok_iti), (2, quiet)):
+            for sign in (1, -1):
+                pk, h = detect(sign * X[ci], ok, fs)
+                for p, v in zip(pk, h):
+                    tr = tri_pre[p] if code == 0 else tri_iti[p] if code == 1 else -1
+                    trel = ft[p] - cue[tr] if code == 0 else np.nan
+                    ev.append((ci, code, int(p), sign * float(v), int(tr), int(engaged[p]), int(quiet[p]), trel))
+    # per trial: clean pre-cue frames (all / inside the last ENL_S / also v2-quiet), clean ITI frames
+    npre = np.bincount(tri_pre[ok_pre], minlength=n)[:n]
+    in_enl = np.zeros(T, bool)
+    for i in range(n):
+        in_enl[np.searchsorted(ft, cue[i] - ENL_S):np.searchsorted(ft, cue[i])] = True
+    npre_enl = np.bincount(tri_pre[ok_pre & in_enl], minlength=n)[:n]
+    npre_q = np.bincount(tri_pre[ok_pre & quiet], minlength=n)[:n]
+    npre_all = np.bincount(tri_pre[tri_pre >= 0], minlength=n)[:n]
+    niti = np.bincount(tri_iti[ok_iti], minlength=n)[:n]
+    eng_tr = ~(cue >= quit_s) if np.isfinite(quit_s) else np.ones(n, bool)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        f, ev=np.array(ev, float).reshape(-1, 8), fs=fs, cols=np.array(cols), quit_s=quit_s,
+        n_quiet_eng=int((quiet & engaged).sum()), trial_id=tb.trial_id.to_numpy(int),
+        pos_name=tb.pos_name.astype(str).to_numpy(), cue=cue, start=start, stop=stop, npre=npre, npre_enl=npre_enl,
+        npre_q=npre_q, npre_all=npre_all, niti=niti, eng_tr=eng_tr, total_min=T / fs / 60)
+    return label
+
+
+# ----------------------------------------------------------------------------------------------------------------- summary
+def load_sessions():
+    from quiet_fluct import animal_sd
+    from wfield_local import epochs
+    sd = animal_sd()
+    D = {}
+    for f in sorted((TE / "sessions").glob("*.npz")):
+        lab = f.stem
+        if lab[:4] not in ANIMALS:
+            continue
+        ep = epochs.epoch_of(lab)
+        if ep is None or (ep == "pre" and lab[-4:] < "0806"):
+            continue
+        D[lab] = dict(np.load(f, allow_pickle=True), epoch=ep, day=epochs.days_since_stroke(lab))
+    return D, sd
+
+
+def session_rates(D, sd):
+    """One row per session: event rate (either polarity, > K x pre SD) per column x window, engaged part."""
+    import pandas as pd
+    cols = columns()
+    rows = []
+    for lab, d in D.items():
+        an, fs, ev = lab[:4], float(d["fs"]), d["ev"]
+        eng = d["eng_tr"].astype(bool)
+        pre_min = d["npre"][eng].sum() / fs / 60
+        preq_min = d["npre_q"][eng].sum() / fs / 60
+        pren_min = pre_min - preq_min
+        iti_min = d["niti"][eng].sum() / fs / 60
+        q_min = d["n_quiet_eng"] / fs / 60
+        r = dict(label=lab, animal=an, epoch=d["epoch"], day=d["day"], precue_min=pre_min, iti_min=iti_min,
+                 quiet_min=q_min, precue_quiet_frac=preq_min / max(pre_min, 1e-9),
+                 precue_clean_frac=d["npre"][eng].sum() / max(1, d["npre_all"][eng].sum()))
+        for c in COLS:
+            ci = cols.index(c)
+            big = (ev[:, 0] == ci) & (np.abs(ev[:, 3]) > K * sd[an][ci])
+            tr = ev[:, 4].astype(int)
+            tr_eng = np.where(tr >= 0, eng[np.clip(tr, 0, len(eng) - 1)], False)
+            n_pre = big & (ev[:, 1] == 0) & tr_eng
+            n_iti = big & (ev[:, 1] == 1) & tr_eng
+            n_q = big & (ev[:, 1] == 2) & (ev[:, 5] == 1)
+            r[f"{c}|precue"] = n_pre.sum() / pre_min if pre_min > 0.25 else np.nan
+            r[f"{c}|precue_inquiet"] = (n_pre & (ev[:, 6] == 1)).sum() / preq_min if preq_min > 0.25 else np.nan
+            r[f"{c}|precue_notquiet"] = (n_pre & (ev[:, 6] == 0)).sum() / pren_min if pren_min > 0.25 else np.nan
+            r[f"{c}|iti"] = n_iti.sum() / iti_min if iti_min > 0.25 else np.nan
+            r[f"{c}|quiet"] = n_q.sum() / q_min if q_min > 0.25 else np.nan
+        rows.append(r)
+    return pd.DataFrame(rows).sort_values("label").reset_index(drop=True)
+
+
+WINDOWS = ("precue", "precue_notquiet", "precue_inquiet", "iti", "quiet")
+
+
+def animal_table(S):
+    """Per animal x epoch: mean session rate per window (orofacial columns) + post / pre fold per animal."""
+    import pandas as pd
+    rows = []
+    for c in COLS:
+        for w in WINDOWS:
+            col = f"{c}|{w}"
+            M = S.groupby(["animal", "epoch"])[col].mean().unstack("epoch").reindex(columns=EP)
+            N = S.dropna(subset=[col]).groupby(["animal", "epoch"]).size().unstack("epoch").reindex(columns=EP)
+            for an in M.index:
+                pre = M.loc[an, "pre"]
+                for ep in EP:
+                    rows.append(dict(column=c, window=w, animal=an, epoch=ep, rate=M.loc[an, ep],
+                                     n_sessions=N.loc[an, ep] if an in N.index else 0,
+                                     fold_vs_pre=M.loc[an, ep] / pre if pre > 0 else np.nan))
+    return pd.DataFrame(rows)
+
+
+def t12_stats(S):
+    """LMM (mixed_models.lmm_table, epoch + time models, August pre) on log10(rate + 0.2) per window x column, and on the
+    session's log ratio precue / quiet (does the task-window change differ from the quiet change?)."""
+    import pandas as pd
+    from wfield_local import mixed_models as mm
+    L = []
+    for c in COLS:
+        for w in WINDOWS:
+            L.append(S[["label"]].assign(column=c, measure=w, y=np.log10(S[f"{c}|{w}"] + 0.2).to_numpy()))
+        L.append(S[["label"]].assign(column=c, measure="log_precue_over_quiet",
+                                     y=(np.log10(S[f"{c}|precue"] + 0.2) - np.log10(S[f"{c}|quiet"] + 0.2)).to_numpy()))
+    L = mm.add_time_covariates(pd.concat(L), august_pre=True).dropna(subset=["y"])
+    T = mm.lmm_table(L, ["measure", "column"], models=("epoch", "time"), print_animals=False, fdr_by=("measure",))
+    return T
+
+
+def t12_figure(S, A, T):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local import sig_marks
+    from wfield_local.analysis_kit import boot_ci
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    cs = ["orofacial_left", "orofacial_right"]
+    ws = [("precue", "PRE-CUE (spout in place, before the cue)"), ("iti", "ITI (trial end to next spout arrival)"),
+          ("quiet", "QUIET (v2 rule, reference)")]
+    fig, ax = plt.subplots(3, 3, figsize=(13, 11.5))
+    rng = np.random.default_rng(0)
+    for r_, c in enumerate(cs):
+        for j, (w, wname) in enumerate(ws):
+            a = ax[r_, j]
+            col = f"{c}|{w}"
+            for x, ep in enumerate(EP):
+                B = S[(S.epoch == ep) & S[col].notna()]
+                for an, G in B.groupby("animal"):
+                    a.scatter(x + rng.uniform(-0.18, 0.18, len(G)), G[col], marker=ANIMAL_MARKER[an],
+                              facecolors="none", edgecolors=EPOCH_LINE[ep], s=18, lw=0.8, alpha=0.8)
+                ci = boot_ci({an: list(G[col]) for an, G in B.groupby("animal")}, rng)
+                if ci is not None:
+                    a.errorbar(x + 0.32, ci.point, yerr=[[ci.point - ci.lo], [ci.hi - ci.point]], fmt="o",
+                               color=EPOCH_LINE[ep], ms=6, capsize=3, lw=1.6, zorder=5)
+                t = T[(T.model == "epoch") & (T.measure == w) & (T.column == c) & (T.term == f"C(epoch)[T.{ep}]")]
+                if x > 0 and len(t) and t.q.iloc[0] < 0.05:
+                    q = t.q.iloc[0]
+                    sig_marks.star_top(a, x, "***" if q < 0.001 else "**" if q < 0.01 else "*", color=EPOCH_LINE[ep])
+            a.set_xticks(range(len(EP)), EP, fontsize=8)
+            a.set_title(f"{wname}\n{HEMI[c]}", fontsize=9)
+            if j == 0:
+                a.set_ylabel("events / min (either polarity)")
+    # bottom row: per-animal fold vs pre, pre-cue vs quiet (and ITI vs quiet), and the pre-cue split by quiet status
+    for j, (w, name) in enumerate((("precue", "pre-cue"), ("iti", "ITI"))):
+        a = ax[2, j]
+        for c, fill in (("orofacial_left", "none"), ("orofacial_right", None)):
+            Q = A[(A.column == c) & (A.window == "quiet")].set_index(["animal", "epoch"]).fold_vs_pre
+            P = A[(A.column == c) & (A.window == w)].set_index(["animal", "epoch"]).fold_vs_pre
+            for (an, ep), q in Q.items():
+                if ep == "pre" or not np.isfinite(q) or not np.isfinite(P.get((an, ep), np.nan)):
+                    continue
+                a.scatter(q, P[(an, ep)], marker=ANIMAL_MARKER[an], s=40, lw=1.0, edgecolors=EPOCH_LINE[ep],
+                          facecolors="none" if fill == "none" else EPOCH_LINE[ep])
+        lim = [0.5, max(2, float(np.nanmax(A[A.window.isin(["quiet", w])].fold_vs_pre)) * 1.1)]
+        a.plot(lim, lim, color="0.6", lw=0.8, ls="--")
+        a.axhline(1, color="0.85", lw=0.6); a.axvline(1, color="0.85", lw=0.6)
+        a.set_xscale("log"); a.set_yscale("log")
+        a.set_xlabel("QUIET rate, fold vs the animal's pre"); a.set_ylabel(f"{name.upper()} rate, fold vs pre")
+        a.set_title(f"Per animal x epoch: {name} vs quiet change\n(open = ipsilesional, filled = contralesional;\n"
+                    "dashed = equal change)", fontsize=9)
+    a = ax[2, 2]
+    for k, (w, _name) in enumerate((("precue_notquiet", "pre-cue, NOT quiet\n(lick / run 0.5-1.5 s away)"),
+                                   ("precue_inquiet", "pre-cue, also quiet"))):
+        for x, ep in enumerate(EP):
+            for an in sorted(S.animal.unique()):
+                v = A[(A.column == "orofacial") & (A.window == w) & (A.animal == an) & (A.epoch == ep)].rate
+                if len(v) and np.isfinite(v.iloc[0]):
+                    a.scatter(x + (k - 0.5) * 0.35, v.iloc[0], marker=ANIMAL_MARKER[an], s=30,
+                              edgecolors=EPOCH_LINE[ep], facecolors="none" if k == 0 else EPOCH_LINE[ep], lw=1)
+    a.set_xticks(range(len(EP)), EP, fontsize=8)
+    a.set_ylabel("events / min (animal mean)")
+    a.set_title("Pre-cue events (orofacial bilateral), split by\nwhether the frame is itself a v2 QUIET frame\n"
+                "(left open = not quiet, right filled = quiet)", fontsize=9)
+    handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
+    fig.legend(handles=handles, fontsize=8, loc="upper right", bbox_to_anchor=(0.995, 0.935), ncol=4, frameon=False)
+    sig_marks.reserve_headroom(fig)
+    fig.suptitle("T12: orofacial events in TASK windows. v2 detector (2-s median detrended dF/F %, height > 4 x the "
+                 "animal's August-pre robust SD, either polarity); task masks exclude frames within 0.5 s of a contact "
+                 "lick / running / swapped pair; engaged part of the session. Open markers = sessions (shape = animal, "
+                 "colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI; stars = LMM epoch "
+                 "vs pre on log10(rate + 0.2), FDR.", fontsize=8.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.92), w_pad=2.0, h_pad=1.5)
+    fig.savefig(TE / "t12_task_window_event_rates.png", dpi=110)
+    plt.close(fig)
+
+
+# -------------------------------------------------------------------------------------------------------------------- T13
+def trial_table(D, sd):
+    """One row per trial with event flags, clean seconds, attempt class (trial_attempts) and p_true (attempt_coding)."""
+    import pandas as pd
+    cols = columns()
+    rows = []
+    for lab, d in D.items():
+        an, fs, ev = lab[:4], float(d["fs"]), d["ev"]
+        big = np.zeros(len(ev), bool)
+        for c in TRIAL_COLS:
+            ci = cols.index(c)
+            big |= (ev[:, 0] == ci) & (np.abs(ev[:, 3]) > K * sd[an][ci])
+        E = ev[big & (ev[:, 1] == 0)]
+        n = len(d["trial_id"])
+        tr = E[:, 4].astype(int)
+        ev_pre = np.bincount(tr, minlength=n)[:n] > 0
+        enl = E[:, 7] >= -ENL_S
+        ev_enl = np.bincount(tr[enl], minlength=n)[:n] > 0
+        rows.append(pd.DataFrame(dict(label=lab, animal=an, epoch=d["epoch"], day=d["day"], trial_id=d["trial_id"],
+                                      spout_daq=[LESION_NAME.get(p, p) for p in d["pos_name"]],
+                                      clean_s=d["npre"] / fs, clean_enl_s=d["npre_enl"] / fs, eng_tr=d["eng_tr"],
+                                      ev_pre=ev_pre, ev_enl=ev_enl, n_ev=np.bincount(tr, minlength=n)[:n])))
+    Tr = pd.concat(rows, ignore_index=True)
+    A = pd.read_csv(LP / "qc" / "trial_attempts.csv", usecols=["label", "trial_id", "pos", "cls", "canonical"])
+    Tr = Tr.merge(A, on=["label", "trial_id"], how="left")
+    P = []
+    for an in ANIMALS:
+        f = LP / "attempt_coding" / f"trials_precue_{an}.csv.gz"
+        if f.exists():
+            x = pd.read_csv(f, usecols=["label", "trial_id", "spout", "cls", "p_true", "method"])
+            P.append(x[x.method == "dom"].drop(columns="method").rename(columns={"spout": "spout_ac", "cls": "cls_ac"}))
+    Tr = Tr.merge(pd.concat(P).drop_duplicates(["label", "trial_id"]), on=["label", "trial_id"], how="left")
+    return Tr
+
+
+def excess(y, e, strata, n_perm=N_PERM, seed=0):
+    """Within-stratum effect of a binary flag: mean over flagged trials of (y - stratum mean); strata without both
+    flagged and unflagged trials are dropped. p = two-sided permutation of flags within strata. -> dict."""
+    y, e, strata = np.asarray(y, float), np.asarray(e, bool), np.asarray(strata)
+    ok = np.isfinite(y)
+    y, e, strata = y[ok], e[ok], strata[ok]
+    _, s = np.unique(strata, return_inverse=True)
+    ne, nt = np.bincount(s, weights=e), np.bincount(s)
+    keep = (ne > 0) & (ne < nt)
+    m = keep[s]
+    y, e, s = y[m], e[m], s[m]
+    out = dict(n_trials=int(m.sum()), n_event=int(e.sum()), n_strata=int(keep.sum()))
+    if e.sum() < 3:
+        return {**out, "excess": np.nan, "p": np.nan, "rate_event": np.nan, "rate_noevent": np.nan}
+    mu = np.bincount(s, weights=y) / np.maximum(np.bincount(s), 1)
+    yc = y - mu[s]
+    stat = yc[e].mean()
+    o = np.argsort(s, kind="stable")
+    yc_o, e_o, s_o = yc[o], e[o], s[o]
+    rng = np.random.default_rng(seed)
+    null = np.empty(n_perm)
+    for k in range(n_perm):
+        perm = np.lexsort((rng.random(len(s_o)), s_o))
+        null[k] = yc_o[e_o[perm]].mean()
+    p = (1 + np.sum(np.abs(null) >= abs(stat))) / (n_perm + 1)
+    return {**out, "excess": float(stat), "p": float(p), "rate_event": float(y[e].mean()),
+            "rate_noevent": float(y[~e].mean())}
+
+
+def clogit(y, e, logc, strata):
+    """Conditional logistic regression y ~ event + log(clean s), groups = strata. -> (coef, se, p) of event."""
+    import warnings
+    from statsmodels.discrete.conditional_models import ConditionalLogit
+    y = np.asarray(y, float)
+    X = np.c_[np.asarray(e, float), np.asarray(logc, float)]
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            r = ConditionalLogit(y, X, groups=np.asarray(strata)).fit(disp=False)
+        return float(r.params[0]), float(r.bse[0]), float(r.pvalues[0])
+    except Exception:                                   # noqa: BLE001
+        return np.nan, np.nan, np.nan
+
+
+def outcomes(Tr):
+    """{name: (subset frame, outcome column, flag column, clean column)} for T13."""
+    import pandas as pd
+    B = Tr[(Tr.canonical == True) & Tr.eng_tr & (Tr.pos == Tr.spout_daq)]          # noqa: E712
+    B = B.assign(stratum=B.label + "|" + B.pos)
+    # STRICT strata (+ within-session trial-order quartile + clean-time bin): events and misses both rise late in a
+    # session and with how much lick-free pre-cue time there is, so the session x spout match alone can be confounded
+    q = B.groupby("label").trial_id.transform(lambda x: np.floor(4 * (x.rank(method="first") - 1) / len(x)))
+    B = B.assign(tq=q.astype(int).astype(str))
+    a = B[B.clean_s >= MIN_CLEAN_S]
+    a = a.assign(strict=a.stratum + "|" + a.tq + "|" + pd.cut(a.clean_s, CLEAN_BINS, labels=False).astype(str))
+    fc = a[(a.pos == "far_contra") & a.cls.isin(["hit", "incomplete", "no_try", "jaw_only"])]
+    O = {"farcontra_fail": (fc.assign(y=(fc.cls != "hit").astype(float)), "ev_pre", "clean_s"),
+         "farcontra_incomplete_vs_hit": (fc[fc.cls.isin(["hit", "incomplete"])]
+                                         .assign(y=lambda x: (x.cls == "incomplete").astype(float)), "ev_pre", "clean_s"),
+         "farcontra_noattempt_vs_hit": (fc[fc.cls.isin(["hit", "no_try"])]
+                                        .assign(y=lambda x: (x.cls == "no_try").astype(float)), "ev_pre", "clean_s")}
+    al = a[a.cls.isin(["hit", "incomplete", "no_try", "jaw_only"])]
+    O["allspout_miss"] = (al.assign(y=(al.cls != "hit").astype(float)), "ev_pre", "clean_s")
+    b = B[(B.clean_enl_s >= MIN_CLEAN_S) & B.p_true.notna() & (B.spout_ac == B.pos)]
+    b = b.assign(strict=b.stratum + "|" + b.tq + "|" + pd.cut(b.clean_enl_s, CLEAN_BINS, labels=False).astype(str))
+    O["p_true_enl_event"] = (b.assign(y=b.p_true), "ev_enl", "clean_enl_s")
+    O["p_true_enl_event_hits"] = (b[b.cls_ac.isin(["hit", "pre_hit"])].assign(y=lambda x: x.p_true), "ev_enl",
+                                  "clean_enl_s")
+    O["p_true_any_precue_event"] = (b.assign(y=b.p_true), "ev_pre", "clean_enl_s")
+    return O
+
+
+def t13(Tr):
+    import pandas as pd
+    O = outcomes(Tr)
+    rows = []
+    for name, (B, flag, cl) in O.items():
+        binary = not name.startswith("p_true")
+        for (an, ep), G in list(B.groupby(["animal", "epoch"])) + [(("ALL", ep), G) for ep, G in B.groupby("epoch")]:
+            r = excess(G.y, G[flag], G.stratum)
+            rs = excess(G.y, G[flag], G.strict, n_perm=1000)
+            row = dict(outcome=name, animal=an, epoch=ep, n_sessions=G.label.nunique(),
+                       event_frac=float(G[flag].mean()), **r, excess_strict=rs["excess"], p_strict=rs["p"])
+            if binary:
+                row["clogit_coef"], row["clogit_se"], row["clogit_p"] = clogit(G.y, G[flag], np.log(G[cl]), G.stratum)
+            rows.append(row)
+        # acute + subacute together (where failures exist)
+        G = B[B.epoch.isin(["acute", "subacute"])]
+        for an, H in list(G.groupby("animal")) + [("ALL", G)]:
+            r = excess(H.y, H[flag], H.stratum)
+            rs = excess(H.y, H[flag], H.strict, n_perm=1000)
+            row = dict(outcome=name, animal=an, epoch="acute+subacute", n_sessions=H.label.nunique(),
+                       event_frac=float(H[flag].mean()), **r, excess_strict=rs["excess"], p_strict=rs["p"])
+            if binary:
+                row["clogit_coef"], row["clogit_se"], row["clogit_p"] = clogit(H.y, H[flag], np.log(H[cl]), H.stratum)
+            rows.append(row)
+    R = pd.DataFrame(rows)
+    order = {e: i for i, e in enumerate(list(EP) + ["acute+subacute"])}
+    R["_o"] = R.epoch.map(order)
+    return R.sort_values(["outcome", "_o", "animal"]).drop(columns="_o").reset_index(drop=True)
+
+
+def t13_by_spout(Tr):
+    import pandas as pd
+    from wfield_local.orofacial_cohort import POS_ORDER
+    O = outcomes(Tr)
+    rows = []
+    for name in ("allspout_miss", "p_true_enl_event"):
+        B, flag, _ = O[name]
+        for ep in ("pre", "acute", "subacute", "chronic"):
+            for sp in POS_ORDER:
+                G = B[(B.epoch == ep) & (B.pos == sp)]
+                rows.append(dict(outcome=name, epoch=ep, spout=sp, **excess(G.y, G[flag], G.stratum, n_perm=1000)))
+    return pd.DataFrame(rows)
+
+
+def t13_figure(R, RS):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local import sig_marks
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE, POS_ORDER
+    panels = [("farcontra_fail", "far-contra FAILED attempt (incomplete / no attempt / reaction)\nexcess P(fail) on "
+               "event trials"),
+              ("farcontra_incomplete_vs_hit", "far-contra INCOMPLETE vs hit\nexcess P(incomplete)"),
+              ("allspout_miss", "all spouts, MISS vs hit (spout-matched)\nexcess P(miss)"),
+              ("p_true_enl_event", "frozen pre-stroke decoder p(true spout), 2-s pre-cue window\nexcess p_true on "
+               "trials with an event in that window")]
+    fig, ax = plt.subplots(2, 3, figsize=(16, 11))
+    xs = list(EP)
+    for k, (name, title) in enumerate(panels):
+        a = ax.flat[k]
+        G = R[R.outcome == name]
+        for x, ep in enumerate(xs):
+            for an in ANIMALS:
+                v = G[(G.animal == an) & (G.epoch == ep)]
+                if len(v) and np.isfinite(v.excess.iloc[0]):
+                    a.scatter(x - 0.12 + 0.08 * ANIMALS.index(an), v.excess.iloc[0], marker=ANIMAL_MARKER[an],
+                              facecolors="none", edgecolors=EPOCH_LINE[ep], s=40, lw=1.1)
+                if len(v) and np.isfinite(v.excess_strict.iloc[0]):
+                    a.scatter(x - 0.12 + 0.08 * ANIMALS.index(an), v.excess_strict.iloc[0], marker=ANIMAL_MARKER[an],
+                              color=EPOCH_LINE[ep], s=14, alpha=0.6)
+            v = G[(G.animal == "ALL") & (G.epoch == ep)]
+            if len(v) and np.isfinite(v.excess.iloc[0]):
+                a.plot(x + 0.3, v.excess.iloc[0], "o", color=EPOCH_LINE[ep], mfc="none", ms=8, mew=1.5)
+                a.plot(x + 0.3, v.excess_strict.iloc[0], "o", color=EPOCH_LINE[ep], ms=8)
+                a.text(x + 0.3, v.excess.iloc[0], f"  n={int(v.n_event.iloc[0])}", fontsize=6, va="center")
+                if v.p_strict.iloc[0] < 0.05:
+                    p = v.p_strict.iloc[0]
+                    sig_marks.star_top(a, x + 0.3, "***" if p < 0.001 else "**" if p < 0.01 else "*",
+                                       color=EPOCH_LINE[ep])
+        a.axhline(0, color="0.6", lw=0.8)
+        a.set_xticks(range(len(xs)), xs, fontsize=8)
+        a.set_title(title, fontsize=9)
+        a.set_ylabel("event trials minus same-session same-spout mean")
+    for k, (name, title) in enumerate((("allspout_miss", "excess P(miss) by spout"),
+                                       ("p_true_enl_event", "excess p_true by spout"))):
+        a = ax.flat[4 + k]
+        G = RS[RS.outcome == name]
+        for j, ep in enumerate(EP):
+            H = G[G.epoch == ep].set_index("spout").reindex(POS_ORDER)
+            x = np.arange(len(POS_ORDER)) + (j - 1.5) * 0.18
+            a.plot(x, H.excess, "o", color=EPOCH_LINE[ep], ms=5, label=ep)
+            for xi, p in zip(x, H.p):
+                if np.isfinite(p) and p < 0.05:
+                    sig_marks.star_top(a, xi, "*", color=EPOCH_LINE[ep], row=j, fontsize=10)
+        a.axhline(0, color="0.6", lw=0.8)
+        a.set_xticks(range(len(POS_ORDER)), [p.replace("_", "\n") for p in POS_ORDER], fontsize=8)
+        a.set_title(f"{title}, all animals pooled\n(stars, one row per epoch = within-stratum permutation\n"
+                    "p < 0.05, uncorrected)", fontsize=9)
+    handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
+    handles.append(plt.Line2D([], [], marker="o", ls="", mfc="none", color="k", label="all animals, session x spout"))
+    handles.append(plt.Line2D([], [], marker="o", ls="", color="k", label="all animals, STRICT strata"))
+    handles += [plt.Line2D([], [], marker="o", ls="", color=EPOCH_LINE[ep], label=f"{ep} (by-spout panels)") for ep in EP]
+    fig.legend(handles=handles, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 0.925), ncol=6, frameon=False)
+    sig_marks.reserve_headroom(fig)
+    fig.suptitle("T13: does a pre-cue orofacial event predict the trial's outcome or its pre-cue position code? Event = "
+                 "any orofacial (ipsi or contra) event > 4 x pre SD, either polarity, in the trial's clean pre-cue "
+                 "window (>= 1 s clean, no lick / run within 0.5 s). Effect = within-session, spout-matched excess "
+                 "(event trials minus the mean of the same spout in the same session). Large open = per animal (shape) and "
+                 "all animals; small / big filled = STRICT strata (+ trial-order quartile + clean-time bin); stars = "
+                 "STRICT within-stratum permutation p (top band). Engaged (canonical) trials.",
+                 fontsize=8.5, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.87), w_pad=2.5, h_pad=2.0)
+    fig.savefig(TE / "t13_precue_event_vs_outcome.png", dpi=110)
+    plt.close(fig)
+
+
+def summarise():
+    import pandas as pd
+    pd.set_option("display.width", 250)
+    pd.set_option("display.max_rows", 500)
+    D, sd = load_sessions()
+    print(f"{len(D)} sessions:", pd.Series([d['epoch'] for d in D.values()]).value_counts().to_dict())
+    S = session_rates(D, sd)
+    S.to_csv(TE / "t12_session_rates.csv", index=False)
+    A = animal_table(S)
+    A.to_csv(TE / "t12_animal_epoch_rates.csv", index=False)
+    print("\nclean pre-cue minutes / session (median) and fraction of clean pre-cue frames that are also v2-quiet:")
+    print(S.groupby(["animal", "epoch"])[["precue_min", "precue_clean_frac", "precue_quiet_frac", "iti_min",
+                                          "quiet_min"]].median().round(2).to_string())
+    for c in ("orofacial_left", "orofacial_right", "orofacial"):
+        print(f"\n=== T12 {c}: rate / min (mean over sessions), per animal x epoch; fold vs that animal's pre ===")
+        X = A[(A.column == c) & A.window.isin(["precue", "precue_notquiet", "iti", "quiet"])]
+        print(X.pivot_table(index=["window", "animal"], columns="epoch", values="rate")[EP].round(2).to_string())
+        print(X.pivot_table(index=["window", "animal"], columns="epoch", values="fold_vs_pre")[EP[1:]].round(2)
+              .to_string())
+    T = t12_stats(S)
+    T.to_csv(TE / "t12_lmm.csv", index=False)
+    show = T[(T.term != "pre_level") & T.column.isin(["orofacial_left", "orofacial_right", "orofacial"])]
+    print("\nT12 LMM (log10(rate + 0.2); log_precue_over_quiet = does the task-window change differ from quiet):\n",
+          show[["model", "measure", "column", "term", "coef", "se", "p", "q", "re", "n"]].round(4).to_string(index=False))
+    t12_figure(S, A, T)
+
+    Tr = trial_table(D, sd)
+    print(f"\nT13 trials: {len(Tr)}; matched to trial_attempts {Tr.cls.notna().mean():.3f}; position agrees "
+          f"{(Tr.pos == Tr.spout_daq)[Tr.pos.notna()].mean():.4f}; p_true available {Tr.p_true.notna().mean():.3f}")
+    Tr.to_csv(TE / "t13_trials.csv.gz", index=False)
+    R = t13(Tr)
+    R.to_csv(TE / "t13_effects.csv", index=False)
+    cols = ["outcome", "animal", "epoch", "n_sessions", "n_trials", "n_event", "event_frac", "rate_event",
+            "rate_noevent", "excess", "p", "excess_strict", "p_strict", "clogit_coef", "clogit_se", "clogit_p"]
+    print("\n=== T13 per animal x epoch (ALL = pooled strata), within-session spout-matched ===")
+    print(R[cols].round(4).to_string(index=False))
+    RS = t13_by_spout(Tr)
+    RS.to_csv(TE / "t13_by_spout.csv", index=False)
+    print("\nT13 by spout (pooled):\n", RS.round(4).to_string(index=False))
+    t13_figure(R, RS)
+    (TE / "README.txt").write_text(__doc__)
+    print("wrote", TE)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--jobs", type=int, default=3)
+    ap.add_argument("--summarise", action="store_true")
+    ap.add_argument("--only", nargs="*")
+    a = ap.parse_args()
+    if not a.summarise:
+        from wfield_local.analysis_kit import curated_labels
+        from wfield_local.parallel import fan_out
+        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806" and k[:4] in ANIMALS]
+        res, fail = fan_out(labels, extract, jobs=min(a.jobs, 5), label="session")
+        print(f"{len(res)} done, {len(fail)} failed")
+        for x in fail:
+            print("FAILED", x)
+        if a.only:
+            return
+        if len(fail) > 3:
+            raise SystemExit("too many failures")
+    summarise()
+
+
+if __name__ == "__main__":
+    main()
