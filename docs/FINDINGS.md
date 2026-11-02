@@ -992,6 +992,28 @@ Paxinos plates: `wfield_local/histology_map/`.
 
 ## 8. Context in the field: our results against the stroke literature (11-01; all arms may edit)
 
+**FRAMING (Priya 11-01).** Directional TONGUE REACHING in head-fixed mice as a model for dissecting post-stroke motor
+control with a precision rodent limb-reach models rarely reach: a single targeted lick has the hallmarks of primate online
+reach control -- corrective submovements after misses that need ALM (Bollu et al. 2021 Nature,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC8299742/); its planning circuit parallels primate premotor delayed-reach
+preparation (ALM directional preparatory activity, Guo et al. 2014 and Svoboda-lab follow-ups,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC6212318); ALM carries intended lick angle while tongue-jaw S1 / M1 carry
+lick-level kinematics (Xu et al. 2022 Nature, O'Connor lab, moving-port task, https://pmc.ncbi.nlm.nih.gov/articles/PMC9109820);
+and orofacial deficits are clinically common (post-stroke dysphagia pooled 46.6 %, https://pmc.ncbi.nlm.nih.gov/articles/PMC11288910/;
+dysarthria 44 % in one acute cohort). What our setup adds over typical reach models: 6 targets crossing distance x side
+(graded laterality); hundreds of cued trials + thousands of cued / self-initiated licks per session; 3-D tongue (4 cameras,
+250 fps), jaw, whole-face FaceRhythm, contact sensing; first vs corrective licks and no-contact attempts (Bollu's
+corrections, post-stroke); whole dorsal cortex imaged on every trial; daily sessions over ~50 days. That precision is what
+makes the frozen-encoder separation of movement change vs mapping change, compensation vs restoration on hits, and failed
+attempts vs hits possible (section 0).
+CAUTIONS: do not claim rodent reaching is "less homologous" -- contested (Whishaw lab: hand-shaping homology rat / human /
+primates, https://pubmed.ncbi.nlm.nih.gov/19520119/; Karl & Whishaw 2013, https://pmc.ncbi.nlm.nih.gov/articles/PMC3870330);
+say "shares primate reach control principles with far greater kinematic resolution, trial counts and target control". The
+lick rhythm is brainstem-generated (cortex = targeting, initiation, correction); tongue innervation is partly bilateral
+(answer: graded far-contra deficit, contralesional shifts); the lesion is a basal-ganglia (striatal) stroke, not
+corticospinal (frame as subcortical stroke; note Cettina 2025 capsular contrast; PS93 cortical injury); n = 4 (cohort2 =
+replication).
+
 *Priya 11-01: what supports, conflicts with, or is new relative to preclinical and clinical stroke work. Draft from one session's searches (abstracts); extend as papers are read. Same table as the quiet-events handoff section 6.*
 
 Citations checked by web search on 11-01 unless marked *(memory)*; abstracts only, not full texts. Our results =
