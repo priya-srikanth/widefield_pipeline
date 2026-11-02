@@ -27,3 +27,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   cached maps; renderer code on a branch off main (widefield_pipeline); map runs; rest decoder 12.1 lick-free.
 
 ## 4. Log
+- 23:10 launched: (a) 14.21 main caption -> RESTnl numbers + S7 rev-up traces RESTnl variant (revup_neural.py
+  --rest-variant restnl; RESTW kept collapsed); (b) read-only map shortcut check -> RESTNL_MAP_SHORTCUT_CHECK_20261101.md.
+  Gate check still running.
