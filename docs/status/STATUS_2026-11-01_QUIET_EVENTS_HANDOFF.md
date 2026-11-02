@@ -1,32 +1,61 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **RESUME HERE (updated 11-01 ~22:05, before compaction).** Live status, every test's result and figure links:
-> [`RUNNING_LIST_2026-11-01_QUIET_EVENTS.md`](RUNNING_LIST_2026-11-01_QUIET_EVENTS.md) (Priya is away; keep it updated and commit
-> each time). Section 4 = all tests (T1-T22); section 7 = Priya's reduced-thalamic-drive hypothesis + citation check + T20.
+> **RESUME HERE (updated 11-02 ~07:15, before compaction).** Live status, every test's result + figure path, the overnight log,
+> page versions and "conclusions that changed": [`RUNNING_LIST_2026-11-01_QUIET_EVENTS.md`](RUNNING_LIST_2026-11-01_QUIET_EVENTS.md)
+> (keep it updated and commit each time). Section 4 = all tests (T1-T22); section 7 = Priya's reduced-drive hypothesis;
+> section 8 = overnight state.
 >
-> **Current reading (PROVISIONAL, n = 4):** acutely, in quiet periods, orofacial 1-4 Hz power rises with NO lesion-side bias
-> (the T20 'ipsilesional synchronisation' was WITHDRAWN 23:10 -- non-calcium 7-11 Hz peak, T22). A pre-existing, local,
-> non-movement 2-3 Hz event type -- rare in pre-stroke engaged quiet, x8-60 more frequent when the animal disengages, same map
-> in both states -- becomes common while engaged (T1, T4); the rise holds at matched face stillness and is largest when the
-> face is still (T7); bilateral (no ipsi bias in rate / amplitude; onset timing cannot exclude callosal spread at 31 Hz; T2,
-> T8); not interictal (T11, T19); 15.7 difference = mostly selection (T1); the raw-trace faster decay (T5) does NOT survive
-> movement correction in orofacial cortex; no trial-level 'body effort' on failed attempts (effort analysis). Rate tracks
-> recovery mostly via the shared time course (T14). TASK: events rise in pre-cue / ITI windows too (T12); a pre-cue event
-> goes with a weaker frozen-decoder position code on that trial acute / subacute (4/4) but does not predict a failed
-> far-contra attempt beyond time-in-session (T13). Haemodynamics excluded (T10); task-locked ITPC unchanged (T16); every quiet measure
-> tracks the recovery time course, none beyond it. Breathing not supported (T9). T21-T22; T13 follow-up: decoder trained without the event frames.
+> **WHERE THE RESULTS LIVE:** encoding (goal-question) page SECTION 23 "Quiet-period cortical state",
+> https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#quiet-state, live = v308 (22 figures 23.1-23.22). My working copy =
+> scratchpad/encpage/index.html (live page + my section; figures q_*.png beside it) -- scratchpad may not survive; if missing,
+> re-read the live page (Artifact read) and edit that. RULES with the encoding window (sabatinilab-34): only touch section 23
+> + its status-table row; re-read the live page before every publish; send 34 the new version number after; never edit
+> C:/Users/SabatiniLab/Github/wf_attempt/_goal_page/index.html (34 merges our section into it; fig_ids rows already added).
+> Imaging page section 15 = MOVED note (v41), not updated.
 >
-> **Pending actions:** (1) DONE 11-01: page Fig 15.7 replaced by the movement-corrected map (imaging page v40); (2) when agents report, merge into the running list, this handoff,
-> FINDINGS 3.Q; (3) DONE 22:50: section 23 on the encoding page (v304; built from scratchpad/encpage/index.html = live page + section; figures q_*.png via files map; encoding window sabatinilab-34 merges it into its local source -- do NOT edit wf_attempt/_goal_page/index.html; before any update re-read the live page and send 34 the new version). imaging section 15 carries a MOVED note (v41);
-> (4) T21, T22.
+> **LICK SOURCE (Priya 11-01 / 11-02):** LP video licks replace contact-only everywhere appropriate. Switch QS_LICK_SOURCE
+> (quiet_spikes_v2.LICK_SOURCE): "daq" (default, outputs v2_quiet/) | "daq+lp" (outputs v2_quiet_lp/). Quiet frames = no DAQ
+> contact OR LP lick (lp_licks.lick_times: cam4 licks_all + cam1-only, whole session) within 1.5 s; task-window masks
+> (quiet_task_events) the same; lick-LOCKED analyses (quiet_lick_lfo.lick_events -> lick LFO / ITPC, state response) use LP
+> onsets + DAQ contacts with no LP lick within 0.1 s. Hit classes and the engaged / quit gate stay contact-based. PS93_0813 has
+> no video (DAQ only). Effort analysis is not lick-locked (unchanged).
 >
-> **Literature framing (FINDINGS 8):** tongue reaching as a precision model of post-stroke motor control (Bollu 2021 etc.,
-> cautions incl. descending anatomy); corrections from the T17 agent (eLife 90080, circuit = VLS -> SNr -> VM/Pf -> tjM1 +
-> SNr -> brainstem, Allegra Mascaro combined therapy); Zeiger 2021 compatible ('re-weighted mapping', not 'remapping');
-> Cullins & Connor 2024 only partly agrees.
+> **RUNNING at handoff (07:15):** part 2 (scratchpad/run_lp_chain2.sh; log scratchpad/lpchain2/): task_events + breathing DONE,
+> hemo415 running (examples done); part 3 (run_lp_chain3.sh; lpchain3/): lick LFO extract + summary running, then
+> --composition, then state_response. Example traces re-render (shorter markers, shared y-scale, blue cue ticks) running.
+> All on QS_LICK_SOURCE=daq+lp. If interrupted: re-run the same driver (per-session caches skip done sessions).
+>
+> **NEXT:** (1) when parts 2 / 3 finish, swap the still-DAQ section-23 figures to the v2_quiet_lp versions: 23.5 (T13
+> outcome, v2_quiet_lp/task_events/t13_precue_event_vs_outcome.png), 23.6 (examples, v2_quiet_lp/quiet_event_example_traces.png),
+> 23.11 (415, v2_quiet_lp/hemo415/), 23.12 (breathing, v2_quiet_lp/breathing/), 23.15 (task rates), 23.16 (lick LFO,
+> v2_quiet_lp/lick_lfo/), and add T21 / composition numbers on LP licks; update captions + retag '[licks: DAQ contact + LP
+> video ...]'; compare each headline number DAQ vs LP and record any change in the running list's "conclusions that
+> changed"; publish (re-read live first), message 34. (2) T13 follow-up was run on DAQ-defined events only (decoder windows
+> already exclude LP licks) -- optional LP re-run. (3) Decide with Priya whether to do T20-type laterality with a band free of
+> the 7-11 Hz artefact (4-8 Hz) as the primary synchronisation measure.
+>
+> **CURRENT READING (PROVISIONAL, n = 4; LP-based quiet frames):** acutely, a pre-existing, local, non-movement 2-3 Hz event type
+> in anterolateral orofacial cortex -- rare in pre-stroke ENGAGED quiet (0.1-0.5 /min), 8-60x more frequent when the animal
+> disengages, same map in both states -- becomes common while engaged: face-regressed orofacial events x6.7 acute, x3.1
+> subacute, x1.5 chronic (4/4; DAQ-only frames x5.1), orofacial 1-4 Hz power up with NO lesion-side bias. Holds at matched face
+> stillness (largest when still), also in pre-cue / ITI windows. 15.7-type map difference = mostly WHICH events occur.
+> RULED OUT: face movement, contact-only masking (LP makes it larger), haemodynamics (415 nm, T10), interictal (T11, T19),
+> breathing (T9; weak video proxy). WITHDRAWN: ipsilesional > contralesional synchronisation (T22: non-calcium 7-11 Hz peak);
+> 'acute events decay faster' (not robust to movement correction); 'common driver' from onset timing (31 Hz cannot resolve).
+> MEANING: a pre-cue event goes with a weaker frozen-decoder position code acute / subacute (4/4; NOT decoder contamination,
+> T13 follow-up) but does not predict failed far-contra attempts beyond time-in-session; quiet measures follow the recovery
+> time course only; cued-lick ITPC tracks recovery beyond it in 3/4 (survives composition control, DAQ licks); the larger acute
+> lick response is mostly NOT accounted for by pre-lick state (T21; extrapolation-only upper bound 14-22 %). WHY: unexplained --
+> anatomy suggests the VLS -> SNr -> VM/Pf -> tjM1 loop, but no lesion-side asymmetry anywhere; a LOCAL orofacial 'disengaged'
+> state is the best description. Ideas: pupil / arousal, VM or brainstem recordings, cohort2 replication, faster imaging.
+>
+> **LITERATURE (FINDINGS 8):** framing = tongue reaching as a precision model of post-stroke motor control (Bollu 2021, ALM
+> planning, Xu 2022) with cautions (rodent reach homology contested; descending anatomy: rodent cortex -> brainstem premotor
+> nuclei, human direct corticobulbar; striatum never direct in any species); T17 corrections; Zeiger 2021 compatible
+> ('re-weighted mapping'); Cullins & Connor 2024 only partly agrees.
 
 **START HERE for the quiet-period events arm.** Resume from section 4 (open tests, in priority order). Results live on
-the imaging page section 15 (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v38) and in
+the ENCODING page section 23 (see RESUME block; the imaging page section 15 is a frozen copy) and in
 [`docs/COHORT2_QC_2026-10-29.md`](../COHORT2_QC_2026-10-29.md) (quiet-event bullets, 10-31 .. 11-01). Section 6 = how
 the results sit against the stroke literature (Priya asked for it 11-01; also offered as a FINDINGS / goal-page section).
 

@@ -77,7 +77,7 @@ def main():
     sd = animal_sd()
     cols = columns()
     colr = ["#7b3294", "#c2a5cf", "#1b7837", "#a6dba0"]
-    fig, ax = plt.subplots(len(labels), 1, figsize=(14, 3.0 * len(labels)), sharex=True)
+    fig, ax = plt.subplots(len(labels), 1, figsize=(14, 3.0 * len(labels)), sharex=True, sharey=True)   # one y-scale for all
     rows = []
     for r_, lab in enumerate(labels):
         d, an, a = D[lab], lab[:4], ax[r_]
@@ -92,17 +92,18 @@ def main():
             a.plot(t, d["X"][j] + off, color=colr[j], lw=0.8)
             E = d["ev"][c]
             E = E[np.abs(E[:, 1]) > th]
+            # Priya 11-02: short markers just OUTSIDE the event (above an up peak, below a down trough) so they never
+            # cover the trace; the event height above its baseline is in the csv, not drawn.
             for p, h, base in E:
                 p = int(p)
-                a.plot([t[p]] * 2, [base + off, base + h + off], color="k", lw=1.4)
-                a.plot(t[p], base + h + off + 0.35 * np.sign(h), "^" if h > 0 else "v", color="k", ms=4)
+                a.plot(t[p], base + h + off + 0.45 * np.sign(h), "v" if h > 0 else "^", color="k", ms=3.5, mew=0)
             a.text(60.8, off, f"{name}\n+/-{th:.2f}%", fontsize=7, va="center", color=colr[j])
             rows.append(dict(label=lab, column=c, threshold_pct=th, n_pos=int((E[:, 1] > th).sum()) if len(E) else 0,
                              n_neg=int((E[:, 1] < -th).sum()) if len(E) else 0))
         ybot = -(len(SHOW) - 1) * OFF - 4.5
         cu = d["cues"] - d["t0"]
         cu = cu[(cu >= 0) & (cu <= t[-1])]
-        a.plot(cu, np.full(len(cu), ybot + 1.2), "^", color="k", ms=4)
+        a.plot(cu, np.full(len(cu), ybot + 1.2), "|", color="tab:blue", ms=7, mew=1.5)   # cues: blue ticks (not triangles)
         for s0, s1 in d["spout"] - d["t0"]:
             if s1 > 0 and s0 < t[-1]:
                 a.plot([max(s0, 0), min(s1, t[-1])], [ybot + 0.3] * 2, color="0.35", lw=2)
@@ -118,13 +119,15 @@ def main():
         a.set_ylabel(f"{lab}\n{ep}", fontsize=9, color=EPOCH_LINE[ep])
         for s in ("top", "right", "left"):
             a.spines[s].set_visible(False)
-    ax[0].plot([0.5, 0.5], [2, 4], color="k", lw=2)
-    ax[0].text(0.8, 3, "2% dF/F", fontsize=7, va="center")
+    for a in ax:                                   # the same 2 % dF/F scale bar in every row (shared y-scale)
+        a.plot([0.5, 0.5], [2, 4], color="k", lw=2)
+        a.text(0.8, 3, "2% dF/F", fontsize=7, va="center")
     ax[-1].set_xlabel("s (60-s window in the middle third of the session with the most engaged quiet)")
     fig.suptitle("Quiet-period events, v2 detector at +/-4 x the animal's pre-stroke robust SD (value at right). Traces = "
-                 "dF/F % minus a 2-s running median. Grey = quiet (no lick / running within 1.5 s before or after; spout "
-                 "may be out). Black bar = an event's height above the median of the preceding 1.0-0.2 s, up = positive, "
-                 "down = negative; drawn only where it exceeds the threshold. Bottom: triangles = cues, dark bar = spout "
+                 "dF/F % minus a 2-s running median; same y-scale in every row. Grey = quiet (no lick / running within 1.5 s "
+                 "before or after; spout may be out). Black triangles = events (height above the median of the preceding "
+                 "1.0-0.2 s beyond the threshold), pointing down onto an UP peak from above / up onto a DOWN trough from "
+                 "below. Bottom: blue ticks = cues, dark bar = spout "
                  "out, red = contact licks, green = running.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     out = V2 / "quiet_event_example_traces.png"
