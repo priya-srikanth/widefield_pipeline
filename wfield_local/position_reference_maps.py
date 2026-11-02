@@ -91,6 +91,40 @@ REFERENCES = ("mean", "rest", "restw", "precue", "raw")
 #: would delete it. The difference between the two is the measurement of it.
 REST_WEIGHTED = "restw"
 
+#: DERIVED references (2026-11-01): formed AFTER collection from the cached `raw` column, so they are NOT in
+#: `REFERENCES` -- that tuple is part of every `prm` cache key (`session_raw_maps_cached` spec `refs`), and adding to it
+#: would turn ~33 GB of warm map caches cold for no change in their contents.
+#:   restnl  RESTnl (lick-free rest, flat; `restnl_mask`): raw[q] - U @ b_nl, exact because the baseline is flat and
+#:           the window features are linear means (check doc RESTNL_MAP_SHORTCUT_CHECK_20261101). One baseline map per
+#:           session serves every alignment and lick gate.
+#: A derived reference is attached by `maps_by_epoch` ONLY when named in WIDEFIELD_MAP_REFS (its per-session baselines
+#: must have been built by `python -m wfield_local.restnl_mask`), so a default render is unchanged.
+DERIVED_REFERENCES = ("restnl",)
+REFS_ENV = "WIDEFIELD_MAP_REFS"
+
+
+def requested_references():
+    """References named in WIDEFIELD_MAP_REFS (comma / space separated), or None when unset (= the default set)."""
+    import os
+    v = os.environ.get(REFS_ENV, "").replace(",", " ").split()
+    if not v:
+        return None
+    bad = [r for r in v if r not in REFERENCES + DERIVED_REFERENCES]
+    if bad:
+        raise ValueError(f"{REFS_ENV}: unknown reference(s) {bad}; expected {REFERENCES + DERIVED_REFERENCES}")
+    return tuple(v)
+
+
+def derived_active():
+    """Derived references to attach in `maps_by_epoch` (those requested in WIDEFIELD_MAP_REFS)."""
+    req = requested_references() or ()
+    return tuple(r for r in DERIVED_REFERENCES if r in req)
+
+
+def render_references():
+    """The references the 15r / 15rpa families draw: WIDEFIELD_MAP_REFS when set, else REFERENCES (unchanged)."""
+    return requested_references() or REFERENCES
+
 #: How a reference is NAMED IN A FILENAME. `rest` resolves through the mask variant actually in
 #: use, so a figure built on the retired 8 s-post-reward definition is called `_REWARD8ref_` and one
 #: built on the new between-trials/not-running/not-licking definition is called `_RESTref_`.
@@ -104,6 +138,8 @@ def reference_tag(reference):
     """The filename token for a reference -- baseline-explicit for `rest`."""
     from wfield_local.quiet_periods import quiet_variant
 
+    if reference == "restnl":
+        return "RESTNL"          # `_RESTNLref_`: lick-free flat rest (restnl_mask)
     if reference not in ("rest", "restw"):
         return reference.upper()
     # THE WEIGHTING IS PART OF THE BASELINE'S IDENTITY, so it goes in the filename with it. A
@@ -560,13 +596,37 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
             "restw_positions": restw_positions}
 
 
+#: OPT-IN (2026-11-01, RESTnl maps): hash the map code as it stood BEFORE 8e77bd0a (10-29), whose only change to the
+#: hashed sources was cosmetic for cohort 1 -- `f"2026{mmdd}"` -> `config.date8(mmdd)` in `rest_by_position` and
+#: `rest_engagement` (identical strings for every cohort-1 date). That text change moved the digest and left every
+#: warm `prm` cache (built 10-25, ~33 GB) unreachable although its contents are exactly what the current code builds.
+#: With the env set, the digest is computed from the CURRENT sources with that one replacement reversed, so it is
+#: valid only while that is the sole difference: verified 11-01 by reproducing the on-disk kinds bit-for-bit
+#: (`prm-*-3b1e0fc8b886`, `prm-precue-working-9c0a7ab373bd`), and refused for any session whose date8 is not
+#: "2026"+mmdd (cohort 2). Default (unset) behaviour is unchanged.
+LEGACY_DATE8_ENV = "WIDEFIELD_PRM_LEGACY_DATE8"
+
+
 def _raw_maps_code() -> str:
     """Source digest of everything that builds one session's maps (`map_collect.cache_kind`)."""
+    import hashlib
+    import inspect
+    import os
+
     from wfield_local import beta_maps, map_collect, precue_engagement_states, quiet_periods
     from wfield_local import rest_by_position, rest_engagement
-    return map_collect.code_digest(session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt,
-                                   session_quiet_svt, beta_maps._quit_mask, quiet_periods, rest_engagement,
-                                   rest_by_position, precue_engagement_states)
+    objs = (session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt,
+            session_quiet_svt, beta_maps._quit_mask, quiet_periods, rest_engagement,
+            rest_by_position, precue_engagement_states)
+    if not os.environ.get(LEGACY_DATE8_ENV):
+        return map_collect.code_digest(*objs)
+    h = hashlib.sha1()
+    for o in objs:
+        src = inspect.getsource(o)
+        if o in (rest_by_position, rest_engagement):
+            src = src.replace("config.date8(mmdd)", 'f"2026{mmdd}"')
+        h.update(src.encode())
+    return h.hexdigest()[:12]
 
 
 def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
@@ -574,8 +634,14 @@ def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
     `session_signature`: the session's U_atlas (the maps' spatial basis) and its quiet-frame mask."""
     import glob
 
-    from wfield_local import map_collect, session_cache
+    import os
+
+    from wfield_local import config, map_collect, session_cache
     from wfield_local.quiet_periods import quiet_frame_path
+    if os.environ.get(LEGACY_DATE8_ENV):
+        mmdd = session["label"].split("_")[-1]
+        if config.date8(mmdd) != f"2026{mmdd}":
+            raise RuntimeError(f"{LEGACY_DATE8_ENV} is valid for cohort-1 dates only ({session['label']})")
     kind = map_collect.cache_kind("prm", align, variant,
                                   {"post_s": float(post_s), "min_trials": MIN_TRIALS_PER_CLASS,
                                    "rest_bins": REST_BASELINE_BINS, "refs": REFERENCES}, _raw_maps_code())
@@ -628,6 +694,13 @@ def reference_maps(parts, reference):
         return dict(parts.get("raw_restw") or {})
     if reference == "precue":
         return dict(parts.get("raw_precue") or {})
+    if reference == "restnl":
+        # DERIVED (see DERIVED_REFERENCES): the session's flat lick-free baseline map, attached by `maps_by_epoch` as
+        # `restnl_base`, subtracted from the cached `raw` maps. Absent baseline -> no RESTnl column for the session.
+        base = parts.get("restnl_base")
+        if base is None:
+            return {}
+        return {q: (m - base).astype(np.float32) for q, m in (parts.get("raw") or {}).items()}
     if reference == "raw":
         # NO SUBTRAHEND AT ALL -- the position's own trial average, as the drift-removed signal
         # leaves it. THE POINT IS THE FAILURE MODE IT DOES NOT HAVE: every other reference here
@@ -649,7 +722,7 @@ def reference_maps(parts, reference):
         # evoked response survives relative to it. That is why `raw` is meaningful here and was
         # not under the retired `zerophase` product.
         return dict(parts.get("raw") or {})
-    raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES}")
+    raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES + DERIVED_REFERENCES}")
 
 
 @lru_cache(maxsize=8)
@@ -688,6 +761,16 @@ def maps_by_epoch(align, variant, post_s=2.0):
     by_label, fail = map_collect.collect(jobs, _raw_maps_job, label="ref-map")
     for it, err in fail:
         print(f"  !! ref-map {it[0]}: {err[:90]}", flush=True)
+    # DERIVED REFERENCES (WIDEFIELD_MAP_REFS), attached per label AFTER collection; the cached dicts are copied, never
+    # mutated. A session without a baseline loses only that column, and the list is printed (rule: say it out loud).
+    derived = derived_active()
+    refs = REFERENCES + derived
+    if "restnl" in derived:
+        from wfield_local import restnl_mask
+        bases, miss = restnl_mask.base_maps(sorted(by_label))
+        by_label = {k: (dict(v, restnl_base=bases[k]) if k in bases else v) for k, v in by_label.items()}
+        print(f"  .. ref-map: RESTnl baselines for {len(bases)}/{len(by_label)} sessions"
+              + (f"; NO RESTnl column for {miss}" if miss else ""), flush=True)
     for an in ANIMALS:
         per, ntr = {}, {}
         for s, e in plan.get(an, []):
@@ -709,9 +792,9 @@ def maps_by_epoch(align, variant, post_s=2.0):
                 n_norestw += 1
             if not parts["raw_precue"]:
                 n_noprecue += 1
-            byref = {r: reference_maps(parts, r) for r in REFERENCES}
+            byref = {r: reference_maps(parts, r) for r in refs}
             for q in raw:
-                got = {r: byref[r][q] for r in REFERENCES if q in byref[r]}
+                got = {r: byref[r][q] for r in refs if q in byref[r]}
                 if got:
                     per.setdefault(e, {}).setdefault(q, {})[s["label"]] = got
                     ntr.setdefault(e, {}).setdefault(q, {})[s["label"]] = used.get(q, 0)
@@ -719,7 +802,7 @@ def maps_by_epoch(align, variant, post_s=2.0):
             out[an], n_out[an] = per, ntr
             rel[an] = {e: {q: {r: bm.split_half_reliability(
                                     {k: d[r] for k, d in by_s.items() if r in d})
-                               for r in REFERENCES}
+                               for r in refs}
                            for q, by_s in by_q.items()}
                        for e, by_q in per.items()}
     # SAID OUT LOUD. A session with no quiet mask silently drops out of the quiet figure only, so
