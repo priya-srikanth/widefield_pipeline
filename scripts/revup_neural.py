@@ -60,7 +60,14 @@ OUTPUTS (under <OUT_W>/revup/): sessions/<label>.npz (per-trial traces cache), r
   latency, phase, group, pre-cue level per area), revup_neural_metrics.csv.gz (session x spout class x group x area x
   deconv metrics), revup_neural_per_animal.csv (rule 8 tables), revup_neural_tests.csv (boot), revup_late_compare.csv,
   revup_precue_latency.csv (+ _per_animal, _session), figdata/*.pkl; figures in <OUT_W>/figures/revup_neural_*.png.
-Usage: python scripts/revup_neural.py [--jobs 8] [--plot-only] [--join]
+Usage: python scripts/revup_neural.py [--jobs 8] [--plot-only] [--join] [--rest-variant restnl]
+RESTnl VARIANT (`--rest-variant restnl`, default restw unchanged; plan docs/status/RESTNL_ROLLOUT_PLAN_20261101.md G1): no
+re-extraction -- every stored trace (trace - RESTW, sessions/<label>.npz) is shifted at LOAD by + RESTW - RESTnl per session
+x area (exact; RESTnl = the LICK-FREE rest level of scripts/restnl.py, rule wr by default); sessions without a RESTnl level
+(ok False) are left out. A flat per-session shift leaves every WITHIN-session-and-group shape metric unchanged (slopes,
+Q4 - Q1 / slow-only contrasts of slopes and t_half, shape correlations, within-session rho); only LEVELS (traces, L_level /
+C_pre, pre-cue level between sessions -> the session-level r) move. Every output name (csv, figdata, png) gets the suffix
+_restnl (restnl.SFX); figure text is relabelled (restnl.relabel).
 """
 from __future__ import annotations
 
@@ -72,6 +79,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import restnl  # noqa: E402
 
 OUT = il.OUT_W / "revup"
 SESS = OUT / "sessions"
@@ -85,6 +93,53 @@ HEMI = (("right", "contralesional (right)"), ("left", "ipsilesional (left)"))
 COLS = [f"{a}_{h}" for a in AREAS for h, _ in HEMI if not (a == "VISp" and h == "left")]
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 GAP_SPONT = il.GAP_MAIN
+SFX = ""                        # "_restnl" under --rest-variant restnl (set in main; every output name carries it)
+
+
+def _rl(txt: str) -> str:
+    return restnl.relabel(txt) if SFX else txt
+
+
+def _o(name: str) -> Path:
+    """Output path under OUT with the variant suffix before the extension(s)."""
+    stem, dot, ext = name.partition(".")
+    return OUT / f"{stem}{SFX}{dot}{ext}"
+
+
+_SHIFT: dict = {}
+
+
+def _shift(x: str):
+    """Per-column shift RESTW - RESTnl for session x (None = restw variant, no shift; False = no RESTnl level)."""
+    if not SFX:
+        return None
+    if x not in _SHIFT:
+        nl, ok = restnl.level(x, COLS)
+        if not ok:
+            _SHIFT[x] = False
+        else:
+            src = np.load(il.OUT_W / "precue_restw" / f"{x}.npz")
+            sc = [str(c) for c in src["cols"]]
+            _SHIFT[x] = (np.asarray(src["restw"], float)[[sc.index(c) for c in COLS]] - nl).astype(np.float32)
+    return _SHIFT[x]
+
+
+def _sess(x: str) -> dict | None:
+    """The session cache with the traces on the active baseline (restw stored; restnl = + RESTW - RESTnl, exact).
+    None = left out (restw_ok False, or no RESTnl level under the restnl variant)."""
+    z = np.load(SESS / f"{x}.npz")
+    if not bool(z["restw_ok"]):
+        return None
+    sh = _shift(x)
+    if sh is False:
+        return None
+    d = {k: z[k] for k in z.files}
+    for k in ("Xc", "Xl", "Xs"):
+        v = d[k].astype(np.float32)
+        if sh is not None and v.size:
+            v = v + sh[None, None, :]
+        d[k] = v
+    return d
 
 
 # ------------------------------------------------------------------------------------------------ per-session extraction
@@ -255,10 +310,7 @@ def metrics(c: np.ndarray, lk: np.ndarray) -> dict:
 
 
 def _load_meta(x: str) -> dict | None:
-    z = np.load(SESS / f"{x}.npz")
-    if not bool(z["restw_ok"]):
-        return None
-    return z
+    return _sess(x)
 
 
 def trial_table(labels: list) -> pd.DataFrame:
@@ -267,7 +319,7 @@ def trial_table(labels: list) -> pd.DataFrame:
         z = _load_meta(x)
         if z is None:
             continue
-        Xc = z["Xc"].astype(np.float32)
+        Xc = z["Xc"]
         lvl = np.nanmean(Xc[:, _w(LAGS_C, -1.0, 0.0)], 1)
         n = len(z["pos"])
         df = pd.DataFrame({"label": x, "animal": str(z["animal"]), "epoch": str(z["epoch"]), "trial": np.arange(n),
@@ -295,8 +347,8 @@ def group_traces(T: pd.DataFrame) -> dict:
     """{(label, cls, scheme, group): (cue mean, lick mean, n)} + spontaneous ITI bout starts (cls 'all', 'spont')."""
     G = {}
     for x, t in T.groupby("label", sort=True):
-        z = np.load(SESS / f"{x}.npz")
-        Xc, Xl = z["Xc"].astype(np.float32), z["Xl"].astype(np.float32)
+        z = _sess(x)
+        Xc, Xl = z["Xc"], z["Xl"]
         for cls in CLS + ("all",):
             mc = np.ones(len(t), bool) if cls == "all" else ((t.pos == "far_contra") == (cls == "far_contra")).to_numpy()
             for scheme, col, gs in (("q", "q", QG), ("fixed", "fb", FG)):
@@ -307,7 +359,7 @@ def group_traces(T: pd.DataFrame) -> dict:
             idx = t.trial.to_numpy()[mc & (t.phase == "in_window").to_numpy()]
             if len(idx) >= MIN_N:
                 G[(x, cls, "all", "in_window")] = (np.nanmean(Xc[idx], 0), np.nanmean(Xl[idx], 0), len(idx))
-        Xs = z["Xs"].astype(np.float32)
+        Xs = z["Xs"]
         if len(Xs) >= MIN_N:
             G[(x, "all", "spont", "spont")] = (None, np.nanmean(Xs, 0), len(Xs))
     return G
@@ -468,7 +520,10 @@ def analyse() -> None:
     from figdata import save_fd
     labs = il.labels()
     T = trial_table(labs)
-    T.to_csv(OUT / "revup_neural_trials.csv.gz", index=False)
+    if SFX:
+        print(f"== {restnl.NAME} (rule {restnl.RULE}): sessions kept {T.label.nunique()} / {len(labs)}; per animal x epoch\n"
+              + T.groupby(["animal", "epoch"]).label.nunique().unstack("epoch").to_string())
+    T.to_csv(_o("revup_neural_trials.csv.gz"), index=False)
     j = OUT / "revup_trials.csv.gz"
     if j.exists():
         print(f"== behaviour table present ({j}); join check below")
@@ -482,32 +537,32 @@ def analyse() -> None:
     print("== median in-window latency (s), per animal x epoch x spout (canonical order)\n" + L.to_string())
     G = group_traces(T)
     MT = metric_table(G, T)
-    MT.to_csv(OUT / "revup_neural_metrics.csv.gz", index=False)
+    MT.to_csv(_o("revup_neural_metrics.csv.gz"), index=False)
     D = contrasts(MT)
-    D.to_csv(OUT / "revup_neural_contrasts.csv.gz", index=False)
+    D.to_csv(_o("revup_neural_contrasts.csv.gz"), index=False)
     PA = D.groupby(["tau", "cls", "area", "metric", "contrast", "animal", "epoch"]).d.mean().unstack("epoch")[EP]
-    PA.to_csv(OUT / "revup_neural_per_animal.csv")
+    PA.to_csv(_o("revup_neural_per_animal.csv"))
     LV = MT[(MT.scheme == "q")].groupby(["tau", "cls", "area", "animal", "epoch", "group"])[list(METRICS)].mean()
-    LV.to_csv(OUT / "revup_neural_levels_per_animal.csv")
+    LV.to_csv(_o("revup_neural_levels_per_animal.csv"))
     keyc = [f"{a}_right" for a in KEY[:4]]
     for m in TEST_METRICS:
         s = PA.xs((0.0, "far_contra", m, "Q4-Q1"), level=("tau", "cls", "metric", "contrast"))
         s = s[s.index.get_level_values("area").isin(keyc)]
         print(f"== per animal (rule 8): {m} Q4 - Q1, far-contra, contralesional, raw\n{s.round(3).to_string()}")
     TS = tests(D)
-    TS.to_csv(OUT / "revup_neural_tests.csv", index=False)
+    TS.to_csv(_o("revup_neural_tests.csv"), index=False)
     LC = late_compare(G, T)
-    LC.to_csv(OUT / "revup_late_compare.csv", index=False)
+    LC.to_csv(_o("revup_late_compare.csv"), index=False)
     if len(LC):
         k = LC[(LC.tau == 0.0)].groupby(["animal", "epoch", "label"])[["n_late", "r_late_normal", "r_late_spont",
                                                                          "r_normal_spont"]].first()
         print("== late vs normal vs spontaneous: shape r per session (raw)\n" + k.round(2).to_string())
     R, S = precue_latency(T)
-    R.to_csv(OUT / "revup_precue_latency.csv", index=False)
-    S.to_csv(OUT / "revup_precue_latency_session.csv", index=False)
+    R.to_csv(_o("revup_precue_latency.csv"), index=False)
+    S.to_csv(_o("revup_precue_latency_session.csv"), index=False)
     RP = R.assign(cls=np.where(R.pos == "far_contra", "far_contra", "other")).groupby(
         ["sel", "cls", "area", "animal", "epoch"]).z.mean().pipe(np.tanh).unstack("epoch")[EP]
-    RP.to_csv(OUT / "revup_precue_latency_per_animal.csv")
+    RP.to_csv(_o("revup_precue_latency_per_animal.csv"))
     print("== per animal: within session x spout rho(pre-cue level, latency), contralesional key areas, all trials\n"
           + RP.loc["all"][RP.loc["all"].index.get_level_values("area").isin(keyc)].round(2).to_string())
     # figure data
@@ -516,7 +571,7 @@ def analyse() -> None:
           "late": {tau: {**curves(G, T, "q", ["late"], tau), **curves(G, T, "all", ["in_window"], tau),
                          **curves(G, T, "spont", ["spont"], tau)} for tau in TAUS},
           "D": D[D.area.isin(COLS)], "TS": TS, "R": R, "S": S, "LC": LC}
-    save_fd("revup_neural", fd, root=OUT / "figdata")
+    save_fd("revup_neural" + SFX, fd, root=OUT / "figdata")
 
 
 def join_check(T: pd.DataFrame, J: pd.DataFrame) -> None:
@@ -526,7 +581,7 @@ def join_check(T: pd.DataFrame, J: pd.DataFrame) -> None:
     if len(keys) < 2:
         print("   (no label + cue_s columns to join on; agreement not checked)")
         return
-    Z = pd.read_csv(OUT / "revup_neural_trials.csv.gz")
+    Z = pd.read_csv(_o("revup_neural_trials.csv.gz"))
     cue = pd.concat([pd.DataFrame({"label": x, "trial": np.arange(len(np.load(SESS / f"{x}.npz")["cue"])),
                                    "cue_s": np.load(SESS / f"{x}.npz")["cue"]}) for x in Z.label.unique()])
     Z = Z.merge(cue, on=["label", "trial"])
@@ -541,7 +596,7 @@ def join_check(T: pd.DataFrame, J: pd.DataFrame) -> None:
 # ------------------------------------------------------------------------------------------------ figures
 def draw_all() -> None:
     from figdata import load_fd
-    F = load_fd("revup_neural", root=OUT / "figdata")
+    F = load_fd("revup_neural" + SFX, root=OUT / "figdata")
     FIGS.mkdir(parents=True, exist_ok=True)
     for tau in (0.0, 0.6):
         for cls in CLS:
@@ -617,7 +672,7 @@ def draw_traces(CV: dict, cls: str, h: str, hl: str, tau: float, groups: list, s
                     ax.set_xlabel(f"time from {'cue' if side == 0 else 'first lick'} (s)", fontsize=7)
                 if k == 0:
                     ax.set_ylabel(f"{a}{'  [control]' if a in CTRL else ''}\n" + ("deconv " if tau else "")
-                                  + "dF/F x1e3 - restw", fontsize=7)
+                                  + _rl("dF/F x1e3 - restw"), fontsize=7)
     bot = _fig_legend(fig, [plt.Line2D([], [], color=col[g], lw=1.6,
                                        label=g + (" (first lick after the trial stop)" if g == "late" else ""))
                             for g in groups] +
@@ -631,14 +686,14 @@ def draw_traces(CV: dict, cls: str, h: str, hl: str, tau: float, groups: list, s
     what = "far-contra target trials" if cls == "far_contra" else "the other five spouts (pooled)"
     grp = ("latency QUARTILES within animal x spout x epoch (Q1 fastest .. Q4 slowest) + LATE (first lick after the trial "
            "stop, spout gone; red)" if scheme == "quartile" else "FIXED latency bins (s) + late")
-    top = _suptitle(fig, f"NEURAL: {hl} cortex, {what}: area traces above RESTW by first-lick latency group -- {grp}. Left four "
+    top = _suptitle(fig, _rl(f"NEURAL: {hl} cortex, {what}: area traces above RESTW by first-lick latency group -- {grp}. Left four "
                  f"columns cue-aligned (into the ITI), right four first-lick-aligned. Session mean per group -> animal mean "
                  f"-> mean of animals (dotted = < 4 animals; their n in the column title)."
                  + (f" DECONVOLVED: s = x + {tau} dx/dt (first-order inverse GCaMP kernel)." if tau else
-                    " GCaMP6s: lags spikes ~0.1-0.2 s and decays ~0.5-1 s -- compare slopes / shapes, not onsets."))
+                    " GCaMP6s: lags spikes ~0.1-0.2 s and decays ~0.5-1 s -- compare slopes / shapes, not onsets.")))
     fig.tight_layout(rect=(0, bot, 1, top))
     stem = f"revup_neural_traces_{scheme}_{cls}_{h}" + (f"_deconv{tau}" if tau else "")
-    fig.savefig(FIGS / f"{stem}.png", dpi=100, bbox_inches="tight")
+    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -686,7 +741,7 @@ def draw_metrics(D: pd.DataFrame, TS: pd.DataFrame) -> None:
             [plt.Line2D([], [], color="0.3", lw=1.5, marker="_", ms=8, label="boot_ci (animals > sessions)")]
         bot = _fig_legend(fig, hd, fontsize=10)
         fig.tight_layout(rect=(0, bot, 1, top), h_pad=1.5)
-        fig.savefig(FIGS / f"revup_neural_{CT[ct][1]}{'_deconv' + str(tau) if tau else ''}.png", dpi=100,
+        fig.savefig(FIGS / f"revup_neural_{CT[ct][1]}{'_deconv' + str(tau) if tau else ''}{SFX}.png", dpi=100,
                     bbox_inches="tight")
         plt.close(fig)
     _draw_metrics_simple(D, TS)
@@ -730,7 +785,7 @@ def _draw_metrics_simple(D: pd.DataFrame, TS: pd.DataFrame) -> None:
                     "threshold; L_slope / C_slope < 0 = slower ramp in slow trials; t_half < 0 = earlier 50 % crossing "
                     "(slow ramp), ~0 = same shape shifted. Full set: revup_neural_slowonly_contrasts.png.")
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIGS / "revup_neural_slowonly_contrasts_simple.png", dpi=100, bbox_inches="tight")
+    fig.savefig(FIGS / f"revup_neural_slowonly_contrasts_simple{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -760,7 +815,7 @@ def draw_late(CV: dict, LC: pd.DataFrame) -> None:
                 # n animals per group moved from a legend on the traces into the row label
                 nn = "/".join(str(CV[("all", ep, g)][2]) if CV.get(("all", ep, g)) is not None else "-"
                               for g in ("in_window", "late", "spont"))
-                ax.set_ylabel(f"{ep}  (n win/late/spont {nn})\ndF/F x1e3 - restw", fontsize=7)
+                ax.set_ylabel(_rl(f"{ep}  (n win/late/spont {nn})\ndF/F x1e3 - restw"), fontsize=7)
     # bottom row: shape correlations per session -- one wider panel (was 1 of 13 tiny axes) + its legend beside it
     gs = axs[-1, 0].get_gridspec()
     for a_ in axs[-1]:
@@ -780,12 +835,12 @@ def draw_late(CV: dict, LC: pd.DataFrame) -> None:
     lax.legend(handles=[plt.Line2D([], [], color=cc[g], lw=1.6, label=f"trace: {g}") for g in cc] +
                _ep_an_handles(sorted(LC.animal.dropna().unique())), loc="center left", ncol=2, fontsize=9,
                frameon=False, title="traces (rows 1-4) / shape r markers (bottom)", title_fontsize=9)
-    top = _suptitle(fig, "NEURAL: LATE first licks (first lick after the trial stop, spout gone) vs NORMAL first licks (in-window, all "
+    top = _suptitle(fig, _rl("NEURAL: LATE first licks (first lick after the trial stop, spout gone) vs NORMAL first licks (in-window, all "
                  "spouts) vs SPONTANEOUS ITI bout starts (>= 2 s quiet), first-lick-aligned, above RESTW. Sessions with >= 2 "
                  "late licks enter the late curve; mean of animal means (row label: n animals in_window / late / spont). Bottom: per-session shape "
-                 "correlation over key areas x hemispheres (-1.5..+1 s, colour = epoch, marker = animal).")
+                 "correlation over key areas x hemispheres (-1.5..+1 s, colour = epoch, marker = animal)."))
     fig.tight_layout(rect=(0, 0, 1, top))
-    fig.savefig(FIGS / "revup_neural_late_vs_normal_vs_spont.png", dpi=100, bbox_inches="tight")
+    fig.savefig(FIGS / f"revup_neural_late_vs_normal_vs_spont{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -811,21 +866,24 @@ def draw_precue(R: pd.DataFrame) -> None:
         ax.set_xticklabels([p.replace("_", "\n") for p in POS], fontsize=7)
         ax.set_title(a.replace("_right", " contralesional").replace("_left", " ipsilesional"), fontsize=9)
         ax.tick_params(labelsize=7)
-    top = _suptitle(fig, "NEURAL: does the trial's PRE-CUE level (-1..0 s above RESTW) predict its first-lick latency? Spearman rho "
+    top = _suptitle(fig, _rl("NEURAL: does the trial's PRE-CUE level (-1..0 s above RESTW) predict its first-lick latency? Spearman rho "
                  "within session x spout (trials with a first lick, in-window or late; >= 8 trials), Fisher-z mean per "
                  "animal (markers) x epoch (colour); bar = mean of animals. Spouts in canonical order. > 0 = higher "
-                 "pre-cue level -> slower first lick.")
+                 "pre-cue level -> slower first lick."))
     bot = _fig_legend(fig, _ep_an_handles(sorted(R.animal.dropna().unique())) +
                       [plt.Line2D([], [], color="0.3", lw=1.5, label="bar = mean of animals")], fontsize=10)
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIGS / "revup_neural_precue_vs_latency.png", dpi=100, bbox_inches="tight")
+    fig.savefig(FIGS / f"revup_neural_precue_vs_latency{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
 def main() -> int:
+    global SFX
+    SFX = restnl.SFX if restnl.variant() == "restnl" else ""
     jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8
     if "--plot-only" not in sys.argv:
-        extract(jobs)
+        if not SFX:   # restnl: no re-extraction, the restw-referenced cache is shifted at load
+            extract(jobs)
         if "--extract-only" in sys.argv:
             return 0
         analyse()

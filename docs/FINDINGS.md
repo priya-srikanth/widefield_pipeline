@@ -962,6 +962,14 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   (rel +5.2/+4.4) and the non-orofacial dip is n.s. vs RESTnl; S13 last-lick tjM1 pre values lower, chronic > pre
   4/4 in the last 0.5 s before the cue (tjM1, ALM). Unchanged: exponents / threshold verdict, own-pre-cue A (-2 n.s.),
   counts. PROVISIONAL.
+- RESTnl MAIN CAPTION + S7 11-01 (goal Fig 14.21 caption numbers now rule-wr *_restnl; S7 revup_neural --rest-variant restnl,
+  RESTW collapsed). Changed under RESTnl: all-spouts ACUTE = 12 areas RISE 4/4 (RSP / VIS largest, +2.6..+4.7; contra ALM +1.6)
+  [RESTW: only ipsi SSp-ul / -un -4.4, now -2.5 n.s.]; far-contra acute raise broad, 34 / 45 areas (RSPd +8.2, tjM1 +7.4)
+  [RESTW 8]; far-contra chronic bilateral tjM1 / SSp-m / SSp-n +3.4..+5.4, 4/4 [n.s.] and its 11 posterior falls gone;
+  all-spouts chronic falls 20 -> 11 (VIS / RSP only; the earlier '-> 4' was the strict rule). Caveat made explicit: lick-free
+  rest itself falls in contra tjM1 / SSp-m (-8.0 / -9.0 chronic, 4/4) more than the unreferenced pre-cue level (-2.7 / -4.6),
+  so 'rise above rest' = falls less than rest. S7: every within-session revup result identical (flat shift); only trace
+  levels and the session-level r move. PROVISIONAL.
 - FIG 0.12 + FAR-CONTRA AIM 10-30 (Priya: "can 0.12 include the far contra lick angle index?"; scripts/recovery_timing.py
   --aim [--plot-only] -> attempt_coding/figures/recovery_timing_pooled_day_lick_aim.png, panel B = far-contra first-lick
   3-D aim, change vs own August pre, deg, + = contralesional; panel A reproduces 0.12 exactly). Aim drops to -32 deg
