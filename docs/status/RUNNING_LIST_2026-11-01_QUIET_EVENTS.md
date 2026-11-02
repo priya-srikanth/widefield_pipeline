@@ -26,9 +26,12 @@ imaging page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV section 15.
 - 22:35 encoding window (sabatinilab-34) confirmed: section 23 before 'Pending', Fig 23.k, lick tags, files map; it flagged an LP-lick quiet-frame sensitivity check -> I took it (agent, `quiet_lp_sensitivity.py`, `V2/lp_quiet/`).
 - 22:50 PUBLISHED encoding page v304: new section 23 'Quiet-period cortical state' (22 figures: key 23.1 rate, 23.2 movement-corrected maps, 23.3 synchronisation, 23.4 stillness, 23.5 pre-cue event -> position code; supporting / supplementary 23.6-23.22 incl. 415, breathing (interim), Steinmetz, recovery link, lick LFO, effort) + a status-table row. Version + fig_ids rows sent to the encoding window.
 
-**Page changes tonight:** encoding page v304 = NEW section 23 (all quiet-period results, 22 figures; https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#quiet-state). Imaging-page section 15 -> pointer: pending. Section 23 will be updated as breathing / T21 / T22 / T13-followup / LP-lick results land.
+**Page changes tonight:** encoding page v304 = NEW section 23 (all quiet-period results, 22 figures; https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d#quiet-state). Imaging page v41: section 15 now opens with a MOVED note linking to section 23 (figures kept, no longer updated). Section 23 will be updated as breathing / T21 / T22 / T13-followup / LP-lick results land.
 
 ## Decisions needed from Priya
+
+* **Lick source for QUIET frames (Priya 11-01 ~22:55: 'why DAQ spout contact instead of LP?')**: an inherited default from the imaging page's canonical DAQ events, not a choice. Acutely 73-99 % of far-contra licks are non-contact, so contact-only quiet frames can contain tongue movements and inflate the acute rate. Proposal: make DAQ + LP (+ jaw) the PRIMARY quiet definition once quiet_lp_sensitivity.py lands; swap section 23's headline figures if the effect survives; flag at the top here if it shrinks.
+  Related (encoding window, wf_attempt docs/status/GATE_LP_CHECK_20261101.md): the DAQ-contact ENGAGEMENT gate rarely misses LP attempt trials (pre 0.5 %, acute ~3 %), so the engaged / quit split is fine; that does NOT cover non-contact licks INSIDE quiet frames -- that is what quiet_lp_sensitivity.py tests.
 
 * **Page**: Fig 15.7 replaced with the movement-corrected map (v40, done 11-01).
 * **'Acute events decay faster'**: not robust to movement correction in orofacial cortex -- drop the claim or keep it only for limb?
