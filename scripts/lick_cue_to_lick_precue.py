@@ -37,6 +37,7 @@ import figdata as _fd  # noqa: E402
 import lick_cue_to_lick_extract as cx  # noqa: E402
 import restnl  # noqa: E402
 from figdata import plot_only  # noqa: E402
+from wfield_local.sig_marks import reserve_headroom, star_top  # noqa: E402
 
 SFX = ""                        # "_restnl" under --rest-variant restnl (set in main)
 VAR = "restw"
@@ -184,6 +185,7 @@ def draw_traces(stem: str) -> None:
                  "epoch's mean RESTW level in the same units (rest sits below the session mean). Per animal x epoch mean "
                  "over sessions, mean of animals, shade = SEM over animals. Grey = -1..0 s pre-cue window. "
                  f"n: {F['nlab']}. PROVISIONAL."), 11, 9), fontsize=9)
+    reserve_headroom(fig)
     fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -216,8 +218,8 @@ def draw_decomp(stem: str) -> None:
                 ax.scatter(range(len(POST)), mu, marker="_", s=180, c=[EPOCH_LINE[e] for e in POST], lw=2.2, zorder=4)
                 for _q, r in D[(D.col == c) & (D.comp == k)].iterrows():
                     if r.sig:
-                        ax.text(POST.index(r.epoch), 1.0, "*" if not r.flag_lt3 else "(*)", ha="center", va="bottom", fontsize=9,
-                                transform=ax.get_xaxis_transform(), color=EPOCH_LINE[r.epoch], clip_on=False)
+                        star_top(ax, POST.index(r.epoch), "*" if not r.flag_lt3 else "(*)", color=EPOCH_LINE[r.epoch],
+                                 fontsize=9)
                 if k != "F0pct":
                     ax.set_ylim(-lim, lim)
                 ax.set_xticks(range(len(POST)), [e[:3] for e in POST], fontsize=6)
@@ -234,6 +236,7 @@ def draw_decomp(stem: str) -> None:
                  "shows; F0 = raw 470 nm fluorescence (% of the animal's pre). Bar = mean of animals; * = paired nested "
                  "bootstrap CI excludes 0 (analysis_kit.boot_delta), (*) = fewer than 3 animals share the sign. "
                  "PROVISIONAL, n = 4."), 2.2 * len(COMP), 8), fontsize=8)
+    reserve_headroom(fig)
     fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -268,8 +271,7 @@ def draw_decomp_simple(src: str = "lick_cue_to_lick_D_decomposition", out: str =
                 ax.errorbar(x + 0.12, r.delta, yerr=[[r.delta - r.lo], [r.hi - r.delta]], fmt="s", ms=5.5, capsize=3,
                             color=EPOCH_LINE[E], lw=1.4, zorder=4)
                 if r.sig:
-                    ax.text(x + 0.12, 1.0, "*" if not r.flag_lt3 else "(*)", ha="center", va="bottom", fontsize=10,
-                            color=EPOCH_LINE[E], transform=ax.get_xaxis_transform(), clip_on=False)
+                    star_top(ax, x + 0.12, "*" if not r.flag_lt3 else "(*)", color=EPOCH_LINE[E], fontsize=10)
             ax.set_xticks(range(len(POST)), POST, fontsize=7)
             ax.set_xlim(-0.5, len(POST) - 0.5)
             ax.tick_params(labelsize=7)
@@ -285,9 +287,15 @@ def draw_decomp_simple(src: str = "lick_cue_to_lick_D_decomposition", out: str =
     f0s = ", ".join(f"{c.split('_')[0]} {f0.loc[c, 'delta']:+.1f}%{' *' if f0.loc[c, 'sig'] else ''}"
                     for c in SIMPLE_ROWS if c in f0.index)
     nsig = int(f0.sig.sum()) if len(f0) else 0
-    head = F.get("head") or ("In the contralesional orofacial areas the pre-cue 'dip' seen without a baseline is the RESTW "
-                             "level falling; pre-cue minus RESTW is unchanged or slightly UP chronically. The reference "
-                             "areas SSp-bfd / VISp instead fall relative to RESTW. ")
+    # the headline differs by baseline (11-01: the RESTW wording was still printed on the RESTnl render)
+    if SFX:
+        head = ("In the contralesional orofacial areas the pre-cue 'dip' seen without a baseline is the RESTnl level "
+                "falling; pre-cue minus RESTnl is UP chronically (4/4). The reference areas SSp-bfd / VISp show no "
+                "significant chronic change relative to RESTnl. ")
+    else:
+        head = F.get("head") or ("In the contralesional orofacial areas the pre-cue 'dip' seen without a baseline is the "
+                                 "RESTW level falling; pre-cue minus RESTW is unchanged or slightly UP chronically. The "
+                                 "reference areas SSp-bfd / VISp instead fall relative to RESTW. ")
     fig.suptitle(_wrap(head + _rl(
         "Change from PRE of the raw pre-cue level (-1..0 s, NO baseline, 0 = session mean) = "
         "(pre-cue minus RESTW, the Fig 14.21 quantity) + RESTW level, contralesional areas, ENGAGED trials, all spouts "
@@ -296,6 +304,7 @@ def draw_decomp_simple(src: str = "lick_cue_to_lick_D_decomposition", out: str =
         "paired nested bootstrap point and 95% CI (analysis_kit.boot_delta); * = CI excludes 0, (*) = fewer than 3 "
         "animals share the sign. PROVISIONAL, n = 4."), 8.4, 8.5), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
+    reserve_headroom(fig)
     fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 

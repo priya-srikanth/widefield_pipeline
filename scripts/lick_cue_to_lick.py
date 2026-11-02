@@ -58,6 +58,7 @@ import figdata as _fd  # noqa: E402
 import lick_cue_to_lick_extract as cx  # noqa: E402
 import restnl  # noqa: E402
 from figdata import plot_only  # noqa: E402
+from wfield_local.sig_marks import reserve_headroom, star_top  # noqa: E402
 
 SFX = ""                        # "_restnl" under --rest-variant restnl (set in main; every output name carries it)
 
@@ -501,7 +502,6 @@ def _wrap(txt: str, fig_w: float, fs: float) -> str:
 def draw_dotgrid(stem: str) -> None:
     """Rows = areas (one hemisphere), columns = spouts (canonical order + all); x = epoch; per-animal dots + mean."""
     import matplotlib.pyplot as plt
-    from matplotlib.transforms import blended_transform_factory
     from wfield_local.orofacial_cohort import EPOCH_LINE
     F = load_fd(stem, FDR)
     PA, D, acol = F["PA"], F["D"], F["acol"]
@@ -524,12 +524,10 @@ def draw_dotgrid(stem: str) -> None:
                 mu = t.reindex(columns=EP).mean(0)
                 ax.scatter(range(len(EP)), mu, marker="_", s=180, c=[EPOCH_LINE[e] for e in EP], lw=2.2, zorder=4)
                 dd = D[(D.col == col) & (D.pos == p)]
-                tr = blended_transform_factory(ax.transData, ax.transAxes)
                 for _k, r in dd.iterrows():
                     x = EP.index(r.epoch)
-                    if r.sig:   # above the axes, so a star never sits on a data line
-                        ax.text(x, 1.0, "*" if not r.flag_lt3 else "(*)", ha="center", va="bottom", fontsize=9,
-                                color=EPOCH_LINE[r.epoch], transform=tr, clip_on=False)
+                    if r.sig:   # top band inside the panel (sig_marks.star_top; headroom reserved before save)
+                        star_top(ax, x, "*" if not r.flag_lt3 else "(*)", color=EPOCH_LINE[r.epoch], fontsize=9)
             ax.set_ylim(-lim if F.get("sym", True) else min(0, -0.1 * lim), lim)
             ax.set_xticks(range(len(EP)), [e[:3] for e in EP], fontsize=6)
             ax.tick_params(labelsize=6)
@@ -541,6 +539,7 @@ def draw_dotgrid(stem: str) -> None:
     fig.legend(handles=hs, loc="outside lower center", ncol=len(hs), fontsize=7, frameon=False)
     fig.suptitle(_wrap(_rl(F["title"]), fw, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
+    reserve_headroom(fig)
     fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -665,6 +664,7 @@ def draw_B_pre(stem: str) -> None:
                  "template (trials not yet licked by t + 0.3 s) at that latency." + (
                      f" DECONVOLVED trace s = y + {F['tau']} dy/dt." if F["tau"] else " Raw GCaMP6s dF/F (slow, lagged)."),
                  fw, 8), fontsize=8)
+    reserve_headroom(fig)
     fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -708,6 +708,7 @@ def draw_B_exp(stem: str) -> None:
                  f"; bins with positive means only) against the model predictions (dotted). Dots = animals, bar = mean. "
                  f"Pre-stroke latencies span only ~0.1-0.4 s, so exponents are noisy." + (
                      f" DECONVOLVED (tau {F['tau']} s)." if F["tau"] else " Raw GCaMP6s dF/F."), fw, 8), fontsize=8)
+    reserve_headroom(fig)
     fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
@@ -850,6 +851,7 @@ def draw_threshold_simple(src: str = "lick_cue_to_lick_B_farcontra_on_pre",
         + (" Trials = CURRENT engaged gate, sessions with a RESTnl level (rest-independent quantity)." if SFX else ""),
         13.5, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
+    reserve_headroom(fig)
     fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
@@ -882,8 +884,7 @@ def draw_A_simple(src: str = "lick_cue_to_lick_A_level_contra", out: str = "lick
                     ax.errorbar(xc, r.delta, yerr=[[r.delta - r.lo], [r.hi - r.delta]], fmt="s", ms=6, capsize=3,
                                 color=EPOCH_LINE[E], mfc=EPOCH_LINE[E] if filled else "white", mew=1.4, lw=1.4, zorder=4)
                     if r.sig:
-                        ax.text(xc, 1.0, "*" if not r.flag_lt3 else "(*)", ha="center", va="bottom", fontsize=11,
-                                color=EPOCH_LINE[E], transform=ax.get_xaxis_transform(), clip_on=False)
+                        star_top(ax, xc, "*" if not r.flag_lt3 else "(*)", color=EPOCH_LINE[E], fontsize=11)
             ax.set_xticks(range(len(POST)), POST, fontsize=7)
             ax.set_xlim(-0.55, len(POST) - 0.45)
             ax.tick_params(labelsize=7)
@@ -904,6 +905,7 @@ def draw_A_simple(src: str = "lick_cue_to_lick_A_level_contra", out: str = "lick
         "than 3 animals share the sign. Not latency-matched (slower post-stroke licks lengthen the window). "
         "PROVISIONAL, n = 4 mice."), 12, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
+    reserve_headroom(fig)
     fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
