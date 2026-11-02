@@ -14,9 +14,10 @@ left = ipsilesional on brain maps.
 
 | job | command | output | state |
 |---|---|---|---|
-| (DONE 11-01) quit-period state (cortex + face, quit vs engaged quiet) | `python scripts/cohort2_qc/quiet_quit_state.py --jobs 6` (background, log `scratchpad/quit_state.log`) | `labcams/cohort1_quiet_spikes/v2_quiet/quit_state/` (`sessions/*.npz`, `quit_state_sessions.csv`) | finished 108 / 108; result in 3.8 |
+| T1-T4 event-map split (movement x height x polarity x state) + per-event ipsi / contra timing | `python scripts/cohort2_qc/quiet_eta_split.py --jobs 5` (log `scratchpad/eta_split.log`) | `v2_quiet/eta_split/` (sessions npz, spread / ipsi-contra csv, T1 / T3 / T4 map figures) | RUNNING (started ~21:00); cached per session, re-run or `--summarise` |
+| (DONE) quit-period state | `quiet_quit_state.py` | `v2_quiet/quit_state/` | finished 108 / 108; result 3.8 |
 
-Nothing is running. Kill only the exact PID if needed (never by name / parent).
+ Kill only the exact PID if needed (never by name / parent).
 
 Environment for every script here: `set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache`; python =
 `C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe`; FaceRhythm basis = `QS_FR_BASIS=own` (the scripts set it as
@@ -65,31 +66,32 @@ default; it is inherited by spawn workers).
    pre-stroke disengaged state. Sparse: pre sessions with >= 60 s quit quiet = 0 / 1 / 4 / 6 (PS92-95). Priya: animals
    do not look asleep by eye closure. Confounds: quit is late in session (time / satiety / bleaching).
 
-## 4. Open tests (priority order; discussed with Priya 11-01)
+## 4. Every test proposed 11-01 to distinguish the hypotheses (status-tagged; run in this order)
 
-1. **Selection control for 15.7 (decisive, do first).** Pre events are mostly movement-locked (whisking activates
-   barrel / limb cortex); acute ones are not, and are 5x more numerous (smaller events dominate the average). Split
-   events by face movement (move flag already in the v2 FR session npz: `move_raw_pos/neg`) AND match height, then
-   compare pre non-movement vs acute non-movement maps. Same maps -> the stroke made non-movement events common;
-   still more local acutely -> the event itself changed.
-2. **Ipsi vs contra onset / amplitude** of acute orofacial events (31 Hz = ~32 ms lead-lag resolution). Motivation:
-   VLS -> lateral SNr -> VM / VAL thalamus -> ALM / tjM1 is the licking loop (Lee, Wang & Sabatini 2020); thalamic
-   projection mostly ipsilateral -> ipsilesional-first / larger predicts a loop origin; simultaneous bilateral onset
-   predicts a common (state) driver. 15.6 shows ipsi > contra SD in PS93 / PS94 only.
-3. **Up vs down event maps**: same local footprint -> local excitability oscillation (fits 2-3 Hz + faster decay).
-4. **Breathing check (open since 10-31)**: 2-3 Hz = mouse resting respiration. Coherence of quiet orofacial trace with
-   the FaceRhythm breathing / sniff factors, pre vs acute.
-5. **State**: (quit run DONE, result 3.8) compare the pre-stroke QUIT-period event map with the acute engaged map (same
-   local footprint?); then within engaged quiet, does acute event rate rise with face
-   stillness? A cortex-wide state change would not explain a map confined to orofacial cortex, but can add to it.
-6. **Behaviour link**: (a) do the same events occur in pre-cue / ITI windows; (b) does a pre-cue event predict a failed
-   far-contra attempt or a weaker pre-cue position code on that trial; (c) within animal, event rate vs far-contra
-   recovery with the time trend removed (as `scripts/iti_recovery_link.py`); (d) pre-register PS93 (largest acute rate)
-   / PS94 (least recovered) orderings for cohort2.
-7. **Ramanathan tension**: their reach-locked low-frequency oscillations FALL after stroke and their return tracks
-   recovery; ours (quiet, spontaneous) RISE. Test movement-locked low-frequency power in our lick windows vs the quiet
-   increase in the same sessions.
-8. Offered, not started: a "Context in the field" section for FINDINGS.md / goal-question page (section 6 is the draft).
+Hypotheses: **CIRCUIT** (lesion-driven change in the VLS -> SNr -> motor-thalamus -> orofacial-cortex loop; diaschisis /
+local sleep-like dynamics), **STATE** (drowsiness / low arousal / sickness), **ARTEFACT** (breathing / brain motion,
+haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which events cross threshold, not in the events).
+
+| # | test | separates | prediction | status |
+|---|---|---|---|---|
+| T1 | 15.7 selection control: event maps split by face movement (with / without, +/-0.3 s) AND height-matched (4-6 / 6-9 / > 9 x pre SD), pre vs acute | SELECTION vs changed event | same maps -> stroke made non-movement events common; acute still more local -> event changed | RUNNING 11-01 (`quiet_eta_split.py`, outputs `v2_quiet/eta_split/`) |
+| T2 | ipsi vs contra orofacial amplitude and onset lag per event (31 Hz, ~32 ms) | CIRCUIT (ipsilesional thalamic projection: ipsi first / larger) vs STATE (simultaneous, symmetric) | CIRCUIT: ipsi leads / larger acutely | RUNNING 11-01 (same pass) |
+| T3 | up vs down event maps | local oscillation vs discrete bursts | same local footprint -> excitability oscillation | RUNNING 11-01 (same pass) |
+| T4 | pre-stroke QUIT-period event map vs acute ENGAGED map | STATE (acute = pre disengaged state) | same local footprint -> state-like | RUNNING 11-01 (same pass; pre quit data sparse) |
+| T5 | event width / rise / decay, ACF half-time | thalamic bursts (faster rise) vs oscillation (faster decay) vs drowsiness (slower) | -- | DONE: decay ~18 % faster, rise unchanged, ACF unchanged -> oscillation (3.7) |
+| T6 | quit-period vs engaged quiet: cortex bands, face speed | STATE | -- | DONE: pre quit already has the orofacial 1-4 Hz signature, cortex-wide lower; engaged-quiet face speed halves acutely 4/4 (3.8) |
+| T7 | within engaged quiet: event rate vs face stillness (per session, binned face speed) | STATE contribution | rate rises with stillness -> state adds | TO DO |
+| T8 | per-animal ipsi vs contra comparison of the rate / SD increase (direct, not by eye from 15.6) | CIRCUIT (ipsilesional) vs global | CIRCUIT: ipsi > contra in >= 3/4 | TO DO (partly in T2) |
+| T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTEFACT (breathing) | coherence high / tracks respiration -> artefact | TO DO (open since 10-31) |
+| T10 | haemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTEFACT (haemodynamic) | events absent in 415 -> neural | TO DO (proposed in discussion; not yet in the list before 11-01) |
+| T11 | amplitude distribution; count of events > 10 % dF/F and cortex-wide synchronous events (Steinmetz 2017 interictal shape) | ARTEFACT / epileptiform | none -> not interictal | TO DO |
+| T12 | events in pre-cue / ITI (task) windows, not only quiet | relevance | -- | TO DO |
+| T13 | pre-cue event on a trial -> failed far-contra attempt / weaker pre-cue position code on that trial | CIRCUIT-noise mechanism for the deficit | events predict failure | TO DO |
+| T14 | within animal, event rate vs far-contra recovery with log-day removed (as `iti_recovery_link.py`) | link to recovery | negative relation | TO DO |
+| T15 | rate tracks each animal's deficit (PS93 largest acute rate; PS94 least recovered); pre-register orderings for cohort2 | CIRCUIT vs STATE / ARTEFACT | -- | TO DO (n = 4 descriptive) |
+| T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | TO DO |
+| T17 | literature: targeted PubMed search (striatal / capsular stroke + widefield GCaMP / cortical recordings); verify the *(memory)* citations (Allegra Mascaro 2019, Levin 2009, Nudo 1996, Lee-Wang-Sabatini 2020) | context | -- | TO DO |
+| T18 | k-choice bias: report subacute / chronic (not used to pick k) as the unbiased contrasts; held-out-animal k already LOAO | statistics | -- | NOTE (reported in 15.1 caption) |
 
 ## 5. Files
 
