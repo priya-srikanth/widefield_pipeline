@@ -65,3 +65,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   LP_GATE_OPTION_20261101.md.
 ## DECISION FOR PRIYA (morning): full "final LP arm" re-render (LP licks + LP gate + RESTnl + August pre, each family
    once in final form; several hours, cold caches)? Not started overnight.
+- 01:00 14.21 MAIN caption + S7 on RESTnl DONE (commit 5a1b541a). CONCLUSIONS CHANGED (14.21, a SUPPORTING figure; title
+  changed accordingly -- REVIEW): acute far-contra pre-cue raise is BROAD (34 / 45 areas, 30 of them 4/4; was 8);
+  chronic far contra now a bilateral orofacial rise 4/4 (was nothing significant) and the 11 posterior falls are gone;
+  all-spouts acute 12 areas RISE (was only 2 falls); chronic falls 20 -> 11 (VIS / RSP only); "4/4 in all key areas both
+  hemispheres" no longer true (ipsi SSp-n 3/4 n.s.). Caveat: the lick-free rest level itself falls (contra tjM1 -8.0
+  4/4) more than the raw pre-cue level, so "rise above rest" = pre-cue falls less than rest. S7: no conclusion changed
+  (flat shift; only levels move). Old RESTW versions kept collapsed.
+- 01:05 merged the quiet window's section 23 into the local source (22 figs, status row, fig_ids rows).
+- 01:05 Priya: "ok for the full job - ensure we discuss before you take anything off the page or replace headline
+  results" -> final LP arm re-render APPROVED; RULE for tonight: ADD new versions only; nothing removed from the page and
+  no headline result replaced without discussion (new versions go next to / below, old kept visible).
