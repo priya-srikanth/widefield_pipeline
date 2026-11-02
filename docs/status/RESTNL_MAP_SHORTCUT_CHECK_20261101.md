@@ -239,3 +239,51 @@ Reading it:
 - Limits: n = 8 sessions, one pre and one acute per animal, cue/working contact arm only.
 - If more certainty is wanted before render M2: rerun this scratch measurement on all 120 sessions. It takes ~15 s per
   session, so ~8 min with 4 workers.
+
+## ADDENDUM (11-01 late): the same measurement on ALL sessions
+
+Run as part of the RESTnl baseline build (`python -m wfield_local.restnl_mask --measure`, worktree `wf_restnl`, branch
+`analysis/restnl-maps`; 4 workers, 22.6 min wall for 120 sessions incl. the baselines, slower than the 8-min estimate
+because the box was shared). Same construction as section 4 (cue/working contact `prm` cache; page REST mask = quiet &
+engaged, 12 bins, bins < 20 frames NaN). 119 sessions (PS93_0813 has no cam4 licks -> no RESTnl, not measured). The 8
+check sessions reproduce the table above exactly (e.g. PS94_0818 far_R 3.23, Flat - TL 0.48 = 14.9 %; RESTnl - RESTW
+p99 7.45 / 7.09 / 4.27 / 0.68 / 3.61 / 12.59 / 5.21 / 1.75). Per-session table:
+`<scratchpad>/restnl/measure_all.csv` and `C:/Users/SabatiniLab/.widefield_session_cache_restnl/build_summary_measure.json`.
+
+Flat - TL change to the far_R map, % of that map's RMS, median per animal x epoch (n sessions in brackets):
+
+| animal | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| PS92 | 4.0 (11) | 5.6 (5) | 13.9 (2) | 3.1 (12) |
+| PS93 | 2.0 (10) | 4.1 (4) | 2.1 (3) | 4.4 (12) |
+| PS94 | 4.2 (11) | 6.1 (6) | **20.3 (5)** | **40.0 (8)** |
+| PS95 | 2.3 (11) | 2.2 (1) | 4.4 (7) | 1.2 (11) |
+
+Over all sessions and positions: median 3.4 %, p90 26.8 %. The position-DEPENDENT part (what could change
+between-position contrasts) is a median 6.3 % of the contrast RMS pre, 6.1 % acute, 9.3 % subacute, 6.4 % chronic.
+
+**What changes relative to the 8-session verdict:**
+
+1. **Pre and acute: confirmed.** Flat vs time-local moves the far-contra map by a median 2.8 % (pre) and 5.2 % (acute),
+   the same size in both, with no epoch dependence. The acute far-contra headline (flat RESTnl) is not exposed to the
+   flat-vs-time-local choice beyond the stated +/-0.5e-3 near-zero caveat (PS94_0818 / 0819: 15-17 %).
+2. **NEW: PS94 subacute and chronic are NOT flat.** In all 13 PS94 sessions from 08-25 on, the page-REST baseline RISES
+   through the session (brain-mean slope first -> last engaged bin +12 to +21e-3, median 17.0e-3 chronic, vs 3.4e-3 PS94
+   pre and <= 4e-3 median in every other animal-epoch), and a flat baseline then shifts the far_R map by 25-89 % of its
+   RMS (median 40 %). It is almost entirely a COMMON shift (common part 3.6-5.1e-3 vs position-dependent 0.2-1.0e-3), i.e.
+   a level offset of all six maps, not a change in the between-position pattern. Mechanism: the trials and the
+   (lick-free) rest frames sit at different times within a drifting session, so a flat level removes a different amount
+   than the trial-time-matched level. PS92 subacute (2 sessions, 13.9 %) is the only other cell above 10 %.
+3. **Consequence for the RESTnl maps:** flat RESTnl remains appropriate for pre vs acute (the headline); for **PS94
+   subacute / chronic amplitudes** (and therefore pooled chronic amplitude ratios, which PS94 enters) a flat baseline
+   carries a level offset of ~4-6e-3 against a ~10-18e-3 map. Read those cells' amplitudes with that caveat (or against
+   `raw`, which has no subtrahend); between-position contrasts are not affected (position-dependent part <= 1e-3). A
+   time-local lick-free version is still not formable (median min-bin 17 lick-free frames; 1.5-2 empty bins of 12 in a
+   median acute / subacute session; RESTnl bin SD 1.33x the REST bin SD).
+4. Slope sign: chronic 34/43 sessions positive, subacute 11/17, pre 24/43, acute 6/16 -- the late epochs drift upward
+   within session, carried mostly by PS94 (8/8 chronic, 5/5 subacute) and PS93 chronic.
+5. RESTnl vs the page's REST on the same trials (both changes at once: lick-free mask + flat weighting): far_R map
+   difference median 11.7 % of the REST map RMS pre, 23.4 % acute, 10.7 % subacute, 12.8 % chronic -- the acute cell moves
+   most because its map is smallest.
+6. Coverage: all 12 June sessions pass rule wr with all 6 positions; over 119 sessions 109 use 6 positions, 9 use 5,
+   1 uses 4 (ok_strict 109/119).
