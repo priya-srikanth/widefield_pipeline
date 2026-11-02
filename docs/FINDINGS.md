@@ -38,6 +38,13 @@ window larger in orofacial cortex but shared with non-orofacial cortex), a contr
 cortex-wide and grows with time -- not concentrated in orofacial cortex; whether it is a stroke effect (diaschisis, state)
 or slow drift cannot be decided without a time-matched no-stroke reference.
 
+**Where things stand, quiet-period state (11-01, claim 3.Q; handoff STATUS_2026-11-01_QUIET_EVENTS_HANDOFF):** in quiet
+periods, ACUTELY ORofacial CORTEX IS MORE SYNCHRONISED -- MORE SO ON THE LESIONED SIDE, WITH RELATIVELY LESS FAST ACTIVITY
+THERE -- and a normally rare, local, non-movement 2-3 Hz event type (common pre-stroke only when the animal disengages)
+becomes ~5x more frequent while the animal is engaged; not face movement, not interictal; breathing / haemodynamic checks
+pending. Consistent with Priya's original hypothesis of reduced thalamocortical drive to ipsilesional orofacial cortex
+(PROVISIONAL; noise-floor and literature caveats in 3.Q).
+
 1. **Behaviour changed, and recovery is compensation, not restoration.** Acute global slowing + far-contra-graded deficit,
    licks aimed ipsilesionally from launch, jaw stops steering, far-contra trials attempted but failed in 3 / 4 (1.1-1.8,
    2.3, 4.4). Chronic completion returns, but each contralesional lick moves the contralesional face less and contra
@@ -641,7 +648,16 @@ speed roughly halves acutely in 4/4 (pre -> acute 1242 -> 812, 825 -> 492, 1947 
 pre-stroke QUIT period already shows the same orofacial signature -- orofacial 1-4 Hz power 3.4-5.4x engaged quiet
 while cortex-wide 1-4 Hz power is LOWER (0.6x) and the face stiller (sparse: 11 pre sessions with >= 60 s of quit quiet,
 none in PS92). So the acute engaged state resembles the pre-stroke disengaged state in orofacial cortex, and it is not
-cortex-wide slow-wave sleep. Limb also up after regression but acute only in PS93 / PS95.
+cortex-wide slow-wave sleep. Limb also up after regression but acute only in PS93 / PS95. (g) **ACUTELY,
+ORofacial CORTEX IS MORE SYNCHRONISED, MORE SO ON THE LESIONED SIDE, WITH RELATIVELY LESS FAST ACTIVITY THERE** (T20,
+11-01, Priya: record in where-things-stand): quiet synchronisation index log10(PSD 1-4 / 8-15 Hz) orofacial +0.59 acute
+(q < .001) > whole cortex +0.39 > limb +0.15 n.s.; orofacial ipsilesional - contralesional +0.13 (q 1e-4; 4/4 animals,
+pre ~0), subacute +0.09; 8-15 Hz power lower ipsilesionally in 4/4; chronically the cortex-wide index rises more than the
+orofacial one. This is the laterality predicted by Priya's original hypothesis (VLS stroke -> less thalamocortical drive
+to ipsilesional orofacial motor cortex), which the event rate did not show. Caveats: 8-15 Hz with GCaMP6s is near the noise
+floor (F0 / brightness check T22 pending); the reduced-drive reading rests on barrel-cortex literature (Poulet 2012,
+Crochet & Petersen 2006) while in ALM VM/VAL silencing collapses activity (Guo 2017), so it is a hypothesis, not a
+mechanism.
 
 ## 4. Encoding model and the goal question
 

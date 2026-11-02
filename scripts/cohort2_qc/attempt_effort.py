@@ -1,0 +1,176 @@
+"""Do animals "try harder" with the body when they cannot lick? Running and limb cortex by trial outcome (cohort1, 11-01).
+
+Priya 11-01: "acutely I also feel like I see the animal 'trying' with more treadmill movement and maybe more limb
+activation when it's unable to lick -- do we see this on either jaw activation but no lick, or lick but not contact
+post-stroke". Trial classes from the encoding window's attempt table (imaging_encoding/qc/trial_attempts.csv):
+hit (contact), incomplete (lick, no contact), jaw_only (jaw movement, no lick; blind review = reactions), no_try.
+Per trial, window = cue -> cue + 3.5 s (the response window), baseline = cue - 2 .. cue:
+  * RUNNING: fraction of the window inside a DAQ running bout (behavior_events running_starts / stops, 3 mm/s), the same
+    in the baseline, and whether a bout STARTS in the window.
+  * LIMB CORTEX: mean dF/F % of the bilateral limb ROI (SSp-ul + SSp-ll) in cue .. +1.5 s minus cue - 1 .. 0 s; the
+    same for orofacial and whole cortex (to tell a limb-specific rise from a global one).
+Compared within epoch across classes (does a failed attempt carry more running / limb activity than a hit or a no-try?)
+and per class across epochs. Far-contra trials reported separately (where acute failures concentrate).
+
+    set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
+    python scripts/cohort2_qc/attempt_effort.py [--jobs 5] [--summarise]
+"""
+import argparse
+import sys
+from pathlib import Path
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from quiet_area_spikes import EVENTS, columns, session_traces  # noqa: E402
+from quiet_spikes_v2 import V2  # noqa: E402
+
+OUTE = V2.parent / "attempt_effort"
+TA = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/trial_attempts.csv")
+WIN_S, BASE_S, CTX_S, CTX_BASE_S = 3.5, 2.0, 1.5, 1.0
+CLS = ["hit", "incomplete", "jaw_only", "no_try"]
+EP = ["pre", "acute", "subacute", "chronic"]
+
+
+def frac_in(bouts, a, b):
+    if not len(bouts):
+        return 0.0
+    ov = np.clip(np.minimum(bouts[:, 1], b) - np.maximum(bouts[:, 0], a), 0, None)
+    return float(ov.sum() / (b - a))
+
+
+def extract(label):
+    f = OUTE / "sessions" / f"{label}.csv"
+    if f.exists():
+        return label
+    import pandas as pd
+    from wfield_local import trial_windows as TW
+    animal, mmdd = label.split("_")
+    T = pd.read_csv(TA)
+    T = T[T.label == label]
+    if T.empty:
+        return label
+    tb = TW.trial_bounds(animal, f"2026{mmdd}").set_index("trial_id")
+    z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
+    fsd = float(z["fs"])
+    run = np.c_[z["running_starts"], z["running_stops"]] / fsd
+    Xr, ft, fs, rest, engaged, _ = session_traces(label, detrend=False)
+    cols = columns()
+    ci = {k: cols.index(k) for k in ("limb", "orofacial", "cortex")}
+    rows = []
+    for _, r in T.iterrows():
+        if r.trial_id not in tb.index:
+            continue
+        cue = float(tb.loc[r.trial_id, "cue_s"])
+        if not np.isfinite(cue):
+            continue
+        d = dict(label=label, trial_id=int(r.trial_id), pos=r.pos, cls=r.cls, animal=animal, epoch=r.epoch, day=r.day,
+                 run_win=frac_in(run, cue, cue + WIN_S), run_base=frac_in(run, cue - BASE_S, cue),
+                 run_start=bool(np.any((run[:, 0] >= cue) & (run[:, 0] < cue + WIN_S))) if len(run) else False)
+        a0, a1 = np.searchsorted(ft, [cue, cue + CTX_S])
+        b0, b1 = np.searchsorted(ft, [cue - CTX_BASE_S, cue])
+        for k, i in ci.items():
+            if a1 > a0 and b1 > b0:
+                d[f"{k}_resp"] = float(np.nanmean(Xr[i, a0:a1]) - np.nanmean(Xr[i, b0:b1]))
+        rows.append(d)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_csv(f, index=False)
+    return label
+
+
+def summarise():
+    import pandas as pd
+    pd.set_option("display.width", 220)
+    S = pd.concat([pd.read_csv(f) for f in sorted((OUTE / "sessions").glob("*.csv"))], ignore_index=True)
+    S = S[S.label.str[-4:] >= "0806"]
+    S["run_delta"] = S.run_win - S.run_base
+    S.to_csv(OUTE / "attempt_effort_trials.csv", index=False)
+    for sub, G in (("ALL spouts", S), ("FAR CONTRA", S[S.pos == "far_contra"])):
+        for m in ("run_win", "run_delta", "run_start", "limb_resp", "orofacial_resp", "cortex_resp"):
+            A = G.groupby(["label", "animal", "epoch", "cls"])[m].mean().reset_index()
+            P = A.pivot_table(index=["animal", "cls"], columns="epoch", values=m, aggfunc="mean").reindex(columns=EP)
+            print(f"\n[{sub}] {m}: session means -> animal x class x epoch:\n",
+                  P.reindex([(a, c) for a in sorted(G.animal.unique()) for c in CLS if (a, c) in P.index])
+                  .round(3).to_string())
+    return S
+
+
+def contrasts(S):
+    """Within-session paired differences: failed class minus hits (same session), per animal x epoch."""
+    import pandas as pd
+    out = []
+    for m in ("run_win", "run_delta", "limb_resp", "cortex_resp"):
+        A = S.groupby(["label", "animal", "epoch", "cls"])[m].mean().unstack("cls")
+        for c in ("incomplete", "jaw_only", "no_try"):
+            if c in A and "hit" in A:
+                d = (A[c] - A["hit"]).dropna().reset_index()
+                g = d.groupby(["animal", "epoch"])[0].mean().unstack().reindex(columns=EP)
+                for an, r in g.iterrows():
+                    out.append(dict(measure=m, cls=c, animal=an, **{ep: r[ep] for ep in EP}))
+    T = pd.DataFrame(out)
+    T.to_csv(OUTE / "contrast_vs_hit.csv", index=False)
+    print("\nWITHIN-SESSION class minus hit (animal mean of session differences):\n", T.round(3).to_string())
+    return T
+
+
+def figure(S):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER
+    col = {"hit": "#1b9e77", "incomplete": "#d95f02", "jaw_only": "#7570b3", "no_try": "0.5"}
+    ms = [("run_win", "fraction of response window running"), ("run_delta", "running: window - pre-cue baseline"),
+          ("limb_resp", "limb cortex (SSp-ul/ll) dF/F %, cue..+1.5 s - baseline"),
+          ("cortex_resp", "whole cortex dF/F %, same window")]
+    fig, ax = plt.subplots(2, len(ms), figsize=(4.2 * len(ms), 8))
+    for r, (sub, G) in enumerate((("all spouts", S), ("far contra", S[S.pos == "far_contra"]))):
+        for a, (m, lab) in zip(ax[r], ms):
+            A = G.groupby(["animal", "epoch", "cls"])[m].mean().reset_index()
+            for k, ep in enumerate(EP):
+                for j, c in enumerate(CLS):
+                    x = k + (j - 1.5) * 0.18
+                    g = A[(A.epoch == ep) & (A.cls == c)]
+                    for _, rr in g.iterrows():
+                        a.plot(x, rr[m], ANIMAL_MARKER[rr.animal], mfc="none", mec=col[c], ms=5)
+                    if len(g):
+                        a.plot([x - 0.07, x + 0.07], [g[m].mean()] * 2, color=col[c], lw=2.5,
+                               label=c if (k == 1 and r == 0) else None)
+            a.axhline(0, color="0.6", lw=0.6)
+            a.set_xticks(range(4))
+            a.set_xticklabels(EP, fontsize=8)
+            a.set_title(f"{sub}: {lab}", fontsize=8)
+    ax[0, 0].legend(fontsize=7)
+    fig.suptitle("Do animals recruit the body when they cannot lick? Running and limb cortex by trial outcome (hit / "
+                 "lick-no-contact / jaw-only / no try); markers = animals (shape), bar = mean of animals", fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(OUTE / "attempt_effort.png", dpi=110)
+    print("wrote", OUTE / "attempt_effort.png")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--jobs", type=int, default=5)
+    ap.add_argument("--summarise", action="store_true")
+    ap.add_argument("--reverse", action="store_true")
+    a = ap.parse_args()
+    if not a.summarise:
+        import pandas as pd
+        from wfield_local.parallel import fan_out
+        labels = sorted(x for x in pd.read_csv(TA, usecols=["label"]).label.unique() if x[-4:] >= "0806")
+        if a.reverse:
+            fan_out(labels[::-1], extract, jobs=a.jobs, label="session")
+            return
+        res, fail = fan_out(labels, extract, jobs=a.jobs, label="session")
+        print(f"{len(res)} done, {len(fail)} failed")
+        for x in fail:
+            print("FAILED", x)
+    S = summarise()
+    contrasts(S)
+    figure(S)
+    (OUTE / "README.txt").write_text(__doc__)
+
+
+if __name__ == "__main__":
+    main()
