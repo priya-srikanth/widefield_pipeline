@@ -21,7 +21,12 @@ python p_img_titles.py     # figure titles + method-first captions + script line
 python p_img_haufe.py      # section 14: Haufe decoder maps (families 14 / 14z / 14pa, 9 figures)
 python p_img_stableids.py  # stable ids #f-<image name>; old #figN-k kept as anchors; writes imaging_fig_ids.csv
 python p_img_s1refit.py    # section 1 = refit decoder only (5r figures in, frozen pre-cue fig to 2.1); renumbers 1-2; rewrites the registry
+python p_img_licksrc.py    # lick source in every figure title + caption ([licks: DAQ spout contact] / LP video / mixed); writes provenance/lick_source.tsv
 ```
+
+Section 15 (quiet-period events, v37-v38) was added by hand-edits to the HTML, not by a chain script, so
+`p_img_licksrc.py` runs on the current page (it asserts 83 figures, section 15 included). Its per-figure table
+(source, tag, evidence) is the record of which lick source each figure uses; check it before re-rendering a figure.
 
 Checked 2026-10-26 (through p_img_titles): this chain reproduces the published `imaging_page/imaging_results.html` byte for byte.
 `fig2_attempt_decoder.png` and `fig2b_attempt_decoder_epochs.png` are on the published artifact but not in the local
