@@ -953,6 +953,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   far-contra tjM1 7.38 -> 7.44, ALM 6.09 -> 6.40, SSp-m 7.26 -> 7.06, SSp-n 7.22 -> 6.50; H3 chronic cue-to-lick (raw) tjM1
   6.34 -> 6.39, ALM 3.93 -> 4.29, SSp-m 5.65 -> 5.42, SSp-n 2.88 -> 2.47 (still n.s., 3/4). Only PS92 / PS93 move (PS93's
   SSp-n / SSp-m shrink most with 5 more pre sessions). PROVISIONAL.
+- RESTnl SUPPLEMENT CAPTIONS 11-01 (goal page Fig 14.21 S1/S2/S11-S13 numbers rewritten from the rescue-rule *_restnl
+  outputs; baseline notes removed). Changed materially: S2 acute far-contra raise now NOT orofacial-specific (contra
+  MOp_rest / MOs_rest / SSp-bfd +7.1 / +6.9 / +5.1, significant; ipsi tjM1 +6.1; PS94 +2-4, was ~0); S11 stopped
+  chronic rise tjM1 +8.4 [+6.5], contra-ipsi only 2/3 positive [3/3], hit chronic rise tjM1 +5.3 [+1.8]; S12 A tjM1
+  +4.3/+4.1/+6.4 [+2.4/+2.2/+2.9], ipsi tjM1 chronic +4.3 4/4 (was no change), B pre AUC residual slope +0.7..+1.1
+  (was ~0; trial set, PS94/95, fragile), C more significant cells (PS95-driven), D RESTnl drop -8.0/-9.0 > raw dip
+  (rel +5.2/+4.4) and the non-orofacial dip is n.s. vs RESTnl; S13 last-lick tjM1 pre values lower, chronic > pre
+  4/4 in the last 0.5 s before the cue (tjM1, ALM). Unchanged: exponents / threshold verdict, own-pre-cue A (-2 n.s.),
+  counts. PROVISIONAL.
 - FIG 0.12 + FAR-CONTRA AIM 10-30 (Priya: "can 0.12 include the far contra lick angle index?"; scripts/recovery_timing.py
   --aim [--plot-only] -> attempt_coding/figures/recovery_timing_pooled_day_lick_aim.png, panel B = far-contra first-lick
   3-D aim, change vs own August pre, deg, + = contralesional; panel A reproduces 0.12 exactly). Aim drops to -32 deg
@@ -1592,3 +1601,5 @@ Paxinos plates: `wfield_local/histology_map/`.
   FaceRhythm and have off kinematics, so a June -> August encoder null is not available).
 * Open: per-bout timing of lick_right (5.6); early-vs-late pre-day floor for factor shape (5.10); other cameras for
   FaceRhythm (cam1-3).
+
+- 11-01 CHECK: the 10-29 line "far-contra ALM acute loses significance (+2.7 n.s.)" does not match the current rescue-rule c2l_A_changes_restnl.csv (far-contra ALM_right acute +3.3, significant, 4/4); likely the strict variant or another panel. Unresolved. Acute far-contra pre-cue raise on RESTnl is NOT orofacial-specific (reference areas rise as much; page 14.21 / S2).
