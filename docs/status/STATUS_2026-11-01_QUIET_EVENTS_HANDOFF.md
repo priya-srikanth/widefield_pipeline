@@ -222,8 +222,30 @@ Why it did not show as a decrease, and why it may still be right: (1) widefield 
 in F0, which rose ~11 % acutely (uniform, 415 similar; confounded by blood / light), so a tonic decrease is largely
 unmeasurable here; (2) the acute effects we see -- larger 2-3 Hz quiet fluctuations, larger lick-evoked responses, engaged
 quiet resembling pre-stroke disengagement -- are what a LESS thalamically driven (synchronised, quiet-wakefulness-like)
-cortex shows (Poulet et al. 2012 thalamic control of cortical state; Crochet & Petersen 2006 larger evoked responses in
-quiet wakefulness; both from memory, verify); (3) a whole-VLS lesion removes direct AND indirect pathways with opposing net
+cortex shows (Poulet et al. 2012; Crochet & Petersen 2006 -- CHECKED 11-01 at abstract / review level, see below); (3) a whole-VLS lesion removes direct AND indirect pathways with opposing net
 effects on SNr, and SPNs fire little at rest, so the clearest loss is the phasic, lick-locked SNr pause (timing / gain), not
 mean drive. Against: the fluctuation increase is not ipsilesional (T8). Tests T20-T22; direct VM measurement in a future
 cohort would settle it.
+
+CITATION CHECK (Priya 11-01: "read those citations more carefully and see if it holds up"; abstracts + the Frontiers
+review fnsys.2019.00040, full texts paywalled). Poulet, Fernandez, Crochet & Petersen 2012 Nat Neurosci 15:370: in BARREL
+cortex, whisking-related desynchronisation comes with INCREASED VPM firing, is not peripheral (survives infraorbital nerve
+cut), is halted by pharmacological thalamic inactivation and mimicked by optogenetic thalamic stimulation -> HOLDS for
+"thalamic input desynchronises the active state"; does NOT show that REDUCED drive makes resting cortex MORE synchronised
+(under inactivation, whisking Vm was hyperpolarised with REDUCED variance); thalamic inactivation literature is mixed and
+state-dependent (anaesthesia: weaker slow oscillation, J Neurosci 2014 34:5689; an awake study cited as enhanced slow
+oscillation, not verified; awake preprint: cortical baseline largely unchanged). Crochet & Petersen 2006 Nat Neurosci
+9:608: quiet wakefulness = slow large Vm fluctuations, whisking = small fast; PASSIVE whisker responses robust in quiet,
+suppressed during whisking -> HOLDS only for passive sensory responses in sensory cortex. OVERREACH: both are barrel
+cortex / VPM, not orofacial MOTOR cortex / VM-VAL (layer-1 matrix input); in ALM, VM/VAL silencing COLLAPSES activity
+(Guo et al. 2017) -- Priya's original prediction; lick responses are self-generated motor responses; arousal /
+neuromodulators also set cortical state. Verdict: the reduced-drive -> synchronised-cortex reframing is a plausible
+hypothesis, not supported directly by the literature.
+
+T20 RESULT (11-01, `quiet_sync_index.py`, `V2/sync_index/`): synchronisation index log10(PSD 1-4 / 8-15 Hz), quiet engaged.
+Acute: orofacial +0.59 (q < .001), whole cortex +0.39, limb +0.15 n.s.; orofacial - cortex +0.20 (q .001); orofacial IPSI -
+CONTRA +0.13 (q 1e-4; 4/4 positive acute, pre ~0), subacute +0.09; 8-15 Hz power lower ipsilesionally in 4/4. Chronic:
+whole-cortex synchronisation rises more than orofacial (orofacial - cortex -0.27). -> acutely orofacial cortex is more
+synchronised and MORE SO IPSILESIONALLY: the laterality the reduced-drive hypothesis predicts, which the event rate (T8)
+did not show. Caveat: 8-15 Hz with GCaMP6s is near the noise floor, so the index can rise from slow power alone and the
+ipsi fast-power drop may partly reflect hemisphere brightness / noise differences (T22 checks F0).
