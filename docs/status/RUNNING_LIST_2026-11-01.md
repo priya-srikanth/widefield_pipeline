@@ -24,6 +24,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   Figs 5.1/5.2 (attempt classes) are a different script -- not checked yet.
 - [ ] Make the stored-frozen epoch decoders (opt-in WIDEFIELD_EPOCH_FROZEN=1, branch analysis/lp-final) the default?
   RECOMMEND yes (rule 10). Would change epoch acc figures slightly everywhere -> discuss before re-rendering page figures.
+- [ ] Section 7 takeaway "-55 / -48 / -38 / +2 %" (ipsi-hemisphere change, LP lick map, from 10-21 numbers): the 10-24
+  render behind Fig 7.19 gives -55 / -49 / -38 / -9 % (PS95 -9 %, not +2 %). Headline-adjacent -> NOT edited; update it?
 - [ ] LP ENL window: 1.5 s looks better than 1.0 s (enough trials everywhere; pooled pre accuracy .42 -> .48; same acute
   loss 4/4). 2.0 s keeps trials selectively where the deficit is -> sensitivity only. Which as primary for the LP arm?
 
@@ -140,3 +142,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   UNRESOLVED: PS94 REST lick-window far contra = -38 % (~.62) in the 7.19 caption vs .72 in RESTNL_MAPS table; flagged in
   the 7.19b caption + Pending, to reconcile.
 - 05:50 launched helper: ADD compact "Final LP arm (11-02)" block to imaging page (ENL 1.0/1.5 s decoders DAQ- vs LP-trained, per-animal + trial-count tables, section-7 pointer that LP-final maps reproduce 7.xb within .01, Pending items) + reconcile PS94 7.19 REST number. Fig 2.4 correction NOT applied (waits for Priya).
+- 06:20 IMAGING PAGE v44 (helper): "Final LP arm (11-02)" block at #lpfinal after Fig 2.4 -- Figs 2.5-2.8 (ENL 1.5 s /
+  1.0 s x DAQ- / LP-trained, stored frozen; pooled far contra 1.5 s DAQ .48 -> .21 [.13,.29], all 4/4), per-animal table
+  (all windows x trainings), trial counts; section-7 paragraph (LP-final maps = current within .01 acute cue/lick, .015
+  pre-cue 1 s, .04 subacute/chronic; pre-cue RESTnl chronic below pre 1/4 -> 2/4, PS94 1.02 -> .98); Where-things-stand
+  row; Pending line. Fig 2.4 caption untouched. RECONCILED PS94 lick: -38 % = ipsi-hemisphere mean change; .72 = whole-
+  mask RMS ratio all pre; .67 = same, August pre (gate no effect). Only the two v43 "not reconciled" flags were replaced.
