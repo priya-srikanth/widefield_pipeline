@@ -66,6 +66,8 @@ default; it is inherited by spawn workers).
    pre-stroke disengaged state. Sparse: pre sessions with >= 60 s quit quiet = 0 / 1 / 4 / 6 (PS92-95). Priya: animals
    do not look asleep by eye closure. Confounds: quit is late in session (time / satiety / bleaching).
 
+**Live status + results + figure links: [`RUNNING_LIST_2026-11-01_QUIET_EVENTS.md`](RUNNING_LIST_2026-11-01_QUIET_EVENTS.md).**
+
 ## 4. Every test proposed 11-01 to distinguish the hypotheses (status-tagged; run in this order)
 
 Hypotheses: **CIRCUIT** (lesion-driven change in the VLS -> SNr -> motor-thalamus -> orofacial-cortex loop; diaschisis /
@@ -81,16 +83,16 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 | T5 | event width / rise / decay, ACF half-time | thalamic bursts (faster rise) vs oscillation (faster decay) vs drowsiness (slower) | -- | DONE: decay ~18 % faster, rise unchanged, ACF unchanged -> oscillation (3.7) |
 | T6 | quit-period vs engaged quiet: cortex bands, face speed | STATE | -- | DONE: pre quit already has the orofacial 1-4 Hz signature, cortex-wide lower; engaged-quiet face speed halves acutely 4/4 (3.8) |
 | T7 | within engaged quiet: event rate vs face stillness (per session, binned face speed) | STATE contribution | rate rises with stillness -> state adds | TO DO |
-| T8 | per-animal ipsi vs contra comparison of the rate / SD increase (direct, not by eye from 15.6) | CIRCUIT (ipsilesional) vs global | CIRCUIT: ipsi > contra in >= 3/4 | TO DO (partly in T2) |
-| T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTEFACT (breathing) | coherence high / tracks respiration -> artefact | TO DO (open since 10-31) |
-| T10 | haemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTEFACT (haemodynamic) | events absent in 415 -> neural | TO DO (proposed in discussion; not yet in the list before 11-01) |
-| T11 | amplitude distribution; count of events > 10 % dF/F and cortex-wide synchronous events (Steinmetz 2017 interictal shape) | ARTEFACT / epileptiform | none -> not interictal | TO DO |
-| T12 | events in pre-cue / ITI (task) windows, not only quiet | relevance | -- | TO DO |
-| T13 | pre-cue event on a trial -> failed far-contra attempt / weaker pre-cue position code on that trial | CIRCUIT-noise mechanism for the deficit | events predict failure | TO DO |
-| T14 | within animal, event rate vs far-contra recovery with log-day removed (as `iti_recovery_link.py`) | link to recovery | negative relation | TO DO |
-| T15 | rate tracks each animal's deficit (PS93 largest acute rate; PS94 least recovered); pre-register orderings for cohort2 | CIRCUIT vs STATE / ARTEFACT | -- | TO DO (n = 4 descriptive) |
-| T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | TO DO |
-| T17 | literature: targeted PubMed search (striatal / capsular stroke + widefield GCaMP / cortical recordings); verify the *(memory)* citations (Allegra Mascaro 2019, Levin 2009, Nudo 1996, Lee-Wang-Sabatini 2020) | context | -- | TO DO |
+| T8 | per-animal ipsi vs contra comparison of the rate / SD increase (direct, not by eye from 15.6) | CIRCUIT (ipsilesional) vs global | CIRCUIT: ipsi > contra in >= 3/4 | DONE: no ipsi bias (orofacial +0.02 n.s.; limb contra > ipsi acute) -- running list |
+| T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTEFACT (breathing) | coherence high / tracks respiration -> artefact | RUNNING 11-01 (agent; `quiet_breathing.py`, `V2/breathing/`) |
+| T10 | haemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTEFACT (haemodynamic) | events absent in 415 -> neural | RUNNING 11-01 (agent; `quiet_hemo_check.py`, `V2/hemo415/`) |
+| T11 | amplitude distribution; count of events > 10 % dF/F and cortex-wide synchronous events (Steinmetz 2017 interictal shape) | ARTEFACT / epileptiform | none -> not interictal | DONE: not interictal (big events rarer acutely, less limb co-occurrence) -- running list |
+| T12 | events in pre-cue / ITI (task) windows, not only quiet | relevance | -- | RUNNING 11-01 (agent; `quiet_task_events.py`) |
+| T13 | pre-cue event on a trial -> failed far-contra attempt / weaker pre-cue position code on that trial | CIRCUIT-noise mechanism for the deficit | events predict failure | RUNNING 11-01 (agent; same script) |
+| T14 | within animal, event rate vs far-contra recovery with log-day removed (as `iti_recovery_link.py`) | link to recovery | negative relation | DONE: r -0.75 raw, -0.23 detrended (p .048, 2/4) |
+| T15 | rate tracks each animal's deficit (PS93 largest acute rate; PS94 least recovered); pre-register orderings for cohort2 | CIRCUIT vs STATE / ARTEFACT | -- | DONE: no ordering (rho -0.20) |
+| T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | RUNNING 11-01 (agent; `quiet_lick_lfo.py`) |
+| T17 | literature: targeted PubMed search (striatal / capsular stroke + widefield GCaMP / cortical recordings); verify the *(memory)* citations (Allegra Mascaro 2019, Levin 2009, Nudo 1996, Lee-Wang-Sabatini 2020) | context | -- | RUNNING 11-01 (agent) |
 | T18 | k-choice bias: report subacute / chronic (not used to pick k) as the unbiased contrasts; held-out-animal k already LOAO | statistics | -- | NOTE (reported in 15.1 caption) |
 
 ## 5. Files
