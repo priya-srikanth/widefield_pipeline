@@ -524,6 +524,70 @@ def _joint_signal(basis, s):
     return sig, basis.regions, float(diag["variance_captured"])
 
 
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). `analyse_animal`'s
+#: pre-stroke reference (all-pre model + one leave-one-session-out model per pre session) goes through
+#: `frozen_models.load_or_fit`, kind `nolick_reference`. OPT-OUT WIDEFIELD_NOLICK_FROZEN=0 (false / no / off) fits both
+#: in memory exactly as before. Under WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED model (the default since
+#: 11-03, Priya), or with WIDEFIELD_LP_FROZEN=daq the DAQ-trained cross-check (training set = the animal's pre sessions
+#: in the date list; fitted only by a DAQ run).
+NOLICK_FROZEN_ENV = "WIDEFIELD_NOLICK_FROZEN"
+
+
+def nolick_frozen_on() -> bool:
+    from wfield_local import frozen_models
+    return frozen_models.family_on(NOLICK_FROZEN_ENV)
+
+
+def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features):
+    """Identity of one stored no-lick reference. align carries the engaged cut (2.0 s / respwin) and a digest of the
+    pooled feature columns (for ROI the column set is the intersection over every pooled session); source is the
+    feature basis (roi / joint + basis id)."""
+    from wfield_local import frozen_models
+    cut = "respwin" if max_rt is None else f"{float(max_rt):g}"
+    fdig = hashlib.sha1(repr(list(common)).encode()).hexdigest()[:8]
+    return frozen_models.make_spec(
+        animal, "nolick_reference", align=f"{align}-rt{cut}-f{fdig}",
+        source="joint" if basis is not None else "roi", train_labels=train_labels, post_s=2.0,
+        basis_id=None if basis is None else basis.basis_id, n_features=n_features)
+
+
+def _loso_predict(loso, X, S, dtype):
+    """Leave-one-session-out predictions from stored per-session models (what `cross_val_predict` with
+    LeaveOneGroupOut computes: each session's rows scored by the model fitted on every other pre session)."""
+    out = np.empty(len(X), dtype=dtype)
+    for lab in sorted(set(S.tolist())):
+        m = S == lab
+        out[m] = loso[lab].predict(X[m])
+    return out
+
+
+def _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, labs_pre, labs, common):
+    """{"full", "loso", "_provenance"} from the frozen store, or None when opted out (then the caller fits in memory)."""
+    if not nolick_frozen_on():
+        print(f"  [nolick] {animal} {align}: {NOLICK_FROZEN_ENV}=0 -> pre-stroke reference fitted IN MEMORY",
+              flush=True)
+        return None
+    from wfield_local import frozen_models
+    train = sorted(labs_pre)
+    if frozen_models.daq_trained_in_lp():
+        # DAQ-TRAINED model in the LP arm: the DAQ run's training set (the animal's pre sessions in the date list), not
+        # the LP-kept one -- a pre session without LP tables drops out of the LP pool but is in the DAQ fit.
+        train = sorted(s["label"] for s in labs
+                       if config.session_phase(config.animal_of(s["label"]), s["label"].split("_")[-1]) == "pre")
+    spec = nolick_spec(animal, align, max_rt, basis, train, common, int(XE.shape[1]))
+    Xp, Yp, Sp = XE[m_pre], YE[m_pre], SE[m_pre]
+
+    def _fit():
+        return {"full": _pipe().fit(Xp, Yp),
+                "loso": {lab: _pipe().fit(Xp[Sp != lab], Yp[Sp != lab]) for lab in sorted(set(Sp.tolist()))}}
+
+    payload, status = frozen_models.load_or_fit(spec, _fit, meta={"n_engaged_pre": int(m_pre.sum())})
+    slug = frozen_models._slug(spec)
+    print(f"  [nolick] {animal} {align}: nolick_reference {slug} {status} "
+          f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+    return {**payload, "_provenance": f"{slug} {status}"}
+
+
 def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
                    n_perm=na.N_PERM, verbose=True, basis=None, max_rt=2.0, return_raw=False):
     """Pool an animal's curated sessions, then train ONE model and apply it to the other arms.
@@ -660,16 +724,23 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     res["post_labels"] = sorted(set(SE.tolist()) - labs_pre)
 
     from sklearn.model_selection import LeaveOneGroupOut
+    # STORED BY DEFAULT (11-02 pass 2, rule 10): the all-pre model and one leave-one-session-out model per pre session
+    # come from `frozen_models` (kind `nolick_reference`); opt-out WIDEFIELD_NOLICK_FROZEN=0 fits them in memory.
+    stored = _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, labs_pre, labs, common)
     # The ENGAGED arm is the pre-stroke reference band, so it is leave-one-session-out among PRE.
     # Mixing post-stroke sessions into it answers a different question.
-    pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
+    if stored is not None:
+        pred_e = _loso_predict(stored["loso"], XE[m_pre], SE[m_pre], YE.dtype)
+    else:
+        pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
     res["engaged"] = na.evaluate_arm(YE[m_pre], pred_e, n_perm=n_perm)
     res["engaged"]["loso_accuracy"] = float(accuracy_score(YE[m_pre], pred_e))
     # The MATCHING TARGET is the pre-stroke engaged position profile, for the same reason: it is what
     # the other arms are being made comparable to.
     eng_frac = {POSITION_NAMES[c]: float((YE[m_pre] == c).mean()) for c in DISPLAY_ORDER}
 
-    clf = _pipe().fit(XE[m_pre], YE[m_pre])
+    clf = stored["full"] if stored is not None else _pipe().fit(XE[m_pre], YE[m_pre])
+    res["frozen_model"] = stored["_provenance"] if stored is not None else "in-memory"
     for c in ("late_rewarded", "undetected"):
         Y = _cat(c, "y").astype(int)
         if not Y.size:

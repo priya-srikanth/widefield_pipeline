@@ -60,6 +60,34 @@ LP_FROZEN_ENV = "WIDEFIELD_LP_FROZEN"
 
 STATUS_NEW, STATUS_HIT, STATUS_SPEC_CHANGED = "frozen-new", "frozen-hit", "SPEC-CHANGED"
 
+#: Values of a per-family opt-out env var (WIDEFIELD_<FAMILY>_FROZEN) that turn the stored default OFF (11-02 pass 2).
+OPT_OUT_VALUES = ("0", "false", "no", "off")
+
+
+def family_on(env_name) -> bool:
+    """True unless the family's opt-out env var is 0 / false / no / off: the stored model is the DEFAULT (rule 10).
+
+    One definition for every family converted on 11-02 (`docs/status/FROZEN_ALL_20261102.md` pass 2); the opt-out
+    exists only to reproduce an old in-memory render."""
+    return os.environ.get(env_name, "").strip().lower() not in OPT_OUT_VALUES
+
+
+def daq_trained_in_lp() -> bool:
+    """True under WIDEFIELD_LICK_SOURCE=lp ONLY with WIDEFIELD_LP_FROZEN=daq (the opt-in cross-check): the LP arm then
+    LOADS the DAQ-trained model (fitted by a DAQ run on the DAQ arm's pre set) and refuses to fit one (`load_or_fit`).
+
+    PRIYA 11-03: the LP arm's DEFAULT is the LP-TRAINED model (trained on the LP arm's own pre trials; spec carries
+    lick_source=lp). Until 11-03 (FROZEN_DEFAULT / FROZEN_ALL 11-02) the default was DAQ-trained and "lp" opted in;
+    "lp" is still accepted and now simply names the default."""
+    from wfield_local import lp_licks
+    return lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() == "daq"
+
+
+def lp_trained() -> bool:
+    """True under WIDEFIELD_LICK_SOURCE=lp unless WIDEFIELD_LP_FROZEN=daq: the spec carries lick_source=lp."""
+    from wfield_local import lp_licks
+    return lp_licks.is_lp() and not daq_trained_in_lp()
+
 
 def _stat_sig(path) -> str:
     try:
@@ -104,8 +132,12 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     # ENL WINDOW (WIDEFIELD_ENL_WINDOW_S, 2026-10-21): a pre-cue model's window IS its post_s, and the features it is
     # applied to are built with the overridden window (`lp_licks.apply_enl_window`) -- so the spec must carry it, or a
     # 1.0 s run would load the 2.0 s model. The matched DAQ 1.0 s run freezes these; LP_licks reuses them.
+    # 11-02 pass 2: ALSO an align that STARTS WITH "precue-" (the pass-2 kinds put variant fields after the window name:
+    # nolick "precue-rt2-f..", coding "precue-dom+dom_orth", section G "precue-keep..", attempt "precue-dom"). Without
+    # it a WIDEFIELD_ENL_WINDOW_S=1.0 run HIT the 2.0 s model (found by the nolick ENL 1.0 render: precue cells differed
+    # stored vs in memory). Ids without the override (the default DAQ 2.0 s runs) are unchanged.
     from wfield_local import lp_licks
-    if align == "precue" and lp_licks.enl_window_s() is not None:
+    if (align == "precue" or str(align).startswith("precue-")) and lp_licks.enl_window_s() is not None:
         post_s = lp_licks.enl_window_s()
     spec = {
         "freeze_version": FREEZE_VERSION,
@@ -123,10 +155,10 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     }
     if scaling is not None:
         spec["scaling"] = str(scaling)
-    # LP-TRAINED sensitivity models only (see `load_or_fit`): ADDED ONLY THEN, so every DAQ spec -- and its id, which
-    # names the stored directory -- is byte-identical to before.
-    from wfield_local import lp_licks
-    if lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() == "lp":
+    # LP-TRAINED models (the LP arm's DEFAULT since 11-03, Priya; see `daq_trained_in_lp`): lick_source is ADDED ONLY
+    # THEN, so every DAQ spec -- and its id, which names the stored directory -- is byte-identical to before, and the
+    # LP-trained ids are the same ids the 11-02 WIDEFIELD_LP_FROZEN=lp runs froze.
+    if lp_trained():
         spec["lick_source"] = "lp"
     return spec
 
@@ -268,13 +300,21 @@ def find(spec):
 
 
 def siblings(spec):
-    """Every stored model for the same (animal, kind, align, source), newest last.
+    """Every stored model for the same (animal, kind, align, source, post_s, lick_source), newest last.
 
     What makes a SPEC CHANGE visible. Without this, a changed pre-stroke set is indistinguishable
     from a first run -- both simply find nothing -- and the reference would move with no one
     noticing, which is the failure this module exists to prevent.
+
+    WINDOW AND LICK SOURCE ARE PART OF THE GROUP (11-02). The directory prefix carries only kind / align / source, so a
+    1.0 s ENL model and the 2.0 s one, or the LP-trained model and the DAQ-trained one, used to be each other's
+    "siblings": the first fit of either reported SPEC-CHANGED ("11 sessions -> 11", nothing added or removed) although
+    they are different references by design, and `refreeze` would have retired the other one. They are now compared on
+    the manifest's `post_s` / `lick_source` as well (a DAQ spec has no `lick_source`; a manifest without `post_s` stays
+    a sibling). Warning / supersede scope only: no spec, spec_id or stored model changes.
     """
     prefix = _slug(spec).rsplit("_", 1)[0] + "_"
+    want_post, want_src = spec.get("post_s"), spec.get("lick_source")
     out = []
     seen = set()
     for root, origin in _roots():
@@ -290,6 +330,10 @@ def siblings(spec):
                 m = json.loads((p / "manifest.json").read_text())
             except Exception:                            # noqa: BLE001
                 continue                                 # a half-copied model is not a candidate
+            ms = m.get("spec", {}) or {}
+            if ms.get("lick_source") != want_src or ("post_s" in ms and want_post is not None
+                                                     and float(ms["post_s"]) != float(want_post)):
+                continue                                 # another window / lick source: a different reference
             seen.add(p.name)
             out.append({"dir": p, "origin": origin, "frozen_utc": m.get("frozen_utc", ""),
                         "spec": m.get("spec", {}), "meta": m.get("meta", {})})
@@ -344,12 +388,13 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
     # LP_licks REUSES THE DAQ-FROZEN MODELS (Priya 10-21: no new frozen set; pre-stroke LP and DAQ trials agree except
     # PS93 far_ipsi / far_mid). Under WIDEFIELD_LICK_SOURCE=lp a MISS must therefore never fit: the fit would see
     # LP-gated pre-stroke features and file them under a DAQ spec. Only an explicit LP-trained spec (the PS93
-    # sensitivity, WIDEFIELD_LP_FROZEN=lp -> make_spec adds lick_source) may be fitted here.
+    # sensitivity, WIDEFIELD_LP_FROZEN=lp -> make_spec adds lick_source) may be fitted here. SINCE 11-03 the LP-trained
+    # spec is the LP arm's DEFAULT; this refusal now guards only the DAQ-trained cross-check (WIDEFIELD_LP_FROZEN=daq).
     from wfield_local import lp_licks
     if lp_licks.is_lp() and spec.get("lick_source") != "lp":
-        raise RuntimeError(f"[frozen] LP_licks reuses DAQ-frozen models, but none is stored for {_slug(spec)} "
-                           f"({spec['animal']}); run the DAQ path first, or set {LP_FROZEN_ENV}=lp for an "
-                           "LP-trained sensitivity model")
+        raise RuntimeError(f"[frozen] the LP arm's DAQ-trained cross-check ({LP_FROZEN_ENV}=daq) loads DAQ-frozen models, "
+                           f"but none is stored for {_slug(spec)} ({spec['animal']}); run the DAQ path first, or unset "
+                           f"{LP_FROZEN_ENV} for the LP-trained default")
     prior = [s for s in siblings(spec) if s["dir"].name != _slug(spec)]
     if refreeze:
         for s in prior:

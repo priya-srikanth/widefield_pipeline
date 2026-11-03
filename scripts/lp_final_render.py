@@ -225,6 +225,8 @@ def step_compare(window):
     """The CURRENT LP-arm decoders (plain LP_licks: LP gate as before, June + August pre, in-memory fit), per animal,
     to set beside the final ones. Writes a table only (no figure)."""
     setup(source="lp", window=window, refs=None, august=False, gate=False)
+    # the CURRENT renders were fitted in memory; the stored path is the default since 11-02, so opt out explicitly
+    os.environ["WIDEFIELD_EPOCH_FROZEN"] = "0"
     from wfield_local.epoch_accuracy import _epoch_arm
     print(f"[lpfinal compare] {describe()}", flush=True)
     T = trial_table(_epoch_arm("precue", "working"))

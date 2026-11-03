@@ -32,10 +32,8 @@ SETS = {"iti": "ITI", "trial": "cued"}
 
 
 def run() -> pd.DataFrame:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
-
     from iti_decoder_contrib import feature_names
+    from wfield_local import frozen_readouts
     from wfield_local import orofacial_cohort as oc
     SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
     names = feature_names()
@@ -57,8 +55,9 @@ def run() -> pd.DataFrame:
             if len(pre) < 3:
                 continue
             Xp = np.vstack([S[q][1] for q in pre])
-            sc = StandardScaler().fit(Xp)
-            m = RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xp), np.concatenate([S[q][2] for q in pre]))
+            # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0): the all-pre fit
+            sc, m = frozen_readouts.pre_loso_ridge(a, f"lick_gain_prediction-{st}", pre, {q: S[q][1] for q in pre},
+                                                   {q: S[q][2] for q in pre}, np.logspace(-1, 5, 13), loso=False)[None]
             mu = Xp.mean(0)
             base = float(m.predict(sc.transform(mu[None, :]))[0])
             unit = float(m.predict(sc.transform(2 * mu[None, :]))[0]) - base     # read-out shift for g = +1

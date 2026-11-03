@@ -1046,6 +1046,82 @@ def cim_rotation(by_epoch, t):
             for ep, G in by_epoch.items()}
 
 
+def fit_cd_reference(Xall, yall, Gpre_chunks, Rb, drop, *, reference, method, t):
+    """Every quantity `analyse_animal` fits on PRE-STROKE sessions: {"stats", "cim", "dirs", "surviving"}.
+
+    Moved verbatim out of `analyse_animal` (11-02 pass 2) so the stored path and the in-memory opt-out run ONE
+    construction. ``Gpre_chunks`` = the pre-stroke grand means (`grand_means(...)["pre"]`, only when ``orth``), ``Rb``
+    the per-session rest baselines (non-contrast references)."""
+    stats = component_stats(Xall) if STANDARDISE else None
+    cim = None
+    if Gpre_chunks:
+        Gpre = pooled_mean(Gpre_chunks, stats)
+        if drop is not None:
+            # THE SHARED MODE IS FITTED IN THE SAME SUBSPACE THE DIRECTIONS LIVE IN. A mode with
+            # weight on a dropped component could not be orthogonalised out of a direction that has
+            # none, so the two would be describing different spaces.
+            Gpre = np.asarray(Gpre, float).copy()
+            Gpre[np.asarray(drop, bool)] = 0.0
+        cim = condition_independent_modes(Gpre, t)
+    if reference == "contrast":
+        dirs, surviving = fit_directions(Xall, yall, DISPLAY_ORDER, method=method,
+                                         stats=stats, cim=cim, with_surviving=True, drop=drop)
+    else:
+        # SESSION-AVERAGED, matching how `Xall` pools sessions. A per-session subtrahend would
+        # be a different reference frame per day, which is what the frozen basis exists to
+        # avoid (rule 10).
+        base = {k_: np.mean(np.stack(v_), 0) for k_, v_ in Rb.items()}
+        dirs = directions_vs_rest(Xall, yall, base, DISPLAY_ORDER, stats=stats, cim=cim, drop=drop)
+        surviving = {}      # the rest references do not renormalise, so nothing collapses
+    return {"stats": stats, "cim": cim, "dirs": dirs, "surviving": surviving}
+
+
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). `analyse_animal`'s
+#: pre-stroke reference -- the component z-score frame, the condition-independent mode (``orth``) and the per-position
+#: directions with their poles -- goes through `frozen_models.load_or_fit`, kind `cd_directions`; spec align carries the
+#: alignment, method, reference, fitting classes (gate), orth, occluded mask, window and span, so each analysis
+#: variant has its own id, and the training set is the pre sessions the fit used (``exclude_fit`` removes them, so a
+#: leave-one-out run of `scripts/cd_loo_sessions.py` gets one id per held-out session). OPT-OUT WIDEFIELD_CD_FROZEN=0
+#: fits in memory through the same `fit_cd_reference`. The cached CD courses are keyed on the direction VALUES
+#: (`courses_cache_kind`), so a stored model equal to the in-memory one leaves every courses cache warm. Under
+#: WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED reference (default since 11-03, Priya), the DAQ-trained one
+#: (DAQ arm's pre set) with WIDEFIELD_LP_FROZEN=daq (its directions then key their own courses cache entries).
+CD_FROZEN_ENV = "WIDEFIELD_CD_FROZEN"
+
+
+def cd_spec_align(align, *, method, reference, use, orth, mask_occluded, win_n, pre_n, post_frames):
+    return (f"{align}-{method}-{reference}-{'+'.join(use)}-{'orth' if orth else 'raw'}-"
+            f"{'mask' if mask_occluded else 'all'}-w{win_n}-p{pre_n}x{post_frames}-z{int(STANDARDISE)}-"
+            f"a{ARMS_VERSION}")
+
+
+def stored_cd_reference(animal, align, basis, train, fit, *, method, reference, use, orth, mask_occluded, win_n,
+                        pre_n, post_frames, post_s, excl=(), verbose=True):
+    """``fit()`` through the store (default), or called directly with WIDEFIELD_CD_FROZEN=0."""
+    from wfield_local import frozen_models
+    if not frozen_models.family_on(CD_FROZEN_ENV):
+        if verbose:
+            print(f"  [cd] {animal} {align}: {CD_FROZEN_ENV}=0 -> reference fitted IN MEMORY", flush=True)
+        return fit()
+    if frozen_models.daq_trained_in_lp():
+        # DAQ-TRAINED reference in the LP arm: the DAQ run's training set (the animal's curated pre sessions minus
+        # ``exclude_fit``), not the LP-kept list. A miss raises (the LP run never fits a DAQ spec).
+        from wfield_local import analysis_kit as ak
+        from wfield_local import epochs
+        train = sorted(s["label"] for s in ak.curated_sessions() if s["label"].startswith(animal)
+                       and epochs.epoch_of(s["label"]) == "pre" and s["label"] not in set(excl))
+    spec = frozen_models.make_spec(
+        animal, "cd_directions",
+        align=cd_spec_align(align, method=method, reference=reference, use=use, orth=orth,
+                            mask_occluded=mask_occluded, win_n=win_n, pre_n=pre_n, post_frames=post_frames),
+        source="locanmf", train_labels=train, post_s=post_s, basis_id=basis.basis_id, n_features=int(basis.ncomp))
+    payload, status = frozen_models.load_or_fit(spec, fit, meta={"n_train_sessions": len(train)})
+    if verbose:
+        print(f"  [cd] {animal} {align}: cd_directions {frozen_models._slug(spec)} {status} "
+              f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+    return payload
+
+
 def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=False,
                    gate="lick", reference="contrast", mask_occluded=True, verbose=True,
                    exclude_fit=None, project_only=None):
@@ -1139,7 +1215,6 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
         return {"animal": animal, "align": align, "skipped": "no pre-stroke success trials",
                 "errors": errs}
     Xall = np.vstack(Xf)
-    stats = component_stats(Xall) if STANDARDISE else None
     # THE OCCLUDED COMPONENTS ARE DROPPED BY DEFAULT (Priya, 2026-09-24: *"i think for the CD
     # analyses we should drop the masked components"*). `component_exclusion` holds the measurement.
     # The decision rests on an ASYMMETRY: dropping them costs little (9-14% of the pole gap, which is
@@ -1159,31 +1234,21 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     # `cim_rotation` and `cim_scale` read. Same trials, same cache entry, one definition.
     Ge = grand_means([b for b in book if b[0]["label"] not in excl], use, basis, align, pre_n,
                      post_frames) if orth else {}
-    cim = None
-    if Ge.get("pre"):
-        Gpre = pooled_mean(Ge["pre"], stats)
-        if drop is not None:
-            # THE SHARED MODE IS FITTED IN THE SAME SUBSPACE THE DIRECTIONS LIVE IN. A mode with
-            # weight on a dropped component could not be orthogonalised out of a direction that has
-            # none, so the two would be describing different spaces.
-            Gpre = np.asarray(Gpre, float).copy()
-            Gpre[np.asarray(drop, bool)] = 0.0
-        cim = condition_independent_modes(Gpre, np.arange(-pre_n, post_frames) / args.fs)
-    if reference == "contrast":
-        dirs, surviving = fit_directions(Xall, np.concatenate(yf), DISPLAY_ORDER, method=method,
-                                         stats=stats, cim=cim, with_surviving=True, drop=drop)
-    elif not Rb:
+    if reference != "contrast" and not Rb:
         return {"animal": animal, "align": align,
                 "skipped": f"no {reference} baseline on any pre-stroke session",
                 "errors": errs}
-    else:
-        # SESSION-AVERAGED, matching how `Xall` pools sessions. A per-session subtrahend would
-        # be a different reference frame per day, which is what the frozen basis exists to
-        # avoid (rule 10).
-        base = {k_: np.mean(np.stack(v_), 0) for k_, v_ in Rb.items()}
-        dirs = directions_vs_rest(Xall, np.concatenate(yf), base, DISPLAY_ORDER,
-                                  stats=stats, cim=cim, drop=drop)
-        surviving = {}      # the rest references do not renormalise, so nothing collapses
+    # THE PRE-STROKE REFERENCE (z-score frame, condition-independent mode, directions), STORED BY DEFAULT (11-02 pass
+    # 2, CD_FROZEN_ENV): the fit below is `fit_cd_reference`, called once per spec and then loaded.
+    train = sorted(s["label"] for s, ep, arms in book
+                   if ep == "pre" and s["label"] not in excl and any(arms[c]["y"] for c in use))
+    cref = stored_cd_reference(
+        animal, align, basis, train, lambda: fit_cd_reference(
+            Xall, np.concatenate(yf), Ge.get("pre"), Rb, drop, reference=reference, method=method,
+            t=np.arange(-pre_n, post_frames) / args.fs),
+        method=method, reference=reference, use=use, orth=orth, mask_occluded=mask_occluded, win_n=win_n,
+        pre_n=pre_n, post_frames=post_frames, post_s=args.post_s, excl=excl, verbose=verbose)
+    stats, cim, dirs, surviving = cref["stats"], cref["cim"], cref["dirs"], cref["surviving"]
     if not dirs:
         return {"animal": animal, "align": align, "skipped": "no position could be fitted",
                 "errors": errs}

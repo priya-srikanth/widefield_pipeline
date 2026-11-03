@@ -77,6 +77,71 @@ def distance_rows(n_split: int, log=print) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; rule 10). The full (not size-matched) frozen
+#: decoder of `decoder_rows` -- trained on the animal's JUNE pre sessions or AUGUST pre sessions, all of them or all but
+#: the scored one -- comes from `frozen_models.load_or_fit`, kind `drift_decoder`, ONE spec per month (align
+#: "cue-june" / "cue-aug": two training sets never share an id), payload {"full", "loso": {label: model}}. OPT-OUT
+#: WIDEFIELD_DRIFT_FROZEN=0 refits per scored session as before. The size-matched draw (`_matched_frozen`, seeded per
+#: scored session) stays in memory by design, like `paired_matched`. Under WIDEFIELD_LICK_SOURCE=lp the store serves
+#: the LP-TRAINED model (default since 11-03, Priya), the DAQ-trained one (the animal's DAQ pre sessions of that month)
+#: with WIDEFIELD_LP_FROZEN=daq.
+DRIFT_FROZEN_ENV = "WIDEFIELD_DRIFT_FROZEN"
+_DRIFT_MODELS: dict = {}
+
+
+def drift_payload(an, bd, month, log=print):
+    """{"full", "loso"} for one animal x month from the store (fitted once), or None when opted out."""
+    from wfield_local import config, frozen_models
+    from wfield_local.locanmf_frozen_decoder import _pipe
+    if not frozen_models.family_on(DRIFT_FROZEN_ENV):
+        return None
+    XE, YE, GE, kept, e_pre = bd["XE"], bd["YE"], bd["GE"], bd["kept"], bd["e_pre"]
+    idx = sorted(i for i in bd["pre_i"] if _month(kept[i].split("_")[-1]) == month)
+    train = [kept[i] for i in idx]
+    if frozen_models.daq_trained_in_lp():
+        train = [x for x in config.phase_labels("pre") if config.animal_of(x) == an and _month(x.split("_")[-1]) == month]
+    spec = frozen_models.make_spec(an, "drift_decoder", align=f"{ALIGN}-{month}", source="locanmf",
+                                   train_labels=train, post_s=2.0, basis_id=bd.get("basis_id"),
+                                   n_features=int(XE.shape[1]))
+
+    def _fit():
+        full = e_pre & np.isin(GE, idx)
+        return {"full": _pipe().fit(XE[full], YE[full]),
+                "loso": {kept[i]: _pipe().fit(XE[full & (GE != i)], YE[full & (GE != i)]) for i in idx
+                         if len(np.unique(YE[full & (GE != i)])) >= 2}}
+
+    payload, status = frozen_models.load_or_fit(spec, _fit, meta={"month": month, "n_sessions": len(idx)})
+    log(f"{an}: drift_decoder {frozen_models._slug(spec)} {status} "
+        f"(trained on {spec.get('lick_source', 'daq')} {month} pre trials)")
+    return payload
+
+
+def _stored_month_model(an, bd, train_sessions):
+    """The stored model for one `score` training set (all of one month's pre sessions, or all but one), or None.
+
+    The in-memory path fits `_pipe()` on ``e_pre & isin(GE, train_sessions)``; the stored payload holds that exact fit
+    for every training set `decoder_rows` uses (June LOSO / all June / August LOSO / all August)."""
+    from wfield_local import frozen_models
+    if not frozen_models.family_on(DRIFT_FROZEN_ENV):
+        return None
+    kept = bd["kept"]
+    months = {_month(kept[i].split("_")[-1]) for i in train_sessions}
+    if len(months) != 1:
+        raise ValueError(f"{an}: a drift training set spans months {sorted(months)}")
+    month = months.pop()
+    key = (an, month, id(bd))
+    if key not in _DRIFT_MODELS:
+        _DRIFT_MODELS[key] = drift_payload(an, bd, month)
+    pay = _DRIFT_MODELS[key]
+    idx = sorted(i for i in bd["pre_i"] if _month(kept[i].split("_")[-1]) == month)
+    left = sorted(set(idx) - set(train_sessions))
+    if not left:
+        return pay["full"]
+    if len(left) == 1 and kept[left[0]] in pay["loso"]:
+        return pay["loso"][kept[left[0]]]
+    raise ValueError(f"{an} {month}: training set {sorted(train_sessions)} is neither all sessions nor all but one")
+
+
 def decoder_rows(log=print) -> pd.DataFrame:
     from wfield_local import epochs
     from wfield_local.grant_confusion import _matched_frozen, _pooled_bundle, _refit_pred
@@ -94,7 +159,8 @@ def decoder_rows(log=print) -> pd.DataFrame:
             log(f"{an}: june {len(J)} / aug {len(A)} pre sessions -- skipped")
             continue
 
-        def score(i, train_sessions, group, XE=XE, YE=YE, GE=GE, BE=BE, e_pre=e_pre, mm=mm, an=an, test_mask=None):
+        def score(i, train_sessions, group, XE=XE, YE=YE, GE=GE, BE=BE, e_pre=e_pre, mm=mm, an=an, test_mask=None,
+                  bd=bd):
             te = (e_pre & (GE == i)) if test_mask is None else test_mask
             tr = e_pre & np.isin(GE, train_sessions)
             X, y, blk = XE[te], YE[te], BE[te]
@@ -110,7 +176,8 @@ def decoder_rows(log=print) -> pd.DataFrame:
             if got is None:
                 return
             fz_m = np.asarray(got[0].predict(X))
-            fz = np.asarray(_pipe().fit(XE[tr], YE[tr]).predict(X))
+            stored = _stored_month_model(an, bd, train_sessions)
+            fz = np.asarray((stored if stored is not None else _pipe().fit(XE[tr], YE[tr])).predict(X))
             rows.append({"animal": an, "group": group, "session": mm[i], "n_trials": int(len(y)),
                          "frozen_acc": float(np.mean(fz == y)), "frozen_matched_acc": float(np.mean(fz_m == y)),
                          "refit_acc": float(np.mean(np.asarray(rf) == y))})

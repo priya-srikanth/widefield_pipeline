@@ -220,6 +220,33 @@ and reused."* Any decoder that scores post-stroke data against a pre-stroke refe
 |---|---|---|---|
 | position (cue / lick / precue; roi and joint bases) | `locanmf_position_decoder`, `pooled_frozen_*` | `decoder` / `encoder` | 2026-08/09 |
 | behavioural STATE (quiet / running / licking) | `locomotor_decoder.frozen_state_models` | `state` | **2026-10-15** |
+| epoch acc / 5c position decoder (imaging page 2.x; `_collect_5c` mode `frozen`) | `grant_confusion._stored_epoch_decoder` | `epoch_decoder` | opt-in 11-02 (lp-final), **default 11-02** (`frozen-default`) |
+| docked REST position decoder (imaging page 12.1) | `rest_frozen_decoder.frozen_rest_payload` (+ `rest_frozen_decoder_nl.frozen_payload`, same spec for the page flags) | `rest_frozen` | **default 11-02** |
+| frozen column of frozen-vs-refit (`_collect_5c` mode `paired`: epoch 5r / 5ro, `recovery_trajectory`, `prelim_numbers_frozen_vs_refit`) | `grant_confusion._stored_epoch_decoder` (the acc family's model, same spec) | `epoch_decoder` | **default 11-02** (`FROZEN_ALL_20261102`) |
+| 5b confusions (`grant_figures --only 5b`, recompute path) | `grant_confusion._stored_epoch_decoder` (same spec) | `epoch_decoder` | **default 11-02** (`FROZEN_ALL_20261102`) |
+| no-lick reference (`nightly_figs` -> `nolick_reference*.json`) | `nolick_decoder._stored_nolick_reference` (full + LOSO); opt-out `WIDEFIELD_NOLICK_FROZEN=0` | `nolick_reference` | **default 11-02 pass 2** |
+| attempt-coding per-spout axes (imaging page 5.1 / 5.2 inputs; LP only) | `attempt_coding.stored_axes`; opt-out `WIDEFIELD_ATTEMPT_FROZEN=0` | `attempt_axes` | **default 11-02 pass 2** |
+| June -> August drift decoder (imaging page fig 4.3's unmatched frozen column) | `scripts/june_august_drift.drift_payload` (one spec per month); opt-out `WIDEFIELD_DRIFT_FROZEN=0` | `drift_decoder` | **default 11-02 pass 2** |
+| coding directions + per-class confusion decoder (`coding_direction.json` -> grant 3a / 5b, `miss_vs_stopped`) | `position_coding_directions.stored_reference` / `stored_confusion_decoder`; opt-out `WIDEFIELD_CODING_FROZEN=0` | `coding_directions` / `coding_decoder` | **default 11-02 pass 2** |
+| CD trajectories reference (z-score frame, CIM, directions; imaging page section 9) | `cd_trajectories.stored_cd_reference`; opt-out `WIDEFIELD_CD_FROZEN=0` | `cd_directions` | **default 11-02 pass 2** |
+| ITI / cued-lick ridge read-outs (12 scripts; encoding page section 3; LP only) | `frozen_readouts.pre_loso_ridge` (one helper; spec hashes the training data); opt-out `WIDEFIELD_ITI_FROZEN=0` | `iti_readout` | **default 11-02 pass 2** |
+
+**LP arm, 11-03 (Priya): the DEFAULT is the LP-TRAINED model again** (spec `lick_source=lp`, trained on the LP arm's own
+pre trials); the DAQ-trained model is the opt-in cross-check, `WIDEFIELD_LP_FROZEN=daq` (`frozen_models.lp_trained` /
+`daq_trained_in_lp`). Section G's stored references (`g_*`) and the frozen encoder are NOT converted (pass-2 sections
+P2.8 / P2.6), and no kind's spec sees a correction applied downstream of SVTcorr except `iti_readout` (P2.10).
+
+The last two were refitted in memory on every render until 11-02 (Priya 11-02: *"we should cache frozen decoders as we
+always do"*). Opt-outs, for reproducing an old render only: `WIDEFIELD_EPOCH_FROZEN=0`, `WIDEFIELD_REST_FROZEN=0`.
+Under `WIDEFIELD_LICK_SOURCE=lp` the epoch family now LOADS the DAQ-trained model (it refuses to fit one); before 11-02
+its in-memory fit was LP-trained. Verification and per-animal effects: `docs/status/FROZEN_DEFAULT_20261102.md`.
+Since the later 11-02 commit (Priya: *"yes cache all frozen decoders"*) the paired frozen column (5r / 5ro) and 5b use
+the same stored model, opt-out the same `WIDEFIELD_EPOCH_FROZEN=0`; under the LP arm all of them are DAQ-trained by
+default and LP-trained with `WIDEFIELD_LP_FROZEN=lp`. `siblings()` now also groups by `post_s` and `lick_source`, so a
+1.0 s / 2.0 s or LP / DAQ pair no longer reports a false SPEC-CHANGED (no id or stored model changed). Still in memory,
+with the reason for each, and the inventory of every other pre-stroke reference fitted per run (coding directions,
+nolick reference, section G discriminators, CD trajectories, ITI read-outs, the frozen encoder, ...):
+`docs/status/FROZEN_ALL_20261102.md`.
 
 The state decoder was refitted in memory on every render until 2026-10-15, so when PS92 0812 re-entered its
 pre-stroke set (after the split-session fixes, `docs/EXPERIMENT_ERRORS.md`) every post-stroke state score moved

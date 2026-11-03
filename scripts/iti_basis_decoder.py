@@ -82,9 +82,8 @@ def extract(item) -> dict:
 
 def decode(source: str) -> pd.DataFrame:
     """Frozen decoder r per session (lags 0..0.2 averaged) and per lag; same recipe as page 3.9."""
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
-    sd = il.OUT / f"basis_{source}" / "sessions" if source != "areas" else None
+    from wfield_local import frozen_readouts
+    sd =il.OUT / f"basis_{source}" / "sessions" if source != "areas" else None
     labels = sorted(p.stem for p in (sd or il.OUT / "sessions").glob("*.npz"))
     D = {}
     for x in labels:
@@ -108,13 +107,10 @@ def decode(source: str) -> pd.DataFrame:
                 continue
             for li in [None, *range(len(LAGS))]:                 # None = the 0..0.2 s window (the summary number)
                 X = {x: (S[x][st][0][:, WIN].mean(1) if li is None else S[x][st][0][:, li]) for x in S}
-                fits = {}
-                for held in [*pre, None]:
-                    trn = [q for q in pre if q != held]
-                    Xt = np.vstack([X[q] for q in trn])
-                    sc = StandardScaler().fit(Xt)
-                    fits[held] = (sc, RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(
-                        sc.transform(Xt), np.concatenate([S[q][st][1] for q in trn])))
+                # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
+                fits = frozen_readouts.pre_loso_ridge(
+                    a, f"iti_basis_decoder-{source}-{st}-{'w0-0.2' if li is None else f'lag{float(LAGS[li]):g}'}", pre,
+                    X, {q: S[q][st][1] for q in pre}, np.logspace(-1, 5, 13))
                 for x in S:
                     sc, m = fits[x if x in pre else None]
                     r = float(np.corrcoef(m.predict(sc.transform(X[x])), S[x][st][1])[0, 1])

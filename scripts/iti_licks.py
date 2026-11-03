@@ -328,8 +328,7 @@ def decode_session(d: dict, rng) -> list[dict]:
 def frozen_decode(D: dict) -> pd.DataFrame:
     """FROZEN ITI direction decoder per animal: ridge on the animal's August pre ITI licks (features = area activity
     averaged over lags 0..0.2 s), pre sessions scored leave-one-session-out, post sessions with the full pre fit."""
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
+    from wfield_local import frozen_readouts
     w = (LAGS_D >= 0.0) & (LAGS_D <= 0.2)
     rows = []
     for a in AN:
@@ -344,12 +343,13 @@ def frozen_decode(D: dict) -> pd.DataFrame:
             y = d["iti_side"] if tg == "direction" else _within(d["iti_side"], d["iti_pos"])   # iti_pos = PREVIOUS trial spout
             return d["iti_X"].astype(float)[:, w][:, :, feat].mean(1), y
         for tg in ("direction", "relative"):
+            # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0): the same fits the
+            # loop below used to redo per scored session (pre minus that session; all pre for a post session)
+            XY = {p_: xy(p_, tg) for p_ in pre}
+            fits = frozen_readouts.pre_loso_ridge(a, f"iti_licks.frozen_decode-{tg}", pre, {q: v[0] for q, v in XY.items()},
+                                                  {q: v[1] for q, v in XY.items()}, np.logspace(-1, 4, 11))
             for x in S:
-                trn = [p_ for p_ in pre if p_ != x]
-                Xt = np.vstack([xy(p_, tg)[0] for p_ in trn])
-                yt = np.concatenate([xy(p_, tg)[1] for p_ in trn])
-                sc = StandardScaler().fit(Xt)
-                m = RidgeCV(alphas=np.logspace(-1, 4, 11)).fit(sc.transform(Xt), yt)
+                sc, m = fits[x if x in pre else None]
                 X, y = xy(x, tg)
                 pr = m.predict(sc.transform(X))
                 rows.append({"label": x, "animal": a, "epoch": str(S[x]["epoch"]), "target": tg, "n": len(y),
@@ -706,8 +706,7 @@ def frozen_decode_lags(D: dict, set_name: str) -> pd.DataFrame:
     """FROZEN decoder per LAG: ridge trained on each animal's August PRE licks of the set (ITI or in-trial post-cue) at
     that lag, pre sessions scored leave-one-session-out, post sessions with the full pre fit. Targets: lateral direction
     and direction RELATIVE to the previous trial's spout (ITI) / the spout in place (in-trial)."""
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
+    from wfield_local import frozen_readouts
     kx, ky, kp = ("iti_X", "iti_side", "iti_pos") if set_name == "iti" else ("tr_X", "tr_side", "tr_pos")
     rows = []
     for a in AN:
@@ -721,13 +720,9 @@ def frozen_decode_lags(D: dict, set_name: str) -> pd.DataFrame:
         for li, lag in enumerate(LAGS_D):
             X = {x: S[x][kx][:, li, :][:, feat].astype(float) for x in S}
             for tg in ("direction", "relative"):
-                fits = {}
-                for held in [*pre, None]:
-                    trn = [q for q in pre if q != held]
-                    Xt = np.vstack([X[q] for q in trn])
-                    sc = StandardScaler().fit(Xt)
-                    fits[held] = (sc, RidgeCV(alphas=np.logspace(-1, 4, 11)).fit(sc.transform(Xt),
-                                                                                np.concatenate([Y[tg][q] for q in trn])))
+                # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
+                fits = frozen_readouts.pre_loso_ridge(a, f"iti_licks.frozen_decode_lags-{set_name}-{tg}-lag{lag:g}", pre,
+                                                      X, Y[tg], np.logspace(-1, 4, 11))
                 for x in S:
                     sc, m = fits[x if x in pre else None]
                     pr = m.predict(sc.transform(X[x]))
@@ -1252,8 +1247,7 @@ def _binned(X: np.ndarray, win, bw) -> np.ndarray | None:
 
 def binned_frozen(D: dict, set_name: str) -> pd.DataFrame:
     """Frozen binned decoder r per session for every (feature set, window, bin width); pre sessions leave-one-out."""
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
+    from wfield_local import frozen_readouts
     kx, ky, kp = ("iti_X", "iti_side", "iti_pos") if set_name == "iti" else ("tr_X", "tr_side", "tr_pos")
     rows = []
     for a in AN:
@@ -1275,13 +1269,10 @@ def binned_frozen(D: dict, set_name: str) -> pd.DataFrame:
                         continue
                     for tg in ("direction", "relative"):
                         Y = {x: (S[x][ky] if tg == "direction" else _within(S[x][ky], S[x][kp])) for x in S}
-                        fits = {}
-                        for held in [*pre, None]:
-                            trn = [q for q in pre if q != held]
-                            Xt = np.vstack([F[q] for q in trn])
-                            sc = StandardScaler().fit(Xt)
-                            fits[held] = (sc, RidgeCV(alphas=np.logspace(0, 5, 11)).fit(
-                                sc.transform(Xt), np.concatenate([Y[q] for q in trn])))
+                        # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
+                        fits = frozen_readouts.pre_loso_ridge(
+                            a, f"iti_licks.binned_frozen-{set_name}-{fname}-w{win[0]:g}..{win[1]:g}-b{bw:g}-{tg}", pre,
+                            F, Y, np.logspace(0, 5, 11))
                         for x in S:
                             sc, m = fits[x if x in pre else None]
                             pr = m.predict(sc.transform(F[x]))

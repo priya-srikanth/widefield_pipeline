@@ -35,8 +35,7 @@ def feature_names() -> list[str]:
 
 
 def contributions() -> pd.DataFrame:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
+    from wfield_local import frozen_readouts
     names = feature_names()
     D = wd.load("areas")
     rows = []
@@ -48,14 +47,16 @@ def contributions() -> pd.DataFrame:
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
                 continue
-            Xp = np.vstack([S[q][1] for q in pre])
-            Yp = np.vstack([S[q][2] for q in pre])
-            sc = StandardScaler().fit(Xp)
+            # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0): the all-pre fit, one
+            # ridge per AXES column, in AXES order
+            cols = list(AXES.values())
+            sc, ms = frozen_readouts.pre_loso_ridge(a, f"iti_decoder_contrib-{st}", pre, {q: S[q][1] for q in pre},
+                                                    {q: S[q][2][:, cols] for q in pre}, np.logspace(-1, 5, 13),
+                                                    k=len(cols), loso=False)[None]
             # session means first, then epoch means (sessions weighted equally, like the page's per-session numbers)
             sm = pd.DataFrame([dict(label=x, epoch=ep, **dict(zip(names, X.mean(0)))) for x, (ep, X, _C) in S.items()])
             em = sm.groupby("epoch")[names].mean()
-            for ax_, k in AXES.items():
-                m = RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xp), Yp[:, k])
+            for (ax_, _k), m in zip(AXES.items(), ms):
                 w = m.coef_ / sc.scale_
                 for ep in EP:
                     if ep not in em.index:

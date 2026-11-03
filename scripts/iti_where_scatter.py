@@ -38,8 +38,7 @@ PCOL = {"close_ipsi": "#7fb3e0", "close_mid": "#b0b0b0", "close_contra": "#f0a08
 
 
 def predictions() -> pd.DataFrame:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
+    from wfield_local import frozen_readouts
     D = wd.load("areas")
     pos = {x: {"iti": il._load(x)["iti_pos"].astype(str), "trial": il._load(x)["tr_pos"].astype(str)} for x in D}
     rows = []
@@ -57,12 +56,9 @@ def predictions() -> pd.DataFrame:
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
                 continue
-            fits = {}
-            for held in [*pre, None]:
-                trn = [q for q in pre if q != held]
-                Xt, Yt = np.vstack([S[q][1] for q in trn]), np.vstack([S[q][2] for q in trn])
-                sc = StandardScaler().fit(Xt)
-                fits[held] = (sc, [RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), Yt[:, k]) for k in range(3)])
+            # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
+            fits = frozen_readouts.pre_loso_ridge(a, f"iti_where_scatter-{st}", pre, {q: S[q][1] for q in pre},
+                                                  {q: S[q][2] for q in pre}, np.logspace(-1, 5, 13), k=3)
             for x, (ep, X, Y, P) in S.items():
                 sc, ms = fits[x if x in pre else None]
                 Pr = np.column_stack([m.predict(sc.transform(X)) for m in ms])

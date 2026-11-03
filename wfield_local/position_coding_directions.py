@@ -457,7 +457,7 @@ def _rt_engaged(feat, kept, XE):
     return rt
 
 
-def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
+def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, models=None):
     """Confusion of the frozen PRE-stroke decoder, one counts matrix per class.
 
     Rows are the TRUE position and columns the predicted one, both in DISPLAY_ORDER, as raw counts
@@ -470,17 +470,13 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
     0.89-0.99 against 0.45-0.66 held out, so a reader comparing a post value against an in-sample pre
     value would read a collapse that is mostly overfitting (recorded in
     `grant_figures.fig_confusion_pre_post_working`).
+
+    ``models`` = the STORED {"full", "loso": {pre label: model}} (`stored_confusion_decoder`, the default since 11-02
+    pass 2); None fits both in memory (`fit_confusion_decoder`, the same fits).
     """
     # This module imports only POSITION_NAMES, not the order -- take it from the one place that
     # defines it, so these matrices are in the SAME row order as every other confusion in the deck.
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
-
     from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
-
-    def pipe():
-        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
 
     def counts(y_true, y_pred):
         M = np.zeros((len(DISPLAY_ORDER), len(DISPLAY_ORDER)), float)
@@ -495,6 +491,8 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
     res = {"labels": [POSITION_NAMES.get(int(c), str(c)) for c in DISPLAY_ORDER],
            "counts": True, "note": "raw counts; sum classes to build any population"}
 
+    if models is None:
+        models = fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept)
     # PRE, leave-one-session-out
     Cpre = np.zeros((len(DISPLAY_ORDER), len(DISPLAY_ORDER)), float)
     got = False
@@ -502,13 +500,13 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
         tr, te = e_pre & (GE != i), e_pre & (GE == i)
         if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
             continue
-        Cpre += counts(YE[te], pipe().fit(XE[tr], YE[tr]).predict(XE[te]))
+        Cpre += counts(YE[te], models["loso"][kept[i]].predict(XE[te]))
         got = True
     res["prestroke_lick"] = Cpre.tolist() if got else None
 
     # POST, one matrix per class, all scored by the SAME frozen model fitted on every pre-stroke
     # engaged trial -- so the classes are directly comparable and their sums are meaningful.
-    clf = pipe().fit(XE[e_pre], YE[e_pre])
+    clf = models["full"]
     for cls in CONFUSION_CLASSES:
         m = _mask(cls)
         X, y = ((XE, YE) if cls == "poststroke_lick" else (XU, YU))
@@ -536,6 +534,147 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
                 res[cls] = counts(YE[m], clf.predict(XE[m])).tolist() if m.any() else None
                 res[f"n_{cls}"] = int(m.sum())
     return res
+
+
+# ------------------------------------------------------------------------------------------ STORED REFERENCES (11-02)
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). `run_animal`'s two
+#: pre-stroke references come from `frozen_models.load_or_fit`:
+#:   kind `coding_decoder`     the per-class confusion decoder (StandardScaler + LR C=0.5, max_iter 2000): {"full",
+#:                             "loso": {pre label: model}}
+#:   kind `coding_directions`  the engagement axis and, per method, the per-position axes (+ poles, + the raw axis the
+#:                             engagement cosine is read from), their leave-one-session-out refits, the pairwise axes and
+#:                             their LOSO refits; spec align = "<align>-<methods joined by +>"
+#: OPT-OUT WIDEFIELD_CODING_FROZEN=0 (false / no / off) fits both in memory -- through the SAME `fit_*` functions, so
+#: the two paths differ only by the store round trip. Under WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED
+#: references (default since 11-03, Priya), DAQ-trained (the animal's DAQ pre sessions) with WIDEFIELD_LP_FROZEN=daq. Not stored:
+#: `_diagnostics` (pre-only diagnostics: close-far axis, pre-stroke-only pairwise slopes, unit-norm poles).
+#: These feed coding_direction.json -> grant_figures 3a / 5b (`_from_json`) and `miss_vs_stopped`.
+CODING_FROZEN_ENV = "WIDEFIELD_CODING_FROZEN"
+
+
+def coding_frozen_on() -> bool:
+    from wfield_local import frozen_models
+    return frozen_models.family_on(CODING_FROZEN_ENV)
+
+
+def _confusion_pipe():
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    return make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
+
+
+def fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept):
+    """The confusion decoder's fits: all-pre model + one leave-one-session-out model per usable pre session."""
+    loso = {}
+    for i in sorted(pre_i):
+        tr, te = e_pre & (GE != i), e_pre & (GE == i)
+        if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+            continue
+        loso[kept[i]] = _confusion_pipe().fit(XE[tr], YE[tr])
+    return {"full": _confusion_pipe().fit(XE[e_pre], YE[e_pre]), "loso": loso}
+
+
+def fit_reference(XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods, use_nolick=True):
+    """Every coding-direction quantity `run_animal` fits on pre-stroke trials, keyed by LABEL (not pooled index).
+
+    {"e_axis": vector | None, "methods": {meth: {"W": {D: (w, p0, p1)}, "w_raw": {D: w before orthogonalising},
+    "W_loso": {(D, label): (w, p0, p1)}, "PW": {"A|B": (w, pole_B, pole_A)}, "PW_loso": {("A|B", label): (w, r0, r1)}}}}.
+    Same constructions, same rows, same iteration order as the in-memory loop it replaced."""
+    e_axis = (engagement_axis(XE[e_pre], XU[u_pre])
+              if (use_nolick and e_pre.sum() and u_pre.sum()) else None)
+    out = {"e_axis": e_axis, "methods": {}}
+    for meth in methods:
+        base_m, do_orth = (meth[:-5], True) if meth.endswith("_orth") else (meth, False)
+        if do_orth and e_axis is None:
+            continue
+        W, w_raws, W_loso, PW, PW_loso = {}, {}, {}, {}, {}
+        for D in BY_SEVERITY:
+            Xp, Xn = XE[e_pre & (en == D)], XE[e_pre & (en != D)]
+            if len(Xp) < 20 or len(Xn) < 20:
+                continue
+            w_raw = direction(Xp, Xn, base_m)
+            w = orthogonalise(w_raw, e_axis) if do_orth else w_raw
+            W[D] = (w, *poles(Xp, Xn, w))
+            w_raws[D] = w_raw
+            for i in pre_i:
+                tr = e_pre & (GE != i)
+                Ap, An = XE[tr & (en == D)], XE[tr & (en != D)]
+                if len(Ap) < 20 or len(An) < 20:
+                    continue
+                wi = direction(Ap, An, base_m)
+                if do_orth:
+                    wi = orthogonalise(wi, e_axis)
+                W_loso[(D, kept[i])] = (wi, *poles(Ap, An, wi))
+        for A in BY_SEVERITY:
+            for B in BY_SEVERITY:
+                if A == B:
+                    continue
+                XA, XB = XE[e_pre & (en == A)], XE[e_pre & (en == B)]
+                if len(XA) < 20 or len(XB) < 20:
+                    continue
+                wab = direction(XA, XB, base_m)
+                if do_orth and e_axis is not None:
+                    wab = orthogonalise(wab, e_axis)
+                PW[f"{A}|{B}"] = (wab, *poles(XA, XB, wab))
+                for i in pre_i:
+                    tr = e_pre & (GE != i)
+                    Ap, Bp = XE[tr & (en == A)], XE[tr & (en == B)]
+                    if len(Ap) < 20 or len(Bp) < 20:
+                        continue
+                    wi = direction(Ap, Bp, base_m)
+                    if do_orth:
+                        wi = orthogonalise(wi, e_axis)
+                    PW_loso[(f"{A}|{B}", kept[i])] = (wi, *poles(Ap, Bp, wi))
+        out["methods"][meth] = {"W": W, "w_raw": w_raws, "W_loso": W_loso, "PW": PW, "PW_loso": PW_loso}
+    return out
+
+
+def _coding_train(animal, kept, pre_i):
+    from wfield_local import frozen_models
+    if frozen_models.daq_trained_in_lp():
+        # DAQ-TRAINED references in the LP arm: the DAQ run's training set (every pre session of the animal), not the
+        # LP-kept list (a pre session without LP tables is in the DAQ fit but not in the LP pool).
+        return sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == animal)
+    return sorted(kept[i] for i in pre_i)
+
+
+def stored_confusion_decoder(animal, align, post_s, basis_id, XE, YE, GE, e_pre, pre_i, kept):
+    """The stored confusion decoder, or None (opted out, or too little pre data -- `_class_confusions` then returns
+    None itself without fitting)."""
+    from wfield_local import frozen_models
+    if not coding_frozen_on() or e_pre.sum() < 20 or len(np.unique(YE[e_pre])) < 2:
+        return None
+    spec = frozen_models.make_spec(animal, "coding_decoder", align=align, source="locanmf",
+                                   train_labels=_coding_train(animal, kept, pre_i), post_s=post_s,
+                                   basis_id=basis_id, n_features=int(XE.shape[1]))
+    payload, status = frozen_models.load_or_fit(
+        spec, lambda: fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept),
+        meta={"n_engaged_pre": int(e_pre.sum())})
+    print(f"  [coding_dirs] {animal} {align}: coding_decoder {frozen_models._slug(spec)} {status} "
+          f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+    return payload
+
+
+def stored_reference(animal, align, post_s, basis_id, XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods,
+                     use_nolick=True):
+    """`fit_reference` through the store (default) or in memory (WIDEFIELD_CODING_FROZEN=0)."""
+    from wfield_local import frozen_models
+
+    def _fit():
+        return fit_reference(XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods, use_nolick=use_nolick)
+
+    if not coding_frozen_on():
+        print(f"  [coding_dirs] {animal} {align}: {CODING_FROZEN_ENV}=0 -> directions + decoder fitted IN MEMORY",
+              flush=True)
+        return _fit()
+    spec = frozen_models.make_spec(animal, "coding_directions", align=f"{align}-{'+'.join(methods)}",
+                                   source="locanmf", train_labels=_coding_train(animal, kept, pre_i), post_s=post_s,
+                                   basis_id=basis_id, n_features=int(XE.shape[1]))
+    payload, status = frozen_models.load_or_fit(spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()),
+                                                                   "methods": list(methods)})
+    print(f"  [coding_dirs] {animal} {align}: coding_directions {frozen_models._slug(spec)} {status}", flush=True)
+    return payload
 
 
 def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
@@ -708,32 +847,35 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     # coding_direction.json. A second definition elsewhere is how the frozen-decoder contamination
     # happened: two places computing "the same" population and drifting apart.
     try:
-        out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept,
-                                              rt_e=_rt_engaged(feat, kept, XE))
+        # STORED BY DEFAULT (11-02 pass 2): see CODING_FROZEN_ENV.
+        out["confusions"] = _class_confusions(
+            XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=_rt_engaged(feat, kept, XE),
+            models=stored_confusion_decoder(animal, align, post_s, basis.basis_id, XE, YE, GE, e_pre, pre_i, kept))
     except Exception as ex:                                          # noqa: BLE001
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 
+    # every pre-stroke direction (engagement axis, per-position, LOSO, pairwise), STORED BY DEFAULT (CODING_FROZEN_ENV)
+    ref = stored_reference(animal, align, post_s, basis.basis_id, XE, en, e_pre, GE, XU, u_pre, pre_i, kept,
+                           tuple(methods), use_nolick=use_nolick)
     # the engagement axis, from pre-stroke lick vs pre-stroke no-lick
-    e_axis = (engagement_axis(XE[e_pre], XU[u_pre])
-              if (use_nolick and e_pre.sum() and u_pre.sum()) else None)
+    e_axis = ref["e_axis"]
 
     for meth in methods:
         base_m, do_orth = (meth[:-5], True) if meth.endswith("_orth") else (meth, False)
         if do_orth and e_axis is None:
             continue
+        mref = ref["methods"][meth]
         res = {"positions": {}, "cross_matrix": {}, "pairwise": {},
                "orthogonalised": do_orth, "base_method": base_m}
         W, W_loso = {}, {}
         for D in BY_SEVERITY:
-            Xp, Xn = XE[e_pre & (en == D)], XE[e_pre & (en != D)]
-            if len(Xp) < 20 or len(Xn) < 20:
+            if D not in mref["W"]:
                 continue
-            w_raw = direction(Xp, Xn, base_m)
+            w_raw = mref["w_raw"][D]
             # CONTAMINATION: how much engagement each position axis carries, before anything is
             # removed. This is the number that decides whether orthogonalising is warranted.
             cos_e = float(w_raw @ e_axis) if e_axis is not None else None
-            w = orthogonalise(w_raw, e_axis) if do_orth else w_raw
-            p0, p1 = poles(Xp, Xn, w)
+            w, p0, p1 = mref["W"][D]
             W[D] = (w, p0, p1)
             # RAW poles kept: a normalised value far outside [0, 1] is either a genuine offset or a
             # near-zero denominator, and only the raw spread distinguishes those two.
@@ -747,14 +889,8 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
             # class -- pre-stroke NO-LICK included, since training uses only the lick arm -- is
             # already out of sample and uses the full fit.
             for i in pre_i:
-                tr = e_pre & (GE != i)
-                Ap, An = XE[tr & (en == D)], XE[tr & (en != D)]
-                if len(Ap) < 20 or len(An) < 20:
-                    continue
-                wi = direction(Ap, An, base_m)
-                if do_orth:
-                    wi = orthogonalise(wi, e_axis)
-                W_loso[(D, i)] = (wi, *poles(Ap, An, wi))
+                if (D, kept[i]) in mref["W_loso"]:
+                    W_loso[(D, i)] = mref["W_loso"][(D, kept[i])]
 
         def proj(cls, X, D, sess=None, _W=W, _WL=W_loso):
             """Project with the RIGHT direction: held-out for pre-stroke lick, full fit otherwise."""
@@ -868,12 +1004,9 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                 if A == B:
                     continue
                 XA, XB = XE[e_pre & (en == A)], XE[e_pre & (en == B)]
-                if len(XA) < 20 or len(XB) < 20:
+                if f"{A}|{B}" not in mref["PW"]:
                     continue
-                wab = direction(XA, XB, base_m)
-                if do_orth and e_axis is not None:
-                    wab = orthogonalise(wab, e_axis)
-                a0, a1 = poles(XA, XB, wab)
+                wab, a0, a1 = mref["PW"][f"{A}|{B}"]
                 res["pairwise_axes"][f"{A}|{B}"] = {
                     "spread": float(a1 - a0), "n_A": len(XA), "n_B": len(XB)}
                 PW[f"{A}|{B}"] = (wab, a0, a1)
@@ -884,21 +1017,15 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                 for B in BY_SEVERITY:
                     if A == B:
                         continue
-                    XA, XB = XE[e_pre & (en == A)], XE[e_pre & (en == B)]
-                    if len(XA) < 20 or len(XB) < 20:
+                    if f"{A}|{B}" not in mref["PW"]:
                         continue
                     if c == "prestroke_lick":
-                        # held out session by session, same reason as above
+                        # held out session by session, same reason as above (stored: CODING_FROZEN_ENV)
                         ch = []
                         for i in pre_i:
-                            tr = e_pre & (GE != i)
-                            Ap, Bp = XE[tr & (en == A)], XE[tr & (en == B)]
-                            if len(Ap) < 20 or len(Bp) < 20:
+                            if (f"{A}|{B}", kept[i]) not in mref["PW_loso"]:
                                 continue
-                            wi = direction(Ap, Bp, base_m)
-                            if do_orth:
-                                wi = orthogonalise(wi, e_axis)
-                            r0, r1 = poles(Ap, Bp, wi)
+                            wi, r0, r1 = mref["PW_loso"][(f"{A}|{B}", kept[i])]
                             m = e_pre & (GE == i) & (en == A)
                             if m.sum():
                                 ch.append(project(XE[m], wi, r0, r1))
@@ -1808,7 +1935,7 @@ def figure_pairwise_split(everything, out, align="precue", meth="dom"):
 
     ax2 = axes[0][1]
     w = 0.36
-    for j, same in enumerate((True, False)):
+    for _j, same in enumerate((True, False)):
         for k, an in enumerate(animals):
             v = [r[3] for r in rows if r[1] is same and r[0] == an]
             if not v:

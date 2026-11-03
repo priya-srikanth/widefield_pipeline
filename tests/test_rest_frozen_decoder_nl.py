@@ -43,12 +43,19 @@ def test_defaults_are_off():
     assert sig.parameters["period_frames"].default is False
 
 
+#: Functions allowed to differ from REV. `_collect`: the two opt-in keywords. `main`: since 11-02 its pre-stroke models
+#: come from the frozen store by default (`frozen_rest_payload`; tests/test_frozen_default.py pins that route and that
+#: the stored fit is the in-memory one). Everything else -- nulls, `_fit_frozen`, `_usable`, `training_pool`, `_plot`,
+#: confusion -- stays source-identical.
+CHANGED = {"_collect", "main"}
+
+
 def test_only_collect_changed(tmp_path):
-    """Every other function of the module (main, _plot, nulls, fits, confusion) is source-identical to REV."""
+    """Every other function of the module (_plot, nulls, fits, confusion) is source-identical to REV."""
     rf = pytest.importorskip("scripts.rest_migration.rest_frozen_decoder")
     old = _old_module(tmp_path)
     for name, obj in vars(old).items():
-        if inspect.isfunction(obj) and obj.__module__ == old.__name__ and name != "_collect":
+        if inspect.isfunction(obj) and obj.__module__ == old.__name__ and name not in CHANGED:
             assert inspect.getsource(obj) == inspect.getsource(getattr(rf, name)), name
 
 
