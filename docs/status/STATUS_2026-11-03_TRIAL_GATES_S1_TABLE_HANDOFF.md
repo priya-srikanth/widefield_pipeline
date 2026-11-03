@@ -16,6 +16,11 @@ republish the imaging page with re-plotted figures).
   `fig/<name>_rules.png` (old files kept, unreferenced), a "Plot (figure rules)" note per caption (session markers; fit-level
   for 7.10 / 7.11 / 8.16 / 8.18). Script: scratchpad `frpage/apply_fr_rules_1103.py`.
 - Account switched back to hhmi after these publishes; further publishing needs the HMS account again.
+- **QUEUED for e3 (needs the HMS account):** kinematics page = `kin_page_src/kin_page/index.html` (v26 + 13 collapsed LMM
+  toggles + FR cross-link; new files `lmm/<stem>_lmm.png`, 13 stems listed in e3's message); FaceRhythm page = 3 LMM toggles
+  + kinematics cross-link, new files `lmm/{peak_side_headline,per_lick_stats,asym_aligned_change}_lmm.png`. The FR M: source
+  (10-27) is OLDER than live v36: refresh it from live v36 first, re-run `kin_page_src/kin_page/add_lmm_toggles_1103.py fr`
+  (idempotent), diff, publish. Send e3 the version numbers.
 - **Kinematics page v25 -> v26** for e3 (source `kin_page_src/kin_page/index.html`, verified as a section-6-only diff against
   live; images uploaded by name).
 
