@@ -173,9 +173,12 @@ def _wrap(text: str, width: int) -> str:
     return "\n".join(textwrap.fill(line, width) if line else line for line in text.split("\n"))
 
 
-def fig_lines(P, animal, kind, m, ylab, xlab, path, title, pre_from):
+def fig_lines(P, animal, kind, m, ylab, xlab, path, title, pre_from, sign: float = 1.0):
+    """``sign`` = -1: draw the curves negated (``--contra``: + = contralesional, plot level)."""
     plt = _plt()
     C = _epoch_curves(P, animal, kind, m, pre_from)
+    if sign != 1.0:
+        C = {k: (x, sign * y, e, n, cov) for k, (x, y, e, n, cov) in C.items()}
     t = _wrap(title, 150)
     head_in = 0.135 * (t.count("\n") + 1) + 0.05                         # title block height (inches)
     fig, axes = plt.subplots(1, len(POS), figsize=(2.9 * len(POS), 2.6 + head_in), sharey=True)
@@ -343,10 +346,29 @@ def main(argv=None) -> int:
     ap.add_argument("--pre-from", default="20260801")
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
+    ap.add_argument("--contra", action="store_true",
+                    help="only re-draw the sideways-aim figures (mid, mid0; all + first licks) from curves.csv.gz signed "
+                         "+ = CONTRALESIONAL -> <name>_contra.png (nothing recomputed). The oblique 3-D trajectories need "
+                         "no flip: their ml axis is already + = mouse right = contra")
     a = ap.parse_args(argv)
     from wfield_local import analysis_kit as ak
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    if a.contra:
+        out = a.out or d3 / "phase"
+        PP = pd.read_csv(out / "curves.csv.gz", dtype={"date": str})
+        xl = "normalised lick phase (0 = onset, 1 = offset)"
+        for animal in sorted(PP.animal.unique()):
+            for PX, lset, sfx in ((PP[PP.lickset == "all"], "all", ""), (PP[PP.lickset == "first"], "first", "_first")):
+                who = "FIRST post-cue lick -- " if lset == "first" else ""
+                for m, mouth, nm, what in (("mid", "out", "phase_angle", "aim, sideways"),
+                                           ("mid0", "zero", "phase_angle_mouth0", "aim, sideways (in-mouth = 0)")):
+                    f = out / f"{nm}{sfx}_{animal}_contra.png"
+                    fig_lines(PX, animal, "norm", m, "deg out of midline\n(+ = contra)", xl, f,
+                              f"{animal}: {who}{what} through the lick; SIGN: + = CONTRALESIONAL (mouse right), "
+                              "flipped at plot level\n" + _how("norm", lset, mouth), a.pre_from, sign=-1.0)
+                    print("->", f)
+        return 0
     L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
     res, fails = ak.fan_sessions(sorted(L.session.unique()), session_curves, jobs=a.jobs)
     for s, e in fails:

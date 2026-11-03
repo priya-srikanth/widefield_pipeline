@@ -131,7 +131,12 @@ def _session_traces(job) -> list[dict]:
 OUT_MIN = 0.05
 
 
-def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, align: str = "cue") -> None:
+#: lesion-signed measures (+ = ipsi = mouse LEFT for these left lesions); ``figure(contra=True)`` negates them
+SIGNED = ("mid", "side")
+
+
+def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, align: str = "cue",
+           contra: bool = False) -> None:
     """Top row = ``m``; bottom row = share of frames with the tongue out (``out_frac``), so time-out vs reach separate
     (10-20: the licked-only row was dropped -- 98-100 % of engaged trials have a lick outside acute; it stays in the
     tables). Engaged trials (cue-aligned) / engaged trials with a lick (first-lick-aligned). t < 0 shaded."""
@@ -143,6 +148,9 @@ def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, alig
     from scripts.pose3d_summary_fig import EP_COL
     A = T[(T.animal == animal) & (T.set == "engaged")]
     A = A[(A.epoch != "pre") | (A.date >= pre_from)]
+    if contra:                    # + = CONTRALESIONAL (goal-page sign, Priya 10-30): plot level, the table is unchanged
+        A = A.assign(v=np.where(A.measure.isin(SIGNED), -A.v, A.v))
+    lab_of = (lambda mm: MEAS[mm].replace("+ = ipsi", "+ = contra")) if contra else (lambda mm: MEAS[mm])  # noqa: E731
     of = A[A.measure == "out_frac"].set_index(["session", "position", "t_ms"]).v
     rows = [m] if m == "out_frac" else [m, "out_frac"]
     fig, axes = plt.subplots(len(rows), len(POS), figsize=(2.9 * len(POS), 0.9 + 2.4 * len(rows)), sharex=True,
@@ -173,20 +181,21 @@ def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, alig
             if i == 0:
                 ax.set_title(p, fontsize=9)
             if j == 0:
-                ax.set_ylabel(_wrap(MEAS[mm] + (f" (shown where >= {OUT_MIN:g} of frames are out)" if mm in CONDITIONAL
+                ax.set_ylabel(_wrap(lab_of(mm) + (f" (shown where >= {OUT_MIN:g} of frames are out)" if mm in CONDITIONAL
                                                  else ""), 30), fontsize=7)
             if i == len(rows) - 1:
                 ax.set_xlabel(ALIGN[align]["x"], fontsize=7)
     axes[0, -1].legend(fontsize=6, frameon=False)
     if align == "cue":
-        head = (f"{animal}: cue-aligned {MEAS[m]} (3-D)\nALL engaged trials (behaviour gate), incl. trials without a "
+        head = (f"{animal}: cue-aligned {lab_of(m)} (3-D)\nALL engaged trials (behaviour gate), incl. trials without a "
                 "lick; grey = before the cue (3-D windows start 500 ms before it)")
     else:
-        head = (f"{animal}: FIRST-LICK-aligned {MEAS[m]} (3-D)\nengaged trials with >= 1 post-cue cam4 lick; t = 0 at "
+        head = (f"{animal}: FIRST-LICK-aligned {lab_of(m)} (3-D)\nengaged trials with >= 1 post-cue cam4 lick; t = 0 at "
                 "the first lick's onset (cam4 v36); grey = before it; jaw rest = pre-CUE median; legend = median "
                 "first-lick time from the cue")
     title = (f"{head}; frames pooled per {BIN_MS:g} ms bin (>= {MIN_FRAMES} frames), mean per session, then mean +- "
-             "SEM over sessions; template time; 3-D = both cameras or one camera + neighbour depth; pre = August")
+             "SEM over sessions; template time; 3-D = both cameras or one camera + neighbour depth; pre = August"
+             + ("; SIGN: + = CONTRALESIONAL (mouse right), flipped at plot level" if contra and m in SIGNED else ""))
     fig.suptitle(_wrap(title, 150), fontsize=8)
     fig.tight_layout()
     fig.savefig(path, dpi=110)
@@ -204,9 +213,21 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--all", action="store_true", help="every session with 3-D frames, not just the curated cohort")
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
+    ap.add_argument("--contra", action="store_true",
+                    help="only re-draw the lesion-signed figures (mid, side) from traces.csv.gz signed + = CONTRALESIONAL "
+                         "-> figures/<cue|lick>_<m>_<animal>_contra.png (nothing recomputed)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    if a.contra:
+        out = a.out or d3 / ALIGN[a.align]["dir"]
+        T = pd.read_csv(out / "traces.csv.gz", dtype={"date": str})
+        for animal in sorted(T.animal.unique()):
+            for m in SIGNED:
+                f = out / "figures" / f"{'cue' if a.align == 'cue' else 'lick'}_{m}_{animal}_contra.png"
+                figure(T, animal, m, f, a.pre_from, a.align, contra=True)
+                print("->", f)
+        return 0
     v36 = Path(rv.root("orofacial")) / V36 / "sessions"
     bad = P3.failed_sessions(d3)
     sess = [f.name.replace("_frames.csv.gz", "") for f in sorted(d3.glob("PS*_frames.csv.gz"))]

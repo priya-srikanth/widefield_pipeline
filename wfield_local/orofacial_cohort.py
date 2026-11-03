@@ -762,6 +762,8 @@ def save_png_svg(fig, path: Path, dpi: int = 130) -> None:
 
 
 def _save(plt, fig, path: Path) -> None:
+    if _RELABEL:                                        # replot_contra: sign words first, before _tidy wraps labels
+        _relabel(fig)
     _tidy(fig)
     fig.tight_layout()
     save_png_svg(fig, path)
@@ -1894,6 +1896,9 @@ def main(argv=None) -> int:
                     help="pre-stroke baseline: all curated pre sessions, or only those >= late_pre_from (August); "
                          "default 'late' (August-only, PRIMARY) writes the plain folders; 'all' (June-including "
                          "sensitivity) writes *_allpre")
+    ap.add_argument("--replot-contra", action="store_true",
+                    help="only re-draw the lesion-signed page figures signed + = CONTRALESIONAL from the stored tables "
+                         "(*_contra.png beside the + = ipsi ones; nothing recomputed); honours --all-trials / --baseline")
     a = ap.parse_args(argv)
     global ENGAGED_ONLY
     os.environ["OROFACIAL_BASELINE"] = a.baseline
@@ -1904,6 +1909,8 @@ def main(argv=None) -> int:
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
     sfx = ("" if ENGAGED_ONLY else "_alltrials") + ("_allpre" if BASELINE == "all" else "")
+    if a.replot_contra:
+        return replot_contra(a.run, sfx)
     tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
@@ -2313,6 +2320,147 @@ def fig_animal_paths(PH: pd.DataFrame, Pm: pd.DataFrame, path: Path, title: str,
                                           if inmouth == "incl" else f"IN-MOUTH FRAMES EXCLUDED (>= {ANGLE_MIN_PX:.0f} px)"))))
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
+
+
+# ---- + = CONTRALESIONAL re-plots (Priya 10-30: the kinematics page reads in the encoder goal page's convention) ----
+#: image-signed columns of the stored tables: + = image RIGHT = the L positions = IPSIlesional for a LEFT lesion
+#: (face video: ipsi = image right). `replot_contra` flips them per animal from `stroke_laterality` IN MEMORY, at plot
+#: level; the tables on disk keep the image sign.
+IMAGE_SIGNED = ("angle_deg", "angle_mouth0_deg", "lat_px", "lat_out_px", "jaw_lat_px", "delta_angle_deg",
+                "peak_angle_deg", "spout_angle_deg", "walk_d_angle", "l1_angle_deg", "l2_angle_deg")
+#: (regex, replacement) applied to every text of a figure by `_save` while `replot_contra` runs (before `_tidy` wraps)
+_RELABEL: tuple = ()
+CONTRA_RELABEL = ((r"\+(\s*)=(\s*)ipsi", r"+\1=\2contra"),
+                  (r"camera\s+view", "mirrored camera view"),
+                  (r"as\s+the\s+camera\s+sees\s+it", "camera view MIRRORED left-right (contra drawn right)"),
+                  (r"spout\s+angle\s+\(deg\)", "spout angle (deg; + = contra of the spout)"))
+CONTRA_NOTE = ("SIGN: + = CONTRALESIONAL (mouse right; all four lesions left) -- lateral / angle flipped at plot level "
+               "per animal from stroke_laterality; stored tables keep + = image right (= ipsi)")
+
+
+def _relabel(fig) -> None:
+    import re
+    from matplotlib.text import Text
+    for t_ in fig.findobj(Text):
+        s = t_.get_text()
+        if s:
+            for pat, rep in _RELABEL:
+                s = re.sub(pat, rep, s)
+            t_.set_text(s)
+    st = getattr(fig, "_suptitle", None)
+    if st is not None and CONTRA_NOTE not in st.get_text():
+        st.set_text(st.get_text() + "\n" + CONTRA_NOTE)
+
+
+def to_contra(df: pd.DataFrame, lat: dict, long_var: str | None = None) -> pd.DataFrame:
+    """Copy of ``df`` with the image-signed columns signed + = CONTRALESIONAL (x -1 for a LEFT lesion). ``long_var``:
+    a long table (column ``long_var`` names the variable, ``value`` holds it), e.g. cue_aligned_traces."""
+    sg = df.animal.map(lambda a: -1.0 if lat.get(a, "L") == "L" else 1.0).to_numpy()
+    df = df.copy()
+    if long_var:
+        m = df[long_var].isin(IMAGE_SIGNED).to_numpy()
+        df.loc[m, "value"] = df.loc[m, "value"].to_numpy() * sg[m]
+    else:
+        for c in IMAGE_SIGNED:
+            if c in df:
+                df[c] = df[c] * sg
+    return df
+
+
+def _contra_name(p: Path) -> Path:
+    return p.with_name(p.stem + "_contra" + p.suffix)
+
+
+def replot_contra(run: str = RUN, sfx: str = "") -> int:
+    """Re-draw the kinematics-page cam4 figures whose lateral / angle axes are lesion-signed, signed + = CONTRALESIONAL,
+    from the stored tables (`tables/prepost{sfx}`, written by the cohort run) -- nothing is recomputed upstream. Output =
+    the + = ipsi file name + ``_contra`` beside it in `figures/prepost{sfx}` (the + = ipsi figures are kept). The cluster
+    tests are two-sided and sign-symmetric (|t| clusters, seeded), so the bars match the + = ipsi figures. The x-y
+    path figures are mirrored left-right (+ = contra drawn right). Figures: cue-aligned and lick-aligned change-vs-pre
+    (animal-weighted: page section 2), per-animal per-lick metrics (first / all), 2-D tongue and jaw paths (per animal,
+    within-animal pooled, delta)."""
+    global _RELABEL
+    from wfield_local import config
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local import writeguard
+    from wfield_local.paths import PathResolver
+    base = oo.root(PathResolver()) / run / "cohort"
+    tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
+    writeguard.assert_writable(figs)
+    lat = {a: str((v or {}).get("stroke_laterality", "L")) for a, v in config.animals().items()}
+    rd = lambda n, **k: pd.read_csv(tables / n, dtype={"date": str}, **k)          # noqa: E731
+    S, Pm, PH, LS = rd("session_metrics.csv"), rd("position_metrics.csv"), rd("lick_phase.csv"), rd("lickset_metrics.csv")
+    CT = rd("cue_aligned_traces.csv")
+    Pm, PH, LS, CT = to_contra(Pm, lat), to_contra(PH, lat), to_contra(LS, lat), to_contra(CT, lat, long_var="var")
+    PHa = PH[PH.set == "postcue"]
+    CTw = CT.pivot_table(index=["animal", "date", "epoch", "pos", "t_ms"], columns="var", values="value").reset_index()
+    gate = (("ENGAGED trials only (behaviour pipeline's reference-position gate)" if "alltrials" not in sfx else
+             "ALL trials (no engagement gate -- control)")
+            + (" -- baseline: all curated pre" if "allpre" in sfx else f" -- baseline: LATE pre only (>= {LATE_PRE_FROM})"))
+    animals = ", ".join(f"{x} {int((S.animal == x).sum())}" for x in sorted(S.animal.unique()))
+    t = f"Orofacial kinematics, pre vs post stroke -- {run} -- {gate} -- sessions: {animals}"
+    wgt = "animal"
+    done = []
+    _RELABEL = CONTRA_RELABEL
+    try:
+        for tag, (desc, c) in INMOUTH.items():
+            p = figs / f"cohort_cue_minus_pre_inmouth_{tag}_animalw.png"
+            fig_cohort_delta([(CTw, "t_ms", c["protrusion"], "protrusion (px)", False),
+                              (CTw, "t_ms", c["lateral"], "lateral tongue position (px; + = contra)", False),
+                              (CTw, "t_ms", c["angle"], "tongue angle (deg; + = contra)", False)],
+                             _contra_name(p), t,
+                             f"COHORT, change vs pre: cue-aligned protrusion / lateral position / angle (Family 8.2), NOT "
+                             f"lick-selected (every frame of every trial); {desc}", "ms from cue", wgt)
+            done.append(_contra_name(p))
+        sets = {("time", "first"): (PH[PH.set == "first"], "t_ms", "ms from lick peak",
+                                    "lick-PEAK-aligned time; licks: the FIRST post-cue lick of each trial"),
+                ("time", "all"): (PHa, "t_ms", "ms from lick peak",
+                                  "lick-PEAK-aligned time; licks: ALL post-cue licks (measured peaks)"),
+                ("phase", "first"): (PH[(PH.set == "first_norm") & PH.u.between(*U_SHOW)], "u",
+                                     "lick phase (0 = tongue leaves the mouth, 1 = back in; shown 0.1-0.9)",
+                                     "per-lick normalised time (onset -> offset); licks: the FIRST post-cue lick of each trial"),
+                ("phase", "all"): (PH[(PH.set == "postcue_norm") & PH.u.between(*U_SHOW)], "u",
+                                   "lick phase (0 = tongue leaves the mouth, 1 = back in; shown 0.1-0.9)",
+                                   "per-lick normalised time (onset -> offset); licks: ALL post-cue licks")}
+        for tag, (desc, c) in INMOUTH.items():
+            for (al, ls), (D_, xc_, xl_, what) in sets.items():
+                if not len(D_) or (al == "phase" and tag == "incl"):
+                    continue
+                p = figs / f"cohort_lick_{al}_{ls}_minus_pre_inmouth_{tag}_animalw.png"
+                fig_cohort_delta([(D_, xc_, c["protrusion"], "protrusion (px), change vs pre", False),
+                                  (D_, xc_, c["lateral"], "lateral tip position (px; + = contra), change vs pre", False),
+                                  (D_, xc_, c["angle"], "tongue angle (deg; + = contra), change vs pre", False),
+                                  (D_, xc_, c["speed"], "protrusion speed |velocity| (px/s), RAW", False, True),
+                                  (D_, xc_, c["speed"], "protrusion speed |velocity| (px/s), change vs pre", False)],
+                                 _contra_name(p), t,
+                                 f"COHORT lick kinematics vs pre: {what}; {desc}. Rows: protrusion (distance of the tip "
+                                 "from the mouth), lateral tip position, angle (changes vs each animal's own pre), "
+                                 "protrusion speed |velocity| RAW per epoch and its change (signed velocity omitted: "
+                                 "slower-out and slower-back cancel in it)", xl_, wgt)
+                done.append(_contra_name(p))
+        for name in ("first", "all"):
+            p = figs / f"by_position_licks_{name}.png"
+            _per_animal_figure(LS[LS.set == name], LICKSET_METRICS, lat, _contra_name(p), t,
+                               f"per-lick metrics -- {LICK_SETS[name]}; measured peaks; epoch mean +- SEM over sessions")
+            done.append(_contra_name(p))
+        for im in ("incl", "excl"):
+            p = figs / f"cohort_trajectory_xy_within_inmouth_{im}.png"
+            fig_cohort_paths(PHa, Pm, _contra_name(p), t, within=True, inmouth=im)
+            done.append(_contra_name(p))
+        for p, kw in ((figs / "cohort_trajectory_xy_delta_inmouth_excl.png", {"inmouth": "excl"}),):
+            fig_cohort_delta_paths(PHa, _contra_name(p), t, **kw)
+            done.append(_contra_name(p))
+        p = figs / "cohort_jaw_trajectory_xy_within.png"
+        fig_cohort_paths(PHa, Pm, _contra_name(p), t, within=True, part="jaw")
+        done.append(_contra_name(p))
+        for p, kw in ((figs / "cohort_trajectory_xy_by_animal_inmouth_excl.png", {"inmouth": "excl"}),
+                      (figs / "cohort_jaw_trajectory_xy_by_animal.png", {"part": "jaw"})):
+            fig_animal_paths(PHa, Pm, _contra_name(p), t, **kw)
+            done.append(_contra_name(p))
+    finally:
+        _RELABEL = ()
+    print("\n".join(f"-> {p}" for p in done))
+    return 0
 
 
 def stats_methods() -> str:

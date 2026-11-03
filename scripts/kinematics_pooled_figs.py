@@ -19,7 +19,14 @@ sessions bootstrap, 95 %). Dots = sessions, coloured by animal. A cell needs >= 
                               animals, band = SEM over animals
 Numbers behind each figure are written beside it (*_pooled.csv).
 
-    python -m scripts.kinematics_pooled_figs [--out DIR]
+``--contra`` (Priya 10-30, the goal page's sign): only the 3-D figures again, every lesion-signed axis signed + =
+CONTRALESIONAL (mouse right; all four lesions left), flipped at PLOT level -- the same numbers negated, the + = ipsi
+figures and CSVs untouched -> ``*_contra.png`` (+ ``pose3d_change_pooled_contra.csv``, the midline rows negated). The
+bootstrap of `pose3d_change_pooled` is replayed from the same seed and draw order, so every interval is the + = ipsi one.
+Side axes of the 3-D paths are mirrored (+ = mouse right); for the CENTRE spouts the outward-signed lateral error is +
+= mouse left, so it is negated there too.
+
+    python -m scripts.kinematics_pooled_figs [--out DIR] [--contra]
 """
 from __future__ import annotations
 
@@ -39,6 +46,21 @@ POS_LABEL = dict(zip(POS_3D, POS_CAM4))
 ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
 ECOL = {"acute": "#c51b7d", "subacute": "#b8860b", "chronic": "#01665e"}
 V36 = "lp_r4_heatmap_20261013__clean_v36"
+
+
+#: lesion-signed 3-D measures (+ = ipsi = mouse LEFT for these left lesions): negated at plot level by ``contra``
+SIGNED_3D = ("midline_err_ipsi", "mid", "side", "j_side")
+#: outward-signed lateral errors: + = mouse LEFT at the CENTRE spouts only (outward elsewhere, no lesion sign)
+CENTRE_SIGNED_3D = ("lat_err_mm",)
+
+
+def _sg(contra: bool, m: str, pos: str | None = None) -> float:
+    """Plot-level sign for measure ``m`` (at position ``pos``): -1 when ``contra`` and the measure is lesion-signed."""
+    if not contra:
+        return 1.0
+    if m in SIGNED_3D:
+        return -1.0
+    return -1.0 if (m in CENTRE_SIGNED_3D and pos is not None and "center" in pos) else 1.0
 
 
 def _is_aug_pre(df: pd.DataFrame) -> pd.Series:
@@ -101,7 +123,7 @@ def _legend(fig):
     fig.legend(handles=h, loc="lower center", ncol=7, fontsize=7, frameon=False)
 
 
-def fig_angle(out: Path, rng, contra: bool = False) -> pd.DataFrame:
+def fig_angle(out: Path, rng, contra: bool = False, save: bool = True) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from wfield_local import config
     from wfield_local.paths import PathResolver
@@ -123,16 +145,17 @@ def fig_angle(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     _legend(fig)
     reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.94))
-    fig.savefig(out / ("angle_change_pooled_contra.png" if contra else "angle_change_pooled.png"), dpi=130)
+    if save:                                      # save=False: replay the draws only (--contra)
+        fig.savefig(out / ("angle_change_pooled_contra.png" if contra else "angle_change_pooled.png"), dpi=130)
     plt.close(fig)
     return P
 
 
-def fig_3d(out: Path, rng) -> pd.DataFrame:
+def fig_3d(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from wfield_local.paths import PathResolver
     S = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "sessions.csv")
-    meas = [("midline_err_ipsi", "midline error\n(deg; + = ipsi)"), ("miss_mm", "closest approach\nto spout (mm)"),
+    meas = [("midline_err_ipsi", "midline error\n(deg; + = contra)" if contra else "midline error\n(deg; + = ipsi)"), ("miss_mm", "closest approach\nto spout (mm)"),
             ("reach_mm", "reach from\nmouth zero (mm)"), ("speed_peak", "peak tongue\nspeed (mm/s)"),
             ("open_max_mm", "widest jaw\nopening (mm)")]
     long = []
@@ -149,8 +172,12 @@ def fig_3d(out: Path, rng) -> pd.DataFrame:
         P = pooled_change(Lm, "v", "pos", POS_3D, rng).assign(measure=m)
         PP.append(P)
         d = _sessions_minus_pre(Lm, "v", "pos")
+        Pd, dd = P, d
+        if _sg(contra, m) < 0:                     # plot level: same numbers negated (CI bounds swap)
+            Pd = P.assign(est=-P.est, lo=-P.hi, hi=-P.lo)
+            dd = d.assign(chg=-d.chg)
         for j, p in enumerate(POS_3D):
-            _panel(axs[i, j], d[d.pos == p], P, p, f"{lab}, change" if j == 0 else None, rng)
+            _panel(axs[i, j], dd[dd.pos == p], Pd, p, f"{lab}, change" if j == 0 else None, rng)
             if i == 0:
                 axs[i, j].set_title(POS_LABEL[p].replace("_", " "), fontsize=9)
     for j, (c, lab) in enumerate((("jaw_far_dir_mm", "jaw FAR_DIR (mm;\n+ = toward target)"),
@@ -162,16 +189,17 @@ def fig_3d(out: Path, rng) -> pd.DataFrame:
     for j in range(2, 6):
         axs[-1, j].axis("off")
     fig.suptitle("3-D tongue / jaw, POOLED: each session minus its animal's August pre mean (per-session medians of "
-                 "trial licks); * = 95 % CI excludes 0", fontsize=10)
+                 "trial licks); * = 95 % CI excludes 0"
+                 + ("; midline error signed + = CONTRALESIONAL (mouse right)" if contra else ""), fontsize=10)
     _legend(fig)
     reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.03, 1, 0.97))
-    fig.savefig(out / "pose3d_change_pooled.png", dpi=120)
+    fig.savefig(out / ("pose3d_change_pooled_contra.png" if contra else "pose3d_change_pooled.png"), dpi=120)
     plt.close(fig)
     return pd.concat(PP, ignore_index=True)
 
 
-def fig_cue(out: Path) -> pd.DataFrame:
+def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from wfield_local.paths import PathResolver
     T = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "cue_traces" / "traces.csv.gz")
@@ -192,13 +220,15 @@ def fig_cue(out: Path) -> pd.DataFrame:
                                       "n_animals": per.notna().sum(1).to_numpy()}))
     R = pd.concat(rows, ignore_index=True)
     fig, axs = plt.subplots(2, 6, figsize=(15, 6), sharex=True)
-    for i, (m, lab) in enumerate((("mid", "midline angle, change\n(deg; + = ipsi)"), ("jaw_open", "jaw opening, change (mm)"))):
+    side = "contra" if contra else "ipsi"
+    for i, (m, lab) in enumerate((("mid", f"midline angle, change\n(deg; + = {side})"), ("jaw_open", "jaw opening, change (mm)"))):
         for j, p in enumerate(POS_3D):
             ax = axs[i, j]
             for e in EPOCHS:
                 r = R[(R.measure == m) & (R.position == p) & (R.epoch == e) & (R.n_animals >= 3)]
-                ax.plot(r.t_ms, r["mean"], color=ECOL[e], lw=1.4, label=e)
-                ax.fill_between(r.t_ms, r["mean"] - r["sem"], r["mean"] + r["sem"], color=ECOL[e], alpha=0.2, lw=0)
+                mu = r["mean"] * _sg(contra, m)
+                ax.plot(r.t_ms, mu, color=ECOL[e], lw=1.4, label=e)
+                ax.fill_between(r.t_ms, mu - r["sem"], mu + r["sem"], color=ECOL[e], alpha=0.2, lw=0)
             ax.axhline(0, color="0.6", lw=0.8)
             ax.axvline(0, color="0.8", lw=0.8)
             ax.tick_params(labelsize=7)
@@ -210,14 +240,15 @@ def fig_cue(out: Path) -> pd.DataFrame:
                 ax.set_xlabel("ms from cue", fontsize=7.5)
     axs[0, 0].legend(fontsize=7, frameon=False)
     fig.suptitle("3-D cue-aligned traces, POOLED: each session's trace minus its animal's August pre trace, mean over "
-                 "animals (band = SEM over animals; drawn where >= 3 animals); engaged trials", fontsize=10)
+                 "animals (band = SEM over animals; drawn where >= 3 animals); engaged trials"
+                 + ("; midline angle signed + = CONTRALESIONAL (mouse right)" if contra else ""), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(out / "pose3d_cue_pooled.png", dpi=130)
+    fig.savefig(out / ("pose3d_cue_pooled_contra.png" if contra else "pose3d_cue_pooled.png"), dpi=130)
     plt.close(fig)
     return R
 
 
-def fig_paths3d(out: Path, shared: bool = False) -> pd.DataFrame:
+def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.DataFrame:
     """POOLED 3-D tongue / jaw paths (twin of `pose3d_phase` trajectories3d, per animal): per (position, phase bin),
     each session's mean path minus its animal's August pre path, averaged within animal per epoch, then over animals
     (>= 3), added to the cohort pre path (mean over animals of each animal's August pre path) -- the convention of the
@@ -249,8 +280,11 @@ def fig_paths3d(out: Path, shared: bool = False) -> pd.DataFrame:
                                       "v": (pre.reindex(d.index) + d).to_numpy(), "n_animals": per.notna().sum(1).to_numpy()}))
     R = pd.concat(rows, ignore_index=True)
     R = R[R.n_animals >= 3]
-    views = (("side", "down", "FRONT: side (+ = mouse left = ipsi) x down"), ("out", "down", "SIDE: out (forward) x down"),
-             ("side", "out", "TOP: side (+ = ipsi) x out"))
+    if contra:                                    # plot level: side axes + = mouse RIGHT = contra (mirrored)
+        R = R.assign(v=R.v * R.measure.map(lambda m: _sg(True, m)))
+    views = (("side", "down", "FRONT: side (+ = mouse right = contra) x down" if contra else
+              "FRONT: side (+ = mouse left = ipsi) x down"), ("out", "down", "SIDE: out (forward) x down"),
+             ("side", "out", "TOP: side (+ = contra) x out" if contra else "TOP: side (+ = ipsi) x out"))
     fig, axs = plt.subplots(3, 6, figsize=(11.5, 9.4) if shared else (16, 8.4), sharex="row" if shared else False,
                             sharey="row" if shared else False)
     col = {"pre": "#222222", **ECOL}
@@ -288,9 +322,12 @@ def fig_paths3d(out: Path, shared: bool = False) -> pd.DataFrame:
     fig.suptitle("3-D tongue (solid) and jaw (dashed) paths through the lick, POOLED within animal: cohort August-pre path\n"
                  "+ mean over animals of each session's change from its animal's own pre path (phase 0.1-0.9, all post-cue "
                  "licks, >= 3 animals); + = mouth zero; dot = mid-lick; mm"
-                 + ("\naxes shared across spouts within each view" if shared else ""), fontsize=9)
+                 + ("\naxes shared across spouts within each view" if shared else "")
+                 + ("; side signed + = CONTRALESIONAL (mouse right), mirrored from the + = ipsi version" if contra else ""),
+                 fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=0.2 if shared else None)
-    fig.savefig(out / ("pose3d_paths_pooled_shared.png" if shared else "pose3d_paths_pooled.png"), dpi=130)
+    fig.savefig(out / (("pose3d_paths_pooled_shared" if shared else "pose3d_paths_pooled") + ("_contra" if contra else "")
+                       + ".png"), dpi=130)
     plt.close(fig)
     return R
 
@@ -298,9 +335,9 @@ def fig_paths3d(out: Path, shared: bool = False) -> pd.DataFrame:
 DAY_BINS = ((1, 3), (4, 7), (8, 14), (15, 21), (22, 35), (36, 70))
 
 
-def _draw_days(ax, S, aug, col, key, rows):
+def _draw_days(ax, S, aug, col, key, rows, sg: float = 1.0):
     base = S[aug].groupby("animal")[col].mean()
-    d = S[S.day.notna()].assign(chg=S[col] - S.animal.map(base))
+    d = S[S.day.notna()].assign(chg=(S[col] - S.animal.map(base)) * sg)          # sg: plot-level sign (--contra)
     d = d[(d.day > 0) | aug]
     for a in ANIMALS:
         q = d[d.animal == a]
@@ -324,7 +361,7 @@ def _draw_days(ax, S, aug, col, key, rows):
     ax.tick_params(labelsize=6.5)
 
 
-def fig_days(out: Path) -> pd.DataFrame:
+def fig_days(out: Path, contra: bool = False) -> pd.DataFrame:
     """POOLED twin of the per-animal 3-D summaries (`pose3d_summary_fig`): every session's change from ITS animal's
     August pre mean against days from that animal's stroke, all animals on one axis (dots coloured by animal); line =
     mean over animals of each animal's mean change within day bins (>= 3 animals), band = SEM over animals."""
@@ -335,8 +372,10 @@ def fig_days(out: Path) -> pd.DataFrame:
     S = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "sessions.csv")
     S["day"] = [days_since_stroke(f"{a}_{str(d)[-4:]}") for a, d in zip(S.animal, S.date)]
     aug = _is_aug_pre(S)
-    meas = [("midline_err_ipsi", "midline error (deg; + = ipsi)"), ("miss_mm", "closest approach (mm)"),
-            ("lat_err_mm", "lateral error at closest (mm)"), ("reach_mm", "reach (mm)"),
+    meas = [("midline_err_ipsi", f"midline error (deg; + = {'contra' if contra else 'ipsi'})"),
+            ("miss_mm", "closest approach (mm)"),
+            ("lat_err_mm", "lateral error at closest (mm; + outward, centre + = contra)" if contra else
+             "lateral error at closest (mm)"), ("reach_mm", "reach (mm)"),
             ("speed_peak", "peak speed (mm/s)"), ("open_max_mm", "widest jaw opening (mm)")]
     rows = []
     fig, axs = plt.subplots(len(meas) + 1, 6, figsize=(16, 2.3 * (len(meas) + 1)), sharex=True)
@@ -346,7 +385,7 @@ def fig_days(out: Path) -> pd.DataFrame:
             if c not in S:
                 axs[i, j].axis("off")
                 continue
-            _draw_days(axs[i, j], S, aug, c, c, rows)
+            _draw_days(axs[i, j], S, aug, c, c, rows, _sg(contra, m, p))
             if i == 0:
                 axs[i, j].set_title(POS_LABEL[p].replace("_", " "), fontsize=9)
             if j == 0:
@@ -362,14 +401,16 @@ def fig_days(out: Path) -> pd.DataFrame:
                + [Line2D([], [], color="k", label="mean over animals of within-animal bin means (+- SEM)")],
                loc="lower right", ncol=5, fontsize=7, frameon=False)
     fig.suptitle("3-D measures over days, POOLED within animal: each session minus its animal's August pre mean; "
-                 "day bins 1-3, 4-7, 8-14, 15-21, 22-35, 36-70", fontsize=10)
+                 "day bins 1-3, 4-7, 8-14, 15-21, 22-35, 36-70"
+                 + ("; midline error (and the centre spouts' lateral error) signed + = CONTRALESIONAL" if contra else ""),
+                 fontsize=10)
     fig.tight_layout(rect=(0, 0.02, 1, 0.97))
-    fig.savefig(out / "pose3d_days_pooled.png", dpi=120)
+    fig.savefig(out / ("pose3d_days_pooled_contra.png" if contra else "pose3d_days_pooled.png"), dpi=120)
     plt.close(fig)
     return pd.DataFrame(rows)
 
 
-def fig_phase(out: Path) -> pd.DataFrame:
+def fig_phase(out: Path, contra: bool = False) -> pd.DataFrame:
     """POOLED twin of the per-animal lick-phase figures (`pose3d_phase` phase_angle / phase_dist): phase-normalised
     midline angle and 3-D distance from the mouth zero, each session minus its animal's August pre curve, averaged
     within animal per epoch, then over animals (>= 3; band = SEM over animals)."""
@@ -393,14 +434,15 @@ def fig_phase(out: Path) -> pd.DataFrame:
                                       "n_animals": per.notna().sum(1).to_numpy()}))
     R = pd.concat(rows, ignore_index=True)
     fig, axs = plt.subplots(2, 6, figsize=(15, 5.6), sharex=True)
-    for i, (m, lab) in enumerate((("mid", "midline angle, change\n(deg; + = ipsi)"),
+    for i, (m, lab) in enumerate((("mid", f"midline angle, change\n(deg; + = {'contra' if contra else 'ipsi'})"),
                                   ("dist", "3-D distance from mouth\nzero, change (mm)"))):
         for j, p in enumerate(POS_3D):
             ax = axs[i, j]
             for e in EPOCHS:
                 r = R[(R.measure == m) & (R.position == p) & (R.epoch == e) & (R.n_animals >= 3)]
-                ax.plot(r.x, r["mean"], color=ECOL[e], lw=1.4, label=e)
-                ax.fill_between(r.x, r["mean"] - r["sem"], r["mean"] + r["sem"], color=ECOL[e], alpha=0.2, lw=0)
+                mu = r["mean"] * _sg(contra, m)
+                ax.plot(r.x, mu, color=ECOL[e], lw=1.4, label=e)
+                ax.fill_between(r.x, mu - r["sem"], mu + r["sem"], color=ECOL[e], alpha=0.2, lw=0)
             ax.axhline(0, color="0.6", lw=0.8)
             ax.tick_params(labelsize=7)
             if i == 0:
@@ -411,9 +453,10 @@ def fig_phase(out: Path) -> pd.DataFrame:
                 ax.set_xlabel("lick phase (0 = out, 1 = back in)", fontsize=7)
     axs[0, 0].legend(fontsize=7, frameon=False)
     fig.suptitle("3-D lick phase, POOLED within animal: each session's phase curve minus its animal's August pre curve, "
-                 "mean over animals (band = SEM over animals, >= 3 animals); all post-cue licks", fontsize=10)
+                 "mean over animals (band = SEM over animals, >= 3 animals); all post-cue licks"
+                 + ("; midline angle signed + = CONTRALESIONAL (mouse right)" if contra else ""), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(out / "pose3d_phase_pooled.png", dpi=130)
+    fig.savefig(out / ("pose3d_phase_pooled_contra.png" if contra else "pose3d_phase_pooled.png"), dpi=130)
     plt.close(fig)
     return R
 
@@ -424,6 +467,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--angle-only", action="store_true", help="only the two cam4 angle figures (+ = ipsi and + = contra)")
+    ap.add_argument("--contra", action="store_true",
+                    help="only the 3-D figures signed + = CONTRALESIONAL (*_contra.png); the + = ipsi outputs untouched")
     a = ap.parse_args(argv)
     out = a.out or Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "figures" / "pooled"
     assert_writable(out)
@@ -431,6 +476,29 @@ def main(argv=None) -> int:
     rng = np.random.default_rng(20261025)
     import matplotlib
     matplotlib.use("Agg")
+    if a.contra:
+        fig_angle(out, rng, save=False)                       # replay the draws, so fig_3d's intervals are the same
+        B = fig_3d(out, rng, contra=True)
+        sg = np.where(B.measure.isin(SIGNED_3D), -1.0, 1.0)
+        Bc = B.copy()
+        for c in ("PS92", "PS93", "PS94", "PS95", "est"):
+            Bc[c] = B[c] * sg
+        Bc["lo"], Bc["hi"] = np.where(sg < 0, -B.hi, B.lo), np.where(sg < 0, -B.lo, B.hi)
+        Bc.to_csv(out / "pose3d_change_pooled_contra.csv", index=False)
+        old = out / "pose3d_change_pooled.csv"
+        if old.exists():                                      # the replay must reproduce the stored + = ipsi numbers
+            O = pd.read_csv(old)
+            dev = np.nanmax(np.abs(O[["est", "lo", "hi"]].to_numpy(float) - B[["est", "lo", "hi"]].to_numpy(float)))
+            print(f"replay vs stored pose3d_change_pooled.csv: max |diff| = {dev:.3g}")
+        fig_cue(out, contra=True)
+        fig_paths3d(out, contra=True)
+        fig_paths3d(out, shared=True, contra=True)
+        fig_days(out, contra=True)
+        fig_phase(out, contra=True)
+        print(Bc[Bc.measure.isin(SIGNED_3D)][["measure", "group", "epoch", "PS92", "PS93", "PS94", "PS95", "est", "lo",
+                                              "hi"]].round(2).to_string(index=False))
+        print("->", out)
+        return 0
     A = fig_angle(out, rng)
     A.to_csv(out / "angle_change_pooled.csv", index=False)
     Ac = fig_angle(out, np.random.default_rng(20261025), contra=True)      # re-seeded: same draws, numbers negated

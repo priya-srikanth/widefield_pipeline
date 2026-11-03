@@ -194,7 +194,10 @@ def _ipsi(g: pd.DataFrame) -> pd.Series:
 LAT_LABEL = "lateral (mm; + = ipsi / mouse left, right as cam4)"
 
 
-def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None:
+LAT_LABEL_CONTRA = "lateral (mm; + = contra / mouse right, drawn right)"
+
+
+def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str, contra: bool = False) -> None:
     """Epoch version (Priya 10-20): each SESSION's median closest approach as a faded dot, the epoch mean of the session
     medians as a large marker (pre = August); no per-lick cloud."""
     import matplotlib
@@ -202,13 +205,14 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -
     import matplotlib.pyplot as plt
     A = L[L.animal == animal].copy()
     A = A[(A.epoch != "pre") | (A.date.astype(str) >= pre_from)]
-    A["lat_ipsi"] = _ipsi(A)
+    A["lat_ipsi"] = _ipsi(A) * (-1.0 if contra else 1.0)    # contra: + = mouse right (plot level; column name kept)
     M = A.groupby(["session", "epoch", "position"])[["lat_ipsi", "ap_err_mm", "dv_err_mm"]].median().reset_index()
     cols = {"pre": "0.3", **EP_COL}
     # Priya 10-20: zoomed per panel (data + the spout, >= 1.2 mm span, equal mm scale), smaller markers, +- SEM bars
     fig, axes = plt.subplots(2, len(POS), figsize=(2.9 * len(POS), 5.6), squeeze=False)
     for j, p in enumerate(POS):
-        for i, (xc, xl) in enumerate((("lat_ipsi", LAT_LABEL), ("ap_err_mm", "beyond spout (mm; + = away)"))):
+        for i, (xc, xl) in enumerate((("lat_ipsi", LAT_LABEL_CONTRA if contra else LAT_LABEL),
+                                      ("ap_err_mm", "beyond spout (mm; + = away)"))):
             ax = axes[i, j]
             gp = M[M.position == p]
             for ep, c in cols.items():
@@ -244,7 +248,8 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -
     axes[0, -1].legend(fontsize=6, loc="lower left")
     fig.suptitle(f"{animal}: closest approach of the tongue tip to the target spout, by epoch (spout = open circle at 0, "
                  "0)\nfaded = one session's median over its licks; outlined dot + bars = epoch mean of the session medians +- SEM; each panel zoomed to its data; pre = "
-                 "August", fontsize=9)
+                 "August" + ("; SIGN: lateral + = CONTRALESIONAL (mouse right), flipped at plot level" if contra else ""),
+                 fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=120)
     plt.close(fig)
@@ -315,9 +320,19 @@ def main(argv=None) -> int:
     ap.add_argument("--pre-from", default="20260801", help="baseline sessions from this date (August-only primary, 10-18)")
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
+    ap.add_argument("--contra", action="store_true",
+                    help="only re-draw scatter_epoch_<animal>_contra.png (+ = contralesional) from licks.csv.gz")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    if a.contra:                        # scatter_epoch reads only the closest-approach vector, no peak errors needed
+        L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+        out = a.out or d3 / "spout_error"
+        for animal in sorted(L.animal.unique()):
+            f = out / f"scatter_epoch_{animal}_contra.png"
+            fig_scatter_epoch(L, animal, f, a.pre_from, contra=True)
+            print("->", f)
+        return 0
     L = add_peak_errors(rv, pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}), a.pre_from)
     out = a.out or d3 / "spout_error"
     out.mkdir(exist_ok=True, parents=True)
