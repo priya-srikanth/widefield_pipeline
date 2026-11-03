@@ -173,3 +173,20 @@ That is about 2–4x the nominal rate. Its extra stars are bought with those fal
 
 The cause is that resampling 4 animals treats the observed 4 as the whole population. The 10-21 map calibration is
 not affected for null maps; post-stroke map contrasts inherit the same n = 4 limit.
+
+## Priya's choice so far (11-03) and the imaging comparison
+
+Decided so far:
+- **The bootstrap stays, labelled for what it is:** a description of these 4 animals.
+- **LMM versions of the key figures:** a mixed model with a separate between-animal spread per epoch; the mean is a
+  filled round dot.
+
+Previews are in `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/lmm_preview_20261103/`, drawn by
+`scripts/a3_lmm_preview_fig.py`.
+
+Imaging comparison (`A3_LMM_IMAGING_STARS_2026-11-03.csv`, script `scripts/a3_lmm_imaging_stars.py`). The model was
+run on every epoch bar family's stored per-session values (`grant_figures/epoch/data/*_sessions.csv`, the CURRENT,
+pre-A3, pre-rebuild renders). Holm is across each figure's cells. Results against the stored mark:
+- cells with any star: 854 → 316;
+- cells with `**`: 581 → 27;
+- 542 stars lost, 4 gained.
