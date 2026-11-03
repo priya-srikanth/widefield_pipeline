@@ -305,12 +305,19 @@ def refit_predictions(X, y, g):
     return pred
 
 
-def _collect(session, basis, bins, verbose=True, gate=True):
+def _collect(session, basis, bins, verbose=True, gate=True, rest_mask=None, period_frames=False):
     """Rest-period features for ONE session in the animal's JOINT basis.
 
     Returns (X, y, order) or None. `order` is the time order of the periods, which the
     circular-shift null needs and which the collection already produces (the mask is scanned
     forward), so it is returned rather than re-derived.
+
+    ``rest_mask`` (default None = the page's restdock05 mask, unchanged): a callable
+    ``(session, rest, rate) -> (rest, extra_lick_samples)`` that REPLACES the rest sample mask
+    (RESTnl: `rest_frozen_decoder_nl.lickfree_rest`) and adds lick onsets the lick-gap measure
+    must also see. ``period_frames=True`` appends each period's frame count to the tuple. Both
+    are opt-in; with the defaults the function is the pre-11-02 one (pinned in
+    tests/test_rest_frozen_decoder_nl.py).
     """
     import h5py
 
@@ -363,6 +370,13 @@ def _collect(session, basis, bins, verbose=True, gate=True):
         return None, f"{lab}: {type(ex).__name__} {str(ex)[:60]}"
     if fs_samp is None:
         return None, f"{lab}: no frame map"
+    if rest_mask is not None:
+        try:
+            rest, _extra = rest_mask(session, rest, rate)
+        except Exception as ex:                                          # noqa: BLE001
+            return None, f"{lab}: rest_mask {type(ex).__name__} {str(ex)[:60]}"
+        if len(_extra):
+            licks = np.unique(np.concatenate([licks, np.asarray(_extra, np.int64)]))
 
     from wfield_local.block_ids import block_ids, block_size_max_for
 
@@ -372,7 +386,7 @@ def _collect(session, basis, bins, verbose=True, gate=True):
     dif = np.diff(pad)
     blk = block_ids(np.asarray(codes), block_size_max_for(session))
 
-    X, y, g, dur, p_aa, p_bb = [], [], [], [], [], []
+    X, y, g, dur, p_aa, p_bb, nfr = [], [], [], [], [], [], []
     for aa, bb in zip(np.flatnonzero(dif > 0), np.flatnonzero(dif < 0)):
         prev = np.searchsorted(cs, aa, "right") - 1
         nxt = np.searchsorted(ts, bb, "left")
@@ -403,13 +417,17 @@ def _collect(session, basis, bins, verbose=True, gate=True):
         dur.append(float(bb - aa) / rate)
         p_aa.append(int(aa))
         p_bb.append(int(bb))
+        nfr.append(int(fr.size))
     if not y:
         return None, f"{lab}: 0 usable rest periods"
     gap = lick_gap_s(np.asarray(p_aa), np.asarray(p_bb), licks, rate)
     # SESSION-LEVEL LICKINESS, so "PS92 is very licky" is a number rather than an impression.
     lick_hz = float(licks.size) / (float(rest.shape[0]) / rate) if rest.shape[0] else float("nan")
-    return (np.asarray(X, np.float32), np.asarray(y), np.asarray(g),
-            np.asarray(dur, float), gap, lick_hz), None
+    out = (np.asarray(X, np.float32), np.asarray(y), np.asarray(g),
+           np.asarray(dur, float), gap, lick_hz)
+    if period_frames:
+        out = out + (np.asarray(nfr, int),)
+    return out, None
 
 
 def training_pool(pre_labels, scored_label):
