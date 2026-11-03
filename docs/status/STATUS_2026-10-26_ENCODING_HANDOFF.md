@@ -39,7 +39,75 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-20 (11-03 ~midday; UPDATED 11-03 afternoon, see the block below the "Next" line) -- READ FIRST, then docs/status/COHORT1_SWAPMASK_RERUN_20261102.md + RUNNING_LIST_2026-11-01.md
+### 00-COMPACT-21 (11-03 evening) -- READ FIRST; supersedes 00-COMPACT-20 for state (20 kept for the decision history)
+Session f082ee0c. Docs commit on wf_attempt (analysis/attempt-coding) BY EXPLICIT PATH ONLY. This window = the
+COHORT 1 FULL REBUILD. Running list: docs/status/RUNNING_LIST_2026-11-01.md (every decision + finding of 11-03 is
+logged there, in order). Plan + decisions: COHORT1_SWAPMASK_RERUN_20261102.md. Pages: imaging LIVE v50 (e0 published
+section 1); goal LIVE v312. No page edits until the rebuild's page pass; e0 can publish for us.
+
+**Decided (all in the rebuild; full list in the running list, 11-03):**
+- **Data:**
+  - Variant `hemo_meegkit_hpfit_lag_refitT_swapmask` (built, 120 sessions).
+  - NO new shared drift step (DRIFT_CUTOFF_CHECK_20261103.md).
+  - LocaNMF = PROJECTION onto the stored per-session and joint footprints; refits are not reproducible (LOCANMF_REFIT_TEST_20261103.md).
+- **Decoders:**
+  - August-only pre per decoder block.
+  - LP arm LP-trained (stored); DAQ-trained is the cross-check.
+  - Frozen-model IDs carry a training-data fingerprint + selection tag + hemo variant (FREEZE_VERSION 2, fresh store).
+- **Trials:** one classifier, wfield_local.trial_classes.classify_session (cue_stop window). The rules:
+  - working = contact | incomplete | jaw_only, ending at the last camera lick;
+  - stopped = >= 6 consecutive no_response; a jaw-only trial after the last lick bridges a run but is not counted or stopped;
+  - noattempt = isolated no_response inside the working period;
+  - warm-up = no_response before the first lick, in neither class (PROVISIONAL);
+  - MIN_UNCOVERED_RUN = 5;
+  - partial video coverage: rules are applied inside the covered span (PS92_0908 kept);
+  - no-lick analysis counts to the trial stop with the same contact table;
+  - rest period ends at the last camera lick;
+  - PS93_0813 (no video) kept for contact-only analyses.
+  - Recorded in DECISIONS "2026-11-03 (night) -- Camera trial gate" on the rebuild branch.
+- **Decks:** preprocessing deck map slides regenerated; analysis decks regenerated; imaging section 15 -> pointer to goal section 23.
+- **Encoder / ITI:** keep their own 600 s drift step (check: 600 s recommended + a 20-25 min sensitivity row, Priya to confirm).
+- **LMM hidden slides:** DONE. 16 + 9 split images in grant_figures/lmm_hidden_20261103/; in the PI deck (182 slides, a8).
+  About half of the bootstrap stars drop under the LMM.
+
+**Code: branch rebuild/cohort1-20261103, worktree C:/Users/SabatiniLab/Github/wf_rebuild (NOT pushed).**
+- Code tip 3ef70b5b; full suite 4,476 passed / 0 failed.
+- Log: docs/status/REBUILD_CODE_20261103.md. Reviews: REBUILD_CODE_REVIEW_20261103.md, passes 1-4 + addendum.
+- Render profile `cohort1_rebuild_20261103` -> run tag hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6.
+- **NOT SAFE TO RENDER YET** (fourth pass: R1 Fig 12.1b stale + default overwrite, R2 deck reads untagged figures,
+  R3 rebuild_figs read old inputs, R4 attempt_maps silently partial, R5 guards fooled by LP / ENL / stray env).
+- **IN PROGRESS (code helper):** the structural REBUILD ROOT. Under the profile, every derived output goes to
+  M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/; writeguard refuses writes outside it; readers resolve inside it; the
+  profile clears stray WIDEFIELD_* vars. Plus R1-R5, the stale T3 text / DECISIONS additions, and the test gaps. Then a
+  FIFTH review pass before any render.
+- Inventories + reconciliation + check tables: docs/status/rebuild_20261103/ (wf_attempt).
+
+**Open for Priya:**
+1. Encoder / ITI drift cutoff: keep 600 s + a 20-25 min sensitivity row?
+2. Licks per trial: count in a fixed cue -> cue + 3.5 s window, or report a rate? Acute trials are shorter: 53-68 % of
+   trials run past 3.6 s, vs 86-92 % pre.
+3. Confirm warm-up = neither class (about 4-5 trials cohort-wide).
+4. Four main-slide caption claims that do not hold under the LMM: rec_wlc csm_share, rec_kn chronic norm, spec_groups
+   acute residuals, recovery_timing acute gap. Soften them, or keep them with the hidden-slide caveat?
+
+**Coordination:**
+- e3 owns trial_classes and the consolidation: A1 / A2 / A4 landed on main; A3 / A5 still to land.
+  Merge main into the rebuild branch before rendering.
+- a8 owns the PI deck. e0 publishes pages.
+- Tell e3 when the rebuild's *_sessions.csv exist (PI slides 10 / 11 / 12 / 19).
+
+**Next:**
+1. Rebuild-root fix.
+2. Fifth review.
+3. Merge main (A3 / A5).
+4. Render G0-G8 into the rebuild root, logged.
+5. Two verifier agents: per-animal first, then what moved.
+6. Replacement pass (share, decks, pages, PI deck); conclusion changes go to Priya first.
+
+**Helper rule (11-03 incident):** stop only via TaskStop on your own task, or by your own reported PIDs. Never select
+processes by parent or name.
+
+### 00-COMPACT-20 (11-03 ~midday; UPDATED 11-03 afternoon, see the block below the "Next" line) -- superseded by 21, then docs/status/COHORT1_SWAPMASK_RERUN_20261102.md + RUNNING_LIST_2026-11-01.md
 Same session f082ee0c; docs commit on wf_attempt branch analysis/attempt-coding **by explicit path only** (another session,
 sabatinilab-5b, keeps uncommitted work in this worktree; `git commit -am` swept it once 11-03, undone). This window = the
 **COHORT 1 FULL REBUILD**. Pages: imaging LIVE v46 (other sessions edit section 1 [5b] - read live before any edit); goal
