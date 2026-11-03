@@ -435,3 +435,5 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   cutoff: target unique chronic -.013 -> -.012 (0/4), spout contra - ipsi +.018 -> +.021 (4/4) at 1500 s. Longer cutoffs bring back
   PS92_0824's drift failure (frozen R2 .44 -> .19 at 1500 s). ITI baseline-subtracted readouts unchanged (max .014); only the pre-cue
   level moves. RECOMMEND keep 600 s; add 1200 / 1500 s as a sensitivity row for spout contra - ipsi + ITI level readouts. Decision: Priya.
+- 11-03 DECISIONS (Priya): encoder / ITI drift = keep 600 s + a 20-25 min sensitivity row (spout contra - ipsi, ITI level readouts).
+  Licks per trial = TOTAL licks from cue to trial stop while the spout is present; lick RATE is a separate metric (reported alongside).
