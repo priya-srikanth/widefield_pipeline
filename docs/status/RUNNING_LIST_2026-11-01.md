@@ -246,3 +246,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   blocks can last several minutes). Check launched (DRIFT_CUTOFF_CHECK_20261103.md): block durations per animal x epoch, spout
   order across sessions, residual band power after hpfit, block-protected cosine removal at 10/15/20/30 min (block-band
   retention >= .98 in every animal x epoch, block means intact, decoding effect). On the swap-mask variant; nothing adopted yet.
+- 11-03: Inventory B complete (548 rows: 335 REDO / 190 NO / 23 UNSURE; scratchpad rebuild_inventory_B.csv + rebuild_order_B.md;
+  copied into the repo at reconciliation). New traps: skip-if-exists per-session writers, --plot-only replays stored bundles,
+  the hemo switch must drive ADOPTED + env/defaults + load_imaging together with a fresh frozen store.
+- 11-03: "working" trial definition (jaw moved OR any camera lick; camera-lick gate = contact | incomplete) is pending Priya.
+  sabatinilab-5b applies it only to its imaging section 1 table and defers the default to the rebuild. If adopted, import
+  the single definition from widefield_pipeline scripts/jaw_only_incomplete_figs.classify() + its gate helper (no new copy).
