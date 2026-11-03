@@ -429,3 +429,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   MIN_UNCOVERED_RUN 5; rest ends at last camera lick); DECISIONS entry matches the code (3 behaviours to add). PS94_0825 stopped 40 -> 12,
   PS93_0925 86 -> 38 (only the bridging jaw-only trials move). Correction: the moved trials are mostly the jaw-only bridges themselves, not
   runs below 6. Remaining blockers R1 / R2 / R3 / R5 being fixed via the rebuild-root design.
+- 11-03: ENCODER / ITI DRIFT CUTOFF CHECK DONE (ENCODER_DRIFT_CUTOFF_20261103.md; outputs grant_figures/encoder_drift_cutoff_20261103/).
+  600 s reproduces the 11-02 swapmask encoder exactly. No cutoff reaches cycle retention >= .98 everywhere under the encoder procedure
+  (gapped engaged rows leak); 600 s strips up to 82% of PS92 subacute cycle power. Headlines keep sign / counts / significance at every
+  cutoff: target unique chronic -.013 -> -.012 (0/4), spout contra - ipsi +.018 -> +.021 (4/4) at 1500 s. Longer cutoffs bring back
+  PS92_0824's drift failure (frozen R2 .44 -> .19 at 1500 s). ITI baseline-subtracted readouts unchanged (max .014); only the pre-cue
+  level moves. RECOMMEND keep 600 s; add 1200 / 1500 s as a sensitivity row for spout contra - ipsi + ITI level readouts. Decision: Priya.
