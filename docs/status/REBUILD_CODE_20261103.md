@@ -250,3 +250,13 @@ Steps 2-4 read SVTcorr / the joint basis (so the hemo switch, project_all and a 
 8. 3.3 / 3.5 reproduction depend on matplotlib version and BLAS threading (section 3).
 9. The scratch test worktrees `<scratchpad>/wf_mergetest` and `wf_headtest` are detached worktrees of this repo:
    remove with `git worktree remove` when done.
+
+## 7. Final test record (appended)
+Full suite on a frozen copy of 335f23f3 (3 shards, ~54 min): 4,159 passed, 175 skipped, 8 failed. The 8 were all
+tests that asserted the OLD design and were updated afterwards, then re-run green on the branch tip:
+- test_lp_licks x2 (LP DAQ cross-check spec equality -> base_id), e947bf1c;
+- test_frozen_default::test_cd_reference_stored_equals_the_old_inline_fit x4 (train_data now required), e947bf1c;
+- test_reference_registry::test_no_caption_without_a_reference (DERIVED restnl; merge breakage), e947bf1c;
+- test_frozen_default::test_collect_5c_..._paired_matched (5rm now stored by design; new test pins stored == replayed
+  == in-memory records), d919eb55.
+Branch tip d919eb55 + this doc. Scratch test worktrees removed.
