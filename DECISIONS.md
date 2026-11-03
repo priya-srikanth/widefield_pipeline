@@ -22246,3 +22246,13 @@ Supersedes for the contest: page 1.33-1.36, the unique-variance figures and the 
   areas outlined black on a white halo (vector contour), per-epoch LEVEL maps collapsed. With 0..1 s the far-contra
   acute cued lick response is, if anything, lower (early decay) and fewer all-target areas are significant acutely
   (18 vs 39). 14.14 rows 2/4 now use a per-order pre balance-angle fit (pre = 0 by construction); angle-only collapsed.
+
+## 2026-11-02 (evening) — cohort 1 to be re-checked on the swap-masked, 415-lag-fixed correction (Priya)
+
+Swapped-LED frames (10-171 per session; PS92_0828 879 pairs; 10% of corrected variance in PS93_0826) and the 16 ms 415
+lag, both found in the cohort 2 QC, are also in cohort 1. A 10-30 check on 24 sessions found the headline epoch decoding
+and area-amplitude changes did not move (max .02). That check did not cover LocaNMF / frozen decoders / encoding /
+RESTnl maps / quiet events. Cross-session amplitudes shrink by a session-dependent 2-14%, which is exactly what epoch
+ratios compare. Decision: build `hemo_meegkit_hpfit_lag_refitT_swapmask` for all cohort 1 sessions and re-render those
+families into new folders. Report what moves; anything that changes is added as a sensitivity check, never replaces a
+page result without discussion. Record and plan: docs/status/COHORT1_SWAPMASK_RERUN_20261102.md.
