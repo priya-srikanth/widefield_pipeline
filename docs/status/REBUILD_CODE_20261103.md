@@ -349,6 +349,20 @@ name is in the selection tag (`sel-camera-cue_stop-stopRun6` / `-stopAny`), so c
 Tests: `test_sustained_stop_rule`, `test_enl_states_camera_branch` (tests/test_camera_gate_fail_closed.py).
 NOTE: `cue_classes_for` must be given the session's FULL cue train (every current caller does), since runs are counted
 along it. `scripts/enl_state_counts.py` still refuses under camera (it builds its own states).
+CAMERA "WORKING" ENDS AT THE SESSION LAST CAMERA LICK (Priya 11-03; main b506c1e3, merged 25ce7efb): the merge kept
+main's `before_session_end` / `in_working` and the rebuild's gate. `cue_classes_for` applies the cutoff once
+(`apply_session_end`: working-gate trials after the anchor -> class "after_end", in neither working nor stopped, after
+the sustained-stop rule), so every `in_gate(cls, "working")` consumer, `grant_kit._class_select` / `camera_select`
+included, equals `in_working(cls, cue order, end=...)` (pinned: test_session_end_relabel_equals_in_working). Anchor
+`trial_selection.end: lick` / `WIDEFIELD_TRIAL_END` (contact / close / none = robustness); it is in the selection tag:
+`sel-camera-cue_stop-endlick-stopRun6`. Effect per main: -1.0 % of working trials (1.8 % acute), all jaw-only after
+the last lick.
+FULL SUITE on a frozen copy of 86280b8a (6 shards, ~52 min): 4,402 passed, 176 skipped, 12 failed. 11 = the
+test_parallel_results_are_ordered cases that fail identically on the attempt-coding tip (section 8.1); 1 =
+test_config::test_svtcorr_path_follows_the_configured_hemo_variant, which asserted the OLD "empty env = zerophase"
+semantics that review L3 changed on purpose (test updated in the commit after 25ce7efb). The later commits (sustained
+stop 464226fd, end-of-session merge 25ce7efb) were tested on the touched suites (camera gate, trial classes, rebuild
+switches, stopped class, map key, state bal_em, frozen models / fingerprint: all pass), not on a second full run.
 Still PROVISIONAL, for Priya:
 2. miss-while-working = incomplete | jaw_only (a no-lick row with a camera "contact" is in neither; review M6);
 3. rest-baseline "working period" = every cue up to the session's LAST camera-working trial (keeps the DAQ rule's single
