@@ -73,6 +73,7 @@ joint_basis:
 trial_selection:
   gate: daq
   window: cue_stop
+  end: lick                    # camera working ends at the session LAST camera lick (Priya 11-03); contact / close / none = robustness
   stopped: run                  # camera "stopped": run = >= behavior.tail_min_misses consecutive no_response (Priya 11-03); any = sensitivity
 
 locanmf:

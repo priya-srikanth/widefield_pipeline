@@ -22,6 +22,13 @@ Groupings (GATES), used to select trials:
   camera_lick  contact | incomplete              a lick was made (lick-aligned windows always need it)
   attempted    contact | incomplete              = camera_lick; the encoder page's "attempt" (10-21 rule)
 
+END OF SESSION (Priya 11-03): primary "working" = the working gate AND at or before the session's LAST CAMERA LICK
+(contact or incomplete): `in_working(...)` / `before_session_end(..., anchor="lick")`. It drops the late, smaller
+jaw-only trials of the sated tail (docs/status/QUIT_TAIL_JAW_ONLY_2026-11-03.md: 1.0 % of working; 0.8 / 1.8 / 1.0 /
+0.8 % pre / acute / subacute / chronic) and, by construction, no lick. Robustness anchors: "contact" (last spout
+contact; cuts real acute far-spout incomplete attempts, 94), "close" (last camera lick at the reference spouts close_L /
+close_center), "none" (no cutoff). The classes and GATES themselves are unchanged; the cutoff is a separate step.
+
 WINDOW (keyword, default "cue_stop", Priya 11-03):
   "cue_stop"  licks from the cue to the trial stop; spout contacts from cue + 70 ms to the trial stop (the DAQ contact
               table built with the video outputs, `orofacial_outputs` / `pose_kinematics_demo.daq_contacts_ms`).
@@ -68,6 +75,9 @@ DEFAULT_WINDOW = "cue_stop"
 JAW_UNJUDGED_POSITIONS = ("close_center", "close_mid")   # neither camera can judge the jaw at this spout (10-21)
 CONTACT_FROM_CUE_S = 0.070                               # DAQ contacts count from cue + 70 ms (daq_contacts_ms)
 V36 = "lp_r4_heatmap_20261013__clean_v36"
+REFERENCE_SPOUTS = ("close_L", "close_center")           # barely affected by the stroke: anchor of the "close" cutoff
+END_ANCHORS = ("lick", "contact", "close", "none")
+DEFAULT_END = "lick"                                      # primary end-of-session cutoff (Priya 11-03)
 
 
 def _flag(x: pd.Series) -> pd.Series:
@@ -219,11 +229,44 @@ def in_gate(cls, gate: str) -> np.ndarray:
     return np.isin(np.asarray(cls, dtype=object), list(GATES[gate]))
 
 
-def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW, stopped: str | None = None) -> str:
+def before_session_end(cls, order, *, session=None, position=None, anchor: str = DEFAULT_END) -> np.ndarray:
+    """Boolean per trial: at or before its session's LAST anchor trial (see END OF SESSION in the module docstring).
+
+    cls / order (trial order within the session: trial_id or DAQ cue index) / session (labels; None = one session) /
+    position (needed for anchor "close") are equal-length sequences. A session with no anchor trial keeps nothing
+    (every trial is after the "last" one); anchor "none" keeps everything."""
+    if anchor not in END_ANCHORS:
+        raise ValueError(f"anchor must be one of {END_ANCHORS}, got {anchor!r}")
+    cls = np.asarray(cls, dtype=object)
+    if anchor == "none":
+        return np.ones(len(cls), bool)
+    order = np.asarray(order, float)
+    sess = np.zeros(len(cls), int) if session is None else np.asarray(session, dtype=object)
+    lick = in_gate(cls, "camera_lick")
+    if anchor == "contact":
+        mark = cls == "contact"
+    elif anchor == "lick":
+        mark = lick
+    else:
+        if position is None:
+            raise ValueError('anchor "close" needs position')
+        mark = lick & np.isin(np.asarray(position, dtype=object), REFERENCE_SPOUTS)
+    last = pd.Series(order[mark]).groupby(pd.Series(sess[mark])).max()
+    return order <= pd.Series(sess).map(last).fillna(-np.inf).to_numpy(float)
+
+
+def in_working(cls, order, *, session=None, position=None, end: str = DEFAULT_END) -> np.ndarray:
+    """THE primary working selection: the working gate AND before the session's end (`before_session_end`)."""
+    return in_gate(cls, "working") & before_session_end(cls, order, session=session, position=position, anchor=end)
+
+
+def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW, end: str | None = None,
+                  stopped: str | None = None) -> str:
     """Short tag naming the trial-selection rule; put it in every cache key / frozen-model spec built on a gate, so
     runs with different sources or windows never share a cache entry (agreed with the cohort-1 rebuild, 11-03).
-    ``stopped`` = the camera stopped-rule name (`stopped_rule_name`, Priya 11-03), appended when given."""
-    return f"sel-{source}-{window}" + (f"-{stopped}" if stopped else "")
+    ``end`` = the end-of-session anchor when the selection uses one (e.g. "lick" -> "-endlick"); ``stopped`` = the
+    camera stopped-rule name (`stopped_rule_name`). None leaves the tag as before, so existing keys do not move."""
+    return f"sel-{source}-{window}" + (f"-end{end}" if end else "") + (f"-{stopped}" if stopped else "")
 
 
 # ------------------------------------------------------------------------------------------ the run's trial gate
@@ -255,6 +298,11 @@ STOPPED_CLASS = "stopped"
 STOPPED_CLASSES = frozenset({STOPPED_CLASS})
 STOPPED_ENV = "WIDEFIELD_TRIAL_STOPPED"
 STOPPED_RULES = ("run", "any")
+#: the class a WORKING-gate trial gets in `cue_classes_for` when it lies after the session end (`before_session_end`,
+#: anchor `end_anchor()`, Priya 11-03): in neither working nor stopped -- so every `in_gate(cls, "working")` consumer IS
+#: `in_working(...)` on the session cue train
+AFTER_END_CLASS = "after_end"
+END_ENV = "WIDEFIELD_TRIAL_END"
 CUE_MATCH_S = 0.020          # a DAQ cue and a video trial are the same trial within 20 ms of cue time (as `lp_licks`)
 
 
@@ -320,7 +368,8 @@ _CLASS_SIG: dict = {}
 #: functions whose source defines the camera classes; their code enters `class_source_signature` (review H4)
 CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "cue_classes",
                     "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
-                    "camera_engaged_period", "in_gate")
+                    "camera_engaged_period", "in_gate", "apply_stopped_rule", "apply_session_end",
+                    "before_session_end", "in_working")
 
 
 def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
@@ -395,6 +444,26 @@ def gate_window() -> str:
     return v
 
 
+def end_anchor() -> str:
+    """The run's end-of-session anchor for camera "working": "lick" (primary, Priya 11-03) | "contact" | "close" |
+    "none" (``trial_selection.end`` / WIDEFIELD_TRIAL_END)."""
+    import os
+    v = os.environ.get(END_ENV, "").strip().lower() or str(_selection_cfg().get("end") or DEFAULT_END).lower()
+    if v not in END_ANCHORS:
+        raise ValueError(f"{END_ENV} / trial_selection.end = {v!r}; expected one of {END_ANCHORS}")
+    return v
+
+
+def apply_session_end(cls, position=None, anchor: str | None = None) -> np.ndarray:
+    """``cls`` (one session, cue order, AFTER `apply_stopped_rule`) with every working-gate trial after the session end
+    relabelled AFTER_END_CLASS: exactly ``in_gate(cls, "working") & ~in_working(cls, arange, end=anchor)``."""
+    anchor = anchor or end_anchor()
+    out = np.asarray(cls, dtype=object).copy()
+    late = in_gate(out, "working") & ~before_session_end(out, np.arange(len(out)), position=position, anchor=anchor)
+    out[late] = AFTER_END_CLASS
+    return out
+
+
 def stopped_rule() -> str:
     """"run" (primary, default) or "any" (sensitivity): the camera stopped rule (see STOPPED_CLASSES)."""
     import os
@@ -458,12 +527,13 @@ def run_selection(source: str | None = None) -> str:
         # cache tag (`gate_source.cache_tag`, lp_licks "_gateLP").
         from wfield_local import gate_source
         return "sel-daq-quittail" + ("-gateLP" if gate_source.is_lp() else "")
-    return selection_tag(source or "camera", gate_window(), stopped_rule_name())
+    return selection_tag(source or "camera", gate_window(), end=end_anchor(), stopped=stopped_rule_name())
 
 
 def run_selection_tag() -> str | None:
     """None for the untagged DAQ rule, else the run's selection tag (output folders, cache kinds; `run_mode`)."""
-    return None if gate_mode() == UNTAGGED_GATE else selection_tag("camera", gate_window(), stopped_rule_name())
+    return None if gate_mode() == UNTAGGED_GATE else selection_tag("camera", gate_window(), end=end_anchor(),
+                                                                   stopped=stopped_rule_name())
 
 
 def cue_classes(table: pd.DataFrame | None, cue_s, tol: float = CUE_MATCH_S) -> np.ndarray:
@@ -498,11 +568,17 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     window = window or gate_window()
     cs = np.ascontiguousarray(np.asarray(cue_s, float))
     rule = (stopped_rule(), stop_run_min())
-    key = (label, window, rule, hashlib.sha1(cs.tobytes()).hexdigest())
+    end = end_anchor()
+    key = (label, window, rule, end, hashlib.sha1(cs.tobytes()).hexdigest())
     if key not in _CUE_CLS:
         if len(_CUE_CLS) > 64:
             _CUE_CLS.clear()
-        _CUE_CLS[key] = apply_stopped_rule(cue_classes(session_trials(label, window=window), cs), *rule)
+        T = session_trials(label, window=window)
+        cls = apply_stopped_rule(cue_classes(T, cs), *rule)
+        # END OF SESSION (Priya 11-03): working-gate trials after the session last camera lick (anchor `end`) leave
+        # working; the "close" anchor needs each cue position (matched the same way as the class)
+        pos = cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs) if end == "close" else None
+        _CUE_CLS[key] = apply_session_end(cls, pos, end)
     return _CUE_CLS[key]
 
 

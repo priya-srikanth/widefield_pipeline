@@ -4,7 +4,28 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
-## UPDATE 11-03 late — SECTION 1 READY TO PUBLISH (supersedes everything below where they differ)
+## UPDATE 11-03 night — CUTOFF DECIDED: LAST CAMERA LICK IS PRIMARY (supersedes the block below where they differ)
+
+**Priya 11-03: "last camera lick cutoff sounds good".** Primary trial set for section 1 = camera working up to the
+session's last camera lick (`working_pl_lick` in the snapshot; columns `split_campllick_*` in `s1_refit_basis.csv`,
+`trials == "camworkpl_lick"` in `s1_refit_locanmf.csv`). No re-run needed: every arm was already computed.
+`p_img_s1_table_20261103.py` now builds the table from it; no cutoff, last contact, last close-spout lick, camera lick
+gate, plain Allen and the DAQ gates are robustness rows. Blocks rebuilt (`s1_update_20261103.html`, `_numbers.md`).
+
+**Numbers on the primary set** (Allen split; pre-cue pre -> acute; post-cue pre -> acute -> chronic): PS92 .36 -> .35,
+.77 -> .59 -> .85; PS93 .40 -> .31, .64 -> .43 -> .82; PS94 .55 -> .42, .85 -> .62 -> .89; PS95 .34 -> .42,
+.82 -> .75 -> .84. Ranges post-cue 0.43–0.89, pre-cue 0.26–0.56 (were .44–.88 / .27–.57 without the cutoff); no cell
+moves by more than .02; conclusions unchanged (acute post-cue drop 4 / 4, back by chronic 4 / 4, pre-cue up PS95,
+down PS93 / PS94, flat PS92; acute sessions decoded 5 / 4 / 6 / 1). LocaNMF agrees within .04.
+
+**Told:** e3 (move `working_pl_lick` into `wfield_local.trial_classes` as the end-of-session rule; until then the
+snapshot is the one definition), a8 (slide 9 ranges .43–.89 / .26–.56; trial line adds "up to the last camera lick").
+**Done after:** e3 put the rule in `wfield_local.trial_classes` (`in_working(..., end="lick")`, b506c1e3; anchors
+lick / contact / close / none); the snapshot script now calls it (0 mismatches vs the snapshot on 57,601 rows, all
+anchors), so there is one definition. a8 re-plotted slide 9 on `split_campllick_*` (checked by export).
+**Still open:** publishing (account access, below).
+
+## UPDATE 11-03 late — SECTION 1 READY TO PUBLISH
 
 **State:** both decoders done on the final classes (snapshot rebuilt at 3b7d08a4 = A4 + the close_center amendment;
 working / camera_lick flags identical cue-for-cue to the 28f2a632 snapshot, only 1,121 unknown -> no_response).
@@ -91,6 +112,9 @@ None open (the post-quit jaw-only option is with e3 -> Priya). Decided today:
   (`grant_kit._class_select("working")`) becomes a robustness row. **Camera lick gate** = contact + incomplete.
   **Lick-aligned windows always use the lick gate.** This is the DEFAULT for the cohort 1 rebuild (window 34
   switches it there, once).
+* **End-of-session cutoff (11-03 night):** working trials stop at the session's **last camera lick** (contact or
+  incomplete); jaw-only trials after it are dropped (0.8–1.8 % of working; no attempt lost). Last contact / last
+  close-spout lick / no cutoff = robustness rows.
 * **Imaging page section 1:** table re-run on the **split Allen basis** (ALM / tjM1 + MOs / MOp rests; the 10-27
   primary basis), with a **LocaNMF** row; the Fig 1.2 sentence **softened (option b)**; publish **now** on the current
   signal; the cohort 1 rebuild re-renders it later with the same scripts.

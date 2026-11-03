@@ -169,3 +169,4 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   parked in C:/Users/SabatiniLab/frozen_models_interim_unpublished_20261103/ (delete? Priya). Slide 9: 5b's camera-
   working section-1 numbers (s1_refit_basis.csv split_camwork_*) -> new figure fig_decoding_sessions_camwork_1103.py
   + slide9_camwork_1103.py; ranges .44-.88 / .27-.57, acute post-cue drop 4/4; PNG checked.
+- 11-03 late: slide 9 moved to the LAST-CAMERA-LICK cutoff (Priya primary; 5b 91664c86): split_campllick_*, ranges .43-.89 / .26-.56, directions + counts unchanged (fig_decoding_sessions_campllick_1103.py, slide9_campllick_1103.py; PNG checked). A3 rule under discussion between Priya and e3 (per-contrast slope df 3 / pooled epoch / heterogeneous-spread df 3); slide star text held. Spout bal_em (arm B, all alignments) build running; renders wait for A3 on main.

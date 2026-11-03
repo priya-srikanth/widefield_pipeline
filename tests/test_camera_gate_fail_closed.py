@@ -288,7 +288,7 @@ def test_figures_working_is_tag_checked(monkeypatch, tmp_path):
     assert writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     assert not writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
-    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-stopRun6" / "coding_direction_cue.png")
+    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-endlick-stopRun6" / "coding_direction_cue.png")
 
 
 def test_cue_classes_all_nan_table_is_unknown():
@@ -313,9 +313,9 @@ def test_sustained_stop_rule(monkeypatch):
     assert not TC.in_gate(["no_response", "stopped"], "working").any()
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     monkeypatch.delenv(TC.STOPPED_ENV, raising=False)
-    assert TC.run_selection_tag() == "sel-camera-cue_stop-stopRun6"
+    assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-stopRun6"
     monkeypatch.setenv(TC.STOPPED_ENV, "any")
-    assert TC.run_selection_tag() == "sel-camera-cue_stop-stopAny" and TC.run_selection() == TC.run_selection_tag()
+    assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-stopAny" and TC.run_selection() == TC.run_selection_tag()
     monkeypatch.setenv(TC.STOPPED_ENV, "bogus")
     with pytest.raises(ValueError):
         TC.stopped_rule()
@@ -331,3 +331,24 @@ def test_enl_states_camera_branch(monkeypatch):
     assert st.tolist()[1:] == ["working", "stopped", "", ""]
     with pytest.raises(TC.DaqGateRefused):
         enl_states.states_for(order, fl > 0, np.array(["far_R"] * 5), fl, fl, 2.0)
+
+
+def test_session_end_relabel_equals_in_working(monkeypatch):
+    """Priya 11-03 (main b506c1e3): camera working stops at the session LAST camera lick. `cue_classes_for` applies it
+    once (`apply_session_end`), so in_gate(cls, "working") on its output == in_working(raw cls, cue order)."""
+    raw = np.array(["jaw_only", "contact", "jaw_only", "no_response", "incomplete", "jaw_only", "unknown", "jaw_only"],
+                   object)
+    for end in ("lick", "contact", "none"):
+        rel = TC.apply_session_end(raw, anchor=end)
+        assert np.array_equal(TC.in_gate(rel, "working"), TC.in_working(raw, np.arange(len(raw)), end=end)), end
+    rel = TC.apply_session_end(raw, anchor="lick")
+    assert rel.tolist()[5:] == ["after_end", "unknown", "after_end"]          # jaw-only after the last lick leave
+    assert TC.apply_session_end(raw, anchor="contact").tolist()[4] == "after_end"   # incomplete after the last contact
+    pos = np.array(["close_L", "close_L", "far_R", "far_R", "far_R", "far_R", "far_R", "far_R"], object)
+    assert not TC.in_gate(TC.apply_session_end(raw, pos, "close"), "working")[2:].any()
+    monkeypatch.setenv(TC.GATE_ENV, "camera")
+    monkeypatch.setenv(TC.END_ENV, "contact")
+    assert TC.run_selection_tag().startswith("sel-camera-cue_stop-endcontact-")
+    monkeypatch.setenv(TC.END_ENV, "bogus")
+    with pytest.raises(ValueError):
+        TC.end_anchor()
