@@ -467,4 +467,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - Code helper (wf_rebuild): rebuild root DONE (c812a3c0, b422ae83: one derived root, fenced by an audit hook, R1-R5 closed);
   600 s + 1500 s drift arm DONE (bc57f786). Now: the 5-min stop-rule check, licks/trial cue -> stop + ILI rate, trial-stop
   verification. `rebuild_root init` (copies seed inputs into the root on M:) not yet run -- runs before the render.
-- Next: fifth review -> merge main -> init root -> render G0-G8 -> two verifiers -> replacement pass.
+- 11-03 ~19:45: helper hit the session limit mid-task (lick-count edits uncommitted in 5 files; stop-rule check had not
+  produced a result); resumed with its context.
+- SEQUENCING CHANGE (mine, reversible): merge main BEFORE the fifth review, so the review covers the merged decoder code
+  (git merge-tree: 9 conflicts -- DECISIONS, poststroke_compare, precue_engagement_states, nolick_decoder, grant_confusion,
+  locanmf_frozen_decoder, position_coding_directions, june_august_drift, quiet_task_events_followup).
+- A3 is on main (1decbe53). A5 (one responded(source)) is still open on e3's side; told e3 the rebuild's trial_classes already
+  implements that design (gate_mode / run_selection / selection_tag) and proposed A5 lands with the rebuild merge.
+- Next: helper finishes -> merge main -> fifth review -> init root -> render G0-G8 -> two verifiers -> replacement pass.
