@@ -2,6 +2,11 @@
 
 > **OVERNIGHT 11-02 -> 11-03: live log + decisions for Priya in [`RUNNING_LIST_2026-11-02_OVERNIGHT.md`](RUNNING_LIST_2026-11-02_OVERNIGHT.md).**
 > State decoder z-score fix DONE (abda8c9c; specificity ratio now an acute claim); cohort2_qc fan_out -> fan_sessions (d74ab907); pushed.
+> **11-03 ~02:30: all overnight jobs DONE, nothing running.** Deck now 134 slides (apply_overnight_specs.py: hidden PS94
+> state slide 14, slide 13 bullets, six kinematics pictures + = contralesional on 33-36 / 123-124). Pages: imaging v49
+> (PS94 loses RUNNING under the z-scored decoder, not licking; Fig 3.5), kinematics v18 (+ = contralesional), encoding
+> v312 (section 23: T13 LP follow-up unchanged, 4-8 Hz laterality does not revive the withdrawal; Figs 23.23-23.24 inline,
+> artifact at its 512-file limit). Open decisions 1-9 in the running list.
 >
 > **PI DECK STATE (11-02 ~23:45).** M:/MICROSCOPE/Priya/Widefield/presentations/PI_overview_2026-11-02.pptx, 125 slides
 > (Priya also edits it: never rebuild; edit in place by slide TITLE; never re-run build_1102.py). Source folder

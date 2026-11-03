@@ -18,20 +18,34 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
    (b) LB333 axon-GCaMP slide has no construct / injection / target in any doc -- keep only with that context;
    (c) map: used the per-tile lick-direction map (FDR, deduplicated; 131 / 231 / 3,390); the map_sel_L_vs_R_GRANT
    versions are an older uncorrected test (172 / 249 of 4,235) and disagree -- OK?
-6. 4-8 Hz laterality band as the primary quiet-event synchronisation measure? (exploratory run tonight, item D).
+6. 4-8 Hz laterality band as the primary quiet-event synchronisation measure? Recommendation: NO (keeps 57 % of the
+   8-15 Hz effect, q .11, two animals, limb shifts equally, 415 nm asymmetric in the same band). Also: word "a pre-cue
+   event marks a weaker code only after the stroke" as resting on the main + exclusion tests (two pre-stroke sub-tests
+   are negative too).
+7. STATE DECODER (new 11-03): under the production z-scored decoder PS94 loses its RUNNING class (.98 -> .54 / .49
+   chronic), not licking (that was the unscaled decoder). PS94 runs ~4x more post-stroke, which pulls the plain
+   session z-score. Adopt class-balanced session centring (new frozen spec id; restores PS94 running .97 / .96 / .91;
+   others move <= .08 up) or keep the plain z-score and report it as a scaling sensitivity?
+8. Deck slide 13 bullets changed tonight to match the production decoder ("running ~94 %"; "state loss is mostly PS94's
+   running class") -- OK? Imaging page v49 also corrected the same claim outside section 3 (status row, corrections
+   list) -- keep or revert.
+9. Kinematics (+ = contralesional, page v18): (a) deck l_cue / l_phase pictures use prepost_alltrials (no engagement
+   gate), page uses prepost (engaged) -- which should the deck show? (b) 2-D path figures are now mirrored left-right
+   vs the camera view -- OK, or keep camera orientation and label the sign? (c) slide 24 caption still says "executed
+   peak angle (+ = ipsi)" (orofacial per-spout figure, not part of the conversion) -- convert that figure too?
 
 ## PLAN TONIGHT (status)
 
 - [x] 1. (DONE, pushed d74ab907, 225 tests passed) Push blocked by 21 ordering-test failures in scripts/cohort2_qc -> switched to analysis_kit.fan_sessions
       (sorted; outputs only gain determinism), test 144 passed; commit + push in progress.
-- [ ] 2. (running) Re-check "running alone ~97 %" after the state z-score fix (specificity slide + imaging page section 3).
-- [ ] 3. (running) PS94 state-diagnostic figure (confusion grids frozen / z-scored / within-session refit) -> imaging page
+- [x] 2. (DONE 11-03, commits 67acffc0 / 1bef3f98) Re-check "running alone ~97 %" after the state z-score fix (specificity slide + imaging page section 3).
+- [x] 3. (DONE 11-03: imaging page v49 Fig 3.5; deck hidden slide 14) PS94 state-diagnostic figure (confusion grids frozen / z-scored / within-session refit) -> imaging page
       section 3 + hidden slide after "Acutely, position fails far more than behavioural state".
 - [x] 4. (DONE: hidden slides 108-110 after the six-spout CD slide, 113 after ROICaT; add_twop_extra.py) Remaining 2-photon grant panels (2p-RAM/grant_figs: six-way decoding PS110, lick-direction selectivity, field
       maps) as hidden slides after the 2-photon main slides.
-- [ ] 5. (running) Kinematics page sign conversion (+ = contralesional) for section 2 angle / lateral rows, 3-D midline-angle
+- [x] 5. (DONE 11-03: kinematics page v18, commits 5371c420 / d54a5246; deck pictures swapped) Kinematics page sign conversion (+ = contralesional) for section 2 angle / lateral rows, 3-D midline-angle
       figures (3.2-3.5, 3.7, 9.x), 2-D / 3-D paths (section 4); republish; swap the deck copies.
-- [ ] 6. (running) Quiet events: T13 follow-up re-run on LP events; exploratory 4-8 Hz laterality (PROVISIONAL) -> encoding page
+- [x] 6. (DONE 11-03, encoding page v312) Quiet events: T13 follow-up re-run on LP events; exploratory 4-8 Hz laterality (PROVISIONAL) -> encoding page
       section 23 (re-read live page first, only section 23 + its status row; tell sabatinilab-34 the version).
 
 ## RESULTS LOG (newest last)
@@ -49,3 +63,23 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   incomplete or jaw-only moves' (far contra incomplete +.63 acute 4/4, +.16 subacute, ~0 chronic; jaw-only +.27 far
   contra, +.23 far mid, +.11 far ipsi acutely, gone chronically), hidden 27-29 (jaw / tongue traces by class, over-days
   model). add_trial_classes.py + fix_trial_classes.py. Not on a results page yet (the other window's figures).
+- 11-03 ~01:30 Quiet events (agent): (a) T13 follow-up on LP-defined events UNCHANGED (acute + subacute after removing event
+  frames -0.016 vs DAQ -0.016, p .001; per animal PS92 -.003 / PS93 -.001 / PS94 -.030 / PS95 -.036; neutral fill 3/4, was 4/4;
+  caveat: two pre-stroke sub-tests also negative). (b) 4-8 Hz T20 laterality keeps 57 % of the 8-15 Hz ipsi > contra (+0.080, q .11;
+  PS93 / PS95 only), 4-7 Hz 41 %; limb shifts equally; 415 nm 4-8 Hz power lower ipsilesionally -> not artefact-free; withdrawal
+  stands; recommend NOT adopting 4-8 Hz as primary (decision 5). Encoding page v312 (Figs 23.23, 23.24; inline images, artifact
+  at its 512-file limit). Commit 4452139a (+ running-list commit). No conclusion changed.
+- 11-03 ~02:30 Running alone + PS94 state (agent): running-class recall pooled .98 / .92 / .83 / .89 after the z-fix
+  (was .99 / .95 / .86 / .92), acute keeps ~94 %; boot_delta -.04 [-.12, .01] / -.12 [-.34, .02] / -.12 [-.37, .02],
+  none excludes 0. CORRECTION of the 11-02 entry above: under the production z-scored decoder PS94 loses RUNNING
+  (.98 / .84 / .54 / .49; chronic running read as quiet .29, licking .24), licking holds (.99 / 1.00 / .94 / .90);
+  within-session refit .98-.99 every epoch (definitions fine). Likely cause: PS94 runs ~10 % -> ~40 % of segments and
+  ~7 -> ~15 mm/s post-stroke, pulling the all-segment session mean; class-balanced centring restores .97 / .96 / .91
+  (diagnostic only, decision 7). 13n / 13pos captions now measured (epoch_state._acute_line + test). Imaging page v49
+  (Fig 3.5). Deck: hidden slide 14 "PS94's states stay separable; frozen decoder loses running"; slide 13 bullets fixed
+  (decision 8).
+- 11-03 ~02:30 Kinematics page v18: every lesion-signed figure + = contralesional (plot-level flip per animal; stats
+  unchanged: cluster bars identical, bootstrap replayed to 7e-15). Deck pictures swapped on slides 33-36 (l_phase_all,
+  p_paths, p_phase, p_3d_far_rows123) and backups 123-124 (l_cue excl / incl); sign text on those slides updated
+  (far contra acute now -50 to -75 px, -30 to -50 deg lateral / angle; 3-D midline -30 to -40 deg acute). Script
+  apply_overnight_specs.py; all eight changed slides checked by PowerPoint export. Deck 134 slides. Decision 9.

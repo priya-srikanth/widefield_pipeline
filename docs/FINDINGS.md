@@ -543,8 +543,11 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    middle still below pre chronically (-.171, -.163). **STANDS** (PRELIM §2 / H1).
 2. **CORRECTED 11-02 (late): state decoder now z-scored per session** (it was specified, never applied; DECISIONS
    2026-11-02 late): state retained .967 -> .903 / .865 / .873 (was .976 -> .872 / .820 / .838), position unchanged; PS94
-   session means .98 -> .87 / .72 / .67 -- its loss is the LICKING class (licking read as quiet), a within-session refit stays
-   .97-.99, so the definitions hold and state is not a clean non-orofacial control in PS94. Change vs pre (boot_delta, Holm):
+   session means .98 -> .87 / .72 / .67, a within-session refit stays .97-.99, so the definitions hold. **CORRECTED 11-03:**
+   under this z-scored decoder PS94's loss is the RUNNING class (.98 -> .84 / .54 / .49; licking holds .90-1.0); "licking read
+   as quiet" was the unscaled decoder. PS94 runs ~4x more post-stroke, which shifts the all-segment session mean; class-
+   balanced centring restores running to .97 / .96 / .91 (diagnostic, decision pending). Running alone pooled .98 -> .92 /
+   .83 / .89, no change interval excludes 0 (imaging page Fig 3.5; DECISIONS 2026-11-03). Change vs pre (boot_delta, Holm):
    position -.41 / -.19 / -.09, state -.04 / -.10 / -.11 -> the specificity RATIO is an ACUTE claim (~8x); by chronic the two
    losses are similar, the state part mostly PS94 (PS92 -.10). The text below is the pre-fix record.
 2. **Specificity: position loses far more than behavioural state.** Above-chance performance retained (current sidecar
