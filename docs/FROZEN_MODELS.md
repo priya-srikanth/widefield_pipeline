@@ -225,6 +225,7 @@ and reused."* Any decoder that scores post-stroke data against a pre-stroke refe
 | attempt-coding per-spout axes (imaging page 5.1 / 5.2 inputs; LP only) | `attempt_coding.stored_axes`; opt-out `WIDEFIELD_ATTEMPT_FROZEN=0` | `attempt_axes` | **default 11-02 pass 2** |
 | June -> August drift decoder (imaging page fig 4.3's unmatched frozen column) | `scripts/june_august_drift.drift_payload` (one spec per month); opt-out `WIDEFIELD_DRIFT_FROZEN=0` | `drift_decoder` | **default 11-02 pass 2** |
 | coding directions + per-class confusion decoder (`coding_direction.json` -> grant 3a / 5b, `miss_vs_stopped`) | `position_coding_directions.stored_reference` / `stored_confusion_decoder`; opt-out `WIDEFIELD_CODING_FROZEN=0` | `coding_directions` / `coding_decoder` | **default 11-02 pass 2** |
+| CD trajectories reference (z-score frame, CIM, directions; imaging page section 9) | `cd_trajectories.stored_cd_reference`; opt-out `WIDEFIELD_CD_FROZEN=0` | `cd_directions` | **default 11-02 pass 2** |
 
 The last two were refitted in memory on every render until 11-02 (Priya 11-02: *"we should cache frozen decoders as we
 always do"*). Opt-outs, for reproducing an old render only: `WIDEFIELD_EPOCH_FROZEN=0`, `WIDEFIELD_REST_FROZEN=0`.

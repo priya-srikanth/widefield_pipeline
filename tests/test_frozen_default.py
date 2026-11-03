@@ -821,3 +821,100 @@ def test_coding_run_animal_uses_the_store():
     assert "direction(" not in src                                    # no direction is fitted in run_animal itself
 
 
+# ------------------------------------------------------------------------------------------- cd_trajectories (5)
+def _cd_traj_inputs(seed=0, ncomp=9, T=40):
+    from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
+    rng = np.random.default_rng(seed)
+    y = np.tile(np.array(DISPLAY_ORDER), 40)
+    mu = {int(p): rng.normal(size=ncomp) for p in DISPLAY_ORDER}
+    X = np.vstack([mu[int(p)] for p in y]) + rng.normal(size=(len(y), ncomp))
+    G = [(rng.normal(size=(ncomp, T)), 50 + 10 * i) for i in range(3)]
+    Rb = {int(p): [rng.normal(size=ncomp) for _ in range(3)] for p in DISPLAY_ORDER}
+    drop = np.zeros(ncomp, bool)
+    drop[[1, 4]] = True
+    return X, y, G, Rb, drop, np.arange(-10, T - 10) / 10.0
+
+
+def _old_cd_fit(Xall, yall, Gpre_chunks, Rb, drop, reference, method, t):
+    """`analyse_animal`'s in-memory fit at 8debc35e (pinned copy of the inline block)."""
+    from wfield_local import cd_trajectories as cdt
+    from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
+    stats = cdt.component_stats(Xall) if cdt.STANDARDISE else None
+    cim = None
+    if Gpre_chunks:
+        Gpre = cdt.pooled_mean(Gpre_chunks, stats)
+        if drop is not None:
+            Gpre = np.asarray(Gpre, float).copy()
+            Gpre[np.asarray(drop, bool)] = 0.0
+        cim = cdt.condition_independent_modes(Gpre, t)
+    if reference == "contrast":
+        dirs, surviving = cdt.fit_directions(Xall, yall, DISPLAY_ORDER, method=method, stats=stats, cim=cim,
+                                             with_surviving=True, drop=drop)
+    else:
+        base = {k_: np.mean(np.stack(v_), 0) for k_, v_ in Rb.items()}
+        dirs = cdt.directions_vs_rest(Xall, yall, base, DISPLAY_ORDER, stats=stats, cim=cim, drop=drop)
+        surviving = {}
+    return stats, cim, dirs, surviving
+
+
+def _eq_nested(a, b):
+    if isinstance(a, dict):
+        assert sorted(a, key=str) == sorted(b, key=str)
+        for k in a:
+            _eq_nested(a[k], b[k])
+    elif isinstance(a, (list, tuple)):
+        assert len(a) == len(b)
+        for x, y in zip(a, b):
+            _eq_nested(x, y)
+    elif a is None:
+        assert b is None
+    else:
+        np.testing.assert_array_equal(a, b)
+
+
+@pytest.mark.parametrize("reference,orth,method", [("contrast", True, "dom"), ("contrast", False, "dom"),
+                                                    ("rest", True, "dom"), ("contrast", True, "lr")])
+def test_cd_reference_stored_equals_the_old_inline_fit(pass2_env, reference, orth, method):
+    from types import SimpleNamespace
+
+    from wfield_local import cd_trajectories as cdt
+    from wfield_local import frozen_models
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    X, y, G, Rb, drop, t = _cd_traj_inputs(seed=5)
+    Gc = G if orth else None
+    basis = SimpleNamespace(basis_id="b" * 12, ncomp=X.shape[1])
+    kw = dict(method=method, reference=reference, use=("success",), orth=orth, mask_occluded=True, win_n=20,
+              pre_n=10, post_frames=30, post_s=2.0, verbose=False)
+    got = cdt.stored_cd_reference("PS92", "precue", basis, ["PS92_0810", "PS92_0811"], lambda: cdt.fit_cd_reference(
+        X, y, Gc, Rb, drop, reference=reference, method=method, t=t), **kw)
+    assert len(rec.calls) == 1 and rec.calls[0]["spec"]["kind"] == "cd_directions"
+    old = _old_cd_fit(X, y, Gc, Rb, drop, reference, method, t)
+    _eq_nested([got["stats"], got["cim"], got["dirs"], got["surviving"]], list(old))
+    pass2_env.setenv("WIDEFIELD_CD_FROZEN", "0")
+    mem = cdt.stored_cd_reference("PS92", "precue", basis, ["PS92_0810"], lambda: cdt.fit_cd_reference(
+        X, y, Gc, Rb, drop, reference=reference, method=method, t=t), **kw)
+    assert len(rec.calls) == 1
+    _eq_nested([mem["stats"], mem["cim"], mem["dirs"], mem["surviving"]], list(old))
+
+
+def test_cd_spec_distinguishes_every_variant():
+    from wfield_local import cd_trajectories as cdt
+    base = dict(method="dom", reference="contrast", use=("success",), orth=True, mask_occluded=True, win_n=20,
+                pre_n=10, post_frames=30)
+    vals = {cdt.cd_spec_align("precue", **base)}
+    for k, v in (("method", "lr"), ("reference", "rest"), ("use", ("success", "miss_working")), ("orth", False),
+                 ("mask_occluded", False), ("win_n", 10), ("pre_n", 5), ("post_frames", 40)):
+        vals.add(cdt.cd_spec_align("precue", **{**base, k: v}))
+    vals.add(cdt.cd_spec_align("cue", **base))
+    assert len(vals) == 10
+
+
+def test_cd_analyse_animal_uses_the_store():
+    from wfield_local import cd_trajectories as cdt
+    src = inspect.getsource(cdt.analyse_animal)
+    assert "cref = stored_cd_reference(" in src and "fit_cd_reference(" in src
+    assert 'stats, cim, dirs, surviving = cref["stats"], cref["cim"], cref["dirs"], cref["surviving"]' in src
+    assert "fit_directions(" not in src and "condition_independent_modes(Gpre" not in src
+
+

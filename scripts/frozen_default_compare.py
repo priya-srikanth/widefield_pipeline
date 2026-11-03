@@ -108,8 +108,9 @@ def compare_rest(cur: Path, new: Path):
 
 
 # ------------------------------------------------------------------------ tree mode (11-02 pass 2: any output folder)
-#: Leaves EXPECTED to differ between a stored and an opt-out render: provenance only (which model / store status).
-PROVENANCE_KEYS = ("frozen_model", "frozen_status", "frozen_models", "decoder_provenance")
+#: Leaves EXPECTED to differ between a stored and an opt-out render: provenance only (which model / store status, and
+#: the write timestamp `cd_trajectories` puts in each result's `_meta`).
+PROVENANCE_KEYS = ("frozen_model", "frozen_status", "frozen_models", "decoder_provenance", "written")
 
 
 def _flat(x, pre=""):
