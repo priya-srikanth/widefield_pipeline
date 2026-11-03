@@ -114,40 +114,80 @@ def summarise():
     (OUTT / "README.txt").write_text(__doc__)
 
 
-def figure(S, R, lab):
+def figure(S, R, lab, out=None):
+    """Priya 11-03 figure rules: x = face-speed bins (ordered, so the epoch mean line stays); epochs at
+    cat_points.epoch_offsets; every session's value as a faded open marker (shape = animal, colour = epoch); per-animal
+    medians small filled. Returns the plotted epoch means / medians (for the --plot-only check)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    from wfield_local import cat_points as cp
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    out = OUTT / "quiet_stillness.png" if out is None else out
+    off = cp.epoch_offsets(len(EP), step=0.2)
     fig, ax = plt.subplots(1, 2, figsize=(14, 4.8))
-    for ep in EP:
+    plotted = {}
+    for i, ep in enumerate(EP):
         G = S[S.epoch == ep]
+        for b in range(len(lab)):
+            g = G[G.bin == b]
+            v = g.rate.where(g.rate > 0)                     # log axis: a zero-rate session cannot be drawn
+            cp.session_dots(ax[0], b + off[i], v, g.animal, EPOCH_LINE[ep], jitter=0.03, seed=100 * i + b)
         A = G.groupby(["animal", "bin"]).rate.median().unstack()
         for an, r in A.iterrows():
-            ax[0].plot(r.index + (EP.index(ep) - 1.5) * 0.06, r.values, ANIMAL_MARKER[an], mfc="none",
-                       mec=EPOCH_LINE[ep], ms=5)
-        ax[0].plot(A.columns, A.mean(0).values, color=EPOCH_LINE[ep], lw=2, label=ep)
+            ax[0].plot(r.index + off[i], r.values, cp.animal_marker(an), ls="none", color=EPOCH_LINE[ep], mec="w",
+                       mew=0.4, ms=4.5, zorder=3)
+        m = A.mean(0)
+        plotted[("rate", ep)] = m
+        ax[0].plot(m.index + off[i], m.values, color=EPOCH_LINE[ep], lw=2, label=ep, zorder=4)
     ax[0].set_yscale("log")
     ax[0].set_xticks(range(len(lab)))
     ax[0].set_xticklabels(lab)
     ax[0].set_xlabel("face speed / animal's pre median (left = stillest)")
     ax[0].set_ylabel("orofacial events / min (raw, up + down, > 4 x pre SD)")
-    ax[0].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
-    ax[0].set_title("T7 event rate by face stillness, engaged quiet\n(markers = animals, line = mean)", fontsize=8)
+    h, l_ = ax[0].get_legend_handles_labels()
+    h += cp.animal_handles(sorted(S.animal.unique()))
+    h += [plt.Line2D([], [], ls="none", marker="o", color="0.35", mec="w", ms=4.5, label="animal median")]
+    ax[0].legend(handles=h, fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    ax[0].set_title("T7 event rate by face stillness, engaged quiet\n(faded open = sessions, small filled = animal "
+                    "medians, line = mean of animals)", fontsize=8)
     T = S.assign(share=S.minutes / S.groupby("label").minutes.transform("sum"))
-    for ep in EP:
-        m = T[T.epoch == ep].groupby("bin").share.median()
-        ax[1].plot(m.index, m.values, "-o", color=EPOCH_LINE[ep], label=ep)
+    for i, ep in enumerate(EP):
+        G = T[T.epoch == ep]
+        for b in range(len(lab)):
+            g = G[G.bin == b]
+            cp.session_dots(ax[1], b + off[i], g.share, g.animal, EPOCH_LINE[ep], jitter=0.03, seed=100 * i + b)
+        m = G.groupby("bin").share.median()
+        plotted[("share", ep)] = m
+        ax[1].plot(m.index + off[i], m.values, "-o", color=EPOCH_LINE[ep], ms=5, mec="w", mew=0.6, label=ep, zorder=4)
     ax[1].set_xticks(range(len(lab)))
     ax[1].set_xticklabels(lab)
     ax[1].set_xlabel("face speed / animal's pre median")
     ax[1].set_ylabel("share of engaged-quiet time")
     ax[1].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
-    ax[1].set_title("time spent at each stillness level", fontsize=8)
+    ax[1].set_title("time spent at each stillness level\n(faded open = sessions, line = median of sessions)", fontsize=8)
     fig.suptitle("T7: is the acute rise in quiet orofacial events explained by a stiller face? (cohort1)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(OUTT / "quiet_stillness.png", dpi=110)
-    print("wrote", OUTT / "quiet_stillness.png")
+    fig.savefig(out, dpi=110)
+    plt.close(fig)
+    print("wrote", out)
+    return plotted
+
+
+def plot_only():
+    """Re-render from the stored stillness_sessions.csv only (no extraction, no LMM) -> quiet_stillness_nolines.png."""
+    import pandas as pd
+    S = pd.read_csv(OUTT / "stillness_sessions.csv")
+    lab = [f"{BINS[b]:g}-{BINS[b + 1]:g}" for b in range(len(BINS) - 1)]
+    P = figure(S, None, lab, out=OUTT / "quiet_stillness_nolines.png")
+    # the plotted summaries must be the stored table's numbers (independent pivot of the same CSV)
+    for ep in EP:
+        G = S[S.epoch == ep]
+        want = G.pivot_table(index="animal", columns="bin", values="rate", aggfunc="median").mean(0)
+        assert np.allclose(P[("rate", ep)].to_numpy(), want.to_numpy(), equal_nan=True), ep
+        sh = (G.minutes / S.groupby("label").minutes.transform("sum").loc[G.index]).groupby(G.bin).median()
+        assert np.allclose(P[("share", ep)].to_numpy(), sh.to_numpy(), equal_nan=True), ep
+    print("plotted summaries == stored stillness_sessions.csv")
 
 
 def main():
@@ -155,7 +195,11 @@ def main():
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--reverse", action="store_true", help="extract in reverse order and stop (a second helper process)")
+    ap.add_argument("--plot-only", action="store_true", help="re-render from stillness_sessions.csv -> *_nolines.png")
     a = ap.parse_args()
+    if a.plot_only:
+        plot_only()
+        return
     if not a.summarise:
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = sorted(f.stem for f in FRV.glob("*.npz") if f.stem[-4:] >= "0806")

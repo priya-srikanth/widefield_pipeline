@@ -115,38 +115,94 @@ def contrasts(S):
     return T
 
 
-def figure(S):
+def figure(S, out=None):
+    """Priya 11-03 rules: no lines; per epoch, the four trial classes side by side; each class's SESSION means (mean over
+    that session's trials) as faded open markers (shape = animal, colour = class), the animal means (mean over the
+    animal's trials, as before) small filled, and the mean of animals as a large marker +- SEM across animals.
+    Returns {(subset, measure, epoch, class): (animal means, mean of animals)} for the --plot-only check."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from wfield_local.orofacial_cohort import ANIMAL_MARKER
+    from wfield_local import cat_points as cp
     col = {"hit": "#1b9e77", "incomplete": "#d95f02", "jaw_only": "#7570b3", "no_try": "0.5"}
     ms = [("run_win", "fraction of response window running"), ("run_delta", "running: window - pre-cue baseline"),
           ("limb_resp", "limb cortex (SSp-ul/ll) dF/F %, cue..+1.5 s - baseline"),
           ("cortex_resp", "whole cortex dF/F %, same window")]
-    fig, ax = plt.subplots(2, len(ms), figsize=(4.2 * len(ms), 8))
+    off = cp.epoch_offsets(len(CLS), step=0.2)
+    plotted = {}
+    fig, ax = plt.subplots(2, len(ms), figsize=(4.4 * len(ms), 8.4))
     for r, (sub, G) in enumerate((("all spouts", S), ("far contra", S[S.pos == "far_contra"]))):
         for a, (m, lab) in zip(ax[r], ms):
             A = G.groupby(["animal", "epoch", "cls"])[m].mean().reset_index()
+            Ss = G.groupby(["label", "animal", "epoch", "cls"])[m].mean().reset_index()
             for k, ep in enumerate(EP):
                 for j, c in enumerate(CLS):
-                    x = k + (j - 1.5) * 0.18
+                    x = k + off[j]
+                    s_ = Ss[(Ss.epoch == ep) & (Ss.cls == c)]
+                    cp.session_dots(a, x, s_[m], s_.animal, col[c], jitter=0.035, seed=100 * k + j, ms=3.0,
+                                    alpha=0.35)
                     g = A[(A.epoch == ep) & (A.cls == c)]
                     for _, rr in g.iterrows():
-                        a.plot(x, rr[m], ANIMAL_MARKER[rr.animal], mfc="none", mec=col[c], ms=5)
+                        a.plot(x + 0.05, rr[m], cp.animal_marker(rr.animal), ls="none", color=col[c], mec="w",
+                               mew=0.4, ms=4, zorder=3)
                     if len(g):
-                        a.plot([x - 0.07, x + 0.07], [g[m].mean()] * 2, color=col[c], lw=2.5,
-                               label=c if (k == 1 and r == 0) else None)
+                        v = g[m].to_numpy(float)
+                        se = v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else np.nan
+                        plotted[(sub, m, ep, c)] = (dict(zip(g.animal, v)), float(v.mean()))
+                        cp.summary_point(a, x, v.mean(), se, col[c], ms=6, label=c if (k == 1 and r == 0) else None)
+            for x in range(len(EP) - 1):
+                a.axvline(x + 0.5, color="0.92", lw=0.6, zorder=0)
+            # y range from the animals + the central 98 % of sessions: a session with one or two trials of a class
+            # can sit far out and would flatten every summary; those are drawn as edge carets and counted
+            sv = Ss[m].dropna().to_numpy(float)
+            av = A[m].dropna().to_numpy(float)
+            lo = min(np.quantile(sv, 0.01), av.min(), 0.0)
+            hi = max(np.quantile(sv, 0.99), av.max(), 0.0)
+            pad = 0.06 * (hi - lo)
+            lo, hi = lo - pad, hi + pad
+            n_out = 0
+            for k, ep in enumerate(EP):
+                for j, c in enumerate(CLS):
+                    s_ = Ss[(Ss.epoch == ep) & (Ss.cls == c)][m].dropna()
+                    for y_, mk in ((hi, "^"), (lo, "v")):
+                        n = int((s_ > hi).sum() if mk == "^" else (s_ < lo).sum())
+                        if n:
+                            n_out += n
+                            a.plot(k + off[j], y_, mk, ls="none", mfc="none", mec=col[c], ms=4, alpha=0.7,
+                                   clip_on=False)
+            a.set_ylim(lo, hi)
             a.axhline(0, color="0.6", lw=0.6)
             a.set_xticks(range(4))
             a.set_xticklabels(EP, fontsize=8)
-            a.set_title(f"{sub}: {lab}", fontsize=8)
-    ax[0, 0].legend(fontsize=7)
+            a.set_title(f"{sub}: {lab}" + (f"\n({n_out} session values off-axis, carets)" if n_out else ""),
+                        fontsize=8)
+    h, l_ = ax[0, 0].get_legend_handles_labels()
+    fig.legend(h + cp.animal_handles(sorted(S.animal.unique())), l_ + [f"{x} sessions" for x in
+                                                                      sorted(S.animal.unique())],
+               fontsize=8, ncol=8, loc="upper center", bbox_to_anchor=(0.5, 0.935), frameon=False)
     fig.suptitle("Do animals recruit the body when they cannot lick? Running and limb cortex by trial outcome (hit / "
-                 "lick-no-contact / jaw-only / no try); markers = animals (shape), bar = mean of animals", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(OUTE / "attempt_effort.png", dpi=110)
-    print("wrote", OUTE / "attempt_effort.png")
+                 "lick-no-contact / jaw-only / no try). Large = mean of animals +- SEM across animals; small filled = "
+                 "animal (shape; mean over its trials); faded open = sessions (shape = animal, colour = class)",
+                 fontsize=9, wrap=True)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    out = OUTE / "attempt_effort.png" if out is None else out
+    fig.savefig(out, dpi=110)
+    plt.close(fig)
+    print("wrote", out)
+    return plotted
+
+
+def plot_only():
+    """Re-render from the stored attempt_effort_trials.csv only (no extraction) -> attempt_effort_nolines.png, and check
+    the plotted animal means against an independent pivot of that table."""
+    import pandas as pd
+    S = pd.read_csv(OUTE / "attempt_effort_trials.csv", low_memory=False)
+    P = figure(S, out=OUTE / "attempt_effort_nolines.png")
+    for (sub, m, ep, c), (am, mu) in P.items():
+        G = S if sub == "all spouts" else S[S.pos == "far_contra"]
+        W = G[(G.epoch == ep) & (G.cls == c)].pivot_table(index="animal", values=m, aggfunc="mean")[m]
+        assert np.allclose([am[a] for a in W.index], W.to_numpy()) and np.isclose(mu, W.mean()), (sub, m, ep, c)
+    print(f"{len(P)} class x epoch summaries == attempt_effort_trials.csv")
 
 
 def main():
@@ -154,7 +210,11 @@ def main():
     ap.add_argument("--jobs", type=int, default=5)
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--reverse", action="store_true")
+    ap.add_argument("--plot-only", action="store_true", help="re-render from attempt_effort_trials.csv -> *_nolines.png")
     a = ap.parse_args()
+    if a.plot_only:
+        plot_only()
+        return
     if not a.summarise:
         import pandas as pd
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)

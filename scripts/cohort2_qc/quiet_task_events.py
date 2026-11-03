@@ -230,7 +230,7 @@ def t12_stats(S):
     return T
 
 
-def t12_figure(S, A, T):
+def t12_figure(S, A, T, out=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -281,19 +281,31 @@ def t12_figure(S, A, T):
         a.set_xlabel("QUIET rate, fold vs the animal's pre"); a.set_ylabel(f"{name.upper()} rate, fold vs pre")
         a.set_title(f"Per animal x epoch: {name} vs quiet change\n(open = ipsilesional, filled = contralesional;\n"
                     "dashed = equal change)", fontsize=9)
+    # bottom-right (Priya 11-03 rules): no lines; per window x epoch the SESSION rates as faded open markers (shape =
+    # animal, colour = epoch) behind the per-animal means (small filled); window = lateral position inside the epoch
     a = ax[2, 2]
-    for k, (w, _name) in enumerate((("precue_notquiet", "pre-cue, NOT quiet\n(lick / run 0.5-1.5 s away)"),
-                                   ("precue_inquiet", "pre-cue, also quiet"))):
+    from wfield_local import cat_points as cp
+    br = {}
+    wins = (("precue_notquiet", "not\nquiet"), ("precue_inquiet", "quiet"))
+    for k, (w, _short) in enumerate(wins):
         for x, ep in enumerate(EP):
+            xk = x + (k - 0.5) * 0.4
+            G = S[S.epoch == ep]
+            cp.session_dots(a, xk, G[f"orofacial|{w}"], G.animal, EPOCH_LINE[ep], jitter=0.06, seed=10 * x + k)
             for an in sorted(S.animal.unique()):
                 v = A[(A.column == "orofacial") & (A.window == w) & (A.animal == an) & (A.epoch == ep)].rate
                 if len(v) and np.isfinite(v.iloc[0]):
-                    a.scatter(x + (k - 0.5) * 0.35, v.iloc[0], marker=ANIMAL_MARKER[an], s=30,
-                              edgecolors=EPOCH_LINE[ep], facecolors="none" if k == 0 else EPOCH_LINE[ep], lw=1)
-    a.set_xticks(range(len(EP)), EP, fontsize=8)
-    a.set_ylabel("events / min (animal mean)")
+                    br[(w, ep, an)] = float(v.iloc[0])
+                    a.plot(xk, v.iloc[0], cp.animal_marker(an), ls="none", color=EPOCH_LINE[ep], mec="w", mew=0.5,
+                           ms=6, zorder=4)
+    a.set_xticks([x + (k - 0.5) * 0.4 for x in range(len(EP)) for k in range(2)],
+                 [f"{ep}\n{s_}" for ep in EP for _w, s_ in wins], fontsize=7)
+    for x in range(len(EP) - 1):
+        a.axvline(x + 0.5, color="0.92", lw=0.6, zorder=0)
+    a.set_ylabel("events / min")
     a.set_title("Pre-cue events (orofacial bilateral), split by\nwhether the frame is itself a v2 QUIET frame\n"
-                "(left open = not quiet, right filled = quiet)", fontsize=9)
+                "(faded open = sessions, small filled = animal means)", fontsize=9)
+    fig._wf_bottom_right = br
     handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
     fig.legend(handles=handles, fontsize=8, loc="upper right", bbox_to_anchor=(0.995, 0.935), ncol=4, frameon=False)
     sig_marks.reserve_headroom(fig)
@@ -303,8 +315,9 @@ def t12_figure(S, A, T):
                  "colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI; stars = LMM epoch "
                  "vs pre on log10(rate + 0.2), FDR.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92), w_pad=2.0, h_pad=1.5)
-    fig.savefig(TE / "t12_task_window_event_rates.png", dpi=110)
+    fig.savefig(TE / "t12_task_window_event_rates.png" if out is None else out, dpi=110)
     plt.close(fig)
+    return fig._wf_bottom_right
 
 
 # -------------------------------------------------------------------------------------------------------------------- T13
@@ -458,12 +471,17 @@ def t13_by_spout(Tr):
     return pd.DataFrame(rows)
 
 
-def t13_figure(R, RS):
+def t13_figure(R, RS, out=None):
+    """Priya 11-03 rules: no connecting lines; per-animal values small FILLED (shape = animal, colour = epoch);
+    all-animal summaries large; by-spout epochs at cat_points.epoch_offsets in the canonical spout order. Per-SESSION
+    values are not stored for T13 (the excess is computed over the pooled session x spout strata), so there are no
+    session dots. Returns {(panel, kind, animal | epoch, epoch | spout): plotted value} for the --plot-only check."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from wfield_local import cat_points as cp
     from wfield_local import sig_marks
-    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE, POS_ORDER
+    from wfield_local.orofacial_cohort import EPOCH_LINE, POS_ORDER
     panels = [("farcontra_fail", "far-contra FAILED attempt (incomplete / no attempt / reaction)\nexcess P(fail) on "
                "event trials"),
               ("farcontra_incomplete_vs_hit", "far-contra INCOMPLETE vs hit\nexcess P(incomplete)"),
@@ -472,62 +490,108 @@ def t13_figure(R, RS):
                "trials with an event in that window")]
     fig, ax = plt.subplots(2, 3, figsize=(16, 11))
     xs = list(EP)
+    plotted = {}
     for k, (name, title) in enumerate(panels):
         a = ax.flat[k]
         G = R[R.outcome == name]
         for x, ep in enumerate(xs):
             for an in ANIMALS:
                 v = G[(G.animal == an) & (G.epoch == ep)]
+                xa = x - 0.2 + 0.08 * ANIMALS.index(an)
                 if len(v) and np.isfinite(v.excess.iloc[0]):
-                    a.scatter(x - 0.12 + 0.08 * ANIMALS.index(an), v.excess.iloc[0], marker=ANIMAL_MARKER[an],
-                              facecolors="none", edgecolors=EPOCH_LINE[ep], s=40, lw=1.1)
+                    plotted[(name, "excess", an, ep)] = float(v.excess.iloc[0])
+                    a.plot(xa, v.excess.iloc[0], cp.animal_marker(an), ls="none", color=EPOCH_LINE[ep], ms=4.5,
+                           mec="none", alpha=0.35, zorder=3)
                 if len(v) and np.isfinite(v.excess_strict.iloc[0]):
-                    a.scatter(x - 0.12 + 0.08 * ANIMALS.index(an), v.excess_strict.iloc[0], marker=ANIMAL_MARKER[an],
-                              color=EPOCH_LINE[ep], s=14, alpha=0.6)
+                    plotted[(name, "strict", an, ep)] = float(v.excess_strict.iloc[0])
+                    a.plot(xa, v.excess_strict.iloc[0], cp.animal_marker(an), ls="none", color=EPOCH_LINE[ep], ms=4.5,
+                           mec="w", mew=0.4, zorder=3)
             v = G[(G.animal == "ALL") & (G.epoch == ep)]
             if len(v) and np.isfinite(v.excess.iloc[0]):
-                a.plot(x + 0.3, v.excess.iloc[0], "o", color=EPOCH_LINE[ep], mfc="none", ms=8, mew=1.5)
-                a.plot(x + 0.3, v.excess_strict.iloc[0], "o", color=EPOCH_LINE[ep], ms=8)
-                a.text(x + 0.3, v.excess.iloc[0], f"  n={int(v.n_event.iloc[0])}", fontsize=6, va="center")
+                plotted[(name, "excess", "ALL", ep)] = float(v.excess.iloc[0])
+                plotted[(name, "strict", "ALL", ep)] = float(v.excess_strict.iloc[0])
+                a.plot(x + 0.22, v.excess.iloc[0], "_", color=EPOCH_LINE[ep], ms=16, mew=2.2, zorder=4)
+                cp.summary_point(a, x + 0.22, v.excess_strict.iloc[0], None, EPOCH_LINE[ep], ms=8)
+                a.text(x + 0.33, v.excess_strict.iloc[0], f"n={int(v.n_event.iloc[0])}", fontsize=6, va="center")
                 if v.p_strict.iloc[0] < 0.05:
                     p = v.p_strict.iloc[0]
-                    sig_marks.star_top(a, x + 0.3, "***" if p < 0.001 else "**" if p < 0.01 else "*",
+                    sig_marks.star_top(a, x + 0.22, "***" if p < 0.001 else "**" if p < 0.01 else "*",
                                        color=EPOCH_LINE[ep])
         a.axhline(0, color="0.6", lw=0.8)
         a.set_xticks(range(len(xs)), xs, fontsize=8)
+        a.set_xlim(-0.5, len(xs) - 0.5)
         a.set_title(title, fontsize=9)
         a.set_ylabel("event trials minus same-session same-spout mean")
+    off = cp.epoch_offsets(len(EP), step=0.2)
     for k, (name, title) in enumerate((("allspout_miss", "excess P(miss) by spout"),
                                        ("p_true_enl_event", "excess p_true by spout"))):
         a = ax.flat[4 + k]
         G = RS[RS.outcome == name]
         for j, ep in enumerate(EP):
             H = G[G.epoch == ep].set_index("spout").reindex(POS_ORDER)
-            x = np.arange(len(POS_ORDER)) + (j - 1.5) * 0.18
-            a.plot(x, H.excess, "o", color=EPOCH_LINE[ep], ms=5, label=ep)
+            x = np.arange(len(POS_ORDER)) + off[j]
+            for sp, val in zip(POS_ORDER, H.excess):
+                plotted[(name, "by_spout", ep, sp)] = float(val)
+            cp.summary_point(a, x, H.excess.to_numpy(float), None, EPOCH_LINE[ep], ms=5.5, label=ep)
             for xi, p in zip(x, H.p):
                 if np.isfinite(p) and p < 0.05:
                     sig_marks.star_top(a, xi, "*", color=EPOCH_LINE[ep], row=j, fontsize=10)
         a.axhline(0, color="0.6", lw=0.8)
+        for xb in np.arange(len(POS_ORDER) - 1) + 0.5:
+            a.axvline(xb, color="0.92", lw=0.6, zorder=0)
         a.set_xticks(range(len(POS_ORDER)), [p.replace("_", "\n") for p in POS_ORDER], fontsize=8)
         a.set_title(f"{title}, all animals pooled\n(stars, one row per epoch = within-stratum permutation\n"
                     "p < 0.05, uncorrected)", fontsize=9)
-    handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
-    handles.append(plt.Line2D([], [], marker="o", ls="", mfc="none", color="k", label="all animals, session x spout"))
-    handles.append(plt.Line2D([], [], marker="o", ls="", color="k", label="all animals, STRICT strata"))
-    handles += [plt.Line2D([], [], marker="o", ls="", color=EPOCH_LINE[ep], label=f"{ep} (by-spout panels)") for ep in EP]
-    fig.legend(handles=handles, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 0.925), ncol=6, frameon=False)
+    handles = []
+    for an in ANIMALS:
+        handles.append(plt.Line2D([], [], marker=cp.animal_marker(an), ls="", color="0.35", mec="w", label=an))
+    handles.append(plt.Line2D([], [], marker="o", ls="", color="0.35", alpha=0.35, mec="none",
+                              label="animal, session x spout strata (faded)"))
+    handles.append(plt.Line2D([], [], marker="o", ls="", color="0.35", mec="w", label="animal, STRICT strata"))
+    handles.append(plt.Line2D([], [], marker="_", ls="", color="k", ms=14, mew=2.2,
+                              label="all animals, session x spout"))
+    handles.append(plt.Line2D([], [], marker="o", ls="", color="k", ms=8, mec="w", label="all animals, STRICT"))
+    handles += [plt.Line2D([], [], marker="o", ls="", color=EPOCH_LINE[ep], label=ep) for ep in EP]
+    fig.legend(handles=handles, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 0.925), ncol=7, frameon=False)
     sig_marks.reserve_headroom(fig)
     fig.suptitle("T13: does a pre-cue orofacial event predict the trial's outcome or its pre-cue position code? Event = "
                  "any orofacial (ipsi or contra) event > 4 x pre SD, either polarity, in the trial's clean pre-cue "
                  "window (>= 1 s clean, no lick / run within 0.5 s). Effect = within-session, spout-matched excess "
-                 "(event trials minus the mean of the same spout in the same session). Large open = per animal (shape) and "
-                 "all animals; small / big filled = STRICT strata (+ trial-order quartile + clean-time bin); stars = "
-                 "STRICT within-stratum permutation p (top band). Engaged (canonical) trials.",
-                 fontsize=8.5, wrap=True)
+                 "(event trials minus the mean of the same spout in the same session). Small filled = per animal "
+                 "(shape; faded = session x spout strata, solid = STRICT strata: + trial-order quartile + clean-time "
+                 "bin); large = all animals; stars = STRICT within-stratum permutation p (top band). Per-session values "
+                 "are not stored (the excess pools session x spout strata), so no session dots. Engaged (canonical) "
+                 "trials.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.87), w_pad=2.5, h_pad=2.0)
-    fig.savefig(TE / "t13_precue_event_vs_outcome.png", dpi=110)
+    fig.savefig(TE / "t13_precue_event_vs_outcome.png" if out is None else out, dpi=110)
     plt.close(fig)
+    return plotted
+
+
+def plot_only():
+    """Re-render T12 / T13 from the STORED tables only (no extraction, no LMM, no permutations) as *_nolines.png and
+    check the plotted numbers against those tables. (T12's top-row pooled CIs are drawn by boot_ci at render time, as
+    in the original figure; they are not stored.)"""
+    import pandas as pd
+    S = pd.read_csv(TE / "t12_session_rates.csv")
+    A = pd.read_csv(TE / "t12_animal_epoch_rates.csv")
+    T = pd.read_csv(TE / "t12_lmm.csv")
+    br = t12_figure(S, A, T, out=TE / "t12_task_window_event_rates_nolines.png")
+    for (w, ep, an), v in br.items():
+        sess = S[(S.animal == an) & (S.epoch == ep)][f"orofacial|{w}"].dropna()
+        assert np.isclose(v, sess.mean()), (w, ep, an)           # stored animal mean == mean of its stored sessions
+    print(f"T12 bottom-right: {len(br)} animal means (t12_animal_epoch_rates.csv) == mean of stored session rates")
+    R = pd.read_csv(TE / "t13_effects.csv")
+    RS = pd.read_csv(TE / "t13_by_spout.csv")
+    P = t13_figure(R, RS, out=TE / "t13_precue_event_vs_outcome_nolines.png")
+    for key, v in P.items():
+        if key[1] == "by_spout":
+            want = RS[(RS.outcome == key[0]) & (RS.epoch == key[2]) & (RS.spout == key[3])].excess
+        else:
+            col = "excess" if key[1] == "excess" else "excess_strict"
+            want = R[(R.outcome == key[0]) & (R.animal == key[2]) & (R.epoch == key[3])][col]
+        assert len(want) == 1 and np.isclose(v, want.iloc[0], equal_nan=True), key
+    print(f"T13: {len(P)} plotted values == t13_effects.csv / t13_by_spout.csv")
 
 
 def summarise():
@@ -579,7 +643,11 @@ def main():
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--only", nargs="*")
+    ap.add_argument("--plot-only", action="store_true", help="re-render T12 / T13 from the stored tables -> *_nolines.png")
     a = ap.parse_args()
+    if a.plot_only:
+        plot_only()
+        return
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)

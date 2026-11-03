@@ -391,12 +391,17 @@ def effects(M):
     return pd.DataFrame(rows)
 
 
-def figure(E, M):
+def figure(E, M, out=None):
+    """Priya 11-03 rules: no lines; per-animal STRICT excess small FILLED (shape = animal, colour = epoch group), all
+    animals large filled; the two conditions of a panel (full / removed, before / after) are separate x positions inside
+    each epoch group. Per-SESSION values are not stored (the excess pools session x spout strata), so there are no
+    session dots. Returns {(analysis, animal, epoch group): plotted excess_strict} for the --plot-only check."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from wfield_local import cat_points as cp
     from wfield_local import sig_marks
-    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    from wfield_local.orofacial_cohort import EPOCH_LINE
     eg = ("pre", "acute+subacute", "chronic")
     col = {"pre": EPOCH_LINE["pre"], "acute+subacute": EPOCH_LINE["acute"], "chronic": EPOCH_LINE["chronic"]}
     panels = [
@@ -409,10 +414,11 @@ def figure(E, M):
         ("D  event ENTIRELY BEFORE the decoder window\n(nothing removed; vs trials with no pre-cue event)",
          ("event ENTIRELY BEFORE window vs no pre-cue event (full window)",)),
     ]
+    plotted = {}
     fig, ax = plt.subplots(2, 2, figsize=(13, 10.5))
     for a, (title, names) in zip(ax.flat, panels):
         nn = len(names)
-        offs = [0.0] if nn == 1 else [-0.2, 0.2]
+        offs = [0.0] if nn == 1 else [-0.22, 0.22]
         for x, ep in enumerate(eg):
             for k, name in enumerate(names):
                 G = E[(E.analysis == name) & (E.epoch == ep)]
@@ -420,15 +426,16 @@ def figure(E, M):
                 for ia, an in enumerate(ANIMALS):
                     v = G[G.animal == an]
                     if len(v) and np.isfinite(v.excess_strict.iloc[0]):
-                        a.scatter(xs - 0.09 + 0.06 * ia, v.excess_strict.iloc[0], marker=ANIMAL_MARKER[an],
-                                  facecolors="none", edgecolors=col[ep], s=36, lw=1.1, zorder=3)
+                        plotted[(name, an, ep)] = float(v.excess_strict.iloc[0])
+                        a.plot(xs - 0.1 + 0.045 * ia, v.excess_strict.iloc[0], cp.animal_marker(an), ls="none",
+                               color=col[ep], mec="w", mew=0.4, ms=5, zorder=3)
                 v = G[G.animal == "ALL"]
                 if len(v) and np.isfinite(v.excess_strict.iloc[0]):
-                    a.plot(xs + 0.13, v.excess_strict.iloc[0], "o", color=col[ep], ms=8, zorder=4,
-                           mfc=col[ep] if (k == nn - 1 and nn > 1) else "none", mew=1.6)
+                    plotted[(name, "ALL", ep)] = float(v.excess_strict.iloc[0])
+                    cp.summary_point(a, xs + 0.08, v.excess_strict.iloc[0], None, col[ep], ms=8)
                     p = v.p_strict.iloc[0]
                     if p < 0.05:
-                        sig_marks.star_top(a, xs + 0.13, "***" if p < 0.001 else "**" if p < 0.01 else "*",
+                        sig_marks.star_top(a, xs + 0.08, "***" if p < 0.001 else "**" if p < 0.01 else "*",
                                            color=col[ep])
         if nn > 1:
             for x in range(len(eg)):
@@ -438,25 +445,43 @@ def figure(E, M):
                           else f"{SHORT[e]}\n{'before' if o < 0 else 'after'}" for e in eg for o in offs], fontsize=8)
         else:
             a.set_xticks(range(len(eg)), eg, fontsize=8)
+        a.set_xlim(-0.5, len(eg) - 0.5)
         a.axhline(0, color="0.6", lw=0.8)
         a.set_ylabel("p_true: event trials minus stratum mean")
         a.set_title(title, fontsize=9)
-    handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="0.3", label=an) for an, mk in ANIMAL_MARKER.items()]
+    handles = [plt.Line2D([], [], marker=cp.animal_marker(an), ls="", color="0.35", mec="w", label=an)
+               for an in ANIMALS]
     handles += [plt.Line2D([], [], marker="o", ls="", color=c, label=e) for e, c in col.items()]
-    handles.append(plt.Line2D([], [], marker="o", ls="", mfc="none", mec="k", ms=8, label="all animals"))
-    fig.legend(handles=handles, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 0.935), ncol=8, frameon=False)
+    handles.append(plt.Line2D([], [], marker="o", ls="", color="k", mec="w", ms=8, label="all animals"))
+    fig.legend(handles=handles, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 0.915), ncol=8, frameon=False)
     sig_marks.reserve_headroom(fig)
     nev = int(M.ev_win.sum())
     fig.suptitle("T13 follow-up: is the weaker frozen-decoder position code on pre-cue-event trials contamination by the "
                  "transient or a weaker plan? Frozen pre-stroke precue decoder (LP_licks, 1.0-s window, 4 sub-bins), "
                  "rebuilt per frame; event span = peak -0.3..+0.6 s; no-event controls lose the same frames (matched "
-                 f"pseudo-event masks, {N_DRAW} draws). Small open = animal (shape), colour = epoch; large = all animals; "
-                 f"stars = STRICT within-stratum permutation p. {nev} event-in-window trials. Events / masks: "
+                 f"pseudo-event masks, {N_DRAW} draws). Small filled = animal (shape), colour = epoch; large = all "
+                 "animals; STRICT strata; stars = STRICT within-stratum permutation p. Per-session values are not stored "
+                 f"(the excess pools session x spout strata), so no session dots. {nev} event-in-window trials. "
+                 "Events / masks: "
                  + ("DAQ contact + LP video licks (QS_LICK_SOURCE=daq+lp)." if LICK_SOURCE == "daq+lp"
                     else "DAQ contact licks."), fontsize=8.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.5, h_pad=2.5)
-    fig.savefig(OUT / "t13_followup_exclusion.png", dpi=110)
+    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    fig.savefig(OUT / "t13_followup_exclusion.png" if out is None else out, dpi=110)
     plt.close(fig)
+    return plotted
+
+
+def plot_only():
+    """Re-render from the stored effects.csv / trials.csv.gz only -> t13_followup_exclusion_nolines.png, and check the
+    plotted values against effects.csv."""
+    import pandas as pd
+    E = pd.read_csv(OUT / "effects.csv")
+    M = pd.read_csv(OUT / "trials.csv.gz", low_memory=False)
+    P = figure(E, M, out=OUT / "t13_followup_exclusion_nolines.png")
+    for (name, an, ep), v in P.items():
+        want = E[(E.analysis == name) & (E.animal == an) & (E.epoch == ep)].excess_strict
+        assert len(want) == 1 and np.isclose(v, want.iloc[0]), (name, an, ep)
+    print(f"{len(P)} plotted values == effects.csv")
 
 
 def summarise():
@@ -496,7 +521,12 @@ def main():
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--figure", action="store_true", help="re-render the figure from effects.csv / trials.csv")
+    ap.add_argument("--plot-only", action="store_true",
+                    help="re-render from effects.csv / trials.csv -> *_nolines.png (and check the plotted values)")
     a = ap.parse_args()
+    if a.plot_only:
+        plot_only()
+        return
     if a.figure:
         import pandas as pd
         figure(pd.read_csv(OUT / "effects.csv"), pd.read_csv(OUT / "trials.csv.gz", low_memory=False))

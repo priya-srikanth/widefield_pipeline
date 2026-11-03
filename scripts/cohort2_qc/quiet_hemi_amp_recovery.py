@@ -61,7 +61,8 @@ def t8():
     return L, T
 
 
-def t11():
+def t11(write=True):
+    """write=False: read the stored v2 event files only (no detection) and return the tables without writing them."""
     from quiet_area_spikes import columns
     from quiet_fluct import animal_sd
     from wfield_local import epochs
@@ -93,8 +94,10 @@ def t11():
             H += [(lab[:4], ep, kind, h) for h in o[:, 2]]
         rows.append(r)
     S = pd.DataFrame(rows)
-    S.to_csv(OUT / "t11_sessions.csv", index=False)
     Hd = pd.DataFrame(H, columns=["animal", "epoch", "kind", "h"])
+    if not write:
+        return S, Hd
+    S.to_csv(OUT / "t11_sessions.csv", index=False)
     for m in ("med_h_pos", "max_h_pos", "rate_gt10_pos", "rate_gt10_neg", "limb_coinc_pos", "limb_coinc_neg"):
         print(f"\nT11 {m}, animal x epoch median:\n",
               S.pivot_table(index="animal", columns="epoch", values=m, aggfunc="median").reindex(columns=EP)
@@ -154,32 +157,43 @@ def t14():
     return G, T, D
 
 
-def figure(L, T8, S11, H11, G14, T14, D15):
+def figure(L, T8, S11, H11, G14, T14, D15, out=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from wfield_local import cat_points as cp
     from wfield_local import sig_marks
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     fig, ax = plt.subplots(2, 3, figsize=(17, 10))
     animals = sorted(L.animal.unique())
+    plotted = {}
+    # T8 (Priya 11-03 rules): bar = mean of the animal means; the SESSION changes behind it as faded open markers (shape
+    # = animal, colour = epoch); per-animal means small filled; hemisphere = lateral position (ipsi left, contra right)
     for j, g in enumerate(("orofacial", "limb")):
         a = ax[0, j]
         for k, ep in enumerate(EP[1:]):
-            for side, dx in (("ipsi", -0.15), ("contra", 0.15)):
+            for side, dx in (("ipsi", -0.17), ("contra", 0.17)):
                 G = L[(L.group == g) & (L.side == side) & (L.epoch == ep)]
                 m = G.groupby("animal").d.mean()
-                for an, v in m.items():
-                    a.plot(k + dx, v, ANIMAL_MARKER[an], mfc="none" if side == "contra" else EPOCH_LINE[ep],
-                           mec=EPOCH_LINE[ep], ms=7)
-                a.bar(k + dx, m.mean(), width=0.28, color=EPOCH_LINE[ep], alpha=0.25 if side == "contra" else 0.55)
+                plotted[(g, ep, side)] = (m.to_dict(), float(m.mean()))
+                a.bar(k + dx, m.mean(), width=0.3, color=EPOCH_LINE[ep], alpha=0.5 if side == "ipsi" else 0.22,
+                      zorder=1)
+                cp.session_dots(a, k + dx, G.d, G.animal, EPOCH_LINE[ep], jitter=0.07, seed=10 * k + (side == "ipsi"))
+                for ia, (an, v) in enumerate(m.items()):
+                    a.plot(k + dx - 0.075 + 0.05 * ia, v, cp.animal_marker(an), ls="none", color=EPOCH_LINE[ep],
+                           mec="w", mew=0.5, ms=5.5, zorder=4)
             t = T8[(T8.group == g) & T8.term.str.contains(ep)]
             if len(t) and float(t.q.iloc[0]) < 0.05:
                 sig_marks.star_top(a, k, "**" if float(t.q.iloc[0]) < 0.01 else "*")
         a.axhline(0, color="0.5", lw=0.8)
-        a.set_xticks(range(3))
-        a.set_xticklabels(EP[1:])
-        a.set_title(f"T8 {g}: change vs pre, log10(rate + 0.2)\nfilled = ipsilesional, open = contralesional\n"
-                    "stars = ipsi - contra vs pre (LMM, FDR)", fontsize=8)
+        a.set_xticks([k + dx for k in range(3) for dx in (-0.17, 0.17)], ["ipsi", "contra"] * 3, fontsize=7)
+        for k, ep in enumerate(EP[1:]):
+            a.text(k, -0.07, ep, transform=a.get_xaxis_transform(), ha="center", va="top", fontsize=9)
+        a.set_ylabel("change vs the animal's pre, log10(rate + 0.2)")
+        a.set_title(f"T8 {g}: change vs pre, log10(rate + 0.2)\nbar = mean of animals (dark = ipsilesional, light = "
+                    "contralesional); small filled = animals,\nfaded open = sessions; stars = ipsi - contra vs pre "
+                    "(LMM, FDR)", fontsize=8)
+    ax[0, 0].legend(handles=cp.animal_handles(animals), fontsize=7, loc="lower left", frameon=False)
     a = ax[0, 2]
     for ep in EP:
         h = H11[(H11.kind == "pos") & (H11.epoch == ep)].h
@@ -227,11 +241,40 @@ def figure(L, T8, S11, H11, G14, T14, D15):
     fig.suptitle("Quiet-period events: T8 ipsilesional vs contralesional, T11 amplitude / epileptiform check, T14-T15 link "
                  "to recovery (cohort1; face-regressed or raw v2 events > 4 x pre SD, engaged quiet)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=3.0, h_pad=3.0)
-    fig.savefig(OUT / "quiet_hemi_amp_recovery.png", dpi=110)
-    print("wrote", OUT / "quiet_hemi_amp_recovery.png")
+    out = OUT / "quiet_hemi_amp_recovery.png" if out is None else out
+    fig.savefig(out, dpi=110)
+    plt.close(fig)
+    print("wrote", out)
+    return plotted
+
+
+def plot_only():
+    """Re-render from the STORED tables (t8 / t14 / t15 CSVs; T11 heights read from the stored v2 event files, the same
+    selection as t11, nothing written) -> quiet_hemi_amp_recovery_nolines.png; check plotted numbers vs the tables."""
+    L = pd.read_csv(OUT / "t8_sessions.csv")
+    T8 = pd.read_csv(OUT / "t8_lmm_ipsi_minus_contra.csv")
+    S11, H11 = t11(write=False)
+    S11s = pd.read_csv(OUT / "t11_sessions.csv")
+    pd.testing.assert_frame_equal(S11.reset_index(drop=True), S11s, check_dtype=False)
+    G14 = pd.read_csv(OUT / "t14_sessions.csv")
+    T14 = pd.read_csv(OUT / "t14_recovery_link.csv")
+    D15 = pd.read_csv(OUT / "t15_animals.csv", index_col=0)
+    P = figure(L, T8, S11, H11, G14, T14, D15, out=OUT / "quiet_hemi_amp_recovery_nolines.png")
+    for (g, ep, side), (am, mu) in P.items():
+        W = L[(L.group == g) & (L.side == side) & (L.epoch == ep)].pivot_table(index="animal", values="d",
+                                                                                 aggfunc="mean").d
+        assert np.allclose([am[a] for a in W.index], W.to_numpy()) and np.isclose(mu, W.mean()), (g, ep, side)
+    print(f"T8: {len(P)} bars + animal means == t8_sessions.csv; T11 sessions recomputed from stored events == "
+          "t11_sessions.csv")
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--plot-only", action="store_true", help="re-render from the stored tables -> *_nolines.png")
+    if ap.parse_args().plot_only:
+        plot_only()
+        return
     OUT.mkdir(parents=True, exist_ok=True)
     pd.set_option("display.width", 220)
     L, T8 = t8()
