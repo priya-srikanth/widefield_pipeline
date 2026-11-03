@@ -886,7 +886,8 @@ def test_cd_reference_stored_equals_the_old_inline_fit(pass2_env, reference, ort
     Gc = G if orth else None
     basis = SimpleNamespace(basis_id="b" * 12, ncomp=X.shape[1])
     kw = dict(method=method, reference=reference, use=("success",), orth=orth, mask_occluded=True, win_n=20,
-              pre_n=10, post_frames=30, post_s=2.0, verbose=False)
+              pre_n=10, post_frames=30, post_s=2.0, verbose=False,
+              train_data=(X, y, Gc, Rb, drop))            # FREEZE_VERSION 2 training-data fingerprint (rebuild 11-03)
     got = cdt.stored_cd_reference("PS92", "precue", basis, ["PS92_0810", "PS92_0811"], lambda: cdt.fit_cd_reference(
         X, y, Gc, Rb, drop, reference=reference, method=method, t=t), **kw)
     assert len(rec.calls) == 1 and rec.calls[0]["spec"]["kind"] == "cd_directions"
