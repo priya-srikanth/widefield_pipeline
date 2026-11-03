@@ -223,6 +223,7 @@ and reused."* Any decoder that scores post-stroke data against a pre-stroke refe
 | 5b confusions (`grant_figures --only 5b`, recompute path) | `grant_confusion._stored_epoch_decoder` (same spec) | `epoch_decoder` | **default 11-02** (`FROZEN_ALL_20261102`) |
 | no-lick reference (`nightly_figs` -> `nolick_reference*.json`) | `nolick_decoder._stored_nolick_reference` (full + LOSO); opt-out `WIDEFIELD_NOLICK_FROZEN=0` | `nolick_reference` | **default 11-02 pass 2** |
 | attempt-coding per-spout axes (imaging page 5.1 / 5.2 inputs; LP only) | `attempt_coding.stored_axes`; opt-out `WIDEFIELD_ATTEMPT_FROZEN=0` | `attempt_axes` | **default 11-02 pass 2** |
+| June -> August drift decoder (imaging page fig 4.3's unmatched frozen column) | `scripts/june_august_drift.drift_payload` (one spec per month); opt-out `WIDEFIELD_DRIFT_FROZEN=0` | `drift_decoder` | **default 11-02 pass 2** |
 
 The last two were refitted in memory on every render until 11-02 (Priya 11-02: *"we should cache frozen decoders as we
 always do"*). Opt-outs, for reproducing an old render only: `WIDEFIELD_EPOCH_FROZEN=0`, `WIDEFIELD_REST_FROZEN=0`.

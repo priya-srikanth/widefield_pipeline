@@ -245,13 +245,15 @@ at most 4 processes in total.
 |---|---|---|---|---|---|
 | 1 | no-lick reference (`nolick_decoder.analyse_animal`: full + LOSO) | `wfield_local/nolick_decoder.py` | `nolick_reference` (`<align>-rt<2 / respwin>-f<digest of the pooled feature columns>`; source roi / joint + basis id) | `WIDEFIELD_NOLICK_FROZEN=0` | DAQ-trained default (train = the animal's pre sessions in the date list), LP-trained with `WIDEFIELD_LP_FROZEN=lp` |
 | 2 | attempt-coding per-spout axes (`attempt_coding.run_animal`: full + LOSO, method dom) | `wfield_local/attempt_coding.py` | `attempt_axes` (`<align>-<methods>`; joint basis id) | `WIDEFIELD_ATTEMPT_FROZEN=0` | **LP-only by nature** (the reference class is the VIDEO hit; the module refuses to run without the LP source): spec always `lick_source=lp` |
+| 3 | June -> August drift decoder (`scripts/june_august_drift.decoder_rows`, the full (not size-matched) frozen column) | `scripts/june_august_drift.py` | `drift_decoder`, ONE spec per month (`cue-june` / `cue-aug`; the two training sets never share an id); payload full + LOSO, so every `score` training set (June LOSO, all June, Aug LOSO, all Aug) is served by one stored fit | `WIDEFIELD_DRIFT_FROZEN=0` | DAQ-trained default (train = the animal's DAQ pre sessions of that month), LP-trained with `=lp` |
 
 ## P2.2 Verification: real renders, stored vs opt-out (exact, cell by cell)
 
 | family | render | training set | result |
 |---|---|---|---|
 | 1 nolick | `build_reference` as the nightly calls it (dates = every curated date, all phases), PS93 + PS94, roi basis, both cuts, both windows (8 analyses, 39 post sessions scored); stored (`alldates_PS93_PS94/daq_stored`: 1 frozen-new + 7 frozen-hit on models the pre-date render had just frozen) vs `=0` | same | **IDENTICAL**: 37801 leaves |
-| 2 attempt | `attempt_coding --out` (LP, all 4 animals x precue / cue / lick), stored (12 frozen-new) vs `=0` | same (LP) | **IDENTICAL**: 19 files (12 trial tables, 3 summaries, 3 contrasts, run.json), 0 of 3.21 M leaves differ |
+| 2 attempt | `attempt_coding --out` (LP, all 4 animals x precue / cue / lick), stored (12 frozen-new) vs `=0` | same (LP) | **IDENTICAL**: 19 files (12 trial tables, 3 summaries, 3 contrasts, run.json), 0 of ~3.25 M leaves differ |
+| 3 drift | `june_august_drift --reuse-distance` (DAQ), stored (8 frozen-new) vs `=0` | same | **IDENTICAL**: decoder_rows / distance_rows / summary_by_animal, 1984 cells |
 
 Render notes, family 1: `python -m wfield_local.nolick_decoder` crashes after its first animal at 8debc35e
 (`nolick_analysis.summarize`, print only, raises KeyError on an arm that has `n` but no `balanced_accuracy`, i.e. any

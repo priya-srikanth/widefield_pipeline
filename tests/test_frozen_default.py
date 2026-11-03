@@ -592,3 +592,68 @@ def test_attempt_run_animal_uses_the_store():
     assert 'axes[meth]["loso"][kept[s]] if axes else fit_axes(X[tr], sp[tr], meth)' in src
 
 
+# ------------------------------------------------------------------------------------- june_august_drift (3)
+def _drift_bundle(seed=0):
+    rng = np.random.default_rng(seed)
+    kept = ["PS92_0606", "PS92_0607", "PS92_0608", "PS92_0810", "PS92_0811", "PS92_0812", "PS92_0901"]
+    GE = np.repeat(np.arange(len(kept)), 48)
+    YE = np.tile(np.arange(6), len(GE) // 6).astype(int)
+    W = rng.normal(size=(1, 9))
+    XE = rng.normal(size=(len(GE), 9)) + 0.7 * YE[:, None] * W
+    pre_i = set(range(6))
+    return {"XE": XE, "YE": YE, "GE": GE, "kept": kept, "pre_i": pre_i, "e_pre": np.isin(GE, list(pre_i)),
+            "basis_id": "testbasis000"}
+
+
+def test_drift_stored_equals_in_memory_for_every_training_set(pass2_env):
+    """Every training set `decoder_rows.score` uses (June LOSO, all June, Aug LOSO, all Aug) is served by the
+    month's stored payload, and each equals `_pipe().fit(XE[e_pre & isin(GE, train)], ...)` bit for bit."""
+    jad = pytest.importorskip("scripts.june_august_drift")
+    from wfield_local import frozen_models
+    from wfield_local.locanmf_frozen_decoder import _pipe
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    jad._DRIFT_MODELS.clear()
+    bd = _drift_bundle(seed=6)
+    J, A = [0, 1, 2], [3, 4, 5]
+    sets = [[j for j in J if j != i] for i in J] + [J] + [[j for j in A if j != i] for i in A] + [A]
+    for tr_s in sets:
+        tr = bd["e_pre"] & np.isin(bd["GE"], tr_s)
+        _same_model(jad._stored_month_model("PS92", bd, tr_s), _pipe().fit(bd["XE"][tr], bd["YE"][tr]))
+    assert [c["spec"]["align"] for c in rec.calls] == ["cue-june", "cue-aug"]          # one fit per month
+    assert rec.calls[0]["spec"]["train_labels"] == bd["kept"][:3]
+    assert rec.calls[1]["spec"]["train_labels"] == bd["kept"][3:6]
+    assert all(c["spec"]["kind"] == "drift_decoder" for c in rec.calls)
+    assert frozen_models.spec_id(rec.calls[0]["spec"]) != frozen_models.spec_id(rec.calls[1]["spec"])
+    with pytest.raises(ValueError):
+        jad._stored_month_model("PS92", bd, [0, 3])                                    # spans months
+    jad._DRIFT_MODELS.clear()
+    pass2_env.setenv("WIDEFIELD_DRIFT_FROZEN", "0")
+    assert jad._stored_month_model("PS92", bd, J) is None and len(rec.calls) == 2
+
+
+def test_drift_lp_arm_daq_trained_by_default(pass2_env):
+    jad = pytest.importorskip("scripts.june_august_drift")
+    from wfield_local import config, frozen_models
+    bd = _drift_bundle()
+    pass2_env.setenv("WIDEFIELD_LICK_SOURCE", "lp")
+    specs = {}
+    for lf in (None, "lp"):
+        rec = _Recorder()
+        pass2_env.setattr(frozen_models, "load_or_fit", rec)
+        if lf:
+            pass2_env.setenv("WIDEFIELD_LP_FROZEN", lf)
+        jad.drift_payload("PS92", bd, "aug", log=lambda *_: None)
+        specs[lf] = rec.calls[0]["spec"]
+    want = [x for x in config.phase_labels("pre") if config.animal_of(x) == "PS92" and x.split("_")[-1][:2] == "08"]
+    assert "lick_source" not in specs[None] and specs[None]["train_labels"] == sorted(want)
+    assert specs["lp"]["lick_source"] == "lp" and specs["lp"]["train_labels"] == bd["kept"][3:6]
+
+
+def test_drift_decoder_rows_uses_the_store():
+    jad = pytest.importorskip("scripts.june_august_drift")
+    src = inspect.getsource(jad.decoder_rows)
+    assert "stored = _stored_month_model(an, bd, train_sessions)" in src
+    assert "(stored if stored is not None else _pipe().fit(XE[tr], YE[tr])).predict(X)" in src
+
+
