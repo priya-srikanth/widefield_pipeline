@@ -60,3 +60,9 @@ _(none open yet. Items appear here as the decoder helper reports.)_
   this box (window "PI_overview_2026-11-02.pptx - PowerPoint", started 18:27; not opened by this window, so I am not
   touching it). place_natural_width_1103.py is ready and will run once the deck is closed. It places the figures at
   6.0 / 8.0 / 9.0 in, centred, with the caption under each.
+- 11-03 evening: e3 re-rendered the 3-D phase main slide (fig:p_phase) with cluster-permutation bars (Priya via 34).
+  swap_p_phase_perm_1103.py is queued behind the same deck lock. Caveat for Priya: the midline row is marked almost
+  everywhere, including ~2 deg chronic shifts. That is a session-level test within these 4 animals; the hidden LMM
+  slide is the across-animal test.
+- 11-03 evening: 34 flipped the far-spout mean-path figure (fig:rec_wlc_paths) so contralesional is LEFT (Priya; data
+  unchanged). swap_rec_wlc_paths_flip_1103.py is queued behind the same deck lock.
