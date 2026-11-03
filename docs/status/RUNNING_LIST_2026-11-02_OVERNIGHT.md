@@ -160,3 +160,12 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   less lick-responsive (all bouts 26.0 vs 30.0 %, p .017; spontaneous 21.1 vs 26.4 %, p .0009; uncorrected Fisher);
   position contrasts unchanged. Spout decoder: G1 not adopted (Priya: selective pre-structure); camera-lick normalisation
   set proposed. A3 single-session rule: recommended option A (animal-weighted + LMM beside), awaiting Priya.
+- 11-03 late: bal_em production state decoder DONE (9547a773 code, af638910 docs; spec ids PS92 96f8d3543d94 / PS93
+  084308f266df / PS94 8bfbb26d78de / PS95 57866a0b31e3, published byte-verified; session_z models kept). Min-mass
+  fallback built, OFF (does not cut the absent-state drop). 13s family re-rendered (session_z outputs ->
+  _superseded_session_z_20261103/). Deck: slides 13-14 swapped (state_balem_swaps.json via apply_figure_rules_1103.py,
+  note prefix now argv[2]); PNG checked. Page edits: docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md (publish blocked).
+  Open: 13pos hard-coded "carried mostly by one animal" in epoch_state.py is stale; 4 interim unpublished state models
+  parked in C:/Users/SabatiniLab/frozen_models_interim_unpublished_20261103/ (delete? Priya). Slide 9: 5b's camera-
+  working section-1 numbers (s1_refit_basis.csv split_camwork_*) -> new figure fig_decoding_sessions_camwork_1103.py
+  + slide9_camwork_1103.py; ranges .44-.88 / .27-.57, acute post-cue drop 4/4; PNG checked.
