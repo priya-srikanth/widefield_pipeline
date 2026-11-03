@@ -4,6 +4,23 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
+## UPDATE 11-03 night (2) — SECTION 1 PUBLISHED (imaging page v50)
+
+Priya moved Claude Code to the HMS account; the Artifact tool works again after a restart (this window is now
+`sabatinilab-e0`). Published https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV **version 50** (id 1793735906-0006),
+built on the live version 1793703965-38a8 (read in full first; a8's 11-03 Fig 3.5 and Pending item kept). Changes,
+section 1 only, plus its summary row:
+- summary row: ranges .43–.89 / .26–.56, "acute post-cue drop 4 / 4", input = camera trial classes;
+- input line: camera-defined working trials to the last camera lick (Figs 1.1–1.3 still DAQ / engagement);
+- per-animal table (Allen split + LocaNMF) + robustness table from `s1_update_20261103.html`;
+- **Fig 1.4 swapped** to a8's `decoding_refit_sessions_campllick.png` (`fig_decoding_sessions_campllick_1103.py`;
+  per-animal means equal the table; new file uploaded, old `decoding_refit_sessions.png` left unreferenced), caption
+  rewritten;
+- takeaway opening rewritten (old "up in PS92 / PS95" sentence removed); Fig 1.2 sentence (b); "Not the table above"
+  notes in Figs 1.1 / 1.2 updated.
+Published source: scratchpad `imgpage/imaging_page.html` (session-local). Other windows told (a8, e3, 34) and offered
+publishing of their pages from here (Priya: this window may publish any window's pages). **Section 1 is done.**
+
 ## UPDATE 11-03 night — CUTOFF DECIDED: LAST CAMERA LICK IS PRIMARY (supersedes the block below where they differ)
 
 **Priya 11-03: "last camera lick cutoff sounds good".** Primary trial set for section 1 = camera working up to the

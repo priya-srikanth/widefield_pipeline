@@ -50,6 +50,8 @@ def reserve_headroom(fig) -> None:
     """Grow the y range of every axes carrying `star_top` marks so the top band is free of data (call once)."""
     done = set()
     for ax in fig.get_axes():
+        if ax.axison:                               # no top frame line on any panel: the stars live in that band and
+            ax.spines["top"].set_visible(False)     # overlapped it (Priya 11-03)
         if not getattr(ax, "_wf_mark_rows", 0):
             continue
         sib = ax.get_shared_y_axes().get_siblings(ax) or [ax]

@@ -22970,3 +22970,22 @@ Consequences:
    slides (mean = filled round dot; the bootstrap interval shown beside it, labelled). Maps, time-bin bars and
    matrices keep their family-wise tests. Lick metrics (deck slide 24) get the mixed model too.
 Record: `docs/status/A3_LMM_SLOPE_STARS_2026-11-03.md`. Imaging preview: 854 → 316 cells with any star, 581 → 27 `**`.
+
+## 2026-11-03 — Curve figures: mixed model on PRE-SPECIFIED per-session summaries (Priya, via sabatinilab-a8)
+
+Phase, trajectory and time-course curve figures get an LMM version (hidden deck slide after the main slide). Each
+session's curve is reduced to the summary below; then the same rule as every scalar figure applies:
+`analysis_kit.epoch_change_lmm` (separate animal x epoch variance per epoch, t on df = animals - 1), `lmm_stars`
+(* p < .05, ** Holm across the spout x epoch cells of each summary panel). The main slides keep their
+cluster-permutation markers, which say WHERE along the curve. These summaries were fixed BEFORE any LMM was run:
+
+| figure (deck shape) | table | summary per session x spout | sign / unit |
+|---|---|---|---|
+| lick phase (l_phase_all, kin 2.5) | cohort `lick_phase.csv`, set `postcue_norm` | mean `lat_out_px` (lateral tip, in-mouth excluded) over phase u 0.1-0.9 | + = contra, px |
+| cue-aligned, in-mouth excl / incl (l_cue_excl / l_cue_incl, kin 2.1 / 2.2) | cohort `cue_aligned_traces.csv` | mean `lat_out_px` (excl) / `lat_px` (incl) over cue + 70 to + 1500 ms | + = contra, px |
+| 2-D paths (p_paths_2d, kin 4.2) | cohort `lick_phase.csv`, set `postcue` | mean `lat_out_px` over -72 to +72 ms around the lick peak (the figure's window) | + = contra, px |
+| 3-D paths (p_paths, kin 4.11) | pose3d `phase/curves.csv.gz`, kind `norm`, lickset `all`, cov >= 0.5 | (1) mean tongue `side` over phase 0.1-0.9; (2) jaw-opening peak = max `j_down` over phase 0.1-0.9 | (1) + = contra, mm; (2) mm |
+| 3-D phase (p_phase, kin 9.7) | same | (1) mean midline angle `mid`, (2) mean 3-D distance `dist`, each over phase 0.1-0.9 | (1) + = contra, deg; (2) mm |
+| lick-ramp time courses (wf_attempt: cued_ramp_summary_row2 / iti_ramp_row1, lick_matched_gauss_curves, lick_order_iti_cued_slope) | encoding-window tables (sabatinilab-34) | the response AUC 0-0.5 s already used on lick_cued_ramp_perspout | as that figure |
+
+Midline error, closest approach and reach are NOT repeated here: they are already on p_3d_far_rows123.

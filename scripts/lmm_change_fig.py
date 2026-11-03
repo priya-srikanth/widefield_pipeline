@@ -52,15 +52,64 @@ def statistics(S: pd.DataFrame, cells, family=None) -> pd.DataFrame:
     return T
 
 
-def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylabel: str, labels: dict, panels=None, ncols: int = 0):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
-
+def draw_axis(ax, S: pd.DataFrame, T: pd.DataFrame, cs, labels: dict, *, dot_s: float = 16, dot_alpha: float = 0.6,
+              label_size: float = 8) -> None:
+    """One panel: for each cell in ``cs`` and each post epoch, the session changes (open markers), the animal
+    bootstrap bar (grey) and the LMM estimate + CI (filled dot) from ``T``, stars in the top band."""
     from wfield_local import analysis_kit as ak
     from wfield_local import cat_points as cp
     from wfield_local import epoch_figures as ef
+    from wfield_local import sig_marks as sm
+    for xi, c in enumerate(cs):
+        D = S[(S.position == c) & np.isfinite(S.value)]
+        pre = D[D.epoch == "pre"].groupby("animal").value.mean()
+        pred = {a: list(g.value) for a, g in D[D.epoch == "pre"].groupby("animal")}
+        for k, e in enumerate(EP):
+            x, col = xi + (k - 1) * 0.27, ef.epoch_dot_color(e)
+            po = D[(D.epoch == e) & D.animal.isin(pre.index)]
+            if po.empty:
+                continue
+            rng = np.random.default_rng(0)
+            for a, g in po.groupby("animal"):
+                ax.scatter(x - 0.06 + rng.uniform(-0.03, 0.03, len(g)), g.value - pre[a], marker=cp.animal_marker(a),
+                           facecolors="none", edgecolors=col, s=dot_s, lw=0.8, alpha=dot_alpha, zorder=2)
+            got = ak.paired_animal_draws({a: list(g.value) for a, g in po.groupby("animal")}, pred,
+                                         lambda v, _r=None: float(np.mean(v)), np.random.default_rng(1), 2000)
+            if got[0] is not None and len(got[1]) and len(got[2]) >= 2:   # same condition as the LMM test
+                lo, hi = np.percentile(got[1], [2.5, 97.5])
+                ax.plot([x + 0.10] * 2, [lo, hi], color="0.6", lw=3, solid_capstyle="butt", zorder=3)
+            r = T[(T.position == c) & (T.epoch == e)]
+            if len(r) and np.isfinite(r.iloc[0].beta):
+                r = r.iloc[0]
+                ax.errorbar(x + 0.04, r.beta, yerr=[[r.beta - r.lo], [r.hi - r.beta]], fmt="o", color=col,
+                            mec="k", ms=7, capsize=3, elinewidth=1.4, zorder=4)
+                if isinstance(r.star, str) and r.star:
+                    sm.star_top(ax, x + 0.04, r.star, color=col)
+    ax.axhline(0, color="0.5", lw=0.8, ls="--", zorder=1)
+    ax.set_xticks(range(len(cs)))
+    ax.set_xticklabels([labels.get(str(c), SPOUT_LABEL.get(str(c).split(":")[-1], str(c))) for c in cs],
+                       fontsize=label_size)
+    ax.set_xlim(-0.6, len(cs) - 0.4)
+    ax.spines[["top", "right"]].set_visible(False)
+
+
+def legend_handles(S: pd.DataFrame) -> list:
+    from matplotlib.lines import Line2D
+
+    from wfield_local import cat_points as cp
+    from wfield_local import epoch_figures as ef
+    h = [Line2D([], [], ls="none", marker="o", color=ef.epoch_dot_color(e), mec="k", ms=7, label=e) for e in EP]
+    h += [Line2D([], [], ls="-", lw=1.4, color="k", label="mixed model, 95 % CI"),
+          Line2D([], [], ls="-", lw=3, color="0.6", label="animal bootstrap 95 % (these 4 animals)")]
+    return h + cp.animal_handles(sorted(S.animal.unique()))
+
+
+def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylabel: str, labels: dict, panels=None, ncols: int = 0,
+         figsize=None):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
     from wfield_local import sig_marks as sm
     groups = panels or [("", cells)]
     nc = ncols or len(groups)
@@ -71,56 +120,28 @@ def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylab
                                  gridspec_kw={"width_ratios": widths})
     else:                       # a grid of equal panels (one Holm family each, typically)
         w = max(1.6, 1.9 * max(len(cs) for _, cs in groups))
-        fig, axes = plt.subplots(nr, nc, figsize=(w * nc + 1.2, 3.6 * nr + 1.2), squeeze=False)
+        fig, axes = plt.subplots(nr, nc, figsize=figsize or (w * nc + 1.2, 3.6 * nr + 1.2), squeeze=False)
     flat = list(axes.ravel())
     for ax in flat[len(groups):]:
         ax.set_visible(False)
     for ax, (pname, cs) in zip(flat, groups):
-        for xi, c in enumerate(cs):
-            D = S[(S.position == c) & np.isfinite(S.value)]
-            pre = D[D.epoch == "pre"].groupby("animal").value.mean()
-            pred = {a: list(g.value) for a, g in D[D.epoch == "pre"].groupby("animal")}
-            for k, e in enumerate(EP):
-                x, col = xi + (k - 1) * 0.27, ef.epoch_dot_color(e)
-                po = D[(D.epoch == e) & D.animal.isin(pre.index)]
-                if po.empty:
-                    continue
-                rng = np.random.default_rng(0)
-                for a, g in po.groupby("animal"):
-                    ax.scatter(x - 0.06 + rng.uniform(-0.03, 0.03, len(g)), g.value - pre[a],
-                               marker=cp.animal_marker(a), facecolors="none", edgecolors=col, s=16, lw=0.8,
-                               alpha=0.6, zorder=2)
-                got = ak.paired_animal_draws({a: list(g.value) for a, g in po.groupby("animal")}, pred,
-                                             lambda v, _r=None: float(np.mean(v)), np.random.default_rng(1), 2000)
-                if got[0] is not None and len(got[1]):
-                    lo, hi = np.percentile(got[1], [2.5, 97.5])
-                    ax.plot([x + 0.10] * 2, [lo, hi], color="0.6", lw=3, solid_capstyle="butt", zorder=3)
-                r = T[(T.position == c) & (T.epoch == e)]
-                if len(r) and np.isfinite(r.iloc[0].beta):
-                    r = r.iloc[0]
-                    ax.errorbar(x + 0.04, r.beta, yerr=[[r.beta - r.lo], [r.hi - r.beta]], fmt="o", color=col,
-                                mec="k", ms=7, capsize=3, elinewidth=1.4, zorder=4)
-                    if r.star:
-                        sm.star_top(ax, x + 0.04, r.star, color=col)
-        ax.axhline(0, color="0.5", lw=0.8, ls="--", zorder=1)
-        ax.set_xticks(range(len(cs)))
-        ax.set_xticklabels([labels.get(str(c), SPOUT_LABEL.get(str(c).split(":")[-1], str(c))) for c in cs], fontsize=8)
+        draw_axis(ax, S, T, cs, labels)
         ax.set_title(pname, fontsize=9)
-        ax.spines[["top", "right"]].set_visible(False)
     for row in axes:
         row[0].set_ylabel(ylabel)
-    h = [Line2D([], [], ls="none", marker="o", color=ef.epoch_dot_color(e), mec="k", ms=7, label=e) for e in EP]
-    h += [Line2D([], [], ls="-", lw=1.4, color="k", label="mixed model, 95 % CI"),
-          Line2D([], [], ls="-", lw=3, color="0.6", label="animal bootstrap 95 % (these 4 animals)")]
-    h += cp.animal_handles(sorted(S.animal.unique()))
-    fig.legend(handles=h, fontsize=7, ncol=min(5, len(h)), loc="lower center", frameon=False)
+    hs = legend_handles(S)
+    ncol = max(2, min(len(hs), int(fig.get_figwidth() / 2.4)))          # fits the figure width (34, 11-03)
+    fig.legend(handles=hs, fontsize=7, ncol=ncol, loc="lower center", frameon=False)
+    leg_rows = -(-len(hs) // ncol)
     fam = T.groupby("family").p.apply(lambda q: int(np.isfinite(q).sum()))
     scope = (f"Holm across {fam.iloc[0]} tests" if len(fam) == 1
              else f"Holm within each panel ({', '.join(str(v) for v in fam.unique())} tests)")
     fig.suptitle(f"{title}\nchange vs own pre: mixed model, separate between-animal spread per epoch (df = animals - 1); "
                  f"* p < .05, ** {scope}", fontsize=9)
     sm.reserve_headroom(fig)
-    fig.tight_layout(rect=(0, 0.1 if nr == 1 else 0.06, 1, 1))
+    bottom = min(0.35, (0.22 * leg_rows + 0.1) / fig.get_figheight())   # legend band, in figure fraction
+    top = 1 - 0.55 / fig.get_figheight()                                # two-line suptitle band (34, 11-03)
+    fig.tight_layout(rect=(0, bottom, 1, top))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
     plt.close(fig)
@@ -138,6 +159,7 @@ def main(argv=None) -> int:
     ap.add_argument("--panel-by", default=None, help="column naming each cell's panel")
     ap.add_argument("--holm-by-panel", action="store_true", help="each panel is its own Holm family")
     ap.add_argument("--ncols", type=int, default=0, help="panels per row (default: all in one row)")
+    ap.add_argument("--figsize", default=None, help="W,H inches for a multi-row grid (e.g. 13,5.5 for a slide)")
     a = ap.parse_args(argv)
     S = pd.read_csv(a.sessions)
     S["position"] = S.position.astype(str)
@@ -154,7 +176,8 @@ def main(argv=None) -> int:
     T = statistics(S, cells, family=dict(pm) if (panels and a.holm_by_panel) else None)
     T.to_csv(out.with_name(out.stem + "_lmm.csv"), index=False)
     draw(S, T, cells, out, title=a.title or Path(a.sessions).stem.replace("_sessions", ""), ylabel=a.ylabel,
-         labels=labels, panels=panels, ncols=a.ncols)
+         labels=labels, panels=panels, ncols=a.ncols,
+         figsize=tuple(float(v) for v in a.figsize.split(",")) if a.figsize else None)
     print(out)
     return 0
 
