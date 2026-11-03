@@ -22486,3 +22486,64 @@ still uses pre-cue frames. DAQ spout contact is primary for "contact".
 - **To re-render:**
   - cohort tables / Fig 1.3 (kinematics page, e3);
   - incomplete/sessions.csv and Fig 7.6, which reads it (kinematics page; deck slides via a8).
+
+## 2026-11-03 — State decoder: which normalisation is INVARIANT to a session's class mix? Only per-segment ones, and they fail post-stroke; keep `bal_em` (diagnostic, nothing changed in production)
+
+**Question (Priya approved 11-03):** which normalisation does not care about a session's state mix, including a state that
+disappears or becomes very common? **Stress test:** each held-out PRE session (its LOSO models, so labels are true and
+nothing is stroke-confounded) is subsampled to a forced mix: 0 % quiet / running / licking (other segments kept), 80 % of
+one state (largest subsample with that mix, 8 fixed seeds), natural as reference. Drop = balanced accuracy on the classes
+present minus the natural-mix recall of the SAME classes; per animal first (rule 8), then animal mean. **Arms** (all
+in-memory, `fit_frozen`-shaped logistic unless noted): A `prod` (session z); B `bal_em` (e71da20d; reproduces the prebal
+run exactly, max |d| .0000); C `nocentre` (pooled pre mean / SD); D1 per-segment normalisation with no session statistic
+(`D1_bin` = each 0.25 s bin z-scored across its 95 components; `D1_binc` = per-bin centring only; `D1_seg` = whole-segment
+z); D2 = bins 2-4 minus bin 1, then D1_bin; E = class-conditional Gaussian (shared Ledoit-Wolf covariance), with pre class
+means and session offsets fitted by alternating least squares, and the per-session additive offset + class proportions
+fitted jointly by EM on each scored session (no labels); `E_fit` = fitted priors, `E_flat` = flat priors, `E_logit` = the
+logistic applied after the E offset is removed. Prod reproduces the stored session_z models (120/120, max |d balacc| .006).
+
+| arm | stress: balacc natural | worst forced-mix drop (animal mean; mix) | worst single animal (mix) | PS94 running recall pre / acute / sub / chronic | all-animal state retained pre / acute / sub / chronic | worst non-PS94 balacc vs prod |
+|---|---|---|---|---|---|---|
+| A prod | .978 | -.238 (0 % licking) | -.33 (80 % running) | .98 / .84 / .54 / .49 | .97 / .90 / .87 / .87 | -- |
+| **B bal_em** | .982 | -.092 (0 % running) | -.23 (0 % running, PS92 quiet .50) | **.99 / .97 / .96 / .92** | **.97 / .93 / .95 / .92** | -.016 (PS92 acute) |
+| C nocentre | .984 | .000 | -.002 | .98 / .89 / .73 / .70 | .98 / .87 / .82 / .84 | -.016 (PS95 sub) |
+| D1_bin | .979 | -.001 | -.004 | .98 / .65 / .37 / .26 | .97 / .86 / .80 / .82 | -.019 (PS93 sub) |
+| D1_binc | .984 | .000 | -.002 | .98 / .91 / .78 / .75 | .98 / .88 / .84 / .85 | -.015 (PS95 sub) |
+| D1_seg | .981 | .000 | -.001 | .99 / .60 / .26 / .14 | .97 / .84 / .75 / .80 | -.038 (PS95 acute) |
+| D2 | .756 | .000 | -.004 | .57 / .15 / .22 / .23 | .64 / .41 / .44 / .49 | -.33 (PS95 chronic) |
+| E_fit | .985 | -.208 (80 % running) | -.41 (80 % running, PS95) | 1.00 / .94 / .97 / .96 | .98 / .92 / .90 / .90 | +.001 |
+| E_flat | .985 | -.192 (80 % running) | -.40 (80 % running) | 1.00 / .94 / .97 / .96 | .98 / .92 / .90 / .90 | .000 |
+| E_logit | .984 | -.217 (80 % running) | -.42 (80 % running) | .99 / .91 / .89 / .82 | .98 / .89 / .85 / .87 | -.002 |
+
+**Reading.** (1) Only arms with NO session statistic (C, D1, D2) are mix-invariant, and they are invariant by construction
+(each segment is scaled independently of the others, so the drop is sampling noise, |drop| <= .004). D2 is invariant but
+useless (.76 natural; temporal change alone loses the sustained running signal, as `segment_features` warns). (2) The
+invariant arms fail on the REAL post-stroke data: PS94 running .26-.75 chronic, and every one of them retains less state than
+prod (all-animal chronic .80-.85 vs .87). So PS94's post-stroke shift is not only a class-mix effect: there is also a
+session-level offset that only a per-session centre removes. Removing a per-segment common mode across components (D1_bin,
+D1_seg) makes PS94 WORSE than no centring at all (chronic .26 / .14 vs .70): the across-component mean carries state
+information. (3) E removes the session offset AND follows the mix for absent states (0 % running: +.001; 0 % quiet / licking
+-.01 to -.03, worst animal -.09), but breaks when one state is very common: at 80 % running the offset absorbs the running
+mean and running is read as quiet (animal-mean running recall .53; PS95 .09). On real data E recovers PS94 running
+(.94-.96) but reads PS94 chronic LICKING as quiet (recall .30; 69 % -> quiet), i.e. the shared-offset model cannot absorb
+PS94's changed licking pattern, so its balanced accuracy (PS94 chronic .74) is below bal_em (.90). (4) `bal_em` is NOT
+mix-invariant: it loses .08-.09 (animal mean) when a state is absent (worst PS92 0 % running, quiet recall .50; equal weights
+then centre on a phantom class), but it is near-flat when one state is 80 % (-.01 to -.02, worst -.03) -- the case PS94
+actually presents (running 13 % -> 42 %). It is the best arm on real data: state falls 5 / 2 / 5 % vs position 50 / 19 / 12 %.
+(5) `boot_delta` vs pre (balanced accuracy, animals -> sessions, 4000, seed 0) excludes 0 at every post epoch in EVERY arm
+(bal_em -.021 [-.046, -.002] / -.019 [-.043, -.001] / -.037 [-.073, -.009]; E_fit -.024 / -.048 / -.067); running-recall
+changes exclude 0 only for no-centre / D arms. **Position-vs-state:** position .86 -> .43 / .70 / .76 (loses 50 / 19 / 12 %).
+State loss acute / sub / chronic: prod 7 / 11 / 10 % (ratio 7.5x / 1.8x / 1.2x); bal_em 5 / 2 / 5 % (11x / 7.8x / 2.3x);
+E_fit 6 / 8 / 8 % (9.0x / 2.4x / 1.5x); nocentre 11 / 16 / 14 % (4.7x / 1.2x / 0.85x); D1_binc 9 / 14 / 13 % (5.4x / 1.3x /
+0.93x). The claim (position falls far more acutely) holds in every arm; with C / D the chronic ratio drops below 1.
+
+**Recommendation (a switch is Priya's call):** KEEP `bal_em`. No arm is both mix-invariant and correct post-stroke; the
+mix-invariant ones (C, D) fail PS94, and E fails whenever one state dominates and mis-handles PS94's licking. bal_em's
+known weakness is a state that is (nearly) ABSENT; real sessions where that happens (PS92 chronic running 3 %, PS95 acute
+running 1 %) score fine here, but a minimum-mass guard (the open 11-03 question) is the targeted fix and is worth testing
+against this same stress test before freezing: it should be evaluated on the 0 % mixes specifically. Files:
+`M:/MICROSCOPE/Priya/Widefield/labcams/state_decoder_ps94_check/mix_invariance/` (`analyse_mix.py`, `fig_mix.py`,
+`analyse_log.txt`, `stress_raw.csv`, `stress_per_session.csv`, `stress_animal.csv`, `stress_arm_mix.csv`,
+`stress_summary.csv`, `per_session_arms.csv`, `animal_epoch_arms.csv`, `arm_vs_prod.csv`, `boot_delta_arms.csv`,
+`retained_arms.csv`, `ps94_confusions.csv`, `em_diagnostics.csv`, `fig_mix_stress.png`, `fig_mix_poststroke.png`); features
+from `../running_def/cache/`.
