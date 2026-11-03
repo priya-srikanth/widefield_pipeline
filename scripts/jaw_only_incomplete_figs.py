@@ -88,6 +88,81 @@ def classify(M: pd.DataFrame, L: pd.DataFrame, E: pd.DataFrame) -> dict:
     return {t: one(t) for t in M.trial_id}
 
 
+# --------------------------------------------------------------------------------- shared trial gates (Priya 11-03)
+# THE camera-defined trial gates, ONE definition for the kinematics page, the imaging page and the cohort 1 rebuild
+# (window 34 imports these; e3 asked that every consumer import `classify` rather than re-derive the classes).
+#   working      jaw moved OR any camera-seen lick (contact, incomplete or jaw-only) -- Priya 11-03: the DEFAULT working
+#                set for ENL and cue windows, replacing the DAQ quit-tail rule (`grant_kit._class_select("working")` =
+#                DAQ-engaged + no-lick trials outside the terminal quit period), which is kept as a robustness row
+#   camera_lick  any camera-seen lick (contact or incomplete) -- the camera lick gate; lick-aligned windows always need it
+# HOW THIS RELATES TO THE OTHER "RESPONDED" DEFINITIONS (until they are consolidated; e3's 11-03 audit): those are
+# contact- or rate-based -- `rest_engagement`, `rest_by_position._engaged_trials`, `nolick_decoder.categorize`, and the
+# engagement gate under WIDEFIELD_GATE_SOURCE=lp (DAQ contact OR an LP attempt counts as a response, then a quit /
+# collapse rule over the session). This one is a PER-TRIAL behavioural class from video (cam4 v36 licks + cam1 events)
+# and the cam4 jaw call, with NO session-level quit or engagement rule: a mid-session no-response trial is excluded, a
+# late trial with a jaw movement is kept.
+GATES = {"working": frozenset({"contact", "incomplete", "jaw_only"}),
+         "camera_lick": frozenset({"contact", "incomplete"})}
+CUE_MATCH_S = 0.020          # a DAQ cue and a video trial are the same trial within 20 ms of cue time (as `lp_licks`)
+
+
+def session_classes(label: str, v36: Path | str | None = None, c1: Path | str | None = None) -> pd.DataFrame | None:
+    """Every trial of one session (NO engagement filter) -> DataFrame [trial_id, position, cue_daq, cls, has_cam1].
+
+    label "PS92_0818" or "PS92_20260818". Sources: v36 `sessions/<animal>/<date>/` (trials.csv, tongue_jaw_mismatch.csv,
+    licks.csv, windows.npz for the DAQ cue time, `orofacial_cohort._cue_table`) and `cam1_licks/<s>_events.csv`.
+    COVERAGE: a session with NO cam1 events file is classified from cam4 alone (``has_cam1`` False): cam1-only licks
+    cannot add contact / incomplete trials and jaw-only is not cam1-corrected, so a few jaw-only trials may be attempts
+    cam1 would have caught. MISSING VIDEO per trial: a trial absent from tongue_jaw_mismatch, or with no jaw call
+    (``jaw_pass_qc`` NaN) and no lick, is "unknown" -- in NEITHER gate (no evidence either way). A session with no v36
+    folder returns None: there is no camera-defined working set, and the caller must say what it does then (no DAQ
+    fallback here, so the two definitions can never be mixed silently)."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local.paths import PathResolver
+    animal, date = label.split("_")
+    date = date if len(date) == 8 else f"2026{date}"
+    rv = PathResolver()
+    v36 = Path(v36) if v36 else Path(rv.root("orofacial")) / V36 / "sessions"
+    c1 = Path(c1) if c1 else Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    sd = v36 / animal / date
+    if not (sd / "tongue_jaw_mismatch.csv").exists() or not (sd / "windows.npz").exists():
+        return None
+    T = pd.read_csv(sd / "trials.csv")[["trial_id", "position"]]
+    M = pd.read_csv(sd / "tongue_jaw_mismatch.csv")
+    L = (pd.read_csv(sd / "licks.csv", usecols=["trial_id", "contact"]) if (sd / "licks.csv").exists()
+         else pd.DataFrame(columns=["trial_id", "contact"]))
+    fe = c1 / f"{animal}_{date}_events.csv"
+    E = (pd.read_csv(fe) if fe.exists() else
+         pd.DataFrame(columns=["trial_id", "cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"]))
+    T["cls"] = T.trial_id.map(classify(M, L, E)).fillna("unknown")
+    T["cue_daq"] = T.trial_id.map(oc._cue_table(sd).set_index("trial_id").cue_daq)
+    T["has_cam1"] = fe.exists()
+    return T
+
+
+def cue_classes(table: pd.DataFrame | None, cue_s: np.ndarray, tol: float = CUE_MATCH_S) -> np.ndarray:
+    """Class per DAQ cue (``cue_s``, DAQ seconds), matched to ``session_classes`` rows by nearest cue time within
+    ``tol``; "unknown" where nothing matches (or ``table`` is None). Matched by TIME, never by trial id (ids are
+    offset in some sessions; `lp_licks`)."""
+    cue_s = np.asarray(cue_s, float)
+    out = np.full(len(cue_s), "unknown", dtype=object)
+    if table is None or not len(table):
+        return out
+    t = table.dropna(subset=["cue_daq"]).sort_values("cue_daq")
+    tv, cv = t.cue_daq.to_numpy(float), t.cls.to_numpy(object)
+    j = np.clip(np.searchsorted(tv, cue_s), 1, len(tv) - 1) if len(tv) > 1 else np.zeros(len(cue_s), int)
+    if len(tv) > 1:
+        j = np.where(np.abs(tv[j - 1] - cue_s) <= np.abs(tv[j] - cue_s), j - 1, j)
+    ok = np.abs(tv[j] - cue_s) <= tol
+    out[ok] = cv[j[ok]]
+    return out
+
+
+def in_gate(cls: np.ndarray, gate: str) -> np.ndarray:
+    """Boolean per trial: class in GATES[gate] ("working" or "camera_lick")."""
+    return np.isin(np.asarray(cls, dtype=object), list(GATES[gate]))
+
+
 def session_job(job) -> dict:
     """fan_sessions worker (module level): per-trial classes, counts per position, and per class x position traces."""
     s, d3, v36, c1 = job
