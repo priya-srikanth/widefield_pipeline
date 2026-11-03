@@ -229,3 +229,16 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - B12 1.5 s primary; lick-free ENL decoder = imaging Figs 2.5 (DAQ-trained) / 2.6 (LP-trained), 1.0 s = 2.7 / 2.8.
 - B13 add 12.1b. B14 rewrite caption (and in general: replace captions, no correction notes). B15 merge branches: yes.
 - New question: LP-trained vs DAQ-trained decoder for the LP-gated arm (answered in chat; decision pending).
+
+### 11-03 ~08:00: Priya on drift / quiet guard / approvals
+- Drift correction in decoders: "OK ... make primary", BUT "we should NOT be removing block-level information" -> ON HOLD until the
+  cutoff is agreed. Facts: meegkit_hpfit already removes drift in preprocessing (order-10 robust polynomial, trial windows masked,
+  50% cutoff ~43 min, 1-2 min block band retained 0.98-1.00); position blocks 57-121 s (pre); encoder removes >= 600 s in-model;
+  the 10-20 slow-band check removed >= 300 s (only ~2.5-5x a block) so its .03-.09 may include block-level signal. Proposed:
+  measure block durations per epoch + whether the spout order repeats across sessions; block-protected removal (slow basis
+  fitted jointly with block indicators) at >= 600 s; one definition in the signal product, not per decoder. Discuss first.
+- Quiet-event swap guard (0.5 s): set on UNREPAIRED data, where a swap is a spike and v2 measures event height against the
+  preceding 1 s. On swap-masked data the frames are interpolated -> guard can shrink to +/-1 pair. Quiet-events session owns it.
+- Approved: page text edits in the rebuild page pass; merges before rebuild; remove files of cut figures (goal page 512 limit);
+  run RESTnl-over-epochs plot + PS92 subacute per-session check (on the corrected data, in the rebuild).
+- All helpers hit the usage limit at ~07:45 (resets 11:00): inventories A / B partial; grant/epoch family-key map DONE.
