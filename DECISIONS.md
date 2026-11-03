@@ -22826,3 +22826,17 @@ skewed. With far contra absent, they are as fragile as P. Full acute mix (cue/wo
 - Lick-scored acute far contra rests on 3 animals and a handful of trials.
 - ATT relies on the video classes (no June pre sessions; PS93_0813 has no video). By trial_classes' own rule, jaw_only
   is "a reaction, NOT an attempt" (10-21 blind review). ATT was run as specified, not as a recommended set.
+
+## 2026-11-03 — End-of-session cutoff for "working": the session's LAST CAMERA LICK (Priya, via sabatinilab-5b)
+
+Primary working = the working gate (contact | incomplete | jaw_only) AND at or before the session's last camera lick
+(contact or incomplete). `wfield_local.trial_classes.in_working` / `before_session_end(anchor="lick")`; `DEFAULT_END`.
+Why: jaw-only trials after the last lick are smaller and later than other jaw-only trials in every epoch (cam4 opening smaller p < 0.04
+in all epochs, 9 / 12 animal x epoch cells; onset later 9 / 12) and sit in the sated tail; they are 1.0 % of working
+(0.8 / 1.8 / 1.0 / 0.8 % pre / acute / subacute / chronic, 128 pre-stroke in 15 / 31 sessions). A last-CONTACT anchor
+was rejected because it cuts genuine acute far-spout incomplete attempts (94); the last-lick anchor drops no lick by
+construction (docs/status/QUIT_TAIL_JAW_ONLY_2026-11-03.md, 5b's anchor comparison).
+Robustness rows: anchor "contact", "close" (last lick at close_L / close_center), "none". The classes and GATES are
+unchanged. Moved from 5b's `scripts/s1_trial_class_snapshot.py` (91664c86); identical on all 57,601 snapshot rows for
+all three anchors. `selection_tag(end="lick")` adds "-endlick" to cache keys built on it (no end = tag unchanged).
+Section 1 already uses it (no cell moved by more than .02).

@@ -85,3 +85,24 @@ def test_missing_contact_table_raises(tmp_path):
 def test_selection_tag():
     assert TC.selection_tag() == "sel-camera-cue_stop"
     assert TC.selection_tag("daq", "trial") == "sel-daq-trial"
+
+
+def test_end_of_session_cutoff():
+    # two sessions; order = trial index. A: last camera lick at 3 (incomplete), last contact at 1, last reference-spout
+    # lick at 0. B: no lick at all -> nothing kept (every trial is after its "last" lick).
+    cls = ["contact", "contact", "jaw_only", "incomplete", "jaw_only", "no_response", "jaw_only", "jaw_only"]
+    order = [0, 1, 2, 3, 4, 5, 0, 1]
+    sess = ["A"] * 6 + ["B"] * 2
+    pos = ["close_L", "far_R", "far_R", "far_R", "far_R", "far_R", "far_R", "far_R"]
+    keep = lambda a: TC.before_session_end(cls, order, session=sess, position=pos, anchor=a).tolist()  # noqa: E731
+    assert keep("lick") == [True] * 4 + [False] * 4
+    assert keep("contact") == [True, True] + [False] * 6
+    assert keep("close") == [True] + [False] * 7
+    assert keep("none") == [True] * 8
+    assert TC.in_working(cls, order, session=sess).tolist() == [True, True, True, True, False, False, False, False]
+    assert TC.DEFAULT_END == "lick"
+
+
+def test_selection_tag_end():
+    assert TC.selection_tag() == "sel-camera-cue_stop"                 # unchanged without an end anchor
+    assert TC.selection_tag(end="lick") == "sel-camera-cue_stop-endlick"
