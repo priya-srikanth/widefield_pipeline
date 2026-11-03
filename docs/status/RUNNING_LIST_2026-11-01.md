@@ -215,3 +215,17 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - **Queued (Priya "sure", 11-02 evening): cohort1 on the swap-masked + 415-lag-fixed variant** (`hemo_meegkit_hpfit_lag_refitT_swapmask`, scripts/cohort2_qc/cohort1_impact.py). 10-30 checks (COHORT2_QC §0i 8 sessions, §0l 24 sessions) showed headline decoding / area amplitudes do not move (max .02), maps r >= .97, amplitudes -2 to -14% (session-dependent). Not yet re-run: LocaNMF / frozen decoders (Figs 2.x), encoding headline, RESTnl maps (cross-epoch amplitude ratios are the real exposure), quiet events. Plan: build the variant for all cohort1 sessions, re-render those families into new folders, report only what moves (add, never replace). Starts once the frozen-store pass 2 finishes (shared box).
 
 - 2026-11-03: goal/encoding page is now v312 (sabatinilab-a8 edited section 23 only: new Supp 23.23 / 23.24 as INLINE images because the artifact is at its 512-file limit; 23.x headers retagged LP). Before any publish from _goal_page: read v312 first, merge section 23, and if making 23.23 / 23.24 real files, free slots + add fig_ids rows q_t13_followup_lp / q_sync_4to8 (PNGs on M: v2_quiet_lp/task_events_followup, v2_quiet_lp/sync_4to8). Their commits 4452139a, e7cfa946.
+
+### 11-03 morning: Priya's answers to the open list (B1-B15)
+- B1 swap-mask: yes to adding it, but FIRST discuss what changed and whether to re-do everything on the swap-masked data.
+- B2 PS92 subacute outliers: asked why (quiet frames?). Answer: NOT quiet frames (RESTnl frame counts identical, hemo-independent); close-ipsi jumps in every window (pre-cue .79->3.19, cue 1.34->2.14, lick 1.24->1.98) = a session-level change in 2 sessions; per-session check offered.
+- B3 merge swap-mask overrides + add a guard against session-cache pruning: YES.
+- B4 precue_engagement_states: asked why a rebuild is needed (it is a side effect: the whole module is hashed into the map-cache key). Proposal: fold into one planned rebuild.
+- B5 5rm: store under one seed-keyed spec, as recommended.
+- B6 headline RESTnl; note sessions without all 6 positions (109/119 all 6, 9 with 5, 1 with 4) and whether conclusions differ from REST (pre-cue acute far-contra rise 3/4 -> 4/4, PS94 flips; others same).
+- B7 legacy date option, or one convention for cohort 1. Fact: dates are already one convention (config.date8 = "2026MMDD" for cohort 1); the cache key moved only because hashed source TEXT changed -> fold into the one rebuild, drop the shim.
+- B8 yes (flat primary + caveat). NB a time-local lick-free version is NOT formable (shortcut check §4 item 3) -> the check is against `raw`. Asked for a plot of RESTnl over epochs: exists only for RESTW (epoch_15j); RESTnl version offered.
+- B9 update section 7 takeaway (-9 % PS95). B10 add PS93 caveat. B11 ok (DAQ pre-cue caveat).
+- B12 1.5 s primary; lick-free ENL decoder = imaging Figs 2.5 (DAQ-trained) / 2.6 (LP-trained), 1.0 s = 2.7 / 2.8.
+- B13 add 12.1b. B14 rewrite caption (and in general: replace captions, no correction notes). B15 merge branches: yes.
+- New question: LP-trained vs DAQ-trained decoder for the LP-gated arm (answered in chat; decision pending).
