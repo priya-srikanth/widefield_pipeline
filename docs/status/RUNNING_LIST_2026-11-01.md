@@ -346,3 +346,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   are one constant: combined_encoding.DRIFT_MIN_PERIOD_S = 600 s, projected out of Y and every design column (FWL), reused by
   scripts/iti_licks.py:361. Check whether 10 min is too short (position cycle 5-22 min p95, PS92 up to 40): encoder + ITI
   headline at 600 vs longer cutoffs, per animal. LocaNMF: PROJECTION (per-session + joint), no refit.
+- 11-03 DECISION (Priya): camera "stopped" = no_response trials in a SUSTAINED stop. Implemented as a run of >= behavior.tail_min_misses
+  (6) consecutive camera no_response trials ("unknown" skipped, never stopped); isolated no_response in neither class; "any
+  no_response" = sensitivity; rule name in selection_tag. Applies to section 11 / ENL states, epoch 12s / 12b, miss_vs_stopped,
+  nolick categories.
