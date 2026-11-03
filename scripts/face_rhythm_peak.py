@@ -42,9 +42,55 @@ EPOCHS = frc.EPOCHS
 #: spout positions, contralesional first (lesions LEFT: the animal's R spouts are contralesional)
 POSITIONS = frc.POSITIONS_CONTRA_FIRST
 GROUP_ORDER = (*frc.SIDES, "all", *POSITIONS)
+#: DISPLAY order of trial groups in figures (Priya 11-03 canonical spout order: close ipsi, close mid, close contra, far
+#: ipsi, far mid, far contra; sides ipsi, centre, contra). Statistics keep GROUP_ORDER (their seeded draws follow it).
+DISPLAY_ORDER = ("ipsi", "centre", "contra", "all", *frc.POSITIONS_DISPLAY)
+#: group names relative to the lesion (all lesions LEFT: the animal's L spouts are ipsilesional)
+GROUP_LABEL = {"close_L": "close ipsi (close_L)", "close_center": "close mid", "close_R": "close contra (close_R)",
+               "far_L": "far ipsi (far_L)", "far_center": "far mid", "far_R": "far contra (far_R)",
+               "contra": "contra", "centre": "centre", "ipsi": "ipsi"}
+
+
+def display_groups(groups) -> list:
+    return sorted(groups, key=DISPLAY_ORDER.index)
 #: day bins for the cohort-by-day view (animals are imaged on different days): (label, first day, last day)
 DAY_BINS = (("pre", -999, 0), ("1-3", 1, 3), ("4-7", 4, 7), ("8-14", 8, 14), ("15-21", 15, 21), ("22-35", 22, 35),
             ("36+", 36, 999))
+#: half-width of the session-dot jitter around an epoch category (categories are 1 apart)
+EPOCH_JITTER = 0.12
+
+
+def epoch_points(ax, d: pd.DataFrame, value: str, seed: int = 0) -> pd.DataFrame:
+    """One panel with EPOCHS on x (Priya 11-03 categorical-x rules, `wfield_local.cat_points`): the SESSION values
+    of ``d`` (rows: animal, epoch, ``value``) as faded open markers (shape = animal, colour = epoch) and, per epoch, the
+    mean +- SEM ACROSS ANIMALS of each animal's mean over its sessions (marker + interval, no line between epochs).
+    Returns the animal x epoch table of animal means."""
+    from wfield_local import cat_points as cp
+    ecol = frc.epoch_colors()
+    A = d.groupby(["animal", "epoch"])[value].mean().unstack().reindex(columns=list(EPOCHS))
+    for e_i, ep in enumerate(EPOCHS):
+        s = d[d.epoch == ep]
+        cp.session_dots(ax, e_i, s[value], s.animal, ecol[ep], jitter=EPOCH_JITTER, seed=seed + e_i)
+        col = A[ep].dropna()
+        if len(col):
+            se = col.std(ddof=1) / np.sqrt(len(col)) if len(col) > 1 else np.nan
+            cp.summary_point(ax, e_i, col.mean(), se, ecol[ep], ms=6.5)
+    ax.set_xlim(-0.5, len(EPOCHS) - 0.5)
+    return A
+
+
+def wrap_title(fig, text: str) -> str:
+    """Wrap a suptitle to the figure width (a one-column figure clipped the long ones)."""
+    import textwrap
+    width = max(40, int(fig.get_figwidth() * 8.5))         # ~8.5 characters per inch at the 13 pt suptitle
+    return "\n".join(textwrap.fill(line, width) for line in text.split("\n"))
+
+
+def change_tick(ep: str, r, interval: bool = True) -> str:
+    """Epoch tick label with the change vs pre (and its interval) but NO star -- stars go in the top band."""
+    if r is None or not np.isfinite(r["delta"]):
+        return ep[:5]
+    return f"{ep[:5]}\n{r['delta']:+.2f}" + (f"\n[{r['ci_lo']:+.2f}, {r['ci_hi']:+.2f}]" if interval else "")
 
 
 def first_lick(t, split: str) -> list[dict]:
@@ -159,7 +205,7 @@ def main(argv=None) -> int:
         fig, axs = frf.subplots(len(names), len(groups), figsize=(4.6 * len(groups) + 1.5, 2.3 * len(names)),
                                 squeeze=False, sharex=True)
         for k, nm in enumerate(names):
-            for j, g in enumerate(groups):
+            for j, g in enumerate(display_groups(groups)):
                 ax = axs[k, j]
                 for an in animals:
                     d = S[(S.factor == k) & (S.animal == an) & (S.group == g)].sort_values("day")
@@ -169,7 +215,7 @@ def main(argv=None) -> int:
                     ax.plot(d.day, d.peak_vs_pre, "o-", ms=3, lw=1, color=col[an], label=an)
                 ax.axhline(1, color="k", lw=0.5)
                 ax.axvline(0.5, color="k", lw=0.5)
-                ax.set_title(f"{k} {nm}" + ("" if g == "all" else f" -- {g} spouts"), fontsize=9)
+                ax.set_title(f"{k} {nm}" + ("" if g == "all" else f" -- {GROUP_LABEL[g]} spouts"), fontsize=9)
                 if j == 0:
                     ax.set_ylabel("peak / pre")
         for ax in axs[-1]:
@@ -201,8 +247,8 @@ def timing(S: pd.DataFrame, FL: pd.DataFrame, names: list[str], groups: list[str
     sessions of the trial average's centre of mass / half-rise time (s from cue); change vs pre in SECONDS by
     `boot_delta`; reference row = median first-lick latency of the same trials."""
     from wfield_local import face_rhythm_figures as frf
-    from wfield_local import config, figure_layout
-    acol = config.animal_color()
+    from wfield_local import cat_points as cp
+    from wfield_local import figure_layout, sig_marks
     rng = np.random.default_rng(0)
     meta = S[["label", "animal", "epoch"]].drop_duplicates("label")
     if len(FL):                               # split videos: trial-weighted mean latency per label
@@ -249,36 +295,40 @@ def timing(S: pd.DataFrame, FL: pd.DataFrame, names: list[str], groups: list[str
             fig, axs = frf.subplots(len(rows_q), len(groups), figsize=(4.0 * len(groups) + 1.5, 2.0 * len(rows_q)),
                                     squeeze=False)
             for r_i, (k, nm) in enumerate(rows_q):
-                for j, g in enumerate(groups):
+                for j, g in enumerate(display_groups(groups)):
                     ax = axs[r_i, j]
                     d = cell(metric, k, g)
                     if d.empty:
                         continue
-                    A = d.groupby(["animal", "epoch"]).v.mean().unstack().reindex(columns=list(EPOCHS))
                     x = np.arange(len(EPOCHS))
-                    for an, row in A.iterrows():
-                        ax.plot(x, row.to_numpy(), ".-", color=acol.get(an, "0.6"), lw=0.8, ms=4, alpha=0.8)
-                    ax.errorbar(x, A.mean(0).to_numpy(), yerr=(A.std(0, ddof=1) / np.sqrt(A.notna().sum(0))).to_numpy(),
-                                fmt="o", color="k", ms=5, capsize=3, zorder=5)
+                    epoch_points(ax, d, "v", seed=1000 * (k + 1) + 10 * j)
                     tt = T[(T.metric == ("first_lick_s" if k < 0 else metric)) & (T.factor == k) & (T.group == g)]
                     tt = tt.set_index("epoch")
-                    ticks = ["pre", *(frs.tick_label(ep, tt.loc[ep] if ep in tt.index else None, interval=False)
+                    ticks = ["pre", *(change_tick(ep, tt.loc[ep] if ep in tt.index else None, interval=False)
                                       for ep in EPOCHS[1:])]
+                    for e_i, ep in enumerate(EPOCHS[1:], start=1):
+                        if ep in tt.index and tt.loc[ep, "mark"]:
+                            sig_marks.star_top(ax, e_i, tt.loc[ep, "mark"])
                     ax.set_xticks(x, ticks, fontsize=6)
-                    ax.set_title(nm + ("" if g == "all" else f" -- {g}"), fontsize=8)
+                    ax.set_title(nm + ("" if g == "all" else f" -- {GROUP_LABEL[g]}"), fontsize=8)
                     if j == 0:
                         ax.set_ylabel("s from cue")
-            fig.suptitle(f"{set_name}: WHEN each factor is expressed after the cue ({lab}), by epoch; under each "
-                         "label the change vs pre in s (* = 95 % CI excludes 0; ** = also Holm over the 12 factors)")
+            cp.add_animal_entries(axs[0, -1], sorted(S.animal.unique()))
+            frf.legend_outside(axs[0, -1], fontsize=7)
+            sig_marks.reserve_headroom(fig)
+            fig.suptitle(wrap_title(fig, f"{set_name}: WHEN each factor is expressed after the cue ({lab}), by epoch;\n"
+                                    "under each label the change vs pre in s (top band: * = 95 % CI excludes 0; ** = "
+                                    "also Holm over the 12 factors)"))
             how = ("the centre of mass of the expression ABOVE its pre-cue level (cue -2..0 s) over cue "
                    f"{window[0]:g}..+{window[1]:g} s" if metric == "com_s" else
                    "the first bin at which the expression reaches half of its rise from the pre-cue level (cue -2..0 s) "
                    "to its peak in the window")
             frf.save(fig, out / f"timing_by_epoch_{metric.removesuffix('_s')}{sfx}.png", f"""
 Timing of each frozen factor's trial-averaged absolute expression (engaged trials{', per trial group' if sfx else ''}),
-relative to the cue. {lab.upper()}: {how} (NaN when it does not rise above pre-cue). Coloured: per-animal epoch means
-(repo animal colours); black: mean +- SEM across animals. Under each epoch label: change vs pre in SECONDS,
-`analysis_kit.boot_delta` (paired animals -> sessions, animal-weighted); * = 95 % interval excludes 0; ** = also
+relative to the cue. {lab.upper()}: {how} (NaN when it does not rise above pre-cue). Faded open markers: the SESSIONS
+(shape = animal, colour = epoch, seeded jitter); filled marker + bar: mean +- SEM across animals of the per-animal epoch
+means (no line joins epochs; Priya 11-03). Under each epoch label: change vs pre in SECONDS,
+`analysis_kit.boot_delta` (paired animals -> sessions, animal-weighted); top band: * = 95 % interval excludes 0; ** = also
 significant after Holm over the 12 factors of that trial group x epoch (bootstrap p from the same draws; the first-lick
 row is one planned test, * only). Last row: median first-lick latency of the same
 trials (LP licks) -- a lick factor that shifts with it is tracking reaction time, not a re-timed movement. A trial
@@ -301,47 +351,54 @@ def headline(S: pd.DataFrame, names: list[str], out: Path, set_name: str, rows: 
                         names.index("lick_left") if "lick_left" in names else None) if k is not None]
     if len(want) < 2:
         return
-    from wfield_local import config
-    acol = config.animal_color()
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
     rng = np.random.default_rng(0)
     x = np.arange(len(EPOCHS))
+    CH = {(g, k): {r["epoch"]: r for r in frs.epoch_change(S[(S.factor == k) & (S.group == g)], "log2_vs_pre", rng)}
+          for g in rows for k in want}                    # in the original order: the seeded draws stay the same
     with frf.style():
         fig, axs = frf.subplots(len(rows), 2, figsize=(9.5, 3.9 * len(rows)), squeeze=False, sharey=True)
-        for r_i, g in enumerate(rows):
+        for r_i, g in enumerate(display_groups(rows)):
             for c_i, k in enumerate(want):
                 ax = axs[r_i, c_i]
                 d = S[(S.factor == k) & (S.group == g)]
-                A = d.groupby(["animal", "epoch"]).log2_vs_pre.mean().unstack().reindex(columns=list(EPOCHS))
-                for an, row in A.iterrows():
-                    ax.plot(x, row.to_numpy(), "o-", color=acol.get(an, "0.6"), ms=3, lw=0.9, alpha=0.8)
-                    ax.text(x[-1] + 0.08, row.iloc[-1], an, fontsize=7, va="center", color=acol.get(an, "0.4"))
-                m, se = A.mean(0), A.std(0, ddof=1) / np.sqrt(A.notna().sum(0))
-                ax.errorbar(x, m.to_numpy(), yerr=se.to_numpy(), fmt="o", color="k", ms=6, capsize=3, zorder=5)
-                ticks = ["pre", *(frs.tick_label(r["epoch"], r) for r in frs.epoch_change(d, "log2_vs_pre", rng))]
+                epoch_points(ax, d, "log2_vs_pre", seed=100 * r_i + 10 * c_i)
+                ch = CH[(g, k)]
+                ticks = ["pre", *(change_tick(ep, ch.get(ep)) for ep in EPOCHS[1:])]
+                for e_i, ep in enumerate(EPOCHS[1:], start=1):
+                    if ep in ch and frs.mark(ch[ep]):
+                        sig_marks.star_top(ax, e_i, frs.mark(ch[ep]))
                 ax.axhline(0, color="k", lw=0.5)
                 ax.set_xticks(x, ticks, fontsize=7)
-                where = {"contra": "CONTRAlesional-spout trials", "ipsi": "IPSIlesional-spout trials"}.get(g, f"{g} trials")
+                where = {"contra": "CONTRAlesional-spout trials", "ipsi": "IPSIlesional-spout trials"}.get(g, f"{GROUP_LABEL[g]} trials")
                 ax.set_title(f"{names[k]} -- on {where}", fontsize=10)
                 if c_i == 0:
                     ax.set_ylabel("log2(peak / own pre)")
-        fig.suptitle(f"{set_name}: contralesional (lick_right) and ipsilesional (lick_left) lick factors by "
-                     + ("spout side" if rows[0] == "contra" else "spout position (R = contralesional)"))
+        cp.add_animal_entries(axs[0, -1], sorted(S.animal.unique()))
+        frf.legend_outside(axs[0, -1], fontsize=7)
+        sig_marks.reserve_headroom(fig)
+        fig.suptitle(wrap_title(fig, f"{set_name}: contralesional (lick_right) and ipsilesional (lick_left) lick "
+                                "factors by " + ("spout side" if rows[0] == "contra" else
+                                                 "spout position (R = contralesional)")))
         frf.save(fig, out / fn, f"""
 Peak of the trial-averaged absolute expression (cue 0..+4 s) of the contralesional lick factor (lick_right, left
 column) and the ipsilesional lick factor (lick_left, right column), on trials at each of {', '.join(rows)} (rows;
 contra = the animal's right spouts far_R / close_R, ipsi = far_L / close_L; lesions left); each session / the mean of
 that animal's pre-stroke sessions on the same trials, on a LOG2 scale (log2 peak minus the mean log2 peak of the
 pre-stroke sessions: pre = 0, +1 = doubled, -1 = halved). Under each epoch label: the change vs pre in log2 units and
-its interval. Grey: per-animal epoch means (joined); black: mean +- SEM
-across the four animals. Numbers: change vs pre, `analysis_kit.boot_delta` (paired animals -> sessions bootstrap,
-animal-weighted) with its 95 % interval; * = excludes 0. Frozen master {set_name}; FINDINGS 5d.""")
+its interval. Faded open markers: the SESSIONS (shape = animal, colour = epoch, small seeded jitter); filled marker
++ bar: mean +- SEM across the four animals of each animal's mean over its sessions (no line joins epochs; Priya 11-03).
+Numbers: change vs pre, `analysis_kit.boot_delta` (paired animals -> sessions bootstrap, animal-weighted) with its 95 %
+interval; * (top band) = excludes 0. Frozen master {set_name}; FINDINGS 5d.""")
 
 
 def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx: str, set_name: str,
            window: tuple[float, float]) -> None:
     """Cohort views of peak / pre (Priya 10-24): by day bin (mean +- SEM across animals) and by epoch with statistics."""
     from wfield_local import face_rhythm_figures as frf
-    from wfield_local import config, figure_layout
+    from wfield_local import cat_points as cp
+    from wfield_local import config, figure_layout, sig_marks
     acol = config.animal_color()
     rng = np.random.default_rng(0)
     S = S.copy()
@@ -349,9 +406,8 @@ def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx:
     for lab, lo, hi in DAY_BINS:
         S.loc[(S.day >= lo) & (S.day <= hi) & ((S.epoch == "pre") == (lab == "pre")), "bin"] = lab
     bins = [b[0] for b in DAY_BINS]
-    # per animal: mean of its sessions in each bin / epoch (one value per animal), then across animals
+    # per animal: mean of its sessions in each bin (one value per animal), then across animals (epochs: `epoch_points`)
     A_bin = S.dropna(subset=["bin"]).groupby(["group", "factor", "animal", "bin"]).log2_vs_pre.mean().reset_index()
-    A_ep = S.groupby(["group", "factor", "animal", "epoch"]).log2_vs_pre.mean().reset_index()
     rows = []
     animals = sorted(S.animal.unique())
     for (g, k), d in S.groupby(["group", "factor"]):
@@ -373,7 +429,7 @@ def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx:
             fig, axs = frf.subplots(len(names), len(groups), figsize=(4.4 * len(groups) + 1.5, 2.3 * len(names)),
                                     squeeze=False, sharex=True)
             for kk, nm in enumerate(names):
-                for j, g in enumerate(groups):
+                for j, g in enumerate(display_groups(groups)):
                     ax = axs[kk, j]
                     if view == "day":
                         d = A_bin[(A_bin.factor == kk) & (A_bin.group == g)]
@@ -384,32 +440,34 @@ def cohort(S: pd.DataFrame, names: list[str], groups: list[str], out: Path, sfx:
                         ax.errorbar(x, st["mean"], yerr=st["sem"], fmt="o-", color="k", ms=4, lw=1.2, capsize=2)
                         ax.set_xticks(x, bins, fontsize=7)
                     else:
-                        d = A_ep[(A_ep.factor == kk) & (A_ep.group == g)]
+                        d = S[(S.factor == kk) & (S.group == g)]
                         x = np.arange(len(EPOCHS))
-                        st = d.groupby("epoch").log2_vs_pre.agg(["mean", "sem"]).reindex(EPOCHS)
-                        for _an, da in d.groupby("animal"):
-                            da = da.set_index("epoch").log2_vs_pre.reindex(EPOCHS)
-                            ax.plot(x, da.to_numpy(), ".-", color=acol.get(_an, "0.6"), lw=0.8, ms=4, alpha=0.8)
-                        ax.errorbar(x, st["mean"], yerr=st["sem"], fmt="o", color="k", ms=5, capsize=3, zorder=5)
+                        epoch_points(ax, d, "log2_vs_pre", seed=1000 * kk + 10 * j)
                         ax.set_xticks(x, [e[:5] for e in EPOCHS])
                         tt = T[(T.factor == kk) & (T.group == g)].set_index("epoch")
-                        top = ax.get_ylim()[1]
                         for e_i, ep in enumerate(EPOCHS[1:], start=1):
                             if ep in tt.index:
                                 r = tt.loc[ep]
-                                ax.text(e_i, top, r.mark + f"{int(r.n_below_pre)}/{int(r.n_animals)}v",
-                                        ha="center", va="bottom", fontsize=7)
+                                if r.mark:
+                                    sig_marks.star_top(ax, e_i, r.mark)
+                                sig_marks.star_top(ax, e_i, f"{int(r.n_below_pre)}/{int(r.n_animals)}v", row=1,
+                                                   fontsize=6.5)
                     ax.axhline(0, color="k", lw=0.5)
-                    ax.set_title(f"{kk} {nm}" + ("" if g == "all" else f" -- {g} spouts"), fontsize=9)
+                    ax.set_title(f"{kk} {nm}" + ("" if g == "all" else f" -- {GROUP_LABEL[g]} spouts"), fontsize=9)
                     if j == 0:
                         ax.set_ylabel("log2(peak / pre)")
-            fig.suptitle(f"{set_name}: peak factor amplitude vs each animal's pre (log2), mean +- SEM across animals"
-                         + (" (day bins)" if view == "day" else " (epochs; * = bootstrap 95 % CI of the change excludes 0, ** = also Holm over the 12 factors; "
-                            "k/n v = animals below pre)"))
+            if view == "epoch":
+                cp.add_animal_entries(axs[0, -1], animals)
+                frf.legend_outside(axs[0, -1], fontsize=7)
+                sig_marks.reserve_headroom(fig)
+            fig.suptitle(wrap_title(fig, f"{set_name}: peak factor amplitude vs each animal's pre (log2), mean +- SEM "
+                                    "across animals" + (" (day bins)" if view == "day" else
+                                                        "\n(epochs; * = bootstrap 95 % CI of the change excludes 0, ** = "
+                                                        "also Holm over the 12 factors; k/n v = animals below pre)")))
             frf.save(fig, out / f"peak_cohort_by_{view}{sfx}.png", f"""
 Peak of the trial-averaged absolute expression over cue {window[0]:g}..+{window[1]:g} s per session on a LOG2 scale:
 log2 peak minus the mean log2 peak of that animal's pre-stroke sessions (each animal its own reference; pre = 0, +1 =
-doubled, -1 = halved; statistics on this scale). {'Sessions binned by days since stroke (' + ', '.join(bins) + '); per animal the mean of its sessions in a bin (grey dots), then the mean +- SEM ACROSS ANIMALS (black; n = animals with a session in the bin, which differs between bins).' if view == 'day' else 'Per animal the mean of its sessions in each epoch (grey, lines join an animal), then the mean +- SEM ACROSS ANIMALS (black). Statistics: the change vs pre by `analysis_kit.boot_delta` -- paired animals -> sessions bootstrap, animals weighted equally, 95 % interval; * = interval excludes 0; ** = also significant after Holm over the 12 factors of that trial group x epoch (bootstrap p from the same draws). k/n v = number of animals whose epoch mean is below their pre level (with n = 4 a result not seen in 3+ animals individually will not survive; CLAUDE.md rule 8). Per-animal values and intervals: data/peak_epoch_stats.csv.'}
+doubled, -1 = halved; statistics on this scale). {'Sessions binned by days since stroke (' + ', '.join(bins) + '); per animal the mean of its sessions in a bin (grey dots), then the mean +- SEM ACROSS ANIMALS (black; n = animals with a session in the bin, which differs between bins).' if view == 'day' else 'Faded open markers: the SESSIONS (shape = animal, colour = epoch, seeded jitter); filled marker + bar: per animal the mean of its sessions in each epoch, then the mean +- SEM ACROSS ANIMALS (no line joins epochs; Priya 11-03). Statistics: the change vs pre by `analysis_kit.boot_delta` -- paired animals -> sessions bootstrap, animals weighted equally, 95 % interval; * = interval excludes 0; ** = also significant after Holm over the 12 factors of that trial group x epoch (bootstrap p from the same draws); marks in the top band. k/n v = number of animals whose epoch mean is below their pre level (with n = 4 a result not seen in 3+ animals individually will not survive; CLAUDE.md rule 8). Per-animal values and intervals: data/peak_epoch_stats.csv.'}
 Set {set_name}; frozen basis, absolute expression (weight x FR normaliser D).""")
 
 

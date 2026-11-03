@@ -41,6 +41,9 @@ PRE_WIN, POST_WIN = (-0.5, -0.1), (0.0, 0.5)
 CLASSES = frl.BOUT_CLASSES
 POSITIONS = frc.POSITIONS                      # animal's L (ipsilesional) -> R (contralesional)
 EPOCHS = frc.EPOCHS
+#: panel titles relative to the lesion (all lesions LEFT: the animal's L spouts are ipsilesional)
+POS_LABEL = {"close_L": "close ipsi (close_L)", "close_center": "close mid", "close_R": "close contra (close_R)",
+             "far_L": "far ipsi (far_L)", "far_center": "far mid", "far_R": "far contra (far_R)"}
 
 
 def job(item: tuple) -> dict:
@@ -117,7 +120,6 @@ def main(argv=None) -> int:
     import matplotlib.pyplot as plt
 
     from wfield_local import analysis_kit as ak
-    from wfield_local import config
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import figure_layout, writeguard
@@ -226,39 +228,52 @@ leadin = >= {a.leadin:g} s without a lick before onset; carry = a lick < {a.lead
 pre-onset window {PRE_WIN[0]:+g}..{PRE_WIN[1]:+g} s. > 0 = more contralesional (image-left) movement.""")
     plt.close(fig)
 
-    # per-animal PRE-window asymmetry, class x epoch, for each position
-    fig, axs = plt.subplots(1, len(POSITIONS), figsize=(3.4 * len(POSITIONS), 3.4), sharey=True, squeeze=False)
-    for c_i, p in enumerate(frc.POSITIONS_DISPLAY):
+    # PRE-window asymmetry, class x epoch, for each position (Priya 11-03 categorical-x rules, `cat_points`): per-SESSION
+    # values as faded open markers (shape = animal, colour = epoch), the boot_ci level + 95 % interval per epoch (no
+    # bars, no lines), epochs side by side inside each class, stars in the top band
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
+    sess = {}
+    for (ep, cl, p, an, _lab), v in sorted(sv.items()):
+        sess.setdefault((ep, cl, p), []).append((an, float(np.nanmean(v))))
+    off = cp.epoch_offsets(len(EPOCHS), step=0.2)
+    fig, axs = plt.subplots(1, len(POSITIONS), figsize=(3.6 * len(POSITIONS), 3.9), sharey=True, squeeze=False)
+    for c_i, p in enumerate(frc.POSITIONS_DISPLAY):           # canonical order: close ipsi, mid, contra, far ...
         ax = axs[0, c_i]
         for k, cl in enumerate(CLASSES):
             for e, ep in enumerate(EPOCHS):
-                x0 = k * (len(EPOCHS) + 1) + e
-                for an in animals:
-                    s = T[(T.animal == an) & (T.epoch == ep) & (T["class"] == cl) & (T.position == p)]
-                    if len(s):
-                        ax.plot(x0, s.pre_asym.iloc[0], "o", ms=3, color=config.animal_color()[an])
-                v = T[(T.epoch == ep) & (T["class"] == cl) & (T.position == p)].pre_asym
-                if len(v):
-                    ax.bar(x0, v.mean(), color=ecol[ep], alpha=0.6, width=0.8)
-                    mk = L[(L.epoch == ep) & (L["class"] == cl) & (L.position == p)]
-                    if len(mk) and mk["mark"].iloc[0]:
-                        y = v.max() if v.mean() >= 0 else v.min()
-                        ax.text(x0, y, mk["mark"].iloc[0], ha="center", va="bottom" if v.mean() >= 0 else "top",
-                                fontsize=9)
+                x0 = k + off[e]
+                ss = sess.get((ep, cl, p), [])
+                cp.session_dots(ax, x0, [v for _, v in ss], [an for an, _ in ss], ecol[ep], jitter=0.035,
+                                ms=3.0, seed=100 * c_i + 10 * k + e)
+                mk = L[(L.epoch == ep) & (L["class"] == cl) & (L.position == p)]
+                if len(mk) and np.isfinite(mk.level.iloc[0]):
+                    r = mk.iloc[0]
+                    cp.summary_point(ax, x0, r.level, [[r.level - r.ci_lo], [r.ci_hi - r.level]], ecol[ep], ms=4.5,
+                                     capsize=1.5, label=ep if (c_i == len(POSITIONS) - 1 and k == 0) else None)
+                    if r["mark"]:
+                        sig_marks.star_top(ax, x0, r["mark"], color=ecol[ep], fontsize=10)
         ax.axhline(0, color="k", lw=0.5)
-        ax.set_xticks([k * (len(EPOCHS) + 1) + 1.5 for k in range(len(CLASSES))], CLASSES, rotation=40, fontsize=7)
-        ax.set_title(p)
+        for k in range(1, len(CLASSES)):
+            ax.axvline(k - 0.5, color="0.85", lw=0.6, zorder=0)
+        ax.set_xticks(range(len(CLASSES)), CLASSES, rotation=40, fontsize=7)
+        ax.set_xlim(-0.5, len(CLASSES) - 0.5)
+        ax.set_title(POS_LABEL[p])
     axs[0, 0].set_ylabel(f"pre-onset asymmetry ({PRE_WIN[0]:+g}..{PRE_WIN[1]:+g} s)")
-    for an in animals:
-        axs[0, -1].plot([], [], "o", color=config.animal_color()[an], label=an)
-    axs[0, -1].legend(fontsize=7, frameon=False)
-    fig.suptitle(f"{fdir.name}: pre-onset face asymmetry by bout class (bars = mean of animals, epochs pre -> chronic "
-                 f"left to right in each group; dots = animals)")
+    cp.add_animal_entries(axs[0, -1], animals)
+    axs[0, -1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1.0))
+    sig_marks.reserve_headroom(fig)
+    fig.suptitle(f"{fdir.name}: pre-onset face asymmetry by bout class (epochs pre -> chronic left to right in each "
+                 f"class; faded = sessions, filled = level + 95 % CI)")
     fig.tight_layout()
-    frf.save(fig, out / "bout_split_pre_window.png", """Pre-onset window asymmetry per animal (dots,
-repo animal colours) and the animal mean (bars, epoch colours: pre, acute, subacute, chronic left to right within each
-bout class). * = the level differs from 0: nested animals -> sessions bootstrap 95 % interval of the per-session
-pre-onset asymmetry excludes 0 (`analysis_kit.boot_ci`; data/bout_split_pre_window_stats.csv).""")
+    frf.save(fig, out / "bout_split_pre_window.png", """Pre-onset window asymmetry, -0.5..-0.1 s before bout
+onset. Faded open markers: the SESSIONS (per-session pre-window asymmetry of its own traces, split-video halves averaged;
+shape = animal, colour = epoch, seeded jitter). Filled marker + bar: the LEVEL, nested animals -> sessions bootstrap
+(`analysis_kit.boot_ci`) point and 95 % interval, in the epoch colour (pre, acute, subacute, chronic left to right
+within each bout class; no bars, no line joins classes or epochs, Priya 11-03). Panels in the canonical spout order close
+ipsi, close mid, close contra, far ipsi, far mid, far contra (the animal's L spouts ipsilesional, R contralesional; all
+lesions left). Top band, epoch colour: * = the interval excludes 0 (data/bout_split_pre_window_stats.csv). Per-animal
+epoch means: bout_split_windows.csv.""")
     plt.close(fig)
     print(f"-> {out}")
     return 0

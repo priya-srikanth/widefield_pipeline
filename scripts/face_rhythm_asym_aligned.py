@@ -49,6 +49,9 @@ ALIGN = {"cue": (CUE_LAGS, CUE_WIN, "s from cue"), "lick": (LICK_LAGS, LICK_WIN,
          "bout": (BOUT_LAGS, BOUT_WIN, "s from bout onset (first lick)")}
 POSITIONS = frc.POSITIONS                      # animal's L (ipsilesional) -> R (contralesional)
 EPOCHS = frc.EPOCHS
+#: tick labels relative to the lesion (all lesions LEFT: the animal's L spouts are ipsilesional)
+POS_LABEL = {"close_L": "close\nipsi", "close_center": "close\nmid", "close_R": "close\ncontra",
+             "far_L": "far\nipsi", "far_center": "far\nmid", "far_R": "far\ncontra"}
 
 
 # speed reconstruction, event weights and event alignment: `wfield_local.face_rhythm.face` (shared with the
@@ -253,38 +256,46 @@ Window asymmetry (contra - ipsi) / (contra + ipsi) of the mean point speed on ea
 x spout position (rows) x epoch, CUE-aligned (cue 0..+2 s, engaged trials), LICK-aligned (lick onset -0.1..+0.2 s, LP
 licks inside engaged trials, per lick) and BOUT-onset-aligned (first lick of a bout, 0..+0.5 s). Red = more
 contralesional movement. Rule 8: read per animal.""")
-        # the change, per position: per-animal epoch means (dots) + boot_delta point and interval, marks
-        fig, axs = frf.subplots(1, len(ALIGN), figsize=(5.2 * len(ALIGN), 4.2), squeeze=False, sharey=True)
-        acol = frc.animal_colors()
+        # the change, per position (Priya 11-03 categorical-x rules, `cat_points`): per-SESSION values (faded open
+        # markers, shape = animal) + boot_delta point and interval per epoch, epochs side by side, stars in the top band
+        from wfield_local import cat_points as cp
+        from wfield_local import sig_marks
+        fig, axs = frf.subplots(1, len(ALIGN), figsize=(5.6 * len(ALIGN), 4.4), squeeze=False, sharey=True)
+        off = cp.epoch_offsets(len(EPOCHS) - 1, step=0.28)
         for c_i, al in enumerate(ALIGN):
             ax = axs[0, c_i]
-            for j, p in enumerate(frc.POSITIONS_DISPLAY):
+            for j, p in enumerate(frc.POSITIONS_DISPLAY):         # canonical order: close ipsi, mid, contra, far ...
                 for e_i, ep in enumerate(EPOCHS[1:]):
-                    x0 = j + (e_i - 1) * 0.25
+                    x0 = j + off[e_i]
+                    s = Ss[(Ss["align"] == al) & (Ss.position == p) & (Ss.epoch == ep)]
+                    cp.session_dots(ax, x0, s.rel, s.animal, ecol[ep], jitter=0.06, seed=100 * c_i + 10 * j + e_i)
                     r = ST[(ST["align"] == al) & (ST.position == p) & (ST.epoch == ep)]
                     if r.empty:
                         continue
                     r = r.iloc[0]
-                    for an in animals:
-                        if an in r and np.isfinite(r[an]):
-                            ax.plot(x0, r[an], ".", color=acol.get(an, "0.5"), ms=4, alpha=0.8)
                     if np.isfinite(r.delta):
-                        ax.errorbar(x0, r.delta, yerr=[[r.delta - r.ci_lo], [r.ci_hi - r.delta]], fmt="s",
-                                    color=ecol[ep], mec="k", ms=5, capsize=2, label=ep if j == 0 else None)
-                        ax.text(x0, r.ci_hi, r.mark, ha="center", va="bottom", fontsize=9)
+                        cp.summary_point(ax, x0, r.delta, [[r.delta - r.ci_lo], [r.ci_hi - r.delta]], ecol[ep],
+                                         marker="s", label=ep if j == 0 else None)
+                        if r.mark:
+                            sig_marks.star_top(ax, x0, r.mark, color=ecol[ep], fontsize=10)
             ax.axhline(0, color="k", lw=0.5)
-            ax.set_xticks(range(len(POSITIONS)), frc.POSITIONS_DISPLAY, rotation=30, fontsize=8)
+            ax.set_xticks(range(len(POSITIONS)), [POS_LABEL[p] for p in frc.POSITIONS_DISPLAY], fontsize=8)
+            ax.set_xlim(-0.6, len(POSITIONS) - 0.4)
             ax.set_title(f"{al}-aligned ({ALIGN[al][1][0]:+g}..{ALIGN[al][1][1]:+g} s)", fontsize=10)
         axs[0, 0].set_ylabel("change of (contra - ipsi) / sum vs pre")
-        frf.legend_outside(axs[0, -1])
+        cp.add_animal_entries(axs[0, -1], animals)
+        frf.legend_outside(axs[0, -1], fontsize=8)
+        sig_marks.reserve_headroom(fig)
         fig.suptitle(f"{fdir.name}: change of face asymmetry vs pre, per spout position (< 0 = less contralesional)")
         frf.save(fig, out / "asym_aligned_change.png", """
 Per session, the window asymmetry (contra - ipsi) / (contra + ipsi) of the mean point speed (cue 0..+2 s; each lick
--0.1..+0.2 s; bout onset 0..+0.5 s), minus the mean of the animal's pre-stroke sessions. Dots: per-animal epoch means
-(repo animal colours); squares: `analysis_kit.boot_delta` change vs pre and its 95 % interval (paired animals ->
-sessions, animal-weighted; FR epoch colours acute / subacute / chronic left to right). * = interval excludes 0; ** =
-also significant after Holm over the 6 positions of that alignment x epoch. Negative = the face moves relatively less on
-the contralesional side than before the stroke. The animal's R spouts are contralesional (all lesions left).""")
+-0.1..+0.2 s; bout onset 0..+0.5 s), minus the mean of the animal's pre-stroke sessions. Faded open markers: the
+SESSIONS (shape = animal, colour = epoch, seeded jitter); filled squares: `analysis_kit.boot_delta` change vs pre and
+its 95 % interval (paired animals -> sessions, animal-weighted; FR epoch colours acute / subacute / chronic left to
+right within each spout; no line joins spouts, Priya 11-03). Spouts in the canonical order close ipsi, close mid, close
+contra, far ipsi, far mid, far contra (the animal's L spouts are ipsilesional, R contralesional; all lesions left).
+Top band, in the epoch's colour: * = interval excludes 0; ** = also significant after Holm over the 6 positions of that
+alignment x epoch. Negative = the face moves relatively less on the contralesional side than before the stroke.""")
     print("->", out)
     return 0
 

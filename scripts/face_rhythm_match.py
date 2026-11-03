@@ -19,7 +19,7 @@ master, spatial loading and spectral (frequency) similarity reported separately,
                          grey band = pre floor (5th-95th pct of pre pairs, all animals), dashed = chance
   match_by_day_pooled.png  the same angles z-scored vs each animal's own pre sessions, pooled over animals by epoch
                          (boot_delta, * / ** Holm over factors; + data/match_by_day_pooled.csv); `--plot-only` redraws
-                         it alone from data/match_sessions.csv
+                         it and asymmetry_two_ways.png from the stored tables (statistics read, not recomputed)
   match_example.png      the full score matrix (master x own) for one pre and one acute session per animal
 Computation: `wfield_local/face_rhythm_matching.py` (choices and caveats in its docstring).
 """
@@ -40,13 +40,16 @@ EPOCHS = frc.EPOCHS
 
 
 def pooled_by_day_figure(S: pd.DataFrame, names: list[str], out: Path, set_name: str,
-                         rule: str = "Hungarian-matched") -> pd.DataFrame:
+                         rule: str = "Hungarian-matched", stored: bool = False) -> pd.DataFrame:
     """Cross-animal, WITHIN-ANIMAL-NORMALISED version of `match_by_day.png` (Priya 10-25). Per animal x factor, each
     session's matched-factor ANGLE to the master (spatial and spectral separately) is z-scored against that animal's own
     PRE sessions (August only): (angle - mean pre) / SD pre, so pre averages exactly 0. Per post epoch: the mean of the
     animals, the `boot_delta` change vs pre (via `face_rhythm.stats.epoch_change`, seeded rng 0, factors in order) and the
     animals above pre; Holm over the 12 factors of one measure x epoch. Per-animal table printed FIRST (rule 8).
-    Writes ``match_by_day_pooled.png`` + ``data/match_by_day_pooled.csv``; returns the stats table."""
+    Writes ``match_by_day_pooled.png`` + ``data/match_by_day_pooled.csv``; returns the stats table. ``stored`` (the
+    ``--plot-only`` path): read the statistics from the stored data/match_by_day_pooled.csv instead of recomputing them
+    (match_sessions.csv is rounded to 4 significant digits, so a recomputation from it moves the last digits; the session
+    z values for the dots still come from it)."""
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import figure_layout
     from wfield_local.face_rhythm import stats as frs
@@ -64,61 +67,134 @@ def pooled_by_day_figure(S: pd.DataFrame, names: list[str], out: Path, set_name:
         print(f"PER-ANIMAL epoch mean of the {m} angle, z vs own pre (pre = 0 by construction)")
         print(A[A.epoch != "pre"].pivot_table(index=["factor", "name"], columns=["epoch", "animal"],
                                                values=f"z_{m}", observed=True).round(2).to_string())
-    rng = np.random.default_rng(0)
-    rows = []
-    for m in meas:
-        for k, nm in enumerate(names):
-            d = S[S.factor == k].sort_values(["animal", "day"])
-            rows += [{"measure": m, "factor": k, "name": nm, **r} for r in frs.epoch_change(d, f"z_{m}", rng)]
-    T = frs.add_holm(pd.DataFrame(rows), ["measure", "epoch"])
-    T.to_csv(figure_layout.sidecar_for(out, "match_by_day_pooled", ".csv"), index=False, float_format="%.4g")
+    tfile = figure_layout.sidecar_for(out, "match_by_day_pooled", ".csv")
+    if stored and tfile.exists():
+        T = pd.read_csv(tfile)
+        T["mark"] = T["mark"].fillna("").astype(str)
+    else:
+        rng = np.random.default_rng(0)
+        rows = []
+        for m in meas:
+            for k, nm in enumerate(names):
+                d = S[S.factor == k].sort_values(["animal", "day"])
+                rows += [{"measure": m, "factor": k, "name": nm, **r} for r in frs.epoch_change(d, f"z_{m}", rng)]
+        T = frs.add_holm(pd.DataFrame(rows), ["measure", "epoch"])
+        T.to_csv(tfile, index=False, float_format="%.4g")
     print("POOLED change vs pre (z units; * = 95 % CI excludes 0, ** = Holm over 12 factors)")
     print(T[["measure", "name", "epoch", "delta", "ci_lo", "ci_hi", "n_above", "n_animals", "p_holm", "mark"]]
           .round(3).to_string(index=False))
 
+    # Priya 11-03 categorical-x rules (`cat_points`): per-SESSION z values as faded open markers (shape = animal, colour
+    # = epoch), the boot_delta point + interval per epoch (no line), epochs side by side, marks + counts in the top band
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
     ecol = frc.epoch_colors()
     animals = sorted(S.animal.unique())
     x = np.arange(len(names))
-    off = dict(zip(frc.POST_EPOCHS, (-0.24, 0.0, 0.24)))
+    off = dict(zip(frc.POST_EPOCHS, cp.epoch_offsets(len(frc.POST_EPOCHS), step=0.27)))
     with frf.style():
-        fig, axs = frf.subplots(2, 1, figsize=(13, 8.2), sharex=True, squeeze=False)
-        for ax, m in zip(axs[:, 0], meas):
+        fig, axs = frf.subplots(2, 1, figsize=(14, 8.6), sharex=True, squeeze=False)
+        for a_i, (ax, m) in enumerate(zip(axs[:, 0], meas)):
             ax.axhline(0, color=ecol["pre"], lw=1.0, label="pre (own mean = 0)")
             ax.axhspan(-1, 1, color="0.9", lw=0, zorder=0, label="pre +/- 1 SD")
-            top = []
-            for ep in frc.POST_EPOCHS:
+            for e_i, ep in enumerate(frc.POST_EPOCHS):
                 r = T[(T.measure == m) & (T.epoch == ep)].set_index("factor").reindex(range(len(names)))
                 xx = x + off[ep]
-                for an in animals:
-                    if an in r:
-                        ax.plot(xx, r[an], "o", ms=2.5, color=ecol[ep], alpha=0.35, lw=0)
-                ax.errorbar(xx, r["delta"], yerr=[r["delta"] - r["ci_lo"], r["ci_hi"] - r["delta"]], fmt="o", ms=6,
-                            color=ecol[ep], ecolor=ecol[ep], elinewidth=1.2, capsize=0, label=ep)
-                hi = np.fmax(r["ci_hi"], np.nanmax(r[[an for an in animals if an in r]], axis=1))
-                top.append(np.nanmax(hi))
-                for xi, (h, row) in zip(xx, zip(hi, r.itertuples())):
-                    if np.isfinite(h):
-                        lab = f"{row.mark}\n{row.n_above}/{row.n_animals}" if row.mark else f"{row.n_above}/{row.n_animals}"
-                        ax.annotate(lab, (xi, h), xytext=(0, 3), textcoords="offset points", ha="center",
-                                    va="bottom", fontsize=6.5, color=ecol[ep], linespacing=0.9)
-            lo = ax.get_ylim()[0]
-            ax.set_ylim(lo, max(top) * 1.18 + 0.5)
+                for k in range(len(names)):
+                    s = S[(S.factor == k) & (S.epoch == ep)]
+                    cp.session_dots(ax, xx[k], s[f"z_{m}"], s.animal, ecol[ep], jitter=0.06,
+                                    seed=1000 * a_i + 10 * k + e_i)
+                cp.summary_point(ax, xx, r["delta"].to_numpy(float),
+                                 np.vstack([r["delta"] - r["ci_lo"], r["ci_hi"] - r["delta"]]), ecol[ep], ms=6,
+                                 capsize=0, label=ep)
+                for xi, row in zip(xx, r.itertuples()):
+                    if not np.isfinite(row.delta):
+                        continue
+                    if row.mark:
+                        sig_marks.star_top(ax, xi, row.mark, color=ecol[ep], fontsize=10)
+                    sig_marks.star_top(ax, xi, f"{row.n_above}/{row.n_animals}", color=ecol[ep], row=1, fontsize=6.5)
             ax.set(ylabel=f"{m} angle to master\n(z vs own pre)", xlim=(-0.6, len(names) - 0.4))
             ax.set_title(f"{'Spatial loading' if m == 'spatial' else 'Spectrum'}: angle to the frozen master, "
                          f"change vs own pre", fontsize=10)
         axs[-1, 0].set_xticks(x, [n.removeprefix("fr_") for n in names], rotation=35, ha="right")
+        cp.add_animal_entries(axs[0, 0], animals)
         frf.legend_outside(axs[0, 0])
+        sig_marks.reserve_headroom(fig)
         fig.suptitle(f"{set_name}: own fit vs master, pooled over {len(animals)} animals")
         frf.save(fig, out / "match_by_day_pooled.png", f"""
 Cross-animal version of match_by_day.png. Per animal x factor: each session's angle (arccos of the matched cosine, own
 fit {rule} to the frozen master; larger = further from the master) as a z-score against that animal's own PRE
 sessions (August only; mean and SD over its {', '.join(f'{a} {n}' for a, n in n_pre.items())} pre sessions), so pre is
 0 by construction. Big markers: the mean over animals of each animal's epoch mean = the `boot_delta` change vs pre
-(paired animals -> sessions bootstrap, 95 % interval, `face_rhythm.stats.epoch_change`); small dots: the animals. Number
-above each = animals above pre; * = interval excludes 0, ** = also Holm-significant over the {len(names)} factors of that
+(paired animals -> sessions bootstrap, 95 % interval, `face_rhythm.stats.epoch_change`); faded open markers: the
+SESSIONS (shape = animal, colour = epoch, seeded jitter; no line joins factors, Priya 11-03). Top band, epoch colour:
+k/n = animals above pre; * = interval excludes 0, ** = also Holm-significant over the {len(names)} factors of that
 measure x epoch. Caveats: the master was fitted on pre sessions, so pre angles are in-sample and a post increase partly
 measures out-of-sample fit; an animal with few or very similar pre sessions has a small SD and large z. Descriptive.""")
     return T
+
+
+def _epoch_points(ax, d: pd.DataFrame, value: str, seed: int) -> None:
+    """EPOCHS on x (Priya 11-03 categorical-x rules, `cat_points`): SESSION values of ``d`` (animal, epoch, value) as
+    faded open markers (shape = animal, colour = epoch) and the mean +- SEM across animals of the per-animal epoch means
+    (marker + interval, no line between epochs)."""
+    from wfield_local import cat_points as cp
+    ecol = frc.epoch_colors()
+    A = d.groupby(["animal", "epoch"])[value].mean().unstack().reindex(columns=list(EPOCHS))
+    for e_i, ep in enumerate(EPOCHS):
+        s = d[d.epoch == ep]
+        cp.session_dots(ax, e_i, s[value], s.animal, ecol[ep], jitter=0.12, seed=seed + e_i)
+        col = A[ep].dropna()
+        if len(col):
+            cp.summary_point(ax, e_i, col.mean(), col.std(ddof=1) / np.sqrt(len(col)) if len(col) > 1 else np.nan,
+                             ecol[ep], ms=6.5)
+    ax.set_xlim(-0.5, len(EPOCHS) - 0.5)
+
+
+def two_ways_figure(S: pd.DataFrame, pts: pd.DataFrame | None, names: list[str], asym_master, out: Path, set_name: str,
+                    mid: float, own: str, rule: str, on: str) -> None:
+    """``asymmetry_two_ways.png`` (Priya 10-24): face asymmetry from tracked-point MOVEMENT (``pts`` = readouts
+    session_table.csv) and from each session's OWN-fit spatial loading (``S`` = match_sessions table), by epoch.
+    Descriptive (no statistics on this figure, so no marks). Redrawn by ``--plot-only`` from the stored tables."""
+    from wfield_local import cat_points as cp
+    from wfield_local import face_rhythm_figures as frf
+    show = [k for k, n in enumerate(names) if "lick" in n and "prelick" not in n] + \
+           [k for k, n in enumerate(names) if "jaw" in n]
+    ncol = 2 + len(show)
+    x = np.arange(len(EPOCHS))
+    with frf.style():
+        fig, axs = frf.subplots(1, ncol, figsize=(3.2 * ncol, 3.8), squeeze=False, sharey=False)
+        for j, w in enumerate(("response", "between")):
+            ax = axs[0, j]
+            c = f"asym_speed_{w}"
+            if pts is not None and c in pts:
+                _epoch_points(ax, pts.dropna(subset=[c]), c, seed=10 * j)
+            ax.axhline(0, color="k", lw=0.5)
+            ax.set_xticks(x, [e[:5] for e in EPOCHS])
+            ax.set(title=f"POINT MOVEMENT\n{w} window (speed)", ylabel="(contra - ipsi) / sum" if j == 0 else None)
+        for jj, k in enumerate(show):
+            ax = axs[0, 2 + jj]
+            _epoch_points(ax, S[S.factor == k].dropna(subset=["loading_asym"]), "loading_asym", seed=100 + 10 * jj)
+            ax.axhline(asym_master[k], color="0.4", ls="--", lw=0.8, label="frozen master")
+            ax.axhline(0, color="k", lw=0.5)
+            ax.set_xticks(x, [e[:5] for e in EPOCHS])
+            ax.set(title=f"OWN-FIT LOADING\n{k} {names[k].removeprefix('fr_')}")
+        animals = sorted(set(S.animal) | (set(pts.animal) if pts is not None else set()))
+        cp.add_animal_entries(axs[0, -1], animals)
+        frf.legend_outside(axs[0, -1])
+        fig.suptitle(f"{set_name}: face asymmetry two ways (> 0 = more CONTRALESIONAL; cam4 ipsi = image right)")
+        frf.save(fig, out / "asymmetry_two_ways.png", f"""
+Two measures of contra- vs ipsilesional face asymmetry, (contra - ipsi) / (contra + ipsi), split at the face midline
+(x = {mid:.0f}, the master's LP nose; cam4 ipsilesional = IMAGE RIGHT, all lesions left), by epoch. Faded open markers:
+the SESSIONS (shape = animal, colour = epoch, seeded jitter); filled marker + bar: mean +- SEM across animals of each
+animal's mean over its sessions (no line joins epochs; Priya 11-03). Descriptive: no test on this figure. LEFT TWO:
+tracked-point MOVEMENT -- RMS speed of the 25 Hz mesh points summed over each half of the face, in the response window
+(cue 0..+4 s, engaged trials, all six spouts pooled) and between trials (`face_rhythm_readouts.movement`, readouts
+data/session_table.csv; independent of the factor model). RIGHT: SPATIAL LOADING of each session's OWN-fit factor
+matched to the master factor named ({rule}, on {on}), |(x, y)| summed over each half
+(`face_rhythm_matching.loading_asymmetry`; data/match_sessions.csv); dashed = the frozen master's value. On the frozen
+basis loadings are fixed, so only own fits can show a loading shift: below the master line = the factor's movement moved
+off the contralesional face. Lick and jaw factors shown. Own fits: folder `{own}`.""")
 
 
 def main(argv=None) -> int:
@@ -143,7 +219,8 @@ def main(argv=None) -> int:
     ap.add_argument("--chance", type=int, default=200, help="shuffles per session for the chance line (0 = skip)")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--plot-only", action="store_true",
-                    help="only redraw match_by_day_pooled.png from data/match_sessions.csv (no matching)")
+                    help="only redraw match_by_day_pooled.png and asymmetry_two_ways.png from the stored tables "
+                         "(data/match_sessions.csv, data/match_by_day_pooled.csv, readouts data/session_table.csv)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = a.fdir or fro.factor_dir(rv, a.bundle, a.set)
@@ -153,8 +230,16 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         S = pd.read_csv(figure_layout.sidecar_for(out, "match_sessions", ".csv", mkdir=False), dtype={"date": str})
-        pooled_by_day_figure(S, list(S.drop_duplicates("factor").sort_values("factor").name), out, fdir.name,
-                             "Hungarian-matched" if a.assign == "hungarian" else f"best-{a.on}-matched (may repeat)")
+        names = list(S.drop_duplicates("factor").sort_values("factor").name)
+        pooled_by_day_figure(S, names, out, fdir.name,
+                             "Hungarian-matched" if a.assign == "hungarian" else f"best-{a.on}-matched (may repeat)",
+                             stored=True)
+        # asymmetry_two_ways.png from the stored tables (the master's own loading asymmetry is a column of S)
+        st = Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "readouts" / a.set / "data" / "session_table.csv"
+        asym_master = S.groupby("factor").loading_asym_master.first().reindex(range(len(names))).to_numpy()
+        two_ways_figure(S, pd.read_csv(st) if st.exists() else None, names, asym_master, out, fdir.name,
+                        float(frr.MASTER_MIDLINE_X), frr.own_sub(fdir),
+                        "Hungarian" if a.assign == "hungarian" else "best match, may repeat", a.on)
         print("->", out)
         return 0
     M = np.load(fdir / "master.npz")
@@ -273,43 +358,8 @@ master factor SPLIT in that session's fit, a column with two is a MERGE.""")
 
         # asymmetry two ways (Priya 10-24): tracked-point movement (readouts) and own-fit spatial loading (here)
         st = Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "readouts" / a.set / "data" / "session_table.csv"
-        pts = pd.read_csv(st) if st.exists() else None
-        show = [k for k, n in enumerate(names) if "lick" in n and "prelick" not in n] + \
-               [k for k, n in enumerate(names) if "jaw" in n]
-        ncol = 2 + len(show)
-        fig, axs = frf.subplots(1, ncol, figsize=(3.2 * ncol, 3.8), squeeze=False, sharey=False)
-        x = np.arange(len(EPOCHS))
-        for j, w in enumerate(("response", "between")):
-            ax = axs[0, j]
-            c = f"asym_speed_{w}"
-            if pts is not None and c in pts:
-                for an, g in pts.groupby("animal"):
-                    mm = g.groupby("epoch")[c].mean().reindex(EPOCHS)
-                    ax.plot(x, mm.to_numpy(), "o-", ms=4, lw=1.2, color=col.get(an), label=an)
-            ax.axhline(0, color="k", lw=0.5)
-            ax.set_xticks(x, [e[:5] for e in EPOCHS])
-            ax.set(title=f"POINT MOVEMENT\n{w} window (speed)", ylabel="(contra - ipsi) / sum" if j == 0 else None)
-        for jj, k in enumerate(show):
-            ax = axs[0, 2 + jj]
-            for an in animals:
-                g = S[(S.factor == k) & (S.animal == an)]
-                mm = g.groupby("epoch")["loading_asym"].mean().reindex(EPOCHS)
-                ax.plot(x, mm.to_numpy(), "o-", ms=4, lw=1.2, color=col[an], label=an)
-            ax.axhline(asym_master[k], color="0.4", ls="--", lw=0.8, label="frozen master")
-            ax.axhline(0, color="k", lw=0.5)
-            ax.set_xticks(x, [e[:5] for e in EPOCHS])
-            ax.set(title=f"OWN-FIT LOADING\n{k} {names[k].removeprefix('fr_')}")
-        frf.legend_outside(axs[0, -1])
-        fig.suptitle(f"{fdir.name}: face asymmetry two ways (> 0 = more CONTRALESIONAL; cam4 ipsi = image right)")
-        frf.save(fig, out / "asymmetry_two_ways.png", f"""
-Two measures of contra- vs ipsilesional face asymmetry, (contra - ipsi) / (contra + ipsi), split at the face midline
-(x = {mid:.0f}, the master's LP nose; cam4 ipsilesional = IMAGE RIGHT, all lesions left), per animal x epoch (mean of
-sessions). LEFT TWO: tracked-point MOVEMENT -- RMS speed of the 25 Hz mesh points summed over each half of the face, in
-the response window (cue 0..+4 s, engaged trials, all six spouts pooled) and between trials (`face_rhythm_readouts.movement`; independent of
-the factor model). RIGHT: SPATIAL LOADING of each session's OWN-fit factor matched to the master factor named (Hungarian,
-{a.on}), |(x, y)| summed over each half (`face_rhythm_matching.loading_asymmetry`); dashed = the frozen master's value.
-On the frozen basis loadings are fixed, so only own fits can show a loading shift: below the master line = the factor's
-movement moved off the contralesional face. Lick and jaw factors shown. Own fits: folder `{own}`.""")
+        two_ways_figure(S, pd.read_csv(st) if st.exists() else None, names, asym_master, out, fdir.name, mid, own,
+                        "Hungarian" if a.assign == "hungarian" else "best match, may repeat", a.on)
     print("->", out)
     return 0
 
