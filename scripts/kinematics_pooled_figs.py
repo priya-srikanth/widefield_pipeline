@@ -248,6 +248,38 @@ def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
     return R
 
 
+def _paths3d_sig(C: pd.DataFrame, aug: pd.DataFrame) -> dict:
+    """{(position, epoch, measure): bool Series over phase x} for the TONGUE coordinates side / out / down: the epoch's
+    path differs from pre (Priya 11-03: stats on the 3-D paths, as the 2-D cam4 paths have). The cam4 test
+    (`orofacial_cohort._path_sig`): per-session curve minus its animal's August-pre mean curve, `cluster_permutation`
+    of the epoch's sessions vs the August-pre sessions, labels permuted within animal. Three coordinates per path, so
+    each is tested at ALPHA / 3 (the 2-D figure, with two, uses ALPHA / 2). Sign-symmetric, so + = contra flips do not
+    change it."""
+    from wfield_local.orofacial_cohort import CLUSTER_PERM
+    from wfield_local.orofacial_stats import ALPHA, cluster_permutation
+    out = {}
+    T = C[C.measure.isin(["side", "out", "down"])]
+    T = T[(T.epoch != "pre") | T.session.isin(set(aug.session))]
+    for (p, m), g in T.groupby(["position", "measure"]):
+        pv = g.pivot_table(index=["animal", "session", "epoch"], columns="x", values="v")
+        an = pv.index.get_level_values(0).to_numpy()
+        ep = pv.index.get_level_values(2).to_numpy()
+        base = pv[ep == "pre"].groupby(level=0).mean()
+        ch = pv.to_numpy(float) - base.reindex(an).to_numpy(float)
+        for e in EPOCHS:
+            keep = (ep == "pre") | (ep == e)
+            if (ep == e).sum() < 2:
+                continue
+            sub = ch[keep]
+            ok = np.isfinite(sub).all(0)                       # bins every kept session covers
+            mask = np.zeros(len(pv.columns), bool)
+            if ok.sum() >= 3:
+                mask[ok] = cluster_permutation(sub[:, ok], ep[keep] == e, an[keep], n_perm=CLUSTER_PERM,
+                                               alpha=ALPHA / 3)
+            out[(p, e, m)] = pd.Series(mask, index=pv.columns)
+    return out
+
+
 def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.DataFrame:
     """POOLED 3-D tongue / jaw paths (twin of `pose3d_phase` trajectories3d, per animal): per (position, phase bin),
     each session's mean path minus its animal's August pre path, averaged within animal per epoch, then over animals
@@ -280,6 +312,7 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
                                       "v": (pre.reindex(d.index) + d).to_numpy(), "n_animals": per.notna().sum(1).to_numpy()}))
     R = pd.concat(rows, ignore_index=True)
     R = R[R.n_animals >= 3]
+    sig = _paths3d_sig(C, aug)
     if contra:                                    # plot level: side signed + = mouse RIGHT = contra
         R = R.assign(v=R.v * R.measure.map(lambda m: _sg(True, m)))
     # contra (Priya 11-03): the side axis of the FRONT / TOP views is drawn in CAMERA orientation -- contra on the image
@@ -305,6 +338,13 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
                             label=(e if part == "" else None) if (i == 0 and j == 0) else None)
                     mid = ix[len(ix) // 2]
                     ax.plot(A[mid], (-B[mid] if b == "down" else B[mid]), "o", color=col[e], ms=3)
+                    if part == "" and e != "pre":             # where this epoch's TONGUE path differs from pre
+                        ma = sig.get((p, e, a), pd.Series(dtype=bool)).reindex(ix, fill_value=False).to_numpy()
+                        mb = sig.get((p, e, b), pd.Series(dtype=bool)).reindex(ix, fill_value=False).to_numpy()
+                        for sel, mk, fc in ((ma & ~mb, "o", "none"), (mb & ~ma, "^", "none"), (ma & mb, "o", col[e])):
+                            if sel.any():
+                                ax.scatter(A[ix][sel], yb[sel], marker=mk, s=11, facecolors=fc, edgecolors=col[e],
+                                           linewidths=0.7, zorder=4)
             ax.plot(0, 0, "+", color="k", ms=8)
             ax.tick_params(labelsize=6.5)
             if i == 0:
@@ -333,10 +373,13 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
                  "+ mean over animals of each session's change from its animal's own pre path (phase 0.1-0.9, all post-cue "
                  "licks, >= 3 animals); + = mouth zero; dot = mid-lick; mm"
                  + ("\naxes shared across spouts within each view" if shared else "")
+                 + "\nmarkers on the tongue paths = where that epoch differs from pre (cluster permutation per coordinate on "
+                   "session changes from the animal's own Aug pre,\nlabels permuted within animal, p < .05/3 each): "
+                   "open circle = horizontal axis only, open triangle = vertical only, filled = both"
                  + ("\nside signed + = CONTRALESIONAL (mouse right); FRONT / TOP in CAMERA VIEW: contra on the image "
                     "LEFT as in the face videos (side axis inverted, ends labelled)" if contra else ""),
                  fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=0.2 if shared else None, h_pad=2.2 if contra else None)
+    fig.tight_layout(rect=(0, 0, 1, 0.93), w_pad=0.2 if shared else None, h_pad=2.2 if contra else None)
     fig.savefig(out / (("pose3d_paths_pooled_shared" if shared else "pose3d_paths_pooled")
                        + ("_contra_cam" if contra else "") + ".png"), dpi=130)   # 11-03: *_contra (mirrored) superseded
     plt.close(fig)
