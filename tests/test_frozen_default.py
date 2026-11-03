@@ -432,3 +432,116 @@ def test_rest_digested_sources_unchanged():
         pytest.skip("git history not available")
     for fn in (rf._collect, rf._frame_samples):
         assert inspect.getsource(fn) in old, fn.__name__
+
+
+# ================================================================================ pass 2 (11-02): more families stored
+def _pool(seed=0, n_sess=4, n_post=2, n_per=60, n_feat=10, animal="PS92"):
+    """Pooled engaged rows (X, y int, session label per row) for n_sess pre + n_post post sessions."""
+    rng = np.random.default_rng(seed)
+    labs = [f"{animal}_08{10 + i:02d}" for i in range(n_sess)] + [f"{animal}_09{1 + i:02d}" for i in range(n_post)]
+    S = np.repeat(np.array(labs, dtype=object), n_per)
+    Y = np.tile(np.arange(6), len(S) // 6 + 1)[:len(S)].astype(int)
+    W = rng.normal(size=(1, n_feat))
+    X = rng.normal(size=(len(S), n_feat)) + 0.8 * Y[:, None] * W
+    return X, Y, S, labs[:n_sess], labs
+
+
+# ------------------------------------------------------------------------------------------- nolick reference (1)
+@pytest.fixture
+def pass2_env(daq_env):
+    for k in ("WIDEFIELD_NOLICK_FROZEN", "WIDEFIELD_ATTEMPT_FROZEN", "WIDEFIELD_DRIFT_FROZEN",
+              "WIDEFIELD_CODING_FROZEN", "WIDEFIELD_CD_FROZEN", "WIDEFIELD_SECTION_G_FROZEN",
+              "WIDEFIELD_ITI_FROZEN", "WIDEFIELD_ENCODER_FROZEN"):
+        daq_env.delenv(k, raising=False)
+    return daq_env
+
+
+def test_family_on_opt_out_values(pass2_env):
+    from wfield_local import frozen_models
+    for v in ("", "1", "yes"):
+        pass2_env.setenv("WIDEFIELD_X_FROZEN", v)
+        assert frozen_models.family_on("WIDEFIELD_X_FROZEN")
+    for v in ("0", "false", "no", "off", " OFF "):
+        pass2_env.setenv("WIDEFIELD_X_FROZEN", v)
+        assert not frozen_models.family_on("WIDEFIELD_X_FROZEN")
+
+
+def _nolick_args(seed=0):
+    X, Y, S, pre, labs = _pool(seed)
+    m_pre = np.isin(S, pre)
+    sess = [{"label": lab} for lab in labs]
+    return X, Y, S, m_pre, set(pre), sess
+
+
+def test_nolick_stored_equals_in_memory(pass2_env):
+    """full = `_pipe().fit(XE[m_pre], YE[m_pre])`; the stored LOSO predictions = `cross_val_predict(_pipe(), ...,
+    LeaveOneGroupOut)` EXACTLY; the default reaches the store once, the opt-out never."""
+    from sklearn.model_selection import LeaveOneGroupOut, cross_val_predict
+
+    from wfield_local import frozen_models
+    from wfield_local import nolick_decoder as nd
+    from wfield_local.locanmf_frozen_decoder import _pipe
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    X, Y, S, m_pre, pre, sess = _nolick_args(seed=4)
+    common = [("SSp", 0), ("MOp", 0)]
+    pay = nd._stored_nolick_reference("PS92", "precue", 2.0, None, X, Y, S, m_pre, pre, sess, common)
+    assert len(rec.calls) == 1
+    spec = rec.calls[0]["spec"]
+    assert spec["kind"] == "nolick_reference" and spec["source"] == "roi" and "lick_source" not in spec
+    assert spec["train_labels"] == sorted(pre) and spec["align"].startswith("precue-rt2-f")
+    _same_model(pay["full"], _pipe().fit(X[m_pre], Y[m_pre]))
+    ref = cross_val_predict(_pipe(), X[m_pre], Y[m_pre], cv=LeaveOneGroupOut(), groups=S[m_pre])
+    got = nd._loso_predict(pay["loso"], X[m_pre], S[m_pre], Y.dtype)
+    np.testing.assert_array_equal(got, ref)
+    assert got.dtype == ref.dtype
+    pass2_env.setenv("WIDEFIELD_NOLICK_FROZEN", "0")
+    assert nd._stored_nolick_reference("PS92", "precue", 2.0, None, X, Y, S, m_pre, pre, sess, common) is None
+    assert len(rec.calls) == 1
+
+
+def test_nolick_spec_distinguishes_cut_basis_window_and_features(pass2_env):
+    from types import SimpleNamespace
+
+    from wfield_local import frozen_models
+    from wfield_local import nolick_decoder as nd
+    tr = ["PS92_0810", "PS92_0811"]
+    ids = {frozen_models.spec_id(nd.nolick_spec("PS92", al, rt, b, tr, com, 8))
+           for al in ("precue", "cue") for rt in (2.0, None)
+           for b in (None, SimpleNamespace(basis_id="abc123def456"))
+           for com in ([("SSp", 0)], [("SSp", 0), ("MOp", 0)])}
+    assert len(ids) == 16
+    assert frozen_models.spec_id(nd.nolick_spec("PS92", "cue", 2.0, None, tr, [], 8)) != \
+        frozen_models.spec_id(nd.nolick_spec("PS92", "cue", 2.0, None, tr + ["PS92_0812"], [], 8))
+
+
+def test_nolick_lp_arm_daq_trained_by_default(pass2_env):
+    from wfield_local import config, frozen_models
+    from wfield_local import nolick_decoder as nd
+    X, Y, S, m_pre, pre, _sess = _nolick_args()
+    real = [s for s in config.load_sessions() if s["label"].startswith("PS92")]
+    rp = [s["label"] for s in real if config.session_phase("PS92", s["label"].split("_")[-1]) == "pre"]
+    specs = {}
+    for lf in (None, "lp"):
+        rec = _Recorder()
+        pass2_env.setattr(frozen_models, "load_or_fit", rec)
+        pass2_env.setenv("WIDEFIELD_LICK_SOURCE", "lp")
+        if lf:
+            pass2_env.setenv("WIDEFIELD_LP_FROZEN", lf)
+        else:
+            pass2_env.delenv("WIDEFIELD_LP_FROZEN", raising=False)
+        nd._stored_nolick_reference("PS92", "cue", 2.0, None, X, Y, S, m_pre, pre, real, [])
+        specs[lf] = rec.calls[0]["spec"]
+    assert "lick_source" not in specs[None] and specs[None]["train_labels"] == sorted(rp)
+    assert specs["lp"]["lick_source"] == "lp" and specs["lp"]["train_labels"] == sorted(pre)
+    assert frozen_models.spec_id(specs[None]) != frozen_models.spec_id(specs["lp"])
+
+
+def test_nolick_analyse_animal_uses_the_store():
+    from wfield_local import nolick_decoder as nd
+    src = inspect.getsource(nd.analyse_animal)
+    assert "stored = _stored_nolick_reference(" in src
+    assert 'clf = stored["full"] if stored is not None else _pipe().fit(XE[m_pre], YE[m_pre])' in src
+    assert 'pred_e = _loso_predict(stored["loso"], XE[m_pre], SE[m_pre], YE.dtype)' in src
+
+

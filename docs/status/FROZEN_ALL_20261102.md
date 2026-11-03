@@ -213,3 +213,47 @@ These equal the acc family's LP cue working / ENL working far-contra cells under
 3. Under the LP arm the 5r far-contra lick-window gap grows with the DAQ-trained default (section 5); re-render the page's
    5r / 5b LP figures if those are quoted.
 4. Commit: on `analysis/frozen-default`; nothing pushed or merged.
+
+---
+
+# PASS 2 (11-02, evening): the in-memory references of section 2, converted
+
+Same worktree / branch, on top of 8debc35e. Brief: convert section 2's "still fitted in memory" list in the suggested
+order, each family with its own `kind`, its own opt-out, exact pinned tests and a real render stored vs opt-out. No page
+was edited, nothing was published, nothing on M: was overwritten, deleted or renamed: every render is a NEW folder under
+`G/frozen_default_20261102/allstored2/<family>/` and every comparison table is in `allstored2/compare/<tag>_{summary,
+cells}.csv` (`scripts/frozen_default_compare.py tree A B`, new mode: every json / npz / csv / csv.gz both folders share,
+leaf by leaf, exact; provenance keys such as `frozen_model` dropped).
+
+**Cache keys untouched (checked before each edit).** Digested sources: `map_collect.code_digest` (beta_maps
+`session_maps` / `_runs_to_blocks` / `_quit_mask`, `joint_basis._load_session`, `position_reference_maps` builders,
+whole modules `precue_engagement_states`, `quiet_periods`, `rest_engagement`, `rest_by_position`), `restnl_mask`
+(module), `rest_frozen_decoder_nl._code_key` (`_collect`, `_frame_samples`). None of the modules edited here is among
+them; no `session_cache` kind is built from source text. `cd_trajectories.courses_cache_kind` hashes the direction
+VALUES, and the stored directions equal the in-memory ones, so the CD courses caches stay warm (DAQ).
+
+Shared code: `frozen_models.family_on(env)` (one opt-out rule: 0 / false / no / off) and `frozen_models.
+daq_trained_in_lp()` (WIDEFIELD_LICK_SOURCE=lp without WIDEFIELD_LP_FROZEN=lp: load the DAQ-trained model, whose
+training set is the DAQ arm's pre set; `load_or_fit` refuses to fit it in the LP run).
+
+Renders ran against SNAPSHOTS of the worktree (copied to the scratchpad before each batch), one BLAS thread per process,
+at most 4 processes in total.
+
+## P2.1 Conversions
+
+| # | family | file | kind (spec align carries) | opt-out | LP arm |
+|---|---|---|---|---|---|
+| 1 | no-lick reference (`nolick_decoder.analyse_animal`: full + LOSO) | `wfield_local/nolick_decoder.py` | `nolick_reference` (`<align>-rt<2 / respwin>-f<digest of the pooled feature columns>`; source roi / joint + basis id) | `WIDEFIELD_NOLICK_FROZEN=0` | DAQ-trained default (train = the animal's pre sessions in the date list), LP-trained with `WIDEFIELD_LP_FROZEN=lp` |
+
+## P2.2 Verification: real renders, stored vs opt-out (exact, cell by cell)
+
+| family | render | training set | result |
+|---|---|---|---|
+| 1 nolick | `build_reference` as the nightly calls it (dates = every curated date, all phases), PS93 + PS94, roi basis, both cuts, both windows (8 analyses, 39 post sessions scored); stored (`alldates_PS93_PS94/daq_stored`: 1 frozen-new + 7 frozen-hit on models the pre-date render had just frozen) vs `=0` | same | **IDENTICAL**: 37801 leaves |
+
+Render notes, family 1: `python -m wfield_local.nolick_decoder` crashes after its first animal at 8debc35e
+(`nolick_analysis.summarize`, print only, raises KeyError on an arm that has `n` but no `balanced_accuracy`, i.e. any
+arm under 30 trials) -- pre-existing, not touched; the nightly calls the same `build_reference`, so its no-lick stage
+fails the same way when that arm occurs. The renders used a scratch driver (`nolick_render.py`) that wraps
+`summarize`, memoises `session_features` so the opt-out pass re-reads the stored pass's features, and calls
+`build_reference` twice in one process (stored, then `=0`). Nothing computed is changed by the driver.

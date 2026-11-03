@@ -7,6 +7,8 @@ current (in-memory) renders, cell by cell, exact.
 epoch: every `epoch_acc*.csv` the two `data/` folders share (bars + CIs, deltas, per-animal `_sessions`, `_meta`).
 rest:  the 12.1 per-session table, plus the per-animal and cohort retained fractions derived from it the way
        `rest_frozen_decoder.main` derives them.
+tree:  (11-02 pass 2) every json / npz / csv / csv.gz / joblib file the two folders share (``--glob``, default all),
+       leaf by leaf in file order; provenance keys (`PROVENANCE_KEYS`) are dropped.
 Numeric cells are compared EXACTLY (a tolerance would hide a changed model); the max |diff| is reported beside.
 Writes `<out>/<tag>_cells.csv` (every differing cell) and `<tag>_summary.csv` (one row per file).
 """
@@ -105,9 +107,93 @@ def compare_rest(cur: Path, new: Path):
     return summ, [{"file": "sessions", **r} for r in rows] + [{"file": "retained", **r} for r in rows2], tb
 
 
+# ------------------------------------------------------------------------ tree mode (11-02 pass 2: any output folder)
+#: Leaves EXPECTED to differ between a stored and an opt-out render: provenance only (which model / store status).
+PROVENANCE_KEYS = ("frozen_model", "frozen_status", "frozen_models", "decoder_provenance")
+
+
+def _flat(x, pre=""):
+    """Leaves of a JSON-like object as {path: value}; lists / arrays become indexed leaves."""
+    out = {}
+    if isinstance(x, dict):
+        for k, v in x.items():
+            if str(k) in PROVENANCE_KEYS:
+                continue
+            out.update(_flat(v, f"{pre}/{k}"))
+    elif isinstance(x, (list, tuple)):
+        for i, v in enumerate(x):
+            out.update(_flat(v, f"{pre}[{i}]"))
+    elif isinstance(x, np.ndarray):
+        if x.dtype == object:
+            for i, v in enumerate(x.ravel()):
+                out.update(_flat(v, f"{pre}[{i}]"))
+        else:
+            for i, v in enumerate(x.ravel().tolist()):
+                out[f"{pre}[{i}]"] = v
+    else:
+        out[pre] = x
+    return out
+
+
+def _same_leaf(x, y):
+    if isinstance(x, float) and isinstance(y, float) and np.isnan(x) and np.isnan(y):
+        return True
+    return type(x) is type(y) and x == y or (isinstance(x, (int, float)) and isinstance(y, (int, float))
+                                             and not isinstance(x, bool) and float(x) == float(y))
+
+
+def _load_leaves(p: Path):
+    import json
+    n = p.name
+    if n.endswith(".json"):
+        return _flat(json.loads(p.read_text(encoding="utf-8")))
+    if n.endswith(".npz"):
+        with np.load(p, allow_pickle=True) as z:
+            return {k2: v for k in sorted(z.files) for k2, v in _flat(z[k], f"/{k}").items()}
+    if n.endswith(".csv") or n.endswith(".csv.gz"):
+        df = pd.read_csv(p)
+        df = df[[c for c in df.columns if c not in PROVENANCE_KEYS]]
+        return {f"r{i}/{c}": v for i, row in enumerate(df.itertuples(index=False)) for c, v in zip(df.columns, row)}
+    if n.endswith(".joblib") or n.endswith(".pkl"):
+        import joblib
+        return _flat(joblib.load(p))
+    return None
+
+
+def compare_tree(cur: Path, new: Path, pattern: str = "**/*"):
+    """Every data file (json / npz / csv / csv.gz / joblib) both folders share, leaf by leaf, EXACT, in file order.
+    Provenance keys (PROVENANCE_KEYS) are dropped; a leaf present in only one file counts as a differing cell."""
+    rel = lambda root: {p.relative_to(root).as_posix() for p in Path(root).glob(pattern) if p.is_file()}  # noqa: E731
+    rc, rn = rel(cur), rel(new)
+    summ, cells = [], []
+    for nm in sorted(rc & rn):
+        a, b = _load_leaves(Path(cur) / nm), _load_leaves(Path(new) / nm)
+        if a is None or b is None:
+            continue
+        keys = list(dict.fromkeys(list(a) + list(b)))
+        d, mx = 0, 0.0
+        for k in keys:
+            if k not in a or k not in b:
+                d += 1
+                cells.append({"file": nm, "column": k, "cur": a.get(k, "<absent>"), "new": b.get(k, "<absent>"),
+                              "abs_diff": np.nan})
+                continue
+            x, y = a[k], b[k]
+            if not _same_leaf(x, y):
+                d += 1
+                try:
+                    ad = abs(float(x) - float(y))
+                    mx = max(mx, ad)
+                except (TypeError, ValueError):
+                    ad = np.nan
+                cells.append({"file": nm, "column": k, "cur": x, "new": y, "abs_diff": ad})
+        summ.append({"file": nm, "cells": len(keys), "differ": d, "max_abs": mx})
+    return summ, cells, sorted(rc ^ rn)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("what", choices=("epoch", "rest"))
+    ap.add_argument("what", choices=("epoch", "rest", "tree"))
     ap.add_argument("cur", type=Path)
     ap.add_argument("new", type=Path)
     ap.add_argument("--tag", default="compare")
@@ -115,8 +201,9 @@ def main(argv=None) -> int:
     ap.add_argument("--glob", default="epoch_acc*.csv",
                     help="data CSVs to compare (epoch mode): e.g. 'epoch_5r*.csv' for 5r / 5ro, 'grant_5b_*.csv' for 5b")
     a = ap.parse_args(argv)
-    if a.what == "epoch":
-        summ, cells, only_cur = compare_epoch(a.cur, a.new, a.glob)
+    if a.what in ("epoch", "tree"):
+        summ, cells, only_cur = (compare_epoch(a.cur, a.new, a.glob) if a.what == "epoch" else
+                                 compare_tree(a.cur, a.new, "**/*" if a.glob == "epoch_acc*.csv" else a.glob))
         if only_cur:
             print(f"  (in only one of the two renders: {only_cur})")
     else:

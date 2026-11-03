@@ -60,6 +60,24 @@ LP_FROZEN_ENV = "WIDEFIELD_LP_FROZEN"
 
 STATUS_NEW, STATUS_HIT, STATUS_SPEC_CHANGED = "frozen-new", "frozen-hit", "SPEC-CHANGED"
 
+#: Values of a per-family opt-out env var (WIDEFIELD_<FAMILY>_FROZEN) that turn the stored default OFF (11-02 pass 2).
+OPT_OUT_VALUES = ("0", "false", "no", "off")
+
+
+def family_on(env_name) -> bool:
+    """True unless the family's opt-out env var is 0 / false / no / off: the stored model is the DEFAULT (rule 10).
+
+    One definition for every family converted on 11-02 (`docs/status/FROZEN_ALL_20261102.md` pass 2); the opt-out
+    exists only to reproduce an old in-memory render."""
+    return os.environ.get(env_name, "").strip().lower() not in OPT_OUT_VALUES
+
+
+def daq_trained_in_lp() -> bool:
+    """True under WIDEFIELD_LICK_SOURCE=lp unless WIDEFIELD_LP_FROZEN=lp: the LP arm then LOADS the DAQ-trained model
+    (fitted by a DAQ run on the DAQ arm's pre set) and refuses to fit one (`load_or_fit`)."""
+    from wfield_local import lp_licks
+    return lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() != "lp"
+
 
 def _stat_sig(path) -> str:
     try:
