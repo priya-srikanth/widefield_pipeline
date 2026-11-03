@@ -505,6 +505,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   +8 to +10). Sent to a8 (95 cued AUC, 96 cued peak, 97 ITI AUC, 98 ITI peak); main slide 94 unchanged.
   FOR PRIYA: slide 94's "larger after stroke" holds subacute / chronic under the LMM but the ACUTE part does not (2 animals);
   the ITI AUC does not survive the LMM at all, the ITI peak partly does. Main-slide text unchanged pending you.
+  a8 SWAPPED 95-98 in the deck (backup backup_before_ramp_w01_peak_1103.pptx; hidden states unchanged, 78 / 183; slide 94 untouched).
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
