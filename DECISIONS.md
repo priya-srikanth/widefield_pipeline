@@ -22265,3 +22265,21 @@ PS95 move by <= .08, all upward. Within-session refit .98-.99. **Open decision (
 as a new frozen spec (new id; old models kept) or keep the plain z-score and report PS94's running loss as a scaling
 sensitivity. Figure + CSV: `presentations/_source_PI_overview_2026-11-02/fig_state_ps94_diagnostic.py` ->
 `build_inputs/state_ps94_diagnostic.{png,csv}`; imaging page v49 section 3 (Fig 3.5).
+
+
+## 2026-11-02 (night) -- Kinematics page: EVERY lick angle / lateral axis now + = CONTRALESIONAL (completes the 10-30 entry)
+The figures the 10-30 entry left + = ipsi are re-drawn with the sign flipped at PLOT level (per animal from
+`stroke_laterality`; all four lesions left), from the stored tables -- nothing upstream recomputed, tables unchanged,
+the + = ipsi renders kept under their own names, the new ones `*_contra.png` beside them (commit 5371c420):
+`orofacial_cohort --replot-contra [--all-trials]` (section 2 cue / lick-aligned change-vs-pre, per-lick metrics by
+position, 2-D tongue / jaw paths per animal / within / delta -- x-y paths MIRRORED so + = mouse right is drawn right;
+the cluster test is |t|-based and seeded, so the bars are identical), `kinematics_pooled_figs --contra` (pose3d change
+with the bootstrap replayed from the same seed: max |diff| vs the stored CSV 7e-15, so every interval is the old one
+negated; cue, paths + shared, days, phase), `pose3d_cue_traces / pose3d_phase / pose3d_spout_error --contra`,
+`pose3d_summary_fig --contra-only`. The outward-signed lateral errors (3-D) are + = mouse left only at the CENTRE
+spouts and are negated there only. The oblique 3-D trajectory views were not redrawn: their ml axis is already + =
+mouse right. Kinematics page v18 uses them (sections 2-5, 7, 9; 3-D table negated: far contra acute -25.0 / -9.5 /
+-36.1 / -32.7 deg). PI deck: NOT edited; swap spec for the six affected pictures in
+`presentations/_source_PI_overview_2026-11-02/build_inputs/kin_contra_swaps.json` (crops cut as the deck's, scripts
+beside it). The deck's l_cue / l_phase pictures come from `prepost_alltrials` (no engagement gate) while the page uses
+`prepost` (engaged) -- both now have contra versions; which one the deck should show is Priya's call.
