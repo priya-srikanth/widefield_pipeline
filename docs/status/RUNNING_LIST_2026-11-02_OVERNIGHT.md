@@ -128,3 +128,10 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   claude.ai account (psrikanth87@gmail.com); the four results pages are not visible to it, so the figure-rules page
   publishes (kinematics, FR, imaging incl. RESTW lead, encoding sec 23) wait for the owning account. Mapping: docs/status/
   FIGURE_RULES_AUDIT_2026-11-03.md. Running: pre-weighted (label-free) centring test for the state decoder.
+- 11-03 late: e3 consolidation A1 + A2 on main (ef70a2a8): hit rate on each session's 3.5 s window (+0.016 mean, acute
+  +0.027; quit later in 7/120 sessions); jaw-without-lick = trial_classes jaw_only share of ALL trials. Deck numbers that
+  move after re-render: behaviour hit-rate slide, kinematics Fig 1.3 / 7.6 derived slides (24, 25, attempts slide). A3
+  (animal-weighted change-vs-pre in epoch_figures / epoch_behaviour / matrix_bootstrap) coded, not on main; e3 will send
+  the list of figures whose stars change. Priya: build bal_em min-mass fallback (test 2 / 5 / 10 %; default only if it
+  clearly helps) -> bal_em helper. Mix-invariance test (1f33189e): no normalisation is both mix-invariant and right on
+  PS94; keep bal_em.
