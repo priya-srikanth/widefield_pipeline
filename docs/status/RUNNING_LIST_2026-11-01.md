@@ -311,3 +311,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   a-k (single hemo switch, basis pin + project_all, output tagging, cache prune guard, spec fingerprint, camera working default,
   Aug-only pre per block, cache-rebuild items, nolick bug, per-session projection path, tagged preprocessing maps) + lost
   scripts recreated and reproduced on old data. Log: wf_rebuild docs/status/REBUILD_CODE_20261103.md.
+- 11-03 (a8, Priya OK'd): lick-landing frozen decoder class-mix check CLEAN (frame-SD scaling over ALL frames; subsampling to the
+  acute mix moves the offset +.003 / -.001 mm vs observed +.36 / +.17). KEEP frame-SD scaling in the rebuild (lick-sample z-scoring
+  would create a +.21-.25 mm artefact). Caveat to state beside the cued ALL-lick acute offset: frame SD rises 1.06-1.20x acute;
+  removing it gives .166 -> .119 [-.049, .281] (PS95 -> -.13); ITI and first-cued-lick offsets still exclude 0. Priya: do NOT
+  undo the SD rise in production. Files decoder_mix_checks/lick/; DECISIONS fa70b651.
