@@ -93,7 +93,10 @@ HEMI = (("right", "contralesional (right)"), ("left", "ipsilesional (left)"))
 COLS = [f"{a}_{h}" for a in AREAS for h, _ in HEMI if not (a == "VISp" and h == "left")]
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 GAP_SPONT = il.GAP_MAIN
-SFX = ""                        # "_restnl" under --rest-variant restnl (set in main; every output name carries it)
+# resolved at IMPORT from argv (`restnl.variant`), so a spawned worker -- which re-imports this module with the
+# parent's argv -- sees the same value; main() no longer sets it (Priya 11-03 / parallel rule: options reach the
+# workers)
+SFX = restnl.SFX if restnl.variant() == "restnl" else ""
 
 
 def _rl(txt: str) -> str:
@@ -878,8 +881,6 @@ def draw_precue(R: pd.DataFrame) -> None:
 
 
 def main() -> int:
-    global SFX
-    SFX = restnl.SFX if restnl.variant() == "restnl" else ""
     jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8
     if "--plot-only" not in sys.argv:
         if not SFX:   # restnl: no re-extraction, the restw-referenced cache is shifted at load

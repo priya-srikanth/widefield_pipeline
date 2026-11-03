@@ -158,6 +158,7 @@ def fwer_maps(cells: dict, n_perm: int, prefix: str, sel: np.ndarray, npix: int)
         back[(key, ep, kind)] = ck
     res, fails = parallel.fan_out(items, test_cell, jobs=parallel.default_jobs(8), label="map cell",
                                   log=lambda m: print(m[:110], flush=True))
+    res = sorted(res, key=lambda kv: repr(kv[0][1][:2]))            # completion order -> cell order
     if fails:
         raise RuntimeError(f"FWER cells failed: {[f[0][1][:2] for f in fails]}")
     out = {}

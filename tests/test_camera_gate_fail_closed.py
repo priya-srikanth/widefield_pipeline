@@ -130,9 +130,11 @@ def test_refused_mask_refuses_every_use():
 
 
 def test_camera_engaged_period(monkeypatch):
-    cls = np.array(["contact", "no_response", "jaw_only", "unknown", "no_response"], object)
+    # DECIDED (Priya 11-03, decision 2): the period ends at the session LAST CAMERA LICK
+    cls = np.array(["contact", "no_response", "incomplete", "jaw_only", "unknown", "no_response"], object)
     monkeypatch.setattr(TC, "cue_classes_for", lambda label, cue_s, window=None: cls[: len(cue_s)])
-    assert TC.camera_engaged_period("X_0000", np.arange(5.0)).tolist() == [True, True, True, False, False]
+    monkeypatch.setattr(TC, "_matched_cues", lambda label, cue_s, window=None: np.ones(len(cue_s), bool))
+    assert TC.camera_engaged_period("X_0000", np.arange(6.0)).tolist() == [True, True, True, False, False, False]
     cls = np.array(["unknown"] * 4, object)
     assert not TC.camera_engaged_period("X_0000", np.arange(4.0)).any()        # no video: no working period
 
@@ -151,7 +153,8 @@ def test_rest_gates_camera_branch_does_not_fail_open(camera, monkeypatch):
     with pytest.raises(RuntimeError, match="unreadable"):
         rest_by_position._engaged_trials(s, np.array([5000, 10000]), np.array([0, 1]))
     monkeypatch.setattr(TC, "cue_classes_for",
-                        lambda label, cue_s, window=None: np.array(["contact", "jaw_only", "no_response"], object))
+                        lambda label, cue_s, window=None: np.array(["contact", "incomplete", "no_response"], object))
+    monkeypatch.setattr(TC, "_matched_cues", lambda label, cue_s, window=None: np.ones(len(cue_s), bool))
     eng, note = rest_engagement.engaged_by_cue(s, np.array([5000, 10000, 15000]), np.array([0, 1, 2]))
     assert eng.tolist() == [True, True, False]
     assert "sel-camera" in note

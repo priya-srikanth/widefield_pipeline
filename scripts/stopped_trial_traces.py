@@ -52,7 +52,10 @@ import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 from figdata import plot_only  # noqa: E402
 
-SFX = ""                        # "_restnl" under --rest-variant restnl (set in main)
+# resolved at IMPORT from argv (`restnl.variant`), so a spawned worker -- which re-imports this module with the
+# parent's argv -- sees the same value; main() no longer sets it (Priya 11-03 / parallel rule: options reach the
+# workers)
+SFX = restnl.SFX if restnl.variant() == "restnl" else ""
 
 
 def _stem(stem: str) -> str:
@@ -855,9 +858,7 @@ def draw_levels(stem: str) -> None:
 def main() -> int:
     from wfield_local import trial_classes as _tc_m5
     _tc_m5.require_gate("daq", "stopped_trial_traces (working / stopped states)")   # not wired to the camera classes (review M5)
-    global SFX
     from wfield_local import analysis_kit as ak
-    SFX = restnl.SFX if restnl.variant() == "restnl" else ""
     if plot_only():
         for kind, stem in stems():
             draw(kind, stem)

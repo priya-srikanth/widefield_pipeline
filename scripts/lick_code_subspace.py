@@ -54,7 +54,7 @@ matching (secondary).
   term per feature (u = unit axes); EXCESS = real term - mean ceiling term (sums to 2 (cos_ceiling - cos_real)). Summed
   per area (both hemispheres) and per hemisphere; plus hemisphere- and group-restricted axes (orofacial = ALM, tjM1,
   SSp-m, SSp-n, SSs vs the rest; left = ipsilesional, right = contralesional) with their own ceilings.
-Per-animal tables FIRST (rule 8), pooled after. Per-session loads: analysis_kit.fan_sessions (<= 4 workers).
+Per-animal tables FIRST (rule 8), pooled after. Per-session loads: analysis_kit.fan_sessions, at most 4 workers.
 Outputs <OUT_W>/lick_code_subspace/*.csv (+ licks_cache.pkl, figdata/*.pkl); figures <OUT_W>/figures/
 lick_code_subspace_{axes,transfer,drift,areas}.png.
 ENLv LICKS (Priya 10-29): LICK_CODE_FAMILY=enlv -> sets enlv_on1 (primary) / enlv_bout (bout starts), epochs acute /

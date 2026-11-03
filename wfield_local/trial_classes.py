@@ -118,6 +118,27 @@ def _trial_times(sd: Path) -> pd.DataFrame:
                                                  stop_ms=("stop_ms", "first")).reset_index()
 
 
+def _daq_contact_onsets(animal: str, date: str) -> np.ndarray:
+    """DAQ spout-contact (lick) onsets of one session, s on the DAQ clock (`dlc_frames.lick_onsets`)."""
+    from wfield_local import dlc_frames
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
+    return np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float)
+
+
+def trial_contact_times(animal: str, date: str, times: pd.DataFrame) -> pd.Series:
+    """First DAQ contact per trial in cue + 70 ms .. stop, in ms from the cue (NaN = none): the contact the cue_stop
+    class counts, with its TIME (decision 1's late / missed-contact split)."""
+    licks = _daq_contact_onsets(animal, date)
+    out = {}
+    for t, c, s in zip(times.trial_id, times.cue_daq, times.stop_ms):
+        lo, hi = c + CONTACT_FROM_CUE_S, c + s / 1000.0
+        k = licks[(licks >= lo) & (licks <= hi)]
+        out[int(t)] = float((k[0] - c) * 1000.0) if len(k) else np.nan
+    return pd.Series(out)
+
+
 def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
     """Trials with a DAQ spout contact between the strobe and cue + 70 ms (only needed for window="trial")."""
     from wfield_local import dlc_frames
@@ -340,6 +361,15 @@ def reraise_under_camera(ex: BaseException, where: str) -> None:
                            "render does not drop data silently") from ex
 
 
+def nolick_selection() -> str:
+    """The selection a NO-LICK analysis records (Priya FINAL 11-03): under the camera gate its lick / contact
+    definition is trial_classes' cue_stop window (cue -> trial stop, contacts from cue + 70 ms, the contact table), so
+    the tag names cue_stop whatever `trial_selection.window` says; under daq the run's selection (unchanged)."""
+    if not camera_gate_on():
+        return run_selection()
+    return selection_tag("camera", "cue_stop", end=end_anchor(), stopped=stopped_rule_name())
+
+
 def require_gate(mode: str, where: str) -> None:
     """Raise `DaqGateRefused` unless the run's gate is ``mode`` (review M5): called at the top of a family that is NOT
     wired to the camera classes, so it refuses before any work (engagement_gate would refuse later anyway)."""
@@ -378,7 +408,7 @@ _CLASS_SIG: dict = {}
 CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "cue_classes",
                     "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
                     "camera_engaged_period", "in_gate", "apply_stopped_rule", "apply_session_end",
-                    "before_session_end", "in_working")
+                    "before_session_end", "in_working", "classify_session", "_matched_cues")
 
 
 def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
@@ -421,10 +451,20 @@ def camera_engaged_period(label: str, cue_s) -> np.ndarray:
     11-03, to confirm with Priya): the DAQ rule is a terminal collapse; this keeps that shape (one terminal boundary,
     so a mid-session no-response trial does not cut the baseline). A session with no working trial (e.g. no video:
     all "unknown") has NO working period: every trial is outside it (no DAQ fallback, as `camera_select`)."""
-    w = in_gate(cue_classes_for(label, cue_s), "working")
-    out = np.zeros(len(w), bool)
-    if w.any():
-        out[: int(np.flatnonzero(w)[-1]) + 1] = True
+    # DECIDED (Priya 11-03, decision 2): the period ends at the session's LAST CAMERA LICK -- the anchor of
+    # in_working(end="lick"). With an uncovered video tail (N6) the real last lick is unknown: the period ends at the
+    # last COVERED cue instead (never beyond what the video saw).
+    c = cue_classes_for(label, cue_s)
+    out = np.zeros(len(c), bool)
+    lick = in_gate(c, "camera_lick")
+    if not lick.any():
+        return out
+    m = c != "unknown"
+    cov = _matched_cues(label, cue_s)
+    if cov.any() and int(np.flatnonzero(cov)[-1]) < len(c) - 1:
+        out[: int(np.flatnonzero(m & cov)[-1]) + 1] = True
+    else:
+        out[: int(np.flatnonzero(lick)[-1]) + 1] = True
     return out
 
 
@@ -464,6 +504,104 @@ def end_anchor() -> str:
     if v not in END_ANCHORS:
         raise ValueError(f"{END_ENV} / trial_selection.end = {v!r}; expected one of {END_ANCHORS}")
     return v
+
+
+def classify_session(cls, matched=None, position=None, *, rule: str | None = None, min_run: int | None = None,
+                     end: str | None = None) -> np.ndarray:
+    """THE camera classes of one session, in cue order, after the session-level rules (Priya 11-03). ``cls`` = the raw
+    per-cue class (`cue_classes`), ``matched`` = the cue was matched to a video trial (None = all matched).
+
+    VIDEO COVERAGE (N6): trials outside the video stay "unknown". Both session-level rules use only the covered span:
+      * END AT THE LAST CAMERA LICK (anchor ``end``): working-gate trials after it -> AFTER_END_CLASS. With an
+        UNCOVERED TAIL (video ends before the last cue) the real last lick is unknown, so NO end cutoff is applied
+        (a cutoff at the last covered lick would end working early).
+      * SUSTAINED STOP (``rule`` "run"): a run of >= ``min_run`` consecutive no_response trials -> STOPPED_CLASS. Runs
+        are counted per COVERED SEGMENT (an uncovered gap ends a run; it never stitches two runs); in-video "unknown"
+        trials neither break nor extend a run; a jaw_only trial AFTER the last camera lick does NOT break a run and
+        counts toward it (N7: it is never working anyway). Rule "any": every no_response is stopped.
+      * ISOLATED LAPSES (decision 3): a no_response trial not in a sustained stop stays "no_response" only INSIDE the
+        working period (at or before the end anchor); after it -> AFTER_END_CLASS. So "no_response" = an isolated lapse.
+    """
+    rule = rule or stopped_rule()
+    n_min = int(min_run if min_run is not None else stop_run_min())
+    end = end or end_anchor()
+    out = np.asarray(cls, dtype=object).copy()
+    n = len(out)
+    m = np.ones(n, bool) if matched is None else np.asarray(matched, bool)
+    tail_uncovered = bool(m.any()) and int(np.flatnonzero(m)[-1]) < n - 1
+    if end == "none" or tail_uncovered or not m.any():
+        after = np.zeros(n, bool)
+    else:
+        after = ~before_session_end(out, np.arange(n), position=position, anchor=end)
+    jaw_late = (out == "jaw_only") & after                         # N7: counts toward a no-response run
+    nr = out == "no_response"
+    stop = np.zeros(n, bool)
+    if rule == "any":
+        stop = nr.copy()
+    else:
+        seg_id = np.cumsum(np.r_[True, np.diff(m.astype(int)) != 0])   # covered / uncovered segments
+        for sid in np.unique(seg_id[m]):
+            idx = np.flatnonzero((seg_id == sid) & m & (out != "unknown"))
+            seq = (nr | jaw_late)[idx]
+            i = 0
+            while i < len(seq):
+                if not seq[i]:
+                    i += 1
+                    continue
+                j = i
+                while j < len(seq) and seq[j]:
+                    j += 1
+                if j - i >= n_min:
+                    stop[idx[i:j]] = True
+                i = j
+    out[stop] = STOPPED_CLASS
+    late = after & ~stop & (in_gate(out, "working") | (out == "no_response"))
+    out[late] = AFTER_END_CLASS
+    return out
+
+
+def session_coverage(label: str, cue_s, window: str | None = None) -> dict:
+    """Video coverage of one session's cue train (N6): {n_cues, n_matched, frac, partial, tail_uncovered}."""
+    m = _matched_cues(label, cue_s, window)
+    n = len(m)
+    return {"label": label, "n_cues": n, "n_matched": int(m.sum()), "frac": float(m.mean()) if n else float("nan"),
+            "partial": bool(n and not m.all()),
+            "tail_uncovered": bool(m.any() and int(np.flatnonzero(m)[-1]) < n - 1)}
+
+
+def _matched_cues(label: str, cue_s, window: str | None = None) -> np.ndarray:
+    T = session_trials(label, window=window or gate_window())
+    if T is None:
+        return np.zeros(len(np.asarray(cue_s)), bool)
+    return cue_classes(T.assign(cls="matched"), np.asarray(cue_s, float)) == "matched"
+
+
+def coverage_note(path=None) -> str:
+    """Caption text naming the partially video-covered sessions (N6), from the coverage table
+    (`scripts/camera_coverage_tables.py`); says so when the table is missing. Used by `lp_licks.stamp` under camera."""
+    from wfield_local import lp_licks
+    p = Path(path) if path else lp_licks._run_dir() / "imaging_encoding" / "qc" / "camera_coverage.csv"
+    if not p.exists():
+        return "camera gate: video-coverage table missing (run scripts/camera_coverage_tables.py)"
+    C = pd.read_csv(p)
+    C = C[C.partial.astype(bool)]
+    if not len(C):
+        return "camera gate: every session fully video-covered"
+    return ("camera gate: partial video coverage (covered trials only; end / stop rules within the covered span): "
+            + ", ".join(f"{r.label} {100 * r.frac:.1f}%" for r in C.itertuples()))
+
+
+def contact_nolick_counts(cls, nolick, animal, epoch) -> "pd.DataFrame":
+    """Decision 1 (Priya 11-03): no-lick (DAQ) trials whose camera class is "contact" are in NEITHER miss-while-working
+    nor stopped; this COUNTS them per animal x epoch (columns n_nolick, n_contact_nolick, share) so they can be checked
+    (undetected DAQ contacts, or grooming / something else). Equal-length per-trial sequences."""
+    D = pd.DataFrame({"animal": np.asarray(animal, object), "epoch": np.asarray(epoch, object),
+                      "nolick": np.asarray(nolick, bool), "cls": np.asarray(cls, object)})
+    D = D[D.nolick]
+    g = D.groupby(["animal", "epoch"])
+    out = pd.DataFrame({"n_nolick": g.size(), "n_contact_nolick": g.cls.apply(lambda c: int((c == "contact").sum()))})
+    out["share"] = out.n_contact_nolick / out.n_nolick
+    return out.reset_index()
 
 
 def apply_session_end(cls, position=None, anchor: str | None = None) -> np.ndarray:
@@ -586,11 +724,11 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
         if len(_CUE_CLS) > 64:
             _CUE_CLS.clear()
         T = session_trials(label, window=window)
-        cls = apply_stopped_rule(cue_classes(T, cs), *rule)
-        # END OF SESSION (Priya 11-03): working-gate trials after the session last camera lick (anchor `end`) leave
-        # working; the "close" anchor needs each cue position (matched the same way as the class)
+        # THE session-level rules (end at the last camera lick, sustained stop, isolated lapses; video coverage span):
+        # `classify_session`. The "close" anchor needs each cue position (matched the same way as the class)
         pos = cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs) if end == "close" else None
-        _CUE_CLS[key] = apply_session_end(cls, pos, end)
+        matched = (cue_classes(T.assign(cls="matched"), cs) == "matched") if T is not None else np.zeros(len(cs), bool)
+        _CUE_CLS[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0], min_run=rule[1], end=end)
     return _CUE_CLS[key]
 
 

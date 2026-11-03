@@ -266,7 +266,15 @@ def categorize(s, args, with_licks=False):
         # Its consumers read `undetected & ~sess_eng` as STOPPED, so an undetected cue that is neither working nor
         # stopped ("unknown": no video, unmatched cue) leaves the categorisation (cat = ""): it is in neither arm, as
         # `camera_select`. No fail-open here: a class-table error propagates.
-        ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(lk["sample_rate_hz"]))
+        # ONE LICK DEFINITION (Priya FINAL 11-03): the camera classes over the cue_stop window (cue -> trial stop;
+        # contacts from cue + 70 ms, the contact table) -- the same window and table as trial_classes, so the two
+        # cannot disagree. A cue the DAQ detector called "undetected" but whose cue_stop class is "contact" (a contact
+        # after the response window, or a detector / contact-table mismatch) is a CONTACT trial: it leaves the no-lick
+        # arm (-> late_rewarded, excluded from the decoder like every late hit). Checked by
+        # scripts/camera_coverage_tables.py (the disagreement table).
+        ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(lk["sample_rate_hz"]),
+                                   window="cue_stop")
+        cat = np.where((cat == "undetected") & (ccls == "contact"), "late_rewarded", cat).astype(object)
         sess_eng = _tc.in_gate(ccls, "miss_working")   # read on UNDETECTED cues only: no contact class (review M6)
         neither = ~sess_eng & ~np.isin(ccls, list(_tc.STOPPED_CLASSES))
         cat = np.where((cat == "undetected") & neither, "", cat).astype(object)
@@ -330,6 +338,9 @@ def session_features_cache_kind(args, *, signal_key, lead_s) -> str:
     spec["lickfree"] = bool(config.defaults()["decode"].get("precue_lickfree", True))
     spec["lead_s"] = float(lead_s)
     spec["signal_key"] = signal_key
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():          # the no-lick selection (cue_stop window) -- only under camera: default key unchanged
+        spec["selection"] = _tc.nolick_selection()
     digest = hashlib.sha1(repr(sorted(spec.items(), key=repr)).encode()).hexdigest()[:12]
     return f"sf-{spec['align']}-{digest}"
 
@@ -562,7 +573,13 @@ def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features, 
     return frozen_models.make_spec(
         animal, "nolick_reference", align=f"{align}-rt{cut}-f{fdig}",
         source="joint" if basis is not None else "roi", train_labels=train_labels, post_s=2.0,
-        basis_id=None if basis is None else basis.basis_id, n_features=n_features, train_data=train_data)
+        basis_id=None if basis is None else basis.basis_id, n_features=n_features, train_data=train_data,
+        selection=_nolick_sel())
+
+
+def _nolick_sel():
+    from wfield_local import trial_classes as _tc
+    return _tc.nolick_selection()             # cue_stop under the camera gate (Priya FINAL 11-03); else run_selection
 
 
 def _loso_predict(loso, X, S, dtype):

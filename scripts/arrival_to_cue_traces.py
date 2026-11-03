@@ -46,7 +46,10 @@ import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 from figdata import plot_only  # noqa: E402
 
-SFX = ""                        # "_restnl" under --rest-variant restnl (set in main)
+# resolved at IMPORT from argv (`restnl.variant`), so a spawned worker -- which re-imports this module with the
+# parent's argv -- sees the same value; main() no longer sets it (Priya 11-03 / parallel rule: options reach the
+# workers)
+SFX = restnl.SFX if restnl.variant() == "restnl" else ""
 
 
 def save_fd(stem, obj, root=None):
@@ -583,9 +586,7 @@ def stems() -> list:
 def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
-    global SFX
     from wfield_local import analysis_kit as ak
-    SFX = restnl.SFX if restnl.variant() == "restnl" else ""
     if SFX and not plot_only():   # no re-extraction: shift the stored restw-referenced traces
         compute(il.labels())
         return 0

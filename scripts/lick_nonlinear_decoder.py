@@ -118,19 +118,25 @@ def _unit(item):
     t0 = time.time()
     pre = [x for x, v in S.items() if v[0] == "pre"]
     cols = list(TARGETS.values())
-    lin, nl, hyp = {}, {}, []
-    for held in [*pre, None]:
-        trn = [q for q in pre if q != held]
-        Xt, Yt = np.vstack([S[q][1] for q in trn]), np.vstack([S[q][2] for q in trn])
-        lin[held] = lr._fit(Xt, Yt[:, cols])                 # the KEY decoder (RidgeCV per target)
-        nl[held] = []
-        for tg, k in TARGETS.items():
-            g, a_, mse = _krr_select(S, trn, k)
-            nl[held].append(_krr_fit(Xt, Yt[:, [k]], g, a_ * len(Yt)))
-            ig, ia = np.unravel_index(np.argmin(mse), mse.shape)
-            hyp.append(dict(set=st, animal=a, held_out=held or "(all pre: post sessions)", target=tg,
-                            gamma_c=GAMMA_C[ig], alpha_a=a_, inner_mse=float(mse.min()),
-                            edge=bool(ig in (0, len(GAMMA_C) - 1) or ia in (0, len(ALPHA_A) - 1)), n_train=len(Yt)))
+    # STORED (Priya 11-03): the whole frozen reference -- linear KEY decoders, nested kernel-ridge fits and their
+    # hyper-parameter rows -- through frozen_models.load_or_fit (kind lick_nonlinear; spec fingerprints the training
+    # rows). WIDEFIELD_ITI_FROZEN=0 fits in memory exactly as before.
+    from wfield_local import frozen_models, frozen_readouts
+
+    def _fit_all():
+        lin_, nl_, hyp_ = _fit_reference(st, a, S, pre, cols)
+        return {"lin": lin_, "nl": nl_, "hyp": hyp_}
+    if frozen_models.family_on(frozen_readouts.ITI_FROZEN_ENV):
+        spec = frozen_models.make_spec(a, "lick_nonlinear", align=f"{st}", source="lick_refit_z", train_labels=pre,
+                                       post_s=0.0, n_features=int(np.asarray(S[pre[0]][1]).shape[1]),
+                                       train_data={q: (S[q][1], S[q][2]) for q in pre}, lp_only=True)
+        spec["targets"] = {k: int(v) for k, v in TARGETS.items()}
+        spec["grid"] = [[float(g) for g in GAMMA_C], [float(x) for x in ALPHA_A]]
+        P, status = frozen_models.load_or_fit(spec, _fit_all, meta={"script": "lick_nonlinear_decoder.py"})
+        print(f"  [frozen] {st} {a}: lick_nonlinear {status}", flush=True)
+    else:
+        P = _fit_all()
+    lin, nl, hyp = P["lin"], P["nl"], P["hyp"]
     rows = []
     for x, (ep, X, Y) in S.items():
         key = x if ep == "pre" else None
@@ -145,6 +151,24 @@ def _unit(item):
     print(f"[{st} {a}] {len(pre)} pre sessions, {sum(len(v[2]) for v in S.values())} licks, {time.time() - t0:.0f} s",
           flush=True)
     return pd.concat(rows, ignore_index=True), pd.DataFrame(hyp)
+
+
+def _fit_reference(st, a, S, pre, cols):
+    """The pre-LOSO / all-pre linear + kernel-ridge fits of one (set, animal) (moved out of `_unit` unchanged)."""
+    lin, nl, hyp = {}, {}, []
+    for held in [*pre, None]:
+        trn = [q for q in pre if q != held]
+        Xt, Yt = np.vstack([S[q][1] for q in trn]), np.vstack([S[q][2] for q in trn])
+        lin[held] = lr._fit(Xt, Yt[:, cols])                 # the KEY decoder (RidgeCV per target)
+        nl[held] = []
+        for tg, k in TARGETS.items():
+            g, a_, mse = _krr_select(S, trn, k)
+            nl[held].append(_krr_fit(Xt, Yt[:, [k]], g, a_ * len(Yt)))
+            ig, ia = np.unravel_index(np.argmin(mse), mse.shape)
+            hyp.append(dict(set=st, animal=a, held_out=held or "(all pre: post sessions)", target=tg,
+                            gamma_c=GAMMA_C[ig], alpha_a=a_, inner_mse=float(mse.min()),
+                            edge=bool(ig in (0, len(GAMMA_C) - 1) or ia in (0, len(ALPHA_A) - 1)), n_train=len(Yt)))
+    return lin, nl, hyp
 
 
 def predictions(animals: list[str] | None, jobs: int | None) -> tuple[pd.DataFrame, pd.DataFrame]:

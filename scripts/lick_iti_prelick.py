@@ -159,7 +159,7 @@ TC_HI = 0.6
 OUT = il.OUT_W
 FIG = OUT / "figures"
 COMP = ["total", "diff_all", "sum_all", "diff_SSp-n", "diff_oro_noSSpn", "sum_oro", "other", "unpaired"]
-JOBS = 4                          # task cap: at most 4 workers
+_RUN = {"jobs": 4}                # task cap: at most 4 workers (a dict: main() sets it without a module global)
 
 
 # ------------------------------------------------------------------------------------------------------- lick set
@@ -169,7 +169,7 @@ def lick_set() -> pd.DataFrame:
     P = P[P.set == "iti"].copy()
     C = pd.read_csv(OUT / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "t", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
-    res, fail = ak.fan_sessions(sorted(P.label.unique()), lrm._gaps, jobs=JOBS)
+    res, fail = ak.fan_sessions(sorted(P.label.unique()), lrm._gaps, jobs=_RUN["jobs"])
     if fail:
         raise RuntimeError(f"gaps failed: {fail[:5]}")
     G = pd.concat([v for _i, v in res], ignore_index=True)
@@ -308,7 +308,7 @@ def frozen_fits() -> dict:
     from wfield_local import frozen_models as fm
     names, SD = wd.area_meta(basis="split")
     pre = [x for x in il.labels() if str(epochs.epoch_of(x)) == "pre"]
-    res, fail = ak.fan_sessions([(x, "areas_split", "") for x in pre], wd._load_one, jobs=JOBS, key=lambda it: it[0],
+    res, fail = ak.fan_sessions([(x, "areas_split", "") for x in pre], wd._load_one, jobs=_RUN["jobs"], key=lambda it: it[0],
                                 label="reader load", log=lambda m: None)
     if fail:
         raise RuntimeError(f"reader load failed: {fail[:2]}")
@@ -454,7 +454,7 @@ def compute() -> None:
     import iti_where_decoder as wd
     Q, acts = lick_set()
     items = [(lab, tuple(g.t.to_numpy(float)), tuple(g.pos.astype(str))) for lab, g in Q.groupby("label", sort=True)]
-    res, fail = ak.fan_sessions(items, _one, key=lambda it: it[0], jobs=JOBS, label="prelick load")
+    res, fail = ak.fan_sessions(items, _one, key=lambda it: it[0], jobs=_RUN["jobs"], label="prelick load")
     if fail:
         raise RuntimeError(f"session load failed: {[f[0] if isinstance(f, tuple) else f for f in fail][:5]}")
     T = {it[0]: v for it, v in res}
@@ -884,13 +884,12 @@ def plot() -> None:
 
 def main() -> int:
     import argparse
-    global JOBS
     ap = argparse.ArgumentParser()
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--window-limit", default="0.1", help="s before lick onset every pre window must end by; 'none' = v1")
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args()
-    JOBS = max(1, min(a.jobs, 4))
+    _RUN["jobs"] = max(1, min(a.jobs, 4))
     configure(None if a.window_limit.lower() == "none" else float(a.window_limit))
     print(f"== window limit {LIMIT}; windows {[w[0] for w in WINS]}; outputs {fn('*.csv').name}; figure {FIGNAME}",
           flush=True)

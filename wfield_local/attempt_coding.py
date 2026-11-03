@@ -97,6 +97,10 @@ def classify(cls_e, cls_u, eng_pre_e, eng_pre_u, not_eng_u, camera_u=None):
         cu[post_u & np.isin(cam, list(_tc.STOPPED_CLASSES)) & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
         work = post_u & _tc.in_gate(cam, "working")
         work_m = post_u & _tc.in_gate(cam, "miss_working")     # the no-lick miss split: no contact class (M6)
+        # DECISION 3 (Priya 11-03): "noattempt" = an ISOLATED LAPSE -- a camera no_response trial inside the working
+        # period that is not part of a sustained stop (class "no_response" after `classify_session`). Contrast with
+        # "stopped" = isolated lapse vs sustained stop.
+        cu[post_u & (cam == "no_response") & (cls_u == "no_try")] = "noattempt"
     else:
         cu[post_u & not_eng_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
         work = post_u & ~not_eng_u

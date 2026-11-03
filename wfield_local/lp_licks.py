@@ -190,6 +190,12 @@ def stamp(fig) -> None:
     from wfield_local import run_mode
     if run_mode.tag():
         txt += f"; mode {run_mode.tag()}"
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():                  # N6 (Priya 11-03): name the partially video-covered sessions
+        try:
+            txt += "\n" + _tc.coverage_note()
+        except Exception as ex:                       # noqa: BLE001 - a caption must not kill a figure; say why
+            txt += f"\ncamera gate: coverage note unavailable ({type(ex).__name__})"
     fig.text(0.995, 0.002, txt, ha="right", va="bottom", fontsize=6, color="#8a2be2")
 
 

@@ -60,7 +60,10 @@ import restnl  # noqa: E402
 from figdata import plot_only  # noqa: E402
 from wfield_local.sig_marks import reserve_headroom, star_top  # noqa: E402
 
-SFX = ""                        # "_restnl" under --rest-variant restnl (set in main; every output name carries it)
+# resolved at IMPORT from argv (`restnl.variant`), so a spawned worker -- which re-imports this module with the
+# parent's argv -- sees the same value; main() no longer sets it (Priya 11-03 / parallel rule: options reach the
+# workers)
+SFX = restnl.SFX if restnl.variant() == "restnl" else ""
 
 
 def save_fd(stem, obj, root=None):
@@ -922,11 +925,9 @@ DOT_STEMS = ([f"lick_cue_to_lick_A_level_{h}" for h in ("contra", "ipsi")]
 
 
 def main() -> int:
-    global SFX
     from wfield_local import parallel
     parallel.pin_blas()
     var = restnl.variant()
-    SFX = restnl.SFX if var == "restnl" else ""
     if plot_only():
         for s in DOT_STEMS:
             draw_dotgrid(s)

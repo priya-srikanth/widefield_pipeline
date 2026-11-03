@@ -102,16 +102,12 @@ def collect() -> dict:
 
 
 def fit_dec(S: dict, X: dict) -> dict:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
+    """The pre-LOSO / all-pre ridge read-out. ONE definition (Priya 11-03): `frozen_readouts.fit_all`, the same
+    StandardScaler + RidgeCV construction, called from inside the stored spec of `refit_frozen` (kind face_aim, which
+    carries the training-data fingerprint) -- so this read-out is stored, never refitted per render."""
+    from wfield_local import frozen_readouts
     pre = [x for x, v in S.items() if v[0] == "pre"]
-    fits = {}
-    for held in [*pre, None]:
-        trn = [q for q in pre if q != held]
-        Xt, yt = np.vstack([X[q] for q in trn]), np.concatenate([S[q][2] for q in trn])
-        sc = StandardScaler().fit(Xt)
-        fits[held] = (sc, RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), yt))
-    return fits
+    return frozen_readouts.fit_all(pre, {q: X[q] for q in pre}, {q: S[q][2] for q in pre}, np.logspace(-1, 5, 13))
 
 
 def score(C: dict, X: dict, fits: dict) -> pd.DataFrame:

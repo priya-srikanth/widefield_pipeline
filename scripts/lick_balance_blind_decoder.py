@@ -108,8 +108,6 @@ def transform(X: np.ndarray, names, how: str) -> np.ndarray:
 
 
 def predictions() -> pd.DataFrame:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
 
     from wfield_local import analysis_kit as ak
     from wfield_local import orofacial_cohort as oc
@@ -146,12 +144,11 @@ def predictions() -> pd.DataFrame:
                 for x, (_ep, Xr, sd, _y, _idx, _pos) in S.items():
                     F[x] = (transform(Xr, names, how[:-4]) / sd[None, :] if how.endswith("_raw")
                             else transform(Xr / sd[None, :], names, how))
-                fits = {}
-                for held in [*pre, None]:
-                    trn = [q for q in pre if q != held]
-                    Xt, yt = np.vstack([F[q] for q in trn]), np.concatenate([S[q][3] for q in trn])
-                    sc = StandardScaler().fit(Xt)
-                    fits[held] = (sc, RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), yt))
+                # STORED (Priya 11-03): the stored ITI / cued-lick read-out helper (kind iti_readout, spec carries the
+                # data signature); WIDEFIELD_ITI_FROZEN=0 = the same fit in memory
+                from wfield_local import frozen_readouts
+                fits = frozen_readouts.pre_loso_ridge(a, f"lick_balance_blind-{st}-{how}", pre, {q: F[q] for q in pre},
+                                                      {q: S[q][3] for q in pre}, np.logspace(-1, 5, 13))
                 for x, (ep, _Xr, _sd, y, idx, pos) in S.items():
                     sc, m = fits[x if x in pre else None]
                     rows.append(pd.DataFrame({"variant": how, "set": st, "animal": a, "label": x, "epoch": ep,

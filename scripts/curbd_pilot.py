@@ -606,12 +606,14 @@ def main():
         jobs = [j for j in jobs if not (OUT / "fits" / f"{j[0]}_{j[1]}_{j[2]}_s{j[3]}.npz").exists()]
         jobs.sort(key=lambda j: (j[1] != "multi", j[2] != "full"))         # longest first-ish
         res, fail = fan_out(jobs, fit_job, jobs=min(4, a.jobs), label="fit")
+        res = sorted(res, key=lambda kv: repr(kv[0]))                       # completion order -> job order
         print(f"{len(res)} fits, {len(fail)} failures", fail)
     elif a.cmd == "explore":
         from wfield_local.parallel import fan_out
         jobs = [j + (g,) for g in G_SWEEP for j in jobs_for(a.labels or PRE, ("multi",))]
         jobs = [j for j in jobs if not (fits_dir(j[4]) / f"{j[0]}_{j[1]}_{j[2]}_s{j[3]}.npz").exists()]
         res, fail = fan_out(jobs, fit_job, jobs=min(4, a.jobs), label="explore")
+        res = sorted(res, key=lambda kv: repr(kv[0]))                       # completion order -> job order
         print(f"{len(res)} fits, {len(fail)} failures", fail)
     elif a.cmd == "explore-summary":
         explore_stability()
