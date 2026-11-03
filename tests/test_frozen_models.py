@@ -261,3 +261,17 @@ def test_state_session_zscore():
     Z = ld.session_zscore(X)
     assert np.allclose(Z[:, 0].mean(), 0) and np.allclose(Z[:, 0].std(), 1)
     assert np.allclose(Z[:, 1], 0)                   # zero-SD feature: centred, not divided by 0
+
+
+def test_state_13n_running_line_is_measured_not_literal():
+    """2026-11-02: the 13n caption carried "RUNNING alone 0.98 -> 0.95, losing 3%" as a literal through the state
+    z-score fix. It is now built from the measured retained values and running-class recall."""
+    from wfield_local import epoch_state as es
+    cvals = {"pre": {"position (6-way)": 0.80, "state (3-way)": 0.96},
+             "acute": {"position (6-way)": 0.40, "state (3-way)": 0.90}}
+    line = es._acute_line(cvals, {"pre": 0.98, "acute": 0.92})
+    assert "position 0.80 -> 0.40 acutely, losing 50%" in line
+    assert "state 0.96 -> 0.90 acutely, losing 6%" in line
+    assert "RUNNING-class recall 0.98 -> 0.92, losing 6%" in line
+    assert "0.95" not in line
+    assert es._acute_line({}, {}) == "retained values: see the bars"

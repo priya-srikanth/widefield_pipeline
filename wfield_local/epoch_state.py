@@ -165,6 +165,25 @@ def _retained(acc, chance):
     if not np.isfinite(acc):
         return None
     return float((acc - chance) / (1.0 - chance))
+def _acute_line(cvals, run_rec):
+    """The 13n caption's numbers line, MEASURED: retained pre -> acute for position and state, plus running-class
+    recall pre -> acute and its ratio. Replaces a 09-13 literal that went stale through the 11-02 z-score fix."""
+    def _pa(key):
+        a, b = (cvals.get(e, {}).get(key) for e in ("pre", "acute"))
+        if a is None or b is None or not a:
+            return None
+        return f"{a:.2f} -> {b:.2f} acutely, losing {100 * (1 - b / a):.0f}%"
+    parts = []
+    for name, key in (("position", "position (6-way)"), ("state", "state (3-way)")):
+        t = _pa(key)
+        if t:
+            parts.append(f"{name} {t}")
+    a, b = run_rec.get("pre"), run_rec.get("acute")
+    if a and b is not None:
+        parts.append(f"RUNNING-class recall {a:.2f} -> {b:.2f}, losing {100 * (1 - b / a):.0f}%")
+    return "; ".join(parts) or "retained values: see the bars"
+
+
 def _position_accuracy_by_epoch(align, variant):
     """``{epoch: BALANCED accuracy}`` of the FROZEN position decoder, from the 5c confusion counts.
 
@@ -530,6 +549,12 @@ def _fig_13_state(out_dir, align, variant, wname):
                     row["state (3-way)"] = r_st
             if row:
                 cvals[e] = row
+        # RUNNING-CLASS RECALL, MEASURED (2026-11-02). The line below was a literal ("RUNNING alone 0.98 -> 0.95,
+        # losing 3%", with position / state numbers of 09-13) and survived the state z-score fix unchanged while the
+        # figure moved under it: "running alone" is the running row of THIS decoder's per-class recall
+        # (`by_animal_day`, so it is z-scored with everything else), not a separate binary arm.
+        _rv, _rp = _state_epoch_values(store, "per_class", ["running"])
+        run_rec = {e: float(row["running"]) for e, row in _rv.items() if "running" in row}
         if cvals:
             # DRAWN DIRECTLY, NOT THROUGH `_scalar_figure`, and this is not a shortcut. That
             # helper bootstraps every bar from its per-SESSION points and marks the contrasts; this
@@ -564,8 +589,7 @@ def _fig_13_state(out_dir, align, variant, wname):
                     "Balanced accuracy has a null of exactly 1/6 however skewed either side is. The "
                     "trial-weighted accuracies are 0.859 / 0.525 / 0.749 / 0.833 -- they barely "
                     "differ here, so nothing in the reading turns on it; the 5c panel prints them",
-                    "position 0.86 -> 0.43 acutely, losing 50%; state 0.92 -> 0.81, losing 11%; "
-                    "RUNNING alone 0.98 -> 0.95, losing 3%",
+                    _acute_line(cvals, run_rec),
                     "NO INTERVALS AND NO MARKS: each bar is one pooled number. The per-session "
                     "distribution is on the figures either side of this one"]))
             if q:
@@ -629,9 +653,12 @@ def _fig_13_state(out_dir, align, variant, wname):
             ylabel="recall", keys=CLS, values=pvals, points=ppts, tick_labels=CLS,
             ylim=(0.0, 1.05), session_counts=counts, notes=[
                 NOTES[0],
-                f"RUNNING IS THE CLEAN EXAMPLE: {_line('running')}, flat at every epoch "
-                f"(pre / acute / subacute / chronic); LICKING {_line('licking')}",
-                f"REST IS THE ONE THAT MOVES {_qmove} -- and it is also a much larger share of a "
+                # "RUNNING IS THE CLEAN EXAMPLE ... flat at every epoch" was an assertion, and after the 2026-11-02
+                # z-score fix the running bars are not flat (PS94's running recall falls to ~.5 subacute / chronic).
+                # Print the measured numbers and say where the fall sits; the per-animal points show it.
+                f"RUNNING {_line('running')} (pre / acute / subacute / chronic) -- any post-stroke fall is "
+                f"carried mostly by one animal (read the per-animal points); LICKING {_line('licking')}",
+                f"REST {_qmove} -- and it is also a much larger share of a "
                 f"post-stroke session, so a post-stroke animal sitting still may be in a genuinely "
                 f"different state. A finding about immobility, not a failed control",
                 _state_balance_line(store)],

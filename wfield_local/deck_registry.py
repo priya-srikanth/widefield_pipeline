@@ -1044,11 +1044,12 @@ EPOCH_FIGURES = (
      # 2026-09-12 render they no longer matched the figure above them -- the caption said
      # licking ran 0.99/0.97/0.90/0.96 while the sidecar held 0.98/0.96/0.88/0.98. With
      # `SELF` each arm prints its own numbers and a re-render moves caption and figure together.
-     "RUNNING IS THE CLEAN EXAMPLE and the one Priya asked for: "
+     "RUNNING, the example Priya asked for: "
      "{{SELF: epoch=pre, position=running -> value:.2f}} / "
      "{{SELF: epoch=acute, position=running -> value:.2f}} / "
      "{{SELF: epoch=subacute, position=running -> value:.2f}} / "
-     "{{SELF: epoch=chronic, position=running -> value:.2f}}, flat at every epoch. LICKING is "
+     "{{SELF: epoch=chronic, position=running -> value:.2f}} -- not flat since the 2026-11-02 "
+     "state z-score fix: the post-stroke fall is mostly PS94 (per-animal points). LICKING is "
      "{{SELF: epoch=pre, position=licking -> value:.2f}} / "
      "{{SELF: epoch=acute, position=licking -> value:.2f}} / "
      "{{SELF: epoch=subacute, position=licking -> value:.2f}} / "
