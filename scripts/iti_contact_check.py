@@ -39,10 +39,8 @@ def contact_of(label: str, t: np.ndarray) -> np.ndarray:
 
 
 def main() -> int:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
-
     from wfield_local import analysis_kit as ak
+    from wfield_local import frozen_readouts
     W = (il.LAGS_D >= 0.0) & (il.LAGS_D <= 0.2)
     labels = sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
     D = {x: il._load(x) for x in labels}
@@ -56,13 +54,9 @@ def main() -> int:
             feat = [i for i, c in enumerate(next(iter(S.values()))["cols"])
                     if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
             X = {x: S[x][kx].astype(float)[:, W][:, :, feat].mean(1) for x in S}
-            fits = {}
-            for held in [*pre, None]:
-                trn = [q for q in pre if q != held]
-                Xt = np.vstack([X[q] for q in trn])
-                sc = StandardScaler().fit(Xt)
-                fits[held] = (sc, RidgeCV(alphas=np.logspace(-1, 4, 11)).fit(
-                    sc.transform(Xt), np.concatenate([S[q][ky] for q in trn])))
+            # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
+            fits = frozen_readouts.pre_loso_ridge(a, f"iti_contact_check-{st}", pre, X, {q: S[q][ky] for q in pre},
+                                                  np.logspace(-1, 4, 11))
             for x in S:
                 sc, m = fits[x if x in pre else None]
                 pr, y = m.predict(sc.transform(X[x])), S[x][ky]

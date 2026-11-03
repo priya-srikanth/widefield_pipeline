@@ -29,8 +29,7 @@ AXES = {"lat": 0, "fwd": 1, "down": 4}                       # columns of iti_wh
 
 
 def main(argv=None) -> int:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
+    from wfield_local import frozen_readouts
     from iti_decoder_contrib import feature_names
     unscaled = "--unscaled" in (argv if argv is not None else sys.argv[1:])
     SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
@@ -53,13 +52,10 @@ def main(argv=None) -> int:
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
                 continue
-            fits = {}
-            for held in [*pre, None]:
-                trn = [q for q in pre if q != held]
-                Xt, Yt = np.vstack([S[q][1] for q in trn]), np.vstack([S[q][2] for q in trn])
-                sc = StandardScaler().fit(Xt)
-                fits[held] = (sc, [RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), Yt[:, k])
-                                   for k in range(len(AXES))])
+            # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0); the data signature
+            # in the spec separates the scaled / unscaled inputs
+            fits = frozen_readouts.pre_loso_ridge(a, f"iti_where_3axis-{st}", pre, {q: S[q][1] for q in pre},
+                                                  {q: S[q][2] for q in pre}, np.logspace(-1, 5, 13), k=len(AXES))
             preds = {}
             for x, (ep, X, Y) in S.items():
                 sc, ms = fits[x if x in pre else None]

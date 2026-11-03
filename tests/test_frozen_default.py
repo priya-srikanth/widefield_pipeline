@@ -943,3 +943,88 @@ def test_non_precue_specs_ignore_the_enl_window(pass2_env):
         assert frozen_models.spec_id(a) == frozen_models.spec_id(b), align
 
 
+# ------------------------------------------------------------------------------- ITI / cued-lick read-outs (7)
+def _iti_data(seed=0, k=None):
+    rng = np.random.default_rng(seed)
+    labs = ["PS92_0810", "PS92_0811", "PS92_0812", "PS92_0813", "PS92_0901"]
+    X = {q: rng.normal(size=(40 + 5 * i, 7)) for i, q in enumerate(labs)}
+    W = rng.normal(size=(7,) if k is None else (7, k))
+    Y = {q: X[q] @ W + rng.normal(size=(len(X[q]),) if k is None else (len(X[q]), k)) for q in labs}
+    return labs[:4], X, Y
+
+
+def _old_iti_fits(pre, X, Y, alphas, k=None):
+    """The inline construction every ITI script carried at 8debc35e (pinned copy)."""
+    from sklearn.linear_model import RidgeCV
+    from sklearn.preprocessing import StandardScaler
+    fits = {}
+    for held in [*pre, None]:
+        trn = [q for q in pre if q != held]
+        Xt = np.vstack([X[q] for q in trn])
+        Yt = np.concatenate([Y[q] for q in trn]) if k is None else np.vstack([Y[q] for q in trn])
+        sc = StandardScaler().fit(Xt)
+        fits[held] = (sc, RidgeCV(alphas=alphas).fit(sc.transform(Xt), Yt) if k is None else
+                      [RidgeCV(alphas=alphas).fit(sc.transform(Xt), Yt[:, j]) for j in range(k)])
+    return fits
+
+
+def _same_ridge(a, b):
+    np.testing.assert_array_equal(a[0].mean_, b[0].mean_)
+    np.testing.assert_array_equal(a[0].scale_, b[0].scale_)
+    ma, mb = (a[1], b[1]) if isinstance(a[1], list) else ([a[1]], [b[1]])
+    for x, y in zip(ma, mb):
+        np.testing.assert_array_equal(x.coef_, y.coef_)
+        assert x.intercept_ == y.intercept_ and x.alpha_ == y.alpha_
+
+
+@pytest.mark.parametrize("k", [None, 3])
+def test_iti_helper_equals_the_old_inline_fits(pass2_env, k):
+    from wfield_local import frozen_models, frozen_readouts
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    pre, X, Y = _iti_data(seed=2, k=k)
+    al = np.logspace(-1, 5, 13)
+    got = frozen_readouts.pre_loso_ridge("PS92", "iti_licks.frozen_decode-direction", pre, X, Y, al, k=k)
+    spec = rec.calls[0]["spec"]
+    assert spec["kind"] == "iti_readout" and spec["lick_source"] == "lp"          # LP-only by nature
+    assert spec["train_order"] == pre and spec["n_targets"] == k and spec["loso"] is True
+    old = _old_iti_fits(pre, X, Y, al, k)
+    assert list(got) == list(old) == [*pre, None]
+    for h in old:
+        _same_ridge(got[h], old[h])
+    pass2_env.setenv("WIDEFIELD_ITI_FROZEN", "0")
+    mem = frozen_readouts.pre_loso_ridge("PS92", "x", pre, X, Y, al, k=k)
+    assert len(rec.calls) == 1
+    for h in old:
+        _same_ridge(mem[h], old[h])
+
+
+def test_iti_spec_carries_tag_alphas_order_and_data(pass2_env):
+    from wfield_local import frozen_models, frozen_readouts
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    pre, X, Y = _iti_data()
+    al = np.logspace(-1, 4, 11)
+    frozen_readouts.pre_loso_ridge("PS92", "a-w0..0.2:x", pre, X, Y, al)
+    frozen_readouts.pre_loso_ridge("PS92", "b", pre, X, Y, al)
+    frozen_readouts.pre_loso_ridge("PS92", "b", pre, X, Y, np.logspace(0, 5, 11))
+    frozen_readouts.pre_loso_ridge("PS92", "b", pre[::-1], X, Y, al)
+    frozen_readouts.pre_loso_ridge("PS92", "b", pre, X, {q: v + 1e-9 for q, v in Y.items()}, al)
+    frozen_readouts.pre_loso_ridge("PS92", "b", pre, X, Y, al, loso=False)
+    ids = [frozen_models.spec_id(c["spec"]) for c in rec.calls]
+    assert len(set(ids)) == len(ids) == 6
+    assert ":" not in rec.calls[0]["spec"]["align"] and rec.calls[0]["spec"]["tag"] == "a-w0..0.2:x"
+    assert list(rec.calls[-1]["payload"]) == [None]
+
+
+ITI_SCRIPTS = ("iti_licks", "iti_basis_decoder", "iti_contact_check", "iti_first_lick", "iti_lick_order",
+               "iti_nmatch_check", "iti_where_decoder", "iti_where_3axis", "iti_where_angle_reach", "iti_where_scatter",
+               "iti_decoder_contrib", "lick_gain_prediction")
+
+
+@pytest.mark.parametrize("name", ITI_SCRIPTS)
+def test_iti_scripts_use_the_one_helper(name):
+    src = (ROOT / "scripts" / f"{name}.py").read_text(encoding="utf-8")
+    assert "frozen_readouts.pre_loso_ridge(" in src
+    assert "for held in [*pre, None]" not in src
+    assert "RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xp)" not in src
