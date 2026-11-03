@@ -343,6 +343,15 @@ def save_map_bundle(q, cells, **kw):
         if A is not None:
             shape = list(np.asarray(A).shape)
             break
+    # PANEL TITLES ARE KEYED BY (row, col) TUPLES, which JSON cannot hold, so every bundle silently-but-loudly dropped
+    # them ("NOT serialisable: panel_titles") and a --plot-only redraw lost every panel's sessions / trials / r line
+    # (11-01). Stored as [row, col, title] triples; `replot_map` rebuilds the dict.
+    pt = kw.get("panel_titles")
+    if isinstance(pt, dict) and pt and not _jsonable(pt):
+        kw = dict(kw)
+        kw.pop("panel_titles")
+        kw["panel_titles_list"] = [[str(k[0]), str(k[1]), str(v)] if isinstance(k, tuple) and len(k) == 2
+                                   else [str(k), "", str(v)] for k, v in pt.items()]
     dropped = sorted(k for k, v in kw.items()
                      if k not in ("contours", "blank", "edges") and not _jsonable(v))
     if dropped:
@@ -422,6 +431,9 @@ def replot_map(bundle, out=None, *, relabel_rows=None, relabel_cols=None, **over
         from wfield_local.beta_maps import atlas_edges
         edges = atlas_edges()
     kw = dict(meta.get("kw") or {})
+    ptl = kw.pop("panel_titles_list", None)
+    if ptl:
+        kw["panel_titles"] = {((r, c) if c != "" else r): t for r, c, t in ptl}
     kw.update(contours=contours or None, blank=blank, edges=edges)
     kw.update(overrides)
     # RENAMING AN AXIS MUST RENAME THE CELL KEYS TOO, and this is why it is a parameter rather

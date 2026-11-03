@@ -73,7 +73,14 @@ def classes_for_rows(cls_e, cls_u, quit_u, pre):
     return ce, cu
 
 
-def session_class_maps(label, align, post_s=None):
+#: REST VARIANTS of the map reference (11-01). `rest` = the time-local REST above (the page's 10-24 figures 8.1 / 8.2,
+#: default, unchanged). `restnl` = RESTnl (lick-free rest, flat; `restnl_mask`): features of the PLAIN SVT (the same
+#: cached `svt:rank<K>` key as 15r's raw load), minus the flat baseline b_nl in every bin -- exact, because the window
+#: features are linear bin means with no per-trial baseline; a session without a usable RESTnl baseline is skipped.
+REST_VARIANTS = ("rest", "restnl")
+
+
+def session_class_maps(label, align, post_s=None, rest_variant="rest"):
     """{(spout, class): (map at half resolution, n trials)} for one session and window."""
     from wfield_local import config, joint_basis
     from wfield_local.beta_maps import _quit_mask
@@ -86,16 +93,34 @@ def session_class_maps(label, align, post_s=None):
     s = next(x for x in SESSIONS if x["label"] == label)
     post_s = post_s or float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
     u, v = joint_basis._load_session(s["mc"])
-    base = session_rest_svt_timelocal(s, v)
-    if base is None:
-        return {}
-    sig = np.asarray(v) - np.asarray(base)
     a = _args("locanmf", align, post_s, baseline="none")
-    X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
-        s, a, signal=sig, feat_region=np.arange(v.shape[0]),
-        signal_key=f"svt:rank{v.shape[0]}:restlocal{REST_BASELINE_BINS}", with_indices=True)
+    b_nl = None
+    if rest_variant == "restnl":
+        from wfield_local import restnl_mask
+        d = restnl_mask.baseline(label)
+        if d is None:
+            print(f"  .. {label}: no RESTnl baseline -- skipped", flush=True)
+            return {}
+        b_nl = np.asarray(d["b_nl"], np.float64)
+        X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
+            s, a, signal=np.asarray(v), feat_region=np.arange(v.shape[0]),
+            signal_key=f"svt:rank{v.shape[0]}", with_indices=True)
+    else:
+        base = session_rest_svt_timelocal(s, v)
+        if base is None:
+            return {}
+        sig = np.asarray(v) - np.asarray(base)
+        X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
+            s, a, signal=sig, feat_region=np.arange(v.shape[0]),
+            signal_key=f"svt:rank{v.shape[0]}:restlocal{REST_BASELINE_BINS}", with_indices=True)
     X, y, Xn, yn = np.asarray(X), np.asarray(y), np.asarray(Xn), np.asarray(yn)
     K = u.shape[1]
+    if b_nl is not None:                      # flat baseline: the same (K,) vector off every bin of every trial
+        if X.shape[1] % K or (len(yn) and Xn.shape[1] % K):
+            raise ValueError(f"{label}: {X.shape[1]} features is not a multiple of {K}")
+        X = X - np.tile(b_nl, X.shape[1] // K)[None, :]
+        if len(yn):
+            Xn = Xn - np.tile(b_nl, Xn.shape[1] // K)[None, :]
     cls_cue, _tid = _cue_classes([label], a.max_rt)[label]
     pick = lambda idx: np.array([cls_cue[k] if k < len(cls_cue) else "" for k in idx], object).astype(str)
     cls_e, cls_u = pick(idx_e), pick(idx_n)
@@ -122,15 +147,16 @@ def session_class_maps(label, align, post_s=None):
 
 
 def _job(args):
-    label, align = args
+    label, align = args[:2]
+    rv = args[2] if len(args) > 2 else "rest"
     try:
-        return label, session_class_maps(label, align)
+        return label, session_class_maps(label, align, rest_variant=rv)
     except Exception as ex:                                            # noqa: BLE001
         print(f"  !! {label} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
         return label, None
 
 
-def collect(animal, align, jobs=4):
+def collect(animal, align, jobs=4, rest_variant="rest"):
     """Aggregate one animal's sessions -> ({key: map}, counts DataFrame)."""
     from wfield_local import analysis_kit as ak, lp_licks
     if not lp_licks.is_lp():
@@ -139,12 +165,12 @@ def collect(animal, align, jobs=4):
     ep = dict(zip(A.label, A.epoch))
     labels = [l for l in ak.curated_labels([animal]) if ep.get(l) in ("pre",) + POST_EPOCHS]
     if jobs > 1:
-        pairs, fail = ak.fan_sessions([(l, align) for l in labels], _job, jobs=jobs)
+        pairs, fail = ak.fan_sessions([(l, align, rest_variant) for l in labels], _job, jobs=jobs)
         if fail:                                   # a short table looks like a legitimately short one: refuse
             raise RuntimeError(f"{animal} {align}: {len(fail)} session(s) failed in the pool: {fail}")
         res = [v for _item, v in pairs]
     else:
-        res = [_job((l, align)) for l in labels]
+        res = [_job((l, align, rest_variant)) for l in labels]
     bad = [l for l, d in res if d is None]
     if bad:
         raise RuntimeError(f"{animal} {align}: no maps for {bad}")
@@ -164,9 +190,11 @@ def collect(animal, align, jobs=4):
     return maps, pd.DataFrame(rows)
 
 
-def out_dir():
+def out_dir(rest_variant="rest"):
+    """`attempt_maps/` (REST, 10-24) or `attempt_maps_restnl/` (RESTnl, August-only pre; 11-01) -- never the same."""
     from wfield_local import lp_licks
-    return lp_licks._run_dir() / "imaging_encoding" / "attempt_maps"
+    return lp_licks._run_dir() / "imaging_encoding" / ("attempt_maps" if rest_variant == "rest"
+                                                       else f"attempt_maps_{rest_variant}")
 
 
 EPOCHS = ("pre",) + POST_EPOCHS
@@ -213,7 +241,7 @@ def hemisphere_table(od, align, animals):
     return pd.DataFrame(rows)
 
 
-def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
+def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), rest_variant="rest"):
     """Per spout: one figure per animal-set, rows = animals (+ mean of animal means), columns = SHOW (epoch x class);
     one absolute version (shared symmetric scale per row) and one minus that animal's pre-stroke hits."""
     import matplotlib
@@ -267,11 +295,20 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
                     cb.set_label("dF", fontsize=6)
                 else:
                     axes[i, -1].set_visible(False)
-            what = "minus pre-stroke hits" if diff else "rest-referenced dF"
-            fig.suptitle(f"{P}, {align} window: {what} (image left = ipsilesional; mean = mean of animal means, "
-                         f">= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)
-            fig.tight_layout(rect=(0, 0, 1, 0.95))
-            fn = fd / f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}.png"
+            if rest_variant == "restnl":
+                what = ("RESTnl-referenced dF, minus pre-stroke hits" if diff else "RESTnl-referenced dF")
+                fig.suptitle(f"{P}, {align} window: {what}. RESTnl = lick-free rest, flat (rest licks excluded: DAQ "
+                             f"contact + cam4 LP video, [-0.5, +2.0] s); trial classes: LP video attempts; pre = August "
+                             f"only\n(image left = ipsilesional; mean = mean of animal means, >= 2 animals; per-row "
+                             f"symmetric 99th-pct scale)", fontsize=8)
+                fig.tight_layout(rect=(0, 0, 1, 0.93))
+            else:
+                what = "minus pre-stroke hits" if diff else "rest-referenced dF"
+                fig.suptitle(f"{P}, {align} window: {what} (image left = ipsilesional; mean = mean of animal means, "
+                             f">= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)
+                fig.tight_layout(rect=(0, 0, 1, 0.95))
+            sfx = "" if rest_variant == "rest" else f"_{rest_variant}"
+            fn = fd / f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}{sfx}.png"
             fig.savefig(fn, dpi=130)
             plt.close(fig)
             out.append(fn)
@@ -284,14 +321,18 @@ def main(argv=None) -> int:
     ap.add_argument("--aligns", nargs="+", default=list(ALIGNS), choices=ALIGNS)
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--out", type=Path, default=None)
-    ap.add_argument("--figures", action="store_true", help="figures + hemisphere table from the stored maps, then exit")
+    ap.add_argument("--figures", "--plot-only", action="store_true",
+                    help="figures + hemisphere table from the stored maps (the figure data), then exit")
+    ap.add_argument("--rest-variant", choices=REST_VARIANTS, default="rest",
+                    help="map reference: rest (time-local REST, default) or restnl (lick-free flat RESTnl; run with "
+                         "WIDEFIELD_PRE_FROM=0801 for the August-only pre; baselines from `restnl_mask`)")
     a = ap.parse_args(argv)
-    od = a.out or out_dir()
+    od = a.out or out_dir(a.rest_variant)
     od.mkdir(parents=True, exist_ok=True)
     if a.figures:
         for align in a.aligns:
             hemisphere_table(od, align, a.animals).to_csv(od / f"hemispheres_{align}.csv", index=False)
-            for fn in figures(od, align, a.animals):
+            for fn in figures(od, align, a.animals, rest_variant=a.rest_variant):
                 print(f"[attempt_maps] wrote {fn.name}", flush=True)
         return 0
     for align in a.aligns:
@@ -301,7 +342,7 @@ def main(argv=None) -> int:
             if f.exists():
                 print(f"[attempt_maps] {an} {align}: exists, skipped", flush=True)
                 continue
-            maps, C = collect(an, align, a.jobs)
+            maps, C = collect(an, align, a.jobs, rest_variant=a.rest_variant)
             np.savez_compressed(f, **maps)
             C.to_csv(od / f"counts_{align}_{an}.csv", index=False)
             counts.append(C)
