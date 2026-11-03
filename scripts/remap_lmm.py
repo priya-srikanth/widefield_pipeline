@@ -27,12 +27,14 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import E  # noqa: E402
+from fr_musall import E, E_BASE  # noqa: E402  (E: encoder-mode root; E_BASE: unrouted base)
 from specificity_control import GROUPS, group_means  # noqa: E402
 
 
 def residual_long(tag: str) -> pd.DataFrame:
-    T = pd.read_csv(E / "specificity_control" / tag / "sessions.csv")
+    from wfield_local import run_mode
+    # the WRITER's folder (specificity_control: run_mode.subdir(E_BASE / "specificity_control"); T6, third review)
+    T = pd.read_csv(run_mode.subdir(E_BASE / "specificity_control") / tag / "sessions.csv")
     G = group_means(T, ("residual_z",))
     G = G[G.area.isin(["orofacial contra", "orofacial ipsi", "control", "orofacial - control"])]
     L = G.melt(id_vars=["label", "window", "area"], value_vars=["residual_z"], var_name="q", value_name="y")

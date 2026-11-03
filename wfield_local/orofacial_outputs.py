@@ -481,6 +481,7 @@ def main(argv=None) -> int:
             sess = [s for s in sess if f"{s[0]}_{s[1]}" in cur]
         results, failures = parallel.fan_out([(run, an, d) for an, d in sess], _all_licks_worker, jobs=a.jobs,
                                              label="session")
+        results = sorted(results, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
         C = pd.DataFrame(sorted((r for _it, r in results), key=lambda r: r["session"]))
         for it, err in failures:
             print(f"  {it[1]} {it[2]}: FAILED -- {err}")
@@ -507,6 +508,7 @@ def main(argv=None) -> int:
         print(f"{len(done)} of {len(sess)} sessions have every video finished")
         results, failures = parallel.fan_out([(a.bundle, an, d, a.force) for an, d in done], _process_worker,
                                              jobs=a.jobs, label="session")
+        results = sorted(results, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
         res = [r for _it, r in results] + [(it[1], it[2], "FAILED", err) for it, err in failures]
         for an, d, st, err in sorted(res):
             if st != "ok":

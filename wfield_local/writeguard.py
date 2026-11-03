@@ -88,8 +88,12 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
     # REVIEW H2 (11-03): the LOCAL figures_working root the deck is built from is checked the same way, so a tagged run
     # (hemo variant, camera gate, PRE_FROM ...) can never overwrite a default-named PNG / JSON there.
     if _MICROSCOPE_MARK in c or any(m in c for m in _STANDBY_MARKS) or _under_figures_working(c):
-        from wfield_local import lp_licks
+        from wfield_local import lp_licks, run_mode
         tag = lp_licks.output_tag()
+        # T1 / T2 (third review): an LP-family root routed by `run_mode.subdir(..., lp_family=True)` and a registered
+        # content-keyed data store are accepted at their routed location (the LP source is implicit in the former)
+        if tag is not None and (run_mode.lp_family_root_ok(c) or run_mode.data_store_ok(c)):
+            return
         if tag is not None and f"/{tag.lower()}/" not in c:
             raise WriteGuardError(
                 f"refusing a {tag} run's write outside a {tag} directory:\n  path: {path}\n"

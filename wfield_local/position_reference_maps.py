@@ -787,6 +787,11 @@ def maps_by_epoch(align, variant, post_s=2.0):
         by_label = {k: (dict(v, restnl_base=bases[k]) if k in bases else v) for k, v in by_label.items()}
         print(f"  .. ref-map: RESTnl baselines for {len(bases)}/{len(by_label)} sessions"
               + (f"; NO RESTnl column for {miss}" if miss else ""), flush=True)
+        if by_label and not bases:
+            # T4 (third review): the RESTnl column was asked for and NO session has a baseline -- fail loudly, never
+            # render a figure without its RESTnl column
+            raise RuntimeError("ref-map: RESTnl reference requested but no session has a RESTnl baseline "
+                               "(build them: python -m wfield_local.restnl_mask)")
     for an in ANIMALS:
         per, ntr = {}, {}
         for s, e in plan.get(an, []):

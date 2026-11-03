@@ -262,7 +262,8 @@ def session_table(T: pd.DataFrame, S: pd.DataFrame) -> pd.DataFrame:
                      "n_fc_hits_scored": int(fc.inside.notna().sum())})
     D = S.merge(pd.DataFrame(rows), on="label", how="left")
     # existing tables (read, never refitted)
-    G = pd.read_csv(E / "iti_licks" / "aim_by_spout_sessions.csv")
+    import iti_licks as _il                                  # the WRITER's root (lick_cued_aim_by_spout -> il.OUT; T6)
+    G = pd.read_csv(_il.OUT / "aim_by_spout_sessions.csv")
     D = D.merge(G[G.pos == "far_contra"][["label", "chg"]].rename(columns={"chg": "aim_fc"}), on="label", how="left")
     R = pd.read_csv(E / "iti_licks" / "recprim_sessions.csv")
     D = D.merge(R[R.panel == "cued first lick -> aim"][["label", "marker"]].rename(columns={"marker": "bal"}),

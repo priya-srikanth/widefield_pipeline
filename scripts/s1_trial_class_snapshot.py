@@ -36,14 +36,26 @@ def session_job(job) -> list[dict]:
     cs = np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
     T = J.session_classes(label, window=window)
     if T is None:
-        return [dict(label=label, cue_idx=i, cue_s=t, cls="no_video", position="", working=False, camera_lick=False,
+        return [dict(label=label, cue_idx=i, cue_s=t, cls="no_video", cls_final="no_video", position="", working=False, working_raw=False,
+                     stopped=False, working_pl_lick=False, working_pl_contact=False, working_pl_close=False,
+                     camera_lick=False,
                      has_cam1=False) for i, t in enumerate(cs)]
+    from wfield_local import trial_classes as tc
     c = J.cue_classes(T, cs)
     pos = J.cue_classes(T.assign(cls=T.position), cs)           # the same time matcher, carrying the spout position
-    w, lk = J.in_gate(c, "working"), J.in_gate(c, "camera_lick")
+    matched = J.cue_classes(T.assign(cls="matched"), cs) == "matched"
+    # ONE CLASSIFIER (T9, third review): the session-level rules -- end at the last camera lick within the covered span,
+    # sustained stop (>= 6 no_response, jaw-only bridges), warm-up, coverage -- come from trial_classes.classify_session,
+    # never re-derived here. `working` = the PRIMARY (end "lick"); working_pl_<anchor> = the robustness anchors.
+    fin = {e: tc.classify_session(c, matched, pos, end=e) for e in ("lick", "contact", "close")}
+    w, lk = tc.in_gate(fin["lick"], "working"), tc.in_gate(c, "camera_lick")
+    wpl = {e: tc.in_gate(f, "working") for e, f in fin.items()}
+    stop = np.isin(fin["lick"], list(tc.STOPPED_CLASSES))
     h = bool(T.has_cam1.iloc[0]) if len(T) else False
-    return [dict(label=label, cue_idx=i, cue_s=t, cls=c[i], position=pos[i], working=bool(w[i]),
-                 camera_lick=bool(lk[i]), has_cam1=h) for i, t in enumerate(cs)]
+    return [dict(label=label, cue_idx=i, cue_s=t, cls=c[i], cls_final=fin["lick"][i], position=pos[i],
+                 working=bool(w[i]), working_raw=bool(J.in_gate(c[i:i + 1], "working")[0]), stopped=bool(stop[i]),
+                 camera_lick=bool(lk[i]), has_cam1=h,
+                 **{f"working_pl_{e}": bool(v[i]) for e, v in wpl.items()}) for i, t in enumerate(cs)]
 
 
 def main(argv=None) -> int:
@@ -79,9 +91,10 @@ def main(argv=None) -> int:
     #                       quit-tail idea: those spouts are barely affected, so the anchor marks when the animal
     #                       stopped, not where the last block happened to be
     # The rule lives in `wfield_local.trial_classes.in_working` (e3, b506c1e3); this snapshot only records it.
-    from wfield_local import trial_classes as tc
+    # working_pl_<anchor> come from trial_classes.classify_session in session_job (one classifier, T9); no-video rows
     for name in ("contact", "lick", "close"):
-        D[f"working_pl_{name}"] = tc.in_working(D.cls, D.cue_idx, session=D.label, position=D.position, end=name)
+        D[f"working_pl_{name}"] = D[f"working_pl_{name}"].fillna(False).astype(bool) if f"working_pl_{name}" in D \
+            else False
     f = out / f"s1_trial_classes_{a.window}.csv.gz"
     D.to_csv(f, index=False, float_format="%.6f")
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
@@ -100,7 +113,7 @@ def main(argv=None) -> int:
     D["epoch"] = D.label.map(epochs.epoch_of)
     P = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
     for name in ("contact", "lick", "close"):
-        drop = D.working & ~D[f"working_pl_{name}"]
+        drop = D.working_raw.fillna(False).astype(bool) & ~D[f"working_pl_{name}"]
         t = D[drop].groupby(["epoch", "position"]).size().unstack().reindex(columns=P).fillna(0).astype(int)
         t["all"] = t.sum(1)
         t["share_of_working"] = (t["all"] / D[D.working].groupby("epoch").size().reindex(t.index)).round(3)

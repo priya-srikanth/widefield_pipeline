@@ -184,7 +184,9 @@ def categorize(s, args, with_licks=False):
 
     There is deliberately NO arm past the response window. A lick at 4 s arrives while the spout is
     already moving, so it belongs to no trial cleanly; such cues count as `undetected`, which is what
-    the task scores them as.
+    the task scores them as. EXCEPTION, CAMERA GATE ONLY (Priya FINAL 11-03): the lick definition is then
+    trial_classes' cue_stop window (cue -> trial stop, the contact table), so an "undetected" cue whose
+    cue_stop class is contact is a contact trial and is moved to `late_rewarded` (out of the no-lick arm).
     """
     cue = _load_cue_events(s["h5"])
     lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)

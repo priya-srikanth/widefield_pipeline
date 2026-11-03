@@ -408,7 +408,8 @@ _CLASS_SIG: dict = {}
 CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "cue_classes",
                     "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
                     "camera_engaged_period", "in_gate", "apply_stopped_rule", "apply_session_end",
-                    "before_session_end", "in_working", "classify_session", "_matched_cues")
+                    "before_session_end", "in_working", "classify_session", "_matched_cues",
+                    "_effective_coverage")
 
 
 def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
@@ -454,16 +455,12 @@ def camera_engaged_period(label: str, cue_s) -> np.ndarray:
     # DECIDED (Priya 11-03, decision 2): the period ends at the session's LAST CAMERA LICK -- the anchor of
     # in_working(end="lick"). With an uncovered video tail (N6) the real last lick is unknown: the period ends at the
     # last COVERED cue instead (never beyond what the video saw).
+    # T8 (third review): the period ends at the last camera lick ALWAYS -- also with an uncovered video tail (the
+    # no-cutoff exception is for the trial classes only; rest after the last seen lick may already be sated)
     c = cue_classes_for(label, cue_s)
     out = np.zeros(len(c), bool)
     lick = in_gate(c, "camera_lick")
-    if not lick.any():
-        return out
-    m = c != "unknown"
-    cov = _matched_cues(label, cue_s)
-    if cov.any() and int(np.flatnonzero(cov)[-1]) < len(c) - 1:
-        out[: int(np.flatnonzero(m & cov)[-1]) + 1] = True
-    else:
+    if lick.any():
         out[: int(np.flatnonzero(lick)[-1]) + 1] = True
     return out
 
@@ -527,22 +524,35 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     end = end or end_anchor()
     out = np.asarray(cls, dtype=object).copy()
     n = len(out)
-    m = np.ones(n, bool) if matched is None else np.asarray(matched, bool)
+    m = _effective_coverage(np.ones(n, bool) if matched is None else np.asarray(matched, bool))
     tail_uncovered = bool(m.any()) and int(np.flatnonzero(m)[-1]) < n - 1
     if end == "none" or tail_uncovered or not m.any():
         after = np.zeros(n, bool)
     else:
         after = ~before_session_end(out, np.arange(n), position=position, anchor=end)
-    jaw_late = (out == "jaw_only") & after                         # N7: counts toward a no-response run
+    # T3 (Priya 11-03, as approved: "a jaw-only trial after the last lick shouldn't BREAK a stop run"): a jaw_only
+    # trial after the last camera lick BRIDGES a no_response run; it does NOT count toward the 6 and is NOT stopped
+    jaw_late = (out == "jaw_only") & after
     nr = out == "no_response"
+    lick = in_gate(out, "camera_lick")
+    # WARM-UP (third review LOW, PROVISIONAL for Priya): no_response trials BEFORE the session's first camera lick
+    # are a warm-up, not satiation: in neither class
+    warm = np.zeros(n, bool)
+    if lick.any():
+        k0 = int(np.flatnonzero(lick)[0])
+        warm[:k0] = nr[:k0]
+    else:
+        # no camera lick at all: the animal never started -- every no_response is warm-up, nothing is stopped, and
+        # (no working period) any jaw-only leaves working through the end rule below
+        warm = nr.copy()
     stop = np.zeros(n, bool)
     if rule == "any":
-        stop = nr.copy()
+        stop = nr & ~warm
     else:
         seg_id = np.cumsum(np.r_[True, np.diff(m.astype(int)) != 0])   # covered / uncovered segments
         for sid in np.unique(seg_id[m]):
             idx = np.flatnonzero((seg_id == sid) & m & (out != "unknown"))
-            seq = (nr | jaw_late)[idx]
+            seq = ((nr & ~warm) | jaw_late)[idx]
             i = 0
             while i < len(seq):
                 if not seq[i]:
@@ -551,22 +561,52 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
                 j = i
                 while j < len(seq) and seq[j]:
                     j += 1
-                if j - i >= n_min:
-                    stop[idx[i:j]] = True
+                run = idx[i:j]
+                if int(nr[run].sum()) >= n_min:          # >= 6 NO_RESPONSE trials; bridging jaw_only not counted
+                    stop[run[nr[run]]] = True
                 i = j
+    out[warm] = WARMUP_CLASS
     out[stop] = STOPPED_CLASS
     late = after & ~stop & (in_gate(out, "working") | (out == "no_response"))
     out[late] = AFTER_END_CLASS
     return out
 
 
+#: T7 (third review): an unmatched stretch counts as UNCOVERED only when it is at least this many consecutive cues;
+#: a shorter one (an isolated cue missing the 20 ms match, a trailing DAQ cue after the video stopped) stays "unknown"
+#: inside the covered span -- skipped in stop runs, never a split, never a reason to drop the end cutoff
+MIN_UNCOVERED_RUN = 5
+#: no_response trials before the session's first camera lick (warm-up; PROVISIONAL for Priya): in neither class
+WARMUP_CLASS = "warmup"
+
+
+def _effective_coverage(matched) -> np.ndarray:
+    """``matched`` with unmatched stretches shorter than MIN_UNCOVERED_RUN filled in (treated as covered)."""
+    m = np.asarray(matched, bool).copy()
+    if not m.any():
+        return m
+    i, n = 0, len(m)
+    while i < n:
+        if m[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and not m[j]:
+            j += 1
+        if j - i < MIN_UNCOVERED_RUN:
+            m[i:j] = True
+        i = j
+    return m
+
+
 def session_coverage(label: str, cue_s, window: str | None = None) -> dict:
     """Video coverage of one session's cue train (N6): {n_cues, n_matched, frac, partial, tail_uncovered}."""
     m = _matched_cues(label, cue_s, window)
+    e = _effective_coverage(m)                   # T7: stretches < MIN_UNCOVERED_RUN cues are not uncovered
     n = len(m)
     return {"label": label, "n_cues": n, "n_matched": int(m.sum()), "frac": float(m.mean()) if n else float("nan"),
-            "partial": bool(n and not m.all()),
-            "tail_uncovered": bool(m.any() and int(np.flatnonzero(m)[-1]) < n - 1)}
+            "partial": bool(n and not e.all()),
+            "tail_uncovered": bool(e.any() and int(np.flatnonzero(e)[-1]) < n - 1)}
 
 
 def _matched_cues(label: str, cue_s, window: str | None = None) -> np.ndarray:

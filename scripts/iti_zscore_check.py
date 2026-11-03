@@ -50,7 +50,7 @@ def session_sd(item) -> dict:
 
 
 def sds(jobs: int) -> pd.DataFrame:
-    f = OUTZ / il.SD_NAME
+    f = il.sd_table_path(il.SD_NAME)            # the reader's path (T2): content-keyed XOUT/zscore_check
     if f.exists():
         return pd.read_csv(f, index_col=0)
     from wfield_local import analysis_kit as ak
@@ -68,6 +68,7 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args()
     OUTZ.mkdir(parents=True, exist_ok=True)
+    il.sd_table_path("_").parent.mkdir(parents=True, exist_ok=True)
     sds(a.jobs)                                    # computes + caches the plain areas' frame SDs when absent
     import iti_where_beyond_pull as bp
     import iti_where_decoder as wd

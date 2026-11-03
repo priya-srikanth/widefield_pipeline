@@ -42,7 +42,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import AN, E  # noqa: E402
+from fr_musall import AN, E_BASE as E  # noqa: E402  (UNROUTED base: OUT / XOUT add the run mode themselves)
 
 from wfield_local import run_mode  # noqa: E402
 # RUN-MODE ROOT (rebuild 11-03, trap T18): the per-session extracts under OUT/sessions* are SKIP-IF-EXISTS, so a run in
@@ -53,6 +53,14 @@ OUT = run_mode.subdir(E / "iti_licks")
 # fully tagged OUT. A PRE_FROM / MAP_REFS / in-memory / LP / gate-LP run therefore reads the extracts of its data
 # instead of failing on an empty tagged folder. XOUT == OUT == iti_licks/ by default.
 XOUT = run_mode.subdir(E / "iti_licks", include=("hemo", "lnmf", "projall"))
+# T2 (third review): XOUT is CONTENT-keyed (the data parts of the mode), so it is registered as a data store: writeguard
+# does not tag-check it (like the frozen store), and the extract step writes it in every mode
+
+
+def sd_table_path(name: str) -> Path:
+    """THE path of an SD / split table (written by iti_zscore_check / iti_area_split_sd, read by `_sd_dir`): the
+    content-keyed extract folder XOUT/zscore_check (T2, third review: writer and reader in one place)."""
+    return XOUT / "zscore_check" / name
 # WRITE ROOT (10-28, overnight queue 5a/5b/5d): scripts that adopt it write tables / figures / figdata under OUT_W and keep
 # READING inputs from OUT. Default = OUT (production unchanged); env WFIELD_ITI_OUT_W redirects the writes (a test run
 # under a write guard writes into a local scratch folder and never touches the share).
@@ -195,6 +203,8 @@ RIM_FRONT_PX = 8
 FRP_GAP_PX = 10           # 0.19 mm
 RIM_LAT_AP_MIN = -0.5
 ROI_FRAC, SESS_NAME, SD_NAME, SPLIT_NAME, ROI_THIN_ANT_RIM = _ROI[ROI_VERSION]   # SD files live in zscore_check/
+run_mode.register_data_store(XOUT / SESS_NAME)       # T2: only the extract folders, never all of XOUT
+run_mode.register_data_store(XOUT / "zscore_check")
 # AREA BASIS of every decoder on the ITI session files (Priya 10-27 late: "use split bases, for consistency"; DECISIONS
 # 2026-10-27 late). "split" (DEFAULT) = Allen areas with the ALM / tjM1 split: every area except cortex and whole MOs /
 # MOp, ALM + tjM1 IN, plus per hemisphere the disjoint rests MOs_rest = (MOs - f ALM) / (1 - f) and MOp_rest (f = the
@@ -658,7 +668,7 @@ def _sd_dir(sess_dir: Path | str | None) -> Path:
     """Folder of the SD / split tables for a session folder: OUT/zscore_check for the August sessions, the session
     folder's parent for a separate reference set (June: june_ref/<SD_NAME>, june_ref/<SPLIT_NAME>, `iti_june_ref.py`)."""
     if not sess_dir or Path(sess_dir) == XOUT / SESS_NAME:
-        return XOUT / "zscore_check"
+        return sd_table_path("_").parent
     return Path(sess_dir).parent
 
 
@@ -2222,7 +2232,7 @@ def main(argv=None) -> int:
             binned_plot()
         return 0
     assert_writable(OUT)
-    assert_writable(XOUT)
+    assert_writable(XOUT / SESS_NAME / "_")      # the content-keyed extract folder (a registered data store)
     if not (XOUT / SESS_NAME).is_dir():                  # (no mkdir call when it exists: the dev write guard refuses any)
         (XOUT / SESS_NAME).mkdir(parents=True, exist_ok=True)
     run = encoder_run() / "joint" / "sessions"

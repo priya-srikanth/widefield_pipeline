@@ -394,7 +394,15 @@ def run(jobs: int) -> int:
     C = collect()
     log(f"collected {len(C)} set x animal cells, {sum(len(v) for v in C.values())} session-sets, {time.time() - t0:.0f} s")
     Xb = {k: {x: v[1] for x, v in S.items()} for k, S in C.items()}
-    fits0 = {k: fit_dec(S, Xb[k]) for k, S in C.items()}
+    # the BEFORE decoder, STORED (T9, third review): the stored read-out helper (kind iti_readout, data signature), the
+    # same construction as fit_dec -- no longer refitted in memory on every run (WIDEFIELD_ITI_FROZEN=0 = in memory)
+    from wfield_local import frozen_readouts
+    fits0 = {}
+    for k, S in C.items():
+        pre = [x for x, v in S.items() if v[0] == "pre"]
+        fits0[k] = frozen_readouts.pre_loso_ridge(k[1], f"face_offset_partial-before-{k[0]}", pre,
+                                                  {q: Xb[k][q] for q in pre}, {q: S[q][2] for q in pre},
+                                                  np.logspace(-1, 5, 13))
     Pb = score(C, Xb, fits0)
     cache = pd.read_csv(lo.preds_path())
     same = len(cache) == len(Pb) and (cache[["set", "label", "pos"]].astype(str).to_numpy() == Pb[["set", "label", "pos"]].astype(str).to_numpy()).all()

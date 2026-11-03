@@ -22999,3 +22999,36 @@ Robustness rows: anchor "contact", "close" (last lick at close_L / close_center)
 unchanged. Moved from 5b's `scripts/s1_trial_class_snapshot.py` (91664c86); identical on all 57,601 snapshot rows for
 all three anchors. `selection_tag(end="lick")` adds "-endlick" to cache keys built on it (no end = tag unchanged).
 Section 1 already uses it (no cell moved by more than .02).
+
+## 2026-11-03 (night) -- Camera trial gate for the cohort-1 rebuild: the decided rules, in one place (Priya)
+
+Collected from the rebuild rounds of 11-03 (coordinator relays; implementation `wfield_local/trial_classes.py`
+`classify_session`, called by `cue_classes_for`; log docs/status/REBUILD_CODE_20261103.md sections 8.2, 8.6, 8.8).
+
+- **Working (camera).** contact | incomplete | jaw_only (the A4 classes), i.e. "responded to this cue" -- the default
+  "working" of the rebuild (`trial_selection.gate: camera`). The DAQ quit-tail rule stays a labelled robustness row.
+- **End of session.** Working ends at the session's LAST CAMERA LICK (contact or incomplete; `in_working(end="lick")`,
+  b506c1e3). Robustness anchors: contact / close / none.
+- **Stopped = a SUSTAINED stop.** At least 6 (`behavior.tail_min_misses`, the task's auto_hold_after_miss) camera
+  no_response trials in a run. In-video "unknown" trials neither break nor extend a run. A jaw_only trial AFTER the
+  last camera lick BRIDGES a run (it does not break it) but is not stopped and does not count toward the 6 ("a jaw-only
+  trial after the last lick shouldn't BREAK a stop run"). Sensitivity: every no_response (`trial_selection.stopped:
+  any`). The rule name is in the selection tag (stopRun6 / stopAny).
+- **Isolated lapses.** A no_response trial inside the working period that is not part of a stop stays "no_response":
+  attempt coding's "noattempt" = an isolated lapse; the contrast is isolated lapse vs sustained stop. After the last
+  lick a non-stopped no_response is in neither class.
+- **No-lick trials with a camera contact** are in neither miss-while-working nor stopped, and are counted.
+- **No-lick analysis window = cue -> trial stop** (FINAL, supersedes the response-window proposal): licks and contacts
+  counted exactly as trial_classes' cue_stop does (contacts from cue + 70 ms, the contact table), so the two definitions
+  cannot disagree; cue_stop is in the no-lick selection tag.
+- **Rest-baseline working period** ends at the session's last camera lick (the same anchor), also when the video tail is
+  missing.
+- **Partial video coverage.** Sessions with partial video (PS92_0908, 82.5 %) are KEPT for their covered trials;
+  uncovered trials stay "unknown"; the end cutoff is not applied when a real video TAIL is missing, and stop runs never
+  stitch across an uncovered stretch. Only >= 5 consecutive unmatched cues count as uncovered (an isolated cue missing
+  the 20 ms match, or a trailing DAQ cue, stays an in-video "unknown"). Partially covered sessions are named on every
+  camera-gate figure (`trial_classes.coverage_note`).
+- PROVISIONAL (third review, to confirm): no_response trials BEFORE the session's first camera lick are a WARM-UP
+  (class "warmup", in neither working nor stopped); a session with no camera lick at all has no working period and no
+  stop.
+

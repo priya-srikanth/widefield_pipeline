@@ -242,6 +242,7 @@ def main(argv=None) -> int:
     units = [(an, al) for al in args.align for an in animals]
     got, failures = parallel.fan_out(
         units, functools.partial(_joint_one, dates=dates), jobs=args.jobs, label="animal/align")
+    got = sorted(got, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     if failures:
         rc = 1
         for (an, al), err in failures:

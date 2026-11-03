@@ -2236,6 +2236,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         for line in unresolved[:20]:
             print(f"    {line}", flush=True)
     _refuse_unresolved_overwrite(out_path, unresolved, allow_unresolved)
+    # T5 (third review): a tagged run may never replace the default deck -- guard the SAVE itself (the writeguard
+    # refuses a default-path write in a tagged mode)
+    from wfield_local.writeguard import assert_writable
+    assert_writable(out_path)
     keep_previous(out_path)
     prs.save(str(out_path))
     manifest, stale = _write_manifest(out_path, placed_figures, run_start)
@@ -2262,7 +2266,9 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
-    out = args.out or (Path(rv.root("cohort_out")) / "spout_position_analysis_summary.pptx")
+    from wfield_local import run_mode
+    out = args.out or (run_mode.routed_output(Path(rv.root("cohort_out")), guard=False)
+                       / "spout_position_analysis_summary.pptx")       # T5: the tag folder in a tagged run
     summary = build_analysis_deck(src, out, allow_missing=args.allow_missing,
                                   run_start=args.run_start)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "

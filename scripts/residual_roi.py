@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import E  # noqa: E402
+from fr_musall import E_BASE  # noqa: E402
 
 EPS = ["acute", "subacute", "chronic"]
 WINDOWS = ["cue", "lick"]
@@ -96,7 +96,7 @@ def main(argv=None) -> int:
     if a.by_spout:
         return by_spout(a.tag)
     from wfield_local import run_mode
-    out = run_mode.subdir(E / "specificity_control") / a.tag      # specificity_control's mode-routed folder (N10)
+    out = run_mode.subdir(E_BASE / "specificity_control") / a.tag      # specificity_control's mode-routed folder (N10)
     T = pd.read_csv(out / "sessions.csv")
     T = T[T.area != "cortex"]
     B = pd.concat([ffc.boot(T, c, epochs=EPS).assign(q=c) for c in ("residual", "residual_z")], ignore_index=True)
@@ -173,7 +173,7 @@ def by_spout(tag: str) -> int:
     from iti_area_maps import _sig_halo
     from wfield_local import frozen_encoder, run_mode
     from wfield_local.writeguard import assert_writable
-    out = run_mode.subdir(E / "specificity_control", make=True) / tag       # review N10 (11-03)
+    out = run_mode.subdir(E_BASE / "specificity_control", make=True) / tag       # review N10 (11-03)
     assert_writable(out / "_")
     cache = out / "sessions_by_spout.csv"
     run = frozen_encoder.out_root() / f"frozen_encoder_{tag}"

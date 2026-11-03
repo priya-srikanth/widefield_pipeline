@@ -309,11 +309,28 @@ def baseline(label: str) -> dict | None:
     return {k: z[k] for k in z.files}
 
 
+def baseline_or_build(label: str) -> dict | None:
+    """`baseline`, BUILDING it first when its cache file is absent (T4, third review: a key change -- yaml / helper code
+    -- makes every old baseline invisible; it must be rebuilt, never read as "no baseline"). None only for the real
+    reasons: the session is excluded (no licks_all) or rule wr fails."""
+    d = baseline(label)
+    if d is not None:
+        return d
+    try:
+        fp = cache_path(label)
+    except StopIteration:
+        return None
+    if not fp.exists():
+        build_session(label)
+    return baseline(label)
+
+
 def base_maps(labels) -> tuple[dict, list]:
-    """``({label: base_map}, [labels without a usable RESTnl baseline])`` -- what `maps_by_epoch` attaches."""
+    """``({label: base_map}, [labels without a usable RESTnl baseline])`` -- what `maps_by_epoch` attaches. Missing
+    baselines are BUILT (`baseline_or_build`)."""
     got, miss = {}, []
     for lab in labels:
-        d = baseline(lab)
+        d = baseline_or_build(lab)
         if d is None:
             miss.append(lab)
         else:

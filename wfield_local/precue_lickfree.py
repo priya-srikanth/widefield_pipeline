@@ -353,6 +353,7 @@ def main(argv=None) -> int:
     units = [(s["label"], args.source) for s in SESSIONS
              if s["label"].split("_")[0] in set(only) and s["label"][-4:] in dates]
     got, failures = parallel.fan_out(units, _analyse_one, jobs=args.jobs, label="session")
+    got = sorted(got, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     for (lab, _src), err in failures:
         print(f"  !! {lab}: {err}", flush=True)
 

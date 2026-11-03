@@ -833,7 +833,8 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
         # stop, Priya 11-03); isolated no_response and "unknown" cues are neither: take stopped from there, never ~eng.
         from wfield_local.plot_spout_trial_averages import _load_daq_events
         cue = _load_daq_events(s["h5"])
-        ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"]))
+        ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"]),
+                                   window="cue_stop")       # the no-lick definition: cue_stop (Priya FINAL 11-03)
         if ccls.size != codes.size:
             raise RuntimeError(f"camera trial gate: {ccls.size} classified cues vs {codes.size} categorised")
         eng = _tc.in_gate(ccls, "miss_working")   # its callers split the NO-LICK arm: no contact class (review M6)

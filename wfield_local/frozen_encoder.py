@@ -1723,6 +1723,15 @@ def summarise_musall(out: Path, variants) -> None:
     print(f"\n-> {Path(out) / 'frozen_musall_r2_by_animal.csv'}")
 
 
+def base_root() -> Path:
+    """The UNROUTED `imaging_encoding` root (`<orofacial root>/<RUN>/imaging_encoding`): the base a caller applies its
+    OWN run-mode routing to (`run_mode.subdir`), so it is never tagged twice. Encoder runs: use `out_root()`."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+
+
 def out_root() -> Path:
     """Parent of every `frozen_encoder_<tag>/` run folder. FROZEN_OUT_ROOT (2026-11-02, cohort-1 swap-mask re-run): a run
     on another hemo variant (WIDEFIELD_HEMO_VARIANT) goes under its OWN root, never beside / over the adopted runs.

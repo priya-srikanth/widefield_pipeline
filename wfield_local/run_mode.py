@@ -155,6 +155,8 @@ def routed_output(path, *, make: bool = True, guard: bool = True, lp_family: boo
     folder is created (``make``) and `writeguard.assert_writable` is called (``guard``). The default run: ``path``."""
     p = Path(path)
     t = lp_family_tag() if lp_family else _out_tag()
+    if lp_family:
+        _LP_FAMILY_ROOTS.add(_norm(p.parent if t and p.name == t else p))
     if t and t not in p.parts:
         p = p / t
     if make and t:
@@ -181,6 +183,35 @@ def keyed_path(path, *, cache: bool = False) -> Path:
     return p.with_name(keyed_name(p.name, cache=cache))
 
 
+#: roots routed with ``lp_family=True`` in this process (T1, third review): `writeguard` accepts a write under such a
+#: root when it carries `lp_family_tag()` (or nothing, for the plain LP run), the same path `subdir` resolved
+_LP_FAMILY_ROOTS: set = set()
+#: content-keyed DATA folders registered in this process (T2): e.g. the ITI per-session extracts (`iti_licks.XOUT`),
+#: keyed by the data parts of the mode only; `writeguard` treats them like the frozen store (not tag-checked)
+_DATA_STORES: set = set()
+
+
+def register_data_store(path) -> Path:
+    p = Path(path)
+    _DATA_STORES.add(_norm(p))
+    return p
+
+
+def _norm(p) -> str:
+    import os
+    return os.path.normpath(str(p)).replace("\\", "/").lower().rstrip("/") + "/"
+
+
+def lp_family_root_ok(c: str) -> bool:
+    """True if the normalised path ``c`` lies under a registered LP-family root, at that root's routed location."""
+    t = lp_family_tag().lower()
+    return any(c.startswith(r) and ((not t) or c[len(r):].startswith(t + "/")) for r in _LP_FAMILY_ROOTS)
+
+
+def data_store_ok(c: str) -> bool:
+    return any(c.startswith(r) for r in _DATA_STORES)
+
+
 def lp_family_tag() -> str:
     """The output tag of an LP-ONLY family (attempt_coding, attempt_maps, ...; review N1, 11-03): `lp_licks.output_tag()`
     without its plain "LP_licks" part (the LP source is implicit there), so the default LP run keeps the pre-rebuild
@@ -201,6 +232,8 @@ def subdir(root, *, cache: bool = False, lp_family: bool = False, make: bool = F
         t = cache_tag()
     else:
         t = lp_family_tag() if lp_family else _out_tag()
+    if lp_family:
+        _LP_FAMILY_ROOTS.add(_norm(root))
     out = Path(root) / t if t else Path(root)
     if make and t:                       # review N5: a tagged writer's folder is created; default paths untouched
         out.mkdir(parents=True, exist_ok=True)

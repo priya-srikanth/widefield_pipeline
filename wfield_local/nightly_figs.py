@@ -1029,6 +1029,8 @@ def main():
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
     # and that is exactly the run whose failure list is worth having on disk.
     deck_out = Path(config.resolver().root("cohort_out")) / "spout_position_analysis_summary.pptx"
+    # T5 (third review): a TAGGED nightly builds its deck in its own tag folder, never over the default deck
+    deck_out = run_mode.routed_output(deck_out.parent, guard=False) / deck_out.name
     try:
         from wfield_local.locanmf_analysis_deck import (
             DeckFromFailedRun,

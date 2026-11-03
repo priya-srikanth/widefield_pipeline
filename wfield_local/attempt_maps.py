@@ -65,7 +65,7 @@ def classes_for_rows(cls_e, cls_u, quit_u, pre, camera_u=None):
     """Class per engaged row and per no-lick row of ONE session (strings; "" = unused).
 
     CAMERA TRIAL GATE (rebuild 11-03): ``camera_u`` = the `trial_classes` class per no-lick row; then ``quit_u`` is not
-    read, stopped = STOPPED_CLASSES (a sustained stop, Priya 11-03; "noattempt" is empty) and the working split = class in
+    read, stopped = STOPPED_CLASSES (a sustained stop, Priya 11-03; "noattempt" = an isolated lapse) and the working split = class in
     GATES["working"] ("unknown" = neither), as `attempt_coding.classify`."""
     if pre:
         ce = np.select([cls_e == "hit", cls_e == "incomplete"], ["pre_hit", "pre_incomplete"], "").astype(object)
@@ -110,9 +110,9 @@ def session_class_maps(label, align, post_s=None, rest_variant="rest"):
     b_nl = None
     if rest_variant == "restnl":
         from wfield_local import restnl_mask
-        d = restnl_mask.baseline(label)
+        d = restnl_mask.baseline_or_build(label)      # built when missing (T4); None = excluded / rule wr only
         if d is None:
-            print(f"  .. {label}: no RESTnl baseline -- skipped", flush=True)
+            print(f"  .. {label}: no usable RESTnl baseline (excluded or rule wr) -- skipped", flush=True)
             return {}
         b_nl = np.asarray(d["b_nl"], np.float64)
         X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
@@ -361,7 +361,8 @@ def main(argv=None) -> int:
                     help="map reference: rest (time-local REST, default) or restnl (lick-free flat RESTnl; run with "
                          "WIDEFIELD_PRE_FROM=0801 for the August-only pre; baselines from `restnl_mask`)")
     a = ap.parse_args(argv)
-    od = a.out or out_dir(a.rest_variant)
+    # an explicit --out (e.g. attempt_coding_pp) is routed like out_dir() (LP family; T1 / T6, third review)
+    od = run_mode.routed_output(a.out, guard=False, lp_family=True) if a.out else out_dir(a.rest_variant)
     from wfield_local.writeguard import assert_writable
     assert_writable(od / "_")   # review H3: a tagged run's share write must sit under its tag folder
     od.mkdir(parents=True, exist_ok=True)
@@ -379,6 +380,10 @@ def main(argv=None) -> int:
                 print(f"[attempt_maps] {an} {align}: exists, skipped", flush=True)
                 continue
             maps, C = collect(an, align, a.jobs, rest_variant=a.rest_variant)
+            if not maps:
+                # T4 (third review): an EMPTY maps file would be skipped as "exists" by every later run -- never write it
+                raise RuntimeError(f"[attempt_maps] {an} {align}: no session produced maps (rest_variant "
+                                   f"{a.rest_variant}); nothing written -- check the RESTnl baselines / inputs")
             np.savez_compressed(f, **maps)
             C.to_csv(od / f"counts_{align}_{an}.csv", index=False)
             counts.append(C)

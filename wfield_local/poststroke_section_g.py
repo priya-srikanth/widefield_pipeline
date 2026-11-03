@@ -282,6 +282,7 @@ def collect(animals=None, include_excluded=True, jobs=None):
     warm_units = [(an, align, include_excluded)
                   for an in post_animals(animals) for align, _ in CONDITIONS]
     warmed, wfail = parallel.fan_out(warm_units, _warm_one, jobs=jobs, label="pool")
+    warmed = sorted(warmed, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     if wfail:
         raise RuntimeError(f"section G phase 1 failed for {[u for u, _ in wfail]}: {wfail[0][1]}")
 

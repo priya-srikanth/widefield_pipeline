@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import E  # noqa: E402
+from fr_musall import E, E_BASE  # noqa: E402
 
 WINDOWS = {"cue": ((0.5, 1.5), (-0.5, 0.0)), "lick": ((0.0, 1.0), (-0.3, -0.1))}     # cue before lick (Priya 10-25)
 SIDES = ("_left", "_right")
@@ -114,7 +114,7 @@ def main(argv=None) -> int:
     from wfield_local.writeguard import assert_writable
     # review N10 (11-03): the encoder run of THIS mode (frozen_encoder.out_root routes it) and a mode-routed output
     run = frozen_encoder.out_root() / f"frozen_encoder_{a.tag}"
-    out = Path(a.out) if a.out else run_mode.subdir(E / "specificity_control", make=True) / a.tag
+    out = Path(a.out) if a.out else run_mode.subdir(E_BASE / "specificity_control", make=True) / a.tag
     assert_writable(out / "_")
     l2dir = Path(a.layer2) if Path(a.layer2).is_absolute() else E / a.layer2       # absolute: a dry-run folder
     (out / "figures").mkdir(parents=True, exist_ok=True)
