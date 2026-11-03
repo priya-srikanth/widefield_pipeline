@@ -165,8 +165,11 @@ def _sem(x) -> float:
 
 
 def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None:
-    from wfield_local import config
-    col = config.animal_color()
+    """x = epoch; per animal: epoch mean +- SEM over its sessions as a filled marker (shape = animal, colour = epoch)
+    at the animal's lateral offset, its SESSIONS as faded open markers around it; no line across epochs (Priya 11-03,
+    `cat_points`)."""
+    from wfield_local import cat_points as cp
+    from wfield_local.orofacial_cohort import EPOCH_LINE
     cols = [c for c in SUMMARY_COLS if c in S]
     plt = _plt()
     nc = 4
@@ -174,14 +177,20 @@ def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
                             squeeze=False)
     for ax in axs.flat[len(cols):]:
         ax.axis("off")
+    animals = sorted(S.animal.unique())
+    off = cp.epoch_offsets(len(animals), step=0.17)
     for ax, c in zip(axs.flat, cols):
         for k, (a, g) in enumerate(S.groupby("animal")):
             mu = g.groupby("epoch")[c].mean().reindex(EPOCH_ORDER)
             se = g.groupby("epoch")[c].agg(_sem).reindex(EPOCH_ORDER)
-            x = np.arange(len(EPOCH_ORDER)) + (k - 1.5) * 0.06
-            ok = mu.notna().to_numpy()
-            ax.errorbar(x[ok], mu[ok], yerr=se[ok], fmt="o-", color=col.get(a, "k"), ms=4, lw=1.2, capsize=2,
-                        elinewidth=0.8, label=a, zorder=3)
+            for e_i, e in enumerate(EPOCH_ORDER):
+                ge = g[g.epoch == e]
+                cp.session_dots(ax, e_i + off[k], ge[c].to_numpy(float), ge.animal.to_numpy(), EPOCH_LINE[e],
+                                jitter=0.035, seed=11 * k + e_i)
+                if np.isfinite(mu[e]):
+                    cp.summary_point(ax, e_i + off[k], mu[e], se[e], EPOCH_LINE[e], marker=cp.animal_marker(a),
+                                     ms=5)
+        ax.set_xlim(-0.6, len(EPOCH_ORDER) - 0.4)
         if "far_dir" in c or "bias" in c:
             ax.axhline(0, color="0.85", lw=0.8, zorder=0)
         lab = []
@@ -194,10 +203,13 @@ def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
         ax.set_title(SUMMARY_COLS[c] + ("\n" + "; ".join(lab) if lab else "\n"), fontsize=7.5)
         ax.set_ylabel(SUMMARY_COLS[c], fontsize=6.5)
         ax.tick_params(labelsize=7)
+    cp.add_animal_entries(axs.flat[0], animals)
     axs.flat[0].legend(fontsize=7, frameon=False)
     note = ("trials: EVERY trial at the far spouts, cue + 70 .. 3000 ms, measured jaw frames only (LP r4, cleaning v35); "
             "FAR_DIR = (far ipsi - far contra) / 2 of the per-trial jaw sideways displacement = jaw movement TOWARD the "
-            "target side; per-animal epoch mean +- SEM over sessions; title: paired change vs pre (animal-weighted "
+            "target side; filled = per-animal epoch mean +- SEM over sessions (shape = animal, colour = epoch), faded "
+            "open = its sessions (" + ", ".join(f"{a} {cp.animal_marker(a)}" for a in animals) + "); no lines "
+            "across epochs; title: paired change vs pre (animal-weighted "
             "bootstrap, * = 95% CI excludes 0; >= 2 animals)")
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     from wfield_local.orofacial_cohort import _tidy, save_png_svg
@@ -285,6 +297,10 @@ def main(argv=None) -> int:
     ap_.add_argument("--all-trials", action="store_true", help="control: no engagement gate (*_alltrials folders)")
     ap_.add_argument("--baseline", choices=("all", "late"), default="late",
                      help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including -> *_allpre")
+    ap_.add_argument("--plot-only", action="store_true",
+                     help="only re-draw the epoch figure from the stored tables (sessions.csv, epoch_deltas.csv); "
+                          "nothing recomputed")
+    ap_.add_argument("--suffix", default="", help="--plot-only: output file suffix, e.g. _nolines")
     a = ap_.parse_args(argv)
     if a.all_trials:
         os.environ["OROFACIAL_ALL_TRIALS"] = "1"
@@ -295,6 +311,14 @@ def main(argv=None) -> int:
     sfx = ("" if oc.ENGAGED_ONLY else "_alltrials") + ("_allpre" if a.baseline == "all" else "")
     tables, figs = base / "tables" / f"jaw_lateral{sfx}", base / "figures" / f"jaw_lateral{sfx}"
     writeguard.assert_writable(base)
+    if a.plot_only:
+        S = pd.read_csv(tables / "sessions.csv", dtype={"date": str})
+        D = pd.read_csv(tables / "epoch_deltas.csv")
+        animals = ", ".join(f"{x} {int((S.animal == x).sum())}" for x in sorted(S.animal.unique()))
+        fig_epochs(S, D, figs / f"epochs{a.suffix}.png",
+                   f"Jaw lateral readout (whole sessions) -- {a.run} -- sessions: {animals}")
+        print(f"-> {figs / f'epochs{a.suffix}.png'}")
+        return 0
     tables.mkdir(parents=True, exist_ok=True)
     figs.mkdir(parents=True, exist_ok=True)
     lat = {k: str(v.get("stroke_laterality", "L")) for k, v in config.animals().items()}
