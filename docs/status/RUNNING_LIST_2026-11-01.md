@@ -300,3 +300,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   "attempted". trial_attempts.csv + readers re-run in the rebuild.
 - 11-03 DECISION (Priya): YES to the training-data fingerprint. Rebuild: make_spec gains a hash of the actual training X / y
   (plus trial_classes.selection_tag and the hemo variant name) for every frozen kind; fresh store, so every ID changes once.
+- 11-03: e3 A1 on main ef70a2a8 (analysis_kit.response_window_s: 3.5 s in all 120 curated; hit rate +.016 mean; quit later in 7/120)
+  and A4 amendment 23c8f775 (close_center no contact / lick / tongue -> no_response; jaw_judged). A3 (paired_animal_draws for all
+  change-vs-pre) coded, landing on main after tests; boot_ci untouched. Render once after merge; star flips -> Priya first.
+- 11-03 interim: LocaNMF refits NOT reproducible even seeded (PS93_0826 x4: footprints r .95-.97 refit vs refit, .94-.95 refit vs
+  stored; projection decode inside the refit spread). Drift replacement arm: cosine >= cutoff misses edge bleaching ramps the
+  polynomial fitted (PS92_0819; 3.5% of brain-mean) -> consider polynomial + block-protected cosine, or an explicit bleach term.
