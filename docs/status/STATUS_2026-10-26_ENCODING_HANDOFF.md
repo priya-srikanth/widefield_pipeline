@@ -39,7 +39,7 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-20 (11-03 ~midday) -- READ FIRST, then docs/status/COHORT1_SWAPMASK_RERUN_20261102.md + RUNNING_LIST_2026-11-01.md
+### 00-COMPACT-20 (11-03 ~midday; UPDATED 11-03 afternoon, see the block below the "Next" line) -- READ FIRST, then docs/status/COHORT1_SWAPMASK_RERUN_20261102.md + RUNNING_LIST_2026-11-01.md
 Same session f082ee0c; docs commit on wf_attempt branch analysis/attempt-coding **by explicit path only** (another session,
 sabatinilab-5b, keeps uncommitted work in this worktree; `git commit -am` swept it once 11-03, undone). This window = the
 **COHORT 1 FULL REBUILD**. Pages: imaging LIVE v46 (other sessions edit section 1 [5b] - read live before any edit); goal
@@ -82,6 +82,61 @@ page (reconciler will bring recommendations); the drift cutoff (after the check)
 (single hemo switch driving hemo_variants.ADOPTED + defaults.yaml + load_imaging; project_all; output-root overrides;
 session-cache prune guard; camera working; Aug-only pre; LP-trained) with tests -> renders into NEW folders, logged ->
 2 verifier agents -> replacement pass. Traps: rebuild_20261103/rebuild_order_B.md + RECONCILIATION.md.
+
+**11-03 AFTERNOON UPDATE (supersedes the Running / Open / Next lines above):**
+- **More decisions by Priya** (items 10-16 extend the list above):
+  - 10. ONE trial classification for everything: wfield_local.trial_classes (e3 owns; window "cue_stop" default, whole-trial
+    option). "working" = contact | incomplete | jaw_only, "camera_lick" = contact | incomplete, "attempted" (GATES). Applied
+    EVERYWHERE a trial selection is made (behaviour / kinematics too), but NOT as a gate where engagement is the measured
+    quantity (quit, engagement decline, attempt rate). Cache keys / specs carry trial_classes.selection_tag(source, window).
+  - 11. PS93_0813 (no video) kept wherever an analysis needs only spout contact; drops only where camera classes are needed.
+    PS92_0908: 17.5% of cues "unknown" (in neither gate).
+  - 12. Frozen-model IDs carry a TRAINING-DATA FINGERPRINT (hash of X / y + selection_tag + hemo variant name). Reason: specs
+    were blind to trial/behaviour changes; PS92 section G models of 11-02 21:23 no longer reproduce with an identical spec.
+  - 13. Preprocessing decks: REGENERATE the map slides (maps rebuilt anyway for 15e; new folders, never in place: the
+    affine8v1 tag has no hemo tag). Analysis decks regenerated. Imaging section 15 -> pointer to goal 23. 10-27 review page
+    and June alignment decks untouched. Imaging 5.1/5.2 + goal 6.x/8.x LP-trained. Lost scripts recreated (3 recovered,
+    scripts/recovered_20261103/).
+  - 14. Once the up-front drift step is in the shared signal, the encoder / ITI / stray_licks OWN drift steps are removed
+    (kept as a sensitivity row).
+  - 15. e3's consolidation A1 (per-session response window), A2 (jaw_pass_qc -> classes), A3 (animal-weighted change-vs-pre),
+    A4 (trial_attempts on trial_classes: LANDED main 28f2a632; 62,746 / 62,771 trials identical) and A5 (one responded(),
+    source camera default / daq) land on main BEFORE the rebuild renders. e3 does not touch the rebuild's reserved files
+    (list in RUNNING_LIST, 11-03).
+  - 16. LocaNMF: test before deciding refit vs projection (see below).
+- **Done:**
+  - Frozen-store pass 2 (wf_frozendef analysis/frozen-default up to 876c87b0; FROZEN_ALL_20261102.md P2.1-P2.12): every family
+    identical to in-memory; the LP arm defaults to LP-trained. Section G conversion is UNCOMMITTED in wf_frozendef
+    (poststroke_compare.py + tests; tests were re-running) because of the PS92 mismatch: commit it with that note, or fold it
+    into the rebuild. frozen_encoder not converted (plan P2.6). Bug to fix in the rebuild: nolick_decoder KeyError on arms with
+    < 30 trials.
+  - Reconciliation committed: docs/status/rebuild_20261103/MASTER_MANIFEST.csv (6,099 rows: 3,415 REDO / 930 NO / 1,754
+    DECISION, now mostly resolved by Priya) + RECONCILIATION.md (render order G0-G8, 32 traps, decisions D0-D12).
+- **Not caught by either inventory, now in the plan:**
+  - the FINAL variant does not exist yet (new drift step), so the 11-02 swapmask outputs are a comparison arm only;
+  - no imaging family has a camera-gate path yet;
+  - deck captions in deck_registry.py / deck_text.py state the old rules.
+- **RUNNING (helpers; they never commit in wf_attempt):**
+  - Drift cutoff check (wf_swapmask, DRIFT_CUTOFF_CHECK_20261103.md): block lengths per animal x epoch, spout order,
+    residual band power, block-protected cosine at 10/15/20/30 min, plus the replacement arm (new drift step in place of
+    the polynomial).
+  - LocaNMF refit test (wf_swapmask, scripts/locanmf_refit_test/, LOCANMF_REFIT_TEST_20261103.md): about 8 sessions
+    refit vs projection, same-machine stability, one joint basis timed in a separate dir.
+  Both report to me; I bring Priya per-animal tables for 2 decisions: the drift cutoff, and refit vs project.
+- **Next:**
+  1. Drift decision -> build the final variant (about 1 h).
+  2. LocaNMF decision.
+  3. Wait for A1-A5 on main.
+  4. Merge the branches into main.
+  5. Code changes on a branch off main, with tests:
+     - single hemo switch; project_all / basis selection; output-root tags;
+     - session-cache prune guard; selection_tag + fingerprint in make_spec;
+     - camera working in _class_select; Aug-only pre per decoder block; precue_engagement_states;
+     - map-digest narrowing; drop the legacy date shim; nolick bug; encoder / ITI drift removal.
+  6. Renders G0-G8 into NEW folders, logged.
+  7. 2 verifier agents.
+  8. Replacement pass (share, decks, pages, PI deck with e3; page text B9-B14).
+  Estimated about 1.5-2 days of compute, plus O2 for the encoder bundle.
 
 ### 00-COMPACT-19 (11-01 ~23:00, Priya asleep, autonomous) -- READ FIRST, then docs/status/RUNNING_LIST_2026-11-01.md
 Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Goal page LIVE **v305** (section 23 = quiet window, merge their updates before publishing); imaging page (repo
