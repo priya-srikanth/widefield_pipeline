@@ -93,7 +93,8 @@ def session_bouts(item):
         k = int(r["order"])
         if k + 1 >= cs.size:
             continue
-        seg = lick_s[(lick_s >= cs[k]) & (lick_s < cs[k + 1])]
+        # the trial's licks: cue -> TRIAL STOP (Priya 11-03; was cue -> next cue, which also took in the ITI licks)
+        seg = lick_s[(lick_s >= cs[k] + 0.070 * sr) & (lick_s <= min(float(r["stop_sample"]), cs[k + 1]))]
         if seg.size == 0:
             continue
         ts = seg / sr

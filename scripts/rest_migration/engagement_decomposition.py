@@ -99,6 +99,14 @@ def session_trials(s, resp_s):
 
     nxt = np.append(cs[1:], np.inf)
     n = cs.size
+    # THE TRIAL STOP (Priya 11-03): the DAQ trial_end TTL, else the task rule (`daq_trials.trial_stops`); LICKS PER
+    # TRIAL = total licks from the cue to it (`n_licks_trial`), the window every licks-per-trial readout uses
+    from wfield_local import daq_trials
+    with daq_io.open_daq(s["h5"]) as f:
+        te = daq_io.analog_channel(f, "trial_end", required=False)
+    te_s = (daq_io.rising_edges((te > 2.5).astype(np.int8)) / sr) if te is not None else None
+    stop_s, _src = daq_trials.trial_stops(cs / sr, licks / sr, resp_s, te_s)
+    n_trial = daq_trials.licks_to_stop(cs / sr, stop_s, licks / sr)
     rows = []
     for k in range(n):
         if codes[k] < 0 or not np.isfinite(pre_open[k]) or pre_open[k] >= cs[k]:
@@ -107,6 +115,7 @@ def session_trials(s, resp_s):
         post = licks[(licks >= cs[k]) & (licks <= end)]
         npre = int(((licks >= pre_open[k]) & (licks < cs[k])).sum())
         rows.append(dict(pos=int(codes[k]), order=k, frac=k / max(n - 1, 1),
+                         n_licks_trial=int(n_trial[k]), stop_sample=float(stop_s[k] * sr),
                          hit=int(post.size > 0), n_licks_pre=npre,
                          anticipated=int(npre > 0),
                          # EFFORT AND TIME, SEPARATELY. See `licks_vs_time`.

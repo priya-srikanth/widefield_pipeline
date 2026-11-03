@@ -560,6 +560,17 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
 
     reset_by_trial = licks["precue_reset_by_trial"]   # ENL-reset licks = impulsive/anticipatory pre-cue
     eng_ids = None if engaged_ids is None else set(np.asarray(list(engaged_ids)).tolist())
+    # LICKS PER TRIAL = TOTAL licks from the cue to the TRIAL STOP (Priya 11-03; the spout is present until then): the
+    # DAQ trial table's measured stop (`daq_trials.trial_stops`: the trial_end TTL), else the task rule (first lick in
+    # the response window + the window, or cue + window). LICK RATE comes from the inter-lick intervals of those licks
+    # (1 / median ILI), never a count / duration.
+    from wfield_local import daq_trials
+    if "stop_s" in trials.columns and licks.get("source") == "DAQ" and "lick_s" in getattr(trials, "attrs", {}):
+        stop_by_trial = pd.Series(trials["stop_s"].to_numpy(float), index=trials["trial_id"].to_numpy())
+    else:
+        cs = cue_t.dropna().sort_values()
+        st, _src = daq_trials.trial_stops(cs.to_numpy(float), all_s, resp)
+        stop_by_trial = pd.Series(st, index=cs.index)
     per_trial = []          # (pos_idx, n_post, n_pre, rate_hz, engaged)
     raster = []             # (delays_within_window, pos_idx, trial_order)
     for order, (_i, row) in enumerate(trials.iterrows()):
@@ -570,7 +581,9 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         nxt = cue_next.get(tid, np.inf)
         d = all_s[(all_s >= c + w0) & (all_s <= min(c + w1, nxt))] - c    # peri-cue window (capped at next cue)
         raster.append((d, pos, order))
-        post = all_s[(all_s >= c) & (all_s <= min(c + resp, nxt))] - c    # post-cue licks -> this trial
+        stop = stop_by_trial.get(tid, np.nan)
+        stop = min(stop if np.isfinite(stop) else c + resp, nxt)
+        post = all_s[(all_s >= c + daq_trials.CONTACT_FROM_CUE_S) & (all_s <= stop)] - c   # cue + 70 ms -> stop
         # anticipatory = licks during the enforced no-lick period that reset the cue timer (pre_cue_reset)
         n_pre = int(reset_by_trial.get(tid, 0))
         rate = (1.0 / np.median(np.diff(post))) if post.size >= 2 else np.nan
@@ -585,7 +598,7 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         rows.append({
             "pos_idx": idx, "pos_name": POS_BY_IDX[idx]["name"],
             "trials_engaged": len(sub),
-            "licks_per_trial": float(sub["n_post"].mean()) if len(sub) else np.nan,
+            "licks_per_trial": float(sub["n_post"].mean()) if len(sub) else np.nan,     # cue -> trial stop
             "anticipatory_licks": float(sub["n_pre"].mean()) if len(sub) else np.nan,
             "lick_rate_hz": float(np.nanmedian(sub["rate_hz"])) if len(sub) else np.nan,
         })
@@ -1112,8 +1125,8 @@ def _micro_pos_bars(ax, micro_pos, col, title, ylabel, color):
 # the by-position lick panels shared by the per-session behavior + licking figures, in the same
 # order (and with the same labels) as the across-session per-animal figure's metric families
 LICK_POS_PANELS = [
-    ("licks_per_trial", "licks / trial (post-cue)", "licks"),
-    ("lick_rate_hz", "within-trial lick rate", "Hz"),
+    ("licks_per_trial", "licks / trial (cue to trial stop)", "licks"),
+    ("lick_rate_hz", "within-trial lick rate (1 / median ILI)", "Hz"),
     ("anticipatory_licks", "anticipatory licks / trial", "licks"),
 ]
 

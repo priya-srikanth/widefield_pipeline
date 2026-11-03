@@ -649,3 +649,58 @@ sets `WIDEFIELD_REBUILD_ROOT`, and then:
   root, it raises `rebuild_root.require_seed` and asks for `init`.
 
 **Not run:** `rebuild_root init` writes to M:, so it was not run. Run it once before the render.
+
+### 8.11 Priya 11-03 (evening): drift arm, licks per trial, 5-min stop rule (bc57f786 + this commit)
+**Drift cutoff (2d103d2c cherry-pick of 25e294d2, bc57f786).**
+- 600 s stays primary.
+- `COMBINED_ENCODING_DRIFT_MIN_PERIOD_S=1500` is a SENSITIVITY arm. It adds `run_mode.drift_part()` (`drift1500s`) to
+  the output tag AND the cache keys, and the ITI extracts (`il.XOUT`) are keyed by it too.
+- `drift_part` refuses when combined_encoding was imported with another value.
+- The profile gained `arms: drift1500` (encoder spout contra - ipsi cells, ITI pre-cue level readouts): `--arm drift1500`
+  / `apply(arm=)`, expected tag `hv-..._lnmfproj_drift1500s_sel-...`. COMBINED_ENCODING_* leftovers are cleared.
+
+**Licks per trial = TOTAL licks from cue + 70 ms to the TRIAL STOP; lick rate from ILIs.**
+- `daq_trials.decode` now reads the analog `trial_end` TTL.
+- `daq_trials.trial_stops` returns that TTL. Without one it falls back to the task rule: first contact (from
+  cue + 70 ms) + the response window, or cue + window for a miss. Capped at the next cue.
+- `daq_trials.licks_to_stop` counts the licks.
+- The DAQ trial table gains `stop_s`, `stop_source` and `n_licks_trial`. `n_licks_post` stays the response-window count
+  for hit / latency scoring.
+- Readouts moved to this window:
+  - `spout_behavior.lick_microstructure` (licks_per_trial; its lick_rate_hz = 1 / median ILI over the same licks,
+    relabelled "(1 / median ILI)");
+  - `engagement_decomposition.session_trials` (`n_licks_trial`, `stop_sample`);
+  - `quit_prodrome` licks per trial (was cue -> next cue, which counted ITI licks) and its per-trial ILI;
+  - `lick_bout_structure` per-trial licks / bouts / ILIs (was cue -> next cue).
+- No count / duration per-trial rate exists in these readouts. NOT changed, listed for Priya:
+  - the session-level licks-per-minute curves (quit dynamics, `early_lpm`);
+  - `enl_lick_rates` (pre-cue ENL);
+  - FaceRhythm validation's fixed response window;
+  - `face_rhythm_lick_epochs`.
+  Also: the epoch CHRONIC rule reads licks/trial from the cohort behaviour table. The rebuild SEEDS the existing
+  epoch_boundaries.json, so its boundaries do not move unless the epochs are re-derived after the behaviour tables are
+  rebuilt.
+
+**Trial stop check** (DAQ trial_end vs first DAQ contact from cue + 70 ms; 6 sessions PS92_0821, PS93_0908, PS94_0818,
+PS95_0917, PS93_0818, PS92_0908; read-only):
+
+| | n | median | 5-95 % | min | max |
+|---|---|---|---|---|---|
+| hits: stop - first contact | 2,405 | 3.528 s | [3.390, 3.718] s | 0.032 s | 3.845 s |
+| misses: stop - cue | 700 | 3.525 s | [3.525, 3.684] s | 3.523 s | 3.748 s |
+
+- Of the hits, 69.3 % fall in [3.50, 3.60] s, 23.2 % in (3.60, 3.75] s, and 0.6 % are above 3.75 s.
+- 49 trials are off the rule by more than 250 ms, all hits:
+  - SHORT stops, 0.03-3.2 s after the first contact (e.g. PS92_0821 trials 69, 99, 100, 145, 168; PS93_0908 76, 82,
+    100, 173; PS93_0818 66, 71, 202, 363; PS92_0908 30, 72, 108, 113, 122). The task's timer seemingly started on an
+    earlier lick than the first DAQ contact after cue + 70 ms (a lick inside the first 70 ms, or one the DAQ
+    discriminator did not register).
+  - A few at 3.75-3.85 s.
+- So the rule holds at the median, the measured TTL is used wherever it exists, and the rule is only a fallback.
+
+**5-min stop rule (requested FIRST; not implemented).** Current classifier, 119 curated sessions: 159 stopped runs,
+1,830 stopped trials. **0 runs (0 trials) start within 5 min of the session's first cue.** The earliest starts are
+PS95_0820 at 46.0 min (6 trials), PS95_0820 at 54.2, PS92_0818 at 55.2, PS95_0820 at 57.7 and PS94_0819 at 58.9. So
+the rule would move no current stopped time. Per the coordinator's order it waits for the go-ahead after this report.
+Implementing it means replacing the warm-up rule, which today covers 4 no_response trials before the first lick. With
+the time rule those 4 become isolated lapses (no_response), unless they sit in a >= 6 run, which none do.

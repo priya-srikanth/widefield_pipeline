@@ -154,9 +154,9 @@ def session_row(item):
     per_pos = {"near": [], "far": []}
     nt = max(len(tt) - 2, 1)
     for i in range(len(tt) - 1):
-        dl = float(tt[i + 1]["cum_licks"]) - float(tt[i]["cum_licks"])
-        if dl < 0:
-            continue
+        # LICKS PER TRIAL = total licks from the cue to the TRIAL STOP (Priya 11-03; was cue -> next cue, which also
+        # counted the ITI licks): `n_licks_trial` from `engagement_decomposition.session_trials`
+        dl = float(tt[i]["n_licks_trial"])
         per_pos["near" if int(tt[i]["pos"]) in near else "far"].append(
             (float(tt[i]["elapsed_s"]), dl, i / nt))
 
@@ -168,7 +168,8 @@ def session_row(item):
         k = int(r["order"])
         if k + 1 >= cs.size:
             continue
-        seg = lick_s[(lick_s >= cs[k]) & (lick_s < cs[k + 1])]
+        # the same trial window as licks per trial: cue + 70 ms -> TRIAL STOP (Priya 11-03)
+        seg = lick_s[(lick_s >= cs[k] + 0.070 * sr) & (lick_s <= min(float(r["stop_sample"]), cs[k + 1]))]
         if seg.size < MIN_LICKS:
             continue
         iv = np.diff(seg) / sr
