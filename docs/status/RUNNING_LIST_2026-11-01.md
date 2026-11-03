@@ -287,3 +287,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03: Priya: keep PS93_0813 wherever possible for spout-contact-only analyses (DAQ contact lick class / lick window / DAQ
   robustness rows need no video); it drops only where the camera classes are required. LocaNMF refit TEST launched
   (LOCANMF_REFIT_TEST_20261103.md): ~8 sessions refit vs projection, same-machine stability, one joint basis timed.
+- 11-03: FROZEN-STORE PASS 2 DONE (wf_frozendef analysis/frozen-default, up to 876c87b0; FROZEN_ALL_20261102.md P2.1-P2.12).
+  nolick / attempt / drift / coding / CD / ITI stored by default, all IDENTICAL to in-memory; LP arm default LP-trained again
+  (WIDEFIELD_LP_FROZEN=daq = cross-check). Section G converted but UNCOMMITTED (PS92 lick-only arm differs, max .031: PS92 pre
+  features changed between 11-02 21:23 and later with an unchanged spec -> behaviour/trial input changed; other animals identical).
+  KEY FINDING: make_spec hashes pre labels + U_atlas / SVTcorr size+mtime only, so trial-selection / behaviour / gate changes
+  are invisible to 14 kinds -> recommend a training-data signature (+ selection_tag) in make_spec for the rebuild's fresh store.
+  frozen_encoder not converted (plan P2.6). Pre-existing bug: nolick_decoder crashes after the first animal (KeyError, arms
+  < 30 trials) -> fix in the rebuild.
+- 11-03: e3 A4 on main 28f2a632: trial_attempts.py classes from wfield_local.trial_classes (cue_stop); 62,746 / 62,771 trials
+  identical (25 cam1-seen tongues -> incomplete); trial_classes.selection_tag(source, window) for cache keys / specs; GATES gains
+  "attempted". trial_attempts.csv + readers re-run in the rebuild.
