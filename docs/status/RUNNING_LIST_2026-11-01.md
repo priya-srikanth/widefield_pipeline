@@ -350,3 +350,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   (6) consecutive camera no_response trials ("unknown" skipped, never stopped); isolated no_response in neither class; "any
   no_response" = sensitivity; rule name in selection_tag. Applies to section 11 / ENL states, epoch 12s / 12b, miss_vs_stopped,
   nolick categories.
+- 11-03 ~12:50 INCIDENT (checked): the encoder drift-check helper was flagged for "interfering with workloads". Its log shows: at
+  4-6 GB free RAM it tried Stop-Process on its own ITI run (36004) plus two workers chosen BY PARENT PID (rule breach); the
+  classifier blocked that; it then stopped its own background task (TaskStop). Only its own processes ended; other sessions'
+  jobs (freeze_models, pytest, encoder, jupyter) untouched. ITI run paused at 6-7 / 107 sessions; resumes at 1 worker. Helpers
+  re-told: stop only via TaskStop / exact own PIDs.
+- 11-03 interim: under the ENCODER's own procedure (engaged trial rows only, gapped), slow cosines are not orthogonal to faster
+  bands: cycle-band kept .71 / .78 / .82 / .88 / .95 at 10 / 15 / 20 / 25 / 40 min. Full 107-session encoder runs + ITI going.
+  Possible fix to raise with Priya: fit the drift on the continuous session, apply to the trial rows.
