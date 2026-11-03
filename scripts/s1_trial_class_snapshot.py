@@ -11,7 +11,7 @@ number is tied to the commit recorded beside it.
 Window: "cue_stop" for BOTH the ENL / pre-cue and the cue columns (Priya 11-03: working = responded to THIS trial's cue;
 the ENL window is lick-free by its own rule).
 Output -> <run>/imaging_encoding/qc/s1_trial_classes_<window>.csv.gz (label, cue_idx, cue_s, cls, working, camera_lick,
-has_cam1; cls "unknown" + both gates False where the video has no trial for the cue) + a .json sidecar (commit, window,
+working_prelast, has_cam1; cls "unknown" + both gates False where the video has no trial for the cue) + a .json sidecar (commit, window,
 coverage). A session with no video (PS93_0813) is written with cls "no_video": camera rows drop it, DAQ rows keep it.
 """
 from __future__ import annotations
@@ -36,13 +36,14 @@ def session_job(job) -> list[dict]:
     cs = np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
     T = J.session_classes(label, window=window)
     if T is None:
-        return [dict(label=label, cue_idx=i, cue_s=t, cls="no_video", working=False, camera_lick=False, has_cam1=False)
-                for i, t in enumerate(cs)]
+        return [dict(label=label, cue_idx=i, cue_s=t, cls="no_video", position="", working=False, camera_lick=False,
+                     has_cam1=False) for i, t in enumerate(cs)]
     c = J.cue_classes(T, cs)
+    pos = J.cue_classes(T.assign(cls=T.position), cs)           # the same time matcher, carrying the spout position
     w, lk = J.in_gate(c, "working"), J.in_gate(c, "camera_lick")
     h = bool(T.has_cam1.iloc[0]) if len(T) else False
-    return [dict(label=label, cue_idx=i, cue_s=t, cls=c[i], working=bool(w[i]), camera_lick=bool(lk[i]), has_cam1=h)
-            for i, t in enumerate(cs)]
+    return [dict(label=label, cue_idx=i, cue_s=t, cls=c[i], position=pos[i], working=bool(w[i]),
+                 camera_lick=bool(lk[i]), has_cam1=h) for i, t in enumerate(cs)]
 
 
 def main(argv=None) -> int:
@@ -64,6 +65,22 @@ def main(argv=None) -> int:
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.DataFrame([r for _j, rows in got for r in rows])
+    # END-OF-SESSION CUTOFFS on top of `working` (PROVISIONAL, Priya 11-03: "report both, no primary yet"): drop the late,
+    # smaller jaw-only trials of the sated tail (e3, QUIT_TAIL_JAW_ONLY_2026-11-03: 0.9 / 3.8 / 1.9 / 1.1 % of working
+    # pre / acute / subacute / chronic). THREE ANCHORS, because Priya 11-03: "if we drop after the last lick, acutely if
+    # the last blocks are far contra or far mid we may drop real data" -- acute far-contra contact is ~5 %, so a CONTACT
+    # anchor can cut a final far block of genuine attempts:
+    #   working_pl_contact  at or before the session's last CONTACT cue
+    #   working_pl_lick     at or before the last CAMERA LICK (contact or incomplete) -- far-spout attempts survive
+    #   working_pl_close    at or before the last camera lick at the REFERENCE spouts (close ipsi / close mid), the
+    #                       quit-tail idea: those spouts are barely affected, so the anchor marks when the animal
+    #                       stopped, not where the last block happened to be
+    # To move into `wfield_local.trial_classes` if one is adopted.
+    lick = D.cls.isin(["contact", "incomplete"])
+    for name, anchor in (("contact", D.cls == "contact"), ("lick", lick),
+                         ("close", lick & D.position.isin(["close_L", "close_center"]))):
+        last = D[anchor].groupby("label").cue_idx.max()
+        D[f"working_pl_{name}"] = D.working & (D.cue_idx <= D.label.map(last).fillna(-1).to_numpy())
     f = out / f"s1_trial_classes_{a.window}.csv.gz"
     D.to_csv(f, index=False, float_format="%.6f")
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
@@ -78,6 +95,17 @@ def main(argv=None) -> int:
             "low_match": cov[cov.unknown > 0.05].unknown.round(3).to_dict()}
     Path(str(f).replace(".csv.gz", ".json")).write_text(json.dumps(meta, indent=1))
     print(json.dumps(meta, indent=1))
+    from wfield_local import epochs
+    D["epoch"] = D.label.map(epochs.epoch_of)
+    P = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
+    for name in ("contact", "lick", "close"):
+        drop = D.working & ~D[f"working_pl_{name}"]
+        t = D[drop].groupby(["epoch", "position"]).size().unstack().reindex(columns=P).fillna(0).astype(int)
+        t["all"] = t.sum(1)
+        t["share_of_working"] = (t["all"] / D[D.working].groupby("epoch").size().reindex(t.index)).round(3)
+        n_inc = int((drop & (D.cls == "incomplete")).sum())
+        print(f"\n== cutoff at the last {name}: working trials dropped (incomplete among them: {n_inc})")
+        print(t.reindex(["pre", "acute", "subacute", "chronic"]).to_string())
     print(D[D.cls != "no_video"].cls.value_counts(normalize=True).round(4).to_string())
     print("->", f)
     return 0

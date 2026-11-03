@@ -56,10 +56,53 @@ MIN_PER_CLASS = 15
 #: and not the state definitions. Set WIDEFIELD_STATE_ZSCORE=0 to reproduce the pre-fix (unscaled) run.
 STATE_ZSCORE_ENV = "WIDEFIELD_STATE_ZSCORE"
 
+#: WHICH per-session scaling the state decoder uses (2026-11-03). Priya, 11-03: "ok bal_em it is" -- the PRODUCTION
+#: frozen state decoder is now ``session_bal_em`` (DECISIONS 2026-11-03, "bal_em adopted as the production state
+#: decoder"). ``session_z`` (the 11-02 plain per-session z-score) stays selectable and its stored models stay in the
+#: store untouched: ``WIDEFIELD_STATE_SCALING=session_z`` reproduces it, ``WIDEFIELD_STATE_ZSCORE=0`` (or
+#: ``WIDEFIELD_STATE_SCALING=none``) the pre-11-02 unscaled run.
+STATE_SCALING_ENV = "WIDEFIELD_STATE_SCALING"
+SCALING_SESSION_Z = "session_z"
+SCALING_BAL_EM = "session_bal_em"
+DEFAULT_SCALING = SCALING_BAL_EM
+
+#: bal_em outer passes (posteriors -> EM priors -> soft class means -> re-centre -> re-predict). 3, as the diagnostic
+#: (labcams/state_decoder_ps94_check/prebal/analyse_prebal.py); 6 passes moved no per-animal number by > .02.
+BAL_EM_PASSES = 3
+#: OPTIONAL minimum-mass guard, DEFAULT OFF (None) -- Priya has not asked for one. When set to a fraction (e.g. 0.05),
+#: a pass whose EM-estimated class share falls below it centres on the TRAINING class mix instead of equal weights
+#: (equal weighting amplifies a nearly absent class: PS92 chronic running ~3 %, PS95 acute ~1 %). Setting it changes
+#: the spec id (`bal_em_params` -> spec ``scaling_params``, which records min_mass even when OFF), so a guarded model
+#: can never be read as an unguarded one.
+BAL_EM_MIN_MASS = None
+
 
 def session_zscore_on() -> bool:
     import os
     return os.environ.get(STATE_ZSCORE_ENV, "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+def state_scaling():
+    """The scaling the state decoder runs under: ``"session_bal_em"`` (default), ``"session_z"`` or None (unscaled).
+    ``WIDEFIELD_STATE_ZSCORE=0`` still means unscaled whatever ``WIDEFIELD_STATE_SCALING`` says."""
+    import os
+    if not session_zscore_on():
+        return None
+    v = os.environ.get(STATE_SCALING_ENV, DEFAULT_SCALING).strip().lower()
+    if v in ("session_bal_em", "bal_em", "balem"):
+        return SCALING_BAL_EM
+    if v in ("session_z", "z", "zscore"):
+        return SCALING_SESSION_Z
+    if v in ("none", "0", "off", "unscaled", "raw"):
+        return None
+    raise ValueError(f"{STATE_SCALING_ENV}={v!r}: expected session_bal_em, session_z or none")
+
+
+def bal_em_params(min_mass="default", n_outer=None):
+    """The spec ``scaling_params`` for bal_em: ``{"min_mass": ..., "n_outer": ...}``, min_mass recorded even when None
+    (off). ``"default"`` = the module default `BAL_EM_MIN_MASS`."""
+    return {"min_mass": BAL_EM_MIN_MASS if min_mass == "default" else min_mass,
+            "n_outer": BAL_EM_PASSES if n_outer is None else int(n_outer)}
 
 
 def session_zscore(X):
@@ -71,6 +114,113 @@ def session_zscore(X):
         return X
     mu, sd = X.mean(0), X.std(0)
     return (X - mu) / np.where(sd > 0, sd, 1.0)
+
+
+def _session_sd(X):
+    sd = np.asarray(X, float).std(0)
+    return np.where(sd > 0, sd, 1.0)
+
+
+def balanced_zscore(X, y, classes=ls.THREE_WAY):
+    """TRAINING-side centring for bal_em: centre at the EQUAL-weight mean of the session's class means (TRUE labels --
+    pre-stroke training labels are allowed), divide by the production per-session SD (all segments). Only ever applied
+    to the pre-stroke sessions a model is trained on; a scored session goes through `bal_em_centre`."""
+    X = np.asarray(X, float)
+    y = np.asarray(y)
+    if not len(X):
+        return X
+    mu = np.mean([X[y == c].mean(0) for c in classes if (y == c).sum()], 0)
+    return (X - mu) / _session_sd(X)
+
+
+def class_prior(ys, classes=ls.THREE_WAY):
+    """Class proportions of the pooled TRAINING labels (the frozen model's training prior, for the EM)."""
+    y = np.concatenate([np.asarray(v) for v in ys]) if len(ys) else np.array([])
+    return np.array([(y == c).mean() if len(y) else np.nan for c in classes], float)
+
+
+def _proba_full(model, Z, K):
+    P = model.predict_proba(np.asarray(Z))
+    full = np.zeros((len(Z), K))
+    for j, c in enumerate(model.classes_):
+        full[:, int(c)] = P[:, j]
+    return full
+
+
+def saerens_em(P, pi_train, n_iter=200, tol=1e-8):
+    """Label-shift EM (Saerens, Latinne & Decaestecker 2002): re-estimate a session's class priors from the model's
+    posteriors ``P`` (n x K) alone. Returns (adjusted posteriors, estimated priors). No label enters."""
+    pi_train = np.asarray(pi_train, float)
+    pi = pi_train.copy()
+    Q = P
+    for _ in range(n_iter):
+        Q = P * (pi / pi_train)
+        Q = Q / Q.sum(1, keepdims=True)
+        new = Q.mean(0)
+        if np.abs(new - pi).max() < tol:
+            pi = new
+            break
+        pi = new
+    return Q, pi
+
+
+def bal_em_centre(model, X, pi_train, *, n_outer=None, min_mass=None, return_info=False):
+    """SCORING-side centring for bal_em -- LABEL-FREE (DECISIONS 2026-11-03). Takes no labels, by signature.
+
+    Start from the production centring (session mean / session SD); then ``n_outer`` passes of: the frozen model's
+    posteriors -> Saerens EM priors (training prior = ``pi_train``) -> SOFT class means of the RAW features from the
+    adjusted posteriors -> centre at their EQUAL-weight mean (classes with no mass dropped), keeping production's
+    per-session SD -> re-z-score. Returns the scaled features (and, with ``return_info``, the estimated priors, the
+    centre and whether the optional min-mass guard fired). Exactly the ``bal_em`` arm of
+    labcams/state_decoder_ps94_check/prebal/analyse_prebal.py (``prebal_centre(..., w_target=[1/3]*3)``).
+
+    ``min_mass`` (default None = OFF): if set, a pass whose EM-estimated share of any class is below it centres on
+    the training mix ``pi_train`` instead of equal weights."""
+    n_outer = BAL_EM_PASSES if n_outer is None else int(n_outer)
+    X = np.asarray(X, float)
+    pi_train = np.asarray(pi_train, float)
+    K = len(pi_train)
+    sd = _session_sd(X)
+    mu = X.mean(0)
+    Z = (X - mu) / sd
+    pi_hat, guard = pi_train, False
+    for _ in range(n_outer):
+        Q, pi_hat = saerens_em(_proba_full(model, Z, K), pi_train)
+        mass = Q.sum(0)
+        muc = np.array([(Q[:, c:c + 1] * X).sum(0) / mass[c] if mass[c] > 1e-9 else mu for c in range(K)])
+        ok = mass > 1e-9
+        tgt = np.full(K, 1.0 / K)
+        if min_mass is not None and np.any(pi_hat < float(min_mass)):
+            tgt, guard = pi_train, True
+        w = tgt * ok / (tgt * ok).sum()
+        mu = (w[:, None] * muc).sum(0)
+        Z = (X - mu) / sd
+    if return_info:
+        return Z, {"pi_hat": pi_hat, "centre": mu, "guard": guard}
+    return Z
+
+
+def train_transform(X, y, scaling):
+    """How a PRE-STROKE TRAINING session's features are scaled under ``scaling``."""
+    if scaling is None:
+        return np.asarray(X)
+    if scaling == SCALING_SESSION_Z:
+        return session_zscore(X)
+    if str(scaling).startswith(SCALING_BAL_EM):
+        return balanced_zscore(X, y)
+    raise ValueError(f"unknown state scaling {scaling!r}")
+
+
+def score_transform(model, X, scaling, pi_train=None, *, min_mass=None):
+    """How a SCORED session's features are scaled under ``scaling``. Takes no labels: nothing about a scored
+    session's true classes can reach its centre."""
+    if scaling is None:
+        return np.asarray(X)
+    if scaling == SCALING_SESSION_Z:
+        return session_zscore(X)
+    if str(scaling).startswith(SCALING_BAL_EM):
+        return bal_em_centre(model, X, pi_train, min_mass=min_mass)
+    raise ValueError(f"unknown state scaling {scaling!r}")
 
 
 def _pipe():
@@ -88,7 +238,7 @@ def fit_frozen(Xs, ys, classes=ls.THREE_WAY):
     return _pipe().fit(np.asarray(Xs), np.array([list(classes).index(v) for v in y]))
 
 
-def frozen_state_models(animal: str, basis_id: str, got: dict):
+def frozen_state_models(animal: str, basis_id: str, got: dict, scaling="env", min_mass="default"):
     """``({"full": model, "loso": {pre_label: model}}, status)`` -- the PRE-STROKE state decoder as a FROZEN,
     STORED REFERENCE (`frozen_models.load_or_fit`), never refitted once stored.
 
@@ -103,24 +253,42 @@ def frozen_state_models(animal: str, basis_id: str, got: dict):
     import numpy as np
 
     from wfield_local import frozen_models as fm
+    if scaling == "env":
+        scaling = state_scaling()
     pre = {lab: v for lab, v in got.items() if v[3] <= 0}
     n_feat = int(next(iter(pre.values()))[0].shape[1])
     # SCALING IS PART OF THE IDENTITY (2026-11-02): models fitted on per-session z-scored features carry
     # scaling="session_z"; the pre-fix models (unscaled features under a spec that already said zscore=True) keep
     # their old id and stay in the store as the record (WIDEFIELD_STATE_ZSCORE=0 reproduces them).
+    # 2026-11-03: PRODUCTION = scaling="session_bal_em" (trained on class-balanced pre sessions; scored with the
+    # label-free EM centre). A NEW id; the session_z and unscaled models stay in the store untouched.
+    # ``got`` holds RAW features; the training transform is applied here, by scaling. The pooled order is the
+    # order ``got`` arrived in (as before 11-03, so the session_z fit is the same fit).
+    # The min-mass guard acts only at SCORING time, but it is part of the identity (Priya 11-03: the spec records
+    # min_mass), so a guarded and an unguarded run can never share a stored reference.
+    params = bal_em_params(min_mass) if scaling == SCALING_BAL_EM else None
     spec = fm.make_spec(animal, "state", align="segments", source=f"joint_{basis_id}", train_labels=list(pre),
                         basis_id=basis_id, n_features=n_feat, post_s=ls.SEGMENT_S, zscore=True,
                         train_data={lab: v[:3] for lab, v in sorted(pre.items())},
-                        scaling="session_z" if session_zscore_on() else None)
+                        scaling=scaling, scaling_params=params)
+    tx = {lab: train_transform(v[0], v[1], scaling) for lab, v in pre.items()}
 
     def fit():
-        full = fit_frozen(np.vstack([v[0] for v in pre.values()]), np.concatenate([v[1] for v in pre.values()]))
+        full = fit_frozen(np.vstack([tx[lab] for lab in pre]), np.concatenate([pre[lab][1] for lab in pre]))
         loso = {}
         for lab in sorted(pre):
-            keep = [v for l2, v in pre.items() if l2 != lab]
+            keep = [l2 for l2 in pre if l2 != lab]
             if keep:
-                loso[lab] = fit_frozen(np.vstack([v[0] for v in keep]), np.concatenate([v[1] for v in keep]))
-        return {"full": full, "loso": loso}
+                loso[lab] = fit_frozen(np.vstack([tx[l2] for l2 in keep]),
+                                       np.concatenate([pre[l2][1] for l2 in keep]))
+        out = {"full": full, "loso": loso}
+        if scaling is not None and str(scaling).startswith(SCALING_BAL_EM):
+            # THE EM'S TRAINING PRIOR travels with the model: the pooled pre-stroke class mix of the sessions that
+            # trained it (for a LOSO model, never the held-out one). Training labels only.
+            out["pi_train"] = {"full": class_prior([pre[lab][1] for lab in pre]),
+                               "loso": {lab: class_prior([pre[l2][1] for l2 in pre if l2 != lab])
+                                        for lab in sorted(pre)}}
+        return out
 
     return fm.load_or_fit(spec, fit, meta={"classes": list(ls.THREE_WAY), "n_pre_sessions": len(pre)})
 
@@ -183,80 +351,117 @@ def score(model, X, y, classes=ls.THREE_WAY):
 FS_IMG = 31.23
 
 
-@lru_cache(maxsize=4)
+def collect_animal(an, fs_img=FS_IMG):
+    """``(basis_id, got)`` for one animal: every pre + post session's RAW segment features on the joint basis,
+    ``got = {label: (X_raw, y, groups, day)}``. The expensive half of `by_animal_day` (projection onto the basis);
+    no scaling is applied here -- that is `score_animal`'s job, by scaling. None when the basis is unavailable."""
+    from wfield_local import behavior_events as be
+    from wfield_local import config, joint_locanmf
+    from wfield_local import locomotor_features as lf
+    from wfield_local.grant_figures import _day
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+    from wfield_local.paths import PathResolver
+
+    rv = PathResolver()
+    try:
+        basis = joint_locanmf.load(an, sessions=SESSIONS)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  !! state {an}: basis {type(ex).__name__} {str(ex)[:70]}", flush=True)
+        return None
+    want = {x for x in config.phase_labels("pre") + config.phase_labels("post") if x.startswith(an)}
+    got = {}
+    for s in [x for x in SESSIONS if x["label"] in want]:
+        lab = s["label"]
+        mmdd = lab.split("_")[-1]
+        ev = be.get_or_compute(rv, an, config.date8(mmdd))
+        if not ev:
+            continue
+        try:
+            sig, _r = joint_locanmf.BasisSource(basis, s).signal()
+            X, y, g = lf.segment_features(s, np.asarray(sig), ev, fs_img=fs_img)
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! state {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
+            continue
+        if not len(y):
+            continue
+        d = _day(an, mmdd)
+        if d is None:
+            continue
+        got[lab] = (X, y, g, int(d))
+    return basis.basis_id, got
+
+
+def score_animal(an, basis_id, got, scaling="env", min_mass="default", models=None):
+    """``(rec, status, models)``: score one animal's sessions with its FROZEN state decoder under ``scaling``.
+
+    ``rec = {"PRE": [score, ...], day: score}``; PRE is leave-one-session-out, post-stroke days use the model frozen
+    on ALL pre-stroke segments. Each scored session's features are scaled by `score_transform`, which never sees
+    that session's labels (bal_em: label-free EM centre). ``models`` lets a caller pass an already-loaded payload."""
+    if scaling == "env":
+        scaling = state_scaling()
+    if min_mass == "default":
+        min_mass = BAL_EM_MIN_MASS
+    status = "given"
+    if models is None:
+        models, status = frozen_state_models(an, basis_id, got, scaling=scaling, min_mass=min_mass)
+    pis = models.get("pi_train") or {}
+    rec = {"PRE": []}
+    for lab, (X, y, _g, d) in sorted(got.items()):
+        if d <= 0:
+            m = models["loso"].get(lab)
+            pi = (pis.get("loso") or {}).get(lab)
+            if m is None:
+                continue
+        else:
+            m = models["full"]
+            pi = pis.get("full")
+        if m is None:
+            continue
+        if scaling is not None and str(scaling).startswith(SCALING_BAL_EM) and pi is None:
+            # A bal_em payload always carries its training prior; rebuild it from the TRAINING labels if not.
+            tr = [l2 for l2, v in got.items() if v[3] <= 0 and (d > 0 or l2 != lab)]
+            pi = class_prior([got[l2][1] for l2 in tr])
+        Z = score_transform(m, X, scaling, pi, min_mass=min_mass)
+        r = score(m, Z, y)
+        if r is None:
+            continue
+        if d <= 0:
+            rec["PRE"].append(r)
+        else:
+            rec[d] = r
+    return rec, status, models
+
+
 def by_animal_day(fs_img=FS_IMG):
-    """``({animal: {"PRE": [score, ...], day: score}}, days)`` for the FROZEN state decoder.
+    """``({animal: {"PRE": [score, ...], day: score}}, days)`` for the FROZEN state decoder, under the scaling the
+    environment selects (`state_scaling`; production = ``session_bal_em`` since 2026-11-03).
 
     PRE IS LEAVE-ONE-SESSION-OUT and post-stroke days are scored by a model frozen on ALL pre-stroke
     segments, which is exactly the discipline `_collect_5c` uses for position. Without the LOSO the
     pre column would be a session scored partly against itself and the baseline would be too easy --
     the failure `_pre_reference` exists to prevent.
 
-    CACHED BECAUSE IT PROJECTS EVERY SESSION ONTO THE JOINT BASIS, which is the expensive step
-    (~10 min for the cohort) and is shared by every figure that reads this.
+    CACHED (in process, keyed on the scaling too) BECAUSE IT PROJECTS EVERY SESSION ONTO THE JOINT BASIS, which is
+    the expensive step (~10 min for the cohort) and is shared by every figure that reads this.
     """
-    import numpy as np
+    return _by_animal_day(fs_img, state_scaling(), BAL_EM_MIN_MASS)
 
-    from wfield_local import behavior_events as be
-    from wfield_local import config, joint_locanmf
-    from wfield_local import locomotor_features as lf
-    from wfield_local.grant_figures import ANIMALS, _day
-    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-    from wfield_local.paths import PathResolver
 
-    rv = PathResolver()
+@lru_cache(maxsize=4)
+def _by_animal_day(fs_img, scaling, min_mass):
+    from wfield_local.grant_figures import ANIMALS
+
     out, all_days = {}, set()
     for an in ANIMALS:
-        try:
-            basis = joint_locanmf.load(an, sessions=SESSIONS)
-        except Exception as ex:                                        # noqa: BLE001
-            print(f"  !! state {an}: basis {type(ex).__name__} {str(ex)[:70]}", flush=True)
+        c = collect_animal(an, fs_img)
+        if c is None:
             continue
-        want = {x for x in config.phase_labels("pre") + config.phase_labels("post")
-                if x.startswith(an)}
-        got = {}
-        for s in [x for x in SESSIONS if x["label"] in want]:
-            lab = s["label"]
-            mmdd = lab.split("_")[-1]
-            ev = be.get_or_compute(rv, an, config.date8(mmdd))
-            if not ev:
-                continue
-            try:
-                sig, _r = joint_locanmf.BasisSource(basis, s).signal()
-                X, y, g = lf.segment_features(s, np.asarray(sig), ev, fs_img=fs_img)
-                if session_zscore_on():
-                    X = session_zscore(X)
-            except Exception as ex:                                    # noqa: BLE001
-                print(f"  !! state {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
-                continue
-            if not len(y):
-                continue
-            d = _day(an, mmdd)
-            if d is None:
-                continue
-            got[lab] = (X, y, g, int(d))
-        pre = [(X, y) for X, y, _g, d in got.values() if d <= 0]
-        if not pre:
+        basis_id, got = c
+        if not any(v[3] <= 0 for v in got.values()):
             continue
-        models, status = frozen_state_models(an, basis.basis_id, got)
-        print(f"  state {an}: {status} ({len(models['loso'])} pre-stroke sessions)", flush=True)
-        frozen = models["full"]
-        rec = {"PRE": []}
-        for lab, (X, y, _g, d) in sorted(got.items()):
-            if d <= 0:
-                m = models["loso"].get(lab)
-                if m is None:
-                    continue
-            else:
-                m = frozen
-            r = score(m, X, y)
-            if r is None:
-                continue
-            if d <= 0:
-                rec["PRE"].append(r)
-            else:
-                rec[d] = r
-                all_days.add(d)
+        rec, status, models = score_animal(an, basis_id, got, scaling=scaling, min_mass=min_mass)
+        print(f"  state {an}: {status} ({len(models['loso'])} pre-stroke sessions; scaling={scaling})", flush=True)
+        all_days.update(d for d in rec if d != "PRE")
         if len(rec) > 1 and rec["PRE"]:
             out[an] = rec
     return out, sorted(all_days)

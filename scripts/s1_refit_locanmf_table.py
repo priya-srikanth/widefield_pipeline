@@ -28,15 +28,83 @@ ALIGNS = ("precue", "cue")
 EPS = ("pre", "acute", "subacute", "chronic")
 
 
+GATE_ARMS = (("working", "camwork"), ("camera_lick", "camlick"), ("working_pl_contact", "camworkpl_contact"),
+             ("working_pl_lick", "camworkpl_lick"), ("working_pl_close", "camworkpl_close"))
+
+
+def unit_job(unit) -> list[dict]:
+    """Module-level worker: one (alignment, animal) bundle -> per session x trial arm refit accuracy.
+
+    CAPTURES the bundle's own features object: its ``.indices[label]`` = (engaged cue idx, no-lick cue idx), row for row
+    with XE[GE == i] / XU[GU == i] -- the only way to map a bundle row to its DAQ cue (read-only; `_pooled_bundle`
+    imports `features_with_indices` at call time, so wrapping the module attribute sees the exact object it builds).
+    Camera arms index the shared A4 class snapshot (window cue_stop; `scripts/s1_trial_class_snapshot.py`, commit in the
+    .json beside it) -- read, never re-derived."""
+    align, an, fig_rule, snap_path = unit
+    from wfield_local import epochs
+    from wfield_local import grant_confusion as GC
+    from wfield_local import precue_engagement_states as PES
+    from wfield_local.locanmf_frozen_decoder import _pipe
+    snap = pd.read_csv(snap_path)
+    feats, _orig = [], PES.features_with_indices
+    PES.features_with_indices = lambda *a, **k: feats.append(_orig(*a, **k)) or feats[-1]
+    try:
+        GC._BUNDLE_CACHE.pop((an, align), None)
+        bd = GC._pooled_bundle(an, align)
+    finally:
+        PES.features_with_indices = _orig
+    assert len(feats) == 1, f"{an} {align}: captured {len(feats)} feature objects"
+    idx = feats[0].indices
+    XE, YE, GE, XU, YU, GU = (bd[k] for k in ("XE", "YE", "GE", "XU", "YU", "GU"))
+    # the quit-tail row is a LABELLED DAQ robustness row: under the camera trial gate bundle["not_eng"] is a
+    # RefusedMask and the real DAQ mask is bundle["not_eng_daq"] (rebuild 11-03); identical by default
+    BE, BU, e_pre = bd["BE"], bd["BU"], bd["e_pre"]
+    not_eng = bd["not_eng_daq"] if "not_eng_daq" in bd else bd["not_eng"]
+    rows = []
+    for i, lab in enumerate(bd["kept"]):
+        se = (e_pre & (GE == i)) if i in bd["pre_i"] else (GE == i)
+        su = (GU == i) if len(GU) else np.zeros(0, bool)
+        arms = {}
+        # QUIT-TAIL working (`_class_select`): robustness row; `--fig-rule` = licking trials at pre (Figs 1.1 / 1.2)
+        arms["quittail"] = ((e_pre & (GE == i), np.zeros(len(GU), bool)) if i in bd["pre_i"] and fig_rule
+                            else GC._class_select("working", se, su, not_eng, rule="daq"))
+        ie, inl = idx.get(lab, (np.zeros(0, int), np.zeros(0, int)))
+        sn = snap[snap.label == lab].set_index("cue_idx")
+        if len(ie) == int(se.sum()) and len(inl) == int(su.sum()) and len(sn):
+            for gate, tag in GATE_ARMS:
+                me, mu = se.copy(), su.copy()
+                me[np.flatnonzero(se)] = sn[gate].reindex(np.asarray(ie, int)).fillna(False).to_numpy(bool)
+                if len(mu):
+                    mu[np.flatnonzero(su)] = sn[gate].reindex(np.asarray(inl, int)).fillna(False).to_numpy(bool)
+                arms[tag] = (me, mu)
+        elif len(sn):
+            print(f"  !! {lab} {align}: index / row count mismatch -- camera arms skipped", flush=True)
+        for tag, (me, mu) in arms.items():
+            y = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
+            if len(y) < 5:
+                continue
+            X = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
+            b = np.concatenate([BE[me]] + ([BU[mu]] if mu.any() else []))
+            p = GC._refit_pred(_pipe, X, y, b)
+            if p is None:
+                continue
+            ok = p != GC.REFIT_UNAVAILABLE
+            rows.append(dict(label=lab, animal=an, epoch=epochs.epoch_of(lab), align=align, trials=tag,
+                             n=int(ok.sum()), acc=float(np.mean(p[ok] == y[ok])) if ok.any() else np.nan))
+    print(f"  {align} {an}: {len(rows)} rows", flush=True)
+    return rows
+
+
 def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--fig-rule", action="store_true",
                     help="pre-stroke sessions on LICKING trials (the rule of Figs 1.1 / 1.2), to check against them")
-    fig_rule = ap.parse_args(argv).fig_rule
-    from wfield_local import epochs
+    ap.add_argument("--jobs", type=int, default=8)
+    a_ = ap.parse_args(argv)
+    fig_rule, jobs = a_.fig_rule, a_.jobs
+    import os
     from wfield_local import grant_confusion as GC
-    from wfield_local.locanmf_frozen_decoder import _pipe
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
@@ -46,63 +114,15 @@ def main(argv=None) -> int:
     out = lp_licks.output_dir(out)       # camera-lick (LP) runs write under <parent>/<tag>/qc (writeguard rule)
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    # CAPTURE the bundle's own features object: its `.indices[label]` = (engaged cue idx, no-lick cue idx), row for row
-    # with XE[GE == i] / XU[GU == i] -- the only way to map a bundle row to its DAQ cue (read-only; `_pooled_bundle`
-    # imports `features_with_indices` at call time, so wrapping the module attribute sees the exact object it builds)
-    from wfield_local import precue_engagement_states as PES
-    import os
-    # the shared A4 classes per DAQ cue (window cue_stop for both columns; `scripts/s1_trial_class_snapshot.py`, commit in
-    # the .json beside it) -- read, never re-derived
-    snap = pd.read_csv(os.environ.get("WFIELD_S1_CLASSES") or (oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
-                                                               / "s1_trial_classes_cue_stop.csv.gz"))
-    feats, _orig = [], PES.features_with_indices
-    PES.features_with_indices = lambda *a, **k: feats.append(_orig(*a, **k)) or feats[-1]
-    rows = []
-    for align in ALIGNS:
-        for an in GC.ANIMALS:
-            feats.clear()
-            GC._BUNDLE_CACHE.pop((an, align), None)            # rebuild so the wrapper sees this bundle's features
-            bd = GC._pooled_bundle(an, align)
-            assert len(feats) == 1, f"{an} {align}: captured {len(feats)} feature objects"
-            idx = feats[0].indices
-            XE, YE, GE, XU, YU, GU = (bd[k] for k in ("XE", "YE", "GE", "XU", "YU", "GU"))
-            # the quit-tail row is a LABELLED DAQ robustness row: under the camera trial gate bundle["not_eng"] is a
-            # RefusedMask and the real DAQ mask is bundle["not_eng_daq"] (rebuild 11-03); identical by default
-            BE, BU, e_pre = bd["BE"], bd["BU"], bd["e_pre"]
-            not_eng = bd["not_eng_daq"] if "not_eng_daq" in bd else bd["not_eng"]
-            for i, lab in enumerate(bd["kept"]):
-                se = (e_pre & (GE == i)) if i in bd["pre_i"] else (GE == i)
-                su = (GU == i) if len(GU) else np.zeros(0, bool)
-                arms = {}
-                # QUIT-TAIL working (`_class_select`): robustness row; `--fig-rule` = licking trials at pre (Figs 1.1/1.2)
-                arms["quittail"] = ((e_pre & (GE == i), np.zeros(len(GU), bool)) if i in bd["pre_i"] and fig_rule
-                                    else GC._class_select("working", se, su, not_eng, rule="daq"))
-                # CAMERA gates (Priya 11-03; working = DEFAULT): shared classes matched to this session's DAQ cues
-                ie, inl = idx.get(lab, (np.zeros(0, int), np.zeros(0, int)))
-                sn = snap[snap.label == lab].set_index("cue_idx")
-                if len(ie) == int(se.sum()) and len(inl) == int(su.sum()) and len(sn):
-                    for gate, tag in (("working", "camwork"), ("camera_lick", "camlick")):
-                        me, mu = se.copy(), su.copy()
-                        me[np.flatnonzero(se)] = sn[gate].reindex(np.asarray(ie, int)).fillna(False).to_numpy(bool)
-                        if len(mu):
-                            mu[np.flatnonzero(su)] = sn[gate].reindex(np.asarray(inl, int)).fillna(False).to_numpy(bool)
-                        arms[tag] = (me, mu)
-                elif len(sn):
-                    print(f"  !! {lab} {align}: index / row count mismatch -- camera arms skipped", flush=True)
-                for tag, (me, mu) in arms.items():
-                    y = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
-                    if len(y) < 5:
-                        continue
-                    X = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
-                    b = np.concatenate([BE[me]] + ([BU[mu]] if mu.any() else []))
-                    p = GC._refit_pred(_pipe, X, y, b)
-                    if p is None:
-                        continue
-                    ok = p != GC.REFIT_UNAVAILABLE
-                    rows.append(dict(label=lab, animal=an, epoch=epochs.epoch_of(lab), align=align, trials=tag,
-                                     n=int(ok.sum()), acc=float(np.mean(p[ok] == y[ok])) if ok.any() else np.nan))
-            print(f"  {align} {an}: {sum(r['animal'] == an and r['align'] == align for r in rows)} rows", flush=True)
-    PES.features_with_indices = _orig
+    snap_path = str(os.environ.get("WFIELD_S1_CLASSES") or (oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+                                                            / "s1_trial_classes_cue_stop.csv.gz"))
+    from wfield_local import analysis_kit as ak
+    units = [(align, an, fig_rule, snap_path) for align in ALIGNS for an in GC.ANIMALS]
+    # one unit = one (alignment, animal) bundle: independent, so fanned over cores (rule 6; Priya 11-03 "parallelize")
+    got, fail = ak.fan_sessions(units, unit_job, jobs=min(jobs, len(units)), key=lambda u: (u[0], u[1]))
+    for u, err in fail:
+        print(f"  FAILED {u[:2]}: {err}")
+    rows = [r for _u, rr in got for r in rr]
     D = pd.DataFrame(rows)
     f = out / ("s1_refit_locanmf" + ("_figrule" if fig_rule else "") + ".csv")   # the run tag is in the directory
     D.to_csv(f, index=False, float_format="%.4g")

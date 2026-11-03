@@ -135,3 +135,37 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   the list of figures whose stars change. Priya: build bal_em min-mass fallback (test 2 / 5 / 10 %; default only if it
   clearly helps) -> bal_em helper. Mix-invariance test (1f33189e): no normalisation is both mix-invariant and right on
   PS94; keep bal_em.
+- 11-03 late: decoder mix checks DONE (fa70b651; labcams/decoder_mix_checks/). SPOUT frozen decoder IS biased by the
+  class mix of its per-session z-score set (engaged trials; far-contra share .16 pre -> .00-.03 acute): production
+  UNDERSTATES the acute far-contra drop by ~.10 (cue/working: -.536 prod vs -.641 bal_em, 4/4 animals) and overstates
+  near-position losses by ~.05-.07; overall accuracy moves <= .04. "Far contra falls most" stands and gets stronger.
+  Fix proposed: bal_em centring on the engaged set as a new frozen spec (old models kept) -- AWAITING PRIYA (and the
+  min-mass guard decision). LICK-LANDING decoder: clean (frame-SD over all frames, no lick-sample centring; artefact
+  +.003 mm vs +.36 mm offset). Caveat: cued ALL-lick acute offset (+.17) loses ~1/3 when the 1.06-1.20x frame-SD rise
+  is undone (CI then includes 0, PS95 flips); ITI and first-cued-lick offsets stand. Tell sabatinilab-34 after Priya.
+  PS110 mCherry: the refined 891 / 4,276 (20.8 %) call file was built on the MOSAIC detection; the cited per-tile
+  detection has only the strict 559 / 3,804 (14.7 %); refined per-tile never run -> asked Priya.
+- 11-03 late: Priya: lick-landing decoder (the more important analysis) unaffected -- caveat sent to 34. Spout decoder:
+  wants a DIFFERENT guard than the state decoder's (training mix ~1/6 there = no-op); asked whether adding jaw-only /
+  incomplete (attempt) trials to the normalisation set helps -> helper running decoder_mix_checks/spout_guard/ (arms P,
+  bal_em, G1 pre-geometry guard 2/5/10 %, G2 drop-absent, ATT engaged+attempt [z and bal_em], ALL). Adoption still
+  Priya's call after that. PS110: Priya approved refined call on the PER-TILE detection -> helper running (2pRAM repo,
+  new files only; reports consumers of the mosaic-based rev74c59ab file).
+- 11-03 ~10:50 PI deck: e3 11-03 re-renders swapped in (presentations/_source_PI_overview_2026-11-02/recrop_e3_rerender_1103.py, backup_before_recrop_e3_rerender_1103.pptx): slides 24 (fig:k_metrics_4panel, fresh plain cohort_metrics_minus_pre_contra.png, byte-identical to the 07:55 _nolines render, so no visible change), 25 (fig:k_acc_pos, accuracy_contra 10:27; jaw-without-lick row changed by A2), 27-28 (tc_share_all*, 10:30), 29-32 (trial_classes figures, 09:30); new crops *_1103b.png, provenance updated. Numbers re-read from tc_share_all*.csv / trial_classes tests.csv + sessions.csv / prepost position_metrics.csv: far-contra acute no response .13 -> .12, jaw-only far contra / far mid +.21 / +.19 -> +.22 / +.18, CIs and per-animal values updated, unknown 4 -> 1 of 50,929. Left for decision: slide 29 notes still say jaw-only close mid +.04 ** (now 0: close-mid jaw not judged after A4) and far ipsi subacute +.03 * (now n.s., p .053); notes 27-32 define no_response as 'no jaw movement' (close mid is now no lick, jaw not judged). Slide 26 not touched. Slide 115 notes: PS110 09-25 sentence now gives the per-tile refined call of record 969 / 3,752 = 25.8 % (strict 559 / 3,804 beside it); 09-22 strict + refined 1470 / 4,081 = 36.0 % (fix_115_ps110_call_1103.py). PNG check of 24-32 OK.
+- 11-03 late: PS110 09-25 per-tile refined call = call of record (Priya): 969 / 3,752 (25.8 %) after dedupe; strict 559 /
+  3,804. 2pRAM c59b16a (routing refuses mismatched call / match files + test), c9a3c8d (register / DECISIONS numbers);
+  all 09-25 outputs re-run per tile, 63 mosaic files moved to analysis/superseded/. "817" = mosaic call mapped onto per-
+  tile cells. Deck: swap_ps110_pertile_1103.py -> slide 113 (gallery 984 / 823) + 119 (outline 969), 115 notes; PNG
+  checked. fix_tc_notes_1103.py: slide 29 / 27-32 / 24 notes that no longer held after A4. NEW (per tile): mCh+ cells
+  less lick-responsive (all bouts 26.0 vs 30.0 %, p .017; spontaneous 21.1 vs 26.4 %, p .0009; uncorrected Fisher);
+  position contrasts unchanged. Spout decoder: G1 not adopted (Priya: selective pre-structure); camera-lick normalisation
+  set proposed. A3 single-session rule: recommended option A (animal-weighted + LMM beside), awaiting Priya.
+- 11-03 late: bal_em production state decoder DONE (9547a773 code, af638910 docs; spec ids PS92 96f8d3543d94 / PS93
+  084308f266df / PS94 8bfbb26d78de / PS95 57866a0b31e3, published byte-verified; session_z models kept). Min-mass
+  fallback built, OFF (does not cut the absent-state drop). 13s family re-rendered (session_z outputs ->
+  _superseded_session_z_20261103/). Deck: slides 13-14 swapped (state_balem_swaps.json via apply_figure_rules_1103.py,
+  note prefix now argv[2]); PNG checked. Page edits: docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md (publish blocked).
+  Open: 13pos hard-coded "carried mostly by one animal" in epoch_state.py is stale; 4 interim unpublished state models
+  parked in C:/Users/SabatiniLab/frozen_models_interim_unpublished_20261103/ (delete? Priya). Slide 9: 5b's camera-
+  working section-1 numbers (s1_refit_basis.csv split_camwork_*) -> new figure fig_decoding_sessions_camwork_1103.py
+  + slide9_camwork_1103.py; ranges .44-.88 / .27-.57, acute post-cue drop 4/4; PNG checked.

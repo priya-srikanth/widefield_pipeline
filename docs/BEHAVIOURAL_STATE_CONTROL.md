@@ -1,3 +1,11 @@
+> **CORRECTION 2026-11-03 (bal_em ADOPTED, production):** the frozen state decoder is now `session_bal_em`. It is trained on
+> class-balanced pre sessions and scores each session with a label-free EM centre (equal-weight soft class means,
+> production SD, 3 passes); no test labels are used. PS94 running recall is .99 -> .97 / .96 / .92 (was .98 -> .84 / .54 /
+> .49), and state retained is .972 -> .927 / .950 / .922. State therefore loses 4.6 / 2.3 / 5.1 % against position's
+> 50 / 19 / 12 % (~11x / 8x / 2.3x). The residual state loss is small in every animal (PS94 chronic balanced accuracy .90;
+> PS92 acute .91, its quiet recall .80). The min-mass fallback was tested and kept OFF. The session_z numbers in the
+> headers below are superseded. DECISIONS 2026-11-03 "bal_em adopted as the production state decoder".
+
 > **CORRECTION 2026-11-03:** under the z-scored (production) decoder PS94's loss is its RUNNING class (recall .98 ->
 > .84 / .54 / .49; read as quiet / licking), not licking (licking holds .90-1.0; the licking reading was the pre-fix
 > decoder's). Running alone (running-class recall) is now .98 -> .92 / .83 / .89, not flat. A class-balanced session

@@ -155,14 +155,16 @@ DAQ_RUN_FP = "from-daq-run"
 
 
 def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=True,
-              basis_id=None, alpha=None, n_features=None, scaling=None, train_data=_MISSING, selection=None,
-              lp_only=False):
+              basis_id=None, alpha=None, n_features=None, scaling=None, scaling_params=None, train_data=_MISSING,
+              selection=None, lp_only=False):
     """The full identity of one frozen model, as a plain dict (JSON-serialisable, order-stable).
 
     ``scaling`` (2026-11-02) names HOW the features were scaled when ``zscore`` alone does not say it. Added because
     the state decoder's spec recorded ``zscore=True`` while its features were never z-scored per session
     (`locomotor_decoder.by_animal_day`): the fix (scaling="session_z") must not load the old, unscaled models filed
     under the same identity. ADDED ONLY WHEN GIVEN, so every existing spec -- and its id -- is byte-identical.
+    ``scaling_params`` (2026-11-03) records the scaling's own settings (bal_em: passes and the min-mass guard, which
+    is recorded even when OFF). Also added only when given.
 
     TRAINING-DATA FINGERPRINT (FREEZE_VERSION 2, cohort-1 rebuild 2026-11-03, Priya: yes). ``train_data`` is REQUIRED:
     the actual training arrays (X / y / groups, in training order, or a data signature the caller already computes)
@@ -216,6 +218,9 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     }
     if scaling is not None:
         spec["scaling"] = str(scaling)
+    if scaling_params is not None:
+        spec["scaling_params"] = {str(k): (None if v is None else float(v) if isinstance(v, float) else v)
+                                  for k, v in sorted(dict(scaling_params).items())}
     # LP-TRAINED models (the LP arm's DEFAULT since 11-03, Priya; see `daq_trained_in_lp`): lick_source is ADDED ONLY
     # THEN, so every DAQ spec -- and its id, which names the stored directory -- is byte-identical to before, and the
     # LP-trained ids are the same ids the 11-02 WIDEFIELD_LP_FROZEN=lp runs froze.

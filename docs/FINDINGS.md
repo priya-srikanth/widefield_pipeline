@@ -52,7 +52,7 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    spouts are reached with more of the ipsilesional lick pattern, re-timed later (5.2-5.4, 5.6). -> Cortical change must
    be judged against behaviour that differs even when it succeeds; hence the frozen frame.
 2. **Acute: losses are mostly the movement, plus a transient decoupling.** Frozen decoder loses far contra (.90 -> .32),
-   position ~5x more than state (3.1, 3.2). The frozen encoder predicts the acute far-contra drop from the changed lick;
+   position ~11x more than state acutely (3.1, 3.2; bal_em state decoder, 11-03). The frozen encoder predicts the acute far-contra drop from the changed lick;
    target part ~0, with FaceRhythm too (4.1). Frozen pixel maps: the acute fit loss is cortex-wide and movement-driven (page
    Fig 1l). Beyond the movement: the decoder weakens for every spout, even on-target licks (4.5); acute far-contra trials
    are each decoded CONFIDENTLY as some other spout, which one varying trial to trial and by animal (4.6b, 10-25 night);
@@ -1083,7 +1083,19 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
 1. **A frozen pre-stroke decoder loses the far-contralesional spout acutely, graded by eccentricity.** Far contra
    .896 -> .321 acute (-.575, Bonferroni [-.738, -.394]); 5 / 6 positions significant acutely; far contra and near
    middle still below pre chronically (-.171, -.163). **STANDS** (PRELIM §2 / H1).
-2. **CORRECTED 11-02 (late): state decoder now z-scored per session** (it was specified, never applied; DECISIONS
+2. **CORRECTED 11-03: bal_em is the production state decoder (Priya approved).** It is trained on class-balanced pre
+   sessions and scored with the label-free EM equal-weight centre (no test labels; DECISIONS 2026-11-03 "bal_em adopted").
+   Position loses 50 / 19 / 12 % of its above-chance performance (.863 -> .428 / .696 / .761; acute / subacute / chronic).
+   State now loses 4.6 / 2.3 / 5.1 % (retained .972 -> .927 / .950 / .922; session_z was .967 -> .903 / .865 / .872, losing
+   7 / 11 / 10 %). So position falls ~11x / 8x / 2.3x further, and the ratio claim now holds at every epoch, not only acutely.
+   PS94 running recall is .99 -> .97 / .96 / .92 (session_z .98 -> .84 / .54 / .49).
+   Per animal, chronic balanced accuracy is .93 / .98 / .90 / .98. The costs: PS92 acute .91 (quiet recall .80) and PS94
+   chronic quiet .89. State still falls slightly (`boot_delta`, balanced accuracy -.022 [-.047, -.003] / -.018 [-.041, .001] /
+   -.037 [-.073, -.009]); running-recall changes do not exclude 0. So it is not flat, but the loss is small in every animal,
+   and PS94 is no longer the exception. **STANDS (stronger).** The min-mass fallback was tested and kept off (no gain at 0 %
+   mixes). Imaging page section 3 edits: docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md. The 11-02 / 10-25 text below
+   is the record.
+2. *(record)* **CORRECTED 11-02 (late): state decoder now z-scored per session** (it was specified, never applied; DECISIONS
    2026-11-02 late): state retained .967 -> .903 / .865 / .873 (was .976 -> .872 / .820 / .838), position unchanged; PS94
    session means .98 -> .87 / .72 / .67, a within-session refit stays .97-.99, so the definitions hold. **CORRECTED 11-03:**
    under this z-scored decoder PS94's loss is the RUNNING class (.98 -> .84 / .54 / .49; licking holds .90-1.0); "licking read
