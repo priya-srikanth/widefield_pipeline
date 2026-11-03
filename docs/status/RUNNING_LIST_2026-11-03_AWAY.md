@@ -53,3 +53,6 @@ _(none open yet. Items appear here as the decoder helper reports.)_
 ## Log (newest last)
 
 - 11-03 late: list started.
+- 11-03 late: Priya (via 34) said the jaw-steering hidden LMM slide is too wide for one graph. I asked e3 to re-render
+  k_jaw_epochs_lmm (6 x 4.5 in), decoding_refit_sessions_lmm (8 x 4.5) and frozen_refit_pooled_lmm (9 x 4.5). I will
+  place each at its natural width, centred, and check the other one-panel hidden slides.
