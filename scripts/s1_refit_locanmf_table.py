@@ -50,12 +50,13 @@ def main(argv=None) -> int:
     # with XE[GE == i] / XU[GU == i] -- the only way to map a bundle row to its DAQ cue (read-only; `_pooled_bundle`
     # imports `features_with_indices` at call time, so wrapping the module attribute sees the exact object it builds)
     from wfield_local import precue_engagement_states as PES
-    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-    from wfield_local.locanmf_position_decoder import _load_cue_events
-    from scripts import jaw_only_incomplete_figs as J
+    import os
+    # the shared A4 classes per DAQ cue (window cue_stop for both columns; `scripts/s1_trial_class_snapshot.py`, commit in
+    # the .json beside it) -- read, never re-derived
+    snap = pd.read_csv(os.environ.get("WFIELD_S1_CLASSES") or (oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+                                                               / "s1_trial_classes_cue_stop.csv.gz"))
     feats, _orig = [], PES.features_with_indices
     PES.features_with_indices = lambda *a, **k: feats.append(_orig(*a, **k)) or feats[-1]
-    sess = {x["label"]: x for x in SESSIONS}
     rows = []
     for align in ALIGNS:
         for an in GC.ANIMALS:
@@ -75,18 +76,15 @@ def main(argv=None) -> int:
                                     else GC._class_select("working", se, su, not_eng))
                 # CAMERA gates (Priya 11-03; working = DEFAULT): shared classes matched to this session's DAQ cues
                 ie, inl = idx.get(lab, (np.zeros(0, int), np.zeros(0, int)))
-                if len(ie) == int(se.sum()) and len(inl) == int(su.sum()) and lab in sess:
-                    cue = _load_cue_events(sess[lab]["h5"])
-                    cs = np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
-                    tab = J.session_classes(lab)
-                    ce, cu = J.cue_classes(tab, cs[np.asarray(ie, int)]), J.cue_classes(tab, cs[np.asarray(inl, int)])
+                sn = snap[snap.label == lab].set_index("cue_idx")
+                if len(ie) == int(se.sum()) and len(inl) == int(su.sum()) and len(sn):
                     for gate, tag in (("working", "camwork"), ("camera_lick", "camlick")):
                         me, mu = se.copy(), su.copy()
-                        me[np.flatnonzero(se)] = J.in_gate(ce, gate)
+                        me[np.flatnonzero(se)] = sn[gate].reindex(np.asarray(ie, int)).fillna(False).to_numpy(bool)
                         if len(mu):
-                            mu[np.flatnonzero(su)] = J.in_gate(cu, gate)
+                            mu[np.flatnonzero(su)] = sn[gate].reindex(np.asarray(inl, int)).fillna(False).to_numpy(bool)
                         arms[tag] = (me, mu)
-                elif lab in sess:
+                elif len(sn):
                     print(f"  !! {lab} {align}: index / row count mismatch -- camera arms skipped", flush=True)
                 for tag, (me, mu) in arms.items():
                     y = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
