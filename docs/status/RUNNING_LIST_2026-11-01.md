@@ -441,3 +441,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   = first-lick latency + 3.5 s). Licks per trial = total cue -> trial stop; lick RATE from inter-lick intervals, NOT count / time.
   "Stopped" runs must start >= 5 min after the first cue (replaces the warm-up rule); checking that no current stopped run moves.
   LMM captions: main slides keep their bootstrap captions; each LMM hidden slide carries the LMM results + its own LMM caption (a8 asked).
+- 11-03: a8 DONE: the four LMM hidden slides carry an on-slide bold LMM caption (estimate [95% CI], p, df = 3; "main-slide claim =
+  bootstrap"): rec_wlc csm_share -.13 / -.15 / -.14, p .13 / .13 / .17; rec_kn chronic norm -.10, p .14 (acute .052); recovery_timing
+  acute gap +.17, p .21; spec_groups acute residuals p .065-.13 (on spec_groups_b). Main captions untouched. Script lmm_not_sig_captions_1103.py.
