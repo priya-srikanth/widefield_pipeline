@@ -480,3 +480,65 @@ All in the "second pass" commit after 630c277b; tests in `tests/test_review_seco
    tests/test_render_profile.py: run tag = `hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-
    stopRun6` (cache tag + `_csig-<sha>`).
 
+6. **Coverage tables, all curated sessions** (`scripts/camera_coverage_tables.py` at 5c17d76a, run WITHOUT the render
+   profile into a scratch folder; nothing on the share). Partly covered: PS93_0813 (0/553, no video), PS92_0904
+   (377/378), PS92_0908 (321/389, tail uncovered). Every contact / no-lick disagreement is `late_after_response_window`
+   (the 3.5 s window), so with the no-lick window unified on cue -> trial stop the residual is 0. Disagreements per
+   animal (pre / acute / subacute / chronic): PS92 1/1/1/1, PS93 6/3/3/2, PS94 1/2/0/1, PS95 1/1/0/0.
+   Trial stops > 3.6 s (n trials; n > 3.6 s; median of those ms; median of all ms):
+
+   | animal | pre | acute | subacute | chronic |
+   |---|---|---|---|---|
+   | PS92 | 4044; 3465; 3803.0; 3762.5 | 2681; 1475; 3802.0; 3651.0 | 593; 471; 3755.0; 3688.6 | 3894; 3524; 3771.1; 3736.3 |
+   | PS93 | 5396; 4713; 3827.6; 3792.1 | 2294; 1258; 3912.9; 3657.8 | 1616; 1193; 3820.4; 3730.4 | 6068; 5542; 3791.6; 3778.4 |
+   | PS94 | 6197; 5711; 3707.8; 3697.6 | 3643; 1924; 3719.7; 3634.8 | 3000; 2486; 3698.7; 3680.8 | 4800; 4469; 3709.0; 3696.6 |
+   | PS95 | 6950; 6259; 3715.6; 3690.6 | 720; 493; 3739.8; 3694.6 | 4275; 2941; 3701.4; 3667.6 | 6600; 5848; 3681.4; 3675.6 |
+
+   Acute has a clearly smaller share of trials longer than 3.6 s (53-68 % vs 86-92 % pre): relevant for any
+   licks-per-trial read-out (FOR PRIYA).
+
+### 8.8 Review, third pass (REBUILD_CODE_REVIEW_20261103.md "Third pass", 62d1dbc4): 3ef70b5b
+- **T1** LP-family roots (`run_mode.subdir(lp_family=True)` / `routed_output(lp_family=True)`) and registered data stores
+  (`run_mode.register_data_store`) pass the writeguard at their routed place; `lp_family_root_ok` checks every root
+  (was: first only). attempt_coding `--out` routed like `out_dir`. Probe: writable in every LP mode.
+- **T2** ITI: `E_BASE` (= `frozen_encoder.base_root()`, unrouted) for iti_licks / residual_roi / specificity_control /
+  remap_lmm, so the specificity_control and ITI folders are tagged once; `il.XOUT` extract folders (SESS_NAME,
+  zscore_check) registered data stores; SD tables through `il.sd_table_path` (iti_zscore_check, iti_area_split_sd).
+- **T3 (Priya)** a jaw-only trial after the last lick BRIDGES a no-response run (not counted, not stopped); a stop needs
+  >= 6 no_response. Effect (below).
+- **T4** missing RESTnl baselines are built (`restnl_mask.baseline_or_build`); attempt_maps raises on empty maps;
+  position_reference_maps raises when no RESTnl baseline exists.
+- **T5** nightly_figs output and deck_out routed; locanmf_analysis_deck `assert_writable` before save.
+- **T6** kinematic_normality reads `il.OUT`; remap_lmm writes into the specificity_control writer's folder.
+- **T7** only >= 5 consecutive unmatched cues count as uncovered (`MIN_UNCOVERED_RUN`; `_effective_coverage`).
+- **T8** the rest period ends at the last camera lick, always (`camera_engaged_period`).
+- **T9** s1_trial_class_snapshot built from `classify_session` (working = primary, end lick); face_offset_partial
+  "before" fits stored (`pre_loso_ridge`; decoder via `frozen_readouts.fit_all`).
+- **T10** `tests/test_parallel_ordering_strict.py` (AST: fan_out result sorted; runtime state visible to workers);
+  5 wfield_local sites sorted (joint_xsession, orofacial_outputs x2, poststroke_section_g, precue_lickfree).
+- **LOW** warm-up rule; a session with no camera lick -> all no_response are warm-up (no stops); rule-edge tests
+  (tests/test_priya_decisions_1103.py); stale docstrings; poststroke no-lick window cue_stop; cache sort key with kind.
+- **DECISIONS.md**: "2026-11-03 (night) -- Camera trial gate for the cohort-1 rebuild" collects the decided rules.
+
+**Classifier effect, 5c17d76a vs 3ef70b5b** (all 119 curated sessions, read-only, scratch CSV): 513 trials in 44
+sessions change class; contact / incomplete / jaw_only / unknown unchanged. Cohort: stopped 2339 -> 1830, after_end
+72 -> 581, no_response 2674 -> 2670, warm-up 0 -> 4. All moved trials go stopped -> after_end (runs after the last lick
+with < 6 no_response once the jaw-only trials no longer count); both classes are outside the engaged period, so the
+working / camera-lick sets do not change.
+- PS94_0825 (subacute, 600 cues): stopped 40 -> 12, after_end 0 -> 28; contact 440, incomplete 27, jaw_only 55,
+  no_response 38 unchanged.
+- PS93_0925 (chronic, 600 cues): stopped 86 -> 38, after_end 0 -> 48; contact 477, incomplete 20, jaw_only 13,
+  no_response 4 unchanged.
+- Stopped per animal x epoch, old -> new (pre / acute / subacute / chronic): PS92 0/268/0/0 -> 0/217/0/0;
+  PS93 41/232/77/86 -> 24/208/52/38; PS94 225/386/156/94 -> 157/328/116/67; PS95 187/0/355/232 -> 135/0/341/147.
+- **Warm-up (PROVISIONAL, for Priya)**: 4 trials in 4 of 119 sessions -- PS94 acute 2 (PS94_0817, PS94_0820), PS93
+  subacute 1 (PS93_0824), PS95 subacute 1 (PS95_0818). Labelled neither class.
+
+**Tests.** 50f59ff8 full suite (5 shards): 4,450 passed, 176 skipped, 0 failed. 3ef70b5b: see 8.9.
+
+**Not done (LOW, listed):** o2_face_rhythm segment completion order; grant_figures failure order; the N2 symmetric
+strip; the N3 `frozen_models*` file-segment exemption; T6 early_predictors mixes families (consistent within a family);
+camera_coverage_tables forces gate=daq for its own comparison; `.str[:4]` animal ids in a few scripts.
+
+**For Priya:** warm-up rule (provisional); the no-camera-lick session rule (all warm-up, no stops); MIN_UNCOVERED_RUN = 5;
+the contact no-lick counts above; the acute trial-length difference.
