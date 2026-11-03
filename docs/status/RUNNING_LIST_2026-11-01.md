@@ -372,3 +372,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   cross-check cannot find its model, N3 writeguard refuses the lp_final store; 8 MED. Sent back for fixing; third review after.
   New questions for Priya: N6 exclude PS92_0908 (82.5% video) from camera-gated cells; N7 does a jaw-only trial after the last
   lick break a no-response run.
+- 11-03 DECISIONS (Priya): (1) no-lick trials classed contact -> neither class; count them per animal x epoch to see what they are
+  (undetected DAQ contacts vs grooming); (2) rest-baseline working period ends at the last camera lick; (3) camera noattempt =
+  isolated no_response inside the working period (lapse vs sustained stop); (4) fix the 7 ordering-rule scripts; (5) convert the 3
+  in-memory decoders to stored read-outs; (6) KEEP PS92_0908 in camera gating for its 82.5% covered trials (rules computed within the
+  covered span; partial coverage flagged + captioned); (7) jaw-only after the last lick does not break a stop run. Sent to the fix helper.
