@@ -37,7 +37,9 @@ ENTIRELY BEFORE the decoder window (span ends before the window starts; possible
 last 2 s and the clean pre-cue period) vs trials with no pre-cue event at all -- full-window p_true, nothing excluded.
 Per-animal tables first (CLAUDE.md rule 8). Cohort1 only.
 
-OUTPUT M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes/v2_quiet/task_events_followup/
+OUTPUT M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes/<v2_quiet | v2_quiet_lp>/task_events_followup/
+    (follows QS_LICK_SOURCE: daq -> v2_quiet, daq+lp -> v2_quiet_lp, whose task_events/ carry LP-masked events. The
+    windows/ cache is the decoder input and does NOT depend on the lick source -- copy it across instead of re-extracting.)
     windows/<label>.npz        raw decoder windows per kept trial (worker output; cache)
     trials.csv.gz              one row per T13 decoder trial: flags, p_true full / excl / before / after (+ neutral fill)
     effects.csv                per animal x epoch group x analysis x flag: excess, p (session x spout) and strict
@@ -57,7 +59,7 @@ import numpy as np  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from quiet_spikes_v2 import V2  # noqa: E402
+from quiet_spikes_v2 import LICK_SOURCE, V2  # noqa: E402
 
 TE = V2 / "task_events"
 OUT = V2 / "task_events_followup"
@@ -449,7 +451,9 @@ def figure(E, M):
                  "transient or a weaker plan? Frozen pre-stroke precue decoder (LP_licks, 1.0-s window, 4 sub-bins), "
                  "rebuilt per frame; event span = peak -0.3..+0.6 s; no-event controls lose the same frames (matched "
                  f"pseudo-event masks, {N_DRAW} draws). Small open = animal (shape), colour = epoch; large = all animals; "
-                 f"stars = STRICT within-stratum permutation p. {nev} event-in-window trials.", fontsize=8.5, wrap=True)
+                 f"stars = STRICT within-stratum permutation p. {nev} event-in-window trials. Events / masks: "
+                 + ("DAQ contact + LP video licks (QS_LICK_SOURCE=daq+lp)." if LICK_SOURCE == "daq+lp"
+                    else "DAQ contact licks."), fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.5, h_pad=2.5)
     fig.savefig(OUT / "t13_followup_exclusion.png", dpi=110)
     plt.close(fig)
