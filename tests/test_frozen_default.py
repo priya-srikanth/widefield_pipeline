@@ -918,3 +918,28 @@ def test_cd_analyse_animal_uses_the_store():
     assert "fit_directions(" not in src and "condition_independent_modes(Gpre" not in src
 
 
+# ------------------------------------------------------- the ENL window reaches every "precue-*" spec (fix, 11-02)
+@pytest.mark.parametrize("align", ["precue", "precue-rt2-fabc", "precue-dom+dom_orth", "precue-keep1-2-seed0"])
+def test_precue_specs_carry_the_enl_window(pass2_env, align):
+    """A WIDEFIELD_ENL_WINDOW_S=1.0 run must never resolve to the 2.0 s model: found by the nolick ENL 1.0 render,
+    where "precue-rt2-..." specs ignored the window and the 1.0 s run HIT the 2.0 s models (precue cells differed)."""
+    from wfield_local import frozen_models
+    tr = ["PS92_0810", "PS92_0811"]
+    a = frozen_models.make_spec("PS92", "k", align=align, source="locanmf", train_labels=tr)
+    pass2_env.setenv("WIDEFIELD_ENL_WINDOW_S", "1.0")
+    b = frozen_models.make_spec("PS92", "k", align=align, source="locanmf", train_labels=tr)
+    assert a["post_s"] == 2.0 and b["post_s"] == 1.0
+    assert frozen_models.spec_id(a) != frozen_models.spec_id(b)
+
+
+def test_non_precue_specs_ignore_the_enl_window(pass2_env):
+    from wfield_local import frozen_models
+    tr = ["PS92_0810"]
+    for align in ("cue", "cue-june", "lick-dom", "iti_licks.frozen_decode-x", "rest-rest-b4"):
+        a = frozen_models.make_spec("PS92", "k", align=align, source="s", train_labels=tr)
+        pass2_env.setenv("WIDEFIELD_ENL_WINDOW_S", "1.0")
+        b = frozen_models.make_spec("PS92", "k", align=align, source="s", train_labels=tr)
+        pass2_env.delenv("WIDEFIELD_ENL_WINDOW_S")
+        assert frozen_models.spec_id(a) == frozen_models.spec_id(b), align
+
+

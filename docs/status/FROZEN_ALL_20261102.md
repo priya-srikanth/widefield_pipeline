@@ -254,6 +254,7 @@ at most 4 processes in total.
 | family | render | training set | result |
 |---|---|---|---|
 | 1 nolick | `build_reference` as the nightly calls it (dates = every curated date, all phases), PS93 + PS94, roi basis, both cuts, both windows (8 analyses, 39 post sessions scored); stored (`alldates_PS93_PS94/daq_stored`: 1 frozen-new + 7 frozen-hit on models the pre-date render had just frozen) vs `=0` | same | **IDENTICAL**: 37801 leaves |
+| 1 nolick | `build_reference` CLI default (pre-stroke dates only), ALL 4 animals x roi + joint x both cuts x both windows (32 analyses); stored (29 frozen-new + 3 hits) vs `=0` | same | **IDENTICAL**: 60879 leaves |
 | 2 attempt | `attempt_coding --out` (LP, all 4 animals x precue / cue / lick), stored (12 frozen-new) vs `=0` | same (LP) | **IDENTICAL**: 19 files (12 trial tables, 3 summaries, 3 contrasts, run.json), 0 of ~3.25 M leaves differ |
 | 3 drift | `june_august_drift --reuse-distance` (DAQ), stored (8 frozen-new) vs `=0` | same | **IDENTICAL**: decoder_rows / distance_rows / summary_by_animal, 1984 cells |
 | 4 coding | `position_coding_directions -j 1` (DAQ; 4 animals x ENL / cue / lick; methods dom + dom_orth), three renders: stored (24 frozen-new), `=0`, and the UNMODIFIED code at 8debc35e (`daq_head_8debc35e`) | same | **IDENTICAL in every model-derived leaf** (582360 leaves of `coding_direction.json`; PNGs not compared). The only differing leaves are `sessions[i]/variance_captured`, a joint-basis PROJECTION diagnostic computed before any model, which jitters at <= 9e-8 between ANY two runs: 3 leaves stored vs `=0`, 60 HEAD vs `=0`, 57 HEAD vs stored. So the refactor reproduces the old code and the store reproduces the in-memory fit |
@@ -265,3 +266,136 @@ arm under 30 trials) -- pre-existing, not touched; the nightly calls the same `b
 fails the same way when that arm occurs. The renders used a scratch driver (`nolick_render.py`) that wraps
 `summarize`, memoises `session_features` so the opt-out pass re-reads the stored pass's features, and calls
 `build_reference` twice in one process (stored, then `=0`). Nothing computed is changed by the driver.
+
+## P2.5 Not converted, and why
+
+- **`precue_engagement_states`** (section 2 row 2): not touched, per the brief -- the module is hashed into the
+  beta-map and prm map-cache digests (~33 GB of caches would go cold). Decision for Priya.
+- **5rm / paired_matched, `_matched_frozen`, the size-matched draw in `june_august_drift`**: resampled controls (one
+  random pre subset per scored session), left in memory by design (section 7 item 2 above).
+- **`position_coding_directions._diagnostics`**: pre-only diagnostics (close-far axis, pre-stroke pairwise slopes, the
+  unit-norm poles of `norm_unit`); they explain panels, nothing in them is a reference scored on post data except via
+  the stored axes.
+- **Section G fallbacks** (`crossed_confusion` / `impaired_nolick_readout` / `decode_matched` all-trials arm when
+  `frozen(d)` is None): the same `decoder`-kind model is already stored on the main path; the fallback only runs for a
+  pool that records no identity or a failed lookup. **`looks_like_which`'s within-pre CV estimates** (grouped /
+  ungrouped `cross_val_score` on the balanced sample): cross-validation by design.
+- **ITI pattern scripts** (`iti_decoder_patterns`, `iti_decoder_pattern_stats`, `iti_session_patterns`) and
+  `iti_where_drift`: per-epoch / per-session refits (activation patterns, drift), not a pre reference scored on post.
+- **Truly ambiguous specs: none found.** The two section G specs the inventory called ambiguous are both
+  deterministic functions of (pre set, preserved positions, seed): the lick-only arm keys on the preserved set; the
+  advancing-RNG fold discriminators are stored as ONE payload fitted in the in-memory order, together with the
+  generator state after the last fit, so the post-value bootstrap that continues from that generator draws exactly as
+  before.
+
+## P2.6 Family 8, `frozen_encoder`: NOT converted -- plan
+
+Large and risky, so stopped as the brief allows. Why: `fit_animal_job` fits per animal x variant (joint, ordered
+bounds, no-movement, novar_* / lag drops, every drop-one-spout under each `DROP_BASES` ordering) from the pre-session
+sufficient statistics (`fit/pre_stats.pkl`), and the fits are ALREADY persisted, but privately (`fit/<an>_<v>.npz` and
+the pickle in the run folder) rather than in the frozen store; `build_templates` (spout-locked templates from pre
+sessions, applied to every post session) is a second pre reference; `frozen_relabel` (l.181) and
+`scripts/partial_refit.py` (l.119) keep their own pickles. A verification render is the whole encoder (template pass,
+statistics pass over the August pre sessions, predict pass over ~119 sessions; spatial targets add the basis / grid
+passes), and its outputs are the encoding page's, under the LP run folder, where only a new `--tag` avoids
+overwriting. The module is in active use by the encoding window.
+
+Plan (one commit, then one tagged render):
+1. kind `encoder_templates`: `build_templates` output per animal; spec = animal, August pre labels, `_run_tag()`,
+   `STATS_VERSION`, template bins, plus a data signature of the template parts.
+2. kind `frozen_encoder`: one payload per animal = `fit_animal_job`'s dict (every variant + drop fits); spec align =
+   `<target>-<tag>-<run_tag>-s<STATS_VERSION>-<variants>-drop<0/1>`, training = the animal's August pre labels, plus
+   a data signature of the pre statistics (XtX / xy / yy / counts) -- the inputs are derived, so U_atlas / SVTcorr
+   stats alone cannot identify them.
+3. opt-out `WIDEFIELD_ENCODER_FROZEN=0`; LP-only by nature (the run is the LP run; the design uses LP licks).
+4. route `frozen_relabel` / `partial_refit` through the same kinds instead of their pickles.
+5. verify: `frozen_encoder --all --tag frozen_store_check` (new folder) stored vs `=0` with `--reuse-stats`, then
+   compare `fit/*.npz` and every predict / summary table exactly; pin `fit_animal` payload = in-memory in tests.
+
+## P2.3 LP arm (WIDEFIELD_LICK_SOURCE=lp, DAQ gate, June + August pre, WIDEFIELD_ENL_WINDOW_S=1.0)
+
+LP outputs sit under `allstored2/LP_licks/<family>/<arm>/` (writeguard requires an `LP_licks` path for LP-run writes).
+
+| family | LP-trained stored (`WIDEFIELD_LP_FROZEN=lp`) vs `=0` | DAQ-trained stored (new default) vs `=0` (LP-trained) |
+|---|---|---|
+| 2 attempt | n/a: LP-only by nature; the LP render IS the identity check (P2.2) | n/a |
+| 3 drift | **IDENTICAL** (1970 cells) | differs only in the UNMATCHED `frozen_acc` column of `decoder_rows` (139 of 1050 cells, max .036); `frozen_matched_acc`, `refit_acc`, the distances and every `summary_by_animal` cell (what fig 4.3 draws: F_drift, G_drift, the August-frozen F / G) are identical, because the size-matched draw is in memory by design |
+
+Drift, LP arm, mean unmatched frozen accuracy by group (LP-trained -> DAQ-trained): june_loso .860 -> .862, aug_from_june
+.705 -> .706, aug_loso .864 -> .864, acute_from_aug .563 -> .560, subacute_from_aug .758 -> .752, chronic_from_aug .794 ->
+.798. Per-animal summary (F_drift .138 / .249 / .154 / .140 for PS92-95; F acute (Aug-frozen) .184 / .261 / .382 / .149) is
+the same under both trainings.
+| 4 coding (cue + lick windows; the ENL window needs the DAQ 1.0 s models, not rendered) | **IDENTICAL** in every model-derived leaf (1 `variance_captured` leaf jitters) | 149937 leaves differ (expected: every post-stroke projection and confusion moves with the training set); all 16 lookups `frozen-hit` on the DAQ render's models |
+
+Coding directions, LP arm, far-contra (far_R) row recall of the per-class confusion and the dom own-axis projection of
+post-stroke lick trials, LP-trained -> DAQ-trained (all post sessions pooled):
+
+| window | animal | pre (LOSO) | post lick | post miss-while-working | dom far_R axis, post lick |
+|---|---|---|---|---|---|
+| cue | PS92 | .876 -> .879 | .586 -> .603 | .354 -> .354 | .648 -> .657 |
+| | PS93 | .806 -> .795 | .560 -> .554 | .159 -> .159 | .593 -> .522 |
+| | PS94 | .895 -> .900 | .595 -> .574 | .359 -> .329 | .733 -> .738 |
+| | PS95 | .943 -> .937 | .850 -> .841 | .289 -> .303 | .787 -> .774 |
+| lick | PS92 | .922 -> .913 | .632 -> .543 | .268 -> .183 | .626 -> .587 |
+| | PS93 | .853 -> .858 | .603 -> .546 | .256 -> .146 | .506 -> .482 |
+| | PS94 | .898 -> .890 | .566 -> .564 | .312 -> .261 | .750 -> .741 |
+| | PS95 | .940 -> .926 | .858 -> .839 | .197 -> .079 | .807 -> .779 |
+
+The pre column equals the acc family's LP numbers (FROZEN_DEFAULT section 5: same pooled bundle, same LOSO). As for the
+acc / 5r families, the DAQ-trained default reads the LP arm's lick window lower (post lick -.06 to -.09 in PS92 / PS93;
+miss-while-working -.05 to -.12 in every animal); the cue window moves by <= .03 (projection: PS93 -.07).
+
+CD trajectories, LP arm (cue + lick; the ENL alignment needs DAQ 1.0 s models, not rendered): LP-trained stored vs `=0`
+**IDENTICAL** (16 result files); DAQ-trained default vs `=0`: 2.89 M leaves differ (every trace moves with the directions).
+Far-contra (far_R) diagonal, mean over the fitting window, pooled sessions, LP-trained -> DAQ-trained:
+
+| window | animal | pre | acute | subacute | chronic |
+|---|---|---|---|---|---|
+| cue | PS92 | .96 -> .95 | .21 -> .22 | .43 -> .43 | 1.03 -> 1.02 |
+| | PS93 | .86 -> .84 | .43 -> .42 | .61 -> .60 | .72 -> .69 |
+| | PS94 | .71 -> .72 | .16 -> .17 | .51 -> .52 | .62 -> .62 |
+| | PS95 | .96 -> .95 | .33 -> .33 | .70 -> .69 | .65 -> .65 |
+| lick | PS92 | .94 -> .91 | .21 -> .21 | .45 -> .44 | 1.01 -> .97 |
+| | PS93 | .88 -> .89 | .42 -> .43 | .67 -> .69 | .76 -> .83 |
+| | PS94 | .72 -> .75 | .20 -> .20 | .53 -> .54 | .65 -> .66 |
+| | PS95 | .95 -> .94 | .20 -> .17 | .70 -> .66 | .63 -> .63 |
+
+The acute far-contra collapse (about .2 of the pre pole in PS92 / PS94 / PS95) is the same under both trainings; the
+largest move is PS93 lick chronic (+.07).
+
+## P2.4 A spec bug found by the renders, and its fix (`frozen_models.make_spec`)
+
+The DAQ ENL 1.0 s no-lick render (`WIDEFIELD_ENL_WINDOW_S=1.0`, needed so the LP arm has DAQ-trained 1.0 s models)
+came out **DIFFERENT** stored vs in memory: 12455 leaves, all in the pre-cue window (the cue cells only differed in the
+verdict strings that compare the two windows). Cause: `make_spec` applied the ENL-window override only to `align ==
+"precue"`, and the pass-2 kinds name the window first and add fields (`precue-rt2-f..`, `precue-dom+dom_orth`,
+`precue-keep..`, `precue-dom`), so the 1.0 s run asked for the 2.0 s spec and LOADED the 2.0 s model (16 frozen-hits).
+The family was stopped there, as briefed; the cause was this commit's spec, so it was fixed rather than papered over:
+the override now also applies to an align that starts with `precue-`. Ids without the override (every default DAQ
+2.0 s render, the epoch family's `precue`) are unchanged (pinned: `test_precue_specs_carry_the_enl_window`,
+`test_non_precue_specs_ignore_the_enl_window`).
+
+- The 4 `attempt_axes_precue-dom_*` models frozen by the first LP attempt render (LP runs default to ENL 1.0 s) were
+  fitted on 1.0 s features but labelled `post_s` 2.0. They were RETIRED by rename (`frozen_models.supersede`, reason
+  `ENL1.0-features-labelled-post_s2.0`), never deleted. No other model was mislabelled: the coding / CD LP renders used
+  cue + lick only, the section G renders are DAQ 2.0 s, and the first ENL 1.0 nolick run only HIT (wrote nothing).
+- Re-verified after the fix: nolick DAQ ENL 1.0 (`nolick/predates_enl1_fixed`, 16 new 1.0 s pre-cue models + 16 cue
+  hits) stored vs `=0` **IDENTICAL** (all 4 animals, both bases, both cuts); attempt LP (`attempt_coding/
+  lp_stored_specfix`, 4 new pre-cue models + 8 cue / lick hits) vs `=0` **IDENTICAL** (19 files).
+- The superseded first ENL 1.0 output (`nolick/predates_enl1/`) is the record of the bug; it is not a result.
+
+No-lick, LP arm (pre-stroke dates, all 4 animals, roi + joint, both cuts, ENL 1.0): LP-trained stored (32 frozen-new) vs
+`=0` **IDENTICAL**; DAQ-trained default (32 frozen-hit on the fixed DAQ 1.0 s / 2.0 s models) vs `=0` (LP-trained): 21708
+leaves differ, every verdict unchanged. Engaged LOSO accuracy / no-lick balanced accuracy, 2.0 s cut, LP-trained -> DAQ-
+trained:
+
+| basis | animal | pre-cue engaged | pre-cue no-lick | cue engaged | cue no-lick |
+|---|---|---|---|---|---|
+| roi | PS92 | .296 -> .285 | .264 -> .287 | .875 -> .882 | .142 -> .165 |
+| | PS93 | .341 -> .347 | .322 -> .307 | .765 -> .763 | .229 -> .253 |
+| | PS94 | .545 -> .542 | .248 -> .247 | .929 -> .929 | .231 -> .228 |
+| | PS95 | .407 -> .406 | .244 -> .237 | .914 -> .913 | .240 -> .238 |
+| joint | PS92 | .305 -> .284 | .277 -> .257 | .889 -> .892 | .155 -> .201 |
+| | PS93 | .371 -> .374 | .335 -> .358 | .778 -> .780 | .239 -> .240 |
+| | PS94 | .593 -> .602 | .288 -> .293 | .936 -> .937 | .225 -> .221 |
+| | PS95 | .425 -> .423 | .265 -> .262 | .927 -> .927 | .268 -> .241 |

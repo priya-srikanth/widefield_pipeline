@@ -117,8 +117,12 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     # ENL WINDOW (WIDEFIELD_ENL_WINDOW_S, 2026-10-21): a pre-cue model's window IS its post_s, and the features it is
     # applied to are built with the overridden window (`lp_licks.apply_enl_window`) -- so the spec must carry it, or a
     # 1.0 s run would load the 2.0 s model. The matched DAQ 1.0 s run freezes these; LP_licks reuses them.
+    # 11-02 pass 2: ALSO an align that STARTS WITH "precue-" (the pass-2 kinds put variant fields after the window name:
+    # nolick "precue-rt2-f..", coding "precue-dom+dom_orth", section G "precue-keep..", attempt "precue-dom"). Without
+    # it a WIDEFIELD_ENL_WINDOW_S=1.0 run HIT the 2.0 s model (found by the nolick ENL 1.0 render: precue cells differed
+    # stored vs in memory). Ids without the override (the default DAQ 2.0 s runs) are unchanged.
     from wfield_local import lp_licks
-    if align == "precue" and lp_licks.enl_window_s() is not None:
+    if (align == "precue" or str(align).startswith("precue-")) and lp_licks.enl_window_s() is not None:
         post_s = lp_licks.enl_window_s()
     spec = {
         "freeze_version": FREEZE_VERSION,
