@@ -448,7 +448,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 ## 11-03 EVENING (Priya away): questions, findings, decisions, running -- newest block, read this first
 
 ### Questions for Priya
-- (none blocking yet; the stop-rule check result and the fifth review will add items here)
+- PI deck slide 34 (far contra attempts) has NO tests: a8's fig_farcontra_attempts_sessions.py is descriptive only (made to replace
+  the per-animal table). RECOMMEND: add paired animal-weighted change-vs-pre stars in the top band + an LMM hidden slide, drawn in
+  the rebuild from the new camera-class trial_attempts_sessions.csv (the current inputs are the pre-rebuild v36 tables).
+- Pre-cue maps on PI slide 24 (epoch_15r precue, RESTW ref) are the 1.0 s lick-free window; B12 made 1.5 s primary for the LP ENL
+  arm, but NO 1.5 s map render exists, and the rebuild profile does not set WIDEFIELD_ENL_WINDOW_S=1.5 (LP_ENL_WINDOW_S = 1.0).
+  RECOMMEND: the rebuild sets 1.5 s for the LP precue arm (decoders AND maps), 1.0 s as the labelled sensitivity. Confirm B12 covers maps.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
