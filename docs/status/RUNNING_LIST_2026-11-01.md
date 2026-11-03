@@ -485,6 +485,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   does not. RECOMMEND keep AUC 0-1 primary (pre-decided; it captures DURATION -- the acute far-contra response reaches the pre
   peak but decays sooner, which a peak cannot see), peak as a labelled sensitivity. Caveat on peak: the max of a noisy PETH is
   biased up, more so with fewer trials (acute sessions have fewer licks), so it can inflate acute changes.
+  DECISION (Priya 11-03 evening): regional response sizes = AUC 0-1 s PRIMARY, PEAK (max of the session PETH 0..1.5 s / pre)
+  SECONDARY. Now: the slides 95-98 helper also makes _peak LMM companions. REBUILD LIST: every regional response-size figure
+  (goal 14.10 / 14.11 response sizes, 14.23 row 2 cued, ITI response summary) gets a labelled peak row / supplement beside the
+  0-1 s AUC; caption the peak's small-n upward bias. DECISIONS entry to add at the rebuild merge.
 - PI slide 118 (lick order, cued row): Priya wants an ITI backup (landing offset + decoder offset by lick number). The panels exist
   (top row of goal Fig 13.2, docked ITI; whole figure already on slide 177 "Backup: lick-order curves"). Asked a8: hidden backup
   right after 118 with the ITI row only, and fix 118's bullet / notes, which name a non-existent backup title. Pending the deck
