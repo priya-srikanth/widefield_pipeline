@@ -1,3 +1,8 @@
+> **CORRECTION 2026-11-02:** the state decoder's per-session z-score was specified but never applied (fixed;
+> spec scaling="session_z"). It explains only part of PS94's state loss (chronic .64 -> .78); a within-session refit
+> stays .97-.99, so the states remain separable and the definitions hold -- PS94's LICKING pattern changed (licking read
+> as quiet .49 chronic). State is therefore not a clean non-orofacial control in PS94. DECISIONS 2026-11-02 (late).
+
 # The behavioural-state control — does *everything* degrade after the lesion, or only the target?
 
 > **Current conclusions (10-25): [FINDINGS.md](FINDINGS.md) section 3, claim 2.** The state-decoder numbers below are STALE; current sidecar `epoch_13n_state_vs_position_cue.csv`: position .863 -> .428 / .696 / .761, state .976 -> .872 / .820 / .838 (the claim is the ratio).

@@ -207,6 +207,9 @@ them. Nothing has been deleted; check the path and check for a non-null id.
 
 ---
 
+**2026-11-02: the state models gained `scaling="session_z"` in their spec (per-session z-score was specified but
+never applied); old unscaled state models keep their ids as the record. DECISIONS 2026-11-02 (late).**
+
 ## 7. EVERY PRE-STROKE DECODER IS FROZEN — the rule for this and future cohorts (Priya, 2026-10-15)
 
 *"Establish in the code for future cohorts that we will make a frozen pre-stroke decoder that is cached / stored

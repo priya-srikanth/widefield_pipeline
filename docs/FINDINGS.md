@@ -541,6 +541,10 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
 1. **A frozen pre-stroke decoder loses the far-contralesional spout acutely, graded by eccentricity.** Far contra
    .896 -> .321 acute (-.575, Bonferroni [-.738, -.394]); 5 / 6 positions significant acutely; far contra and near
    middle still below pre chronically (-.171, -.163). **STANDS** (PRELIM §2 / H1).
+2. **CORRECTED 11-02 (late): state decoder now z-scored per session** (it was specified, never applied; DECISIONS
+   2026-11-02 late): state retained .967 -> .903 / .865 / .873 (was .976 -> .872 / .820 / .838), position unchanged; PS94
+   session means .98 -> .87 / .72 / .67 -- its loss is the LICKING class (licking read as quiet), a within-session refit stays
+   .97-.99, so the definitions hold and state is not a clean non-orofacial control in PS94. The text below is the pre-fix record.
 2. **Specificity: position loses far more than behavioural state.** Above-chance performance retained (current sidecar
    `epoch_13n_state_vs_position_cue.csv`): position .863 -> .428 / .696 / .761 (acute / subacute / chronic), state
    .976 -> .872 / .820 / .838, running alone ~.97. State DOES fall (acute -.069, Bonferroni interval excludes 0); the

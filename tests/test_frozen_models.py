@@ -7,7 +7,6 @@ contamination of 2026-08-26 was possible -- a model refitted every run has no id
 interrogate, so "what were you trained on?" had no answer on disk. These tests pin the identity.
 """
 import json
-import types
 
 import pytest
 
@@ -240,3 +239,25 @@ def test_server_dir_returning_none_is_tolerated(tmp_path, monkeypatch):
     assert F.find(spec()) == (None, None)
     assert F.siblings(spec()) == []
     assert F.load_or_fit(spec(), lambda: {"full": "M"}, log=lambda *a: None)[1] == F.STATUS_NEW
+
+
+def test_scaling_field_only_changes_specs_that_pass_it():
+    """2026-11-02: the state decoder's fix adds scaling="session_z" to its spec; every spec that does not pass
+    `scaling` must stay byte-identical (same id), and passing it must give a new id (the old, unscaled state models
+    keep their store directory as the record)."""
+    from wfield_local import frozen_models as fm
+    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0)
+    a = fm.make_spec("PS92", "state", **kw)
+    b = fm.make_spec("PS92", "state", **kw, scaling=None)
+    c = fm.make_spec("PS92", "state", **kw, scaling="session_z")
+    assert "scaling" not in a and fm.spec_id(a) == fm.spec_id(b)
+    assert c["scaling"] == "session_z" and fm.spec_id(c) != fm.spec_id(a)
+
+
+def test_state_session_zscore():
+    import numpy as np
+    from wfield_local import locomotor_decoder as ld
+    X = np.array([[1.0, 5.0], [3.0, 5.0], [5.0, 5.0]])
+    Z = ld.session_zscore(X)
+    assert np.allclose(Z[:, 0].mean(), 0) and np.allclose(Z[:, 0].std(), 1)
+    assert np.allclose(Z[:, 1], 0)                   # zero-SD feature: centred, not divided by 0

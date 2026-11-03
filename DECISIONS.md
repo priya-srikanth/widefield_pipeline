@@ -22212,3 +22212,30 @@ tables (`position_metrics.csv`, image sign + = image right) are unchanged. Kinem
 for Figs 3.1 / 3.6 and adds the first-lick aim figures (1.4 pooled, 1.5 per animal; `scripts/lick_cued_aim_by_spout.py`,
 encoding window, + = contra). STILL + = ipsi on that page, labelled on every axis: section 2 angle / lateral rows, the 3-D
 midline-angle figures (3.2-3.5, 3.7, 9.x) and the section 4 paths -- convert when those figures are next rendered.
+
+
+## 2026-11-02 (late) — State decoder: per-session z-score added (it was specified, never applied); PS94's state loss is a changed LICKING pattern
+
+**Bug.** `locomotor_features.segment_features` says the caller applies the session-level z-score "exactly as for trials"
+(`locanmf_frozen_decoder.pool_sessions`), and `frozen_state_models` recorded `zscore=True` in the frozen spec, but
+`locomotor_decoder.by_animal_day` passed each session's raw joint-basis features straight to a `StandardScaler` fitted
+on pooled PRE-STROKE segments. Every other frozen decoder (position via `pool_sessions`; the lick where-decoders, per-
+session frame SD) scales per session; the state decoder alone did not. **Fix:** `by_animal_day` now z-scores each
+session's segment features (`locomotor_decoder.session_zscore`; mean / SD over that session's segments) and the state
+spec carries `scaling="session_z"` (new `make_spec(..., scaling=)` field, added only when given, so every other spec id
+is byte-identical). The old models (unscaled features filed under a spec that claimed zscore=True) keep their store id
+as the record; `WIDEFIELD_STATE_ZSCORE=0` reproduces the pre-fix run. Old figures / sidecars:
+`grant_figures/epoch/_superseded_state_unscaled_20261102/` (+ `data/_superseded_state_unscaled_20261102/`).
+Tests: `tests/test_frozen_models.py` (scaling only changes specs that pass it; zero-SD features centred).
+
+**Why it mattered less than it looked (Priya asked: "is there an issue with defining the different states?").**
+Diagnostics `M:/MICROSCOPE/Priya/Widefield/labcams/state_decoder_ps94_check/` (collect.py rebuilds the features as
+`by_animal_day` does, reads the stored models read-only; analyse.py): PS94 frozen balanced accuracy pre / acute /
+subacute / chronic .99 / .84 / .72 / .64; z-scored in memory .99 / .92 / .78 / .78; a WITHIN-SESSION refit .98 / .99 /
+.98 / .99 in every PS94 session -- the three classes stay separable, so the DEFINITIONS are fine (treadmill zero 1.259 V
+unchanged, rest speed ~0, no licks in rest; PS94 runs faster post-stroke, median ~7 -> ~15 mm/s, well above 3 mm/s).
+The residual loss is LICKING read as quiet (.49 chronic) and running read as licking (.27): PS94's cortical licking
+pattern no longer fits the pre-stroke map -- the same kind of change as the spout code. PS92 / PS93 / PS95 stay .92-.99
+under every decoder. **Consequence for the specificity claim:** state is not a clean non-orofacial control -- its
+licking class is orofacial; position still falls far more than state in 3 / 4, and PS94's state loss is in the
+orofacial class. Re-rendered: epoch family 13s (`epoch_13*`), deck slide "Specificity ...", imaging page section 3.

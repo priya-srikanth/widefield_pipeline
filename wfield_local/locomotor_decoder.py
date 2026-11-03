@@ -46,6 +46,33 @@ from wfield_local import locomotor_state as ls
 MIN_PER_CLASS = 15
 
 
+#: Per-session z-scoring of the segment features (2026-11-02). `segment_features` has always said the caller applies
+#: the session-level z-score "exactly as for trials" (`locanmf_frozen_decoder.pool_sessions`), and the frozen spec
+#: recorded zscore=True, but `by_animal_day` never applied it: every session's raw joint-basis features went straight
+#: into a scaler fitted on pooled PRE-STROKE data, so any session-wide gain / offset change moved all segments toward
+#: one class together. Measured (labcams/state_decoder_ps94_check/): z-scoring lifts PS94 chronic balanced accuracy
+#: .64 -> .78 and leaves PS92 / PS93 / PS95 within ~.02; a within-session refit stays .97-.99 in every PS94 session,
+#: so the rest of PS94's loss is a changed cortical LICKING pattern (licking read as quiet .49 chronic), not scaling
+#: and not the state definitions. Set WIDEFIELD_STATE_ZSCORE=0 to reproduce the pre-fix (unscaled) run.
+STATE_ZSCORE_ENV = "WIDEFIELD_STATE_ZSCORE"
+
+
+def session_zscore_on() -> bool:
+    import os
+    return os.environ.get(STATE_ZSCORE_ENV, "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+def session_zscore(X):
+    """Each feature z-scored over THIS session's segments (mean / SD over all its classes), as `pool_sessions` does
+    for trials; zero-SD features are left centred. Note the session's class mix enters the mean (as the trial mix
+    does for `pool_sessions`)."""
+    X = np.asarray(X, float)
+    if not len(X):
+        return X
+    mu, sd = X.mean(0), X.std(0)
+    return (X - mu) / np.where(sd > 0, sd, 1.0)
+
+
 def _pipe():
     """The same shape as the position decoder's: standardise, then multinomial logistic."""
     return make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=1.0))
@@ -78,8 +105,12 @@ def frozen_state_models(animal: str, basis_id: str, got: dict):
     from wfield_local import frozen_models as fm
     pre = {lab: v for lab, v in got.items() if v[3] <= 0}
     n_feat = int(next(iter(pre.values()))[0].shape[1])
+    # SCALING IS PART OF THE IDENTITY (2026-11-02): models fitted on per-session z-scored features carry
+    # scaling="session_z"; the pre-fix models (unscaled features under a spec that already said zscore=True) keep
+    # their old id and stay in the store as the record (WIDEFIELD_STATE_ZSCORE=0 reproduces them).
     spec = fm.make_spec(animal, "state", align="segments", source=f"joint_{basis_id}", train_labels=list(pre),
-                        basis_id=basis_id, n_features=n_feat, post_s=ls.SEGMENT_S, zscore=True)
+                        basis_id=basis_id, n_features=n_feat, post_s=ls.SEGMENT_S, zscore=True,
+                        scaling="session_z" if session_zscore_on() else None)
 
     def fit():
         full = fit_frozen(np.vstack([v[0] for v in pre.values()]), np.concatenate([v[1] for v in pre.values()]))
@@ -192,6 +223,8 @@ def by_animal_day(fs_img=FS_IMG):
             try:
                 sig, _r = joint_locanmf.BasisSource(basis, s).signal()
                 X, y, g = lf.segment_features(s, np.asarray(sig), ev, fs_img=fs_img)
+                if session_zscore_on():
+                    X = session_zscore(X)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! state {lab}: {type(ex).__name__} {str(ex)[:70]}", flush=True)
                 continue
