@@ -278,3 +278,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   lineage, last 58f8c14f) to be rebuilt on it by e3/5b BEFORE the rebuild renders, keeping Priya's 10-21 meanings (attempted =
   hit + incomplete; jaw_only = reaction; cue-deflected jaw without lick = unknown unless re-onset). Its consumers (failed-attempt
   decoder / maps, mixed_models.DEFICITS, attempt-coding) re-render once in the rebuild.
+- 11-03 DECISIONS (Priya, on RECONCILIATION.md): D2 preprocessing decks -> REGENERATE the map slides (maps rebuilt anyway for 15e;
+  new folders, never in place). D8 camera "working" gate applied EVERYWHERE a trial selection is made (behaviour / kinematics
+  too); not used as a gate where engagement itself is the measured quantity (quit, engagement decline, attempt rate).
+  D9 once the up-front drift step is in the shared signal, the encoder / ITI / stray_licks own drift steps are removed (kept as
+  a sensitivity row). D10 (Aug-only pre per decoder render block) and D11 (DAQ robustness row on headline working arms) mine.
+  LocaNMF refit: explained; proposed a footprint-stability test before deciding.
