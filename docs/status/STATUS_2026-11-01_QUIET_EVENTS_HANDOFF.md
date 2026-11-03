@@ -10,7 +10,15 @@
 > docs; writes build_inputs/state_balem_swaps.json (slides 13-14) + docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md.
 > (2) mix-invariance stress test (diagnostic only; forced class mixes in held-out pre sessions; arms prod / bal_em /
 > nocentre / per-segment norm D1-D2 / full mixture model E) -> state_decoder_ps94_check/mix_invariance/ + DECISIONS.
-> WHEN THEY LAND: apply state_balem_swaps.json; relay results; switching to D or E = Priya's call.
+> (3) decoder mix checks (Priya 11-03, diagnostic only) -> labcams/decoder_mix_checks/{spout,lick}/ + DECISIONS: is the
+> SPOUT frozen decoder (pool_sessions z-score on engaged trials; outcome-gated subsets? coupling when far contra loses
+> drive) or the LICK-DIRECTION frozen decoder (like-for-like landing labels, but is any centre / scale computed over lick
+> samples, i.e. landing-mix-dependent? frame-SD gain from acute quiet events) biased by a post-stroke class-mix shift?
+> Matters for the read-out-offset finding (licks read contralesional of landing). Helpers 1-2 were rate-limited at
+> ~12:30 and RESUMED; if a helper stops on a rate limit again, resume it (SendMessage), never start a duplicate.
+> WHEN THEY LAND: apply state_balem_swaps.json; relay results; switching to D or E = Priya's call; if a lick / spout
+> decoder is biased, it touches published results -> tell Priya before changing anything, and tell sabatinilab-34 (lick
+> decoders are its code, wf_attempt).
 > PAGES BLOCKED: Claude Code is signed in as psrikanth87@gmail.com; the four results pages belong to the HMS account
 > (not visible). Priya to /login as HMS or share the pages with edit access. Then publish from
 > docs/status/FIGURE_RULES_AUDIT_2026-11-03.md: kinematics (_nolines set), FR (re-rendered in place), imaging (bar family
