@@ -99,3 +99,10 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   p_paths, p_phase, p_3d_far_rows123) and backups 123-124 (l_cue excl / incl); sign text on those slides updated
   (far contra acute now -50 to -75 px, -30 to -50 deg lateral / angle; 3-D midline -30 to -40 deg acute). Script
   apply_overnight_specs.py; all eight changed slides checked by PowerPoint export. Deck 134 slides. Decision 9.
+- 11-03 ~09:00 Deck audit helper DONE (deck 138 slides; docs/status/DECK_AUDIT_2026-11-03.md, DECK_TITLES_2026-11-03.csv;
+  commit 1eec2abe): corrected results swapped, LP lick-source lines in 64 notes, mCherry sheets (113 NES PS110, 114 H2B
+  PS104), all-engaged trial classes 31 / 32, VFSS dates, 2pRAM / VM-thalamus context, short titles. Then
+  recrop_trial_classes_1103.py: sabatinilab-e3 re-rendered every trial-class figure from ONE all-engaged class table
+  (07385b37) -> slides 27-32 re-cropped; slide 27 now incomplete far contra +.57 / +.17, jaw-only +.21 / +.19 / +.09;
+  jaw-moved caveat removed. Open for Priya: slide 31 as THE main trial-class slide?; RESTW vs REST lead; PS110 mCherry
+  count (559 / 3,804 vs refined 891 / 4,276); Big-picture quiet bullet qualifier; imaging page section 15 frozen at ~5x.
