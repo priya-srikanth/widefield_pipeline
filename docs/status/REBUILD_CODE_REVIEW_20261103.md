@@ -647,3 +647,64 @@ Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_o
 - The T3 / DECISIONS check (items 2 and 4) is still outstanding.
 
 The T1-T9 fixes hold in the real modes, and the suite is green.
+
+## Fourth pass, addendum: T3 / warm-up / coverage / DECISIONS (items 2 and 4), at 3ef70b5b vs 5c17d76a
+
+**No HIGH findings.** The code implements what Priya approved:
+- a jaw-only trial after the last camera lick bridges a run, but is not counted and not stopped;
+- a stop needs at least 6 no_response trials;
+- the warm-up rule;
+- MIN_UNCOVERED_RUN = 5 (tested at the head, the tail and mid-session, with 4 vs 5 unmatched cues);
+- the rest period ends at the last camera lick.
+
+Tests run: `test_priya_decisions_1103` + camera-gate / trial-class files, 42 passed; `test_stopped_trial_class`, 12 passed. Probes are in `review4_B/`.
+
+**Real sessions (5c17d76a -> 3ef70b5b).**
+
+| session | stopped | after_end | change | rest-period end = last camera lick |
+|---|---|---|---|---|
+| PS94_0825 | 40 -> 12 | 0 -> 28 | 28 jaw_only trials, stopped -> after_end | 559 = 559 |
+| PS93_0925 | 86 -> 38 | 0 -> 48 | 48 jaw_only trials, stopped -> after_end | 513 = 513 |
+| PS92_0908 | 0 | 0 | none (68-cue uncovered tail stays unknown) | 320 = last covered cue |
+| PS92_0904 | 0 | 0 | none (cue 124 = in-video unknown) | 377 = 377 |
+
+**Cohort, 139 sessions.**
+- stopped 2385 -> 1876; after_end 80 -> 589; no_response 2724 -> 2719; warm-up 0 -> 5.
+- The moved trials are 485 jaw_only stopped -> after_end, 24 no_response stopped -> after_end, and 5 no_response -> warmup.
+- The log 8.8 numbers are on the curated 119 sessions and differ by 1 session / 1 warm-up trial (PS94_0805). Confirm that.
+
+**Per rule, DECISIONS "2026-11-03 (night) -- Camera trial gate" vs code: every stated rule matches.** Covered:
+- working classes;
+- end anchor and robustness anchors;
+- stop needs at least 6 no_response, and in-video unknowns neither break nor extend a run;
+- jaw-only bridging, and a jaw-only trial before the last lick still breaking a run;
+- the "any" sensitivity rule;
+- isolated lapse = noattempt;
+- contact no-lick trials in neither class;
+- no-lick window = cue -> stop, contacts from cue + 70 ms;
+- coverage, MIN_UNCOVERED_RUN = 5, and warm-up.
+
+Not in the entry, though the code implements them: PS93_0813 / D12 no-video handling, `late_rewarded`, and rule "any" also excluding warm-up.
+
+**MED**
+- **Log 8.8 describes the change wrongly.** It says moved trials are no_response runs falling below 6, and "jaw_only unchanged". In fact 485 of 509 are the jaw-only bridging trials themselves leaving the stopped arm. In PS94_0825 / PS93_0925 every stopped no_response trial is unchanged. Correct this before it goes to Priya.
+- **Stale text contradicting the code.**
+  - `trial_classes.py:517-518` (classify_session docstring: jaw-only "counts toward it").
+  - `:449` ("last camera-working trial").
+  - `:455-457` (uncovered tail ends at the last covered cue).
+  - Log 8.6 rows 2 and 7 are not marked superseded.
+  - The test name `test_7_..._counts_toward_the_stop` no longer describes what it tests.
+
+**LOW**
+- **No bridging when the video tail is missing.** With the end cutoff off, jaw-only trials do not bridge: `[C,NR,NR,NR,J,NR,NR,NR | 5 unmatched]` gives no stop. This is defensible, since the last lick is unknown, but DECISIONS states bridging unconditionally. No current session is affected.
+- **Robustness anchors and the rest period.** Under the `contact` / `close` end anchors the rest period ends at that anchor, not at the last camera lick. The primary `lick` setting is correct; DECISIONS does not cover the robustness rows.
+- **Test gaps.**
+  - With MIN_UNCOVERED_RUN mutated to 2-4, the argument-free tests still pass; nothing tests 4 vs 5 unmatched cues.
+  - No test of NR3 J NR2.
+  - `test_2` patches a function `camera_engaged_period` no longer calls, so T8 is effectively untested.
+  - Not tested: rule "any" with warm-up; a missing tail with jaw-only trials; a single trailing unmatched cue.
+- **Old rule still exported.** `apply_stopped_rule` / `apply_session_end` (`trial_classes.py:647-705`) still carry the old rule (no warm-up, no bridging, no coverage). Only tests call them; remove them, or make them call classify_session.
+
+**For Priya (provisional):** the warm-up rule; the no-camera-lick session rule (all warm-up, no stops); MIN_UNCOVERED_RUN = 5; no bridging in missing-tail sessions.
+
+**Verdict unchanged.** The trial-class rules are safe to render. The render is still blocked by R1, R2, R3 and R5 above.
