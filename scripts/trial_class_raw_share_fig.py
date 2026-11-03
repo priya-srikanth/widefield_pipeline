@@ -21,26 +21,56 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts import jaw_only_incomplete_figs as jf  # noqa: E402
 from scripts.jaw_only_incomplete_figs import EP_COL, EPS, LAB, POS, SHOW  # noqa: E402
 
 ROOT = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/cam1_licks/trial_classes")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
-ROWS = ("jaw_only", "incomplete")
+ROWS = ("jaw_only", "incomplete", "none")
+NAME = {**SHOW, "none": "no response\n(no lick, no jaw movement)", "contact": "contact lick",
+        "no_response": "no response\n(no lick, no jaw movement)"}
+# --all-engaged (11-03): the table of scripts/trial_class_all_engaged.py -- denominator = EVERY engaged trial (the source
+# table keeps only jaw_pass_qc trials, i.e. trials on which the jaw MOVED, so its `none` is empty by construction)
+ROWS_ALL = ("contact", "incomplete", "jaw_only", "no_response")
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "figures" / "trial_class_share_raw.png"))
+    ap.add_argument("--all-engaged", default=None, help="dir with trial_class_all_engaged.py's sessions.csv")
+    ap.add_argument("--change", action="store_true", help="plot change vs each animal's own pre mean (same tests)")
     a = ap.parse_args(argv)
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     from wfield_local.sig_marks import reserve_headroom, star_top
-    S = pd.read_csv(ROOT / "sessions.csv")
-    R = pd.read_csv(ROOT / "tests.csv")
+    global ROWS
+    if a.all_engaged:
+        ROWS = ROWS_ALL
+        S = pd.read_csv(Path(a.all_engaged) / "sessions.csv")
+        R = pd.DataFrame(columns=["cls"])       # every class tested here, same test as the source
+    else:
+        S = pd.read_csv(ROOT / "sessions.csv")
+        R = pd.read_csv(ROOT / "tests.csv")
+    # classes the source run did not test (Priya 11-03: "no response") get the SAME test (jaw_only_incomplete_figs.tests:
+    # paired nested bootstrap of the change vs own pre, seed 0), written next to the figure, not into the source folder
+    miss = [c for c in ROWS if c not in set(R.cls)]
+    if miss:
+        keep = jf.SHOW
+        jf.SHOW = {c: NAME[c] for c in miss}
+        try:
+            Rn = jf.tests(S)
+        finally:
+            jf.SHOW = keep
+        Rn.to_csv(Path(a.out).with_name(Path(a.out).stem + "_tests_added.csv"), index=False, float_format="%.4g")
+        R = pd.concat([R, Rn], ignore_index=True)
+    if a.change:     # the pre-normalised twin (Priya 11-03: raw and pre-normalised side by side): share minus own pre mean
+        for c in ROWS:
+            base = S[S.epoch == "pre"].groupby(["animal", "position"])[f"share_{c}"].mean()
+            S[f"share_{c}"] = S[f"share_{c}"] - base.reindex(pd.MultiIndex.from_arrays([S.animal, S.position])).to_numpy()
     rng = np.random.default_rng(1)
-    fig, axs = plt.subplots(len(ROWS), len(POS), figsize=(17, 7.6), sharey="row", squeeze=False)
+    fig, axs = plt.subplots(len(ROWS), len(POS), figsize=(17, 3.6 * len(ROWS)), sharey="row", squeeze=False)
     rows_out = []
     for i, c in enumerate(ROWS):
         col = f"share_{c}"
@@ -61,22 +91,28 @@ def main(argv=None) -> int:
                 r = R[(R.cls == c) & (R.position == p) & (R.epoch == ep)]
                 if len(r) and bool(r.iloc[0].sig):
                     star_top(ax, k, "**" if bool(r.iloc[0].sig_bonf) else "*", color=EP_COL[ep], fontsize=13)
+            if a.change:
+                ax.axhline(0, color="0.6", lw=0.8, zorder=0)
             ax.set_xticks(range(4))
             ax.set_xticklabels(["pre", "acute", "subac", "chron"], fontsize=8.5)
             if i == 0:
                 ax.set_title(LAB[p], fontsize=11)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-        axs[i, 0].set_ylabel(f"fraction of trials:\n{SHOW[c]}", fontsize=9)
+        axs[i, 0].set_ylabel(f"fraction of trials{', change vs own pre' if a.change else ''}:\n{NAME[c]}", fontsize=9)
     hs = [plt.Line2D([], [], marker=MARK[x], ls="", mfc="none", mec="0.3", label=x) for x in MARK]
     hs += [plt.Line2D([], [], marker="o", ls="", mfc="none", mec=EP_COL[e], label=e) for e in EPS]
     fig.legend(handles=hs, loc="lower center", ncol=8, frameon=False, fontsize=9)
-    fig.suptitle("Fraction of trials with the jaw moving but no lick (cam1-corrected) and with a lick but no spout contact, "
-                 "per session x spout, by epoch (pre = August); engaged, jaw-QC'd trials;\nopen markers = sessions "
-                 "(shape = animal, colour = epoch); black bar = mean of animals +/- SEM; stars = test of the change vs own "
-                 "pre (Fig 6.1): * CI excludes 0, ** Bonferroni over 18", fontsize=9.5)
+    den = ("ALL engaged trials (one class per trial, shares sum to 1)" if a.all_engaged
+           else "engaged trials on which the jaw moved (jaw_pass_qc)")
+    what = ("CHANGE vs each animal's own August pre mean in the fraction of trials per class" if a.change
+            else "Fraction of trials per class")
+    fig.suptitle(what + ", per session x spout, by epoch (pre = August); denominator = " + den +
+                 ";\nopen markers = sessions (shape = animal, colour = epoch); black bar = mean of animals +/- SEM; stars = "
+                 "paired nested bootstrap of the change vs own pre: * CI excludes 0, ** Bonferroni over 18 (per row)",
+                 fontsize=9.5)
     reserve_headroom(fig)
-    fig.tight_layout(rect=(0, 0.04, 1, 0.9))
+    fig.tight_layout(rect=(0, 0.03, 1, 0.93))
     out = Path(a.out)
     fig.savefig(out, dpi=100)
     pd.DataFrame(rows_out).to_csv(out.with_suffix(".csv"), index=False, float_format="%.4g")
