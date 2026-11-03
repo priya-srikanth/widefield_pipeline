@@ -258,7 +258,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     e_ax = engagement_axis(XE[e_pre], XU[u_pre]) if len(u_pre) and u_pre.sum() >= 10 else None
     # NO-LICK CLASS MASKS: the DAQ quit-tail rule (default, unchanged) or, under the camera trial gate (rebuild 11-03,
     # `trial_classes`; `not_eng` is then a RefusedMask), working = camera class in GATES["working"], stopped =
-    # STOPPED_CLASSES (PROVISIONAL: no_response); "unknown" rows are neither
+    # STOPPED_CLASSES (a sustained stop, Priya 11-03); isolated no_response and "unknown" rows are neither
     from wfield_local import trial_classes as _tc
     if _tc.camera_gate_on():
         _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))

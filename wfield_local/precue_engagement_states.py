@@ -259,8 +259,8 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     e_pre = np.isin(GE, list(pre_i))
     u_pre = np.isin(GU, list(pre_i))
     # STATES 5 / 6: the DAQ quit-tail split (default, unchanged) or, under the camera trial gate (rebuild 11-03,
-    # `trial_classes`), 5 = post no-lick rows in GATES["working"], 6 = post no-lick rows in STOPPED_CLASSES (PROVISIONAL
-    # = no_response); "unknown" rows are in neither. The pre-stroke discriminator does not use the gate.
+    # `trial_classes`), 5 = post no-lick rows in GATES["working"], 6 = post no-lick rows in STOPPED_CLASSES (a SUSTAINED
+    # stop, Priya 11-03); isolated no_response and "unknown" rows are in neither. The pre-stroke discriminator: no gate.
     nl_eng, nl_not = ~not_eng_nl, not_eng_nl
     if camera:
         _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))

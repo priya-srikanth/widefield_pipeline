@@ -82,7 +82,7 @@ def classify(cls_e, cls_u, eng_pre_e, eng_pre_u, not_eng_u, camera_u=None):
 
     CAMERA TRIAL GATE (rebuild 11-03): ``camera_u`` = the `trial_classes` class per XU row (`pool_row_classes`); then
     ``not_eng_u`` is not read, stopped = class in STOPPED_CLASSES and the working split = class in GATES["working"]
-    ("unknown" = neither). PROVISIONAL with stopped = no_response: no_try IS no_response, so "noattempt" is EMPTY
+    ("unknown" = neither). stopped = a SUSTAINED stop (Priya 11-03): no_try is no_response, never working, so "noattempt" is EMPTY
     under the camera gate and the noattempt-vs-stopped contrast cannot be formed (listed for Priya)."""
     ce = np.where(eng_pre_e, np.where(cls_e == "hit", "pre_hit", ""),
                   np.where(np.isin(cls_e, ("hit", "incomplete")), cls_e, ""))

@@ -231,10 +231,10 @@ def test_every_mode_gets_a_part(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_MAP_REFS", "restnl, rest")
     monkeypatch.setenv("WIDEFIELD_EPOCH_FROZEN", "0")
     monkeypatch.setenv("WIDEFIELD_NOLICK_FROZEN", "off")
-    assert run_mode.parts() == [f"hv-{VAR}", "lnmfproj", "pre0801", "sel-camera-cue_stop", "refs-restnl+rest",
+    assert run_mode.parts() == [f"hv-{VAR}", "lnmfproj", "pre0801", "sel-camera-cue_stop-stopRun6", "refs-restnl+rest",
                                 "inmem-epoch+nolick"]
     cp = run_mode.cache_parts()       # + the camera class-source signature, cache only (review H4)
-    assert cp[:3] == [f"hv-{VAR}", "lnmfproj", "sel-camera-cue_stop"] and len(cp) == 4 and cp[3].startswith("csig-")
+    assert cp[:3] == [f"hv-{VAR}", "lnmfproj", "sel-camera-cue_stop-stopRun6"] and len(cp) == 4 and cp[3].startswith("csig-")
     assert not any(x.startswith("csig-") for x in run_mode.parts())
     t = run_mode.tag()
     assert lp_licks.output_tag() == t
@@ -381,7 +381,7 @@ def test_class_select_default_is_byte_identical():
 def test_class_select_camera_rule(monkeypatch):
     from wfield_local.grant_kit import _class_select
     ce = np.array(["contact", "contact", "unknown", "incomplete"], object)
-    cu = np.array(["jaw_only", "no_response", "unknown", "incomplete"], object)
+    cu = np.array(["jaw_only", "stopped", "unknown", "incomplete"], object)   # "stopped" = sustained stop (11-03)
     se, su, ne = np.ones(4, bool), np.ones(4, bool), np.array([False, True, True, False])
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     with pytest.raises(RuntimeError):
@@ -399,7 +399,7 @@ def test_class_select_camera_rule(monkeypatch):
 
 def test_camera_rows(monkeypatch):
     from wfield_local import trial_classes as tc
-    cls = np.array(["contact", "incomplete", "jaw_only", "no_response", "unknown"], object)
+    cls = np.array(["contact", "incomplete", "jaw_only", "stopped", "unknown"], object)   # sustained stop (11-03)
     monkeypatch.setattr(tc, "row_classes", lambda lab, idx: cls[np.asarray(idx, int)])
     ie, inl = np.array([0, 4]), np.array([1, 2, 3, 4])
     assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "working")] == [[True, False], [True, True, False, False]]

@@ -829,8 +829,8 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     from wfield_local import trial_classes as _tc
     if _tc.camera_gate_on():
         # CAMERA TRIAL GATE (rebuild 11-03, `trial_classes`): engaged = the cue's camera class is in GATES["working"],
-        # per trial (no reference positions, no quit tail). ``info["stopped"]`` = class in STOPPED_CLASSES (PROVISIONAL:
-        # no_response); "unknown" cues are neither, so callers must take stopped from there, never as ``~eng``.
+        # per trial (no reference positions, no quit tail). ``info["stopped"]`` = class in STOPPED_CLASSES (a SUSTAINED
+        # stop, Priya 11-03); isolated no_response and "unknown" cues are neither: take stopped from there, never ~eng.
         from wfield_local.plot_spout_trial_averages import _load_daq_events
         cue = _load_daq_events(s["h5"])
         ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"]))

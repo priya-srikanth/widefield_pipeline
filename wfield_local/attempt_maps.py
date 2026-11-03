@@ -64,7 +64,7 @@ def classes_for_rows(cls_e, cls_u, quit_u, pre, camera_u=None):
     """Class per engaged row and per no-lick row of ONE session (strings; "" = unused).
 
     CAMERA TRIAL GATE (rebuild 11-03): ``camera_u`` = the `trial_classes` class per no-lick row; then ``quit_u`` is not
-    read, stopped = STOPPED_CLASSES (PROVISIONAL: no_response, so "noattempt" is empty) and the working split = class in
+    read, stopped = STOPPED_CLASSES (a sustained stop, Priya 11-03; "noattempt" is empty) and the working split = class in
     GATES["working"] ("unknown" = neither), as `attempt_coding.classify`."""
     if pre:
         ce = np.select([cls_e == "hit", cls_e == "incomplete"], ["pre_hit", "pre_incomplete"], "").astype(object)

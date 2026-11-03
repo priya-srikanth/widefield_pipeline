@@ -43,7 +43,7 @@ REGISTER = {
     "scripts/gate_lp_check.py": "exempt",                     # diagnostic of the DAQ / LP gate rules
     "scripts/lp_gate_option_counts.py": "exempt",             # same
     "scripts/s1_refit_basis_table.py": "exempt",              # labelled quit-tail robustness row
-    "wfield_local/enl_states.py": "refuses",
+    "wfield_local/enl_states.py": "wired",                    # states_for(cam_cls=...) under camera (11-03)
     "scripts/enl_state_counts.py": "refuses",
     "scripts/stopped_trial_traces.py": "refuses",
     "scripts/rest_migration/channel_position_maps.py": "refuses",
@@ -184,7 +184,7 @@ def test_gate_all_refuses_its_mask_but_keeps_bookkeeping(monkeypatch):
 def test_attempt_classes_under_camera():
     from wfield_local import attempt_coding, attempt_maps
     cls_u = np.array(["no_try", "jaw_only", "hit", "no_try", "unknown"])
-    cam_u = np.array(["no_response", "jaw_only", "contact", "unknown", "unknown"], object)
+    cam_u = np.array(["stopped", "jaw_only", "contact", "unknown", "unknown"], object)
     post = np.zeros(5, bool)
     _ce, cu = attempt_coding.classify(np.array([], str), cls_u, np.array([], bool), post, TC.RefusedMask("x"),
                                       camera_u=cam_u)
@@ -288,7 +288,7 @@ def test_figures_working_is_tag_checked(monkeypatch, tmp_path):
     assert writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     assert not writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
-    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop" / "coding_direction_cue.png")
+    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-stopRun6" / "coding_direction_cue.png")
 
 
 def test_cue_classes_all_nan_table_is_unknown():
@@ -296,3 +296,38 @@ def test_cue_classes_all_nan_table_is_unknown():
     import pandas as pd
     t = pd.DataFrame({"cue_daq": [np.nan, np.nan], "cls": ["contact", "no_response"]})
     assert TC.cue_classes(t, [1.0, 2.0]).tolist() == ["unknown", "unknown"]
+
+
+def test_sustained_stop_rule(monkeypatch):
+    """Priya 11-03: stopped = no_response inside a run of >= tail_min_misses (6) consecutive camera no_response trials;
+    unknown trials neither break nor extend a run and are never stopped; isolated no_response = neither class.
+    Sensitivity rule "any": every no_response is stopped. The rule name is in the selection tag."""
+    NR, U, C = "no_response", "unknown", "contact"
+    cls = [C, NR, NR, C] + [NR, NR, U, NR, NR, NR, NR] + [C, NR] + [U, U]
+    out = TC.apply_stopped_rule(cls, "run", 6).tolist()
+    assert out[:4] == [C, NR, NR, C]                                   # a run of 2: isolated, unchanged
+    assert out[4:11] == ["stopped"] * 2 + [U] + ["stopped"] * 4       # 6 no_response across one unknown
+    assert out[11:] == [C, NR, U, U]
+    assert TC.apply_stopped_rule([NR] * 5 + [U] * 3, "run", 6).tolist() == [NR] * 5 + [U] * 3   # unknown never extends
+    assert TC.apply_stopped_rule(cls, "any", 6).tolist().count("stopped") == cls.count(NR)
+    assert not TC.in_gate(["no_response", "stopped"], "working").any()
+    monkeypatch.setenv(TC.GATE_ENV, "camera")
+    monkeypatch.delenv(TC.STOPPED_ENV, raising=False)
+    assert TC.run_selection_tag() == "sel-camera-cue_stop-stopRun6"
+    monkeypatch.setenv(TC.STOPPED_ENV, "any")
+    assert TC.run_selection_tag() == "sel-camera-cue_stop-stopAny" and TC.run_selection() == TC.run_selection_tag()
+    monkeypatch.setenv(TC.STOPPED_ENV, "bogus")
+    with pytest.raises(ValueError):
+        TC.stopped_rule()
+
+
+def test_enl_states_camera_branch(monkeypatch):
+    from wfield_local import enl_states
+    monkeypatch.setenv(TC.GATE_ENV, "camera")
+    cam = np.array(["contact", "incomplete", "stopped", "no_response", "unknown"], object)
+    order = np.arange(5)
+    fl = np.array([0.3, np.nan, np.nan, np.nan, np.nan])
+    st = enl_states.states_for(order, fl > 0, np.array(["far_R"] * 5), fl, fl, 2.0, cam_cls=cam)
+    assert st.tolist()[1:] == ["working", "stopped", "", ""]
+    with pytest.raises(TC.DaqGateRefused):
+        enl_states.states_for(order, fl > 0, np.array(["far_R"] * 5), fl, fl, 2.0)

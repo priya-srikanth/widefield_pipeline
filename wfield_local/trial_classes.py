@@ -219,10 +219,11 @@ def in_gate(cls, gate: str) -> np.ndarray:
     return np.isin(np.asarray(cls, dtype=object), list(GATES[gate]))
 
 
-def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW) -> str:
+def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW, stopped: str | None = None) -> str:
     """Short tag naming the trial-selection rule; put it in every cache key / frozen-model spec built on a gate, so
-    runs with different sources or windows never share a cache entry (agreed with the cohort-1 rebuild, 11-03)."""
-    return f"sel-{source}-{window}"
+    runs with different sources or windows never share a cache entry (agreed with the cohort-1 rebuild, 11-03).
+    ``stopped`` = the camera stopped-rule name (`stopped_rule_name`, Priya 11-03), appended when given."""
+    return f"sel-{source}-{window}" + (f"-{stopped}" if stopped else "")
 
 
 # ------------------------------------------------------------------------------------------ the run's trial gate
@@ -241,11 +242,19 @@ GATE_ENV = "WIDEFIELD_TRIAL_GATE"
 WINDOW_ENV = "WIDEFIELD_TRIAL_WINDOW"
 GATE_MODES = ("daq", "camera")
 UNTAGGED_GATE = "daq"
-#: the camera rule's "stopped" set. PROVISIONAL (rebuild 11-03, to confirm with Priya): the instruction defined camera
-#: "working", not "stopped"; no_response (no lick, jaw judged still) is the nearest camera class. Consequence: a
-#: no-response trial mid-session counts as stopped, and attempt_coding's "noattempt" (no_try while still working)
-#: is empty under the camera gate (no_try IS no_response).
-STOPPED_CLASSES = frozenset({"no_response"})
+#: CAMERA "STOPPED" (Priya 11-03, decided): a no_response trial that is part of a SUSTAINED stop. `cue_classes_for`
+#: relabels such trials "stopped" (STOPPED_CLASS); every consumer selects stopped through STOPPED_CLASSES.
+#:   rule "run" (PRIMARY)  a no_response trial is stopped only inside a run of >= `stop_run_min()` consecutive camera
+#:                         no_response trials (`behavior.tail_min_misses`, 6 = the task auto_hold_after_miss threshold).
+#:                         "unknown" trials neither break nor extend a run (skipped when counting) and are never
+#:                         stopped. An ISOLATED no_response trial stays "no_response": in neither working nor stopped.
+#:   rule "any" (SENSITIVITY)  every no_response trial is stopped (the earlier provisional rule).
+#: Setting: ``trial_selection.stopped`` (run) / WIDEFIELD_TRIAL_STOPPED; the rule name enters `selection_tag`, so
+#: caches and frozen specs of the two rules never meet.
+STOPPED_CLASS = "stopped"
+STOPPED_CLASSES = frozenset({STOPPED_CLASS})
+STOPPED_ENV = "WIDEFIELD_TRIAL_STOPPED"
+STOPPED_RULES = ("run", "any")
 CUE_MATCH_S = 0.020          # a DAQ cue and a video trial are the same trial within 20 ms of cue time (as `lp_licks`)
 
 
@@ -386,6 +395,56 @@ def gate_window() -> str:
     return v
 
 
+def stopped_rule() -> str:
+    """"run" (primary, default) or "any" (sensitivity): the camera stopped rule (see STOPPED_CLASSES)."""
+    import os
+    v = os.environ.get(STOPPED_ENV, "").strip().lower() or str(_selection_cfg().get("stopped") or "run").lower()
+    if v not in STOPPED_RULES:
+        raise ValueError(f"{STOPPED_ENV} / trial_selection.stopped = {v!r}; expected one of {STOPPED_RULES}")
+    return v
+
+
+def stop_run_min() -> int:
+    """Minimum run of consecutive camera no_response trials for "stopped" = ``behavior.tail_min_misses`` (6)."""
+    try:
+        from wfield_local import config
+        return int((config.defaults().get("behavior") or {}).get("tail_min_misses", 6))
+    except Exception:                                # noqa: BLE001 - config unavailable (bare unit tests)
+        return 6
+
+
+def stopped_rule_name() -> str:
+    """The rule name in selection tags: "stopRun<n>" or "stopAny"."""
+    return f"stopRun{stop_run_min()}" if stopped_rule() == "run" else "stopAny"
+
+
+def apply_stopped_rule(cls, rule: str | None = None, min_run: int | None = None) -> np.ndarray:
+    """``cls`` (camera class per trial, in SESSION ORDER, the full train) with the stopped no_response trials relabelled
+    STOPPED_CLASS. "run": runs of consecutive no_response counted with "unknown" trials skipped (they neither break nor
+    extend a run); any other class breaks a run. "any": every no_response."""
+    rule = rule or stopped_rule()
+    out = np.asarray(cls, dtype=object).copy()
+    nr = out == "no_response"
+    if rule == "any":
+        out[nr] = STOPPED_CLASS
+        return out
+    n = int(min_run if min_run is not None else stop_run_min())
+    idx = np.flatnonzero(out != "unknown")             # unknown trials are skipped when counting
+    seq = nr[idx]
+    i = 0
+    while i < len(seq):
+        if not seq[i]:
+            i += 1
+            continue
+        j = i
+        while j < len(seq) and seq[j]:
+            j += 1
+        if j - i >= n:
+            out[idx[i:j]] = STOPPED_CLASS
+        i = j
+    return out
+
+
 def camera_gate_on() -> bool:
     return gate_mode() == "camera"
 
@@ -399,12 +458,12 @@ def run_selection(source: str | None = None) -> str:
         # cache tag (`gate_source.cache_tag`, lp_licks "_gateLP").
         from wfield_local import gate_source
         return "sel-daq-quittail" + ("-gateLP" if gate_source.is_lp() else "")
-    return selection_tag(source or "camera", gate_window())
+    return selection_tag(source or "camera", gate_window(), stopped_rule_name())
 
 
 def run_selection_tag() -> str | None:
     """None for the untagged DAQ rule, else the run's selection tag (output folders, cache kinds; `run_mode`)."""
-    return None if gate_mode() == UNTAGGED_GATE else selection_tag("camera", gate_window())
+    return None if gate_mode() == UNTAGGED_GATE else selection_tag("camera", gate_window(), stopped_rule_name())
 
 
 def cue_classes(table: pd.DataFrame | None, cue_s, tol: float = CUE_MATCH_S) -> np.ndarray:
@@ -432,15 +491,18 @@ _CUE_CLS: dict = {}
 
 def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     """Camera class per DAQ cue of one session (``cue_s`` in DAQ seconds); all "unknown" for a session without video
-    outputs. Memoised per process. THE A5 HOOK: switch the class source to `responded(source=...)` here."""
+    outputs. ``cue_s`` must be the session FULL cue train in order (the stopped rule counts runs along it): no_response
+    trials in a sustained stop come back as STOPPED_CLASS (`apply_stopped_rule`, Priya 11-03). Memoised per process.
+    THE A5 HOOK: switch the class source to `responded(source=...)` here."""
     import hashlib
     window = window or gate_window()
     cs = np.ascontiguousarray(np.asarray(cue_s, float))
-    key = (label, window, hashlib.sha1(cs.tobytes()).hexdigest())
+    rule = (stopped_rule(), stop_run_min())
+    key = (label, window, rule, hashlib.sha1(cs.tobytes()).hexdigest())
     if key not in _CUE_CLS:
         if len(_CUE_CLS) > 64:
             _CUE_CLS.clear()
-        _CUE_CLS[key] = cue_classes(session_trials(label, window=window), cs)
+        _CUE_CLS[key] = apply_stopped_rule(cue_classes(session_trials(label, window=window), cs), *rule)
     return _CUE_CLS[key]
 
 

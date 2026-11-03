@@ -336,13 +336,25 @@ DAQ rows): spout_behavior.flag_engagement, disengagement_tests, quit_point, gate
 s1 tables' quit-tail rows. Refuse up front (`require_gate`): enl_states.states_for, enl_state_counts,
 stopped_trial_traces, channel_position_maps; engagement_axis_balance / nocontact_census refuse on the mask.
 Register of every call site: tests/test_camera_gate_fail_closed.py (a new call site fails until classified).
-PROVISIONAL, for Priya:
-1. camera "stopped" = no_response;
+CAMERA "STOPPED", DECIDED (Priya 11-03, replaces the provisional "stopped = every no_response"): a no_response trial is
+stopped only inside a run of >= `behavior.tail_min_misses` (6 = the task auto_hold_after_miss threshold) consecutive
+camera no_response trials; "unknown" trials are skipped when counting (they neither break nor extend a run) and are
+never stopped; an isolated no_response is in NEITHER working nor stopped. Implemented once, in
+`trial_classes.apply_stopped_rule`, applied by `cue_classes_for` (sustained no_response relabelled class "stopped";
+`STOPPED_CLASSES = {"stopped"}`), so every stopped consumer follows it: section 11 / ENL states (`enl_states.states_for`,
+now wired with `cam_cls`; precue_engagement_states 5 / 6), epoch 12s / 12b and every map / decoder stopped arm
+(`camera_rows`, `camera_select`), miss_vs_stopped (coding_direction.json from position_coding_directions), the nolick
+categories. Sensitivity: `trial_selection.stopped: any` / `WIDEFIELD_TRIAL_STOPPED=any` (every no_response). The rule
+name is in the selection tag (`sel-camera-cue_stop-stopRun6` / `-stopAny`), so caches and frozen specs separate.
+Tests: `test_sustained_stop_rule`, `test_enl_states_camera_branch` (tests/test_camera_gate_fail_closed.py).
+NOTE: `cue_classes_for` must be given the session's FULL cue train (every current caller does), since runs are counted
+along it. `scripts/enl_state_counts.py` still refuses under camera (it builds its own states).
+Still PROVISIONAL, for Priya:
 2. miss-while-working = incomplete | jaw_only (a no-lick row with a camera "contact" is in neither; review M6);
 3. rest-baseline "working period" = every cue up to the session's LAST camera-working trial (keeps the DAQ rule's single
    terminal boundary);
-4. consequence of 1: attempt coding's "noattempt" class is EMPTY under the camera gate (no_try IS no_response), so the
-   noattempt-vs-stopped contrast cannot be formed.
+4. under the camera gate attempt coding's "noattempt" class is EMPTY (no_try IS no_response, which is never
+   working), so the noattempt-vs-stopped contrast cannot be formed; isolated no_try trials are now in neither class.
 
 ### 8.3 Map-cache key (e04143c6; M4 widening 5361b2fa)
 `map_collect.cache_kind` hashes `MAP_YAML_KEYS` = decode, lick_detection, segmentation, preprocess.maps.tag, hemo.variant
