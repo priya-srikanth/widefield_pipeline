@@ -150,7 +150,7 @@ def work(label: str) -> dict:
     MK = _masks(M, flat)
     cols = list(MK)
     fc = functional_channel(label)
-    man = json.loads((res / "hemo_meegkit_hpfit" / "manifest.json").read_text())
+    man = json.loads(Path(config.hemo_manifest_path(res)).read_text())   # the selected variant's (one hemo switch)
     if int(man.get("functional_channel", fc)) != fc:
         raise RuntimeError(f"{label}: functional slot {fc} vs manifest")
     Ra = np.stack([Ub[MK[k]].mean(0) if MK[k].any() else np.full(Ub.shape[1], np.nan) for k in cols], 1).astype(np.float64)

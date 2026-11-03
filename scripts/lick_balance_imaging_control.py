@@ -12,7 +12,7 @@ Alternative: a ONE-SIDED imaging change on the lesioned side --
 SAME LICKS, WINDOWS AND ESTIMATOR AS lick_lateral_ratio: cued = first cued lick (times = <OUT_W>/cued_first_lick_times.csv,
 the rows of cued_wide/<label>.npz, with its spout), ITI = bout starts with gap >= GAP_MAIN (2 s); LAGS_W, baseline
 -1.0..-0.5 s per lick (nanmean), session-mean curve, trapezoid AUC 0..1.0 s (and 0..0.5 s); orofacial = mean of the four
-areas' curves per hemisphere; MIN_N licks per cell. Signals: adopted (hemo_meegkit_hpfit SVTcorr; must REPRODUCE
+areas' curves per hemisphere; MIN_N licks per cell. Signals: adopted (the SELECTED hemo variant's SVTcorr, `config.hemo_variant()`; must REPRODUCE
 lateral_ratio_sessions.csv -- checked), raw470 (uncorrected functional half of raw SVT), raw415 (415 half), each projected
 on the ROI means of U_atlas, slow drift (>= 600 s cosines) removed, x1e3 -- exactly iti_hemo_check / wide_session.
 RAW SVT channels are interleaved (K, 2T); functional slot = hemo_variants.functional_channel(label) (0 for PS92_0828).
@@ -94,7 +94,7 @@ def work(label: str) -> dict:
     if list(M) != list(z["cols"]):
         raise RuntimeError(f"{label}: ROI columns differ from cued_wide")
     fc = functional_channel(label)
-    man = json.loads((res / "hemo_meegkit_hpfit" / "manifest.json").read_text())
+    man = json.loads(Path(config.hemo_manifest_path(res)).read_text())   # the selected variant's (one hemo switch)
     if int(man.get("functional_channel", fc)) != fc:
         raise RuntimeError(f"{label}: functional slot {fc} vs manifest {man.get('functional_channel')}")
     # vessel pixels (iti_hemo_check definition): top 5 % of the high-passed NEGATED mean 470 image within the stat mask

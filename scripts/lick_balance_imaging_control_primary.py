@@ -77,7 +77,7 @@ def work(label: str) -> dict:
     if list(M) != list(d["cols"]):
         raise RuntimeError(f"{label}: ROI columns differ from the session file")
     fc = functional_channel(label)
-    man = json.loads((res / "hemo_meegkit_hpfit" / "manifest.json").read_text())
+    man = json.loads(Path(config.hemo_manifest_path(res)).read_text())   # the selected variant's (one hemo switch)
     if int(man.get("functional_channel", fc)) != fc:
         raise RuntimeError(f"{label}: functional slot {fc} vs manifest {man.get('functional_channel')}")
     keys = [f"{a}_{HEMI[s_]}" for a in POOL for s_ in ("c", "i")]

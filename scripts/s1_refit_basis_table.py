@@ -145,12 +145,13 @@ def session_job(label: str) -> dict:
     """Module-level worker: refit decode, pre-cue + post-cue, licking and working trials, for each feature set."""
     import glob
 
+    from wfield_local import config
     from wfield_local import filter_acausality_test as F
-    from wfield_local import hemo_variants as hv
     s = next(x for x in F.SESSIONS if x["label"] == label)
     res = s["mc"] + "/wfield_local_results"
     ad = glob.glob(res + "/allen_aligned_affine8v1")[0]
-    c = np.load(res + f"/hemo_{hv.ADOPTED}/SVTcorr.npy").astype(np.float64)
+    # the ONE hemo switch (config.hemo_variant; rebuild 11-03): was hemo_{hv.ADOPTED}, the same path by default
+    c = np.load(config.svtcorr_path(s["mc"])).astype(np.float64)
     sig, regs = F.roi_signal(ad, c.astype(np.float32))
     feats = {"plain_orig": (sig, regs), **{k: (v, np.arange(len(n))) for k, (v, n) in basis_signals(label, c).items()}}
     out = {"label": label}
