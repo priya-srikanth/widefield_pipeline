@@ -65,7 +65,8 @@ def main(argv=None) -> int:
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.DataFrame([r for _j, rows in got for r in rows])
-    # END-OF-SESSION CUTOFFS on top of `working` (PROVISIONAL, Priya 11-03: "report both, no primary yet"): drop the late,
+    # END-OF-SESSION CUTOFFS on top of `working`. PRIMARY = working_pl_lick (Priya 11-03: "last camera lick cutoff sounds
+    # good"); the other two are robustness rows. They drop the late,
     # smaller jaw-only trials of the sated tail (e3, QUIT_TAIL_JAW_ONLY_2026-11-03: 0.9 / 3.8 / 1.9 / 1.1 % of working
     # pre / acute / subacute / chronic). THREE ANCHORS, because Priya 11-03: "if we drop after the last lick, acutely if
     # the last blocks are far contra or far mid we may drop real data" -- acute far-contra contact is ~5 %, so a CONTACT
@@ -75,7 +76,7 @@ def main(argv=None) -> int:
     #   working_pl_close    at or before the last camera lick at the REFERENCE spouts (close ipsi / close mid), the
     #                       quit-tail idea: those spouts are barely affected, so the anchor marks when the animal
     #                       stopped, not where the last block happened to be
-    # To move into `wfield_local.trial_classes` if one is adopted.
+    # To move into `wfield_local.trial_classes` (e3 owns it; asked 11-03) -- until then this snapshot is the one definition.
     lick = D.cls.isin(["contact", "incomplete"])
     for name, anchor in (("contact", D.cls == "contact"), ("lick", lick),
                          ("close", lick & D.position.isin(["close_L", "close_center"]))):

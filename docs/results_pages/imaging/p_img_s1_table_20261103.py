@@ -1,4 +1,6 @@
 """Imaging page section 1, 11-03 update: per-animal refit-decoder table on the camera-defined trial gates (Priya 11-03).
+PRIMARY trials = camera working up to the session's last camera lick (`working_pl_lick`; Priya 11-03 "last camera lick
+cutoff sounds good"); no cutoff, contact / close-spout anchors and the DAQ gates are robustness rows.
 
     python docs/results_pages/imaging/p_img_s1_table_20261103.py
 
@@ -38,8 +40,8 @@ def main() -> int:
     meta = json.loads((R / "qc/s1_trial_classes_cue_stop.json").read_text())
     Lw = {(t, al): per_animal(L[(L["trials"] == t) & (L["align"] == al)], "acc") for t in L.trials.unique()
           for al in ("precue", "cue")}
-    prim = {("split", w): per_animal(A, f"split_camwork_{w}") for w in ("pre", "post")}
-    pl = {("split", w): per_animal(A, f"split_campllick_{w}") for w in ("pre", "post")}
+    prim = {("split", w): per_animal(A, f"split_campllick_{w}") for w in ("pre", "post")}
+    nocut = {("split", w): per_animal(A, f"split_camwork_{w}") for w in ("pre", "post")}
 
     def row(an, tabs):
         return "".join(f"<td>{tabs[e]:.2f}</td>" if pd.notna(tabs[e]) else "<td>&ndash;</td>" for e in EP)
@@ -49,22 +51,24 @@ def main() -> int:
     body = []
     for an in AN:
         for lab, pre_t, post_t in (("Allen split", prim[("split", "pre")], prim[("split", "post")]),
-                                   ("LocaNMF", Lw[("camwork", "precue")], Lw[("camwork", "cue")])):
+                                   ("LocaNMF", Lw[("camworkpl_lick", "precue")], Lw[("camworkpl_lick", "cue")])):
             body.append(f"<tr><td>{an}</td><td>{lab}</td>{row(an, pre_t.loc[an])}{row(an, post_t.loc[an])}</tr>")
-    n = A[A.split_camwork_post.notna()].groupby(["animal", "epoch"]).size().unstack().reindex(index=AN, columns=EP)
+    n = A[A.split_campllick_post.notna()].groupby(["animal", "epoch"]).size().unstack().reindex(index=AN, columns=EP)
     cnt = " / ".join(f"{e} " + " / ".join(str(int(n.loc[a, e])) for a in AN) for e in EP)
 
     # robustness: mean of the 4 animals' session means, per epoch, for every arm
     def m4(t):
         return t.mean(0)
-    arms = [("Allen split, camera working (jaw or any camera lick) — table above", prim[("split", "pre")], prim[("split", "post")]),
-            ("Allen split, camera working to the session's last camera lick", pl[("split", "pre")], pl[("split", "post")]),
+    arms = [("Allen split, camera working to the session's last camera lick — table above", prim[("split", "pre")], prim[("split", "post")]),
+            ("Allen split, camera working, no end-of-session cutoff", nocut[("split", "pre")], nocut[("split", "post")]),
+            ("Allen split, camera working to the last contact", per_animal(A, "split_camplcontact_pre"), per_animal(A, "split_camplcontact_post")),
+            ("Allen split, camera working to the last close-spout lick", per_animal(A, "split_camplclose_pre"), per_animal(A, "split_camplclose_post")),
             ("Allen split, camera lick gate (contact or incomplete)", per_animal(A, "split_camlick_pre"), per_animal(A, "split_camlick_post")),
             ("Allen plain (no ALM / tjM1 split), camera working", per_animal(A, "plain_orig_camwork_pre"), per_animal(A, "plain_orig_camwork_post")),
             ("Allen split, DAQ quit-tail working", per_animal(Q, "split_work_pre"), per_animal(Q, "split_work_post")),
             ("Allen plain, DAQ licking trials (the table until 11-03)", per_animal(Q, "plain_orig_pre"), per_animal(Q, "plain_orig_post")),
-            ("LocaNMF, camera working — table above", Lw[("camwork", "precue")], Lw[("camwork", "cue")]),
-            ("LocaNMF, camera working to the last camera lick", Lw[("camworkpl_lick", "precue")], Lw[("camworkpl_lick", "cue")]),
+            ("LocaNMF, camera working to the last camera lick — table above", Lw[("camworkpl_lick", "precue")], Lw[("camworkpl_lick", "cue")]),
+            ("LocaNMF, camera working, no end-of-session cutoff", Lw[("camwork", "precue")], Lw[("camwork", "cue")]),
             ("LocaNMF, DAQ quit-tail working", Lw[("quittail", "precue")], Lw[("quittail", "cue")])]
     rob = ["<tr><th>decoder basis, trials</th>" + "".join(f"<th>{w}: {e}</th>" for w in ("pre-cue", "post-cue")
                                                          for e in EP) + "</tr>"]
@@ -80,7 +84,7 @@ def main() -> int:
     post_dn = [a for a in AN if sp.loc[a, "acute"] < sp.loc[a, "pre"]]
 
     html = f"""<!-- section 1 update 11-03 (window 5b; p_img_s1_table_20261103.py). Classes: commit {meta['commit']}, window {meta['window']} -->
-<h4>Per animal (session means; refit within each session; trials = CAMERA-DEFINED WORKING: the jaw moved or the camera saw any lick, contact or incomplete, between the cue and the trial stop; video lick train (cam4 + cam1) for the lick-free pre-cue window; pre = August only; sessions with a decode {cnt} (PS93 pre 7: PS93_0813 has no video); robustness rows below the table)</h4>
+<h4>Per animal (session means; refit within each session; trials = CAMERA-DEFINED WORKING: the jaw moved or the camera saw any lick, contact or incomplete, between the cue and the trial stop, up to the session&rsquo;s last camera lick; video lick train (cam4 + cam1) for the lick-free pre-cue window; pre = August only; sessions with a decode {cnt} (PS93 pre 7: PS93_0813 has no video); robustness rows below the table)</h4>
 <div class="tbl"><table>
 {head}
 {chr(10).join(body)}
@@ -102,7 +106,7 @@ def main() -> int:
         + sentence + "</p>\n<!-- takeaway, first sentences (keep the rest of the existing take: position information "
         "not a plan, slow band): -->\n<p>" + take + "</p>\n", encoding="utf8")
     nums = (f"# Section 1 numbers for PI deck slide 9 (11-03)\n\nSource: {R}/LP_licks_ENL2s/qc/s1_refit_basis.csv "
-            f"(split_camwork_*), classes commit {meta['commit']}.\n\n"
+            f"(split_campllick_*), classes commit {meta['commit']}.\n\n"
             f"* Decoder refit within each session: post-cue {rng_post[0]:.2f}–{rng_post[1]:.2f}, pre-cue "
             f"{rng_pre[0]:.2f}–{rng_pre[1]:.2f} (chance .17), every animal and epoch (was .55–.91 / .28–.55 on DAQ licking "
             "trials, plain Allen).\n"
@@ -111,7 +115,7 @@ def main() -> int:
             + (f", flat in {', '.join(flat)}" if flat else "") + " (was 'up in PS92 / PS95, down in PS93 / PS94').\n"
             f"* Sessions with a decode: {cnt} (acute was 4 / 4 / 4 / 1; working trials include the misses, so the three "
             "acute sessions with no far-contra lick now decode).\n"
-            "* Trials: camera-defined working (jaw moved or any camera lick, cue to trial stop); basis: Allen areas with the "
+            "* Trials: camera-defined working (jaw moved or any camera lick, cue to trial stop), up to the session's last camera lick; basis: Allen areas with the "
             "ALM / tjM1 split.\n")
     (HERE / "s1_update_20261103_numbers.md").write_text(nums, encoding="utf8")
     print(html[:3000]); print(nums)
