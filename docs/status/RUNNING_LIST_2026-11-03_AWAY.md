@@ -56,3 +56,7 @@ _(none open yet. Items appear here as the decoder helper reports.)_
 - 11-03 late: Priya (via 34) said the jaw-steering hidden LMM slide is too wide for one graph. I asked e3 to re-render
   k_jaw_epochs_lmm (6 x 4.5 in), decoding_refit_sessions_lmm (8 x 4.5) and frozen_refit_pooled_lmm (9 x 4.5). I will
   place each at its natural width, centred, and check the other one-panel hidden slides.
+- 11-03 evening: e3's three narrower figures are written. The deck save is BLOCKED: the deck is open in PowerPoint on
+  this box (window "PI_overview_2026-11-02.pptx - PowerPoint", started 18:27; not opened by this window, so I am not
+  touching it). place_natural_width_1103.py is ready and will run once the deck is closed. It places the figures at
+  6.0 / 8.0 / 9.0 in, centred, with the caption under each.
