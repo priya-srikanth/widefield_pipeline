@@ -189,8 +189,10 @@ def compute(rv, run: str, jobs: int | None, n: int, draws: int, baseline: str = 
     return W.sort_values(["animal", "date", "keypoint", "position"]).reset_index(drop=True)
 
 
-def figures(W: pd.DataFrame, figs: Path, title: str) -> pd.DataFrame:
-    """Cohort epochs-by-position and day-bin timecourse of W2 (rows = keypoints), with the cohort tests."""
+def figures(W: pd.DataFrame, figs: Path, title: str, ST: pd.DataFrame | None = None, suffix: str = "",
+            timecourse: bool = True) -> pd.DataFrame:
+    """Cohort epochs-by-position and day-bin timecourse of W2 (rows = keypoints), with the cohort tests. ``ST`` =
+    the stored tests (`--plot-only`: nothing recomputed); ``suffix`` is appended to the file names."""
     from wfield_local import orofacial_cohort as oc
     from wfield_local.orofacial_stats import session_change_tests
     lat = "L"
@@ -204,11 +206,13 @@ def figures(W: pd.DataFrame, figs: Path, title: str) -> pd.DataFrame:
         oc.LABEL[f"w2_{k}"] = (f"W2 {k.replace('_img', '')} (IMAGE px, framing) vs own pre" if k.endswith("_img")
                                else (f"W2 {k} (mouth frame) vs own pre (px)" if k != "spout" else
                                 "W2 spout, no-lick ENL (mouth frame) vs own pre (px)"))
-    ST = session_change_tests(wide, ms)
-    oc.fig_cohort_epochs_by_position(wide, ms, figs / "epochs_by_position.png",
+    if ST is None:
+        ST = session_change_tests(wide, ms)
+    oc.fig_cohort_epochs_by_position(wide, ms, figs / f"epochs_by_position{suffix}.png",
                                      title + "\nWasserstein-2 distance of each session's keypoint cloud from the "
                                      "animal's pre-stroke cloud (pre = leave-one-out, the noise floor)", ST)
-    oc.fig_cohort_timecourse_by_position(wide, ms, figs / "timecourse_by_position.png",
+    if timecourse:
+        oc.fig_cohort_timecourse_by_position(wide, ms, figs / f"timecourse_by_position{suffix}.png",
                                          title + "\nWasserstein-2 distance from the animal's own pre-stroke cloud")
     return ST
 
@@ -226,12 +230,23 @@ def main(argv=None) -> int:
     ap.add_argument("--draws", type=int, default=3, help="subsample draws averaged per W2")
     ap.add_argument("--baseline", choices=("all", "late"), default="late",
                     help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre")
+    ap.add_argument("--plot-only", action="store_true",
+                    help="re-draw the epochs-by-position figure from the stored tables (sessions.csv, stats.csv)")
+    ap.add_argument("--suffix", default="", help="--plot-only: output file suffix, e.g. _nolines")
     a = ap.parse_args(argv)
     rv = PathResolver()
     base = oo.root(rv) / a.run / "cohort"
     sfx = "_allpre" if a.baseline == "all" else ""
     tables, figs = base / "tables" / f"w2{sfx}", base / "figures" / f"w2{sfx}"
     writeguard.assert_writable(base)
+    if a.plot_only:
+        W = pd.read_csv(tables / "sessions.csv", dtype={"date": str})
+        t = (f"Orofacial W2, pre vs post stroke -- {a.run} -- ENGAGED trials -- baseline: "
+             f"{'LATE pre only' if a.baseline == 'late' else 'all curated pre'} -- N={a.n} x {a.draws} draws -- "
+             f"sessions: {W.groupby('animal').date.nunique().to_dict()}")
+        figures(W, figs, t, pd.read_csv(tables / "stats.csv"), a.suffix, timecourse=False)
+        print(f"-> {figs / f'epochs_by_position{a.suffix}.png'}")
+        return 0
     tables.mkdir(parents=True, exist_ok=True)
     figs.mkdir(parents=True, exist_ok=True)
     W = compute(rv, a.run, a.jobs, a.n, a.draws, a.baseline)

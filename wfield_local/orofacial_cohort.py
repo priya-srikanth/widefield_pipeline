@@ -734,9 +734,13 @@ def _tidy(fig) -> None:
     spare = [a for a in axes if not a.axison and not a.has_data() and a.get_legend() is None]
     for ax in axes:
         leg = ax.get_legend()
-        if leg is None or not ax.axison:
-            continue
-        h, lbl = ax.get_legend_handles_labels()
+        if leg is None or not ax.axison or getattr(leg, "_wf_placed", False):
+            continue                    # a legend this loop already moved here: do not rebuild it from ax's own artists
+        # the legend's OWN entries (explicit handles survive the move), not a rebuild from ax's artists
+        h = list(getattr(leg, "legend_handles", None) or getattr(leg, "legendHandles", []))
+        lbl = [t_.get_text() for t_ in leg.get_texts()]
+        real = dict(zip(*ax.get_legend_handles_labels()[::-1]))     # label -> the plotted artist (keeps its look)
+        h = [real.get(lb_, h_) for h_, lb_ in zip(h, lbl)]
         fs = max(leg.get_texts()[0].get_fontsize() if leg.get_texts() else 9, 9)
         leg.remove()
         if not h:
@@ -748,7 +752,8 @@ def _tidy(fig) -> None:
         y0 = ax.get_position().y0
         row = [a for a in axes if a.axison and abs(a.get_position().y0 - y0) < 1e-3]
         last = max(row, key=lambda a: a.get_position().x0)
-        last.legend(h, lbl, loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0, fontsize=fs, frameon=False)
+        last.legend(h, lbl, loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0, fontsize=fs,
+                    frameon=False)._wf_placed = True
 
 
 def save_png_svg(fig, path: Path, dpi: int = 130) -> None:
@@ -816,15 +821,24 @@ def fig_timecourse(S: pd.DataFrame, path: Path, title: str) -> None:
 
 
 def _by_pos_panel(ax, P: pd.DataFrame, m: str, ecol: dict, lat: str) -> None:
+    """One animal, x = spout (each its own category, no connecting lines; Priya 11-03): epochs side by side, epoch
+    mean +- SEM over sessions with the sessions as faded open markers (shape = animal, colour = epoch)."""
+    from wfield_local import cat_points as cp
     x = np.arange(len(POS_ORDER))
-    for e in EPOCH_ORDER:
+    off = cp.epoch_offsets(len(EPOCH_ORDER), step=0.2)
+    for k, e in enumerate(EPOCH_ORDER):
         g = P[P.epoch == e]
         if not len(g):
             continue
         mu = g.groupby("pos")[m].mean().reindex(POS_ORDER)
         se = g.groupby("pos")[m].agg(_sem).reindex(POS_ORDER)
-        ax.errorbar(x, mu.to_numpy(), yerr=se.to_numpy(), fmt="o-", color=ecol[e], ms=3.5, lw=1.2, capsize=2,
-                    elinewidth=0.8, label=f"{e} ({g.date.nunique()})", )
+        for j, q in enumerate(POS_ORDER):
+            gq = g[g.pos == q]
+            cp.session_dots(ax, x[j] + off[k], gq[m].to_numpy(float), gq.animal.to_numpy(), ecol[e], jitter=0.035,
+                            ms=3.0, seed=13 * j + k)
+        cp.summary_point(ax, x + off[k], mu.to_numpy(float), se.to_numpy(float), ecol[e], ms=4.5,
+                         label=f"{e} ({g.date.nunique()})")
+    ax.set_xlim(-0.6, len(POS_ORDER) - 0.4)
     ax.axvline(2.5, color="0.85", lw=0.8, zorder=0)
     if m == "peak_angle_deg":
         _spout_markers(ax, P)
@@ -843,9 +857,14 @@ def _per_animal_figure(P: pd.DataFrame, rows: tuple, lat: dict, path: Path, titl
         for i, m in enumerate(rows):
             _by_pos_panel(axs[i][j], P[P.animal == a], m, ecol, lat[a])
             if i == 0:
-                axs[i][j].set_title(a, fontsize=9)
+                n = P[P.animal == a].groupby("epoch").date.nunique().reindex(EPOCH_ORDER)
+                axs[i][j].set_title(a + " (sessions " + " / ".join(f"{e[:3]} {int(v)}" for e, v in n.dropna().items())
+                                    + ")", fontsize=9)
             axs[i][j].set_ylabel(LABEL[m], fontsize=7 if j == 0 else 6)
-        axs[0][j].legend(fontsize=6, frameon=False)
+    from matplotlib.lines import Line2D
+    axs[0][-1].legend(handles=[Line2D([], [], ls="none", marker="o", color=ecol[e], ms=5, label=e) for e in EPOCH_ORDER]
+                      + [Line2D([], [], ls="none", marker="o", mfc="none", mec="0.4", ms=4, label="sessions")],
+                      fontsize=6, frameon=False)
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
@@ -874,25 +893,31 @@ def fig_angle_tuning(Pm: pd.DataFrame, lat: dict, path: Path, title: str, contra
     if contra:
         sg = Pm.animal.map(lambda a: -1.0 if lat.get(a, "L") == "L" else 1.0)
         Pm = Pm.assign(spout_angle_deg=Pm.spout_angle_deg * sg, peak_angle_deg=Pm.peak_angle_deg * sg)
+    from wfield_local import cat_points as cp
     side = "contra" if contra else "ipsi"
     plt = _plt()
     fig, axs = plt.subplots(1, len(animals), figsize=(3.6 * len(animals), 4.0), squeeze=False)
+    # x = the spout's angle, but the spouts are 3 categories per ring: NO connecting lines (Priya 11-03); epochs and
+    # rings drawn side by side (deg offsets) with the sessions as faded open markers
+    off = cp.epoch_offsets(2 * len(EPOCH_ORDER), step=2.4)
     for ax, a in zip(axs[0], animals):
         g = Pm[Pm.animal == a]
-        for e in EPOCH_ORDER:
+        for k, e in enumerate(EPOCH_ORDER):
             ge = g[g.epoch == e]
             if not len(ge):
                 continue
-            # close and far sit at the SAME image angle (~+-40 deg): one line per ring (far solid, close dashed)
-            for ring, ls in (("far", "-"), ("close", "--")):
+            # close and far sit at the SAME image angle (~+-40 deg): far = filled circle, close = filled square
+            for r_i, (ring, mk) in enumerate((("far", "o"), ("close", "s"))):
                 gr = ge[ge.pos.str.startswith(ring)]
                 mu = gr.groupby("pos")[["spout_angle_deg", "peak_angle_deg"]].mean().sort_values("spout_angle_deg")
                 se = gr.groupby("pos").peak_angle_deg.agg(_sem).reindex(mu.index)
-                ax.plot(mu.spout_angle_deg, mu.peak_angle_deg, ls, color=ecol[e], lw=1.3,
-                        label=f"{e} ({ge.date.nunique()})" if ring == "far" else None)
-                for p, r in mu.iterrows():
-                    ax.errorbar(r.spout_angle_deg, r.peak_angle_deg, yerr=se[p], fmt="o", ms=4, capsize=2,
-                                color=ecol[e], elinewidth=0.8)
+                dx = off[2 * k + r_i]
+                for j, (p, r) in enumerate(mu.iterrows()):
+                    gp = gr[gr.pos == p]
+                    cp.session_dots(ax, r.spout_angle_deg + dx, gp.peak_angle_deg.to_numpy(float), gp.animal.to_numpy(),
+                                    ecol[e], jitter=0.5, ms=3.0, seed=17 * j + 2 * k + r_i)
+                    cp.summary_point(ax, r.spout_angle_deg + dx, r.peak_angle_deg, se[p], ecol[e], marker=mk, ms=4.5,
+                                     label=f"{e} ({ge.date.nunique()})" if (ring == "far" and j == 0) else None)
         ax.plot([-50, 50], [-50, 50], color="0.85", lw=0.8, zorder=0)
         ax.set_xlim(-50, 50)
         ax.set_title(a, fontsize=9)
@@ -902,7 +927,8 @@ def fig_angle_tuning(Pm: pd.DataFrame, lat: dict, path: Path, title: str, contra
     axs[0][0].set_ylabel(f"executed peak tongue angle (deg; + = {side}lesional)", fontsize=8)
     fig.suptitle(title + "\nexecuted vs target angle, licks: ALL POST-CUE licks: per-position median (measured peaks), "
                  "epoch mean +- SEM over "
-                 "sessions\nfar = solid, close = dashed; grey = identity; "
+                 "sessions (faded open markers = sessions; no lines between spouts)\nfar = circle, close = square, epochs "
+                 "side by side at each spout angle; grey = identity; "
                  + ("left = ipsi positions, right = contra" if contra else "left = contra positions, right = ipsi"),
                  fontsize=9)
     _save(plt, fig, path)
@@ -1244,15 +1270,16 @@ def _sem_ribbon(ax, x, y, sx, sy, color, alpha: float = 0.22) -> None:
 
 
 def _spout_markers(ax, P: pd.DataFrame) -> None:
-    """Spout angle per position on a position x-axis (grey dashes + bars)."""
+    """Spout angle per position on a position x-axis: a grey bar per spout, NOT joined (each spout is its own category,
+    Priya 11-03)."""
     if "spout_angle_deg" in P:
         sp = P.groupby("pos").spout_angle_deg.mean()
     elif {"peak_angle_deg", "delta_angle_deg"} <= set(P.columns):
         sp = (P.peak_angle_deg - P.delta_angle_deg).groupby(P.pos).mean()
     else:
         return
-    ax.plot(np.arange(len(POS_ORDER)), sp.reindex(POS_ORDER).to_numpy(), marker="_", ms=12, mew=1.6,
-            color="0.55", ls="--", lw=1.0, zorder=0, label="spout angle")
+    ax.plot(np.arange(len(POS_ORDER)), sp.reindex(POS_ORDER).to_numpy(), marker="_", ms=14, mew=1.8,
+            color="0.55", ls="none", zorder=0, label="spout angle")
 
 
 def _pre_curve(D: pd.DataFrame, animal: str, pos: str, xcol: str, col: str):
