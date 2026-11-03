@@ -4,6 +4,17 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
+## UPDATE 11-03 night (3) — PUBLISHING FOR OTHER WINDOWS (Priya: this window may publish any page)
+
+- **Imaging page v51** (id 1793740803-1eef, on v50) for a8: `docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md` (section 3 ->
+  bal_em production state decoder; Figs 3.1-3.5 swapped to *_balem images; Closed / Pending updated; the new block is a plain
+  note, not a CORRECTION label, per Priya's rewrite rule) + the imaging rows of `FIGURE_RULES_AUDIT_2026-11-03.md`
+  (*_nolines images for 2.1-2.8 except 2.4b [no render], 4.2, 6.1-6.3, 9.1, 9.6-9.8, 10.1, 12.1; captions say faded open
+  markers). Script: scratchpad `imgpage/apply_a8_1103.py` (asserts every replacement). Old images stay in the artifact,
+  unreferenced. NOT done: 2.4b, 5.2 (no source), FaceRhythm page (asked a8), SPOUT_BALEM (a8 holds it until A3).
+- **Kinematics page v25 -> v26** for e3 (source `kin_page_src/kin_page/index.html`, verified as a section-6-only diff against
+  live; images uploaded by name).
+
 ## UPDATE 11-03 night (2) — SECTION 1 PUBLISHED (imaging page v50)
 
 Priya moved Claude Code to the HMS account; the Artifact tool works again after a restart (this window is now
