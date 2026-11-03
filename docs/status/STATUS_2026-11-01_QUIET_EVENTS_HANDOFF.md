@@ -1,6 +1,29 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **WINDOW STATE 11-03 (evening) -- START HERE; supersedes the afternoon block below.**
+> **PRE-COMPACTION SNAPSHOT 11-03 (late) -- START HERE.** Two helpers RUNNING (resume by SendMessage if a rate limit stops
+> them; never start duplicates):
+> (A) bal_em -> PRODUCTION state decoder (Priya approved) + MIN-MASS FALLBACK (Priya approved: if a class's EM share < 5 %
+>     (also test 2 / 10 %) centre with the pre-stroke class mix; default only if it clearly cuts the .09 absent-state drop
+>     and keeps PS94 running .99 / .97 / .96 / .92 within .01). Edits wfield_local/locomotor_decoder.py (UNCOMMITTED, theirs;
+>     e3 promised not to touch it), tests, refit via load_or_fit (new spec id records min_mass), re-render state families
+>     (old -> _superseded_session_z_20261103/), DECISIONS / FROZEN_MODELS / BEHAVIOURAL_STATE_CONTROL / FINDINGS; writes
+>     build_inputs/state_balem_swaps.json (deck slides 13-14) + docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md.
+> (B) decoder mix checks (spout frozen decoder: pool_sessions z-score on engaged trials, gated subsets, coupling; lick-
+>     direction decoder: like-for-like labels but is any centre / scale over lick samples? frame-SD gain) ->
+>     labcams/decoder_mix_checks/{spout,lick}/ (figures already written, report pending) + DECISIONS. If biased: tell Priya
+>     first, and sabatinilab-34 (lick decoders = its wf_attempt code).
+> DONE late 11-03: mix-invariance stress test (1f33189e): no normalisation is both mix-invariant and right on PS94 (fixed /
+> per-segment centring fail PS94's session offset; mixture model breaks when a state dominates) -> keep bal_em.
+> WAITING: sabatinilab-e3 re-rendering trial classes (slides 27-32), orofacial_cohort k_metrics / Fig 1.3 (24-25),
+> cam1_incomplete_licks Fig 7.6 (attempts slide) after A1 (3.5 s hit window) / A2 / A4; will send PNG paths + the A3
+> (animal-weighted change-vs-pre) star-change list -> recrop those slides + behaviour hit-rate slide.
+> PAGES BLOCKED by account (session now on priya.srikanth@hhmi.org / earlier psrikanth87@gmail.com; pages owned by the HMS
+> account): Priya to /login HMS or share with edit. Then publish per docs/status/FIGURE_RULES_AUDIT_2026-11-03.md
+> (+ RESTW-first imaging reorder, section 23, bal_em section-3 edits) and send 34 the encoding-page figure-rules list.
+> OPEN: PS110 mCherry count on slide 115 (559 strict / 891 refined pre-dedupe / grant panel says 817, unverified).
+> Machine: plenty of CPU free (Priya 11-03) -- helpers may use fan_sessions up to its 8-worker cap; watch RAM.
+>
+> **WINDOW STATE 11-03 (evening); partly superseded by the snapshot above.**
 > DECK (138 slides, this window = only writer; apply swap specs with apply_figure_rules_1103.py <spec.json>, check by
 > PowerPoint export): figure-rules swaps applied (slides 10, 19, 24, 33, 56, 57, 58, 100), camera-view swaps (25, 36),
 > trial_class_main_1103.py (slide 27 'Far contra: contact .95 -> .05 acutely' = MAIN trial-class slide; old jaw-only /
