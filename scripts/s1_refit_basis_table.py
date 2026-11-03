@@ -14,6 +14,14 @@ C = 0.5, chance 1/6; same sessions, trials and windows) on three feature sets bu
                areas are the parent's pixels outside the sub-ROI (= `iti_licks.with_rest`'s (parent - f sub) / (1 - f))
 plain_v8 vs split differs ONLY in which areas enter, so it isolates the split; plain_orig vs plain_v8 is the mask change.
 ROI version = `iti_licks.ROI_VERSION` (8, the final ROIs). Needs this branch (the v8 ROIs are not on main).
+TRIALS (Priya 11-03: "use working trials both pre- and post-stroke"): every set is scored on WORKING trials (licking +
+no-lick trials outside the terminal quit period; `decode_lick_working`, the rule of the LocaNMF refit) and, for
+comparison, on LICKING trials only (`F.decode`, the table's rule until 11-03, which needs all 6 positions among licking
+trials -- so the acute sessions with no far-contra lick (PS92_0818, PS94_0817, PS94_0820) had no value).
+CAMERA LICK GATE (Priya 11-03: ENL / cue windows on working trials AND with a camera lick gate): run with
+WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=2.0 -- the LP video lick train replaces DAQ contact everywhere
+(the `lick` column = trials with a camera lick attempt within max_rt, hit or incomplete; the lick-free pre-cue window
+and the quit-period call read video licks too); ENL pinned at the table's 2 s (LP default 1.0 s). Output tagged.
 Sessions: curated, from 08-06 (as `slowband_decode_check --all`). Output -> <run>/imaging_encoding/qc/s1_refit_basis.csv
 """
 from __future__ import annotations
@@ -52,8 +60,57 @@ def basis_signals(label: str, SVTc: np.ndarray) -> dict:
     return out
 
 
+def _cv_acc(X: np.ndarray, y: np.ndarray, g: np.ndarray) -> float:
+    """`filter_acausality_test.decode`'s scoring exactly: all 6 positions required, standardised logistic C = 0.5,
+    GroupKFold(min(5, n blocks)) by position block, accuracy of the cross-validated predictions."""
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import accuracy_score
+    from sklearn.model_selection import GroupKFold, cross_val_predict
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    from wfield_local.filter_acausality_test import DISPLAY_ORDER
+    ng = min(5, int(np.unique(g).size))
+    if ng < 2 or len(np.unique(y)) < len(DISPLAY_ORDER):
+        return np.nan
+    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000, C=0.5))
+    return float(accuracy_score(y, cross_val_predict(clf, X, y, cv=GroupKFold(ng), groups=g)))
+
+
+def decode_lick_working(s: dict, sig: np.ndarray, regs, align: str) -> dict:
+    """{lick, working, n_lick, n_work}: the table's decoder on LICKING trials (= `F.decode`, engaged = a lick within
+    max_rt) and on WORKING trials (Priya 11-03: working both pre and post) = licking + no-lick trials outside the
+    terminal quit period -- the `grant_kit._class_select("working")` rule of the LocaNMF refit (Figs 1.1 / 1.2): quit
+    period = `precue_engagement_states.engagement_gate` on this session's trial order / responded / position, no-lick
+    block ids = `grant_kit._runs_to_blocks` (runs of one position; negative ids, never colliding with the real ones)."""
+    from types import SimpleNamespace
+
+    from wfield_local import filter_acausality_test as F
+    from wfield_local.grant_kit import _runs_to_blocks
+    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
+    from wfield_local.locanmf_position_decoder import _trial_features
+    from wfield_local.precue_engagement_states import engagement_gate
+    args = SimpleNamespace(source="roi", align=align, baseline="none", pre_s=1.0, post_s=2.0, fs=F.FS,
+                           max_rt=F._max_rt())
+    X, y, g, Xn, yn, _r, ie, inl = _trial_features(s, args, signal=sig, feat_region=regs, with_indices=True)
+    out = {"lick": _cv_acc(X, y, g), "n_lick": len(y)}
+    name = np.array([POSITION_NAMES.get(int(v), str(v)) for v in np.concatenate([y, yn])])
+    order = np.concatenate([ie, inl])
+    o = np.argsort(order, kind="stable")
+    quit_ = np.zeros(len(order), bool)
+    quit_[o] = engagement_gate(order[o], np.r_[np.ones(len(ie), bool), np.zeros(len(inl), bool)][o], name[o])
+    keep = ~quit_[len(ie):]
+    if len(yn) and keep.any():
+        bn = _runs_to_blocks(np.zeros(len(yn), int), name[len(ie):])
+        Xw, yw, gw = np.vstack([X, Xn[keep]]), np.r_[y, yn[keep]], np.r_[np.asarray(g, np.int64), bn[keep]]
+    else:
+        Xw, yw, gw = X, y, g
+    out.update(working=_cv_acc(Xw, yw, gw), n_work=len(yw))
+    return out
+
+
 def session_job(label: str) -> dict:
-    """Module-level worker: refit decode, pre-cue + post-cue, for each feature set."""
+    """Module-level worker: refit decode, pre-cue + post-cue, licking and working trials, for each feature set."""
     import glob
 
     from wfield_local import filter_acausality_test as F
@@ -66,11 +123,15 @@ def session_job(label: str) -> dict:
     feats = {"plain_orig": (sig, regs), **{k: (v, np.arange(len(n))) for k, (v, n) in basis_signals(label, c).items()}}
     out = {"label": label}
     for k, (x, r) in feats.items():
-        out[f"{k}_n"] = int(x.shape[0])
-        out[f"{k}_pre"] = F.decode(s, x, r, "precue")
-        out[f"{k}_post"] = F.decode(s, x, r, "cue")
+        out[f"{k}_nfeat"] = int(x.shape[0])
+        for align, w in (("precue", "pre"), ("cue", "post")):
+            d = decode_lick_working(s, x, r, align)
+            out[f"{k}_{w}"] = d["lick"]                  # licking trials (= the table's rule until 11-03)
+            out[f"{k}_work_{w}"] = d["working"]          # working trials (primary from 11-03)
+            out[f"n_lick_{w}"], out[f"n_work_{w}"] = d["n_lick"], d["n_work"]
     print("  {:10s} ".format(label) + "  ".join(f"{k} {v:.3f}" for k, v in out.items()
-                                                  if k.endswith(("_pre", "_post"))), flush=True)
+                                                  if k.endswith(("_pre", "_post")) and not k.startswith("n_")),
+          flush=True)
     return out
 
 
@@ -96,14 +157,19 @@ def main(argv=None) -> int:
     D = pd.DataFrame([r for _lab, r in got]).sort_values("label")
     D["animal"] = D.label.str.split("_").str[0]
     D["epoch"] = D.label.map(epochs.epoch_of)
-    f = Path(out) / ("s1_refit_basis.csv" if not a.labels else "s1_refit_basis_subset.csv")
+    from wfield_local import lp_licks
+    tag = lp_licks.output_tag()                       # "LP_licks_ENL2s" etc. under the camera lick source; None for DAQ
+    f = Path(out) / (f"s1_refit_basis{'_' + tag if tag else ''}" + ("_subset" if a.labels else "") + ".csv")
     D.to_csv(f, index=False, float_format="%.4g")
     pd.set_option("display.width", 250)
-    for w in ("pre", "post"):
-        cols = [f"{k}_{w}" for k in SETS]
-        t = D.groupby(["animal", "epoch"])[cols].mean().unstack("epoch")
-        print(f"\n== {w}-cue, per animal x epoch (session means), chance 0.167")
-        print(t.reindex(columns=list(EPS), level=1).round(3).to_string())
+    for trials, tag in (("WORKING", "work_"), ("LICKING (the table until 11-03)", "")):
+        for w in ("pre", "post"):
+            cols = [f"{k}_{tag}{w}" for k in SETS]
+            t = D.groupby(["animal", "epoch"])[cols].mean().unstack("epoch")
+            print(f"\n== {trials} trials, {w}-cue, per animal x epoch (session means), chance 0.167")
+            print(t.reindex(columns=list(EPS), level=1).round(3).to_string())
+    print("\nsessions with a WORKING split post-cue value per animal x epoch:\n",
+          D[D.split_work_post.notna()].groupby(["animal", "epoch"]).size().unstack().reindex(columns=list(EPS)))
     print("\nsessions per animal x epoch:\n", D.groupby(["animal", "epoch"]).size().unstack().reindex(columns=list(EPS)))
     print("->", f)
     return 0
