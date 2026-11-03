@@ -361,3 +361,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03 DECISION (Priya, via e3; main b506c1e3): primary camera "working" also ends at the session's LAST camera lick (contact |
   incomplete): trial_classes.in_working(..., end="lick"); robustness anchors end="contact" / "close" / "none"; drops 1.0% of working
   trials (1.8% acute; jaw-only trials after the last lick). Tag "sel-camera-cue_stop-endlick". Sent to the rebuild merge / gate helper.
+- 11-03: rebuild code tip f7bb4302: attempt-coding merged (60 conflicts resolved, 39 byte-identical, 9 by hand), camera gate wired /
+  fail-closed with a call-site register test, sustained stopped + end-at-last-lick in cue_classes_for (tag sel-camera-cue_stop-
+  endlick-stopRun6), map key = only the yaml keys builders read, all review H/M/L1-L4 fixed; 12 attempt-coding make_spec calls fixed.
+  Full suite @86280b8a: 4,402 passed, 11 pre-existing parallel-ordering failures in attempt-coding scripts. SECOND review pass sent.
+  Questions for Priya: no-lick trials classed contact; rest-baseline working period; empty noattempt class under camera; 7 scripts
+  break the ordering rule; 3 scripts not on stored read-outs.
