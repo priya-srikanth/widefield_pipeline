@@ -395,3 +395,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03: imaging page LIVE v50 (published by sabatinilab-e0 under Priya's HMS account): section 1 on camera-defined working up to the
   last camera lick; Fig 1.4 = a8's campllick re-plot. e0 can publish any window's pages if this window's Artifact tool is off.
   Read v50 live before any imaging-page edit in the rebuild page pass.
+- 11-03: LMM HIDDEN-SLIDE FIGURES DONE (grant_figures/lmm_hidden_20261103/ + README; code wf_lmm_main branch lmm-hidden-20261103,
+  053dfb76 / e677657b / 09d767e9, not pushed; extractors re-runnable with --root). All 14 extractors reproduce the published per-cell
+  changes exactly. Under the LMM ~half of the bootstrap stars drop, incl. caption headlines: rec_wlc csm_share (all epochs n.s.),
+  rec_kn chronic norm (p .14), spec_groups acute residuals (p .065-.16); kept: acute ITI / cued landing offsets, first-lick acute /
+  subacute, landing slopes, decoder_retention failed-attempt cells (now **). Curve shapes: cued_ramp_summary_row2 + iti_ramp_row1
+  made (pre-specified AUC); gauss_curves / lick_order curves not time courses -> not made. a8 + e3 told.
