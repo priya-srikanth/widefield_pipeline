@@ -106,7 +106,39 @@ def decode_lick_working(s: dict, sig: np.ndarray, regs, align: str) -> dict:
     else:
         Xw, yw, gw = X, y, g
     out.update(working=_cv_acc(Xw, yw, gw), n_work=len(yw))
+    # CAMERA-DEFINED gates (Priya 11-03, the new default): the shared classes (`jaw_only_incomplete_figs`, main),
+    # matched to this decoder's DAQ cues by cue time; every row (licking or not) is kept iff its class is in the gate
+    from wfield_local.locanmf_position_decoder import _load_cue_events
+    J = shared_gates()
+    cue = _load_cue_events(s["h5"])
+    cue_s = np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
+    cls = J.cue_classes(J.session_classes(s["label"]), cue_s[np.r_[ie, inl].astype(int)])
+    Xa, ya = np.vstack([X, Xn]) if len(yn) else X, np.r_[y, yn]
+    ga = np.r_[np.asarray(g, np.int64), _runs_to_blocks(np.zeros(len(yn), int), name[len(ie):])]
+    for gate in ("working", "camera_lick"):
+        m = J.in_gate(cls, gate)
+        out[f"cam_{gate}"] = _cv_acc(Xa[m], ya[m], ga[m]) if m.any() else np.nan
+        out[f"n_cam_{gate}"] = int(m.sum())
     return out
+
+
+_J = None
+
+
+def shared_gates():
+    """`scripts/jaw_only_incomplete_figs` FROM MAIN (widefield_pipeline): the shared camera gates live there (aca69271)
+    and not on this branch. Path from WFIELD_MAIN_REPO (default the sibling checkout)."""
+    global _J
+    if _J is None:
+        import importlib.util
+        import os
+        root = Path(os.environ.get("WFIELD_MAIN_REPO", Path(__file__).resolve().parents[2] / "widefield_pipeline"))
+        spec = importlib.util.spec_from_file_location("jaw_only_incomplete_figs_main",
+                                                      root / "scripts" / "jaw_only_incomplete_figs.py")
+        _J = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_J)
+        assert hasattr(_J, "GATES"), f"{root}: jaw_only_incomplete_figs has no GATES (needs main >= aca69271)"
+    return _J
 
 
 def session_job(label: str) -> dict:
@@ -129,6 +161,9 @@ def session_job(label: str) -> dict:
             out[f"{k}_{w}"] = d["lick"]                  # licking trials (= the table's rule until 11-03)
             out[f"{k}_work_{w}"] = d["working"]          # working trials (primary from 11-03)
             out[f"n_lick_{w}"], out[f"n_work_{w}"] = d["n_lick"], d["n_work"]
+            out[f"{k}_camwork_{w}"] = d["cam_working"]       # camera-defined working (DEFAULT from 11-03)
+            out[f"{k}_camlick_{w}"] = d["cam_camera_lick"]   # camera lick gate (contact + incomplete)
+            out[f"n_camwork_{w}"], out[f"n_camlick_{w}"] = d["n_cam_working"], d["n_cam_camera_lick"]
     print("  {:10s} ".format(label) + "  ".join(f"{k} {v:.3f}" for k, v in out.items()
                                                   if k.endswith(("_pre", "_post")) and not k.startswith("n_")),
           flush=True)
@@ -148,7 +183,10 @@ def main(argv=None) -> int:
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    from wfield_local import lp_licks
+    out = lp_licks.output_dir(out)       # camera-lick (LP) runs write under <parent>/<tag>/qc (writeguard rule)
     writeguard.assert_writable(out)
+    Path(out).mkdir(parents=True, exist_ok=True)
     cur = set(ak.curated_labels())
     labels = a.labels or [s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806" and s["label"] in cur]
     got, fail = ak.fan_sessions(labels, session_job, jobs=a.jobs)
@@ -157,19 +195,20 @@ def main(argv=None) -> int:
     D = pd.DataFrame([r for _lab, r in got]).sort_values("label")
     D["animal"] = D.label.str.split("_").str[0]
     D["epoch"] = D.label.map(epochs.epoch_of)
-    from wfield_local import lp_licks
-    tag = lp_licks.output_tag()                       # "LP_licks_ENL2s" etc. under the camera lick source; None for DAQ
-    f = Path(out) / (f"s1_refit_basis{'_' + tag if tag else ''}" + ("_subset" if a.labels else "") + ".csv")
+    f = Path(out) / ("s1_refit_basis" + ("_subset" if a.labels else "") + ".csv")   # the run tag is in the directory
     D.to_csv(f, index=False, float_format="%.4g")
     pd.set_option("display.width", 250)
-    for trials, tag in (("WORKING", "work_"), ("LICKING (the table until 11-03)", "")):
+    for trials, tag in (("CAMERA WORKING (jaw or any camera lick; DEFAULT)", "camwork_"),
+                        ("CAMERA LICK GATE (contact + incomplete)", "camlick_"),
+                        ("QUIT-TAIL WORKING (lick source of this run)", "work_"),
+                        ("LICKING (lick source of this run)", "")):
         for w in ("pre", "post"):
             cols = [f"{k}_{tag}{w}" for k in SETS]
             t = D.groupby(["animal", "epoch"])[cols].mean().unstack("epoch")
             print(f"\n== {trials} trials, {w}-cue, per animal x epoch (session means), chance 0.167")
             print(t.reindex(columns=list(EPS), level=1).round(3).to_string())
-    print("\nsessions with a WORKING split post-cue value per animal x epoch:\n",
-          D[D.split_work_post.notna()].groupby(["animal", "epoch"]).size().unstack().reindex(columns=list(EPS)))
+    print("\nsessions with a CAMERA-WORKING split post-cue value per animal x epoch:\n",
+          D[D.split_camwork_post.notna()].groupby(["animal", "epoch"]).size().unstack().reindex(columns=list(EPS)))
     print("\nsessions per animal x epoch:\n", D.groupby(["animal", "epoch"]).size().unstack().reindex(columns=list(EPS)))
     print("->", f)
     return 0
