@@ -409,3 +409,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03: LMM figures re-drawn through main's fixed lmm_change_fig (9a820fbb) + 9 slide-layout splits (_a/_b, _cued/_cue/_iti), stats
   byte-identical (sha256), each image checked against its _lmm.csv; Holm stays the whole figure's family. Branch lmm-hidden-20261103
   (09b8feae merge main, 07e2b8de, 73732319). File names sent to a8.
+- 11-03: THIRD REVIEW @5c17d76a (62d1dbc4): suite 4,435 passed / 0 failed. HIGH T1 attempt writers refused under LP, T2 ITI refused
+  in non-data modes, T3 decision 7 labelled jaw-only trials themselves "stopped" (stopped +62% cohort-wide; PS94_0825 run = 12 no-resp
+  + 28 jaw-only) -> implementing as approved: jaw-only after the last lick BRIDGES but is not stopped and not counted; >= 6 no_response
+  needed. MED T4-T10 (empty RESTnl maps, tagged nightly overwrites deck, reader/writer mismatches, coverage edge cases, s1 second
+  classifier). Provisional: no-response runs before the first lick = warm-up, neither class (to confirm with Priya). Fourth review after.
