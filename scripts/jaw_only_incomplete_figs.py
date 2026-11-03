@@ -4,14 +4,18 @@ without lick trials (and incomplete lick trials) per session across epochs").
 
     python -m scripts.jaw_only_incomplete_figs [--jobs 8]
 
-TRIAL CLASSES, per ENGAGED trial (`orofacial_cohort.engagement_keep`, the behaviour gate) whose jaw passed QC (v36
-``tongue_jaw_mismatch.csv`` ``jaw_pass_qc``; the denominator, so the four shares sum to 1), first match wins:
+TRIAL CLASSES, per ENGAGED trial (`orofacial_cohort.engagement_keep`, the behaviour gate; EVERY engaged trial is the
+denominator, so the five shares sum to 1), first match wins (`classify`):
   contact     >= 1 lick touched the spout (a cam4 v36 lick with DAQ contact, or a cam1-only event with contact)
-  incomplete  >= 1 lick (cam4 lick or cam1-only event; water droplets removed) and none touched the spout
-  jaw_only    no lick, and the jaw moved (``candidate_no_lick_with_jaw_move``) with cam1 seeing no tongue in the quiet
-              window (the cam1-CORRECTED jaw-without-lick class of `cam1_incomplete_licks`, FINDINGS 1.4; a blind review
-              found 0 / 24 of these were attempted licks -- reactions, not attempts)
-  none        the rest (no lick, no jaw movement)
+  incomplete  >= 1 lick (cam4 lick or cam1-only event; water droplets removed) and none touched the spout; also the 16 /
+              50,929 trials where cam1 saw a tongue that no lick set counted
+  jaw_only    no lick, cam1 saw no tongue, and the jaw moved (v36 ``tongue_jaw_mismatch.csv`` ``jaw_pass_qc`` = 1: the
+              jaw-MOVED call, not a quality gate) -- the cam1-CORRECTED jaw-without-lick class of `cam1_incomplete_licks`,
+              FINDINGS 1.4 (a blind review found 0 / 24 of these were attempted licks -- reactions, not attempts)
+  no_response no lick and the jaw did not move (``jaw_pass_qc`` = 0)
+  unknown     no lick and the jaw call is undecidable (``jaw_pass_qc`` NaN, jaw not tracked; 4 / 50,929 trials)
+UNTIL 11-03 this script kept only ``jaw_pass_qc`` trials (read as a QC gate), so its shares were out of JAW-MOVED trials
+and no-response trials were missing (caught by e3; `trial_class_all_engaged` recomputed the table meanwhile).
 cam1-only events = cam1 tongue events no cam4 lick and no 3-D lick overlaps (`cam1_licks`), as in `cam1_incomplete_licks`.
 
 FIG A (frequency, POOLED): share of trials per class, per session x spout, minus the animal's August pre mean at that
@@ -41,7 +45,7 @@ V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")     # = canonical order (lesions left: L = ipsi)
 LAB = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "close contra", "far_L": "far ipsi",
        "far_center": "far mid", "far_R": "far contra"}
-CLASSES = ("contact", "incomplete", "jaw_only", "none")
+CLASSES = ("contact", "incomplete", "jaw_only", "no_response", "unknown")
 SHOW = {"jaw_only": "jaw moves, no lick", "incomplete": "incomplete lick (licked, no contact)",
         "contact": "contact lick"}
 EPS = ("pre", "acute", "subacute", "chronic")
@@ -51,6 +55,37 @@ BIN_MS, WIN_MS, MIN_FRAMES, MIN_TR = 20.0, (-500.0, 3000.0), 5, 2
 MIN_AN = 2  # animals needed to draw a pooled trace line
 PRE_FROM = "20260801"
 NB = 2000
+
+
+def _flag(x: pd.Series) -> pd.Series:
+    return x.astype("boolean").fillna(False).astype(bool)
+
+
+def classify(M: pd.DataFrame, L: pd.DataFrame, E: pd.DataFrame) -> dict:
+    """trial_id -> class, over EVERY trial in ``M`` (v36 tongue_jaw_mismatch), first match wins (module docstring).
+    M: tongue_jaw_mismatch.csv; L: v36 licks.csv (trial_id, contact); E: cam1_licks <s>_events.csv.
+    ``jaw_pass_qc`` is the jaw-MOVED call (`jaw_kinematics`), not a quality gate: 1 = moved, 0 = did not, NaN = jaw not
+    tracked. Until 11-03 this script FILTERED on it, so every share was out of jaw-moved trials and `none` was empty by
+    construction (e3); it now classifies, and the denominator is every engaged trial."""
+    E = E.copy()
+    for c in ("cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"):
+        E[c] = _flag(E[c])
+    c1o = E[~E.cam4_matched & ~E.in_3d & ~E.droplet]                 # cam1-only tongue events, droplets removed
+    seen = set(E.loc[E.jaw_only_trial & ~E.droplet, "trial_id"])     # cam1 saw a tongue in the quiet window
+    touched = set(L.loc[_flag(L.contact), "trial_id"]) | set(c1o.loc[c1o.contact, "trial_id"])
+    licked = set(L.trial_id) | set(c1o.trial_id)
+    moved = dict(zip(M.trial_id, pd.to_numeric(M.jaw_pass_qc, errors="coerce")))
+
+    def one(t):
+        if t in touched:
+            return "contact"
+        if t in licked or t in seen:   # seen-not-licked (a tongue only cam1 / 3-D saw): 16 of 50,929 engaged trials
+            return "incomplete"
+        q = moved.get(t, np.nan)
+        if not np.isfinite(q):
+            return "unknown"
+        return "jaw_only" if q > 0 else "no_response"
+    return {t: one(t) for t in M.trial_id}
 
 
 def session_job(job) -> dict:
@@ -64,22 +99,10 @@ def session_job(job) -> dict:
     if keep is not None:
         T = T[T.trial_id.isin(keep)]
     M = pd.read_csv(sd / "tongue_jaw_mismatch.csv")
-    M = M[M.jaw_pass_qc.astype(bool)]
-    T = T[T.trial_id.isin(M.trial_id)]
     L = (pd.read_csv(sd / "licks.csv", usecols=["trial_id", "contact"]) if (sd / "licks.csv").exists()
          else pd.DataFrame(columns=["trial_id", "contact"]))
     E = pd.read_csv(Path(c1) / f"{s}_events.csv")
-    for c in ("cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"):
-        E[c] = E[c].astype("boolean").fillna(False).astype(bool)
-    c1o = E[~E.cam4_matched & ~E.in_3d & ~E.droplet]
-    seen = set(E.loc[E.jaw_only_trial & ~E.droplet, "trial_id"])
-    touched = set(L.loc[L.contact.astype("boolean").fillna(False).astype(bool), "trial_id"]) | set(c1o.loc[c1o.contact,
-                                                                                                          "trial_id"])
-    licked = set(L.trial_id) | set(c1o.trial_id)
-    cand = set(M.loc[M.candidate_no_lick_with_jaw_move.astype(bool), "trial_id"]) - seen
-    cls = {t: ("contact" if t in touched else "incomplete" if t in licked else "jaw_only" if t in cand else "none")
-           for t in T.trial_id}
-    T = T.assign(cls=T.trial_id.map(cls))
+    T = T.assign(cls=T.trial_id.map(classify(M, L, E)).fillna("unknown"))
     counts = [{"session": s, "animal": animal, "date": date, "position": p, "n_trials": len(g),
                **{f"share_{c}": float((g.cls == c).mean()) for c in CLASSES},
                **{f"n_{c}": int((g.cls == c).sum()) for c in CLASSES}} for p, g in T.groupby("position")]
@@ -98,7 +121,7 @@ def session_job(job) -> dict:
         edges = np.arange(WIN_MS[0], WIN_MS[1] + BIN_MS, BIN_MS)
         b = np.digitize(t, edges) - 1
         inwin = (b >= 0) & (b < len(edges) - 1)
-        c_of = S.trial_id.map(cls).to_numpy(object)
+        c_of = S.trial_id.map(dict(zip(T.trial_id, T.cls))).to_numpy(object)
         pos = S.position.to_numpy(str)
         for p in POS:
             for c in SHOW:
@@ -190,7 +213,7 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
         axs[i, 0].set_ylabel(f"share of trials: {SHOW[c]}\nchange vs own August pre", fontsize=9)
     hs = [plt.Line2D([], [], marker="o", ls="", color=AN_COL[a], label=a) for a in AN_COL]
     fig.legend(handles=hs, loc="lower center", ncol=4, frameon=False, fontsize=9)
-    fig.suptitle("Jaw-without-lick and incomplete-lick trials per session, POOLED: share of engaged, jaw-QC'd trials, change "
+    fig.suptitle("Jaw-without-lick and incomplete-lick trials per session, POOLED: share of ALL engaged trials, change "
                  "vs each animal's own August pre; dots = sessions; marker = animal-weighted change, paired nested "
                  "bootstrap 95% CI;\n* CI excludes 0, ** p < 0.05 / 18 (Bonferroni, 6 spouts x 3 epochs, per row); pre "
                  "column = pre sessions vs their own mean (noise floor)", fontsize=9.5)
@@ -314,7 +337,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--reuse", action="store_true", help="read sessions.csv / traces.csv.gz from the last run "
-                    "instead of re-running the session loop (stats / figure changes only)")
+                    "instead of re-running the session loop (stats / figure changes only; tables are saved at 4 significant "
+                    "digits, so a CI can move in the 3rd decimal)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     c1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
