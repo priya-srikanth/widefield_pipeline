@@ -21,6 +21,10 @@ republish the imaging page with re-plotted figures).
   + kinematics cross-link, new files `lmm/{peak_side_headline,per_lick_stats,asym_aligned_change}_lmm.png`. The FR M: source
   (10-27) is OLDER than live v36: refresh it from live v36 first, re-run `kin_page_src/kin_page/add_lmm_toggles_1103.py fr`
   (idempotent), diff, publish. Send e3 the version numbers.
+  **STAGED 11-03** (scratchpad, session-local): `fr_lmm/index.html` (+ `fr_lmm/lmm/*.png`, `fr_lmm/fig/*_rules.png`) = v36 +
+  toggles + xlink-kin; `kin_lmm/kin_page.html` (+ `kin_lmm/lmm/*.png`) = e3's source. In both the lmm-supp-style block was moved
+  from the publish wrapper's head into the body (the wrapper head is replaced on publish). Before publishing: confirm live is
+  still FR v36 / kin v26, publish with the lmm/ files map.
 - **Kinematics page v25 -> v26** for e3 (source `kin_page_src/kin_page/index.html`, verified as a section-6-only diff against
   live; images uploaded by name).
 
