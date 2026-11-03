@@ -454,6 +454,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - Pre-cue maps on PI slide 24 (epoch_15r precue, RESTW ref) are the 1.0 s lick-free window; B12 made 1.5 s primary for the LP ENL
   arm, but NO 1.5 s map render exists, and the rebuild profile does not set WIDEFIELD_ENL_WINDOW_S=1.5 (LP_ENL_WINDOW_S = 1.0).
   RECOMMEND: the rebuild sets 1.5 s for the LP precue arm (decoders AND maps), 1.0 s as the labelled sensitivity. Confirm B12 covers maps.
+- PI slide 35 "no response": denominator = DAQ-engaged trials (orofacial_cohort.engagement_keep = behaviour `engaged`: sated tail
+  >= 6 trailing misses + rolling-rate collapse removed). So the quit tail is out by the DAQ rule; DAQ misses include incomplete
+  (no-contact) licks, so acute far-contra runs of trying can be cut. In the rebuild the share figure's denominator must be every
+  trial INSIDE the camera working period (to the last camera lick, stop runs out) -- NOT in_gate("working"), which excludes
+  no_response by definition. (answered Priya 11-03 evening)
+- PI slide 43 (one-panel LMM hidden) too wide: asked a8 to re-render with --figsize ~6x4.5, place ~6-7 in wide.
+- PI slide 52 (3-D lick phase, kinematics_pooled_figs fig_phase): NO test drawn; no sharey (per-panel y blows up near-spout noise),
+  phase 0-1 incl. noisy ends, all post-cue licks (no engagement gate; slide 46 is engaged), >= 3 animals per bin, no smoothing.
+  Asked e3: add the 2-D phase cluster-permutation bars, sharey per row, 0.1-0.9, engaged licks, figdata / --plot-only.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
