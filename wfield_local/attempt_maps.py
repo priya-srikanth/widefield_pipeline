@@ -217,7 +217,7 @@ def out_dir(rest_variant="rest"):
     """`attempt_maps/` (REST, 10-24) or `attempt_maps_restnl/` (RESTnl, August-only pre; 11-01) -- never the same."""
     from wfield_local import lp_licks, run_mode
     # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes <dir>/<tag>/; default unchanged
-    return run_mode.subdir(lp_licks._run_dir() / "imaging_encoding" / ("attempt_maps" if rest_variant == "rest"
+    return run_mode.subdir(lp_licks._enc_dir() / ("attempt_maps" if rest_variant == "rest"
                                                                         else f"attempt_maps_{rest_variant}"),
                            lp_family=True)                     # LP-only family (review N1)
 
@@ -238,16 +238,37 @@ def _mask_edges():
     return m, e
 
 
+def product_name(stem: str, ext: str) -> str:
+    """R4 (fourth review): EVERY attempt_maps product -- maps npz, counts and hemisphere CSVs, figures -- carries the same
+    per-session cache key (`run_mode.keyed_name(cache=True)`: hemo / projection / selection / class-code csig), so a
+    class-code change can never pair new maps with old tables or figures. Unchanged names in a default run."""
+    return run_mode.keyed_name(f"{stem}{ext}", cache=True)
+
+
+def maps_path(od, align, an) -> Path:
+    return Path(od) / product_name(f"maps_{align}_{an}", ".npz")
+
+
+def hemispheres_path(od, align) -> Path:
+    """The hemisphere table of ``align`` in output folder ``od`` (read by rebuild_figs/fig_goal_summary)."""
+    return Path(od) / product_name(f"hemispheres_{align}", ".csv")
+
+
+def _stored_maps(od, align, animals) -> dict:
+    """{animal: loaded maps} -- RAISES when an expected keyed maps file is missing (R4: never a partial figure set)."""
+    miss = [an for an in animals if not maps_path(od, align, an).exists()]
+    if miss:
+        raise FileNotFoundError(f"[attempt_maps] {align}: no maps for {miss} in {od} under this run's key "
+                                f"({run_mode.cache_tag() or 'default'}); run attempt_maps without --figures first")
+    return {an: np.load(maps_path(od, align, an)) for an in animals}
+
+
 def hemisphere_table(od, align, animals):
     """Per animal x epoch x spout x class: mean map value in the image-LEFT (ipsilesional) and image-RIGHT
     (contralesional) halves inside the brain mask, and the same for the difference from that spout's pre-stroke hits."""
     m, _e = _mask_edges()
     rows = []
-    for an in animals:
-        f = od / run_mode.keyed_name(f"maps_{align}_{an}.npz", cache=True)
-        if not f.exists():
-            continue
-        Z = np.load(f)
+    for an, Z in _stored_maps(od, align, animals).items():
         for k in Z.files:
             e, P, c = k.split("|")
             M = Z[k]
@@ -283,7 +304,7 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), re
     m, edges = _mask_edges()
     fd = od / "figures"
     fd.mkdir(exist_ok=True)
-    Zs = {an: np.load(od / run_mode.keyed_name(f"maps_{align}_{an}.npz", cache=True)) for an in animals if (od / run_mode.keyed_name(f"maps_{align}_{an}.npz", cache=True)).exists()}
+    Zs = _stored_maps(od, align, animals)
     out = []
     for P in spouts:
         for diff in (False, True):
@@ -342,7 +363,7 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), re
                              f"of animal means, >= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)
                 fig.tight_layout(rect=(0, 0, 1, 0.93))
             sfx = "" if rest_variant == "rest" else f"_{rest_variant}"
-            fn = fd / f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}{sfx}.png"
+            fn = fd / product_name(f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}{sfx}", ".png")
             fig.savefig(fn, dpi=130)
             plt.close(fig)
             out.append(fn)
@@ -368,14 +389,14 @@ def main(argv=None) -> int:
     od.mkdir(parents=True, exist_ok=True)
     if a.figures:
         for align in a.aligns:
-            hemisphere_table(od, align, a.animals).to_csv(od / f"hemispheres_{align}.csv", index=False)
+            hemisphere_table(od, align, a.animals).to_csv(hemispheres_path(od, align), index=False)
             for fn in figures(od, align, a.animals, rest_variant=a.rest_variant):
                 print(f"[attempt_maps] wrote {fn.name}", flush=True)
         return 0
     for align in a.aligns:
         counts = []
         for an in a.animals:
-            f = od / run_mode.keyed_name(f"maps_{align}_{an}.npz", cache=True)
+            f = maps_path(od, align, an)
             if f.exists():
                 print(f"[attempt_maps] {an} {align}: exists, skipped", flush=True)
                 continue
@@ -385,7 +406,7 @@ def main(argv=None) -> int:
                 raise RuntimeError(f"[attempt_maps] {an} {align}: no session produced maps (rest_variant "
                                    f"{a.rest_variant}); nothing written -- check the RESTnl baselines / inputs")
             np.savez_compressed(f, **maps)
-            C.to_csv(od / f"counts_{align}_{an}.csv", index=False)
+            C.to_csv(od / product_name(f"counts_{align}_{an}", ".csv"), index=False)
             counts.append(C)
             print(f"[attempt_maps] {an} {align}: {len(maps)} maps from {C.label.nunique() if len(C) else 0} sessions",
                   flush=True)

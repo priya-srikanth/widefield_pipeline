@@ -43,7 +43,7 @@ def _enc_root():
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    return oo.encoding_root(oc.RUN, PathResolver())
 
 
 def neural(E: Path, nokin: str = NOKIN_RUN, main: str = MAIN_RUN) -> pd.DataFrame:

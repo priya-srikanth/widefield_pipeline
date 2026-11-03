@@ -57,7 +57,7 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+    out = oo.encoding_root(a.run, PathResolver()) / "qc"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     got, fail = ak.fan_sessions(ce.sessions_available(), session_blocks, jobs=a.jobs)

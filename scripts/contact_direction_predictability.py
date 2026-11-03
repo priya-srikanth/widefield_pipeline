@@ -56,7 +56,7 @@ def main() -> int:
             row[f"auc_{name}"] = cv_auc(A[cols].to_numpy(float), A.y.to_numpy(), A.session.to_numpy())
         rows.append(row)
     T = pd.DataFrame(rows)
-    dst = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc" / "contact_direction_predictability.csv"
+    dst = oo.encoding_root(oc.RUN, PathResolver()) / "qc" / "contact_direction_predictability.csv"
     assert_writable(dst)
     T.to_csv(dst, index=False, float_format="%.4g")
     pd.set_option("display.width", 200)

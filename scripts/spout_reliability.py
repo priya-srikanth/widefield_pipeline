@@ -57,7 +57,7 @@ def main(argv=None) -> int:
     ap.add_argument("--folder", default="within_spout_deviation_lick_contact")
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
-    folder = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc" / a.folder
+    folder = oo.encoding_root(oc.RUN, PathResolver()) / "qc" / a.folder
     S = pd.read_csv(folder / "within_spout_deviation.csv")
     labels = sorted(S.label.unique())
     got, fail = ak.fan_sessions(labels, one, jobs=a.jobs)

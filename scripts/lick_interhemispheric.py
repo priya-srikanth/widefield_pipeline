@@ -59,9 +59,10 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 import iti_licks as il  # noqa: E402
 
-OUT_W = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks")
+OUT_W = _encoding_root() / "iti_licks"
 IN = il.OUT                                                  # inputs (read only)
 REST_DIR = OUT_W / "interhemi_rest_w1"                      # (interhemi_rest/ = a first 2-s-window attempt: 0 windows)
 FIGD, FIGS = OUT_W / "figdata", OUT_W / "figures"

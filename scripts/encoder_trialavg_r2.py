@@ -67,7 +67,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--folder", action="append", required=True)
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    E = oo.encoding_root(oc.RUN, PathResolver())
     qc = E / "qc"
     assert_writable(qc)
     pd.set_option("display.width", 220)

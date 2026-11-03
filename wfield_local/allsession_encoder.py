@@ -153,7 +153,7 @@ def main(argv=None) -> int:
                          "post sessions (ROI columns added; X'X checked) -- the existing run's numbers kept exactly")
     ap.add_argument("--out-root", default=None, help="parent folder of allsession_encoder_<tag> (default: the share)")
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    E = oo.encoding_root(oc.RUN, PathResolver())
     src = E / f"frozen_encoder_{a.src}"
     out = (Path(a.out_root) if a.out_root else E) / f"allsession_encoder_{a.tag}"
     assert_writable(out)

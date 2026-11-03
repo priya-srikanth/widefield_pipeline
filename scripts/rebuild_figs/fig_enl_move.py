@@ -44,8 +44,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
 
 NAME = "enl_movement_trajectory"
-CSV_DEF = Path("M:/MICROSCOPE/Priya/Widefield/labcams/enl_movement_multisession/"
-               "enl_movement_multisession.csv.bak_20261015")
+CSV_DEF = (Path(__import__("wfield_local.config", fromlist=["x"]).resolver().root("cohort_out"))
+           / "enl_movement_multisession" / "enl_movement_multisession.csv.bak_20261015")   # R3: explicit in a tagged run
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 XSCALE = {"linthresh": 5.0}
 MS = 3
@@ -93,6 +93,7 @@ def main(argv=None) -> int:
     if a.plot_only:
         d = _common.load_figdata(a.out, NAME)["d"]
     else:
+        _common.require_explicit(a.csv, CSV_DEF, "--csv")
         d = load(a.csv, a.min_trials)
         d.to_csv(a.out / f"{NAME}.csv", index=False)
         _common.save_figdata(a.out, NAME, {"d": d, "src": str(a.csv), "min_trials": a.min_trials})

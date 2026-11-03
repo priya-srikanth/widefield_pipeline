@@ -48,7 +48,7 @@ import _common  # noqa: E402
 
 NAME = "s_per_animal"
 PNG = "per_animal_template_state.png"
-D_DEF = Path("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/data")
+D_DEF = _common.epoch_data_dir()   # R3: this run's epoch data (rebuild root under the profile)
 EP = ["pre", "acute", "subacute", "chronic"]
 PANELS = [("template_amplitude_per_animal.csv", "Pre-stroke template amplitude a", "amplitude (pre ~0.94)"),
           ("template_captured_per_animal.csv", "Variance the pre-stroke template captures",

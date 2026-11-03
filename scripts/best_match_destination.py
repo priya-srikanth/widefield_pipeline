@@ -61,7 +61,7 @@ def main(argv=None) -> int:
     ap.add_argument("--arm", default="cue/working", help="align/variant of the 10b matrices (cue/working, lick/lick)")
     a = ap.parse_args(argv)
     align, variant = a.arm.split("/")
-    E = oo.root(PathResolver()) / a.run / "imaging_encoding"
+    E = oo.encoding_root(a.run, PathResolver())
     out = E / "qc"
     writeguard.assert_writable(out)
     labels = [x for x in ak.curated_labels() if x[-4:] >= "0806"]

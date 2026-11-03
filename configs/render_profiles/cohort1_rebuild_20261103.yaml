@@ -17,9 +17,14 @@ env:
   # LP arm: LP-TRAINED stored models (the default since 11-03; "lp" only names it -- the DAQ-trained cross-check is
   # WIDEFIELD_LP_FROZEN=daq, NOT part of this profile)
   WIDEFIELD_LP_FROZEN: lp
-  # a FRESH frozen store (FREEZE_VERSION 2 refuses the legacy store) and a SEPARATE session cache
-  WIDEFIELD_FROZEN_MODEL_DIR: C:/Users/SabatiniLab/frozen_models_rebuild_20261103
-  WIDEFIELD_SESSION_CACHE: C:/Users/SabatiniLab/.widefield_session_cache_rebuild_20261103
+
+# THE REBUILD ROOT (coordinator 11-03, fourth review): EVERY derived output of this render -- cohort_out / grant_figures,
+# figures_working, analysis_figures, LP_analysis/<run>/imaging_encoding (encoder, ITI, attempt, qc), the frozen store
+# (<root>/frozen_models, fresh: FREEZE_VERSION 2 refuses the legacy store), the session cache (<root>/session_cache) and
+# the RESTnl caches beside it, the map npz -- goes into this one folder. Inputs stay where they are, read-only. While
+# it is set, writes outside it and reads of default derived products are REFUSED (wfield_local/rebuild_root.py).
+# Seed it once: python -m wfield_local.rebuild_root init --profile cohort1_rebuild_20261103
+rebuild_root: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103
 
 # Aug-only pre baseline for the DECODER blocks only: passed per render block (`--pre-from 0801`), never as a global env
 # (june_august_drift refuses PRE_FROM; 12.1b lick-free rest selects its own June + August pre set).

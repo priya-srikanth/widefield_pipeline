@@ -71,7 +71,7 @@ def main(argv=None) -> int:
     ap.add_argument("--window", default="cue_stop", choices=("cue_stop", "trial"))
     ap.add_argument("--jobs", type=int, default=8)
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     writeguard.assert_writable(out)
     cur = set(ak.curated_labels())
     labels = [s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806" and s["label"] in cur]

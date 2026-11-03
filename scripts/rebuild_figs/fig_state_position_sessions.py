@@ -51,7 +51,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
 
 NAME = "state_position_sessions"
-SRC = Path("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/data")
+SRC = _common.epoch_data_dir()   # R3: this run's epoch data (rebuild root under the profile)
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")

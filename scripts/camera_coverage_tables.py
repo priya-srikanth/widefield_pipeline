@@ -36,7 +36,7 @@ REFRACTORY_S = 0.10          # the categorisation's lick refractory (`_load_daq_
 
 def coverage_path() -> Path:
     from wfield_local import lp_licks
-    return lp_licks._run_dir() / "imaging_encoding" / "qc" / "camera_coverage.csv"
+    return lp_licks._enc_dir() / "qc" / "camera_coverage.csv"
 
 
 def contact_path() -> Path:

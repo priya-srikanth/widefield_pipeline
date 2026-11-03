@@ -14,9 +14,10 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, "C:/Users/SabatiniLab/Github/widefield_pipeline")
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from wfield_local import epochs  # noqa: E402
 
-E = "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding"
+E = str(_encoding_root())
 Q = f"{E}/qc"
 S = sys.argv[1]
 AN = ["PS92", "PS93", "PS94", "PS95"]

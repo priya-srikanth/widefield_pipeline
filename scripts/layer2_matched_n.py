@@ -9,9 +9,10 @@ from wfield_local import allsession_encoder as ae
 from wfield_local import epochs
 from wfield_local import frozen_encoder as fe
 from wfield_local import run_mode as _rm_guard  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 _rm_guard.require_default("layer2_matched_n")   # unrouted share writer: refuses in a non-default run mode
 
-E = "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
+E = str(_encoding_root())
 src = E + "frozen_encoder_gate-attempted_v7g3_t3d/"
 pre_stats = pickle.loads(open(src + "fit/pre_stats.pkl", "rb").read())
 post_stats = pickle.loads(open(E + "allsession_encoder_v7g3_t3d_ref/fit/post_stats.pkl", "rb").read())

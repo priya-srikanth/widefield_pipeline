@@ -40,8 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
 
 NAME = "frozen_refit_pooled"
-SRC = Path("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/data/"
-           "epoch_5rmo_frozen_refit_overall_cue_working_sessions.csv")
+SRC = _common.epoch_data_dir() / "epoch_5rmo_frozen_refit_overall_cue_working_sessions.csv"   # R3: this run's
 EPOCHS = ["pre", "acute", "subacute", "chronic"]
 ARMS = ["frozen", "refit", "gap"]
 ANIMALS = ["PS92", "PS93", "PS94", "PS95"]

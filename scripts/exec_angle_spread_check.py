@@ -61,7 +61,7 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     a = ap.parse_args(argv)
     rv = PathResolver()
-    base = oo.root(rv) / a.run / "imaging_encoding"
+    base = oo.encoding_root(a.run, rv)
     out = base / "qc"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)

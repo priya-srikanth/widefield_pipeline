@@ -186,7 +186,7 @@ def main(argv=None) -> int:
     cur = set(ak.curated_labels())
     if any(x not in cur for x in labels):
         raise SystemExit(f"not curated: {[x for x in labels if x not in cur]}")
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))
+    out = oo.encoding_root(a.run, PathResolver()) / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))
     writeguard.assert_writable(out.parent)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     os.environ[OUT_ENV] = str(out)

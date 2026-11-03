@@ -41,10 +41,15 @@ import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 NAME = "goal_summary"
-E_DEF = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E_DEF = _encoding_root()
+#: R3: fig1's combined-encoding run, at its WRITER's routed folder (combined_encoding: lp_licks.output_dir)
+def _fig1_root() -> Path:
+    from wfield_local import lp_licks
+    return lp_licks.output_dir(E_DEF / "_").parent
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 TC, XC = "#6a3d9a", "#e66101"
@@ -86,7 +91,7 @@ def load_fig2(E: Path) -> dict:
 
 def load_fig3(E: Path) -> pd.DataFrame:
     from wfield_local import attempt_maps
-    h = pd.read_csv(attempt_maps.out_dir() / "hemispheres_lick.csv")   # the writer's folder (review N1)
+    h = pd.read_csv(attempt_maps.hemispheres_path(attempt_maps.out_dir(), "lick"))   # the writer's folder + key (R4)
     return h[h.spout == "far_contra"].set_index(["animal", "epoch", "cls"])[["ipsi", "contra"]]
 
 
@@ -205,7 +210,7 @@ def main(argv=None) -> int:
     if a.plot_only:
         fd = _common.load_figdata(a.out, NAME)
     else:
-        fd = {k: LOAD[k](a.enc_dir) for k in a.only}
+        fd = {k: LOAD[k](_fig1_root() if (k == "fig1" and a.enc_dir == E_DEF) else a.enc_dir) for k in a.only}
         fd["src"] = str(a.enc_dir)
         _common.save_figdata(a.out, NAME, fd)
     for k in a.only:

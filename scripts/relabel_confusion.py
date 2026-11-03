@@ -23,9 +23,10 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from softmax_neural_vs_lick import boot_change  # noqa: E402  (same nested bootstrap as the decoder / lick matrices)
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 SP = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 LAB = ["cI", "cM", "cC", "fI", "fM", "fC"]
 AN = ["PS92", "PS93", "PS94", "PS95"]

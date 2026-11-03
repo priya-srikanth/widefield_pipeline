@@ -47,7 +47,7 @@ def _paths(label: str):
     sd, f4, f1 = LPL._inputs(label, rv)
     an, d = label.split("_")
     return sd, f4, f1, f1.with_name(f1.name.replace("_events.csv", "_events_all.csv")), \
-        LPL._run_dir(rv) / "imaging_encoding" / "qc" / "jaw_onsets.csv", f"{an}_{config.date8(d)}"
+        LPL._enc_dir(rv) / "qc" / "jaw_onsets.csv", f"{an}_{config.date8(d)}"
 
 
 def _cues(sd: Path):

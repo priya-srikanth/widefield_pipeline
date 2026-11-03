@@ -63,6 +63,17 @@ def root(rv) -> Path:
     return Path(rv.root("orofacial"))
 
 
+def encoding_root(run: str | None = None, rv=None) -> Path:
+    """``<orofacial root>/<run>/imaging_encoding`` -- THE derived imaging-encoding tree of LP run ``run`` (default the
+    adopted `orofacial_cohort.RUN`). Under a rebuild root (`rebuild_root`) it resolves inside it
+    (`PathResolver.derived`), so readers and writers of encoder / ITI / attempt / qc products meet there."""
+    from wfield_local.paths import PathResolver
+    if run is None:
+        from wfield_local import orofacial_cohort as oc
+        run = oc.RUN
+    return Path((rv or PathResolver()).derived("orofacial", f"{run}/imaging_encoding"))
+
+
 def params_digest() -> str:
     """sha1 of every config block that shapes the outputs (cleaning, kinematics, lick detection)."""
     d = config.defaults()

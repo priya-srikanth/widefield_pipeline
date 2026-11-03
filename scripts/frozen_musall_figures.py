@@ -87,7 +87,7 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default="gate-attempted")
     ap.add_argument("--areas", nargs="+", default=["cortex", "SSp-m_left", "MOs_left"])
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / f"frozen_encoder_{a.tag}"
     A = pd.read_csv(out / "frozen_musall_r2_by_animal.csv")
     Q = quantities(A)
     fd = out / "figures"

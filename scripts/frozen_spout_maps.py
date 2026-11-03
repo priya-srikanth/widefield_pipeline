@@ -46,7 +46,7 @@ def main(argv=None) -> int:
     ap.add_argument("--align", default="lick", choices=("lick", "cue"))
     ap.add_argument("--contrast", action="store_true", help="subtract the six-spout mean per part")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / f"frozen_encoder_{a.tag}"
     sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
     fd = out / "figures"
     assert_writable(fd)

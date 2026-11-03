@@ -20,12 +20,12 @@ Output: <E>/attempt_coding/early_predictors{,_table}.csv, figures/early_predicto
 from __future__ import annotations
 
 import itertools
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 from wfield_local import attempt_coding as _ac  # noqa: E402
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 

@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 import lick_correction as lc  # noqa: E402
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
@@ -63,8 +64,7 @@ SEED = 0
 
 
 def out_root() -> Path:
-    from wfield_local.paths import PathResolver
-    return Path(PathResolver().root("orofacial")) / V36 / "imaging_encoding" / "within_lick_correction"
+    return _encoding_root(V36) / "within_lick_correction"
 
 
 OUT = out_root()

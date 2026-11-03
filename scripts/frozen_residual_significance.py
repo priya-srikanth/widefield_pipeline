@@ -114,7 +114,7 @@ def main(argv=None) -> int:
     ap.add_argument("--per-animal", action="store_true", help="one test per animal (sessions as the resampled unit)")
     ap.add_argument("--drift", action="store_true", help="also test late vs early pre (off by default)")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / f"frozen_encoder_{a.tag}"
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)

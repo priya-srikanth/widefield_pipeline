@@ -109,12 +109,12 @@ def main(argv=None) -> int:
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     from wfield_local import lp_licks
     out = lp_licks.output_dir(out)       # camera-lick (LP) runs write under <parent>/<tag>/qc (writeguard rule)
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    snap_path = str(os.environ.get("WFIELD_S1_CLASSES") or (oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    snap_path = str(os.environ.get("WFIELD_S1_CLASSES") or (oo.encoding_root(oc.RUN, PathResolver()) / "qc"
                                                             / "s1_trial_classes_cue_stop.csv.gz"))
     from wfield_local import analysis_kit as ak
     units = [(align, an, fig_rule, snap_path) for align in ALIGNS for an in GC.ANIMALS]

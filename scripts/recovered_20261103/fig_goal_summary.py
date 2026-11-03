@@ -3,12 +3,13 @@ import sys
 from pathlib import Path
 
 import matplotlib
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 OUT = Path(sys.argv[1])
 OUT.mkdir(parents=True, exist_ok=True)
 AN = ["PS92", "PS93", "PS94", "PS95"]

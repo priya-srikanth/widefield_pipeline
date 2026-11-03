@@ -482,6 +482,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     so a test can keep the build hermetic instead of silently reaching onto the MICROSCOPE share.
     """
     src = Path(src)
+    # R2 (fourth review, 11-03): a TAGGED run (hemo variant / projection / camera gate / PRE_FROM ...) builds its deck only
+    # from its OWN figures. Under the rebuild root every default below already resolves inside it; outside one, the
+    # defaults are the untagged pre-rebuild figures, so a tagged build without an explicit grant_dir REFUSES.
+    from wfield_local import rebuild_root, run_mode
+    if grant_dir is None and run_mode.tag() and not rebuild_root.active():
+        raise RuntimeError(f"analysis deck in run mode {run_mode.tag()!r} without a rebuild root: its default inputs are "
+                           "the untagged figures -- apply the render profile (rebuild_root) or pass grant_dir / --src")
     grant_dir = Path(grant_dir) if grant_dir is not None else (
         Path(PathResolver().root("cohort_out")) / "grant_figures")
     # phase="all" IS LOAD-BEARING. curated_dates() defaults to phase="pre" (stroke-aware since
@@ -2157,12 +2164,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # ROOTS FOLLOW `grant_dir`, like every other labcams input here: "labcams" is its parent, and the other
     # share roots are used only when `grant_dir` IS the share's (a test that points `grant_dir` at an empty
     # tmp dir must not have real figures placed from MICROSCOPE -- `test_builds_and_skips_missing`).
+    # R2: "on the share" = grant_dir is THIS run's cohort_out/grant_figures (inside the rebuild root under one), and the
+    # other roots resolve through `PathResolver.derived` (imaging_encoding inside the rebuild root too)
     _lab = Path(_grant).parent
     try:
-        _on_share = _lab.resolve() == Path(PathResolver().root("labcams")).resolve()
+        _on_share = _lab.resolve() == Path(PathResolver().root("cohort_out")).resolve()
     except Exception:                                                  # noqa: BLE001
         _on_share = False
-    _roots = {"labcams": _lab}
+    _roots = {"labcams": _lab, "cohort_out": _lab}
     _k_found = []
     for _n, (_root, _rel, _ttl, _legend) in enumerate(LP_GATED_FIGURES, 1):
         if _root not in _roots:
@@ -2173,7 +2182,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         _base = _roots[_root]
         if _base is None:
             continue
-        for _f in (sorted(_base.glob(_rel)) if "*" in _rel else [_base / _rel]):
+        _one = (_base / _rel) if _root in ("labcams", "cohort_out") else Path(PathResolver().derived(_root, _rel))
+        for _f in (sorted(_base.glob(_rel)) if "*" in _rel else [_one]):
             if _f.exists():
                 _k_found.append((_n, _ttl, _legend, _f))
     if _k_found:

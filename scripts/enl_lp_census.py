@@ -83,7 +83,7 @@ def main(argv=None) -> int:
     T = pd.DataFrame([r for _, rr in got for r in rr])
     T["animal"] = T.label.str.split("_").str[0]
     T["baseline"] = np.where(T.epoch != "pre", "post", np.where(T.label.str[-4:] >= "0801", "pre_aug", "pre_june"))
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     assert_writable(out)
     T.to_csv(out / "enl_lp_census.csv", index=False)
     cols = [c for c in T.columns if c.startswith(("daq_", "lp_"))]

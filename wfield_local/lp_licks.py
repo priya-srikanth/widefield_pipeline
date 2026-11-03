@@ -80,8 +80,14 @@ def _run_dir(rv=None) -> Path:
     return oo.root(rv or PathResolver()) / oc.RUN
 
 
+def _enc_dir(rv=None) -> Path:
+    """The adopted run's imaging_encoding tree (`orofacial_outputs.encoding_root`: inside the rebuild root under one)."""
+    from wfield_local import orofacial_outputs as oo
+    return oo.encoding_root(rv=rv)
+
+
 def attempts_path(rv=None) -> Path:
-    return _run_dir(rv) / "imaging_encoding" / "qc" / "trial_attempts.csv"
+    return _enc_dir(rv) / "qc" / "trial_attempts.csv"
 
 
 _CAM1_SIG: dict = {}

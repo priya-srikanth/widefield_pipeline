@@ -73,11 +73,12 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import lick_enl_angle_decode as ead  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 OUT = il.OUT_W / "enl_target"
 FIG = il.OUT_W / "figures"
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 
 
 def _attempt_dir():

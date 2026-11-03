@@ -70,6 +70,14 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
     c = _normalize(path)
     if not c:
         return
+    # REBUILD ROOT (11-03, fourth review): during a rebuild-root run every data-tree write outside the root is refused
+    # (the same rule the process audit hook enforces on every open; wfield_local/rebuild_root.py)
+    if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+        from wfield_local import rebuild_root
+        why = rebuild_root.write_refusal(path)
+        if why:
+            raise WriteGuardError(f"refusing a rebuild-root run's write outside {rebuild_root.root()}:\n  path: {path}\n"
+                                  f"  {why}")
     owner = f"/{_OWNER}/"
     if _MICROSCOPE_MARK in c and f"{_MICROSCOPE_MARK}{_OWNER}/" not in c:
         raise WriteGuardError(

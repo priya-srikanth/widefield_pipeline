@@ -65,7 +65,7 @@ def main(argv=None) -> int:
     T["animal"] = T.label.str.split("_").str[0]
     for s in ("daq", "lp"):
         T[f"eng_{s}"] = T[f"cat_{s}"] == "engaged"
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     assert_writable(out)
     T.to_csv(out / "lp_trial_counts.csv", index=False, float_format="%.4g")
     per_sess = T.groupby(["animal", "epoch", "pos", "label"])[["eng_daq", "eng_lp"]].sum().reset_index()

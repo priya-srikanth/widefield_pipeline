@@ -39,9 +39,10 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402
 
 V36 = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36")
-E = V36 / "imaging_encoding"
+E = _encoding_root(V36.name)  # rebuild root (11-03)
 OUT = E / "learned_compensation"
 FIG = OUT / "figures"
 FD = OUT / "figdata"

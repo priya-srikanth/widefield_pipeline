@@ -69,7 +69,7 @@ def main(argv=None) -> int:
     ap.add_argument("--folder", default="movement_first_subset-drop_licks-combined_gate-attempted")
     ap.add_argument("--align", choices=("cue", "lick"), default="cue")
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    E = oo.encoding_root(oc.RUN, PathResolver())
     sess = sorted((E / a.folder / "sessions").glob("*.json"))
     T = pd.DataFrame([r for js in sess for r in session_rows(js, a.align)])
     T = T[T.label.str[-4:] >= "0801"]                                  # August-only pre baseline (primary)

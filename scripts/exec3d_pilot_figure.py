@@ -61,7 +61,7 @@ def main() -> int:
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    E = oo.encoding_root(oc.RUN, PathResolver())
     L, T = _lick_table(E), _trial_table(E)
     panels = [("lick window, all variance", L), ("cue 0-1.5 s, TRIAL-TO-TRIAL variance", T)]
     fig, axs = plt.subplots(2 * len(panels), len(AREAS), figsize=(4.6 * len(AREAS), 3.1 * 2 * len(panels) + 1.2),

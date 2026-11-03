@@ -65,7 +65,7 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+    out = oo.encoding_root(a.run, PathResolver()) / "qc"
     writeguard.assert_writable(out)
     cur = set(ak.curated_labels())
     labels = [x for x in ce.sessions_available() if x in cur and x[-4:] >= "0806"]

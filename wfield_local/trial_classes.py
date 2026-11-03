@@ -93,6 +93,17 @@ def _paths(v36: Path | str | None, c1: Path | str | None) -> tuple[Path, Path]:
     return v36, c1
 
 
+def _jaw_csv(v36: Path) -> Path:
+    """`jaw_onsets.csv` of the run whose sessions folder is ``v36``: through `orofacial_outputs.encoding_root` (the
+    rebuild root's seeded copy under one, `rebuild_root`)."""
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    v36 = Path(v36)
+    if v36.parent == Path(PathResolver().input_root("orofacial")) / v36.parent.name:     # a run of the real root
+        return oo.encoding_root(v36.parent.name) / "qc" / "jaw_onsets.csv"
+    return v36.parent / "imaging_encoding" / "qc" / "jaw_onsets.csv"                      # an explicit (test) tree
+
+
 @functools.lru_cache(maxsize=2)
 def jaw_table(path: str) -> pd.DataFrame:
     """`jaw_onsets.csv`, indexed by (session = "PS92_20260818", trial_id): cam4_moved / cam1_moved (1 / 0 / NaN = not
@@ -216,7 +227,7 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         pre = _pre_cue_contacts(animal, date, T)
         T["n_contacts"] = T.n_contacts + t.isin(pre).astype(int)
     # --- jaw, cam4 OR cam1, after the cue (jaw_onsets.csv); unjudgeable at close_center
-    jaw_csv = Path(jaw_csv) if jaw_csv else v36.parent / "imaging_encoding" / "qc" / "jaw_onsets.csv"
+    jaw_csv = Path(jaw_csv) if jaw_csv else _jaw_csv(v36)
     key = f"{animal}_{date}"
     J = jaw_table(str(jaw_csv)) if jaw_csv.exists() else None
     if J is not None and key in J.index.get_level_values(0):
@@ -438,7 +449,7 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
                     stat(sd / nm)
         for f in (sorted(Path(c1).glob("*_events.csv")) if Path(c1).exists() else []):
             stat(f)
-        stat(v36.parent / "imaging_encoding" / "qc" / "jaw_onsets.csv")
+        stat(_jaw_csv(v36))
         from wfield_local import map_collect
         h.update(map_collect.code_digest(map_collect.closure(sys.modules[__name__], *CLASS_CODE_ROOTS)).encode())
         _CLASS_SIG[key] = h.hexdigest()[:10]
@@ -633,7 +644,7 @@ def coverage_note(path=None) -> str:
     """Caption text naming the partially video-covered sessions (N6), from the coverage table
     (`scripts/camera_coverage_tables.py`); says so when the table is missing. Used by `lp_licks.stamp` under camera."""
     from wfield_local import lp_licks
-    p = Path(path) if path else lp_licks._run_dir() / "imaging_encoding" / "qc" / "camera_coverage.csv"
+    p = Path(path) if path else lp_licks._enc_dir() / "qc" / "camera_coverage.csv"
     if not p.exists():
         return "camera gate: video-coverage table missing (run scripts/camera_coverage_tables.py)"
     C = pd.read_csv(p)

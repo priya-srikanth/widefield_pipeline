@@ -32,7 +32,7 @@ def main() -> int:
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
-    q = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    q = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     D = pd.read_csv(q / "slowband_decode.csv")
     B = pd.read_csv(q / "position_block_summary.csv")[["label", "median"]]
     D = D.merge(B, on="label", how="left")

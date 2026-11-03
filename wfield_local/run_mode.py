@@ -241,8 +241,11 @@ def subdir(root, *, cache: bool = False, lp_family: bool = False, make: bool = F
 
 
 def require_default(what: str) -> None:
-    """Raise unless this is a default run: for writers whose output name cannot carry a tag (refuse, do not overwrite)."""
-    t = tag()
+    """Raise unless this is a default run: for writers whose output name cannot carry a tag (refuse, do not overwrite).
+    R5 (fourth review): the FULL output tag (`lp_licks.output_tag`: LP source, gate-LP, ENL window AND the run-mode
+    parts), so an LP / gate-LP / ENL run refuses too."""
+    from wfield_local import lp_licks
+    t = lp_licks.output_tag()
     if t:
         raise RuntimeError(f"{what}: refusing to run in mode {t!r} -- its outputs have fixed default names and would "
                            "overwrite the default ones; give it an explicit output root or unset the mode")

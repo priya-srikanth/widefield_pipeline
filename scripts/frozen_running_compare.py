@@ -21,8 +21,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 
-E = Path(r"M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding")
+E = _encoding_root()
 EPOCHS = ["pre", "acute", "subacute", "chronic"]
 #: running mode + first knot per tag (knot0 is applied at run time from FROZEN_RUN_KNOT0, not stored in templates)
 RUN = {"v6": ("linear", None), "v6spl": ("spline", None), "v6thr3": ("spline_thr", 3.0), "v6thr1": ("spline_thr", 1.0),
@@ -96,6 +97,8 @@ def decomposition(tag: str) -> pd.DataFrame:
 
 
 def main() -> None:
+    from wfield_local import run_mode
+    run_mode.require_default("frozen_running_compare")   # fixed-name qc table: refuses in a tagged run (rebuild 11-03)
     ap = argparse.ArgumentParser()
     ap.add_argument("--tags", nargs="+", default=list(RUN))
     a = ap.parse_args()

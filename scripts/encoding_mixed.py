@@ -107,7 +107,7 @@ def main(argv=None) -> int:
     ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); default = primary, "
                     "others write *_<name> outputs")
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / a.run / "imaging_encoding"
+    E = oo.encoding_root(a.run, PathResolver())
     labels = {x for x in ak.curated_labels() if x[-4:] >= "0806"}
     from wfield_local import mixed_models as mm
     dname = a.deficit or mm.DEFICIT

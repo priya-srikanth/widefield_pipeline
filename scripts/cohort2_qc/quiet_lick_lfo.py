@@ -41,6 +41,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_fluct import FL, TRACE_COLS  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames  # noqa: E402
@@ -528,8 +529,7 @@ COMP_NOTE = ("T16 trial-composition control (scripts/cohort2_qc/quiet_lick_lfo.p
              "log(day)-detrended, 5000 within-animal permutations) and the epoch / time LMM per subset.\n"
              "NB cued first licks are DAQ CONTACT licks inside the response window, so ~100 % are already hit trials: "
              "failed attempts never enter the cued set.\n")
-ATTEMPTS = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/"
-                "trial_attempts.csv")
+ATTEMPTS = _encoding_root() / "qc" / "trial_attempts.csv"
 POS_MAP = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra", "far_L": "far_ipsi",
            "far_center": "far_mid", "far_R": "far_contra"}
 SUBSETS = ("all", "hit", "nonfc", "hit_nonfc")

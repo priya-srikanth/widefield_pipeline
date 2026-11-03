@@ -490,7 +490,7 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
     src += [daq_io.session_h5(animal, date, rv) or "", *_env_tables(),       # + the engagement gate's inputs
             *(Path(rv.root("behavior_out")) / "sessions" / animal / date).glob(f"{animal}_{date}_*_trials.csv")]
     if oc.ENGAGEMENT_GATE != "reference":
-        src.append(oo.root(rv) / oc.RUN / "imaging_encoding" / "qc" / "trial_attempts.csv")
+        src.append(oo.encoding_root(oc.RUN, rv) / "qc" / "trial_attempts.csv")
     if os.environ.get(TONGUE_ENV, "") == "3d":                  # a rewritten 3-D frame / lick table makes a new entry
         src.append(pose3d_frames_path(rv, animal, date))
         src.append(os.environ.get(EXEC3D_TABLE_ENV) or
@@ -1723,7 +1723,7 @@ def out_dir(rv, order: str) -> Path:
     from wfield_local import lp_licks
     # run-mode routing (rebuild 11-03): a tagged run (hemo variant, PRE_FROM, selection, ...) writes under
     # imaging_encoding/<tag>/<name>, never over the default folder; identity for the default run
-    return lp_licks.output_dir(oo.root(rv) / _run() / "imaging_encoding" / "_").parent / (order + (f"_video-{'-'.join(cams)}" if cams else "")
+    return lp_licks.output_dir(oo.encoding_root(_run(), rv) / "_").parent / (order + (f"_video-{'-'.join(cams)}" if cams else "")
                                                          + (f"_fr-{_fr_tag(fr_set)}" if fr_set else "")
                                                          + ("share" if fr_set and not _fr_absolute() else "")
                                                          + (f"_pts{os.environ[FR_POINTS_ENV]}"

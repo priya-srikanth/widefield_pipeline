@@ -26,9 +26,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from softmax_neural_vs_lick import SP, lick_weights, path_weights  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 FAR = ["far_contra", "far_mid", "far_ipsi"]

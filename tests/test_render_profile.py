@@ -37,7 +37,9 @@ def test_profile_yields_the_intended_run_tag(profile, monkeypatch):
 
 def test_profile_stores_are_fresh_and_separate(profile):
     env = profile["env"]
-    assert "frozen_models_rebuild" in env["WIDEFIELD_FROZEN_MODEL_DIR"]
+    # fourth review A: both stores live in the profile's REBUILD ROOT
+    assert env["WIDEFIELD_FROZEN_MODEL_DIR"] == profile["rebuild_root"] + "/frozen_models"
+    assert env["WIDEFIELD_SESSION_CACHE"] == profile["rebuild_root"] + "/session_cache"
     assert env["WIDEFIELD_FROZEN_MODEL_DIR"].rstrip("/\\") != "C:/Users/SabatiniLab/frozen_models"
     assert "rebuild" in env["WIDEFIELD_SESSION_CACHE"]
     assert "WIDEFIELD_PRE_FROM" not in env                     # Aug-only pre is per decoder block, never global

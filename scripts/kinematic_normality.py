@@ -47,7 +47,8 @@ import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
+E = _encoding_root()
 from wfield_local import run_mode as _rm  # noqa: E402
 OUT = _rm.subdir(E / "kinematic_normality", lp_family=True)   # mode-routed (LP family; default LP folder kept)
 FIG = OUT / "figures"

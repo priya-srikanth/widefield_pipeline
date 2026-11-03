@@ -188,3 +188,36 @@ logical_roots:
 staging:
   camera_local: "D:/camera"             # -> behavior_cameras/<YYYYMMDD>
   behavior_logs_local: "D:/behavior_logs"  # -> behavior_logs/<session>
+
+# REBUILD ROOT (coordinator 11-03, fourth review): a render profile with `rebuild_root` sets WIDEFIELD_REBUILD_ROOT, and
+# then EVERY derived-output root resolves into that one fresh folder (wfield_local/paths.py PathResolver, the read / write
+# fence in wfield_local/rebuild_root.py). Acquired / raw inputs and the hemo variant dirs stay where they are, read-only.
+# Inputs that live INSIDE a derived tree (epoch boundaries, the camera / behaviour QC tables) are COPIED in once by
+# `python -m wfield_local.rebuild_root init` (sha256 manifest), so readers never touch the default copies.
+rebuild:
+  env: WIDEFIELD_REBUILD_ROOT
+  # logical root -> folder under the rebuild root: the WHOLE root is derived output
+  derived_roots:
+    figures_working: figures_working
+    cue_analysis_out: analysis_figures
+    cohort_out: labcams
+  # derived trees under an INPUT root: (root, glob of the first path segments) -> folder under the rebuild root, keeping
+  # the relative path (orofacial "<run>/imaging_encoding/..." -> <rebuild>/LP_analysis/<run>/imaging_encoding/...)
+  derived_subtrees:
+    orofacial: {dest: LP_analysis, patterns: ["*/imaging_encoding"]}
+  # read-only inputs inside a derived root's ORIGINAL location, read from there (never written): no copy is made
+  inputs_in_place:
+    cohort_out: ["joint_bases"]
+  # inputs inside a derived tree that `init` COPIES into the rebuild root (logical root, relative path)
+  seed_inputs:
+    cohort_out: ["epoch_boundaries.json"]
+    orofacial:
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/jaw_onsets.csv
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/nose_onsets.csv
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/trial_attempts.csv
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/camera_coverage.csv
+  # top-level entries of the ORIGINAL labcams tree a rebuild run may still READ (session data + the inputs above); every
+  # other top-level entry (grant_figures, frozen_models, the deck, ...) is a default derived product: reads are refused
+  labcams_inputs: ['re:^\d{8}$', "joint_bases", "xday"]
+  # content-keyed stores placed under the rebuild root by the profile
+  stores: {frozen_models: frozen_models, session_cache: session_cache}

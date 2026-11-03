@@ -165,7 +165,7 @@ def main(argv=None) -> int:
     ap.add_argument("--labels", nargs="*", default=None)
     ap.add_argument("--summarise-only", action="store_true")
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    E = oo.encoding_root(oc.RUN, PathResolver())
     src = E / f"frozen_encoder_{a.src}"
     out = E / f"frozen_relabel_{a.tag}"
     assert_writable(out)

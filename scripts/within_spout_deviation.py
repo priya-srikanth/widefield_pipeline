@@ -712,7 +712,7 @@ def main(argv=None) -> int:
     mode = os.environ.get(ce.EXEC_ENV, "")
     stem = ("within_spout_deviation" + (f"_{mode}" if mode else "") + ("_lick" if a.align == "lick" else "")
             + ("_enl" if a.window == "enl" else ""))
-    qc = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+    qc = oo.encoding_root(a.run, PathResolver()) / "qc"
     outs = ({v: qc / (stem + VARIANT_SUFFIX[v]) for v in variants} if variants else
             {None: qc / (stem + ("_contact" if a.contact else "") + ("_hits" if a.hits_only else ""))})
     writeguard.assert_writable(qc)

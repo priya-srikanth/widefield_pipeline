@@ -77,7 +77,7 @@ def main(argv=None) -> int:
     from wfield_local import epochs
     from wfield_local import filter_acausality_test as F
     from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
-    out = lp_licks.output_dir(oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc")
+    out = lp_licks.output_dir(oo.encoding_root(a.run, PathResolver()) / "qc")
     writeguard.assert_writable(out)
     name = "slowband_decode_all.csv" if a.all else "slowband_decode.csv"
     # CURATED sessions only (Priya 10-20: "only sessions from our curated analysis list" -- no early June / 0805, no

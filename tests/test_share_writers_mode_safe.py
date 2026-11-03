@@ -15,7 +15,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 W = re.compile(r"\.(to_csv|savefig|write_text|write_bytes|to_pickle|to_parquet)\(|np\.save(z|z_compressed)?\(|save_fd\(|pd\.to_pickle\(")
-SHARE = re.compile(r"M:/MICROSCOPE|oo\.root\(|PathResolver\(\)\.root\(|_run_dir\(\)|"
+SHARE = re.compile(r"M:/MICROSCOPE|oo\.root\(|PathResolver\(\)\.root\(|_run_dir\(\)|encoding_root\(|_enc_dir\(|"
                    r"root\(\"(cohort_out|orofacial|dlc|figures_working|behavior_out|labcams)")
 ROUTED = re.compile(r"run_mode|output_dir\(|routed_output|lp_licks\.output_tag|require_default")
 BEHAVIOUR = {

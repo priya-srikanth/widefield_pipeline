@@ -136,7 +136,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / a.run / "imaging_encoding"
+    E = oo.encoding_root(a.run, PathResolver())
     figs = E / "figures" / "behaviour"
     figs.mkdir(parents=True, exist_ok=True)
     for f in (precue_licking, lick_deficits, landing_zones):

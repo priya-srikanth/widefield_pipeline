@@ -1729,7 +1729,7 @@ def base_root() -> Path:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    return oo.encoding_root(oc.RUN, PathResolver())
 
 
 def out_root() -> Path:
@@ -1743,7 +1743,7 @@ def out_root() -> Path:
     from wfield_local import lp_licks
     from wfield_local.paths import PathResolver
     # run-mode routing (rebuild 11-03): a tagged run goes under imaging_encoding/<tag>/; identity for the default run
-    return lp_licks.output_dir(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "_").parent
+    return lp_licks.output_dir(oo.encoding_root(oc.RUN, PathResolver()) / "_").parent
 
 
 def main(argv=None) -> int:

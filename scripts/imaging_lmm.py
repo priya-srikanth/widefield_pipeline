@@ -158,7 +158,7 @@ def main(argv=None) -> int:
     ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
     run_root = oo.root(PathResolver()) / a.run
-    E = run_root / "imaging_encoding"
+    E = oo.encoding_root(a.run)
     dname = a.deficit or mm.DEFICIT
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"
     if set(a.sources.split(",")) != {"trend", "decoder", "behaviour", "epoch"}:   # a subset never overwrites the full set

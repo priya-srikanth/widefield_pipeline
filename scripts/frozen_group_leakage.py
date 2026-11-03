@@ -89,7 +89,7 @@ def main(argv=None) -> int:
     for it, err in fail:
         print("FAILED", it[0], err)
     T = pd.DataFrame([r for _, rr in got for r in rr])
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     assert_writable(out)
     T.to_csv(out / "frozen_group_leakage.csv", index=False, float_format="%.4f")
     pd.set_option("display.width", 200)

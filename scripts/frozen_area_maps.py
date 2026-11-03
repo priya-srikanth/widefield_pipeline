@@ -100,7 +100,7 @@ def main(argv=None) -> int:
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / f"frozen_encoder_{a.tag}"
     sess = sorted((out / a.variant / "sessions").glob("*.json"))
     sess = [js for js in sess if js.stem[-4:] >= "0801"]
     fd = out / "figures"

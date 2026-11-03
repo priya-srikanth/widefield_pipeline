@@ -61,7 +61,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
 
 NAME = "state_ps94_diagnostic"
-CACHE = Path("M:/MICROSCOPE/Priya/Widefield/labcams/state_decoder_ps94_check/cache")
+CACHE = Path(__import__("wfield_local.config", fromlist=["x"]).resolver().root("cohort_out")) / "state_decoder_ps94_check" / "cache"
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
@@ -302,6 +302,7 @@ def main(argv=None) -> int:
         fd = _common.load_figdata(a.out, NAME)
         D, hist, C = fd["D"], fd["hist"], fd["C"]
     else:
+        _common.require_explicit(a.cache, CACHE, "--cache")
         D, hist, model_dirs = collect(a.cache)
         D.to_csv(a.out / f"{NAME}.csv", index=False, float_format="%.4f")
         C = confusions(D)

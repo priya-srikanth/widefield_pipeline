@@ -108,6 +108,9 @@ def _default_cache_dir() -> Path:
     env = os.environ.get("WIDEFIELD_SESSION_CACHE")
     if env:
         return Path(env)
+    from wfield_local import rebuild_root
+    if rebuild_root.active():                     # a rebuild's cache lives in its rebuild root (wfield_local/rebuild_root)
+        return rebuild_root.root() / (rebuild_root.spec().get("stores") or {}).get("session_cache", "session_cache")
     try:
         from wfield_local import config
         return Path(config.resolver().root("figures_working")).parent / ".widefield_session_cache"

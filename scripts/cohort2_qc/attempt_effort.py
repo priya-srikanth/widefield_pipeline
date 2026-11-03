@@ -24,11 +24,12 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from quiet_area_spikes import EVENTS, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2  # noqa: E402
 
 OUTE = V2.parent / "attempt_effort"
-TA = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/trial_attempts.csv")
+TA = _encoding_root() / "qc" / "trial_attempts.csv"
 WIN_S, BASE_S, CTX_S, CTX_BASE_S = 3.5, 2.0, 1.5, 1.0
 CLS = ["hit", "incomplete", "jaw_only", "no_try"]
 EP = ["pre", "acute", "subacute", "chronic"]

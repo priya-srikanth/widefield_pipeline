@@ -394,7 +394,7 @@ def out_dir():
     from wfield_local import lp_licks, run_mode
     # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes attempt_coding/<tag>/
     # LP-only family: routed on the mode tag minus the plain LP part (review N1) -> the default LP run keeps its folder
-    return run_mode.subdir(lp_licks._run_dir() / "imaging_encoding" / "attempt_coding", lp_family=True)
+    return run_mode.subdir(lp_licks._enc_dir() / "attempt_coding", lp_family=True)
 
 
 def main(argv=None) -> int:

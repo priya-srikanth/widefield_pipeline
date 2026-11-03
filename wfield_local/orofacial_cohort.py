@@ -1623,7 +1623,7 @@ def _attempts_table() -> pd.DataFrame:
     if "T" not in _ATTEMPTS:
         from wfield_local import orofacial_outputs as oo
         from wfield_local.paths import PathResolver
-        f = oo.root(PathResolver()) / RUN / "imaging_encoding" / "qc" / "trial_attempts.csv"
+        f = oo.encoding_root(RUN, PathResolver()) / "qc" / "trial_attempts.csv"
         if not f.exists():
             raise FileNotFoundError(f"{f} -- run `PYTHONPATH=. python scripts/trial_attempts.py` first")
         T = pd.read_csv(f, usecols=["label", "trial_id", "attempted", "canonical"])

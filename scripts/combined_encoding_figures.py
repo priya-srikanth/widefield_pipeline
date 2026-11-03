@@ -100,7 +100,7 @@ def load(run: str, order: str, baseline: str, late_from: str):
     """Region table (long), per-session map dicts, PETH / SSE arrays and session metadata."""
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    d = oo.root(PathResolver()) / run / "imaging_encoding" / order / "sessions"
+    d = oo.encoding_root(run, PathResolver()) / order / "sessions"
     metas, R, sess = [], [], {}
     for jf in sorted(d.glob("PS*_*.json")):
         m = json.loads(jf.read_text(encoding="utf-8"))
@@ -1098,7 +1098,7 @@ def main(argv=None) -> int:
     ap.add_argument("--signed-only", action="store_true",
                     help="only the signed per-spout maps (resp / respdev) of a full run (Priya 10-19)")
     a = ap.parse_args(argv)
-    base = oo.root(PathResolver()) / a.run / "imaging_encoding" / a.order
+    base = oo.encoding_root(a.run, PathResolver()) / a.order
     sfx = "_allpre" if a.baseline == "all" else ""
     figs, tabs = base / f"figures{sfx}", base / f"tables{sfx}"
     writeguard.assert_writable(base)

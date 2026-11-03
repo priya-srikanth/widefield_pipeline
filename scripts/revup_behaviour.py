@@ -64,8 +64,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 
-RUN_ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+RUN_ROOT = _encoding_root()
 OUT_W = RUN_ROOT / "iti_licks"
 REV = OUT_W / "revup"
 SESS = "behaviour_sessions"        # per-session cache (revup/sessions/ belongs to the imaging helper; its *.pkl from a

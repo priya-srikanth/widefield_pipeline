@@ -90,7 +90,7 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default="gate-attempted_v7g3_t3d")
     ap.add_argument("--variant", default="joint")
     a = ap.parse_args(argv)
-    run = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    run = oo.encoding_root(oc.RUN, PathResolver()) / f"frozen_encoder_{a.tag}"
     assert_writable(run)
     T = session_table(run, a.variant)
     sfx = "" if a.variant == "joint" else f"_{a.variant}"   # one file set per variant (no_fr_dir once overwrote joint)

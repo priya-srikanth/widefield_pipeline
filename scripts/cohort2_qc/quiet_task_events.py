@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames, detect, detrend  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 TE = V2 / "task_events"
@@ -56,7 +57,7 @@ ENL_S = 2.0
 CLEAN_BINS = (0, 1.5, 2.0, 2.5, 99)
 N_PERM = 2000
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
-LP = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+LP = _encoding_root()
 LESION_NAME = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra",
                "far_L": "far_ipsi", "far_center": "far_mid", "far_R": "far_contra"}
 HEMI = {"orofacial_left": "orofacial ipsilesional", "orofacial_right": "orofacial contralesional",

@@ -17,7 +17,7 @@ def main(labels):
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    out = oo.root(rv) / oc.RUN / "imaging_encoding" / "frozen_encoder_gate-attempted_v6thr1" / "figures"
+    out = oo.encoding_root(oc.RUN, rv) / "frozen_encoder_gate-attempted_v6thr1" / "figures"
     fig, axs = plt.subplots(len(labels) * 2, 2, figsize=(15, 3.1 * len(labels) * 2),
                             gridspec_kw={"width_ratios": [4, 1]}, squeeze=False)
     for i, lab in enumerate(labels):

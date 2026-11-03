@@ -132,7 +132,7 @@ def class_snapshot(label: str) -> pd.DataFrame | None:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    f = os.environ.get("WFIELD_S1_CLASSES") or str(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    f = os.environ.get("WFIELD_S1_CLASSES") or str(oo.encoding_root(oc.RUN, PathResolver()) / "qc"
                                                      / "s1_trial_classes_cue_stop.csv.gz")
     if f not in _SNAP:
         _SNAP[f] = pd.read_csv(f)
@@ -189,7 +189,7 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     from wfield_local import lp_licks
     out = lp_licks.output_dir(out)       # camera-lick (LP) runs write under <parent>/<tag>/qc (writeguard rule)
     writeguard.assert_writable(out)

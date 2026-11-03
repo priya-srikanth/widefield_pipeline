@@ -352,7 +352,7 @@ def main(argv=None) -> int:
     ap.add_argument("--labels", nargs="*", default=None)
     ap.add_argument("--summarise-only", action="store_true")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "stray_licks"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "stray_licks"
     assert_writable(out)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     if a.summarise_only:

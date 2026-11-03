@@ -57,10 +57,17 @@ from scripts.rest_migration import rest_frozen_decoder as rf  # noqa: E402
 
 CHANCE = rf.CHANCE
 CODES = [0, 1, 2, 3, 4, 5]
-G = Path("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures")
-OUT_ROOT = G / "rest_frozen_decoder_restnl"
-CACHE_ROOT = Path(os.environ.get("WIDEFIELD_FIGURES_WORKING", "C:/Users/SabatiniLab/cue_lick")) / "rest_decoder_nl_cache"
-PAGE_SESSIONS = G / "epoch" / "data" / "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_sessions.csv"
+# R1 (fourth review, 11-03): every root through the resolver and the run mode -- the output folder carries the run tag
+# (`run_mode.subdir`), the feature cache sits under THIS run's figures_working (inside the rebuild root under one) and its
+# key carries `run_mode.cache_tag` (hemo / lnmfproj / selection / csig), and the page-12.1 sessions table is read from
+# the routed 15f folder (`rest_frozen_decoder._epoch_dir`), never the default copy
+from wfield_local import config as _config  # noqa: E402
+from wfield_local import run_mode as _run_mode  # noqa: E402
+
+G = Path(_config.resolver().root("cohort_out")) / "grant_figures"
+OUT_ROOT = _run_mode.subdir(G / "rest_frozen_decoder_restnl")
+CACHE_ROOT = Path(_config.resolver().root("figures_working")) / "rest_decoder_nl_cache"
+PAGE_SESSIONS = rf._epoch_dir() / "data" / "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_sessions.csv"
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 MASK_TEXT = {
     "restnl": "RESTnl rest (lick-free: DAQ contact + cam4 LP video licks removed [0.5 s, 2.0 s])",
@@ -105,7 +112,8 @@ def _code_key(mask):
     src = inspect.getsource(rf._collect) + inspect.getsource(rf._frame_samples)
     if mask == "restnl":
         src += inspect.getsource(lickfree_rest) + repr((rn.BUF_S, rn.MIN_FR, rn.MIN_POS_WR))
-    return hashlib.sha1(f"{src}|{BINS}|gate".encode()).hexdigest()[:12]
+    tag = _run_mode.cache_tag()                       # R1: another hemo / projection / selection never meets this key
+    return hashlib.sha1((f"{src}|{BINS}|gate" + (f"|{tag}" if tag else "")).encode()).hexdigest()[:12]   # default key kept
 
 
 _BASIS = {}

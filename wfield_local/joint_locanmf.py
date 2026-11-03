@@ -52,7 +52,8 @@ def _basis_dir() -> Path:
         return Path(env)
     try:
         from wfield_local import config
-        return Path(config.resolver().root("figures_working")).parent / "joint_bases"
+        # input_root: the joint bases are a read-only INPUT of a rebuild (LocaNMF footprints; rebuild_root)
+        return Path(config.resolver().input_root("figures_working")).parent / "joint_bases"
     except Exception:                              # noqa: BLE001
         return FALLBACK_BASIS_DIR
 
@@ -76,7 +77,7 @@ def server_basis_dir():
     whose existence you have checked is not a verified copy).
     """
     try:
-        return Path(config.resolver().root("cohort_out")) / "joint_bases"
+        return Path(config.resolver().input_root("cohort_out")) / "joint_bases"   # an input (rebuild.inputs_in_place)
     except Exception:                              # noqa: BLE001
         return None
 

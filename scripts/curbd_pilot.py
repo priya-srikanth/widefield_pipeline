@@ -42,8 +42,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/curbd_pilot")
+OUT = _encoding_root() / "curbd_pilot"
 ENC = OUT.parent / "movement_first" / "sessions"
 AREAS = ("SSp-n", "SSp-m", "SSs", "SSp-ul", "tjM1", "ALM", "MOp_rest", "MOs_rest", "RSPd")
 HEMIS = ("left", "right")                       # left = ipsilesional

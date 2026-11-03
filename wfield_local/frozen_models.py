@@ -270,6 +270,9 @@ def local_dir() -> Path:
     env = os.environ.get("WIDEFIELD_FROZEN_MODEL_DIR")
     if env:
         return Path(env)
+    from wfield_local import rebuild_root
+    if rebuild_root.active():                            # a rebuild's store lives in its rebuild root, never beside
+        return rebuild_root.root() / (rebuild_root.spec().get("stores") or {}).get("frozen_models", "frozen_models")
     # SIBLING OF THE JOINT BASES, deliberately, rather than a second literal fallback of its own.
     # Both are machine-local derived artifacts rooted at the working-figure parent, and deriving this
     # one from that one means there is a single place where "where does derived data live on this

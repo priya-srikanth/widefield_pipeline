@@ -17,7 +17,6 @@ import argparse
 import itertools
 import json
 import pickle
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -25,8 +24,9 @@ import pandas as pd
 from wfield_local import allsession_encoder as ae
 from wfield_local import epochs
 from wfield_local import frozen_encoder as fe
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 SRC = E / "frozen_encoder_gate-attempted_v7g3_t3d"
 L2 = E / "allsession_encoder_v7g3_t3d_ref"
 

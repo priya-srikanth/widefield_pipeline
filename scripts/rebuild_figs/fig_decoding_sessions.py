@@ -37,11 +37,11 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 import _common  # noqa: E402
 
 NAME = "decoding_refit_sessions"
-SRC = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/"
-           "slowband_decode_all.csv")
+SRC = _encoding_root() / "qc" / "slowband_decode_all.csv"
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
@@ -147,6 +147,7 @@ def main(argv=None) -> int:
     if a.plot_only:
         S = _common.load_figdata(a.out, NAME)["S"]
     else:
+        _common.require_explicit(a.src, SRC, "--src", ok_in_rebuild=True)
         S = load(a.src, a.pre_col, a.post_col)
         check_table(S)
         S[["animal", "date", "epoch", "precue_acc", "postcue_acc", "label", "day"]].to_csv(

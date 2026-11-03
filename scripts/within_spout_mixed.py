@@ -204,7 +204,7 @@ def main(argv=None) -> int:
     ap.add_argument("--folder", default="within_spout_deviation_lick")
     ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
-    folder = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / a.folder
+    folder = oo.encoding_root(a.run, PathResolver()) / "qc" / a.folder
     D = pd.read_csv(folder / "within_spout_deviation.csv")
     L = outcomes(D)
     if (folder / "dirmid.csv").exists():                     # direction / toward-midline coefficients
