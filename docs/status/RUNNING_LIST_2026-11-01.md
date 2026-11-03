@@ -420,3 +420,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   PS92_0904 377/378, PS92_0908 321/389. Contact / no-lick disagreements all late licks -> 0 under the cue_stop rule. TRIAL LENGTH: acute
   only 53-68% of trials > 3.6 s vs 86-92% pre -> licks-per-trial readouts confounded by trial length (decision for Priya). Run tag:
   hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6. Tables copied to rebuild_20261103/. Fourth review sent.
+- 11-03: FOURTH REVIEW (a1b6064a): T1-T9 hold in real modes; profile tag verified; suite 4,470 / 0 failed (6 git-history tests skip in a
+  clean export). NOT SAFE TO RENDER YET: R1 Fig 12.1b stale + default overwrite, R2 tagged deck reads untagged figures, R3 rebuild_figs
+  read old inputs by default, R4 attempt_maps silently partial, R5 refusals ignore LP / ENL modes and the profile does not clear stray
+  env vars; ~120 more unrouted writers in subfolders / wfield_local. Switched to a STRUCTURAL fix: one rebuild root for every derived
+  output under the profile, writeguard refuses writes outside it, readers resolve inside it (raw inputs untouched). Fifth review after.
