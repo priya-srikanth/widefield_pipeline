@@ -392,3 +392,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   across the figure; scripts/lmm_change_fig.py on main). Helper building them on CURRENT data with per-session extractors
   (scripts/lmm_hidden/, re-runnable on rebuild outputs) -> grant_figures/lmm_hidden_20261103/ + README (star differences vs
   bootstrap). Tell a8 when they land; tell e3 when the rebuild's *_sessions.csv exist (slides 10 / 11 / 12 / 19).
+- 11-03: imaging page LIVE v50 (published by sabatinilab-e0 under Priya's HMS account): section 1 on camera-defined working up to the
+  last camera lick; Fig 1.4 = a8's campllick re-plot. e0 can publish any window's pages if this window's Artifact tool is off.
+  Read v50 live before any imaging-page edit in the rebuild page pass.
