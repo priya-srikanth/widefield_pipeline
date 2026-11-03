@@ -40,7 +40,7 @@ def main():
     done = skipped = failed = 0
     for s in ss:
         res = Path(s["mc"]) / "wfield_local_results"
-        dest = hv.out_dir(s, hv.ADOPTED, True, TAG)
+        dest = hv.out_dir(s, hv.BUILD_DEFAULT, True, TAG)   # BUILD key, not the read suffix (rebuild 11-03)
         if (dest / "manifest.json").is_file() and (res / "swapped_pairs.npz").is_file():
             skipped += 1
             continue
@@ -51,7 +51,7 @@ def main():
             np.savez(res / "swapped_pairs.npz", **m)
             built = False
             if not a.mask_only and s["regime"] == "B":
-                hv.write(s, hv.ADOPTED, refit_t=True, func=func, bad_pairs=m["bad"], tag=TAG, verbose=False)
+                hv.write(s, hv.BUILD_DEFAULT, refit_t=True, func=func, bad_pairs=m["bad"], tag=TAG, verbose=False)
                 built = True
             line = dict(label=s["label"], regime=s["regime"], func=func, n_pairs=int(m["bad"].size),
                         core=int(m["core"].sum()), bad=int(m["bad"].sum()), built=built, s=round(time.time() - t0))

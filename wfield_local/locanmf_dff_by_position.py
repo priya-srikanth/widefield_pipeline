@@ -12,8 +12,8 @@ is visible in % dF/F (not z). Keeps components individual (averaged only at the 
 from __future__ import annotations
 
 import argparse
-import glob
-import json
+import glob  # noqa: F401
+import json  # noqa: F401
 from pathlib import Path
 
 import matplotlib
@@ -26,10 +26,10 @@ from scipy.ndimage import gaussian_filter1d
 from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_lick_aligned_averages import (
-    _load_daq_events, _classify_events, _event_frame_indices_from_pco, POSITION_NAMES, DISPLAY_ORDER,
+    _load_daq_events, _classify_events, _event_frame_indices_from_pco, POSITION_NAMES, DISPLAY_ORDER,  # noqa: F401
 )
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
-from wfield_local.locanmf_lick_aligned import _corrected_frame_samples, _nearest_corrected_frame
+from wfield_local.locanmf_lick_aligned import _corrected_frame_samples, _nearest_corrected_frame  # noqa: F401
 from wfield_local.locanmf_crossanimal_dff import _footprint_scale, _frames, AREAS, ANIMAL_COLOR
 
 POS = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
@@ -68,7 +68,8 @@ def main() -> int:
     res = []
     for s in SESSIONS:
         mc = s["mc"]
-        C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+        from wfield_local import locanmf_session
+        C = locanmf_session.load_C(s).astype(np.float64)      # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
         reg = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
         A = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_A.npy", mmap_mode="r")
         ncomp, T = C.shape
@@ -82,9 +83,9 @@ def main() -> int:
 
         def ok(fr):
             a, b = fr - pre_n, fr + post_n
-            if a < 0 or b > T:
+            if a < 0 or b > T:  # noqa: B023
                 return False
-            return csmp is None or (csmp[b - 1] - csmp[a]) / fsd <= (args.pre_s + args.post_s + 1.0)
+            return csmp is None or (csmp[b - 1] - csmp[a]) / fsd <= (args.pre_s + args.post_s + 1.0)  # noqa: B023
 
         valid = (codes >= 0) & np.array([ok(int(f)) for f in ev_f])
         pos_avg = {}

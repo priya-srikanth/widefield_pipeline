@@ -153,6 +153,13 @@ def output_tag() -> str | None:
     from wfield_local import gate_source
     if gate_source.is_lp():             # LP-inclusive gate: its own folder, never the plain LP_licks / default one
         tag = f"{tag or 'DAQ'}_gateLP"
+    # RUN MODE (rebuild 2026-11-03, `run_mode`): hemo variant, LocaNMF projection, PRE_FROM, trial selection, map refs,
+    # in-memory refits, the LP arm's DAQ-trained cross-check. Each adds a part, so such a run is routed by
+    # `output_dir` and REFUSED by `writeguard` outside its folder. The default run adds nothing (None, as before).
+    from wfield_local import run_mode
+    extra = run_mode.parts()
+    if extra:
+        tag = "_".join(([tag] if tag else []) + extra)
     return tag
 
 
@@ -180,6 +187,9 @@ def stamp(fig) -> None:
     from wfield_local import gate_source
     if gate_source.is_lp():
         txt += "; engagement gate / quit = DAQ contact OR LP attempt"
+    from wfield_local import run_mode
+    if run_mode.tag():
+        txt += f"; mode {run_mode.tag()}"
     fig.text(0.995, 0.002, txt, ha="right", va="bottom", fontsize=6, color="#8a2be2")
 
 

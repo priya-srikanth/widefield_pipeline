@@ -397,6 +397,11 @@ def summarize(res, fh=None):
             d = r.get(arm)
             if not isinstance(d, dict) or not d.get("n"):
                 continue
+            if "balanced_accuracy" not in d:
+                # an arm that was COUNTED but not evaluated (nolick_decoder: < 30 trials -> {"n", "note"}); it used to
+                # raise KeyError here and abort the summary (FROZEN_ALL_20261102 P2 note; fixed in the rebuild 11-03)
+                lines.append(f"    {arm:14s} n={d['n']:5d}  not evaluated ({d.get('note', 'no accuracy')})")
+                continue
             mt = d.get("matched") or {}
             mstr = (f"  matched acc={mt['accuracy']:.3f} (n={mt['n_per_draw']})"
                     if mt.get("n_per_draw") else "")

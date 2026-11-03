@@ -160,11 +160,38 @@ def locanmf_dir_name(variant: str | None = None) -> str:
 
     Override per call with ``variant``, or globally with ``WIDEFIELD_LOCANMF_VARIANT``, which is how
     an analysis can be pointed at a non-default decomposition without editing config.
+
+    THE HEMO SWITCH DRIVES IT (rebuild 2026-11-03, single hemo switch). Without an explicit override the
+    name FOLLOWS `hemo_variant()` -- the same switch as `svtcorr_path` and `combined_encoding.hemo_dir` -- so a
+    non-default hemo variant can never be served the adopted per-session decomposition under its own label (trap
+    T7: per-session C used to stay adopted whatever the variant). For the default variant the name is exactly
+    ``output_dir_name`` (pinned by a test); under another variant it is ``<prefix>_hemo_<variant>``, a directory
+    that exists only once LocaNMF (or the projection path, `locanmf_session`) has produced it -- a missing
+    directory fails loudly instead of silently mixing variants.
     """
     v = variant or os.environ.get("WIDEFIELD_LOCANMF_VARIANT")
     if v:
         return f"locanmf_affine8v1_hemo_{v}"
-    return str(defaults()["locanmf"]["output_dir_name"])
+    name = str(defaults()["locanmf"]["output_dir_name"])
+    if locanmf_projection_on():
+        # PROJECTION PATH (`locanmf_session`): footprints A / regions come from the STORED decomposition (this name);
+        # C is never read from it -- every C load goes through `locanmf_session.load_C`, which projects.
+        return name
+    prefix, sep, built = name.rpartition("_hemo_")
+    want = hemo_variant() or "zerophase"
+    if not sep or built == want:
+        return name
+    return f"{prefix}_hemo_{want}"
+
+
+#: Per-session LocaNMF PROJECTION PATH (rebuild 2026-11-03, item j; default OFF): "1" serves every session's C as the
+#: least-squares projection of the SELECTED hemo variant's SVTcorr onto the session's STORED footprints A
+#: (`locanmf_session`). Needed whichever per-session LocaNMF decision is taken (main path or the bridge comparison).
+LOCANMF_PROJECT_ENV = "WIDEFIELD_LOCANMF_PROJECT"
+
+
+def locanmf_projection_on() -> bool:
+    return os.environ.get(LOCANMF_PROJECT_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def locanmf_dir(mc, variant: str | None = None) -> str:
@@ -188,6 +215,46 @@ def hemo_variant(variant: str | None = None) -> str | None:
     if v is None:
         v = (defaults().get("hemo") or {}).get("variant")
     return None if v in (None, "", "none", "zerophase") else str(v)
+
+
+#: The hemo variant whose outputs and caches carry NO mode tag: everything produced before the 2026-11-03 rebuild was
+#: built on it. Fixed on purpose -- NOT the current default -- so that flipping ``defaults.yaml hemo.variant`` to a new
+#: variant still tags every new output (``hemo_tag``) and can never overwrite or prune an untagged (adopted) one.
+UNTAGGED_HEMO_VARIANT = "meegkit_hpfit"
+
+
+def default_hemo_variant() -> str | None:
+    """``defaults.yaml hemo.variant`` (None = zerophase), ignoring the env override."""
+    return hemo_variant((defaults().get("hemo") or {}).get("variant") or "none")
+
+
+def hemo_dir_name(variant: str | None = None) -> str | None:
+    """``hemo_<variant>`` -- the directory under ``wfield_local_results`` the selected variant lives in -- or None for
+    the bare zerophase ``SVTcorr.npy``. THE ONE PLACE a script should build that name (never ``hemo_{ADOPTED}`` or a
+    literal ``hemo_meegkit_hpfit``)."""
+    v = hemo_variant(variant)
+    return None if v is None else f"hemo_{v}"
+
+
+def hemo_manifest_path(mc_or_results, variant: str | None = None) -> str:
+    """``.../wfield_local_results/hemo_<variant>/manifest.json`` for an ``mc`` dir or a ``wfield_local_results`` dir.
+    Raises for zerophase (the bare product has no manifest)."""
+    d = hemo_dir_name(variant)
+    if d is None:
+        raise ValueError("the zerophase (bare SVTcorr.npy) product has no hemo manifest")
+    base = str(mc_or_results).rstrip("/\\")
+    if not base.replace("\\", "/").endswith("wfield_local_results"):
+        base = f"{base}/wfield_local_results"
+    return f"{base}/{d}/manifest.json"
+
+
+def hemo_tag(variant: str | None = None) -> str:
+    """Mode tag of the selected hemo variant: "" for `UNTAGGED_HEMO_VARIANT`, else ``hv-<variant>`` (``hv-zerophase``
+    for the bare product). Enters output folders (`run_mode`), session-cache kinds and restnl cache names."""
+    v = hemo_variant(variant)
+    if v == UNTAGGED_HEMO_VARIANT:
+        return ""
+    return f"hv-{v or 'zerophase'}"
 
 
 def svtcorr_path(mc, variant: str | None = None) -> str:

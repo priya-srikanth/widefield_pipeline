@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -61,11 +62,24 @@ import iti_licks as il  # noqa: E402
 from fr_musall import AN  # noqa: E402
 
 HC = il.OUT / "hemo_check"
-CACHE = HC / "cache"
+# REFERENCE ROW (rebuild 11-03): "adopted" = the variant this run READS (the one hemo switch; ce.load_imaging). Set
+# ITI_HEMO_REF_VARIANT=<hemo dir suffix> (e.g. meegkit_hpfit, or the rebuild's new variant) to add a "ref" row read
+# from hemo_<ref>/SVTcorr.npy -- the side-by-side of old vs new correction. Its cache is keyed by the ref.
+REF_VARIANT = os.environ.get("ITI_HEMO_REF_VARIANT", "").strip() or None
+CACHE = HC / ("cache" if REF_VARIANT is None else f"cache_ref-{REF_VARIANT}")
 CACHE_VERSION = 1
-VARIANTS = ("adopted", "orig", "raw470", "raw415")
-VLAB = {"adopted": "corrected ADOPTED (meegkit_hpfit)", "orig": "corrected ORIGINAL (zero-phase HP)",
+VARIANTS = ("adopted", "orig", "raw470", "raw415") + (("ref",) if REF_VARIANT else ())
+
+
+def _read_variant_label() -> str:
+    from wfield_local import config
+    return config.hemo_variant() or "zerophase"
+
+
+VLAB = {"adopted": f"corrected ADOPTED ({_read_variant_label()})", "orig": "corrected ORIGINAL (zero-phase HP)",
         "raw470": "UNCORRECTED 470 nm", "raw415": "415 nm (haemodynamic)"}
+if REF_VARIANT:
+    VLAB["ref"] = f"corrected REFERENCE ({REF_VARIANT})"
 MAP_VARIANTS = ("adopted", "raw415")
 EP = il.EP4
 POST = EP[1:]
@@ -134,6 +148,8 @@ def work(label: str) -> dict:
             X = V[:n].astype(np.float64)
         elif v == "orig":
             X = np.load(res / "SVTcorr.npy", mmap_mode="r").T[:n].astype(np.float64)
+        elif v == "ref":
+            X = np.load(res / f"hemo_{REF_VARIANT}" / "SVTcorr.npy", mmap_mode="r").T[:n].astype(np.float64)
         else:
             slot = fc if v == "raw470" else (fc + 1) % 2
             X = np.asarray(svt[:, slot::2], np.float64).T[:n]

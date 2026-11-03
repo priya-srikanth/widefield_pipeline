@@ -216,3 +216,139 @@ def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW) -> str:
     """Short tag naming the trial-selection rule; put it in every cache key / frozen-model spec built on a gate, so
     runs with different sources or windows never share a cache entry (agreed with the cohort-1 rebuild, 11-03)."""
     return f"sel-{source}-{window}"
+
+
+# ------------------------------------------------------------------------------------------ the run's trial gate
+# (cohort-1 rebuild 2026-11-03). WHICH RULE SELECTS "working" / "stopped" in the imaging families
+# (`grant_kit._class_select` and the gates listed in `docs/status/REBUILD_CODE_20261103.md` item f):
+#   daq     the DAQ quit-tail rule: working = engaged + unengaged outside the terminal quit period, stopped = the quit
+#           period (`precue_engagement_states.engagement_gate`). UNTAGGED: every output made before 11-03.
+#   camera  THIS module's GATES: working = contact | incomplete | jaw_only, stopped = no_response; "unknown" and
+#           sessions without video (PS93_0813) are in NEITHER (no DAQ fallback; reconciliation D12). The lick class
+#           stays the DAQ contact set in both modes (lick-aligned windows need a lick time).
+# Setting: ``defaults.yaml trial_selection.gate`` (default daq), overridden by WIDEFIELD_TRIAL_GATE; the window by
+# ``trial_selection.window`` / WIDEFIELD_TRIAL_WINDOW. Measures OF engagement (quit, decline, attempt rate) never use
+# it. A5 HOOK: when `responded(source=...)` lands (e3, consolidation A5), `cue_classes_for` is the one place to route
+# through it.
+GATE_ENV = "WIDEFIELD_TRIAL_GATE"
+WINDOW_ENV = "WIDEFIELD_TRIAL_WINDOW"
+GATE_MODES = ("daq", "camera")
+UNTAGGED_GATE = "daq"
+#: the camera rule's "stopped" set (the complement of working among judged trials)
+STOPPED_CLASSES = frozenset({"no_response"})
+CUE_MATCH_S = 0.020          # a DAQ cue and a video trial are the same trial within 20 ms of cue time (as `lp_licks`)
+
+
+def _selection_cfg() -> dict:
+    try:
+        from wfield_local import config
+        return config.defaults().get("trial_selection") or {}
+    except Exception:                                # noqa: BLE001 - config unavailable (bare unit tests)
+        return {}
+
+
+def gate_mode() -> str:
+    """"daq" (default) or "camera" -- the run's trial-selection rule (see the block comment above)."""
+    import os
+    v = os.environ.get(GATE_ENV, "").strip().lower() or str(_selection_cfg().get("gate") or UNTAGGED_GATE).lower()
+    if v not in GATE_MODES:
+        raise ValueError(f"{GATE_ENV} / trial_selection.gate = {v!r}; expected one of {GATE_MODES}")
+    return v
+
+
+def gate_window() -> str:
+    import os
+    v = os.environ.get(WINDOW_ENV, "").strip() or str(_selection_cfg().get("window") or DEFAULT_WINDOW)
+    if v not in WINDOWS:
+        raise ValueError(f"{WINDOW_ENV} / trial_selection.window = {v!r}; expected one of {WINDOWS}")
+    return v
+
+
+def camera_gate_on() -> bool:
+    return gate_mode() == "camera"
+
+
+def run_selection(source: str | None = None) -> str:
+    """The selection tag of THIS run, always defined (frozen specs carry it): ``sel-daq-quittail`` for the DAQ rule,
+    else ``selection_tag(source or "camera", gate_window())``."""
+    if gate_mode() == "daq":
+        return "sel-daq-quittail"
+    return selection_tag(source or "camera", gate_window())
+
+
+def run_selection_tag() -> str | None:
+    """None for the untagged DAQ rule, else the run's selection tag (output folders, cache kinds; `run_mode`)."""
+    return None if gate_mode() == UNTAGGED_GATE else run_selection()
+
+
+def cue_classes(table: pd.DataFrame | None, cue_s, tol: float = CUE_MATCH_S) -> np.ndarray:
+    """Class per DAQ cue (``cue_s``, DAQ seconds), matched to ``session_trials`` rows by nearest cue time within
+    ``tol``; "unknown" where nothing matches (or ``table`` is None). Matched by TIME, never by trial id (ids are offset
+    in some sessions; `lp_licks`). (Moved here from scripts/jaw_only_incomplete_figs.py, which now calls it.)"""
+    cue_s = np.asarray(cue_s, float)
+    out = np.full(len(cue_s), "unknown", dtype=object)
+    if table is None or not len(table):
+        return out
+    t = table.dropna(subset=["cue_daq"]).sort_values("cue_daq")
+    tv, cv = t.cue_daq.to_numpy(float), t.cls.to_numpy(object)
+    if not len(tv):
+        return out
+    j = np.clip(np.searchsorted(tv, cue_s), 1, len(tv) - 1) if len(tv) > 1 else np.zeros(len(cue_s), int)
+    if len(tv) > 1:
+        j = np.where(np.abs(tv[j - 1] - cue_s) <= np.abs(tv[j] - cue_s), j - 1, j)
+    ok = np.abs(tv[j] - cue_s) <= tol
+    out[ok] = cv[j[ok]]
+    return out
+
+
+_CUE_CLS: dict = {}
+
+
+def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
+    """Camera class per DAQ cue of one session (``cue_s`` in DAQ seconds); all "unknown" for a session without video
+    outputs. Memoised per process. THE A5 HOOK: switch the class source to `responded(source=...)` here."""
+    import hashlib
+    window = window or gate_window()
+    cs = np.ascontiguousarray(np.asarray(cue_s, float))
+    key = (label, window, hashlib.sha1(cs.tobytes()).hexdigest())
+    if key not in _CUE_CLS:
+        if len(_CUE_CLS) > 64:
+            _CUE_CLS.clear()
+        _CUE_CLS[key] = cue_classes(session_trials(label, window=window), cs)
+    return _CUE_CLS[key]
+
+
+def daq_cue_seconds(label: str) -> np.ndarray:
+    """The session's DAQ cue times (s) -- the train every imaging trial index refers to (`_trial_features`)."""
+    from wfield_local import config
+    from wfield_local.plot_spout_trial_averages import _load_daq_events
+    s = next(x for x in config.load_sessions() if x["label"] == label)
+    cue = _load_daq_events(s["h5"])
+    return np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
+
+
+def row_classes(label: str, cue_index) -> np.ndarray:
+    """Camera class of imaging rows given their DAQ cue INDICES (``features_with_indices().indices``); "unknown" for an
+    out-of-range index or a session without video."""
+    idx = np.asarray(cue_index, np.int64)
+    cls = cue_classes_for(label, daq_cue_seconds(label))
+    out = np.full(idx.size, "unknown", dtype=object)
+    ok = (idx >= 0) & (idx < cls.size)
+    out[ok] = cls[idx[ok]]
+    return out
+
+
+def camera_select(variant: str, cls_e, cls_u, sess_e, sess_u):
+    """The camera rule's (engaged-row mask, unengaged-row mask) for one trial class -- `grant_kit._class_select`'s
+    camera branch. ``lick``: the engaged rows (DAQ contact) UNCHANGED -- a contact-only selection, so PS93_0813 (no
+    video) stays in it; ``working``: rows of either arm in the working gate; ``stopped``: rows of either arm in
+    STOPPED_CLASSES. "unknown" rows (no video, unmatched cue) are in neither working nor stopped."""
+    ce = np.asarray(cls_e, dtype=object)
+    cu = np.asarray(cls_u, dtype=object)
+    se = np.asarray(sess_e, bool)
+    su = np.asarray(sess_u, bool)
+    if variant == "stopped":
+        return se & np.isin(ce, list(STOPPED_CLASSES)), su & np.isin(cu, list(STOPPED_CLASSES))
+    if variant == "working":
+        return se & in_gate(ce, "working"), su & in_gate(cu, "working")
+    return se, np.zeros(len(su), bool)

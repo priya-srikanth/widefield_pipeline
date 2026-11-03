@@ -38,7 +38,8 @@ ANIMAL_COLOR = {"PS92": "tab:blue", "PS94": "tab:orange", "PS95": "tab:green"}
 
 def _process(s, args):
     mc = s["mc"]
-    C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s).astype(np.float64)          # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     regions = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
     ncomp, T = C.shape
     cue = _load_cue_events(s["h5"])
@@ -57,7 +58,7 @@ def _process(s, args):
         lick_f = _event_frame_indices_from_pco(lk["lick_samples"], lk["pco_samples"]) // 2
     codes = _classify_cues(cue["cue_samples"], cue["strobe_samples"], cue["strobe_codes"])
 
-    pre_n = int(round(args.pre_s * args.fs)); post_n = int(round(args.post_s * args.fs)); win = pre_n + post_n
+    pre_n = int(round(args.pre_s * args.fs)); post_n = int(round(args.post_s * args.fs)); win = pre_n + post_n  # noqa: F841
     tax = np.arange(-pre_n, post_n) / args.fs
     maxrt_n = int(round(args.max_rt * args.fs))
 

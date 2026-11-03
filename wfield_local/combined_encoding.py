@@ -392,15 +392,16 @@ def _env_tables() -> list:
 
 
 def hemo_dir() -> str:
-    """The `hemo_<variant>` directory the encoder inputs read: the ADOPTED variant, unless `WIDEFIELD_HEMO_VARIANT` names
-    another one (2026-11-02, cohort-1 swap-mask re-run: e.g. `meegkit_hpfit_lag_refitT_swapmask`). Deliberately NOT
-    `config.hemo_variant()`: with the env var unset this stays exactly `hemo_{ADOPTED}` whatever defaults.yaml says.
+    """The `hemo_<variant>` directory the encoder inputs read = `config.hemo_dir_name()`: the ONE hemo switch
+    (``defaults.yaml hemo.variant``, overridden by ``WIDEFIELD_HEMO_VARIANT``), the same one `config.svtcorr_path`,
+    `hemo_variants.ADOPTED` and `config.locanmf_dir_name` follow (rebuild 2026-11-03; it used to read the env var only,
+    so a defaults.yaml flip left the encoder / quiet events adopted -- trap T2). Default unchanged: `hemo_meegkit_hpfit`.
     The cache key (`load_imaging`) carries the SVTcorr path, so two variants never share an entry."""
-    from wfield_local.hemo_variants import ADOPTED
-    v = os.environ.get("WIDEFIELD_HEMO_VARIANT")
-    if v in ("zerophase", "none"):
+    from wfield_local import config
+    d = config.hemo_dir_name()
+    if d is None:
         raise ValueError("the encoder inputs have no zerophase / bare-SVTcorr route; name a hemo_<variant> directory")
-    return f"hemo_{v or ADOPTED}"
+    return d
 
 
 def load_imaging(label: str):
@@ -1719,7 +1720,10 @@ def out_dir(rv, order: str) -> Path:
     # a VIDEO run never writes into the primary folder: <order>_video-<cams>
     only = [x.rstrip(":") for x in (os.environ.get(ONLY_ENV) or "").split(",") if x]
     fr_set = os.environ.get(FR_ENV) or ""
-    return oo.root(rv) / _run() / "imaging_encoding" / (order + (f"_video-{'-'.join(cams)}" if cams else "")
+    from wfield_local import lp_licks
+    # run-mode routing (rebuild 11-03): a tagged run (hemo variant, PRE_FROM, selection, ...) writes under
+    # imaging_encoding/<tag>/<name>, never over the default folder; identity for the default run
+    return lp_licks.output_dir(oo.root(rv) / _run() / "imaging_encoding" / "_").parent / (order + (f"_video-{'-'.join(cams)}" if cams else "")
                                                          + (f"_fr-{_fr_tag(fr_set)}" if fr_set else "")
                                                          + ("share" if fr_set and not _fr_absolute() else "")
                                                          + (f"_pts{os.environ[FR_POINTS_ENV]}"

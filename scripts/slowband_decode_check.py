@@ -46,7 +46,8 @@ def session_check(label: str) -> dict:
     s = next(x for x in F.SESSIONS if x["label"] == label)
     res = s["mc"] + "/wfield_local_results"
     ad = glob.glob(res + "/allen_aligned_affine8v1")[0]
-    c = np.load(res + f"/hemo_{hv.ADOPTED}/SVTcorr.npy").astype(np.float64)
+    from wfield_local import config
+    c = np.load(config.svtcorr_path(s["mc"])).astype(np.float64)   # the selected variant (one hemo switch, 11-03)
     s300 = _slow(c, hv.FS, 300.0)
     arms = {"adopted": c, "slow300": s300, "fast300": c - s300, "slow600": _slow(c, hv.FS, 600.0)}
     out = {"label": label}
@@ -75,7 +76,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     from wfield_local import epochs
     from wfield_local import filter_acausality_test as F
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out = lp_licks.output_dir(oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc")
     writeguard.assert_writable(out)
     name = "slowband_decode_all.csv" if a.all else "slowband_decode.csv"
     # CURATED sessions only (Priya 10-20: "only sessions from our curated analysis list" -- no early June / 0805, no

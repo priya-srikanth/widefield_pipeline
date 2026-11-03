@@ -518,7 +518,10 @@ def _joint_signal(basis, s):
     footprints. Never refitted -- a refit over a grown session set is a different reference frame,
     and post-stroke that would make the comparison meaningless.
     """
-    if s["label"] in basis.labels:
+    from wfield_local import joint_locanmf
+    # under another hemo variant than the basis's, in-fit sessions are projected too (rebuild 11-03: this site used to
+    # serve the stored adopted C to in-fit pre sessions while projecting the rest -- two variants in one decoder)
+    if s["label"] in basis.labels and not joint_locanmf.project_all(basis):
         return basis.signal(s["label"]), basis.regions, 1.0
     sig, diag = basis.project(s, with_diagnostics=True)
     return sig, basis.regions, float(diag["variance_captured"])

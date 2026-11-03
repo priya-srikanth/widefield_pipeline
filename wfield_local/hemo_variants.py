@@ -182,10 +182,33 @@ DETREND_WIN_S = 600.0
 # and why order is a much safer knob than a window length.
 MEEGKIT_ORDER = 10
 
-#: The ADOPTED drift-removal variant (docs/PREPROCESSING_DECISION.md). This is what gets BUILT for
-#: every session. Which variant analyses READ is a separate switch — `config.hemo_variant()` — because
-#: the two must be able to differ while a rebuild is partway through the session set.
-ADOPTED = "meegkit_hpfit"
+#: The drift-removal variant KEY the builders use by default (a `VARIANTS` key; what `preprocess` / `--variant` build
+#: when nothing else is named). A BUILD setting only: never use it to locate the data an analysis reads.
+BUILD_DEFAULT = "meegkit_hpfit"
+
+
+def adopted() -> str:
+    """The ``hemo_<suffix>`` suffix analyses READ, from the ONE hemo switch (`config.hemo_variant()`: ``defaults.yaml
+    hemo.variant``, overridden by ``WIDEFIELD_HEMO_VARIANT``). Raises for zerophase (no ``hemo_`` directory)."""
+    from wfield_local import config
+    v = config.hemo_variant()
+    if v is None:
+        raise ValueError("hemo variant is zerophase (bare SVTcorr.npy): there is no hemo_<variant> directory")
+    return v
+
+
+#: The ADOPTED drift-removal variant (docs/PREPROCESSING_DECISION.md) = the ``hemo_<ADOPTED>`` directory analyses read.
+#: SINCE THE 2026-11-03 REBUILD IT FOLLOWS THE ONE HEMO SWITCH (`config.hemo_variant()`, resolved at import: set
+#: ``WIDEFIELD_HEMO_VARIANT`` before the process starts), so ``hemo_{ADOPTED}``, `config.svtcorr_path`,
+#: `combined_encoding.hemo_dir` and `config.locanmf_dir_name` can never disagree (trap T4: a partial switch fitted
+#: "variant" models on adopted data). Default unchanged: "meegkit_hpfit". In-process code that may run after the env
+#: changes calls `adopted()`. Builders use `BUILD_DEFAULT` (a `VARIANTS` key, which a read suffix need not be).
+try:
+    from wfield_local import config as _config
+    # zerophase -> "zerophase": `hemo_zerophase/` does not exist, so a `hemo_{ADOPTED}` read fails loudly
+    ADOPTED = _config.hemo_variant() or "zerophase"
+except Exception:                                   # noqa: BLE001 - config unavailable (bare unit-test env)
+    ADOPTED = BUILD_DEFAULT
 
 #: Set True by remove_drift when it has to fall back to per-component meegkit detrending (see there).
 #: compute() resets it per session and records the outcome in the manifest for provenance.
@@ -457,7 +480,7 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--list", action="store_true", help="show the variants and exit")
     ap.add_argument("--sessions", nargs="+", default=None)
-    ap.add_argument("--variant", default=ADOPTED, choices=sorted(VARIANTS))
+    ap.add_argument("--variant", default=BUILD_DEFAULT, choices=sorted(VARIANTS))
     # An UNREGISTERED session (a night not yet in sessions.yaml) still has to get its variant built,
     # or the nightly would depend on someone editing config before the pipeline could finish.
     ap.add_argument("--mc", help="ad-hoc session: motion_corrected dir (instead of a --sessions lookup)")

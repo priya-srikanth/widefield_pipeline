@@ -55,7 +55,8 @@ def _build_signal(s, source):
     """Return (signal [nfeat,T], feat_region_labels [nfeat])."""
     mc = s["mc"]
     if source == "locanmf":
-        C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+        from wfield_local import locanmf_session
+        C = locanmf_session.load_C(s).astype(np.float64)      # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
         reg = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
         A = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_A.npy", mmap_mode="r")
         return _footprint_scale(A, C.shape[0])[:, None] * C, reg

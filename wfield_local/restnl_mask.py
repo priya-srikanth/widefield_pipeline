@@ -220,9 +220,18 @@ def _key(s: dict) -> str:
     return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
 
 
+def _stem(label: str) -> str:
+    """``<label>__restnl`` (default) or ``<label>__restnl-<run_mode.cache_tag>`` (rebuild 2026-11-03): another hemo
+    variant / selection / projection run writes its OWN name, so the prune in `build_session` (by stem) can never delete
+    the adopted baselines. Default names unchanged."""
+    from wfield_local import run_mode
+    t = run_mode.cache_tag()
+    return f"{label}__restnl" + (f"-{t}" if t else "")
+
+
 def cache_path(label: str, s: dict | None = None) -> Path:
     s = s or session_of(label)
-    return cache_dir() / f"{label}__restnl__{_key(s)}.npz"
+    return cache_dir() / f"{_stem(label)}__{_key(s)}.npz"
 
 
 def build_session(label: str, measure: bool = False) -> dict:
@@ -259,7 +268,7 @@ def build_session(label: str, measure: bool = False) -> dict:
                         ok_wr=ok, ok_strict=oks, posmed=pm, nfr_pos=nfr, positions_used=np.asarray(used, int),
                         base_map=base, info=json.dumps(info))
     os.replace(tmp, fp)
-    for old in cache_dir().glob(f"{label}__restnl__*.npz"):        # prune superseded keys of THIS cache only
+    for old in cache_dir().glob(f"{_stem(label)}__*.npz"):         # prune superseded keys of THIS mode's cache only
         if old != fp:
             try:
                 old.unlink()

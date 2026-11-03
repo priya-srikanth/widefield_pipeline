@@ -179,6 +179,22 @@ def cached(session, kind, compute, params=None, verbose=True):
     `compute` is a zero-arg callable producing a picklable result."""
     if _disabled():
         return compute()
+    kind = effective_kind(kind)
+    lab = session["label"]
+    sig = session_signature(session, params)
+    fp = CACHE_DIR / f"{lab}__{kind}__{sig}.pkl"
+    if fp.exists():
+        try:
+            with open(fp, "rb") as fh:
+                return pickle.load(fh)
+        except Exception:
+            pass  # corrupt/partial -> recompute below
+    return _store(fp, lab, kind, compute(), verbose)
+
+
+def effective_kind(kind: str) -> str:
+    """The kind as it lands in the file name under the current run's switches (LP source, LP gate, run mode). Readers
+    that glob the cache directly (e.g. `joint_locanmf.BasisSource.variance_captured`) must use this too."""
     # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): EVERY kind is tagged, here, once -- features, categories, CD arms,
     # RSA, cross-mouse -- so an LP result can never be served for a DAQ one or evict it (the prune below is by kind).
     # The tag carries the attempts table's identity, so a rewrite of trial_attempts.csv starts fresh LP entries.
@@ -194,16 +210,18 @@ def cached(session, kind, compute, params=None, verbose=True):
     from wfield_local import gate_source
     if gate_source.is_lp() and not kind.startswith("tf-"):
         kind = f"{kind}-{gate_source.cache_tag()}"
-    lab = session["label"]
-    sig = session_signature(session, params)
-    fp = CACHE_DIR / f"{lab}__{kind}__{sig}.pkl"
-    if fp.exists():
-        try:
-            with open(fp, "rb") as fh:
-                return pickle.load(fh)
-        except Exception:
-            pass  # corrupt/partial -> recompute below
-    res = compute()
+    # RUN-MODE TAG (rebuild 2026-11-03, trap T12): the hemo variant (other than the untagged meegkit_hpfit), the
+    # LocaNMF projection path and a non-default trial selection enter the KIND -- tf-* included, as agreed for the
+    # selection tag -- so the prune below (by label x kind) can never delete another variant's / selection's entries,
+    # and a variant run can share this cache dir safely. Empty for the default run: every existing key is unchanged.
+    from wfield_local import run_mode
+    _mt = run_mode.cache_tag()
+    if _mt:
+        kind = f"{kind}-{_mt}"
+    return kind
+
+
+def _store(fp, lab, kind, res, verbose=True):
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     tmp = fp.with_suffix(f".{os.getpid()}.tmp")
     with open(tmp, "wb") as fh:

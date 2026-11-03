@@ -80,7 +80,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--windows", nargs="+", type=float, default=WINDOWS)
-    ap.add_argument("--variant", default="meegkit_hpfit")
+    ap.add_argument("--variant", default=hv.BUILD_DEFAULT,
+                    help="drift-removal variant RECOMPUTED per session (a hemo_variants.VARIANTS key)")
+    ap.add_argument("--read-selected", action="store_true",
+                    help="instead of recomputing, read the stored SVTcorr of the selected hemo variant "
+                         "(defaults.yaml hemo.variant / WIDEFIELD_HEMO_VARIANT; rebuild 11-03)")
     ap.add_argument("--align", default="cue", choices=("cue", "lick", "precue"),
                     help="LICK alignment follows the response wherever it lands, so it handles "
                          "variable latency by construction -- the right instrument if the concern is "
@@ -104,7 +108,12 @@ def main(argv=None) -> int:
         if not glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1"):
             continue
         try:
-            svtc, _T, _rc, _m = hv.compute(s, a.variant, refit_t=False, verbose=False)
+            if a.read_selected:
+                # the BUILT SVTcorr of the selected variant (the one hemo switch), e.g. the rebuild's variant, which
+                # `hv.compute` cannot rebuild from a VARIANTS key alone (swap mask, lag shift)
+                svtc = np.load(config.svtcorr_path(s["mc"]))
+            else:
+                svtc, _T, _rc, _m = hv.compute(s, a.variant, refit_t=False, verbose=False)
         except Exception as ex:                                      # noqa: BLE001
             print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
             continue

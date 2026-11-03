@@ -51,7 +51,8 @@ def imaging(label: str):
     if s["regime"] != "B":
         raise SystemExit(f"{label}: regime {s['regime']} -- this test handles regime B (corrected frame map) only")
     d = config.locanmf_dir(s["mc"])
-    C = np.load(f"{d}/{label}_locanmf_C.npy").astype(np.float64)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s).astype(np.float64)          # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     A = np.load(f"{d}/{label}_locanmf_A.npy", mmap_mode="r")
     reg = np.load(f"{d}/{label}_locanmf_regions.npy")
     dff = (_footprint_scale(A, C.shape[0])[:, None] * C).T

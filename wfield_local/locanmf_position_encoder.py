@@ -181,7 +181,8 @@ def fig_predicted_maps(label, out):
     The baseline used is named in the figure TITLE, including when it degrades to the unweighted or
     session-mean fallback -- a map captioned "above rest" has to say which rest."""
     s = _sess(label); e = encode_spatial(label)
-    C = np.load(f"{config.locanmf_dir(s['mc'])}/{label}_locanmf_C.npy")       # RAW C (not footprint-scaled)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s)       # RAW C (not footprint-scaled); stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     base, base_note = _restw_baseline(s, C)              # SETTLED position-weighted FLAT rest baseline
     if base is None:
         # NOT a silent substitution: the session mean is not a rest baseline, and the title says so.
@@ -356,7 +357,8 @@ def fig_encoder_vs_svd(label, out):
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool); H, Wd = mask.shape; mk = mask.reshape(-1)
     Uf = U.reshape(-1, U.shape[2])
     Ar = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_A.npy"); Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))
-    C = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_C.npy"); T = SVT.shape[1]
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s); T = SVT.shape[1]          # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     keep = [k for k in range(cf.size) if codes[k] >= 0 and int(cf[k]) - W >= 0 and int(cf[k]) + W <= T]

@@ -209,6 +209,12 @@ class Basis:
         if label not in self.manifest["labels"]:
             raise KeyError(f"{label} is not in basis {self.basis_id} "
                            f"(has {len(self.manifest['labels'])} sessions)")
+        if project_all(self):
+            # NEVER MIX (rebuild 2026-11-03): the stored C was fitted on `basis_hemo_variant(self)`; under any other
+            # variant (or WIDEFIELD_JOINT_PROJECT_ALL=1) every session must be projected -- refuse the stored courses.
+            raise RuntimeError(f"basis {self.basis_id}: stored C of {label} was fitted on "
+                               f"{basis_hemo_variant(self)}, but this run reads {config.hemo_variant()} (or "
+                               f"{PROJECT_ALL_ENV}=1): project the session instead (signal_or_project(session dict))")
         C = np.load(self.root / f"C_{label}.npy")
         return _footprint_scale(np.asarray(self.A), C.shape[0])[:, None] * C
 
@@ -276,7 +282,7 @@ class Basis:
         """``signal`` when the session is in the fit, ``project`` when it is not — so callers do not
         have to branch, and cannot accidentally refit."""
         lab = session["label"] if isinstance(session, dict) else session
-        if lab in self.manifest["labels"] and not (project_all() and isinstance(session, dict)):
+        if lab in self.manifest["labels"] and not (project_all(self) and isinstance(session, dict)):
             return self.signal(lab)
         if not isinstance(session, dict):
             raise KeyError(f"{lab} is not in basis {self.basis_id}; pass the session dict to project it")
@@ -352,6 +358,8 @@ def build(animal, sessions, rank=None, seed=SEED, out_dir=None, verbose=True):
         "rank": int(rank) if rank else int(Uj.shape[1]), "seed": int(seed),
         "format_version": FORMAT_VERSION, "locanmf_params": lp,
         "session_signatures": {s["label"]: _session_sig(s) for s in sessions},
+        # the SVTcorr variant the stored C were fitted on (`project_all`, rebuild 11-03); not part of basis_id
+        "hemo_variant": config.hemo_variant() or "zerophase",
         "n_frames": {lab: int(bounds[lab][1] - bounds[lab][0]) for lab in labels},
         "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "fit_seconds": round(elapsed, 1),
@@ -404,6 +412,15 @@ def load(animal, bid=None, sessions=None, warn_stale=True):
     """
     d = BASIS_DIR / animal
     cands = _basis_candidates(animal)
+    pin = pinned(animal)
+    if not bid and pin is not None:
+        # PINNED (rebuild 2026-11-03, trap T13): a pinned animal is served ITS basis, never the newest on disk -- a basis
+        # built later (another hemo variant, a refit test) would otherwise move every joint-basis family silently.
+        bid = pin["id"]
+        newer = [p.name for p, _t, _o in cands if p.name != bid]
+        if newer and cands and cands[-1][0].name != bid:
+            print(f"[joint_locanmf] {animal}: serving the PINNED basis {bid} (defaults.yaml joint_basis.pins); "
+                  f"ignoring newer on disk: {newer[-3:]}", flush=True)
     if bid:
         hit = [(p, o) for p, _t, o in cands if p.name == bid]
         if not hit:
@@ -412,7 +429,13 @@ def load(animal, bid=None, sessions=None, warn_stale=True):
         if origin == "server":
             print(f"[joint_locanmf] {animal} basis {bid} served from MICROSCOPE (not on this box)",
                   flush=True)
-        return Basis(root)
+        b = Basis(root)
+        if warn_stale and sessions is not None and pin is not None and bid == pin["id"]:
+            ok, exp = basis_is_current(b, sessions)
+            if not ok:
+                print(f"[joint_locanmf] {animal}: pinned basis {bid} predates today's inputs (current id {exp}); "
+                      f"served as the fixed reference frame", flush=True)
+        return b
     if not cands:
         srv = server_basis_dir()
         raise FileNotFoundError(
@@ -463,21 +486,49 @@ def listing():
 PROJECT_ALL_ENV = "WIDEFIELD_JOINT_PROJECT_ALL"
 
 
-def project_all() -> bool:
+#: The hemo variant of a basis whose manifest does not record one and that has no pin: every basis on disk before the
+#: 2026-11-03 rebuild was built after the 08-14 meegkit_hpfit flip (the 08-13 ones are superseded and unpinned).
+LEGACY_BASIS_HEMO_VARIANT = "meegkit_hpfit"
+
+
+def pinned(animal) -> dict | None:
+    """``{"id", "hemo_variant"}`` from ``defaults.yaml joint_basis.pins`` for ``animal``, or None (no pin)."""
+    p = ((config.defaults().get("joint_basis") or {}).get("pins") or {}).get(animal)
+    if not p:
+        return None
+    if isinstance(p, str):
+        return {"id": p, "hemo_variant": LEGACY_BASIS_HEMO_VARIANT}
+    return {"id": str(p["id"]), "hemo_variant": p.get("hemo_variant") or LEGACY_BASIS_HEMO_VARIANT}
+
+
+def basis_hemo_variant(basis) -> str | None:
+    """The SVTcorr variant ``basis`` (and its stored per-session C) was fitted on: the manifest's ``hemo_variant``
+    (recorded by `build` since 11-03), else the pin's, else `LEGACY_BASIS_HEMO_VARIANT`. None = zerophase."""
+    man = getattr(basis, "manifest", {}) or {}
+    if "hemo_variant" in man:
+        return config.hemo_variant(man["hemo_variant"] or "none")
+    pin = pinned(man.get("animal"))
+    if pin is not None and pin["id"] == man.get("basis_id"):
+        return config.hemo_variant(pin["hemo_variant"])
+    return config.hemo_variant(LEGACY_BASIS_HEMO_VARIANT)
+
+
+def project_all(basis=None) -> bool:
     """True when EVERY session, in-fit ones included, must be projected rather than served its fitted courses.
 
     WHY (2026-11-02, cohort-1 swap-mask re-run). An in-fit session's stored ``C_<label>.npy`` was fitted to the SVTcorr
-    the basis was built on. Under another hemo variant (``WIDEFIELD_HEMO_VARIANT``) the pre-stroke in-fit sessions
-    would keep the OLD data while every projected session reads the new one -- two variants silently mixed in one
-    decoder. So the switch is ON whenever ``WIDEFIELD_HEMO_VARIANT`` names a variant other than ``defaults.yaml
-    hemo.variant``, or when ``WIDEFIELD_JOINT_PROJECT_ALL=1`` (e.g. the adopted-variant control of the same method).
-    Unset = False: the default path is unchanged."""
+    the basis was built on. Under another hemo variant the pre-stroke in-fit sessions would keep the OLD data while
+    every projected session reads the new one -- two variants silently mixed in one decoder.
+
+    KEYED ON THE DATA, NOT ON AN ENV VAR (rebuild 2026-11-03, trap T3): ON whenever the variant being read
+    (`config.hemo_variant()`, i.e. the one hemo switch: defaults.yaml OR the env var) differs from the variant the basis
+    was built on (`basis_hemo_variant`). The old rule compared the env var with defaults.yaml and so was OFF when the
+    switch was made in defaults.yaml. ``WIDEFIELD_JOINT_PROJECT_ALL=1`` still forces it (the adopted-variant control of
+    the same method). With no ``basis`` the pinned / legacy build variant is assumed. Default: False (unchanged)."""
     if os.environ.get(PROJECT_ALL_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
         return True
-    v = os.environ.get("WIDEFIELD_HEMO_VARIANT")
-    if not v:
-        return False
-    return config.hemo_variant(v) != config.hemo_variant((config.defaults().get("hemo") or {}).get("variant") or "none")
+    built = basis_hemo_variant(basis) if basis is not None else config.hemo_variant(LEGACY_BASIS_HEMO_VARIANT)
+    return config.hemo_variant() != built
 
 
 class BasisSource:
@@ -507,7 +558,7 @@ class BasisSource:
         self.basis = basis
         self.session = session
         self.label = session["label"]
-        self.project_all = project_all()
+        self.project_all = project_all(basis)
         # ":projall" only under the switch, so the default key (and every warm cache) is unchanged
         self.key = f"basis:{basis.basis_id}" + (":projall" if self.project_all else "")
         self._vc_kind = f"jointvc-{basis.basis_id}"
@@ -538,7 +589,7 @@ class BasisSource:
             return self._vc
         if session_cache._disabled():
             return None
-        fp = session_cache.CACHE_DIR / f"{self.label}__{self._vc_kind}__"
+        fp = session_cache.CACHE_DIR / f"{self.label}__{session_cache.effective_kind(self._vc_kind)}__"
         for p in session_cache.CACHE_DIR.glob(f"{fp.name}*.pkl"):
             try:
                 import pickle
