@@ -194,7 +194,9 @@ def _ipsi(g: pd.DataFrame) -> pd.Series:
 LAT_LABEL = "lateral (mm; + = ipsi / mouse left, right as cam4)"
 
 
-LAT_LABEL_CONTRA = "lateral (mm; + = contra / mouse right, drawn right)"
+#: contra (Priya 11-03): the FRONT view in camera orientation -- contra on the image LEFT as cam4 sees it, so the + = contra
+#: axis is inverted (ends labelled); the 11-02 render drew + = contra on the right (superseded by *_contra_cam.png)
+LAT_LABEL_CONTRA = "lateral (mm; + = contra / mouse right)"
 
 
 def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str, contra: bool = False) -> None:
@@ -245,10 +247,14 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str, c
             ax.set_ylabel("dv (mm; + = above)", fontsize=7)
             ax.tick_params(labelsize=6)
             ax.set_title(f"{p} -- {'front' if i == 0 else 'side'}", fontsize=8)
+            if contra and i == 0:                       # camera view: contra on the image LEFT
+                from wfield_local.camera_view import camera_x
+                camera_x(ax)
     axes[0, -1].legend(fontsize=6, loc="lower left")
     fig.suptitle(f"{animal}: closest approach of the tongue tip to the target spout, by epoch (spout = open circle at 0, "
                  "0)\nfaded = one session's median over its licks; outlined dot + bars = epoch mean of the session medians +- SEM; each panel zoomed to its data; pre = "
-                 "August" + ("; SIGN: lateral + = CONTRALESIONAL (mouse right), flipped at plot level" if contra else ""),
+                 "August" + ("\nSIGN: lateral + = CONTRALESIONAL (mouse right), flipped at plot level; FRONT view in CAMERA "
+                             "orientation (contra on the image LEFT as cam4 sees it; lateral axis inverted)" if contra else ""),
                  fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=120)
@@ -321,7 +327,9 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
     ap.add_argument("--contra", action="store_true",
-                    help="only re-draw scatter_epoch_<animal>_contra.png (+ = contralesional) from licks.csv.gz")
+                    help="ONLY re-draw scatter_epoch_<animal>_contra_cam.png (+ = contralesional, camera-view front) from "
+                         "licks.csv.gz; a full run draws them too (the default since 11-03)")
+    ap.add_argument("--no-contra", action="store_true", help="full run without the + = contra figures")
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
@@ -329,7 +337,7 @@ def main(argv=None) -> int:
         L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
         out = a.out or d3 / "spout_error"
         for animal in sorted(L.animal.unique()):
-            f = out / f"scatter_epoch_{animal}_contra.png"
+            f = out / f"scatter_epoch_{animal}_contra_cam.png"
             fig_scatter_epoch(L, animal, f, a.pre_from, contra=True)
             print("->", f)
         return 0
@@ -369,6 +377,8 @@ def main(argv=None) -> int:
         fig_scatter(L, animal, out / f"scatter_{animal}.png", a.pre_from)
         fig_traces(Tr, animal, out / f"traces_{animal}.png", a.pre_from)
         fig_scatter_epoch(L, animal, out / f"scatter_epoch_{animal}.png", a.pre_from)
+        if not a.no_contra:                             # Priya 11-03: + = contralesional is the DEFAULT output
+            fig_scatter_epoch(L, animal, out / f"scatter_epoch_{animal}_contra_cam.png", a.pre_from, contra=True)
         fig_traces_epoch(Tr, animal, out / f"traces_epoch_{animal}.png", a.pre_from)
         fig_traces_epoch(Tr, animal, out / f"reach_epoch_{animal}.png", a.pre_from, col="reach_med")
     print(f"-> {out}")

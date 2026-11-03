@@ -226,10 +226,14 @@ def fig_portrait(P, animal, path, pre_from):
     plt.close(fig)
 
 
-def fig_traj3d(P, animal, geo, path, pre_from, lset="all"):
+def fig_traj3d(P, animal, geo, path, pre_from, lset="all", contra: bool = False):
     """Oblique 3-D view per spout position (Priya 10-19): mean TONGUE path (solid) and mean JAW path (dashed) through the
     lick, per epoch, on normalised phase where >= half the licks have a point; dot = mid-lick; spouts (target
-    outlined in black), + = mouth zero. Axes: ml (+ = mouse right), ap (+ = out of the mouth), dv (+ = up)."""
+    outlined in black), + = mouth zero. Axes: ml (+ = mouse right), ap (+ = out of the mouth), dv (+ = up).
+    ``contra`` (Priya 11-03): the same picture with the ml axis named + = CONTRA and its ends labelled. No flip is
+    needed: ml is + = mouse right = contra (left lesions), and the viewer sits IN FRONT of the mouse (azim 45), so the
+    mouse's right -- the contra spouts -- already falls on the image LEFT, as in the camera videos (checked 11-03: far_R
+    is drawn left of far_L in every panel)."""
     from wfield_local import spout_world as SW
     plt = _plt()
     comp = {m: _epoch_curves(P, animal, "norm", m, pre_from) for m in ("side", "out", "down", "j_side", "j_out", "j_down")}
@@ -260,7 +264,10 @@ def fig_traj3d(P, animal, geo, path, pre_from, lset="all"):
         ax.set_xlim(-3, 3)
         ax.set_ylim(-2, 4)          # the jaw point sits ~1 mm behind the mouth zero
         ax.set_zlim(-5, 0.5)
-        ax.set_xlabel("ml (+R)", fontsize=7)
+        ax.set_xlabel("ml (mm; + = contra)" if contra else "ml (+R)", fontsize=7)
+        if contra:
+            from wfield_local.camera_view import camera_x3d
+            camera_x3d(ax, -3.0, 3.0, 4.0, -5.0)
         ax.set_ylabel("ap (out)", fontsize=7)
         ax.set_zlabel("dv (up)", fontsize=7)
         ax.tick_params(labelsize=6)
@@ -269,7 +276,9 @@ def fig_traj3d(P, animal, geo, path, pre_from, lset="all"):
     fig.legend(loc="lower center", ncol=4, fontsize=7, frameon=False)
     t = _wrap(f"{animal}: mean 3-D tongue (solid) and jaw (dashed) path through the lick, oblique view (in front of the "
               "mouse, to its right, 20 deg above); drawn where >= half the licks have a point; dot = mid-lick\n"
-              + _how("norm", lset) + "; jaw also from one camera + rest-depth anchor", 120)
+              + _how("norm", lset) + "; jaw also from one camera + rest-depth anchor"
+              + ("\nml signed + = CONTRALESIONAL (mouse right); viewed from in front, so contra falls on the image LEFT "
+                 "as in the camera videos (ends labelled)" if contra else ""), 120)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout(rect=(0, 0.05, 1, 1))                                # bottom strip: the legend
     fig.savefig(path, dpi=120)
@@ -348,8 +357,9 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
     ap.add_argument("--contra", action="store_true",
                     help="only re-draw the sideways-aim figures (mid, mid0; all + first licks) from curves.csv.gz signed "
-                         "+ = CONTRALESIONAL -> <name>_contra.png (nothing recomputed). The oblique 3-D trajectories need "
-                         "no flip: their ml axis is already + = mouse right = contra")
+                         "+ = CONTRALESIONAL -> <name>_contra.png, and the oblique 3-D trajectories with the ml axis named "
+                         "+ = contra -> trajectories3d_<animal>_contra_cam.png (nothing recomputed; no flip needed: ml is "
+                         "+ = mouse right and the view from in front puts it on the image left)")
     a = ap.parse_args(argv)
     from wfield_local import analysis_kit as ak
     rv = PathResolver()
@@ -368,6 +378,13 @@ def main(argv=None) -> int:
                               f"{animal}: {who}{what} through the lick; SIGN: + = CONTRALESIONAL (mouse right), "
                               "flipped at plot level\n" + _how("norm", lset, mouth), a.pre_from, sign=-1.0)
                     print("->", f)
+        L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+        for animal in sorted(PP.animal.unique()):                   # oblique 3-D views, ml named + = contra
+            last = sorted(L[L.animal == animal].date.astype(str).unique())[-1]
+            geo = _rig(rv, animal, last)["geometry"]
+            f = out / f"trajectories3d_{animal}_contra_cam.png"
+            fig_traj3d(PP[PP.lickset == "all"], animal, geo, f, a.pre_from, "all", contra=True)
+            print("->", f)
         return 0
     L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
     res, fails = ak.fan_sessions(sorted(L.session.unique()), session_curves, jobs=a.jobs)
@@ -403,6 +420,9 @@ def main(argv=None) -> int:
                           f"{animal}: {who}{what} through the lick\n" + _how("norm", lset, mouth), a.pre_from)
             fig_trajectories(PX, animal, geo, out / f"trajectories{sfx}_{animal}.png", a.pre_from, lset)
             fig_traj3d(PX, animal, geo, out / f"trajectories3d{sfx}_{animal}.png", a.pre_from, lset)
+            if lset == "all":                                        # Priya 11-03: + = contra labels by default
+                fig_traj3d(PX, animal, geo, out / f"trajectories3d_{animal}_contra_cam.png", a.pre_from, lset,
+                           contra=True)
         fig_lines(P, animal, "peak", "speed", "3-D tip speed (mm/s)", "ms from 3-D lick peak",
                   out / f"v_speed_peak_{animal}.png", f"{animal}: 3-D tongue-tip speed\n" + _how("peak", "all", "out"),
                   a.pre_from)

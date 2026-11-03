@@ -22291,3 +22291,37 @@ beside it). The deck's l_cue / l_phase pictures come from `prepost_alltrials` (n
 - Result (Priya 11-03 "fraction of engaged trials with NO response"): far contra acute contact .05, incomplete .59, jaw-only .23, no response .13 (pre .012, chronic .002; 4 / 4 animals .08-.19); far mid / far ipsi no response .11 acute, close .04-.05; all back to pre chronically.
 - Still on the jaw-moved denominator (captions say so): kinematics Figs 6.3 (over days), 6.4-6.5 (traces); the deck's older trial-class slides (speaker-note caveat). The old change-vs-pre figure on the jaw-moved set (`trial_class_share_epochs.png`) is off the page; it largely repeated Fig 1.3 rows 2-3.
 - 11-03 later: `jaw_only_incomplete_figs.py` now classifies every engaged trial itself (`classify`, 07385b37), so there is ONE class table, `session_poses/cam1_licks/trial_classes/sessions.csv`; `trial_class_all_engaged.py` is removed and `trial_class_raw_share_fig.py --all-engaged` reads that table. One rule difference settled in favour of `classify`: the 16 / 50,929 trials where cam1 saw a tongue but no lick set counted it are INCOMPLETE (the cam1 correction exists to take tongue-seen trials out of jaw-only). Kinematics page v22: all of section 6 (6.1-6.5) is on all engaged trials.
+
+## 2026-11-03 -- kinematics: camera-view orientation for paths, + = contralesional everywhere
+**Priya 11-03.** (1) 2-D and 3-D PATH figures look as they do in the camera videos: in the cam1 / cam4 face videos
+ipsilesional = image RIGHT, so contralesional (mouse right; all four lesions left) = image LEFT. The sign stays + =
+contra in labels and numbers, so the lateral axis is INVERTED (+ values read leftward) and its ends are labelled
+"contra" (left) / "ipsi" (right) -- `wfield_local/camera_view.py` (`camera_x`, `camera_x3d`). This REVERTS the 11-02
+re-plots, which mirrored the paths to draw contra on the right; those `*_contra.png` PATH renders are SUPERSEDED by
+`*_contra_cam.png` (kept on disk, list below). Scalar change-vs-pre plots, angle traces and dot plots keep + = contra up.
+(2) + = contralesional is the DEFAULT output, not a flag: full runs of `orofacial_cohort`, `kinematics_pooled_figs`,
+`pose3d_phase`, `pose3d_spout_error`, `pose3d_cue_traces`, `pose3d_summary_fig` now also write the contra figures
+(`--no-contra` to skip); `--replot-contra` / `--contra` remain as "contra only, from stored tables". + = ipsi files kept.
+- Paths in camera view: cam4 2-D tongue / jaw paths (per animal, within-animal pooled, delta; kinematics page 4.1-4.4,
+  4.6, 5.3), pooled 3-D FRONT / TOP rows (4.11 and the deck's shared-axes variant), 3-D closest-approach FRONT row (7.1-7.4).
+- Oblique 3-D views (4.7-4.10): NOT mirrored. ml is + = mouse right and the view (azim 45) is from IN FRONT of the mouse,
+  so contra (far_R, red) already falls on the image left -- checked on every panel. The 11-02 note that "contra plots on
+  the right" was a misreading of the axis label position; only the ml axis is relabelled (+ = contra, ends named).
+- Executed peak angle in the cohort per-spout figures converted (page Fig 1.1 `cohort_metrics_minus_pre_contra.png`,
+  Fig 1.3 / deck "Per spout: far-contra contact collapses" `cohort_epochs_by_position_accuracy_contra.png`). Tests
+  replayed (`orofacial_cohort.contra_stats`): `session_change_tests` on the flipped table, same metric list and seed;
+  + = ipsi replay vs stored stats CSV max relative diff 4.9e-4 (stored at 4 sig. digits), contra vs ipsi replay: 18
+  image-signed rows, every change / interval exactly negated (max dev 8.9e-15), p / q / agree identical ->
+  `tables/prepost/stats/change_vs_pre_stats_contra.csv`. 3-D bootstrap replay (kinematics_pooled_figs) 7.1e-15.
+- Fig 1.3 also follows the 11-03 dot-plot rule (no line across epochs, faded open session markers via `cat_points`).
+- Kinematics page v24; deck swap spec `presentations/_source_PI_overview_2026-11-02/build_inputs/kin_camera_view_swaps.json`
+  (+ `kin_camera_view_crops.py`).
+- Superseded (derived, kept): `cohort/figures/prepost/{cohort_trajectory_xy_within_inmouth_{incl,excl},
+  cohort_trajectory_xy_delta_inmouth_excl, cohort_jaw_trajectory_xy_within, cohort_trajectory_xy_by_animal_inmouth_excl,
+  cohort_jaw_trajectory_xy_by_animal}_contra.png`; `pose3d/figures/pooled/pose3d_paths_pooled{,_shared}_contra.png`;
+  `pose3d/spout_error/scatter_epoch_PS9x_contra.png`; deck crop `build_inputs/crops/p_paths_shared_contra.png`.
+- Still + = ipsi on disk, not on the kinematics page or deck: the orofacial_cohort per-animal / diagnostic figures
+  (angle_tuning, epochs_by_position_*, timecourse_by_position_*, lick_phase_angle*, lick_walk_*, lick1_vs_lick2,
+  cue_angle_*, cohort_cue_raw_*, the session-weighted *_minus_pre lick / cue figures), pose3d_phase `trajectories_*`
+  (2-D front / above, + = mouse left drawn right = camera view, ipsi-signed) and `v_side_*`, pose3d_spout_error
+  `scatter_*` / traces, the pose3d_cue_traces non-signed figures. Converted only where they feed the pages / deck.

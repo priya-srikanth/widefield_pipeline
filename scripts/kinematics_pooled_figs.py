@@ -280,12 +280,14 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
                                       "v": (pre.reindex(d.index) + d).to_numpy(), "n_animals": per.notna().sum(1).to_numpy()}))
     R = pd.concat(rows, ignore_index=True)
     R = R[R.n_animals >= 3]
-    if contra:                                    # plot level: side axes + = mouse RIGHT = contra (mirrored)
+    if contra:                                    # plot level: side signed + = mouse RIGHT = contra
         R = R.assign(v=R.v * R.measure.map(lambda m: _sg(True, m)))
-    views = (("side", "down", "FRONT: side (+ = mouse right = contra) x down" if contra else
+    # contra (Priya 11-03): the side axis of the FRONT / TOP views is drawn in CAMERA orientation -- contra on the image
+    # LEFT as in the face videos, so the + = contra axis is inverted and its ends are labelled
+    views = (("side", "down", "FRONT: side (+ = contra) x down" if contra else
               "FRONT: side (+ = mouse left = ipsi) x down"), ("out", "down", "SIDE: out (forward) x down"),
              ("side", "out", "TOP: side (+ = contra) x out" if contra else "TOP: side (+ = ipsi) x out"))
-    fig, axs = plt.subplots(3, 6, figsize=(11.5, 9.4) if shared else (16, 8.4), sharex="row" if shared else False,
+    fig, axs = plt.subplots(3, 6, figsize=((11.5, 10.2) if contra else (11.5, 9.4)) if shared else ((16, 9.2) if contra else (16, 8.4)), sharex="row" if shared else False,
                             sharey="row" if shared else False)
     col = {"pre": "#222222", **ECOL}
     for j, p in enumerate(POS_3D):
@@ -310,6 +312,8 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
             if j == 0:
                 ax.set_ylabel(lab + " (mm)", fontsize=7)
             ax.set_aspect("equal", adjustable="box" if shared else "datalim")
+            if contra and a == "side":                                # camera view: contra LEFT
+                ax.set_xlabel("side (mm; + = contra)", fontsize=6.5)
     if shared:                                                # one box per view row: data of all spouts + the mouth
         for i, (a, b, _lab) in enumerate(views):
             xs = R[R.measure.isin([a, "j_" + a])].v.to_numpy()
@@ -318,16 +322,23 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
             mx, my = 0.06 * (x1 - x0), 0.06 * (y1 - y0)
             axs[i, 0].set_xlim(x0 - mx, x1 + mx)
             axs[i, 0].set_ylim(y0 - my, y1 + my)
+    if contra:
+        from wfield_local.camera_view import camera_x
+        for i, (a, _b, _lab) in enumerate(views):
+            if a == "side":
+                for ax in axs[i]:
+                    camera_x(ax)
     axs[0, 0].legend(fontsize=7, frameon=False, loc="lower left")
     fig.suptitle("3-D tongue (solid) and jaw (dashed) paths through the lick, POOLED within animal: cohort August-pre path\n"
                  "+ mean over animals of each session's change from its animal's own pre path (phase 0.1-0.9, all post-cue "
                  "licks, >= 3 animals); + = mouth zero; dot = mid-lick; mm"
                  + ("\naxes shared across spouts within each view" if shared else "")
-                 + ("; side signed + = CONTRALESIONAL (mouse right), mirrored from the + = ipsi version" if contra else ""),
+                 + ("\nside signed + = CONTRALESIONAL (mouse right); FRONT / TOP in CAMERA VIEW: contra on the image "
+                    "LEFT as in the face videos (side axis inverted, ends labelled)" if contra else ""),
                  fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=0.2 if shared else None)
-    fig.savefig(out / (("pose3d_paths_pooled_shared" if shared else "pose3d_paths_pooled") + ("_contra" if contra else "")
-                       + ".png"), dpi=130)
+    fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=0.2 if shared else None, h_pad=2.2 if contra else None)
+    fig.savefig(out / (("pose3d_paths_pooled_shared" if shared else "pose3d_paths_pooled")
+                       + ("_contra_cam" if contra else "") + ".png"), dpi=130)   # 11-03: *_contra (mirrored) superseded
     plt.close(fig)
     return R
 
@@ -461,6 +472,36 @@ def fig_phase(out: Path, contra: bool = False) -> pd.DataFrame:
     return R
 
 
+def contra_figs(out: Path) -> int:
+    """The 3-D figures signed + = CONTRALESIONAL (Priya 10-30 / 11-03), the page / deck versions: `pose3d_change_pooled`
+    with its bootstrap REPLAYED from the same seed and draw order (the angle figure's draws come first), so every
+    interval is the + = ipsi one negated (checked against the stored CSV); cue, days, phase; 3-D paths in camera view
+    (``*_contra_cam.png``)."""
+    rng = np.random.default_rng(20261025)
+    fig_angle(out, rng, save=False)                       # replay the draws, so fig_3d's intervals are the same
+    B = fig_3d(out, rng, contra=True)
+    sg = np.where(B.measure.isin(SIGNED_3D), -1.0, 1.0)
+    Bc = B.copy()
+    for c in ("PS92", "PS93", "PS94", "PS95", "est"):
+        Bc[c] = B[c] * sg
+    Bc["lo"], Bc["hi"] = np.where(sg < 0, -B.hi, B.lo), np.where(sg < 0, -B.lo, B.hi)
+    Bc.to_csv(out / "pose3d_change_pooled_contra.csv", index=False)
+    old = out / "pose3d_change_pooled.csv"
+    if old.exists():                                      # the replay must reproduce the stored + = ipsi numbers
+        O = pd.read_csv(old)
+        dev = np.nanmax(np.abs(O[["est", "lo", "hi"]].to_numpy(float) - B[["est", "lo", "hi"]].to_numpy(float)))
+        print(f"replay vs stored pose3d_change_pooled.csv: max |diff| = {dev:.3g}")
+    fig_cue(out, contra=True)
+    fig_paths3d(out, contra=True)
+    fig_paths3d(out, shared=True, contra=True)
+    fig_days(out, contra=True)
+    fig_phase(out, contra=True)
+    print(Bc[Bc.measure.isin(SIGNED_3D)][["measure", "group", "epoch", "PS92", "PS93", "PS94", "PS95", "est", "lo",
+                                          "hi"]].round(2).to_string(index=False))
+    print("->", out)
+    return 0
+
+
 def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
@@ -468,7 +509,9 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--angle-only", action="store_true", help="only the two cam4 angle figures (+ = ipsi and + = contra)")
     ap.add_argument("--contra", action="store_true",
-                    help="only the 3-D figures signed + = CONTRALESIONAL (*_contra.png); the + = ipsi outputs untouched")
+                    help="ONLY the 3-D figures signed + = CONTRALESIONAL (*_contra.png; 3-D paths *_contra_cam.png, camera "
+                         "view); the + = ipsi outputs untouched. A full run writes them too (the default since 11-03)")
+    ap.add_argument("--no-contra", action="store_true", help="full run without the + = contra figures")
     a = ap.parse_args(argv)
     out = a.out or Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "figures" / "pooled"
     assert_writable(out)
@@ -477,28 +520,7 @@ def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
     if a.contra:
-        fig_angle(out, rng, save=False)                       # replay the draws, so fig_3d's intervals are the same
-        B = fig_3d(out, rng, contra=True)
-        sg = np.where(B.measure.isin(SIGNED_3D), -1.0, 1.0)
-        Bc = B.copy()
-        for c in ("PS92", "PS93", "PS94", "PS95", "est"):
-            Bc[c] = B[c] * sg
-        Bc["lo"], Bc["hi"] = np.where(sg < 0, -B.hi, B.lo), np.where(sg < 0, -B.lo, B.hi)
-        Bc.to_csv(out / "pose3d_change_pooled_contra.csv", index=False)
-        old = out / "pose3d_change_pooled.csv"
-        if old.exists():                                      # the replay must reproduce the stored + = ipsi numbers
-            O = pd.read_csv(old)
-            dev = np.nanmax(np.abs(O[["est", "lo", "hi"]].to_numpy(float) - B[["est", "lo", "hi"]].to_numpy(float)))
-            print(f"replay vs stored pose3d_change_pooled.csv: max |diff| = {dev:.3g}")
-        fig_cue(out, contra=True)
-        fig_paths3d(out, contra=True)
-        fig_paths3d(out, shared=True, contra=True)
-        fig_days(out, contra=True)
-        fig_phase(out, contra=True)
-        print(Bc[Bc.measure.isin(SIGNED_3D)][["measure", "group", "epoch", "PS92", "PS93", "PS94", "PS95", "est", "lo",
-                                              "hi"]].round(2).to_string(index=False))
-        print("->", out)
-        return 0
+        return contra_figs(out)
     A = fig_angle(out, rng)
     A.to_csv(out / "angle_change_pooled.csv", index=False)
     Ac = fig_angle(out, np.random.default_rng(20261025), contra=True)      # re-seeded: same draws, numbers negated
@@ -519,6 +541,8 @@ def main(argv=None) -> int:
     print(A[["group", "epoch", "PS92", "PS93", "PS94", "PS95", "est", "lo", "hi"]].round(2).to_string(index=False))
     print(B[B.group.isin(["far_R", "all"])][["measure", "group", "epoch", "PS92", "PS93", "PS94", "PS95", "est", "lo", "hi"]]
           .round(2).to_string(index=False))
+    if not a.no_contra:                                   # Priya 11-03: + = contralesional is the DEFAULT output
+        contra_figs(out)
     print("->", out)
     return 0
 

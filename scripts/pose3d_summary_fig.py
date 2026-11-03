@@ -174,7 +174,9 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pre-from", default="20260801")
-    ap.add_argument("--contra", action="store_true", help="also draw summary_<animal>_contra.png (+ = contralesional)")
+    ap.add_argument("--contra", action="store_true",
+                    help="(default since 11-03, kept for old command lines) also draw summary_<animal>_contra.png")
+    ap.add_argument("--no-contra", action="store_true", help="skip summary_<animal>_contra.png (+ = contralesional)")
     ap.add_argument("--contra-only", action="store_true", help="only the _contra figures")
     a = ap.parse_args(argv)
     rv = PathResolver()
@@ -188,7 +190,7 @@ def main(argv=None) -> int:
             f = out / f"summary_{animal}.png"
             figure(animal, SE, K, f, a.pre_from)
             print(f"-> {f}")
-        if a.contra or a.contra_only:
+        if not a.no_contra or a.contra_only:            # Priya 11-03: + = contralesional is the DEFAULT output
             f = out / f"summary_{animal}_contra.png"
             figure(animal, SE, K, f, a.pre_from, contra=True)
             print(f"-> {f}")

@@ -270,6 +270,9 @@ def main(argv=None) -> int:
         for m in MEAS:
             figure(T, animal, m, out / "figures" / f"{'cue' if a.align == 'cue' else 'lick'}_{m}_{animal}.png",
                    a.pre_from, a.align)
+        for m in SIGNED:                                # Priya 11-03: + = contralesional is the DEFAULT output
+            figure(T, animal, m, out / "figures" / f"{'cue' if a.align == 'cue' else 'lick'}_{m}_{animal}_contra.png",
+                   a.pre_from, a.align, contra=True)
     print("->", out)
     return 0
 
