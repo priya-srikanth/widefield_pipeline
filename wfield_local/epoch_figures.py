@@ -781,20 +781,20 @@ def animal_legend(ax, *, fontsize=None, loc="best", counts=None):
 # ---------------------------------------------------------------------------------------------
 # Every bar / interval at a categorical x carries the session values behind it as faded OPEN
 # markers: SHAPE = animal (`cat_points.ANIMAL_MARKER`), COLOUR = epoch. The epoch colour is the
-# project's grey ramp (`EPOCH_GREY`, Priya 2026-09-17), darkened by `DOT_DARKEN` so an open marker
-# is legible against white AND against its own bar; the bar face is drawn at `BAR_FACE_ALPHA` for
-# the same reason (a #1f1f1f chronic dot inside an opaque #1f1f1f chronic bar is invisible).
+# standard epoch palette (`EPOCH_GREY`, = orofacial_cohort.EPOCH_LINE since 11-03); the bar face is
+# drawn at `BAR_FACE_ALPHA` so an open dot of the same hue stays legible inside its own bar.
 # `session_points` (filled, coloured by animal) is kept unchanged for its existing callers / tests;
 # `bar_row(dot_style="animal")` restores it there.
 
-#: multiplier on the EPOCH_GREY RGB for the session-dot colour (pre #c9c9c9 -> #7c7c7c ...).
-DOT_DARKEN = 0.62
-#: bar face alpha under 11-03 open session dots.
-BAR_FACE_ALPHA = 0.55
+#: multiplier on the epoch colour's RGB for the session dots (1.0 = the epoch colour itself; 0.62
+#: was needed while the epochs were a grey ramp whose pre shade vanished on white).
+DOT_DARKEN = 1.0
+#: bar face alpha under 11-03 open session dots: light enough that same-hue open dots read on it.
+BAR_FACE_ALPHA = 0.35
 
 
 def epoch_dot_color(epoch):
-    """Session-dot (and star) colour for an epoch: the EPOCH_GREY ramp, darkened by `DOT_DARKEN`."""
+    """Session-dot (and star) colour for an epoch: the epoch colour, scaled by `DOT_DARKEN`."""
     import matplotlib.colors as mc
     r, g, b = mc.to_rgb(EPOCH_GREY.get(epoch, "#8a8a8a"))
     return (r * DOT_DARKEN, g * DOT_DARKEN, b * DOT_DARKEN)
@@ -1077,10 +1077,16 @@ def _cbar(fig, im, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, row, row_
     cb.set_label(label, fontsize=FS_ANNOT - 1.5)
 
 
-#: Epoch bar colours. Deliberately a GREY RAMP, not four hues: the dots already spend the colour
-#: budget on animal identity, and a second categorical palette beside it makes the reader ask which
-#: colour system a given mark belongs to. Light-to-dark also reads as an ordering, which epochs are.
-EPOCH_GREY = {"pre": "#c9c9c9", "acute": "#8a8a8a", "subacute": "#4a4a4a", "chronic": "#1f1f1f"}
+#: Epoch colours: THE STANDARD EPOCH PALETTE, `orofacial_cohort.EPOCH_LINE` (pre black, acute
+#: #d01c8b, subacute #b8860b, chronic #01665e; Priya 2026-11-03: replace the grey shades older
+#: imaging / behaviour figures used). It was a grey ramp (#c9c9c9 / #8a8a8a / #4a4a4a / #1f1f1f,
+#: Priya 09-17) while the session dots were coloured by animal; since 11-03 the dots are coloured
+#: by EPOCH and animals are told apart by marker SHAPE, so the colour budget is free for epochs.
+#: The name is kept because transfer_matrix, cd_trajectories and orofacial_cohort import it.
+from wfield_local.orofacial_cohort import EPOCH_LINE as _EPOCH_LINE  # noqa: E402
+
+EPOCH_GREY = dict(_EPOCH_LINE)
+EPOCH_COLOR = EPOCH_GREY
 
 
 def _value_and_ci(v):
