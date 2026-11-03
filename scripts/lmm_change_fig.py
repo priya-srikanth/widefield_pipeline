@@ -52,15 +52,63 @@ def statistics(S: pd.DataFrame, cells, family=None) -> pd.DataFrame:
     return T
 
 
+def draw_axis(ax, S: pd.DataFrame, T: pd.DataFrame, cs, labels: dict, *, dot_s: float = 16, dot_alpha: float = 0.6,
+              label_size: float = 8) -> None:
+    """One panel: for each cell in ``cs`` and each post epoch, the session changes (open markers), the animal
+    bootstrap bar (grey) and the LMM estimate + CI (filled dot) from ``T``, stars in the top band."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local import cat_points as cp
+    from wfield_local import epoch_figures as ef
+    from wfield_local import sig_marks as sm
+    for xi, c in enumerate(cs):
+        D = S[(S.position == c) & np.isfinite(S.value)]
+        pre = D[D.epoch == "pre"].groupby("animal").value.mean()
+        pred = {a: list(g.value) for a, g in D[D.epoch == "pre"].groupby("animal")}
+        for k, e in enumerate(EP):
+            x, col = xi + (k - 1) * 0.27, ef.epoch_dot_color(e)
+            po = D[(D.epoch == e) & D.animal.isin(pre.index)]
+            if po.empty:
+                continue
+            rng = np.random.default_rng(0)
+            for a, g in po.groupby("animal"):
+                ax.scatter(x - 0.06 + rng.uniform(-0.03, 0.03, len(g)), g.value - pre[a], marker=cp.animal_marker(a),
+                           facecolors="none", edgecolors=col, s=dot_s, lw=0.8, alpha=dot_alpha, zorder=2)
+            got = ak.paired_animal_draws({a: list(g.value) for a, g in po.groupby("animal")}, pred,
+                                         lambda v, _r=None: float(np.mean(v)), np.random.default_rng(1), 2000)
+            if got[0] is not None and len(got[1]):
+                lo, hi = np.percentile(got[1], [2.5, 97.5])
+                ax.plot([x + 0.10] * 2, [lo, hi], color="0.6", lw=3, solid_capstyle="butt", zorder=3)
+            r = T[(T.position == c) & (T.epoch == e)]
+            if len(r) and np.isfinite(r.iloc[0].beta):
+                r = r.iloc[0]
+                ax.errorbar(x + 0.04, r.beta, yerr=[[r.beta - r.lo], [r.hi - r.beta]], fmt="o", color=col,
+                            mec="k", ms=7, capsize=3, elinewidth=1.4, zorder=4)
+                if isinstance(r.star, str) and r.star:
+                    sm.star_top(ax, x + 0.04, r.star, color=col)
+    ax.axhline(0, color="0.5", lw=0.8, ls="--", zorder=1)
+    ax.set_xticks(range(len(cs)))
+    ax.set_xticklabels([labels.get(str(c), SPOUT_LABEL.get(str(c).split(":")[-1], str(c))) for c in cs],
+                       fontsize=label_size)
+    ax.set_xlim(-0.6, len(cs) - 0.4)
+    ax.spines[["top", "right"]].set_visible(False)
+
+
+def legend_handles(S: pd.DataFrame) -> list:
+    from matplotlib.lines import Line2D
+
+    from wfield_local import cat_points as cp
+    from wfield_local import epoch_figures as ef
+    h = [Line2D([], [], ls="none", marker="o", color=ef.epoch_dot_color(e), mec="k", ms=7, label=e) for e in EP]
+    h += [Line2D([], [], ls="-", lw=1.4, color="k", label="mixed model, 95 % CI"),
+          Line2D([], [], ls="-", lw=3, color="0.6", label="animal bootstrap 95 % (these 4 animals)")]
+    return h + cp.animal_handles(sorted(S.animal.unique()))
+
+
 def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylabel: str, labels: dict, panels=None, ncols: int = 0):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
 
-    from wfield_local import analysis_kit as ak
-    from wfield_local import cat_points as cp
-    from wfield_local import epoch_figures as ef
     from wfield_local import sig_marks as sm
     groups = panels or [("", cells)]
     nc = ncols or len(groups)
@@ -76,44 +124,11 @@ def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylab
     for ax in flat[len(groups):]:
         ax.set_visible(False)
     for ax, (pname, cs) in zip(flat, groups):
-        for xi, c in enumerate(cs):
-            D = S[(S.position == c) & np.isfinite(S.value)]
-            pre = D[D.epoch == "pre"].groupby("animal").value.mean()
-            pred = {a: list(g.value) for a, g in D[D.epoch == "pre"].groupby("animal")}
-            for k, e in enumerate(EP):
-                x, col = xi + (k - 1) * 0.27, ef.epoch_dot_color(e)
-                po = D[(D.epoch == e) & D.animal.isin(pre.index)]
-                if po.empty:
-                    continue
-                rng = np.random.default_rng(0)
-                for a, g in po.groupby("animal"):
-                    ax.scatter(x - 0.06 + rng.uniform(-0.03, 0.03, len(g)), g.value - pre[a],
-                               marker=cp.animal_marker(a), facecolors="none", edgecolors=col, s=16, lw=0.8,
-                               alpha=0.6, zorder=2)
-                got = ak.paired_animal_draws({a: list(g.value) for a, g in po.groupby("animal")}, pred,
-                                             lambda v, _r=None: float(np.mean(v)), np.random.default_rng(1), 2000)
-                if got[0] is not None and len(got[1]):
-                    lo, hi = np.percentile(got[1], [2.5, 97.5])
-                    ax.plot([x + 0.10] * 2, [lo, hi], color="0.6", lw=3, solid_capstyle="butt", zorder=3)
-                r = T[(T.position == c) & (T.epoch == e)]
-                if len(r) and np.isfinite(r.iloc[0].beta):
-                    r = r.iloc[0]
-                    ax.errorbar(x + 0.04, r.beta, yerr=[[r.beta - r.lo], [r.hi - r.beta]], fmt="o", color=col,
-                                mec="k", ms=7, capsize=3, elinewidth=1.4, zorder=4)
-                    if r.star:
-                        sm.star_top(ax, x + 0.04, r.star, color=col)
-        ax.axhline(0, color="0.5", lw=0.8, ls="--", zorder=1)
-        ax.set_xticks(range(len(cs)))
-        ax.set_xticklabels([labels.get(str(c), SPOUT_LABEL.get(str(c).split(":")[-1], str(c))) for c in cs], fontsize=8)
+        draw_axis(ax, S, T, cs, labels)
         ax.set_title(pname, fontsize=9)
-        ax.spines[["top", "right"]].set_visible(False)
     for row in axes:
         row[0].set_ylabel(ylabel)
-    h = [Line2D([], [], ls="none", marker="o", color=ef.epoch_dot_color(e), mec="k", ms=7, label=e) for e in EP]
-    h += [Line2D([], [], ls="-", lw=1.4, color="k", label="mixed model, 95 % CI"),
-          Line2D([], [], ls="-", lw=3, color="0.6", label="animal bootstrap 95 % (these 4 animals)")]
-    h += cp.animal_handles(sorted(S.animal.unique()))
-    fig.legend(handles=h, fontsize=7, ncol=min(5, len(h)), loc="lower center", frameon=False)
+    fig.legend(handles=legend_handles(S), fontsize=7, ncol=5, loc="lower center", frameon=False)
     fam = T.groupby("family").p.apply(lambda q: int(np.isfinite(q).sum()))
     scope = (f"Holm across {fam.iloc[0]} tests" if len(fam) == 1
              else f"Holm within each panel ({', '.join(str(v) for v in fam.unique())} tests)")
