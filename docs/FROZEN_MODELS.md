@@ -210,6 +210,17 @@ them. Nothing has been deleted; check the path and check for a non-null id.
 **2026-11-02: the state models gained `scaling="session_z"` in their spec (per-session z-score was specified but
 never applied); old unscaled state models keep their ids as the record. DECISIONS 2026-11-02 (late).**
 
+**2026-11-03: PRODUCTION state models are now `scaling="session_bal_em"` with `scaling_params={"min_mass": None,
+"n_outer": 3}` (Priya, "ok bal_em it is"; DECISIONS 2026-11-03 "bal_em adopted as the production state decoder").** Ids
+PS92 `96f8d3543d94`, PS93 `084308f266df`, PS94 `8bfbb26d78de`, PS95 `57866a0b31e3`; fitted and published from the analysis
+desktop (byte-verified). The session_z and unscaled models stay in the store and on the server (still `frozen-hit` under
+`WIDEFIELD_STATE_SCALING=session_z` / `WIDEFIELD_STATE_ZSCORE=0`). `make_spec(scaling_params=...)` is added only when given,
+so no other spec id moved. **Expect `SPEC-CHANGED` on a first bal_em fit:** `siblings()` matches on animal / kind / align /
+source, so the session_z model counts as a sibling; the manifests differ only in `scaling` / `scaling_params`. The
+min-mass guard acts only at scoring time but is in the identity, so a guarded run (`min_mass=t`) freezes under its own id.
+An unpublished interim fit (same models, no `scaling_params`) sits outside the store in
+`C:/Users/SabatiniLab/frozen_models_interim_unpublished_20261103/`; it scored nothing published.
+
 ## 7. EVERY PRE-STROKE DECODER IS FROZEN — the rule for this and future cohorts (Priya, 2026-10-15)
 
 *"Establish in the code for future cohorts that we will make a frozen pre-stroke decoder that is cached / stored
@@ -219,7 +230,7 @@ and reused."* Any decoder that scores post-stroke data against a pre-stroke refe
 | decoder | where | spec `kind` | since |
 |---|---|---|---|
 | position (cue / lick / precue; roi and joint bases) | `locanmf_position_decoder`, `pooled_frozen_*` | `decoder` / `encoder` | 2026-08/09 |
-| behavioural STATE (quiet / running / licking) | `locomotor_decoder.frozen_state_models` | `state` | **2026-10-15** |
+| behavioural STATE (quiet / running / licking) | `locomotor_decoder.frozen_state_models` | `state` | **2026-10-15**  (session_z 11-02; **session_bal_em 11-03**) |
 
 The state decoder was refitted in memory on every render until 2026-10-15, so when PS92 0812 re-entered its
 pre-stroke set (after the split-session fixes, `docs/EXPERIMENT_ERRORS.md`) every post-stroke state score moved

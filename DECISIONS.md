@@ -22652,6 +22652,70 @@ quoted to ~.05.**
   it depends on the frame-SD rise. The ITI and first-cued-lick offsets stand.
 - Adoption waits for Priya.
 
+## 2026-11-03 — bal_em adopted as the production state decoder
+
+**Decision (Priya, 11-03: "ok bal_em it is").** The frozen behavioural-state decoder (`locomotor_decoder`) now runs
+`scaling="session_bal_em"` by default. Training: each pre-stroke session is centred at the EQUAL-weight mean of its three
+TRUE class means (training labels are allowed), production per-session SD. Scoring: the frozen model's posteriors under
+production centring -> Saerens (2002) EM re-estimates the session's class priors (training prior = pooled pre class mix of
+the sessions that trained that model, carried in the payload as `pi_train`) -> soft class means of the RAW features from
+the adjusted posteriors -> centre at their equal-weight mean, production SD -> re-predict; 3 passes. No test-session label
+is used (`bal_em_centre` / `score_transform` take none; `tests/test_state_bal_em.py` shuffles them and gets bit-identical
+inputs to the model). `WIDEFIELD_STATE_SCALING=session_z` reproduces the 11-02 run, `WIDEFIELD_STATE_ZSCORE=0` the
+unscaled one. Commit 9547a773.
+
+**Spec / store.** `make_spec` gained `scaling_params` (added only when given): bal_em specs carry
+`scaling="session_bal_em", scaling_params={"min_mass": None, "n_outer": 3}`. New ids (fitted and published from the
+analysis desktop): PS92 `state_segments_joint76d884_96f8d3543d94`, PS93 `..._joint0141bb_084308f266df`, PS94
+`..._jointa5e70d_8bfbb26d78de`, PS95 `..._jointa91701_57866a0b31e3` (11 pre sessions each). The session_z models
+(78e03afa5044 / 74375365b327 / 0414ec26e4cf / e0bc4c81e17e) and the unscaled ones are untouched and were `frozen-hit` in
+the same run. `load_or_fit` reports SPEC-CHANGED for each animal: `siblings()` matches on animal / kind / align / source,
+so the session_z model is a sibling; the manifests differ ONLY in `scaling` / `scaling_params` (same 11 training labels and
+data signatures) -- expected, not a grown training set. An interim fit of the same models under a spec without
+`scaling_params` (ids 69392638a11b / 517a902f93ff / 6155e2dfbbde / b1fe4b3c65ad; bit-identical scores, never published,
+never scored a published number) was moved out of the store to `C:/Users/SabatiniLab/frozen_models_interim_unpublished_20261103/`.
+No `session_cache` function changed (`by_animal_day` is an in-process lru_cache; bootstrap caches key on data), so no
+CACHE_VERSION bump. Published with `publish_basis --what frozen` (byte-verified). That run also put the session_z and
+older state models on the server for the first time; they had been local only. The 13s re-render read all four
+bal_em models `frozen-hit`, with no SPEC-CHANGED lines.
+
+**Reproduces the diagnostic** (`labcams/state_decoder_ps94_check/production_balem/check_production.py`, `check_log.txt`):
+120 / 120 sessions vs the prebal `bal_em` arm, |d balacc| mean .0012 (max .022, PS92_0607 pre; row order of the pooled
+training set), |d running recall| mean .0008. Per animal (session means, balanced accuracy pre / acute / subacute /
+chronic): PS92 .964 / .914 / .955 / .928 (session_z .957 / .935 / .890 / .892); PS93 .983 / .960 / .977 / .975 (.982 /
+.955 / .974 / .971); PS94 .987 / .970 / .934 / .897 (.984 / .914 / .810 / .779); PS95 .991 / .995 / .989 / .978 (.989 /
+.992 / .960 / .978). Costs: PS92 acute -.021 (quiet recall .876 -> .802), PS94 chronic quiet .947 -> .888; licking holds.
+- PS94 running recall .989 / .966 / .963 / .919 (session_z .981 / .840 / .544 / .492). Running pooled .990 / .972 / .985 /
+  .974.
+- State retained (above chance, session means pooled) .972 -> .927 / .950 / .922 (session_z .967 -> .903 / .865 / .872):
+  state loses 4.6 / 2.3 / 5.1 % against position's 50 / 19 / 12 % (.863 -> .428 / .696 / .761) -> ratio ~11x / 8x / 2.3x.
+- `boot_delta` vs pre (animals -> sessions, 4000, seed 0), balanced accuracy -.022 [-.047, -.003] / -.018 [-.041, .001] /
+  -.037 [-.073, -.009]; running recall -.010 [-.039, .007] / -.002 [-.019, .013] / -.019 [-.055, .010] (none excludes 0).
+
+**Minimum-mass fallback (Priya approved the test 11-03): built, tested, kept OFF.** Rule: when bal_em's EM-estimated
+share of any class in the scored session is below t, centre with the training (pre-stroke) class mix instead of equal
+weights; rest unchanged (`bal_em_centre(min_mass=t)`, `BAL_EM_MIN_MASS = None`). Test: the mix-invariance forced-mix
+harness (`mix_invariance/analyse_mix.py`, its cache and drop metric, reused read-only) in
+`labcams/state_decoder_ps94_check/mix_invariance/minmass/` (`analyse_minmass.py`, `analyse_log.txt`, CSVs); the off arm
+reproduces the harness's bal_em exactly (308 session x mix cells, max |d| 0). Animal-mean drop vs natural, t = off / 2 / 5 /
+10 %:
+- 0 % mixes: no quiet -.088 / -.089 / -.095 / -.113; no running -.092 / -.092 / -.094 / -.096; no licking -.076 / -.077 /
+  -.089 / -.099. The worst cell (PS92, running absent) is quiet recall .503 / .503 / .516 / .525.
+- 80 % mixes: quiet -.011 at every t; running -.017 / -.018 / -.018 / -.016; licking -.010 / -.011 / -.011 / -.012.
+- Natural mix: balanced accuracy .982 / .982 / .980 / .979.
+- Real sessions: PS94 running .99 / .97 / .96 / .92 at every t. State retained .973 -> .929 / .949 / .923 (off), .971 ->
+  .928 / .948 / .920 (5 %). The worst per-animal change is PS95: -.003 at 2 % (acute); -.009 at 5 % (chronic, licking -.023);
+  -.012 at 10 % (licking -.030).
+**Why it does not help:** when a class is truly absent, the EM still gives it a share above t, because misread segments of
+the other classes feed it. The guard therefore fires in only 0 / 18 / 27 % of the PS92 no-running sessions. When it does
+fire, pre-mix weights do not remove that misread mass. It does not reduce the 0 % drop, and it costs PS95 a little, so it
+stays OFF: the default spec records `min_mass: None`. A guarded run (`min_mass=t`) freezes under its own id.
+
+**Re-rendered:** the 13s family (`epoch_13*`, cue/working) on bal_em; the session_z outputs moved to
+`grant_figures/epoch/_superseded_session_z_20261103/` (+ `data/`, `svg/`). 12b (stopped-trial pattern similarity) does
+not read the state decoder and was not re-rendered. Deck swaps: `presentations/_source_PI_overview_2026-11-02/
+build_inputs/state_balem_swaps.json`. Imaging page edits (not published): `docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md`.
+
 ## 2026-11-03 — Spout-position frozen decoder: which guard for `bal_em` when a spout is nearly absent? G1 (pre-stroke-geometry imputation) at 5 % (diagnostic, nothing changed in production)
 
 **Question (Priya 11-03, before deciding on bal_em for this decoder):** the state decoder's min-mass guard (fall back
