@@ -658,29 +658,54 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     res["post_labels"] = sorted(set(SE.tolist()) - labs_pre)
 
     from sklearn.model_selection import LeaveOneGroupOut
+
+    # bal_em SINCE 2026-11-03 (`spout_scaling.FrozenFrame`; DECISIONS "bal_em extended to every cross-session
+    # decoder"): the pre-stroke model is trained on class-balanced pre sessions and every scored session is
+    # centred by the label-free EM centre of ITS engaged trials (production SD), applied to its no-lick arms too.
+    # Under WIDEFIELD_SPOUT_SCALING=session_z every line below is the pre-11-03 computation exactly.
+    from wfield_local import spout_scaling as _ss
+    _sid = {lab: k for k, lab in enumerate(sorted(set(SE.tolist())))}
+    GEi = np.array([_sid[lab] for lab in SE], int)
+    ff = _ss.FrozenFrame(XE, YE, GEi, [_sid[lab] for lab in labs_pre], _pipe,
+                         loso=_ss.spout_scaling() is not None)
+
+    def _sc(X, sess):
+        """Rows in the frozen (full) model's scoring frame, by the session each row came from."""
+        if not ff.scaling or not len(X):
+            return X
+        return ff.apply_rows(X, np.array([_sid[lab] for lab in sess], int))
+
     # The ENGAGED arm is the pre-stroke reference band, so it is leave-one-session-out among PRE.
     # Mixing post-stroke sessions into it answers a different question.
-    pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
+    if ff.scaling:
+        _pf = np.empty_like(YE)
+        for i in ff.loso:
+            rows = GEi == i
+            _pf[rows] = ff.loso[i].predict(ff.apply(XE[rows], i, "loso"))
+        pred_e = _pf[m_pre]
+    else:
+        pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
     res["engaged"] = na.evaluate_arm(YE[m_pre], pred_e, n_perm=n_perm)
     res["engaged"]["loso_accuracy"] = float(accuracy_score(YE[m_pre], pred_e))
     # The MATCHING TARGET is the pre-stroke engaged position profile, for the same reason: it is what
     # the other arms are being made comparable to.
     eng_frac = {POSITION_NAMES[c]: float((YE[m_pre] == c).mean()) for c in DISPLAY_ORDER}
 
-    clf = _pipe().fit(XE[m_pre], YE[m_pre])
+    clf = ff.full
     for c in ("late_rewarded", "undetected"):
         Y = _cat(c, "y").astype(int)
         if not Y.size:
             res[c] = {"n": 0}
             continue
-        res[c] = na.evaluate_arm(Y, clf.predict(_cat(c, "X")), target_frac=eng_frac, n_perm=n_perm)
+        res[c] = na.evaluate_arm(Y, clf.predict(_sc(_cat(c, "X"), _cat(c, "sess"))), target_frac=eng_frac,
+                                 n_perm=n_perm)
 
     # SPLIT THE UNDETECTED ARM BY ENGAGEMENT STATE. A miss inside a working stretch is a candidate
     # "tried and fell short"; a miss in the satiation tail is "stopped working". Pre-stroke they are
     # pooled in every previous version of this analysis, which blends the two mechanisms the module
     # exists to separate -- and post-stroke the blend will differ again, so the comparison would be
     # between two different mixtures rather than between two conditions.
-    Yu_all, Xu_all = _cat("undetected", "y"), _cat("undetected", "X")
+    Yu_all, Xu_all = _cat("undetected", "y"), _sc(_cat("undetected", "X"), _cat("undetected", "sess"))
     Eu = _cat("undetected", "eng")
     if Yu_all.size and Eu.size == Yu_all.size:
         # NAMED FOR WHAT THE GATE MEASURES. This arm was called "undetected_sated" until 2026-08-18;
@@ -698,7 +723,8 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
 
     Yp = np.concatenate([_cat("late_rewarded", "y"), _cat("undetected", "y")]).astype(int)
     if Yp.size:
-        Xp = np.concatenate([x for x in (_cat("late_rewarded", "X"), _cat("undetected", "X")) if x.size])
+        Xp = np.concatenate([x for x in (_sc(_cat("late_rewarded", "X"), _cat("late_rewarded", "sess")),
+                                         _sc(_cat("undetected", "X"), _cat("undetected", "sess"))) if x.size])
         res["nolick_pooled"] = na.evaluate_arm(Yp, clf.predict(Xp), target_frac=eng_frac,
                                                n_perm=n_perm)
         res["compare"] = na.compare_arms(res["engaged"], res["nolick_pooled"])
@@ -723,14 +749,14 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     pred_pooled = np.empty_like(YE)
     pred_pooled[m_pre] = pred_e
     if (~m_pre).any():
-        pred_pooled[~m_pre] = clf.predict(XE[~m_pre])
+        pred_pooled[~m_pre] = clf.predict(_sc(XE[~m_pre], SE[~m_pre]))
 
     sess_labels = sorted(set(SE.tolist()))
     per = {}
     idx_e = {lab: np.flatnonzero(SE == lab) for lab in sess_labels}
     cat_sess = {c: _cat(c, "sess") for c in CATEGORIES}
     cat_y = {c: _cat(c, "y") for c in CATEGORIES}
-    cat_X = {c: _cat(c, "X") for c in CATEGORIES}
+    cat_X = {c: _sc(_cat(c, "X"), cat_sess[c]) for c in CATEGORIES}
     for lab in sess_labels:
         d = {}
         ie = idx_e[lab]

@@ -60,3 +60,35 @@ Text that moves:
 
 FINDINGS 2 (acute decoder loss) and 3.x position-vs-state ratios are updated in `docs/FINDINGS.md` with the verification
 numbers; the page captions follow once the renders exist.
+
+## 5. Extension (later 11-03): bal_em on the other cross-session spout decoders
+
+Converted (DECISIONS 2026-11-03 "bal_em extended ..."; verification `spout_balem_production/summarise_extension_log.txt`):
+`precue_engagement_states` (position per state), `nolick_decoder.analyse_animal` (nightly no-lick reference),
+`position_coding_directions._class_confusions` (`coding_direction.json` -> grant 5b), section G's lick-only arm,
+`scripts/june_august_drift.py`, the T13 follow-up. Add to the re-render list: the nightly no-lick reference
+(`nolick_decoder.build_reference` + `plot_nolick_reference`), `position_coding_directions` (then grant 5b, which reads its
+JSON first), `scripts/june_august_drift.py`, `precue_engagement_states` (manual), the T13 follow-up (LP run).
+
+Numbers that move by more than .03 (animal means, old -> new; everything else within .03):
+
+| where | number | old -> new |
+|---|---|---|
+| coding-direction confusions (grant 5b) | post miss-while-working accuracy, cue / lick / precue | .270 -> .233 / .253 -> .213 / .261 -> .241 |
+| June / August drift figure (chronic_stability/june_august_drift) | acute_from_aug frozen accuracy (unmatched) | .666 -> .713 (3/4) |
+| precue states (A) | post no-lick engaged position accuracy | .261 -> .241 (2/4 animals > .03) |
+
+NOT changed, and why: the section G G4 readouts (looks_like_which / fits_engaged_distribution) and the precue-states
+discriminator stay on the engaged-trial z-score. The state-class bal_em was tried and breaks their pre-stroke reference
+(held-out pre engaged trials .92 -> .74 cue, .75 -> .40 precue); it is off pending Priya. Axis / CD figures (coding
+directions, position axes, attempt axes, pattern-similarity families) are unchanged pending Priya's decision.
+
+## 6. ON HOLD: epoch families' "working" = `trial_classes.in_working` (Priya approved 11-03)
+
+Not implemented: a real conflict in the DAQ arm, reported to the coordinator instead of choosing. All 76 post-stroke
+sessions have camera classes (PS92_0908 17.5 % unknown cues), but 13 of the 44 PRE-stroke sessions have none (the June
+sessions 0606 / 0607 / 0608 of every animal, and PS93_0813, no behaviour video). The frozen training set and the pre panel
+are pre-stroke ENGAGED trials today (the 5c rule: pre = licking trials for lick and working). in_working on the pre side
+needs a choice: (a) keep pre = DAQ-engaged licking trials (no conflict; only the post-stroke scored set changes); (b) pre =
+in_working, dropping the 13 camera-less sessions from training and the pre band (an August-only reference minus PS93_0813);
+(c) a mixed rule (in_working where a camera exists, DAQ-engaged otherwise).

@@ -80,7 +80,8 @@ def distance_rows(n_split: int, log=print) -> pd.DataFrame:
 def decoder_rows(log=print) -> pd.DataFrame:
     from wfield_local import epochs
     from wfield_local.grant_confusion import _matched_frozen, _pooled_bundle, _refit_pred
-    from wfield_local.grant_kit import _seed
+    from wfield_local import spout_scaling as ss
+    from wfield_local.grant_kit import _frozen_score_rows, _seed
     from wfield_local.locanmf_frozen_decoder import _pipe
     rows = []
     for an in ANIMALS:
@@ -94,7 +95,8 @@ def decoder_rows(log=print) -> pd.DataFrame:
             log(f"{an}: june {len(J)} / aug {len(A)} pre sessions -- skipped")
             continue
 
-        def score(i, train_sessions, group, XE=XE, YE=YE, GE=GE, BE=BE, e_pre=e_pre, mm=mm, an=an, test_mask=None):
+        def score(i, train_sessions, group, XE=XE, YE=YE, GE=GE, BE=BE, e_pre=e_pre, mm=mm, an=an, test_mask=None,
+                  bd=bd):
             te = (e_pre & (GE == i)) if test_mask is None else test_mask
             tr = e_pre & np.isin(GE, train_sessions)
             X, y, blk = XE[te], YE[te], BE[te]
@@ -103,14 +105,21 @@ def decoder_rows(log=print) -> pd.DataFrame:
             rf = _refit_pred(_pipe, X, y, blk)
             if rf is None:
                 return
+            # THE FROZEN ARMS IN THE bal_em FRAMES (production since 2026-11-03, `spout_scaling`), as the chronic twins
+            # in `_collect_5c`: training sessions centred on their true class means, the scored session centred by the
+            # label-free EM centre of its engaged rows under each frozen model. Identity under session_z.
+            ff = ss.FrozenFrame(XE, YE, GE, train_sessions, _pipe, train_mask=e_pre, loso=False)
             k = min(5, int(np.unique(blk).size))
             n_target = int(round(len(y) * max(k - 1, 1) / max(k, 1)))
-            got = _matched_frozen(_pipe, XE[tr], YE[tr], BE[tr], n_target,
+            got = _matched_frozen(_pipe, ff.XT[tr], YE[tr], BE[tr], n_target,
                                   np.random.default_rng(abs(_seed(an, ALIGN, "june_aug", group)) + 1000003 * len(y) + int(blk[0])))
             if got is None:
                 return
-            fz_m = np.asarray(got[0].predict(X))
-            fz = np.asarray(_pipe().fit(XE[tr], YE[tr]).predict(X))
+            Xm = X
+            if ff.scaling and [int(c) for c in got[0].classes_] == list(range(6)):
+                Xm = _frozen_score_rows(bd, got[0], got[0].spout_pi_train_, i, X)[0]
+            fz_m = np.asarray(got[0].predict(Xm))
+            fz = np.asarray(ff.full.predict(ff.apply(X, i)))
             rows.append({"animal": an, "group": group, "session": mm[i], "n_trials": int(len(y)),
                          "frozen_acc": float(np.mean(fz == y)), "frozen_matched_acc": float(np.mean(fz_m == y)),
                          "refit_acc": float(np.mean(np.asarray(rf) == y))})

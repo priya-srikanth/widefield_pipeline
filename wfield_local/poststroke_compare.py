@@ -162,6 +162,36 @@ def balanced_lick_sample(d, keep, rng, *, exclude_session=None):
     return np.vstack(xs), np.concatenate(lab), np.concatenate(grps)
 
 
+def _lick_train(d, keep):
+    """``d`` with its XE / XU in the engagement-state discriminator's TRAINING frame (bal_em over the two STATE
+    classes, `spout_scaling.state_train_frame`): each pre-stroke session centred on the equal-weight mean of its engaged
+    and no-lick means over the ``keep`` positions. OPT-IN (``WIDEFIELD_STATE_DISC_SCALING=state_bal_em``), default OFF:
+    ``d`` itself (it fails the discriminator's own pre-stroke check; DECISIONS 2026-11-03, `spout_scaling`)."""
+    from wfield_local import spout_scaling as _ss
+    if not _ss.state_disc_scaling():
+        return d
+    XE, XU = _ss.state_train_frame(d["XE"], d["GE"], d["XU"], d["GU"], np.isin(d["YE"], keep),
+                                   np.isin(d["YU"], keep), sorted(d["pre_i"]))
+    dT = dict(d)
+    dT["XE"], dT["XU"] = XE, XU
+    return dT
+
+
+def _lick_scored(d, keep, clf, y_train, sessions, base):
+    """``(XE, XU)``: ``base``'s matrices with each session in ``sessions`` moved into ``clf``'s label-free EM
+    scoring frame (centre from that session's PRODUCTION-frame engaged + no-lick rows at the ``keep`` positions,
+    equal weight over the two states, production SD). ``base``'s own arrays under session_z."""
+    from wfield_local import spout_scaling as _ss
+    if not _ss.state_disc_scaling():
+        return base["XE"], base["XU"]
+    XEs, XUs = _ss.state_scored(clf, _ss.model_prior(clf, y_train), d["XE"], d["GE"], d["XU"], d["GU"],
+                                np.isin(d["YE"], keep), np.isin(d["YU"], keep), sorted(sessions))
+    oE, oU = np.array(base["XE"], float), np.array(base["XU"], float)
+    mE, mU = np.isin(d["GE"], list(sessions)), np.isin(d["GU"], list(sessions))
+    oE[mE], oU[mU] = XEs[mE], XUs[mU]
+    return oE, oU
+
+
 def preserved_positions(d, session=None, combine="intersection"):
     """Positions the animal still attempts post-stroke -- the only ones a comparison can use.
 
@@ -286,10 +316,27 @@ def decode_matched(d, keep, post_all_trials=True):
             if m.sum():
                 pre_pred[m] = models["loso"][d["kept"][i]].predict(XEf[tr][m])
     else:
-        clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
-        # pre-stroke baseline under the SAME restriction, leave-one-session-out
-        pre_pred = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr],
-                                     cv=LeaveOneGroupOut(), groups=d["GE"][tr])
+        # THE LOCAL (class-filtered) FIT, bal_em since 2026-11-03 (`spout_scaling.FrozenFrame` over the ``pos``
+        # classes): trained on pre sessions centred on the equal-weight mean of their true class means over
+        # ``pos``; each scored session centred by the label-free EM centre of ALL its engaged rows under the
+        # ``len(pos)``-way model. Under session_z this is the pre-11-03 fit and LOSO exactly.
+        from wfield_local import spout_scaling as _ss
+        ff = _ss.FrozenFrame(d["XE"], d["YE"], d["GE"], sorted(d["pre_i"]), _pipe, classes=pos, train_mask=kp,
+                             loso=_ss.spout_scaling() is not None)
+        clf = ff.full
+        if ff.scaling:
+            pre_pred = np.empty_like(d["YE"][tr])
+            _gi = d["GE"][tr]
+            for i in sorted(d["pre_i"]):
+                m = _gi == i
+                if m.sum():
+                    pre_pred[m] = ff.loso[i].predict(ff.apply(d["XE"][tr][m], i, "loso"))
+            XEf = ff.apply_rows(d["XE"], d["GE"])
+            XUf = ff.apply_rows(d["XU"], d["GU"]) if len(d["GU"]) else d["XU"]
+        else:
+            # pre-stroke baseline under the SAME restriction, leave-one-session-out
+            pre_pred = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr],
+                                         cv=LeaveOneGroupOut(), groups=d["GE"][tr])
     per = {}
     for i in sorted(d["pre_i"]):
         m = d["GE"][tr] == i
@@ -331,11 +378,17 @@ def looks_like_which(d, keep, seed=0):
     if pre_u.sum() < 30 or post_u.sum() < 20:
         return {"note": "too few no-lick trials to discriminate",
                 "n_pre_undetected": int(pre_u.sum()), "n_post_undetected": int(post_u.sum())}
-    sample = balanced_lick_sample(d, keep, rng)
+    # OPTIONAL STATE-CLASS bal_em (WIDEFIELD_STATE_DISC_SCALING=state_bal_em; DEFAULT OFF, 11-03 -- it fails this
+    # discriminator's own pre-stroke check, see `spout_scaling.state_disc_scaling`): train on the state-balanced pre
+    # frame, score each post session in its label-free EM frame (`_lick_train` / `_lick_scored`); pre rows stay in the
+    # training frame. The sample draws the SAME indices either way (`rng` sees only counts). Identity when OFF.
+    dT = _lick_train(d, keep)
+    sample = balanced_lick_sample(dT, keep, rng)
     if sample is None:
         return {"note": "no position had >=5 of both classes"}
     X, y, grp = sample
     clf = lick_pipe().fit(X, y)
+    XEs, XUs = _lick_scored(d, keep, clf, y, sorted(d["post_i"]), dT)
     # how well does it separate the two PRE-stroke states at all? without this the post-stroke
     # answer is uninterpretable -- a coin-flip discriminator says nothing.
     # GROUPED by session. An ungrouped cv=5 puts trials from one session on both sides of a fold, and
@@ -360,7 +413,7 @@ def looks_like_which(d, keep, seed=0):
         sep_session = float("nan")
         sep_grouped = False
     sep = sep_session if sep_grouped else sep_trial
-    p_post = float(clf.predict(d["XU"][post_u]).mean())
+    p_post = float(clf.predict(XUs[post_u]).mean())
 
     # THE CONTROL THIS TEST IS WORTHLESS WITHOUT. The boundary is trained entirely on PRE-stroke
     # data, so post-stroke trials are out of distribution: any global post-lesion shift could push
@@ -369,14 +422,14 @@ def looks_like_which(d, keep, seed=0):
     # the same rate, the classifier is reporting "post-stroke", not "licking", and the headline
     # number means nothing.
     post_e = np.isin(d["GE"], list(d["post_i"])) & np.isin(d["YE"], keep)
-    p_post_eng = float(clf.predict(d["XE"][post_e]).mean()) if post_e.sum() >= 20 else float("nan")
+    p_post_eng = float(clf.predict(XEs[post_e]).mean()) if post_e.sum() >= 20 else float("nan")
     # ALL pre-stroke trials of each class, not the position-balanced training subsample -- these two
     # are the scale the post-stroke rate is read against, so they must describe the population and
     # not the sample the boundary was drawn from. (They were `Xe`/`Xu`, bound by the sampling loop
     # that `balanced_lick_sample` replaced on 2026-08-28; caught by ruff F821, which is why that
     # guard exists -- an undefined name here fails hours into a run, not at import.)
-    pre_e_held = float(clf.predict(d["XE"][pre_e]).mean())   # pre-stroke engaged, for scale
-    pre_u_held = float(clf.predict(d["XU"][pre_u]).mean())   # pre-stroke undetected, for scale
+    pre_e_held = float(clf.predict(XEs[pre_e]).mean())   # pre-stroke engaged, for scale
+    pre_u_held = float(clf.predict(XUs[pre_u]).mean())   # pre-stroke undetected, for scale
     gap = p_post_eng - p_post if np.isfinite(p_post_eng) else float("nan")
 
     # Interval on the CONTROL gap. It decides whether the headline number may be read at all, so a
@@ -384,8 +437,8 @@ def looks_like_which(d, keep, seed=0):
     # the post-stroke engaged and no-lick arms independently, since they are separate samples.
     gap_ci = [float("nan"), float("nan")]
     if np.isfinite(p_post_eng):
-        pe = clf.predict(d["XE"][post_e]).astype(float)
-        pu = clf.predict(d["XU"][post_u]).astype(float)
+        pe = clf.predict(XEs[post_e]).astype(float)
+        pu = clf.predict(XUs[post_u]).astype(float)
         boots = [pe[rng.randint(0, len(pe), len(pe))].mean()
                  - pu[rng.randint(0, len(pu), len(pu))].mean() for _ in range(2000)]
         gap_ci = [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]
@@ -424,6 +477,9 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
     rng = np.random.RandomState(seed)
     pre_e_all = np.isin(d["GE"], list(d["pre_i"])) & np.isin(d["YE"], keep)
     pre_u_all = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
+    # OPTIONAL STATE-CLASS bal_em (as `looks_like_which`; DEFAULT OFF): training frame for the fits, each scored
+    # session (a held-out pre session, or the post session) in its own label-free EM frame. Identity when OFF.
+    dT = _lick_train(d, keep)
 
     def balanced_fit(exclude_session=None):
         """Position-balanced engaged-vs-no-lick discriminator, optionally holding out one session.
@@ -436,37 +492,41 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
         published numbers, so it is a decision to take separately rather than a side effect of
         removing duplication.
         """
-        sample = balanced_lick_sample(d, keep, rng, exclude_session=exclude_session)
+        sample = balanced_lick_sample(dT, keep, rng, exclude_session=exclude_session)
         if sample is None:
             return None
         X, y, _grp = sample
-        return lick_pipe().fit(X, y)
+        return lick_pipe().fit(X, y), y
 
     ref = {"engaged": {}, "nolick": {}}
     for i in sorted(d["pre_i"]):
-        clf = balanced_fit(exclude_session=i)
-        if clf is None:
+        got = balanced_fit(exclude_session=i)
+        if got is None:
             continue
+        clf, _y = got
+        hXE, hXU = _lick_scored(d, keep, clf, _y, [i], dT)
         me = pre_e_all & (d["GE"] == i)
         mu = pre_u_all & (d["GU"] == i)
         if me.sum() >= 20:
-            ref["engaged"][d["kept"][i]] = float(clf.predict(d["XE"][me]).mean())
+            ref["engaged"][d["kept"][i]] = float(clf.predict(hXE[me]).mean())
         if mu.sum() >= 10:
-            ref["nolick"][d["kept"][i]] = float(clf.predict(d["XU"][mu]).mean())
+            ref["nolick"][d["kept"][i]] = float(clf.predict(hXU[mu]).mean())
     if len(ref["engaged"]) < 3 or len(ref["nolick"]) < 3:
         return {"note": "too few pre-stroke sessions to build a reference distribution",
                 "n_engaged_sessions": len(ref["engaged"]), "n_nolick_sessions": len(ref["nolick"])}
 
-    clf_all = balanced_fit()
+    got_all = balanced_fit()
+    clf_all = got_all[0] if got_all is not None else None
     post_u = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
     post_e = np.isin(d["GE"], list(d["post_i"])) & np.isin(d["YE"], keep)
     if post_u.sum() < 10 or clf_all is None:
         return {"note": "too few post-stroke no-lick trials", "n_post_nolick": int(post_u.sum())}
-    pred_u = clf_all.predict(d["XU"][post_u]).astype(float)
+    pXE, pXU = _lick_scored(d, keep, clf_all, got_all[1], sorted(d["post_i"]), dT)
+    pred_u = clf_all.predict(pXU[post_u]).astype(float)
     P = float(pred_u.mean())
 
     out = {"post_value": P, "n_post_nolick": int(post_u.sum()),
-           "post_engaged_value": float(clf_all.predict(d["XE"][post_e]).mean())
+           "post_engaged_value": float(clf_all.predict(pXE[post_e]).mean())
                                  if post_e.sum() >= 20 else float("nan"),
            "reference_engaged_per_session": ref["engaged"],
            "reference_nolick_per_session": ref["nolick"]}
@@ -823,7 +883,8 @@ def undetected_state_split(d, keep, args, seed=0):
     # A FRESH RandomState(seed), so this is the SAME sample `looks_like_which` drew a few lines
     # above -- the two really are one model, refitted, and the de-duplication preserves that.
     rng = np.random.RandomState(seed)
-    sample = balanced_lick_sample(d, keep, rng)
+    dT = _lick_train(d, keep)        # optional state-class bal_em (default OFF), as `looks_like_which`
+    sample = balanced_lick_sample(dT, keep, rng)
     if sample is None:
         # The old code called np.vstack([]) here and raised. It survived only because
         # `looks_like_which` returns early on the same condition and its result is checked above --
@@ -839,7 +900,8 @@ def undetected_state_split(d, keep, args, seed=0):
                                 f"refusing to pair them"}
         return out
     post_m = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
-    p = clf.predict(d["XU"])
+    _XEs, XUs = _lick_scored(d, keep, clf, y, sorted(d["post_i"]), dT)
+    p = clf.predict(XUs)
     w = post_m & state
     dis = post_m & ~state
     res = {"n_working": int(w.sum()), "n_disengaged": int(dis.sum()),

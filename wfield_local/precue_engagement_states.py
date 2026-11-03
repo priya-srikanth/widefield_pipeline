@@ -55,7 +55,7 @@ from sklearn.preprocessing import StandardScaler
 
 from wfield_local import config, joint_locanmf
 from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
-from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
+from wfield_local.locanmf_position_decoder import trial_features_cached
 from wfield_local.paths import PathResolver
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
 
@@ -258,16 +258,27 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     }
 
     # ---- A. position decoding: ONE frozen pre-stroke decoder, applied to every state -------------
-    clf = _pipe().fit(XE[e_pre], YE[e_pre])
+    # bal_em since 2026-11-03 (`spout_scaling.FrozenFrame`): trained on class-balanced pre sessions, each scored
+    # session centred by the label-free EM centre of its engaged trials under the scoring model (identity under
+    # WIDEFIELD_SPOUT_SCALING=session_z, where this is the pre-11-03 code exactly).
+    from wfield_local import spout_scaling as _ss
+    ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _pipe, loso=_ss.spout_scaling() is not None)
+    clf = ff.full
     dec = {}
     for k, (X, y, g) in states.items():
         if len(y) < 10:
             dec[k] = {"n": len(y), "accuracy": None}
             continue
         if k == "1_pre_lick":       # its own training data: leave-one-session-out instead
-            p = cross_val_predict(_pipe(), X, y, cv=LeaveOneGroupOut(), groups=g)
+            if ff.scaling:
+                p = np.empty_like(y)
+                for i in np.unique(g):
+                    m = g == i
+                    p[m] = ff.loso[i].predict(ff.apply(X[m], i, "loso"))
+            else:
+                p = cross_val_predict(_pipe(), X, y, cv=LeaveOneGroupOut(), groups=g)
         else:
-            p = clf.predict(X)
+            p = clf.predict(ff.apply_rows(X, g))
         dec[k] = {"n": len(y), "accuracy": float(np.mean(p == y))}
 
     # ---- C. the pre-stroke state discriminator, trained in the LATE window -----------------------
@@ -277,16 +288,30 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     keep_eng = e_pre & late_e
     disc = {"n_engaged_train": int(keep_eng.sum()), "n_disengaged_train": int(keep_dis.sum()),
             "excluded_positions": list(miss)}
+    # OPTIONAL STATE-CLASS bal_em (`spout_scaling.state_*`; WIDEFIELD_STATE_DISC_SCALING=state_bal_em, DEFAULT OFF since
+    # it fails the discriminator's own pre-stroke check, 11-03): each pre session's rows centred on the equal-weight mean
+    # of its two TRUE state-class means; a scored session centred, label-free, by the EM over its engaged + no-lick rows.
+    # The input arrays themselves when OFF (the production engaged-trial z-score).
+    XEt, XUt = _ss.state_train_frame(XE, GE, XU, GU, keep_eng, keep_dis, sorted(pre_i))
     if keep_dis.sum() >= 20 and keep_eng.sum() >= 20:
-        Xd = np.vstack([XE[keep_eng], XU[keep_dis]])
+        Xd = np.vstack([XEt[keep_eng], XUt[keep_dis]])
         yd = np.concatenate([np.zeros(int(keep_eng.sum())), np.ones(int(keep_dis.sum()))])
         gd = np.concatenate([GE[keep_eng], GU[keep_dis]])
         model = _disc().fit(Xd, yd)
+        _pi = _ss.model_prior(model, yd)
+        _all_e, _all_u = np.ones(len(XE), bool), np.ones(len(XU), bool)
+        _post = sorted(set(range(len(kept))) - set(pre_i))
+        XEs, XUs = _ss.state_scored(model, _pi, XEt, GE, XUt, GU, _all_e, _all_u, _post)
+        s_states = {
+            "1_pre_lick": XEs[e_pre], "2_pre_nolick": XUs[u_pre], "4_post_lick": XEs[~e_pre],
+            "5_post_nolick_engaged": XUs[~u_pre & ~not_eng_nl],
+            "6_post_nolick_notengaged": XUs[~u_pre & not_eng_nl]}
         if len(np.unique(gd)) > 1:
             cvp = cross_val_predict(_disc(), Xd, yd, cv=LeaveOneGroupOut(), groups=gd,
                                     method="predict_proba")[:, 1]
             disc["train_auc_loso"] = _auc(yd, cvp)
-        for k, (X, _y, _g) in states.items():
+        for k in states:
+            X = s_states[k]
             disc[k] = (float(np.mean(model.predict_proba(X)[:, 1])) if len(X) else None)
         # D2. THE STRONGER DRIFT CONTROL: PRE-STROKE LICK trials, early vs late.
         #
@@ -305,10 +330,11 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
             if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                 continue
-            m = _disc().fit(
-                np.vstack([XE[tr_e], XU[tr_d]]),
-                np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))]))
-            pr = m.predict_proba(XE[hold])[:, 1]
+            _yd = np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))])
+            m = _disc().fit(np.vstack([XEt[tr_e], XUt[tr_d]]), _yd)
+            # the held-out session in ITS OWN EM frame under this leave-one-out model (identity under session_z)
+            _XEh, _XUh = _ss.state_scored(m, _ss.model_prior(m, _yd), XE, GE, XU, GU, _all_e, _all_u, [si])
+            pr = m.predict_proba(_XEh[hold])[:, 1]
             lh = late_e[hold]
             pre_e.extend(pr[~lh])
             pre_l.extend(pr[lh])
@@ -321,8 +347,8 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         # D1. DRIFT CONTROL: both halves are ENGAGED, so any separation here is time, not state.
         eng5 = ~u_pre & ~not_eng_nl
         if eng5.sum() >= 20:
-            early = XU[eng5 & ~late_nl]
-            lateX = XU[eng5 & late_nl]
+            early = XUs[eng5 & ~late_nl]
+            lateX = XUs[eng5 & late_nl]
             disc["drift_control"] = {
                 "n_early": len(early), "n_late": len(lateX),
                 "early_p_disengaged": (float(np.mean(model.predict_proba(early)[:, 1]))

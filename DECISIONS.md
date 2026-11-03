@@ -22989,3 +22989,82 @@ cluster-permutation markers, which say WHERE along the curve. These summaries we
 | lick-ramp time courses (wf_attempt: cued_ramp_summary_row2 / iti_ramp_row1, lick_matched_gauss_curves, lick_order_iti_cued_slope) | encoding-window tables (sabatinilab-34) | the response AUC 0-0.5 s already used on lick_cued_ramp_perspout | as that figure |
 
 Midline error, closest approach and reach are NOT repeated here: they are already on p_3d_far_rows123.
+
+## 2026-11-03 — bal_em extended to every cross-session SPOUT decoder; the engagement-state discriminators stay on the engaged-trial z-score (state-class bal_em fails their pre-stroke check); axis / CD projections listed for Priya
+
+**Request (Priya approved, via the coordinator, 11-03):** extend bal_em beyond the frozen spout decoder of the entry above,
+judged by how a model normalises rather than by its name: every fit on one set of sessions scored on another (pre-trained,
+scored post-stroke or on held-out sessions) after a per-session z-score on a class-skewed set. Decoders are converted;
+axis / CD projections are not (Priya's decision). Engagement-state classes: bal_em over the state classes.
+
+**Audit** (a = cross-session score? b = class mix of the normalisation set; c = decoder or projection):
+
+| site | a | b | c | action |
+|---|---|---|---|---|
+| `precue_engagement_states.run_animal` A (position per state) | yes: pre model, scores post states | engaged set per session (spout-skewed post) | decoder (6 spouts) | **converted** |
+| `precue_engagement_states` C / D1 / D2 (engaged vs disengaged) | yes | engaged set (spout-skewed; one state only) | decoder (2 states) | state-class bal_em built, **OFF by default** (below) |
+| `nolick_decoder.analyse_animal` (nightly no-lick reference, ROI + joint) | yes: pre model, scores post engaged / late / undetected; pre engaged LOSO | its own engaged-trial z per session | decoder | **converted** |
+| `nolick_decoder.analyse_session` | no: within-session block-CV | - | decoder | left |
+| `enl_decode` (ENL sensory-vs-plan) | no: block-CV within one epoch's pooled sessions, NO per-session z-score at all | none | decoder | left (the mechanism needs a per-session centre) |
+| `locanmf_decoder_qc`, `precue_significance` | no: within-session block-CV | - | decoder | left |
+| `poststroke_compare.decode_matched` lick-only arm (section G) | yes | engaged z (pool) | decoder over the preserved spouts (4-6) | **converted** (K-way EM; centre from ALL the session's engaged rows, label-free) |
+| `poststroke_compare.looks_like_which` / `fits_engaged_distribution` / `undetected_state_split` (section G G4) | yes | engaged z (pool) | decoder (lick vs no-lick) | state-class bal_em built, **OFF by default** |
+| `poststroke_compare.recoding_test`, `_within_accuracy` | no: within-session | - | decoder | left |
+| `position_coding_directions._class_confusions` (feeds `coding_direction.json`, grant 5b) | yes | engaged z (pool) | decoder | **converted** |
+| `position_coding_directions` CDs / engagement axis / projections | yes | engaged z | projection | **not converted** (for Priya) |
+| `position_axes` (pairwise position axes, poles) | yes | engaged z | projection | not converted |
+| `attempt_coding.fit_axes` ("dom" attempt axes, `own`) | yes | engaged z | projection | not converted (its frozen-decoder p_true was converted 11-03) |
+| `scripts/june_august_drift.py` decoder half | yes (June -> August, Aug -> post) | engaged z (bundle) | decoder | **converted** (as its `_collect_5c` twins) |
+| `scripts/engagement_axis_balance.py` | no: pre-stroke diagnostics only | - | projection | left |
+| `scripts/axis_holdout_null.py` | held-out PRE sessions only (pre mixes ~1/6) | engaged z | projection | left (listed) |
+| `scripts/nocontact_census.py` | no: counts | - | neither | left |
+| `scripts/cohort2_qc/quiet_task_events_followup.py` (T13 follow-up, cohort 1) | yes: stored frozen precue decoder | its own engaged z | decoder | **converted** (bal_em spec + scoring centre; `WIDEFIELD_SPOUT_SCALING=session_z` reproduces the stored T13 run) |
+| grant pattern families 6-11, `poststroke_compare.pattern_similarity` (bundle XE) | yes: post patterns vs pre templates | engaged z | template / projection | not converted (listed) |
+
+**Code.** `spout_scaling.FrozenFrame` (training frame on the true class means of the training classes, full + LOSO models,
+label-free EM centre of each scored session's engaged rows, any spout subset via an index view), `score_centre` generalised
+to any class set, `model_prior`; state frames `state_train_frame` / `state_centre` / `state_scored` (opt-in);
+`label_shift.bal_em_centre(mu0=, sd=)` (defaults unchanged, state decoder bit-identical). Converted sites as in the table.
+Under `WIDEFIELD_SPOUT_SCALING=session_z` every converted site is the pre-11-03 computation exactly (`tests/test_spout_bal_em.py`
+pins the identity and that shuffling scored labels leaves the scored rows bit-identical, six-way and four-way). **No
+frozen-store model changes:** all the newly converted decoders are in-memory fits (they were never frozen; rule 10 gap,
+unchanged); the T13 follow-up reads the already-published bal_em attempt-pool models. So no new spec ids and nothing to
+publish. No `session_cache` function changed.
+
+**Verification** (`labcams/decoder_mix_checks/spout_balem_production/verify_extension.py`, `summarise_extension.py`,
+`summarise_extension_log.txt`, `extension_tables.csv`; each production function run under both scalings in separate
+processes; per-animal old -> new tables first; animal means here, '!' cells > .03 in the log):
+- `nolick_decoder` (ROI and joint, cue and precue, pooled and per session): every balanced accuracy within +-.03 (largest:
+  joint precue late_rewarded .509 -> .537, 2/4 animals > .03). Pre engaged LOSO within .005.
+- `precue_engagement_states` A: pre lick .552 -> .547, post lick .456 -> .451, post no-lick engaged .261 -> .241 (2/4 animals
+  > .03), post no-lick not engaged .210 -> .213.
+- `_class_confusions` accuracy: pre lick within .005; post lick -.005 to -.008; post miss-while-working cue .270 -> .233,
+  lick .253 -> .213, precue .261 -> .241 (**> .03 at cue and lick**, 2/4 animals); stopped within .003.
+- section G lick-only arm, balanced accuracy: cue acute .743 -> .742, subacute .785 -> .761, chronic .813 -> .788; precue within
+  .013.
+- June / August drift (frozen on June / August pre, size-matched or not): drift-group arms within .022 (aug_from_june frozen
+  .710 -> .693, matched .614 -> .592); the stroke twins: **acute_from_aug frozen (unmatched) .666 -> .713 (3/4 animals > .03)**,
+  matched .490 -> .472, chronic frozen .803 -> .786; refit unchanged to the digit (it never meets the frozen model).
+
+**State-class bal_em for the engagement discriminators: built, tested, OFF by default (needs Priya's decision).** Run, it
+breaks the discriminators' own pre-stroke reference: held-out PRE engaged trials read engaged-like .92 -> .74-.81 (cue) and
+.75 -> .39-.42 (precue), pre no-lick .11 -> .04 / .36 -> .09-.11 (fits_engaged_distribution LOSO references); precue_states
+LOSO AUC .656 -> .610 (PS95 .719 -> .612); pre engaged P(disengaged) .089 -> .132. The headline G4 readout would move by
+-.06 to -.10 (cue) and -.29 to -.39 (precue). Mechanism: these discriminators separate the two states only weakly (AUC
+~.6-.8), so the EM cannot recover a session's state mix; the centre lands between the states and pushes every trial
+toward "disengaged". Not a fix for the class-mix artefact here; a candidate alternative (not built) is to give these
+discriminators the SPOUT bal_em frame (EM over the six spouts on the engaged rows, with the frozen spout model), which
+removes the spout-mix shift without centring on the state contrast. `WIDEFIELD_STATE_DISC_SCALING=state_bal_em` turns the
+state-class version on.
+
+**Axis / CD projections NOT converted (Priya's decision), one line each on how the mix biases them:**
+- `position_coding_directions` CDs (dom / contrast), pole projections and the engagement axis: a post session centred on a
+  far-contra-poor engaged set is shifted by (missing class mean - centre) along every direction, so all its trials move
+  toward the far-contra pole of each CD, and the engagement-axis orthogonalisation inherits the same offset.
+- `position_axes` pairwise axes: a constant per-session offset along each pairwise axis proportional to that axis's
+  loading on the missing spout's mean; pairs involving far contra get the largest offset.
+- `attempt_coding.fit_axes` (`own` score): same constant offset of each post session along each spout's attempt axis.
+- grant pattern families 6-11 / section G pattern similarity: every post-stroke position pattern is shifted by the same
+  vector, which lowers correlation with the pre templates, inflates crossnobis distances for all positions together and
+  moves best matches toward the missing spout.
+- `scripts/axis_holdout_null.py`: pre-stroke holdouts only (mixes ~1/6), so the bias is negligible there.

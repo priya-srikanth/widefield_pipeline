@@ -457,7 +457,7 @@ def _rt_engaged(feat, kept, XE):
     return rt
 
 
-def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
+def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, GU=None):
     """Confusion of the frozen PRE-stroke decoder, one counts matrix per class.
 
     Rows are the TRUE position and columns the predicted one, both in DISPLAY_ORDER, as raw counts
@@ -495,6 +495,16 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
     res = {"labels": [POSITION_NAMES.get(int(c), str(c)) for c in DISPLAY_ORDER],
            "counts": True, "note": "raw counts; sum classes to build any population"}
 
+    # THE FROZEN DECODER IN ITS bal_em FRAMES since 2026-11-03 (`spout_scaling.FrozenFrame`): trained on
+    # class-balanced pre sessions, each scored session centred by the label-free EM centre of its engaged rows
+    # under the scoring model. Needs the no-lick rows' sessions (``GU``); without them, and under
+    # WIDEFIELD_SPOUT_SCALING=session_z, this is the pre-11-03 computation exactly.
+    from wfield_local import spout_scaling as _ss
+    _use = _ss.spout_scaling() is not None and GU is not None
+    ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), pipe, train_mask=e_pre, loso=_use,
+                         scaling=(_ss.SCALING_BAL_EM if _use else None))
+    res["spout_scaling"] = _ss.SCALING_BAL_EM if _use else _ss.SCALING_SESSION_Z
+
     # PRE, leave-one-session-out
     Cpre = np.zeros((len(DISPLAY_ORDER), len(DISPLAY_ORDER)), float)
     got = False
@@ -502,17 +512,21 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
         tr, te = e_pre & (GE != i), e_pre & (GE == i)
         if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
             continue
-        Cpre += counts(YE[te], pipe().fit(XE[tr], YE[tr]).predict(XE[te]))
+        if _use:
+            Cpre += counts(YE[te], ff.loso[i].predict(ff.apply(XE[te], i, "loso")))
+        else:
+            Cpre += counts(YE[te], pipe().fit(XE[tr], YE[tr]).predict(XE[te]))
         got = True
     res["prestroke_lick"] = Cpre.tolist() if got else None
 
     # POST, one matrix per class, all scored by the SAME frozen model fitted on every pre-stroke
     # engaged trial -- so the classes are directly comparable and their sums are meaningful.
-    clf = pipe().fit(XE[e_pre], YE[e_pre])
+    clf = ff.full
     for cls in CONFUSION_CLASSES:
         m = _mask(cls)
-        X, y = ((XE, YE) if cls == "poststroke_lick" else (XU, YU))
-        res[cls] = counts(y[m], clf.predict(X[m])).tolist() if m.any() else None
+        X, y, G = ((XE, YE, GE) if cls == "poststroke_lick" else (XU, YU, GU))
+        res[cls] = (counts(y[m], clf.predict(ff.apply_rows(X[m], G[m]) if _use else X[m])).tolist()
+                    if m.any() else None)
         res[f"n_{cls}"] = int(m.sum())
 
     # EARLY vs LATE REWARDED, a partition of `poststroke_lick` at RT_SPLIT_S.
@@ -533,7 +547,8 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None):
         else:
             res["rt_split_s"] = RT_SPLIT_S
             for cls, m in (("poststroke_lick_early", early), ("poststroke_lick_late", late)):
-                res[cls] = counts(YE[m], clf.predict(XE[m])).tolist() if m.any() else None
+                res[cls] = (counts(YE[m], clf.predict(ff.apply_rows(XE[m], GE[m]) if _use else XE[m])).tolist()
+                            if m.any() else None)
                 res[f"n_{cls}"] = int(m.sum())
     return res
 
@@ -709,7 +724,7 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     # happened: two places computing "the same" population and drifting apart.
     try:
         out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept,
-                                              rt_e=_rt_engaged(feat, kept, XE))
+                                              rt_e=_rt_engaged(feat, kept, XE), GU=np.asarray(GU))
     except Exception as ex:                                          # noqa: BLE001
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 
@@ -1808,7 +1823,7 @@ def figure_pairwise_split(everything, out, align="precue", meth="dom"):
 
     ax2 = axes[0][1]
     w = 0.36
-    for j, same in enumerate((True, False)):
+    for _j, same in enumerate((True, False)):
         for k, an in enumerate(animals):
             v = [r[3] for r in rows if r[1] is same and r[0] == an]
             if not v:

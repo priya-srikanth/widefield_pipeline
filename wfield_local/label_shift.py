@@ -59,7 +59,7 @@ def saerens_em(P, pi_train, n_iter=200, tol=1e-8):
     return Q, pi
 
 
-def bal_em_centre(model, X, pi_train, *, n_outer=None, min_mass=None, return_info=False):
+def bal_em_centre(model, X, pi_train, *, n_outer=None, min_mass=None, return_info=False, mu0=None, sd=None):
     """SCORING-side centring for bal_em -- LABEL-FREE (DECISIONS 2026-11-03). Takes no labels, by signature.
 
     Start from the production centring (session mean / session SD); then ``n_outer`` passes of: the frozen model's
@@ -71,13 +71,18 @@ def bal_em_centre(model, X, pi_train, *, n_outer=None, min_mass=None, return_inf
     labcams/decoder_mix_checks/spout_guard/analyse_guard.py.
 
     ``min_mass`` (default None = OFF): if set, a pass whose EM-estimated share of any class is below it centres on
-    the training mix ``pi_train`` instead of equal weights."""
+    the training mix ``pi_train`` instead of equal weights.
+
+    ``mu0`` / ``sd`` (default None = the session mean / SD of ``X``, the behaviour above): a fixed starting centre and a
+    fixed SD, for a caller whose production normalisation comes from a DIFFERENT row set than the one the classes are
+    balanced over (the engagement-state discriminators: production frame = the engaged trials, state classes = all
+    trials; `spout_scaling.state_centre`)."""
     n_outer = BAL_EM_PASSES if n_outer is None else int(n_outer)
     X = np.asarray(X, float)
     pi_train = np.asarray(pi_train, float)
     K = len(pi_train)
-    sd = session_sd(X)
-    mu = X.mean(0)
+    sd = session_sd(X) if sd is None else np.asarray(sd, float)
+    mu = X.mean(0) if mu0 is None else np.asarray(mu0, float)
     Z = (X - mu) / sd
     pi_hat, guard = pi_train, False
     for _ in range(n_outer):

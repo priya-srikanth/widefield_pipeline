@@ -180,11 +180,11 @@ def frozen_models_for(animal):
     XE, YE, GE, _BE, XU, YU, kept, _c, GU = pool_sessions(pre + post, source="locanmf", align="precue", post_s=2.0,
                                                           features=ft)
     pre_list = [i for i, lab in enumerate(kept) if lab in set(pre)]
-    # PINNED TO THE PRE-11-03 session_z MODEL (scaling=None): this follow-up rebuilds features with its own per-session
-    # engaged-trial z-score (`score_session`), i.e. the session_z frame, and reproduces the stored T13 run. The bal_em
-    # spout decoder (production since 2026-11-03, `spout_scaling`) is not this script's frame.
+    # THE PRODUCTION SCALING (bal_em since 2026-11-03, `spout_scaling`; WIDEFIELD_SPOUT_SCALING=session_z reproduces
+    # the stored T13 run, whose models are the session_z ones). Under bal_em `score_session` centres each session's
+    # rebuilt features by the label-free EM centre of its engaged trials under the scoring model.
     spec = decoder_spec(XE, kept, pre_list, align="precue", source="locanmf", post_s=2.0,
-                        basis_id=getattr(ft, "basis_id", None), scaling=None)
+                        basis_id=getattr(ft, "basis_id", None))
 
     def _never():
         raise RuntimeError(f"{animal}: no stored frozen precue decoder for this spec -- refusing to fit (rule 10)")
@@ -231,6 +231,11 @@ def score_session(lab, models, pre_set, raw, sd, rng):
     # the pooled (cached) engaged features of this session must match too (same mu / sd as the stored run)
     err_pool = float(np.max(np.abs(raw[lab] - ((z["X"] - mu) / sdv)))) if lab in raw else np.nan
     mdl = models["loso"].get(lab, models["full"]) if lab in pre_set else models["full"]
+    if "pi_train" in models:                     # bal_em: the scoring centre (no labels), production SD
+        from wfield_local import spout_scaling
+        pt = models["pi_train"]
+        pi = pt["loso"].get(lab, pt["full"]) if lab in pre_set else pt["full"]
+        mu, sdv = spout_scaling.score_centre(mdl, z["X"], pi)
 
     def P(keep, fill="mean", idx=None):
         idx = np.arange(n) if idx is None else idx

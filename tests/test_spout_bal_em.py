@@ -230,3 +230,69 @@ def test_state_decoder_reads_the_shared_primitives():
     assert ld.saerens_em is label_shift.saerens_em
     assert ld._session_sd is label_shift.session_sd
     assert ld._proba_full is label_shift.proba_full
+
+
+# ------------------------------------------------------------------ (e) the extension to the other cross-session decoders
+def _pipe_factory():
+    return fd._pipe()
+
+
+def test_frozen_frame_session_z_is_the_old_inline_fit(monkeypatch):
+    """Under session_z `FrozenFrame` hands back the production arrays and the inline fit the callers always made."""
+    monkeypatch.setenv(ss.SPOUT_SCALING_ENV, "session_z")
+    XE, YE, GE, XU, _YU, GU, kept, pre_i = _pool()
+    ff = ss.FrozenFrame(XE, YE, GE, pre_i, _pipe_factory, loso=False)
+    assert ff.XT is ff.XE and ff.apply(XE, 6) is XE and ff.apply_rows(XU, GU) is XU
+    tr = np.isin(GE, pre_i)
+    assert np.array_equal(ff.full.predict(XE), fd._pipe().fit(XE[tr], YE[tr]).predict(XE))
+
+
+def test_frozen_frame_scored_rows_ignore_scored_labels(monkeypatch):
+    """Post labels shuffled -> the scored rows are bit-identical (six-way and a class-filtered four-way model)."""
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    XE, YE, GE, XU, _YU, GU, kept, pre_i = _pool()
+    post = ~np.isin(GE, pre_i)
+    ys = YE.copy()
+    ys[post] = np.random.default_rng(9).permutation(ys[post])
+    for classes in (None, [0, 1, 2, 4]):
+        tm = None if classes is None else np.isin(YE, classes)     # training rows only read on pre sessions
+        a = ss.FrozenFrame(XE, YE, GE, pre_i, _pipe_factory, classes=classes, train_mask=tm)
+        b = ss.FrozenFrame(XE, ys, GE, pre_i, _pipe_factory, classes=classes, train_mask=tm)
+        for i in (5, 6, 7):
+            assert np.array_equal(a.apply(XU[GU == i], i), b.apply(XU[GU == i], i))
+            assert np.array_equal(a.apply(XE[GE == i], i), b.apply(XE[GE == i], i))
+        assert a.scaling == "session_bal_em" and not np.array_equal(a.XT, XE)
+
+
+def test_state_frames_are_off_by_default_and_label_free(monkeypatch):
+    """The state-class bal_em for the engagement discriminators is OPT-IN (it fails their own pre-stroke check,
+    DECISIONS 2026-11-03): by default, even with the spout decoder on bal_em, the frames are the input arrays."""
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    monkeypatch.delenv(ss.STATE_DISC_SCALING_ENV, raising=False)
+    assert ss.spout_scaling() == "session_bal_em" and ss.state_disc_scaling() is None
+    XE, YE, GE, XU, YU, GU, kept, pre_i = _pool()
+    se, su = np.ones(len(XE), bool), np.ones(len(XU), bool)
+    A, B = ss.state_train_frame(XE, GE, XU, GU, se, su, pre_i)
+    assert A is XE and B is XU
+    monkeypatch.setenv(ss.STATE_DISC_SCALING_ENV, "state_bal_em")
+    from sklearn.linear_model import LogisticRegression
+    yd = np.r_[np.ones(len(XE)), np.zeros(len(XU))]
+    m = LogisticRegression(max_iter=2000).fit(np.vstack([XE, XU]), yd)
+    pi = ss.model_prior(m, yd)
+    A1, B1 = ss.state_scored(m, pi, XE, GE, XU, GU, se, su, [5, 6, 7])
+    # the centre comes from the session's rows alone: position labels never enter, and other sessions are untouched
+    assert np.array_equal(A1[GE < 5], XE[GE < 5])
+    assert not np.array_equal(B1[GU == 5], XU[GU == 5])
+    for fn in (ss.state_scored, ss.state_centre, ss.FrozenFrame.apply, ss.FrozenFrame.centre):
+        assert not set(inspect.signature(fn).parameters) & {"y", "YE", "YU", "labels", "y_true"}, fn.__name__
+
+
+def test_lick_helpers_are_identity_by_default(monkeypatch):
+    from wfield_local import poststroke_compare as pc
+    monkeypatch.delenv(ss.STATE_DISC_SCALING_ENV, raising=False)
+    XE, YE, GE, XU, YU, GU, kept, pre_i = _pool()
+    d = {"XE": XE, "YE": YE, "GE": GE, "XU": XU, "YU": YU, "GU": GU, "kept": kept, "pre_i": set(pre_i),
+         "post_i": {5, 6, 7}}
+    assert pc._lick_train(d, [0, 1, 2, 3, 4, 5]) is d
+    A, B = pc._lick_scored(d, [0, 1], None, None, [5], d)
+    assert A is XE and B is XU

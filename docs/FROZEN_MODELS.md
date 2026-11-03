@@ -234,6 +234,13 @@ set, so `SPEC-CHANGED` on the first fit means the scaling only. Freeze script (f
 else): `labcams/decoder_mix_checks/spout_balem_production/freeze_models.py`; an LP run still needs its DAQ model frozen
 first (`attempt_lp`, run with `WIDEFIELD_ENL_WINDOW_S=1.0` for the LP ENL window).
 
+**2026-11-03 (later): bal_em extended to the in-memory copies of the spout decoder** (`spout_scaling.FrozenFrame`:
+`precue_engagement_states`, `nolick_decoder.analyse_animal`, `position_coding_directions._class_confusions`, section G's
+class-filtered lick-only arm, `scripts/june_august_drift.py`). None of them uses the store, so no spec id moved and nothing
+was published; they remain the rule-10 gap they were (refitted per run, deterministic within a box). The engagement-state
+discriminators keep the production frame (state-class bal_em is opt-in, `WIDEFIELD_STATE_DISC_SCALING`). DECISIONS
+2026-11-03 "bal_em extended to every cross-session SPOUT decoder".
+
 ## 7. EVERY PRE-STROKE DECODER IS FROZEN — the rule for this and future cohorts (Priya, 2026-10-15)
 
 *"Establish in the code for future cohorts that we will make a frozen pre-stroke decoder that is cached / stored
