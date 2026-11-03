@@ -316,3 +316,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   would create a +.21-.25 mm artefact). Caveat to state beside the cued ALL-lick acute offset: frame SD rises 1.06-1.20x acute;
   removing it gives .166 -> .119 [-.049, .281] (PS95 -> -.13); ITI and first-cued-lick offsets still exclude 0. Priya: do NOT
   undo the SD rise in production. Files decoder_mix_checks/lick/; DECISIONS fa70b651.
+- 11-03: LocaNMF test DONE (LOCANMF_REFIT_TEST_20261103.md): refits not reproducible even seeded (counts 92-100 from identical
+  input; joint 87 vs 103); refit vs stored ~ refit vs refit; refit - projection decode mean +.003 / +.001; refit ~11 h GPU vs
+  projection < 1 h. RECOMMEND projection (per-session + joint). Awaiting Priya.
+- 11-03: DRIFT CHECK DONE (DRIFT_CUTOFF_CHECK_20261103.md): block-protected FAILS (slow power x5-17, decode -.2), position-protected
+  LEAKS labels (permuted null above chance 4/4), replacement worse than stacking (edge bleaching). Position CYCLE (all 6) 5-22 min
+  p95 (PS92 up to 40) -> 10 / 15 / 20 min cutoffs strip 34 / 13 / 4% of PS92 cycle power; 25 min safe everywhere. Spout order not
+  fixed (Kendall W <= .06; time-only decoder at chance). Label-free cos25 stacked: +.015 precue / +.007 cue, removes ~3-5% of
+  10-43 min power, fit on ~21% out-of-trial frames, often ADDS > 43 min power. RECOMMEND no new drift step (option A); keep the
+  encoder / ITI own steps but check the encoder at a 25 min own cutoff. PS92 subacute 2 sessions drift-dominated (26-31% of
+  variance > 20 min) -> explains the PS92 subacute outliers; caption flag. Awaiting Priya.
+- 11-03: imaging section 1 (5b) run order added to the rebuild; analysis/attempt-coding must also be merged into the rebuild branch
+  (goal-page scripts, v8 ROIs) -> code-prep helper doing a trial merge first.
