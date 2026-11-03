@@ -22651,3 +22651,114 @@ quoted to ~.05.**
 - Lick-landing decoder: CLEAN for the mix mechanism; keep frame-SD scaling. Caveat the cued all-lick acute offset: ~1/3 of
   it depends on the frame-SD rise. The ITI and first-cued-lick offsets stand.
 - Adoption waits for Priya.
+
+## 2026-11-03 — Spout-position frozen decoder: which guard for `bal_em` when a spout is nearly absent? G1 (pre-stroke-geometry imputation) at 5 % (diagnostic, nothing changed in production)
+
+**Question (Priya 11-03, before deciding on bal_em for this decoder):** the state decoder's min-mass guard (fall back
+to the training mix) does nothing here, because the training mix is already ~1/6 per spout. Test a different guard,
+and an attempt-based normalisation set. Follows the 11-03 class-mix check above (fa70b651). Files:
+`M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/spout_guard/` (`collect_idx.py`, `analyse_guard.py`,
+`summarise_guard.py`, CSVs, `*_log.txt`, `fig_spout_guard.png`). Same cached raw features as the earlier check, same
+frozen model (production frame, held-out pre sessions LOSO). Only the scoring-side centring varies. Scored sets are
+always production's. Per-animal tables are printed before every bootstrap (`summarise_log.txt`). Changes use
+`analysis_kit.boot_delta`. The working-tree `analysis_kit` (someone else's uncommitted edit) was checked identical to
+HEAD's on a test draw.
+
+**Arms.**
+- P: production, engaged-trial z-score.
+- B: `locomotor_decoder.bal_em_centre` on the engaged set (checked identical to 1e-15).
+- G1_t: bal_em. In each pass, a spout with EM share < t has its soft class mean replaced by the equal-weight mean of the
+  present spouts' soft means, plus that animal's PRE-STROKE offset of the missing spout from the same present spouts.
+  The offset uses true labels on the model's training sessions, in each session's own SD units, rescaled by the scored
+  session's SD.
+- G2_t: bal_em with near-absent spouts dropped from the centre.
+- ATT_z / ATT_em: normalisation set = engaged trials + no-lick trials of class `jaw_only` | `incomplete`. The classes
+  come from `wfield_local.trial_classes` via its committed per-cue snapshot (commit 11e8a846, class code clean). Two
+  sessions were re-classified live with 0 differences. Engaged rows are 99.9 % `contact`, which confirms the index
+  match. June pre sessions have no video, so they keep the engaged set.
+- ALL: all trials.
+- ATT and ALL exist only for the precue and cue alignments: a no-lick trial has no lick to align to.
+
+**Far-contra share of the normalisation set, acute (per animal PS92-95).**
+- Engaged: .010 / .031 / .008 / .002.
+- ATT: .172 / .177 / .155 / .148.
+- ALL: ~.166.
+- Attempts add ~170 trials per acute session (~40 % of the ATT set), against ~20 pre and ~19 chronic.
+
+**Stress test (held-out pre sessions; each arm on its own set). "Removed" = share of production's six-position L1
+artefact removed.**
+
+| arm | cue/working: forced acute far-contra share | cue/working: far contra ABSENT | lick/lick: forced / absent | precue/working: forced / absent | coupling knock-on, cue (alpha 0) |
+|---|---|---|---|---|---|
+| P | 0 (far-contra shift +.046) | 0 (+.049) | 0 / 0 | 0 / 0 | -.024 |
+| B | .71 | .60 | .72 / .56 | .37 / .36 | -.009 |
+| G1 2 % | .85 | .84 | .87 / .89 | .41 / .40 | -.005 |
+| **G1 5 %** | **.89** | **.88** | **.89 / .88** | .44 / .46 | **-.002** |
+| G1 10 % | .86 | .85 | .88 / .88 | .52 / .51 | -.002 |
+| G2 2 / 5 / 10 % | .27 / -.21 / -.56 | .08 / -.27 / -.45 | .28 / -.31 / -.55 | .18 / -.03 / -.29 | -.025 / -.035 / -.039 |
+| ATT_z | .95 * | .07 | n/a | .96 * / .02 | -.021 |
+| ATT_em | .97 * | .58 | n/a | .96 * / .35 | -.008 |
+| ALL | .99 * | .08 | n/a | .97 * / .01 | -.020 |
+
+\* ATT and ALL are "stressed" to their OWN acute share (~.16), so this column only says their real acute set is not
+skewed. With far contra absent, they are as fragile as P. Full acute mix (cue/working): B .77, G1 .86-.88, G2 .39 to
+-.43, ATT / ALL .96-.97.
+- G1 at 2 % fires on only 61 % of forced-share draws (the EM over-estimates a near-absent share in the first pass); at
+  5 %, 91 %.
+- G2 recreates the bias, as expected, and makes it WORSE than production from 5 % up. Do not use it.
+
+**Real sessions, cue/working, change vs pre (nested boot; n animals < 0 in brackets).**
+
+| arm | acute far contra | acute close (mean of 3) | chronic far contra | arm - P, acute far contra | arm - P, acute close |
+|---|---|---|---|---|---|
+| P | -.536 (4/4) | -.232 (4/4) | -.130 | - | - |
+| B | -.642 (4/4) | -.174 | -.178 | -.110 [-.185, -.039] 4/4 | +.061 [.044, .081] 4/4 |
+| G1 2 % | -.657 | -.169 | -.179 | -.125 4/4 | +.066 4/4 |
+| **G1 5 %** | **-.664 (4/4)** | **-.171 (4/4)** | **-.186** | **-.132 [-.217, -.055] 4/4** | **+.064 [.045, .084] 4/4** |
+| G1 10 % | -.673 | -.161 | -.213 | -.142 4/4 | +.075 4/4 |
+| G2 5 % | -.542 | -.220 | -.174 | -.010 (ns) | +.016 (ns) |
+| ATT_z | -.633 | -.209 | -.135 | -.101 [-.216, .006] 3/4 | +.025 (ns) 1/4 |
+| ATT_em | -.714 | -.178 | -.189 | -.185 4/4 | +.058 4/4 |
+| ALL | -.647 | -.208 | -.136 | -.121 3/4 | +.027 (ns) |
+
+- Overall accuracy moves <= .03 in every arm (acute -.314 P to -.344 ALL).
+- Lick/lick acute far contra: P -.465, B -.482, G1 5 % -.590, all on 3 animals. PS95 has <5 engaged far-contra trials
+  acutely, so this cell is near-empty.
+- Precue/working: every arm moves acute far contra by only -.01 to -.05, and the close positions by about +.04-.05.
+
+**How often the guard fires on real sessions (far contra, final pass; cue/working).**
+- G1 2 %: pre 0, acute .31, subacute 0, chronic 0.
+- G1 5 %: pre 0, acute .56, subacute .06, chronic .05.
+- G1 10 %: pre 0, acute .94, subacute .41, chronic .40.
+- At 10 % the guard fires on 40 % of chronic sessions whose true share is .16 (EM under-estimates: PS94 chronic .07).
+  This pushes chronic far contra from -.178 (B) to -.213. Lick/lick behaves the same way.
+- Precue: the EM is poor (pre-cue code weaker). The guard fires on 9-30 % of PRE sessions, and every guarded arm
+  removes only ~.4-.5 of the artefact.
+
+**Reading.**
+- B as built leaves ~30 % of the artefact on the forced mix and ~40 % when far contra is absent. The pre-geometry guard
+  closes most of that gap (to ~.11) and nearly removes the coupling knock-on.
+- The real-session headline is the same in every working arm: far contra falls most, 4/4. Fixing the centre makes it
+  larger (~-.13 vs production) and the close-position loss smaller (~+.06). G1 adds ~-.02 on far contra over B.
+- ATT recovers a nearly balanced acute set without any model. But it protects nothing when a class is truly absent, and
+  it mixes ~40 % non-lick windows into the acute frame. It lands near ALL on the close positions (-.21), so like ALL it
+  is a different frame, not a clean fix.
+
+**Recommendation (diagnostic; adoption is Priya's call).**
+- If the spout-position decoder moves to bal_em, use **G1 at 5 %** for cue- and lick-aligned scoring. It is the most
+  invariant arm on all three stress tests (forced .89, absent .88, coupling -.002) and fires in pre 0 / chronic 5 %.
+- 2 % under-fires on the forced test. 10 % false-fires on 40 % of chronic sessions and inflates the chronic loss.
+- Do not use G2.
+- Keep ATT and ALL as sensitivity references only.
+- As with the state decoder, this is a new frozen spec (new id; old models kept). The guard threshold and the
+  pre-geometry offset must go into `scaling_params`.
+
+**Limits.**
+- G1 assumes the missing spout's offset from the others keeps its pre-stroke geometry. The imputed mean is only 1/6 of
+  the centre, but a stroke-changed far-contra representation would be imported as pre structure.
+- The guard depends on the EM share estimate. That estimate is noisy (PS95 acute .001-.155 depending on alignment;
+  PS94 chronic .07 vs .16), so the threshold trades misses against false fires.
+- Precue is NOT fixed by any EM arm (~.45 removed). Precue per-position numbers keep a ~.02-.03 artefact either way.
+- Lick-scored acute far contra rests on 3 animals and a handful of trials.
+- ATT relies on the video classes (no June pre sessions; PS93_0813 has no video). By trial_classes' own rule, jaw_only
+  is "a reaction, NOT an attempt" (10-21 blind review). ATT was run as specified, not as a recommended set.
