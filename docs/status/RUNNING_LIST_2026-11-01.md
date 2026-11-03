@@ -437,3 +437,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   level moves. RECOMMEND keep 600 s; add 1200 / 1500 s as a sensitivity row for spout contra - ipsi + ITI level readouts. Decision: Priya.
 - 11-03 DECISIONS (Priya): encoder / ITI drift = keep 600 s + a 20-25 min sensitivity row (spout contra - ipsi, ITI level readouts).
   Licks per trial = TOTAL licks from cue to trial stop while the spout is present; lick RATE is a separate metric (reported alongside).
+- 11-03 DECISIONS (Priya): task rule = after the first lick the animal has 3.5 s; no lick -> trial ends at cue + 3.5 s (so trial length
+  = first-lick latency + 3.5 s). Licks per trial = total cue -> trial stop; lick RATE from inter-lick intervals, NOT count / time.
+  "Stopped" runs must start >= 5 min after the first cue (replaces the warm-up rule); checking that no current stopped run moves.
+  LMM captions: main slides keep their bootstrap captions; each LMM hidden slide carries the LMM results + its own LMM caption (a8 asked).
