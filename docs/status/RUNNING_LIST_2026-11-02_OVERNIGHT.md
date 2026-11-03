@@ -135,3 +135,13 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   the list of figures whose stars change. Priya: build bal_em min-mass fallback (test 2 / 5 / 10 %; default only if it
   clearly helps) -> bal_em helper. Mix-invariance test (1f33189e): no normalisation is both mix-invariant and right on
   PS94; keep bal_em.
+- 11-03 late: decoder mix checks DONE (fa70b651; labcams/decoder_mix_checks/). SPOUT frozen decoder IS biased by the
+  class mix of its per-session z-score set (engaged trials; far-contra share .16 pre -> .00-.03 acute): production
+  UNDERSTATES the acute far-contra drop by ~.10 (cue/working: -.536 prod vs -.641 bal_em, 4/4 animals) and overstates
+  near-position losses by ~.05-.07; overall accuracy moves <= .04. "Far contra falls most" stands and gets stronger.
+  Fix proposed: bal_em centring on the engaged set as a new frozen spec (old models kept) -- AWAITING PRIYA (and the
+  min-mass guard decision). LICK-LANDING decoder: clean (frame-SD over all frames, no lick-sample centring; artefact
+  +.003 mm vs +.36 mm offset). Caveat: cued ALL-lick acute offset (+.17) loses ~1/3 when the 1.06-1.20x frame-SD rise
+  is undone (CI then includes 0, PS95 flips); ITI and first-cued-lick offsets stand. Tell sabatinilab-34 after Priya.
+  PS110 mCherry: the refined 891 / 4,276 (20.8 %) call file was built on the MOSAIC detection; the cited per-tile
+  detection has only the strict 559 / 3,804 (14.7 %); refined per-tile never run -> asked Priya.

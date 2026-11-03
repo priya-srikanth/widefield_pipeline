@@ -1,5 +1,8 @@
-# Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
+﻿# Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> UPDATE 11-03 (late+): helper (B) DONE -- spout decoder biased (prod understates acute far-contra drop ~.10; fix = bal_em
+> centring, new spec, AWAITING PRIYA); lick decoder clean except cued all-lick acute offset caveat (tell 34 after Priya).
+> PS110: refined 891/4,276 is on the MOSAIC detection; per-tile has only strict 559/3,804; asked Priya. See running list.
 > **PRE-COMPACTION SNAPSHOT 11-03 (late) -- START HERE.** Two helpers RUNNING (resume by SendMessage if a rate limit stops
 > them; never start duplicates):
 > (A) bal_em -> PRODUCTION state decoder (Priya approved) + MIN-MASS FALLBACK (Priya approved: if a class's EM share < 5 %
