@@ -306,3 +306,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03 interim: LocaNMF refits NOT reproducible even seeded (PS93_0826 x4: footprints r .95-.97 refit vs refit, .94-.95 refit vs
   stored; projection decode inside the refit spread). Drift replacement arm: cosine >= cutoff misses edge bleaching ramps the
   polynomial fitted (PS92_0819; 3.5% of brain-mean) -> consider polynomial + block-protected cosine, or an explicit bleach term.
+- 11-03 (Priya: "lots of CPU and some memory available"): rebuild CODE PREP launched in parallel with the two checks. New worktree
+  wf_rebuild, branch rebuild/cohort1-20261103 off origin/main; merges the 5 branches (not pushed); decision-independent changes
+  a-k (single hemo switch, basis pin + project_all, output tagging, cache prune guard, spec fingerprint, camera working default,
+  Aug-only pre per block, cache-rebuild items, nolick bug, per-session projection path, tagged preprocessing maps) + lost
+  scripts recreated and reproduced on old data. Log: wf_rebuild docs/status/REBUILD_CODE_20261103.md.
