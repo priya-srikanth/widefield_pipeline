@@ -1706,12 +1706,21 @@ def summarise_musall(out: Path, variants) -> None:
     print(f"\n-> {Path(out) / 'frozen_musall_r2_by_animal.csv'}")
 
 
-def main(argv=None) -> int:
-    from wfield_local import analysis_kit as ak
-    from wfield_local import config, epochs
+def out_root() -> Path:
+    """Parent of every `frozen_encoder_<tag>/` run folder. FROZEN_OUT_ROOT (2026-11-02, cohort-1 swap-mask re-run): a run
+    on another hemo variant (WIDEFIELD_HEMO_VARIANT) goes under its OWN root, never beside / over the adopted runs.
+    Unset = `<orofacial root>/<RUN>/imaging_encoding`, unchanged."""
+    if os.environ.get("FROZEN_OUT_ROOT"):
+        return Path(os.environ["FROZEN_OUT_ROOT"])
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
+    return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+
+
+def main(argv=None) -> int:
+    from wfield_local import analysis_kit as ak
+    from wfield_local import config, epochs
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("labels", nargs="*")
@@ -1729,12 +1738,13 @@ def main(argv=None) -> int:
     if a.target != "areas":
         if a.variants == list(VARIANTS):
             a.variants = [*PART_VARIANTS, *_DROP, "task_only"]   # parts (maps) + drop variants (unique-R2 maps)
+    root = out_root()
     if a.summarise_drop:
-        summarise_drop(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}")
+        summarise_drop(root / f"frozen_encoder_{a.tag}")
         return 0
     labels = sorted(a.labels or (_ce().sessions_available() if a.all else []))
     labels = [x for x in labels if x[-4:] >= "0801"]                       # August-only pre baseline (primary)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    out = root / f"frozen_encoder_{a.tag}"
     assert_writable(out)
     pre = [x for x in labels if epochs.epoch_of(x) == "pre"]
     print(f"[frozen] {len(labels)} sessions, {len(pre)} August pre -> {out}", flush=True)

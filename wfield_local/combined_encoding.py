@@ -391,17 +391,28 @@ def _env_tables() -> list:
     return [v for k, v in os.environ.items() if k.startswith("COMBINED_ENCODING_") and v and Path(v).is_file()]
 
 
+def hemo_dir() -> str:
+    """The `hemo_<variant>` directory the encoder inputs read: the ADOPTED variant, unless `WIDEFIELD_HEMO_VARIANT` names
+    another one (2026-11-02, cohort-1 swap-mask re-run: e.g. `meegkit_hpfit_lag_refitT_swapmask`). Deliberately NOT
+    `config.hemo_variant()`: with the env var unset this stays exactly `hemo_{ADOPTED}` whatever defaults.yaml says.
+    The cache key (`load_imaging`) carries the SVTcorr path, so two variants never share an entry."""
+    from wfield_local.hemo_variants import ADOPTED
+    v = os.environ.get("WIDEFIELD_HEMO_VARIANT")
+    if v in ("zerophase", "none"):
+        raise ValueError("the encoder inputs have no zerophase / bare-SVTcorr route; name a hemo_<variant> directory")
+    return f"hemo_{v or ADOPTED}"
+
+
 def load_imaging(label: str):
     """(V, ft, Ub, flat, area, names, shape, pstat) -- `_load_imaging`, through the CACHE_ENV local cache."""
     if not os.environ.get(CACHE_ENV):
         return _load_imaging(label)
     from wfield_local import config
-    from wfield_local.hemo_variants import ADOPTED
     s = next(x for x in config.load_sessions() if x["label"] == label)
     res = Path(s["mc"]) / "wfield_local_results"
     at = res / "allen_aligned_affine8v1"
     fmdir = s["fmdir"] or s["mc"]
-    src = [res / f"hemo_{ADOPTED}" / "SVTcorr.npy", at / "U_atlas.npy", at / "allen_brain_mask_native_grid.npy",
+    src = [res / hemo_dir() / "SVTcorr.npy", at / "U_atlas.npy", at / "allen_brain_mask_native_grid.npy",
            at / "allen_area_atlas_native_grid.npy", s["h5"], *glob.glob(f"{fmdir}/*cleanpairs_*")]
     return _cached("imaging", label, src, lambda: _load_imaging(label))
 
@@ -410,14 +421,13 @@ def _load_imaging(label: str):
     """(V (T, K) float32 adopted hemo-corrected SVD temporal components, frame DAQ s, U_atlas (P_brain, K) float32,
     brain-mask flat indices, area labels per brain pixel, area names {code: name})."""
     from wfield_local import config
-    from wfield_local.hemo_variants import ADOPTED
     from wfield_local.locanmf_lick_aligned import _corrected_frame_samples
     from wfield_local.plot_spout_trial_averages import _load_daq_events
     s = next(x for x in config.load_sessions() if x["label"] == label)
     if s.get("regime") != "B":
         raise ValueError(f"{label}: regime {s.get('regime')} (corrected frame map needed)")
     res = Path(s["mc"]) / "wfield_local_results"
-    V = np.load(res / f"hemo_{ADOPTED}" / "SVTcorr.npy").T.astype(np.float32)
+    V = np.load(res / hemo_dir() / "SVTcorr.npy").T.astype(np.float32)
     at = res / "allen_aligned_affine8v1"
     U = np.load(at / "U_atlas.npy", mmap_mode="r")
     mask = np.load(at / "allen_brain_mask_native_grid.npy").astype(bool)
