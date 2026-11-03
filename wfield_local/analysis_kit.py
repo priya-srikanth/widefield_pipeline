@@ -331,17 +331,25 @@ def epoch_change_lmm(df, *, value: str = "value", animal: str = "animal", epoch:
     for e in eps:
         D[f"a_{e}"] = np.where(D.e == e, D.a, "none")
         vc[e] = f"0 + C(a_{e}, Treatment('none'))"
+    # OPTIMISER (a8 11-03 found many non-converged fits): try each in turn and keep the FIRST that converges; if none
+    # does, keep the fit with the highest REML log-likelihood (the best estimate available) and report converged=False.
     fit = None
     if (D.e == base).any() and eps and D.a.nunique() >= 2:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            for method in ("lbfgs", "powell", "nm"):
+            for method in ("lbfgs", "bfgs", "powell", "nm", "cg"):
                 try:
-                    fit = smf.mixedlm(f"y ~ C(e, Treatment('{base}'))", D, groups=D.a, re_formula="1",
-                                      vc_formula=vc).fit(reml=True, method=method)
-                    break
+                    f = smf.mixedlm(f"y ~ C(e, Treatment('{base}'))", D, groups=D.a, re_formula="1",
+                                    vc_formula=vc).fit(reml=True, method=method)
                 except Exception:  # noqa: BLE001 -- a failed optimiser falls through to the next one
                     continue
+                if not np.isfinite(f.llf):
+                    continue
+                if fit is None or (f.converged and not fit.converged) or (
+                        f.converged == fit.converged and f.llf > fit.llf + 1e-6):
+                    fit = f
+                if fit.converged:
+                    break
     vcs = dict(zip(fit.model.exog_vc.names, fit.vcomp)) if fit is not None else {}
     for r in rows:
         e, k = r["epoch"], f"C(e, Treatment('{base}'))[T.{r['epoch']}]"
@@ -350,8 +358,12 @@ def epoch_change_lmm(df, *, value: str = "value", animal: str = "animal", epoch:
                      converged=False, singular=False)
             continue
         b, se, dfree = float(fit.params[k]), float(fit.bse[k]), r["n_animals"] - 1
-        tc = float(stats.t.ppf(0.975, dfree))
         va = float(vcs.get(e, np.nan))
+        if not (np.isfinite(se) and se > 0):     # degenerate cell (e.g. every session at a ceiling): no test
+            r.update(beta=b, se=np.nan, df=dfree, lo=np.nan, hi=np.nan, p=np.nan, var_animal_epoch=va,
+                     converged=bool(fit.converged), singular=True)
+            continue
+        tc = float(stats.t.ppf(0.975, dfree))
         r.update(beta=b, se=se, df=dfree, lo=b - tc * se, hi=b + tc * se,
                  p=float(2 * stats.t.sf(abs(b / se), dfree)), var_animal_epoch=va, converged=bool(fit.converged),
                  singular=bool(va < 1e-4 * float(fit.scale)))
