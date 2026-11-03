@@ -113,3 +113,10 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   Class-balanced centring fixes PS94 best (.97 / .96 / .91) and worsens no animal by > .01; state retained .98 -> .94 /
   .95 / .94. Position still falls 6-15x further acutely under every arm. Recommendation: keep the class rule; adopt
   class-balanced centring as a new frozen spec (needs Priya).
+- 11-03 PM Priya: (3) RESTW leads the maps (deck already RESTW; imaging page to lead with RESTW after the figure-rules
+  helper publishes); (6) oblique 3-D views relabelled not mirrored = OK (contra image-left matches the cameras); (8) 11-02
+  mirrored path files DELETED (13 derived files, each with a *_contra_cam replacement and no deck reference: 6
+  cohort_*trajectory*_contra.png, pose3d_paths_pooled{,_shared}_contra.png, 4 spout_error scatter_epoch_PS9x_contra.png,
+  deck crop p_paths_shared_contra.png; list in DECISIONS 2026-11-03 camera-view entry). Asked to SEE: slide 27 vs 31
+  (trial classes), slide 36 (path axis), PS110 strict vs refined mCherry overlays; explain class-balanced centring and the
+  Big-picture quiet qualifier.
