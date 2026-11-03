@@ -8,7 +8,7 @@ Window: sabatinilab-e3. Owns the **kinematics page** and the **repo consolidatio
 | thread | state | next step |
 |---|---|---|
 | Kinematics page | **v23** live, https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv | behaviour / kinematics split (§2), after Priya answers the FaceRhythm question |
-| Repo audit | read-only audit DONE (`REPO_AUDIT_2026-11-03.md`); independent verifier agent was still RUNNING at hand-off (output `scratchpad/repo_audit/VERIFY.md`, not yet in the repo) | when VERIFY.md exists: copy it in next to the audit, then write the consolidation PLAN for Priya to approve |
+| Repo audit | audit + independent verification DONE (`REPO_AUDIT_2026-11-03.md`, `REPO_AUDIT_VERIFY_2026-11-03.md`); draft plan `REPO_CONSOLIDATION_PLAN_2026-11-03.md` | Priya approves the plan, Tier A decisions first (A1: S28 quit point uses a 2.0 s "responded" window vs the task 3.5 s) |
 | Code changes from the audit | **NONE made** | wait for (1) Priya's approval of the plan, (2) the cohort-1 rebuild window (sabatinilab-34, swap-mask + lag hemo pass) to land, so we don't collide |
 
 ## 1. Kinematics page: what changed today (v14 → v23)
