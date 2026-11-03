@@ -1,3 +1,8 @@
+> **CORRECTION 2026-11-03:** under the z-scored (production) decoder PS94's loss is its RUNNING class (recall .98 ->
+> .84 / .54 / .49; read as quiet / licking), not licking (licking holds .90-1.0; the licking reading was the pre-fix
+> decoder's). Running alone (running-class recall) is now .98 -> .92 / .83 / .89, not flat. A class-balanced session
+> centring restores PS94 running to .91-.97 (diagnostic; decision open). DECISIONS 2026-11-03 (overnight).
+
 > **CORRECTION 2026-11-02:** the state decoder's per-session z-score was specified but never applied (fixed;
 > spec scaling="session_z"). It explains only part of PS94's state loss (chronic .64 -> .78); a within-session refit
 > stays .97-.99, so the states remain separable and the definitions hold -- PS94's LICKING pattern changed (licking read

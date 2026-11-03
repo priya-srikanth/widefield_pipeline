@@ -22239,3 +22239,29 @@ pattern no longer fits the pre-stroke map -- the same kind of change as the spou
 under every decoder. **Consequence for the specificity claim:** state is not a clean non-orofacial control -- its
 licking class is orofacial; position still falls far more than state in 3 / 4, and PS94's state loss is in the
 orofacial class. Re-rendered: epoch family 13s (`epoch_13*`), deck slide "Specificity ...", imaging page section 3.
+
+
+## 2026-11-03 (overnight) — "Running alone" re-checked after the state z-score fix; PS94's loss is its RUNNING class, not licking
+
+**Where "running alone" comes from.** It is the running row of the frozen 3-way state decoder's per-class recall
+(`locomotor_decoder.score` -> `per_class`, via `by_animal_day` -> `epoch_state._fig_13_state`, figure 13pos), not a
+separate binary decoder. So it already goes through the per-session z-score of abda8c9c; no model, spec or cache change
+was needed. The 13n subtitle still printed the 09-13 literal ("RUNNING alone 0.98 -> 0.95, losing 3%", with position /
+state literals) and 13pos + the deck note asserted running is "flat at every epoch"; both are now measured
+(`epoch_state._acute_line`, commit 67acffc0) and family 13s was re-rendered (11-02 23:36, numbers unchanged).
+
+**Numbers (production, z-scored; mean over sessions as 13pos):** running recall .983 / .922 / .825 / .893 (pre / acute /
+subacute / chronic); pre-fix .988 / .953 / .864 / .919. Acutely keeps ~94 % (pre-fix ~96 %). Per animal acute .95 / .99 /
+.84 / 1.00 (PS95 one session); PS94 .98 / .84 / .54 / .49. `boot_delta` vs pre (animals -> sessions, 4000, seed 0):
+-.038 [-.125, .012] / -.122 [-.338, .016] / -.119 [-.373, .016], none excludes 0.
+
+**Correction to 2026-11-02 (late).** The "PS94's residual loss is LICKING read as quiet (.49)" reading came from the
+pre-fix, UNSCALED decoder. Under the production z-scored decoder PS94 licking holds (.99 / 1.00 / .94 / .90) and RUNNING
+fails (chronic running read as quiet .29, as licking .24). Likely mechanism: PS94's class mix changes (running ~10 % of
+segments pre, ~40 % post; median running speed ~7 -> ~15 mm/s), and `session_zscore` centres on the mean over all
+segments, so the session mean moves toward running. A class-balanced centring (mean of the class means; diagnostic only,
+in memory, never stored) restores PS94 running to .97 / .96 / .91 and balanced accuracy .97 / .94 / .90; PS92 / PS93 /
+PS95 move by <= .08, all upward. Within-session refit .98-.99. **Open decision (Priya):** adopt class-balanced centring
+as a new frozen spec (new id; old models kept) or keep the plain z-score and report PS94's running loss as a scaling
+sensitivity. Figure + CSV: `presentations/_source_PI_overview_2026-11-02/fig_state_ps94_diagnostic.py` ->
+`build_inputs/state_ps94_diagnostic.{png,csv}`; imaging page v49 section 3 (Fig 3.5).
