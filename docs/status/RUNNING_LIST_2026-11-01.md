@@ -485,6 +485,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   does not. RECOMMEND keep AUC 0-1 primary (pre-decided; it captures DURATION -- the acute far-contra response reaches the pre
   peak but decays sooner, which a peak cannot see), peak as a labelled sensitivity. Caveat on peak: the max of a noisy PETH is
   biased up, more so with fewer trials (acute sessions have fewer licks), so it can inflate acute changes.
+- PI slide 118 (lick order, cued row): Priya wants an ITI backup (landing offset + decoder offset by lick number). The panels exist
+  (top row of goal Fig 13.2, docked ITI; whole figure already on slide 177 "Backup: lick-order curves"). Asked a8: hidden backup
+  right after 118 with the ITI row only, and fix 118's bullet / notes, which name a non-existent backup title. Pending the deck
+  being closed (a8: open in a PowerPoint window since 18:27, likely Priya's).
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
