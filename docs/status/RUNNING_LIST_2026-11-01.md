@@ -401,3 +401,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   rec_kn chronic norm (p .14), spec_groups acute residuals (p .065-.16); kept: acute ITI / cued landing offsets, first-lick acute /
   subacute, landing slopes, decoder_retention failed-attempt cells (now **). Curve shapes: cued_ramp_summary_row2 + iti_ramp_row1
   made (pre-specified AUC); gauss_curves / lick_order curves not time courses -> not made. a8 + e3 told.
+- 11-03: rebuild code tip 5c17d76a: second-review fixes + Priya decisions 1-7 (classify_session); FULL SUITE 4,441 passed, 0 failed
+  (ordering failures fixed). Check on 3 sessions: undetected-but-contact disagreement 0 / 1 / 0; trial stop > 3.6 s on most trials
+  (median stop 3.66-3.77 s). Remaining before render: ~44 older unrouted writers, ITI run labels, cache-key gaps, attempt readers,
+  a single render profile (variant, LocaNMF projection, camera end=lick stopRun6, Aug-only pre, LP-trained, fresh store) ->
+  helper; THIRD review pass launched in parallel.
