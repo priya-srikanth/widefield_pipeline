@@ -388,3 +388,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   contacts from cue + 70 ms). Trial stop (v36 response_end_ms) >= 3.5 s, usually 3.525 s, mean 3.7-4.0 s, max ~7 s (PS92 / PS93 / PS94
   sessions checked) -> helper reports trials > 3.6 s per animal x epoch (trial-length differences matter for licks-per-trial).
   e3's window="response" request cancelled.
+- 11-03 (Priya via e3): LMM hidden-slide versions of 14 wf_attempt PI-deck figures (analysis_kit.epoch_change_lmm + lmm_stars, Holm
+  across the figure; scripts/lmm_change_fig.py on main). Helper building them on CURRENT data with per-session extractors
+  (scripts/lmm_hidden/, re-runnable on rebuild outputs) -> grant_figures/lmm_hidden_20261103/ + README (star differences vs
+  bootstrap). Tell a8 when they land; tell e3 when the rebuild's *_sessions.csv exist (slides 10 / 11 / 12 / 19).
