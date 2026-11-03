@@ -226,6 +226,12 @@ and reused."* Any decoder that scores post-stroke data against a pre-stroke refe
 | June -> August drift decoder (imaging page fig 4.3's unmatched frozen column) | `scripts/june_august_drift.drift_payload` (one spec per month); opt-out `WIDEFIELD_DRIFT_FROZEN=0` | `drift_decoder` | **default 11-02 pass 2** |
 | coding directions + per-class confusion decoder (`coding_direction.json` -> grant 3a / 5b, `miss_vs_stopped`) | `position_coding_directions.stored_reference` / `stored_confusion_decoder`; opt-out `WIDEFIELD_CODING_FROZEN=0` | `coding_directions` / `coding_decoder` | **default 11-02 pass 2** |
 | CD trajectories reference (z-score frame, CIM, directions; imaging page section 9) | `cd_trajectories.stored_cd_reference`; opt-out `WIDEFIELD_CD_FROZEN=0` | `cd_directions` | **default 11-02 pass 2** |
+| ITI / cued-lick ridge read-outs (12 scripts; encoding page section 3; LP only) | `frozen_readouts.pre_loso_ridge` (one helper; spec hashes the training data); opt-out `WIDEFIELD_ITI_FROZEN=0` | `iti_readout` | **default 11-02 pass 2** |
+
+**LP arm, 11-03 (Priya): the DEFAULT is the LP-TRAINED model again** (spec `lick_source=lp`, trained on the LP arm's own
+pre trials); the DAQ-trained model is the opt-in cross-check, `WIDEFIELD_LP_FROZEN=daq` (`frozen_models.lp_trained` /
+`daq_trained_in_lp`). Section G's stored references (`g_*`) and the frozen encoder are NOT converted (pass-2 sections
+P2.8 / P2.6), and no kind's spec sees a correction applied downstream of SVTcorr except `iti_readout` (P2.10).
 
 The last two were refitted in memory on every render until 11-02 (Priya 11-02: *"we should cache frozen decoders as we
 always do"*). Opt-outs, for reproducing an old render only: `WIDEFIELD_EPOCH_FROZEN=0`, `WIDEFIELD_REST_FROZEN=0`.

@@ -545,8 +545,8 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
 #:                             engagement cosine is read from), their leave-one-session-out refits, the pairwise axes and
 #:                             their LOSO refits; spec align = "<align>-<methods joined by +>"
 #: OPT-OUT WIDEFIELD_CODING_FROZEN=0 (false / no / off) fits both in memory -- through the SAME `fit_*` functions, so
-#: the two paths differ only by the store round trip. Under WIDEFIELD_LICK_SOURCE=lp the store serves the DAQ-trained
-#: references (training set = the animal's DAQ pre sessions), LP-trained with WIDEFIELD_LP_FROZEN=lp. Not stored:
+#: the two paths differ only by the store round trip. Under WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED
+#: references (default since 11-03, Priya), DAQ-trained (the animal's DAQ pre sessions) with WIDEFIELD_LP_FROZEN=daq. Not stored:
 #: `_diagnostics` (pre-only diagnostics: close-far axis, pre-stroke-only pairwise slopes, unit-norm poles).
 #: These feed coding_direction.json -> grant_figures 3a / 5b (`_from_json`) and `miss_vs_stopped`.
 CODING_FROZEN_ENV = "WIDEFIELD_CODING_FROZEN"

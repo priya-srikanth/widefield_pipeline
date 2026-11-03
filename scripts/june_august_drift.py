@@ -83,8 +83,8 @@ def distance_rows(n_split: int, log=print) -> pd.DataFrame:
 #: "cue-june" / "cue-aug": two training sets never share an id), payload {"full", "loso": {label: model}}. OPT-OUT
 #: WIDEFIELD_DRIFT_FROZEN=0 refits per scored session as before. The size-matched draw (`_matched_frozen`, seeded per
 #: scored session) stays in memory by design, like `paired_matched`. Under WIDEFIELD_LICK_SOURCE=lp the store serves
-#: the DAQ-trained model (training set = the animal's DAQ pre sessions of that month), LP-trained with
-#: WIDEFIELD_LP_FROZEN=lp.
+#: the LP-TRAINED model (default since 11-03, Priya), the DAQ-trained one (the animal's DAQ pre sessions of that month)
+#: with WIDEFIELD_LP_FROZEN=daq.
 DRIFT_FROZEN_ENV = "WIDEFIELD_DRIFT_FROZEN"
 _DRIFT_MODELS: dict = {}
 

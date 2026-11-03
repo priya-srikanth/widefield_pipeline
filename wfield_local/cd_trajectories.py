@@ -1084,8 +1084,8 @@ def fit_cd_reference(Xall, yall, Gpre_chunks, Rb, drop, *, reference, method, t)
 #: leave-one-out run of `scripts/cd_loo_sessions.py` gets one id per held-out session). OPT-OUT WIDEFIELD_CD_FROZEN=0
 #: fits in memory through the same `fit_cd_reference`. The cached CD courses are keyed on the direction VALUES
 #: (`courses_cache_kind`), so a stored model equal to the in-memory one leaves every courses cache warm. Under
-#: WIDEFIELD_LICK_SOURCE=lp the store serves the DAQ-trained reference (DAQ arm's pre set), LP-trained with
-#: WIDEFIELD_LP_FROZEN=lp (and the DAQ-trained directions then key their own courses cache entries).
+#: WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED reference (default since 11-03, Priya), the DAQ-trained one
+#: (DAQ arm's pre set) with WIDEFIELD_LP_FROZEN=daq (its directions then key their own courses cache entries).
 CD_FROZEN_ENV = "WIDEFIELD_CD_FROZEN"
 
 

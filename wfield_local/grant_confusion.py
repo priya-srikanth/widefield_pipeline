@@ -606,8 +606,9 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
 #: 5c / acc decoders (mode "frozen") go through `frozen_models` instead of being fitted in memory on every render; the
 #: lp-final branch introduced this as an opt-in (=1). OPT-OUT: WIDEFIELD_EPOCH_FROZEN=0 (also false / no / off) fits
 #: in memory exactly as before, for reproducing an old render. Under WIDEFIELD_LICK_SOURCE=lp the store serves
-#: the DAQ-TRAINED models (fitted by a DAQ-source run at the same window and pre set; the LP run refuses to fit them,
-#: `frozen_models.load_or_fit`), or with WIDEFIELD_LP_FROZEN=lp the LP-TRAINED ones (the spec gains lick_source=lp).
+#: the LP-TRAINED models (spec lick_source=lp; THE DEFAULT SINCE 11-03, Priya -- 11-02 it was DAQ-trained), or with
+#: WIDEFIELD_LP_FROZEN=daq the DAQ-TRAINED cross-check (fitted by a DAQ-source run at the same window and pre set; the
+#: LP run refuses to fit them, `frozen_models.load_or_fit`).
 #: WHY: the in-memory fit trains on the CURRENT arm's pre-stroke trials, so every LP-arm acc / 5c figure rendered
 #: before 11-02 was LP-trained -- `WIDEFIELD_LP_FROZEN` never reached this family. Kind "epoch_decoder" (never
 #: collides with `locanmf_frozen_decoder`'s "decoder" specs); payload {"full": all-pre model, "loso": {pre label:
@@ -633,8 +634,6 @@ def _stored_epoch_decoder(an, align, bd, tag="5c"):
     """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when opted out.
 
     ``tag`` only labels the log line (5c / 5r / 5b): every caller gets the same spec, hence the same stored model."""
-    import os
-
     if not epoch_frozen_on():
         print(f"  [{tag}] {an} {align}: {EPOCH_FROZEN_ENV}=0 -> pre-stroke decoder fitted IN MEMORY (not stored)",
               flush=True)
@@ -646,9 +645,10 @@ def _stored_epoch_decoder(an, align, bd, tag="5c"):
     pre_i = sorted(bd["pre_i"])
     e_pre = bd["e_pre"]
     train = [kept[i] for i in pre_i]
-    from wfield_local import config, lp_licks
-    if lp_licks.is_lp() and os.environ.get(frozen_models.LP_FROZEN_ENV, "").strip().lower() != "lp":
-        # DAQ-TRAINED model scored in the LP arm: its training set is the DAQ arm's (every pre session of the animal),
+    from wfield_local import config
+    if frozen_models.daq_trained_in_lp():
+        # (11-03, Priya: the LP arm's DEFAULT is now LP-TRAINED; this DAQ-trained branch is the opt-in cross-check,
+        # WIDEFIELD_LP_FROZEN=daq.) DAQ-TRAINED model scored in the LP arm: its training set is the DAQ arm's (every pre session of the animal),
         # not the LP-kept list -- a pre session without video (PS93_0813) is in the DAQ fit but cannot be pooled here.
         train = [x for x in config.phase_labels("pre") if config.animal_of(x) == an]
     spec = frozen_models.make_spec(an, "epoch_decoder", align=align, source="locanmf",
@@ -729,7 +729,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
 
             # THE FROZEN COLUMN IS THE STORED MODEL in "frozen" AND "paired" (11-02): the same full / LOSO fits as the
             # in-memory line below (same rows), so the DAQ arm is unchanged bit for bit and the LP arm's paired frozen
-            # column is the acc family's model (DAQ-trained by default, LP-trained with WIDEFIELD_LP_FROZEN=lp).
+            # column is the acc family's model (LP arm: LP-trained by default since 11-03, DAQ-trained with
+            # WIDEFIELD_LP_FROZEN=daq).
             # "refit" has no frozen column; "paired_matched" replaces both models with `_matched_frozen` draws.
             stored = (_stored_epoch_decoder(an, align, bd, tag="5c" if mode == "frozen" else "5r")
                       if mode in ("frozen", "paired") else None)

@@ -251,15 +251,15 @@ def test_5b_uses_the_stored_epoch_decoder():
     assert 'frozen["loso"].get(bd["kept"][i]) if frozen else None) or _pipe().fit(XE[tr], YE[tr])' in src
 
 
-@pytest.mark.parametrize("lp_frozen", [None, "lp"])
-def test_lp_arm_spec_is_daq_trained_by_default_and_lp_trained_on_request(daq_env, lp_frozen):
-    """Under WIDEFIELD_LICK_SOURCE=lp the 5r / 5b frozen model is the acc family's: the DAQ-trained spec (no
-    lick_source; training set = every pre session of the animal) by default, the LP-trained one (lick_source=lp, the
-    LP-kept pre sessions) with WIDEFIELD_LP_FROZEN=lp. The two specs never share an id."""
+@pytest.mark.parametrize("lp_frozen", [None, "lp", "daq"])
+def test_lp_arm_spec_is_lp_trained_by_default_and_daq_trained_on_request(daq_env, lp_frozen):
+    """Under WIDEFIELD_LICK_SOURCE=lp the 5r / 5b frozen model is the acc family's: since 11-03 (Priya) the LP-TRAINED
+    spec (lick_source=lp, the LP-kept pre sessions) by default -- "lp", the old opt-in name, is the same spec -- and the
+    DAQ-trained one (no lick_source; every pre session of the animal) with WIDEFIELD_LP_FROZEN=daq. Never one id."""
     from wfield_local import config, frozen_models
     from wfield_local import grant_confusion as gc
     specs = {}
-    for lf in (None, "lp"):
+    for lf in (None, "lp", "daq"):
         rec = _Recorder()
         daq_env.setattr(frozen_models, "load_or_fit", rec)
         daq_env.setenv("WIDEFIELD_LICK_SOURCE", "lp")
@@ -270,13 +270,14 @@ def test_lp_arm_spec_is_daq_trained_by_default_and_lp_trained_on_request(daq_env
         _collect(gc, daq_env, "paired")
         specs[lf] = rec.calls[0]["spec"]
     s = specs[lp_frozen]
-    if lp_frozen is None:
+    if lp_frozen == "daq":
         assert "lick_source" not in s
         assert s["train_labels"] == sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == "PS92")
     else:
         assert s["lick_source"] == "lp"
         assert s["train_labels"] == sorted(_full_bundle()["kept"][i] for i in range(4))
-    assert frozen_models.spec_id(specs[None]) != frozen_models.spec_id(specs["lp"])
+    assert frozen_models.spec_id(specs[None]) == frozen_models.spec_id(specs["lp"])
+    assert frozen_models.spec_id(specs[None]) != frozen_models.spec_id(specs["daq"])
 
 
 # ------------------------------------------------------------------------------------- siblings() grouping (11-02)
@@ -515,14 +516,14 @@ def test_nolick_spec_distinguishes_cut_basis_window_and_features(pass2_env):
         frozen_models.spec_id(nd.nolick_spec("PS92", "cue", 2.0, None, tr + ["PS92_0812"], [], 8))
 
 
-def test_nolick_lp_arm_daq_trained_by_default(pass2_env):
+def test_nolick_lp_arm_lp_trained_by_default(pass2_env):
     from wfield_local import config, frozen_models
     from wfield_local import nolick_decoder as nd
     X, Y, S, m_pre, pre, _sess = _nolick_args()
     real = [s for s in config.load_sessions() if s["label"].startswith("PS92")]
     rp = [s["label"] for s in real if config.session_phase("PS92", s["label"].split("_")[-1]) == "pre"]
     specs = {}
-    for lf in (None, "lp"):
+    for lf in ("daq", None):
         rec = _Recorder()
         pass2_env.setattr(frozen_models, "load_or_fit", rec)
         pass2_env.setenv("WIDEFIELD_LICK_SOURCE", "lp")
@@ -532,9 +533,9 @@ def test_nolick_lp_arm_daq_trained_by_default(pass2_env):
             pass2_env.delenv("WIDEFIELD_LP_FROZEN", raising=False)
         nd._stored_nolick_reference("PS92", "cue", 2.0, None, X, Y, S, m_pre, pre, real, [])
         specs[lf] = rec.calls[0]["spec"]
-    assert "lick_source" not in specs[None] and specs[None]["train_labels"] == sorted(rp)
-    assert specs["lp"]["lick_source"] == "lp" and specs["lp"]["train_labels"] == sorted(pre)
-    assert frozen_models.spec_id(specs[None]) != frozen_models.spec_id(specs["lp"])
+    assert "lick_source" not in specs["daq"] and specs["daq"]["train_labels"] == sorted(rp)      # opt-in cross-check
+    assert specs[None]["lick_source"] == "lp" and specs[None]["train_labels"] == sorted(pre)    # LP-trained default
+    assert frozen_models.spec_id(specs[None]) != frozen_models.spec_id(specs["daq"])
 
 
 def test_nolick_analyse_animal_uses_the_store():
@@ -632,13 +633,13 @@ def test_drift_stored_equals_in_memory_for_every_training_set(pass2_env):
     assert jad._stored_month_model("PS92", bd, J) is None and len(rec.calls) == 2
 
 
-def test_drift_lp_arm_daq_trained_by_default(pass2_env):
+def test_drift_lp_arm_lp_trained_by_default(pass2_env):
     jad = pytest.importorskip("scripts.june_august_drift")
     from wfield_local import config, frozen_models
     bd = _drift_bundle()
     pass2_env.setenv("WIDEFIELD_LICK_SOURCE", "lp")
     specs = {}
-    for lf in (None, "lp"):
+    for lf in (None, "daq"):
         rec = _Recorder()
         pass2_env.setattr(frozen_models, "load_or_fit", rec)
         if lf:
@@ -646,8 +647,8 @@ def test_drift_lp_arm_daq_trained_by_default(pass2_env):
         jad.drift_payload("PS92", bd, "aug", log=lambda *_: None)
         specs[lf] = rec.calls[0]["spec"]
     want = [x for x in config.phase_labels("pre") if config.animal_of(x) == "PS92" and x.split("_")[-1][:2] == "08"]
-    assert "lick_source" not in specs[None] and specs[None]["train_labels"] == sorted(want)
-    assert specs["lp"]["lick_source"] == "lp" and specs["lp"]["train_labels"] == bd["kept"][3:6]
+    assert "lick_source" not in specs["daq"] and specs["daq"]["train_labels"] == sorted(want)
+    assert specs[None]["lick_source"] == "lp" and specs[None]["train_labels"] == bd["kept"][3:6]
 
 
 def test_drift_decoder_rows_uses_the_store():
@@ -795,22 +796,22 @@ def test_coding_confusion_decoder_stored_equals_in_memory(pass2_env):
     assert pcd.stored_confusion_decoder("PS92", "cue", 2.0, "b", XE, YE, GE, e_pre, pre_i, kept) is None
 
 
-def test_coding_lp_arm_daq_trained_by_default(pass2_env):
+def test_coding_lp_arm_lp_trained_by_default(pass2_env):
     from wfield_local import config, frozen_models
     from wfield_local import position_coding_directions as pcd
     XE, en, e_pre, GE, XU, u_pre, pre_i, kept = _cd_pool()
     pass2_env.setenv("WIDEFIELD_LICK_SOURCE", "lp")
     specs = {}
-    for lf in (None, "lp"):
+    for lf in (None, "daq"):
         rec = _Recorder()
         pass2_env.setattr(frozen_models, "load_or_fit", rec)
         if lf:
             pass2_env.setenv("WIDEFIELD_LP_FROZEN", lf)
         pcd.stored_reference("PS92", "cue", 2.0, "b", XE, en, e_pre, GE, XU, u_pre, pre_i, kept, ("dom",))
         specs[lf] = rec.calls[0]["spec"]
-    assert "lick_source" not in specs[None]
-    assert specs[None]["train_labels"] == sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == "PS92")
-    assert specs["lp"]["lick_source"] == "lp" and specs["lp"]["train_labels"] == kept[:3]
+    assert "lick_source" not in specs["daq"]
+    assert specs["daq"]["train_labels"] == sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == "PS92")
+    assert specs[None]["lick_source"] == "lp" and specs[None]["train_labels"] == kept[:3]
 
 
 def test_coding_run_animal_uses_the_store():

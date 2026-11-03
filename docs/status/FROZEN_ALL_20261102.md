@@ -236,6 +236,8 @@ Shared code: `frozen_models.family_on(env)` (one opt-out rule: 0 / false / no / 
 daq_trained_in_lp()` (WIDEFIELD_LICK_SOURCE=lp without WIDEFIELD_LP_FROZEN=lp: load the DAQ-trained model, whose
 training set is the DAQ arm's pre set; `load_or_fit` refuses to fit it in the LP run).
 
+**11-03: Priya made the LP arm's default LP-TRAINED again (P2.9); wherever this pass says "DAQ-trained default" for the LP arm, read "the `WIDEFIELD_LP_FROZEN=daq` cross-check".**
+
 Renders ran against SNAPSHOTS of the worktree (copied to the scratchpad before each batch), one BLAS thread per process,
 at most 4 processes in total.
 
@@ -248,6 +250,9 @@ at most 4 processes in total.
 | 3 | June -> August drift decoder (`scripts/june_august_drift.decoder_rows`, the full (not size-matched) frozen column) | `scripts/june_august_drift.py` | `drift_decoder`, ONE spec per month (`cue-june` / `cue-aug`; the two training sets never share an id); payload full + LOSO, so every `score` training set (June LOSO, all June, Aug LOSO, all Aug) is served by one stored fit | `WIDEFIELD_DRIFT_FROZEN=0` | DAQ-trained default (train = the animal's DAQ pre sessions of that month), LP-trained with `=lp` |
 | 4 | position coding directions (`position_coding_directions.run_animal`): the per-class confusion decoder (StandardScaler + LR C=0.5, max_iter 2000) and every pre-stroke direction (engagement axis; per-position axes + poles + raw axes; their LOSO refits; pairwise axes + their LOSO refits) | `wfield_local/position_coding_directions.py` (`fit_confusion_decoder` / `fit_reference` hold the fits, moved verbatim out of `_class_confusions` / `run_animal`; the opt-out runs the same functions) | `coding_decoder` (align) and `coding_directions` (`<align>-<methods>`) | `WIDEFIELD_CODING_FROZEN=0` (both) | DAQ-trained default (train = every pre session of the animal), LP-trained with `=lp` |
 | 5 | CD trajectories (`cd_trajectories.analyse_animal`): z-score frame, condition-independent mode, per-position directions + poles + surviving | `wfield_local/cd_trajectories.py` (`fit_cd_reference`, moved verbatim; the opt-out calls it directly) | `cd_directions` (`<align>-<method>-<reference>-<fit classes>-<orth>-<mask>-w<win>-p<pre>x<post>-z<std>-a<arms version>`; `exclude_fit` shows in the training set, so each `cd_loo_sessions` hold-out has its own id) | `WIDEFIELD_CD_FROZEN=0` | DAQ-trained default (train = curated pre minus `exclude_fit`), LP-trained with `=lp`; DAQ-trained directions key their own courses-cache entries |
+| 6 | section G (`poststroke_compare`): lick-only arm of `decode_matched`; lick discriminator of `looks_like_which` / `undetected_state_split`; advancing-RNG fold discriminators of `fits_engaged_distribution` | `wfield_local/poststroke_compare.py` -- **NOT COMMITTED (P2.8)** | `g_lickonly_decoder` / `g_lick_disc` / `g_lick_disc_folds` (`<align>-keep<preserved set>[-seed<s>]-f<columns digest>`) | `WIDEFIELD_SECTION_G_FROZEN=0` | LP-trained default since 11-03, DAQ-trained with `=daq` |
+| 7 | ITI / cued-lick ridge read-outs, 12 scripts | `wfield_local/frozen_readouts.py` (one helper) + the scripts | `iti_readout` (tag + alphas + order + data signature) | `WIDEFIELD_ITI_FROZEN=0` | LP-only by nature |
+| 8 | `frozen_encoder` | -- | NOT converted (P2.6 plan) | -- | -- |
 
 ## P2.2 Verification: real renders, stored vs opt-out (exact, cell by cell)
 
@@ -259,6 +264,8 @@ at most 4 processes in total.
 | 3 drift | `june_august_drift --reuse-distance` (DAQ), stored (8 frozen-new) vs `=0` | same | **IDENTICAL**: decoder_rows / distance_rows / summary_by_animal, 1984 cells |
 | 4 coding | `position_coding_directions -j 1` (DAQ; 4 animals x ENL / cue / lick; methods dom + dom_orth), three renders: stored (24 frozen-new), `=0`, and the UNMODIFIED code at 8debc35e (`daq_head_8debc35e`) | same | **IDENTICAL in every model-derived leaf** (582360 leaves of `coding_direction.json`; PNGs not compared). The only differing leaves are `sessions[i]/variance_captured`, a joint-basis PROJECTION diagnostic computed before any model, which jitters at <= 9e-8 between ANY two runs: 3 leaves stored vs `=0`, 60 HEAD vs `=0`, 57 HEAD vs stored. So the refactor reproduces the old code and the store reproduces the in-memory fit |
 | 5 cd | `cd_trajectories --align precue cue lick --gate lick --reference contrast --orth on --occluded drop --jobs 1` (the nightly call), stored (12 frozen-new) / `=0` / unmodified 8debc35e | same | **IDENTICAL**: 24 result files (json + npz), 4.37 M leaves, stored vs `=0`; HEAD vs each also identical apart from the `_meta/written` timestamp (now in the compare script's provenance list) |
+| 6 section G | converted readouts per post session (`scratchpad/sectiong_render.py`), stored vs `=0` | same | PS93 / PS94 / PS95 **IDENTICAL**; **PS92 DIFFERENT (332 leaves, max .031): stopped, P2.8** |
+| 7 ITI | helper on real `sessions_v3` licks, stored vs `=0` vs pinned 8debc35e code; and a store-hit rerun | same | **IDENTICAL** (1.44 M cells each) |
 
 Render notes, family 1: `python -m wfield_local.nolick_decoder` crashes after its first animal at 8debc35e
 (`nolick_analysis.summarize`, print only, raises KeyError on an arm that has `n` but no `balanced_accuracy`, i.e. any
@@ -316,16 +323,18 @@ Plan (one commit, then one tagged render):
 
 LP outputs sit under `allstored2/LP_licks/<family>/<arm>/` (writeguard requires an `LP_licks` path for LP-run writes).
 
-| family | LP-trained stored (`WIDEFIELD_LP_FROZEN=lp`) vs `=0` | DAQ-trained stored (new default) vs `=0` (LP-trained) |
+| family | LP-trained stored (`WIDEFIELD_LP_FROZEN=lp`; THE DEFAULT AGAIN since 11-03, P2.9) vs `=0` | DAQ-trained stored (the 11-02 default; since 11-03 the `=daq` cross-check) vs `=0` (LP-trained) |
 |---|---|---|
 | 2 attempt | n/a: LP-only by nature; the LP render IS the identity check (P2.2) | n/a |
 | 3 drift | **IDENTICAL** (1970 cells) | differs only in the UNMATCHED `frozen_acc` column of `decoder_rows` (139 of 1050 cells, max .036); `frozen_matched_acc`, `refit_acc`, the distances and every `summary_by_animal` cell (what fig 4.3 draws: F_drift, G_drift, the August-frozen F / G) are identical, because the size-matched draw is in memory by design |
+| 4 coding (cue + lick windows; the ENL window needs the DAQ 1.0 s models, not rendered) | **IDENTICAL** in every model-derived leaf (1 `variance_captured` leaf jitters) | 149937 leaves differ (expected: every post-stroke projection and confusion moves with the training set); all 16 lookups `frozen-hit` on the DAQ render's models |
+| 5 cd (cue + lick) | **IDENTICAL** (16 result files) | 2.89 M leaves differ (every trace moves with the directions); table below |
+| 1 nolick (pre dates, ENL 1.0, all animals / bases / cuts) | **IDENTICAL** (after the P2.4 fix) | 21708 leaves differ, every verdict unchanged; table in P2.4 |
 
 Drift, LP arm, mean unmatched frozen accuracy by group (LP-trained -> DAQ-trained): june_loso .860 -> .862, aug_from_june
 .705 -> .706, aug_loso .864 -> .864, acute_from_aug .563 -> .560, subacute_from_aug .758 -> .752, chronic_from_aug .794 ->
 .798. Per-animal summary (F_drift .138 / .249 / .154 / .140 for PS92-95; F acute (Aug-frozen) .184 / .261 / .382 / .149) is
 the same under both trainings.
-| 4 coding (cue + lick windows; the ENL window needs the DAQ 1.0 s models, not rendered) | **IDENTICAL** in every model-derived leaf (1 `variance_captured` leaf jitters) | 149937 leaves differ (expected: every post-stroke projection and confusion moves with the training set); all 16 lookups `frozen-hit` on the DAQ render's models |
 
 Coding directions, LP arm, far-contra (far_R) row recall of the per-class confusion and the dom own-axis projection of
 post-stroke lick trials, LP-trained -> DAQ-trained (all post sessions pooled):
@@ -399,3 +408,112 @@ trained:
 | | PS93 | .371 -> .374 | .335 -> .358 | .778 -> .780 | .239 -> .240 |
 | | PS94 | .593 -> .602 | .288 -> .293 | .936 -> .937 | .225 -> .221 |
 | | PS95 | .425 -> .423 | .265 -> .262 | .927 -> .927 | .268 -> .241 |
+
+## P2.7 Family 7: the ITI / cued-lick read-outs, through ONE helper
+
+`wfield_local/frozen_readouts.py` (new): `pre_loso_ridge(animal, tag, pre, X, Y, alphas, k=None, loso=True)` is the
+construction every script carried inline (StandardScaler + RidgeCV on the animal's pre sessions; one fit per held-out
+pre session plus the all-pre fit; training rows in `pre` order), through `load_or_fit`, kind **`iti_readout`**; opt-out
+**`WIDEFIELD_ITI_FROZEN=0`**. Spec: align = the sanitised read-out tag (script, lick set, target, lag / window / bin,
+feature set; raw tag kept in `spec["tag"]`), plus `alphas`, `n_targets`, `loso`, `train_order` and **`data_sig`** (sha1
+of the training arrays in training order: these read-outs train on derived per-lick tables that the U_atlas / SVTcorr
+stat signatures cannot see, so a re-extraction mints a new id). **LP-only by nature** (LP video licks): the spec always
+carries `lick_source=lp`. Converted (12 scripts, all 15 fit sites of the inventory): `iti_licks` (`frozen_decode`,
+`frozen_decode_lags`, `binned_frozen`), `iti_basis_decoder`, `iti_contact_check`, `iti_first_lick`, `iti_lick_order`,
+`iti_nmatch_check`, `iti_where_decoder`, `iti_where_3axis`, `iti_where_angle_reach`, `iti_where_scatter`,
+`iti_decoder_contrib` and `lick_gain_prediction` (the last two use only the all-pre fit, `loso=False`).
+
+Verification:
+- Pinned: `fit_all` equals a pinned copy of the 8debc35e inline loop bit for bit (1 and k targets); the spec separates
+  tag / alphas / order / data / loso; every script calls the helper and no `for held in [*pre, None]` loop remains.
+- Real data: the canonical 41-lag input folder `.../imaging_encoding/iti_licks/sessions/` that these scripts read is
+  **not on M: today** (only `sessions_v1/v2/v3`, `sessions_roi*`; nothing was created or renamed), and the scripts
+  write their outputs into that same LP_analysis tree, so the scripts themselves were not run. Instead
+  `scratchpad/iti_v3_render.py` ran the helper on the real `sessions_v3` extraction (107 sessions, the input
+  `iti_nmatch_check` reads), with the nmatch / contact / frozen_decode design (lags 0-0.2 s, non-ALM / tjM1 areas;
+  ITI and cued licks; 4 animals): stored (8 frozen-new) vs `=0` vs the pinned 8debc35e inline code, per-lick
+  predictions + per-session r: **IDENTICAL** (1.44 M cells each); a second run on the 8 store hits: **IDENTICAL**.
+  Outputs: `allstored2/LP_licks/iti_readouts_v3{,_rerun}/`.
+- Feeds: the encoding page ITI / cued-lick sections (per the script docstrings: page 3.7-3.9, 3.16 / 3.19 and the
+  `lick_*` / `lick_iti_*` / `lick_cued_*` figures).
+
+## P2.8 Family 6, section G: converted, NOT committed -- stopped on a stored-vs-in-memory difference
+
+The code (`poststroke_compare`: kinds `g_lickonly_decoder`, `g_lick_disc`, `g_lick_disc_folds`, opt-out
+`WIDEFIELD_SECTION_G_FROZEN=0`, the advancing-RNG payload with the generator state) is in the worktree with its pinned
+tests (stored == in memory on synthetic pools, exact), but it is **not committed**.
+
+Real data (`scratchpad/sectiong_render.py`: the converted readouts for every post session, one process per animal,
+stored then `=0`; the full `poststroke_section_g` render was ~8 min per session serially and was stopped): PS93 / PS94 /
+PS95 **IDENTICAL** (4907 / 5386 / 5507 leaves). **PS92 DIFFERENT**: 332 leaves, max .031, all in the lick-only arm
+(`decode_matched`, post_all_trials=False) of sessions whose preserved set is all six positions. Traced: the stored PS92
+`g_lickonly_decoder_*-keep0-1-2-3-4-5-*` models were frozen at 11-02 21:23 EST by the full `poststroke_section_g`
+render; their scaler means differ from a fresh fit TODAY on the same spec (same 11 pre labels, same 3911 rows, same
+feature-column digest), in the post pool and in the excluded pool alike, while PS92 `keep0-1-2-3-4` models frozen at
+23:19 EST reproduce exactly, and no readout mutates the pooled arrays (checked). So the pre-stroke trial features
+PS92 contributes changed between those two times in a way the spec cannot see (`train_sigs` stat only U_atlas and
+SVTcorr) -- most likely a behavioural / trial-definition input (the shared `wfield_cache/behaviour` pickles were
+rewritten after 21:00 by jobs on this box), not the store. As briefed, the family was stopped and reported rather than
+papered over; its 58 `g_*` models stay in the store (the PS92 keep-all ones carry the older input).
+
+## P2.9 Priya 11-03: the LP arm default is LP-TRAINED again
+
+`frozen_models.daq_trained_in_lp()` is now True only with `WIDEFIELD_LP_FROZEN=daq` (the opt-in cross-check);
+`frozen_models.lp_trained()` (LP source and not `=daq`) adds `lick_source=lp` to every spec in `make_spec`; `=lp` (the
+11-02 opt-in name) still means LP-trained. The epoch family (`grant_confusion._stored_epoch_decoder`) uses the same
+switch. Every LP-trained id is the one the 11-02 `WIDEFIELD_LP_FROZEN=lp` runs froze, so the LP arm now LOADS models
+already in the store; the DAQ-trained numbers in P2.3 / P2.4, FROZEN_DEFAULT section 5 and section 5 above are now the
+CROSS-CHECK column, not the default, and the `*/lp_daqtrained*` render folders are that cross-check. Pinned:
+`test_lp_arm_spec_is_lp_trained_by_default_and_daq_trained_on_request` (unset and "lp" share one LP-trained id; "daq" is
+the DAQ id), the per-family LP tests, and `tests/test_lp_licks.py` (the DAQ-trained cross-check still refuses to fit in
+an LP run).
+
+## P2.10 What changes a spec_id (before the swap-mask, August-only rebuild)
+
+Every kind goes through `make_spec`, whose id hashes `train_labels` (the sorted PRE set) and `train_sigs` (per pre
+session: size + mtime of U_atlas and of `config.svtcorr_path(mc)`, the SVTcorr of the CONFIGURED hemo variant). So:
+- **Pre set** (e.g. `WIDEFIELD_PRE_FROM=0801`, August-only): changes `train_labels` for every kind whose training set
+  is read from the phase / curated list: `decoder`, `encoder`, `state`, `epoch_decoder`, `rest_frozen`,
+  `nolick_reference`, `attempt_axes`, `coding_decoder`, `coding_directions`, `cd_directions`, `g_*`, and `iti_readout`
+  (through the extracted sessions' epoch labels and `data_sig`). `drift_decoder` is month-defined by design (June set /
+  August set): under an August-only pre set the June model has no sessions and its rows are skipped.
+- **Hemo variant / swap-mask**: changes the id ONLY if it reaches the SVTcorr file `config.svtcorr_path` names (a new
+  `hemo_<variant>` directory selected by config, or a rewritten SVTcorr: new size / mtime). **A correction applied
+  DOWNSTREAM of SVTcorr is NOT seen by any kind except `iti_readout`** (which hashes its training data): a mask applied
+  while building trial features, a re-registered U_atlas written elsewhere, a changed behavioural / gate input, a joint
+  basis refitted under the same `basis_id`, or a code change in feature building. Kinds with that blind spot:
+  `decoder`, `encoder`, `state`, `epoch_decoder`, `rest_frozen`, `nolick_reference`, `attempt_axes`, `drift_decoder`,
+  `coding_decoder`, `coding_directions`, `cd_directions`, `g_lickonly_decoder`, `g_lick_disc`, `g_lick_disc_folds`.
+  Section G PS92 (P2.8) is exactly this case. Recommendation before the rebuild: add a training-data signature (as
+  `iti_readout` does) or the swap-mask version to `make_spec` (FREEZE_VERSION bump, or a `variant` field) so every
+  rebuilt model gets a new id. Not done here: it changes every id in the store, a decision for Priya.
+
+## P2.11 Store, runs (11-02 evening -> 11-03; shared box)
+
+- `local_dir()` = `C:/Users/SabatiniLab/frozen_models`, exists. Store 2067 -> **2310** manifests. New this pass:
+  nolick_reference 80, attempt_axes 16 (4 retired by rename, P2.4), drift_decoder 16, coding_decoder 20,
+  coding_directions 20, cd_directions 20, g_lickonly_decoder 27, g_lick_disc 13, g_lick_disc_folds 18, iti_readout 8;
+  plus 1 `decoder` (the stopped ENL 1.0 section G warm-up) and 4 `state` models written by another job on this box.
+  Nothing was published to the server store; nothing was deleted.
+- Concurrency: at most 4 render processes until the coordinator note of 11-02 late, then up to 8 single-threaded
+  processes (one BLAS thread each; my RSS <= 3 GB; free RAM >= 31 GB).
+
+| render | wall |
+|---|---|
+| attempt LP stored / `=0` / spec-fixed | 46 / 40 / 86 min |
+| drift DAQ stored / `=0` / hit rerun; LP x3 | 3 / 2 / 6 min; 3-6 min |
+| coding DAQ stored / `=0` / 8debc35e; LP x3 (cue + lick) | 37 / 35 / 8 min; 6-19 min |
+| CD DAQ stored / `=0` / 8debc35e; LP x3 | 32 / 25 / 22 min; 109-118 min |
+| nolick driver (both passes in one process): pre dates / all dates PS93+94 roi / ENL 1.0 fixed / LP x2 | 131 / 81 / 175 / 138-142 min |
+| section G converted readouts, per animal in parallel | 39-46 min |
+| ITI v3 helper check / rerun | 8 / ~8 min |
+
+## P2.12 Page figures that change under the new defaults
+
+DAQ arm: none -- every committed family is identical stored vs in memory on the DAQ arm. LP arm (LP-trained default
+again since 11-03): the earlier LP renders were LP-trained in memory, and the stored LP-trained models reproduce them
+exactly (P2.3, P2.4), so no LP-arm figure moves either; the DAQ-trained cross-check numbers are in P2.3 / P2.4.
+Families -> what they feed: nolick -> `nolick_reference*.json` (deck no-lick slides, nightly); attempt -> imaging
+figs 5.1 / 5.2; drift -> imaging fig 4.3 (unmatched column only, not drawn); coding -> `coding_direction.json` -> grant
+3a / 5b (`_from_json`), `miss_vs_stopped`; CD -> imaging figs 9.1 / 9.2 / 9.5; ITI -> encoding page section 3 (3.7-3.9,
+3.16 / 3.19); section G (not committed) -> `section_g.json` -> grant 3b / 5, deck section G.

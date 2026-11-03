@@ -527,8 +527,9 @@ def _joint_signal(basis, s):
 #: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). `analyse_animal`'s
 #: pre-stroke reference (all-pre model + one leave-one-session-out model per pre session) goes through
 #: `frozen_models.load_or_fit`, kind `nolick_reference`. OPT-OUT WIDEFIELD_NOLICK_FROZEN=0 (false / no / off) fits both
-#: in memory exactly as before. Under WIDEFIELD_LICK_SOURCE=lp the store serves the DAQ-trained model (its training set
-#: = the animal's pre sessions in the date list), or the LP-trained one with WIDEFIELD_LP_FROZEN=lp.
+#: in memory exactly as before. Under WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED model (the default since
+#: 11-03, Priya), or with WIDEFIELD_LP_FROZEN=daq the DAQ-trained cross-check (training set = the animal's pre sessions
+#: in the date list; fitted only by a DAQ run).
 NOLICK_FROZEN_ENV = "WIDEFIELD_NOLICK_FROZEN"
 
 

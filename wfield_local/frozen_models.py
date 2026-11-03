@@ -73,10 +73,20 @@ def family_on(env_name) -> bool:
 
 
 def daq_trained_in_lp() -> bool:
-    """True under WIDEFIELD_LICK_SOURCE=lp unless WIDEFIELD_LP_FROZEN=lp: the LP arm then LOADS the DAQ-trained model
-    (fitted by a DAQ run on the DAQ arm's pre set) and refuses to fit one (`load_or_fit`)."""
+    """True under WIDEFIELD_LICK_SOURCE=lp ONLY with WIDEFIELD_LP_FROZEN=daq (the opt-in cross-check): the LP arm then
+    LOADS the DAQ-trained model (fitted by a DAQ run on the DAQ arm's pre set) and refuses to fit one (`load_or_fit`).
+
+    PRIYA 11-03: the LP arm's DEFAULT is the LP-TRAINED model (trained on the LP arm's own pre trials; spec carries
+    lick_source=lp). Until 11-03 (FROZEN_DEFAULT / FROZEN_ALL 11-02) the default was DAQ-trained and "lp" opted in;
+    "lp" is still accepted and now simply names the default."""
     from wfield_local import lp_licks
-    return lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() != "lp"
+    return lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() == "daq"
+
+
+def lp_trained() -> bool:
+    """True under WIDEFIELD_LICK_SOURCE=lp unless WIDEFIELD_LP_FROZEN=daq: the spec carries lick_source=lp."""
+    from wfield_local import lp_licks
+    return lp_licks.is_lp() and not daq_trained_in_lp()
 
 
 def _stat_sig(path) -> str:
@@ -138,10 +148,10 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
         "train_labels": labs,
         "train_sigs": {lab: _session_sig(lab) for lab in labs},
     }
-    # LP-TRAINED sensitivity models only (see `load_or_fit`): ADDED ONLY THEN, so every DAQ spec -- and its id, which
-    # names the stored directory -- is byte-identical to before.
-    from wfield_local import lp_licks
-    if lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() == "lp":
+    # LP-TRAINED models (the LP arm's DEFAULT since 11-03, Priya; see `daq_trained_in_lp`): lick_source is ADDED ONLY
+    # THEN, so every DAQ spec -- and its id, which names the stored directory -- is byte-identical to before, and the
+    # LP-trained ids are the same ids the 11-02 WIDEFIELD_LP_FROZEN=lp runs froze.
+    if lp_trained():
         spec["lick_source"] = "lp"
     return spec
 
@@ -371,12 +381,13 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
     # LP_licks REUSES THE DAQ-FROZEN MODELS (Priya 10-21: no new frozen set; pre-stroke LP and DAQ trials agree except
     # PS93 far_ipsi / far_mid). Under WIDEFIELD_LICK_SOURCE=lp a MISS must therefore never fit: the fit would see
     # LP-gated pre-stroke features and file them under a DAQ spec. Only an explicit LP-trained spec (the PS93
-    # sensitivity, WIDEFIELD_LP_FROZEN=lp -> make_spec adds lick_source) may be fitted here.
+    # sensitivity, WIDEFIELD_LP_FROZEN=lp -> make_spec adds lick_source) may be fitted here. SINCE 11-03 the LP-trained
+    # spec is the LP arm's DEFAULT; this refusal now guards only the DAQ-trained cross-check (WIDEFIELD_LP_FROZEN=daq).
     from wfield_local import lp_licks
     if lp_licks.is_lp() and spec.get("lick_source") != "lp":
-        raise RuntimeError(f"[frozen] LP_licks reuses DAQ-frozen models, but none is stored for {_slug(spec)} "
-                           f"({spec['animal']}); run the DAQ path first, or set {LP_FROZEN_ENV}=lp for an "
-                           "LP-trained sensitivity model")
+        raise RuntimeError(f"[frozen] the LP arm's DAQ-trained cross-check ({LP_FROZEN_ENV}=daq) loads DAQ-frozen models, "
+                           f"but none is stored for {_slug(spec)} ({spec['animal']}); run the DAQ path first, or unset "
+                           f"{LP_FROZEN_ENV} for the LP-trained default")
     prior = [s for s in siblings(spec) if s["dir"].name != _slug(spec)]
     if refreeze:
         for s in prior:
