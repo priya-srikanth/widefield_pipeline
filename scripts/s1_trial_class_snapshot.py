@@ -76,12 +76,10 @@ def main(argv=None) -> int:
     #   working_pl_close    at or before the last camera lick at the REFERENCE spouts (close ipsi / close mid), the
     #                       quit-tail idea: those spouts are barely affected, so the anchor marks when the animal
     #                       stopped, not where the last block happened to be
-    # To move into `wfield_local.trial_classes` (e3 owns it; asked 11-03) -- until then this snapshot is the one definition.
-    lick = D.cls.isin(["contact", "incomplete"])
-    for name, anchor in (("contact", D.cls == "contact"), ("lick", lick),
-                         ("close", lick & D.position.isin(["close_L", "close_center"]))):
-        last = D[anchor].groupby("label").cue_idx.max()
-        D[f"working_pl_{name}"] = D.working & (D.cue_idx <= D.label.map(last).fillna(-1).to_numpy())
+    # The rule lives in `wfield_local.trial_classes.in_working` (e3, b506c1e3); this snapshot only records it.
+    from wfield_local import trial_classes as tc
+    for name in ("contact", "lick", "close"):
+        D[f"working_pl_{name}"] = tc.in_working(D.cls, D.cue_idx, session=D.label, position=D.position, end=name)
     f = out / f"s1_trial_classes_{a.window}.csv.gz"
     D.to_csv(f, index=False, float_format="%.6f")
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,

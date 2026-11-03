@@ -20,6 +20,9 @@ down PS93 / PS94, flat PS92; acute sessions decoded 5 / 4 / 6 / 1). LocaNMF agre
 
 **Told:** e3 (move `working_pl_lick` into `wfield_local.trial_classes` as the end-of-session rule; until then the
 snapshot is the one definition), a8 (slide 9 ranges .43–.89 / .26–.56; trial line adds "up to the last camera lick").
+**Done after:** e3 put the rule in `wfield_local.trial_classes` (`in_working(..., end="lick")`, b506c1e3; anchors
+lick / contact / close / none); the snapshot script now calls it (0 mismatches vs the snapshot on 57,601 rows, all
+anchors), so there is one definition. a8 re-plotted slide 9 on `split_campllick_*` (checked by export).
 **Still open:** publishing (account access, below).
 
 ## UPDATE 11-03 late — SECTION 1 READY TO PUBLISH
