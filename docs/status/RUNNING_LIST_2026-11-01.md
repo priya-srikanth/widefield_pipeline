@@ -335,3 +335,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   imaging 3.5 is NOT bit-reproducible across BLAS thread counts (contradicts CLAUDE.md). attempt-coding trial merge = 60 conflicts
   -> new helper resolving + wiring the remaining camera gates (fail closed) + narrowing the map key to the yaml keys used.
   Independent code REVIEWER launched in parallel (REBUILD_CODE_REVIEW_20261103.md). For Priya: camera "stopped" = no_response?
+- 11-03: INDEPENDENT REVIEW of rebuild tip 85af6485 (wf_rebuild REBUILD_CODE_REVIEW_20261103.md, 8c6edf55): 4 HIGH (attempt_axes
+  DAQ cross-check constant fingerprint; tagged runs overwrite local deck PNGs; attempt_maps / attempt_coding unrouted + skip-if-
+  exists; camera-class inputs not in cache keys), 10 MED, 6 LOW. Verified OK: defaults unchanged, hemo switch everywhere, no stored /
+  projected mixing, fingerprint on all 15 kinds, prune guard, camera lick class, merges. Imaging 3.4 no longer matches its 11-02
+  original (input rewritten 11-03 by main's bal_em decoder). All findings sent to the merge / gate helper to fix; second review
+  pass after.
