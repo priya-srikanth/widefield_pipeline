@@ -14,8 +14,10 @@ rest and inside running, it is not explained by state occupancy.
 
     python scripts/face_rhythm_nontask_state.py [--set master_pre_v1] [--jobs 4] [--plot-only]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/nontask_state/``: nontask_state.png (per factor x state, epoch log2 change,
-dots = animals), nontask_occupancy.png (time in each state by epoch), data/nontask_state_sessions.csv (cache;
-``--plot-only`` redraws from it), nontask_state_stats.csv.
+sessions), nontask_occupancy.png (time in each state by epoch), data/nontask_state_sessions.csv (cache;
+``--plot-only`` redraws from it AND the stored nontask_state_stats.csv: no bootstrap, no CSV written),
+nontask_state_stats.csv. Epochs are categories (Priya 11-03, `wfield_local.cat_points`): no lines between them, faded
+OPEN markers = the SESSIONS (shape = animal, colour = epoch) behind each summary.
 """
 from __future__ import annotations
 
@@ -83,7 +85,7 @@ def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
     from wfield_local import analysis_kit as ak
-    from wfield_local import config
+    from wfield_local import cat_points as cp
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import face_rhythm_readouts as frr
@@ -145,7 +147,7 @@ def main(argv=None) -> int:
     L = pd.concat(L, ignore_index=True)
     rng = np.random.default_rng(0)
     rows = []
-    for (q, st), d in L.groupby(["quantity", "state"], sort=False):
+    for (q, st), d in (L.groupby(["quantity", "state"], sort=False) if not a.plot_only else []):
         pre_d = d[d.epoch == "pre"]
         for ep in EPOCHS[1:]:
             post = d[d.epoch == ep]
@@ -155,8 +157,11 @@ def main(argv=None) -> int:
             rows.append({"quantity": q, "state": st, "epoch": ep, **{an: per.get(an, np.nan) for an in sorted(L.animal.unique())},
                          "n_down": int((per < 0).sum()), "n_animals": len(per),
                          **_boot(post, pre_d, rng, a.n_boot)})
-    T = pd.DataFrame(rows)
-    T.to_csv(out / "nontask_state_stats.csv", index=False)
+    if a.plot_only:
+        T = pd.read_csv(out / "nontask_state_stats.csv")
+    else:
+        T = pd.DataFrame(rows)
+        T.to_csv(out / "nontask_state_stats.csv", index=False)
     pd.set_option("display.width", 220)
     print("\nlog2 change vs pre (per animal, then boot_delta), lick vs non-task sums by state")
     print(T[T.quantity.isin(["lick", "nontask"])].round(3).to_string(index=False))
@@ -171,24 +176,32 @@ def main(argv=None) -> int:
             ax = axs[r_i, c_i]
             d = L[(L.quantity == q) & (L.state == st)]
             for e, ep in enumerate(EPOCHS):
-                per = d[d.epoch == ep].groupby("animal").log2_vs_pre.mean()
-                for an, v in per.items():
-                    ax.plot(e + rng.uniform(-0.12, 0.12), v, "o", ms=3, color=config.animal_color()[an])
+                de = d[d.epoch == ep]
+                cp.session_dots(ax, e, de.log2_vs_pre.to_numpy(), de.animal.to_numpy(), ecol[ep], jitter=0.12,
+                                ms=2.8, seed=1000 * r_i + 10 * c_i + e)
                 t = T[(T.quantity == q) & (T.state == st) & (T.epoch == ep)]
                 if len(t):
-                    ax.errorbar(e, t.point.iloc[0], yerr=[[t.point.iloc[0] - t.lo.iloc[0]], [t.hi.iloc[0] - t.point.iloc[0]]],
-                                fmt="s", color=ecol[ep], mec="k", ms=5, capsize=2)
-            ax.axhline(0, color="k", lw=0.5)
-            ax.set_xticks(range(len(EPOCHS)), EPOCHS, fontsize=7)
+                    pt = t.point.iloc[0]
+                    ax.errorbar(e, pt, yerr=[[pt - t.lo.iloc[0]], [t.hi.iloc[0] - pt]], fmt="s", ls="none",
+                                color=ecol[ep], mec="w", mew=0.6, ms=5, capsize=2, elinewidth=1.1, zorder=4)
+                elif ep == "pre" and len(de):          # pre: the animals' own pre level (0 by construction)
+                    cp.summary_point(ax, e, float(de.groupby("animal").log2_vs_pre.mean().mean()), None, ecol[ep],
+                                     marker="s", ms=5)
+            ax.axhline(0, color="0.6", lw=0.5, zorder=0)
+            ax.set_xlim(-0.5, len(EPOCHS) - 0.5)
+            ax.set_xticks(range(len(EPOCHS)), [e[:5] for e in EPOCHS], fontsize=7)
             if r_i == 0:
                 ax.set_title(st)
             if c_i == 0:
                 ax.set_ylabel(q if q in ("lick", "nontask") else names[int(q[1:])], fontsize=7)
+    cp.add_animal_entries(axs[0, -1], L.animal.unique())
+    frf.legend_outside(axs[0, -1], fontsize=7)
     fig.suptitle(f"{fdir.name}: between-trial factor expression by behavioural state, log2 vs pre")
     frf.save(fig, out / "nontask_state.png", f"""Between-trial (cue -3..+6 s excluded) absolute factor expression per
-behavioural state (DAQ behaviour events: running bouts, rest mask, grooming), log2 vs the animal's pre sessions. Dots =
-animals (repo colours), squares = `boot_delta` point estimate and 95 % interval (paired animals -> sessions; epoch
-colours). Cells with < {a.min_bins} bins per session skipped. lick / nontask = summed lick / other factors (fr_groups
+behavioural state (DAQ behaviour events: running bouts, rest mask, grooming), log2 vs the animal's pre sessions. Each
+epoch is its own category (Priya 11-03: no lines between epochs). Faded OPEN markers = the individual SESSIONS (shape =
+animal, colour = epoch); squares = `boot_delta` point estimate and 95 % interval (paired animals -> sessions; epoch
+colours; pre = the animals' own level, 0 by construction; data/../nontask_state_stats.csv). Cells with < {a.min_bins} bins per session skipped. lick / nontask = summed lick / other factors (fr_groups
 lick split, as 6d).""")
 
     fig, axs = frf.subplots(1, 4, figsize=(12, 3), sharey=True, squeeze=False)
@@ -196,17 +209,20 @@ lick split, as 6d).""")
         ax = axs[0, c_i]
         d = S[S.state == st]
         for e, ep in enumerate(EPOCHS):
-            per = d[d.epoch == ep].groupby("animal").frac.mean()
-            for an, v in per.items():
-                ax.plot(e + rng.uniform(-0.12, 0.12), v, "o", ms=4, color=config.animal_color()[an], label=an if e == 0 else None)
+            de = d[d.epoch == ep]
+            per = de.groupby("animal").frac.mean()
             if len(per):
-                ax.bar(e, per.mean(), color=ecol[ep], alpha=0.6)
+                ax.bar(e, per.mean(), color=ecol[ep], alpha=0.35, zorder=0)
+            cp.session_dots(ax, e, de.frac.to_numpy(), de.animal.to_numpy(), ecol[ep], jitter=0.12, seed=10 * c_i + e,
+                            alpha=0.7)
         ax.set_xticks(range(len(EPOCHS)), EPOCHS, fontsize=8)
         ax.set_title(st)
     axs[0, 0].set_ylabel("fraction of between-trial time")
-    axs[0, -1].legend(fontsize=7, frameon=False)
-    frf.save(fig, out / "nontask_occupancy.png", """Fraction of between-trial time in each behavioural state, per
-animal (dots) and mean of animals (bars, FR epoch colours).""")
+    cp.add_animal_entries(axs[0, -1], S.animal.unique())
+    frf.legend_outside(axs[0, -1], fontsize=7)
+    frf.save(fig, out / "nontask_occupancy.png", """Fraction of between-trial time in each behavioural state: bars =
+mean of the animals' epoch means (FR epoch colours); open markers = the individual SESSIONS (shape = animal, colour =
+epoch). Epochs are categories, no connecting lines (Priya 11-03).""")
     print(f"-> {out}")
     return 0
 

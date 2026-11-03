@@ -23,10 +23,15 @@ Per animal: log2(session / mean of the animal's pre-stroke sessions) per point, 
     direct test of "the contralesional half drops more".
 
     python scripts/face_rhythm_aligned_maps.py [--set master_pre_v1] [--unit point|patch] [--grid 4 7] [--plot-only]
+                                               [--halves-only]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/aligned_maps/``: aligned_maps_<align>.png (rows = positions, cols = acute /
 subacute / chronic; animal-mean log2 change per point, consistent patches outlined), halves_<align>.png (contra - ipsi
 change per position x epoch, animals + mean +- SEM + interval), data/point_stats.csv (per alignment x position x epoch: marked points, contra / ipsi), data/patch_stats.csv (patch
-unit), data/halves_stats.csv.
+unit), data/halves_stats.csv. ``--plot-only`` redraws from the cached statistics (no bootstrap, no CSV written);
+``--halves-only`` draws only the halves figures. Halves figures follow Priya's 11-03 rules (`wfield_local.cat_points`):
+spouts in the canonical order (close ipsi / mid / contra, far ipsi / mid / contra; lesions left so L = ipsi), epochs are
+categories with no lines between them, summary = mean +- SEM over animals, faded OPEN markers = the SESSIONS (shape =
+animal, colour = epoch), * / ** in the top band.
 """
 from __future__ import annotations
 
@@ -44,6 +49,8 @@ from wfield_local.face_rhythm import stats as frs  # noqa: E402
 
 EPOCHS = frc.EPOCHS
 MIN_EVENTS = 5
+POS_LABEL = {"close_L": "close ipsi\n(L)", "close_center": "close mid", "close_R": "close contra\n(R)",
+             "far_L": "far ipsi\n(L)", "far_center": "far mid", "far_R": "far contra\n(R)"}
 UNIT_POINT = ("BLACK RINGS: mesh POINTS whose change vs pre has a paired animals -> sessions bootstrap 95 % interval "
               "(one draw for all points: `analysis_kit.boot_delta_columns`) excluding 0, the same sign as the change in "
               ">= {agree} of the animals, AND Benjamini-Hochberg FDR < {fdr} over the face (bootstrap p).")
@@ -88,11 +95,32 @@ def outline(ax, sig_ids: list[int], g: dict, **kw) -> None:
                 ax.plot([X(i), X(i + 1)], [Y(j + 1), Y(j + 1)], **kw)
 
 
+def session_log2(maps, counts, label, animal, epoch, ai: int, pi: int):
+    """One value per SESSION (a split video's parts averaged first) per mesh point, log2 vs the animal's pre mean:
+    (lg (n_sessions, points), animals, epochs) -- the arithmetic of the compute loop, for redrawing."""
+    V, an_s, ep_s = [], [], []
+    for lb in sorted(set(label)):
+        ii = np.flatnonzero((label == lb) & (counts[:, ai, pi] >= MIN_EVENTS))
+        if len(ii):
+            V.append(np.nanmean(maps[ii, ai, pi], 0))
+            an_s.append(animal[ii[0]])
+            ep_s.append(epoch[ii[0]])
+    V, an_s, ep_s = np.array(V), np.array(an_s), np.array(ep_s)
+    lg = np.log2(np.maximum(V, 1e-9))
+    for an in np.unique(an_s):
+        m = an_s == an
+        pre = m & (ep_s == "pre")
+        if pre.any():
+            lg[m] -= lg[pre].mean(0)
+        else:
+            lg[m] = np.nan
+    return lg, an_s, ep_s
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
     from wfield_local import analysis_kit as ak
-    from wfield_local import config
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import face_rhythm_readouts as frr
@@ -109,6 +137,7 @@ def main(argv=None) -> int:
                     help="animals whose own change has the sign of the pooled change (Priya 10-24: 3 of 4, not 4 of 4)")
     ap.add_argument("--plot-only", action="store_true",
                     help="redraw from data/aligned_maps_cache.pkl (statistics + maps), no bootstrap")
+    ap.add_argument("--halves-only", action="store_true", help="draw only the halves_<align>.png figures")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
     rv = PathResolver()
@@ -125,7 +154,11 @@ def main(argv=None) -> int:
     pid, grid = patches(home, mid, *a.grid)
     keep = [q for q in np.unique(pid) if (pid == q).sum() >= a.min_points]
     cache = figure_layout.sidecar_for(out, f"aligned_maps_cache_{a.unit}", ".pkl")   # statistics + maps: --plot-only
-    if a.plot_only:
+    if a.plot_only and a.halves_only:     # the halves need only the stored table (the .pkl is pandas-version bound)
+        H = pd.read_csv(figure_layout.sidecar_for(out, "halves_stats", ".csv", mkdir=False))
+        P = pd.read_csv(figure_layout.sidecar_for(out, f"{a.unit}_stats", ".csv", mkdir=False))
+        mean_maps, marks = {}, {}
+    elif a.plot_only:
         P, H, mean_maps, marks = pd.read_pickle(cache)
     else:
         rng = np.random.default_rng(0)            # map tests (patches / points)
@@ -232,70 +265,97 @@ def main(argv=None) -> int:
           + (f", BH FDR < {a.fdr})" if a.unit == "point" else ")"), "summed over 6 positions:")
     print(P.groupby(["align", "epoch"]).marked.sum().unstack().reindex(columns=list(EPOCHS[1:])).to_string())
 
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
+    ecol = frc.epoch_colors()
     with frf.style():
         for ai, al in enumerate(aligns):
             win = windows[ai]
-            fig, axs = frf.subplots(len(positions), 3, figsize=(10.5, 3.1 * len(positions)), squeeze=False)
-            sc = None
-            for r_i, p in enumerate(frc.POSITIONS_DISPLAY):
-                for c_i, ep in enumerate(EPOCHS[1:]):
-                    ax = axs[r_i, c_i]
-                    ax.axis("off")
-                    m = mean_maps.get((al, p, ep))
-                    if m is None:
-                        continue
-                    sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="RdBu_r", vmin=-1, vmax=1)
-                    if a.unit == "point":
-                        sg = marks.get((al, p, ep), np.zeros(len(home), bool))
-                        ax.scatter(home[sg, 0], home[sg, 1], s=7, facecolors="none", edgecolors="k", linewidths=0.35)
-                    else:
-                        outline(ax, marks.get((al, p, ep), []), grid, color="k", lw=1.0)
-                    ax.axvline(mid, color="k", lw=0.4)
-                    ax.invert_yaxis()
-                    ax.set_aspect("equal")
-                    h = H[(H["align"] == al) & (H.position == p) & (H.epoch == ep)].iloc[0]
-                    ax.set_title(f"{p} -- {ep}\nwhole {h.whole_face_log2:+.2f} ({int(h.n_whole_lower)}/4 down); "
-                                 f"C-I {h.contra_minus_ipsi:+.2f}{h['mark']}", fontsize=8)
-            if sc is not None:
-                fig.colorbar(sc, ax=axs, shrink=0.3, label="log2(epoch / pre), mean of animals")
-            fig.suptitle(f"{a.set}: face movement per spout position, {al}-aligned ({win[0]:+g}..{win[1]:+g} s) vs pre")
-            marks_text = (UNIT_POINT.format(fdr=a.fdr, agree=a.min_agree) if a.unit == "point" else
-                          f"Black OUTLINES: the border of the face PATCHES ({a.grid[0]} columns per half mirrored about the "
-                          f"midline x {a.grid[1]} rows, >= {a.min_points} points each) whose change vs pre has a paired "
-                          f"animals -> sessions bootstrap 95 % interval excluding 0 AND >= {a.min_agree} animals agreeing "
-                          "(many patches tested: a map of consistency).")
-            frf.save(fig, out / f"aligned_maps_{al}.png", f"""
-Per mesh point (image LEFT = CONTRALESIONAL on cam4, lesions left; vertical line = face midline): mean speed in the
-{al.upper()}-aligned window ({win[0]:+g}..{win[1]:+g} s; cue = engaged-trial cue; lick = every LP lick in engaged trials,
-per lick; bout = the first lick of each bout), per spout position (rows; R = contralesional spouts), as log2(session /
-the animal's pre-stroke mean), averaged within the epoch per animal, then over the four animals. {marks_text}
-The colour gives the sign. Panel titles: whole-face mean log2 change (animals lower than pre) and the
-CONTRA - IPSI half difference of the change with its bootstrap (* = interval excludes 0; ** = also Holm over the 6
-positions). Data: data/{a.unit}_stats.csv, data/halves_stats.csv.""")
+            if not a.halves_only:
+                fig, axs = frf.subplots(len(positions), 3, figsize=(10.5, 3.1 * len(positions)), squeeze=False)
+                sc = None
+                for r_i, p in enumerate(frc.POSITIONS_DISPLAY):
+                    for c_i, ep in enumerate(EPOCHS[1:]):
+                        ax = axs[r_i, c_i]
+                        ax.axis("off")
+                        m = mean_maps.get((al, p, ep))
+                        if m is None:
+                            continue
+                        sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="RdBu_r", vmin=-1, vmax=1)
+                        if a.unit == "point":
+                            sg = marks.get((al, p, ep), np.zeros(len(home), bool))
+                            ax.scatter(home[sg, 0], home[sg, 1], s=7, facecolors="none", edgecolors="k", linewidths=0.35)
+                        else:
+                            outline(ax, marks.get((al, p, ep), []), grid, color="k", lw=1.0)
+                        ax.axvline(mid, color="k", lw=0.4)
+                        ax.invert_yaxis()
+                        ax.set_aspect("equal")
+                        h = H[(H["align"] == al) & (H.position == p) & (H.epoch == ep)].iloc[0]
+                        ax.set_title(f"{p} -- {ep}\nwhole {h.whole_face_log2:+.2f} ({int(h.n_whole_lower)}/4 down); "
+                                     f"C-I {h.contra_minus_ipsi:+.2f}{h['mark']}", fontsize=8)
+                if sc is not None:
+                    fig.colorbar(sc, ax=axs, shrink=0.3, label="log2(epoch / pre), mean of animals")
+                fig.suptitle(f"{a.set}: face movement per spout position, {al}-aligned ({win[0]:+g}..{win[1]:+g} s) vs pre")
+                marks_text = (UNIT_POINT.format(fdr=a.fdr, agree=a.min_agree) if a.unit == "point" else
+                              f"Black OUTLINES: the border of the face PATCHES ({a.grid[0]} columns per half mirrored about the "
+                              f"midline x {a.grid[1]} rows, >= {a.min_points} points each) whose change vs pre has a paired "
+                              f"animals -> sessions bootstrap 95 % interval excluding 0 AND >= {a.min_agree} animals agreeing "
+                              "(many patches tested: a map of consistency).")
+                frf.save(fig, out / f"aligned_maps_{al}.png", f"""
+    Per mesh point (image LEFT = CONTRALESIONAL on cam4, lesions left; vertical line = face midline): mean speed in the
+    {al.upper()}-aligned window ({win[0]:+g}..{win[1]:+g} s; cue = engaged-trial cue; lick = every LP lick in engaged trials,
+    per lick; bout = the first lick of each bout), per spout position (rows; R = contralesional spouts), as log2(session /
+    the animal's pre-stroke mean), averaged within the epoch per animal, then over the four animals. {marks_text}
+    The colour gives the sign. Panel titles: whole-face mean log2 change (animals lower than pre) and the
+    CONTRA - IPSI half difference of the change with its bootstrap (* = interval excludes 0; ** = also Holm over the 6
+    positions). Data: data/{a.unit}_stats.csv, data/halves_stats.csv.""")
 
-            fig, axs = frf.subplots(1, len(positions), figsize=(3.0 * len(positions), 3.8), squeeze=False, sharey=True)
-            x = np.arange(3)
-            for c_i, p in enumerate(frc.POSITIONS_DISPLAY):
-                ax = axs[0, c_i]
-                hh = H[(H["align"] == al) & (H.position == p)].set_index("epoch").reindex(list(EPOCHS[1:]))
-                for an in an_cols:
-                    ax.plot(x, hh[an].to_numpy(), "o-", color=config.animal_color().get(an, "0.6"), ms=3, lw=0.9,
-                            alpha=0.8, label=an)
-                vals = hh[an_cols].to_numpy(float)
-                ax.errorbar(x, np.nanmean(vals, 1), yerr=np.nanstd(vals, 1, ddof=1) / np.sqrt(np.isfinite(vals).sum(1)),
-                            fmt="o", color="k", capsize=3, ms=5)
-                ax.axhline(0, color="k", lw=0.5)
-                ax.set_xticks(x, [f"{e[:5]}\n{r.contra_minus_ipsi:+.2f}{r['mark']}\n"
-                                  f"{int(r.n_contra_lower)}/4 C<I" for e, r in hh.iterrows()], fontsize=7)
-                ax.set_title(p, fontsize=9)
-            axs[0, 0].set_ylabel("contra - ipsi log2 change")
+            # halves: one axes, spouts = categories in the canonical order, epochs side by side (Priya 11-03)
+            pos_order = list(frc.POSITIONS_DISPLAY)            # close ipsi / mid / contra, far ipsi / mid / contra
+            post = list(EPOCHS[1:])
+            off = cp.epoch_offsets(len(post))
+            fig, ax = frf.subplots(1, 1, figsize=(12.5, 4.8))
+            for c_i, p in enumerate(pos_order):
+                pi = positions.index(p)
+                lg, an_s, ep_s = session_log2(maps, counts, label, animal, epoch, ai, pi)
+                d_s = np.nanmean(lg[:, contra], 1) - np.nanmean(lg[:, ~contra], 1)
+                hh = H[(H["align"] == al) & (H.position == p)].set_index("epoch").reindex(post)
+                for k, ep in enumerate(post):
+                    xo = c_i + off[k]
+                    m = ep_s == ep
+                    cp.session_dots(ax, xo, d_s[m], an_s[m], ecol[ep], jitter=0.04, seed=31 * c_i + k)
+                    vals = hh.loc[ep, an_cols].to_numpy(float)
+                    vals = vals[np.isfinite(vals)]
+                    if len(vals):
+                        cp.summary_point(ax, xo, vals.mean(),
+                                         vals.std(ddof=1) / np.sqrt(len(vals)) if len(vals) > 1 else None, ecol[ep],
+                                         ms=6, label=f"{ep}: mean +- SEM (animals)" if c_i == 0 else None)
+                    r = hh.loc[ep]
+                    if isinstance(r["mark"], str) and r["mark"]:
+                        sig_marks.star_top(ax, xo, r["mark"], color=ecol[ep], row=k, fontsize=11)
+                    ax.text(xo, 0.01, f"{int(r.n_contra_lower)}/4", transform=ax.get_xaxis_transform(), ha="center",
+                            va="bottom", fontsize=6.5, color=ecol[ep])
+            ax.axhline(0, color="0.6", lw=0.6, zorder=0)
+            ax.axvline(2.5, color="0.8", lw=0.8, zorder=0)
+            ax.set_xlim(-0.5, len(pos_order) - 0.5)
+            ax.set_xticks(range(len(pos_order)), [POS_LABEL.get(q, q) for q in pos_order], fontsize=8.5)
+            ax.set_ylabel("contra - ipsi log2 change vs pre")
+            cp.add_animal_entries(ax, an_cols)
+            frf.legend_outside(ax, fontsize=8)
+            lo, hi = ax.get_ylim()                              # room for the C<I counts at the bottom
+            ax.set_ylim(lo - 0.06 * (hi - lo), hi)
+            sig_marks.reserve_headroom(fig)
             fig.suptitle(f"{a.set}: is the contralesional half's change larger? ({al}-aligned)")
             frf.save(fig, out / f"halves_{al}.png", f"""
 Per session: mean log2 change vs the animal's pre of the CONTRALESIONAL half of the face minus that of the IPSILESIONAL
-half ({al}-aligned window); per animal epoch means (repo animal colours), mean +- SEM across animals (black); under each epoch the
+half ({al}-aligned window). Spouts in the canonical order (close ipsi / mid / contra, then far ipsi / mid / contra; all
+lesions LEFT, so L = ipsi, R = contra); each spout is its own category with the post-stroke epochs side by side and NO
+lines between categories (Priya 11-03). Filled marker = mean +- SEM across the four animals' epoch means (epoch
+colours); faded OPEN markers = the individual SESSIONS (shape = animal, colour = epoch). Top band, one row per epoch:
 paired animals -> sessions bootstrap of the change vs pre (* = 95 % interval excludes 0; ** = also significant after
-Holm over the 6 positions of this alignment x epoch, bootstrap p from the same draws) and how many animals have the
-contralesional half changing more negatively (C<I). Negative = the contralesional half lost more movement.""")
+Holm over the 6 positions of this alignment x epoch, bootstrap p from the same draws). Bottom numbers: animals whose
+contralesional half changes more negatively (C<I). Negative = the contralesional half lost more movement. Statistics
+and per-animal values: data/halves_stats.csv.""")
     print("->", out)
     return 0
 
