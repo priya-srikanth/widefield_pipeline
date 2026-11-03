@@ -120,3 +120,11 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   deck crop p_paths_shared_contra.png; list in DECISIONS 2026-11-03 camera-view entry). Asked to SEE: slide 27 vs 31
   (trial classes), slide 36 (path axis), PS110 strict vs refined mCherry overlays; explain class-balanced centring and the
   Big-picture quiet qualifier.
+- 11-03 PM deck: apply_figure_rules_1103.py (spec 1: slides 24, 33, 57, 100; spec 2: 56, 58, 10, 19 -- session dots,
+  epoch colours, stars no longer overlapping), trial_class_main_1103.py (Priya: slide 27 'Far contra: contact .95 -> .05'
+  = THE main trial-class slide, the jaw-only / incomplete change slide now hidden at 29; Big-picture quiet bullet: "after
+  the stroke it goes with a weaker pre-cue position code (a smaller version may be present at baseline)"). Priya: path
+  axis + = contra increasing leftward OK. PAGES BLOCKED: this Claude Code session is now signed in to a different
+  claude.ai account (psrikanth87@gmail.com); the four results pages are not visible to it, so the figure-rules page
+  publishes (kinematics, FR, imaging incl. RESTW lead, encoding sec 23) wait for the owning account. Mapping: docs/status/
+  FIGURE_RULES_AUDIT_2026-11-03.md. Running: pre-weighted (label-free) centring test for the state decoder.
