@@ -1,5 +1,27 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> **PI DECK STATE (11-02 ~23:45).** M:/MICROSCOPE/Priya/Widefield/presentations/PI_overview_2026-11-02.pptx, 125 slides
+> (Priya also edits it: never rebuild; edit in place by slide TITLE; never re-run build_1102.py). Source folder
+> _source_PI_overview_2026-11-02/: every edit is a script that backs the deck up first (backup_before_<step>.pptx) and
+> refuses to run twice; figure_provenance.csv tracks every picture. Tonight, in order: restructure_stepwise.py,
+> fix_stepwise_layout.py, add_maps_lickresp.py (+crop_pos_maps_rows.py, crop_lick_response.py, fix_maps_lickresp.py),
+> add_fr_matching.py (+fix), replace_tables.py (per-animal tables -> session-dot figures: fig_decoding_sessions.py,
+> fig_state_position_sessions.py, fig_pose_validation_sessions.py, fig_farcontra_attempts_sessions.py),
+> add_pooled_gap.py (fig_frozen_refit_pooled.py), fig_behaviour_hits.py (sessions as dots), add_missing_key_figs.py +
+> fix_missing_key_figs.py (12 missing key figures from the page audit; supporting = hidden slides), add_videos.py
+> (make_video_clips.py: PS122 epileptiform movie, cohort-4 VFSS pre 10-30 + post 11-02 clips), add_twop.py
+> (build_inputs/twop/twop_slides.json: 2-photon H2B vs NES, six-spout CDs, ROICaT cross-day). Priya's deck rules:
+> session dots, mean +- SEM dots, NO lines across epochs; multi-panel figures re-tiled into rows; main point in the
+> title; supporting figures hidden. Headline now first on Big picture: recovery = compensation, not restoration.
+> Pages updated (NOT the encoding page): imaging v47 (Figs 0.2, 1.4, 3.4, 4.4; section-1 acute n 4/4/4/1; quiet ~7x),
+> kinematics v15 (Figs 7.6, 10.1). Waiting on Priya: her grant copy (2-photon panel check), cohort-4 stroke date /
+> meaning of 'post-stroke1'; 20261029/ fluoroscopy files are named 20261028_* (likely mis-dated).
+> **OPEN (running): PS94 state decoder** collapses gradually (.98 pre -> .45 chronic normalised; others intact). Lead
+> hypothesis: by_animal_day never z-scores per session although the frozen spec says zscore=True. Diagnostics in
+> M:/MICROSCOPE/Priya/Widefield/labcams/state_decoder_ps94_check/ (collect.py per animal, PIDs 27956 28444 12284 33940;
+> then analyse.py -> per_session.csv, animal_epoch_medians.csv, fig1_confusion_*.png, fig2_speed_hist.png). A fix
+> re-freezes the state reference: needs Priya's OK.
+>
 > **RESUME HERE (updated 11-02 ~07:15, before compaction).** Live status, every test's result + figure path, the overnight log,
 > page versions and "conclusions that changed": [`RUNNING_LIST_2026-11-01_QUIET_EVENTS.md`](RUNNING_LIST_2026-11-01_QUIET_EVENTS.md)
 > (keep it updated and commit each time). Section 4 = all tests (T1-T22); section 7 = Priya's reduced-drive hypothesis;
