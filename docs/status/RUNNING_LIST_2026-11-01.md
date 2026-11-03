@@ -261,3 +261,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   cues "unknown" (in neither gate); cam4-only handled (none among curated imaging sessions). Mean share working .97 pre / .81
   acute / .88 subacute / .97 chronic. Rebuild consequence: PS93_0813 drops out of the August pre set under the camera gate
   (PS93 August pre 8 -> 7, as in the LP arm). Handoff of that work: STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md.
+- 11-03 DECISIONS (Priya "ok for all"): preprocessing decks LEFT (+ one-line note: predate the swap-mask correction); analysis
+  decks REGENERATED after renders; imaging section 15 body -> pointer to goal section 23 (approved removal); closed 10-27
+  review page untouched; June alignment decks left; imaging 5.1/5.2 + goal 6.x/8.x -> LP-trained; lost / share-only scripts
+  (imaging 0.2, 1.4, 3.3, 3.4, 3.5, 4.4, 5.1, 5.2, 11.2; goal 8.1, 8.2) recreated in the repo, each first reproduced on the
+  old data.
+- 11-03 Priya on within-day LocaNMF: leaning to REFIT on corrected data "for correctness", with all pre-stroke frozen
+  decoders redone (already planned: fresh store). Cost estimate + joint-basis question sent to Priya; to measure first.
