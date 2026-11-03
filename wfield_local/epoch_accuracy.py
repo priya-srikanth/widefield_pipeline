@@ -174,7 +174,7 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
             # marks use. Passing a bare number drew no error bar at all, silently: `bar_row` draws
             # one only where a value arrives as a (value, lo, hi) tuple.
             got = ef.value_draws(
-                per_animal, e, lambda y, pr, c=_code_of(q): stat_at(y, pr, c),
+                per_animal, e, lambda y, pr, c=_code_of(q): stat_at(y, pr, c),  # noqa: B008 -- binds q per iteration, deliberately
                 rng=np.random.default_rng(_seed_for(align, variant, e, f"{q}-value")),
                 n_boot=N_BOOT)
             a = ef.with_ci(got) if got is not None else value_of(rec, q)
@@ -210,7 +210,7 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
                 continue
             got = ef.contrast_draws(
                 per_animal, e, "pre",
-                lambda y, pr, c=_code_of(q): stat_at(y, pr, c),
+                lambda y, pr, c=_code_of(q): stat_at(y, pr, c),  # noqa: B008 -- binds q per iteration, deliberately
                 # SEEDED PER (window, class, epoch, position), stably: the same figure has to give
                 # the same interval on every render, and `hash()` is salted per process.
                 rng=np.random.default_rng(_seed_for(align, variant, e, q)), n_boot=N_BOOT)
@@ -239,7 +239,7 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
         ef.contrast_panel(
             rows, out_dir, name=delta_name, title=delta_title,
             subtitle=sub, ylabel=delta_ylabel, positions=_short_labels(),
-            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp)
+            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp, points=ef.session_deltas(points))
     return made
 #: The three arms of the overall (all-positions) frozen-vs-refit figure, in drawing order.
 #: Named rather than positional because the delta panel's caption has to say which sign means what.
@@ -360,7 +360,8 @@ def _frozen_vs_refit_overall(out_dir, align, variant, wname, *, matched=False):
             rows, out_dir, name=f"epoch_{key}delta_frozen_refit_overall_{align}_{variant}",
             title=f"Change from pre-stroke, pooled over positions{what}, {wname}",
             subtitle=sub, ylabel="epoch - pre", positions=list(OVERALL_ARMS),
-            tick_labels=["frozen", "refit", "gap"], n_comparisons=n_comp)
+            tick_labels=["frozen", "refit", "gap"], n_comparisons=n_comp,
+            points=ef.session_deltas(points))
     # A LIST, because the render loop does `for q in (fn(...) or [])` and `ef.bar_row`
     # returns ONE Path. Returning the Path itself raised
     #     TypeError: 'WindowsPath' object is not iterable
@@ -712,7 +713,9 @@ def _fig_9(out_dir, align, variant, wname):
             rows, out_dir, name=f"epoch_9ci_delta_trajectory_{align}_{variant}",
             title=f"Change in own-position pattern similarity, with intervals -- {wname}",
             subtitle=sub, ylabel="similarity - pre", positions=_short_labels(),
-            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp)
+            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp,
+            # the bar figure's values are ALREADY changes from pre, so its dots are the deltas
+            points=points)
     return made
 def _epoch_arm(align, variant):
     """`_collect_5c`'s per-animal records, with anything outside an epoch reported not dropped."""

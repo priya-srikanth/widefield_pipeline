@@ -99,15 +99,7 @@ def write_values(values, q, *, points=None, marks=None):
                         mk = (marks.get(ep, {}) or {}).get(pos, "") or ""
                     w.writerow([ep, pos, val, lo, hi, mk])
         if points:
-            with open(sidecar(q, "_sessions.csv"), "w", newline="",
-                      encoding="utf-8") as fh:
-                w = _csv.writer(fh)
-                w.writerow(["epoch", "position", "animal", "value"])
-                for ep, per_pos in points.items():
-                    for pos, lst in (per_pos or {}).items():
-                        for item in lst or []:
-                            an, val = (item if isinstance(item, (tuple, list)) else ("", item))[:2]
-                            w.writerow([ep, pos, an, val])
+            _write_sessions_csv(points, q)
     except Exception as ex:                                            # noqa: BLE001
         # A sidecar must never cost a figure. Warn and carry on, as `_save_png_svg` does for SVG.
         print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
@@ -697,6 +689,28 @@ def counts_by_epoch(per_animal: dict) -> dict:
 # dominates the acute panel (6 sessions) and PS95 the subacute (7) -- and a note saying so is read
 # once and forgotten, while a column of dots is read every time the figure is looked at. One dot per
 # SESSION VALUE means the reader can count the contributors and see that PS95's acute panel rests on
+def _write_sessions_csv(points, q):
+    """``<name>_sessions.csv``: ``epoch, position, animal, value``, one row per session dot."""
+    import csv as _csv
+    with open(sidecar(pathlib.Path(q), "_sessions.csv"), "w", newline="", encoding="utf-8") as fh:
+        w = _csv.writer(fh)
+        w.writerow(["epoch", "position", "animal", "value"])
+        for ep, per_pos in points.items():
+            for pos, lst in (per_pos or {}).items():
+                for item in lst or []:
+                    an, val = (item if isinstance(item, (tuple, list)) else ("", item))[:2]
+                    w.writerow([ep, pos, an, val])
+
+
+def write_session_values(points, q):
+    """`_write_sessions_csv` that warns instead of raising (a sidecar must never cost a figure)."""
+    try:
+        _write_sessions_csv(points, q)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [values] {pathlib.Path(q).stem}_sessions.csv: failed ({type(ex).__name__})",
+              flush=True)
+
+
 # a single session.
 #
 # IT DOES NOT APPLY TO THE HEATMAP PANELS. A confusion or crossnobis matrix has no axis to carry a
@@ -760,6 +774,79 @@ def animal_legend(ax, *, fontsize=None, loc="best", counts=None):
                for a in sorted(colors)]
     ax.legend(handles=handles, fontsize=fontsize or FS_ANNOT - 1.5, loc=loc, frameon=False,
               handletextpad=0.3, borderpad=0.2, labelspacing=0.25)
+
+
+# ---------------------------------------------------------------------------------------------
+# SESSION DOTS, 11-03 STYLE (Priya 2026-11-03, figure rule 2; `wfield_local.cat_points`)
+# ---------------------------------------------------------------------------------------------
+# Every bar / interval at a categorical x carries the session values behind it as faded OPEN
+# markers: SHAPE = animal (`cat_points.ANIMAL_MARKER`), COLOUR = epoch. The epoch colour is the
+# project's grey ramp (`EPOCH_GREY`, Priya 2026-09-17), darkened by `DOT_DARKEN` so an open marker
+# is legible against white AND against its own bar; the bar face is drawn at `BAR_FACE_ALPHA` for
+# the same reason (a #1f1f1f chronic dot inside an opaque #1f1f1f chronic bar is invisible).
+# `session_points` (filled, coloured by animal) is kept unchanged for its existing callers / tests;
+# `bar_row(dot_style="animal")` restores it there.
+
+#: multiplier on the EPOCH_GREY RGB for the session-dot colour (pre #c9c9c9 -> #7c7c7c ...).
+DOT_DARKEN = 0.62
+#: bar face alpha under 11-03 open session dots.
+BAR_FACE_ALPHA = 0.55
+
+
+def epoch_dot_color(epoch):
+    """Session-dot (and star) colour for an epoch: the EPOCH_GREY ramp, darkened by `DOT_DARKEN`."""
+    import matplotlib.colors as mc
+    r, g, b = mc.to_rgb(EPOCH_GREY.get(epoch, "#8a8a8a"))
+    return (r * DOT_DARKEN, g * DOT_DARKEN, b * DOT_DARKEN)
+
+
+def epoch_session_dots(ax, x, per_session, epoch, *, jitter, seed=0, zorder=BAR_POINT_Z):
+    """``[(animal, value), ...]`` at ``x`` as faded open markers (shape = animal, colour = epoch).
+
+    Seeded jitter (`cat_points.session_dots`), so the same data always draws the same picture.
+    Returns the number of finite values drawn."""
+    from wfield_local import cat_points as cp
+    vals = [(a, v) for a, v in (per_session or []) if v is not None and np.isfinite(v)]
+    if not vals:
+        return 0
+    cp.session_dots(ax, x, [v for _a, v in vals], [a for a, _v in vals], epoch_dot_color(epoch),
+                    jitter=jitter, seed=seed, zorder=zorder)
+    return len(vals)
+
+
+def _shape_handles(animals, counts=None):
+    """Legend entries for the session-dot shapes (open, grey), optionally ``PS92 (n)``."""
+    from matplotlib.lines import Line2D
+
+    from wfield_local import cat_points as cp
+    return [Line2D([], [], ls="none", marker=cp.animal_marker(a), mfc="none", mec="0.35", mew=0.9,
+                   ms=cp.SESSION_MS + 1, label=a if not counts else f"{a} ({counts.get(a, 0)})")
+            for a in sorted(animals)]
+
+
+def session_deltas(points, ref="pre"):
+    """Per-session change from the reference epoch, for a contrast panel's session dots.
+
+    ``points`` is ``{epoch: {position: [(animal, value), ...]}}`` (a bar figure's dots). Each
+    post-epoch session value has ITS OWN ANIMAL'S mean reference value at that position
+    subtracted -- paired within animal, as the contrast bootstrap pairs its animal draw. Animals
+    with no reference value there are dropped. DESCRIPTIVE: the panel's point estimate is a pooled
+    contrast (trial-pooled or session-mean), so the dots need not centre on it exactly.
+    """
+    base = (points or {}).get(ref) or {}
+    out = {}
+    for e, per_pos in (points or {}).items():
+        if e == ref:
+            continue
+        out[e] = {}
+        for q, lst in (per_pos or {}).items():
+            by = {}
+            for a, v in base.get(q) or []:
+                if v is not None and np.isfinite(v):
+                    by.setdefault(a, []).append(float(v))
+            out[e][q] = [(a, float(v) - float(np.mean(by[a]))) for a, v in (lst or [])
+                         if a in by and v is not None and np.isfinite(v)]
+    return out
 
 
 def per_session_values(per_animal, epoch, value_of):
@@ -1162,8 +1249,13 @@ def _data_span(values, points):
 
 def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
             counts=None, ylim=(0.0, 1.0), subtitle=None, groups=None, tick_labels=None,
-            marks=None, reference=None):
+            marks=None, reference=None, dot_style="open"):
     """Per-position values as grouped bars, one group per position and one bar per epoch.
+
+    ``dot_style`` (Priya 2026-11-03, figure rule 2): ``"open"`` (default) draws each session as a
+    faded OPEN marker, shape = animal, colour = epoch, over a lighter bar, with the marks in the
+    top band (`sig_marks.star_top`); ``"animal"`` is the earlier style (filled dots coloured by
+    animal, marks above the bar). The sidecars are identical either way.
 
     Serves figure 1b (behaviour hit rate per spout position) and the per-position decoding
     accuracies, which differ only in what they are handed.
@@ -1223,6 +1315,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     bw = 0.78 / m
     xs = np.arange(k, dtype=float)
+    open_dots = dot_style != "animal"
     for j, e in enumerate(epochs_present):
         dx = (j - (m - 1) / 2.0) * bw
         vals, los, his = [], [], []
@@ -1232,6 +1325,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
             los.append(np.nan if (v is None or lo is None) else v - lo)
             his.append(np.nan if (v is None or hi is None) else hi - v)
         ax.bar(xs + dx, vals, width=bw * 0.9, color=EPOCH_GREY.get(e, "#8a8a8a"),
+               alpha=BAR_FACE_ALPHA if open_dots else None,
                edgecolor="none", zorder=2, label=e)
         if np.any(np.isfinite(los)) or np.any(np.isfinite(his)):
             ax.errorbar(xs + dx, vals, yerr=[np.nan_to_num(los), np.nan_to_num(his)],
@@ -1241,8 +1335,12 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
             per = (points or {}).get(e, {}).get(p) or []
             # spread inside the bar, never across it: a dot that drifts under a neighbouring bar
             # is attributed to the wrong epoch by every reader who does not count.
-            session_points(ax, xs[i] + dx, per, spread=bw * 0.30, size=POINT_SIZE * 0.55,
-                           alpha=BAR_POINT_ALPHA, zorder=BAR_POINT_Z)
+            if open_dots:
+                epoch_session_dots(ax, xs[i] + dx, per, e, jitter=bw * 0.28,
+                                   seed=101 * j + 7 * i + 3)
+            else:
+                session_points(ax, xs[i] + dx, per, spread=bw * 0.30, size=POINT_SIZE * 0.55,
+                               alpha=BAR_POINT_ALPHA, zorder=BAR_POINT_Z)
 
     # ylim=None MEANS AUTOSCALE, for quantities with no natural range. A crossnobis distance and a
     # change-from-baseline both have none, and a fixed window fitted to yesterday's data draws
@@ -1254,7 +1352,19 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
         pad = 0.08 * (_hi - _lo or 1.0)
         ylim = (min(0.0, _lo - pad) if _lo >= 0 else _lo - pad, _hi + pad * 2.0)
 
-    if marks:
+    if marks and open_dots:
+        # TOP BAND (Priya 10-30, all figures): one row, each mark over its own epoch's bar.
+        from wfield_local import sig_marks
+        for j, e in enumerate(epochs_present):
+            dx = (j - (m - 1) / 2.0) * bw
+            for i, q in enumerate(positions):
+                mk = (marks.get(e) or {}).get(q)
+                if mk and _value_and_ci(values[e].get(q))[0] is not None:
+                    # neighbouring epochs alternate between two rows: at four bars per group a
+                    # "**" is wider than its bar, and on one row three of them read as "******"
+                    sig_marks.star_top(ax, xs[i] + dx, mk, color=epoch_dot_color(e),
+                                       row=j % 2, fontsize=FS_ANNOT + 0.5)
+    elif marks:
         # ABOVE THE TALLER OF (bar, its dots), so a mark never lands on the data it refers to.
         for j, e in enumerate(epochs_present):
             dx = (j - (m - 1) / 2.0) * bw
@@ -1294,16 +1404,26 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     _yl, _ylines = wrap_ylabel(_yl, _axes_h, FS_LABEL - 1)
     ax.set_ylabel(_yl, fontsize=FS_LABEL - 1)
     ax.set_ylim(*ylim)
+    if marks and open_dots:
+        from wfield_local import sig_marks
+        sig_marks.reserve_headroom(fig)     # the top band above the data is the marks' alone
     ax.tick_params(axis="y", labelsize=FS_TICK - 1)
     ax.set_xlim(-0.6, k - 0.4)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
 
     colors = config.animal_color()
-    handles = [Patch(facecolor=EPOCH_GREY.get(e, "#8a8a8a"), label=e) for e in epochs_present]
-    handles += [Line2D([], [], marker="o", ls="", color=colors[a], alpha=BAR_POINT_ALPHA,
-                       markersize=5, label=a if not counts else f"{a} ({counts.get(a, 0)})")
-                for a in sorted(colors)]
+    handles = [Patch(facecolor=EPOCH_GREY.get(e, "#8a8a8a"),
+                     alpha=BAR_FACE_ALPHA if open_dots else None, label=e) for e in epochs_present]
+    if open_dots:
+        # no session values, no shape entries: a legend must not promise dots the figure lacks
+        _an = sorted({a for per in (points or {}).values() for lst in (per or {}).values()
+                      for a, _v in (lst or [])})
+        handles += _shape_handles(_an, counts)
+    else:
+        handles += [Line2D([], [], marker="o", ls="", color=colors[a], alpha=BAR_POINT_ALPHA,
+                           markersize=5, label=a if not counts else f"{a} ({counts.get(a, 0)})")
+                    for a in sorted(colors)]
     ax.legend(handles=handles, fontsize=FS_ANNOT - 2.0, loc="upper left",
               bbox_to_anchor=(1.01, 1.0), frameon=False, handletextpad=0.4,
               borderpad=0.15, labelspacing=0.32, handlelength=1.1)
@@ -1589,8 +1709,14 @@ def contrast_marks(draws, *, n_comparisons, alpha=0.05):
 
 
 def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=None, groups=None,
-                   subtitle=None, n_comparisons=None):
+                   subtitle=None, n_comparisons=None, points=None):
     """The companion panel: each epoch's change from pre-stroke, per position, with intervals.
+
+    ``points`` (optional, Priya 2026-11-03 figure rule 2) is ``{epoch: {position: [(animal,
+    delta), ...]}}`` -- the per-SESSION changes behind each interval (e.g. `session_deltas` of the
+    companion bar figure's dots). When given they are drawn as faded OPEN markers (shape = animal,
+    colour = epoch) at each epoch's offset and written to ``<name>_sessions.csv``; the main
+    ``<name>.csv`` is unchanged.
 
     ``rows`` is ``{epoch: {position: (point, lo, hi, clo, chi)}}`` -- the uncorrected and the
     Bonferroni-corrected bounds from the same draws. The bar figure beside this one carries the
@@ -1632,6 +1758,9 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
             if v is None:
                 continue
             pt, lo, hi, clo, chi = v
+            if points:
+                epoch_session_dots(ax, xs[i] + dx, ((points.get(e) or {}).get(q) or []), e,
+                                   jitter=off * 0.28, seed=101 * j + 7 * i + 3, zorder=1.8)
             # the CORRECTED interval as a thin whisker behind the uncorrected one, so the figure
             # shows what the correction costs instead of only its verdict
             ax.plot([xs[i] + dx, xs[i] + dx], [clo, chi], color=EPOCH_GREY.get(e, "0.4"),
@@ -1656,6 +1785,9 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     handles += [Line2D([], [], color="0.4", lw=2.6, label="95%"),
                 Line2D([], [], color="0.4", lw=0.9,
                        label=f"95% / {n_comparisons}" if n_comparisons else "corrected")]
+    if points:
+        handles += _shape_handles(sorted({a for per in points.values() for lst in (per or {}).values()
+                                          for a, _v in (lst or [])}))
     ax.legend(handles=handles, fontsize=FS_ANNOT - 2.0, loc="upper left",
               bbox_to_anchor=(1.01, 1.0), frameon=False, handletextpad=0.4, borderpad=0.15,
               labelspacing=0.32, handlelength=1.1)
@@ -1685,6 +1817,8 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     # distinguishes "excludes zero" from "excludes zero after correction", which is exactly the
     # distinction a quoted number gets wrong, so both are written here.
     write_contrast_values(rows, q)
+    if points:
+        write_session_values(points, q)
     plt.close(fig)
     return q
 
@@ -2896,3 +3030,134 @@ def off_canvas(fig, *, tol=0.002):
         for t in list(ax.get_xticklabels()) + list(ax.get_yticklabels()):
             check(t, f"ax{i}.tick:{str(t.get_text())[:10]}")
     return sorted(out, key=lambda r: -abs(r[2]))
+
+
+# ---------------------------------------------------------------------------------------------
+# REPLOT FROM SIDECARS (no recomputation)
+# ---------------------------------------------------------------------------------------------
+# Priya 2026-11-03 asked for the 11-03 session-dot style on figures whose full render costs hours.
+# Every number a `bar_row` / `contrast_panel` figure draws is already in ``data/<name>.csv`` (+
+# ``_sessions.csv``, ``_meta.csv``), so the figure can be redrawn from those alone. A contrast panel
+# never wrote its per-session values before 11-03; they are derived from the companion BAR
+# figure's ``_sessions.csv`` (`session_deltas`), whose name is the delta name minus "delta".
+
+
+def read_meta(png):
+    """``_meta.csv`` beside ``png`` as ``{kind: scalar | list | dict}`` (strings; see `write_meta`)."""
+    import csv as _csv
+    p = find_sidecar(png, "_meta.csv")
+    if p is None:
+        return {}
+    rows = {}
+    with open(p, newline="", encoding="utf-8") as fh:
+        for r in _csv.DictReader(fh):
+            rows.setdefault(r["kind"], []).append((r["key"], r["value"]))
+    out = {}
+    for kind, kv in rows.items():
+        if len(kv) == 1 and kv[0][0] == "":
+            out[kind] = kv[0][1]
+        elif all(k.isdigit() for k, _v in kv):
+            out[kind] = [v for _k, v in sorted(kv, key=lambda t: int(t[0]))]
+        else:
+            out[kind] = dict(kv)
+    return out
+
+
+def _read_rows(path):
+    import csv as _csv
+    with open(path, newline="", encoding="utf-8") as fh:
+        return list(_csv.DictReader(fh))
+
+
+def read_session_points(png):
+    """``{epoch: {position: [(animal, value), ...]}}`` from ``<name>_sessions.csv``, or None."""
+    p = find_sidecar(png, "_sessions.csv")
+    if p is None:
+        return None
+    pts = {}
+    for r in _read_rows(p):
+        v = float(r["value"]) if r["value"] not in ("", "None", "nan") else None
+        pts.setdefault(r["epoch"], {}).setdefault(r["position"], []).append((r["animal"], v))
+    return pts
+
+
+def replot_from_sidecars(png, out_png, *, base_png=None, workdir=None):
+    """Redraw a `bar_row` or `contrast_panel` figure from its sidecars into ``out_png``.
+
+    Renders into ``workdir`` (a scratch directory; its sidecars are a round-trip check, never
+    copied), then copies ONLY the PNG to ``out_png``. The original's sidecars are only read.
+    Returns ``(out_png, kind, n_session_dots, note)``; raises ``FileNotFoundError`` when a sidecar
+    it needs is missing.
+    """
+    import ast
+    import shutil
+    import tempfile
+
+    png = pathlib.Path(png)
+    out_png = pathlib.Path(out_png)
+    main = find_sidecar(png, ".csv")
+    if main is None:
+        raise FileNotFoundError(f"no {png.stem}.csv beside {png}")
+    meta = read_meta(png)
+    rows = _read_rows(main)
+    work = pathlib.Path(workdir or tempfile.mkdtemp(prefix="replot_"))
+    work.mkdir(parents=True, exist_ok=True)
+
+    def _f(x):
+        return None if x in (None, "", "None") else float(x)
+
+    positions = meta.get("positions")
+    tick_labels = meta.get("tick_labels")
+    groups = [tuple(ast.literal_eval(g)) for g in meta["groups"]] if meta.get("groups") else None
+    title, subtitle = meta.get("title", png.stem), meta.get("subtitle")
+    ylabel = meta.get("ylabel", "")
+    note = ""
+    if rows and "point" in rows[0]:
+        kind = "contrast"
+        crow = {}
+        for r in rows:
+            crow.setdefault(r["epoch"], {})[r["position"]] = tuple(
+                _f(r[c]) for c in ("point", "lo95", "hi95", "lo_corrected", "hi_corrected"))
+        pts = read_session_points(png)
+        if pts is None:
+            base = (pathlib.Path(base_png) if base_png
+                    else png.with_name(png.name.replace("delta", "", 1)))
+            bpts = read_session_points(base)
+            if bpts is None:
+                raise FileNotFoundError(f"no per-session values: neither {png.stem}_sessions.csv "
+                                        f"nor {base.stem}_sessions.csv")
+            pts = session_deltas(bpts)
+            note = (f"session deltas from {base.stem}_sessions.csv "
+                    "(session minus its own animal's mean pre value)")
+        nc = meta.get("n_comparisons")
+        q = contrast_panel(crow, work, name=png.stem, title=title, ylabel=ylabel,
+                           positions=positions or list(next(iter(crow.values()))),
+                           tick_labels=tick_labels, groups=groups, subtitle=subtitle,
+                           n_comparisons=int(nc) if nc else None, points=pts)
+    else:
+        kind = "bar"
+        values, marks = {}, {}
+        for r in rows:
+            v, lo, hi = _f(r["value"]), _f(r["lo"]), _f(r["hi"])
+            values.setdefault(r["epoch"], {})[r["position"]] = (
+                v if lo is None and hi is None else (v, lo, hi))
+            marks.setdefault(r["epoch"], {})[r["position"]] = r["mark"]
+        pts = read_session_points(png)
+        if pts is None:
+            note = f"no {png.stem}_sessions.csv: bars only (no per-session values stored)"
+        yl = meta.get("ylim")
+        counts = ({a: int(float(n)) for a, n in meta["counts"].items()}
+                  if isinstance(meta.get("counts"), dict) else None)
+        q = bar_row(values, work, name=png.stem, title=title, ylabel=ylabel,
+                    positions=positions or list(next(iter(values.values()))), points=pts,
+                    chance=_f(meta.get("chance")), counts=counts,
+                    ylim=(float(yl["lo"]), float(yl["hi"])) if isinstance(yl, dict) else None,
+                    subtitle=subtitle, groups=groups, tick_labels=tick_labels,
+                    marks=marks if any(m for d in marks.values() for m in d.values()) else None,
+                    reference=_f(meta.get("reference")))
+    if q is None:
+        raise RuntimeError(f"{png.stem}: renderer drew nothing")
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(q, out_png)
+    n = sum(len(lst or []) for per in (pts or {}).values() for lst in (per or {}).values())
+    return out_png, kind, n, note

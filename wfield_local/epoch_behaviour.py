@@ -433,7 +433,7 @@ def fig_behaviour(out_dir):
             rows, out_dir, name="epoch_1bdelta_behaviour_by_position",
             title="Change from pre-stroke in hit rate by spout position",
             subtitle=sub, ylabel="hit rate - pre", positions=_short_labels(),
-            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp)
+            tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp, points=ef.session_deltas(points))
     return made
 def _position_codes():
     """``{position name: numeric code}`` -- the behaviour table's `pos_idx` domain."""
