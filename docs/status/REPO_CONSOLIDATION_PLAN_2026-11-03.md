@@ -15,6 +15,86 @@ Nothing below has been changed yet. Start only after Priya approves and the coho
 already agree. A regression check on a few cohort-1 sessions proves it. Where definitions DISAGREE, Priya picks one
 first (Tier A), and the change is logged in DECISIONS with before / after numbers. A second agent reviews each step.
 
+## Priya's answers (11-03)
+
+- **A1:** 2.0 s was NOT deliberate. Read the window per session (`daq_trials.response_window_s`) and RE-RUN the quit
+  point and everything downstream of `analysis_kit.RESP_S`.
+- **A2:** fix: classify / GATES everywhere `jaw_pass_qc` is used as a filter.
+- **A3:** ok, with the condition "don't waste multiple-session power". The animal-weighted nested bootstrap
+  (animals → sessions within animal) keeps every session: more sessions make each animal's mean tighter and the
+  interval narrower; it only stops an animal with many sessions from out-voting the others. Report the session-level
+  mixed model (`mixed_models.lmm_table`, animal random effect) beside it as the check that uses every session's
+  variance. For each re-rendered family, list every star that appears or disappears.
+- **A4 (decided):** ONE trial classification for every analysis: the 4 kinematics classes (contact / incomplete
+  / jaw-only / no response), built on `classify`, with:
+  - **jaw = cam4 OR cam1** where that camera can judge it (moved if either camera says moved; unknown only when
+    neither can judge, e.g. cam1 at close_center);
+  - **time window as a parameter:** default cue → trial stop; a whole-trial option for analyses that need it (e.g.
+    ENL / pre-cue work).
+  `scripts/trial_attempts.py`'s attempt classes (encoder page) then come from this one function; "attempted" =
+  contact + incomplete, as already decided on 10-21. Details to carry over from trial_attempts:
+  - a jaw already deflected at the cue counts through its re-onset (`jaw_onsets.jaw_reonset_ms`), else unknown;
+  - the close_mid mask;
+  - the contact source. Both use DAQ contact underneath; classify matches it to video licks. Settle which is primary
+    and log it.
+  Owners:
+  - 5b: classify / GATES.
+  - 34's lineage: trial_attempts.py (last 58f8c14f, no open edits). Its consumers are imaging sections 5 and 8 (failed-
+    attempt decoder / maps), the goal-page attempt sections, mixed_models.DEFICITS and the attempt-coding / prelaunch
+    scripts; all are in 34's rebuild.
+  34 OK'd (11-03) e3 rebuilding trial_attempts on classify BEFORE its renders, with:
+  - a regression test against the current classes where the definitions agree;
+  - a DECISIONS entry with before / after class counts per animal × epoch;
+  - Priya's 10-21 meaning kept (attempted = hit + incomplete; jaw_only = reaction, not attempt; jaw deflected at the
+    cue without a re-onset = unknown).
+  Send 34 the commit; it merges with A1–A5 and renders once.
+- **A5:** ok.
+
+## Coordination rules (Priya 11-03: "coordinate carefully between windows and branches")
+
+- **One owner per file at a time.** Before editing a shared file, ask the windows (34 cohort-1 rebuild, 5b trial
+  classes / imaging gates, a8 deck / figure rules, encoder window on wf_attempt) and wait for an OK.
+  Record the claim in the table below; release it on commit.
+- **Never mid-run.** Don't change a module that a running job imports. Ask the job's owner first.
+- **main first, then the branch.** Each shared fix lands on main with a regression check. The attempt branch picks it up
+  by merging main into analysis/attempt-coding in the encoder window, by agreement, never by force. B1 (re-unifying
+  the package) is scheduled with that window, not done unilaterally.
+- **Shared clone hygiene:** stage by name; `git rebase --autostash`; never commit another window's uncommitted files.
+
+**Timing changed (34, 11-03):** the cohort-1 rebuild is ≥ 1–2 days from rendering (pending a drift-cutoff check, an
+inventory reconciliation, Priya's LocaNMF-refit call, code on a branch, then ~1.5–2 days of renders). 34 proposes that
+A1, A2, A3 and A5 land on **main BEFORE its renders**. It then merges main into its rebuild branch and renders each
+affected family ONCE (quit / engagement, 8g / 10 / 10b / 11, rest / nolick gates) instead of twice. 34's jobs run in
+their own worktrees (wf_frozendef, wf_swapmask), so main edits don't mix versions mid-run; the risk is only at merge.
+
+| file | owner / claim | status |
+|---|---|---|
+| wfield_local/epoch_figures.py, epoch_behaviour.py (A3) | a8 has uncommitted edits (figure rules) | waiting for a8 |
+| analysis_kit.py RESP_S + quit_point / engagement_decomposition / channel_position_maps (A1) | not 34's | waiting for a8 / 5b |
+| orofacial_cohort.py, cam1_incomplete_licks.py (A2) | not 34's | waiting for 5b |
+| scripts/jaw_only_incomplete_figs.py `classify` (A4) | **e3** (handed over by 5b 11-03; 5b won't edit it meanwhile). Keep the interface fixed: GATES, `session_classes(label)` → trial_id, position, cue_daq, cls, has_cam1 over every trial; `cue_classes(table, cue_s)`, `in_gate(cls, gate)`. Window as a keyword. | claimed; send the commit to 5b (re-runs imaging section 1) and 34 |
+| scripts/trial_attempts.py (A4) | the encoding window = 34 (session f082ee0c, STATUS_2026-10-26_ENCODING_HANDOFF); 5b's and 34's attributions agree | switch under Priya's 11-03 "one definition for all", logged as hers |
+
+**A4 window default (34 + 5b, 11-03):**
+- classify's default becomes `window="cue_stop"`; whole-trial stays an option.
+- The "working" gate uses cue_stop for BOTH ENL and cue decoding: "working" = responded to THIS trial's cue, and ENL
+  is lick-free by its own rule.
+- The window name joins `source` in the trial-selection signature, so cache keys and frozen specs separate.
+| rest_engagement / rest_by_position / nolick_decoder (A5) | e3 + 34 jointly: must build on 5b's GATES ("working") so there is ONE definition; 34 edits grant_kit `_class_select` | design agreed with 34 (below); signature to be sent to 34 when fixed |
+
+**A5 design (agreed with 34, 11-03):**
+- `responded(..., source="camera" | "daq")`, living next to GATES. The default is "camera" (Priya 11-03); "daq" (contact
+  within the per-session response window from A1) is the robustness row.
+- The source name enters EVERY cache key and frozen-model spec built on it (tf-* features, the epoch_decoder training
+  set), via a source tag on the trial-selection signature, so daq and camera runs never collide or load each other's
+  models.
+- "unknown" trials (no video, unmatched cue) are excluded under camera, as in GATES, and logged per session
+  (PS93_0813, PS92_0908 visible).
+- The "lick" gate (contact | incomplete) stays separate from "working".
+- 34 wires grant_kit `_class_select` to it in the rebuild branch after A5 lands on main.
+| hemo_variants, configs/defaults.yaml, combined_encoding, joint_locanmf, session_cache, map_collect, precue_engagement_states, frozen_models, grant_kit `_class_select`, **config.py pre_from / date8** (B2 / B3) | **34** (rebuild) | don't touch; schedule B2 / B3 with 34 |
+| branches analysis/frozen-default, analysis/cohort1-swapmask | 34 | merge main in by agreement |
+
 ## Tier A — definitions that disagree and can change a cohort-1 number: Priya decides
 
 | # | what | where it differs | proposal |

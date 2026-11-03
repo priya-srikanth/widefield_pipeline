@@ -22431,3 +22431,36 @@ Do not adopt the strict pre-mix `prebal`: label-free, but it leaves PS94 chronic
 `fig_prebal.png`, `per_session_arms.csv`, `animal_epoch_arms.csv`, `arm_vs_prod.csv`, `boot_delta_arms.csv`,
 `retained_arms.csv`, `ps94_confusions.csv`, `prebal_em_diagnostics.csv`, `analyse_log.txt`); features reused from
 `../running_def/cache/`.
+
+## 2026-11-03 -- ONE trial classification for every analysis (`wfield_local.trial_classes`, consolidation A4)
+
+**Priya 11-03:** "keep the 4 kinematics classes, but jaw from cam4 OR cam1 (if appropriate), and time window cue to stop ...
+then we use this one definition for all". ENL analyses are GATED by the cue -> stop window, while ENL decoding itself
+still uses pre-cue frames. DAQ spout contact is primary for "contact".
+- **Module:** `wfield_local/trial_classes.py` (`session_trials(label, window="cue_stop" | "trial")`, `GATES`,
+  `in_gate`, `selection_tag`). The docstring holds the rules.
+- **Classes:** contact (DAQ contact, cue + 70 ms .. stop) / incomplete (a cam4 or cam1-only lick in the window, or
+  cam1 saw the tongue) / jaw_only / no_response, with the jaw moved on cam4 OR cam1 after the cue (`jaw_onsets.csv`).
+- **unknown:** the jaw is not judged at close_center (10-21 blind review), and a jaw moving at the cue counts only
+  through its re-onset.
+- **Gates:** working = contact | incomplete | jaw_only; camera_lick = attempted = contact | incomplete.
+- **Window:** "trial" also counts pre-cue licks / contacts; the jaw call is always after the cue.
+- **Consumers rewired:**
+  - `scripts/trial_attempts.py`: the encoder-page attempt classes. Its output columns and names are kept (hit =
+    contact, no_try = no_response) for its ~20 readers; owner = encoding window 34, which OK'd it, logged as
+    Priya's decision.
+  - `scripts/jaw_only_incomplete_figs.py`: the kinematics page section 6 and the PI deck. GATES / session_classes /
+    cue_classes / in_gate keep their names and shapes for 5b's imaging section 1 and 34's rebuild; `classify()` was
+    removed.
+- **Regression (all curated sessions):**
+  - vs the old trial_attempts rule: 62,746 / 62,771 trials identical. The 25 others are cam1-seen tongues, now
+    incomplete. Per-column check on 4 sessions: everything else identical.
+  - vs the old kinematics `classify` on its 50,929 engaged trials: 99.35 % identical. Close_center jaw-only / no-response
+    → unknown 252; no_response → jaw_only (cam1) 67; → contact (DAQ primary) 13; at-cue → unknown 2.
+  - Per animal × epoch: `docs/status/A4_TRIAL_CLASSES_COUNTS_2026-11-03.csv`. Contact moves by ≤ 2 per cell; the
+    largest change is in the acute no-response (e.g. PS92 172 → 141, PS93 154 → 132).
+- **Still to re-render on this definition:**
+  - trial_attempts.csv and its readers (34's rebuild);
+  - session_poses/cam1_licks/trial_classes/* and kinematics section 6 (e3);
+  - imaging section 1 (5b, window = cue_stop for both columns);
+  - the deck trial-class slides (a8).

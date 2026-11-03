@@ -5,18 +5,12 @@ without lick trials (and incomplete lick trials) per session across epochs").
     python -m scripts.jaw_only_incomplete_figs [--jobs 8]
 
 TRIAL CLASSES, per ENGAGED trial (`orofacial_cohort.engagement_keep`, the behaviour gate; EVERY engaged trial is the
-denominator, so the five shares sum to 1), first match wins (`classify`):
-  contact     >= 1 lick touched the spout (a cam4 v36 lick with DAQ contact, or a cam1-only event with contact)
-  incomplete  >= 1 lick (cam4 lick or cam1-only event; water droplets removed) and none touched the spout; also the 16 /
-              50,929 trials where cam1 saw a tongue that no lick set counted
-  jaw_only    no lick, cam1 saw no tongue, and the jaw moved (v36 ``tongue_jaw_mismatch.csv`` ``jaw_pass_qc`` = 1: the
-              jaw-MOVED call, not a quality gate) -- the cam1-CORRECTED jaw-without-lick class of `cam1_incomplete_licks`,
-              FINDINGS 1.4 (a blind review found 0 / 24 of these were attempted licks -- reactions, not attempts)
-  no_response no lick and the jaw did not move (``jaw_pass_qc`` = 0)
-  unknown     no lick and the jaw call is undecidable (``jaw_pass_qc`` NaN, jaw not tracked; 4 / 50,929 trials)
-UNTIL 11-03 this script kept only ``jaw_pass_qc`` trials (read as a QC gate), so its shares were out of JAW-MOVED trials
-and no-response trials were missing (caught by e3; `trial_class_all_engaged` recomputed the table meanwhile).
-cam1-only events = cam1 tongue events no cam4 lick and no 3-D lick overlaps (`cam1_licks`), as in `cam1_incomplete_licks`.
+denominator, so the five shares sum to 1): contact / incomplete / jaw_only / no_response / unknown from THE trial
+classification, `wfield_local.trial_classes` (Priya 11-03: one definition for every analysis; cue -> trial stop window,
+DAQ spout contact, jaw cam4 OR cam1, close_center jaw unjudged). History: until 11-03 this script kept only
+``jaw_pass_qc`` trials (the jaw-MOVED call read as a QC gate), then classified all engaged trials with its own rule
+(cam4 jaw only, video-matched contact, no window); the shared definition replaced both (regression in DECISIONS
+2026-11-03: 99.35 % of engaged trials unchanged).
 
 FIG A (frequency, POOLED): share of trials per class, per session x spout, minus the animal's August pre mean at that
 spout (change vs own pre); dots = sessions coloured by animal; marker = animal-weighted change with the paired nested
@@ -45,7 +39,7 @@ V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")     # = canonical order (lesions left: L = ipsi)
 LAB = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "close contra", "far_L": "far ipsi",
        "far_center": "far mid", "far_R": "far contra"}
-CLASSES = ("contact", "incomplete", "jaw_only", "no_response", "unknown")
+CLASSES = ("contact", "incomplete", "jaw_only", "no_response", "unknown")   # = wfield_local.trial_classes.CLASSES
 SHOW = {"jaw_only": "jaw moves, no lick", "incomplete": "incomplete lick (licked, no contact)",
         "contact": "contact lick"}
 EPS = ("pre", "acute", "subacute", "chronic")
@@ -57,87 +51,22 @@ PRE_FROM = "20260801"
 NB = 2000
 
 
-def _flag(x: pd.Series) -> pd.Series:
-    return x.astype("boolean").fillna(False).astype(bool)
+# THE trial classification lives in `wfield_local.trial_classes` (Priya 11-03: one definition for every analysis; read
+# its docstring for the rules). This script keeps the names other windows import -- GATES, session_classes, cue_classes,
+# in_gate -- as thin wrappers, so the imaging section 1 table and the cohort-1 rebuild need no change.
+from wfield_local import trial_classes as TC  # noqa: E402
 
-
-def classify(M: pd.DataFrame, L: pd.DataFrame, E: pd.DataFrame) -> dict:
-    """trial_id -> class, over EVERY trial in ``M`` (v36 tongue_jaw_mismatch), first match wins (module docstring).
-    M: tongue_jaw_mismatch.csv; L: v36 licks.csv (trial_id, contact); E: cam1_licks <s>_events.csv.
-    ``jaw_pass_qc`` is the jaw-MOVED call (`jaw_kinematics`), not a quality gate: 1 = moved, 0 = did not, NaN = jaw not
-    tracked. Until 11-03 this script FILTERED on it, so every share was out of jaw-moved trials and `none` was empty by
-    construction (e3); it now classifies, and the denominator is every engaged trial."""
-    E = E.copy()
-    for c in ("cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"):
-        E[c] = _flag(E[c])
-    c1o = E[~E.cam4_matched & ~E.in_3d & ~E.droplet]                 # cam1-only tongue events, droplets removed
-    seen = set(E.loc[E.jaw_only_trial & ~E.droplet, "trial_id"])     # cam1 saw a tongue in the quiet window
-    touched = set(L.loc[_flag(L.contact), "trial_id"]) | set(c1o.loc[c1o.contact, "trial_id"])
-    licked = set(L.trial_id) | set(c1o.trial_id)
-    moved = dict(zip(M.trial_id, pd.to_numeric(M.jaw_pass_qc, errors="coerce")))
-
-    def one(t):
-        if t in touched:
-            return "contact"
-        if t in licked or t in seen:   # seen-not-licked (a tongue only cam1 / 3-D saw): 16 of 50,929 engaged trials
-            return "incomplete"
-        q = moved.get(t, np.nan)
-        if not np.isfinite(q):
-            return "unknown"
-        return "jaw_only" if q > 0 else "no_response"
-    return {t: one(t) for t in M.trial_id}
-
-
-# --------------------------------------------------------------------------------- shared trial gates (Priya 11-03)
-# THE camera-defined trial gates, ONE definition for the kinematics page, the imaging page and the cohort 1 rebuild
-# (window 34 imports these; e3 asked that every consumer import `classify` rather than re-derive the classes).
-#   working      jaw moved OR any camera-seen lick (contact, incomplete or jaw-only) -- Priya 11-03: the DEFAULT working
-#                set for ENL and cue windows, replacing the DAQ quit-tail rule (`grant_kit._class_select("working")` =
-#                DAQ-engaged + no-lick trials outside the terminal quit period), which is kept as a robustness row
-#   camera_lick  any camera-seen lick (contact or incomplete) -- the camera lick gate; lick-aligned windows always need it
-# HOW THIS RELATES TO THE OTHER "RESPONDED" DEFINITIONS (until they are consolidated; e3's 11-03 audit): those are
-# contact- or rate-based -- `rest_engagement`, `rest_by_position._engaged_trials`, `nolick_decoder.categorize`, and the
-# engagement gate under WIDEFIELD_GATE_SOURCE=lp (DAQ contact OR an LP attempt counts as a response, then a quit /
-# collapse rule over the session). This one is a PER-TRIAL behavioural class from video (cam4 v36 licks + cam1 events)
-# and the cam4 jaw call, with NO session-level quit or engagement rule: a mid-session no-response trial is excluded, a
-# late trial with a jaw movement is kept.
-GATES = {"working": frozenset({"contact", "incomplete", "jaw_only"}),
-         "camera_lick": frozenset({"contact", "incomplete"})}
+GATES = TC.GATES
 CUE_MATCH_S = 0.020          # a DAQ cue and a video trial are the same trial within 20 ms of cue time (as `lp_licks`)
 
 
-def session_classes(label: str, v36: Path | str | None = None, c1: Path | str | None = None) -> pd.DataFrame | None:
-    """Every trial of one session (NO engagement filter) -> DataFrame [trial_id, position, cue_daq, cls, has_cam1].
-
-    label "PS92_0818" or "PS92_20260818". Sources: v36 `sessions/<animal>/<date>/` (trials.csv, tongue_jaw_mismatch.csv,
-    licks.csv, windows.npz for the DAQ cue time, `orofacial_cohort._cue_table`) and `cam1_licks/<s>_events.csv`.
-    COVERAGE: a session with NO cam1 events file is classified from cam4 alone (``has_cam1`` False): cam1-only licks
-    cannot add contact / incomplete trials and jaw-only is not cam1-corrected, so a few jaw-only trials may be attempts
-    cam1 would have caught. MISSING VIDEO per trial: a trial absent from tongue_jaw_mismatch, or with no jaw call
-    (``jaw_pass_qc`` NaN) and no lick, is "unknown" -- in NEITHER gate (no evidence either way). A session with no v36
-    folder returns None: there is no camera-defined working set, and the caller must say what it does then (no DAQ
-    fallback here, so the two definitions can never be mixed silently)."""
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local.paths import PathResolver
-    animal, date = label.split("_")
-    date = date if len(date) == 8 else f"2026{date}"
-    rv = PathResolver()
-    v36 = Path(v36) if v36 else Path(rv.root("orofacial")) / V36 / "sessions"
-    c1 = Path(c1) if c1 else Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
-    sd = v36 / animal / date
-    if not (sd / "tongue_jaw_mismatch.csv").exists() or not (sd / "windows.npz").exists():
-        return None
-    T = pd.read_csv(sd / "trials.csv")[["trial_id", "position"]]
-    M = pd.read_csv(sd / "tongue_jaw_mismatch.csv")
-    L = (pd.read_csv(sd / "licks.csv", usecols=["trial_id", "contact"]) if (sd / "licks.csv").exists()
-         else pd.DataFrame(columns=["trial_id", "contact"]))
-    fe = c1 / f"{animal}_{date}_events.csv"
-    E = (pd.read_csv(fe) if fe.exists() else
-         pd.DataFrame(columns=["trial_id", "cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"]))
-    T["cls"] = T.trial_id.map(classify(M, L, E)).fillna("unknown")
-    T["cue_daq"] = T.trial_id.map(oc._cue_table(sd).set_index("trial_id").cue_daq)
-    T["has_cam1"] = fe.exists()
-    return T
+def session_classes(label: str, v36: Path | str | None = None, c1: Path | str | None = None,
+                    window: str = TC.DEFAULT_WINDOW) -> pd.DataFrame | None:
+    """Every trial of one session (NO engagement filter) -> DataFrame [trial_id, position, cue_daq, cls, has_cam1],
+    from `trial_classes.session_trials` (window "cue_stop" by default, Priya 11-03; "trial" = from the strobe). None
+    when the session has no video outputs (no DAQ fallback, so the two definitions are never mixed silently)."""
+    T = TC.session_trials(label, window=window, v36=v36, c1=c1)
+    return None if T is None else T[["trial_id", "position", "cue_daq", "cls", "has_cam1"]]
 
 
 def cue_classes(table: pd.DataFrame | None, cue_s: np.ndarray, tol: float = CUE_MATCH_S) -> np.ndarray:
@@ -159,8 +88,8 @@ def cue_classes(table: pd.DataFrame | None, cue_s: np.ndarray, tol: float = CUE_
 
 
 def in_gate(cls: np.ndarray, gate: str) -> np.ndarray:
-    """Boolean per trial: class in GATES[gate] ("working" or "camera_lick")."""
-    return np.isin(np.asarray(cls, dtype=object), list(GATES[gate]))
+    """Boolean per trial: class in GATES[gate] ("working", "camera_lick" or "attempted"); `trial_classes.in_gate`."""
+    return TC.in_gate(cls, gate)
 
 
 def session_job(job) -> dict:
@@ -170,14 +99,9 @@ def session_job(job) -> dict:
     animal, date = s.split("_")
     sd = Path(v36) / animal / date
     keep, _ = oc.engagement_keep(animal, date, sd)
-    T = pd.read_csv(sd / "trials.csv")[["trial_id", "position"]]
+    T = TC.session_trials(s, window=TC.DEFAULT_WINDOW, v36=v36, c1=c1)[["trial_id", "position", "cls"]]
     if keep is not None:
         T = T[T.trial_id.isin(keep)]
-    M = pd.read_csv(sd / "tongue_jaw_mismatch.csv")
-    L = (pd.read_csv(sd / "licks.csv", usecols=["trial_id", "contact"]) if (sd / "licks.csv").exists()
-         else pd.DataFrame(columns=["trial_id", "contact"]))
-    E = pd.read_csv(Path(c1) / f"{s}_events.csv")
-    T = T.assign(cls=T.trial_id.map(classify(M, L, E)).fillna("unknown"))
     counts = [{"session": s, "animal": animal, "date": date, "position": p, "n_trials": len(g),
                **{f"share_{c}": float((g.cls == c).mean()) for c in CLASSES},
                **{f"n_{c}": int((g.cls == c).sum()) for c in CLASSES}} for p, g in T.groupby("position")]
