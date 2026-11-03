@@ -24,6 +24,7 @@ cross-validated predictions (`nolick_analysis`-style, 2,000x). Change vs pre: `a
 animals -> sessions), per-animal table printed first (CLAUDE.md rule 8).
 
     python scripts/fr_enl_decode.py [--jobs N] [--only PS92_0806 ...]
+    python scripts/fr_enl_decode.py --plot-only      # redraw the figure from the stored session table
 Output: <dlc>/face_rhythm/cam4/readouts/master_pre_v1/enl_decode/ (fr_enl_decode_sessions.csv, _epochs.csv, figure).
 """
 from __future__ import annotations
@@ -137,39 +138,50 @@ def epoch_table(S: pd.DataFrame) -> pd.DataFrame:
 
 
 def figure(S: pd.DataFrame, path: Path) -> None:
+    """Priya 11-03 categorical-x rules: no line joins epochs; sessions = faded OPEN markers (shape = animal, colour =
+    epoch), each animal at its own offset with a short tick at its mean; the mean of animals = a filled marker +- SEM
+    over the animal means, to the right of the epoch's dots."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
+    from wfield_local import cat_points as cp
     from wfield_local.face_rhythm import common
-    col = common.animal_colors()
+    ecol = common.epoch_colors()
     EP = ["pre", "acute", "subacute", "chronic"]
+    AOFF = {"PS92": -.21, "PS93": -.09, "PS94": .03, "PS95": .15}
+    SUMX = 0.34
     arms = list(dict.fromkeys(S.arm))
-    fig, axs = plt.subplots(1, len(arms), figsize=(3.6 * len(arms), 3.8), sharey=True)
+    animals = sorted(S.animal.unique())
+    fig, axs = plt.subplots(1, len(arms), figsize=(3.9 * len(arms), 3.9), sharey=True, layout="constrained")
     for ax, arm in zip(np.atleast_1d(axs), arms):
         d = S[(S.arm == arm)].dropna(subset=["accuracy"])
         for k, e in enumerate(EP):
             g = d[d.epoch == e]
             for a, gg in g.groupby("animal"):
-                jit = {"PS92": -.18, "PS93": -.06, "PS94": .06, "PS95": .18}.get(a, 0)
-                ax.scatter(np.full(len(gg), k + jit), gg.accuracy, s=9, color=col.get(a, "0.5"), alpha=.5, lw=0)
-                ax.plot([k + jit - .05, k + jit + .05], [gg.accuracy.mean()] * 2, color=col.get(a, "0.5"), lw=2.2)
-        means = [d[d.epoch == e].groupby("animal").accuracy.mean().mean() for e in EP]
-        ax.plot(range(4), means, "-s", color="k", lw=1.8, ms=5, label="mean of animals")
+                jit = AOFF.get(a, 0)
+                cp.session_dots(ax, k + jit, gg.accuracy, [a] * len(gg), ecol[e], jitter=0.025, ms=3.8,
+                                seed=10 * k + animals.index(a))
+                ax.plot([k + jit - .045, k + jit + .045], [gg.accuracy.mean()] * 2, color=ecol[e], lw=2.0, zorder=3)
+            am = g.groupby("animal").accuracy.mean()
+            if len(am):
+                se = am.std(ddof=1) / np.sqrt(len(am)) if len(am) > 1 else None
+                cp.summary_point(ax, k + SUMX, am.mean(), se, color=ecol[e], marker="s", ms=5.5)
         ch = d.chance.median()
         ax.axhline(ch, color="0.5", ls=":", lw=1)
         ax.set_xticks(range(4))
         ax.set_xticklabels(EP, fontsize=8)
+        ax.set_xlim(-0.5, 3.6)
         ax.set_title(arm, fontsize=9.5)
         ax.spines[["top", "right"]].set_visible(False)
     np.atleast_1d(axs)[0].set_ylabel("spout position decoded from FR factors\n(cross-validated accuracy)")
-    for a in ("PS92", "PS93", "PS94", "PS95"):
-        np.atleast_1d(axs)[-1].plot([], [], color=col.get(a), lw=2.2, label=a)
-    np.atleast_1d(axs)[-1].legend(fontsize=7, frameon=False, loc="upper right")
+    hs = [Line2D([], [], ls="none", marker="s", color="0.2", mec="w", ms=6, label="mean of animals +- SEM"),
+          Line2D([], [], color="0.2", lw=2.0, label="animal mean"), *cp.animal_handles(animals)]
+    np.atleast_1d(axs)[-1].legend(handles=hs, fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     fig.suptitle("PRE-CUE (ENL, lick-free) window -- spout position from face movement (FaceRhythm master_pre_v1, "
-                 "12 factors, 0.5 s bins). Dots = sessions, bars = animal means, black = mean of animals, "
-                 "dotted = chance (1 / positions decoded)", fontsize=8.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
+                 "12 factors, 0.5 s bins).\nOpen markers = sessions (shape = animal, colour = epoch), ticks = animal "
+                 "means, squares = mean of animals +- SEM, dotted = chance (1 / positions decoded)", fontsize=8.5)
     fig.savefig(path, dpi=160)
     plt.close(fig)
 
@@ -182,7 +194,14 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--only", nargs="+", default=None)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--plot-only", action="store_true", help="redraw the figure from fr_enl_decode_sessions.csv")
     a = ap.parse_args(argv)
+    if a.plot_only:
+        out = a.out or common.readouts_dir() / "enl_decode"
+        assert_writable(out)
+        figure(pd.read_csv(out / "fr_enl_decode_sessions.csv"), out / "fr_enl_decode.png")
+        print("->", out)
+        return 0
     T = common.sessions(common.default_set_dir())
     tasks = [(lab, tuple(g.file)) for lab, g in T.groupby("label", sort=True)]
     if a.only:

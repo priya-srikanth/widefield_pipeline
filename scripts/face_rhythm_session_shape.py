@@ -282,43 +282,58 @@ test -- each animal's change in units of its own pre-session noise, as the per-e
 
 
 def figures(T: pd.DataFrame, S: pd.DataFrame, out: Path, set_name: str) -> None:
+    from matplotlib.lines import Line2D
+
+    from wfield_local import cat_points as cp
     from wfield_local import face_rhythm_figures as frf
-    acol, ecol = frc.animal_colors(), frc.epoch_colors()
+    from wfield_local import sig_marks
+    ecol = frc.epoch_colors()
     eps = ["pre", *frc.POST_EPOCHS]
+    SUMX = 0.3                              # the pooled summary sits right of each epoch's session dots
     with frf.style():
         fig, axs = frf.subplots(2, 2, figsize=(11, 7.5), squeeze=False)
         for r_i, nm in enumerate(FACTORS):
             d = T[(T.factor == nm) & T.side_spec.notna()]
+            animals = sorted(d.animal.unique())
             for c_i, col in enumerate(("side_spec", "asym")):
                 ax = axs[r_i, c_i]
-                for an, g in d.groupby("animal"):
-                    for e_i, ep in enumerate(eps):
-                        v = g[g.epoch == ep][col].to_numpy()
-                        ax.scatter(np.full(len(v), e_i) + (sorted(d.animal.unique()).index(an) - 1.5) * 0.08, v, s=9,
-                                   color=acol.get(an, "0.5"), alpha=0.6, lw=0)
-                    m = [g[g.epoch == ep][col].mean() for ep in eps]
-                    ax.plot(range(len(eps)), m, "-", color=acol.get(an, "0.5"), lw=0.8, alpha=0.8,
-                            label=an if r_i == 0 and c_i == 1 else None)
+                # Priya 11-03: no line joins epochs (the animal-mean lines are gone); sessions = faded OPEN markers,
+                # shape = animal, colour = epoch, each animal at its own small offset inside the epoch
+                for e_i, ep in enumerate(eps):
+                    for a_i, an in enumerate(animals):
+                        v = d[(d.animal == an) & (d.epoch == ep)][col].to_numpy()
+                        cp.session_dots(ax, e_i + (a_i - (len(animals) - 1) / 2) * 0.08, v, [an] * len(v), ecol[ep],
+                                        jitter=0.025, ms=4.0, seed=100 * e_i + a_i)
                 pre_mean = np.mean([g[g.epoch == "pre"][col].mean() for _, g in d.groupby("animal")])
+                cp.summary_point(ax, SUMX, pre_mean, None, color=ecol["pre"], marker="s", ms=5)
                 for e_i, ep in enumerate(frc.POST_EPOCHS, start=1):
                     s = S[(S.factor == nm) & (S.measure == col) & (S.epoch == ep)].iloc[0]
-                    ax.errorbar(e_i + 0.3, pre_mean + s.change, yerr=[[s.change - s.lo], [s.hi - s.change]], fmt="s",
-                                color="k", ms=4, capsize=2)
+                    ax.errorbar(e_i + SUMX, pre_mean + s.change, yerr=[[s.change - s.lo], [s.hi - s.change]], fmt="s",
+                                ls="none", color=ecol[ep], ms=5, mec="w", mew=0.6, capsize=2.5, elinewidth=1.3, zorder=4)
                     star = "**" if s.p_holm < 0.05 else "*" if s.hi < 0 or s.lo > 0 else ""
-                    ax.text(e_i + 0.3, ax.get_ylim()[1], f"{star}\n{s.same_sign}", ha="center", va="top", fontsize=7)
+                    if star:
+                        sig_marks.star_top(ax, e_i + SUMX, star, color=ecol[ep], row=0)
+                    sig_marks.star_top(ax, e_i + SUMX, str(s.same_sign), color=ecol[ep], row=1, fontsize=7)
                     ax.axvspan(e_i - 0.45, e_i + 0.45, color=ecol[ep], alpha=0.06, lw=0)
                 ax.axhline(pre_mean, color="0.5", lw=0.6, ls=":")
                 ax.set_xticks(range(len(eps)), eps)
                 ax.set_title(f"{nm}: {'side-specificity (own-side r - other-side r)' if col == 'side_spec' else 'loading asymmetry (contra - ipsi) / sum'}",
                              fontsize=9)
-        frf.legend_outside(axs[0, 1])
+        hs = [Line2D([], [], ls="none", marker="s", color="0.2", mec="w", ms=6,
+                     label="pooled (pre mean + change,\n95 % CI; colour = epoch)"),
+              *cp.animal_handles(sorted(T.animal.unique()))]
+        axs[0, 1].legend(handles=hs, loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0, frameon=False,
+                         fontsize=8)
+        sig_marks.reserve_headroom(fig)
         fig.suptitle(f"{set_name}: lick-factor shape PER SESSION (own fit per session, best spatial match)")
         frf.save(fig, out / "session_shape_summary.png", """
-Each dot = one session's own rank-12 fit (lick factor = its best spatial match to the master; cos < .5 dropped).
-Lines = animal means. Black squares = pooled change vs pre placed on the pre mean, 95 % interval from the paired animals
--> sessions bootstrap; * interval excludes 0, ** Holm-adjusted p < .05 over the factor's family (3 measures x 3 epochs);
-k/4 = animals whose own mean change has the pooled sign. Side-specificity: mean r of the loading with the animal's own-
-side pre-stroke spout templates minus the other side's (pre sessions scored against a template built without them).""")
+Each open marker = one session's own rank-12 fit (lick factor = its best spatial match to the master; cos < .5
+dropped); shape = animal, colour = epoch, each animal at its own small offset. No line joins epochs (Priya 11-03).
+Filled squares (right of each epoch) = pooled change vs pre placed on the pre mean (the pre square and the dotted line =
+mean of animal pre means), 95 % interval from the paired animals -> sessions bootstrap; top band: * interval excludes
+0, ** Holm-adjusted p < .05 over the factor's family (3 measures x 3 epochs); k/4 = animals whose own mean change has
+the pooled sign. Side-specificity: mean r of the loading with the animal's own-side pre-stroke spout templates minus
+the other side's (pre sessions scored against a template built without them).""")
 
 
 OTHER_GROUPS = {"lick": ("lick_ongoing_7Hz", "lick_fast_close", "lick_slow_late", "lick_far_nose"),

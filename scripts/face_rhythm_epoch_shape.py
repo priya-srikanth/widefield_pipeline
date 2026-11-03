@@ -88,6 +88,58 @@ def jackknife_se(curves: dict) -> np.ndarray | None:
     return np.sqrt((n - 1) / n * np.nansum((loo - np.nanmean(loo, 0)) ** 2, 0))
 
 
+def tag_marker(tag: str) -> str:
+    """Marker shape of a fit tag: the animal's (`cat_points.ANIMAL_MARKER`); LOAO-<an> = the LEFT-OUT animal's."""
+    from wfield_local import cat_points as cp
+    return cp.animal_marker(tag[len("LOAO-"):] if tag.startswith("LOAO-") else tag)
+
+
+def draw_fit_points(ax, x, curves: dict, se, xcol: list, animals: list) -> None:
+    """Priya 11-03 categorical-x rules for the per-epoch fit readouts: NO line joins the epochs. There is ONE fit per
+    epoch (cohort) or per animal x epoch (own_epoch) -- no session level -- so the per-fit points are drawn instead of
+    session dots. COHORT = filled marker +- jackknife SE (colour = epoch) right of centre; LOAO-<an> = faded OPEN markers
+    (shape = the left-out animal, colour = epoch) left of centre; per-animal fits = filled markers, shape = animal,
+    colour = epoch, each animal at its own offset. ``xcol`` = colour per x position."""
+    from wfield_local import cat_points as cp
+    x = np.asarray(x, float)
+    loao = [t for t in animals if t.startswith("LOAO-")]
+    own = [t for t in animals if t != "COHORT" and not t.startswith("LOAO-")]
+    for t, v in curves.items():
+        if t == "COHORT":
+            continue
+        for j, (xx, vv) in enumerate(zip(x, v)):
+            if not np.isfinite(vv):
+                continue
+            if t.startswith("LOAO-"):
+                off = -0.14 + 0.05 * (loao.index(t) - (len(loao) - 1) / 2)
+                cp.session_dots(ax, xx + off, [vv], [t[len("LOAO-"):]], xcol[j], jitter=0.0, ms=4.5)
+            else:
+                off = (own.index(t) - (len(own) - 1) / 2) * 0.09
+                ax.plot(xx + off, vv, ls="none", marker=tag_marker(t), ms=5, color=xcol[j], mec="w", mew=0.5,
+                        alpha=0.9, zorder=3)
+    if "COHORT" in curves:
+        for j, (xx, vv) in enumerate(zip(x, curves["COHORT"])):
+            cp.summary_point(ax, xx + 0.1, vv, None if se is None else se[j], color=xcol[j], ms=6)
+
+
+def fit_legend_handles(animals: list) -> list:
+    """Legend for `draw_fit_points` (grey stand-ins; colour = epoch in the panels)."""
+    from matplotlib.lines import Line2D
+
+    from wfield_local import cat_points as cp
+    hs = []
+    for t in animals:
+        if t == "COHORT":
+            hs.append(Line2D([], [], ls="none", marker="o", color="0.2", mec="w", ms=6.5,
+                             label="all animals pooled\n+- jackknife SE"))
+        elif t.startswith("LOAO-"):
+            hs.append(Line2D([], [], ls="none", marker=tag_marker(t), mfc="none", mec="0.35", mew=0.9,
+                             alpha=cp.SESSION_ALPHA + 0.2, ms=cp.SESSION_MS + 1.5, label=f"without {t[len('LOAO-'):]}"))
+        else:
+            hs.append(Line2D([], [], ls="none", marker=tag_marker(t), color="0.35", mec="w", ms=6, label=f"{t} fit"))
+    return hs
+
+
 def deg(c):
     return np.degrees(np.arccos(np.clip(c, -1.0, 1.0)))
 
@@ -667,8 +719,9 @@ def main(argv=None) -> int:
         print(f"animals beyond the floor ({mode}):\n{n.to_string()}")
     T = T.drop(columns="cell")
 
-    acol, ecol = frc.animal_colors(), frc.epoch_colors()
+    ecol = frc.epoch_colors()
     x = np.arange(4)
+    xcol = [ecol["pre"], *[ecol[e] for e in frc.POST_EPOCHS]]
     with frf.style():
         fig, axs = frf.subplots(len(names), 2, figsize=(9.5, 2.1 * len(names)), squeeze=False, sharey="col")
         for k, nm in enumerate(names):
@@ -681,11 +734,8 @@ def main(argv=None) -> int:
                     if da[f"floor_{mode}"].notna().any():
                         y = [da[f"floor_{mode}"].dropna().iloc[0], *da[f"angle_{mode}"].to_numpy()]
                         curves[an] = np.asarray(y, float)
-                        st = tag_style(an, acol)
-                        ax.plot(x, y, ".-", color=st["color"], lw=st["lw"], ms=4, alpha=st["alpha"], zorder=st["zorder"])
                 se = jackknife_se(curves)
-                if se is not None:
-                    ax.errorbar(x, curves["COHORT"], yerr=se, fmt="none", ecolor="k", elinewidth=1.4, capsize=3, zorder=4)
+                draw_fit_points(ax, x, curves, se, xcol, animals)
                 labels = ["pre A vs B"]
                 for ep in frc.POST_EPOCHS:
                     nb = int(d[d.epoch == ep][f"beyond_{mode}"].sum())
@@ -696,19 +746,19 @@ def main(argv=None) -> int:
                 ax.set_title(f"{k} {nm}: {mode}", fontsize=8)
                 if c_i == 0:
                     ax.set_ylabel("angle (deg)")
-        for an in animals:
-            st = tag_style(an, acol)
-            axs[0, -1].plot([], [], ".-", color=st["color"], lw=st["lw"], label=st["label"])
-        frf.legend_outside(axs[0, -1])
-        fig.suptitle(f"{fdir.name}: factor shape, pooled per-epoch fits vs the two pre-day halves ("
-                     + ("black = all sessions of all animals pooled +- jackknife SE; thin = each animal left out)"
+        frf.legend_outside(axs[0, -1], handles=fit_legend_handles(animals), fontsize=7)
+        fig.suptitle(f"{fdir.name}: factor shape, pooled per-epoch fits vs the two pre-day halves\n("
+                     + ("filled = all sessions of all animals pooled +- jackknife SE; open = each animal left out)"
                         if OWN != "own_epoch"
-                        else "n = 4 animals)"))
+                        else "one fit per animal x epoch, n = 4 animals)")
+                     + "\ncolour = epoch; no session level (one fit per epoch), so the fits are the points")
         frf.save(fig, out / "epoch_shape_angles.png", """
 One own fit per animal x epoch on the epoch's sessions pooled (`face_rhythm_factors.py fitepoch`, equal rows per fit),
 plus two pre fits on disjoint alternating halves of the pre days. Every fit Hungarian-aligned to the frozen master
 (factor k = the master's factor k). First point: the angle between the two pre halves' factor k (the FLOOR: two fits of
-the same pre-stroke behaviour); then each epoch's mean angle to the two halves. Lines = animals (repo colours). Under
+the same pre-stroke behaviour); then each epoch's mean angle to the two halves. Points = fits, colour = epoch, shape =
+animal (cohort run: filled = all animals pooled +- jackknife SE, open = leave-one-animal-out fits, shape = the animal
+left out); no line joins epochs (Priya 11-03; one fit per epoch, so there are no session values to show). Under
 each epoch: animals whose angle to BOTH pre halves exceeds their floor. Spatial = where on the face (x, y loadings),
 spectral = which frequencies. One value per animal: descriptive, no interval (PS95 acute = one session, half the rows).""")
 
@@ -722,31 +772,31 @@ spectral = which frequencies. One value per animal: descriptive, no interval (PS
             for an in animals:
                 da = d[d.animal == an].set_index("epoch").reindex(list(frc.POST_EPOCHS))
                 curves[an] = np.array([0.0, *da.asym_change.to_numpy()], float)
-                st = tag_style(an, acol)
-                ax.plot(x, [0.0, *da.asym_change.to_numpy()], ".-", color=st["color"], lw=st["lw"], ms=5, alpha=st["alpha"],
-                        zorder=st["zorder"])
                 fl = da.asym_floor.dropna()
-                if len(fl):
-                    ax.errorbar(-0.15 + 0.1 * animals.index(an), 0, yerr=float(fl.iloc[0]), color=tag_style(an, acol)["color"],
-                                capsize=2, lw=0.8)
+                if len(fl):                     # pre = 0 by construction; the bar is that fit's |preA - preB|
+                    lo = an.startswith("LOAO-")
+                    ax.errorbar(-0.2 + 0.4 * animals.index(an) / max(len(animals) - 1, 1), 0, yerr=float(fl.iloc[0]),
+                                fmt=tag_marker(an) if an != "COHORT" else "o", ms=4 if an != "COHORT" else 5,
+                                mfc="none" if lo else ecol["pre"], mec=ecol["pre"], ecolor=ecol["pre"],
+                                alpha=0.5 if lo else 1.0, capsize=2, lw=0.8 if an != "COHORT" else 1.3, zorder=3)
             se = jackknife_se(curves)
-            if se is not None:
-                ax.errorbar(x[1:], curves["COHORT"][1:], yerr=se[1:], fmt="none", ecolor="k", elinewidth=1.4, capsize=3,
-                            zorder=4)
+            draw_fit_points(ax, x[1:], {t: v[1:] for t, v in curves.items()}, None if se is None else se[1:],
+                            xcol[1:], animals)
             ax.axhline(0, color="k", lw=0.5)
             ax.set_xticks(x, ["pre", *[e[:5] for e in frc.POST_EPOCHS]])
             ax.set_title(f"{names[k]}: loading asymmetry change", fontsize=10)
         axs[0, 0].set_ylabel("(contra - ipsi) / sum, epoch - pre")
-        for an in animals:
-            st = tag_style(an, acol)
-            axs[0, -1].plot([], [], ".-", color=st["color"], lw=st["lw"], label=st["label"])
-        frf.legend_outside(axs[0, -1])
+        frf.legend_outside(axs[0, -1], handles=fit_legend_handles(animals), fontsize=7)
         fig.suptitle(f"{fdir.name}: do the lick factors move across the face? (pooled per-epoch fits)"
-                     + ("\nblack = all animals pooled, +- jackknife SE over animals" if OWN != "own_epoch" else ""))
+                     + ("\nfilled = all animals pooled +- jackknife SE over animals; open = each animal left out"
+                        if OWN != "own_epoch" else "\none fit per animal x epoch")
+                     + "; colour = epoch")
         frf.save(fig, out / "epoch_shape_asymmetry.png", """
 Loading asymmetry (contra - ipsi) / (contra + ipsi) of |spatial loading| per factor (cam4: contralesional = image
 left), each epoch's pooled fit minus the mean of the two pre-half fits; < 0 = the factor moved towards the
-ipsilesional face. Bars at pre: +-|preA - preB| per animal, the pre-stroke noise of this number. Descriptive, n = 4.""")
+ipsilesional face. Bars at pre: +-|preA - preB| per fit, the pre-stroke noise of this number. Points = fits (colour =
+epoch, shape = animal; cohort run: filled = all animals pooled +- jackknife SE, open = leave-one-animal-out, shape =
+the animal left out); no line joins epochs (Priya 11-03; one fit per epoch, no session values). Descriptive, n = 4.""")
     lc = figure_layout.sidecar_for(out, "epoch_shape_loadings", ".pkl")
     D = pd.read_pickle(lc) if a.plot_only else loadings_and_templates(fdir, names, tuple(a.factors))
     if not a.plot_only:
