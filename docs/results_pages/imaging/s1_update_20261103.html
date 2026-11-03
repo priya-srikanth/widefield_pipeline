@@ -1,0 +1,30 @@
+<!-- section 1 update 11-03 (window 5b; p_img_s1_table_20261103.py). Classes: commit 3b7d08a4, window cue_stop -->
+<h4>Per animal (session means; refit within each session; trials = CAMERA-DEFINED WORKING: the jaw moved or the camera saw any lick, contact or incomplete, between the cue and the trial stop; video lick train (cam4 + cam1) for the lick-free pre-cue window; pre = August only; sessions with a decode pre 8 / 7 / 8 / 8 / acute 5 / 4 / 6 / 1 / subacute 2 / 3 / 5 / 7 / chronic 12 / 12 / 8 / 11 (PS93 pre 7: PS93_0813 has no video); robustness rows below the table)</h4>
+<div class="tbl"><table>
+<tr><th>animal</th><th>basis</th><th>pre-cue: pre</th><th>pre-cue: acute</th><th>pre-cue: subacute</th><th>pre-cue: chronic</th><th>post-cue: pre</th><th>post-cue: acute</th><th>post-cue: subacute</th><th>post-cue: chronic</th></tr>
+<tr><td>PS92</td><td>Allen split</td><td>0.37</td><td>0.34</td><td>0.40</td><td>0.44</td><td>0.77</td><td>0.57</td><td>0.75</td><td>0.85</td></tr>
+<tr><td>PS92</td><td>LocaNMF</td><td>0.38</td><td>0.37</td><td>0.39</td><td>0.45</td><td>0.77</td><td>0.58</td><td>0.73</td><td>0.85</td></tr>
+<tr><td>PS93</td><td>Allen split</td><td>0.40</td><td>0.29</td><td>0.27</td><td>0.43</td><td>0.64</td><td>0.44</td><td>0.62</td><td>0.82</td></tr>
+<tr><td>PS93</td><td>LocaNMF</td><td>0.41</td><td>0.30</td><td>0.28</td><td>0.40</td><td>0.65</td><td>0.43</td><td>0.59</td><td>0.78</td></tr>
+<tr><td>PS94</td><td>Allen split</td><td>0.54</td><td>0.41</td><td>0.46</td><td>0.57</td><td>0.85</td><td>0.62</td><td>0.81</td><td>0.88</td></tr>
+<tr><td>PS94</td><td>LocaNMF</td><td>0.53</td><td>0.41</td><td>0.44</td><td>0.54</td><td>0.82</td><td>0.58</td><td>0.77</td><td>0.85</td></tr>
+<tr><td>PS95</td><td>Allen split</td><td>0.34</td><td>0.42</td><td>0.31</td><td>0.37</td><td>0.82</td><td>0.75</td><td>0.73</td><td>0.83</td></tr>
+<tr><td>PS95</td><td>LocaNMF</td><td>0.35</td><td>0.44</td><td>0.33</td><td>0.38</td><td>0.81</td><td>0.75</td><td>0.71</td><td>0.82</td></tr>
+</table></div>
+<p class="input"><b>Robustness</b> (mean of the four animals&rsquo; session means): the trial gate, the end-of-session cutoff, the Allen basis (split vs plain) and the decoder basis (Allen vs LocaNMF) move no cell by more than a few hundredths; DAQ licking trials (the table until 11-03) sit higher post-cue because every such trial&rsquo;s window contains the lick.</p>
+<div class="tbl"><table class="wide">
+<tr><th>decoder basis, trials</th><th>pre-cue: pre</th><th>pre-cue: acute</th><th>pre-cue: subacute</th><th>pre-cue: chronic</th><th>post-cue: pre</th><th>post-cue: acute</th><th>post-cue: subacute</th><th>post-cue: chronic</th></tr>
+<tr><td>Allen split, camera working (jaw or any camera lick) — table above</td><td>0.41</td><td>0.37</td><td>0.36</td><td>0.45</td><td>0.77</td><td>0.60</td><td>0.73</td><td>0.84</td></tr>
+<tr><td>Allen split, camera working to the session's last camera lick</td><td>0.41</td><td>0.38</td><td>0.36</td><td>0.45</td><td>0.77</td><td>0.60</td><td>0.72</td><td>0.85</td></tr>
+<tr><td>Allen split, camera lick gate (contact or incomplete)</td><td>0.41</td><td>0.38</td><td>0.37</td><td>0.45</td><td>0.79</td><td>0.66</td><td>0.77</td><td>0.86</td></tr>
+<tr><td>Allen plain (no ALM / tjM1 split), camera working</td><td>0.40</td><td>0.36</td><td>0.34</td><td>0.42</td><td>0.75</td><td>0.58</td><td>0.71</td><td>0.82</td></tr>
+<tr><td>Allen split, DAQ quit-tail working</td><td>0.42</td><td>0.36</td><td>0.37</td><td>0.45</td><td>0.77</td><td>0.59</td><td>0.73</td><td>0.86</td></tr>
+<tr><td>Allen plain, DAQ licking trials (the table until 11-03)</td><td>0.41</td><td>0.41</td><td>0.35</td><td>0.42</td><td>0.78</td><td>0.72</td><td>0.76</td><td>0.84</td></tr>
+<tr><td>LocaNMF, camera working — table above</td><td>0.42</td><td>0.38</td><td>0.36</td><td>0.44</td><td>0.76</td><td>0.59</td><td>0.70</td><td>0.83</td></tr>
+<tr><td>LocaNMF, camera working to the last camera lick</td><td>0.42</td><td>0.38</td><td>0.36</td><td>0.44</td><td>0.77</td><td>0.59</td><td>0.70</td><td>0.83</td></tr>
+<tr><td>LocaNMF, DAQ quit-tail working</td><td>0.42</td><td>0.37</td><td>0.36</td><td>0.45</td><td>0.77</td><td>0.56</td><td>0.71</td><td>0.84</td></tr>
+</table></div>
+<!-- Fig 1.2 caption sentence (replaces 'A decoder trained on the acute session itself ...'): -->
+<p>A decoder refit on the acute session still loses the far spouts, so part of the acute loss of section 2 is not a frozen-decoder mismatch; fewer acute trials and changed licking may contribute.</p>
+<!-- takeaway, first sentences (keep the rest of the existing take: position information not a plan, slow band): -->
+<p>Re-fitting each day, position stays decodable in every epoch: post-cue 0.44&ndash;0.88, pre-cue 0.27&ndash;0.57 against chance 0.167 (table; Allen areas with the ALM / tjM1 split, camera-defined working trials; LocaNMF agrees). Post-cue accuracy falls acutely in 4 / 4 animals and is back at or above pre by chronic. Pre-cue there is no consistent acute change (up in PS95, down in PS93 / PS94, flat in PS92). </p>
