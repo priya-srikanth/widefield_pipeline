@@ -1,5 +1,8 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> **OVERNIGHT 11-02 -> 11-03: live log + decisions for Priya in [`RUNNING_LIST_2026-11-02_OVERNIGHT.md`](RUNNING_LIST_2026-11-02_OVERNIGHT.md).**
+> State decoder z-score fix DONE (abda8c9c; specificity ratio now an acute claim); cohort2_qc fan_out -> fan_sessions (d74ab907); pushed.
+>
 > **PI DECK STATE (11-02 ~23:45).** M:/MICROSCOPE/Priya/Widefield/presentations/PI_overview_2026-11-02.pptx, 125 slides
 > (Priya also edits it: never rebuild; edit in place by slide TITLE; never re-run build_1102.py). Source folder
 > _source_PI_overview_2026-11-02/: every edit is a script that backs the deck up first (backup_before_<step>.pptx) and
