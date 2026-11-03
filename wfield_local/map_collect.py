@@ -11,7 +11,8 @@ TWO FIXES LIVE HERE (the third, concurrent arms, is `epoch_grant_figures --paral
 
   1. A DISK CACHE per session x arm (`session_cache`, kind ``<prefix>-<align>-<variant>-<digest>``). The digest covers
      the MAP-BUILDING code only -- the source of the functions that build a session's maps and of the modules they call
-     (`code_digest`), the arguments, a `MAPS_VERSION` constant, the whole of `defaults.yaml` and the effective ENL
+     (`code_digest`), the arguments, a `MAPS_VERSION` constant, the defaults.yaml keys the builders read (`MAP_YAML_KEYS`,
+     narrowed 11-03 from the whole file) and the effective ENL
      window -- so editing a significance test, a figure or a comment elsewhere keeps the cache warm, and editing the
      map code invalidates it without anyone remembering to bump a number. The session's DATA files are in the key via
      `session_signature` (SVT, U, LocaNMF C, h5, behaviour trials) plus the extra inputs each caller passes
@@ -112,13 +113,48 @@ def stat_sig(path) -> str:
     return f"{p.name}:{st.st_size}:{st.st_mtime_ns}"
 
 
+#: THE defaults.yaml KEYS THE MAP BUILDERS READ (rebuild 2026-11-03, task 3). The digest used to hash the WHOLE of
+#: defaults.yaml, so any edit -- a deck option, a DLC parameter, the rebuild's own joint_basis / trial_selection blocks --
+#: cold-started every map cache. Found by reading every `config.defaults()` access in the modules the per-session map
+#: builders call (beta_maps / position_reference_maps -> locanmf_position_decoder trial features, locanmf_frozen_decoder
+#: _args, quiet_periods, rest_engagement, rest_by_position, precue_engagement_states, gate_source, behavior_events,
+#: daq_io, framemap_event_maps, plot_lick_aligned_averages, locanmf_lick_aligned, nolick_decoder, config's path
+#: helpers); tests/test_map_cache_key.py re-reads those modules and fails if a builder starts reading another section.
+#: NOT here, because the session-cache KIND already carries them (`run_mode.cache_tag`, `session_cache.effective_kind`):
+#: trial_selection.* (the selection tag) -- and hemo.variant is ALSO tagged there (non-default variants), kept here as
+#: the data path's own key. A key path is a tuple; a missing key hashes as absent.
+MAP_YAML_KEYS = (
+    ("decode",),                       # windows, max_rt, bins, lick-free pre-cue gate, prewindow lead
+    ("lick_detection",),               # thresholds, min ILI (trial features, rest gates, behaviour events)
+    ("segmentation",),                 # rest / quiet / treadmill masks
+    ("preprocess", "maps", "tag"),     # allen_aligned_<tag>, quiet_<tag>
+    ("hemo", "variant"),               # which SVTcorr the maps read (config.svtcorr_path)
+)
+_ABSENT = "<absent>"
+
+
+def map_yaml_subset(defaults: dict | None = None) -> dict:
+    """``{"a.b": value}`` for every MAP_YAML_KEYS path of ``defaults`` (default: `config.defaults()`)."""
+    if defaults is None:
+        from wfield_local import config
+        defaults = config.defaults()
+    out = {}
+    for path in MAP_YAML_KEYS:
+        v = defaults
+        for k in path:
+            v = v.get(k, _ABSENT) if isinstance(v, dict) else _ABSENT
+        out[".".join(path)] = v
+    return out
+
+
 def cache_kind(prefix: str, align: str, variant: str, spec: dict, code: str) -> str:
-    """``<prefix>-<align>-<variant>-<digest>``: digest of spec + code + MAPS_VERSION + defaults.yaml + ENL window."""
-    from wfield_local import config, lp_licks
+    """``<prefix>-<align>-<variant>-<digest>``: digest of spec + code + MAPS_VERSION + the defaults.yaml keys the map
+    builders read (`MAP_YAML_KEYS`) + ENL window."""
+    from wfield_local import lp_licks
     full = dict(spec)
     full["maps_version"] = MAPS_VERSION
     full["code"] = code
-    full["defaults"] = repr(config.defaults())
+    full["defaults"] = repr(sorted(map_yaml_subset().items()))
     full["enl_window_s"] = lp_licks.enl_window_s() if align == "precue" else None
     digest = hashlib.sha1(repr(sorted(full.items(), key=repr)).encode()).hexdigest()[:12]
     return f"{prefix}-{align}-{variant}-{digest}"
