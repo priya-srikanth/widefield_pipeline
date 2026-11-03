@@ -542,3 +542,6 @@ camera_coverage_tables forces gate=daq for its own comparison; `.str[:4]` animal
 
 **For Priya:** warm-up rule (provisional); the no-camera-lick session rule (all warm-up, no stops); MIN_UNCOVERED_RUN = 5;
 the contact no-lick counts above; the acute trial-length difference.
+
+### 8.9 Final test record (3ef70b5b; ffdf94ab after it is docs only)
+Full suite, 5 shards, frozen worktree copy: 4,476 passed, 176 skipped, 0 failed.
