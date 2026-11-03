@@ -4,9 +4,59 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
+## UPDATE 08:53 — current state (supersedes "Section 1 table — state" and "Next steps" below where they differ)
+
+**Running now** (camera lick source `WIDEFIELD_LICK_SOURCE=lp`, ENL pinned 2.0 s; gates read from the A4 snapshot):
+* Allen table `wf_attempt/scripts/s1_refit_basis_table.py --jobs 6` -> `imaging_encoding/LP_licks_ENL2s/qc/s1_refit_basis.csv`
+  (13 / 108 at 08:53, ~25 min). Arms per feature set (plain_orig / plain_v8 / split): **camwork** (DEFAULT),
+  **camlick**, quit-tail working, LP licking.
+* LocaNMF table `scripts/s1_refit_locanmf_table.py` -> `imaging_encoding/LP_licks_ENL2s/qc/s1_refit_locanmf.csv`
+  (precue done, cue running). Arms: camwork / camlick / quittail.
+* DAQ robustness rows already done: `imaging_encoding/qc/s1_refit_basis.csv` (quit-tail working + DAQ licking, all
+  three feature sets) and `qc/s1_refit_locanmf_figrule.csv` (checked 0 mismatches vs Figs 1.1 / 1.2).
+* PS93_0813 (no video) fails cleanly in the LP runs (LPUnavailable): expected; it stays in the DAQ rows (Priya: keep it
+  wherever only contact is needed).
+
+**Decided since the first version of this handoff (Priya, 11-03, partly via e3 / a8):**
+* **A4 — one trial classification for every analysis**: `wfield_local/trial_classes.py` (e3, 28f2a632; jaw = cam4 OR
+  cam1, DAQ contact primary, `window` param). The GATES / session_classes / cue_classes / in_gate names in
+  `jaw_only_incomplete_figs` are unchanged; `classify()` is gone. e3 OWNS the A4 / A5 consolidation edits; this window
+  no longer edits the class rules.
+* **Window = cue_stop for BOTH the ENL and the cue columns** ("working" = responded to THIS trial's cue; the ENL window
+  is lick-free by its own rule).
+* **close_center no-lick, no-contact, no-tongue = NO_RESPONSE** (not unknown), with a `jaw_judged` column for a
+  sensitivity drop (e3 23c8f775, local; on main with A1 shortly). Does NOT change working or camera_lick, so the running
+  decodes stay valid.
+
+**Class snapshot** (new, main): `scripts/s1_trial_class_snapshot.py` -> `imaging_encoding/qc/s1_trial_classes_cue_stop.csv.gz`
++ `.json` (commit 28f2a632, clean). One row per DAQ cue of the 108 curated imaging sessions: cls, working,
+camera_lick. Both decoders INDEX it (the branch has no `trial_classes.py`; no copy of the rules anywhere). Shares:
+contact .821, jaw_only .060, no_response .058, incomplete .040, unknown .021 (close_center no-lick; -> no_response
+under 23c8f775).
+Caveat measured: 807 jaw-only trials fall after the session's last contact lick (~1.6 % of the working set, mostly
+the sated tail). e3 passes "quit-tail AND jaw-or-lick" to Priya as an option; nothing changed.
+
+**Next (in order):**
+1. When e3 says 23c8f775 is on main: re-run the snapshot (`python -m scripts.s1_trial_class_snapshot`, ~2 min) and
+   ASSERT every cue's working / camera_lick flag equals the 28f2a632 snapshot (keep a copy of the old one first,
+   `cp -n`). If any flag differs, re-run both decoders.
+2. When both runs finish: assemble the section 1 table = PRIMARY camera-working on split Allen + LocaNMF (pre-cue and
+   post-cue, per animal x epoch, August pre); robustness = camera lick gate, plain Allen, DAQ quit-tail working, DAQ
+   licking (the old table). Per-animal FIRST (rule 8).
+3. Imaging page section 1 (live page; rebuild from live immediately before publishing — a8's figure-rules helper also
+   republishes it): table, Fig 1.2 sentence (b), takeaway, the "acute 4 / 4 / 4 / 1" counts (now 5 / 4 / 6 / 1 with
+   working trials). No "CORRECTION" notes.
+4. Send a8 the slide 9 numbers + source file; tell 34 the section 1 scripts / outputs for the rebuild inventory.
+
+**Commits since the first version:** main 6553eb39 (snapshot + LocaNMF camera arms), b1d8377d, aca69271; branch
+analysis/attempt-coding e7997933, 79da1615, a9355d14 (local, not pushed).
+
+**Pitfall:** the repo writeguard refuses an LP-source run's write outside an `LP_licks_*` directory — use
+`lp_licks.output_dir(out)` (both scripts do).
+
 ## Decisions needed from Priya
 
-None open. Decided today:
+None open (the post-quit jaw-only option is with e3 -> Priya). Decided today:
 
 * **"Working" trials (11-03):** for ENL and cue windows, working = **jaw moved OR any camera-seen lick**
   (contact, incomplete or jaw-only), per trial, no session-level rule. The DAQ quit-tail rule
