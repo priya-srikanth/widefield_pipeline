@@ -480,7 +480,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   Helper redoing both on the main slide's quantity (new files, old kept as per-spout supplement); then a8 swaps; the DECISIONS row
   gets rewritten (e3).
 - PEAK vs AUC (ramp_window_tests.csv, spouts pooled, change vs pre): CUED -- AUC 0-0.5, AUC 0-1 and peak give the same picture
-  (the same 15 of 21 cells significant under all three; median CI width .35 / .32 / .30). ITI -- peak CIs are much tighter (median
+  (the same 18 of 21 cells significant under all three; median CI width .35 / .32 / .30). ITI -- peak CIs are much tighter (median
   .71 vs 1.92 for AUC 0-1) because the 0-1 s AUC integrates the slow ITI tail; peak flags ALM acute / subacute where AUC 0-1
   does not. RECOMMEND keep AUC 0-1 primary (pre-decided; it captures DURATION -- the acute far-contra response reaches the pre
   peak but decays sooner, which a peak cannot see), peak as a labelled sensitivity. Caveat on peak: the max of a noisy PETH is
