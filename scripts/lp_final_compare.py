@@ -1,7 +1,7 @@
 """Per-animal headline tables: FINAL LP arm vs the CURRENT LP-arm versions (rule 8: per animal before pooled).
 
 Maps: amplitude ratio RMS(epoch mean map) / RMS(pre mean map), per animal (`restnl_maps.amplitude_table`), far contra.
-    final   = <LPfinal>/LP_licks_gateLP/epoch/data/lpfinal_amplitude_per_animal_<align>_<variant>.csv (LP gate, Aug pre)
+    final   = lp_licks.output_dir(<LPfinal>/epoch) under lp_final_render.setup()/data/lpfinal_amplitude_per_animal_...csv
     current = <grant_figures>/LP_licks/epoch_restnl/data/restnl_amplitude_per_animal_<align>_<variant>.csv (11-01:
               LP licks, gate as before = LP-only imaging gate + DAQ-only rest gate, Aug pre; refs restnl/rest/restw/raw)
 Decoders: far-contra accuracy per animal x epoch.
@@ -36,10 +36,24 @@ def md(df: pd.DataFrame) -> str:
     return "\n".join(out)
 
 
+def final_maps_dir(lf):
+    """The FINAL maps folder exactly as `lp_final_render` routes it (review M10, 11-03): its `setup()` env (LP source +
+    LP gate + PRE_FROM + MAP_REFS) through `lp_licks.output_dir`, so the run-mode parts (pre0801, refs-...) the rebuild
+    added are followed instead of reading the pre-rebuild LP_licks_gateLP/epoch file."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import lp_final_render
+    from wfield_local import lp_licks
+    lp_final_render.setup()
+    return lp_licks.output_dir(lf / "epoch")
+
+
 def maps(g, lf):
     rows = []
+    fdir = final_maps_dir(lf)
+    print(f"(final maps from {fdir})", flush=True)
     for align, var in (("precue", "working"), ("cue", "working"), ("lick", "lick")):
-        f_new = lf / "LP_licks_gateLP" / "epoch" / "data" / f"lpfinal_amplitude_per_animal_{align}_{var}.csv"
+        f_new = fdir / "data" / f"lpfinal_amplitude_per_animal_{align}_{var}.csv"
         f_old = g / "LP_licks" / "epoch_restnl" / "data" / f"restnl_amplitude_per_animal_{align}_{var}.csv"
         if not f_new.exists():
             print(f"(maps {align}: final table missing)")

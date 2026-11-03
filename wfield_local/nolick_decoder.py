@@ -267,7 +267,7 @@ def categorize(s, args, with_licks=False):
         # stopped ("unknown": no video, unmatched cue) leaves the categorisation (cat = ""): it is in neither arm, as
         # `camera_select`. No fail-open here: a class-table error propagates.
         ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(lk["sample_rate_hz"]))
-        sess_eng = _tc.in_gate(ccls, "working")
+        sess_eng = _tc.in_gate(ccls, "miss_working")   # read on UNDETECTED cues only: no contact class (review M6)
         neither = ~sess_eng & ~np.isin(ccls, list(_tc.STOPPED_CLASSES))
         cat = np.where((cat == "undetected") & neither, "", cat).astype(object)
     else:

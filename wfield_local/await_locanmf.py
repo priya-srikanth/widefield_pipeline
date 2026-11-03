@@ -315,6 +315,10 @@ def tick(rv, yyyymmdd, animals, args) -> set[str]:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config as _cfg_m2
+    if _cfg_m2.locanmf_projection_on():   # review M2 (11-03): never refit into the adopted per-session folder
+        raise SystemExit("WIDEFIELD_LOCANMF_PROJECT=1: per-session LocaNMF is SERVED by projection; await_locanmf would fit "
+                         "the selected variant's SVTcorr into the adopted locanmf_* folder. Unset it to run await_locanmf.")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("date", metavar="DATE", help="the night to await (MMDD or YYYYMMDD)")
     ap.add_argument("--animals", nargs="+", metavar="ANIMAL", default=None, help="subset (default: all four)")

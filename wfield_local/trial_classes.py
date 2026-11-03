@@ -57,7 +57,12 @@ import pandas as pd
 CLASSES = ("contact", "incomplete", "jaw_only", "no_response", "unknown")
 GATES = {"working": frozenset({"contact", "incomplete", "jaw_only"}),
          "camera_lick": frozenset({"contact", "incomplete"}),
-         "attempted": frozenset({"contact", "incomplete"})}
+         "attempted": frozenset({"contact", "incomplete"}),
+         # MISS WHILE WORKING on the NO-LICK arm (review M6, 11-03): responded but NO contact. A no-lick row (no DAQ
+         # lick within max_rt) whose camera class is "contact" (a contact later in cue+70 ms .. stop) is in NEITHER
+         # miss_working nor stopped -- to confirm with Priya (count them: `in_gate(cls, "working") & ~in_gate(cls,
+         # "miss_working")`).
+         "miss_working": frozenset({"incomplete", "jaw_only"})}
 WINDOWS = ("cue_stop", "trial")
 DEFAULT_WINDOW = "cue_stop"
 JAW_UNJUDGED_POSITIONS = ("close_center", "close_mid")   # neither camera can judge the jaw at this spout (10-21)
@@ -269,6 +274,14 @@ def daq_quit_rule(reason: str):
         _DAQ_RULE_OK.reset(tok)
 
 
+def require_gate(mode: str, where: str) -> None:
+    """Raise `DaqGateRefused` unless the run's gate is ``mode`` (review M5): called at the top of a family that is NOT
+    wired to the camera classes, so it refuses before any work (engagement_gate would refuse later anyway)."""
+    if gate_mode() != mode:
+        raise DaqGateRefused(f"{where} is not wired to the {gate_mode()} trial gate (it selects trials by the {mode} "
+                             f"rule); run it with {GATE_ENV}={mode} or wire it to trial_classes")
+
+
 def refuse_daq_gate(where: str) -> None:
     """Raise `DaqGateRefused` when the run's gate is camera and no `daq_quit_rule` block is open. No-op under daq."""
     if _DAQ_RULE_OK.get() is None and camera_gate_on():
@@ -292,6 +305,46 @@ class RefusedMask:
     __array__ = __invert__ = __and__ = __rand__ = __or__ = __ror__ = __xor__ = __rxor__ = _refuse
     __len__ = __getitem__ = __iter__ = __bool__ = __eq__ = __ne__ = _refuse
     __hash__ = None
+
+
+_CLASS_SIG: dict = {}
+#: functions whose source defines the camera classes; their code enters `class_source_signature` (review H4)
+CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "cue_classes",
+                    "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
+                    "camera_engaged_period", "in_gate")
+
+
+def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
+    """sha1[:10] of everything the camera classes are built from (review H4, 11-03): the v36 per-session trials.csv /
+    licks.csv / windows.npz, the cam1 event files, jaw_onsets.csv (names, sizes, mtimes) and the SOURCE of the class
+    functions (`CLASS_CODE_ROOTS`, through `map_collect.closure`). Enters every camera-gated per-session cache kind
+    (`run_mode` part "csig", cache only), so a regenerated jaw_onsets / cam1 / v36 table or a fixed class rule starts
+    fresh entries instead of serving stale ones -- the pattern of `lp_licks.cache_tag`. Memoised per process."""
+    import hashlib
+    import sys
+    v36, c1 = _paths(v36, c1)
+    key = (str(v36), str(c1))
+    if key not in _CLASS_SIG:
+        h = hashlib.sha1()
+
+        def stat(f: Path) -> None:
+            try:
+                st = f.stat()
+                h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns};".encode())
+            except OSError:
+                h.update(f"{f.name}:-;".encode())
+        if v36.exists():
+            for sd in sorted(p for a in v36.iterdir() if a.is_dir() for p in a.iterdir() if p.is_dir()):
+                h.update(f"[{sd.parent.name}/{sd.name}]".encode())
+                for nm in ("trials.csv", "licks.csv", "windows.npz"):
+                    stat(sd / nm)
+        for f in (sorted(Path(c1).glob("*_events.csv")) if Path(c1).exists() else []):
+            stat(f)
+        stat(v36.parent / "imaging_encoding" / "qc" / "jaw_onsets.csv")
+        from wfield_local import map_collect
+        h.update(map_collect.code_digest(map_collect.closure(sys.modules[__name__], *CLASS_CODE_ROOTS)).encode())
+        _CLASS_SIG[key] = h.hexdigest()[:10]
+    return _CLASS_SIG[key]
 
 
 def camera_engaged_period(label: str, cue_s) -> np.ndarray:
@@ -341,13 +394,17 @@ def run_selection(source: str | None = None) -> str:
     """The selection tag of THIS run, always defined (frozen specs carry it): ``sel-daq-quittail`` for the DAQ rule,
     else ``selection_tag(source or "camera", gate_window())``."""
     if gate_mode() == "daq":
-        return "sel-daq-quittail"
+        # the LP-inclusive gate source changes WHICH trials the DAQ rule selects, so it is part of the selection a
+        # frozen spec records (review M7, 11-03). Not in `run_selection_tag`: gate-LP runs carry their own folder /
+        # cache tag (`gate_source.cache_tag`, lp_licks "_gateLP").
+        from wfield_local import gate_source
+        return "sel-daq-quittail" + ("-gateLP" if gate_source.is_lp() else "")
     return selection_tag(source or "camera", gate_window())
 
 
 def run_selection_tag() -> str | None:
     """None for the untagged DAQ rule, else the run's selection tag (output folders, cache kinds; `run_mode`)."""
-    return None if gate_mode() == UNTAGGED_GATE else run_selection()
+    return None if gate_mode() == UNTAGGED_GATE else selection_tag("camera", gate_window())
 
 
 def cue_classes(table: pd.DataFrame | None, cue_s, tol: float = CUE_MATCH_S) -> np.ndarray:
@@ -420,7 +477,7 @@ def camera_rows(label: str, idx_e, idx_n, variant: str):
     if variant == "working":
         return in_gate(ce, "working"), in_gate(cu, "working")
     if variant == "miss_working":
-        return np.zeros(ne, bool), in_gate(cu, "working")
+        return np.zeros(ne, bool), in_gate(cu, "miss_working")     # no contact class (review M6)
     if variant == "stopped":
         return np.zeros(ne, bool), np.isin(cu, list(STOPPED_CLASSES))
     return np.ones(ne, bool), np.zeros(nn, bool)

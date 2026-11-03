@@ -616,12 +616,16 @@ def _raw_maps_code() -> str:
     precue_engagement_states) used to be hashed whole, so any edit anywhere in them -- a figure, a docstring of an
     unrelated function -- cold-started ~33 GB of map caches. Now only the functions the map builders call, plus
     everything they reference inside their own module (`map_collect.closure`), enter the digest."""
-    from wfield_local import beta_maps, map_collect, precue_engagement_states, quiet_periods
+    from wfield_local import analysis_kit, beta_maps, map_collect, precue_engagement_states, quiet_periods
     from wfield_local import rest_by_position, rest_engagement
     return map_collect.code_digest(
         session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt, session_quiet_svt,
         beta_maps._quit_mask,
-        map_collect.closure(quiet_periods, "quiet_variant", "quiet_frame_path", "quiet_baseline_svt"),
+        # + response_window_s / rest_mask / trial_exclusion / widen_bool_sparse / quiet_dir, reached from
+        # rest_by_position / rest_engagement (review M4, 11-03; tests/test_map_cache_key.py checks sufficiency)
+        map_collect.closure(quiet_periods, "quiet_variant", "quiet_frame_path", "quiet_baseline_svt",
+                            "response_window_s", "rest_mask", "trial_exclusion", "widen_bool_sparse", "quiet_dir"),
+        map_collect.closure(analysis_kit, "response_window_s"),
         map_collect.closure(rest_engagement, "engaged_frame_mask"),
         map_collect.closure(rest_by_position, "rest_frames_by_position", "restw_from_frames",
                             "MIN_POSITIONS_FOR_WEIGHTED"),

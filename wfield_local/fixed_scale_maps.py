@@ -261,7 +261,8 @@ def main(argv=None) -> int:
                          "reported, never silent.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
     animals = args.animals or sorted({l.split("_")[0] for l in config.phase_labels("post")})
     for align in args.align:
         for a in animals:

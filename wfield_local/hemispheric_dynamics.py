@@ -251,7 +251,8 @@ def main(argv=None) -> int:
     ap.add_argument("--source", default="roi", choices=["roi", "locanmf", "joint"])
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
     rows = collect(args.animals, args.source)
     if not rows:
         print("[hemispheric_dynamics] no usable sessions")

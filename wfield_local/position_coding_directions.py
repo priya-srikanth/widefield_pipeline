@@ -793,7 +793,7 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     from wfield_local import trial_classes as _tc
     if _tc.camera_gate_on():
         _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
-        nl_working = _tc.in_gate(_cu, "working")
+        nl_working = _tc.in_gate(_cu, "miss_working")          # responded, no contact (review M6)
         nl_stopped = np.isin(_cu, list(_tc.STOPPED_CLASSES))
     else:
         nl_working, nl_stopped = ~not_eng, not_eng
@@ -2032,7 +2032,8 @@ def main(argv=None) -> int:
     # check and far too slow for a nightly step.
     ap.add_argument("--methods", nargs="+", default=["dom", "dom_orth"], choices=CD_METHODS)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
     out.mkdir(parents=True, exist_ok=True)
     animals = config.normalize_animals(args.animals) or [a for a in config.animals()]
     want = set(args.windows)

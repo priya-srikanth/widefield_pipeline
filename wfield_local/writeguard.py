@@ -85,7 +85,9 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
     # WIDEFIELD_ENL_WINDOW_S) writes ONLY under its tag directory (LP_licks, DAQ_ENL1s, ...). Most writers pick their own
     # share path; without this, such a run of any of them would overwrite the default outputs of the same name.
     # Renderers that know about it route themselves (`lp_licks.output_dir`).
-    if _MICROSCOPE_MARK in c or any(m in c for m in _STANDBY_MARKS):
+    # REVIEW H2 (11-03): the LOCAL figures_working root the deck is built from is checked the same way, so a tagged run
+    # (hemo variant, camera gate, PRE_FROM ...) can never overwrite a default-named PNG / JSON there.
+    if _MICROSCOPE_MARK in c or any(m in c for m in _STANDBY_MARKS) or _under_figures_working(c):
         from wfield_local import lp_licks
         tag = lp_licks.output_tag()
         if tag is not None and f"/{tag.lower()}/" not in c:
@@ -93,6 +95,16 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
                 f"refusing a {tag} run's write outside a {tag} directory:\n  path: {path}\n"
                 f"  under this lick source / ENL window every share output must sit under .../{tag}/... so it can "
                 "never replace the default (DAQ contact, 2 s ENL) version; route the writer with lp_licks.output_dir().")
+
+
+def _under_figures_working(c: str) -> bool:
+    """True if the normalised path ``c`` lies under this machine's `figures_working` root (False if it is unknown)."""
+    try:
+        from wfield_local import config
+        fw = _normalize(config.resolver().root("figures_working"))
+    except Exception:                                                  # noqa: BLE001 - no profile root: nothing to check
+        return False
+    return bool(fw) and c.startswith(fw)
 
 
 def is_writable(path: str | os.PathLike[str]) -> bool:

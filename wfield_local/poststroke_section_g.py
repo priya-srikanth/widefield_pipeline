@@ -321,7 +321,8 @@ def main(argv=None) -> int:
                     help="animals to process in parallel (default: cores-2 capped at 8, and at "
                          "the cohort size; pass 1 for the serial path)")
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
     rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs)
     from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3b / 5
     p = Path(out) / run_mode.keyed_name("section_g.json")

@@ -264,7 +264,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     nl_eng, nl_not = ~not_eng_nl, not_eng_nl
     if camera:
         _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
-        nl_eng, nl_not = _tc.in_gate(_cu, "working"), np.isin(_cu, list(_tc.STOPPED_CLASSES))
+        nl_eng, nl_not = _tc.in_gate(_cu, "miss_working"), np.isin(_cu, list(_tc.STOPPED_CLASSES))   # review M6
     states = {
         "1_pre_lick": (XE[e_pre], YE[e_pre], GE[e_pre]),
         "2_pre_nolick": (XU[u_pre], YU[u_pre], GU[u_pre]),

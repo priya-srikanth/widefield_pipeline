@@ -503,7 +503,8 @@ def main(argv=None) -> int:
                          "where the code is intact. The lick-only arm is the control for exactly that.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
     arm = "lickonly" if args.lick_only else "all"
     for align in args.align:
         print(f"\n=== {align}-aligned "

@@ -622,7 +622,8 @@ def _fig_root():
     `E:/cue_lick` is the analysis box's path and would be wrong on the imaging box;
     tests/test_no_hardcoded_machine_paths.py fails the build for exactly this, and did.
     """
-    return Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    return run_mode.subdir(Path(PathResolver().root("figures_working")))
 
 
 def _day(animal, mmdd):

@@ -356,6 +356,8 @@ def main(argv=None) -> int:
                          "WIDEFIELD_PRE_FROM=0801 for the August-only pre; baselines from `restnl_mask`)")
     a = ap.parse_args(argv)
     od = a.out or out_dir(a.rest_variant)
+    from wfield_local.writeguard import assert_writable
+    assert_writable(od / "_")   # review H3: a tagged run's share write must sit under its tag folder
     od.mkdir(parents=True, exist_ok=True)
     if a.figures:
         for align in a.aligns:

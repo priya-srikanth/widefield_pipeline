@@ -100,3 +100,29 @@ def test_builder_modules_read_only_covered_sections():
 def test_config_helpers_the_builders_use_are_covered():
     have = {".".join(p) for p in map_collect.MAP_YAML_KEYS}
     assert CONFIG_HELPER_KEYS <= have
+
+
+def test_prm_digest_covers_cross_module_helpers():
+    """Review M4 (11-03): every `quiet_periods.<f>` / `analysis_kit.<f>` the hashed rest / quiet closures reach is itself
+    hashed (closure() follows same-module names only, so a cross-module helper must be listed as a root)."""
+    import inspect
+
+    from wfield_local import (analysis_kit, position_reference_maps, quiet_periods, rest_by_position,
+                              rest_engagement)
+    src_dig = inspect.getsource(position_reference_maps._raw_maps_code)
+    hashed = {
+        "rbp": map_collect.closure(rest_by_position, "rest_frames_by_position", "restw_from_frames",
+                                   "MIN_POSITIONS_FOR_WEIGHTED").source(),
+        "re": map_collect.closure(rest_engagement, "engaged_frame_mask").source(),
+    }
+    qp = map_collect.closure(quiet_periods, "quiet_variant", "quiet_frame_path", "quiet_baseline_svt",
+                             "response_window_s", "rest_mask", "trial_exclusion", "widen_bool_sparse",
+                             "quiet_dir").source()
+    for _k, s in hashed.items():
+        for f in set(re.findall(r"\bquiet_periods\.(\w+)", s)) | set(
+                n.strip() for grp in re.findall(r"from wfield_local\.quiet_periods import ([\w, ]+)", s)
+                for n in grp.split(",")):
+            assert f"def {f}(" in qp, f"quiet_periods.{f} reached but not hashed"
+        if re.search(r"\b(ak|analysis_kit)\.response_window_s", s):
+            assert "analysis_kit, \"response_window_s\"" in src_dig
+    assert callable(analysis_kit.response_window_s)

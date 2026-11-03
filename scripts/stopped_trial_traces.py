@@ -853,6 +853,8 @@ def draw_levels(stem: str) -> None:
 
 
 def main() -> int:
+    from wfield_local import trial_classes as _tc_m5
+    _tc_m5.require_gate("daq", "stopped_trial_traces (working / stopped states)")   # not wired to the camera classes (review M5)
     global SFX
     from wfield_local import analysis_kit as ak
     SFX = restnl.SFX if restnl.variant() == "restnl" else ""

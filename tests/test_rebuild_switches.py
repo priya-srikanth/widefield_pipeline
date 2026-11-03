@@ -233,7 +233,9 @@ def test_every_mode_gets_a_part(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_NOLICK_FROZEN", "off")
     assert run_mode.parts() == [f"hv-{VAR}", "lnmfproj", "pre0801", "sel-camera-cue_stop", "refs-restnl+rest",
                                 "inmem-epoch+nolick"]
-    assert run_mode.cache_parts() == [f"hv-{VAR}", "lnmfproj", "sel-camera-cue_stop"]
+    cp = run_mode.cache_parts()       # + the camera class-source signature, cache only (review H4)
+    assert cp[:3] == [f"hv-{VAR}", "lnmfproj", "sel-camera-cue_stop"] and len(cp) == 4 and cp[3].startswith("csig-")
+    assert not any(x.startswith("csig-") for x in run_mode.parts())
     t = run_mode.tag()
     assert lp_licks.output_tag() == t
     assert lp_licks.output_dir(Path("X:/a/grant_figures/epoch")) == Path("X:/a/grant_figures") / t / "epoch"

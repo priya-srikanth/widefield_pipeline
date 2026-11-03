@@ -195,3 +195,97 @@ def test_attempt_classes_under_camera():
     q = np.array([True, False, False, False, True])
     _ce, cu = attempt_maps.classes_for_rows(np.array([], str), cls_u, q, False)
     assert cu.tolist() == ["stopped", "reaction", "", "noattempt", ""]
+
+
+# ============================================================================ review fixes (11-03, second pass)
+def test_camera_miss_working_excludes_contact(monkeypatch):
+    """Review M6: miss-while-working on the no-lick arm = responded, NO contact class."""
+    cls = np.array(["contact", "incomplete", "jaw_only", "no_response", "unknown"], object)
+    monkeypatch.setattr(TC, "row_classes", lambda label, idx: cls[np.asarray(idx)])
+    ke, kn = TC.camera_rows("X_0000", np.array([], int), np.arange(5), "miss_working")
+    assert kn.tolist() == [False, True, True, False, False]
+    ke, kn = TC.camera_rows("X_0000", np.array([], int), np.arange(5), "working")
+    assert kn.tolist() == [True, True, True, False, False]
+
+
+def test_require_gate(monkeypatch):
+    monkeypatch.setenv(TC.GATE_ENV, "daq")
+    TC.require_gate("daq", "x")
+    monkeypatch.setenv(TC.GATE_ENV, "camera")
+    with pytest.raises(TC.DaqGateRefused):
+        TC.require_gate("daq", "x")
+
+
+def test_class_signature_moves_with_the_sources(tmp_path, monkeypatch):
+    """Review H4: a regenerated jaw_onsets / v36 / cam1 table changes the camera cache signature."""
+    v36 = tmp_path / "v36" / "sessions"
+    (v36 / "PS92" / "20260818").mkdir(parents=True)
+    (v36 / "PS92" / "20260818" / "trials.csv").write_text("a\n1\n")
+    c1 = tmp_path / "cam1"
+    c1.mkdir()
+    qc = tmp_path / "v36" / "imaging_encoding" / "qc"
+    qc.mkdir(parents=True)
+    (qc / "jaw_onsets.csv").write_text("x\n")
+    TC._CLASS_SIG.clear()
+    s0 = TC.class_source_signature(v36, c1)
+    for f in (qc / "jaw_onsets.csv", v36 / "PS92" / "20260818" / "trials.csv"):
+        TC._CLASS_SIG.clear()
+        f.write_text(f.read_text() + "2\n")
+        s1 = TC.class_source_signature(v36, c1)
+        assert s1 != s0
+        s0 = s1
+    TC._CLASS_SIG.clear()
+    (c1 / "PS92_20260818_events.csv").write_text("e\n")
+    assert TC.class_source_signature(v36, c1) != s0
+
+
+def test_selection_matched_in_daq_lookup_and_carries_gate_source(monkeypatch):
+    """Review M7: find_daq_trained matches selection; the gate-LP source enters the frozen selection."""
+    from wfield_local import frozen_models as fm
+    assert "selection" not in fm._DAQ_LOOKUP_IGNORES
+    monkeypatch.setenv(TC.GATE_ENV, "daq")
+    monkeypatch.delenv("WIDEFIELD_GATE_SOURCE", raising=False)
+    assert TC.run_selection() == "sel-daq-quittail" and TC.run_selection_tag() is None
+    monkeypatch.setenv("WIDEFIELD_GATE_SOURCE", "lp")
+    assert TC.run_selection() == "sel-daq-quittail-gateLP" and TC.run_selection_tag() is None
+
+
+def test_lp_only_kinds_fingerprint_real_rows_under_daq_crosscheck(monkeypatch):
+    """Review H1: an LP-only-by-nature kind never gets the constant DAQ_RUN_FP."""
+    from wfield_local import frozen_models as fm
+    monkeypatch.setattr(fm, "daq_trained_in_lp", lambda: True)
+    monkeypatch.setattr(fm, "_session_sig", lambda lab: "sig")
+    kw = dict(align="cue-dom", source="locanmf", train_labels=["PS92_0806"])
+    a = fm.make_spec("PS92", "attempt_axes", train_data=np.arange(3), lp_only=True, **kw)
+    b = fm.make_spec("PS92", "attempt_axes", train_data=np.arange(4), lp_only=True, **kw)
+    assert a["train_fp"] != fm.DAQ_RUN_FP and a["train_fp"] != b["train_fp"] and a["lick_source"] == "lp"
+    assert fm.make_spec("PS92", "decoder", train_data=np.arange(3), **kw)["train_fp"] == fm.DAQ_RUN_FP
+
+
+def test_projall_part_and_full_output_tag(monkeypatch):
+    """Review M1 / M3: the forced projection control is its own part; keyed names follow LP / gate-LP too."""
+    from wfield_local import run_mode
+    for k in ("WIDEFIELD_HEMO_VARIANT", "WIDEFIELD_TRIAL_GATE", "WIDEFIELD_LICK_SOURCE", "WIDEFIELD_GATE_SOURCE",
+              "WIDEFIELD_JOINT_PROJECT_ALL", "WIDEFIELD_ENL_WINDOW_S"):
+        monkeypatch.delenv(k, raising=False)
+    assert run_mode.keyed_name("section_g.json") == "section_g.json"
+    monkeypatch.setenv("WIDEFIELD_JOINT_PROJECT_ALL", "1")
+    assert "projall" in run_mode.parts() and "projall" in run_mode.cache_parts()
+    monkeypatch.delenv("WIDEFIELD_JOINT_PROJECT_ALL")
+    monkeypatch.setenv("WIDEFIELD_GATE_SOURCE", "lp")
+    assert run_mode.keyed_name("coding_direction.json") == "coding_direction__DAQ_gateLP.json"
+
+
+def test_figures_working_is_tag_checked(monkeypatch, tmp_path):
+    """Review H2: a tagged run may not write a default-named file under the local figures_working root."""
+    from wfield_local import config, writeguard
+
+    class R:
+        def root(self, name):
+            return str(tmp_path / "cue_lick")
+    monkeypatch.setattr(config, "resolver", lambda: R())
+    monkeypatch.delenv("WIDEFIELD_TRIAL_GATE", raising=False)
+    assert writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    assert not writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
+    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop" / "coding_direction_cue.png")

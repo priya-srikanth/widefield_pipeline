@@ -449,6 +449,10 @@ def _publish_json(out, rv, log=print) -> dict:
 
 
 def main():
+    from wfield_local import config as _cfg_m2
+    if _cfg_m2.locanmf_projection_on():   # review M2 (11-03): never refit into the adopted per-session folder
+        raise SystemExit("WIDEFIELD_LOCANMF_PROJECT=1: per-session LocaNMF is SERVED by projection; nightly_figs would fit "
+                         "the selected variant's SVTcorr into the adopted locanmf_* folder. Unset it to run nightly_figs.")
     # A subprocess inherits this, so every `cli(...)` step below is covered too. See
     # wfield_local/console.py: a cp1252 stdout turns a printed U+2212 into a lost figure.
     use_utf8_stdout()

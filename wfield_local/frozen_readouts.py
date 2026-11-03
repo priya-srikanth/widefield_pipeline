@@ -68,9 +68,8 @@ def pre_loso_ridge(animal, tag, pre, X, Y, alphas, *, k=None, loso=True, log=pri
     dsig = data_sig(pre, X, Y)
     spec = frozen_models.make_spec(animal, "iti_readout", align=safe, source="iti", train_labels=pre,
                                    post_s=0.0, n_features=int(np.asarray(X[pre[0]]).shape[1]),
-                                   train_data={"data_sig": dsig})
+                                   train_data={"data_sig": dsig}, lp_only=True)   # LP-only by nature (review H1)
     spec["tag"] = str(tag)
-    spec["lick_source"] = "lp"                           # LP-only by nature (module docstring)
     spec["alphas"] = [float(a) for a in alphas]
     spec["n_targets"] = None if k is None else int(k)
     spec["loso"] = bool(loso)

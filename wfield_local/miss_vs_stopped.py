@@ -140,7 +140,8 @@ def main(argv=None) -> int:
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--window", default="ENL", choices=("ENL", "cue", "lick"))
     args = ap.parse_args(argv)
-    out = args.output or Path(config.resolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = args.output or run_mode.subdir(Path(config.resolver().root("figures_working")))
     from wfield_local import run_mode   # the JSON of THIS run's mode (rebuild 11-03)
     src = Path(out) / run_mode.keyed_name("coding_direction.json")
     if not src.exists():

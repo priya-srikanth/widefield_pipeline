@@ -836,7 +836,7 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
         ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"]))
         if ccls.size != codes.size:
             raise RuntimeError(f"camera trial gate: {ccls.size} classified cues vs {codes.size} categorised")
-        eng = _tc.in_gate(ccls, "working")
+        eng = _tc.in_gate(ccls, "miss_working")   # its callers split the NO-LICK arm: no contact class (review M6)
         stopped = np.isin(ccls, list(_tc.STOPPED_CLASSES))
         return eng, {"gate": f"trial_classes camera ({_tc.run_selection()})", "stopped": stopped,
                      "frac_working": float(eng.mean()) if eng.size else None,

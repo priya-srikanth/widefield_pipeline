@@ -20,10 +20,15 @@ and cache key is byte-identical to before (pinned by tests/test_run_mode.py). Pa
     refs        ``refs-<names>``        WIDEFIELD_MAP_REFS (`position_reference_maps.REFS_ENV`)
     inmem       ``inmem-<families>``    any ``WIDEFIELD_<FAMILY>_FROZEN`` opt-out (in-memory pre-stroke refit)
     lptrained   ``lpdaqtrained``        WIDEFIELD_LP_FROZEN=daq (the LP arm's DAQ-trained cross-check)
+    projall     ``projall``             WIDEFIELD_JOINT_PROJECT_ALL forced on (the adopted-variant control of the
+                                         projection method; review M1) -- output AND cache
+    csig        ``csig-<sha>``          CACHE ONLY, under the camera gate: `trial_classes.class_source_signature` (the
+                                         class tables + class code; review H4). Never in an output folder.
 
 `lp_licks.output_tag` = its own LP / ENL / gate tag + these parts, so `lp_licks.output_dir` routes every renderer that
 already uses it and `writeguard.assert_writable` REFUSES any share write of a tagged run that is not under the tag
-folder. CACHE KEYS use only the parts that change per-session results (`cache_parts`: hemo, lnmf, selection);
+folder. CACHE KEYS use only the parts that change per-session results (`cache_parts`: hemo, lnmf, selection,
+projall, csig);
 pre / refs / inmem / lptrained are pooling- or reference-level and never enter a per-session cache.
 """
 from __future__ import annotations
@@ -83,16 +88,33 @@ def lptrained_part() -> str:
     return "lpdaqtrained" if frozen_models.daq_trained_in_lp() else ""
 
 
+def projall_part() -> str:
+    from wfield_local import joint_locanmf
+    on = os.environ.get(joint_locanmf.PROJECT_ALL_ENV, "").strip().lower() in ("1", "true", "yes", "on")
+    return "projall" if on else ""
+
+
+def csig_part() -> str:
+    from wfield_local import trial_classes
+    return f"csig-{trial_classes.class_source_signature()}" if trial_classes.camera_gate_on() else ""
+
+
 _ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("pre", pre_part), ("selection", selection_part),
-        ("refs", refs_part), ("inmem", inmem_part), ("lptrained", lptrained_part))
-_CACHE = ("hemo", "lnmf", "selection")
+        ("refs", refs_part), ("inmem", inmem_part), ("lptrained", lptrained_part), ("projall", projall_part),
+        ("csig", csig_part))
+_CACHE = ("hemo", "lnmf", "selection", "projall", "csig")
+#: parts that enter cache keys only, never an output path / tag
+_CACHE_ONLY = ("csig",)
 
 
 def parts(include=None, exclude=()) -> list[str]:
-    """Non-empty mode parts in the fixed order above ([] for the default run)."""
+    """Non-empty mode parts in the fixed order above ([] for the default run). Cache-only parts (`_CACHE_ONLY`) are
+    returned only when named in ``include``."""
     out = []
     for name, fn in _ALL:
         if (include is not None and name not in include) or name in exclude:
+            continue
+        if include is None and name in _CACHE_ONLY:
             continue
         p = fn()
         if p:
@@ -118,11 +140,19 @@ def describe() -> str:
     return tag() or "default"
 
 
+def _out_tag() -> str:
+    """The FULL output tag: `lp_licks.output_tag()` (LP source / ENL window / gate-LP + every output part here), so a
+    fixed-name file or a routed root of an LP / ENL / gate-LP run is keyed too (review M3, 11-03) and matches the
+    segment `writeguard` requires. "" for the default run."""
+    from wfield_local import lp_licks
+    return lp_licks.output_tag() or ""
+
+
 def keyed_name(name: str, *, cache: bool = False) -> str:
     """``name`` with the run's tag inserted before the suffix (``x.json`` -> ``x__<tag>.json``); ``name`` unchanged by
     default. For FIXED-NAME files read by another step (grant 2 / 2b / 4, 3a / 5b, 3b / 5 JSONs) and per-session
     skip-if-exists files. ``cache=True`` uses only the per-session cache parts."""
-    t = cache_tag() if cache else tag()
+    t = cache_tag() if cache else _out_tag()
     if not t:
         return name
     p = Path(name)
@@ -137,7 +167,7 @@ def keyed_path(path, *, cache: bool = False) -> Path:
 def subdir(root, *, cache: bool = False) -> Path:
     """``root/<tag>`` for a tagged run, ``root`` by default -- for skip-if-exists per-session folders and output roots
     that do not go through `lp_licks.output_dir`."""
-    t = cache_tag() if cache else tag()
+    t = cache_tag() if cache else _out_tag()
     return Path(root) / t if t else Path(root)
 
 

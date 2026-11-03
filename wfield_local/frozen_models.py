@@ -148,13 +148,15 @@ def data_fingerprint(obj) -> str:
 
 
 #: Fields `daq_trained_in_lp` ignores when it looks up the DAQ-trained model: the LP run cannot rebuild the DAQ run's
-#: training arrays or selection, so it matches the DAQ model on everything else (`find_daq_trained`).
-_DAQ_LOOKUP_IGNORES = ("train_fp", "selection")
+#: training arrays, so it matches the DAQ model on everything else (`find_daq_trained`). SELECTION IS MATCHED (review
+#: M7, 11-03): a camera-gate (or gate-LP) cross-check must never load a DAQ model frozen under another selection.
+_DAQ_LOOKUP_IGNORES = ("train_fp",)
 DAQ_RUN_FP = "from-daq-run"
 
 
 def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=True,
-              basis_id=None, alpha=None, n_features=None, scaling=None, train_data=_MISSING, selection=None):
+              basis_id=None, alpha=None, n_features=None, scaling=None, train_data=_MISSING, selection=None,
+              lp_only=False):
     """The full identity of one frozen model, as a plain dict (JSON-serialisable, order-stable).
 
     ``scaling`` (2026-11-02) names HOW the features were scaled when ``zscore`` alone does not say it. Added because
@@ -170,7 +172,12 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     G, 11-02 21:23) and a partial hemo switch (trap T4) both served models trained on other data. This changes EVERY id
     by design: the rebuild fits into a NEW store (`_write` refuses the legacy one). Under `daq_trained_in_lp` the LP
     run cannot rebuild the DAQ run's arrays, so ``train_fp`` = DAQ_RUN_FP and `load_or_fit` finds the DAQ-trained model
-    by everything else (`find_daq_trained`)."""
+    by everything else (`find_daq_trained`).
+
+    ``lp_only=True`` (review H1, 11-03): a kind that is LP-only BY NATURE (video-defined training rows: attempt_axes,
+    iti_readout). The spec always carries lick_source=lp and ALWAYS fingerprints the real rows, even under
+    WIDEFIELD_LP_FROZEN=daq -- there is no DAQ-trained model to look up, and the constant DAQ_RUN_FP would let a later
+    run HIT a model fitted on other rows."""
     if train_data is _MISSING:
         raise TypeError(f"make_spec({kind!r}): train_data is required (training-data fingerprint, FREEZE_VERSION "
                         f"{FREEZE_VERSION}; docs/FROZEN_MODELS.md)")
@@ -212,12 +219,12 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     # LP-TRAINED models (the LP arm's DEFAULT since 11-03, Priya; see `daq_trained_in_lp`): lick_source is ADDED ONLY
     # THEN, so every DAQ spec -- and its id, which names the stored directory -- is byte-identical to before, and the
     # LP-trained ids are the same ids the 11-02 WIDEFIELD_LP_FROZEN=lp runs froze.
-    if lp_trained():
+    if lp_trained() or lp_only:
         spec["lick_source"] = "lp"
     from wfield_local import trial_classes
     spec["hemo_variant"] = config.hemo_variant() or "zerophase"
     spec["selection"] = str(selection) if selection is not None else trial_classes.run_selection()
-    spec["train_fp"] = DAQ_RUN_FP if daq_trained_in_lp() else data_fingerprint(train_data)
+    spec["train_fp"] = DAQ_RUN_FP if (daq_trained_in_lp() and not lp_only) else data_fingerprint(train_data)
     return spec
 
 

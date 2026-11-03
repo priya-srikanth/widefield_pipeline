@@ -375,7 +375,8 @@ def main(argv=None) -> int:
                     help="include non-curated dates (they carry the June outliers)")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
     for align in args.align:
         print(f"\n=== {align}-aligned ===", flush=True)
         rows = collect(args.animals, align=align, source=args.source,

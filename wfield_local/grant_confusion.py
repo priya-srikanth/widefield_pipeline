@@ -754,8 +754,14 @@ def _collect_5c(align, variant="working", mode="frozen"):
             # the whole pooled bundle, so the set of draws is a deterministic function of the spec: a hit replays every
             # draw, a miss fits them in memory exactly as before and stores them. WIDEFIELD_EPOCH_FROZEN=0 = in memory.
             mm_spec, mm_old, mm_new = None, None, {}
-            if mode == "paired_matched" and epoch_frozen_on():
-                from wfield_local import frozen_models
+            from wfield_local import frozen_models
+            if mode == "paired_matched" and epoch_frozen_on() and frozen_models.daq_trained_in_lp():
+                # REVIEW M8 (11-03): the LP arm's DAQ-trained cross-check has no stored matched draws to load (their
+                # train_fp is DAQ_RUN_FP and load_or_fit refuses to fit one), which dropped whole animals (PS93 always)
+                # through the outer `except`. The draws are fitted IN MEMORY there, said loudly, never stored.
+                print(f"  [5rm] {an} {align} {variant}: LP DAQ-trained cross-check -> matched draws IN MEMORY "
+                      "(not stored)", flush=True)
+            elif mode == "paired_matched" and epoch_frozen_on():
                 mm_spec = frozen_models.make_spec(
                     an, "matched_frozen", align=f"{align}-{variant}-seed{abs(_seed(an, align, variant))}",
                     source="locanmf", train_labels=[kept[i] for i in sorted(pre_i)], post_s=2.0,

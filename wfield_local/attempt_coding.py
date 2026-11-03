@@ -133,8 +133,8 @@ def stored_axes(animal, align, post_s, X, G, sp, ref, kept, basis_id, verbose=Tr
     pre_s = sorted(int(s) for s in np.unique(G[ref]))
     spec = frozen_models.make_spec(animal, "attempt_axes", align=f"{align}-{'+'.join(METHODS)}", source="locanmf",
                                    train_labels=[kept[s] for s in pre_s], post_s=post_s, basis_id=basis_id,
-                                   n_features=int(X.shape[1]), train_data=(X[ref], sp[ref], G[ref]))
-    spec["lick_source"] = "lp"                           # LP-only by nature (video hits), see ATTEMPT_FROZEN_ENV
+                                   n_features=int(X.shape[1]), train_data=(X[ref], sp[ref], G[ref]),
+                                   lp_only=True)   # LP-only by nature (video hits): real-row fingerprint (review H1)
 
     def _fit():
         return {meth: {"full": fit_axes(X[ref], sp[ref], meth),
@@ -394,6 +394,8 @@ def main(argv=None) -> int:
                 freeze_reference(an, align)
         return 0
     od = a.out or out_dir()
+    from wfield_local.writeguard import assert_writable
+    assert_writable(od / "_")   # review H3: a tagged run's share write must sit under its tag folder
     od.mkdir(parents=True, exist_ok=True)
     for align in a.aligns:
         parts = []

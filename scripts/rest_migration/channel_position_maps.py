@@ -913,6 +913,8 @@ def session_maps(item):
 
 
 def main(argv=None) -> int:
+    from wfield_local import trial_classes as _tc_m5
+    _tc_m5.require_gate("daq", "channel_position_maps (quit-period exclusion)")   # not wired to the camera classes (review M5)
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sessions", nargs="+", default=None,

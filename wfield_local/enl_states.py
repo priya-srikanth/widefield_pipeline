@@ -121,6 +121,8 @@ def states_for(order, responded, positions, first_lick, rt, max_rt):
     `behavior_clips.categorise` composes the same two for the clip labels; this is that composition
     on the imaging pipeline's trials rather than the behaviour table's.
     """
+    from wfield_local import trial_classes as _tc_m5
+    _tc_m5.require_gate("daq", "enl_states.states_for (ENL working / stopped)")   # not wired to the camera classes (review M5)
     order = np.asarray(order)
     hit = np.array([is_engaged(fl, r, max_rt) for fl, r in zip(first_lick, rt)], bool)
     not_eng = engagement_gate(order, np.asarray(responded, bool), np.asarray(positions))

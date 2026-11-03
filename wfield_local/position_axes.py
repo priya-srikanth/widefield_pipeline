@@ -263,9 +263,11 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     if _tc.camera_gate_on():
         _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
         nl_working, nl_stopped = _tc.in_gate(_cu, "working"), np.isin(_cu, list(_tc.STOPPED_CLASSES))
+        nl_miss = _tc.in_gate(_cu, "miss_working")             # responded, no contact (review M6)
     else:
         nl_working, nl_stopped = ~not_eng, not_eng
-    miss = (~u_pre) & nl_working
+        nl_miss = nl_working
+    miss = (~u_pre) & nl_miss
     # STOPPED IS THE CONTROL FOR THE MISS RESULT (Priya, 2026-08-23). A changed axis on
     # miss-while-working trials is consistent with a failed PLAN -- and equally with a STATE change
     # that happens to be commoner on failed trials. Those separate here: changed in miss but intact
@@ -435,7 +437,8 @@ def main(argv=None) -> int:
                          "projection is a real intervention, not a cleanup.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
     out.mkdir(parents=True, exist_ok=True)
     res = {}
     for an in (config.normalize_animals(args.animals) or list(config.animals())):
