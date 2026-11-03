@@ -273,3 +273,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   A1-A5 on main BEFORE the rebuild renders (all change numbers in re-rendered families -> render once). Files reserved for the
   rebuild sent to e3 (hemo_variants, defaults.yaml, combined_encoding, joint_locanmf, session_cache, map_collect,
   precue_engagement_states, frozen_models, grant_kit._class_select, config pre_from / date8).
+- 11-03 (via e3, Priya's decision): ONE trial classification for everything = 5b's classify (4 classes; jaw = cam4 OR cam1 where
+  each can judge; window parameter, default cue -> stop, whole-trial option for ENL). trial_attempts.py (owned by this window's
+  lineage, last 58f8c14f) to be rebuilt on it by e3/5b BEFORE the rebuild renders, keeping Priya's 10-21 meanings (attempted =
+  hit + incomplete; jaw_only = reaction; cue-deflected jaw without lick = unknown unless re-onset). Its consumers (failed-attempt
+  decoder / maps, mixed_models.DEFICITS, attempt-coding) re-render once in the rebuild.
