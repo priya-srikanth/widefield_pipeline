@@ -22924,3 +22924,22 @@ of the artefact is removed, so precue per-position numbers keep a ~.02-.03 artef
 **Renders.** Held until A3 (the LMM epoch-star rule, another window) is on origin/main. Families that read this decoder,
 and the page edits: `docs/status/SPOUT_BALEM_PAGE_EDITS_2026-11-03.md`; deck swaps:
 `presentations/_source_PI_overview_2026-11-02/build_inputs/spout_balem_swaps.json`.
+
+## 2026-11-03 — Why the trial stop runs to ~7 s after the cue: the GUI's posthold after a contact (finding)
+
+Priya asked why the stored trial stop is up to ~7 s after the cue when the GUI response window is 3.5 s.
+The stop is the rig's own `trial_end` TTL (`trial_windows.trial_bounds`), not computed from the window.
+
+`gui_config.json` has `timing.posthold = 3500`. On a trial with a spout contact, the trial ends 3.5 s after the first
+contact. Measured on PS92_0818 and PS94_0928, stop − first lick on contact trials is median 3.55 s (5–95 %: 3.4–3.8 s).
+Every trial without a contact (incomplete, jaw-only, no response) stops at the window, 3.525 s (max 3.74 s).
+A contact near the end of the window therefore gives a stop near 7 s.
+
+Consequences:
+- **The trial classes are unchanged.** A contact trial is "contact" whatever follows, and every other trial already
+  ends at the response window, so cue_stop equals cue → cue + 3.5 s for the classes. Checked: identical on both
+  sessions.
+- **Measures windowed "to the trial stop" are affected** (lick counts, licking dynamics, jaw / tongue windows,
+  `trial_windows.end_at_stop`). They include up to 3.5 s of post-contact (consumption) licking on CONTACT trials only.
+  Comparisons of lick counts or rates across classes or epochs, where the contact share changes (e.g. acute far
+  contra), should cut at the response window instead.
