@@ -223,7 +223,23 @@ SHIFT_MIN_S = 60.0
 #: the session are projected out of Y AND of every design column before fitting (Frisch-Waugh-Lovell: identical to
 #: including them in every model as nuisance, and the slow variance also leaves the R2 denominator). 600 s: 5x the
 #: slowest position block (121 s); a 300 s basis visibly followed engagement-scale activity bursts (PS94_0917).
-DRIFT_MIN_PERIOD_S = 600.0
+#: ENV OVERRIDE (2026-11-03, encoder drift-cutoff check): COMBINED_ENCODING_DRIFT_MIN_PERIOD_S = seconds; the scheduler
+#: cycles through all six positions, so position information also sits at the CYCLE period (p95 up to 22 min, PS92).
+#: Unset = 600 s, unchanged. Read at import, so spawn workers inherit it from the environment.
+DRIFT_ENV = "COMBINED_ENCODING_DRIFT_MIN_PERIOD_S"
+
+
+def _drift_min_period_s() -> float:
+    v = os.environ.get(DRIFT_ENV)
+    if not v:
+        return 600.0
+    p = float(v)
+    if not np.isfinite(p) or p < 60.0:
+        raise ValueError(f"{DRIFT_ENV}={v!r}: need a period in seconds >= 60")
+    return p
+
+
+DRIFT_MIN_PERIOD_S = _drift_min_period_s()
 ALPHA_GRID = (1.0, 10.0, 100.0, 1e3, 1e4, 1e5, 1e6)
 WINDOWS = ("all", "enl", "cue", "lick")
 PETH_S = (-3.0, 3.0)
