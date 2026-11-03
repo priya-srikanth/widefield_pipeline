@@ -141,7 +141,8 @@ def main(argv=None) -> int:
     ap.add_argument("--window", default="ENL", choices=("ENL", "cue", "lick"))
     args = ap.parse_args(argv)
     out = args.output or Path(config.resolver().root("figures_working"))
-    src = Path(out) / "coding_direction.json"
+    from wfield_local import run_mode   # the JSON of THIS run's mode (rebuild 11-03)
+    src = Path(out) / run_mode.keyed_name("coding_direction.json")
     if not src.exists():
         print(f"[miss_vs_stopped] {src} not found -- run position_coding_directions first",
               flush=True)

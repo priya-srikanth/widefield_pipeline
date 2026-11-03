@@ -274,8 +274,23 @@ def _discover_figure(session, type_key, subdir, glob_suffix, labcams_root):
         animal, mmdd = _animal_of(session), _mmdd_of(session)
         pb = f"{labcams_root.rstrip('/')}/{ymd}/photobleach/photobleach_{animal}_{mmdd}.png"
         return pb if os.path.exists(pb) else None
+    subdir = _tagged_map_dir(subdir)
     hits = sorted(glob.glob(os.path.join(session["mc"], subdir, f"*{glob_suffix}")))
     return hits[0].replace("\\", "/") if hits else None
+
+
+_MAP_DIRS = ("spout_trial_averages_", "lick_aligned_", "running_activity_")
+
+
+def _tagged_map_dir(subdir: str) -> str:
+    """``<map dir>_affine8v1`` -> ``<map dir>_<config.maps_dir_tag()>`` (identity for the adopted variant; rebuild
+    11-03: a deck rebuilt under another hemo variant reads that variant's maps, never the adopted ones)."""
+    from wfield_local import config
+    base = str(config.defaults()["preprocess"]["maps"]["tag"])
+    for p in _MAP_DIRS:
+        if subdir == f"{p}{base}":
+            return f"{p}{config.maps_dir_tag()}"
+    return subdir
 
 
 def map_variant_of(session, subdir="spout_trial_averages_affine8v1"):
@@ -291,6 +306,7 @@ def map_variant_of(session, subdir="spout_trial_averages_affine8v1"):
     a bare SVTcorr.npy, the variant name for a `hemo_<variant>/` path, and None when the summary
     predates the field entirely (i.e. built before 2026-08-14, therefore zerophase in practice).
     """
+    subdir = _tagged_map_dir(subdir)
     # Scan EVERY summary, not just the alphabetically-first one. This directory holds several
     # (`..._extra_spout_position_overlay_summary.json`, `..._shared_scale_summary.json`, ...) and only
     # the ones written by the map STEPS record `svtcorr`. Reading hits[0] blindly picked an overlay
@@ -684,7 +700,7 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
     buckets = partition_animals(sessions, list(config.animals()), max_sessions)
     single = len(buckets) <= 1
     written, summaries = [], []
-    for i, (animals, _n) in enumerate(buckets):
+    for i, (animals, _n) in enumerate(buckets):  # noqa: B007
         subset = [s for s in sessions if _animal_of(s) in set(animals)]
         out = _deck_path(out_base, animals, single)
         written.append(os.path.abspath(out))
@@ -737,6 +753,13 @@ def _main(argv=None):
     args = ap.parse_args(argv)
     rv = config.resolver(args.machine)
     out = args.output or rv.resolve("labcams", "cross-session_preprocessing.pptx")
+    if not args.output:
+        # a tagged run (another hemo variant: the deck reads that variant's maps) goes to <labcams>/<tag>/..., never
+        # over the default deck (rebuild 11-03); identity for the default run
+        from pathlib import Path as _P
+
+        from wfield_local import lp_licks
+        out = str(lp_licks.output_dir(_P(out)))
     build_decks(out, resolver=rv, machine=args.machine, max_sessions=args.max_sessions)
 
 

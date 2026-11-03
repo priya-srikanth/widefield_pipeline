@@ -273,7 +273,7 @@ def coverage_note(source_labels=None):
 
 def _sg_labels():
     """Post-stroke sessions actually present in `section_g.json` (figures 3b and 5)."""
-    f = _fig_root() / "section_g.json"
+    f = _fig_root() / _mode_name("section_g.json")
     if not f.exists():
         return []
     return [k for k in json.loads(f.read_text(encoding="utf-8"))
@@ -286,7 +286,7 @@ def _cd_labels():
     Read from the per-session store of whichever window/animal the file has, since every window
     carries the same session set.
     """
-    f = _fig_root() / "coding_direction.json"
+    f = _fig_root() / _mode_name("coding_direction.json")
     if not f.exists():
         return []
     d = json.loads(f.read_text(encoding="utf-8"))
@@ -608,6 +608,14 @@ def _footer(fig, source_labels=None):
              ha="center", va="bottom", fontsize=7, color="0.30")
 
 
+def _mode_name(name: str) -> str:
+    """A fixed-name JSON (section_g / coding_direction / joint_xsession_decoder_*) under THIS run's mode:
+    ``run_mode.keyed_name`` (unchanged for the default run; rebuild 11-03, trap T21 -- a JSON-fed figure used to draw
+    whatever mode last wrote the file)."""
+    from wfield_local import run_mode
+    return run_mode.keyed_name(name)
+
+
 def _fig_root():
     """Where the analysis figures/JSONs live, from the config -- NOT a literal.
 
@@ -800,6 +808,11 @@ def _pooled_bundle(an, align):
               "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
               "basis_id": getattr(basis, "basis_id", None),     # for the frozen epoch decoders (lp-final)
               "e_pre": np.isin(np.asarray(GE), list(pre_i))}
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # per-row camera classes for `_class_select`'s camera rule (rebuild 11-03); only under the switch, so the
+        # default bundle is unchanged
+        bundle["cls"] = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
     _BUNDLE_CACHE[key] = bundle
     return bundle
 def _runs_to_blocks(sess, pos):
@@ -816,7 +829,7 @@ def _runs_to_blocks(sess, pos):
     changed[1:] = (sess[1:] != sess[:-1]) | (pos[1:] != pos[:-1])
     # negative ids so they can never collide with the real BE ids, which are non-negative
     return -(np.cumsum(changed).astype(np.int64) + 1)
-def _class_select(variant, sess_e, sess_u, not_eng):
+def _class_select(variant, sess_e, sess_u, not_eng, cls=None, rule=None):
     """Which ENGAGED and which UNENGAGED rows belong to a trial class, as two boolean masks.
 
     THE THREE COPIES OF THIS RULE DISAGREED THE MOMENT A THIRD CLASS EXISTED. `lick`, `working` and
@@ -832,8 +845,20 @@ def _class_select(variant, sess_e, sess_u, not_eng):
 
     `stopped` and `working` partition the unengaged trials and `stopped` takes none of the engaged
     ones, so the three classes are not nested: a trial is in `working` or in `stopped`, never both.
+
+    CAMERA RULE (rebuild 2026-11-03; `trial_classes` "run's trial gate"): with ``trial_selection.gate`` /
+    WIDEFIELD_TRIAL_GATE = camera (or ``rule="camera"``), working / stopped come from the shared camera classes
+    (`trial_classes.camera_select`): ``cls`` = (class per engaged row, class per unengaged row) over the WHOLE pool,
+    the bundle's ``"cls"`` (`_pooled_bundle`). No silent DAQ fallback: a camera run without classes raises.
+    ``rule="daq"`` forces the quit-tail rule (the robustness row). Default (daq run, rule None): unchanged.
     """
     import numpy as _np
+    from wfield_local import trial_classes as _tc
+    if (rule or _tc.gate_mode()) == "camera":
+        if cls is None:
+            raise RuntimeError("camera trial gate: no per-row camera classes were passed to _class_select (bundle "
+                               "'cls'); refusing to fall back to the DAQ quit-tail rule")
+        return _tc.camera_select(variant, cls[0], cls[1], sess_e, sess_u)
     e_none = _np.zeros(len(sess_e), bool)
     u_none = _np.zeros(len(sess_u), bool)
     if variant == "stopped":
@@ -889,7 +914,7 @@ def _session_trials(bd, i, q, variant, field="X"):
     # far only ever been used to THROW those trials away.
     me, mu = _class_select(variant, (bd["GE"] == i) & (bd["en"] == q),
                            (bd["GU"] == i) & (bd["un"] == q) if len(bd["un"])
-                           else np.zeros(0, bool), bd["not_eng"])
+                           else np.zeros(0, bool), bd["not_eng"], cls=bd.get("cls"))
     if field == "blk":
         parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu.any() else [])
         keep = [z for z in parts if len(z)]

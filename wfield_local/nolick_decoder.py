@@ -541,7 +541,7 @@ def nolick_frozen_on() -> bool:
     return frozen_models.family_on(NOLICK_FROZEN_ENV)
 
 
-def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features):
+def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features, train_data):
     """Identity of one stored no-lick reference. align carries the engaged cut (2.0 s / respwin) and a digest of the
     pooled feature columns (for ROI the column set is the intersection over every pooled session); source is the
     feature basis (roi / joint + basis id)."""
@@ -551,7 +551,7 @@ def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features):
     return frozen_models.make_spec(
         animal, "nolick_reference", align=f"{align}-rt{cut}-f{fdig}",
         source="joint" if basis is not None else "roi", train_labels=train_labels, post_s=2.0,
-        basis_id=None if basis is None else basis.basis_id, n_features=n_features)
+        basis_id=None if basis is None else basis.basis_id, n_features=n_features, train_data=train_data)
 
 
 def _loso_predict(loso, X, S, dtype):
@@ -577,8 +577,8 @@ def _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, la
         # the LP-kept one -- a pre session without LP tables drops out of the LP pool but is in the DAQ fit.
         train = sorted(s["label"] for s in labs
                        if config.session_phase(config.animal_of(s["label"]), s["label"].split("_")[-1]) == "pre")
-    spec = nolick_spec(animal, align, max_rt, basis, train, common, int(XE.shape[1]))
     Xp, Yp, Sp = XE[m_pre], YE[m_pre], SE[m_pre]
+    spec = nolick_spec(animal, align, max_rt, basis, train, common, int(XE.shape[1]), train_data=(Xp, Yp, Sp))
 
     def _fit():
         return {"full": _pipe().fit(Xp, Yp),

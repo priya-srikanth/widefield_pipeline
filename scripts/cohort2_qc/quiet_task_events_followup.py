@@ -180,7 +180,7 @@ def frozen_models_for(animal):
     XE, YE, GE, _BE, XU, YU, kept, _c, GU = pool_sessions(pre + post, source="locanmf", align="precue", post_s=2.0,
                                                           features=ft)
     pre_list = [i for i, lab in enumerate(kept) if lab in set(pre)]
-    spec = decoder_spec(XE, kept, pre_list, align="precue", source="locanmf", post_s=2.0,
+    spec = decoder_spec(XE, kept, pre_list, YE=YE, GE=GE, align="precue", source="locanmf", post_s=2.0,
                         basis_id=getattr(ft, "basis_id", None))
 
     def _never():

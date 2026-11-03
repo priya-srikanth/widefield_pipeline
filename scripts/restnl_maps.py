@@ -8,8 +8,7 @@ wfield_local.attempt_maps --rest-variant restnl).
 
 What it does: sets the arm env (as map_drift_prepre.ARMS), WIDEFIELD_PRE_FROM=0801 (August-only pre),
 WIDEFIELD_MAP_REFS=restnl (only the derived RESTnl reference is attached and drawn; the other references are NOT redrawn),
-WIDEFIELD_PRM_LEGACY_DATE8=1 (reads the warm 10-25 `prm` caches; see position_reference_maps.LEGACY_DATE8_ENV), then
-calls the page's own renderers `epoch_maps._fig_15r_reference_maps` / `_fig_15rpa_reference_by_animal` per alignment.
+(the WIDEFIELD_PRM_LEGACY_DATE8 shim it used to force was dropped in the cohort-1 rebuild, 11-03), then calls the page's own renderers `epoch_maps._fig_15r_reference_maps` / `_fig_15rpa_reference_by_animal` per alignment.
 Needs the per-session baselines first: `python -m wfield_local.restnl_mask`.
 
 Outputs (NEW folders; nothing existing is overwritten): <labcams>/grant_figures/epoch_restnl/ (contact),
@@ -40,7 +39,6 @@ def setup_env(arm: str, refs: str = "restnl", august_only: bool = True) -> None:
     if august_only:
         os.environ["WIDEFIELD_PRE_FROM"] = PRE_FROM
     os.environ["WIDEFIELD_MAP_REFS"] = refs
-    os.environ["WIDEFIELD_PRM_LEGACY_DATE8"] = "1"
     os.environ.setdefault("WIDEFIELD_MAP_JOBS", "4")
     if int(os.environ["WIDEFIELD_MAP_JOBS"]) > 4:
         os.environ["WIDEFIELD_MAP_JOBS"] = "4"

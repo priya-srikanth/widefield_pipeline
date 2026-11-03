@@ -248,6 +248,17 @@ def hemo_manifest_path(mc_or_results, variant: str | None = None) -> str:
     return f"{base}/{d}/manifest.json"
 
 
+def maps_dir_tag(variant: str | None = None) -> str:
+    """Suffix of the per-session ACTIVITY-MAP directories (``spout_trial_averages_<t>``, ``lick_aligned_<t>``,
+    ``running_activity_<t>``; `preprocess._maps_commands`): ``defaults.yaml preprocess.maps.tag`` (affine8v1), plus
+    ``_hv-<variant>`` under any hemo variant other than `UNTAGGED_HEMO_VARIANT` (rebuild 2026-11-03, trap T22 / item
+    k): those npz are baked from SVTcorr, so a rebuild under another variant writes BESIDE the adopted maps, never over
+    them. The registration dir ``allen_aligned_<tag>`` and the quiet masks are hemo-independent and keep the bare tag."""
+    base = str(defaults()["preprocess"]["maps"]["tag"])
+    t = hemo_tag(variant)
+    return f"{base}_{t}" if t else base
+
+
 def hemo_tag(variant: str | None = None) -> str:
     """Mode tag of the selected hemo variant: "" for `UNTAGGED_HEMO_VARIANT`, else ``hv-<variant>`` (``hv-zerophase``
     for the bare product). Enters output folders (`run_mode`), session-cache kinds and restnl cache names."""
@@ -485,6 +496,31 @@ def pre_from() -> str | None:
     set and must never move. Always write the outputs of such a run to separate (``*_latepre``) directories."""
     v = os.environ.get("WIDEFIELD_PRE_FROM", "").strip()
     return v or None
+
+
+def apply_pre_from(value: str | None) -> str | None:
+    """Set WIDEFIELD_PRE_FROM for THIS process (a render block's ``--pre-from``; rebuild 2026-11-03: the decoders'
+    August-only pre is chosen PER RENDER BLOCK, never as a config default). ``None`` leaves the environment as it is;
+    ``"all"`` / ``""`` clears it (June + August). Returns the effective value. Call before any pool is built (no phase
+    set is cached at import). Outputs of such a run are tagged ``pre<MMDD>`` by `run_mode`."""
+    if value is None:
+        return pre_from()
+    v = str(value).strip()
+    if v.lower() in ("", "all", "none"):
+        os.environ.pop("WIDEFIELD_PRE_FROM", None)
+        return None
+    if not re.fullmatch(r"\d{4}", v):
+        raise ValueError(f"--pre-from must be MMDD (e.g. 0801) or 'all', got {value!r}")
+    os.environ["WIDEFIELD_PRE_FROM"] = v
+    return v
+
+
+def require_full_pre(what: str) -> None:
+    """Raise when WIDEFIELD_PRE_FROM is set: for analyses that NEED the June pre sessions (the June vs August drift
+    decoder, 12.1b lick-free rest), kept as labelled June + August sensitivities (rebuild 2026-11-03)."""
+    if pre_from():
+        raise SystemExit(f"{what} needs the June pre sessions (June + August sensitivity, labelled as such): unset "
+                         "WIDEFIELD_PRE_FROM / drop --pre-from for this block")
 
 
 def session_phase(animal: str, date: str) -> str:

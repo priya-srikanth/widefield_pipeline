@@ -73,7 +73,7 @@ def main(argv=None) -> int:
                 arms = {}
                 # QUIT-TAIL working (`_class_select`): robustness row; `--fig-rule` = licking trials at pre (Figs 1.1/1.2)
                 arms["quittail"] = ((e_pre & (GE == i), np.zeros(len(GU), bool)) if i in bd["pre_i"] and fig_rule
-                                    else GC._class_select("working", se, su, not_eng))
+                                    else GC._class_select("working", se, su, not_eng, rule="daq"))
                 # CAMERA gates (Priya 11-03; working = DEFAULT): shared classes matched to this session's DAQ cues
                 ie, inl = idx.get(lab, (np.zeros(0, int), np.zeros(0, int)))
                 sn = snap[snap.label == lab].set_index("cue_idx")

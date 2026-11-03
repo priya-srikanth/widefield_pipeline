@@ -154,6 +154,14 @@ def rest_frozen_on() -> bool:
     return os.environ.get(REST_FROZEN_ENV, "").strip().lower() not in REST_FROZEN_OFF
 
 
+def rest_train_data(pool: dict, windows) -> dict:
+    """The training-data fingerprint input of a rest_frozen model (FREEZE_VERSION 2): ``pool`` = {pre label: (X, y,
+    dur, gap)} in SORTED label order, plus the matching windows. ONE builder for this script and
+    `rest_frozen_decoder_nl`, so a model either script freezes keeps one identity."""
+    return {"pool": {k: tuple(np.asarray(a) for a in pool[k]) for k in sorted(pool)},
+            "windows": tuple(None if v is None else float(v) for v in windows)}
+
+
 def rest_frozen_align(bins, match_duration, match_lickgap, pct, gate, min_periods, min_per_class, variant):
     """The spec's ``align``: everything that changes WHICH pre-stroke rows train the model and is not already in the
     spec. For the page run (4 bins, duration + lick-gap matched at 10 %, engagement gate, 40 / 5 minimums,
@@ -186,7 +194,9 @@ def frozen_rest_payload(an, basis_id, data, pre_labs, windows, *, bins, pct, gat
     align = rest_frozen_align(bins, lo_s is not None, glo is not None, pct, gate, min_periods, min_per_class,
                               variant)
     spec = fm.make_spec(an, "rest_frozen", align=align, source=f"joint_{basis_id}", train_labels=labs,
-                        basis_id=basis_id, n_features=nfeat, post_s=0.0, zscore=True, alpha=0.1)
+                        basis_id=basis_id, n_features=nfeat, post_s=0.0, zscore=True, alpha=0.1,
+                        train_data=rest_train_data({k: (data[k][1], data[k][2], data[k][4], data[k][5]) for k in labs},
+                                                   windows))
 
     def pool(keep):
         X = np.concatenate([data[k][1] for k in keep])

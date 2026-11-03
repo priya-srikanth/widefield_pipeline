@@ -34,7 +34,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 from wfield_local import config, parallel, frozen_models, decode_ci
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-from wfield_local import config
+from wfield_local import config  # noqa: F811
 from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
@@ -268,7 +268,8 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     spec = frozen_models.make_spec(
         config.animal_of(kept[0]), "encoder", align=align, source=source,
         train_labels=pre_labels_, post_s=post_s, alpha=alpha,
-        basis_id=getattr(features, "basis_id", None), n_features=int(XE.shape[1]))
+        basis_id=getattr(features, "basis_id", None), n_features=int(XE.shape[1]),
+        train_data=(XE[np.isin(GE, pre_i)], YE[np.isin(GE, pre_i)], GE[np.isin(GE, pre_i)]))
 
     def _fit_all():
         # `full` scores every POST session and any pre session not in the fit; `loso[label]` is the
@@ -323,7 +324,7 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     return res
 
 
-def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, basis_id=None):
+def decoder_spec(XE, kept, pre_i, *, YE, GE, align, source, post_s=2.0, zscore=True, basis_id=None):
     """The frozen-decoder spec for one pooled set -- the identity `frozen_models` stores it under.
 
     WHY THIS IS SEPARATE FROM `frozen_decoder_models`. `pooled_frozen_loso` needs the spec_id for its
@@ -333,10 +334,12 @@ def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, bas
     reintroducing the exact failure the freeze exists to prevent: a result naming an id that is not
     the id its model was stored under. One builder, called with one argument set, cannot drift.
     """
+    m = np.isin(np.asarray(GE), sorted(pre_i))          # the training rows (every pre-stroke engaged trial)
     return frozen_models.make_spec(
         config.animal_of(kept[0]), "decoder", align=align, source=source,
         train_labels=[kept[i] for i in sorted(pre_i)], post_s=post_s, zscore=zscore,
-        basis_id=basis_id, n_features=int(XE.shape[1]))
+        basis_id=basis_id, n_features=int(XE.shape[1]),
+        train_data=(np.asarray(XE)[m], np.asarray(YE)[m], np.asarray(GE)[m]))
 
 
 def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0, zscore=True,
@@ -371,7 +374,7 @@ def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0,
     changes the width for every session in it.
     """
     pre_i = sorted(pre_i)
-    pre_labels_ = [kept[i] for i in pre_i]
+    pre_labels_ = [kept[i] for i in pre_i]  # noqa: F841
 
     def _fit_all():
         # One artifact holds BOTH arms: the leave-one-out models behind the pre-stroke reference band
@@ -383,7 +386,7 @@ def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0,
                          for i in pre_i}}
 
     return frozen_models.load_or_fit(
-        decoder_spec(XE, kept, pre_i, align=align, source=source, post_s=post_s, zscore=zscore,
+        decoder_spec(XE, kept, pre_i, YE=YE, GE=GE, align=align, source=source, post_s=post_s, zscore=zscore,
                      basis_id=basis_id),
         _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)}, log=log)
 
@@ -477,7 +480,7 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
            "training_phase": "pre", "pre_labels": pre_labels,
            # WHICH STORED MODEL PRODUCED THIS. A result that names its model can be re-derived and
            # audited; one that does not is the state the contamination hid in.
-           "frozen_model_id": frozen_models.spec_id(decoder_spec(XE, kept, pre_i, **_spec_kw)),
+           "frozen_model_id": frozen_models.spec_id(decoder_spec(XE, kept, pre_i, YE=YE, GE=GE, **_spec_kw)),
            "frozen_status": freeze_status,
            "post_labels": [kept[i] for i in post_i],
            "n_pre_sessions": len(pre_i), "n_post_sessions": len(post_i),
@@ -650,7 +653,7 @@ def write_session_confusions(results, out, basis="roi"):
     bname = BASIS_NAME.get(basis, basis)
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     written = []
-    for an, r in results.items():
+    for an, r in results.items():  # noqa: B007
         for lab, cm in r.get("confusion", {}).items():
             cm = np.asarray(cm, dtype=float)
             n = cm.sum()
@@ -856,7 +859,7 @@ def project_C_fixed_A(a_ref_label, new_label):
 
 def _transfer_matrix_fig(out):
     fig, axes = plt.subplots(1, 3, figsize=(15, 5), squeeze=False)
-    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]  # noqa: F841
     for ax, an in zip(axes[0], ("PS92", "PS94", "PS95")):
         days = [s["label"] for s in SESSIONS if s["label"].startswith(an) and s["label"][-4:] in BASELINE_DAYS]
         n = len(days); M = np.full((n, n), np.nan)

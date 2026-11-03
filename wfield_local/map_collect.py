@@ -51,11 +51,54 @@ def code_digest(*objs) -> str:
     h = hashlib.sha1()
     for o in objs:
         try:
-            src = strip_hooks(inspect.getsource(o))
+            src = strip_hooks(o.source() if isinstance(o, _Closure) else inspect.getsource(o))
         except (OSError, TypeError):
             src = repr(o)
         h.update(src.encode())
     return h.hexdigest()[:12]
+
+
+class _Closure:
+    """Source of a set of top-level definitions of ``module`` and, transitively, every top-level definition of the same
+    module they reference by name (functions, classes, constants), plus the module's import lines. What
+    `code_digest` hashes for a helper module the map builders call into (rebuild 2026-11-03), instead of the whole
+    module. Cross-module calls are followed only where the caller lists that module too (as before)."""
+
+    def __init__(self, module, roots):
+        self.module, self.roots = module, tuple(roots)
+
+    def source(self) -> str:
+        import ast
+        src = inspect.getsource(self.module)
+        tree = ast.parse(src)
+        defs, imports = {}, []
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                defs[node.name] = node
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                tg = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for t in tg:
+                    for n in ast.walk(t):
+                        if isinstance(n, ast.Name):
+                            defs[n.id] = node
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                imports.append(ast.get_source_segment(src, node))
+        missing = [r for r in self.roots if r not in defs]
+        if missing:
+            raise KeyError(f"{self.module.__name__}: no top-level {missing} (map digest closure)")
+        seen, stack = set(), list(self.roots)
+        while stack:
+            n = stack.pop()
+            if n in seen or n not in defs:
+                continue
+            seen.add(n)
+            stack += [x.id for x in ast.walk(defs[n]) if isinstance(x, ast.Name)]
+        nodes = sorted({id(defs[n]): defs[n] for n in seen}.values(), key=lambda d: d.lineno)
+        return "\n".join(imports + [ast.get_source_segment(src, d) for d in nodes])
+
+
+def closure(module, *roots) -> _Closure:
+    return _Closure(module, roots)
 
 
 def stat_sig(path) -> str:

@@ -54,6 +54,7 @@ from wfield_local.grant_kit import (  # noqa: F401
     _excludes_zero,
     _feed,
     _fig_root,
+    _mode_name,
     _fit_bottom,
     _fit_header,
     _footer,
@@ -244,7 +245,7 @@ def fig_prestroke_decoding(out_dir):
     x = np.arange(len(ANIMALS))
     any_drawn = False
     for wi, (_disp, align, wname) in enumerate(WINDOWS):
-        f = _fig_root() / f"joint_xsession_decoder_{align}.json"
+        f = _fig_root() / _mode_name(f"joint_xsession_decoder_{align}.json")
         if not f.exists():
             print(f"  [grant] MISSING {f.name} -- run `joint_xsession --align {align}`", flush=True)
             continue
@@ -302,8 +303,8 @@ def fig_prestroke_decoding_cohort(out_dir):
     """
     fig, ax = plt.subplots(figsize=(7.6, 5.2))
     marks = ("o", "s", "^", "D")
-    for wi, (_disp, align, wname) in enumerate(WINDOWS):
-        f = _fig_root() / f"joint_xsession_decoder_{align}.json"
+    for wi, (_disp, align, wname) in enumerate(WINDOWS):  # noqa: B007
+        f = _fig_root() / _mode_name(f"joint_xsession_decoder_{align}.json")
         if not f.exists():
             continue
         d = json.loads(f.read_text(encoding="utf-8"))

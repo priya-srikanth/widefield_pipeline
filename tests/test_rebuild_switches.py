@@ -350,3 +350,162 @@ def test_nolick_summarize_survives_an_arm_too_small_to_evaluate():
                    "undetected_working": {"n": 12, "note": "too few trials to evaluate (need >=30)"}}}
     txt = na.summarize(res, fh=__import__("io").StringIO())
     assert "undetected_working" in txt and "not evaluated" in txt and "engaged" in txt
+
+
+# ------------------------------------------------------------------------------------------- (f) camera trial gate
+def _old_class_select(variant, sess_e, sess_u, not_eng):
+    """FROZEN COPY of grant_kit._class_select before the camera rule (rebuild 11-03)."""
+    e_none = np.zeros(len(sess_e), bool)
+    u_none = np.zeros(len(sess_u), bool)
+    if variant == "stopped":
+        return e_none, (sess_u & not_eng) if len(sess_u) else u_none
+    if variant == "working":
+        return sess_e, (sess_u & ~not_eng) if len(sess_u) else u_none
+    return sess_e, u_none
+
+
+def test_class_select_default_is_byte_identical():
+    from wfield_local.grant_kit import _class_select
+    rng = np.random.default_rng(1)
+    for n_u in (0, 40):
+        se, su, ne = rng.random(50) > .5, rng.random(n_u) > .5, rng.random(n_u) > .7
+        for v in ("lick", "working", "stopped"):
+            a, b = _class_select(v, se, su, ne), _old_class_select(v, se, su, ne)
+            assert np.array_equal(a[0], b[0]) and np.array_equal(a[1], b[1])
+            a2 = _class_select(v, se, su, ne, cls=(np.array(["x"] * 50), np.array(["x"] * n_u)))
+            assert np.array_equal(a2[0], b[0]) and np.array_equal(a2[1], b[1])     # cls ignored under daq
+
+
+def test_class_select_camera_rule(monkeypatch):
+    from wfield_local.grant_kit import _class_select
+    ce = np.array(["contact", "contact", "unknown", "incomplete"], object)
+    cu = np.array(["jaw_only", "no_response", "unknown", "incomplete"], object)
+    se, su, ne = np.ones(4, bool), np.ones(4, bool), np.array([False, True, True, False])
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    with pytest.raises(RuntimeError):
+        _class_select("working", se, su, ne)                               # no silent DAQ fallback
+    w = _class_select("working", se, su, ne, cls=(ce, cu))
+    assert w[0].tolist() == [True, True, False, True] and w[1].tolist() == [True, False, False, True]
+    s = _class_select("stopped", se, su, ne, cls=(ce, cu))
+    assert not s[0].any() and s[1].tolist() == [False, True, False, False]
+    lk = _class_select("lick", se, su, ne, cls=(ce, cu))
+    assert lk[0].all() and not lk[1].any()                                 # contact-only: unchanged (PS93_0813)
+    d = _class_select("working", se, su, ne, cls=(ce, cu), rule="daq")     # the quit-tail robustness row
+    o = _old_class_select("working", se, su, ne)
+    assert np.array_equal(d[0], o[0]) and np.array_equal(d[1], o[1])
+
+
+def test_camera_rows(monkeypatch):
+    from wfield_local import trial_classes as tc
+    cls = np.array(["contact", "incomplete", "jaw_only", "no_response", "unknown"], object)
+    monkeypatch.setattr(tc, "row_classes", lambda lab, idx: cls[np.asarray(idx, int)])
+    ie, inl = np.array([0, 4]), np.array([1, 2, 3, 4])
+    assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "working")] == [[True, False], [True, True, False, False]]
+    assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "miss_working")] == [[False, False],
+                                                                                [True, True, False, False]]
+    assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "stopped")] == [[False, False], [False, False, True, False]]
+
+
+def _old_cue_classes(table, cue_s, tol=0.020):
+    """FROZEN COPY of scripts/jaw_only_incomplete_figs.cue_classes before the move (rebuild 11-03)."""
+    cue_s = np.asarray(cue_s, float)
+    out = np.full(len(cue_s), "unknown", dtype=object)
+    if table is None or not len(table):
+        return out
+    t = table.dropna(subset=["cue_daq"]).sort_values("cue_daq")
+    tv, cv = t.cue_daq.to_numpy(float), t.cls.to_numpy(object)
+    j = np.clip(np.searchsorted(tv, cue_s), 1, len(tv) - 1) if len(tv) > 1 else np.zeros(len(cue_s), int)
+    if len(tv) > 1:
+        j = np.where(np.abs(tv[j - 1] - cue_s) <= np.abs(tv[j] - cue_s), j - 1, j)
+    ok = np.abs(tv[j] - cue_s) <= tol
+    out[ok] = cv[j[ok]]
+    return out
+
+
+def test_cue_classes_moved_identically():
+    import pandas as pd
+
+    from wfield_local import trial_classes as tc
+    rng = np.random.default_rng(2)
+    tv = np.sort(rng.random(30) * 100)
+    T = pd.DataFrame({"cue_daq": tv, "cls": rng.choice(list(tc.CLASSES), 30)})
+    q = np.concatenate([tv + rng.normal(0, .01, 30), rng.random(10) * 100])
+    assert tc.cue_classes(T, q).tolist() == _old_cue_classes(T, q).tolist()
+
+
+# ------------------------------------------------------------------------------------------- (g) per-block pre
+def test_apply_pre_from(monkeypatch):
+    import os
+    assert config.apply_pre_from(None) is None and "WIDEFIELD_PRE_FROM" not in os.environ
+    assert config.apply_pre_from("0801") == "0801" and os.environ["WIDEFIELD_PRE_FROM"] == "0801"
+    with pytest.raises(SystemExit):
+        config.require_full_pre("drift decoder")
+    assert config.apply_pre_from("all") is None and "WIDEFIELD_PRE_FROM" not in os.environ
+    config.require_full_pre("drift decoder")
+    with pytest.raises(ValueError):
+        config.apply_pre_from("Aug")
+
+
+def test_pre_from_is_not_a_config_default():
+    assert "pre_from" not in json.dumps(config.defaults().get("decode", {}))
+    assert config.pre_from() is None
+
+
+# ------------------------------------------------------------------------------------------- (h) cache rebuild
+def test_legacy_date8_shim_is_gone(monkeypatch):
+    from wfield_local import position_reference_maps as prm
+    a = prm._raw_maps_code()
+    monkeypatch.setenv("WIDEFIELD_PRM_LEGACY_DATE8", "1")
+    assert prm._raw_maps_code() == a
+    assert not hasattr(prm, "LEGACY_DATE8_ENV")
+
+
+def test_map_digest_closure_is_narrow():
+    from wfield_local import map_collect, precue_engagement_states as pes
+    src = map_collect.closure(pes, "engagement_gate").source()
+    assert "def engagement_gate" in src
+    assert "def run_animal" not in src and "def _stored" not in src            # unrelated functions are not hashed
+    with pytest.raises(KeyError):
+        map_collect.closure(pes, "no_such_function").source()
+
+
+def test_engagement_states_store_opt_out(monkeypatch):
+    from wfield_local import precue_engagement_states as pes
+    monkeypatch.setenv("WIDEFIELD_ENGSTATES_FROZEN", "0")
+    assert pes._stored("PS92", "precue-posdec", None, ["PS92_0806"], {0}, 3, None, lambda: "fit", 2.0) == "fit"
+
+
+def test_engagement_states_store_freezes(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from wfield_local import frozen_models as fm
+    from wfield_local import precue_engagement_states as pes
+    monkeypatch.setenv("WIDEFIELD_FROZEN_MODEL_DIR", str(tmp_path / "store"))
+    monkeypatch.setattr(fm, "server_dir", lambda: None)
+    b = SimpleNamespace(basis_id="76d884873920")
+    n = [0]
+
+    def fit():
+        n[0] += 1
+        return {"m": 1}
+    args = ("PS92", "precue-posdec", b, ["PS92_0806"], {0}, 3, (np.ones((2, 3)), np.array([0, 1])), fit, 2.0)
+    assert pes._stored(*args) == {"m": 1} and pes._stored(*args) == {"m": 1} and n[0] == 1
+
+
+# ------------------------------------------------------------------------------------------- (k) map npz tag
+def test_maps_dir_tag(monkeypatch):
+    from wfield_local import preprocess_deck as pd_
+    assert config.maps_dir_tag() == "affine8v1"
+    assert pd_._tagged_map_dir("spout_trial_averages_affine8v1") == "spout_trial_averages_affine8v1"
+    monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", VAR)
+    assert config.maps_dir_tag() == f"affine8v1_hv-{VAR}"
+    assert pd_._tagged_map_dir("lick_aligned_affine8v1") == f"lick_aligned_affine8v1_hv-{VAR}"
+    assert pd_._tagged_map_dir("motion_qc") == "motion_qc"
+
+
+# ------------------------------------------------------------------------------------------- (c) fixed-name JSONs
+def test_fixed_name_jsons_are_mode_tagged(monkeypatch):
+    from wfield_local.grant_kit import _mode_name
+    assert _mode_name("section_g.json") == "section_g.json"
+    monkeypatch.setenv("WIDEFIELD_PRE_FROM", "0801")
+    assert _mode_name("section_g.json") == "section_g__pre0801.json"

@@ -274,7 +274,8 @@ def main(argv=None) -> int:
     out = args.output or src
     for q in copy_behaviour_figures(out):
         print(f"  copied {Path(q).name}", flush=True)
-    p = Path(src) / "section_g.json"
+    from wfield_local import run_mode   # the JSON of THIS run's mode (rebuild 11-03)
+    p = Path(src) / run_mode.keyed_name("section_g.json")
     if not p.exists():
         print(f"  SKIP: {p} not computed yet "
               f"(run `python -m wfield_local.poststroke_section_g`)", flush=True)

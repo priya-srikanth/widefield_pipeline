@@ -258,7 +258,8 @@ def main(argv=None) -> int:
             if r["encoder"]:
                 enc[an] = r["encoder"]
         if dec:
-            (args.output / f"joint_xsession_decoder_{align}.json").write_text(
+            from wfield_local import run_mode   # mode-tagged name (rebuild 11-03): read by grant 2 / 2b / 4
+            (args.output / run_mode.keyed_name(f"joint_xsession_decoder_{align}.json")).write_text(
                 json.dumps(dec, indent=2, default=float))
             n = len(write_session_confusions(dec, args.output, basis=BASIS))
             write_animal_confusion_grid(dec, args.output, basis=BASIS, align=align)

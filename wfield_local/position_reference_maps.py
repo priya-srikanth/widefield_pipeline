@@ -384,6 +384,15 @@ def _working_xy(session, align, post_s, variant, baseline, v, *, signal_key=None
         signal_key=signal_key or f"svt:rank{v.shape[0]}",
         with_indices=True)
     X, y = np.asarray(X), np.asarray(y)
+    from wfield_local import trial_classes as _tc
+    if variant in ("working", "miss_working", "stopped") and _tc.camera_gate_on():
+        # CAMERA RULE (rebuild 11-03, `trial_classes.camera_rows`); cache kinds carry the selection tag (run_mode)
+        ke, kn = _tc.camera_rows(session["label"], idx_e, idx_n, variant)
+        X, y = X[ke], y[ke]
+        if len(yn) and kn.any():
+            X = np.vstack([X, np.asarray(Xn)[kn]])
+            y = np.concatenate([y, np.asarray(yn)[kn]])
+        return X, y
     if variant == "working" and len(yn):
         # IDENTICAL to `beta_maps.session_maps`: `working` is engaged PLUS miss-while-working, and
         # the no-lick arm comes back separately. Dropping it here would silently make this a
@@ -596,40 +605,27 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
             "restw_positions": restw_positions}
 
 
-#: OPT-IN (2026-11-01, RESTnl maps): hash the map code as it stood BEFORE 8e77bd0a (10-29), whose only change to the
-#: hashed sources was cosmetic for cohort 1 -- `f"2026{mmdd}"` -> `config.date8(mmdd)` in `rest_by_position` and
-#: `rest_engagement` (identical strings for every cohort-1 date). That text change moved the digest and left every
-#: warm `prm` cache (built 10-25, ~33 GB) unreachable although its contents are exactly what the current code builds.
-#: With the env set, the digest is computed from the CURRENT sources with that one replacement reversed, so it is
-#: valid only while that is the sole difference: verified 11-01 by reproducing the on-disk kinds bit-for-bit
-#: (`prm-*-3b1e0fc8b886`, `prm-precue-working-9c0a7ab373bd`), and refused for any session whose date8 is not
-#: "2026"+mmdd (cohort 2). Default (unset) behaviour is unchanged.
-LEGACY_DATE8_ENV = "WIDEFIELD_PRM_LEGACY_DATE8"
+#: WIDEFIELD_PRM_LEGACY_DATE8 (11-01, a shim reproducing the pre-10-29 digest) was DROPPED in the cohort-1 rebuild
+#: (2026-11-03, the one planned cache rebuild): the digest below is narrowed, so every prm cache is cold once anyway.
 
 
 def _raw_maps_code() -> str:
-    """Source digest of everything that builds one session's maps (`map_collect.cache_kind`)."""
-    import hashlib
-    import inspect
-    import os
+    """Source digest of what builds one session's maps (`map_collect.cache_kind`).
 
+    NARROWED (rebuild 2026-11-03): the helper MODULES (quiet_periods, rest_engagement, rest_by_position,
+    precue_engagement_states) used to be hashed whole, so any edit anywhere in them -- a figure, a docstring of an
+    unrelated function -- cold-started ~33 GB of map caches. Now only the functions the map builders call, plus
+    everything they reference inside their own module (`map_collect.closure`), enter the digest."""
     from wfield_local import beta_maps, map_collect, precue_engagement_states, quiet_periods
     from wfield_local import rest_by_position, rest_engagement
-    objs = (session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt,
-            session_quiet_svt, beta_maps._quit_mask, quiet_periods, rest_engagement,
-            rest_by_position, precue_engagement_states)
-    if not os.environ.get(LEGACY_DATE8_ENV):
-        return map_collect.code_digest(*objs)
-    from wfield_local.gate_source import strip_hooks  # [gate-source hook] (inside _raw_maps_code, not digested)
-    h = hashlib.sha1()
-    for o in objs:
-        # hook lines dropped exactly as `map_collect.code_digest` drops them (the gate option, 11-01, added marked
-        # lines to rest_by_position / rest_engagement; without this the pin no longer reproduced the 10-25 digest)
-        src = strip_hooks(inspect.getsource(o))
-        if o in (rest_by_position, rest_engagement):
-            src = src.replace("config.date8(mmdd)", 'f"2026{mmdd}"')
-        h.update(src.encode())
-    return h.hexdigest()[:12]
+    return map_collect.code_digest(
+        session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt, session_quiet_svt,
+        beta_maps._quit_mask,
+        map_collect.closure(quiet_periods, "quiet_variant", "quiet_frame_path", "quiet_baseline_svt"),
+        map_collect.closure(rest_engagement, "engaged_frame_mask"),
+        map_collect.closure(rest_by_position, "rest_frames_by_position", "restw_from_frames",
+                            "MIN_POSITIONS_FOR_WEIGHTED"),
+        map_collect.closure(precue_engagement_states, "engagement_gate"))
 
 
 def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
@@ -637,14 +633,8 @@ def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
     `session_signature`: the session's U_atlas (the maps' spatial basis) and its quiet-frame mask."""
     import glob
 
-    import os
-
-    from wfield_local import config, map_collect, session_cache
+    from wfield_local import map_collect, session_cache
     from wfield_local.quiet_periods import quiet_frame_path
-    if os.environ.get(LEGACY_DATE8_ENV):
-        mmdd = session["label"].split("_")[-1]
-        if config.date8(mmdd) != f"2026{mmdd}":
-            raise RuntimeError(f"{LEGACY_DATE8_ENV} is valid for cohort-1 dates only ({session['label']})")
     kind = map_collect.cache_kind("prm", align, variant,
                                   {"post_s": float(post_s), "min_trials": MIN_TRIALS_PER_CLASS,
                                    "rest_bins": REST_BASELINE_BINS, "refs": REFERENCES}, _raw_maps_code())

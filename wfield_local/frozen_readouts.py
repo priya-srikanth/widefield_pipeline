@@ -65,15 +65,17 @@ def pre_loso_ridge(animal, tag, pre, X, Y, alphas, *, k=None, loso=True, log=pri
     if not frozen_models.family_on(ITI_FROZEN_ENV):
         return fit_all(pre, X, Y, alphas, k, loso)
     safe = "".join(c if (c.isalnum() or c in "._+-") else "-" for c in str(tag))   # the align names a directory
+    dsig = data_sig(pre, X, Y)
     spec = frozen_models.make_spec(animal, "iti_readout", align=safe, source="iti", train_labels=pre,
-                                   post_s=0.0, n_features=int(np.asarray(X[pre[0]]).shape[1]))
+                                   post_s=0.0, n_features=int(np.asarray(X[pre[0]]).shape[1]),
+                                   train_data={"data_sig": dsig})
     spec["tag"] = str(tag)
     spec["lick_source"] = "lp"                           # LP-only by nature (module docstring)
     spec["alphas"] = [float(a) for a in alphas]
     spec["n_targets"] = None if k is None else int(k)
     spec["loso"] = bool(loso)
     spec["train_order"] = pre
-    spec["data_sig"] = data_sig(pre, X, Y)
+    spec["data_sig"] = dsig
     payload, status = frozen_models.load_or_fit(spec, lambda: fit_all(pre, X, Y, alphas, k, loso),
                                                 meta={"n_train": int(sum(len(Y[q]) for q in pre))}, log=log)
     if status != frozen_models.STATUS_HIT:

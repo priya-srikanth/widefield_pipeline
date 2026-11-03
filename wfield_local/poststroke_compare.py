@@ -269,8 +269,18 @@ def _g_store(d, kind, extra, fit, meta=None):
     if frozen_models.daq_trained_in_lp():
         train = sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == animal)
     fdig = hashlib.sha1(repr(d.get("common")).encode()).hexdigest()[:8]
+    # TRAINING-DATA FINGERPRINT (rebuild 11-03): every section G reference is fitted on rows of the animal's PRE pool
+    # (engaged, plus no-lick where an arm uses it), so the fingerprint covers that whole pre pool -- the PS92 11-02
+    # mismatch (pre trial features changed under an unchanged spec) now mints a new id instead of loading the old fit.
+    pre_ix = sorted(d["pre_i"])
+    me = np.isin(np.asarray(d["GE"]), pre_ix)
+    pool = [d["XE"][me], d["YE"][me], np.asarray(d["GE"])[me]]
+    if d.get("XU") is not None and d.get("GU") is not None and len(d["XU"]):
+        mu = np.isin(np.asarray(d["GU"]), pre_ix)
+        pool += [d["XU"][mu], np.asarray(d["YU"])[mu] if d.get("YU") is not None else None]
     spec = frozen_models.make_spec(animal, kind, align=f"{d['align']}-{extra}-f{fdig}", source=d["source"],
-                                   train_labels=train, post_s=2.0, n_features=int(d["XE"].shape[1]))
+                                   train_labels=train, post_s=2.0, n_features=int(d["XE"].shape[1]),
+                                   train_data=pool)
     payload, status = frozen_models.load_or_fit(spec, fit, meta=meta or {})
     print(f"  [section_g] {animal} {kind} {frozen_models._slug(spec)} {status} "
           f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)

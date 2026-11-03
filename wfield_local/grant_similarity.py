@@ -149,7 +149,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                         pat = {}
                         for q in CONF_LABELS:
                             _me, _mu = _class_select(v, (GE == i) & (en == q),
-                                                     (GU == i) & (un == q), not_eng)
+                                                     (GU == i) & (un == q), not_eng, cls=bd.get("cls"))
                             parts = [XE[_me]] + ([XU[_mu]] if _mu.any() else [])
                             Xp = [z for z in parts if len(z)]
                             if Xp:
@@ -419,7 +419,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                         by_sess, tot = [], 0
                         for i in post_ids:
                             _me, _mu = _class_select(v, (GE == i) & (en == p),
-                                                     (GU == i) & (un == p), not_eng)
+                                                     (GU == i) & (un == p), not_eng, cls=bd.get("cls"))
                             parts = [XE[_me]] + ([XU[_mu]] if _mu.any() else [])
                             keep = [q for q in parts if len(q)]
                             if keep:
@@ -757,7 +757,7 @@ def _disattenuated_ci(align, variant, min_trials=10, n_boot=200):
             rec = _boot_cached(
                 "7b_disatt", (pre_key, day_x[d], day_b[d], params),
                 lambda an=an, d=d: _disatt_one(
-                    pre_x, pre_b, day_x[d], day_b[d],
+                    pre_x, pre_b, day_x[d], day_b[d],  # noqa: B023
                     np.random.default_rng(_seed(an, align, variant, d, "7bci")), n_boot))
             if rec:
                 per_day[d] = rec

@@ -81,7 +81,9 @@ FIELD = "delta"
 
 def session_npz(session):
     """Path to this session's per-position map file, or None."""
-    hits = glob.glob(f"{session['mc']}/spout_trial_averages_affine8v1/"
+    from wfield_local import config
+    # the hemo-tagged dir under a non-adopted variant (config.maps_dir_tag, rebuild 11-03); affine8v1 by default
+    hits = glob.glob(f"{session['mc']}/spout_trial_averages_{config.maps_dir_tag()}/"
                      f"*_spout_positions_1s_pre_post_delta_maps.npz")
     return hits[0] if hits else None
 

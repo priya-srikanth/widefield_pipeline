@@ -102,7 +102,9 @@ def drift_payload(an, bd, month, log=print):
         train = [x for x in config.phase_labels("pre") if config.animal_of(x) == an and _month(x.split("_")[-1]) == month]
     spec = frozen_models.make_spec(an, "drift_decoder", align=f"{ALIGN}-{month}", source="locanmf",
                                    train_labels=train, post_s=2.0, basis_id=bd.get("basis_id"),
-                                   n_features=int(XE.shape[1]))
+                                   n_features=int(XE.shape[1]),
+                                   train_data=(XE[e_pre & np.isin(GE, idx)], YE[e_pre & np.isin(GE, idx)],
+                                               GE[e_pre & np.isin(GE, idx)]))
 
     def _fit():
         full = e_pre & np.isin(GE, idx)
@@ -294,6 +296,8 @@ def main(argv=None) -> int:
     ap.add_argument("--reuse-distance", action="store_true", help="read distance_rows.csv from --out")
     ap.add_argument("--reuse-decoder", action="store_true", help="read decoder_rows.csv from --out")
     a = ap.parse_args(argv)
+    from wfield_local import config as _cfg
+    _cfg.require_full_pre("june_august_drift (drift decoder)")   # June pre is its reference (rebuild 11-03)
     lab = Path(PathResolver().root("labcams"))
     out = a.out or lab / "chronic_stability" / "june_august_drift"
     assert_writable(out)

@@ -72,7 +72,7 @@ def collect_task(an, align, variant):
         if ep is None:
             continue
         me, mu = _class_select(variant, GE == i, (GU == i) if len(YU) else np.zeros(0, bool),
-                               not_eng)
+                               not_eng, cls=bd.get("cls"))
         Xs = [XE[me]] + ([XU[mu]] if len(YU) and mu.any() else [])
         ys = [YE[me]] + ([YU[mu]] if len(YU) and mu.any() else [])
         bs = [BE[me]] + ([BU[mu]] if len(YU) and mu.any() else [])

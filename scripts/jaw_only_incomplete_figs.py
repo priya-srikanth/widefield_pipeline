@@ -72,19 +72,8 @@ def session_classes(label: str, v36: Path | str | None = None, c1: Path | str | 
 def cue_classes(table: pd.DataFrame | None, cue_s: np.ndarray, tol: float = CUE_MATCH_S) -> np.ndarray:
     """Class per DAQ cue (``cue_s``, DAQ seconds), matched to ``session_classes`` rows by nearest cue time within
     ``tol``; "unknown" where nothing matches (or ``table`` is None). Matched by TIME, never by trial id (ids are
-    offset in some sessions; `lp_licks`)."""
-    cue_s = np.asarray(cue_s, float)
-    out = np.full(len(cue_s), "unknown", dtype=object)
-    if table is None or not len(table):
-        return out
-    t = table.dropna(subset=["cue_daq"]).sort_values("cue_daq")
-    tv, cv = t.cue_daq.to_numpy(float), t.cls.to_numpy(object)
-    j = np.clip(np.searchsorted(tv, cue_s), 1, len(tv) - 1) if len(tv) > 1 else np.zeros(len(cue_s), int)
-    if len(tv) > 1:
-        j = np.where(np.abs(tv[j - 1] - cue_s) <= np.abs(tv[j] - cue_s), j - 1, j)
-    ok = np.abs(tv[j] - cue_s) <= tol
-    out[ok] = cv[j[ok]]
-    return out
+    offset in some sessions; `lp_licks`). ONE definition (rule 9): `trial_classes.cue_classes` (moved there 11-03)."""
+    return TC.cue_classes(table, cue_s, tol)
 
 
 def in_gate(cls: np.ndarray, gate: str) -> np.ndarray:

@@ -1096,7 +1096,7 @@ def cd_spec_align(align, *, method, reference, use, orth, mask_occluded, win_n, 
 
 
 def stored_cd_reference(animal, align, basis, train, fit, *, method, reference, use, orth, mask_occluded, win_n,
-                        pre_n, post_frames, post_s, excl=(), verbose=True):
+                        pre_n, post_frames, post_s, excl=(), verbose=True, train_data=None):
     """``fit()`` through the store (default), or called directly with WIDEFIELD_CD_FROZEN=0."""
     from wfield_local import frozen_models
     if not frozen_models.family_on(CD_FROZEN_ENV):
@@ -1114,7 +1114,8 @@ def stored_cd_reference(animal, align, basis, train, fit, *, method, reference, 
         animal, "cd_directions",
         align=cd_spec_align(align, method=method, reference=reference, use=use, orth=orth,
                             mask_occluded=mask_occluded, win_n=win_n, pre_n=pre_n, post_frames=post_frames),
-        source="locanmf", train_labels=train, post_s=post_s, basis_id=basis.basis_id, n_features=int(basis.ncomp))
+        source="locanmf", train_labels=train, post_s=post_s, basis_id=basis.basis_id, n_features=int(basis.ncomp),
+        train_data=train_data if train_data is not None else frozen_models._MISSING)   # required (FREEZE_VERSION 2)
     payload, status = frozen_models.load_or_fit(spec, fit, meta={"n_train_sessions": len(train)})
     if verbose:
         print(f"  [cd] {animal} {align}: cd_directions {frozen_models._slug(spec)} {status} "
@@ -1247,7 +1248,9 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
             Xall, np.concatenate(yf), Ge.get("pre"), Rb, drop, reference=reference, method=method,
             t=np.arange(-pre_n, post_frames) / args.fs),
         method=method, reference=reference, use=use, orth=orth, mask_occluded=mask_occluded, win_n=win_n,
-        pre_n=pre_n, post_frames=post_frames, post_s=args.post_s, excl=excl, verbose=verbose)
+        pre_n=pre_n, post_frames=post_frames, post_s=args.post_s, excl=excl, verbose=verbose,
+        # the arrays `fit_cd_reference` is fitted on (rebuild 11-03 training-data fingerprint)
+        train_data=(Xall, np.concatenate(yf), Ge.get("pre"), Rb, drop))
     stats, cim, dirs, surviving = cref["stats"], cref["cim"], cref["dirs"], cref["surviving"]
     if not dirs:
         return {"animal": animal, "align": align, "skipped": "no position could be fitted",

@@ -122,7 +122,7 @@ def stored_axes(animal, align, post_s, X, G, sp, ref, kept, basis_id, verbose=Tr
     pre_s = sorted(int(s) for s in np.unique(G[ref]))
     spec = frozen_models.make_spec(animal, "attempt_axes", align=f"{align}-{'+'.join(METHODS)}", source="locanmf",
                                    train_labels=[kept[s] for s in pre_s], post_s=post_s, basis_id=basis_id,
-                                   n_features=int(X.shape[1]))
+                                   n_features=int(X.shape[1]), train_data=(X[ref], sp[ref], G[ref]))
     spec["lick_source"] = "lp"                           # LP-only by nature (video hits), see ATTEMPT_FROZEN_ENV
 
     def _fit():

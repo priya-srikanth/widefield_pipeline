@@ -647,7 +647,8 @@ def stored_confusion_decoder(animal, align, post_s, basis_id, XE, YE, GE, e_pre,
         return None
     spec = frozen_models.make_spec(animal, "coding_decoder", align=align, source="locanmf",
                                    train_labels=_coding_train(animal, kept, pre_i), post_s=post_s,
-                                   basis_id=basis_id, n_features=int(XE.shape[1]))
+                                   basis_id=basis_id, n_features=int(XE.shape[1]),
+                                   train_data=(XE[e_pre], YE[e_pre], GE[e_pre]))
     payload, status = frozen_models.load_or_fit(
         spec, lambda: fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept),
         meta={"n_engaged_pre": int(e_pre.sum())})
@@ -670,7 +671,9 @@ def stored_reference(animal, align, post_s, basis_id, XE, en, e_pre, GE, XU, u_p
         return _fit()
     spec = frozen_models.make_spec(animal, "coding_directions", align=f"{align}-{'+'.join(methods)}",
                                    source="locanmf", train_labels=_coding_train(animal, kept, pre_i), post_s=post_s,
-                                   basis_id=basis_id, n_features=int(XE.shape[1]))
+                                   basis_id=basis_id, n_features=int(XE.shape[1]),
+                                   train_data=(XE[e_pre], np.asarray(en)[e_pre], GE[e_pre],
+                                               XU[u_pre] if use_nolick and len(XU) else None))
     payload, status = frozen_models.load_or_fit(spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()),
                                                                    "methods": list(methods)})
     print(f"  [coding_dirs] {animal} {align}: coding_directions {frozen_models._slug(spec)} {status}", flush=True)
@@ -772,6 +775,14 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         print(f"[coding_dirs] {animal} {disp}: trial bookkeeping mismatch -- skipped", flush=True)
         return None
     not_eng, frac_nl, frac_e = _g
+    # NO-LICK CLASS MASKS: the DAQ quit-tail rule (default, unchanged) or, under the camera trial gate (rebuild 11-03,
+    # `trial_classes`), miss-while-working = camera class in GATES["working"], stopped = no_response ("unknown" = neither)
+    nl_working, nl_stopped = ~not_eng, not_eng
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+        nl_working = _tc.in_gate(_cu, "working")
+        nl_stopped = np.isin(_cu, list(_tc.STOPPED_CLASSES))
 
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
     # VARIANCE CAPTURED PER SESSION, stored so a declining per-session coding value can be tested
@@ -796,9 +807,9 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         elif cls == "prestroke_nolick":
             m = u_pre.copy()
         elif cls == "poststroke_miss_working":
-            m = ~u_pre & ~not_eng
+            m = ~u_pre & nl_working
         else:
-            m = ~u_pre & not_eng
+            m = ~u_pre & nl_stopped
         X, names, g = ((XE, en, GE) if cls in ("prestroke_lick", "poststroke_lick") else (XU, un, GU))
         if pos is not None:
             m = m & (names == pos)
@@ -815,9 +826,9 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         elif cls == "prestroke_nolick":
             m, names = u_pre.copy(), un
         elif cls == "poststroke_miss_working":
-            m, names = ~u_pre & ~not_eng, un
+            m, names = ~u_pre & nl_working, un
         else:
-            m, names = ~u_pre & not_eng, un
+            m, names = ~u_pre & nl_stopped, un
         return m & (names == pos) if pos is not None else m
 
     classes = CLASSES_FULL
@@ -2063,9 +2074,10 @@ def main(argv=None) -> int:
         for meth in sorted({m for r in res.values() if r for m in r.get("methods", {})}):
             for fn in (figure_cos_slope, figure_pairwise_split):
                 _draw(fn, {a: r for a, r in res.items() if r}, out, align=align, meth=meth)
-    (out / "coding_direction.json").write_text(
-        json.dumps(everything, indent=1, default=float), encoding="utf-8")
-    print("wrote coding_direction.json", flush=True)
+    from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3a/5b, miss_vs_stopped
+    _cdj = run_mode.keyed_name("coding_direction.json")
+    (out / _cdj).write_text(json.dumps(everything, indent=1, default=float), encoding="utf-8")
+    print(f"wrote {_cdj}", flush=True)
     return 0
 
 

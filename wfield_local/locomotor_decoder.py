@@ -110,6 +110,7 @@ def frozen_state_models(animal: str, basis_id: str, got: dict):
     # their old id and stay in the store as the record (WIDEFIELD_STATE_ZSCORE=0 reproduces them).
     spec = fm.make_spec(animal, "state", align="segments", source=f"joint_{basis_id}", train_labels=list(pre),
                         basis_id=basis_id, n_features=n_feat, post_s=ls.SEGMENT_S, zscore=True,
+                        train_data={lab: v[:3] for lab, v in sorted(pre.items())},
                         scaling="session_z" if session_zscore_on() else None)
 
     def fit():

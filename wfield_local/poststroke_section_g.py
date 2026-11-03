@@ -323,7 +323,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     out = args.output or Path(PathResolver().root("figures_working"))
     rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs)
-    p = Path(out) / "section_g.json"
+    from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3b / 5
+    p = Path(out) / run_mode.keyed_name("section_g.json")
     json.dump(rec, open(p, "w"), indent=1, default=float)
     n_post = sum(1 for r in rec.values() if r["phase_tag"] == "post")
     print(f"\nwrote {p}  ({len(rec)} sessions: {n_post} post, {len(rec) - n_post} excluded)")

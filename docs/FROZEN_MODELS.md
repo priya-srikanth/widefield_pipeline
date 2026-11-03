@@ -265,3 +265,45 @@ pre-stroke sessions each). By Priya's decision **the analysis desktop is the one
 behaviour box keeps publishing position models. On this desktop always set `WIDEFIELD_FIGURES_WORKING=C:/Users/
 SabatiniLab/cue_lick` (its profile otherwise resolves local roots to `C:/Users/sabatini`, and `local_dir()` derives
 from that root). It also has 48 orphaned position models in `C:/wf_local/frozen_models` (§4) -- untouched, not published.
+
+---
+
+## 8. FREEZE_VERSION 2 — THE TRAINING-DATA FINGERPRINT (cohort-1 rebuild, 2026-11-03; Priya: yes)
+
+**Why.** §3's identity hashed the training LABELS and each session's `U_atlas` / `SVTcorr` stat signature, never the
+data actually fitted. Two failures followed: (1) a changed TRIAL set under unchanged labels loaded the old model --
+the PS92 section G models frozen 11-02 21:23 no longer reproduce with an identical spec, because PS92's pre trial
+features changed afterwards; (2) a partial hemo switch (rebuild trap T4) gave "variant" spec ids to models fitted on
+adopted data, because the signature is a file stat, not the bytes read.
+
+**What every spec now carries** (`frozen_models.make_spec`, required argument `train_data`):
+
+| field | value |
+|---|---|
+| `freeze_version` | 2 |
+| `train_fp` | `data_fingerprint(train_data)`: sha1 of the training arrays (dtype, shape, bytes; sequences in order, dicts by sorted key) |
+| `selection` | the run's trial-selection tag, `trial_classes.run_selection()` (`sel-daq-quittail` for the DAQ quit-tail rule, `sel-camera-<window>` for the camera gate), or an explicit `selection=` |
+| `hemo_variant` | `config.hemo_variant()` (the one hemo switch) |
+
+`train_data` per kind: decoder / epoch_decoder / coding_decoder / drift_decoder / nolick_reference = the pre-stroke
+engaged rows (X, y, session) the model is fitted on; encoder = the same rows; attempt_axes = the video-hit reference
+rows; coding_directions = engaged rows + positions (+ pre no-lick rows when the engagement axis uses them);
+cd_directions = the pass-1 window means, labels, pre grand means, baselines and dropped components; state = every pre
+session's (X, y, groups); rest_frozen = `rest_frozen_decoder.rest_train_data` (one builder for both rest scripts);
+section G = the animal's whole pre pool (engaged + no-lick); iti_readout = its existing `data_sig`.
+
+**Consequences.**
+- EVERY id changes by design. The rebuild freezes into a FRESH store (`WIDEFIELD_FROZEN_MODEL_DIR`, rebuild order G3).
+  `_write` REFUSES to put a v2 model into a store that already holds v1 models for that animal (the pre-rebuild
+  `C:/Users/SabatiniLab/frozen_models`, the M: store), so the generations never mix and `refreeze` can never retire
+  a v1 model in favour of a v2 one.
+- A changed pool now mints a new id (reported as SPEC-CHANGED against its siblings) instead of loading a model trained
+  on other data. Expect SPEC-CHANGED lines whenever a gate, a trial table or a hemo variant changes.
+- **LP arm, DAQ-trained cross-check** (`WIDEFIELD_LP_FROZEN=daq`): the LP run cannot rebuild the DAQ run's arrays, so its
+  spec carries `train_fp = "from-daq-run"` and `load_or_fit` finds the DAQ model by every other field
+  (`find_daq_trained`, `base_id`); two DAQ models with different fingerprints under one identity raise (ambiguous).
+- The ITI / lick-landing read-outs (`frozen_readouts`): only the SPEC changed. `ridge_fit` / `fit_all` / `data_sig` are
+  pinned by source hash and the stored payload is pinned equal to the in-memory fit
+  (`tests/test_frozen_fingerprint.py`); their per-session FRAME-level SD scaling (scripts' feature building, no centring
+  over lick samples; DECISIONS fa70b651) is untouched.
+- Tests use temp stores only.

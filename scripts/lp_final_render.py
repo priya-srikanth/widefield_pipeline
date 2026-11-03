@@ -68,7 +68,6 @@ def setup(source="lp", window=None, trained=None, refs=ALL_REFS, august=True, ga
         Path(os.environ["WIDEFIELD_FROZEN_MODEL_DIR"]).mkdir(parents=True, exist_ok=True)
         if trained == "lp":
             os.environ["WIDEFIELD_LP_FROZEN"] = "lp"
-    os.environ["WIDEFIELD_PRM_LEGACY_DATE8"] = "1"
     jobs = min(int(os.environ.get("WIDEFIELD_MAP_JOBS", "4")), 4)
     os.environ["WIDEFIELD_MAP_JOBS"] = str(jobs)
     from wfield_local import parallel
@@ -246,10 +245,13 @@ def main(argv=None) -> int:
     ap.add_argument("--aligns", nargs="+", default=["precue", "cue", "lick"], choices=tuple(ALIGN_VARIANT))
     ap.add_argument("--window", type=float, default=1.0)
     ap.add_argument("--source", choices=("lp", "daq"), default="lp")
-    ap.add_argument("--trained", choices=("daq", "lp"), default="daq")
+    # LP-TRAINED is the LP arm's default (Priya 11-03; frozen_models.lp_trained); "daq" = the cross-check (trap T16)
+    ap.add_argument("--trained", choices=("daq", "lp"), default=None, help="default: lp for --source lp, else daq")
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args(argv)
+    if a.trained is None:
+        a.trained = "lp" if a.source == "lp" else "daq"
     if a.source == "daq" and a.trained == "lp":
         ap.error("a DAQ-source run can only train DAQ models")
     t0 = time.time()

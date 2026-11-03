@@ -338,6 +338,45 @@ def row_classes(label: str, cue_index) -> np.ndarray:
     return out
 
 
+def camera_rows(label: str, idx_e, idx_n, variant: str):
+    """(keep engaged rows, keep no-lick rows) for ONE session's trial features under the camera rule -- the per-session
+    map builders' counterpart of `camera_select` (`beta_maps.session_maps`, `position_reference_maps._working_xy`,
+    `hemo_map_control`). ``idx_e`` / ``idx_n`` = DAQ cue indices of the engaged / no-lick rows.
+      working       engaged + no-lick rows whose class is in GATES["working"]
+      miss_working  no-lick rows in GATES["working"] (incomplete / jaw-only: responded but no contact)
+      stopped       no-lick rows in STOPPED_CLASSES
+      lick          engaged rows unchanged (contact-only)"""
+    ce, cu = row_classes(label, idx_e), row_classes(label, idx_n)
+    ne, nn = len(ce), len(cu)
+    if variant == "working":
+        return in_gate(ce, "working"), in_gate(cu, "working")
+    if variant == "miss_working":
+        return np.zeros(ne, bool), in_gate(cu, "working")
+    if variant == "stopped":
+        return np.zeros(ne, bool), np.isin(cu, list(STOPPED_CLASSES))
+    return np.ones(ne, bool), np.zeros(nn, bool)
+
+
+def pool_row_classes(feat, kept, n_e: int, n_u: int):
+    """(class per engaged row, class per unengaged row) for a pool stacked session by session in ``kept`` order
+    (`locanmf_frozen_decoder.pool_sessions` with ``features_with_indices``): ``feat.indices[label]`` = (engaged cue
+    indices, no-lick cue indices), row for row -- the bookkeeping `position_coding_directions._gate_all` relies on.
+    Raises if the counts do not line up (never guesses)."""
+    ce, cu = [], []
+    for lab in kept:
+        got = getattr(feat, "indices", {}).get(lab)
+        if got is None:
+            raise RuntimeError(f"camera trial gate: no trial indices for {lab}")
+        ie, inl = got
+        ce.append(row_classes(lab, ie))
+        cu.append(row_classes(lab, inl))
+    ce = np.concatenate(ce) if ce else np.zeros(0, object)
+    cu = np.concatenate(cu) if cu else np.zeros(0, object)
+    if len(ce) != n_e or len(cu) != n_u:
+        raise RuntimeError(f"camera trial gate: {len(ce)}/{len(cu)} classified rows vs a pool of {n_e}/{n_u}")
+    return ce, cu
+
+
 def camera_select(variant: str, cls_e, cls_u, sess_e, sess_u):
     """The camera rule's (engaged-row mask, unengaged-row mask) for one trial class -- `grant_kit._class_select`'s
     camera branch. ``lick``: the engaged rows (DAQ contact) UNCHANGED -- a contact-only selection, so PS93_0813 (no

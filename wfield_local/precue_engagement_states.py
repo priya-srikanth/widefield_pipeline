@@ -260,7 +260,10 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     }
 
     # ---- A. position decoding: ONE frozen pre-stroke decoder, applied to every state -------------
-    clf = _pipe().fit(XE[e_pre], YE[e_pre])
+    # STORED BY DEFAULT (rebuild 2026-11-03, rule 10; kind `engagement_states`, `_stored`): opt out with
+    # WIDEFIELD_ENGSTATES_FROZEN=0, which fits exactly this in memory.
+    clf = _stored(animal, f"{align}-posdec", basis, kept, pre_i, int(XE.shape[1]),
+                  (XE[e_pre], YE[e_pre], GE[e_pre]), lambda: _pipe().fit(XE[e_pre], YE[e_pre]), post_s)
     dec = {}
     for k, (X, y, g) in states.items():
         if len(y) < 10:
@@ -283,7 +286,24 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         Xd = np.vstack([XE[keep_eng], XU[keep_dis]])
         yd = np.concatenate([np.zeros(int(keep_eng.sum())), np.ones(int(keep_dis.sum()))])
         gd = np.concatenate([GE[keep_eng], GU[keep_dis]])
-        model = _disc().fit(Xd, yd)
+
+        def _fit_disc():
+            # the all-pre discriminator AND the per-held-out-session refits of the D2 drift control (below), one
+            # payload: they are determined by the same training pool
+            loso = {}
+            for si in sorted(pre_i):
+                hold = e_pre & (GE == si)
+                tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
+                if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
+                    continue
+                loso[si] = _disc().fit(
+                    np.vstack([XE[tr_e], XU[tr_d]]),
+                    np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))]))
+            return {"full": _disc().fit(Xd, yd), "loso": loso}
+
+        dpay = _stored(animal, f"{align}-disc", basis, kept, pre_i, int(XE.shape[1]),
+                       (Xd, yd, gd, sorted(pre_i), XE[e_pre], GE[e_pre]), _fit_disc, post_s)
+        model = dpay["full"]
         if len(np.unique(gd)) > 1:
             cvp = cross_val_predict(_disc(), Xd, yd, cv=LeaveOneGroupOut(), groups=gd,
                                     method="predict_proba")[:, 1]
@@ -307,9 +327,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
             if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                 continue
-            m = _disc().fit(
-                np.vstack([XE[tr_e], XU[tr_d]]),
-                np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))]))
+            m = dpay["loso"][si]                       # stored with the discriminator (same condition, same fit)
             pr = m.predict_proba(XE[hold])[:, 1]
             lh = late_e[hold]
             pre_e.extend(pr[~lh])
@@ -337,6 +355,24 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     return {"animal": animal, "align": align, "basis_id": basis.basis_id, "ncomp": basis.ncomp,
             "chance": CHANCE, "decode": dec, "discriminator": disc,
             "sessions": list(kept), "n_pre_sessions": len(pre_i)}
+
+
+ENGSTATES_FROZEN_ENV = "WIDEFIELD_ENGSTATES_FROZEN"
+
+
+def _stored(animal, align, basis, kept, pre_i, n_features, train_data, fit, post_s):
+    """``fit()`` through the frozen store (kind ``engagement_states``; default), or in memory when
+    WIDEFIELD_ENGSTATES_FROZEN=0. Converted in the cohort-1 rebuild (2026-11-03): this module refitted its pre-stroke
+    position decoder and state discriminator in memory on every render (rule 10)."""
+    from wfield_local import frozen_models
+    if not frozen_models.family_on(ENGSTATES_FROZEN_ENV):
+        return fit()
+    spec = frozen_models.make_spec(animal, "engagement_states", align=align, source="locanmf",
+                                   train_labels=[kept[i] for i in sorted(pre_i)], post_s=float(post_s),
+                                   basis_id=basis.basis_id, n_features=n_features, train_data=train_data)
+    payload, status = frozen_models.load_or_fit(spec, fit, meta={"n_pre_sessions": len(pre_i)})
+    print(f"  [precue_states] {animal} {align}: engagement_states {frozen_models._slug(spec)} {status}", flush=True)
+    return payload
 
 
 def _auc(y, p):

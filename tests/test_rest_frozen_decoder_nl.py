@@ -47,7 +47,10 @@ def test_defaults_are_off():
 #: come from the frozen store by default (`frozen_rest_payload`; tests/test_frozen_default.py pins that route and that
 #: the stored fit is the in-memory one). Everything else -- nulls, `_fit_frozen`, `_usable`, `training_pool`, `_plot`,
 #: confusion -- stays source-identical.
-CHANGED = {"_collect", "main"}
+#: Rebuild merge 2026-11-03: `_plot` changed on main (animal colours from `config.animal_color()`, the cohort-2 change;
+#: drawing only) and `_epoch_dir` routes a tagged run through `lp_licks.output_dir` (identity for the default run;
+#: tests/test_rebuild_switches.py pins the identity). Neither touches a number.
+CHANGED = {"_collect", "main", "_plot", "_epoch_dir"}
 
 
 def test_only_collect_changed(tmp_path):

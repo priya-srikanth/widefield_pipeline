@@ -241,7 +241,9 @@ def frozen_payload(an, basis_id, mask, pre, data_pre, windows):
     nfeat = int(next(iter(data_pre.values()))[0].shape[1])
     spec = fm.make_spec(an, "rest_frozen", align=f"rest-{mask}-b{BINS}-dur{PCT:g}-gap{PCT:g}-gate",
                         source=f"joint_{basis_id}", train_labels=labs, basis_id=basis_id, n_features=nfeat,
-                        post_s=0.0, zscore=True, alpha=0.1)
+                        post_s=0.0, zscore=True, alpha=0.1,
+                        train_data=rf.rest_train_data({k: (data_pre[k][0], data_pre[k][1], data_pre[k][3],
+                                                           data_pre[k][4]) for k in labs}, windows))
 
     def pool(keep):
         X = np.concatenate([data_pre[k][0] for k in keep])

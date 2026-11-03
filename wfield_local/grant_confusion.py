@@ -56,6 +56,7 @@ from wfield_local.grant_kit import (  # noqa: F401
     _excludes_zero,
     _feed,
     _fig_root,
+    _mode_name,
     _fit_bottom,
     _fit_header,
     _footer,
@@ -98,7 +99,7 @@ def fig_confusion_prestroke(out_dir):
     """
     made = []
     for _disp, align, wname in _windows():
-        f = _fig_root() / f"joint_xsession_decoder_{align}.json"
+        f = _fig_root() / _mode_name(f"joint_xsession_decoder_{align}.json")
         if not f.exists():
             continue
         d = json.loads(f.read_text(encoding="utf-8"))
@@ -167,7 +168,7 @@ def fig_confusion_pre_post(out_dir):
     sessions would multiply the same matrix by the session count and change nothing except to imply
     a sample size that does not exist.
     """
-    sg = _fig_root() / "section_g.json"
+    sg = _fig_root() / _mode_name("section_g.json")
     if not sg.exists():
         return None
     G = json.loads(sg.read_text(encoding="utf-8"))
@@ -320,7 +321,7 @@ def fig_confusion_pre_post_working(out_dir):
         Returning None (missing file, missing block, missing class) falls through to the recompute
         path, so this is a shortcut and never a new source of truth.
         """
-        f = _fig_root() / "coding_direction.json"
+        f = _fig_root() / _mode_name("coding_direction.json")
         if not f.exists():
             return None
         try:
@@ -653,7 +654,8 @@ def _stored_epoch_decoder(an, align, bd, tag="5c"):
         train = [x for x in config.phase_labels("pre") if config.animal_of(x) == an]
     spec = frozen_models.make_spec(an, "epoch_decoder", align=align, source="locanmf",
                                    train_labels=train, post_s=2.0,
-                                   basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]))
+                                   basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
+                                   train_data=(XE[e_pre], YE[e_pre], GE[e_pre]))
 
     def _fit():
         loso = {}
@@ -736,7 +738,32 @@ def _collect_5c(align, variant="working", mode="frozen"):
                       if mode in ("frozen", "paired") else None)
             clf = stored["full"] if stored else _pipe().fit(XE[e_pre], YE[e_pre])
 
-            def rec(X, y, blk, model, pool=None):
+            # 5rm / "paired_matched" THROUGH THE STORE (cohort-1 rebuild 2026-11-03, rule 10): every size-matched draw of
+            # this animal x align x class lives in ONE spec (kind `matched_frozen`, align carries the class and the seed
+            # base `_seed`), keyed inside the payload by (pool, n_target, rng seed). Its training-data fingerprint covers
+            # the whole pooled bundle, so the set of draws is a deterministic function of the spec: a hit replays every
+            # draw, a miss fits them in memory exactly as before and stores them. WIDEFIELD_EPOCH_FROZEN=0 = in memory.
+            mm_spec, mm_old, mm_new = None, None, {}
+            if mode == "paired_matched" and epoch_frozen_on():
+                from wfield_local import frozen_models
+                mm_spec = frozen_models.make_spec(
+                    an, "matched_frozen", align=f"{align}-{variant}-seed{abs(_seed(an, align, variant))}",
+                    source="locanmf", train_labels=[kept[i] for i in sorted(pre_i)], post_s=2.0,
+                    basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
+                    train_data=(XE, YE, GE, XU, YU, GU, not_eng, BE_all, BU_all, sorted(pre_i), bd.get("cls")))
+                _d, _o = frozen_models.find(mm_spec)
+                if _d is not None:
+                    mm_old = frozen_models._read(_d)
+
+            def _mf(tag, pool, n_target, seed):
+                key = f"{tag}|{int(n_target)}|{int(seed)}"
+                if mm_old is not None and key in mm_old:
+                    return mm_old[key]
+                got = _matched_frozen(_pipe, *pool, n_target, np.random.default_rng(seed))
+                mm_new[key] = got
+                return got
+
+            def rec(X, y, blk, model, pool=None, pool_tag="post"):
                 """One record, with `mode` deciding whose prediction fills column(s) of y_pred.
 
                 ``pool`` is the pre-stroke (X, y, blocks) the matched frozen model may draw from --
@@ -755,8 +782,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     # `rng.permutation` return the same block ORDER every time, so every session of
                     # that animal is scored by very nearly the SAME matched model -- one draw
                     # presented as many, and one unlucky subset would bias the whole animal.
-                    got = _matched_frozen(_pipe, *pool, n_target, np.random.default_rng(
-                        abs(_seed(an, align, variant)) + 1000003 * len(y) + int(blk[0])))
+                    got = _mf(pool_tag, pool, n_target,
+                              abs(_seed(an, align, variant)) + 1000003 * len(y) + int(blk[0]))
                     if got is None:
                         return None
                     model = got[0]
@@ -807,7 +834,7 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 if variant == "stopped":
                     me_te, mu_te = _class_select(variant, e_pre & (GE == i),
                                                  (GU == i) if len(GU) else np.zeros(0, bool),
-                                                 not_eng)
+                                                 not_eng, cls=bd.get("cls"))
                 else:
                     me_te = e_pre & (GE == i)
                     mu_te = np.zeros(len(GU), bool)
@@ -819,7 +846,7 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 m_i = (stored["loso"].get(kept[i]) if stored else None) or _pipe().fit(XE[tr], YE[tr])
                 if stored and kept[i] not in stored["loso"]:
                     print(f"  !! 5c {an}: no stored LOSO model for {kept[i]}; fitted in memory", flush=True)
-                r = rec(Xte, yte, bte, m_i, pool=(XE[tr], YE[tr], BE_all[tr]))
+                r = rec(Xte, yte, bte, m_i, pool=(XE[tr], YE[tr], BE_all[tr]), pool_tag=f"pre-{kept[i]}")
                 if r is None:
                     continue
                 pre_recs.append(r)
@@ -835,7 +862,7 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 if i in pre_i:
                     continue
                 day = _day(an, lab.split("_")[-1])
-                me, mu = _class_select(variant, (GE == i), (GU == i), not_eng)
+                me, mu = _class_select(variant, (GE == i), (GU == i), not_eng, cls=bd.get("cls"))
                 Xs = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
                 ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
@@ -846,6 +873,15 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     continue
                 by_day[day] = r
                 all_days.add(day)
+            if mm_spec is not None:
+                if mm_old is None:
+                    _p, _st = frozen_models.load_or_fit(mm_spec, lambda: dict(mm_new),
+                                                        meta={"n_draws": len(mm_new)})
+                    print(f"  [5rm] {an} {align} {variant}: matched_frozen {frozen_models._slug(mm_spec)} {_st} "
+                          f"({len(mm_new)} draws)", flush=True)
+                elif mm_new:
+                    print(f"  !! [5rm] {an} {align} {variant}: {len(mm_new)} draws missing from the stored "
+                          f"{frozen_models._slug(mm_spec)}; fitted in memory (not stored)", flush=True)
             per_animal[an] = (Cpre, by_day)
         except Exception as ex:                                       # noqa: BLE001
             print(f"  !! 5c {an} {align}/{variant}/{mode}: {type(ex).__name__} {str(ex)[:90]}",

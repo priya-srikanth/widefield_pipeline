@@ -425,7 +425,13 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b",
                              "13s", "14m", "15e", "15r", "mat", "scal"))
+    ap.add_argument("--pre-from", default=None, metavar="MMDD|all",
+                    help="pre-stroke baseline for THIS render block (rebuild 11-03: August-only = 0801 for the "
+                         "decoders, per block, never a config default); sets WIDEFIELD_PRE_FROM, outputs tagged "
+                         "pre<MMDD>")
     args = ap.parse_args(argv)
+    from wfield_local import config as _config
+    _config.apply_pre_from(args.pre_from)
     out = args.output or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     from wfield_local import lp_licks
     out = lp_licks.output_dir(out)            # LP_licks renders -> grant_figures/LP_licks/...

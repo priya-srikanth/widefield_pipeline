@@ -507,13 +507,13 @@ def test_nolick_spec_distinguishes_cut_basis_window_and_features(pass2_env):
     from wfield_local import frozen_models
     from wfield_local import nolick_decoder as nd
     tr = ["PS92_0810", "PS92_0811"]
-    ids = {frozen_models.spec_id(nd.nolick_spec("PS92", al, rt, b, tr, com, 8))
+    ids = {frozen_models.spec_id(nd.nolick_spec("PS92", al, rt, b, tr, com, 8, None))
            for al in ("precue", "cue") for rt in (2.0, None)
            for b in (None, SimpleNamespace(basis_id="abc123def456"))
            for com in ([("SSp", 0)], [("SSp", 0), ("MOp", 0)])}
     assert len(ids) == 16
-    assert frozen_models.spec_id(nd.nolick_spec("PS92", "cue", 2.0, None, tr, [], 8)) != \
-        frozen_models.spec_id(nd.nolick_spec("PS92", "cue", 2.0, None, tr + ["PS92_0812"], [], 8))
+    assert frozen_models.spec_id(nd.nolick_spec("PS92", "cue", 2.0, None, tr, [], 8, None)) != \
+        frozen_models.spec_id(nd.nolick_spec("PS92", "cue", 2.0, None, tr + ["PS92_0812"], [], 8, None))
 
 
 def test_nolick_lp_arm_lp_trained_by_default(pass2_env):
@@ -926,9 +926,9 @@ def test_precue_specs_carry_the_enl_window(pass2_env, align):
     where "precue-rt2-..." specs ignored the window and the 1.0 s run HIT the 2.0 s models (precue cells differed)."""
     from wfield_local import frozen_models
     tr = ["PS92_0810", "PS92_0811"]
-    a = frozen_models.make_spec("PS92", "k", align=align, source="locanmf", train_labels=tr)
+    a = frozen_models.make_spec("PS92", "k", align=align, source="locanmf", train_labels=tr, train_data=None)
     pass2_env.setenv("WIDEFIELD_ENL_WINDOW_S", "1.0")
-    b = frozen_models.make_spec("PS92", "k", align=align, source="locanmf", train_labels=tr)
+    b = frozen_models.make_spec("PS92", "k", align=align, source="locanmf", train_labels=tr, train_data=None)
     assert a["post_s"] == 2.0 and b["post_s"] == 1.0
     assert frozen_models.spec_id(a) != frozen_models.spec_id(b)
 
@@ -937,9 +937,9 @@ def test_non_precue_specs_ignore_the_enl_window(pass2_env):
     from wfield_local import frozen_models
     tr = ["PS92_0810"]
     for align in ("cue", "cue-june", "lick-dom", "iti_licks.frozen_decode-x", "rest-rest-b4"):
-        a = frozen_models.make_spec("PS92", "k", align=align, source="s", train_labels=tr)
+        a = frozen_models.make_spec("PS92", "k", align=align, source="s", train_labels=tr, train_data=None)
         pass2_env.setenv("WIDEFIELD_ENL_WINDOW_S", "1.0")
-        b = frozen_models.make_spec("PS92", "k", align=align, source="s", train_labels=tr)
+        b = frozen_models.make_spec("PS92", "k", align=align, source="s", train_labels=tr, train_data=None)
         pass2_env.delenv("WIDEFIELD_ENL_WINDOW_S")
         assert frozen_models.spec_id(a) == frozen_models.spec_id(b), align
 
