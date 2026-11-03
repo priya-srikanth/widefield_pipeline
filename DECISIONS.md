@@ -22934,6 +22934,11 @@ The stop is the rig's own `trial_end` TTL (`trial_windows.trial_bounds`), not co
 contact. Measured on PS92_0818 and PS94_0928, stop − first lick on contact trials is median 3.55 s (5–95 %: 3.4–3.8 s).
 Every trial without a contact (incomplete, jaw-only, no response) stops at the window, 3.525 s (max 3.74 s).
 A contact near the end of the window therefore gives a stop near 7 s.
+Reward (DAQ `reward_samples`) arrives 7 ms after the cue on rewarded trials (99 % of contact trials, 19–90 % of the
+others), so "3.5 s from reward" equals 3.5 s from the cue. That covers the trials without a contact (stop − reward
+3.52 s), but contact trials stop later: median 3.79 s after reward on PS92_0818 (5–95 %: 3.55–4.96 s), 3.70 s on
+PS94_0928. That is first contact + about 3.55 s. Inferred from timing; not checked against the GUI code, which lives
+in the recorder repo.
 
 Consequences:
 - **The trial classes are unchanged.** A contact trial is "contact" whatever follows, and every other trial already
