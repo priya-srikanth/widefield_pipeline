@@ -85,13 +85,16 @@ def _session_sig(label) -> str:
 
 
 def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=True,
-              basis_id=None, alpha=None, n_features=None, scaling=None):
+              basis_id=None, alpha=None, n_features=None, scaling=None, scaling_params=None):
     """The full identity of one frozen model, as a plain dict (JSON-serialisable, order-stable).
 
     ``scaling`` (2026-11-02) names HOW the features were scaled when ``zscore`` alone does not say it. Added because
     the state decoder's spec recorded ``zscore=True`` while its features were never z-scored per session
     (`locomotor_decoder.by_animal_day`): the fix (scaling="session_z") must not load the old, unscaled models filed
-    under the same identity. ADDED ONLY WHEN GIVEN, so every existing spec -- and its id -- is byte-identical."""
+    under the same identity. ADDED ONLY WHEN GIVEN, so every existing spec -- and its id -- is byte-identical.
+
+    ``scaling_params`` (2026-11-03) records the scaling's own settings (bal_em: passes and the min-mass guard, which
+    is recorded even when OFF). Also added only when given."""
     labs = sorted(train_labels)
     # ONE ANIMAL PER MODEL, checked rather than assumed. Every caller pools per animal, but the animal
     # is the first field of the identity and a pooled-across-animals training set would produce a model
@@ -123,6 +126,9 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     }
     if scaling is not None:
         spec["scaling"] = str(scaling)
+    if scaling_params is not None:
+        spec["scaling_params"] = {str(k): (None if v is None else float(v) if isinstance(v, float) else v)
+                                  for k, v in sorted(dict(scaling_params).items())}
     # LP-TRAINED sensitivity models only (see `load_or_fit`): ADDED ONLY THEN, so every DAQ spec -- and its id, which
     # names the stored directory -- is byte-identical to before.
     from wfield_local import lp_licks
