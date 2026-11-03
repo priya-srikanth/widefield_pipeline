@@ -414,3 +414,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   + 28 jaw-only) -> implementing as approved: jaw-only after the last lick BRIDGES but is not stopped and not counted; >= 6 no_response
   needed. MED T4-T10 (empty RESTnl maps, tagged nightly overwrites deck, reader/writer mismatches, coverage edge cases, s1 second
   classifier). Provisional: no-response runs before the first lick = warm-up, neither class (to confirm with Priya). Fourth review after.
+- 11-03: THIRD-PASS FIXES DONE (rebuild tip 85786d3b; code 3ef70b5b): T1-T10 + LOW; DECISIONS.md "2026-11-03 (night) -- Camera trial gate"
+  records all of Priya's camera rules; suite 4,476 passed / 0 failed. T3 effect (119 sessions): 513 trials stopped -> after_end (stopped
+  2,339 -> 1,830); working / camera-lick sets unchanged. Warm-up (provisional): 4 trials in 4 sessions. Partial coverage: PS93_0813 none,
+  PS92_0904 377/378, PS92_0908 321/389. Contact / no-lick disagreements all late licks -> 0 under the cue_stop rule. TRIAL LENGTH: acute
+  only 53-68% of trials > 3.6 s vs 86-92% pre -> licks-per-trial readouts confounded by trial length (decision for Priya). Run tag:
+  hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6. Tables copied to rebuild_20261103/. Fourth review sent.
