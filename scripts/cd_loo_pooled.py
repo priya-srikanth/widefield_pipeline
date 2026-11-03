@@ -8,8 +8,8 @@ position and alignment (window mean) is SUBTRACTED, so pre = 0 for every animal 
 animals, not of sessions. Subtracted, not divided: the pole scale is already shared across animals, and a held-out pre
 near 0 (PS93 close_center pre-cue) made the first, ratio version blow up (acute -89x).
 
-  cd_loo_pooled_window_<align>.png  per position: per-animal epoch means (animal colours, thin), mean of animals +- SEM
-                                    (black); under each post epoch the change vs pre by `analysis_kit.boot_delta`
+  cd_loo_pooled_window_<align>.png  per position: session values (faded open markers, shape = animal, colour =
+                                    epoch), mean of animals +- SEM (epoch colour), no lines across epochs; under each post epoch the change vs pre by `analysis_kit.boot_delta`
                                     (paired animals -> sessions, animal-weighted, 95 % interval; * = excludes 0) and
                                     k / n animals below pre
   cd_loo_pooled_traj_<align>.png    per position and epoch: each animal's session-mean trace - its pre window mean, then
@@ -18,7 +18,7 @@ near 0 (PS93 close_center pre-cue) made the first, ratio version blow up (acute 
 Caveats: pre = August only (~10-day span; the June -> August drift of these projections is not measured here); PS95
 acute = 1 session; haemodynamic caveat of `cd_trajectories` (read amplitude and gross time course, not onset timing).
 
-    python -m scripts.cd_loo_pooled [--out DIR]
+    python -m scripts.cd_loo_pooled [--out DIR] [--plot-only]
 """
 from __future__ import annotations
 
@@ -58,38 +58,58 @@ def changes(D: pd.DataFrame, align: str, rng) -> list[dict]:
     return rows
 
 
+def _r2(x: float) -> str:
+    """+-0.00 text, half away from zero on the DECIMAL value, so a change stored as -0.145 (%.4g) prints -0.15 as the
+    in-memory value did, not the binary float's -0.14."""
+    from decimal import ROUND_HALF_UP, Decimal
+    if not np.isfinite(x):
+        return "nan"
+    return f"{Decimal(str(x)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):+.2f}"
+
+
 def fig_window(D: pd.DataFrame, stats: list[dict], align: str, path: Path) -> None:
+    """Per position: each SESSION's value (faded open markers, shape = animal, colour = epoch) and the mean of animals
+    +- SEM over animals (filled, epoch colour). No line joins epochs (Priya 11-03, `wfield_local.cat_points`). Under each
+    post epoch: change vs pre (`boot_delta`; * = 95 % interval excludes 0, also starred in the top band) and k / n
+    animals below pre."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import config
-    col = config.animal_color()
-    fig, axes = plt.subplots(1, len(POS), figsize=(2.9 * len(POS), 3.4), sharey=True)
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
+    fig, axes = plt.subplots(1, len(POS), figsize=(2.9 * len(POS), 3.6), sharey=True)
     for ax, p in zip(axes, POS):
         g = D[(D["align"] == align) & (D.position == p)]
         M = g.groupby(["animal", "epoch"]).y.mean().unstack().reindex(columns=list(EPOCHS))
-        for a, r in M.iterrows():
-            ax.plot(range(4), r.values, "-o", color=col.get(a, "0.5"), lw=0.9, ms=3.5, alpha=0.85, label=a)
+        for i, e in enumerate(EPOCHS):
+            ge = g[g.epoch == e]
+            cp.session_dots(ax, i, ge.y.to_numpy(), ge.animal.to_numpy(), EP_COL[e], jitter=0.12, seed=100 * i + 7)
         mu, se = M.mean(), M.std(ddof=1) / np.sqrt(M.notna().sum().clip(lower=1))
-        ax.errorbar(range(4), mu.values, yerr=se.values, color="k", lw=2.2, marker="s", ms=5, capsize=3,
-                    label="mean of animals")
-        ax.axhline(0, color="0.6", ls="--", lw=0.8)
+        for i, e in enumerate(EPOCHS):
+            cp.summary_point(ax, i, mu[e], se[e], color=EP_COL[e], ms=6.5)
+        ax.axhline(0, color="0.6", ls="--", lw=0.8, zorder=0)
         ax.set_xticks(range(4))
-        ax.set_xticklabels(EPOCHS, fontsize=7)
-        ax.set_title(p + (" (contra)" if p.endswith("_R") else ""), fontsize=9)
-        ticks = []
-        for e in EPOCHS[1:]:
+        labs = ["pre"]
+        for i, e in enumerate(EPOCHS[1:], start=1):
             s = next(x for x in stats if x["position"] == p and x["epoch"] == e)
-            ticks.append(f"{e[:3]} {s['change']:+.2f}{s['mark']} {s['below_pre']}/{s['n_animals']}")
-        ax.text(0.02, 0.02, "\n".join(ticks), transform=ax.transAxes, fontsize=6.3, va="bottom", family="monospace")
+            labs.append(f"{e}\n{_r2(s['change'])}{s['mark']}\n{s['below_pre']}/{s['n_animals']} below")
+            if s["mark"]:
+                sig_marks.star_top(ax, i, s["mark"], color=EP_COL[e])
+        ax.set_xticklabels(labs, fontsize=6.5)
+        ax.set_xlim(-0.5, 3.5)
+        ax.set_title(p + (" (contra)" if p.endswith("_R") else ""), fontsize=9)
         ax.spines[["top", "right"]].set_visible(False)
+    sig_marks.reserve_headroom(fig)
     axes[0].set_ylabel("CD projection - own held-out pre\n(pole units; pre = 0)", fontsize=8)
-    axes[0].legend(fontsize=6, frameon=False, loc="upper left")
+    from matplotlib.lines import Line2D
+    h = [Line2D([], [], ls="none", marker="o", color=EP_COL[e], mec="w", ms=6, label=f"{e}: mean of animals +- SEM")
+         for e in EPOCHS] + cp.animal_handles(sorted(D.animal.unique()))
+    fig.legend(handles=h, fontsize=6.5, frameon=False, loc="lower center", ncol=len(h))
     fig.suptitle(f"CD leave-one-out window means, {align}-aligned -- POOLED within animal (each animal minus its own pre). "
-                 "Text: change vs pre (paired animals -> sessions bootstrap; * = 95 % interval excludes 0), "
-                 "animals below pre / animals", fontsize=8.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+                 "Faded open = sessions (shape = animal); under each epoch: change vs pre (paired animals -> sessions "
+                 "bootstrap; * = 95 % interval excludes 0), animals below pre / animals", fontsize=8.5)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.93))
     fig.savefig(path, dpi=150)
     plt.close(fig)
 
@@ -146,6 +166,9 @@ def main(argv=None) -> int:
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--plot-only", action="store_true",
+                    help="redraw the window figures from the STORED cd_loo_pooled_stats.csv (no bootstrap, no traces) "
+                         "to cd_loo_pooled_window_<align>_nolines.png")
     a = ap.parse_args(argv)
     fig_dir = Path(cdt.default_out())
     C = pd.read_csv(FL.sidecar_for(fig_dir, "cd_window_projection_loo", "_sessions_long.csv", mkdir=False))
@@ -154,6 +177,14 @@ def main(argv=None) -> int:
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     D = normalised(C)
+    if a.plot_only:
+        S = pd.read_csv(out / "cd_loo_pooled_stats.csv", keep_default_na=False, na_values=[""])
+        S["mark"] = S["mark"].fillna("").astype(str)
+        for align in ("precue", "cue", "lick"):
+            st = S[S["align"] == align].to_dict("records")
+            fig_window(D, st, align, out / f"cd_loo_pooled_window_{align}_nolines.png")
+            print("->", out / f"cd_loo_pooled_window_{align}_nolines.png")
+        return 0
     rng = np.random.default_rng(0)
     stats = []
     for align in ("precue", "cue", "lick"):

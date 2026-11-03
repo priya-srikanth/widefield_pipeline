@@ -96,6 +96,8 @@ import numpy as np
 from wfield_local.framemap_event_maps import frame_samples_from_map
 
 CHANCE = 1.0 / 6.0
+#: epoch colours of the epoch figures (`scripts.cd_loo_figures.EP_COL`)
+EP_COL = {"pre": "0.45", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
 
 
 def _frame_samples(mc, fmdir, regime, pco):
@@ -497,71 +499,93 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import config as _cfg
-
-    colors = _cfg.animal_color()
     animals = sorted({r["animal"] for r in per_session})
     # TALLER THAN IT WAS, because the legends now sit BELOW the axes rather than inside them.
     # In-axes legends on these three panels collided with the data they described -- panel 3 draws
     # two horizontal reference lines across the full width, so there is no empty corner for a
     # legend to occupy and matplotlib's "best" placement lands it on top of a line every time.
-    fig, ax = plt.subplots(1, 3, figsize=(15.5, 5.6))
+    fig, ax = plt.subplots(1, 3, figsize=(15.5, 6.0))
     x = np.arange(len(order))
     LEG = {"fontsize": 10, "frameon": False, "loc": "upper center", "borderaxespad": 0.0}
 
-    # 1. balanced accuracy against the circular-shift null
-    ax[0].plot(x, [r["acc"] for r in rows], "o-", color="k", lw=2, label="frozen decoder")
-    ax[0].plot(x, [r["null"] for r in rows], "s--", color="0.55", lw=1.4,
-               label="circular-shift null")
+    # NO LINE JOINS EPOCHS (Priya 11-03, `wfield_local.cat_points`): every epoch summary is a filled marker in the epoch
+    # colour with the SESSION values behind it as faded open markers (shape = animal, colour = epoch).
+    from wfield_local import cat_points as cp
+
+    def _sess(e, key):
+        v = [s_ for s_ in per_session if s_["epoch"] == e]
+        return np.array([float(s_[key]) for s_ in v]), [s_["animal"] for s_ in v]
+
+    pre_frac = {an: np.mean([float(r["above_chance_frac"]) for r in per_session
+                             if r["animal"] == an and r["epoch"] == "pre"]) for an in animals}
+
+    # 1. balanced accuracy against the permuted null
     for i, r in enumerate(rows):
-        v = [s["acc"] for s in per_session if s["epoch"] == r["epoch"]]
-        ax[0].scatter([i] * len(v), v, s=14, color="0.7", zorder=1)
-    ax[0].axhline(CHANCE, color="r", ls=":", lw=1, label="chance (1/6)")
+        e = r["epoch"]
+        v, an_ = _sess(e, "acc")
+        cp.session_dots(ax[0], i, v, an_, EP_COL.get(e, "0.4"), jitter=0.12, seed=11 + i)
+        cp.summary_point(ax[0], i, float(r["acc"]), None, color=EP_COL.get(e, "k"), ms=8)
+        ax[0].plot(i + 0.3, float(r["null"]), "s", color="0.55", ms=6, mfc="none", mew=1.4, zorder=3)
+    ax[0].axhline(CHANCE, color="r", ls=":", lw=1)
     ax[0].set_ylabel("balanced accuracy", fontsize=11)
     ax[0].set_title("Frozen pre-stroke rest decoder", fontsize=12, fontweight="bold")
-    ax[0].legend(bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
+    from matplotlib.lines import Line2D
+    h0 = [Line2D([], [], ls="none", marker="o", color="0.3", mec="w", ms=8, label="frozen decoder, pooled (epoch colour)"),
+          Line2D([], [], ls="none", marker="s", color="0.55", mfc="none", mew=1.4, ms=6, label="permuted null"),
+          Line2D([], [], color="r", ls=":", lw=1, label="chance (1/6)")]
+    ax[0].legend(handles=h0, bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
 
-    # 2. per animal, retained fraction -- the panel that would have caught the withdrawn claim
-    for an in animals:
-        pf = [r["above_chance_frac"] for r in per_session
-              if r["animal"] == an and r["epoch"] == "pre"]
-        if not pf:
+    # 2. per animal, retained fraction -- the panel that would have caught the withdrawn claim. One value per animal x
+    # epoch (mean of its sessions / its own pre): open markers, shape = animal, colour = epoch, no line across epochs.
+    offs = cp.epoch_offsets(max(len(animals), 1), 0.12)
+    for k, an in enumerate(animals):
+        if not np.isfinite(pre_frac.get(an, np.nan)):
             continue
-        ys = []
-        for e in order:
-            v = [r["above_chance_frac"] for r in per_session
-                 if r["animal"] == an and r["epoch"] == e]
-            ys.append(np.mean(v) / np.mean(pf) if v else np.nan)
-        ax[1].plot(x, ys, "o-", color=colors.get(an, "0.4"), lw=1.8, label=an)
+        for i, e in enumerate(order):
+            v = [float(r["above_chance_frac"]) for r in per_session if r["animal"] == an and r["epoch"] == e]
+            if v:
+                ax[1].plot(i + offs[k], np.mean(v) / pre_frac[an], ls="none", marker=cp.animal_marker(an), ms=8,
+                           mfc="none", mec=EP_COL.get(e, "0.4"), mew=1.6, zorder=3)
     ax[1].axhline(1.0, color="0.6", ls=":", lw=1)
     ax[1].set_ylabel("above-chance fraction retained (vs own pre)", fontsize=11)
     ax[1].set_title("Per animal -- read this before any trajectory",
                     fontsize=12, fontweight="bold")
-    ax[1].legend(bbox_to_anchor=(0.5, -0.13), ncol=len(animals) or 1, **LEG)
+    h1 = [Line2D([], [], ls="none", marker=cp.animal_marker(an), mfc="none", mec="0.35", mew=1.4, ms=8,
+                 label=f"{an} (colour = epoch)") for an in animals]
+    ax[1].legend(handles=h1, bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
 
-    # 3. the cohort retained fraction beside the TASK arm, the comparison the number is for
-    ax[2].plot(x, [r["retained"] for r in rows], "o-", color="k", lw=2, label="REST (this arm)")
+    # 3. the cohort retained fraction beside the TASK arm, the comparison the number is for. Session dots = each
+    # session's above-chance fraction over its own animal's pre mean (panel 2's normalisation).
+    for i, r in enumerate(rows):
+        e = r["epoch"]
+        v, an_ = _sess(e, "above_chance_frac")
+        v = np.array([x_ / pre_frac[a_] if pre_frac.get(a_) else np.nan for x_, a_ in zip(v, an_)])
+        cp.session_dots(ax[2], i, v, an_, EP_COL.get(e, "0.4"), jitter=0.12, seed=23 + i)
+        cp.summary_point(ax[2], i, float(r["retained"]), None, color=EP_COL.get(e, "k"), ms=8)
     ax[2].axhline(1.0, color="0.6", ls=":", lw=1)
     ax[2].set_ylabel("above-chance fraction retained", fontsize=11)
     ax[2].set_title("Rest vs the task and state arms", fontsize=12, fontweight="bold")
+    h2 = [Line2D([], [], ls="none", marker="o", color="0.3", mec="w", ms=8, label="REST (this arm), pooled")]
     # REFERENCE VALUES, NOT RE-MEASURED HERE -- they are BEHAVIOURAL_STATE_CONTROL.md's, quoted so
     # the rest number is read against something. Marked as quoted on the figure itself so nobody
     # takes them for output of this script.
     for nm, val, col in (("task position (quoted)", 0.496, "#b2182b"),
                          ("state (quoted)", 0.902, "#2166ac")):
-        ax[2].axhline(val, color=col, ls="--", lw=1.2, label=nm)
-    ax[2].legend(bbox_to_anchor=(0.5, -0.13), ncol=1, **LEG)
+        ax[2].axhline(val, color=col, ls="--", lw=1.2)
+        h2.append(Line2D([], [], color=col, ls="--", lw=1.2, label=nm))
+    ax[2].legend(handles=h2 + cp.animal_handles(animals), bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
 
     for a_ in ax:
         a_.set_xticks(x)
         a_.set_xticklabels(order, fontsize=10)
+        a_.set_xlim(-0.5, len(order) - 0.5)
         a_.tick_params(axis="y", labelsize=10)
         a_.spines[["top", "right"]].set_visible(False)
     ns = ", ".join(f"{r['epoch']} {r['n_sessions']}" for r in rows)
     fig.suptitle(f"Position decoded from REST by a FROZEN pre-stroke model "
                  f"(variant {variant}) -- sessions: {ns}; {n_skipped} skipped", fontsize=11)
     # ROOM AT THE BOTTOM FOR THE LEGENDS, which are now outside the axes.
-    fig.tight_layout(rect=(0, 0.10, 1, 0.93))
+    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     p = out / f"{stem}.png"
     fig.savefig(p, dpi=150)
     plt.close(fig)

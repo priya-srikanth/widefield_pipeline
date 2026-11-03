@@ -47,7 +47,6 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 from wfield_local import cd_trajectories as cdt  # noqa: E402
-from wfield_local import config  # noqa: E402
 
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 ALIGNS = ("precue", "cue", "lick")
@@ -208,18 +207,22 @@ def _wrap(text, fig, fontsize=8.5):
 
 
 def _legend(ax, normalise, nulls):
-    """The animal legend, plus ONE entry explaining the dashed line -- in the legend, not a caption.
+    """The animal legend (open shapes; no lines across epochs, Priya 11-03), plus ONE entry explaining the dashed line -- in the legend, not a caption.
 
     A reader should not have to remember what a line style meant two panels ago, and they certainly
     should not have to discover that it meant something different there.
     """
     from matplotlib.lines import Line2D
 
-    h, lab = ax.get_legend_handles_labels()
+    from wfield_local import cat_points as cp
+
+    h = [Line2D([], [], ls="none", marker=cp.animal_marker(a), mfc="none", mec="0.35", mew=1.2, ms=6)
+         for a in ANIMALS]
+    lab = [f"{a} (colour = epoch)" for a in ANIMALS]
     if nulls and not normalise:
         h = [*h, Line2D([], [], color="0.35", ls="--", lw=1.0)]
         lab = [*lab, "that animal's pre-to-pre ceiling\n(what this reads at NO CHANGE)"]
-    ax.legend(h, lab, fontsize=6.5, frameon=False, ncol=2, loc="lower left")
+    ax.legend(h, lab, fontsize=6.5, frameon=False, ncol=2, loc="lower left", bbox_to_anchor=(0, 0.08))
 
 
 def _norm(vals, ceils):
@@ -241,10 +244,38 @@ def _series(got, align, key, animals):
     return out
 
 
+#: epoch colours of the epoch figures (`scripts.cd_loo_figures.EP_COL`); only the post epochs are drawn here
+EP_COL = {"pre": "0.45", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
+
+
+def _animal_points(ax, x, vals, animal, k, n_animals, label=None):
+    """One animal's per-epoch values as OPEN markers (shape = animal, colour = epoch), NO line across epochs
+    (Priya 11-03). Measured once per animal x epoch, so there are no session values to draw; animals sit at small
+    fixed lateral offsets so the four do not overlap."""
+    from wfield_local import cat_points as cp
+    dx = cp.epoch_offsets(n_animals, 0.11)[k]
+    for i, ep in enumerate(POST):
+        v = vals[i]
+        if v is None or not np.isfinite(float(v)):
+            continue
+        ax.plot(x[i] + dx, float(v), ls="none", marker=cp.animal_marker(animal), ms=6, mfc="none",
+                mec=EP_COL[ep], mew=1.4, zorder=3, label=label if i == 0 else None)
+
+
+def _ceiling_ticks(ax, x, cl, k, n_animals):
+    """The animal's pre-to-pre ceiling as a short dashed tick at its own point, not a line across epochs."""
+    from wfield_local import cat_points as cp
+    dx = cp.epoch_offsets(n_animals, 0.11)[k]
+    for i, c in enumerate(cl):
+        if c is None or not np.isfinite(float(c)):
+            continue
+        ax.plot([x[i] + dx - 0.045, x[i] + dx + 0.045], [float(c)] * 2, ls="--", lw=1.0,
+                color=EP_COL[POST[i]], alpha=0.8, zorder=2)
+
+
 def figure(got, out, nulls=None, normalise=False):
     """`normalise=True` divides every quantity by its pre-to-pre ceiling (1.0 = no change)."""
     nulls = nulls or {}
-    colors = config.animal_color()
     aligns = [al for al in ALIGNS if any(k[1] == al for k in got)]
     animals = [a for a in ANIMALS if any(k[0] == a for k in got)]
     if not aligns:
@@ -267,16 +298,15 @@ def figure(got, out, nulls=None, normalise=False):
             ax.text(len(POST) - 0.55, ch, f" chance K/n = {ch:.3f}", fontsize=6.5,
                     va="bottom", ha="right", color="0.35")
         for a, v in cos.items():
+            k = animals.index(a)
             cl = [ceiling(nulls, a, al, ep, "cos")[0] for ep in POST]
             vv = _norm(v, cl) if normalise else v
-            ax.plot(x, vv, "o-", color=colors.get(a, "0.4"), lw=1.2, ms=4, alpha=0.85,
-                    label=a)
-            # THE CEILING ITSELF, dashed in the animal's own colour: the pre-to-pre value this
+            _animal_points(ax, x, vv, a, k, len(animals))
+            # THE CEILING ITSELF, a dashed tick beside the animal's point: the pre-to-pre value this
             # observation has to be read against. Drawn per animal because it is per animal -- it
             # depends on that animal's session count and trial totals.
             if not normalise and any(c is not None for c in cl):
-                ax.plot(x, [np.nan if c is None else c for c in cl], ls="--", lw=1.0,
-                        color=colors.get(a, "0.4"), alpha=0.75)
+                _ceiling_ticks(ax, x, cl, k, len(animals))
         ax.set_ylim(0, 1.25 if normalise else 1.05)
         ax.axhline(1.0, color="0.55", lw=0.8, ls=":")
         ks = "/".join(str(got[(a, al)].get("cim_k")) for a in animals if (a, al) in got)
@@ -290,12 +320,11 @@ def figure(got, out, nulls=None, normalise=False):
         ax = axes[1][j]
         ax.axhline(1.0, color="0.55", lw=0.8, ls=":")
         for a, v in scale.items():
+            k = animals.index(a)
             cl = [ceiling(nulls, a, al, ep, "scale")[0] for ep in POST]
-            ax.plot(x, _norm(v, cl) if normalise else v, "s-", color=colors.get(a, "0.4"),
-                    lw=1.2, ms=4, alpha=0.85)
+            _animal_points(ax, x, _norm(v, cl) if normalise else v, a, k, len(animals))
             if not normalise and any(c is not None for c in cl):
-                ax.plot(x, [np.nan if c is None else c for c in cl], ls="--", lw=1.0,
-                        color=colors.get(a, "0.4"), alpha=0.75)
+                _ceiling_ticks(ax, x, cl, k, len(animals))
         if j == 0:
             ax.set_ylabel("B  magnitude / pre-to-pre CEILING\n(1 = no resolvable growth)"
                           if normalise else "B  magnitude / pre", fontsize=8)
@@ -314,10 +343,9 @@ def figure(got, out, nulls=None, normalise=False):
                 # different from the two above it.
                 cl = [leak(ceiling(nulls, a, al, ep, "cos")[0],
                            ceiling(nulls, a, al, ep, "scale")[0]) for ep in POST]
-                ax.plot(x, _norm(obs_leak, cl), "^-", color=colors.get(a, "0.4"), lw=1.2, ms=4,
-                        alpha=0.85)
+                _animal_points(ax, x, _norm(obs_leak, cl), a, animals.index(a), len(animals))
                 continue
-            ax.plot(x, obs_leak, "^-", color=colors.get(a, "0.4"), lw=1.2, ms=4, alpha=0.85)
+            _animal_points(ax, x, obs_leak, a, animals.index(a), len(animals))
             # DASHED IS THE CEILING HERE TOO. It used to be `sqrt(1 - overlap)` with the scale
             # assumed 1.0 -- the residual estimate this figure exists to replace -- which meant the
             # same dashes meant one thing in rows A and B and another here. That belongs in
@@ -325,7 +353,7 @@ def figure(got, out, nulls=None, normalise=False):
             cl = [leak(ceiling(nulls, a, al, ep, "cos")[0],
                        ceiling(nulls, a, al, ep, "scale")[0]) for ep in POST]
             if any(np.isfinite(v) for v in cl):
-                ax.plot(x, cl, ls="--", color=colors.get(a, "0.4"), lw=0.9, alpha=0.6)
+                _ceiling_ticks(ax, x, cl, animals.index(a), len(animals))
         if normalise:
             ax.axhline(1.0, color="0.55", lw=0.8, ls=":")
         if j == 0:
@@ -335,6 +363,7 @@ def figure(got, out, nulls=None, normalise=False):
 
         ax.set_xticks(x)
         ax.set_xticklabels(POST, fontsize=8)
+        ax.set_xlim(-0.5, len(POST) - 0.5)
     have = "with" if nulls else "WITHOUT"
     fig.suptitle(_wrap(
         ("The CONDITION-INDEPENDENT MODE after stroke, NORMALISED TO THE PRE-TO-PRE CEILING\n"
@@ -372,6 +401,9 @@ def main(argv=None) -> int:
                     help="which arm's dumps to read -- must MATCH the render, since the two are "
                          "stored under different tags. Default `drop`, as the render's is.")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--suffix", default="",
+                    help="appended to BOTH output stems (e.g. _nolines), so a redraw does not overwrite the "
+                         "published PNGs")
     args = ap.parse_args(argv)
 
     d = Path(args.dir)
@@ -386,12 +418,12 @@ def main(argv=None) -> int:
         return 1
     # THE ARM IS IN THE FILENAME, for the same reason it is in the dump tag: two arms, two figures.
     suffix = "_cortexonly" if args.occluded == "drop" else ""
-    out = Path(args.out) if args.out else d / f"cd_cim_geometry_{args.gate}{suffix}.png"
+    out = Path(args.out) if args.out else d / f"cd_cim_geometry_{args.gate}{suffix}{args.suffix}.png"
     print(f"-> {figure(got, out, nulls)}")
     # THE NORMALISED VIEW IS A SECOND FIGURE, not a replacement -- see its own subtitle. Only drawn
     # when there is a ceiling to normalise BY; otherwise it would be a figure of ones and NaNs.
     if nulls:
-        out2 = d / f"cd_cim_geometry_{args.gate}{suffix}_vs_ceiling.png"
+        out2 = d / f"cd_cim_geometry_{args.gate}{suffix}_vs_ceiling{args.suffix}.png"
         print(f"-> {figure(got, out2, nulls, normalise=True)}")
     return 0
 
