@@ -545,3 +545,50 @@ def test_nolick_analyse_animal_uses_the_store():
     assert 'pred_e = _loso_predict(stored["loso"], XE[m_pre], SE[m_pre], YE.dtype)' in src
 
 
+# ------------------------------------------------------------------------------------- attempt_coding axes (2)
+def _same_axes(a, b):
+    assert sorted(a) == sorted(b)
+    for k in a:
+        for x, y in zip(a[k], b[k]):
+            np.testing.assert_array_equal(x, y)
+
+
+def _attempt_rows(seed=0):
+    from wfield_local import attempt_coding as ac
+    rng = np.random.default_rng(seed)
+    kept = ["PS92_0810", "PS92_0811", "PS92_0812", "PS92_0901"]
+    G = np.repeat(np.arange(4), 90)
+    sp = np.tile(np.array(ac.SPOUTS), 60)[:len(G)]
+    mu = {P: rng.normal(size=12) for P in ac.SPOUTS}
+    X = np.vstack([mu[p] for p in sp]) + rng.normal(size=(len(G), 12))
+    ref = G < 3
+    return X, G, sp, ref, kept
+
+
+def test_attempt_axes_stored_equal_in_memory(pass2_env):
+    from wfield_local import attempt_coding as ac
+    from wfield_local import frozen_models
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    X, G, sp, ref, kept = _attempt_rows(seed=2)
+    pay = ac.stored_axes("PS92", "precue", 1.0, X, G, sp, ref, kept, "basis0", verbose=False)
+    spec = rec.calls[0]["spec"]
+    assert spec["kind"] == "attempt_axes" and spec["lick_source"] == "lp"        # LP-only by nature
+    assert spec["train_labels"] == kept[:3] and spec["align"] == "precue-dom"
+    for meth in ac.METHODS:
+        _same_axes(pay[meth]["full"], ac.fit_axes(X[ref], sp[ref], meth))
+        for s in range(3):
+            _same_axes(pay[meth]["loso"][kept[s]], ac.fit_axes(X[ref & (G != s)], sp[ref & (G != s)], meth))
+    pass2_env.setenv("WIDEFIELD_ATTEMPT_FROZEN", "0")
+    assert ac.stored_axes("PS92", "precue", 1.0, X, G, sp, ref, kept, "basis0", verbose=False) is None
+    assert len(rec.calls) == 1
+
+
+def test_attempt_run_animal_uses_the_store():
+    from wfield_local import attempt_coding as ac
+    src = inspect.getsource(ac.run_animal)
+    assert "axes = stored_axes(animal, align, post_s, X, G, sp, ref, kept" in src
+    assert 'W = axes[meth]["full"] if axes else fit_axes(X[ref], sp[ref], meth)' in src
+    assert 'axes[meth]["loso"][kept[s]] if axes else fit_axes(X[tr], sp[tr], meth)' in src
+
+

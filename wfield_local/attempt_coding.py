@@ -105,6 +105,37 @@ def fit_axes(X, spout, method):
     return W
 
 
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; rule 10). The coding-direction axes fitted
+#: on pre-stroke video hits go through `frozen_models.load_or_fit`, kind `attempt_axes`; payload {method: {"full": W,
+#: "loso": {pre label: W}}}. OPT-OUT WIDEFIELD_ATTEMPT_FROZEN=0 refits in memory. LP-ONLY BY NATURE: the reference class
+#: (pre_hit) is a VIDEO attempt class, so there is no DAQ-trained version; the spec always carries lick_source=lp.
+ATTEMPT_FROZEN_ENV = "WIDEFIELD_ATTEMPT_FROZEN"
+
+
+def stored_axes(animal, align, post_s, X, G, sp, ref, kept, basis_id, verbose=True):
+    """{method: {"full", "loso"}} from the store, or None when opted out."""
+    from wfield_local import frozen_models
+    if not frozen_models.family_on(ATTEMPT_FROZEN_ENV):
+        if verbose:
+            print(f"[attempt_coding] {animal} {align}: {ATTEMPT_FROZEN_ENV}=0 -> axes fitted IN MEMORY", flush=True)
+        return None
+    pre_s = sorted(int(s) for s in np.unique(G[ref]))
+    spec = frozen_models.make_spec(animal, "attempt_axes", align=f"{align}-{'+'.join(METHODS)}", source="locanmf",
+                                   train_labels=[kept[s] for s in pre_s], post_s=post_s, basis_id=basis_id,
+                                   n_features=int(X.shape[1]))
+    spec["lick_source"] = "lp"                           # LP-only by nature (video hits), see ATTEMPT_FROZEN_ENV
+
+    def _fit():
+        return {meth: {"full": fit_axes(X[ref], sp[ref], meth),
+                       "loso": {kept[s]: fit_axes(X[ref & (G != s)], sp[ref & (G != s)], meth) for s in pre_s}}
+                for meth in METHODS}
+
+    payload, status = frozen_models.load_or_fit(spec, _fit, meta={"n_pre_hit": int(ref.sum())})
+    if verbose:
+        print(f"[attempt_coding] {animal} {align}: attempt_axes {frozen_models._slug(spec)} {status}", flush=True)
+    return payload
+
+
 def score(X, spout, W):
     """Pole-normalised projection of each row on its own spout's axis; NaN where that spout has no axis."""
     from wfield_local.position_coding_directions import project
@@ -215,13 +246,17 @@ def run_animal(animal, align="precue", verbose=True):
     lab_row = np.array(kept, dtype=object)[G]
     rows = []
     ref = C == "pre_hit"
+    # STORED BY DEFAULT (11-02 pass 2): the per-spout axes (full + one leave-one-session-out set per pre session) come
+    # from `frozen_models` (kind `attempt_axes`); opt-out WIDEFIELD_ATTEMPT_FROZEN=0 fits them in memory as before.
+    axes = stored_axes(animal, align, post_s, X, G, sp, ref, kept, getattr(feat, "basis_id", None),
+                       verbose=verbose)
     for meth in METHODS:
-        W = fit_axes(X[ref], sp[ref], meth)
+        W = axes[meth]["full"] if axes else fit_axes(X[ref], sp[ref], meth)
         own = score(X, sp, W)
         # pre-stroke hits: leave-one-session-out, so the reference is not scored in-sample
         for s in np.unique(G[ref]):
             tr, te = ref & (G != s), ref & (G == s)
-            own[te] = score(X[te], sp[te], fit_axes(X[tr], sp[tr], meth))
+            own[te] = score(X[te], sp[te], axes[meth]["loso"][kept[s]] if axes else fit_axes(X[tr], sp[tr], meth))
         rows.append(pd.DataFrame({"method": meth, "own": own}))
     from wfield_local.locanmf_frozen_decoder import frozen_decoder_models
     pre_list = [i for i in range(len(kept)) if pre_i[i]]
