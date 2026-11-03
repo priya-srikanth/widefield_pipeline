@@ -64,6 +64,7 @@ always rebuild from the LIVE page (Artifact read) or the current index.html, nev
 - **Mixed-model supplements (Priya 11-03):** collapsed toggles are in both M: sources (13 on kinematics, 3 on
   FaceRhythm; `add_lmm_toggles_1103.py`). Publishing was handed to sabatinilab-e0 because this window's account can't
   reach the pages. Pending until e0 reports the version numbers.
+- **3-D phase figure stats (Priya via 34, 11-03; deck slide 52, kin Fig 9.7):** `kinematics_pooled_figs.fig_phase` now tests like the cam4 phase figures (cluster permutation of session changes vs August-pre sessions, labels permuted within animal, one bar row per epoch in the top band), phase 0.1-0.9, shared y per row, faint animals, 1-bin display smoothing; figure data `pose3d_phase_pooled[_contra]_figdata.csv`, `--phase-only [--plot-only]`. The midline row is marked nearly everywhere (a session-level test over these animals); the mixed-model `p_phase` hidden slide marks far fewer. Still ALL post-cue licks: `curves.csv.gz` has only lickset all / first, so no engaged 3-D set; that's on 34's rebuild list. Kin page Fig 9.7: image swapped and caption rewritten (it wrongly said 'engaged trials').
 - **Encoder page trim (Priya: yes):** ask the encoder-page window to replace encoder 5.2, 5.5–5.8, 10.6 and 16.10
   with links to the kinematics copies. Keep 5.1 / 5.3 / 5.4 (landing labels its sections 6–7 use) and 16.6 / 16.9
   (recovery axis). NOT YET SENT.

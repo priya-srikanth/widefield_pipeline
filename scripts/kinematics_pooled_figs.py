@@ -464,40 +464,107 @@ def fig_days(out: Path, contra: bool = False) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def fig_phase(out: Path, contra: bool = False) -> pd.DataFrame:
-    """POOLED twin of the per-animal lick-phase figures (`pose3d_phase` phase_angle / phase_dist): phase-normalised
-    midline angle and 3-D distance from the mouth zero, each session minus its animal's August pre curve, averaged
-    within animal per epoch, then over animals (>= 3; band = SEM over animals)."""
-    import matplotlib.pyplot as plt
+PHASE_WIN = (0.1, 0.9)           # shown AND tested: the noisy lick ends are left out, as in the cam4 phase figures
+
+
+def _smooth(y: np.ndarray, sigma_bins: float = 1.0) -> np.ndarray:
+    """NaN-aware Gaussian smoothing over phase bins for DISPLAY (1 bin, as the cam4 phase figures); not circular,
+    because the curve is cut to PHASE_WIN. The test runs on the unsmoothed curves."""
+    y = np.asarray(y, float)
+    k = np.exp(-0.5 * (np.arange(-3, 4) / sigma_bins) ** 2)
+    ok = np.isfinite(y)
+    num = np.convolve(np.where(ok, y, 0.0), k, "same")
+    den = np.convolve(ok.astype(float), k, "same")
+    return np.where(ok, num / np.where(den > 0, den, np.nan), np.nan)
+
+
+def phase_data(contra: bool = False) -> pd.DataFrame:
+    """Figure data for `fig_phase`, long: ``row`` = "mean" (mean over animals of each animal's mean change, SEM over
+    animals, n_animals), "animal" (each animal's mean change) or "sig" (cluster-permutation mask). Each session's
+    phase curve minus its animal's August-pre curve, phase PHASE_WIN, coverage >= 0.5 per session; the midline angle
+    signed + = contra when ``contra``. Test per (spout, measure, epoch) = the cam4 phase figures' test
+    (`orofacial_cohort.fig_cohort_delta`): `cluster_permutation` of the epoch's session changes against the August-pre
+    sessions' changes, labels permuted within animal, p < .05; on the bins every tested session covers."""
+    from wfield_local.orofacial_cohort import CLUSTER_PERM
+    from wfield_local.orofacial_stats import cluster_permutation
     from wfield_local.paths import PathResolver
     C = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "phase" / "curves.csv.gz")
-    C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["mid", "dist"]) & (C["cov"] >= 0.5)]
-    aug = C[(C.epoch == "pre") & (C.date.astype(str).str[-4:] >= "0801")]
-    base = aug.groupby(["animal", "position", "measure", "x"]).v.mean()
+    C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["mid", "dist"]) & (C["cov"] >= 0.5)
+          & C.x.between(*PHASE_WIN)]
+    C = C[(C.epoch != "pre") | (C.date.astype(str).str[-4:] >= "0801")]          # August pre only
     rows = []
     for (p, m), g in C.groupby(["position", "measure"]):
-        b = base.xs((p, m), level=("position", "measure"))
-        for e in EPOCHS:
-            q = g[g.epoch == e].join(b.rename("base"), on=["animal", "x"])
-            if not len(q):
+        pv = g.pivot_table(index=["animal", "session", "epoch"], columns="x", values="v") * _sg(contra, m)
+        an = pv.index.get_level_values(0).to_numpy()
+        ep = pv.index.get_level_values(2).to_numpy()
+        base = pv[ep == "pre"].groupby(level=0).mean()
+        ch = pd.DataFrame(pv.to_numpy(float) - base.reindex(an).to_numpy(float), index=pv.index, columns=pv.columns)
+        xs = pv.columns.to_numpy(float)
+        for e in ("pre",) + EPOCHS:
+            sel = ep == e
+            if not sel.any():
                 continue
-            per = q.assign(d=q.v - q.base).groupby(["animal", "x"]).d.mean().unstack(0)
-            rows.append(pd.DataFrame({"position": p, "measure": m, "epoch": e, "x": per.index,
-                                      "mean": per.mean(1).to_numpy(),
-                                      "sem": (per.std(1) / np.sqrt(per.notna().sum(1))).to_numpy(),
-                                      "n_animals": per.notna().sum(1).to_numpy()}))
-    R = pd.concat(rows, ignore_index=True)
-    fig, axs = plt.subplots(2, 6, figsize=(15, 5.6), sharex=True)
+            per = ch[sel].groupby(level=0).mean()                                  # animals x bins
+            n = per.notna().sum(0).to_numpy()
+            mu, sd = per.mean(0).to_numpy(), per.std(0).to_numpy()
+            rows.append(pd.DataFrame({"row": "mean", "position": p, "measure": m, "epoch": e, "x": xs, "v": mu,
+                                      "sem": sd / np.sqrt(np.maximum(n, 1)), "n_animals": n}))
+            for a, r in per.iterrows():
+                rows.append(pd.DataFrame({"row": "animal", "position": p, "measure": m, "epoch": e, "animal": a,
+                                          "x": xs, "v": r.to_numpy(float)}))
+            if e == "pre" or sel.sum() < 2:
+                continue
+            keep = (ep == "pre") | sel
+            sub = ch.to_numpy(float)[keep]
+            ok = np.isfinite(sub).all(0)
+            mask = np.zeros(len(xs), bool)
+            if ok.sum() >= 3:
+                mask[ok] = cluster_permutation(sub[:, ok], sel[keep], an[keep], n_perm=CLUSTER_PERM)
+            rows.append(pd.DataFrame({"row": "sig", "position": p, "measure": m, "epoch": e, "x": xs, "v": mask}))
+    return pd.concat(rows, ignore_index=True)
+
+
+def fig_phase(out: Path, contra: bool = False, plot_only: bool = False) -> pd.DataFrame:
+    """POOLED twin of the per-animal lick-phase figures (`pose3d_phase` phase_angle / phase_dist): phase-normalised
+    midline angle and 3-D distance from the mouth zero, change from each animal's August pre curve; bold = mean over
+    animals (>= 3; band = SEM over animals), faint = each animal; bars at the top = where the epoch differs from pre
+    (`phase_data`). Rows share y. Priya 11-03 (deck slide 52): stats, phase 0.1-0.9, light smoothing, shared y per row,
+    faint animals -- as the cam4 phase figure. Figure data -> <png stem>_figdata.csv; ``plot_only`` redraws from it."""
+    import matplotlib.pyplot as plt
+    from wfield_local.sig_marks import reserve_headroom
+    stem = "pose3d_phase_pooled_contra" if contra else "pose3d_phase_pooled"
+    fd = out / f"{stem}_figdata.csv"
+    R = pd.read_csv(fd) if plot_only else phase_data(contra)
+    if not plot_only:
+        R.to_csv(fd, index=False)
+    M = R[R.row == "mean"]
+    fig, axs = plt.subplots(2, 6, figsize=(15, 6.0), sharex=True, sharey="row")
     for i, (m, lab) in enumerate((("mid", f"midline angle, change\n(deg; + = {'contra' if contra else 'ipsi'})"),
                                   ("dist", "3-D distance from mouth\nzero, change (mm)"))):
         for j, p in enumerate(POS_3D):
             ax = axs[i, j]
-            for e in EPOCHS:
-                r = R[(R.measure == m) & (R.position == p) & (R.epoch == e) & (R.n_animals >= 3)]
-                mu = r["mean"] * _sg(contra, m)
-                ax.plot(r.x, mu, color=ECOL[e], lw=1.4, label=e)
-                ax.fill_between(r.x, mu - r["sem"], mu + r["sem"], color=ECOL[e], alpha=0.2, lw=0)
-            ax.axhline(0, color="0.6", lw=0.8)
+            ax.axhline(0, color="0.6", lw=0.8, zorder=0)
+            ax.axvline(0.5, color="0.85", ls="--", lw=0.8, zorder=0)
+            for k, e in enumerate(EPOCHS):
+                A = R[(R.row == "animal") & (R.measure == m) & (R.position == p) & (R.epoch == e)]
+                for _a, g in A.groupby("animal"):
+                    ax.plot(g.x, _smooth(g.v.to_numpy(float)), color=ECOL[e], lw=0.6, alpha=0.3, zorder=1)
+                r = M[(M.measure == m) & (M.position == p) & (M.epoch == e)]
+                mu = np.where(r.n_animals >= 3, r.v, np.nan)
+                mu_s, se_s = _smooth(mu), _smooth(np.where(r.n_animals >= 3, r["sem"], np.nan))
+                ax.plot(r.x, mu_s, color=ECOL[e], lw=1.6, zorder=3, label=e)
+                ax.fill_between(r.x, mu_s - se_s, mu_s + se_s, color=ECOL[e], alpha=0.2, lw=0, zorder=2)
+                S = R[(R.row == "sig") & (R.measure == m) & (R.position == p) & (R.epoch == e)]
+                mask = S.v.astype(str).isin(["True", "1", "1.0"]).to_numpy()
+                if mask.any():                                   # one bar per significant run of bins, row k
+                    xs = S.x.to_numpy(float)
+                    dx = np.median(np.diff(xs)) if len(xs) > 1 else 0.025
+                    edges = np.flatnonzero(np.diff(np.r_[0, mask.astype(int), 0]))
+                    for s0, s1 in zip(edges[::2], edges[1::2]):
+                        ax.plot([xs[s0] - dx / 2, xs[s1 - 1] + dx / 2], [0.975 - 0.045 * k] * 2, color=ECOL[e],
+                                lw=2.6, alpha=0.6, transform=ax.get_xaxis_transform(), solid_capstyle="butt", zorder=4)
+            ax._wf_mark_rows, ax._wf_mark_step = 3, 0.045        # reserve_headroom: the bars sit above the data
+            ax.set_xlim(*PHASE_WIN)
             ax.tick_params(labelsize=7)
             if i == 0:
                 ax.set_title(POS_LABEL[p].replace("_", " "), fontsize=9)
@@ -505,14 +572,17 @@ def fig_phase(out: Path, contra: bool = False) -> pd.DataFrame:
                 ax.set_ylabel(lab, fontsize=7.5)
             if i == 1:
                 ax.set_xlabel("lick phase (0 = out, 1 = back in)", fontsize=7)
-    axs[0, 0].legend(fontsize=7, frameon=False)
-    fig.suptitle("3-D lick phase, POOLED within animal: each session's phase curve minus its animal's August pre curve, "
-                 "mean over animals (band = SEM over animals, >= 3 animals); all post-cue licks"
-                 + ("; midline angle signed + = CONTRALESIONAL (mouse right)" if contra else ""), fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(out / ("pose3d_phase_pooled_contra.png" if contra else "pose3d_phase_pooled.png"), dpi=130)
+    axs[0, 0].legend(fontsize=7, frameon=False, loc="lower left")
+    reserve_headroom(fig)
+    fig.suptitle("3-D lick phase, change from each animal's August pre: bold = mean over animals (>= 3, band = SEM), "
+                 "faint = each animal; all post-cue licks"
+                 + ("; midline angle + = contralesional" if contra else "") +
+                 "\nbars = cluster permutation p < .05 vs August-pre sessions (labels permuted within animal; rows: "
+                 "acute / subacute / chronic); phase 0.1-0.9, 1-bin display smoothing", fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(out / f"{stem}.png", dpi=130)
     plt.close(fig)
-    return R
+    return M
 
 
 def contra_figs(out: Path) -> int:
@@ -555,6 +625,8 @@ def main(argv=None) -> int:
                     help="ONLY the 3-D figures signed + = CONTRALESIONAL (*_contra.png; 3-D paths *_contra_cam.png, camera "
                          "view); the + = ipsi outputs untouched. A full run writes them too (the default since 11-03)")
     ap.add_argument("--no-contra", action="store_true", help="full run without the + = contra figures")
+    ap.add_argument("--phase-only", action="store_true", help="only the 3-D lick-phase figures (+ = ipsi and + = contra)")
+    ap.add_argument("--plot-only", action="store_true", help="with --phase-only: redraw from the *_figdata.csv")
     a = ap.parse_args(argv)
     out = a.out or Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "figures" / "pooled"
     assert_writable(out)
@@ -562,6 +634,11 @@ def main(argv=None) -> int:
     rng = np.random.default_rng(20261025)
     import matplotlib
     matplotlib.use("Agg")
+    if a.phase_only:
+        for c in (False, True):
+            fig_phase(out, contra=c, plot_only=a.plot_only)
+        print("->", out)
+        return 0
     if a.contra:
         return contra_figs(out)
     A = fig_angle(out, rng)
