@@ -123,3 +123,19 @@ Results (`A3_LMM_POOLED_EPOCH_STARS_BEHAVIOUR_2026-11-03.csv`, script `scripts/a
 
 Recommendation (e3): use the pooled animal × epoch model for the stars. Keep the random-intercept-only model and the
 animal-weighted bootstrap as sensitivity columns.
+
+## Spread differs by epoch (Priya, 11-03)
+
+Priya: the between-animal spread is NOT the same across epochs. So the pooled model's shared animal × epoch variance
+is wrong. Each epoch's spread can only be estimated from its own 4 animals, which puts the df at 3 per epoch.
+
+Two versions were fitted (`A3_LMM_HETEROGENEOUS_STARS_BEHAVIOUR_2026-11-03.csv`, script
+`scripts/a3_lmm_heterogeneous_stars.py`):
+- **(h) heterogeneous LMM:** `(1|animal)` plus a separate animal × epoch variance for each post epoch, t on df = 3.
+  None of its fits is singular.
+- **(t) per-animal t-test:** a one-sample t on the 4 per-animal changes (own post mean − own pre mean), df = 3.
+
+Both give acute fC `**`. Most other acute cells and subacute fC get `*`. No chronic cell gets a star under (h). Under
+(t), chronic nI / nM / fC get `*`, because all 4 animals change the same way by a similar amount.
+
+With Holm within each epoch (6 cells) rather than across 18, acute fI and the engagement cells (h) reach `**`.
