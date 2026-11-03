@@ -44,3 +44,8 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   decoder: pre-cue .72, cue .67, lick .95, chance .17, p = .005 every window; the grant TEXT quotes the multinomial
   decoder .81 / .74 / .98 -- both in the notes); lick-direction selective 362 / 3,752 (9.6 %, FDR .05; 131 ipsi, 231
   contra); per-tile map (no clear cluster, by eye); LB333 axon GCaMP 150 / 250 um. Pushed with this entry.
+- 11-03 ~00:50 Priya: add the other window's jaw-only / incomplete-lick trial classes (scripts/jaw_only_incomplete_figs.py,
+  DeepLabCut/Widefield/session_poses/cam1_licks/trial_classes/): deck slide 26 MAIN 'Acutely, far-spout trials end in
+  incomplete or jaw-only moves' (far contra incomplete +.63 acute 4/4, +.16 subacute, ~0 chronic; jaw-only +.27 far
+  contra, +.23 far mid, +.11 far ipsi acutely, gone chronically), hidden 27-29 (jaw / tongue traces by class, over-days
+  model). add_trial_classes.py + fix_trial_classes.py. Not on a results page yet (the other window's figures).
