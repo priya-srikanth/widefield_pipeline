@@ -257,9 +257,13 @@ def fig_traces(Tr: pd.DataFrame, measure: str, ylab: str, path: Path) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    X = Tr[Tr.measure == measure]
+    # count only FINITE values: a session whose jaw is hidden on every frame of the class still has rows (all NaN), and
+    # counting rows labelled a one-animal line "2a" (chronic far-mid jaw-only, e3 11-02). A bin is drawn only where
+    # >= MIN_AN animals have a value in it.
+    X = Tr[(Tr.measure == measure) & Tr.v.notna()]
     A = X.groupby(["animal", "epoch", "cls", "position", "t_ms"]).v.mean().reset_index()
     G = A.groupby(["epoch", "cls", "position", "t_ms"]).v.agg(["mean", "sem", "count"]).reset_index()
+    G.loc[G["count"] < MIN_AN, ["mean", "sem"]] = np.nan
     nA = A.groupby(["epoch", "cls", "position"]).animal.nunique()
     nS = X.groupby(["epoch", "cls", "position"]).session.nunique()
     nT = X.drop_duplicates(["session", "cls", "position"]).groupby(["epoch", "cls", "position"]).n_trials.sum()
@@ -274,7 +278,7 @@ def fig_traces(Tr: pd.DataFrame, measure: str, ylab: str, path: Path) -> None:
                 k = (ep, c, p)
                 if g.empty:
                     continue
-                if nA.get(k, 0) < MIN_AN:                    # one animal's 1-3 trials: counted, not drawn
+                if nA.get(k, 0) < MIN_AN or g["mean"].isna().all():   # < 2 animals in any bin: counted, not drawn
                     lines.append(f"{ep[:4]} {nA.get(k, 0)}a/{nS.get(k, 0)}s/{int(nT.get(k, 0))}t (not drawn)")
                     continue
                 ax.plot(g.t_ms, g["mean"], color=EP_COL[ep], lw=1.3)
