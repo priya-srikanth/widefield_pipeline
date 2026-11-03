@@ -4,7 +4,35 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
-## UPDATE 08:53 — current state (supersedes "Section 1 table — state" and "Next steps" below where they differ)
+## UPDATE 11-03 late — SECTION 1 READY TO PUBLISH (supersedes everything below where they differ)
+
+**State:** both decoders done on the final classes (snapshot rebuilt at 3b7d08a4 = A4 + the close_center amendment;
+working / camera_lick flags identical cue-for-cue to the 28f2a632 snapshot, only 1,121 unknown -> no_response).
+The page blocks are built and committed (6418c9fe): `docs/results_pages/imaging/s1_update_20261103.html` (per-animal
+table: Allen split + LocaNMF on camera-defined working trials; robustness table; Fig 1.2 sentence (b); takeaway) from
+`p_img_s1_table_20261103.py`; deck numbers in `s1_update_20261103_numbers.md` (sent to a8 for slide 9).
+
+**NOT PUBLISHED: the results pages are not visible to the current claude.ai account** (this window and a8 both; the
+pages belong to the account they were made under). The Artifact tool is off in this session. To publish: sign in to
+the owning account (or share the page with edit access), read the LIVE imaging page, replace section 1's per-animal
+`<h4>` + table, the Fig 1.2 sentence ("A decoder trained on the acute session itself still loses the far spouts, so the
+acute post-cue loss of section 2 is not only a frozen-decoder mismatch.") and the first sentences of the takeaway with
+the blocks in the HTML file, and republish. Rewrite cleanly, no "CORRECTION" notes.
+
+**Findings (per animal first):** post-cue 0.44–0.88, pre-cue 0.27–0.57 (chance .17); acute post-cue drop in 4 / 4
+(PS95 now included; it went UP on DAQ licking trials); back at or above pre by chronic in 4 / 4; pre-cue no consistent
+acute change (up PS95, down PS93 / PS94, flat PS92). Acute sessions with a decode 5 / 4 / 6 / 1 (was 4 / 4 / 4 / 1).
+Robustness (mean of animals): trial gate, end-of-session cutoff, split vs plain, Allen vs LocaNMF move no cell by more
+than a few hundredths; DAQ licking trials sit higher post-cue (acute .72 vs .60) because each window contains the lick.
+
+**End-of-session cutoff (Priya 11-03: "report both, no primary yet"; her worry: a last-CONTACT cut drops real acute
+far-spout attempts — confirmed):** three anchors in the snapshot (`working_pl_contact / _lick / _close`). Last CONTACT
+drops 4.2 % of acute working trials incl. 94 incomplete licks; last CLOSE-spout lick 4.1 % and far-spout contacts
+when a session ends on far blocks; **last CAMERA LICK drops 0.8–1.8 % and no attempt** (only jaw-only trials after the
+final lick of any kind). e3 (QUIT_TAIL_JAW_ONLY_2026-11-03.md) recommends `working_pl_lick` as primary; Priya to decide.
+Section 1 shows plain camera-working (table) and the last-camera-lick row (robustness table).
+
+## UPDATE 08:53 — earlier state
 
 **Running now** (camera lick source `WIDEFIELD_LICK_SOURCE=lp`, ENL pinned 2.0 s; gates read from the A4 snapshot):
 * Allen table `wf_attempt/scripts/s1_refit_basis_table.py --jobs 6` -> `imaging_encoding/LP_licks_ENL2s/qc/s1_refit_basis.csv`
