@@ -883,13 +883,15 @@ def fig_paths(D):
                 ax.plot(ml, rr, color=EPOCH_LINE[ep], lw=2, label=f"{ep} (n {int(h.n.iloc[0])})")
                 ax.plot(ml[0], rr[0], "o", color=EPOCH_LINE[ep], ms=4)
             ax.axvline(0, color="0.8", lw=0.6)
+            if c == 0:
+                ax.invert_xaxis()                    # Priya 11-03: contralesional on the LEFT (sharex="row": once per row)
             ax.set_title(f"{an}, {pos.replace('_', ' ')}", fontsize=9)
             ax.legend(fontsize=7, frameon=False, loc="lower left")
             ax.tick_params(labelsize=8)
             if c == 0:
                 ax.set_ylabel("distance from the mouth zero (mm)", fontsize=8)
             if r == 2:
-                ax.set_xlabel("ml (mm; + = contralesional)", fontsize=8)
+                ax.set_xlabel("ml (mm; + = contralesional, plotted LEFT)", fontsize=8)
     fig.suptitle(_wrap("Mean tongue path from the first tracked frame (dot) to the extension peak, cued post-cue "
                        "licks at the three FAR spouts, per animal and epoch (11 time-normalised points, SG-smoothed). "
                        "A launch bias that is corrected inside the lick bends the path toward + ml late; a straight "
@@ -964,7 +966,8 @@ def fig_paths_pooled(D):
             ax.plot(ml[0], rr[0], "o", color=EPOCH_LINE[ep], ms=5)
         ax.axvline(0, color="0.8", lw=0.6)
         ax.set_title(pos.replace("_", " "), fontsize=11)
-        ax.set_xlabel("ml (mm; + = contralesional)", fontsize=9)
+        ax.set_xlabel("ml (mm; + = contralesional, plotted LEFT)", fontsize=9)
+        ax.invert_xaxis()                            # Priya 11-03: contralesional on the LEFT
         ax.legend(fontsize=8, frameon=False, loc="lower left")
         ax.tick_params(labelsize=8)
     axs[0].set_ylabel("distance from the mouth zero (mm)", fontsize=9)
