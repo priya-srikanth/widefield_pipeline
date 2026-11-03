@@ -425,3 +425,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   read old inputs by default, R4 attempt_maps silently partial, R5 refusals ignore LP / ENL modes and the profile does not clear stray
   env vars; ~120 more unrouted writers in subfolders / wfield_local. Switched to a STRUCTURAL fix: one rebuild root for every derived
   output under the profile, writeguard refuses writes outside it, readers resolve inside it (raw inputs untouched). Fifth review after.
+- 11-03: fourth-pass ADDENDUM (0fc49ee8): T3 rules verified correct (jaw-only bridges but not stopped / counted; >= 6 no_response; warm-up;
+  MIN_UNCOVERED_RUN 5; rest ends at last camera lick); DECISIONS entry matches the code (3 behaviours to add). PS94_0825 stopped 40 -> 12,
+  PS93_0925 86 -> 38 (only the bridging jaw-only trials move). Correction: the moved trials are mostly the jaw-only bridges themselves, not
+  runs below 6. Remaining blockers R1 / R2 / R3 / R5 being fixed via the rebuild-root design.
