@@ -298,3 +298,5 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03: e3 A4 on main 28f2a632: trial_attempts.py classes from wfield_local.trial_classes (cue_stop); 62,746 / 62,771 trials
   identical (25 cam1-seen tongues -> incomplete); trial_classes.selection_tag(source, window) for cache keys / specs; GATES gains
   "attempted". trial_attempts.csv + readers re-run in the rebuild.
+- 11-03 DECISION (Priya): YES to the training-data fingerprint. Rebuild: make_spec gains a hash of the actual training X / y
+  (plus trial_classes.selection_tag and the hemo variant name) for every frozen kind; fresh store, so every ID changes once.
