@@ -39,6 +39,50 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-20 (11-03 ~midday) -- READ FIRST, then docs/status/COHORT1_SWAPMASK_RERUN_20261102.md + RUNNING_LIST_2026-11-01.md
+Same session f082ee0c; docs commit on wf_attempt branch analysis/attempt-coding **by explicit path only** (another session,
+sabatinilab-5b, keeps uncommitted work in this worktree; `git commit -am` swept it once 11-03, undone). This window = the
+**COHORT 1 FULL REBUILD**. Pages: imaging LIVE v46 (other sessions edit section 1 [5b] - read live before any edit); goal
+LIVE v312 (section 23 = quiet window; at its 512-file limit). NO page edits until the rebuild's page pass.
+
+**Decided by Priya (11-02 / 11-03), all go into ONE rebuild:**
+1. Cohort 1 adopts `hemo_meegkit_hpfit_lag_refitT_swapmask` (swapped pairs interpolated, 415 advanced 16 ms, T refit; built
+   for all 120 curated sessions 11-02; post-SVD, no .dat / SVD redo).
+2. Drift: REPLACE the order-10 polynomial step (keep the 0.1 Hz high-pass used only for the T fit) with a BLOCK-PROTECTED
+   slow cosine basis (cosine + one indicator per position block, subtract only the cosine part), in the SHARED signal.
+   Cutoff >= 10 min, set from measurement; must NOT remove block-level information (PS92 / PS93 blocks can be minutes).
+3. Decoders: August-only pre; LP arm LP-trained (stored), DAQ-trained opt-in cross-check.
+4. New default "working" = camera-defined (jaw moved OR any camera-seen lick); DAQ quit-tail = robustness row. Single
+   definition: widefield_pipeline scripts/jaw_only_incomplete_figs.classify() + gate helper (sabatinilab-5b finishing it).
+5. One cache rebuild (drop WIDEFIELD_PRM_LEGACY_DATE8, convert precue_engagement_states, narrow the map-cache code digest),
+   fresh frozen store; old caches deleted afterwards from a kept list. 5rm stored under one seed-keyed spec.
+6. Merge restnl-maps, lp-final, rest-decoder-nl, frozen-default, cohort1-swapmask into main BEFORE rendering; render from main.
+7. Replace (after verification) in the share, imaging decks, artifact pages, PI deck (owned by sabatinilab-e3: coordinate).
+   Conclusions that change direction / significance go to Priya before their text is rewritten. Captions are rewritten
+   clean (no CORRECTION notes). Page-text items B9-B14 (section 7 takeaway, PS93 / DAQ pre-cue caveats, 12.1b, 12.1 caption,
+   Fig 2.4 caption) are done in the page pass. Remove files of cut figures from the goal page to free slots.
+8. Also on corrected data: RESTnl level over epochs (across + within session, per animal), PS92 subacute per-session check.
+9. Quiet-event swap guard: shrink from 0.5 s to +/-1 pair on swap-masked data (quiet window's code; coordinate).
+
+**Running / done (helpers in this session; they never commit):**
+- Frozen-store pass 2 (wf_frozendef, analysis/frozen-default; doc FROZEN_ALL_20261102.md): converting the last read-outs; told
+  to switch the LP default to LP-trained and to list kinds whose spec misses the variant / pre set. Commits so far up to 1553db6a.
+- Swap-mask re-run (11-02/03) DONE: no headline flips; results in COHORT1_SWAPMASK_RERUN_20261102.md Log; code on
+  analysis/cohort1-swapmask (wf_swapmask: b334316a, 4813c3cf, 3cd00814) + wf_swapmask_enc e80dbef7.
+- Drift cutoff check RUNNING (wf_swapmask, doc DRIFT_CUTOFF_CHECK_20261103.md, outputs grant_figures/drift_cutoff_check_20261103):
+  block durations, spout-order check, residual band power, block-protected removal at 10/15/20/30 min, replacement arm.
+- Inventories DONE: docs/status/rebuild_20261103/ (A outputs->code 5,536 rows; B code->outputs 548 rows + traps).
+  Reconciler RUNNING -> MASTER_MANIFEST.csv + RECONCILIATION.md (commit them when it reports).
+
+**Open for Priya:** per-session LocaNMF families (recommend: project corrected data onto existing per-session footprints);
+preprocessing decks (935 images), stale 10-24 analysis decks, imaging section 15 (copy of goal 23), closed 10-27 review
+page (reconciler will bring recommendations); the drift cutoff (after the check).
+
+**Next:** reconciler report -> commit + review decisions with Priya -> drift check -> code changes on a branch off main
+(single hemo switch driving hemo_variants.ADOPTED + defaults.yaml + load_imaging; project_all; output-root overrides;
+session-cache prune guard; camera working; Aug-only pre; LP-trained) with tests -> renders into NEW folders, logged ->
+2 verifier agents -> replacement pass. Traps: rebuild_20261103/rebuild_order_B.md + RECONCILIATION.md.
+
 ### 00-COMPACT-19 (11-01 ~23:00, Priya asleep, autonomous) -- READ FIRST, then docs/status/RUNNING_LIST_2026-11-01.md
 Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Goal page LIVE **v305** (section 23 = quiet window, merge their updates before publishing); imaging page (repo
 widefield_pipeline main, source docs/results_pages/imaging/, publish from repo HTML; must READ the live version first) LIVE
