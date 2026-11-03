@@ -22567,3 +22567,87 @@ is in each session's behaviour log (`gui_config.json timing.response_window`, ms
 - **To re-render** (sabatinilab-34 rebuild, once): quit / engagement (S28), the rest and quit gates
   (channel_position_maps, evoked_hrf_latency), and anything built on `session_behavior`'s hit column.
 - Test: `tests/test_response_window.py`.
+
+## 2026-11-03 — Frozen SPOUT-POSITION and LICK-LANDING decoders: are they biased by a session's class mix through their normalisation? Spout: yes, small and conservative; lick: clean (diagnostic, nothing changed in production)
+
+**Question (Priya approved 11-03):** the class-mix mechanism behind PS94's state-decoder loss: does it also act on the two
+other frozen decoders? Files: `M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/{spout,lick}/` (scripts, CSVs, logs,
+`fig_spout_mix_check.png`, `fig_lick_mix_check.png`). Per-animal tables are printed before every bootstrap
+(`summarise_log.txt`, `lick_log.txt`). Changes use `analysis_kit.boot_delta`. Paired stress-minus-natural shifts are passed
+as per-session differences against 0.
+
+**SPOUT-POSITION decoder: BIASED, small and conservative for the headline; NEEDS FIX before the per-position pattern is
+quoted to ~.05.**
+- *Normalisation:* `pool_sessions` (`wfield_local/locanmf_frozen_decoder.py:200-206`) z-scores each session using the mean
+  and SD over that session's ENGAGED trials only. "Engaged" = a lick within max_rt (`locanmf_position_decoder.is_engaged`
+  :123; set built in `_trial_features` :557-566), so the normalisation set is gated on outcome. The SAME mu / sd is applied
+  to the session's no-lick trials (:205-206), so the `working` class is scored in the engaged-trial frame.
+- *Shared path:* every caller goes through this normalisation: `grant_kit._pooled_bundle` (:772) -> `grant_confusion._collect_5c`
+  (model :628; pre LOSO :665-704; post :711-724) -> epoch families 5* / `acc_by_position`; `pooled_frozen_loso` /
+  `frozen_decoder_models` (:410, frozen store); `poststroke_section_g`; and the LPfinal / LP_licks arms (only the lick train
+  that defines "engaged" changes).
+- *Reproduction:* raw features (`zscore=False`) rebuild the production matrices with max |diff| = 0 for all 12
+  animal x alignment units.
+- *Class mix of the normalisation set:* the far-contra share is .16-.17 pre. Acutely it is .010 / .031 / .008 / .002
+  (PS92-95; 0-4 % per session), subacute .11-.15, chronic .16-.17. Acute cue mix: close positions .23 each / far ipsi .17 /
+  far mid .12 / far contra .014. The working scored set and all trials stay ~.16 throughout, so only the normalisation set
+  is skewed.
+- *Stress test (held-out PRE sessions, LOSO, 20 draws):* the normalisation set was given the animal's acute far-contra share;
+  the scored trials were unchanged.
+  - Cue/working: far contra +.046, close mid -.037, far ipsi -.040, close ipsi -.022, overall -.014; far-contra predictions
+    +.033. Every animal moves the same way.
+  - Precue/working: far contra +.057, others about -.03.
+  - Lick/lick: far contra +.025, others -.02 to -.04.
+  - The full acute mix roughly doubles the loss at the other positions (close mid -.076).
+  - Mechanism: the session mean leaves far contra, so every trial is pushed toward the far-contra pattern.
+- *Coupling test:* pre far-contra trials attenuated to the session mean (alpha = 0). The renormalisation alone lowers the
+  other five positions by -.018 to -.024 (CI excludes 0, 4/4 at every alignment); -.007 to -.009 at alpha = .5.
+- *Fixes on the stress test:* class-balanced centring (oracle labels) removes 85-95 % of the artefact. Label-free `bal_em`
+  (as in the state check: production SD, 3 passes) removes ~90 % for cue / lick and ~70 % for precue. When a class is
+  entirely absent, neither fix can restore it.
+- *Real post-stroke sessions, acute change vs pre:*
+
+  | arm | cue/working far contra | cue/working close ipsi | cue/working overall | lick/lick far contra |
+  |---|---|---|---|---|
+  | production | -.536 | -.191 | -.314 | -.465 |
+  | classbal (oracle) | -.632 | -.138 | -.321 | -.462 |
+  | bal_em | -.641 | -.127 | -.317 | -.482 |
+
+  Precue/working far contra: production -.254 vs bal_em -.269. bal_em minus production, far contra, cue/working:
+  -.109 [-.185, -.036] acute (4/4), -.029 subacute, -.052 chronic (4/4).
+- *Reading:* production UNDER-states the acute far-contra loss by ~.10 (cue/working; ~.02-.05 lick and precue). It
+  OVER-states the near-position losses by ~.05-.07. Overall accuracy moves <= .04. So the headline (far contra falls most)
+  is conservative under production and gets larger and more specific under the fix.
+- *Caveats:* z on ALL trials gives the same far-contra change (-.65) but larger near-position losses, because no-lick
+  windows lack the lick response; it is a different frame, not a clean fix. The bal_em share estimate is noisy (PS95 acute
+  .15 vs true .002; PS94 chronic .03 vs .16), but its accuracies track the oracle.
+
+**LICK-LANDING decoder (read-out offset): CLEAN of the mix mechanism.**
+- *Normalisation:* `wf_attempt scripts/iti_licks.py:359-364` regresses a cosine drift basis that INCLUDES the constant out of
+  ALL frames. The feature is the lag 0..0.2 s mean at the lick peak, with no pre-lick baseline (`iti_where_decoder._load_one`).
+  Each session is divided by its frame-level SD over ALL frames (`iti_zscore_check.session_sd` :36-50 + `iti_area_split_sd`;
+  applied in `iti_lick_order.predictions` :201-204). StandardScaler + RidgeCV are fit on pooled PRE training licks and applied
+  unchanged (:209-213). No statistic is computed per scored session over lick samples.
+- *Exceptions (mix-dependent, robustness only):* the svd / locanmf bases fall back to lick-window SD for sessions missing
+  `frame_sd.csv`.
+- *Reproduction:* through `iti_lick_order.CONTRIB_HOOK`, 239,104 licks, max |diff| 4e-16 mm.
+- *Stress test (pre sessions, held-out):* licks subsampled to the animal's acute landing histogram, and also with far-contra
+  licks removed. Production shift of the session offset: ITI +.003 [-.010, .019] / -.012 mm; cued -.001 / -.013 mm. The
+  observed acute offsets are +.36 / +.17 mm, so none of the offset is this artefact.
+- *Counterfactual:* a lick-sample z-score would have shifted the offset by +.21 / +.23 (ITI) and +.23 / +.25 mm (cued), 4/4
+  animals: the finding's sign and size. **Do NOT move any lick decoder to lick-sample centring or scaling.**
+- *Frame-SD gain:* the measured acute / pre frame-SD ratio is 1.06-1.20 per animal, nowhere near the ~7x quiet-event rate.
+  Dividing PRE features by it mainly lowers the GAIN (slope decoded~landing -.08 ITI / -.13 cued acute, CI excludes 0). The
+  offset moves by +.01-.02 acute and +.03-.07 later. Undoing the SD rise in post sessions:
+  - ITI offset .360 / .228 / .277 -> .321 / .179 / .231, all CI > 0.
+  - Cued first lick .315 / .220 / .154 -> .280 / .137 / .112, CI > 0.
+  - Cued all-lick acute .166 [.083, .253] -> .119 [-.049, .281], with PS95 flipping to -.13. This one published number is
+    ~1/3 frame-SD scaling and is fragile.
+
+**Verdicts.**
+- Spout-position frozen decoder: BIASED. It is conservative for the far-contra headline (~.10 acute) and distorts the near
+  positions by ~.05, so it needs a fix. Recommend `bal_em` centring on the engaged set as a new frozen spec (new id; old
+  models kept), as for the state decoder, plus the minimum-mass-guard question for absent classes.
+- Lick-landing decoder: CLEAN for the mix mechanism; keep frame-SD scaling. Caveat the cued all-lick acute offset: ~1/3 of
+  it depends on the frame-SD rise. The ITI and first-cued-lick offsets stand.
+- Adoption waits for Priya.
