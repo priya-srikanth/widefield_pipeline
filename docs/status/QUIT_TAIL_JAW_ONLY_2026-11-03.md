@@ -41,11 +41,27 @@ working = contact / incomplete / jaw_only = 52,523; jaw_only = 3,412). Jaw measu
 like the earlier jaw-only trials. The difference exists pre-stroke too, so it is not a stroke effect. But their share
 of "working" is about 4x higher acutely, so leaving them in adds more sated trials to acute than to pre.
 
-**Recommendation (e3):** do NOT count them as working.
-- Primary gate: per-trial working (contact / incomplete / jaw_only) AND before the session's last contact. This is
-  5b's "quit-tail AND jaw-or-lick" option.
-- Keep the plain per-trial gate as the robustness row (5b already runs both).
-- Kinematics trial-class figures: unchanged (they are engagement-gated, so only the 39 engaged trials are involved).
+**Which cutoff (5b, 11-03).** Priya worried that a last-CONTACT cutoff would cut real acute attempts when a session's
+last blocks are far contra / far mid. 5b compared three anchors on the s1 snapshot (11e8a846; working trials dropped):
+
+| cutoff | acute dropped | incomplete licks dropped | flag in `s1_trial_classes_cue_stop.csv.gz` |
+|---|---|---|---|
+| after the last contact | 315 (4.2 %), 86 of them far_R | 94 | `working_pl_contact` |
+| **after the last camera lick (contact or incomplete)** | **131 (1.8 %)** | **0 by construction** | `working_pl_lick` |
+| after the last close ipsi / mid lick | 302 (4.1 %) | 80 (chronic 482 dropped) | `working_pl_close` |
+
+So her worry is confirmed for the last-contact cutoff. With the **last camera lick**, only jaw-only trials after the final
+lick of any kind go. That is 504 trials (1.0 % of working; pre 0.8 %, acute 1.8 %, subacute 1.0 %, chronic 0.8 %, so
+acute is about 2x pre instead of 4x). 128 of them are pre-stroke, in 15 / 31 pre sessions; only 28 are engaged trials.
+They still look different from the earlier jaw-only trials:
+- cam4 opening smaller in all four epochs (p < 0.04), and smaller in 9 / 12 animal × epoch cells;
+- onset later in 9 / 12 cells (pooled: pre 615 → 1168 ms, chronic 392 → 802 ms; acute and subacute not significant).
+
+**Recommendation (e3, with 5b):** primary "working" = contact / incomplete / jaw_only AND not after the session's last
+camera lick (`working_pl_lick`). Keep the plain per-trial gate as the robustness row; the section 1 decoders already
+compute all three arms. If adopted, the rule moves from `scripts/s1_trial_class_snapshot.py` into
+`wfield_local.trial_classes` as a gate. It's Priya's decision; nothing has changed yet. The kinematics trial-class
+figures are engagement-gated and unaffected (28 trials).
 
 Tables: scratchpad `a4/quit_tail_alltrials.csv` (per trial). Not in the repo; regenerate from
 `trial_classes.session_trials` + `jaw_onsets.csv` if needed.
