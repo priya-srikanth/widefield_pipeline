@@ -23068,3 +23068,23 @@ state-class version on.
   vector, which lowers correlation with the pre templates, inflates crossnobis distances for all positions together and
   moves best matches toward the missing spout.
 - `scripts/axis_holdout_null.py`: pre-stroke holdouts only (mixes ~1/6), so the bias is negligible there.
+
+## 2026-11-03 — Spout hold, lick counts to the trial stop, FaceRhythm page kept separate, mixed-model supplements on pages (Priya)
+
+- **Does the spout stay 3.5 s after first touch? Yes.** Firmware v38 (`REWARD_AUTO_AFTER_DELAY`; read only): the reward
+  is given at the cue (+~7 ms). The first lick inside the 3.5 s response window sets `successfulLickThisTrial` and enters
+  `ST_POST_REWARD_HOLD`, with firmware lick sensing off (the DAQ and video still record). After `post_reward_hold_ms`
+  (3500 ms in these sessions) comes `ST_RETURN_TO_DOCK`, which sends the trial-stop TTL and moves the spout to the dock.
+  A miss docks at the response deadline (cue + 3.5 s). Measured stop − first DAQ contact = 3.53 s.
+- **Lick counts: keep "cue + 70 ms → trial stop"** (Priya: "I suppose we should use the 'until trial stop' for lick
+  counts"). Every lick made while the spout is in front of the mouse counts, including post-reward drinking on hit
+  trials. No recount on a fixed window.
+- **FaceRhythm page stays separate, cross-linked both ways.** Priya: merge "unless that would put the page at the limit
+  of figures / length". A merged page would have about 143 figures (kinematics 70 + FaceRhythm 73) and ~90 MB of
+  images, over the 64 MB single-publish limit and twice the kinematics page's length.
+- **Mixed-model figures go on the results pages as collapsed supplements** (`<details class="lmm-supp">` directly
+  below the main figure; the main figure keeps the animal bootstrap). Kinematics: 13 figures (1.1, 1.4, 1.8, 2.1, 2.2,
+  2.5, 3.6, 4.2, 4.11, 5.1, 6.1, 7.5, 9.7). FaceRhythm: 3 (1.1, 2.2, 3.1). Generator:
+  `M:/.../kin_page_src/kin_page/add_lmm_toggles_1103.py`. Each caption states the test, the star rule and the result
+  counts read from `lmm_hidden_20261103/<stem>_lmm_lmm.csv`. Imaging-page LMM figures (decoding, ramps, spec_groups,
+  recovery timing) belong to the imaging-page window.

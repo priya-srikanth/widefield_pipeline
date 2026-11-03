@@ -58,9 +58,12 @@ always rebuild from the LIVE page (Artifact read) or the current index.html, nev
   - **Kinematics page** = camera-based: camera lick timing / rate, aim, paths, landing, jaw, AND the section-6 trial
     classes (Priya: kinematics page).
   - Section 1's DAQ-contact rows move to the behaviour page, cross-linked. NOT STARTED.
-- **PENDING:** does the FaceRhythm page (https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1, source
-  `M:/.../Widefield/fr_page_src/`, last updated 10-27) merge into kinematics or stay separate with a link? Priya had
-  forgotten it existed. Ask before the split.
+- **ANSWERED 11-03:** the FaceRhythm page (https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1, source
+  `M:/.../Widefield/fr_page_src/`) stays separate, cross-linked both ways. Merging would exceed the length limit (143
+  figures, ~90 MB); see DECISIONS 11-03. The behaviour / kinematics split can go ahead.
+- **Mixed-model supplements (Priya 11-03):** collapsed toggles are in both M: sources (13 on kinematics, 3 on
+  FaceRhythm; `add_lmm_toggles_1103.py`). Publishing was handed to sabatinilab-e0 because this window's account can't
+  reach the pages. Pending until e0 reports the version numbers.
 - **Encoder page trim (Priya: yes):** ask the encoder-page window to replace encoder 5.2, 5.5–5.8, 10.6 and 16.10
   with links to the kinematics copies. Keep 5.1 / 5.3 / 5.4 (landing labels its sections 6–7 use) and 16.6 / 16.9
   (recovery axis). NOT YET SENT.
