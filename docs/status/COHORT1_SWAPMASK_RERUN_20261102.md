@@ -60,6 +60,31 @@ results were not re-checked.
 3. Report per animal first, then pooled. List only what moves. If anything changes, it is ADDED to the pages as a
    sensitivity check after discussion with Priya; nothing is replaced (Priya 11-01).
 
+## Decision 2026-11-03: adopt the swap-mask correction for cohort 1, full rebuild
+
+Priya 11-03: "ok to run cohort 1 with swap mask fix ... TRIPLE check everything that needs to be redone and ensure we do so
+carefully with logging, and have another agent (or two) check your work. Then carefully replace figures in the share, in
+imaging results ppt decks, in artifact pages, and in the PI update deck. this can be part of planned rebuild."
+
+Folded into the same rebuild (decided the same day):
+- **LP arm decoders LP-trained** (stored; DAQ-trained kept as the opt-in cross-check).
+- **August-only pre baseline for the decoders**, aligning with the imaging maps, the encoding model and kinematics.
+  Thin cells stay labelled sensitivities (e.g. 12.1b lick-free rest needs June + August).
+- **One planned cache rebuild:** drop the WIDEFIELD_PRM_LEGACY_DATE8 shim, convert `precue_engagement_states` to the
+  frozen store, and narrow the map-cache code digest to the functions that build maps. Old caches are deleted afterwards
+  from a kept list.
+- **Open (Priya to decide):** within-session slow-drift removal in the decoders, as the encoder does.
+
+Procedure:
+1. Two independent inventories: A from the outputs (pages / decks / share) back to the code, and B from the code
+   forward to the outputs. Reconcile them; every disagreement is resolved by reading the code.
+2. Code changes on a branch, with tests, after the frozen-store pass 2 lands.
+3. Renders into NEW folders with per-family logs.
+4. Independent verifier agents check each family against the inventory and against the old render: per-animal first,
+   with what moved.
+5. Replace in the share, the imaging decks, the artifact pages and the PI deck (PI deck coordinated with the session that
+   owns it). Any conclusion that changes direction or significance is shown to Priya before its text is rewritten.
+
 ## Log
 
 - 2026-11-02: queued. Running list RUNNING_LIST_2026-11-01.md.
