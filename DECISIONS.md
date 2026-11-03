@@ -22374,3 +22374,60 @@ spec id; production models and figures are untouched. Files: `M:/MICROSCOPE/Priy
 (`collect_rundef.py`, `analyse_rundef.py`, `fig_running_def.py`, `per_session_arms.csv`, `animal_epoch_arms.csv`,
 `boot_delta_arms.csv`, `arm_vs_prod.csv`, `retained_arms.csv`, `ps94_confusions.csv`, `segment_stats.csv`, `caps.csv`,
 `fig_running_def.png`).
+
+## 2026-11-03 — State decoder: LABEL-FREE centring ("prebal" / "bal_em") — the class-balanced fix survives without test labels (diagnostic, nothing changed in production)
+
+**Question (Priya approved the test 11-03):** the class-balanced centring (`prod_bal`) that rescues PS94's running class
+uses each TEST segment's true label to set the session centre, which is a form of label leakage. Can the centre be
+built without test labels?
+
+**Method (Option 1, label-shift EM; Saerens, Latinne & Decaestecker 2002).** Per test session, start from the production
+centring, take the frozen model's OWN posteriors, re-estimate the session's class priors by EM (posteriors re-weighted by
+prior / training prior, training prior = the pooled pre-stroke class mix of the sessions that trained that model), form
+SOFT class means of the raw features from the adjusted posteriors, centre on a weighted mean of those soft class means,
+re-z-score, re-predict; 3 outer passes (6 passes changes nothing by more than .02 per-animal). No test label is touched;
+pre-stroke TRAINING labels are used as production already does. Two target weightings:
+`prebal` = the animal's PRE-STROKE class mix (as specified), with the unchanged production model; `bal_em` = EQUAL weights,
+with a model trained on class-balanced pre sessions (the label-free version of `prod_bal`). SD = production per-session
+SD in both (the reweighted SD, `prebal_wsd`, is no better and costs PS94 pre running .98 -> .95, PS93 chronic -.10 running).
+Also run: `prebal_off` (Option 2: session mean shifted by pooled pre class offsets x estimated mix change), `prebal_oracle`
+(pre-mix centre from TRUE labels), `nocentre` (pooled pre mean / SD for every session). All in-memory refits with
+`fit_frozen`, pre column LOSO; production arm reproduces the stored session_z models (120/120 sessions, max |d balacc|
+.006, mean .0009). Per-animal table printed before the bootstrap (`analyse_log.txt`).
+
+| arm | PS94 running recall pre / acute / sub / chronic | all-animal state retained pre / acute / sub / chronic | worst non-PS94 balacc change vs prod |
+|---|---|---|---|
+| prod | .98 / .84 / .54 / .49 | .97 / .90 / .87 / .87 | -- |
+| prod_bal (true labels) | .99 / .97 / .96 / .91 | .98 / .94 / .95 / .94 | +.002 (none worse) |
+| **bal_em (label-free)** | **.99 / .97 / .96 / .92** | **.97 / .93 / .95 / .92** | **-.016 (PS92 acute; quiet recall .87 -> .81)** |
+| prebal (label-free, pre mix) | .99 / .92 / .74 / .63 | .98 / .94 / .92 / .91 | -.002 |
+| prebal_off (Option 2) | .99 / .92 / .79 / .65 | .97 / .94 / .93 / .91 | -.007 |
+| prebal_oracle (true labels, pre mix) | .99 / .93 / .84 / .75 | .98 / .94 / .94 / .92 | .000 |
+| nocentre | .98 / .89 / .73 / .70 | .98 / .87 / .82 / .84 | -.016 (PS95 sub; PS94 itself -.08 to -.14) |
+
+**Reading.** (1) `bal_em` reproduces `prod_bal` almost exactly (per session mean |d balacc| .006, |d running recall| .003;
+EM recovers PS94's true running share, chronic .43 vs .42). So the class-balanced fix does NOT depend on the test labels.
+(2) The strict pre-mix target recovers PS94 only partly, and the label-free EM is not the reason: with TRUE labels the
+pre-mix centre still gives chronic running .75. The target WEIGHTS matter (PS94 pre mix is 15 % running, so a pre-mix centre
+barely follows the running class); with the production model the EM also settles at a biased fixed point (PS94 chronic
+estimated running share .28 vs true .42), because the misread running segments feed the estimate. (3) No arm improves
+balanced accuracy by > .01 in >= 3 animals at every epoch: PS93 / PS95 are at ceiling under every centring, so the gain is
+a PS94 (and partly PS92 sub/chronic) effect by construction; this is a scaling fix, not a 3-of-4 finding. (4) Costs:
+`bal_em` lowers PS92 acute quiet recall (.87 -> .81; balacc -.016) and PS94 chronic quiet recall (.95 -> .88; licking holds
+.89); equal weighting amplifies a nearly absent class (PS92 chronic running 3 %, PS95 acute 1 %), so its centre is noisier
+there (PS92 chronic centre .36 SD from the true-label centre) although recall is not hurt. (5) State still falls vs pre in
+every arm (`boot_delta`, balanced accuracy, CI excludes 0 at every post epoch except prebal_oracle acute); bal_em
+-.021 [-.046, -.002] / -.019 [-.043, -.001] / -.037 [-.073, -.009]; running recall changes do not exclude 0 under bal_em or
+prod_bal. **Position-vs-state:** position loses 50 / 19 / 12 %; state loses 7 / 11 / 10 % (prod), 3 / 2 / 4 % (prod_bal),
+5 / 2 / 5 % (bal_em; ratio 11x / 8x / 2.3x), 4 / 6 / 7 % (prebal). The claim (position falls far more) holds in every arm and
+gets stronger with any class-mix correction.
+
+**Recommendation (adoption waits for Priya):** adopt `bal_em` as the new frozen state spec: train on class-balanced pre
+sessions, centre each scored session at the equal-weight mean of EM soft class means, production SD, 3 passes (new
+`scaling` value, new spec id; old session_z models kept). It is label-free and matches `prod_bal`. Ask Priya whether to add a
+minimum-mass guard (e.g. fall back to pre-mix weights when a class is estimated < 5 % of a session) before freezing.
+Do not adopt the strict pre-mix `prebal`: label-free, but it leaves PS94 chronic running at .63. Files:
+`M:/MICROSCOPE/Priya/Widefield/labcams/state_decoder_ps94_check/prebal/` (`analyse_prebal.py`, `fig_prebal.py`,
+`fig_prebal.png`, `per_session_arms.csv`, `animal_epoch_arms.csv`, `arm_vs_prod.csv`, `boot_delta_arms.csv`,
+`retained_arms.csv`, `ps94_confusions.csv`, `prebal_em_diagnostics.csv`, `analyse_log.txt`); features reused from
+`../running_def/cache/`.
