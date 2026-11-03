@@ -381,3 +381,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   Requested window="response" in trial_classes from e3 (owner); rebuild no-lick categorisation calls it; tag carries the window.
   (Correction: the "no-lick trials classed contact" are post-cue no-DAQ-lick trials, not pre-cue windows; likely late licks /
   sensor misses, being counted.)
+- 11-03: checked trial_classes: "contact" = the DAQ spout-contact sensor (from cue + 70 ms), so "no-lick trials classed contact" are
+  LATE contacts (after the no-lick response window, before trial stop), not sensor misses (Priya: sensor misses unlikely). Under the
+  response-window rule they should vanish; residuals = mismatch between detect_licks and the contact table, to be reported.
