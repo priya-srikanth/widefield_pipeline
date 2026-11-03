@@ -367,3 +367,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   Full suite @86280b8a: 4,402 passed, 11 pre-existing parallel-ordering failures in attempt-coding scripts. SECOND review pass sent.
   Questions for Priya: no-lick trials classed contact; rest-baseline working period; empty noattempt class under camera; 7 scripts
   break the ordering rule; 3 scripts not on stored read-outs.
+- 11-03: SECOND REVIEW @f7bb4302 (630c277b): suite 4,402 passed / 11 known failures; merge sound; camera gate no fail-open path;
+  13 / 20 first-pass findings fixed, 4 partial, M7 regressed. New HIGH: N1 attempt readers read the old folder, N2 lp_final DAQ
+  cross-check cannot find its model, N3 writeguard refuses the lp_final store; 8 MED. Sent back for fixing; third review after.
+  New questions for Priya: N6 exclude PS92_0908 (82.5% video) from camera-gated cells; N7 does a jaw-only trial after the last
+  lick break a no-response run.
