@@ -1918,7 +1918,8 @@ def default_out():
     """
     from wfield_local.paths import PathResolver
 
-    return Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    return lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
 
 def main(argv=None) -> int:

@@ -127,7 +127,8 @@ def main() -> int:
                                  null_p=round(float(np.mean([x >= obs for x in nulls])), 4)))
         print(f"  .. {ref} done ({time.time() - t0:.0f}s)", flush=True)
 
-    out = pathlib.Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out = lp_licks.output_dir(pathlib.Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     from wfield_local import figure_layout as fl
     p = fl.sidecar_for(out, "epoch_15x_between_animal_null_RESTref", ".csv")
     with open(p, "w", newline="", encoding="utf-8") as fh:

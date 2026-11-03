@@ -35,7 +35,8 @@ CAMS = ("cam1", "cam2", "cam3", "cam4")
 
 
 def _out(rv, label=None) -> Path:
-    d = Path(rv.root("cohort_out")) / "null_potent"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    d = lp_licks.output_dir(Path(rv.root("cohort_out")) / "null_potent")
     if label:
         d = d / label
     d.mkdir(parents=True, exist_ok=True)

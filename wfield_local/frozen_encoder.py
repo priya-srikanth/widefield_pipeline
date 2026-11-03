@@ -1714,8 +1714,10 @@ def out_root() -> Path:
         return Path(os.environ["FROZEN_OUT_ROOT"])
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
+    from wfield_local import lp_licks
     from wfield_local.paths import PathResolver
-    return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    # run-mode routing (rebuild 11-03): a tagged run goes under imaging_encoding/<tag>/; identity for the default run
+    return lp_licks.output_dir(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "_").parent
 
 
 def main(argv=None) -> int:

@@ -43,7 +43,10 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E  # noqa: E402
 
-OUT = E / "iti_licks"
+from wfield_local import run_mode  # noqa: E402
+# RUN-MODE ROOT (rebuild 11-03, trap T18): the per-session extracts under OUT/sessions are SKIP-IF-EXISTS, so a run in
+# another mode (hemo variant, selection, PRE_FROM ...) gets its own OUT = iti_licks/<tag>; default unchanged.
+OUT = run_mode.subdir(E / "iti_licks")
 ROI_FRAC = 0.4
 LAGS_P = np.round(np.arange(-1.5, 0.7501, 0.05), 3)          # PETH lags (s from lick peak)
 LAGS_C = np.round(np.arange(-1.0, 2.5001, 0.05), 3)          # cue-aligned lags (trial first licks)

@@ -188,7 +188,8 @@ def main(argv=None) -> int:
     import os
     os.environ[ce.RUN_ENV] = a.run
     base = oo.root(PathResolver()) / a.run / "imaging_encoding"
-    out = base / "qc"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out = lp_licks.output_dir(base / "qc")
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     labels = a.labels or ce.sessions_available()

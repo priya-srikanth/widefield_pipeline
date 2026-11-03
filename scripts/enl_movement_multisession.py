@@ -267,7 +267,8 @@ def main(argv=None) -> int:
     sess = [s for s in config.load_sessions() if s["regime"] == "B" and epochs.epoch_of(s["label"]) is not None]
     if a.labels:
         sess = [s for s in sess if s["label"] in a.labels]
-    out = Path(rv.root("cohort_out")) / "enl_movement_multisession"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out = lp_licks.output_dir(Path(rv.root("cohort_out")) / "enl_movement_multisession")
     out.mkdir(parents=True, exist_ok=True)
     csv = out / "enl_movement_multisession.csv"
     done = set(pd.read_csv(csv).label) if csv.exists() else set()

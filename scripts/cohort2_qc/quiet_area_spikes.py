@@ -37,7 +37,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))       # repo root (
 # QS_OUT_ROOT (2026-11-02, cohort-1 swap-mask re-run): a sensitivity run on another hemo variant
 # (WIDEFIELD_HEMO_VARIANT) writes to its OWN root, so it can never overwrite or mix with the adopted outputs. Unset = the
 # adopted location, unchanged.
-OUT = Path(os.environ.get("QS_OUT_ROOT") or "M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes")
+def _out_root() -> Path:
+    """QS_OUT_ROOT, else the adopted location routed by the run mode (rebuild 11-03: a tagged run -> .../<tag>/
+    cohort1_quiet_spikes, so its skip-if-exists `sessions/` never serves or overwrites the default ones)."""
+    if os.environ.get("QS_OUT_ROOT"):
+        return Path(os.environ["QS_OUT_ROOT"])
+    from wfield_local import lp_licks
+    return lp_licks.output_dir(Path("M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes"))
+
+
+OUT = _out_root()
 EVENTS = Path("M:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary/events")
 AREAS = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSp-ul", "SSp-ll"]
 GROUPS = {"orofacial": ["ALM", "tjM1", "SSp-m", "SSp-n"], "limb": ["SSp-ul", "SSp-ll"]}

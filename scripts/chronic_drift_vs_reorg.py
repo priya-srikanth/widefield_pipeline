@@ -233,7 +233,8 @@ def main(argv=None):
         out_dir = Path(a.out)
     else:
         from wfield_local.paths import PathResolver
-        out_dir = Path(PathResolver().root("cohort_out")) / "chronic_stability"
+        from wfield_local import lp_licks          # run-mode routing (rebuild 11-03): identity for the default run
+        out_dir = lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "chronic_stability")
     out_dir.mkdir(parents=True, exist_ok=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
