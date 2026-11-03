@@ -1,6 +1,31 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **WINDOW STATE 11-03 (afternoon) -- START HERE.** This window = PI deck + figure-rules pass (+ quiet events section 23).
+> **WINDOW STATE 11-03 (evening) -- START HERE; supersedes the afternoon block below.**
+> DECK (138 slides, this window = only writer; apply swap specs with apply_figure_rules_1103.py <spec.json>, check by
+> PowerPoint export): figure-rules swaps applied (slides 10, 19, 24, 33, 56, 57, 58, 100), camera-view swaps (25, 36),
+> trial_class_main_1103.py (slide 27 'Far contra: contact .95 -> .05 acutely' = MAIN trial-class slide; old jaw-only /
+> incomplete slide hidden at 29), Big-picture quiet bullet reworded (stroke-amplified; smaller version maybe at baseline).
+> RUNNING (2 helpers): (1) bal_em -> PRODUCTION state decoder (Priya 'ok bal_em it is'): new scaling / spec id in
+> locomotor_decoder.py, tests, refit via load_or_fit, re-render state families (old -> _superseded_session_z_20261103/),
+> docs; writes build_inputs/state_balem_swaps.json (slides 13-14) + docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md.
+> (2) mix-invariance stress test (diagnostic only; forced class mixes in held-out pre sessions; arms prod / bal_em /
+> nocentre / per-segment norm D1-D2 / full mixture model E) -> state_decoder_ps94_check/mix_invariance/ + DECISIONS.
+> WHEN THEY LAND: apply state_balem_swaps.json; relay results; switching to D or E = Priya's call.
+> PAGES BLOCKED: Claude Code is signed in as psrikanth87@gmail.com; the four results pages belong to the HMS account
+> (not visible). Priya to /login as HMS or share the pages with edit access. Then publish from
+> docs/status/FIGURE_RULES_AUDIT_2026-11-03.md: kinematics (_nolines set), FR (re-rendered in place), imaging (bar family
+> + cd / rest / per-animal _nolines; RESTW-first reorder -- Priya 11-03; section 1 text belongs to sabatinilab-5b),
+> encoding section 23 (23.4, 23.5, 23.13, 23.15, 23.22, 23.23 _nolines; 512-file limit -> replace in place / inline; tell
+> sabatinilab-34), plus imaging section 3 bal_em edits.
+> WAITING ON OTHER WINDOWS: sabatinilab-e3 consolidation (one trial_classes module, A4 28f2a632; Priya 11-03: close-mid
+> 'unknown' -> NO RESPONSE with a jaw_judged flag) will re-render the trial-class PNGs -> recrop slides 27-32. e3 owns
+> epoch_figures.py / epoch_behaviour.py now (boot_delta switch). 5b may change imaging section 1 -> deck slide 9.
+> PRIYA DECIDED 11-03: RESTW leads maps; slide 31 main; oblique 3-D relabelled OK; path axis + = contra leftward OK;
+> 11-02 mirrored path files deleted; bal_em adopted. OPEN: PS110 mCherry count on slide 115 (559 strict vs refined 891
+> before dedupe; grant panel A says 817 -- likely refined after tile dedupe, unverified); encoding-page figure-rules list
+> for sabatinilab-34 not yet sent (in the audit doc).
+>
+> **WINDOW STATE 11-03 (afternoon).** This window = PI deck + figure-rules pass (+ quiet events section 23).
 > Deck M:/MICROSCOPE/Priya/Widefield/presentations/PI_overview_2026-11-02.pptx = 138 slides, SHORT titles (map in
 > docs/status/DECK_TITLES_2026-11-03.csv; scripts find slides by TITLE or shape_name). This window is the ONLY deck
 > writer; helpers write swap specs (build_inputs/*.json), this window applies them (apply_*_1103.py, backed up, PowerPoint
