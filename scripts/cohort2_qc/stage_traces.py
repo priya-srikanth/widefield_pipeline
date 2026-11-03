@@ -59,4 +59,4 @@ for j,(name,s) in enumerate(ready):
     if j==0: ax.legend(fontsize=8,loc="upper right")
 fig.suptitle("Cohort2 2026-10-29  -  brain-mean traces by processing stage (415 / 470 raw -> hemo-corrected)",fontsize=12.5,y=0.997)
 fig.tight_layout(rect=[0,0,1,0.985])
-out=f"E:/labcams_data/20261029/cohort2_stage_traces.png"; fig.savefig(out,dpi=135); print("wrote",out,"(",ncol,"sessions )")
+out="E:/labcams_data/20261029/cohort2_stage_traces.png"; fig.savefig(out,dpi=135); print("wrote",out,"(",ncol,"sessions )")

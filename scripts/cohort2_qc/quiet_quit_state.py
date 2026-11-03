@@ -133,9 +133,9 @@ def main():
     ap.add_argument("--summarise", action="store_true")
     a = ap.parse_args()
     if not a.summarise:
-        from wfield_local.parallel import fan_out
+        from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = sorted(f.stem for f in (V2 / "sessions").glob("*.npz") if f.stem[-4:] >= "0806")
-        res, fail = fan_out(labels, extract, jobs=a.jobs, label="session")
+        res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:
             print("FAILED", x)

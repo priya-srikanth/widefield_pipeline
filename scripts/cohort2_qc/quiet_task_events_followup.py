@@ -498,9 +498,9 @@ def main():
         figure(pd.read_csv(OUT / "effects.csv"), pd.read_csv(OUT / "trials.csv.gz", low_memory=False))
         return
     if not a.summarise:
-        from wfield_local.parallel import fan_out
+        from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = a.only or sorted(f.stem for f in (TE / "sessions").glob("*.npz") if f.stem[:4] in ANIMALS)
-        res, fail = fan_out(labels, extract, jobs=min(a.jobs, 4), label="session")
+        res, fail = fan_sessions(labels, extract, jobs=min(a.jobs, 4), label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:
             print("FAILED", x)

@@ -91,11 +91,11 @@ def main():
     ap.add_argument("dates", nargs="+")
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args()
-    from wfield_local.parallel import fan_out
+    from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
     from wfield_local.writeguard import assert_writable
     sessions = sorted(str(p) for d in a.dates for p in (LABCAMS / d).glob("PS*")
                       if (p / "motion_corrected" / "wfield_local_results" / "swap_repair.json").exists())
-    res, fail = fan_out(sessions, one, jobs=a.jobs, label="session")
+    res, fail = fan_sessions(sessions, one, jobs=a.jobs, label="session")
     if fail:
         raise SystemExit(f"failed: {fail}")
     R = sorted((r for _, r in res), key=lambda r: (r["stats"]["animal"], r["stats"]["date"]))

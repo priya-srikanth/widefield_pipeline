@@ -65,8 +65,8 @@ def one(s):
 
 
 def main():
-    from wfield_local.parallel import fan_out
-    res, fail = fan_out(sessions(), one, jobs=4, label="session")
+    from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
+    res, fail = fan_sessions(sessions(), one, jobs=4, label="session")
     if fail:
         print("FAILED", fail)
     R = sorted((r for _, r in res), key=lambda r: (r["indicator"], r["label"]))

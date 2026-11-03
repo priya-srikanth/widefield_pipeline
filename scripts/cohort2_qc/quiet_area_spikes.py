@@ -240,9 +240,8 @@ def main():
     assert_writable(OUT)
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels, fan_sessions  # noqa: F401
-        from wfield_local.parallel import fan_out
         labels = sorted(curated_labels())
-        _, fail = fan_out(labels, extract, jobs=a.jobs, label="session")
+        _, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         if fail:
             raise SystemExit(f"{len(fail)} session(s) FAILED, not summarising a partial set: {fail[:3]}")
     summarise()

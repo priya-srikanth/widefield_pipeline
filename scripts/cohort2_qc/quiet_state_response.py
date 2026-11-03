@@ -475,9 +475,9 @@ def main():
         raise SystemExit("--jobs 4 max on this shared box")
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
-        from wfield_local.parallel import fan_out
+        from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806" and k[:4] in ANIMALS]
-        res, fail = fan_out(labels, extract, jobs=a.jobs, label="session")
+        res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:
             print("FAILED", x)

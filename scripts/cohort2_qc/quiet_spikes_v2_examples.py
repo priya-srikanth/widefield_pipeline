@@ -79,9 +79,9 @@ def main():
     from quiet_fluct import animal_sd
     from wfield_local import epochs
     from wfield_local.orofacial_cohort import EPOCH_LINE
-    from wfield_local.parallel import fan_out
+    from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
     labels = [f"{an}_{d}" for an, ds in PAIRS.items() for d in ds]
-    res, fail = fan_out(labels, one, jobs=5, label="session")
+    res, fail = fan_sessions(labels, one, jobs=5, label="session")
     if fail:
         raise SystemExit(f"failed: {fail}")
     D = {r["label"]: r for r in (x[1] if isinstance(x, tuple) else x for x in res)}

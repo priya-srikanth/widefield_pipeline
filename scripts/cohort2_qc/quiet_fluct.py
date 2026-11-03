@@ -421,9 +421,9 @@ def main():
     a = ap.parse_args()
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
-        from wfield_local.parallel import fan_out
+        from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806"]
-        res, fail = fan_out(labels, extract, jobs=a.jobs, label="session")
+        res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:
             print("FAILED", x)

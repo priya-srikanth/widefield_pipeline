@@ -157,12 +157,12 @@ def main():
     a = ap.parse_args()
     if not a.summarise:
         import pandas as pd
-        from wfield_local.parallel import fan_out
+        from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = sorted(x for x in pd.read_csv(TA, usecols=["label"]).label.unique() if x[-4:] >= "0806")
         if a.reverse:
-            fan_out(labels[::-1], extract, jobs=a.jobs, label="session")
+            fan_sessions(labels[::-1], extract, jobs=a.jobs, label="session")
             return
-        res, fail = fan_out(labels, extract, jobs=a.jobs, label="session")
+        res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:
             print("FAILED", x)

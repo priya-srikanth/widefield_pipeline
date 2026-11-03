@@ -99,12 +99,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=6)
     a = ap.parse_args()
-    from wfield_local.parallel import fan_out
+    from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
     from wfield_local.writeguard import assert_writable
     assert_writable(OUT)
     OUT.mkdir(parents=True, exist_ok=True)
     items = sessions()
-    res, fail = fan_out(items, one, jobs=a.jobs, label="session")
+    res, fail = fan_sessions(items, one, jobs=a.jobs, label="session")
     R = sorted((r for _, r in res), key=lambda r: (r["cohort"], r["label"]))
     (OUT / "epileptiform_scan.json").write_text(json.dumps(R, indent=1))
     if fail:

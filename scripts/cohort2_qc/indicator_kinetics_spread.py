@@ -270,11 +270,11 @@ SCALARS = ["cortex_t_peak_s", "cortex_decay50_s", "hotspot_t_peak_s", "hotspot_d
 
 
 def main():
-    from wfield_local.parallel import fan_out
+    from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
     from wfield_local.writeguard import assert_writable
     S = sessions()
     print("sessions:", [s["label"] for s in S], flush=True)
-    res, fail = fan_out(S, one, jobs=4, label="session")
+    res, fail = fan_sessions(S, one, jobs=4, label="session")
     if fail:
         print("FAILED", fail)
     R = sorted((r for _, r in res), key=lambda r: (r["cohort"] != "cohort2", r["indicator"], r["label"]))

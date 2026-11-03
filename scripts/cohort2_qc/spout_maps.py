@@ -97,7 +97,7 @@ def main():
     ap.add_argument("dates", nargs="+")
     ap.add_argument("--uniform", action="store_true", help="one colour scale across all animals and sessions")
     a = ap.parse_args()
-    from wfield_local.parallel import fan_out
+    from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
     from wfield_local.writeguard import assert_writable
     items, missing = [], []
     for d in a.dates:
@@ -106,7 +106,7 @@ def main():
             (items.append((str(sd), str(h5[0]))) if h5 else missing.append(sd.name))
     if missing:
         print("NO DAQ .h5 on the share, skipped:", missing, flush=True)
-    res, fail = fan_out(items, one, jobs=4, label="session")
+    res, fail = fan_sessions(items, one, jobs=4, label="session")
     if fail:
         print("FAILED", fail)
     R = sorted((r for _, r in res), key=lambda r: (r["date"], r["animal"]))

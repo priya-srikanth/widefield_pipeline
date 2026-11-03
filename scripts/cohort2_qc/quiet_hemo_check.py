@@ -420,9 +420,9 @@ def main():
         figure(pd.read_csv(HO / "quiet_hemo_sessions.csv"), pd.read_csv(HO / "lmm_hemo415.csv"))
         return
     if not a.summarise:
-        from wfield_local.parallel import fan_out
+        from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = a.only or sorted(f.stem for f in (V2 / "sessions").glob("PS9[2-5]_*.npz"))
-        res, fail = fan_out(labels, work, jobs=min(a.jobs, 3), label="session")
+        res, fail = fan_sessions(labels, work, jobs=min(a.jobs, 3), label="session")
         for _, r in sorted(res, key=lambda x: x[0]):
             print(r)
         print(f"{len(res)} done, {len(fail)} failed")

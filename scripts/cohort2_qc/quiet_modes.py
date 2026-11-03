@@ -106,9 +106,9 @@ def one(label):
 
 
 def main():
-    from wfield_local.parallel import fan_out
+    from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
     labels = [f"{a}_{d}" for a, (pre, post) in SESS.items() for d in pre + post]
-    res, fail = fan_out(labels, one, jobs=5, label="session")
+    res, fail = fan_sessions(labels, one, jobs=5, label="session")
     if fail:
         print("FAILED", fail)
     R = sorted((r for _, r in res), key=lambda r: r["session"])

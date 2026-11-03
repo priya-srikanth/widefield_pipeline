@@ -571,11 +571,11 @@ def main():
     ap.add_argument("--only", nargs="*")
     a = ap.parse_args()
     if not a.summarise:
-        from wfield_local.parallel import fan_out
+        from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = a.only or sorted(f.stem for f in (V2 / "sessions").glob("*.npz")
                                   if f.stem[:4] in ("PS92", "PS93", "PS94", "PS95") and f.stem[-4:] >= "0806")
         for worker in (extract, extract_td):           # pass 2 needs pass 1's proxy choice
-            res, fail = fan_out(labels, worker, jobs=min(a.jobs, 5), label="session")
+            res, fail = fan_sessions(labels, worker, jobs=min(a.jobs, 5), label="session")
             print(f"{worker.__name__}: {len(res)} done, {len(fail)} failed")
             for x in fail:
                 print("FAILED", x)

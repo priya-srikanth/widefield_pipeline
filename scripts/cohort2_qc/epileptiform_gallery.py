@@ -94,8 +94,8 @@ def one(r):
 def main():
     labels = sys.argv[1:] or DEFAULT
     R = {r["label"]: r for r in json.loads((SCAN / "epileptiform_scan.json").read_text())}
-    from wfield_local.parallel import fan_out
-    res, fail = fan_out([R[k] for k in labels], one, jobs=4, label="session")
+    from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
+    res, fail = fan_sessions([R[k] for k in labels], one, jobs=4, label="session")
     if fail:
         print("FAILED", fail)
     G = {g["label"]: g for _, g in res}
